@@ -29,7 +29,7 @@ import { CompartilhamentoRepository } from './compartilhamento.repository.js'
  * 5. **A versão da coordenação** (`coordenacao`, do titular sem conta ativa) nunca traz a conversa do professor com o
  *    Assistente (`thread_agente`, `mensagem_agente`), a `entrada` das execuções que ele pediu, a `entrada` e a `saida` do
  *    consumo de IA, nem a `justificativa` das entregas (regra 70, item 8). Traz a conversa do Tutor, pela exceção
- *    declarada no PRD, seção 6.
+ *    declarada no PRD, seção 6. Também não traz a `introducao_vista_em` do professor (D64); a do aluno vai nas duas.
  */
 
 /** Uma tabela do arquivo: a descrição que o resumo mostra e as leituras, que dependem da versão. */
@@ -84,14 +84,15 @@ const ESCOPO = 'a escola do contexto: o arquivo é todo dela'
 export const LEITURAS_DO_ARQUIVO: Readonly<Record<string, LeituraDaTabela>> = {
   usuario: {
     descricao: 'O seu cadastro na escola',
-    colunas: ['id', 'papel', 'nome', 'desativado_em'],
+    colunas: ['id', 'papel', 'nome', 'desativado_em', 'introducao_vista_em'],
     fora: {
       escola_id: ESCOPO,
       conta_id: 'ligação interna com a conta global; o e-mail da conta vem em `conta`',
       eliminacao_agendada_em: 'espelho do pedido de eliminação (14.0): a data do pedido e o `eliminar_em` dele já estão em `pedido_titular`',
     },
-    consultas: ({ escolaId, titularId }) => [
-      sql`select ${colunasDoSelect('id', 'papel', 'nome', 'desativado_em')} from usuario t where t.escola_id = ${escolaId} and t.id = ${titularId}`,
+    consultas: ({ escolaId, titularId, versao }) => [
+      // A data da introdução é do titular: o aluno a recebe nas duas versões (art. 18), e a do professor só na completa (D64).
+      sql`select ${colunasDoSelect('id', 'papel', 'nome', 'desativado_em')}, ${versao === 'completa' ? sql.raw('t.introducao_vista_em') : sql.raw("case when t.papel = 'aluno' then t.introducao_vista_em end as introducao_vista_em")} from usuario t where t.escola_id = ${escolaId} and t.id = ${titularId}`,
     ],
   },
   conta: {

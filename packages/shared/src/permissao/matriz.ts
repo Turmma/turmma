@@ -34,8 +34,8 @@ export const RECURSOS = {
   sistema_contexto: ['ler'],
   /** `/v1/sistema/jobs-sinteticos`: só teste e carga, com `ROTAS_SINTETICAS=true`. */
   sistema_job_sintetico: ['criar', 'ler'],
-  /** `GET /v1/eu`. */
-  eu: ['ler'],
+  /** `GET /v1/eu`; `concluir_introducao` é `POST /v1/eu/introducao`, a pessoa marcando que viu a introdução. */
+  eu: ['ler', 'concluir_introducao'],
   /** `POST /v1/sessao/atividade`, `DELETE /v1/sessao` e `POST /v1/sessao/escola` com token. */
   sessao: ['registrar_atividade', 'encerrar', 'trocar_escola'],
   /** `PUT /v1/escola/provedores` e `PUT /v1/escola/sessao`. */
@@ -196,7 +196,7 @@ export const MATRIZ: { readonly [P in Papel]: CelulasDoPapel } = {
   rede: {
     sistema_contexto: { ler: 'nunca' },
     sistema_job_sintetico: { criar: 'nunca', ler: 'nunca' },
-    eu: { ler: 'nunca' },
+    eu: { ler: 'nunca', concluir_introducao: 'nunca' },
     sessao: { registrar_atividade: 'nunca', encerrar: 'nunca', trocar_escola: 'nunca' },
     escola_configuracao: { alterar: 'nunca' },
     ano_letivo: { ler: 'nunca', criar: 'nunca', abrir: 'nunca', encerrar: 'nunca' },
@@ -238,7 +238,7 @@ export const MATRIZ: { readonly [P in Papel]: CelulasDoPapel } = {
   coordenador: {
     sistema_contexto: { ler: 'proprio' },
     sistema_job_sintetico: { criar: 'unidade', ler: 'unidade' },
-    eu: { ler: 'proprio' },
+    eu: { ler: 'proprio', concluir_introducao: 'proprio' },
     sessao: { registrar_atividade: 'proprio', encerrar: 'proprio', trocar_escola: 'proprio' },
     escola_configuracao: { alterar: 'unidade' },
     ano_letivo: { ler: 'unidade', criar: 'unidade', abrir: 'unidade', encerrar: 'unidade' },
@@ -280,7 +280,7 @@ export const MATRIZ: { readonly [P in Papel]: CelulasDoPapel } = {
   professor: {
     sistema_contexto: { ler: 'proprio' },
     sistema_job_sintetico: { criar: 'unidade', ler: 'unidade' },
-    eu: { ler: 'proprio' },
+    eu: { ler: 'proprio', concluir_introducao: 'proprio' },
     sessao: { registrar_atividade: 'proprio', encerrar: 'proprio', trocar_escola: 'proprio' },
     escola_configuracao: { alterar: 'nunca' },
     ano_letivo: { ler: 'nunca', criar: 'nunca', abrir: 'nunca', encerrar: 'nunca' },
@@ -322,7 +322,7 @@ export const MATRIZ: { readonly [P in Papel]: CelulasDoPapel } = {
   aluno: {
     sistema_contexto: { ler: 'proprio' },
     sistema_job_sintetico: { criar: 'nunca', ler: 'nunca' },
-    eu: { ler: 'proprio' },
+    eu: { ler: 'proprio', concluir_introducao: 'proprio' },
     sessao: { registrar_atividade: 'proprio', encerrar: 'proprio', trocar_escola: 'nunca' },
     escola_configuracao: { alterar: 'nunca' },
     ano_letivo: { ler: 'nunca', criar: 'nunca', abrir: 'nunca', encerrar: 'nunca' },

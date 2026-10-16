@@ -162,7 +162,7 @@ export class SessaoModule implements OnApplicationShutdown {
           inject: [ContadorDeTentativas, ContadorEmJanela, ConsumoDeDesafio],
         },
         { provide: EuRepository, useFactory: (banco: Banco) => new EuRepository(banco), inject: [BANCO] },
-        { provide: EuService, useFactory: (eu: EuRepository, resolucao: ResolucaoDeTenantRepository) => new EuService(eu, resolucao), inject: [EuRepository, ResolucaoDeTenantRepository] },
+        { provide: EuService, useFactory: (eu: EuRepository, resolucao: ResolucaoDeTenantRepository) => new EuService(eu, resolucao, opcoes.medidor ?? medidorGlobal()), inject: [EuRepository, ResolucaoDeTenantRepository] },
         { provide: CookieDeDispositivo, useFactory: () => new CookieDeDispositivo(opcoes.login.dispositivo.versao, opcoes.login.dispositivo.chave) },
         {
           provide: ConclusaoDeLogin,

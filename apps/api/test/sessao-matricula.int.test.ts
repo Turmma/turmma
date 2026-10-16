@@ -163,7 +163,7 @@ describe('POST /v1/sessao/matricula: o aluno entra pelo endereço da escola com 
     const doAluno = await eu(resposta)
     expect(doAluno).toMatchObject({ usuarioId, papel: 'aluno', escola: { id: escolaId, slug }, inatividadeMin: 30 })
     // O contrato do /v1/eu não leva a matrícula nem nada da credencial.
-    expect(Object.keys(doAluno).sort()).toEqual(['acessos', 'escola', 'inatividadeMin', 'nome', 'papel', 'usuarioId'])
+    expect(Object.keys(doAluno).sort()).toEqual(['acessos', 'escola', 'inatividadeMin', 'introducaoVistaEm', 'nome', 'papel', 'usuarioId'])
     // O aluno não tem conta: nenhum outro acesso a listar.
     expect(doAluno['acessos']).toEqual([])
     expect(JSON.stringify(doAluno)).not.toContain(matricula)

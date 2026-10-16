@@ -31,6 +31,7 @@ describe('ResolucaoDeTenantRepository: toda operação sem escopo é marcada e j
       'escolasDaRedeDoIpDeSaida',
       'gravarFalhaDeLoginPorEmail',
       'gravarSegredoDeMfa',
+      'introducaoMaisAntigaDaConta',
       'mfaDaConta',
       'sessaoParaRenovar',
       'temAcessoSuspenso',
@@ -47,6 +48,7 @@ describe('ResolucaoDeTenantRepository: toda operação sem escopo é marcada e j
     expect(justificativas['sessaoParaRenovar']).toMatch(/cookie de renovação não diz a escola/)
     expect(justificativas['usuariosAtivosDaConta']).toMatch(/credencial da equipe é global/)
     expect(justificativas['acessosDaConta']).toMatch(/credencial da equipe é global/)
+    expect(justificativas['introducaoMaisAntigaDaConta']).toMatch(/a data mais antiga.*mesmo papel.*não sai em acessos/)
     expect(justificativas['criarContas']).toMatch(/conta é global/)
     expect(justificativas['contaPorEmail']).toMatch(/credencial da equipe é global/)
     expect(justificativas['gravarFalhaDeLoginPorEmail']).toMatch(/antes de haver escola/)

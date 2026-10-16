@@ -1,6 +1,6 @@
 import { escola, identidadeDaRequisicao, usuario, type Banco } from '@educa/nucleo'
 import type { PapelDeUsuario } from '@educa/shared'
-import { and, eq } from 'drizzle-orm'
+import { and, eq, sql } from 'drizzle-orm'
 
 export interface LinhaDoEu {
   readonly usuarioId: string
@@ -11,6 +11,8 @@ export interface LinhaDoEu {
   readonly escola: { readonly id: string; readonly nome: string; readonly slug: string }
   readonly inatividadeAlunoMin: number
   readonly inatividadeEquipeMin: number
+  /** Quando esta linha viu a introdução; só dela. A data de outra escola da conta vem de `introducaoMaisAntigaDaConta`. */
+  readonly introducaoVistaEm: Date | null
 }
 
 /**
@@ -31,11 +33,28 @@ export class EuRepository {
         escola: { id: escola.id, nome: escola.nome, slug: escola.slug },
         inatividadeAlunoMin: escola.inatividadeAlunoMin,
         inatividadeEquipeMin: escola.inatividadeEquipeMin,
+        introducaoVistaEm: usuario.introducaoVistaEm,
       })
       .from(usuario)
       .innerJoin(escola, eq(escola.id, usuario.escolaId))
       .where(and(eq(usuario.escolaId, escolaId), eq(usuario.id, usuarioId)))
       .limit(1)
     return linha
+  }
+
+  /**
+   * Marca que a pessoa da sessão viu a introdução, e devolve a data que ficou: a primeira (`coalesce`), por mais vezes que
+   * seja chamada, e por mais de uma ao mesmo tempo (a segunda espera a trava da linha). Só a linha do contexto, `escola_id`
+   * e `id`; não recebe data, para o `GET /v1/eu` não gravar na linha dela o valor que leu de outra escola. Não pede ano em
+   * curso: a escola recém-criada ainda não tem e grava do mesmo jeito. Sem linha (a pessoa saiu entre a guarda e aqui), nada.
+   */
+  async marcarIntroducaoVista(): Promise<Date | undefined> {
+    const { escolaId, usuarioId } = identidadeDaRequisicao()
+    const [linha] = await this.banco
+      .update(usuario)
+      .set({ introducaoVistaEm: sql`coalesce(${usuario.introducaoVistaEm}, now())` })
+      .where(and(eq(usuario.escolaId, escolaId), eq(usuario.id, usuarioId)))
+      .returning({ introducaoVistaEm: usuario.introducaoVistaEm })
+    return linha?.introducaoVistaEm ?? undefined
   }
 }

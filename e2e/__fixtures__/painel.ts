@@ -70,13 +70,13 @@ async function coordenacaoNoEstado(banco: Client, escolaId: string, estado: Esta
   const contaId = await id(banco, 'insert into conta (email) values ($1) returning id', [`painel-${estado}-${marca}@educa.invalid`])
   const nome = `Coordenadora sintética ${marca.slice(0, 8)}`
   if (estado === 'ativa') {
-    await banco.query("insert into usuario (escola_id, conta_id, papel, nome) values ($1, $2, 'coordenador', $3)", [escolaId, contaId, nome])
+    await banco.query("insert into usuario (escola_id, conta_id, papel, nome, introducao_vista_em) values ($1, $2, 'coordenador', $3, now())", [escolaId, contaId, nome])
     return contaId
   }
   // O convidado nasce inativo; no aceite ele entraria. `aceito`: desativado antes do uso do convite (falta a primeira
   // entrada); `sem_coordenacao`: desativado depois.
   const desativado = estado === 'aceito' ? "now() - interval '1 hour'" : 'now()'
-  const usuarioId = await id(banco, `insert into usuario (escola_id, conta_id, papel, nome, desativado_em) values ($1, $2, 'coordenador', $3, ${desativado}) returning id`, [
+  const usuarioId = await id(banco, `insert into usuario (escola_id, conta_id, papel, nome, desativado_em, introducao_vista_em) values ($1, $2, 'coordenador', $3, ${desativado}, now()) returning id`, [
     escolaId,
     contaId,
     nome,

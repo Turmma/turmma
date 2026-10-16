@@ -83,6 +83,7 @@ export const NOMES_NO_PROMETHEUS = {
   hashRecusado: ['login_hash_recusado_total'],
   renovacaoDeSessao: ['sessao_renovacao_total'],
   atividadeFalha: ['sessao_atividade_falha_total'],
+  introducaoNaoGravada: ['eu_introducao_falha_total'],
   entradaFalhaDaOperacao: ['operacao_entrada_falha_total'],
   escolaIgnoradaNoUso: ['uso_escola_ignorada_total'],
   reivindicacaoNaSala: ['sala_reivindicacao_total'],

@@ -1271,3 +1271,6 @@ Achados ao conferir o código depois do merge (`13eab64`). Não estão resolvido
   `docs/mvp-rapido.md`). Com dado sintético não expõe ninguém; antes de aluno real, a D19 precisa valer.
 - [ ] **O aluno não vê nem contesta o que o Tutor sabe (D66; regra 70, item 4d).** A rota `GET /v1/tutor/memoria`
   existe, mas não há tela, e não há caminho de contestação (decisão 27 de `docs/mvp-rapido.md`). Antes de aluno real.
+- [ ] **`GET /v1/eu`: a falha da gravação da data da introdução é engolida sem classe nem log** (telas do aluno, tarefa 1.0).
+  O `catch` de `#gravarSemEmprestar` (`apps/api/src/sessao/eu.service.ts`) só conta em `eu.introducao_falha`. Registrar a
+  classe do erro exige log novo (só a classe, sem dado de pessoa) e filtro do que é falha do banco. Fazer quando o contador subir.

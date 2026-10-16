@@ -180,6 +180,21 @@ export class ResolucaoDeTenantRepository {
       .orderBy(escola.nome, usuario.id)
   }
 
+  /**
+   * A data mais antiga em que a conta viu a introdução, entre os usuários ativos dela **com o mesmo papel** (telas do aluno,
+   * tarefa 1.0): a professora que já viu a introdução na escola A não a vê de novo ao entrar na B. O papel é filtrado na
+   * query, porque a introdução da coordenação não é a do professor. Mesmo critério de `acessosDaConta` (sem desativado,
+   * sem eliminação agendada); o `min` ignora quem ainda não viu. Devolve só a data: nada da outra escola, nem o nome dela.
+   */
+  @SemEscopo('a credencial da equipe é global: o /v1/eu lê, pela conta da sessão, a data mais antiga em que um usuário ativo dela, com o mesmo papel, viu a introdução; devolve só essa data, que não sai em acessos nem no login')
+  async introducaoMaisAntigaDaConta(contaId: string, papel: PapelDeUsuario): Promise<Date | null> {
+    const [linha] = await this.banco
+      .select({ maisAntiga: sql<Date | null>`min(${usuario.introducaoVistaEm})` })
+      .from(usuario)
+      .where(and(eq(usuario.contaId, contaId), eq(usuario.papel, papel), isNull(usuario.desativadoEm), isNull(usuario.eliminacaoAgendadaEm)))
+    return linha?.maisAntiga == null ? null : new Date(linha.maisAntiga)
+  }
+
   @SemEscopo('a credencial da equipe é global: o login por e-mail acha a conta pelo e-mail antes de haver escola, e devolve só o id, o hash e se o MFA está ativo')
   async contaPorEmail(email: string): Promise<CredencialDaConta | undefined> {
     const [linha] = await this.banco

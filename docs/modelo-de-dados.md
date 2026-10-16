@@ -39,7 +39,8 @@ Conta            email?, senhaHash?, mfaSegredoCifrado?, mfaAtivadoEm?, mfaUltim
                  (global, sem escola: é a identidade de login da equipe)
 CodigoRecuperacao* → conta*, hmac*, usadoEm?
 Usuario*         → escola*, conta? (nulo no aluno), papel*, nome*, desativadoEm?,
-                   eliminacaoAgendadaEm? (F3: a data do registro da eliminação; o acesso fica suspenso)
+                   eliminacaoAgendadaEm? (F3: a data do registro da eliminação; o acesso fica suspenso),
+                   introducaoVistaEm? (telas do aluno: quando a pessoa viu a introdução do papel dela)
 CredencialMatricula* → escola*, usuario*, matricula*, senhaHash*
 ContaExterna*    → escola*, usuario*, provedor* (google | microsoft), tenant?, sujeito*
 ProvedorEscola*  → escola*, provedor*, valor* (hd | tid), removidoEm?
@@ -54,6 +55,14 @@ RegistroAcesso*  → escola?, usuario?, evento* (login | login_falho | renovacao
 Convite          → escola*, tokenHash*, tipo (coordenador | professor), usuario*, expiraEm,
                    usadoEm?, revogadoEm?
 ```
+
+**A introdução vista** (telas do aluno e primeiro acesso, tarefa 1.0). `usuario.introducao_vista_em` é uma data, nula até a
+pessoa ver a introdução do papel dela; depois nunca muda (`coalesce` na escrita, por `escola_id` e `id` do contexto). Mora
+no usuário, e não no vínculo, para a introdução não voltar em janeiro com o ano novo. O `GET /v1/eu` devolve a **mais antiga**
+entre a da própria linha e a dos outros usuários ativos da mesma conta **com o mesmo papel** (o aluno não tem conta: só a
+dele). Quando a data vem de outra escola e a linha da sessão está nula, o `GET` grava nela o `now()` da própria escrita, nunca
+o valor de lá; assim, quando o vínculo da outra escola terminar, a introdução não reabre. Vale só para quem leu o `/v1/eu`
+enquanto a outra escola estava ativa. Migration `0037`, só expande: coluna nula, sem padrão nem índice.
 
 **A eliminação agendada** (F3, tarefa 14.0). O pedido de eliminação do titular nasce `agendado`, com
 `eliminar_em = now() + 7 dias` pelo relógio do banco, e o mesmo registro grava `usuario.eliminacao_agendada_em` e

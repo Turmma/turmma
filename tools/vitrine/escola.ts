@@ -214,8 +214,8 @@ async function montarEscolaVazia(url: string, ativarMfa: boolean): Promise<Acess
     const disciplinaId = await id(banco, 'insert into disciplina (escola_id, nome) values ($1, $2) returning id', [escolaId, 'Química'])
     const turmaId = await id(banco, 'insert into turma (escola_id, ano_letivo_id, serie_id, nome) values ($1, $2, $3, $4) returning id', [escolaId, anoLetivoId, serieId, turma])
     const contaId = await id(banco, 'insert into conta (email, senha_hash) values ($1, $2) returning id', [professora.email, hashDaProfessora])
-    const professoraId = await id(banco, "insert into usuario (escola_id, conta_id, papel, nome) values ($1, $2, 'professor', $3) returning id", [escolaId, contaId, professora.nome])
-    const alunoId = await id(banco, "insert into usuario (escola_id, papel, nome) values ($1, 'aluno', $2) returning id", [escolaId, aluno.nome])
+    const professoraId = await id(banco, "insert into usuario (escola_id, conta_id, papel, nome, introducao_vista_em) values ($1, $2, 'professor', $3, now()) returning id", [escolaId, contaId, professora.nome])
+    const alunoId = await id(banco, "insert into usuario (escola_id, papel, nome, introducao_vista_em) values ($1, 'aluno', $2, now()) returning id", [escolaId, aluno.nome])
     await banco.query('insert into credencial_matricula (escola_id, usuario_id, matricula, senha_hash) values ($1, $2, $3, $4)', [escolaId, alunoId, aluno.matricula, hashDoAluno])
     // Quem cria vínculo é a coordenação (regra 60, item 8a), e os dois nascem confirmados: a professora já vê a turma.
     for (const [usuarioId, daDisciplina, papel] of [

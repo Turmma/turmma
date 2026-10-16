@@ -31,7 +31,7 @@ const PESSOA_A = '0197a1c0-0000-7000-8000-0000000000a1'
 const PESSOA_B = '0197a1c0-0000-7000-8000-0000000000b2'
 
 function respostaEu(papel: PapelDeUsuario, usuarioId: string, nome: string) {
-  return { status: 200, corpo: { usuarioId, papel, nome, escola: ESCOLA, inatividadeMin: 30, acessos: [] } }
+  return { status: 200, corpo: { usuarioId, papel, nome, escola: ESCOLA, inatividadeMin: 30, introducaoVistaEm: null, acessos: [] } }
 }
 
 /** A página vazia de "Esperando você", que só o papel com "Seu time" pede depois do `/v1/eu`. */

@@ -293,6 +293,26 @@ describe('POST /v1/sessao/escola e /v1/eu.acessos: quem trabalha em mais de uma 
     for (const segredo of segredosVistos) if (segredo.length > 0) expect(log.includes(segredo), 'um segredo do fluxo foi ao log').toBe(false)
   })
 
+  it('a data da introdução vista não vai na lista da etapa escolher: com a data gravada nas duas escolas, o corpo é o mesmo de antes', async () => {
+    const a = await escola('Colégio')
+    const b = await escola('Escola da rede')
+    const professora = await pessoa(a.id)
+    const emB = await naOutraEscola(professora, b.id)
+    await bancada.pool.query("update usuario set introducao_vista_em = '2020-01-02T03:04:05.678Z' where id = any($1::uuid[])", [[professora.usuarioId, emB]])
+
+    const login = await entrar(professora.email)
+
+    expect(login.corpo).toEqual({
+      etapa: 'escolher',
+      desafio: expect.any(String),
+      acessos: [
+        { usuarioId: professora.usuarioId, escolaNome: a.nome, redeNome: a.redeNome, papel: 'professor' },
+        { usuarioId: emB, escolaNome: b.nome, redeNome: b.redeNome, papel: 'professor' },
+      ].sort((um, outro) => um.escolaNome.localeCompare(outro.escolaNome)),
+    })
+    expect(JSON.stringify(login.corpo)).not.toContain('2020')
+  })
+
   it('isolamento: o token antigo de A, depois da troca, recebe 401 na requisição seguinte', async () => {
     const a = await escola('Colégio')
     const b = await escola('Escola da rede')

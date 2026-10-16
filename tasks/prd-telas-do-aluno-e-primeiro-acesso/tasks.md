@@ -5,13 +5,13 @@
 
 ## Lista
 
-- [ ] **1.0 — A pessoa marca que viu a introdução, e o `/v1/eu` devolve a data**
-  - [ ] 1.1 Coluna `usuario.introducao_vista_em`, migration e a coluna no arquivo do titular
-  - [ ] 1.2 `GET /v1/eu` devolve `introducaoVistaEm`, a mais antiga do mesmo papel na conta, e, se a data veio de outra escola e a própria linha está nula, grava `now()` nela, nunca o valor emprestado
-  - [ ] 1.3 `POST /v1/eu/introducao`, idempotente e sem ano letivo, com a ação `eu.concluir_introducao` na matriz
-  - [ ] 1.4 `concluirIntroducao()` no cliente da web; fixtures do e2e e vitrine criam pessoa com a introdução vista
-  - [ ] 1.5 `docs/lgpd.md` (linha nova no mapa) e `docs/modelo-de-dados.md`
-  - [ ] 1.6 Testes: repetida, em paralelo, dois usuários da mesma escola, sem ano em curso, vínculo encerrado, duas escolas, dois papéis, arquivo do titular
+- [x] **1.0 — A pessoa marca que viu a introdução, e o `/v1/eu` devolve a data**
+  - [x] 1.1 Coluna `usuario.introducao_vista_em`, migration e a coluna no arquivo do titular
+  - [x] 1.2 `GET /v1/eu` devolve `introducaoVistaEm`, a mais antiga do mesmo papel na conta, e, se a data veio de outra escola e a própria linha está nula, grava `now()` nela, nunca o valor emprestado
+  - [x] 1.3 `POST /v1/eu/introducao`, idempotente e sem ano letivo, com a ação `eu.concluir_introducao` na matriz
+  - [x] 1.4 `concluirIntroducao()` no cliente da web; fixtures do e2e e vitrine criam pessoa com a introdução vista
+  - [x] 1.5 `docs/lgpd.md` (linha nova no mapa) e `docs/modelo-de-dados.md`
+  - [x] 1.6 Testes: repetida, em paralelo, dois usuários da mesma escola, sem ano em curso, vínculo encerrado, duas escolas, dois papéis, arquivo do titular
 
 - [ ] **2.0 — O aluno navega por Início, Tarefas e Eu, e abre no Início**
   - [ ] 2.1 Os endereços novos em `caminhos.ts` (inclusive os três `bem-vindo` e `ehTelaDeFoco`)

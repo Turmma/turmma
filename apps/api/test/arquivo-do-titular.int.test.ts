@@ -495,6 +495,33 @@ describe('arquivo do titular (F3, tarefa 13.0): do pedido ao download', () => {
       expect((tabelas['pedido_titular'] ?? []).map(({ id }) => id)).toEqual([pedidoId])
     })
 
+    it('a data da introdução vista vai no arquivo da própria pessoa; a versão da coordenação traz a do aluno e não a do professor', async () => {
+      const cenario = await novaEscola()
+      const professor = await pessoa(cenario, 'professor', 'Professor')
+      await semearProfessor(cenario, professor)
+      const aluno = await pessoa(cenario, 'aluno', 'Aluno')
+      await semearAluno(cenario, aluno)
+      await bancada.pool.query("update usuario set introducao_vista_em = '2020-01-02T03:04:05.678Z' where id = any($1::uuid[])", [[professor.id, aluno.id]])
+      await bancada.pool.query('update usuario set desativado_em = now() where id = any($1::uuid[])', [[professor.id, aluno.id]])
+      const doProfessor = await pedidoPronto(cenario, professor)
+      const doAluno = await pedidoPronto(cenario, aluno)
+
+      const linhaDe = (pedidoId: string, versao: 'completa' | 'coordenacao', id: string) => {
+        const tabelas = documento(cenario.escolaId, pedidoId, versao)['tabelas'] as Record<string, Array<Record<string, unknown>>>
+        return tabelas['usuario']?.find((linha) => linha['id'] === id)
+      }
+      // O arquivo escreve a data no fuso da escola: vale o instante.
+      const instante = (valor: unknown) => new Date(String(valor)).toISOString()
+      expect(instante(linhaDe(doProfessor, 'completa', professor.id)?.['introducao_vista_em'])).toBe('2020-01-02T03:04:05.678Z')
+      expect(instante(linhaDe(doAluno, 'completa', aluno.id)?.['introducao_vista_em'])).toBe('2020-01-02T03:04:05.678Z')
+      // D64: a coordenação não recebe a data do professor; a do aluno, que é dado dele, vai nas duas versões (art. 18).
+      const doProfessorNaEscola = linhaDe(doProfessor, 'coordenacao', professor.id)
+      expect(doProfessorNaEscola).toBeDefined()
+      expect(doProfessorNaEscola?.['introducao_vista_em'] ?? null).toBeNull()
+      expect(textoDoObjeto(cenario.escolaId, doProfessor, 'coordenacao')).not.toContain('2020-01-02')
+      expect(instante(linhaDe(doAluno, 'coordenacao', aluno.id)?.['introducao_vista_em'])).toBe('2020-01-02T03:04:05.678Z')
+    })
+
     it('o ato do professor sobre outro aluno entra sem o dado do aluno, nas duas versões', async () => {
       const cenario = await novaEscola()
       const professor = await pessoa(cenario, 'professor', 'Professor')

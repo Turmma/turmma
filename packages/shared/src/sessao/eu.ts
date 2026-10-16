@@ -24,8 +24,18 @@ export const esquemaRespostaEu = z
     nome: z.string().min(1),
     escola: z.object({ id: z.uuid(), nome: z.string().min(1), slug: z.string().min(1) }).strict(),
     inatividadeMin: z.number().int().positive(),
+    /** Quando a pessoa viu a introdução do papel dela, ou nulo se ainda não viu. */
+    introducaoVistaEm: z.iso.datetime().nullable(),
     acessos: z.array(esquemaAcessoDaConta),
   })
   .strict()
 
 export type RespostaEu = z.infer<typeof esquemaRespostaEu>
+
+/** Corpo de `POST /v1/eu/introducao`: a pessoa marca que viu a introdução. Vazio e estrito: nada vem do cliente. */
+export const esquemaConcluirIntroducao = z.object({}).strict()
+
+/** Resposta do POST: a mesma data que o `GET /v1/eu` devolveria, a primeira que ficou gravada. */
+export const esquemaRespostaIntroducao = z.object({ introducaoVistaEm: z.iso.datetime() }).strict()
+
+export type RespostaIntroducao = z.infer<typeof esquemaRespostaIntroducao>

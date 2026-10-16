@@ -78,8 +78,8 @@ export {
   TENANT_DE_CONTA_PESSOAL_MICROSOFT,
 } from './estrutura/provedores.js'
 export type { PedidoProvedoresDaEscola, ProvedorDaEscola, RespostaProvedoresDaEscola } from './estrutura/provedores.js'
-export { esquemaAcessoDaConta, esquemaRespostaEu } from './sessao/eu.js'
-export type { AcessoDaConta, RespostaEu } from './sessao/eu.js'
+export { esquemaAcessoDaConta, esquemaConcluirIntroducao, esquemaRespostaEu, esquemaRespostaIntroducao } from './sessao/eu.js'
+export type { AcessoDaConta, RespostaEu, RespostaIntroducao } from './sessao/eu.js'
 export { esquemaPedidoTrocaDeEscola } from './sessao/troca-de-escola.js'
 export type { PedidoTrocaDeEscola } from './sessao/troca-de-escola.js'
 export { esquemaRespostaRenovacao, JANELA_DE_RENOVACAO_SIMULTANEA_MS } from './sessao/renovacao.js'

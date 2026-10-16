@@ -113,7 +113,7 @@ curso e escola entre anos (um encerrado, um planejado): POST 200 e GET com a dat
 | O que entra em auditoria | nada: não é leitura de dado alheio nem decisão (regra 20, item 10) |
 | O que é enviado a provedor externo | nada |
 | Retenção e expurgo | a da tabela `usuario` (`pessoa_desativada`): sai com a linha, no expurgo e na eliminação. O catálogo não ganha classe |
-| Arquivo do titular | a coluna entra em `LEITURAS_DO_ARQUIVO.usuario.colunas`; a versão `coordenacao` não a traz para professor (D64); o teste de cobertura prende as duas escolhas |
+| Arquivo do titular | a coluna entra em `LEITURAS_DO_ARQUIVO.usuario.colunas`; a versão `coordenacao` não a traz para professor (D64), e traz a do aluno, que é dado dele no pedido de acesso (LGPD, art. 18); o teste de cobertura prende as duas escolhas |
 | Autorização por objeto | não há objeto: a rota age sobre quem está no token |
 | DTO de saída | `introducaoVistaEm`, só da própria pessoa |
 
@@ -147,7 +147,7 @@ memória **não** são mostrados (F9). A comemoração depende só de o envio te
 | Corridas de concorrência | dois POST juntos (clique duplo, duas abas): o segundo espera a trava da linha, e o `coalesce` mantém a primeira data; os dois respondem 200 com a mesma data. Cenário com `Promise.all`. O GET de B, em duas abas logo depois do login ou junto de um POST em B, também mantém a primeira data (`Promise.all` de dois GET) |
 | Índices novos, migration | nenhum índice; coluna nula, que o código anterior ignora |
 | Quando cada dependência cai | banco: o `/v1/eu` falha e a tela mostra o `EstadoErro` de hoje; o POST que falha não prende ninguém. Tutor fora: o Início não depende dele |
-| Métrica, alerta, teste de carga | `infra/k6/login-7h30.js`: o aluno, depois do login, faz também `/v1/eu` e a primeira página de `minhas-atividades`, o que o Início lê; o k6 exige 200 com página não vazia em `minhas-atividades` e 200 em `/v1/eu`, contados em `respostas_inesperadas`. As duas chamadas novas entram em `autenticada_duracao`, com a tag `name` da rota, e a fase `rajada` ganha o limite `autenticada_duracao{grupo:rajada}: p(95) < P95_MAXIMO_DO_LOGIN_MS` (1.000 ms, o mesmo que já vale para B e C na `base`) e o mesmo limite só para a rota `GET /v1/minhas-atividades`, para ela não se esconder na média das outras |
+| Métrica, alerta, teste de carga | `infra/k6/login-7h30.js`: o aluno, depois do login, faz também `/v1/eu` e a primeira página de `minhas-atividades`, o que o Início lê; o k6 exige 200 com página não vazia em `minhas-atividades` e 200 em `/v1/eu`, contados em `respostas_inesperadas`. As duas chamadas novas entram em `autenticada_duracao`, com a tag `name` da rota, e a fase `rajada` ganha o limite `autenticada_duracao{grupo:rajada}: p(95) < P95_MAXIMO_DO_LOGIN_MS` (1.000 ms, o mesmo que já vale para B e C na `base`) e o mesmo limite só para a rota `GET /v1/minhas-atividades`, para ela não se esconder na média das outras. A gravação do `GET /v1/eu` que falha conta em `eu.introducao_falha` (contador sem rótulo: nem escola nem pessoa), com o painel "Datas da introdução que não gravaram" em `infra/grafana/paineis/fundacao.json`; sem alerta, porque a resposta sai igual e a introdução só reabre se a pessoa deixar a outra escola antes de a próxima leitura gravar |
 
 ## 8. Uso de IA (quando aplicável)
 
@@ -201,6 +201,7 @@ provado a 360 px, também com a letra Maior.
 | Carga | `infra/k6/login-7h30.js` com `/v1/eu` e `minhas-atividades` depois do login do aluno, em `autenticada_duracao`, e o p95 delas abaixo de `P95_MAXIMO_DO_LOGIN_MS` na fase `rajada` |
 | E2E | os lugares; a primeira entrada por papel; o tamanho da letra; e os specs do aluno, `areas`, `meus-dados`, `escola-montada` e `roteiro-da-demonstracao`, mudando só rótulo e caminho; os três passos obrigatórios, o passo 4 (pular sem escolher não grava; "Maior" aplica na hora e a 360 px não rola) e a segunda entrada em `browser.newContext()` |
 | Isolamento | os da seção 6, com os dois usuários da mesma escola e a mutação que tira `id = <contexto>` |
+| Matriz e ramos que o HTTP não alcança | "a rede é recusada" é provado pela matriz (`matriz.test.ts` contra `matriz.expectativa.ts`), porque a API não tem sessão de rede; o `NAO_AUTENTICADO` de "sem linha achada" (seção 4) é provado em unidade, com o repository de mentira, porque a guarda acabou de ler o usuário |
 
 As fixtures do e2e e a vitrine passam a criar pessoa **com a introdução vista**; quem testa a introdução pede o
 contrário, e pessoa criada pela tela passa por ela no teste.

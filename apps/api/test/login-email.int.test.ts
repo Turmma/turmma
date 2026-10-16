@@ -171,6 +171,7 @@ describe('POST /v1/sessao/email: a equipe entra por e-mail e senha', () => {
       nome: 'Pessoa sintética',
       escola: { id: escolaId, nome: escolas[0]?.nome, slug: escolas[0]?.slug },
       inatividadeMin: 120,
+      introducaoVistaEm: null,
       acessos: [{ usuarioId: professor.usuarioId, escolaNome: escolas[0]?.nome, redeNome: escolas[0]?.rede, papel: 'professor' }],
     })
 
