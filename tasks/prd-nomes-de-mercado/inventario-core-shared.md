@@ -46,7 +46,7 @@ Regras: `Adaptador<X>` → `<X>Adapter`; a porta `LLMProvider` já é nome de me
 
 | Atual | Proposto | Tipo | Onde (packages/) | Usos |
 |---|---|---|---|---|
-| `AdaptadorDeIa` | `LLMProviderKind` | type | `nucleo/src/config/config-ia.ts` | 1 |
+| `AdaptadorDeIa` | `LLMAdapterKind` (adenda 1) | type | `nucleo/src/config/config-ia.ts` | 1 |
 | `ConfiguracaoDeIa` | `LLMConfig` | interface | `nucleo/src/config/config-ia.ts` | 5 |
 | `ConfiguracaoDoExecutor` | `AgenteExecutorConfig` | interface | `nucleo/src/config/config-ia.ts` | 2 |
 | `ConfiguracaoDoModelo` | `ModelConfig` | interface | `nucleo/src/config/config-ia.ts` | 3 |
@@ -964,7 +964,7 @@ Regra: o arquivo acompanha o nome da peça que exporta (e o `.test.ts` acompanha
 | `nucleo/src/fila/vagas-por-escola.ts` | `nucleo/src/queue/escola-concurrency-limiter.ts` | arquivo | 1 |
 | `nucleo/src/fila/vaga.lua` | `nucleo/src/queue/concurrency-slot.lua` | arquivo | 0 |
 | `nucleo/src/fila/nome-da-fila.test.ts` | `nucleo/src/queue/queue-name.test.ts` | arquivo | 0 |
-| `nucleo/src/ia/adaptador.ts` | `nucleo/src/ia/model-adapter.ts` | arquivo | 11 |
+| `nucleo/src/ia/adaptador.ts` | `nucleo/src/ia/adapter.ts` (adenda 1: não casa com o glob `*-adapter.ts` da guarda do SDK) | arquivo | 11 |
 | `nucleo/src/ia/adaptador-falso.ts` | `nucleo/src/ia/fake-adapter.ts` | arquivo | 8 |
 | `nucleo/src/ia/adaptador-openai-compat.ts` | `nucleo/src/ia/openai-compat-adapter.ts` | arquivo | 6 |
 | `nucleo/src/ia/adaptador-openai-compat.test.ts` | `nucleo/src/ia/openai-compat-adapter.test.ts` | arquivo (teste) | 0 |

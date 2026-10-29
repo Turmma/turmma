@@ -399,8 +399,8 @@ Levantamento só de leitura, em `src` e `test` dos quatro apps (sem `node_module
 |---|---|---|---|---|
 | `comando.ts` | `command.ts` | arquivo | `apps/api/src/ops/` | 4 (+0) |
 | `SaidaDoComando / BancoDoComando / PedidoDoComando` | `CommandOutput / CommandDatabase / CommandRequest` | interfaces (duplicadas em comando.ts e sessao-sintetica.ts) | `apps/api/src/ops/comando.ts` | 16 (+0) |
-| `migrar.ts` | `migrate.ts` | arquivo (o compose chama dist/ops/migrar.js) | `apps/api/src/ops/migrar.ts` | 1 (+0) |
-| `sessao-sintetica.ts` | `synthetic-session.ts` | arquivo | `apps/api/src/ops/` | 2 (+0) |
+| `migrar.ts` | fica (ponto de entrada chamado pelo compose de produção; adenda 1 do `inventario.md`) | arquivo (o compose chama dist/ops/migrar.js) | `apps/api/src/ops/migrar.ts` | 1 (+0) |
+| `sessao-sintetica.ts` | fica (ponto de entrada do `ops:sessao-sintetica`; adenda 1 do `inventario.md`) | arquivo | `apps/api/src/ops/` | 2 (+0) |
 
 ### Padrão de nome: Dependencias*, Opcoes*, Configuracao*
 

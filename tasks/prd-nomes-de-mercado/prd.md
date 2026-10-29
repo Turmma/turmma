@@ -1,6 +1,6 @@
 # PRD — Nomes de mercado (X8)
 
-**Status:** aprovado (Joaquim, 29/10/2026, no terminal do Arquiteto, junto com o inventário)
+**Status:** aprovado (Joaquim, 29/10/2026, junto com o inventário); RF7 revisto por ele na revisão da spec
 **Funcionalidade do roadmap:** X8 `nomes-de-mercado`
 **Depende de:** X4 (`83f1c6d8`, pousada em 26/10/2026). O F2 espera esta pousar.
 
@@ -71,7 +71,7 @@ O usuário da escola não percebe nenhuma diferença. Os papéis aqui são os do
 | RF4 | `@educa/nucleo` vira `@educa/core`, e `packages/nucleo/` vira `packages/core/`. A imagem de cada app é construída, e o compose de desenvolvimento, o de teste e o de produção sobem com os mesmos serviços de antes | A esteira constrói as imagens; o compose de produção não tem diff de serviço |
 | RF5 | O kit visual (`apps/web/src/componentes/ui/`, menos a onça) usa o nome que o shadcn e o Radix dão à mesma peça (`Button`, `Card`, `Tabs`, `Alert`, `Table`, `Dialog`) | Inventário × árvore: nenhum componente do kit com o nome antigo; o teste de fidelidade da onça continua verde sem alteração |
 | RF6 | As peças de apoio dos testes (`apps/api/test/`, os `__fixtures__`, `e2e/__fixtures__`) usam o nome de mercado. O texto de `describe`, `it` e `test` não muda | Busca dos nomes antigos de apoio: zero; diff do texto dos casos: vazio |
-| RF7 | O diff é só de nome. Nenhuma string de fora muda (§3), nenhuma asserção muda e nenhum caso de teste entra ou sai. A tipagem, o lint, as guardas, a unidade, a integração e o e2e estão verdes antes da primeira onda e depois de cada onda | O gerador de migration não produz migration nova; a lista de rotas, de códigos de erro, de filas, de métricas e de eventos de log é igual antes e depois; o número de casos por suíte é igual; a esteira está verde em cada onda |
+| RF7 | O diff é só de nome. Nenhuma string de fora muda (§3), nenhum caso de teste entra ou sai, e nenhuma asserção muda, salvo o nome ou caminho renomeado que ela cita, declarado no mapa da onda com a prova (RF11; revisto pelo Joaquim em 29/10/2026). A tipagem, o lint, as guardas, a unidade, a integração e o e2e estão verdes antes da primeira onda e depois de cada onda | O gerador de migration não produz migration nova; a lista de rotas, de códigos de erro, de filas, de métricas e de eventos de log é igual antes e depois; o número de casos por suíte é igual; a esteira está verde em cada onda |
 
 **C. Trava e documentos**
 
@@ -127,11 +127,4 @@ o RF11 cobrem esse risco: as guardas e os testes dessas regras ficam verdes e co
 
 ## 10. Perguntas em aberto
 
-Ficam para a Tech Spec:
-
-1. O corte das ondas (por pacote, na ordem `shared` → `core` → apps → web → e2e) e o que pode correr em linhas
-   paralelas sem um rename pisar no outro
-2. Como a guarda do RF8 lê o código: regra do ESLint (`@typescript-eslint/naming-convention` ou
-   `no-restricted-syntax`) ou guarda em `tools/guardas/`, e onde fica a lista de prefixos
-3. Como provar o "diff só de nome" de forma barata a cada onda: o rename reverso aplicado ao diff, ou a comparação das
-   listas do RF7
+Nenhuma. O corte das ondas, a guarda do RF8 e a prova do "diff só de nome" estão na Tech Spec.

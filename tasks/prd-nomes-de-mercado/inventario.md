@@ -168,3 +168,16 @@ caso que pegava.
   `packages/nucleo`), `.claude/skills/`, `.claude/agents/`, `docs/guia-do-desenvolvedor.md` (§3 a §9),
   `docs/arquitetura.md`, `docs/interface.md` (a §10 lista o kit pelo nome), `packages/core/src/ia/README.md` e
   `components/ui/ai/README.md`. O `docs/decisoes.md` e as specs fechadas não mudam, porque são histórico
+
+## 5. Adendas
+
+**Adenda 1 — 29/10/2026, aprovada pelo Joaquim no terminal do Arquiteto, na revisão da spec (rodada 1)**
+
+- Os arquivos de `apps/api/src/ops/` que são pontos de entrada chamados por texto (`migrar.ts`, pelo compose de
+  produção e pelo runbook; `sessao-sintetica.ts`, pelo `package.json`) **ficam com o nome**. As peças de dentro
+  deles mudam. O compose de produção não muda
+- O arquivo da interface do adaptador, `ia/adaptador.ts`, vira `ia/adapter.ts`, e não `model-adapter.ts`. Assim ele
+  não casa com o glob `*-adapter.ts` da guarda do SDK de IA, que isenta só os três adaptadores. `AdaptadorDeIa` vira
+  `LLMAdapterKind`, e não `LLMProviderKind` (decisão 6)
+- **O `this.name` das classes de erro acompanha a classe** (`'ErroDeDominio'` → `'DomainException'`). O campo `tipo`
+  do log muda junto, e nenhum alerta nem o runbook o leem

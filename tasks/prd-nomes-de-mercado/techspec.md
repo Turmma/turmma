@@ -1,191 +1,190 @@
 # Tech Spec — Nomes de mercado (X8)
 
-**PRD:** `tasks/prd-nomes-de-mercado/prd.md` · **Inventário:** `inventario.md` e os três anexos
-**Status:** rascunho
+**PRD:** `prd.md` · **Inventário:** `inventario.md` e anexos · **Travas:** `travas.md`
+**Status:** rascunho, rodada 2 da revisão da spec
 
 ## 1. Resumo da abordagem
 
-A 1.0 escreve o `tools/renomear/`, que tem dois comandos:
-
-- o `aplicar` lê um mapa e executa o "rename symbol" e o "move file" do serviço de linguagem do TypeScript (os do VS
-  Code) em todos os projetos de uma vez;
-- o `conferir` compara as strings e os textos de tela de antes e de depois, e é ele que prova o "diff só de nome".
-
-Cada onda escreve o mapa dela a partir do anexo, roda os dois comandos e ajusta à mão as referências por texto (§2).
-As duas linhas (decisão do Joaquim, 29/10/2026) vêm depois do core.
+O `tools/renomear/` tem quatro comandos. O `aplicar` roda o "rename symbol" e o "move file" do serviço de linguagem
+do TypeScript, um por `tsconfig` (o ts-morph tem um projeto só). O `conferir` prova o "só nome", o `restos` prova que
+nada sobrou, e o `reaplicar` serve ao merge. Cada onda escreve o mapa a partir do anexo, roda os comandos e troca à
+mão as travas (`travas.md`). Depois das ondas em fila, o back e a web correm em duas linhas (Joaquim, 29/10/2026).
 
 ## 2. Módulos afetados
 
 | Módulo | O quê |
 |---|---|
-| `tools/renomear/` (novo) | `aplicar`, `conferir` e os testes deles |
-| `tasks/prd-nomes-de-mercado/mapas/<N>.json` (novo) | o mapa da onda: entrada do `aplicar` e documento da tarefa |
-| `packages/shared`, `packages/nucleo` → `packages/core`, `apps/*`, `e2e/` | as ondas da §5 |
-| `tools/guardas/` | as referências por texto, em cada onda (RF11), e a regra `guardas/nome-de-mercado` na 11.0 (RF8) |
-| `tools/processo/`, `tools/testes/`, `tools/ia/`, `tools/ci/`, `tools/demonstracao/` | só as referências por texto e os imports |
-| `eslint-suppressions.json`, `eslint.config.mjs`, `knip.json`, `package.json`, `package-lock.json`, `infra/docker/servico.Dockerfile`, `infra/compose.yml`, `infra/test/`, `infra/scripts/`, `.github/workflows/ci.yml` | o caminho e o nome do pacote, na onda que os muda |
-| `CLAUDE.md`, `.claude/`, `docs/` vivos | o caminho, na onda que o muda; o nome de símbolo, nas ondas em fila e na 12.0 |
-
-**Referências por texto** são os arquivos que escrevem nome ou caminho de peça como texto (inventário §4 e a seção
-"Referências por caminho ou por nome" de cada anexo), e o serviço de linguagem não os vê. O `aplicar` lista onde cada
-nome do mapa aparece como palavra inteira fora do TypeScript (`.mjs`, `.cjs`, `.json`, `.yml`, `Dockerfile`, `.md`),
-mas não troca sozinho. Quem troca é a onda, que também roda o teste da trava.
+| `tools/renomear/`, `tools/guardas/filtros-casam.test.ts` (novos) | os comandos e a trava contra filtro vazio |
+| `mapas/<N>.json` e `<N>.relatorio.md` (novos, um por onda) | o mapa e o relatório |
+| `packages/`, `apps/`, `e2e/` | as ondas |
+| `tools/`, `infra/`, configs da raiz, `.github/` | só as travas e os imports |
+| `CLAUDE.md`, `.claude/`, `docs/` vivos | o caminho na onda que o muda; o nome nas ondas em fila e na 13.0 |
 
 ## 3 e 4. Modelo de dados e API
 
-Nada muda. A pasta `drizzle/` vai para `packages/core/` com o pacote. O caminho é resolvido a partir do arquivo
-(`PASTA_MIGRACOES`), e o drizzle registra a migration aplicada pelo hash. Rota, corpo, código de erro e
-evento do WebSocket são strings, e o `conferir` as compara.
+Nada muda. A `drizzle/` vai para `packages/core/` com o pacote. O caminho é resolvido a partir do arquivo
+(`PASTA_MIGRACOES`), e o drizzle registra a migration pelo hash. Rota, corpo, código de erro e evento de WebSocket são
+strings, e o `conferir` os compara.
 
 ## 5. Fluxo
 
-**O mapa** é uma lista de `{ tipo: "simbolo" | "arquivo" | "pasta" | "pacote", de, para, arquivo?, linhaDoAnexo }`. A
-linha agrupada do anexo (`A / B`) vira uma entrada por nome. O `aplicar` recusa o mapa inteiro, sem escrever nada,
-quando:
+**O mapa** tem entradas `{ tipo: simbolo|arquivo|pasta|pacote, de, para, arquivo?, linhaDoAnexo, alias? }` e duas
+listas:
 
-- o `de` não existe no arquivo declarado;
-- o `para` colide com um nome que já existe no mesmo escopo;
-- o `de` se repete;
-- a entrada não tem `linhaDoAnexo`.
+- `ocorrencias`: cada referência por texto, classificada como `fica` (string de fora, com a linha de "Não muda, mas
+  parece") ou `trava` (com a linha do `travas.md`);
+- `excecoesDoConferir`: cada string que muda de propósito (as travas e o `this.name` dos erros, pela adenda 1), com o
+  motivo.
 
-Peça fora do anexo só entra por adenda aprovada (RF2).
+O `aplicar` recusa o mapa inteiro, sem gravar, se: o `de` não existe no arquivo; o `para` colide no escopo de algum
+arquivo que importa o nome, sem `alias`; o `de` se repete; falta `linhaDoAnexo`; a edição cai fora do `--escopo` (os
+"Arquivos previstos"); ou sobra ocorrência sem classificação.
 
-**O `aplicar`:**
+**O `aplicar`, passo a passo:**
 
-1. Carrega um serviço de linguagem por `tsconfig` (a raiz, `e2e/`, `infra/` e cada workspace) e junta, sem repetir,
-   os locais de todos. O pacote resolve pela condição `source`, e por isso o rename no `shared` alcança a API e a web
-   na mesma passada.
-2. Renomeia o símbolo (`findRenameLocations`) e, como palavra inteira, o nome nos comentários. **Nunca toca string.**
-3. Move o arquivo e a pasta com `getEditsForFileRename`, que corrige os imports e o `vi.mock`, mais `git mv`. O
-   rename só de caixa passa por um nome intermediário.
-4. No pacote, troca `name`, `exports` e dependências nos `package.json`, e regenera o lock com
-   `npm install --package-lock-only`.
-5. Nos documentos vivos (`CLAUDE.md`, `.claude/`, `docs/` menos `decisoes.md`), troca o caminho. Nas ondas em fila,
-   troca também o nome de símbolo. O `tasks/` e o `mockups/` não mudam.
-6. Escreve o relatório: os arquivos tocados, as referências por texto e o que não achou.
+1. Abre um serviço de linguagem por `tsconfig` (a raiz, `e2e/`, `infra/` e cada workspace) e junta os locais sem
+   repetir. O pacote resolve pela condição `source`.
+2. Renomeia o símbolo (`findRenameLocations`, com `providePrefixAndSuffixTextForRename`), e a forma curta
+   `{ esquemaTurma }` vira `{ esquemaTurma: turmaSchema }`, com a chave intacta.
+3. Move o arquivo e a pasta (`getEditsForFileRename` e `git mv`). O rename só de caixa passa por um nome intermediário.
+4. No pacote, troca o `name`, os `exports` e as dependências, e roda `npm install --package-lock-only`.
+5. Em comentário e em documento vivo (`CLAUDE.md`, `.claude/`, `docs/`), troca sozinho só o identificador composto
+   (`AdaptadorFalso`, `exigirEscolaDoContexto`), o que está entre crases e o que está em `{@link}`, e o caminho. A
+   palavra comum (`com`, `Banco`, `Tela`, `Contador`, `Despachante`, `Fila`, `migrar`) vai para a lista de troca à mão
+   do relatório. Ficam fora `docs/decisoes.md`, `docs/aia/ouro/`, `docs/aia/ouro-retido/`, `tasks/` e `mockups/`. As
+   linhas não tocam documento.
+6. Lista cada `de` (símbolo, trecho de caminho, pacote) que aparece como palavra inteira em string, template, regex,
+   JSON, YAML, `.mjs`, `.cjs` e `Dockerfile`, em `apps/`, `packages/`, `e2e/`, `tools/` e `infra/`. A ocorrência que
+   não está classificada no mapa deixa o relatório vermelho.
+7. Grava o `<N>.relatorio.md`.
 
-Ele só grava depois de calcular tudo. Antes do commit, `git checkout .` desfaz a onda; depois, `git revert`.
+Ele só grava depois de calcular tudo; a onda se desfaz com `git reset --hard` e `git clean -fd` antes do commit, e
+com `git revert` depois.
 
-**O `conferir`** tira uma foto do AST de `apps/`, `packages/` e `e2e/` antes da onda e outra depois. A foto tem:
+**O `conferir`** tira uma foto de `apps/`, `packages/`, `e2e/`, `tools/guardas/` e `tools/processo/` antes da onda e
+outra depois. A foto tem: as strings, as partes fixas de template, os literais de regex, os `JsxText`, as chaves de
+objeto literal, os nomes exportados por pacote, os especificadores de módulo e os casos de teste por arquivo. Antes de
+comparar, o `conferir` aplica o mapa à foto de antes: o especificador, o caminho dos casos e o nome exportado. Depois
+disso, qualquer diferença fora de `excecoesDoConferir` deixa o `conferir` vermelho.
 
-- o multiconjunto das strings literais, das partes fixas de template e dos `JsxText`. O especificador de módulo
-  (`import`, `export … from`, `import()`, `vi.mock`, `vi.importActual`) não entra, nem a string que fica igual à de
-  antes depois de aplicado o mapa de caminhos (o `ARQUIVO_DO_SANDBOX` e o `vaga.lua`);
-- os casos de teste por arquivo, com o caminho normalizado pelo mapa;
-- a contagem de exportações por pacote.
+**O `restos`** busca cada `de` de todos os mapas aplicados, como palavra inteira, no código e nos documentos vivos. Liberados: o `fica`, o
+texto de `describe`/`it`/`test` e o que o passo 5 deixa fora. Roda em cada onda e na 13.0 (RF3, RF6, RF9 e RF10).
 
-Qualquer diferença deixa o `conferir` vermelho. A exceção, quando houver, mora no mapa (`excecoesDoConferir`), com o
-motivo.
+**O `reaplicar`.** O merge da `develop` que traz nome antigo vira uma correção (`/corrigir`), com revisão. A correção
+roda `reaplicar`, que aplica os mapas feitos só às ocorrências novas: o `de` que não existe mais não é erro. Depois
+roda `conferir` e `restos`. A correção `links-do-runbook` entra antes da 4.0.
+
+**A trava contra filtro vazio** (2.0, antes de qualquer rename): todo glob e caminho de `configuracaoDasGuardas`,
+`EXCECOES_DAS_GUARDAS`, `PASTA_DOS_ADAPTADORES`, `ESCOPO_DO_ERRO_TIPADO`, `camadas.cjs` e `guardioes-por-caminho.ts`
+casa com ao menos um arquivo.
 
 **As ondas:**
 
 | Tarefa | Onda | Linha |
 |---|---|---|
-| 1.0 | `tools/renomear/` | fila |
-| 2.0 | shared: schemas, DTOs, erros e as pastas `erros/` e `sistema/` | fila |
-| 3.0 | core, símbolos: IA, fila e outbox, erros, banco, contexto, guards e decorators, limite, telemetria, storage | fila |
-| 4.0 | core: arquivos, pastas e o pacote `@educa/core` | fila |
-| 5.0 | arquivos e pastas de todos os apps e do e2e | fila |
-| 6.0 | api, símbolos | back |
-| 7.0 | worker, despachante, realtime e as peças de apoio de teste do back | back |
-| 8.0 | kit visual, símbolos | web |
-| 9.0 | web fora do kit: cliente, consultas, chaves, providers, roteamento, utilitários | web |
-| 10.0 | e2e, símbolos | web |
-| 11.0 | guarda `guardas/nome-de-mercado` | fila, depois das linhas |
-| 12.0 | documentos: o guia (com a §9 reescrita), a arquitetura, a interface, os READMEs e o que restar em `.claude/` | fila, por último |
+| 1.0 | `aplicar` e `reaplicar` | fila |
+| 2.0 | `conferir`, `restos` e a trava contra filtro vazio | fila |
+| 3.0 | shared: schemas, DTOs, erros e as pastas `erros/` e `sistema/` | fila |
+| 4.0 | core, símbolos | fila |
+| 5.0 | core, arquivos e pastas, e o pacote `@educa/core` | fila |
+| 6.0 | arquivos e pastas de todos os apps e do e2e | fila |
+| 7.0 | api, símbolos | back |
+| 8.0 | worker, despachante, realtime e o apoio de teste do back | back |
+| 9.0 | kit visual, símbolos | web |
+| 10.0 | web fora do kit | web |
+| 11.0 | e2e, símbolos | web |
+| 12.0 | a guarda `guardas/nome-de-mercado` | fila |
+| 13.0 | documentos: o guia, com a §9 reescrita; a arquitetura; a interface; os README; o que sobrar em `.claude/` | fila |
 
-**Por que os arquivos dos apps vêm antes das linhas.** Todo rename de arquivo mexe no `eslint-suppressions.json`
-(132 caminhos dos apps), no `eslint.config.mjs` e no `knip.json`. Com isso feito na 5.0, as linhas só renomeiam
-símbolo e não tocam documento, e o `linhas.ts` confere que os "Arquivos previstos" das duas não se cruzam. Se uma
-linha precisar de uma referência por texto que a outra também prevê, é divergência.
+Os arquivos dos apps vêm antes das linhas porque todo rename de arquivo mexe no `eslint-suppressions.json`, no
+`eslint.config.mjs` e no `knip.json`. As linhas só renomeiam símbolo, sem tocar documento; o `--escopo` e o
+`linhas.ts` as separam. Trava de `tools/` nas duas linhas é divergência.
 
-**A guarda (11.0)** é uma regra do plugin `guardas` (`tools/guardas/regras-nome.mjs`), e não `no-restricted-syntax`: o
-bloco de config que vem depois sobrescreveria o `no-restricted-syntax`, e a regra do plugin não se desliga por
-comentário. Ela lê:
+**A guarda (12.0)** é a regra `guardas/nome-de-mercado`, em `tools/guardas/regras-nome.mjs`. A lista dela fica em
+`tools/guardas/nomes-de-mercado.mjs`. Ela entra em `REGRAS_DAS_GUARDAS` (segunda passada,
+`allowInlineConfig: false`), vale só em `apps/**`, `packages/**` e `e2e/**`, e não é a `naming-convention`, que não dá o
+nome de mercado na mensagem nem lê arquivo e pasta.
 
-- o nome de classe, interface, tipo, enum, função, variável exportada e decorator, e cada pasta de
-  `context.filename`;
-- os prefixos e sufixos da coluna da esquerda do inventário §1, mais os do kit (`Botao`, `Cartao`, `Dialogo`, `Abas`,
-  `Tabela`), cada um com o nome de mercado na mensagem.
+**A gramática.** Cada entrada da lista tem três partes:
 
-**Essa é a gramática, e o resto é limite declarado:** método, variável local, propriedade e string não são lidos, e
-`Pedido…` e `Resposta…` ficam fora porque colidem com o domínio. A esteira verde na 11.0, com o repositório inteiro
-passando pela regra, prova que não sobrou nome antigo.
+- a forma: nome exato (os do kit: `Botao`, `Cartao`, `Dialogo`, `Abas`, `Tabela`, `Tela`), prefixo ou sufixo;
+- os tipos de declaração em que vale (`Linha…` e `Opcoes…` só em interface e tipo; `Erro…`, `Filtro…`, `Guarda…`,
+  `Adaptador…` e `…EmMemoria` só em classe);
+- o nome de mercado, que vai na mensagem.
+
+A pasta e o arquivo são comparados por segmento (`fila`, `limite`, `adaptador-*`). **O resto é limite declarado:** a
+regra não lê método, variável local, propriedade nem string. `Pedido…` e `Resposta…` ficam fora da lista, porque
+colidem com o domínio, e `fila/` também, porque "fila" é domínio na web. Com a lista assim, `DialogoDeAlocacao`,
+`CartaoDoAgente`, `ErroDaOperacao` e `LinhaDoMaterial` passam.
 
 ## 6. Isolamento (obrigatório)
 
-Nenhuma consulta muda. O risco é uma trava da regra 10 continuar verde sem checar nada:
-
-| Trava | Lê pelo nome | Onda | Prova |
-|---|---|---|---|
-| `escopo-dos-repositories.ts`, `repositories-com-escopo.test.ts` | `SemEscopo`, `exigirEscolaDoContexto`, `contextoAtual`, `Banco` | 3.0 | repository de fixture sem `requireEscolaId()` e sem `@Unscoped`: vermelho |
-| `regras-tenant.mjs` | `Banco` | 3.0 | o caso de fixture com o tipo novo: vermelho |
-| `camadas.cjs` | `packages/nucleo`, `ciclo-de-vida`, `conta-global` | 4.0 | violação de camada no caminho novo: vermelha |
-| `guardioes-por-caminho.ts`, `portao.ts` | `packages/nucleo`, `SemEscopo` | 3.0 e 4.0 | commit em `packages/core/src/` exige os quatro guardiões; `@Unscoped` novo chama o `tenancy-guardian` |
-| `apps/api/test/arquitetura.test.ts` | 15 caminhos de `nucleo/src` | 4.0 e 5.0 | falha com um caminho inexistente |
+Nenhuma consulta muda. As travas estão em `travas.md`, "Regra 10"; o `conferir` prova que nenhum teste de isolamento
+entra ou sai.
 
 ## 7. Dado pessoal (obrigatório)
 
 | Item | Resposta |
 |---|---|
-| Campos tocados, novos e `docs/lgpd.md` | nenhum |
-| Log, auditoria, provedor externo, retenção | iguais: evento de log, ação auditada e `IA_ADAPTADOR` são strings, e o `conferir` os compara |
-| Autorização por objeto | igual: `@Permite` → `@RequirePermissao`, e a matriz é a mesma |
-| DTO de saída | as chaves do schema não mudam, só o nome do tipo |
+| Campos e `docs/lgpd.md` | nada muda |
+| Log | evento igual. O campo `tipo` muda junto com o `this.name` (adenda 1), e nenhum alerta nem o runbook o leem |
+| Auditoria, provedor externo, retenção | iguais, porque a ação auditada e o `IA_ADAPTADOR` são strings |
+| Autorização por objeto e DTO de saída | iguais: a mesma matriz, e as chaves do schema ficam |
 
-A guarda de log (`regras-log.mjs`: `resumirErro`, `LoggerDoNest`) e a do SDK de IA (`regras-ia.mjs`:
-`PASTA_DOS_ADAPTADORES`, porque os arquivos viram `*-adapter.ts`) mudam na 3.0 e na 4.0. Cada uma ganha um caso de
-fixture com o nome novo, que a deixa vermelha.
+As travas das regras 20 e 30 estão em `travas.md` (`PASTA_DOS_ADAPTADORES` passa a `packages/core/src/ia/*-adapter.ts`).
 
 ## 7b. Conformidade CNE
 
-Sem IA no caminho do aluno. As travas da regra 70 são testes de integração, e valem as da §10.
+O rename passa pela IA do Tutor e do Assistente sem mudar comportamento: prompt e ação auditada são strings
+(`conferir`). As travas da regra 70 estão em `travas.md`, seção "Regra 70". O
+ouro sai por correção do Arquiteto depois da 5.0.
 
 ## 7c. Carga e falha (obrigatório)
 
 | Item | Resposta |
 |---|---|
-| Caminho quente, fila, limite e rate limit | fora do caminho quente: o código de execução e as strings de fila e de chave Redis são os mesmos |
-| Migration | nenhuma |
-| Imagem e deploy | o `servico.Dockerfile` copia `packages/core`, o serviço do compose não muda, e a VM sobe pela `main` (D31). Prova: a esteira constrói as imagens, e o `docker compose config` de produção sai igual |
-| Métrica e alerta | iguais |
+| Caminho quente | tocado só no nome (guards, vaga por escola, outbox, gateway de IA); fila, chave Redis, Lua e limites iguais |
+| Migration | nenhuma. O `db:gerar` roda na 4.0 e na 5.0 sem gerar migration, e o `_journal` não muda |
+| Imagem e deploy | o Dockerfile copia `packages/core`; `ops/` fica (adenda 1). Prova: a esteira constrói as imagens, e o `docker compose config` de produção sai igual |
+| Arquivo lido em execução, carga e ensaio | `travas.md`, "Regra 80" |
+| Linha | onda de linha só é verde depois da esteira da spec (o `ci.yml` não roda `infra` nem e2e em `spec/**--l*`) |
 
 ## 9. Frontend
 
-Nenhuma tela muda (§5, `conferir`). O `nome-dos-chunks.ts` muda na 5.0, com o teste dele.
+Nenhuma tela muda (§5, `conferir`).
 
 ## 10. Testes
 
 | Camada | O que será testado |
 |---|---|
-| `tools/renomear/` | o símbolo do `shared` renomeado nos dois projetos que o usam, com o comentário, e a string igual ao nome intacta; o move de arquivo corrige o import relativo, o de pacote e o `vi.mock`; o rename só de caixa; o mapa recusado em cada uma das quatro condições; o `conferir` vermelho com uma string mudada, um caso a menos, um `JsxText` mudado e um import fora do mapa; o `conferir` verde com o especificador renomeado e com a exceção declarada |
-| Guarda (11.0) | `class AdaptadorX` recusada, com `XAdapter` na mensagem; `ConsumoEmMemoria`, `guarda-x.ts` e a pasta `fila/` recusados; `TurmaController`, `EliminacaoDoTitular` e `PedidoDoTitular` passam |
-| Travas (RF11) | os casos da §6 e da §7, na onda que as muda |
-| Integração, e2e, isolamento | as suítes de hoje, inteiras, em cada onda |
+| `aplicar` | o símbolo do `shared` nos dois projetos que o usam, com o comentário composto, e a string igual ao nome intacta; "com" como preposição num comentário e "Banco público" num `.md`, intactos; a forma curta com a chave mantida; o move com o import relativo, o de pacote e o `vi.mock`; o rename só de caixa; cada um dos seis casos de recusa; a ocorrência não classificada deixando o relatório vermelho |
+| `reaplicar` | o `de` já renomeado: não é erro; a ocorrência nova: renomeada |
+| `conferir` | vermelho com uma string, uma regex, um `JsxText` ou uma chave de objeto mudados, com um caso a menos e com um especificador fora do mapa; verde com o especificador renomeado e com a exceção declarada |
+| `restos` | o nome antigo no código: vermelho; no `describe`, em `fica` e em `docs/decisoes.md`: verde |
+| Filtro vazio | um glob que não casa nada: vermelho |
+| Guarda (12.0) | um caso recusado por tipo de declaração (classe, interface, tipo, enum, função, variável exportada, decorator), por arquivo e por pasta; `Botao` exato recusado; `TurmaController`, `EliminacaoDoTitular`, `PedidoDoTitular`, `CorrecaoService`, `ValidacaoDoLote`, `DialogoDeAlocacao` e `CartaoDoAgente` passam; `eslint-disable` sobre a regra não desliga; `tools/` fora |
+| Travas | as provas de `travas.md`, na onda de cada uma |
+| Suítes de hoje | verdes antes da 1.0 e em cada onda |
 
-**Mutação.** As ondas levam "Sem mutação: rename, sem condição nova" (X7, RF17). A 1.0 e a 11.0 levam o bloco de
-mutação.
+**Mutação.** A 1.0, a 2.0 e a 12.0 levam o bloco de mutação. As ondas levam "Sem mutação: rename, sem condição nova"
+(X7, RF17).
 
 ## 11. Conformidade com as regras
 
 | Regra | Como é atendida | Desvio e justificativa | Onde está registrado |
 |---|---|---|---|
-| 10, 20, 70 | §6, §7 e §7b | nenhum | — |
+| 10, 20, 30, 70, 80 | `travas.md`, a trava contra filtro vazio e o `conferir` | nenhum | — |
 | 40 | o `conferir` prova o mesmo conjunto de casos; a ferramenta e a guarda têm teste que quebra sem a regra | nenhum | — |
-| 60.1 e D81 | inventário §1 e o padrão do TypeScript | nenhum | — |
-| `criar-tasks` ("até três guardiões") | — | **As ondas 2.0 a 10.0 marcam os quatro guardiões**, porque tocam `apps/` ou `packages/` (X7, RF15), e o rename não se corta por comportamento. O revisor revisa o mapa, o relatório do `aplicar`, a saída do `conferir`, as travas e as referências por texto, e não as linhas trocadas pela ferramenta | aqui e em cada `N_task.md` |
+| RF7 ("só nome") | — | **Os três scripts de `infra/scripts/` passam a tirar os tipos de `typeof import(<fonte>)`.** Único diff de não-nome: o typecheck pega a chave que ficar para trás | aqui e em `travas.md` |
+| `criar-tasks` ("até três guardiões") | — | **As ondas 3.0 a 11.0 marcam os quatro guardiões** (X7, RF15). O revisor confere o mapa, o relatório, o `conferir`, o `restos` e as travas, não as linhas trocadas | aqui e em cada `N_task.md` |
 
 ## 12. Premissas não verificadas
 
-- ⚠️ NÃO VERIFICADO: que o `findRenameLocations` (TypeScript 6.0.3) alcança o uso em outro projeto pela condição
-  `source`. Se não alcançar, a junção dos locais passa a vir do `getReferencesAtPosition`, projeto a projeto. A 1.0
-  prova com o caso de dois projetos
-- ⚠️ NÃO VERIFICADO: que o `npm install --package-lock-only` regenera o lock sem mudar versão. A 4.0 confere que o diff
-  do lock é só o nome e o caminho
+- ⚠️ NÃO VERIFICADO: que o `findRenameLocations` (TypeScript 6.0.3) alcança outro projeto pela condição `source`. Se
+  não alcançar, o `getReferencesAtPosition` entra projeto a projeto. A 1.0 prova com dois projetos
+- ⚠️ NÃO VERIFICADO: que o `npm install --package-lock-only` não muda versão. A 5.0 confere que o diff do lock é só o
+  nome e o caminho
 
 ## 13. Riscos técnicos
 
-- **A develop anda.** O merge traz nome antigo. O Orquestrador roda o `aplicar` com os mapas já feitos sobre o que
-  entrou, e a guarda acusa o resto. A correção `links-do-runbook` mexe em `tools/guardas/` e entra antes da 3.0
-- **Uma troca errada some no diff grande.** O `conferir` pega a string, o compilador pega o símbolo órfão, e o revisor
-  olha as referências por texto
+- **A régua de duração do e2e** cobra caso só renomeado: a onda o marca "só rename", e correção só se a duração cresceu
