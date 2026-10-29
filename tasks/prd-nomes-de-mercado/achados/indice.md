@@ -15,3 +15,10 @@ Leia este índice antes de codar, e abra só os blocos que interessam à tarefa 
 | 2026-10-29 21:37:42 | `conformidade-reviewer` | 1ª | REPROVADO | `revisao-spec` | B1 e B2, abaixo |
 | 2026-10-29 21:38:48 | `test-engineer` | 1ª | REPROVADO | `revisao-spec` | `tools/guardas/regras-erro.mjs:21`, `NOME_DA_CLASSE_DE_INVARIANTE = 'ErroDeInvariante'`, onda 2.0. Depois de virar `InvariantException`, `new… |
 | 2026-10-29 21:38:56 | `revisor-geral` | 1ª | REPROVADO | `revisao-spec` | A troca por palavra inteira em comentário e documento estraga a prosa (§1, §5 passos 2 e 5, §2). |
+| 2026-10-29 22:19:34 | `llm-integrator` | 2ª | APROVADO | `revisao-spec` | `travas.md`, linha "Regra 30", frase "Os arquivos isentos são os mesmos de hoje". Não é exata. |
+| 2026-10-29 22:20:03 | `tenancy-guardian` | 2ª | REPROVADO | `revisao-spec` | A cerca `cerca-resolucao-de-tenant` desliga calada na 6.0, e nenhuma linha do anexo a cobre (regra 10, item 9). |
+| 2026-10-29 22:20:09 | `infra-guardian` | 2ª | REPROVADO | `revisao-spec` | Tech Spec §5 (passo 6 do `aplicar` e o `restos`), §2 e `travas.md` "Regra 80" e "Processo e configuração": os arquivos da raiz que citam nome por texto ficam… |
+| 2026-10-29 22:20:10 | `conformidade-reviewer` | 2ª | APROVADO | `revisao-spec` | `travas.md`:36 (`porta-unica.test.ts`) tem linhas erradas. A tabela cita as linhas "11, 12 e 31". A 31 não tem caminho. O que lê caminho ou nome são: |
+| 2026-10-29 22:20:49 | `test-engineer` | 2ª | REPROVADO | `revisao-spec` | A forma da prova vermelha das travas está indefinida e se contradiz (§10, "Mutação"; travas.md, todas as colunas "Prova vermelha"). |
+| 2026-10-29 22:21:04 | `privacy-guardian` | 2ª | REPROVADO | `revisao-spec` | Tech Spec §5, passo 6, e "A trava contra filtro vazio". Os arquivos de configuração da raiz e o `.github/` ficaram fora da busca por referências em texto. O… |
+| 2026-10-29 22:21:22 | `revisor-geral` | 2ª | REPROVADO | `revisao-spec` | O `restos` e o passo 6 do `aplicar` buscam a palavra comum como palavra inteira, e ficam vermelhos para sempre (Tech Spec §5, "O `restos`" e passo 6). |

@@ -181,3 +181,11 @@ caso que pegava.
   `LLMAdapterKind`, e não `LLMProviderKind` (decisão 6)
 - **O `this.name` das classes de erro acompanha a classe** (`'ErroDeDominio'` → `'DomainException'`). O campo `tipo`
   do log muda junto, e nenhum alerta nem o runbook o leem
+
+**Adenda 2 — 29/10/2026, aprovada pelo Joaquim no terminal do Arquiteto, na revisão da spec (rodada 2)**
+
+- 94 declarações de topo de arquivo que seguem uma regra do §1 já aprovada (`Linha<X>`, `Opcoes<X>`, `Dependencias<X>`,
+  `<X>EmMemoria`, `Adaptador<X>`, `esquema<X>`, `lerConfiguracao<X>`, `consulta<X>`) e que as varreduras não
+  listaram. A tabela está em `inventario-adenda-2.md`, com o nome novo de cada uma e o que fica de fora
+- A guarda do RF8 (`guarda.md`) recusa exatamente o que esta adenda e os anexos renomeiam: com tudo aplicado, a árvore
+  inteira passa

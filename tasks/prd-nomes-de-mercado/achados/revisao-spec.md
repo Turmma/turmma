@@ -536,3 +536,392 @@ Arquivos citados:
 - /home/joaquimdp/Documents/git/.maestri/floors/educaia--specnomes-de-mercado/tasks/prd-nomes-de-mercado/inventario-back.md
 - /home/joaquimdp/Documents/git/.maestri/floors/educaia--specnomes-de-mercado/tools/processo/linhas.ts
 - /home/joaquimdp/Documents/git/.maestri/floors/educaia--specnomes-de-mercado/infra/compose.yml
+
+## llm-integrator · 2ª rodada · APROVADO · 2026-10-29 22:19:34 · `tasks/prd-nomes-de-mercado/revisao-spec.md`
+
+VEREDITO: APROVADO
+
+Perfis usados: não se aplica. A X8 não adiciona nem altera chamada de modelo, e o perfil de cada tarefa continua o mesmo.
+Custo estimado por professor/mês: R$ 0 adicional. Nenhuma chamada nova e nenhuma mudança de perfil, de prompt ou de orçamento.
+Prompt versionado: sim, sem mudança. Os prompts são `.ts` em `ia/prompts/` e as constantes `PROMPT_*` ficam (inventário §2).
+Validação de schema: sim, sem mudança. Só o nome dos schemas muda, e o `conferir` compara as strings.
+Aprovação humana no caminho: não se aplica. O rename não altera o fluxo de entrega pendente nem de aprovação.
+
+Bloqueantes: nenhum.
+
+O bloqueante da rodada 1 foi resolvido:
+
+- `adaptador.ts` agora vira `adapter.ts` (adenda 1 do `inventario.md` e `inventario-core-shared.md`), que não casa com `*-adapter.ts`.
+- `AdaptadorDeIa` agora vira `LLMAdapterKind`.
+- A Tech Spec §7 e a linha "Regra 30" de `travas.md` fixam `PASTA_DOS_ADAPTADORES = packages/core/src/ia/*-adapter.ts`.
+- A prova vermelha pede a interface `adapter.ts` e o `llm-gateway.ts` importando o SDK, com os três adaptadores passando.
+- `fake-adapter.ts`, `openai-compat-adapter.ts` e `resilient-adapter.ts` casam o glob. `scripted-adapter.ts`, em `__fixtures__/`, não casa, como hoje.
+- A trava `tools/processo/harness/caminhos.test.ts` mantém a guarda, a regra 30 e o `llm-integrator.md` citando a mesma pasta.
+
+Conferi também que `tools/processo/guardioes-por-caminho.ts` não aciona o `llm-integrator` por caminho. Nenhuma exigência de guardião some em silêncio no rename. O corpus `ouro` fica fora das ondas e vai por correção do Arquiteto com o selo regravado, o que respeita a regra 30 e a X7.
+
+Recomendações (nenhuma bloqueia):
+
+1. **`travas.md`, linha "Regra 30", frase "Os arquivos isentos são os mesmos de hoje".** Não é exata.
+   - Hoje `adaptador-*.ts` isenta também `adaptador-openai-compat.test.ts` e `adaptador-resiliente.test.ts`. O glob `*-adapter.ts` não isenta `*-adapter.test.ts`.
+   - É um aperto, não um afrouxamento, e nenhum dos dois testes importa SDK. Convém dizê-lo.
+   - Acrescente à linha as três citações em `tools/guardas/guardas.test.ts` (242, 322 e o `toEqual` das exceções, 651) e o cabeçalho de `tools/guardas/__fixtures__/sdk-de-ia.ts`.
+2. **Escopo do passo 6 (Tech Spec §5) e do `restos`.** Cobrem `apps/`, `packages/`, `e2e/`, `tools/` e `infra/`. Ficam de fora os arquivos da raiz e `.github/`, que o inventário §4 e a §2 da Tech Spec já tratam como acompanhantes.
+   - O caso concreto é `knip.json`, que tem a chave de workspace `"packages/nucleo"`. Se o caminho mudar e a chave não, o knip deixa de configurar o pacote sem acusar erro.
+   - O `vitest.config.ts` e o `package.json` da raiz também citam `packages/nucleo` e `@educa/nucleo`. Os scripts `-w` quebram alto, mas entram pelo mesmo vazio de escopo.
+   - Inclua os arquivos da raiz e `.github/` no passo 6 e no `restos`, ou liste o `knip.json` em "Processo e configuração" de `travas.md`.
+3. **Travas de `tools/ci/` fora de `travas.md`.** `dockerfile.test.ts:118` usa `not.toContain('@educa/nucleo')`, que fica verde sem checar nada depois do rename. Outras da mesma pasta:
+   - `dockerfile.test.ts:111` (`COPY packages/nucleo/drizzle ...`).
+   - `borda.test.ts:78` e `:95`.
+   - `resolucao-do-shared.test.ts:23`.
+   - `caminhos-da-esteira.ts:7`.
+
+   O passo 6 as pega, porque `tools/` está no escopo, mas só como `trava` ou `fica` "com motivo". Liste ao menos `dockerfile.test.ts:118` no anexo.
+4. **Inconsistência entre §5 e `travas.md`.** A Tech Spec §5 diz que `trava` leva "a linha do `travas.md`". O anexo diz que a ocorrência achada e não listada entra no mapa "com o motivo". Escolha uma das duas, por exemplo "linha do `travas.md` ou motivo escrito no mapa, com a prova vermelha".
+5. **Custo de IA.** Fica registrado como zero adicional. Nenhuma chamada nova de modelo nasce nesta spec.
+
+Arquivos lidos:
+
+- `/home/joaquimdp/Documents/git/.maestri/floors/educaia--specnomes-de-mercado/tasks/prd-nomes-de-mercado/techspec.md`
+- `/home/joaquimdp/Documents/git/.maestri/floors/educaia--specnomes-de-mercado/tasks/prd-nomes-de-mercado/travas.md`
+- `/home/joaquimdp/Documents/git/.maestri/floors/educaia--specnomes-de-mercado/tasks/prd-nomes-de-mercado/prd.md`
+- `/home/joaquimdp/Documents/git/.maestri/floors/educaia--specnomes-de-mercado/tasks/prd-nomes-de-mercado/inventario.md`
+- `/home/joaquimdp/Documents/git/.maestri/floors/educaia--specnomes-de-mercado/tasks/prd-nomes-de-mercado/inventario-core-shared.md`
+
+## tenancy-guardian · 2ª rodada · REPROVADO · 2026-10-29 22:20:03 · `tasks/prd-nomes-de-mercado/revisao-spec.md`
+
+```
+VEREDITO: REPROVADO
+Tabelas verificadas: nenhuma nova nem alterada (Tech Spec §3 e §4; o `db:gerar` roda na 4.0 e na 5.0 sem gerar migration, §7c). As tabelas Drizzle e o `schema`/`Schema` ficam (inventario-core-shared.md §1129), então `TABELAS_DO_NUCLEO` e `NOMES_QUE_LEVAM_TABELA` continuam valendo.
+Queries verificadas: nenhuma muda (§6). Conferi as travas de escopo contra o código de hoje: tools/guardas/escopo-dos-repositories.ts (TIPOS_DO_BANCO, PROVAS_DE_ESCOPO, o export `SemEscopo` na linha 272, REPOSITORIES_SEM_ESCOPO), regras-tenant.mjs (PACOTE), index.mjs (packages/nucleo/src/db/**), camadas.cjs (as três cercas de tenant), guardioes-por-caminho.ts (SEM_ESCOPO) e apps/api/test/arquitetura.test.ts (ZONAS_DAS_CLASSES_CERCADAS e justificativaSemEscopo).
+Teste de isolamento: presente e efetivo. O `conferir` prova que nenhum caso entra ou sai (§5, §6). As provas de travas.md da Regra 10 quebram se a cláusula for esquecida, com uma exceção (o bloqueante abaixo).
+```
+
+**Os dois bloqueantes da rodada 1 estão resolvidos no desenho:**
+- **B1:** travas.md, Regra 10, linhas de `regras-tenant.mjs` e de `index.mjs`, onda 5.0. O par de casos tem o import de `@educa/core` vermelho num service e o mesmo import passando em `packages/core/src/db/`.
+- **B2:** travas.md, Regra 10, linha de `escopo-dos-repositories.ts`, onda 4.0. Cada tipo novo tem a sua fixture vermelha. Sobrar nome antigo em `PROVAS_DE_ESCOPO` ou em `SemEscopo` quebra os repositories reais e dá vermelho, não silêncio. Nenhum nome antigo sobra na guarda nem nas fixtures.
+
+**Bloqueantes:**
+
+1. **A cerca `cerca-resolucao-de-tenant` desliga calada na 6.0, e nenhuma linha do anexo a cobre (regra 10, item 9).**
+   - **Onde:** travas.md, Regra 10, linha 21 (`camadas.cjs`), e Tech Spec §5, passo 6.
+   - **O que está errado:**
+     - Em `camadas.cjs`, o `to.path` da cerca é `^apps/api/src/sessao/tenant/resolucao-de-tenant\.repository\.ts$`. O arquivo vira `tenant-resolution.repository.ts` na 6.0 (inventario-back.md linha 103). Com o regex antigo, o depcruise não casa nada e fica verde. Qualquer código passa a importar o repository que concentra os `@SemEscopo` da resolução de tenant.
+     - A linha 21 do anexo é da onda 5.0 e enumera quatro regras. Esta não está entre elas.
+     - O mesmo nome está em `arquitetura.test.ts`, `ZONAS_DAS_CLASSES_CERCADAS`, linha 49. Lá, o regex `/\bResolucaoDeTenantRepository\b|resolucao-de-tenant\.repository/` lê a classe (renomeada na 7.0) e o arquivo (6.0). Essa linha também não está no anexo, que cita só a 50.
+     - A rede de segurança não as pega. O passo 6 procura o `de` "como palavra inteira". Em `\bResolucaoDeTenantRepository\b`, o caractere antes do nome é o `b` do `\b`, então não há borda de palavra e a busca não acha. Em `resolucao-de-tenant\.repository` e `\\.ts`, o ponto escapado não casa com o `de` literal. Pelo mesmo motivo, `@educa\/nucleo` só está coberto porque foi listado à mão.
+     - A trava contra filtro vazio cita `camadas.cjs`, mas o caso dela no §10 é "um glob que não casa nada". Ela não prova o `path` em regex do depcruise.
+   - **Correção exigida:**
+     - (a) Nova linha em travas.md, Regra 10, onda 6.0, para `camadas.cjs` › `cerca-resolucao-de-tenant`. Prova: import de `apps/api/src/sessao/tenant/tenant-resolution.repository.ts` vindo de fora de `sessao/`, vermelho.
+     - (b) Nova linha para `arquitetura.test.ts` › `ZONAS_DAS_CLASSES_CERCADAS` (linha 49), ondas 6.0 e 7.0. Prova: `import { TenantResolutionRepository }` numa ponte usada de `tools/`, vermelho, e a varredura achando a classe dentro da zona.
+     - (c) No §5, passo 6, dizer que a busca em literal de regex e em `String.raw` é feita sobre a forma sem escape, ou com o `de` escapado e sem exigir borda depois de `\b`. Levar ao §10 um caso de `aplicar` com `/\bX\b/` e com `x\.repository`, ambos listados.
+     - (d) No §10, um caso de filtro vazio com um `path` em regex de `camadas.cjs` que não casa nenhum arquivo, vermelho.
+
+**Recomendações:**
+- travas.md linha 18: `REPOSITORIES_SEM_ESCOPO` tem seis entradas em `packages/nucleo/src/` e o método `inserirAuditoria`, não só `job-registro.repository.ts`. A falha seria ruidosa (`lista-arquivo-inexistente` e `lista-metodo-inexistente`), mas a linha deve dizer "as seis entradas do core e os métodos renomeados".
+- travas.md linha 21: incluir `nucleo-nao-importa-app` na enumeração das regras de `camadas.cjs` que citam o core.
+- `tools/guardas/tabelas-do-nucleo.test.ts` importa o pacote pela string `'@educa/nucleo'` dentro de uma variável. Hoje ele quebra ruidoso, mas vale uma linha no anexo, onda 5.0, para não depender do `node_modules` local desatualizado depois de `npm install --package-lock-only`.
+
+Arquivos relevantes:
+- /home/joaquimdp/Documents/git/.maestri/floors/educaia--specnomes-de-mercado/tasks/prd-nomes-de-mercado/techspec.md
+- /home/joaquimdp/Documents/git/.maestri/floors/educaia--specnomes-de-mercado/tasks/prd-nomes-de-mercado/travas.md
+- /home/joaquimdp/Documents/git/.maestri/floors/educaia--specnomes-de-mercado/tools/guardas/camadas.cjs
+- /home/joaquimdp/Documents/git/.maestri/floors/educaia--specnomes-de-mercado/apps/api/test/arquitetura.test.ts
+
+## infra-guardian · 2ª rodada · REPROVADO · 2026-10-29 22:20:09 · `tasks/prd-nomes-de-mercado/revisao-spec.md`
+
+VEREDITO: REPROVADO
+Caminho quente tocado: login | fila | IA | migration | deploy (só no nome)
+Rate limit: ok
+Fila e prioridade: ok
+Concorrência: protegida (nenhuma condição nova)
+Índice e paginação: ok (nenhuma query muda)
+Degradação de IA: ok
+Migration: compatível
+Métrica e alerta: ok
+
+**Os dois bloqueantes da rodada 1**
+- **B2 está resolvido.** A adenda 1 mantém `ops/migrar.ts` e `ops/sessao-sintetica.ts` com o nome. A §7c prova que o `docker compose config` de produção sai igual, e o rollback de imagem com o compose atual continua subindo o `migrar`.
+- **B1 está resolvido em parte.** O passo 6 do `aplicar` agora lê `infra/`. Na linha "Regra 80" do `travas.md`, o `typeof import(<fonte>)` deixa o `tsc -p infra/tsconfig.json` (que já roda no `typecheck`) vermelho quando uma chave fica para trás. Falta o caminho do `dist`: a mesma linha diz que ele é "conferido à mão", e isso não é prova. O caminho do `dist` só fica coberto com a correção abaixo.
+
+Bloqueantes:
+
+1. **Tech Spec §5 (passo 6 do `aplicar` e o `restos`), §2 e `travas.md` "Regra 80" e "Processo e configuração": os arquivos da raiz que citam nome por texto ficam fora da busca, e não há trava para eles.**
+   - **O que falta na busca.** O passo 6 lista ocorrências só em `apps/`, `packages/`, `e2e/`, `tools/` e `infra/`. O `restos` diz "no código" sem definir o que é código. Por isso ficam fora:
+     - o `package.json` da raiz, com `-w @educa/nucleo` em cerca de 20 scripts (`build`, todos os `ops:*`, `carga:login`, `carga:sala`, `ensaio:alertas`) e `db:gerar --config packages/nucleo/drizzle.config.ts`;
+     - o `knip.json` (`"packages/nucleo"`);
+     - o `vitest.config.ts`.
+   - **Por que a esteira não pega.** Ela não roda `npm run build` da raiz (`tools/ci/verificar.ts` roda typecheck, lint e testes), e nenhum teste invoca os scripts `ops:*` pelo `npm`.
+   - **O que acontece às 10h.** Um `-w @educa/nucleo` esquecido só aparece quando alguém roda o comando. `ops:revogar-acessos-sala` e `ops:incidente` são as ferramentas de incidente do runbook, então a falha aparece no meio de um incidente em horário de aula. O mesmo vale para `carga:login` e `ensaio:alertas`.
+   - **O mesmo furo no `dist`.** Se o `restos` comparar o `de` de arquivo com a extensão (`hash-de-senha.ts`, `sessoes-sinteticas.ts`), ele não pega `apps/api/dist/credencial/hash-de-senha.js` nem `apps/api/dist/sessao/tenant/sessoes-sinteticas.js` em `infra/scripts/`. É por isso que sobrou a "conferência à mão".
+   - **Correção exigida:**
+     - (a) A §5 define o escopo do passo 6 e do `restos` de forma explícita: `apps/`, `packages/`, `e2e/`, `tools/`, `infra/`, `.github/` e os arquivos da raiz (`package.json`, `knip.json`, `vitest.config.ts`, `tsconfig*.json`, `eslint.config.mjs`).
+     - (b) O `restos` compara o `de` de arquivo e de pasta também pelo segmento sem extensão (`nucleo`, `hash-de-senha`, `sessoes-sinteticas`).
+     - (c) O `travas.md` ganha uma linha, na onda 5.0, para o `package.json` da raiz (`-w @educa/nucleo` e o `--config` do `db:gerar`). A prova é o `restos` zero na raiz mais a execução de `npm run build` e de `npm run db:gerar`.
+     - (d) A linha dos três scripts de `infra/scripts/` troca "conferido à mão" por "o `restos` dá zero em `infra/scripts/`", como já está na linha do `medir-risco-a-vida.ts`.
+     - Na §10, o caso do `restos` ganha um `.js` de `dist` com o nome antigo dentro de `infra/`, que tem de dar vermelho.
+
+Recomendações:
+- **`paths:` das regras.** Na linha `.claude/rules/*.md`, `paths:` do `travas.md` "Regra 80", a prova citada é o `base-fixa.test.ts` da X7. Ele só confere que existe um `paths:` com ao menos um item, e não que cada glob casa com algum arquivo: com `packages/nucleo/**` esquecido, ele fica verde. O `restos` sobre documento vivo pega o caso. Cite o `restos` como prova, ou ponha os `paths:` das regras na lista da trava contra filtro vazio (§5).
+- **Teste barato para o `importarDaApi`.** Um teste em `infra/test/` que, para cada caminho de `dist` usado pelo `importarDaApi`, confere que o arquivo-fonte correspondente em `src/` existe. Isso dá prova executável sem precisar construir o `dist`.
+- **Âncora do runbook.** Ao fechar a X8, ninguém tem de entrar com a palavra comum `migrar` na troca à mão do passo 5 nas seções do runbook que citam `dist/ops/migrar.js`. O arquivo fica com o nome, então a âncora e o comando continuam valendo.
+
+Os arquivos que conferi:
+- `/home/joaquimdp/Documents/git/.maestri/floors/educaia--specnomes-de-mercado/tasks/prd-nomes-de-mercado/techspec.md`
+- `/home/joaquimdp/Documents/git/.maestri/floors/educaia--specnomes-de-mercado/tasks/prd-nomes-de-mercado/travas.md`
+- `/home/joaquimdp/Documents/git/.maestri/floors/educaia--specnomes-de-mercado/package.json` (linhas 13 e 31 a 49)
+- `/home/joaquimdp/Documents/git/.maestri/floors/educaia--specnomes-de-mercado/knip.json` (linha 81)
+- `/home/joaquimdp/Documents/git/.maestri/floors/educaia--specnomes-de-mercado/tools/ci/verificar.ts`
+- `/home/joaquimdp/Documents/git/.maestri/floors/educaia--specnomes-de-mercado/tools/processo/harness/base-fixa.test.ts` (linhas 55 a 58)
+
+## conformidade-reviewer · 2ª rodada · APROVADO · 2026-10-29 22:20:10 · `tasks/prd-nomes-de-mercado/revisao-spec.md`
+
+VEREDITO: APROVADO
+
+Caminhos de escrita em Nota: nenhum muda. Esta spec é um rename. A coluna `lancada_por`, as rotas e os métodos `aprovar`/`aprovarLote` ficam (§3 e 4, inventário §3). Os testes que provam por varredura quem chama `aprovar`, `aprovarLote` e `decidir` estão em `travas.md`, "Regra 70", linhas 49 e 50. Todos com autor humano? sim.
+Decisão autônoma sobre aluno: ausente. Nenhuma lógica muda, e o `conferir` (§5) prova que strings, regex, chaves e casos de teste continuam iguais.
+Aprovação registrada: ok. A varredura de `entrega.int.test.ts` passa a `packages/core/src` (`travas.md`:49). A porta única da auditoria também está coberta (`travas.md`:36).
+Supervisão do tutor: ok. Prompt e política são strings em `.ts`, então caem no `conferir`. Não há prompt em `.md` dentro de `packages/` ou `apps/`; só os dois README, que o RF9 cobre.
+Autonomia declarada e visível: sim. Os textos de `governanca` são strings comparadas pelo `conferir`.
+
+**Os dois bloqueantes da rodada 1:**
+- **B1 (trava da regra 70 que lê nome ou caminho em string ou regex, sem caminho de troca): resolvido.** O passo 6 da §5 lista toda ocorrência por texto em `.ts`, `.mjs`, JSON e YAML. Cada uma é classificada como `fica` ou `trava`, e o relatório fica vermelho se sobrar alguma sem classificação. A troca de propósito entra em `excecoesDoConferir`. O `travas.md`, "Regra 70" (linhas 49 a 53), mais a linha 36 em "Regra 20", dá a cada trava a onda e a prova vermelha com o nome novo: `porta-unica`, `Mensagem.test.tsx` (D58), `avatar-so-nas-duas-pecas`, `entrega`, `correcao` e `assistente`. Conferi no código. As asserções que ficariam verdes em silêncio com o nome velho são duas, e as duas estão listadas: `not.toMatch(/from '\.\/AvatarAgente'/)` e `startsWith('galeria/')`. O resto falha alto, porque `toEqual` contra uma lista velha ou `readFileSync` de um arquivo que não existe mais deixam o teste vermelho.
+- **B2 (o ouro): resolvido.** O passo 5 da §5 exclui `docs/aia/ouro/` e `docs/aia/ouro-retido/`. O `travas.md`:55-58 manda as citações para uma correção do Arquiteto depois da 5.0, com o selo regravado e o `conformidade-reviewer`. Duas coisas confirmam que nenhuma onda fica vermelha entre a 5.0 e essa correção:
+  - O `tools/processo/harness/caminhos.test.ts` só confere `.claude/agents`, `.claude/rules` e `tools/guardas`, e não lê o README do ouro.
+  - O `raizDoOuro` (`'../../../../../docs/aia/ouro'`) mantém a profundidade depois do move.
+
+**Lacuna nova com veto:** nenhuma.
+
+Bloqueantes: nenhum.
+
+Recomendações:
+1. **`travas.md`:36 (`porta-unica.test.ts`) tem linhas erradas.** A tabela cita as linhas "11, 12 e 31". A 31 não tem caminho. O que lê caminho ou nome são:
+   - as linhas 11, 12 e 38 (`LEITURA`);
+   - a regex `IMPORTA_O_MODULO_DE_INSERCAO`, na linha 50, que procura `insercao-de-auditoria` (o arquivo vira `auditoria-insert.repository.ts`);
+   - os textos de teste das linhas 104 a 117, que mudam junto com a regex.
+
+   Com a regex velha, o teste da linha 73 fica vermelho, então não há silêncio. Mesmo assim a linha do anexo deve ser exata.
+2. **§5, passo 6: dizer quais "trechos de caminho" entram na busca.** A entrada de arquivo deve gerar também o nome sem extensão (`insercao-de-auditoria`, `Mensagem`) e cada segmento da pasta. Sem isso, a regex do item 1 não seria achada pelo nome completo do arquivo.
+3. **`travas.md`:50: trocar `apps/api/src/.../correcao.int.test.ts` pelo caminho real,** `apps/api/src/atividade/correcao/correcao.int.test.ts`. Os nomes esperados (`correcao/correcao.service.ts`, `correcao/lote.controller.ts`) são de domínio e provavelmente não mudam. Nesse caso a linha vira `fica`.
+4. **O ouro precisa de um ponto de fechamento.** Hoje o `restos` libera para sempre o que o passo 5 deixa fora, então nada acusa se a correção do Arquiteto não acontecer. Proposta: na 13.0, ou no pouso, o `restos` roda sem a isenção do ouro e dá zero.
+5. **`travas.md`:23 (`guardioes-por-caminho.ts`): provar os três guardiões.** A prova de `components/ui/ai/` deve conferir `privacy-guardian`, `conformidade-reviewer` e `infra-guardian`, e não só o `conformidade-reviewer`. Se só a exceção `componentes/ui/` for atualizada, a pasta de IA cai nela e perde o `privacy-guardian`.
+
+Arquivos lidos:
+- /home/joaquimdp/Documents/git/.maestri/floors/educaia--specnomes-de-mercado/tasks/prd-nomes-de-mercado/techspec.md
+- /home/joaquimdp/Documents/git/.maestri/floors/educaia--specnomes-de-mercado/tasks/prd-nomes-de-mercado/travas.md
+- /home/joaquimdp/Documents/git/.maestri/floors/educaia--specnomes-de-mercado/tasks/prd-nomes-de-mercado/prd.md
+- /home/joaquimdp/Documents/git/.maestri/floors/educaia--specnomes-de-mercado/packages/nucleo/src/auditoria/porta-unica.test.ts
+- /home/joaquimdp/Documents/git/.maestri/floors/educaia--specnomes-de-mercado/apps/web/src/componentes/ui/ia/avatar-so-nas-duas-pecas.test.ts
+- /home/joaquimdp/Documents/git/.maestri/floors/educaia--specnomes-de-mercado/tools/processo/guardioes-por-caminho.ts
+
+## test-engineer · 2ª rodada · REPROVADO · 2026-10-29 22:20:49 · `tasks/prd-nomes-de-mercado/revisao-spec.md`
+
+VEREDITO: REPROVADO
+
+**Cenários exigidos:** são os mesmos da rodada 1.
+- **`aplicar`:** um símbolo do shared renomeado nos dois projetos, com o comentário; a string de mesmo nome intacta; o move com o import relativo, o import de pacote e o `vi.mock`; o rename só de caixa; cada recusa do mapa.
+- **`conferir`:** vermelho com uma string, uma regex, um `JsxText`, uma chave de objeto, um nome exportado ou uma parte fixa de template mudados, com um caso a menos e com um especificador fora do mapa.
+- **`restos`:** prova o RF3, o RF6, o RF9 e o RF10.
+- **A guarda:** cada tipo de declaração e cada restrição da gramática.
+- **RF11:** cada trava com o caso com o nome novo que a deixa vermelha.
+- **Isolamento:** as travas de tenant seguem pegando o que pegavam.
+- **Não se aplicam:** concorrência (nada roda duas vezes ao mesmo tempo) e IA (nenhum teste chama modelo).
+
+**Cobertos (a rodada 1, item a item):**
+- **B1, resolvido.**
+  - `NOME_DA_CLASSE_DE_INVARIANTE`: travas.md, "Regra 20", linha 1.
+  - `ESCOPO_DO_ERRO_TIPADO`: "Regra 20", linha 2.
+  - `PACOTE` de `regras-tenant.mjs`, com o par vermelho e verde: "Regra 10", linha 3.
+  - `TIPOS_DO_BANCO`, `PROVAS_DE_ESCOPO` e `SemEscopo` completos: "Regra 10", linha 1.
+- **B2, resolvido:**
+  - §5, passo 6: lista cada `de` em string, template, regex, JSON, YAML, `.mjs` e `.cjs`, e a ocorrência sem classificação deixa o relatório vermelho;
+  - a foto do `conferir` inclui regex;
+  - `CHAVES_DOS_MARCADORES`, `porta-unica`, `Mensagem.test.tsx` e `avatar-so-nas-duas-pecas` estão em travas.md.
+- **B3, resolvido.** O `this.name` acompanha a classe (adenda 1, §7, `excecoesDoConferir`). A asserção de `erro.int.test.ts:166` (`not.toContain('ErroDeInvariante')`), que calaria com o nome velho, está em travas.md, "Regra 20", linha 4.
+- **B4, só em parte:** o `restos` existe (§5, §10), mas não dá para ficar verde. Ver o bloqueante 2.
+- **B5, resolvido:**
+  - o especificador é comparado depois do mapa;
+  - a chave de objeto entra na foto;
+  - a forma curta com a chave mantida tem caso no `aplicar`;
+  - a chave mudada tem caso no `conferir`.
+- **B6, só em parte:**
+  - entraram um caso por tipo de declaração, `Botao` exato, `eslint-disable` e `tools/` fora;
+  - faltam o caso de `Erro…` contra uma recusa de domínio e o caso da mensagem. Ver o bloqueante 3.
+- **Recomendações da rodada 1 que entraram:**
+  - o `db:gerar` sem migration e o `_journal` igual (§7c);
+  - a base verde antes da 1.0;
+  - a régua de duração do e2e (§13);
+  - o `paths:` das regras;
+  - o `typeof import` dos scripts de infra (§11);
+  - a trava contra filtro vazio.
+
+**Bloqueantes:**
+
+1. **A forma da prova vermelha das travas está indefinida e se contradiz** (§10, "Mutação"; travas.md, todas as colunas "Prova vermelha").
+   - **O que está errado:**
+     - A §10 diz que as ondas levam "Sem mutação: rename, sem condição nova". Mas travas.md, "Regra 20", linha 4 (ondas 3.0 e 4.0), declara uma prova por "Mutação".
+     - Trocar a constante que a trava compara (`TIPOS_DO_BANCO`, `PACOTE`, `NOME_DA_CLASSE_DE_INVARIANTE`, os globs) é mudar a condição dela. Não é "sem condição nova".
+     - Quando a prova é um "caso" novo ("uma fixture por tipo novo", "`import { escola } from '@educa/core'` em `x.service.ts`: vermelho", `throw new Error` em `packages/core/src/x.ts`), ela bate de frente com o RF7 ("nenhum caso de teste entra ou sai"). Bate também com o `conferir`, que fotografa os casos de `tools/guardas/` e `tools/processo/` e fica vermelho com qualquer diferença.
+     - Do jeito que está, cada prova vira um conserto improvisado na hora, e as que são conferência de uma vez só não ficam como teste.
+   - **Correção exigida:**
+     - Pôr em travas.md uma coluna "Forma": bloco `mutacao` da onda, que volta a constante da trava ao nome antigo (ou desliga a cláusula), sobre um caso que já existe e foi renomeado.
+     - Exemplo: os fixtures `sem-prova` (`Banco`), `banco-por-parametro` e `funcao-exportada` (`TransacaoBanco`) e `executor-de-auditoria` (`ExecutorDeAuditoria`) já reprovam hoje. Renomeados, eles provam o tipo novo, e a mutação "`TIPOS_DO_BANCO` com `'Banco'`" tem de deixá-los vermelhos. Não precisa de fixture nova.
+     - A §10 passa a dizer que toda onda com trava leva os blocos de mutação dela.
+     - Onde nenhum caso existente chega à trava, a linha diz isso. O caso novo precisa então de exceção declarada no `conferir` e no RF7, e isso é parada do Joaquim.
+
+2. **O `restos` não fica verde com palavra comum** (§5, "O `restos`"; §10, linha `restos`).
+   - **O que está errado:**
+     - Ele busca cada `de` "como palavra inteira, no código e nos documentos vivos", e libera só o `fica`, o texto dos casos e o que o passo 5 deixa fora.
+     - Vários `de` são palavras comuns: `Banco` (→ `Database`), `Fila` (→ `QueueName`), `Tela` (→ `Page`), `Despachante` (→ `OutboxRelay`).
+     - Exemplos que ficam vermelhos para sempre: o `CLAUDE.md` traz "D49 | Fila de jobs…", e os documentos trazem "Banco público de questões".
+     - O passo 5 manda a palavra comum para a troca à mão, e o `restos` não tem a regra equivalente.
+   - **Correção exigida:**
+     - O `restos` aplica a mesma regra do passo 5. Em comentário e documento, conta só o identificador composto, o que está entre crases, o `{@link}` e o caminho. A palavra comum conta só como identificador no código (pela AST) e entre crases.
+     - Na §10, entram três casos:
+       - "Fila de jobs" em prosa no `CLAUDE.md`: verde;
+       - `` `Fila` `` entre crases num documento: vermelho;
+       - `Banco` como tipo no código: vermelho.
+
+3. **A gramática da guarda não tem teste para a restrição por tipo, nem para a mensagem** (§5, "A gramática"; §10, linha "Guarda (12.0)").
+   - **O que está errado:**
+     - A §5 diz que `Linha…` e `Opcoes…` só valem em interface e tipo, e que `Erro…`, `Filtro…`, `Guarda…`, `Adaptador…` e `…EmMemoria` só valem em classe. Diz também que `ErroDaOperacao` e `LinhaDoMaterial` passam.
+     - A §10 só lista casos que passam por nome exato (`DialogoDeAlocacao`, `CartaoDoAgente`) e por domínio.
+     - Uma mutação que ignore o tipo de declaração sobrevive. Seguem faltando também o caso de `Erro…` contra uma recusa de domínio, que exigi na rodada 1, e a asserção do RF8, "com a sugestão na mensagem".
+   - **Correção exigida:** pôr na §10:
+     - `class ErroX` recusada, e `ErroDaOperacao` no tipo de declaração real dela: passa;
+     - `interface LinhaX` recusada, e `LinhaDoMaterial` passa;
+     - `RenovacaoRecusada` passa;
+     - a mensagem de `class AdaptadorX` contém o nome de mercado (`XAdapter`).
+
+4. **O `conferir` tem duas cláusulas sem caso** (§5, "O `conferir`"; §10, linha `conferir`).
+   - **O que está errado:** a foto inclui "os nomes exportados por pacote" e "as partes fixas de template", mas a §10 não tem caso vermelho para nenhum dos dois.
+   - **Correção exigida:** pôr na §10 "um nome exportado fora do mapa: vermelho" e "a parte fixa de um template mudada: vermelho".
+[… 16 linhas cortadas]
+
+## privacy-guardian · 2ª rodada · REPROVADO · 2026-10-29 22:21:04 · `tasks/prd-nomes-de-mercado/revisao-spec.md`
+
+VEREDITO: REPROVADO
+
+Campos pessoais tocados: nenhum. Mudam só nomes de peças que tratam dado de aluno (auditoria, titular, armazém, log, erro). Nenhum campo, finalidade ou retenção muda, e o `docs/lgpd.md` não muda (PRD §8, Tech Spec §7).
+
+Fora da tabela de dados do docs/lgpd.md: nada.
+
+Autorização por objeto: ok. A matriz é a mesma, as chaves dos schemas ficam e as rotas são strings comparadas pelo `conferir` (Tech Spec §3-4 e §7).
+
+Logs: limpos. O evento do log não muda. O campo `tipo` passa a trazer o nome novo da classe, pela adenda 1. Conferi: nenhum alerta em `infra/grafana/` nem o runbook lê esse campo. Os `tipo` que aparecem lá são de job e de limite, e são strings que ficam. A guarda de log continua sem furo: a exceção por nome (`resumirErro` → `summarizeError`) está em travas.md, linha 35. As exceções por caminho (`logger.test.ts`, `logger-do-nest.ts`) entram na trava contra filtro vazio (§5), e se ficarem para trás a guarda fica mais estrita, nunca mais frouxa.
+
+Auditoria: presente. A ação auditada é string. A porta única tem trava contra o nome novo `insertAuditoria` (travas.md, linha 36). Os caminhos `MODULO_DA_INSERCAO`, `REGISTRO` e `LEITURA` quebram em voz alta se ficarem para trás.
+
+Envio externo: nada muda. O `IA_ADAPTADOR` é string. O glob da regra 30 passa a `*-adapter.ts`, com a interface em `adapter.ts` fora dele (adenda 1, travas.md linha 42). O `ExecucaoAgente` não é tocado.
+
+Seed/fixture: sintético. Só muda o nome do apoio, não o conteúdo.
+
+**Os três bloqueantes da rodada 1 estão resolvidos:**
+- **B1 (guarda de erro tipado fora da §7):** a §7 remete à seção "Regra 20" de travas.md. `NOME_DA_CLASSE_DE_INVARIANTE` está na linha 31, com a prova `new InvariantException(\`${aluno.nome}\`)` vermelha. `ESCOPO_DO_ERRO_TIPADO` está na linha 32, com caminho real em `packages/core`. Os dois também entram na trava contra filtro vazio (§5).
+- **B2 (`contratos.test.ts` varrendo lista vazia):** travas.md, linha 33. O filtro passa a `endsWith('ResponseSchema')`, o conjunto varrido é o mesmo, nome a nome, com a mesma contagem, e a fixture com `email` continua vermelha. Conferi que o inventário mapeia `esquemaResposta<X>` → `<x>ResponseSchema` de forma uniforme (`inventario-core-shared.md`, linha 463).
+- **B3 (`this.name`):** a decisão está na adenda 1. O `this.name` entra em `excecoesDoConferir` (§5), a §7 trata do campo `tipo` do log, e travas.md, linha 34, troca o `not.toContain('ErroDeInvariante')` das linhas 166 e 169, com uma mutação que prova a 166 vermelha.
+
+O passo 6 do `aplicar` (§5) também resolve o problema geral das referências por texto em `apps/`, `packages/`, `e2e/`, `tools/` e `infra/`: ocorrência sem classificação deixa o relatório vermelho.
+
+Bloqueantes:
+1. **Tech Spec §5, passo 6, e "A trava contra filtro vazio".** Os arquivos de configuração da raiz e o `.github/` ficaram fora da busca por referências em texto. O `eslint.config.mjs` tem blocos `files:` com caminhos que a spec renomeia, e nada os atualiza:
+   - `apps/worker/src/processadores/**/*.ts` (`eslint.config.mjs:72`): é a regra que proíbe afirmação de tipo no registro de totais do expurgo, para que a chave que faltar não fique escondida do compilador. Esse registro é a prova da retenção (regra 20, item 16). A pasta vira `processors/` (`inventario-back.md:286`).
+   - `apps/web/src/componentes/ui/**` (`eslint.config.mjs:116`): é a regra pela qual o kit não importa a API nem a sessão. O kit vira `components/ui/`.
+
+   Depois das ondas 5.0 e 6.0 esses globs não casam com nenhum arquivo, e o ESLint não acusa `files:` vazio. As duas regras deixam de valer em silêncio. O caso de `tools/guardas/guardas.test.ts:159` também continua verde, porque lint num caminho virtual antigo ainda casa com o glob antigo. O inventário (§4, linha 163) lista o `eslint.config.mjs` como trava, mas a Tech Spec não o varre, travas.md não tem linha para ele e a trava contra filtro vazio não o cobre. Era exatamente o furo da correção "referência por texto em qualquer arquivo".
+
+   **Correção exigida:**
+   - O passo 6 passa a varrer também os arquivos da raiz (`eslint.config.mjs`, `knip.json`, `package.json`, `vitest.config.ts`, `playwright.config.ts`, `.size-limit.json`, `compose.yaml`) e o `.github/`.
+   - A trava contra filtro vazio passa a incluir todo `files`/`ignores` do `eslint.config.mjs` e os workspaces do `knip.json`.
+   - travas.md ganha uma linha para o `eslint.config.mjs`, na onda 6.0, com prova vermelha no caminho real novo: uma afirmação `as Record<…>` em `apps/worker/src/processors/x.ts` e um import de `../sessao/x` em `apps/web/src/components/ui/x.tsx`. O caminho virtual de `guardas.test.ts` também passa ao nome novo.
+
+Recomendações:
+- travas.md, linhas 8 e 9, diz que a trava achada depois entra "no mapa da onda", e a §5 diz que a trava leva "a linha do `travas.md`". Que a trava nova entre nos dois, para travas.md continuar sendo a lista completa.
+- travas.md, linha 36: a "linha 31" de `porta-unica.test.ts` é a regex da tabela, não um caminho. Falta o caminho `LEITURA` (linha 38). Ele falha em voz alta, mas vale listar.
+- O `this.name` novo das classes que terminam em `…Error` passa a cair também no `not.toContain('Error')` de `erro.int.test.ts:150`. A checagem fica mais estrita, o que é bom. Registrar isso no mapa da 3.0 evita que alguém o leia como regressão.
+
+Os arquivos que revisei estão em `/home/joaquimdp/Documents/git/.maestri/floors/educaia--specnomes-de-mercado/tasks/prd-nomes-de-mercado/`: `techspec.md`, `travas.md`, `prd.md` e `inventario.md`. A evidência do bloqueante está em `/home/joaquimdp/Documents/git/.maestri/floors/educaia--specnomes-de-mercado/eslint.config.mjs`, nas linhas 72 e 116.
+
+## revisor-geral · 2ª rodada · REPROVADO · 2026-10-29 22:21:22 · `tasks/prd-nomes-de-mercado/revisao-spec.md`
+
+VEREDITO: REPROVADO
+Escopo: respeitado
+Aderência à Tech Spec: divergência em §5 (o `restos` e o passo 6 do `aplicar` contra o passo 5 e contra as linhas; a gramática da guarda contra o inventário aprovado) e em `travas.md` (configuração da raiz ausente)
+Portão local: não se aplica. É revisão de spec e ainda não há árvore de código (o `conferir` responde "nunca passou nesta árvore").
+
+**Os sete bloqueantes da rodada 1**
+
+| # | Situação |
+|---|---|
+| 1. Prosa estragada; §2 contra §5 | Resolvido para a edição: o passo 5 só troca sozinho o identificador composto, o que está entre crases, o `{@link}` e o caminho, e a §10 traz os casos "com" e "Banco público". Reabre na busca, no bloqueante novo 1 |
+| 2. A guarda reprova nomes que ficam | Resolvido em parte: o escopo, a lista em `nomes-de-mercado.mjs`, o kit como nome exato, a entrada em `REGRAS_DAS_GUARDAS` e o `tools/` fora estão no desenho. Sobra o bloqueante novo 2 |
+| 3. Nada prende a linha aos "Arquivos previstos" | Resolvido: o `--escopo` com recusa, e o teste na §10 ("seis casos de recusa") |
+| 4. O compose de produção muda | Resolvido pela adenda 1. O `infra/compose.yml` só cita `nucleo` em comentário, então o `config` sai igual |
+| 5. O `this.name` dos erros | Resolvido: a adenda 1, o `excecoesDoConferir` e a linha da §7 sobre o campo `tipo` do log |
+| 6. A reaplicação depois do merge | Resolvido: o `reaplicar`, a correção com revisão e o teste na §10 |
+| 7. O PRD acima do teto | Resolvido: 1.965 palavras |
+
+**Bloqueantes**
+
+1. **O `restos` e o passo 6 do `aplicar` buscam a palavra comum como palavra inteira, e ficam vermelhos para sempre** (Tech Spec §5, "O `restos`" e passo 6).
+   - **O que está errado.** O mapa tem `de` que é palavra comum ou pedaço de caminho: `com`, `Banco`, `Tela`, `Fila`, `Contador`, `ia`, `erro`, `fila`, `componentes`. Contei as ocorrências como palavra inteira em `apps/`, `packages/`, `e2e/`, `tools/` e `infra/`:
+     - `com`: 10.647
+     - `erro`: 3.777
+     - `fila`: 2.250
+     - `componentes`: 830
+     - `ia`: 760
+     - `Banco`: 504
+   - Sem contar o que existe nos documentos vivos.
+   - **Consequências.**
+     - O passo 5 manda essas palavras para a troca à mão. A ocorrência que fica na prosa, porém, não está entre os liberados do `restos` ("o `fica`, o `describe`/`it`/`test` e o que o passo 5 deixa fora").
+     - O passo 6 exige classificar, uma a uma, cada string com "com" ou "Fila", inclusive o texto de tela.
+     - A chave mantida de propósito pelo passo 2 (`{ esquemaTurma: turmaSchema }`) também cai no `restos`.
+     - O `restos` "roda em cada onda" sobre os documentos vivos, mas as ondas 7.0 a 11.0 "não tocam documento". Ele fica vermelho em toda onda de linha até a 13.0.
+   - **Sem isso a prova do RF3 não funciona.** Ou fica vermelha sempre, ou alguém a ignora, que é o mesmo que não ter prova.
+   - **Correção exigida.** Definir na §5:
+     - a forma de busca por tipo de `de`: o símbolo como identificador de código, pelo AST ou pelo token, e não por palavra no texto; o caminho pelo trecho inteiro (`componentes/ui/`, `packages/nucleo`), nunca pelo segmento solto;
+     - que a ocorrência deixada na troca à mão fica registrada no relatório como liberada;
+     - que a chave mantida pelo passo 2 é liberada;
+     - que nas ondas de linha o `restos` não olha documento.
+   - A §10 ganha os casos: "com" numa string de tela e "Fila" na prosa, verdes; o símbolo `Banco` num import, vermelho.
+
+2. **A gramática da guarda reprova nomes que não estão no inventário aprovado, e a §5 contradiz a si mesma** (Tech Spec §5, "A gramática"; RF8 e RF2).
+   - **A contradição.** `Linha…` e `Opcoes…` valem em interface e tipo. A §5 diz que `LinhaDoMaterial` passa, mas ele é `export interface LinhaDoMaterial` (`apps/api/test/material-de-teste.ts:100`) e `export type` (`apps/web/src/areas/coordenacao/material/materiais-da-escola.ts:22`).
+   - **O tamanho.** Cerca de 40 declarações caem na guarda e não estão em nenhum anexo. Por exemplo:
+     - `LinhaDeAluno`, `LinhaDoUso`, `LinhaDaPrevia`, `LinhaEmMemoria`, `LinhaLida`, `LinhaDoResumo`;
+     - `OpcoesDaEliminacao`, `OpcoesDoConsumo`, `OpcoesLidas`, `OpcoesDoDialogoModal`, `OpcoesDoFlutuante`, `OpcoesDoTexto`, `OpcoesDoPasso`;
+     - as classes `SeguroEmMemoria` (`apps/api/src/credencial/contador-de-tentativas.ts`) e `AdaptadorDeRoteiro` (`packages/nucleo/src/ia/adaptador-resiliente.test.ts`).
+   - **Consequência.** Na 12.0, a guarda fica vermelha sobre o código de hoje. O RF8 só se cumpre renomeando fora do inventário, contra o RF2, ou mudando a gramática em silêncio dentro da tarefa.
+   - **Correção exigida.** Escolher uma de três saídas antes da 1.0:
+     - uma adenda 2 com esses nomes, aprovada pelo Joaquim;
+     - restringir `Linha…` e `Opcoes…` a um contexto que o inventário já cobre (por exemplo, `*.repository.ts` e o core);
+     - uma lista de exceções nominais na própria `nomes-de-mercado.mjs`.
+
+     Em qualquer caso, tirar `LinhaDoMaterial` da frase "passam" ou torná-la verdadeira. A §10 ganha o caso: a árvore inteira depois da 11.0, verde sob a guarda.
+
+3. **A configuração da raiz que lê caminho renomeado não tem trava nem varredura** (`travas.md`, "Processo e configuração"; Tech Spec §5, passo 6 e "A trava contra filtro vazio").
+   - **Dois globs do `eslint.config.mjs` apontam pastas que o inventário renomeia:**
+     - `files: ['apps/web/src/componentes/ui/**/*.{ts,tsx}']`, linha 116: a fronteira do kit, que não importa a API, as telas nem a sessão;
+     - `files: ['apps/worker/src/processadores/**/*.ts']`, linha 72: a proibição de afirmação de tipo nos processadores, que protege os totais do expurgo.
+   - **Nada pega se o glob ficar para trás:**
+     - o passo 6 varre só `apps/`, `packages/`, `e2e/`, `tools/` e `infra/`, e não a raiz;
+     - a trava contra filtro vazio tem lista fechada e não inclui o `eslint.config.mjs` nem o `knip.json`;
+     - o `travas.md` só cita o `eslint-suppressions.json`.
+   - **Consequência.** Depois da 6.0, as duas regras passam a valer para zero arquivo, e ficam verdes sem checar nada. É exatamente o caso do RF11.
+   - **Correção exigida.**
+     - Incluir na trava contra filtro vazio todo `files` e `ignores` dos blocos do `eslint.config.mjs` (importando a configuração exportada) e os workspaces e entries do `knip.json`.
+     - Pôr as duas linhas no `travas.md`, na onda 6.0, com a prova vermelha com o nome novo. Por exemplo, um arquivo em `components/ui/` importando `../api/x`: vermelho.
+     - Estender o passo 6 aos arquivos da raiz: `*.config.*`, `package.json`, `knip.json`, `*.Dockerfile`.
+
+**Recomendações**
+
+- A foto do `conferir` não conta os casos de `tools/testes/`, `tools/ia/`, `tools/ci/`, `tools/demonstracao/` nem `infra/test/`, e o inventário §4 cita arquivos de lá. Incluir.
+- `travas.md`, `PASTA_DOS_ADAPTADORES`: "os arquivos isentos são os mesmos de hoje" não é exato. Hoje `adaptador-*.ts` isenta também os `.test.ts`, e `*-adapter.ts` não isenta. Fica mais restrito, o que é aceitável, mas a frase deve dizer isso.
+- O passo 6 cita `Dockerfile`, e o arquivo real é `infra/docker/servico.Dockerfile`. Escrever o glob.
+- Os scripts do `package.json` da raiz (`-w @educa/nucleo`, `db:gerar --config packages/nucleo/...`) quebram alto se ficarem para trás. Mesmo assim, devem constar do passo 4 ou do passo 6, para não serem descobertos na esteira.
+
+Arquivos citados:
+- /home/joaquimdp/Documents/git/.maestri/floors/educaia--specnomes-de-mercado/tasks/prd-nomes-de-mercado/techspec.md
+- /home/joaquimdp/Documents/git/.maestri/floors/educaia--specnomes-de-mercado/tasks/prd-nomes-de-mercado/travas.md
+- /home/joaquimdp/Documents/git/.maestri/floors/educaia--specnomes-de-mercado/tasks/prd-nomes-de-mercado/prd.md
+[… 2 linhas cortadas]

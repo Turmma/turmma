@@ -44,6 +44,39 @@ O `frontend-reviewer` fica fora: nenhuma tela muda, e o `conferir` compara o tex
 - Alias de propósito como campo do mapa; o relatório do `aplicar` num arquivo por onda; o motivo de não usar ts-morph nem `naming-convention` (revisor-geral)
 - Na guarda, casos de domínio da regra 70 que passam (`CorrecaoService`, `ValidacaoDoLote`) (conformidade)
 
+## Rodada 2 — 29/10/2026
+
+**Veredito: REPROVADA**
+
+Os bloqueantes da rodada 1 estão resolvidos, menos o B4 e o B6 do `test-engineer`, resolvidos em parte.
+
+| Revisor | Veredito | Bloqueantes |
+|---|---|---|
+| `tenancy-guardian` | REPROVADO | 1: a `cerca-resolucao-de-tenant` do `camadas.cjs` e a linha 49 do `arquitetura.test.ts` leem o arquivo e a classe por regex, e calam na 6.0 e na 7.0; a busca por palavra inteira não acha nome dentro de regex |
+| `privacy-guardian` | REPROVADO | 1: o `eslint.config.mjs` (`files` de `processadores/` e de `componentes/ui/`) fora da busca e da trava contra filtro vazio |
+| `conformidade-reviewer` | APROVADO | — |
+| `infra-guardian` | REPROVADO | 1: a raiz (`package.json` com `-w @educa/nucleo`, `knip.json`, `vitest.config.ts`) fora da busca e do `restos`; o caminho do `dist` "conferido à mão" |
+| `test-engineer` | REPROVADO | 4: a forma da prova vermelha das travas contradiz o RF7 e a §10; o `restos` fica vermelho para sempre com palavra comum; a gramática da guarda sem caso por tipo e sem caso da mensagem; o `conferir` sem caso de nome exportado e de template |
+| `revisor-geral` | REPROVADO | 3: o `restos` e o passo 6 com palavra comum; a gramática recusa uns 40 nomes que não estão no inventário (contra o RF2), e `LinhaDoMaterial` "passa" sem passar; a configuração da raiz sem trava |
+| `llm-integrator` (sem veto) | APROVADO | — |
+
+### Correções exigidas na Tech Spec
+
+- §5, passo 6, e `restos`: o escopo inclui `.github/` e a raiz (`package.json`, `knip.json`, `*.config.*`, `tsconfig*.json`). O símbolo é buscado como identificador, e o caminho e o pacote como trecho inteiro, também sem extensão, nunca segmento solto. Em regex e `String.raw`, a busca é na forma sem escape e sem borda depois de `\b`, e pega o prefixo da gramática em `startsWith`/`endsWith` (tenancy, privacy, infra, test-engineer, revisor-geral)
+- §5, `restos`: a mesma forma de busca do passo 5 em comentário e documento. Ficam liberados a chave mantida, a troca à mão registrada e, nas linhas, o documento. Na 13.0, roda sem a isenção do ouro (test-engineer, revisor-geral, conformidade)
+- §5, trava contra filtro vazio: entram os `files`/`ignores` do `eslint.config.mjs`, os workspaces e entries do `knip.json`, o `paths:` das regras e o `path` em regex do `camadas.cjs`, item a item (privacy, revisor-geral, tenancy, infra)
+- §10, "Mutação": toda trava se prova por um bloco de mutação que a devolve ao nome antigo, sobre um caso que já existe e foi renomeado. Nenhum caso entra; trava que nenhum caso alcança é divergência (test-engineer)
+- §10: entram os casos novos de `aplicar`, `conferir`, `restos` e do filtro vazio (tenancy, infra, test-engineer, revisor-geral)
+- A gramática da guarda passa para o anexo `guarda.md`: cada forma com os tipos de declaração, só a declaração de topo, e um caso recusado e um que passa por linha, mais a mensagem e a árvore inteira verde (test-engineer, revisor-geral)
+- `inventario-adenda-2.md`: 94 declarações que a gramática recusa e que nenhum anexo listava, cada uma com o nome novo pela regra do §1. Toca o inventário aprovado (RF2): aprovada pelo Joaquim em 29/10/2026 (revisor-geral)
+- `travas.md`: a forma da prova; as linhas novas (`cerca-resolucao-de-tenant`, `ZONAS_DAS_CLASSES_CERCADAS`, `tabelas-do-nucleo.test.ts`, `eslint.config.mjs`, o `package.json` da raiz, `knip.json`/`vitest.config.ts`, `tools/ci/`); e as linhas exatas de `REPOSITORIES_SEM_ESCOPO`, `porta-unica`, `PASTA_DOS_ADAPTADORES`, `correcao` e `guardioes-por-caminho` (todos)
+
+### Recomendações
+
+- Um teste em `infra/test/` que confira que existe a fonte de cada caminho de `dist` do `importarDaApi` (infra)
+- O `conferir` conta também `tools/ia/`, `tools/ci/`, `tools/testes/` e `infra/test/` (revisor-geral): entrou na §5
+- Custo de IA: zero adicional (llm)
+
 ## Revisões
 
 Preenchida pelo hook `tools/processo/revisoes.ts` quando cada revisor termina. Não edite à mão:
@@ -59,3 +92,10 @@ atual, com APROVADO quando o revisor tem veto.
 | 2026-10-29 21:32:55 | 2026-10-29 21:37:42 | `conformidade-reviewer` | 1 | REPROVADO | a49666c913785f46c |
 | 2026-10-29 21:32:45 | 2026-10-29 21:38:48 | `test-engineer` | 1 | REPROVADO | aa4219059e5bde119 |
 | 2026-10-29 21:33:03 | 2026-10-29 21:38:56 | `revisor-geral` | 1 | REPROVADO | a1589db3cbc602630 |
+| 2026-10-29 22:17:24 | 2026-10-29 22:19:34 | `llm-integrator` | 2 | APROVADO | a06f07242d71a0802 |
+| 2026-10-29 22:17:03 | 2026-10-29 22:20:03 | `tenancy-guardian` | 2 | REPROVADO | adfba557d81e1ff19 |
+| 2026-10-29 22:17:14 | 2026-10-29 22:20:09 | `infra-guardian` | 2 | REPROVADO | aa9dae920d4683115 |
+| 2026-10-29 22:17:10 | 2026-10-29 22:20:10 | `conformidade-reviewer` | 2 | APROVADO | a314800ddaca5a580 |
+| 2026-10-29 22:17:17 | 2026-10-29 22:20:49 | `test-engineer` | 2 | REPROVADO | aeb2cb3a0aeaa7df4 |
+| 2026-10-29 22:17:07 | 2026-10-29 22:21:04 | `privacy-guardian` | 2 | REPROVADO | abb19176c70c8008f |
+| 2026-10-29 22:17:21 | 2026-10-29 22:21:22 | `revisor-geral` | 2 | REPROVADO | ad80132cbf07e9f88 |
