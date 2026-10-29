@@ -343,7 +343,7 @@ regra aponta a checagem que a garante; a P4 e as M1 a M7 da X5 e as M1 a M3 da X
 a prova; cada pergunta "Para a Etapa 9" tem resposta do Joaquim, aplicada ou registrada; e a base fixa que toda sessão
 carrega está medida antes e depois.
 
-## X8 — `nomes-de-mercado` [ ]
+## X8 — `nomes-de-mercado` [~]
 **Depende de:** X4 · **parte depois que a X4 pousar e vem antes do F2**
 
 A D81 aplicada ao código que já existe (revista em 24/10/2026, a pedido do Joaquim). Primeiro, um inventário completo
