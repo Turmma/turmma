@@ -34,7 +34,7 @@ groups:
         annotations:
           summary: Mais de 5 cookies de renovação reusados em 10 min
           description: Cookies de sessão velhos estão voltando, e cada um encerrou uma família de sessões. Siga o runbook.
-          runbook_url: https://github.com/LitzGab/Educa.ia/blob/main/docs/runbook.md#reuso-de-refresh
+          runbook_url: https://github.com/Turmma/turmma/blob/main/docs/runbook.md#reuso-de-refresh
         data:
           - refId: A
             relativeTimeRange:

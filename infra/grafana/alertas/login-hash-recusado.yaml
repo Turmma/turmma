@@ -28,7 +28,7 @@ groups:
         annotations:
           summary: Mais de 1% dos logins saiu com 503 do semáforo do hash por 3 min
           description: A fila do hash de senha passou do prazo de 2 s. A web repete, mas quem espera mais de 30 s vê erro. Siga o runbook.
-          runbook_url: https://github.com/LitzGab/Educa.ia/blob/main/docs/runbook.md#login-recusado-pelo-semáforo-do-hash
+          runbook_url: https://github.com/Turmma/turmma/blob/main/docs/runbook.md#login-recusado-pelo-semáforo-do-hash
         data:
           - refId: A
             relativeTimeRange:

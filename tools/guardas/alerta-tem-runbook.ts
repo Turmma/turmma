@@ -13,7 +13,7 @@ import { raizRepositorio } from '../ci/executar.ts'
 export const PASTA_DOS_ALERTAS = 'infra/grafana/alertas'
 export const CAMINHO_DO_RUNBOOK = 'docs/runbook.md'
 /** O runbook no repositório: o Grafana mostra o link junto do alerta. */
-export const ENDERECO_DO_RUNBOOK = 'https://github.com/LitzGab/Educa.ia/blob/main/docs/runbook.md#'
+export const ENDERECO_DO_RUNBOOK = 'https://github.com/Turmma/turmma/blob/main/docs/runbook.md#'
 /** Os campos do formato de entrada do runbook, na ordem. */
 export const CAMPOS_DA_ENTRADA = ['Dispara quando', 'Impacto', 'Primeiro olhar', 'Causas prováveis', 'Se nada disso resolver', 'Depois'] as const
 
