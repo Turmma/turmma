@@ -8,7 +8,8 @@
 > `turmma.com`; o registro no INPI e o do domínio seguem pendentes (`TODO.md`). O
 > repositório, os pacotes, o banco, o compose e os comandos continuam `educa`: a renomeação
 > técnica é trabalho próprio e não vale o risco no meio do F1.
-> Repositório: https://github.com/LitzGab/Turmma.ai (renomeado de `Educa.ia` em 19/09/2026; é **público**)
+> Repositório: https://github.com/Turmma/turmma (na organização `Turmma` desde 29/10/2026; é **público**. O antigo,
+> `LitzGab/Turmma.ai`, não recebe mais push)
 
 ---
 

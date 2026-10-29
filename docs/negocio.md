@@ -337,7 +337,7 @@ O que a coordenação precisa ver na primeira semana para renovar está em D24.
 
 ## 10. Referências
 
-- Repositório: https://github.com/LitzGab/Turmma.ai
+- Repositório: https://github.com/Turmma/turmma
 - Benchmark de concorrentes: https://educa-ia-benchmark.vercel.app
 - Diretrizes do CNE sobre IA (cobertura Porvir): https://porvir.org/cne-diretrizes-inteligencia-artificial-escola-universidade/
 - Diretrizes do CNE (cobertura G1, 01/09/2026): https://g1.globo.com/educacao/noticia/2026/09/01/cne-para-uso-de-ia-em-escolas-e-universidades.ghtml
