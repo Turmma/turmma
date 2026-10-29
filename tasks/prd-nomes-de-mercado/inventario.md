@@ -31,7 +31,7 @@ esquerda.
 | erro de recusa | sufixo `Error`, o termo técnico em inglês e o substantivo de domínio em português | `RenovacaoRecusada` → `RefreshRejectedError`, `OperadorRecusado` → `OperadorRejectedError`, `ArgumentoInvalido` → `InvalidArgumentError` |
 | `Emissor<X>` | `<X>Issuer` | `EmissorDeToken` → `TokenIssuer` |
 | `Armazem<X>` | `<X>FileStorage` | `ArmazemS3` → `S3FileStorage` |
-| `Configuracao<X>`, `lerConfiguracao<X>` | `<X>Config`, `load<X>Config` | `ConfiguracaoBanco` → `DatabaseConfig` |
+| `Configuracao<X>`, `lerConfiguracao<X>` | `<X>Config`, `read<X>Config` (alinhado ao anexo back e à adenda 2) | `ConfiguracaoBanco` → `DatabaseConfig` |
 | `Opcoes<X>`, `Dependencias<X>` | `<X>Options`, `<X>Dependencies` | `OpcoesDoPool` → `WorkerPoolOptions` |
 | `Linha<X>` (a linha lida ou gravada) | `<X>Row` | `LinhaDaSessao` → `SessaoRow` |
 | `METADADO_<X>` | `<X>_KEY` | `METADADO_ROTA_ANONIMA` → `IS_PUBLIC_KEY` |

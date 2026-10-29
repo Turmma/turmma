@@ -77,6 +77,34 @@ Os bloqueantes da rodada 1 estão resolvidos, menos o B4 e o B6 do `test-enginee
 - O `conferir` conta também `tools/ia/`, `tools/ci/`, `tools/testes/` e `infra/test/` (revisor-geral): entrou na §5
 - Custo de IA: zero adicional (llm)
 
+## Rodada 3 — 29/10/2026
+
+**Veredito: REPROVADA**
+
+Os bloqueantes da rodada 2 estão resolvidos, menos o B1 e o B3 do `test-engineer` e o B1 do `revisor-geral`, que estão resolvidos em parte.
+
+| Revisor | Veredito | Bloqueantes |
+|---|---|---|
+| `tenancy-guardian` | APROVADO | — |
+| `privacy-guardian` | APROVADO | — |
+| `infra-guardian` | APROVADO | — |
+| `test-engineer` | REPROVADO | 4: a trava negativa (`not.toContain`) não se prova devolvendo o nome antigo; restrições da gramática sem caso que passa; a trava contra filtro vazio sem caso para `knip.json`, `paths:` e `ignores`, nem mínimo de itens; cláusulas novas do passo 6 e do `restos` sem caso |
+| `revisor-geral` | REPROVADO | 3: o passo 6 lista "com" em 6 mil literais, e falta definir "palavra comum"; `CHAVES_DOS_MARCADORES` com o nome errado, na onda errada e sem `NOMES_DOS_MARCADORES`; `esquemaDeCor` recusado pela guarda sem estar no inventário |
+
+### Correções exigidas na Tech Spec
+
+- §5, o mapa e o passo 6: o campo `comum` define a palavra comum, e ela só é listada como literal inteiro ou colada a `(`, `.`, `@`, `/`, `\b`. A regex com alternância que parte o nome é limite declarado. Todo arquivo versionado da raiz entra na busca (revisor-geral; infra e privacy, recomendação)
+- §10, "Mutação": três formas de prova, A (devolve o nome antigo), B (trava negativa: o nome novo proibido no código sob teste) e C (`restos`, `tsc`, build ou filtro vazio, onde nenhum caso alcança). `travas.md` ganha a coluna "Forma" (test-engineer; tenancy e infra, recomendação)
+- Os casos das ferramentas vão para o anexo `casos.md`, com os que faltavam: `startsWith`/`endsWith`, `'Banco'` e `'@SemEscopo('` listados, "com" em tela não listado; o teste movido com os mesmos casos; a troca à mão, o documento numa linha e o ouro na 13.0; `knip.json`, `paths:`, `ignores`, o mínimo por fonte e a base do `git ls-files` (test-engineer)
+- `guarda.md`: casos que passam para cada restrição (declaração dentro de função, `fila/` em `apps/`, `function XEmMemoria`, `interface esquemaX`); `limite/` e `fila/` só em `packages/`; a exceção nominal `esquemaDeCor` (test-engineer, revisor-geral)
+- `travas.md`: `CHAVES_DOS_MARCADORES` na 4.0, com `OPERACAO_(?:ROUTE|ENTRY)_KEY` e as fixtures de 653 a 660; linha nova para `NOMES_DOS_MARCADORES` (7.0); a `cerca-resolucao-de-tenant` com a fixture, o `excecoesDoConferir` e o `fica` da 7.0; as linhas de `porta-unica` corrigidas; `REPOSITORIES_SEM_ESCOPO` com todas as entradas (revisor-geral, tenancy)
+- §5, `conferir`: roda nas ondas 3.0 a 11.0 e 13.0, e a foto inclui `infra/scripts/` (test-engineer, infra)
+- `inventario.md` §1: `lerConfiguracao<X>` → `read<X>Config`, como o anexo back e a adenda 2 (privacy)
+
+### Recomendações
+
+- Um teste em `infra/test/` que confira que existe a fonte de cada caminho de `dist` (infra, de novo)
+
 ## Revisões
 
 Preenchida pelo hook `tools/processo/revisoes.ts` quando cada revisor termina. Não edite à mão:
@@ -99,3 +127,8 @@ atual, com APROVADO quando o revisor tem veto.
 | 2026-10-29 22:17:17 | 2026-10-29 22:20:49 | `test-engineer` | 2 | REPROVADO | aeb2cb3a0aeaa7df4 |
 | 2026-10-29 22:17:07 | 2026-10-29 22:21:04 | `privacy-guardian` | 2 | REPROVADO | abb19176c70c8008f |
 | 2026-10-29 22:17:21 | 2026-10-29 22:21:22 | `revisor-geral` | 2 | REPROVADO | ad80132cbf07e9f88 |
+| 2026-10-29 22:54:58 | 2026-10-29 22:58:10 | `infra-guardian` | 3 | APROVADO | a5c7a34cf11de6100 |
+| 2026-10-29 22:54:51 | 2026-10-29 22:58:20 | `tenancy-guardian` | 3 | APROVADO | aeec89b55cd0eca67 |
+| 2026-10-29 22:54:54 | 2026-10-29 22:58:25 | `privacy-guardian` | 3 | APROVADO | a23063c357ecb51bc |
+| 2026-10-29 22:55:01 | 2026-10-29 22:59:04 | `test-engineer` | 3 | REPROVADO | ac0540ccca35597f3 |
+| 2026-10-29 22:55:05 | 2026-10-29 22:59:32 | `revisor-geral` | 3 | REPROVADO | adb372b9383e936d3 |

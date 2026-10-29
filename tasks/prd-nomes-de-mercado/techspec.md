@@ -1,7 +1,7 @@
 # Tech Spec — Nomes de mercado (X8)
 
-**PRD:** `prd.md` · **Inventário:** `inventario.md` e anexos (adenda 2 em `inventario-adenda-2.md`) · **Travas:** `travas.md` · **Guarda:** `guarda.md`
-**Status:** rascunho, rodada 3 da revisão da spec
+**PRD:** `prd.md` · **Inventário:** `inventario.md` e anexos (adenda 2 em `inventario-adenda-2.md`) · **Travas:** `travas.md` · **Guarda:** `guarda.md` · **Casos:** `casos.md`
+**Status:** rascunho, rodada 4 da revisão da spec
 
 ## 1. Resumo da abordagem
 
@@ -27,8 +27,9 @@ pelo hash. Rota, corpo, código de erro e evento de WebSocket são strings (`con
 
 ## 5. Fluxo
 
-**O mapa** tem entradas `{ tipo: simbolo|arquivo|pasta|pacote, de, para, arquivo?, linhaDoAnexo, alias? }` e duas
-listas:
+**O mapa** tem entradas `{ tipo: simbolo|arquivo|pasta|pacote, de, para, arquivo?, linhaDoAnexo, alias?, comum? }`
+e duas listas. `comum` marca a palavra comum: o `de` de uma palavra só, sem maiúscula interna nem `_` (`com`, `Banco`,
+`Tela`, `Fila`, `migrar`).
 
 - `ocorrencias`: cada referência por texto, classificada como `fica` (string de fora, com a linha de "Não muda, mas
   parece") ou `trava` (com a linha do `travas.md`; a trava achada depois entra no mapa e ganha linha no anexo);
@@ -53,17 +54,18 @@ arquivo que importa o nome, sem `alias`; o `de` se repete; falta `linhaDoAnexo`;
    do relatório. Ficam fora `docs/decisoes.md`, `docs/aia/ouro/`, `docs/aia/ouro-retido/`, `tasks/` e `mockups/`. As
    linhas não tocam documento.
 6. Lista as referências por texto (string, template, regex, JSON, YAML, `.mjs`, `.cjs`, `*.Dockerfile`) em `apps/`,
-   `packages/`, `e2e/`, `tools/`, `infra/`, `.github/` e na raiz (`package.json`, `knip.json`, `*.config.*`,
-   `tsconfig*.json`). Busca o símbolo como identificador, e o caminho e o pacote como trecho inteiro, também sem a
+   `packages/`, `e2e/`, `tools/`, `infra/`, `.github/` e em todo arquivo versionado da raiz. Busca o símbolo como identificador, e o caminho e o pacote como trecho inteiro, também sem a
    extensão (`packages/nucleo`, `componentes/ui/`, `hash-de-senha`), nunca segmento solto. Em regex e `String.raw`,
    busca na forma sem escape, sem exigir borda depois de `\b`, e pega o prefixo da gramática em
-   `startsWith`/`endsWith`. Ocorrência não classificada deixa o relatório vermelho.
+   `startsWith`/`endsWith`. A palavra `comum` só é listada quando o literal inteiro é ela ou quando vem colada a `(`,
+   `.`, `@`, `/` ou `\b`; em prosa, não. A regex com alternância que parte o nome é limite declarado, coberto pelo
+   `travas.md`. Ocorrência não classificada deixa o relatório vermelho.
 7. Grava o `<N>.relatorio.md`.
 
 Só grava depois de calcular tudo; a onda se desfaz com `git reset --hard` e `git clean -fd`, ou `git revert` depois
 do commit.
 
-**O `conferir`** tira uma foto de `apps/`, `packages/`, `e2e/`, `infra/test/` e `tools/` (menos `tools/renomear/`) antes da onda e
+**O `conferir`** roda nas ondas 3.0 a 11.0 e 13.0. Tira uma foto de `apps/`, `packages/`, `e2e/`, `infra/test/`, `infra/scripts/` e `tools/` (menos `tools/renomear/`) antes da onda e
 outra depois. A foto tem: as strings, as partes fixas de template, os literais de regex, os `JsxText`, as chaves de
 objeto literal, os nomes exportados por pacote, os especificadores de módulo e os casos de teste por arquivo. Antes de
 comparar, o `conferir` aplica o mapa à foto de antes: o especificador, o caminho dos casos e o nome exportado. Depois
@@ -149,19 +151,17 @@ Nenhuma tela muda (§5, `conferir`).
 
 | Camada | O que será testado |
 |---|---|
-| `aplicar` | o símbolo do `shared` em dois projetos, com o comentário composto, e a string igual ao nome intacta; "com" num comentário e "Banco público" num `.md`, intactos; a forma curta com a chave mantida; o move com o import relativo, o de pacote e o `vi.mock`; o rename só de caixa; os seis casos de recusa; listados: `/\bX\b/`, `x\.repository`, um `-w` do `package.json` da raiz e um caminho em `.github/`; a ocorrência não classificada: relatório vermelho |
-| `reaplicar` | o `de` já renomeado: não é erro; a ocorrência nova: renomeada |
-| `conferir` | vermelho com uma string, uma regex, um `JsxText`, uma chave de objeto ou a parte fixa de um template mudados, com um caso a menos, com um especificador ou um nome exportado fora do mapa; verde com o renomeado e com a exceção declarada |
-| `restos` | vermelho: `Banco` como tipo no código, `` `Fila` `` entre crases num documento, um `.js` de `dist` com o nome antigo em `infra/`; verde: "Fila de jobs" em prosa, "com" numa string de tela, a chave mantida, o `describe`, o `fica` e `docs/decisoes.md` |
-| Filtro vazio | vermelho: um glob que não casa nada, um array com um só item vazio, um `path` em regex do `camadas.cjs`, um `files` do `eslint.config.mjs` |
+| `aplicar`, `reaplicar`, `conferir`, `restos` e filtro vazio | os casos de `casos.md`, um por cláusula do §5 |
 | Guarda (12.0) | os casos de `guarda.md` |
 | Travas | as provas de `travas.md`, na onda de cada uma |
 | Suítes de hoje | verdes antes da 1.0 e a cada onda |
 
-**Mutação.** A 1.0, a 2.0 e a 12.0 levam o bloco de mutação. Toda onda que troca trava leva um bloco por trava: a
-mutação devolve a trava ao nome antigo, e um caso que já existe (renomeado na onda) ou a trava
-contra filtro vazio fica vermelho. Nenhum caso entra; trava que nenhum caso alcança é divergência (RF7). A onda sem
-trava leva "Sem mutação: rename, sem condição nova" (X7, RF17).
+**Mutação.** A 1.0, a 2.0 e a 12.0 levam o bloco de mutação. Toda onda que troca trava leva um bloco por trava, numa
+de três formas (`travas.md` diz qual): **A**, a mutação devolve a trava ao nome antigo, e um caso que já existe,
+renomeado, fica vermelho; **B**, na trava negativa (`not.toContain`), a mutação põe o nome novo proibido no código sob
+teste, e o caso existente fica vermelho; **C**, onde nenhum caso alcança, ficam vermelhos o `restos`, o `tsc`, o build
+ou a trava contra filtro vazio. Nenhum caso entra (RF7). A onda sem trava leva "Sem mutação: rename, sem condição nova"
+(X7, RF17).
 
 ## 11. Conformidade com as regras
 

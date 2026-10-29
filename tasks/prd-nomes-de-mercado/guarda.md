@@ -24,20 +24,25 @@ mensagem. A regra lê **só a declaração de topo de arquivo**, exportada ou n�
 | prefixo `esquema`, `lerConfiguracao` | const e função | `<x>Schema`, `read<X>Config` |
 | prefixo `consulta` | const e função em `apps/web/**` | `<x>QueryOptions` |
 | prefixo `EntradaDe`, `EntradaDo`, `SaidaDe`, `SaidaDo` | interface e tipo em `**/ia/tarefas/**` | `<X>Input`, `<X>Output` |
-| segmento de pasta ou de arquivo: `adaptador-*`, `guarda-*`, `*-em-memoria`, `limite/`, `fila/` (só em `packages/`) | arquivo e pasta | o do anexo |
+| segmento de arquivo ou de pasta: `adaptador-*`, `guarda-*`, `*-em-memoria` | arquivo e pasta, em todo o escopo | o do anexo |
+| pasta `limite/` e `fila/` | pasta, só em `packages/**` | `rate-limit/`, `queue/` |
 
 O prefixo só casa quando a letra seguinte é maiúscula. `Erro` não casa `Erros`, e `Linha` não casa `Linhas`.
 
 **O resto é limite declarado.** A regra não lê método, variável local, propriedade, string nem declaração dentro de
-função. `Pedido…` e `Resposta…` ficam fora da lista, porque colidem com o domínio. `fila/` fica fora em `apps/web`,
-porque "fila" é domínio na web.
+função. `Pedido…` e `Resposta…` ficam fora da lista, porque colidem com o domínio. `fila/` e `limite/` valem só em
+`packages/`, porque "fila" e "limite" são domínio nos apps.
+
+**Exceção nominal**, na própria `nomes-de-mercado.mjs`, com o motivo: `esquemaDeCor` (`e2e/aparencia.spec.ts`), que é
+o esquema de cor da tela (`prefers-color-scheme`), e não um schema zod.
 
 **O que passa, de propósito:**
 - o componente de tela, que é função: `ErroDaOperacao`, `LinhaDaTarefa`;
 - o tipo de domínio: `FalhaDeMaterial`, `FiltroDeEstado`;
 - a recusa de domínio: `RenovacaoRecusada`;
 - os nomes com o kit dentro: `DialogoDeAlocacao`, `CartaoDoAgente`;
-- o nome misto: `TurmaController`, `EliminacaoDoTitular`, `PedidoDoTitular`, `CorrecaoService`, `ValidacaoDoLote`.
+- o nome misto: `TurmaController`, `EliminacaoDoTitular`, `PedidoDoTitular`, `CorrecaoService`, `ValidacaoDoLote`;
+- a exceção nominal `esquemaDeCor`.
 
 Com o inventário, a adenda 1 e a adenda 2 aplicados, a árvore inteira passa.
 
@@ -48,11 +53,16 @@ Com o inventário, a adenda 1 e a adenda 2 aplicados, a árvore inteira passa.
   `interface LinhaX`, `type OpcoesX`, `class XEmMemoria`, `const esquemaX`, `function lerConfiguracaoX`,
   `const consultaX` em `apps/web`, `interface EntradaDoX` em `ia/tarefas/`;
 - o nome exato `Botao`;
-- um arquivo `adaptador-x.ts` e uma pasta `limite/` em `packages/`.
+- um arquivo `adaptador-x.ts` em `apps/` e uma pasta `fila/` em `packages/`;
+- `const esquemaDeCor` fora de `e2e/aparencia.spec.ts`.
 
 **Passam:**
 - a mesma forma no tipo em que a linha não vale: `function ErroDaOperacao`, `type FalhaDeMaterial`, `function LinhaX`,
-  `const consultaX` fora de `apps/web`, `interface EntradaDoX` fora de `ia/tarefas/`;
+  `function XEmMemoria`, `interface esquemaX`, `const consultaX` fora de `apps/web`, `interface EntradaDoX` fora de
+  `ia/tarefas/`;
+- `class ErroX` declarada dentro de uma função;
+- um arquivo em `apps/api/src/fila/` e outro em `apps/api/src/limite/`;
+- `const esquemaDeCor` em `e2e/aparencia.spec.ts`;
 - `Erros` e `Linhas`;
 - os nomes da lista "O que passa".
 
