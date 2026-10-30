@@ -30,7 +30,7 @@ groups:
         annotations:
           summary: Job interativo da escola {{ $labels.escola_id }} esperando há mais de 30 s por 1 min
           description: A professora ou o aluno está esperando uma ferramenta que não começou. Siga o runbook.
-          runbook_url: https://github.com/LitzGab/Educa.ia/blob/main/docs/runbook.md#job-interativo-esperando
+          runbook_url: https://github.com/Turmma/turmma/blob/main/docs/runbook.md#job-interativo-esperando
         data:
           - refId: A
             relativeTimeRange:

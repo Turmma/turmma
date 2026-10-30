@@ -29,7 +29,7 @@ groups:
         annotations:
           summary: O p95 do login passou de 1 s há mais de 3 min
           description: Alunos e equipe estão esperando para entrar. Siga o runbook.
-          runbook_url: https://github.com/LitzGab/Educa.ia/blob/main/docs/runbook.md#login-lento
+          runbook_url: https://github.com/Turmma/turmma/blob/main/docs/runbook.md#login-lento
         data:
           - refId: A
             relativeTimeRange:

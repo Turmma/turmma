@@ -28,7 +28,7 @@ groups:
         annotations:
           summary: 'A coordenação da escola {{ $labels.escola_id }} não confirmou o aviso de incidente 24 h depois de a Turmma saber'
           description: O prazo nosso de avisar a escola do incidente está estourado (LGPD, art. 48). Siga o runbook.
-          runbook_url: https://github.com/LitzGab/Educa.ia/blob/main/docs/runbook.md#incidente-sem-confirmação-em-24-h
+          runbook_url: https://github.com/Turmma/turmma/blob/main/docs/runbook.md#incidente-sem-confirmação-em-24-h
         data:
           - refId: A
             relativeTimeRange:

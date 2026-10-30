@@ -32,7 +32,7 @@ groups:
         annotations:
           summary: Mais de 10 entradas por minuto pelo código da turma acima do teto de códigos errados de uma escola, por 5 min
           description: Alguém tenta códigos da turma em massa contra uma escola. Ninguém é recusado, mas quem acerta um código vê os nomes livres da turma. A escola está na linha sala.limite_atingido do log. Siga o runbook.
-          runbook_url: https://github.com/LitzGab/Educa.ia/blob/main/docs/runbook.md#código-da-turma-errado-em-massa-numa-escola
+          runbook_url: https://github.com/Turmma/turmma/blob/main/docs/runbook.md#código-da-turma-errado-em-massa-numa-escola
         data:
           - refId: A
             relativeTimeRange:

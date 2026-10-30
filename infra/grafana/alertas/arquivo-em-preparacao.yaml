@@ -28,7 +28,7 @@ groups:
         annotations:
           summary: 'O arquivo do titular da escola {{ $labels.escola_id }} está em preparação há mais de 2 h'
           description: O pedido de acesso ou de portabilidade não ficou pronto no prazo (LGPD, art. 19, II). Siga o runbook.
-          runbook_url: https://github.com/LitzGab/Educa.ia/blob/main/docs/runbook.md#arquivo-do-titular-em-preparação-há-mais-de-2-h
+          runbook_url: https://github.com/Turmma/turmma/blob/main/docs/runbook.md#arquivo-do-titular-em-preparação-há-mais-de-2-h
         data:
           - refId: A
             relativeTimeRange:
