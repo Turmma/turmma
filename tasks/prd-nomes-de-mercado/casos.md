@@ -87,7 +87,9 @@ A base é o `git ls-files`. O item que nomeia `__fixtures__/` ou `mockups/` conf
 contra a base sem essas pastas e sem `dist/`. As fontes, cada uma com o seu mínimo de itens lidos (o número de hoje,
 gravado no teste): `configuracaoDasGuardas`, `EXCECOES_DAS_GUARDAS`, `PASTA_DOS_ADAPTADORES`, `ESCOPO_DO_ERRO_TIPADO`,
 os `path` do `camadas.cjs`, `guardioes-por-caminho.ts`, os `files` e os `ignores` do `eslint.config.mjs`, os
-workspaces, as entries, o `project` e o `ignore` do `knip.json` (quatro fontes) e o `paths:` das regras.
+workspaces, as entries, o `project` e o `ignore` do `knip.json` (quatro fontes), o `paths:` das regras e os caminhos
+de `dist` de `infra/scripts/` e de `tools/ia/medir-risco-a-vida.ts`, cada um com a fonte `.ts` em `src/` (revisão da
+spec, rodada 9, recomendação do `infra-guardian`).
 
 **Verde:**
 - `tools/guardas/__fixtures__/**`, que casa na base inteira;
@@ -102,3 +104,4 @@ workspaces, as entries, o `project` e o `ignore` do `knip.json` (quatro fontes) 
 - um glob inexistente no `paths:` de uma regra;
 - uma fonte que rende menos itens que o mínimo dela, como as entries do `knip.json` puladas;
 - um glob que só casa com arquivo dentro de `__fixtures__/` sem nomear a pasta.
+- um caminho de `dist` cuja fonte em `src/` não existe.

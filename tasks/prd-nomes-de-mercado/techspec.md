@@ -6,7 +6,7 @@
 ## 1. Resumo da abordagem
 
 O `tools/renomear/` tem quatro comandos: `aplicar` (o "rename symbol" e o "move file" do serviço de linguagem do
-TypeScript, um por `tsconfig`; o ts-morph tem um projeto só), `conferir` (o "só nome"), `restos` (nada sobrou) e
+TypeScript, um por `tsconfig`), `conferir` (o "só nome"), `restos` (nada sobrou) e
 `reaplicar` (o merge). Cada onda escreve o mapa do anexo, roda os comandos e troca à mão as travas. Depois das ondas
 em fila, back e web correm em duas linhas (Joaquim, 29/10/2026).
 
@@ -65,8 +65,7 @@ arquivo que importa o nome, sem `alias`; o `de` se repete; falta `linhaDoAnexo`;
    limite do `travas.md`. Ocorrência não classificada deixa o relatório vermelho.
 7. Grava o `<N>.relatorio.md`.
 
-Só grava depois de calcular tudo; a onda se desfaz com `git reset --hard` e `git clean -fd`, ou `git revert` depois
-do commit.
+Só grava depois de calcular tudo; a onda se desfaz com `git reset --hard` e `git clean -fd`, ou `git revert`.
 
 **O `conferir`** roda nas ondas 3.0 a 11.0 e 13.0. Tira uma foto de `apps/`, `packages/`, `e2e/`, `infra/test/`, `infra/scripts/` e `tools/` (menos `tools/renomear/`) antes da onda e
 outra depois. A foto tem: as strings, as partes fixas de template, os literais de regex, os `JsxText`, as chaves de
@@ -77,13 +76,14 @@ disso, qualquer diferença fora de `excecoesDoConferir` deixa o `conferir` verme
 **O `restos`** busca cada `de` de todos os mapas aplicados no escopo do passo 6 e nos documentos vivos, com a forma
 de busca do passo 6 no código e a do passo 5 em comentário e documento (a palavra comum solta não conta). Liberados:
 o `fica`, a chave mantida pelo passo 2, o `describe`/`it`/`test`, a troca à mão registrada e o que o passo 5 deixa
-fora. Nas linhas, não olha documento. Roda em cada onda; na 13.0, também sem a isenção do ouro (RF3, RF6, RF9, RF10).
+fora. O mapa de linha (`"linha": true`) não olha documento até a 13.0 criar o `mapas/13.json`, que tira também a
+isenção do ouro; o `reaplicar` leva então os mapas de linha aos documentos (RF3, RF6, RF9, RF10).
 
 **O `reaplicar`.** O merge da `develop` que traz nome antigo vira uma correção (`/corrigir`), com revisão. A correção
 roda `reaplicar`, que aplica os mapas feitos só às ocorrências novas: o `de` que não existe mais não é erro. Depois
 roda `conferir` e `restos`. A correção `links-do-runbook` entra antes da 4.0.
 
-**A trava contra filtro vazio** (2.0, antes de qualquer rename): cada glob, caminho e `path` em regex de
+**A trava contra filtro vazio** (2.0): cada glob, caminho e `path` em regex de
 `configuracaoDasGuardas`, `EXCECOES_DAS_GUARDAS`, `PASTA_DOS_ADAPTADORES`, `ESCOPO_DO_ERRO_TIPADO`, `camadas.cjs`,
 `guardioes-por-caminho.ts`, dos `files`/`ignores` do `eslint.config.mjs` (lido da configuração exportada), dos
 workspaces, entries, `project` e `ignore` do `knip.json` e do `paths:` das regras casa com ao menos um arquivo, item a item, e cada fonte
@@ -111,8 +111,7 @@ ela inteira, e os demais contra ela sem essas pastas e sem `dist/`. Saída não 
 
 As linhas da adenda 2 entram na onda do caminho delas.
 
-Os arquivos dos apps vêm antes das linhas porque o rename de arquivo mexe no `eslint-suppressions.json`, no
-`eslint.config.mjs` e no `knip.json`. As linhas só renomeiam símbolo, separadas pelo `--escopo` e pelo `linhas.ts`;
+Os arquivos dos apps vêm antes das linhas porque o rename de arquivo mexe na configuração da raiz. As linhas só renomeiam símbolo, separadas pelo `--escopo` e pelo `linhas.ts`;
 trava de `tools/` nas duas é divergência.
 
 **A guarda (12.0)** é a regra `guardas/nome-de-mercado`, em `REGRAS_DAS_GUARDAS`, só em `apps/`, `packages/` e
@@ -147,11 +146,11 @@ Arquiteto depois da 5.0.
 | Migration | nenhuma. O `db:gerar` roda na 4.0 e na 5.0 sem gerar migration, e o `_journal` não muda |
 | Imagem e deploy | o Dockerfile copia `packages/core`; `ops/` fica (adenda 1). Prova: a esteira constrói as imagens, e o `docker compose config` de produção sai igual |
 | Arquivo lido em execução, carga e ensaio | `travas.md`, "Regra 80" |
-| Linha | onda de linha só é verde depois da esteira da spec (o `ci.yml` não roda `infra` nem e2e em `spec/**--l*`) |
+| Linha | só é verde depois da esteira da spec (o `ci.yml` não roda `infra` nem e2e em `spec/**--l*`) |
 
 ## 9. Frontend
 
-Nenhuma tela muda (§5, `conferir`).
+Nenhuma tela muda (`conferir`).
 
 ## 10. Testes
 
@@ -166,8 +165,7 @@ Nenhuma tela muda (§5, `conferir`).
 de três formas (`travas.md` diz qual): **A**, a mutação devolve a trava ao nome antigo, e um caso que já existe,
 renomeado, fica vermelho; **B**, na trava negativa (`not.toContain`), a mutação põe o nome novo proibido no código sob
 teste, e o caso existente fica vermelho; **C**, onde nenhum caso alcança, ficam vermelhos o `restos`, o `tsc`, o build
-ou a trava contra filtro vazio. Nenhum caso entra (RF7). A onda sem trava leva "Sem mutação: rename, sem condição nova"
-(X7, RF17).
+ou a trava contra filtro vazio. Nenhum caso entra (RF7). A onda sem trava leva "Sem mutação: rename, sem condição nova".
 
 ## 11. Conformidade com as regras
 
@@ -176,7 +174,7 @@ ou a trava contra filtro vazio. Nenhum caso entra (RF7). A onda sem trava leva "
 | 10, 20, 30, 70, 80 | `travas.md`, a trava contra filtro vazio e o `conferir` | nenhum | — |
 | 40 | o `conferir` prova os mesmos casos; ferramenta e guarda têm teste que quebra sem a regra | nenhum | — |
 | RF7 ("só nome") | — | **Os três scripts de `infra/scripts/` passam a tirar os tipos de `typeof import(<fonte>)`.** Único diff de não-nome: o typecheck pega a chave que ficar para trás | aqui e em `travas.md` |
-| `criar-tasks` ("até três guardiões") | — | **As ondas 3.0 a 11.0 marcam os quatro guardiões** (X7, RF15); o revisor confere mapa, relatório, `conferir`, `restos` e travas | aqui e em cada `N_task.md` |
+| `criar-tasks` ("até três guardiões") | — | **As ondas 3.0 a 11.0 marcam os quatro guardiões** (X7, RF15), e a 2.0 e a 12.0 pelo caminho `tools/guardas/`; o revisor confere mapa, relatório, `conferir`, `restos` e travas | aqui e em cada `N_task.md` |
 
 ## 12. Premissas não verificadas
 
@@ -186,4 +184,4 @@ ou a trava contra filtro vazio. Nenhum caso entra (RF7). A onda sem trava leva "
 
 ## 13. Riscos técnicos
 
-- **A régua de duração do e2e** cobra caso só renomeado: a onda o marca "só rename", e correção só se a duração cresceu
+- **A régua de duração do e2e** cobra caso só renomeado: a onda o marca "só rename"; corrige-se só o que cresceu
