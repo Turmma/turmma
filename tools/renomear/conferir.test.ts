@@ -128,6 +128,14 @@ describe('conferir: vermelho quando', () => {
     expect(dos(rodar(repo))).toEqual(['entrou exportado packages/shared Intruso'])
   })
 
+  it('o homônimo exportado por outro pacote sai com o nome novo da entrada', () => {
+    const repo = repositorio({ 'packages/outro/src/o.ts': 'export class Banco {}\n' })
+    repo.escrever('packages/shared/src/db.ts', 'export class Database {}\n')
+    repo.escrever('packages/outro/src/o.ts', 'export class Database {}\n')
+    const resultado = rodar(repo, [{ tipo: 'simbolo', de: 'Banco', para: 'Database', arquivo: 'packages/shared/src/db.ts' }])
+    expect(dos(resultado)).toEqual(['saiu exportado packages/outro Banco', 'entrou exportado packages/outro Database'].sort())
+  })
+
   it('aparece um especificador fora do mapa', () => {
     const repo = repositorio({ 'apps/api/src/b.ts': 'export const b = 1\n' })
     repo.escrever('apps/api/src/a.ts', "import { Banco } from '@educa/shared'\nimport { b } from './b.ts'\nexport const a = [new Banco(), b]\n")
@@ -305,6 +313,66 @@ describe('conferir: verde quando', () => {
     ])
     expect(resultado.divergencias).toEqual([])
     expect(resultado.codigo).toBe(0)
+  })
+
+  describe('o nome exportado segue a entrada só no pacote do arquivo dela e em quem reexporta dele', () => {
+    const ENTRADA = { tipo: 'simbolo', de: 'Banco', para: 'Database', arquivo: 'packages/shared/src/db.ts' }
+    const OUTRO = { 'packages/outro/src/o.ts': 'export class Banco {}\n', 'packages/outro/package.json': pacoteDeTeste('@educa/outro'), 'packages/outro/tsconfig.json': tsconfigDe(2) }
+
+    it('o homônimo exportado por outro pacote fica com o nome antigo', () => {
+      const repo = repositorio(OUTRO)
+      repo.escrever('packages/shared/src/db.ts', 'export class Database {}\n')
+      expect(rodar(repo, [ENTRADA]).divergencias).toEqual([])
+    })
+
+    it('quem reexporta do pacote da entrada passa ao nome novo, e quem reexporta o homônimo fica', () => {
+      const repo = repositorio({ ...OUTRO, 'apps/api/src/r.ts': "export { Banco } from '@educa/shared'\n", 'packages/outro/src/r2.ts': "export { Banco } from '@educa/outro'\n", 'packages/shared/src/r3.ts': "export { Banco } from './db.ts'\n" })
+      repo.escrever('packages/shared/src/db.ts', 'export class Database {}\n')
+      repo.escrever('apps/api/src/r.ts', "export { Database } from '@educa/shared'\n")
+      repo.escrever('packages/shared/src/r3.ts', "export { Database } from './db.ts'\n")
+      expect(rodar(repo, [ENTRADA]).divergencias).toEqual([])
+    })
+
+    it('o export { X } do que o arquivo importou do pacote da entrada também passa ao nome novo, e o do homônimo fica', () => {
+      const repo = repositorio({ ...OUTRO, 'apps/api/src/r.ts': "import { Banco } from '@educa/shared'\nexport { Banco }\n", 'packages/outro/src/r2.ts': "import { Banco } from '@educa/outro'\nexport { Banco }\n" })
+      repo.escrever('packages/shared/src/db.ts', 'export class Database {}\n')
+      repo.escrever('apps/api/src/r.ts', "import { Database } from '@educa/shared'\nexport { Database }\n")
+      expect(rodar(repo, [ENTRADA]).divergencias).toEqual([])
+    })
+
+    it('o caminho relativo e o subcaminho do pacote, vindos de fora dele, também seguem a entrada', () => {
+      const repo = repositorio({
+        ...OUTRO,
+        'apps/api/src/rel.ts': "export { Banco } from '../../../packages/shared/src/db.ts'\n",
+        'apps/web/src/rel.ts': "export { Banco } from '../../../packages/outro/src/o.ts'\n",
+        'tools/sub.ts': "export { Banco } from '@educa/shared/db'\n",
+      })
+      repo.escrever('packages/shared/src/db.ts', 'export class Database {}\n')
+      repo.escrever('apps/api/src/rel.ts', "export { Database } from '../../../packages/shared/src/db.ts'\n")
+      repo.escrever('tools/sub.ts', "export { Database } from '@educa/shared/db'\n")
+      expect(rodar(repo, [ENTRADA]).divergencias).toEqual([])
+    })
+
+    it('o namespace reexportado e o nome com alias: o nome comparado é o exportado', () => {
+      const repo = repositorio({ ...OUTRO, 'apps/api/src/ns.ts': "export * as Banco from '@educa/shared'\n", 'apps/web/src/al.ts': "export { Banco as Outro } from '@educa/shared'\n" })
+      repo.escrever('packages/shared/src/db.ts', 'export class Database {}\n')
+      repo.escrever('apps/api/src/ns.ts', "export * as Database from '@educa/shared'\n")
+      repo.escrever('apps/web/src/al.ts', "export { Database as Outro } from '@educa/shared'\n")
+      expect(rodar(repo, [ENTRADA]).divergencias).toEqual([])
+    })
+
+    it('a entrada num pacote sem package.json no HEAD só vale na pasta: o reexport pelo nome do pacote não a segue', () => {
+      const repo = repositorio({ 'tools/lib.ts': 'export class Banco {}\n', 'apps/api/src/r.ts': "export { Banco } from '@educa/shared'\n" })
+      repo.escrever('tools/lib.ts', 'export class Database {}\n')
+      expect(rodar(repo, [{ ...ENTRADA, arquivo: 'tools/lib.ts' }]).divergencias).toEqual([])
+    })
+
+    it('a entrada sem arquivo vale em todo pacote', () => {
+      const repo = repositorio(OUTRO)
+      repo.escrever('packages/shared/src/db.ts', 'export class Database {}\n')
+      repo.escrever('packages/outro/src/o.ts', 'export class Database {}\n')
+      expect(rodar(repo, [{ tipo: 'simbolo', de: 'Banco', para: 'Database' }]).divergencias).toEqual([])
+    })
   })
 
   it('o pacote com subcaminho: o subcaminho muda antes do nome', () => {

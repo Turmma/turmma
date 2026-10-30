@@ -18,6 +18,18 @@ import { type EntradaDoMapa, type ExcecaoDoConferir, lerMapa, type Mapa, validar
  * `arquivo` que a árvore tem depois da onda, com o `texto` igual ao valor. Uma exceção cobre um lado da troca: a string que muda
  * de propósito leva duas, a do texto antigo e a do novo. O caso de teste, o especificador e o nome exportado não têm exceção: ou o
  * mapa explica, ou o `conferir` fica vermelho (RF6, RF7).
+ *
+ * **O nome exportado e o pacote.** A entrada `simbolo` com `arquivo` troca o nome exportado só no pacote desse arquivo e em quem o reexporta,
+ * nas duas formas: `export { X } from '…'` (e `export * as X from '…'`) e o `export { X }` de um nome que o arquivo importou do pacote. O
+ * homônimo exportado por outro pacote fica com o nome, como o `aplicar`, que renomeia por símbolo, o deixa. A entrada sem `arquivo` vale em
+ * todo pacote. O nome que vale é o exportado: `export { X as Y } from` é o `Y`.
+ *
+ * **Limites conhecidos** (todos para o lado do vermelho; nenhum deixa passar uma diferença): (1) a reexportação em cadeia (`apps/web`
+ * reexporta de `apps/api`, que reexporta do core) não segue a entrada, porque só se olha o primeiro salto; (2) `tools/` conta como um pacote
+ * só (`pacoteDoArquivo`), e uma entrada com `arquivo` em `tools/processo/` troca o homônimo de qualquer outro arquivo de `tools/`; (3) dois
+ * exportados com o mesmo nome dentro do pacote da entrada, ou um nome que um arquivo desse pacote importa de outro pacote e repassa, são
+ * trocados na foto de antes e o `aplicar` não os troca; (4) a entrada cujo pacote não tem `package.json` no `HEAD` só vale na pasta, e a
+ * reexportação pelo nome do pacote não a segue. Quem lê um vermelho de nome exportado confere estes quatro antes de achar defeito na onda.
  */
 
 export interface Divergencia {
@@ -105,15 +117,57 @@ function especificadorMapeado(valor: string, movimentos: readonly Movimento[], p
   return `relativo|${novoAlvo}|${extensao}`
 }
 
+/** O nome do pacote de `@escopo/nome/sub` ou `nome/sub`. */
+const nomeDoPacoteDe = (especificador: string): string => especificador.split('/').slice(0, especificador.startsWith('@') ? 2 : 1).join('/')
+
+/** O nome (`name` do `package.json`) de cada pasta de pacote em que uma entrada de símbolo declara o `arquivo`, como o `HEAD` o tem. */
+function nomesDosPacotesDasEntradas(raiz: string, mapa: Mapa): Map<string, string> {
+  const nomes = new Map<string, string>()
+  for (const entrada of mapa.entradas) {
+    if (entrada.tipo !== 'simbolo' || entrada.arquivo === undefined) continue
+    const pasta = pacoteDoArquivo(entrada.arquivo)
+    if (nomes.has(pasta)) continue
+    try {
+      const nome = (JSON.parse(git(raiz, ['show', `HEAD:${pasta}/package.json`]).toString('utf8')) as { name?: unknown }).name
+      if (typeof nome === 'string') nomes.set(pasta, nome)
+    } catch {
+      // Pasta sem `package.json` no `HEAD` (`tools/`, ou o arquivo de um pacote que nasce na onda): só a pasta vale.
+    }
+  }
+  return nomes
+}
+
+/** O item repassa um nome do pacote da pasta (`export … from` ou `export { X }` de um `import`): pelo nome do pacote, ou pelo caminho relativo que entra nela. */
+function reexportaDoPacote(origem: string | undefined, pasta: string, nomes: ReadonlyMap<string, string>): boolean {
+  if (origem === undefined) return false
+  const [tipo, alvo = ''] = origem.split('|')
+  if (tipo === 'relativo') return alvo.startsWith(`${pasta}/`)
+  return nomes.get(pasta) === nomeDoPacoteDe(alvo)
+}
+
+/**
+ * O nome exportado segue a entrada `simbolo` só no pacote do `arquivo` dela e em quem o reexporta (`export { X } from` e o `export { X }` do que
+ * o arquivo importou): o `aplicar` renomeia por símbolo, e o homônimo de outro pacote fica com o nome. A entrada sem `arquivo` vale em todo
+ * pacote. O `item.arquivo` é o do `HEAD`.
+ */
+function paraONomeExportado(item: ItemDaFoto, entradas: readonly EntradaDoMapa[], nomes: ReadonlyMap<string, string>): string {
+  const entrada = entradas.find((candidata) => {
+    if (candidata.tipo !== 'simbolo' || candidata.de !== item.valor) return false
+    if (candidata.arquivo === undefined) return true
+    const pasta = pacoteDoArquivo(candidata.arquivo)
+    return pacoteDoArquivo(item.arquivo) === pasta || reexportaDoPacote(item.origem, pasta, nomes)
+  })
+  return entrada?.para ?? item.valor
+}
+
 /** A foto de antes como a onda a deixa se só mudar nome: o arquivo no lugar novo, o especificador e o nome exportado com o nome novo. */
-function aplicarMapaAFoto(itens: readonly ItemDaFoto[], mapa: Mapa): ItemDaFoto[] {
+function aplicarMapaAFoto(itens: readonly ItemDaFoto[], mapa: Mapa, nomesDosPacotes: ReadonlyMap<string, string>): ItemDaFoto[] {
   const movimentos = movimentosDe(mapa.entradas)
   const pacotes = mapa.entradas.filter((entrada) => entrada.tipo === 'pacote')
-  const simbolos = new Map(mapa.entradas.filter((entrada) => entrada.tipo === 'simbolo').map((entrada) => [entrada.de, entrada.para]))
   return itens.map((item) => {
     const arquivo = movimentos.reduce((atual, movimento) => destinoDoArquivo(atual, movimento), item.arquivo)
     if (item.categoria === 'especificador') return { ...item, arquivo, valor: especificadorMapeado(item.valor, movimentos, pacotes) }
-    if (item.categoria === 'exportado') return { ...item, arquivo, valor: simbolos.get(item.valor) ?? item.valor }
+    if (item.categoria === 'exportado') return { ...item, arquivo, valor: paraONomeExportado(item, mapa.entradas, nomesDosPacotes) }
     return { ...item, arquivo }
   })
 }
@@ -184,7 +238,7 @@ export function conferir(raiz: string, caminhoDoMapa: string): ResultadoDoConfer
   if (invalidas.length > 0) throw new Error(`mapa inválido:\n${invalidas.map((recusa) => `- ${recusa.detalhe}`).join('\n')}`)
   const doHead = lerDoHead(raiz)
   exigirFotoCompleta(doHead)
-  const antes = aplicarMapaAFoto(fotoDe(doHead), mapa)
+  const antes = aplicarMapaAFoto(fotoDe(doHead), mapa, nomesDosPacotesDasEntradas(raiz, mapa))
   const divergencias = compararFotos(antes, fotoDe(lerDaArvore(raiz)), mapa.excecoesDoConferir)
   return { codigo: divergencias.length === 0 ? 0 : 1, divergencias, texto: textoDoResultado(divergencias, antes.length) }
 }

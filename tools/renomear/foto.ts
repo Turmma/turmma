@@ -17,6 +17,8 @@ export interface ItemDaFoto {
   /** O arquivo onde o item está. */
   arquivo: string
   valor: string
+  /** Só no nome que o arquivo repassa (`export { X } from '…'`, `export * as X from '…'` e o `export { X }` de um `import`): o especificador de onde ele vem, no formato de comparação. */
+  origem?: string
 }
 
 /** O que o `conferir` fotografa: `apps/`, `packages/`, `e2e/`, `infra/test/`, `infra/scripts/` e `tools/`, menos a ferramenta. */
@@ -62,22 +64,50 @@ const temModificador = (declaracao: ts.Statement, tipo: ts.SyntaxKind): boolean 
 const exportado = (declaracao: ts.Statement): boolean => temModificador(declaracao, ts.SyntaxKind.ExportKeyword)
 const porPadrao = (declaracao: ts.Statement): boolean => temModificador(declaracao, ts.SyntaxKind.DefaultKeyword)
 
-function nomesDaExportacao(declaracao: ts.ExportDeclaration): string[] {
+interface NomeExportado {
+  nome: string
+  /** O especificador de onde o nome vem, como está no texto: o do `export … from`, ou o do `import` do nome que o `export { X }` repassa. */
+  origem?: string
+}
+
+/** O nome local de cada binding de `import` do arquivo → o especificador que o traz. */
+function importadosDe(fonte: ts.SourceFile): Map<string, string> {
+  const importados = new Map<string, string>()
+  for (const declaracao of fonte.statements) {
+    if (!ts.isImportDeclaration(declaracao) || !ts.isStringLiteralLike(declaracao.moduleSpecifier)) continue
+    const clausula = declaracao.importClause
+    if (clausula === undefined) continue
+    const especificador = declaracao.moduleSpecifier.text
+    if (clausula.name !== undefined) importados.set(clausula.name.text, especificador)
+    const ligacoes = clausula.namedBindings
+    if (ligacoes === undefined) continue
+    if (ts.isNamespaceImport(ligacoes)) importados.set(ligacoes.name.text, especificador)
+    else for (const elemento of ligacoes.elements) importados.set(elemento.name.text, especificador)
+  }
+  return importados
+}
+
+function nomesDaExportacao(declaracao: ts.ExportDeclaration, importados: ReadonlyMap<string, string>): NomeExportado[] {
   const clausula = declaracao.exportClause
   if (clausula === undefined) return []
-  if (ts.isNamespaceExport(clausula)) return [clausula.name.text]
-  return clausula.elements.map((elemento) => elemento.name.text)
+  const origemDaDeclaracao = declaracao.moduleSpecifier !== undefined && ts.isStringLiteralLike(declaracao.moduleSpecifier) ? declaracao.moduleSpecifier.text : undefined
+  if (ts.isNamespaceExport(clausula)) return [{ nome: clausula.name.text, ...(origemDaDeclaracao === undefined ? {} : { origem: origemDaDeclaracao }) }]
+  return clausula.elements.map((elemento) => {
+    // Sem `from`, o `export { X }` repassa o que o arquivo importou: a origem é o `import` do nome local.
+    const origem = origemDaDeclaracao ?? importados.get((elemento.propertyName ?? elemento.name).text)
+    return { nome: elemento.name.text, ...(origem === undefined ? {} : { origem }) }
+  })
 }
 
 /** Os nomes que a declaração de topo exporta. */
-function nomesExportados(declaracao: ts.Statement): string[] {
-  if (ts.isExportDeclaration(declaracao)) return nomesDaExportacao(declaracao)
-  if (ts.isExportAssignment(declaracao)) return ['default']
+function nomesExportados(declaracao: ts.Statement, importados: ReadonlyMap<string, string>): NomeExportado[] {
+  if (ts.isExportDeclaration(declaracao)) return nomesDaExportacao(declaracao, importados)
+  if (ts.isExportAssignment(declaracao)) return [{ nome: 'default' }]
   if (!exportado(declaracao)) return []
-  if (porPadrao(declaracao)) return ['default']
-  if (ts.isVariableStatement(declaracao)) return declaracao.declarationList.declarations.flatMap((variavel) => nomesDoPadrao(variavel.name))
+  if (porPadrao(declaracao)) return [{ nome: 'default' }]
+  if (ts.isVariableStatement(declaracao)) return declaracao.declarationList.declarations.flatMap((variavel) => nomesDoPadrao(variavel.name).map((nome) => ({ nome })))
   const nome = (declaracao as { name?: ts.Node }).name
-  return nome !== undefined && ts.isIdentifier(nome) ? [nome.text] : []
+  return nome !== undefined && ts.isIdentifier(nome) ? [{ nome: nome.text }] : []
 }
 
 const aparar = (texto: string): string => texto.replace(/\s+/g, ' ').trim()
@@ -101,7 +131,8 @@ function itemDoNo(no: ts.Node, ignorados: ReadonlySet<ts.Node>): { categoria: Ca
 export function fotografar(caminho: string, texto: string): ItemDaFoto[] {
   const fonte = analisar(caminho, texto)
   const itens: ItemDaFoto[] = []
-  const guardar = (categoria: Categoria, valor: string): void => void itens.push({ categoria, arquivo: caminho, valor })
+  const guardar = (categoria: Categoria, valor: string, origem?: string): void =>
+    void itens.push({ categoria, arquivo: caminho, valor, ...(origem === undefined ? {} : { origem: formaDoEspecificador(caminho, origem) }) })
   const ignorados = new Set<ts.Node>()
   for (const caso of casosDe(fonte)) {
     ignorados.add(caso.no)
@@ -126,6 +157,7 @@ export function fotografar(caminho: string, texto: string): ItemDaFoto[] {
   }
   // O pai marca o literal que não é string (especificador, chave) antes de o `forEachChild` chegar nele; o título já foi marcado acima.
   visitar(fonte)
-  for (const declaracao of fonte.statements) for (const nome of nomesExportados(declaracao)) guardar('exportado', nome)
+  const importados = importadosDe(fonte)
+  for (const declaracao of fonte.statements) for (const { nome, origem } of nomesExportados(declaracao, importados)) guardar('exportado', nome, origem)
   return itens
 }
