@@ -39,7 +39,7 @@ O prompt traz `Fotos da tela`, com os arquivos de cada tela que a tarefa criou o
 computador (1366 px) e no celular (360 px), na escola **cheia** (com dado) e na **vazia** (sem dado
 nenhum, como a escola nova no primeiro dia). **Leia todas, como imagem, antes de abrir o código.**
 Página comprida vem em pedaços numerados, e você lê todos. A linha `Rolam a 1366 × 768` lista as telas
-cuja página passa da janela, com a altura medida: tela que o PRD ou o mockup diz que só o miolo rola
+cuja página passa da janela, com a altura medida: tela que o PRD ou o `docs/interface.md` diz que só o miolo rola
 e que está nela é bloqueante (X2: C1 e C2, que só se viu pela altura das fotos). Antes das fotos, procure `1366` no
 `prd.md` da spec: se um RF diz que a tela cabe, a tela dele na lista `Rolam` é bloqueante, com o número do RF. Na X4, a 7.0
 viu o Eu a 822 px e deixou como recomendação, e a validação reprovou duas vezes pelo mesmo RF20.
@@ -66,9 +66,9 @@ do Playwright (`text=Alunos`, `role=tab[name="Alunos"]`), e o que foi clicado en
 - ação oficial (aprovar, publicar, excluir, exportar) sem o que está sendo decidido à vista;
 - termo técnico, id, chave de tradução ou texto em inglês na tela;
 - saída de IA sem a marca de que é IA (regra 70, item 4a);
-- o que contradiz `docs/interface.md`, a pele da D72 (`mockups/`, tokens e logotipo) ou o mockup que a
-  tarefa cita: cor fora da paleta, fonte ou espaçamento fora do padrão, componente que existe e foi
-  refeito de outro jeito.
+- o que contradiz `docs/interface.md` (a pele da D80, tokens e logotipo): cor fora da paleta, fonte ou
+  espaçamento fora do padrão, componente que existe e foi refeito de outro jeito. Diferença em relação
+  ao mockup (`mockups/`) não é achado: desde 30/10/2026 ele é referência (D80 revista).
 
 Gosto não bloqueia: "ficaria melhor assim" é recomendação. Todo defeito visto na foto leva o arquivo
 da foto, o `arquivo:linha` do componente e a correção exigida.

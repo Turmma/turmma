@@ -15,7 +15,8 @@ partida para o PRD da funcionalidade, que pode mudar.
 papel. A numeração dela não muda, porque tarefas do F1 já citam as seções 1, 2, 3 e 6. A
 **Parte B** (seções 8 a 12) é o design. A pele, a navegação e o padrão de página são os da **D80**
 (12/10/2026), que revê a D72, a D73 e a D69: o sistema que o Gabriel desenhou em mockup de 04 a
-07/10/2026. O produto chega a ele em quatro specs fora da sequência (`ROADMAP.md`): a **X1**
+07/10/2026. Desde 30/10/2026, com a X1 a X4 pousadas, o mockup é referência e não alvo (D80 revista): o que vale é
+este documento. O produto chega a ele em quatro specs fora da sequência (`ROADMAP.md`): a **X1**
 (`pele-e-casca`) troca a pele e a casca, com os itens e as telas de hoje; a **X2**, a **X3** e a
 **X4** recompõem as telas da coordenação, do professor e do aluno. Cada seção diz o que já existe
 e o que nasce em qual spec ou fase. O que falta decidir está na seção 7.
@@ -633,8 +634,8 @@ para ninguém confundir com a tela de uma escola. As medidas estão na seção 1
   degrau, mascote). A marca, a mascote, as cores, os ícones e a fonte são nossos, e o verde não é a
   cor principal; ainda assim o parecer entra junto do registro no INPI (D80; `TODO.md`)
 - **O mockup de outubro está em `mockups/`** desde 16/10/2026 (cópia de `Prototipo_Turmma` em
-  `a95568d`, D80). A fonte de valores continua sendo esta Parte B e o inventário em
-  `tasks/prd-pele-e-casca/mockup.md`; o mockup é para ver. Nada de lá é copiado para o `apps/web`, **com uma exceção**: a onça
+  `a95568d`, D80), **como referência**: desde 30/10/2026 ele não é o alvo (D80 revista). A fonte de valores é esta
+  Parte B; o mockup é para consultar quando ajudar, e diferença em relação a ele não é defeito nem pendência. Nada de lá é copiado para o `apps/web`, **com uma exceção**: a onça
   (o traço, as poses e o movimento que ficaram, 9.7), que o Joaquim mandou trazer fiel ao mockup (correção
   `2026-10-28-onca-do-mockup`). O desenho foi copiado para `componentes/ui/onca/`, o mockup continua sem ser importado, e um teste
   guarda os valores do original
@@ -683,13 +684,13 @@ e a 13ª, as peças, e a 14ª, os tipos de página e o modo escuro.
 
 | Fonte | O que ela dá | O que ela não dá |
 |---|---|---|
-| **O mockup de outubro** (`Prototipo_Turmma`, commit `a95568d`; inventário em `tasks/prd-pele-e-casca/mockup.md`) | Os valores de cor, as medidas, o desenho das peças, a casca e os tipos de página | Código. Ele não fala com servidor, usa bibliotecas que o produto não tem (10.1) e afrouxa proteções que o produto cumpre (8.3) |
+| **O mockup de outubro** (`Prototipo_Turmma`, commit `a95568d`; inventário em `tasks/prd-pele-e-casca/mockup.md`) | Deu os valores de cor, as medidas, o desenho das peças, a casca e os tipos de página da X1 a X4; desde 30/10/2026 é só referência (D80 revista) | Código. Ele não fala com servidor, usa bibliotecas que o produto não tem (10.1) e afrouxa proteções que o produto cumpre (8.3) |
 | **Duolingo** | A **técnica**: ilustração chapada, borda grossa com degrau sólido, cor por família, mascote, contraste alto | A marca, a mascote, o verde, a fonte e as mecânicas de uso (8.3) |
 | **A marca** (`apps/web/public/marca/`) | A pinta, o logotipo, o laranja `#E8732E` e a onça | A pele da landing page, que continua só lá |
 | **O produto que já existe** | As regras, os quatro estados, os textos, os nomes acessíveis e o e2e que prova cada regra | — |
 
 **Regra vence desenho** (D80, item 7): onde o mockup e uma proteção do produto discordam, vale o
-produto.
+produto. E, desde 30/10/2026, este documento vence o mockup (D80 revista).
 
 ### 8.2 O que tomamos
 
@@ -1141,8 +1142,10 @@ dois temas: pelagem `#E8732E`, sombra `#D75F18`, realce `#ED935D`, creme `#FDEBD
 **O traço é o do mockup de outubro, copiado e não importado** (correção `2026-10-28-onca-do-mockup`): o corpo e a
 cabeça numa forma só, as orelhas com miolo, a máscara clara de dois círculos, os olhos com pupila recortada e brilho, o
 focinho com o nariz arredondado, as cinco rosetas (a pinta da marca girada, declarada uma vez por desenho), o rabo com anéis e a
-pata com o punho. Um teste guarda as impressões do original e reprova a cópia que se afastar dele
-(`componentes/ui/onca/fidelidade-ao-mockup.test.tsx`).
+pata com o punho. Um teste guarda as impressões do traço e reprova a cópia que se afastar dele
+(`componentes/ui/onca/fidelidade-ao-mockup.test.tsx`). Desde 30/10/2026 ele guarda a onça do produto, e não "a do
+mockup": mudá-la pede decisão do Joaquim e o parecer do `conformidade-reviewer`, com os valores do teste atualizados na
+mesma correção (D80 revista).
 
 **O rosto da onça de corpo inteiro muda com a pose, e só com ela**: acenando (olhos de frente, boca aberta), apontando (olhar de
 lado, sorriso), comemorando (olhos felizes, boca bem aberta) e pensando (olhar para cima e de lado, boca de lado). O rosto da

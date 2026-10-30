@@ -139,7 +139,7 @@ algo que dependa dela.** Nova decisão ou revisão entra lá e aqui, pela skill 
 | D77 | O MVP de apresentação (A2 a A5) é uma fatia só, com processo enxuto |
 | D78 | O processo roda no Maestri: um andar por spec, um comando |
 | D79 | O processo é revisto para tempo |
-| D80 | A pele é o sistema Turmma do mockup de outubro |
+| D80 | A pele é o sistema Turmma; o mockup de outubro é só referência |
 | D81 | Padrão de mercado antes de mecanismo próprio |
 
 ## Conflitos já resolvidos e decisões em aberto
@@ -189,11 +189,12 @@ no Brasil, se um contrato exigir.
 
 **Para entender o produto:** `docs/visao-produto.md`, `docs/fluxos.md`, `docs/glossario.md`
 **Para entender a interface:** `docs/interface.md`
-**Para ver a interface desenhada:** o mockup de outubro, em `mockups/` (cópia de `Prototipo_Turmma`,
+**Para consultar a interface desenhada, como referência:** o mockup de outubro, em `mockups/` (cópia de `Prototipo_Turmma`,
 branch `mockups/interface`, commit `a95568d`, trazida em 16/10/2026; D80). A versão de setembro, anterior
 à pele nova, está no histórico do git e em `mockups/.antes-da-remodelagem/`. **Nada de mockup é copiado
 para o `apps/web`** nem para os `packages/`, com uma exceção: o traço da onça, copiado para
-`apps/web/src/componentes/ui/onca/` e guardado por teste contra o original (D80, revista em 28/10/2026)
+`apps/web/src/componentes/ui/onca/` e guardado por teste (D80, revista em 28/10/2026). Desde 30/10/2026 o mockup
+não é o alvo: o que vale é o `docs/interface.md`, e diferença em relação ao mockup não é defeito (D80 revista)
 **Para saber o que a revisão dos mockups mudou e ainda não virou decisão:**
 `docs/pendencias-dos-mockups.md` (31 itens, com o que cada um pede de tela, API, dado, regra e teste)
 **Para entender o negócio:** `docs/negocio.md` (mercado, preço, concorrência). Não é leitura

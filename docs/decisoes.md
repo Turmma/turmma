@@ -105,7 +105,8 @@ Fica **uma só**, a de outubro, em todas as telas (D80): a técnica é tomada, a
 cores, ícones e fonte são nossos), e a mecânica de uso compulsivo fica de fora por lei (D59). Onde o
 mockup afrouxa uma proteção que o produto já tem, vale o produto. A identidade visual (paleta,
 tipografia, ícones, mascote) **não está em aberto**: a D80 a fechou, e texto de skill, de regra ou de
-documento que a dê como pendente perde para ela.
+documento que a dê como pendente perde para ela. Desde 30/10/2026 o mockup é referência, não alvo (D80 revista): a pele
+é a do produto, e muda por decisão.
 
 **Vigiar a navegação do aluno.** Pedido em 19/09/2026: alertar o professor quando o aluno sai
 do sistema para usar outra IA, e medir tempo ocioso. Ficou: saída da aba só durante a prova,
@@ -1508,6 +1509,18 @@ nem nos `packages/`. O mockup continua sem ser importado, e um teste guarda os v
 (`fidelidade-ao-mockup.test.tsx`). Motivo: redesenhada à mão na X1 e na X4, a onça saiu outra, e quem
 abria o produto não via a mascote que o Gabriel escolheu; só a cópia fiel, presa por teste ao original,
 garante o desenho dele em todo lugar e nos três papéis.
+*Revista em 30/10/2026* pela palavra do Joaquim, com a X1 a X4 e a onça pousadas: **o mockup de outubro deixa de ser o
+alvo e vira referência** ("para aquele momento a gente ia seguir o mockup […] dai o mockup vira so alguma referencia […]
+so vamos utilizar o mockup caso tenha alguma referencias e vamos corrigir"). Daqui em diante o critério de certo de uma
+tela é o `docs/interface.md` e as decisões; o mockup é consultado quando ajudar, e diferença em relação a ele não é
+defeito, motivo de reprovação nem pendência. A pele que ele trouxe (itens 1 a 6) continua sendo a do produto e muda como
+qualquer decisão. A pasta `mockups/` fica no repositório, com a mesma cerca. A onça continua a que está no produto, e o
+teste que a guarda passa a proteger o traço do produto, e não "o do mockup": mudá-la pede decisão do Joaquim e o parecer
+do `conformidade-reviewer` do item 3, com os valores do teste atualizados na mesma correção. Não mudam o item 3 (o que a
+onça não faz: D58, D59, Decreto 12.880), o item 7 e a cerca de que nada do mockup é copiado para o `apps/web` nem para os
+`packages/` (a onça, já copiada, segue sendo a única exceção, e nenhuma nova se abre). Motivo: o mockup serviu para a
+virada da pele (X1 a X4 e a onça), que terminou; daqui em diante o produto muda pelas próprias decisões e pelo
+`docs/interface.md`, e o mockup só é consultado quando ajudar.
 
 **D81 — Padrão de mercado antes de mecanismo próprio: a peça técnica tem o nome do framework, o
 conceito do domínio fica em português, e a X5 é recortada para pousar.** *(decidida em 22/10/2026 pelo
