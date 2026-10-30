@@ -106,7 +106,9 @@ cores, ícones e fonte são nossos), e a mecânica de uso compulsivo fica de for
 mockup afrouxa uma proteção que o produto já tem, vale o produto. A identidade visual (paleta,
 tipografia, ícones, mascote) **não está em aberto**: a D80 a fechou, e texto de skill, de regra ou de
 documento que a dê como pendente perde para ela. Desde 30/10/2026 o mockup é referência, não alvo (D80 revista): a pele
-é a do produto, e muda por decisão.
+é a do produto, e muda por decisão. A onça entrou na tela de entrar na mesma noite como **onça da marca**, sem assinatura
+e num lugar fechado (D80 revista). O laço dela, seja piscar, respirar ou balançar o rabo, já foi vetado duas vezes, e o veto vale
+para a onça, não para uma tela: pedir "mais vida" numa tela não o reabre.
 
 **Vigiar a navegação do aluno.** Pedido em 19/09/2026: alertar o professor quando o aluno sai
 do sistema para usar outra IA, e medir tempo ocioso. Ficou: saída da aba só durante a prova,
@@ -1521,6 +1523,27 @@ onça não faz: D58, D59, Decreto 12.880), o item 7 e a cerca de que nada do moc
 `packages/` (a onça, já copiada, segue sendo a única exceção, e nenhuma nova se abre). Motivo: o mockup serviu para a
 virada da pele (X1 a X4 e a onça), que terminou; daqui em diante o produto muda pelas próprias decisões e pelo
 `docs/interface.md`, e o mockup só é consultado quando ajudar.
+*Revista de novo em 30/10/2026, à noite*, por **delegação do Joaquim**, que confere pela foto no pouso da correção que a
+trouxer. Ele achou a tela de entrar "morta" e pediu a onça ali, "para alegrar"; ao sair do computador, deixou no terminal do
+Orquestrador, às 19:30: "a pinta se quiser pode remover mas quero alguma coisa que alegre mais… pense e depois faça… vai fazendo
+tudo". Muda o item 3, que dizia que a onça vai **sempre** com o nome da função e o selo "IA": passa a haver duas onças, com
+fronteira escrita. A **onça-agente** continua como estava, sempre assinada e só em região que guarda produção do agente que
+assina. A **onça da marca** é nova, com lugar fechado: o painel da casca pública, em todas as telas dela (entrada da equipe e
+do aluno, convite, segundo fator e turma pública), igual para todo papel. Não tem nome, legenda, selo, fala nem texto atribuído,
+é `aria-hidden` e nunca aparece em área de papel nem em região de agente. Ela vem na pose `acenando`, no lugar da pinta grande
+apagada, que sai do painel. De 1024 px para cima tem 160 px, centrada no painel, e **entra e acena uma vez** ao abrir a página,
+com o movimento que já existe, para depois ficar parada; o movimento some com `prefers-reduced-motion`. No celular, onde o painel
+vira uma faixa só com a marca, ela tem 88 px, **parada**, sobre `fundo`, acima do formulário. O painel ganha um fundo quente
+(`laranja-claro`, com a borda em `laranja-borda`), feito só com tokens que já existem. Se a foto do tema claro não mostrar os pés
+da onça, que são do mesmo creme, o painel volta a `papel`, sem cor nova e sem mexer na onça. Não entra texto novo, e os textos da
+casca continuam os mesmos (RF20 da X1). Ela fica fora do primeiro carregamento: a casca a importa de forma tardia, com a caixa
+reservada, e o teto de 150 kB não sobe. Ficam vetados, também nesta tela: a onça assinada por um agente na entrada, onde nenhum
+agente produziu nada e o selo perderia o sentido; e todo laço, seja respirar, piscar ou balançar o rabo (D59; Decreto 12.880,
+arts. 9º e 10). O veto ao laço vale para a onça, não para uma tela. Pareceres: do `conformidade-reviewer` (onça da marca sem
+assinatura passa com estas condições, a assinada pelo Tutor e o laço não passam) e do `frontend-reviewer` (fundo, tamanho,
+posição e import tardio). Motivo: a entrada é a primeira tela de todo mundo, e a mascote que a escola escolheu não aparecia nela.
+Na entrada ainda não há saída de IA, e a D58 pede rótulo na saída de IA, não na marca: uma onça sem fala, sem nome e presa ao
+painel não se passa por agente nem por pessoa. A fronteira escrita, guardada por teste, impede que a exceção se espalhe.
 
 **D81 — Padrão de mercado antes de mecanismo próprio: a peça técnica tem o nome do framework, o
 conceito do domínio fica em português, e a X5 é recortada para pousar.** *(decidida em 22/10/2026 pelo

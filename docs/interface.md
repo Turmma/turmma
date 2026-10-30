@@ -1144,8 +1144,8 @@ de menu, 20 px em botão.
   vira indicador de carregamento
 - **A turma se reconhece pela cor da matéria**, no selo e no ladrilho, e não por um avatar próprio:
   a proposta de uma pinta por turma sai
-- A pinta pode aparecer parada, bem apagada, no painel da casca pública (11.3). Em nenhuma outra
-  tela há textura de fundo
+- Nenhuma tela tem textura de fundo. A pinta grande e apagada do painel da casca pública saiu em 30/10/2026: o lugar
+  passou para a onça da marca (9.7, 11.3; D80 revista)
 
 ### 9.7 A onça e o avatar dos agentes
 
@@ -1187,7 +1187,7 @@ Agentes a usa com o nome da função em `h2`), e um teste reprova outro arquivo 
 ou qualquer coisa da pasta da onça. O bloco é o `data-assinatura`, e o teste confere que cada
 `data-agente` tem, nele, o nome da função em texto visível e um `data-selo-ia`. O cartão de cada
 agente na tela Agentes leva `data-cartao-do-agente`, e não `data-agente`, que é só do avatar.
-A casca não desenha a onça nem o avatar do agente: ela mora na entrada, e a lateral não leva mais
+A casca da escola não desenha a onça nem o avatar do agente, e a lateral não leva mais
 agentes (o grupo "Seu time" saiu na X3). As funções do Assistente não têm avatar próprio, e aparecem pelo nome ("Assistente · correção de objetiva").
 Tamanhos: 24 px na linha da mensagem, 32 na assinatura, 40 e 48 no cabeçalho.
 
@@ -1212,6 +1212,7 @@ correções aprovadas pelo professor), nem para dar estado a um agente: a pose `
 | Acenando · apontando · pensando | Os passos da introdução (pensando: o passo da letra, com os três pontos parados) | X4, tarefa 5.0, com parecer dado; `pensando` e o movimento (entrar e acenar, uma vez), na correção `2026-10-28-onca-do-mockup`, com parecer |
 | Comemorando | A entrega de uma tarefa (9.5, regra 7) | X4, tarefa 5.0, com parecer dado, nas condições da Parte B, item "A comemoração na entrega e a onça acolhendo" |
 | Acolhendo (expressão de preocupação) | — | não entra (D80, item 3) |
+| Acenando, **da marca** | O painel da casca pública (11.3): de 1024 px para cima, 160 px, centrada, entra e acena uma vez; no celular, 88 px e parada, acima do formulário. Sem legenda | a correção da onça na entrada, com parecer (D80 revista em 30/10/2026, à noite) |
 
 O que a onça **nunca** é, em nenhuma spec (D58; Decreto 12.880, art. 11; regra 70, item 4a):
 
@@ -1222,6 +1223,14 @@ O que a onça **nunca** é, em nenhuma spec (D58; Decreto 12.880, art. 11; regra
   fala ao lado dela é a do agente, na primeira pessoa da função (9.8)
 - **Nunca é agressiva**, e **nunca fica "online"**: ponto ao lado do avatar só diz que há algo
   esperando a pessoa (D59)
+
+**A onça da marca (D80 revista em 30/10/2026, à noite).** Há duas onças, com fronteira escrita. A **onça-agente** é a de
+toda a seção: sempre assinada e só onde a região guarda produção do agente. A **onça da marca** mora só no painel da casca
+pública (11.3), em todas as telas dela e igual para todo papel. É uma peça própria, que desenha a onça sem `figcaption`, sem
+nome, sem selo e sem texto acessível, e é `aria-hidden`. A `Onca` continua exigindo `agente`, e a onça da marca nunca entra em
+área de papel nem em região de agente. A pose é sempre `acenando`. O movimento é o que já existe (entrar e acenar uma vez, que
+somem com `prefers-reduced-motion`), e nenhum laço entra, também aqui. Nenhum texto fica ao lado dela. A lista fechada de
+`avatar-so-nas-duas-pecas.test.ts` a nomeia, e um teste prova que a figura dela não tem texto acessível nem `figcaption`.
 
 A onça fica fora do primeiro carregamento (10.4), e o caminho da pinta, que as rosetas repetem, é
 declarado uma vez, e não copiado em cada avatar.
@@ -1656,8 +1665,10 @@ perto de 127 kB, e o teto **não sobe** com a pele (RF22 da X1).
 | Peças | As peças novas, as de `componentes/ui/ia/` e a onça (o teto do pedaço sobe de 26 para até 40 kB) | Na primeira tela que usa |
 | Galeria | Todas as peças, nos dois temas | Só com a variável do build ligada |
 
-- **A casca mora na entrada**, e por isso não importa peça de fora dela: nem a onça, nem peça de
-  `componentes/ui/ia/`
+- **A casca mora na entrada**, e por isso não importa de forma estática peça de fora dela: nem a onça, nem peça de
+  `componentes/ui/ia/`. A única exceção é a onça da marca da casca pública (9.7, 11.3), que entra por import tardio
+  (`React.lazy`), com a caixa reservada e um `fallback` vazio, e cai no pedaço Peças que já existe, sem pedaço novo nem
+  teto maior
 - **A área de um papel não baixa ícone nem peça de outro**
 - **Nenhuma fonte.** Nenhuma imagem decorativa acima de 30 KB; ilustração é SVG
 
@@ -1791,8 +1802,12 @@ a aula ao vivo (F10). Topo de 64 px com o sair, o miolo rolando por dentro e o r
 
 A entrada, o convite, a reivindicação de nome e a verificação em duas etapas, no tema do sistema.
 
-- **A partir de 1024 px a tela se divide**: à esquerda, o painel em `papel`, com a marca e a pinta
-  parada; à direita, o cartão do formulário. **Abaixo disso, empilha**
+- **A partir de 1024 px a tela se divide**: à esquerda, o painel em `laranja-claro`, com a borda de 2 px em
+  `laranja-borda`, a marca no topo e a onça da marca (9.7) de 160 px no centro, na pose `acenando`, que entra e acena uma
+  vez; à direita, o cartão do formulário. **Abaixo disso, empilha**: a faixa de topo fica só com a marca, e a onça da
+  marca, de 88 px e parada, vai sobre `fundo`, acima do formulário. A pinta grande e apagada saiu (D80 revista em
+  30/10/2026, à noite). Se a foto do tema claro não mostrar os pés da onça, que são do mesmo creme do `laranja-claro`,
+  o painel volta a `papel`
 - **O formulário.** Aluno: "Entrar com a conta da escola" (Google ou Microsoft, quando a escola
   tem) ou escola, matrícula e senha (D48). Professor e coordenação: o que o F1 definiu, com o
   segundo fator da coordenação. Não existe "Cadastre-se" (D2), nem busca pública de escola. Um
