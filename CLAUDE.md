@@ -189,14 +189,12 @@ no Brasil, se um contrato exigir.
 
 **Para entender o produto:** `docs/visao-produto.md`, `docs/fluxos.md`, `docs/glossario.md`
 **Para entender a interface:** `docs/interface.md`
-**Para consultar a interface desenhada, como referência:** o mockup de outubro, em `mockups/` (cópia de `Prototipo_Turmma`,
-branch `mockups/interface`, commit `a95568d`, trazida em 16/10/2026; D80). A versão de setembro, anterior
-à pele nova, está no histórico do git e em `mockups/.antes-da-remodelagem/`. **Nada de mockup é copiado
-para o `apps/web`** nem para os `packages/`, com uma exceção: o traço da onça, copiado para
-`apps/web/src/componentes/ui/onca/` e guardado por teste (D80, revista em 28/10/2026). Desde 30/10/2026 o mockup
-não é o alvo: o que vale é o `docs/interface.md`, e diferença em relação ao mockup não é defeito (D80 revista)
+**Para consultar a interface desenhada, como referência:** o mockup de outubro, em `mockups/` (origem e versão
+de setembro no `mockups/README.md`). Desde 30/10/2026 ele não é o alvo: vale o `docs/interface.md`, e diferença em
+relação ao mockup não é defeito. **Nada de mockup é copiado** para o `apps/web` nem para os `packages/`, salvo o traço
+da onça, em `apps/web/src/componentes/ui/onca/`, guardado por teste (D80 e revisões)
 **Para saber o que a revisão dos mockups mudou e ainda não virou decisão:**
-`docs/pendencias-dos-mockups.md` (31 itens, com o que cada um pede de tela, API, dado, regra e teste)
+`docs/pendencias-dos-mockups.md` (31 itens, cada um com tela, API, dado, regra e teste)
 **Para entender o negócio:** `docs/negocio.md` (mercado, preço, concorrência). Não é leitura
 obrigatória para implementar
 **Para não quebrar a lei:** `docs/lgpd.md`, `docs/regulacao.md`
@@ -209,8 +207,6 @@ AIA precisa ter; uma por funcionalidade, antes do PRD dela)
 `docs/ingestao.md`
 **Para não cair no horário de aula:** `docs/infra.md`, `docs/runbook.md`
 **Para escolher modelo e medir custo de IA:** `docs/avaliacao-de-modelos.md`
-**Para saber o que já foi decidido, por extenso:** `docs/decisoes.md` (com os conflitos já resolvidos
-no topo); o que está em aberto, em `docs/decisoes-em-aberto.md`
 **Para saber como cada skill de terceiros conflita com as regras:** `docs/skills-de-terceiros.md`
 **Para trabalhar:** `README.md`, `ROADMAP.md`, `TODO.md`, `.claude/rules/` e `.claude/skills/`
 
