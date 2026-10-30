@@ -5,7 +5,7 @@ peça como texto**: em string, regex, glob ou chave de JSON. Se o nome mudar e a
 nada. Por isso a onda que muda o nome muda a trava no mesmo commit, declara a troca em `excecoesDoConferir`
 (Tech Spec §5) e prova, com o nome novo, o caso que deixa a trava vermelha.
 
-A lista vem da revisão da spec, rodadas 1 e 2. Ela é o piso: a ocorrência que o relatório do `aplicar` achar e que
+A lista vem da revisão da spec, rodadas 1 a 4. Ela é o piso: a ocorrência que o relatório do `aplicar` achar e que
 não estiver aqui entra no mapa da onda como `fica`, com o motivo, ou como `trava`, e nesse caso ganha também uma linha
 neste anexo.
 
@@ -37,8 +37,8 @@ Os nomes novos são os dos anexos do inventário. A coluna "Onda" usa a numeraç
 | `apps/api/test/arquitetura.test.ts` | 15 caminhos de `nucleo/src`; as regex `@educa\/nucleo\/conta-global` (linha 50) e `@educa\/nucleo` (linhas 260 e 271) | 5.0 e 6.0 | A e C | O caminho inexistente falha alto. As regex das linhas 260 e 271: os casos sintéticos de 345 a 348, 427 a 430 e 526 a 529. A metade `conta-global` da linha 50, que nenhum caso alcança: o `restos` |
 | `arquitetura.test.ts`, `ZONAS_DAS_CLASSES_CERCADAS` (linha 49) | `/\bResolucaoDeTenantRepository\b\|resolucao-de-tenant\.repository/` | 6.0 e 7.0 | A e C | Na 7.0, o caso "a varredura acha as três classes dentro da zona" (66 a 74), com `TenantResolutionRepository`. Na 6.0, a metade do caminho, que o caso não alcança enquanto a classe tem o nome antigo: o `restos` |
 | `tools/guardas/tabelas-do-nucleo.test.ts` | a string `'@educa/nucleo'` numa variável | 5.0 | A | A tabela de fora do core: vermelho, importando `@educa/core` |
-| `arquitetura.test.ts`, `CHAVES_DOS_MARCADORES` (linha 553) | `METADADO_(?:ROTA\|ENTRADA)_DE_OPERACAO` → `OPERACAO_(?:ROUTE\|ENTRY)_KEY`, e as strings de fixture de 653 a 660 (em `excecoesDoConferir`) | 4.0, junto com as constantes do core; a regex parte o nome, e o passo 6 não a acha | A | Os casos de 653 a 660, renomeados: a chave citada fora do lugar fica vermelha |
-| `arquitetura.test.ts`, `NOMES_DOS_MARCADORES` (linha 552) | `RotaDeOperacao\|EntradaDeOperacao` → `OperacaoRoute\|OperacaoLoginRoute`, e as strings de fixture de 651 a 659 | 7.0 | A | Os casos de 651 a 659, renomeados: o decorator fora de `operacao/` fica vermelho |
+| `arquitetura.test.ts`, `CHAVES_DOS_MARCADORES` (linha 553) | `METADADO_(?:ROTA\|ENTRADA)_DE_OPERACAO` → `OPERACAO_(?:ROUTE\|ENTRY)_KEY`, e as strings de fixture das linhas 653, 654 e 660 (em `excecoesDoConferir`) | 4.0, junto com as constantes do core; a regex parte o nome, e o passo 6 não a acha | A | Os casos de 653, 654 e 660, renomeados: a chave citada fora do lugar fica vermelha |
+| `arquitetura.test.ts`, `NOMES_DOS_MARCADORES` (linha 552) | `RotaDeOperacao\|EntradaDeOperacao` → `OperacaoRoute\|OperacaoLoginRoute`, e as strings de fixture das linhas 651, 652 e 657 a 659 | 7.0 | A | Os casos de 651, 652 e 657 a 659, renomeados: o decorator fora de `operacao/` fica vermelho |
 
 ## Regra 20 — dado pessoal
 
@@ -47,9 +47,9 @@ Os nomes novos são os dos anexos do inventário. A coluna "Onda" usa a numeraç
 | `tools/guardas/regras-erro.mjs` | `NOME_DA_CLASSE_DE_INVARIANTE = 'ErroDeInvariante'` | 3.0 | A | `new InvariantException(\`${aluno.nome}\`)`: vermelho |
 | `tools/guardas/index.mjs` | `ESCOPO_DO_ERRO_TIPADO`, com `packages/nucleo/src/**` | 5.0 | A e C | `throw new Error('x')` em `packages/core/src/x.ts`, um caminho real: vermelho |
 | `apps/api/test/contratos.test.ts` | o prefixo `'esquemaResposta'`, a lista de nomes e as chaves de `EXCECOES_NOMINAIS` | 3.0 | A | O filtro passa a ser `endsWith('ResponseSchema')`. O conjunto varrido é o de antes, nome a nome pelo mapa e com a mesma contagem. A fixture com `email` na saída continua vermelha |
-| `apps/api/test/erro.int.test.ts` (linhas 166 e 169) e `erro-de-invariante.test.ts` (linha 10) | o `this.name` `'ErroDeInvariante'`, que acompanha a classe (adenda 1) | 3.0 e 4.0 | B | O filtro de erro que deixa vazar o nome no corpo da resposta deixa a 166 vermelha. O `not.toContain('Error')` da linha 150 fica mais estrito com as classes `…Error`, e o mapa da 3.0 o registra |
+| `apps/api/test/erro.int.test.ts` (linhas 166 e 169) e `erro-de-invariante.test.ts` (linha 10) | o `this.name` `'ErroDeInvariante'`, que acompanha a classe (adenda 1) | 3.0 e 4.0 | A e B (169 e `erro-de-invariante.test.ts:10`, A; 166, B) | O filtro de erro que deixa vazar o nome no corpo da resposta deixa a 166 vermelha. O `not.toContain('Error')` da linha 150 fica mais estrito com as classes `…Error`, e o mapa da 3.0 o registra |
 | `tools/guardas/regras-log.mjs` e `index.mjs` | `resumirErro` → `summarizeError`; `LoggerDoNest` → `NestLogger` | 4.0 | A | `{ erro: summarizeError(e) }` passa, e `{ erro: e.message }` continua vermelho |
-| `packages/nucleo/src/auditoria/porta-unica.test.ts` | `not.toContain('inserirAuditoria')` → `insertAuditoria`; os caminhos das linhas 11, 12 e 38 (`LEITURA`); a regex `IMPORTA_O_MODULO_DE_INSERCAO` (linha 49, `insercao-de-auditoria`) e as fontes de exemplo das linhas 104 a 117 | 4.0 e 5.0 | B | O índice do core exportando `insertAuditoria`: a linha 74 vermelha; o import do módulo de inserção fora da porta: vermelho |
+| `packages/nucleo/src/auditoria/porta-unica.test.ts` | `not.toContain('inserirAuditoria')` → `insertAuditoria`; os caminhos das linhas 11, 12 e 38 (`LEITURA`); a regex `IMPORTA_O_MODULO_DE_INSERCAO` (linha 49, `insercao-de-auditoria`) e as fontes de exemplo das linhas 104 a 117 | 4.0 e 5.0 | A, B e C (74, B; o `toEqual` da 83 e a regex da 49, A; `LEITURA`, C) | O índice do core exportando `insertAuditoria`: a linha 74 vermelha; o import do módulo de inserção fora da porta: vermelho |
 
 ## Regra 30 — camada de IA
 
@@ -91,6 +91,6 @@ altera o ouro (X7, RF16). Depois da 5.0, uma correção do Arquiteto troca as ci
 | `eslint.config.mjs` | `files: ['apps/worker/src/processadores/**/*.ts']` (linha 72, sem afirmação de tipo nos totais do expurgo) e `files: ['apps/web/src/componentes/ui/**/*.{ts,tsx}']` (linha 116, a fronteira do kit); os demais `files`/`ignores` com caminho renomeado | 5.0 e 6.0 | C | A trava contra filtro vazio lê a configuração exportada. O caminho virtual de `guardas.test.ts:159` passa ao nome novo |
 | `package.json` da raiz | `-w @educa/nucleo` em cerca de 20 scripts (`build`, `ops:*`, `carga:*`, `ensaio:alertas`) e `db:gerar --config packages/nucleo/drizzle.config.ts` | 5.0 | C | O `restos` dá zero na raiz; a onda roda `npm run build` e `npm run db:gerar` (sem migration nova) |
 | `knip.json` e `vitest.config.ts` | o workspace `"packages/nucleo"` e os caminhos do core | 5.0 | C | A trava contra filtro vazio (workspaces e entries do `knip.json`) e o `restos` |
-| `tools/ci/dockerfile.test.ts`, `borda.test.ts`, `resolucao-do-shared.test.ts`, `caminhos-da-esteira.ts` | `not.toContain('@educa/nucleo')` (dockerfile, 118), `COPY packages/nucleo/drizzle` (111), as linhas 78 e 95 de `borda`, a 23 de `resolucao-do-shared` e a 7 de `caminhos-da-esteira` | 5.0 | B | A asserção passa ao nome novo, e a mutação que põe no Dockerfile o que a 118 proíbe a deixa vermelha |
+| `tools/ci/dockerfile.test.ts`, `borda.test.ts`, `resolucao-do-shared.test.ts`, `caminhos-da-esteira.ts` | `not.toContain('@educa/nucleo')` (dockerfile, 118), `COPY packages/nucleo/drizzle` (111), as linhas 78 e 95 de `borda`, a 23 de `resolucao-do-shared` e a 7 de `caminhos-da-esteira` | 5.0 | A, B e C (118, B; 111, A; `borda` 78 e 95, C) | A asserção passa ao nome novo, e a mutação que põe no Dockerfile o que a 118 proíbe a deixa vermelha |
 | `tools/processo/mutacoes.ts` (linhas 681 e 696) | `__fixtures__/` como apoio de teste | 6.0 | A | `e2e/support/` continua classificado como apoio |
 | `apps/web/nome-dos-chunks.ts` | o caminho do kit em texto | 6.0 | A | O teste dele, com o caminho novo |

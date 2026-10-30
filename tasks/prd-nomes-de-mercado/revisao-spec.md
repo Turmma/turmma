@@ -105,6 +105,26 @@ Os bloqueantes da rodada 2 estão resolvidos, menos o B1 e o B3 do `test-enginee
 
 - Um teste em `infra/test/` que confira que existe a fonte de cada caminho de `dist` (infra, de novo)
 
+## Rodada 4 — 30/10/2026
+
+**Veredito: REPROVADA**
+
+Os bloqueantes da rodada 3 estão resolvidos. O B3 do `test-engineer` está resolvido nos casos, mas abriu uma lacuna na base de busca.
+
+| Revisor | Veredito | Bloqueantes |
+|---|---|---|
+| `test-engineer` | REPROVADO | 2: a base de busca do filtro vazio sem `__fixtures__/` deixa vermelhos, já na 2.0, os `ignores` que nomeiam fixture e saída não versionada; três cláusulas novas sem caso (palavra comum colada, `infra/scripts/` no `conferir`, todo arquivo versionado da raiz) |
+| `revisor-geral` | REPROVADO | 1: a troca do §1 do inventário para `read<X>Config`, feita na rodada 3 sem aprovação, contradiz os seis `load…` do anexo do core |
+
+### Correções exigidas na Tech Spec
+
+- §5, trava contra filtro vazio: o item que nomeia `__fixtures__/` ou `mockups/` confere contra o `git ls-files` inteiro; a saída não versionada é exceção nominal; cada fonte tem um mínimo de itens. Os casos, com as fontes listadas, estão em `casos.md` (test-engineer)
+- `casos.md`: palavra comum colada (`/\bFila\b/`, `'migrar('`), e-mail e URL não listados, caminho no `knip.json`, arquivo não versionado da raiz, string mudada em `infra/scripts/` (test-engineer)
+- §5: `comum` é calculado, não declarado; o lado da colagem e a exclusão de URL e e-mail (revisor-geral e test-engineer, recomendação)
+- `inventario.md`: o §1 volta a `load<X>Config`, e a **adenda 3**, aprovada pelo Joaquim em 30/10/2026, passa os quatro `read…` a `load…` (revisor-geral)
+- `travas.md`: a coluna "Forma" detalhada em `erro.int`, `porta-unica` e `tools/ci`; as linhas exatas dos marcadores (test-engineer e revisor-geral, recomendação)
+- `guarda.md`: recusados `guarda-*`, `*-em-memoria` e a pasta `limite/` em `packages/` (test-engineer, recomendação)
+
 ## Revisões
 
 Preenchida pelo hook `tools/processo/revisoes.ts` quando cada revisor termina. Não edite à mão:
@@ -132,3 +152,5 @@ atual, com APROVADO quando o revisor tem veto.
 | 2026-10-29 22:54:54 | 2026-10-29 22:58:25 | `privacy-guardian` | 3 | APROVADO | a23063c357ecb51bc |
 | 2026-10-29 22:55:01 | 2026-10-29 22:59:04 | `test-engineer` | 3 | REPROVADO | ac0540ccca35597f3 |
 | 2026-10-29 22:55:05 | 2026-10-29 22:59:32 | `revisor-geral` | 3 | REPROVADO | adb372b9383e936d3 |
+| 2026-10-29 23:01:41 | 2026-10-29 23:04:21 | `revisor-geral` | 4 | REPROVADO | abba4ceb9d4d4d737 |
+| 2026-10-29 23:01:38 | 2026-10-29 23:04:22 | `test-engineer` | 4 | REPROVADO | af07f2537cee1a685 |

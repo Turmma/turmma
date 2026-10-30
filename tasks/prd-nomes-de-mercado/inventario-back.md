@@ -234,9 +234,9 @@ Levantamento só de leitura, em `src` e `test` dos quatro apps (sem `node_module
 | `prazos-da-sessao.ts` | `sessao-timeouts.ts` | arquivo | `apps/api/src/operacao/sessao/` | 8 (+0) |
 | `configuracao-de-login.ts` | `login-config.ts` | arquivo | `apps/api/src/credencial/` | 6 (+0) |
 | `ConfiguracaoLogin / ConfiguracaoMfa` | `LoginConfig / MfaConfig` | interfaces | `apps/api/src/credencial/configuracao-de-login.ts` | 13 (+0) |
-| `lerConfiguracaoLogin` | `readLoginConfig` | função | `apps/api/src/credencial/configuracao-de-login.ts` | 5 (+0) |
+| `lerConfiguracaoLogin` | `loadLoginConfig` (adenda 3) | função | `apps/api/src/credencial/configuracao-de-login.ts` | 5 (+0) |
 | `configuracao-externa.ts` | `external-login-config.ts` | arquivo | `apps/api/src/credencial/` | 6 (+0) |
-| `ConfiguracaoLoginExterno / lerConfiguracaoLoginExterno` | `ExternalLoginConfig / readExternalLoginConfig` | interface / função | `apps/api/src/credencial/configuracao-externa.ts` | 7 (+0) |
+| `ConfiguracaoLoginExterno / lerConfiguracaoLoginExterno` | `ExternalLoginConfig / loadExternalLoginConfig` (adenda 3) | interface / função | `apps/api/src/credencial/configuracao-externa.ts` | 7 (+0) |
 | `conclusao-de-login.ts + ConclusaoDeLogin` | `login-completion.ts + LoginCompletion` | arquivo + classe | `apps/api/src/sessao/conclusao/` | 7 (+0) |
 | `conclusao/ (pasta)` | `completion/` | pasta | `apps/api/src/sessao/conclusao/` | 7 (+0) |
 | `sessoes-sinteticas.ts` | `synthetic-sessions.ts` | arquivo | `apps/api/src/sessao/tenant/` | 5 (+0) |

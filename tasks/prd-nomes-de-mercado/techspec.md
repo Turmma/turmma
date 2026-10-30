@@ -1,7 +1,7 @@
 # Tech Spec — Nomes de mercado (X8)
 
 **PRD:** `prd.md` · **Inventário:** `inventario.md` e anexos (adenda 2 em `inventario-adenda-2.md`) · **Travas:** `travas.md` · **Guarda:** `guarda.md` · **Casos:** `casos.md`
-**Status:** rascunho, rodada 4 da revisão da spec
+**Status:** rascunho, rodada 5 da revisão da spec
 
 ## 1. Resumo da abordagem
 
@@ -28,8 +28,8 @@ pelo hash. Rota, corpo, código de erro e evento de WebSocket são strings (`con
 ## 5. Fluxo
 
 **O mapa** tem entradas `{ tipo: simbolo|arquivo|pasta|pacote, de, para, arquivo?, linhaDoAnexo, alias?, comum? }`
-e duas listas. `comum` marca a palavra comum: o `de` de uma palavra só, sem maiúscula interna nem `_` (`com`, `Banco`,
-`Tela`, `Fila`, `migrar`).
+e duas listas. `comum` é calculado, não declarado: é o `de` de uma palavra só, sem maiúscula interna nem `_` (`com`,
+`Banco`, `Tela`, `Fila`, `migrar`).
 
 - `ocorrencias`: cada referência por texto, classificada como `fica` (string de fora, com a linha de "Não muda, mas
   parece") ou `trava` (com a linha do `travas.md`; a trava achada depois entra no mapa e ganha linha no anexo);
@@ -57,8 +57,8 @@ arquivo que importa o nome, sem `alias`; o `de` se repete; falta `linhaDoAnexo`;
    `packages/`, `e2e/`, `tools/`, `infra/`, `.github/` e em todo arquivo versionado da raiz. Busca o símbolo como identificador, e o caminho e o pacote como trecho inteiro, também sem a
    extensão (`packages/nucleo`, `componentes/ui/`, `hash-de-senha`), nunca segmento solto. Em regex e `String.raw`,
    busca na forma sem escape, sem exigir borda depois de `\b`, e pega o prefixo da gramática em
-   `startsWith`/`endsWith`. A palavra `comum` só é listada quando o literal inteiro é ela ou quando vem colada a `(`,
-   `.`, `@`, `/` ou `\b`; em prosa, não. A regex com alternância que parte o nome é limite declarado, coberto pelo
+   `startsWith`/`endsWith`. A palavra `comum` só é listada quando o literal inteiro é ela, quando vem seguida de `(`,
+   precedida de `@` ou `\b`, ou é segmento de caminho ou de acesso a membro; em prosa, URL e e-mail, não. A regex com alternância que parte o nome é limite declarado, coberto pelo
    `travas.md`. Ocorrência não classificada deixa o relatório vermelho.
 7. Grava o `<N>.relatorio.md`.
 
@@ -83,7 +83,10 @@ roda `conferir` e `restos`. A correção `links-do-runbook` entra antes da 4.0.
 **A trava contra filtro vazio** (2.0, antes de qualquer rename): cada glob, caminho e `path` em regex de
 `configuracaoDasGuardas`, `EXCECOES_DAS_GUARDAS`, `PASTA_DOS_ADAPTADORES`, `ESCOPO_DO_ERRO_TIPADO`, `camadas.cjs`,
 `guardioes-por-caminho.ts`, dos `files`/`ignores` do `eslint.config.mjs` (lido da configuração exportada), dos
-workspaces e entries do `knip.json` e do `paths:` das regras casa com ao menos um arquivo, item a item.
+workspaces e entries do `knip.json` e do `paths:` das regras casa com ao menos um arquivo, item a item, e cada fonte
+rende um mínimo de itens. A base é o `git ls-files`: o item que nomeia `__fixtures__/` ou `mockups/` confere contra
+ela inteira, e os demais contra ela sem essas pastas e sem `dist/`. Saída não versionada (`node_modules`, `dist`,
+`playwright-report`, `test-results`, `.claude/worktrees`) é exceção nominal, com o motivo.
 
 **As ondas:**
 

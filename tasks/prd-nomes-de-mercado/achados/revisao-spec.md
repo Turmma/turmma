@@ -1193,3 +1193,124 @@ Arquivos citados:
 - /home/joaquimdp/Documents/git/.maestri/floors/educaia--specnomes-de-mercado/tasks/prd-nomes-de-mercado/inventario-core-shared.md
 - /home/joaquimdp/Documents/git/.maestri/floors/educaia--specnomes-de-mercado/apps/api/test/arquitetura.test.ts
 - /home/joaquimdp/Documents/git/.maestri/floors/educaia--specnomes-de-mercado/e2e/aparencia.spec.ts
+
+## revisor-geral · 4ª rodada · REPROVADO · 2026-10-29 23:04:21 · `tasks/prd-nomes-de-mercado/revisao-spec.md`
+
+VEREDITO: REPROVADO
+Escopo: respeitado
+Aderência à Tech Spec: divergência entre `inventario.md` §1 e `inventario-core-shared.md` (a regra de `lerConfiguracao<X>`)
+Portão local: não se aplica. É revisão de spec, e o `conferir` responde "nunca passou nesta árvore", como nas rodadas 2 e 3.
+
+**Os três bloqueantes meus da rodada 3**
+
+| # | Situação |
+|---|---|
+| 1. A palavra comum no passo 6 | **Resolvido.** `techspec.md:30-32` define o campo `comum`: o `de` de uma palavra só, sem maiúscula interna nem `_`. O passo 6 (`:60-62`) só lista a palavra comum quando ela é o literal inteiro ou vem colada a `(`, `.`, `@`, `/` ou `\b`. A regex com alternância que parte o nome virou limite declarado. Os três casos estão em `casos.md:27` e `:31`. Contei de novo: as strings com "com" colado a um desses sinais dão cerca de 33 linhas, e não mais 6 mil |
+| 2. `CHAVES_DOS_MARCADORES` | **Resolvido.** `travas.md:40` passa à 4.0, com `OPERACAO_(?:ROUTE\|ENTRY)_KEY`, que bate com `inventario-core-shared.md:282-283`, e leva as fixtures de 653 a 660 em `excecoesDoConferir`. A linha nova `travas.md:41` cobre `NOMES_DOS_MARCADORES` na 7.0, que bate com `inventario-back.md:144-145`. Conferi em `arquitetura.test.ts`: a regex está na 553, a lista na 552, as fixtures entre 651 e 660, e a `QUEM_PODE_CITAR_AS_CHAVES` (555), que fica velha, quebra alto pela varredura da árvore real (636) |
+| 3. `esquemaDeCor` | **Resolvido.** A exceção nominal está em `guarda.md:36-37`, com os dois casos (`:57` e `:65`). Conferi a declaração: é um `const` de topo em `e2e/aparencia.spec.ts:26`, então a linha do prefixo `esquema` o recusaria sem a exceção |
+
+Bloqueantes:
+
+1. **`inventario.md:34` contradiz o anexo core-shared, e a contradição entrou nesta rodada.**
+   - **O que mudou.** A correção da rodada 3 (recomendação do privacy) trocou a regra do §1 para `lerConfiguracao<X>` → `read<X>Config`, "alinhado ao anexo back e à adenda 2".
+   - **Por que está errado.** O anexo core-shared, também aprovado, continua com `load`:
+     - a regra: linhas 38 e 215;
+     - seis linhas da tabela: `lerConfiguracaoDeIa` → `loadLLMConfig` (54), `lerConfiguracaoBanco` → `loadDatabaseConfig` (226), `lerConfiguracaoLimite` → `loadRateLimitConfig` (333), `lerConfiguracaoIdentidade` → `loadAuthConfig` (349), `lerConfiguracaoDrenagem` → `loadGracefulShutdownConfig` (363) e `lerConfiguracaoTelemetria` → `loadTelemetryConfig` (394).
+   - **A consequência.** O Implementador da 4.0 segue a linha da tabela e grava `load…` no core. A 7.0 grava `read…` nos apps. Ficam dois verbos para o mesmo padrão, e a regra do §1 deixa de valer para o core. A mensagem da guarda (`guarda.md:24`) também mandaria `read<X>Config` para um nome que o inventário manda virar `load…`. O privacy só olhou o anexo back e a adenda 2 quando recomendou "basta alinhar o §1".
+   - **Correção exigida.** Escolher um verbo só e deixar o §1 e todos os anexos de acordo. Há dois caminhos:
+     - passar as oito ocorrências do core-shared (38, 54, 215, 226, 333, 349, 363 e 394) para `read…`. Isso toca o inventário aprovado, então é parada do Joaquim. A troca do §1 também tocou o inventário e precisava dessa aprovação, que `revisao-spec.md` não registra;
+     - ou desfazer a troca do §1, e o Joaquim decide se aceita os dois verbos.
+
+Recomendações:
+- `techspec.md:60` e `casos.md:27`: "colada a `.` ou `/`" não diz de que lado. Do jeito que está, `.com` em e-mail e URL de teste (cerca de 25 linhas, como `'teste@exemplo.com'` e `'gmail.com'`) e `github.com/` (8 linhas) serão listados e pedem `fica` um a um na 7.0. Basta dizer de que lado vale, ou declarar isso no mapa da 7.0.
+- `techspec.md:30-32`: `comum` é ao mesmo tempo campo e regra. Uma de duas: derivar o campo da regra, ou fazer o `aplicar` recusar o `de` de uma palavra só que venha sem `comum`. Essa recusa entraria entre as seis de `:39-41`, com caso em `casos.md`.
+- `casos.md:80`: o "mínimo de itens lidos por fonte" só existe no anexo. Levar a frase ao §5 da Tech Spec, na trava contra filtro vazio, e dar o número de cada fonte.
+- `travas.md:40-41`: citar as linhas exatas, e não as faixas. Os `METADADO_` estão em 653, 654 e 660; o `RotaDeOperacao` e o `EntradaDeOperacao`, em 651, 652 e 657 a 659.
+- `travas.md:8`: a lista vem das rodadas 1 a 3, não "1 e 2".
+- `techspec.md:57`: a linha passa da largura das outras.
+
+Arquivos citados:
+- /home/joaquimdp/Documents/git/.maestri/floors/educaia--specnomes-de-mercado/tasks/prd-nomes-de-mercado/inventario.md
+- /home/joaquimdp/Documents/git/.maestri/floors/educaia--specnomes-de-mercado/tasks/prd-nomes-de-mercado/inventario-core-shared.md
+- /home/joaquimdp/Documents/git/.maestri/floors/educaia--specnomes-de-mercado/tasks/prd-nomes-de-mercado/techspec.md
+- /home/joaquimdp/Documents/git/.maestri/floors/educaia--specnomes-de-mercado/tasks/prd-nomes-de-mercado/casos.md
+- /home/joaquimdp/Documents/git/.maestri/floors/educaia--specnomes-de-mercado/tasks/prd-nomes-de-mercado/guarda.md
+- /home/joaquimdp/Documents/git/.maestri/floors/educaia--specnomes-de-mercado/tasks/prd-nomes-de-mercado/travas.md
+- /home/joaquimdp/Documents/git/.maestri/floors/educaia--specnomes-de-mercado/apps/api/test/arquitetura.test.ts
+
+## test-engineer · 4ª rodada · REPROVADO · 2026-10-29 23:04:22 · `tasks/prd-nomes-de-mercado/revisao-spec.md`
+
+VEREDITO: REPROVADO
+
+**Cenários exigidos** (os mesmos das rodadas 2 e 3):
+- **`aplicar`, `reaplicar`, `conferir`, `restos` e o filtro vazio:** cada cláusula do §5 com um caso que a deixa vermelha se for retirada. É a promessa do próprio `casos.md:6`.
+- **A guarda:** cada linha da gramática com um caso recusado e um que passa, mais a declaração de topo, a mensagem e o alcance.
+- **As travas (RF11):** cada uma com o seu bloco de mutação, numa forma que de fato mata a mutação.
+- **Isolamento:** as travas de tenant continuam pegando o que pegavam.
+- **Não se aplicam:** concorrência (nada roda duas vezes ao mesmo tempo) e IA (nenhum teste chama modelo).
+
+**Cobertos (os meus quatro bloqueantes da rodada 3):**
+- **B1, a trava negativa: resolvido.** As três formas estão em `techspec.md:159-164` e `travas.md:12-21`, e há a coluna "Forma". Conferi as três provas na árvore:
+  - `erro.int.test.ts:166` é `not.toContain`, prova B pelo filtro que vaza o nome;
+  - `porta-unica.test.ts:74` é `not.toContain`, prova B pelo índice do core que exporta `insertAuditoria`;
+  - `dockerfile.test.ts:118` é `not.toContain`, prova B pelo Dockerfile da web com o nome novo.
+- **B2, a gramática: resolvido.** A linha de segmento se dividiu em duas (`guarda.md:27-28`) e o texto do limite passou a ter uma leitura só (`:33-34`). "Passam" ganhou `function XEmMemoria`, `interface esquemaX`, `class ErroX` dentro de função, e `fila/` e `limite/` em `apps/api` (`:60-64`). A exceção `esquemaDeCor` tem um caso que passa e um recusado fora do arquivo dela (`:57`, `:65`).
+- **B3, o filtro vazio: resolvido nos casos** (`casos.md:77-80`): `ignores`, workspace do `knip.json`, `paths:` e o mínimo por fonte. Só que a base de busca nova abre uma lacuna (bloqueante 1).
+- **B4, as cláusulas do passo 6 e do `restos`: resolvido.** Os casos estão em `casos.md:26`, `:56` e `:65-67`.
+- **As recomendações da rodada 3 entraram todas:**
+  - a fixture e o `excecoesDoConferir` em `travas.md:34`;
+  - o teste movido em `casos.md:48`;
+  - as ondas do `conferir` em `techspec.md:68`;
+  - a base em `casos.md:71`;
+  - "com" em tela não listado em `casos.md:31`.
+- **Conferi também `travas.md:40-41` na árvore.** As fixtures de `CHAVES_DOS_MARCADORES` (653, 654 e 660) e de `NOMES_DOS_MARCADORES` (651, 652 e 657 a 659) batem com `arquitetura.test.ts`.
+
+**Bloqueantes:**
+
+1. **A base de busca do filtro vazio deixa a trava vermelha já na árvore sã da 2.0** (`casos.md:71`, junto com `techspec.md:83-86`).
+   - **O que está errado.** A base é o `git ls-files` sem `__fixtures__/`, `mockups/` e `dist/`. Mas as fontes que a trava lê têm itens que, nessa base, não casam com nada por definição:
+     - `eslint.config.mjs:31-41`, `ignores`: `**/node_modules/**`, `**/dist/**`, `playwright-report/**`, `test-results/**`, `tools/guardas/__fixtures__/**`, `mockups/**` e `.claude/worktrees/**`;
+     - `tools/guardas/index.mjs:108`: `'**/__fixtures__/**'`;
+     - `tools/guardas/camadas.cjs:174`: `exclude.path` `(?:dist|__fixtures__/camadas)/`;
+     - `knip.json:4`, se o `ignore` também for lido.
+   - **A consequência.** Pelo caso de `casos.md:77` ("um `ignores` que não casa nada: vermelho"), a 2.0 nasce vermelha. Sobram duas saídas: o Implementador muda a regra em silêncio, ou a tarefa para. Fui eu que recomendei essa base na rodada 3; o defeito está na combinação dela com o caso que exigi.
+   - **Correção exigida.**
+     - O item que nomeia `__fixtures__/` ou `mockups/` é conferido contra o `git ls-files` inteiro. A exclusão vale só para os demais itens, e serve para a árvore espelho de fixture não manter vivo um glob antigo.
+     - O item que aponta para saída não versionada (`node_modules`, `dist`, `playwright-report`, `test-results`, `.claude/worktrees`) entra numa lista nominal de exceções da trava, com o motivo.
+     - Três casos novos em `casos.md`:
+       - `tools/guardas/__fixtures__/**`: verde;
+       - `**/dist/**`: verde só pela exceção declarada;
+       - um glob que só casa com arquivo dentro de `__fixtures__/` e não nomeia a pasta: vermelho.
+
+2. **Três cláusulas novas desta rodada sem caso.** A mutação que retira cada uma sobrevive, contra `casos.md:6`.
+   - **a. A palavra comum colada** (`techspec.md:60-61`).
+     - O único exemplo de "colada", `'@SemEscopo('` em `casos.md:27`, não é palavra comum. Pela própria definição de `techspec.md:31` ("uma palavra só, sem maiúscula interna"), `SemEscopo` não é `comum`, e ele é listado de qualquer jeito, como identificador.
+     - A mutação "listar a palavra comum só quando o literal inteiro é ela" sobrevive: `'Banco'` continua listado e "com" em tela continua fora.
+     - Correção: um caso com palavra `comum` colada, por exemplo `/\bFila\b/` numa regex ou `'Banco.'`/`'migrar('` numa string, listado. E corrigir o rótulo de `casos.md:27`.
+   - **b. `infra/scripts/` na foto do `conferir`** (`techspec.md:68`).
+     - Nenhum caso muda string ali, e a mutação que tira a pasta da foto sobrevive.
+     - Correção: o caso "uma string mudada em `infra/scripts/`: vermelho".
+   - **c. "Todo arquivo versionado da raiz" no passo 6** (`techspec.md:57`).
+     - O único caso é o `-w` do `package.json` (`casos.md:28`). A mutação que volta à lista antiga, ou só ao `package.json`, sobrevive.
+     - Correção: um caminho antigo noutro arquivo versionado da raiz (`knip.json` ou `vitest.config.ts`) listado, e um arquivo não versionado da raiz não listado.
+
+**Recomendações:**
+- **Coluna "Forma" incompleta em três linhas de `travas.md`.** Não muda a prova, mas o bloco de cada asserção é diferente.
+  - `:50` diz só B. A linha 169 (`toMatchObject`) e `erro-de-invariante.test.ts:10` (`toBe('ErroDeInvariante')`) são forma A.
+  - `:52` diz só B. O `toEqual` da linha 83 e a regex da linha 49 são forma A, e os caminhos de `LEITURA` são forma C.
+  - `:94` diz só B. `dockerfile.test.ts:111` (`toContain`) é forma A, e as linhas 78 e 95 de `borda.test.ts` (`lerArquivo`) são forma C.
+- **`guarda.md:56`.** O caso recusado da pasta passou de `limite/` para `fila/`, e `limite/` em `packages/` ficou sem caso. Recusar os dois, e também um segmento `guarda-*` e um `*-em-memoria`.
+- **`casos.md:80`.** Declarar quais são as fontes, cada uma com o seu mínimo, com os workspaces e as entries do `knip.json` como fontes separadas. Sem isso, um leitor que pula as entries passa.
+- **`techspec.md:30-32`.** Dizer se o `comum` é calculado ou declarado no mapa. Se for declarado, o `aplicar` recusa a entrada em que o campo não bate com a definição. Um `comum` posto num nome composto esconde a ocorrência em prosa dentro de string.
+
+Arquivos revisados:
+- `/home/joaquimdp/Documents/git/.maestri/floors/educaia--specnomes-de-mercado/tasks/prd-nomes-de-mercado/techspec.md`
+- `/home/joaquimdp/Documents/git/.maestri/floors/educaia--specnomes-de-mercado/tasks/prd-nomes-de-mercado/casos.md`
+- `/home/joaquimdp/Documents/git/.maestri/floors/educaia--specnomes-de-mercado/tasks/prd-nomes-de-mercado/guarda.md`
+- `/home/joaquimdp/Documents/git/.maestri/floors/educaia--specnomes-de-mercado/tasks/prd-nomes-de-mercado/travas.md`
+
+Evidência do bloqueante 1:
+- `/home/joaquimdp/Documents/git/.maestri/floors/educaia--specnomes-de-mercado/eslint.config.mjs:31-41`
+- `/home/joaquimdp/Documents/git/.maestri/floors/educaia--specnomes-de-mercado/tools/guardas/index.mjs:108`
+- `/home/joaquimdp/Documents/git/.maestri/floors/educaia--specnomes-de-mercado/tools/guardas/camadas.cjs:174`
+- `/home/joaquimdp/Documents/git/.maestri/floors/educaia--specnomes-de-mercado/knip.json:4`

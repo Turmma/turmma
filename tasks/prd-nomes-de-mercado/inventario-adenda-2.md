@@ -54,9 +54,9 @@ numa adenda própria.
 | `esquemaNomeDaEmpresa` | `nomeDaEmpresaSchema` | const (zod) | `apps/api/src/ops/suboperador.ts` |
 | `esquemaPais` | `paisSchema` | const (zod) | `apps/api/src/ops/suboperador.ts` |
 | `esquemaDoArmazem` | `fileStorageSchema` | const (zod) | `apps/api/src/privacidade/configuracao-do-armazem.ts` |
-| `lerConfiguracaoDoArmazem` | `readFileStorageConfig` | função | `apps/api/src/privacidade/configuracao-do-armazem.ts` |
+| `lerConfiguracaoDoArmazem` | `loadFileStorageConfig` | função | `apps/api/src/privacidade/configuracao-do-armazem.ts` |
 | `esquemaAmbienteSala` | `salaEnvSchema` | const (zod) | `apps/api/src/sala/configuracao-da-sala.ts` |
-| `lerConfiguracaoSala` | `readSalaConfig` | função | `apps/api/src/sala/configuracao-da-sala.ts` |
+| `lerConfiguracaoSala` | `loadSalaConfig` | função | `apps/api/src/sala/configuracao-da-sala.ts` |
 | `esquemaDoConteudo` | `conteudoSchema` | const (zod) | `apps/api/src/sessao/externa/cookie-oidc.ts` |
 | `esquemaProvedor` | `provedorSchema` | const (zod) | `apps/api/src/sessao/externa/externa.controller.ts` |
 | `esquemaSlugDigitado` | `slugDigitadoSchema` | const (zod) | `apps/api/src/sessao/externa/externa.controller.ts` |

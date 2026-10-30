@@ -31,7 +31,7 @@ esquerda.
 | erro de recusa | sufixo `Error`, o termo técnico em inglês e o substantivo de domínio em português | `RenovacaoRecusada` → `RefreshRejectedError`, `OperadorRecusado` → `OperadorRejectedError`, `ArgumentoInvalido` → `InvalidArgumentError` |
 | `Emissor<X>` | `<X>Issuer` | `EmissorDeToken` → `TokenIssuer` |
 | `Armazem<X>` | `<X>FileStorage` | `ArmazemS3` → `S3FileStorage` |
-| `Configuracao<X>`, `lerConfiguracao<X>` | `<X>Config`, `read<X>Config` (alinhado ao anexo back e à adenda 2) | `ConfiguracaoBanco` → `DatabaseConfig` |
+| `Configuracao<X>`, `lerConfiguracao<X>` | `<X>Config`, `load<X>Config` | `ConfiguracaoBanco` → `DatabaseConfig` |
 | `Opcoes<X>`, `Dependencias<X>` | `<X>Options`, `<X>Dependencies` | `OpcoesDoPool` → `WorkerPoolOptions` |
 | `Linha<X>` (a linha lida ou gravada) | `<X>Row` | `LinhaDaSessao` → `SessaoRow` |
 | `METADADO_<X>` | `<X>_KEY` | `METADADO_ROTA_ANONIMA` → `IS_PUBLIC_KEY` |
@@ -189,3 +189,8 @@ caso que pegava.
   listaram. A tabela está em `inventario-adenda-2.md`, com o nome novo de cada uma e o que fica de fora
 - A guarda do RF8 (`guarda.md`) recusa exatamente o que esta adenda e os anexos renomeiam: com tudo aplicado, a árvore
   inteira passa
+
+**Adenda 3 — 30/10/2026, aprovada pelo Joaquim no terminal do Arquiteto, na revisão da spec (rodada 4)**
+
+- `lerConfiguracao<X>` vira `load<X>Config` em todo o inventário, como o §1 e o anexo do core: `readLoginConfig`,
+  `readExternalLoginConfig` (anexo back), `readFileStorageConfig` e `readSalaConfig` (adenda 2) passam a `load…`

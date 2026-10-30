@@ -24,11 +24,15 @@ Cada cláusula da Tech Spec §5 tem ao menos um caso que a deixa vermelha, se fo
 **Listados (passo 6):**
 - `/\bX\b/` e `x\.repository` numa regex;
 - `startsWith('esquemaResposta')` e um `endsWith` com o sufixo da gramática;
-- `'Banco'` num array e `'@SemEscopo('` numa string (palavra comum colada);
-- um `-w` do `package.json` da raiz e um caminho em `.github/`.
+- `'Banco'` num array (palavra comum como literal inteiro);
+- `/\bFila\b/` numa regex e `'migrar('` numa string (palavra comum colada);
+- `'@SemEscopo('` numa string (identificador);
+- um `-w` do `package.json` da raiz, um caminho antigo no `knip.json` e um caminho em `.github/`.
 
 **Não listados (passo 6):**
-- "com" numa string de tela, porque a palavra comum em prosa não é listada.
+- "com" numa string de tela, porque a palavra comum em prosa não é listada;
+- `'teste@exemplo.com'` e `'https://github.com/x'` (e-mail e URL);
+- um arquivo não versionado da raiz.
 
 ## `reaplicar` (1.0)
 
@@ -40,7 +44,8 @@ Cada cláusula da Tech Spec §5 tem ao menos um caso que a deixa vermelha, se fo
 **Vermelho quando:**
 - muda uma string, uma regex, um `JsxText`, uma chave de objeto ou a parte fixa de um template;
 - some um caso de teste;
-- aparece um especificador ou um nome exportado fora do mapa.
+- aparece um especificador ou um nome exportado fora do mapa;
+- muda uma string em `infra/scripts/`.
 
 **Verde quando:**
 - o especificador e o nome exportado são os renomeados;
@@ -68,7 +73,15 @@ Cada cláusula da Tech Spec §5 tem ao menos um caso que a deixa vermelha, se fo
 
 ## Trava contra filtro vazio (2.0)
 
-A base de busca é o `git ls-files` da raiz, sem `__fixtures__/`, `mockups/` nem `dist/`.
+A base é o `git ls-files`. O item que nomeia `__fixtures__/` ou `mockups/` confere contra a base inteira, e os demais
+contra a base sem essas pastas e sem `dist/`. As fontes, cada uma com o seu mínimo de itens lidos (o número de hoje,
+gravado no teste): `configuracaoDasGuardas`, `EXCECOES_DAS_GUARDAS`, `PASTA_DOS_ADAPTADORES`, `ESCOPO_DO_ERRO_TIPADO`,
+os `path` do `camadas.cjs`, `guardioes-por-caminho.ts`, os `files` e os `ignores` do `eslint.config.mjs`, os
+workspaces e as entries do `knip.json` (duas fontes) e o `paths:` das regras.
+
+**Verde:**
+- `tools/guardas/__fixtures__/**`, que casa na base inteira;
+- `**/dist/**`, só pela exceção nominal declarada.
 
 **Vermelho:**
 - um glob que não casa nada;
@@ -77,4 +90,5 @@ A base de busca é o `git ls-files` da raiz, sem `__fixtures__/`, `mockups/` nem
 - um `files` e um `ignores` do `eslint.config.mjs`;
 - um workspace inexistente no `knip.json`;
 - um glob inexistente no `paths:` de uma regra;
-- uma fonte que rende zero itens. Cada fonte tem um mínimo de itens lidos.
+- uma fonte que rende menos itens que o mínimo dela, como as entries do `knip.json` puladas;
+- um glob que só casa com arquivo dentro de `__fixtures__/` sem nomear a pasta.

@@ -27,3 +27,5 @@ Leia este índice antes de codar, e abra só os blocos que interessam à tarefa 
 | 2026-10-29 22:58:25 | `privacy-guardian` | 3ª | APROVADO | `revisao-spec` | Passo 6, arquivos da raiz que ficaram de fora. O passo 6 deixou de fora `.size-limit.json`, `compose.yaml` e `.env.example`, que eu tinha listado na rodada 2.… |
 | 2026-10-29 22:59:04 | `test-engineer` | 3ª | REPROVADO | `revisao-spec` | A trava negativa não se prova pela forma geral (techspec.md 161–164; travas.md 12–15, contra as linhas 43, 45 e 87). |
 | 2026-10-29 22:59:32 | `revisor-geral` | 3ª | REPROVADO | `revisao-spec` | techspec.md:55-60 (passo 6) e :38-40: o `aplicar` ainda não roda numa onda que tenha `de` de palavra comum. |
+| 2026-10-29 23:04:21 | `revisor-geral` | 4ª | REPROVADO | `revisao-spec` | `inventario.md:34` contradiz o anexo core-shared, e a contradição entrou nesta rodada. |
+| 2026-10-29 23:04:22 | `test-engineer` | 4ª | REPROVADO | `revisao-spec` | A base de busca do filtro vazio deixa a trava vermelha já na árvore sã da 2.0 (`casos.md:71`, junto com `techspec.md:83-86`). |
