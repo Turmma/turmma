@@ -189,6 +189,32 @@ Os bloqueantes da rodada 5 estão resolvidos. Os dois revisores apontam o mesmo 
 - `casos.md`: `'@educa/nucleo'` listado e `'nucleo'` solto não listado; `'./fila/x'` numa string, fora de import (test-engineer, recomendação)
 - §5, passo 6, e `travas.md`: o nome solto é limite coberto pelo `travas.md`, inclusive o `require` relativo de `.mjs`, `.cjs` e YAML fora de `tsconfig` (test-engineer e revisor-geral, recomendação)
 
+## Rodada 9 — 30/10/2026
+
+**Veredito: APROVADA**
+
+Todo revisor com veto aprovou na última rodada em que foi chamado.
+
+| Revisor | Veredito | Rodada |
+|---|---|---|
+| `tenancy-guardian` | APROVADO | 3 |
+| `privacy-guardian` | APROVADO | 3 |
+| `conformidade-reviewer` | APROVADO | 2 |
+| `infra-guardian` | APROVADO | 3 |
+| `llm-integrator` (sem veto) | APROVADO | 2 |
+| `revisor-geral` | APROVADO | 8 |
+| `test-engineer` | APROVADO | 9 |
+
+### Recomendações (aplicadas no texto)
+
+- `travas.md`: quem acha o nome solto e a regex partida é a leitura do anexo ao escrever o mapa, e a revisão da onda (test-engineer)
+- `casos.md`: o mapa do caso `'@educa/nucleo'` (test-engineer)
+
+### Recomendações para as tarefas
+
+- Um teste em `infra/test/` que confira que existe a fonte de cada caminho de `dist` (infra): subtarefa da 5.0
+- O `estado.md` dá a pergunta do verbo como aberta (revisor-geral): é do Orquestrador
+
 ## Revisões
 
 Preenchida pelo hook `tools/processo/revisoes.ts` quando cada revisor termina. Não edite à mão:
@@ -226,3 +252,4 @@ atual, com APROVADO quando o revisor tem veto.
 | 2026-10-30 01:28:37 | 2026-10-30 01:30:03 | `revisor-geral` | 7 | REPROVADO | a970e62aa93afa919 |
 | 2026-10-30 01:30:46 | 2026-10-30 01:31:52 | `revisor-geral` | 8 | APROVADO | a9f8cdefd1c7c4ac0 |
 | 2026-10-30 01:30:49 | 2026-10-30 01:32:19 | `test-engineer` | 8 | REPROVADO | a580c68310405257b |
+| 2026-10-30 01:32:51 | 2026-10-30 01:33:21 | `test-engineer` | 9 | APROVADO | aa805af33a9668078 |

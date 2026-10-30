@@ -37,3 +37,4 @@ Leia este índice antes de codar, e abra só os blocos que interessam à tarefa 
 | 2026-10-30 01:30:03 | `revisor-geral` | 7ª | REPROVADO | `revisao-spec` | `tasks/prd-nomes-de-mercado/casos.md:30`. O caso `'apps/x/Tela/y'` não prova a condição "segmento de caminho" da palavra comum. |
 | 2026-10-30 01:31:52 | `revisor-geral` | 8ª | APROVADO | `revisao-spec` | da rodada 7: |
 | 2026-10-30 01:32:19 | `test-engineer` | 8ª | REPROVADO | `revisao-spec` | A pasta pela pasta-mãe e nome não tem caso que a prove (`casos.md:31`). |
+| 2026-10-30 01:33:21 | `test-engineer` | 9ª | APROVADO | `revisao-spec` | `travas.md:25`, frase contraditória. O texto diz "O que o relatório achar dessa forma ganha linha aqui". Mas o limite existe justamente porque o passo 6 não… |

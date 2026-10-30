@@ -22,7 +22,7 @@ antigo. Trava que não cabe em nenhuma das três é divergência, e é parada do
 
 **Os limites da busca** (Tech Spec §5, passo 6) ficam cobertos por este anexo: a regex com alternância que parte o
 nome (`CHAVES_DOS_MARCADORES`) e o nome solto de arquivo ou pasta, inclusive num `require` relativo de `.mjs`, `.cjs`
-ou YAML fora de um `tsconfig` (`vaga.lua`, `ARQUIVO_DO_SANDBOX`). O que o relatório achar dessa forma ganha linha aqui.
+ou YAML fora de um `tsconfig` (`vaga.lua`, `ARQUIVO_DO_SANDBOX`). Como o passo 6 não os acha, quem acha é a leitura do anexo do inventário na hora de escrever o mapa da onda, e a revisão da onda; o que se achar ganha linha aqui.
 
 Os nomes novos são os dos anexos do inventário. A coluna "Onda" usa a numeração da Tech Spec §5.
 

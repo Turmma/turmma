@@ -30,7 +30,7 @@ Cada cláusula da Tech Spec §5 tem ao menos um caso que a deixa vermelha, se fo
 - `'./Fila/x'` numa string (segmento de caminho; `Fila` não tem arquivo nem pasta com o mesmo nome e a mesma caixa);
 - `'dist/src/fila/x'`, com a pasta `packages/nucleo/src/fila` no mapa, e `'dist/credencial/hash-de-senha.js'`, com o
   arquivo `apps/api/src/credencial/hash-de-senha.ts` (pasta-mãe e nome, sem o caminho inteiro);
-- `'@educa/nucleo'` numa string (o pacote inteiro);
+- `'@educa/nucleo'` numa string, com o pacote `@educa/nucleo` no mapa (o pacote inteiro);
 - `'schema.Banco'` numa string e `/Banco\.x/` numa regex (acesso a membro);
 - `'@SemEscopo('` numa string (identificador);
 - um `-w` do `package.json` da raiz, um caminho antigo no `knip.json` e um caminho em `.github/`.

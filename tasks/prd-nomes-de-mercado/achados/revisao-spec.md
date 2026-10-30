@@ -1626,3 +1626,35 @@ Arquivos:
 - /home/joaquimdp/Documents/git/.maestri/floors/educaia--specnomes-de-mercado/tasks/prd-nomes-de-mercado/techspec.md
 - /home/joaquimdp/Documents/git/.maestri/floors/educaia--specnomes-de-mercado/tasks/prd-nomes-de-mercado/inventario-back.md
 - /home/joaquimdp/Documents/git/.maestri/floors/educaia--specnomes-de-mercado/tasks/prd-nomes-de-mercado/inventario-core-shared.md
+
+## test-engineer · 9ª rodada · APROVADO · 2026-10-30 01:33:21 · `tasks/prd-nomes-de-mercado/revisao-spec.md`
+
+VEREDITO: APROVADO
+
+Cenários exigidos: os meus dois bloqueantes da rodada 8 tinham de estar resolvidos, e as correções desta rodada (`git diff ac817b43 876a2edc -- tasks/prd-nomes-de-mercado/`) não podiam abrir lacuna nova em `casos.md`, `techspec.md` §5 passo 6 e `travas.md`.
+
+Cobertos:
+- **Bloqueante 1, resolvido.** A pasta agora é provada pela pasta-mãe e nome, e não pelo caminho inteiro. O caso listado em `casos.md:31` é `'dist/src/fila/x'`, e o caso diz que a pasta `packages/nucleo/src/fila` está no mapa.
+  - O literal contém `src/fila`, mas não o caminho inteiro nem `packages/nucleo`.
+  - Se a pasta for buscada pelo caminho inteiro, o caso deixa de ser listado e fica vermelho.
+  - Ele também não é listado por outra regra. O símbolo `Fila` não casa com `fila`, porque a busca distingue maiúscula de minúscula. E não há outro trecho do mapa no literal.
+- **Bloqueante 2, resolvido.** Entrou em "Não listados" o caso `'hash-de-senha.js'`, com o arquivo `apps/api/src/credencial/hash-de-senha.ts` no mapa.
+  - Se o arquivo for buscado pelo nome solto, esse caso passa a ser listado e fica vermelho.
+  - O caso `'dist/credencial/hash-de-senha.js'`, listado, segue provando a outra direção.
+- **A recomendação do pacote inteiro também entrou.** `'@educa/nucleo'` está em "Listados" e `'nucleo'` em "Não listados", com o pacote no mapa.
+  - Se a busca for pelo nome sem o escopo `@educa/`, `'nucleo'` passa a ser listado e fica vermelho.
+  - Se a busca pelo pacote sair, `'@educa/nucleo'` deixa de ser listado e fica vermelho.
+  - O trecho `packages/nucleo` não aparece em nenhum dos dois literais, então o resultado não depende da pasta.
+- **O `'./fila/x'` agora diz "numa string, fora de import".** O caso não pode mais ser montado como import, o que o faria provar o passo 3.
+- **`techspec.md:60-65` e `travas.md:23-25`.** O nome solto, inclusive o `require` relativo em `.mjs`, `.cjs` e YAML, agora é limite escrito e coberto pelo `travas.md`. Os dois casos reais já estão lá: `vaga.lua` na linha 86 e `ARQUIVO_DO_SANDBOX` na linha 87. Nenhuma cláusula nova ficou sem caso.
+
+Bloqueantes: nenhum.
+
+Recomendações:
+- **`travas.md:25`, frase contraditória.** O texto diz "O que o relatório achar dessa forma ganha linha aqui". Mas o limite existe justamente porque o passo 6 não acha nome solto nem regex com alternância, então o relatório nunca vai achar esses casos. Vale escrever quem acha: o inventário ou a revisão da onda. Do contrário, o próximo nome solto que surgir fica sem dono.
+- **`casos.md`, mapa do `'@educa/nucleo'`.** O caso listado não diz o que o mapa leva, ao contrário dos outros. Vale escrever "com o pacote `@educa/nucleo` no mapa", pelo mesmo motivo que fez o mapa entrar nos demais casos.
+
+Arquivos:
+- /home/joaquimdp/Documents/git/.maestri/floors/educaia--specnomes-de-mercado/tasks/prd-nomes-de-mercado/casos.md
+- /home/joaquimdp/Documents/git/.maestri/floors/educaia--specnomes-de-mercado/tasks/prd-nomes-de-mercado/techspec.md
+- /home/joaquimdp/Documents/git/.maestri/floors/educaia--specnomes-de-mercado/tasks/prd-nomes-de-mercado/travas.md
