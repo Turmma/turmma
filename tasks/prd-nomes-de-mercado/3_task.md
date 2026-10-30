@@ -42,6 +42,7 @@ que recusavam.
 | `infra/test/` | alterado |
 | `infra/scripts/` | alterado |
 | `tools/guardas/` | alterado |
+| `tools/ci/borda.test.ts` | alterado: só o import e o uso de `CodigoDeErro` e `MENSAGENS_DE_ERRO` (linhas 1, 89 e 90); as linhas 78 e 95 são da 5.0 (`travas.md`) |
 | `tools/renomear/mapas/` | novo |
 | `CLAUDE.md` | alterado |
 | `.claude/` | alterado |
@@ -80,6 +81,8 @@ antes e depois, pelo mapa, e não só a contagem.
 O core (4.0 e 5.0) e os apps, a não ser o import e o uso que o rename do `shared` arrasta.
 
 ## Divergências resolvidas nesta tarefa
+
+- 2026-10-30, Arquiteto: o `aplicar` recusou `tools/ci/borda.test.ts` (fora dos previstos), que importa `CodigoDeErro` de `@educa/shared`. É o import que o rename arrasta ("Fora do escopo"): o arquivo entra nos previstos, restrito ao import e ao uso. Nenhum outro arquivo de `tools/ci/` usa nome da onda.
 
 ## Mutações
 
