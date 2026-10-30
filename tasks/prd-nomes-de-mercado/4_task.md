@@ -51,6 +51,10 @@ recusavam.
 | `infra/` | alterado |
 | `tools/guardas/` | alterado |
 | `tools/processo/guardioes-por-caminho.ts` | alterado |
+| `tools/processo/portao.ts` | alterado: só o comentário da linha 375 (`@SemEscopo(`) |
+| `tools/demonstracao/ia-com-o-material.test.ts` | alterado: só o import e o uso dos símbolos do core que a onda renomeia (`DefinicaoDeTarefa`); os caminhos são da 5.0 |
+| `eslint.config.mjs` | alterado: só o comentário da linha 94 (`ipDaRequisicao`) |
+| `tools/ci/ambiente-de-teste.test.ts`, `tools/ci/dockerfile.test.ts`, `tools/processo/separar-achados.test.ts` | sem diff no fim: o passo 5 troca o `migrar` entre crases, que aí é o serviço do compose ou a `migrar` de `separar-achados.ts`, e a onda desfaz à mão (Tech Spec §5, passo 5) |
 | `tools/ia/` | alterado |
 | `tools/testes/` | alterado |
 | `tools/renomear/mapas/` | novo |
@@ -94,6 +98,8 @@ prova? Rode as fixtures, não só a árvore.
 Arquivo, pasta e pacote do core (5.0). Os símbolos dos apps (7.0 a 11.0).
 
 ## Divergências resolvidas nesta tarefa
+
+- 2026-10-30, Arquiteto: o `aplicar` recusou seis arquivos fora dos previstos. `portao.ts` e `eslint.config.mjs` (comentário) e `ia-com-o-material.test.ts` (import relativo de `DefinicaoDeTarefa`, já no `inventario-core-shared.md`, 1116 a 1118) entram restritos ao que a onda arrasta. Nos três de `migrar`, e em `docs/guia-do-desenvolvedor.md` e `docs/infra.md`, o passo 5 troca a palavra comum entre crases onde ela nomeia o serviço do compose (ou a `migrar` de `separar-achados.ts`): a onda desfaz à mão e registra cada ocorrência como `fica` no `4.json`, com o motivo. Registrado na Tech Spec §5, passo 5. Nenhum critério muda.
 
 ## Mutações
 
