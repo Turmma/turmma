@@ -2366,3 +2366,14 @@ repetem aqui.
 - [ ] Da correção `2026-10-30-gaveta-aberta-na-alocacao`: `esperarASessaoNaBarraDoTopo` (`e2e/__fixtures__/casca.ts`) acha o nome da escola por
       `getByRole('banner').locator('p').first()`, posicional; dar ao nome da escola em `apps/web/src/componentes/CascaDaEscola.tsx` um alvo próprio (`data-testid` ou
       nome acessível) e trocar o seletor (infra-guardian, privacy-guardian, frontend-reviewer e test-engineer, rodada 1)
+
+## Da correção 2026-10-30-aplicar-perde-simbolos-e-troca-js-por-ts, fora dela
+
+- [ ] Da correção `2026-10-30-aplicar-perde-simbolos-e-troca-js-por-ts`, **para a primeira onda da X8 que mover arquivo de `apps/web`**: `conservarExtensao`
+      (`tools/renomear/movimentos.ts`) só conserva o par `.ts`/`.js`. Falta um caso de move com o import sem extensão (`from './x'`, 1988 em `apps/web/src`) e
+      com o `.tsx` importado como `./C.js` (`jsx: react-jsx`), que hoje voltaria a sair `./C.tsx`; a condição `novo.endsWith('.ts')` pede o bloco de mutação
+      que a derrube sozinha. Nenhum `tsconfig*.json` do repositório tem entrada terminando em `.js`, então o move por `include`/`files` fica sem caso até lá
+      (revisor-geral e test-engineer, rodadas 1 e 2)
+- [ ] Da correção `2026-10-30-aplicar-perde-simbolos-e-troca-js-por-ts`: recusa explícita em `aplicarSimbolosEMovimentos` (`tools/renomear/aplicar.ts`) quando
+      `acharDeclaracoes` não acha nada na hora do rename ("a declaração de `de` sumiu depois dos renames anteriores"); hoje a conferência inicial
+      (`existencias`) cobre o caso, mas a recusa tornaria o silêncio impossível (revisor-geral, rodada 1)

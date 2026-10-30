@@ -57,6 +57,42 @@ describe('o rename de símbolo (passos 1 e 2)', () => {
     expect(repo.ler('apps/api/test/contratos.ts')).toBe("// O avisosResponseSchema é o corpo de GET /v1/sistema/avisos.\nexport const NOMES = ['esquemaRespostaAvisos']\n")
   })
 
+  it('dois símbolos no mesmo arquivo: o segundo é renomeado mesmo depois de o primeiro mudar o tamanho do texto antes dele', { timeout: PRAZO }, () => {
+    const repo = mundo(
+      {
+        'packages/shared/src/dois.ts': 'export const esquemaCurto = 1\nexport const esquemaSeguinte = esquemaCurto + 1\nexport type Seguinte = typeof esquemaSeguinte\n',
+        'packages/shared/src/index.ts': "export { esquemaCurto, esquemaSeguinte } from './dois.ts'\nexport type { Seguinte } from './dois.ts'\n",
+        'apps/api/src/b.ts': "import { esquemaCurto, esquemaSeguinte } from '@educa/shared'\nexport const r = [esquemaCurto, esquemaSeguinte]\n",
+      },
+      [
+        { tipo: 'simbolo', de: 'esquemaCurto', para: 'umNomeBemMaisCompridoQueOAntigoSchema', arquivo: 'packages/shared/src/dois.ts' },
+        { tipo: 'simbolo', de: 'esquemaSeguinte', para: 'seguinteSchema', arquivo: 'packages/shared/src/dois.ts' },
+      ],
+    )
+    expect(rodar(repo).recusas).toEqual([])
+    expect(repo.ler('packages/shared/src/dois.ts')).toBe(
+      'export const umNomeBemMaisCompridoQueOAntigoSchema = 1\nexport const seguinteSchema = umNomeBemMaisCompridoQueOAntigoSchema + 1\nexport type Seguinte = typeof seguinteSchema\n',
+    )
+    expect(repo.ler('packages/shared/src/index.ts')).toContain('export { umNomeBemMaisCompridoQueOAntigoSchema, seguinteSchema }')
+    expect(repo.ler('apps/api/src/b.ts')).toBe("import { umNomeBemMaisCompridoQueOAntigoSchema, seguinteSchema } from '@educa/shared'\nexport const r = [umNomeBemMaisCompridoQueOAntigoSchema, seguinteSchema]\n")
+  })
+
+  it('dois símbolos no mesmo arquivo: o segundo é renomeado também quando o primeiro encurta o texto antes dele', { timeout: PRAZO }, () => {
+    const repo = mundo(
+      {
+        'packages/shared/src/dois.ts': 'export const esquemaDoPrimeiroDosDois = 1\nexport const esquemaSeguinte = esquemaDoPrimeiroDosDois + 1\nexport type Seguinte = typeof esquemaSeguinte\n',
+        'packages/shared/src/index.ts': "export { esquemaDoPrimeiroDosDois, esquemaSeguinte } from './dois.ts'\nexport type { Seguinte } from './dois.ts'\n",
+      },
+      [
+        { tipo: 'simbolo', de: 'esquemaDoPrimeiroDosDois', para: 'aSchema', arquivo: 'packages/shared/src/dois.ts' },
+        { tipo: 'simbolo', de: 'esquemaSeguinte', para: 'seguinteSchema', arquivo: 'packages/shared/src/dois.ts' },
+      ],
+    )
+    expect(rodar(repo).recusas).toEqual([])
+    expect(repo.ler('packages/shared/src/dois.ts')).toBe('export const aSchema = 1\nexport const seguinteSchema = aSchema + 1\nexport type Seguinte = typeof seguinteSchema\n')
+    expect(repo.ler('packages/shared/src/index.ts')).toBe("export { aSchema, seguinteSchema } from './dois.ts'\nexport type { Seguinte } from './dois.ts'\n")
+  })
+
   it('{ esquemaTurma }: a chave fica', { timeout: PRAZO }, () => {
     const repo = mundo(
       {
@@ -140,6 +176,55 @@ describe('o move de arquivo e de pasta (passo 3)', () => {
     const exportsDoPacote = (JSON.parse(repo.ler('packages/shared/package.json')) as { exports: Record<string, Record<string, string>> }).exports
     expect(exportsDoPacote['./x/a']).toEqual({ source: './src/y/a.ts', types: './dist/y/a.d.ts', default: './dist/y/a.js' })
     expect(repo.git('status', '--porcelain', '--', 'packages/shared/src')).toMatch(/R {2}packages\/shared\/src\/x\/a\.ts -> packages\/shared\/src\/y\/a\.ts|D {2}.*\n.*A /)
+  })
+
+  it('move de pasta: o import que termina em .js continua em .js e o que termina em .ts continua em .ts', { timeout: PRAZO }, () => {
+    const repo = mundo(
+      {
+        'packages/shared/src/x/a.ts': 'export const a = 1\n',
+        'packages/shared/src/x/b.ts': "import { a } from './a.js'\nexport const b = a\n",
+        'packages/shared/src/index.ts': "export { a } from './x/a.js'\nexport { b } from './x/b.ts'\n",
+        'apps/api/src/c.ts': "import { a } from '../../../packages/shared/src/x/a.js'\nimport { b } from '../../../packages/shared/src/x/b.ts'\nexport const r = [a, b]\n",
+      },
+      [{ tipo: 'pasta', de: 'packages/shared/src/x', para: 'packages/shared/src/y' }],
+    )
+    expect(rodar(repo).recusas).toEqual([])
+    expect(repo.ler('packages/shared/src/index.ts')).toBe("export { a } from './y/a.js'\nexport { b } from './y/b.ts'\n")
+    expect(repo.ler('apps/api/src/c.ts')).toBe(
+      "import { a } from '../../../packages/shared/src/y/a.js'\nimport { b } from '../../../packages/shared/src/y/b.ts'\nexport const r = [a, b]\n",
+    )
+    // dentro da pasta que mudou, o relativo que não muda também não troca a extensão
+    expect(repo.ler('packages/shared/src/y/b.ts')).toBe("import { a } from './a.js'\nexport const b = a\n")
+  })
+
+  it('move de arquivo com import .js: o relativo muda de pasta e conserva o .js', { timeout: PRAZO }, () => {
+    const repo = mundo(
+      {
+        'packages/shared/src/x/a.ts': 'export const a = 1\n',
+        'packages/shared/src/index.ts': "export { a } from './x/a.js'\n",
+        'apps/api/src/c.ts': "import { a } from '../../../packages/shared/src/x/a.js'\nexport const r = a\n",
+      },
+      [{ tipo: 'arquivo', de: 'packages/shared/src/x/a.ts', para: 'packages/shared/src/y/a.ts' }],
+    )
+    expect(rodar(repo).recusas).toEqual([])
+    expect(repo.ler('packages/shared/src/index.ts')).toBe("export { a } from './y/a.js'\n")
+    expect(repo.ler('apps/api/src/c.ts')).toBe("import { a } from '../../../packages/shared/src/y/a.js'\nexport const r = a\n")
+  })
+
+  it('move com .js: o export *, o import() dinâmico e o vi.mock também conservam o .js', { timeout: PRAZO }, () => {
+    const repo = mundo(
+      {
+        'packages/shared/src/x/a.ts': 'export const a = 1\n',
+        'packages/shared/src/index.ts': "export * from './x/a.js'\nexport const carregar = () => import('./x/a.js')\n",
+        'packages/shared/src/index.test.ts': "import { vi } from 'vitest'\nvi.mock('./x/a.js')\n",
+        'apps/api/src/c.ts': "export const carregar = () => import('../../../packages/shared/src/x/a.js')\n",
+      },
+      [{ tipo: 'arquivo', de: 'packages/shared/src/x/a.ts', para: 'packages/shared/src/y/a.ts' }],
+    )
+    expect(rodar(repo).recusas).toEqual([])
+    expect(repo.ler('packages/shared/src/index.ts')).toBe("export * from './y/a.js'\nexport const carregar = () => import('./y/a.js')\n")
+    expect(repo.ler('packages/shared/src/index.test.ts')).toBe("import { vi } from 'vitest'\nvi.mock('./y/a.js')\n")
+    expect(repo.ler('apps/api/src/c.ts')).toBe("export const carregar = () => import('../../../packages/shared/src/y/a.js')\n")
   })
 
   it('move de pasta: o passo 3 vale para pasta', { timeout: PRAZO }, () => {

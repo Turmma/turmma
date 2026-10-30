@@ -35,12 +35,21 @@ function edicoesDoServico(arvore: Arvore, projetos: readonly Projeto[], de: stri
       for (const troca of mudanca.textChanges) {
         const antigo = texto.slice(troca.span.start, troca.span.start + troca.span.length)
         const chave = `${String(troca.span.start)}:${String(troca.span.length)}`
-        if (vale(arquivo, antigo) && !doArquivo.has(chave)) doArquivo.set(chave, { inicio: troca.span.start, comprimento: troca.span.length, novo: troca.newText })
+        if (vale(arquivo, antigo) && !doArquivo.has(chave)) doArquivo.set(chave, { inicio: troca.span.start, comprimento: troca.span.length, novo: conservarExtensao(antigo, troca.newText) })
       }
       porArquivo.set(arquivo, doArquivo)
     }
   }
   return porArquivo
+}
+
+/**
+ * O serviço de linguagem refaz o especificador com a extensão do arquivo (`./a.ts`), porque lhe falta a preferência de extensão
+ * do projeto. O `aplicar` só muda a pasta e o nome: o import que terminava em `.js` continua terminando em `.js`, e o que terminava
+ * em `.ts`, em `.ts`. É só o par `.ts`/`.js`, o que o repositório usa (2795 imports `.js`; os `.mjs` apontam para arquivos `.mjs`).
+ */
+function conservarExtensao(antigo: string, novo: string): string {
+  return antigo.endsWith('.js') && novo.endsWith('.ts') ? `${novo.slice(0, -'.ts'.length)}.js` : novo
 }
 
 /** Move o arquivo ou a pasta da entrada, com tudo o que cita o caminho. */

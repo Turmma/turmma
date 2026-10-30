@@ -51,25 +51,25 @@ function destinoOcupado(arvore: Arvore, entrada: EntradaDoMapa): boolean {
   return entrada.tipo === 'pasta' && arvore.temPasta(entrada.para)
 }
 
-function existencias(arvore: Arvore, entradas: readonly EntradaDoMapa[]): { recusas: Recusa[]; declaracoes: Map<string, Declaracao[]> } {
+function existencias(arvore: Arvore, entradas: readonly EntradaDoMapa[]): Recusa[] {
   const recusas: Recusa[] = []
-  const declaracoes = new Map<string, Declaracao[]>()
   for (const entrada of entradas) {
     const achadas = entrada.tipo === 'simbolo' ? acharDeclaracoes(arvore, entrada) : []
-    declaracoes.set(entrada.de, achadas)
     const falta = oQueFalta(arvore, entrada, achadas)
     if (falta !== undefined) recusas.push({ codigo: 'de-inexistente', detalhe: `${entrada.tipo} "${entrada.de}" não existe${falta === '' ? '' : ` ${falta}`}` })
     else if (destinoOcupado(arvore, entrada)) recusas.push({ codigo: 'colisao', detalhe: `${entrada.tipo} "${entrada.para}" já existe` })
   }
-  return { recusas, declaracoes }
+  return recusas
 }
 
-function aplicarSimbolosEMovimentos(arvore: Arvore, mapa: Mapa, declaracoes: ReadonlyMap<string, Declaracao[]>): Recusa[] {
+function aplicarSimbolosEMovimentos(arvore: Arvore, mapa: Mapa): Recusa[] {
   const precisaDoServico = mapa.entradas.some((entrada) => entrada.tipo === 'simbolo' || entrada.tipo === 'arquivo' || entrada.tipo === 'pasta')
   const projetos: Projeto[] = precisaDoServico ? abrirProjetos(arvore) : []
   const recusas: Recusa[] = []
   for (const entrada of mapa.entradas.filter((e) => e.tipo === 'simbolo')) {
-    recusas.push(...renomearSimbolo(arvore, projetos, entrada, declaracoes.get(entrada.de) ?? []))
+    // As declarações são lidas agora, na árvore como o rename anterior a deixou: a posição achada antes de ele mudar o tamanho do texto
+    // não vale mais no mesmo arquivo, e o rename cairia em outro nome (ou em nenhum) sem recusa.
+    recusas.push(...renomearSimbolo(arvore, projetos, entrada, acharDeclaracoes(arvore, entrada)))
   }
   if (recusas.length > 0) return recusas
   for (const entrada of mapa.entradas.filter((e) => e.tipo === 'arquivo' || e.tipo === 'pasta')) moverEntrada(arvore, projetos, entrada)
@@ -119,9 +119,9 @@ export function aplicar(raiz: string, caminhoDoMapa: string, opcoes: OpcoesDoApl
   const doMapa = validarMapa(mapa)
   if (doMapa.length > 0) return { codigo: 1, recusas: doMapa, texto: textoDaRecusa(doMapa) }
   const arvore = Arvore.carregar(raiz)
-  const { recusas: faltas, declaracoes } = existencias(arvore, mapa.entradas)
+  const faltas = existencias(arvore, mapa.entradas)
   if (faltas.length > 0) return { codigo: 1, recusas: faltas, texto: textoDaRecusa(faltas) }
-  const colisoes = aplicarSimbolosEMovimentos(arvore, mapa, declaracoes)
+  const colisoes = aplicarSimbolosEMovimentos(arvore, mapa)
   if (colisoes.length > 0) return { codigo: 1, recusas: colisoes, texto: textoDaRecusa(colisoes) }
   const mudouPacote = renomearPacotes(arvore, mapa.entradas)
   const aMao = aplicarPasso5(arvore, mapa.entradas, { documentos: !mapa.linha })
