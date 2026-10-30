@@ -25,7 +25,9 @@
  *   `PECAS_FORA_DA_ENTRADA`) é `pecas-*.js`. É o pedaço que o Rolldown cria sozinho para o que duas áreas dividem. Como
  *   `parte-*`, ele contaria no teto do primeiro carregamento sem nunca ser baixado nele: as peças só chegam por
  *   `import()`, com a tela que as usa. O teste do build de verdade prova as duas metades — nenhuma peça na entrada nem
- *   no que ela baixa junto, e nada do que ela baixa junto com outro nome que não `parte-*`.
+ *   no que ela baixa junto, e nada do que ela baixa junto com outro nome que não `parte-*`;
+ * - o pedaço **com fachada** que é peça e só tem peças — a `OncaDaMarca`, que a casca pública busca por `import()` — também é
+ *   `pecas-*.js`, com o nome da peça (`pecas-OncaDaMarca-*`): a onça cai em Peças, e não nasce pedaço `parte-*` para ela;
  *
  * Por nome, e não por `manualChunks`: no Rolldown do Vite 8 ele vira um grupo que, por padrão, puxa junto as
  * dependências dos módulos capturados (React, os componentes da entrada), e a entrada passaria a importar o chunk da
@@ -120,9 +122,11 @@ export const PECAS_FORA_DA_ENTRADA = [
   'ui/midia',
   'ui/NumeroPainel',
   'ui/onca/CabecaOnca',
+  'ui/onca/DesenhoDaOnca',
   'ui/onca/geometria',
   'ui/onca/movimento-da-onca',
   'ui/onca/Onca',
+  'ui/onca/OncaDaMarca',
   'ui/SeloDeEstado',
   'ui/sobrepostos/DialogoDeConfirmacao',
   'ui/sobrepostos/flutuante',
@@ -156,19 +160,29 @@ function soTemPecas(idsDosModulos: readonly string[]): boolean {
   return daWeb.length > 0 && daWeb.every(ehPecaForaDaEntrada)
 }
 
-export function nomeDoChunk(chunk: ChunkParaNomear): string {
-  const fachada = chunk.facadeModuleId?.replaceAll('\\', '/')
-  if (fachada === undefined) {
-    const modulos = chunk.moduleIds ?? []
-    // O que duas telas da mesma área dividem é pedaço daquela área. Com módulo de duas áreas, o pedaço fica `parte-*`, e
-    // o teste do build o reprova: tela de uma área não importa módulo de outra.
-    const areaDoDividido = areaDoPedacoDividido(modulos)
-    if (areaDoDividido !== undefined) return `assets/tela-${areaDoDividido}-[name]-[hash].js`
-    return soTemPecas(modulos) ? 'assets/pecas-[name]-[hash].js' : 'assets/parte-[name]-[hash].js'
-  }
-  if (fachada.includes(PASTA_DA_OPERACAO)) return 'assets/operacao-[hash].js'
-  if (fachada.includes(PASTA_DA_GALERIA)) return 'assets/galeria-[hash].js'
+/** O nome do pedaço sem fachada: o que as telas de uma área dividem é da área, o que só tem peças é `pecas-*`, e o resto é `parte-*`. */
+function nomeDoPedacoSemFachada(modulos: readonly string[]): string {
+  // O que duas telas da mesma área dividem é pedaço daquela área. Com módulo de duas áreas, o pedaço fica `parte-*`, e
+  // o teste do build o reprova: tela de uma área não importa módulo de outra.
+  const areaDoDividido = areaDoPedacoDividido(modulos)
+  if (areaDoDividido !== undefined) return `assets/tela-${areaDoDividido}-[name]-[hash].js`
+  return soTemPecas(modulos) ? 'assets/pecas-[name]-[hash].js' : 'assets/parte-[name]-[hash].js'
+}
+
+/** O nome do pedaço que tem fachada fora da operação e da galeria: a fachada de uma área, uma tela dela, uma peça ou o resto. */
+function nomeDoPedacoComFachada(fachada: string, modulos: readonly string[] | undefined): string {
   const area = areaDoModulo(fachada)
   if (area !== undefined) return ehFachadaDaArea(fachada, area) ? `assets/${area}-[hash].js` : `assets/tela-${area}-[name]-[hash].js`
+  // A peça que a entrada busca por `import()` (a onça da marca da `CascaPublica`) tem fachada, e por isso o ramo do pedaço sem
+  // fachada não a alcança: sem esta linha ela cairia em `parte-*`, que o teto do primeiro carregamento mede sem ela estar nele.
+  if (ehPecaForaDaEntrada(fachada) && soTemPecas(modulos ?? [fachada])) return 'assets/pecas-[name]-[hash].js'
   return 'assets/parte-[name]-[hash].js'
+}
+
+export function nomeDoChunk(chunk: ChunkParaNomear): string {
+  const fachada = chunk.facadeModuleId?.replaceAll('\\', '/')
+  if (fachada === undefined) return nomeDoPedacoSemFachada(chunk.moduleIds ?? [])
+  if (fachada.includes(PASTA_DA_OPERACAO)) return 'assets/operacao-[hash].js'
+  if (fachada.includes(PASTA_DA_GALERIA)) return 'assets/galeria-[hash].js'
+  return nomeDoPedacoComFachada(fachada, chunk.moduleIds)
 }

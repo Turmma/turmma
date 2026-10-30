@@ -84,10 +84,32 @@ describe('Onca: o acenar, e nenhum outro temporizador', () => {
     expect(desenhar('apontando').querySelectorAll('.onca-acena'), 'só a pose acenando acena').toHaveLength(0)
   })
 
+  it('uma pose que não acena não gasta o aceno da sessão: depois da apontando e da parada, a acenando ainda acena', () => {
+    desenhar('apontando')
+    cleanup()
+    desenhar('acenando', false)
+    cleanup()
+    expect(desenhar('acenando').querySelectorAll('[data-parte="pata-d"] > .onca-acena')).toHaveLength(1)
+  })
+
   it('o gancho só liga o aceno para quem pede: `acenando` falso não acena nem gasta o aceno da sessão', () => {
-    expect(renderHook(() => useAcenarNaPrimeiraVez(false)).result.current).toBe(false)
-    expect(renderHook(() => useAcenarNaPrimeiraVez(true)).result.current, '`acenando` falso não gastou o aceno').toBe(true)
-    expect(renderHook(() => useAcenarNaPrimeiraVez(true)).result.current, 'o aceno da sessão já foi gasto').toBe(false)
+    expect(renderHook(() => useAcenarNaPrimeiraVez(false, 'agente')).result.current).toBe(false)
+    expect(renderHook(() => useAcenarNaPrimeiraVez(true, 'agente')).result.current, '`acenando` falso não gastou o aceno').toBe(true)
+    expect(renderHook(() => useAcenarNaPrimeiraVez(true, 'agente')).result.current, 'o aceno da sessão já foi gasto').toBe(false)
+  })
+
+  it('o aceno da marca e o do agente são memórias separadas: gastar um não gasta o outro, em qualquer ordem', () => {
+    expect(renderHook(() => useAcenarNaPrimeiraVez(true, 'marca')).result.current, 'a marca acena').toBe(true)
+    expect(renderHook(() => useAcenarNaPrimeiraVez(true, 'marca')).result.current, 'o aceno da marca foi gasto').toBe(false)
+    expect(renderHook(() => useAcenarNaPrimeiraVez(true, 'agente')).result.current, 'o do agente continua inteiro').toBe(true)
+    expect(renderHook(() => useAcenarNaPrimeiraVez(true, 'agente')).result.current, 'o do agente foi gasto').toBe(false)
+    esquecerQueAcenou()
+    expect(renderHook(() => useAcenarNaPrimeiraVez(true, 'agente')).result.current, 'agente primeiro').toBe(true)
+    expect(renderHook(() => useAcenarNaPrimeiraVez(true, 'marca')).result.current, 'a marca ainda acena').toBe(true)
+    // As duas estão gastas; esquecer zera as duas.
+    esquecerQueAcenou()
+    expect(renderHook(() => useAcenarNaPrimeiraVez(true, 'marca')).result.current, 'esquecer zera a marca').toBe(true)
+    expect(renderHook(() => useAcenarNaPrimeiraVez(true, 'agente')).result.current, 'esquecer zera o agente').toBe(true)
   })
 
   it('o aceno acaba com a pose: da acenando para a apontando, a pata não fica girando', () => {

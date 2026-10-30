@@ -1231,6 +1231,10 @@ nome, sem selo e sem texto acessível, e é `aria-hidden`. A `Onca` continua exi
 área de papel nem em região de agente. A pose é sempre `acenando`. O movimento é o que já existe (entrar e acenar uma vez, que
 somem com `prefers-reduced-motion`), e nenhum laço entra, também aqui. Nenhum texto fica ao lado dela. A lista fechada de
 `avatar-so-nas-duas-pecas.test.ts` a nomeia, e um teste prova que a figura dela não tem texto acessível nem `figcaption`.
+O atributo dela é `data-onca-da-marca`, e não `data-onca`, que é da onça assinada: nenhuma conta de "onça de agente" a conta.
+**O aceno da marca é dela**: a memória de "já acenou" é separada da da onça-agente. A entrada leva à introdução do papel sem
+recarregar a página, e a onça da introdução ainda acena depois da da entrada, mesmo a 360 px, onde a de 160 px, escondida só pelo
+CSS, também é montada. Se o pedaço da onça não carregar, a casca fica sem ela, com as caixas no lugar, e o formulário continua.
 
 A onça fica fora do primeiro carregamento (10.4), e o caminho da pinta, que as rosetas repetem, é
 declarado uma vez, e não copiado em cada avatar.
@@ -1802,12 +1806,14 @@ a aula ao vivo (F10). Topo de 64 px com o sair, o miolo rolando por dentro e o r
 
 A entrada, o convite, a reivindicação de nome e a verificação em duas etapas, no tema do sistema.
 
-- **A partir de 1024 px a tela se divide**: à esquerda, o painel em `laranja-claro`, com a borda de 2 px em
-  `laranja-borda`, a marca no topo e a onça da marca (9.7) de 160 px no centro, na pose `acenando`, que entra e acena uma
-  vez; à direita, o cartão do formulário. **Abaixo disso, empilha**: a faixa de topo fica só com a marca, e a onça da
-  marca, de 88 px e parada, vai sobre `fundo`, acima do formulário. A pinta grande e apagada saiu (D80 revista em
-  30/10/2026, à noite). Se a foto do tema claro não mostrar os pés da onça, que são do mesmo creme do `laranja-claro`,
-  o painel volta a `papel`
+- **A partir de 1024 px a tela se divide**: à esquerda, o painel em `papel`, com a borda de 2 px em `borda`, a marca no
+  topo e a onça da marca (9.7) de 160 px no centro, na pose `acenando`, que entra e acena uma vez; à direita, o cartão do
+  formulário. **Abaixo disso, empilha**: a faixa de topo fica só com a marca, e a onça da marca, de 88 px e parada, vai
+  sobre `fundo`, acima do formulário. A pinta grande e apagada saiu (D80 revista em 30/10/2026, à noite). **O painel
+  ficou em `papel`, e não em `laranja-claro`**: a foto do tema claro (30/10/2026) mostrou que os pés da onça, de creme
+  `#FDEBDD`, somem sobre o `laranja-claro`, que é o mesmo `#FDEBDD`, e o painel voltou a `papel` como a decisão previa, sem
+  cor nova e sem mexer na onça. O painel não tem altura mínima: a onça de 160 px, no centro, cabe abaixo da marca em qualquer
+  janela de computador
 - **O formulário.** Aluno: "Entrar com a conta da escola" (Google ou Microsoft, quando a escola
   tem) ou escola, matrícula e senha (D48). Professor e coordenação: o que o F1 definiu, com o
   segundo fator da coordenação. Não existe "Cadastre-se" (D2), nem busca pública de escola. Um

@@ -13,11 +13,19 @@ import { useEffect, useState } from 'react'
  * nova, e a onça acena de novo uma vez. Sair da conta sem recarregar não zera a marca: quem entra depois na mesma aba não vê o
  * aceno, o que não é dado pessoal e é o que o `sessionStorage` antigo também fazia.
  */
-let jaAcenou = false
+/**
+ * **Cada dono tem a sua marca.** O aceno da onça da marca, na entrada (`OncaDaMarca`), e o da onça do agente, na introdução e
+ * nas telas assinadas (`Onca`), não se gastam um ao outro: a entrada leva à introdução do papel sem recarregar a página, e a
+ * onça da introdução não perde o aceno porque a da entrada já acenou, nem porque outra, escondida pelo CSS a 360 px, foi montada.
+ */
+export type DonoDoAceno = 'agente' | 'marca'
+
+const jaAcenou: Record<DonoDoAceno, boolean> = { agente: false, marca: false }
 
 /** Só para os testes: volta ao começo de uma página recém-aberta. */
 export function esquecerQueAcenou(): void {
-  jaAcenou = false
+  jaAcenou.agente = false
+  jaAcenou.marca = false
 }
 
 export function reduzMovimento(): boolean {
@@ -29,13 +37,13 @@ export function reduzMovimento(): boolean {
 }
 
 /**
- * `acenando` acena uma vez só por sessão da página: a primeira onça que aparece. As seguintes ficam paradas. A leitura é na montagem, e a
+ * `acenando` acena uma vez só por sessão da página **e por dono** (`DonoDoAceno`): a primeira onça que aparece de cada um. As seguintes ficam paradas. A leitura é na montagem, e a
  * marca de "já acenou" é guardada na memória da página logo depois, num efeito: sem estado mudado dentro do efeito.
  */
-export function useAcenarNaPrimeiraVez(acenando: boolean): boolean {
-  const [acena] = useState(() => acenando && !reduzMovimento() && !jaAcenou)
+export function useAcenarNaPrimeiraVez(acenando: boolean, dono: DonoDoAceno): boolean {
+  const [acena] = useState(() => acenando && !reduzMovimento() && !jaAcenou[dono])
   useEffect(() => {
-    if (acena) jaAcenou = true
-  }, [acena])
+    if (acena) jaAcenou[dono] = true
+  }, [acena, dono])
   return acena
 }

@@ -4,7 +4,8 @@ import { corDoToken, larguraExcedente, violacoesGraves } from './__fixtures__/ve
 
 /**
  * A moldura das páginas de fora da sessão (X1, tarefa 14.0; `docs/interface.md` 11.3, 9.6): a partir de 1024 px a tela
- * se divide, com o painel `papel` e a pinta parada à esquerda e o cartão do formulário à direita; abaixo disso empilha.
+ * se divide, com o painel `papel` e a onça da marca acenando à esquerda e o cartão do formulário à direita; abaixo disso
+ * empilha, com a onça de 88 px, parada, acima do formulário (D80 revista em 30/10/2026; correção `2026-10-30-onca-na-entrada`).
  * Nenhum texto, ordem de campo ou resposta muda: os e2e de `entrar`, `convite`, `mfa` e `turma-publica` rodam sem edição.
  *
  * As duas telas aqui não pedem dado nenhum: `/entrar` (a entrada) e `/mfa` (o segundo fator sem desafio, que é a mesma
@@ -18,8 +19,12 @@ const TELAS = [
 
 const painel = (page: Page): Locator => page.locator('[data-painel-publico]')
 const cartao = (page: Page): Locator => page.getByRole('main')
-/** A pinta parada do painel: a que está ao lado do `banner`, e não a da marca. */
-const pintaDoPainel = (page: Page): Locator => page.locator('[data-painel-publico] > img[src="/marca/turmma-pinta.svg"]')
+/** A caixa de 160 px do painel, que não se mexe (a figura dentro dela entra e acena): é ela que a medida de posição lê. */
+const caixaDaOnca = (page: Page): Locator => page.locator('[data-painel-publico] [data-onca-da-marca-grande]')
+const oncaDoPainel = (page: Page): Locator => page.locator('[data-painel-publico] [data-onca-da-marca]')
+/** A de 88 px, fora do painel, acima do formulário. */
+const caixaDaOncaPequena = (page: Page): Locator => page.locator('[data-onca-da-marca-pequena]')
+const oncaPequena = (page: Page): Locator => page.locator('[data-onca-da-marca-pequena] [data-onca-da-marca]')
 
 async function caixa(alvo: Locator) {
   const medida = await alvo.boundingBox()
@@ -53,17 +58,20 @@ test.describe('a moldura das páginas públicas', () => {
         // O formulário não se espalha: a largura do cartão é a de `max-w-md` (28 rem), e não a da coluna (a 1366 px, 603 px).
         expect(principal.width, `largura do cartão a ${String(largura)} px`).toBeLessThanOrEqual(448)
 
-        // A pinta parada está à vista dentro do painel, sem passar do canto dele.
-        const pinta = pintaDoPainel(page)
-        await expect(pinta).toBeVisible()
-        const dela = await caixa(pinta)
+        // A onça da marca está à vista dentro do painel, com 160 px, sem passar da borda dele; a de 88 px, só do celular, não.
+        const onca = oncaDoPainel(page)
+        await expect(onca).toBeVisible()
+        await expect(onca.locator('svg')).toHaveAttribute('width', '160')
+        const dela = await caixa(caixaDaOnca(page))
+        expect(dela.width, `caixa da onça a ${String(largura)} px`).toBe(160)
         expect(dela.x).toBeGreaterThanOrEqual(lateral.x)
         expect(dela.x + dela.width).toBeLessThanOrEqual(lateral.x + lateral.width)
         expect(dela.y + dela.height).toBeLessThanOrEqual(lateral.y + lateral.height)
+        await expect(oncaPequena(page)).toBeHidden()
       }
     })
 
-    test(`${endereco}: a 1023 e a 360 px empilha, o painel em cima do formulário, sem a pinta grande e sem rolagem de lado`, async ({ page }) => {
+    test(`${endereco}: a 1023 e a 360 px empilha, o painel em cima do formulário, a onça de 88 px parada acima do formulário e sem rolagem de lado`, async ({ page }) => {
       for (const largura of [1023, 360]) {
         await page.setViewportSize({ width: largura, height: 800 })
         await page.goto(endereco)
@@ -77,80 +85,115 @@ test.describe('a moldura das páginas públicas', () => {
         expect(principal.x).toBeGreaterThanOrEqual(0)
         expect(principal.x + principal.width).toBeLessThanOrEqual(largura)
         expect(await larguraExcedente(page), `rolagem de lado a ${String(largura)} px`).toBe(0)
-        // Empilhado o painel é só a marca: a pinta grande é do computador.
-        await expect(pintaDoPainel(page)).toBeHidden()
+        // Empilhado o painel é só a marca: a onça de 160 px é do computador. A de 88 px vai sobre `fundo`, fora do painel, entre ele
+        // e o formulário, centrada, e fica parada.
+        await expect(oncaDoPainel(page)).toBeHidden()
         await expect(page.getByRole('banner').getByText('Turmma')).toBeVisible()
+        const pequena = oncaPequena(page)
+        await expect(pequena).toBeVisible()
+        await expect(pequena.locator('svg')).toHaveAttribute('width', '88')
+        const [dela, caixaFixa] = [await caixa(pequena), await caixa(caixaDaOncaPequena(page))]
+        expect(caixaFixa.width, `caixa da onça pequena a ${String(largura)} px`).toBe(88)
+        expect(dela.y, `a onça vem depois do painel a ${String(largura)} px`).toBeGreaterThanOrEqual(lateral.y + lateral.height)
+        expect(dela.y + dela.height, `a onça vem antes do formulário a ${String(largura)} px`).toBeLessThanOrEqual(principal.y)
+        expect(Math.abs(caixaFixa.x + caixaFixa.width / 2 - largura / 2), `a onça centrada a ${String(largura)} px`).toBeLessThanOrEqual(2)
+        expect(await pequena.evaluate((figura) => figura.getAnimations({ subtree: true }).length), `a onça do celular está parada a ${String(largura)} px`).toBe(0)
       }
     })
   }
 
-  test('a pinta do painel está parada e apagada, e não é uma imagem nova: o arquivo da marca, com `alt` vazio', async ({ page }) => {
+  test('a pinta grande saiu: a página tem só a pinta da marca, e a onça do painel é decorativa, sem nome nem selo nem texto', async ({ page }) => {
     await page.setViewportSize({ width: 1366, height: 768 })
     await page.goto('/entrar')
-    const pinta = pintaDoPainel(page)
-    await expect(pinta).toBeVisible()
-    await expect(pinta).toHaveAttribute('alt', '')
-    await expect(pinta).toHaveJSProperty('complete', true)
-    expect(await pinta.evaluate((imagem) => (imagem as HTMLImageElement).naturalWidth)).toBeGreaterThan(0)
+    const onca = oncaDoPainel(page)
+    await expect(onca).toBeVisible()
+    // Nenhuma imagem de 384 px: o painel não tem `img`, e a única pinta da página é a do `banner`.
+    await expect(page.locator('[data-painel-publico] > img')).toHaveCount(0)
+    await expect(page.locator('img[src="/marca/turmma-pinta.svg"]')).toHaveCount(1)
+    await expect(page.getByRole('banner').locator('img[src="/marca/turmma-pinta.svg"]')).toHaveCount(1)
+    // A onça da marca não é saída de agente: sem legenda, sem selo "IA" e sem nome para o leitor de tela.
+    await expect(onca).toHaveAttribute('aria-hidden', 'true')
+    await expect(page.locator('figcaption, [data-selo-ia], [data-onca-assinatura]')).toHaveCount(0)
+    expect(await onca.evaluate((figura) => figura.textContent)).toBe('')
+  })
 
-    // Parada: nenhuma animação e transição de 0 s (docs/interface.md 9.6). Apagada: bem mais clara que a da marca.
-    const estilo = await pinta.evaluate((imagem) => {
-      const calculado = getComputedStyle(imagem)
-      return { animacao: calculado.animationName, duracao: calculado.transitionDuration, opacidade: Number(calculado.opacity) }
+  test('a onça do painel entra e acena uma vez, e nenhuma animação da página fica em laço', async ({ page }) => {
+    await page.setViewportSize({ width: 1366, height: 768 })
+    await page.goto('/entrar')
+    const onca = oncaDoPainel(page)
+    await expect(onca).toBeVisible()
+    // Duas animações, entrar e acenar, as duas com uma volta só: nenhuma com `infinite` (D59).
+    await expect.poll(() => onca.evaluate((figura) => figura.getAnimations({ subtree: true }).map((a) => (a as CSSAnimation).animationName).sort()), { message: 'a onça entra e acena' }).toEqual(['onca-acenar', 'onca-entrar'])
+    const voltas = await page.evaluate(() => document.getAnimations().map((a) => a.effect?.getComputedTiming().iterations))
+    expect(voltas.length).toBeGreaterThan(0)
+    for (const volta of voltas) expect(volta, 'cada animação roda uma vez').toBe(1)
+  })
+
+  test.describe('com "reduzir movimento"', () => {
+    test.use({ reducedMotion: 'reduce' })
+
+    test('a onça aparece parada: nenhuma animação roda', async ({ page }) => {
+      await page.setViewportSize({ width: 1366, height: 768 })
+      await page.goto('/entrar')
+      const onca = oncaDoPainel(page)
+      await expect(onca).toBeVisible()
+      await expect(onca.locator('svg')).toHaveAttribute('width', '160')
+      expect(await page.evaluate(() => document.getAnimations().length)).toBe(0)
+      // O desenho está inteiro, não escondido no começo do movimento.
+      expect(await onca.locator('.onca-entra').evaluate((corpo) => Number(getComputedStyle(corpo).opacity))).toBe(1)
     })
-    expect(estilo.animacao).toBe('none')
-    expect(estilo.opacidade).toBeGreaterThan(0)
-    expect(estilo.opacidade).toBeLessThanOrEqual(0.2)
-    // O `all` que o navegador devolve sem regra não conta: parada é duração zero, como o resto do projeto mede.
-    expect(estilo.duracao).toBe('0s')
-    const daMarca = page.getByRole('banner').locator('img[src="/marca/turmma-pinta.svg"]')
-    expect(await daMarca.evaluate((imagem) => Number(getComputedStyle(imagem).opacity))).toBe(1)
   })
 
   for (const { endereco } of TELAS) {
-    test(`${endereco}: a pinta do painel está no centro dele, na altura do centro do cartão, com respiro dos quatro lados e abaixo da marca, mesmo em janela baixa`, async ({ page }) => {
+    test(`${endereco}: a onça do painel está no centro dele, na altura do centro do cartão, com respiro dos quatro lados e abaixo da marca, mesmo em janela baixa`, async ({ page }) => {
       // 1366 × 650 é o Chromebook de referência com a barra do navegador (regra 50, item 1); 1024 × 500 é a janela mais baixa
-      // em que o painel ainda se divide e a pinta já passaria por cima da marca se o painel acompanhasse só a janela.
+      // em que o painel ainda se divide, e a onça de 160 px ainda cabe abaixo da marca sem o painel precisar de altura mínima.
+      // A medida é a da caixa fixa de 160 px: a figura dentro dela entra (8 px de deslocamento nos primeiros 240 ms) e não serve de régua.
       // A página abre uma vez só: o layout é CSS, e trocar o tamanho da janela basta (quatro `goto` levavam 11 s, perto dos 15 s do portão).
       await page.goto(endereco)
-      const pinta = pintaDoPainel(page)
+      const onca = caixaDaOnca(page)
       for (const [largura, altura] of [[1366, 768], [1366, 650], [1024, 768], [1024, 500]] as const) {
         const janela = `${String(largura)} × ${String(altura)} px`
         await page.setViewportSize({ width: largura, height: altura })
-        await expect(pinta).toBeVisible()
+        await expect(onca).toBeVisible()
 
-        const [lateral, dela, principal, marca] = [await caixa(painel(page)), await caixa(pinta), await caixa(cartao(page)), await caixa(page.getByRole('banner'))]
+        const [lateral, dela, principal, marca] = [await caixa(painel(page)), await caixa(onca), await caixa(cartao(page)), await caixa(page.getByRole('banner'))]
         // O centro dela é o do painel, nos dois eixos (2 px de folga para o arredondamento do navegador): no canto, o desenho
         // ficava a um quarto do painel do centro, e o painel parecia vazio no meio.
-        expect(Math.abs(dela.x + dela.width / 2 - (lateral.x + lateral.width / 2)), `centro da pinta na horizontal a ${janela}`).toBeLessThanOrEqual(2)
-        expect(Math.abs(dela.y + dela.height / 2 - (lateral.y + lateral.height / 2)), `centro da pinta na vertical a ${janela}`).toBeLessThanOrEqual(2)
-        // Na mesma linha do cartão: os dois são centrados na altura da janela, e a pinta e o formulário se leem como um par.
-        expect(Math.abs(dela.y + dela.height / 2 - (principal.y + principal.height / 2)), `a pinta e o cartão na mesma altura a ${janela}`).toBeLessThanOrEqual(2)
+        expect(Math.abs(dela.x + dela.width / 2 - (lateral.x + lateral.width / 2)), `centro da onça na horizontal a ${janela}`).toBeLessThanOrEqual(2)
+        expect(Math.abs(dela.y + dela.height / 2 - (lateral.y + lateral.height / 2)), `centro da onça na vertical a ${janela}`).toBeLessThanOrEqual(2)
+        // Na mesma linha do cartão: os dois são centrados na altura da janela, e a onça e o formulário se leem como um par.
+        expect(Math.abs(dela.y + dela.height / 2 - (principal.y + principal.height / 2)), `a onça e o cartão na mesma altura a ${janela}`).toBeLessThanOrEqual(2)
         // Respiro: pelo menos 40 px de cada lado do painel, sem encostar na borda nem passar para o lado do formulário.
         expect(dela.x - lateral.x, `respiro à esquerda a ${janela}`).toBeGreaterThanOrEqual(40)
         expect(lateral.x + lateral.width - (dela.x + dela.width), `respiro à direita a ${janela}`).toBeGreaterThanOrEqual(40)
         expect(dela.y - lateral.y, `respiro em cima a ${janela}`).toBeGreaterThanOrEqual(40)
         expect(lateral.y + lateral.height - (dela.y + dela.height), `respiro embaixo a ${janela}`).toBeGreaterThanOrEqual(40)
-        // Abaixo da marca: a caixa da pinta começa onde a do `banner` termina, ou depois. O painel tem altura mínima (`lg:min-h-[40rem]`)
-        // justamente para isso: sem ela, a 1024 × 500 o topo da pinta ficaria uns 50 px acima do pé da marca.
-        expect(dela.y, `a pinta começa abaixo da marca a ${janela}`).toBeGreaterThanOrEqual(marca.y + marca.height)
+        // Abaixo da marca: a caixa da onça começa onde a do `banner` termina, ou depois. Com 160 px não precisa de altura mínima:
+        // a 1024 × 500 o topo dela fica uns 170 px abaixo do topo do painel, e a marca acaba em 108.
+        expect(dela.y, `a onça começa abaixo da marca a ${janela}`).toBeGreaterThanOrEqual(marca.y + marca.height)
         expect(await larguraExcedente(page), `rolagem de lado a ${janela}`).toBe(0)
       }
     })
   }
 
-  test('o painel é o `papel` dos dois temas, e o cartão é a `superficie`', async ({ page }) => {
+  test('o painel é o `papel` e a borda dele a `borda` nos dois temas, e o cartão é a `superficie`: o `laranja-claro` esconderia os pés da onça', async ({ page }) => {
     await page.setViewportSize({ width: 1366, height: 768 })
     await page.goto('/entrar')
     const fundoDoPainel = () => painel(page).evaluate((elemento) => getComputedStyle(elemento).backgroundColor)
+    const bordaDoPainel = () => painel(page).evaluate((elemento) => getComputedStyle(elemento).borderRightColor)
     const fundoDoCartao = () => cartao(page).evaluate((elemento) => getComputedStyle(elemento).backgroundColor)
 
     expect(await fundoDoPainel()).toBe(await corDoToken(page, 'papel'))
+    expect(await bordaDoPainel()).toBe(await corDoToken(page, 'borda'))
+    expect(await fundoDoPainel()).not.toBe(await corDoToken(page, 'laranja-claro'))
+    expect(await painel(page).evaluate((elemento) => getComputedStyle(elemento).borderRightWidth)).toBe('2px')
     expect(await fundoDoCartao()).toBe(await corDoToken(page, 'superficie'))
     const claro = await fundoDoPainel()
 
     await page.evaluate(() => document.documentElement.setAttribute('data-tema', 'escuro'))
     expect(await fundoDoPainel()).toBe(await corDoToken(page, 'papel'))
+    expect(await bordaDoPainel()).toBe(await corDoToken(page, 'borda'))
     expect(await fundoDoPainel()).not.toBe(claro)
     expect(await fundoDoCartao()).toBe(await corDoToken(page, 'superficie'))
     expect(await violacoesGraves(page)).toEqual([])
@@ -205,11 +248,13 @@ test.describe('a moldura das páginas públicas', () => {
     }
   })
 
-  test('sem violação grave do axe, com a pinta parada, a 1366 e a 360 px', async ({ page }) => {
+  test('sem violação grave do axe, com a onça da marca, a 1366 e a 360 px', async ({ page }) => {
     for (const largura of [1366, 360]) {
       await page.setViewportSize({ width: largura, height: 800 })
       await page.goto('/entrar')
       await expect(page.getByRole('heading', { level: 1, name: 'Entrar' })).toBeVisible()
+      // A onça chega depois, por `import()`: o axe lê a página com ela.
+      await expect(largura >= 1024 ? oncaDoPainel(page) : oncaPequena(page)).toBeVisible()
       expect(await violacoesGraves(page), `axe a ${String(largura)} px`).toEqual([])
       // Um `banner` e um `main` só: dois deles dão a violação `landmark-no-duplicate-*` que o axe leria como grave.
       await expect(page.getByRole('banner')).toHaveCount(1)

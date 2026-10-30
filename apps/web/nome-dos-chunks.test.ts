@@ -129,6 +129,17 @@ describe('nome dos chunks', () => {
     expect(nomeDoChunk({ facadeModuleId: 'C:\\repo\\apps\\web\\src\\galeria\\Galeria.tsx' })).toBe('assets/galeria-[hash].js')
   })
 
+  it('o pedaço com fachada que é peça e só tem peças é pecas-<nome>; com um módulo que não é peça, ou fachada que não é peça, continua parte-*', () => {
+    const marca = '/repo/apps/web/src/componentes/ui/onca/OncaDaMarca.tsx'
+    const desenho = '/repo/apps/web/src/componentes/ui/onca/DesenhoDaOnca.tsx'
+    expect(nomeDoChunk({ facadeModuleId: marca, moduleIds: [marca, desenho] })).toBe('assets/pecas-[name]-[hash].js')
+    expect(nomeDoChunk({ facadeModuleId: 'C:\\repo\\apps\\web\\src\\componentes\\ui\\onca\\OncaDaMarca.tsx' })).toBe('assets/pecas-[name]-[hash].js')
+    // Um módulo que não é peça no pedaço o devolve ao `parte-*`; e a fachada que não é peça, também.
+    expect(nomeDoChunk({ facadeModuleId: marca, moduleIds: [marca, '/repo/apps/web/src/componentes/ui/Botao.tsx'] })).toBe('assets/parte-[name]-[hash].js')
+    expect(nomeDoChunk({ facadeModuleId: '/repo/apps/web/src/componentes/ui/Botao.tsx', moduleIds: [] })).toBe('assets/parte-[name]-[hash].js')
+    expect(nomeDoChunk({ facadeModuleId: '/repo/apps/web/src/areas/professor/onca/OncaDaMarca.tsx' })).toBe('assets/tela-professor-[name]-[hash].js')
+  })
+
   it('o pedaço sem fachada que só tem peças é pecas-*; com um módulo que não é peça, ou sem nenhum da web, continua parte-*', () => {
     const peca = '/repo/apps/web/src/componentes/ui/ia/CaixaPedido.tsx'
     const geral = '/repo/apps/web/src/componentes/ui/sobrepostos/Menu.tsx'
@@ -179,6 +190,11 @@ describe('nome dos chunks', () => {
     // Só o arquivo da lista: outra pasta com o mesmo nome de arquivo, ou outro arquivo da pasta da onça, não é peça sem entrar nela.
     expect(ehPecaForaDaEntrada('/repo/apps/web/src/areas/professor/onca/CabecaOnca.tsx')).toBe(false)
     expect(ehPecaForaDaEntrada('/repo/apps/web/src/componentes/ui/onca/OncaInteira.tsx')).toBe(false)
+  })
+
+  it('o desenho da onça e a onça da marca (D80 revista, 30/10/2026) estão fora da entrada: a casca pública só as baixa por `import()`', () => {
+    for (const arquivo of ['DesenhoDaOnca.tsx', 'OncaDaMarca.tsx']) expect(ehPecaForaDaEntrada(`/repo/apps/web/src/componentes/ui/onca/${arquivo}`), arquivo).toBe(true)
+    expect(ehPecaForaDaEntrada('/repo/apps/web/src/areas/professor/DesenhoDaOnca.tsx')).toBe(false)
   })
 
   it('a comemoração e o estilo da onça dela (X4, 6.0) estão fora da entrada, e o CSS de outro arquivo não é peça só por ser CSS', () => {
@@ -368,6 +384,37 @@ describe('o build de verdade da web', () => {
     const { total, pedacos } = primeiroCarregamento(chunks)
     expect(pedacos.map((pedaco) => pedaco.nome)).toContain('index')
     expect(total).toBeGreaterThan(50_000)
+  })
+
+  it('a onça da marca da casca pública (D80 revista) chega só por import(): num pedaço pecas-*, fora do primeiro carregamento, sem pedaço novo de nome próprio', async () => {
+    const chunks = await chunksDoBuild({ raiz: raizDaWeb, configFile: join(raizDaWeb, 'vite.config.ts') })
+    const entrada = chunks.find((chunk) => chunk.isEntry)
+    if (entrada === undefined) throw new Error('build sem chunk de entrada')
+    const eDa = (id: string, arquivo: string): boolean => id.replaceAll('\\', '/').endsWith(`/apps/web/src/componentes/ui/onca/${arquivo}`)
+    const daMarca = chunks.filter((chunk) => chunk.moduleIds.some((id) => eDa(id, 'OncaDaMarca.tsx')))
+    // A peça existe no build e está em um pedaço só: sem isto, as asserções abaixo passariam com ela apagada.
+    expect(daMarca, 'a `CascaPublica` busca a onça da marca por `import()`: o build tem de a levar').toHaveLength(1)
+    const pedaco = daMarca[0]
+    if (pedaco === undefined) throw new Error('sem pedaço da onça da marca')
+    // É peça: cai no `pecas-*`, e não num `parte-*` que o teto de 150 kB mediria como primeiro carregamento, nem num pedaço de tela.
+    expect(pedaco.fileName).toMatch(/^assets\/pecas-[^/]+\.js$/)
+    expect(pedaco.moduleIds.filter((id) => id.replaceAll('\\', '/').includes('/apps/web/src/') && !ehPecaForaDaEntrada(id))).toEqual([])
+    // O desenho que ela reaproveita não é copiado: está em um pedaço só (que a `Onca` das introduções divide com ela), também `pecas-*`,
+    // e a onça da marca o importa. Peças dividindo peças não criam pedaço de outro nome.
+    const doDesenho = chunks.filter((chunk) => chunk.moduleIds.some((id) => eDa(id, 'DesenhoDaOnca.tsx')))
+    expect(doDesenho, 'o traço da onça está em um pedaço só').toHaveLength(1)
+    const desenho = doDesenho[0]
+    if (desenho === undefined) throw new Error('sem pedaço do desenho')
+    expect(desenho.fileName).toMatch(/^assets\/pecas-[^/]+\.js$/)
+    expect(desenho === pedaco || pedaco.imports.includes(desenho.fileName), `${pedaco.fileName} não importa ${desenho.fileName}`).toBe(true)
+    // Fora do primeiro carregamento: a entrada não a importa estaticamente, nem o que ela baixa junto; a `CascaPublica` a busca depois.
+    const junto = [entrada, ...importadosJunto(chunks, entrada)]
+    expect(junto.map((chunk) => chunk.fileName)).not.toContain(pedaco.fileName)
+    expect(junto.flatMap((chunk) => chunk.moduleIds.filter((id) => eDa(id, 'OncaDaMarca.tsx') || eDa(id, 'DesenhoDaOnca.tsx')))).toEqual([])
+    const quemBusca = chunks.filter((chunk) => chunk.dynamicImports.includes(pedaco.fileName))
+    expect(quemBusca.length).toBeGreaterThan(0)
+    expect(quemBusca.some((chunk) => chunk.moduleIds.some((id) => id.replaceAll('\\', '/').endsWith('/apps/web/src/componentes/CascaPublica.tsx'))), `quem busca: ${quemBusca.map((chunk) => chunk.fileName).join(', ')}`).toBe(true)
+    expect(excessoDoPrimeiroCarregamento(chunks)).toBeUndefined()
   })
 
   it('as peças do MVP de apresentação ficam fora do primeiro carregamento, e a galeria sai num chunk galeria-* só por import()', async () => {

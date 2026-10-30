@@ -2336,3 +2336,26 @@ repetem aqui.
       altura de janela (frontend-reviewer, rodada 2)
 - [ ] Da correção `2026-10-30-tela-de-entrar`: acompanhar o tempo do caso novo de `e2e/casca-publica.spec.ts` na esteira da `develop`, depois do pouso
       (3,6 a 4,1 s contra os 15 s do portão); se passar de 10 s, entra no lote de e2e perto do prazo (infra-guardian, rodadas 1 e 2)
+
+## Da correção 2026-10-30-onca-na-entrada (a onça da marca na casca pública), fora dela
+
+- [ ] Da correção `2026-10-30-onca-na-entrada`: `Cache-Control` longo e `immutable` para `assets/*-[hash].js` no servidor da web; o `infra/Caddyfile` não o define,
+      e o pedaço da onça, como os outros, é baixado de novo na rede lenta da escola. Conferir primeiro de onde a web é servida (infra-guardian, rodada 1)
+- [ ] Da correção `2026-10-30-onca-na-entrada`: registrar um evento sem dado pessoal quando o pedaço da onça não carrega (por exemplo `casca.onca.falhou`); depende de a web
+      já ter um canal de erro do front, e criar um é trabalho próprio (infra-guardian, rodada 2)
+- [ ] Da correção `2026-10-30-onca-na-entrada`: uma linha na AIA ou no dossiê de conformidade dizendo que a mascote da marca não é agente nem saída de IA;
+      `docs/aia/` e `docs/conformidade-mec.md` (conformidade-reviewer, rodada 1)
+- [ ] Da correção `2026-10-30-onca-na-entrada`: guarda que impeça um componente fora da casca de pôr `data-onca` na onça da marca; hoje só o `OncaDaMarca.test.tsx` prova a
+      ausência, e a lista fechada de `avatar-so-nas-duas-pecas.test.ts` limita quem importa a peça (conformidade-reviewer, rodada 2)
+- [ ] Da correção `2026-10-30-onca-na-entrada`: a D80 revista, em `docs/decisoes.md`, ainda descreve o painel da casca pública em `laranja-claro`; a foto do tema claro o
+      devolveu a `papel` (11.3). Revisão de decisão se escreve pela skill `registrar-decisao` (revisor-geral, rodada 1)
+- [ ] Da correção `2026-10-30-onca-na-entrada`: `docs/interface.md` (por volta da linha 1172) ainda diz "na primeira vez desde que a página abriu"; remeter ao parágrafo da onça da marca
+      na 9.7, que separa o aceno da marca do do agente. Entra na próxima revisão da 9.7 (revisor-geral, rodada 2)
+- [ ] Da correção `2026-10-30-onca-na-entrada`: levar à retro o ponto cego do `mutacoes.ts --faltando`: os `.ts` da raiz de `apps/web/` (`nome-dos-chunks.ts`) ficam fora da
+      varredura de linha nova com condição, e a cláusula nova de lá só ganhou bloco porque o revisor a viu (test-engineer, rodada 1)
+- [ ] Da correção `2026-10-30-onca-na-entrada`: e2e com `page.route('**/assets/pecas-*OncaDaMarca*.js', (r) => r.abort())` em `/entrar`, para provar no navegador, com o nome real do
+      pedaço, que a falha do carregamento deixa o formulário de pé; o unitário já prova a regra, e `e2e/casca-publica.spec.ts` está perto do prazo (test-engineer, rodada 2)
+- [ ] Da correção `2026-10-30-onca-na-entrada`: a onça de 160 px continua montada no celular e gasta o aceno da marca sem ninguém ver; sem efeito hoje, e a que aparece ao passar de
+      1024 px depois não acena. Reabrir se a marca passar a acenar também no celular (revisor-geral, rodada 2)
+- [ ] Da correção `2026-10-30-onca-na-entrada`: acabamento. Juntar os dois blocos JSDoc seguidos de `movimento-da-onca.ts` (o primeiro ficou solto no tipo `DonoDoAceno`) e dar à
+      mensagem `'a marca gasta já foi para o agente'` de `OncaDaMarca.test.tsx` o que ela confere; entra quando outra tarefa tocar os arquivos (revisor-geral e test-engineer, rodada 2)
