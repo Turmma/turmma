@@ -30,7 +30,7 @@ groups:
         annotations:
           summary: A instância {{ $labels.instance }} da API limita requisições em memória há mais de 2 min
           description: O rate limit saiu do Redis de cache e cada instância limita sozinha. Siga o runbook.
-          runbook_url: https://github.com/LitzGab/Educa.ia/blob/main/docs/runbook.md#seguro-de-limite-ativo
+          runbook_url: https://github.com/Turmma/turmma/blob/main/docs/runbook.md#seguro-de-limite-ativo
         data:
           - refId: A
             relativeTimeRange:

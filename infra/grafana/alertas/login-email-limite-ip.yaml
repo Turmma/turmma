@@ -28,7 +28,7 @@ groups:
         annotations:
           summary: Mais de 20 tentativas de login por e-mail por minuto rebaixadas pelo limite por IP, por 5 min
           description: Um IP tenta e-mails e senhas em quantidade. Ninguém é bloqueado, mas a equipe atrás desse IP sem o cookie do navegador espera mais. Siga o runbook.
-          runbook_url: https://github.com/LitzGab/Educa.ia/blob/main/docs/runbook.md#login-por-e-mail-acima-do-limite-por-ip
+          runbook_url: https://github.com/Turmma/turmma/blob/main/docs/runbook.md#login-por-e-mail-acima-do-limite-por-ip
         data:
           - refId: A
             relativeTimeRange:

@@ -29,7 +29,7 @@ groups:
         annotations:
           summary: 'O expurgo da escola {{ $labels.escola_id }} não terminou todas as categorias nas duas últimas noites'
           description: Dado pessoal da escola está passando do prazo de retenção (LGPD). Siga o runbook.
-          runbook_url: https://github.com/LitzGab/Educa.ia/blob/main/docs/runbook.md#expurgo-incompleto-por-duas-noites-numa-escola
+          runbook_url: https://github.com/Turmma/turmma/blob/main/docs/runbook.md#expurgo-incompleto-por-duas-noites-numa-escola
         data:
           - refId: A
             relativeTimeRange:

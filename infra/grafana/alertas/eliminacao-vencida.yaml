@@ -28,7 +28,7 @@ groups:
         annotations:
           summary: 'A eliminação de um titular da escola {{ $labels.escola_id }} venceu há mais de 48 h e não foi concluída'
           description: O pedido de eliminação passou do 8º dia e o job não o concluiu (LGPD, art. 18, VI). Siga o runbook.
-          runbook_url: https://github.com/LitzGab/Educa.ia/blob/main/docs/runbook.md#eliminação-do-titular-agendada-há-mais-de-48-h-do-prazo
+          runbook_url: https://github.com/Turmma/turmma/blob/main/docs/runbook.md#eliminação-do-titular-agendada-há-mais-de-48-h-do-prazo
         data:
           - refId: A
             relativeTimeRange:

@@ -119,7 +119,7 @@ Regra: o fixture segue a peça que ele imita (`AdaptadorRoteirizado` → `Script
 
 ## 4. Fila, outbox e concorrência por escola
 
-Regras (guia §9): `Enfileirador` + `job_registro` = transactional outbox → `JobOutbox`; `Reconciliacao` = outbox sweeper → `Sweep*`; `Despacho` → `Dispatch`; `VagasPorEscola` = semáforo por tenant → `EscolaConcurrencyLimiter`; `Fila` → `Queue`; `Pedido...Recusado` → `...RejectedError`. `JanelaLetiva` (horário letivo da escola) é domínio e fica.
+Regras (guia §9): `Enfileirador` + `job_registro` = transactional outbox → `JobOutbox`; `Reconciliacao` = outbox sweeper → `Sweep*`; `Despacho` → `Dispatch`; `VagasPorEscola` = semáforo por tenant → `EscolaConcurrencyLimiter`; `Fila` → `Queue`; `Pedido...Recusado` → `...RejectedError`. `JanelaLetiva` (horário letivo da escola) é domínio e fica. **Onda:** as linhas com "Onde" em `shared/` (158 a 183: `definicoes-de-job.ts`, `jobs-sinteticos.ts` e `jobs.ts`) são da 3.0, a onda do `shared`; as de `nucleo/`, da 4.0 (divergência da 3.0, 30/10).
 
 | Atual | Proposto | Tipo | Onde (packages/) | Usos |
 |---|---|---|---|---|
@@ -462,7 +462,7 @@ Regras: `Resposta<X>` → `<X>Response`, `Pedido<X>` → `<X>Request`, `Consulta
 
 Regra: `esquema<X>` → `<x>Schema` (convenção do zod, sufixo `Schema`); `esquemaPedido<X>` → `<x>RequestSchema`, `esquemaResposta<X>` → `<x>ResponseSchema`, `esquemaConsulta<X>` → `<x>QuerySchema`; os tipos inferidos seguem: `Pedido<X>` → `<X>Request`, `Resposta<X>` → `<X>Response`, `Consulta<X>` → `<X>Query`. Nas tarefas de IA: `esquemaEntradaDo<X>` → `<x>InputSchema`, `EntradaDo<X>` → `<X>Input`, idem `Saida`. "Resposta" também é termo de domínio do glossário (resposta do aluno a um item); `...Response` elimina essa ambiguidade.
 
-**Ficam, por serem domínio (só o schema ganha sufixo):** `PedidoDaTurma` (nome pedido pelo aluno na sala), `PedidoDoTitular`, `PedidoDeMeusDados` (pedido do titular, LGPD). Em `nucleo/src/titular` os `Pedido...` (`PedidoDeEliminacao`, `PedidoDeLeitura`, `PedidoDeTroca`, `PedidoDoUsuario`, `PedidoParaMontar`, `PedidoConcluidoComOTitular`) são parâmetros de domínio e ficam. O nome dos campos no JSON (`itens`, `proxima`, `chaveEnvio`...) não muda.
+**Ficam, por serem domínio (só o schema ganha sufixo):** `PedidoDaTurma` (nome pedido pelo aluno na sala), `PedidoDoTitular`, `PedidoDeMeusDados` (pedido do titular, LGPD). Pelo mesmo critério, `Resposta<X>` que não é o corpo de uma resposta HTTP, mas a resposta de alguém a algo, fica: `RespostaSalva` (a resposta que o aluno já salvou numa questão; o schema vira `respostaSalvaSchema`) e `RespostaAProposta` (o que o professor responde à proposta de ferramenta do Assistente, par de `RESPOSTAS_A_PROPOSTA`, que também fica). O `respostaSalvaSchema` sai do `endsWith('ResponseSchema')` do `contratos.test.ts` (96 na varredura); os campos dele continuam varridos por dentro de `provaResponseSchema.respostas` (divergência da 3.0, 30/10). Em `nucleo/src/titular` os `Pedido...` (`PedidoDeEliminacao`, `PedidoDeLeitura`, `PedidoDeTroca`, `PedidoDoUsuario`, `PedidoParaMontar`, `PedidoConcluidoComOTitular`) são parâmetros de domínio e ficam. O nome dos campos no JSON (`itens`, `proxima`, `chaveEnvio`...) não muda.
 
 | Atual | Proposto | Tipo | Onde (packages/) | Usos |
 |---|---|---|---|---|
@@ -518,7 +518,7 @@ Regra: `esquema<X>` → `<x>Schema` (convenção do zod, sufixo `Schema`); `esqu
 | `esquemaQuestaoObjetiva` | `questaoObjetivaSchema` | const (zod) | `shared/src/assistente/conteudo.ts` | 2 |
 | `ConsultaConversaDoAssistente` | `ConversaDoAssistenteQuery` | type | `shared/src/assistente/conversa.ts` | 3 |
 | `PedidoMensagemAoAssistente` | `MensagemAoAssistenteRequest` | type | `shared/src/assistente/conversa.ts` | 5 |
-| `RespostaAProposta` | `APropostaResponse` | type | `shared/src/assistente/conversa.ts` | 0 |
+| `RespostaAProposta` | fica (domínio: a resposta do professor à proposta; ver a regra acima) | type | `shared/src/assistente/conversa.ts` | 0 |
 | `RespostaConversaDoAssistente` | `ConversaDoAssistenteResponse` | type | `shared/src/assistente/conversa.ts` | 4 |
 | `esquemaConsultaConversaDoAssistente` | `conversaDoAssistenteQuerySchema` | const (zod) | `shared/src/assistente/conversa.ts` | 3 |
 | `esquemaConteudoDaMensagemDoAgente` | `conteudoDaMensagemDoAgenteSchema` | const (zod) | `shared/src/assistente/conversa.ts` | 6 |
@@ -582,7 +582,7 @@ Regra: `esquema<X>` → `<x>Schema` (convenção do zod, sufixo `Schema`); `esqu
 | `RespostaMinhasAtividades` | `MinhasAtividadesResponse` | type | `shared/src/atividade/prova.ts` | 3 |
 | `RespostaProva` | `ProvaResponse` | type | `shared/src/atividade/prova.ts` | 9 |
 | `RespostaQuestaoSalva` | `QuestaoSalvaResponse` | type | `shared/src/atividade/prova.ts` | 8 |
-| `RespostaSalva` | `SalvaResponse` | type | `shared/src/atividade/prova.ts` | 3 |
+| `RespostaSalva` | fica (domínio: a resposta do aluno; ver a regra acima) | type | `shared/src/atividade/prova.ts` | 3 |
 | `esquemaAcertoPorHabilidade` | `acertoPorHabilidadeSchema` | const (zod) | `shared/src/atividade/prova.ts` | 4 |
 | `esquemaAlternativa` | `alternativaSchema` | const (zod) | `shared/src/atividade/prova.ts` | 2 |
 | `esquemaConsultaMinhasAtividades` | `minhasAtividadesQuerySchema` | const (zod) | `shared/src/atividade/prova.ts` | 2 |
@@ -598,7 +598,7 @@ Regra: `esquema<X>` → `<x>Schema` (convenção do zod, sufixo `Schema`); `esqu
 | `esquemaRespostaMinhasAtividades` | `minhasAtividadesResponseSchema` | const (zod) | `shared/src/atividade/prova.ts` | 6 |
 | `esquemaRespostaProva` | `provaResponseSchema` | const (zod) | `shared/src/atividade/prova.ts` | 6 |
 | `esquemaRespostaQuestaoSalva` | `questaoSalvaResponseSchema` | const (zod) | `shared/src/atividade/prova.ts` | 5 |
-| `esquemaRespostaSalva` | `salvaResponseSchema` | const (zod) | `shared/src/atividade/prova.ts` | 1 |
+| `esquemaRespostaSalva` | `respostaSalvaSchema` (fora do `endsWith('ResponseSchema')`) | const (zod) | `shared/src/atividade/prova.ts` | 1 |
 | `esquemaSequencia` | `sequenciaSchema` | const (zod) | `shared/src/atividade/prova.ts` | 1 |
 | `PedidoCriarAnoLetivo` | `CriarAnoLetivoRequest` | type | `shared/src/estrutura/ano-letivo.ts` | 5 |
 | `RespostaAnoLetivo` | `AnoLetivoResponse` | type | `shared/src/estrutura/ano-letivo.ts` | 3 |

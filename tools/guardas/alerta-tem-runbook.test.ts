@@ -59,6 +59,17 @@ describe('guarda: alerta tem runbook', () => {
     ])
   })
 
+  it('o endereço do runbook é o do repositório atual, na organização Turmma', () => {
+    expect(ENDERECO_DO_RUNBOOK).toBe('https://github.com/Turmma/turmma/blob/main/docs/runbook.md#')
+  })
+
+  it('reprova: runbook_url com o endereço antigo do repositório, mesmo com a entrada certa no runbook', () => {
+    for (const antigo of ['https://github.com/LitzGab/Educa.ia', 'https://github.com/LitzGab/Turmma.ai']) {
+      const arquivo = arquivoDeRegra('Fila parada', `${antigo}/blob/main/docs/runbook.md#fila-parada`)
+      expect(problemasDeRunbook([arquivo], entrada('Fila parada'))).toEqual([`infra/grafana/alertas/fila-parada.yaml (Fila parada): runbook_url precisa apontar para ${ENDERECO_DO_RUNBOOK}<entrada>`])
+    }
+  })
+
   it('reprova: regra nova sem entrada no runbook', () => {
     const arquivo = arquivoDeRegra('Fila parada', `${ENDERECO_DO_RUNBOOK}fila-parada`)
     expect(problemasDeRunbook([...arquivosDeAlertaDoRepositorio(), arquivo], runbookDoRepositorio)).toEqual([

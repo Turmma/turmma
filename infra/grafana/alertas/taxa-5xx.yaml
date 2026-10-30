@@ -27,7 +27,7 @@ groups:
         annotations:
           summary: Mais de 5% de 5xx em {{ $labels.http_route }} ({{ $labels.job }}) por 5 min
           description: Uma rota está devolvendo erro para quem usa. Siga o runbook.
-          runbook_url: https://github.com/LitzGab/Educa.ia/blob/main/docs/runbook.md#taxa-de-erro-5xx
+          runbook_url: https://github.com/Turmma/turmma/blob/main/docs/runbook.md#taxa-de-erro-5xx
         data:
           - refId: A
             relativeTimeRange:

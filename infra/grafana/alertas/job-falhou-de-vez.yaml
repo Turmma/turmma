@@ -31,7 +31,7 @@ groups:
         annotations:
           summary: 'Há job do tipo {{ $labels.tipo }} que falhou de vez e não foi tratado'
           description: O job esgotou as tentativas e está em job_registro como falhou. Siga o runbook.
-          runbook_url: https://github.com/LitzGab/Educa.ia/blob/main/docs/runbook.md#job-que-falhou-de-vez
+          runbook_url: https://github.com/Turmma/turmma/blob/main/docs/runbook.md#job-que-falhou-de-vez
         data:
           - refId: A
             relativeTimeRange:
