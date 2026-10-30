@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import type { Locator, Page } from '@playwright/test'
 import { atividadeSintetica, entregaDoLote, loteSintetico, simularAssistente, type ApiDoAssistente } from './__fixtures__/assistente.ts'
 import { minhaAtividade, provaDa, simularAluno } from './__fixtures__/aluno.ts'
-import { entrarComoAluno, entrarComoCoordenacaoNaMesmaAba, entrarPorEmail, esperarNovaConversa, gaveta, PRAZO_DA_ENTRADA_MS, reservaDaBarraDeBaixo, secoes } from './__fixtures__/casca.ts'
+import { entrarComoAluno, entrarComoCoordenacaoNaMesmaAba, entrarPorEmail, esperarNovaConversa, gaveta, irPelaNavegacao, PRAZO_DA_ENTRADA_MS, reservaDaBarraDeBaixo, secoes } from './__fixtures__/casca.ts'
 import { expect, test } from './__fixtures__/perfis.ts'
 import { colocarAlunoNaTurma, confirmarVinculosNoBanco, criarAlocacaoDoProfessor, criarAlunoComMatricula, criarEquipeComSenha, renomearEscolaNoBanco } from './__fixtures__/sessao.ts'
 import { ALVO_DE_TOQUE_PRINCIPAL_PX, larguraExcedente, violacoesGraves } from './__fixtures__/verificacoes.ts'
@@ -20,6 +20,13 @@ const ALTURA_DA_JANELA = 800
 const ALTURA_DA_BARRA_PX = 68
 const ALTURA_DO_TOPO_PX = 56
 const PRAZO_DA_TELA_MS = 15_000
+/**
+ * Quanto o `/v1/eu` demora a voltar no caso do ajudante de navegação: o toque no menu, contado do pedido e não do fim do
+ * `page.reload()`, tem de acontecer antes da resposta mesmo num runner carregado, ou o caso passaria verde sem a correção. O
+ * caso é novo e o portão cobra metade dos 30 s (`test.slow()` posto agora não conta): mais que isto ele passa dos 15 s.
+ */
+const ATRASO_DA_SESSAO_MS = 3_000
+const PRAZO_DA_ACAO_MS = 15_000
 
 const NOME_COMPRIDO = 'Colégio Estadual de Educação Básica Professora Maria das Dores Albuquerque de Sá e Silva do Vale do Itajaí'
 
@@ -220,6 +227,28 @@ test.describe('a casca da escola no celular', () => {
     expect((await reservaDaBarraDeBaixo(page)).paddingDoMain).toBe(`${String(ALTURA_DA_BARRA_PX + 32)}px`)
     for (let indice = 0; indice < 4; indice++) await esperarAlvoDe44(itens.nth(indice), `item ${String(indice)}`)
     expect(await larguraExcedente(page)).toBe(0)
+  })
+
+  test('o ajudante de navegação espera a sessão depois do recarregamento: com o /v1/eu atrasado, a gaveta não fica aberta por cima da barra de baixo', async ({ page, hasTouch }) => {
+    await page.setViewportSize({ width: LARGURA, height: ALTURA_DA_JANELA })
+    const professora = await criarEquipeComSenha()
+    await page.goto('/entrar')
+    await entrarPorEmail(page, professora, hasTouch)
+    await expect(page).toHaveURL(/\/professor\//, { timeout: PRAZO_DA_ENTRADA_MS })
+
+    // CPU lenta e rede de escola: a barra do topo e o botão do menu já estão na tela, e os itens só chegam com a sessão.
+    // O toque que a gaveta intercepta não passa: com o prazo curto de ação o caso cai em segundos, e não no teto do teste.
+    // Vale só para a página deste caso: não copie para um `beforeEach`, que encurtaria o prazo dos outros sem aviso.
+    page.setDefaultTimeout(PRAZO_DA_ACAO_MS)
+    await page.route('**/v1/eu', async (rota) => {
+      await new Promise((resolver) => setTimeout(resolver, ATRASO_DA_SESSAO_MS))
+      await rota.continue()
+    })
+    await page.reload()
+    await irPelaNavegacao(page, 'Criados', hasTouch)
+
+    await expect(page).toHaveURL(/\/professor\/criados$/, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(gaveta(page)).toBeHidden()
   })
 
   /**

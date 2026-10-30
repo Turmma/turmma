@@ -2360,3 +2360,9 @@ repetem aqui.
       mensagem neutra, com o teste do `reaplicar` junto (revisor-geral, rodada 1)
 - [ ] Da tarefa 2.0 da X8, na primeira onda que renomear um símbolo exportado por dois pacotes: `conferir.ts` troca o nome exportado só pelo `de` e ignora o
       `arquivo` da entrada; dá vermelho falso se dois pacotes exportam o mesmo nome e só um é renomeado (revisor-geral, rodada 1)
+
+## Da correção 2026-10-30-gaveta-aberta-na-alocacao, fora dela
+
+- [ ] Da correção `2026-10-30-gaveta-aberta-na-alocacao`: `esperarASessaoNaBarraDoTopo` (`e2e/__fixtures__/casca.ts`) acha o nome da escola por
+      `getByRole('banner').locator('p').first()`, posicional; dar ao nome da escola em `apps/web/src/componentes/CascaDaEscola.tsx` um alvo próprio (`data-testid` ou
+      nome acessível) e trocar o seletor (infra-guardian, privacy-guardian, frontend-reviewer e test-engineer, rodada 1)

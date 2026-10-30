@@ -65,6 +65,17 @@ export async function abrirNavegacao(page: Page, hasTouch: boolean): Promise<voi
 }
 
 /**
+ * A sessão chegou quando a barra do topo mostra o nome da escola, que vem do `/v1/eu`. Os itens da navegação só chegam com ela,
+ * e a barra do topo com o botão do menu já está na tela antes: depois de um recarregamento, abrir a gaveta sem esperar a
+ * deixaria aberta por cima da barra de baixo que aparece em seguida.
+ */
+async function esperarASessaoNaBarraDoTopo(page: Page): Promise<void> {
+  await expect(page.getByRole('banner').locator('p').first(), 'a sessão (o /v1/eu) não chegou: a barra do topo está sem o nome da escola').not.toBeEmpty({
+    timeout: PRAZO_DA_ENTRADA_MS,
+  })
+}
+
+/**
  * Vai a uma seção pelo link dela em `Seções`. A gaveta só abre quando `Seções` não está à vista (a coordenação no
  * celular); a barra de baixo do professor e do aluno está sempre à vista. E com a gaveta aberta por outro motivo (o
  * teste foi ver a escola ou a conta), a barra fica inerte: o toque nela cairia no fundo da gaveta e só a fecharia. Por
@@ -75,7 +86,10 @@ export async function irPelaNavegacao(page: Page, rotulo: string, hasTouch: bool
     await page.keyboard.press('Escape')
     await expect(gaveta(page)).toBeHidden()
   }
-  if (!(await secoes(page).first().isVisible())) await abrirNavegacao(page, hasTouch)
+  if (!(await secoes(page).first().isVisible())) {
+    if (naGaveta(page)) await esperarASessaoNaBarraDoTopo(page)
+    if (!(await secoes(page).first().isVisible())) await abrirNavegacao(page, hasTouch)
+  }
   const item = secoes(page).getByRole('link', { name: rotulo })
   if (hasTouch) await item.tap()
   else await item.click()
