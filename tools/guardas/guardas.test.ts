@@ -714,7 +714,7 @@ describe('configuração das guardas', () => {
   // `new URL(...)` e template literal chegam ao protótipo sem escrever `from '.../mockups/'`. Documento
   // (`.md`) pode citar a pasta; os arquivos abaixo são os que declaram a exceção. O `.dockerignore` a deixa fora do
   // contexto de build das imagens, e o teste dele (`dockerfile.test.ts`) confere que ela está lá.
-  const CITAM_O_PROTOTIPO = ['eslint.config.mjs', 'vitest.config.ts', 'tools/guardas/guardas.test.ts', '.dockerignore', 'tools/ci/dockerfile.test.ts']
+  const CITAM_O_PROTOTIPO = ['eslint.config.mjs', 'vitest.config.ts', 'tools/guardas/guardas.test.ts', '.dockerignore', 'tools/ci/dockerfile.test.ts', 'tools/renomear/ast.ts']
 
   it('nada fora de mockups/ aponta para o protótipo: o que não passa pelo lint não entra no produto', () => {
     const citam = arquivosDoRepositorio()

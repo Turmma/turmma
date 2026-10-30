@@ -72,6 +72,14 @@ export interface TarefaDoPlano {
 }
 
 /**
+ * Caminho de verdade, e não prosa: `a/b/c.ts`, a pasta de primeiro nível (`apps/`, com a barra) e o arquivo da raiz
+ * (`package.json`, com extensão que tem letra: `1.0` e `v1.2` são versão, e não arquivo). A palavra solta (`e2e`) é descrição.
+ */
+function ehCaminhoPrevisto(candidato: string): boolean {
+  return /^[\w.@-]+(\/[\w.@*[\]-]+)+\/?$/.test(candidato) || /^[\w.@-]+\/$/.test(candidato) || /^[\w@-][\w.@-]*\.[A-Za-z0-9]*[A-Za-z][A-Za-z0-9]*$/.test(candidato)
+}
+
+/**
  * Os caminhos da tabela "Arquivos previstos" de um `N_task.md`. Só o que é caminho: `apps/web/src/x.tsx`, entre
  * crases ou solto. "A casca do aluno" não diz que arquivo é, e por isso não prova que duas tarefas não se tocam.
  */
@@ -85,7 +93,7 @@ export function lerArquivosPrevistos(conteudoTask: string): string[] {
     const celula = linha.split('|')[1] ?? ''
     const entreCrases = [...celula.matchAll(/`([^`]+)`/g)].map((achado) => achado[1] ?? '')
     for (const candidato of entreCrases.length > 0 ? entreCrases : [celula.trim()]) {
-      if (/^[\w.@-]+(\/[\w.@*[\]-]+)+\/?$/.test(candidato)) caminhos.add(candidato)
+      if (ehCaminhoPrevisto(candidato)) caminhos.add(candidato)
     }
   }
   return [...caminhos]

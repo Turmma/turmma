@@ -89,6 +89,27 @@ describe('arquivos previstos', () => {
     expect(lerArquivosPrevistos('# Tarefa sem a seção\n')).toEqual([])
   })
 
+  it('lê a pasta de primeiro nível (`apps/`) e o arquivo da raiz (`package.json`), e continua sem ler a prosa', async () => {
+    const documento = [
+      '# Tarefa 5.0',
+      '',
+      '## Arquivos previstos',
+      '',
+      '| Arquivo | Novo ou alterado |',
+      '|---|---|',
+      '| `apps/`, `packages/` | alterado |',
+      '| `package.json`, `knip.json` e `eslint.config.mjs` | alterado |',
+      '| package-lock.json | alterado |',
+      '| a raiz, em geral. | alterado |',
+      '| e2e | alterado |',
+      '| apps | alterado |',
+      '| `1.0`, `v1.2` e `2.3.4` | alterado |',
+    ].join('\n')
+    expect(lerArquivosPrevistos(documento)).toEqual(['apps/', 'packages/', 'package.json', 'knip.json', 'eslint.config.mjs', 'package-lock.json'])
+    expect(seSobrepoem('apps/', 'apps/api/src/x.ts')).toBe(true)
+    expect(seSobrepoem('package.json', 'apps/api/package.json')).toBe(false)
+  })
+
   it('pasta cobre o que está dentro dela, e arquivo de nome parecido não', async () => {
     expect(seSobrepoem('apps/web/src/areas/x/', 'apps/web/src/areas/x/Tela.tsx')).toBe(true)
     expect(seSobrepoem('apps/web/src/areas/x/**', 'apps/web/src/areas/x/Tela.tsx')).toBe(true)

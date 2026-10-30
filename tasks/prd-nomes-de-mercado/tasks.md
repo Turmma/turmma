@@ -5,12 +5,12 @@
 
 ## Lista
 
-- [ ] **1.0 — O `aplicar` renomeia uma onda pelo mapa, e o `reaplicar` leva o merge da `develop` ao nome novo**
-  - [ ] 1.1 O mapa, as seis recusas e a gravação só depois de calcular tudo
-  - [ ] 1.2 Os passos 1 a 5: símbolo, arquivo, pasta, pacote, comentário e documento
-  - [ ] 1.3 O passo 6, a lista das referências por texto, e o relatório
-  - [ ] 1.4 O `reaplicar`, e o passo do `/seguir` que o usa
-  - [ ] 1.5 Testes: os casos de `casos.md` para o `aplicar` e o `reaplicar`
+- [x] **1.0 — O `aplicar` renomeia uma onda pelo mapa, e o `reaplicar` leva o merge da `develop` ao nome novo**
+  - [x] 1.1 O mapa, as seis recusas e a gravação só depois de calcular tudo
+  - [x] 1.2 Os passos 1 a 5: símbolo, arquivo, pasta, pacote, comentário e documento
+  - [x] 1.3 O passo 6, a lista das referências por texto, e o relatório
+  - [x] 1.4 O `reaplicar`, e o passo do `/seguir` que o usa
+  - [x] 1.5 Testes: os casos de `casos.md` para o `aplicar` e o `reaplicar`
 
 - [ ] **2.0 — O `conferir` prova "só nome", o `restos` prova que nada sobrou, e nenhum filtro casa vazio**
   - [ ] 2.1 O `conferir`: a foto, o mapa aplicado à foto de antes, as exceções

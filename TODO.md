@@ -2324,3 +2324,11 @@ repetem aqui.
       anéis (o da moldura e o do controle). Se o Joaquim achar feio na validação, é correção própria, com foto do foco por Tab (test-engineer)
 - [ ] Da correção `2026-10-29-contorno-do-campo-de-conversa`: no tema escuro, o anel da `CaixaPedido` fica sempre em `foco`; sobre `.bg-noite` ele daria
       1,99:1. Hoje a caixa só aparece sobre `bg-fundo` e `bg-superficie`; entra na tarefa que puser a caixa sobre `bg-noite` (frontend-reviewer)
+
+## Da X8 (nomes de mercado), tarefa 1.0, fora dela
+
+- [ ] Da tarefa 1.0 da X8: o `travas.md` dizer que a guarda de escopo (`tools/guardas/escopo-dos-repositories.ts`) não varre `tools/`
+      (tenancy-guardian, rodada 1, 30/10/2026)
+- [ ] Da tarefa 1.0 da X8: em `tools/renomear/aplicar.test.ts`, no caso "quem contorna é acusado", a asserção
+      `` `| ${Object.keys(arquivos)[0] ?? ''} | ` `` passaria com string vazia; escrever o nome do arquivo por extenso na tabela dos casos. Hoje toda forma tem
+      arquivo, por isso não segura a tarefa (test-engineer, rodada 2, 30/10/2026)

@@ -44,8 +44,10 @@ arquivo que importa o nome, sem `alias`; o `de` se repete; falta `linhaDoAnexo`;
 
 1. Abre um serviço de linguagem por `tsconfig` (a raiz, `e2e/`, `infra/` e cada workspace) e junta os locais sem
    repetir. O pacote resolve pela condição `source`.
-2. Renomeia o símbolo (`findRenameLocations`, com `providePrefixAndSuffixTextForRename`), e a forma curta
-   `{ esquemaTurma }` vira `{ esquemaTurma: turmaSchema }`, com a chave intacta.
+2. Renomeia o símbolo (`findRenameLocations` com `providePrefixAndSuffixTextForRename: false`, que é o que atravessa o
+   `export { x } from` e o import: com a opção ligada o serviço pára no re-export e deixa `apps/api` e `apps/web` com o nome
+   antigo, o que a 1.0 mediu), e a ferramenta refaz a forma curta: `{ esquemaTurma }` vira `{ esquemaTurma: turmaSchema }`,
+   com a chave intacta, e o `import { x as y }` troca só o lado certo.
 3. Move o arquivo e a pasta (`getEditsForFileRename` e `git mv`). O rename só de caixa passa por um nome intermediário.
 4. No pacote, troca o `name`, os `exports` e as dependências, e roda `npm install --package-lock-only`.
 5. Em comentário e em documento vivo (`CLAUDE.md`, `.claude/`, `docs/`), troca sozinho só o identificador composto
@@ -178,8 +180,7 @@ ou a trava contra filtro vazio. Nenhum caso entra (RF7). A onda sem trava leva "
 
 ## 12. Premissas não verificadas
 
-- ⚠️ NÃO VERIFICADO: que o `findRenameLocations` (TypeScript 6.0.3) alcança outro projeto pela condição `source`;
-  senão, `getReferencesAtPosition` projeto a projeto. A 1.0 prova com dois projetos
+- ✅ VERIFICADO na 1.0: que o `findRenameLocations` (TypeScript 6.0.3) alcança outro projeto pela condição `source`, sem a opção `providePrefixAndSuffixTextForRename` (caso "símbolo do shared em dois projetos" de `tools/renomear/aplicar.test.ts`);
 - ⚠️ NÃO VERIFICADO: que o `npm install --package-lock-only` não muda versão. A 5.0 confere o diff do lock
 
 ## 13. Riscos técnicos

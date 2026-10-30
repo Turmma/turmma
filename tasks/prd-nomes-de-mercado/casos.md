@@ -15,7 +15,7 @@ Cada cláusula da Tech Spec §5 tem ao menos um caso que a deixa vermelha, se fo
 - o rename só de caixa.
 
 **Comentário e documento:**
-- "com" num comentário e "Banco público" num `.md` ficam intactos.
+- A palavra comum em prosa, num comentário e num `.md`, fica intacta e vai para a troca à mão. O caso usa `Fila` (`Fila de jobs`), a palavra comum de verdade do mapa; "com" e "Banco público" seguem a mesma regra.
 
 **Recusas:**
 - cada um dos seis casos de recusa;

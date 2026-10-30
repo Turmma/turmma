@@ -195,6 +195,16 @@ const REQUISITOS_DO_TEXTO = [
     termo: 'node tools/processo/esteira.ts --censo',
   },
   {
+    nome: 'o passo 8 leva o merge da develop ao nome novo com o reaplicar, enquanto existir a pasta dos mapas',
+    arquivo: `${PASSOS}8-validacao-e-pouso.md`,
+    termo: 'node tools/renomear/reaplicar.ts',
+  },
+  {
+    nome: 'o passo 8 diz que o reaplicar vale enquanto existir tools/renomear/mapas/',
+    arquivo: `${PASSOS}8-validacao-e-pouso.md`,
+    termo: 'Enquanto existir `tools/renomear/mapas/`',
+  },
+  {
     nome: 'o passo 8 manda abrir correção quando a lista não é vazia',
     arquivo: `${PASSOS}8-validacao-e-pouso.md`,
     termo: 'abra uma correção (`corrigir`',

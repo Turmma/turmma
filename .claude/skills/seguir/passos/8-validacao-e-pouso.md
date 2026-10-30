@@ -64,5 +64,10 @@ andou enquanto a spec corria (o Gabriel integra lá): traga-a para o térreo
 (`git -C <andar> merge develop`, o único commit seu que leva código), e a esteira do push desse
 merge tem de ficar verde antes do pouso. Conflito em qualquer um desses merges, ou no pouso, é parada: diga os arquivos.
 
+**Enquanto existir `tools/renomear/mapas/`** (a spec renomeia por onda, X8), o merge da `develop` na spec pode trazer
+nome antigo: arquivo novo, import novo, teste novo escrito com o nome de antes. Esse merge vira uma correção (`corrigir`)
+que roda `node tools/renomear/reaplicar.ts` e, quando existirem (são da tarefa 2.0 da X8), `node tools/renomear/conferir.ts` e
+`node tools/renomear/restos.ts`; o commit dela diz que veio do merge. Sem a correção, o nome antigo pousa na `develop` junto com a spec.
+
 Esteira da `develop` vermelha depois do pouso: correção em andar próprio (`correcao/<slug>`).
 Verde: peça a retrospectiva ao `Arquiteto` e notifique o fim.
