@@ -1,10 +1,10 @@
 import { criarBanco, criarPool, type Banco, type PoolBanco } from '@educa/nucleo'
 import {
-  CodigoDeErro,
+  ErrorCode,
   ESCOLAS_POR_PAGINA,
-  esquemaRespostaConviteDaCoordenacao,
-  esquemaRespostaEscolasDoPainel,
-  esquemaRespostaUsoDoPainel,
+  conviteDaCoordenacaoResponseSchema,
+  escolasDoPainelResponseSchema,
+  usoDoPainelResponseSchema,
   type EscolaDoPainel,
   type OrdemDoPainel,
   type UsoDaEscolaDoPainel,
@@ -124,7 +124,7 @@ describe('painel da operação: a lista de escolas e o uso, entre escolas (taref
       textos?.push(resposta.texto)
       expect(resposta.status).toBe(200)
       expect(resposta.cacheControl).toBe('no-store')
-      return esquemaRespostaEscolasDoPainel.parse(resposta.corpo)
+      return escolasDoPainelResponseSchema.parse(resposta.corpo)
     })
   }
 
@@ -136,7 +136,7 @@ describe('painel da operação: a lista de escolas e o uso, entre escolas (taref
       textos?.push(resposta.texto)
       expect(resposta.status).toBe(200)
       expect(resposta.cacheControl).toBe('no-store')
-      const lida = esquemaRespostaUsoDoPainel.parse(resposta.corpo)
+      const lida = usoDoPainelResponseSchema.parse(resposta.corpo)
       // A referência é a mesma em todas as páginas.
       referencia ??= { dia: lida.dia, mes: lida.mes }
       expect({ dia: lida.dia, mes: lida.mes }).toEqual(referencia)
@@ -152,7 +152,7 @@ describe('painel da operação: a lista de escolas e o uso, entre escolas (taref
   async function referenciaDaApi(): Promise<{ dia: string; primeiroDoMes: string }> {
     const resposta = await pedir(url, 'GET', '/v1/operacao/uso', sessao.token)
     expect(resposta.status).toBe(200)
-    const { dia } = esquemaRespostaUsoDoPainel.parse(resposta.corpo)
+    const { dia } = usoDoPainelResponseSchema.parse(resposta.corpo)
     return { dia, primeiroDoMes: `${dia.slice(0, 7)}-01` }
   }
 
@@ -522,42 +522,42 @@ describe('painel da operação: a lista de escolas e o uso, entre escolas (taref
       const novaRede = { id: randomUUID(), nome: `Rede Leitura I6 ${marca}`, tipo: 'independente' }
       expect(guardar(await post('/v1/operacao/redes', novaRede)).status).toBe(201)
       redes.push(novaRede.id)
-      esperarErro(guardar(await post('/v1/operacao/redes', { ...novaRede, autor: sentinelas.operadorNome })), 400, CodigoDeErro.ENTRADA_INVALIDA)
-      esperarErro(guardar(await post('/v1/operacao/redes', { ...novaRede, nome: `${novaRede.nome} outra` })), 409, CodigoDeErro.CONFLITO)
+      esperarErro(guardar(await post('/v1/operacao/redes', { ...novaRede, autor: sentinelas.operadorNome })), 400, ErrorCode.ENTRADA_INVALIDA)
+      esperarErro(guardar(await post('/v1/operacao/redes', { ...novaRede, nome: `${novaRede.nome} outra` })), 409, ErrorCode.CONFLITO)
       const novaEscolaPedida = { id: randomUUID(), redeId: novaRede.id, nome: `Escola Leitura I6 ${marca}`, slug: `leitura-i6-${marca}` }
       expect(guardar(await post('/v1/operacao/escolas', novaEscolaPedida)).status).toBe(201)
       escolas.push(novaEscolaPedida.id)
-      esperarErro(guardar(await post('/v1/operacao/escolas', { ...novaEscolaPedida, id: randomUUID(), redeId: randomUUID(), slug: `leitura-i6-sem-rede-${marca}` })), 404, CodigoDeErro.NAO_ENCONTRADO)
-      esperarErro(guardar(await post('/v1/operacao/escolas', { ...novaEscolaPedida, id: randomUUID() })), 409, CodigoDeErro.CONFLITO)
-      esperarErro(guardar(await post('/v1/operacao/escolas', { ...novaEscolaPedida, escolaId })), 400, CodigoDeErro.ENTRADA_INVALIDA)
+      esperarErro(guardar(await post('/v1/operacao/escolas', { ...novaEscolaPedida, id: randomUUID(), redeId: randomUUID(), slug: `leitura-i6-sem-rede-${marca}` })), 404, ErrorCode.NAO_ENCONTRADO)
+      esperarErro(guardar(await post('/v1/operacao/escolas', { ...novaEscolaPedida, id: randomUUID() })), 409, ErrorCode.CONFLITO)
+      esperarErro(guardar(await post('/v1/operacao/escolas', { ...novaEscolaPedida, escolaId })), 400, ErrorCode.ENTRADA_INVALIDA)
 
       // O convite da coordenação: gerar (com as sentinelas da coordenação), refazer e revogar, com 400, 404 e 409.
       const gerar = (id: string, corpo: unknown, naApi = url) => post(`/v1/operacao/escolas/${id}/convite-coordenacao`, corpo, naApi)
       const coordenacao = { nome: sentinelas.coordenacaoNome, email: sentinelas.coordenacaoEmail }
       const gerado = guardar(await gerar(escolaId, coordenacao))
       expect(gerado.status).toBe(201)
-      const { conviteId } = esquemaRespostaConviteDaCoordenacao.parse(gerado.corpo)
+      const { conviteId } = conviteDaCoordenacaoResponseSchema.parse(gerado.corpo)
       contas.push(await idDe('select id from conta where email = $1', [sentinelas.coordenacaoEmail]))
-      esperarErro(guardar(await gerar(escolaId, coordenacao)), 409, CodigoDeErro.CONFLITO)
-      esperarErro(guardar(await gerar(randomUUID(), coordenacao)), 404, CodigoDeErro.NAO_ENCONTRADO)
-      esperarErro(guardar(await gerar(escolaId, { ...coordenacao, autor: sentinelas.operadorNome })), 400, CodigoDeErro.ENTRADA_INVALIDA)
+      esperarErro(guardar(await gerar(escolaId, coordenacao)), 409, ErrorCode.CONFLITO)
+      esperarErro(guardar(await gerar(randomUUID(), coordenacao)), 404, ErrorCode.NAO_ENCONTRADO)
+      esperarErro(guardar(await gerar(escolaId, { ...coordenacao, autor: sentinelas.operadorNome })), 400, ErrorCode.ENTRADA_INVALIDA)
       const refeito = guardar(await post(`/v1/operacao/convites/${conviteId}/refazer`))
       expect(refeito.status).toBe(201)
-      const novoConvite = esquemaRespostaConviteDaCoordenacao.parse(refeito.corpo).conviteId
-      esperarErro(guardar(await post(`/v1/operacao/convites/${randomUUID()}/refazer`)), 404, CodigoDeErro.NAO_ENCONTRADO)
-      esperarErro(guardar(await post(`/v1/operacao/convites/${novoConvite}/refazer`, { autor: sentinelas.operadorNome })), 400, CodigoDeErro.ENTRADA_INVALIDA)
-      esperarErro(guardar(await post(`/v1/operacao/convites/${conviteDaAtiva}/refazer`)), 409, CodigoDeErro.CONFLITO)
-      esperarErro(guardar(await post(`/v1/operacao/convites/${conviteDaAtiva}/revogar`)), 409, CodigoDeErro.CONFLITO)
-      esperarErro(guardar(await post(`/v1/operacao/convites/${conviteId}/revogar`)), 404, CodigoDeErro.NAO_ENCONTRADO)
-      esperarErro(guardar(await post(`/v1/operacao/convites/${novoConvite}/revogar`, { autor: sentinelas.operadorNome })), 400, CodigoDeErro.ENTRADA_INVALIDA)
+      const novoConvite = conviteDaCoordenacaoResponseSchema.parse(refeito.corpo).conviteId
+      esperarErro(guardar(await post(`/v1/operacao/convites/${randomUUID()}/refazer`)), 404, ErrorCode.NAO_ENCONTRADO)
+      esperarErro(guardar(await post(`/v1/operacao/convites/${novoConvite}/refazer`, { autor: sentinelas.operadorNome })), 400, ErrorCode.ENTRADA_INVALIDA)
+      esperarErro(guardar(await post(`/v1/operacao/convites/${conviteDaAtiva}/refazer`)), 409, ErrorCode.CONFLITO)
+      esperarErro(guardar(await post(`/v1/operacao/convites/${conviteDaAtiva}/revogar`)), 409, ErrorCode.CONFLITO)
+      esperarErro(guardar(await post(`/v1/operacao/convites/${conviteId}/revogar`)), 404, ErrorCode.NAO_ENCONTRADO)
+      esperarErro(guardar(await post(`/v1/operacao/convites/${novoConvite}/revogar`, { autor: sentinelas.operadorNome })), 400, ErrorCode.ENTRADA_INVALIDA)
 
       // A lista e o uso inteiros (a escola das sentinelas está neles, com o que ela tem), e a consulta recusada.
       const lidaNaLista = doItem((await lista('nome', textos)).itens, escolaId)
       expect(lidaNaLista).toMatchObject({ estado: 'pendente', conviteId: novoConvite, turmas: 1, professores: 0, alunos: 1 })
       expect(doItem((await uso('uso', textos)).itens, escolaId).dia).toEqual(periodo(12, 3, 4_096))
       for (const consulta of ['ordem=nome&escolaId=' + escolaId, 'ordem=aluno', 'pagina=0']) {
-        esperarErro(guardar(await get(`/v1/operacao/escolas?${consulta}`)), 400, CodigoDeErro.ENTRADA_INVALIDA)
-        esperarErro(guardar(await get(`/v1/operacao/uso?${consulta}`)), 400, CodigoDeErro.ENTRADA_INVALIDA)
+        esperarErro(guardar(await get(`/v1/operacao/escolas?${consulta}`)), 400, ErrorCode.ENTRADA_INVALIDA)
+        esperarErro(guardar(await get(`/v1/operacao/uso?${consulta}`)), 400, ErrorCode.ENTRADA_INVALIDA)
       }
       // 204, sem corpo.
       expect(guardar(await post(`/v1/operacao/convites/${novoConvite}/revogar`)).status).toBe(204)
@@ -599,7 +599,7 @@ describe('painel da operação: a lista de escolas e o uso, entre escolas (taref
           await soltarAtiva()
         }
         for (const esgotado of esgotados) {
-          esperarErro(guardar(esgotado), 503, CodigoDeErro.TEMPO_ESGOTADO)
+          esperarErro(guardar(esgotado), 503, ErrorCode.TEMPO_ESGOTADO)
           expect(esgotado.retryAfter).not.toBeNull()
         }
         expect(esgotados).toHaveLength(8)

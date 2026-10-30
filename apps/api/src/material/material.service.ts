@@ -1,20 +1,20 @@
 import { contextoAtual, ErroDeDominio, executarNoContexto, RegistroDeAuditoria, resumirErro, sessaoDaRequisicao, type Banco, type LoggerBase } from '@educa/nucleo'
 import {
   alcanceDe,
-  CodigoDeErro,
-  ErroDeInvariante,
-  esquemaRespostaBuscaDeMaterial,
-  esquemaRespostaListaDeMateriais,
-  esquemaRespostaMaterial,
+  ErrorCode,
+  InvariantException,
+  buscaDeMaterialResponseSchema,
+  listaDeMateriaisResponseSchema,
+  materialResponseSchema,
   motivoDaRecusaDoMaterial,
-  type ConsultaBuscaDeMaterial,
-  type ConsultaMateriais,
+  type BuscaDeMaterialQuery,
+  type MateriaisQuery,
   type FalhaDeMaterial,
   type LicencaDeMaterial,
-  type PedidoEnviarMaterial,
-  type RespostaBuscaDeMaterial,
-  type RespostaListaDeMateriais,
-  type RespostaMaterial,
+  type EnviarMaterialRequest,
+  type BuscaDeMaterialResponse,
+  type ListaDeMateriaisResponse,
+  type MaterialResponse,
 } from '@educa/shared'
 import { createHash } from 'node:crypto'
 import { DisciplinaRepository } from '../estrutura/disciplina/disciplina.repository.js'
@@ -67,7 +67,7 @@ function alcanceDoMaterial(acao: 'listar' | 'ler' | 'buscar'): AlcanceDoMaterial
   const alcance = alcanceDe(sessaoDaRequisicao().papel, 'material', acao)
   if (alcance === 'unidade') return 'unidade'
   if (alcance === 'turma_vinculada') return 'disciplinas_vinculadas'
-  throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
+  throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
 }
 
 /**
@@ -75,8 +75,8 @@ function alcanceDoMaterial(acao: 'listar' | 'ler' | 'buscar'): AlcanceDoMaterial
  * da coordenação, que o declarou. O professor usa o título e a página, então recebe `null` no lugar (regra 20, item 4:
  * DTO mínimo). Quem decide é o alcance da célula da `MATRIZ`, não o nome do papel.
  */
-function paraResposta(lido: MaterialLido, alcance: AlcanceDoMaterial): RespostaMaterial {
-  return esquemaRespostaMaterial.parse({ ...lido, licenciante: alcance === 'unidade' ? lido.licenciante : null, enviadoEm: lido.enviadoEm.toISOString() })
+function paraResposta(lido: MaterialLido, alcance: AlcanceDoMaterial): MaterialResponse {
+  return materialResponseSchema.parse({ ...lido, licenciante: alcance === 'unidade' ? lido.licenciante : null, enviadoEm: lido.enviadoEm.toISOString() })
 }
 
 export interface DependenciasDoMaterial {
@@ -113,10 +113,10 @@ export class MaterialService {
    *
    * O arquivo **não é guardado**: os bytes ficam na memória desta instância até a extração terminar.
    */
-  async enviar(pedido: PedidoEnviarMaterial, arquivo: unknown): Promise<RespostaMaterial> {
+  async enviar(pedido: EnviarMaterialRequest, arquivo: unknown): Promise<MaterialResponse> {
     const { banco, logger } = this.dependencias
     const disciplinaId = pedido.disciplinaId.toLowerCase()
-    if ((await new DisciplinaRepository(banco).porId(disciplinaId)) === undefined) throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
+    if ((await new DisciplinaRepository(banco).porId(disciplinaId)) === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
 
     const motivo = motivoDaRecusaDoMaterial(pedido)
     if (motivo !== null) {
@@ -128,12 +128,12 @@ export class MaterialService {
       )
       const codigo: string = motivo
       logger.info({ evento: 'material.recusado', disciplinaId, codigo })
-      throw new ErroDeDominio(CodigoDeErro.MATERIAL_SEM_LICENCA)
+      throw new ErroDeDominio(ErrorCode.MATERIAL_SEM_LICENCA)
     }
     // Depois da recusa, a licença é uma das quatro com que um material entra.
     const licenca = pedido.licenca as LicencaDeMaterial
 
-    if (!ehArquivoRecebido(arquivo) || arquivo.size === 0 || !temAssinaturaDePdf(arquivo.buffer)) throw new ErroDeDominio(CodigoDeErro.ENTRADA_INVALIDA)
+    if (!ehArquivoRecebido(arquivo) || arquivo.size === 0 || !temAssinaturaDePdf(arquivo.buffer)) throw new ErroDeDominio(ErrorCode.ENTRADA_INVALIDA)
     const bytes = arquivo.buffer
     const sha256 = createHash('sha256').update(bytes).digest('hex')
 
@@ -163,11 +163,11 @@ export class MaterialService {
   /** Por pessoa e por escola, nunca por IP (regra 80, itens 1 e 3): a escola inteira sai pelo mesmo IP. */
   async #exigirDentroDosTetos(materiais: MaterialRepository): Promise<void> {
     const envios = await materiais.enviosNaJanela(new Date(Date.now() - JANELA_DOS_ENVIOS_MS))
-    if (envios.emProcessamento >= MATERIAIS_EM_PROCESSAMENTO_POR_ESCOLA) throw new ErroDeDominio(CodigoDeErro.LIMITE_EXCEDIDO, undefined, ESPERA_PELO_PROCESSAMENTO_S)
+    if (envios.emProcessamento >= MATERIAIS_EM_PROCESSAMENTO_POR_ESCOLA) throw new ErroDeDominio(ErrorCode.LIMITE_EXCEDIDO, undefined, ESPERA_PELO_PROCESSAMENTO_S)
     if (envios.doUsuario >= ENVIOS_POR_USUARIO_NA_JANELA || envios.daEscola >= ENVIOS_POR_ESCOLA_NA_JANELA) {
       const tipo = envios.daEscola >= ENVIOS_POR_ESCOLA_NA_JANELA ? 'escola' : 'usuario'
       this.dependencias.logger.warn({ evento: 'material.teto_de_envios', tipo })
-      throw new ErroDeDominio(CodigoDeErro.LIMITE_EXCEDIDO, undefined, JANELA_DOS_ENVIOS_MS / 1_000)
+      throw new ErroDeDominio(ErrorCode.LIMITE_EXCEDIDO, undefined, JANELA_DOS_ENVIOS_MS / 1_000)
     }
   }
 
@@ -179,7 +179,7 @@ export class MaterialService {
   #agendarExtracao(materialId: string, bytes: Buffer): void {
     const { escolaId } = sessaoDaRequisicao()
     const requisicaoId = contextoAtual()?.requisicaoId
-    if (requisicaoId === undefined) throw new ErroDeInvariante('contexto da requisição ausente')
+    if (requisicaoId === undefined) throw new InvariantException('contexto da requisição ausente')
     this.dependencias.fila.agendar(escolaId, (sinal) => executarNoContexto({ requisicaoId, escolaId }, () => this.#extrair(materialId, bytes, sinal)))
   }
 
@@ -234,19 +234,19 @@ export class MaterialService {
   }
 
   /** `GET /v1/materiais`: a coordenação, os da escola; o professor, os das disciplinas dele, com ou sem o filtro. */
-  async listar(consulta: ConsultaMateriais): Promise<RespostaListaDeMateriais> {
+  async listar(consulta: MateriaisQuery): Promise<ListaDeMateriaisResponse> {
     const filtro = { ...consulta, ...(consulta.disciplinaId === undefined ? {} : { disciplinaId: consulta.disciplinaId.toLowerCase() }) }
     const alcance = alcanceDoMaterial('listar')
     const linhas = await new MaterialRepository(this.dependencias.banco).listar(filtro, alcance)
     const { itens, proxima } = paginar(linhas, consulta.limite)
-    return esquemaRespostaListaDeMateriais.parse({ itens: itens.map((item) => paraResposta(item, alcance)), ...(proxima === undefined ? {} : { proxima }) })
+    return listaDeMateriaisResponseSchema.parse({ itens: itens.map((item) => paraResposta(item, alcance)), ...(proxima === undefined ? {} : { proxima }) })
   }
 
   /** `GET /v1/materiais/:id`. De outra escola, de disciplina sem vínculo, excluído ou inexistente: `NAO_ENCONTRADO`. */
-  async ler(id: string): Promise<RespostaMaterial> {
+  async ler(id: string): Promise<MaterialResponse> {
     const alcance = alcanceDoMaterial('ler')
     const lido = await new MaterialRepository(this.dependencias.banco).porId(id, alcance)
-    if (lido === undefined) throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
+    if (lido === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
     return paraResposta(lido, alcance)
   }
 
@@ -260,7 +260,7 @@ export class MaterialService {
     const trechosTotal = await banco.transaction(async (tx) => {
       const materiais = new MaterialRepository(tx)
       const excluido = await materiais.excluir(id)
-      if (excluido === undefined) throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
+      if (excluido === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
       const apagados = await materiais.apagarTrechos(id)
       await registro.gravar(tx, 'material.excluido', { entidadeId: id, antes: { disciplinaId: excluido.disciplinaId, estado: excluido.estado }, depois: { trechosApagados: apagados } })
       return apagados
@@ -272,11 +272,11 @@ export class MaterialService {
    * `GET /v1/materiais/busca`: os trechos por relevância, com todas as palavras da busca
    * (`websearch_to_tsquery('portuguese', q)`), dentro da escola do contexto e do alcance de quem pede.
    */
-  async buscar(consulta: ConsultaBuscaDeMaterial): Promise<RespostaBuscaDeMaterial> {
+  async buscar(consulta: BuscaDeMaterialQuery): Promise<BuscaDeMaterialResponse> {
     const achados = await new MaterialRepository(this.dependencias.banco).buscar(
       { texto: consulta.q, disciplinaId: consulta.disciplinaId?.toLowerCase(), limite: consulta.limite, palavras: 'todas' },
       alcanceDoMaterial('buscar'),
     )
-    return esquemaRespostaBuscaDeMaterial.parse({ itens: achados.map(({ materialId, titulo, pagina, texto }) => ({ materialId, titulo, pagina, trecho: trechoCitado(texto, consulta.q) })) })
+    return buscaDeMaterialResponseSchema.parse({ itens: achados.map(({ materialId, titulo, pagina, texto }) => ({ materialId, titulo, pagina, trecho: trechoCitado(texto, consulta.q) })) })
   }
 }

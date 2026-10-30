@@ -1,5 +1,5 @@
 import { ErroDeDominio, type Banco } from '@educa/nucleo'
-import { CodigoDeErro, esquemaRespostaMinhaTurma, type RespostaMinhaTurma } from '@educa/shared'
+import { ErrorCode, minhaTurmaResponseSchema, type MinhaTurmaResponse } from '@educa/shared'
 import { MinhaTurmaRepository } from './minha-turma.repository.js'
 
 /**
@@ -10,9 +10,9 @@ import { MinhaTurmaRepository } from './minha-turma.repository.js'
 export class MinhaTurmaService {
   constructor(private readonly banco: Banco) {}
 
-  async ler(): Promise<RespostaMinhaTurma> {
+  async ler(): Promise<MinhaTurmaResponse> {
     const minha = await new MinhaTurmaRepository(this.banco).daSessao()
-    if (minha === undefined) throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
-    return esquemaRespostaMinhaTurma.parse(minha)
+    if (minha === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+    return minhaTurmaResponseSchema.parse(minha)
   }
 }

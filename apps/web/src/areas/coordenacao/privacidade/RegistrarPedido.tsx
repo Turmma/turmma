@@ -1,4 +1,4 @@
-import { MAXIMO_DO_NOME_DO_TITULAR, SOLICITANTES_DO_PEDIDO, TIPOS_DE_PEDIDO_DO_TITULAR, type RegistroDePedido, type RespostaPreviaDoTitular, type TitularAchado } from '@educa/shared'
+import { MAXIMO_DO_NOME_DO_TITULAR, SOLICITANTES_DO_PEDIDO, TIPOS_DE_PEDIDO_DO_TITULAR, type RegistroDePedido, type PreviaDoTitularResponse, type TitularAchado } from '@educa/shared'
 import { useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query'
 import { useRef, useState, type FormEvent } from 'react'
 import { buscarTitulares, consultaPreviaDoTitular, registrarPedidoDoTitular, relerPedidosDoTitular } from './api/privacidade'
@@ -201,7 +201,7 @@ function DialogoDeBusca({ aoFechar, aoContinuar }: PropsDoDialogoDeBusca) {
  * O que a escola guarda da pessoa, ao lado da confirmação (RF10). Aluno: a contagem por categoria. Professor: só o
  * cadastro e os vínculos, **sem contagem**: a resposta é a mesma para quem usou a IA e para quem não usou (D64).
  */
-function Previa({ consulta }: { readonly consulta: UseQueryResult<RespostaPreviaDoTitular> }) {
+function Previa({ consulta }: { readonly consulta: UseQueryResult<PreviaDoTitularResponse> }) {
   if (consulta.isPending) return <p role="status" className="text-apoio">Consultando o que a escola guarda desta pessoa…</p>
   if (consulta.isError)
     return (

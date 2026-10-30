@@ -1,4 +1,4 @@
-import { CodigoDeErro, formatarEspera, MENSAGENS_DE_ERRO, mensagemDaEntrada, mensagemDoSegundoFator, type TipoDeRede } from '@educa/shared'
+import { ErrorCode, formatarEspera, MENSAGENS_DE_ERRO, mensagemDaEntrada, mensagemDoSegundoFator, type TipoDeRede } from '@educa/shared'
 import { ErroDaApi } from '../api/cliente'
 import type { FalhaDoConvite } from '../componentes/DialogoDoConvite'
 import { textoDaFalha as textoDaFalhaPeloCodigo } from '../componentes/texto-da-falha'
@@ -10,7 +10,7 @@ import { TEXTO_DO_CONVITE_QUE_MUDOU, TEXTO_DO_CONVITE_QUE_NAO_VALE } from '../co
  */
 
 /** A sessão que terminou (30 min parada, 8 h, saída, operador desativado): a pessoa volta à entrada com isto. */
-export const TEXTO_DA_SESSAO_ENCERRADA = MENSAGENS_DE_ERRO[CodigoDeErro.SESSAO_ENCERRADA]
+export const TEXTO_DA_SESSAO_ENCERRADA = MENSAGENS_DE_ERRO[ErrorCode.SESSAO_ENCERRADA]
 
 /** A linha fixa embaixo do título "Operação", em toda tela dela: o que a operação não alcança (D76). */
 export const TEXTO_DA_OPERACAO_SEM_DADO_DE_PESSOA = 'A operação não vê dado de aluno nem de professor: nem nome, nem nota, nem conversa.'
@@ -29,8 +29,8 @@ export const TEXTO_DA_SAIDA_NAO_CONFIRMADA =
   'Não foi possível confirmar a saída com o servidor. Se este computador é compartilhado, feche o navegador antes de deixá-lo.'
 
 /** O código da falha, ou erro interno para o que não veio da API. */
-function codigoDe(erro: unknown): CodigoDeErro {
-  return erro instanceof ErroDaApi ? erro.codigo : CodigoDeErro.ERRO_INTERNO
+function codigoDe(erro: unknown): ErrorCode {
+  return erro instanceof ErroDaApi ? erro.codigo : ErrorCode.ERRO_INTERNO
 }
 
 /**
@@ -55,9 +55,9 @@ export function textoDoLimite(esperaSegundos: number | undefined): string {
  */
 export function textoDaFalha(erro: unknown): string {
   return textoDaFalhaPeloCodigo(erro, {
-    [CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO]: TEXTO_DA_OPERACAO_INDISPONIVEL,
-    [CodigoDeErro.TEMPO_ESGOTADO]: TEXTO_DO_TEMPO_ESGOTADO,
-    [CodigoDeErro.LIMITE_EXCEDIDO]: textoDoLimite(erro instanceof ErroDaApi ? erro.esperaSegundos : undefined),
+    [ErrorCode.INDISPONIVEL_TENTE_DE_NOVO]: TEXTO_DA_OPERACAO_INDISPONIVEL,
+    [ErrorCode.TEMPO_ESGOTADO]: TEXTO_DO_TEMPO_ESGOTADO,
+    [ErrorCode.LIMITE_EXCEDIDO]: textoDoLimite(erro instanceof ErroDaApi ? erro.esperaSegundos : undefined),
   })
 }
 
@@ -69,7 +69,7 @@ export const TEXTO_DO_ENDERECO_REPETIDO = 'Esse endereço já é de outra escola
 
 /** A falha do criar escola é o endereço repetido? É a única que volta ao campo; as outras ficam no alerta do diálogo. */
 export function ehEnderecoRepetido(erro: unknown): boolean {
-  return codigoDe(erro) === CodigoDeErro.CONFLITO
+  return codigoDe(erro) === ErrorCode.CONFLITO
 }
 
 /**
@@ -78,7 +78,7 @@ export function ehEnderecoRepetido(erro: unknown): boolean {
  */
 export function ehResultadoIncerto(erro: unknown): boolean {
   const codigo = codigoDe(erro)
-  return codigo === CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO || codigo === CodigoDeErro.ERRO_INTERNO
+  return codigo === ErrorCode.INDISPONIVEL_TENTE_DE_NOVO || codigo === ErrorCode.ERRO_INTERNO
 }
 
 /**
@@ -105,8 +105,8 @@ export const TEXTO_DA_ESCOLA_QUE_NAO_EXISTE = 'Essa escola não foi encontrada. 
  */
 export function falhaDoConvite(acao: 'gerar' | 'refazer' | 'revogar', erro: unknown): FalhaDoConvite {
   const codigo = codigoDe(erro)
-  if (codigo === CodigoDeErro.CONFLITO) return { texto: acao === 'gerar' ? TEXTO_DA_ESCOLA_COM_CONVITE : TEXTO_DO_CONVITE_QUE_MUDOU, listaMudou: true }
-  if (codigo === CodigoDeErro.NAO_ENCONTRADO) return { texto: acao === 'gerar' ? TEXTO_DA_ESCOLA_QUE_NAO_EXISTE : TEXTO_DO_CONVITE_QUE_NAO_VALE, listaMudou: true }
+  if (codigo === ErrorCode.CONFLITO) return { texto: acao === 'gerar' ? TEXTO_DA_ESCOLA_COM_CONVITE : TEXTO_DO_CONVITE_QUE_MUDOU, listaMudou: true }
+  if (codigo === ErrorCode.NAO_ENCONTRADO) return { texto: acao === 'gerar' ? TEXTO_DA_ESCOLA_QUE_NAO_EXISTE : TEXTO_DO_CONVITE_QUE_NAO_VALE, listaMudou: true }
   return { texto: textoDaFalha(erro), listaMudou: false }
 }
 
@@ -117,7 +117,7 @@ export const ROTULO_DO_TIPO_DE_REDE: Readonly<Record<TipoDeRede, string>> = {
   independente: 'Escola independente',
 }
 
-/** A regra do endereço da escola, visível junto do campo: é a mesma do contrato (`esquemaSlugDaEscola`). */
+/** A regra do endereço da escola, visível junto do campo: é a mesma do contrato (`slugDaEscolaSchema`). */
 export const REGRA_DO_ENDERECO = 'Só letras minúsculas sem acento, números e hífen entre eles, até 63. Exemplo: colegio-horizonte.'
 
 /** A lista vazia de verdade (nenhuma escola no sistema): o vazio convida a começar pela rede (cenário W7). */
@@ -139,14 +139,14 @@ export const TEXTO_SEM_REDE = 'Crie a rede primeiro. A escola pertence a uma red
 /** O texto de uma falha da entrada por e-mail e senha, com a espera da conta segurada quando a API a informou. */
 export function textoDaFalhaDaEntrada(erro: unknown): string {
   const codigo = codigoDe(erro)
-  if (codigo === CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO) return TEXTO_DA_OPERACAO_INDISPONIVEL
+  if (codigo === ErrorCode.INDISPONIVEL_TENTE_DE_NOVO) return TEXTO_DA_OPERACAO_INDISPONIVEL
   return mensagemDaEntrada(codigo, erro instanceof ErroDaApi ? erro.esperaSegundos : undefined)
 }
 
 /** O texto de uma falha do segundo fator que deixa a pessoa na tela (formato do código, 503). */
 export function textoDaFalhaDoSegundoFator(erro: unknown): string {
   const codigo = codigoDe(erro)
-  if (codigo === CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO) return TEXTO_DA_OPERACAO_INDISPONIVEL
+  if (codigo === ErrorCode.INDISPONIVEL_TENTE_DE_NOVO) return TEXTO_DA_OPERACAO_INDISPONIVEL
   return mensagemDoSegundoFator(codigo, erro instanceof ErroDaApi ? erro.esperaSegundos : undefined)
 }
 

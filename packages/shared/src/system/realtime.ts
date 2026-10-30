@@ -8,10 +8,10 @@
  */
 
 /** Namespace do F0. As salas ao vivo do modo sala (F10) entram em namespace próprio. */
-export const NAMESPACE_REALTIME_SISTEMA = '/sistema'
+export const SYSTEM_REALTIME_NAMESPACE = '/sistema'
 
 /** Caminho HTTP do socket.io, o mesmo que a borda encaminha para as instâncias de realtime. */
-export const CAMINHO_REALTIME = '/socket.io'
+export const REALTIME_PATH = '/socket.io'
 
 /**
  * Reconexão com espalhamento aleatório. Quando uma instância cai, todos os clientes dela perdem a
@@ -21,7 +21,7 @@ export const CAMINHO_REALTIME = '/socket.io'
  * Com estes valores a primeira tentativa cai entre 0,5 s e 1,5 s, e as seguintes dobram até 10 s,
  * sempre com ±50% de sorteio.
  */
-export const RECONEXAO_REALTIME = {
+export const REALTIME_RECONNECTION = {
   reconnection: true,
   reconnectionDelay: 1_000,
   reconnectionDelayMax: 10_000,
@@ -29,12 +29,12 @@ export const RECONEXAO_REALTIME = {
 } as const
 
 /** O que o cliente manda no pacote de conexão. */
-export interface AutenticacaoRealtime {
+export interface RealtimeAuth {
   token: string
 }
 
-export interface OpcoesDoClienteRealtime {
-  path: typeof CAMINHO_REALTIME
+export interface RealtimeClientOptions {
+  path: typeof REALTIME_PATH
   reconnection: boolean
   reconnectionDelay: number
   reconnectionDelayMax: number
@@ -42,14 +42,14 @@ export interface OpcoesDoClienteRealtime {
   /** Leva o cookie de afinidade da borda, que prende o polling do socket.io a uma instância. */
   withCredentials: true
   /** Lido a cada tentativa: a reconexão usa o token vigente, não o do primeiro acesso. */
-  auth: (entregar: (dados: AutenticacaoRealtime) => void) => void
+  auth: (entregar: (dados: RealtimeAuth) => void) => void
 }
 
-/** Opções de `io(url + NAMESPACE_REALTIME_SISTEMA, opcoes)` para todo cliente do realtime. */
-export function opcoesDoClienteRealtime(obterToken: () => string): OpcoesDoClienteRealtime {
+/** Opções de `io(url + SYSTEM_REALTIME_NAMESPACE, opcoes)` para todo cliente do realtime. */
+export function realtimeClientOptions(obterToken: () => string): RealtimeClientOptions {
   return {
-    path: CAMINHO_REALTIME,
-    ...RECONEXAO_REALTIME,
+    path: REALTIME_PATH,
+    ...REALTIME_RECONNECTION,
     withCredentials: true,
     auth: (entregar) => entregar({ token: obterToken() }),
   }

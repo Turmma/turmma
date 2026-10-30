@@ -1,7 +1,7 @@
 import 'reflect-metadata'
 import { DeleteObjectCommand, DeleteObjectsCommand, PutObjectCommand, type S3Client } from '@aws-sdk/client-s3'
 import { ContadorDeUso, contextoAtual, executarNoContexto, UsoRepository, VALIDADE_DO_CONTADOR_SEGUNDOS, type UsoDoPeriodo } from '@educa/nucleo'
-import { CodigoDeFalhaDeJob, TIPO_CONSOLIDAR_USO, TIPO_EXPURGAR_ACESSO, TIPO_EXPURGAR_DADO_PESSOAL, TIPO_EXPURGAR_JOBS } from '@educa/shared'
+import { JobFailureCode, TIPO_CONSOLIDAR_USO, TIPO_EXPURGAR_ACESSO, TIPO_EXPURGAR_DADO_PESSOAL, TIPO_EXPURGAR_JOBS } from '@educa/shared'
 import { Queue } from 'bullmq'
 import { randomUUID } from 'node:crypto'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, onTestFinished } from 'vitest'
@@ -424,7 +424,7 @@ describe('uso por escola: contagem, consolidação e bytes', () => {
       )
 
       expect(falha).toBeInstanceOf(FalhaDeJob)
-      expect(falha).toMatchObject({ codigo: CodigoDeFalhaDeJob.ERRO_INTERNO, definitiva: false })
+      expect(falha).toMatchObject({ codigo: JobFailureCode.ERRO_INTERNO, definitiva: false })
       // Cada uma foi pulada e contada como antes, e nada foi gravado nem apagado.
       expect(avisosDas([orfaA, orfaB, orfaC]).filter(({ origem }) => origem === 'storage')).toEqual([
         { escolaId: orfaA, origem: 'storage', causa: 'escola_inexistente' },

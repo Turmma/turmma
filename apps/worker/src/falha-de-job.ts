@@ -1,4 +1,4 @@
-import type { CodigoDeFalhaDeJob } from '@educa/shared'
+import type { JobFailureCode } from '@educa/shared'
 
 /**
  * Falha prevista de um processador, com código tipado. `definitiva` pula as tentativas que
@@ -8,7 +8,7 @@ import type { CodigoDeFalhaDeJob } from '@educa/shared'
  */
 export class FalhaDeJob extends Error {
   constructor(
-    readonly codigo: CodigoDeFalhaDeJob,
+    readonly codigo: JobFailureCode,
     readonly definitiva = false,
   ) {
     super(codigo)

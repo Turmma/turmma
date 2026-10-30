@@ -1,21 +1,21 @@
 import { ErroDeDominio, exigirAnoEmCurso, RegistroDeAuditoria, sessaoDaRequisicao, type Banco } from '@educa/nucleo'
 import {
   alcanceDe,
-  CodigoDeErro,
-  ErroDeInvariante,
-  esquemaRespostaAlunosDaTurma,
-  esquemaRespostaListaDeTurmas,
-  esquemaRespostaTurma,
-  esquemaRespostaTurmaAberta,
-  type ConsultaAlunosDaTurma,
-  type ConsultaPaginada,
-  type ConsultaTurma,
-  type PedidoCriarTurma,
-  type PedidoRenomearTurma,
-  type RespostaAlunosDaTurma,
-  type RespostaListaDeTurmas,
-  type RespostaTurma,
-  type RespostaTurmaAberta,
+  ErrorCode,
+  InvariantException,
+  alunosDaTurmaResponseSchema,
+  listaDeTurmasResponseSchema,
+  turmaResponseSchema,
+  turmaAbertaResponseSchema,
+  type AlunosDaTurmaQuery,
+  type PaginationQuery,
+  type TurmaQuery,
+  type CriarTurmaRequest,
+  type RenomearTurmaRequest,
+  type AlunosDaTurmaResponse,
+  type ListaDeTurmasResponse,
+  type TurmaResponse,
+  type TurmaAbertaResponse,
 } from '@educa/shared'
 import { paginar, paginarPor } from '../../http/paginacao.js'
 import { SerieRepository } from '../serie/serie.repository.js'
@@ -32,7 +32,7 @@ function alcanceDaTurma(recurso: 'turma' | 'aluno_da_turma'): AlcanceDaTurma {
   const alcance = alcanceDe(sessaoDaRequisicao().papel, recurso, 'ler')
   if (alcance === 'unidade' || alcance === 'nominal_auditado') return 'unidade'
   if (alcance === 'turma_vinculada') return 'turma_vinculada'
-  throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
+  throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
 }
 
 /**
@@ -47,33 +47,33 @@ function alcanceDaTurma(recurso: 'turma' | 'aluno_da_turma'): AlcanceDaTurma {
 export class TurmaService {
   constructor(private readonly banco: Banco) {}
 
-  async criar(pedido: PedidoCriarTurma): Promise<RespostaTurma> {
+  async criar(pedido: CriarTurmaRequest): Promise<TurmaResponse> {
     const anoEmCurso = exigirAnoEmCurso()
-    if (pedido.anoLetivoId !== undefined && pedido.anoLetivoId.toLowerCase() !== anoEmCurso) throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
+    if (pedido.anoLetivoId !== undefined && pedido.anoLetivoId.toLowerCase() !== anoEmCurso) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
     const criada = await this.banco.transaction(async (tx) => {
       const turmas = new TurmaRepository(tx)
-      if (!(await turmas.travarAnoEmCurso())) throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
+      if (!(await turmas.travarAnoEmCurso())) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
       const serie = await new SerieRepository(tx).porId(pedido.serieId.toLowerCase())
-      if (serie === undefined) throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
+      if (serie === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
       return { ...(await turmas.criar({ serieId: serie.id, nome: pedido.nome, turno: pedido.turno ?? null })), serie }
     })
-    return esquemaRespostaTurma.parse(criada)
+    return turmaResponseSchema.parse(criada)
   }
 
   /**
    * `PATCH /v1/turmas/:id` (A1, RF3): a coordenação troca o nome da turma do ano em curso. Turma de outro ano, de outra
    * escola ou inexistente: `NAO_ENCONTRADO`, e nada muda. O nome de outra turma do mesmo ano: `CONFLITO`, sem o valor.
    */
-  async renomear(id: string, pedido: PedidoRenomearTurma): Promise<RespostaTurma> {
+  async renomear(id: string, pedido: RenomearTurmaRequest): Promise<TurmaResponse> {
     const renomeada = await this.banco.transaction(async (tx) => {
       const gravada = await new TurmaRepository(tx).renomear(id, pedido.nome)
-      if (gravada === undefined) throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
+      if (gravada === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
       const { serieId, ...turma } = gravada
       const serie = await new SerieRepository(tx).porId(serieId)
-      if (serie === undefined) throw new ErroDeInvariante('série da turma não encontrada')
+      if (serie === undefined) throw new InvariantException('série da turma não encontrada')
       return { ...turma, serie }
     })
-    return esquemaRespostaTurma.parse(renomeada)
+    return turmaResponseSchema.parse(renomeada)
   }
 
   /**
@@ -87,14 +87,14 @@ export class TurmaService {
   async excluir(id: string): Promise<void> {
     await this.banco.transaction(async (tx) => {
       const turmas = new TurmaRepository(tx)
-      if (!(await turmas.travarContraOGerar(id, 'update'))) throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
-      if (!(await turmas.excluir(id))) throw new ErroDeDominio(CodigoDeErro.CONFLITO)
+      if (!(await turmas.travarContraOGerar(id, 'update'))) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+      if (!(await turmas.excluir(id))) throw new ErroDeDominio(ErrorCode.CONFLITO)
     })
   }
 
-  async listar(consulta: ConsultaPaginada): Promise<RespostaListaDeTurmas> {
+  async listar(consulta: PaginationQuery): Promise<ListaDeTurmasResponse> {
     const linhas = await new TurmaRepository(this.banco).listar(consulta)
-    return esquemaRespostaListaDeTurmas.parse(paginar(linhas, consulta.limite))
+    return listaDeTurmasResponseSchema.parse(paginar(linhas, consulta.limite))
   }
 
   /**
@@ -106,10 +106,10 @@ export class TurmaService {
    * vínculo; o professor, só a turma em que o vínculo chegou confirmado ao fim do ano (nem `desligamento`, nem
    * `realocacao`, nem outra turma do mesmo ano). O ano em curso, de outra escola ou inexistente: o mesmo 404.
    */
-  async abrir(id: string, { anoLetivoId }: ConsultaTurma): Promise<RespostaTurmaAberta> {
+  async abrir(id: string, { anoLetivoId }: TurmaQuery): Promise<TurmaAbertaResponse> {
     const aberta = await new TurmaRepository(this.banco).aberta(id, alcanceDaTurma('turma'), anoLetivoId?.toLowerCase())
-    if (aberta === undefined) throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
-    return esquemaRespostaTurmaAberta.parse(aberta)
+    if (aberta === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+    return turmaAbertaResponseSchema.parse(aberta)
   }
 
   /**
@@ -123,21 +123,21 @@ export class TurmaService {
    * Com `?anoLetivoId`, as mesmas condições de `abrir` para o ano encerrado, e a mesma finalidade e auditoria para a
    * coordenação.
    */
-  async alunos(id: string, consulta: ConsultaAlunosDaTurma): Promise<RespostaAlunosDaTurma> {
+  async alunos(id: string, consulta: AlunosDaTurmaQuery): Promise<AlunosDaTurmaResponse> {
     const nominalAuditado = alcanceDe(sessaoDaRequisicao().papel, 'aluno_da_turma', 'ler') === 'nominal_auditado'
     const { finalidade } = consulta
-    if (nominalAuditado && finalidade === undefined) throw new ErroDeDominio(CodigoDeErro.ENTRADA_INVALIDA)
+    if (nominalAuditado && finalidade === undefined) throw new ErroDeDominio(ErrorCode.ENTRADA_INVALIDA)
     const alcance = alcanceDaTurma('aluno_da_turma')
     const anoEncerrado = consulta.anoLetivoId?.toLowerCase()
     const pagina = await this.banco.transaction(async (tx) => {
       const turmas = new TurmaRepository(tx)
-      if ((await turmas.aberta(id, alcance, anoEncerrado)) === undefined) throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
+      if ((await turmas.aberta(id, alcance, anoEncerrado)) === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
       const cortada = paginarPor(await turmas.alunos(id, consulta, anoEncerrado), consulta.limite, (aluno) => aluno.usuarioId)
       if (nominalAuditado && finalidade !== undefined) {
         await registro.gravar(tx, 'turma.alunos_lidos', { entidadeId: id, depois: { quantidade: cortada.itens.length }, finalidade })
       }
       return cortada
     })
-    return esquemaRespostaAlunosDaTurma.parse(pagina)
+    return alunosDaTurmaResponseSchema.parse(pagina)
   }
 }

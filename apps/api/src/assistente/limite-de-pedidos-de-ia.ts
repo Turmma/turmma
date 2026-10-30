@@ -1,5 +1,5 @@
 import { ErroDeDominio, limiteDoSeguro, segundosParaTentarDeNovo, sessaoDaRequisicao, type LoggerBase } from '@educa/nucleo'
-import { CodigoDeErro } from '@educa/shared'
+import { ErrorCode } from '@educa/shared'
 import { Logger } from '@nestjs/common'
 import type { ContadorEmJanela } from '../credencial/index.js'
 
@@ -63,7 +63,7 @@ export class LimiteDePedidosDeIa {
     if (valor <= efetivo) return
     // Só o primeiro acima do teto na janela: a soma é atômica, e nenhum outro pedido lê este mesmo valor.
     if (valor === efetivo + 1) logger.warn({ evento: 'ia.limite_de_pedidos_atingido', tipo, escolaId, usuarioId })
-    throw new ErroDeDominio(CodigoDeErro.LIMITE_EXCEDIDO, undefined, segundosParaTentarDeNovo(await janela.restanteMs(chave)))
+    throw new ErroDeDominio(ErrorCode.LIMITE_EXCEDIDO, undefined, segundosParaTentarDeNovo(await janela.restanteMs(chave)))
   }
 
   /** As chaves dos contadores (o teste também as usa): o prefixo e o HMAC do identificador, nunca ele em texto. */

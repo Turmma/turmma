@@ -1,4 +1,4 @@
-import { esquemaRespostaAtividadeAplicada, esquemaRespostaAtividadeEncerrada, esquemaRespostaListaDeAtividadesAplicadas, esquemaRespostaMinhasAtividades, esquemaRespostaProva, esquemaRespostaQuestaoSalva } from '@educa/shared'
+import { atividadeAplicadaResponseSchema, atividadeEncerradaResponseSchema, listaDeAtividadesAplicadasResponseSchema, minhasAtividadesResponseSchema, provaResponseSchema, questaoSalvaResponseSchema } from '@educa/shared'
 import { PASTA_MIGRACOES } from '@educa/nucleo'
 import { randomUUID } from 'node:crypto'
 import { readFileSync } from 'node:fs'
@@ -69,7 +69,7 @@ describe('atividade aplicada', () => {
       const artefatoId = await criarAtividade(bancada, a)
       const resposta = await rotas.aplicar(a.professora, { artefatoId, turmaId: a.turma, avaliativa: true })
       expect(resposta.status).toBe(201)
-      const criada = esquemaRespostaAtividadeAplicada.parse(resposta.corpo)
+      const criada = atividadeAplicadaResponseSchema.parse(resposta.corpo)
       expect(criada).toMatchObject({ artefatoId, turmaId: a.turma, avaliativa: true, estado: 'aberta', questoes: 5, encerradaEm: null, entrega: null, participacao: { alunos: 2, iniciaram: 0, enviaram: 0 } })
 
       expect(await sql('select aplicada_por, estado from atividade_aplicada where id = $1', [criada.id])).toEqual([{ aplicada_por: a.professora.usuarioId, estado: 'aberta' }])
@@ -107,7 +107,7 @@ describe('atividade aplicada', () => {
       expect(resposta.status).toBe(201)
       expect(await sql(`select depois -> 'versaoAdaptada' as adaptada from auditoria where acao = 'atividade.aplicada' and entidade_id = $1`, [resposta.corpo['id']])).toEqual([{ adaptada: true }])
       // A prova da versão adaptada diz só os tipos da adaptação, que valem para a turma: nada sobre aluno (D35).
-      const prova = esquemaRespostaProva.parse((await rotas.prova(a.aluno, resposta.corpo['id'] as string)).corpo)
+      const prova = provaResponseSchema.parse((await rotas.prova(a.aluno, resposta.corpo['id'] as string)).corpo)
       expect(prova.adaptacao).toEqual({ tipos: ['fonte_ampliada'] })
     })
 
@@ -124,10 +124,10 @@ describe('atividade aplicada', () => {
       const c = await montarEscolaComAssistente(api, bancada)
       const ids: string[] = []
       for (let i = 0; i < 3; i++) ids.push(await aplicarAtividade(rotas, c.professora, await criarAtividade(bancada, c), c.turma))
-      const primeira = esquemaRespostaListaDeAtividadesAplicadas.parse((await rotas.listar(c.professora, `?turmaId=${c.turma}&limite=2`)).corpo)
+      const primeira = listaDeAtividadesAplicadasResponseSchema.parse((await rotas.listar(c.professora, `?turmaId=${c.turma}&limite=2`)).corpo)
       expect(primeira.itens.map((item) => item.id)).toEqual([ids[2], ids[1]])
       expect(primeira.proxima).toBe(ids[1])
-      const segunda = esquemaRespostaListaDeAtividadesAplicadas.parse((await rotas.listar(c.professora, `?turmaId=${c.turma}&limite=2&pagina=${String(primeira.proxima)}`)).corpo)
+      const segunda = listaDeAtividadesAplicadasResponseSchema.parse((await rotas.listar(c.professora, `?turmaId=${c.turma}&limite=2&pagina=${String(primeira.proxima)}`)).corpo)
       expect(segunda).toEqual({ itens: [expect.objectContaining({ id: ids[0] })] })
       expect(erro(await rotas.listar(c.professora, ''))).toEqual({ status: 400, codigo: 'ENTRADA_INVALIDA' })
       expect(erro(await rotas.listar(c.professora, `?turmaId=${c.turma}&limite=101`))).toEqual({ status: 400, codigo: 'ENTRADA_INVALIDA' })
@@ -139,7 +139,7 @@ describe('atividade aplicada', () => {
       const id = await aplicada()
       const resposta = await rotas.prova(a.aluno, id)
       expect(resposta.status).toBe(200)
-      const prova = esquemaRespostaProva.parse(resposta.corpo)
+      const prova = provaResponseSchema.parse(resposta.corpo)
       expect(prova).toMatchObject({ atividadeAplicadaId: id, estado: 'aberta', adaptacao: null, respostas: [], enviadaEm: null })
       expect(prova.questoes).toHaveLength(5)
       for (const questao of prova.questoes) expect(Object.keys(questao).sort()).toEqual(['alternativas', 'enunciado', 'numero'])
@@ -157,13 +157,13 @@ describe('atividade aplicada', () => {
     it('a lista do aluno acompanha a situação (para fazer, em andamento, enviada) e nunca diz como ele foi', async () => {
       const c = await montarEscolaComAssistente(api, bancada)
       const id = await aplicarAtividade(rotas, c.professora, await criarAtividade(bancada, c), c.turma, true)
-      const lista = async () => esquemaRespostaMinhasAtividades.parse((await rotas.minhas(c.aluno)).corpo)
+      const lista = async () => minhasAtividadesResponseSchema.parse((await rotas.minhas(c.aluno)).corpo)
       expect((await lista()).itens).toEqual([expect.objectContaining({ id, situacao: 'para_fazer', avaliativa: true, questoes: 5, respondidas: 0, enviadaEm: null, disciplina: { id: c.quimica, nome: 'Química' } })])
       await responderProva(rotas, c.aluno, id, [0, 1, null, null, null], false)
       expect((await lista()).itens).toEqual([expect.objectContaining({ situacao: 'em_andamento', respondidas: 2, enviadaEm: null })])
       await rotas.enviar(c.aluno, id)
       const enviada = await rotas.minhas(c.aluno)
-      expect(esquemaRespostaMinhasAtividades.parse(enviada.corpo).itens).toEqual([expect.objectContaining({ situacao: 'enviada', respondidas: 2 })])
+      expect(minhasAtividadesResponseSchema.parse(enviada.corpo).itens).toEqual([expect.objectContaining({ situacao: 'enviada', respondidas: 2 })])
       for (const proibido of ['acertos', 'gabarito', 'correta', 'explicacao', 'destaque', 'media']) expect(JSON.stringify(enviada.corpo)).not.toContain(proibido)
     })
 
@@ -182,7 +182,7 @@ describe('atividade aplicada', () => {
       expect(await respostasDe(id, a.aluno.usuarioId)).toEqual([{ questao: 2, alternativa: 3 }])
       // A prova reaberta devolve o que ficou salvo, para o aluno continuar de onde parou.
       // (cliente antigo, sem `sequencia`: cada um dos 2 + 5 envios subiu a escala em 1)
-      expect(esquemaRespostaProva.parse((await rotas.prova(a.aluno, id)).corpo).respostas).toEqual([{ questao: 2, alternativa: 3, sequencia: 7 }])
+      expect(provaResponseSchema.parse((await rotas.prova(a.aluno, id)).corpo).respostas).toEqual([{ questao: 2, alternativa: 3, sequencia: 7 }])
     })
 
     // 51.1, caracterização: o que o cliente antigo (sem `sequencia`) faz tem de continuar valendo depois da 51.0.
@@ -208,7 +208,7 @@ describe('atividade aplicada', () => {
       beforeAll(async () => {
         alunos = await alunosComSessao(bancada, a, a.turma, Array.from({ length: 11 }, (_, i) => `Aluno sintético da sequência ${String(i + 1)}`))
       })
-      const dessaForma = (resposta: RespostaHttp) => esquemaRespostaQuestaoSalva.parse(resposta.corpo)
+      const dessaForma = (resposta: RespostaHttp) => questaoSalvaResponseSchema.parse(resposta.corpo)
 
       it('5 e 7 ao mesmo tempo, nas duas ordens, deixam a 7: vinte repetições, e a prova reaberta devolve a alternativa e a sequência gravadas', async () => {
         const aluno = alunos[0] as SessaoDeTeste
@@ -221,7 +221,7 @@ describe('atividade aplicada', () => {
           expect(respostas.map((resposta) => resposta.status), `repetição ${String(repeticao)}`).toEqual([200, 200])
           expect(await gravadasDe(id, aluno.usuarioId), `repetição ${String(repeticao)}`).toMatchObject([{ questao: 1, alternativa: 2, sequencia: base + 7 }])
         }
-        expect(esquemaRespostaProva.parse((await rotas.prova(aluno, id)).corpo).respostas).toEqual([{ questao: 1, alternativa: 2, sequencia: 197 }])
+        expect(provaResponseSchema.parse((await rotas.prova(aluno, id)).corpo).respostas).toEqual([{ questao: 1, alternativa: 2, sequencia: 197 }])
       })
 
       it('a 5 que chega depois da 7 responde 200 com a 7 gravada (alternativa e sequência), e nada muda no banco', async () => {
@@ -357,7 +357,7 @@ describe('atividade aplicada', () => {
            select escola_id, ano_letivo_id, atividade_aplicada_id, aluno_id, 5, 2 from tentativa_atividade where atividade_aplicada_id = $1 and aluno_id = $2`,
           [id, aluno.usuarioId],
         )
-        expect(esquemaRespostaProva.parse((await rotas.prova(aluno, id)).corpo).respostas).toEqual([{ questao: 5, alternativa: 2, sequencia: 0 }])
+        expect(provaResponseSchema.parse((await rotas.prova(aluno, id)).corpo).respostas).toEqual([{ questao: 5, alternativa: 2, sequencia: 0 }])
         expect(dessaForma(await rotas.responder(aluno, id, 5, 3))).toMatchObject({ alternativa: 3, sequencia: 1 })
       })
     })
@@ -429,17 +429,17 @@ describe('atividade aplicada', () => {
 
       // A colega que faltou abre a atividade já encerrada: vê as questões, sem gabarito, e não ganha tentativa.
       const prova = await rotas.prova(bia, id)
-      expect(esquemaRespostaProva.parse(prova.corpo)).toMatchObject({ estado: 'encerrada', respostas: [], enviadaEm: null })
+      expect(provaResponseSchema.parse(prova.corpo)).toMatchObject({ estado: 'encerrada', respostas: [], enviadaEm: null })
       expect(JSON.stringify(prova.corpo)).not.toContain('gabarito')
       expect(erro(await rotas.responder(bia, id, 1, 0))).toEqual({ status: 409, codigo: 'ATIVIDADE_ENCERRADA' })
       expect(await contar('tentativa_atividade', 'atividade_aplicada_id = $1 and aluno_id = $2', [id, bia.usuarioId])).toBe(0)
-      expect(esquemaRespostaMinhasAtividades.parse((await rotas.minhas(bia)).corpo).itens.find((item) => item.id === id)).toMatchObject({ situacao: 'encerrada', respondidas: 0 })
+      expect(minhasAtividadesResponseSchema.parse((await rotas.minhas(bia)).corpo).itens.find((item) => item.id === id)).toMatchObject({ situacao: 'encerrada', respondidas: 0 })
     })
 
     it('o aluno que chega à turma depois de a atividade aberta a encontra na lista e responde', async () => {
       const id = await aplicada()
       const [novato] = (await alunosComSessao(bancada, a, a.turma, ['Aluno Sintético que chegou em maio'])) as [SessaoDeTeste]
-      expect(esquemaRespostaMinhasAtividades.parse((await rotas.minhas(novato)).corpo).itens.find((item) => item.id === id)).toMatchObject({ situacao: 'para_fazer' })
+      expect(minhasAtividadesResponseSchema.parse((await rotas.minhas(novato)).corpo).itens.find((item) => item.id === id)).toMatchObject({ situacao: 'para_fazer' })
       await responderProva(rotas, novato, id, [...GABARITO_DE_TESTE])
       expect(await respostasDe(id, novato.usuarioId)).toHaveLength(5)
     })
@@ -464,7 +464,7 @@ describe('atividade aplicada', () => {
 
       const resposta = await rotas.encerrar(a.professora, id)
       expect(resposta.status).toBe(200)
-      const encerrada = esquemaRespostaAtividadeEncerrada.parse(resposta.corpo)
+      const encerrada = atividadeEncerradaResponseSchema.parse(resposta.corpo)
       const [lote] = await lotesDa(id)
       expect(lote).toEqual({ id: expect.any(String), estado: 'pendente', funcao: 'correcao_de_objetiva', tipo: 'lote_de_correcao', decidida_por: null, execucao_id: null })
       expect(encerrada.execucaoId).toBeNull()
@@ -490,13 +490,13 @@ describe('atividade aplicada', () => {
     it('encerrar duas vezes, em seguida e ao mesmo tempo, não cria segundo lote nem altera correção, e a data do encerramento fica', async () => {
       const id = await aplicada()
       await responderProva(rotas, a.aluno, id, [0, 1, 2, 3, 0])
-      const primeira = esquemaRespostaAtividadeEncerrada.parse((await rotas.encerrar(a.professora, id)).corpo)
+      const primeira = atividadeEncerradaResponseSchema.parse((await rotas.encerrar(a.professora, id)).corpo)
       const antes = await correcoesDa(id)
 
       const repetidas = await Promise.all([rotas.encerrar(a.professora, id), rotas.encerrar(a.professora, id), rotas.encerrar(a.professora, id)])
       for (const repetida of repetidas) {
         expect(repetida.status).toBe(200)
-        expect(esquemaRespostaAtividadeEncerrada.parse(repetida.corpo)).toEqual(primeira)
+        expect(atividadeEncerradaResponseSchema.parse(repetida.corpo)).toEqual(primeira)
       }
       expect(await lotesDa(id)).toHaveLength(1)
       expect(await correcoesDa(id)).toEqual(antes)
@@ -518,7 +518,7 @@ describe('atividade aplicada', () => {
       await responderProva(rotas, c.aluno, id, [0, 1, 2, 3, 0])
       await sql('insert into suspensao_de_funcao (escola_id, funcao, suspensa_por) values ($1, $2, $3)', [c.escolaId, 'correcao_de_objetiva', c.coordenacao.usuarioId])
 
-      const suspensa = esquemaRespostaAtividadeEncerrada.parse((await rotas.encerrar(c.professora, id)).corpo)
+      const suspensa = atividadeEncerradaResponseSchema.parse((await rotas.encerrar(c.professora, id)).corpo)
       expect(suspensa).toMatchObject({ execucaoId: null, atividade: { estado: 'encerrada', entrega: null } })
       expect(await lotesDa(id)).toEqual([])
       expect(await correcoesDa(id)).toEqual([])
@@ -529,7 +529,7 @@ describe('atividade aplicada', () => {
       expect(await lotesDa(id)).toEqual([])
 
       await sql('update suspensao_de_funcao set retomada_em = now(), retomada_por = $2 where escola_id = $1', [c.escolaId, c.coordenacao.usuarioId])
-      const retomada = esquemaRespostaAtividadeEncerrada.parse((await rotas.encerrar(c.professora, id)).corpo)
+      const retomada = atividadeEncerradaResponseSchema.parse((await rotas.encerrar(c.professora, id)).corpo)
       expect(retomada.atividade.entrega).toMatchObject({ estado: 'pendente' })
       expect(retomada.atividade.encerradaEm).toBe(suspensa.atividade.encerradaEm)
       expect(await correcoesDa(id)).toEqual([expect.objectContaining({ aluno_id: c.aluno.usuarioId, acertos: 5, total: 5 })])
@@ -570,7 +570,7 @@ describe('atividade aplicada', () => {
 
     it('se ninguém abriu a atividade, ela encerra sem lote: faltar não é ficar em branco', async () => {
       const id = await aplicada()
-      const encerrada = esquemaRespostaAtividadeEncerrada.parse((await rotas.encerrar(a.professora, id)).corpo)
+      const encerrada = atividadeEncerradaResponseSchema.parse((await rotas.encerrar(a.professora, id)).corpo)
       expect(encerrada.atividade).toMatchObject({ estado: 'encerrada', entrega: null, participacao: { iniciaram: 0, enviaram: 0 } })
       expect(await lotesDa(id)).toEqual([])
     })
@@ -594,7 +594,7 @@ describe('atividade aplicada', () => {
       const id = await aplicarAtividade(rotas, c.professora, await criarAtividade(bancada, c), c.turma)
       await responderProva(rotas, c.aluno, id, [0, 1, 2, 3, 0])
       const entregaId = (await encerrarAtividade(rotas, c.professora, id)) as string
-      expect(esquemaRespostaMinhasAtividades.parse((await rotas.minhas(c.aluno)).corpo).itens).toHaveLength(1)
+      expect(minhasAtividadesResponseSchema.parse((await rotas.minhas(c.aluno)).corpo).itens).toHaveLength(1)
       await rotas.correcao(c.professora, id)
 
       // O ano vira: 2026 encerra e 2027 entra em curso. Os vínculos de 2026 ficam como estavam, de propósito: quem
@@ -602,7 +602,7 @@ describe('atividade aplicada', () => {
       await sql(`update ano_letivo set situacao = 'encerrado' where escola_id = $1 and id = $2`, [c.escolaId, c.anoLetivoId])
       await sql(`insert into ano_letivo (escola_id, ano, inicio, fim, situacao) values ($1, 2027, '2027-02-01', '2027-12-15', 'em_curso')`, [c.escolaId])
 
-      expect(esquemaRespostaMinhasAtividades.parse((await rotas.minhas(c.aluno)).corpo).itens).toEqual([])
+      expect(minhasAtividadesResponseSchema.parse((await rotas.minhas(c.aluno)).corpo).itens).toEqual([])
       const inexistente = randomUUID()
       for (const [chamada, doInexistente] of [
         [await rotas.prova(c.aluno, id), await rotas.prova(c.aluno, inexistente)],

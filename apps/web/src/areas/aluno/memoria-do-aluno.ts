@@ -1,4 +1,4 @@
-import type { RespostaExecucaoAceita } from '@educa/shared'
+import type { ExecucaoAceitaResponse } from '@educa/shared'
 import type { CicloDeExecucao } from '../../api/ciclo-de-execucao'
 import { criarLugarNaAba } from '../../api/memoria-da-aba'
 import { enviarMensagemAoTutor } from '../../api/tutor'
@@ -11,6 +11,6 @@ import type { PedidoAoTutor } from './tutor'
  */
 export const CICLO_DO_TUTOR = criarLugarNaAba<CicloDeExecucao<PedidoAoTutor>>()
 
-export function enviarPerguntaAoTutor(pedido: PedidoAoTutor, chaveEnvio: string): Promise<RespostaExecucaoAceita> {
+export function enviarPerguntaAoTutor(pedido: PedidoAoTutor, chaveEnvio: string): Promise<ExecucaoAceitaResponse> {
   return enviarMensagemAoTutor({ ...pedido, chaveEnvio })
 }

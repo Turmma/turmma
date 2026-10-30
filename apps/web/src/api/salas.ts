@@ -1,4 +1,4 @@
-import { esquemaRespostaReivindicacao, esquemaRespostaSalaAberta, type PedidoAbrirSala, type PedidoReivindicarSala, type RespostaReivindicacao, type RespostaSalaAberta } from '@educa/shared'
+import { reivindicacaoResponseSchema, salaAbertaResponseSchema, type AbrirSalaRequest, type ReivindicarSalaRequest, type ReivindicacaoResponse, type SalaAbertaResponse } from '@educa/shared'
 import { chamarApi } from './cliente'
 
 /**
@@ -11,14 +11,14 @@ import { chamarApi } from './cliente'
  */
 
 /** `POST /v1/salas/abrir`: o nome da turma e os nomes livres da lista. Acesso que não vale responde `NAO_ENCONTRADO`. */
-export function abrirSala(pedido: PedidoAbrirSala): Promise<RespostaSalaAberta> {
-  return chamarApi('/v1/salas/abrir', esquemaRespostaSalaAberta, { metodo: 'POST', corpo: pedido })
+export function abrirSala(pedido: AbrirSalaRequest): Promise<SalaAbertaResponse> {
+  return chamarApi('/v1/salas/abrir', salaAbertaResponseSchema, { metodo: 'POST', corpo: pedido })
 }
 
 /**
  * `POST /v1/salas/reivindicar`: o pedido do nome, que espera a decisão do professor. O mesmo `chaveEnvio` reenviado
  * responde `enviado` sem pedido novo; a recusa é `REIVINDICACAO_RECUSADA`.
  */
-export function reivindicarNome(pedido: PedidoReivindicarSala): Promise<RespostaReivindicacao> {
-  return chamarApi('/v1/salas/reivindicar', esquemaRespostaReivindicacao, { metodo: 'POST', corpo: pedido })
+export function reivindicarNome(pedido: ReivindicarSalaRequest): Promise<ReivindicacaoResponse> {
+  return chamarApi('/v1/salas/reivindicar', reivindicacaoResponseSchema, { metodo: 'POST', corpo: pedido })
 }

@@ -1,5 +1,5 @@
 import { Compartilhamento, diaDeUso, executarNoContexto } from '@educa/nucleo'
-import type { LinhaDoCompartilhamento, PedidoDoTitular, RespostaPreviaDoTitular } from '@educa/shared'
+import type { CompartilhamentoRow, PedidoDoTitular, PreviaDoTitularResponse } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it, onTestFinished } from 'vitest'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.js'
@@ -154,10 +154,10 @@ describe('compartilhamento do titular (F3, tarefa 12.0): o pedido guarda por qua
     return { noPost, noDetalhe: detalhe.corpo as unknown as PedidoDoTitular }
   }
 
-  const previa = async (sessao: SessaoDeTeste, titularId: string): Promise<RespostaPreviaDoTitular> => {
+  const previa = async (sessao: SessaoDeTeste, titularId: string): Promise<PreviaDoTitularResponse> => {
     const resposta = await pedir(sessao, 'GET', `/v1/privacidade/titulares/${titularId}/previa`)
     expect(resposta.status).toBe(200)
-    return resposta.corpo as unknown as RespostaPreviaDoTitular
+    return resposta.corpo as unknown as PreviaDoTitularResponse
   }
 
   /**
@@ -165,7 +165,7 @@ describe('compartilhamento do titular (F3, tarefa 12.0): o pedido guarda por qua
    * `suboperador`, e o de `alcance = 'todas'` atende toda escola: o conjunto positivo é o das chaves do teste, e a
    * proibição (nenhuma linha de rastro, nenhuma empresa de IA) vale para a foto inteira.
    */
-  const chavesDe = (foto: readonly LinhaDoCompartilhamento[], origem: 'rastro' | 'periodo', doTeste: ReadonlySet<string>): string[] =>
+  const chavesDe = (foto: readonly CompartilhamentoRow[], origem: 'rastro' | 'periodo', doTeste: ReadonlySet<string>): string[] =>
     foto
       .filter((linha) => linha.origem === origem && doTeste.has(linha.chave))
       .map((linha) => `${linha.chave}:${String(linha.suboperadorId)}`)

@@ -1,8 +1,8 @@
 import { z } from 'zod'
-import { esquemaHabilidade } from '../assistente/conteudo.js'
-import { esquemaSerie } from '../estrutura/serie.js'
-import { esquemaAcertoPorHabilidade } from '../atividade/prova.js'
-import { esquemaChaveEnvio } from '../time/chave-envio.js'
+import { habilidadeSchema } from '../assistente/conteudo.js'
+import { serieSchema } from '../estrutura/serie.js'
+import { acertoPorHabilidadeSchema } from '../atividade/prova.js'
+import { idempotencyKeySchema } from '../time/idempotency-key.js'
 import type { TipoDeSinal, TipoDeSinalDeTrabalho } from '../tutor/sinal.js'
 
 /**
@@ -51,34 +51,34 @@ const percentual = z.number().min(0).max(100)
  * **O schema recusa o recorte com menos de dois professores** (D45): o de um professor só é o resultado dele, e só abre
  * pela leitura nominal, com auditoria.
  */
-export const esquemaRecorteDoAnalista = z.strictObject({
-  serie: esquemaSerie,
+export const recorteDoAnalistaSchema = z.strictObject({
+  serie: serieSchema,
   disciplina: z.strictObject({ id: z.uuid(), nome: z.string().min(1) }),
   professores: z.number().int().min(GRUPO_MINIMO_DE_PROFESSORES),
   alunos: z.number().int().nonnegative(),
   lotesAprovados: z.number().int().nonnegative(),
   acertoPercentual: percentual,
-  porHabilidade: z.array(esquemaAcertoPorHabilidade).max(60),
+  porHabilidade: z.array(acertoPorHabilidadeSchema).max(60),
 })
-export type RecorteDoAnalista = z.infer<typeof esquemaRecorteDoAnalista>
+export type RecorteDoAnalista = z.infer<typeof recorteDoAnalistaSchema>
 
 /** O recorte que ficou de fora do agregado pelo grupo mínimo: só diz qual é, **sem número nenhum**. */
-export const esquemaRecorteNominal = z.strictObject({
-  serie: esquemaSerie,
+export const recorteNominalSchema = z.strictObject({
+  serie: serieSchema,
   disciplina: z.strictObject({ id: z.uuid(), nome: z.string().min(1) }),
 })
 
 /** Um alerta: o tipo, o recorte, a habilidade (quando é sobre uma), o valor medido, a referência e as hipóteses. */
-export const esquemaAlertaDoAnalista = z.strictObject({
+export const alertaDoAnalistaSchema = z.strictObject({
   tipo: z.enum(TIPOS_DE_ALERTA_DO_ANALISTA),
-  serie: esquemaSerie,
+  serie: serieSchema,
   disciplina: z.strictObject({ id: z.uuid(), nome: z.string().min(1) }),
-  habilidade: esquemaHabilidade.nullable(),
+  habilidade: habilidadeSchema.nullable(),
   valor: z.number().nonnegative(),
   referencia: z.number().nonnegative(),
   hipoteses: z.array(z.enum(HIPOTESES_DO_ANALISTA)).min(1).max(3),
 })
-export type AlertaDoAnalista = z.infer<typeof esquemaAlertaDoAnalista>
+export type AlertaDoAnalista = z.infer<typeof alertaDoAnalistaSchema>
 
 /** Os sinais do Tutor somados na escola, por tipo. `atencao_humana` entra só como contagem da escola inteira. */
 const contagem = z.number().int().nonnegative()
@@ -91,7 +91,7 @@ const sinaisDeTrabalhoSomados = z.strictObject({ travou: contagem, resposta_pron
  * O conteúdo do resumo (`resumo_do_analista.conteudo`): o período, os números da escola, os recortes com grupo mínimo,
  * os recortes que ficaram de fora e os alertas. É validado na saída do modelo e de novo antes de gravar (regra 30, item 7).
  */
-export const esquemaConteudoDoResumoDoAnalista = z.strictObject({
+export const conteudoDoResumoDoAnalistaSchema = z.strictObject({
   periodo: z.strictObject({ inicio: z.iso.date(), fim: z.iso.date() }),
   escola: z.strictObject({
     atividadesAplicadas: z.number().int().nonnegative(),
@@ -101,21 +101,21 @@ export const esquemaConteudoDoResumoDoAnalista = z.strictObject({
     trocasComOTutor: z.number().int().nonnegative(),
     sinais: sinaisSomados,
   }),
-  recortes: z.array(esquemaRecorteDoAnalista).max(100),
-  recortesNominais: z.array(esquemaRecorteNominal).max(100),
-  alertas: z.array(esquemaAlertaDoAnalista).max(20),
+  recortes: z.array(recorteDoAnalistaSchema).max(100),
+  recortesNominais: z.array(recorteNominalSchema).max(100),
+  alertas: z.array(alertaDoAnalistaSchema).max(20),
 })
-export type ConteudoDoResumoDoAnalista = z.infer<typeof esquemaConteudoDoResumoDoAnalista>
+export type ConteudoDoResumoDoAnalista = z.infer<typeof conteudoDoResumoDoAnalistaSchema>
 
 /** Resposta de `GET /v1/analista/resumo`: o resumo mais recente da escola no ano em curso, ou `null` se nenhum foi gerado. */
-export const esquemaRespostaResumoDoAnalista = z.strictObject({
-  resumo: z.strictObject({ id: z.uuid(), geradoEm: z.iso.datetime(), conteudo: esquemaConteudoDoResumoDoAnalista }).nullable(),
+export const resumoDoAnalistaResponseSchema = z.strictObject({
+  resumo: z.strictObject({ id: z.uuid(), geradoEm: z.iso.datetime(), conteudo: conteudoDoResumoDoAnalistaSchema }).nullable(),
 })
-export type RespostaResumoDoAnalista = z.infer<typeof esquemaRespostaResumoDoAnalista>
+export type ResumoDoAnalistaResponse = z.infer<typeof resumoDoAnalistaResponseSchema>
 
 /** Corpo de `POST /v1/analista/gerar`: só a chave do envio. Responde 202 com a execução; o resultado traz o `resumoId`. */
-export const esquemaPedidoGerarResumoDoAnalista = z.strictObject({ chaveEnvio: esquemaChaveEnvio })
-export type PedidoGerarResumoDoAnalista = z.infer<typeof esquemaPedidoGerarResumoDoAnalista>
+export const gerarResumoDoAnalistaRequestSchema = z.strictObject({ chaveEnvio: idempotencyKeySchema })
+export type GerarResumoDoAnalistaRequest = z.infer<typeof gerarResumoDoAnalistaRequestSchema>
 
 /**
  * Por que a coordenação abre o dado nominal (regra 20, item 10; D45): código fixo, nunca texto livre, que fica na
@@ -136,8 +136,8 @@ export const NOME_DA_FINALIDADE_NOMINAL: Readonly<Record<FinalidadeDaLeituraNomi
  * Consulta de `GET /v1/analista/nominal`: a turma e a finalidade, as duas obrigatórias. Sem finalidade é
  * `ENTRADA_INVALIDA` antes de procurar a turma, e toda leitura grava `analista.nominal_lido` na auditoria.
  */
-export const esquemaConsultaAnalistaNominal = z.strictObject({ turmaId: z.uuid(), finalidade: z.enum(FINALIDADES_DA_LEITURA_NOMINAL) })
-export type ConsultaAnalistaNominal = z.infer<typeof esquemaConsultaAnalistaNominal>
+export const analistaNominalQuerySchema = z.strictObject({ turmaId: z.uuid(), finalidade: z.enum(FINALIDADES_DA_LEITURA_NOMINAL) })
+export type AnalistaNominalQuery = z.infer<typeof analistaNominalQuerySchema>
 
 /**
  * Resposta de `GET /v1/analista/nominal`: o detalhe de **uma turma**, que identifica os professores dela. Traz os
@@ -151,11 +151,11 @@ export type ConsultaAnalistaNominal = z.infer<typeof esquemaConsultaAnalistaNomi
  *   que ele faz da ferramenta, e adoção nominal por professor não existe (D64; regra 70, item 9);
  * - ordenação e comparação entre professores (D45).
  */
-export const esquemaRespostaAnalistaNominal = z.strictObject({
-  turma: z.strictObject({ id: z.uuid(), nome: z.string().min(1), serie: esquemaSerie }),
+export const analistaNominalResponseSchema = z.strictObject({
+  turma: z.strictObject({ id: z.uuid(), nome: z.string().min(1), serie: serieSchema }),
   professores: z.array(z.strictObject({ id: z.uuid(), nome: z.string().min(1), disciplina: z.strictObject({ id: z.uuid(), nome: z.string().min(1) }) })).max(40),
   lotesAprovados: z.number().int().nonnegative(),
-  porHabilidade: z.array(esquemaAcertoPorHabilidade).max(60),
+  porHabilidade: z.array(acertoPorHabilidadeSchema).max(60),
   sinais: sinaisDeTrabalhoSomados,
 })
-export type RespostaAnalistaNominal = z.infer<typeof esquemaRespostaAnalistaNominal>
+export type AnalistaNominalResponse = z.infer<typeof analistaNominalResponseSchema>

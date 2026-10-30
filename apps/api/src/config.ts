@@ -14,7 +14,7 @@ import {
   type ConfiguracaoLimite,
   type ConfiguracaoTelemetria,
 } from '@educa/nucleo'
-import { esquemaAviso, MAXIMO_DE_AVISOS, type Aviso } from '@educa/shared'
+import { avisoSchema, MAXIMO_DE_AVISOS, type Aviso } from '@educa/shared'
 import { z } from 'zod'
 import { lerConfiguracaoDoArmazem, type ConfiguracaoDoArmazemDaApi } from './privacidade/configuracao-do-armazem.js'
 import { lerConfiguracaoSala, type ConfiguracaoSala } from './sala/configuracao-da-sala.js'
@@ -40,7 +40,7 @@ const avisosEmJson = z
       return z.NEVER
     }
   })
-  .pipe(z.array(esquemaAviso).max(MAXIMO_DE_AVISOS))
+  .pipe(z.array(avisoSchema).max(MAXIMO_DE_AVISOS))
 
 export const MOTIVO_ROTAS_SINTETICAS_EM_PRODUCAO =
   'ROTAS_SINTETICAS=true é proibido com AMBIENTE=producao: rota de teste não existe em produção'

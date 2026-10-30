@@ -1,4 +1,4 @@
-import { CodigoDeErro, MENSAGENS_DE_ERRO } from '@educa/shared'
+import { ErrorCode, MENSAGENS_DE_ERRO } from '@educa/shared'
 import { createHash, createHmac, randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
@@ -17,9 +17,9 @@ import { BancadaDeSessoes, type SessaoDeTeste } from './sessao-de-teste.js'
  * Postgres real do compose de teste.
  */
 
-const NAO_ENCONTRADO = { status: 404, corpo: { erro: { codigo: CodigoDeErro.NAO_ENCONTRADO, mensagem: MENSAGENS_DE_ERRO.NAO_ENCONTRADO } } }
-const CONFLITO = { status: 409, corpo: { erro: { codigo: CodigoDeErro.CONFLITO, mensagem: MENSAGENS_DE_ERRO.CONFLITO } } }
-const ENTRADA_INVALIDA = { status: 400, corpo: { erro: { codigo: CodigoDeErro.ENTRADA_INVALIDA, mensagem: MENSAGENS_DE_ERRO.ENTRADA_INVALIDA } } }
+const NAO_ENCONTRADO = { status: 404, corpo: { erro: { codigo: ErrorCode.NAO_ENCONTRADO, mensagem: MENSAGENS_DE_ERRO.NAO_ENCONTRADO } } }
+const CONFLITO = { status: 409, corpo: { erro: { codigo: ErrorCode.CONFLITO, mensagem: MENSAGENS_DE_ERRO.CONFLITO } } }
+const ENTRADA_INVALIDA = { status: 400, corpo: { erro: { codigo: ErrorCode.ENTRADA_INVALIDA, mensagem: MENSAGENS_DE_ERRO.ENTRADA_INVALIDA } } }
 
 const UM_DIA_MS = 86_400_000
 
@@ -595,7 +595,7 @@ describe('acesso da turma (A1, tarefa 4.0): gerar, revogar e ler o link e o cód
         body: JSON.stringify({ validadeDias: 7 }),
       })
       expect(resposta.status).toBe(503)
-      expect(((await resposta.json()) as { erro: { codigo: string } }).erro.codigo).toBe(CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO)
+      expect(((await resposta.json()) as { erro: { codigo: string } }).erro.codigo).toBe(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO)
       expect(Number(resposta.headers.get('retry-after'))).toBeGreaterThan(0)
       expect(filaDeCodigos).toEqual([])
       expect(await acessosDa(e, e.turma)).toEqual(antes)

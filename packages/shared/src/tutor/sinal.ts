@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { esquemaConsultaPaginada } from '../estrutura/paginacao.js'
+import { paginationQuerySchema } from '../estrutura/pagination.js'
 
 /**
  * Os sinais do Tutor para o professor da turma (MVP, A4; glossário, "Sinal"; D34, D36, D57): `GET /v1/sinais?turmaId=`.
@@ -53,15 +53,15 @@ const referenciaAoTrabalho = {
  * conversa, sem a atividade, a questão ou a página**, e qualquer campo a mais é recusado pelo schema. O professor fica
  * sabendo que precisa procurar o aluno, e não o que ele escreveu.
  */
-export const esquemaSinal = z.discriminatedUnion('tipo', [
+export const sinalSchema = z.discriminatedUnion('tipo', [
   z.strictObject({ id: z.uuid(), tipo: z.enum(TIPOS_DE_SINAL_DE_TRABALHO), aluno, ...referenciaAoTrabalho, criadoEm: z.iso.datetime() }),
   z.strictObject({ id: z.uuid(), tipo: z.literal('atencao_humana'), aluno, criadoEm: z.iso.datetime() }),
 ])
-export type Sinal = z.infer<typeof esquemaSinal>
+export type Sinal = z.infer<typeof sinalSchema>
 
 /** Consulta de `GET /v1/sinais`: a turma (obrigatória, com vínculo confirmado do professor) e a página. */
-export const esquemaConsultaSinais = esquemaConsultaPaginada.extend({ turmaId: z.uuid() }).strict()
-export type ConsultaSinais = z.infer<typeof esquemaConsultaSinais>
+export const sinaisQuerySchema = paginationQuerySchema.extend({ turmaId: z.uuid() }).strict()
+export type SinaisQuery = z.infer<typeof sinaisQuerySchema>
 
 export const MAXIMO_DE_GRUPOS_DE_SINAL = 50
 
@@ -69,21 +69,21 @@ export const MAXIMO_DE_GRUPOS_DE_SINAL = 50
  * O agrupado que "Seu time" mostra ("oito travaram na questão 3"): por tipo, atividade e questão, quantos alunos
  * diferentes. Só os sinais de trabalho entram: `atencao_humana` nunca é somado nem agrupado.
  */
-export const esquemaGrupoDeSinais = z.strictObject({
+export const grupoDeSinaisSchema = z.strictObject({
   tipo: z.enum(TIPOS_DE_SINAL_DE_TRABALHO),
   atividadeAplicadaId: z.uuid().nullable(),
   questao: z.number().int().min(1).nullable(),
   alunos: z.number().int().min(1),
 })
-export type GrupoDeSinais = z.infer<typeof esquemaGrupoDeSinais>
+export type GrupoDeSinais = z.infer<typeof grupoDeSinaisSchema>
 
 /**
  * Resposta de `GET /v1/sinais`: os sinais da turma, do mais novo para o mais antigo (`proxima` quando há mais), e o
  * agrupado dos últimos sete dias. Nenhuma conversa de aluno vem junto.
  */
-export const esquemaRespostaSinais = z.strictObject({
-  itens: z.array(esquemaSinal),
+export const sinaisResponseSchema = z.strictObject({
+  itens: z.array(sinalSchema),
   proxima: z.uuid().optional(),
-  grupos: z.array(esquemaGrupoDeSinais).max(MAXIMO_DE_GRUPOS_DE_SINAL),
+  grupos: z.array(grupoDeSinaisSchema).max(MAXIMO_DE_GRUPOS_DE_SINAL),
 })
-export type RespostaSinais = z.infer<typeof esquemaRespostaSinais>
+export type SinaisResponse = z.infer<typeof sinaisResponseSchema>

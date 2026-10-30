@@ -1,4 +1,4 @@
-import { esquemaAdaptacaoAplicada, esquemaConteudoDeAtividade, type ConteudoDeAtividade, type QuestaoObjetiva, type TipoDeAdaptacao } from '@educa/shared'
+import { adaptacaoAplicadaSchema, conteudoDeAtividadeSchema, type ConteudoDeAtividade, type QuestaoObjetiva, type TipoDeAdaptacao } from '@educa/shared'
 import { z } from 'zod'
 import { PROMPT_ADAPTAR_ATIVIDADE } from '../prompts/adaptar-atividade.js'
 import { dadoEmJson } from '../material.js'
@@ -12,8 +12,8 @@ import { capitalizar, cortar } from '../texto.js'
 export const esquemaEntradaDeAdaptacao = z
   .strictObject({
     /** A atividade original, ainda sem adaptação. */
-    conteudo: esquemaConteudoDeAtividade,
-    adaptacao: esquemaAdaptacaoAplicada,
+    conteudo: conteudoDeAtividadeSchema,
+    adaptacao: adaptacaoAplicadaSchema,
   })
   .superRefine((entrada, contexto) => {
     if (entrada.conteudo.adaptacao !== undefined) {
@@ -65,7 +65,7 @@ export const adaptarAtividade = definirTarefa({
   funcao: 'adaptacao',
   perfil: 'padrao',
   esquemaDeEntrada: esquemaEntradaDeAdaptacao,
-  esquemaDeSaida: esquemaConteudoDeAtividade,
+  esquemaDeSaida: conteudoDeAtividadeSchema,
   prompt: PROMPT_ADAPTAR_ATIVIDADE,
   maximoDeTokensDeSaida: 6000,
   levaTextoLivreDePessoa: false,

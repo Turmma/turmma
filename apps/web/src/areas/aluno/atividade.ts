@@ -1,4 +1,4 @@
-import { CodigoDeErro, type RespostaMeuDiagnostico, type RespostaProva } from '@educa/shared'
+import { ErrorCode, type MeuDiagnosticoResponse, type ProvaResponse } from '@educa/shared'
 import { ErroDaApi } from '../../api/cliente'
 import { formatarQuantidade } from '../../formatar'
 import { pendenteDaQuestao, type EstadoDaFila } from './respostas'
@@ -17,14 +17,14 @@ import { pendenteDaQuestao, type EstadoDaFila } from './respostas'
 
 export type FaseDaAtividade = 'respondendo' | 'enviada' | 'encerrada'
 
-export function faseDaAtividade(prova: Pick<RespostaProva, 'estado' | 'enviadaEm'>): FaseDaAtividade {
+export function faseDaAtividade(prova: Pick<ProvaResponse, 'estado' | 'enviadaEm'>): FaseDaAtividade {
   if (prova.enviadaEm !== null) return 'enviada'
   return prova.estado === 'encerrada' ? 'encerrada' : 'respondendo'
 }
 
 /** O que a leitura do diagnóstico trouxe, no mínimo que a regra precisa (é o formato de uma consulta do TanStack Query). */
 export interface LeituraDoDiagnostico {
-  readonly data: RespostaMeuDiagnostico | undefined
+  readonly data: MeuDiagnosticoResponse | undefined
   readonly error: unknown
 }
 
@@ -35,12 +35,12 @@ export type ResultadoNaTela =
   /** A correção ainda não foi aprovada (pendente, rejeitada ou nem corrigida): a tela não diz nada do que ela achou. */
   | { readonly tipo: 'aguardando' }
   | { readonly tipo: 'erro'; readonly erro: unknown }
-  | { readonly tipo: 'pronto'; readonly diagnostico: RespostaMeuDiagnostico }
+  | { readonly tipo: 'pronto'; readonly diagnostico: MeuDiagnosticoResponse }
 
 export function resultadoNaTela(fase: FaseDaAtividade, leitura: LeituraDoDiagnostico): ResultadoNaTela {
   // Com a atividade ainda sendo respondida não há o que mostrar, mesmo que uma leitura antiga tenha ficado no cache.
   if (fase === 'respondendo') return { tipo: 'nenhum' }
-  if (leitura.error instanceof ErroDaApi && leitura.error.codigo === CodigoDeErro.NAO_ENCONTRADO) return { tipo: 'aguardando' }
+  if (leitura.error instanceof ErroDaApi && leitura.error.codigo === ErrorCode.NAO_ENCONTRADO) return { tipo: 'aguardando' }
   if (leitura.data !== undefined) return { tipo: 'pronto', diagnostico: leitura.data }
   if (leitura.error !== null && leitura.error !== undefined) return { tipo: 'erro', erro: leitura.error }
   return { tipo: 'carregando' }
@@ -64,7 +64,7 @@ export const ROTULO_DE_VOLTAR_AS_TAREFAS = 'Voltar às tarefas'
  * - sem o resultado na tela: a comemoração nunca divide a tela com acerto, mesmo que a correção seja aprovada enquanto
  *   o aluno ainda está nela.
  */
-export function comemoracaoNaTela(entregueAgora: boolean, prova: Pick<RespostaProva, 'enviadaEm'>, resultado: ResultadoNaTela): boolean {
+export function comemoracaoNaTela(entregueAgora: boolean, prova: Pick<ProvaResponse, 'enviadaEm'>, resultado: ResultadoNaTela): boolean {
   return entregueAgora && prova.enviadaEm !== null && resultado.tipo !== 'pronto'
 }
 
@@ -85,7 +85,7 @@ export function letraDaAlternativa(indice: number): string {
 export type MarcaDaQuestao = 'sem_resposta' | 'salvando' | 'salva' | 'nao_salva'
 
 /** As respostas que o servidor confirmou, pelo número da questão. */
-export function respostasSalvas(prova: Pick<RespostaProva, 'respostas'>): ReadonlyMap<number, number> {
+export function respostasSalvas(prova: Pick<ProvaResponse, 'respostas'>): ReadonlyMap<number, number> {
   return new Map(prova.respostas.map((resposta) => [resposta.questao, resposta.alternativa]))
 }
 
@@ -134,7 +134,7 @@ export interface ContagemDasRespostas {
   readonly naoSalvas: number
 }
 
-export function contarRespostas(prova: Pick<RespostaProva, 'questoes' | 'respostas'>, fila: EstadoDaFila): ContagemDasRespostas {
+export function contarRespostas(prova: Pick<ProvaResponse, 'questoes' | 'respostas'>, fila: EstadoDaFila): ContagemDasRespostas {
   const salvas = respostasSalvas(prova)
   const respondidas = prova.questoes.filter((questao) => alternativaMarcada(questao.numero, salvas, fila) !== undefined).length
   return { questoes: prova.questoes.length, respondidas, emBranco: prova.questoes.length - respondidas, naoSalvas: fila.pendentes.length }

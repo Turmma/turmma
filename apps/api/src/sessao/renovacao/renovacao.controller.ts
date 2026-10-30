@@ -1,5 +1,5 @@
 import { ipDaRequisicao, ProxiesConfiaveis, RotaAnonima } from '@educa/nucleo'
-import { esquemaRespostaRenovacao, type RespostaRenovacao } from '@educa/shared'
+import { renovacaoResponseSchema, type RenovacaoResponse } from '@educa/shared'
 import { Controller, Header, HttpCode, HttpStatus, Post, Req, Res } from '@nestjs/common'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { RenovacaoRecusada, RenovacaoService } from './renovacao.service.js'
@@ -19,14 +19,14 @@ export class RenovacaoController {
   @Post('renovar')
   @HttpCode(HttpStatus.OK)
   @Header('Cache-Control', 'no-store')
-  async renovar(@Req() requisicao: IncomingMessage, @Res({ passthrough: true }) resposta: ServerResponse): Promise<RespostaRenovacao> {
+  async renovar(@Req() requisicao: IncomingMessage, @Res({ passthrough: true }) resposta: ServerResponse): Promise<RenovacaoResponse> {
     try {
       const { resposta: corpo, cookies } = await this.renovacao.renovar({
         ip: await ipDaRequisicao(requisicao, this.proxies),
         cabecalhoCookie: requisicao.headers.cookie,
       })
       resposta.setHeader('Set-Cookie', [...cookies])
-      return esquemaRespostaRenovacao.parse(corpo)
+      return renovacaoResponseSchema.parse(corpo)
     } catch (erro) {
       // O cookie que não vale mais sai do navegador junto com o 401.
       if (erro instanceof RenovacaoRecusada) resposta.setHeader('Set-Cookie', [...erro.cookies])

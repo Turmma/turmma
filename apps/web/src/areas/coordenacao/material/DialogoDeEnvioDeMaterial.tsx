@@ -1,4 +1,4 @@
-import { CodigoDeErro, TAMANHO_MAXIMO_DO_LICENCIANTE, TAMANHO_MAXIMO_TITULO_DO_MATERIAL, type Disciplina, type Material, type MotivoDaRecusaDoMaterial } from '@educa/shared'
+import { ErrorCode, TAMANHO_MAXIMO_DO_LICENCIANTE, TAMANHO_MAXIMO_TITULO_DO_MATERIAL, type Disciplina, type Material, type MotivoDaRecusaDoMaterial } from '@educa/shared'
 import { FileText, Upload } from 'lucide-react'
 import { useEffect, useId, useRef, useState, type DragEvent, type FormEvent } from 'react'
 import { ErroDaApi } from '../../../api/cliente'
@@ -117,13 +117,13 @@ export function DialogoDeEnvioDeMaterial({ disciplinas, inicial, substitui, aoEn
       aoEnviar(substitui)
     },
     onError: (erro, envio) => {
-      if (erro instanceof ErroDaApi && erro.codigo === CodigoDeErro.MATERIAL_SEM_LICENCA) {
+      if (erro instanceof ErroDaApi && erro.codigo === ErrorCode.MATERIAL_SEM_LICENCA) {
         const motivo = motivoDaRecusa(envio.campos) ?? 'sem_licenca'
         aoRecusar(envio.campos, motivo)
         definirFalha(`Envio recusado. ${TEXTO_DA_RECUSA[motivo]}`)
       } else {
         definirFalha(textoDaFalha(erro, TEXTOS_DA_FALHA_DO_ENVIO))
-        if (listaMudou(erro, [CodigoDeErro.CONFLITO])) void recarregar()
+        if (listaMudou(erro, [ErrorCode.CONFLITO])) void recarregar()
       }
     },
   })

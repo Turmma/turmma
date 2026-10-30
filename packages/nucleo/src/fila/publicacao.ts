@@ -1,4 +1,4 @@
-import { DEFINICOES_DE_JOB, type ExecutorDeJob, type RegistroDeJobs } from '@educa/shared'
+import { JOB_DEFINITIONS, type JobExecutor, type JobRegistry } from '@educa/shared'
 import { z } from 'zod'
 
 /** Quanto tempo o BullMQ guarda o job terminado. É o que ainda deduplica um reenvio com o mesmo `jobId`. */
@@ -16,14 +16,14 @@ export interface OpcoesDeJobPublicado {
 const OPCOES_DO_TIPO_DESCONHECIDO: OpcoesDeJobPublicado = { attempts: 5, backoff: { type: 'exponential', delay: 2_000, jitter: 0.5 } }
 
 /**
- * As opções de retentativa de um tipo, lidas da definição dele (`DEFINICOES_DE_JOB`): as tentativas e o recuo exponencial. O
+ * As opções de retentativa de um tipo, lidas da definição dele (`JOB_DEFINITIONS`): as tentativas e o recuo exponencial. O
  * `jobId` é o id de `job_registro`, e é ele que torna o reenvio inofensivo (o despachante o acrescenta).
  *
  * Tipo que o registro não conhece (uma linha de uma versão antiga) segue com a retentativa de antes do registro, cinco
  * tentativas e recuo de 2 s: o worker o termina na primeira com `TIPO_DESCONHECIDO`, definitivo, e a publicação não pode
  * falhar por causa dele.
  */
-export function opcoesDeJob(tipo: string, definicoes: RegistroDeJobs = DEFINICOES_DE_JOB): OpcoesDeJobPublicado {
+export function opcoesDeJob(tipo: string, definicoes: JobRegistry = JOB_DEFINITIONS): OpcoesDeJobPublicado {
   const definicao = definicoes[tipo]
   if (definicao === undefined) return OPCOES_DO_TIPO_DESCONHECIDO
   const { tentativas, recuoMs, jitter } = definicao.retentativa
@@ -31,7 +31,7 @@ export function opcoesDeJob(tipo: string, definicoes: RegistroDeJobs = DEFINICOE
 }
 
 /** Quem executa o tipo, e portanto de que fila do BullMQ ele sai. O tipo desconhecido vai ao worker, que o recusa. */
-export function executorDoJob(tipo: string, definicoes: RegistroDeJobs = DEFINICOES_DE_JOB): ExecutorDeJob {
+export function executorDoJob(tipo: string, definicoes: JobRegistry = JOB_DEFINITIONS): JobExecutor {
   return definicoes[tipo]?.executor ?? 'worker'
 }
 

@@ -1,6 +1,6 @@
 import 'reflect-metadata'
 import { criarLogger, EmissorDeToken } from '@educa/nucleo'
-import { CodigoDeErro, type PapelDeUsuario } from '@educa/shared'
+import { ErrorCode, type PapelDeUsuario } from '@educa/shared'
 import type { INestApplication } from '@nestjs/common'
 import { NestFactory } from '@nestjs/core'
 import type { Redis } from 'ioredis'
@@ -215,7 +215,7 @@ describe('POST /v1/sessao/escola e /v1/eu.acessos: quem trabalha em mais de uma 
 
   function esperarNaoEncontrado(resposta: Resposta): void {
     expect(resposta.status).toBe(404)
-    expect(resposta.corpo.erro?.codigo).toBe(CodigoDeErro.NAO_ENCONTRADO)
+    expect(resposta.corpo.erro?.codigo).toBe(ErrorCode.NAO_ENCONTRADO)
     expect(resposta.setCookie).toEqual([])
   }
 
@@ -319,7 +319,7 @@ describe('POST /v1/sessao/escola e /v1/eu.acessos: quem trabalha em mais de uma 
 
     const depois = await obter('/v1/eu', tokenA)
     expect(depois.status).toBe(401)
-    expect(depois.corpo.erro?.codigo).toBe(CodigoDeErro.NAO_AUTENTICADO)
+    expect(depois.corpo.erro?.codigo).toBe(ErrorCode.NAO_AUTENTICADO)
     // E a sessão encerrada não troca de novo.
     expect((await escolherEscola(tokenA, professora.usuarioId)).status).toBe(401)
   })
@@ -358,7 +358,7 @@ describe('POST /v1/sessao/escola e /v1/eu.acessos: quem trabalha em mais de uma 
     for (const corpo of [{}, { usuarioId: 'nao-e-uuid' }, { usuarioId: professora.usuarioId, escolaId: b.id }]) {
       const invalido = await comCorpo(desafio, corpo)
       expect(invalido.status, JSON.stringify(corpo)).toBe(400)
-      expect(invalido.corpo.erro?.codigo, JSON.stringify(corpo)).toBe(CodigoDeErro.ENTRADA_INVALIDA)
+      expect(invalido.corpo.erro?.codigo, JSON.stringify(corpo)).toBe(ErrorCode.ENTRADA_INVALIDA)
       expect(invalido.setCookie, JSON.stringify(corpo)).toEqual([])
     }
     const certa = await escolherEscola(desafio, professora.usuarioId)
@@ -368,7 +368,7 @@ describe('POST /v1/sessao/escola e /v1/eu.acessos: quem trabalha em mais de uma 
     for (const corpo of [{}, { usuarioId: 'nao-e-uuid' }, { usuarioId: emB, escolaId: b.id }]) {
       const invalido = await comCorpo(token, corpo)
       expect(invalido.status, JSON.stringify(corpo)).toBe(400)
-      expect(invalido.corpo.erro?.codigo, JSON.stringify(corpo)).toBe(CodigoDeErro.ENTRADA_INVALIDA)
+      expect(invalido.corpo.erro?.codigo, JSON.stringify(corpo)).toBe(ErrorCode.ENTRADA_INVALIDA)
     }
     expect(await sessoesDe(b.id, emB)).toEqual([])
     expect((await obter('/v1/eu', token)).status).toBe(200)
@@ -428,7 +428,7 @@ describe('POST /v1/sessao/escola e /v1/eu.acessos: quem trabalha em mais de uma 
       for (const usuarioId of [professora.usuarioId, emB]) {
         const resposta = await escolherEscola(falso, usuarioId)
         expect(resposta.status).toBe(401)
-        expect(resposta.corpo.erro?.codigo).toBe(CodigoDeErro.NAO_AUTENTICADO)
+        expect(resposta.corpo.erro?.codigo).toBe(ErrorCode.NAO_AUTENTICADO)
         expect(resposta.setCookie).toEqual([])
       }
     }
@@ -620,7 +620,7 @@ describe('POST /v1/sessao/escola e /v1/eu.acessos: quem trabalha em mais de uma 
     await bancada.pool.query("update sessao set ultimo_uso_em = now() - interval '70 minutes' where escola_id = $1 and usuario_id = $2", [b.id, emB])
     const vencida = await obter('/v1/eu', tokenB)
     expect(vencida.status).toBe(401)
-    expect(vencida.corpo.erro?.codigo).toBe(CodigoDeErro.NAO_AUTENTICADO)
+    expect(vencida.corpo.erro?.codigo).toBe(ErrorCode.NAO_AUTENTICADO)
   })
 
   it('permissão: a sessão de matrícula do aluno e as sessões externa e de matrícula de quem é da equipe não trocam: 404, e nada é gravado', async () => {

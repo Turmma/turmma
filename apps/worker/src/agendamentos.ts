@@ -1,5 +1,5 @@
 import { executarNoContexto, type Banco, type Enfileirador, type LoggerBase } from '@educa/nucleo'
-import { TIPO_CONSOLIDAR_USO, TIPO_EXPURGAR_ACESSO, TIPO_EXPURGAR_DADO_PESSOAL, TIPO_EXPURGAR_JOBS, type TipoDeJob } from '@educa/shared'
+import { TIPO_CONSOLIDAR_USO, TIPO_EXPURGAR_ACESSO, TIPO_EXPURGAR_DADO_PESSOAL, TIPO_EXPURGAR_JOBS, type JobType } from '@educa/shared'
 import { UnrecoverableError, type Job, type Queue } from 'bullmq'
 import { randomUUID } from 'node:crypto'
 
@@ -14,7 +14,7 @@ export const FILA_DOS_AGENDAMENTOS = 'agendamentos'
 export const FUSO_DOS_AGENDAMENTOS = 'America/Sao_Paulo'
 
 /** Os tipos que a rotina noturna dispara: os do sistema, sem escola e sem dados. */
-export type TipoAgendado = Extract<TipoDeJob, `sistema.${string}`>
+export type TipoAgendado = Extract<JobType, `sistema.${string}`>
 
 export interface Agendamento {
   /** O tipo do job gravado, que é também o id do agendador no BullMQ. */

@@ -1,27 +1,27 @@
 import { IdPipe, ZodValidationPipe } from '@educa/nucleo'
 import {
-  esquemaConsultaDoPainel,
-  esquemaPedidoConviteDaCoordenacao,
-  esquemaPedidoCriarEscola,
-  esquemaPedidoCriarRede,
-  esquemaPedidoSemCorpoDeOperador,
-  type ConsultaDoPainel,
-  type PedidoConviteDaCoordenacao,
-  type PedidoCriarEscola,
-  type PedidoCriarRede,
-  type PedidoSemCorpoDeOperador,
-  type RespostaConviteDaCoordenacao,
-  type RespostaCriadoNoPainel,
-  type RespostaEscolasDoPainel,
-  type RespostaRedesDoPainel,
-  type RespostaUsoDoPainel,
+  painelQuerySchema,
+  conviteDaCoordenacaoRequestSchema,
+  criarEscolaRequestSchema,
+  criarRedeRequestSchema,
+  operadorEmptyBodyRequestSchema,
+  type PainelQuery,
+  type ConviteDaCoordenacaoRequest,
+  type CriarEscolaRequest,
+  type CriarRedeRequest,
+  type OperadorEmptyBodyRequest,
+  type ConviteDaCoordenacaoResponse,
+  type CriadoNoPainelResponse,
+  type EscolasDoPainelResponse,
+  type RedesDoPainelResponse,
+  type UsoDoPainelResponse,
 } from '@educa/shared'
 import { Body, Controller, Get, Header, HttpCode, HttpStatus, Inject, Param, Post, Query } from '@nestjs/common'
 import { RotaDeOperacao } from '../marcadores.js'
 import { PainelService } from './painel.service.js'
 
 /** Refazer e revogar não têm campo: sem corpo (o Express 5 deixa `req.body` indefinido), ou `{}`. Qualquer campo é `ENTRADA_INVALIDA`. */
-const esquemaSemCorpo = esquemaPedidoSemCorpoDeOperador.default({})
+const esquemaSemCorpo = operadorEmptyBodyRequestSchema.default({})
 
 /**
  * O painel da operação na API (Tech Spec da A0b, seção 4), as oito rotas: `GET /v1/operacao/redes`, `POST /v1/operacao/redes`,
@@ -40,35 +40,35 @@ export class PainelController {
   @Get('redes')
   @RotaDeOperacao()
   @Header('Cache-Control', 'no-store')
-  redes(): Promise<RespostaRedesDoPainel> {
+  redes(): Promise<RedesDoPainelResponse> {
     return this.painel.redes()
   }
 
   @Get('escolas')
   @RotaDeOperacao()
   @Header('Cache-Control', 'no-store')
-  escolas(@Query(new ZodValidationPipe(esquemaConsultaDoPainel)) consulta: ConsultaDoPainel): Promise<RespostaEscolasDoPainel> {
+  escolas(@Query(new ZodValidationPipe(painelQuerySchema)) consulta: PainelQuery): Promise<EscolasDoPainelResponse> {
     return this.painel.escolas(consulta)
   }
 
   @Get('uso')
   @RotaDeOperacao()
   @Header('Cache-Control', 'no-store')
-  uso(@Query(new ZodValidationPipe(esquemaConsultaDoPainel)) consulta: ConsultaDoPainel): Promise<RespostaUsoDoPainel> {
+  uso(@Query(new ZodValidationPipe(painelQuerySchema)) consulta: PainelQuery): Promise<UsoDoPainelResponse> {
     return this.painel.uso(consulta)
   }
 
   @Post('redes')
   @RotaDeOperacao()
   @Header('Cache-Control', 'no-store')
-  criarRede(@Body(new ZodValidationPipe(esquemaPedidoCriarRede)) pedido: PedidoCriarRede): Promise<RespostaCriadoNoPainel> {
+  criarRede(@Body(new ZodValidationPipe(criarRedeRequestSchema)) pedido: CriarRedeRequest): Promise<CriadoNoPainelResponse> {
     return this.painel.criarRede(pedido)
   }
 
   @Post('escolas')
   @RotaDeOperacao()
   @Header('Cache-Control', 'no-store')
-  criarEscola(@Body(new ZodValidationPipe(esquemaPedidoCriarEscola)) pedido: PedidoCriarEscola): Promise<RespostaCriadoNoPainel> {
+  criarEscola(@Body(new ZodValidationPipe(criarEscolaRequestSchema)) pedido: CriarEscolaRequest): Promise<CriadoNoPainelResponse> {
     return this.painel.criarEscola(pedido)
   }
 
@@ -77,15 +77,15 @@ export class PainelController {
   @Header('Cache-Control', 'no-store')
   gerarConvite(
     @Param('id', IdPipe) escolaId: string,
-    @Body(new ZodValidationPipe(esquemaPedidoConviteDaCoordenacao)) pedido: PedidoConviteDaCoordenacao,
-  ): Promise<RespostaConviteDaCoordenacao> {
+    @Body(new ZodValidationPipe(conviteDaCoordenacaoRequestSchema)) pedido: ConviteDaCoordenacaoRequest,
+  ): Promise<ConviteDaCoordenacaoResponse> {
     return this.painel.gerarConvite(escolaId, pedido)
   }
 
   @Post('convites/:id/refazer')
   @RotaDeOperacao()
   @Header('Cache-Control', 'no-store')
-  refazerConvite(@Param('id', IdPipe) conviteId: string, @Body(new ZodValidationPipe(esquemaSemCorpo)) _corpo: PedidoSemCorpoDeOperador): Promise<RespostaConviteDaCoordenacao> {
+  refazerConvite(@Param('id', IdPipe) conviteId: string, @Body(new ZodValidationPipe(esquemaSemCorpo)) _corpo: OperadorEmptyBodyRequest): Promise<ConviteDaCoordenacaoResponse> {
     return this.painel.refazerConvite(conviteId)
   }
 
@@ -93,7 +93,7 @@ export class PainelController {
   @RotaDeOperacao()
   @HttpCode(HttpStatus.NO_CONTENT)
   @Header('Cache-Control', 'no-store')
-  revogarConvite(@Param('id', IdPipe) conviteId: string, @Body(new ZodValidationPipe(esquemaSemCorpo)) _corpo: PedidoSemCorpoDeOperador): Promise<void> {
+  revogarConvite(@Param('id', IdPipe) conviteId: string, @Body(new ZodValidationPipe(esquemaSemCorpo)) _corpo: OperadorEmptyBodyRequest): Promise<void> {
     return this.painel.revogarConvite(conviteId)
   }
 }

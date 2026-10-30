@@ -1,23 +1,23 @@
 import { diaDeUso, ErroDeDominio, limitesDoMes, RegistroDeAuditoria, relogioDoSistema, type Banco, type Relogio } from '@educa/nucleo'
 import {
   CHAVES_DE_FUNCAO,
-  CodigoDeErro,
-  esquemaRespostaConsumo,
-  esquemaRespostaFuncaoDaGovernanca,
-  esquemaRespostaFuncoesDaGovernanca,
-  esquemaRespostaResumoDaGovernanca,
+  ErrorCode,
+  consumoResponseSchema,
+  funcaoDaGovernancaResponseSchema,
+  funcoesDaGovernancaResponseSchema,
+  resumoDaGovernancaResponseSchema,
   montarTime,
   TROCAS_POR_DIA_PADRAO_DO_TUTOR,
   TROCAS_POR_MES_PADRAO_DO_TUTOR,
   type ChaveDeFuncao,
-  type ConsultaConsumo,
-  type ConsultaResumoDaGovernanca,
+  type ConsumoQuery,
+  type ResumoDaGovernancaQuery,
   type ConsumoSomado,
   type FuncaoDaGovernanca,
-  type PedidoSuspenderFuncao,
-  type RespostaConsumo,
-  type RespostaFuncoesDaGovernanca,
-  type RespostaResumoDaGovernanca,
+  type SuspenderFuncaoRequest,
+  type ConsumoResponse,
+  type FuncoesDaGovernancaResponse,
+  type ResumoDaGovernancaResponse,
 } from '@educa/shared'
 import { paginar } from '../http/paginacao.js'
 import { GovernancaRepository, type SuspensaoLida } from './governanca.repository.js'
@@ -53,11 +53,11 @@ export class GovernancaService {
     private readonly relogio: Relogio = relogioDoSistema,
   ) {}
 
-  async resumo(consulta: ConsultaResumoDaGovernanca): Promise<RespostaResumoDaGovernanca> {
+  async resumo(consulta: ResumoDaGovernancaQuery): Promise<ResumoDaGovernancaResponse> {
     const governanca = new GovernancaRepository(this.banco)
     const numeros = await governanca.numeros()
     const { itens, proxima } = paginar(await governanca.entregas(consulta), consulta.limite)
-    return esquemaRespostaResumoDaGovernanca.parse({
+    return resumoDaGovernancaResponseSchema.parse({
       numeros,
       itens: itens.map((item) => ({
         id: item.id,
@@ -72,11 +72,11 @@ export class GovernancaService {
     })
   }
 
-  async funcoes(): Promise<RespostaFuncoesDaGovernanca> {
-    return esquemaRespostaFuncoesDaGovernanca.parse({ agentes: this.#agentes(await new GovernancaRepository(this.banco).suspensoesVigentes()) })
+  async funcoes(): Promise<FuncoesDaGovernancaResponse> {
+    return funcoesDaGovernancaResponseSchema.parse({ agentes: this.#agentes(await new GovernancaRepository(this.banco).suspensoesVigentes()) })
   }
 
-  #agentes(vigentes: readonly SuspensaoLida[]): RespostaFuncoesDaGovernanca['agentes'] {
+  #agentes(vigentes: readonly SuspensaoLida[]): FuncoesDaGovernancaResponse['agentes'] {
     const porFuncao = new Map(vigentes.map((suspensao) => [suspensao.funcao, suspensao]))
     return montarTime(new Set(porFuncao.keys())).agentes.map((agente) => ({
       ...agente,
@@ -91,11 +91,11 @@ export class GovernancaService {
     const funcao = this.#agentes(vigentes)
       .flatMap((agente) => agente.funcoes)
       .find((candidata) => candidata.chave === chave)
-    if (funcao === undefined) throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
-    return esquemaRespostaFuncaoDaGovernanca.parse(funcao)
+    if (funcao === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+    return funcaoDaGovernancaResponseSchema.parse(funcao)
   }
 
-  async suspender(chave: ChaveDeFuncao, { motivo }: PedidoSuspenderFuncao): Promise<FuncaoDaGovernanca> {
+  async suspender(chave: ChaveDeFuncao, { motivo }: SuspenderFuncaoRequest): Promise<FuncaoDaGovernanca> {
     return this.banco.transaction(async (tx) => {
       const governanca = new GovernancaRepository(tx)
       const suspensaoId = await governanca.suspender(chave, motivo ?? null)
@@ -109,7 +109,7 @@ export class GovernancaService {
     return this.banco.transaction(async (tx) => {
       const governanca = new GovernancaRepository(tx)
       const retomada = await governanca.retomar(chave)
-      if (retomada === undefined) throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
+      if (retomada === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
       await registro.gravar(tx, 'funcao.retomada', {
         entidadeId: retomada.id,
         antes: { funcao: chave, suspensaEm: retomada.suspensaEm.toISOString() },
@@ -119,7 +119,7 @@ export class GovernancaService {
     })
   }
 
-  async consumo(consulta: ConsultaConsumo): Promise<RespostaConsumo> {
+  async consumo(consulta: ConsumoQuery): Promise<ConsumoResponse> {
     const governanca = new GovernancaRepository(this.banco)
     // Sem o mês na consulta, o mês corrente, que vira no fuso do uso como o freio do Tutor.
     const mes = consulta.mes ?? diaDeUso(this.relogio.agora()).slice(0, 7)
@@ -140,7 +140,7 @@ export class GovernancaService {
     )
     const pacote = await governanca.pacoteDoTutor()
     const trocasPorMesPorAluno = pacote.porMes ?? TROCAS_POR_MES_PADRAO_DO_TUTOR
-    return esquemaRespostaConsumo.parse({
+    return consumoResponseSchema.parse({
       mes,
       total,
       porFuncao,

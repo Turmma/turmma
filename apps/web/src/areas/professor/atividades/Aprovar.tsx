@@ -1,4 +1,4 @@
-import { CodigoDeErro, type Destaque, type RespostaDestaqueAberto } from '@educa/shared'
+import { ErrorCode, type Destaque, type DestaqueAbertoResponse } from '@educa/shared'
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft } from 'lucide-react'
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
@@ -63,19 +63,19 @@ const idDoDestaque = (alunoId: string) => `destaque-${alunoId}`
  * mudou desde a leitura (a aprovação vale para o que a pessoa leu: a API confere); o indisponível é o registro que não pôde
  * ser gravado agora. Em todos, **nada foi aprovado**, e a tela relê a correção.
  */
-const AVISO_DA_DECISAO: Partial<Record<CodigoDeErro, string>> = {
-  [CodigoDeErro.ENTREGA_JA_DECIDIDA]: 'Esta correção já tinha sido decidida. A tela foi atualizada com a decisão.',
-  [CodigoDeErro.DESTAQUES_NAO_ABERTOS]: 'Ainda há destaque para abrir. A tela foi atualizada: abra o que falta e aprove de novo.',
-  [CodigoDeErro.CONFLITO]: 'A correção mudou desde que você abriu esta tela, e nada foi aprovado. Ela foi atualizada: confira de novo e aprove.',
-  [CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO]: 'Não foi possível registrar a decisão agora, e nada foi aprovado. Confira a correção e tente de novo em instantes.',
-  [CodigoDeErro.TEMPO_ESGOTADO]: 'Não foi possível registrar a decisão agora, e nada foi aprovado. Confira a correção e tente de novo em instantes.',
+const AVISO_DA_DECISAO: Partial<Record<ErrorCode, string>> = {
+  [ErrorCode.ENTREGA_JA_DECIDIDA]: 'Esta correção já tinha sido decidida. A tela foi atualizada com a decisão.',
+  [ErrorCode.DESTAQUES_NAO_ABERTOS]: 'Ainda há destaque para abrir. A tela foi atualizada: abra o que falta e aprove de novo.',
+  [ErrorCode.CONFLITO]: 'A correção mudou desde que você abriu esta tela, e nada foi aprovado. Ela foi atualizada: confira de novo e aprove.',
+  [ErrorCode.INDISPONIVEL_TENTE_DE_NOVO]: 'Não foi possível registrar a decisão agora, e nada foi aprovado. Confira a correção e tente de novo em instantes.',
+  [ErrorCode.TEMPO_ESGOTADO]: 'Não foi possível registrar a decisão agora, e nada foi aprovado. Confira a correção e tente de novo em instantes.',
 }
 
 /**
  * O que o painel ao lado mostra de um destaque aberto: por que ele foi destacado (em texto, como fato do trabalho), as
  * respostas do aluno questão a questão e o acerto dele nos lotes aprovados antes.
  */
-function DestaqueAberto({ aberto }: { aberto: RespostaDestaqueAberto }) {
+function DestaqueAberto({ aberto }: { aberto: DestaqueAbertoResponse }) {
   return (
     <div data-destaque-aberto="" className="flex min-w-0 flex-col gap-4">
       <div className="flex min-w-0 flex-col gap-1">
@@ -140,7 +140,7 @@ export default function Aprovar({ atividadeAplicadaId }: { atividadeAplicadaId: 
   const correcao = useQuery(consultaCorrecaoDoLote(atividadeAplicadaId))
   const entregas = useInfiniteQuery(consultaEntregas)
   const vinculos = useInfiniteQuery(consultaMeusVinculos)
-  const [abertos, definirAbertos] = useState<Readonly<Record<string, RespostaDestaqueAberto>>>({})
+  const [abertos, definirAbertos] = useState<Readonly<Record<string, DestaqueAbertoResponse>>>({})
   const [decisao, definirDecisao] = useState<'aprovar' | 'rejeitar' | undefined>(undefined)
   const [justificativa, definirJustificativa] = useState('')
   const [tentouRejeitar, definirTentouRejeitar] = useState(false)
@@ -199,7 +199,7 @@ export default function Aprovar({ atividadeAplicadaId }: { atividadeAplicadaId: 
   const fechar = () => definirDecisao(undefined)
   const decidir = useMutation({
     mutationFn: async (escolha: 'aprovar' | 'rejeitar') => {
-      if (dados === undefined) throw new ErroDaApi(CodigoDeErro.ERRO_INTERNO)
+      if (dados === undefined) throw new ErroDaApi(ErrorCode.ERRO_INTERNO)
       if (escolha === 'aprovar') await aprovarLote(dados.entrega.id)
       else await decidirEntrega(dados.entrega.id, { decisao: 'rejeitar', justificativa: justificativa.trim() })
     },
@@ -235,7 +235,7 @@ export default function Aprovar({ atividadeAplicadaId }: { atividadeAplicadaId: 
   )
 
   if (dados === undefined) {
-    const naoEncontrada = correcao.error instanceof ErroDaApi && correcao.error.codigo === CodigoDeErro.NAO_ENCONTRADO
+    const naoEncontrada = correcao.error instanceof ErroDaApi && correcao.error.codigo === ErrorCode.NAO_ENCONTRADO
     return (
       <Tela titulo="Revisar a correção" largura="leitura" antes={voltar}>
         {correcao.isPending ? (

@@ -1,15 +1,15 @@
 import { Permite, ZodValidationPipe } from '@educa/nucleo'
 import {
-  esquemaConsultaConversaDoTutor,
-  esquemaConsultaUsoDoTutor,
-  esquemaPedidoMensagemAoTutor,
-  type ConsultaConversaDoTutor,
-  type ConsultaUsoDoTutor,
-  type PedidoMensagemAoTutor,
-  type RespostaConversaDoTutor,
-  type RespostaExecucaoAceita,
-  type RespostaMemoriaDoTutor,
-  type RespostaUsoDoTutor,
+  conversaDoTutorQuerySchema,
+  usoDoTutorQuerySchema,
+  mensagemAoTutorRequestSchema,
+  type ConversaDoTutorQuery,
+  type UsoDoTutorQuery,
+  type MensagemAoTutorRequest,
+  type ConversaDoTutorResponse,
+  type ExecucaoAceitaResponse,
+  type MemoriaDoTutorResponse,
+  type UsoDoTutorResponse,
 } from '@educa/shared'
 import { Body, Controller, Get, Header, HttpCode, HttpStatus, Post, Query } from '@nestjs/common'
 import { SupervisaoDoTutorService } from './supervisao.service.js'
@@ -32,28 +32,28 @@ export class TutorController {
   @Post('mensagens')
   @Permite('tutor', 'enviar_mensagem')
   @HttpCode(HttpStatus.ACCEPTED)
-  enviar(@Body(new ZodValidationPipe(esquemaPedidoMensagemAoTutor)) pedido: PedidoMensagemAoTutor): Promise<RespostaExecucaoAceita> {
+  enviar(@Body(new ZodValidationPipe(mensagemAoTutorRequestSchema)) pedido: MensagemAoTutorRequest): Promise<ExecucaoAceitaResponse> {
     return this.tutor.enviar(pedido)
   }
 
   @Get('conversa')
   @Permite('tutor', 'ler_conversa')
   @Header('Cache-Control', 'no-store')
-  conversa(@Query(new ZodValidationPipe(esquemaConsultaConversaDoTutor)) consulta: ConsultaConversaDoTutor): Promise<RespostaConversaDoTutor> {
+  conversa(@Query(new ZodValidationPipe(conversaDoTutorQuerySchema)) consulta: ConversaDoTutorQuery): Promise<ConversaDoTutorResponse> {
     return this.tutor.conversa(consulta)
   }
 
   @Get('memoria')
   @Permite('tutor', 'ler_memoria')
   @Header('Cache-Control', 'no-store')
-  memoria(): Promise<RespostaMemoriaDoTutor> {
+  memoria(): Promise<MemoriaDoTutorResponse> {
     return this.tutor.memoria()
   }
 
   @Get('uso')
   @Permite('uso_do_tutor', 'ler')
   @Header('Cache-Control', 'no-store')
-  uso(@Query(new ZodValidationPipe(esquemaConsultaUsoDoTutor)) consulta: ConsultaUsoDoTutor): Promise<RespostaUsoDoTutor> {
+  uso(@Query(new ZodValidationPipe(usoDoTutorQuerySchema)) consulta: UsoDoTutorQuery): Promise<UsoDoTutorResponse> {
     return this.supervisao.uso(consulta)
   }
 }

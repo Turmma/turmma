@@ -20,7 +20,7 @@ import {
 } from '@educa/nucleo'
 import type { ConteudoDoResumoDoAnalista, Etapa, TipoDeSinal } from '@educa/shared'
 import { and, asc, count, desc, eq, isNull, ne, notExists, sql, type SQL } from 'drizzle-orm'
-import { ErroDeInvariante } from '@educa/shared'
+import { InvariantException } from '@educa/shared'
 import { anoEmCursoOuNulo } from './governanca.repository.js'
 
 /** O recorte do Analista: série × disciplina. Nunca turma, nunca professor. */
@@ -231,7 +231,7 @@ export class AnalistaRepository {
   async gravarResumo(conteudo: ConteudoDoResumoDoAnalista, execucaoId: string): Promise<string> {
     const { escolaId, anoLetivoId } = this.#escopo()
     const [criado] = await this.banco.insert(resumoDoAnalista).values({ escolaId, anoLetivoId, execucaoId, conteudo }).returning({ id: resumoDoAnalista.id })
-    if (criado === undefined) throw new ErroDeInvariante('resumo do Analista não gravado')
+    if (criado === undefined) throw new InvariantException('resumo do Analista não gravado')
     return criado.id
   }
 

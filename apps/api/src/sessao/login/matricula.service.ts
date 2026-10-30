@@ -1,5 +1,5 @@
 import { ErroDeDominio, FORMATO_SLUG, TAMANHO_MAXIMO_SLUG, type Banco, type Meter } from '@educa/nucleo'
-import { CodigoDeErro, type PedidoLoginMatricula } from '@educa/shared'
+import { ErrorCode, type LoginMatriculaRequest } from '@educa/shared'
 import type { ConclusaoDeLogin } from '../conclusao/conclusao-de-login.js'
 import type { ContadorDeTentativas } from '../../credencial/contador-de-tentativas.js'
 import type { CookieDeDispositivo } from '../../credencial/cookie-dispositivo.js'
@@ -80,11 +80,11 @@ export class LoginPorMatricula {
     this.#rebaixadasPeloIp = contadorDoRebaixamentoPorIp(dependencias.medidor)
   }
 
-  entrar(pedido: PedidoLoginMatricula, origem: OrigemDaRequisicao): Promise<ResultadoDoLogin> {
+  entrar(pedido: LoginMatriculaRequest, origem: OrigemDaRequisicao): Promise<ResultadoDoLogin> {
     return this.#duracao.medir(() => this.#entrar(pedido, origem))
   }
 
-  async #entrar(pedido: PedidoLoginMatricula, origem: OrigemDaRequisicao): Promise<ResultadoDoLogin> {
+  async #entrar(pedido: LoginMatriculaRequest, origem: OrigemDaRequisicao): Promise<ResultadoDoLogin> {
     const escolaId = await this.#escolaDoSlug(pedido.slug)
     if (escolaId === undefined) return this.#recusar(ESCOLA_DESCONHECIDA, pedido, origem)
     return naEscolaSemUsuario({ escolaId }, async () => {
@@ -111,7 +111,7 @@ export class LoginPorMatricula {
       // emitido e nenhuma sessão nasce; o registro de acesso é o de uma tentativa que não entrou.
       if (credencial.suspenso) {
         await new RegistroDeAcessoRepository(banco).gravarFalha(ipParaRegistro(origem.ip))
-        throw new ErroDeDominio(CodigoDeErro.ACESSO_SUSPENSO)
+        throw new ErroDeDominio(ErrorCode.ACESSO_SUSPENSO)
       }
       return conclusao.entrarComoAluno({ usuarioId: credencial.usuarioId, escolaId }, identificador, origem)
     })
@@ -127,7 +127,7 @@ export class LoginPorMatricula {
    * O slug que não existe: espera a vez no balde da escola desconhecida, conta no contador dela e passa pelo hash fixo,
    * como a matrícula que não existe. Sem escola, não grava `registro_acesso`: não há de quem seja o registro.
    */
-  async #recusar(escolaId: string, pedido: PedidoLoginMatricula, origem: OrigemDaRequisicao): Promise<never> {
+  async #recusar(escolaId: string, pedido: LoginMatriculaRequest, origem: OrigemDaRequisicao): Promise<never> {
     const { conferencia } = this.dependencias
     if (origem.acimaDoLimiteDoIp === true) this.#rebaixadasPeloIp.contar()
     const tentativa: TentativaDeSenha<undefined> = {

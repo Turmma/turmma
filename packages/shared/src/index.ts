@@ -1,6 +1,6 @@
-export { CodigoDeErro } from './erros/codigo-de-erro.js'
-export type { RespostaDeErro } from './erros/codigo-de-erro.js'
-export { ErroDeInvariante } from './erros/erro-de-invariante.js'
+export { ErrorCode } from './errors/error-code.js'
+export type { ErrorResponse } from './errors/error-code.js'
+export { InvariantException } from './errors/invariant.exception.js'
 export {
   avisoDoSegundoFatorConsumido,
   AVISO_DA_TROCA_RECUSADA,
@@ -16,22 +16,22 @@ export {
   mensagemDoAcessoDaEscola,
   mensagemDoConvite,
   mensagemDoSegundoFator,
-} from './erros/mensagens.js'
+} from './errors/messages.js'
 export { ALCANCES, ALCANCES_INDIVIDUAIS, alcanceDe, MATRIZ, PAPEIS, PAPEIS_DE_USUARIO, RECURSOS } from './permissao/matriz.js'
 export type { AcaoDe, Alcance, Papel, PapelDeUsuario, Recurso } from './permissao/matriz.js'
-export type { RespostaSaude } from './sistema/saude.js'
-export { esquemaRespostaContexto } from './sistema/contexto.js'
-export type { RespostaContexto } from './sistema/contexto.js'
-export type { RespostaProntidao } from './sistema/prontidao.js'
-export { AMBIENTES_DO_SISTEMA, COMPONENTES_DO_SISTEMA, esquemaRespostaEstado, SITUACOES_DE_COMPONENTE } from './sistema/estado.js'
-export type { ComponenteDoSistema, RespostaEstado } from './sistema/estado.js'
-export { esquemaAviso, esquemaRespostaAvisos, MAXIMO_DE_AVISOS } from './sistema/avisos.js'
-export type { Aviso, RespostaAvisos } from './sistema/avisos.js'
-export { CODIGOS_DE_FALHA_DE_JOB, CodigoDeFalhaDeJob, ESTADOS_DE_JOB, FILAS } from './sistema/jobs.js'
-export type { EstadoDeJob, Fila } from './sistema/jobs.js'
+export type { HealthResponse } from './system/health.js'
+export { contextResponseSchema } from './system/context.js'
+export type { ContextResponse } from './system/context.js'
+export type { ReadinessResponse } from './system/readiness.js'
+export { SYSTEM_ENVIRONMENTS, SYSTEM_COMPONENTS, systemStatusResponseSchema, COMPONENT_STATUSES } from './system/status.js'
+export type { SystemComponent, SystemStatusResponse } from './system/status.js'
+export { avisoSchema, avisosResponseSchema, MAXIMO_DE_AVISOS } from './system/avisos.js'
+export type { Aviso, AvisosResponse } from './system/avisos.js'
+export { JOB_FAILURE_CODES, JobFailureCode, JOB_STATES, QUEUE_NAMES } from './system/jobs.js'
+export type { JobState, QueueName } from './system/jobs.js'
 export {
-  DEFINICOES_DE_JOB,
-  definirJob,
+  JOB_DEFINITIONS,
+  defineJob,
   TIPO_CONSOLIDAR_USO,
   TIPO_ELIMINAR_TITULAR,
   TIPO_EXPURGAR_ACESSO,
@@ -40,98 +40,98 @@ export {
   TIPO_EXPURGAR_JOBS,
   TIPO_JOB_SINTETICO,
   TIPO_MONTAR_ARQUIVO,
-} from './sistema/definicoes-de-job.js'
+} from './system/job-definitions.js'
 export type {
-  DadosDoJob,
-  DadosLidosDoJob,
-  DefinicaoDeJob,
-  EscopoDeJob,
-  EsquemaDosDadosDoJob,
-  ExecutorDeJob,
-  OpcoesDoJob,
-  RegistroDeJobs,
-  RetentativaDeJob,
-  TipoDeJob,
-} from './sistema/definicoes-de-job.js'
+  JobData,
+  ParsedJobData,
+  JobDefinition,
+  JobScope,
+  JobDataSchema,
+  JobExecutor,
+  JobOptions,
+  JobRegistry,
+  JobRetry,
+  JobType,
+} from './system/job-definitions.js'
 export {
   CPU_MS_MAXIMO_SINTETICO,
-  esquemaDadosJobSintetico,
-  esquemaPedidoJobSintetico,
-  esquemaRespostaEstadoDeJob,
-  esquemaRespostaJobAceito,
-} from './sistema/jobs-sinteticos.js'
-export type { DadosJobSintetico, PedidoJobSintetico, RespostaEstadoDeJob, RespostaJobAceito } from './sistema/jobs-sinteticos.js'
+  syntheticJobDataSchema,
+  syntheticJobRequestSchema,
+  jobStateResponseSchema,
+  jobAcceptedResponseSchema,
+} from './system/synthetic-jobs.js'
+export type { SyntheticJobData, SyntheticJobRequest, JobStateResponse, JobAcceptedResponse } from './system/synthetic-jobs.js'
 export {
-  CAMINHO_REALTIME,
-  NAMESPACE_REALTIME_SISTEMA,
-  opcoesDoClienteRealtime,
-  RECONEXAO_REALTIME,
-} from './sistema/realtime.js'
-export type { AutenticacaoRealtime, OpcoesDoClienteRealtime } from './sistema/realtime.js'
+  REALTIME_PATH,
+  SYSTEM_REALTIME_NAMESPACE,
+  realtimeClientOptions,
+  REALTIME_RECONNECTION,
+} from './system/realtime.js'
+export type { RealtimeAuth, RealtimeClientOptions } from './system/realtime.js'
 export {
-  esquemaPedidoLoginEmail,
-  esquemaRespostaLogin,
+  loginEmailRequestSchema,
+  loginResponseSchema,
   ETAPAS_COM_DESAFIO,
   ETAPAS_DE_LOGIN,
   TAMANHO_MAXIMO_EMAIL,
   TAMANHO_MAXIMO_SENHA,
 } from './sessao/login.js'
-export type { EtapaComDesafio, EtapaDeLogin, PedidoLoginEmail, RespostaLogin } from './sessao/login.js'
+export type { EtapaComDesafio, EtapaDeLogin, LoginEmailRequest, LoginResponse } from './sessao/login.js'
 export {
-  esquemaPedidoAceitarConvite,
-  esquemaPedidoConsultarConvite,
-  esquemaRespostaAceitarConvite,
-  esquemaRespostaConsultarConvite,
+  aceitarConviteRequestSchema,
+  consultarConviteRequestSchema,
+  aceitarConviteResponseSchema,
+  consultarConviteResponseSchema,
   TAMANHO_MAXIMO_TOKEN_DE_CONVITE,
   TAMANHO_MINIMO_SENHA_NOVA,
   TIPOS_DE_CONVITE,
   VALIDADE_DO_CONVITE_HORAS,
   VALIDADE_DO_CONVITE_HORAS_POR_TIPO,
 } from './sessao/convite.js'
-export type { PedidoAceitarConvite, PedidoConsultarConvite, RespostaAceitarConvite, RespostaConsultarConvite, TipoDeConvite } from './sessao/convite.js'
-export { esquemaPedidoLoginMatricula, TAMANHO_MAXIMO_MATRICULA, TAMANHO_MAXIMO_SLUG_NO_LOGIN } from './sessao/matricula.js'
-export type { PedidoLoginMatricula } from './sessao/matricula.js'
-export { esquemaRespostaAcessoDaEscola, PROVEDORES_DE_CONTA_DA_ESCOLA } from './sessao/acesso-da-escola.js'
-export type { ProvedorDeContaDaEscola, RespostaAcessoDaEscola } from './sessao/acesso-da-escola.js'
+export type { AceitarConviteRequest, ConsultarConviteRequest, AceitarConviteResponse, ConsultarConviteResponse, TipoDeConvite } from './sessao/convite.js'
+export { loginMatriculaRequestSchema, TAMANHO_MAXIMO_MATRICULA, TAMANHO_MAXIMO_SLUG_NO_LOGIN } from './sessao/matricula.js'
+export type { LoginMatriculaRequest } from './sessao/matricula.js'
+export { acessoDaEscolaResponseSchema, PROVEDORES_DE_CONTA_DA_ESCOLA } from './sessao/acesso-da-escola.js'
+export type { ProvedorDeContaDaEscola, AcessoDaEscolaResponse } from './sessao/acesso-da-escola.js'
 export { FALHAS_DO_LOGIN_EXTERNO, PARAMETRO_DA_FALHA_DO_LOGIN_EXTERNO } from './sessao/externa.js'
 export type { FalhaDoLoginExterno } from './sessao/externa.js'
 export {
-  esquemaPedidoProvedoresDaEscola,
-  esquemaProvedorDaEscola,
-  esquemaRespostaProvedoresDaEscola,
+  provedoresDaEscolaRequestSchema,
+  provedorDaEscolaSchema,
+  provedoresDaEscolaResponseSchema,
   MAXIMO_DE_PROVEDORES_DA_ESCOLA,
   TENANT_DE_CONTA_PESSOAL_MICROSOFT,
 } from './estrutura/provedores.js'
-export type { PedidoProvedoresDaEscola, ProvedorDaEscola, RespostaProvedoresDaEscola } from './estrutura/provedores.js'
-export { esquemaAcessoDaConta, esquemaRespostaEu, esquemaRespostaIntroducao } from './sessao/eu.js'
-export type { AcessoDaConta, RespostaEu, RespostaIntroducao } from './sessao/eu.js'
-export { esquemaPedidoTrocaDeEscola } from './sessao/troca-de-escola.js'
-export type { PedidoTrocaDeEscola } from './sessao/troca-de-escola.js'
-export { esquemaRespostaRenovacao, JANELA_DE_RENOVACAO_SIMULTANEA_MS } from './sessao/renovacao.js'
-export type { RespostaRenovacao } from './sessao/renovacao.js'
-export { esquemaPedidoEscolaSessao, esquemaRespostaEscolaSessao, INATIVIDADE_MAXIMA_MIN, INATIVIDADE_MINIMA_MIN } from './sessao/escola-sessao.js'
-export type { PedidoEscolaSessao, RespostaEscolaSessao } from './sessao/escola-sessao.js'
+export type { ProvedoresDaEscolaRequest, ProvedorDaEscola, ProvedoresDaEscolaResponse } from './estrutura/provedores.js'
+export { acessoDaContaSchema, euResponseSchema, introducaoResponseSchema } from './sessao/eu.js'
+export type { AcessoDaConta, EuResponse, IntroducaoResponse } from './sessao/eu.js'
+export { trocaDeEscolaRequestSchema } from './sessao/troca-de-escola.js'
+export type { TrocaDeEscolaRequest } from './sessao/troca-de-escola.js'
+export { renovacaoResponseSchema, JANELA_DE_RENOVACAO_SIMULTANEA_MS } from './sessao/renovacao.js'
+export type { RenovacaoResponse } from './sessao/renovacao.js'
+export { escolaSessaoRequestSchema, escolaSessaoResponseSchema, INATIVIDADE_MAXIMA_MIN, INATIVIDADE_MINIMA_MIN } from './sessao/escola-sessao.js'
+export type { EscolaSessaoRequest, EscolaSessaoResponse } from './sessao/escola-sessao.js'
 export {
   ALFABETO_DO_CODIGO_DE_RECUPERACAO,
   DIGITOS_DO_CODIGO_MFA,
-  esquemaPedidoAtivarMfa,
-  esquemaPedidoMfa,
-  esquemaPedidoRedefinirMfa,
-  esquemaRespostaAtivarMfa,
-  esquemaRespostaConfigurarMfa,
+  ativarMfaRequestSchema,
+  mfaRequestSchema,
+  redefinirMfaRequestSchema,
+  ativarMfaResponseSchema,
+  configurarMfaResponseSchema,
   FINALIDADE_DA_REDEFINICAO_PELO_OPERADOR,
   FINALIDADES_DA_REDEFINICAO_DE_MFA,
   QUANTIDADE_DE_CODIGOS_DE_RECUPERACAO,
   TAMANHO_DO_CODIGO_DE_RECUPERACAO,
 } from './sessao/mfa.js'
-export type { FinalidadeDaRedefinicaoDeMfa, PedidoAtivarMfa, PedidoMfa, PedidoRedefinirMfa, RespostaAtivarMfa, RespostaConfigurarMfa } from './sessao/mfa.js'
-export { esquemaConsultaPaginada, esquemaDePagina, TAMANHO_MAXIMO_DA_PAGINA, TAMANHO_PADRAO_DA_PAGINA } from './estrutura/paginacao.js'
-export type { ConsultaPaginada } from './estrutura/paginacao.js'
+export type { FinalidadeDaRedefinicaoDeMfa, AtivarMfaRequest, MfaRequest, RedefinirMfaRequest, AtivarMfaResponse, ConfigurarMfaResponse } from './sessao/mfa.js'
+export { paginationQuerySchema, pageSchema, TAMANHO_MAXIMO_DA_PAGINA, TAMANHO_PADRAO_DA_PAGINA } from './estrutura/pagination.js'
+export type { PaginationQuery } from './estrutura/pagination.js'
 export {
-  esquemaAnoLetivo,
-  esquemaPedidoCriarAnoLetivo,
-  esquemaRespostaAnoLetivo,
-  esquemaRespostaListaDeAnosLetivos,
+  anoLetivoSchema,
+  criarAnoLetivoRequestSchema,
+  anoLetivoResponseSchema,
+  listaDeAnosLetivosResponseSchema,
   fimCaiAteOAnoSeguinte,
   fimDepoisDoInicio,
   inicioCaiNoAnoLetivo,
@@ -139,83 +139,83 @@ export {
   MENOR_ANO_LETIVO,
   SITUACOES_DO_ANO_LETIVO,
 } from './estrutura/ano-letivo.js'
-export type { AnoLetivo, PedidoCriarAnoLetivo, RespostaAnoLetivo, RespostaListaDeAnosLetivos, SituacaoDoAnoLetivo } from './estrutura/ano-letivo.js'
-export { ANOS_DA_ETAPA, esquemaPedidoCriarSerie, esquemaRespostaListaDeSeries, esquemaRespostaSerie, esquemaSerie, ETAPAS, nomeDaSerie } from './estrutura/serie.js'
-export type { Etapa, PedidoCriarSerie, RespostaListaDeSeries, RespostaSerie, Serie } from './estrutura/serie.js'
+export type { AnoLetivo, CriarAnoLetivoRequest, AnoLetivoResponse, ListaDeAnosLetivosResponse, SituacaoDoAnoLetivo } from './estrutura/ano-letivo.js'
+export { ANOS_DA_ETAPA, criarSerieRequestSchema, listaDeSeriesResponseSchema, serieResponseSchema, serieSchema, ETAPAS, nomeDaSerie } from './estrutura/serie.js'
+export type { Etapa, CriarSerieRequest, ListaDeSeriesResponse, SerieResponse, Serie } from './estrutura/serie.js'
 export {
   AREAS_DO_CONHECIMENTO,
-  esquemaDisciplina,
-  esquemaPedidoCriarDisciplina,
-  esquemaPedidoRenomearDisciplina,
-  esquemaRespostaDisciplina,
-  esquemaRespostaListaDeDisciplinas,
+  disciplinaSchema,
+  criarDisciplinaRequestSchema,
+  renomearDisciplinaRequestSchema,
+  disciplinaResponseSchema,
+  listaDeDisciplinasResponseSchema,
   TAMANHO_MAXIMO_NOME_DISCIPLINA,
 } from './estrutura/disciplina.js'
 export type {
   AreaDoConhecimento,
   Disciplina,
-  PedidoCriarDisciplina,
-  PedidoRenomearDisciplina,
-  RespostaDisciplina,
-  RespostaListaDeDisciplinas,
+  CriarDisciplinaRequest,
+  RenomearDisciplinaRequest,
+  DisciplinaResponse,
+  ListaDeDisciplinasResponse,
 } from './estrutura/disciplina.js'
 export {
-  esquemaAlunoDaTurma,
-  esquemaConsultaAlunosDaTurma,
-  esquemaConsultaTurma,
-  esquemaPedidoCriarTurma,
-  esquemaPedidoRenomearTurma,
-  esquemaRespostaAlunosDaTurma,
-  esquemaRespostaListaDeTurmas,
-  esquemaRespostaTurma,
-  esquemaRespostaTurmaAberta,
-  esquemaTurma,
+  alunoDaTurmaSchema,
+  alunosDaTurmaQuerySchema,
+  turmaQuerySchema,
+  criarTurmaRequestSchema,
+  renomearTurmaRequestSchema,
+  alunosDaTurmaResponseSchema,
+  listaDeTurmasResponseSchema,
+  turmaResponseSchema,
+  turmaAbertaResponseSchema,
+  turmaSchema,
   FINALIDADES_DA_LEITURA_DE_ALUNOS,
   TAMANHO_MAXIMO_NOME_TURMA,
   TURNOS,
 } from './estrutura/turma.js'
 export type {
   AlunoDaTurma,
-  ConsultaAlunosDaTurma,
-  ConsultaTurma,
+  AlunosDaTurmaQuery,
+  TurmaQuery,
   FinalidadeDaLeituraDeAlunos,
-  PedidoCriarTurma,
-  PedidoRenomearTurma,
-  RespostaAlunosDaTurma,
-  RespostaListaDeTurmas,
-  RespostaTurma,
-  RespostaTurmaAberta,
+  CriarTurmaRequest,
+  RenomearTurmaRequest,
+  AlunosDaTurmaResponse,
+  ListaDeTurmasResponse,
+  TurmaResponse,
+  TurmaAbertaResponse,
   Turma,
   Turno,
 } from './estrutura/turma.js'
 export {
   ERROS_DA_LINHA_DA_LISTA,
   ESTADOS_DO_NOME_DA_LISTA,
-  esquemaConsultaListaDaTurma,
-  esquemaLinhaDaPrevia,
-  esquemaMatriculaDigitada,
-  esquemaNomeDaLista,
-  esquemaPedidoNomeAvulso,
-  esquemaPedidoTextoDaLista,
-  esquemaRespostaGravacaoDaLista,
-  esquemaRespostaListaDaTurma,
-  esquemaRespostaPreviaDaLista,
+  listaDaTurmaQuerySchema,
+  linhaDaPreviaSchema,
+  matriculaDigitadaSchema,
+  nomeDaListaSchema,
+  nomeAvulsoRequestSchema,
+  textoDaListaRequestSchema,
+  gravacaoDaListaResponseSchema,
+  listaDaTurmaResponseSchema,
+  previaDaListaResponseSchema,
   MAXIMO_DE_BYTES_DA_LISTA,
   MAXIMO_DE_LINHAS_DA_LISTA,
   RESULTADOS_DA_LINHA_DA_LISTA,
 } from './estrutura/lista.js'
 export { matriculasQueParecemDocumento, pareceCpfSemPontuacao, pareceDocumento } from './estrutura/documento-na-matricula.js'
 export type {
-  ConsultaListaDaTurma,
+  ListaDaTurmaQuery,
   ErroDaLinhaDaLista,
   EstadoDoNomeDaLista,
-  LinhaDaPrevia,
+  PreviaRow,
   NomeDaLista,
-  PedidoNomeAvulso,
-  PedidoTextoDaLista,
-  RespostaGravacaoDaLista,
-  RespostaListaDaTurma,
-  RespostaPreviaDaLista,
+  NomeAvulsoRequest,
+  TextoDaListaRequest,
+  GravacaoDaListaResponse,
+  ListaDaTurmaResponse,
+  PreviaDaListaResponse,
   ResultadoDaLinhaDaLista,
 } from './estrutura/lista.js'
 export {
@@ -224,16 +224,16 @@ export {
   EFEITO_DA_CONTESTACAO,
   ESTADOS_DE_VINCULO,
   ESTADOS_EM_DECISAO,
-  esquemaConsultaVinculos,
-  esquemaPedidoContestarVinculo,
-  esquemaPedidoCriarVinculo,
-  esquemaPedidoEncerrarVinculo,
-  esquemaRespostaListaDeVinculos,
-  esquemaRespostaMeusVinculos,
-  esquemaRespostaVinculo,
-  esquemaRespostaVinculoDaCoordenacao,
-  esquemaVinculo,
-  esquemaVinculoDaCoordenacao,
+  vinculosQuerySchema,
+  contestarVinculoRequestSchema,
+  criarVinculoRequestSchema,
+  encerrarVinculoRequestSchema,
+  listaDeVinculosResponseSchema,
+  meusVinculosResponseSchema,
+  vinculoResponseSchema,
+  vinculoDaCoordenacaoResponseSchema,
+  vinculoSchema,
+  vinculoDaCoordenacaoSchema,
   MOTIVOS_DE_ENCERRAMENTO_DE_VINCULO,
   MOTIVOS_DE_ENCERRAMENTO_PELA_COORDENACAO,
   NOME_DA_CONTESTACAO,
@@ -243,40 +243,40 @@ export {
   TAMANHO_MAXIMO_DO_COMPLEMENTO,
 } from './estrutura/vinculo.js'
 export type {
-  ConsultaVinculos,
+  VinculosQuery,
   ContestacaoDeVinculo,
   EstadoDeVinculo,
   MotivoDeEncerramentoDeVinculo,
   PapelDeVinculo,
-  PedidoContestarVinculo,
-  PedidoCriarVinculo,
-  PedidoEncerrarVinculo,
-  RespostaListaDeVinculos,
-  RespostaMeusVinculos,
-  RespostaVinculo,
-  RespostaVinculoDaCoordenacao,
+  ContestarVinculoRequest,
+  CriarVinculoRequest,
+  EncerrarVinculoRequest,
+  ListaDeVinculosResponse,
+  MeusVinculosResponse,
+  VinculoResponse,
+  VinculoDaCoordenacaoResponse,
   Vinculo,
   VinculoDaCoordenacao,
 } from './estrutura/vinculo.js'
-export { esquemaRespostaEuDoOperador, FORMATO_OPERADOR } from './operacao/eu.js'
+export { euDoOperadorResponseSchema, FORMATO_OPERADOR } from './operacao/eu.js'
 export {
-  esquemaEmailConvidado,
-  esquemaIdDoPedido,
-  esquemaNomeDigitado,
-  esquemaPedidoConviteDaCoordenacao,
-  esquemaPedidoCriarEscola,
-  esquemaPedidoCriarRede,
-  esquemaRedeDoPainel,
-  esquemaRespostaConviteDaCoordenacao,
-  esquemaRespostaCriadoNoPainel,
-  esquemaRespostaEscolasDoPainel,
-  esquemaRespostaRedesDoPainel,
-  esquemaRespostaUsoDoPainel,
-  esquemaSlugDaEscola,
-  esquemaConsultaDoPainel,
-  esquemaEscolaDoPainel,
-  esquemaUsoDaEscolaDoPainel,
-  esquemaUsoDoPeriodoDoPainel,
+  emailConvidadoSchema,
+  idDoPedidoSchema,
+  nomeDigitadoSchema,
+  conviteDaCoordenacaoRequestSchema,
+  criarEscolaRequestSchema,
+  criarRedeRequestSchema,
+  redeDoPainelSchema,
+  conviteDaCoordenacaoResponseSchema,
+  criadoNoPainelResponseSchema,
+  escolasDoPainelResponseSchema,
+  redesDoPainelResponseSchema,
+  usoDoPainelResponseSchema,
+  slugDaEscolaSchema,
+  painelQuerySchema,
+  escolaDoPainelSchema,
+  usoDaEscolaDoPainelSchema,
+  usoDoPeriodoDoPainelSchema,
   ESCOLAS_POR_PAGINA,
   ESTADOS_DA_COORDENACAO,
   GERAR_CONVITE_POR_ESTADO,
@@ -288,123 +288,123 @@ export {
   TAMANHO_MAXIMO_NOME_DIGITADO,
 } from './operacao/painel.js'
 export type {
-  ConsultaDoPainel,
+  PainelQuery,
   EscolaDoPainel,
   EstadoDaCoordenacao,
   OrdemDoPainel,
-  PedidoConviteDaCoordenacao,
-  PedidoCriarEscola,
-  PedidoCriarRede,
+  ConviteDaCoordenacaoRequest,
+  CriarEscolaRequest,
+  CriarRedeRequest,
   RedeDoPainel,
-  RespostaConviteDaCoordenacao,
-  RespostaCriadoNoPainel,
-  RespostaEscolasDoPainel,
-  RespostaRedesDoPainel,
-  RespostaUsoDoPainel,
+  ConviteDaCoordenacaoResponse,
+  CriadoNoPainelResponse,
+  EscolasDoPainelResponse,
+  RedesDoPainelResponse,
+  UsoDoPainelResponse,
   UsoDaEscolaDoPainel,
   UsoDoPeriodoDoPainel,
 } from './operacao/painel.js'
 export {
-  esquemaPedidoCadastrarProfessor,
-  esquemaPedidoSemCorpoDoConviteDeProfessor,
-  esquemaProfessorDaEscola,
-  esquemaRespostaConviteDeProfessor,
-  esquemaRespostaListaDeProfessores,
+  cadastrarProfessorRequestSchema,
+  conviteDeProfessorEmptyBodyRequestSchema,
+  professorDaEscolaSchema,
+  conviteDeProfessorResponseSchema,
+  listaDeProfessoresResponseSchema,
   ESTADOS_DO_PROFESSOR,
   ESTADOS_DO_PROFESSOR_ALOCAVEIS,
   REFAZER_CONVITE_DE_PROFESSOR_POR_ESTADO,
   REVOGAR_CONVITE_DE_PROFESSOR_POR_ESTADO,
 } from './professores/professores.js'
-export type { EstadoDoProfessor, PedidoCadastrarProfessor, ProfessorDaEscola, RespostaConviteDeProfessor, RespostaListaDeProfessores } from './professores/professores.js'
+export type { EstadoDoProfessor, CadastrarProfessorRequest, ProfessorDaEscola, ConviteDeProfessorResponse, ListaDeProfessoresResponse } from './professores/professores.js'
 export {
   ALFABETO_DO_CODIGO_DA_TURMA,
   codigoDaTurmaValido,
-  esquemaPedidoGerarAcesso,
-  esquemaPedidoRevogarAcesso,
-  esquemaRespostaAcessoDaTurma,
-  esquemaRespostaAcessoGerado,
+  gerarAcessoRequestSchema,
+  revogarAcessoRequestSchema,
+  acessoDaTurmaResponseSchema,
+  acessoGeradoResponseSchema,
   exibirCodigoDaTurma,
   normalizarCodigoDaTurma,
   TAMANHO_DO_CODIGO_DA_TURMA,
   VALIDADES_DO_ACESSO_DIAS,
 } from './sala/acesso.js'
-export type { PedidoGerarAcesso, RespostaAcessoDaTurma, RespostaAcessoGerado, ValidadeDoAcessoDias } from './sala/acesso.js'
+export type { GerarAcessoRequest, AcessoDaTurmaResponse, AcessoGeradoResponse, ValidadeDoAcessoDias } from './sala/acesso.js'
 export {
   DECISORES_DA_REIVINDICACAO,
-  esquemaPedidoAbrirSala,
-  esquemaPedidoReivindicarSala,
-  esquemaRespostaReivindicacao,
-  esquemaRespostaSalaAberta,
+  abrirSalaRequestSchema,
+  reivindicarSalaRequestSchema,
+  reivindicacaoResponseSchema,
+  salaAbertaResponseSchema,
   ESTADOS_DA_REIVINDICACAO,
   MAXIMO_DE_NOMES_NA_SALA,
   TAMANHO_MAXIMO_CODIGO_DIGITADO,
 } from './sala/salas.js'
-export type { DecisorDaReivindicacao, EstadoDaReivindicacao, PedidoAbrirSala, PedidoReivindicarSala, RespostaReivindicacao, RespostaSalaAberta } from './sala/salas.js'
+export type { DecisorDaReivindicacao, EstadoDaReivindicacao, AbrirSalaRequest, ReivindicarSalaRequest, ReivindicacaoResponse, SalaAbertaResponse } from './sala/salas.js'
 export { MENSAGENS_DA_SALA, mensagemDaSala, mensagemDoLimiteDaSala, minutosDaEspera } from './sala/mensagens-da-sala.js'
 export type { CaminhoDaSala } from './sala/mensagens-da-sala.js'
 export {
   DECISOES_DE_PEDIDO,
-  esquemaConsultaPedidosDaTurma,
-  esquemaPedidoDaTurma,
-  esquemaPedidoDecidirReivindicacoes,
-  esquemaRespostaDecisao,
-  esquemaRespostaPedidosDaTurma,
+  pedidosDaTurmaQuerySchema,
+  pedidoDaTurmaSchema,
+  decidirReivindicacoesRequestSchema,
+  decisaoResponseSchema,
+  pedidosDaTurmaResponseSchema,
   MAXIMO_DE_PEDIDOS_POR_DECISAO,
   RESULTADOS_DA_DECISAO,
 } from './sala/pedidos.js'
 export type {
-  ConsultaPedidosDaTurma,
+  PedidosDaTurmaQuery,
   DecisaoDePedido,
   PedidoDaTurma,
-  PedidoDecidirReivindicacoes,
-  RespostaDecisao,
-  RespostaPedidosDaTurma,
+  DecidirReivindicacoesRequest,
+  DecisaoResponse,
+  PedidosDaTurmaResponse,
   ResultadoDaDecisao,
 } from './sala/pedidos.js'
-export { esquemaRespostaMinhaTurma } from './sala/minha-turma.js'
-export type { RespostaMinhaTurma } from './sala/minha-turma.js'
+export { minhaTurmaResponseSchema } from './sala/minha-turma.js'
+export type { MinhaTurmaResponse } from './sala/minha-turma.js'
 export { FORMATO_SLUG, TAMANHO_MAXIMO_SLUG, TIPOS_DE_REDE } from './estrutura/rede-e-escola.js'
 export type { TipoDeRede } from './estrutura/rede-e-escola.js'
-export type { RespostaEuDoOperador } from './operacao/eu.js'
+export type { EuDoOperadorResponse } from './operacao/eu.js'
 export {
-  esquemaPedidoAceitarConviteDeOperador,
-  esquemaPedidoConsultarConviteDeOperador,
-  esquemaRespostaAceitarConviteDeOperador,
-  esquemaRespostaConsultarConviteDeOperador,
+  aceitarConviteDeOperadorRequestSchema,
+  consultarConviteDeOperadorRequestSchema,
+  aceitarConviteDeOperadorResponseSchema,
+  consultarConviteDeOperadorResponseSchema,
 } from './operacao/convite.js'
-export { esquemaPedidoEntradaDeOperador, esquemaRespostaEntradaDeOperador } from './operacao/entrada.js'
-export { esquemaPedidoSemCorpoDeOperador, esquemaRespostaRenovacaoDeOperador } from './operacao/sessao.js'
-export type { PedidoSemCorpoDeOperador, RespostaRenovacaoDeOperador } from './operacao/sessao.js'
+export { entradaDeOperadorRequestSchema, entradaDeOperadorResponseSchema } from './operacao/entrada.js'
+export { operadorEmptyBodyRequestSchema, renovacaoDeOperadorResponseSchema } from './operacao/sessao.js'
+export type { OperadorEmptyBodyRequest, RenovacaoDeOperadorResponse } from './operacao/sessao.js'
 export {
-  esquemaPedidoConfigurarSegundoFatorDeOperador,
-  esquemaPedidoSegundoFatorDeOperador,
-  esquemaRespostaConfigurarSegundoFatorDeOperador,
-  esquemaRespostaSegundoFatorDeOperador,
+  configurarSegundoFatorDeOperadorRequestSchema,
+  segundoFatorDeOperadorRequestSchema,
+  configurarSegundoFatorDeOperadorResponseSchema,
+  segundoFatorDeOperadorResponseSchema,
 } from './operacao/segundo-fator.js'
 export type {
-  PedidoConfigurarSegundoFatorDeOperador,
-  PedidoSegundoFatorDeOperador,
-  RespostaConfigurarSegundoFatorDeOperador,
-  RespostaSegundoFatorDeOperador,
+  ConfigurarSegundoFatorDeOperadorRequest,
+  SegundoFatorDeOperadorRequest,
+  ConfigurarSegundoFatorDeOperadorResponse,
+  SegundoFatorDeOperadorResponse,
 } from './operacao/segundo-fator.js'
-export type { PedidoEntradaDeOperador, RespostaEntradaDeOperador } from './operacao/entrada.js'
+export type { EntradaDeOperadorRequest, EntradaDeOperadorResponse } from './operacao/entrada.js'
 export type {
-  PedidoAceitarConviteDeOperador,
-  PedidoConsultarConviteDeOperador,
-  RespostaAceitarConviteDeOperador,
-  RespostaConsultarConviteDeOperador,
+  AceitarConviteDeOperadorRequest,
+  ConsultarConviteDeOperadorRequest,
+  AceitarConviteDeOperadorResponse,
+  ConsultarConviteDeOperadorResponse,
 } from './operacao/convite.js'
 export { AGENTES, CHAVES_DE_FUNCAO, ehChaveDeFuncao, FUNCOES, NIVEIS_DE_AUTONOMIA, NOMES_DOS_AGENTES } from './time/funcoes.js'
 export type { Agente, ChaveDeFuncao, DeclaracaoDeFuncao, NivelDeAutonomia } from './time/funcoes.js'
 export {
   ALTERNATIVAS_POR_QUESTAO,
-  esquemaAdaptacaoAplicada,
-  esquemaCitacao,
-  esquemaConteudoDeAtividade,
-  esquemaConteudoDePlanoDeAula,
-  esquemaConteudoDoArtefato,
-  esquemaHabilidade,
-  esquemaQuestaoObjetiva,
+  adaptacaoAplicadaSchema,
+  citacaoSchema,
+  conteudoDeAtividadeSchema,
+  conteudoDePlanoDeAulaSchema,
+  conteudoDoArtefatoSchema,
+  habilidadeSchema,
+  questaoObjetivaSchema,
   FERRAMENTAS,
   ROTULOS_DA_ADAPTACAO,
   TIPOS_DE_ADAPTACAO,
@@ -423,26 +423,26 @@ export type {
   TipoDeArtefato,
 } from './assistente/conteudo.js'
 export {
-  esquemaChaveEnvio,
-} from './time/chave-envio.js'
+  idempotencyKeySchema,
+} from './time/idempotency-key.js'
 export {
-  esquemaAgenteDoTime,
-  esquemaChaveDeFuncao,
-  esquemaFuncaoDoTime,
-  esquemaRespostaTime,
+  agenteDoTimeSchema,
+  chaveDeFuncaoSchema,
+  funcaoDoTimeSchema,
+  timeResponseSchema,
   montarTime,
 } from './time/time.js'
 export type {
   AgenteDoTime,
   FuncaoDoTime,
-  RespostaTime,
+  TimeResponse,
 } from './time/time.js'
 export {
-  esquemaEntradaDaExecucao,
-  esquemaRespostaExecucao,
-  esquemaRespostaExecucaoAceita,
-  esquemaResultadoDaExecucao,
-  esquemaResultadoGravado,
+  execucaoInputSchema,
+  execucaoResponseSchema,
+  execucaoAceitaResponseSchema,
+  resultadoDaExecucaoSchema,
+  resultadoGravadoSchema,
   ESTADOS_DE_CONSUMO_DE_IA,
   ESTADOS_DE_EXECUCAO,
   ESTADOS_FINAIS_DE_EXECUCAO,
@@ -454,26 +454,26 @@ export {
   TAREFAS_DE_IA,
 } from './time/execucao.js'
 export type {
-  EntradaDaExecucao,
+  ExecucaoInput,
   EstadoDeConsumoDeIa,
   EstadoDeExecucao,
   OrigemDaSaidaDeIa,
   PerfilDeIa,
-  RespostaExecucao,
-  RespostaExecucaoAceita,
+  ExecucaoResponse,
+  ExecucaoAceitaResponse,
   ResultadoDaExecucao,
   ResultadoGravado,
   TarefaDeIa,
 } from './time/execucao.js'
 export {
-  esquemaConsultaBuscaDeMaterial,
-  esquemaConsultaMateriais,
-  esquemaMaterial,
-  esquemaPedidoEnviarMaterial,
-  esquemaRespostaBuscaDeMaterial,
-  esquemaRespostaListaDeMateriais,
-  esquemaRespostaMaterial,
-  esquemaTrechoEncontrado,
+  buscaDeMaterialQuerySchema,
+  materiaisQuerySchema,
+  materialSchema,
+  enviarMaterialRequestSchema,
+  buscaDeMaterialResponseSchema,
+  listaDeMateriaisResponseSchema,
+  materialResponseSchema,
+  trechoEncontradoSchema,
   ESTADOS_DE_MATERIAL,
   FALHAS_DE_MATERIAL,
   LICENCAS_DE_MATERIAL,
@@ -494,18 +494,18 @@ export {
   TRECHOS_PADRAO_NA_BUSCA,
 } from './material/material.js'
 export type {
-  ConsultaBuscaDeMaterial,
-  ConsultaMateriais,
+  BuscaDeMaterialQuery,
+  MateriaisQuery,
   EstadoDeMaterial,
   FalhaDeMaterial,
   LicencaDeclarada,
   LicencaDeMaterial,
   Material,
   MotivoDaRecusaDoMaterial,
-  PedidoEnviarMaterial,
-  RespostaBuscaDeMaterial,
-  RespostaListaDeMateriais,
-  RespostaMaterial,
+  EnviarMaterialRequest,
+  BuscaDeMaterialResponse,
+  ListaDeMateriaisResponse,
+  MaterialResponse,
   TitularidadeDeMaterial,
   TrechoEncontrado,
 } from './material/material.js'
@@ -522,16 +522,16 @@ export type {
 export {
   AUTORES_DE_MENSAGEM_DE_AGENTE,
   camposDaConsultaDeConversa,
-  esquemaConsultaConversaDoAssistente,
-  esquemaConteudoDaMensagemDoAgente,
-  esquemaConteudoDaMensagemDoUsuario,
-  esquemaMensagemDaConversa,
-  esquemaMensagemDoAgente,
-  esquemaMensagemDoUsuario,
-  esquemaParametrosDeFerramenta,
-  esquemaPedidoMensagemAoAssistente,
-  esquemaPropostaDeFerramenta,
-  esquemaRespostaConversaDoAssistente,
+  conversaDoAssistenteQuerySchema,
+  conteudoDaMensagemDoAgenteSchema,
+  conteudoDaMensagemDoUsuarioSchema,
+  mensagemDaConversaSchema,
+  mensagemDoAgenteSchema,
+  mensagemDoUsuarioSchema,
+  parametrosDeFerramentaSchema,
+  mensagemAoAssistenteRequestSchema,
+  propostaDeFerramentaSchema,
+  conversaDoAssistenteResponseSchema,
   FERRAMENTAS_GERADORAS,
   MAXIMO_DE_CITACOES_POR_MENSAGEM,
   MAXIMO_DE_MENSAGENS_POR_PAGINA,
@@ -544,7 +544,7 @@ export {
 } from './assistente/conversa.js'
 export type {
   AutorDeMensagemDeAgente,
-  ConsultaConversaDoAssistente,
+  ConversaDoAssistenteQuery,
   ConteudoDaMensagemDoAgente,
   ConteudoDaMensagemDoUsuario,
   FerramentaGeradora,
@@ -552,18 +552,18 @@ export type {
   MensagemDoAgente,
   MensagemDoUsuario,
   ParametrosDeFerramenta,
-  PedidoMensagemAoAssistente,
+  MensagemAoAssistenteRequest,
   PropostaDeFerramenta,
-  RespostaConversaDoAssistente,
+  ConversaDoAssistenteResponse,
 } from './assistente/conversa.js'
 export {
   DECISOES_DE_ENTREGA,
-  esquemaAutorDaDecisao,
-  esquemaConsultaEntregas,
-  esquemaEntrega,
-  esquemaPedidoDecidirEntrega,
-  esquemaRespostaEntrega,
-  esquemaRespostaListaDeEntregas,
+  autorDaDecisaoSchema,
+  entregasQuerySchema,
+  entregaSchema,
+  decidirEntregaRequestSchema,
+  entregaResponseSchema,
+  listaDeEntregasResponseSchema,
   ESTADOS_DE_ENTREGA,
   NOME_DO_TIPO_DE_ENTREGA,
   TAMANHO_MAXIMO_DA_JUSTIFICATIVA,
@@ -571,109 +571,109 @@ export {
   TIPOS_DE_ENTREGA,
 } from './assistente/entrega.js'
 export type {
-  ConsultaEntregas,
+  EntregasQuery,
   DecisaoDeEntrega,
   Entrega,
   EstadoDeEntrega,
-  PedidoDecidirEntrega,
-  RespostaEntrega,
-  RespostaListaDeEntregas,
+  DecidirEntregaRequest,
+  EntregaResponse,
+  ListaDeEntregasResponse,
   TipoDeEntrega,
 } from './assistente/entrega.js'
 export {
-  esquemaAplicacaoDoArtefato,
-  esquemaArtefatoResumido,
-  esquemaConsultaArtefatos,
-  esquemaEntregaDoArtefato,
-  esquemaParametroFerramenta,
-  esquemaPedidoAdaptarArtefato,
-  esquemaPedidoGerarComFerramenta,
-  esquemaPedidoRenomearArtefato,
-  esquemaRespostaArtefato,
-  esquemaRespostaListaDeArtefatos,
+  aplicacaoDoArtefatoSchema,
+  artefatoResumidoSchema,
+  artefatosQuerySchema,
+  entregaDoArtefatoSchema,
+  parametroFerramentaSchema,
+  adaptarArtefatoRequestSchema,
+  gerarComFerramentaRequestSchema,
+  renomearArtefatoRequestSchema,
+  artefatoResponseSchema,
+  listaDeArtefatosResponseSchema,
   MAXIMO_DE_VERSOES_NO_ARTEFATO,
 } from './assistente/artefato.js'
 export type {
   ArtefatoResumido,
-  ConsultaArtefatos,
-  PedidoAdaptarArtefato,
+  ArtefatosQuery,
+  AdaptarArtefatoRequest,
   ParametroFerramenta,
-  PedidoGerarComFerramenta,
-  PedidoRenomearArtefato,
-  RespostaArtefato,
-  RespostaListaDeArtefatos,
+  GerarComFerramentaRequest,
+  RenomearArtefatoRequest,
+  ArtefatoResponse,
+  ListaDeArtefatosResponse,
 } from './assistente/artefato.js'
 export {
-  esquemaAtividadeAplicada,
-  esquemaConsultaAtividadesAplicadas,
-  esquemaPedidoAplicarAtividade,
-  esquemaPedidoSemCorpo,
-  esquemaPedidoSemCorpoOuAusente,
-  esquemaRespostaAtividadeAplicada,
-  esquemaRespostaAtividadeEncerrada,
-  esquemaRespostaListaDeAtividadesAplicadas,
+  atividadeAplicadaSchema,
+  atividadesAplicadasQuerySchema,
+  aplicarAtividadeRequestSchema,
+  emptyBodyRequestSchema,
+  emptyOrMissingBodyRequestSchema,
+  atividadeAplicadaResponseSchema,
+  atividadeEncerradaResponseSchema,
+  listaDeAtividadesAplicadasResponseSchema,
   ESTADOS_DE_ATIVIDADE_APLICADA,
 } from './atividade/atividade-aplicada.js'
 export type {
   AtividadeAplicada,
-  ConsultaAtividadesAplicadas,
+  AtividadesAplicadasQuery,
   EstadoDeAtividadeAplicada,
-  PedidoAplicarAtividade,
-  PedidoSemCorpo,
-  RespostaAtividadeAplicada,
-  RespostaAtividadeEncerrada,
-  RespostaListaDeAtividadesAplicadas,
+  AplicarAtividadeRequest,
+  EmptyBodyRequest,
+  AtividadeAplicadaResponse,
+  AtividadeEncerradaResponse,
+  ListaDeAtividadesAplicadasResponse,
 } from './atividade/atividade-aplicada.js'
 export {
-  esquemaAcertoPorHabilidade,
-  esquemaAlternativa,
-  esquemaConsultaMinhasAtividades,
-  esquemaMinhaAtividade,
-  esquemaNumeroDaQuestao,
-  esquemaQuestaoDoCaminho,
-  esquemaPedidoResponderQuestao,
-  esquemaQuestaoDaProva,
-  esquemaQuestaoDoDiagnostico,
-  esquemaEspelhoDaFila,
-  esquemaRespostaAtividadeEnviada,
-  esquemaRespostaMeuDiagnostico,
-  esquemaRespostaMinhasAtividades,
-  esquemaRespostaProva,
-  esquemaRespostaQuestaoSalva,
-  esquemaRespostaSalva,
-  esquemaSequencia,
+  acertoPorHabilidadeSchema,
+  alternativaSchema,
+  minhasAtividadesQuerySchema,
+  minhaAtividadeSchema,
+  numeroDaQuestaoSchema,
+  questaoDoCaminhoSchema,
+  responderQuestaoRequestSchema,
+  questaoDaProvaSchema,
+  questaoDoDiagnosticoSchema,
+  espelhoDaFilaSchema,
+  atividadeEnviadaResponseSchema,
+  meuDiagnosticoResponseSchema,
+  minhasAtividadesResponseSchema,
+  provaResponseSchema,
+  questaoSalvaResponseSchema,
+  respostaSalvaSchema,
+  sequenciaSchema,
   questoesDaProva,
   SITUACOES_DA_MINHA_ATIVIDADE,
 } from './atividade/prova.js'
 export type {
   AcertoPorHabilidade,
-  ConsultaMinhasAtividades,
+  MinhasAtividadesQuery,
   EspelhoDaFila,
   MinhaAtividade,
-  PedidoResponderQuestao,
+  ResponderQuestaoRequest,
   QuestaoDaProva,
-  RespostaAtividadeEnviada,
-  RespostaMeuDiagnostico,
-  RespostaMinhasAtividades,
-  RespostaProva,
-  RespostaQuestaoSalva,
+  AtividadeEnviadaResponse,
+  MeuDiagnosticoResponse,
+  MinhasAtividadesResponse,
+  ProvaResponse,
+  QuestaoSalvaResponse,
   RespostaSalva,
   SituacaoDaMinhaAtividade,
 } from './atividade/prova.js'
 export {
-  esquemaCorrecaoDoAluno,
-  esquemaDestaque,
-  esquemaDestaquesAbertos,
-  esquemaDiagnosticoGravado,
-  esquemaFaixaDeAcertos,
-  esquemaLoteApresentado,
-  esquemaQuestaoDoLote,
-  esquemaRespostaCorrecaoDoLote,
-  esquemaRespostaCorrigida,
-  esquemaRespostaDestaqueAberto,
-  esquemaRespostaLoteAprovado,
-  esquemaResumoDoLote,
-  esquemaValidacaoDoLote,
+  correcaoDoAlunoSchema,
+  destaqueSchema,
+  destaquesAbertosSchema,
+  diagnosticoGravadoSchema,
+  faixaDeAcertosSchema,
+  loteApresentadoSchema,
+  questaoDoLoteSchema,
+  correcaoDoLoteResponseSchema,
+  corrigidaResponseSchema,
+  destaqueAbertoResponseSchema,
+  loteAprovadoResponseSchema,
+  resumoDoLoteSchema,
+  validacaoDoLoteSchema,
   MAXIMO_DE_ALUNOS_NO_LOTE,
   MOTIVOS_DE_DESTAQUE,
   NOME_DO_MOTIVO_DE_DESTAQUE,
@@ -684,29 +684,29 @@ export type {
   DiagnosticoGravado,
   LoteApresentado,
   MotivoDeDestaque,
-  RespostaCorrecaoDoLote,
-  RespostaDestaqueAberto,
-  RespostaLoteAprovado,
+  CorrecaoDoLoteResponse,
+  DestaqueAbertoResponse,
+  LoteAprovadoResponse,
   ResumoDoLote,
   ValidacaoDoLote,
 } from './atividade/correcao.js'
 export {
-  esquemaConsultaDesempenhoDaTurma,
-  esquemaDesempenhoDoAluno,
-  esquemaHabilidadeDaTurma,
-  esquemaRespostaDesempenhoDaTurma,
+  desempenhoDaTurmaQuerySchema,
+  desempenhoDoAlunoSchema,
+  habilidadeDaTurmaSchema,
+  desempenhoDaTurmaResponseSchema,
   MAXIMO_DE_ALUNOS_NO_DESEMPENHO,
   MAXIMO_DE_HABILIDADES_NO_DESEMPENHO,
 } from './atividade/desempenho.js'
 export type {
-  ConsultaDesempenhoDaTurma,
-  RespostaDesempenhoDaTurma,
+  DesempenhoDaTurmaQuery,
+  DesempenhoDaTurmaResponse,
 } from './atividade/desempenho.js'
 export {
-  esquemaConsultaSinais,
-  esquemaGrupoDeSinais,
-  esquemaRespostaSinais,
-  esquemaSinal,
+  sinaisQuerySchema,
+  grupoDeSinaisSchema,
+  sinaisResponseSchema,
+  sinalSchema,
   FRASE_DO_AVISO_AO_PROFESSOR,
   MAXIMO_DE_GRUPOS_DE_SINAL,
   NOME_DO_SINAL,
@@ -714,24 +714,24 @@ export {
   TIPOS_DE_SINAL_DE_TRABALHO,
 } from './tutor/sinal.js'
 export type {
-  ConsultaSinais,
+  SinaisQuery,
   GrupoDeSinais,
-  RespostaSinais,
+  SinaisResponse,
   Sinal,
   TipoDeSinal,
   TipoDeSinalDeTrabalho,
 } from './tutor/sinal.js'
 export {
   AUTORES_DE_MENSAGEM_DO_TUTOR,
-  esquemaConsultaConversaDoTutor,
-  esquemaMensagemDoAlunoAoTutor,
-  esquemaMensagemDoTutor,
-  esquemaMensagemDoTutorAoAluno,
-  esquemaPedidoMensagemAoTutor,
-  esquemaRespostaConversaDoTutor,
-  esquemaRespostaMemoriaDoTutor,
-  esquemaSinalNaMemoria,
-  esquemaTrabalhoNaMemoria,
+  conversaDoTutorQuerySchema,
+  mensagemDoAlunoAoTutorSchema,
+  mensagemDoTutorSchema,
+  mensagemDoTutorAoAlunoSchema,
+  mensagemAoTutorRequestSchema,
+  conversaDoTutorResponseSchema,
+  memoriaDoTutorResponseSchema,
+  sinalNaMemoriaSchema,
+  trabalhoNaMemoriaSchema,
   ESTADOS_DO_TUTOR,
   MAXIMO_DE_CITACOES_DO_TUTOR,
   MAXIMO_DE_ITENS_NA_MEMORIA,
@@ -742,65 +742,65 @@ export {
 } from './tutor/tutor.js'
 export type {
   AutorDeMensagemDoTutor,
-  ConsultaConversaDoTutor,
+  ConversaDoTutorQuery,
   EstadoDoTutor,
   MensagemDoAlunoAoTutor,
   MensagemDoTutor,
   MensagemDoTutorAoAluno,
-  PedidoMensagemAoTutor,
-  RespostaConversaDoTutor,
-  RespostaMemoriaDoTutor,
+  MensagemAoTutorRequest,
+  ConversaDoTutorResponse,
+  MemoriaDoTutorResponse,
   TipoDeMensagemDoTutor,
 } from './tutor/tutor.js'
 export {
-  esquemaConsultaUsoDoTutor,
-  esquemaReferenciaDaUltimaTroca,
-  esquemaRespostaUsoDoTutor,
-  esquemaUsoDoAluno,
+  usoDoTutorQuerySchema,
+  referenciaDaUltimaTrocaSchema,
+  usoDoTutorResponseSchema,
+  usoDoAlunoSchema,
   MAXIMO_DE_ALUNOS_NO_USO,
 } from './tutor/uso.js'
 export type {
-  ConsultaUsoDoTutor,
-  RespostaUsoDoTutor,
+  UsoDoTutorQuery,
+  UsoDoTutorResponse,
   UsoDoAluno,
 } from './tutor/uso.js'
 export {
-  esquemaConsultaConsumo,
-  esquemaConsultaResumoDaGovernanca,
-  esquemaConsumoSomado,
-  esquemaFuncaoDaGovernanca,
-  esquemaItemDaGovernanca,
-  esquemaPedidoSuspenderFuncao,
-  esquemaRespostaConsumo,
-  esquemaRespostaFuncaoDaGovernanca,
-  esquemaRespostaFuncoesDaGovernanca,
-  esquemaRespostaResumoDaGovernanca,
-  esquemaSuspensaoVigente,
+  consumoQuerySchema,
+  resumoDaGovernancaQuerySchema,
+  consumoSomadoSchema,
+  funcaoDaGovernancaSchema,
+  itemDaGovernancaSchema,
+  suspenderFuncaoRequestSchema,
+  consumoResponseSchema,
+  funcaoDaGovernancaResponseSchema,
+  funcoesDaGovernancaResponseSchema,
+  resumoDaGovernancaResponseSchema,
+  suspensaoVigenteSchema,
   MOTIVOS_DE_SUSPENSAO,
   NOME_DO_MOTIVO_DE_SUSPENSAO,
 } from './governanca/governanca.js'
 export type {
-  ConsultaConsumo,
-  ConsultaResumoDaGovernanca,
+  ConsumoQuery,
+  ResumoDaGovernancaQuery,
   ConsumoSomado,
   FuncaoDaGovernanca,
   ItemDaGovernanca,
   MotivoDeSuspensao,
-  PedidoSuspenderFuncao,
-  RespostaConsumo,
-  RespostaFuncaoDaGovernanca,
-  RespostaFuncoesDaGovernanca,
-  RespostaResumoDaGovernanca,
+  SuspenderFuncaoRequest,
+  ConsumoResponse,
+  FuncaoDaGovernancaResponse,
+  FuncoesDaGovernancaResponse,
+  ResumoDaGovernancaResponse,
 } from './governanca/governanca.js'
 export {
-  esquemaAlertaDoAnalista,
-  esquemaConsultaAnalistaNominal,
-  esquemaConteudoDoResumoDoAnalista,
-  esquemaPedidoGerarResumoDoAnalista,
-  esquemaRecorteDoAnalista,
-  esquemaRecorteNominal,
-  esquemaRespostaAnalistaNominal,
-  esquemaRespostaResumoDoAnalista,
+  alertaDoAnalistaSchema,
+  analistaNominalQuerySchema,
+  conteudoDoResumoDoAnalistaSchema,
+  gerarResumoDoAnalistaRequestSchema,
+  recorteDoAnalistaSchema,
+  recorteNominalSchema,
+  analistaNominalResponseSchema,
+  resumoDoAnalistaResponseSchema,
   FINALIDADES_DA_LEITURA_NOMINAL,
   GRUPO_MINIMO_DE_PROFESSORES,
   HIPOTESES_DO_ANALISTA,
@@ -811,14 +811,14 @@ export {
 } from './governanca/analista.js'
 export type {
   AlertaDoAnalista,
-  ConsultaAnalistaNominal,
+  AnalistaNominalQuery,
   ConteudoDoResumoDoAnalista,
   FinalidadeDaLeituraNominal,
   HipoteseDoAnalista,
-  PedidoGerarResumoDoAnalista,
+  GerarResumoDoAnalistaRequest,
   RecorteDoAnalista,
-  RespostaAnalistaNominal,
-  RespostaResumoDoAnalista,
+  AnalistaNominalResponse,
+  ResumoDoAnalistaResponse,
   TipoDeAlertaDoAnalista,
 } from './governanca/analista.js'
 export {
@@ -827,9 +827,9 @@ export {
   CATEGORIAS_DE_RETENCAO,
   CHAVES_DE_PRAZO_FIXO,
   CHAVES_DE_RETENCAO,
-  esquemaPrazoFixo,
-  esquemaRespostaRetencao,
-  esquemaRetencaoDaCategoria,
+  prazoFixoSchema,
+  retencaoResponseSchema,
+  retencaoDaCategoriaSchema,
   FINALIDADE_DO_AJUSTE_DE_RETENCAO,
   ORIGENS_DA_RETENCAO,
   PRAZOS_FIXOS,
@@ -843,14 +843,14 @@ export type {
   DefinicaoDaCategoria,
   DefinicaoDoPrazoFixo,
   OrigemDaRetencao,
-  RespostaRetencao,
+  RetencaoResponse,
   RetencaoDaCategoria,
 } from './privacidade/retencao.js'
 export {
-  esquemaBaixarArquivoDaEscola,
-  esquemaPedidoDeMeusDados,
-  esquemaRespostaDoArquivo,
-  esquemaRespostaMeusDados,
+  baixarArquivoDaEscolaSchema,
+  pedidoDeMeusDadosSchema,
+  arquivoResponseSchema,
+  meusDadosResponseSchema,
   FINALIDADE_DO_ARQUIVO_DO_PROPRIO_TITULAR,
   FINALIDADES_DO_ARQUIVO,
   FINALIDADES_DO_ARQUIVO_DA_ESCOLA,
@@ -861,15 +861,15 @@ export {
   VALIDADE_DO_ARQUIVO_DIAS,
   VERSOES_DO_ARQUIVO,
 } from './privacidade/arquivo.js'
-export type { BaixarArquivoDaEscola, FinalidadeDoArquivo, PedidoDeMeusDados, RespostaDoArquivo, RespostaMeusDados, VersaoDoArquivo } from './privacidade/arquivo.js'
+export type { BaixarArquivoDaEscola, FinalidadeDoArquivo, PedidoDeMeusDados, ArquivoResponse, MeusDadosResponse, VersaoDoArquivo } from './privacidade/arquivo.js'
 export { CLASSIFICACAO_DAS_TABELAS, COLUNAS_FORA_DO_ARQUIVO } from './privacidade/classificacao.js'
 export type { ArquivoDaTabela, ClasseDaTabela, ClassificacaoDaTabela } from './privacidade/classificacao.js'
 export {
   ALCANCES_DO_SUBOPERADOR,
   CATEGORIAS_DE_DADO_DO_SUBOPERADOR,
   CHAVES_DE_CATEGORIA_DO_SUBOPERADOR,
-  esquemaRespostaSuboperadores,
-  esquemaSuboperadorDaEscola,
+  suboperadoresResponseSchema,
+  suboperadorDaEscolaSchema,
   FINALIDADE_DO_REGISTRO_DE_SUBOPERADOR,
   FORMATO_DA_CHAVE_DO_SUBOPERADOR,
   FORMATO_DO_CONTRATO_DO_SUBOPERADOR,
@@ -877,12 +877,12 @@ export {
   MAXIMO_DA_FINALIDADE_DO_SUBOPERADOR,
   MAXIMO_DO_NOME_DO_SUBOPERADOR,
 } from './privacidade/suboperador.js'
-export type { AlcanceDoSuboperador, CategoriaDeDadoDoSuboperador, RespostaSuboperadores, SuboperadorDaEscola } from './privacidade/suboperador.js'
+export type { AlcanceDoSuboperador, CategoriaDeDadoDoSuboperador, SuboperadoresResponse, SuboperadorDaEscola } from './privacidade/suboperador.js'
 export {
   CATEGORIAS_DE_DADO_DO_INCIDENTE,
   CHAVES_DE_CATEGORIA_DO_INCIDENTE,
-  esquemaIncidenteDaEscola,
-  esquemaRespostaIncidentes,
+  incidenteDaEscolaSchema,
+  incidentesResponseSchema,
   FINALIDADE_DO_REGISTRO_DE_INCIDENTE,
   HORAS_PARA_A_ESCOLA_CONFIRMAR,
   MAXIMO_DE_ESCOLAS_DO_INCIDENTE,
@@ -891,24 +891,24 @@ export {
   RISCOS_DO_INCIDENTE,
   TEXTO_DO_PRAZO_LEGAL_DO_INCIDENTE,
 } from './privacidade/incidente.js'
-export type { CategoriaDeDadoDoIncidente, IncidenteDaEscola, RespostaIncidentes, RiscoDoIncidente } from './privacidade/incidente.js'
+export type { CategoriaDeDadoDoIncidente, IncidenteDaEscola, IncidentesResponse, RiscoDoIncidente } from './privacidade/incidente.js'
 export {
   CATEGORIAS_DE_CADASTRO_E_VINCULO,
   ESTADOS_ABERTOS_DO_PEDIDO,
   ESTADOS_DO_PEDIDO,
   ESTADOS_DO_TITULAR,
-  esquemaBuscaDeTitulares,
-  esquemaCompartilhamento,
-  esquemaCorrecaoDeNome,
-  esquemaItemDoPedido,
-  esquemaLinhaDoCompartilhamento,
-  esquemaPedidoDoTitular,
-  esquemaRegistroDePedido,
-  esquemaRespostaBuscaDeTitulares,
-  esquemaRespostaPedidos,
-  esquemaRespostaPreviaDoTitular,
-  esquemaTitularAchado,
-  esquemaTitularDoPedido,
+  buscaDeTitularesSchema,
+  compartilhamentoSchema,
+  correcaoDeNomeSchema,
+  itemDoPedidoSchema,
+  linhaDoCompartilhamentoSchema,
+  pedidoDoTitularSchema,
+  registroDePedidoSchema,
+  buscaDeTitularesResponseSchema,
+  pedidosResponseSchema,
+  previaDoTitularResponseSchema,
+  titularAchadoSchema,
+  titularDoPedidoSchema,
   FINALIDADE_DO_ATENDIMENTO_DO_TITULAR,
   LIMITE_DA_BUSCA_DE_TITULARES_POR_MINUTO,
   MAXIMO_DE_RESULTADOS_DA_BUSCA,
@@ -928,15 +928,15 @@ export type {
   EstadoDoPedido,
   EstadoDoTitular,
   ItemDoPedido,
-  LinhaDoCompartilhamento,
+  CompartilhamentoRow,
   OrigemDoCompartilhamento,
   PapelDoTitular,
   PedidoDoTitular,
   RegistroDePedido,
   CorrecaoDeNome,
-  RespostaBuscaDeTitulares,
-  RespostaPedidos,
-  RespostaPreviaDoTitular,
+  BuscaDeTitularesResponse,
+  PedidosResponse,
+  PreviaDoTitularResponse,
   SolicitanteDoPedido,
   TipoDePedidoDoTitular,
   TitularAchado,

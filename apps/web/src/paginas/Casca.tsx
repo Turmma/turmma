@@ -1,4 +1,4 @@
-import type { Aviso, ComponenteDoSistema, RespostaEstado } from '@educa/shared'
+import type { Aviso, SystemComponent, SystemStatusResponse } from '@educa/shared'
 import { useQuery, type UseQueryResult } from '@tanstack/react-query'
 import { useEffect, useRef, type ReactNode, type RefObject } from 'react'
 import { consultaAvisos, consultaEstado } from '../api/sistema'
@@ -6,8 +6,8 @@ import { EstadoCarregando, EstadoErro, EstadoVazio } from '../componentes/estado
 import { Marca } from '../componentes/ui/Marca'
 import { formatarData, formatarDataHora, formatarQuantidade } from '../formatar'
 
-const NOME_DO_COMPONENTE: Record<ComponenteDoSistema['nome'], string> = { api: 'API', banco: 'Banco de dados' }
-const NOME_DO_AMBIENTE: Record<RespostaEstado['ambiente'], string> = { local: 'Local', staging: 'Homologação', producao: 'Produção' }
+const NOME_DO_COMPONENTE: Record<SystemComponent['nome'], string> = { api: 'API', banco: 'Banco de dados' }
+const NOME_DO_AMBIENTE: Record<SystemStatusResponse['ambiente'], string> = { local: 'Local', staging: 'Homologação', producao: 'Produção' }
 
 /**
  * Busca de novo sem cancelar a busca em andamento: em rede lenta, toques repetidos em "Tentar de novo"
@@ -43,7 +43,7 @@ function Secao({ titulo, id, refTitulo, children }: { titulo: string; id: string
   )
 }
 
-function Estado({ estado }: { estado: RespostaEstado }) {
+function Estado({ estado }: { estado: SystemStatusResponse }) {
   return (
     <div className="rounded-cartao border border-linha bg-superficie p-4">
       <p className="text-apoio">

@@ -12,7 +12,7 @@ import { usuario } from './usuario.js'
  * de aula, ligado à turma e à disciplina, com a página do material citada (D6). É do professor (D63): só o professor
  * com vínculo confirmado na turma o alcança, e **o aluno nunca lê o artefato**, que tem o gabarito.
  *
- * - `conteudo` é validado por `esquemaConteudoDoArtefato` na saída do modelo e na leitura (regra 30, item 7); o check
+ * - `conteudo` é validado por `conteudoDoArtefatoSchema` na saída do modelo e na leitura (regra 30, item 7); o check
  *   garante no banco que é objeto e que o `tipo` dele é o da coluna. **Não muda depois de gravado**: só o título muda
  *   (`PATCH`, que atualiza a coluna e o `titulo` de dentro do conteúdo no mesmo comando), e por isso a atividade aplicada
  *   não precisa de cópia das questões.

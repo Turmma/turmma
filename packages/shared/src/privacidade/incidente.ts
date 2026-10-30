@@ -49,7 +49,7 @@ export type CategoriaDeDadoDoIncidente = (typeof CHAVES_DE_CATEGORIA_DO_INCIDENT
  * O incidente como a escola o lê: só a seção dela. O `id` é o da ligação com a escola, e não o do incidente, que duas escolas
  * dividiriam e que revelaria a uma que a outra foi afetada. Sem quem registrou, sem as outras escolas e sem os números delas.
  */
-export const esquemaIncidenteDaEscola = z.strictObject({
+export const incidenteDaEscolaSchema = z.strictObject({
   id: z.uuid(),
   conhecidoEm: z.iso.datetime(),
   circunstancias: z.string().min(1).max(MAXIMO_DO_TEXTO_DO_INCIDENTE),
@@ -61,11 +61,11 @@ export const esquemaIncidenteDaEscola = z.strictObject({
   avisadoEm: z.iso.datetime(),
   confirmadoEm: z.iso.datetime().nullable(),
 })
-export type IncidenteDaEscola = z.infer<typeof esquemaIncidenteDaEscola>
+export type IncidenteDaEscola = z.infer<typeof incidenteDaEscolaSchema>
 
 /** A resposta de `GET /v1/privacidade/incidentes`: os da escola, os sem confirmação primeiro, e o texto fixo do prazo legal dela. */
-export const esquemaRespostaIncidentes = z.strictObject({
-  incidentes: z.array(esquemaIncidenteDaEscola),
+export const incidentesResponseSchema = z.strictObject({
+  incidentes: z.array(incidenteDaEscolaSchema),
   prazoLegal: z.string().min(1),
 })
-export type RespostaIncidentes = z.infer<typeof esquemaRespostaIncidentes>
+export type IncidentesResponse = z.infer<typeof incidentesResponseSchema>

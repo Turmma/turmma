@@ -1,14 +1,14 @@
 import { IdPipe, Permite, ZodValidationPipe } from '@educa/nucleo'
 import {
-  esquemaConsultaArtefatos,
-  esquemaPedidoAdaptarArtefato,
-  esquemaPedidoRenomearArtefato,
-  type ConsultaArtefatos,
-  type PedidoAdaptarArtefato,
-  type PedidoRenomearArtefato,
-  type RespostaArtefato,
-  type RespostaExecucaoAceita,
-  type RespostaListaDeArtefatos,
+  artefatosQuerySchema,
+  adaptarArtefatoRequestSchema,
+  renomearArtefatoRequestSchema,
+  type ArtefatosQuery,
+  type AdaptarArtefatoRequest,
+  type RenomearArtefatoRequest,
+  type ArtefatoResponse,
+  type ExecucaoAceitaResponse,
+  type ListaDeArtefatosResponse,
 } from '@educa/shared'
 import { Body, Controller, Get, Header, HttpCode, HttpStatus, Param, Patch, Post, Query, StreamableFile } from '@nestjs/common'
 import { ArtefatoService } from './artefato.service.js'
@@ -27,21 +27,21 @@ export class ArtefatoController {
   @Get()
   @Permite('artefato', 'listar')
   @Header('Cache-Control', 'no-store')
-  listar(@Query(new ZodValidationPipe(esquemaConsultaArtefatos)) consulta: ConsultaArtefatos): Promise<RespostaListaDeArtefatos> {
+  listar(@Query(new ZodValidationPipe(artefatosQuerySchema)) consulta: ArtefatosQuery): Promise<ListaDeArtefatosResponse> {
     return this.artefatos.listar(consulta)
   }
 
   @Get(':id')
   @Permite('artefato', 'ler')
   @Header('Cache-Control', 'no-store')
-  ler(@Param('id', IdPipe) artefatoId: string): Promise<RespostaArtefato> {
+  ler(@Param('id', IdPipe) artefatoId: string): Promise<ArtefatoResponse> {
     return this.artefatos.ler(artefatoId)
   }
 
   @Patch(':id')
   @Permite('artefato', 'renomear')
   @Header('Cache-Control', 'no-store')
-  renomear(@Param('id', IdPipe) artefatoId: string, @Body(new ZodValidationPipe(esquemaPedidoRenomearArtefato)) pedido: PedidoRenomearArtefato): Promise<RespostaArtefato> {
+  renomear(@Param('id', IdPipe) artefatoId: string, @Body(new ZodValidationPipe(renomearArtefatoRequestSchema)) pedido: RenomearArtefatoRequest): Promise<ArtefatoResponse> {
     return this.artefatos.renomear(artefatoId, pedido)
   }
 
@@ -56,7 +56,7 @@ export class ArtefatoController {
   @Post(':id/adaptar')
   @Permite('artefato', 'adaptar')
   @HttpCode(HttpStatus.ACCEPTED)
-  adaptar(@Param('id', IdPipe) artefatoId: string, @Body(new ZodValidationPipe(esquemaPedidoAdaptarArtefato)) pedido: PedidoAdaptarArtefato): Promise<RespostaExecucaoAceita> {
+  adaptar(@Param('id', IdPipe) artefatoId: string, @Body(new ZodValidationPipe(adaptarArtefatoRequestSchema)) pedido: AdaptarArtefatoRequest): Promise<ExecucaoAceitaResponse> {
     return this.artefatos.adaptar(artefatoId, pedido)
   }
 }

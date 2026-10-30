@@ -1,4 +1,4 @@
-import { ErroDeInvariante, retencaoDaEscola, type LinhaDoCompartilhamento, type PapelDoTitular } from '@educa/shared'
+import { InvariantException, retencaoDaEscola, type CompartilhamentoRow, type PapelDoTitular } from '@educa/shared'
 import type { Banco, TransacaoBanco } from '../db/banco.js'
 import { relogioDoSistema, type Relogio } from '../relogio.js'
 import { RetencaoDaEscolaRepository } from '../retencao/retencao-da-escola.repository.js'
@@ -60,13 +60,13 @@ export class Compartilhamento {
     private readonly relogio: Relogio = relogioDoSistema,
   ) {}
 
-  /** A foto do titular, sem ordem garantida, no formato que o `esquemaCompartilhamento` do contrato aceita. */
-  async doTitular(alvo: AlvoDoCompartilhamento): Promise<LinhaDoCompartilhamento[]> {
+  /** A foto do titular, sem ordem garantida, no formato que o `compartilhamentoSchema` do contrato aceita. */
+  async doTitular(alvo: AlvoDoCompartilhamento): Promise<CompartilhamentoRow[]> {
     const leituras = new CompartilhamentoRepository(this.banco)
     const agora = this.relogio.agora()
     const ajustes = await new RetencaoDaEscolaRepository(this.banco).ajustes()
     const retencao = retencaoDaEscola(ajustes).find((candidata) => candidata.categoria === 'consumo_por_aluno')
-    if (retencao === undefined) throw new ErroDeInvariante('prazo de consumo_por_aluno ausente do catálogo de retenção')
+    if (retencao === undefined) throw new InvariantException('prazo de consumo_por_aluno ausente do catálogo de retenção')
     const { horizonte, fimDoDia } = await leituras.datasDeReferencia(agora, retencao.meses)
     const periodo = await this.#periodoDoTitular(leituras, alvo, horizonte, fimDoDia)
     const suboperadores = await new SuboperadorDaEscolaRepository(this.banco).daEscola()
@@ -78,7 +78,7 @@ export class Compartilhamento {
       rastro.some((chamada) => chamada.provedor === null) ||
       (periodo.entradaConhecida && periodo.inicio.getTime() < horizonte.getTime())
 
-    const linhas: LinhaDoCompartilhamento[] = this.#linhasDoRastro(rastro, suboperadores, periodo)
+    const linhas: CompartilhamentoRow[] = this.#linhasDoRastro(rastro, suboperadores, periodo)
     for (const suboperador of suboperadores) {
       const intersecao = this.#intersecao(suboperador, periodo)
       if (intersecao === undefined) continue
@@ -108,7 +108,7 @@ export class Compartilhamento {
   }
 
   /** As linhas do rastro: uma por `provedor` e por suboperador vigente na data da chamada. */
-  #linhasDoRastro(rastro: readonly ChamadaDoRastro[], suboperadores: readonly SuboperadorLidoPelaEscola[], periodo: PeriodoDoTitular): LinhaDoCompartilhamento[] {
+  #linhasDoRastro(rastro: readonly ChamadaDoRastro[], suboperadores: readonly SuboperadorLidoPelaEscola[], periodo: PeriodoDoTitular): CompartilhamentoRow[] {
     const grupos = new Map<string, { suboperadorId: string | null; chave: string; primeiroEm: Date; ultimoEm: Date }>()
     for (const chamada of rastro) {
       if (chamada.provedor === null) continue
@@ -124,7 +124,7 @@ export class Compartilhamento {
       grupo.primeiroEm = maisCedo(grupo.primeiroEm, chamada.em)
       grupo.ultimoEm = maisTarde(grupo.ultimoEm, chamada.em)
     }
-    const linhas: LinhaDoCompartilhamento[] = []
+    const linhas: CompartilhamentoRow[] = []
     for (const grupo of grupos.values()) {
       // Nenhuma data da foto é anterior à entrada do titular.
       const primeiroEm = maisTarde(grupo.primeiroEm, periodo.inicio)

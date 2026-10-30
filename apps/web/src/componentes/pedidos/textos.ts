@@ -1,4 +1,4 @@
-import { CodigoDeErro, MAXIMO_DE_PEDIDOS_POR_DECISAO, type DecisaoDePedido, type DecisorDaReivindicacao, type ResultadoDaDecisao } from '@educa/shared'
+import { ErrorCode, MAXIMO_DE_PEDIDOS_POR_DECISAO, type DecisaoDePedido, type DecisorDaReivindicacao, type ResultadoDaDecisao } from '@educa/shared'
 import { textoDaFalha } from '../texto-da-falha'
 import { formatarQuantidade } from '../../formatar'
 
@@ -98,8 +98,8 @@ const DEPOIS_DA_FALHA: Readonly<Record<DecisorDaReivindicacao, string>> = {
 }
 
 /** O `NAO_ENCONTRADO` da rota inteira: a escola ficou sem ano letivo em curso, e nenhum pedido pode ser decidido. */
-const TEXTOS_DA_FALHA_DA_DECISAO: Partial<Record<CodigoDeErro, string>> = {
-  [CodigoDeErro.NAO_ENCONTRADO]: 'Os pedidos desta turma não podem ser decididos agora: a escola está sem ano letivo em curso.',
+const TEXTOS_DA_FALHA_DA_DECISAO: Partial<Record<ErrorCode, string>> = {
+  [ErrorCode.NAO_ENCONTRADO]: 'Os pedidos desta turma não podem ser decididos agora: a escola está sem ano letivo em curso.',
 }
 
 /** A falha da decisão, com o que fazer: o texto do erro e o que aconteceu com a lista. Nenhum texto diz o código do erro. */

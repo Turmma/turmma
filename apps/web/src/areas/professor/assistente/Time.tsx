@@ -1,4 +1,4 @@
-import { CodigoDeErro, type Entrega, type PedidoDecidirEntrega } from '@educa/shared'
+import { ErrorCode, type Entrega, type DecidirEntregaRequest } from '@educa/shared'
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ChevronRight } from 'lucide-react'
 import { useEffect, useId, useRef, useState } from 'react'
@@ -50,7 +50,7 @@ const CLASSES_DA_ACAO = `${classesDoBotao({ variante: 'discreto', tamanho: 'comp
 /** A decisão que está sendo confirmada: qual entrega, e se é aprovar ou rejeitar. */
 interface DecisaoAberta {
   readonly entrega: Entrega
-  readonly decisao: PedidoDecidirEntrega['decisao']
+  readonly decisao: DecidirEntregaRequest['decisao']
 }
 
 const idDoCartao = (entregaId: string) => `entrega-${entregaId}`
@@ -88,7 +88,7 @@ export default function Time() {
   const idDasFuncoes = useId()
 
   const decidir = useMutation({
-    mutationFn: ({ entrega, pedido }: { entrega: Entrega; pedido: PedidoDecidirEntrega }) => decidirEntrega(entrega.id, pedido),
+    mutationFn: ({ entrega, pedido }: { entrega: Entrega; pedido: DecidirEntregaRequest }) => decidirEntrega(entrega.id, pedido),
     onSuccess: async (decidida) => {
       definirAviso('')
       // A lista muda antes de o diálogo fechar: o botão que o abriu já saiu da tela, e o foco vai para a entrega decidida
@@ -98,7 +98,7 @@ export default function Time() {
     },
     onError: async (erro) => {
       // Outra aba, ou o primeiro clique, já decidiu: a tela se atualiza e mostra como ficou.
-      if (!(erro instanceof ErroDaApi) || erro.codigo !== CodigoDeErro.ENTREGA_JA_DECIDIDA) return
+      if (!(erro instanceof ErroDaApi) || erro.codigo !== ErrorCode.ENTREGA_JA_DECIDIDA) return
       definirAviso('Esta entrega já tinha sido decidida. A tela foi atualizada com a decisão.')
       // Pela mesma razão, o diálogo só fecha depois da releitura.
       await recarregarEntregas(cliente)
@@ -128,7 +128,7 @@ export default function Time() {
   const visiveis = entregasDoFiltro(todas, filtro)
   const assistente = agenteDoTime(time.data, 'assistente_de_ensino')
 
-  function abrir(entrega: Entrega, decisao: PedidoDecidirEntrega['decisao']): void {
+  function abrir(entrega: Entrega, decisao: DecidirEntregaRequest['decisao']): void {
     decidir.reset()
     definirJustificativa('')
     definirTentouRejeitar(false)
@@ -147,7 +147,7 @@ export default function Time() {
   }
 
   const turmaDaAberta = aberta === undefined ? undefined : nomes[aberta.entrega.turmaId]
-  const falhaDaDecisao = decidir.isError && !(decidir.error instanceof ErroDaApi && decidir.error.codigo === CodigoDeErro.ENTREGA_JA_DECIDIDA) ? mensagemDoErro(decidir.error) : undefined
+  const falhaDaDecisao = decidir.isError && !(decidir.error instanceof ErroDaApi && decidir.error.codigo === ErrorCode.ENTREGA_JA_DECIDIDA) ? mensagemDoErro(decidir.error) : undefined
   const problemaDaJustificativa = problemaDoTexto(justificativa, LIMITES_DA_JUSTIFICATIVA)
   const focoDeReserva = aberta === undefined ? undefined : () => document.getElementById(idDoCartao(aberta.entrega.id))?.focus()
 

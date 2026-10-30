@@ -1,7 +1,7 @@
 import { exigirEscolaDoContexto, serie, type Banco, type TransacaoBanco } from '@educa/nucleo'
-import type { ConsultaPaginada, PedidoCriarSerie, Serie } from '@educa/shared'
+import type { PaginationQuery, CriarSerieRequest, Serie } from '@educa/shared'
 import { and, asc, eq, gt } from 'drizzle-orm'
-import { ErroDeInvariante } from '@educa/shared'
+import { InvariantException } from '@educa/shared'
 
 const colunas = { id: serie.id, etapa: serie.etapa, ano: serie.ano }
 
@@ -12,14 +12,14 @@ const colunas = { id: serie.id, etapa: serie.etapa, ano: serie.ano }
 export class SerieRepository {
   constructor(private readonly banco: Banco | TransacaoBanco) {}
 
-  async criar(pedido: PedidoCriarSerie): Promise<Serie> {
+  async criar(pedido: CriarSerieRequest): Promise<Serie> {
     const [criada] = await this.banco.insert(serie).values({ escolaId: exigirEscolaDoContexto(), etapa: pedido.etapa, ano: pedido.ano }).returning(colunas)
-    if (criada === undefined) throw new ErroDeInvariante('série não criada')
+    if (criada === undefined) throw new InvariantException('série não criada')
     return criada
   }
 
   /** Uma página das séries da escola, em ordem de criação, com uma linha a mais que diz se há próxima. */
-  listar({ pagina, limite }: ConsultaPaginada): Promise<Serie[]> {
+  listar({ pagina, limite }: PaginationQuery): Promise<Serie[]> {
     return this.banco
       .select(colunas)
       .from(serie)

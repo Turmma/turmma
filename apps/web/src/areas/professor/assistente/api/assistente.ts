@@ -1,4 +1,4 @@
-import { esquemaRespostaConversaDoAssistente, esquemaRespostaExecucaoAceita, type MensagemDaConversa, type PedidoMensagemAoAssistente, type RespostaConversaDoAssistente, type RespostaExecucaoAceita } from '@educa/shared'
+import { conversaDoAssistenteResponseSchema, execucaoAceitaResponseSchema, type MensagemDaConversa, type MensagemAoAssistenteRequest, type ConversaDoAssistenteResponse, type ExecucaoAceitaResponse } from '@educa/shared'
 import { infiniteQueryOptions } from '@tanstack/react-query'
 import { CHAVE_DA_CONVERSA } from '../../../../api/chaves-do-professor'
 import { buscarComSessao, chamarComSessao } from '../../../../api/sessao'
@@ -16,7 +16,7 @@ const CAMINHO_DA_CONVERSA = '/v1/assistente/conversa'
 export const consultaConversaDoAssistente = infiniteQueryOptions({
   queryKey: CHAVE_DA_CONVERSA,
   queryFn: ({ pageParam, signal }) =>
-    buscarComSessao(pageParam === undefined ? CAMINHO_DA_CONVERSA : `${CAMINHO_DA_CONVERSA}?antes=${encodeURIComponent(pageParam)}`, esquemaRespostaConversaDoAssistente, signal),
+    buscarComSessao(pageParam === undefined ? CAMINHO_DA_CONVERSA : `${CAMINHO_DA_CONVERSA}?antes=${encodeURIComponent(pageParam)}`, conversaDoAssistenteResponseSchema, signal),
   initialPageParam: undefined as string | undefined,
   getNextPageParam: (ultima) => ultima.anterior,
 })
@@ -26,7 +26,7 @@ export const consultaConversaDoAssistente = infiniteQueryOptions({
  * mais recente para a mais antiga. A mensagem que aparecer em duas páginas (uma chegou entre uma leitura e outra) fica
  * uma vez só.
  */
-export function mensagensEmOrdem(paginas: readonly RespostaConversaDoAssistente[]): MensagemDaConversa[] {
+export function mensagensEmOrdem(paginas: readonly ConversaDoAssistenteResponse[]): MensagemDaConversa[] {
   const vistas = new Set<string>()
   const mensagens: MensagemDaConversa[] = []
   for (const pagina of [...paginas].reverse())
@@ -39,6 +39,6 @@ export function mensagensEmOrdem(paginas: readonly RespostaConversaDoAssistente[
 }
 
 /** `POST /v1/assistente/mensagens`: responde 202 com a execução. A resposta do Assistente chega pela execução. */
-export function enviarMensagemAoAssistente(pedido: PedidoMensagemAoAssistente): Promise<RespostaExecucaoAceita> {
-  return chamarComSessao('/v1/assistente/mensagens', esquemaRespostaExecucaoAceita, { metodo: 'POST', corpo: pedido })
+export function enviarMensagemAoAssistente(pedido: MensagemAoAssistenteRequest): Promise<ExecucaoAceitaResponse> {
+  return chamarComSessao('/v1/assistente/mensagens', execucaoAceitaResponseSchema, { metodo: 'POST', corpo: pedido })
 }

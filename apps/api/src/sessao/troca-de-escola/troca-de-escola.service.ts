@@ -1,5 +1,5 @@
 import { ErroDeDominio, sessaoDaRequisicao, type Banco } from '@educa/nucleo'
-import { CodigoDeErro, type PedidoTrocaDeEscola } from '@educa/shared'
+import { ErrorCode, type TrocaDeEscolaRequest } from '@educa/shared'
 import type { ConclusaoDeLogin } from '../conclusao/conclusao-de-login.js'
 import { verificarDesafio, type ConsumoDeDesafio, type EmissorDeDesafio, type SessaoDeOrigemDaTroca } from '../../credencial/desafio.js'
 import type { OrigemDaRequisicao, ResultadoDoLogin } from '../../credencial/origem-da-requisicao.js'
@@ -17,7 +17,7 @@ export interface DependenciasDaTroca {
 }
 
 /** `usuarioId` de outra conta, desativado, de aluno ou inexistente: a mesma resposta (regra 10, item 6). */
-const naoEncontrado = () => new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
+const naoEncontrado = () => new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
 
 /**
  * Quem trabalha em mais de uma escola escolhe e troca (RF14; Tech Spec, seções 4 e 5, "Etapas" e "Troca de escola").
@@ -38,7 +38,7 @@ const naoEncontrado = () => new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
 export class TrocaDeEscolaService {
   constructor(private readonly dependencias: DependenciasDaTroca) {}
 
-  async escolher(desafio: string, pedido: PedidoTrocaDeEscola, origem: OrigemDaRequisicao): Promise<ResultadoDoLogin> {
+  async escolher(desafio: string, pedido: TrocaDeEscolaRequest, origem: OrigemDaRequisicao): Promise<ResultadoDoLogin> {
     const { consumo } = this.dependencias
     const verificado = await verificarDesafio(desafio, this.dependencias.chaveAssinatura, ['escolher'])
     await consumo.conferirLivre(verificado)
@@ -47,7 +47,7 @@ export class TrocaDeEscolaService {
     return this.#entrar(verificado.contaId, destino, verificado.mfaCumprido, undefined, origem)
   }
 
-  async trocar(pedido: PedidoTrocaDeEscola, origem: OrigemDaRequisicao): Promise<ResultadoDoLogin> {
+  async trocar(pedido: TrocaDeEscolaRequest, origem: OrigemDaRequisicao): Promise<ResultadoDoLogin> {
     const { escolaId, sessaoId } = sessaoDaRequisicao()
     const daOrigem = await new SessaoDeOrigemRepository(this.dependencias.banco).metodoEConta(sessaoId)
     if (daOrigem?.metodo !== 'email' || daOrigem.contaId === null) throw naoEncontrado()
@@ -71,7 +71,7 @@ export class TrocaDeEscolaService {
     origem: OrigemDaRequisicao,
   ): Promise<ResultadoDoLogin> {
     const conta = await this.dependencias.resolucao.mfaDaConta(contaId)
-    if (conta === undefined) throw new ErroDeDominio(CodigoDeErro.NAO_AUTENTICADO)
+    if (conta === undefined) throw new ErroDeDominio(ErrorCode.NAO_AUTENTICADO)
     if (destino.papel === 'coordenador' && !mfaCumprido) {
       const { emissorDeDesafio } = this.dependencias
       if (conta.ativadoEm === null) {

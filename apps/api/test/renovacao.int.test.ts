@@ -1,5 +1,5 @@
 import { METRICAS } from '@educa/nucleo'
-import { CodigoDeErro, JANELA_DE_RENOVACAO_SIMULTANEA_MS } from '@educa/shared'
+import { ErrorCode, JANELA_DE_RENOVACAO_SIMULTANEA_MS } from '@educa/shared'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { chamar, cookieDaResposta, cookieDeRenovacao, estadoDaSessao, hashDoCookie, registrosDeAcesso, renovar, subirApi, type ApiDeTeste, type RespostaHttp } from './api-com-sessao.js'
@@ -41,7 +41,7 @@ describe('POST /v1/sessao/renovar: a sessão dura enquanto a pessoa usa, e o coo
 
   function esperarRecusada(resposta: RespostaHttp): void {
     expect(resposta.status).toBe(401)
-    expect(resposta.corpo.erro?.codigo).toBe(CodigoDeErro.NAO_AUTENTICADO)
+    expect(resposta.corpo.erro?.codigo).toBe(ErrorCode.NAO_AUTENTICADO)
     // O cookie que não vale mais sai do navegador.
     expect(resposta.setCookie).toEqual([expect.stringMatching(/^educa_sessao=; Path=\/v1\/sessao; HttpOnly; SameSite=Strict; Max-Age=0$/)])
   }
@@ -96,7 +96,7 @@ describe('POST /v1/sessao/renovar: a sessão dura enquanto a pessoa usa, e o coo
     const segunda = await renovar(api.url, cookie)
 
     expect(segunda.status).toBe(409)
-    expect(segunda.corpo.erro?.codigo).toBe(CodigoDeErro.JA_RENOVADO)
+    expect(segunda.corpo.erro?.codigo).toBe(ErrorCode.JA_RENOVADO)
     expect(segunda.setCookie).toEqual([])
     expect(await renovacoes('ja_renovado')).toBe(jaRenovadoAntes + 1)
     const estado = await estadoDaSessao(bancada, aluno)
@@ -114,7 +114,7 @@ describe('POST /v1/sessao/renovar: a sessão dura enquanto a pessoa usa, e o coo
 
     expect(respostas.map((resposta) => resposta.status).sort()).toEqual([200, 409, 409])
     for (const recusada of respostas.filter((resposta) => resposta.status === 409)) {
-      expect(recusada.corpo.erro?.codigo).toBe(CodigoDeErro.JA_RENOVADO)
+      expect(recusada.corpo.erro?.codigo).toBe(ErrorCode.JA_RENOVADO)
       expect(recusada.setCookie).toEqual([])
     }
     const vencedora = respostas.find((resposta) => resposta.status === 200)

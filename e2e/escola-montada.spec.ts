@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import type { Browser, BrowserContext, BrowserContextOptions, Locator, Page } from '@playwright/test'
 import { exibirCodigoDaTurma } from '../packages/shared/src/sala/acesso.ts'
-import type { RespostaAcessoGerado } from '../packages/shared/src/sala/acesso.ts'
+import type { AcessoGeradoResponse } from '../packages/shared/src/sala/acesso.ts'
 import { entrarComoCoordenacaoNaMesmaAba, entrarPorEmail, abrirEstrutura, irPelaNavegacao, PRAZO_DA_ENTRADA_MS, passarPelaIntroducaoDoAluno, passarPelaIntroducaoDoProfessor, abrirAbaAlunos } from './__fixtures__/casca.ts'
 import { irPelaCoordenacao, painelDoAno } from './__fixtures__/coordenacao.ts'
 import { expect, test } from './__fixtures__/perfis.ts'
@@ -172,7 +172,7 @@ test('W1: da escola vazia à aluna aprovada, só pela tela — a coordenação m
   await acionar(botao(acesso, 'Convidar alunos'), hasTouch)
   const respostaDoGerar = professor.waitForResponse((resposta) => /^\/v1\/turmas\/[^/]+\/acesso$/.test(new URL(resposta.url()).pathname) && resposta.request().method() === 'POST')
   await acionar(botao(dialogo(professor), 'Gerar acesso'), hasTouch)
-  const gerado = (await (await respostaDoGerar).json()) as RespostaAcessoGerado
+  const gerado = (await (await respostaDoGerar).json()) as AcessoGeradoResponse
   await expect(dialogo(professor).getByRole('group', { name: 'Código da turma' })).toContainText(exibirCodigoDaTurma(gerado.codigo), { timeout: PRAZO_DA_ENTRADA_MS })
   await acionar(botao(dialogo(professor), 'Fechar'), hasTouch)
   await acionar(botao(dialogo(professor), 'Fechar sem copiar'), hasTouch)

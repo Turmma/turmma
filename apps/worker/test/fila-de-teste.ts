@@ -23,7 +23,7 @@ import {
   type VagasConfiguradas,
   type VagasPorFila,
 } from '@educa/nucleo'
-import { DEFINICOES_DE_JOB, FILAS, type EstadoDeJob, type Fila, type RegistroDeJobs } from '@educa/shared'
+import { JOB_DEFINITIONS, QUEUE_NAMES, type JobState, type QueueName, type JobRegistry } from '@educa/shared'
 import { Queue } from 'bullmq'
 import { Redis } from 'ioredis'
 import { randomUUID } from 'node:crypto'
@@ -145,9 +145,9 @@ export function esperarORedisNaPrimeiraVez(montado: MontadoQueEspera): void {
  * O que o teste pede à bancada: o job como a linha de `job_registro` o guarda, com o que não vier no valor padrão do sintético. O
  * `tipo` é um dos do registro da bancada; o tipo que o registro não tem entra por SQL, no teste que o prova.
  */
-export interface PedidoDaBancada<Registro extends RegistroDeJobs = typeof DEFINICOES_DE_JOB> {
+export interface PedidoDaBancada<Registro extends JobRegistry = typeof JOB_DEFINITIONS> {
   tipo?: Extract<keyof Registro, string>
-  fila?: Fila
+  fila?: QueueName
   naoUrgente?: boolean
   dados?: Record<string, unknown>
 }
@@ -158,10 +158,10 @@ export interface PedidoDaBancada<Registro extends RegistroDeJobs = typeof DEFINI
  *
  * O registro de jobs é o de produção, salvo o que o teste injeta (`new BancadaDeFila(definicoes)`): os despachantes e os workers
  * da bancada o usam para publicar com a retentativa do tipo e para validar os dados da linha, e o teste que precisa de um tipo
- * de dados próprios (o `rotulo` do teste de vagas) ou de uma retentativa curta o declara aqui, sem tocar `DEFINICOES_DE_JOB`.
+ * de dados próprios (o `rotulo` do teste de vagas) ou de uma retentativa curta o declara aqui, sem tocar `JOB_DEFINITIONS`.
  */
-export class BancadaDeFila<Registro extends RegistroDeJobs = typeof DEFINICOES_DE_JOB> {
-  readonly definicoes: RegistroDeJobs
+export class BancadaDeFila<Registro extends JobRegistry = typeof JOB_DEFINITIONS> {
+  readonly definicoes: JobRegistry
   readonly prefixo = `teste-${randomUUID()}`
   readonly pool: PoolBanco = criarPool(configuracaoDoBanco(), () => undefined)
   readonly banco: Banco = criarBanco(this.pool)
@@ -169,14 +169,14 @@ export class BancadaDeFila<Registro extends RegistroDeJobs = typeof DEFINICOES_D
   readonly despacho = new DespachoRepository(this.banco)
   readonly enfileirador = new Enfileirador(this.registro)
   readonly redis = new Redis(urlRedisDeFila(), { maxRetriesPerRequest: null })
-  readonly filas: Readonly<Record<Fila, Queue<DadosDoJobNaFila>>> = Object.fromEntries(
-    FILAS.map((fila) => [fila, new Queue<DadosDoJobNaFila>(nomeDaFilaBullMQ(fila, 'worker'), { connection: this.redis, prefix: this.prefixo })]),
-  ) as Record<Fila, Queue<DadosDoJobNaFila>>
+  readonly filas: Readonly<Record<QueueName, Queue<DadosDoJobNaFila>>> = Object.fromEntries(
+    QUEUE_NAMES.map((fila) => [fila, new Queue<DadosDoJobNaFila>(nomeDaFilaBullMQ(fila, 'worker'), { connection: this.redis, prefix: this.prefixo })]),
+  ) as Record<QueueName, Queue<DadosDoJobNaFila>>
   readonly vagas = new VagasPorEscola(this.redis, this.prefixo)
   readonly #montados: Array<DespachanteMontado | WorkerMontado> = []
 
   constructor(definicoes?: Registro) {
-    this.definicoes = definicoes ?? DEFINICOES_DE_JOB
+    this.definicoes = definicoes ?? JOB_DEFINITIONS
     // Os testes param o Redis de fila: sem ouvinte, o ioredis escreve cada reconexão no console.
     this.redis.on('error', () => undefined)
     for (const fila of Object.values(this.filas)) fila.on('error', () => undefined)
@@ -223,8 +223,8 @@ export class BancadaDeFila<Registro extends RegistroDeJobs = typeof DEFINICOES_D
     )
   }
 
-  async estado(id: string): Promise<{ estado: EstadoDeJob; escolaId: string | null; codigoFalha: string | null } | undefined> {
-    const { rows } = await this.pool.query<{ estado: EstadoDeJob; escolaId: string | null; codigoFalha: string | null }>(
+  async estado(id: string): Promise<{ estado: JobState; escolaId: string | null; codigoFalha: string | null } | undefined> {
+    const { rows } = await this.pool.query<{ estado: JobState; escolaId: string | null; codigoFalha: string | null }>(
       'select estado, escola_id as "escolaId", codigo_falha as "codigoFalha" from job_registro where id = $1',
       [id],
     )
@@ -232,7 +232,7 @@ export class BancadaDeFila<Registro extends RegistroDeJobs = typeof DEFINICOES_D
   }
 
   /** Reserva como o despachante faz, na escola do contexto e na fila, sem tomar vaga. */
-  reservar(escolaId: string, fila: Fila = 'interativa', limite = 1_000) {
+  reservar(escolaId: string, fila: QueueName = 'interativa', limite = 1_000) {
     return executarNoContexto({ requisicaoId: randomUUID(), escolaId }, () => this.despacho.reservarDaEscola(fila, limite))
   }
 
@@ -301,7 +301,7 @@ export class BancadaDeFila<Registro extends RegistroDeJobs = typeof DEFINICOES_D
     log: LogEmMemoria,
     opcoes: {
       concorrencia?: number
-      pools?: Partial<Record<Fila, number>>
+      pools?: Partial<Record<QueueName, number>>
       processadores?: ProcessadoresDeJob
       graca?: number
       intervaloRenovacaoDaVagaMs?: number
@@ -310,7 +310,7 @@ export class BancadaDeFila<Registro extends RegistroDeJobs = typeof DEFINICOES_D
       vagasPorEscolaDesligadas?: true
     } = {},
   ): WorkerMontado {
-    const pools = opcoes.pools ?? Object.fromEntries(FILAS.map((fila) => [fila, opcoes.concorrencia ?? 5]))
+    const pools = opcoes.pools ?? Object.fromEntries(QUEUE_NAMES.map((fila) => [fila, opcoes.concorrencia ?? 5]))
     const montado = montarWorker(
       {
         banco: configuracaoDoBanco(),

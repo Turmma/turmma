@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { CodigoDeErro, MENSAGENS_DE_ERRO } from '@educa/shared'
+import { ErrorCode, MENSAGENS_DE_ERRO } from '@educa/shared'
 import { cleanup, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { readFileSync } from 'node:fs'
@@ -19,7 +19,7 @@ import { EstadoCarregando, EstadoErro, EstadoVazio } from '.'
  */
 afterEach(cleanup)
 
-const ERRO = new ErroDaApi(CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO)
+const ERRO = new ErroDaApi(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO)
 
 describe('EstadoErro', () => {
   it('o `alert` é só a mensagem do catálogo; o botão e o "tentando" ficam fora dele', async () => {

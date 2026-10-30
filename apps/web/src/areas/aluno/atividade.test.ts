@@ -1,4 +1,4 @@
-import { CodigoDeErro, type RespostaMeuDiagnostico, type RespostaProva } from '@educa/shared'
+import { ErrorCode, type MeuDiagnosticoResponse, type ProvaResponse } from '@educa/shared'
 import { describe, expect, it } from 'vitest'
 import { ErroDaApi } from '../../api/cliente'
 import {
@@ -25,7 +25,7 @@ import { FILA_VAZIA, type EstadoDaFila } from './respostas'
 
 const ID = '0190f5a0-0000-7000-8000-0000000000a1'
 
-const prova = (campos: Partial<RespostaProva> = {}): RespostaProva => ({
+const prova = (campos: Partial<ProvaResponse> = {}): ProvaResponse => ({
   atividadeAplicadaId: ID,
   titulo: 'Atividade de estequiometria',
   avaliativa: false,
@@ -37,7 +37,7 @@ const prova = (campos: Partial<RespostaProva> = {}): RespostaProva => ({
   ...campos,
 })
 
-const DIAGNOSTICO: RespostaMeuDiagnostico = {
+const DIAGNOSTICO: MeuDiagnosticoResponse = {
   atividadeAplicadaId: ID,
   titulo: 'Atividade de estequiometria',
   acertos: 2,
@@ -61,7 +61,7 @@ describe('a fase da atividade', () => {
 })
 
 describe('o resultado só aparece depois de a professora aprovar a correção (regra 70, item 3)', () => {
-  const NAO_ENCONTRADO = new ErroDaApi(CodigoDeErro.NAO_ENCONTRADO)
+  const NAO_ENCONTRADO = new ErroDaApi(ErrorCode.NAO_ENCONTRADO)
 
   it('com o lote pendente, rejeitado ou ainda não corrigido, a API responde como inexistente e a tela só diz que a correção vai ser revista', () => {
     // Os três casos chegam iguais à tela, de propósito: ela não tem como saber, nem dizer, o que a correção achou.
@@ -81,7 +81,7 @@ describe('o resultado só aparece depois de a professora aprovar a correção (r
     expect(resultadoNaTela('enviada', { data: DIAGNOSTICO, error: null })).toEqual({ tipo: 'pronto', diagnostico: DIAGNOSTICO })
     expect(resultadoNaTela('encerrada', { data: DIAGNOSTICO, error: null })).toEqual({ tipo: 'pronto', diagnostico: DIAGNOSTICO })
     expect(resultadoNaTela('enviada', { data: undefined, error: null })).toEqual({ tipo: 'carregando' })
-    const queda = new ErroDaApi(CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO)
+    const queda = new ErroDaApi(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO)
     expect(resultadoNaTela('enviada', { data: undefined, error: queda })).toEqual({ tipo: 'erro', erro: queda })
   })
 
@@ -167,7 +167,7 @@ describe('a comemoração é só da entrega (RF8; D59)', () => {
     expect(comemoracaoNaTela(true, ENVIADA, AGUARDANDO)).toBe(true)
     // O resultado que ainda carrega, ou que falhou ao carregar, não tira a comemoração: ela não depende dele.
     expect(comemoracaoNaTela(true, ENVIADA, { tipo: 'carregando' })).toBe(true)
-    expect(comemoracaoNaTela(true, ENVIADA, { tipo: 'erro', erro: new ErroDaApi(CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO) })).toBe(true)
+    expect(comemoracaoNaTela(true, ENVIADA, { tipo: 'erro', erro: new ErroDaApi(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO) })).toBe(true)
   })
 
   it('a tarefa enviada em outra hora, aberta pela lista ou recarregada, não a tem: falta o envio desta tela', () => {

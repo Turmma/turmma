@@ -1,5 +1,5 @@
 import { ErroDeDominio, METRICAS, ROTULO_ESCOLA, type Meter } from '@educa/nucleo'
-import { CodigoDeErro } from '@educa/shared'
+import { ErrorCode } from '@educa/shared'
 import type { ContadorDeTentativas, Reserva } from '../contador-de-tentativas.js'
 import type { HashDeSenha } from '../hash-de-senha.js'
 import type { BaldeDeLogin } from './baldes-de-login.js'
@@ -75,8 +75,8 @@ export class ConferenciaNaVez {
   async #falhar(tentativa: FalhaDaTentativa, esperaMs: number): Promise<never> {
     this.#falhas.add(1, { [ROTULO_ESCOLA]: tentativa.balde.rotulo })
     await tentativa.aoFalhar?.()
-    if (esperaMs <= 0) throw new ErroDeDominio(CodigoDeErro.NAO_AUTENTICADO)
+    if (esperaMs <= 0) throw new ErroDeDominio(ErrorCode.NAO_AUTENTICADO)
     this.#contaSegurada.add(1)
-    throw new ErroDeDominio(CodigoDeErro.CONTA_SEGURADA, undefined, Math.max(1, Math.ceil(esperaMs / 1_000)))
+    throw new ErroDeDominio(ErrorCode.CONTA_SEGURADA, undefined, Math.max(1, Math.ceil(esperaMs / 1_000)))
   }
 }

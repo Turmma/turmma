@@ -1,4 +1,4 @@
-import { CodigoDeErro } from '@educa/shared'
+import { ErrorCode } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { setImmediate as proximaVolta, setTimeout as esperar } from 'node:timers/promises'
 import type { ConfiguracaoDoExecutor } from '../config/config-ia.js'
@@ -13,9 +13,9 @@ export const ESTADOS_DA_EXECUCAO = ['pendente', 'rodando', 'concluida', 'falhou'
 export type EstadoDaExecucao = (typeof ESTADOS_DA_EXECUCAO)[number]
 
 /** A execução ficou `pendente` ou `rodando` além do prazo: o processo caiu ou reiniciou no meio dela. */
-export const EXECUCAO_INTERROMPIDA = CodigoDeErro.EXECUCAO_INTERROMPIDA
+export const EXECUCAO_INTERROMPIDA = ErrorCode.EXECUCAO_INTERROMPIDA
 /** O que `execucao_agente.erro` guarda: um código do contrato, e mais nada. */
-export type CodigoDeFalhaDaExecucao = CodigoDeErro
+export type CodigoDeFalhaDaExecucao = ErrorCode
 
 /** A `execucao_agente` que o `POST` já gravou como `pendente` antes de responder `202`. */
 export interface ExecucaoAgendada {

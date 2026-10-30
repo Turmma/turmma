@@ -1,25 +1,25 @@
 import { z } from 'zod'
-import { esquemaDePagina } from '../estrutura/paginacao.js'
-import { esquemaEmailConvidado, esquemaNomeDigitado, TAMANHO_MAXIMO_NOME_DIGITADO } from '../operacao/painel.js'
-import { esquemaTokenDeLink } from '../sessao/token.js'
+import { pageSchema } from '../estrutura/pagination.js'
+import { emailConvidadoSchema, nomeDigitadoSchema, TAMANHO_MAXIMO_NOME_DIGITADO } from '../operacao/painel.js'
+import { tokenDeLinkSchema } from '../sessao/token.js'
 
 /**
  * Corpo de `POST /v1/professores` (A1, RF6): o nome e o e-mail de login do professor, com as regras do convite da
  * coordenação (nome de uma linha, até 200; e-mail sem espaço nas pontas e em minúsculas). Estrito: campo a mais, como
  * `escolaId` ou `papel`, é `ENTRADA_INVALIDA`. A escola vem da sessão; o papel é sempre `professor`.
  */
-export const esquemaPedidoCadastrarProfessor = z.strictObject({
-  nome: esquemaNomeDigitado,
-  email: esquemaEmailConvidado,
+export const cadastrarProfessorRequestSchema = z.strictObject({
+  nome: nomeDigitadoSchema,
+  email: emailConvidadoSchema,
 })
 
-export type PedidoCadastrarProfessor = z.infer<typeof esquemaPedidoCadastrarProfessor>
+export type CadastrarProfessorRequest = z.infer<typeof cadastrarProfessorRequestSchema>
 
 /**
  * Corpo de `POST /v1/professores/:usuarioId/convite/{refazer,revogar}`: nenhum campo. Estrito: `{}` ou corpo nenhum; o
  * convite é sempre o último de professor daquele usuário na escola da sessão, nunca um id vindo do corpo.
  */
-export const esquemaPedidoSemCorpoDoConviteDeProfessor = z.strictObject({})
+export const conviteDeProfessorEmptyBodyRequestSchema = z.strictObject({})
 
 /**
  * Resposta do cadastro (`POST /v1/professores`) e do refazer (`POST /v1/professores/:usuarioId/convite/refazer`): o
@@ -27,13 +27,13 @@ export const esquemaPedidoSemCorpoDoConviteDeProfessor = z.strictObject({})
  * resposta (o banco guarda o SHA-256). A web monta o link `/convite#<token>`. Sai com `no-store`. Estrito: nada da pessoa,
  * e nada que diga se a conta do e-mail já existia (E11).
  */
-export const esquemaRespostaConviteDeProfessor = z.strictObject({
+export const conviteDeProfessorResponseSchema = z.strictObject({
   usuarioId: z.uuid(),
   conviteId: z.uuid(),
-  token: esquemaTokenDeLink,
+  token: tokenDeLinkSchema,
 })
 
-export type RespostaConviteDeProfessor = z.infer<typeof esquemaRespostaConviteDeProfessor>
+export type ConviteDeProfessorResponse = z.infer<typeof conviteDeProfessorResponseSchema>
 
 /**
  * O estado do professor na escola, pelo convite dele (A1, tarefa 3.0). Calculado só por `estadoDoProfessor`, em
@@ -95,15 +95,15 @@ export const REVOGAR_CONVITE_DE_PROFESSOR_POR_ESTADO: Readonly<Record<EstadoDoPr
  * Um professor na lista da coordenação: o usuário, o nome e o estado do convite. Nem e-mail, nem token, nem link, nem
  * nada que diga se a conta do e-mail era nova (E8, E11).
  */
-export const esquemaProfessorDaEscola = z.strictObject({
+export const professorDaEscolaSchema = z.strictObject({
   usuarioId: z.uuid(),
   nome: z.string().min(1).max(TAMANHO_MAXIMO_NOME_DIGITADO),
   estado: z.enum(ESTADOS_DO_PROFESSOR),
 })
 
-export type ProfessorDaEscola = z.infer<typeof esquemaProfessorDaEscola>
+export type ProfessorDaEscola = z.infer<typeof professorDaEscolaSchema>
 
 /** Resposta de `GET /v1/professores`: uma página, em ordem de `usuarioId`, com `?pagina=` e `?limite=` da estrutura. */
-export const esquemaRespostaListaDeProfessores = esquemaDePagina(esquemaProfessorDaEscola)
+export const listaDeProfessoresResponseSchema = pageSchema(professorDaEscolaSchema)
 
-export type RespostaListaDeProfessores = z.infer<typeof esquemaRespostaListaDeProfessores>
+export type ListaDeProfessoresResponse = z.infer<typeof listaDeProfessoresResponseSchema>

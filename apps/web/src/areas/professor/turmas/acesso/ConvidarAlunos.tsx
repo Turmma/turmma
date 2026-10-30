@@ -1,4 +1,4 @@
-import { VALIDADES_DO_ACESSO_DIAS, type RespostaAcessoGerado, type ValidadeDoAcessoDias } from '@educa/shared'
+import { VALIDADES_DO_ACESSO_DIAS, type AcessoGeradoResponse, type ValidadeDoAcessoDias } from '@educa/shared'
 import { useQuery } from '@tanstack/react-query'
 import { useId, useRef, useState, type ReactNode, type RefObject } from 'react'
 import { consultaAcessoDaTurma, mutacaoDoGerarAcesso, revogarAcesso } from '../api/acesso'
@@ -286,7 +286,7 @@ function AcessoGerado({
   copia,
   aoFechar,
 }: {
-  acesso: RespostaAcessoGerado
+  acesso: AcessoGeradoResponse
   escola: EscolaDaSessao
   titulo: RefObject<HTMLHeadingElement | null>
   copia: ReturnType<typeof useCopia>

@@ -1,5 +1,5 @@
 import { Permite } from '@educa/nucleo'
-import type { RespostaMinhaTurma } from '@educa/shared'
+import type { MinhaTurmaResponse } from '@educa/shared'
 import { Controller, Get } from '@nestjs/common'
 import { MinhaTurmaService } from './minha-turma.service.js'
 
@@ -10,7 +10,7 @@ export class MinhaTurmaController {
 
   @Get()
   @Permite('minha_turma', 'ler')
-  ler(): Promise<RespostaMinhaTurma> {
+  ler(): Promise<MinhaTurmaResponse> {
     return this.minhaTurma.ler()
   }
 }

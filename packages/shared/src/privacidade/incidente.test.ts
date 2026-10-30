@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { CHAVES_DE_CATEGORIA_DO_SUBOPERADOR } from './suboperador.js'
 import {
   CHAVES_DE_CATEGORIA_DO_INCIDENTE,
-  esquemaIncidenteDaEscola,
-  esquemaRespostaIncidentes,
+  incidenteDaEscolaSchema,
+  incidentesResponseSchema,
   HORAS_PARA_A_ESCOLA_CONFIRMAR,
   MAXIMO_DE_TITULARES_ESTIMADOS,
   MAXIMO_DO_TEXTO_DO_INCIDENTE,
@@ -36,14 +36,14 @@ describe('contrato do incidente (F3, 9.0)', () => {
   })
 
   it('a seção da escola aceita o que a escola lê e recusa qualquer campo a mais: o id do incidente, quem registrou, as outras escolas', () => {
-    expect(esquemaIncidenteDaEscola.parse(valido)).toEqual(valido)
+    expect(incidenteDaEscolaSchema.parse(valido)).toEqual(valido)
     for (const extra of [{ incidenteId: valido.id }, { registradoPor: 'ana' }, { escolas: [] }, { titulares: ['x'] }]) {
-      expect(esquemaIncidenteDaEscola.safeParse({ ...valido, ...extra }).success, Object.keys(extra)[0]).toBe(false)
+      expect(incidenteDaEscolaSchema.safeParse({ ...valido, ...extra }).success, Object.keys(extra)[0]).toBe(false)
     }
   })
 
   it('os limites: categoria fora da lista ou vazia, risco de fora, texto vazio ou longo, número negativo, quebrado ou grande demais', () => {
-    const recusa = (resto: Record<string, unknown>) => esquemaIncidenteDaEscola.safeParse({ ...valido, ...resto }).success
+    const recusa = (resto: Record<string, unknown>) => incidenteDaEscolaSchema.safeParse({ ...valido, ...resto }).success
     expect(recusa({ categorias: [] })).toBe(false)
     expect(recusa({ categorias: ['diagnostico'] })).toBe(false)
     expect(recusa({ risco: 'critico' })).toBe(false)
@@ -58,8 +58,8 @@ describe('contrato do incidente (F3, 9.0)', () => {
   })
 
   it('a resposta traz a lista e o prazo legal, e nada mais', () => {
-    expect(esquemaRespostaIncidentes.parse({ incidentes: [valido], prazoLegal: TEXTO_DO_PRAZO_LEGAL_DO_INCIDENTE }).incidentes).toHaveLength(1)
-    expect(esquemaRespostaIncidentes.safeParse({ incidentes: [], prazoLegal: '' }).success).toBe(false)
-    expect(esquemaRespostaIncidentes.safeParse({ incidentes: [], prazoLegal: 'x', total: 0 }).success).toBe(false)
+    expect(incidentesResponseSchema.parse({ incidentes: [valido], prazoLegal: TEXTO_DO_PRAZO_LEGAL_DO_INCIDENTE }).incidentes).toHaveLength(1)
+    expect(incidentesResponseSchema.safeParse({ incidentes: [], prazoLegal: '' }).success).toBe(false)
+    expect(incidentesResponseSchema.safeParse({ incidentes: [], prazoLegal: 'x', total: 0 }).success).toBe(false)
   })
 })

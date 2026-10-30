@@ -1,4 +1,4 @@
-import { CHAVES_DE_RETENCAO, CodigoDeErro, ESTADOS_DO_PEDIDO, MINIMO_DE_LETRAS_DO_TERMO, SOLICITANTES_DO_PEDIDO, TIPOS_DE_PEDIDO_DO_TITULAR, type ItemDoPedido, type TitularAchado } from '@educa/shared'
+import { CHAVES_DE_RETENCAO, ErrorCode, ESTADOS_DO_PEDIDO, MINIMO_DE_LETRAS_DO_TERMO, SOLICITANTES_DO_PEDIDO, TIPOS_DE_PEDIDO_DO_TITULAR, type ItemDoPedido, type TitularAchado } from '@educa/shared'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   anuncioDaBusca,
@@ -189,11 +189,11 @@ describe('ordenarOsPedidos: a chegada mais recente primeiro, e o id no empate', 
 
 describe('os textos de falha: dizem o que fazer, e o de queda diz que repetir não duplica', () => {
   it('o limite da busca manda esperar um minuto', () => {
-    expect(TEXTOS_DA_FALHA_DA_BUSCA[CodigoDeErro.LIMITE_EXCEDIDO]).toContain('Aguarde um minuto')
+    expect(TEXTOS_DA_FALHA_DA_BUSCA[ErrorCode.LIMITE_EXCEDIDO]).toContain('Aguarde um minuto')
   })
 
   it('a indisponibilidade do registro diz que o pedido não será registrado duas vezes', () => {
-    expect(TEXTOS_DA_FALHA_DO_REGISTRO[CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO]).toContain('não será registrado duas vezes')
-    expect(TEXTOS_DA_FALHA_DO_REGISTRO[CodigoDeErro.ENTRADA_INVALIDA]).toContain('registre o pedido de novo')
+    expect(TEXTOS_DA_FALHA_DO_REGISTRO[ErrorCode.INDISPONIVEL_TENTE_DE_NOVO]).toContain('não será registrado duas vezes')
+    expect(TEXTOS_DA_FALHA_DO_REGISTRO[ErrorCode.ENTRADA_INVALIDA]).toContain('registre o pedido de novo')
   })
 })

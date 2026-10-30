@@ -47,8 +47,8 @@ import {
   TIPO_EXPURGAR_JOBS,
   TIPO_JOB_SINTETICO,
   TIPO_MONTAR_ARQUIVO,
-  type Fila,
-  type RegistroDeJobs,
+  type QueueName,
+  type JobRegistry,
 } from '@educa/shared'
 import { ArmazemS3 } from '@educa/nucleo/armazem-s3'
 import { Queue, Worker } from 'bullmq'
@@ -81,7 +81,7 @@ export interface OpcoesDaMontagem {
   /** Troca os processadores da réplica. Sem isto, o sintético (no sandbox de CPU) e, no lote, as rotinas do sistema. */
   processadores?: ProcessadoresDeJob
   /** O registro de jobs que valida os dados e dá o prazo de cada tipo. Só o teste troca, para ter um tipo de dados próprios. */
-  definicoes?: RegistroDeJobs
+  definicoes?: JobRegistry
   /** Prefixo das chaves do BullMQ e das vagas. Só o teste troca, para não disputar a fila com outro teste. */
   prefixo?: string
   /** Intervalo de renovação da vaga. Só o teste troca, para ver a renovação sem esperar 15 s. */
@@ -106,7 +106,7 @@ export interface OpcoesDaMontagem {
 
 export interface WorkerMontado {
   /** Um `Worker` do BullMQ por fila atendida, cada um com o próprio pool. */
-  workers: ReadonlyMap<Fila, Worker<DadosDoJobNaFila>>
+  workers: ReadonlyMap<QueueName, Worker<DadosDoJobNaFila>>
   /** Só na réplica que atende o lote: a fila dos disparos agendados e o worker que os grava em `job_registro`. */
   agendamentos?: { fila: Queue; worker: Worker }
   /** `close()` com graça em todos: espera os jobs em andamento até o prazo e só então força. */
@@ -115,7 +115,7 @@ export interface WorkerMontado {
 
 /**
  * Workers BullMQ ligados ao Postgres (pool próprio) e ao Redis de fila, um por fila que a réplica
- * atende (`FILAS`), com a concorrência do pool da fila. Pools separados são o que garante que lote
+ * atende (`QUEUE_NAMES`), com a concorrência do pool da fila. Pools separados são o que garante que lote
  * nenhum ocupa a vez do interativo: o `worker-lote` nem consome a fila interativa.
  *
  * O stalled é o do BullMQ, com lock e verificação por fila (`OPCOES_DO_POOL_POR_FILA`): se a réplica
@@ -170,7 +170,7 @@ export function montarWorker(config: Omit<ConfiguracaoWorker, 'telemetria'>, log
     ...(opcoes.definicoes === undefined ? {} : { definicoes: opcoes.definicoes }),
     logger,
     uso,
-    ...(aguardandoVaga === undefined ? {} : { aoAguardarVaga: (fila: Fila, escolaId: string | null) => aguardandoVaga.add(1, { fila, escola_id: escolaId ?? DONO_DAS_VAGAS_DO_SISTEMA }) }),
+    ...(aguardandoVaga === undefined ? {} : { aoAguardarVaga: (fila: QueueName, escolaId: string | null) => aguardandoVaga.add(1, { fila, escola_id: escolaId ?? DONO_DAS_VAGAS_DO_SISTEMA }) }),
     vagas: new VagasPorEscola(redisDasVagas, opcoes.prefixo, opcoes.validadeDaVagaMs),
     vagasDaEscola: new ConfiguracaoOperacional(
       new ConfiguracaoOperacionalRepository(banco),
@@ -182,8 +182,8 @@ export function montarWorker(config: Omit<ConfiguracaoWorker, 'telemetria'>, log
     ...(opcoes.intervaloRenovacaoDaVagaMs === undefined ? {} : { intervaloRenovacaoMs: opcoes.intervaloRenovacaoDaVagaMs }),
   })
   const avisarErroDaFila = avisoEspacado(() => logger.warn({ evento: 'worker.fila_com_erro' }))
-  const workers = new Map<Fila, Worker<DadosDoJobNaFila>>()
-  for (const [fila, concorrencia] of Object.entries(config.pools) as Array<[Fila, number]>) {
+  const workers = new Map<QueueName, Worker<DadosDoJobNaFila>>()
+  for (const [fila, concorrencia] of Object.entries(config.pools) as Array<[QueueName, number]>) {
     const worker = new Worker<DadosDoJobNaFila>(nomeDaFilaBullMQ(fila, 'worker'), (job, token) => executor.processar(job, token), {
       connection: redis,
       concurrency: concorrencia,
@@ -266,7 +266,7 @@ export interface ProcessadoresMontados {
 /**
  * Os processadores que esta réplica leva, pelas filas que ela atende (`config.pools`): o sintético em toda réplica, o
  * arquivo do titular na que atende a `normal` e as rotinas do sistema e da escola na que atende o `lote`. É a fonte do que a
- * réplica sabe executar, e `montagem.test.ts` a liga a `DEFINICOES_DE_JOB`: todo tipo do worker tem processador nas filas
+ * réplica sabe executar, e `montagem.test.ts` a liga a `JOB_DEFINITIONS`: todo tipo do worker tem processador nas filas
  * dele, e nenhum processador está numa fila que a definição do tipo não lista.
  */
 export function montarProcessadores(config: Pick<ConfiguracaoWorker, 'pools' | 'storage' | 'janelaPadrao'>, pecas: PecasDosProcessadores): ProcessadoresMontados {

@@ -1,4 +1,4 @@
-import { CodigoDeErro } from '@educa/shared'
+import { ErrorCode } from '@educa/shared'
 import { describe, expect, it } from 'vitest'
 import { z } from 'zod'
 import { ErroDeDominio } from '../erro/erro-de-dominio.js'
@@ -28,15 +28,15 @@ describe('ZodValidationPipe', () => {
     const pipe = new ZodValidationPipe(esquema)
     for (const entrada of [{ nome: 'Ana', escolaId: 'b' }, { nome: '' }, { nome: 'Ana', limite: 101 }, undefined, 'texto']) {
       const erro = erroDe(() => pipe.transform(entrada))
-      expect(erro.codigo, JSON.stringify(entrada)).toBe(CodigoDeErro.ENTRADA_INVALIDA)
+      expect(erro.codigo, JSON.stringify(entrada)).toBe(ErrorCode.ENTRADA_INVALIDA)
       expect(erro.status).toBe(400)
-      expect(erro.message).toBe(CodigoDeErro.ENTRADA_INVALIDA)
+      expect(erro.message).toBe(ErrorCode.ENTRADA_INVALIDA)
     }
   })
 
   it('com errorCode NAO_ENCONTRADO o inválido responde 404, como o inexistente', () => {
-    const erro = erroDe(() => new ZodValidationPipe(z.enum(['a', 'b']), { errorCode: CodigoDeErro.NAO_ENCONTRADO }).transform('c'))
-    expect(erro.codigo).toBe(CodigoDeErro.NAO_ENCONTRADO)
+    const erro = erroDe(() => new ZodValidationPipe(z.enum(['a', 'b']), { errorCode: ErrorCode.NAO_ENCONTRADO }).transform('c'))
+    expect(erro.codigo).toBe(ErrorCode.NAO_ENCONTRADO)
     expect(erro.status).toBe(404)
   })
 })
@@ -52,7 +52,7 @@ describe('IdPipe', () => {
   it('fora do formato responde como o inexistente: NAO_ENCONTRADO, 404, e não 400', () => {
     for (const valor of ['nao-e-uuid', '', '1837', `${UUID}x`, undefined]) {
       const erro = erroDe(() => new IdPipe().transform(valor))
-      expect(erro.codigo, String(valor)).toBe(CodigoDeErro.NAO_ENCONTRADO)
+      expect(erro.codigo, String(valor)).toBe(ErrorCode.NAO_ENCONTRADO)
       expect(erro.status).toBe(404)
     }
   })

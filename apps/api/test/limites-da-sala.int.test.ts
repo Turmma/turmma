@@ -1,5 +1,5 @@
 import { type PoolBanco } from '@educa/nucleo'
-import { CodigoDeErro, esquemaRespostaSalaAberta, MENSAGENS_DE_ERRO } from '@educa/shared'
+import { ErrorCode, salaAbertaResponseSchema, MENSAGENS_DE_ERRO } from '@educa/shared'
 import { randomBytes, randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
@@ -32,10 +32,10 @@ import { BancadaDeSessoes } from './sessao-de-teste.js'
 
 const AMBIENTE = { LIMITE_PROXIES_CONFIAVEIS: '127.0.0.1' }
 
-const erro = (codigo: CodigoDeErro, status: number) => ({ status, texto: JSON.stringify({ erro: { codigo, mensagem: MENSAGENS_DE_ERRO[codigo], requisicaoId: '-' } }) })
-const RECUSADA = erro(CodigoDeErro.REIVINDICACAO_RECUSADA, 409)
-const LIMITE = erro(CodigoDeErro.LIMITE_EXCEDIDO, 429)
-const NAO_ENCONTRADO = erro(CodigoDeErro.NAO_ENCONTRADO, 404)
+const erro = (codigo: ErrorCode, status: number) => ({ status, texto: JSON.stringify({ erro: { codigo, mensagem: MENSAGENS_DE_ERRO[codigo], requisicaoId: '-' } }) })
+const RECUSADA = erro(ErrorCode.REIVINDICACAO_RECUSADA, 409)
+const LIMITE = erro(ErrorCode.LIMITE_EXCEDIDO, 429)
+const NAO_ENCONTRADO = erro(ErrorCode.NAO_ENCONTRADO, 404)
 const ENVIADO = { status: 200, texto: JSON.stringify({ resultado: 'enviado' }) }
 
 /**
@@ -306,7 +306,7 @@ describe('limites da sala (A1, tarefa 7.0): por escola, por nome e por turma, nu
           const certa = await sala.abrir({ slug: a.slug, codigo: a.codigo }, { ip })
           expect(performance.now() - inicio).toBeGreaterThanOrEqual(ESPERA_ACIMA_DO_TETO_DA_ESCOLA_MS - 20)
           expect(certa.status).toBe(200)
-          expect(esquemaRespostaSalaAberta.parse(JSON.parse(certa.texto)).nomes).toHaveLength(3)
+          expect(salaAbertaResponseSchema.parse(JSON.parse(certa.texto)).nomes).toHaveLength(3)
         }
         // A reivindicação pelo código passa pela mesma espera, e segue.
         const inicio = performance.now()

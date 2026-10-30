@@ -1,7 +1,7 @@
 import { ConfiguracaoInvalida, ErroDeDominio, executarNoContexto, RegistroDeAuditoria, resumirErro, type Banco } from '@educa/nucleo'
 import {
   CHAVES_DE_CATEGORIA_DO_SUBOPERADOR,
-  CodigoDeErro,
+  ErrorCode,
   FINALIDADE_DO_REGISTRO_DE_SUBOPERADOR,
   FORMATO_DA_CHAVE_DO_SUBOPERADOR,
   FORMATO_DO_CONTRATO_DO_SUBOPERADOR,
@@ -140,10 +140,10 @@ export function cadastrarSuboperador(banco: Banco, autor: ConferenciaDoAutor, pe
       const autorOperador = await autor(tx)
       const repositorio = new OperacaoPrivacidadeRepository(tx)
       const suboperadorId = await repositorio.cadastrar({ ...pedido, registradoPor: autorOperador })
-      if (suboperadorId === undefined) throw new ErroDeDominio(CodigoDeErro.CONFLITO)
+      if (suboperadorId === undefined) throw new ErroDeDominio(ErrorCode.CONFLITO)
       for (const escolaId of pedido.escolas) {
         await executarNoContexto({ requisicaoId, escolaId }, async () => {
-          if ((await new AcessoDaEscolaRepository(tx).nome()) === undefined) throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
+          if ((await new AcessoDaEscolaRepository(tx).nome()) === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
           await repositorio.ligarEscola(suboperadorId)
         })
       }
@@ -166,7 +166,7 @@ export function encerrarSuboperador(banco: Banco, autor: ConferenciaDoAutor, ped
       const autorOperador = await autor(tx)
       const repositorio = new OperacaoPrivacidadeRepository(tx)
       const vigente = await repositorio.travarVigente(pedido.chave)
-      if (vigente === undefined) throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
+      if (vigente === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
       await repositorio.encerrar(vigente.id)
       const ligacoesEncerradas = await repositorio.encerrarLigacoes(vigente.id)
       await registro.gravar(tx, 'suboperador.encerrado', {
@@ -182,7 +182,7 @@ export function encerrarSuboperador(banco: Banco, autor: ConferenciaDoAutor, ped
 }
 
 /** Texto fixo por código, sem nada do pedido. */
-const MENSAGEM_DO_OPERADOR: Partial<Record<CodigoDeErro, string>> = {
+const MENSAGEM_DO_OPERADOR: Partial<Record<ErrorCode, string>> = {
   CONFLITO: 'já existe suboperador vigente com esta chave',
   NAO_ENCONTRADO: 'suboperador vigente ou escola não encontrados',
 }
@@ -221,7 +221,7 @@ export async function executarOpsSuboperador(
       return 1
     }
     // O erro cru do Postgres traz o valor da linha na mensagem e no `detail`: sai só o resumo seguro.
-    terminal.erro(`${CodigoDeErro.ERRO_INTERNO}: ${JSON.stringify(resumirErro(erro))}\n`)
+    terminal.erro(`${ErrorCode.ERRO_INTERNO}: ${JSON.stringify(resumirErro(erro))}\n`)
     return 1
   }
 }

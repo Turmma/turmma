@@ -1,5 +1,5 @@
 import type { Ambiente } from '@educa/nucleo'
-import { esquemaRespostaEstado, type RespostaEstado } from '@educa/shared'
+import { systemStatusResponseSchema, type SystemStatusResponse } from '@educa/shared'
 import { Inject, Injectable } from '@nestjs/common'
 import { SaudeService } from './saude.service.js'
 
@@ -32,10 +32,10 @@ export class EstadoService {
   ) {}
 
   /** Versão, ambiente e situação de cada componente. A API está disponível por estar respondendo. */
-  async obter(): Promise<RespostaEstado> {
+  async obter(): Promise<SystemStatusResponse> {
     const { bancoDisponivel, verificadoEm } = await this.verificar()
     const quando = verificadoEm.toISOString()
-    return esquemaRespostaEstado.parse({
+    return systemStatusResponseSchema.parse({
       versao: this.versao,
       ambiente: this.ambiente,
       componentes: [

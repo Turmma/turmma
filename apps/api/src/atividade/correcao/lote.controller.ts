@@ -1,5 +1,5 @@
 import { IdPipe, Permite, ZodValidationPipe } from '@educa/nucleo'
-import { esquemaPedidoSemCorpoOuAusente, type PedidoSemCorpo, type RespostaLoteAprovado } from '@educa/shared'
+import { emptyOrMissingBodyRequestSchema, type EmptyBodyRequest, type LoteAprovadoResponse } from '@educa/shared'
 import { Body, Controller, Header, HttpCode, HttpStatus, Param, Post } from '@nestjs/common'
 import { CorrecaoService } from './correcao.service.js'
 
@@ -17,7 +17,7 @@ export class LoteController {
   @Permite('entrega', 'aprovar_lote')
   @HttpCode(HttpStatus.OK)
   @Header('Cache-Control', 'no-store')
-  aprovarLote(@Param('id', IdPipe) entregaId: string, @Body(new ZodValidationPipe(esquemaPedidoSemCorpoOuAusente)) _corpo: PedidoSemCorpo): Promise<RespostaLoteAprovado> {
+  aprovarLote(@Param('id', IdPipe) entregaId: string, @Body(new ZodValidationPipe(emptyOrMissingBodyRequestSchema)) _corpo: EmptyBodyRequest): Promise<LoteAprovadoResponse> {
     return this.correcoes.aprovarLote(entregaId)
   }
 }

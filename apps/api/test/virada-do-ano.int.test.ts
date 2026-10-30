@@ -1,5 +1,5 @@
 import { executarNoContexto } from '@educa/nucleo'
-import { CodigoDeErro, esquemaRespostaDecisao, MENSAGENS_DE_ERRO, type ResultadoDaDecisao } from '@educa/shared'
+import { ErrorCode, decisaoResponseSchema, MENSAGENS_DE_ERRO, type ResultadoDaDecisao } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
@@ -17,7 +17,7 @@ const AMBIENTE = { LIMITE_PROXIES_CONFIAVEIS: '127.0.0.1' }
 /** O texto livre que o professor escreveu na contestação: o teste procura por ele no banco depois da virada. */
 const TEXTO_DA_CONTESTACAO = `dou só a eletiva ${randomUUID()}`
 
-const NAO_ENCONTRADO = { status: 404, codigo: CodigoDeErro.NAO_ENCONTRADO, mensagem: expect.any(String) }
+const NAO_ENCONTRADO = { status: 404, codigo: ErrorCode.NAO_ENCONTRADO, mensagem: expect.any(String) }
 
 const semRequisicao = (resposta: RespostaHttp) => ({ status: resposta.status, codigo: resposta.corpo.erro?.codigo, mensagem: (resposta.corpo.erro as { mensagem?: string } | undefined)?.mensagem })
 
@@ -184,7 +184,7 @@ describe('virada do ano: encerrar o ano letivo encerra os vínculos por `fim_do_
     try {
       const falha = await post(escola.coordenacao, `/v1/anos-letivos/${escola.anoLetivoId}/encerrar`)
       expect(falha.status).toBe(500)
-      expect(falha.corpo.erro?.codigo).toBe(CodigoDeErro.ERRO_INTERNO)
+      expect(falha.corpo.erro?.codigo).toBe(ErrorCode.ERRO_INTERNO)
     } finally {
       await bancada.pool.query(`drop trigger ${gatilho} on auditoria`)
       await bancada.pool.query(`drop function ${gatilho}()`)
@@ -242,7 +242,7 @@ describe('virada do ano: encerrar o ano letivo encerra os vínculos por `fim_do_
 
     function resultados(resposta: RespostaHttp): ResultadoDaDecisao[] {
       expect(resposta.status).toBe(200)
-      return esquemaRespostaDecisao.parse(resposta.corpo).resultados.map((linha) => linha.resultado)
+      return decisaoResponseSchema.parse(resposta.corpo).resultados.map((linha) => linha.resultado)
     }
 
     /** O aluno reivindica o nome pela sala, com a matrícula certa, e o id do pedido pendente que nasceu. */
@@ -401,7 +401,7 @@ describe('virada do ano: encerrar o ano letivo encerra os vínculos por `fim_do_
       expect(virada?.depois).toMatchObject({ situacao: 'encerrado', acessosRevogados: 1, pedidosEncerrados: 1, linhasDaListaApagadas: 3 })
 
       // Depois: o link e o código não abrem a sala, e o pedido, visto do ano novo, não existe.
-      const naoEncontrado = { status: 404, codigo: CodigoDeErro.NAO_ENCONTRADO, mensagem: MENSAGENS_DE_ERRO.NAO_ENCONTRADO }
+      const naoEncontrado = { status: 404, codigo: ErrorCode.NAO_ENCONTRADO, mensagem: MENSAGENS_DE_ERRO.NAO_ENCONTRADO }
       for (const corpo of [
         { slug: s.slug, token: s.token },
         { slug: s.slug, codigo: s.codigo },
@@ -552,7 +552,7 @@ describe('virada do ano: encerrar o ano letivo encerra os vínculos por `fim_do_
         expect(encerrado.status).toBe(200)
         expect(semRequisicaoDaSala(reivindicado)).toEqual({
           status: 409,
-          texto: JSON.stringify({ erro: { codigo: CodigoDeErro.REIVINDICACAO_RECUSADA, mensagem: MENSAGENS_DE_ERRO.REIVINDICACAO_RECUSADA, requisicaoId: '-' } }),
+          texto: JSON.stringify({ erro: { codigo: ErrorCode.REIVINDICACAO_RECUSADA, mensagem: MENSAGENS_DE_ERRO.REIVINDICACAO_RECUSADA, requisicaoId: '-' } }),
         })
       } finally {
         await parada.desarmar()

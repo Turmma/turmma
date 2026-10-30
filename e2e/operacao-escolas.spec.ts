@@ -1,6 +1,6 @@
 import type { Locator, Page, Request, Route } from '@playwright/test'
-import { MENSAGENS_DE_ERRO } from '../packages/shared/src/erros/mensagens.ts'
-import type { RespostaEscolasDoPainel } from '../packages/shared/src/operacao/painel.ts'
+import { MENSAGENS_DE_ERRO } from '../packages/shared/src/errors/messages.ts'
+import type { EscolasDoPainelResponse } from '../packages/shared/src/operacao/painel.ts'
 import { TEXTO_DO_ESTADO } from '../apps/web/src/operacao/estados-da-escola.ts'
 import { codigoDoOperador, criarOperadorComSegundoFator as criarOperador, encerrarSessoesDoOperador, removerOperador, type OperadorDeTeste } from './__fixtures__/operacao.ts'
 import { criarRedeDoPainel, escolasComOEndereco, nomeDeRedeQueVemPrimeiro, redesComONome, removerPainel, semearPainel, type PainelSemeado, type UsoDoPainel } from './__fixtures__/painel.ts'
@@ -94,7 +94,7 @@ test.describe('Escolas, Nova rede e Nova escola (A0b, tarefa 6.0)', () => {
     const primeira = respostaDaLista(page, 1, 'nome')
     await entrarNaOperacao(page, operador, hasTouch)
     await expect(page).toHaveTitle('Escolas · Operação Turmma')
-    const porNome = (await (await primeira).json()) as RespostaEscolasDoPainel
+    const porNome = (await (await primeira).json()) as EscolasDoPainelResponse
     await expect.poll(() => nomesNaTela(page)).toEqual(porNome.itens.map((escola) => escola.nome))
     expect(porNome.total).toBeGreaterThanOrEqual(30)
     const paginas = Math.ceil(porNome.total / 25)
@@ -103,7 +103,7 @@ test.describe('Escolas, Nova rede e Nova escola (A0b, tarefa 6.0)', () => {
     // A ordem por uso vai à barra e volta à primeira página; as escolas do teste, com o maior uso do banco, abrem a lista.
     const porUsoResposta = respostaDaLista(page, 1, 'uso')
     await acionar(page, 'Mais uso no mês', hasTouch)
-    const porUso = (await (await porUsoResposta).json()) as RespostaEscolasDoPainel
+    const porUso = (await (await porUsoResposta).json()) as EscolasDoPainelResponse
     await expect(page).toHaveURL(/\/operacao\?pagina=1&ordem=uso$/)
     await expect(page.getByRole('button', { name: 'Mais uso no mês' })).toHaveAttribute('aria-pressed', 'true')
     await expect.poll(() => nomesNaTela(page)).toEqual(porUso.itens.map((escola) => escola.nome))
@@ -145,7 +145,7 @@ test.describe('Escolas, Nova rede e Nova escola (A0b, tarefa 6.0)', () => {
     await expect(page.getByRole('status').filter({ hasText: 'Carregando as escolas…' })).toHaveCount(0)
     await expect(page.getByRole('button', { name: 'Próxima' })).toBeDisabled()
     soltarSegunda()
-    const segunda = (await (await segundaResposta).json()) as RespostaEscolasDoPainel
+    const segunda = (await (await segundaResposta).json()) as EscolasDoPainelResponse
     await page.unroute(ROTA_DAS_ESCOLAS, segurarSegunda)
     await expect(page.getByRole('region', { name: 'Lista de escolas' })).toHaveAttribute('aria-busy', 'false')
     await expect.poll(() => nomesNaTela(page)).toEqual(segunda.itens.map((escola) => escola.nome))
@@ -156,7 +156,7 @@ test.describe('Escolas, Nova rede e Nova escola (A0b, tarefa 6.0)', () => {
     // O endereço copiado abre a mesma lista: a página e a ordem vêm da barra, não da memória da aba.
     const recarregada = respostaDaLista(page, 2, 'uso')
     await page.reload()
-    const depoisDaRecarga = (await (await recarregada).json()) as RespostaEscolasDoPainel
+    const depoisDaRecarga = (await (await recarregada).json()) as EscolasDoPainelResponse
     await expect(page.getByRole('button', { name: 'Mais uso no mês' })).toHaveAttribute('aria-pressed', 'true', { timeout: PRAZO_DA_ENTRADA_MS })
     await expect(page.getByRole('navigation', { name: 'Páginas da lista' })).toContainText(`Página 2 de ${String(Math.ceil(depoisDaRecarga.total / 25))}`)
 
@@ -266,7 +266,7 @@ test.describe('Escolas, Nova rede e Nova escola (A0b, tarefa 6.0)', () => {
     await page.unroute(ROTA_DAS_ESCOLAS, falhar)
     const lista = respostaDaLista(page, 1, 'nome')
     await acionar(page, 'Tentar de novo', hasTouch)
-    const dados = (await (await lista).json()) as RespostaEscolasDoPainel
+    const dados = (await (await lista).json()) as EscolasDoPainelResponse
     await expect.poll(() => nomesNaTela(page)).toEqual(dados.itens.map((escola) => escola.nome))
     await expect(page.getByRole('alert')).toHaveCount(0)
     expect(await violacoesGraves(page)).toEqual([])

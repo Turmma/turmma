@@ -1,16 +1,16 @@
 import { IdPipe, Permite, ZodValidationPipe } from '@educa/nucleo'
 import {
-  esquemaConsultaAtividadesAplicadas,
-  esquemaPedidoAplicarAtividade,
-  esquemaPedidoSemCorpoOuAusente,
-  type ConsultaAtividadesAplicadas,
-  type PedidoAplicarAtividade,
-  type PedidoSemCorpo,
-  type RespostaAtividadeAplicada,
-  type RespostaAtividadeEncerrada,
-  type RespostaCorrecaoDoLote,
-  type RespostaDestaqueAberto,
-  type RespostaListaDeAtividadesAplicadas,
+  atividadesAplicadasQuerySchema,
+  aplicarAtividadeRequestSchema,
+  emptyOrMissingBodyRequestSchema,
+  type AtividadesAplicadasQuery,
+  type AplicarAtividadeRequest,
+  type EmptyBodyRequest,
+  type AtividadeAplicadaResponse,
+  type AtividadeEncerradaResponse,
+  type CorrecaoDoLoteResponse,
+  type DestaqueAbertoResponse,
+  type ListaDeAtividadesAplicadasResponse,
 } from '@educa/shared'
 import { Body, Controller, Get, Header, HttpCode, HttpStatus, Param, Post, Query } from '@nestjs/common'
 import { AtividadeAplicadaService } from './atividade-aplicada.service.js'
@@ -32,28 +32,28 @@ export class AtividadeAplicadaController {
 
   @Post()
   @Permite('atividade_aplicada', 'aplicar')
-  aplicar(@Body(new ZodValidationPipe(esquemaPedidoAplicarAtividade)) pedido: PedidoAplicarAtividade): Promise<RespostaAtividadeAplicada> {
+  aplicar(@Body(new ZodValidationPipe(aplicarAtividadeRequestSchema)) pedido: AplicarAtividadeRequest): Promise<AtividadeAplicadaResponse> {
     return this.atividades.aplicar(pedido)
   }
 
   @Get()
   @Permite('atividade_aplicada', 'listar')
   @Header('Cache-Control', 'no-store')
-  listar(@Query(new ZodValidationPipe(esquemaConsultaAtividadesAplicadas)) consulta: ConsultaAtividadesAplicadas): Promise<RespostaListaDeAtividadesAplicadas> {
+  listar(@Query(new ZodValidationPipe(atividadesAplicadasQuerySchema)) consulta: AtividadesAplicadasQuery): Promise<ListaDeAtividadesAplicadasResponse> {
     return this.atividades.listar(consulta)
   }
 
   @Post(':id/encerrar')
   @Permite('atividade_aplicada', 'encerrar')
   @HttpCode(HttpStatus.OK)
-  encerrar(@Param('id', IdPipe) atividadeAplicadaId: string, @Body(new ZodValidationPipe(esquemaPedidoSemCorpoOuAusente)) _corpo: PedidoSemCorpo): Promise<RespostaAtividadeEncerrada> {
+  encerrar(@Param('id', IdPipe) atividadeAplicadaId: string, @Body(new ZodValidationPipe(emptyOrMissingBodyRequestSchema)) _corpo: EmptyBodyRequest): Promise<AtividadeEncerradaResponse> {
     return this.atividades.encerrar(atividadeAplicadaId)
   }
 
   @Get(':id/correcao')
   @Permite('correcao', 'ler')
   @Header('Cache-Control', 'no-store')
-  correcao(@Param('id', IdPipe) atividadeAplicadaId: string): Promise<RespostaCorrecaoDoLote> {
+  correcao(@Param('id', IdPipe) atividadeAplicadaId: string): Promise<CorrecaoDoLoteResponse> {
     return this.correcoes.ler(atividadeAplicadaId)
   }
 
@@ -64,8 +64,8 @@ export class AtividadeAplicadaController {
   abrirDestaque(
     @Param('id', IdPipe) atividadeAplicadaId: string,
     @Param('alunoId', IdPipe) aluno: string,
-    @Body(new ZodValidationPipe(esquemaPedidoSemCorpoOuAusente)) _corpo: PedidoSemCorpo,
-  ): Promise<RespostaDestaqueAberto> {
+    @Body(new ZodValidationPipe(emptyOrMissingBodyRequestSchema)) _corpo: EmptyBodyRequest,
+  ): Promise<DestaqueAbertoResponse> {
     return this.correcoes.abrirDestaque(atividadeAplicadaId, aluno)
   }
 }

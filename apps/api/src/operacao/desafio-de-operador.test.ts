@@ -1,5 +1,5 @@
 import { EMISSOR_TOKEN, ErroDeDominio, TIPO_DESAFIO_DE_OPERADOR, verificarToken, verificarTokenDeOperador } from '@educa/nucleo'
-import { CodigoDeErro } from '@educa/shared'
+import { ErrorCode } from '@educa/shared'
 import { decodeJwt, decodeProtectedHeader, SignJWT, type JWTPayload } from 'jose'
 import { randomUUID } from 'node:crypto'
 import { Logger } from '@nestjs/common'
@@ -64,18 +64,18 @@ describe('desafio do operador (tarefa 5.0)', () => {
     // O desafio certo, com a mesma montagem, passa: a recusa vem do campo trocado.
     await expect(verificarDesafioDeOperador(await assinar(), CHAVE, 'configurar_mfa')).resolves.toMatchObject({ operadorId: OPERADOR })
     for (const [caso, desafio] of Object.entries(recusados)) {
-      expect(await recusa(verificarDesafioDeOperador(desafio, CHAVE, 'configurar_mfa')), caso).toMatchObject({ codigo: CodigoDeErro.NAO_AUTENTICADO })
+      expect(await recusa(verificarDesafioDeOperador(desafio, CHAVE, 'configurar_mfa')), caso).toMatchObject({ codigo: ErrorCode.NAO_AUTENTICADO })
     }
   })
 
   it('não vale nas outras portas: nem como desafio da escola, nem como acesso da escola ou do operador; e o desafio da escola não vale aqui', async () => {
     const desafio = await new EmissorDeDesafioDeOperador(CHAVE).emitir({ operadorId: OPERADOR, etapa: 'configurar_mfa' })
     const config = { ambiente: 'local' as const, chaveAssinatura: CHAVE }
-    expect(await recusa(verificarDesafio(desafio, CHAVE, ['configurar_mfa', 'mfa']))).toMatchObject({ codigo: CodigoDeErro.NAO_AUTENTICADO })
-    expect(await recusa(verificarToken(desafio, config))).toMatchObject({ codigo: CodigoDeErro.NAO_AUTENTICADO })
-    expect(await recusa(verificarTokenDeOperador(desafio, config))).toMatchObject({ codigo: CodigoDeErro.NAO_AUTENTICADO })
+    expect(await recusa(verificarDesafio(desafio, CHAVE, ['configurar_mfa', 'mfa']))).toMatchObject({ codigo: ErrorCode.NAO_AUTENTICADO })
+    expect(await recusa(verificarToken(desafio, config))).toMatchObject({ codigo: ErrorCode.NAO_AUTENTICADO })
+    expect(await recusa(verificarTokenDeOperador(desafio, config))).toMatchObject({ codigo: ErrorCode.NAO_AUTENTICADO })
     const daEscola = await new EmissorDeDesafio(CHAVE).emitir({ contaId: OPERADOR, etapa: 'configurar_mfa', mfaCumprido: false })
-    expect(await recusa(verificarDesafioDeOperador(daEscola, CHAVE, 'configurar_mfa'))).toMatchObject({ codigo: CodigoDeErro.NAO_AUTENTICADO })
+    expect(await recusa(verificarDesafioDeOperador(daEscola, CHAVE, 'configurar_mfa'))).toMatchObject({ codigo: ErrorCode.NAO_AUTENTICADO })
   })
 
   it('o desafio `mfa` do configurar leva a versão do segredo (`ver`), e ela volta na verificação; o da entrada por e-mail não leva (tarefa 7.0)', async () => {
@@ -91,9 +91,9 @@ describe('desafio do operador (tarefa 5.0)', () => {
     await expect(new EmissorDeDesafioDeOperador(CHAVE).emitir({ operadorId: OPERADOR, etapa: 'configurar_mfa', versao: 1 })).rejects.toThrow()
     // A mesma montagem sem `ver` passa: a recusa vem da versão fora da etapa.
     await expect(verificarDesafioDeOperador(await assinar(), CHAVE, 'configurar_mfa')).resolves.toMatchObject({ etapa: 'configurar_mfa' })
-    expect(await recusa(verificarDesafioDeOperador(await assinar({ claims: { ver: 1 } }), CHAVE, 'configurar_mfa'))).toMatchObject({ codigo: CodigoDeErro.NAO_AUTENTICADO })
+    expect(await recusa(verificarDesafioDeOperador(await assinar({ claims: { ver: 1 } }), CHAVE, 'configurar_mfa'))).toMatchObject({ codigo: ErrorCode.NAO_AUTENTICADO })
     for (const ver of [0, -1, 1.5, '2']) {
-      expect(await recusa(verificarDesafioDeOperador(await assinar({ claims: { etapa: 'mfa', ver } }), CHAVE, 'mfa')), String(ver)).toMatchObject({ codigo: CodigoDeErro.NAO_AUTENTICADO })
+      expect(await recusa(verificarDesafioDeOperador(await assinar({ claims: { etapa: 'mfa', ver } }), CHAVE, 'mfa')), String(ver)).toMatchObject({ codigo: ErrorCode.NAO_AUTENTICADO })
     }
   })
 })
@@ -108,7 +108,7 @@ describe('ConsumoDeDesafioDeOperador com o Redis fora (tarefa 7.0, recomendaçã
       const travado = new ConsumoDeDesafioDeOperador({ status: 'ready', set: vi.fn(async () => Promise.reject(new Error('Command timed out'))) } as unknown as Redis)
       for (const consumo of [fora, travado]) {
         for (let vez = 0; vez < 2; vez++) {
-          await expect(consumo.consumir(desafio)).rejects.toMatchObject({ codigo: CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO, status: 503, tenteDeNovoEmSegundos: expect.any(Number) as number })
+          await expect(consumo.consumir(desafio)).rejects.toMatchObject({ codigo: ErrorCode.INDISPONIVEL_TENTE_DE_NOVO, status: 503, tenteDeNovoEmSegundos: expect.any(Number) as number })
         }
       }
       // Uma linha por instância do consumo nas duas recusas seguidas, e só o evento.
@@ -122,7 +122,7 @@ describe('ConsumoDeDesafioDeOperador com o Redis fora (tarefa 7.0, recomendaçã
     const avisos = vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined)
     try {
       const usado = new ConsumoDeDesafioDeOperador({ status: 'ready', set: vi.fn(async () => null) } as unknown as Redis)
-      await expect(usado.consumir(desafio)).rejects.toMatchObject({ codigo: CodigoDeErro.NAO_AUTENTICADO })
+      await expect(usado.consumir(desafio)).rejects.toMatchObject({ codigo: ErrorCode.NAO_AUTENTICADO })
       expect(avisos).not.toHaveBeenCalled()
     } finally {
       avisos.mockRestore()

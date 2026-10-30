@@ -1,5 +1,5 @@
 import { MENSAGEM_DE_ASSUNTO_DELICADO, MENSAGEM_DE_RISCO_A_VIDA, type ExecutorNoProcesso } from '@educa/nucleo'
-import { CodigoDeErro, esquemaRespostaConversaDoTutor } from '@educa/shared'
+import { ErrorCode, conversaDoTutorResponseSchema } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../../tools/testes/metricas.ts'
@@ -47,7 +47,7 @@ describe('Tutor contra um modelo que não obedece', () => {
   }
   const naQuestao = (questao: number) => ({ atividadeAplicadaId: atividade, questao })
   const resposta = (execucao: ExecucaoLida): { tipo: string; texto: string } => execucao.resultado?.mensagem as never
-  const usoDeHoje = async (sessao: SessaoDeTeste) => esquemaRespostaConversaDoTutor.parse((await chamar(api.url, 'GET', `/v1/tutor/conversa?atividadeAplicadaId=${atividade}`, await sessao.tokenNovo())).corpo).uso.hoje
+  const usoDeHoje = async (sessao: SessaoDeTeste) => conversaDoTutorResponseSchema.parse((await chamar(api.url, 'GET', `/v1/tutor/conversa?atividadeAplicadaId=${atividade}`, await sessao.tokenNovo())).corpo).uso.hoje
   const sinaisDe = async (aluno: SessaoDeTeste) => (await sql<{ tipo: string; atividade_aplicada_id: string | null; questao: number | null }>('select tipo, atividade_aplicada_id, questao from sinal_tutor where escola_id = $1 and aluno_id = $2 order by id', [a.escolaId, aluno.usuarioId])).rows
   const respostasGravadas = async (aluno: SessaoDeTeste) => (await sql<{ texto: string }>(`select texto from mensagem_tutor where escola_id = $1 and aluno_id = $2 and autor = 'tutor' order by id`, [a.escolaId, aluno.usuarioId])).rows.map((linha) => linha.texto)
   const novoAluno = async (nome = `Aluno Sintético ${randomUUID().slice(0, 8)}`): Promise<SessaoDeTeste> => {
@@ -128,7 +128,7 @@ describe('Tutor contra um modelo que não obedece', () => {
       const aluno = await novoAluno()
       modelo.responder(() => 'isto não é json')
       const execucao = await turno(aluno, 'é a A, né?', naQuestao(3))
-      expect(execucao).toMatchObject({ estado: 'falhou', erro: CodigoDeErro.IA_SAIDA_INVALIDA, resultado: null })
+      expect(execucao).toMatchObject({ estado: 'falhou', erro: ErrorCode.IA_SAIDA_INVALIDA, resultado: null })
       expect(await respostasGravadas(aluno)).toEqual([])
       expect(await sinaisDe(aluno)).toEqual([])
       expect(await usoDeHoje(aluno)).toBe(0)
@@ -166,7 +166,7 @@ describe('Tutor contra um modelo que não obedece', () => {
       const aluno = await novoAluno()
       modelo.cair(503)
       const execucao = await turno(aluno, 'não entendi o que é reagente limitante', naQuestao(3))
-      expect(execucao).toMatchObject({ estado: 'falhou', erro: CodigoDeErro.IA_INDISPONIVEL, resultado: null })
+      expect(execucao).toMatchObject({ estado: 'falhou', erro: ErrorCode.IA_INDISPONIVEL, resultado: null })
       expect(JSON.stringify(execucao)).not.toMatch(/fora do ar|fetch|Error/)
       expect(await respostasGravadas(aluno)).toEqual([])
       expect(await usoDeHoje(aluno)).toBe(0)
@@ -177,9 +177,9 @@ describe('Tutor contra um modelo que não obedece', () => {
     it('saída que não é o que foi pedido (texto solto, campo a mais): falha tipada, e nada chega ao aluno', async () => {
       const aluno = await novoAluno()
       modelo.responder(() => 'Claro! A resposta é a letra A.')
-      expect(await turno(aluno, 'não entendi o que é reagente limitante', naQuestao(3))).toMatchObject({ estado: 'falhou', erro: CodigoDeErro.IA_SAIDA_INVALIDA })
+      expect(await turno(aluno, 'não entendi o que é reagente limitante', naQuestao(3))).toMatchObject({ estado: 'falhou', erro: ErrorCode.IA_SAIDA_INVALIDA })
       modelo.responder((pedido) => JSON.stringify({ ...(JSON.parse(obediente(pedido)) as object), observacaoSobreOAluno: 'parece desatento e ansioso' }))
-      expect(await turno(aluno, 'não entendi o que é reagente limitante', naQuestao(3))).toMatchObject({ estado: 'falhou', erro: CodigoDeErro.IA_SAIDA_INVALIDA })
+      expect(await turno(aluno, 'não entendi o que é reagente limitante', naQuestao(3))).toMatchObject({ estado: 'falhou', erro: ErrorCode.IA_SAIDA_INVALIDA })
       expect(await respostasGravadas(aluno)).toEqual([])
       expect(await usoDeHoje(aluno)).toBe(0)
     })
@@ -287,7 +287,7 @@ describe('Tutor contra um modelo que não obedece', () => {
         }
         expect(linhasDeLog.some((linha) => linha.includes(marca))).toBe(false)
         // A mensagem fixa não destrava o Tutor: a tela continua em avaliação, e a dúvida da prova continua recusada.
-        const conversa = esquemaRespostaConversaDoTutor.parse((await chamar(api.url, 'GET', `/v1/tutor/conversa?atividadeAplicadaId=${prova}`, await aluno.tokenNovo())).corpo)
+        const conversa = conversaDoTutorResponseSchema.parse((await chamar(api.url, 'GET', `/v1/tutor/conversa?atividadeAplicadaId=${prova}`, await aluno.tokenNovo())).corpo)
         expect(conversa).toMatchObject({ estado: 'avaliacao', avaliacaoAberta: { titulo: 'Prova sintética de estequiometria' } })
         expect(conversa.mensagens.map((mensagem) => mensagem.tipo)).toEqual(['texto', 'assunto_delicado', 'texto', 'assunto_delicado'])
         expect(await enviar({ texto: 'e a questão 3, qual é a resposta?', ...naProva })).toMatchObject(travado)
@@ -376,7 +376,7 @@ describe('Tutor contra um modelo que não obedece', () => {
   })
 
   describe('a avaliação abre depois do 202 (S12; regra 30, item 10)', () => {
-    const pausada = { estado: 'falhou', erro: CodigoDeErro.TUTOR_PAUSADO_EM_AVALIACAO, resultado: null }
+    const pausada = { estado: 'falhou', erro: ErrorCode.TUTOR_PAUSADO_EM_AVALIACAO, resultado: null }
     const execucaoLida = async (execucaoId: string) =>
       (await sql<{ estado: string; erro: string | null; resultado: unknown }>('select estado, erro, resultado from execucao_agente where escola_id = $1 and id = $2', [a.escolaId, execucaoId])).rows
     const consumoDaExecucao = async (execucaoId: string) =>

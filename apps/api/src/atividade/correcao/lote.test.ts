@@ -1,4 +1,4 @@
-import { esquemaLoteApresentado, type QuestaoObjetiva } from '@educa/shared'
+import { loteApresentadoSchema, type QuestaoObjetiva } from '@educa/shared'
 import { describe, expect, it } from 'vitest'
 import { corrigirTentativa, type RespostasDaTentativa } from './correcao-de-objetiva.js'
 import { loteApresentado, marcaDoApresentado, resumoDoLote, type CorrecaoDoLote, type DadosDoLote } from './lote.js'
@@ -70,7 +70,7 @@ describe('o que a validação guarda como apresentado', () => {
       { alunoId: CAIO, motivos: ['em_branco'] },
     ])
     expect(apresentado.resumo).toEqual(resumoDoLote(lote))
-    expect(esquemaLoteApresentado.safeParse(apresentado).success).toBe(true)
+    expect(loteApresentadoSchema.safeParse(apresentado).success).toBe(true)
   })
 
   it('a marca é a mesma para o mesmo lote e muda quando um número, um destaque ou o tamanho da turma muda', () => {

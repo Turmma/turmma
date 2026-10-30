@@ -1,7 +1,7 @@
 import { execucaoAgente, exigirAnoEmCurso, exigirEscolaDoContexto, mensagemAgente, sessaoDaRequisicao, threadAgente, type Banco, type TransacaoBanco } from '@educa/nucleo'
 import type { AutorDeMensagemDeAgente, ConteudoDaMensagemDoAgente } from '@educa/shared'
 import { and, desc, eq, lt } from 'drizzle-orm'
-import { ErroDeInvariante } from '@educa/shared'
+import { InvariantException } from '@educa/shared'
 
 const AGENTE = 'assistente_de_ensino'
 
@@ -60,7 +60,7 @@ export class ConversaRepository {
       .values({ ...this.#dono(), agente: AGENTE })
       .onConflictDoNothing()
     const thread = await this.#thread()
-    if (thread === undefined) throw new ErroDeInvariante('thread do Assistente não criada')
+    if (thread === undefined) throw new InvariantException('thread do Assistente não criada')
     return thread
   }
 
@@ -83,7 +83,7 @@ export class ConversaRepository {
   async gravarDoAgente(threadId: string, execucaoId: string, conteudo: ConteudoDaMensagemDoAgente): Promise<string> {
     const { escolaId, anoLetivoId } = this.#dono()
     const [gravada] = await this.banco.insert(mensagemAgente).values({ escolaId, anoLetivoId, threadId, execucaoId, autor: 'agente', conteudo }).returning({ id: mensagemAgente.id })
-    if (gravada === undefined) throw new ErroDeInvariante('mensagem do Assistente não gravada')
+    if (gravada === undefined) throw new InvariantException('mensagem do Assistente não gravada')
     return gravada.id
   }
 

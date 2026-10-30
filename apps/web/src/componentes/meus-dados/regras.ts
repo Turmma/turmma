@@ -1,12 +1,12 @@
 import {
   CHAVES_DE_RETENCAO,
-  CodigoDeErro,
+  ErrorCode,
   TIPOS_DE_PEDIDO_COM_ARQUIVO,
   VALIDADE_DO_ARQUIVO_DIAS,
   type CategoriaDeRetencao,
   type EstadoDoPedido,
   type PedidoDeMeusDados,
-  type RespostaMeusDados,
+  type MeusDadosResponse,
   type TipoDePedidoDoTitular,
 } from '@educa/shared'
 import type { FamiliaDeEstado } from '../ui/SeloDeEstado'
@@ -147,7 +147,7 @@ export interface LinhaDoResumo {
  * O resumo por categoria, na ordem do catálogo (a mesma que a coordenação lê) e só com o que tem registro. O rótulo é o do
  * titular (`ROTULO_DA_CATEGORIA_PARA_O_TITULAR`): a ordem é a do catálogo de retenção, e o texto é o que existe da pessoa.
  */
-export function linhasDoResumo(categorias: RespostaMeusDados['categorias']): LinhaDoResumo[] {
+export function linhasDoResumo(categorias: MeusDadosResponse['categorias']): LinhaDoResumo[] {
   const quantidades = new Map(categorias.map((linha) => [linha.categoria, linha.quantidade]))
   return CHAVES_DE_RETENCAO.flatMap((categoria) => {
     const quantidade = quantidades.get(categoria)
@@ -183,13 +183,13 @@ export function anuncioDoArquivoBaixado(nome: string): string {
 }
 
 /** A falha do download: o arquivo que saiu, ou o armazém fora do ar. O resto vem do catálogo de mensagens. */
-export const TEXTOS_DA_FALHA_DE_BAIXAR: Readonly<Partial<Record<CodigoDeErro, string>>> = {
-  [CodigoDeErro.NAO_ENCONTRADO]: `Este arquivo não está mais disponível: ele fica ${String(VALIDADE_DO_ARQUIVO_DIAS)} dias e foi apagado. Para receber de novo, peça à coordenação da escola.`,
-  [CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO]: 'Não foi possível preparar o download agora. Tente de novo em instantes: o arquivo continua guardado.',
+export const TEXTOS_DA_FALHA_DE_BAIXAR: Readonly<Partial<Record<ErrorCode, string>>> = {
+  [ErrorCode.NAO_ENCONTRADO]: `Este arquivo não está mais disponível: ele fica ${String(VALIDADE_DO_ARQUIVO_DIAS)} dias e foi apagado. Para receber de novo, peça à coordenação da escola.`,
+  [ErrorCode.INDISPONIVEL_TENTE_DE_NOVO]: 'Não foi possível preparar o download agora. Tente de novo em instantes: o arquivo continua guardado.',
 }
 
 /** A falha que muda o que a tela mostra: o arquivo saiu enquanto a pessoa lia, e a lista é relida. */
-export const CODIGOS_QUE_MUDAM_OS_MEUS_DADOS: readonly CodigoDeErro[] = [CodigoDeErro.NAO_ENCONTRADO]
+export const CODIGOS_QUE_MUDAM_OS_MEUS_DADOS: readonly ErrorCode[] = [ErrorCode.NAO_ENCONTRADO]
 
 /** A escola da tela, dita: os pedidos são só os dela. Sem o nome (a leitura do `/v1/eu` ainda não chegou), fala de "escola ativa". */
 export function textoDaEscola(nomeDaEscola: string | undefined): string {

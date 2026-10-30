@@ -1,4 +1,4 @@
-import { CodigoDeErro, type LinhaDoCompartilhamento, type PedidoDoTitular } from '@educa/shared'
+import { ErrorCode, type CompartilhamentoRow, type PedidoDoTitular } from '@educa/shared'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
@@ -101,7 +101,7 @@ export default function DetalheDoPedido({ pedidoId }: { readonly pedidoId: strin
     enabled: temEmpresas,
   })
   const linhas = useMemo(() => ordenarOCompartilhamento(pedido?.compartilhamento ?? []), [pedido?.compartilhamento])
-  const colunas: readonly [ColunaDaTabela<LinhaDoCompartilhamento>, ...ColunaDaTabela<LinhaDoCompartilhamento>[]] = useMemo(
+  const colunas: readonly [ColunaDaTabela<CompartilhamentoRow>, ...ColunaDaTabela<CompartilhamentoRow>[]] = useMemo(
     () => [
       {
         chave: 'empresa',
@@ -138,7 +138,7 @@ export default function DetalheDoPedido({ pedidoId }: { readonly pedidoId: strin
     )
   }
   if (pedido === undefined) {
-    const naoAchado = consulta.error instanceof ErroDaApi && consulta.error.codigo === CodigoDeErro.NAO_ENCONTRADO
+    const naoAchado = consulta.error instanceof ErroDaApi && consulta.error.codigo === ErrorCode.NAO_ENCONTRADO
     return (
       <Tela titulo="Pedido de titular" largura="leitura" antes={voltar}>
         {naoAchado ? (

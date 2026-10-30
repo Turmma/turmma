@@ -1,11 +1,11 @@
 import type { FalhaDoLoginExterno } from '../sessao/externa.js'
-import type { CodigoDeErro } from './codigo-de-erro.js'
+import type { ErrorCode } from './error-code.js'
 
 /**
  * Mensagem curta, em pt-BR, que diz o que fazer (regra 50, item 12). É fixa por código: a
  * mensagem nunca é montada com dado da requisição, então não tem como carregar valor de campo.
  */
-export const MENSAGENS_DE_ERRO: Readonly<Record<CodigoDeErro, string>> = {
+export const MENSAGENS_DE_ERRO: Readonly<Record<ErrorCode, string>> = {
   ERRO_INTERNO: 'Não foi possível concluir agora. Tente de novo em instantes.',
   ENTRADA_INVALIDA: 'Alguns dados não estão corretos. Confira o que foi preenchido e tente de novo.',
   NAO_AUTENTICADO: 'Sua sessão não é válida ou expirou. Entre de novo para continuar.',
@@ -59,7 +59,7 @@ const CONVITE_QUE_NAO_VALE = 'Este convite não vale mais. Peça outro à coorde
  *   convite o recebe; a entrada do operador (`apps/web/src/operacao/textos.ts`) usa este catálogo e não o recebe.
  * - `CONFLITO` não acontece aqui; quem cair nele vê a mensagem geral.
  */
-export const MENSAGENS_DA_ENTRADA: Readonly<Partial<Record<CodigoDeErro, string>>> = {
+export const MENSAGENS_DA_ENTRADA: Readonly<Partial<Record<ErrorCode, string>>> = {
   NAO_AUTENTICADO: 'E-mail ou senha incorretos. Confira os dois e tente de novo.',
   NAO_ENCONTRADO: CONVITE_QUE_NAO_VALE,
 }
@@ -69,7 +69,7 @@ export const MENSAGENS_DA_ENTRADA: Readonly<Partial<Record<CodigoDeErro, string>
  * e o aluno desativado chegam no mesmo `NAO_AUTENTICADO`, e o texto vale para os três: a tela não diz se a matrícula
  * existe (regra 10, item 6).
  */
-export const MENSAGENS_DA_ENTRADA_POR_MATRICULA: Readonly<Partial<Record<CodigoDeErro, string>>> = {
+export const MENSAGENS_DA_ENTRADA_POR_MATRICULA: Readonly<Partial<Record<ErrorCode, string>>> = {
   NAO_AUTENTICADO: 'Matrícula ou senha incorretas. Confira as duas e tente de novo.',
 }
 
@@ -77,7 +77,7 @@ export const MENSAGENS_DA_ENTRADA_POR_MATRICULA: Readonly<Partial<Record<CodigoD
  * O que a tela do endereço da escola diz quando o endereço não abre. `NAO_ENCONTRADO` é o slug que não existe ou está
  * fora do formato: a tela diz o que fazer e nunca lista escola nenhuma, que entregaria a base de clientes.
  */
-export const MENSAGENS_DO_ACESSO_DA_ESCOLA: Readonly<Partial<Record<CodigoDeErro, string>>> = {
+export const MENSAGENS_DO_ACESSO_DA_ESCOLA: Readonly<Partial<Record<ErrorCode, string>>> = {
   NAO_ENCONTRADO: 'Endereço não encontrado. Confira o endereço da escola com o professor ou a coordenação.',
 }
 
@@ -86,7 +86,7 @@ export const MENSAGENS_DO_ACESSO_DA_ESCOLA: Readonly<Partial<Record<CodigoDeErro
  * vencido, que chegam iguais de propósito, e o texto vale para os três. `NAO_ENCONTRADO` é o código certo com o convite
  * do bilhete que já não ativa, numa conta sem outro usuário ativo: o texto da tela de convite inválido, como na entrada.
  */
-export const MENSAGENS_DO_SEGUNDO_FATOR: Readonly<Partial<Record<CodigoDeErro, string>>> = {
+export const MENSAGENS_DO_SEGUNDO_FATOR: Readonly<Partial<Record<ErrorCode, string>>> = {
   NAO_AUTENTICADO: 'Código incorreto ou já usado. Confira o código que o aplicativo mostra agora e tente de novo.',
   NAO_ENCONTRADO: CONVITE_QUE_NAO_VALE,
   ENTRADA_INVALIDA: 'O código do aplicativo tem 6 dígitos, e o de recuperação tem 12 letras e números. Confira e tente de novo.',
@@ -96,7 +96,7 @@ export const MENSAGENS_DO_SEGUNDO_FATOR: Readonly<Partial<Record<CodigoDeErro, s
  * O que a tela do convite diz. Expirado, revogado, refeito, já usado e inexistente chegam no mesmo `NAO_ENCONTRADO`, e a
  * tela não diz qual deles foi (regra 10, item 6): pede outro convite, que é o que resolve todos.
  */
-export const MENSAGENS_DO_CONVITE: Readonly<Partial<Record<CodigoDeErro, string>>> = {
+export const MENSAGENS_DO_CONVITE: Readonly<Partial<Record<ErrorCode, string>>> = {
   NAO_ENCONTRADO: CONVITE_QUE_NAO_VALE,
 }
 
@@ -182,27 +182,27 @@ export function formatarEspera(segundos: number): string {
  *
  * Sem o `Retry-After`, fica o texto fixo do catálogo, que já diz a faixa de espera.
  */
-export function mensagemDaEntrada(codigo: CodigoDeErro, esperaSegundos?: number): string {
+export function mensagemDaEntrada(codigo: ErrorCode, esperaSegundos?: number): string {
   return mensagemDaTela(MENSAGENS_DA_ENTRADA, codigo, esperaSegundos)
 }
 
 /** A mesma coisa na tela do endereço da escola, onde o identificador é a matrícula e não o e-mail (RF7, RF11). */
-export function mensagemDaEntradaPorMatricula(codigo: CodigoDeErro, esperaSegundos?: number): string {
+export function mensagemDaEntradaPorMatricula(codigo: ErrorCode, esperaSegundos?: number): string {
   return mensagemDaTela(MENSAGENS_DA_ENTRADA_POR_MATRICULA, codigo, esperaSegundos)
 }
 
 /** A mensagem da tela do segundo fator, com a espera da conta segurada quando a API a informou (RF12). */
-export function mensagemDoSegundoFator(codigo: CodigoDeErro, esperaSegundos?: number): string {
+export function mensagemDoSegundoFator(codigo: ErrorCode, esperaSegundos?: number): string {
   return mensagemDaTela(MENSAGENS_DO_SEGUNDO_FATOR, codigo, esperaSegundos)
 }
 
 /** A mensagem da tela do convite, a mesma para o do coordenador e o do professor. */
-export function mensagemDoConvite(codigo: CodigoDeErro): string {
+export function mensagemDoConvite(codigo: ErrorCode): string {
   return mensagemDaTela(MENSAGENS_DO_CONVITE, codigo)
 }
 
 /** A mensagem da tela do endereço da escola quando o próprio endereço não abre. */
-export function mensagemDoAcessoDaEscola(codigo: CodigoDeErro): string {
+export function mensagemDoAcessoDaEscola(codigo: ErrorCode): string {
   return mensagemDaTela(MENSAGENS_DO_ACESSO_DA_ESCOLA, codigo)
 }
 
@@ -210,7 +210,7 @@ export function mensagemDoAcessoDaEscola(codigo: CodigoDeErro): string {
  * O texto da tela para um código: o da própria tela, se houver, e o do catálogo geral no resto. A conta segurada diz
  * quanto esperar quando a API mandou o `Retry-After`; o número vem da nossa resposta, nunca do que foi digitado.
  */
-function mensagemDaTela(textos: Readonly<Partial<Record<CodigoDeErro, string>>>, codigo: CodigoDeErro, esperaSegundos?: number): string {
+function mensagemDaTela(textos: Readonly<Partial<Record<ErrorCode, string>>>, codigo: ErrorCode, esperaSegundos?: number): string {
   if (codigo === 'CONTA_SEGURADA' && esperaSegundos !== undefined && Number.isFinite(esperaSegundos)) {
     return `Muitas tentativas com senha errada nesta conta. Espere ${formatarEspera(esperaSegundos)} e tente de novo.`
   }

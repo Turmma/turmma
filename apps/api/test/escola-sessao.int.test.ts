@@ -1,5 +1,5 @@
 import { executarNoContexto } from '@educa/nucleo'
-import { CodigoDeErro } from '@educa/shared'
+import { ErrorCode } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
@@ -49,7 +49,7 @@ describe('PUT /v1/escola/sessao: a coordenação configura a inatividade da pró
       for (const corpo of [{ inatividadeAlunoMin: 15, inatividadeEquipeMin: 60 }, { inatividadeAlunoMin: 4, inatividadeEquipeMin: 60 }, { inatividadeAlunoMin: 15, inatividadeEquipeMin: 60, escolaId: randomUUID() }]) {
         const resposta = await alterar(sessao, corpo)
         expect(resposta.status, papel).toBe(404)
-        expect(resposta.corpo.erro?.codigo, papel).toBe(CodigoDeErro.NAO_ENCONTRADO)
+        expect(resposta.corpo.erro?.codigo, papel).toBe(ErrorCode.NAO_ENCONTRADO)
       }
     }
     expect(await inatividadeDa(escola)).toEqual({ aluno: 30, equipe: 120 })
@@ -105,7 +105,7 @@ describe('PUT /v1/escola/sessao: a coordenação configura a inatividade da pró
     ]) {
       const resposta = await alterar(coordenador, corpo)
       expect(resposta.status, JSON.stringify(corpo)).toBe(400)
-      expect(resposta.corpo.erro?.codigo).toBe(CodigoDeErro.ENTRADA_INVALIDA)
+      expect(resposta.corpo.erro?.codigo).toBe(ErrorCode.ENTRADA_INVALIDA)
     }
     expect(await inatividadeDa(escola)).toEqual({ aluno: 30, equipe: 120 })
     expect(await inatividadeDa(outra)).toEqual({ aluno: 30, equipe: 120 })

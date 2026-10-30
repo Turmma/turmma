@@ -4,8 +4,8 @@ import {
   CATEGORIAS_DE_RETENCAO,
   CHAVES_DE_PRAZO_FIXO,
   CHAVES_DE_RETENCAO,
-  CodigoDeErro,
-  ErroDeInvariante,
+  ErrorCode,
+  InvariantException,
   FINALIDADE_DO_AJUSTE_DE_RETENCAO,
   retencaoDaEscola,
   type RetencaoDaCategoria,
@@ -90,10 +90,10 @@ export function ajustarRetencao(banco: Banco, autor: ConferenciaDoAutor, pedido:
       const autorOperador = await autor(tx)
       return executarNoContexto({ requisicaoId, escolaId: pedido.escolaId }, async () => {
         const repositorio = new RetencaoDaEscolaRepository(tx)
-        if (!(await repositorio.travarEscola())) throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
+        if (!(await repositorio.travarEscola())) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
         const ajustes = await repositorio.ajustes()
         const categoria = CHAVES_DE_RETENCAO.find((chave) => chave === pedido.categoria)
-        if (categoria === undefined || !ajusteDeRetencaoCabe(categoria, pedido.meses, ajustes)) throw new ErroDeDominio(CodigoDeErro.RETENCAO_FORA_DO_LIMITE)
+        if (categoria === undefined || !ajusteDeRetencaoCabe(categoria, pedido.meses, ajustes)) throw new ErroDeDominio(ErrorCode.RETENCAO_FORA_DO_LIMITE)
         const anterior = ajustes.find((ajuste) => ajuste.categoria === categoria)
         await repositorio.gravar({ categoria, meses: pedido.meses, referenciaContrato: pedido.referenciaContrato, alteradaPor: autorOperador })
         await registro.gravar(tx, 'retencao.ajustada', {
@@ -104,7 +104,7 @@ export function ajustarRetencao(banco: Banco, autor: ConferenciaDoAutor, pedido:
           autorOperador,
         })
         const efetiva = retencaoDaEscola(await repositorio.ajustes()).find((retencao) => retencao.categoria === categoria)
-        if (efetiva === undefined) throw new ErroDeInvariante('categoria ajustada fora do catálogo')
+        if (efetiva === undefined) throw new InvariantException('categoria ajustada fora do catálogo')
         return efetiva
       })
     }),
@@ -118,7 +118,7 @@ export function listarRetencao(banco: Banco, autor: ConferenciaDoAutor, escolaId
     banco.transaction(async (tx) => {
       await autor(tx)
       return executarNoContexto({ requisicaoId, escolaId }, async () => {
-        if ((await new AcessoDaEscolaRepository(tx).nome()) === undefined) throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
+        if ((await new AcessoDaEscolaRepository(tx).nome()) === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
         return retencaoDaEscola(await new RetencaoDaEscolaRepository(tx).ajustes())
       })
     }),
@@ -126,7 +126,7 @@ export function listarRetencao(banco: Banco, autor: ConferenciaDoAutor, escolaId
 }
 
 /** Texto fixo por código, sem nada do pedido. */
-const MENSAGEM_DO_OPERADOR: Partial<Record<CodigoDeErro, string>> = {
+const MENSAGEM_DO_OPERADOR: Partial<Record<ErrorCode, string>> = {
   NAO_ENCONTRADO: 'escola não encontrada',
   RETENCAO_FORA_DO_LIMITE: 'o prazo não cabe no piso, no teto ou na trava da categoria, ou a categoria não se ajusta',
 }
@@ -165,7 +165,7 @@ export async function executarOpsRetencao(
       return 1
     }
     // O erro cru do Postgres traz o valor da linha na mensagem e no `detail`: sai só o resumo seguro.
-    terminal.erro(`${CodigoDeErro.ERRO_INTERNO}: ${JSON.stringify(resumirErro(erro))}\n`)
+    terminal.erro(`${ErrorCode.ERRO_INTERNO}: ${JSON.stringify(resumirErro(erro))}\n`)
     return 1
   }
 }

@@ -1,6 +1,6 @@
 import 'reflect-metadata'
 import { criarLogger, EmissorDeToken } from '@educa/nucleo'
-import { CodigoDeErro, type PapelDeUsuario } from '@educa/shared'
+import { ErrorCode, type PapelDeUsuario } from '@educa/shared'
 import type { INestApplication } from '@nestjs/common'
 import { NestFactory } from '@nestjs/core'
 import type { Redis } from 'ioredis'
@@ -163,13 +163,13 @@ describe('MFA do coordenador: configurar, ativar, entrar com o código e redefin
 
   function esperarNaoAutenticado(resposta: Resposta): void {
     expect(resposta.status).toBe(401)
-    expect(resposta.corpo.erro?.codigo).toBe(CodigoDeErro.NAO_AUTENTICADO)
+    expect(resposta.corpo.erro?.codigo).toBe(ErrorCode.NAO_AUTENTICADO)
     expect(resposta.setCookie).toEqual([])
   }
 
   function esperarSegurada(resposta: Resposta): void {
     expect(resposta.status).toBe(429)
-    expect(resposta.corpo.erro?.codigo).toBe(CodigoDeErro.CONTA_SEGURADA)
+    expect(resposta.corpo.erro?.codigo).toBe(ErrorCode.CONTA_SEGURADA)
     expect(Number(resposta.retryAfter)).toBeGreaterThan(0)
     expect(Number(resposta.retryAfter)).toBeLessThanOrEqual(30)
     expect(resposta.setCookie).toEqual([])
@@ -568,14 +568,14 @@ describe('MFA do coordenador: configurar, ativar, entrar com o código e redefin
       await comMfaAtivo(coordenador)
       const resposta = await comDesafio(`/v1/usuarios/${coordenador.usuarioId}/mfa/redefinir`, professor.token, { finalidade: 'autenticador_perdido' })
       expect(resposta.status).toBe(404)
-      expect(resposta.corpo.erro?.codigo).toBe(CodigoDeErro.NAO_ENCONTRADO)
+      expect(resposta.corpo.erro?.codigo).toBe(ErrorCode.NAO_ENCONTRADO)
       expect(await mfaNoBanco(coordenador.contaId)).toMatchObject({ ativo: true })
 
       const coordenacao = await bancada.sessao(escolaId, 'coordenador')
       for (const corpo of [{}, { finalidade: 'pedido_formal_da_escola' }, { finalidade: 'a coordenadora Renata pediu' }, { finalidade: 'autenticador_perdido', escolaId }]) {
         const invalida = await comDesafio(`/v1/usuarios/${coordenador.usuarioId}/mfa/redefinir`, coordenacao.token, corpo)
         expect(invalida.status).toBe(400)
-        expect(invalida.corpo.erro?.codigo).toBe(CodigoDeErro.ENTRADA_INVALIDA)
+        expect(invalida.corpo.erro?.codigo).toBe(ErrorCode.ENTRADA_INVALIDA)
       }
       expect(await mfaNoBanco(coordenador.contaId)).toMatchObject({ ativo: true })
       expect(await auditoriaDeMfa(escolaId)).toEqual([])
@@ -702,12 +702,12 @@ describe('MFA do coordenador: configurar, ativar, entrar com o código e redefin
         for (const authorization of [undefined, 'Bearer desafio-que-nao-vale']) {
           const resposta = await comCabecalho(caminho, authorization, CORPO_INVALIDO)
           expect(resposta.status, `${caminho} ${String(authorization)}`).toBe(400)
-          expect(resposta.corpo.erro?.codigo, `${caminho} ${String(authorization)}`).toBe(CodigoDeErro.ENTRADA_INVALIDA)
+          expect(resposta.corpo.erro?.codigo, `${caminho} ${String(authorization)}`).toBe(ErrorCode.ENTRADA_INVALIDA)
           expect(resposta.setCookie, `${caminho} ${String(authorization)}`).toEqual([])
         }
         const certoEInvalido = await comDesafio(caminho, desafio, CORPO_INVALIDO)
         expect(certoEInvalido.status, caminho).toBe(400)
-        expect(certoEInvalido.corpo.erro?.codigo, caminho).toBe(CodigoDeErro.ENTRADA_INVALIDA)
+        expect(certoEInvalido.corpo.erro?.codigo, caminho).toBe(ErrorCode.ENTRADA_INVALIDA)
         expect(certoEInvalido.setCookie, caminho).toEqual([])
       }
       expect(await sessoesDaConta(comMfa.contaId)).toBe(0)
@@ -721,7 +721,7 @@ describe('MFA do coordenador: configurar, ativar, entrar com o código e redefin
       for (const corpo of [{}, { codigo: '12345' }, { codigo: 123456 }, { codigo: '123456', escolaId: coordenador.escolaId }, { recuperacao: 'curto' }, []]) {
         const resposta = await comDesafio('/v1/sessao/mfa', desafio, corpo)
         expect(resposta.status).toBe(400)
-        expect(resposta.corpo.erro?.codigo).toBe(CodigoDeErro.ENTRADA_INVALIDA)
+        expect(resposta.corpo.erro?.codigo).toBe(ErrorCode.ENTRADA_INVALIDA)
       }
       const errado = { codigo: codigoDoPasso(base32, passoAtual() + 5) }
       for (let tentativa = 1; tentativa <= 4; tentativa++) esperarNaoAutenticado(await comDesafio('/v1/sessao/mfa', desafio, errado))
@@ -738,7 +738,7 @@ describe('MFA do coordenador: configurar, ativar, entrar com o código e redefin
       for (const id of ['nao-e-uuid', '1837', `${alvo.usuarioId}x`]) {
         const invalido = await redefinir(id, { finalidade: 'pedido_formal_da_escola' })
         expect(invalido.status, id).toBe(400)
-        expect(invalido.corpo.erro?.codigo, id).toBe(CodigoDeErro.ENTRADA_INVALIDA)
+        expect(invalido.corpo.erro?.codigo, id).toBe(ErrorCode.ENTRADA_INVALIDA)
         expect((await redefinir(id, { finalidade: 'autenticador_perdido' })).status, id).toBe(202)
       }
       expect(await mfaNoBanco(alvo.contaId)).toMatchObject({ ativo: true, codigos: 10 })

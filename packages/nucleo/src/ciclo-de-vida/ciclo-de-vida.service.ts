@@ -1,4 +1,4 @@
-import { CodigoDeErro } from '@educa/shared'
+import { ErrorCode } from '@educa/shared'
 import { z } from 'zod'
 import { RegistroDeAuditoria } from '../auditoria/registro-de-auditoria.js'
 import { contextoAtual } from '../contexto/contexto.js'
@@ -17,7 +17,7 @@ const registro = new RegistroDeAuditoria()
 const esquemaId = z.uuid()
 
 /** Id de outra escola, de ninguém, já desativado (na desativação) ou o próprio: a mesma resposta (regra 10, item 6). */
-const naoEncontrado = () => new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
+const naoEncontrado = () => new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
 
 /**
  * O fim do acesso de quem sai da escola (tarefa 17.0; Tech Spec, seção 5, "Ciclo de vida"; regra 20, itens 15 e 18).
@@ -116,7 +116,7 @@ export class CicloDeVidaService {
     const repositorio = new CicloDeVidaRepository(transacao)
     if ((await repositorio.travarUsuario(usuarioId)) === undefined) throw naoEncontrado()
     const agendadaEm = await repositorio.suspender(usuarioId)
-    if (agendadaEm === undefined) throw new ErroDeDominio(CodigoDeErro.PEDIDO_EM_ESTADO_INVALIDO)
+    if (agendadaEm === undefined) throw new ErroDeDominio(ErrorCode.PEDIDO_EM_ESTADO_INVALIDO)
     return { agendadaEm, sessoesEncerradas: await repositorio.encerrarSessoesDoUsuario(usuarioId, 'eliminacao_agendada') }
   }
 

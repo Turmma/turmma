@@ -1,4 +1,4 @@
-import { esquemaCitacao, FERRAMENTAS_GERADORAS, MAXIMO_DE_CITACOES_POR_MENSAGEM, MAXIMO_DE_QUESTOES_POR_ATIVIDADE, TAMANHO_MAXIMO_DO_TEMA } from '@educa/shared'
+import { citacaoSchema, FERRAMENTAS_GERADORAS, MAXIMO_DE_CITACOES_POR_MENSAGEM, MAXIMO_DE_QUESTOES_POR_ATIVIDADE, TAMANHO_MAXIMO_DO_TEMA } from '@educa/shared'
 import { z } from 'zod'
 import {
   citacaoDaFrase,
@@ -47,9 +47,9 @@ export const esquemaPropostaDoAssistente = z.strictObject({
 })
 export type PropostaDoAssistente = z.infer<typeof esquemaPropostaDoAssistente>
 
-/** Os mesmos dois tipos, e os mesmos tetos, do conteúdo que `mensagem_agente` guarda (`esquemaConteudoDaMensagemDoAgente`). */
+/** Os mesmos dois tipos, e os mesmos tetos, do conteúdo que `mensagem_agente` guarda (`conteudoDaMensagemDoAgenteSchema`). */
 export const esquemaSaidaDoAssistente = z.discriminatedUnion('tipo', [
-  z.strictObject({ tipo: z.literal('texto'), texto: z.string().min(1).max(8000), citacoes: z.array(esquemaCitacao).max(MAXIMO_DE_CITACOES_POR_MENSAGEM) }),
+  z.strictObject({ tipo: z.literal('texto'), texto: z.string().min(1).max(8000), citacoes: z.array(citacaoSchema).max(MAXIMO_DE_CITACOES_POR_MENSAGEM) }),
   /** `texto` é a pergunta ao professor. */
   z.strictObject({ tipo: z.literal('proposta_de_ferramenta'), texto: z.string().min(1).max(1000), proposta: esquemaPropostaDoAssistente }),
 ])

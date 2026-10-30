@@ -12,9 +12,9 @@ import {
   type TransacaoBanco,
 } from '@educa/nucleo'
 import {
-  ErroDeInvariante,
+  InvariantException,
   ESTADOS_DO_PROFESSOR_ALOCAVEIS,
-  type ConsultaPaginada,
+  type PaginationQuery,
   type ContestacaoDeVinculo,
   type EstadoDeVinculo,
   type EstadoDoProfessor,
@@ -94,7 +94,7 @@ export class VinculoRepository {
         criadoPor,
       })
       .returning({ id: vinculo.id })
-    if (criado === undefined) throw new ErroDeInvariante('vínculo não criado')
+    if (criado === undefined) throw new InvariantException('vínculo não criado')
     return criado.id
   }
 
@@ -146,7 +146,7 @@ export class VinculoRepository {
   }
 
   /** Uma página dos vínculos do ano, do estado pedido ou de todos, em ordem de criação, com uma linha a mais. */
-  listar({ pagina, limite, estado }: ConsultaPaginada & { readonly estado?: EstadoDeVinculo | undefined }): Promise<VinculoLido[]> {
+  listar({ pagina, limite, estado }: PaginationQuery & { readonly estado?: EstadoDeVinculo | undefined }): Promise<VinculoLido[]> {
     return this.#lerComReferencias(
       and(estado === undefined ? undefined : eq(vinculo.estado, estado), pagina === undefined ? undefined : gt(vinculo.id, pagina)),
       limite + 1,
@@ -154,7 +154,7 @@ export class VinculoRepository {
   }
 
   /** Uma página dos vínculos do usuário do contexto no ano, em ordem de criação, com uma linha a mais. */
-  listarDoUsuario({ pagina, limite }: ConsultaPaginada): Promise<VinculoLido[]> {
+  listarDoUsuario({ pagina, limite }: PaginationQuery): Promise<VinculoLido[]> {
     return this.#lerComReferencias(and(this.#doUsuario(), pagina === undefined ? undefined : gt(vinculo.id, pagina)), limite + 1)
   }
 

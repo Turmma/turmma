@@ -8,7 +8,7 @@ import {
   type Banco,
   type TipoDeRede,
 } from '@educa/nucleo'
-import { CodigoDeErro } from '@educa/shared'
+import { ErrorCode } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import type { ConferenciaDoAutor } from '../../sessao/index.js'
 import { RedeEEscolaRepository, type Criada } from './escola.repository.js'
@@ -59,7 +59,7 @@ export async function criarEscola(banco: Banco, autor: ConferenciaDoAutor, pedid
     )
   } catch (erro) {
     // foreign_key_violation: a rede informada não existe.
-    if (erroDoPostgresEm(erro)?.code === '23503') throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
+    if (erroDoPostgresEm(erro)?.code === '23503') throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
     throw mapearErroPostgres(erro) ?? erro
   }
 }

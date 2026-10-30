@@ -1,11 +1,11 @@
 import {
-  CodigoDeErro,
-  esquemaRespostaEntradaDeOperador,
-  esquemaRespostaRenovacaoDeOperador,
-  esquemaRespostaSegundoFatorDeOperador,
-  type PedidoEntradaDeOperador,
-  type RespostaEntradaDeOperador,
-  type RespostaRenovacaoDeOperador,
+  ErrorCode,
+  entradaDeOperadorResponseSchema,
+  renovacaoDeOperadorResponseSchema,
+  segundoFatorDeOperadorResponseSchema,
+  type EntradaDeOperadorRequest,
+  type EntradaDeOperadorResponse,
+  type RenovacaoDeOperadorResponse,
 } from '@educa/shared'
 import { chamarApi, ErroDaApi, SEM_CORPO, type EsquemaDeResposta, type OpcoesDaChamada } from '../../api/cliente'
 import { TEXTO_DA_SAIDA_NAO_CONFIRMADA, TEXTO_DA_SESSAO_ENCERRADA } from '../textos'
@@ -61,7 +61,7 @@ export const ESPERA_ENTRE_TENTATIVAS_DE_SAIDA_MS = 1_000
  */
 export type EstadoDaSessaoDeOperador = 'desconhecida' | 'abrindo' | 'aberta' | 'anonima' | 'indisponivel'
 
-export type EtapaDoDesafioDeOperador = RespostaEntradaDeOperador['etapa']
+export type EtapaDoDesafioDeOperador = EntradaDeOperadorResponse['etapa']
 
 /** O pedido do segundo fator sem o desafio, que vem daqui e nunca da tela. */
 export type CodigoDoSegundoFatorDeOperador = { readonly codigo: string } | { readonly recuperacao: string }
@@ -229,7 +229,7 @@ export function esquecerDesafioDeOperador(): void {
   desafio = undefined
 }
 
-function ehCodigo(erro: unknown, codigo: CodigoDeErro): boolean {
+function ehCodigo(erro: unknown, codigo: ErrorCode): boolean {
   return erro instanceof ErroDaApi && erro.codigo === codigo
 }
 
@@ -241,7 +241,7 @@ function esperar(ms: number): Promise<void> {
  * Guarda o acesso que passa a valer. `sessaoNova` é a sessão que o segundo fator acabou de abrir: o cache do que
  * havia antes nesta aba não é dela, e as outras abas da operação ficam sabendo que o cookie mudou de dono.
  */
-function guardarAcesso(resposta: RespostaRenovacaoDeOperador, momento: number, sessaoNova: boolean): void {
+function guardarAcesso(resposta: RenovacaoDeOperadorResponse, momento: number, sessaoNova: boolean): void {
   token = resposta.token
   expiraEm = new Date(resposta.expiraEm).getTime()
   ultimoErro = undefined
@@ -275,12 +275,12 @@ let renovacaoEmAndamento: Promise<void> | undefined
  * sobem como `INDISPONIVEL_TENTE_DE_NOVO`, com o token em memória intacto.
  */
 export function renovarSessaoDeOperador(): Promise<void> {
-  if (estado === 'anonima') return Promise.reject(new ErroDaApi(CodigoDeErro.SESSAO_ENCERRADA))
+  if (estado === 'anonima') return Promise.reject(new ErroDaApi(ErrorCode.SESSAO_ENCERRADA))
   const daGeracao = geracao
-  renovacaoEmAndamento ??= comTravaDeRenovacao(() => chamarApi(CAMINHO_DA_RENOVACAO_DE_OPERADOR, esquemaRespostaRenovacaoDeOperador, { metodo: 'POST' }))
+  renovacaoEmAndamento ??= comTravaDeRenovacao(() => chamarApi(CAMINHO_DA_RENOVACAO_DE_OPERADOR, renovacaoDeOperadorResponseSchema, { metodo: 'POST' }))
     .then((resposta) => {
       // A sessão foi esquecida enquanto a renovação estava no ar ("Sair", outra aba que saiu): o acesso não fica.
-      if (daGeracao !== geracao) throw new ErroDaApi(CodigoDeErro.SESSAO_ENCERRADA)
+      if (daGeracao !== geracao) throw new ErroDaApi(ErrorCode.SESSAO_ENCERRADA)
       guardarAcesso(resposta, Date.now(), false)
     })
     .finally(() => {
@@ -300,7 +300,7 @@ export async function abrirSessaoDeOperadorPeloCookie(): Promise<void> {
   try {
     await renovarSessaoDeOperador()
   } catch (erro) {
-    if (ehCodigo(erro, CodigoDeErro.SESSAO_ENCERRADA) || ehCodigo(erro, CodigoDeErro.NAO_AUTENTICADO)) {
+    if (ehCodigo(erro, ErrorCode.SESSAO_ENCERRADA) || ehCodigo(erro, ErrorCode.NAO_AUTENTICADO)) {
       esquecerTudo(undefined)
       return
     }
@@ -320,7 +320,7 @@ async function renovarOuEncerrar(): Promise<void> {
   try {
     await renovarSessaoDeOperador()
   } catch (erro) {
-    if (ehCodigo(erro, CodigoDeErro.SESSAO_ENCERRADA)) sessaoEncerrada()
+    if (ehCodigo(erro, ErrorCode.SESSAO_ENCERRADA)) sessaoEncerrada()
     throw erro
   }
 }
@@ -338,7 +338,7 @@ export type OpcoesComSessaoDeOperador = Omit<OpcoesDaChamada, 'token'>
  *   banco caiu (regra 80, item 6).
  */
 export async function chamarComSessaoDeOperador<T>(caminho: string, esquema: EsquemaDeResposta<T>, opcoes: OpcoesComSessaoDeOperador = {}): Promise<T> {
-  if (estado === 'anonima') throw new ErroDaApi(CodigoDeErro.SESSAO_ENCERRADA)
+  if (estado === 'anonima') throw new ErroDaApi(ErrorCode.SESSAO_ENCERRADA)
   if (token === undefined || (expiraEm !== undefined && expiraEm <= Date.now())) await renovarOuEncerrar()
   const enviadaEm = Date.now()
   try {
@@ -346,11 +346,11 @@ export async function chamarComSessaoDeOperador<T>(caminho: string, esquema: Esq
     registrarUso(enviadaEm)
     return resposta
   } catch (erro) {
-    if (ehCodigo(erro, CodigoDeErro.SESSAO_ENCERRADA)) {
+    if (ehCodigo(erro, ErrorCode.SESSAO_ENCERRADA)) {
       sessaoEncerrada()
       throw erro
     }
-    if (!ehCodigo(erro, CodigoDeErro.ACESSO_VENCIDO)) throw erro
+    if (!ehCodigo(erro, ErrorCode.ACESSO_VENCIDO)) throw erro
     await renovarOuEncerrar()
     const repetidaEm = Date.now()
     try {
@@ -358,7 +358,7 @@ export async function chamarComSessaoDeOperador<T>(caminho: string, esquema: Esq
       registrarUso(repetidaEm)
       return resposta
     } catch (segundoErro) {
-      if (ehCodigo(segundoErro, CodigoDeErro.SESSAO_ENCERRADA)) sessaoEncerrada()
+      if (ehCodigo(segundoErro, ErrorCode.SESSAO_ENCERRADA)) sessaoEncerrada()
       throw segundoErro
     }
   }
@@ -376,17 +376,17 @@ function registrarUso(momento: number): void {
  * recusa, por até 30 s; qualquer outro erro sobe na hora. Guarda o desafio da etapa que a API devolveu, e mais nada: o
  * da tentativa anterior sai antes, para a etapa de outra pessoa nunca sobrar na aba.
  */
-export async function entrarComoOperador(pedido: PedidoEntradaDeOperador): Promise<EtapaDoDesafioDeOperador> {
+export async function entrarComoOperador(pedido: EntradaDeOperadorRequest): Promise<EtapaDoDesafioDeOperador> {
   desafio = undefined
   const limite = Date.now() + PRAZO_DA_ENTRADA_NO_503_MS
   for (;;) {
     try {
-      const resposta = await chamarApi(CAMINHO_DA_ENTRADA_DE_OPERADOR, esquemaRespostaEntradaDeOperador, { metodo: 'POST', corpo: pedido })
+      const resposta = await chamarApi(CAMINHO_DA_ENTRADA_DE_OPERADOR, entradaDeOperadorResponseSchema, { metodo: 'POST', corpo: pedido })
       desafio = { etapa: resposta.etapa, valor: resposta.desafio }
       aviso = undefined
       return resposta.etapa
     } catch (erro) {
-      const espera = erro instanceof ErroDaApi && erro.codigo === CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO ? erro.esperaSegundos : undefined
+      const espera = erro instanceof ErroDaApi && erro.codigo === ErrorCode.INDISPONIVEL_TENTE_DE_NOVO ? erro.esperaSegundos : undefined
       if (espera === undefined) throw erro
       const atraso = Math.max(espera * 1_000, ESPERA_MINIMA_NO_503_MS)
       if (atraso > limite - Date.now()) throw erro
@@ -422,16 +422,16 @@ export function entrarComSegundoFatorDeOperador(codigo: CodigoDoSegundoFatorDeOp
 
 async function enviarSegundoFator(codigo: CodigoDoSegundoFatorDeOperador): Promise<void> {
   const emAndamento = desafioDeOperador('mfa')
-  if (emAndamento === undefined) throw new ErroDaApi(CodigoDeErro.NAO_AUTENTICADO)
+  if (emAndamento === undefined) throw new ErroDaApi(ErrorCode.NAO_AUTENTICADO)
   const enviadaEm = Date.now()
   try {
-    const resposta = await chamarApi(CAMINHO_DO_SEGUNDO_FATOR_DE_OPERADOR, esquemaRespostaSegundoFatorDeOperador, {
+    const resposta = await chamarApi(CAMINHO_DO_SEGUNDO_FATOR_DE_OPERADOR, segundoFatorDeOperadorResponseSchema, {
       metodo: 'POST',
       corpo: { desafio: emAndamento, ...codigo },
     })
     guardarAcesso(resposta, enviadaEm, true)
   } catch (erro) {
-    const desafioSegue = ehCodigo(erro, CodigoDeErro.ENTRADA_INVALIDA) || ehCodigo(erro, CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO)
+    const desafioSegue = ehCodigo(erro, ErrorCode.ENTRADA_INVALIDA) || ehCodigo(erro, ErrorCode.INDISPONIVEL_TENTE_DE_NOVO)
     if (!desafioSegue) desafio = undefined
     throw erro
   }

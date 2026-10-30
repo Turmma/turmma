@@ -1,11 +1,11 @@
 import { IdPipe, Permite, ZodValidationPipe } from '@educa/nucleo'
 import {
-  esquemaConsultaPedidosDaTurma,
-  esquemaPedidoDecidirReivindicacoes,
-  type ConsultaPedidosDaTurma,
-  type PedidoDecidirReivindicacoes,
-  type RespostaDecisao,
-  type RespostaPedidosDaTurma,
+  pedidosDaTurmaQuerySchema,
+  decidirReivindicacoesRequestSchema,
+  type PedidosDaTurmaQuery,
+  type DecidirReivindicacoesRequest,
+  type DecisaoResponse,
+  type PedidosDaTurmaResponse,
 } from '@educa/shared'
 import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Query } from '@nestjs/common'
 import { DecisaoService } from './decisao.service.js'
@@ -22,14 +22,14 @@ export class PedidosController {
 
   @Get('turmas/:id/reivindicacoes')
   @Permite('reivindicacao', 'ler')
-  pedidos(@Param('id', IdPipe) turmaId: string, @Query(new ZodValidationPipe(esquemaConsultaPedidosDaTurma)) consulta: ConsultaPedidosDaTurma): Promise<RespostaPedidosDaTurma> {
+  pedidos(@Param('id', IdPipe) turmaId: string, @Query(new ZodValidationPipe(pedidosDaTurmaQuerySchema)) consulta: PedidosDaTurmaQuery): Promise<PedidosDaTurmaResponse> {
     return this.decisoes.pedidos(turmaId, consulta)
   }
 
   @Post('reivindicacoes/decidir')
   @Permite('reivindicacao', 'decidir')
   @HttpCode(HttpStatus.OK)
-  decidir(@Body(new ZodValidationPipe(esquemaPedidoDecidirReivindicacoes)) pedido: PedidoDecidirReivindicacoes): Promise<RespostaDecisao> {
+  decidir(@Body(new ZodValidationPipe(decidirReivindicacoesRequestSchema)) pedido: DecidirReivindicacoesRequest): Promise<DecisaoResponse> {
     return this.decisoes.decidir(pedido)
   }
 }

@@ -1,5 +1,5 @@
 import type { Page, Route } from '@playwright/test'
-import type { OrdemDoPainel, RespostaUsoDoPainel } from '../packages/shared/src/operacao/painel.ts'
+import type { OrdemDoPainel, UsoDoPainelResponse } from '../packages/shared/src/operacao/painel.ts'
 import { criarOperadorComSegundoFator as criarOperador, removerOperador, type OperadorDeTeste } from './__fixtures__/operacao.ts'
 import {
   criarRedeDoPainel,
@@ -126,7 +126,7 @@ test.describe('Uso (A0b, tarefa 8.0)', () => {
     await expect(page.getByRole('navigation', { name: 'Operação' }).getByRole('link', { name: 'Uso' })).toHaveAttribute('aria-current', 'page')
     await expect(page.getByRole('navigation', { name: 'Operação' }).getByRole('link', { name: 'Escolas' })).not.toHaveAttribute('aria-current', 'page')
     await expect(page).toHaveTitle('Uso · Operação Turmma')
-    const porNome = (await (await primeira).json()) as RespostaUsoDoPainel
+    const porNome = (await (await primeira).json()) as UsoDoPainelResponse
     await expect.poll(() => nomesNaTela(page)).toEqual(porNome.itens.map((escola) => escola.nome))
     expect(porNome.total).toBeGreaterThanOrEqual(30)
     await expect(page.getByRole('navigation', { name: 'Páginas do uso' })).toContainText(`Página 1 de ${String(Math.ceil(porNome.total / 25))}`)
@@ -135,7 +135,7 @@ test.describe('Uso (A0b, tarefa 8.0)', () => {
     // A ordem por uso vai à barra e volta à primeira página; as escolas do teste, com o maior uso do banco, estão nela.
     const porUsoResposta = respostaDoUso(page, 1, 'uso')
     await acionar(page, 'Mais uso no mês', hasTouch)
-    const porUso = (await (await porUsoResposta).json()) as RespostaUsoDoPainel
+    const porUso = (await (await porUsoResposta).json()) as UsoDoPainelResponse
     await expect(page).toHaveURL(/\/operacao\/uso\?pagina=1&ordem=uso$/)
     await expect(page.getByRole('button', { name: 'Mais uso no mês' })).toHaveAttribute('aria-pressed', 'true')
     await expect.poll(() => nomesNaTela(page)).toEqual(porUso.itens.map((escola) => escola.nome))
@@ -190,7 +190,7 @@ test.describe('Uso (A0b, tarefa 8.0)', () => {
     await expect(page.getByRole('status').filter({ hasText: 'Carregando o uso das escolas…' })).toHaveCount(0)
     await expect(page.getByRole('button', { name: 'Próxima' })).toBeDisabled()
     soltarSegunda()
-    const segunda = (await (await segundaResposta).json()) as RespostaUsoDoPainel
+    const segunda = (await (await segundaResposta).json()) as UsoDoPainelResponse
     await page.unroute(ROTA_DO_USO, segurarSegunda)
     await expect(page.getByRole('region', { name: 'Uso por escola' })).toHaveAttribute('aria-busy', 'false')
     await expect.poll(() => nomesNaTela(page)).toEqual(segunda.itens.map((escola) => escola.nome))
@@ -201,7 +201,7 @@ test.describe('Uso (A0b, tarefa 8.0)', () => {
     // O endereço copiado abre a mesma página: a página e a ordem vêm da barra, não da memória da aba.
     const recarregada = respostaDoUso(page, 2, 'uso')
     await page.reload()
-    const depoisDaRecarga = (await (await recarregada).json()) as RespostaUsoDoPainel
+    const depoisDaRecarga = (await (await recarregada).json()) as UsoDoPainelResponse
     await expect(page.getByRole('button', { name: 'Mais uso no mês' })).toHaveAttribute('aria-pressed', 'true', { timeout: PRAZO_DA_ENTRADA_MS })
     await expect(page.getByRole('navigation', { name: 'Páginas do uso' })).toContainText(`Página 2 de ${String(Math.ceil(depoisDaRecarga.total / 25))}`)
     await expect.poll(() => nomesNaTela(page)).toEqual(depoisDaRecarga.itens.map((escola) => escola.nome))
@@ -209,7 +209,7 @@ test.describe('Uso (A0b, tarefa 8.0)', () => {
     // "Anterior" volta à primeira página, na mesma ordem, com as escolas do teste.
     const devolta = respostaDoUso(page, 1, 'uso')
     await acionar(page, 'Anterior', hasTouch)
-    const primeiraDeNovo = (await (await devolta).json()) as RespostaUsoDoPainel
+    const primeiraDeNovo = (await (await devolta).json()) as UsoDoPainelResponse
     await expect(page).toHaveURL(/\/operacao\/uso\?pagina=1&ordem=uso$/)
     await expect.poll(() => nomesNaTela(page)).toEqual(primeiraDeNovo.itens.map((escola) => escola.nome))
     for (const escola of semeadas) expect(primeiraDeNovo.itens.map((item) => item.id)).toContain(escola.id)
@@ -315,7 +315,7 @@ test.describe('Uso (A0b, tarefa 8.0)', () => {
     await page.unroute(ROTA_DO_USO, falhar)
     const lista = respostaDoUso(page, 1, 'nome')
     await acionar(page, 'Tentar de novo', hasTouch)
-    const dados = (await (await lista).json()) as RespostaUsoDoPainel
+    const dados = (await (await lista).json()) as UsoDoPainelResponse
     await expect.poll(() => nomesNaTela(page)).toEqual(dados.itens.map((escola) => escola.nome))
     await expect(page.getByRole('alert')).toHaveCount(0)
     expect(await larguraExcedente(page)).toBe(0)
@@ -361,7 +361,7 @@ test.describe('Uso (A0b, tarefa 8.0)', () => {
     let diaDeVerdade: string | undefined
     const trocada = async (rota: Route) => {
       const resposta = await rota.fetch()
-      const corpo = (await resposta.json()) as RespostaUsoDoPainel
+      const corpo = (await resposta.json()) as UsoDoPainelResponse
       diaDeVerdade = corpo.dia
       const [primeira, ...resto] = corpo.itens
       if (primeira === undefined) throw new Error('o banco de teste não tem escola para a referência')
@@ -426,7 +426,7 @@ test.describe('Uso (A0b, tarefa 8.0)', () => {
     // De volta ao Uso: a página busca de novo, e a escola nova, sem uso consolidado, aparece com zero no dia e no mês.
     const depois = respostaDoUso(page, 1, 'nome')
     await irPelaNavegacao(page, 'Uso', hasTouch)
-    const lista = (await (await depois).json()) as RespostaUsoDoPainel
+    const lista = (await (await depois).json()) as UsoDoPainelResponse
     expect(lista.itens.map((escola) => escola.nome)).toContain(nome)
     await expect.poll(async () => (await usoNaTela(page)).find((escola) => escola.nome === nome)?.valores).toEqual(['0', '0', '0 bytes', '0', '0', '0 bytes'])
     expect(await larguraExcedente(page)).toBe(0)

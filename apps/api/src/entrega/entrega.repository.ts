@@ -1,8 +1,8 @@
 import { artefato, atividadeAplicada, entrega, exigirAnoEmCurso, exigirEscolaDoContexto, sessaoDaRequisicao, usuario, type Banco, type TransacaoBanco } from '@educa/nucleo'
-import type { ChaveDeFuncao, ConsultaEntregas, EstadoDeEntrega, TipoDeEntrega } from '@educa/shared'
+import type { ChaveDeFuncao, EntregasQuery, EstadoDeEntrega, TipoDeEntrega } from '@educa/shared'
 import { and, desc, eq, lt, sql, type SQL } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/pg-core'
-import { ErroDeInvariante } from '@educa/shared'
+import { InvariantException } from '@educa/shared'
 import { comVinculoConfirmadoDoProfessor, disciplinaDaEntrega } from '../assistente/turma-do-professor.repository.js'
 
 /** Uma entrega como o professor da turma a lê: com o título do artefato a que se refere e o nome de quem decidiu. */
@@ -83,7 +83,7 @@ export class EntregaRepository {
    * Uma página das entregas no alcance, **da mais nova para a mais antiga** (o id é `uuidv7`), com uma linha a mais que
    * diz se há próxima. `estado` e `turmaId` só restringem: a turma de outro professor não acha nada.
    */
-  listar({ pagina, limite, estado, turmaId }: ConsultaEntregas): Promise<EntregaLida[]> {
+  listar({ pagina, limite, estado, turmaId }: EntregasQuery): Promise<EntregaLida[]> {
     return this.#lidas(and(estado === undefined ? undefined : eq(entrega.estado, estado), turmaId === undefined ? undefined : eq(entrega.turmaId, turmaId), pagina === undefined ? undefined : lt(entrega.id, pagina)))
       .orderBy(desc(entrega.id))
       .limit(limite + 1)
@@ -117,7 +117,7 @@ export class EntregaRepository {
       .insert(entrega)
       .values({ escolaId: exigirEscolaDoContexto(), anoLetivoId: exigirAnoEmCurso(), turmaId: nova.turmaId, funcao: 'adaptacao', tipo: 'versao_adaptada', artefatoId: nova.artefatoId, execucaoId: nova.execucaoId })
       .returning({ id: entrega.id })
-    if (criada === undefined) throw new ErroDeInvariante('entrega não criada')
+    if (criada === undefined) throw new InvariantException('entrega não criada')
     return criada.id
   }
 }

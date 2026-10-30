@@ -1,5 +1,5 @@
 import type { Redis } from 'ioredis'
-import { ErroDeInvariante } from '@educa/shared'
+import { InvariantException } from '@educa/shared'
 import { contextoAtual } from '../contexto/contexto.js'
 import { SemEscopo } from '../db/sem-escopo.decorator.js'
 import { relogioDoSistema, type Relogio } from '../relogio.js'
@@ -140,7 +140,7 @@ export class ContadorDeUso {
    */
   async apagarConsolidado(dia: string, metrica: MetricaDeUso, valorGravado: number): Promise<boolean> {
     const escolaId = contextoAtual()?.escolaId
-    if (escolaId === undefined) throw new ErroDeInvariante('contador de uso sem escola no contexto')
+    if (escolaId === undefined) throw new InvariantException('contador de uso sem escola no contexto')
     const apagadas = await this.redis.eval(APAGAR_SE_IGUAL, 1, this.chave(dia, escolaId, metrica), String(valorGravado))
     return apagadas === 1
   }

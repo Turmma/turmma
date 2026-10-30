@@ -1,4 +1,4 @@
-import { CodigoDeErro } from '@educa/shared'
+import { ErrorCode } from '@educa/shared'
 import { Clock, Eye, Inbox, Sparkles } from 'lucide-react'
 import { useState } from 'react'
 import { ErroDaApi } from '../../api/cliente'
@@ -173,8 +173,8 @@ export default function SecoesDeEstado() {
             acao={{ rotulo: 'Verificar de novo', aoAcionar: () => undefined }}
           />
           <EstadoVazio titulo="Nenhuma conversa" descricao="As conversas com o Assistente aparecem aqui. Se acabou de pedir uma, verifique de novo." acao={{ rotulo: 'Verificar de novo', aoAcionar: () => undefined, emAndamento: true }} />
-          <EstadoErro erro={new ErroDaApi(CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO)} aoTentarDeNovo={() => definirTentativas((atual) => atual + 1)} />
-          <EstadoErro erro={new ErroDaApi(CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO)} aoTentarDeNovo={() => undefined} tentando />
+          <EstadoErro erro={new ErroDaApi(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO)} aoTentarDeNovo={() => definirTentativas((atual) => atual + 1)} />
+          <EstadoErro erro={new ErroDaApi(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO)} aoTentarDeNovo={() => undefined} tentando />
         </div>
         <p data-tentativas={tentativas} className="sr-only">
           {tentativas} tentativas

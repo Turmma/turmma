@@ -1,5 +1,5 @@
 import { IP_DESCONHECIDO } from '@educa/nucleo'
-import type { RespostaLogin } from '@educa/shared'
+import type { LoginResponse } from '@educa/shared'
 
 /** O que o controller tira da requisição HTTP: o IP (o da borda, quando vem dela) e o cabeçalho `Cookie`. */
 export interface OrigemDaRequisicao {
@@ -14,7 +14,7 @@ export interface OrigemDaRequisicao {
 
 /** A resposta do login e os `Set-Cookie` que vão com ela. */
 export interface ResultadoDoLogin {
-  readonly resposta: RespostaLogin
+  readonly resposta: LoginResponse
   readonly cookies: readonly string[]
 }
 

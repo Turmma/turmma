@@ -2,7 +2,7 @@ import { avisoEspacado, ProporcaoEmJanela, relogioDoSistema, type Relogio } from
 import { Logger } from '@nestjs/common'
 import type { Redis } from 'ioredis'
 import { createHmac } from 'node:crypto'
-import { ErroDeInvariante } from '@educa/shared'
+import { InvariantException } from '@educa/shared'
 
 /** A janela dos contadores por IP do login: "por minuto" (Tech Spec da identidade, seção 5, "Baldes do semáforo"). */
 export const JANELA_DO_CONTADOR_POR_IP_MS = 60_000
@@ -101,7 +101,7 @@ export class ContadorEmJanela {
     if (this.cliente.status === 'ready') {
       try {
         const valor = Number(await this.cliente.eval(SCRIPT_SOMAR, 1, chave, this.janelaMs))
-        if (!Number.isFinite(valor)) throw new ErroDeInvariante('resposta do contador fora do formato')
+        if (!Number.isFinite(valor)) throw new InvariantException('resposta do contador fora do formato')
         this.#proporcaoDoSeguro.registrar(false)
         return { valor, doSeguro: false }
       } catch {
@@ -117,7 +117,7 @@ export class ContadorEmJanela {
     if (this.cliente.status === 'ready') {
       try {
         const valor = Number((await this.cliente.get(chave)) ?? 0)
-        if (!Number.isFinite(valor)) throw new ErroDeInvariante('resposta do contador fora do formato')
+        if (!Number.isFinite(valor)) throw new InvariantException('resposta do contador fora do formato')
         this.#proporcaoDoSeguro.registrar(false)
         return { valor, doSeguro: false }
       } catch {
@@ -136,7 +136,7 @@ export class ContadorEmJanela {
     if (this.cliente.status === 'ready') {
       try {
         const restante = Number(await this.cliente.pttl(chave))
-        if (!Number.isFinite(restante)) throw new ErroDeInvariante('resposta do contador fora do formato')
+        if (!Number.isFinite(restante)) throw new InvariantException('resposta do contador fora do formato')
         // -2 (sem a chave) e -1 (sem prazo, que o script nunca deixa) não seguram ninguém.
         return Math.max(0, restante)
       } catch {

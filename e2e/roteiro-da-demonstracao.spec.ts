@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import type { Browser, BrowserContextOptions, Locator, Page } from '@playwright/test'
 import { exibirCodigoDaTurma } from '../packages/shared/src/sala/acesso.ts'
-import type { RespostaAcessoGerado } from '../packages/shared/src/sala/acesso.ts'
+import type { AcessoGeradoResponse } from '../packages/shared/src/sala/acesso.ts'
 import { entregasNoBanco, validacoesNoBanco } from './__fixtures__/a2.ts'
 import { respostasNoBanco } from './__fixtures__/a3.ts'
 import { entrarComoAlunoPelaApi, responderPelaApi } from './__fixtures__/aluno-pela-api.ts'
@@ -291,7 +291,7 @@ test.describe('o roteiro da demonstração, de ponta a ponta', () => {
       await botao(acesso, 'Convidar alunos').click()
       const respostaDoGerar = professora.waitForResponse((resposta) => /^\/v1\/turmas\/[^/]+\/acesso$/.test(new URL(resposta.url()).pathname) && resposta.request().method() === 'POST')
       await botao(dialogo(professora), 'Gerar acesso').click()
-      const gerado = (await (await respostaDoGerar).json()) as RespostaAcessoGerado
+      const gerado = (await (await respostaDoGerar).json()) as AcessoGeradoResponse
       await expect(dialogo(professora).getByRole('group', { name: 'Código da turma' })).toContainText(exibirCodigoDaTurma(gerado.codigo), { timeout: PRAZO_DA_ENTRADA_MS })
       await botao(dialogo(professora), 'Fechar').click()
       await botao(dialogo(professora), 'Fechar sem copiar').click()

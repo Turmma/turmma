@@ -1,6 +1,6 @@
 import { setTimeout as esperar } from 'node:timers/promises'
 import { describe, expect, it } from 'vitest'
-import { CodigoDeErro } from '@educa/shared'
+import { ErrorCode } from '@educa/shared'
 import { exigirAnoEmCurso } from './ano-em-curso.js'
 import { contextoAtual, definirOperadorNoContexto, definirSessaoNoContexto, executarNoContexto, exigirOperadorDoContexto, resolverRequisicaoId } from './contexto.js'
 import { exigirEscolaDoContexto } from './escola-do-contexto.js'
@@ -77,15 +77,15 @@ describe('definirSessaoNoContexto e exigirAnoEmCurso', () => {
   it('escola sem ano em curso: exigirAnoEmCurso falha fechado com NAO_ENCONTRADO 404, e nunca devolve um ano qualquer', () => {
     executarNoContexto({ requisicaoId: 'r-4' }, () => {
       definirSessaoNoContexto({ ...sessaoA, anoLetivoId: null })
-      expect(() => exigirAnoEmCurso()).toThrow(expect.objectContaining({ codigo: CodigoDeErro.NAO_ENCONTRADO, status: 404 }))
+      expect(() => exigirAnoEmCurso()).toThrow(expect.objectContaining({ codigo: ErrorCode.NAO_ENCONTRADO, status: 404 }))
     })
   })
 
   it('sem sessão no contexto (rota anônima, rotina), exigirAnoEmCurso também falha fechado', () => {
     executarNoContexto({ requisicaoId: 'r-5' }, () => {
-      expect(() => exigirAnoEmCurso()).toThrow(expect.objectContaining({ codigo: CodigoDeErro.NAO_ENCONTRADO }))
+      expect(() => exigirAnoEmCurso()).toThrow(expect.objectContaining({ codigo: ErrorCode.NAO_ENCONTRADO }))
     })
-    expect(() => exigirAnoEmCurso()).toThrow(expect.objectContaining({ codigo: CodigoDeErro.NAO_ENCONTRADO }))
+    expect(() => exigirAnoEmCurso()).toThrow(expect.objectContaining({ codigo: ErrorCode.NAO_ENCONTRADO }))
   })
 })
 

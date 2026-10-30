@@ -1,4 +1,4 @@
-import type { AlunoDaTurma, RespostaDesempenhoDaTurma } from '@educa/shared'
+import type { AlunoDaTurma, DesempenhoDaTurmaResponse } from '@educa/shared'
 
 /**
  * O que a aba Alunos decide sem tocar a rede (telas do professor, 12.0; RF18, RF21): a ordem de nome, a junção da lista de nomes
@@ -6,7 +6,7 @@ import type { AlunoDaTurma, RespostaDesempenhoDaTurma } from '@educa/shared'
  * ranking (D46, D57, D69), e nenhuma ordem por acerto, de propósito.
  */
 
-export type DesempenhoDoAluno = RespostaDesempenhoDaTurma['alunos'][number]
+export type DesempenhoDoAluno = DesempenhoDaTurmaResponse['alunos'][number]
 
 /**
  * `na_turma`: o aluno está na lista de nomes. `fora_da_turma`: o desempenho o traz e a lista de nomes, lida até o fim, não: ele foi
@@ -46,7 +46,7 @@ export function ordemDeNome(a: Pick<LinhaDeAluno, 'nome' | 'usuarioId'>, b: Pick
  * (`listaCompleta`): enquanto ainda há páginas por ler, ele pode simplesmente estar numa delas, e afirmar que saiu seria
  * dizer o que a tela não sabe. Essa linha não leva acerto nenhum: ele já não conta na turma.
  */
-export function montarLinhas(lidos: readonly AlunoDaTurma[], desempenho: RespostaDesempenhoDaTurma | undefined, listaCompleta: boolean): LinhaDeAluno[] {
+export function montarLinhas(lidos: readonly AlunoDaTurma[], desempenho: DesempenhoDaTurmaResponse | undefined, listaCompleta: boolean): LinhaDeAluno[] {
   const doDesempenho = desempenho?.alunos ?? []
   const acertosDe = new Map(doDesempenho.map((aluno) => [aluno.alunoId, aluno] as const))
   const naLista = new Set(lidos.map((aluno) => aluno.usuarioId))

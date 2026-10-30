@@ -1,5 +1,5 @@
 import { ErroDeDominio, METRICAS } from '@educa/nucleo'
-import { CodigoDeErro } from '@educa/shared'
+import { ErrorCode } from '@educa/shared'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { MedidorDeTeste } from '../../../../../tools/testes/metricas.ts'
 import { baldeDaEquipe, baldeDaEscola, baldeDaEscolaDesconhecida, type BaldeDeLogin } from './baldes-de-login.js'
@@ -201,7 +201,7 @@ describe('SemaforoDeHash: rebaixamento (15.0), fim do balde e nunca recusa', () 
     const primeiro = semaforo.executar(baldeDaEscola(ESCOLA_A), emAndamento.tarefa)
     const desistente = semaforo.executar(baldeDaEscola(ESCOLA_A, true), () => Promise.resolve()).catch((erro: unknown) => erro)
     await vi.advanceTimersByTimeAsync(ESPERA_MAXIMA_PELO_HASH_MS)
-    expect(await desistente).toMatchObject({ codigo: CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO })
+    expect(await desistente).toMatchObject({ codigo: ErrorCode.INDISPONIVEL_TENTE_DE_NOVO })
     expect(semaforo.esperando).toBe(0)
     const depois = pedidoQueAnota(semaforo, atendidos)(baldeDaEscola(ESCOLA_A, true), 'rebaixado-que-chegou-depois')
     emAndamento.soltar()
@@ -297,7 +297,7 @@ describe('SemaforoDeHash: prazo de 2 s', () => {
     await segundo
     expect(resultado).toBeInstanceOf(ErroDeDominio)
     const erro = resultado as ErroDeDominio
-    expect([erro.codigo, erro.status]).toEqual([CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO, 503])
+    expect([erro.codigo, erro.status]).toEqual([ErrorCode.INDISPONIVEL_TENTE_DE_NOVO, 503])
     expect(erro.tenteDeNovoEmSegundos).toBeGreaterThanOrEqual(RETRY_AFTER_MINIMO_S)
     expect(erro.tenteDeNovoEmSegundos).toBeLessThanOrEqual(RETRY_AFTER_MAXIMO_S)
     expect(tarefa).not.toHaveBeenCalled()
@@ -353,7 +353,7 @@ describe('SemaforoDeHash: prazo de 2 s', () => {
     expect(semaforo.esperando).toBe(MAXIMO_ESPERANDO)
 
     const rebaixadoNovo = vi.fn(() => Promise.resolve())
-    await expect(semaforo.executar(baldeDaEscola(ESCOLA_A, true), rebaixadoNovo)).rejects.toMatchObject({ codigo: CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO, status: 503 })
+    await expect(semaforo.executar(baldeDaEscola(ESCOLA_A, true), rebaixadoNovo)).rejects.toMatchObject({ codigo: ErrorCode.INDISPONIVEL_TENTE_DE_NOVO, status: 503 })
     expect(rebaixadoNovo).not.toHaveBeenCalled()
     expect(semaforo.esperando).toBe(MAXIMO_ESPERANDO)
 
@@ -421,11 +421,11 @@ describe('SemaforoDeHash: prazo de 2 s', () => {
     // Outro rebaixado da A desiste pelo prazo antes de a fila encher: também não pode voltar a ser escolhido para o despejo.
     const desistente = semaforo.executar(baldeDaEscola(ESCOLA_A, true), () => Promise.resolve()).catch((erro: unknown) => erro)
     await vi.advanceTimersByTimeAsync(ESPERA_MAXIMA_PELO_HASH_MS)
-    expect(await desistente).toMatchObject({ codigo: CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO })
+    expect(await desistente).toMatchObject({ codigo: ErrorCode.INDISPONIVEL_TENTE_DE_NOVO })
     const normais = Array.from({ length: MAXIMO_ESPERANDO }, () => semaforo.executar(baldeDaEscola(ESCOLA_A), () => Promise.resolve()).catch(() => undefined))
     expect(semaforo.esperando).toBe(MAXIMO_ESPERANDO)
     const tarefa = vi.fn(() => Promise.resolve())
-    await expect(semaforo.executar(baldeDaEscola(ESCOLA_B), tarefa)).rejects.toMatchObject({ codigo: CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO })
+    await expect(semaforo.executar(baldeDaEscola(ESCOLA_B), tarefa)).rejects.toMatchObject({ codigo: ErrorCode.INDISPONIVEL_TENTE_DE_NOVO })
     expect(tarefa).not.toHaveBeenCalled()
     expect(semaforo.esperando).toBe(MAXIMO_ESPERANDO)
     await vi.advanceTimersByTimeAsync(ESPERA_MAXIMA_PELO_HASH_MS)
@@ -443,7 +443,7 @@ describe('SemaforoDeHash: prazo de 2 s', () => {
     expect(semaforo.esperando).toBe(MAXIMO_ESPERANDO)
     const tarefa = vi.fn(() => Promise.resolve())
     const excedente = semaforo.executar(baldeDaEscola(ESCOLA_B), tarefa)
-    await expect(excedente).rejects.toMatchObject({ codigo: CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO, status: 503 })
+    await expect(excedente).rejects.toMatchObject({ codigo: ErrorCode.INDISPONIVEL_TENTE_DE_NOVO, status: 503 })
     expect(tarefa).not.toHaveBeenCalled()
     expect(semaforo.esperando).toBe(MAXIMO_ESPERANDO)
     await vi.advanceTimersByTimeAsync(ESPERA_MAXIMA_PELO_HASH_MS)

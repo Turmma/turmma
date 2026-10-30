@@ -1,4 +1,4 @@
-import { CodigoDeErro, type RespostaMeuDiagnostico, type RespostaProva } from '@educa/shared'
+import { ErrorCode, type MeuDiagnosticoResponse, type ProvaResponse } from '@educa/shared'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, ArrowRight, Check, CircleAlert, MessageCircleQuestion } from 'lucide-react'
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
@@ -78,7 +78,7 @@ const CLASSES_DO_MAPA: Readonly<Record<MarcaDaQuestao, string>> = {
 }
 
 interface PropsDeQuemResponde {
-  readonly prova: RespostaProva
+  readonly prova: ProvaResponse
   readonly fila: FilaDeRespostas
   readonly estadoDaFila: EstadoDaFila
   /** Para onde o foco vai quando o botão de enviar some, com a atividade enviada. */
@@ -134,7 +134,7 @@ function Respondendo({ prova, fila, estadoDaFila, focoDepoisDeEnviar, aoEntregar
     },
     onError: (erro) => {
       // A professora encerrou enquanto o diálogo estava aberto: a tela relê a atividade e mostra o que ficou.
-      if (!(erro instanceof ErroDaApi) || erro.codigo !== CodigoDeErro.ATIVIDADE_ENCERRADA) return
+      if (!(erro instanceof ErroDaApi) || erro.codigo !== ErrorCode.ATIVIDADE_ENCERRADA) return
       definirConfirmando(false)
       void cliente.invalidateQueries({ queryKey: consultaProva(provaId).queryKey })
     },
@@ -298,7 +298,7 @@ function Respondendo({ prova, fila, estadoDaFila, focoDepoisDeEnviar, aoEntregar
  * acertos por habilidade e questão por questão, em contagem. **Sem nota, sem conceito, sem percentual e sem comparação
  * com ninguém** (D46; regra 50, item 9). Leva a assinatura da função que corrigiu, com o selo "IA", e quem aprovou.
  */
-function Diagnostico({ diagnostico, prova }: { diagnostico: RespostaMeuDiagnostico; prova: RespostaProva }) {
+function Diagnostico({ diagnostico, prova }: { diagnostico: MeuDiagnosticoResponse; prova: ProvaResponse }) {
   // A lista questão por questão é o que cresce com a atividade: a partir de 1024 px, na segunda coluna, ela rola por dentro, para o
   // resultado caber na janela do Chromebook (RF20), e ganha nome e foco para rolar pelo teclado (um nome só dele: o da seção é o do título). Abaixo disso rola a página, e não há o que focar nem o que nomear.
   const listaRola = useMidia(A_PARTIR_DE_1024)
@@ -360,7 +360,7 @@ function Diagnostico({ diagnostico, prova }: { diagnostico: RespostaMeuDiagnosti
 }
 
 interface PropsDoFim {
-  readonly prova: RespostaProva
+  readonly prova: ProvaResponse
   readonly estadoDaFila: EstadoDaFila
   /** O envio foi confirmado nesta tela, nesta abertura (estado de tela, `comemoracaoNaTela`). */
   readonly entregueAgora: boolean
@@ -448,7 +448,7 @@ export default function Atividade({ atividadeAplicadaId }: { atividadeAplicadaId
   }, [encerradaNoServidor, cliente, atividadeAplicadaId])
 
   if (prova.data === undefined) {
-    const naoEncontrada = prova.error instanceof ErroDaApi && prova.error.codigo === CodigoDeErro.NAO_ENCONTRADO
+    const naoEncontrada = prova.error instanceof ErroDaApi && prova.error.codigo === ErrorCode.NAO_ENCONTRADO
     return (
       <Tela titulo="Atividade" antes={VOLTAR} largura="leitura">
         {prova.isPending ? (

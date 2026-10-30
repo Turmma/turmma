@@ -1,5 +1,5 @@
 import { ConfiguracaoInvalida, ErroDeDominio, FORMATO_SLUG, resumirErro, TAMANHO_MAXIMO_SLUG, TIPOS_DE_REDE, type TipoDeRede } from '@educa/nucleo'
-import { CodigoDeErro } from '@educa/shared'
+import { ErrorCode } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { pathToFileURL } from 'node:url'
 import { parseArgs } from 'node:util'
@@ -70,7 +70,7 @@ export function lerPedidoDoOperador(argumentos: string[]): PedidoDoOperador {
 }
 
 /** Texto fixo por código, sem nada do pedido: o slug e o nome nunca voltam na mensagem. */
-const MENSAGEM_DO_OPERADOR: Partial<Record<CodigoDeErro, string>> = {
+const MENSAGEM_DO_OPERADOR: Partial<Record<ErrorCode, string>> = {
   CONFLITO: 'já existe escola com este endereço',
   NAO_ENCONTRADO: 'rede não encontrada',
 }
@@ -112,7 +112,7 @@ export async function executarOpsEscola(
       return 1
     }
     // O erro cru do Postgres traz o valor da linha na mensagem e no `detail`: sai só o resumo seguro.
-    terminal.erro(`${CodigoDeErro.ERRO_INTERNO}: ${JSON.stringify(resumirErro(erro))}\n`)
+    terminal.erro(`${ErrorCode.ERRO_INTERNO}: ${JSON.stringify(resumirErro(erro))}\n`)
     return 1
   }
 }

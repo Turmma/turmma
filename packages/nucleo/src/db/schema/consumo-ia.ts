@@ -1,6 +1,6 @@
 import { sql } from 'drizzle-orm'
 import { bigint, boolean, check, foreignKey, index, integer, jsonb, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core'
-import type { ChaveDeFuncao, CodigoDeErro, EstadoDeConsumoDeIa, OrigemDaSaidaDeIa, PerfilDeIa } from '@educa/shared'
+import type { ChaveDeFuncao, ErrorCode, EstadoDeConsumoDeIa, OrigemDaSaidaDeIa, PerfilDeIa } from '@educa/shared'
 import { escola } from './escola.js'
 import { execucaoAgente } from './execucao-agente.js'
 import { usuario } from './usuario.js'
@@ -29,7 +29,7 @@ import { usuario } from './usuario.js'
  *   nunca de constante. O pacote do mês da turma conta as mensagens do aluno em `mensagem_tutor`, que tem a turma.
  * - `custo_micros` é o custo em **milionésimos de real**, inteiro: a soma de milhares de chamadas de fração de centavo
  *   não perde nada. Zero no adaptador falso, no modelo local e na regra fixa, e é o padrão da coluna.
- * - `codigo_de_erro` é um `CodigoDeErro` da camada de IA, e o check só aceita o formato de código: a mensagem do provedor
+ * - `codigo_de_erro` é um `ErrorCode` da camada de IA, e o check só aceita o formato de código: a mensagem do provedor
  *   não cabe.
  * - Sem `ano_letivo_id`: é série no tempo, somada por mês, como `uso_infra_diario`.
  * - Índice `(escola_id, funcao, em)`: o consumo do mês por função começa pelo escopo (regra 80, item 8).
@@ -60,7 +60,7 @@ export const consumoIa = pgTable(
     provedor: text(),
     tentativas: integer().notNull(),
     estado: text().$type<EstadoDeConsumoDeIa>().notNull(),
-    codigoDeErro: text().$type<CodigoDeErro>(),
+    codigoDeErro: text().$type<ErrorCode>(),
     entrada: jsonb().$type<unknown>(),
     saida: jsonb().$type<unknown>(),
     em: timestamp({ withTimezone: true }).notNull().defaultNow(),

@@ -1,10 +1,10 @@
 import {
-  esquemaPedidoConviteDaCoordenacao,
-  esquemaPedidoCriarEscola,
-  esquemaPedidoCriarRede,
-  type PedidoConviteDaCoordenacao,
-  type PedidoCriarEscola,
-  type PedidoCriarRede,
+  conviteDaCoordenacaoRequestSchema,
+  criarEscolaRequestSchema,
+  criarRedeRequestSchema,
+  type ConviteDaCoordenacaoRequest,
+  type CriarEscolaRequest,
+  type CriarRedeRequest,
   type TipoDeRede,
 } from '@educa/shared'
 import { pedidoDeConvitePelo, TEXTO_DO_NOME_INVALIDO, type ValidacaoDoConvite } from '../componentes/pedido-de-convite'
@@ -50,15 +50,15 @@ function errosDos<Campo extends string>(caminhos: readonly (readonly PropertyKey
  * mesmo id — com o nome cru, " Rede X" e "Rede X" seriam dois pedidos diferentes para o mesmo id, e a segunda tentativa
  * voltaria `CONFLITO`.
  */
-export function pedidoDeRede(id: string, campos: { readonly nome: string; readonly tipo: TipoDeRede }): Validacao<PedidoCriarRede, CampoDaRede> {
-  const lido = esquemaPedidoCriarRede.safeParse({ id, nome: campos.nome, tipo: campos.tipo })
+export function pedidoDeRede(id: string, campos: { readonly nome: string; readonly tipo: TipoDeRede }): Validacao<CriarRedeRequest, CampoDaRede> {
+  const lido = criarRedeRequestSchema.safeParse({ id, nome: campos.nome, tipo: campos.tipo })
   if (lido.success) return { ok: true, pedido: lido.data }
   return { ok: false, erros: errosDos(lido.error.issues.map((problema) => problema.path), TEXTO_DO_CAMPO_DA_REDE) }
 }
 
 /** O pedido de `POST /v1/operacao/escolas`, pelo mesmo contrato da API, como o da rede. */
-export function pedidoDeEscola(id: string, campos: { readonly redeId: string; readonly nome: string; readonly slug: string }): Validacao<PedidoCriarEscola, CampoDaEscola> {
-  const lido = esquemaPedidoCriarEscola.safeParse({ id, redeId: campos.redeId, nome: campos.nome, slug: campos.slug.trim() })
+export function pedidoDeEscola(id: string, campos: { readonly redeId: string; readonly nome: string; readonly slug: string }): Validacao<CriarEscolaRequest, CampoDaEscola> {
+  const lido = criarEscolaRequestSchema.safeParse({ id, redeId: campos.redeId, nome: campos.nome, slug: campos.slug.trim() })
   if (lido.success) return { ok: true, pedido: lido.data }
   return { ok: false, erros: errosDos(lido.error.issues.map((problema) => problema.path), TEXTO_DO_CAMPO_DA_ESCOLA) }
 }
@@ -68,6 +68,6 @@ export function pedidoDeEscola(id: string, campos: { readonly redeId: string; re
  * nome sem os espaços das pontas e o e-mail em minúsculas, como o login o procura. O resumo antes de gerar mostra o que
  * sai daqui, e não o que foi digitado. A leitura é a do diálogo de convite, que a escola também usa (A1, 14.0).
  */
-export function pedidoDeConvite(campos: { readonly nome: string; readonly email: string }): ValidacaoDoConvite<PedidoConviteDaCoordenacao> {
-  return pedidoDeConvitePelo(esquemaPedidoConviteDaCoordenacao, campos)
+export function pedidoDeConvite(campos: { readonly nome: string; readonly email: string }): ValidacaoDoConvite<ConviteDaCoordenacaoRequest> {
+  return pedidoDeConvitePelo(conviteDaCoordenacaoRequestSchema, campos)
 }

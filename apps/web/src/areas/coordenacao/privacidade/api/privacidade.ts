@@ -1,17 +1,17 @@
 import {
-  esquemaPedidoDoTitular,
-  esquemaRespostaBuscaDeTitulares,
-  esquemaRespostaDoArquivo,
-  esquemaRespostaIncidentes,
-  esquemaRespostaPedidos,
-  esquemaRespostaPreviaDoTitular,
-  esquemaRespostaRetencao,
-  esquemaRespostaSuboperadores,
+  pedidoDoTitularSchema,
+  buscaDeTitularesResponseSchema,
+  arquivoResponseSchema,
+  incidentesResponseSchema,
+  pedidosResponseSchema,
+  previaDoTitularResponseSchema,
+  retencaoResponseSchema,
+  suboperadoresResponseSchema,
   type FinalidadeDoArquivo,
   type PedidoDoTitular,
   type RegistroDePedido,
-  type RespostaBuscaDeTitulares,
-  type RespostaDoArquivo,
+  type BuscaDeTitularesResponse,
+  type ArquivoResponse,
 } from '@educa/shared'
 import { infiniteQueryOptions, queryOptions, type QueryClient } from '@tanstack/react-query'
 import { SEM_CORPO } from '../../../../api/cliente'
@@ -31,13 +31,13 @@ export const CHAVE_DA_PRIVACIDADE = ['privacidade'] as const
 /** Por quanto tempo a escola guarda cada dado: as categorias, com o prazo que vale e de onde ele vem, e os prazos fixos. */
 export const consultaRetencao = queryOptions({
   queryKey: [...CHAVE_DA_PRIVACIDADE, 'retencao'],
-  queryFn: ({ signal }) => buscarComSessao('/v1/privacidade/retencao', esquemaRespostaRetencao, signal),
+  queryFn: ({ signal }) => buscarComSessao('/v1/privacidade/retencao', retencaoResponseSchema, signal),
 })
 
 /** As empresas que recebem dado da escola, vigentes e passadas (F3, 8.0). */
 export const consultaSuboperadores = queryOptions({
   queryKey: [...CHAVE_DA_PRIVACIDADE, 'suboperadores'],
-  queryFn: ({ signal }) => buscarComSessao('/v1/privacidade/suboperadores', esquemaRespostaSuboperadores, signal),
+  queryFn: ({ signal }) => buscarComSessao('/v1/privacidade/suboperadores', suboperadoresResponseSchema, signal),
 })
 
 /**
@@ -47,7 +47,7 @@ export const consultaSuboperadores = queryOptions({
  */
 export const consultaIncidentes = queryOptions({
   queryKey: [...CHAVE_DA_PRIVACIDADE, 'incidentes'],
-  queryFn: ({ signal }) => buscarComSessao('/v1/privacidade/incidentes', esquemaRespostaIncidentes, signal),
+  queryFn: ({ signal }) => buscarComSessao('/v1/privacidade/incidentes', incidentesResponseSchema, signal),
 })
 
 /**
@@ -79,7 +79,7 @@ const CAMINHO_DOS_PEDIDOS = '/v1/privacidade/pedidos'
 export const consultaPedidosDoTitular = infiniteQueryOptions({
   queryKey: [...CHAVE_DA_PRIVACIDADE, 'pedidos'],
   queryFn: ({ pageParam, signal }) =>
-    buscarComSessao(pageParam === undefined ? CAMINHO_DOS_PEDIDOS : `${CAMINHO_DOS_PEDIDOS}?pagina=${encodeURIComponent(pageParam)}`, esquemaRespostaPedidos, signal),
+    buscarComSessao(pageParam === undefined ? CAMINHO_DOS_PEDIDOS : `${CAMINHO_DOS_PEDIDOS}?pagina=${encodeURIComponent(pageParam)}`, pedidosResponseSchema, signal),
   initialPageParam: undefined as string | undefined,
   getNextPageParam: (ultima) => ultima.proxima,
   refetchOnWindowFocus: false,
@@ -92,8 +92,8 @@ export const consultaPedidosDoTitular = infiniteQueryOptions({
  * a API nem a web o guardam (regra 20, itens 9 e 10; RF17). É `POST` e não consulta, para o nome digitado e as pessoas
  * achadas ficarem só no estado da tela que as pediu, e não no cache de consultas.
  */
-export function buscarTitulares(termo: string): Promise<RespostaBuscaDeTitulares> {
-  return chamarComSessao('/v1/privacidade/titulares/busca', esquemaRespostaBuscaDeTitulares, { metodo: 'POST', corpo: { termo } })
+export function buscarTitulares(termo: string): Promise<BuscaDeTitularesResponse> {
+  return chamarComSessao('/v1/privacidade/titulares/busca', buscaDeTitularesResponseSchema, { metodo: 'POST', corpo: { termo } })
 }
 
 /**
@@ -105,7 +105,7 @@ export function buscarTitulares(termo: string): Promise<RespostaBuscaDeTitulares
 export function consultaPreviaDoTitular(titularId: string) {
   return queryOptions({
     queryKey: [...CHAVE_DA_PRIVACIDADE, 'previa', titularId],
-    queryFn: ({ signal }) => buscarComSessao(`/v1/privacidade/titulares/${encodeURIComponent(titularId)}/previa`, esquemaRespostaPreviaDoTitular, signal),
+    queryFn: ({ signal }) => buscarComSessao(`/v1/privacidade/titulares/${encodeURIComponent(titularId)}/previa`, previaDoTitularResponseSchema, signal),
     gcTime: 0,
   })
 }
@@ -115,7 +115,7 @@ export function consultaPreviaDoTitular(titularId: string) {
  * com o mesmo conteúdo devolve o mesmo pedido: o reenvio depois de uma queda de rede não duplica (Tech Spec do F3, seção 4).
  */
 export function registrarPedidoDoTitular(registro: RegistroDePedido): Promise<PedidoDoTitular> {
-  return chamarComSessao(CAMINHO_DOS_PEDIDOS, esquemaPedidoDoTitular, { metodo: 'POST', corpo: registro })
+  return chamarComSessao(CAMINHO_DOS_PEDIDOS, pedidoDoTitularSchema, { metodo: 'POST', corpo: registro })
 }
 
 /** Relê a lista de pedidos depois de um registro, e só então o diálogo termina: o que aparece é o que o servidor tem. */
@@ -135,7 +135,7 @@ export function relerPedidosDoTitular(cliente: QueryClient): Promise<void> {
 export function consultaPedidoDoTitular(pedidoId: string) {
   return queryOptions({
     queryKey: [...CHAVE_DA_PRIVACIDADE, 'pedido', pedidoId],
-    queryFn: ({ signal }) => buscarComSessao(`${CAMINHO_DOS_PEDIDOS}/${encodeURIComponent(pedidoId)}`, esquemaPedidoDoTitular, signal),
+    queryFn: ({ signal }) => buscarComSessao(`${CAMINHO_DOS_PEDIDOS}/${encodeURIComponent(pedidoId)}`, pedidoDoTitularSchema, signal),
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
     gcTime: 0,
@@ -168,8 +168,8 @@ export function corrigirNomeDoTitular(pedidoId: string, nome: string): Promise<v
  * `POST pedidos/:id/arquivo`: a URL de 5 minutos da versão da escola, com a finalidade, que a API grava na auditoria
  * (`titular.arquivo_baixado`). É `POST` e não consulta: cada clique é um download registrado, e a resposta nunca é guardada.
  */
-export function pedirArquivoDaEscola(pedidoId: string, finalidade: Exclude<FinalidadeDoArquivo, 'acesso_do_proprio_titular'>): Promise<RespostaDoArquivo> {
-  return chamarComSessao(caminhoDoPedido(pedidoId, 'arquivo'), esquemaRespostaDoArquivo, { metodo: 'POST', corpo: { finalidade } })
+export function pedirArquivoDaEscola(pedidoId: string, finalidade: Exclude<FinalidadeDoArquivo, 'acesso_do_proprio_titular'>): Promise<ArquivoResponse> {
+  return chamarComSessao(caminhoDoPedido(pedidoId, 'arquivo'), arquivoResponseSchema, { metodo: 'POST', corpo: { finalidade } })
 }
 
 /**

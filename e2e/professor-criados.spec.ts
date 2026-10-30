@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import type { Page } from '@playwright/test'
-import { MENSAGENS_DE_ERRO } from '../packages/shared/src/erros/mensagens.ts'
+import { MENSAGENS_DE_ERRO } from '../packages/shared/src/errors/messages.ts'
 import { atividadeSintetica, erroDaApi, portao, versaoAdaptada } from './__fixtures__/assistente.ts'
 import { abrirNavegacao, entrarPelaApi, entrarPorEmail, escolherNoSeletor, irPelaNavegacao, nomeNoSeletor, PRAZO_DA_ENTRADA_MS, secoes } from './__fixtures__/casca.ts'
 import { criarArtefatoDoVinculo, entrarEmCriados } from './__fixtures__/professor/criados.ts'

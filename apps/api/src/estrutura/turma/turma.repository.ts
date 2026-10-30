@@ -1,7 +1,7 @@
 import { acessoTurma, anoLetivo, exigirAnoEmCurso, exigirEscolaDoContexto, serie, sessaoDaRequisicao, turma, usuario, vinculo, type Banco, type TransacaoBanco } from '@educa/nucleo'
-import type { AlunoDaTurma, ConsultaPaginada, RespostaTurmaAberta, Turma, Turno } from '@educa/shared'
+import type { AlunoDaTurma, PaginationQuery, TurmaAbertaResponse, Turma, Turno } from '@educa/shared'
 import { and, asc, eq, exists, gt, isNotNull, isNull, not, or, sql, type SQL } from 'drizzle-orm'
-import { ErroDeInvariante } from '@educa/shared'
+import { InvariantException } from '@educa/shared'
 import { excluirSemReferencia } from '../exclusao.js'
 
 export interface NovaTurma {
@@ -108,7 +108,7 @@ export class TurmaRepository {
       .insert(turma)
       .values({ escolaId: exigirEscolaDoContexto(), anoLetivoId: exigirAnoEmCurso(), serieId: nova.serieId, nome: nova.nome, turno: nova.turno })
       .returning(colunas)
-    if (criada === undefined) throw new ErroDeInvariante('turma não criada')
+    if (criada === undefined) throw new InvariantException('turma não criada')
     return criada
   }
 
@@ -158,7 +158,7 @@ export class TurmaRepository {
   }
 
   /** Uma página das turmas do ano em curso, com a série, em ordem de criação e uma linha a mais que diz se há próxima. */
-  async listar({ pagina, limite }: ConsultaPaginada): Promise<Turma[]> {
+  async listar({ pagina, limite }: PaginationQuery): Promise<Turma[]> {
     const escolaId = exigirEscolaDoContexto()
     const linhas = await this.banco
       .select({ ...colunas, serieId: serie.id, etapa: serie.etapa, ano: serie.ano })
@@ -184,7 +184,7 @@ export class TurmaRepository {
    * do ano (`#confirmadoAteOFimDoAno`). O vínculo é da turma (mesma escola e mesmo ano, pela correlação), e o usuário vem
    * do contexto, nunca de argumento.
    */
-  async aberta(id: string, alcance: AlcanceDaTurma, anoEncerrado?: string): Promise<RespostaTurmaAberta | undefined> {
+  async aberta(id: string, alcance: AlcanceDaTurma, anoEncerrado?: string): Promise<TurmaAbertaResponse | undefined> {
     const [linha] = await this.banco
       .select({ id: turma.id, nome: turma.nome, serieId: serie.id, etapa: serie.etapa, ano: serie.ano })
       .from(turma)
@@ -254,7 +254,7 @@ export class TurmaRepository {
    * Só id e nome (regra 20, item 4). No ano em curso, o vínculo `confirmado`; no encerrado, o que chegou confirmado ao
    * fim do ano, e não o transferido no meio dele. Não confere quem pede: o service chama depois de `aberta`.
    */
-  alunos(turmaId: string, { pagina, limite }: ConsultaPaginada, anoEncerrado?: string): Promise<AlunoDaTurma[]> {
+  alunos(turmaId: string, { pagina, limite }: PaginationQuery, anoEncerrado?: string): Promise<AlunoDaTurma[]> {
     return this.banco
       .selectDistinct({ usuarioId: usuario.id, nome: usuario.nome })
       .from(vinculo)

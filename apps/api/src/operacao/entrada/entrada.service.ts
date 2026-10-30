@@ -1,5 +1,5 @@
 import { ErroDeDominio, type Banco } from '@educa/nucleo'
-import { CodigoDeErro, type PedidoEntradaDeOperador, type RespostaEntradaDeOperador } from '@educa/shared'
+import { ErrorCode, type EntradaDeOperadorRequest, type EntradaDeOperadorResponse } from '@educa/shared'
 import { baldeDaEquipe, type ContadorDeTentativas, type CookieDeDispositivo, type HashDeSenha, ipParaRegistro, lerCookie, normalizarEmail, type PrefixoDoContador, type SemaforoDeHash } from '../../credencial/index.js'
 import type { EmissorDeDesafioDeOperador, EtapaDoDesafioDeOperador } from '../desafio-de-operador.js'
 import { COOKIE_DISPOSITIVO_DE_OPERADOR } from '../dispositivo-de-operador.js'
@@ -65,7 +65,7 @@ export function etapaDaEntrada(credencial: Pick<CredencialDeEntrada, 'mfaAtivo' 
 export class EntradaDoOperadorService {
   constructor(private readonly dependencias: DependenciasDaEntrada) {}
 
-  async entrar(pedido: PedidoEntradaDeOperador, origem: OrigemDaEntrada): Promise<RespostaEntradaDeOperador> {
+  async entrar(pedido: EntradaDeOperadorRequest, origem: OrigemDaEntrada): Promise<EntradaDeOperadorResponse> {
     const { banco, semaforo, contador, hash, dispositivo, emissorDeDesafio } = this.dependencias
     const email = normalizarEmail(pedido.email)
     const conhecido = dispositivo.conhece(lerCookie(origem.cabecalhoCookie, COOKIE_DISPOSITIVO_DE_OPERADOR), email)
@@ -97,7 +97,7 @@ export class EntradaDoOperadorService {
   /** `NAO_AUTENTICADO`, ou `CONTA_SEGURADA` com a espera se a conta está ou ficou segurada; antes, a métrica. */
   #falhar(esperaMs: number): never {
     this.dependencias.falhas.somar()
-    if (esperaMs <= 0) throw new ErroDeDominio(CodigoDeErro.NAO_AUTENTICADO)
-    throw new ErroDeDominio(CodigoDeErro.CONTA_SEGURADA, undefined, Math.max(1, Math.ceil(esperaMs / 1_000)))
+    if (esperaMs <= 0) throw new ErroDeDominio(ErrorCode.NAO_AUTENTICADO)
+    throw new ErroDeDominio(ErrorCode.CONTA_SEGURADA, undefined, Math.max(1, Math.ceil(esperaMs / 1_000)))
   }
 }

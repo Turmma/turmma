@@ -1,14 +1,14 @@
 import { IdPipe, Permite, ZodValidationPipe } from '@educa/nucleo'
 import {
-  esquemaConsultaBuscaDeMaterial,
-  esquemaConsultaMateriais,
-  esquemaPedidoEnviarMaterial,
-  type ConsultaBuscaDeMaterial,
-  type ConsultaMateriais,
-  type PedidoEnviarMaterial,
-  type RespostaBuscaDeMaterial,
-  type RespostaListaDeMateriais,
-  type RespostaMaterial,
+  buscaDeMaterialQuerySchema,
+  materiaisQuerySchema,
+  enviarMaterialRequestSchema,
+  type BuscaDeMaterialQuery,
+  type MateriaisQuery,
+  type EnviarMaterialRequest,
+  type BuscaDeMaterialResponse,
+  type ListaDeMateriaisResponse,
+  type MaterialResponse,
 } from '@educa/shared'
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, Query, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common'
 import { MaterialService } from './material.service.js'
@@ -35,26 +35,26 @@ export class MaterialController {
   @Permite('material', 'enviar')
   @UseGuards(GuardaDoEnvio)
   @UseInterceptors(RecebimentoDoMaterial)
-  enviar(@Body(new ZodValidationPipe(esquemaPedidoEnviarMaterial)) campos: PedidoEnviarMaterial, @UploadedFile() arquivo: unknown): Promise<RespostaMaterial> {
+  enviar(@Body(new ZodValidationPipe(enviarMaterialRequestSchema)) campos: EnviarMaterialRequest, @UploadedFile() arquivo: unknown): Promise<MaterialResponse> {
     return this.materiais.enviar(campos, arquivo)
   }
 
   @Get()
   @Permite('material', 'listar')
-  listar(@Query(new ZodValidationPipe(esquemaConsultaMateriais)) consulta: ConsultaMateriais): Promise<RespostaListaDeMateriais> {
+  listar(@Query(new ZodValidationPipe(materiaisQuerySchema)) consulta: MateriaisQuery): Promise<ListaDeMateriaisResponse> {
     return this.materiais.listar(consulta)
   }
 
   /** Declarada antes de `:id`: `busca` não é id de material. */
   @Get('busca')
   @Permite('material', 'buscar')
-  buscar(@Query(new ZodValidationPipe(esquemaConsultaBuscaDeMaterial)) consulta: ConsultaBuscaDeMaterial): Promise<RespostaBuscaDeMaterial> {
+  buscar(@Query(new ZodValidationPipe(buscaDeMaterialQuerySchema)) consulta: BuscaDeMaterialQuery): Promise<BuscaDeMaterialResponse> {
     return this.materiais.buscar(consulta)
   }
 
   @Get(':id')
   @Permite('material', 'ler')
-  ler(@Param('id', IdPipe) materialId: string): Promise<RespostaMaterial> {
+  ler(@Param('id', IdPipe) materialId: string): Promise<MaterialResponse> {
     return this.materiais.ler(materialId)
   }
 

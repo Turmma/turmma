@@ -1,13 +1,13 @@
 import { ErroDeDominio, RegistroDeAuditoria, type Banco, type TransacaoBanco } from '@educa/nucleo'
 import {
-  CodigoDeErro,
-  esquemaRespostaAnoLetivo,
-  esquemaRespostaListaDeAnosLetivos,
+  ErrorCode,
+  anoLetivoResponseSchema,
+  listaDeAnosLetivosResponseSchema,
   type AnoLetivo,
-  type ConsultaPaginada,
-  type PedidoCriarAnoLetivo,
-  type RespostaAnoLetivo,
-  type RespostaListaDeAnosLetivos,
+  type PaginationQuery,
+  type CriarAnoLetivoRequest,
+  type AnoLetivoResponse,
+  type ListaDeAnosLetivosResponse,
   type SituacaoDoAnoLetivo,
 } from '@educa/shared'
 import { AnoLetivoRepository } from './ano-letivo.repository.js'
@@ -37,20 +37,20 @@ const registro = new RegistroDeAuditoria()
 export class AnoLetivoService {
   constructor(private readonly banco: Banco) {}
 
-  async criar(pedido: PedidoCriarAnoLetivo): Promise<RespostaAnoLetivo> {
-    return esquemaRespostaAnoLetivo.parse(await new AnoLetivoRepository(this.banco).criar(pedido))
+  async criar(pedido: CriarAnoLetivoRequest): Promise<AnoLetivoResponse> {
+    return anoLetivoResponseSchema.parse(await new AnoLetivoRepository(this.banco).criar(pedido))
   }
 
-  async listar(consulta: ConsultaPaginada): Promise<RespostaListaDeAnosLetivos> {
+  async listar(consulta: PaginationQuery): Promise<ListaDeAnosLetivosResponse> {
     const linhas = await new AnoLetivoRepository(this.banco).listar(consulta)
-    return esquemaRespostaListaDeAnosLetivos.parse(paginar(linhas, consulta.limite))
+    return listaDeAnosLetivosResponseSchema.parse(paginar(linhas, consulta.limite))
   }
 
-  abrir(id: string): Promise<RespostaAnoLetivo> {
+  abrir(id: string): Promise<AnoLetivoResponse> {
     return this.#transitar(this.banco, id, 'planejado', 'em_curso')
   }
 
-  encerrar(id: string): Promise<RespostaAnoLetivo> {
+  encerrar(id: string): Promise<AnoLetivoResponse> {
     return this.banco.transaction((tx) =>
       this.#transitar(tx, id, 'em_curso', 'encerrado', async (ano) => {
         const contagens = await new VinculoRepository(tx).virarAno(ano.id)
@@ -70,16 +70,16 @@ export class AnoLetivoService {
     de: SituacaoDoAnoLetivo,
     para: SituacaoDoAnoLetivo,
     efeito?: (ano: AnoLetivo) => Promise<void>,
-  ): Promise<RespostaAnoLetivo> {
+  ): Promise<AnoLetivoResponse> {
     const repositorio = new AnoLetivoRepository(executor)
     const mudado = await repositorio.mudarSituacao(id, de, para)
     if (mudado !== undefined) {
       await efeito?.(mudado)
-      return esquemaRespostaAnoLetivo.parse(mudado)
+      return anoLetivoResponseSchema.parse(mudado)
     }
     const atual = await repositorio.porId(id)
-    if (atual === undefined) throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
-    if (atual.situacao === para) return esquemaRespostaAnoLetivo.parse(atual)
-    throw new ErroDeDominio(CodigoDeErro.CONFLITO)
+    if (atual === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+    if (atual.situacao === para) return anoLetivoResponseSchema.parse(atual)
+    throw new ErroDeDominio(ErrorCode.CONFLITO)
   }
 }

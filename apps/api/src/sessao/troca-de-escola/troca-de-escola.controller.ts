@@ -1,5 +1,5 @@
 import { AceitaDesafio, bearerDeDesafio, extrairTokenBearer, ipDaRequisicao, Permite, ProxiesConfiaveis, ZodValidationPipe } from '@educa/nucleo'
-import { esquemaPedidoTrocaDeEscola, esquemaRespostaLogin, type PedidoTrocaDeEscola, type RespostaLogin } from '@educa/shared'
+import { trocaDeEscolaRequestSchema, loginResponseSchema, type TrocaDeEscolaRequest, type LoginResponse } from '@educa/shared'
 import { Body, Controller, Header, HttpCode, HttpStatus, Post, Req, Res } from '@nestjs/common'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { TrocaDeEscolaService } from './troca-de-escola.service.js'
@@ -23,16 +23,16 @@ export class TrocaDeEscolaController {
   @HttpCode(HttpStatus.OK)
   @Header('Cache-Control', 'no-store')
   async trocar(
-    @Body(new ZodValidationPipe(esquemaPedidoTrocaDeEscola)) pedido: PedidoTrocaDeEscola,
+    @Body(new ZodValidationPipe(trocaDeEscolaRequestSchema)) pedido: TrocaDeEscolaRequest,
     @Req() requisicao: IncomingMessage,
     @Res({ passthrough: true }) resposta: ServerResponse,
-  ): Promise<RespostaLogin> {
+  ): Promise<LoginResponse> {
     const origem = { ip: await ipDaRequisicao(requisicao, this.proxies), cabecalhoCookie: requisicao.headers.cookie }
     const { authorization } = requisicao.headers
     const { resposta: corpoDaResposta, cookies } = bearerDeDesafio(authorization)
       ? await this.troca.escolher(extrairTokenBearer(authorization), pedido, origem)
       : await this.troca.trocar(pedido, origem)
     resposta.setHeader('Set-Cookie', [...cookies])
-    return esquemaRespostaLogin.parse(corpoDaResposta)
+    return loginResponseSchema.parse(corpoDaResposta)
   }
 }

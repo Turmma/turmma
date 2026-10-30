@@ -1,5 +1,5 @@
 import { avisoEspacado, EMISSOR_TOKEN, ErroDeDominio, relogioDoSistema, TENTE_DE_NOVO_PADRAO_SEGUNDOS, TIPO_DESAFIO_DE_OPERADOR, type Relogio } from '@educa/nucleo'
-import { CodigoDeErro, ErroDeInvariante } from '@educa/shared'
+import { ErrorCode, InvariantException } from '@educa/shared'
 import { Logger } from '@nestjs/common'
 import type { Redis } from 'ioredis'
 import { errors, jwtVerify, SignJWT } from 'jose'
@@ -54,7 +54,7 @@ export class EmissorDeDesafioDeOperador {
 
   async emitir(pedido: PedidoDeDesafioDeOperador): Promise<string> {
     const emitidoEm = Math.floor(this.relogio.agora().getTime() / 1_000)
-    if (pedido.versao !== undefined && pedido.etapa !== 'mfa') throw new ErroDeInvariante('só o desafio mfa leva a versão do segredo')
+    if (pedido.versao !== undefined && pedido.etapa !== 'mfa') throw new InvariantException('só o desafio mfa leva a versão do segredo')
     return new SignJWT({ etapa: pedido.etapa, ...(pedido.versao === undefined ? {} : { ver: pedido.versao }) })
       .setProtectedHeader({ alg: 'HS256', typ: TIPO_DESAFIO_DE_OPERADOR })
       .setIssuer(EMISSOR_TOKEN)
@@ -85,14 +85,14 @@ export async function verificarDesafioDeOperador(desafio: string, chaveAssinatur
     })
     claims = verificado.payload
   } catch (erro) {
-    if (erro instanceof errors.JOSEError) throw new ErroDeDominio(CodigoDeErro.NAO_AUTENTICADO)
+    if (erro instanceof errors.JOSEError) throw new ErroDeDominio(ErrorCode.NAO_AUTENTICADO)
     throw erro
   }
   const resultado = esquemaClaims.safeParse(claims)
-  if (!resultado.success || resultado.data.etapa !== etapa) throw new ErroDeDominio(CodigoDeErro.NAO_AUTENTICADO)
+  if (!resultado.success || resultado.data.etapa !== etapa) throw new ErroDeDominio(ErrorCode.NAO_AUTENTICADO)
   const { jti, exp, sub, ver } = resultado.data
   // A versão só existe no desafio `mfa`: um `configurar_mfa` com versão não saiu do emissor.
-  if (ver !== undefined && etapa !== 'mfa') throw new ErroDeDominio(CodigoDeErro.NAO_AUTENTICADO)
+  if (ver !== undefined && etapa !== 'mfa') throw new ErroDeDominio(ErrorCode.NAO_AUTENTICADO)
   return { jti, expiraEm: new Date(exp * 1_000), operadorId: sub.toLowerCase(), etapa, ...(ver === undefined ? {} : { versao: ver }) }
 }
 
@@ -130,11 +130,11 @@ export class ConsumoDeDesafioDeOperador {
     } catch {
       throw this.#semRedis()
     }
-    if (marcado !== 'OK') throw new ErroDeDominio(CodigoDeErro.NAO_AUTENTICADO)
+    if (marcado !== 'OK') throw new ErroDeDominio(ErrorCode.NAO_AUTENTICADO)
   }
 
   #semRedis(): ErroDeDominio {
     this.#avisarSemRedis()
-    return new ErroDeDominio(CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO, undefined, TENTE_DE_NOVO_PADRAO_SEGUNDOS)
+    return new ErroDeDominio(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO, undefined, TENTE_DE_NOVO_PADRAO_SEGUNDOS)
   }
 }

@@ -1,24 +1,24 @@
 import { IdPipe, LimiteDaBuscaDeTitulares, Permite, ZodValidationPipe } from '@educa/nucleo'
 import {
-  esquemaBaixarArquivoDaEscola,
-  esquemaBuscaDeTitulares,
-  esquemaConsultaPaginada,
-  esquemaCorrecaoDeNome,
-  esquemaPedidoSemCorpo,
-  esquemaRegistroDePedido,
+  baixarArquivoDaEscolaSchema,
+  buscaDeTitularesSchema,
+  paginationQuerySchema,
+  correcaoDeNomeSchema,
+  emptyBodyRequestSchema,
+  registroDePedidoSchema,
   type BaixarArquivoDaEscola,
   type BuscaDeTitulares,
-  type ConsultaPaginada,
+  type PaginationQuery,
   type CorrecaoDeNome,
-  type PedidoSemCorpo,
+  type EmptyBodyRequest,
   type RegistroDePedido,
-  type RespostaBuscaDeTitulares,
-  type RespostaDoArquivo,
-  type RespostaIncidentes,
-  type RespostaPedidos,
-  type RespostaPreviaDoTitular,
-  type RespostaRetencao,
-  type RespostaSuboperadores,
+  type BuscaDeTitularesResponse,
+  type ArquivoResponse,
+  type IncidentesResponse,
+  type PedidosResponse,
+  type PreviaDoTitularResponse,
+  type RetencaoResponse,
+  type SuboperadoresResponse,
   type PedidoDoTitular,
 } from '@educa/shared'
 import { Body, Controller, Get, Header, HttpCode, HttpStatus, Param, Post, Query } from '@nestjs/common'
@@ -38,7 +38,7 @@ export class PrivacidadeController {
   @Get('retencao')
   @Permite('privacidade_retencao', 'ler')
   @Header('Cache-Control', 'no-store')
-  retencao(): Promise<RespostaRetencao> {
+  retencao(): Promise<RetencaoResponse> {
     return this.privacidade.retencao()
   }
 
@@ -46,7 +46,7 @@ export class PrivacidadeController {
   @Get('suboperadores')
   @Permite('privacidade_suboperadores', 'ler')
   @Header('Cache-Control', 'no-store')
-  suboperadores(): Promise<RespostaSuboperadores> {
+  suboperadores(): Promise<SuboperadoresResponse> {
     return this.privacidade.suboperadores()
   }
 
@@ -54,7 +54,7 @@ export class PrivacidadeController {
   @Get('incidentes')
   @Permite('privacidade_incidentes', 'ler')
   @Header('Cache-Control', 'no-store')
-  incidentes(): Promise<RespostaIncidentes> {
+  incidentes(): Promise<IncidentesResponse> {
     return this.privacidade.incidentes()
   }
 
@@ -65,7 +65,7 @@ export class PrivacidadeController {
   @Post('incidentes/:id/confirmar')
   @Permite('privacidade_incidentes', 'confirmar')
   @HttpCode(HttpStatus.NO_CONTENT)
-  confirmarIncidente(@Param('id', IdPipe) incidenteId: string, @Body(new ZodValidationPipe(esquemaPedidoSemCorpo)) _corpo: PedidoSemCorpo): Promise<void> {
+  confirmarIncidente(@Param('id', IdPipe) incidenteId: string, @Body(new ZodValidationPipe(emptyBodyRequestSchema)) _corpo: EmptyBodyRequest): Promise<void> {
     return this.privacidade.confirmarIncidente(incidenteId)
   }
 
@@ -80,7 +80,7 @@ export class PrivacidadeController {
   @LimiteDaBuscaDeTitulares()
   @HttpCode(HttpStatus.OK)
   @Header('Cache-Control', 'no-store')
-  buscarTitulares(@Body(new ZodValidationPipe(esquemaBuscaDeTitulares)) busca: BuscaDeTitulares): Promise<RespostaBuscaDeTitulares> {
+  buscarTitulares(@Body(new ZodValidationPipe(buscaDeTitularesSchema)) busca: BuscaDeTitulares): Promise<BuscaDeTitularesResponse> {
     return this.privacidade.buscaDeTitulares(busca.termo)
   }
 
@@ -92,7 +92,7 @@ export class PrivacidadeController {
   @Get('titulares/:id/previa')
   @Permite('privacidade_titulares', 'previa')
   @Header('Cache-Control', 'no-store')
-  previaDoTitular(@Param('id', IdPipe) titularId: string): Promise<RespostaPreviaDoTitular> {
+  previaDoTitular(@Param('id', IdPipe) titularId: string): Promise<PreviaDoTitularResponse> {
     return this.privacidade.previaDoTitular(titularId)
   }
 
@@ -104,7 +104,7 @@ export class PrivacidadeController {
   @Post('pedidos')
   @Permite('privacidade_pedidos', 'registrar')
   @Header('Cache-Control', 'no-store')
-  registrarPedido(@Body(new ZodValidationPipe(esquemaRegistroDePedido)) registro: RegistroDePedido): Promise<PedidoDoTitular> {
+  registrarPedido(@Body(new ZodValidationPipe(registroDePedidoSchema)) registro: RegistroDePedido): Promise<PedidoDoTitular> {
     return this.privacidade.registrarPedido(registro)
   }
 
@@ -112,7 +112,7 @@ export class PrivacidadeController {
   @Get('pedidos')
   @Permite('privacidade_pedidos', 'listar')
   @Header('Cache-Control', 'no-store')
-  pedidos(@Query(new ZodValidationPipe(esquemaConsultaPaginada)) consulta: ConsultaPaginada): Promise<RespostaPedidos> {
+  pedidos(@Query(new ZodValidationPipe(paginationQuerySchema)) consulta: PaginationQuery): Promise<PedidosResponse> {
     return this.privacidade.pedidos(consulta)
   }
 
@@ -128,7 +128,7 @@ export class PrivacidadeController {
   @Post('pedidos/:id/concluir')
   @Permite('privacidade_pedidos', 'concluir')
   @HttpCode(HttpStatus.NO_CONTENT)
-  concluirPedido(@Param('id', IdPipe) pedidoId: string, @Body(new ZodValidationPipe(esquemaPedidoSemCorpo)) _corpo: PedidoSemCorpo): Promise<void> {
+  concluirPedido(@Param('id', IdPipe) pedidoId: string, @Body(new ZodValidationPipe(emptyBodyRequestSchema)) _corpo: EmptyBodyRequest): Promise<void> {
     return this.privacidade.concluirPedido(pedidoId)
   }
 
@@ -141,7 +141,7 @@ export class PrivacidadeController {
   @Permite('privacidade_pedidos', 'cancelar')
   @HttpCode(HttpStatus.NO_CONTENT)
   @Header('Cache-Control', 'no-store')
-  cancelarPedido(@Param('id', IdPipe) pedidoId: string, @Body(new ZodValidationPipe(esquemaPedidoSemCorpo)) _corpo: PedidoSemCorpo): Promise<void> {
+  cancelarPedido(@Param('id', IdPipe) pedidoId: string, @Body(new ZodValidationPipe(emptyBodyRequestSchema)) _corpo: EmptyBodyRequest): Promise<void> {
     return this.privacidade.cancelarPedido(pedidoId)
   }
 
@@ -150,7 +150,7 @@ export class PrivacidadeController {
   @Permite('privacidade_pedidos', 'corrigir_nome')
   @HttpCode(HttpStatus.NO_CONTENT)
   @Header('Cache-Control', 'no-store')
-  corrigirNome(@Param('id', IdPipe) pedidoId: string, @Body(new ZodValidationPipe(esquemaCorrecaoDeNome)) correcao: CorrecaoDeNome): Promise<void> {
+  corrigirNome(@Param('id', IdPipe) pedidoId: string, @Body(new ZodValidationPipe(correcaoDeNomeSchema)) correcao: CorrecaoDeNome): Promise<void> {
     return this.privacidade.corrigirNomeDoPedido(pedidoId, correcao.nome)
   }
 
@@ -163,7 +163,7 @@ export class PrivacidadeController {
   @Permite('privacidade_pedidos', 'arquivo')
   @HttpCode(HttpStatus.OK)
   @Header('Cache-Control', 'no-store')
-  arquivoDoPedido(@Param('id', IdPipe) pedidoId: string, @Body(new ZodValidationPipe(esquemaBaixarArquivoDaEscola)) arquivo: BaixarArquivoDaEscola): Promise<RespostaDoArquivo> {
+  arquivoDoPedido(@Param('id', IdPipe) pedidoId: string, @Body(new ZodValidationPipe(baixarArquivoDaEscolaSchema)) arquivo: BaixarArquivoDaEscola): Promise<ArquivoResponse> {
     return this.privacidade.arquivoDaEscola(pedidoId, arquivo.finalidade)
   }
 }

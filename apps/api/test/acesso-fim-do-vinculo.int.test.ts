@@ -1,6 +1,6 @@
 import { criarBanco, criarPool, executarNoContexto } from '@educa/nucleo'
 import { CicloDeVidaRepository, CicloDeVidaService } from '@educa/nucleo/ciclo-de-vida'
-import { CodigoDeErro, MENSAGENS_DE_ERRO } from '@educa/shared'
+import { ErrorCode, MENSAGENS_DE_ERRO } from '@educa/shared'
 import { randomBytes, randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { urlDoBancoDeTeste } from '../../../tools/testes/integracao.setup.ts'
@@ -24,7 +24,7 @@ const AMBIENTE = { LIMITE_PROXIES_CONFIAVEIS: '127.0.0.1' }
 
 const NAO_ENCONTRADO = {
   status: 404,
-  texto: JSON.stringify({ erro: { codigo: CodigoDeErro.NAO_ENCONTRADO, mensagem: MENSAGENS_DE_ERRO.NAO_ENCONTRADO, requisicaoId: '-' } }),
+  texto: JSON.stringify({ erro: { codigo: ErrorCode.NAO_ENCONTRADO, mensagem: MENSAGENS_DE_ERRO.NAO_ENCONTRADO, requisicaoId: '-' } }),
 }
 
 interface LinhaDoAcesso {
@@ -397,7 +397,7 @@ describe('acesso da turma × fim do vínculo de quem o gerou (correção 2026-10
         const [encerrado, gerado] = await Promise.all([encerrando, gerando])
         expect(encerrado.status).toBe(200)
         expect(gerado.status).toBe(404)
-        expect(gerado.corpo['erro']).toEqual(expect.objectContaining({ codigo: CodigoDeErro.NAO_ENCONTRADO }))
+        expect(gerado.corpo['erro']).toEqual(expect.objectContaining({ codigo: ErrorCode.NAO_ENCONTRADO }))
       } finally {
         await gatilho.desarmar()
       }
@@ -439,7 +439,7 @@ describe('acesso da turma × fim do vínculo de quem o gerou (correção 2026-10
         await gatilho.soltar()
         const [, gerado] = await Promise.all([eliminando, gerando])
         expect(gerado.status).toBe(404)
-        expect(gerado.corpo['erro']).toEqual(expect.objectContaining({ codigo: CodigoDeErro.NAO_ENCONTRADO }))
+        expect(gerado.corpo['erro']).toEqual(expect.objectContaining({ codigo: ErrorCode.NAO_ENCONTRADO }))
       } finally {
         await gatilho.desarmar()
       }

@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { MENSAGENS_DE_ERRO } from '../erros/mensagens.js'
+import { MENSAGENS_DE_ERRO } from '../errors/messages.js'
 import {
-  esquemaConsultaBuscaDeMaterial,
-  esquemaMaterial,
-  esquemaPedidoEnviarMaterial,
-  esquemaRespostaBuscaDeMaterial,
+  buscaDeMaterialQuerySchema,
+  materialSchema,
+  enviarMaterialRequestSchema,
+  buscaDeMaterialResponseSchema,
   LICENCAS_DE_MATERIAL,
   MAXIMO_DE_BYTES_DO_MATERIAL,
   motivoDaRecusaDoMaterial,
@@ -34,36 +34,36 @@ describe('envio de material (D5, D75): sem licença ou sem declaração, é recu
   })
 
   it('o pedido chega do multipart com a declaração em texto, e o schema deixa passar o que a regra vai recusar, para a recusa ficar registrada', () => {
-    expect(esquemaPedidoEnviarMaterial.parse(pedido)).toEqual({ ...pedido, declaracao: true })
-    const semLicenca = esquemaPedidoEnviarMaterial.parse({ ...pedido, licenca: 'sem_licenca', declaracao: 'false' })
+    expect(enviarMaterialRequestSchema.parse(pedido)).toEqual({ ...pedido, declaracao: true })
+    const semLicenca = enviarMaterialRequestSchema.parse({ ...pedido, licenca: 'sem_licenca', declaracao: 'false' })
     expect(semLicenca.declaracao).toBe(false)
     expect(motivoDaRecusaDoMaterial(semLicenca)).toBe('sem_licenca')
     // Licença inventada não é recusa por licença: é entrada inválida.
-    expect(esquemaPedidoEnviarMaterial.safeParse({ ...pedido, licenca: 'comprei_na_banca' }).success).toBe(false)
-    expect(esquemaPedidoEnviarMaterial.safeParse({ ...pedido, declaracao: 'sim' }).success).toBe(false)
+    expect(enviarMaterialRequestSchema.safeParse({ ...pedido, licenca: 'comprei_na_banca' }).success).toBe(false)
+    expect(enviarMaterialRequestSchema.safeParse({ ...pedido, declaracao: 'sim' }).success).toBe(false)
   })
 
   it('o licenciante existe só, e sempre, no material de terceiro; escola e quem envia não vêm do cliente', () => {
     const deTerceiro = { ...pedido, titularidade: 'terceiro_com_licenca', licenca: 'licenca_comercial_autorizada' }
-    expect(esquemaPedidoEnviarMaterial.safeParse(deTerceiro).success).toBe(false)
-    expect(esquemaPedidoEnviarMaterial.safeParse({ ...deTerceiro, licenciante: 'Editora Sintética' }).success).toBe(true)
-    expect(esquemaPedidoEnviarMaterial.safeParse({ ...pedido, licenciante: 'Editora Sintética' }).success).toBe(false)
-    for (const campo of [{ escolaId: UM_ID }, { enviadoPor: UM_ID }, { estado: 'pronto' }]) expect(esquemaPedidoEnviarMaterial.safeParse({ ...pedido, ...campo }).success, Object.keys(campo)[0]).toBe(false)
+    expect(enviarMaterialRequestSchema.safeParse(deTerceiro).success).toBe(false)
+    expect(enviarMaterialRequestSchema.safeParse({ ...deTerceiro, licenciante: 'Editora Sintética' }).success).toBe(true)
+    expect(enviarMaterialRequestSchema.safeParse({ ...pedido, licenciante: 'Editora Sintética' }).success).toBe(false)
+    for (const campo of [{ escolaId: UM_ID }, { enviadoPor: UM_ID }, { estado: 'pronto' }]) expect(enviarMaterialRequestSchema.safeParse({ ...pedido, ...campo }).success, Object.keys(campo)[0]).toBe(false)
     expect(MAXIMO_DE_BYTES_DO_MATERIAL).toBe(20 * 1024 * 1024)
   })
 
   it('o material devolvido não traz o texto, o resumo do arquivo nem quem enviou; a busca devolve página e um trecho curto', () => {
     const material = { id: UM_ID, titulo: 'Química 2, cap. 7', disciplinaId: OUTRO_ID, titularidade: 'escola', licenciante: null, licenca: 'autoria_da_escola', estado: 'pronto', falha: null, paginas: 6, trechos: 6, enviadoEm: AGORA }
-    expect(esquemaMaterial.safeParse(material).success).toBe(true)
-    for (const campo of [{ sha256: 'a'.repeat(64) }, { enviadoPor: UM_ID }, { texto: 'página inteira' }, { escolaId: UM_ID }]) expect(esquemaMaterial.safeParse({ ...material, ...campo }).success, Object.keys(campo)[0]).toBe(false)
+    expect(materialSchema.safeParse(material).success).toBe(true)
+    for (const campo of [{ sha256: 'a'.repeat(64) }, { enviadoPor: UM_ID }, { texto: 'página inteira' }, { escolaId: UM_ID }]) expect(materialSchema.safeParse({ ...material, ...campo }).success, Object.keys(campo)[0]).toBe(false)
     // O material gravado nunca tem `sem_licenca`.
-    expect(esquemaMaterial.safeParse({ ...material, licenca: 'sem_licenca' }).success).toBe(false)
+    expect(materialSchema.safeParse({ ...material, licenca: 'sem_licenca' }).success).toBe(false)
 
     const trecho = { materialId: UM_ID, titulo: 'Química 2, cap. 7', pagina: 151, trecho: 'O reagente limitante é o que acaba primeiro.' }
-    expect(esquemaRespostaBuscaDeMaterial.safeParse({ itens: [trecho] }).success).toBe(true)
-    expect(esquemaRespostaBuscaDeMaterial.safeParse({ itens: [{ ...trecho, trecho: 'x'.repeat(401) }] }).success).toBe(false)
-    expect(esquemaRespostaBuscaDeMaterial.safeParse({ itens: [{ ...trecho, escolaId: UM_ID }] }).success).toBe(false)
-    expect(esquemaConsultaBuscaDeMaterial.parse({ q: ' reagente limitante ' })).toEqual({ q: 'reagente limitante', limite: 8 })
-    for (const consulta of [{ q: 'a' }, { q: 'reagente', escolaId: UM_ID }, { q: 'reagente', limite: '21' }, {}]) expect(esquemaConsultaBuscaDeMaterial.safeParse(consulta).success, JSON.stringify(consulta)).toBe(false)
+    expect(buscaDeMaterialResponseSchema.safeParse({ itens: [trecho] }).success).toBe(true)
+    expect(buscaDeMaterialResponseSchema.safeParse({ itens: [{ ...trecho, trecho: 'x'.repeat(401) }] }).success).toBe(false)
+    expect(buscaDeMaterialResponseSchema.safeParse({ itens: [{ ...trecho, escolaId: UM_ID }] }).success).toBe(false)
+    expect(buscaDeMaterialQuerySchema.parse({ q: ' reagente limitante ' })).toEqual({ q: 'reagente limitante', limite: 8 })
+    for (const consulta of [{ q: 'a' }, { q: 'reagente', escolaId: UM_ID }, { q: 'reagente', limite: '21' }, {}]) expect(buscaDeMaterialQuerySchema.safeParse(consulta).success, JSON.stringify(consulta)).toBe(false)
   })
 })

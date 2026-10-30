@@ -1,5 +1,5 @@
 import { LimitadorDeRequisicoes, METRICAS, observarSeguroDoLimite, TIMEOUT_COMANDO_REDIS_API_MS, TIMEOUT_COMANDO_REDIS_FILA_MS } from '@educa/nucleo'
-import { CodigoDeErro } from '@educa/shared'
+import { ErrorCode } from '@educa/shared'
 import type { Redis } from 'ioredis'
 import { randomBytes, randomUUID } from 'node:crypto'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest'
@@ -587,7 +587,7 @@ describe('ataque de senha nunca bloqueia a escola: rebaixa, por IP e escola, e q
       const desafio = await verificarDesafio(await new EmissorDeDesafio(chave).emitir({ contaId: randomUUID(), etapa: 'mfa', mfaCumprido: false }), chave, ['mfa'])
       const travado = await travarRedis(configuracaoDeTeste().redisFilaUrl, 3_000)
       const comecou = performance.now()
-      await expect(instancia.app.get(ConsumoDeDesafio).consumir(desafio)).rejects.toMatchObject({ codigo: CodigoDeErro.NAO_AUTENTICADO })
+      await expect(instancia.app.get(ConsumoDeDesafio).consumir(desafio)).rejects.toMatchObject({ codigo: ErrorCode.NAO_AUTENTICADO })
       // O corte é curto, e é isso que separa esta montagem da do compose: com o prazo da fila chegando até aqui, a
       // recusa só viria depois de 2 s, e a asserção acima continuaria verde sem provar nada.
       expect(performance.now() - comecou).toBeLessThan(TIMEOUT_COMANDO_REDIS_FILA_MS / 2)

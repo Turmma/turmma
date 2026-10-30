@@ -1,4 +1,4 @@
-import { CodigoDeErro } from '@educa/shared'
+import { ErrorCode } from '@educa/shared'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { revogarConvitePeloOperador } from '../src/sessao/index.js'
 import { CenarioDeAtivacao, SENHA_DA_CONTA, SENHA_ERRADA, type ContaDeTeste, type ConviteDeTeste } from './ativacao-de-teste.js'
@@ -58,7 +58,7 @@ describe('login com o bilhete de um convite que já não ativa (E16, E6 de login
       // Senha errada com o mesmo bilhete: `login_falho` e o contador somado, uma vez cada tentativa.
       for (let falha = 1; falha <= 2; falha++) {
         const antes = await cenario.registrosDeAcesso()
-        esperarErro(await cenario.entrar(conta.email, SENHA_ERRADA, convite.bilhete), 401, CodigoDeErro.NAO_AUTENTICADO)
+        esperarErro(await cenario.entrar(conta.email, SENHA_ERRADA, convite.bilhete), 401, ErrorCode.NAO_AUTENTICADO)
         expect(await cenario.falhasDaSenha(conta.email)).toBe(falha)
         expect(await cenario.registrosDeAcesso()).toEqual({ ...antes, loginFalho: antes.loginFalho + 1 })
       }
@@ -67,7 +67,7 @@ describe('login com o bilhete de um convite que já não ativa (E16, E6 de login
       // nem zerado como no acerto (zero).
       const antes = await cenario.registrosDeAcesso()
       const resposta = await cenario.entrar(conta.email, SENHA_DA_CONTA, convite.bilhete)
-      esperarErro(resposta, 404, CodigoDeErro.NAO_ENCONTRADO)
+      esperarErro(resposta, 404, ErrorCode.NAO_ENCONTRADO)
       semNadaDoConvite(resposta, convite)
       expect(await cenario.falhasDaSenha(conta.email)).toBe(2)
       expect(await cenario.registrosDeAcesso()).toEqual(antes)
@@ -92,7 +92,7 @@ describe('login com o bilhete de um convite que já não ativa (E16, E6 de login
       for (const bilhete of [deX.bilhete, forjado, 'nao-e-um-jwt']) {
         const antes = await cenario.registrosDeAcesso()
         const resposta = await cenario.entrar(contaY.email, SENHA_DA_CONTA, bilhete)
-        esperarErro(resposta, 401, CodigoDeErro.NAO_AUTENTICADO)
+        esperarErro(resposta, 401, ErrorCode.NAO_AUTENTICADO)
         expect(await cenario.falhasDaSenha(contaY.email)).toBe(++falhas)
         expect(await cenario.registrosDeAcesso()).toEqual({ ...antes, loginFalho: antes.loginFalho + 1 })
       }
@@ -102,10 +102,10 @@ describe('login com o bilhete de um convite que já não ativa (E16, E6 de login
       const conta = await cenario.conta({ mfa: false })
       const convite = await cenario.aceito(conta)
       await deixarDeAtivar(convite, 'revogado pelo operador')
-      esperarErro(await cenario.entrar(conta.email, SENHA_ERRADA, convite.bilhete), 401, CodigoDeErro.NAO_AUTENTICADO)
+      esperarErro(await cenario.entrar(conta.email, SENHA_ERRADA, convite.bilhete), 401, ErrorCode.NAO_AUTENTICADO)
       const antes = await cenario.registrosDeAcesso()
       const respostas = await Promise.all([cenario.entrar(conta.email, SENHA_DA_CONTA, convite.bilhete), cenario.entrar(conta.email, SENHA_DA_CONTA, convite.bilhete)])
-      for (const resposta of respostas) esperarErro(resposta, 404, CodigoDeErro.NAO_ENCONTRADO)
+      for (const resposta of respostas) esperarErro(resposta, 404, ErrorCode.NAO_ENCONTRADO)
       expect(await cenario.falhasDaSenha(conta.email)).toBe(1)
       expect(await cenario.registrosDeAcesso()).toEqual(antes)
     })
@@ -115,7 +115,7 @@ describe('login com o bilhete de um convite que já não ativa (E16, E6 de login
       const convite = await cenario.aceito(conta)
       await deixarDeAtivar(convite, 'revogado pelo operador')
       const antes = await cenario.registrosDeAcesso()
-      esperarErro(await cenario.entrar(conta.email, SENHA_DA_CONTA), 401, CodigoDeErro.NAO_AUTENTICADO)
+      esperarErro(await cenario.entrar(conta.email, SENHA_DA_CONTA), 401, ErrorCode.NAO_AUTENTICADO)
       expect(await cenario.falhasDaSenha(conta.email)).toBe(1)
       expect(await cenario.registrosDeAcesso()).toEqual({ ...antes, loginFalho: antes.loginFalho + 1 })
     })
@@ -160,8 +160,8 @@ describe('login com o bilhete de um convite que já não ativa (E16, E6 de login
       const convite = await cenario.aceito(conta)
       await deixarDeAtivar(convite, como)
 
-      esperarErro(await cenario.entrar(conta.email, SENHA_ERRADA, convite.bilhete), 401, CodigoDeErro.NAO_AUTENTICADO)
-      esperarErro(await cenario.entrar(conta.email, SENHA_ERRADA, convite.bilhete), 401, CodigoDeErro.NAO_AUTENTICADO)
+      esperarErro(await cenario.entrar(conta.email, SENHA_ERRADA, convite.bilhete), 401, ErrorCode.NAO_AUTENTICADO)
+      esperarErro(await cenario.entrar(conta.email, SENHA_ERRADA, convite.bilhete), 401, ErrorCode.NAO_AUTENTICADO)
       expect(await cenario.falhasDaSenha(conta.email)).toBe(2)
 
       // A senha certa: o código vem antes da resposta, e a tentativa da senha não conta (nem zera as de antes).
@@ -171,14 +171,14 @@ describe('login com o bilhete de um convite que já não ativa (E16, E6 de login
       // Código errado com o mesmo desafio: conta, com `login_falho`, como sempre.
       for (let falha = 1; falha <= 2; falha++) {
         const antes = await cenario.registrosDeAcesso()
-        esperarErro(await cenario.codigo(desafio, cenario.codigoErrado(conta.base32)), 401, CodigoDeErro.NAO_AUTENTICADO)
+        esperarErro(await cenario.codigo(desafio, cenario.codigoErrado(conta.base32)), 401, ErrorCode.NAO_AUTENTICADO)
         expect(await cenario.falhasDoCodigo(conta.contaId)).toBe(falha)
         expect(await cenario.registrosDeAcesso()).toEqual({ ...antes, loginFalho: antes.loginFalho + 1 })
       }
 
       const antes = await cenario.registrosDeAcesso()
       const resposta = await cenario.codigo(desafio, cenario.codigoDoApp(conta.base32))
-      esperarErro(resposta, 404, CodigoDeErro.NAO_ENCONTRADO)
+      esperarErro(resposta, 404, ErrorCode.NAO_ENCONTRADO)
       semNadaDoConvite(resposta, convite)
       expect(await cenario.falhasDoCodigo(conta.contaId)).toBe(2)
       expect(await cenario.falhasDaSenha(conta.email)).toBe(2)
@@ -214,7 +214,7 @@ describe('login com o bilhete de um convite que já não ativa (E16, E6 de login
       expect(await cenario.ativo(convite.usuarioId)).toBe(false)
       expect(await cenario.falhasDoCodigo(conta.contaId)).toBe(0)
       if (outra === undefined) {
-        esperarErro(resposta, 404, CodigoDeErro.NAO_ENCONTRADO)
+        esperarErro(resposta, 404, ErrorCode.NAO_ENCONTRADO)
         return
       }
       // Com o outro usuário, o código cumprido entra nele.
@@ -231,7 +231,7 @@ describe('login com o bilhete de um convite que já não ativa (E16, E6 de login
       const novo = await cenario.convidar(antigo.escolaId, conta.email)
       expect(novo.usuarioId).toBe(antigo.usuarioId)
 
-      esperarErro(await cenario.entrar(conta.email, SENHA_DA_CONTA, antigo.bilhete), 404, CodigoDeErro.NAO_ENCONTRADO)
+      esperarErro(await cenario.entrar(conta.email, SENHA_DA_CONTA, antigo.bilhete), 404, ErrorCode.NAO_ENCONTRADO)
       expect(await cenario.ativo(antigo.usuarioId)).toBe(false)
 
       const bilheteNovo = await cenario.bilheteDoAceite(novo.token)

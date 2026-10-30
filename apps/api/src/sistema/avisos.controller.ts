@@ -1,5 +1,5 @@
 import { RotaAnonima } from '@educa/nucleo'
-import { esquemaRespostaAvisos, type Aviso, type RespostaAvisos } from '@educa/shared'
+import { avisosResponseSchema, type Aviso, type AvisosResponse } from '@educa/shared'
 import { Controller, Get, Header, Inject } from '@nestjs/common'
 
 export const AVISOS_DO_SISTEMA = Symbol('AVISOS_DO_SISTEMA')
@@ -12,7 +12,7 @@ export class AvisosController {
 
   @Get()
   @Header('Cache-Control', 'no-store')
-  listar(): RespostaAvisos {
-    return esquemaRespostaAvisos.parse({ itens: this.avisos })
+  listar(): AvisosResponse {
+    return avisosResponseSchema.parse({ itens: this.avisos })
   }
 }

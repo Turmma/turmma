@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { esquemaPedidoCriarAnoLetivo, fimCaiAteOAnoSeguinte, fimDepoisDoInicio, inicioCaiNoAnoLetivo } from './ano-letivo.js'
+import { criarAnoLetivoRequestSchema, fimCaiAteOAnoSeguinte, fimDepoisDoInicio, inicioCaiNoAnoLetivo } from './ano-letivo.js'
 
-const pedido = (ano: number, inicio: string, fim: string) => esquemaPedidoCriarAnoLetivo.safeParse({ ano, inicio, fim })
+const pedido = (ano: number, inicio: string, fim: string) => criarAnoLetivoRequestSchema.safeParse({ ano, inicio, fim })
 const campoComErro = (ano: number, inicio: string, fim: string) => {
   const lido = pedido(ano, inicio, fim)
   return lido.success ? [] : lido.error.issues.map((problema) => problema.path.join('.'))

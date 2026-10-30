@@ -1,6 +1,6 @@
 import 'reflect-metadata'
 import { contextoAtual, criarLogger, ErroDeDominio, Permite, RotaAnonima, TENTE_DE_NOVO_PADRAO_SEGUNDOS, type PoolBanco } from '@educa/nucleo'
-import { CodigoDeErro, ErroDeInvariante, MENSAGENS_DE_ERRO } from '@educa/shared'
+import { ErrorCode, InvariantException, MENSAGENS_DE_ERRO } from '@educa/shared'
 import {
   Body,
   Controller,
@@ -49,17 +49,17 @@ class ControladorDeTeste {
 
   @Get('invariante')
   invariante(): never {
-    throw new ErroDeInvariante(MOTIVO_DA_INVARIANTE)
+    throw new InvariantException(MOTIVO_DA_INVARIANTE)
   }
 
   @Get('dominio/limite')
   limite(): never {
-    throw new ErroDeDominio(CodigoDeErro.LIMITE_EXCEDIDO)
+    throw new ErroDeDominio(ErrorCode.LIMITE_EXCEDIDO)
   }
 
   @Get('dominio/conflito-422')
   conflitoComStatus(): never {
-    throw new ErroDeDominio(CodigoDeErro.CONFLITO, 422)
+    throw new ErroDeDominio(ErrorCode.CONFLITO, 422)
   }
 
   @Get('http/nao-autenticado')
@@ -105,7 +105,7 @@ class ControladorDeEco {
   }
 }
 
-function esperarEnvelopeSemVazamento(corpo: unknown, codigo: CodigoDeErro): string {
+function esperarEnvelopeSemVazamento(corpo: unknown, codigo: ErrorCode): string {
   expect(corpo).toEqual({
     erro: { codigo, mensagem: MENSAGENS_DE_ERRO[codigo], requisicaoId: expect.stringMatching(UUID) },
   })
@@ -146,13 +146,13 @@ describe('erro tipado e log sem dado pessoal', () => {
     const resposta = await request(app.getHttpServer()).get('/teste/excecao')
 
     expect(resposta.status).toBe(500)
-    const requisicaoId = esperarEnvelopeSemVazamento(resposta.body, CodigoDeErro.ERRO_INTERNO)
+    const requisicaoId = esperarEnvelopeSemVazamento(resposta.body, ErrorCode.ERRO_INTERNO)
     for (const proibido of [NOME_SINTETICO, 'select', 'at ', '.ts:', 'Error']) {
       expect(resposta.text).not.toContain(proibido)
     }
 
     const [linha] = registros().filter((registro) => registro.evento === 'http.erro')
-    expect(linha).toMatchObject({ requisicaoId, status: 500, codigo: CodigoDeErro.ERRO_INTERNO, erro: { tipo: 'Error' } })
+    expect(linha).toMatchObject({ requisicaoId, status: 500, codigo: ErrorCode.ERRO_INTERNO, erro: { tipo: 'Error' } })
     expect(linhasDeLog.join('')).not.toContain(NOME_SINTETICO)
     expect(linhasDeLog.join('')).not.toContain('select * from')
   })
@@ -161,25 +161,27 @@ describe('erro tipado e log sem dado pessoal', () => {
     const resposta = await request(app.getHttpServer()).get('/teste/invariante')
 
     expect(resposta.status).toBe(500)
-    const requisicaoId = esperarEnvelopeSemVazamento(resposta.body, CodigoDeErro.ERRO_INTERNO)
+    // O corpo é lido como texto antes do envelope: o filtro que põe o nome da classe na resposta cai aqui, no nome, e não
+    // na igualdade estrita da mensagem.
     expect(resposta.text).not.toContain(MOTIVO_DA_INVARIANTE)
-    expect(resposta.text).not.toContain('ErroDeInvariante')
+    expect(resposta.text).not.toContain('InvariantException')
+    const requisicaoId = esperarEnvelopeSemVazamento(resposta.body, ErrorCode.ERRO_INTERNO)
 
     const [linha] = registros().filter((registro) => registro.evento === 'http.erro')
-    expect(linha).toMatchObject({ requisicaoId, status: 500, codigo: CodigoDeErro.ERRO_INTERNO, erro: { tipo: 'ErroDeInvariante' } })
+    expect(linha).toMatchObject({ requisicaoId, status: 500, codigo: ErrorCode.ERRO_INTERNO, erro: { tipo: 'InvariantException' } })
     expect(linhasDeLog.join('')).not.toContain(MOTIVO_DA_INVARIANTE)
   })
 
   it('ErroDeDominio lançado pelo código sai com o próprio código e status, e o status informado vale', async () => {
     const limite = await request(app.getHttpServer()).get('/teste/dominio/limite')
     expect(limite.status).toBe(429)
-    esperarEnvelopeSemVazamento(limite.body, CodigoDeErro.LIMITE_EXCEDIDO)
+    esperarEnvelopeSemVazamento(limite.body, ErrorCode.LIMITE_EXCEDIDO)
     // Quem lançou não disse quanto esperar: sai o padrão, e o cliente não repete na hora.
     expect(limite.headers['retry-after']).toBe(String(TENTE_DE_NOVO_PADRAO_SEGUNDOS))
 
     const conflito = await request(app.getHttpServer()).get('/teste/dominio/conflito-422')
     expect(conflito.status).toBe(422)
-    esperarEnvelopeSemVazamento(conflito.body, CodigoDeErro.CONFLITO)
+    esperarEnvelopeSemVazamento(conflito.body, ErrorCode.CONFLITO)
     expect(conflito.headers['retry-after']).toBeUndefined()
   })
 
@@ -190,7 +192,7 @@ describe('erro tipado e log sem dado pessoal', () => {
     const repetida = await request(app.getHttpServer()).post('/teste/aluno').send({ nome: NOME_SINTETICO })
 
     expect(repetida.status).toBe(409)
-    const requisicaoId = esperarEnvelopeSemVazamento(repetida.body, CodigoDeErro.CONFLITO)
+    const requisicaoId = esperarEnvelopeSemVazamento(repetida.body, ErrorCode.CONFLITO)
     expect(repetida.text).not.toContain(NOME_SINTETICO)
     expect(repetida.text).not.toContain(TABELA)
 
@@ -198,7 +200,7 @@ describe('erro tipado e log sem dado pessoal', () => {
     expect(linha).toMatchObject({
       requisicaoId,
       status: 409,
-      codigo: CodigoDeErro.CONFLITO,
+      codigo: ErrorCode.CONFLITO,
       erro: { tipo: 'ErroDoPostgres', sqlstate: '23505', constraint: `${TABELA}_nome_key` },
     })
     const bruto = linhasDeLog.join('')
@@ -211,7 +213,7 @@ describe('erro tipado e log sem dado pessoal', () => {
     const resposta = await request(app.getHttpServer()).get('/teste/lenta')
 
     expect(resposta.status).toBe(503)
-    esperarEnvelopeSemVazamento(resposta.body, CodigoDeErro.TEMPO_ESGOTADO)
+    esperarEnvelopeSemVazamento(resposta.body, ErrorCode.TEMPO_ESGOTADO)
     expect(resposta.headers['retry-after']).toBe(String(TENTE_DE_NOVO_PADRAO_SEGUNDOS))
     expect(registros().find((registro) => registro.evento === 'http.erro')).toMatchObject({ erro: { sqlstate: '57014' } })
   })
@@ -219,10 +221,10 @@ describe('erro tipado e log sem dado pessoal', () => {
   it('rota inexistente e corpo JSON inválido também saem no envelope, sem ecoar o que o cliente mandou', async () => {
     const inexistente = await request(app.getHttpServer()).get(`/teste/${encodeURIComponent(NOME_SINTETICO)}`)
     expect(inexistente.status).toBe(404)
-    esperarEnvelopeSemVazamento(inexistente.body, CodigoDeErro.NAO_ENCONTRADO)
+    esperarEnvelopeSemVazamento(inexistente.body, ErrorCode.NAO_ENCONTRADO)
     expect(inexistente.text).not.toContain('Enzo')
     const logDo404 = registros().find((registro) => registro.evento === 'http.erro' && registro.status === 404)
-    expect(logDo404).toMatchObject({ codigo: CodigoDeErro.NAO_ENCONTRADO, erro: { tipo: 'NotFoundException' } })
+    expect(logDo404).toMatchObject({ codigo: ErrorCode.NAO_ENCONTRADO, erro: { tipo: 'NotFoundException' } })
     expect(logDo404).not.toHaveProperty('erro.pilha')
 
     const corpoInvalido = await request(app.getHttpServer())
@@ -230,7 +232,7 @@ describe('erro tipado e log sem dado pessoal', () => {
       .set('Content-Type', 'application/json')
       .send(`{"nome": "${NOME_SINTETICO}"`)
     expect(corpoInvalido.status).toBe(400)
-    esperarEnvelopeSemVazamento(corpoInvalido.body, CodigoDeErro.ENTRADA_INVALIDA)
+    esperarEnvelopeSemVazamento(corpoInvalido.body, ErrorCode.ENTRADA_INVALIDA)
     expect(corpoInvalido.text).not.toContain(NOME_SINTETICO)
     expect(linhasDeLog.join('')).not.toContain(NOME_SINTETICO)
   })
@@ -238,7 +240,7 @@ describe('erro tipado e log sem dado pessoal', () => {
   it('401 de exceção HTTP vira NAO_AUTENTICADO, sem o texto da exceção', async () => {
     const resposta = await request(app.getHttpServer()).get('/teste/http/nao-autenticado')
     expect(resposta.status).toBe(401)
-    esperarEnvelopeSemVazamento(resposta.body, CodigoDeErro.NAO_AUTENTICADO)
+    esperarEnvelopeSemVazamento(resposta.body, ErrorCode.NAO_AUTENTICADO)
     expect(resposta.text).not.toContain(NOME_SINTETICO)
   })
 
@@ -247,7 +249,7 @@ describe('erro tipado e log sem dado pessoal', () => {
     const inexistente = await request(app.getHttpServer()).get('/teste/http/nao-existe')
 
     expect(proibido.status).toBe(404)
-    esperarEnvelopeSemVazamento(proibido.body, CodigoDeErro.NAO_ENCONTRADO)
+    esperarEnvelopeSemVazamento(proibido.body, ErrorCode.NAO_ENCONTRADO)
     const semRequisicaoId = (corpo: { erro: Record<string, unknown> }) => ({ ...corpo.erro, requisicaoId: undefined })
     expect(semRequisicaoId(proibido.body)).toEqual(semRequisicaoId(inexistente.body))
     expect(proibido.headers['content-type']).toBe(inexistente.headers['content-type'])
@@ -296,7 +298,7 @@ describe('erro tipado e log sem dado pessoal', () => {
 
     const resposta = await request(app.getHttpServer()).get('/teste/excecao').set('X-Requisicao-Id', injetado)
 
-    const requisicaoId = esperarEnvelopeSemVazamento(resposta.body, CodigoDeErro.ERRO_INTERNO)
+    const requisicaoId = esperarEnvelopeSemVazamento(resposta.body, ErrorCode.ERRO_INTERNO)
     expect(requisicaoId).not.toBe(injetado)
     expect(injetado).not.toContain(requisicaoId)
     const bruto = linhasDeLog.join('')

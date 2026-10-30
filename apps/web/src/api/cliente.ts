@@ -1,4 +1,4 @@
-import { CodigoDeErro, MENSAGENS_DE_ERRO } from '@educa/shared'
+import { ErrorCode, MENSAGENS_DE_ERRO } from '@educa/shared'
 
 /**
  * Erro de chamada à API, só com o código tipado. A tela decide o que mostrar pelo código e nunca
@@ -9,7 +9,7 @@ import { CodigoDeErro, MENSAGENS_DE_ERRO } from '@educa/shared'
  */
 export class ErroDaApi extends Error {
   constructor(
-    readonly codigo: CodigoDeErro,
+    readonly codigo: ErrorCode,
     readonly esperaSegundos?: number,
   ) {
     super(codigo)
@@ -35,20 +35,20 @@ export interface OpcoesDaChamada {
   readonly sinal?: AbortSignal | undefined
 }
 
-function ehCodigoDeErro(valor: unknown): valor is CodigoDeErro {
-  return typeof valor === 'string' && Object.hasOwn(CodigoDeErro, valor)
+function ehCodigoDeErro(valor: unknown): valor is ErrorCode {
+  return typeof valor === 'string' && Object.hasOwn(ErrorCode, valor)
 }
 
 /** O código do envelope `{ erro: { codigo } }`; sem envelope reconhecível, o código que o status permite deduzir. */
-function codigoDaResposta(corpo: unknown, status: number): CodigoDeErro {
+function codigoDaResposta(corpo: unknown, status: number): ErrorCode {
   if (typeof corpo === 'object' && corpo !== null && 'erro' in corpo) {
     const { erro } = corpo
     if (typeof erro === 'object' && erro !== null && 'codigo' in erro && ehCodigoDeErro(erro.codigo)) return erro.codigo
   }
-  if (status === 429) return CodigoDeErro.LIMITE_EXCEDIDO
+  if (status === 429) return ErrorCode.LIMITE_EXCEDIDO
   // Borda sem instância, ou instância drenando: o sistema volta sozinho.
-  if (status === 502 || status === 503 || status === 504) return CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO
-  return CodigoDeErro.ERRO_INTERNO
+  if (status === 502 || status === 503 || status === 504) return ErrorCode.INDISPONIVEL_TENTE_DE_NOVO
+  return ErrorCode.ERRO_INTERNO
 }
 
 /** Os segundos do `Retry-After`, quando a API mandou um número. Data HTTP e valor inválido ficam de fora. */
@@ -95,12 +95,12 @@ export async function chamarApi<T>(caminho: string, esquema: EsquemaDeResposta<T
     })
   } catch (erro) {
     if (sinal?.aborted) throw erro
-    throw new ErroDaApi(CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO)
+    throw new ErroDaApi(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO)
   }
   const corpoDaResposta = await lerJson(resposta)
   if (!resposta.ok) throw new ErroDaApi(codigoDaResposta(corpoDaResposta, resposta.status), esperaDaResposta(resposta))
   const lido = esquema.safeParse(corpoDaResposta)
-  if (!lido.success) throw new ErroDaApi(CodigoDeErro.ERRO_INTERNO)
+  if (!lido.success) throw new ErroDaApi(ErrorCode.ERRO_INTERNO)
   return lido.data
 }
 
@@ -111,5 +111,5 @@ export function buscarDaApi<T>(caminho: string, esquema: EsquemaDeResposta<T>, s
 
 /** A mensagem do catálogo pt-BR para qualquer erro; o que não é `ErroDaApi` vira erro interno. */
 export function mensagemDoErro(erro: unknown): string {
-  return MENSAGENS_DE_ERRO[erro instanceof ErroDaApi ? erro.codigo : CodigoDeErro.ERRO_INTERNO]
+  return MENSAGENS_DE_ERRO[erro instanceof ErroDaApi ? erro.codigo : ErrorCode.ERRO_INTERNO]
 }

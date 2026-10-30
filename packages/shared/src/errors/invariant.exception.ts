@@ -10,9 +10,9 @@
  *
  * Mora no `shared` e não no `nucleo` porque a web também lança invariante e não importa o `nucleo` (regra 00, item 1).
  */
-export class ErroDeInvariante extends Error {
+export class InvariantException extends Error {
   constructor(motivo: string) {
     super(motivo)
-    this.name = 'ErroDeInvariante'
+    this.name = 'InvariantException'
   }
 }

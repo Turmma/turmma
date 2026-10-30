@@ -1,5 +1,5 @@
 import { ErroDeDominio, type Banco } from '@educa/nucleo'
-import { CodigoDeErro, esquemaRespostaExecucao, type RespostaExecucao, type ResultadoDaExecucao, type ResultadoGravado } from '@educa/shared'
+import { ErrorCode, execucaoResponseSchema, type ExecucaoResponse, type ResultadoDaExecucao, type ResultadoGravado } from '@educa/shared'
 import { ExecucaoDaSessaoRepository } from './execucao.repository.js'
 
 /**
@@ -13,24 +13,24 @@ import { ExecucaoDaSessaoRepository } from './execucao.repository.js'
 export class ExecucoesService {
   constructor(private readonly banco: Banco) {}
 
-  async ler(id: string): Promise<RespostaExecucao> {
+  async ler(id: string): Promise<ExecucaoResponse> {
     const execucoes = new ExecucaoDaSessaoRepository(this.banco)
     const execucao = await execucoes.deQuemPediu(id)
-    if (execucao === undefined) throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
+    if (execucao === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
     const resultado = execucao.resultado === null ? null : await this.resultadoParaATela(execucoes, execucao.resultado)
-    return esquemaRespostaExecucao.parse({ id: execucao.id, tarefa: execucao.tarefa, estado: execucao.estado, resultado, erro: execucao.erro })
+    return execucaoResponseSchema.parse({ id: execucao.id, tarefa: execucao.tarefa, estado: execucao.estado, resultado, erro: execucao.erro })
   }
 
   private async resultadoParaATela(execucoes: ExecucaoDaSessaoRepository, gravado: ResultadoGravado): Promise<ResultadoDaExecucao> {
     if (gravado.tipo === 'mensagem') {
       const mensagem = await execucoes.mensagemDoAssistente(gravado.mensagemId)
-      if (mensagem === undefined) throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
+      if (mensagem === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
       // O conteúdo gravado é validado de novo na leitura, pelo schema da resposta (regra 30, item 7).
       return { tipo: 'mensagem', mensagem: { id: mensagem.id, criadaEm: mensagem.criadaEm.toISOString(), autor: 'agente', ...(mensagem.conteudo as object) } } as ResultadoDaExecucao
     }
     if (gravado.tipo === 'mensagem_do_tutor') {
       const mensagem = await execucoes.mensagemDoTutor(gravado.mensagemId)
-      if (mensagem === undefined) throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
+      if (mensagem === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
       const comum = { id: mensagem.id, criadaEm: mensagem.criadaEm.toISOString(), autor: 'tutor', texto: mensagem.texto }
       // A mensagem fixa de assunto delicado não tem citação: a tela a mostra com o botão de avisar um adulto.
       return { tipo: 'mensagem_do_tutor', mensagem: mensagem.tipo === 'assunto_delicado' ? { ...comum, tipo: 'assunto_delicado' } : { ...comum, tipo: 'texto', citacoes: mensagem.citacoes ?? [] } } as ResultadoDaExecucao

@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { describe, expect, it } from 'vitest'
-import { ErroDeInvariante } from '@educa/shared'
+import { InvariantException } from '@educa/shared'
 import { ACOES_DE_AUDITORIA, CAMPOS_PROIBIDOS_NA_AUDITORIA, exigirMapaDeAcoesValido, MapaDeAuditoriaInvalido, problemasDoMapaDeAcoes, type DefinicaoDeAcao } from './acoes.js'
 
 const acaoCom = (depois: z.ZodObject): Record<string, DefinicaoDeAcao> => ({ 'teste.acao': { entidade: 'teste', antes: null, depois, finalidade: null } })
@@ -24,7 +24,7 @@ describe('mapa de ações da auditoria', () => {
     })()
 
     expect(recusa).toBeInstanceOf(MapaDeAuditoriaInvalido)
-    expect(recusa).toBeInstanceOf(ErroDeInvariante)
+    expect(recusa).toBeInstanceOf(InvariantException)
     expect(recusa).toMatchObject({ name: 'MapaDeAuditoriaInvalido', message: 'mapa de auditoria inválido', problemas: ['teste.frouxo.depois: objeto não estrito'] })
     expect(() => exigirMapaDeAcoesValido(ACOES_DE_AUDITORIA)).not.toThrow()
   })

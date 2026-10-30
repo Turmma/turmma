@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { esquemaMinhaAtividade } from '@educa/shared'
+import { minhaAtividadeSchema } from '@educa/shared'
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { Router } from 'wouter'
@@ -173,8 +173,8 @@ describe('Tarefas do aluno', () => {
     const rede = redeFalsa()
     const comProfessor = atividade('01', { nomeDoProfessor: 'Camila Souza sintética' })
     // O contrato é estrito: o campo a mais não é ignorado em silêncio, e portanto não chega a ser desenhado.
-    expect(esquemaMinhaAtividade.safeParse(comProfessor).success).toBe(false)
-    expect(esquemaMinhaAtividade.safeParse(atividade('01')).success).toBe(true)
+    expect(minhaAtividadeSchema.safeParse(comProfessor).success).toBe(false)
+    expect(minhaAtividadeSchema.safeParse(atividade('01')).success).toBe(true)
     rede.responderPor('/v1/minhas-atividades', { status: 200, corpo: { itens: [comProfessor] } })
     montar()
 

@@ -1,4 +1,4 @@
-import type { TipoDeJob } from '@educa/shared'
+import type { JobType } from '@educa/shared'
 
 /**
  * Por que o `Enfileirador` recusou um pedido, antes de gravar. Lista fechada: o motivo nunca é texto livre.
@@ -18,16 +18,16 @@ export const MotivoDaRecusaDoJob = {
 export type MotivoDaRecusaDoJob = (typeof MotivoDaRecusaDoJob)[keyof typeof MotivoDaRecusaDoJob]
 
 /**
- * O pedido de job que a definição do tipo recusa (`DEFINICOES_DE_JOB`). É defeito de quem chamou, e não erro do usuário: não
+ * O pedido de job que a definição do tipo recusa (`JOB_DEFINITIONS`). É defeito de quem chamou, e não erro do usuário: não
  * é um `ErroDeDominio`, e a API o responde como erro interno. Leva só o tipo e o motivo, os dois fixos: o payload recusado
  * carrega o que o esquema não quis, e as `issues` do zod repetem chave e valor (regra 20, itens 9 e 11).
  */
 export class PedidoDeJobRecusado extends Error {
   override readonly name = 'PedidoDeJobRecusado'
-  readonly tipo: TipoDeJob
+  readonly tipo: JobType
   readonly motivo: MotivoDaRecusaDoJob
 
-  constructor(tipo: TipoDeJob, motivo: MotivoDaRecusaDoJob) {
+  constructor(tipo: JobType, motivo: MotivoDaRecusaDoJob) {
     super(`pedido de job recusado: ${tipo} (${motivo})`)
     this.tipo = tipo
     this.motivo = motivo

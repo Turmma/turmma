@@ -1,4 +1,4 @@
-import type { PedidoCriarEscola } from '@educa/shared'
+import type { CriarEscolaRequest } from '@educa/shared'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { Botao } from '../../componentes/ui/Botao'
@@ -22,7 +22,7 @@ interface Props {
 }
 
 /** O mesmo pedido: o mesmo id com a mesma rede, o mesmo nome e o mesmo endereço, que o servidor devolve sem criar outra. */
-function mesmoPedido(a: PedidoCriarEscola, b: PedidoCriarEscola): boolean {
+function mesmoPedido(a: CriarEscolaRequest, b: CriarEscolaRequest): boolean {
   return a.id === b.id && a.redeId === b.redeId && a.nome === b.nome && a.slug === b.slug
 }
 
@@ -49,10 +49,10 @@ export function NovaEscola({ aoFechar, aoCriar, aoPedirNovaRede, redeSugeridaId 
   const [nome, definirNome] = useState('')
   const [endereco, definirEndereco] = useState('')
   const [erros, definirErros] = useState<Partial<Record<CampoDaEscola, string>>>({})
-  const [revisando, definirRevisando] = useState<PedidoCriarEscola | undefined>(undefined)
+  const [revisando, definirRevisando] = useState<CriarEscolaRequest | undefined>(undefined)
   // O último pedido que saiu sem se saber se o servidor o gravou (a conexão caiu): repetir os mesmos dados é seguro, pelo
   // id; mudar os dados depois dele pode esbarrar na escola que já nasceu.
-  const [incerto, definirIncerto] = useState<PedidoCriarEscola | undefined>(undefined)
+  const [incerto, definirIncerto] = useState<CriarEscolaRequest | undefined>(undefined)
   // O pedido no ar, na hora: o `isPending` da mutação só chega à tela no próximo render, e o segundo clique de um clique
   // duplo chega antes dele. O id é o mesmo nos dois, e o servidor não criaria duas; aqui o segundo nem sai.
   const noAr = useRef(false)

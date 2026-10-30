@@ -1,4 +1,4 @@
-import { CodigoDeErro, nomeDaSerie } from '@educa/shared'
+import { ErrorCode, nomeDaSerie } from '@educa/shared'
 import { useQuery } from '@tanstack/react-query'
 import { BookOpen, Lock, LogOut, Settings } from 'lucide-react'
 import { useContext, useState } from 'react'
@@ -95,7 +95,7 @@ export default function Eu() {
   function avisoDaTurma() {
     if (minhaTurma.isPending) return <EstadoCarregando rotulo="Carregando a sua turma…" />
     if (minhaTurma.isError) {
-      if (minhaTurma.error instanceof ErroDaApi && minhaTurma.error.codigo === CodigoDeErro.NAO_ENCONTRADO)
+      if (minhaTurma.error instanceof ErroDaApi && minhaTurma.error.codigo === ErrorCode.NAO_ENCONTRADO)
         return (
           <p role="status" className="rounded-cartao border border-linha bg-superficie p-4 text-apoio">
             {SEM_TURMA_NO_ANO}

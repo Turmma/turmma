@@ -1,4 +1,4 @@
-import { CodigoDeErro } from '@educa/shared'
+import { ErrorCode } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import pg from 'pg'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -82,7 +82,7 @@ describe('estrutura: isolamento entre escolas', () => {
       const comIdDeB = await post(a.coordenacao, `/v1/anos-letivos/${deB}/${acao}`)
       const comInexistente = await post(a.coordenacao, `/v1/anos-letivos/${inexistente}/${acao}`)
       const foraDoFormato = await post(a.coordenacao, `/v1/anos-letivos/nao-e-um-id/${acao}`)
-      expect(semRequisicao(comIdDeB), acao).toEqual({ status: 404, codigo: CodigoDeErro.NAO_ENCONTRADO, mensagem: expect.any(String) })
+      expect(semRequisicao(comIdDeB), acao).toEqual({ status: 404, codigo: ErrorCode.NAO_ENCONTRADO, mensagem: expect.any(String) })
       expect(semRequisicao(comInexistente), acao).toEqual(semRequisicao(comIdDeB))
       expect(semRequisicao(foraDoFormato), acao).toEqual(semRequisicao(comIdDeB))
     }
@@ -101,7 +101,7 @@ describe('estrutura: isolamento entre escolas', () => {
     ]
     for (const chamada of chamadas) {
       const respostas = (await Promise.all(ids.map((id) => chamada(id)))).map(semRequisicao)
-      expect(respostas[0]).toEqual({ status: 404, codigo: CodigoDeErro.NAO_ENCONTRADO, mensagem: expect.any(String) })
+      expect(respostas[0]).toEqual({ status: 404, codigo: ErrorCode.NAO_ENCONTRADO, mensagem: expect.any(String) })
       for (const resposta of respostas) expect(resposta).toEqual(respostas[0])
     }
     expect(await estadoDe(b)).toEqual(antesEmB)
@@ -127,7 +127,7 @@ describe('estrutura: isolamento entre escolas', () => {
     const ler = (id: string, rota: string) => get(a.coordenacao, `/v1/turmas/${id}${rota}anoLetivoId=${anoDeB}`)
     const abrir = [await ler(turmaDeB, '?'), await ler(randomUUID(), '?'), await ler('nao-e-um-id', '?')].map(semRequisicao)
     const alunos = [await ler(`${turmaDeB}/alunos?finalidade=conferencia_de_cadastro`, '&'), await ler(`${randomUUID()}/alunos?finalidade=conferencia_de_cadastro`, '&')].map(semRequisicao)
-    for (const resposta of [...abrir, ...alunos]) expect(resposta).toEqual({ status: 404, codigo: CodigoDeErro.NAO_ENCONTRADO, mensagem: expect.any(String) })
+    for (const resposta of [...abrir, ...alunos]) expect(resposta).toEqual({ status: 404, codigo: ErrorCode.NAO_ENCONTRADO, mensagem: expect.any(String) })
     // A coordenação de B, a dona, lê a mesma turma com o mesmo ano: 200.
     expect((await get(b.coordenacao, `/v1/turmas/${turmaDeB}?anoLetivoId=${anoDeB}`)).status).toBe(200)
   })
@@ -139,7 +139,7 @@ describe('estrutura: isolamento entre escolas', () => {
     const comSerieDeB = await post(a.coordenacao, '/v1/turmas', { serieId: b.serie, nome: '8ºZ' })
     const comSerieInexistente = await post(a.coordenacao, '/v1/turmas', { serieId: randomUUID(), nome: '8ºZ' })
 
-    expect(semRequisicao(comSerieDeB)).toEqual({ status: 404, codigo: CodigoDeErro.NAO_ENCONTRADO, mensagem: expect.any(String) })
+    expect(semRequisicao(comSerieDeB)).toEqual({ status: 404, codigo: ErrorCode.NAO_ENCONTRADO, mensagem: expect.any(String) })
     expect(semRequisicao(comSerieInexistente)).toEqual(semRequisicao(comSerieDeB))
     expect(await estadoDe(a)).toEqual(antesEmA)
     expect(await estadoDe(b)).toEqual(antesEmB)
@@ -155,7 +155,7 @@ describe('estrutura: isolamento entre escolas', () => {
       await post(a.coordenacao, '/v1/turmas', { serieId: a.serie, nome: '8ºZ', anoLetivoId: randomUUID() }),
     ]
 
-    for (const resposta of respostas) expect(semRequisicao(resposta)).toEqual({ status: 404, codigo: CodigoDeErro.NAO_ENCONTRADO, mensagem: expect.any(String) })
+    for (const resposta of respostas) expect(semRequisicao(resposta)).toEqual({ status: 404, codigo: ErrorCode.NAO_ENCONTRADO, mensagem: expect.any(String) })
     expect(await estadoDe(a)).toEqual(antesEmA)
     expect(await estadoDe(b)).toEqual(antesEmB)
     // O mesmo pedido, com o ano em curso de A, cria: o 404 acima veio do ano, não da série nem do nome.

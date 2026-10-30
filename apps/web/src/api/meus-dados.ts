@@ -1,4 +1,4 @@
-import { esquemaRespostaDoArquivo, esquemaRespostaMeusDados, type RespostaDoArquivo } from '@educa/shared'
+import { arquivoResponseSchema, meusDadosResponseSchema, type ArquivoResponse } from '@educa/shared'
 import { queryOptions, type QueryClient } from '@tanstack/react-query'
 import { buscarComSessao, chamarComSessao } from './sessao'
 
@@ -22,7 +22,7 @@ export const CHAVE_DE_MEUS_DADOS = ['meus-dados'] as const
  */
 export const consultaMeusDados = queryOptions({
   queryKey: CHAVE_DE_MEUS_DADOS,
-  queryFn: ({ signal }) => buscarComSessao('/v1/meus-dados', esquemaRespostaMeusDados, signal),
+  queryFn: ({ signal }) => buscarComSessao('/v1/meus-dados', meusDadosResponseSchema, signal),
   gcTime: 0,
 })
 
@@ -31,8 +31,8 @@ export const consultaMeusDados = queryOptions({
  * consulta: cada clique é um download registrado na auditoria da escola, e a resposta, que dá o arquivo de uma pessoa, nunca
  * é guardada. O id vai escapado no caminho: o que vier de fora não muda a rota da API.
  */
-export function baixarMeuArquivo(pedidoId: string): Promise<RespostaDoArquivo> {
-  return chamarComSessao(`/v1/meus-dados/${encodeURIComponent(pedidoId)}/baixar`, esquemaRespostaDoArquivo, { metodo: 'POST', corpo: {} })
+export function baixarMeuArquivo(pedidoId: string): Promise<ArquivoResponse> {
+  return chamarComSessao(`/v1/meus-dados/${encodeURIComponent(pedidoId)}/baixar`, arquivoResponseSchema, { metodo: 'POST', corpo: {} })
 }
 
 /** Relê os pedidos, e só então o que a tela mostra é o do servidor: a falha que diz que o arquivo saiu usa isto. */

@@ -1,4 +1,4 @@
-import { CodigoDeErro, MAXIMO_DE_QUESTOES_POR_ATIVIDADE, MENSAGENS_DE_ERRO, type MensagemDoTutor, type MensagemDoTutorAoAluno, type PedidoMensagemAoTutor, type RespostaConversaDoTutor } from '@educa/shared'
+import { ErrorCode, MAXIMO_DE_QUESTOES_POR_ATIVIDADE, MENSAGENS_DE_ERRO, type MensagemDoTutor, type MensagemDoTutorAoAluno, type MensagemAoTutorRequest, type ConversaDoTutorResponse } from '@educa/shared'
 import { aparenciaDaFalha, emCurso, type CicloDeExecucao } from '../../api/ciclo-de-execucao'
 
 /**
@@ -11,7 +11,7 @@ import { aparenciaDaFalha, emCurso, type CicloDeExecucao } from '../../api/ciclo
 export const TEXTO_DA_SUPERVISAO = 'Quem dá a aula acompanha como você usa o Tutor.'
 
 /** A mensagem que o aluno mandou ao Tutor, sem a `chaveEnvio`, que o ciclo sorteia. */
-export type PedidoAoTutor = Omit<PedidoMensagemAoTutor, 'chaveEnvio'>
+export type PedidoAoTutor = Omit<MensagemAoTutorRequest, 'chaveEnvio'>
 
 export interface UsoDoDia {
   /** "Hoje: 12 de 60 perguntas", em texto. */
@@ -27,7 +27,7 @@ export interface UsoDoDia {
  * O uso do dia, **em texto** (D38, D59): quanto já foi e o ponto de parada, sem esconder nem dramatizar. A barra que
  * acompanha é a `BarraRotulada`, neutra sempre; aqui não há cor, e o texto do fim não é alarme.
  */
-export function usoDoDia(uso: RespostaConversaDoTutor['uso']): UsoDoDia {
+export function usoDoDia(uso: ConversaDoTutorResponse['uso']): UsoDoDia {
   const hoje = Math.min(Math.max(uso.hoje, 0), uso.limiteDoDia)
   const faltam = uso.limiteDoDia - hoje
   return {
@@ -75,7 +75,7 @@ export function avisoDaPausa(pausa: PausaDoTutor, contexto: { readonly avaliacao
 }
 
 /** A pausa que o estado da conversa diz. No `limite`, é o do dia quando o aluno chegou nele; senão, é o pacote da turma. */
-export function pausaDoEstado(conversa: Pick<RespostaConversaDoTutor, 'estado' | 'uso'>): PausaDoTutor | undefined {
+export function pausaDoEstado(conversa: Pick<ConversaDoTutorResponse, 'estado' | 'uso'>): PausaDoTutor | undefined {
   if (conversa.estado === 'ligado') return undefined
   if (conversa.estado === 'avaliacao') return 'avaliacao'
   if (conversa.estado === 'fora') return 'fora'
@@ -83,11 +83,11 @@ export function pausaDoEstado(conversa: Pick<RespostaConversaDoTutor, 'estado' |
 }
 
 /** A pausa que a recusa de um envio diz, pelo código. Os outros códigos não são pausa. */
-export function pausaDoErro(erro: CodigoDeErro): PausaDoTutor | undefined {
-  if (erro === CodigoDeErro.TUTOR_PAUSADO_EM_AVALIACAO) return 'avaliacao'
-  if (erro === CodigoDeErro.LIMITE_DIARIO_DO_TUTOR) return 'limite_do_dia'
-  if (erro === CodigoDeErro.PACOTE_DO_TUTOR_ESGOTADO) return 'pacote_do_mes'
-  if (erro === CodigoDeErro.FUNCAO_SUSPENSA) return 'suspenso'
+export function pausaDoErro(erro: ErrorCode): PausaDoTutor | undefined {
+  if (erro === ErrorCode.TUTOR_PAUSADO_EM_AVALIACAO) return 'avaliacao'
+  if (erro === ErrorCode.LIMITE_DIARIO_DO_TUTOR) return 'limite_do_dia'
+  if (erro === ErrorCode.PACOTE_DO_TUTOR_ESGOTADO) return 'pacote_do_mes'
+  if (erro === ErrorCode.FUNCAO_SUSPENSA) return 'suspenso'
   return undefined
 }
 
@@ -107,7 +107,7 @@ export type FalhaDaPergunta =
 export const TEXTO_DA_FALHA_DO_TUTOR = 'O Tutor não conseguiu responder agora. Tente de novo.'
 export const TEXTO_DE_ESPERAR_UM_POUCO = 'Você mandou muitas perguntas em pouco tempo. Espere um minuto e tente de novo: a sua pergunta continua aqui.'
 
-export function falhaDaPergunta(erro: CodigoDeErro): FalhaDaPergunta {
+export function falhaDaPergunta(erro: ErrorCode): FalhaDaPergunta {
   const pausa = pausaDoErro(erro)
   if (pausa !== undefined) return { tipo: 'pausa', pausa }
   const aparencia = aparenciaDaFalha(erro)
@@ -182,7 +182,7 @@ export function mensagensNaTela(mensagens: readonly MensagemDoTutor[], pendente:
  * A pausa que a tela mostra: **a que a última pergunta recebeu do servidor vem antes** da que a conversa lida diz, porque
  * é mais nova (a professora abriu a avaliação depois de a tela ler a conversa).
  */
-export function pausaNaTela(conversa: Pick<RespostaConversaDoTutor, 'estado' | 'uso'> | undefined, pendente: PendenteNoTutor | undefined): PausaDoTutor | undefined {
+export function pausaNaTela(conversa: Pick<ConversaDoTutorResponse, 'estado' | 'uso'> | undefined, pendente: PendenteNoTutor | undefined): PausaDoTutor | undefined {
   if (pendente?.falha?.tipo === 'pausa') return pendente.falha.pausa
   return conversa === undefined ? undefined : pausaDoEstado(conversa)
 }

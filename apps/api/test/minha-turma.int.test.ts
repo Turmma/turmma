@@ -1,5 +1,5 @@
 import { executarNoContexto } from '@educa/nucleo'
-import { CodigoDeErro, esquemaRespostaDecisao, esquemaRespostaLogin, esquemaRespostaMinhaTurma, MENSAGENS_DE_ERRO } from '@educa/shared'
+import { ErrorCode, decisaoResponseSchema, loginResponseSchema, minhaTurmaResponseSchema, MENSAGENS_DE_ERRO } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
@@ -16,7 +16,7 @@ import { BancadaDeSessoes } from './sessao-de-teste.js'
  */
 
 const AMBIENTE = { LIMITE_PROXIES_CONFIAVEIS: '127.0.0.1' }
-const NAO_ENCONTRADO = { status: 404, erro: { codigo: CodigoDeErro.NAO_ENCONTRADO, mensagem: MENSAGENS_DE_ERRO.NAO_ENCONTRADO } }
+const NAO_ENCONTRADO = { status: 404, erro: { codigo: ErrorCode.NAO_ENCONTRADO, mensagem: MENSAGENS_DE_ERRO.NAO_ENCONTRADO } }
 
 describe('minha-turma (A1, tarefa 8.0): o aluno aprovado vê a própria turma, e só ela', () => {
   const bancada = new BancadaDeSessoes()
@@ -45,9 +45,9 @@ describe('minha-turma (A1, tarefa 8.0): o aluno aprovado vê a própria turma, e
     expect((await sala.reivindicar(pedidoDaSala(acesso, nome))).status).toBe(200)
     const { rows } = await bancada.pool.query<{ id: string }>(`select id from reivindicacao where lista_nome_id = $1 and estado = 'pendente'`, [nome.id])
     const decidida = await chamar(api.url, 'POST', '/v1/reivindicacoes/decidir', s.professor.token, { ids: [rows[0]?.id], decisao: 'aprovar' })
-    expect(esquemaRespostaDecisao.parse(decidida.corpo).resultados.map((linha) => linha.resultado)).toEqual(['decidida'])
+    expect(decisaoResponseSchema.parse(decidida.corpo).resultados.map((linha) => linha.resultado)).toEqual(['decidida'])
     const entrada = await chamar(api.url, 'POST', '/v1/sessao/matricula', undefined, { slug: s.slug, matricula: nome.matricula, senha: SENHA_DA_SALA })
-    const { token } = esquemaRespostaLogin.parse(entrada.corpo) as { token: string }
+    const { token } = loginResponseSchema.parse(entrada.corpo) as { token: string }
     const { rows: usuarios } = await bancada.pool.query<{ usuario_id: string }>('select usuario_id from lista_nome where id = $1', [nome.id])
     const usuarioId = usuarios[0]?.usuario_id
     if (usuarioId === undefined) throw new Error('aluno não aprovado')
@@ -65,7 +65,7 @@ describe('minha-turma (A1, tarefa 8.0): o aluno aprovado vê a própria turma, e
     ] as const) {
       const resposta = await minhaTurma(aluno.token)
       expect(resposta.status).toBe(200)
-      expect(esquemaRespostaMinhaTurma.parse(resposta.corpo)).toEqual({ escola: { nome: rows[0]?.nome }, turma, serie })
+      expect(minhaTurmaResponseSchema.parse(resposta.corpo)).toEqual({ escola: { nome: rows[0]?.nome }, turma, serie })
     }
   })
 
@@ -100,7 +100,7 @@ describe('minha-turma (A1, tarefa 8.0): o aluno aprovado vê a própria turma, e
       `insert into vinculo (escola_id, ano_letivo_id, usuario_id, turma_id, papel, estado, criado_por, decidido_em) values ($1, $2, $3, $4, 'aluno', 'confirmado', $5, now())`,
       [s.escolaId, s.anoLetivoId, aluno.usuarioId, s.outraTurma, s.coordenacao.usuarioId],
     )
-    expect(esquemaRespostaMinhaTurma.parse((await minhaTurma(aluno.token)).corpo).turma.id).toBe(s.outraTurma)
+    expect(minhaTurmaResponseSchema.parse((await minhaTurma(aluno.token)).corpo).turma.id).toBe(s.outraTurma)
     await bancada.pool.query(`update vinculo set estado = 'encerrado', motivo_encerramento = 'desligamento', encerrado_em = now() where usuario_id = $1 and papel = 'aluno'`, [aluno.usuarioId])
     expect(semRequisicao(await minhaTurma(aluno.token))).toEqual(NAO_ENCONTRADO)
   })

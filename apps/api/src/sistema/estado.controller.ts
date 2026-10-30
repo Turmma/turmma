@@ -1,5 +1,5 @@
 import { RotaAnonima } from '@educa/nucleo'
-import type { RespostaEstado } from '@educa/shared'
+import type { SystemStatusResponse } from '@educa/shared'
 import { Controller, Get, Header } from '@nestjs/common'
 import { EstadoService } from './estado.service.js'
 
@@ -11,7 +11,7 @@ export class EstadoController {
 
   @Get()
   @Header('Cache-Control', 'no-store')
-  obter(): Promise<RespostaEstado> {
+  obter(): Promise<SystemStatusResponse> {
     return this.estado.obter()
   }
 }

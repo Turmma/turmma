@@ -1,5 +1,5 @@
 import { nomeDaFilaBullMQ, type JobReservado } from '@educa/nucleo'
-import { CodigoDeFalhaDeJob, definirJob, DEFINICOES_DE_JOB, TIPO_JOB_SINTETICO, type ExecutorDeJob, type Fila, type RegistroDeJobs } from '@educa/shared'
+import { JobFailureCode, defineJob, JOB_DEFINITIONS, TIPO_JOB_SINTETICO, type JobExecutor, type QueueName, type JobRegistry } from '@educa/shared'
 import { describe, expect, it, vi } from 'vitest'
 import { PrazoDaFilaEsgotado, PublicacaoBullMQ, type FilaBullMQ } from './fila-de-publicacao.js'
 
@@ -39,9 +39,9 @@ describe('PublicacaoBullMQ', () => {
 
   it('cada job leva a retentativa da definição do tipo dele: com a definição injetada, as tentativas e o recuo dela, e o outro tipo segue com os seus', async () => {
     const addBulk = vi.fn<FilaBullMQ['addBulk']>(() => Promise.resolve([]))
-    const definicoes: RegistroDeJobs = {
-      ...DEFINICOES_DE_JOB,
-      [TIPO_JOB_SINTETICO]: definirJob({ ...DEFINICOES_DE_JOB[TIPO_JOB_SINTETICO], retentativa: { tentativas: 2, recuoMs: 10, jitter: 0 } }),
+    const definicoes: JobRegistry = {
+      ...JOB_DEFINITIONS,
+      [TIPO_JOB_SINTETICO]: defineJob({ ...JOB_DEFINITIONS[TIPO_JOB_SINTETICO], retentativa: { tentativas: 2, recuoMs: 10, jitter: 0 } }),
     }
     const montar = { ...JOB, id: '0190f5a0-0000-7000-8000-0000000000f2', tipo: 'titular.montar-arquivo', fila: 'interativa' as const }
     await new PublicacaoBullMQ(() => filaFalsa({ addBulk }), undefined, definicoes).publicar([JOB, montar])
@@ -56,7 +56,7 @@ describe('PublicacaoBullMQ', () => {
     const adicionados = new Map<string, string[]>()
     const consultadas: string[] = []
     const criadas: string[] = []
-    const criar = (fila: Fila, executor: ExecutorDeJob) => {
+    const criar = (fila: QueueName, executor: JobExecutor) => {
       const nome = nomeDaFilaBullMQ(fila, executor)
       criadas.push(nome)
       return filaFalsa({
@@ -70,7 +70,7 @@ describe('PublicacaoBullMQ', () => {
         },
       })
     }
-    const definicoes: RegistroDeJobs = { ...DEFINICOES_DE_JOB, 'teste.da-api': definirJob({ ...DEFINICOES_DE_JOB[TIPO_JOB_SINTETICO], executor: 'api' }) }
+    const definicoes: JobRegistry = { ...JOB_DEFINITIONS, 'teste.da-api': defineJob({ ...JOB_DEFINITIONS[TIPO_JOB_SINTETICO], executor: 'api' }) }
     const daApi = { ...JOB, id: '0190f5a0-0000-7000-8000-0000000000f2', tipo: 'teste.da-api' }
     const antigo = { ...JOB, id: '0190f5a0-0000-7000-8000-0000000000f3', tipo: 'tipo.de-uma-versao-antiga', fila: 'normal' as const }
     const publicacao = new PublicacaoBullMQ(criar, undefined, definicoes)
@@ -84,8 +84,8 @@ describe('PublicacaoBullMQ', () => {
   })
 
   it('cada job vai à fila dele: uma Queue por fila, e a prioridade é a fila', async () => {
-    const adicionados = new Map<Fila, string[]>()
-    const criar = (fila: Fila) =>
+    const adicionados = new Map<QueueName, string[]>()
+    const criar = (fila: QueueName) =>
       filaFalsa({
         addBulk: (jobs) => {
           adicionados.set(fila, [...(adicionados.get(fila) ?? []), ...jobs.map((job) => job.opts.jobId)])
@@ -99,8 +99,8 @@ describe('PublicacaoBullMQ', () => {
   })
 
   it('consulta o job na fila dele', async () => {
-    const consultadas: Fila[] = []
-    const criar = (fila: Fila) =>
+    const consultadas: QueueName[] = []
+    const criar = (fila: QueueName) =>
       filaFalsa({
         getJob: () => {
           consultadas.push(fila)
@@ -129,7 +129,7 @@ describe('PublicacaoBullMQ', () => {
     const quebrada = filaFalsa({ waitUntilReady: () => Promise.reject(new Error('Connection is closed.')), close: vi.fn(() => Promise.resolve()) })
     const addBulkDaNova = vi.fn<FilaBullMQ['addBulk']>(() => Promise.resolve([]))
     const criadas = [quebrada, filaFalsa({ addBulk: addBulkDaNova })]
-    const criar = vi.fn((fila: Fila) => (fila === 'interativa' ? (criadas.shift() ?? filaFalsa()) : filaFalsa()))
+    const criar = vi.fn((fila: QueueName) => (fila === 'interativa' ? (criadas.shift() ?? filaFalsa()) : filaFalsa()))
     const publicacao = new PublicacaoBullMQ(criar)
 
     await expect(publicacao.publicar([JOB])).rejects.toThrow('Connection is closed.')
@@ -145,8 +145,8 @@ describe('PublicacaoBullMQ', () => {
     const addBulkDaNova = vi.fn<FilaBullMQ['addBulk']>(() => Promise.resolve([]))
     const addBulkDoWorker = vi.fn<FilaBullMQ['addBulk']>(() => Promise.resolve([]))
     const daApi = [quebrada, filaFalsa({ addBulk: addBulkDaNova })]
-    const criar = vi.fn((_fila: Fila, executor: ExecutorDeJob) => (executor === 'api' ? (daApi.shift() ?? filaFalsa()) : filaFalsa({ addBulk: addBulkDoWorker })))
-    const definicoes: RegistroDeJobs = { ...DEFINICOES_DE_JOB, 'teste.da-api': definirJob({ ...DEFINICOES_DE_JOB[TIPO_JOB_SINTETICO], executor: 'api' }) }
+    const criar = vi.fn((_fila: QueueName, executor: JobExecutor) => (executor === 'api' ? (daApi.shift() ?? filaFalsa()) : filaFalsa({ addBulk: addBulkDoWorker })))
+    const definicoes: JobRegistry = { ...JOB_DEFINITIONS, 'teste.da-api': defineJob({ ...JOB_DEFINITIONS[TIPO_JOB_SINTETICO], executor: 'api' }) }
     const job = { ...JOB, tipo: 'teste.da-api' }
     const publicacao = new PublicacaoBullMQ(criar, undefined, definicoes)
 
@@ -183,11 +183,11 @@ describe('PublicacaoBullMQ', () => {
     })
 
     it('falhou, com o código que o worker mandou à fila', async () => {
-      expect(await consultar(jobNaFila('failed', CodigoDeFalhaDeJob.FALHA_SINTETICA))).toEqual({ situacao: 'falhou', codigo: CodigoDeFalhaDeJob.FALHA_SINTETICA })
+      expect(await consultar(jobNaFila('failed', JobFailureCode.FALHA_SINTETICA))).toEqual({ situacao: 'falhou', codigo: JobFailureCode.FALHA_SINTETICA })
     })
 
     it('falhou com motivo que não é código nosso (stalled acima do limite do BullMQ): erro interno', async () => {
-      expect(await consultar(jobNaFila('failed', 'job stalled more than allowable limit'))).toEqual({ situacao: 'falhou', codigo: CodigoDeFalhaDeJob.ERRO_INTERNO })
+      expect(await consultar(jobNaFila('failed', 'job stalled more than allowable limit'))).toEqual({ situacao: 'falhou', codigo: JobFailureCode.ERRO_INTERNO })
     })
   })
 })

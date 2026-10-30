@@ -1,4 +1,4 @@
-import { ErroDeInvariante, type CodigoDeFalhaDeJob, type EstadoDeJob, type Fila } from '@educa/shared'
+import { InvariantException, type JobFailureCode, type JobState, type QueueName } from '@educa/shared'
 import { and, eq, inArray, isNull, like, notInArray, sql, type SQL } from 'drizzle-orm'
 import { contextoAtual } from '../contexto/contexto.js'
 import type { Banco, TransacaoBanco } from '../db/banco.js'
@@ -11,18 +11,18 @@ export const CANAL_NOTIFICACAO_JOB = 'job'
 
 export interface LinhaNova {
   tipo: string
-  fila: Fila
+  fila: QueueName
   prioridade: number
   dados: Record<string, unknown>
   naoUrgente: boolean
 }
 
 export interface EstadoRegistrado {
-  estado: EstadoDeJob
+  estado: JobState
   criadoEm: Date
   iniciadoEm: Date | null
   concluidoEm: Date | null
-  codigoFalha: CodigoDeFalhaDeJob | null
+  codigoFalha: JobFailureCode | null
 }
 
 /**
@@ -32,11 +32,11 @@ export interface EstadoRegistrado {
 export type ResultadoDaChave = { situacao: 'enfileirado'; id: string } | { situacao: 'ja_enfileirado'; id: string | null }
 
 /** Os estados de um job que terminou: fora deles, a chave de idempotência ainda está tomada (o predicado do único parcial). */
-const ESTADOS_FINAIS: EstadoDeJob[] = ['concluido', 'falhou']
+const ESTADOS_FINAIS: JobState[] = ['concluido', 'falhou']
 
 /** Onde o job está antes de começar: a fila e a escola da linha persistida, que definem a vaga dele. */
 export interface JobParaExecutar {
-  fila: Fila
+  fila: QueueName
   escolaId: string | null
   /** `concluido` ou `falhou`: não roda de novo. */
   finalizado: boolean
@@ -50,9 +50,9 @@ export type ResultadoDoInicio =
   | { situacao: 'nao_encontrado' }
 
 /** Estados de onde o worker pode começar (ou recomeçar, na retentativa e no stalled). */
-const ORIGENS_DO_INICIO: EstadoDeJob[] = ['reservado', 'publicado', 'ativo']
+const ORIGENS_DO_INICIO: JobState[] = ['reservado', 'publicado', 'ativo']
 /** Estados de onde um job pode falhar de vez: o que já terminou não volta. */
-const ORIGENS_DA_FALHA: EstadoDeJob[] = ['reservado', 'publicado', 'ativo']
+const ORIGENS_DA_FALHA: JobState[] = ['reservado', 'publicado', 'ativo']
 
 /**
  * `job_registro` com o escopo da escola do contexto em toda consulta (regra 10, item 3). A escola
@@ -72,15 +72,15 @@ export class JobRegistroRepository {
   async inserir(tx: TransacaoBanco, linha: LinhaNova): Promise<string> {
     const contexto = contextoAtual()
     const doSistema = linha.tipo.startsWith(PREFIXO_TIPO_SISTEMA)
-    if (!doSistema && contexto?.escolaId === undefined) throw new ErroDeInvariante('job de escola sem escola no contexto')
+    if (!doSistema && contexto?.escolaId === undefined) throw new InvariantException('job de escola sem escola no contexto')
     if (doSistema && (contexto?.rotinaDoSistema !== true || contexto.escolaId !== undefined)) {
-      throw new ErroDeInvariante('job de sistema só nasce de rotina do sistema')
+      throw new InvariantException('job de sistema só nasce de rotina do sistema')
     }
     const [inserida] = await tx
       .insert(jobRegistro)
       .values({ ...linha, escolaId: contexto?.escolaId ?? null, requisicaoId: contexto?.requisicaoId ?? null })
       .returning({ id: jobRegistro.id })
-    if (inserida === undefined) throw new ErroDeInvariante('insert em job_registro não devolveu linha')
+    if (inserida === undefined) throw new InvariantException('insert em job_registro não devolveu linha')
     await tx.execute(sql`select pg_notify(${CANAL_NOTIFICACAO_JOB}, '')`)
     return inserida.id
   }
@@ -99,7 +99,7 @@ export class JobRegistroRepository {
   async inserirUmaVez(tx: TransacaoBanco, linha: LinhaNova, chaveIdempotencia: string, depoisDaColisao?: () => Promise<void>): Promise<ResultadoDaChave> {
     const contexto = contextoAtual()
     const escolaId = contexto?.escolaId
-    if (escolaId === undefined || linha.tipo.startsWith(PREFIXO_TIPO_SISTEMA)) throw new ErroDeInvariante('chave de idempotência só em job de escola, com a escola no contexto')
+    if (escolaId === undefined || linha.tipo.startsWith(PREFIXO_TIPO_SISTEMA)) throw new InvariantException('chave de idempotência só em job de escola, com a escola no contexto')
     const [inserida] = await tx
       .insert(jobRegistro)
       .values({ ...linha, escolaId, requisicaoId: contexto?.requisicaoId ?? null, chaveIdempotencia })
@@ -130,7 +130,7 @@ export class JobRegistroRepository {
   /** O job da escola do token, ou `undefined` (inexistente ou de outra escola, sem distinção). */
   async buscarDaEscola(id: string): Promise<EstadoRegistrado | undefined> {
     const escolaId = contextoAtual()?.escolaId
-    if (escolaId === undefined) throw new ErroDeInvariante('consulta de job sem escola no contexto')
+    if (escolaId === undefined) throw new InvariantException('consulta de job sem escola no contexto')
     const [linha] = await this.banco
       .select({
         estado: jobRegistro.estado,
@@ -142,7 +142,7 @@ export class JobRegistroRepository {
       .from(jobRegistro)
       .where(and(eq(jobRegistro.id, id), eq(jobRegistro.escolaId, escolaId)))
     if (linha === undefined) return undefined
-    return { ...linha, estado: linha.estado as EstadoDeJob, codigoFalha: linha.codigoFalha as CodigoDeFalhaDeJob | null }
+    return { ...linha, estado: linha.estado as JobState, codigoFalha: linha.codigoFalha as JobFailureCode | null }
   }
 
   /** A fila e a escola do job na escola do contexto, ou `undefined` (inexistente ou de outra escola, sem distinção). */
@@ -152,7 +152,7 @@ export class JobRegistroRepository {
       .from(jobRegistro)
       .where(and(eq(jobRegistro.id, id), escopoDoJobNoContexto()))
     if (linha === undefined) return undefined
-    return { fila: linha.fila as Fila, escolaId: linha.escolaId, finalizado: linha.estado === 'concluido' || linha.estado === 'falhou' }
+    return { fila: linha.fila as QueueName, escolaId: linha.escolaId, finalizado: linha.estado === 'concluido' || linha.estado === 'falhou' }
   }
 
   /**
@@ -194,7 +194,7 @@ export class JobRegistroRepository {
   }
 
   /** Falha definitiva, com código tipado. Devolve `false` se o job já tinha terminado ou não é desta escola. */
-  async registrarFalha(id: string, codigo: CodigoDeFalhaDeJob): Promise<boolean> {
+  async registrarFalha(id: string, codigo: JobFailureCode): Promise<boolean> {
     const alteradas = await this.banco
       .update(jobRegistro)
       .set({ estado: 'falhou', codigoFalha: codigo, concluidoEm: sql`now()`, reservadoAte: null })
@@ -214,5 +214,5 @@ export function escopoDoJobNoContexto(): SQL {
   if (contexto?.rotinaDoSistema === true) {
     return and(isNull(jobRegistro.escolaId), like(jobRegistro.tipo, `${PREFIXO_TIPO_SISTEMA}%`)) as SQL
   }
-  throw new ErroDeInvariante('job_registro sem escola nem rotina do sistema no contexto não tem escopo')
+  throw new InvariantException('job_registro sem escola nem rotina do sistema no contexto não tem escopo')
 }

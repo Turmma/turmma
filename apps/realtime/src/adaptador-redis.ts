@@ -1,4 +1,4 @@
-import { CAMINHO_REALTIME, ErroDeInvariante } from '@educa/shared'
+import { REALTIME_PATH, InvariantException } from '@educa/shared'
 import type { INestApplicationContext } from '@nestjs/common'
 import { IoAdapter } from '@nestjs/platform-socket.io'
 import { createAdapter } from '@socket.io/redis-streams-adapter'
@@ -47,7 +47,7 @@ export function criarAdaptadorRedis(cliente: Redis, tamanhoMaximoDoStream: numbe
  *   nunca se autentica não ficar ocupando a instância.
  */
 export const OPCOES_DO_SERVIDOR_REALTIME = {
-  path: CAMINHO_REALTIME,
+  path: REALTIME_PATH,
   serveClient: false,
   maxHttpBufferSize: 64 * 1024,
   connectTimeout: 10_000,
@@ -79,7 +79,7 @@ export class AdaptadorSocketIoComRedis extends IoAdapter {
    * `/prontidao` e passa pela drenagem.
    */
   override createIOServer(porta: number): Server {
-    if (porta !== 0) throw new ErroDeInvariante('gateway do realtime não abre porta própria: use a porta HTTP da aplicação')
+    if (porta !== 0) throw new InvariantException('gateway do realtime não abre porta própria: use a porta HTTP da aplicação')
     const servidorHttp: ServidorHttp = this.httpServer
     this.#servidor = prepararServidorRealtime(new Server(servidorHttp, OPCOES_DO_SERVIDOR_REALTIME), this.cliente, this.tamanhoMaximoDoStream)
     return this.#servidor

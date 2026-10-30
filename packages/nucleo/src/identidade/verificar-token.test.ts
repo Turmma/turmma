@@ -1,4 +1,4 @@
-import { CodigoDeErro } from '@educa/shared'
+import { ErrorCode } from '@educa/shared'
 import { SignJWT, UnsecuredJWT, type JWTPayload } from 'jose'
 import { describe, expect, it } from 'vitest'
 import { EMISSOR_TOKEN, type ConfiguracaoIdentidade } from '../config/validar-config.js'
@@ -74,7 +74,7 @@ describe('verificarToken', () => {
 
   it('recusa o token do emissor sintético do F0, assinado com a mesma chave e no prazo: o emissor é constante, não configuração', async () => {
     const token = await assinar({ claims: { iss: EMISSOR_SINTETICO_DO_F0 } })
-    expect(await recusa(token)).toMatchObject({ codigo: CodigoDeErro.NAO_AUTENTICADO, status: 401 })
+    expect(await recusa(token)).toMatchObject({ codigo: ErrorCode.NAO_AUTENTICADO, status: 401 })
     // A `ConfiguracaoIdentidade` não tem por onde aceitar outro emissor: `validar-config.test.ts` fecha a forma dela.
     expect(Object.keys(config).sort()).toEqual(['ambiente', 'chaveAssinatura'])
   })
@@ -107,7 +107,7 @@ describe('verificarToken', () => {
   ]
 
   it.each(recusados)('recusa %s com NAO_AUTENTICADO 401', async (_caso, gerar) => {
-    expect(await recusa(await gerar())).toMatchObject({ codigo: CodigoDeErro.NAO_AUTENTICADO, status: 401 })
+    expect(await recusa(await gerar())).toMatchObject({ codigo: ErrorCode.NAO_AUTENTICADO, status: 401 })
   })
 })
 
@@ -126,6 +126,6 @@ describe('extrairTokenBearer', () => {
     ['texto depois do token', 'Bearer aaa.bbb.ccc extra'],
     ['repetido', ['Bearer aaa.bbb.ccc', 'Bearer ddd.eee.fff']],
   ])('recusa cabeçalho %s com NAO_AUTENTICADO', (_caso, cabecalho) => {
-    expect(() => extrairTokenBearer(cabecalho)).toThrow(expect.objectContaining({ codigo: CodigoDeErro.NAO_AUTENTICADO }))
+    expect(() => extrairTokenBearer(cabecalho)).toThrow(expect.objectContaining({ codigo: ErrorCode.NAO_AUTENTICADO }))
   })
 })

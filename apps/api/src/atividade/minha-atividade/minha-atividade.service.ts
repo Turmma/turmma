@@ -1,20 +1,20 @@
 import { ErroDeDominio, type Banco } from '@educa/nucleo'
 import {
-  CodigoDeErro,
-  esquemaConteudoDeAtividade,
-  esquemaRespostaAtividadeEnviada,
-  esquemaRespostaMeuDiagnostico,
-  esquemaRespostaMinhasAtividades,
-  esquemaRespostaProva,
-  esquemaRespostaQuestaoSalva,
+  ErrorCode,
+  conteudoDeAtividadeSchema,
+  atividadeEnviadaResponseSchema,
+  meuDiagnosticoResponseSchema,
+  minhasAtividadesResponseSchema,
+  provaResponseSchema,
+  questaoSalvaResponseSchema,
   questoesDaProva,
-  type ConsultaPaginada,
-  type PedidoResponderQuestao,
-  type RespostaAtividadeEnviada,
-  type RespostaMeuDiagnostico,
-  type RespostaMinhasAtividades,
-  type RespostaProva,
-  type RespostaQuestaoSalva,
+  type PaginationQuery,
+  type ResponderQuestaoRequest,
+  type AtividadeEnviadaResponse,
+  type MeuDiagnosticoResponse,
+  type MinhasAtividadesResponse,
+  type ProvaResponse,
+  type QuestaoSalvaResponse,
   type SituacaoDaMinhaAtividade,
 } from '@educa/shared'
 import { paginar } from '../../http/paginacao.js'
@@ -68,24 +68,24 @@ function paraATela(lida: MinhaAtividadeLida): unknown {
 export class MinhaAtividadeService {
   constructor(private readonly banco: Banco) {}
 
-  async listar(consulta: ConsultaPaginada): Promise<RespostaMinhasAtividades> {
+  async listar(consulta: PaginationQuery): Promise<MinhasAtividadesResponse> {
     const linhas = await new MinhaAtividadeRepository(this.banco).listar(consulta)
     const { itens, proxima } = paginar(linhas, consulta.limite)
-    return esquemaRespostaMinhasAtividades.parse({ itens: itens.map(paraATela), ...(proxima === undefined ? {} : { proxima }) })
+    return minhasAtividadesResponseSchema.parse({ itens: itens.map(paraATela), ...(proxima === undefined ? {} : { proxima }) })
   }
 
   /** Abrir a prova cria a tentativa do aluno, uma só, enquanto a atividade está aberta. Na encerrada, quem não abriu continua sem tentativa. */
-  async prova(id: string): Promise<RespostaProva> {
+  async prova(id: string): Promise<ProvaResponse> {
     const aberta = await this.banco.transaction(async (tx) => {
       const atividades = new MinhaAtividadeRepository(tx)
       const prova = await atividades.prova(id, true)
-      if (prova === undefined) throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
+      if (prova === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
       const tentativa = prova.estado === 'aberta' ? await atividades.abrirTentativa(id) : await atividades.tentativa(id)
       const respostas = tentativa === undefined ? [] : await atividades.respostas(id)
       return { prova, tentativa, respostas }
     })
-    const conteudo = esquemaConteudoDeAtividade.parse(aberta.prova.conteudo)
-    return esquemaRespostaProva.parse({
+    const conteudo = conteudoDeAtividadeSchema.parse(aberta.prova.conteudo)
+    return provaResponseSchema.parse({
       atividadeAplicadaId: aberta.prova.id,
       titulo: aberta.prova.titulo,
       avaliativa: aberta.prova.avaliativa,
@@ -98,30 +98,30 @@ export class MinhaAtividadeService {
     })
   }
 
-  async responder(id: string, questao: number, { alternativa, sequencia }: PedidoResponderQuestao): Promise<RespostaQuestaoSalva> {
+  async responder(id: string, questao: number, { alternativa, sequencia }: ResponderQuestaoRequest): Promise<QuestaoSalvaResponse> {
     const salva = await this.banco.transaction(async (tx) => {
       const atividades = new MinhaAtividadeRepository(tx)
       const atividade = await atividades.travarParaGravar(id)
-      if (atividade === undefined) throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
-      if (atividade.estado !== 'aberta') throw new ErroDeDominio(CodigoDeErro.ATIVIDADE_ENCERRADA)
+      if (atividade === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+      if (atividade.estado !== 'aberta') throw new ErroDeDominio(ErrorCode.ATIVIDADE_ENCERRADA)
       // A questão que a atividade não tem não existe.
-      if (questao > atividade.questoes) throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
+      if (questao > atividade.questoes) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
       const tentativa = await atividades.abrirTentativa(id)
-      if (tentativa.enviadaEm !== null) throw new ErroDeDominio(CodigoDeErro.ATIVIDADE_ENCERRADA)
+      if (tentativa.enviadaEm !== null) throw new ErroDeDominio(ErrorCode.ATIVIDADE_ENCERRADA)
       return atividades.responder(id, questao, alternativa, sequencia)
     })
-    return esquemaRespostaQuestaoSalva.parse({ questao: salva.questao, alternativa: salva.alternativa, sequencia: salva.sequencia, respondidaEm: salva.respondidaEm.toISOString() })
+    return questaoSalvaResponseSchema.parse({ questao: salva.questao, alternativa: salva.alternativa, sequencia: salva.sequencia, respondidaEm: salva.respondidaEm.toISOString() })
   }
 
   /** Enviar é uma vez só: enviar de novo devolve o mesmo, com a primeira hora, mesmo depois do encerramento. */
-  async enviar(id: string): Promise<RespostaAtividadeEnviada> {
+  async enviar(id: string): Promise<AtividadeEnviadaResponse> {
     const enviada = await this.banco.transaction(async (tx) => {
       const atividades = new MinhaAtividadeRepository(tx)
       const atividade = await atividades.travarParaGravar(id)
-      if (atividade === undefined) throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
+      if (atividade === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
       let tentativa = await atividades.tentativa(id)
       if (tentativa === undefined || tentativa.enviadaEm === null) {
-        if (atividade.estado !== 'aberta') throw new ErroDeDominio(CodigoDeErro.ATIVIDADE_ENCERRADA)
+        if (atividade.estado !== 'aberta') throw new ErroDeDominio(ErrorCode.ATIVIDADE_ENCERRADA)
         await atividades.abrirTentativa(id)
         await atividades.enviar(id)
         tentativa = await atividades.tentativa(id)
@@ -129,19 +129,19 @@ export class MinhaAtividadeService {
       const respostas = await atividades.respostas(id)
       return { enviadaEm: tentativa?.enviadaEm ?? null, respondidas: respostas.length, questoes: atividade.questoes }
     })
-    if (enviada.enviadaEm === null) throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
-    return esquemaRespostaAtividadeEnviada.parse({ ...enviada, enviadaEm: enviada.enviadaEm.toISOString() })
+    if (enviada.enviadaEm === null) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+    return atividadeEnviadaResponseSchema.parse({ ...enviada, enviadaEm: enviada.enviadaEm.toISOString() })
   }
 
-  async meuDiagnostico(id: string): Promise<RespostaMeuDiagnostico> {
+  async meuDiagnostico(id: string): Promise<MeuDiagnosticoResponse> {
     const atividades = new MinhaAtividadeRepository(this.banco)
     const diagnostico = await atividades.diagnostico(id)
     // Sem lote aprovado, a resposta é a do inexistente: nada confirma que há correção esperando.
-    if (diagnostico === undefined) throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
-    const { questoes } = esquemaConteudoDeAtividade.parse(diagnostico.conteudo)
+    if (diagnostico === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+    const { questoes } = conteudoDeAtividadeSchema.parse(diagnostico.conteudo)
     const marcadas = new Map((await atividades.respostas(id)).map((resposta) => [resposta.questao, resposta.alternativa]))
     const habilidades = habilidadesDaAtividade(questoes)
-    return esquemaRespostaMeuDiagnostico.parse({
+    return meuDiagnosticoResponseSchema.parse({
       atividadeAplicadaId: id,
       titulo: diagnostico.titulo,
       acertos: diagnostico.acertos,

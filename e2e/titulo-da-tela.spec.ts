@@ -1,5 +1,5 @@
 import type { Page, Route } from '@playwright/test'
-import { MENSAGENS_DE_ERRO } from '../packages/shared/src/erros/mensagens.ts'
+import { MENSAGENS_DE_ERRO } from '../packages/shared/src/errors/messages.ts'
 import {
   entrarComoAluno,
   entrarComoCoordenacaoNaMesmaAba,

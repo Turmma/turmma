@@ -1,4 +1,4 @@
-import { CodigoDeErro, DIGITOS_DO_CODIGO_MFA, formatarEspera } from '@educa/shared'
+import { ErrorCode, DIGITOS_DO_CODIGO_MFA, formatarEspera } from '@educa/shared'
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { Link, useLocation } from 'wouter'
 import { ErroDaApi } from '../../api/cliente'
@@ -23,8 +23,8 @@ const TITULO = 'Configurar o segundo fator'
 
 /** O aviso da entrada quando o código da configuração foi recusado e a API gastou o desafio. */
 function avisoDaRecusa(erro: unknown): string {
-  if (erro instanceof ErroDaApi && erro.codigo === CodigoDeErro.CONFLITO) return TEXTO_DO_CONFIGURE_DE_NOVO
-  if (erro instanceof ErroDaApi && erro.codigo === CodigoDeErro.CONTA_SEGURADA && erro.esperaSegundos !== undefined) {
+  if (erro instanceof ErroDaApi && erro.codigo === ErrorCode.CONFLITO) return TEXTO_DO_CONFIGURE_DE_NOVO
+  if (erro instanceof ErroDaApi && erro.codigo === ErrorCode.CONTA_SEGURADA && erro.esperaSegundos !== undefined) {
     return `${TEXTO_DA_CONFIGURACAO_RECUSADA} Muitas tentativas nesta conta: espere ${formatarEspera(erro.esperaSegundos)} antes de tentar.`
   }
   return TEXTO_DA_CONFIGURACAO_RECUSADA

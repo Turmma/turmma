@@ -1,5 +1,5 @@
 import type { ConfiguracaoIdentidade, LeituraDeSessao, LoggerBase } from '@educa/nucleo'
-import { NAMESPACE_REALTIME_SISTEMA } from '@educa/shared'
+import { SYSTEM_REALTIME_NAMESPACE } from '@educa/shared'
 import { Inject } from '@nestjs/common'
 import { WebSocketGateway, type OnGatewayConnection, type OnGatewayInit } from '@nestjs/websockets'
 import type { Namespace } from 'socket.io'
@@ -19,7 +19,7 @@ export function salaDaEscola(escolaId: string): string {
  * da escola dessa sessão. Não há evento para entrar em sala, e a sala não vem de nada que o cliente
  * mande (regra 10, item 3). Sem handler de mensagem no F0: a emissão chega pelo adaptador Redis.
  */
-@WebSocketGateway({ namespace: NAMESPACE_REALTIME_SISTEMA })
+@WebSocketGateway({ namespace: SYSTEM_REALTIME_NAMESPACE })
 export class SistemaGateway implements OnGatewayInit<Namespace>, OnGatewayConnection<SocketRealtime> {
   constructor(
     @Inject(CONFIGURACAO_IDENTIDADE) private readonly identidade: ConfiguracaoIdentidade,

@@ -1,4 +1,4 @@
-import { CodigoDeErro } from '@educa/shared'
+import { ErrorCode } from '@educa/shared'
 import { QueryClient } from '@tanstack/react-query'
 import { ErroDaApi } from './cliente'
 
@@ -13,7 +13,7 @@ export const ESPERA_ENTRE_TENTATIVAS_MS = 1_000
 export function deveTentarDeNovo(falhas: number, erro: unknown): boolean {
   if (falhas >= TENTATIVAS_AUTOMATICAS) return false
   if (!(erro instanceof ErroDaApi)) return true
-  return erro.codigo === CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO || erro.codigo === CodigoDeErro.TEMPO_ESGOTADO || erro.codigo === CodigoDeErro.ERRO_INTERNO
+  return erro.codigo === ErrorCode.INDISPONIVEL_TENTE_DE_NOVO || erro.codigo === ErrorCode.TEMPO_ESGOTADO || erro.codigo === ErrorCode.ERRO_INTERNO
 }
 
 export function criarClienteDeConsultas(): QueryClient {

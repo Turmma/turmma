@@ -1,4 +1,4 @@
-import { AMBIENTES_DO_SISTEMA } from '@educa/shared'
+import { SYSTEM_ENVIRONMENTS } from '@educa/shared'
 import { z } from 'zod'
 
 /**
@@ -33,7 +33,7 @@ export function validarAmbiente<Esquema extends z.ZodType>(
 }
 
 /** Um só conjunto: a casca recebe o ambiente pelo contrato de `packages/shared`. */
-export const AMBIENTES = AMBIENTES_DO_SISTEMA
+export const AMBIENTES = SYSTEM_ENVIRONMENTS
 export type Ambiente = (typeof AMBIENTES)[number]
 
 /**

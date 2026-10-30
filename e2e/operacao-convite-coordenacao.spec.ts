@@ -1,6 +1,6 @@
 import type { Browser, BrowserContextOptions, Locator, Page, Route } from '@playwright/test'
-import { mensagemDoConvite } from '../packages/shared/src/erros/mensagens.ts'
-import type { RespostaConviteDaCoordenacao, RespostaEscolasDoPainel } from '../packages/shared/src/operacao/painel.ts'
+import { mensagemDoConvite } from '../packages/shared/src/errors/messages.ts'
+import type { ConviteDaCoordenacaoResponse, EscolasDoPainelResponse } from '../packages/shared/src/operacao/painel.ts'
 import { codigoDoOperador, criarOperadorComSegundoFator as criarOperador, removerOperador, type OperadorDeTeste } from './__fixtures__/operacao.ts'
 import { convitesEmAberto, idDaEscolaComOEndereco, nomeQueVemPrimeiro, semearEscolaDoConvite, ultimoConviteDaEscola } from './__fixtures__/painel.ts'
 import { expect, test } from './__fixtures__/perfis.ts'
@@ -254,7 +254,7 @@ test.describe('O convite da coordenação pelo painel (A0b, tarefa 7.0)', () => 
     // três contagens, e sem ação.
     const recarregada = proximaLista(page)
     await page.reload()
-    const lista = (await (await recarregada).json()) as RespostaEscolasDoPainel
+    const lista = (await (await recarregada).json()) as EscolasDoPainelResponse
     const naLista = lista.itens.find((escola) => escola.id === escolaId)
     expect(naLista).toMatchObject({ estado: 'ativa', turmas: 0, professores: 0, alunos: 0 })
     await expect(item).toContainText('Ativa', { timeout: PRAZO_DA_ENTRADA_MS })
@@ -296,7 +296,7 @@ test.describe('O convite da coordenação pelo painel (A0b, tarefa 7.0)', () => 
     await tocar(itemDaEscola(outra, escola.nome), `Refazer o convite de ${escola.nome}`, hasTouch)
     await tocar(noDialogo(outra), 'Refazer convite', hasTouch)
     await expect(noDialogo(outra).getByRole('alert')).toHaveText(TEXTO_DO_CONVITE_QUE_MUDOU, { timeout: PRAZO_DA_ENTRADA_MS })
-    const lista = (await (await recarregada).json()) as RespostaEscolasDoPainel
+    const lista = (await (await recarregada).json()) as EscolasDoPainelResponse
     expect(lista.itens.find((item) => item.id === escola.id)).toMatchObject({ estado: 'pendente', conviteId: novo })
     await expect(noDialogo(outra).getByRole('button', { name: 'Refazer convite' })).toHaveCount(0)
     expect(await violacoesGraves(outra)).toEqual([])
@@ -321,7 +321,7 @@ test.describe('O convite da coordenação pelo painel (A0b, tarefa 7.0)', () => 
     await tocar(itemDaEscola(outra, escola.nome), `Revogar o convite de ${escola.nome}`, hasTouch)
     await tocar(noDialogo(outra), 'Revogar convite', hasTouch)
     await expect(noDialogo(outra).getByRole('alert')).toHaveText(TEXTO_DO_CONVITE_QUE_NAO_VALE, { timeout: PRAZO_DA_ENTRADA_MS })
-    const revogada = (await (await depoisDoRevogar).json()) as RespostaEscolasDoPainel
+    const revogada = (await (await depoisDoRevogar).json()) as EscolasDoPainelResponse
     expect(revogada.itens.find((item) => item.id === escola.id)?.estado).toBe('revogado')
     // O "Revogar" que abriu o diálogo saiu da linha com a lista recarregada: fechado o diálogo, o foco vai para o
     // "Convidar" da mesma escola.
@@ -614,7 +614,7 @@ test.describe('O convite da coordenação pelo painel (A0b, tarefa 7.0)', () => 
     await expect.poll(() => pedidos).toBe(1)
     const listaDepois = proximaLista(page)
     soltar()
-    const { conviteId, token } = (await (await refeito).json()) as RespostaConviteDaCoordenacao
+    const { conviteId, token } = (await (await refeito).json()) as ConviteDaCoordenacaoResponse
     await expect(noDialogo(page).getByRole('heading', { name: 'Copie o link do convite' })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
     expect(tokenDo(await linkNaTela(page))).toBe(token)
     await expect(noDialogo(page).getByRole('alert')).toHaveCount(0)
@@ -687,8 +687,8 @@ test.describe('O convite da coordenação pelo painel (A0b, tarefa 7.0)', () => 
     // A resposta, mesmo sem diálogo, recarrega a lista: é por ela que a linha da primeira passa a ter o convite novo.
     const listaDepois = proximaLista(page)
     soltar()
-    const { conviteId, token } = (await (await refeito).json()) as RespostaConviteDaCoordenacao
-    const lista = (await (await listaDepois).json()) as RespostaEscolasDoPainel
+    const { conviteId, token } = (await (await refeito).json()) as ConviteDaCoordenacaoResponse
+    const lista = (await (await listaDepois).json()) as EscolasDoPainelResponse
     expect(lista.itens.find((item) => item.id === primeira.id)?.conviteId).toBe(conviteId)
     await outraNaConfirmacao()
     expect(await page.content()).not.toContain(token)

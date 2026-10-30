@@ -1,4 +1,4 @@
-import { esquemaRespostaMeusVinculos, esquemaRespostaVinculo, type PedidoContestarVinculo, type RespostaVinculo } from '@educa/shared'
+import { meusVinculosResponseSchema, vinculoResponseSchema, type ContestarVinculoRequest, type VinculoResponse } from '@educa/shared'
 import { infiniteQueryOptions } from '@tanstack/react-query'
 import { buscarComSessao, chamarComSessao } from '../../../../api/sessao'
 
@@ -14,20 +14,20 @@ const CAMINHO_DOS_MEUS_VINCULOS = '/v1/meus-vinculos'
 export const consultaMeusVinculos = infiniteQueryOptions({
   queryKey: ['meus-vinculos'],
   queryFn: ({ pageParam, signal }) =>
-    buscarComSessao(pageParam === undefined ? CAMINHO_DOS_MEUS_VINCULOS : `${CAMINHO_DOS_MEUS_VINCULOS}?pagina=${encodeURIComponent(pageParam)}`, esquemaRespostaMeusVinculos, signal),
+    buscarComSessao(pageParam === undefined ? CAMINHO_DOS_MEUS_VINCULOS : `${CAMINHO_DOS_MEUS_VINCULOS}?pagina=${encodeURIComponent(pageParam)}`, meusVinculosResponseSchema, signal),
   initialPageParam: undefined as string | undefined,
   getNextPageParam: (ultima) => ultima.proxima,
 })
 
 /** `POST /v1/vinculos/:id/confirmar` (RF4): o professor confirma aquele vínculo, e só aquele. */
-export function confirmarVinculo(id: string): Promise<RespostaVinculo> {
-  return chamarComSessao(`/v1/vinculos/${encodeURIComponent(id)}/confirmar`, esquemaRespostaVinculo, { metodo: 'POST' })
+export function confirmarVinculo(id: string): Promise<VinculoResponse> {
+  return chamarComSessao(`/v1/vinculos/${encodeURIComponent(id)}/confirmar`, vinculoResponseSchema, { metodo: 'POST' })
 }
 
 /**
  * `POST /v1/vinculos/:id/contestar` (RF4): o código do motivo e, quando a pessoa escreve, o complemento curto, que a
  * coordenação lê. A tela avisa para não escrever nome de aluno ali (regra 20).
  */
-export function contestarVinculo(id: string, pedido: PedidoContestarVinculo): Promise<RespostaVinculo> {
-  return chamarComSessao(`/v1/vinculos/${encodeURIComponent(id)}/contestar`, esquemaRespostaVinculo, { metodo: 'POST', corpo: pedido })
+export function contestarVinculo(id: string, pedido: ContestarVinculoRequest): Promise<VinculoResponse> {
+  return chamarComSessao(`/v1/vinculos/${encodeURIComponent(id)}/contestar`, vinculoResponseSchema, { metodo: 'POST', corpo: pedido })
 }

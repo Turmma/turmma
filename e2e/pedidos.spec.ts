@@ -1,6 +1,6 @@
 import type { Locator, Page, Request, Route } from '@playwright/test'
-import { MENSAGENS_DE_ERRO } from '../packages/shared/src/erros/mensagens.ts'
-import type { RespostaPedidosDaTurma } from '../packages/shared/src/sala/pedidos.ts'
+import { MENSAGENS_DE_ERRO } from '../packages/shared/src/errors/messages.ts'
+import type { PedidosDaTurmaResponse } from '../packages/shared/src/sala/pedidos.ts'
 import { abrirNavegacao, entrarComoCoordenacaoNaMesmaAba, entrarPorEmail, abrirEstrutura, irPelaNavegacao, lateral, PRAZO_DA_ENTRADA_MS, esperarNovaConversa, abrirAbaAlunos } from './__fixtures__/casca.ts'
 import { linhasDaTabela } from './__fixtures__/coordenacao.ts'
 import { expect, test } from './__fixtures__/perfis.ts'
@@ -251,12 +251,12 @@ test.describe('W4 (Pedidos) e W15, pelo professor', () => {
     const leitura = page.waitForResponse(
       async (resposta) => {
         if (!ehUmaLeitura(resposta.request()) || !resposta.ok()) return false
-        return ((await resposta.json()) as RespostaPedidosDaTurma).itens.length === 2
+        return ((await resposta.json()) as PedidosDaTurmaResponse).itens.length === 2
       },
       { timeout: PRAZO_DA_ENTRADA_MS },
     )
     await passarOIntervalo(page)
-    const { itens } = (await (await leitura).json()) as RespostaPedidosDaTurma
+    const { itens } = (await (await leitura).json()) as PedidosDaTurmaResponse
     await expect(linhas(page)).toHaveCount(2, { timeout: PRAZO_DA_ENTRADA_MS })
     await expect(regiaoViva(page)).toHaveText('2 pedidos novos na lista.')
     await expect(tituloDoAcesso).toBeFocused()
@@ -519,7 +519,7 @@ test.describe('W6: a decisão do professor', () => {
       noAr++
       try {
         const resposta = await rota.fetch()
-        const corpo = (await resposta.json()) as RespostaPedidosDaTurma
+        const corpo = (await resposta.json()) as PedidosDaTurmaResponse
         ultima = JSON.stringify(haMais ? { ...corpo, proxima: pedido(40).id } : corpo)
         await rota.fulfill({ response: resposta, body: ultima })
       } finally {

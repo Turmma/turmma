@@ -1,12 +1,12 @@
 import {
-  CodigoDeErro,
+  ErrorCode,
   mensagemDaEntradaPorMatricula,
   mensagemDaFalhaExterna,
   mensagemDoAcessoDaEscola,
   PARAMETRO_DA_FALHA_DO_LOGIN_EXTERNO,
   TAMANHO_MAXIMO_MATRICULA,
   TAMANHO_MAXIMO_SENHA,
-  type RespostaAcessoDaEscola,
+  type AcessoDaEscolaResponse,
 } from '@educa/shared'
 import { useQuery } from '@tanstack/react-query'
 import { useEffect, useState, type FormEvent } from 'react'
@@ -76,13 +76,13 @@ function useFalhaDaContaDaEscola(): string | undefined {
 
 /** O endereço que não abre. `NAO_ENCONTRADO` não oferece "tentar de novo": insistir não faz o endereço existir. */
 function ErroDoEndereco({ erro, aoTentarDeNovo, tentando }: { erro: unknown; aoTentarDeNovo: () => void; tentando: boolean }) {
-  const codigo = erro instanceof ErroDaApi ? erro.codigo : CodigoDeErro.ERRO_INTERNO
+  const codigo = erro instanceof ErroDaApi ? erro.codigo : ErrorCode.ERRO_INTERNO
   return (
     <div className="rounded-controle border border-erro bg-erro-cx p-4">
       <p role="alert" className="text-erro">
         {mensagemDoAcessoDaEscola(codigo)}
       </p>
-      {codigo !== CodigoDeErro.NAO_ENCONTRADO && (
+      {codigo !== ErrorCode.NAO_ENCONTRADO && (
         <div className="mt-3 flex flex-wrap items-center gap-3">
           <Botao onClick={aoTentarDeNovo}>Tentar de novo</Botao>
           <span role="status" className="text-erro">
@@ -146,7 +146,7 @@ function FormularioDaMatricula({ slug }: { slug: string }) {
       />
       {falha !== undefined && (
         <p role="alert" className="rounded-controle border border-erro bg-erro-cx p-4 text-erro">
-          {falha instanceof ErroDaApi ? mensagemDaEntradaPorMatricula(falha.codigo, falha.esperaSegundos) : mensagemDaEntradaPorMatricula(CodigoDeErro.ERRO_INTERNO)}
+          {falha instanceof ErroDaApi ? mensagemDaEntradaPorMatricula(falha.codigo, falha.esperaSegundos) : mensagemDaEntradaPorMatricula(ErrorCode.ERRO_INTERNO)}
         </p>
       )}
       <Botao type="submit" disabled={entrando} className="w-full">
@@ -164,7 +164,7 @@ function FormularioDaMatricula({ slug }: { slug: string }) {
  * Os botões da conta da escola (RF8 a RF10). São links, e não botões de formulário, porque o que acontece é navegação:
  * o `iniciar` responde com o redirecionamento ao Google ou à Microsoft.
  */
-function ContasDaEscola({ slug, provedores }: { slug: string; provedores: RespostaAcessoDaEscola['provedores'] }) {
+function ContasDaEscola({ slug, provedores }: { slug: string; provedores: AcessoDaEscolaResponse['provedores'] }) {
   if (provedores.length === 0) return null
   return (
     <section aria-labelledby="titulo-contas" className="flex flex-col gap-3 border-t border-linha pt-6">

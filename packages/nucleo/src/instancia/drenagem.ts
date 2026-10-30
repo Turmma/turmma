@@ -1,4 +1,4 @@
-import type { RespostaProntidao } from '@educa/shared'
+import type { ReadinessResponse } from '@educa/shared'
 import { Logger, type BeforeApplicationShutdown, type OnApplicationShutdown } from '@nestjs/common'
 import type { IncomingMessage, Server, ServerResponse } from 'node:http'
 import type { Socket } from 'node:net'
@@ -41,7 +41,7 @@ export function lerConfiguracaoDrenagem(ambiente: Record<string, string | undefi
 /** Resposta de `/prontidao`, sem consultar dependência: é só o estado da própria instância. */
 export interface RespostaDeProntidao {
   readonly status: 200 | 503
-  readonly corpo: RespostaProntidao
+  readonly corpo: ReadinessResponse
 }
 
 /**

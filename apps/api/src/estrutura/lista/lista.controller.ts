@@ -1,15 +1,15 @@
 import { IdPipe, Permite, ZodValidationPipe } from '@educa/nucleo'
 import {
-  esquemaConsultaListaDaTurma,
-  esquemaPedidoNomeAvulso,
-  esquemaPedidoTextoDaLista,
-  type ConsultaListaDaTurma,
+  listaDaTurmaQuerySchema,
+  nomeAvulsoRequestSchema,
+  textoDaListaRequestSchema,
+  type ListaDaTurmaQuery,
   type NomeDaLista,
-  type PedidoNomeAvulso,
-  type PedidoTextoDaLista,
-  type RespostaGravacaoDaLista,
-  type RespostaListaDaTurma,
-  type RespostaPreviaDaLista,
+  type NomeAvulsoRequest,
+  type TextoDaListaRequest,
+  type GravacaoDaListaResponse,
+  type ListaDaTurmaResponse,
+  type PreviaDaListaResponse,
 } from '@educa/shared'
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, Query } from '@nestjs/common'
 import { ListaService } from './lista.service.js'
@@ -27,25 +27,25 @@ export class ListaController {
   @Post('turmas/:id/lista/previa')
   @Permite('lista_nome', 'previa')
   @HttpCode(HttpStatus.OK)
-  previa(@Param('id', IdPipe) turmaId: string, @Body(new ZodValidationPipe(esquemaPedidoTextoDaLista)) pedido: PedidoTextoDaLista): Promise<RespostaPreviaDaLista> {
+  previa(@Param('id', IdPipe) turmaId: string, @Body(new ZodValidationPipe(textoDaListaRequestSchema)) pedido: TextoDaListaRequest): Promise<PreviaDaListaResponse> {
     return this.lista.previa(turmaId, pedido)
   }
 
   @Post('turmas/:id/lista')
   @Permite('lista_nome', 'gravar')
-  gravar(@Param('id', IdPipe) turmaId: string, @Body(new ZodValidationPipe(esquemaPedidoTextoDaLista)) pedido: PedidoTextoDaLista): Promise<RespostaGravacaoDaLista> {
+  gravar(@Param('id', IdPipe) turmaId: string, @Body(new ZodValidationPipe(textoDaListaRequestSchema)) pedido: TextoDaListaRequest): Promise<GravacaoDaListaResponse> {
     return this.lista.gravar(turmaId, pedido)
   }
 
   @Post('turmas/:id/lista/nome')
   @Permite('lista_nome', 'acrescentar')
-  acrescentar(@Param('id', IdPipe) turmaId: string, @Body(new ZodValidationPipe(esquemaPedidoNomeAvulso)) pedido: PedidoNomeAvulso): Promise<NomeDaLista> {
+  acrescentar(@Param('id', IdPipe) turmaId: string, @Body(new ZodValidationPipe(nomeAvulsoRequestSchema)) pedido: NomeAvulsoRequest): Promise<NomeDaLista> {
     return this.lista.acrescentar(turmaId, pedido)
   }
 
   @Get('turmas/:id/lista')
   @Permite('lista_nome', 'ler')
-  ler(@Param('id', IdPipe) turmaId: string, @Query(new ZodValidationPipe(esquemaConsultaListaDaTurma)) consulta: ConsultaListaDaTurma): Promise<RespostaListaDaTurma> {
+  ler(@Param('id', IdPipe) turmaId: string, @Query(new ZodValidationPipe(listaDaTurmaQuerySchema)) consulta: ListaDaTurmaQuery): Promise<ListaDaTurmaResponse> {
     return this.lista.ler(turmaId, consulta)
   }
 

@@ -1,4 +1,4 @@
-import { NOME_DO_MOTIVO_DE_DESTAQUE, type AtividadeAplicada, type Destaque, type MotivoDeDestaque, type RespostaCorrecaoDoLote, type ResumoDoLote } from '@educa/shared'
+import { NOME_DO_MOTIVO_DE_DESTAQUE, type AtividadeAplicada, type Destaque, type MotivoDeDestaque, type CorrecaoDoLoteResponse, type ResumoDoLote } from '@educa/shared'
 import { caminhoDaTurmaDoProfessor, ROTAS_DO_PROFESSOR } from '../../../caminhos'
 import type { LinhaDoResumo } from '../../../componentes/ui/sobrepostos/DialogoDeConfirmacao'
 import { formatarDiaEHora } from '../../../formatar'
@@ -88,7 +88,7 @@ export interface ContadorDosDestaques {
  * para abrir. Quem libera o botão é a API (`podeAprovar`), e não a conta da tela: se as duas discordarem, vale a API, e o
  * texto manda atualizar.
  */
-export function contadorDosDestaques(correcao: Pick<RespostaCorrecaoDoLote, 'destaques' | 'destaquesAbertos' | 'podeAprovar'>): ContadorDosDestaques {
+export function contadorDosDestaques(correcao: Pick<CorrecaoDoLoteResponse, 'destaques' | 'destaquesAbertos' | 'podeAprovar'>): ContadorDosDestaques {
   const total = correcao.destaques.length
   const faltam = total - correcao.destaquesAbertos
   const texto = total === 0 ? 'Nenhuma correção destacada neste lote' : `${String(correcao.destaquesAbertos)} de ${String(total)} ${total === 1 ? 'destaque aberto' : 'destaques abertos'}`
@@ -106,7 +106,7 @@ export function rotuloDeAprovar(corrigidos: number): string {
 }
 
 /** O que o diálogo de aprovar mostra antes de confirmar: a atividade, a turma, quantas correções e os destaques abertos. */
-export function resumoDoLote(correcao: Pick<RespostaCorrecaoDoLote, 'titulo' | 'resumo' | 'destaques' | 'destaquesAbertos'>, nomeDaTurma: string | undefined): readonly [LinhaDoResumo, ...LinhaDoResumo[]] {
+export function resumoDoLote(correcao: Pick<CorrecaoDoLoteResponse, 'titulo' | 'resumo' | 'destaques' | 'destaquesAbertos'>, nomeDaTurma: string | undefined): readonly [LinhaDoResumo, ...LinhaDoResumo[]] {
   return [
     { rotulo: 'Atividade', valor: correcao.titulo },
     { rotulo: 'Turma', valor: nomeDaTurma ?? 'Turma da atividade' },
@@ -224,7 +224,7 @@ export interface NumeroDoLote {
  * questões**. São contagens do trabalho da turma, nunca nota (D46): nenhum número aqui é um valor que o aluno "tirou".
  * Quem respondeu e a turma de hoje ficam em números separados (docblock de `textoDosCorrigidos`).
  */
-export function numerosDoLote(correcao: Pick<RespostaCorrecaoDoLote, 'resumo' | 'destaques' | 'destaquesAbertos'>): readonly [NumeroDoLote, NumeroDoLote, NumeroDoLote] {
+export function numerosDoLote(correcao: Pick<CorrecaoDoLoteResponse, 'resumo' | 'destaques' | 'destaquesAbertos'>): readonly [NumeroDoLote, NumeroDoLote, NumeroDoLote] {
   const total = correcao.destaques.length
   return [
     { rotulo: 'Corrigidas', valor: String(correcao.resumo.corrigidos), apoio: `Na turma hoje: ${String(correcao.resumo.alunosDaTurma)}. Quem não abriu a atividade não tem correção.` },

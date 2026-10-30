@@ -1,5 +1,5 @@
 import { contextoAtual, criarLogger, type EscolaComPendentes, type JanelaLetiva, type JobReservado } from '@educa/nucleo'
-import type { Fila } from '@educa/shared'
+import type { QueueName } from '@educa/shared'
 import { describe, expect, it } from 'vitest'
 import { Despachante, type DependenciasDoDespachante } from './despachante.js'
 
@@ -8,7 +8,7 @@ const ESCOLA_B = '0190f5a0-0000-7000-8000-00000000000b'
 const ESCOLA_C = '0190f5a0-0000-7000-8000-00000000000c'
 
 interface Reserva {
-  fila: Fila
+  fila: QueueName
   escolaId: string | null
   rotinaDoSistema: boolean
   limite: number
@@ -37,10 +37,10 @@ function montar({
   urgentesDisponiveis = Number.POSITIVE_INFINITY,
 }: {
   pendentes: EscolaComPendentes[]
-  livres?: (fila: Fila, escolaId: string | null, limite: number) => number
+  livres?: (fila: QueueName, escolaId: string | null, limite: number) => number
   conceder?: (ids: readonly string[]) => readonly string[]
   publicacaoFalha?: boolean
-  vagasDaEscola?: Record<Fila, number>
+  vagasDaEscola?: Record<QueueName, number>
   lote?: number
   publicadosDaEscola?: string[]
   membrosDaVaga?: string[]
@@ -56,7 +56,7 @@ function montar({
   const liberados: string[] = []
   const consultasDePublicados: string[][] = []
   const mantidas: Array<{ escolaId: string | null; ids: readonly string[] }> = []
-  const tomadas: Array<{ fila: Fila; escolaId: string | null; limite: number; ids: readonly string[] }> = []
+  const tomadas: Array<{ fila: QueueName; escolaId: string | null; limite: number; ids: readonly string[] }> = []
   let sequencia = 0
 
   const repositorio: DependenciasDoDespachante['repositorio'] = {
@@ -65,7 +65,7 @@ function montar({
       consultasDePublicados.push([...ids])
       return Promise.resolve(publicadosDaEscola)
     },
-    reservarDaEscola: (fila: Fila, limite: number, opcoes?: { soUrgentes?: boolean }): Promise<JobReservado[]> => {
+    reservarDaEscola: (fila: QueueName, limite: number, opcoes?: { soUrgentes?: boolean }): Promise<JobReservado[]> => {
       const contexto = contextoAtual()
       const escolaId = contexto?.escolaId ?? null
       const soUrgentes = opcoes?.soUrgentes === true

@@ -1,5 +1,5 @@
 import {
-  CodigoDeErro,
+  ErrorCode,
   nomeDaSerie,
   TAMANHO_MAXIMO_NOME_DISCIPLINA,
   TAMANHO_MAXIMO_NOME_TURMA,
@@ -422,8 +422,8 @@ export default function Estrutura() {
           }}
           aoTerminar={recarregar}
           textosDaFalha={{
-            [CodigoDeErro.CONFLITO]: 'Esta disciplina não pode sair: há professor alocado nela, também em alocação já encerrada. A lista foi atualizada.',
-            [CodigoDeErro.NAO_ENCONTRADO]: 'Esta disciplina já não existe. A lista foi atualizada.',
+            [ErrorCode.CONFLITO]: 'Esta disciplina não pode sair: há professor alocado nela, também em alocação já encerrada. A lista foi atualizada.',
+            [ErrorCode.NAO_ENCONTRADO]: 'Esta disciplina já não existe. A lista foi atualizada.',
           }}
           focoDeReserva={() => tituloDasDisciplinas.current?.focus()}
         />
@@ -448,9 +448,9 @@ export default function Estrutura() {
           }}
           aoTerminar={recarregar}
           textosDaFalha={{
-            [CodigoDeErro.CONFLITO]:
+            [ErrorCode.CONFLITO]:
               'Esta turma não pode sair: ela ainda tem nomes na lista, professor alocado, pedido de aluno ou acesso da turma em vigor. Os nomes livres saem pela lista de nomes da turma; a alocação, o pedido e o acesso não se desfazem por esta tela. A lista foi atualizada.',
-            [CodigoDeErro.NAO_ENCONTRADO]: 'Esta turma já não existe. A lista foi atualizada.',
+            [ErrorCode.NAO_ENCONTRADO]: 'Esta turma já não existe. A lista foi atualizada.',
           }}
           focoDeReserva={() => tituloDasTurmas.current?.focus()}
         />
@@ -570,8 +570,8 @@ function NovaTurma({ anoLetivo, series, aoFechar, aoCriar, recarregar }: PropsDe
 
   const falha = mutacao.isError
     ? textoDaFalha(mutacao.error, {
-        [CodigoDeErro.CONFLITO]: 'Já existe uma turma com este nome neste ano letivo.',
-        [CodigoDeErro.NAO_ENCONTRADO]: 'A série ou o ano letivo mudou enquanto você preenchia. A tela foi atualizada: confira e tente de novo.',
+        [ErrorCode.CONFLITO]: 'Já existe uma turma com este nome neste ano letivo.',
+        [ErrorCode.NAO_ENCONTRADO]: 'A série ou o ano letivo mudou enquanto você preenchia. A tela foi atualizada: confira e tente de novo.',
       })
     : undefined
 
@@ -663,8 +663,8 @@ function Renomear({ titulo, rotulo, atual, maximo, renomear, conflito, aoFechar,
     },
     onError: recarregar,
   })
-  const conflitou = mutacao.isError && listaMudou(mutacao.error, [CodigoDeErro.CONFLITO])
-  const sumiu = mutacao.isError && listaMudou(mutacao.error, [CodigoDeErro.NAO_ENCONTRADO])
+  const conflitou = mutacao.isError && listaMudou(mutacao.error, [ErrorCode.CONFLITO])
+  const sumiu = mutacao.isError && listaMudou(mutacao.error, [ErrorCode.NAO_ENCONTRADO])
   // O nome já é de outro item: o erro fica no campo, e o foco volta para ele, para a pessoa trocar o nome ali mesmo.
   useEffect(() => {
     if (conflitou) campo.current?.focus()
@@ -693,7 +693,7 @@ function Renomear({ titulo, rotulo, atual, maximo, renomear, conflito, aoFechar,
       falha={
         mutacao.isError && !conflitou
           ? textoDaFalha(mutacao.error, {
-              [CodigoDeErro.NAO_ENCONTRADO]: 'Este item já não existe. A lista foi atualizada.',
+              [ErrorCode.NAO_ENCONTRADO]: 'Este item já não existe. A lista foi atualizada.',
             })
           : undefined
       }

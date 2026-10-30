@@ -1,5 +1,5 @@
 import { escola, exigirAnoEmCurso, exigirEscolaDoContexto, serie, sessaoDaRequisicao, turma, vinculo, type Banco, type TransacaoBanco } from '@educa/nucleo'
-import type { RespostaMinhaTurma } from '@educa/shared'
+import type { MinhaTurmaResponse } from '@educa/shared'
 import { and, desc, eq } from 'drizzle-orm'
 
 /**
@@ -17,7 +17,7 @@ export class MinhaTurmaRepository {
    * A turma do vínculo de aluno confirmado do usuário do contexto no ano em curso, ou `undefined`. Com mais de um (a
    * transferência de turma chega no F2), a do vínculo mais novo.
    */
-  async daSessao(): Promise<RespostaMinhaTurma | undefined> {
+  async daSessao(): Promise<MinhaTurmaResponse | undefined> {
     const escolaId = exigirEscolaDoContexto()
     const [linha] = await this.banco
       .select({ escolaNome: escola.nome, turmaId: turma.id, turmaNome: turma.nome, serieId: serie.id, etapa: serie.etapa, ano: serie.ano })

@@ -1,11 +1,11 @@
 import {
-  esquemaRespostaAtividadeEnviada,
-  esquemaRespostaMeuDiagnostico,
-  esquemaRespostaMinhasAtividades,
-  esquemaRespostaProva,
-  esquemaRespostaQuestaoSalva,
-  type RespostaAtividadeEnviada,
-  type RespostaQuestaoSalva,
+  atividadeEnviadaResponseSchema,
+  meuDiagnosticoResponseSchema,
+  minhasAtividadesResponseSchema,
+  provaResponseSchema,
+  questaoSalvaResponseSchema,
+  type AtividadeEnviadaResponse,
+  type QuestaoSalvaResponse,
 } from '@educa/shared'
 import { infiniteQueryOptions, queryOptions } from '@tanstack/react-query'
 import { CHAVE_DA_PROVA, CHAVE_DAS_MINHAS_ATIVIDADES, CHAVE_DO_MEU_DIAGNOSTICO } from './chaves-do-aluno'
@@ -28,7 +28,7 @@ function caminhoDaAtividade(atividadeAplicadaId: string): string {
 export const consultaMinhasAtividades = infiniteQueryOptions({
   queryKey: CHAVE_DAS_MINHAS_ATIVIDADES,
   queryFn: ({ pageParam, signal }) =>
-    buscarComSessao(pageParam === undefined ? CAMINHO_DAS_ATIVIDADES : `${CAMINHO_DAS_ATIVIDADES}?pagina=${encodeURIComponent(pageParam)}`, esquemaRespostaMinhasAtividades, signal),
+    buscarComSessao(pageParam === undefined ? CAMINHO_DAS_ATIVIDADES : `${CAMINHO_DAS_ATIVIDADES}?pagina=${encodeURIComponent(pageParam)}`, minhasAtividadesResponseSchema, signal),
   initialPageParam: undefined as string | undefined,
   getNextPageParam: (ultima) => ultima.proxima,
 })
@@ -42,7 +42,7 @@ export const consultaMinhasAtividades = infiniteQueryOptions({
 export function consultaProva(atividadeAplicadaId: string) {
   return queryOptions({
     queryKey: [...CHAVE_DA_PROVA, atividadeAplicadaId],
-    queryFn: ({ signal }) => buscarComSessao(`${caminhoDaAtividade(atividadeAplicadaId)}/prova`, esquemaRespostaProva, signal),
+    queryFn: ({ signal }) => buscarComSessao(`${caminhoDaAtividade(atividadeAplicadaId)}/prova`, provaResponseSchema, signal),
     staleTime: Number.POSITIVE_INFINITY,
   })
 }
@@ -55,7 +55,7 @@ export function consultaProva(atividadeAplicadaId: string) {
 export function consultaMeuDiagnostico(atividadeAplicadaId: string) {
   return queryOptions({
     queryKey: [...CHAVE_DO_MEU_DIAGNOSTICO, atividadeAplicadaId],
-    queryFn: ({ signal }) => buscarComSessao(`${caminhoDaAtividade(atividadeAplicadaId)}/meu-diagnostico`, esquemaRespostaMeuDiagnostico, signal),
+    queryFn: ({ signal }) => buscarComSessao(`${caminhoDaAtividade(atividadeAplicadaId)}/meu-diagnostico`, meuDiagnosticoResponseSchema, signal),
     staleTime: 0,
   })
 }
@@ -65,11 +65,11 @@ export function consultaMeuDiagnostico(atividadeAplicadaId: string) {
  * idempotente (regra 80, item 6): mandar a mesma escolha de novo, quando a rede volta, não muda nada no servidor, e a de
  * `sequencia` menor que a gravada perde: a resposta traz o que ficou gravado, e a fila não reenvia (RF21).
  */
-export function responderQuestao(atividadeAplicadaId: string, questao: number, alternativa: number, sequencia: number): Promise<RespostaQuestaoSalva> {
-  return chamarComSessao(`${caminhoDaAtividade(atividadeAplicadaId)}/respostas/${String(questao)}`, esquemaRespostaQuestaoSalva, { metodo: 'PUT', corpo: { alternativa, sequencia } })
+export function responderQuestao(atividadeAplicadaId: string, questao: number, alternativa: number, sequencia: number): Promise<QuestaoSalvaResponse> {
+  return chamarComSessao(`${caminhoDaAtividade(atividadeAplicadaId)}/respostas/${String(questao)}`, questaoSalvaResponseSchema, { metodo: 'PUT', corpo: { alternativa, sequencia } })
 }
 
 /** `POST /v1/atividades-aplicadas/:id/enviar`: corpo vazio e estrito. Enviar de novo devolve o mesmo. */
-export function enviarAtividade(atividadeAplicadaId: string): Promise<RespostaAtividadeEnviada> {
-  return chamarComSessao(`${caminhoDaAtividade(atividadeAplicadaId)}/enviar`, esquemaRespostaAtividadeEnviada, { metodo: 'POST', corpo: {} })
+export function enviarAtividade(atividadeAplicadaId: string): Promise<AtividadeEnviadaResponse> {
+  return chamarComSessao(`${caminhoDaAtividade(atividadeAplicadaId)}/enviar`, atividadeEnviadaResponseSchema, { metodo: 'POST', corpo: {} })
 }

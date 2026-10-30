@@ -1,5 +1,5 @@
 import { ErroDeDominio, RegistroDeAuditoria, sessaoDaRequisicao, type Banco } from '@educa/nucleo'
-import { alcanceDe, CodigoDeErro, esquemaRespostaDesempenhoDaTurma, MAXIMO_DE_HABILIDADES_NO_DESEMPENHO, type ConsultaDesempenhoDaTurma, type RespostaDesempenhoDaTurma } from '@educa/shared'
+import { alcanceDe, ErrorCode, desempenhoDaTurmaResponseSchema, MAXIMO_DE_HABILIDADES_NO_DESEMPENHO, type DesempenhoDaTurmaQuery, type DesempenhoDaTurmaResponse } from '@educa/shared'
 import { DesempenhoRepository, type DisciplinasDaLeitura } from './desempenho.repository.js'
 
 const registro = new RegistroDeAuditoria()
@@ -25,21 +25,21 @@ interface Soma {
 export class DesempenhoService {
   constructor(private readonly banco: Banco) {}
 
-  async ler(turmaId: string, { finalidade }: ConsultaDesempenhoDaTurma): Promise<RespostaDesempenhoDaTurma> {
+  async ler(turmaId: string, { finalidade }: DesempenhoDaTurmaQuery): Promise<DesempenhoDaTurmaResponse> {
     const alcance = alcanceDe(sessaoDaRequisicao().papel, 'desempenho_da_turma', 'ler')
     const nominalAuditado = alcance === 'nominal_auditado'
-    if (!nominalAuditado && alcance !== 'turma_vinculada') throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
-    if (nominalAuditado && finalidade === undefined) throw new ErroDeDominio(CodigoDeErro.ENTRADA_INVALIDA)
+    if (!nominalAuditado && alcance !== 'turma_vinculada') throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+    if (nominalAuditado && finalidade === undefined) throw new ErroDeDominio(ErrorCode.ENTRADA_INVALIDA)
 
     const resposta = await this.banco.transaction(async (tx) => {
       const desempenho = new DesempenhoRepository(tx)
       let disciplinas: DisciplinasDaLeitura
       if (nominalAuditado) {
-        if (!(await desempenho.turmaDaEscola(turmaId))) throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
+        if (!(await desempenho.turmaDaEscola(turmaId))) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
         disciplinas = 'todas'
       } else {
         disciplinas = await desempenho.disciplinasDaProfessora(turmaId)
-        if (disciplinas.length === 0) throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
+        if (disciplinas.length === 0) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
       }
 
       const lotesAprovados = await desempenho.lotesAprovados(turmaId, disciplinas)
@@ -83,6 +83,6 @@ export class DesempenhoService {
       }
       return montada
     })
-    return esquemaRespostaDesempenhoDaTurma.parse(resposta)
+    return desempenhoDaTurmaResponseSchema.parse(resposta)
   }
 }

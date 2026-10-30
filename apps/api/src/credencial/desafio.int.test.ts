@@ -1,5 +1,5 @@
 import { criarClienteRedisDaApi, criarClienteRedisDaFila, ErroDeDominio } from '@educa/nucleo'
-import { CodigoDeErro } from '@educa/shared'
+import { ErrorCode } from '@educa/shared'
 import { Logger } from '@nestjs/common'
 import type { Redis } from 'ioredis'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
@@ -43,7 +43,7 @@ describe('ConsumoDeDesafio: o jti vale uma vez só, no Redis de fila', () => {
     expect(resultados.filter((resultado) => resultado.status === 'fulfilled')).toHaveLength(1)
     const [recusa] = resultados.flatMap((resultado) => (resultado.status === 'rejected' ? [resultado.reason as unknown] : []))
     expect(recusa).toBeInstanceOf(ErroDeDominio)
-    expect(recusa).toMatchObject({ codigo: CodigoDeErro.NAO_AUTENTICADO })
+    expect(recusa).toMatchObject({ codigo: ErrorCode.NAO_AUTENTICADO })
     // A marca vence com o desafio: não fica no Redis depois de 5 min.
     const vida = await cliente.pttl(`${PREFIXO_DESAFIO_USADO}${desafio.jti}`)
     expect(vida).toBeGreaterThan(0)
@@ -55,8 +55,8 @@ describe('ConsumoDeDesafio: o jti vale uma vez só, no Redis de fila', () => {
     try {
       const desafio = await verificarDesafio(await new EmissorDeDesafio(CHAVE).emitir({ contaId: CONTA, etapa: 'escolher', mfaCumprido: false }), CHAVE, ['escolher'])
       const consumo = new ConsumoDeDesafio(fora)
-      await expect(consumo.consumir(desafio)).rejects.toMatchObject({ codigo: CodigoDeErro.NAO_AUTENTICADO })
-      await expect(consumo.conferirLivre(desafio)).rejects.toMatchObject({ codigo: CodigoDeErro.NAO_AUTENTICADO })
+      await expect(consumo.consumir(desafio)).rejects.toMatchObject({ codigo: ErrorCode.NAO_AUTENTICADO })
+      await expect(consumo.conferirLivre(desafio)).rejects.toMatchObject({ codigo: ErrorCode.NAO_AUTENTICADO })
       // A recusa pelo Redis entra no sinal do seguro (15.5).
       expect(consumo.proporcaoDoSeguro).toBe(1)
     } finally {
@@ -76,8 +76,8 @@ describe('ConsumoDeDesafio: o jti vale uma vez só, no Redis de fila', () => {
       avisos.mockClear()
 
       const travado = await travarRedis(URL_REDIS_FILA, 3_000)
-      await expect(consumo.conferirLivre(noTravamento)).rejects.toMatchObject({ codigo: CodigoDeErro.NAO_AUTENTICADO })
-      await expect(consumo.consumir(noTravamento)).rejects.toMatchObject({ codigo: CodigoDeErro.NAO_AUTENTICADO })
+      await expect(consumo.conferirLivre(noTravamento)).rejects.toMatchObject({ codigo: ErrorCode.NAO_AUTENTICADO })
+      await expect(consumo.consumir(noTravamento)).rejects.toMatchObject({ codigo: ErrorCode.NAO_AUTENTICADO })
       expect(producao.status).toBe('ready')
       expect(consumo.proporcaoDoSeguro).toBe(1)
       // Uma linha só para as duas recusas, e só o evento: nada do desafio, da conta ou da pessoa.
@@ -93,7 +93,7 @@ describe('ConsumoDeDesafio: o jti vale uma vez só, no Redis de fila', () => {
           async () =>
             consumo.consumir(await emitir()).then(
               () => 'aceito',
-              (erro: unknown) => (erro instanceof ErroDeDominio && erro.codigo === CodigoDeErro.NAO_AUTENTICADO ? 'recusado' : `outra recusa: ${String(erro)}`),
+              (erro: unknown) => (erro instanceof ErroDeDominio && erro.codigo === ErrorCode.NAO_AUTENTICADO ? 'recusado' : `outra recusa: ${String(erro)}`),
             ),
           { timeout: 5_000, interval: 100 },
         )

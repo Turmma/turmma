@@ -1,5 +1,5 @@
 import { IdPipe, Permite, ZodValidationPipe } from '@educa/nucleo'
-import { esquemaPedidoRedefinirMfa, type PedidoRedefinirMfa } from '@educa/shared'
+import { redefinirMfaRequestSchema, type RedefinirMfaRequest } from '@educa/shared'
 import { Body, Controller, HttpCode, HttpStatus, Param, Post } from '@nestjs/common'
 import { RedefinicaoDeMfa } from './redefinicao-de-mfa.js'
 
@@ -18,7 +18,7 @@ export class RedefinirMfaController {
   @HttpCode(HttpStatus.ACCEPTED)
   async redefinir(
     @Param('id', new IdPipe({ invalidAsUndefined: true })) alvo: string | undefined,
-    @Body(new ZodValidationPipe(esquemaPedidoRedefinirMfa)) pedido: PedidoRedefinirMfa,
+    @Body(new ZodValidationPipe(redefinirMfaRequestSchema)) pedido: RedefinirMfaRequest,
   ): Promise<void> {
     if (alvo === undefined) return
     await this.redefinicao.pelaCoordenacao(alvo, pedido.finalidade)

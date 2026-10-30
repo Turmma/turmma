@@ -1,5 +1,5 @@
 import { METRICAS } from '@educa/nucleo'
-import { CodigoDeErro, MENSAGENS_DE_ERRO } from '@educa/shared'
+import { ErrorCode, MENSAGENS_DE_ERRO } from '@educa/shared'
 import type { Redis } from 'ioredis'
 import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -109,13 +109,13 @@ describe('POST /v1/sessao/matricula: o aluno entra pelo endereço da escola com 
 
   function esperarNaoAutenticado(resposta: Resposta): void {
     expect(resposta.status).toBe(401)
-    expect(resposta.corpo).toEqual({ erro: { codigo: CodigoDeErro.NAO_AUTENTICADO, mensagem: MENSAGENS_DE_ERRO.NAO_AUTENTICADO, requisicaoId: expect.stringMatching(UUID) } })
+    expect(resposta.corpo).toEqual({ erro: { codigo: ErrorCode.NAO_AUTENTICADO, mensagem: MENSAGENS_DE_ERRO.NAO_AUTENTICADO, requisicaoId: expect.stringMatching(UUID) } })
     expect(resposta.setCookie).toEqual([])
   }
 
   function esperarSegurada(resposta: Resposta, retryAfter = 30): void {
     expect(resposta.status).toBe(429)
-    expect(resposta.corpo).toEqual({ erro: { codigo: CodigoDeErro.CONTA_SEGURADA, mensagem: MENSAGENS_DE_ERRO.CONTA_SEGURADA, requisicaoId: expect.stringMatching(UUID) } })
+    expect(resposta.corpo).toEqual({ erro: { codigo: ErrorCode.CONTA_SEGURADA, mensagem: MENSAGENS_DE_ERRO.CONTA_SEGURADA, requisicaoId: expect.stringMatching(UUID) } })
     expect(Number(resposta.retryAfter)).toBeGreaterThan(retryAfter - 2)
     expect(Number(resposta.retryAfter)).toBeLessThanOrEqual(retryAfter)
     expect(resposta.setCookie).toEqual([])
@@ -302,20 +302,20 @@ describe('POST /v1/sessao/matricula: o aluno entra pelo endereço da escola com 
     const doEnzo: Resposta[] = []
     for (let tentativa = 1; tentativa <= 10; tentativa++) doEnzo.push(await comSenha(slug, matriculaDoEnzo, SENHA_ERRADA))
     for (const resposta of doEnzo.slice(0, 4)) esperarNaoAutenticado(resposta)
-    for (const resposta of doEnzo.slice(4)) expect(resposta.corpo.erro?.codigo).toBe(CodigoDeErro.CONTA_SEGURADA)
+    for (const resposta of doEnzo.slice(4)) expect(resposta.corpo.erro?.codigo).toBe(ErrorCode.CONTA_SEGURADA)
 
     const inicio = performance.now()
     const respostas: Resposta[] = []
     for (let onda = 0; onda < matriculas.length; onda += LOGINS_POR_ONDA) {
       // Como a web: o 503 do semáforo do hash (14.0) é atraso, e o pedido volta depois do `Retry-After`.
       const tentativas = await Promise.all(matriculas.slice(onda, onda + LOGINS_POR_ONDA).map((matricula) => comoAWebNo503(() => comSenha(slug, matricula))))
-      for (const { recusas } of tentativas) for (const recusa of recusas) expect(recusa.corpo.erro?.codigo).toBe(CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO)
+      for (const { recusas } of tentativas) for (const recusa of recusas) expect(recusa.corpo.erro?.codigo).toBe(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO)
       respostas.push(...tentativas.map(({ resposta }) => resposta))
     }
     expect(performance.now() - inicio).toBeLessThan(60_000)
     const [doEnzoNaRajada, ...dosColegasNaRajada] = respostas
     expect(doEnzoNaRajada?.status).toBe(429)
-    expect(doEnzoNaRajada?.corpo.erro?.codigo).toBe(CodigoDeErro.CONTA_SEGURADA)
+    expect(doEnzoNaRajada?.corpo.erro?.codigo).toBe(ErrorCode.CONTA_SEGURADA)
     expect(dosColegasNaRajada.map((resposta) => resposta.status)).toEqual(dosColegas.map(() => 200))
     const { rows } = await bancada.pool.query<{ usuario_id: string }>("select usuario_id from registro_acesso where escola_id = $1 and evento = 'login' and host(ip) = '127.0.0.1'", [escolaId])
     expect(new Set(rows.map((linha) => linha.usuario_id))).toEqual(new Set(ids.slice(1)))
@@ -329,7 +329,7 @@ describe('POST /v1/sessao/matricula: o aluno entra pelo endereço da escola com 
     expect(respostas.filter((resposta) => resposta.status === 401)).toHaveLength(4)
     const seguradas = respostas.filter((resposta) => resposta.status === 429)
     expect(seguradas).toHaveLength(6)
-    for (const resposta of seguradas) expect(resposta.corpo.erro?.codigo).toBe(CodigoDeErro.CONTA_SEGURADA)
+    for (const resposta of seguradas) expect(resposta.corpo.erro?.codigo).toBe(ErrorCode.CONTA_SEGURADA)
   })
 
   it('borda: quem erra a senha em outro navegador segura só o contador dele; o aluno com o educa_dispositivo desta escola e matrícula continua entrando, e o cookie de outra escola não vale', async () => {
@@ -437,7 +437,7 @@ describe('POST /v1/sessao/matricula: o aluno entra pelo endereço da escola com 
 
     const vencida = await chamar(api.url, 'GET', '/v1/eu', String(deA.corpo['token']))
     expect(vencida.status).toBe(401)
-    expect(vencida.corpo.erro?.codigo).toBe(CodigoDeErro.NAO_AUTENTICADO)
+    expect(vencida.corpo.erro?.codigo).toBe(ErrorCode.NAO_AUTENTICADO)
     expect((await chamar(api.url, 'GET', '/v1/eu', String(deB.corpo['token']))).status).toBe(200)
   })
 
@@ -454,7 +454,7 @@ describe('POST /v1/sessao/matricula: o aluno entra pelo endereço da escola com 
     for (const caminho of [`/v1/turmas/${turma.turma}/alunos?finalidade=acompanhamento_pedagogico`, `/v1/turmas/${turma.turma}`, `/v1/turmas/${randomUUID()}/alunos`]) {
       const resposta = await chamar(api.url, 'GET', caminho, token)
       expect(resposta.status, caminho).toBe(404)
-      expect(resposta.corpo.erro?.codigo, caminho).toBe(CodigoDeErro.NAO_ENCONTRADO)
+      expect(resposta.corpo.erro?.codigo, caminho).toBe(ErrorCode.NAO_ENCONTRADO)
       expect(JSON.stringify(resposta.corpo), caminho).not.toContain('Aluno sintético')
     }
   })
@@ -470,7 +470,7 @@ describe('POST /v1/sessao/matricula: o aluno entra pelo endereço da escola com 
     ]) {
       const resposta = await entrar(corpo)
       expect(resposta.status).toBe(400)
-      expect(resposta.corpo.erro?.codigo).toBe(CodigoDeErro.ENTRADA_INVALIDA)
+      expect(resposta.corpo.erro?.codigo).toBe(ErrorCode.ENTRADA_INVALIDA)
     }
     expect(verificacoes).not.toHaveBeenCalled()
   })
@@ -489,7 +489,7 @@ describe('POST /v1/sessao/matricula: o aluno entra pelo endereço da escola com 
     for (const corpo of invalidos) {
       const resposta = await entrar(corpo)
       expect(resposta.status).toBe(400)
-      expect(resposta.corpo.erro?.codigo).toBe(CodigoDeErro.ENTRADA_INVALIDA)
+      expect(resposta.corpo.erro?.codigo).toBe(ErrorCode.ENTRADA_INVALIDA)
       expect(resposta.setCookie).toEqual([])
     }
     const { rows } = await bancada.pool.query<{ total: string }>('select count(*) as total from registro_acesso where escola_id = $1', [escolaId])

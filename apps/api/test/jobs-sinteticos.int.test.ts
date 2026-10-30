@@ -1,6 +1,6 @@
 import 'reflect-metadata'
 import { criarPool, executarNoContexto, type PoolBanco } from '@educa/nucleo'
-import { CodigoDeErro, CodigoDeFalhaDeJob, MENSAGENS_DE_ERRO, TIPO_JOB_SINTETICO } from '@educa/shared'
+import { ErrorCode, JobFailureCode, MENSAGENS_DE_ERRO, TIPO_JOB_SINTETICO } from '@educa/shared'
 import type { INestApplication } from '@nestjs/common'
 import { NestFactory } from '@nestjs/core'
 import { randomUUID } from 'node:crypto'
@@ -151,7 +151,7 @@ describe('POST e GET /v1/sistema/jobs-sinteticos', () => {
       // O que o worker grava na última tentativa, pelo mesmo repository e no escopo da escola do job.
       await bancada.reservar(ESCOLA_A)
       await executarNoContexto({ requisicaoId: randomUUID(), escolaId: ESCOLA_A }, () =>
-        bancada.registro.registrarFalha(jobId, CodigoDeFalhaDeJob.FALHA_SINTETICA),
+        bancada.registro.registrarFalha(jobId, JobFailureCode.FALHA_SINTETICA),
       )
     } finally {
       await bancada.fechar()
@@ -161,7 +161,7 @@ describe('POST e GET /v1/sistema/jobs-sinteticos', () => {
       estado: 'falhou',
       criadoEm: expect.any(String),
       concluidoEm: expect.any(String),
-      codigoFalha: CodigoDeFalhaDeJob.FALHA_SINTETICA,
+      codigoFalha: JobFailureCode.FALHA_SINTETICA,
     })
   })
 
@@ -181,7 +181,7 @@ describe('POST e GET /v1/sistema/jobs-sinteticos', () => {
       const antes = await contarJobs(ESCOLA_A)
       const resposta = await request(app.getHttpServer()).post(ROTA).send({ ...pedidoValido })
       expect(resposta.status).toBe(401)
-      expect(resposta.body.erro.codigo).toBe(CodigoDeErro.NAO_AUTENTICADO)
+      expect(resposta.body.erro.codigo).toBe(ErrorCode.NAO_AUTENTICADO)
       expect(await contarJobs(ESCOLA_A)).toBe(antes)
     })
 
@@ -189,7 +189,7 @@ describe('POST e GET /v1/sistema/jobs-sinteticos', () => {
       const antes = await contarJobs(ESCOLA_A)
       const resposta = await request(app.getHttpServer()).post(ROTA).send({ ...pedidoValido, escolaId: ESCOLA_NO_CORPO })
       expect(resposta.status).toBe(401)
-      expect(resposta.body.erro.codigo).toBe(CodigoDeErro.NAO_AUTENTICADO)
+      expect(resposta.body.erro.codigo).toBe(ErrorCode.NAO_AUTENTICADO)
       expect(await contarJobs(ESCOLA_A)).toBe(antes)
     })
 
@@ -204,7 +204,7 @@ describe('POST e GET /v1/sistema/jobs-sinteticos', () => {
       const antes = { a: await contarJobs(ESCOLA_A), b: await contarJobs(ESCOLA_B) }
       const resposta = await request(app.getHttpServer()).post(ROTA).set('Authorization', `Bearer ${tokenA}`).send(corpo)
       expect(resposta.status).toBe(400)
-      expect(semRequisicaoId(resposta.body)).toEqual({ codigo: CodigoDeErro.ENTRADA_INVALIDA, mensagem: MENSAGENS_DE_ERRO.ENTRADA_INVALIDA })
+      expect(semRequisicaoId(resposta.body)).toEqual({ codigo: ErrorCode.ENTRADA_INVALIDA, mensagem: MENSAGENS_DE_ERRO.ENTRADA_INVALIDA })
       expect({ a: await contarJobs(ESCOLA_A), b: await contarJobs(ESCOLA_B) }).toEqual(antes)
     })
 
@@ -245,7 +245,7 @@ describe('POST e GET /v1/sistema/jobs-sinteticos', () => {
 
       for (const resposta of [deOutraEscola, inexistente, foraDoFormato, emMaiusculas, escolaNaQuery]) {
         expect(resposta.status).toBe(404)
-        expect(semRequisicaoId(resposta.body)).toEqual({ codigo: CodigoDeErro.NAO_ENCONTRADO, mensagem: MENSAGENS_DE_ERRO.NAO_ENCONTRADO })
+        expect(semRequisicaoId(resposta.body)).toEqual({ codigo: ErrorCode.NAO_ENCONTRADO, mensagem: MENSAGENS_DE_ERRO.NAO_ENCONTRADO })
         expect(Object.keys(resposta.headers).sort()).toEqual(Object.keys(inexistente.headers).sort())
       }
     })

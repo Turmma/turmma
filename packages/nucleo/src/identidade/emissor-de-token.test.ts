@@ -1,4 +1,4 @@
-import { CodigoDeErro } from '@educa/shared'
+import { ErrorCode } from '@educa/shared'
 import { decodeJwt, decodeProtectedHeader } from 'jose'
 import { describe, expect, it } from 'vitest'
 import { EMISSOR_TOKEN, type ConfiguracaoIdentidade } from '../config/validar-config.js'
@@ -48,6 +48,6 @@ describe('EmissorDeToken', () => {
   it('passados os 10 min, o token é recusado', async () => {
     const onzeMinutosAtras = new Date(Date.now() - 11 * 60_000)
     const { token } = await new EmissorDeToken(CHAVE, { agora: () => onzeMinutosAtras }).emitir(pedido)
-    await expect(verificarToken(token, config)).rejects.toMatchObject({ codigo: CodigoDeErro.NAO_AUTENTICADO })
+    await expect(verificarToken(token, config)).rejects.toMatchObject({ codigo: ErrorCode.NAO_AUTENTICADO })
   })
 })

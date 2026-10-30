@@ -1,4 +1,4 @@
-import { CodigoDeErro, esquemaRespostaListaDaTurma, esquemaRespostaPreviaDaLista, MENSAGENS_DE_ERRO } from '@educa/shared'
+import { ErrorCode, listaDaTurmaResponseSchema, previaDaListaResponseSchema, MENSAGENS_DE_ERRO } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
@@ -34,9 +34,9 @@ const nome = (): string => `${PREFIXO} Aluno ${randomUUID().slice(0, 8)}`
 /** O texto da lista, uma linha `nome;matrícula` por aluno. */
 const texto = (linhas: ReadonlyArray<readonly [string, string]>): string => linhas.map(([quem, qual]) => `${quem};${qual}`).join('\n')
 
-const NAO_ENCONTRADO = { status: 404, corpo: { erro: { codigo: CodigoDeErro.NAO_ENCONTRADO, mensagem: MENSAGENS_DE_ERRO.NAO_ENCONTRADO } } }
-const CONFLITO = { status: 409, corpo: { erro: { codigo: CodigoDeErro.CONFLITO, mensagem: MENSAGENS_DE_ERRO.CONFLITO } } }
-const ENTRADA_INVALIDA = { status: 400, corpo: { erro: { codigo: CodigoDeErro.ENTRADA_INVALIDA, mensagem: MENSAGENS_DE_ERRO.ENTRADA_INVALIDA } } }
+const NAO_ENCONTRADO = { status: 404, corpo: { erro: { codigo: ErrorCode.NAO_ENCONTRADO, mensagem: MENSAGENS_DE_ERRO.NAO_ENCONTRADO } } }
+const CONFLITO = { status: 409, corpo: { erro: { codigo: ErrorCode.CONFLITO, mensagem: MENSAGENS_DE_ERRO.CONFLITO } } }
+const ENTRADA_INVALIDA = { status: 400, corpo: { erro: { codigo: ErrorCode.ENTRADA_INVALIDA, mensagem: MENSAGENS_DE_ERRO.ENTRADA_INVALIDA } } }
 
 /** A resposta sem o `requisicaoId`, que muda a cada chamada: o resto precisa ser idêntico. */
 function semRequisicao(resposta: RespostaHttp): unknown {
@@ -176,7 +176,7 @@ describe('lista de nomes da turma (A1, tarefa 2.0): prévia, gravação, avulso,
 
       const lida = await previa(e, e.t1, texto(linhas))
       expect(lida.status).toBe(200)
-      expect(esquemaRespostaPreviaDaLista.parse(lida.corpo)).toEqual({
+      expect(previaDaListaResponseSchema.parse(lida.corpo)).toEqual({
         linhas: [
           { linha: 1, nome: b0[0], matricula: b0[1], resultado: 'entra' },
           { linha: 2, nome: '', matricula: semNome, resultado: 'erro', erro: 'sem_nome' },
@@ -438,7 +438,7 @@ describe('lista de nomes da turma (A1, tarefa 2.0): prévia, gravação, avulso,
 
         const lida = await previa(e, e.t1, lista)
         expect(lida.status, documento).toBe(200)
-        expect(esquemaRespostaPreviaDaLista.parse(lida.corpo), documento).toEqual({
+        expect(previaDaListaResponseSchema.parse(lida.corpo), documento).toEqual({
           linhas: [
             { linha: 1, nome: boa[0], matricula: boa[1], resultado: 'entra' },
             { linha: 2, nome: suspeita[0], matricula: documento, resultado: 'erro', erro: 'matricula_parece_documento' },
@@ -472,7 +472,7 @@ describe('lista de nomes da turma (A1, tarefa 2.0): prévia, gravação, avulso,
       ]
       const lida = await previa(e, e.t1, texto(linhas))
       expect(lida.status).toBe(200)
-      const resposta = esquemaRespostaPreviaDaLista.parse(lida.corpo)
+      const resposta = previaDaListaResponseSchema.parse(lida.corpo)
       expect(resposta.linhas.map((linha) => [linha.matricula, linha.resultado, linha.erro])).toEqual([
         [a, 'erro', 'matricula_parece_documento'],
         [b, 'erro', 'matricula_parece_documento'],
@@ -494,7 +494,7 @@ describe('lista de nomes da turma (A1, tarefa 2.0): prévia, gravação, avulso,
         [nome(), matricula()],
         [nome(), matricula()],
       ]
-      const lida = esquemaRespostaPreviaDaLista.parse((await previa(e, e.t1, texto(linhas))).corpo)
+      const lida = previaDaListaResponseSchema.parse((await previa(e, e.t1, texto(linhas))).corpo)
       expect(lida.comErro).toBe(0)
       await gravada(e, e.t1, linhas)
       expect((await avulso(e, e.t1, { nome: nome(), matricula: b })).status).toBe(201)
@@ -633,7 +633,7 @@ describe('lista de nomes da turma (A1, tarefa 2.0): prévia, gravação, avulso,
 
       const primeira = await ler(e, e.t1, `?finalidade=${FINALIDADE}&limite=2`)
       expect(primeira.status).toBe(200)
-      expect(esquemaRespostaListaDaTurma.parse(primeira.corpo)).toEqual({ itens: esperados.slice(0, 2), proxima: esperados[1]?.id })
+      expect(listaDaTurmaResponseSchema.parse(primeira.corpo)).toEqual({ itens: esperados.slice(0, 2), proxima: esperados[1]?.id })
       const segunda = await ler(e, e.t1, `?finalidade=${FINALIDADE}&limite=2&pagina=${String(primeira.corpo['proxima'])}`)
       expect(segunda.corpo).toEqual({ itens: esperados.slice(2) })
     })

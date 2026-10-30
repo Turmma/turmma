@@ -1,5 +1,5 @@
 import { ConfiguracaoInvalida, criarBanco, criarPool, ErroDeDominio, resumirErro, type Banco } from '@educa/nucleo'
-import { CodigoDeErro, PAPEIS_DE_USUARIO, type PapelDeUsuario } from '@educa/shared'
+import { ErrorCode, PAPEIS_DE_USUARIO, type PapelDeUsuario } from '@educa/shared'
 import { pathToFileURL } from 'node:url'
 import { parseArgs } from 'node:util'
 import { z } from 'zod'
@@ -90,11 +90,11 @@ export async function executarOpsSessaoSintetica(
       terminal.erro(`${erro.message}\n`)
       return 2
     }
-    if (erro instanceof ErroDeDominio && erro.codigo === CodigoDeErro.NAO_ENCONTRADO) {
-      terminal.erro(`${CodigoDeErro.NAO_ENCONTRADO}: escola não encontrada\n`)
+    if (erro instanceof ErroDeDominio && erro.codigo === ErrorCode.NAO_ENCONTRADO) {
+      terminal.erro(`${ErrorCode.NAO_ENCONTRADO}: escola não encontrada\n`)
       return 1
     }
-    terminal.erro(`${CodigoDeErro.ERRO_INTERNO}: ${JSON.stringify(resumirErro(erro))}\n`)
+    terminal.erro(`${ErrorCode.ERRO_INTERNO}: ${JSON.stringify(resumirErro(erro))}\n`)
     return 1
   }
 }

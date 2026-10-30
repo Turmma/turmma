@@ -1,5 +1,5 @@
 import { avisoEspacado, EMISSOR_TOKEN, ErroDeDominio, ProporcaoEmJanela, relogioDoSistema, TIPO_DESAFIO, type Relogio } from '@educa/nucleo'
-import { CodigoDeErro, ETAPAS_COM_DESAFIO, type EtapaComDesafio } from '@educa/shared'
+import { ErrorCode, ETAPAS_COM_DESAFIO, type EtapaComDesafio } from '@educa/shared'
 import { Logger } from '@nestjs/common'
 import type { Redis } from 'ioredis'
 import { errors, jwtVerify, SignJWT } from 'jose'
@@ -106,14 +106,14 @@ export async function verificarDesafio(desafio: string, chaveAssinatura: Uint8Ar
     })
     claims = verificado.payload
   } catch (erro) {
-    if (erro instanceof errors.JOSEError) throw new ErroDeDominio(CodigoDeErro.NAO_AUTENTICADO)
+    if (erro instanceof errors.JOSEError) throw new ErroDeDominio(ErrorCode.NAO_AUTENTICADO)
     throw erro
   }
   const resultado = esquemaClaims.safeParse(claims)
-  if (!resultado.success || !etapas.includes(resultado.data.etapa)) throw new ErroDeDominio(CodigoDeErro.NAO_AUTENTICADO)
+  if (!resultado.success || !etapas.includes(resultado.data.etapa)) throw new ErroDeDominio(ErrorCode.NAO_AUTENTICADO)
   const { jti, exp, conta_id: contaId, etapa, mfa_cumprido: mfaCumprido, convite_id: conviteId, usuario_id: destinoUsuarioId, origem_esc: origemEsc, origem_sid: origemSid } = resultado.data
   // A origem vem inteira ou não vem: metade dela não encerra sessão nenhuma.
-  if ((origemEsc === undefined) !== (origemSid === undefined)) throw new ErroDeDominio(CodigoDeErro.NAO_AUTENTICADO)
+  if ((origemEsc === undefined) !== (origemSid === undefined)) throw new ErroDeDominio(ErrorCode.NAO_AUTENTICADO)
   const convite = conviteId === undefined ? {} : { conviteId: conviteId.toLowerCase() }
   const destino = destinoUsuarioId === undefined ? {} : { destinoUsuarioId: destinoUsuarioId.toLowerCase() }
   const origem = origemEsc === undefined || origemSid === undefined ? {} : { origem: { escolaId: origemEsc.toLowerCase(), sessaoId: origemSid.toLowerCase() } }
@@ -166,7 +166,7 @@ export class ConsumoDeDesafio {
       throw this.#semRedis()
     }
     this.#proporcaoDoSeguro.registrar(false)
-    if (usado !== 0) throw new ErroDeDominio(CodigoDeErro.NAO_AUTENTICADO)
+    if (usado !== 0) throw new ErroDeDominio(ErrorCode.NAO_AUTENTICADO)
   }
 
   async consumir(desafio: Pick<DesafioVerificado, 'jti' | 'expiraEm'>): Promise<void> {
@@ -178,13 +178,13 @@ export class ConsumoDeDesafio {
       throw this.#semRedis()
     }
     this.#proporcaoDoSeguro.registrar(false)
-    if (marcado !== 'OK') throw new ErroDeDominio(CodigoDeErro.NAO_AUTENTICADO)
+    if (marcado !== 'OK') throw new ErroDeDominio(ErrorCode.NAO_AUTENTICADO)
   }
 
   /** A recusa porque o Redis de fila não respondeu: a mesma resposta ao cliente, com rastro para quem opera. */
   #semRedis(): ErroDeDominio {
     this.#proporcaoDoSeguro.registrar(true)
     this.#avisarSemRedis()
-    return new ErroDeDominio(CodigoDeErro.NAO_AUTENTICADO)
+    return new ErroDeDominio(ErrorCode.NAO_AUTENTICADO)
   }
 }

@@ -1,4 +1,4 @@
-import { CodigoDeErro } from '@educa/shared'
+import { ErrorCode } from '@educa/shared'
 import { Logger, type CanActivate, type ExecutionContext } from '@nestjs/common'
 import type { Reflector } from '@nestjs/core'
 import type { Histogram, Meter } from '@opentelemetry/api'
@@ -61,11 +61,11 @@ export class GuardaDeSessao implements CanActivate {
 
   async canActivate(execucao: ExecutionContext): Promise<boolean> {
     if (rotaSemSessao(this.reflector, execucao)) return true
-    if (execucao.getType() !== 'http') throw new ErroDeDominio(CodigoDeErro.NAO_AUTENTICADO)
+    if (execucao.getType() !== 'http') throw new ErroDeDominio(ErrorCode.NAO_AUTENTICADO)
 
     // Sem token verificado nesta requisição (guarda fora de ordem), falha fechada.
     const token = tokenDaRequisicao(execucao.switchToHttp().getRequest<object>())
-    if (token === undefined) throw new ErroDeDominio(CodigoDeErro.NAO_AUTENTICADO)
+    if (token === undefined) throw new ErroDeDominio(ErrorCode.NAO_AUTENTICADO)
 
     let linha: LinhaDaSessao | undefined
     const inicio = performance.now()
@@ -79,12 +79,12 @@ export class GuardaDeSessao implements CanActivate {
         if (erro instanceof Error) this.#logger.warn(erro)
         else this.#logger.warn('sessao.leitura_indisponivel')
       }
-      throw new ErroDeDominio(CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO, undefined, TENTE_DE_NOVO_PADRAO_SEGUNDOS)
+      throw new ErroDeDominio(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO, undefined, TENTE_DE_NOVO_PADRAO_SEGUNDOS)
     } finally {
       this.#duracaoDaLeitura?.record((performance.now() - inicio) / 1_000)
     }
     const sessao = avaliarSessao(token, linha)
-    if (sessao === undefined || linha === undefined) throw new ErroDeDominio(CodigoDeErro.NAO_AUTENTICADO)
+    if (sessao === undefined || linha === undefined) throw new ErroDeDominio(ErrorCode.NAO_AUTENTICADO)
     definirSessaoNoContexto(sessao)
     if (tokenDaUltimaRenovacao(token, linha)) {
       this.leitura.marcarAtualApresentado(token).catch(() => {

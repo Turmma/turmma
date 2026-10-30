@@ -1,5 +1,5 @@
 import type { Locator, Page, Request, Response, Route } from '@playwright/test'
-import { AVISO_DA_TROCA_RECUSADA } from '../packages/shared/src/erros/mensagens.ts'
+import { AVISO_DA_TROCA_RECUSADA } from '../packages/shared/src/errors/messages.ts'
 import {
   abrirNavegacao,
   abrirSeletorDeEscola,

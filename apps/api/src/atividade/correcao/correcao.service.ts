@@ -1,18 +1,18 @@
 import { ErroDeDominio, RegistroDeAuditoria, type Banco } from '@educa/nucleo'
 import {
-  CodigoDeErro,
-  esquemaConteudoDeAtividade,
-  esquemaDestaquesAbertos,
-  esquemaLoteApresentado,
-  esquemaRespostaCorrecaoDoLote,
-  esquemaRespostaDestaqueAberto,
-  esquemaRespostaLoteAprovado,
+  ErrorCode,
+  conteudoDeAtividadeSchema,
+  destaquesAbertosSchema,
+  loteApresentadoSchema,
+  correcaoDoLoteResponseSchema,
+  destaqueAbertoResponseSchema,
+  loteAprovadoResponseSchema,
   type DestaquesAbertos,
   type LoteApresentado,
   type QuestaoObjetiva,
-  type RespostaCorrecaoDoLote,
-  type RespostaDestaqueAberto,
-  type RespostaLoteAprovado,
+  type CorrecaoDoLoteResponse,
+  type DestaqueAbertoResponse,
+  type LoteAprovadoResponse,
 } from '@educa/shared'
 import type { RespostasDaTentativa } from './correcao-de-objetiva.js'
 import { CorrecaoRepository, type CorrecaoLida, type LoteLido, type ValidacaoLida } from './correcao.repository.js'
@@ -37,14 +37,14 @@ const destaqueParaATela = (lida: CorrecaoLida) => ({ ...correcaoDoAluno(lida), m
 function validacaoParaATela(lida: ValidacaoLida): unknown {
   return {
     id: lida.id,
-    apresentado: esquemaLoteApresentado.parse(lida.apresentado),
-    aberto: esquemaDestaquesAbertos.parse(lida.aberto),
+    apresentado: loteApresentadoSchema.parse(lida.apresentado),
+    aberto: destaquesAbertosSchema.parse(lida.aberto),
     confirmadaPor: lida.nomeDeQuemConfirmou === null ? null : { id: lida.confirmadaPor, nome: lida.nomeDeQuemConfirmou },
     confirmadaEm: lida.confirmadaEm.toISOString(),
   }
 }
 
-/** A entrega do lote, no formato comum das entregas (`esquemaEntrega`). */
+/** A entrega do lote, no formato comum das entregas (`entregaSchema`). */
 function entregaParaATela(lote: LoteLido): unknown {
   return {
     id: lote.entregaId,
@@ -92,21 +92,21 @@ export class CorrecaoService {
   ) {}
 
   async #montar(correcoes: CorrecaoRepository, lote: LoteLido): Promise<LoteMontado> {
-    const { questoes } = esquemaConteudoDeAtividade.parse(lote.conteudo)
+    const { questoes } = conteudoDeAtividadeSchema.parse(lote.conteudo)
     const doLote = await correcoes.correcoesDoLote(lote.entregaId)
     const respostas = await correcoes.respostasPorAluno(lote.atividadeAplicadaId)
     return { questoes, correcoes: doLote, apresentado: loteApresentado({ questoes, alunosDaTurma: lote.alunosDaTurma, correcoes: doLote, respostas }) }
   }
 
-  async ler(atividadeAplicadaId: string): Promise<RespostaCorrecaoDoLote> {
+  async ler(atividadeAplicadaId: string): Promise<CorrecaoDoLoteResponse> {
     const correcoes = new CorrecaoRepository(this.banco)
     const lote = await correcoes.loteDaAplicacao(atividadeAplicadaId)
-    if (lote === undefined) throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
+    if (lote === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
     const montado = await this.#montar(correcoes, lote)
     const validacao = await correcoes.validacao(lote.entregaId)
     const destaques = montado.correcoes.filter((correcao) => correcao.destaques.length > 0)
     const destaquesAbertos = destaques.filter((destaque) => destaque.destaqueAbertoEm !== null).length
-    const resposta = esquemaRespostaCorrecaoDoLote.parse({
+    const resposta = correcaoDoLoteResponseSchema.parse({
       atividadeAplicadaId: lote.atividadeAplicadaId,
       titulo: lote.titulo,
       entrega: { id: lote.entregaId, estado: lote.estado },
@@ -122,52 +122,52 @@ export class CorrecaoService {
     return resposta
   }
 
-  async abrirDestaque(atividadeAplicadaId: string, alunoId: string): Promise<RespostaDestaqueAberto> {
+  async abrirDestaque(atividadeAplicadaId: string, alunoId: string): Promise<DestaqueAbertoResponse> {
     const aberto = await this.banco.transaction(async (tx) => {
       const correcoes = new CorrecaoRepository(tx)
       const lote = await correcoes.loteDaAplicacao(atividadeAplicadaId, true)
-      if (lote === undefined) throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
+      if (lote === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
       let [destaque] = await correcoes.correcoesDoLote(lote.entregaId, alunoId)
       // O aluno sem correção neste lote e o que não é destaque respondem igual ao inexistente.
-      if (destaque === undefined || destaque.destaques.length === 0) throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
+      if (destaque === undefined || destaque.destaques.length === 0) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
       if (destaque.destaqueAbertoEm === null) {
         // Depois da decisão, nenhuma correção do lote muda: o que não foi aberto antes não se abre mais.
-        if (lote.estado !== 'pendente') throw new ErroDeDominio(CodigoDeErro.ENTREGA_JA_DECIDIDA)
+        if (lote.estado !== 'pendente') throw new ErroDeDominio(ErrorCode.ENTREGA_JA_DECIDIDA)
         if (await correcoes.abrirDestaque(lote.entregaId, alunoId)) {
           await registro.gravar(tx, 'correcao.destaque_aberto', { entidadeId: lote.entregaId, depois: { atividadeAplicadaId: lote.atividadeAplicadaId, alunoId, motivos: destaque.destaques } })
         }
         ;[destaque] = await correcoes.correcoesDoLote(lote.entregaId, alunoId)
-        if (destaque === undefined) throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
+        if (destaque === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
       }
-      const { questoes } = esquemaConteudoDeAtividade.parse(lote.conteudo)
+      const { questoes } = conteudoDeAtividadeSchema.parse(lote.conteudo)
       const respostas = (await correcoes.respostasPorAluno(lote.atividadeAplicadaId, alunoId)).get(alunoId) ?? new Map<number, number>()
       const historico = await correcoes.historicoAprovado([alunoId], lote.disciplinaId, lote.criadaEm)
       return { destaque, respostas: respostasCorrigidas(questoes, respostas), historico: historico.map(({ titulo, acertos, total }) => ({ titulo, acertos, total })) }
     })
-    return esquemaRespostaDestaqueAberto.parse({ ...aberto, destaque: destaqueParaATela(aberto.destaque) })
+    return destaqueAbertoResponseSchema.parse({ ...aberto, destaque: destaqueParaATela(aberto.destaque) })
   }
 
-  async aprovarLote(entregaId: string): Promise<RespostaLoteAprovado> {
+  async aprovarLote(entregaId: string): Promise<LoteAprovadoResponse> {
     // Lida antes da transação: a entrega não fica travada à espera do Redis.
     const marcaLida = await this.leitura.marcaLida(entregaId)
     const aprovado = await this.banco.transaction(async (tx) => {
       const correcoes = new CorrecaoRepository(tx)
       const lote = await correcoes.travarLote(entregaId)
-      if (lote === undefined) throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
-      if (lote.estado !== 'pendente') throw new ErroDeDominio(CodigoDeErro.ENTREGA_JA_DECIDIDA)
+      if (lote === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+      if (lote.estado !== 'pendente') throw new ErroDeDominio(ErrorCode.ENTREGA_JA_DECIDIDA)
 
       const montado = await this.#montar(correcoes, lote)
       // Validação efetiva (D56): quem aprova leu a correção deste lote, e leu o que vai ficar registrado como apresentado.
-      if (marcaLida !== marcaDoApresentado(montado.apresentado)) throw new ErroDeDominio(CodigoDeErro.CONFLITO)
+      if (marcaLida !== marcaDoApresentado(montado.apresentado)) throw new ErroDeDominio(ErrorCode.CONFLITO)
 
       const destaques = montado.correcoes.filter((correcao) => correcao.destaques.length > 0)
       const aberto: DestaquesAbertos = destaques
         .flatMap((destaque) => (destaque.destaqueAbertoEm === null ? [] : [{ alunoId: destaque.alunoId, abertoEm: destaque.destaqueAbertoEm.toISOString() }]))
         .sort((a, b) => (a.alunoId < b.alunoId ? -1 : a.alunoId > b.alunoId ? 1 : 0))
-      if (aberto.length < destaques.length) throw new ErroDeDominio(CodigoDeErro.DESTAQUES_NAO_ABERTOS)
+      if (aberto.length < destaques.length) throw new ErroDeDominio(ErrorCode.DESTAQUES_NAO_ABERTOS)
 
-      const validacaoId = await correcoes.gravarValidacao(lote, esquemaLoteApresentado.parse(montado.apresentado), esquemaDestaquesAbertos.parse(aberto))
-      if (!(await correcoes.aprovar(entregaId))) throw new ErroDeDominio(CodigoDeErro.ENTREGA_JA_DECIDIDA)
+      const validacaoId = await correcoes.gravarValidacao(lote, loteApresentadoSchema.parse(montado.apresentado), destaquesAbertosSchema.parse(aberto))
+      if (!(await correcoes.aprovar(entregaId))) throw new ErroDeDominio(ErrorCode.ENTREGA_JA_DECIDIDA)
       await registro.gravar(tx, 'lote.aprovado', {
         entidadeId: entregaId,
         antes: { estado: 'pendente' },
@@ -182,9 +182,9 @@ export class CorrecaoService {
         },
       })
       const [aprovada, validacao] = [await correcoes.lote(entregaId), await correcoes.validacao(entregaId)]
-      if (aprovada === undefined || validacao === undefined) throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
+      if (aprovada === undefined || validacao === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
       return { aprovada, validacao }
     })
-    return esquemaRespostaLoteAprovado.parse({ entrega: entregaParaATela(aprovado.aprovada), validacao: validacaoParaATela(aprovado.validacao) })
+    return loteAprovadoResponseSchema.parse({ entrega: entregaParaATela(aprovado.aprovada), validacao: validacaoParaATela(aprovado.validacao) })
   }
 }

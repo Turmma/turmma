@@ -1,5 +1,5 @@
 import { ErroDeDominio, LIMITES_DO_HISTOGRAMA_HTTP_S, METRICAS, ROTULO_ESCOLA, type Meter } from '@educa/nucleo'
-import { CodigoDeErro } from '@educa/shared'
+import { ErrorCode } from '@educa/shared'
 import { randomInt } from 'node:crypto'
 import type { BaldeDeLogin } from './baldes-de-login.js'
 
@@ -311,7 +311,7 @@ export class SemaforoDeHash {
 
   #recusar(): ErroDeDominio {
     this.#recusados.add(1)
-    return new ErroDeDominio(CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO, undefined, randomInt(RETRY_AFTER_MINIMO_S, RETRY_AFTER_MAXIMO_S + 1))
+    return new ErroDeDominio(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO, undefined, randomInt(RETRY_AFTER_MINIMO_S, RETRY_AFTER_MAXIMO_S + 1))
   }
 
   #medirEspera(balde: BaldeDeLogin, inicio: number): void {

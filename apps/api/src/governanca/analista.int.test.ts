@@ -1,5 +1,5 @@
 import type { ExecutorNoProcesso } from '@educa/nucleo'
-import { esquemaRespostaAnalistaNominal, esquemaRespostaResumoDoAnalista, type ConteudoDoResumoDoAnalista } from '@educa/shared'
+import { analistaNominalResponseSchema, resumoDoAnalistaResponseSchema, type ConteudoDoResumoDoAnalista } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../../tools/testes/metricas.ts'
@@ -75,7 +75,7 @@ describe('Analista de desempenho escolar', () => {
     const execucao = await execucaoTerminada(api, escola.coordenacao, await dispararExecucao(api, escola.coordenacao, '/v1/analista/gerar', {}))
     expect(execucao).toMatchObject({ estado: 'concluida', erro: null, resultado: { tipo: 'resumo_do_analista' } })
     const resposta = await get(escola.coordenacao, '/v1/analista/resumo')
-    const { resumo } = esquemaRespostaResumoDoAnalista.parse(resposta.corpo)
+    const { resumo } = resumoDoAnalistaResponseSchema.parse(resposta.corpo)
     if (resumo === null) throw new Error('o resumo não foi gravado')
     expect(resumo.id).toBe(execucao.resultado?.['resumoId'])
     return { id: resumo.id, conteudo: resumo.conteudo, texto: JSON.stringify(resposta.corpo) }
@@ -132,7 +132,7 @@ describe('Analista de desempenho escolar', () => {
 
   describe('o resumo em agregado', () => {
     it('com duas professoras alocadas em Química e só uma com lote aprovado, a Química não tem número: vai para os recortes sem número', async () => {
-      expect(esquemaRespostaResumoDoAnalista.parse((await get(a.coordenacao, '/v1/analista/resumo')).corpo)).toEqual({ resumo: null })
+      expect(resumoDoAnalistaResponseSchema.parse((await get(a.coordenacao, '/v1/analista/resumo')).corpo)).toEqual({ resumo: null })
       const { conteudo, texto } = await gerar(a)
       // O grupo mínimo conta quem decidiu lote aprovado no recorte, não quem tem vínculo nele (D45, D64): o número da
       // Química seria o resultado da professora do 2ºB, e diria que a colega do 2ºC não aplicou nada.
@@ -243,7 +243,7 @@ describe('Analista de desempenho escolar', () => {
         expect(erro(await post(a.coordenacao, '/v1/analista/gerar', { chaveEnvio: randomUUID() }))).toEqual({ status: 409, codigo: 'FUNCAO_SUSPENSA' })
         expect(await execucoes()).toBe(antes)
         // O resumo que já existia continua lido, e a outra escola segue gerando.
-        expect(esquemaRespostaResumoDoAnalista.parse((await get(a.coordenacao, '/v1/analista/resumo')).corpo).resumo).not.toBeNull()
+        expect(resumoDoAnalistaResponseSchema.parse((await get(a.coordenacao, '/v1/analista/resumo')).corpo).resumo).not.toBeNull()
         expect((await post(b.coordenacao, '/v1/analista/gerar', { chaveEnvio: randomUUID() })).status).toBe(202)
       } finally {
         expect((await post(a.coordenacao, '/v1/governanca/funcoes/resumo_e_alerta/retomar')).status).toBe(200)
@@ -276,7 +276,7 @@ describe('Analista de desempenho escolar', () => {
     it('com finalidade, traz a turma, os professores dela, o acerto por habilidade e os sinais de trabalho; nada de aluno', async () => {
       const resposta = await nominal(a.coordenacao, a.turma)
       expect(resposta.status).toBe(200)
-      const lido = esquemaRespostaAnalistaNominal.parse(resposta.corpo)
+      const lido = analistaNominalResponseSchema.parse(resposta.corpo)
       expect(lido.turma).toEqual({ id: a.turma, nome: '2ºB', serie: { id: a.serieId, etapa: 'em', ano: 2 } })
       expect(lido.professores.map((professor) => [professor.id, professor.disciplina.nome]).sort()).toEqual(
         [
@@ -332,7 +332,7 @@ describe('Analista de desempenho escolar', () => {
       expect(deB.conteudo.escola).toMatchObject({ atividadesAplicadas: 0, lotesAprovados: 0, lotesEsperando: 0, sinais: { travou: 0, atencao_humana: 0 } })
       for (const proibido of [a.serieId, a.quimica, a.fisica]) expect(deB.texto).not.toContain(proibido)
       // E o resumo de A continua sendo o de A.
-      expect(esquemaRespostaResumoDoAnalista.parse((await get(a.coordenacao, '/v1/analista/resumo')).corpo).resumo?.id).toBe(deA.id)
+      expect(resumoDoAnalistaResponseSchema.parse((await get(a.coordenacao, '/v1/analista/resumo')).corpo).resumo?.id).toBe(deA.id)
     })
 
     it('a aplicação, o lote aprovado, a troca com o Tutor e os sinais do ano anterior não entram em número nenhum do ano em curso', async () => {

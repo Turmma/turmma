@@ -1,5 +1,5 @@
 import { RotaAnonima, ZodValidationPipe } from '@educa/nucleo'
-import { CodigoDeErro, esquemaRespostaAcessoDaEscola, esquemaSlugDaEscola, type RespostaAcessoDaEscola } from '@educa/shared'
+import { ErrorCode, acessoDaEscolaResponseSchema, slugDaEscolaSchema, type AcessoDaEscolaResponse } from '@educa/shared'
 import { Controller, Get, Param } from '@nestjs/common'
 import { AcessoDaEscolaService } from './acesso-da-escola.service.js'
 
@@ -14,7 +14,7 @@ export class AcessoDaEscolaController {
   constructor(private readonly acesso: AcessoDaEscolaService) {}
 
   @Get(':slug/acesso')
-  async ler(@Param('slug', new ZodValidationPipe(esquemaSlugDaEscola, { errorCode: CodigoDeErro.NAO_ENCONTRADO })) slug: string): Promise<RespostaAcessoDaEscola> {
-    return esquemaRespostaAcessoDaEscola.parse(await this.acesso.ler(slug))
+  async ler(@Param('slug', new ZodValidationPipe(slugDaEscolaSchema, { errorCode: ErrorCode.NAO_ENCONTRADO })) slug: string): Promise<AcessoDaEscolaResponse> {
+    return acessoDaEscolaResponseSchema.parse(await this.acesso.ler(slug))
   }
 }

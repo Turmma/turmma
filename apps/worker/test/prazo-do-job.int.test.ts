@@ -1,5 +1,5 @@
 import { executarNoContexto, opcoesDeJob } from '@educa/nucleo'
-import { CodigoDeFalhaDeJob, DEFINICOES_DE_JOB, TIPO_JOB_SINTETICO, type RegistroDeJobs } from '@educa/shared'
+import { JobFailureCode, JOB_DEFINITIONS, TIPO_JOB_SINTETICO, type JobRegistry } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { compose, PROCESSOS_DA_FILA } from '../../../tools/testes/compose.ts'
@@ -10,9 +10,9 @@ import { BancadaDeFila, LogEmMemoria } from './fila-de-teste.js'
 // valor curto, para o corte acontecer em 300 ms e não em 90 s.
 
 const PRAZO_CURTO_MS = 300
-const DEFINICOES_COM_PRAZO_CURTO: RegistroDeJobs = {
-  ...DEFINICOES_DE_JOB,
-  [TIPO_JOB_SINTETICO]: { ...DEFINICOES_DE_JOB[TIPO_JOB_SINTETICO], prazoMs: PRAZO_CURTO_MS },
+const DEFINICOES_COM_PRAZO_CURTO: JobRegistry = {
+  ...JOB_DEFINITIONS,
+  [TIPO_JOB_SINTETICO]: { ...JOB_DEFINITIONS[TIPO_JOB_SINTETICO], prazoMs: PRAZO_CURTO_MS },
 }
 /** Um valor que só o `dados` do job tem: se ele aparecer no log, o log vazou o conteúdo do job. */
 const CPU_QUE_SO_O_JOB_TEM = 4_242
@@ -63,13 +63,13 @@ describe('o worker corta a tentativa no prazo do tipo', () => {
     })
 
     await aguardarEstado(bancada, id, 'falhou')
-    expect(await bancada.estado(id)).toEqual({ estado: 'falhou', escolaId: ESCOLA_A, codigoFalha: CodigoDeFalhaDeJob.TEMPO_ESGOTADO })
+    expect(await bancada.estado(id)).toEqual({ estado: 'falhou', escolaId: ESCOLA_A, codigoFalha: JobFailureCode.TEMPO_ESGOTADO })
     expect(sinalRecebido?.aborted).toBe(true)
     await expect.poll(() => bancada.vagas.membros('interativa', ESCOLA_A), { timeout: 5_000, interval: 50 }).toEqual([])
 
     const estouro = log.doEvento('job.tempo_esgotado')
     expect(estouro).toEqual([expect.objectContaining({ jobId: id, tentativa: 1, prazoMs: PRAZO_CURTO_MS })])
-    expect(log.doEvento('job.falhou')).toEqual([expect.objectContaining({ jobId: id, codigo: CodigoDeFalhaDeJob.TEMPO_ESGOTADO })])
+    expect(log.doEvento('job.falhou')).toEqual([expect.objectContaining({ jobId: id, codigo: JobFailureCode.TEMPO_ESGOTADO })])
     expect(log.linhas.join('\n')).not.toContain(String(CPU_QUE_SO_O_JOB_TEM))
   })
 

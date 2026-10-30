@@ -8,7 +8,7 @@ import {
   type Meter,
   type ProvedorExterno,
 } from '@educa/nucleo'
-import { CodigoDeErro, PARAMETRO_DA_FALHA_DO_LOGIN_EXTERNO, TENANT_DE_CONTA_PESSOAL_MICROSOFT, type FalhaDoLoginExterno } from '@educa/shared'
+import { ErrorCode, PARAMETRO_DA_FALHA_DO_LOGIN_EXTERNO, TENANT_DE_CONTA_PESSOAL_MICROSOFT, type FalhaDoLoginExterno } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import type { ConclusaoDeLogin } from '../conclusao/conclusao-de-login.js'
 import { lerCookie } from '../../credencial/cookies.js'
@@ -98,11 +98,11 @@ export class LoginExterno {
 
   /** O contrato exige o `provedor` e o `slug` já validados pelo `ZodValidationPipe` do controller: outro chamador tem de conferir o formato antes. */
   async iniciar(provedor: ProvedorExterno, slug: string): Promise<Redirecionamento> {
-    if (!this.ligados.includes(provedor)) throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
+    if (!this.ligados.includes(provedor)) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
     const escolaId = await this.dependencias.resolucao.escolaPorSlug(slug)
-    if (escolaId === undefined) throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
+    if (escolaId === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
     const liberado = await naEscolaSemUsuario({ escolaId }, () => new ContaExternaRepository(this.dependencias.banco).provedorLiberado(provedor))
-    if (!liberado) throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
+    if (!liberado) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
 
     try {
       const inicio = await this.dependencias.provedor.iniciar(provedor)

@@ -1,5 +1,5 @@
 import { ErroDeDominio, inatividadeDoPapel, METRICAS, type Meter } from '@educa/nucleo'
-import { CodigoDeErro, esquemaRespostaEu, esquemaRespostaIntroducao, type RespostaEu, type RespostaIntroducao } from '@educa/shared'
+import { ErrorCode, euResponseSchema, introducaoResponseSchema, type EuResponse, type IntroducaoResponse } from '@educa/shared'
 import type { EuRepository, LinhaDoEu } from './eu.repository.js'
 import type { ResolucaoDeTenantRepository } from '../tenant/resolucao-de-tenant.repository.js'
 
@@ -25,15 +25,15 @@ export class EuService {
     this.#naoGravadas.add(0)
   }
 
-  async obter(): Promise<RespostaEu> {
+  async obter(): Promise<EuResponse> {
     const linha = await this.eu.doContexto()
     // A guarda acabou de ler este usuário ativo; sumir entre as duas leituras é o mesmo que não estar autenticado.
-    if (linha === undefined) throw new ErroDeDominio(CodigoDeErro.NAO_AUTENTICADO)
+    if (linha === undefined) throw new ErroDeDominio(ErrorCode.NAO_AUTENTICADO)
     const acessos = linha.contaId === null ? [] : await this.resolucao.acessosDaConta(linha.contaId)
     const emprestada = await this.#emprestada(linha)
     let propria = linha.introducaoVistaEm
     if (propria === null && emprestada !== null) propria = await this.#gravarSemEmprestar()
-    return esquemaRespostaEu.parse({
+    return euResponseSchema.parse({
       usuarioId: linha.usuarioId,
       papel: linha.papel,
       nome: linha.nome,
@@ -45,13 +45,13 @@ export class EuService {
   }
 
   /** `POST /v1/eu/introducao`: grava a primeira vez e responde a mesma data que o `GET` devolveria. */
-  async concluirIntroducao(): Promise<RespostaIntroducao> {
+  async concluirIntroducao(): Promise<IntroducaoResponse> {
     const linha = await this.eu.doContexto()
-    if (linha === undefined) throw new ErroDeDominio(CodigoDeErro.NAO_AUTENTICADO)
+    if (linha === undefined) throw new ErroDeDominio(ErrorCode.NAO_AUTENTICADO)
     const gravada = await this.eu.marcarIntroducaoVista()
-    if (gravada === undefined) throw new ErroDeDominio(CodigoDeErro.NAO_AUTENTICADO)
+    if (gravada === undefined) throw new ErroDeDominio(ErrorCode.NAO_AUTENTICADO)
     const vista = maisAntiga(gravada, await this.#emprestada(linha)) ?? gravada
-    return esquemaRespostaIntroducao.parse({ introducaoVistaEm: vista.toISOString() })
+    return introducaoResponseSchema.parse({ introducaoVistaEm: vista.toISOString() })
   }
 
   /** A data de outra escola da conta, com o mesmo papel; o aluno não tem conta e não empresta. */

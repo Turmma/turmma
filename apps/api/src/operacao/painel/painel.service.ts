@@ -11,21 +11,21 @@ import {
   type Relogio,
 } from '@educa/nucleo'
 import {
-  CodigoDeErro,
-  esquemaRespostaConviteDaCoordenacao,
-  esquemaRespostaCriadoNoPainel,
-  esquemaRespostaEscolasDoPainel,
-  esquemaRespostaRedesDoPainel,
-  esquemaRespostaUsoDoPainel,
-  type ConsultaDoPainel,
-  type PedidoConviteDaCoordenacao,
-  type PedidoCriarEscola,
-  type PedidoCriarRede,
-  type RespostaConviteDaCoordenacao,
-  type RespostaCriadoNoPainel,
-  type RespostaEscolasDoPainel,
-  type RespostaRedesDoPainel,
-  type RespostaUsoDoPainel,
+  ErrorCode,
+  conviteDaCoordenacaoResponseSchema,
+  criadoNoPainelResponseSchema,
+  escolasDoPainelResponseSchema,
+  redesDoPainelResponseSchema,
+  usoDoPainelResponseSchema,
+  type PainelQuery,
+  type ConviteDaCoordenacaoRequest,
+  type CriarEscolaRequest,
+  type CriarRedeRequest,
+  type ConviteDaCoordenacaoResponse,
+  type CriadoNoPainelResponse,
+  type EscolasDoPainelResponse,
+  type RedesDoPainelResponse,
+  type UsoDoPainelResponse,
 } from '@educa/shared'
 import { Logger } from '@nestjs/common'
 import { randomUUID } from 'node:crypto'
@@ -42,7 +42,7 @@ import { PainelRepository, type ReferenciaDoUso } from './painel.repository.js'
 function autorDaSessao(operadorId: string): ConferenciaDoAutor {
   return async (tx) => {
     const apelido = await OperadorRepository.autorAtivoNaTransacao(tx, { operadorId })
-    if (apelido === undefined) throw new ErroDeDominio(CodigoDeErro.SESSAO_ENCERRADA)
+    if (apelido === undefined) throw new ErroDeDominio(ErrorCode.SESSAO_ENCERRADA)
     return apelido
   }
 }
@@ -87,17 +87,17 @@ export class PainelService {
     private readonly relogio: Relogio = relogioDoSistema,
   ) {}
 
-  async redes(): Promise<RespostaRedesDoPainel> {
-    return esquemaRespostaRedesDoPainel.parse({ itens: await new PainelRepository(this.banco).redes() })
+  async redes(): Promise<RedesDoPainelResponse> {
+    return redesDoPainelResponseSchema.parse({ itens: await new PainelRepository(this.banco).redes() })
   }
 
   /**
    * Uma página da lista de escolas, com o estado da coordenação calculado pela mesma `estadoDaCoordenacao` da escrita, e o
    * `conviteId` do último convite de coordenação, quando há. Na ordem `uso`, o mês de referência é o do `uso`.
    */
-  async escolas({ pagina, ordem }: ConsultaDoPainel): Promise<RespostaEscolasDoPainel> {
+  async escolas({ pagina, ordem }: PainelQuery): Promise<EscolasDoPainelResponse> {
     const lida = await new PainelRepository(this.banco).escolas({ pagina, ordem, referencia: referenciaDoUso(this.relogio.agora()) })
-    return esquemaRespostaEscolasDoPainel.parse({
+    return escolasDoPainelResponseSchema.parse({
       pagina,
       total: lida.total,
       itens: lida.itens.map(({ coordenacao, ...escola }) => ({
@@ -109,40 +109,40 @@ export class PainelService {
   }
 
   /** Uma página do uso por escola, com o último dia fechado e o mês dele como referência. */
-  async uso({ pagina, ordem }: ConsultaDoPainel): Promise<RespostaUsoDoPainel> {
+  async uso({ pagina, ordem }: PainelQuery): Promise<UsoDoPainelResponse> {
     const referencia = referenciaDoUso(this.relogio.agora())
     const lida = await new PainelRepository(this.banco).uso({ pagina, ordem, referencia })
-    return esquemaRespostaUsoDoPainel.parse({ pagina, total: lida.total, itens: lida.itens, dia: referencia.dia, mes: referencia.dia.slice(0, 7) })
+    return usoDoPainelResponseSchema.parse({ pagina, total: lida.total, itens: lida.itens, dia: referencia.dia, mes: referencia.dia.slice(0, 7) })
   }
 
-  async criarRede(pedido: PedidoCriarRede): Promise<RespostaCriadoNoPainel> {
+  async criarRede(pedido: CriarRedeRequest): Promise<CriadoNoPainelResponse> {
     const autor = autorDaSessao(exigirOperadorDoContexto())
     const criada = await criarRede(this.banco, autor, { id: pedido.id.toLowerCase(), nome: pedido.nome, tipo: pedido.tipo })
     if (criada.nova) this.#logger.log('operacao.rede.criada')
-    return esquemaRespostaCriadoNoPainel.parse({ id: criada.id })
+    return criadoNoPainelResponseSchema.parse({ id: criada.id })
   }
 
-  async criarEscola(pedido: PedidoCriarEscola): Promise<RespostaCriadoNoPainel> {
+  async criarEscola(pedido: CriarEscolaRequest): Promise<CriadoNoPainelResponse> {
     const autor = autorDaSessao(exigirOperadorDoContexto())
     const criada = await criarEscola(this.banco, autor, { id: pedido.id.toLowerCase(), redeId: pedido.redeId.toLowerCase(), nome: pedido.nome, slug: pedido.slug })
     if (criada.nova) naEscola(criada.id, () => this.#logger.log('operacao.escola.criada'))
-    return esquemaRespostaCriadoNoPainel.parse({ id: criada.id })
+    return criadoNoPainelResponseSchema.parse({ id: criada.id })
   }
 
   /** Gera o convite da primeira coordenação da escola do `:id`, pela matriz da seção 5. O token sai só nesta resposta. */
-  async gerarConvite(escolaId: string, pedido: PedidoConviteDaCoordenacao): Promise<RespostaConviteDaCoordenacao> {
+  async gerarConvite(escolaId: string, pedido: ConviteDaCoordenacaoRequest): Promise<ConviteDaCoordenacaoResponse> {
     const autor = autorDaSessao(exigirOperadorDoContexto())
     const gerado = await criarConviteDeCoordenador(this.banco, autor, { escolaId, email: pedido.email, nome: pedido.nome })
     naEscola(escolaId, () => this.#logger.log('operacao.convite.gerado'))
-    return esquemaRespostaConviteDaCoordenacao.parse(gerado)
+    return conviteDaCoordenacaoResponseSchema.parse(gerado)
   }
 
   /** Refaz o convite da coordenação pelo id, pela matriz da seção 5; a escola vem do convite. O token sai só nesta resposta. */
-  async refazerConvite(conviteId: string): Promise<RespostaConviteDaCoordenacao> {
+  async refazerConvite(conviteId: string): Promise<ConviteDaCoordenacaoResponse> {
     const autor = autorDaSessao(exigirOperadorDoContexto())
     const refeito = await refazerConviteDaCoordenacao(this.banco, autor, conviteId)
     naEscola(refeito.escolaId, () => this.#logger.log('operacao.convite.refeito'))
-    return esquemaRespostaConviteDaCoordenacao.parse({ conviteId: refeito.conviteId, token: refeito.token })
+    return conviteDaCoordenacaoResponseSchema.parse({ conviteId: refeito.conviteId, token: refeito.token })
   }
 
   /** Revoga o convite da coordenação pelo id, pela matriz da seção 5; a escola vem do convite. */

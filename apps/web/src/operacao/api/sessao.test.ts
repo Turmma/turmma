@@ -1,4 +1,4 @@
-import { CodigoDeErro, esquemaRespostaEuDoOperador } from '@educa/shared'
+import { ErrorCode, euDoOperadorResponseSchema } from '@educa/shared'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { TEXTO_DA_SAIDA_NAO_CONFIRMADA, TEXTO_DA_SESSAO_ENCERRADA } from '../textos'
 
@@ -133,13 +133,13 @@ afterEach(() => {
   expect(fila, 'resposta preparada que nenhuma chamada consumiu').toHaveLength(0)
 })
 
-const buscarEu = (modulo: ModuloDeSessao = sessao) => modulo.chamarComSessaoDeOperador('/v1/operacao/eu', esquemaRespostaEuDoOperador)
+const buscarEu = (modulo: ModuloDeSessao = sessao) => modulo.chamarComSessaoDeOperador('/v1/operacao/eu', euDoOperadorResponseSchema)
 
 describe('as três respostas da conferência da sessão', () => {
   it('ACESSO_VENCIDO renova pelo cookie e repete a mesma chamada com o acesso novo, sem a pessoa perceber', async () => {
     await entrar(sessao, ANA)
     responderCom(
-      { status: 401, corpo: envelope(CodigoDeErro.ACESSO_VENCIDO) },
+      { status: 401, corpo: envelope(ErrorCode.ACESSO_VENCIDO) },
       { status: 200, corpo: { token: 'token-renovado', expiraEm: DAQUI_A_MUITO } },
       { status: 200, corpo: EU },
     )
@@ -158,8 +158,8 @@ describe('as três respostas da conferência da sessão', () => {
   it('duas chamadas em paralelo que recebem ACESSO_VENCIDO renovam uma vez só, e as duas repetem com o acesso novo', async () => {
     await entrar(sessao, ANA)
     responderCom(
-      { status: 401, corpo: envelope(CodigoDeErro.ACESSO_VENCIDO) },
-      { status: 401, corpo: envelope(CodigoDeErro.ACESSO_VENCIDO) },
+      { status: 401, corpo: envelope(ErrorCode.ACESSO_VENCIDO) },
+      { status: 401, corpo: envelope(ErrorCode.ACESSO_VENCIDO) },
       { status: 200, corpo: { token: 'token-renovado', expiraEm: DAQUI_A_MUITO } },
       { status: 200, corpo: EU },
       { status: 200, corpo: EU },
@@ -179,12 +179,12 @@ describe('as três respostas da conferência da sessão', () => {
   it('ACESSO_VENCIDO de novo depois da renovação sobe como erro, sem encerrar a sessão: só se renova uma vez', async () => {
     await entrar(sessao, ANA)
     responderCom(
-      { status: 401, corpo: envelope(CodigoDeErro.ACESSO_VENCIDO) },
+      { status: 401, corpo: envelope(ErrorCode.ACESSO_VENCIDO) },
       { status: 200, corpo: { token: 'token-renovado', expiraEm: DAQUI_A_MUITO } },
-      { status: 401, corpo: envelope(CodigoDeErro.ACESSO_VENCIDO) },
+      { status: 401, corpo: envelope(ErrorCode.ACESSO_VENCIDO) },
     )
 
-    expect((await erroDe(buscarEu())).codigo).toBe(CodigoDeErro.ACESSO_VENCIDO)
+    expect((await erroDe(buscarEu())).codigo).toBe(ErrorCode.ACESSO_VENCIDO)
     expect(chamadas).toHaveLength(3)
     expect(sessao.estadoDaSessaoDeOperador()).toBe('aberta')
   })
@@ -210,33 +210,33 @@ describe('as três respostas da conferência da sessão', () => {
     await entrar(sessao, ANA)
     const aoTrocar = vi.fn()
     sessao.aoTrocarDeSessaoDeOperador(aoTrocar)
-    responderCom({ status: 401, corpo: envelope(CodigoDeErro.SESSAO_ENCERRADA) })
+    responderCom({ status: 401, corpo: envelope(ErrorCode.SESSAO_ENCERRADA) })
 
-    expect((await erroDe(buscarEu())).codigo).toBe(CodigoDeErro.SESSAO_ENCERRADA)
+    expect((await erroDe(buscarEu())).codigo).toBe(ErrorCode.SESSAO_ENCERRADA)
 
     expect(sessao.estadoDaSessaoDeOperador()).toBe('anonima')
     expect(sessao.avisoDaEntradaDeOperador()).toBe(TEXTO_DA_SESSAO_ENCERRADA)
     expect(sessao.tokenDeOperador()).toBeUndefined()
     expect(aoTrocar).toHaveBeenCalledTimes(1)
     // E nada mais sai com a sessão encerrada: a chamada seguinte nem chega à API.
-    expect((await erroDe(buscarEu())).codigo).toBe(CodigoDeErro.SESSAO_ENCERRADA)
+    expect((await erroDe(buscarEu())).codigo).toBe(ErrorCode.SESSAO_ENCERRADA)
     expect(chamadas).toHaveLength(1)
   })
 
   it('a renovação recusada depois do ACESSO_VENCIDO também leva à entrada com a mensagem', async () => {
     await entrar(sessao, ANA)
-    responderCom({ status: 401, corpo: envelope(CodigoDeErro.ACESSO_VENCIDO) }, { status: 401, corpo: envelope(CodigoDeErro.SESSAO_ENCERRADA) })
+    responderCom({ status: 401, corpo: envelope(ErrorCode.ACESSO_VENCIDO) }, { status: 401, corpo: envelope(ErrorCode.SESSAO_ENCERRADA) })
 
-    expect((await erroDe(buscarEu())).codigo).toBe(CodigoDeErro.SESSAO_ENCERRADA)
+    expect((await erroDe(buscarEu())).codigo).toBe(ErrorCode.SESSAO_ENCERRADA)
     expect(sessao.estadoDaSessaoDeOperador()).toBe('anonima')
     expect(sessao.avisoDaEntradaDeOperador()).toBe(TEXTO_DA_SESSAO_ENCERRADA)
   })
 
   it('503 sobe como indisponível e a sessão fica: token, estado e nenhuma mensagem de sessão encerrada', async () => {
     await entrar(sessao, ANA)
-    responderCom({ status: 503, corpo: envelope(CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO) })
+    responderCom({ status: 503, corpo: envelope(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO) })
 
-    expect((await erroDe(buscarEu())).codigo).toBe(CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO)
+    expect((await erroDe(buscarEu())).codigo).toBe(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO)
     expect(sessao.estadoDaSessaoDeOperador()).toBe('aberta')
     expect(sessao.tokenDeOperador()).toBe(ANA.token)
     expect(sessao.avisoDaEntradaDeOperador()).toBeUndefined()
@@ -245,14 +245,14 @@ describe('as três respostas da conferência da sessão', () => {
 
 describe('abrir a aba pelo cookie', () => {
   it('sem sessão no cookie, fica anônima sem aviso: quem só abriu a operação não teve sessão nenhuma terminada', async () => {
-    responderCom({ status: 401, corpo: envelope(CodigoDeErro.SESSAO_ENCERRADA) })
+    responderCom({ status: 401, corpo: envelope(ErrorCode.SESSAO_ENCERRADA) })
     await sessao.abrirSessaoDeOperadorPeloCookie()
     expect(sessao.estadoDaSessaoDeOperador()).toBe('anonima')
     expect(sessao.avisoDaEntradaDeOperador()).toBeUndefined()
   })
 
   it('com a API fora, fica indisponível, e não anônima: ninguém vai à entrada porque o banco caiu', async () => {
-    responderCom({ status: 503, corpo: envelope(CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO) })
+    responderCom({ status: 503, corpo: envelope(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO) })
     await sessao.abrirSessaoDeOperadorPeloCookie()
     expect(sessao.estadoDaSessaoDeOperador()).toBe('indisponivel')
   })
@@ -299,20 +299,20 @@ describe('o segundo fator gasta o desafio', () => {
 
   it('o desafio vai no corpo, e o código recusado o esquece aqui também: a pessoa refaz a senha', async () => {
     await comDesafio()
-    responderCom({ status: 401, corpo: envelope(CodigoDeErro.NAO_AUTENTICADO) })
+    responderCom({ status: 401, corpo: envelope(ErrorCode.NAO_AUTENTICADO) })
 
-    expect((await erroDe(sessao.entrarComSegundoFatorDeOperador({ codigo: '000000' }))).codigo).toBe(CodigoDeErro.NAO_AUTENTICADO)
+    expect((await erroDe(sessao.entrarComSegundoFatorDeOperador({ codigo: '000000' }))).codigo).toBe(ErrorCode.NAO_AUTENTICADO)
 
     expect(chamadas[0]).toMatchObject({ caminho: sessao.CAMINHO_DO_SEGUNDO_FATOR_DE_OPERADOR, autorizacao: null, corpo: { desafio: ANA.desafio, codigo: '000000' } })
     expect(sessao.desafioDeOperador('mfa')).toBeUndefined()
     // Sem desafio, a tentativa seguinte nem sai: a API a recusaria do mesmo jeito.
-    expect((await erroDe(sessao.entrarComSegundoFatorDeOperador({ codigo: '111111' }))).codigo).toBe(CodigoDeErro.NAO_AUTENTICADO)
+    expect((await erroDe(sessao.entrarComSegundoFatorDeOperador({ codigo: '111111' }))).codigo).toBe(ErrorCode.NAO_AUTENTICADO)
     expect(chamadas).toHaveLength(1)
   })
 
   it.each([
-    ['formato inválido, recusado antes do consumo', 400, CodigoDeErro.ENTRADA_INVALIDA],
-    ['503, que pode não ter chegado ao consumo', 503, CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO],
+    ['formato inválido, recusado antes do consumo', 400, ErrorCode.ENTRADA_INVALIDA],
+    ['503, que pode não ter chegado ao consumo', 503, ErrorCode.INDISPONIVEL_TENTE_DE_NOVO],
   ])('%s: o desafio fica, e a pessoa tenta de novo na mesma tela', async (_caso, status, codigo) => {
     await comDesafio()
     responderCom({ status, corpo: envelope(codigo) })
@@ -333,7 +333,7 @@ describe('o segundo fator gasta o desafio', () => {
 
   it('o envio que já voltou não segura o seguinte: depois de um 503 dos dois envios juntos, a nova tentativa sai', async () => {
     await comDesafio()
-    responderCom({ status: 503, corpo: envelope(CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO) })
+    responderCom({ status: 503, corpo: envelope(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO) })
 
     const juntos = await Promise.allSettled([sessao.entrarComSegundoFatorDeOperador({ codigo: '123456' }), sessao.entrarComSegundoFatorDeOperador({ codigo: '123456' })])
     expect(juntos.map((resultado) => resultado.status)).toEqual(['rejected', 'rejected'])
@@ -407,7 +407,7 @@ describe('sem resíduo da pessoa anterior', () => {
     responderCom({ status: 200, corpo: { etapa: 'mfa', desafio: ANA.desafio } })
     await sessao.entrarComoOperador({ email: ANA.email, senha: 'senha-de-operador-comprida' })
     // A Ana some; o Bruno digita a senha dele, e a senha errada não pode deixar o desafio da Ana para trás.
-    responderCom({ status: 401, corpo: envelope(CodigoDeErro.NAO_AUTENTICADO) })
+    responderCom({ status: 401, corpo: envelope(ErrorCode.NAO_AUTENTICADO) })
     await erroDe(sessao.entrarComoOperador({ email: BRUNO.email, senha: 'senha-errada-do-bruno' }))
     expect(sessao.desafioDeOperador('mfa')).toBeUndefined()
 
@@ -507,7 +507,7 @@ describe('entrada por e-mail', () => {
   it('repete sozinha o 503 do semáforo com Retry-After, e guarda o desafio da etapa que a API devolveu', async () => {
     vi.useFakeTimers()
     responderCom(
-      { status: 503, corpo: envelope(CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO), cabecalhos: { 'Retry-After': '2' } },
+      { status: 503, corpo: envelope(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO), cabecalhos: { 'Retry-After': '2' } },
       { status: 200, corpo: { etapa: 'configurar_mfa', desafio: 'desafio-de-configurar' } },
     )
     const entrada = sessao.entrarComoOperador({ email: ANA.email, senha: 'senha-de-operador-comprida' })
@@ -519,8 +519,8 @@ describe('entrada por e-mail', () => {
   })
 
   it('503 sem Retry-After (queda, não fila) sobe na hora', async () => {
-    responderCom({ status: 503, corpo: envelope(CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO) })
-    expect((await erroDe(sessao.entrarComoOperador({ email: ANA.email, senha: 'x' }))).codigo).toBe(CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO)
+    responderCom({ status: 503, corpo: envelope(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO) })
+    expect((await erroDe(sessao.entrarComoOperador({ email: ANA.email, senha: 'x' }))).codigo).toBe(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO)
     expect(chamadas).toHaveLength(1)
   })
 })

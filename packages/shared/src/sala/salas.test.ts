@@ -3,10 +3,10 @@ import { TAMANHO_MAXIMO_TOKEN_DE_CONVITE, TAMANHO_MINIMO_SENHA_NOVA } from '../s
 import { TAMANHO_MAXIMO_SENHA } from '../sessao/login.js'
 import { TAMANHO_MAXIMO_MATRICULA, TAMANHO_MAXIMO_SLUG_NO_LOGIN } from '../sessao/matricula.js'
 import {
-  esquemaPedidoAbrirSala,
-  esquemaPedidoReivindicarSala,
-  esquemaRespostaReivindicacao,
-  esquemaRespostaSalaAberta,
+  abrirSalaRequestSchema,
+  reivindicarSalaRequestSchema,
+  reivindicacaoResponseSchema,
+  salaAbertaResponseSchema,
   MAXIMO_DE_NOMES_NA_SALA,
   TAMANHO_MAXIMO_CODIGO_DIGITADO,
 } from './salas.js'
@@ -17,11 +17,11 @@ describe('contrato de salas/abrir (A1, tarefa 5.0)', () => {
   const UM_ID = '0199a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b'
 
   it('aceita o slug com o token ou com o código como o aluno digita, e nada mais', () => {
-    expect(esquemaPedidoAbrirSala.parse({ slug: 'colegio-horizonte', token })).toEqual({ slug: 'colegio-horizonte', token })
-    expect(esquemaPedidoAbrirSala.parse({ slug: 'colegio-horizonte', codigo: 'abcd 2345' })).toEqual({ slug: 'colegio-horizonte', codigo: 'abcd 2345' })
+    expect(abrirSalaRequestSchema.parse({ slug: 'colegio-horizonte', token })).toEqual({ slug: 'colegio-horizonte', token })
+    expect(abrirSalaRequestSchema.parse({ slug: 'colegio-horizonte', codigo: 'abcd 2345' })).toEqual({ slug: 'colegio-horizonte', codigo: 'abcd 2345' })
     // O formato do token e do código fica para a busca: o que não é vigente responde NAO_ENCONTRADO, como o inexistente.
-    expect(esquemaPedidoAbrirSala.safeParse({ slug: 'colegio-horizonte', token: 'curto' }).success).toBe(true)
-    expect(esquemaPedidoAbrirSala.safeParse({ slug: 'colegio-horizonte', codigo: 'x'.repeat(TAMANHO_MAXIMO_CODIGO_DIGITADO) }).success).toBe(true)
+    expect(abrirSalaRequestSchema.safeParse({ slug: 'colegio-horizonte', token: 'curto' }).success).toBe(true)
+    expect(abrirSalaRequestSchema.safeParse({ slug: 'colegio-horizonte', codigo: 'x'.repeat(TAMANHO_MAXIMO_CODIGO_DIGITADO) }).success).toBe(true)
   })
 
   it('P5: escolaId, turmaId, campo a mais, os dois caminhos juntos ou nenhum deles não passam', () => {
@@ -38,17 +38,17 @@ describe('contrato de salas/abrir (A1, tarefa 5.0)', () => {
       { slug: 'a', token: 'x'.repeat(TAMANHO_MAXIMO_TOKEN_DE_CONVITE + 1) },
       { slug: 'a'.repeat(TAMANHO_MAXIMO_SLUG_NO_LOGIN + 1), token },
     ]) {
-      expect(esquemaPedidoAbrirSala.safeParse(corpo).success, JSON.stringify(Object.keys(corpo))).toBe(false)
+      expect(abrirSalaRequestSchema.safeParse(corpo).success, JSON.stringify(Object.keys(corpo))).toBe(false)
     }
   })
 
   it('a resposta é estrita: nome da turma e nomes com id e nome, sem matrícula nem id de turma, até o teto', () => {
     const nome = { id: UM_ID, nome: 'Ana' }
-    expect(esquemaRespostaSalaAberta.safeParse({ turma: { nome: '2ºB' }, nomes: [nome] }).success).toBe(true)
-    expect(esquemaRespostaSalaAberta.safeParse({ turma: { nome: '2ºB' }, nomes: [{ ...nome, matricula: '123' }] }).success).toBe(false)
-    expect(esquemaRespostaSalaAberta.safeParse({ turma: { nome: '2ºB', id: UM_ID }, nomes: [] }).success).toBe(false)
-    expect(esquemaRespostaSalaAberta.safeParse({ turma: { nome: '2ºB' }, nomes: [{ id: nome.id, nome: null }] }).success).toBe(false)
-    expect(esquemaRespostaSalaAberta.safeParse({ turma: { nome: '2ºB' }, nomes: Array.from({ length: MAXIMO_DE_NOMES_NA_SALA + 1 }, () => nome) }).success).toBe(false)
+    expect(salaAbertaResponseSchema.safeParse({ turma: { nome: '2ºB' }, nomes: [nome] }).success).toBe(true)
+    expect(salaAbertaResponseSchema.safeParse({ turma: { nome: '2ºB' }, nomes: [{ ...nome, matricula: '123' }] }).success).toBe(false)
+    expect(salaAbertaResponseSchema.safeParse({ turma: { nome: '2ºB', id: UM_ID }, nomes: [] }).success).toBe(false)
+    expect(salaAbertaResponseSchema.safeParse({ turma: { nome: '2ºB' }, nomes: [{ id: nome.id, nome: null }] }).success).toBe(false)
+    expect(salaAbertaResponseSchema.safeParse({ turma: { nome: '2ºB' }, nomes: Array.from({ length: MAXIMO_DE_NOMES_NA_SALA + 1 }, () => nome) }).success).toBe(false)
   })
 })
 
@@ -59,13 +59,13 @@ describe('contrato de salas/reivindicar (A1, tarefa 6.0)', () => {
   const campos = { listaNomeId: UM_ID, matricula: '2026-001', senha: 's'.repeat(TAMANHO_MINIMO_SENHA_NOVA), chaveEnvio: CHAVE }
 
   it('aceita a sala pelo token ou pelo código com o nome, a matrícula, a senha e a chave, e tira o espaço das pontas da matrícula', () => {
-    expect(esquemaPedidoReivindicarSala.parse({ slug: 'colegio-horizonte', token, ...campos })).toEqual({ slug: 'colegio-horizonte', token, ...campos })
-    expect(esquemaPedidoReivindicarSala.parse({ slug: 'colegio-horizonte', codigo: 'abcd 2345', ...campos, matricula: ' 2026-001 ' })).toEqual({
+    expect(reivindicarSalaRequestSchema.parse({ slug: 'colegio-horizonte', token, ...campos })).toEqual({ slug: 'colegio-horizonte', token, ...campos })
+    expect(reivindicarSalaRequestSchema.parse({ slug: 'colegio-horizonte', codigo: 'abcd 2345', ...campos, matricula: ' 2026-001 ' })).toEqual({
       slug: 'colegio-horizonte',
       codigo: 'abcd 2345',
       ...campos,
     })
-    expect(esquemaPedidoReivindicarSala.safeParse({ slug: 'a', token, ...campos, matricula: 'm'.repeat(TAMANHO_MAXIMO_MATRICULA), senha: 's'.repeat(TAMANHO_MAXIMO_SENHA) }).success).toBe(true)
+    expect(reivindicarSalaRequestSchema.safeParse({ slug: 'a', token, ...campos, matricula: 'm'.repeat(TAMANHO_MAXIMO_MATRICULA), senha: 's'.repeat(TAMANHO_MAXIMO_SENHA) }).success).toBe(true)
   })
 
   it('P5 e E21: campo a mais, escola ou turma no corpo, os dois caminhos, chave ou nome fora de UUID, senha curta ou longa e matrícula vazia não passam', () => {
@@ -86,13 +86,13 @@ describe('contrato de salas/reivindicar (A1, tarefa 6.0)', () => {
       ['token vazio', { slug: 'a', token: '', ...campos }],
       ['código longo', { slug: 'a', codigo: 'x'.repeat(TAMANHO_MAXIMO_CODIGO_DIGITADO + 1), ...campos }],
     ] as const) {
-      expect(esquemaPedidoReivindicarSala.safeParse(corpo).success, caso).toBe(false)
+      expect(reivindicarSalaRequestSchema.safeParse(corpo).success, caso).toBe(false)
     }
   })
 
   it('a resposta é só enviado, estrita', () => {
-    expect(esquemaRespostaReivindicacao.safeParse({ resultado: 'enviado' }).success).toBe(true)
-    expect(esquemaRespostaReivindicacao.safeParse({ resultado: 'aprovado' }).success).toBe(false)
-    expect(esquemaRespostaReivindicacao.safeParse({ resultado: 'enviado', id: UM_ID }).success).toBe(false)
+    expect(reivindicacaoResponseSchema.safeParse({ resultado: 'enviado' }).success).toBe(true)
+    expect(reivindicacaoResponseSchema.safeParse({ resultado: 'aprovado' }).success).toBe(false)
+    expect(reivindicacaoResponseSchema.safeParse({ resultado: 'enviado', id: UM_ID }).success).toBe(false)
   })
 })

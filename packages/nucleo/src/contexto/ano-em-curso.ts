@@ -1,4 +1,4 @@
-import { CodigoDeErro } from '@educa/shared'
+import { ErrorCode } from '@educa/shared'
 import { ErroDeDominio } from '../erro/erro-de-dominio.js'
 import { contextoAtual } from './contexto.js'
 
@@ -9,6 +9,6 @@ import { contextoAtual } from './contexto.js'
  */
 export function exigirAnoEmCurso(): string {
   const anoLetivoId = contextoAtual()?.anoLetivoId
-  if (typeof anoLetivoId !== 'string') throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
+  if (typeof anoLetivoId !== 'string') throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
   return anoLetivoId
 }

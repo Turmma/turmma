@@ -1,13 +1,13 @@
 import { ErroDeDominio, type Banco } from '@educa/nucleo'
 import {
-  CodigoDeErro,
-  esquemaRespostaDisciplina,
-  esquemaRespostaListaDeDisciplinas,
-  type ConsultaPaginada,
-  type PedidoCriarDisciplina,
-  type PedidoRenomearDisciplina,
-  type RespostaDisciplina,
-  type RespostaListaDeDisciplinas,
+  ErrorCode,
+  disciplinaResponseSchema,
+  listaDeDisciplinasResponseSchema,
+  type PaginationQuery,
+  type CriarDisciplinaRequest,
+  type RenomearDisciplinaRequest,
+  type DisciplinaResponse,
+  type ListaDeDisciplinasResponse,
 } from '@educa/shared'
 import { DisciplinaRepository } from './disciplina.repository.js'
 import { paginar } from '../../http/paginacao.js'
@@ -20,22 +20,22 @@ import { paginar } from '../../http/paginacao.js'
 export class DisciplinaService {
   constructor(private readonly banco: Banco) {}
 
-  async criar(pedido: PedidoCriarDisciplina): Promise<RespostaDisciplina> {
-    return esquemaRespostaDisciplina.parse(await new DisciplinaRepository(this.banco).criar(pedido))
+  async criar(pedido: CriarDisciplinaRequest): Promise<DisciplinaResponse> {
+    return disciplinaResponseSchema.parse(await new DisciplinaRepository(this.banco).criar(pedido))
   }
 
-  async renomear(id: string, pedido: PedidoRenomearDisciplina): Promise<RespostaDisciplina> {
+  async renomear(id: string, pedido: RenomearDisciplinaRequest): Promise<DisciplinaResponse> {
     const renomeada = await new DisciplinaRepository(this.banco).renomear(id, pedido.nome)
-    if (renomeada === undefined) throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
-    return esquemaRespostaDisciplina.parse(renomeada)
+    if (renomeada === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+    return disciplinaResponseSchema.parse(renomeada)
   }
 
   async excluir(id: string): Promise<void> {
-    if (!(await new DisciplinaRepository(this.banco).excluir(id))) throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
+    if (!(await new DisciplinaRepository(this.banco).excluir(id))) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
   }
 
-  async listar(consulta: ConsultaPaginada): Promise<RespostaListaDeDisciplinas> {
+  async listar(consulta: PaginationQuery): Promise<ListaDeDisciplinasResponse> {
     const linhas = await new DisciplinaRepository(this.banco).listar(consulta)
-    return esquemaRespostaListaDeDisciplinas.parse(paginar(linhas, consulta.limite))
+    return listaDeDisciplinasResponseSchema.parse(paginar(linhas, consulta.limite))
   }
 }

@@ -1,4 +1,4 @@
-import { esquemaEspelhoDaFila, type EspelhoDaFila } from '@educa/shared'
+import { espelhoDaFilaSchema, type EspelhoDaFila } from '@educa/shared'
 import type { EscolhaPendente } from '../areas/aluno/respostas'
 import { aoTrocarDeSessao, estadoDaSessao } from './sessao'
 
@@ -53,7 +53,7 @@ function chavesDoEspelho(): string[] {
 
 /** O que está na chave, se passa pelo esquema estrito. Ausente, JSON quebrado, campo a mais ou tipo errado: `undefined`. */
 function conteudoDa(chave: string): EspelhoDaFila | undefined {
-  return tentar(() => esquemaEspelhoDaFila.safeParse(JSON.parse(window.sessionStorage.getItem(chave) ?? 'null')).data, undefined)
+  return tentar(() => espelhoDaFilaSchema.safeParse(JSON.parse(window.sessionStorage.getItem(chave) ?? 'null')).data, undefined)
 }
 
 /** Guarda as pendentes da atividade. Sem nenhuma, a chave sai: o espelho só existe enquanto há o que não foi confirmado. */

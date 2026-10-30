@@ -1,7 +1,7 @@
-import type { CodigoDeErro } from '@educa/shared'
+import type { ErrorCode } from '@educa/shared'
 
 /** Status HTTP padrão de cada código. Quem lança só muda quando o caso pede outro. */
-export const STATUS_HTTP_DO_CODIGO: Readonly<Record<CodigoDeErro, number>> = {
+export const STATUS_HTTP_DO_CODIGO: Readonly<Record<ErrorCode, number>> = {
   ERRO_INTERNO: 500,
   ENTRADA_INVALIDA: 400,
   NAO_AUTENTICADO: 401,
@@ -60,7 +60,7 @@ export class ErroDeDominio extends Error {
   readonly status: number
 
   constructor(
-    readonly codigo: CodigoDeErro,
+    readonly codigo: ErrorCode,
     status?: number,
     readonly tenteDeNovoEmSegundos?: number,
   ) {

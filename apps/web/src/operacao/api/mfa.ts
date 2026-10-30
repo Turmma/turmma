@@ -1,11 +1,11 @@
-import { CodigoDeErro, esquemaRespostaConfigurarSegundoFatorDeOperador, type RespostaConfigurarSegundoFatorDeOperador } from '@educa/shared'
+import { ErrorCode, configurarSegundoFatorDeOperadorResponseSchema, type ConfigurarSegundoFatorDeOperadorResponse } from '@educa/shared'
 import { chamarApi, ErroDaApi } from '../../api/cliente'
 import { desafioDeOperador, esquecerDesafioDeOperador, guardarDesafioDeOperador } from './sessao'
 
 export const CAMINHO_DA_CONFIGURACAO_DO_SEGUNDO_FATOR_DE_OPERADOR = '/v1/operacao/sessao/mfa/configurar'
 
 /** O que a tela mostra: o segredo em texto, a URI `otpauth://` (o QR e o link) e os dez códigos de recuperação. */
-export type SegundoFatorParaConfigurar = Omit<RespostaConfigurarSegundoFatorDeOperador, 'etapa' | 'desafio'>
+export type SegundoFatorParaConfigurar = Omit<ConfigurarSegundoFatorDeOperadorResponse, 'etapa' | 'desafio'>
 
 /**
  * `POST /v1/operacao/sessao/mfa/configurar`, com o desafio `configurar_mfa` no corpo (tarefa 7.0). A API o consome e
@@ -19,16 +19,16 @@ export type SegundoFatorParaConfigurar = Omit<RespostaConfigurarSegundoFatorDeOp
  */
 export async function configurarSegundoFatorDeOperador(): Promise<SegundoFatorParaConfigurar> {
   const desafio = desafioDeOperador('configurar_mfa')
-  if (desafio === undefined) throw new ErroDaApi(CodigoDeErro.NAO_AUTENTICADO)
+  if (desafio === undefined) throw new ErroDaApi(ErrorCode.NAO_AUTENTICADO)
   try {
-    const resposta = await chamarApi(CAMINHO_DA_CONFIGURACAO_DO_SEGUNDO_FATOR_DE_OPERADOR, esquemaRespostaConfigurarSegundoFatorDeOperador, {
+    const resposta = await chamarApi(CAMINHO_DA_CONFIGURACAO_DO_SEGUNDO_FATOR_DE_OPERADOR, configurarSegundoFatorDeOperadorResponseSchema, {
       metodo: 'POST',
       corpo: { desafio },
     })
     guardarDesafioDeOperador(resposta.etapa, resposta.desafio)
     return { uri: resposta.uri, segredo: resposta.segredo, codigosRecuperacao: resposta.codigosRecuperacao }
   } catch (erro) {
-    const desafioSegue = erro instanceof ErroDaApi && (erro.codigo === CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO || erro.codigo === CodigoDeErro.LIMITE_EXCEDIDO)
+    const desafioSegue = erro instanceof ErroDaApi && (erro.codigo === ErrorCode.INDISPONIVEL_TENTE_DE_NOVO || erro.codigo === ErrorCode.LIMITE_EXCEDIDO)
     if (!desafioSegue) esquecerDesafioDeOperador()
     throw erro
   }

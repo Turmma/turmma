@@ -1,6 +1,6 @@
 import 'reflect-metadata'
 import { criarLogger } from '@educa/nucleo'
-import { esquemaRespostaAvisos, esquemaRespostaEstado } from '@educa/shared'
+import { avisosResponseSchema, systemStatusResponseSchema } from '@educa/shared'
 import type { INestApplication } from '@nestjs/common'
 import { NestFactory } from '@nestjs/core'
 import request from 'supertest'
@@ -39,7 +39,7 @@ describe('GET /v1/sistema/estado e /v1/sistema/avisos', () => {
     expect(resposta.status).toBe(200)
     expect(resposta.headers['cache-control']).toBe('no-store')
     // O parse estrito prova que nada além do contrato sai na resposta.
-    expect(esquemaRespostaEstado.parse(resposta.body)).toEqual(resposta.body)
+    expect(systemStatusResponseSchema.parse(resposta.body)).toEqual(resposta.body)
     expect(resposta.body).toMatchObject({
       versao: '3d4099c',
       ambiente: 'local',
@@ -54,7 +54,7 @@ describe('GET /v1/sistema/estado e /v1/sistema/avisos', () => {
     const comAviso = await request(app.getHttpServer()).get('/v1/sistema/avisos')
     expect(comAviso.status).toBe(200)
     expect(comAviso.headers['cache-control']).toBe('no-store')
-    expect(esquemaRespostaAvisos.parse(comAviso.body)).toEqual({ itens: [AVISO] })
+    expect(avisosResponseSchema.parse(comAviso.body)).toEqual({ itens: [AVISO] })
     expect(comAviso.body).toEqual({ itens: [AVISO] })
 
     const vazio = await request(semAvisos.getHttpServer()).get('/v1/sistema/avisos')

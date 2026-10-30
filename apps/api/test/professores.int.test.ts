@@ -1,5 +1,5 @@
 import { VALIDADE_DO_CONVITE_HORAS_POR_TIPO } from '@educa/nucleo'
-import { CodigoDeErro, esquemaRespostaConviteDeProfessor, esquemaRespostaListaDeProfessores, MENSAGENS_DE_ERRO, type RespostaConviteDeProfessor } from '@educa/shared'
+import { ErrorCode, conviteDeProfessorResponseSchema, listaDeProfessoresResponseSchema, MENSAGENS_DE_ERRO, type ConviteDeProfessorResponse } from '@educa/shared'
 import type { Redis } from 'ioredis'
 import { createHash, randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -43,8 +43,8 @@ function semRequisicao(resposta: Resposta): unknown {
 /** Um `token_hash` no formato do banco, sorteado: o único dele é global, e o banco de teste guarda as execuções anteriores. */
 const hashSorteado = (): string => createHash('sha256').update(randomUUID()).digest('hex')
 
-const NAO_ENCONTRADO = { status: 404, corpo: { erro: { codigo: CodigoDeErro.NAO_ENCONTRADO, mensagem: MENSAGENS_DE_ERRO.NAO_ENCONTRADO } } }
-const CONFLITO = { status: 409, corpo: { erro: { codigo: CodigoDeErro.CONFLITO, mensagem: MENSAGENS_DE_ERRO.CONFLITO } } }
+const NAO_ENCONTRADO = { status: 404, corpo: { erro: { codigo: ErrorCode.NAO_ENCONTRADO, mensagem: MENSAGENS_DE_ERRO.NAO_ENCONTRADO } } }
+const CONFLITO = { status: 409, corpo: { erro: { codigo: ErrorCode.CONFLITO, mensagem: MENSAGENS_DE_ERRO.CONFLITO } } }
 
 describe('professores (A1, tarefa 3.0): a coordenação cadastra, o professor aceita o convite de 7 dias', () => {
   const bancada = new BancadaDeSessoes()
@@ -94,10 +94,10 @@ describe('professores (A1, tarefa 3.0): a coordenação cadastra, o professor ac
   }
 
   /** Cadastra e devolve o convite gerado, conferindo o 201 e o contrato estrito. */
-  async function cadastrado(coordenacao: SessaoDeTeste, quem = pessoa()): Promise<RespostaConviteDeProfessor & { email: string; nome: string }> {
+  async function cadastrado(coordenacao: SessaoDeTeste, quem = pessoa()): Promise<ConviteDeProfessorResponse & { email: string; nome: string }> {
     const resposta = await cadastrar(coordenacao, quem)
     expect(resposta.status).toBe(201)
-    return { ...esquemaRespostaConviteDeProfessor.parse(resposta.corpo), ...quem }
+    return { ...conviteDeProfessorResponseSchema.parse(resposta.corpo), ...quem }
   }
 
   /** Os convites da escola: tipo, usuário e se está em aberto. */
@@ -128,7 +128,7 @@ describe('professores (A1, tarefa 3.0): a coordenação cadastra, o professor ac
     ).rows
 
   const estadoNaLista = async (coordenacao: SessaoDeTeste, usuarioId: string) => {
-    const lista = esquemaRespostaListaDeProfessores.parse((await listar(coordenacao, '?limite=100')).corpo)
+    const lista = listaDeProfessoresResponseSchema.parse((await listar(coordenacao, '?limite=100')).corpo)
     return lista.itens.find((item) => item.usuarioId === usuarioId)?.estado
   }
 
@@ -150,19 +150,19 @@ describe('professores (A1, tarefa 3.0): a coordenação cadastra, o professor ac
     const resposta = await cadastrar(coordenacao, quem)
     expect(resposta.status).toBe(201)
     expect(resposta.cacheControl).toBe('no-store')
-    const primeiro = esquemaRespostaConviteDeProfessor.parse(resposta.corpo)
+    const primeiro = conviteDeProfessorResponseSchema.parse(resposta.corpo)
     expect((await consultar(primeiro.token)).status).toBe(200)
 
     const lista = await listar(coordenacao)
     expect(lista.status).toBe(200)
-    expect(esquemaRespostaListaDeProfessores.parse(lista.corpo).itens).toEqual([{ usuarioId: primeiro.usuarioId, nome: expect.any(String), estado: 'pendente' }])
+    expect(listaDeProfessoresResponseSchema.parse(lista.corpo).itens).toEqual([{ usuarioId: primeiro.usuarioId, nome: expect.any(String), estado: 'pendente' }])
     for (const segredo of [primeiro.token, primeiro.conviteId, '@escola.invalid']) expect(lista.texto).not.toContain(segredo)
 
     // Refazer: o anterior responde como o inexistente, na hora; o novo vale, para o mesmo usuário.
     const refeitoResposta = await refazer(coordenacao, primeiro.usuarioId)
     expect(refeitoResposta.status).toBe(201)
     expect(refeitoResposta.cacheControl).toBe('no-store')
-    const refeito = esquemaRespostaConviteDeProfessor.parse(refeitoResposta.corpo)
+    const refeito = conviteDeProfessorResponseSchema.parse(refeitoResposta.corpo)
     expect(refeito.usuarioId).toBe(primeiro.usuarioId)
     expect(refeito.token).not.toBe(primeiro.token)
     const inexistente = await consultar(randomUUID())
@@ -204,7 +204,7 @@ describe('professores (A1, tarefa 3.0): a coordenação cadastra, o professor ac
     await bancada.pool.query("update convite set expira_em = now() - interval '1 second' where id = $1", [vencido.conviteId])
     expect(await estadoNaLista(coordenacao, vencido.usuarioId)).toBe('vencido')
     expect((await consultar(vencido.token)).status).toBe(404)
-    const refeito = esquemaRespostaConviteDeProfessor.parse((await refazer(coordenacao, vencido.usuarioId)).corpo)
+    const refeito = conviteDeProfessorResponseSchema.parse((await refazer(coordenacao, vencido.usuarioId)).corpo)
     expect((await consultar(refeito.token)).status).toBe(200)
     expect(await estadoNaLista(coordenacao, vencido.usuarioId)).toBe('pendente')
 
@@ -344,10 +344,10 @@ describe('professores (A1, tarefa 3.0): a coordenação cadastra, o professor ac
     const semConta = await cadastrar(coordenacao, pessoa())
     expect([comConta.status, semConta.status]).toEqual([201, 201])
     expect(Object.keys(comConta.corpo).sort()).toEqual(Object.keys(semConta.corpo).sort())
-    const [a, b] = [esquemaRespostaConviteDeProfessor.parse(comConta.corpo), esquemaRespostaConviteDeProfessor.parse(semConta.corpo)]
+    const [a, b] = [conviteDeProfessorResponseSchema.parse(comConta.corpo), conviteDeProfessorResponseSchema.parse(semConta.corpo)]
 
     const itens = async () => {
-      const lista = esquemaRespostaListaDeProfessores.parse((await listar(coordenacao)).corpo).itens
+      const lista = listaDeProfessoresResponseSchema.parse((await listar(coordenacao)).corpo).itens
       return [a, b].map((gerado) => lista.find((item) => item.usuarioId === gerado.usuarioId))
     }
     const [itemA, itemB] = await itens()
@@ -431,7 +431,7 @@ describe('professores (A1, tarefa 3.0): a coordenação cadastra, o professor ac
     expect((await pedir('POST', `/v1/professores/${convite.usuarioId}/convite/revogar`, coordenacao.token)).status).toBe(204)
   })
 
-  const ENTRADA_INVALIDA = { status: 400, corpo: { erro: { codigo: CodigoDeErro.ENTRADA_INVALIDA, mensagem: MENSAGENS_DE_ERRO.ENTRADA_INVALIDA } } }
+  const ENTRADA_INVALIDA = { status: 400, corpo: { erro: { codigo: ErrorCode.ENTRADA_INVALIDA, mensagem: MENSAGENS_DE_ERRO.ENTRADA_INVALIDA } } }
 
   it('entrada fora do esquema: escola de B no corpo, campo a mais, limite 101 e id fora do formato respondem o erro tipado do catálogo, e nada é gravado em A nem em B', async () => {
     const a = await escolaComCoordenacao()
@@ -746,7 +746,7 @@ describe('professores (A1, tarefa 3.0): a coordenação cadastra, o professor ac
       expect(respostas.map((resposta) => resposta.status)).toEqual([201, 201])
       const abertos = (await convitesDa(escolaId)).filter((linha) => linha.aberto)
       expect(abertos).toHaveLength(1)
-      const tokens = respostas.map((resposta) => esquemaRespostaConviteDeProfessor.parse(resposta.corpo))
+      const tokens = respostas.map((resposta) => conviteDeProfessorResponseSchema.parse(resposta.corpo))
       const vale = tokens.filter((gerado) => gerado.conviteId === abertos[0]?.id)
       expect(vale).toHaveLength(1)
       const [ultimo] = vale
@@ -765,7 +765,7 @@ describe('professores (A1, tarefa 3.0): a coordenação cadastra, o professor ac
         () => refazer(coordenacao, convite.usuarioId),
         () => refazer(coordenacao, convite.usuarioId),
       )
-      const [doPrimeiro, doSegundo] = [esquemaRespostaConviteDeProfessor.parse(primeiro.corpo), esquemaRespostaConviteDeProfessor.parse(segundo.corpo)]
+      const [doPrimeiro, doSegundo] = [conviteDeProfessorResponseSchema.parse(primeiro.corpo), conviteDeProfessorResponseSchema.parse(segundo.corpo)]
       expect((await consultar(doSegundo.token)).status).toBe(200)
       expect((await consultar(doPrimeiro.token)).status).toBe(404)
       expect((await auditoriaDe(escolaId, 'convite.refeito')).map((linha) => linha.depois?.['origemId'])).toEqual([convite.conviteId, doPrimeiro.conviteId])
@@ -839,10 +839,10 @@ describe('professores (A1, tarefa 3.0): a coordenação cadastra, o professor ac
     const b = await escolaComCoordenacao()
     const deA = [await cadastrado(a.coordenacao), await cadastrado(a.coordenacao), await cadastrado(a.coordenacao)]
     const deB = await cadastrado(b.coordenacao)
-    const primeira = esquemaRespostaListaDeProfessores.parse((await listar(a.coordenacao, '?limite=2')).corpo)
+    const primeira = listaDeProfessoresResponseSchema.parse((await listar(a.coordenacao, '?limite=2')).corpo)
     expect(primeira.itens).toHaveLength(2)
     expect(primeira.proxima).toBe(primeira.itens[1]?.usuarioId)
-    const segunda = esquemaRespostaListaDeProfessores.parse((await listar(a.coordenacao, `?limite=2&pagina=${String(primeira.proxima)}`)).corpo)
+    const segunda = listaDeProfessoresResponseSchema.parse((await listar(a.coordenacao, `?limite=2&pagina=${String(primeira.proxima)}`)).corpo)
     expect(segunda.proxima).toBeUndefined()
     const vistos = [...primeira.itens, ...segunda.itens].map((item) => item.usuarioId)
     expect(vistos).toEqual(deA.map((gerado) => gerado.usuarioId).sort())

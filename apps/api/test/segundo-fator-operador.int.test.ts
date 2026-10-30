@@ -1,11 +1,11 @@
 import 'reflect-metadata'
 import { type Banco } from '@educa/nucleo'
 import {
-  CodigoDeErro,
-  esquemaRespostaAceitarConviteDeOperador,
-  esquemaRespostaConfigurarSegundoFatorDeOperador,
-  esquemaRespostaEntradaDeOperador,
-  esquemaRespostaSegundoFatorDeOperador,
+  ErrorCode,
+  aceitarConviteDeOperadorResponseSchema,
+  configurarSegundoFatorDeOperadorResponseSchema,
+  entradaDeOperadorResponseSchema,
+  segundoFatorDeOperadorResponseSchema,
 } from '@educa/shared'
 import type { INestApplication, Type } from '@nestjs/common'
 import { DiscoveryService } from '@nestjs/core'
@@ -105,7 +105,7 @@ describe('segundo fator do operador: configurar e entrar com código (tarefa 7.0
     if (corpo === undefined) throw new Error('configurar recusado')
     const resposta = guardar(await entrar(url, { desafio: corpo.desafio, codigo: codigoDoPasso(corpo.segredo, passoAtual()) }))
     expect(resposta.status).toBe(200)
-    const { token } = esquemaRespostaSegundoFatorDeOperador.parse(resposta.corpo)
+    const { token } = segundoFatorDeOperadorResponseSchema.parse(resposta.corpo)
     return { operadorId, apelido, base32: corpo.segredo, codigos: corpo.codigosRecuperacao, token, setCookie: resposta.setCookie }
   }
 
@@ -115,7 +115,7 @@ describe('segundo fator do operador: configurar e entrar com código (tarefa 7.0
     it('aceitar, configurar (segredo, códigos e desafio `mfa` com a versão, sem ativar), o primeiro código ativa e abre a sessão com os dois cookies; depois, e-mail, senha e código entram de novo', async () => {
       const { operadorId, apelido } = await operadores.operador()
       const convite = await gerarConviteDeOperador(banco, autor, apelido)
-      const aceite = esquemaRespostaAceitarConviteDeOperador.parse(guardar(await pedir(url, 'POST', '/v1/operacao/convite/aceitar', { token: convite.token, senha: SENHA }, doIp())).corpo)
+      const aceite = aceitarConviteDeOperadorResponseSchema.parse(guardar(await pedir(url, 'POST', '/v1/operacao/convite/aceitar', { token: convite.token, senha: SENHA }, doIp())).corpo)
 
       const { resposta: configurado, corpo } = await configurar(url, aceite.desafio)
       guardar(configurado)
@@ -138,7 +138,7 @@ describe('segundo fator do operador: configurar e entrar com código (tarefa 7.0
       expect(entrada.status).toBe(200)
       expect(entrada.cacheControl).toBe('no-store')
       expect(Object.keys(entrada.corpo as object).sort()).toEqual(['expiraEm', 'token'])
-      const { token } = esquemaRespostaSegundoFatorDeOperador.parse(entrada.corpo)
+      const { token } = segundoFatorDeOperadorResponseSchema.parse(entrada.corpo)
       // Os dois cookies, só em `/v1/operacao/sessao`, `HttpOnly` e `SameSite=Strict`.
       const cookies = Object.fromEntries(entrada.setCookie.map((linha) => [linha.split('=')[0], linha]))
       expect(Object.keys(cookies).sort()).toEqual([COOKIE_SESSAO_DE_OPERADOR, COOKIE_DISPOSITIVO_DE_OPERADOR].sort())
@@ -163,7 +163,7 @@ describe('segundo fator do operador: configurar e entrar com código (tarefa 7.0
       expect((await eu(token)).corpo).toEqual({ apelido, nome: 'Pessoa Sintética da Operação' })
 
       // De novo, pela entrada por e-mail: `mfa` sem versão, e o código do passo seguinte.
-      const deNovo = esquemaRespostaEntradaDeOperador.parse(guardar(await pedir(url, 'POST', '/v1/operacao/sessao/email', { email: `${apelido}@turmma.invalid`, senha: SENHA }, doIp())).corpo)
+      const deNovo = entradaDeOperadorResponseSchema.parse(guardar(await pedir(url, 'POST', '/v1/operacao/sessao/email', { email: `${apelido}@turmma.invalid`, senha: SENHA }, doIp())).corpo)
       expect(deNovo.etapa).toBe('mfa')
       const segunda = guardar(await entrar(url, { desafio: deNovo.desafio, codigo: codigoDoPasso(corpo.segredo, passoAtual() + 1) }, { ...doIp(), Cookie: `${COOKIE_DISPOSITIVO_DE_OPERADOR}=${dispositivo ?? ''}` }))
       expect(segunda.status).toBe(200)
@@ -181,7 +181,7 @@ describe('segundo fator do operador: configurar e entrar com código (tarefa 7.0
       const [codigo, recuperacao] = [codigoDoPasso(ativo.base32, passoAtual() + 1), ativo.codigos[0] ?? '']
       const respostas = await Promise.all([entrar(url, { desafio: unico, codigo }), entrar(url, { desafio: unico, recuperacao })])
       expect(respostas.map((resposta) => resposta.status).sort()).toEqual([200, 401])
-      for (const recusada of respostas.filter((resposta) => resposta.status !== 200)) esperarErro(recusada, 401, CodigoDeErro.NAO_AUTENTICADO)
+      for (const recusada of respostas.filter((resposta) => resposta.status !== 200)) esperarErro(recusada, 401, ErrorCode.NAO_AUTENTICADO)
       const depois = await estadoDoOperador(operadores.pool, ativo.operadorId)
       expect(depois.sessoes).toBe(antes.sessoes + 1)
       // Só o vencedor gastou o dele: ou o passo andou, ou o código de recuperação saiu — nunca os dois.
@@ -190,7 +190,7 @@ describe('segundo fator do operador: configurar e entrar com código (tarefa 7.0
       expect([passoAndou, recuperacaoSaiu].filter(Boolean)).toHaveLength(1)
 
       const reenviado = await entrar(url, { desafio: unico, recuperacao: ativo.codigos[1] ?? '' })
-      esperarErro(reenviado, 401, CodigoDeErro.NAO_AUTENTICADO)
+      esperarErro(reenviado, 401, ErrorCode.NAO_AUTENTICADO)
       expect((await estadoDoOperador(operadores.pool, ativo.operadorId)).sessoes).toBe(antes.sessoes + 1)
     })
   })
@@ -199,7 +199,7 @@ describe('segundo fator do operador: configurar e entrar com código (tarefa 7.0
     it('`configurar_mfa` em `/sessao/mfa` e `mfa` em `/mfa/configurar` são recusados como desafio inválido, sem gastar o desafio: cada um vale depois na rota certa', async () => {
       const { operadorId } = await operadores.operador()
       const paraConfigurar = await desafio(operadorId, 'configurar_mfa')
-      esperarErro(await entrar(url, { desafio: paraConfigurar, codigo: '123456' }), 401, CodigoDeErro.NAO_AUTENTICADO)
+      esperarErro(await entrar(url, { desafio: paraConfigurar, codigo: '123456' }), 401, ErrorCode.NAO_AUTENTICADO)
       expect(forma(await entrar(url, { desafio: paraConfigurar, codigo: '123456' }))).toEqual(await comoDesafioInvalido(ENTRAR, operadorId))
       const { corpo } = await configurar(url, paraConfigurar)
       if (corpo === undefined) throw new Error('configurar recusado')
@@ -218,7 +218,7 @@ describe('segundo fator do operador: configurar e entrar com código (tarefa 7.0
       const ativo = await operadorAtivo()
       const antes = await estadoDoOperador(operadores.pool, ativo.operadorId)
       const { resposta } = await configurar(url, await desafio(ativo.operadorId, 'configurar_mfa'))
-      esperarErro(resposta, 401, CodigoDeErro.NAO_AUTENTICADO)
+      esperarErro(resposta, 401, ErrorCode.NAO_AUTENTICADO)
       expect(forma(resposta)).toEqual(await comoDesafioInvalido(CONFIGURAR, ativo.operadorId))
       const depois = await estadoDoOperador(operadores.pool, ativo.operadorId)
       expect({ segredo: depois.segredoCifrado, versao: depois.mfaVersao, hmacs: depois.hmacs, ativadoEm: depois.ativadoEm }).toEqual({
@@ -243,10 +243,10 @@ describe('segundo fator do operador: configurar e entrar com código (tarefa 7.0
       expect((await estadoDoOperador(operadores.pool, operadorId)).mfaVersao).toBe(versao)
 
       const errado = codigoDoPasso(corpo.segredo, passoAtual() - 10)
-      esperarErro(await entrar(url, { desafio: corpo.desafio, codigo: errado }), 401, CodigoDeErro.NAO_AUTENTICADO)
+      esperarErro(await entrar(url, { desafio: corpo.desafio, codigo: errado }), 401, ErrorCode.NAO_AUTENTICADO)
       expect((await estadoDoOperador(operadores.pool, operadorId)).ativadoEm).toBeNull()
       // Queimado não volta: nem com o código certo.
-      esperarErro(await entrar(url, { desafio: corpo.desafio, codigo: codigoDoPasso(corpo.segredo, passoAtual()) }), 401, CodigoDeErro.NAO_AUTENTICADO)
+      esperarErro(await entrar(url, { desafio: corpo.desafio, codigo: codigoDoPasso(corpo.segredo, passoAtual()) }), 401, ErrorCode.NAO_AUTENTICADO)
       expect((await estadoDoOperador(operadores.pool, operadorId)).ativadoEm).toBeNull()
 
       const certo = await entrar(url, { desafio: await desafio(operadorId, 'mfa', versao), codigo: codigoDoPasso(corpo.segredo, passoAtual()) })
@@ -271,7 +271,7 @@ describe('segundo fator do operador: configurar e entrar com código (tarefa 7.0
       const ativo = await operadorAtivo()
       const codigo = codigoDoPasso(ativo.base32, passoAtual() + 1)
       expect((await entrar(url, { desafio: await desafio(ativo.operadorId, 'mfa'), codigo })).status).toBe(200)
-      esperarErro(await entrar(url, { desafio: await desafio(ativo.operadorId, 'mfa'), codigo }), 401, CodigoDeErro.NAO_AUTENTICADO)
+      esperarErro(await entrar(url, { desafio: await desafio(ativo.operadorId, 'mfa'), codigo }), 401, ErrorCode.NAO_AUTENTICADO)
       expect((await estadoDoOperador(operadores.pool, ativo.operadorId)).sessoes).toBe(2)
     })
 
@@ -292,7 +292,7 @@ describe('segundo fator do operador: configurar e entrar com código (tarefa 7.0
       // Copiado do papel: minúsculas e hífen valem.
       const copiado = `${primeiro.slice(0, 6).toLowerCase()}-${primeiro.slice(6)}`
       expect((await entrar(url, { desafio: await desafio(ativo.operadorId, 'mfa'), recuperacao: copiado })).status).toBe(200)
-      esperarErro(await entrar(url, { desafio: await desafio(ativo.operadorId, 'mfa'), recuperacao: primeiro }), 401, CodigoDeErro.NAO_AUTENTICADO)
+      esperarErro(await entrar(url, { desafio: await desafio(ativo.operadorId, 'mfa'), recuperacao: primeiro }), 401, ErrorCode.NAO_AUTENTICADO)
 
       const [um, outro] = await Promise.all([desafio(ativo.operadorId, 'mfa'), desafio(ativo.operadorId, 'mfa')])
       const respostas = await Promise.all([entrar(url, { desafio: um, recuperacao: segundo }), entrar(url, { desafio: outro, recuperacao: segundo })])
@@ -307,7 +307,7 @@ describe('segundo fator do operador: configurar e entrar com código (tarefa 7.0
     it('isolamento: o código de recuperação de um operador não vale para outro, e continua valendo para o dono', async () => {
       const [dono, outro] = [await operadorAtivo(), await operadorAtivo()]
       const codigo = dono.codigos[0] ?? ''
-      esperarErro(await entrar(url, { desafio: await desafio(outro.operadorId, 'mfa'), recuperacao: codigo }), 401, CodigoDeErro.NAO_AUTENTICADO)
+      esperarErro(await entrar(url, { desafio: await desafio(outro.operadorId, 'mfa'), recuperacao: codigo }), 401, ErrorCode.NAO_AUTENTICADO)
       expect((await estadoDoOperador(operadores.pool, dono.operadorId)).hmacs).toContain(hmacDoCodigo(codigo))
       expect((await estadoDoOperador(operadores.pool, outro.operadorId)).sessoes).toBe(1)
       expect((await entrar(url, { desafio: await desafio(dono.operadorId, 'mfa'), recuperacao: codigo })).status).toBe(200)
@@ -318,7 +318,7 @@ describe('segundo fator do operador: configurar e entrar com código (tarefa 7.0
       const { corpo } = await configurar(url, await desafio(operadorId, 'configurar_mfa'))
       if (corpo === undefined) throw new Error('configurar recusado')
       const versao = (await estadoDoOperador(operadores.pool, operadorId)).mfaVersao
-      esperarErro(await entrar(url, { desafio: corpo.desafio, recuperacao: corpo.codigosRecuperacao[0] ?? '' }), 401, CodigoDeErro.NAO_AUTENTICADO)
+      esperarErro(await entrar(url, { desafio: corpo.desafio, recuperacao: corpo.codigosRecuperacao[0] ?? '' }), 401, ErrorCode.NAO_AUTENTICADO)
       const recusada = await estadoDoOperador(operadores.pool, operadorId)
       expect(recusada).toMatchObject({ ativadoEm: null, sessoes: 0 })
       expect(recusada.hmacs).toHaveLength(10)
@@ -338,7 +338,7 @@ describe('segundo fator do operador: configurar e entrar com código (tarefa 7.0
       const { operadorId, apelido, nome } = await operadores.operador()
       const { base32 } = await ativarNoBanco(operadores.pool, operadorId)
       // Uma falha antes: o contador tem o que zerar.
-      esperarErro(await entrar(url, { desafio: await desafio(operadorId, 'mfa'), codigo: codigoDoPasso(base32, passoAtual() - 10) }), 401, CodigoDeErro.NAO_AUTENTICADO)
+      esperarErro(await entrar(url, { desafio: await desafio(operadorId, 'mfa'), codigo: codigoDoPasso(base32, passoAtual() - 10) }), 401, ErrorCode.NAO_AUTENTICADO)
       expect(await falhasNoContador(operadorId, 'outro')).toBe('1')
 
       // O Redis de fila recusa o `del` do contador, e só ele: a reserva e a marca do desafio passam.
@@ -353,7 +353,7 @@ describe('segundo fator do operador: configurar e entrar com código (tarefa 7.0
         recusa.mockRestore()
       }
       expect(resposta.status).toBe(200)
-      expect(esquemaRespostaSegundoFatorDeOperador.safeParse(resposta.corpo).success).toBe(true)
+      expect(segundoFatorDeOperadorResponseSchema.safeParse(resposta.corpo).success).toBe(true)
       expect(resposta.setCookie.map((linha) => linha.split('=')[0]).sort()).toEqual([COOKIE_SESSAO_DE_OPERADOR, COOKIE_DISPOSITIVO_DE_OPERADOR].sort())
       expect((await estadoDoOperador(operadores.pool, operadorId)).sessoesAbertas).toBe(1)
       // O contador não foi zerado: ficou com a falha de antes e a reserva desta entrada, e quem o zera agora é o
@@ -377,7 +377,7 @@ describe('segundo fator do operador: configurar e entrar com código (tarefa 7.0
       const pedido = { desafio: await desafio(operadorId, 'mfa'), codigo: codigoDoPasso(base32, passoAtual()) }
       // O middleware abre o contexto em toda requisição HTTP; chamado direto, sem ele, o serviço não inventa um.
       const servico = app.get(SegundoFatorDoOperadorService)
-      await expect(servico.entrar(pedido, { cabecalhoCookie: undefined, ip: '203.0.113.9' })).rejects.toMatchObject({ codigo: CodigoDeErro.ERRO_INTERNO })
+      await expect(servico.entrar(pedido, { cabecalhoCookie: undefined, ip: '203.0.113.9' })).rejects.toMatchObject({ codigo: ErrorCode.ERRO_INTERNO })
       expect((await estadoDoOperador(operadores.pool, operadorId)).sessoesAbertas).toBe(0)
       // O desafio não foi gasto: a mesma entrada, pela rota, abre a sessão.
       expect((await entrar(url, pedido)).status).toBe(200)
@@ -398,7 +398,7 @@ describe('segundo fator do operador: configurar e entrar com código (tarefa 7.0
       const paraConfigurar = await desafio(operadorId, 'configurar_mfa')
       for (const corpo of [{ desafio: paraConfigurar, operadorId }, {}, { desafio: '' }]) {
         const resposta = await pedir(url, 'POST', CONFIGURAR, corpo, doIp())
-        esperarErro(resposta, 400, CodigoDeErro.ENTRADA_INVALIDA)
+        esperarErro(resposta, 400, ErrorCode.ENTRADA_INVALIDA)
         expect(resposta.cacheControl).toBe('no-store')
       }
       const { corpo } = await configurar(url, paraConfigurar)
@@ -412,7 +412,7 @@ describe('segundo fator do operador: configurar e entrar com código (tarefa 7.0
         { codigo },
       ]) {
         const resposta = await pedir(url, 'POST', ENTRAR, invalido, doIp())
-        esperarErro(resposta, 400, CodigoDeErro.ENTRADA_INVALIDA)
+        esperarErro(resposta, 400, ErrorCode.ENTRADA_INVALIDA)
         expect(resposta.cacheControl).toBe('no-store')
         expect(resposta.setCookie).toEqual([])
       }
@@ -423,13 +423,13 @@ describe('segundo fator do operador: configurar e entrar com código (tarefa 7.0
 
       // A saída não deixa passar campo a mais.
       const configurado = { uri: corpo.uri, segredo: corpo.segredo, codigosRecuperacao: corpo.codigosRecuperacao, etapa: 'mfa', desafio: corpo.desafio }
-      expect(esquemaRespostaConfigurarSegundoFatorDeOperador.safeParse(configurado).success).toBe(true)
-      expect(esquemaRespostaConfigurarSegundoFatorDeOperador.safeParse({ ...configurado, operadorId }).success).toBe(false)
-      expect(esquemaRespostaConfigurarSegundoFatorDeOperador.safeParse({ ...configurado, versao: 1 }).success).toBe(false)
+      expect(configurarSegundoFatorDeOperadorResponseSchema.safeParse(configurado).success).toBe(true)
+      expect(configurarSegundoFatorDeOperadorResponseSchema.safeParse({ ...configurado, operadorId }).success).toBe(false)
+      expect(configurarSegundoFatorDeOperadorResponseSchema.safeParse({ ...configurado, versao: 1 }).success).toBe(false)
       const entrada = { token: 'x', expiraEm: new Date().toISOString() }
-      expect(esquemaRespostaSegundoFatorDeOperador.safeParse(entrada).success).toBe(true)
-      expect(esquemaRespostaSegundoFatorDeOperador.safeParse({ ...entrada, refresh: 'x' }).success).toBe(false)
-      expect(esquemaRespostaSegundoFatorDeOperador.safeParse({ ...entrada, sessaoId: randomUUID() }).success).toBe(false)
+      expect(segundoFatorDeOperadorResponseSchema.safeParse(entrada).success).toBe(true)
+      expect(segundoFatorDeOperadorResponseSchema.safeParse({ ...entrada, refresh: 'x' }).success).toBe(false)
+      expect(segundoFatorDeOperadorResponseSchema.safeParse({ ...entrada, sessaoId: randomUUID() }).success).toBe(false)
     })
   })
 
@@ -465,7 +465,7 @@ describe('segundo fator do operador: configurar e entrar com código (tarefa 7.0
       expect(forma(await pedir(url, 'GET', '/v1/eu', undefined, { Cookie: soDispositivo }))).toEqual(forma(await pedir(url, 'GET', '/v1/eu')))
       // A renovação da escola procura o `educa_sessao`: com o do operador, não renova nada nem grava sessão de escola.
       const renovacao = await pedir(url, 'POST', '/v1/sessao/renovar', undefined, { Cookie: cookieDoOperador })
-      esperarErro(renovacao, 401, CodigoDeErro.NAO_AUTENTICADO)
+      esperarErro(renovacao, 401, ErrorCode.NAO_AUTENTICADO)
       expect(renovacao.setCookie.filter((linha) => linha.startsWith(`${COOKIE_SESSAO}=`) && !linha.startsWith(`${COOKIE_SESSAO}=;`))).toEqual([])
       // E o operador continua com a sessão dele.
       expect((await eu(ativo.token)).status).toBe(200)
@@ -513,11 +513,11 @@ describe('segundo fator do operador com o Redis de fila fora (C13)', () => {
     try {
       await expect.poll(() => cliente.status, { timeout: 5_000, interval: 10 }).toBe('end')
       const { resposta: semConfigurar } = await configurar(url, paraConfigurar)
-      esperarErro(semConfigurar, 503, CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO)
+      esperarErro(semConfigurar, 503, ErrorCode.INDISPONIVEL_TENTE_DE_NOVO)
       expect(Number(semConfigurar.retryAfter)).toBeGreaterThanOrEqual(1)
       expect(semConfigurar.cacheControl).toBe('no-store')
       const semEntrar = await entrar(url, { desafio: corpo.desafio, codigo: codigoDoPasso(corpo.segredo, passoAtual()) })
-      esperarErro(semEntrar, 503, CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO)
+      esperarErro(semEntrar, 503, ErrorCode.INDISPONIVEL_TENTE_DE_NOVO)
       expect(semEntrar.setCookie).toEqual([])
       // Nada mudou: nem o segredo, nem os códigos, nem a ativação, nem o passo, nem sessão.
       expect(await estadoDoOperador(operadores.pool, a.operadorId)).toEqual(antesDeA)
@@ -550,12 +550,12 @@ describe('segundo fator do operador: o limite (C32 e C34)', () => {
     const { operadorId } = await operadores.operador()
     const [ip, outro] = [ipSorteado(), ipSorteado()]
     const invalido = await desafioInvalido(operadorId, 'configurar_mfa')
-    for (let vez = 0; vez < LIMITE_POR_IP; vez++) esperarErro((await configurar(url, invalido, doIp(ip))).resposta, 401, CodigoDeErro.NAO_AUTENTICADO)
+    for (let vez = 0; vez < LIMITE_POR_IP; vez++) esperarErro((await configurar(url, invalido, doIp(ip))).resposta, 401, ErrorCode.NAO_AUTENTICADO)
     const { resposta: recusada } = await configurar(url, invalido, doIp(ip))
-    esperarErro(recusada, 429, CodigoDeErro.LIMITE_EXCEDIDO)
+    esperarErro(recusada, 429, ErrorCode.LIMITE_EXCEDIDO)
     expect(Number(recusada.retryAfter)).toBeGreaterThanOrEqual(1)
     expect(recusada.cacheControl).toBe('no-store')
-    esperarErro((await configurar(url, invalido, doIp(outro))).resposta, 401, CodigoDeErro.NAO_AUTENTICADO)
+    esperarErro((await configurar(url, invalido, doIp(outro))).resposta, 401, ErrorCode.NAO_AUTENTICADO)
   })
 
   it('C34: `/sessao/mfa` é recusado pelo contador do `operador.id`, nunca pelo IP: X errando do IP segura só X (e só a origem `outro`), e Y entra pelo mesmo IP', async () => {
@@ -575,15 +575,15 @@ describe('segundo fator do operador: o limite (C32 e C34)', () => {
     // Cinco erros de X, cada um com um desafio novo, do mesmo IP e acima do `rl:ip:op`: nenhum 429 LIMITE_EXCEDIDO.
     const erros: Resposta[] = []
     for (let vez = 0; vez < 5; vez++) erros.push(await entrar(url, { desafio: await desafio(x.operadorId, 'mfa'), codigo: errado }, doIp(ip)))
-    for (const resposta of erros.slice(0, 4)) esperarErro(resposta, 401, CodigoDeErro.NAO_AUTENTICADO)
+    for (const resposta of erros.slice(0, 4)) esperarErro(resposta, 401, ErrorCode.NAO_AUTENTICADO)
     const quinto = erros[4]
     if (quinto === undefined) throw new Error('quinto erro ausente')
-    esperarErro(quinto, 429, CodigoDeErro.CONTA_SEGURADA)
+    esperarErro(quinto, 429, ErrorCode.CONTA_SEGURADA)
     expect(Number(quinto.retryAfter)).toBeGreaterThanOrEqual(1)
 
     // Segurado, X não entra nem com o código certo, e o código não é gasto.
     const passoAntes = (await estadoDoOperador(operadores.pool, x.operadorId)).ultimoPasso
-    esperarErro(await entrar(url, { desafio: await desafio(x.operadorId, 'mfa'), codigo: codigoDoPasso(x.base32, passoAtual() + 1) }, doIp(ip)), 429, CodigoDeErro.CONTA_SEGURADA)
+    esperarErro(await entrar(url, { desafio: await desafio(x.operadorId, 'mfa'), codigo: codigoDoPasso(x.base32, passoAtual() + 1) }, doIp(ip)), 429, ErrorCode.CONTA_SEGURADA)
     expect((await estadoDoOperador(operadores.pool, x.operadorId)).ultimoPasso).toBe(passoAntes)
 
     // Y, do mesmo IP, entra: o contador é o do operador, não o do IP.

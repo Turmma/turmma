@@ -4,12 +4,12 @@ import type {
   AtividadeAplicada,
   Entrega,
   MensagemDaConversa,
-  RespostaArtefato,
-  RespostaCorrecaoDoLote,
-  RespostaDesempenhoDaTurma,
-  RespostaExecucao,
-  RespostaSinais,
-  RespostaUsoDoTutor,
+  ArtefatoResponse,
+  CorrecaoDoLoteResponse,
+  DesempenhoDaTurmaResponse,
+  ExecucaoResponse,
+  SinaisResponse,
+  UsoDoTutorResponse,
   ResultadoDaExecucao,
 } from '../../packages/shared/src/index.ts'
 import type { ChaveDeFuncao } from '../../packages/shared/src/time/funcoes.ts'
@@ -114,16 +114,16 @@ export class ApiDoAssistente {
   /** As atividades aplicadas às turmas da professora. */
   aplicadas: AtividadeAplicada[] = []
   /** O lote de correção de cada atividade aplicada, pelo id dela. Sem lote, a rota responde como inexistente. */
-  readonly correcoes = new Map<string, RespostaCorrecaoDoLote>()
+  readonly correcoes = new Map<string, CorrecaoDoLoteResponse>()
   /** O lote que nasce quando a atividade encerra. Sem ele, a atividade encerra sem corrigir (função suspensa, ou ninguém respondeu). */
-  loteAoEncerrar: ((aplicada: AtividadeAplicada) => RespostaCorrecaoDoLote) | undefined
-  desempenho: RespostaDesempenhoDaTurma | undefined
-  sinais: RespostaSinais = { itens: [], grupos: [] }
-  uso: RespostaUsoDoTutor | undefined
+  loteAoEncerrar: ((aplicada: AtividadeAplicada) => CorrecaoDoLoteResponse) | undefined
+  desempenho: DesempenhoDaTurmaResponse | undefined
+  sinais: SinaisResponse = { itens: [], grupos: [] }
+  uso: UsoDoTutorResponse | undefined
   entregas: Entrega[] = []
-  artefatos: RespostaArtefato[] = []
+  artefatos: ArtefatoResponse[] = []
   suspensas = new Set<ChaveDeFuncao>()
-  readonly execucoes = new Map<string, RespostaExecucao>()
+  readonly execucoes = new Map<string, ExecucaoResponse>()
   /** Todo `POST` e `PATCH` que a tela mandou, na ordem. */
   readonly pedidos: PedidoRegistrado[] = []
   /** Quantas vezes a tela consultou cada execução. */
@@ -154,7 +154,7 @@ export class ApiDoAssistente {
     this.execucoes.set(execucaoId, { ...atual, estado: 'concluida', resultado, erro: null })
   }
 
-  falhar(execucaoId: string, erro: NonNullable<RespostaExecucao['erro']>): void {
+  falhar(execucaoId: string, erro: NonNullable<ExecucaoResponse['erro']>): void {
     const atual = this.execucoes.get(execucaoId)
     if (atual === undefined) throw new Error('execução desconhecida')
     this.execucoes.set(execucaoId, { ...atual, estado: 'falhou', resultado: null, erro })
@@ -170,7 +170,7 @@ export class ApiDoAssistente {
     return { itens: fatia, ...(inicio + this.porPagina < itens.length && ultimo !== undefined ? { proxima: ultimo.id } : {}) }
   }
 
-  private aceitar(tarefa: RespostaExecucao['tarefa']): Resposta {
+  private aceitar(tarefa: ExecucaoResponse['tarefa']): Resposta {
     const id = randomUUID()
     this.execucoes.set(id, { id, tarefa, estado: 'pendente', resultado: null, erro: null })
     return { status: 202, corpo: { execucaoId: id } }
@@ -362,7 +362,7 @@ export async function simularAssistente(page: Page): Promise<ApiDoAssistente> {
 const citacao = (pagina: number, trecho: string) => ({ materialId: MATERIAL, pagina, trecho })
 
 /** Uma atividade objetiva sintética, com a página citada em cada questão. */
-export function atividadeSintetica(turmaId: string, disciplinaId: string, campos: Partial<RespostaArtefato> = {}): RespostaArtefato {
+export function atividadeSintetica(turmaId: string, disciplinaId: string, campos: Partial<ArtefatoResponse> = {}): ArtefatoResponse {
   const titulo = campos.titulo ?? 'Atividade de estequiometria'
   return {
     id: randomUUID(),
@@ -403,11 +403,11 @@ export function atividadeSintetica(turmaId: string, disciplinaId: string, campos
 }
 
 /** A versão adaptada de uma atividade, com a entrega dela no estado dado. */
-export function versaoAdaptada(origem: RespostaArtefato, estado: Entrega['estado'] = 'pendente'): { artefato: RespostaArtefato; entrega: Entrega } {
+export function versaoAdaptada(origem: ArtefatoResponse, estado: Entrega['estado'] = 'pendente'): { artefato: ArtefatoResponse; entrega: Entrega } {
   const decidida = estado !== 'pendente'
   const decididaEm = decidida ? '2026-10-05T13:42:00.000Z' : null
   const entregaId = randomUUID()
-  const artefato: RespostaArtefato = {
+  const artefato: ArtefatoResponse = {
     ...origem,
     id: randomUUID(),
     titulo: `${origem.titulo} (versão adaptada)`,
@@ -437,7 +437,7 @@ export function versaoAdaptada(origem: RespostaArtefato, estado: Entrega['estado
 }
 
 /** O resumo de um artefato, como ele aparece na lista de versões da origem. */
-export function resumoDoArtefato({ conteudo: _conteudo, versoesAdaptadas: _versoes, aplicacoes: _aplicacoes, ...resumido }: RespostaArtefato): RespostaArtefato['versoesAdaptadas'][number] {
+export function resumoDoArtefato({ conteudo: _conteudo, versoesAdaptadas: _versoes, aplicacoes: _aplicacoes, ...resumido }: ArtefatoResponse): ArtefatoResponse['versoesAdaptadas'][number] {
   return resumido
 }
 
@@ -462,7 +462,7 @@ export function propostaDeAtividade(turmaId: string, disciplinaId: string): Extr
 }
 
 /** A entrega de um lote de correção, como o Seu time a recebe. */
-export function entregaDoLote(lote: RespostaCorrecaoDoLote, turmaId: string): Entrega {
+export function entregaDoLote(lote: CorrecaoDoLoteResponse, turmaId: string): Entrega {
   return {
     id: lote.entrega.id,
     tipo: 'lote_de_correcao',
@@ -489,7 +489,7 @@ export const ALUNOS_DO_LOTE = ['Ana Sintética', 'Bruno Sintético', 'Caio Sint�
  * O lote de correção de uma atividade de duas questões: 28 correções numa turma de 30, dois destaques fechados (um em
  * branco, um fora do histórico) e duas das outras correções. Só número e nome inventado.
  */
-export function loteSintetico(aplicada: Pick<AtividadeAplicada, 'id' | 'titulo'>): RespostaCorrecaoDoLote {
+export function loteSintetico(aplicada: Pick<AtividadeAplicada, 'id' | 'titulo'>): CorrecaoDoLoteResponse {
   const [ana, bruno, caio, dora] = ALUNOS_DO_LOTE
   if (ana === undefined || bruno === undefined || caio === undefined || dora === undefined) throw new Error('faltou aluno sintético')
   return {
@@ -530,7 +530,7 @@ export function loteSintetico(aplicada: Pick<AtividadeAplicada, 'id' | 'titulo'>
 }
 
 /** O desempenho da turma depois de um lote aprovado: por habilidade e por aluno, em ordem de nome. */
-export function desempenhoSintetico(turmaId: string): RespostaDesempenhoDaTurma {
+export function desempenhoSintetico(turmaId: string): DesempenhoDaTurmaResponse {
   return {
     turmaId,
     lotesAprovados: 1,

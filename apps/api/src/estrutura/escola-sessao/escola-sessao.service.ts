@@ -1,5 +1,5 @@
 import { contextoAtual, ErroDeDominio, RegistroDeAuditoria, type Banco } from '@educa/nucleo'
-import { CodigoDeErro, esquemaRespostaEscolaSessao, type PedidoEscolaSessao, type RespostaEscolaSessao } from '@educa/shared'
+import { ErrorCode, escolaSessaoResponseSchema, type EscolaSessaoRequest, type EscolaSessaoResponse } from '@educa/shared'
 import { EscolaSessaoRepository } from './escola-sessao.repository.js'
 
 /**
@@ -13,18 +13,18 @@ export class EscolaSessaoService {
 
   constructor(private readonly banco: Banco) {}
 
-  async alterar(pedido: PedidoEscolaSessao): Promise<RespostaEscolaSessao> {
+  async alterar(pedido: EscolaSessaoRequest): Promise<EscolaSessaoResponse> {
     const escolaId = contextoAtual()?.escolaId
-    if (escolaId === undefined) throw new ErroDeDominio(CodigoDeErro.NAO_AUTENTICADO)
+    if (escolaId === undefined) throw new ErroDeDominio(ErrorCode.NAO_AUTENTICADO)
     const gravada = await this.banco.transaction(async (tx) => {
       const repositorio = new EscolaSessaoRepository(tx)
       const antes = await repositorio.lerParaAlterar()
-      if (antes === undefined) throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
+      if (antes === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
       const depois = await repositorio.alterar(pedido)
-      if (depois === undefined) throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
+      if (depois === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
       await this.#auditoria.gravar(tx, 'escola.sessao_alterada', { entidadeId: escolaId, antes: { ...antes }, depois: { ...depois } })
       return depois
     })
-    return esquemaRespostaEscolaSessao.parse({ inatividadeAlunoMin: gravada.inatividadeAlunoMin, inatividadeEquipeMin: gravada.inatividadeEquipeMin })
+    return escolaSessaoResponseSchema.parse({ inatividadeAlunoMin: gravada.inatividadeAlunoMin, inatividadeEquipeMin: gravada.inatividadeEquipeMin })
   }
 }

@@ -1,4 +1,4 @@
-import { CodigoDeErro } from '@educa/shared'
+import { ErrorCode } from '@educa/shared'
 import { useMutation, type UseMutationOptions } from '@tanstack/react-query'
 import { useEffect, useRef, type FormEvent, type ReactNode, type Ref, type RefObject } from 'react'
 import { Botao } from './ui/Botao'
@@ -141,7 +141,7 @@ interface PropsDaConfirmacao {
   readonly aoConcluir: () => void
   /** Recarrega a lista depois do pedido, deu certo ou não: o `CONFLITO` e o `NAO_ENCONTRADO` dizem que ela mudou. */
   readonly aoTerminar: () => unknown
-  readonly textosDaFalha: Partial<Record<CodigoDeErro, string>>
+  readonly textosDaFalha: Partial<Record<ErrorCode, string>>
   /** O foco ao fechar quando o botão que abriu já saiu da página (o item excluído, ou a lista recarregada). */
   readonly focoDeReserva: () => void
 }
@@ -167,7 +167,7 @@ export function CorpoDaConfirmacaoDePerigo({ texto, rotuloDaAcao, rotuloEmAndame
     onError: aoTerminar,
   })
   const falha = mutacao.isError ? textoDaFalha(mutacao.error, textosDaFalha) : undefined
-  const mudou = mutacao.isError && listaMudou(mutacao.error, [CodigoDeErro.CONFLITO, CodigoDeErro.NAO_ENCONTRADO])
+  const mudou = mutacao.isError && listaMudou(mutacao.error, [ErrorCode.CONFLITO, ErrorCode.NAO_ENCONTRADO])
   return (
     <div className="mt-4 flex min-w-0 flex-col gap-4">
       <p ref={inicio} tabIndex={-1} className="break-words text-apoio">

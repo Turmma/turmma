@@ -1,4 +1,4 @@
-import { CodigoDeErro, MENSAGENS_DE_ERRO, NAMESPACE_REALTIME_SISTEMA } from '@educa/shared'
+import { ErrorCode, MENSAGENS_DE_ERRO, SYSTEM_REALTIME_NAMESPACE } from '@educa/shared'
 import { spawnSync } from 'node:child_process'
 import { once } from 'node:events'
 import { connect } from 'node:net'
@@ -135,7 +135,7 @@ function rajada(
         headers: { Authorization: `Bearer ${tokenDaVez()}`, 'Content-Type': 'application/json' },
         body: '{}',
       }),
-    conferir: async (resposta: Response) => resposta.status === 404 && ((await resposta.json()) as { erro?: { codigo?: string } }).erro?.codigo === CodigoDeErro.NAO_ENCONTRADO,
+    conferir: async (resposta: Response) => resposta.status === 404 && ((await resposta.json()) as { erro?: { codigo?: string } }).erro?.codigo === ErrorCode.NAO_ENCONTRADO,
   }
   const getSaude = {
     nome: 'GET /saude',
@@ -429,9 +429,9 @@ describe('borda com duas APIs e dois realtimes', () => {
       const { sid, cookie } = await pollingPelaBorda()
       expect(cookie).toMatch(/^educa_realtime=[0-9a-f]+$/)
 
-      expect((await enviarPacote(sid, `40${NAMESPACE_REALTIME_SISTEMA},${JSON.stringify({ token })}`, cookie)).status).toBe(200)
+      expect((await enviarPacote(sid, `40${SYSTEM_REALTIME_NAMESPACE},${JSON.stringify({ token })}`, cookie)).status).toBe(200)
       const conexao = await fetch(`${BORDA}/socket.io/?EIO=4&transport=polling&sid=${sid}`, { headers: { Cookie: cookie ?? '' } })
-      expect(await conexao.text()).toMatch(new RegExp(`^40${NAMESPACE_REALTIME_SISTEMA},\\{"sid":"[^"]+"\\}`))
+      expect(await conexao.text()).toMatch(new RegExp(`^40${SYSTEM_REALTIME_NAMESPACE},\\{"sid":"[^"]+"\\}`))
 
       // Em sequência, como o engine.io-client faz: POST sobreposto no mesmo `sid` é recusado pelo protocolo
       // (teste seguinte), e em paralelo o verde dependia da ordem de chegada no Caddy.
@@ -505,7 +505,7 @@ describe('borda com duas APIs e dois realtimes', () => {
           await expect.poll(() => clientes.every((cliente) => cliente.connected), { timeout: 30_000 }).toBe(true)
           // Sala tomada de novo depois da reconexão: a emissão só vale depois que todos voltaram.
           await esperar(300)
-          emissor.servidor.of(NAMESPACE_REALTIME_SISTEMA).to(salaDaEscola(escolaDaTurma)).emit('sistema.teste', { marca })
+          emissor.servidor.of(SYSTEM_REALTIME_NAMESPACE).to(salaDaEscola(escolaDaTurma)).emit('sistema.teste', { marca })
           await expect.poll(() => clientes.filter((cliente) => !recebidos.get(cliente)?.includes(marca)).length, { timeout: 10_000 }).toBe(0)
         }
 
@@ -583,7 +583,7 @@ describe('borda com duas APIs e dois realtimes', () => {
         expect(semRealtime.headers.get('content-type')).toContain('application/json')
         expect(await semRealtime.json()).toEqual({
           erro: {
-            codigo: CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO,
+            codigo: ErrorCode.INDISPONIVEL_TENTE_DE_NOVO,
             mensagem: MENSAGENS_DE_ERRO.INDISPONIVEL_TENTE_DE_NOVO,
             requisicaoId: expect.stringMatching(UUID),
           },

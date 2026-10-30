@@ -1,5 +1,5 @@
 import { criarBanco, erroDoPostgresEm, executarNoContexto, type PoolBanco } from '@educa/nucleo'
-import { CodigoDeErro, esquemaRespostaAcessoGerado, esquemaRespostaSalaAberta, MENSAGENS_DE_ERRO } from '@educa/shared'
+import { ErrorCode, acessoGeradoResponseSchema, salaAbertaResponseSchema, MENSAGENS_DE_ERRO } from '@educa/shared'
 import { randomBytes, randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
@@ -44,10 +44,10 @@ interface RespostaCrua {
 /** O texto do corpo sem o valor do `requisicaoId`, que muda a cada chamada: o resto tem de ser idêntico, byte a byte. */
 const semRequisicao = (resposta: RespostaCrua) => ({ status: resposta.status, texto: resposta.texto.replace(/"requisicaoId":"[^"]*"/, '"requisicaoId":"-"') })
 
-const erro = (codigo: CodigoDeErro, status: number) => ({ status, texto: JSON.stringify({ erro: { codigo, mensagem: MENSAGENS_DE_ERRO[codigo], requisicaoId: '-' } }) })
-const NAO_ENCONTRADO = erro(CodigoDeErro.NAO_ENCONTRADO, 404)
-const RECUSADA = erro(CodigoDeErro.REIVINDICACAO_RECUSADA, 409)
-const ENTRADA_INVALIDA = erro(CodigoDeErro.ENTRADA_INVALIDA, 400)
+const erro = (codigo: ErrorCode, status: number) => ({ status, texto: JSON.stringify({ erro: { codigo, mensagem: MENSAGENS_DE_ERRO[codigo], requisicaoId: '-' } }) })
+const NAO_ENCONTRADO = erro(ErrorCode.NAO_ENCONTRADO, 404)
+const RECUSADA = erro(ErrorCode.REIVINDICACAO_RECUSADA, 409)
+const ENTRADA_INVALIDA = erro(ErrorCode.ENTRADA_INVALIDA, 400)
 const ENVIADO = { status: 200, texto: JSON.stringify({ resultado: 'enviado' }) }
 
 /** Um nome da lista, com a matrícula dele. */
@@ -134,7 +134,7 @@ describe('salas/reivindicar (A1, tarefa 6.0): o aluno pede o próprio nome, e o 
   async function gerar(sala: Pick<Sala, 'professor'>, turmaId: string, url = api.url): Promise<{ token: string; codigo: string }> {
     const gerado = await post(sala.professor, `/v1/turmas/${turmaId}/acesso`, { validadeDias: 7 }, url)
     expect(gerado.status).toBe(201)
-    const { token, codigo } = esquemaRespostaAcessoGerado.parse(gerado.corpo)
+    const { token, codigo } = acessoGeradoResponseSchema.parse(gerado.corpo)
     return { token, codigo }
   }
 
@@ -214,7 +214,7 @@ describe('salas/reivindicar (A1, tarefa 6.0): o aluno pede o próprio nome, e o 
   /** Os ids dos nomes que a página pública da sala mostra agora. */
   async function livresNaSala(sala: Sala): Promise<string[]> {
     const aberta = await fetch(`${api.url}/v1/salas/abrir`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Forwarded-For': ipSorteado() }, body: JSON.stringify({ slug: sala.slug, codigo: sala.codigo }) })
-    return esquemaRespostaSalaAberta.parse(await aberta.json()).nomes.map((nome) => nome.id)
+    return salaAbertaResponseSchema.parse(await aberta.json()).nomes.map((nome) => nome.id)
   }
 
   /** Os contadores da turma e do nome (pelo acesso vigente da turma) e o da escola, no Redis de fila (7.0). */
@@ -355,7 +355,7 @@ describe('salas/reivindicar (A1, tarefa 6.0): o aluno pede o próprio nome, e o 
       })
       try {
         const resposta = await reivindicar(pedido(sala, nome))
-        expect(semRequisicao(resposta)).toEqual(erro(CodigoDeErro.ERRO_INTERNO, 500))
+        expect(semRequisicao(resposta)).toEqual(erro(ErrorCode.ERRO_INTERNO, 500))
         expect(ordem).toEqual(['insert do pedido gravado na transação', 'falha antes do update, com 0 pedido visível de fora'])
       } finally {
         insercoes.mockRestore()
@@ -385,7 +385,7 @@ describe('salas/reivindicar (A1, tarefa 6.0): o aluno pede o próprio nome, e o 
       }
       const doPendente = await entrar(nome.matricula, SENHA)
       expect(doPendente.setCookie).toEqual([])
-      expect(semRequisicao(doPendente)).toEqual(erro(CodigoDeErro.NAO_AUTENTICADO, 401))
+      expect(semRequisicao(doPendente)).toEqual(erro(ErrorCode.NAO_AUTENTICADO, 401))
       expect(semRequisicao(await entrar(existente, `${SENHA}-errada`))).toEqual(semRequisicao(doPendente))
       expect(semRequisicao(await entrar(`sala-ninguem-${randomUUID().slice(0, 8)}`, SENHA))).toEqual(semRequisicao(doPendente))
       // O 401 é o da credencial, e não do endereço: a matrícula que existe entra com a senha dela.
@@ -399,7 +399,7 @@ describe('salas/reivindicar (A1, tarefa 6.0): o aluno pede o próprio nome, e o 
       const antes = await retrato(sala.escolaId)
       const retirada = await chamar(api.url, 'DELETE', `/v1/lista-nomes/${nome.id}`, sala.coordenacao.token)
       expect(retirada.status).toBe(409)
-      expect(retirada.corpo.erro?.codigo).toBe(CodigoDeErro.CONFLITO)
+      expect(retirada.corpo.erro?.codigo).toBe(ErrorCode.CONFLITO)
       expect(await retrato(sala.escolaId)).toEqual(antes)
     })
 
@@ -418,7 +418,7 @@ describe('salas/reivindicar (A1, tarefa 6.0): o aluno pede o próprio nome, e o 
       const excluir = () => chamar(api.url, 'DELETE', `/v1/turmas/${sala.turma}`, sala.coordenacao.token)
       const recusada = await excluir()
       expect(recusada.status).toBe(409)
-      expect(recusada.corpo.erro?.codigo).toBe(CodigoDeErro.CONFLITO)
+      expect(recusada.corpo.erro?.codigo).toBe(ErrorCode.CONFLITO)
       expect(await pedidosDa(sala.escolaId)).toHaveLength(1)
 
       await bancada.pool.query('delete from reivindicacao where escola_id = $1', [sala.escolaId])
@@ -760,7 +760,7 @@ describe('salas/reivindicar (A1, tarefa 6.0): o aluno pede o próprio nome, e o 
         const [reivindicado, retirado] = await Promise.all([reivindicando, retirando])
         expect(semRequisicao(reivindicado)).toEqual(ENVIADO)
         expect(retirado.status).toBe(409)
-        expect(retirado.corpo.erro?.codigo).toBe(CodigoDeErro.CONFLITO)
+        expect(retirado.corpo.erro?.codigo).toBe(ErrorCode.CONFLITO)
       } finally {
         await gatilho.desarmar()
       }
@@ -851,7 +851,7 @@ describe('salas/reivindicar (A1, tarefa 6.0): o aluno pede o próprio nome, e o 
       const inicio = performance.now()
       const recusado = await reivindicar(corpo, { url: apiDoSemaforo.url })
       expect(performance.now() - inicio).toBeGreaterThanOrEqual(ESPERA_MAXIMA_PELO_HASH_MS - 100)
-      expect(semRequisicao(recusado)).toEqual(erro(CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO, 503))
+      expect(semRequisicao(recusado)).toEqual(erro(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO, 503))
       expect(Number(recusado.retryAfter)).toBeGreaterThanOrEqual(RETRY_AFTER_MINIMO_S)
       expect(Number(recusado.retryAfter)).toBeLessThanOrEqual(RETRY_AFTER_MAXIMO_S)
       expect(recusado.cacheControl).toBe('no-store')
@@ -896,7 +896,7 @@ describe('salas/reivindicar (A1, tarefa 6.0): o aluno pede o próprio nome, e o 
       const nome = { id: randomUUID(), matricula: 'sala-sem-nome' }
       for (let vez = 0; vez < LIMITE_POR_IP; vez++) expect(semRequisicao(await reivindicar(pedido(sala, nome), { url: apiDoLimite.url, ip }))).toEqual(RECUSADA)
       const recusada = await reivindicar(pedido(sala, nome), { url: apiDoLimite.url, ip })
-      expect(semRequisicao(recusada)).toEqual(erro(CodigoDeErro.LIMITE_EXCEDIDO, 429))
+      expect(semRequisicao(recusada)).toEqual(erro(ErrorCode.LIMITE_EXCEDIDO, 429))
       expect(Number(recusada.retryAfter)).toBeGreaterThanOrEqual(1)
       expect(semRequisicao(await reivindicar(pedido(sala, await umNome(sala)), { url: apiDoLimite.url, ip: outro }))).toEqual(ENVIADO)
     })

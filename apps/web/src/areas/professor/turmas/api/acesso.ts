@@ -1,4 +1,4 @@
-import { esquemaRespostaAcessoDaTurma, esquemaRespostaAcessoGerado, type PedidoGerarAcesso, type RespostaAcessoGerado } from '@educa/shared'
+import { acessoDaTurmaResponseSchema, acessoGeradoResponseSchema, type GerarAcessoRequest, type AcessoGeradoResponse } from '@educa/shared'
 import { mutationOptions, queryOptions } from '@tanstack/react-query'
 import { SEM_CORPO } from '../../../../api/cliente'
 import { buscarComSessao, chamarComSessao } from '../../../../api/sessao'
@@ -21,13 +21,13 @@ const CHAVE_DO_ACESSO = ['acesso-da-turma'] as const
 export function consultaAcessoDaTurma(turmaId: string) {
   return queryOptions({
     queryKey: [...CHAVE_DO_ACESSO, turmaId],
-    queryFn: ({ signal }) => buscarComSessao(caminhoDoAcesso(turmaId), esquemaRespostaAcessoDaTurma, signal),
+    queryFn: ({ signal }) => buscarComSessao(caminhoDoAcesso(turmaId), acessoDaTurmaResponseSchema, signal),
   })
 }
 
 /** `POST /v1/turmas/:id/acesso`: gera o link e o código, e derruba os anteriores da turma. Os dois só existem nesta resposta. */
-export function gerarAcesso(turmaId: string, pedido: PedidoGerarAcesso): Promise<RespostaAcessoGerado> {
-  return chamarComSessao(caminhoDoAcesso(turmaId), esquemaRespostaAcessoGerado, { metodo: 'POST', corpo: pedido })
+export function gerarAcesso(turmaId: string, pedido: GerarAcessoRequest): Promise<AcessoGeradoResponse> {
+  return chamarComSessao(caminhoDoAcesso(turmaId), acessoGeradoResponseSchema, { metodo: 'POST', corpo: pedido })
 }
 
 /** `POST /v1/turmas/:id/acesso/revogar`: 204, sem corpo. O link e o código vigentes deixam de valer na hora. */
@@ -45,7 +45,7 @@ export function revogarAcesso(turmaId: string): Promise<void> {
  */
 export function mutacaoDoGerarAcesso(turmaId: string, aoTerminar?: () => Promise<void>) {
   return mutationOptions({
-    mutationFn: (pedido: PedidoGerarAcesso) => gerarAcesso(turmaId, pedido),
+    mutationFn: (pedido: GerarAcessoRequest) => gerarAcesso(turmaId, pedido),
     gcTime: 0,
     ...(aoTerminar === undefined ? {} : { onSettled: aoTerminar }),
   })

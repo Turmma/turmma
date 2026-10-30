@@ -1,21 +1,21 @@
 import { CAMPOS_PROIBIDOS_NA_AUDITORIA } from '@educa/nucleo'
 import {
-  CodigoDeErro,
-  esquemaNomeDaLista,
-  esquemaRespostaAcessoDaTurma,
-  esquemaRespostaAcessoGerado,
-  esquemaRespostaConviteDeProfessor,
-  esquemaRespostaDecisao,
-  esquemaRespostaDisciplina,
-  esquemaRespostaGravacaoDaLista,
-  esquemaRespostaListaDaTurma,
-  esquemaRespostaListaDeProfessores,
-  esquemaRespostaMinhaTurma,
-  esquemaRespostaPedidosDaTurma,
-  esquemaRespostaPreviaDaLista,
-  esquemaRespostaReivindicacao,
-  esquemaRespostaSalaAberta,
-  esquemaRespostaTurma,
+  ErrorCode,
+  nomeDaListaSchema,
+  acessoDaTurmaResponseSchema,
+  acessoGeradoResponseSchema,
+  conviteDeProfessorResponseSchema,
+  decisaoResponseSchema,
+  disciplinaResponseSchema,
+  gravacaoDaListaResponseSchema,
+  listaDaTurmaResponseSchema,
+  listaDeProfessoresResponseSchema,
+  minhaTurmaResponseSchema,
+  pedidosDaTurmaResponseSchema,
+  previaDaListaResponseSchema,
+  reivindicacaoResponseSchema,
+  salaAbertaResponseSchema,
+  turmaResponseSchema,
   MENSAGENS_DE_ERRO,
 } from '@educa/shared'
 import { randomBytes, randomUUID } from 'node:crypto'
@@ -246,7 +246,7 @@ const ROTAS_DA_A1: readonly RotaDaA1[] = [
     alvoDoProfessor: (escola) => escola.disciplinaComVinculo,
     corpo: () => ({ nome: NOME_RENOMEADO }),
     sucesso: 200,
-    resposta: esquemaRespostaDisciplina,
+    resposta: disciplinaResponseSchema,
     conflito: (escola) => ({ alvo: escola.disciplina, corpo: { nome: escola.nomes.disciplinaComVinculo } }),
     auditoria: [],
   },
@@ -264,7 +264,7 @@ const ROTAS_DA_A1: readonly RotaDaA1[] = [
     alvoDoProfessor: (escola) => escola.turmaComVinculo,
     corpo: () => ({ nome: NOME_RENOMEADO }),
     sucesso: 200,
-    resposta: esquemaRespostaTurma,
+    resposta: turmaResponseSchema,
     conflito: (escola) => ({ alvo: escola.turma, corpo: { nome: escola.nomes.turmaComVinculo } }),
     auditoria: [],
   },
@@ -280,14 +280,14 @@ const ROTAS_DA_A1: readonly RotaDaA1[] = [
     rota: 'POST /v1/professores',
     corpo: () => ({ nome: NOME_DO_PROFESSOR, email: `professor-${randomUUID()}@${DOMINIO_DO_EMAIL}` }),
     sucesso: 201,
-    resposta: esquemaRespostaConviteDeProfessor,
+    resposta: conviteDeProfessorResponseSchema,
     conflito: (escola) => ({ corpo: { nome: NOME_DO_PROFESSOR, email: escola.convidado.email } }),
     auditoria: ['professor.cadastrado', 'convite.criado'],
   },
   {
     rota: 'GET /v1/professores',
     sucesso: 200,
-    resposta: esquemaRespostaListaDeProfessores,
+    resposta: listaDeProfessoresResponseSchema,
     auditoria: [],
   },
   {
@@ -295,7 +295,7 @@ const ROTAS_DA_A1: readonly RotaDaA1[] = [
     alvo: (escola) => escola.convidado.usuarioId,
     corpo: () => ({}),
     sucesso: 201,
-    resposta: esquemaRespostaConviteDeProfessor,
+    resposta: conviteDeProfessorResponseSchema,
     conflito: (escola) => ({ alvo: escola.convidadoRevogado, corpo: {} }),
     auditoria: ['convite.refeito'],
   },
@@ -313,7 +313,7 @@ const ROTAS_DA_A1: readonly RotaDaA1[] = [
     alvoDoProfessor: (escola) => escola.turmaComVinculo,
     corpo: () => ({ texto: `${NOME_NA_LISTA};${matriculaNova()}` }),
     sucesso: 200,
-    resposta: esquemaRespostaPreviaDaLista,
+    resposta: previaDaListaResponseSchema,
     auditoria: [],
   },
   {
@@ -322,7 +322,7 @@ const ROTAS_DA_A1: readonly RotaDaA1[] = [
     alvoDoProfessor: (escola) => escola.turmaComVinculo,
     corpo: () => ({ texto: `${NOME_NA_LISTA};${matriculaNova()}` }),
     sucesso: 201,
-    resposta: esquemaRespostaGravacaoDaLista,
+    resposta: gravacaoDaListaResponseSchema,
     conflito: (escola) => ({ alvo: escola.turma, corpo: { texto: `${NOME_NA_LISTA};${escola.lista.matriculaLivre}` } }),
     auditoria: ['lista.gravada'],
   },
@@ -332,7 +332,7 @@ const ROTAS_DA_A1: readonly RotaDaA1[] = [
     alvoDoProfessor: (escola) => escola.turmaComVinculo,
     corpo: () => ({ nome: NOME_NA_LISTA, matricula: matriculaNova() }),
     sucesso: 201,
-    resposta: esquemaNomeDaLista,
+    resposta: nomeDaListaSchema,
     conflito: (escola) => ({ alvo: escola.turma, corpo: { nome: NOME_NA_LISTA, matricula: escola.lista.matriculaLivre } }),
     auditoria: ['lista.gravada'],
   },
@@ -341,7 +341,7 @@ const ROTAS_DA_A1: readonly RotaDaA1[] = [
     alvo: (escola) => escola.turmaComVinculo,
     alvoDoProfessor: (escola) => escola.turmaComVinculo,
     sucesso: 200,
-    resposta: esquemaRespostaListaDaTurma,
+    resposta: listaDaTurmaResponseSchema,
     auditoria: ['turma.lista_lida'],
   },
   {
@@ -358,7 +358,7 @@ const ROTAS_DA_A1: readonly RotaDaA1[] = [
     alvoSemVinculo: (escola) => escola.turma,
     corpo: () => ({ validadeDias: 7 }),
     sucesso: 201,
-    resposta: esquemaRespostaAcessoGerado,
+    resposta: acessoGeradoResponseSchema,
     auditoria: ['acesso_turma.gerado'],
   },
   {
@@ -367,7 +367,7 @@ const ROTAS_DA_A1: readonly RotaDaA1[] = [
     alvo: (escola) => escola.turmaComVinculo,
     alvoSemVinculo: (escola) => escola.turma,
     sucesso: 200,
-    resposta: esquemaRespostaAcessoDaTurma,
+    resposta: acessoDaTurmaResponseSchema,
     auditoria: [],
   },
   {
@@ -389,7 +389,7 @@ const ROTAS_DA_A1: readonly RotaDaA1[] = [
       { slug: escola.slug, token: escola.semAcesso.token },
     ],
     sucesso: 200,
-    resposta: esquemaRespostaSalaAberta,
+    resposta: salaAbertaResponseSchema,
     auditoria: [],
   },
   {
@@ -407,7 +407,7 @@ const ROTAS_DA_A1: readonly RotaDaA1[] = [
       reivindicacao(escola, { id: escola.lista.reivindicado, matricula: escola.lista.matriculaReivindicada }),
     ],
     sucesso: 200,
-    resposta: esquemaRespostaReivindicacao,
+    resposta: reivindicacaoResponseSchema,
     auditoria: [],
   },
   {
@@ -416,7 +416,7 @@ const ROTAS_DA_A1: readonly RotaDaA1[] = [
     abertaAoProfessor: true,
     alvoSemVinculo: (escola) => escola.turma,
     sucesso: 200,
-    resposta: esquemaRespostaPedidosDaTurma,
+    resposta: pedidosDaTurmaResponseSchema,
     auditoria: ['turma.reivindicacoes_lidas'],
   },
   {
@@ -424,14 +424,14 @@ const ROTAS_DA_A1: readonly RotaDaA1[] = [
     abertaAoProfessor: true,
     corpo: (escola) => ({ ids: [escola.pedidoPendente], decisao: 'aprovar' }),
     sucesso: 200,
-    resposta: esquemaRespostaDecisao,
+    resposta: decisaoResponseSchema,
     auditoria: ['reivindicacao.decidida'],
   },
   {
     rota: 'GET /v1/minha-turma',
     autor: 'aluno',
     sucesso: 200,
-    resposta: esquemaRespostaMinhaTurma,
+    resposta: minhaTurmaResponseSchema,
     auditoria: [],
   },
 ]
@@ -500,7 +500,7 @@ describe('escola montada (A1): as varreduras transversais sobre as rotas novas',
       const email = `professor-${randomUUID()}@${DOMINIO_DO_EMAIL}`
       const resposta = await post('/v1/professores', { nome: NOME_DO_PROFESSOR, email })
       expect(resposta.status).toBe(201)
-      return { email, ...esquemaRespostaConviteDeProfessor.parse(resposta.corpo) }
+      return { email, ...conviteDeProfessorResponseSchema.parse(resposta.corpo) }
     }
     const convidado = await convidar()
     const revogado = await convidar()
@@ -510,7 +510,7 @@ describe('escola montada (A1): as varreduras transversais sobre as rotas novas',
     expect(aceite.status).toBe(200)
     const gerado = await chamar(api.url, 'POST', `/v1/turmas/${turmaComVinculo}/acesso`, professor.token, { validadeDias: 7 })
     expect(gerado.status).toBe(201)
-    const acesso = esquemaRespostaAcessoGerado.parse(gerado.corpo)
+    const acesso = acessoGeradoResponseSchema.parse(gerado.corpo)
     const slug = await bancada.slugDe(escolaId)
     // O nome reivindicado nasce pela sala (6.0), com o pedido pendente.
     const pedido = { slug, codigo: acesso.codigo, listaNomeId: idDa(matriculaReivindicada), matricula: matriculaReivindicada, senha: SENHA_DA_SALA, chaveEnvio: chaveNova() }
@@ -590,7 +590,7 @@ describe('escola montada (A1): as varreduras transversais sobre as rotas novas',
     return { status: resposta.status, corpo: { ...resposta.corpo, erro } }
   }
 
-  const NAO_ENCONTRADO = { status: 404, corpo: { erro: { codigo: CodigoDeErro.NAO_ENCONTRADO, mensagem: MENSAGENS_DE_ERRO.NAO_ENCONTRADO } } }
+  const NAO_ENCONTRADO = { status: 404, corpo: { erro: { codigo: ErrorCode.NAO_ENCONTRADO, mensagem: MENSAGENS_DE_ERRO.NAO_ENCONTRADO } } }
 
   /**
    * Cada resposta que a rota dá na escola montada: o sucesso, o 404 do id sorteado, o 400 do campo a mais no corpo (se
@@ -772,9 +772,9 @@ describe('escola montada (A1): as varreduras transversais sobre as rotas novas',
     expect(hashesGravados.length).toBeGreaterThan(escolas.length)
     // O cadastro, o refazer e o gerar acesso devolveram o token deles, e o gerar o código: sem isso, a busca abaixo não
     // teria o que procurar.
-    const devolvemToken = [esquemaRespostaConviteDeProfessor, esquemaRespostaAcessoGerado] as z.ZodType[]
+    const devolvemToken = [conviteDeProfessorResponseSchema, acessoGeradoResponseSchema] as z.ZodType[]
     expect(tokensDevolvidos.length).toBe(ROTAS_DA_A1.filter((rota) => rota.resposta !== undefined && devolvemToken.includes(rota.resposta)).length)
-    expect(codigosDevolvidos.length).toBe(ROTAS_DA_A1.filter((rota) => rota.resposta === esquemaRespostaAcessoGerado).length)
+    expect(codigosDevolvidos.length).toBe(ROTAS_DA_A1.filter((rota) => rota.resposta === acessoGeradoResponseSchema).length)
 
     const linhas = linhasDeLog.map((linha) => JSON.parse(linha) as Record<string, unknown>)
     // O log capturou os erros: sem isso, a busca abaixo passaria num log mudo.

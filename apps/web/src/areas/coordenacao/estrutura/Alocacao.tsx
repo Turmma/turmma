@@ -1,4 +1,4 @@
-import { CodigoDeErro, type VinculoDaCoordenacao } from '@educa/shared'
+import { ErrorCode, type VinculoDaCoordenacao } from '@educa/shared'
 import { useQuery } from '@tanstack/react-query'
 import { useId, useState } from 'react'
 import { alocarProfessor, consultaDisciplinas, consultaTurmas } from '../../../api/estrutura'
@@ -86,8 +86,8 @@ export function DialogoDeAlocacao({ professor, alocavel, aoFechar, aoAlocar, rec
       ? TEXTO_DA_ESCOLHA_INCOMPLETA
       : mutacao.isError
         ? textoDaFalha(mutacao.error, {
-            [CodigoDeErro.CONFLITO]: 'Este professor já está alocado nesta turma e nesta disciplina.',
-            [CodigoDeErro.NAO_ENCONTRADO]: TEXTO_DA_ALOCACAO_QUE_MUDOU,
+            [ErrorCode.CONFLITO]: 'Este professor já está alocado nesta turma e nesta disciplina.',
+            [ErrorCode.NAO_ENCONTRADO]: TEXTO_DA_ALOCACAO_QUE_MUDOU,
           })
         : undefined
 

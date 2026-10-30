@@ -1,6 +1,6 @@
 import 'reflect-metadata'
 import { criarLogger, EmissorDeToken, exigirAnoEmCurso, Permite, SessaoRepository } from '@educa/nucleo'
-import { CodigoDeErro, MENSAGENS_DE_ERRO } from '@educa/shared'
+import { ErrorCode, MENSAGENS_DE_ERRO } from '@educa/shared'
 import { Controller, Get, Module, type INestApplication } from '@nestjs/common'
 import { NestFactory } from '@nestjs/core'
 import { spawnSync } from 'node:child_process'
@@ -55,7 +55,7 @@ describe('GuardaDeSessao: toda requisição autenticada é conferida contra a se
 
   function esperarNaoAutenticado(resposta: Resposta): void {
     expect(resposta.status).toBe(401)
-    expect(resposta.corpo).toEqual({ erro: { codigo: CodigoDeErro.NAO_AUTENTICADO, mensagem: MENSAGENS_DE_ERRO.NAO_AUTENTICADO, requisicaoId: expect.stringMatching(UUID) } })
+    expect(resposta.corpo).toEqual({ erro: { codigo: ErrorCode.NAO_AUTENTICADO, mensagem: MENSAGENS_DE_ERRO.NAO_AUTENTICADO, requisicaoId: expect.stringMatching(UUID) } })
   }
 
   const tokenCom = async (claims: { escolaId: string; usuarioId: string; sessaoId: string }) => (await emissor.emitir(claims)).token
@@ -211,7 +211,7 @@ describe('GuardaDeSessao: toda requisição autenticada é conferida contra a se
       expect(doContexto.corpo['anoLetivoId']).toBeNull()
       const semAnoEmCurso = await pedir('/teste-sessao/ano', semAno.token)
       expect(semAnoEmCurso.status).toBe(404)
-      expect(semAnoEmCurso.corpo.erro?.codigo).toBe(CodigoDeErro.NAO_ENCONTRADO)
+      expect(semAnoEmCurso.corpo.erro?.codigo).toBe(ErrorCode.NAO_ENCONTRADO)
 
       expect((await contexto(comAno.token)).corpo['anoLetivoId']).toBe(anoDaOutra)
       expect((await pedir('/teste-sessao/ano', comAno.token)).corpo).toEqual({ anoLetivoId: anoDaOutra })
@@ -227,7 +227,7 @@ describe('GuardaDeSessao: toda requisição autenticada é conferida contra a se
       expect((await contexto(entreAnos.token)).corpo['anoLetivoId']).toBeNull()
       const semAnoEmCurso = await pedir('/teste-sessao/ano', entreAnos.token)
       expect(semAnoEmCurso.status).toBe(404)
-      expect(semAnoEmCurso.corpo.erro?.codigo).toBe(CodigoDeErro.NAO_ENCONTRADO)
+      expect(semAnoEmCurso.corpo.erro?.codigo).toBe(ErrorCode.NAO_ENCONTRADO)
 
       const virada = await bancada.escolaComSessao('professor')
       await inserirAno(virada.escolaId, 2025, 'encerrado')
@@ -260,7 +260,7 @@ describe('GuardaDeSessao: toda requisição autenticada é conferida contra a se
         const respostas = await Promise.all([contexto(sessao.token), contexto(sessao.token)])
         for (const resposta of respostas) {
           expect(resposta.status).toBe(503)
-          expect(resposta.corpo.erro?.codigo).toBe(CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO)
+          expect(resposta.corpo.erro?.codigo).toBe(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO)
           expect(Number(resposta.retryAfter)).toBeGreaterThanOrEqual(1)
         }
       } finally {
@@ -341,7 +341,7 @@ describe('ops:sessao-sintetica', () => {
     const escolaId = randomUUID()
     const resultado = await rodar(['--escola', escolaId, '--papel', 'aluno'], ambienteDeTeste, bancoDaBancada)
     expect(resultado.codigo).toBe(1)
-    expect(resultado.erro).toContain(CodigoDeErro.NAO_ENCONTRADO)
+    expect(resultado.erro).toContain(ErrorCode.NAO_ENCONTRADO)
     expect(resultado.erro).not.toContain(escolaId)
   })
 

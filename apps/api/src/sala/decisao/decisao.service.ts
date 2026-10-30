@@ -1,16 +1,16 @@
 import { ErroDeDominio, exigirEscolaDoContexto, RegistroDeAuditoria, sessaoDaRequisicao, type Banco } from '@educa/nucleo'
 import {
   alcanceDe,
-  CodigoDeErro,
-  ErroDeInvariante,
-  esquemaRespostaDecisao,
-  esquemaRespostaPedidosDaTurma,
-  type ConsultaPedidosDaTurma,
+  ErrorCode,
+  InvariantException,
+  decisaoResponseSchema,
+  pedidosDaTurmaResponseSchema,
+  type PedidosDaTurmaQuery,
   type DecisaoDePedido,
   type DecisorDaReivindicacao,
-  type PedidoDecidirReivindicacoes,
-  type RespostaDecisao,
-  type RespostaPedidosDaTurma,
+  type DecidirReivindicacoesRequest,
+  type DecisaoResponse,
+  type PedidosDaTurmaResponse,
   type ResultadoDaDecisao,
 } from '@educa/shared'
 import { paginar } from '../../http/paginacao.js'
@@ -33,7 +33,7 @@ function alcanceDaSessao(acao: 'ler' | 'decidir'): AlcanceDoPedido {
   const alcance = alcanceDe(sessaoDaRequisicao().papel, 'reivindicacao', acao)
   if (alcance === 'unidade' || alcance === 'nominal_auditado') return 'unidade'
   if (alcance === 'turma_vinculada') return 'turma_vinculada'
-  throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
+  throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
 }
 
 /** O que a transação de um id decidiu, e a matrícula do aluno aprovado, para zerar o contador de login dela depois do lote. */
@@ -62,13 +62,13 @@ export class DecisaoService {
    * responde igual para qualquer id), e a leitura grava `turma.reivindicacoes_lidas` na mesma transação, a cada leitura:
    * sem registro, sem lista (A2).
    */
-  async pedidos(turmaId: string, consulta: ConsultaPedidosDaTurma): Promise<RespostaPedidosDaTurma> {
+  async pedidos(turmaId: string, consulta: PedidosDaTurmaQuery): Promise<PedidosDaTurmaResponse> {
     const nominalAuditado = alcanceDe(sessaoDaRequisicao().papel, 'reivindicacao', 'ler') === 'nominal_auditado'
     const { finalidade } = consulta
-    if (nominalAuditado && finalidade === undefined) throw new ErroDeDominio(CodigoDeErro.ENTRADA_INVALIDA)
+    if (nominalAuditado && finalidade === undefined) throw new ErroDeDominio(ErrorCode.ENTRADA_INVALIDA)
     const alcance = alcanceDaSessao('ler')
     const pagina = await this.banco.transaction(async (tx) => {
-      if ((await new TurmaRepository(tx).aberta(turmaId, alcance)) === undefined) throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
+      if ((await new TurmaRepository(tx).aberta(turmaId, alcance)) === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
       const cortada = paginar(await new DecisaoRepository(tx).pendentes(turmaId, consulta), consulta.limite)
       if (nominalAuditado && finalidade !== undefined) {
         await registro.gravar(tx, 'turma.reivindicacoes_lidas', { entidadeId: turmaId, depois: { quantidade: cortada.itens.length }, finalidade })
@@ -78,7 +78,7 @@ export class DecisaoService {
         itens: cortada.itens.map((pedido) => ({ ...pedido, solicitadaEm: pedido.solicitadaEm.toISOString() })),
       }
     })
-    return esquemaRespostaPedidosDaTurma.parse(pagina)
+    return pedidosDaTurmaResponseSchema.parse(pagina)
   }
 
   /**
@@ -91,7 +91,7 @@ export class DecisaoService {
    * Os contadores de login das matrículas aprovadas são zerados depois do laço, juntos, também quando o lote para no meio:
    * com o Redis do login lento, a espera é a de um comando, e não a de um por aprovação.
    */
-  async decidir({ ids, decisao }: PedidoDecidirReivindicacoes): Promise<RespostaDecisao> {
+  async decidir({ ids, decisao }: DecidirReivindicacoesRequest): Promise<DecisaoResponse> {
     const alcance = alcanceDaSessao('decidir')
     const resultados: Array<{ id: string; resultado: ResultadoDaDecisao }> = []
     const aprovadas: string[] = []
@@ -106,7 +106,7 @@ export class DecisaoService {
       const escolaId = exigirEscolaDoContexto()
       await Promise.all(aprovadas.map((matricula) => this.contador.zerar(this.contador.chaveDe(identificadorDoAluno(escolaId, matricula), 'outro'))))
     }
-    return esquemaRespostaDecisao.parse({ resultados })
+    return decisaoResponseSchema.parse({ resultados })
   }
 
   /**
@@ -135,9 +135,9 @@ export class DecisaoService {
       let matriculaAprovada: string | undefined
       if (decisao === 'aprovar') {
         const nome = await decisoes.nomeDoPedido(pedido.listaNomeId)
-        if (nome === undefined) throw new ErroDeInvariante('nome do pedido pendente não encontrado')
+        if (nome === undefined) throw new InvariantException('nome do pedido pendente não encontrado')
         const [aluno] = await new CriacaoDeSessaoRepository(tx).criarUsuarios([{ contaId: null, papel: 'aluno', nome: nome.nome }])
-        if (aluno === undefined) throw new ErroDeInvariante('aluno não criado')
+        if (aluno === undefined) throw new InvariantException('aluno não criado')
         await new CredencialMatriculaRepository(tx).criar([{ usuarioId: aluno.id, matricula: nome.matricula, senhaHash: pedido.senhaHash }])
         await new VinculoRepository(tx).criarAlunoConfirmado(aluno.id, pedido.turmaId)
         await decisoes.aprovarNome(pedido.listaNomeId, aluno.id)

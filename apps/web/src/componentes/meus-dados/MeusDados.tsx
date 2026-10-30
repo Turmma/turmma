@@ -1,4 +1,4 @@
-import type { PedidoDeMeusDados, RespostaDoArquivo, RespostaMeusDados } from '@educa/shared'
+import type { PedidoDeMeusDados, ArquivoResponse, MeusDadosResponse } from '@educa/shared'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { consultaEu } from '../../api/eu'
@@ -38,7 +38,7 @@ interface PropsDoDialogo {
   readonly pedido: PedidoDeMeusDados
   readonly aoFechar: () => void
   /** Chamado com o arquivo já entregue ao navegador: fecha só a abertura em que o pedido saiu. */
-  readonly aoBaixar: (arquivo: RespostaDoArquivo) => void
+  readonly aoBaixar: (arquivo: ArquivoResponse) => void
   /** O foco, quando o botão que abriu o diálogo saiu da página (o arquivo passou dos 7 dias enquanto a pessoa lia). */
   readonly focoDeReserva: () => void
 }
@@ -50,7 +50,7 @@ interface PropsDoDialogo {
  */
 function DialogoDeBaixar({ pedido, aoFechar, aoBaixar, focoDeReserva }: PropsDoDialogo) {
   const cliente = useQueryClient()
-  const { enviar, mutacao } = useEnvioUnico<undefined, RespostaDoArquivo>({
+  const { enviar, mutacao } = useEnvioUnico<undefined, ArquivoResponse>({
     mutationFn: () => baixarMeuArquivo(pedido.id),
     onSuccess: (arquivo) => {
       baixarPorUrl(arquivo.url, arquivo.nome)
@@ -259,7 +259,7 @@ export default function MeusDados({ titulo, secao }: Props) {
 }
 
 /** O que a escola guarda da pessoa, por categoria, só com registro: o resumo legível. O conteúdo de cada um vem no arquivo. */
-function ResumoPorCategoria({ categorias }: { readonly categorias: RespostaMeusDados['categorias'] }) {
+function ResumoPorCategoria({ categorias }: { readonly categorias: MeusDadosResponse['categorias'] }) {
   const linhas = linhasDoResumo(categorias)
   if (linhas.length === 0) return <p className="break-words text-apoio">A escola não guarda nenhum registro seu por categoria por enquanto.</p>
   return (

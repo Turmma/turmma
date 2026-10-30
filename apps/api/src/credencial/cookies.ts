@@ -1,5 +1,5 @@
 import type { Ambiente } from '@educa/nucleo'
-import { ErroDeInvariante } from '@educa/shared'
+import { InvariantException } from '@educa/shared'
 
 /** Cookie de renovação da sessão: o refresh aleatório, cujo SHA-256 é o `refresh_hash` da `sessao`. */
 export const COOKIE_SESSAO = 'educa_sessao'
@@ -30,7 +30,7 @@ export interface OpcoesDoCookie {
  * `http://127.0.0.1`.
  */
 export function serializarCookie(nome: string, valor: string, opcoes: OpcoesDoCookie): string {
-  if (!VALOR_SEGURO.test(nome) || !VALOR_SEGURO.test(valor)) throw new ErroDeInvariante('cookie com caractere fora do formato')
+  if (!VALOR_SEGURO.test(nome) || !VALOR_SEGURO.test(valor)) throw new InvariantException('cookie com caractere fora do formato')
   const atributos = [`${nome}=${valor}`, `Path=${opcoes.caminho ?? CAMINHO_DOS_COOKIES}`, 'HttpOnly', `SameSite=${opcoes.sameSite ?? 'Strict'}`]
   if (opcoes.ambiente !== 'local') atributos.push('Secure')
   if (opcoes.maxAgeSegundos !== undefined) atributos.push(`Max-Age=${String(opcoes.maxAgeSegundos)}`)

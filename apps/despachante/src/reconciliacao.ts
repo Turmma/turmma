@@ -5,7 +5,7 @@ import {
   type DespachoRepository,
   type JobParaReconciliar,
 } from '@educa/nucleo'
-import type { CodigoDeFalhaDeJob } from '@educa/shared'
+import type { JobFailureCode } from '@educa/shared'
 import { contextoDoJob, publicarComVaga, type DependenciasDaPublicacao } from './despachante.js'
 import type { FilaDePublicacao } from './fila-de-publicacao.js'
 
@@ -111,7 +111,7 @@ export class Reconciliacao {
     const consultas = await Promise.allSettled(pagina.map((job) => fila.consultar(job)))
 
     const inexistentes: string[] = []
-    const falhos: Array<{ job: JobParaReconciliar; codigo: CodigoDeFalhaDeJob }> = []
+    const falhos: Array<{ job: JobParaReconciliar; codigo: JobFailureCode }> = []
     consultas.forEach((consulta, indice) => {
       const job = pagina[indice]
       if (job === undefined || consulta.status === 'rejected') return

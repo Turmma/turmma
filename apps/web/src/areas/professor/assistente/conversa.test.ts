@@ -1,7 +1,7 @@
 import type { MensagemDaConversa, MensagemDoAgente } from '@educa/shared'
 import { describe, expect, it } from 'vitest'
 import type { CicloDeExecucao } from '../../../api/ciclo-de-execucao'
-import { esquemaPedidoMensagemAoAssistente } from '@educa/shared'
+import { mensagemAoAssistenteRequestSchema } from '@educa/shared'
 import { itensDaConversa, marcaDoFim, mensagensNaTela, pedidoDeSoConversar, pendenteNaConversa, propostaQuePergunta } from './conversa'
 import type { PedidoDaConversa } from './memoria-do-professor'
 
@@ -101,7 +101,7 @@ describe('a pergunta da D18: qual proposta ainda pergunta', () => {
     if (mensagem.tipo !== 'proposta_de_ferramenta') throw new Error('era para ser proposta')
     const pedido = pedidoDeSoConversar(mensagem.proposta)
     expect(pedido).toEqual({ texto: 'Só conversar', turmaId: TURMA, disciplinaId: DISCIPLINA, resposta: 'so_conversar' })
-    expect(esquemaPedidoMensagemAoAssistente.safeParse({ ...pedido, chaveEnvio: EXECUCAO }).success).toBe(true)
+    expect(mensagemAoAssistenteRequestSchema.safeParse({ ...pedido, chaveEnvio: EXECUCAO }).success).toBe(true)
     // Sem a marca, o Assistente proporia a ferramenta de novo: é ela que diz que a professora já respondeu.
     expect(pendenteNaConversa([mensagem], { etapa: 'enviando', pedido, chaveEnvio: 'chave-2', desde: 2_000 })).toEqual({ pedido: 'Só conversar', pensando: true })
   })

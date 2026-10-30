@@ -36,34 +36,34 @@ const tenantMicrosoft = z
  * Um domínio Google (`hd`) ou um tenant Microsoft (`tid`) que a escola libera para o login pela conta dela (RF8). O
  * valor volta normalizado em minúsculas.
  */
-export const esquemaProvedorDaEscola = z.discriminatedUnion('provedor', [
+export const provedorDaEscolaSchema = z.discriminatedUnion('provedor', [
   z.object({ provedor: z.literal('google'), valor: dominioGoogle }).strict(),
   z.object({ provedor: z.literal('microsoft'), valor: tenantMicrosoft }).strict(),
 ])
 
-export type ProvedorDaEscola = z.infer<typeof esquemaProvedorDaEscola>
+export type ProvedorDaEscola = z.infer<typeof provedorDaEscolaSchema>
 
 /**
  * Corpo de `PUT /v1/escola/provedores`: a lista inteira dos domínios e tenants liberados, que substitui a anterior.
  * Lista vazia desliga o login pela conta da escola. Estrito, e nunca a escola, que vem da sessão. Valor repetido é
  * recusado.
  */
-export const esquemaPedidoProvedoresDaEscola = z
+export const provedoresDaEscolaRequestSchema = z
   .object({
     provedores: z
-      .array(esquemaProvedorDaEscola)
+      .array(provedorDaEscolaSchema)
       .max(MAXIMO_DE_PROVEDORES_DA_ESCOLA)
       .refine((lista) => new Set(lista.map((item) => `${item.provedor}|${item.valor}`)).size === lista.length),
   })
   .strict()
 
-export type PedidoProvedoresDaEscola = z.infer<typeof esquemaPedidoProvedoresDaEscola>
+export type ProvedoresDaEscolaRequest = z.infer<typeof provedoresDaEscolaRequestSchema>
 
 /** Resposta de `PUT /v1/escola/provedores`: a lista como ficou gravada, só provedor e valor. */
-export const esquemaRespostaProvedoresDaEscola = z
+export const provedoresDaEscolaResponseSchema = z
   .object({
     provedores: z.array(z.object({ provedor: z.enum(PROVEDORES_DE_CONTA_DA_ESCOLA), valor: z.string().min(1) }).strict()),
   })
   .strict()
 
-export type RespostaProvedoresDaEscola = z.infer<typeof esquemaRespostaProvedoresDaEscola>
+export type ProvedoresDaEscolaResponse = z.infer<typeof provedoresDaEscolaResponseSchema>

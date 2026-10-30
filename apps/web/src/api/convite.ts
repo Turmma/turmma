@@ -1,9 +1,9 @@
 import {
-  esquemaRespostaAceitarConvite,
-  esquemaRespostaConsultarConvite,
-  type PedidoAceitarConvite,
-  type RespostaAceitarConvite,
-  type RespostaConsultarConvite,
+  aceitarConviteResponseSchema,
+  consultarConviteResponseSchema,
+  type AceitarConviteRequest,
+  type AceitarConviteResponse,
+  type ConsultarConviteResponse,
 } from '@educa/shared'
 import { chamarApi } from './cliente'
 import { guardarBilheteDeConvite, guardarDesafio } from './sessao'
@@ -19,13 +19,13 @@ export const CAMINHO_DO_ACEITE_DE_CONVITE = '/v1/convites/aceitar'
  * A consulta não passa pelo TanStack Query: o token é o argumento, e uma chave de cache com ele dentro é justamente o
  * que não pode existir.
  */
-export function consultarConvite(token: string): Promise<RespostaConsultarConvite> {
-  return chamarApi(CAMINHO_DA_CONSULTA_DE_CONVITE, esquemaRespostaConsultarConvite, { metodo: 'POST', corpo: { token } })
+export function consultarConvite(token: string): Promise<ConsultarConviteResponse> {
+  return chamarApi(CAMINHO_DA_CONSULTA_DE_CONVITE, consultarConviteResponseSchema, { metodo: 'POST', corpo: { token } })
 }
 
 /** O que a tela do convite faz com a resposta do aceite. */
 export type DesfechoDoAceite =
-  | { readonly tipo: 'aceito'; readonly resposta: RespostaAceitarConvite }
+  | { readonly tipo: 'aceito'; readonly resposta: AceitarConviteResponse }
   | { readonly tipo: 'falhou'; readonly erro: unknown }
   | { readonly tipo: 'descartado' }
 
@@ -49,11 +49,11 @@ export type DesfechoDoAceite =
  * Quando o aceite descartado deu certo no servidor, aquele convite está usado: quem o aceitou entra depois com o e-mail
  * e a senha, ou pede outro convite, se o bilhete era o que faltava.
  */
-export async function aceitarConviteNaVez(pedido: PedidoAceitarConvite, vezDoLink: () => number): Promise<DesfechoDoAceite> {
+export async function aceitarConviteNaVez(pedido: AceitarConviteRequest, vezDoLink: () => number): Promise<DesfechoDoAceite> {
   const vez = vezDoLink()
-  let resposta: RespostaAceitarConvite
+  let resposta: AceitarConviteResponse
   try {
-    resposta = await chamarApi(CAMINHO_DO_ACEITE_DE_CONVITE, esquemaRespostaAceitarConvite, { metodo: 'POST', corpo: pedido })
+    resposta = await chamarApi(CAMINHO_DO_ACEITE_DE_CONVITE, aceitarConviteResponseSchema, { metodo: 'POST', corpo: pedido })
   } catch (erro) {
     return vezDoLink() === vez ? { tipo: 'falhou', erro } : { tipo: 'descartado' }
   }

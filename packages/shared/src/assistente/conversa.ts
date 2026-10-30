@@ -1,6 +1,6 @@
 import { z } from 'zod'
-import { esquemaChaveEnvio } from '../time/chave-envio.js'
-import { esquemaCitacao } from './conteudo.js'
+import { idempotencyKeySchema } from '../time/idempotency-key.js'
+import { citacaoSchema } from './conteudo.js'
 
 /**
  * A conversa do professor com o Assistente de ensino (MVP, A2; D18): `GET /v1/assistente/conversa` e
@@ -29,24 +29,24 @@ export const NOME_DA_FERRAMENTA: Readonly<Record<FerramentaGeradora | 'adaptacao
  * O que a ferramenta precisa para gerar: a turma, a disciplina, o tema e, na atividade, quantas questões. É o mesmo
  * objeto no formulário, no cartão da conversa e na proposta do Assistente: um motor só (D18).
  */
-export const esquemaParametrosDeFerramenta = z.strictObject({
+export const parametrosDeFerramentaSchema = z.strictObject({
   turmaId: z.uuid(),
   disciplinaId: z.uuid(),
   tema: z.string().trim().min(1).max(TAMANHO_MAXIMO_DO_TEMA),
   quantidade: z.number().int().min(1).max(MAXIMO_DE_QUESTOES_POR_ATIVIDADE).optional(),
 })
-export type ParametrosDeFerramenta = z.infer<typeof esquemaParametrosDeFerramenta>
+export type ParametrosDeFerramenta = z.infer<typeof parametrosDeFerramentaSchema>
 
 /**
  * A pergunta da D18: o Assistente entendeu que o pedido cabe numa ferramenta e **pergunta antes de gerar**. A tela mostra
  * as duas opções com o mesmo peso (abrir a ferramenta ou seguir conversando) e, com o sim, abre o cartão já preenchido
  * com `parametros`, que o professor ajusta antes de mandar para `POST /v1/ferramentas/:ferramenta/gerar`.
  */
-export const esquemaPropostaDeFerramenta = z.strictObject({
+export const propostaDeFerramentaSchema = z.strictObject({
   ferramenta: z.enum(FERRAMENTAS_GERADORAS),
-  parametros: esquemaParametrosDeFerramenta,
+  parametros: parametrosDeFerramentaSchema,
 })
-export type PropostaDeFerramenta = z.infer<typeof esquemaPropostaDeFerramenta>
+export type PropostaDeFerramenta = z.infer<typeof propostaDeFerramentaSchema>
 
 /**
  * O que o professor respondeu à pergunta da D18, quando a resposta **não** foi abrir a ferramenta. As duas opções têm o
@@ -65,14 +65,14 @@ export type RespostaAProposta = (typeof RESPOSTAS_A_PROPOSTA)[number]
  * `texto` é a fala dele como a tela a mostra, e a resposta do Assistente é sempre texto, sobre o último pedido dele. Sem
  * a marca, nada muda.
  */
-export const esquemaPedidoMensagemAoAssistente = z.strictObject({
+export const mensagemAoAssistenteRequestSchema = z.strictObject({
   texto: z.string().trim().min(1).max(TAMANHO_MAXIMO_DO_PEDIDO),
   turmaId: z.uuid(),
   disciplinaId: z.uuid(),
-  chaveEnvio: esquemaChaveEnvio,
+  chaveEnvio: idempotencyKeySchema,
   resposta: z.enum(RESPOSTAS_A_PROPOSTA).optional(),
 })
-export type PedidoMensagemAoAssistente = z.infer<typeof esquemaPedidoMensagemAoAssistente>
+export type MensagemAoAssistenteRequest = z.infer<typeof mensagemAoAssistenteRequestSchema>
 
 export const AUTORES_DE_MENSAGEM_DE_AGENTE = ['usuario', 'agente'] as const
 export type AutorDeMensagemDeAgente = (typeof AUTORES_DE_MENSAGEM_DE_AGENTE)[number]
@@ -81,27 +81,27 @@ export type AutorDeMensagemDeAgente = (typeof AUTORES_DE_MENSAGEM_DE_AGENTE)[num
  * O que se guarda em `mensagem_agente.conteudo` quando quem fala é o agente: texto com as páginas citadas, ou a proposta
  * de ferramenta. Validado na saída do modelo e na leitura (regra 30, item 7).
  */
-export const esquemaConteudoDaMensagemDoAgente = z.discriminatedUnion('tipo', [
-  z.strictObject({ tipo: z.literal('texto'), texto: z.string().min(1).max(8000), citacoes: z.array(esquemaCitacao).max(MAXIMO_DE_CITACOES_POR_MENSAGEM) }),
-  z.strictObject({ tipo: z.literal('proposta_de_ferramenta'), texto: z.string().min(1).max(1000), proposta: esquemaPropostaDeFerramenta }),
+export const conteudoDaMensagemDoAgenteSchema = z.discriminatedUnion('tipo', [
+  z.strictObject({ tipo: z.literal('texto'), texto: z.string().min(1).max(8000), citacoes: z.array(citacaoSchema).max(MAXIMO_DE_CITACOES_POR_MENSAGEM) }),
+  z.strictObject({ tipo: z.literal('proposta_de_ferramenta'), texto: z.string().min(1).max(1000), proposta: propostaDeFerramentaSchema }),
 ])
-export type ConteudoDaMensagemDoAgente = z.infer<typeof esquemaConteudoDaMensagemDoAgente>
+export type ConteudoDaMensagemDoAgente = z.infer<typeof conteudoDaMensagemDoAgenteSchema>
 
 /** O que se guarda em `mensagem_agente.conteudo` quando quem fala é o professor: só o texto. A turma e a disciplina são colunas. */
-export const esquemaConteudoDaMensagemDoUsuario = z.strictObject({ tipo: z.literal('texto'), texto: z.string().min(1).max(TAMANHO_MAXIMO_DO_PEDIDO) })
-export type ConteudoDaMensagemDoUsuario = z.infer<typeof esquemaConteudoDaMensagemDoUsuario>
+export const conteudoDaMensagemDoUsuarioSchema = z.strictObject({ tipo: z.literal('texto'), texto: z.string().min(1).max(TAMANHO_MAXIMO_DO_PEDIDO) })
+export type ConteudoDaMensagemDoUsuario = z.infer<typeof conteudoDaMensagemDoUsuarioSchema>
 
 const camposDaMensagem = { id: z.uuid(), criadaEm: z.iso.datetime() }
 
 /** Uma mensagem do Assistente, como a tela a mostra. Toda mensagem do agente é saída de IA e leva o selo de IA (regra 70, item 4a). */
-export const esquemaMensagemDoAgente = z.discriminatedUnion('tipo', [
-  z.strictObject({ ...camposDaMensagem, autor: z.literal('agente'), tipo: z.literal('texto'), texto: z.string().min(1), citacoes: z.array(esquemaCitacao).max(MAXIMO_DE_CITACOES_POR_MENSAGEM) }),
-  z.strictObject({ ...camposDaMensagem, autor: z.literal('agente'), tipo: z.literal('proposta_de_ferramenta'), texto: z.string().min(1), proposta: esquemaPropostaDeFerramenta }),
+export const mensagemDoAgenteSchema = z.discriminatedUnion('tipo', [
+  z.strictObject({ ...camposDaMensagem, autor: z.literal('agente'), tipo: z.literal('texto'), texto: z.string().min(1), citacoes: z.array(citacaoSchema).max(MAXIMO_DE_CITACOES_POR_MENSAGEM) }),
+  z.strictObject({ ...camposDaMensagem, autor: z.literal('agente'), tipo: z.literal('proposta_de_ferramenta'), texto: z.string().min(1), proposta: propostaDeFerramentaSchema }),
 ])
-export type MensagemDoAgente = z.infer<typeof esquemaMensagemDoAgente>
+export type MensagemDoAgente = z.infer<typeof mensagemDoAgenteSchema>
 
 /** Uma mensagem do professor na conversa dele. */
-export const esquemaMensagemDoUsuario = z.strictObject({
+export const mensagemDoUsuarioSchema = z.strictObject({
   ...camposDaMensagem,
   autor: z.literal('usuario'),
   tipo: z.literal('texto'),
@@ -109,10 +109,10 @@ export const esquemaMensagemDoUsuario = z.strictObject({
   turmaId: z.uuid(),
   disciplinaId: z.uuid(),
 })
-export type MensagemDoUsuario = z.infer<typeof esquemaMensagemDoUsuario>
+export type MensagemDoUsuario = z.infer<typeof mensagemDoUsuarioSchema>
 
-export const esquemaMensagemDaConversa = z.union([esquemaMensagemDoUsuario, esquemaMensagemDoAgente])
-export type MensagemDaConversa = z.infer<typeof esquemaMensagemDaConversa>
+export const mensagemDaConversaSchema = z.union([mensagemDoUsuarioSchema, mensagemDoAgenteSchema])
+export type MensagemDaConversa = z.infer<typeof mensagemDaConversaSchema>
 
 export const MENSAGENS_PADRAO_POR_PAGINA = 50
 export const MAXIMO_DE_MENSAGENS_POR_PAGINA = 100
@@ -125,15 +125,15 @@ export const camposDaConsultaDeConversa = {
   antes: z.uuid().optional(),
   limite: z.coerce.number().int().min(1).max(MAXIMO_DE_MENSAGENS_POR_PAGINA).default(MENSAGENS_PADRAO_POR_PAGINA),
 }
-export const esquemaConsultaConversaDoAssistente = z.strictObject(camposDaConsultaDeConversa)
-export type ConsultaConversaDoAssistente = z.infer<typeof esquemaConsultaConversaDoAssistente>
+export const conversaDoAssistenteQuerySchema = z.strictObject(camposDaConsultaDeConversa)
+export type ConversaDoAssistenteQuery = z.infer<typeof conversaDoAssistenteQuerySchema>
 
 /**
  * Resposta de `GET /v1/assistente/conversa`: as mensagens da thread do professor no ano em curso, da mais antiga para a
  * mais nova, e `anterior` (o id a mandar em `?antes=`) quando há mais para trás. Thread que ainda não existe é lista vazia.
  */
-export const esquemaRespostaConversaDoAssistente = z.strictObject({
-  mensagens: z.array(esquemaMensagemDaConversa).max(MAXIMO_DE_MENSAGENS_POR_PAGINA),
+export const conversaDoAssistenteResponseSchema = z.strictObject({
+  mensagens: z.array(mensagemDaConversaSchema).max(MAXIMO_DE_MENSAGENS_POR_PAGINA),
   anterior: z.uuid().optional(),
 })
-export type RespostaConversaDoAssistente = z.infer<typeof esquemaRespostaConversaDoAssistente>
+export type ConversaDoAssistenteResponse = z.infer<typeof conversaDoAssistenteResponseSchema>

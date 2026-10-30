@@ -1,6 +1,6 @@
 import {
-  ErroDeInvariante,
-  esquemaParametrosDeFerramenta,
+  InvariantException,
+  parametrosDeFerramentaSchema,
   FERRAMENTAS,
   MAXIMO_DE_QUESTOES_POR_ATIVIDADE,
   NOME_DA_FERRAMENTA,
@@ -112,7 +112,7 @@ export function ehFerramenta(valor: string): valor is Ferramenta {
 
 export function ferramentaDoCatalogo(ferramenta: Ferramenta): FerramentaDoCatalogo {
   const achada = CATALOGO_DE_FERRAMENTAS.find((item) => item.ferramenta === ferramenta)
-  if (achada === undefined) throw new ErroDeInvariante('ferramenta fora do catálogo')
+  if (achada === undefined) throw new InvariantException('ferramenta fora do catálogo')
   return achada
 }
 
@@ -242,7 +242,7 @@ export function montarPedido(ferramenta: Ferramenta, valores: ValoresValidados):
   const contexto = typeof valores['turma'] === 'string' ? lerContexto(valores['turma']) : undefined
   if (contexto === undefined) return { ok: false, problema: NAO_FOI_POSSIVEL_MONTAR }
   // A quantidade é da atividade: o plano de aula não a leva, mesmo que um valor com esse nome apareça.
-  const parametros = esquemaParametrosDeFerramenta.safeParse({ ...contexto, tema: valores['tema'], ...(ferramenta === 'atividade_objetiva' ? { quantidade: valores['quantidade'] } : {}) })
+  const parametros = parametrosDeFerramentaSchema.safeParse({ ...contexto, tema: valores['tema'], ...(ferramenta === 'atividade_objetiva' ? { quantidade: valores['quantidade'] } : {}) })
   return parametros.success ? { ok: true, pedido: { ferramenta, parametros: parametros.data } } : { ok: false, problema: NAO_FOI_POSSIVEL_MONTAR }
 }
 

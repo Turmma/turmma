@@ -1,5 +1,5 @@
 import { ErroDeDominio, relogioDoSistema, type Banco, type Relogio } from '@educa/nucleo'
-import { CodigoDeErro, esquemaRespostaSinais, esquemaRespostaUsoDoTutor, MAXIMO_DE_ALUNOS_NO_USO, MAXIMO_DE_GRUPOS_DE_SINAL, type ConsultaSinais, type ConsultaUsoDoTutor, type RespostaSinais, type RespostaUsoDoTutor } from '@educa/shared'
+import { ErrorCode, sinaisResponseSchema, usoDoTutorResponseSchema, MAXIMO_DE_ALUNOS_NO_USO, MAXIMO_DE_GRUPOS_DE_SINAL, type SinaisQuery, type UsoDoTutorQuery, type SinaisResponse, type UsoDoTutorResponse } from '@educa/shared'
 import { SupervisaoDoTutorRepository, type SinalDaTurma } from './supervisao.repository.js'
 
 /** O agrupado de "Seu time" olha os últimos sete dias (o contrato de `GET /v1/sinais`). */
@@ -36,29 +36,29 @@ export class SupervisaoDoTutorService {
 
   async #turmaDoProfessor(repositorio: SupervisaoDoTutorRepository, turmaId: string): Promise<string> {
     const id = turmaId.toLowerCase()
-    if (!(await repositorio.turmaDoProfessor(id))) throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
+    if (!(await repositorio.turmaDoProfessor(id))) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
     return id
   }
 
   /** `GET /v1/sinais?turmaId=`: uma página dos sinais, do mais novo para o mais antigo, e o agrupado dos últimos sete dias. */
-  async sinais({ turmaId, pagina, limite }: ConsultaSinais): Promise<RespostaSinais> {
+  async sinais({ turmaId, pagina, limite }: SinaisQuery): Promise<SinaisResponse> {
     const repositorio = new SupervisaoDoTutorRepository(this.banco, this.relogio)
     const turma = await this.#turmaDoProfessor(repositorio, turmaId)
     const linhas = await repositorio.sinais(turma, pagina?.toLowerCase(), limite + 1)
     const itens = linhas.slice(0, limite)
     const proxima = linhas.length > limite ? itens.at(-1)?.id : undefined
     const grupos = await repositorio.grupos(turma, new Date(this.relogio.agora().getTime() - DIAS_DO_AGRUPADO_DE_SINAIS * MS_POR_DIA), MAXIMO_DE_GRUPOS_DE_SINAL)
-    return esquemaRespostaSinais.parse({ itens: itens.map(paraOProfessor), ...(proxima === undefined ? {} : { proxima }), grupos })
+    return sinaisResponseSchema.parse({ itens: itens.map(paraOProfessor), ...(proxima === undefined ? {} : { proxima }), grupos })
   }
 
   /** `GET /v1/tutor/uso?turmaId=`: quem usou o Tutor, quantas trocas hoje, quando foi a última e em que estava; o freio do dia e o pacote do mês. */
-  async uso({ turmaId }: ConsultaUsoDoTutor): Promise<RespostaUsoDoTutor> {
+  async uso({ turmaId }: UsoDoTutorQuery): Promise<UsoDoTutorResponse> {
     const repositorio = new SupervisaoDoTutorRepository(this.banco, this.relogio)
     const turma = await this.#turmaDoProfessor(repositorio, turmaId)
     const ultimas = await repositorio.ultimasTrocas(turma, MAXIMO_DE_ALUNOS_NO_USO)
     const trocasDeHoje = await repositorio.trocasDeHoje(ultimas.map((ultima) => ultima.alunoId))
     const { limiteDoDia, pacoteDaTurmaNoMes } = await repositorio.limites(turma)
-    return esquemaRespostaUsoDoTutor.parse({
+    return usoDoTutorResponseSchema.parse({
       turmaId: turma,
       limiteDoDia,
       trocasDaTurmaNoMes: await repositorio.trocasDaTurmaNoMes(turma),

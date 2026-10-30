@@ -1,5 +1,5 @@
 import { executarNoContexto } from '@educa/nucleo'
-import { CodigoDeErro } from '@educa/shared'
+import { ErrorCode } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
@@ -53,7 +53,7 @@ describe('GET /v1/escolas/:slug/acesso: o que a tela /e/:slug mostra antes do lo
     for (const slug of [`nao-existe-${randomUUID()}`, 'Com_Formato_Errado', 'a'.repeat(64)]) {
       const resposta = await acesso(slug)
       expect(resposta.status, slug).toBe(404)
-      expect(resposta.corpo.erro?.codigo, slug).toBe(CodigoDeErro.NAO_ENCONTRADO)
+      expect(resposta.corpo.erro?.codigo, slug).toBe(ErrorCode.NAO_ENCONTRADO)
     }
   })
 
@@ -62,7 +62,7 @@ describe('GET /v1/escolas/:slug/acesso: o que a tela /e/:slug mostra antes do lo
     for (const slug of ['escola\u0000x', ' escola', 'Escola', 'escola-', '-escola', 'a--b_c']) {
       const resposta = await acesso(slug)
       expect(resposta.status, JSON.stringify(slug)).toBe(404)
-      expect(resposta.corpo.erro?.codigo, JSON.stringify(slug)).toBe(CodigoDeErro.NAO_ENCONTRADO)
+      expect(resposta.corpo.erro?.codigo, JSON.stringify(slug)).toBe(ErrorCode.NAO_ENCONTRADO)
     }
   })
 

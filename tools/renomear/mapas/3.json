@@ -1,0 +1,4194 @@
+{
+  "entradas": [
+    {
+      "tipo": "simbolo",
+      "de": "CodigoDeErro",
+      "para": "ErrorCode",
+      "arquivo": "packages/shared/src/erros/codigo-de-erro.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:209"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaDeErro",
+      "para": "ErrorResponse",
+      "arquivo": "packages/shared/src/erros/codigo-de-erro.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:210"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ErroDeInvariante",
+      "para": "InvariantException",
+      "arquivo": "packages/shared/src/erros/erro-de-invariante.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:211"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PedidoSemCorpo",
+      "para": "EmptyBodyRequest",
+      "arquivo": "packages/shared/src/atividade/atividade-aplicada.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:437"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ConsultaPaginada",
+      "para": "PaginationQuery",
+      "arquivo": "packages/shared/src/estrutura/paginacao.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:438"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaConsultaPaginada",
+      "para": "paginationQuerySchema",
+      "arquivo": "packages/shared/src/estrutura/paginacao.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:439"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaDePagina",
+      "para": "pageSchema",
+      "arquivo": "packages/shared/src/estrutura/paginacao.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:440"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PedidoSemCorpoDeOperador",
+      "para": "OperadorEmptyBodyRequest",
+      "arquivo": "packages/shared/src/operacao/sessao.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:441"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaPedidoSemCorpoDeOperador",
+      "para": "operadorEmptyBodyRequestSchema",
+      "arquivo": "packages/shared/src/operacao/sessao.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:442"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaContexto",
+      "para": "ContextResponse",
+      "arquivo": "packages/shared/src/sistema/contexto.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:443"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaContexto",
+      "para": "contextResponseSchema",
+      "arquivo": "packages/shared/src/sistema/contexto.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:444"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "AMBIENTES_DO_SISTEMA",
+      "para": "SYSTEM_ENVIRONMENTS",
+      "arquivo": "packages/shared/src/sistema/estado.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:445"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "COMPONENTES_DO_SISTEMA",
+      "para": "SYSTEM_COMPONENTS",
+      "arquivo": "packages/shared/src/sistema/estado.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:446"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ComponenteDoSistema",
+      "para": "SystemComponent",
+      "arquivo": "packages/shared/src/sistema/estado.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:447"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaEstado",
+      "para": "SystemStatusResponse",
+      "arquivo": "packages/shared/src/sistema/estado.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:448"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "SITUACOES_DE_COMPONENTE",
+      "para": "COMPONENT_STATUSES",
+      "arquivo": "packages/shared/src/sistema/estado.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:449"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaEstado",
+      "para": "systemStatusResponseSchema",
+      "arquivo": "packages/shared/src/sistema/estado.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:450"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaProntidao",
+      "para": "ReadinessResponse",
+      "arquivo": "packages/shared/src/sistema/prontidao.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:451"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "AutenticacaoRealtime",
+      "para": "RealtimeAuth",
+      "arquivo": "packages/shared/src/sistema/realtime.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:452"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "CAMINHO_REALTIME",
+      "para": "REALTIME_PATH",
+      "arquivo": "packages/shared/src/sistema/realtime.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:453"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "NAMESPACE_REALTIME_SISTEMA",
+      "para": "SYSTEM_REALTIME_NAMESPACE",
+      "arquivo": "packages/shared/src/sistema/realtime.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:454"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "OpcoesDoClienteRealtime",
+      "para": "RealtimeClientOptions",
+      "arquivo": "packages/shared/src/sistema/realtime.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:455"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RECONEXAO_REALTIME",
+      "para": "REALTIME_RECONNECTION",
+      "arquivo": "packages/shared/src/sistema/realtime.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:456"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "opcoesDoClienteRealtime",
+      "para": "realtimeClientOptions",
+      "arquivo": "packages/shared/src/sistema/realtime.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:457"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaSaude",
+      "para": "HealthResponse",
+      "arquivo": "packages/shared/src/sistema/saude.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:458"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaChaveEnvio",
+      "para": "idempotencyKeySchema",
+      "arquivo": "packages/shared/src/time/chave-envio.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:459"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ConsultaArtefatos",
+      "para": "ArtefatosQuery",
+      "arquivo": "packages/shared/src/assistente/artefato.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:495"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PedidoAdaptarArtefato",
+      "para": "AdaptarArtefatoRequest",
+      "arquivo": "packages/shared/src/assistente/artefato.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:496"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PedidoGerarComFerramenta",
+      "para": "GerarComFerramentaRequest",
+      "arquivo": "packages/shared/src/assistente/artefato.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:497"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PedidoRenomearArtefato",
+      "para": "RenomearArtefatoRequest",
+      "arquivo": "packages/shared/src/assistente/artefato.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:498"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaArtefato",
+      "para": "ArtefatoResponse",
+      "arquivo": "packages/shared/src/assistente/artefato.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:499"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaListaDeArtefatos",
+      "para": "ListaDeArtefatosResponse",
+      "arquivo": "packages/shared/src/assistente/artefato.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:500"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaAplicacaoDoArtefato",
+      "para": "aplicacaoDoArtefatoSchema",
+      "arquivo": "packages/shared/src/assistente/artefato.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:501"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaArtefatoResumido",
+      "para": "artefatoResumidoSchema",
+      "arquivo": "packages/shared/src/assistente/artefato.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:502"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaConsultaArtefatos",
+      "para": "artefatosQuerySchema",
+      "arquivo": "packages/shared/src/assistente/artefato.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:503"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaEntregaDoArtefato",
+      "para": "entregaDoArtefatoSchema",
+      "arquivo": "packages/shared/src/assistente/artefato.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:504"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaParametroFerramenta",
+      "para": "parametroFerramentaSchema",
+      "arquivo": "packages/shared/src/assistente/artefato.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:505"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaPedidoAdaptarArtefato",
+      "para": "adaptarArtefatoRequestSchema",
+      "arquivo": "packages/shared/src/assistente/artefato.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:506"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaPedidoGerarComFerramenta",
+      "para": "gerarComFerramentaRequestSchema",
+      "arquivo": "packages/shared/src/assistente/artefato.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:507"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaPedidoRenomearArtefato",
+      "para": "renomearArtefatoRequestSchema",
+      "arquivo": "packages/shared/src/assistente/artefato.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:508"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaArtefato",
+      "para": "artefatoResponseSchema",
+      "arquivo": "packages/shared/src/assistente/artefato.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:509"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaListaDeArtefatos",
+      "para": "listaDeArtefatosResponseSchema",
+      "arquivo": "packages/shared/src/assistente/artefato.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:510"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaAdaptacaoAplicada",
+      "para": "adaptacaoAplicadaSchema",
+      "arquivo": "packages/shared/src/assistente/conteudo.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:511"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaCitacao",
+      "para": "citacaoSchema",
+      "arquivo": "packages/shared/src/assistente/conteudo.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:512"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaConteudoDeAtividade",
+      "para": "conteudoDeAtividadeSchema",
+      "arquivo": "packages/shared/src/assistente/conteudo.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:513"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaConteudoDePlanoDeAula",
+      "para": "conteudoDePlanoDeAulaSchema",
+      "arquivo": "packages/shared/src/assistente/conteudo.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:514"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaConteudoDoArtefato",
+      "para": "conteudoDoArtefatoSchema",
+      "arquivo": "packages/shared/src/assistente/conteudo.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:515"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaEtapaDoPlano",
+      "para": "etapaDoPlanoSchema",
+      "arquivo": "packages/shared/src/assistente/conteudo.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:516"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaHabilidade",
+      "para": "habilidadeSchema",
+      "arquivo": "packages/shared/src/assistente/conteudo.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:517"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaQuestaoObjetiva",
+      "para": "questaoObjetivaSchema",
+      "arquivo": "packages/shared/src/assistente/conteudo.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:518"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ConsultaConversaDoAssistente",
+      "para": "ConversaDoAssistenteQuery",
+      "arquivo": "packages/shared/src/assistente/conversa.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:519"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PedidoMensagemAoAssistente",
+      "para": "MensagemAoAssistenteRequest",
+      "arquivo": "packages/shared/src/assistente/conversa.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:520"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaConversaDoAssistente",
+      "para": "ConversaDoAssistenteResponse",
+      "arquivo": "packages/shared/src/assistente/conversa.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:522"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaConsultaConversaDoAssistente",
+      "para": "conversaDoAssistenteQuerySchema",
+      "arquivo": "packages/shared/src/assistente/conversa.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:523"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaConteudoDaMensagemDoAgente",
+      "para": "conteudoDaMensagemDoAgenteSchema",
+      "arquivo": "packages/shared/src/assistente/conversa.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:524"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaConteudoDaMensagemDoUsuario",
+      "para": "conteudoDaMensagemDoUsuarioSchema",
+      "arquivo": "packages/shared/src/assistente/conversa.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:525"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaMensagemDaConversa",
+      "para": "mensagemDaConversaSchema",
+      "arquivo": "packages/shared/src/assistente/conversa.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:526"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaMensagemDoAgente",
+      "para": "mensagemDoAgenteSchema",
+      "arquivo": "packages/shared/src/assistente/conversa.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:527"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaMensagemDoUsuario",
+      "para": "mensagemDoUsuarioSchema",
+      "arquivo": "packages/shared/src/assistente/conversa.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:528"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaParametrosDeFerramenta",
+      "para": "parametrosDeFerramentaSchema",
+      "arquivo": "packages/shared/src/assistente/conversa.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:529"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaPedidoMensagemAoAssistente",
+      "para": "mensagemAoAssistenteRequestSchema",
+      "arquivo": "packages/shared/src/assistente/conversa.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:530"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaPropostaDeFerramenta",
+      "para": "propostaDeFerramentaSchema",
+      "arquivo": "packages/shared/src/assistente/conversa.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:531"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaConversaDoAssistente",
+      "para": "conversaDoAssistenteResponseSchema",
+      "arquivo": "packages/shared/src/assistente/conversa.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:532"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ConsultaEntregas",
+      "para": "EntregasQuery",
+      "arquivo": "packages/shared/src/assistente/entrega.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:533"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PedidoDecidirEntrega",
+      "para": "DecidirEntregaRequest",
+      "arquivo": "packages/shared/src/assistente/entrega.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:534"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaEntrega",
+      "para": "EntregaResponse",
+      "arquivo": "packages/shared/src/assistente/entrega.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:535"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaListaDeEntregas",
+      "para": "ListaDeEntregasResponse",
+      "arquivo": "packages/shared/src/assistente/entrega.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:536"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaAutorDaDecisao",
+      "para": "autorDaDecisaoSchema",
+      "arquivo": "packages/shared/src/assistente/entrega.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:537"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaConsultaEntregas",
+      "para": "entregasQuerySchema",
+      "arquivo": "packages/shared/src/assistente/entrega.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:538"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaEntrega",
+      "para": "entregaSchema",
+      "arquivo": "packages/shared/src/assistente/entrega.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:539"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaPedidoDecidirEntrega",
+      "para": "decidirEntregaRequestSchema",
+      "arquivo": "packages/shared/src/assistente/entrega.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:540"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaEntrega",
+      "para": "entregaResponseSchema",
+      "arquivo": "packages/shared/src/assistente/entrega.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:541"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaListaDeEntregas",
+      "para": "listaDeEntregasResponseSchema",
+      "arquivo": "packages/shared/src/assistente/entrega.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:542"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ConsultaAtividadesAplicadas",
+      "para": "AtividadesAplicadasQuery",
+      "arquivo": "packages/shared/src/atividade/atividade-aplicada.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:543"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PedidoAplicarAtividade",
+      "para": "AplicarAtividadeRequest",
+      "arquivo": "packages/shared/src/atividade/atividade-aplicada.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:544"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaAtividadeAplicada",
+      "para": "AtividadeAplicadaResponse",
+      "arquivo": "packages/shared/src/atividade/atividade-aplicada.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:545"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaAtividadeEncerrada",
+      "para": "AtividadeEncerradaResponse",
+      "arquivo": "packages/shared/src/atividade/atividade-aplicada.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:546"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaListaDeAtividadesAplicadas",
+      "para": "ListaDeAtividadesAplicadasResponse",
+      "arquivo": "packages/shared/src/atividade/atividade-aplicada.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:547"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaAtividadeAplicada",
+      "para": "atividadeAplicadaSchema",
+      "arquivo": "packages/shared/src/atividade/atividade-aplicada.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:548"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaConsultaAtividadesAplicadas",
+      "para": "atividadesAplicadasQuerySchema",
+      "arquivo": "packages/shared/src/atividade/atividade-aplicada.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:549"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaPedidoAplicarAtividade",
+      "para": "aplicarAtividadeRequestSchema",
+      "arquivo": "packages/shared/src/atividade/atividade-aplicada.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:550"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaPedidoSemCorpo",
+      "para": "emptyBodyRequestSchema",
+      "arquivo": "packages/shared/src/atividade/atividade-aplicada.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:551"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaPedidoSemCorpoOuAusente",
+      "para": "emptyOrMissingBodyRequestSchema",
+      "arquivo": "packages/shared/src/atividade/atividade-aplicada.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:552"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaAtividadeAplicada",
+      "para": "atividadeAplicadaResponseSchema",
+      "arquivo": "packages/shared/src/atividade/atividade-aplicada.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:553"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaAtividadeEncerrada",
+      "para": "atividadeEncerradaResponseSchema",
+      "arquivo": "packages/shared/src/atividade/atividade-aplicada.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:554"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaListaDeAtividadesAplicadas",
+      "para": "listaDeAtividadesAplicadasResponseSchema",
+      "arquivo": "packages/shared/src/atividade/atividade-aplicada.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:555"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaCorrecaoDoLote",
+      "para": "CorrecaoDoLoteResponse",
+      "arquivo": "packages/shared/src/atividade/correcao.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:556"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaDestaqueAberto",
+      "para": "DestaqueAbertoResponse",
+      "arquivo": "packages/shared/src/atividade/correcao.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:557"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaLoteAprovado",
+      "para": "LoteAprovadoResponse",
+      "arquivo": "packages/shared/src/atividade/correcao.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:558"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaCorrecaoDoAluno",
+      "para": "correcaoDoAlunoSchema",
+      "arquivo": "packages/shared/src/atividade/correcao.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:559"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaDestaque",
+      "para": "destaqueSchema",
+      "arquivo": "packages/shared/src/atividade/correcao.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:560"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaDestaquesAbertos",
+      "para": "destaquesAbertosSchema",
+      "arquivo": "packages/shared/src/atividade/correcao.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:561"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaDiagnosticoGravado",
+      "para": "diagnosticoGravadoSchema",
+      "arquivo": "packages/shared/src/atividade/correcao.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:562"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaFaixaDeAcertos",
+      "para": "faixaDeAcertosSchema",
+      "arquivo": "packages/shared/src/atividade/correcao.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:563"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaLoteApresentado",
+      "para": "loteApresentadoSchema",
+      "arquivo": "packages/shared/src/atividade/correcao.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:564"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaQuestaoDoLote",
+      "para": "questaoDoLoteSchema",
+      "arquivo": "packages/shared/src/atividade/correcao.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:565"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaCorrecaoDoLote",
+      "para": "correcaoDoLoteResponseSchema",
+      "arquivo": "packages/shared/src/atividade/correcao.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:566"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaCorrigida",
+      "para": "corrigidaResponseSchema",
+      "arquivo": "packages/shared/src/atividade/correcao.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:567"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaDestaqueAberto",
+      "para": "destaqueAbertoResponseSchema",
+      "arquivo": "packages/shared/src/atividade/correcao.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:568"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaLoteAprovado",
+      "para": "loteAprovadoResponseSchema",
+      "arquivo": "packages/shared/src/atividade/correcao.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:569"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaResumoDoLote",
+      "para": "resumoDoLoteSchema",
+      "arquivo": "packages/shared/src/atividade/correcao.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:570"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaValidacaoDoLote",
+      "para": "validacaoDoLoteSchema",
+      "arquivo": "packages/shared/src/atividade/correcao.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:571"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ConsultaDesempenhoDaTurma",
+      "para": "DesempenhoDaTurmaQuery",
+      "arquivo": "packages/shared/src/atividade/desempenho.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:572"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaDesempenhoDaTurma",
+      "para": "DesempenhoDaTurmaResponse",
+      "arquivo": "packages/shared/src/atividade/desempenho.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:573"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaConsultaDesempenhoDaTurma",
+      "para": "desempenhoDaTurmaQuerySchema",
+      "arquivo": "packages/shared/src/atividade/desempenho.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:574"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaDesempenhoDoAluno",
+      "para": "desempenhoDoAlunoSchema",
+      "arquivo": "packages/shared/src/atividade/desempenho.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:575"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaHabilidadeDaTurma",
+      "para": "habilidadeDaTurmaSchema",
+      "arquivo": "packages/shared/src/atividade/desempenho.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:576"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaDesempenhoDaTurma",
+      "para": "desempenhoDaTurmaResponseSchema",
+      "arquivo": "packages/shared/src/atividade/desempenho.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:577"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ConsultaMinhasAtividades",
+      "para": "MinhasAtividadesQuery",
+      "arquivo": "packages/shared/src/atividade/prova.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:578"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PedidoResponderQuestao",
+      "para": "ResponderQuestaoRequest",
+      "arquivo": "packages/shared/src/atividade/prova.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:579"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaAtividadeEnviada",
+      "para": "AtividadeEnviadaResponse",
+      "arquivo": "packages/shared/src/atividade/prova.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:580"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaMeuDiagnostico",
+      "para": "MeuDiagnosticoResponse",
+      "arquivo": "packages/shared/src/atividade/prova.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:581"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaMinhasAtividades",
+      "para": "MinhasAtividadesResponse",
+      "arquivo": "packages/shared/src/atividade/prova.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:582"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaProva",
+      "para": "ProvaResponse",
+      "arquivo": "packages/shared/src/atividade/prova.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:583"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaQuestaoSalva",
+      "para": "QuestaoSalvaResponse",
+      "arquivo": "packages/shared/src/atividade/prova.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:584"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaAcertoPorHabilidade",
+      "para": "acertoPorHabilidadeSchema",
+      "arquivo": "packages/shared/src/atividade/prova.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:586"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaAlternativa",
+      "para": "alternativaSchema",
+      "arquivo": "packages/shared/src/atividade/prova.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:587"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaConsultaMinhasAtividades",
+      "para": "minhasAtividadesQuerySchema",
+      "arquivo": "packages/shared/src/atividade/prova.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:588"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaEspelhoDaFila",
+      "para": "espelhoDaFilaSchema",
+      "arquivo": "packages/shared/src/atividade/prova.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:589"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaMinhaAtividade",
+      "para": "minhaAtividadeSchema",
+      "arquivo": "packages/shared/src/atividade/prova.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:590"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaNumeroDaQuestao",
+      "para": "numeroDaQuestaoSchema",
+      "arquivo": "packages/shared/src/atividade/prova.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:591"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaPedidoResponderQuestao",
+      "para": "responderQuestaoRequestSchema",
+      "arquivo": "packages/shared/src/atividade/prova.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:592"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaQuestaoDaProva",
+      "para": "questaoDaProvaSchema",
+      "arquivo": "packages/shared/src/atividade/prova.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:593"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaQuestaoDoCaminho",
+      "para": "questaoDoCaminhoSchema",
+      "arquivo": "packages/shared/src/atividade/prova.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:594"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaQuestaoDoDiagnostico",
+      "para": "questaoDoDiagnosticoSchema",
+      "arquivo": "packages/shared/src/atividade/prova.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:595"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaAtividadeEnviada",
+      "para": "atividadeEnviadaResponseSchema",
+      "arquivo": "packages/shared/src/atividade/prova.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:596"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaMeuDiagnostico",
+      "para": "meuDiagnosticoResponseSchema",
+      "arquivo": "packages/shared/src/atividade/prova.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:597"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaMinhasAtividades",
+      "para": "minhasAtividadesResponseSchema",
+      "arquivo": "packages/shared/src/atividade/prova.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:598"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaProva",
+      "para": "provaResponseSchema",
+      "arquivo": "packages/shared/src/atividade/prova.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:599"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaQuestaoSalva",
+      "para": "questaoSalvaResponseSchema",
+      "arquivo": "packages/shared/src/atividade/prova.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:600"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaSalva",
+      "para": "respostaSalvaSchema",
+      "arquivo": "packages/shared/src/atividade/prova.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:601"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaSequencia",
+      "para": "sequenciaSchema",
+      "arquivo": "packages/shared/src/atividade/prova.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:602"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PedidoCriarAnoLetivo",
+      "para": "CriarAnoLetivoRequest",
+      "arquivo": "packages/shared/src/estrutura/ano-letivo.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:603"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaAnoLetivo",
+      "para": "AnoLetivoResponse",
+      "arquivo": "packages/shared/src/estrutura/ano-letivo.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:604"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaListaDeAnosLetivos",
+      "para": "ListaDeAnosLetivosResponse",
+      "arquivo": "packages/shared/src/estrutura/ano-letivo.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:605"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaAnoLetivo",
+      "para": "anoLetivoSchema",
+      "arquivo": "packages/shared/src/estrutura/ano-letivo.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:606"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaPedidoCriarAnoLetivo",
+      "para": "criarAnoLetivoRequestSchema",
+      "arquivo": "packages/shared/src/estrutura/ano-letivo.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:607"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaAnoLetivo",
+      "para": "anoLetivoResponseSchema",
+      "arquivo": "packages/shared/src/estrutura/ano-letivo.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:608"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaListaDeAnosLetivos",
+      "para": "listaDeAnosLetivosResponseSchema",
+      "arquivo": "packages/shared/src/estrutura/ano-letivo.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:609"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PedidoCriarDisciplina",
+      "para": "CriarDisciplinaRequest",
+      "arquivo": "packages/shared/src/estrutura/disciplina.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:610"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PedidoRenomearDisciplina",
+      "para": "RenomearDisciplinaRequest",
+      "arquivo": "packages/shared/src/estrutura/disciplina.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:611"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaDisciplina",
+      "para": "DisciplinaResponse",
+      "arquivo": "packages/shared/src/estrutura/disciplina.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:612"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaListaDeDisciplinas",
+      "para": "ListaDeDisciplinasResponse",
+      "arquivo": "packages/shared/src/estrutura/disciplina.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:613"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaDisciplina",
+      "para": "disciplinaSchema",
+      "arquivo": "packages/shared/src/estrutura/disciplina.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:614"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaPedidoCriarDisciplina",
+      "para": "criarDisciplinaRequestSchema",
+      "arquivo": "packages/shared/src/estrutura/disciplina.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:615"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaPedidoRenomearDisciplina",
+      "para": "renomearDisciplinaRequestSchema",
+      "arquivo": "packages/shared/src/estrutura/disciplina.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:616"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaDisciplina",
+      "para": "disciplinaResponseSchema",
+      "arquivo": "packages/shared/src/estrutura/disciplina.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:617"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaListaDeDisciplinas",
+      "para": "listaDeDisciplinasResponseSchema",
+      "arquivo": "packages/shared/src/estrutura/disciplina.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:618"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ConsultaListaDaTurma",
+      "para": "ListaDaTurmaQuery",
+      "arquivo": "packages/shared/src/estrutura/lista.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:619"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PedidoNomeAvulso",
+      "para": "NomeAvulsoRequest",
+      "arquivo": "packages/shared/src/estrutura/lista.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:620"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PedidoTextoDaLista",
+      "para": "TextoDaListaRequest",
+      "arquivo": "packages/shared/src/estrutura/lista.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:621"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaGravacaoDaLista",
+      "para": "GravacaoDaListaResponse",
+      "arquivo": "packages/shared/src/estrutura/lista.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:622"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaListaDaTurma",
+      "para": "ListaDaTurmaResponse",
+      "arquivo": "packages/shared/src/estrutura/lista.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:623"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaPreviaDaLista",
+      "para": "PreviaDaListaResponse",
+      "arquivo": "packages/shared/src/estrutura/lista.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:624"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaConsultaListaDaTurma",
+      "para": "listaDaTurmaQuerySchema",
+      "arquivo": "packages/shared/src/estrutura/lista.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:625"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaLinhaDaPrevia",
+      "para": "linhaDaPreviaSchema",
+      "arquivo": "packages/shared/src/estrutura/lista.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:626"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaMatriculaDigitada",
+      "para": "matriculaDigitadaSchema",
+      "arquivo": "packages/shared/src/estrutura/lista.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:627"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaNomeDaLista",
+      "para": "nomeDaListaSchema",
+      "arquivo": "packages/shared/src/estrutura/lista.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:628"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaPedidoNomeAvulso",
+      "para": "nomeAvulsoRequestSchema",
+      "arquivo": "packages/shared/src/estrutura/lista.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:629"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaPedidoTextoDaLista",
+      "para": "textoDaListaRequestSchema",
+      "arquivo": "packages/shared/src/estrutura/lista.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:630"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaGravacaoDaLista",
+      "para": "gravacaoDaListaResponseSchema",
+      "arquivo": "packages/shared/src/estrutura/lista.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:631"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaListaDaTurma",
+      "para": "listaDaTurmaResponseSchema",
+      "arquivo": "packages/shared/src/estrutura/lista.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:632"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaPreviaDaLista",
+      "para": "previaDaListaResponseSchema",
+      "arquivo": "packages/shared/src/estrutura/lista.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:633"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PedidoProvedoresDaEscola",
+      "para": "ProvedoresDaEscolaRequest",
+      "arquivo": "packages/shared/src/estrutura/provedores.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:634"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaProvedoresDaEscola",
+      "para": "ProvedoresDaEscolaResponse",
+      "arquivo": "packages/shared/src/estrutura/provedores.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:635"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaPedidoProvedoresDaEscola",
+      "para": "provedoresDaEscolaRequestSchema",
+      "arquivo": "packages/shared/src/estrutura/provedores.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:636"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaProvedorDaEscola",
+      "para": "provedorDaEscolaSchema",
+      "arquivo": "packages/shared/src/estrutura/provedores.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:637"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaProvedoresDaEscola",
+      "para": "provedoresDaEscolaResponseSchema",
+      "arquivo": "packages/shared/src/estrutura/provedores.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:638"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PedidoCriarSerie",
+      "para": "CriarSerieRequest",
+      "arquivo": "packages/shared/src/estrutura/serie.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:639"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaListaDeSeries",
+      "para": "ListaDeSeriesResponse",
+      "arquivo": "packages/shared/src/estrutura/serie.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:640"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaSerie",
+      "para": "SerieResponse",
+      "arquivo": "packages/shared/src/estrutura/serie.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:641"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaPedidoCriarSerie",
+      "para": "criarSerieRequestSchema",
+      "arquivo": "packages/shared/src/estrutura/serie.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:642"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaListaDeSeries",
+      "para": "listaDeSeriesResponseSchema",
+      "arquivo": "packages/shared/src/estrutura/serie.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:643"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaSerie",
+      "para": "serieResponseSchema",
+      "arquivo": "packages/shared/src/estrutura/serie.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:644"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaSerie",
+      "para": "serieSchema",
+      "arquivo": "packages/shared/src/estrutura/serie.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:645"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ConsultaAlunosDaTurma",
+      "para": "AlunosDaTurmaQuery",
+      "arquivo": "packages/shared/src/estrutura/turma.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:646"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ConsultaTurma",
+      "para": "TurmaQuery",
+      "arquivo": "packages/shared/src/estrutura/turma.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:647"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PedidoCriarTurma",
+      "para": "CriarTurmaRequest",
+      "arquivo": "packages/shared/src/estrutura/turma.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:648"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PedidoRenomearTurma",
+      "para": "RenomearTurmaRequest",
+      "arquivo": "packages/shared/src/estrutura/turma.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:649"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaAlunosDaTurma",
+      "para": "AlunosDaTurmaResponse",
+      "arquivo": "packages/shared/src/estrutura/turma.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:650"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaListaDeTurmas",
+      "para": "ListaDeTurmasResponse",
+      "arquivo": "packages/shared/src/estrutura/turma.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:651"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaTurma",
+      "para": "TurmaResponse",
+      "arquivo": "packages/shared/src/estrutura/turma.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:652"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaTurmaAberta",
+      "para": "TurmaAbertaResponse",
+      "arquivo": "packages/shared/src/estrutura/turma.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:653"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaAlunoDaTurma",
+      "para": "alunoDaTurmaSchema",
+      "arquivo": "packages/shared/src/estrutura/turma.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:654"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaConsultaAlunosDaTurma",
+      "para": "alunosDaTurmaQuerySchema",
+      "arquivo": "packages/shared/src/estrutura/turma.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:655"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaConsultaTurma",
+      "para": "turmaQuerySchema",
+      "arquivo": "packages/shared/src/estrutura/turma.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:656"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaPedidoCriarTurma",
+      "para": "criarTurmaRequestSchema",
+      "arquivo": "packages/shared/src/estrutura/turma.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:657"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaPedidoRenomearTurma",
+      "para": "renomearTurmaRequestSchema",
+      "arquivo": "packages/shared/src/estrutura/turma.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:658"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaAlunosDaTurma",
+      "para": "alunosDaTurmaResponseSchema",
+      "arquivo": "packages/shared/src/estrutura/turma.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:659"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaListaDeTurmas",
+      "para": "listaDeTurmasResponseSchema",
+      "arquivo": "packages/shared/src/estrutura/turma.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:660"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaTurma",
+      "para": "turmaResponseSchema",
+      "arquivo": "packages/shared/src/estrutura/turma.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:661"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaTurmaAberta",
+      "para": "turmaAbertaResponseSchema",
+      "arquivo": "packages/shared/src/estrutura/turma.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:662"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaTurma",
+      "para": "turmaSchema",
+      "arquivo": "packages/shared/src/estrutura/turma.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:663"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ConsultaVinculos",
+      "para": "VinculosQuery",
+      "arquivo": "packages/shared/src/estrutura/vinculo.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:664"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PedidoContestarVinculo",
+      "para": "ContestarVinculoRequest",
+      "arquivo": "packages/shared/src/estrutura/vinculo.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:665"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PedidoCriarVinculo",
+      "para": "CriarVinculoRequest",
+      "arquivo": "packages/shared/src/estrutura/vinculo.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:666"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PedidoEncerrarVinculo",
+      "para": "EncerrarVinculoRequest",
+      "arquivo": "packages/shared/src/estrutura/vinculo.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:667"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaListaDeVinculos",
+      "para": "ListaDeVinculosResponse",
+      "arquivo": "packages/shared/src/estrutura/vinculo.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:668"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaMeusVinculos",
+      "para": "MeusVinculosResponse",
+      "arquivo": "packages/shared/src/estrutura/vinculo.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:669"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaVinculo",
+      "para": "VinculoResponse",
+      "arquivo": "packages/shared/src/estrutura/vinculo.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:670"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaVinculoDaCoordenacao",
+      "para": "VinculoDaCoordenacaoResponse",
+      "arquivo": "packages/shared/src/estrutura/vinculo.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:671"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaConsultaVinculos",
+      "para": "vinculosQuerySchema",
+      "arquivo": "packages/shared/src/estrutura/vinculo.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:672"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaPedidoContestarVinculo",
+      "para": "contestarVinculoRequestSchema",
+      "arquivo": "packages/shared/src/estrutura/vinculo.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:673"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaPedidoCriarVinculo",
+      "para": "criarVinculoRequestSchema",
+      "arquivo": "packages/shared/src/estrutura/vinculo.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:674"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaPedidoEncerrarVinculo",
+      "para": "encerrarVinculoRequestSchema",
+      "arquivo": "packages/shared/src/estrutura/vinculo.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:675"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaListaDeVinculos",
+      "para": "listaDeVinculosResponseSchema",
+      "arquivo": "packages/shared/src/estrutura/vinculo.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:676"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaMeusVinculos",
+      "para": "meusVinculosResponseSchema",
+      "arquivo": "packages/shared/src/estrutura/vinculo.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:677"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaVinculo",
+      "para": "vinculoResponseSchema",
+      "arquivo": "packages/shared/src/estrutura/vinculo.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:678"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaVinculoDaCoordenacao",
+      "para": "vinculoDaCoordenacaoResponseSchema",
+      "arquivo": "packages/shared/src/estrutura/vinculo.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:679"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaVinculo",
+      "para": "vinculoSchema",
+      "arquivo": "packages/shared/src/estrutura/vinculo.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:680"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaVinculoDaCoordenacao",
+      "para": "vinculoDaCoordenacaoSchema",
+      "arquivo": "packages/shared/src/estrutura/vinculo.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:681"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ConsultaAnalistaNominal",
+      "para": "AnalistaNominalQuery",
+      "arquivo": "packages/shared/src/governanca/analista.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:682"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PedidoGerarResumoDoAnalista",
+      "para": "GerarResumoDoAnalistaRequest",
+      "arquivo": "packages/shared/src/governanca/analista.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:683"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaAnalistaNominal",
+      "para": "AnalistaNominalResponse",
+      "arquivo": "packages/shared/src/governanca/analista.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:684"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaResumoDoAnalista",
+      "para": "ResumoDoAnalistaResponse",
+      "arquivo": "packages/shared/src/governanca/analista.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:685"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaAlertaDoAnalista",
+      "para": "alertaDoAnalistaSchema",
+      "arquivo": "packages/shared/src/governanca/analista.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:686"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaConsultaAnalistaNominal",
+      "para": "analistaNominalQuerySchema",
+      "arquivo": "packages/shared/src/governanca/analista.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:687"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaConteudoDoResumoDoAnalista",
+      "para": "conteudoDoResumoDoAnalistaSchema",
+      "arquivo": "packages/shared/src/governanca/analista.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:688"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaPedidoGerarResumoDoAnalista",
+      "para": "gerarResumoDoAnalistaRequestSchema",
+      "arquivo": "packages/shared/src/governanca/analista.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:689"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRecorteDoAnalista",
+      "para": "recorteDoAnalistaSchema",
+      "arquivo": "packages/shared/src/governanca/analista.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:690"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRecorteNominal",
+      "para": "recorteNominalSchema",
+      "arquivo": "packages/shared/src/governanca/analista.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:691"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaAnalistaNominal",
+      "para": "analistaNominalResponseSchema",
+      "arquivo": "packages/shared/src/governanca/analista.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:692"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaResumoDoAnalista",
+      "para": "resumoDoAnalistaResponseSchema",
+      "arquivo": "packages/shared/src/governanca/analista.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:693"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ConsultaConsumo",
+      "para": "ConsumoQuery",
+      "arquivo": "packages/shared/src/governanca/governanca.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:694"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ConsultaResumoDaGovernanca",
+      "para": "ResumoDaGovernancaQuery",
+      "arquivo": "packages/shared/src/governanca/governanca.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:695"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PedidoSuspenderFuncao",
+      "para": "SuspenderFuncaoRequest",
+      "arquivo": "packages/shared/src/governanca/governanca.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:696"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaConsumo",
+      "para": "ConsumoResponse",
+      "arquivo": "packages/shared/src/governanca/governanca.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:697"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaFuncaoDaGovernanca",
+      "para": "FuncaoDaGovernancaResponse",
+      "arquivo": "packages/shared/src/governanca/governanca.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:698"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaFuncoesDaGovernanca",
+      "para": "FuncoesDaGovernancaResponse",
+      "arquivo": "packages/shared/src/governanca/governanca.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:699"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaResumoDaGovernanca",
+      "para": "ResumoDaGovernancaResponse",
+      "arquivo": "packages/shared/src/governanca/governanca.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:700"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaConsultaConsumo",
+      "para": "consumoQuerySchema",
+      "arquivo": "packages/shared/src/governanca/governanca.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:701"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaConsultaResumoDaGovernanca",
+      "para": "resumoDaGovernancaQuerySchema",
+      "arquivo": "packages/shared/src/governanca/governanca.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:702"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaConsumoSomado",
+      "para": "consumoSomadoSchema",
+      "arquivo": "packages/shared/src/governanca/governanca.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:703"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaFuncaoDaGovernanca",
+      "para": "funcaoDaGovernancaSchema",
+      "arquivo": "packages/shared/src/governanca/governanca.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:704"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaItemDaGovernanca",
+      "para": "itemDaGovernancaSchema",
+      "arquivo": "packages/shared/src/governanca/governanca.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:705"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaPedidoSuspenderFuncao",
+      "para": "suspenderFuncaoRequestSchema",
+      "arquivo": "packages/shared/src/governanca/governanca.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:706"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaConsumo",
+      "para": "consumoResponseSchema",
+      "arquivo": "packages/shared/src/governanca/governanca.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:707"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaFuncaoDaGovernanca",
+      "para": "funcaoDaGovernancaResponseSchema",
+      "arquivo": "packages/shared/src/governanca/governanca.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:708"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaFuncoesDaGovernanca",
+      "para": "funcoesDaGovernancaResponseSchema",
+      "arquivo": "packages/shared/src/governanca/governanca.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:709"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaResumoDaGovernanca",
+      "para": "resumoDaGovernancaResponseSchema",
+      "arquivo": "packages/shared/src/governanca/governanca.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:710"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaSuspensaoVigente",
+      "para": "suspensaoVigenteSchema",
+      "arquivo": "packages/shared/src/governanca/governanca.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:711"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ConsultaBuscaDeMaterial",
+      "para": "BuscaDeMaterialQuery",
+      "arquivo": "packages/shared/src/material/material.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:712"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ConsultaMateriais",
+      "para": "MateriaisQuery",
+      "arquivo": "packages/shared/src/material/material.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:713"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PedidoEnviarMaterial",
+      "para": "EnviarMaterialRequest",
+      "arquivo": "packages/shared/src/material/material.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:714"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaBuscaDeMaterial",
+      "para": "BuscaDeMaterialResponse",
+      "arquivo": "packages/shared/src/material/material.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:715"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaListaDeMateriais",
+      "para": "ListaDeMateriaisResponse",
+      "arquivo": "packages/shared/src/material/material.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:716"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaMaterial",
+      "para": "MaterialResponse",
+      "arquivo": "packages/shared/src/material/material.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:717"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaConsultaBuscaDeMaterial",
+      "para": "buscaDeMaterialQuerySchema",
+      "arquivo": "packages/shared/src/material/material.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:718"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaConsultaMateriais",
+      "para": "materiaisQuerySchema",
+      "arquivo": "packages/shared/src/material/material.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:719"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaMaterial",
+      "para": "materialSchema",
+      "arquivo": "packages/shared/src/material/material.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:720"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaPedidoEnviarMaterial",
+      "para": "enviarMaterialRequestSchema",
+      "arquivo": "packages/shared/src/material/material.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:721"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaBuscaDeMaterial",
+      "para": "buscaDeMaterialResponseSchema",
+      "arquivo": "packages/shared/src/material/material.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:722"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaListaDeMateriais",
+      "para": "listaDeMateriaisResponseSchema",
+      "arquivo": "packages/shared/src/material/material.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:723"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaMaterial",
+      "para": "materialResponseSchema",
+      "arquivo": "packages/shared/src/material/material.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:724"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaTrechoEncontrado",
+      "para": "trechoEncontradoSchema",
+      "arquivo": "packages/shared/src/material/material.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:725"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PedidoAceitarConviteDeOperador",
+      "para": "AceitarConviteDeOperadorRequest",
+      "arquivo": "packages/shared/src/operacao/convite.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:726"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PedidoConsultarConviteDeOperador",
+      "para": "ConsultarConviteDeOperadorRequest",
+      "arquivo": "packages/shared/src/operacao/convite.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:727"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaAceitarConviteDeOperador",
+      "para": "AceitarConviteDeOperadorResponse",
+      "arquivo": "packages/shared/src/operacao/convite.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:728"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaConsultarConviteDeOperador",
+      "para": "ConsultarConviteDeOperadorResponse",
+      "arquivo": "packages/shared/src/operacao/convite.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:729"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaPedidoAceitarConviteDeOperador",
+      "para": "aceitarConviteDeOperadorRequestSchema",
+      "arquivo": "packages/shared/src/operacao/convite.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:730"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaPedidoConsultarConviteDeOperador",
+      "para": "consultarConviteDeOperadorRequestSchema",
+      "arquivo": "packages/shared/src/operacao/convite.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:731"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaAceitarConviteDeOperador",
+      "para": "aceitarConviteDeOperadorResponseSchema",
+      "arquivo": "packages/shared/src/operacao/convite.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:732"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaConsultarConviteDeOperador",
+      "para": "consultarConviteDeOperadorResponseSchema",
+      "arquivo": "packages/shared/src/operacao/convite.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:733"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PedidoEntradaDeOperador",
+      "para": "EntradaDeOperadorRequest",
+      "arquivo": "packages/shared/src/operacao/entrada.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:734"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaEntradaDeOperador",
+      "para": "EntradaDeOperadorResponse",
+      "arquivo": "packages/shared/src/operacao/entrada.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:735"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaPedidoEntradaDeOperador",
+      "para": "entradaDeOperadorRequestSchema",
+      "arquivo": "packages/shared/src/operacao/entrada.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:736"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaEntradaDeOperador",
+      "para": "entradaDeOperadorResponseSchema",
+      "arquivo": "packages/shared/src/operacao/entrada.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:737"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaEuDoOperador",
+      "para": "EuDoOperadorResponse",
+      "arquivo": "packages/shared/src/operacao/eu.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:738"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaEuDoOperador",
+      "para": "euDoOperadorResponseSchema",
+      "arquivo": "packages/shared/src/operacao/eu.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:739"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ConsultaDoPainel",
+      "para": "PainelQuery",
+      "arquivo": "packages/shared/src/operacao/painel.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:740"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PedidoConviteDaCoordenacao",
+      "para": "ConviteDaCoordenacaoRequest",
+      "arquivo": "packages/shared/src/operacao/painel.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:741"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PedidoCriarEscola",
+      "para": "CriarEscolaRequest",
+      "arquivo": "packages/shared/src/operacao/painel.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:742"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PedidoCriarRede",
+      "para": "CriarRedeRequest",
+      "arquivo": "packages/shared/src/operacao/painel.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:743"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaConviteDaCoordenacao",
+      "para": "ConviteDaCoordenacaoResponse",
+      "arquivo": "packages/shared/src/operacao/painel.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:744"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaCriadoNoPainel",
+      "para": "CriadoNoPainelResponse",
+      "arquivo": "packages/shared/src/operacao/painel.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:745"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaEscolasDoPainel",
+      "para": "EscolasDoPainelResponse",
+      "arquivo": "packages/shared/src/operacao/painel.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:746"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaRedesDoPainel",
+      "para": "RedesDoPainelResponse",
+      "arquivo": "packages/shared/src/operacao/painel.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:747"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaUsoDoPainel",
+      "para": "UsoDoPainelResponse",
+      "arquivo": "packages/shared/src/operacao/painel.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:748"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaConsultaDoPainel",
+      "para": "painelQuerySchema",
+      "arquivo": "packages/shared/src/operacao/painel.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:749"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaEmailConvidado",
+      "para": "emailConvidadoSchema",
+      "arquivo": "packages/shared/src/operacao/painel.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:750"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaEscolaDoPainel",
+      "para": "escolaDoPainelSchema",
+      "arquivo": "packages/shared/src/operacao/painel.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:751"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaIdDoPedido",
+      "para": "idDoPedidoSchema",
+      "arquivo": "packages/shared/src/operacao/painel.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:752"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaNomeDigitado",
+      "para": "nomeDigitadoSchema",
+      "arquivo": "packages/shared/src/operacao/painel.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:753"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaPedidoConviteDaCoordenacao",
+      "para": "conviteDaCoordenacaoRequestSchema",
+      "arquivo": "packages/shared/src/operacao/painel.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:754"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaPedidoCriarEscola",
+      "para": "criarEscolaRequestSchema",
+      "arquivo": "packages/shared/src/operacao/painel.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:755"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaPedidoCriarRede",
+      "para": "criarRedeRequestSchema",
+      "arquivo": "packages/shared/src/operacao/painel.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:756"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRedeDoPainel",
+      "para": "redeDoPainelSchema",
+      "arquivo": "packages/shared/src/operacao/painel.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:757"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaConviteDaCoordenacao",
+      "para": "conviteDaCoordenacaoResponseSchema",
+      "arquivo": "packages/shared/src/operacao/painel.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:758"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaCriadoNoPainel",
+      "para": "criadoNoPainelResponseSchema",
+      "arquivo": "packages/shared/src/operacao/painel.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:759"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaEscolasDoPainel",
+      "para": "escolasDoPainelResponseSchema",
+      "arquivo": "packages/shared/src/operacao/painel.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:760"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaRedesDoPainel",
+      "para": "redesDoPainelResponseSchema",
+      "arquivo": "packages/shared/src/operacao/painel.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:761"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaUsoDoPainel",
+      "para": "usoDoPainelResponseSchema",
+      "arquivo": "packages/shared/src/operacao/painel.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:762"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaSlugDaEscola",
+      "para": "slugDaEscolaSchema",
+      "arquivo": "packages/shared/src/operacao/painel.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:763"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaUsoDaEscolaDoPainel",
+      "para": "usoDaEscolaDoPainelSchema",
+      "arquivo": "packages/shared/src/operacao/painel.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:764"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaUsoDoPeriodoDoPainel",
+      "para": "usoDoPeriodoDoPainelSchema",
+      "arquivo": "packages/shared/src/operacao/painel.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:765"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PedidoConfigurarSegundoFatorDeOperador",
+      "para": "ConfigurarSegundoFatorDeOperadorRequest",
+      "arquivo": "packages/shared/src/operacao/segundo-fator.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:766"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PedidoSegundoFatorDeOperador",
+      "para": "SegundoFatorDeOperadorRequest",
+      "arquivo": "packages/shared/src/operacao/segundo-fator.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:767"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaConfigurarSegundoFatorDeOperador",
+      "para": "ConfigurarSegundoFatorDeOperadorResponse",
+      "arquivo": "packages/shared/src/operacao/segundo-fator.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:768"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaSegundoFatorDeOperador",
+      "para": "SegundoFatorDeOperadorResponse",
+      "arquivo": "packages/shared/src/operacao/segundo-fator.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:769"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaPedidoConfigurarSegundoFatorDeOperador",
+      "para": "configurarSegundoFatorDeOperadorRequestSchema",
+      "arquivo": "packages/shared/src/operacao/segundo-fator.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:770"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaPedidoSegundoFatorDeOperador",
+      "para": "segundoFatorDeOperadorRequestSchema",
+      "arquivo": "packages/shared/src/operacao/segundo-fator.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:771"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaConfigurarSegundoFatorDeOperador",
+      "para": "configurarSegundoFatorDeOperadorResponseSchema",
+      "arquivo": "packages/shared/src/operacao/segundo-fator.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:772"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaSegundoFatorDeOperador",
+      "para": "segundoFatorDeOperadorResponseSchema",
+      "arquivo": "packages/shared/src/operacao/segundo-fator.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:773"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaRenovacaoDeOperador",
+      "para": "RenovacaoDeOperadorResponse",
+      "arquivo": "packages/shared/src/operacao/sessao.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:774"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaRenovacaoDeOperador",
+      "para": "renovacaoDeOperadorResponseSchema",
+      "arquivo": "packages/shared/src/operacao/sessao.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:775"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaDoArquivo",
+      "para": "ArquivoResponse",
+      "arquivo": "packages/shared/src/privacidade/arquivo.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:776"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaMeusDados",
+      "para": "MeusDadosResponse",
+      "arquivo": "packages/shared/src/privacidade/arquivo.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:777"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaBaixarArquivoDaEscola",
+      "para": "baixarArquivoDaEscolaSchema",
+      "arquivo": "packages/shared/src/privacidade/arquivo.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:778"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaPedidoDeMeusDados",
+      "para": "pedidoDeMeusDadosSchema",
+      "arquivo": "packages/shared/src/privacidade/arquivo.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:779"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaDoArquivo",
+      "para": "arquivoResponseSchema",
+      "arquivo": "packages/shared/src/privacidade/arquivo.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:780"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaMeusDados",
+      "para": "meusDadosResponseSchema",
+      "arquivo": "packages/shared/src/privacidade/arquivo.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:781"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaIncidentes",
+      "para": "IncidentesResponse",
+      "arquivo": "packages/shared/src/privacidade/incidente.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:782"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaIncidenteDaEscola",
+      "para": "incidenteDaEscolaSchema",
+      "arquivo": "packages/shared/src/privacidade/incidente.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:783"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaIncidentes",
+      "para": "incidentesResponseSchema",
+      "arquivo": "packages/shared/src/privacidade/incidente.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:784"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaRetencao",
+      "para": "RetencaoResponse",
+      "arquivo": "packages/shared/src/privacidade/retencao.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:785"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaPrazoFixo",
+      "para": "prazoFixoSchema",
+      "arquivo": "packages/shared/src/privacidade/retencao.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:786"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaRetencao",
+      "para": "retencaoResponseSchema",
+      "arquivo": "packages/shared/src/privacidade/retencao.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:787"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRetencaoDaCategoria",
+      "para": "retencaoDaCategoriaSchema",
+      "arquivo": "packages/shared/src/privacidade/retencao.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:788"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaSuboperadores",
+      "para": "SuboperadoresResponse",
+      "arquivo": "packages/shared/src/privacidade/suboperador.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:789"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaSuboperadores",
+      "para": "suboperadoresResponseSchema",
+      "arquivo": "packages/shared/src/privacidade/suboperador.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:790"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaSuboperadorDaEscola",
+      "para": "suboperadorDaEscolaSchema",
+      "arquivo": "packages/shared/src/privacidade/suboperador.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:791"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaBuscaDeTitulares",
+      "para": "BuscaDeTitularesResponse",
+      "arquivo": "packages/shared/src/privacidade/titular.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:792"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaPedidos",
+      "para": "PedidosResponse",
+      "arquivo": "packages/shared/src/privacidade/titular.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:793"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaPreviaDoTitular",
+      "para": "PreviaDoTitularResponse",
+      "arquivo": "packages/shared/src/privacidade/titular.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:794"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaBuscaDeTitulares",
+      "para": "buscaDeTitularesSchema",
+      "arquivo": "packages/shared/src/privacidade/titular.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:795"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaCompartilhamento",
+      "para": "compartilhamentoSchema",
+      "arquivo": "packages/shared/src/privacidade/titular.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:796"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaCorrecaoDeNome",
+      "para": "correcaoDeNomeSchema",
+      "arquivo": "packages/shared/src/privacidade/titular.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:797"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaItemDoPedido",
+      "para": "itemDoPedidoSchema",
+      "arquivo": "packages/shared/src/privacidade/titular.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:798"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaLinhaDoCompartilhamento",
+      "para": "linhaDoCompartilhamentoSchema",
+      "arquivo": "packages/shared/src/privacidade/titular.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:799"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaPedidoDoTitular",
+      "para": "pedidoDoTitularSchema",
+      "arquivo": "packages/shared/src/privacidade/titular.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:800"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRegistroDePedido",
+      "para": "registroDePedidoSchema",
+      "arquivo": "packages/shared/src/privacidade/titular.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:801"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaBuscaDeTitulares",
+      "para": "buscaDeTitularesResponseSchema",
+      "arquivo": "packages/shared/src/privacidade/titular.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:802"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaPedidos",
+      "para": "pedidosResponseSchema",
+      "arquivo": "packages/shared/src/privacidade/titular.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:803"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaPreviaDoTitular",
+      "para": "previaDoTitularResponseSchema",
+      "arquivo": "packages/shared/src/privacidade/titular.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:804"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaTitularAchado",
+      "para": "titularAchadoSchema",
+      "arquivo": "packages/shared/src/privacidade/titular.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:805"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaTitularDoPedido",
+      "para": "titularDoPedidoSchema",
+      "arquivo": "packages/shared/src/privacidade/titular.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:806"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PedidoCadastrarProfessor",
+      "para": "CadastrarProfessorRequest",
+      "arquivo": "packages/shared/src/professores/professores.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:807"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaConviteDeProfessor",
+      "para": "ConviteDeProfessorResponse",
+      "arquivo": "packages/shared/src/professores/professores.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:808"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaListaDeProfessores",
+      "para": "ListaDeProfessoresResponse",
+      "arquivo": "packages/shared/src/professores/professores.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:809"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaPedidoCadastrarProfessor",
+      "para": "cadastrarProfessorRequestSchema",
+      "arquivo": "packages/shared/src/professores/professores.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:810"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaPedidoSemCorpoDoConviteDeProfessor",
+      "para": "conviteDeProfessorEmptyBodyRequestSchema",
+      "arquivo": "packages/shared/src/professores/professores.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:811"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaProfessorDaEscola",
+      "para": "professorDaEscolaSchema",
+      "arquivo": "packages/shared/src/professores/professores.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:812"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaConviteDeProfessor",
+      "para": "conviteDeProfessorResponseSchema",
+      "arquivo": "packages/shared/src/professores/professores.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:813"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaListaDeProfessores",
+      "para": "listaDeProfessoresResponseSchema",
+      "arquivo": "packages/shared/src/professores/professores.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:814"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PedidoGerarAcesso",
+      "para": "GerarAcessoRequest",
+      "arquivo": "packages/shared/src/sala/acesso.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:815"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaAcessoDaTurma",
+      "para": "AcessoDaTurmaResponse",
+      "arquivo": "packages/shared/src/sala/acesso.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:816"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaAcessoGerado",
+      "para": "AcessoGeradoResponse",
+      "arquivo": "packages/shared/src/sala/acesso.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:817"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaPedidoGerarAcesso",
+      "para": "gerarAcessoRequestSchema",
+      "arquivo": "packages/shared/src/sala/acesso.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:818"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaPedidoRevogarAcesso",
+      "para": "revogarAcessoRequestSchema",
+      "arquivo": "packages/shared/src/sala/acesso.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:819"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaAcessoDaTurma",
+      "para": "acessoDaTurmaResponseSchema",
+      "arquivo": "packages/shared/src/sala/acesso.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:820"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaAcessoGerado",
+      "para": "acessoGeradoResponseSchema",
+      "arquivo": "packages/shared/src/sala/acesso.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:821"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaMinhaTurma",
+      "para": "MinhaTurmaResponse",
+      "arquivo": "packages/shared/src/sala/minha-turma.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:822"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaMinhaTurma",
+      "para": "minhaTurmaResponseSchema",
+      "arquivo": "packages/shared/src/sala/minha-turma.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:823"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ConsultaPedidosDaTurma",
+      "para": "PedidosDaTurmaQuery",
+      "arquivo": "packages/shared/src/sala/pedidos.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:824"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PedidoDecidirReivindicacoes",
+      "para": "DecidirReivindicacoesRequest",
+      "arquivo": "packages/shared/src/sala/pedidos.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:825"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaDecisao",
+      "para": "DecisaoResponse",
+      "arquivo": "packages/shared/src/sala/pedidos.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:826"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaPedidosDaTurma",
+      "para": "PedidosDaTurmaResponse",
+      "arquivo": "packages/shared/src/sala/pedidos.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:827"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaConsultaPedidosDaTurma",
+      "para": "pedidosDaTurmaQuerySchema",
+      "arquivo": "packages/shared/src/sala/pedidos.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:828"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaPedidoDaTurma",
+      "para": "pedidoDaTurmaSchema",
+      "arquivo": "packages/shared/src/sala/pedidos.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:829"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaPedidoDecidirReivindicacoes",
+      "para": "decidirReivindicacoesRequestSchema",
+      "arquivo": "packages/shared/src/sala/pedidos.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:830"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaDecisao",
+      "para": "decisaoResponseSchema",
+      "arquivo": "packages/shared/src/sala/pedidos.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:831"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaPedidosDaTurma",
+      "para": "pedidosDaTurmaResponseSchema",
+      "arquivo": "packages/shared/src/sala/pedidos.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:832"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PedidoAbrirSala",
+      "para": "AbrirSalaRequest",
+      "arquivo": "packages/shared/src/sala/salas.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:833"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PedidoReivindicarSala",
+      "para": "ReivindicarSalaRequest",
+      "arquivo": "packages/shared/src/sala/salas.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:834"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaReivindicacao",
+      "para": "ReivindicacaoResponse",
+      "arquivo": "packages/shared/src/sala/salas.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:835"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaSalaAberta",
+      "para": "SalaAbertaResponse",
+      "arquivo": "packages/shared/src/sala/salas.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:836"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaPedidoAbrirSala",
+      "para": "abrirSalaRequestSchema",
+      "arquivo": "packages/shared/src/sala/salas.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:837"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaPedidoReivindicarSala",
+      "para": "reivindicarSalaRequestSchema",
+      "arquivo": "packages/shared/src/sala/salas.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:838"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaReivindicacao",
+      "para": "reivindicacaoResponseSchema",
+      "arquivo": "packages/shared/src/sala/salas.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:839"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaSalaAberta",
+      "para": "salaAbertaResponseSchema",
+      "arquivo": "packages/shared/src/sala/salas.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:840"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaAcessoDaEscola",
+      "para": "AcessoDaEscolaResponse",
+      "arquivo": "packages/shared/src/sessao/acesso-da-escola.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:841"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaAcessoDaEscola",
+      "para": "acessoDaEscolaResponseSchema",
+      "arquivo": "packages/shared/src/sessao/acesso-da-escola.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:842"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PedidoAceitarConvite",
+      "para": "AceitarConviteRequest",
+      "arquivo": "packages/shared/src/sessao/convite.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:843"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PedidoConsultarConvite",
+      "para": "ConsultarConviteRequest",
+      "arquivo": "packages/shared/src/sessao/convite.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:844"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaAceitarConvite",
+      "para": "AceitarConviteResponse",
+      "arquivo": "packages/shared/src/sessao/convite.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:845"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaConsultarConvite",
+      "para": "ConsultarConviteResponse",
+      "arquivo": "packages/shared/src/sessao/convite.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:846"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaPedidoAceitarConvite",
+      "para": "aceitarConviteRequestSchema",
+      "arquivo": "packages/shared/src/sessao/convite.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:847"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaPedidoConsultarConvite",
+      "para": "consultarConviteRequestSchema",
+      "arquivo": "packages/shared/src/sessao/convite.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:848"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaAceitarConvite",
+      "para": "aceitarConviteResponseSchema",
+      "arquivo": "packages/shared/src/sessao/convite.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:849"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaConsultarConvite",
+      "para": "consultarConviteResponseSchema",
+      "arquivo": "packages/shared/src/sessao/convite.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:850"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PedidoEscolaSessao",
+      "para": "EscolaSessaoRequest",
+      "arquivo": "packages/shared/src/sessao/escola-sessao.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:851"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaEscolaSessao",
+      "para": "EscolaSessaoResponse",
+      "arquivo": "packages/shared/src/sessao/escola-sessao.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:852"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaPedidoEscolaSessao",
+      "para": "escolaSessaoRequestSchema",
+      "arquivo": "packages/shared/src/sessao/escola-sessao.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:853"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaEscolaSessao",
+      "para": "escolaSessaoResponseSchema",
+      "arquivo": "packages/shared/src/sessao/escola-sessao.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:854"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaEu",
+      "para": "EuResponse",
+      "arquivo": "packages/shared/src/sessao/eu.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:855"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaIntroducao",
+      "para": "IntroducaoResponse",
+      "arquivo": "packages/shared/src/sessao/eu.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:856"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaAcessoDaConta",
+      "para": "acessoDaContaSchema",
+      "arquivo": "packages/shared/src/sessao/eu.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:857"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaEu",
+      "para": "euResponseSchema",
+      "arquivo": "packages/shared/src/sessao/eu.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:858"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaIntroducao",
+      "para": "introducaoResponseSchema",
+      "arquivo": "packages/shared/src/sessao/eu.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:859"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PedidoLoginEmail",
+      "para": "LoginEmailRequest",
+      "arquivo": "packages/shared/src/sessao/login.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:860"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaLogin",
+      "para": "LoginResponse",
+      "arquivo": "packages/shared/src/sessao/login.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:861"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaPedidoLoginEmail",
+      "para": "loginEmailRequestSchema",
+      "arquivo": "packages/shared/src/sessao/login.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:862"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaLogin",
+      "para": "loginResponseSchema",
+      "arquivo": "packages/shared/src/sessao/login.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:863"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PedidoLoginMatricula",
+      "para": "LoginMatriculaRequest",
+      "arquivo": "packages/shared/src/sessao/matricula.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:864"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaPedidoLoginMatricula",
+      "para": "loginMatriculaRequestSchema",
+      "arquivo": "packages/shared/src/sessao/matricula.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:865"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PedidoAtivarMfa",
+      "para": "AtivarMfaRequest",
+      "arquivo": "packages/shared/src/sessao/mfa.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:866"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PedidoMfa",
+      "para": "MfaRequest",
+      "arquivo": "packages/shared/src/sessao/mfa.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:867"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PedidoRedefinirMfa",
+      "para": "RedefinirMfaRequest",
+      "arquivo": "packages/shared/src/sessao/mfa.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:868"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaAtivarMfa",
+      "para": "AtivarMfaResponse",
+      "arquivo": "packages/shared/src/sessao/mfa.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:869"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaConfigurarMfa",
+      "para": "ConfigurarMfaResponse",
+      "arquivo": "packages/shared/src/sessao/mfa.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:870"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaPedidoAtivarMfa",
+      "para": "ativarMfaRequestSchema",
+      "arquivo": "packages/shared/src/sessao/mfa.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:871"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaPedidoMfa",
+      "para": "mfaRequestSchema",
+      "arquivo": "packages/shared/src/sessao/mfa.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:872"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaPedidoRedefinirMfa",
+      "para": "redefinirMfaRequestSchema",
+      "arquivo": "packages/shared/src/sessao/mfa.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:873"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaAtivarMfa",
+      "para": "ativarMfaResponseSchema",
+      "arquivo": "packages/shared/src/sessao/mfa.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:874"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaConfigurarMfa",
+      "para": "configurarMfaResponseSchema",
+      "arquivo": "packages/shared/src/sessao/mfa.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:875"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaRenovacao",
+      "para": "RenovacaoResponse",
+      "arquivo": "packages/shared/src/sessao/renovacao.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:876"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaRenovacao",
+      "para": "renovacaoResponseSchema",
+      "arquivo": "packages/shared/src/sessao/renovacao.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:877"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaTokenDeLink",
+      "para": "tokenDeLinkSchema",
+      "arquivo": "packages/shared/src/sessao/token.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:878"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PedidoTrocaDeEscola",
+      "para": "TrocaDeEscolaRequest",
+      "arquivo": "packages/shared/src/sessao/troca-de-escola.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:879"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaPedidoTrocaDeEscola",
+      "para": "trocaDeEscolaRequestSchema",
+      "arquivo": "packages/shared/src/sessao/troca-de-escola.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:880"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaAvisos",
+      "para": "AvisosResponse",
+      "arquivo": "packages/shared/src/sistema/avisos.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:881"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaAviso",
+      "para": "avisoSchema",
+      "arquivo": "packages/shared/src/sistema/avisos.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:882"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaAvisos",
+      "para": "avisosResponseSchema",
+      "arquivo": "packages/shared/src/sistema/avisos.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:883"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "EntradaDaExecucao",
+      "para": "ExecucaoInput",
+      "arquivo": "packages/shared/src/time/execucao.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:884"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaExecucao",
+      "para": "ExecucaoResponse",
+      "arquivo": "packages/shared/src/time/execucao.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:885"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaExecucaoAceita",
+      "para": "ExecucaoAceitaResponse",
+      "arquivo": "packages/shared/src/time/execucao.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:886"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaEntradaDaExecucao",
+      "para": "execucaoInputSchema",
+      "arquivo": "packages/shared/src/time/execucao.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:887"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaExecucao",
+      "para": "execucaoResponseSchema",
+      "arquivo": "packages/shared/src/time/execucao.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:888"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaExecucaoAceita",
+      "para": "execucaoAceitaResponseSchema",
+      "arquivo": "packages/shared/src/time/execucao.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:889"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaResultadoDaExecucao",
+      "para": "resultadoDaExecucaoSchema",
+      "arquivo": "packages/shared/src/time/execucao.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:890"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaResultadoGravado",
+      "para": "resultadoGravadoSchema",
+      "arquivo": "packages/shared/src/time/execucao.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:891"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaTime",
+      "para": "TimeResponse",
+      "arquivo": "packages/shared/src/time/time.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:892"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaAgenteDoTime",
+      "para": "agenteDoTimeSchema",
+      "arquivo": "packages/shared/src/time/time.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:893"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaChaveDeFuncao",
+      "para": "chaveDeFuncaoSchema",
+      "arquivo": "packages/shared/src/time/time.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:894"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaFuncaoDoTime",
+      "para": "funcaoDoTimeSchema",
+      "arquivo": "packages/shared/src/time/time.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:895"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaTime",
+      "para": "timeResponseSchema",
+      "arquivo": "packages/shared/src/time/time.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:896"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ConsultaSinais",
+      "para": "SinaisQuery",
+      "arquivo": "packages/shared/src/tutor/sinal.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:897"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaSinais",
+      "para": "SinaisResponse",
+      "arquivo": "packages/shared/src/tutor/sinal.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:898"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaConsultaSinais",
+      "para": "sinaisQuerySchema",
+      "arquivo": "packages/shared/src/tutor/sinal.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:899"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaGrupoDeSinais",
+      "para": "grupoDeSinaisSchema",
+      "arquivo": "packages/shared/src/tutor/sinal.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:900"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaSinais",
+      "para": "sinaisResponseSchema",
+      "arquivo": "packages/shared/src/tutor/sinal.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:901"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaSinal",
+      "para": "sinalSchema",
+      "arquivo": "packages/shared/src/tutor/sinal.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:902"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ConsultaConversaDoTutor",
+      "para": "ConversaDoTutorQuery",
+      "arquivo": "packages/shared/src/tutor/tutor.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:903"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PedidoMensagemAoTutor",
+      "para": "MensagemAoTutorRequest",
+      "arquivo": "packages/shared/src/tutor/tutor.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:904"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaConversaDoTutor",
+      "para": "ConversaDoTutorResponse",
+      "arquivo": "packages/shared/src/tutor/tutor.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:905"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaMemoriaDoTutor",
+      "para": "MemoriaDoTutorResponse",
+      "arquivo": "packages/shared/src/tutor/tutor.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:906"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaConsultaConversaDoTutor",
+      "para": "conversaDoTutorQuerySchema",
+      "arquivo": "packages/shared/src/tutor/tutor.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:907"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaMensagemDoAlunoAoTutor",
+      "para": "mensagemDoAlunoAoTutorSchema",
+      "arquivo": "packages/shared/src/tutor/tutor.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:908"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaMensagemDoTutor",
+      "para": "mensagemDoTutorSchema",
+      "arquivo": "packages/shared/src/tutor/tutor.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:909"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaMensagemDoTutorAoAluno",
+      "para": "mensagemDoTutorAoAlunoSchema",
+      "arquivo": "packages/shared/src/tutor/tutor.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:910"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaPedidoMensagemAoTutor",
+      "para": "mensagemAoTutorRequestSchema",
+      "arquivo": "packages/shared/src/tutor/tutor.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:911"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaConversaDoTutor",
+      "para": "conversaDoTutorResponseSchema",
+      "arquivo": "packages/shared/src/tutor/tutor.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:912"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaMemoriaDoTutor",
+      "para": "memoriaDoTutorResponseSchema",
+      "arquivo": "packages/shared/src/tutor/tutor.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:913"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaSinalNaMemoria",
+      "para": "sinalNaMemoriaSchema",
+      "arquivo": "packages/shared/src/tutor/tutor.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:914"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaTrabalhoNaMemoria",
+      "para": "trabalhoNaMemoriaSchema",
+      "arquivo": "packages/shared/src/tutor/tutor.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:915"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ConsultaUsoDoTutor",
+      "para": "UsoDoTutorQuery",
+      "arquivo": "packages/shared/src/tutor/uso.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:916"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaUsoDoTutor",
+      "para": "UsoDoTutorResponse",
+      "arquivo": "packages/shared/src/tutor/uso.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:917"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaConsultaUsoDoTutor",
+      "para": "usoDoTutorQuerySchema",
+      "arquivo": "packages/shared/src/tutor/uso.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:918"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaReferenciaDaUltimaTroca",
+      "para": "referenciaDaUltimaTrocaSchema",
+      "arquivo": "packages/shared/src/tutor/uso.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:919"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaUsoDoTutor",
+      "para": "usoDoTutorResponseSchema",
+      "arquivo": "packages/shared/src/tutor/uso.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:920"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaUsoDoAluno",
+      "para": "usoDoAlunoSchema",
+      "arquivo": "packages/shared/src/tutor/uso.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:921"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "LinhaDaPrevia",
+      "para": "PreviaRow",
+      "arquivo": "packages/shared/src/estrutura/lista.ts",
+      "linhaDoAnexo": "inventario-adenda-2.md:118"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaReferencia",
+      "para": "referenciaSchema",
+      "arquivo": "packages/shared/src/estrutura/vinculo.ts",
+      "linhaDoAnexo": "inventario-adenda-2.md:119"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "LinhaDoCompartilhamento",
+      "para": "CompartilhamentoRow",
+      "arquivo": "packages/shared/src/privacidade/titular.ts",
+      "linhaDoAnexo": "inventario-adenda-2.md:120"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaDoPedido",
+      "para": "pedidoSchema",
+      "arquivo": "packages/shared/src/sistema/definicoes-de-job.ts",
+      "linhaDoAnexo": "inventario-adenda-2.md:121"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRecusaChaveAMais",
+      "para": "strictSchema",
+      "arquivo": "packages/shared/src/sistema/definicoes-de-job.ts",
+      "linhaDoAnexo": "inventario-adenda-2.md:122"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/shared/src/erros/codigo-de-erro.ts",
+      "para": "packages/shared/src/erros/error-code.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:1058"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/shared/src/erros/erro-de-invariante.ts",
+      "para": "packages/shared/src/erros/invariant.exception.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:1059"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/shared/src/erros/erro-de-invariante.test.ts",
+      "para": "packages/shared/src/erros/invariant.exception.test.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:1060"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/shared/src/erros/mensagens.ts",
+      "para": "packages/shared/src/erros/messages.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:1061"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/shared/src/erros/mensagens.test.ts",
+      "para": "packages/shared/src/erros/messages.test.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:1062"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/shared/src/sistema/contexto.ts",
+      "para": "packages/shared/src/sistema/context.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:1063"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/shared/src/sistema/definicoes-de-job.ts",
+      "para": "packages/shared/src/sistema/job-definitions.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:1064"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/shared/src/sistema/definicoes-de-job.test.ts",
+      "para": "packages/shared/src/sistema/job-definitions.test.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:1065"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/shared/src/sistema/estado.ts",
+      "para": "packages/shared/src/sistema/status.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:1066"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/shared/src/sistema/jobs-sinteticos.ts",
+      "para": "packages/shared/src/sistema/synthetic-jobs.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:1067"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/shared/src/sistema/jobs-sinteticos.test.ts",
+      "para": "packages/shared/src/sistema/synthetic-jobs.test.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:1068"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/shared/src/sistema/prontidao.ts",
+      "para": "packages/shared/src/sistema/readiness.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:1069"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/shared/src/sistema/saude.ts",
+      "para": "packages/shared/src/sistema/health.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:1070"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/shared/src/estrutura/paginacao.ts",
+      "para": "packages/shared/src/estrutura/pagination.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:1071"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/shared/src/time/chave-envio.ts",
+      "para": "packages/shared/src/time/idempotency-key.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:1072"
+    },
+    {
+      "tipo": "pasta",
+      "de": "packages/shared/src/erros",
+      "para": "packages/shared/src/errors",
+      "linhaDoAnexo": "inventario-core-shared.md:940"
+    },
+    {
+      "tipo": "pasta",
+      "de": "packages/shared/src/sistema",
+      "para": "packages/shared/src/system",
+      "linhaDoAnexo": "inventario-core-shared.md:941"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "DEFINICOES_DE_JOB",
+      "para": "JOB_DEFINITIONS",
+      "arquivo": "packages/shared/src/sistema/definicoes-de-job.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:158"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "DadosDoJob",
+      "para": "JobData",
+      "arquivo": "packages/shared/src/sistema/definicoes-de-job.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:159"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "DadosLidosDoJob",
+      "para": "ParsedJobData",
+      "arquivo": "packages/shared/src/sistema/definicoes-de-job.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:160"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "DefinicaoDeJob",
+      "para": "JobDefinition",
+      "arquivo": "packages/shared/src/sistema/definicoes-de-job.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:161"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "EscopoDeJob",
+      "para": "JobScope",
+      "arquivo": "packages/shared/src/sistema/definicoes-de-job.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:162"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "EsquemaDosDadosDoJob",
+      "para": "JobDataSchema",
+      "arquivo": "packages/shared/src/sistema/definicoes-de-job.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:163"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ExecutorDeJob",
+      "para": "JobExecutor",
+      "arquivo": "packages/shared/src/sistema/definicoes-de-job.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:164"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "OpcoesDoJob",
+      "para": "JobOptions",
+      "arquivo": "packages/shared/src/sistema/definicoes-de-job.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:165"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RegistroDeJobs",
+      "para": "JobRegistry",
+      "arquivo": "packages/shared/src/sistema/definicoes-de-job.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:166"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RetentativaDeJob",
+      "para": "JobRetry",
+      "arquivo": "packages/shared/src/sistema/definicoes-de-job.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:167"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "TipoDeJob",
+      "para": "JobType",
+      "arquivo": "packages/shared/src/sistema/definicoes-de-job.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:168"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "definirJob",
+      "para": "defineJob",
+      "arquivo": "packages/shared/src/sistema/definicoes-de-job.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:169"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "DadosJobSintetico",
+      "para": "SyntheticJobData",
+      "arquivo": "packages/shared/src/sistema/jobs-sinteticos.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:170"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PedidoJobSintetico",
+      "para": "SyntheticJobRequest",
+      "arquivo": "packages/shared/src/sistema/jobs-sinteticos.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:171"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaEstadoDeJob",
+      "para": "JobStateResponse",
+      "arquivo": "packages/shared/src/sistema/jobs-sinteticos.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:172"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaJobAceito",
+      "para": "JobAcceptedResponse",
+      "arquivo": "packages/shared/src/sistema/jobs-sinteticos.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:173"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaDadosJobSintetico",
+      "para": "syntheticJobDataSchema",
+      "arquivo": "packages/shared/src/sistema/jobs-sinteticos.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:174"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaPedidoJobSintetico",
+      "para": "syntheticJobRequestSchema",
+      "arquivo": "packages/shared/src/sistema/jobs-sinteticos.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:175"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaEstadoDeJob",
+      "para": "jobStateResponseSchema",
+      "arquivo": "packages/shared/src/sistema/jobs-sinteticos.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:176"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaRespostaJobAceito",
+      "para": "jobAcceptedResponseSchema",
+      "arquivo": "packages/shared/src/sistema/jobs-sinteticos.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:177"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "CODIGOS_DE_FALHA_DE_JOB",
+      "para": "JOB_FAILURE_CODES",
+      "arquivo": "packages/shared/src/sistema/jobs.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:178"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "CodigoDeFalhaDeJob",
+      "para": "JobFailureCode",
+      "arquivo": "packages/shared/src/sistema/jobs.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:179"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ESTADOS_DE_JOB",
+      "para": "JOB_STATES",
+      "arquivo": "packages/shared/src/sistema/jobs.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:180"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "EstadoDeJob",
+      "para": "JobState",
+      "arquivo": "packages/shared/src/sistema/jobs.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:181"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "FILAS",
+      "para": "QUEUE_NAMES",
+      "arquivo": "packages/shared/src/sistema/jobs.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:182"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "Fila",
+      "para": "QueueName",
+      "arquivo": "packages/shared/src/sistema/jobs.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:183"
+    }
+  ],
+  "ocorrencias": [
+    {
+      "arquivo": ".gitleaks.toml",
+      "de": "packages/shared/src/sistema/jobs-sinteticos.ts",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:1103",
+      "trecho": "v1/sistema/"
+    },
+    {
+      "arquivo": "apps/api/src/app.module.ts",
+      "de": "packages/shared/src/sistema/prontidao.ts",
+      "classe": "fica",
+      "linha": "inventario-back.md:54",
+      "trecho": "./sistema/prontidao.controller"
+    },
+    {
+      "arquivo": "apps/api/src/sistema/contexto.controller.ts",
+      "de": "packages/shared/src/sistema/contexto.ts",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:1103",
+      "trecho": "v1/sistema/"
+    },
+    {
+      "arquivo": "apps/api/src/sistema/estado.controller.ts",
+      "de": "packages/shared/src/sistema/estado.ts",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:1103",
+      "trecho": "v1/sistema/"
+    },
+    {
+      "arquivo": "apps/api/src/sistema/jobs-sinteticos.controller.ts",
+      "de": "packages/shared/src/sistema/jobs-sinteticos.ts",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:1103",
+      "trecho": "v1/sistema/"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "de": "packages/shared/src/sistema/saude.ts",
+      "classe": "fica",
+      "linha": "inventario-back.md:49",
+      "trecho": "apps/api/src/sistema/"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "de": "packages/shared/src/sistema",
+      "classe": "fica",
+      "linha": "inventario-back.md:49",
+      "trecho": "apps/api/src/sistema/"
+    },
+    {
+      "arquivo": "apps/api/test/contexto.int.test.ts",
+      "de": "packages/shared/src/sistema/contexto.ts",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:1103",
+      "trecho": "v1/sistema/"
+    },
+    {
+      "arquivo": "apps/api/test/erro.int.test.ts",
+      "de": "ErroDeInvariante",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:211",
+      "trecho": "ErroDeInvariante vira ERR"
+    },
+    {
+      "arquivo": "apps/api/test/estado-avisos.int.test.ts",
+      "de": "packages/shared/src/sistema/estado.ts",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:1103",
+      "trecho": "v1/sistema/"
+    },
+    {
+      "arquivo": "apps/api/test/jobs-sinteticos.int.test.ts",
+      "de": "packages/shared/src/sistema/jobs-sinteticos.ts",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:1103",
+      "trecho": "v1/sistema/"
+    },
+    {
+      "arquivo": "apps/api/test/limite.int.test.ts",
+      "de": "packages/shared/src/sistema/contexto.ts",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:1103",
+      "trecho": "v1/sistema/"
+    },
+    {
+      "arquivo": "apps/api/test/ops-escola.int.test.ts",
+      "de": "packages/shared/src/sistema/jobs-sinteticos.ts",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:1103",
+      "trecho": "v1/sistema/"
+    },
+    {
+      "arquivo": "apps/api/test/prontidao.int.test.ts",
+      "de": "packages/shared/src/sistema/contexto.ts",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:1103",
+      "trecho": "v1/sistema/"
+    },
+    {
+      "arquivo": "apps/api/test/sessao-guarda.int.test.ts",
+      "de": "packages/shared/src/sistema/contexto.ts",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:1103",
+      "trecho": "v1/sistema/"
+    },
+    {
+      "arquivo": "apps/api/test/uso.int.test.ts",
+      "de": "packages/shared/src/sistema/contexto.ts",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:1103",
+      "trecho": "v1/sistema/"
+    },
+    {
+      "arquivo": "apps/despachante/test/redis-fora.int.test.ts",
+      "de": "packages/shared/src/sistema/jobs-sinteticos.ts",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:1103",
+      "trecho": "v1/sistema/"
+    },
+    {
+      "arquivo": "apps/realtime/test/sistema.int.test.ts",
+      "de": "packages/shared/src/sistema",
+      "classe": "fica",
+      "linha": "inventario-back.md:377",
+      "trecho": "sistema.gateway"
+    },
+    {
+      "arquivo": "apps/web/src/api/sistema.ts",
+      "de": "packages/shared/src/sistema/estado.ts",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:1103",
+      "trecho": "v1/sistema/"
+    },
+    {
+      "arquivo": "apps/web/src/areas/professor/ferramentas/ferramentas.test.ts",
+      "de": "ErroDeInvariante",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:211",
+      "trecho": "a ferramenta fora do catá"
+    },
+    {
+      "arquivo": "e2e/casca.spec.ts",
+      "de": "packages/shared/src/sistema/estado.ts",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:1103",
+      "trecho": "v1/sistema/"
+    },
+    {
+      "arquivo": "infra/grafana/alertas/taxa-5xx.yaml",
+      "de": "packages/shared/src/sistema/jobs-sinteticos.ts",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:1103",
+      "trecho": "v1/sistema/"
+    },
+    {
+      "arquivo": "infra/k6/justica-entre-escolas.js",
+      "de": "packages/shared/src/sistema/jobs-sinteticos.ts",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:1103",
+      "trecho": "v1/sistema/"
+    },
+    {
+      "arquivo": "infra/k6/justica-entre-escolas.js",
+      "de": "packages/shared/src/sistema/contexto.ts",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:1103",
+      "trecho": "v1/sistema/"
+    },
+    {
+      "arquivo": "infra/k6/justica-entre-escolas.js",
+      "de": "packages/shared/src/sistema/estado.ts",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:1103",
+      "trecho": "v1/sistema/"
+    },
+    {
+      "arquivo": "infra/k6/login-7h30.js",
+      "de": "packages/shared/src/sistema/contexto.ts",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:1103",
+      "trecho": "v1/sistema/"
+    },
+    {
+      "arquivo": "infra/k6/reivindicacao-em-sala.js",
+      "de": "packages/shared/src/sistema/contexto.ts",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:1103",
+      "trecho": "v1/sistema/"
+    },
+    {
+      "arquivo": "infra/scripts/ensaio-alertas.ts",
+      "de": "packages/shared/src/sistema/jobs-sinteticos.ts",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:1103",
+      "trecho": "v1/sistema/"
+    },
+    {
+      "arquivo": "infra/scripts/ensaio-alertas.ts",
+      "de": "packages/shared/src/sistema/contexto.ts",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:1103",
+      "trecho": "v1/sistema/"
+    },
+    {
+      "arquivo": "infra/test/alertas.int.test.ts",
+      "de": "packages/shared/src/sistema/jobs-sinteticos.ts",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:1103",
+      "trecho": "v1/sistema/"
+    },
+    {
+      "arquivo": "infra/test/borda.int.test.ts",
+      "de": "packages/shared/src/sistema",
+      "classe": "fica",
+      "linha": "inventario-back.md:377",
+      "trecho": "sistema.gateway"
+    },
+    {
+      "arquivo": "infra/test/borda.int.test.ts",
+      "de": "packages/shared/src/sistema/contexto.ts",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:1103",
+      "trecho": "v1/sistema/"
+    },
+    {
+      "arquivo": "infra/test/carga-login.test.ts",
+      "de": "packages/shared/src/sistema/contexto.ts",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:1103",
+      "trecho": "v1/sistema/"
+    },
+    {
+      "arquivo": "infra/test/carga-sala.test.ts",
+      "de": "packages/shared/src/sistema/contexto.ts",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:1103",
+      "trecho": "v1/sistema/"
+    },
+    {
+      "arquivo": "infra/test/jobs.int.test.ts",
+      "de": "packages/shared/src/sistema/jobs-sinteticos.ts",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:1103",
+      "trecho": "v1/sistema/"
+    },
+    {
+      "arquivo": "infra/test/metricas.int.test.ts",
+      "de": "packages/shared/src/sistema/jobs-sinteticos.ts",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:1103",
+      "trecho": "v1/sistema/"
+    },
+    {
+      "arquivo": "infra/test/metricas.int.test.ts",
+      "de": "packages/shared/src/sistema/contexto.ts",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:1103",
+      "trecho": "v1/sistema/"
+    },
+    {
+      "arquivo": "packages/nucleo/src/auditoria/acoes.test.ts",
+      "de": "ErroDeInvariante",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:211",
+      "trecho": "o mapa com problema é rec"
+    },
+    {
+      "arquivo": "packages/nucleo/src/log/logger.test.ts",
+      "de": "packages/shared/src/sistema/estado.ts",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:1103",
+      "trecho": "v1/sistema/"
+    },
+    {
+      "arquivo": "packages/nucleo/src/telemetria/metricas.test.ts",
+      "de": "packages/shared/src/sistema/jobs-sinteticos.ts",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:1103",
+      "trecho": "v1/sistema/"
+    },
+    {
+      "arquivo": "packages/shared/src/errors/invariant.exception.test.ts",
+      "de": "ErroDeInvariante",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:211",
+      "trecho": "a subclasse continua send"
+    },
+    {
+      "arquivo": "tools/guardas/guardas.test.ts",
+      "de": "packages/shared/src/sistema",
+      "classe": "fica",
+      "linha": "inventario-back.md:49",
+      "trecho": "apps/api/src/sistema/"
+    },
+    {
+      "arquivo": "tools/guardas/guardas.test.ts",
+      "de": "ErroDeInvariante",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:211",
+      "trecho": "reprova Error genérico, t"
+    },
+    {
+      "arquivo": "tools/guardas/guardas.test.ts",
+      "de": "ErroDeInvariante",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:211",
+      "trecho": "o jeito certo passa: Erro"
+    },
+    {
+      "arquivo": "tools/guardas/guardas.test.ts",
+      "de": "packages/shared/src/sistema/saude.ts",
+      "classe": "fica",
+      "linha": "inventario-back.md:49",
+      "trecho": "apps/api/src/sistema/"
+    },
+    {
+      "arquivo": "apps/api/test/contratos.test.ts",
+      "de": "esquemaRespostaContexto",
+      "classe": "trava",
+      "linha": "travas.md:53"
+    },
+    {
+      "arquivo": "apps/api/test/contratos.test.ts",
+      "de": "esquemaRespostaEstado",
+      "classe": "trava",
+      "linha": "travas.md:53"
+    },
+    {
+      "arquivo": "apps/api/test/contratos.test.ts",
+      "de": "esquemaRespostaAvisos",
+      "classe": "trava",
+      "linha": "travas.md:53"
+    },
+    {
+      "arquivo": "apps/api/test/contratos.test.ts",
+      "de": "esquemaRespostaConfigurarMfa",
+      "classe": "trava",
+      "linha": "travas.md:53"
+    },
+    {
+      "arquivo": "apps/api/test/contratos.test.ts",
+      "de": "esquemaRespostaAtivarMfa",
+      "classe": "trava",
+      "linha": "travas.md:53"
+    },
+    {
+      "arquivo": "apps/api/test/contratos.test.ts",
+      "de": "esquemaRespostaAlunosDaTurma",
+      "classe": "trava",
+      "linha": "travas.md:53"
+    },
+    {
+      "arquivo": "apps/api/test/contratos.test.ts",
+      "de": "esquemaResposta",
+      "classe": "trava",
+      "linha": "travas.md:53"
+    },
+    {
+      "arquivo": "apps/api/test/erro.int.test.ts",
+      "de": "ErroDeInvariante",
+      "classe": "trava",
+      "linha": "travas.md:54"
+    },
+    {
+      "arquivo": "apps/api/test/erro.int.test.ts",
+      "de": "Error",
+      "classe": "trava",
+      "linha": "travas.md:54",
+      "trecho": "'.ts:', 'Error'"
+    },
+    {
+      "arquivo": "infra/scripts/conferir-carga-sala.ts",
+      "de": "packages/shared/src/sistema/contexto.ts",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:1103"
+    },
+    {
+      "arquivo": "packages/shared/src/errors/invariant.exception.test.ts",
+      "de": "ErroDeInvariante",
+      "classe": "trava",
+      "linha": "travas.md:54"
+    },
+    {
+      "arquivo": "packages/shared/src/errors/invariant.exception.ts",
+      "de": "ErroDeInvariante",
+      "classe": "trava",
+      "linha": "travas.md:54"
+    },
+    {
+      "arquivo": "tools/guardas/regras-erro.mjs",
+      "de": "ErroDeInvariante",
+      "classe": "trava",
+      "linha": "travas.md:51"
+    },
+    {
+      "arquivo": "apps/api/test/contratos.test.ts",
+      "de": "esquemaRespostaEstadoDeJob",
+      "classe": "trava",
+      "linha": "travas.md:53",
+      "trecho": "esquemaRespostaEstadoDeJob"
+    },
+    {
+      "arquivo": "apps/api/test/contratos.test.ts",
+      "de": "esquemaRespostaJobAceito",
+      "classe": "trava",
+      "linha": "travas.md:53",
+      "trecho": "esquemaRespostaJobAceito"
+    },
+    {
+      "arquivo": "apps/worker/src/config.test.ts",
+      "de": "FILAS",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:182",
+      "trecho": "FILAS"
+    },
+    {
+      "arquivo": "infra/compose.yml",
+      "de": "FILAS",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:182",
+      "trecho": "FILAS"
+    },
+    {
+      "arquivo": "packages/shared/src/system/job-definitions.test.ts",
+      "de": "definirJob",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:169",
+      "trecho": "definirJob"
+    },
+    {
+      "arquivo": "packages/shared/src/system/job-definitions.test.ts",
+      "de": "DefinicaoDeJob",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:161",
+      "trecho": "DefinicaoDeJob"
+    },
+    {
+      "arquivo": "tools/ci/ambiente.test.ts",
+      "de": "FILAS",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:182",
+      "trecho": "FILAS"
+    },
+    {
+      "arquivo": "apps/api/src/sala/acesso-da-turma/acesso-da-turma.controller.ts",
+      "de": "PedidoSemCorpo",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:437",
+      "trecho": "@Body(new ZodValidationPipe(esquemaSemCorpo))"
+    }
+  ],
+  "excecoesDoConferir": [
+    {
+      "arquivo": "apps/api/test/contratos.test.ts",
+      "texto": "esquemaRespostaConfigurarMfa",
+      "motivo": "trava do contrato de saída (travas.md:53): o filtro passa a ser endsWith(ResponseSchema) e as chaves e rótulos acompanham o nome novo do schema; o conjunto varrido é o mesmo"
+    },
+    {
+      "arquivo": "apps/api/test/contratos.test.ts",
+      "texto": "esquemaRespostaConfigurarSegundoFatorDeOperador",
+      "motivo": "trava do contrato de saída (travas.md:53): o filtro passa a ser endsWith(ResponseSchema) e as chaves e rótulos acompanham o nome novo do schema; o conjunto varrido é o mesmo"
+    },
+    {
+      "arquivo": "apps/api/test/contratos.test.ts",
+      "texto": "configurarMfaResponseSchema",
+      "motivo": "trava do contrato de saída (travas.md:53): o filtro passa a ser endsWith(ResponseSchema) e as chaves e rótulos acompanham o nome novo do schema; o conjunto varrido é o mesmo"
+    },
+    {
+      "arquivo": "apps/api/test/contratos.test.ts",
+      "texto": "configurarSegundoFatorDeOperadorResponseSchema",
+      "motivo": "trava do contrato de saída (travas.md:53): o filtro passa a ser endsWith(ResponseSchema) e as chaves e rótulos acompanham o nome novo do schema; o conjunto varrido é o mesmo"
+    },
+    {
+      "arquivo": "apps/api/test/contratos.test.ts",
+      "texto": "esquemaResposta",
+      "motivo": "trava do contrato de saída (travas.md:53): o filtro passa a ser endsWith(ResponseSchema) e as chaves e rótulos acompanham o nome novo do schema; o conjunto varrido é o mesmo"
+    },
+    {
+      "arquivo": "apps/api/test/contratos.test.ts",
+      "texto": "esquemaRespostaContexto",
+      "motivo": "trava do contrato de saída (travas.md:53): o filtro passa a ser endsWith(ResponseSchema) e as chaves e rótulos acompanham o nome novo do schema; o conjunto varrido é o mesmo"
+    },
+    {
+      "arquivo": "apps/api/test/contratos.test.ts",
+      "texto": "esquemaRespostaEstado",
+      "motivo": "trava do contrato de saída (travas.md:53): o filtro passa a ser endsWith(ResponseSchema) e as chaves e rótulos acompanham o nome novo do schema; o conjunto varrido é o mesmo"
+    },
+    {
+      "arquivo": "apps/api/test/contratos.test.ts",
+      "texto": "esquemaRespostaAvisos",
+      "motivo": "trava do contrato de saída (travas.md:53): o filtro passa a ser endsWith(ResponseSchema) e as chaves e rótulos acompanham o nome novo do schema; o conjunto varrido é o mesmo"
+    },
+    {
+      "arquivo": "apps/api/test/contratos.test.ts",
+      "texto": "esquemaRespostaEstadoDeJob",
+      "motivo": "trava do contrato de saída (travas.md:53): o filtro passa a ser endsWith(ResponseSchema) e as chaves e rótulos acompanham o nome novo do schema; o conjunto varrido é o mesmo"
+    },
+    {
+      "arquivo": "apps/api/test/contratos.test.ts",
+      "texto": "esquemaRespostaJobAceito",
+      "motivo": "trava do contrato de saída (travas.md:53): o filtro passa a ser endsWith(ResponseSchema) e as chaves e rótulos acompanham o nome novo do schema; o conjunto varrido é o mesmo"
+    },
+    {
+      "arquivo": "apps/api/test/contratos.test.ts",
+      "texto": "esquemaRespostaAtivarMfa",
+      "motivo": "trava do contrato de saída (travas.md:53): o filtro passa a ser endsWith(ResponseSchema) e as chaves e rótulos acompanham o nome novo do schema; o conjunto varrido é o mesmo"
+    },
+    {
+      "arquivo": "apps/api/test/contratos.test.ts",
+      "texto": "esquemaRespostaAtivarMfa: segredo (segredo)",
+      "motivo": "trava do contrato de saída (travas.md:53): o filtro passa a ser endsWith(ResponseSchema) e as chaves e rótulos acompanham o nome novo do schema; o conjunto varrido é o mesmo"
+    },
+    {
+      "arquivo": "apps/api/test/contratos.test.ts",
+      "texto": "esquemaRespostaFixture",
+      "motivo": "trava do contrato de saída (travas.md:53): o filtro passa a ser endsWith(ResponseSchema) e as chaves e rótulos acompanham o nome novo do schema; o conjunto varrido é o mesmo"
+    },
+    {
+      "arquivo": "apps/api/test/contratos.test.ts",
+      "texto": "esquemaRespostaFixture: senhaHash (senha)",
+      "motivo": "trava do contrato de saída (travas.md:53): o filtro passa a ser endsWith(ResponseSchema) e as chaves e rótulos acompanham o nome novo do schema; o conjunto varrido é o mesmo"
+    },
+    {
+      "arquivo": "apps/api/test/contratos.test.ts",
+      "texto": "esquemaRespostaFixture: senhaHash (hash)",
+      "motivo": "trava do contrato de saída (travas.md:53): o filtro passa a ser endsWith(ResponseSchema) e as chaves e rótulos acompanham o nome novo do schema; o conjunto varrido é o mesmo"
+    },
+    {
+      "arquivo": "apps/api/test/contratos.test.ts",
+      "texto": "esquemaRespostaFixture: acessos[].escola.mfaSegredo (segredo)",
+      "motivo": "trava do contrato de saída (travas.md:53): o filtro passa a ser endsWith(ResponseSchema) e as chaves e rótulos acompanham o nome novo do schema; o conjunto varrido é o mesmo"
+    },
+    {
+      "arquivo": "apps/api/test/contratos.test.ts",
+      "texto": "esquemaRespostaFixture: externo.sujeitoExterno (sujeito)",
+      "motivo": "trava do contrato de saída (travas.md:53): o filtro passa a ser endsWith(ResponseSchema) e as chaves e rótulos acompanham o nome novo do schema; o conjunto varrido é o mesmo"
+    },
+    {
+      "arquivo": "apps/api/test/contratos.test.ts",
+      "texto": "esquemaRespostaFixture: porEscola{}.refreshToken (refresh)",
+      "motivo": "trava do contrato de saída (travas.md:53): o filtro passa a ser endsWith(ResponseSchema) e as chaves e rótulos acompanham o nome novo do schema; o conjunto varrido é o mesmo"
+    },
+    {
+      "arquivo": "apps/api/test/contratos.test.ts",
+      "texto": "esquemaRespostaFixture: cabecalhos.Cookie (cookie)",
+      "motivo": "trava do contrato de saída (travas.md:53): o filtro passa a ser endsWith(ResponseSchema) e as chaves e rótulos acompanham o nome novo do schema; o conjunto varrido é o mesmo"
+    },
+    {
+      "arquivo": "apps/api/test/contratos.test.ts",
+      "texto": "esquemaRespostaAlunosDaTurma",
+      "motivo": "trava do contrato de saída (travas.md:53): o filtro passa a ser endsWith(ResponseSchema) e as chaves e rótulos acompanham o nome novo do schema; o conjunto varrido é o mesmo"
+    },
+    {
+      "arquivo": "apps/api/test/contratos.test.ts",
+      "texto": "esquemaRespostaAlunosDaTurma: itens[].email (email)",
+      "motivo": "trava do contrato de saída (travas.md:53): o filtro passa a ser endsWith(ResponseSchema) e as chaves e rótulos acompanham o nome novo do schema; o conjunto varrido é o mesmo"
+    },
+    {
+      "arquivo": "apps/api/test/contratos.test.ts",
+      "texto": "ResponseSchema",
+      "motivo": "trava do contrato de saída (travas.md:53): o filtro passa a ser endsWith(ResponseSchema) e as chaves e rótulos acompanham o nome novo do schema; o conjunto varrido é o mesmo"
+    },
+    {
+      "arquivo": "apps/api/test/contratos.test.ts",
+      "texto": "contextResponseSchema",
+      "motivo": "trava do contrato de saída (travas.md:53): o filtro passa a ser endsWith(ResponseSchema) e as chaves e rótulos acompanham o nome novo do schema; o conjunto varrido é o mesmo"
+    },
+    {
+      "arquivo": "apps/api/test/contratos.test.ts",
+      "texto": "systemStatusResponseSchema",
+      "motivo": "trava do contrato de saída (travas.md:53): o filtro passa a ser endsWith(ResponseSchema) e as chaves e rótulos acompanham o nome novo do schema; o conjunto varrido é o mesmo"
+    },
+    {
+      "arquivo": "apps/api/test/contratos.test.ts",
+      "texto": "avisosResponseSchema",
+      "motivo": "trava do contrato de saída (travas.md:53): o filtro passa a ser endsWith(ResponseSchema) e as chaves e rótulos acompanham o nome novo do schema; o conjunto varrido é o mesmo"
+    },
+    {
+      "arquivo": "apps/api/test/contratos.test.ts",
+      "texto": "jobStateResponseSchema",
+      "motivo": "trava do contrato de saída (travas.md:53): o filtro passa a ser endsWith(ResponseSchema) e as chaves e rótulos acompanham o nome novo do schema; o conjunto varrido é o mesmo"
+    },
+    {
+      "arquivo": "apps/api/test/contratos.test.ts",
+      "texto": "jobAcceptedResponseSchema",
+      "motivo": "trava do contrato de saída (travas.md:53): o filtro passa a ser endsWith(ResponseSchema) e as chaves e rótulos acompanham o nome novo do schema; o conjunto varrido é o mesmo"
+    },
+    {
+      "arquivo": "apps/api/test/contratos.test.ts",
+      "texto": "ativarMfaResponseSchema",
+      "motivo": "trava do contrato de saída (travas.md:53): o filtro passa a ser endsWith(ResponseSchema) e as chaves e rótulos acompanham o nome novo do schema; o conjunto varrido é o mesmo"
+    },
+    {
+      "arquivo": "apps/api/test/contratos.test.ts",
+      "texto": "ativarMfaResponseSchema: segredo (segredo)",
+      "motivo": "trava do contrato de saída (travas.md:53): o filtro passa a ser endsWith(ResponseSchema) e as chaves e rótulos acompanham o nome novo do schema; o conjunto varrido é o mesmo"
+    },
+    {
+      "arquivo": "apps/api/test/contratos.test.ts",
+      "texto": "fixtureResponseSchema",
+      "motivo": "trava do contrato de saída (travas.md:53): o filtro passa a ser endsWith(ResponseSchema) e as chaves e rótulos acompanham o nome novo do schema; o conjunto varrido é o mesmo"
+    },
+    {
+      "arquivo": "apps/api/test/contratos.test.ts",
+      "texto": "fixtureResponseSchema: senhaHash (senha)",
+      "motivo": "trava do contrato de saída (travas.md:53): o filtro passa a ser endsWith(ResponseSchema) e as chaves e rótulos acompanham o nome novo do schema; o conjunto varrido é o mesmo"
+    },
+    {
+      "arquivo": "apps/api/test/contratos.test.ts",
+      "texto": "fixtureResponseSchema: senhaHash (hash)",
+      "motivo": "trava do contrato de saída (travas.md:53): o filtro passa a ser endsWith(ResponseSchema) e as chaves e rótulos acompanham o nome novo do schema; o conjunto varrido é o mesmo"
+    },
+    {
+      "arquivo": "apps/api/test/contratos.test.ts",
+      "texto": "fixtureResponseSchema: acessos[].escola.mfaSegredo (segredo)",
+      "motivo": "trava do contrato de saída (travas.md:53): o filtro passa a ser endsWith(ResponseSchema) e as chaves e rótulos acompanham o nome novo do schema; o conjunto varrido é o mesmo"
+    },
+    {
+      "arquivo": "apps/api/test/contratos.test.ts",
+      "texto": "fixtureResponseSchema: externo.sujeitoExterno (sujeito)",
+      "motivo": "trava do contrato de saída (travas.md:53): o filtro passa a ser endsWith(ResponseSchema) e as chaves e rótulos acompanham o nome novo do schema; o conjunto varrido é o mesmo"
+    },
+    {
+      "arquivo": "apps/api/test/contratos.test.ts",
+      "texto": "fixtureResponseSchema: porEscola{}.refreshToken (refresh)",
+      "motivo": "trava do contrato de saída (travas.md:53): o filtro passa a ser endsWith(ResponseSchema) e as chaves e rótulos acompanham o nome novo do schema; o conjunto varrido é o mesmo"
+    },
+    {
+      "arquivo": "apps/api/test/contratos.test.ts",
+      "texto": "fixtureResponseSchema: cabecalhos.Cookie (cookie)",
+      "motivo": "trava do contrato de saída (travas.md:53): o filtro passa a ser endsWith(ResponseSchema) e as chaves e rótulos acompanham o nome novo do schema; o conjunto varrido é o mesmo"
+    },
+    {
+      "arquivo": "apps/api/test/contratos.test.ts",
+      "texto": "alunosDaTurmaResponseSchema",
+      "motivo": "trava do contrato de saída (travas.md:53): o filtro passa a ser endsWith(ResponseSchema) e as chaves e rótulos acompanham o nome novo do schema; o conjunto varrido é o mesmo"
+    },
+    {
+      "arquivo": "apps/api/test/contratos.test.ts",
+      "texto": "alunosDaTurmaResponseSchema: itens[].email (email)",
+      "motivo": "trava do contrato de saída (travas.md:53): o filtro passa a ser endsWith(ResponseSchema) e as chaves e rótulos acompanham o nome novo do schema; o conjunto varrido é o mesmo"
+    },
+    {
+      "arquivo": "apps/api/test/erro.int.test.ts",
+      "texto": "ErroDeInvariante",
+      "motivo": "trava do erro tipado (travas.md:54): o this.name acompanha a classe InvariantException (adenda 1)"
+    },
+    {
+      "arquivo": "apps/api/test/erro.int.test.ts",
+      "texto": "InvariantException",
+      "motivo": "trava do erro tipado (travas.md:54): o this.name acompanha a classe InvariantException (adenda 1)"
+    },
+    {
+      "arquivo": "packages/shared/src/errors/invariant.exception.test.ts",
+      "texto": "ErroDeInvariante",
+      "motivo": "trava do erro tipado (travas.md:54): o this.name acompanha a classe InvariantException (adenda 1)"
+    },
+    {
+      "arquivo": "packages/shared/src/errors/invariant.exception.test.ts",
+      "texto": "InvariantException",
+      "motivo": "trava do erro tipado (travas.md:54): o this.name acompanha a classe InvariantException (adenda 1)"
+    },
+    {
+      "arquivo": "packages/shared/src/errors/invariant.exception.ts",
+      "texto": "ErroDeInvariante",
+      "motivo": "trava do erro tipado (travas.md:54): o this.name acompanha a classe InvariantException (adenda 1)"
+    },
+    {
+      "arquivo": "packages/shared/src/errors/invariant.exception.ts",
+      "texto": "InvariantException",
+      "motivo": "trava do erro tipado (travas.md:54): o this.name acompanha a classe InvariantException (adenda 1)"
+    },
+    {
+      "arquivo": "tools/guardas/regras-erro.mjs",
+      "texto": "ErroDeInvariante",
+      "motivo": "trava da guarda de erro tipado (travas.md:51): NOME_DA_CLASSE_DE_INVARIANTE e as mensagens citam a classe nova"
+    },
+    {
+      "arquivo": "tools/guardas/regras-erro.mjs",
+      "texto": "Proíbe lançar Error genérico ou literal em código de produção, e exige motivo fixo no ErroDeInvariante (regra 00, item 9; regra 20, item 11).",
+      "motivo": "trava da guarda de erro tipado (travas.md:51): NOME_DA_CLASSE_DE_INVARIANTE e as mensagens citam a classe nova"
+    },
+    {
+      "arquivo": "tools/guardas/regras-erro.mjs",
+      "texto": "Não lance `Error` genérico: lance `ErroDeDominio` (o cliente precisa do código), `ErroDeInvariante` (a linha que não pode acontecer) ou uma classe própria do módulo (regra 00, item 9).",
+      "motivo": "trava da guarda de erro tipado (travas.md:51): NOME_DA_CLASSE_DE_INVARIANTE e as mensagens citam a classe nova"
+    },
+    {
+      "arquivo": "tools/guardas/regras-erro.mjs",
+      "texto": "O motivo do `ErroDeInvariante` é texto fixo, escrito no código: sem `${valor}`, sem `+` e sem variável. Valor de execução (nome, matrícula, id) não entra na mensagem do erro (regra 20, item 11); dado de diagnóstico que não é pessoal vai em campo de uma subclasse.",
+      "motivo": "trava da guarda de erro tipado (travas.md:51): NOME_DA_CLASSE_DE_INVARIANTE e as mensagens citam a classe nova"
+    },
+    {
+      "arquivo": "tools/guardas/regras-erro.mjs",
+      "texto": "InvariantException",
+      "motivo": "trava da guarda de erro tipado (travas.md:51): NOME_DA_CLASSE_DE_INVARIANTE e as mensagens citam a classe nova"
+    },
+    {
+      "arquivo": "tools/guardas/regras-erro.mjs",
+      "texto": "Proíbe lançar Error genérico ou literal em código de produção, e exige motivo fixo no InvariantException (regra 00, item 9; regra 20, item 11).",
+      "motivo": "trava da guarda de erro tipado (travas.md:51): NOME_DA_CLASSE_DE_INVARIANTE e as mensagens citam a classe nova"
+    },
+    {
+      "arquivo": "tools/guardas/regras-erro.mjs",
+      "texto": "Não lance `Error` genérico: lance `ErroDeDominio` (o cliente precisa do código), `InvariantException` (a linha que não pode acontecer) ou uma classe própria do módulo (regra 00, item 9).",
+      "motivo": "trava da guarda de erro tipado (travas.md:51): NOME_DA_CLASSE_DE_INVARIANTE e as mensagens citam a classe nova"
+    },
+    {
+      "arquivo": "tools/guardas/regras-erro.mjs",
+      "texto": "O motivo do `InvariantException` é texto fixo, escrito no código: sem `${valor}`, sem `+` e sem variável. Valor de execução (nome, matrícula, id) não entra na mensagem do erro (regra 20, item 11); dado de diagnóstico que não é pessoal vai em campo de uma subclasse.",
+      "motivo": "trava da guarda de erro tipado (travas.md:51): NOME_DA_CLASSE_DE_INVARIANTE e as mensagens citam a classe nova"
+    }
+  ]
+}

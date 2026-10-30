@@ -1,11 +1,11 @@
 import {
-  CodigoDeErro,
+  ErrorCode,
   ESTADOS_DO_PEDIDO,
   FINALIDADES_DO_ARQUIVO_DA_ESCOLA,
   MAXIMO_DO_NOME_DO_TITULAR,
   ORIGENS_DO_COMPARTILHAMENTO,
   TIPOS_DE_PEDIDO_DO_TITULAR,
-  type LinhaDoCompartilhamento,
+  type CompartilhamentoRow,
   type PedidoDoTitular,
   type SuboperadorDaEscola,
 } from '@educa/shared'
@@ -269,18 +269,18 @@ describe('as orientações e as falhas dizem o que fazer, sem código nem texto 
   })
 
   it('o nome fora do tamanho e o download que não saiu têm texto, e dizem o que fazer', () => {
-    expect(TEXTOS_DA_FALHA_DE_CORRIGIR_NOME[CodigoDeErro.ENTRADA_INVALIDA]).toContain('1 a 200 caracteres')
-    expect(TEXTOS_DA_FALHA_DE_BAIXAR[CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO]).toContain('Tente de novo')
+    expect(TEXTOS_DA_FALHA_DE_CORRIGIR_NOME[ErrorCode.ENTRADA_INVALIDA]).toContain('1 a 200 caracteres')
+    expect(TEXTOS_DA_FALHA_DE_BAIXAR[ErrorCode.INDISPONIVEL_TENTE_DE_NOVO]).toContain('Tente de novo')
   })
 
   it('o pedido que mudou de estado e o pedido que sumiu têm texto próprio em cada ação', () => {
     for (const textos of [TEXTOS_DA_FALHA_DE_CONCLUIR, TEXTOS_DA_FALHA_DE_CANCELAR, TEXTOS_DA_FALHA_DE_CORRIGIR_NOME]) {
-      expect(textos[CodigoDeErro.PEDIDO_EM_ESTADO_INVALIDO]).toBeDefined()
-      expect(textos[CodigoDeErro.NAO_ENCONTRADO]).toBeDefined()
+      expect(textos[ErrorCode.PEDIDO_EM_ESTADO_INVALIDO]).toBeDefined()
+      expect(textos[ErrorCode.NAO_ENCONTRADO]).toBeDefined()
     }
-    expect(TEXTOS_DA_FALHA_DE_CANCELAR[CodigoDeErro.PEDIDO_EM_ESTADO_INVALIDO]).toContain('7 dias')
-    expect(TEXTOS_DA_FALHA_DE_BAIXAR[CodigoDeErro.NAO_ENCONTRADO]).toContain('conta ativa')
-    expect(CODIGOS_QUE_MUDAM_O_PEDIDO).toEqual([CodigoDeErro.PEDIDO_EM_ESTADO_INVALIDO, CodigoDeErro.NAO_ENCONTRADO])
+    expect(TEXTOS_DA_FALHA_DE_CANCELAR[ErrorCode.PEDIDO_EM_ESTADO_INVALIDO]).toContain('7 dias')
+    expect(TEXTOS_DA_FALHA_DE_BAIXAR[ErrorCode.NAO_ENCONTRADO]).toContain('conta ativa')
+    expect(CODIGOS_QUE_MUDAM_O_PEDIDO).toEqual([ErrorCode.PEDIDO_EM_ESTADO_INVALIDO, ErrorCode.NAO_ENCONTRADO])
   })
 
   it('cada finalidade e cada origem do compartilhamento têm um texto, diferentes entre si', () => {
@@ -292,7 +292,7 @@ describe('as orientações e as falhas dizem o que fazer, sem código nem texto 
 })
 
 describe('RF13: as empresas da foto do compartilhamento', () => {
-  const linha = (parcial: Partial<LinhaDoCompartilhamento>): LinhaDoCompartilhamento => ({
+  const linha = (parcial: Partial<CompartilhamentoRow>): CompartilhamentoRow => ({
     suboperadorId: '0197f3b0-6f3e-7c11-9a3e-5d1c2b7a8e41',
     chave: 'maritaca',
     primeiroEm: '2026-09-10T13:00:00.000Z',

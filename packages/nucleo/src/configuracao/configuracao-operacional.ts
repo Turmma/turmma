@@ -1,4 +1,4 @@
-import { FILAS, type Fila } from '@educa/shared'
+import { QUEUE_NAMES, type QueueName } from '@educa/shared'
 import { z } from 'zod'
 import { validarAmbiente } from '../config/validar-config.js'
 import { contextoAtual } from '../contexto/contexto.js'
@@ -10,7 +10,7 @@ export const VALIDADE_DA_CONFIGURACAO_MS = 30_000
 /** Leitura que falhou (Postgres fora ou lento) é tentada de novo depois disso, e não a cada requisição. */
 export const NOVA_TENTATIVA_DA_CONFIGURACAO_MS = 5_000
 
-export type VagasPorFila = Readonly<Record<Fila, number>>
+export type VagasPorFila = Readonly<Record<QueueName, number>>
 
 export interface LimitesDeRequisicao {
   readonly porUsuarioMin: number
@@ -35,7 +35,7 @@ export function lerVagasPadrao(ambiente: Record<string, string | undefined>): Va
 
 /** Vagas da escola: a fila que ela não configurou usa o padrão do ambiente. */
 export function resolverVagas(padrao: VagasPorFila, linha: LinhaOperacional | undefined): VagasPorFila {
-  return Object.fromEntries(FILAS.map((fila) => [fila, linha?.vagas?.[fila] ?? padrao[fila]])) as Record<Fila, number>
+  return Object.fromEntries(QUEUE_NAMES.map((fila) => [fila, linha?.vagas?.[fila] ?? padrao[fila]])) as Record<QueueName, number>
 }
 
 /**
@@ -43,7 +43,7 @@ export function resolverVagas(padrao: VagasPorFila, linha: LinhaOperacional | un
  * cenário de carga: a vaga continua sendo tomada e liberada pelo mesmo caminho, mas nunca falta. Sobra só o
  * pool de cada worker, e é exatamente o que o cenário precisa ver reprovar.
  */
-export const VAGAS_SEM_LIMITE: VagasPorFila = Object.fromEntries(FILAS.map((fila) => [fila, Number.MAX_SAFE_INTEGER])) as Record<Fila, number>
+export const VAGAS_SEM_LIMITE: VagasPorFila = Object.fromEntries(QUEUE_NAMES.map((fila) => [fila, Number.MAX_SAFE_INTEGER])) as Record<QueueName, number>
 
 /**
  * Como `resolverVagas`, a não ser no controle negativo do cenário de carga, em que nenhuma escola tem teto.

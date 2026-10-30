@@ -1,4 +1,4 @@
-import { esquemaPedidoDecidirEntrega, type Entrega } from '@educa/shared'
+import { decidirEntregaRequestSchema, type Entrega } from '@educa/shared'
 import { describe, expect, it } from 'vitest'
 import { textoDaAprovacao, motivoDaRejeicao } from '../../../componentes/ui/ia/aprovacao'
 import { problemaDoTexto } from '../../../componentes/ui/campos/texto-longo'
@@ -113,7 +113,7 @@ describe('a conversa de "O que o Assistente fez" (11.4)', () => {
   it('rejeitar exige justificativa de 8 a 500 caracteres, os limites do contrato, contados sem as pontas', () => {
     const problema = (justificativa: string) => problemaDoTexto(justificativa, LIMITES_DA_JUSTIFICATIVA)
     expect(LIMITES_DA_JUSTIFICATIVA).toEqual({ minimo: 8, maximo: 500 })
-    expect(esquemaPedidoDecidirEntrega.safeParse({ decisao: 'rejeitar', justificativa: '1234567' }).success).toBe(false)
+    expect(decidirEntregaRequestSchema.safeParse({ decisao: 'rejeitar', justificativa: '1234567' }).success).toBe(false)
     expect(problema('')).toBe('Escreva pelo menos 8 caracteres.')
     expect(problema('   curta   ')).toBe('Escreva pelo menos 8 caracteres: faltam 3.')
     expect(problema('12345678')).toBeUndefined()

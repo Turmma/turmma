@@ -40,27 +40,27 @@ const token = z.string().min(1).max(TAMANHO_MAXIMO_TOKEN_DE_CONVITE)
  * Corpo de `POST /v1/convites/consultar`. O token vai sempre no corpo, nunca na URL da API, que fica em log de borda e
  * no histórico (regra 20, item 8).
  */
-export const esquemaPedidoConsultarConvite = z.object({ token }).strict()
+export const consultarConviteRequestSchema = z.object({ token }).strict()
 
-export type PedidoConsultarConvite = z.infer<typeof esquemaPedidoConsultarConvite>
+export type ConsultarConviteRequest = z.infer<typeof consultarConviteRequestSchema>
 
 /** Resposta de `consultar`: só o nome da escola que convida. Nunca o nome nem o e-mail do convidado. */
-export const esquemaRespostaConsultarConvite = z.object({ escolaNome: z.string().min(1) }).strict()
+export const consultarConviteResponseSchema = z.object({ escolaNome: z.string().min(1) }).strict()
 
-export type RespostaConsultarConvite = z.infer<typeof esquemaRespostaConsultarConvite>
+export type ConsultarConviteResponse = z.infer<typeof consultarConviteResponseSchema>
 
 /**
  * Corpo de `POST /v1/convites/aceitar`: o token e, para quem ainda não tem conta com senha, a senha nova. Para quem já
  * tem (trabalha em outra escola cliente), a senha é ignorada: o link nunca troca a senha de uma conta existente.
  */
-export const esquemaPedidoAceitarConvite = z
+export const aceitarConviteRequestSchema = z
   .object({
     token,
     senha: z.string().min(TAMANHO_MINIMO_SENHA_NOVA).max(TAMANHO_MAXIMO_SENHA).optional(),
   })
   .strict()
 
-export type PedidoAceitarConvite = z.infer<typeof esquemaPedidoAceitarConvite>
+export type AceitarConviteRequest = z.infer<typeof aceitarConviteRequestSchema>
 
 /**
  * Resposta de `aceitar` (Tech Spec, seção 5, "Convite"):
@@ -70,9 +70,9 @@ export type PedidoAceitarConvite = z.infer<typeof esquemaPedidoAceitarConvite>
  *   e-mail. O usuário da escola só é ativado pelo login com a senha e o segundo fator que a conta já tem e com esse
  *   bilhete: sem ele, o login da conta nunca ativa o convite.
  */
-export const esquemaRespostaAceitarConvite = z.discriminatedUnion('etapa', [
+export const aceitarConviteResponseSchema = z.discriminatedUnion('etapa', [
   z.object({ etapa: z.literal('configurar_mfa'), desafio: z.string().min(1) }).strict(),
   z.object({ etapa: z.literal('entrar'), bilhete: z.string().min(1) }).strict(),
 ])
 
-export type RespostaAceitarConvite = z.infer<typeof esquemaRespostaAceitarConvite>
+export type AceitarConviteResponse = z.infer<typeof aceitarConviteResponseSchema>

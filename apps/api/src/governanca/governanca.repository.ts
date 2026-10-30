@@ -16,7 +16,7 @@ import {
   type Banco,
   type TransacaoBanco,
 } from '@educa/nucleo'
-import { GRUPO_MINIMO_DE_PROFESSORES, type ChaveDeFuncao, type ConsultaResumoDaGovernanca, type EstadoDeEntrega, type Etapa, type MotivoDeSuspensao, type TipoDeEntrega } from '@educa/shared'
+import { GRUPO_MINIMO_DE_PROFESSORES, type ChaveDeFuncao, type ResumoDaGovernancaQuery, type EstadoDeEntrega, type Etapa, type MotivoDeSuspensao, type TipoDeEntrega } from '@educa/shared'
 import { and, count, desc, eq, gte, isNull, lt, notExists, sql, type SQL } from 'drizzle-orm'
 
 /** Os quatro números da governança, na escola e no ano letivo do contexto. */
@@ -136,7 +136,7 @@ export class GovernancaRepository {
    * linha a mais que diz se há próxima. Só entram as entregas de série com grupo mínimo de professores: o contrato exige
    * a série em toda linha, então a entrega da série de um professor só fica fora da lista (e conta nos números).
    */
-  async entregas({ pagina, limite, estado }: ConsultaResumoDaGovernanca): Promise<EntregaDaGovernanca[]> {
+  async entregas({ pagina, limite, estado }: ResumoDaGovernancaQuery): Promise<EntregaDaGovernanca[]> {
     const anoLetivoId = anoEmCursoOuNulo()
     if (anoLetivoId === null) return []
     return this.banco

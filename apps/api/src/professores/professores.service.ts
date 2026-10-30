@@ -1,11 +1,11 @@
 import { estadoDoProfessor, type Banco } from '@educa/nucleo'
 import {
-  esquemaRespostaConviteDeProfessor,
-  esquemaRespostaListaDeProfessores,
-  type ConsultaPaginada,
-  type PedidoCadastrarProfessor,
-  type RespostaConviteDeProfessor,
-  type RespostaListaDeProfessores,
+  conviteDeProfessorResponseSchema,
+  listaDeProfessoresResponseSchema,
+  type PaginationQuery,
+  type CadastrarProfessorRequest,
+  type ConviteDeProfessorResponse,
+  type ListaDeProfessoresResponse,
 } from '@educa/shared'
 import { paginarPor } from '../http/paginacao.js'
 import { cadastrarProfessor, refazerConviteDeProfessor, revogarConviteDeProfessor } from '../sessao/index.js'
@@ -25,21 +25,21 @@ import { ProfessoresRepository } from './professores.repository.js'
 export class ProfessoresService {
   constructor(private readonly banco: Banco) {}
 
-  async cadastrar(pedido: PedidoCadastrarProfessor): Promise<RespostaConviteDeProfessor> {
-    return esquemaRespostaConviteDeProfessor.parse(await cadastrarProfessor(this.banco, pedido))
+  async cadastrar(pedido: CadastrarProfessorRequest): Promise<ConviteDeProfessorResponse> {
+    return conviteDeProfessorResponseSchema.parse(await cadastrarProfessor(this.banco, pedido))
   }
 
-  async listar(consulta: ConsultaPaginada): Promise<RespostaListaDeProfessores> {
+  async listar(consulta: PaginationQuery): Promise<ListaDeProfessoresResponse> {
     const lidos = await new ProfessoresRepository(this.banco).pagina(consulta)
     const pagina = paginarPor(lidos, consulta.limite, (lido) => lido.usuarioId)
-    return esquemaRespostaListaDeProfessores.parse({
+    return listaDeProfessoresResponseSchema.parse({
       ...pagina,
       itens: pagina.itens.map((lido) => ({ usuarioId: lido.usuarioId, nome: lido.nome, estado: estadoDoProfessor(lido) })),
     })
   }
 
-  async refazerConvite(usuarioId: string): Promise<RespostaConviteDeProfessor> {
-    return esquemaRespostaConviteDeProfessor.parse(await refazerConviteDeProfessor(this.banco, usuarioId))
+  async refazerConvite(usuarioId: string): Promise<ConviteDeProfessorResponse> {
+    return conviteDeProfessorResponseSchema.parse(await refazerConviteDeProfessor(this.banco, usuarioId))
   }
 
   async revogarConvite(usuarioId: string): Promise<void> {

@@ -1,5 +1,5 @@
 import { Permite, ZodValidationPipe } from '@educa/nucleo'
-import { esquemaPedidoProvedoresDaEscola, type PedidoProvedoresDaEscola, type RespostaProvedoresDaEscola } from '@educa/shared'
+import { provedoresDaEscolaRequestSchema, type ProvedoresDaEscolaRequest, type ProvedoresDaEscolaResponse } from '@educa/shared'
 import { Body, Controller, Put } from '@nestjs/common'
 import { ProvedoresDaEscolaService } from './provedores-da-escola.service.js'
 
@@ -13,7 +13,7 @@ export class ProvedoresDaEscolaController {
 
   @Put('provedores')
   @Permite('escola_configuracao', 'alterar')
-  alterar(@Body(new ZodValidationPipe(esquemaPedidoProvedoresDaEscola)) pedido: PedidoProvedoresDaEscola): Promise<RespostaProvedoresDaEscola> {
+  alterar(@Body(new ZodValidationPipe(provedoresDaEscolaRequestSchema)) pedido: ProvedoresDaEscolaRequest): Promise<ProvedoresDaEscolaResponse> {
     return this.provedores.alterar(pedido)
   }
 }

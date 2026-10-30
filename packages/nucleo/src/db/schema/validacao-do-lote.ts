@@ -11,9 +11,9 @@ import { escola } from './escola.js'
  * fiscalização para provar que a validação foi efetiva, e não um clique em "aprovar". Retenção igual à da auditoria
  * (`docs/lgpd.md`): vigência mais cinco anos.
  *
- * - `apresentado` (`esquemaLoteApresentado`) é a **cópia** do resumo do lote (corrigidos, média de acertos, distribuição,
+ * - `apresentado` (`loteApresentadoSchema`) é a **cópia** do resumo do lote (corrigidos, média de acertos, distribuição,
  *   por habilidade e por questão) e dos destaques que a tela mostrou, cada um com o id do aluno e os motivos. `aberto`
- *   (`esquemaDestaquesAbertos`) é cada destaque que o professor abriu, com a hora. É cópia, e não referência: a correção
+ *   (`destaquesAbertosSchema`) é cada destaque que o professor abriu, com a hora. É cópia, e não referência: a correção
  *   sai do banco se o aluno for eliminado, e a prova do que foi apresentado precisa ficar. Só ids, números e códigos:
  *   sem nome, e sem texto.
  * - **O banco recusa a validação com caso destacado sem abrir** (`DESTAQUES_NAO_ABERTOS`), mesmo por fora da API, por

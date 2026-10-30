@@ -1,5 +1,5 @@
 import { ErroDeDominio, TENTE_DE_NOVO_PADRAO_SEGUNDOS, avisoEspacado, type Ambiente, type Banco, type EmissorDeTokenDeOperador } from '@educa/nucleo'
-import { CodigoDeErro, type RespostaRenovacaoDeOperador } from '@educa/shared'
+import { ErrorCode, type RenovacaoDeOperadorResponse } from '@educa/shared'
 import { Logger } from '@nestjs/common'
 import { randomBytes } from 'node:crypto'
 import { BYTES_DO_REFRESH, hashDoRefresh, ipParaRegistro, lerCookie, serializarCookie } from '../../credencial/index.js'
@@ -21,14 +21,14 @@ export interface OrigemDaSessaoDoOperador {
 
 /** A renovação aceita: o corpo e, quando rotacionou, o `Set-Cookie` com o refresh novo. */
 export interface RenovacaoDeOperador {
-  readonly resposta: RespostaRenovacaoDeOperador
+  readonly resposta: RenovacaoDeOperadorResponse
   readonly cookies: readonly string[]
 }
 
 /** A renovação recusada: 401 `SESSAO_ENCERRADA`, com o `Set-Cookie` que apaga o cookie que não vale mais. */
 export class RenovacaoDeOperadorRecusada extends ErroDeDominio {
   constructor(readonly cookies: readonly string[]) {
-    super(CodigoDeErro.SESSAO_ENCERRADA)
+    super(ErrorCode.SESSAO_ENCERRADA)
   }
 }
 
@@ -121,7 +121,7 @@ export class SessaoDoOperadorService {
     return { tipo: 'reuso' }
   }
 
-  async #acesso(sessao: { operadorId: string; sessaoId: string }): Promise<RespostaRenovacaoDeOperador> {
+  async #acesso(sessao: { operadorId: string; sessaoId: string }): Promise<RenovacaoDeOperadorResponse> {
     const { token, expiraEm } = await this.dependencias.emissorDeToken.emitir(sessao)
     return { token, expiraEm: expiraEm.toISOString() }
   }
@@ -132,7 +132,7 @@ export class SessaoDoOperadorService {
       return await operacao()
     } catch {
       this.#avisarIndisponivel()
-      throw new ErroDeDominio(CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO, undefined, TENTE_DE_NOVO_PADRAO_SEGUNDOS)
+      throw new ErroDeDominio(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO, undefined, TENTE_DE_NOVO_PADRAO_SEGUNDOS)
     }
   }
 

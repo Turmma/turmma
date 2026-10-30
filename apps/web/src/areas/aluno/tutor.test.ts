@@ -1,4 +1,4 @@
-import { CodigoDeErro, esquemaPedidoMensagemAoTutor, MENSAGENS_DE_ERRO, type MensagemDoTutor, type MensagemDoTutorAoAluno, type RespostaConversaDoTutor } from '@educa/shared'
+import { ErrorCode, mensagemAoTutorRequestSchema, MENSAGENS_DE_ERRO, type MensagemDoTutor, type MensagemDoTutorAoAluno, type ConversaDoTutorResponse } from '@educa/shared'
 import { describe, expect, it } from 'vitest'
 import type { CicloDeExecucao } from '../../api/ciclo-de-execucao'
 import {
@@ -35,9 +35,9 @@ const PEDIDO: PedidoAoTutor = { texto: 'qual é a resposta da questão 2?', ativ
 const enviando: CicloDeExecucao<PedidoAoTutor> = { etapa: 'enviando', pedido: PEDIDO, chaveEnvio: 'chave-1', desde: 1_000 }
 const esperando: CicloDeExecucao<PedidoAoTutor> = { etapa: 'esperando', pedido: PEDIDO, chaveEnvio: 'chave-1', desde: 1_000, execucaoId: EXECUCAO }
 const concluida = (mensagem: MensagemDoTutorAoAluno): CicloDeExecucao<PedidoAoTutor> => ({ etapa: 'concluida', pedido: PEDIDO, chaveEnvio: 'chave-1', execucaoId: EXECUCAO, resultado: { tipo: 'mensagem_do_tutor', mensagem } })
-const falhou = (erro: CodigoDeErro): CicloDeExecucao<PedidoAoTutor> => ({ etapa: 'falhou', pedido: PEDIDO, chaveEnvio: 'chave-1', erro })
+const falhou = (erro: ErrorCode): CicloDeExecucao<PedidoAoTutor> => ({ etapa: 'falhou', pedido: PEDIDO, chaveEnvio: 'chave-1', erro })
 
-const conversa = (campos: Partial<Pick<RespostaConversaDoTutor, 'estado' | 'uso'>> = {}): Pick<RespostaConversaDoTutor, 'estado' | 'uso'> => ({ estado: 'ligado', uso: { hoje: 12, limiteDoDia: 60 }, ...campos })
+const conversa = (campos: Partial<Pick<ConversaDoTutorResponse, 'estado' | 'uso'>> = {}): Pick<ConversaDoTutorResponse, 'estado' | 'uso'> => ({ estado: 'ligado', uso: { hoje: 12, limiteDoDia: 60 }, ...campos })
 
 describe('"Hoje: N de 60 perguntas" (D38, D59)', () => {
   it('diz em texto quanto já foi e quanto falta, com o limite que a API mandou', () => {
@@ -83,25 +83,25 @@ describe('o Tutor pausado é aviso que explica, e não erro', () => {
   })
 
   it('a recusa do servidor (409 ou 429) vira o aviso do estado; a função suspensa, o aviso que explica', () => {
-    expect(pausaDoErro(CodigoDeErro.TUTOR_PAUSADO_EM_AVALIACAO)).toBe('avaliacao')
-    expect(pausaDoErro(CodigoDeErro.LIMITE_DIARIO_DO_TUTOR)).toBe('limite_do_dia')
-    expect(pausaDoErro(CodigoDeErro.PACOTE_DO_TUTOR_ESGOTADO)).toBe('pacote_do_mes')
-    expect(pausaDoErro(CodigoDeErro.FUNCAO_SUSPENSA)).toBe('suspenso')
-    expect(pausaDoErro(CodigoDeErro.IA_INDISPONIVEL)).toBeUndefined()
-    expect(falhaDaPergunta(CodigoDeErro.LIMITE_DIARIO_DO_TUTOR)).toEqual({ tipo: 'pausa', pausa: 'limite_do_dia' })
-    expect(falhaDaPergunta(CodigoDeErro.FUNCAO_SUSPENSA)).toEqual({ tipo: 'pausa', pausa: 'suspenso' })
+    expect(pausaDoErro(ErrorCode.TUTOR_PAUSADO_EM_AVALIACAO)).toBe('avaliacao')
+    expect(pausaDoErro(ErrorCode.LIMITE_DIARIO_DO_TUTOR)).toBe('limite_do_dia')
+    expect(pausaDoErro(ErrorCode.PACOTE_DO_TUTOR_ESGOTADO)).toBe('pacote_do_mes')
+    expect(pausaDoErro(ErrorCode.FUNCAO_SUSPENSA)).toBe('suspenso')
+    expect(pausaDoErro(ErrorCode.IA_INDISPONIVEL)).toBeUndefined()
+    expect(falhaDaPergunta(ErrorCode.LIMITE_DIARIO_DO_TUTOR)).toEqual({ tipo: 'pausa', pausa: 'limite_do_dia' })
+    expect(falhaDaPergunta(ErrorCode.FUNCAO_SUSPENSA)).toEqual({ tipo: 'pausa', pausa: 'suspenso' })
   })
 
   it('a falha do modelo deixa a pergunta com "Tente de novo"; pergunta demais em pouco tempo pede para esperar; nenhuma mostra código', () => {
-    for (const erro of [CodigoDeErro.IA_INDISPONIVEL, CodigoDeErro.IA_TEMPO_ESGOTADO, CodigoDeErro.IA_SAIDA_INVALIDA, CodigoDeErro.EXECUCAO_INTERROMPIDA, CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO])
+    for (const erro of [ErrorCode.IA_INDISPONIVEL, ErrorCode.IA_TEMPO_ESGOTADO, ErrorCode.IA_SAIDA_INVALIDA, ErrorCode.EXECUCAO_INTERROMPIDA, ErrorCode.INDISPONIVEL_TENTE_DE_NOVO])
       expect(falhaDaPergunta(erro), erro).toEqual({ tipo: 'tentar', texto: TEXTO_DA_FALHA_DO_TUTOR })
     expect(TEXTO_DA_FALHA_DO_TUTOR).toBe('O Tutor não conseguiu responder agora. Tente de novo.')
-    expect(falhaDaPergunta(CodigoDeErro.LIMITE_EXCEDIDO).tipo).toBe('esperar')
-    expect(falhaDaPergunta(CodigoDeErro.IA_ORCAMENTO_ESGOTADO)).toEqual({ tipo: 'explicada', texto: MENSAGENS_DE_ERRO.IA_ORCAMENTO_ESGOTADO })
+    expect(falhaDaPergunta(ErrorCode.LIMITE_EXCEDIDO).tipo).toBe('esperar')
+    expect(falhaDaPergunta(ErrorCode.IA_ORCAMENTO_ESGOTADO)).toEqual({ tipo: 'explicada', texto: MENSAGENS_DE_ERRO.IA_ORCAMENTO_ESGOTADO })
   })
 
   it('a pausa que a última pergunta recebeu vem antes da que a conversa lida dizia', () => {
-    const recusada = pendenteNoTutor([], falhou(CodigoDeErro.TUTOR_PAUSADO_EM_AVALIACAO), ATIVIDADE)
+    const recusada = pendenteNoTutor([], falhou(ErrorCode.TUTOR_PAUSADO_EM_AVALIACAO), ATIVIDADE)
     expect(pausaNaTela(conversa(), recusada)).toBe('avaliacao')
     expect(pausaNaTela(conversa({ estado: 'limite', uso: { hoje: 60, limiteDoDia: 60 } }), undefined)).toBe('limite_do_dia')
     expect(pausaNaTela(conversa(), undefined)).toBeUndefined()
@@ -158,11 +158,11 @@ describe('o que a conversa mostra além do que a API já devolveu', () => {
   })
 
   it('a pergunta que falhou fica na conversa, com o que houve', () => {
-    expect(pendenteNoTutor([], falhou(CodigoDeErro.IA_INDISPONIVEL), ATIVIDADE)).toEqual({ pergunta: PEDIDO.texto, pensando: false, falha: { tipo: 'tentar', texto: TEXTO_DA_FALHA_DO_TUTOR } })
+    expect(pendenteNoTutor([], falhou(ErrorCode.IA_INDISPONIVEL), ATIVIDADE)).toEqual({ pergunta: PEDIDO.texto, pensando: false, falha: { tipo: 'tentar', texto: TEXTO_DA_FALHA_DO_TUTOR } })
   })
 
   it('o pedido que a tela monta é o do contrato: o texto, a atividade e a questão, e nada de turma nem de aluno', () => {
-    expect(esquemaPedidoMensagemAoTutor.safeParse({ ...PEDIDO, chaveEnvio: '0190f5a0-0000-4000-8000-0000000000f1' }).success).toBe(true)
+    expect(mensagemAoTutorRequestSchema.safeParse({ ...PEDIDO, chaveEnvio: '0190f5a0-0000-4000-8000-0000000000f1' }).success).toBe(true)
     expect(Object.keys(PEDIDO).sort()).toEqual(['atividadeAplicadaId', 'questao', 'texto'])
   })
 })

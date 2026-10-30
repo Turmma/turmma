@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { CODIGOS_DE_FALHA_DE_JOB, ESTADOS_DE_JOB, FILAS } from './jobs.js'
+import { JOB_FAILURE_CODES, JOB_STATES, QUEUE_NAMES } from './jobs.js'
 
 /** Teto do trabalho simulado por um job sintético: o bastante para o cenário de carga e para o teste de queda. */
 export const CPU_MS_MAXIMO_SINTETICO = 60_000
@@ -9,16 +9,16 @@ export const CPU_MS_MAXIMO_SINTETICO = 60_000
  * recusados, e não ignorados. O tipo é sempre o do job sintético, e a escola vem só do token
  * (regra 10, item 3).
  */
-export const esquemaPedidoJobSintetico = z
+export const syntheticJobRequestSchema = z
   .object({
-    fila: z.enum(FILAS),
+    fila: z.enum(QUEUE_NAMES),
     cpuMs: z.number().int().min(0).max(CPU_MS_MAXIMO_SINTETICO),
     naoUrgente: z.boolean(),
     falhar: z.boolean().optional(),
   })
   .strict()
 
-export type PedidoJobSintetico = z.infer<typeof esquemaPedidoJobSintetico>
+export type SyntheticJobRequest = z.infer<typeof syntheticJobRequestSchema>
 
 /**
  * Os dados do job sintético em `job_registro`: o que a API grava e o worker lê.
@@ -29,7 +29,7 @@ export type PedidoJobSintetico = z.infer<typeof esquemaPedidoJobSintetico>
  *
  * Estrito, como todo `dados` de job (`definicoes-de-job.ts`): chave a mais, como `escolaId`, é recusada ao enfileirar.
  */
-export const esquemaDadosJobSintetico = z
+export const syntheticJobDataSchema = z
   .object({
     cpuMs: z.number().int().min(0).max(CPU_MS_MAXIMO_SINTETICO),
     falhar: z.boolean(),
@@ -37,24 +37,24 @@ export const esquemaDadosJobSintetico = z
   })
   .strict()
 
-export type DadosJobSintetico = z.infer<typeof esquemaDadosJobSintetico>
+export type SyntheticJobData = z.infer<typeof syntheticJobDataSchema>
 
 /** Resposta 202 do `POST`: o job foi gravado e ainda vai ser executado. */
-export const esquemaRespostaJobAceito = z.object({ jobId: z.uuid() }).strict()
-export type RespostaJobAceito = z.infer<typeof esquemaRespostaJobAceito>
+export const jobAcceptedResponseSchema = z.object({ jobId: z.uuid() }).strict()
+export type JobAcceptedResponse = z.infer<typeof jobAcceptedResponseSchema>
 
 /**
  * Corpo de `GET /v1/sistema/jobs-sinteticos/:id`, lido de `job_registro`. Só estado e datas: nem
  * os dados do job, nem a escola, nem o motivo em texto livre.
  */
-export const esquemaRespostaEstadoDeJob = z
+export const jobStateResponseSchema = z
   .object({
-    estado: z.enum(ESTADOS_DE_JOB),
+    estado: z.enum(JOB_STATES),
     criadoEm: z.iso.datetime(),
     iniciadoEm: z.iso.datetime().optional(),
     concluidoEm: z.iso.datetime().optional(),
-    codigoFalha: z.enum(CODIGOS_DE_FALHA_DE_JOB).optional(),
+    codigoFalha: z.enum(JOB_FAILURE_CODES).optional(),
   })
   .strict()
 
-export type RespostaEstadoDeJob = z.infer<typeof esquemaRespostaEstadoDeJob>
+export type JobStateResponse = z.infer<typeof jobStateResponseSchema>

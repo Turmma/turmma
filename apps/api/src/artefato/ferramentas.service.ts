@@ -1,14 +1,14 @@
 import { ErroDeDominio, ErroDeIa, gerarAtividadeObjetiva, gerarPlanoDeAula, type Banco, type TransacaoBanco } from '@educa/nucleo'
 import {
-  CodigoDeErro,
-  esquemaConteudoDoArtefato,
+  ErrorCode,
+  conteudoDoArtefatoSchema,
   QUESTOES_PADRAO_POR_ATIVIDADE,
   type ConteudoDoArtefato,
   type FerramentaGeradora,
   type Habilidade,
   type ParametrosDeFerramenta,
-  type PedidoGerarComFerramenta,
-  type RespostaExecucaoAceita,
+  type GerarComFerramentaRequest,
+  type ExecucaoAceitaResponse,
   type ResultadoGravado,
 } from '@educa/shared'
 import { contextoDaTarefa } from '../assistente/assistente.service.js'
@@ -49,7 +49,7 @@ interface Preparado {
  * - Os trechos vêm do material **`pronto` e não excluído da disciplina, da escola do contexto**, pela busca do tema.
  *   **Sem trecho, a execução falha com `MATERIAL_INSUFICIENTE`**: sem página para citar, nada é gerado (regra 30, item 12).
  * - O artefato nasce na **mesma transação** que conclui a execução, com o conteúdo validado por
- *   `esquemaConteudoDoArtefato`, e **só se toda citação apontar para um trecho que foi entregue à tarefa**.
+ *   `conteudoDoArtefatoSchema`, e **só se toda citação apontar para um trecho que foi entregue à tarefa**.
  * - O que se guarda em `execucao_agente.entrada` são os parâmetros da ferramenta. O artefato é rascunho do professor
  *   (autonomia 1): não vai a aluno nenhum por aqui, e por isso não nasce com entrega.
  */
@@ -61,11 +61,11 @@ export class FerramentasService {
     private readonly trechos: BuscaDeTrechos,
   ) {}
 
-  async gerar(ferramenta: FerramentaGeradora, pedido: PedidoGerarComFerramenta): Promise<RespostaExecucaoAceita> {
+  async gerar(ferramenta: FerramentaGeradora, pedido: GerarComFerramentaRequest): Promise<ExecucaoAceitaResponse> {
     await this.limite.contar()
     const { chaveEnvio, ...resto } = pedido
     const parametros: ParametrosDeFerramenta = { ...resto, turmaId: resto.turmaId.toLowerCase(), disciplinaId: resto.disciplinaId.toLowerCase() }
-    if ((await new TurmaDoProfessorRepository(this.banco).turmaComDisciplina(parametros.turmaId, parametros.disciplinaId)) === undefined) throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
+    if ((await new TurmaDoProfessorRepository(this.banco).turmaComDisciplina(parametros.turmaId, parametros.disciplinaId)) === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
 
     const tarefa = TAREFA_DA_FERRAMENTA[ferramenta]
     let preparado: Preparado | undefined
@@ -111,7 +111,7 @@ export class FerramentasService {
   async #preparar(chaveEnvio: string, tarefa: 'gerar_atividade_objetiva' | 'gerar_plano_de_aula'): Promise<Preparado> {
     const { parametros } = await new ExecucaoDoPedidoRepository(this.banco).entradaDaChave(chaveEnvio, tarefa)
     const turma = await new TurmaDoProfessorRepository(this.banco).turmaComDisciplina(parametros.turmaId, parametros.disciplinaId)
-    if (turma === undefined) throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
+    if (turma === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
     // A porta de trechos não confere papel: o vínculo confirmado na disciplina foi conferido logo acima.
     const achados = await this.trechos.buscar({ texto: parametros.tema, disciplinaId: parametros.disciplinaId, limite: TRECHOS_NA_FERRAMENTA })
     if (achados.length === 0) throw new ErroDeIa('MATERIAL_INSUFICIENTE')
@@ -122,7 +122,7 @@ export class FerramentasService {
 
   /** Na transação que conclui a execução: confere as citações contra o que foi entregue, valida o conteúdo e grava o artefato. */
   async #gravar(saida: ConteudoDoArtefato, { parametros, entregues }: Preparado, tx: TransacaoBanco, execucaoId: string): Promise<ResultadoGravado> {
-    const conteudo = esquemaConteudoDoArtefato.safeParse(saida)
+    const conteudo = conteudoDoArtefatoSchema.safeParse(saida)
     // A versão adaptada só nasce pela Adaptação, com entrega: a geração nunca grava conteúdo com `adaptacao`.
     if (!conteudo.success || (conteudo.data.tipo === 'atividade_objetiva' && conteudo.data.adaptacao !== undefined)) throw new ErroDeIa('IA_SAIDA_INVALIDA')
     exigirCitacoesEntregues(citacoesDoConteudo(conteudo.data), entregues)

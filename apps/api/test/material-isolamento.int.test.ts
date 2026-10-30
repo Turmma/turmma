@@ -1,5 +1,5 @@
 import { executarNoContexto } from '@educa/nucleo'
-import { CodigoDeErro, esquemaRespostaBuscaDeMaterial, esquemaRespostaListaDeMateriais } from '@educa/shared'
+import { ErrorCode, buscaDeMaterialResponseSchema, listaDeMateriaisResponseSchema } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
@@ -40,8 +40,8 @@ describe('material: isolamento entre escolas', () => {
   const post = (sessao: SessaoDeTeste, caminho: string, corpo?: unknown): Promise<RespostaHttp> => chamar(api.url, 'POST', caminho, sessao.token, corpo)
   /** A resposta sem o id da requisição, que muda a cada chamada: o resto precisa ser idêntico. */
   const semRequisicao = (resposta: RespostaHttp) => ({ status: resposta.status, codigo: resposta.corpo.erro?.codigo, mensagem: (resposta.corpo.erro as { mensagem?: string } | undefined)?.mensagem })
-  const idsDaLista = async (sessao: SessaoDeTeste, consulta = '') => esquemaRespostaListaDeMateriais.parse((await get(sessao, `/v1/materiais${consulta}`)).corpo).itens.map((item) => item.id)
-  const materiaisDaBusca = async (sessao: SessaoDeTeste, consulta: string) => esquemaRespostaBuscaDeMaterial.parse((await get(sessao, `/v1/materiais/busca?${consulta}`)).corpo).itens.map((item) => item.materialId)
+  const idsDaLista = async (sessao: SessaoDeTeste, consulta = '') => listaDeMateriaisResponseSchema.parse((await get(sessao, `/v1/materiais${consulta}`)).corpo).itens.map((item) => item.id)
+  const materiaisDaBusca = async (sessao: SessaoDeTeste, consulta: string) => buscaDeMaterialResponseSchema.parse((await get(sessao, `/v1/materiais/busca?${consulta}`)).corpo).itens.map((item) => item.materialId)
 
   /** Uma escola com o PDF de demonstração `pronto` em Química e um professor com vínculo confirmado em Química. */
   async function montar(): Promise<EscolaComMaterial> {
@@ -97,7 +97,7 @@ describe('material: isolamento entre escolas', () => {
       const deB = await get(sessao, `/v1/materiais/${b.materialId}`)
       const inexistente = await get(sessao, `/v1/materiais/${randomUUID()}`)
       const foraDoFormato = await get(sessao, '/v1/materiais/nao-e-um-id')
-      expect(semRequisicao(deB)).toEqual({ status: 404, codigo: CodigoDeErro.NAO_ENCONTRADO, mensagem: expect.any(String) })
+      expect(semRequisicao(deB)).toEqual({ status: 404, codigo: ErrorCode.NAO_ENCONTRADO, mensagem: expect.any(String) })
       expect(semRequisicao(inexistente)).toEqual(semRequisicao(deB))
       expect(semRequisicao(foraDoFormato)).toEqual(semRequisicao(deB))
       // O controle: o de A, ele lê.
@@ -121,7 +121,7 @@ describe('material: isolamento entre escolas', () => {
     const deB = await del(a.coordenacao, `/v1/materiais/${b.materialId}`)
     const inexistente = await del(a.coordenacao, `/v1/materiais/${randomUUID()}`)
     const foraDoFormato = await del(a.coordenacao, '/v1/materiais/nao-e-um-id')
-    expect(semRequisicao(deB)).toEqual({ status: 404, codigo: CodigoDeErro.NAO_ENCONTRADO, mensagem: expect.any(String) })
+    expect(semRequisicao(deB)).toEqual({ status: 404, codigo: ErrorCode.NAO_ENCONTRADO, mensagem: expect.any(String) })
     expect(semRequisicao(inexistente)).toEqual(semRequisicao(deB))
     expect(semRequisicao(foraDoFormato)).toEqual(semRequisicao(deB))
     expect(await estadoDe(b)).toEqual(antesEmB)
@@ -135,7 +135,7 @@ describe('material: isolamento entre escolas', () => {
     const comLicenca = await enviarMaterial(api, a.coordenacao, { disciplinaId: b.quimica })
     const semLicenca = await enviarMaterial(api, a.coordenacao, { disciplinaId: b.quimica, licenca: 'sem_licenca' })
     const inexistente = await enviarMaterial(api, a.coordenacao, { disciplinaId: randomUUID() })
-    expect(semRequisicao(comLicenca)).toEqual({ status: 404, codigo: CodigoDeErro.NAO_ENCONTRADO, mensagem: expect.any(String) })
+    expect(semRequisicao(comLicenca)).toEqual({ status: 404, codigo: ErrorCode.NAO_ENCONTRADO, mensagem: expect.any(String) })
     expect(semRequisicao(semLicenca)).toEqual(semRequisicao(comLicenca))
     expect(semRequisicao(inexistente)).toEqual(semRequisicao(comLicenca))
     await esperarExtracao(api)

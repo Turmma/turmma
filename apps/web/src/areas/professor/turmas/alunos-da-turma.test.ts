@@ -1,4 +1,4 @@
-import type { AlunoDaTurma, RespostaDesempenhoDaTurma } from '@educa/shared'
+import type { AlunoDaTurma, DesempenhoDaTurmaResponse } from '@educa/shared'
 import { describe, expect, it } from 'vitest'
 import {
   montarLinhas,
@@ -21,14 +21,14 @@ import {
 const id = (n: number) => `0197a1c0-0000-7000-8000-${String(n).padStart(12, '0')}`
 const aluno = (n: number, nome: string): AlunoDaTurma => ({ usuarioId: id(n), nome })
 const HABILIDADE = { codigo: 'QUI.EM.04', descricao: 'Estequiometria' }
-const desempenhoDe = (n: number, nome: string, acertos: number, total: number, porHabilidade: RespostaDesempenhoDaTurma['alunos'][number]['porHabilidade'] = []) => ({
+const desempenhoDe = (n: number, nome: string, acertos: number, total: number, porHabilidade: DesempenhoDaTurmaResponse['alunos'][number]['porHabilidade'] = []) => ({
   alunoId: id(n),
   nome,
   acertos,
   total,
   porHabilidade,
 })
-const turma = (alunos: RespostaDesempenhoDaTurma['alunos']): RespostaDesempenhoDaTurma => ({ turmaId: id(100), lotesAprovados: 1, porHabilidade: [], alunos })
+const turma = (alunos: DesempenhoDaTurmaResponse['alunos']): DesempenhoDaTurmaResponse => ({ turmaId: id(100), lotesAprovados: 1, porHabilidade: [], alunos })
 
 const nomes = (linhas: readonly LinhaDeAluno[]) => linhas.map((linha) => linha.nome)
 

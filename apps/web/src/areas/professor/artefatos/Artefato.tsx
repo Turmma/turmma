@@ -1,4 +1,4 @@
-import { CodigoDeErro, esquemaPedidoRenomearArtefato, NOME_DA_FERRAMENTA, type ArtefatoResumido, type Entrega, type RespostaArtefato } from '@educa/shared'
+import { ErrorCode, renomearArtefatoRequestSchema, NOME_DA_FERRAMENTA, type ArtefatoResumido, type Entrega, type ArtefatoResponse } from '@educa/shared'
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, Pencil } from 'lucide-react'
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
@@ -46,7 +46,7 @@ function LinhaDaVersao({ versao, entregas, carregando }: { versao: Pick<Artefato
  * versão; **Na turma** só na atividade objetiva, a única que vai à turma ("Aplicar à turma" é da atividade; o plano de aula
  * não tem o que aplicar). Aba que não existe para o documento não aparece e não abre.
  */
-function abasDoDocumento(artefato: Pick<RespostaArtefato, 'tipo' | 'versoesAdaptadas'>): readonly Aba[] {
+function abasDoDocumento(artefato: Pick<ArtefatoResponse, 'tipo' | 'versoesAdaptadas'>): readonly Aba[] {
   return [
     { id: 'conteudo', rotulo: 'Conteúdo' },
     ...(artefato.versoesAdaptadas.length > 0 ? [{ id: 'versoes', rotulo: 'Versões adaptadas' }] : []),
@@ -125,7 +125,7 @@ export default function Artefato({ artefatoId }: { artefatoId: string }) {
   )
 
   if (dados === undefined) {
-    const naoEncontrado = artefato.error instanceof ErroDaApi && artefato.error.codigo === CodigoDeErro.NAO_ENCONTRADO
+    const naoEncontrado = artefato.error instanceof ErroDaApi && artefato.error.codigo === ErrorCode.NAO_ENCONTRADO
     return (
       <Tela titulo="Artefato" antes={voltar} largura="formulario">
         {artefato.isPending ? (
@@ -152,9 +152,9 @@ export default function Artefato({ artefatoId }: { artefatoId: string }) {
   // A aba é do endereço, e não de `useState`: recarregar e voltar pelo histórico devolvem a mesma.
   const aba = abaDoEndereco(busca, abas)
 
-  // O título é conferido pelo contrato da rota (`esquemaPedidoRenomearArtefato`): o limite é o dele, e não um número
+  // O título é conferido pelo contrato da rota (`renomearArtefatoRequestSchema`): o limite é o dele, e não um número
   // repetido aqui.
-  const tituloConferido = esquemaPedidoRenomearArtefato.safeParse({ titulo: novoTitulo ?? '' })
+  const tituloConferido = renomearArtefatoRequestSchema.safeParse({ titulo: novoTitulo ?? '' })
   const tituloLongo = (novoTitulo ?? '').trim() !== '' && !tituloConferido.success
   const pdf = saidaEmPdf(dados.entrega)
 

@@ -458,7 +458,7 @@ inexistente. `POST` que dispara IA responde `202 { execucaoId }`; a tela consult
 
 `material`, `trecho` (`tsvector` em português, GIN, índice começando pela escola), `consumo_ia`, `thread_agente`,
 `mensagem_agente`, `execucao_agente` (chave de idempotência), `entrega` (nasce `pendente`; check
-`aprovada ⇒ decidida_por`), `artefato` (`conteudo` jsonb validado por `esquemaConteudoDoArtefato`), `atividade_aplicada`,
+`aprovada ⇒ decidida_por`), `artefato` (`conteudo` jsonb validado por `conteudoDoArtefatoSchema`), `atividade_aplicada`,
 `tentativa_atividade`, `resposta_atividade` (único por aplicação, aluno e questão), `correcao`, `validacao_do_lote`,
 `mensagem_tutor`, `sinal_tutor`, `suspensao_de_funcao`, `resumo_do_analista`. Nenhum campo guarda texto sobre a pessoa
 (D66, D57). Campo pessoal novo entra em `docs/lgpd.md`.

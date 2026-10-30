@@ -1,5 +1,5 @@
 import type { Locator, Page, Route } from '@playwright/test'
-import { AVISO_DA_TROCA_RECUSADA, MENSAGENS_DE_ERRO } from '../packages/shared/src/erros/mensagens.ts'
+import { AVISO_DA_TROCA_RECUSADA, MENSAGENS_DE_ERRO } from '../packages/shared/src/errors/messages.ts'
 import { AVISO_DO_COMPLEMENTO, EFEITO_DA_CONTESTACAO, NOME_DA_CONTESTACAO, NOME_DO_ESTADO_DE_VINCULO } from '../packages/shared/src/estrutura/vinculo.ts'
 import {
   codigoDoAutenticador,

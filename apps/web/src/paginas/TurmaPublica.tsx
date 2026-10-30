@@ -1,5 +1,5 @@
 import {
-  CodigoDeErro,
+  ErrorCode,
   codigoDaTurmaValido,
   MENSAGENS_DA_SALA,
   mensagemDaSala,
@@ -8,8 +8,8 @@ import {
   TAMANHO_MAXIMO_MATRICULA,
   TAMANHO_MAXIMO_SENHA,
   TAMANHO_MINIMO_SENHA_NOVA,
-  type PedidoReivindicarSala,
-  type RespostaSalaAberta,
+  type ReivindicarSalaRequest,
+  type SalaAbertaResponse,
 } from '@educa/shared'
 import { useCallback, useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { Link } from 'wouter'
@@ -29,7 +29,7 @@ import { enviarComReenvio } from './reenvio-da-sala'
 /** Por onde a página chegou à turma: o link do professor, com o token, ou o código que o aluno digitou. */
 type Caminho = { readonly tipo: 'link'; readonly token: string } | { readonly tipo: 'codigo'; readonly codigo: string }
 
-type NomeLivre = RespostaSalaAberta['nomes'][number]
+type NomeLivre = SalaAbertaResponse['nomes'][number]
 
 type Etapa =
   /** O campo do código: sem link, com o link que não vale, ou com o código que não achou turma. */
@@ -41,7 +41,7 @@ type Etapa =
   | { readonly nome: 'aberta'; readonly caminho: Caminho; readonly turma: string; readonly nomes: readonly NomeLivre[] }
   | { readonly nome: 'enviado'; readonly caminho: Caminho }
 
-const codigoDoErro = (erro: unknown): CodigoDeErro => (erro instanceof ErroDaApi ? erro.codigo : CodigoDeErro.ERRO_INTERNO)
+const codigoDoErro = (erro: unknown): ErrorCode => (erro instanceof ErroDaApi ? erro.codigo : ErrorCode.ERRO_INTERNO)
 const esperaDoErro = (erro: unknown): number | undefined => (erro instanceof ErroDaApi ? erro.esperaSegundos : undefined)
 
 /** O caminho como o contrato o leva: o token **ou** o código, nunca os dois. */
@@ -97,7 +97,7 @@ export function TurmaPublica({ slug }: { slug: string }) {
         if (vez.current !== minhaVez) return
         const codigo = codigoDoErro(erro)
         // O acesso que não vale (vencido, revogado, refeito) leva ao código, com o texto do caminho que a página usou.
-        if (codigo === CodigoDeErro.NAO_ENCONTRADO) mostrarCodigo(mensagemDaSala(codigo, { caminho: caminho.tipo }))
+        if (codigo === ErrorCode.NAO_ENCONTRADO) mostrarCodigo(mensagemDaSala(codigo, { caminho: caminho.tipo }))
         // A recarga que cai por outro motivo deixa a lista de antes: o aviso da recusa já diz o que fazer.
         else if (recarga) return
         else if (caminho.tipo === 'codigo') mostrarCodigo(mensagemDaSala(codigo, { caminho: 'codigo', esperaSegundos: esperaDoErro(erro), esgotado: true }))
@@ -204,7 +204,7 @@ export function TurmaPublica({ slug }: { slug: string }) {
               vezAgora={() => vez.current}
               aoEnviar={() => definirEtapa({ nome: 'enviado', caminho: etapa.caminho })}
               aoRecarregar={() => void abrir(etapa.caminho, true)}
-              aoPerderOAcesso={() => mostrarCodigo(mensagemDaSala(CodigoDeErro.NAO_ENCONTRADO, { caminho: etapa.caminho.tipo }))}
+              aoPerderOAcesso={() => mostrarCodigo(mensagemDaSala(ErrorCode.NAO_ENCONTRADO, { caminho: etapa.caminho.tipo }))}
             />
           )}
           <div>
@@ -333,7 +333,7 @@ function FormularioDoNome(props: {
   // O `ref` trava na hora o segundo clique de um clique duplo, que chega antes de a tela desligar o botão.
   const noAr = useRef(false)
   // O pedido que ficou sem resposta porque o sistema estava cheio: o "Tentar de novo" manda ele, com a mesma chave.
-  const semResposta = useRef<PedidoReivindicarSala | undefined>(undefined)
+  const semResposta = useRef<ReivindicarSalaRequest | undefined>(undefined)
   const campoDaMatricula = useRef<HTMLInputElement>(null)
   // O foco vai ao primeiro nome quando falta escolher: o leitor de tela lê o grupo com o aviso que o descreve.
   const primeiroNome = useRef<HTMLInputElement>(null)
@@ -356,10 +356,10 @@ function FormularioDoNome(props: {
       primeiroNome.current?.focus()
       return
     }
-    // A matrícula vai como foi digitada: o contrato tira o espaço das pontas, como na lista (`esquemaMatriculaDigitada`).
+    // A matrícula vai como foi digitada: o contrato tira o espaço das pontas, como na lista (`matriculaDigitadaSchema`).
     const anterior = semResposta.current
     const mesmoPedido = anterior !== undefined && anterior.listaNomeId === nomeEscolhido.id && anterior.matricula === matricula && anterior.senha === senha
-    const pedido: PedidoReivindicarSala = mesmoPedido ? anterior : { slug, ...noPedido(caminho), listaNomeId: nomeEscolhido.id, matricula, senha, chaveEnvio: crypto.randomUUID() }
+    const pedido: ReivindicarSalaRequest = mesmoPedido ? anterior : { slug, ...noPedido(caminho), listaNomeId: nomeEscolhido.id, matricula, senha, chaveEnvio: crypto.randomUUID() }
     noAr.current = true
     definirEnviando(true)
     definirAviso(undefined)
@@ -387,12 +387,12 @@ function FormularioDoNome(props: {
       return
     }
     const codigo = codigoDoErro(desfecho.erro)
-    if (codigo === CodigoDeErro.NAO_ENCONTRADO) {
+    if (codigo === ErrorCode.NAO_ENCONTRADO) {
       aoPerderOAcesso()
       return
     }
     definirAviso(mensagemDaSala(codigo, { caminho: caminho.tipo, esperaSegundos: esperaDoErro(desfecho.erro) }))
-    if (codigo === CodigoDeErro.REIVINDICACAO_RECUSADA) {
+    if (codigo === ErrorCode.REIVINDICACAO_RECUSADA) {
       // A recusa não diz se foi o nome ou a matrícula: a lista é relida (o nome pode ter sido tomado), a senha digitada
       // sai, e o foco vai para a matrícula, que é o que o texto pede para conferir.
       definirSenha('')

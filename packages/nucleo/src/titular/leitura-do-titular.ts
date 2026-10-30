@@ -1,4 +1,4 @@
-import { ErroDeInvariante, type PapelDoTitular, type VersaoDoArquivo } from '@educa/shared'
+import { InvariantException, type PapelDoTitular, type VersaoDoArquivo } from '@educa/shared'
 import { sql, type SQL } from 'drizzle-orm'
 import { exigirEscolaDoContexto } from '../contexto/escola-do-contexto.js'
 import type { Banco, TransacaoBanco } from '../db/banco.js'
@@ -64,7 +64,7 @@ const NOME_DE_COLUNA = /^[a-z][a-z0-9_]*$/
 
 /** `t.a, t.b, ...`: as colunas de uma lista permitida, conferidas pelo formato, nunca vindas de fora. */
 export function colunasDoSelect(...nomes: readonly string[]): SQL {
-  for (const nome of nomes) if (!NOME_DE_COLUNA.test(nome)) throw new ErroDeInvariante('nome de coluna fora do formato')
+  for (const nome of nomes) if (!NOME_DE_COLUNA.test(nome)) throw new InvariantException('nome de coluna fora do formato')
   return sql.raw(nomes.map((nome) => `t.${nome}`).join(', '))
 }
 

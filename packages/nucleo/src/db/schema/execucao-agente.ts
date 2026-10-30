@@ -1,6 +1,6 @@
 import { sql } from 'drizzle-orm'
 import { check, foreignKey, index, jsonb, pgTable, text, timestamp, unique, uniqueIndex, uuid } from 'drizzle-orm/pg-core'
-import type { ChaveDeFuncao, CodigoDeErro, EntradaDaExecucao, EstadoDeExecucao, ResultadoGravado, TarefaDeIa } from '@educa/shared'
+import type { ChaveDeFuncao, ErrorCode, ExecucaoInput, EstadoDeExecucao, ResultadoGravado, TarefaDeIa } from '@educa/shared'
 import { anoLetivo } from './ano-letivo.js'
 import { escola } from './escola.js'
 import { usuario } from './usuario.js'
@@ -21,14 +21,14 @@ import { usuario } from './usuario.js'
  * - As passagens de estado são um `update` condicional (`pendente` → `rodando` → `concluida` ou `falhou`): duas instâncias
  *   não rodam a mesma execução (regra 80, item 7). Os checks prendem o resultado à concluída, o erro à que falhou e a data
  *   do fim às duas.
- * - `resultado` (`esquemaResultadoGravado`) é **só a referência** ao que a execução gravou: o id da mensagem, do artefato,
+ * - `resultado` (`resultadoGravadoSchema`) é **só a referência** ao que a execução gravou: o id da mensagem, do artefato,
  *   da entrega ou do resumo. O texto da resposta do Assistente e do Tutor não é copiado para cá. Cada uma dessas linhas
  *   aponta de volta para a execução por `execucao_id`, com índice único: executar duas vezes não cria dois artefatos nem
  *   duas respostas (D49).
  * - `entrada` leva só o que não está em outra linha (os parâmetros da ferramenta, os tipos de adaptação), validada por
- *   `esquemaEntradaDaExecucao`. O texto do professor e o do aluno ficam em `mensagem_agente` e `mensagem_tutor`, e nunca
+ *   `execucaoInputSchema`. O texto do professor e o do aluno ficam em `mensagem_agente` e `mensagem_tutor`, e nunca
  *   são copiados para cá. Os ids da entrada são conferidos pelo repository, no escopo, na hora de executar.
- * - `erro` é um `CodigoDeErro` (`IA_INDISPONIVEL`, `EXECUCAO_INTERROMPIDA`...), e o check só aceita o formato de código:
+ * - `erro` é um `ErrorCode` (`IA_INDISPONIVEL`, `EXECUCAO_INTERROMPIDA`...), e o check só aceita o formato de código:
  *   a mensagem do provedor, que pode repetir o prompt, não cabe (regra 20, item 9).
  * - `solicitada_por` é quem pediu, por FK composta com a escola, `on delete set null (solicitada_por)` (escrito à mão na
  *   0022): só quem pediu consulta a execução, e a de quem foi eliminado não responde a mais ninguém.
@@ -61,9 +61,9 @@ export const execucaoAgente = pgTable(
     solicitadaPor: uuid(),
     chaveEnvio: uuid().notNull(),
     estado: text().$type<EstadoDeExecucao>().notNull().default('pendente'),
-    entrada: jsonb().$type<EntradaDaExecucao>().notNull(),
+    entrada: jsonb().$type<ExecucaoInput>().notNull(),
     resultado: jsonb().$type<ResultadoGravado>(),
-    erro: text().$type<CodigoDeErro>(),
+    erro: text().$type<ErrorCode>(),
     criadaEm: timestamp({ withTimezone: true }).notNull().defaultNow(),
     iniciadaEm: timestamp({ withTimezone: true }),
     concluidaEm: timestamp({ withTimezone: true }),

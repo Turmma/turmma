@@ -1,4 +1,4 @@
-import { CodigoDeErro, type RespostaQuestaoSalva, type RespostaSalva } from '@educa/shared'
+import { ErrorCode, type QuestaoSalvaResponse, type RespostaSalva } from '@educa/shared'
 
 /**
  * A fila das respostas que o servidor ainda não confirmou (regra 80, item 6: **resposta de prova nunca se perde**). A
@@ -100,7 +100,7 @@ export function comecarEnvio(estado: EstadoDaFila): EstadoDaFila {
  * janela passa a conhecer a gravada e a questão ganha o aviso. A escolha mais nova feita aqui no meio não perde nada:
  * continua na fila, e o servidor decide por ela.
  */
-export function confirmarEnvio(estado: EstadoDaFila, salva: Pick<RespostaQuestaoSalva, 'alternativa' | 'sequencia'>): EstadoDaFila {
+export function confirmarEnvio(estado: EstadoDaFila, salva: Pick<QuestaoSalvaResponse, 'alternativa' | 'sequencia'>): EstadoDaFila {
   const { noAr } = estado
   if (noAr === undefined) return estado
   const perdeu = salva.sequencia !== noAr.sequencia || salva.alternativa !== noAr.alternativa
@@ -137,14 +137,14 @@ export function adotarLeitura(estado: EstadoDaFila, lidas: readonly RespostaSalv
 }
 
 /** Como a falha de uma gravação é tratada, pelo código. Na dúvida é passageira: a escolha fica e é tentada de novo. */
-export function tipoDaFalha(codigo: CodigoDeErro): FalhaDaFila {
-  if (codigo === CodigoDeErro.ATIVIDADE_ENCERRADA) return 'encerrada'
-  if (codigo === CodigoDeErro.NAO_ENCONTRADO || codigo === CodigoDeErro.ENTRADA_INVALIDA) return 'recusada'
+export function tipoDaFalha(codigo: ErrorCode): FalhaDaFila {
+  if (codigo === ErrorCode.ATIVIDADE_ENCERRADA) return 'encerrada'
+  if (codigo === ErrorCode.NAO_ENCONTRADO || codigo === ErrorCode.ENTRADA_INVALIDA) return 'recusada'
   return 'passageira'
 }
 
 /** A gravação falhou. **A escolha continua na fila**, em qualquer falha: é o que a tela mostra como marcado e não salvo. */
-export function falharEnvio(estado: EstadoDaFila, codigo: CodigoDeErro): EstadoDaFila {
+export function falharEnvio(estado: EstadoDaFila, codigo: ErrorCode): EstadoDaFila {
   if (estado.noAr === undefined) return estado
   return { ...estado, noAr: undefined, falha: tipoDaFalha(codigo), tentativas: estado.tentativas + 1 }
 }

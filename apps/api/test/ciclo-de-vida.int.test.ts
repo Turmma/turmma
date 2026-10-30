@@ -1,6 +1,6 @@
 import { ErroDeDominio, executarNoContexto, type TransacaoBanco } from '@educa/nucleo'
 import { CicloDeVidaRepository, CicloDeVidaService } from '@educa/nucleo/ciclo-de-vida'
-import { CodigoDeErro, esquemaRespostaDecisao, type PapelDeUsuario } from '@educa/shared'
+import { ErrorCode, decisaoResponseSchema, type PapelDeUsuario } from '@educa/shared'
 import { sql } from 'drizzle-orm'
 import type { Redis } from 'ioredis'
 import { randomBytes, randomUUID } from 'node:crypto'
@@ -83,7 +83,7 @@ describe('ciclo de vida da conta: desativação, limpeza da conta global e elimi
       (motivo: unknown) => motivo,
     )
     expect(erro).toBeInstanceOf(ErroDeDominio)
-    expect((erro as ErroDeDominio).codigo).toBe(CodigoDeErro.NAO_ENCONTRADO)
+    expect((erro as ErroDeDominio).codigo).toBe(ErrorCode.NAO_ENCONTRADO)
   }
 
   async function pessoa(escolaId: string, papel: PapelDeUsuario = 'professor'): Promise<Pessoa> {
@@ -227,7 +227,7 @@ describe('ciclo de vida da conta: desativação, limpeza da conta global e elimi
     // A senha certa não entra mais: a mesma resposta da senha errada.
     const deNovo = await entrarPorMatricula(escolaId, matricula)
     expect(deNovo.status).toBe(401)
-    expect(deNovo.corpo.erro?.codigo).toBe(CodigoDeErro.NAO_AUTENTICADO)
+    expect(deNovo.corpo.erro?.codigo).toBe(ErrorCode.NAO_AUTENTICADO)
     expect((await entrarPorMatricula(escolaId, matriculaDoColega)).corpo['etapa']).toBe('pronta')
     // Desativar de novo não acha ninguém, e não grava outro registro.
     await esperarNaoEncontrado(pela(coordenacao, () => servico.desativar(enzo)))
@@ -364,7 +364,7 @@ describe('ciclo de vida da conta: desativação, limpeza da conta global e elimi
     const codigo = TOTP.generate({ secret: Secret.fromBase32(segredo), algorithm: 'SHA1', digits: 6, period: 30 })
     const comCodigo = await postar('/v1/sessao/mfa', { codigo }, String(login.corpo['desafio']))
     expect(comCodigo.status).toBe(401)
-    expect(comCodigo.corpo.erro?.codigo).toBe(CodigoDeErro.NAO_AUTENTICADO)
+    expect(comCodigo.corpo.erro?.codigo).toBe(ErrorCode.NAO_AUTENTICADO)
     expect(await sessoesDe(escolaId, renata.usuarioId)).toEqual([])
   })
 
@@ -690,7 +690,7 @@ describe('ciclo de vida da conta: desativação, limpeza da conta global e elimi
     const decidir = async (s: SalaDeTeste, ids: readonly string[], decisao: 'aprovar' | 'recusar' = 'aprovar') => {
       const resposta = await chamar(api.url, 'POST', '/v1/reivindicacoes/decidir', s.professor.token, { ids, decisao })
       expect(resposta.status).toBe(200)
-      expect(esquemaRespostaDecisao.parse(resposta.corpo).resultados.map((linha) => linha.resultado)).toEqual(ids.map(() => 'decidida'))
+      expect(decisaoResponseSchema.parse(resposta.corpo).resultados.map((linha) => linha.resultado)).toEqual(ids.map(() => 'decidida'))
     }
 
     /** O aluno reivindica o nome pela sala, com a matrícula certa, e o id do pedido pendente que nasceu. */

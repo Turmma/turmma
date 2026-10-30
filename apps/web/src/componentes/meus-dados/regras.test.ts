@@ -1,4 +1,4 @@
-import { CATEGORIAS_DE_RETENCAO, CHAVES_DE_RETENCAO, CodigoDeErro, ESTADOS_DO_PEDIDO, TIPOS_DE_PEDIDO_DO_TITULAR, type PedidoDeMeusDados } from '@educa/shared'
+import { CATEGORIAS_DE_RETENCAO, CHAVES_DE_RETENCAO, ErrorCode, ESTADOS_DO_PEDIDO, TIPOS_DE_PEDIDO_DO_TITULAR, type PedidoDeMeusDados } from '@educa/shared'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AbaDoNavegador } from '../pedidos/atualizacao-dos-pedidos'
 import {
@@ -273,8 +273,8 @@ describe('os textos do download e da escola', () => {
   })
 
   it('o arquivo que saiu e o armazém fora têm texto próprio, e só o que saiu muda o que a tela mostra', () => {
-    expect(TEXTOS_DA_FALHA_DE_BAIXAR[CodigoDeErro.NAO_ENCONTRADO]).toContain('foi apagado')
-    expect(TEXTOS_DA_FALHA_DE_BAIXAR[CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO]).toContain('o arquivo continua guardado')
-    expect(CODIGOS_QUE_MUDAM_OS_MEUS_DADOS).toEqual([CodigoDeErro.NAO_ENCONTRADO])
+    expect(TEXTOS_DA_FALHA_DE_BAIXAR[ErrorCode.NAO_ENCONTRADO]).toContain('foi apagado')
+    expect(TEXTOS_DA_FALHA_DE_BAIXAR[ErrorCode.INDISPONIVEL_TENTE_DE_NOVO]).toContain('o arquivo continua guardado')
+    expect(CODIGOS_QUE_MUDAM_OS_MEUS_DADOS).toEqual([ErrorCode.NAO_ENCONTRADO])
   })
 })

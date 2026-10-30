@@ -1,6 +1,6 @@
 import 'reflect-metadata'
 import { criarLogger, type Banco } from '@educa/nucleo'
-import { CodigoDeErro, esquemaRespostaAceitarConviteDeOperador, esquemaRespostaConsultarConviteDeOperador, MENSAGENS_DE_ERRO } from '@educa/shared'
+import { ErrorCode, aceitarConviteDeOperadorResponseSchema, consultarConviteDeOperadorResponseSchema, MENSAGENS_DE_ERRO } from '@educa/shared'
 import type { INestApplication, Type } from '@nestjs/common'
 import { DiscoveryService, NestFactory } from '@nestjs/core'
 import { randomBytes, randomUUID } from 'node:crypto'
@@ -59,7 +59,7 @@ function semRequisicaoId(corpo: unknown): unknown {
   return { erro }
 }
 
-function esperarErro(resposta: Resposta, status: number, codigo: CodigoDeErro): void {
+function esperarErro(resposta: Resposta, status: number, codigo: ErrorCode): void {
   expect(resposta.status).toBe(status)
   expect(resposta.corpo).toEqual({ erro: { codigo, mensagem: MENSAGENS_DE_ERRO[codigo], requisicaoId: expect.stringMatching(UUID) } })
 }
@@ -219,7 +219,7 @@ describe('convite do operador: consultar e aceitar (tarefa 5.0)', () => {
       expect(aceite.status).toBe(200)
       expect(aceite.cacheControl).toBe('no-store')
       expect(aceite.setCookie).toEqual([])
-      const corpo = esquemaRespostaAceitarConviteDeOperador.parse(aceite.corpo)
+      const corpo = aceitarConviteDeOperadorResponseSchema.parse(aceite.corpo)
       expect(Object.keys(aceite.corpo as object).sort()).toEqual(['desafio', 'etapa'])
       expect(corpo.etapa).toBe('configurar_mfa')
       const configuracao = configuracaoDeTeste()
@@ -260,7 +260,7 @@ describe('convite do operador: consultar e aceitar (tarefa 5.0)', () => {
 
       for (const sessao of [primeira, segunda]) {
         expect(await fimDaSessao(sessao.sessaoId)).toEqual({ encerrada: true, motivo: 'convite_aceito' })
-        esperarErro(await eu(sessao.token), 401, CodigoDeErro.SESSAO_ENCERRADA)
+        esperarErro(await eu(sessao.token), 401, ErrorCode.SESSAO_ENCERRADA)
       }
       expect(await fimDaSessao(jaEncerrada.sessaoId)).toEqual({ encerrada: true, motivo: 'saida' })
       expect(await fimDaSessao(deOutro.sessaoId)).toEqual({ encerrada: false, motivo: null })
@@ -284,10 +284,10 @@ describe('convite do operador: consultar e aceitar (tarefa 5.0)', () => {
 
       const casos = { usado: usado.token, vencido: vencido.token, revogado: revogado.token, inexistente }
       const esperado = forma(await consultar(inexistente))
-      esperarErro(await consultar(inexistente), 404, CodigoDeErro.NAO_ENCONTRADO)
+      esperarErro(await consultar(inexistente), 404, ErrorCode.NAO_ENCONTRADO)
       for (const [caso, token] of Object.entries(casos)) {
         const [consulta, aceite] = [await consultar(token), await aceitar(token, OUTRA_SENHA)]
-        esperarErro(consulta, 404, CodigoDeErro.NAO_ENCONTRADO)
+        esperarErro(consulta, 404, ErrorCode.NAO_ENCONTRADO)
         expect(forma(consulta), `consultar ${caso}`).toEqual(esperado)
         expect(forma(aceite), `aceitar ${caso}`).toEqual(esperado)
       }
@@ -318,7 +318,7 @@ describe('convite do operador: consultar e aceitar (tarefa 5.0)', () => {
       const revogado = await operadorComConvite()
       await operadores.pool.query('update convite_operador set revogado_em = now() where id = $1', [revogado.conviteId])
       const comoRevogado = { consultar: forma(await consultar(revogado.token)), aceitar: forma(await aceitar(revogado.token)) }
-      esperarErro(await consultar(revogado.token), 404, CodigoDeErro.NAO_ENCONTRADO)
+      esperarErro(await consultar(revogado.token), 404, ErrorCode.NAO_ENCONTRADO)
       expect({ consultar: forma(await consultar(convite.token)), aceitar: forma(await aceitar(convite.token)) }).toEqual(comoRevogado)
       expect(await usadoEm(convite.conviteId)).toBeNull()
       expect((await consultar(novo.token)).status).toBe(200)
@@ -448,7 +448,7 @@ describe('convite do operador: consultar e aceitar (tarefa 5.0)', () => {
       const perdedora = vencedora === SENHA ? OUTRA_SENHA : SENHA
       const recusada = respostas.find((resposta) => resposta.status === 404)
       if (recusada === undefined) throw new Error('nenhuma recusa')
-      esperarErro(recusada, 404, CodigoDeErro.NAO_ENCONTRADO)
+      esperarErro(recusada, 404, ErrorCode.NAO_ENCONTRADO)
       const { senha_hash: senhaHash } = await linhaDoOperador(convite.operadorId)
       expect(await hash.verificar(senhaHash, vencedora)).toBe(true)
       expect(await hash.verificar(senhaHash, perdedora)).toBe(false)
@@ -460,7 +460,7 @@ describe('convite do operador: consultar e aceitar (tarefa 5.0)', () => {
   describe('C21: o desafio do aceite não serve de bearer em rota nenhuma', () => {
     it('em toda rota de operação com sessão e em toda rota de escola com sessão, igual a rota inexistente; nas de desafio da escola, recusado sem sessão', async () => {
       const convite = await operadorComConvite()
-      const { desafio } = esquemaRespostaAceitarConviteDeOperador.parse((await aceitar(convite.token)).corpo)
+      const { desafio } = aceitarConviteDeOperadorResponseSchema.parse((await aceitar(convite.token)).corpo)
       const cabecalhos = { Authorization: `Bearer ${desafio}` }
       // As rotas que a aplicação montada registrou: a lista não é escrita à mão.
       const rotas = rotasDe(
@@ -490,7 +490,7 @@ describe('convite do operador: consultar e aceitar (tarefa 5.0)', () => {
         ['/v1/conta/mfa/configurar', undefined],
       ] as const) {
         const resposta = await pedir(url, 'POST', caminho, corpo, cabecalhos)
-        esperarErro(resposta, 401, CodigoDeErro.NAO_AUTENTICADO)
+        esperarErro(resposta, 401, ErrorCode.NAO_AUTENTICADO)
         expect(resposta.setCookie).toEqual([])
       }
       const { rows } = await operadores.pool.query<{ total: number }>('select count(*)::int as total from sessao_operador where operador_id = $1', [convite.operadorId])
@@ -516,7 +516,7 @@ describe('convite do operador: consultar e aceitar (tarefa 5.0)', () => {
 
       // No outro sentido: o token do operador na rota da escola é inexistente lá, e continua valendo aqui.
       const convite = await operadorComConvite()
-      esperarErro(await pedir(url, 'POST', '/v1/convites/aceitar', { token: convite.token, senha: SENHA }), 404, CodigoDeErro.NAO_ENCONTRADO)
+      esperarErro(await pedir(url, 'POST', '/v1/convites/aceitar', { token: convite.token, senha: SENHA }), 404, ErrorCode.NAO_ENCONTRADO)
       expect((await consultar(convite.token)).status).toBe(200)
       expect(await usadoEm(convite.conviteId)).toBeNull()
     })
@@ -531,16 +531,16 @@ describe('convite do operador: consultar e aceitar (tarefa 5.0)', () => {
         { token: convite.token },
       ]) {
         const resposta = await pedir(url, 'POST', '/v1/operacao/convite/aceitar', corpo, ip())
-        esperarErro(resposta, 400, CodigoDeErro.ENTRADA_INVALIDA)
+        esperarErro(resposta, 400, ErrorCode.ENTRADA_INVALIDA)
         expect(resposta.cacheControl).toBe('no-store')
       }
-      esperarErro(await pedir(url, 'POST', '/v1/operacao/convite/consultar', { token: convite.token, apelido: convite.apelido }, ip()), 400, CodigoDeErro.ENTRADA_INVALIDA)
+      esperarErro(await pedir(url, 'POST', '/v1/operacao/convite/consultar', { token: convite.token, apelido: convite.apelido }, ip()), 400, ErrorCode.ENTRADA_INVALIDA)
       expect(await usadoEm(convite.conviteId)).toBeNull()
       expect((await consultar(convite.token)).status).toBe(200)
 
-      expect(esquemaRespostaAceitarConviteDeOperador.safeParse({ etapa: 'configurar_mfa', desafio: 'x', operadorId: convite.operadorId }).success).toBe(false)
-      expect(esquemaRespostaAceitarConviteDeOperador.safeParse({ etapa: 'mfa', desafio: 'x' }).success).toBe(false)
-      expect(esquemaRespostaConsultarConviteDeOperador.safeParse({ valido: true, apelido: convite.apelido }).success).toBe(false)
+      expect(aceitarConviteDeOperadorResponseSchema.safeParse({ etapa: 'configurar_mfa', desafio: 'x', operadorId: convite.operadorId }).success).toBe(false)
+      expect(aceitarConviteDeOperadorResponseSchema.safeParse({ etapa: 'mfa', desafio: 'x' }).success).toBe(false)
+      expect(consultarConviteDeOperadorResponseSchema.safeParse({ valido: true, apelido: convite.apelido }).success).toBe(false)
     })
   })
 })
@@ -569,11 +569,11 @@ describe('convite do operador: o limite por IP (C32 e C33, parte)', () => {
   it('C32: `convite/consultar` acima do `rl:ip:op` responde 429 LIMITE_EXCEDIDO com Retry-After; outro IP segue', async () => {
     const [ip, outro] = [ipSorteado(), ipSorteado()]
     const token = randomBytes(32).toString('base64url')
-    for (let vez = 0; vez < LIMITE_POR_IP; vez++) esperarErro(await pedir(url, 'POST', '/v1/operacao/convite/consultar', { token }, doIp(ip)), 404, CodigoDeErro.NAO_ENCONTRADO)
+    for (let vez = 0; vez < LIMITE_POR_IP; vez++) esperarErro(await pedir(url, 'POST', '/v1/operacao/convite/consultar', { token }, doIp(ip)), 404, ErrorCode.NAO_ENCONTRADO)
     const recusada = await pedir(url, 'POST', '/v1/operacao/convite/consultar', { token }, doIp(ip))
-    esperarErro(recusada, 429, CodigoDeErro.LIMITE_EXCEDIDO)
+    esperarErro(recusada, 429, ErrorCode.LIMITE_EXCEDIDO)
     expect(Number(recusada.retryAfter)).toBeGreaterThanOrEqual(1)
-    esperarErro(await pedir(url, 'POST', '/v1/operacao/convite/consultar', { token }, doIp(outro)), 404, CodigoDeErro.NAO_ENCONTRADO)
+    esperarErro(await pedir(url, 'POST', '/v1/operacao/convite/consultar', { token }, doIp(outro)), 404, ErrorCode.NAO_ENCONTRADO)
   })
 
   it('C33: `convite/aceitar` acima do limite do IP não responde 429: o aceite vai para o fim do balde no semáforo do hash, e o de outro IP não', async () => {
@@ -583,7 +583,7 @@ describe('convite do operador: o limite por IP (C32 e C33, parte)', () => {
     try {
       // O dobro do limite, com tokens que não existem: nenhum 429.
       for (let vez = 0; vez < 2 * LIMITE_POR_IP; vez++) {
-        esperarErro(await pedir(url, 'POST', '/v1/operacao/convite/aceitar', { token: randomBytes(32).toString('base64url'), senha: SENHA }, doIp(ip)), 404, CodigoDeErro.NAO_ENCONTRADO)
+        esperarErro(await pedir(url, 'POST', '/v1/operacao/convite/aceitar', { token: randomBytes(32).toString('base64url'), senha: SENHA }, doIp(ip)), 404, ErrorCode.NAO_ENCONTRADO)
       }
       // O convite que não vale sai antes do hash: não gasta vez no semáforo.
       expect(vezes).not.toHaveBeenCalled()

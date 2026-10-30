@@ -2,7 +2,7 @@ import { avisoEspacado, ProporcaoEmJanela, relogioDoSistema, type Relogio } from
 import { Logger } from '@nestjs/common'
 import type { Redis } from 'ioredis'
 import { createHmac } from 'node:crypto'
-import { ErroDeInvariante } from '@educa/shared'
+import { InvariantException } from '@educa/shared'
 
 /** Falhas seguidas antes de a conta ser segurada (Tech Spec, seção 5, "Tentativas"). */
 export const FALHAS_ANTES_DE_SEGURAR = 5
@@ -201,7 +201,7 @@ export class ContadorDeTentativas {
       try {
         const resposta = await this.cliente.eval(SCRIPT_RESERVAR, 1, chave, agora, FALHAS_ANTES_DE_SEGURAR, ESPERA_INICIAL_MS, ESPERA_MAXIMA_MS, VALIDADE_DO_CONTADOR_MS)
         const [liberada, espera] = Array.isArray(resposta) ? resposta.map(Number) : []
-        if (espera === undefined || !Number.isFinite(espera)) throw new ErroDeInvariante('resposta do contador fora do formato')
+        if (espera === undefined || !Number.isFinite(espera)) throw new InvariantException('resposta do contador fora do formato')
         this.#proporcaoDoSeguro.registrar(false)
         // A conta que o Redis segurou (agora, ou por esta falha) fica também no seguro desta instância.
         if (espera > 0) this.#seguro.espelhar(chave, agora + espera, agora)

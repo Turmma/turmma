@@ -23,7 +23,7 @@ import {
   type Relogio,
   type TransacaoBanco,
 } from '@educa/nucleo'
-import { ErroDeInvariante, TIPOS_DE_SINAL_DE_TRABALHO, TROCAS_POR_DIA_PADRAO_DO_TUTOR, type Citacao, type Etapa, type EstadoDeAtividadeAplicada, type TipoDeMensagemDoTutor, type TipoDeSinal, type TipoDeSinalDeTrabalho } from '@educa/shared'
+import { InvariantException, TIPOS_DE_SINAL_DE_TRABALHO, TROCAS_POR_DIA_PADRAO_DO_TUTOR, type Citacao, type Etapa, type EstadoDeAtividadeAplicada, type TipoDeMensagemDoTutor, type TipoDeSinal, type TipoDeSinalDeTrabalho } from '@educa/shared'
 import { and, asc, count, desc, eq, exists, gte, inArray, isNull, lt, notExists, sql, type SQL } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/pg-core'
 import type { TurnoDoAluno } from './sinais-do-turno.js'
@@ -238,7 +238,7 @@ export class TutorDoAlunoRepository {
       .insert(mensagemTutor)
       .values({ escolaId, anoLetivoId, turmaId, alunoId, execucaoId, autor: 'aluno', tipo: 'texto', texto, ...onde })
       .returning({ id: mensagemTutor.id })
-    if (gravada === undefined) throw new ErroDeInvariante('pergunta ao Tutor não gravada')
+    if (gravada === undefined) throw new InvariantException('pergunta ao Tutor não gravada')
     return gravada.id
   }
 
@@ -270,7 +270,7 @@ export class TutorDoAlunoRepository {
       .select({ id: mensagemTutor.id })
       .from(mensagemTutor)
       .where(and(this.#doAluno(), eq(mensagemTutor.execucaoId, pergunta.execucaoId), eq(mensagemTutor.autor, 'tutor')))
-    if (existente === undefined) throw new ErroDeInvariante('resposta do Tutor não gravada')
+    if (existente === undefined) throw new InvariantException('resposta do Tutor não gravada')
     return existente.id
   }
 

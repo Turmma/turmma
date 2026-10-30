@@ -1,5 +1,5 @@
 import { ErroDeDominio, METRICAS, relogioDoSistema, type Banco, type Meter, type Relogio } from '@educa/nucleo'
-import { CodigoDeErro, type EtapaComDesafio, type PedidoMfa, type RespostaAtivarMfa, type RespostaConfigurarMfa } from '@educa/shared'
+import { ErrorCode, type EtapaComDesafio, type MfaRequest, type AtivarMfaResponse, type ConfigurarMfaResponse } from '@educa/shared'
 import type { CifraDoSegredo } from '../../credencial/cifra-do-segredo.js'
 import type { ConclusaoDeLogin } from '../conclusao/conclusao-de-login.js'
 import type { ContadorDeTentativas } from '../../credencial/contador-de-tentativas.js'
@@ -28,7 +28,7 @@ export interface DependenciasDoMfa {
   readonly relogio?: Relogio
 }
 
-const naoAutenticado = () => new ErroDeDominio(CodigoDeErro.NAO_AUTENTICADO)
+const naoAutenticado = () => new ErroDeDominio(ErrorCode.NAO_AUTENTICADO)
 
 /**
  * O segundo fator do coordenador (RF12; Tech Spec, seções 4 e 5): configurar e ativar o app autenticador, e entrar
@@ -65,7 +65,7 @@ export class MfaService {
     this.#contaSegurada = dependencias.medidor.createCounter(METRICAS.contaSegurada, { description: 'Tentativas de login respondidas com CONTA_SEGURADA' })
   }
 
-  async configurar(desafio: string): Promise<RespostaConfigurarMfa> {
+  async configurar(desafio: string): Promise<ConfigurarMfaResponse> {
     const verificado = await this.#desafioLivre(desafio, 'configurar_mfa')
     const conta = await this.dependencias.resolucao.mfaDaConta(verificado.contaId)
     if (conta === undefined) throw naoAutenticado()
@@ -77,7 +77,7 @@ export class MfaService {
     return { uri: novo.uri, segredo: novo.base32 }
   }
 
-  async ativar(desafio: string, codigo: string): Promise<RespostaAtivarMfa> {
+  async ativar(desafio: string, codigo: string): Promise<AtivarMfaResponse> {
     const verificado = await this.#desafioLivre(desafio, 'configurar_mfa')
     const conta = await this.dependencias.resolucao.mfaDaConta(verificado.contaId)
     if (conta === undefined || conta.segredoCifrado === null) throw naoAutenticado()
@@ -95,7 +95,7 @@ export class MfaService {
     return { codigosRecuperacao: codigos }
   }
 
-  async entrar(desafio: string, pedido: PedidoMfa, origem: OrigemDaRequisicao): Promise<ResultadoDoLogin> {
+  async entrar(desafio: string, pedido: MfaRequest, origem: OrigemDaRequisicao): Promise<ResultadoDoLogin> {
     const { resolucao, contador, dispositivo } = this.dependencias
     const verificado = await this.#desafioLivre(desafio, 'mfa')
     const conta = await resolucao.mfaDaConta(verificado.contaId)
@@ -127,7 +127,7 @@ export class MfaService {
       // tem outro usuário ativo: a resposta de convite inválido, sem `login_falho`, e o contador do código volta ao que
       // era antes (Tech Spec da A0b, seção 5).
       await contador.desfazer(chave, reserva)
-      throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
+      throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
     }
     await contador.zerar(chave)
     if (usuarios.length === 0) throw naoAutenticado()
@@ -158,7 +158,7 @@ export class MfaService {
   }
 
   /** O código do app (passo novo, gravado no banco) ou o de recuperação (usado uma vez, no banco). */
-  async #fatorConfere(conta: MfaDaConta, pedido: PedidoMfa): Promise<boolean> {
+  async #fatorConfere(conta: MfaDaConta, pedido: MfaRequest): Promise<boolean> {
     if ('codigo' in pedido) {
       const passo = passoDoCodigo(this.#segredo(conta), pedido.codigo, this.#relogio.agora())
       return passo !== undefined && (await this.dependencias.resolucao.avancarPassoDoMfa(conta.id, passo))
@@ -181,6 +181,6 @@ export class MfaService {
 
   #segurada(esperaMs: number): ErroDeDominio {
     this.#contaSegurada.add(1)
-    return new ErroDeDominio(CodigoDeErro.CONTA_SEGURADA, undefined, Math.max(1, Math.ceil(esperaMs / 1_000)))
+    return new ErroDeDominio(ErrorCode.CONTA_SEGURADA, undefined, Math.max(1, Math.ceil(esperaMs / 1_000)))
   }
 }

@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { esquemaConsultaPaginada, esquemaDePagina } from '../estrutura/paginacao.js'
+import { paginationQuerySchema, pageSchema } from '../estrutura/pagination.js'
 import { CHAVES_DE_FUNCAO } from '../time/funcoes.js'
 
 /**
@@ -22,17 +22,17 @@ export const NOME_DO_TIPO_DE_ENTREGA: Readonly<Record<TipoDeEntrega, string>> = 
  * Consulta de `GET /v1/entregas`: a página, o estado e a turma. O professor só recebe as das turmas em que tem vínculo
  * confirmado, com ou sem o filtro de turma.
  */
-export const esquemaConsultaEntregas = esquemaConsultaPaginada.extend({ estado: z.enum(ESTADOS_DE_ENTREGA).optional(), turmaId: z.uuid().optional() }).strict()
-export type ConsultaEntregas = z.infer<typeof esquemaConsultaEntregas>
+export const entregasQuerySchema = paginationQuerySchema.extend({ estado: z.enum(ESTADOS_DE_ENTREGA).optional(), turmaId: z.uuid().optional() }).strict()
+export type EntregasQuery = z.infer<typeof entregasQuerySchema>
 
 /** Quem decidiu, para a linha "Aprovado por … · quando". Só o professor da turma recebe este nome. */
-export const esquemaAutorDaDecisao = z.strictObject({ id: z.uuid(), nome: z.string().min(1) })
+export const autorDaDecisaoSchema = z.strictObject({ id: z.uuid(), nome: z.string().min(1) })
 
 /**
  * Uma entrega, como o professor da turma a vê em "Seu time": o que é, de que função veio, a que artefato ou atividade
  * aplicada se refere, o estado e, depois de decidida, quem decidiu, quando e a justificativa da rejeição.
  */
-export const esquemaEntrega = z.strictObject({
+export const entregaSchema = z.strictObject({
   id: z.uuid(),
   tipo: z.enum(TIPOS_DE_ENTREGA),
   funcao: z.enum(CHAVES_DE_FUNCAO),
@@ -46,13 +46,13 @@ export const esquemaEntrega = z.strictObject({
   atividadeAplicadaId: z.uuid().nullable(),
   criadaEm: z.iso.datetime(),
   decididaEm: z.iso.datetime().nullable(),
-  decididaPor: esquemaAutorDaDecisao.nullable(),
+  decididaPor: autorDaDecisaoSchema.nullable(),
   justificativa: z.string().min(1).nullable(),
 })
-export type Entrega = z.infer<typeof esquemaEntrega>
+export type Entrega = z.infer<typeof entregaSchema>
 
-export const esquemaRespostaListaDeEntregas = esquemaDePagina(esquemaEntrega)
-export type RespostaListaDeEntregas = z.infer<typeof esquemaRespostaListaDeEntregas>
+export const listaDeEntregasResponseSchema = pageSchema(entregaSchema)
+export type ListaDeEntregasResponse = z.infer<typeof listaDeEntregasResponseSchema>
 
 export const DECISOES_DE_ENTREGA = ['aprovar', 'rejeitar'] as const
 export type DecisaoDeEntrega = (typeof DECISOES_DE_ENTREGA)[number]
@@ -69,12 +69,12 @@ export const TAMANHO_MAXIMO_DA_JUSTIFICATIVA = 500
  * registro da validação (D56). Aprovar um lote por esta rota responde `ENTRADA_INVALIDA`, e o banco recusa o lote
  * aprovado sem validação mesmo por fora da API. Rejeitar o lote é por aqui.
  */
-export const esquemaPedidoDecidirEntrega = z.discriminatedUnion('decisao', [
+export const decidirEntregaRequestSchema = z.discriminatedUnion('decisao', [
   z.strictObject({ decisao: z.literal('aprovar') }),
   z.strictObject({ decisao: z.literal('rejeitar'), justificativa: z.string().trim().min(TAMANHO_MINIMO_DA_JUSTIFICATIVA).max(TAMANHO_MAXIMO_DA_JUSTIFICATIVA) }),
 ])
-export type PedidoDecidirEntrega = z.infer<typeof esquemaPedidoDecidirEntrega>
+export type DecidirEntregaRequest = z.infer<typeof decidirEntregaRequestSchema>
 
 /** Resposta de `POST /v1/entregas/:id/decidir`: a entrega decidida. A que já tinha decisão responde `ENTREGA_JA_DECIDIDA`. */
-export const esquemaRespostaEntrega = esquemaEntrega
-export type RespostaEntrega = Entrega
+export const entregaResponseSchema = entregaSchema
+export type EntregaResponse = Entrega

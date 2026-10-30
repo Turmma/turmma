@@ -1,12 +1,12 @@
 import { ErroDeDominio } from '@educa/nucleo'
 import {
-  esquemaRespostaCorrecaoDoLote,
-  esquemaRespostaDesempenhoDaTurma,
-  esquemaRespostaDestaqueAberto,
-  esquemaRespostaLoteAprovado,
-  esquemaRespostaMeuDiagnostico,
-  esquemaRespostaMinhasAtividades,
-  type RespostaCorrecaoDoLote,
+  correcaoDoLoteResponseSchema,
+  desempenhoDaTurmaResponseSchema,
+  destaqueAbertoResponseSchema,
+  loteAprovadoResponseSchema,
+  meuDiagnosticoResponseSchema,
+  minhasAtividadesResponseSchema,
+  type CorrecaoDoLoteResponse,
 } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { readdirSync, readFileSync } from 'node:fs'
@@ -65,7 +65,7 @@ describe('correção de objetiva e validação do lote', () => {
   const entregaNoBanco = async (id: string) => (await sql<{ estado: string; decidida_por: string | null; decidida_em: Date | null }>('select estado, decidida_por, decidida_em from entrega where id = $1', [id]))[0]
   const auditorias = (acao: string, entidadeId: string) => sql<{ autor_usuario_id: string; antes: unknown; depois: Record<string, unknown>; finalidade: string | null }>('select autor_usuario_id, antes, depois, finalidade from auditoria where acao = $1 and entidade_id = $2 order by em', [acao, entidadeId])
   const correcoesDoLote = (entregaId: string) => sql('select id, aluno_id, acertos, total, em_branco, por_habilidade, destaques, destaque_aberto_em, destaque_aberto_por, corrigida_em from correcao where entrega_id = $1 order by aluno_id', [entregaId])
-  const lerCorrecao = async (sessao: SessaoDeTeste, atividadeId: string): Promise<RespostaCorrecaoDoLote> => esquemaRespostaCorrecaoDoLote.parse((await rotas.correcao(sessao, atividadeId)).corpo)
+  const lerCorrecao = async (sessao: SessaoDeTeste, atividadeId: string): Promise<CorrecaoDoLoteResponse> => correcaoDoLoteResponseSchema.parse((await rotas.correcao(sessao, atividadeId)).corpo)
 
   async function turmaNova(): Promise<Turma> {
     const escola = await montarEscolaComAssistente(api, bancada)
@@ -108,7 +108,7 @@ describe('correção de objetiva e validação do lote', () => {
       const { id, entregaId } = await cenarioComum(turma)
       const resposta = await rotas.correcao(turma.escola.professora, id)
       expect(resposta.status).toBe(200)
-      const lote = esquemaRespostaCorrecaoDoLote.parse(resposta.corpo)
+      const lote = correcaoDoLoteResponseSchema.parse(resposta.corpo)
 
       expect(lote).toMatchObject({ atividadeAplicadaId: id, entrega: { id: entregaId, estado: 'pendente' }, destaquesAbertos: 0, podeAprovar: false, validacao: null })
       // Cinco alunos na turma, quatro abriram a atividade: quem faltou não tem correção.
@@ -154,7 +154,7 @@ describe('correção de objetiva e validação do lote', () => {
 
       const resposta = await rotas.abrirDestaque(professora, id, turma.bia.usuarioId)
       expect(resposta.status).toBe(200)
-      const aberto = esquemaRespostaDestaqueAberto.parse(resposta.corpo)
+      const aberto = destaqueAbertoResponseSchema.parse(resposta.corpo)
       expect(aberto.destaque).toMatchObject({ alunoId: turma.bia.usuarioId, motivos: ['em_branco'], acertos: 0, emBranco: 5 })
       expect(aberto.destaque.abertoEm).not.toBeNull()
       expect(aberto.respostas).toEqual(GABARITO_DE_TESTE.map((gabarito, indice) => ({ questao: indice + 1, alternativa: null, gabarito, correta: false })))
@@ -216,11 +216,11 @@ describe('correção de objetiva e validação do lote', () => {
       const { id, entregaId } = await cenarioComum(turma)
       const { professora } = turma.escola
       const mostrado = await lerCorrecao(professora, id)
-      const aberto = esquemaRespostaDestaqueAberto.parse((await rotas.abrirDestaque(professora, id, turma.bia.usuarioId)).corpo)
+      const aberto = destaqueAbertoResponseSchema.parse((await rotas.abrirDestaque(professora, id, turma.bia.usuarioId)).corpo)
 
       const resposta = await rotas.aprovarLote(professora, entregaId)
       expect(resposta.status).toBe(200)
-      const aprovado = esquemaRespostaLoteAprovado.parse(resposta.corpo)
+      const aprovado = loteAprovadoResponseSchema.parse(resposta.corpo)
       expect(aprovado.entrega).toMatchObject({ id: entregaId, tipo: 'lote_de_correcao', funcao: 'correcao_de_objetiva', estado: 'aprovada', atividadeAplicadaId: id, decididaPor: { id: professora.usuarioId, nome: NOME_DA_PROFESSORA_DE_TESTE }, justificativa: null })
 
       const [validacao] = await sql<{ id: string; apresentado: { resumo: unknown; destaques: unknown }; aberto: unknown; confirmada_por: string; confirmada_em: Date }>('select id, apresentado, aberto, confirmada_por, confirmada_em from validacao_do_lote where entrega_id = $1', [entregaId])
@@ -281,7 +281,7 @@ describe('correção de objetiva e validação do lote', () => {
       // Releu: aprova, e o registrado é o da segunda leitura.
       const relido = await lerCorrecao(professora, id)
       expect(relido.resumo.alunosDaTurma).toBe(mostrado.resumo.alunosDaTurma + 1)
-      const aprovado = esquemaRespostaLoteAprovado.parse((await rotas.aprovarLote(professora, entregaId)).corpo)
+      const aprovado = loteAprovadoResponseSchema.parse((await rotas.aprovarLote(professora, entregaId)).corpo)
       expect(aprovado.validacao.apresentado.resumo).toEqual(relido.resumo)
     })
 
@@ -387,7 +387,7 @@ describe('correção de objetiva e validação do lote', () => {
         expect(erro(await rotas.diagnostico(turma.caio, id))).toEqual(erro(await rotas.diagnostico(turma.caio, randomUUID())))
         expect(erro(await rotas.diagnostico(turma.caio, id))).toEqual({ status: 404, codigo: 'NAO_ENCONTRADO' })
         const lista = await rotas.minhas(turma.caio)
-        expect(esquemaRespostaMinhasAtividades.parse(lista.corpo).itens).toEqual([expect.objectContaining({ id, situacao: 'enviada' })])
+        expect(minhasAtividadesResponseSchema.parse(lista.corpo).itens).toEqual([expect.objectContaining({ id, situacao: 'enviada' })])
         const prova = await rotas.prova(turma.caio, id)
         expect(prova.status).toBe(200)
         for (const corpo of [lista.corpo, prova.corpo]) {
@@ -406,7 +406,7 @@ describe('correção de objetiva e validação do lote', () => {
 
       const resposta = await rotas.diagnostico(turma.caio, id)
       expect(resposta.status).toBe(200)
-      const diagnostico = esquemaRespostaMeuDiagnostico.parse(resposta.corpo)
+      const diagnostico = meuDiagnosticoResponseSchema.parse(resposta.corpo)
       expect(diagnostico).toMatchObject({
         atividadeAplicadaId: id,
         acertos: 4,
@@ -427,15 +427,15 @@ describe('correção de objetiva e validação do lote', () => {
       expect(diagnostico.questoes[4]?.explicacao).toContain(EXPLICACAO_DE_TESTE)
 
       // O de cada um é o dele: a Ana que acertou 2 lê 2, e não o 4 do Caio.
-      expect(esquemaRespostaMeuDiagnostico.parse((await rotas.diagnostico(turma.ana2, id)).corpo)).toMatchObject({ acertos: 2, total: 5 })
+      expect(meuDiagnosticoResponseSchema.parse((await rotas.diagnostico(turma.ana2, id)).corpo)).toMatchObject({ acertos: 2, total: 5 })
       // Nada de colega, de turma nem de posição.
       const texto = JSON.stringify(resposta.corpo)
       for (const proibido of [turma.ana1.usuarioId, turma.ana2.usuarioId, turma.bia.usuarioId, NOME_REPETIDO, 'Bia', 'media', 'turma', 'posicao', 'ranking', 'nota', 'destaque']) expect(texto).not.toContain(proibido)
-      expect(esquemaRespostaMinhasAtividades.parse((await rotas.minhas(turma.caio)).corpo).itens).toEqual([expect.objectContaining({ id, situacao: 'com_diagnostico' })])
+      expect(minhasAtividadesResponseSchema.parse((await rotas.minhas(turma.caio)).corpo).itens).toEqual([expect.objectContaining({ id, situacao: 'com_diagnostico' })])
 
       // Quem faltou não tem correção: para ele, mesmo com o lote aprovado, o diagnóstico não existe.
       expect(erro(await rotas.diagnostico(turma.davi, id))).toEqual({ status: 404, codigo: 'NAO_ENCONTRADO' })
-      expect(esquemaRespostaMinhasAtividades.parse((await rotas.minhas(turma.davi)).corpo).itens).toEqual([expect.objectContaining({ id, situacao: 'encerrada' })])
+      expect(minhasAtividadesResponseSchema.parse((await rotas.minhas(turma.davi)).corpo).itens).toEqual([expect.objectContaining({ id, situacao: 'encerrada' })])
     })
   })
 
@@ -457,7 +457,7 @@ describe('correção de objetiva e validação do lote', () => {
       expect(lote.destaques.map(({ alunoId, motivos }) => ({ alunoId, motivos }))).toEqual([{ alunoId: turma.caio.usuarioId, motivos: ['fora_do_historico'] }])
 
       // O destaque aberto mostra o histórico que o explica: só o lote aprovado, com o título e a contagem.
-      const aberto = esquemaRespostaDestaqueAberto.parse((await rotas.abrirDestaque(professora, depoisDeAprovar.id, turma.caio.usuarioId)).corpo)
+      const aberto = destaqueAbertoResponseSchema.parse((await rotas.abrirDestaque(professora, depoisDeAprovar.id, turma.caio.usuarioId)).corpo)
       expect(aberto.historico).toEqual([{ titulo: 'Lista sintética um', acertos: 5, total: 5 }])
       expect(aberto.respostas.filter((resposta) => resposta.correta).map((resposta) => resposta.questao)).toEqual([1])
     })
@@ -465,7 +465,7 @@ describe('correção de objetiva e validação do lote', () => {
 
   describe('desempenho da turma', () => {
     const FINALIDADE = '?finalidade=acompanhamento_pedagogico'
-    const lerDesempenho = async (sessao: SessaoDeTeste, turmaId: string, consulta = '') => esquemaRespostaDesempenhoDaTurma.parse((await rotas.desempenho(sessao, turmaId, consulta)).corpo)
+    const lerDesempenho = async (sessao: SessaoDeTeste, turmaId: string, consulta = '') => desempenhoDaTurmaResponseSchema.parse((await rotas.desempenho(sessao, turmaId, consulta)).corpo)
 
     it('só soma lote aprovado: pendente e rejeitado não entram em número nenhum, e a turma sem lote aprovado vem vazia, com os alunos zerados', async () => {
       const turma = await turmaNova()
@@ -481,7 +481,7 @@ describe('correção de objetiva e validação do lote', () => {
 
       await aprovarOLote(rotas, escola.professora, pendente.id)
       const resposta = await rotas.desempenho(escola.professora, escola.turma)
-      const desempenho = esquemaRespostaDesempenhoDaTurma.parse(resposta.corpo)
+      const desempenho = desempenhoDaTurmaResponseSchema.parse(resposta.corpo)
       expect(desempenho.lotesAprovados).toBe(1)
       // Só o lote aprovado: 8 de 12 e 3 de 8, como no resumo dele. Abaixo da metade: Bia nas duas; a segunda Ana e Bia na segunda.
       expect(desempenho.porHabilidade).toEqual([
@@ -566,7 +566,7 @@ describe('correção de objetiva e validação do lote', () => {
    * diagnóstico da turma antiga nesta fatia (lacuna registrada em `minha-atividade.service.ts`).
    */
   describe('aluno transferido', () => {
-    const lerDesempenho = async (sessao: SessaoDeTeste, turmaId: string) => esquemaRespostaDesempenhoDaTurma.parse((await rotas.desempenho(sessao, turmaId)).corpo)
+    const lerDesempenho = async (sessao: SessaoDeTeste, turmaId: string) => desempenhoDaTurmaResponseSchema.parse((await rotas.desempenho(sessao, turmaId)).corpo)
     const transferir = async (escola: EscolaComAssistente, aluno: SessaoDeTeste) => {
       await sql(`update vinculo set estado = 'encerrado', motivo_encerramento = 'realocacao', encerrado_em = now() where escola_id = $1 and usuario_id = $2 and turma_id = $3`, [escola.escolaId, aluno.usuarioId, escola.turma])
       await sql(`insert into vinculo (escola_id, ano_letivo_id, usuario_id, turma_id, papel, estado, criado_por, decidido_em) values ($1, $2, $3, $4, 'aluno', 'confirmado', $5, now())`, [escola.escolaId, escola.anoLetivoId, aluno.usuarioId, escola.outraTurma, escola.coordenacao.usuarioId])
@@ -633,7 +633,7 @@ describe('correção de objetiva e validação do lote', () => {
 
       for (const destaque of lote.destaques) expect((await rotas.abrirDestaque(escola.professora, id, destaque.alunoId)).status).toBe(200)
       const mostrado = await lerCorrecao(escola.professora, id)
-      const aprovado = esquemaRespostaLoteAprovado.parse((await rotas.aprovarLote(escola.professora, entregaId)).corpo)
+      const aprovado = loteAprovadoResponseSchema.parse((await rotas.aprovarLote(escola.professora, entregaId)).corpo)
       expect(aprovado.validacao.apresentado.resumo).toEqual(mostrado.resumo)
       expect(aprovado.validacao.apresentado.destaques).toEqual(mostrado.destaques.map((destaque) => ({ alunoId: destaque.alunoId, motivos: destaque.motivos })))
       const [gravada] = await sql<{ apresentado: unknown }>('select apresentado from validacao_do_lote where entrega_id = $1', [entregaId])

@@ -1,4 +1,4 @@
-import { CodigoDeErro } from '@educa/shared'
+import { ErrorCode } from '@educa/shared'
 import type { CanActivate, ExecutionContext } from '@nestjs/common'
 import type { Reflector } from '@nestjs/core'
 import type { IncomingMessage } from 'node:http'
@@ -24,14 +24,14 @@ export class GuardaDeAutenticacao implements CanActivate {
   async canActivate(execucao: ExecutionContext): Promise<boolean> {
     if (rotaSemSessao(this.reflector, execucao)) return true
     // Só HTTP; o realtime autentica no handshake. Outro tipo não passa sem token.
-    if (execucao.getType() !== 'http') throw new ErroDeDominio(CodigoDeErro.NAO_AUTENTICADO)
+    if (execucao.getType() !== 'http') throw new ErroDeDominio(ErrorCode.NAO_AUTENTICADO)
 
     const requisicao = execucao.switchToHttp().getRequest<IncomingMessage>()
     // Credencial de operador em rota de escola responde igual a uma rota inexistente (Tech Spec da A0, seções 5 e 6;
     // C47): um 401 diria que a rota existe e só faltou a credencial certa. Basta o `typ` do bearer, ou o nome do cookie
     // de sessão do operador, sem verificar nada: nenhum dos dois passaria de qualquer jeito, e quem os forja só ganha o
     // 404 que já teria numa rota que não existe.
-    if (bearerDeOperador(requisicao.headers.authorization) || cookieDeOperador(requisicao.headers.cookie)) throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
+    if (bearerDeOperador(requisicao.headers.authorization) || cookieDeOperador(requisicao.headers.cookie)) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
     const token = await verificarToken(extrairTokenBearer(requisicao.headers.authorization), this.config)
     guardarTokenDaRequisicao(requisicao, token)
     return true
@@ -45,7 +45,7 @@ export class GuardaDeAutenticacao implements CanActivate {
 export function identidadeDaRequisicao(): Identidade {
   const contexto = contextoAtual()
   if (contexto?.escolaId === undefined || contexto.usuarioId === undefined) {
-    throw new ErroDeDominio(CodigoDeErro.NAO_AUTENTICADO)
+    throw new ErroDeDominio(ErrorCode.NAO_AUTENTICADO)
   }
   return { escolaId: contexto.escolaId, usuarioId: contexto.usuarioId }
 }
@@ -60,7 +60,7 @@ export function sessaoDaRequisicao(): SessaoDaRequisicao {
     contexto.sessaoId === undefined ||
     contexto.anoLetivoId === undefined
   ) {
-    throw new ErroDeDominio(CodigoDeErro.NAO_AUTENTICADO)
+    throw new ErroDeDominio(ErrorCode.NAO_AUTENTICADO)
   }
   return { escolaId: contexto.escolaId, usuarioId: contexto.usuarioId, papel: contexto.papel, sessaoId: contexto.sessaoId, anoLetivoId: contexto.anoLetivoId }
 }

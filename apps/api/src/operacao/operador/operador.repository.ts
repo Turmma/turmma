@@ -12,7 +12,7 @@ import {
   type MotivoDeEncerramentoDeOperador,
   type TransacaoBanco,
 } from '@educa/nucleo'
-import { CodigoDeErro } from '@educa/shared'
+import { ErrorCode } from '@educa/shared'
 import { and, count, eq, exists, isNull, lt, or, sql } from 'drizzle-orm'
 import { DURACAO_DA_SESSAO_DE_OPERADOR_HORAS, type SessaoDeOperadorParaGuarda, type SessaoDeOperadorParaRenovar } from '../sessao/prazos-da-sessao.js'
 
@@ -152,13 +152,13 @@ export class OperadorRepository {
   /** Apelido ou e-mail repetido sai como erro do banco (23505), que o comando traduz sem o valor. */
   async criar(dados: { apelido: string; nome: string; email: string }): Promise<string> {
     const [criado] = await this.banco.insert(operador).values(dados).returning({ id: operador.id })
-    if (criado === undefined) throw new ErroDeDominio(CodigoDeErro.ERRO_INTERNO)
+    if (criado === undefined) throw new ErroDeDominio(ErrorCode.ERRO_INTERNO)
     return criado.id
   }
 
   async criarConvite(dados: { operadorId: string; tokenHash: string; expiraEm: Date }): Promise<string> {
     const [criado] = await this.banco.insert(conviteOperador).values(dados).returning({ id: conviteOperador.id })
-    if (criado === undefined) throw new ErroDeDominio(CodigoDeErro.ERRO_INTERNO)
+    if (criado === undefined) throw new ErroDeDominio(ErrorCode.ERRO_INTERNO)
     return criado.id
   }
 
@@ -379,7 +379,7 @@ export class OperadorRepository {
       .where(and(eq(operador.id, dados.operadorId), isNull(operador.desativadoEm)))
       .returning({ id: operador.id })
     // A linha está travada desde o passo 1: só não casa se alguém mudou a trava; aí nada do aceite fica.
-    if (gravados.length === 0) throw new ErroDeDominio(CodigoDeErro.ERRO_INTERNO)
+    if (gravados.length === 0) throw new ErroDeDominio(ErrorCode.ERRO_INTERNO)
     await this.apagarCodigosDeRecuperacao(dados.operadorId)
     return ativo.apelido
   }
@@ -477,7 +477,7 @@ export class OperadorRepository {
       .insert(sessaoOperador)
       .values({ operadorId, refreshHash, expiraEm: sql`now() + make_interval(hours => ${DURACAO_DA_SESSAO_DE_OPERADOR_HORAS})` })
       .returning({ id: sessaoOperador.id })
-    if (criada === undefined) throw new ErroDeDominio(CodigoDeErro.ERRO_INTERNO)
+    if (criada === undefined) throw new ErroDeDominio(ErrorCode.ERRO_INTERNO)
     return criada.id
   }
 

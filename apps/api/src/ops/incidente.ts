@@ -1,8 +1,8 @@
 import { ConfiguracaoInvalida, ErroDeDominio, executarNoContexto, RegistroDeAuditoria, resumirErro, type Banco } from '@educa/nucleo'
 import {
   CHAVES_DE_CATEGORIA_DO_INCIDENTE,
-  CodigoDeErro,
-  ErroDeInvariante,
+  ErrorCode,
+  InvariantException,
   FINALIDADE_DO_REGISTRO_DE_INCIDENTE,
   MAXIMO_DE_ESCOLAS_DO_INCIDENTE,
   MAXIMO_DE_TITULARES_ESTIMADOS,
@@ -171,12 +171,12 @@ export function registrarIncidente(banco: Banco, autor: ConferenciaDoAutor, pedi
       const nomes: EscolaDoIncidente[] = []
       for (const { escolaId } of pedido.secoes) {
         const nome = await executarNoContexto({ requisicaoId, escolaId }, () => new AcessoDaEscolaRepository(tx).nome())
-        if (nome === undefined) throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
+        if (nome === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
         nomes.push({ id: escolaId, nome })
       }
       pedido.secoes.forEach((secao, posicao) => {
         const propria = nomes[posicao]
-        if (propria === undefined) throw new ErroDeInvariante('escola sem nome lido')
+        if (propria === undefined) throw new InvariantException('escola sem nome lido')
         const outras = nomes.filter((_, outra) => outra !== posicao)
         if ([secao.circunstancias, secao.contencao, secao.correcao].some((texto) => citaOutraEscola(texto, propria, outras))) {
           throw new ArgumentoInvalido(`--arquivo (a seção ${posicao + 1} cita o nome ou o id de outra escola afetada)`)
@@ -201,7 +201,7 @@ export function registrarIncidente(banco: Banco, autor: ConferenciaDoAutor, pedi
 }
 
 /** Texto fixo por código, sem nada do pedido. */
-const MENSAGEM_DO_OPERADOR: Partial<Record<CodigoDeErro, string>> = {
+const MENSAGEM_DO_OPERADOR: Partial<Record<ErrorCode, string>> = {
   NAO_ENCONTRADO: 'escola não encontrada',
 }
 
@@ -238,7 +238,7 @@ export async function executarOpsIncidente(
       return 1
     }
     // O erro cru do Postgres traz o valor da linha na mensagem e no `detail`: sai só o resumo seguro.
-    terminal.erro(`${CodigoDeErro.ERRO_INTERNO}: ${JSON.stringify(resumirErro(erro))}\n`)
+    terminal.erro(`${ErrorCode.ERRO_INTERNO}: ${JSON.stringify(resumirErro(erro))}\n`)
     return 1
   }
 }

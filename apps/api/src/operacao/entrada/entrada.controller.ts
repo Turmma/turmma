@@ -1,5 +1,5 @@
 import { acimaDoLimiteDoIp, ipDaRequisicao, LimiteQueRebaixa, ProxiesConfiaveis, ZodValidationPipe } from '@educa/nucleo'
-import { esquemaPedidoEntradaDeOperador, esquemaRespostaEntradaDeOperador, type PedidoEntradaDeOperador, type RespostaEntradaDeOperador } from '@educa/shared'
+import { entradaDeOperadorRequestSchema, entradaDeOperadorResponseSchema, type EntradaDeOperadorRequest, type EntradaDeOperadorResponse } from '@educa/shared'
 import { Body, Controller, Header, HttpCode, HttpStatus, Inject, Post, Req } from '@nestjs/common'
 import type { IncomingMessage } from 'node:http'
 import { EntradaDoOperadorService } from './entrada.service.js'
@@ -24,8 +24,8 @@ export class EntradaDoOperadorController {
   @LimiteQueRebaixa()
   @HttpCode(HttpStatus.OK)
   @Header('Cache-Control', 'no-store')
-  async entrar(@Body(new ZodValidationPipe(esquemaPedidoEntradaDeOperador)) pedido: PedidoEntradaDeOperador, @Req() requisicao: IncomingMessage): Promise<RespostaEntradaDeOperador> {
+  async entrar(@Body(new ZodValidationPipe(entradaDeOperadorRequestSchema)) pedido: EntradaDeOperadorRequest, @Req() requisicao: IncomingMessage): Promise<EntradaDeOperadorResponse> {
     const origem = { ip: await ipDaRequisicao(requisicao, this.proxies), cabecalhoCookie: requisicao.headers.cookie, acimaDoLimiteDoIp: acimaDoLimiteDoIp(requisicao) }
-    return esquemaRespostaEntradaDeOperador.parse(await this.entrada.entrar(pedido, origem))
+    return entradaDeOperadorResponseSchema.parse(await this.entrada.entrar(pedido, origem))
   }
 }

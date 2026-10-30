@@ -9,7 +9,7 @@ import { execucaoAgente } from './execucao-agente.js'
  * O resumo do Analista de desempenho escolar para a coordenação (MVP, A5; D34, D45, D57; regra 70, itens 7 e 8):
  * **agregado por série e disciplina**, e só de lote aprovado.
  *
- * - `conteudo` é o objeto estrito de `esquemaConteudoDoResumoDoAnalista`, validado na saída do modelo e antes de gravar:
+ * - `conteudo` é o objeto estrito de `conteudoDoResumoDoAnalistaSchema`, validado na saída do modelo e antes de gravar:
  *   números, ids de série e disciplina e códigos de lista fechada. **Não tem campo de pessoa nem texto livre**: nenhum
  *   nome, nenhum id de aluno ou de professor, nenhuma frase escrita pelo modelo sobre alguém. O recorte com menos de dois
  *   professores não entra com número (D45): o schema o recusa, e ele aparece só como recorte nominal, que abre pela

@@ -1,4 +1,4 @@
-import { AUTOR_DA_ROTINA, CodigoDeErro, HORAS_PARA_REENFILEIRAR_A_ELIMINACAO, TIPO_ELIMINAR_TITULAR, type CategoriaDeRetencao } from '@educa/shared'
+import { AUTOR_DA_ROTINA, ErrorCode, HORAS_PARA_REENFILEIRAR_A_ELIMINACAO, TIPO_ELIMINAR_TITULAR, type CategoriaDeRetencao } from '@educa/shared'
 import { and, desc, eq, sql, type SQL } from 'drizzle-orm'
 import { CicloDeVidaService } from '../ciclo-de-vida/ciclo-de-vida.service.js'
 import { exigirEscolaDoContexto } from '../contexto/escola-do-contexto.js'
@@ -430,12 +430,12 @@ export class ExpurgoDaEscolaRepository {
             )
             .limit(1)
             .for('no key update')
-          if (ainda === undefined) throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
+          if (ainda === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
           await this.#cicloDeVida.eliminar(id, { autorOperador: AUTOR_DA_ROTINA }, tx)
         })
         eliminadas += 1
       } catch (erro) {
-        if (!(erro instanceof ErroDeDominio) || erro.codigo !== CodigoDeErro.NAO_ENCONTRADO) throw erro
+        if (!(erro instanceof ErroDeDominio) || erro.codigo !== ErrorCode.NAO_ENCONTRADO) throw erro
       }
     }
     return { linhas: eliminadas, cheio: escolhidos.rows.length >= limite }

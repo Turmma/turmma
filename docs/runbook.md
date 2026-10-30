@@ -108,7 +108,7 @@ No painel "Fundação — rota, fila e escola": "Jobs que falharam de vez, por t
    `statement_timeout`): a medição tira só `job.falhos` da exportação, e a regra de 5xx não vê isso. Procure o aviso
    `despachante.medicao_indisponivel` no log (`docker compose logs --since 10m despachante-1 despachante-2`) e confira a lista do
    "Primeiro olhar" direto no banco, que é a verdade; abra correção com o erro resumido do aviso.
-6. `codigo_falha = TEMPO_ESGOTADO` → a tentativa passou do `prazoMs` do tipo (`packages/shared/src/sistema/definicoes-de-job.ts`) e o
+6. `codigo_falha = TEMPO_ESGOTADO` → a tentativa passou do `prazoMs` do tipo (`packages/shared/src/system/job-definitions.ts`) e o
    worker a cortou: aborta o `sinal`, libera a vaga da escola na hora (também quando o job vai tentar de novo) e só marca `falhou` na
    última tentativa. O log tem `job.tempo_esgotado` (`jobId`, `tentativa`, `prazoMs`, nunca o `dados`). **O corte não mata o
    processador que ignora o `sinal`:** ele pode seguir rodando depois, e só a idempotência (D49) impede o efeito de repetir. Muitos

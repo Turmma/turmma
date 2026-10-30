@@ -1,18 +1,18 @@
 import { IdPipe, Permite, ZodValidationPipe } from '@educa/nucleo'
 import {
-  CodigoDeErro,
-  esquemaConsultaMinhasAtividades,
-  esquemaPedidoResponderQuestao,
-  esquemaPedidoSemCorpoOuAusente,
-  esquemaQuestaoDoCaminho,
-  type ConsultaMinhasAtividades,
-  type PedidoResponderQuestao,
-  type PedidoSemCorpo,
-  type RespostaAtividadeEnviada,
-  type RespostaMeuDiagnostico,
-  type RespostaMinhasAtividades,
-  type RespostaProva,
-  type RespostaQuestaoSalva,
+  ErrorCode,
+  minhasAtividadesQuerySchema,
+  responderQuestaoRequestSchema,
+  emptyOrMissingBodyRequestSchema,
+  questaoDoCaminhoSchema,
+  type MinhasAtividadesQuery,
+  type ResponderQuestaoRequest,
+  type EmptyBodyRequest,
+  type AtividadeEnviadaResponse,
+  type MeuDiagnosticoResponse,
+  type MinhasAtividadesResponse,
+  type ProvaResponse,
+  type QuestaoSalvaResponse,
 } from '@educa/shared'
 import { Body, Controller, Get, Header, HttpCode, HttpStatus, Param, Post, Put, Query } from '@nestjs/common'
 import { MinhaAtividadeService } from './minha-atividade.service.js'
@@ -34,14 +34,14 @@ export class MinhaAtividadeController {
   @Get('minhas-atividades')
   @Permite('minha_atividade', 'listar')
   @Header('Cache-Control', 'no-store')
-  listar(@Query(new ZodValidationPipe(esquemaConsultaMinhasAtividades)) consulta: ConsultaMinhasAtividades): Promise<RespostaMinhasAtividades> {
+  listar(@Query(new ZodValidationPipe(minhasAtividadesQuerySchema)) consulta: MinhasAtividadesQuery): Promise<MinhasAtividadesResponse> {
     return this.atividades.listar(consulta)
   }
 
   @Get('atividades-aplicadas/:id/prova')
   @Permite('minha_atividade', 'ler_prova')
   @Header('Cache-Control', 'no-store')
-  prova(@Param('id', IdPipe) atividadeAplicadaId: string): Promise<RespostaProva> {
+  prova(@Param('id', IdPipe) atividadeAplicadaId: string): Promise<ProvaResponse> {
     return this.atividades.prova(atividadeAplicadaId)
   }
 
@@ -50,9 +50,9 @@ export class MinhaAtividadeController {
   @Header('Cache-Control', 'no-store')
   responder(
     @Param('id', IdPipe) atividadeAplicadaId: string,
-    @Param('questao', new ZodValidationPipe(esquemaQuestaoDoCaminho, { errorCode: CodigoDeErro.NAO_ENCONTRADO })) numero: number,
-    @Body(new ZodValidationPipe(esquemaPedidoResponderQuestao)) pedido: PedidoResponderQuestao,
-  ): Promise<RespostaQuestaoSalva> {
+    @Param('questao', new ZodValidationPipe(questaoDoCaminhoSchema, { errorCode: ErrorCode.NAO_ENCONTRADO })) numero: number,
+    @Body(new ZodValidationPipe(responderQuestaoRequestSchema)) pedido: ResponderQuestaoRequest,
+  ): Promise<QuestaoSalvaResponse> {
     return this.atividades.responder(atividadeAplicadaId, numero, pedido)
   }
 
@@ -60,14 +60,14 @@ export class MinhaAtividadeController {
   @Permite('minha_atividade', 'enviar')
   @HttpCode(HttpStatus.OK)
   @Header('Cache-Control', 'no-store')
-  enviar(@Param('id', IdPipe) atividadeAplicadaId: string, @Body(new ZodValidationPipe(esquemaPedidoSemCorpoOuAusente)) _corpo: PedidoSemCorpo): Promise<RespostaAtividadeEnviada> {
+  enviar(@Param('id', IdPipe) atividadeAplicadaId: string, @Body(new ZodValidationPipe(emptyOrMissingBodyRequestSchema)) _corpo: EmptyBodyRequest): Promise<AtividadeEnviadaResponse> {
     return this.atividades.enviar(atividadeAplicadaId)
   }
 
   @Get('atividades-aplicadas/:id/meu-diagnostico')
   @Permite('minha_atividade', 'ler_diagnostico')
   @Header('Cache-Control', 'no-store')
-  meuDiagnostico(@Param('id', IdPipe) atividadeAplicadaId: string): Promise<RespostaMeuDiagnostico> {
+  meuDiagnostico(@Param('id', IdPipe) atividadeAplicadaId: string): Promise<MeuDiagnosticoResponse> {
     return this.atividades.meuDiagnostico(atividadeAplicadaId)
   }
 }

@@ -1,4 +1,4 @@
-import { ErroDeInvariante, esquemaPedidoAdaptarArtefato, esquemaPedidoGerarComFerramenta, FERRAMENTAS, ROTULOS_DA_ADAPTACAO, TIPOS_DE_ADAPTACAO } from '@educa/shared'
+import { InvariantException, adaptarArtefatoRequestSchema, gerarComFerramentaRequestSchema, FERRAMENTAS, ROTULOS_DA_ADAPTACAO, TIPOS_DE_ADAPTACAO } from '@educa/shared'
 import { describe, expect, it } from 'vitest'
 import { problemaDaDescricao, validarFormulario, valoresPadrao } from '../../../componentes/ui/ia/motor-formulario'
 import { CATALOGO_DE_FERRAMENTAS, CATEGORIAS_DE_FERRAMENTA, catalogoPorCategoria, COMO_VAI_SAIR, descricaoDaFerramenta, ehFerramenta, ferramentaDoCatalogo, iniciaisDoPedido, montarPedido, TEMPOS_EXTRAS, type OpcoesDaDescricao } from './ferramentas'
@@ -93,7 +93,7 @@ describe('o pedido que sai do formulário', () => {
     const montado = montarPedido('atividade_objetiva', validados('atividade_objetiva', { turma: `${TURMA}:${DISCIPLINA}`, tema: '  Reagente limitante ', quantidade: '8' }))
     expect(montado).toEqual({ ok: true, pedido: { ferramenta: 'atividade_objetiva', parametros: { turmaId: TURMA, disciplinaId: DISCIPLINA, tema: 'Reagente limitante', quantidade: 8 } } })
     if (!montado.ok || montado.pedido.ferramenta === 'adaptacao') throw new Error('era para montar')
-    expect(esquemaPedidoGerarComFerramenta.safeParse({ ...montado.pedido.parametros, chaveEnvio: CHAVE }).success).toBe(true)
+    expect(gerarComFerramentaRequestSchema.safeParse({ ...montado.pedido.parametros, chaveEnvio: CHAVE }).success).toBe(true)
   })
 
   it('o plano de aula não leva quantidade', () => {
@@ -109,8 +109,8 @@ describe('o pedido que sai do formulário', () => {
     if (!montado.ok || montado.pedido.ferramenta !== 'adaptacao') throw new Error('era para montar')
     const { ferramenta: _ferramenta, artefatoId: _artefatoId, ...corpo } = montado.pedido
     // O corpo é estrito no contrato: um campo a mais (um texto) seria `ENTRADA_INVALIDA`.
-    expect(esquemaPedidoAdaptarArtefato.safeParse({ ...corpo, chaveEnvio: CHAVE }).success).toBe(true)
-    expect(esquemaPedidoAdaptarArtefato.safeParse({ ...corpo, chaveEnvio: CHAVE, observacao: 'aluno com laudo' }).success).toBe(false)
+    expect(adaptarArtefatoRequestSchema.safeParse({ ...corpo, chaveEnvio: CHAVE }).success).toBe(true)
+    expect(adaptarArtefatoRequestSchema.safeParse({ ...corpo, chaveEnvio: CHAVE, observacao: 'aluno com laudo' }).success).toBe(false)
   })
 
   it('sem tempo extra escolhido o pedido sai sem ele, e todo tempo extra da lista cabe na faixa do contrato', () => {
@@ -119,7 +119,7 @@ describe('o pedido que sai do formulário', () => {
       pedido: { ferramenta: 'adaptacao', artefatoId: ATIVIDADE, tipos: ['linguagem_direta'] },
     })
     for (const tempo of TEMPOS_EXTRAS)
-      expect(esquemaPedidoAdaptarArtefato.safeParse({ tipos: ['tempo_adicional'], tempoExtraPercentual: Number(tempo.valor), chaveEnvio: CHAVE }).success).toBe(true)
+      expect(adaptarArtefatoRequestSchema.safeParse({ tipos: ['tempo_adicional'], tempoExtraPercentual: Number(tempo.valor), chaveEnvio: CHAVE }).success).toBe(true)
   })
 
   it('tempo extra sem "Tempo adicional" marcado não sai: o campo some do formulário, e o valor que ficou de antes não vai no pedido', () => {
@@ -206,8 +206,8 @@ describe('ferramentaDoCatalogo', () => {
   it('a ferramenta fora do catálogo é um ErroDeInvariante de motivo fixo, sem o nome recebido', () => {
     const fora = 'ferramenta-que-nao-existe' as never
 
-    expect(() => ferramentaDoCatalogo(fora)).toThrow(ErroDeInvariante)
-    expect(() => ferramentaDoCatalogo(fora)).toThrow(new ErroDeInvariante('ferramenta fora do catálogo'))
+    expect(() => ferramentaDoCatalogo(fora)).toThrow(InvariantException)
+    expect(() => ferramentaDoCatalogo(fora)).toThrow(new InvariantException('ferramenta fora do catálogo'))
     expect(() => ferramentaDoCatalogo(fora)).not.toThrow('ferramenta-que-nao-existe')
   })
 })

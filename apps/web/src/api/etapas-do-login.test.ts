@@ -1,4 +1,4 @@
-import { ALFABETO_DO_CODIGO_DE_RECUPERACAO, CodigoDeErro } from '@educa/shared'
+import { ALFABETO_DO_CODIGO_DE_RECUPERACAO, ErrorCode } from '@educa/shared'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 /**
@@ -95,7 +95,7 @@ describe('entrada por matrícula', () => {
 
   it('o 503 do semáforo também é atraso aqui: às 7h30 quem está na fila é a turma inteira', async () => {
     vi.useFakeTimers()
-    responderCom({ status: 503, corpo: envelope(CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO), cabecalhos: { 'Retry-After': '2' } }, { status: 200, corpo: PRONTA })
+    responderCom({ status: 503, corpo: envelope(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO), cabecalhos: { 'Retry-After': '2' } }, { status: 200, corpo: PRONTA })
 
     const entrada = sessao.entrarPorMatricula({ slug: 'colegio-a', matricula: '1234', senha: 'senha-do-enzo' })
     await vi.advanceTimersByTimeAsync(2_000)
@@ -125,28 +125,28 @@ describe('segundo fator', () => {
 
   it('sem desafio nesta aba (um F5 na tela), nem sai chamada: a pessoa refaz a senha', async () => {
     const erro = await erroDe(sessao.entrarComSegundoFator({ codigo: '123456' }))
-    expect(erro.codigo).toBe(CodigoDeErro.NAO_AUTENTICADO)
+    expect(erro.codigo).toBe(ErrorCode.NAO_AUTENTICADO)
     expect(chamadas).toHaveLength(0)
   })
 
   it('o 503 não é repetido sozinho aqui: repetir gastaria tentativa do contador da conta com um código de 30 s', async () => {
     await comDesafioDeMfa()
-    responderCom({ status: 503, corpo: envelope(CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO), cabecalhos: { 'Retry-After': '2' } })
+    responderCom({ status: 503, corpo: envelope(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO), cabecalhos: { 'Retry-After': '2' } })
     const erro = await erroDe(sessao.entrarComSegundoFator({ codigo: '123456' }))
-    expect(erro.codigo).toBe(CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO)
+    expect(erro.codigo).toBe(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO)
     expect(chamadas).toHaveLength(1)
   })
 
   it('o desafio gasto no quinto código errado sai da memória, e o código certo seguinte nem chega à API', async () => {
     await comDesafioDeMfa()
-    responderCom({ status: 429, corpo: envelope(CodigoDeErro.CONTA_SEGURADA), cabecalhos: { 'Retry-After': '30' } })
+    responderCom({ status: 429, corpo: envelope(ErrorCode.CONTA_SEGURADA), cabecalhos: { 'Retry-After': '30' } })
     const erro = await erroDe(sessao.entrarComSegundoFator({ codigo: '000000' }))
     expect(erro.esperaSegundos).toBe(30)
 
     // É a tela que esquece o desafio ao ver `CONTA_SEGURADA` (Mfa.tsx), porque só ela sabe que vai levar à entrada.
     sessao.esquecerDesafio()
     chamadas.length = 0
-    expect((await erroDe(sessao.entrarComSegundoFator({ codigo: '123456' }))).codigo).toBe(CodigoDeErro.NAO_AUTENTICADO)
+    expect((await erroDe(sessao.entrarComSegundoFator({ codigo: '123456' }))).codigo).toBe(ErrorCode.NAO_AUTENTICADO)
     expect(chamadas).toHaveLength(0)
   })
 
@@ -170,7 +170,7 @@ describe('segundo fator', () => {
 
   it('sem desafio, configurar não chama a API: o segredo nunca é pedido por quem não provou a senha', async () => {
     const erro = await erroDe(mfa.configurarMfa())
-    expect(erro.codigo).toBe(CodigoDeErro.NAO_AUTENTICADO)
+    expect(erro.codigo).toBe(ErrorCode.NAO_AUTENTICADO)
     expect(chamadas).toHaveLength(0)
   })
 })
@@ -211,9 +211,9 @@ describe('convite', () => {
   })
 
   it('a recusa do aceite volta como falha, com o erro tipado, e nada fica guardado', async () => {
-    responderCom({ status: 400, corpo: envelope(CodigoDeErro.ENTRADA_INVALIDA) })
+    responderCom({ status: 400, corpo: envelope(ErrorCode.ENTRADA_INVALIDA) })
     const desfecho = await convite.aceitarConviteNaVez({ token: TOKEN }, naMesmaVez)
-    expect(desfecho).toMatchObject({ tipo: 'falhou', erro: { codigo: CodigoDeErro.ENTRADA_INVALIDA } })
+    expect(desfecho).toMatchObject({ tipo: 'falhou', erro: { codigo: ErrorCode.ENTRADA_INVALIDA } })
     expect(sessao.convitePendente()).toBe(false)
   })
 
@@ -221,8 +221,8 @@ describe('convite', () => {
     for (const resposta of [
       { status: 200, corpo: { etapa: 'entrar', bilhete: 'bilhete.do.link.anterior.jwt' } },
       { status: 200, corpo: { etapa: 'configurar_mfa', desafio: 'desafio.do.link.anterior.jwt' } },
-      { status: 404, corpo: envelope(CodigoDeErro.NAO_ENCONTRADO) },
-      { status: 503, corpo: envelope(CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO) },
+      { status: 404, corpo: envelope(ErrorCode.NAO_ENCONTRADO) },
+      { status: 503, corpo: envelope(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO) },
     ]) {
       // A vez do link sobe enquanto o aceite está no ar: é o `hashchange` de outro link colado na aba.
       let vez = 0
@@ -263,7 +263,7 @@ describe('convite', () => {
     expect(sessao.convitePendente()).toBe(true)
 
     // Senha errada: o bilhete precisa sobreviver, senão a segunda tentativa entraria sem ativar a escola do convite.
-    responderCom({ status: 401, corpo: envelope(CodigoDeErro.NAO_AUTENTICADO) })
+    responderCom({ status: 401, corpo: envelope(ErrorCode.NAO_AUTENTICADO) })
     await erroDe(sessao.entrarPorEmail({ email: 'camila@escola.test', senha: 'errada' }))
     expect(chamadas.at(-1)?.corpo).toEqual({ email: 'camila@escola.test', senha: 'errada', bilhete: 'bilhete.jwt' })
     expect(sessao.convitePendente()).toBe(true)
@@ -332,7 +332,7 @@ describe('escolha e troca de escola', () => {
   })
 
   it('sem o desafio nesta aba, escolher não manda pedido nenhum: um F5 na tela da escolha manda refazer a senha', async () => {
-    expect((await erroDe(sessao.escolherEscola(ACESSOS[0]?.usuarioId ?? ''))).codigo).toBe(CodigoDeErro.NAO_AUTENTICADO)
+    expect((await erroDe(sessao.escolherEscola(ACESSOS[0]?.usuarioId ?? ''))).codigo).toBe(ErrorCode.NAO_AUTENTICADO)
     expect(chamadas).toEqual([])
   })
 
@@ -378,8 +378,8 @@ describe('escolha e troca de escola', () => {
     let limpezas = 0
     sessao.aoTrocarDeSessao(() => limpezas++)
 
-    responderCom({ status: 404, corpo: envelope(CodigoDeErro.NAO_ENCONTRADO) })
-    expect((await erroDe(sessao.trocarDeEscola(ACESSOS[1]?.usuarioId ?? ''))).codigo).toBe(CodigoDeErro.NAO_ENCONTRADO)
+    responderCom({ status: 404, corpo: envelope(ErrorCode.NAO_ENCONTRADO) })
+    expect((await erroDe(sessao.trocarDeEscola(ACESSOS[1]?.usuarioId ?? ''))).codigo).toBe(ErrorCode.NAO_ENCONTRADO)
 
     // A sessão de matrícula e a da conta da escola recebem 404 aqui: a pessoa continua onde estava, com a tela dela.
     expect(limpezas).toBe(0)
@@ -405,8 +405,8 @@ describe('quem está na aba, para o login por cima da tela', () => {
     await sessao.entrarPorEmail({ email: 'renata@escola.test', senha: 'segredo-da-renata' })
     sessao.lembrarQuemEsta(quem)
     responderCom(
-      { status: 401, corpo: envelope(CodigoDeErro.NAO_AUTENTICADO) },
-      { status: 401, corpo: envelope(CodigoDeErro.NAO_AUTENTICADO) },
+      { status: 401, corpo: envelope(ErrorCode.NAO_AUTENTICADO) },
+      { status: 401, corpo: envelope(ErrorCode.NAO_AUTENTICADO) },
     )
     const esquema = { safeParse: (valor: unknown) => ({ success: true as const, data: valor }) }
     await erroDe(sessao.buscarComSessao('/v1/eu', esquema))

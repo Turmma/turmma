@@ -8,7 +8,7 @@ import { tentativaAtividade } from './tentativa-atividade.js'
 /**
  * A correção de objetiva de um aluno numa atividade aplicada, dentro de um lote (glossário, "Correção" e "Diagnóstico";
  * MVP, A3; D33, D46). É **determinística**, pelo gabarito: `acertos`, `total` e `em_branco` são contagens de questões, e
- * `por_habilidade` é o diagnóstico formativo (`esquemaDiagnosticoGravado`: código do catálogo, acertos e total).
+ * `por_habilidade` é o diagnóstico formativo (`diagnosticoGravadoSchema`: código do catálogo, acertos e total).
  *
  * - **Não é `Nota`, e não existe tabela `nota` nesta fatia** (D46). Nenhuma coluna guarda nota, conceito, pontuação
  *   convertida nem devolutiva em texto, e nada aqui é sobre resposta discursiva (D55). O que a IA escreve entra no

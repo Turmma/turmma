@@ -9,7 +9,7 @@ import {
   type ConfiguracaoIdentidade,
   type TokenDeOperadorVerificado,
 } from '@educa/nucleo'
-import { CodigoDeErro } from '@educa/shared'
+import { ErrorCode } from '@educa/shared'
 import { Inject, Injectable, Logger, type CanActivate, type ExecutionContext, type Provider } from '@nestjs/common'
 import type { IncomingMessage } from 'node:http'
 import { BANCO } from '../banco.module.js'
@@ -34,7 +34,7 @@ export function provedoresDaGuardaDeOperador(identidade: ConfiguracaoIdentidade)
   ]
 }
 
-const naoEncontrado = () => new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
+const naoEncontrado = () => new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
 
 /**
  * A guarda de toda rota `@RotaDeOperacao()` (Tech Spec da A0, seção 5, "Conferência da sessão"). Roda depois das quatro
@@ -75,10 +75,10 @@ export class GuardaDeOperador implements CanActivate {
     } catch {
       // Nada do erro vai ao log: nem a consulta nem a mensagem (regra 20, item 9).
       this.#avisarIndisponivel()
-      throw new ErroDeDominio(CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO, undefined, TENTE_DE_NOVO_PADRAO_SEGUNDOS)
+      throw new ErroDeDominio(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO, undefined, TENTE_DE_NOVO_PADRAO_SEGUNDOS)
     }
-    if (!sessaoDeOperadorVale(linha)) throw new ErroDeDominio(CodigoDeErro.SESSAO_ENCERRADA)
-    if (token.vencido) throw new ErroDeDominio(CodigoDeErro.ACESSO_VENCIDO)
+    if (!sessaoDeOperadorVale(linha)) throw new ErroDeDominio(ErrorCode.SESSAO_ENCERRADA)
+    if (token.vencido) throw new ErroDeDominio(ErrorCode.ACESSO_VENCIDO)
     definirOperadorNoContexto(token.operadorId)
     return true
   }

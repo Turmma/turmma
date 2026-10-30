@@ -1,5 +1,5 @@
 import { executarNoContexto, METRICAS } from '@educa/nucleo'
-import { CodigoDeErro } from '@educa/shared'
+import { ErrorCode } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { afterEach, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../../../tools/testes/metricas.ts'
@@ -130,11 +130,11 @@ describe('EuService: qual data da introdução vale, e quando o GET grava', () =
 
   it('a pessoa que saiu entre a guarda e a leitura é não autenticada, no GET e no POST; e a marca que não achou a linha também', async () => {
     const semLinha = montar(novoMedidor(), { linha: null })
-    await expect(comContexto(() => semLinha.servico.obter())).rejects.toMatchObject({ codigo: CodigoDeErro.NAO_AUTENTICADO })
-    await expect(comContexto(() => semLinha.servico.concluirIntroducao())).rejects.toMatchObject({ codigo: CodigoDeErro.NAO_AUTENTICADO })
+    await expect(comContexto(() => semLinha.servico.obter())).rejects.toMatchObject({ codigo: ErrorCode.NAO_AUTENTICADO })
+    await expect(comContexto(() => semLinha.servico.concluirIntroducao())).rejects.toMatchObject({ codigo: ErrorCode.NAO_AUTENTICADO })
     expect(semLinha.gravacoes()).toBe(0)
 
     const saiuNaMarca = montar(novoMedidor(), { gravada: null })
-    await expect(comContexto(() => saiuNaMarca.servico.concluirIntroducao())).rejects.toMatchObject({ codigo: CodigoDeErro.NAO_AUTENTICADO })
+    await expect(comContexto(() => saiuNaMarca.servico.concluirIntroducao())).rejects.toMatchObject({ codigo: ErrorCode.NAO_AUTENTICADO })
   })
 })

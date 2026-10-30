@@ -1,6 +1,6 @@
 import 'reflect-metadata'
 import { criarLogger, type PoolBanco } from '@educa/nucleo'
-import { ESCOLAS_POR_PAGINA, MENSAGENS_DE_ERRO, type CodigoDeErro } from '@educa/shared'
+import { ESCOLAS_POR_PAGINA, MENSAGENS_DE_ERRO, type ErrorCode } from '@educa/shared'
 import type { INestApplication } from '@nestjs/common'
 import { NestFactory } from '@nestjs/core'
 import { randomUUID } from 'node:crypto'
@@ -48,7 +48,7 @@ export async function pedir(url: string, verbo: 'GET' | 'POST', caminho: string,
   }
 }
 
-export function esperarErro(resposta: Resposta, status: number, codigo: CodigoDeErro): void {
+export function esperarErro(resposta: Resposta, status: number, codigo: ErrorCode): void {
   expect(resposta.status).toBe(status)
   expect(resposta.corpo).toEqual({ erro: { codigo, mensagem: MENSAGENS_DE_ERRO[codigo], requisicaoId: expect.stringMatching(UUID) } })
 }

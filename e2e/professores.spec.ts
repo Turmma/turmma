@@ -1,6 +1,6 @@
 import type { Browser, BrowserContextOptions, Locator, Page, Route } from '@playwright/test'
-import { AVISO_DO_CONVITE_COM_SENHA_NOVA, MENSAGENS_DE_ERRO, mensagemDoConvite } from '../packages/shared/src/erros/mensagens.ts'
-import type { RespostaConviteDeProfessor } from '../packages/shared/src/professores/professores.ts'
+import { AVISO_DO_CONVITE_COM_SENHA_NOVA, MENSAGENS_DE_ERRO, mensagemDoConvite } from '../packages/shared/src/errors/messages.ts'
+import type { ConviteDeProfessorResponse } from '../packages/shared/src/professores/professores.ts'
 import { abrirNavegacao, entrarComoCoordenacaoNaMesmaAba, abrirEstrutura, irPelaNavegacao, lateral, PRAZO_DA_ENTRADA_MS, passarPelaIntroducaoDoProfessor, secoes } from './__fixtures__/casca.ts'
 import { abrirOQueFalta, irPelaCoordenacao, linhasDaTabela, paginaNaoRola } from './__fixtures__/coordenacao.ts'
 import { expect, test } from './__fixtures__/perfis.ts'
@@ -735,7 +735,7 @@ test.describe('clique duplo', () => {
     await expect(pergunta(page)).toBeFocused()
     await expect(noDialogo(page)).toContainText('O convite ainda está sendo gerado')
     seguro.abrir()
-    const doCadastro = (await (await cadastrado).json()) as RespostaConviteDeProfessor
+    const doCadastro = (await (await cadastrado).json()) as ConviteDeProfessorResponse
     await expect(noDialogo(page)).toContainText('O link aparece uma vez só. Se fechar agora, ele não aparece de novo', { timeout: PRAZO_DA_ENTRADA_MS })
     await expect(pergunta(page)).toBeVisible()
     await expect(noDialogo(page).getByLabel('Link do convite')).toHaveCount(0)
@@ -764,7 +764,7 @@ test.describe('clique duplo', () => {
     await expect.poll(() => pedidos).toBe(1)
     await expect(noDialogo(page).getByRole('button', { name: 'Refazendo…' })).toBeDisabled()
     seguro.abrir()
-    const doRefazer = (await (await refeito).json()) as RespostaConviteDeProfessor
+    const doRefazer = (await (await refeito).json()) as ConviteDeProfessorResponse
     await expect(etapaDoLink(page)).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
     expect(tokenDo(await linkNaTela(page))).toBe(doRefazer.token)
     expect(doRefazer.token).not.toBe(doCadastro.token)

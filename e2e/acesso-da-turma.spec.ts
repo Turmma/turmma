@@ -1,6 +1,6 @@
 import type { Locator, Page, Request, Route } from '@playwright/test'
-import { MENSAGENS_DE_ERRO } from '../packages/shared/src/erros/mensagens.ts'
-import type { RespostaAcessoGerado } from '../packages/shared/src/sala/acesso.ts'
+import { MENSAGENS_DE_ERRO } from '../packages/shared/src/errors/messages.ts'
+import type { AcessoGeradoResponse } from '../packages/shared/src/sala/acesso.ts'
 import { abrirNavegacao, entrarPorEmail, irPelaNavegacao, lateral, PRAZO_DA_ENTRADA_MS, esperarNovaConversa, abrirAbaAlunos, secoes } from './__fixtures__/casca.ts'
 import { expect, test } from './__fixtures__/perfis.ts'
 import {
@@ -237,7 +237,7 @@ async function abrirOConvite(page: Page, hasTouch: boolean): Promise<void> {
  * Abre o convite e gera, com a validade dada (ou a que o diálogo propõe). Sem acesso o diálogo abre em "Gerar acesso"; com acesso
  * (`comAcesso`) abre em "Vigente", e "Gerar novo acesso" leva ao passo que diz o que cai. Devolve o que a API respondeu.
  */
-async function gerarPelaTela(page: Page, comAcesso: boolean, hasTouch: boolean, dias?: string): Promise<RespostaAcessoGerado> {
+async function gerarPelaTela(page: Page, comAcesso: boolean, hasTouch: boolean, dias?: string): Promise<AcessoGeradoResponse> {
   await abrirOConvite(page, hasTouch)
   if (comAcesso) {
     await tocar(noDialogo(page), 'Gerar novo acesso', hasTouch)
@@ -246,7 +246,7 @@ async function gerarPelaTela(page: Page, comAcesso: boolean, hasTouch: boolean, 
   if (dias !== undefined) await validade(page, dias).check()
   const resposta = proximoAcessoGerado(page)
   await tocar(noDialogo(page), comAcesso ? 'Gerar novo acesso' : 'Gerar acesso', hasTouch)
-  const gerado = (await (await resposta).json()) as RespostaAcessoGerado
+  const gerado = (await (await resposta).json()) as AcessoGeradoResponse
   await expect(etapaDoAcesso(page)).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
   return gerado
 }
@@ -268,7 +268,7 @@ function vigiarAba(page: Page) {
   page.on('request', (pedido) => rastros.push(pedido.url()))
   page.on('framenavigated', (quadro) => rastros.push(quadro.url()))
   page.on('console', (mensagem) => rastros.push(mensagem.text()))
-  return async function semRastro(...acessos: RespostaAcessoGerado[]): Promise<void> {
+  return async function semRastro(...acessos: AcessoGeradoResponse[]): Promise<void> {
     const guardado = await page.evaluate(async () => ({
       local: JSON.stringify(Object.entries(localStorage)),
       sessao: JSON.stringify(Object.entries(sessionStorage)),
@@ -410,7 +410,7 @@ test.describe('W4 (Acesso): os quatro estados', () => {
     const resposta = proximoAcessoGerado(page)
     await tocar(noDialogo(page), 'Gerar acesso', hasTouch)
     expect((await pedido).postDataJSON()).toEqual({ validadeDias: 7 })
-    const gerado = (await (await resposta).json()) as RespostaAcessoGerado
+    const gerado = (await (await resposta).json()) as AcessoGeradoResponse
     expect(diasAte(gerado.expiraEm)).toBe(7)
     // O acesso só aparece com a releitura já terminada, em erro: a mutação espera a releitura (`api/acesso.ts`).
     await expect(etapaDoAcesso(page)).toBeFocused({ timeout: PRAZO_DA_ENTRADA_MS })
@@ -591,7 +591,7 @@ test.describe('W7: gerar, projetar, copiar, compartilhar e trocar o acesso', () 
     const resposta = proximoAcessoGerado(page)
     await tocar(noDialogo(page), 'Gerar acesso', hasTouch)
     expect((await pedido).postDataJSON()).toEqual({ validadeDias: 1 })
-    const primeiro = (await (await resposta).json()) as RespostaAcessoGerado
+    const primeiro = (await (await resposta).json()) as AcessoGeradoResponse
     expect(diasAte(primeiro.expiraEm)).toBe(1)
     await expect(etapaDoAcesso(page)).toBeFocused({ timeout: PRAZO_DA_ENTRADA_MS })
 
@@ -640,7 +640,7 @@ test.describe('W7: gerar, projetar, copiar, compartilhar e trocar o acesso', () 
     await expect(oQueAcontece(page, TEXTO_DO_ACESSO_QUE_CAI)).toBeFocused()
     const respostaDoSegundo = proximoAcessoGerado(page)
     await tocar(noDialogo(page), 'Gerar novo acesso', hasTouch)
-    const segundo = (await (await respostaDoSegundo).json()) as RespostaAcessoGerado
+    const segundo = (await (await respostaDoSegundo).json()) as AcessoGeradoResponse
     await expect(etapaDoAcesso(page)).toBeFocused({ timeout: PRAZO_DA_ENTRADA_MS })
     expect(semEspaco(await codigoNaTela(page).innerText())).toBe(segundo.codigo)
     expect(segundo.codigo).not.toBe(primeiro.codigo)
@@ -801,7 +801,7 @@ test.describe('W12 (Acesso): a 360 px e só com teclado', () => {
     await tabAte(page, noDialogo(page).getByRole('button', { name: 'Gerar acesso', exact: true }))
     await page.keyboard.press('Enter')
     expect((await pedido).postDataJSON()).toEqual({ validadeDias: 30 })
-    const primeiro = (await (await resposta).json()) as RespostaAcessoGerado
+    const primeiro = (await (await resposta).json()) as AcessoGeradoResponse
     await expect(etapaDoAcesso(page)).toBeFocused({ timeout: PRAZO_DA_ENTRADA_MS })
 
     // O acesso a 360 px: o código grande, em dois grupos, cabe no diálogo, e os alvos têm 44 px.
@@ -854,7 +854,7 @@ test.describe('W12 (Acesso): a 360 px e só com teclado', () => {
     const respostaDoSegundo = proximoAcessoGerado(page)
     await tabAte(page, noDialogo(page).getByRole('button', { name: 'Gerar novo acesso' }))
     await page.keyboard.press('Enter')
-    const segundo = (await (await respostaDoSegundo).json()) as RespostaAcessoGerado
+    const segundo = (await (await respostaDoSegundo).json()) as AcessoGeradoResponse
     await expect(etapaDoAcesso(page)).toBeFocused({ timeout: PRAZO_DA_ENTRADA_MS })
     await page.keyboard.press('Escape')
     await expect(pergunta(page)).toBeFocused()
@@ -875,7 +875,7 @@ test.describe('W12 (Acesso): a 360 px e só com teclado', () => {
     const respostaDoTerceiro = proximoAcessoGerado(page)
     await tabAte(page, noDialogo(page).getByRole('button', { name: 'Gerar novo acesso' }))
     await page.keyboard.press('Enter')
-    const terceiro = (await (await respostaDoTerceiro).json()) as RespostaAcessoGerado
+    const terceiro = (await (await respostaDoTerceiro).json()) as AcessoGeradoResponse
     await expect(etapaDoAcesso(page)).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
     await dialogosAbertos(page).evaluate((dialogo: HTMLDialogElement) => dialogo.close())
     await expect(dialogosDaTela(page)).toHaveCount(0)
@@ -936,7 +936,7 @@ test.describe('clique duplo', () => {
     await expect(pergunta(page)).toBeFocused()
     await expect(noDialogo(page)).toContainText('O acesso ainda está sendo gerado')
     seguro.abrir()
-    const gerado = (await (await resposta).json()) as RespostaAcessoGerado
+    const gerado = (await (await resposta).json()) as AcessoGeradoResponse
     await expect(noDialogo(page)).toContainText(TEXTO_DA_PERGUNTA, { timeout: PRAZO_DA_ENTRADA_MS })
     await expect(pergunta(page)).toBeVisible()
     await expect(campoDoLink(page)).toHaveCount(0)
@@ -1090,13 +1090,13 @@ test.describe('recomeço da tela do acesso', () => {
     // O primeiro gerar chega ao servidor e é atendido; é a resposta dele que fica segurada no caminho de volta.
     const seguro = portao()
     let primeiroPedido = true
-    let doPrimeiro: RespostaAcessoGerado | undefined
+    let doPrimeiro: AcessoGeradoResponse | undefined
     let primeiroEntregue = false
     await page.route(ehOAcesso, async (rota: Route) => {
       if (rota.request().method() !== 'POST' || !primeiroPedido) return rota.fallback()
       primeiroPedido = false
       const resposta = await rota.fetch()
-      doPrimeiro = (await resposta.json()) as RespostaAcessoGerado
+      doPrimeiro = (await resposta.json()) as AcessoGeradoResponse
       await seguro.aberta
       await rota.fulfill({ response: resposta })
       primeiroEntregue = true

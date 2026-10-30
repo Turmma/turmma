@@ -1,6 +1,6 @@
 import { ListObjectsV2Command, S3Client } from '@aws-sdk/client-s3'
 import { contextoAtual, SemEscopo } from '@educa/nucleo'
-import { ErroDeInvariante } from '@educa/shared'
+import { InvariantException } from '@educa/shared'
 import type { ConfiguracaoStorage } from '../config.js'
 
 /** Onde todo arquivo de escola mora no storage: `escolas/{escolaId}/...`. */
@@ -69,7 +69,7 @@ export class MedidorDeStorage {
   /** Os bytes guardados pela escola do contexto: a soma de tudo sob `escolas/{escolaId}/`. */
   async bytesDaEscola(): Promise<number> {
     const escolaId = contextoAtual()?.escolaId
-    if (escolaId === undefined) throw new ErroDeInvariante('medição de storage sem escola no contexto')
+    if (escolaId === undefined) throw new InvariantException('medição de storage sem escola no contexto')
     let bytes = 0
     let continuacao: string | undefined
     do {

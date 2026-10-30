@@ -1,15 +1,15 @@
 import { extrairTokenBearer, ipDaRequisicao, ProxiesConfiaveis, RotaAnonima, ZodValidationPipe } from '@educa/nucleo'
 import {
-  esquemaPedidoAtivarMfa,
-  esquemaPedidoMfa,
-  esquemaRespostaAtivarMfa,
-  esquemaRespostaConfigurarMfa,
-  esquemaRespostaLogin,
-  type PedidoAtivarMfa,
-  type PedidoMfa,
-  type RespostaAtivarMfa,
-  type RespostaConfigurarMfa,
-  type RespostaLogin,
+  ativarMfaRequestSchema,
+  mfaRequestSchema,
+  ativarMfaResponseSchema,
+  configurarMfaResponseSchema,
+  loginResponseSchema,
+  type AtivarMfaRequest,
+  type MfaRequest,
+  type AtivarMfaResponse,
+  type ConfigurarMfaResponse,
+  type LoginResponse,
 } from '@educa/shared'
 import { Body, Controller, Header, HttpCode, HttpStatus, Post, Req, Res } from '@nestjs/common'
 import type { IncomingMessage, ServerResponse } from 'node:http'
@@ -30,16 +30,16 @@ export class ContaMfaController {
   @Post('configurar')
   @HttpCode(HttpStatus.OK)
   @Header('Cache-Control', 'no-store')
-  async configurar(@Req() requisicao: IncomingMessage): Promise<RespostaConfigurarMfa> {
-    return esquemaRespostaConfigurarMfa.parse(await this.mfa.configurar(extrairTokenBearer(requisicao.headers.authorization)))
+  async configurar(@Req() requisicao: IncomingMessage): Promise<ConfigurarMfaResponse> {
+    return configurarMfaResponseSchema.parse(await this.mfa.configurar(extrairTokenBearer(requisicao.headers.authorization)))
   }
 
   @Post('ativar')
   @HttpCode(HttpStatus.OK)
   @Header('Cache-Control', 'no-store')
-  async ativar(@Body(new ZodValidationPipe(esquemaPedidoAtivarMfa)) pedido: PedidoAtivarMfa, @Req() requisicao: IncomingMessage): Promise<RespostaAtivarMfa> {
+  async ativar(@Body(new ZodValidationPipe(ativarMfaRequestSchema)) pedido: AtivarMfaRequest, @Req() requisicao: IncomingMessage): Promise<AtivarMfaResponse> {
     const desafio = extrairTokenBearer(requisicao.headers.authorization)
-    return esquemaRespostaAtivarMfa.parse(await this.mfa.ativar(desafio, pedido.codigo))
+    return ativarMfaResponseSchema.parse(await this.mfa.ativar(desafio, pedido.codigo))
   }
 }
 
@@ -61,16 +61,16 @@ export class SessaoMfaController {
   @HttpCode(HttpStatus.OK)
   @Header('Cache-Control', 'no-store')
   async entrar(
-    @Body(new ZodValidationPipe(esquemaPedidoMfa)) pedido: PedidoMfa,
+    @Body(new ZodValidationPipe(mfaRequestSchema)) pedido: MfaRequest,
     @Req() requisicao: IncomingMessage,
     @Res({ passthrough: true }) resposta: ServerResponse,
-  ): Promise<RespostaLogin> {
+  ): Promise<LoginResponse> {
     const desafio = extrairTokenBearer(requisicao.headers.authorization)
     const { resposta: corpoDaResposta, cookies } = await this.mfa.entrar(desafio, pedido, {
       ip: await ipDaRequisicao(requisicao, this.proxies),
       cabecalhoCookie: requisicao.headers.cookie,
     })
     resposta.setHeader('Set-Cookie', [...cookies])
-    return esquemaRespostaLogin.parse(corpoDaResposta)
+    return loginResponseSchema.parse(corpoDaResposta)
   }
 }

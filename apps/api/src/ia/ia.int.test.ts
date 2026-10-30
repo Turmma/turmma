@@ -20,7 +20,7 @@ import {
   type SuspensaoDeFuncao,
   type TransacaoBanco,
 } from '@educa/nucleo'
-import { CodigoDeErro, esquemaRespostaExecucao, TROCAS_POR_DIA_PADRAO_DO_TUTOR, type ChaveDeFuncao, type PapelDeUsuario, type ResultadoGravado } from '@educa/shared'
+import { ErrorCode, execucaoResponseSchema, TROCAS_POR_DIA_PADRAO_DO_TUTOR, type ChaveDeFuncao, type PapelDeUsuario, type ResultadoGravado } from '@educa/shared'
 import { and, eq } from 'drizzle-orm'
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
@@ -369,7 +369,7 @@ describe('camada de IA na API', () => {
         const consumoAntes = await contar('consumo_ia', a.escolaId)
         const { pedido, aoGravar, aoConcluir } = pedidoDoAssistente(a)
         const erro = await erroDe(como(a, a.professor, 'professor', () => agendador.agendar(pedido)))
-        expect(erro).toMatchObject({ codigo: CodigoDeErro.FUNCAO_SUSPENSA, status: 409 })
+        expect(erro).toMatchObject({ codigo: ErrorCode.FUNCAO_SUSPENSA, status: 409 })
         await executor.ociosa()
         expect(aoGravar).not.toHaveBeenCalled()
         expect(aoConcluir).not.toHaveBeenCalled()
@@ -381,7 +381,7 @@ describe('camada de IA na API', () => {
         const direto = await erroDe(
           noContextoDe(a, () => ia.gerar({ tarefa: proporFerramenta, escolaId: a.escolaId, entrada: { mensagem: 'bom dia', contexto: { serie: '2º ano', disciplina: 'Química' }, trechos: [], turnosAnteriores: [] } })),
         )
-        expect(direto.codigo).toBe(CodigoDeErro.FUNCAO_SUSPENSA)
+        expect(direto.codigo).toBe(ErrorCode.FUNCAO_SUSPENSA)
         expect(await contar('consumo_ia', a.escolaId)).toBe(consumoAntes)
 
         // A mesma função na escola B executa, e outra função na escola A também.
@@ -390,7 +390,7 @@ describe('camada de IA na API', () => {
         await executor.ociosa()
         expect(naB.aoConcluir).toHaveBeenCalledTimes(1)
         await expect(como(a, a.coordenacao, 'coordenador', () => api.app.get(ConferenciaDeFuncao).exigirAtiva('correcao_de_objetiva'))).resolves.toBeUndefined()
-        expect((await erroDe(como(a, a.coordenacao, 'coordenador', () => api.app.get(ConferenciaDeFuncao).exigirAtiva('conversa_e_ferramentas')))).codigo).toBe(CodigoDeErro.FUNCAO_SUSPENSA)
+        expect((await erroDe(como(a, a.coordenacao, 'coordenador', () => api.app.get(ConferenciaDeFuncao).exigirAtiva('conversa_e_ferramentas')))).codigo).toBe(ErrorCode.FUNCAO_SUSPENSA)
       } finally {
         await retomar(a, 'conversa_e_ferramentas')
       }
@@ -703,7 +703,7 @@ describe('camada de IA na API', () => {
       expect([await contar('consumo_ia', a.escolaId), await contar('consumo_ia', b.escolaId)]).toEqual([consumoAntesDeA + 1, consumoAntesDeB])
       const resposta = await get(a.professor, `/v1/execucoes/${execucaoId}`)
       expect(resposta.status).toBe(200)
-      expect(esquemaRespostaExecucao.safeParse(resposta.corpo).success).toBe(true)
+      expect(execucaoResponseSchema.safeParse(resposta.corpo).success).toBe(true)
       expect(resposta.corpo).toMatchObject({
         id: execucaoId,
         estado: 'concluida',
@@ -745,7 +745,7 @@ describe('camada de IA na API', () => {
       await como(a, a.professor, 'professor', () => agendador.agendar(dono.pedido))
       await executor.ociosa()
       const colega = pedidoDoAssistente(a, { chaveEnvio })
-      expect((await erroDe(como(a, a.outroProfessor, 'professor', () => agendador.agendar(colega.pedido)))).codigo).toBe(CodigoDeErro.NAO_ENCONTRADO)
+      expect((await erroDe(como(a, a.outroProfessor, 'professor', () => agendador.agendar(colega.pedido)))).codigo).toBe(ErrorCode.NAO_ENCONTRADO)
       await executor.ociosa()
       expect(colega.aoGravar).not.toHaveBeenCalled()
       expect(colega.aoConcluir).not.toHaveBeenCalled()
@@ -838,7 +838,7 @@ describe('camada de IA na API', () => {
       const recusas = await Promise.all([doColega.id, deB.id, deB.id.toUpperCase(), randomUUID(), 'nao-e-uuid'].map((id) => get(a.professor, `/v1/execucoes/${id}`)))
       for (const recusa of recusas) {
         expect(recusa.status).toBe(404)
-        expect(recusa.corpo.erro?.codigo).toBe(CodigoDeErro.NAO_ENCONTRADO)
+        expect(recusa.corpo.erro?.codigo).toBe(ErrorCode.NAO_ENCONTRADO)
       }
       const semIdDaRequisicao = recusas.map((recusa) => ({ ...(recusa.corpo.erro as object), requisicaoId: undefined }))
       expect(new Set(semIdDaRequisicao.map((corpo) => JSON.stringify(corpo))).size).toBe(1)
@@ -886,7 +886,7 @@ describe('camada de IA na API', () => {
       const recusas = await Promise.all([apontaParaOColega, apontaParaOutraEscola, apontaParaNada].map((id) => get(curioso, `/v1/execucoes/${id}`)))
       for (const recusa of recusas) {
         expect(recusa.status).toBe(404)
-        expect(recusa.corpo.erro?.codigo).toBe(CodigoDeErro.NAO_ENCONTRADO)
+        expect(recusa.corpo.erro?.codigo).toBe(ErrorCode.NAO_ENCONTRADO)
         expect(JSON.stringify(recusa.corpo)).not.toContain('Releia')
       }
       expect(new Set(recusas.map((recusa) => JSON.stringify({ ...(recusa.corpo.erro as object), requisicaoId: undefined }))).size).toBe(1)

@@ -1,7 +1,7 @@
 import { exigirEscolaDoContexto, material, SemEscopo, sessaoDaRequisicao, trecho, vinculo, type Banco, type TransacaoBanco } from '@educa/nucleo'
-import type { ConsultaMateriais, EstadoDeMaterial, FalhaDeMaterial, LicencaDeMaterial, TitularidadeDeMaterial } from '@educa/shared'
+import type { MateriaisQuery, EstadoDeMaterial, FalhaDeMaterial, LicencaDeMaterial, TitularidadeDeMaterial } from '@educa/shared'
 import { and, asc, desc, eq, exists, gt, gte, isNull, lt, sql, type SQL } from 'drizzle-orm'
-import { ErroDeInvariante } from '@educa/shared'
+import { InvariantException } from '@educa/shared'
 import type { PaginaExtraida } from './extracao-de-pdf.js'
 
 /**
@@ -160,12 +160,12 @@ export class MaterialRepository {
       .insert(material)
       .values({ ...novo, escolaId: exigirEscolaDoContexto(), declaracao: true, enviadoPor: usuarioId })
       .returning({ ...colunas, trechos: sql<number>`0` })
-    if (gravado === undefined) throw new ErroDeInvariante('material não gravado')
+    if (gravado === undefined) throw new InvariantException('material não gravado')
     return gravado
   }
 
   /** Uma página dos materiais não excluídos, em ordem de envio, com uma linha a mais que diz se há próxima. */
-  listar({ pagina, limite, disciplinaId }: ConsultaMateriais, alcance: AlcanceDoMaterial): Promise<MaterialLido[]> {
+  listar({ pagina, limite, disciplinaId }: MateriaisQuery, alcance: AlcanceDoMaterial): Promise<MaterialLido[]> {
     return this.banco
       .select(colunas)
       .from(material)

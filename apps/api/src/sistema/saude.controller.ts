@@ -1,5 +1,5 @@
 import { RotaAnonima } from '@educa/nucleo'
-import type { RespostaSaude } from '@educa/shared'
+import type { HealthResponse } from '@educa/shared'
 import { Controller, Get, Header, HttpStatus, Res } from '@nestjs/common'
 import { SaudeService } from './saude.service.js'
 
@@ -19,7 +19,7 @@ export class SaudeController {
    */
   @Get()
   @Header('Cache-Control', 'no-store')
-  async obter(@Res({ passthrough: true }) resposta: RespostaHttp): Promise<RespostaSaude> {
+  async obter(@Res({ passthrough: true }) resposta: RespostaHttp): Promise<HealthResponse> {
     const corpo = await this.saude.verificar()
     if (!corpo.ok) {
       resposta.status(HttpStatus.SERVICE_UNAVAILABLE)

@@ -20,17 +20,17 @@
 |---|---|
 | Escopo | Escola, ano letivo e pessoa vêm da sessão. Nenhum schema de entrada tem `escolaId`, `anoLetivoId`, `usuarioId` ou `professorId`: mandar é `ENTRADA_INVALIDA` |
 | Objeto de outra escola, ou fora do alcance | `NAO_ENCONTRADO`, igual ao inexistente |
-| `POST` que dispara IA | Leva `chaveEnvio` (UUID que a tela sorteia a cada envio) e responde **202** `esquemaRespostaExecucaoAceita`. A mesma chave devolve a mesma execução |
+| `POST` que dispara IA | Leva `chaveEnvio` (UUID que a tela sorteia a cada envio) e responde **202** `execucaoAceitaResponseSchema`. A mesma chave devolve a mesma execução |
 | Execução | A tela consulta `GET /v1/execucoes/:id` a cada `INTERVALO_DA_CONSULTA_DE_EXECUCAO_MS` até `concluida` ou `falhou` |
 | Função suspensa | Antes de gravar a execução: `FUNCAO_SUSPENSA`. A função de cada tarefa é `FUNCAO_DA_TAREFA_DE_IA`. **Suspender recusa execução nova e não apaga o que foi produzido**: a entrega pendente de função suspensa continua podendo ser aprovada ou rejeitada pelo professor |
 | `questao` | O **número** da questão, a partir de 1 (posição em `conteudo.questoes` mais um), na rota, no banco e no sinal |
 | `alternativa`, `gabarito` | O **índice** da alternativa, de 0 a 3 |
 | Custo | `custoMicros`: milionésimos de real, inteiro |
 | Acertos | Contagem de questões. Não existe nota, conceito nem pontuação em campo nenhum (D46, D55) |
-| Erro | `CodigoDeErro` com mensagem em `MENSAGENS_DE_ERRO`. O erro da execução também é um `CodigoDeErro` |
-| Listagem | Paginada: `?pagina=<id>&limite=` (`esquemaConsultaPaginada`); as conversas, `?antes=<id>&limite=` |
+| Erro | `ErrorCode` com mensagem em `MENSAGENS_DE_ERRO`. O erro da execução também é um `ErrorCode` |
+| Listagem | Paginada: `?pagina=<id>&limite=` (`paginationQuerySchema`); as conversas, `?antes=<id>&limite=` |
 
-Códigos de erro novos (`packages/shared/src/erros/`, com status em `packages/nucleo/src/erro/erro-de-dominio.ts`):
+Códigos de erro novos (`packages/shared/src/errors/`, com status em `packages/nucleo/src/erro/erro-de-dominio.ts`):
 `MATERIAL_SEM_LICENCA` 422 · `FUNCAO_SUSPENSA` 409 · `LIMITE_DIARIO_DO_TUTOR` 429 · `PACOTE_DO_TUTOR_ESGOTADO` 429 ·
 `TUTOR_PAUSADO_EM_AVALIACAO` 409 · `DESTAQUES_NAO_ABERTOS` 409 · `ENTREGA_JA_DECIDIDA` 409 ·
 `VERSAO_ADAPTADA_NAO_APROVADA` 409 · `ATIVIDADE_ENCERRADA` 409 · `MATERIAL_INSUFICIENTE` 422 · `IA_INDISPONIVEL` 503 ·
@@ -46,11 +46,11 @@ Célula é `recurso.acao` da `MATRIZ`. Alcance: C coordenação, P professor, A 
 
 | Rota | Entrada | Saída | Célula | Erros próprios | Auditoria |
 |---|---|---|---|---|---|
-| `POST /materiais` (multipart, `arquivo` até `MAXIMO_DE_BYTES_DO_MATERIAL`) | `esquemaPedidoEnviarMaterial` | 201 `esquemaRespostaMaterial` | `material.enviar` C `un` | `MATERIAL_SEM_LICENCA`, `CONFLITO` (mesmo arquivo) | `material.enviado`, ou `material.recusado` |
-| `GET /materiais` | `esquemaConsultaMateriais` | `esquemaRespostaListaDeMateriais` | `material.listar` C `un`, P `tv` | | |
-| `GET /materiais/:id` | | `esquemaRespostaMaterial` | `material.ler` C `un`, P `tv` | | |
+| `POST /materiais` (multipart, `arquivo` até `MAXIMO_DE_BYTES_DO_MATERIAL`) | `enviarMaterialRequestSchema` | 201 `materialResponseSchema` | `material.enviar` C `un` | `MATERIAL_SEM_LICENCA`, `CONFLITO` (mesmo arquivo) | `material.enviado`, ou `material.recusado` |
+| `GET /materiais` | `materiaisQuerySchema` | `listaDeMateriaisResponseSchema` | `material.listar` C `un`, P `tv` | | |
+| `GET /materiais/:id` | | `materialResponseSchema` | `material.ler` C `un`, P `tv` | | |
 | `DELETE /materiais/:id` | | 204 | `material.excluir` C `un` | | `material.excluido` |
-| `GET /materiais/busca` | `esquemaConsultaBuscaDeMaterial` | `esquemaRespostaBuscaDeMaterial` | `material.buscar` C `un`, P `tv` | | |
+| `GET /materiais/busca` | `buscaDeMaterialQuerySchema` | `buscaDeMaterialResponseSchema` | `material.buscar` C `un`, P `tv` | | |
 
 A recusa usa `motivoDaRecusaDoMaterial(pedido)` **antes de abrir o arquivo**, não grava `material` e grava
 `material.recusado` (entidade `disciplina`). Para o professor, `tv` em material quer dizer: disciplina em que ele tem
@@ -61,22 +61,22 @@ material `pronto` e não excluído.
 
 | Rota | Entrada | Saída | Célula | Erros próprios | Auditoria |
 |---|---|---|---|---|---|
-| `GET /time` | | `esquemaRespostaTime` (`montarTime(suspensas)`) | `time.ler` C `un`, P `un` | | |
-| `GET /assistente/conversa` | `esquemaConsultaConversaDoAssistente` | `esquemaRespostaConversaDoAssistente` | `assistente.ler_conversa` P `pr` | | |
-| `POST /assistente/mensagens` | `esquemaPedidoMensagemAoAssistente` (`texto`, `turmaId`, `disciplinaId`, `chaveEnvio` e, opcional, `resposta: 'so_conversar'`) | 202 | `assistente.enviar_mensagem` P `pr` | `FUNCAO_SUSPENSA`, `LIMITE_EXCEDIDO` | |
-| `GET /execucoes/:id` | | `esquemaRespostaExecucao` | `execucao.ler` C, P, A `pr` | | |
-| `POST /ferramentas/:ferramenta/gerar` | `esquemaParametroFerramenta`, `esquemaPedidoGerarComFerramenta` | 202 | `ferramenta.gerar` P `tv` | `FUNCAO_SUSPENSA`; na execução, `MATERIAL_INSUFICIENTE` | |
-| `GET /artefatos` | `esquemaConsultaArtefatos` | `esquemaRespostaListaDeArtefatos` | `artefato.listar` P `tv` | | |
-| `GET /artefatos/:id` | | `esquemaRespostaArtefato` | `artefato.ler` P `tv` | | |
-| `PATCH /artefatos/:id` | `esquemaPedidoRenomearArtefato` | `esquemaRespostaArtefato` | `artefato.renomear` P `tv` | `CONFLITO` (versão adaptada com a entrega já decidida) | |
+| `GET /time` | | `timeResponseSchema` (`montarTime(suspensas)`) | `time.ler` C `un`, P `un` | | |
+| `GET /assistente/conversa` | `conversaDoAssistenteQuerySchema` | `conversaDoAssistenteResponseSchema` | `assistente.ler_conversa` P `pr` | | |
+| `POST /assistente/mensagens` | `mensagemAoAssistenteRequestSchema` (`texto`, `turmaId`, `disciplinaId`, `chaveEnvio` e, opcional, `resposta: 'so_conversar'`) | 202 | `assistente.enviar_mensagem` P `pr` | `FUNCAO_SUSPENSA`, `LIMITE_EXCEDIDO` | |
+| `GET /execucoes/:id` | | `execucaoResponseSchema` | `execucao.ler` C, P, A `pr` | | |
+| `POST /ferramentas/:ferramenta/gerar` | `parametroFerramentaSchema`, `gerarComFerramentaRequestSchema` | 202 | `ferramenta.gerar` P `tv` | `FUNCAO_SUSPENSA`; na execução, `MATERIAL_INSUFICIENTE` | |
+| `GET /artefatos` | `artefatosQuerySchema` | `listaDeArtefatosResponseSchema` | `artefato.listar` P `tv` | | |
+| `GET /artefatos/:id` | | `artefatoResponseSchema` | `artefato.ler` P `tv` | | |
+| `PATCH /artefatos/:id` | `renomearArtefatoRequestSchema` | `artefatoResponseSchema` | `artefato.renomear` P `tv` | `CONFLITO` (versão adaptada com a entrega já decidida) | |
 | `GET /artefatos/:id/pdf` | | binário, `Content-Disposition: attachment` | `artefato.exportar` P `tv` | `VERSAO_ADAPTADA_NAO_APROVADA` (versão adaptada rejeitada); pendente sai como rascunho marcado, `rascunho-….pdf` | nenhuma (ver abaixo) |
-| `POST /artefatos/:id/adaptar` | `esquemaPedidoAdaptarArtefato` | 202 | `artefato.adaptar` P `tv` | `FUNCAO_SUSPENSA`, `CONFLITO` (não é atividade, ou já é versão adaptada) | |
-| `GET /entregas` | `esquemaConsultaEntregas` | `esquemaRespostaListaDeEntregas` | `entrega.listar` P `tv` | | |
-| `POST /entregas/:id/decidir` | `esquemaPedidoDecidirEntrega` | `esquemaRespostaEntrega` | `entrega.decidir` P `tv` | `ENTREGA_JA_DECIDIDA`; `ENTRADA_INVALIDA` ao aprovar lote por aqui | `entrega.decidida` |
+| `POST /artefatos/:id/adaptar` | `adaptarArtefatoRequestSchema` | 202 | `artefato.adaptar` P `tv` | `FUNCAO_SUSPENSA`, `CONFLITO` (não é atividade, ou já é versão adaptada) | |
+| `GET /entregas` | `entregasQuerySchema` | `listaDeEntregasResponseSchema` | `entrega.listar` P `tv` | | |
+| `POST /entregas/:id/decidir` | `decidirEntregaRequestSchema` | `entregaResponseSchema` | `entrega.decidir` P `tv` | `ENTREGA_JA_DECIDIDA`; `ENTRADA_INVALIDA` ao aprovar lote por aqui | `entrega.decidida` |
 
-O conteúdo do artefato é `esquemaConteudoDoArtefato` (`assistente/conteudo.ts`): toda questão e todo plano citam material
+O conteúdo do artefato é `conteudoDoArtefatoSchema` (`assistente/conteudo.ts`): toda questão e todo plano citam material
 e página. O catálogo de habilidades é `habilidadesDaDisciplina(nome, etapa)` (`assistente/habilidades.ts`): códigos nossos,
-não da BNCC. A resposta do Assistente é `esquemaConteudoDaMensagemDoAgente`: texto com citações, ou a **proposta de
+não da BNCC. A resposta do Assistente é `conteudoDaMensagemDoAgenteSchema`: texto com citações, ou a **proposta de
 ferramenta** (a pergunta da D18).
 
 **As duas opções da pergunta têm rota.** "Abrir a ferramenta" é `POST /ferramentas/:ferramenta/gerar`, com os parâmetros
@@ -97,18 +97,18 @@ aluno (a prova com nome, o diagnóstico), a exportação ganha ação de auditor
 
 | Rota | Entrada | Saída | Célula | Erros próprios | Auditoria |
 |---|---|---|---|---|---|
-| `POST /atividades-aplicadas` | `esquemaPedidoAplicarAtividade` | 201 `esquemaRespostaAtividadeAplicada` | `atividade_aplicada.aplicar` P `tv` | `VERSAO_ADAPTADA_NAO_APROVADA`, `CONFLITO` (já aberta) | `atividade.aplicada` |
-| `GET /atividades-aplicadas` | `esquemaConsultaAtividadesAplicadas` | `esquemaRespostaListaDeAtividadesAplicadas` | `atividade_aplicada.listar` P `tv` | | |
-| `POST /atividades-aplicadas/:id/encerrar` | `esquemaPedidoSemCorpo` | `esquemaRespostaAtividadeEncerrada` | `atividade_aplicada.encerrar` P `tv` | | |
-| `GET /minhas-atividades` | `esquemaConsultaMinhasAtividades` | `esquemaRespostaMinhasAtividades` | `minha_atividade.listar` A `pr` | | |
-| `GET /atividades-aplicadas/:id/prova` | | `esquemaRespostaProva` (`questoesDaProva`) | `minha_atividade.ler_prova` A `pr` | | |
-| `PUT /atividades-aplicadas/:id/respostas/:questao` | `esquemaNumeroDaQuestao`, `esquemaPedidoResponderQuestao` | `esquemaRespostaQuestaoSalva` | `minha_atividade.responder` A `pr` | `ATIVIDADE_ENCERRADA` | |
-| `POST /atividades-aplicadas/:id/enviar` | `esquemaPedidoSemCorpo` | `esquemaRespostaAtividadeEnviada` | `minha_atividade.enviar` A `pr` | | |
-| `GET /atividades-aplicadas/:id/meu-diagnostico` | | `esquemaRespostaMeuDiagnostico` | `minha_atividade.ler_diagnostico` A `pr` | `NAO_ENCONTRADO` até o lote ser aprovado | |
-| `GET /atividades-aplicadas/:id/correcao` | | `esquemaRespostaCorrecaoDoLote` | `correcao.ler` P `tv` | | |
-| `POST /atividades-aplicadas/:id/correcao/destaques/:alunoId/abrir` | `esquemaPedidoSemCorpo` | `esquemaRespostaDestaqueAberto` | `correcao.abrir_destaque` P `tv` | | `correcao.destaque_aberto` |
-| `POST /entregas/:id/aprovar-lote` | `esquemaPedidoSemCorpo` | `esquemaRespostaLoteAprovado` | `entrega.aprovar_lote` P `tv` | `DESTAQUES_NAO_ABERTOS`, `ENTREGA_JA_DECIDIDA` | `lote.aprovado` |
-| `GET /turmas/:id/desempenho` | `esquemaConsultaDesempenhoDaTurma` | `esquemaRespostaDesempenhoDaTurma` | `desempenho_da_turma.ler` P `tv`, C `na` | `ENTRADA_INVALIDA` (coordenação sem `finalidade`) | `turma.desempenho_lido` (só a coordenação) |
+| `POST /atividades-aplicadas` | `aplicarAtividadeRequestSchema` | 201 `atividadeAplicadaResponseSchema` | `atividade_aplicada.aplicar` P `tv` | `VERSAO_ADAPTADA_NAO_APROVADA`, `CONFLITO` (já aberta) | `atividade.aplicada` |
+| `GET /atividades-aplicadas` | `atividadesAplicadasQuerySchema` | `listaDeAtividadesAplicadasResponseSchema` | `atividade_aplicada.listar` P `tv` | | |
+| `POST /atividades-aplicadas/:id/encerrar` | `emptyBodyRequestSchema` | `atividadeEncerradaResponseSchema` | `atividade_aplicada.encerrar` P `tv` | | |
+| `GET /minhas-atividades` | `minhasAtividadesQuerySchema` | `minhasAtividadesResponseSchema` | `minha_atividade.listar` A `pr` | | |
+| `GET /atividades-aplicadas/:id/prova` | | `provaResponseSchema` (`questoesDaProva`) | `minha_atividade.ler_prova` A `pr` | | |
+| `PUT /atividades-aplicadas/:id/respostas/:questao` | `numeroDaQuestaoSchema`, `responderQuestaoRequestSchema` | `questaoSalvaResponseSchema` | `minha_atividade.responder` A `pr` | `ATIVIDADE_ENCERRADA` | |
+| `POST /atividades-aplicadas/:id/enviar` | `emptyBodyRequestSchema` | `atividadeEnviadaResponseSchema` | `minha_atividade.enviar` A `pr` | | |
+| `GET /atividades-aplicadas/:id/meu-diagnostico` | | `meuDiagnosticoResponseSchema` | `minha_atividade.ler_diagnostico` A `pr` | `NAO_ENCONTRADO` até o lote ser aprovado | |
+| `GET /atividades-aplicadas/:id/correcao` | | `correcaoDoLoteResponseSchema` | `correcao.ler` P `tv` | | |
+| `POST /atividades-aplicadas/:id/correcao/destaques/:alunoId/abrir` | `emptyBodyRequestSchema` | `destaqueAbertoResponseSchema` | `correcao.abrir_destaque` P `tv` | | `correcao.destaque_aberto` |
+| `POST /entregas/:id/aprovar-lote` | `emptyBodyRequestSchema` | `loteAprovadoResponseSchema` | `entrega.aprovar_lote` P `tv` | `DESTAQUES_NAO_ABERTOS`, `ENTREGA_JA_DECIDIDA` | `lote.aprovado` |
+| `GET /turmas/:id/desempenho` | `desempenhoDaTurmaQuerySchema` | `desempenhoDaTurmaResponseSchema` | `desempenho_da_turma.ler` P `tv`, C `na` | `ENTRADA_INVALIDA` (coordenação sem `finalidade`) | `turma.desempenho_lido` (só a coordenação) |
 
 A prova do aluno é montada por `questoesDaProva(conteudo)`: copia número, enunciado e alternativas, e nada mais.
 
@@ -116,11 +116,11 @@ A prova do aluno é montada por `questoesDaProva(conteudo)`: copia número, enun
 
 | Rota | Entrada | Saída | Célula | Erros próprios | Auditoria |
 |---|---|---|---|---|---|
-| `POST /tutor/mensagens` | `esquemaPedidoMensagemAoTutor` | 202 | `tutor.enviar_mensagem` A `pr` | `TUTOR_PAUSADO_EM_AVALIACAO`, `LIMITE_DIARIO_DO_TUTOR`, `PACOTE_DO_TUTOR_ESGOTADO`, `FUNCAO_SUSPENSA` | |
-| `GET /tutor/conversa` | `esquemaConsultaConversaDoTutor` | `esquemaRespostaConversaDoTutor` | `tutor.ler_conversa` A `pr` | | |
-| `GET /tutor/memoria` | | `esquemaRespostaMemoriaDoTutor` | `tutor.ler_memoria` A `pr` | | |
-| `GET /sinais` | `esquemaConsultaSinais` | `esquemaRespostaSinais` | `sinal.ler` P `tv` | | |
-| `GET /tutor/uso` | `esquemaConsultaUsoDoTutor` | `esquemaRespostaUsoDoTutor` | `uso_do_tutor.ler` P `tv` | | |
+| `POST /tutor/mensagens` | `mensagemAoTutorRequestSchema` | 202 | `tutor.enviar_mensagem` A `pr` | `TUTOR_PAUSADO_EM_AVALIACAO`, `LIMITE_DIARIO_DO_TUTOR`, `PACOTE_DO_TUTOR_ESGOTADO`, `FUNCAO_SUSPENSA` | |
+| `GET /tutor/conversa` | `conversaDoTutorQuerySchema` | `conversaDoTutorResponseSchema` | `tutor.ler_conversa` A `pr` | | |
+| `GET /tutor/memoria` | | `memoriaDoTutorResponseSchema` | `tutor.ler_memoria` A `pr` | | |
+| `GET /sinais` | `sinaisQuerySchema` | `sinaisResponseSchema` | `sinal.ler` P `tv` | | |
+| `GET /tutor/uso` | `usoDoTutorQuerySchema` | `usoDoTutorResponseSchema` | `uso_do_tutor.ler` P `tv` | | |
 
 **`GET /tutor/uso?turmaId=` é o que faz não existir uso do Tutor invisível ao professor** (D8, D47; regra 70, item 4). O
 sinal só nasce em quatro situações; o aluno com turnos todos comuns não gera sinal, e aparece aqui. Por aluno que já
@@ -166,14 +166,14 @@ tarefa, e só com questão em andamento.
 
 | Rota | Entrada | Saída | Célula | Erros próprios | Auditoria |
 |---|---|---|---|---|---|
-| `GET /governanca/resumo` | `esquemaConsultaResumoDaGovernanca` | `esquemaRespostaResumoDaGovernanca` | `governanca.ler_resumo` C `ag` | | |
-| `GET /governanca/funcoes` | | `esquemaRespostaFuncoesDaGovernanca` | `governanca.ler_funcoes` C `un` | | |
-| `POST /governanca/funcoes/:chave/suspender` | `esquemaChaveDeFuncao`, `esquemaPedidoSuspenderFuncao` | `esquemaRespostaFuncaoDaGovernanca` | `governanca.suspender_funcao` C `un` | | `funcao.suspensa` |
-| `POST /governanca/funcoes/:chave/retomar` | `esquemaChaveDeFuncao`, `esquemaPedidoSemCorpo` | `esquemaRespostaFuncaoDaGovernanca` | `governanca.retomar_funcao` C `un` | `NAO_ENCONTRADO` (sem suspensão vigente) | `funcao.retomada` |
-| `GET /governanca/consumo` | `esquemaConsultaConsumo` | `esquemaRespostaConsumo` | `governanca.ler_consumo` C `ag` | | |
-| `GET /analista/resumo` | | `esquemaRespostaResumoDoAnalista` | `analista.ler_resumo` C `ag` | | |
-| `POST /analista/gerar` | `esquemaPedidoGerarResumoDoAnalista` | 202 | `analista.gerar` C `un` | `FUNCAO_SUSPENSA` | |
-| `GET /analista/nominal` | `esquemaConsultaAnalistaNominal` | `esquemaRespostaAnalistaNominal` | `analista.ler_nominal` C `na` | `ENTRADA_INVALIDA` (sem `finalidade`) | `analista.nominal_lido` |
+| `GET /governanca/resumo` | `resumoDaGovernancaQuerySchema` | `resumoDaGovernancaResponseSchema` | `governanca.ler_resumo` C `ag` | | |
+| `GET /governanca/funcoes` | | `funcoesDaGovernancaResponseSchema` | `governanca.ler_funcoes` C `un` | | |
+| `POST /governanca/funcoes/:chave/suspender` | `chaveDeFuncaoSchema`, `suspenderFuncaoRequestSchema` | `funcaoDaGovernancaResponseSchema` | `governanca.suspender_funcao` C `un` | | `funcao.suspensa` |
+| `POST /governanca/funcoes/:chave/retomar` | `chaveDeFuncaoSchema`, `emptyBodyRequestSchema` | `funcaoDaGovernancaResponseSchema` | `governanca.retomar_funcao` C `un` | `NAO_ENCONTRADO` (sem suspensão vigente) | `funcao.retomada` |
+| `GET /governanca/consumo` | `consumoQuerySchema` | `consumoResponseSchema` | `governanca.ler_consumo` C `ag` | | |
+| `GET /analista/resumo` | | `resumoDoAnalistaResponseSchema` | `analista.ler_resumo` C `ag` | | |
+| `POST /analista/gerar` | `gerarResumoDoAnalistaRequestSchema` | 202 | `analista.gerar` C `un` | `FUNCAO_SUSPENSA` | |
+| `GET /analista/nominal` | `analistaNominalQuerySchema` | `analistaNominalResponseSchema` | `analista.ler_nominal` C `na` | `ENTRADA_INVALIDA` (sem `finalidade`) | `analista.nominal_lido` |
 
 ## 4. Tabelas (migrations 0022 e 0023)
 
@@ -205,7 +205,7 @@ O que a 0023 mudou, sem tirar nem renomear coluna:
 |---|---|---|
 | `material` | `disciplina_id`, `titulo`, `titularidade`, `licenciante?`, `licenca`, `declaracao`, `sha256`, `tamanho_bytes`, `paginas?`, `estado` (`processando`), `falha?`, `enviado_por?`, `enviado_em`, `excluido_por?`, `excluido_em?` | Check `declaracao` verdadeira e `licenca` nas quatro: não existe material sem licença. `licenciante` só, e sempre, em `terceiro_com_licenca`. Único parcial `(escola_id, sha256)` entre não excluídos e não falhos. Sem `ano_letivo_id`. Exclusão lógica; quem exclui apaga os `trecho` na mesma transação |
 | `trecho` | `disciplina_id`, `material_id`, `pagina`, `texto`, `busca` (gerada, `to_tsvector('portuguese', texto)`) | Um por página: único `(escola_id, material_id, pagina)`. GIN `(escola_id, disciplina_id, busca)`. FK `(escola_id, disciplina_id, material_id)`, `cascade` |
-| `execucao_agente` | `ano_letivo_id`, `funcao`, `tarefa`, `solicitada_por?`, `chave_envio`, `estado` (`pendente`), `entrada`, `resultado?`, `erro?`, `criada_em`, `iniciada_em?`, `concluida_em?` | Único `(escola_id, chave_envio)`. `unique (escola_id, ano_letivo_id, id)` é o alvo do que ela produz. Check prende `tarefa` à `funcao`. `resultado` só na `concluida` e é só referência (`esquemaResultadoGravado`); `erro` só na `falhou`, em formato de código; `concluida_em` nas duas. `rodando` exige `iniciada_em`. Índice parcial das abertas `(escola_id, estado, criada_em)` |
+| `execucao_agente` | `ano_letivo_id`, `funcao`, `tarefa`, `solicitada_por?`, `chave_envio`, `estado` (`pendente`), `entrada`, `resultado?`, `erro?`, `criada_em`, `iniciada_em?`, `concluida_em?` | Único `(escola_id, chave_envio)`. `unique (escola_id, ano_letivo_id, id)` é o alvo do que ela produz. Check prende `tarefa` à `funcao`. `resultado` só na `concluida` e é só referência (`resultadoGravadoSchema`); `erro` só na `falhou`, em formato de código; `concluida_em` nas duas. `rodando` exige `iniciada_em`. Índice parcial das abertas `(escola_id, estado, criada_em)` |
 | `consumo_ia` | `aluno_id?`, `execucao_id?`, `tarefa`, `funcao`, `perfil`, `origem`, `modelo`, `prompt_versao`, `tokens_de_entrada`, `tokens_de_saida`, `custo_micros` (0), `duracao_ms`, `envio_externo`, `tentativas`, `estado`, `codigo_de_erro?`, `entrada?`, `saida?`, `em` | **Sem coluna de usuário** (D64). `aluno_id` só nas funções do Tutor. `entrada` e `saida` **nulas** nas funções do Tutor e na tarefa `propor_ferramenta` (check `consumo_ia_sem_conversa_de_pessoa`): conversa de aluno e de professor não se copia. Índices `(escola_id, funcao, em)` e parcial `(escola_id, aluno_id, em)`. Sem `ano_letivo_id` |
 | `thread_agente` | `ano_letivo_id`, `usuario_id`, `agente`, `criada_em` | Única por `(escola_id, ano_letivo_id, usuario_id, agente)`. Dono `cascade` |
 | `mensagem_agente` | `ano_letivo_id`, `thread_id`, `execucao_id`, `autor`, `conteudo`, `turma_id?`, `disciplina_id?`, `criada_em` | Única por `(escola_id, execucao_id, autor)`. `turma_id` e `disciplina_id` só, e sempre, na mensagem do `usuario`. Só o `agente` propõe ferramenta |
@@ -219,24 +219,24 @@ O que a 0023 mudou, sem tirar nem renomear coluna:
 | `mensagem_tutor` | `ano_letivo_id`, `turma_id`, `aluno_id`, `execucao_id`, `atividade_aplicada_id?`, `questao?`, `material_id?`, `pagina?`, `autor`, `tipo` (`texto`), `texto`, `citacoes?`, `criada_em` | Única por `(escola_id, execucao_id, autor)`. `assunto_delicado` e `citacoes` só do `tutor`. `questao` só com a atividade, `pagina` só com o material, e as duas só na mensagem do aluno. A atividade é da turma da mensagem (FK). Aluno `cascade`. Índices `(escola_id, aluno_id, id)` e parcial `(escola_id, turma_id, criada_em, aluno_id)` das do aluno |
 | `sinal_tutor` | `ano_letivo_id`, `turma_id`, `aluno_id`, `execucao_id?`, `tipo`, `atividade_aplicada_id?`, `questao?`, `material_id?`, `pagina?`, `criado_em` | **Sem coluna de texto.** `atencao_humana` com qualquer referência é recusado. A atividade é da turma do sinal (FK). Único parcial `(escola_id, execucao_id, tipo)`. Aluno `cascade` |
 | `suspensao_de_funcao` | `funcao`, `motivo?`, `suspensa_por`, `suspensa_em`, `retomada_por?`, `retomada_em?` | Único parcial `(escola_id, funcao)` entre as vigentes (`retomada_em is null`): é a consulta "está suspensa agora?". Sem `ano_letivo_id` |
-| `resumo_do_analista` | `ano_letivo_id`, `execucao_id?`, `conteudo`, `gerado_em` | `conteudo` é `esquemaConteudoDoResumoDoAnalista`: agregado, sem pessoa e sem texto livre. Um por execução |
+| `resumo_do_analista` | `ano_letivo_id`, `execucao_id?`, `conteudo`, `gerado_em` | `conteudo` é `conteudoDoResumoDoAnalistaSchema`: agregado, sem pessoa e sem texto livre. Um por execução |
 
 `configuracao_operacional_escola` ganhou `tutor_trocas_por_dia` e `tutor_trocas_por_mes`, nulas: nulo vale
 `TROCAS_POR_DIA_PADRAO_DO_TUTOR` (60) e `TROCAS_POR_MES_PADRAO_DO_TUTOR` (300).
 
-O que o `jsonb` de cada coluna guarda: `artefato.conteudo` → `esquemaConteudoDoArtefato` · `mensagem_agente.conteudo` →
-`esquemaConteudoDaMensagemDoUsuario` ou `esquemaConteudoDaMensagemDoAgente` · `execucao_agente.entrada` →
-`esquemaEntradaDaExecucao` · `execucao_agente.resultado` → `esquemaResultadoGravado` · `correcao.por_habilidade` →
-`esquemaDiagnosticoGravado` · `validacao_do_lote.apresentado` → `esquemaLoteApresentado` · `validacao_do_lote.aberto` →
-`esquemaDestaquesAbertos` · `mensagem_tutor.citacoes` → `Citacao[]` · `resumo_do_analista.conteudo` →
-`esquemaConteudoDoResumoDoAnalista`. Valide na gravação e na leitura.
+O que o `jsonb` de cada coluna guarda: `artefato.conteudo` → `conteudoDoArtefatoSchema` · `mensagem_agente.conteudo` →
+`conteudoDaMensagemDoUsuarioSchema` ou `conteudoDaMensagemDoAgenteSchema` · `execucao_agente.entrada` →
+`execucaoInputSchema` · `execucao_agente.resultado` → `resultadoGravadoSchema` · `correcao.por_habilidade` →
+`diagnosticoGravadoSchema` · `validacao_do_lote.apresentado` → `loteApresentadoSchema` · `validacao_do_lote.aberto` →
+`destaquesAbertosSchema` · `mensagem_tutor.citacoes` → `Citacao[]` · `resumo_do_analista.conteudo` →
+`conteudoDoResumoDoAnalistaSchema`. Valide na gravação e na leitura.
 
 ## 5. Decisões de modelagem
 
 1. **A chave de idempotência se chama `chaveEnvio`** (`chave_envio`), como na reivindicação da A1. É a `chave` da `ExecucaoAgendada` da camada de IA.
 2. **A execução guarda referência, não texto.** `resultado` tem só ids; a mensagem do Assistente e a do Tutor ficam nas tabelas delas, e cada linha produzida aponta para a execução por `execucao_id`, com índice único: reexecutar não duplica (D49).
 3. **`tarefa` usa os nomes do catálogo da camada de IA** (`TAREFAS_DE_IA`), na execução e no consumo. O banco prende a tarefa à função, e é pela função que a suspensão vale.
-4. **O erro da execução é um `CodigoDeErro`.** Os da camada de IA entraram no catálogo; a tela mostra `MENSAGENS_DE_ERRO[erro]`.
+4. **O erro da execução é um `ErrorCode`.** Os da camada de IA entraram no catálogo; a tela mostra `MENSAGENS_DE_ERRO[erro]`.
 5. **`consumo_ia` não tem usuário** (D64). O aluno entra só nas funções do Tutor. `entrada` e `saida` ficam nulas onde a chamada leva conversa de pessoa: no Tutor (o texto fica só em `mensagem_tutor`) e em `propor_ferramenta` (a mensagem do professor fica só em `mensagem_agente`). Nas outras tarefas vai o tema, que é texto livre do professor: o schema estrito barra campo, não o que está escrito.
 6. **O freio do dia conta `consumo_ia` do aluno; o pacote do mês e o uso por turma contam `mensagem_tutor`.** Uma linha por troca nos dois. Os limites são configuração da escola (D38, D41).
 7. **Aprovar o lote exige a validação, no banco, e a validação exige os destaques do lote abertos.** Gatilho adiado na `entrega`; na `validacao_do_lote`, o check do registro e o gatilho que confere as `correcao` do lote. A regra não depende de o serviço lembrar (D56).

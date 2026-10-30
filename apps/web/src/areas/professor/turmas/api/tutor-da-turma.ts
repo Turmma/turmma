@@ -1,4 +1,4 @@
-import { esquemaRespostaSinais, esquemaRespostaUsoDoTutor, TAMANHO_MAXIMO_DA_PAGINA } from '@educa/shared'
+import { sinaisResponseSchema, usoDoTutorResponseSchema, TAMANHO_MAXIMO_DA_PAGINA } from '@educa/shared'
 import { queryOptions } from '@tanstack/react-query'
 import { CHAVE_DO_USO_DO_TUTOR, CHAVE_DOS_SINAIS } from '../../../../api/chaves-do-professor'
 import { buscarComSessao } from '../../../../api/sessao'
@@ -13,7 +13,7 @@ import { buscarComSessao } from '../../../../api/sessao'
 export function consultaSinais(turmaId: string) {
   return queryOptions({
     queryKey: [...CHAVE_DOS_SINAIS, turmaId],
-    queryFn: ({ signal }) => buscarComSessao(`/v1/sinais?turmaId=${encodeURIComponent(turmaId)}&limite=${String(TAMANHO_MAXIMO_DA_PAGINA)}`, esquemaRespostaSinais, signal),
+    queryFn: ({ signal }) => buscarComSessao(`/v1/sinais?turmaId=${encodeURIComponent(turmaId)}&limite=${String(TAMANHO_MAXIMO_DA_PAGINA)}`, sinaisResponseSchema, signal),
     gcTime: 0,
   })
 }
@@ -26,7 +26,7 @@ export function consultaSinais(turmaId: string) {
 export function consultaUsoDoTutor(turmaId: string) {
   return queryOptions({
     queryKey: [...CHAVE_DO_USO_DO_TUTOR, turmaId],
-    queryFn: ({ signal }) => buscarComSessao(`/v1/tutor/uso?turmaId=${encodeURIComponent(turmaId)}`, esquemaRespostaUsoDoTutor, signal),
+    queryFn: ({ signal }) => buscarComSessao(`/v1/tutor/uso?turmaId=${encodeURIComponent(turmaId)}`, usoDoTutorResponseSchema, signal),
     gcTime: 0,
   })
 }

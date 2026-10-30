@@ -1,11 +1,11 @@
 import { Permite, ZodValidationPipe } from '@educa/nucleo'
 import {
-  esquemaConsultaConversaDoAssistente,
-  esquemaPedidoMensagemAoAssistente,
-  type ConsultaConversaDoAssistente,
-  type PedidoMensagemAoAssistente,
-  type RespostaConversaDoAssistente,
-  type RespostaExecucaoAceita,
+  conversaDoAssistenteQuerySchema,
+  mensagemAoAssistenteRequestSchema,
+  type ConversaDoAssistenteQuery,
+  type MensagemAoAssistenteRequest,
+  type ConversaDoAssistenteResponse,
+  type ExecucaoAceitaResponse,
 } from '@educa/shared'
 import { Body, Controller, Get, Header, HttpCode, HttpStatus, Post, Query } from '@nestjs/common'
 import { AssistenteService } from './assistente.service.js'
@@ -23,14 +23,14 @@ export class AssistenteController {
   @Get('conversa')
   @Permite('assistente', 'ler_conversa')
   @Header('Cache-Control', 'no-store')
-  conversa(@Query(new ZodValidationPipe(esquemaConsultaConversaDoAssistente)) consulta: ConsultaConversaDoAssistente): Promise<RespostaConversaDoAssistente> {
+  conversa(@Query(new ZodValidationPipe(conversaDoAssistenteQuerySchema)) consulta: ConversaDoAssistenteQuery): Promise<ConversaDoAssistenteResponse> {
     return this.assistente.conversa(consulta)
   }
 
   @Post('mensagens')
   @Permite('assistente', 'enviar_mensagem')
   @HttpCode(HttpStatus.ACCEPTED)
-  enviar(@Body(new ZodValidationPipe(esquemaPedidoMensagemAoAssistente)) pedido: PedidoMensagemAoAssistente): Promise<RespostaExecucaoAceita> {
+  enviar(@Body(new ZodValidationPipe(mensagemAoAssistenteRequestSchema)) pedido: MensagemAoAssistenteRequest): Promise<ExecucaoAceitaResponse> {
     return this.assistente.enviar(pedido)
   }
 }

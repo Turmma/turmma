@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { esquemaTokenDeLink } from '../sessao/token.js'
+import { tokenDeLinkSchema } from '../sessao/token.js'
 
 /**
  * O acesso da turma (A1, tarefa 4.0, RF9; Tech Spec da A1, seções 3 e 4): o link da sala e o código da turma, que o
@@ -45,14 +45,14 @@ export function exibirCodigoDaTurma(codigo: string): string {
  * Corpo de `POST /v1/turmas/:id/acesso`: a validade, 1, 7 ou 30 dias. Estrito: campo a mais, como `escolaId` ou
  * `turmaId`, é `ENTRADA_INVALIDA`; a turma vem do caminho e a escola, da sessão.
  */
-export const esquemaPedidoGerarAcesso = z.strictObject({
+export const gerarAcessoRequestSchema = z.strictObject({
   validadeDias: z.literal(VALIDADES_DO_ACESSO_DIAS),
 })
 
-export type PedidoGerarAcesso = z.infer<typeof esquemaPedidoGerarAcesso>
+export type GerarAcessoRequest = z.infer<typeof gerarAcessoRequestSchema>
 
 /** Corpo de `POST /v1/turmas/:id/acesso/revogar`: nenhum campo, `{}` ou corpo nenhum. */
-export const esquemaPedidoRevogarAcesso = z.strictObject({})
+export const revogarAcessoRequestSchema = z.strictObject({})
 
 /**
  * Resposta de `POST /v1/turmas/:id/acesso`, a única que traz o link e o código (sai com `no-store`): o token do link da
@@ -60,20 +60,20 @@ export const esquemaPedidoRevogarAcesso = z.strictObject({})
  * espaços (a tela o mostra com `exibirCodigoDaTurma`), e até quando os dois valem. O banco guarda só o SHA-256 do token
  * e o HMAC do código. Estrito: nada de aluno, nada da turma.
  */
-export const esquemaRespostaAcessoGerado = z.strictObject({
-  token: esquemaTokenDeLink,
+export const acessoGeradoResponseSchema = z.strictObject({
+  token: tokenDeLinkSchema,
   codigo: z.string().regex(FORMATO_DO_CODIGO_DA_TURMA),
   expiraEm: z.iso.datetime(),
 })
 
-export type RespostaAcessoGerado = z.infer<typeof esquemaRespostaAcessoGerado>
+export type AcessoGeradoResponse = z.infer<typeof acessoGeradoResponseSchema>
 
 /**
  * Resposta de `GET /v1/turmas/:id/acesso`: só até quando vale o acesso vigente da turma, ou `null` quando não há
  * nenhum (revogado, vencido ou nunca gerado). O link e o código não voltam: aparecem uma vez, na resposta que os cria.
  */
-export const esquemaRespostaAcessoDaTurma = z.strictObject({
+export const acessoDaTurmaResponseSchema = z.strictObject({
   expiraEm: z.iso.datetime().nullable(),
 })
 
-export type RespostaAcessoDaTurma = z.infer<typeof esquemaRespostaAcessoDaTurma>
+export type AcessoDaTurmaResponse = z.infer<typeof acessoDaTurmaResponseSchema>

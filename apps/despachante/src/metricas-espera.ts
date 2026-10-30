@@ -17,7 +17,7 @@ import {
   type Relogio,
   type VagasPorEscola,
 } from '@educa/nucleo'
-import type { Fila } from '@educa/shared'
+import type { QueueName } from '@educa/shared'
 import { contextoDaEscola, FILA_QUE_SEGURA_NAO_URGENTE } from './despachante.js'
 
 /** De quanto em quanto tempo o despachante mede as filas. A exportação lê a última medição. */
@@ -46,7 +46,7 @@ export interface OpcoesDaMedicao {
 
 /** O que a medição exporta de uma fila numa escola. */
 export interface SerieDaFila {
-  fila: Fila
+  fila: QueueName
   escolaId: string | null
   /** Segundos; `undefined` se nenhum job está esperando de fato (só ativos, ou só não urgentes segurados). */
   esperaS: number | undefined

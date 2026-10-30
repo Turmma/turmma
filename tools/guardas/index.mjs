@@ -31,7 +31,7 @@ export const REGRAS_DE_TENANT = ['guardas/tabela-so-no-repository']
 export const REGRAS_EM_TODO_ARQUIVO = [...REGRAS_DE_LOG, ...REGRAS_DE_SDK_DE_IA, ...REGRAS_DE_TENANT]
 /**
  * Em produção só se lança erro com tipo (X5, 25.0; regra 00, item 9): sem `Error` genérico nem literal, e o motivo do
- * `ErroDeInvariante` é texto fixo (regra 20, item 11). Vale em `src` de cada app e do núcleo; o teste e o `__fixtures__`
+ * `InvariantException` é texto fixo (regra 20, item 11). Vale em `src` de cada app e do núcleo; o teste e o `__fixtures__`
  * ficam de fora (`EXCECOES_DAS_GUARDAS`).
  */
 export const REGRAS_DE_ERRO = ['guardas/erro-tipado']

@@ -1,4 +1,4 @@
-import { MENSAGENS_DE_ERRO } from '../packages/shared/src/erros/mensagens.ts'
+import { MENSAGENS_DE_ERRO } from '../packages/shared/src/errors/messages.ts'
 import { ALUNOS_DO_LOTE, erroDaApi, portao, QUEM_DECIDE } from './__fixtures__/assistente.ts'
 import { abrirNavegacao, entrarPorEmail, esperarNovaConversa, lateral, PRAZO_DA_ENTRADA_MS, secoes } from './__fixtures__/casca.ts'
 import { cacheDeConsultas, semAcessosDaConta } from './__fixtures__/consultas.ts'

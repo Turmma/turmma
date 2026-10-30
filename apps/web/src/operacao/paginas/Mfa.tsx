@@ -1,4 +1,4 @@
-import { CodigoDeErro, DIGITOS_DO_CODIGO_MFA, formatarEspera, TAMANHO_DO_CODIGO_DE_RECUPERACAO } from '@educa/shared'
+import { ErrorCode, DIGITOS_DO_CODIGO_MFA, formatarEspera, TAMANHO_DO_CODIGO_DE_RECUPERACAO } from '@educa/shared'
 import { useState, type FormEvent } from 'react'
 import { Link, useLocation } from 'wouter'
 import { ErroDaApi } from '../../api/cliente'
@@ -15,7 +15,7 @@ const TAMANHO_MAXIMO_DIGITADO_NA_RECUPERACAO = TAMANHO_DO_CODIGO_DE_RECUPERACAO 
 
 /** O aviso da entrada quando o código foi recusado: com a espera da conta segurada, quando a API a informou. */
 function avisoDaRecusa(erro: unknown): string {
-  if (erro instanceof ErroDaApi && erro.codigo === CodigoDeErro.CONTA_SEGURADA && erro.esperaSegundos !== undefined) {
+  if (erro instanceof ErroDaApi && erro.codigo === ErrorCode.CONTA_SEGURADA && erro.esperaSegundos !== undefined) {
     return `${TEXTO_DO_CODIGO_RECUSADO} Muitas tentativas nesta conta: espere ${formatarEspera(erro.esperaSegundos)} antes de tentar.`
   }
   return TEXTO_DO_CODIGO_RECUSADO

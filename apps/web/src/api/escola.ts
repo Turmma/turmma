@@ -1,4 +1,4 @@
-import { esquemaRespostaAcessoDaEscola, type ProvedorDeContaDaEscola } from '@educa/shared'
+import { acessoDaEscolaResponseSchema, type ProvedorDeContaDaEscola } from '@educa/shared'
 import { queryOptions } from '@tanstack/react-query'
 import { buscarDaApi } from './cliente'
 
@@ -17,7 +17,7 @@ export function caminhoDoAcessoDaEscola(slug: string): string {
 export function consultaAcessoDaEscola(slug: string) {
   return queryOptions({
     queryKey: ['acesso-da-escola', slug],
-    queryFn: ({ signal }) => buscarDaApi(caminhoDoAcessoDaEscola(slug), esquemaRespostaAcessoDaEscola, signal),
+    queryFn: ({ signal }) => buscarDaApi(caminhoDoAcessoDaEscola(slug), acessoDaEscolaResponseSchema, signal),
   })
 }
 

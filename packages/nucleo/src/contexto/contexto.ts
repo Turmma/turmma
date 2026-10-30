@@ -1,4 +1,4 @@
-import { ErroDeInvariante, type PapelDeUsuario } from '@educa/shared'
+import { InvariantException, type PapelDeUsuario } from '@educa/shared'
 import { AsyncLocalStorage } from 'node:async_hooks'
 import { randomUUID } from 'node:crypto'
 import type { IncomingMessage, ServerResponse } from 'node:http'
@@ -77,9 +77,9 @@ export function middlewareDeContexto(requisicao: IncomingMessage, _resposta: Ser
 
 function contextoAindaSemIdentidade(): ContextoGravavel {
   const contexto = armazenamento.getStore() as ContextoGravavel | undefined
-  if (contexto === undefined) throw new ErroDeInvariante('contexto da requisição ausente')
+  if (contexto === undefined) throw new InvariantException('contexto da requisição ausente')
   if (contexto.escolaId !== undefined || contexto.usuarioId !== undefined || contexto.sessaoId !== undefined || contexto.operadorId !== undefined) {
-    throw new ErroDeInvariante('identidade do contexto já definida')
+    throw new InvariantException('identidade do contexto já definida')
   }
   return contexto
 }
@@ -124,6 +124,6 @@ export function definirOperadorNoContexto(operadorId: string): void {
  */
 export function exigirOperadorDoContexto(): string {
   const operadorId = contextoAtual()?.operadorId
-  if (operadorId === undefined) throw new ErroDeInvariante('rota da operação sem operador no contexto')
+  if (operadorId === undefined) throw new InvariantException('rota da operação sem operador no contexto')
   return operadorId
 }

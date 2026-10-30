@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { esquemaAcessoDaConta } from './eu.js'
+import { acessoDaContaSchema } from './eu.js'
 
 /** Maior e-mail aceito, o mesmo teto do check de `conta` no banco. */
 export const TAMANHO_MAXIMO_EMAIL = 254
@@ -29,7 +29,7 @@ const TAMANHO_MAXIMO_BILHETE = 1_024
  * Corpo de `POST /v1/sessao/email`. Estrito: nada além do e-mail, da senha e, logo depois de aceitar um convite com a
  * conta que já tinha senha, o `bilhete` que o aceite devolveu (7.0). Bilhete que não vale é ignorado.
  */
-export const esquemaPedidoLoginEmail = z
+export const loginEmailRequestSchema = z
   .object({
     email: z.string().trim().min(3).max(TAMANHO_MAXIMO_EMAIL),
     senha: z.string().min(1).max(TAMANHO_MAXIMO_SENHA),
@@ -37,7 +37,7 @@ export const esquemaPedidoLoginEmail = z
   })
   .strict()
 
-export type PedidoLoginEmail = z.infer<typeof esquemaPedidoLoginEmail>
+export type LoginEmailRequest = z.infer<typeof loginEmailRequestSchema>
 
 /** As etapas com desafio que não escolhem escola: o segundo fator, que não precisa de lista nenhuma. */
 const ETAPAS_DO_SEGUNDO_FATOR = ['configurar_mfa', 'mfa'] as const satisfies readonly EtapaComDesafio[]
@@ -51,10 +51,10 @@ const ETAPAS_DO_SEGUNDO_FATOR = ['configurar_mfa', 'mfa'] as const satisfies rea
  * campos que `/v1/eu.acessos` devolve depois da sessão — nome da escola e papel, nada mais de outra escola —, e quem
  * os recebe já provou a senha daquela conta.
  */
-export const esquemaRespostaLogin = z.discriminatedUnion('etapa', [
+export const loginResponseSchema = z.discriminatedUnion('etapa', [
   z.object({ etapa: z.literal('pronta'), token: z.string().min(1), expiraEm: z.iso.datetime() }).strict(),
-  z.object({ etapa: z.literal('escolher'), desafio: z.string().min(1), acessos: z.array(esquemaAcessoDaConta) }).strict(),
+  z.object({ etapa: z.literal('escolher'), desafio: z.string().min(1), acessos: z.array(acessoDaContaSchema) }).strict(),
   z.object({ etapa: z.enum(ETAPAS_DO_SEGUNDO_FATOR), desafio: z.string().min(1) }).strict(),
 ])
 
-export type RespostaLogin = z.infer<typeof esquemaRespostaLogin>
+export type LoginResponse = z.infer<typeof loginResponseSchema>

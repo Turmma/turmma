@@ -1,5 +1,5 @@
 import { ErroDeDominio, type TransacaoBanco } from '@educa/nucleo'
-import { CodigoDeErro } from '@educa/shared'
+import { ErrorCode } from '@educa/shared'
 import { describe, expect, it } from 'vitest'
 import { OperadorRepository } from './operador.repository.js'
 
@@ -17,7 +17,7 @@ function bancoQueDevolve(...respostas: unknown[][]): TransacaoBanco {
   return cadeia as unknown as TransacaoBanco
 }
 
-const ERRO_TIPADO = new ErroDeDominio(CodigoDeErro.ERRO_INTERNO)
+const ERRO_TIPADO = new ErroDeDominio(ErrorCode.ERRO_INTERNO)
 
 describe('OperadorRepository: o que o banco não devolveu sai como erro tipado, com código (regra 00, item 9)', () => {
   it('criar sem a linha do insert', async () => {

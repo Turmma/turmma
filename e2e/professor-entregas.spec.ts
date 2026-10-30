@@ -1,4 +1,4 @@
-import { MENSAGENS_DE_ERRO } from '../packages/shared/src/erros/mensagens.ts'
+import { MENSAGENS_DE_ERRO } from '../packages/shared/src/errors/messages.ts'
 import { FUNCOES } from '../packages/shared/src/time/funcoes.ts'
 import { atividadeSintetica, erroDaApi, portao, QUEM_DECIDE, versaoAdaptada } from './__fixtures__/assistente.ts'
 import { paginaNaoRola } from './__fixtures__/coordenacao.ts'

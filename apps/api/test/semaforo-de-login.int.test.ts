@@ -1,5 +1,5 @@
 import { METRICAS } from '@educa/nucleo'
-import { CodigoDeErro, MENSAGENS_DE_ERRO } from '@educa/shared'
+import { ErrorCode, MENSAGENS_DE_ERRO } from '@educa/shared'
 import type { Redis } from 'ioredis'
 import { randomBytes, randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest'
@@ -140,7 +140,7 @@ describe('semáforo do hash no login: fila justa com prazo, sem revelar quem exi
 
   function esperarIndisponivel(resposta: Resposta): void {
     expect(resposta.status).toBe(503)
-    expect(resposta.corpo).toEqual({ erro: { codigo: CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO, mensagem: MENSAGENS_DE_ERRO.INDISPONIVEL_TENTE_DE_NOVO, requisicaoId: expect.stringMatching(UUID) } })
+    expect(resposta.corpo).toEqual({ erro: { codigo: ErrorCode.INDISPONIVEL_TENTE_DE_NOVO, mensagem: MENSAGENS_DE_ERRO.INDISPONIVEL_TENTE_DE_NOVO, requisicaoId: expect.stringMatching(UUID) } })
     expect(Number(resposta.retryAfter)).toBeGreaterThanOrEqual(RETRY_AFTER_MINIMO_S)
     expect(Number(resposta.retryAfter)).toBeLessThanOrEqual(RETRY_AFTER_MAXIMO_S)
     expect(Number.isInteger(Number(resposta.retryAfter))).toBe(true)

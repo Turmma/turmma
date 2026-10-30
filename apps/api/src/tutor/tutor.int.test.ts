@@ -1,9 +1,9 @@
 import { MENSAGEM_DE_ASSUNTO_DELICADO, MENSAGEM_DE_RISCO_A_VIDA, type ExecutorNoProcesso } from '@educa/nucleo'
 import {
-  esquemaRespostaConversaDoTutor,
-  esquemaRespostaMemoriaDoTutor,
-  esquemaRespostaSinais,
-  esquemaRespostaUsoDoTutor,
+  conversaDoTutorResponseSchema,
+  memoriaDoTutorResponseSchema,
+  sinaisResponseSchema,
+  usoDoTutorResponseSchema,
   TAMANHO_MAXIMO_DA_PERGUNTA_AO_TUTOR,
   TROCAS_POR_DIA_PADRAO_DO_TUTOR,
   type ChaveDeFuncao,
@@ -89,10 +89,10 @@ describe('Tutor e sinais', () => {
   }
   const naQuestao = (questao: number, atividadeAplicadaId: string = atividade) => ({ atividadeAplicadaId, questao })
   const resposta = (execucao: ExecucaoLida): { tipo: string; texto: string; citacoes?: { materialId: string; pagina: number }[] } => execucao.resultado?.mensagem as never
-  const conversaDe = async (sessao: SessaoDeTeste, consulta = '') => esquemaRespostaConversaDoTutor.parse((await get(sessao, `/v1/tutor/conversa${consulta}`)).corpo)
-  const memoriaDe = async (sessao: SessaoDeTeste) => esquemaRespostaMemoriaDoTutor.parse((await get(sessao, '/v1/tutor/memoria')).corpo)
-  const sinaisPara = async (sessao: SessaoDeTeste, turmaId: string, consulta = '') => esquemaRespostaSinais.parse((await get(sessao, `/v1/sinais?turmaId=${turmaId}${consulta}`)).corpo)
-  const usoPara = async (sessao: SessaoDeTeste, turmaId: string) => esquemaRespostaUsoDoTutor.parse((await get(sessao, `/v1/tutor/uso?turmaId=${turmaId}`)).corpo)
+  const conversaDe = async (sessao: SessaoDeTeste, consulta = '') => conversaDoTutorResponseSchema.parse((await get(sessao, `/v1/tutor/conversa${consulta}`)).corpo)
+  const memoriaDe = async (sessao: SessaoDeTeste) => memoriaDoTutorResponseSchema.parse((await get(sessao, '/v1/tutor/memoria')).corpo)
+  const sinaisPara = async (sessao: SessaoDeTeste, turmaId: string, consulta = '') => sinaisResponseSchema.parse((await get(sessao, `/v1/sinais?turmaId=${turmaId}${consulta}`)).corpo)
+  const usoPara = async (sessao: SessaoDeTeste, turmaId: string) => usoDoTutorResponseSchema.parse((await get(sessao, `/v1/tutor/uso?turmaId=${turmaId}`)).corpo)
   const sinaisDe = async (aluno: SessaoDeTeste): Promise<LinhaDeSinal[]> =>
     (await sql<LinhaDeSinal & Record<string, unknown>>('select tipo, atividade_aplicada_id, questao, material_id, pagina from sinal_tutor where escola_id = $1 and aluno_id = $2 order by id', [aluno.escolaId, aluno.usuarioId])).rows
   const mensagensDe = async (aluno: SessaoDeTeste) =>
@@ -807,7 +807,7 @@ describe('Tutor e sinais', () => {
       expect(await sinaisDe(caio)).toEqual([])
 
       const resposta = await get(a.professora, `/v1/tutor/uso?turmaId=${turmaNova}`)
-      const uso = esquemaRespostaUsoDoTutor.parse(resposta.corpo)
+      const uso = usoDoTutorResponseSchema.parse(resposta.corpo)
       expect(uso).toMatchObject({ turmaId: turmaNova, limiteDoDia: TROCAS_POR_DIA_PADRAO_DO_TUTOR, trocasDaTurmaNoMes: expect.any(Number) as number, pacoteDaTurmaNoMes: 300 * 3 })
       expect(uso.alunos).toEqual([
         { aluno: { id: caio.usuarioId, nome: 'Caio Sintético Abreu' }, trocasHoje: 2, ultimaTrocaEm: expect.any(String) as string, ultimaReferencia: { atividadeAplicadaId: null, questao: null, materialId: a.materialId, pagina: 5 } },
@@ -839,7 +839,7 @@ describe('Tutor e sinais', () => {
         const conversa = await get(bia, `/v1/tutor/conversa${consulta}`)
         expect(conversa.status).toBe(200)
         expect(JSON.stringify(conversa.corpo)).not.toContain(marca)
-        expect(esquemaRespostaConversaDoTutor.parse(conversa.corpo)).toMatchObject({ mensagens: [], uso: { hoje: 0 } })
+        expect(conversaDoTutorResponseSchema.parse(conversa.corpo)).toMatchObject({ mensagens: [], uso: { hoje: 0 } })
       }
       expect(await get(bia, `/v1/tutor/conversa?alunoId=${ana.usuarioId}`)).toMatchObject({ status: 400, corpo: { erro: { codigo: 'ENTRADA_INVALIDA' } } })
       // O uso por turma é só do professor: o aluno recebe a resposta do inexistente.

@@ -1,5 +1,5 @@
 import { ConfiguracaoInvalida, criarBanco, criarPool, validarAmbiente, type Banco } from '@educa/nucleo'
-import { esquemaNomeDigitado, FORMATO_OPERADOR } from '@educa/shared'
+import { nomeDigitadoSchema, FORMATO_OPERADOR } from '@educa/shared'
 import { open, type FileHandle } from 'node:fs/promises'
 import { z } from 'zod'
 import { OperadorRepository } from '../operacao/operador/operador.repository.js'
@@ -23,7 +23,7 @@ export class ArgumentoInvalido extends Error {
  * Nome de rede, de escola ou da pessoa convidada (`ops:convite-coordenador`): o mesmo esquema do contrato do painel da
  * operação (`@educa/shared`), para o comando e a tela aceitarem o mesmo nome.
  */
-export const esquemaNome = esquemaNomeDigitado
+export const esquemaNome = nomeDigitadoSchema
 
 const esquemaAmbienteOperador = z.object({ OPERADOR: z.string().regex(FORMATO_OPERADOR) })
 

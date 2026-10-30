@@ -1,5 +1,5 @@
 import { ErroDeDominio, erroDoPostgresEm } from '@educa/nucleo'
-import { CodigoDeErro } from '@educa/shared'
+import { ErrorCode } from '@educa/shared'
 
 /** SQLSTATE `foreign_key_violation`: uma linha de outra tabela ainda aponta para a que se quer apagar. */
 const LINHA_AINDA_REFERENCIADA = '23503'
@@ -19,7 +19,7 @@ export async function excluirSemReferencia(excluir: () => Promise<boolean>): Pro
   try {
     return await excluir()
   } catch (erro) {
-    if (erroDoPostgresEm(erro)?.code === LINHA_AINDA_REFERENCIADA) throw new ErroDeDominio(CodigoDeErro.CONFLITO)
+    if (erroDoPostgresEm(erro)?.code === LINHA_AINDA_REFERENCIADA) throw new ErroDeDominio(ErrorCode.CONFLITO)
     throw erro
   }
 }

@@ -1,7 +1,7 @@
 import { PROVEDORES_EXTERNOS, type Ambiente, type ProvedorExterno } from '@educa/nucleo'
 import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto'
 import { z } from 'zod'
-import { ErroDeInvariante } from '@educa/shared'
+import { InvariantException } from '@educa/shared'
 import { serializarCookie } from '../../credencial/cookies.js'
 
 /** O cookie do login pela conta da escola em andamento, do `iniciar` ao `retorno`. */
@@ -61,7 +61,7 @@ export class CookieOidc {
     private readonly ambiente: Ambiente,
     private readonly agora: () => number = Date.now,
   ) {
-    if (chave.length !== 32) throw new ErroDeInvariante('a chave do cookie do login externo precisa de 256 bits')
+    if (chave.length !== 32) throw new InvariantException('a chave do cookie do login externo precisa de 256 bits')
   }
 
   /** O `Set-Cookie` com o login em andamento cifrado. */

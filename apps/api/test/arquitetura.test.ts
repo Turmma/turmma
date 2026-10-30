@@ -1,6 +1,6 @@
 import 'reflect-metadata'
 import * as nucleo from '@educa/nucleo'
-import { CHAVES_DE_RETENCAO, CLASSIFICACAO_DAS_TABELAS, CodigoDeErro, COLUNAS_FORA_DO_ARQUIVO } from '@educa/shared'
+import { CHAVES_DE_RETENCAO, CLASSIFICACAO_DAS_TABELAS, ErrorCode, COLUNAS_FORA_DO_ARQUIVO } from '@educa/shared'
 import { Controller, Get, SetMetadata, type ExecutionContext, type Type } from '@nestjs/common'
 import { Reflector } from '@nestjs/core'
 import { getTableName, is } from 'drizzle-orm'
@@ -736,7 +736,7 @@ describe('arquitetura: toda rota @RotaDeOperacao conta pelo rl:op:{sub} (C36, pa
     const [rota] = rotasDaApi().filter((candidata) => candidata.marcador === 'rota')
     if (rota === undefined) throw new Error('nenhuma rota @RotaDeOperacao')
     const recusada = guardaComLimitador({ aceita: false, msAteLiberar: 1_500 })
-    await expect(recusada.guarda.canActivate(execucao(rota, await tokenDeOperador()))).rejects.toMatchObject({ codigo: CodigoDeErro.LIMITE_EXCEDIDO, status: 429, tenteDeNovoEmSegundos: 2 })
+    await expect(recusada.guarda.canActivate(execucao(rota, await tokenDeOperador()))).rejects.toMatchObject({ codigo: ErrorCode.LIMITE_EXCEDIDO, status: 429, tenteDeNovoEmSegundos: 2 })
 
     const tokenDeEscola = (await new nucleo.EmissorDeToken(identidade.chaveAssinatura).emitir({ escolaId: SESSAO, usuarioId: OPERADOR, sessaoId: SESSAO })).token
     for (const authorization of [undefined, `Bearer ${tokenDeEscola}`, 'Bearer a.b.c']) {
@@ -807,7 +807,7 @@ describe('arquitetura: toda rota @EntradaDeOperacao está num dos três grupos d
     try {
       await guarda.canActivate(execucao)
     } catch (erro) {
-      expect(erro).toMatchObject({ codigo: CodigoDeErro.LIMITE_EXCEDIDO, status: 429 })
+      expect(erro).toMatchObject({ codigo: ErrorCode.LIMITE_EXCEDIDO, status: 429 })
       recusou = true
     }
     const contou = Object.entries(limitador)

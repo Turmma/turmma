@@ -14,9 +14,9 @@ import {
   type Banco,
   type TransacaoBanco,
 } from '@educa/nucleo'
-import type { ConsultaPaginada, DiagnosticoGravado, EstadoDeAtividadeAplicada } from '@educa/shared'
+import type { PaginationQuery, DiagnosticoGravado, EstadoDeAtividadeAplicada } from '@educa/shared'
 import { and, asc, desc, eq, exists, isNull, lt, sql, type SQL } from 'drizzle-orm'
-import { ErroDeInvariante } from '@educa/shared'
+import { InvariantException } from '@educa/shared'
 
 /** Uma atividade da turma do aluno, na lista dele: sem acerto, sem gabarito, sem colega. */
 export interface MinhaAtividadeLida {
@@ -116,7 +116,7 @@ export class MinhaAtividadeRepository {
    * Uma página das atividades das turmas do aluno, da mais nova para a mais antiga, com uma linha a mais que diz se há
    * próxima. `comDiagnostico` só é verdadeiro com correção **dele** em lote `aprovada`: é um sim ou não, sem número.
    */
-  listar({ pagina, limite }: ConsultaPaginada): Promise<MinhaAtividadeLida[]> {
+  listar({ pagina, limite }: PaginationQuery): Promise<MinhaAtividadeLida[]> {
     const { usuarioId } = sessaoDaRequisicao()
     return this.banco
       .select({
@@ -192,7 +192,7 @@ export class MinhaAtividadeRepository {
         set: { iniciadaEm: sql`${tentativaAtividade.iniciadaEm}` },
       })
       .returning({ iniciadaEm: tentativaAtividade.iniciadaEm, enviadaEm: tentativaAtividade.enviadaEm })
-    if (linha === undefined) throw new ErroDeInvariante('tentativa não aberta')
+    if (linha === undefined) throw new InvariantException('tentativa não aberta')
     return linha
   }
 
@@ -242,7 +242,7 @@ export class MinhaAtividadeRepository {
             .select(COLUNAS_DA_RESPOSTA)
             .from(respostaAtividade)
             .where(and(this.#minha(respostaAtividade, atividadeAplicadaId), eq(respostaAtividade.questao, questao)))
-    if (lida === undefined) throw new ErroDeInvariante('resposta não gravada')
+    if (lida === undefined) throw new InvariantException('resposta não gravada')
     return lida
   }
 

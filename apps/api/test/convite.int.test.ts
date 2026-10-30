@@ -1,6 +1,6 @@
 import 'reflect-metadata'
 import { criarLogger } from '@educa/nucleo'
-import { CodigoDeErro } from '@educa/shared'
+import { ErrorCode } from '@educa/shared'
 import type { INestApplication } from '@nestjs/common'
 import { NestFactory } from '@nestjs/core'
 import type { Redis } from 'ioredis'
@@ -308,7 +308,7 @@ describe('convite do primeiro coordenador: o operador gera, a pessoa consulta e 
     expect(respostas.map((resposta) => resposta.status).sort()).toEqual([200, 404])
     const vencedora = respostas.findIndex((resposta) => resposta.status === 200)
     expect(respostas[vencedora]?.corpo['etapa']).toBe('configurar_mfa')
-    expect(respostas[1 - vencedora]?.corpo.erro?.codigo).toBe(CodigoDeErro.NAO_ENCONTRADO)
+    expect(respostas[1 - vencedora]?.corpo.erro?.codigo).toBe(ErrorCode.NAO_ENCONTRADO)
 
     const senhaGravada = await senhaDaConta(convite.contaId)
     expect(await hash.verificar(senhaGravada, senhas[vencedora] ?? '')).toBe(true)
@@ -355,7 +355,7 @@ describe('convite do primeiro coordenador: o operador gera, a pessoa consulta e 
       const respostas = await Promise.all(Object.values(tokens).map((token) => (rota === 'consultar' ? consultar(token) : aceitar(token, SENHA_NOVA))))
       for (const resposta of respostas) {
         expect(resposta.status, rota).toBe(404)
-        expect(resposta.corpo.erro?.codigo, rota).toBe(CodigoDeErro.NAO_ENCONTRADO)
+        expect(resposta.corpo.erro?.codigo, rota).toBe(ErrorCode.NAO_ENCONTRADO)
         expect(semRequisicao(resposta), rota).toEqual(semRequisicao(respostas[0] as Resposta))
         expect(resposta.setCookie).toEqual([])
       }
@@ -520,7 +520,7 @@ describe('convite do primeiro coordenador: o operador gera, a pessoa consulta e 
     const convite = await convidarEm(await bancada.escola(), new Date())
     const semSenha = await aceitar(convite.token)
     expect(semSenha.status).toBe(400)
-    expect(semSenha.corpo.erro?.codigo).toBe(CodigoDeErro.ENTRADA_INVALIDA)
+    expect(semSenha.corpo.erro?.codigo).toBe(ErrorCode.ENTRADA_INVALIDA)
     expect(await usuarioAtivo(convite.usuarioId)).toBe(false)
     expect((await aceitar(convite.token, SENHA_NOVA)).corpo['etapa']).toBe('configurar_mfa')
   })
@@ -531,7 +531,7 @@ describe('convite do primeiro coordenador: o operador gera, a pessoa consulta e 
       for (const corpo of [{}, { token: 7 }, { token: '' }]) {
         const resposta = await post(caminho, corpo)
         expect(resposta.status, `${caminho} ${JSON.stringify(corpo)}`).toBe(400)
-        expect(resposta.corpo.erro?.codigo, `${caminho} ${JSON.stringify(corpo)}`).toBe(CodigoDeErro.ENTRADA_INVALIDA)
+        expect(resposta.corpo.erro?.codigo, `${caminho} ${JSON.stringify(corpo)}`).toBe(ErrorCode.ENTRADA_INVALIDA)
       }
     }
     expect(await usuarioAtivo(convite.usuarioId)).toBe(false)

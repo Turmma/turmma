@@ -13,7 +13,7 @@ import {
   type RepositorioDeExecucoes,
   type TransacaoBanco,
 } from '@educa/nucleo'
-import { esquemaResultadoGravado, FUNCAO_DA_TAREFA_DE_IA, type CodigoDeErro, type EntradaDaExecucao, type EstadoDeExecucao, type ResultadoGravado, type TarefaDeIa } from '@educa/shared'
+import { resultadoGravadoSchema, FUNCAO_DA_TAREFA_DE_IA, type ErrorCode, type ExecucaoInput, type EstadoDeExecucao, type ResultadoGravado, type TarefaDeIa } from '@educa/shared'
 import { and, eq, lt, or, sql } from 'drizzle-orm'
 import { exigirUsuarioDoContexto } from './contexto-da-execucao.js'
 
@@ -39,7 +39,7 @@ export class ExecucaoRepository implements RepositorioDeExecucoes {
   }
 
   async marcarConcluida(execucao: ExecucaoAgendada, resultado: unknown): Promise<void> {
-    await this.concluirRodando(execucao, esquemaResultadoGravado.parse(resultado))
+    await this.concluirRodando(execucao, resultadoGravadoSchema.parse(resultado))
   }
 
   /**
@@ -78,7 +78,7 @@ export interface ExecucaoDeQuemPediu {
   readonly tarefa: TarefaDeIa
   readonly estado: EstadoDeExecucao
   readonly resultado: ResultadoGravado | null
-  readonly erro: CodigoDeErro | null
+  readonly erro: ErrorCode | null
 }
 
 export interface MensagemGravada {
@@ -97,7 +97,7 @@ export class ExecucaoDaSessaoRepository {
    * Grava a execução `pendente`, de quem está na sessão, e devolve o id. Com a chave de envio já usada na escola,
    * não grava e devolve `undefined`: o índice único decide, sem "verifica e depois grava" (regra 80, item 7).
    */
-  async gravarPendente(tarefa: TarefaDeIa, chaveEnvio: string, entrada: EntradaDaExecucao): Promise<string | undefined> {
+  async gravarPendente(tarefa: TarefaDeIa, chaveEnvio: string, entrada: ExecucaoInput): Promise<string | undefined> {
     const [gravada] = await this.banco
       .insert(execucaoAgente)
       .values({

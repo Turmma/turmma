@@ -1,5 +1,5 @@
 import type { Page, Route } from '@playwright/test'
-import { AVISO_DO_CONVITE_COM_SENHA_NOVA, AVISO_DO_CONVITE_PARA_CONTA_EXISTENTE, MENSAGENS_DE_ERRO, mensagemDoConvite } from '../packages/shared/src/erros/mensagens.ts'
+import { AVISO_DO_CONVITE_COM_SENHA_NOVA, AVISO_DO_CONVITE_PARA_CONTA_EXISTENTE, MENSAGENS_DE_ERRO, mensagemDoConvite } from '../packages/shared/src/errors/messages.ts'
 import { criarConviteDeCoordenador, criarConviteDeProfessor, criarEquipeComSenha, revogarConvite } from './__fixtures__/sessao.ts'
 import { esperarNovaConversa } from './__fixtures__/casca.ts'
 import { expect, test } from './__fixtures__/perfis.ts'

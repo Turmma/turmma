@@ -23,7 +23,7 @@ import {
   type PrazoDoLote,
   type Relogio,
 } from '@educa/nucleo'
-import { AUTOR_DA_ROTINA, CATEGORIAS_DE_RETENCAO, CHAVES_DE_RETENCAO, CodigoDeFalhaDeJob, TIPO_EXPURGAR_ESCOLA } from '@educa/shared'
+import { AUTOR_DA_ROTINA, CATEGORIAS_DE_RETENCAO, CHAVES_DE_RETENCAO, JobFailureCode, TIPO_EXPURGAR_ESCOLA } from '@educa/shared'
 import { PgDialect } from 'drizzle-orm/pg-core'
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it, onTestFinished } from 'vitest'
@@ -1206,11 +1206,11 @@ describe('retencao.expurgar-escola e sistema.expurgar-dado-pessoal', () => {
       const a = await escolaNova()
       await expect(executarNoContexto({ requisicaoId: randomUUID(), escolaId: a.escolaId }, () => rotina(relogioEm(QUARTA_1H), [a.escolaId])({}, execucaoDoJob('x')))).rejects.toMatchObject({
         name: 'FalhaDeJob',
-        codigo: CodigoDeFalhaDeJob.DADOS_INVALIDOS,
+        codigo: JobFailureCode.DADOS_INVALIDOS,
       })
       expect(await jobsDoExpurgo(a.escolaId)).toEqual([])
       const vencida = await mensagemTutor(a, QUARTA_1H, '13 months')
-      await expect(rodarRotina(expurgo(relogioEm(QUARTA_1H)))).rejects.toMatchObject({ name: 'FalhaDeJob', codigo: CodigoDeFalhaDeJob.DADOS_INVALIDOS })
+      await expect(rodarRotina(expurgo(relogioEm(QUARTA_1H)))).rejects.toMatchObject({ name: 'FalhaDeJob', codigo: JobFailureCode.DADOS_INVALIDOS })
       expect(await existe('mensagem_tutor', vencida)).toBe(true)
     })
 

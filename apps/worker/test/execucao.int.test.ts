@@ -14,8 +14,8 @@ import {
   type TransacaoBanco,
 } from '@educa/nucleo'
 import {
-  CodigoDeErro,
-  CodigoDeFalhaDeJob,
+  ErrorCode,
+  JobFailureCode,
   TIPO_CONSOLIDAR_USO,
   TIPO_ELIMINAR_TITULAR,
   TIPO_EXPURGAR_ACESSO,
@@ -138,12 +138,12 @@ describe('dois despachantes e dois workers sobre a mesma fila', () => {
     await aguardarEstado(bancada, id, 'falhou', 60_000)
     // Recuo exponencial de 2 s com jitter de 50 %: as quatro esperas somam pelo menos 15 s.
     expect(performance.now() - inicio).toBeGreaterThan(15_000)
-    expect(await bancada.estado(id)).toEqual({ estado: 'falhou', escolaId: ESCOLA_A, codigoFalha: CodigoDeFalhaDeJob.FALHA_SINTETICA })
+    expect(await bancada.estado(id)).toEqual({ estado: 'falhou', escolaId: ESCOLA_A, codigoFalha: JobFailureCode.FALHA_SINTETICA })
     expect(logWorker.doEvento('job.iniciado').filter((registro) => registro['jobId'] === id)).toHaveLength(5)
 
     const naFila = await bancada.fila.getJob(id)
     expect(naFila?.attemptsMade).toBe(5)
-    expect(naFila?.failedReason).toBe(CodigoDeFalhaDeJob.FALHA_SINTETICA)
+    expect(naFila?.failedReason).toBe(JobFailureCode.FALHA_SINTETICA)
     expect(await naFila?.getState()).toBe('failed')
   }, 90_000)
 
@@ -159,10 +159,10 @@ describe('dois despachantes e dois workers sobre a mesma fila', () => {
     await bancada.fila.add('sintetico', { escolaId: ESCOLA_A, requisicaoId: null }, { jobId: id, attempts: 2 })
 
     await aguardarEstado(bancada, id, 'falhou')
-    expect((await bancada.estado(id))?.codigoFalha).toBe(CodigoDeFalhaDeJob.ERRO_INTERNO)
+    expect((await bancada.estado(id))?.codigoFalha).toBe(JobFailureCode.ERRO_INTERNO)
     const naFila = await bancada.fila.getJob(id)
     expect(naFila?.attemptsMade).toBe(2)
-    expect(naFila?.failedReason).toBe(CodigoDeFalhaDeJob.ERRO_INTERNO)
+    expect(naFila?.failedReason).toBe(JobFailureCode.ERRO_INTERNO)
     expect(naFila?.stacktrace).toHaveLength(2)
     expect(JSON.stringify(naFila?.stacktrace)).not.toContain('Enzo')
     expect(logWorker.linhas.join('')).not.toContain('Enzo')
@@ -189,7 +189,7 @@ describe('dois despachantes e dois workers sobre a mesma fila', () => {
     expect(await bancada.reservar(ESCOLA_A)).toEqual([])
     await executarNoContexto({ requisicaoId: randomUUID(), escolaId: ESCOLA_A }, async () => {
       expect((await bancada.registro.iniciarExecucao(id)).situacao).toBe('nao_executavel')
-      expect(await bancada.registro.registrarFalha(id, CodigoDeFalhaDeJob.ERRO_INTERNO)).toBe(false)
+      expect(await bancada.registro.registrarFalha(id, JobFailureCode.ERRO_INTERNO)).toBe(false)
     })
     expect((await bancada.estado(id))?.estado).toBe('concluido')
   })
@@ -247,7 +247,7 @@ describe('dois despachantes e dois workers sobre a mesma fila', () => {
 
       const naFila = await Promise.all([daEscolaB, outraDaEscolaB, inexistente].map((id) => bancada.fila.getJob(id)))
       for (const job of naFila) {
-        expect(job?.failedReason).toBe(CodigoDeErro.NAO_ENCONTRADO)
+        expect(job?.failedReason).toBe(ErrorCode.NAO_ENCONTRADO)
         expect(job?.attemptsMade).toBe(1)
       }
 
@@ -434,7 +434,7 @@ describe('dois despachantes e dois workers sobre a mesma fila', () => {
     it('tipo e opções que a definição aceita compilam; o que ela não descreve não compila', () => {
       // O que não compila não chega ao banco: o compilador é o teste, e cada linha abaixo precisa do seu `@ts-expect-error`.
       const naoChamada = (tx: TransacaoBanco) => [
-        // @ts-expect-error tipo que não está em DEFINICOES_DE_JOB
+        // @ts-expect-error tipo que não está em JOB_DEFINITIONS
         bancada.enfileirador.enfileirar(tx, 'tipo.inexistente', {}),
         // @ts-expect-error os dados são os de outro tipo
         bancada.enfileirador.enfileirar(tx, TIPO_MONTAR_ARQUIVO, { cpuMs: 0, falhar: false }),
@@ -482,15 +482,15 @@ describe('dois despachantes e dois workers sobre a mesma fila', () => {
 
       for (const id of [chaveAMais, foraDoFormato]) {
         await aguardarEstado(bancada, id, 'falhou')
-        expect(await bancada.estado(id)).toEqual({ estado: 'falhou', escolaId: ESCOLA_A, codigoFalha: CodigoDeFalhaDeJob.DADOS_INVALIDOS })
+        expect(await bancada.estado(id)).toEqual({ estado: 'falhou', escolaId: ESCOLA_A, codigoFalha: JobFailureCode.DADOS_INVALIDOS })
         const naFila = await bancada.fila.getJob(id)
         // Definitivo: as cinco tentativas não são gastas, e o que o Redis guarda é o código, e só ele.
         expect(naFila?.attemptsMade).toBe(1)
-        expect(naFila?.failedReason).toBe(CodigoDeFalhaDeJob.DADOS_INVALIDOS)
+        expect(naFila?.failedReason).toBe(JobFailureCode.DADOS_INVALIDOS)
         expect(JSON.stringify(naFila?.stacktrace)).not.toContain(sentinela)
         const eventos = logWorker.registros().filter((registro) => registro['jobId'] === id)
         expect(eventos.map((registro) => registro['evento'])).toEqual(['job.iniciado', 'job.tentativa_falhou', 'job.falhou'])
-        expect(eventos[1]).toMatchObject({ tentativa: 1, codigo: CodigoDeFalhaDeJob.DADOS_INVALIDOS })
+        expect(eventos[1]).toMatchObject({ tentativa: 1, codigo: JobFailureCode.DADOS_INVALIDOS })
       }
       expect(chamados).toEqual([])
       expect(logWorker.linhas.join('')).not.toContain(sentinela)
@@ -502,7 +502,7 @@ describe('dois despachantes e dois workers sobre a mesma fila', () => {
       bancada.despachante(new LogEmMemoria('despachante')).despachante.iniciar()
 
       await aguardarEstado(bancada, id, 'falhou')
-      expect(await bancada.estado(id)).toEqual({ estado: 'falhou', escolaId: ESCOLA_A, codigoFalha: CodigoDeFalhaDeJob.TIPO_DESCONHECIDO })
+      expect(await bancada.estado(id)).toEqual({ estado: 'falhou', escolaId: ESCOLA_A, codigoFalha: JobFailureCode.TIPO_DESCONHECIDO })
       expect((await bancada.fila.getJob(id))?.attemptsMade).toBe(1)
     })
 
@@ -513,7 +513,7 @@ describe('dois despachantes e dois workers sobre a mesma fila', () => {
       bancada.despachante(new LogEmMemoria('despachante')).despachante.iniciar()
 
       await aguardarEstado(bancada, id, 'falhou')
-      expect(await bancada.estado(id)).toEqual({ estado: 'falhou', escolaId: ESCOLA_A, codigoFalha: CodigoDeFalhaDeJob.DADOS_INVALIDOS })
+      expect(await bancada.estado(id)).toEqual({ estado: 'falhou', escolaId: ESCOLA_A, codigoFalha: JobFailureCode.DADOS_INVALIDOS })
       expect(chamados).toEqual([])
     })
   })
@@ -632,9 +632,9 @@ describe('dois despachantes e dois workers sobre a mesma fila', () => {
       expect(await bancada.vagas.membros('interativa', ESCOLA_A)).toEqual([id])
 
       await montado.encerrar()
-      expect(await bancada.estado(id)).toEqual({ estado: 'falhou', escolaId: ESCOLA_A, codigoFalha: CodigoDeFalhaDeJob.EXECUCAO_INTERROMPIDA })
+      expect(await bancada.estado(id)).toEqual({ estado: 'falhou', escolaId: ESCOLA_A, codigoFalha: JobFailureCode.EXECUCAO_INTERROMPIDA })
       expect(await bancada.vagas.membros('interativa', ESCOLA_A)).toEqual([])
-      expect(logWorker.doEvento('job.falhou')).toEqual([expect.objectContaining({ jobId: id, codigo: CodigoDeFalhaDeJob.EXECUCAO_INTERROMPIDA })])
+      expect(logWorker.doEvento('job.falhou')).toEqual([expect.objectContaining({ jobId: id, codigo: JobFailureCode.EXECUCAO_INTERROMPIDA })])
 
       // O lock do job que ficou na fila vence (10 s) e o stalled de outra réplica o devolve: ela vê a linha final e não o executa.
       const logSobrevivente = new LogEmMemoria('worker')
@@ -643,7 +643,7 @@ describe('dois despachantes e dois workers sobre a mesma fila', () => {
       await expect.poll(async () => (await bancada.fila.getJob(id))?.getState(), { timeout: 45_000, interval: 500 }).toBe('completed')
       expect(executados).toEqual([])
       expect(logSobrevivente.doEvento('job.ja_finalizado')).toEqual([expect.objectContaining({ jobId: id })])
-      expect(await bancada.estado(id)).toEqual({ estado: 'falhou', escolaId: ESCOLA_A, codigoFalha: CodigoDeFalhaDeJob.EXECUCAO_INTERROMPIDA })
+      expect(await bancada.estado(id)).toEqual({ estado: 'falhou', escolaId: ESCOLA_A, codigoFalha: JobFailureCode.EXECUCAO_INTERROMPIDA })
     }, 90_000)
 
     it('SIGTERM com duas escolas na última tentativa: cada falha grava só a linha da própria escola, e cada vaga sai da própria escola', async () => {
@@ -654,8 +654,8 @@ describe('dois despachantes e dois workers sobre a mesma fila', () => {
       await aguardarEstado(bancada, idB, 'ativo')
 
       await montado.encerrar()
-      expect(await bancada.estado(idA)).toEqual({ estado: 'falhou', escolaId: ESCOLA_A, codigoFalha: CodigoDeFalhaDeJob.EXECUCAO_INTERROMPIDA })
-      expect(await bancada.estado(idB)).toEqual({ estado: 'falhou', escolaId: ESCOLA_B, codigoFalha: CodigoDeFalhaDeJob.EXECUCAO_INTERROMPIDA })
+      expect(await bancada.estado(idA)).toEqual({ estado: 'falhou', escolaId: ESCOLA_A, codigoFalha: JobFailureCode.EXECUCAO_INTERROMPIDA })
+      expect(await bancada.estado(idB)).toEqual({ estado: 'falhou', escolaId: ESCOLA_B, codigoFalha: JobFailureCode.EXECUCAO_INTERROMPIDA })
       expect(await bancada.vagas.membros('interativa', ESCOLA_A)).toEqual([])
       expect(await bancada.vagas.membros('interativa', ESCOLA_B)).toEqual([])
     })

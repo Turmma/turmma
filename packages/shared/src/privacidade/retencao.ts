@@ -169,7 +169,7 @@ export function ajusteDeRetencaoCabe(categoria: string, meses: number, ajustes: 
 }
 
 /** Uma categoria em `GET /v1/privacidade/retencao`: o texto comum, o prazo que vale e de onde ele vem. */
-export const esquemaRetencaoDaCategoria = z.strictObject({
+export const retencaoDaCategoriaSchema = z.strictObject({
   categoria: z.enum(CHAVES_DE_RETENCAO),
   descricao: z.string(),
   contaDe: z.string(),
@@ -178,7 +178,7 @@ export const esquemaRetencaoDaCategoria = z.strictObject({
   limitadaPor: z.enum(CHAVES_DE_RETENCAO).nullable(),
 })
 
-export const esquemaPrazoFixo = z.strictObject({
+export const prazoFixoSchema = z.strictObject({
   chave: z.enum(CHAVES_DE_PRAZO_FIXO),
   descricao: z.string(),
   prazo: z.string(),
@@ -188,8 +188,8 @@ export const esquemaPrazoFixo = z.strictObject({
  * Resposta de `GET /v1/privacidade/retencao` (Tech Spec do F3, seção 4): as categorias da escola e os prazos fixos.
  * Sem quem ajustou nem a referência do contrato, que são da operação.
  */
-export const esquemaRespostaRetencao = z.strictObject({
-  categorias: z.array(esquemaRetencaoDaCategoria),
-  prazosFixos: z.array(esquemaPrazoFixo),
+export const retencaoResponseSchema = z.strictObject({
+  categorias: z.array(retencaoDaCategoriaSchema),
+  prazosFixos: z.array(prazoFixoSchema),
 })
-export type RespostaRetencao = z.infer<typeof esquemaRespostaRetencao>
+export type RetencaoResponse = z.infer<typeof retencaoResponseSchema>

@@ -1,4 +1,4 @@
-import { ErroDeInvariante, esquemaHabilidade, type Citacao, type Habilidade } from '@educa/shared'
+import { InvariantException, habilidadeSchema, type Citacao, type Habilidade } from '@educa/shared'
 import { z } from 'zod'
 import type { Dado } from './tarefa.js'
 import { contemTexto, cortar, frases, normalizar, palavras, palavrasEmComum, semPontoFinal } from './texto.js'
@@ -25,7 +25,7 @@ export const esquemaContextoDaTurma = z.strictObject({
 })
 export type ContextoDaTurma = z.infer<typeof esquemaContextoDaTurma>
 
-export const esquemaHabilidades = z.array(esquemaHabilidade).min(1).max(6)
+export const esquemaHabilidades = z.array(habilidadeSchema).min(1).max(6)
 
 export function dadosDosTrechos(trechos: readonly Trecho[]): Dado[] {
   return trechos.map((trecho) => ({
@@ -234,7 +234,7 @@ export function fraseMaisProxima(candidatas: readonly FraseDoMaterial[], texto: 
 /** A habilidade cuja descrição mais se parece com o texto; no empate, a primeira da lista. */
 export function habilidadeMaisProxima(habilidades: readonly Habilidade[], texto: string): Habilidade {
   const [primeira, ...demais] = habilidades
-  if (primeira === undefined) throw new ErroDeInvariante('lista de habilidades vazia')
+  if (primeira === undefined) throw new InvariantException('lista de habilidades vazia')
   let melhor = primeira
   let pontos = palavrasEmComum(primeira.descricao, texto)
   for (const habilidade of demais) {

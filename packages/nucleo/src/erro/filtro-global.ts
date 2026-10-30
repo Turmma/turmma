@@ -1,4 +1,4 @@
-import { CodigoDeErro, MENSAGENS_DE_ERRO, type RespostaDeErro } from '@educa/shared'
+import { ErrorCode, MENSAGENS_DE_ERRO, type ErrorResponse } from '@educa/shared'
 import { Catch, HttpException, type ArgumentsHost, type ExceptionFilter } from '@nestjs/common'
 import { randomUUID } from 'node:crypto'
 import type { ServerResponse } from 'node:http'
@@ -9,17 +9,17 @@ import { mapearErroPostgres } from './mapear-erro-postgres.js'
 import { resumirErro } from './resumir-erro.js'
 
 /** Exceção HTTP do próprio Nest (rota inexistente, corpo JSON inválido) vira código tipado. */
-function codigoDoStatusHttp(status: number): CodigoDeErro {
-  if (status === 401) return CodigoDeErro.NAO_AUTENTICADO
+function codigoDoStatusHttp(status: number): ErrorCode {
+  if (status === 401) return ErrorCode.NAO_AUTENTICADO
   // "Sem permissão" responde igual a "não encontrado": um 403 confirmaria que o objeto existe
   // (regra 10, item 6, e regra 20, item 6).
-  if (status === 403 || status === 404) return CodigoDeErro.NAO_ENCONTRADO
-  if (status === 409) return CodigoDeErro.CONFLITO
-  if (status === 408 || status === 504) return CodigoDeErro.TEMPO_ESGOTADO
-  if (status === 429) return CodigoDeErro.LIMITE_EXCEDIDO
-  if (status === 503) return CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO
-  if (status >= 400 && status < 500) return CodigoDeErro.ENTRADA_INVALIDA
-  return CodigoDeErro.ERRO_INTERNO
+  if (status === 403 || status === 404) return ErrorCode.NAO_ENCONTRADO
+  if (status === 409) return ErrorCode.CONFLITO
+  if (status === 408 || status === 504) return ErrorCode.TEMPO_ESGOTADO
+  if (status === 429) return ErrorCode.LIMITE_EXCEDIDO
+  if (status === 503) return ErrorCode.INDISPONIVEL_TENTE_DE_NOVO
+  if (status >= 400 && status < 500) return ErrorCode.ENTRADA_INVALIDA
+  return ErrorCode.ERRO_INTERNO
 }
 
 /**
@@ -38,9 +38,9 @@ function traduzir(excecao: unknown): ErroDeDominio {
   if (excecao instanceof HttpException) {
     const status = excecao.getStatus()
     const codigo = codigoDoStatusHttp(status)
-    return new ErroDeDominio(codigo, codigo === CodigoDeErro.ERRO_INTERNO ? 500 : status)
+    return new ErroDeDominio(codigo, codigo === ErrorCode.ERRO_INTERNO ? 500 : status)
   }
-  return new ErroDeDominio(CodigoDeErro.ERRO_INTERNO)
+  return new ErroDeDominio(ErrorCode.ERRO_INTERNO)
 }
 
 /**
@@ -69,7 +69,7 @@ export class FiltroGlobalDeErro implements ExceptionFilter {
       resposta.destroy()
       return
     }
-    const corpo: RespostaDeErro = {
+    const corpo: ErrorResponse = {
       erro: { codigo: erro.codigo, mensagem: MENSAGENS_DE_ERRO[erro.codigo], requisicaoId },
     }
     resposta.statusCode = erro.status

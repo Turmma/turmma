@@ -1,6 +1,6 @@
 import 'reflect-metadata'
 import { type Banco } from '@educa/nucleo'
-import { CodigoDeErro, esquemaRespostaSegundoFatorDeOperador, type RespostaConfigurarSegundoFatorDeOperador } from '@educa/shared'
+import { ErrorCode, segundoFatorDeOperadorResponseSchema, type ConfigurarSegundoFatorDeOperadorResponse } from '@educa/shared'
 import type { INestApplication } from '@nestjs/common'
 import type { Redis } from 'ioredis'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
@@ -104,7 +104,7 @@ describe('segundo fator do operador: as travas contra a corrida (tarefa 7.0)', (
   const comoDesafioInvalidoEmEntrar = async (operadorId: string) => forma(await entrar(url, { desafio: await desafioInvalido(operadorId, 'mfa'), codigo: '123456' }))
   const comoDesafioInvalidoEmConfigurar = async (operadorId: string) => forma((await configurar(url, await desafioInvalido(operadorId, 'configurar_mfa'))).resposta)
 
-  function corpoDe(resultado: { corpo: RespostaConfigurarSegundoFatorDeOperador | undefined }): RespostaConfigurarSegundoFatorDeOperador {
+  function corpoDe(resultado: { corpo: ConfigurarSegundoFatorDeOperadorResponse | undefined }): ConfigurarSegundoFatorDeOperadorResponse {
     if (resultado.corpo === undefined) throw new Error('configurar recusado')
     return resultado.corpo
   }
@@ -134,13 +134,13 @@ describe('segundo fator do operador: as travas contra a corrida (tarefa 7.0)', (
 
         // A perdedora, com o código do segredo dela: 409 "configure de novo", sem conferir o código nem contar tentativa.
         const configureDeNovo = await entrar(url, { desafio: perdedora.desafio, codigo: codigoDoPasso(perdedora.segredo, passoAtual()) })
-        esperarErro(configureDeNovo, 409, CodigoDeErro.CONFLITO)
+        esperarErro(configureDeNovo, 409, ErrorCode.CONFLITO)
         expect(await falhasNoContador(operadorId)).toBeNull()
         expect(await estadoDoOperador(operadores.pool, operadorId)).toMatchObject({ ativadoEm: null, ultimoPasso: null, sessoes: 0 })
 
         // A vencedora ativa; depois, só os códigos de recuperação dela valem.
         expect((await entrar(url, { desafio: vencedora.desafio, codigo: codigoDoPasso(vencedora.segredo, passoAtual()) })).status).toBe(200)
-        esperarErro(await entrar(url, { desafio: await desafio(operadorId, 'mfa'), recuperacao: perdedora.codigosRecuperacao[0] ?? '' }), 401, CodigoDeErro.NAO_AUTENTICADO)
+        esperarErro(await entrar(url, { desafio: await desafio(operadorId, 'mfa'), recuperacao: perdedora.codigosRecuperacao[0] ?? '' }), 401, ErrorCode.NAO_AUTENTICADO)
         expect((await entrar(url, { desafio: await desafio(operadorId, 'mfa'), recuperacao: vencedora.codigosRecuperacao[0] ?? '' })).status).toBe(200)
       },
     )
@@ -183,7 +183,7 @@ describe('segundo fator do operador: as travas contra a corrida (tarefa 7.0)', (
       const [abaB, entrada] = [corpoDe(await daAbaB), await daAbaA]
       vi.restoreAllMocks()
 
-      esperarErro(entrada, 409, CodigoDeErro.CONFLITO)
+      esperarErro(entrada, 409, ErrorCode.CONFLITO)
       expect(await falhasNoContador(operadorId)).toBeNull()
       const gravado = await estadoDoOperador(operadores.pool, operadorId)
       expect(gravado).toMatchObject({ ativadoEm: null, ultimoPasso: null, sessoes: 0 })
@@ -232,13 +232,13 @@ describe('segundo fator do operador: as travas contra a corrida (tarefa 7.0)', (
       vi.restoreAllMocks()
 
       expect(resposta.status).toBe(200)
-      const { token } = esquemaRespostaSegundoFatorDeOperador.parse(resposta.corpo)
+      const { token } = segundoFatorDeOperadorResponseSchema.parse(resposta.corpo)
       const depois = await estadoDoOperador(operadores.pool, operadorId)
       expect({ sessoes: depois.sessoes, sessoesAbertas: depois.sessoesAbertas }).toEqual({ sessoes: 1, sessoesAbertas: 0 })
       const { rows } = await operadores.pool.query<{ motivo: string }>('select motivo from sessao_operador where operador_id = $1', [operadorId])
       expect(rows).toEqual([{ motivo: 'desativacao' }])
       esperarSoIdApelidoEDatas(depois)
-      esperarErro(await pedir(url, 'GET', '/v1/operacao/eu', undefined, { Authorization: `Bearer ${token}` }), 401, CodigoDeErro.SESSAO_ENCERRADA)
+      esperarErro(await pedir(url, 'GET', '/v1/operacao/eu', undefined, { Authorization: `Bearer ${token}` }), 401, ErrorCode.SESSAO_ENCERRADA)
     })
 
     it('(c) configurar com o `desativar` ganhando (parado antes do `update … returning mfa_versao`): recusado como desafio inválido, e nenhum segredo nem código fica', async () => {

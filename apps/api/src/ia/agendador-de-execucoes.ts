@@ -12,7 +12,7 @@ import {
   type SuspensaoDeFuncao,
   type TransacaoBanco,
 } from '@educa/nucleo'
-import { CodigoDeErro, esquemaEntradaDaExecucao, esquemaResultadoGravado, type EntradaDaExecucao, type RespostaExecucaoAceita, type ResultadoGravado } from '@educa/shared'
+import { ErrorCode, execucaoInputSchema, resultadoGravadoSchema, type ExecucaoInput, type ExecucaoAceitaResponse, type ResultadoGravado } from '@educa/shared'
 import { copiarContextoDeQuemPede } from './contexto-da-execucao.js'
 import { ExecucaoDaSessaoRepository, ExecucaoRepository } from './execucao.repository.js'
 
@@ -22,10 +22,10 @@ export interface PedidoDeExecucao<Entrada, Saida> {
   /** A chave que a tela sorteou para este envio (`chaveEnvio` do corpo): a mesma chave devolve a mesma execução. */
   readonly chaveEnvio: string
   /**
-   * O que fica em `execucao_agente.entrada` (`esquemaEntradaDaExecucao`): só os parâmetros que não estão em outra
+   * O que fica em `execucao_agente.entrada` (`execucaoInputSchema`): só os parâmetros que não estão em outra
    * linha. O texto do professor e o do aluno **não** vêm aqui: ficam em `mensagem_agente` e `mensagem_tutor`.
    */
-  readonly entradaDaExecucao: EntradaDaExecucao
+  readonly entradaDaExecucao: ExecucaoInput
   /**
    * A entrada da tarefa, ou como montá-la. A função roda **depois** de a rota responder, já no contexto de quem pediu:
    * é o lugar de buscar os trechos do material e de reler a mensagem gravada, para o `POST` não esperar por isso.
@@ -67,11 +67,11 @@ export class AgendadorDeExecucoes {
     private readonly suspensao: SuspensaoDeFuncao,
   ) {}
 
-  async agendar<Entrada, Saida>(pedido: PedidoDeExecucao<Entrada, Saida>): Promise<RespostaExecucaoAceita> {
+  async agendar<Entrada, Saida>(pedido: PedidoDeExecucao<Entrada, Saida>): Promise<ExecucaoAceitaResponse> {
     const { tarefa } = pedido
     const escolaId = exigirEscolaDoContexto()
     const contexto = copiarContextoDeQuemPede()
-    const entradaDaExecucao = esquemaEntradaDaExecucao.parse(pedido.entradaDaExecucao)
+    const entradaDaExecucao = execucaoInputSchema.parse(pedido.entradaDaExecucao)
     // Defeito de quem chama, não do usuário: a entrada gravada precisa ser a da tarefa que vai rodar.
     if (entradaDaExecucao.tarefa !== tarefa.nome) throw new ErroDeIa('IA_ENTRADA_INVALIDA')
 
@@ -86,9 +86,9 @@ export class AgendadorDeExecucoes {
       }
       // A chave já foi usada na escola. Se foi por esta pessoa, é o reenvio: a mesma execução. Se não, é como se não existisse.
       const existente = await execucoes.daChave(pedido.chaveEnvio)
-      if (existente === undefined) throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
+      if (existente === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
       // A chave é desta pessoa, mas de outro pedido: a tela reaproveitou a chave, e não há execução a devolver.
-      if (existente.tarefa !== tarefa.nome) throw new ErroDeDominio(CodigoDeErro.CONFLITO)
+      if (existente.tarefa !== tarefa.nome) throw new ErroDeDominio(ErrorCode.CONFLITO)
       return existente.id
     })
 
@@ -108,7 +108,7 @@ export class AgendadorDeExecucoes {
           ...(pedido.turmaId === undefined ? {} : { turmaId: pedido.turmaId }),
         })
         return this.banco.transaction(async (tx) => {
-          const resultado = esquemaResultadoGravado.parse(await pedido.aoConcluir(saida, tx, execucaoId))
+          const resultado = resultadoGravadoSchema.parse(await pedido.aoConcluir(saida, tx, execucaoId))
           // Se o prazo ou a varredura já encerraram a execução, o que foi produzido agora é desfeito junto.
           if (!(await new ExecucaoRepository(tx).concluirRodando(execucao, resultado))) throw new ErroDeIa('IA_TEMPO_ESGOTADO')
           return resultado

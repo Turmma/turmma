@@ -1,7 +1,7 @@
 import { credencialMatricula, exigirAnoEmCurso, exigirEscolaDoContexto, listaNome, sessaoDaRequisicao, type Banco, type TransacaoBanco } from '@educa/nucleo'
-import type { ConsultaPaginada, NomeDaLista } from '@educa/shared'
+import type { PaginationQuery, NomeDaLista } from '@educa/shared'
 import { and, asc, eq, gt, inArray, sql } from 'drizzle-orm'
-import { ErroDeInvariante } from '@educa/shared'
+import { InvariantException } from '@educa/shared'
 
 /** Um nome a gravar: nome e matrícula já conferidos, sem espaço nas pontas. */
 export interface NomeNovo {
@@ -121,7 +121,7 @@ export class ListaRepository {
       .insert(listaNome)
       .values({ escolaId: exigirEscolaDoContexto(), anoLetivoId: exigirAnoEmCurso(), turmaId, nome, matricula, criadoPor: sessaoDaRequisicao().usuarioId })
       .returning(colunas)
-    if (criado === undefined) throw new ErroDeInvariante('nome da lista não criado')
+    if (criado === undefined) throw new InvariantException('nome da lista não criado')
     return criado
   }
 
@@ -151,7 +151,7 @@ export class ListaRepository {
    * Uma página dos nomes da turma no ano em curso, em ordem de id, com uma linha a mais que diz se há próxima. Não
    * confere quem pede: o service chama depois de abrir a turma.
    */
-  pagina(turmaId: string, { pagina, limite }: ConsultaPaginada): Promise<NomeDaLista[]> {
+  pagina(turmaId: string, { pagina, limite }: PaginationQuery): Promise<NomeDaLista[]> {
     return this.banco
       .select(colunas)
       .from(listaNome)

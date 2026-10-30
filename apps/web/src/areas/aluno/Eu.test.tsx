@@ -10,7 +10,7 @@ import { criarClienteDeConsultas } from '../../api/cliente-de-consultas'
 import { prepararTela, redeFalsa, renderizarTela } from '../../__fixtures__/tela'
 import { ContextoDaSaida } from '../../componentes/saida-da-casca'
 import { escolherLetra } from '../../letra'
-import type { RespostaMemoriaDoTutor } from '@educa/shared'
+import type { MemoriaDoTutorResponse } from '@educa/shared'
 import { DESCRICAO_DO_VAZIO, ROTULO_DAS_HABILIDADES, ROTULO_DO_CARREGANDO, TEXTO_DA_CONTESTACAO, TITULO_DO_VAZIO } from './como-estou-indo'
 import Eu from './Eu'
 
@@ -37,7 +37,7 @@ const SEM_TURMA_NO_ANO = 'Você ainda não está em uma turma neste ano letivo. 
 const MEMORIA_VAZIA = { status: 200, corpo: { trabalhos: [], sinais: [] } } as const
 const LIMITANTE = { codigo: 'EF09CI01', descricao: 'Reconhecer o reagente limitante' }
 const MASSA_MOLAR = { codigo: 'EF09CI02', descricao: 'Calcular a massa molar' }
-type TrabalhoNaMemoria = RespostaMemoriaDoTutor['trabalhos'][number]
+type TrabalhoNaMemoria = MemoriaDoTutorResponse['trabalhos'][number]
 let contador = 0
 /**
  * O trabalho da memória, sem correção aprovada (`resultado: null`) a menos que o caso diga. O mesmo contrato que
@@ -49,7 +49,7 @@ function trabalhoNaMemoria(campos: Partial<TrabalhoNaMemoria> = {}): TrabalhoNaM
 }
 const resultadoAprovado = (campos: Partial<NonNullable<TrabalhoNaMemoria['resultado']>> = {}) => ({ acertos: 7, total: 8, aReforcar: [], ...campos })
 /** A resposta inteira, com um sinal de trabalho que a tela não pode mostrar nem guardar. */
-const memoriaDoAluno = (trabalhos: readonly TrabalhoNaMemoria[]): RespostaMemoriaDoTutor => ({
+const memoriaDoAluno = (trabalhos: readonly TrabalhoNaMemoria[]): MemoriaDoTutorResponse => ({
   trabalhos: [...trabalhos],
   sinais: [{ tipo: 'resposta_pronta', atividadeAplicadaId: trabalhos[0]?.atividadeAplicadaId ?? null, questao: 3, criadoEm: '2026-10-05T13:30:00.000Z' }],
 })

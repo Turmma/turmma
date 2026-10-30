@@ -19,9 +19,9 @@ const recuperacaoDigitada = z
 const codigoDeRecuperacao = z.string().regex(new RegExp(`^[${ALFABETO_DO_CODIGO_DE_RECUPERACAO}]{${String(TAMANHO_DO_CODIGO_DE_RECUPERACAO)}}$`))
 
 /** Corpo de `POST /v1/operacao/sessao/mfa/configurar` (Tech Spec da A0, seção 4): só o desafio `configurar_mfa`. */
-export const esquemaPedidoConfigurarSegundoFatorDeOperador = z.object({ desafio }).strict()
+export const configurarSegundoFatorDeOperadorRequestSchema = z.object({ desafio }).strict()
 
-export type PedidoConfigurarSegundoFatorDeOperador = z.infer<typeof esquemaPedidoConfigurarSegundoFatorDeOperador>
+export type ConfigurarSegundoFatorDeOperadorRequest = z.infer<typeof configurarSegundoFatorDeOperadorRequestSchema>
 
 /**
  * Resposta de `configurar`, com `Cache-Control: no-store` e uma vez só: a URI `otpauth://` (para o QR), o segredo em
@@ -29,7 +29,7 @@ export type PedidoConfigurarSegundoFatorDeOperador = z.infer<typeof esquemaPedid
  * banco guarda só o HMAC) e o desafio de etapa `mfa` com a versão deste segredo. O segundo fator só fica ativo no
  * primeiro `POST /v1/operacao/sessao/mfa` com um código deste segredo; antes disso, os códigos de recuperação não valem.
  */
-export const esquemaRespostaConfigurarSegundoFatorDeOperador = z
+export const configurarSegundoFatorDeOperadorResponseSchema = z
   .object({
     uri: z.string().startsWith('otpauth://totp/'),
     segredo: z.string().regex(/^[A-Z2-7]+$/),
@@ -39,23 +39,23 @@ export const esquemaRespostaConfigurarSegundoFatorDeOperador = z
   })
   .strict()
 
-export type RespostaConfigurarSegundoFatorDeOperador = z.infer<typeof esquemaRespostaConfigurarSegundoFatorDeOperador>
+export type ConfigurarSegundoFatorDeOperadorResponse = z.infer<typeof configurarSegundoFatorDeOperadorResponseSchema>
 
 /**
  * Corpo de `POST /v1/operacao/sessao/mfa`: o desafio `mfa` e o código do app autenticador **ou** um código de
  * recuperação, nunca os dois. Estrito: nada além disso.
  */
-export const esquemaPedidoSegundoFatorDeOperador = z.union([
+export const segundoFatorDeOperadorRequestSchema = z.union([
   z.object({ desafio, codigo: codigoDoAutenticador }).strict(),
   z.object({ desafio, recuperacao: recuperacaoDigitada }).strict(),
 ])
 
-export type PedidoSegundoFatorDeOperador = z.infer<typeof esquemaPedidoSegundoFatorDeOperador>
+export type SegundoFatorDeOperadorRequest = z.infer<typeof segundoFatorDeOperadorRequestSchema>
 
 /**
  * Resposta 200 de `POST /v1/operacao/sessao/mfa`: o token de acesso de operador (`operador+jwt`, 10 min), que a web
  * guarda só em memória. O cookie `turmma_operacao` de renovação vai no cabeçalho, nunca no corpo. Sai com `no-store`.
  */
-export const esquemaRespostaSegundoFatorDeOperador = z.object({ token: z.string().min(1), expiraEm: z.iso.datetime() }).strict()
+export const segundoFatorDeOperadorResponseSchema = z.object({ token: z.string().min(1), expiraEm: z.iso.datetime() }).strict()
 
-export type RespostaSegundoFatorDeOperador = z.infer<typeof esquemaRespostaSegundoFatorDeOperador>
+export type SegundoFatorDeOperadorResponse = z.infer<typeof segundoFatorDeOperadorResponseSchema>

@@ -1,4 +1,4 @@
-import { CodigoDeErro } from '@educa/shared'
+import { ErrorCode } from '@educa/shared'
 import type { PipeTransform } from '@nestjs/common'
 import { z } from 'zod'
 import { ErroDeDominio } from '../erro/erro-de-dominio.js'
@@ -25,6 +25,6 @@ export class IdPipe implements PipeTransform<unknown, string | undefined> {
     const lido = esquemaId.safeParse(valor)
     if (lido.success) return lido.data.toLowerCase()
     if (this.opcoes.invalidAsUndefined === true) return undefined
-    throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
+    throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
   }
 }

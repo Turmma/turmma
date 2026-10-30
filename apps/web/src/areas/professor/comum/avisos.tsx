@@ -1,4 +1,4 @@
-import { MENSAGENS_DE_ERRO, type ChaveDeFuncao, type CodigoDeErro } from '@educa/shared'
+import { MENSAGENS_DE_ERRO, type ChaveDeFuncao, type ErrorCode } from '@educa/shared'
 import { Hourglass, PauseCircle } from 'lucide-react'
 import { aparenciaDaFalha } from '../../../api/ciclo-de-execucao'
 import { Botao } from '../../../componentes/ui/Botao'
@@ -51,7 +51,7 @@ export function AvisoNaEntregaDeFuncaoSuspensa({ texto }: { texto: string }) {
 export const TEXTO_DO_LIMITE_DE_PEDIDOS = 'Você fez muitos pedidos ao Assistente em pouco tempo. Espere cerca de um minuto e peça de novo: o seu pedido continua aqui.'
 
 interface PropsDaFalha {
-  readonly erro: CodigoDeErro
+  readonly erro: ErrorCode
   /** A função que o pedido usa: é dela a frase da suspensão. */
   readonly funcao: ChaveDeFuncao
   readonly aoTentarDeNovo: () => void

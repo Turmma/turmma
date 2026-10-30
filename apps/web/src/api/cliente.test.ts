@@ -1,4 +1,4 @@
-import { CodigoDeErro, esquemaRespostaAvisos, MENSAGENS_DE_ERRO } from '@educa/shared'
+import { ErrorCode, avisosResponseSchema, MENSAGENS_DE_ERRO } from '@educa/shared'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { deveTentarDeNovo } from './cliente-de-consultas'
 import { buscarDaApi, chamarApi, ErroDaApi, mensagemDoErro, SEM_CORPO } from './cliente'
@@ -36,52 +36,52 @@ afterEach(() => {
 describe('buscarDaApi', () => {
   it('devolve o corpo validado pelo contrato de packages/shared', async () => {
     responder(200, { itens: [] })
-    await expect(buscarDaApi('/v1/sistema/avisos', esquemaRespostaAvisos)).resolves.toEqual({ itens: [] })
+    await expect(buscarDaApi('/v1/sistema/avisos', avisosResponseSchema)).resolves.toEqual({ itens: [] })
   })
 
   it('o código vem do envelope, não do status: 500 com LIMITE_EXCEDIDO é limite excedido', async () => {
     responder(500, envelope('LIMITE_EXCEDIDO'))
-    expect((await erroDe(buscarDaApi('/x', esquemaRespostaAvisos))).codigo).toBe(CodigoDeErro.LIMITE_EXCEDIDO)
+    expect((await erroDe(buscarDaApi('/x', avisosResponseSchema))).codigo).toBe(ErrorCode.LIMITE_EXCEDIDO)
   })
 
   it('sem envelope reconhecível, deduz pelo status só o que o status diz, e o resto é erro interno', async () => {
-    const casos: [number, unknown, CodigoDeErro][] = [
-      [502, '<html>Bad Gateway</html>', CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO],
-      [503, {}, CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO],
-      [429, '', CodigoDeErro.LIMITE_EXCEDIDO],
-      [500, envelope('CODIGO_QUE_NAO_EXISTE'), CodigoDeErro.ERRO_INTERNO],
-      [404, envelope('toString'), CodigoDeErro.ERRO_INTERNO],
+    const casos: [number, unknown, ErrorCode][] = [
+      [502, '<html>Bad Gateway</html>', ErrorCode.INDISPONIVEL_TENTE_DE_NOVO],
+      [503, {}, ErrorCode.INDISPONIVEL_TENTE_DE_NOVO],
+      [429, '', ErrorCode.LIMITE_EXCEDIDO],
+      [500, envelope('CODIGO_QUE_NAO_EXISTE'), ErrorCode.ERRO_INTERNO],
+      [404, envelope('toString'), ErrorCode.ERRO_INTERNO],
     ]
     for (const [status, corpo, esperado] of casos) {
       responder(status, corpo)
-      expect((await erroDe(buscarDaApi('/x', esquemaRespostaAvisos))).codigo, `${status}`).toBe(esperado)
+      expect((await erroDe(buscarDaApi('/x', avisosResponseSchema))).codigo, `${status}`).toBe(esperado)
     }
   })
 
   it('sem rede, é indisponível: a tela diz para tentar de novo em instantes', async () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new TypeError('Failed to fetch'))))
-    expect((await erroDe(buscarDaApi('/x', esquemaRespostaAvisos))).codigo).toBe(CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO)
+    expect((await erroDe(buscarDaApi('/x', avisosResponseSchema))).codigo).toBe(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO)
   })
 
   it('busca cancelada pelo TanStack Query sai como cancelamento, e não vira erro de indisponível na tela', async () => {
     const controle = new AbortController()
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new DOMException('abortada', 'AbortError'))))
     controle.abort()
-    const erro = await buscarDaApi('/x', esquemaRespostaAvisos, controle.signal).catch((motivo: unknown) => motivo)
+    const erro = await buscarDaApi('/x', avisosResponseSchema, controle.signal).catch((motivo: unknown) => motivo)
     expect(erro).not.toBeInstanceOf(ErroDaApi)
     expect(erro).toMatchObject({ name: 'AbortError' })
   })
 
   it('200 fora do contrato vira erro interno, e não dado quebrado na tela', async () => {
     responder(200, { itens: [{ id: 'x', texto: 'sem data' }] })
-    expect((await erroDe(buscarDaApi('/x', esquemaRespostaAvisos))).codigo).toBe(CodigoDeErro.ERRO_INTERNO)
+    expect((await erroDe(buscarDaApi('/x', avisosResponseSchema))).codigo).toBe(ErrorCode.ERRO_INTERNO)
   })
 })
 
 describe('chamarApi', () => {
   it('manda o token no cabeçalho Authorization, e nunca na URL nem no corpo (regra 50, item 7)', async () => {
     responder(200, { itens: [] })
-    await chamarApi('/v1/eu', esquemaRespostaAvisos, { token: 'token-da-camila' })
+    await chamarApi('/v1/eu', avisosResponseSchema, { token: 'token-da-camila' })
     const { caminho, opcoes } = ultimoPedido()
     expect(new Headers(opcoes.headers).get('Authorization')).toBe('Bearer token-da-camila')
     expect(caminho).toBe('/v1/eu')
@@ -91,22 +91,22 @@ describe('chamarApi', () => {
 
   it('nenhuma resposta da API vai para o cache HTTP do navegador, na leitura e na escrita (regra 20)', async () => {
     responder(200, { itens: [] })
-    await buscarDaApi('/v1/turmas/x/lista', esquemaRespostaAvisos)
+    await buscarDaApi('/v1/turmas/x/lista', avisosResponseSchema)
     expect(ultimoPedido().opcoes.cache).toBe('no-store')
     responder(200, { itens: [] })
-    await chamarApi('/v1/turmas/x/lista', esquemaRespostaAvisos, { metodo: 'POST', corpo: { texto: 'Ana;1' }, token: 'token-da-renata' })
+    await chamarApi('/v1/turmas/x/lista', avisosResponseSchema, { metodo: 'POST', corpo: { texto: 'Ana;1' }, token: 'token-da-renata' })
     expect(ultimoPedido().opcoes.cache).toBe('no-store')
   })
 
   it('sem token, não manda cabeçalho de autorização nenhum', async () => {
     responder(200, { itens: [] })
-    await buscarDaApi('/v1/sistema/avisos', esquemaRespostaAvisos)
+    await buscarDaApi('/v1/sistema/avisos', avisosResponseSchema)
     expect(new Headers(ultimoPedido().opcoes.headers).has('Authorization')).toBe(false)
   })
 
   it('POST com corpo vai como JSON, e o método chega à API', async () => {
     responder(200, { itens: [] })
-    await chamarApi('/v1/sessao/email', esquemaRespostaAvisos, { metodo: 'POST', corpo: { email: 'camila@escola.test', senha: 'segredo' } })
+    await chamarApi('/v1/sessao/email', avisosResponseSchema, { metodo: 'POST', corpo: { email: 'camila@escola.test', senha: 'segredo' } })
     const { opcoes } = ultimoPedido()
     expect(opcoes.method).toBe('POST')
     expect(new Headers(opcoes.headers).get('Content-Type')).toBe('application/json')
@@ -115,16 +115,16 @@ describe('chamarApi', () => {
 
   it('o Retry-After chega ao erro em segundos: é dele que a tela tira quanto esperar', async () => {
     responder(429, envelope('CONTA_SEGURADA'), { 'Retry-After': '90' })
-    const erro = await erroDe(chamarApi('/v1/sessao/email', esquemaRespostaAvisos, { metodo: 'POST' }))
-    expect(erro.codigo).toBe(CodigoDeErro.CONTA_SEGURADA)
+    const erro = await erroDe(chamarApi('/v1/sessao/email', avisosResponseSchema, { metodo: 'POST' }))
+    expect(erro.codigo).toBe(ErrorCode.CONTA_SEGURADA)
     expect(erro.esperaSegundos).toBe(90)
   })
 
   it('Retry-After ausente ou em formato de data não vira espera inventada', async () => {
     responder(503, envelope('INDISPONIVEL_TENTE_DE_NOVO'))
-    expect((await erroDe(chamarApi('/x', esquemaRespostaAvisos))).esperaSegundos).toBeUndefined()
+    expect((await erroDe(chamarApi('/x', avisosResponseSchema))).esperaSegundos).toBeUndefined()
     responder(503, envelope('INDISPONIVEL_TENTE_DE_NOVO'), { 'Retry-After': 'Wed, 21 Oct 2026 07:28:00 GMT' })
-    expect((await erroDe(chamarApi('/x', esquemaRespostaAvisos))).esperaSegundos).toBeUndefined()
+    expect((await erroDe(chamarApi('/x', avisosResponseSchema))).esperaSegundos).toBeUndefined()
   })
 
   it('resposta sem corpo (204 de DELETE /v1/sessao) não é erro de contrato', async () => {
@@ -135,7 +135,7 @@ describe('chamarApi', () => {
 
 describe('mensagemDoErro', () => {
   it('usa o catálogo pt-BR pelo código, e erro desconhecido cai na mensagem de erro interno', () => {
-    expect(mensagemDoErro(new ErroDaApi(CodigoDeErro.LIMITE_EXCEDIDO))).toBe(MENSAGENS_DE_ERRO.LIMITE_EXCEDIDO)
+    expect(mensagemDoErro(new ErroDaApi(ErrorCode.LIMITE_EXCEDIDO))).toBe(MENSAGENS_DE_ERRO.LIMITE_EXCEDIDO)
     expect(mensagemDoErro(new Error('HTTP 500'))).toBe(MENSAGENS_DE_ERRO.ERRO_INTERNO)
     expect(mensagemDoErro(new Error('HTTP 500'))).not.toContain('500')
   })
@@ -143,13 +143,13 @@ describe('mensagemDoErro', () => {
 
 describe('deveTentarDeNovo', () => {
   it('repete uma vez o que o tempo resolve, e nunca o limite excedido nem a entrada inválida', () => {
-    expect(deveTentarDeNovo(0, new ErroDaApi(CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO))).toBe(true)
-    expect(deveTentarDeNovo(1, new ErroDaApi(CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO))).toBe(false)
-    expect(deveTentarDeNovo(0, new ErroDaApi(CodigoDeErro.LIMITE_EXCEDIDO))).toBe(false)
-    expect(deveTentarDeNovo(0, new ErroDaApi(CodigoDeErro.ENTRADA_INVALIDA))).toBe(false)
-    expect(deveTentarDeNovo(0, new ErroDaApi(CodigoDeErro.NAO_AUTENTICADO))).toBe(false)
-    expect(deveTentarDeNovo(0, new ErroDaApi(CodigoDeErro.TEMPO_ESGOTADO))).toBe(true)
-    expect(deveTentarDeNovo(0, new ErroDaApi(CodigoDeErro.ERRO_INTERNO))).toBe(true)
+    expect(deveTentarDeNovo(0, new ErroDaApi(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO))).toBe(true)
+    expect(deveTentarDeNovo(1, new ErroDaApi(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO))).toBe(false)
+    expect(deveTentarDeNovo(0, new ErroDaApi(ErrorCode.LIMITE_EXCEDIDO))).toBe(false)
+    expect(deveTentarDeNovo(0, new ErroDaApi(ErrorCode.ENTRADA_INVALIDA))).toBe(false)
+    expect(deveTentarDeNovo(0, new ErroDaApi(ErrorCode.NAO_AUTENTICADO))).toBe(false)
+    expect(deveTentarDeNovo(0, new ErroDaApi(ErrorCode.TEMPO_ESGOTADO))).toBe(true)
+    expect(deveTentarDeNovo(0, new ErroDaApi(ErrorCode.ERRO_INTERNO))).toBe(true)
     expect(deveTentarDeNovo(0, new TypeError('falha fora do cliente'))).toBe(true)
   })
 })

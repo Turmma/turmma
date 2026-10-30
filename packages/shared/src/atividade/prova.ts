@@ -1,7 +1,7 @@
 import { z } from 'zod'
-import { ALTERNATIVAS_POR_QUESTAO, esquemaAdaptacaoAplicada, esquemaCitacao, esquemaHabilidade, type ConteudoDeAtividade } from '../assistente/conteudo.js'
+import { ALTERNATIVAS_POR_QUESTAO, adaptacaoAplicadaSchema, citacaoSchema, habilidadeSchema, type ConteudoDeAtividade } from '../assistente/conteudo.js'
 import { MAXIMO_DE_QUESTOES_POR_ATIVIDADE } from '../assistente/conversa.js'
-import { esquemaConsultaPaginada, esquemaDePagina } from '../estrutura/paginacao.js'
+import { paginationQuerySchema, pageSchema } from '../estrutura/pagination.js'
 import { ESTADOS_DE_ATIVIDADE_APLICADA } from './atividade-aplicada.js'
 
 /**
@@ -14,21 +14,21 @@ import { ESTADOS_DE_ATIVIDADE_APLICADA } from './atividade-aplicada.js'
  */
 
 /** O número da questão, de 1 a 20, no caminho (`/respostas/:questao`) e nos corpos. */
-export const esquemaNumeroDaQuestao = z.coerce.number().int().min(1).max(MAXIMO_DE_QUESTOES_POR_ATIVIDADE)
+export const numeroDaQuestaoSchema = z.coerce.number().int().min(1).max(MAXIMO_DE_QUESTOES_POR_ATIVIDADE)
 
 /**
  * A questão no caminho (`/respostas/:questao`): um ou dois dígitos, e então o intervalo acima. Só dígitos, porque o
  * `coerce` aceitaria `'0x3'`, `'+3'`, `'1e1'` e `'001'`, e nenhum desses é o número de uma questão. Só dígitos também garante
  * o inteiro, e por isso o intervalo não repete o `.int()`. Fora daí nenhuma questão existe assim.
  */
-export const esquemaQuestaoDoCaminho = z
+export const questaoDoCaminhoSchema = z
   .string()
   .regex(/^\d{1,2}$/)
   .transform(Number)
   .pipe(z.number().min(1).max(MAXIMO_DE_QUESTOES_POR_ATIVIDADE))
 
 /** O índice da alternativa, de 0 a 3. */
-export const esquemaAlternativa = z.number().int().min(0).max(ALTERNATIVAS_POR_QUESTAO - 1)
+export const alternativaSchema = z.number().int().min(0).max(ALTERNATIVAS_POR_QUESTAO - 1)
 
 /**
  * `para_fazer`: aberta, e o aluno não começou. `em_andamento`: começou e não enviou. `enviada`: enviou, e o professor
@@ -39,7 +39,7 @@ export const SITUACOES_DA_MINHA_ATIVIDADE = ['para_fazer', 'em_andamento', 'envi
 export type SituacaoDaMinhaAtividade = (typeof SITUACOES_DA_MINHA_ATIVIDADE)[number]
 
 /** Uma atividade da turma do aluno, na lista dele. Sem acertos: o resultado só existe no diagnóstico, depois da aprovação. */
-export const esquemaMinhaAtividade = z.strictObject({
+export const minhaAtividadeSchema = z.strictObject({
   id: z.uuid(),
   titulo: z.string().min(1),
   disciplina: z.strictObject({ id: z.uuid(), nome: z.string().min(1) }),
@@ -50,34 +50,34 @@ export const esquemaMinhaAtividade = z.strictObject({
   aplicadaEm: z.iso.datetime(),
   enviadaEm: z.iso.datetime().nullable(),
 })
-export type MinhaAtividade = z.infer<typeof esquemaMinhaAtividade>
+export type MinhaAtividade = z.infer<typeof minhaAtividadeSchema>
 
-export const esquemaConsultaMinhasAtividades = esquemaConsultaPaginada
-export type ConsultaMinhasAtividades = z.infer<typeof esquemaConsultaMinhasAtividades>
-export const esquemaRespostaMinhasAtividades = esquemaDePagina(esquemaMinhaAtividade)
-export type RespostaMinhasAtividades = z.infer<typeof esquemaRespostaMinhasAtividades>
+export const minhasAtividadesQuerySchema = paginationQuerySchema
+export type MinhasAtividadesQuery = z.infer<typeof minhasAtividadesQuerySchema>
+export const minhasAtividadesResponseSchema = pageSchema(minhaAtividadeSchema)
+export type MinhasAtividadesResponse = z.infer<typeof minhasAtividadesResponseSchema>
 
 /**
  * Uma questão como o aluno a recebe: o número, o enunciado e as alternativas. **Sem `gabarito`, sem `explicacao`, sem
  * habilidade e sem citação**: o objeto é estrito, e a questão do artefato inteira não passa por ele.
  */
-export const esquemaQuestaoDaProva = z.strictObject({
-  numero: esquemaNumeroDaQuestao,
+export const questaoDaProvaSchema = z.strictObject({
+  numero: numeroDaQuestaoSchema,
   enunciado: z.string().min(1),
   alternativas: z.array(z.string().min(1)).length(ALTERNATIVAS_POR_QUESTAO),
 })
-export type QuestaoDaProva = z.infer<typeof esquemaQuestaoDaProva>
+export type QuestaoDaProva = z.infer<typeof questaoDaProvaSchema>
 
 /**
  * A ordem das escolhas do aluno numa questão (regra 80, item 6; RF21): cada escolha leva a sua, e o banco só grava a mais
  * nova. O reenvio atrasado, o F5 e a outra aba não trocam a escolha mais recente. É do aluno da sessão, por questão, e
  * começa em 0 (a linha que existia antes dela).
  */
-export const esquemaSequencia = z.number().int().nonnegative()
+export const sequenciaSchema = z.number().int().nonnegative()
 
 /** A resposta que o aluno já salvou, para ele continuar de onde parou, com a `sequencia` com que ficou gravada. */
-export const esquemaRespostaSalva = z.strictObject({ questao: esquemaNumeroDaQuestao, alternativa: esquemaAlternativa, sequencia: esquemaSequencia })
-export type RespostaSalva = z.infer<typeof esquemaRespostaSalva>
+export const respostaSalvaSchema = z.strictObject({ questao: numeroDaQuestaoSchema, alternativa: alternativaSchema, sequencia: sequenciaSchema })
+export type RespostaSalva = z.infer<typeof respostaSalvaSchema>
 
 /**
  * O que o navegador guarda em `sessionStorage` da escolha que o servidor ainda não confirmou (53.0, RF21): só ids e
@@ -85,37 +85,37 @@ export type RespostaSalva = z.infer<typeof esquemaRespostaSalva>
  * voltou" de "sentou outra pessoa no Chromebook". **Estrito e sem coerção**: campo a mais (nome, texto), tipo errado ou
  * número em texto descarta o conjunto inteiro, e o que não passa aqui nunca é mandado nem mostrado (regra 20, item 1).
  */
-export const esquemaEspelhoDaFila = z.strictObject({
+export const espelhoDaFilaSchema = z.strictObject({
   dono: z.uuid(),
   atividade: z.uuid(),
   pendentes: z
     .array(
       z.strictObject({
         questao: z.number().int().min(1).max(MAXIMO_DE_QUESTOES_POR_ATIVIDADE),
-        alternativa: esquemaAlternativa,
-        sequencia: esquemaSequencia,
+        alternativa: alternativaSchema,
+        sequencia: sequenciaSchema,
       }),
     )
     .max(MAXIMO_DE_QUESTOES_POR_ATIVIDADE),
 })
-export type EspelhoDaFila = z.infer<typeof esquemaEspelhoDaFila>
+export type EspelhoDaFila = z.infer<typeof espelhoDaFilaSchema>
 
 /**
  * Resposta de `GET /v1/atividades-aplicadas/:id/prova`: a atividade como o aluno a faz. `adaptacao` traz só os **tipos**
  * da versão (para a tela ampliar a fonte ou mostrar o tempo extra), e vale para a turma inteira que recebeu a versão.
  * Abrir a prova cria a tentativa do aluno, uma só.
  */
-export const esquemaRespostaProva = z.strictObject({
+export const provaResponseSchema = z.strictObject({
   atividadeAplicadaId: z.uuid(),
   titulo: z.string().min(1),
   avaliativa: z.boolean(),
   estado: z.enum(ESTADOS_DE_ATIVIDADE_APLICADA),
-  adaptacao: esquemaAdaptacaoAplicada.nullable(),
-  questoes: z.array(esquemaQuestaoDaProva).min(1).max(MAXIMO_DE_QUESTOES_POR_ATIVIDADE),
-  respostas: z.array(esquemaRespostaSalva).max(MAXIMO_DE_QUESTOES_POR_ATIVIDADE),
+  adaptacao: adaptacaoAplicadaSchema.nullable(),
+  questoes: z.array(questaoDaProvaSchema).min(1).max(MAXIMO_DE_QUESTOES_POR_ATIVIDADE),
+  respostas: z.array(respostaSalvaSchema).max(MAXIMO_DE_QUESTOES_POR_ATIVIDADE),
   enviadaEm: z.iso.datetime().nullable(),
 })
-export type RespostaProva = z.infer<typeof esquemaRespostaProva>
+export type ProvaResponse = z.infer<typeof provaResponseSchema>
 
 /**
  * As questões do artefato como o aluno as recebe. É por aqui que a API monta a prova: copia campo a campo, e por isso
@@ -131,45 +131,45 @@ export function questoesDaProva(conteudo: ConteudoDeAtividade): QuestaoDaProva[]
  * o envio atrasado perde e recebe de volta o que ficou gravado. Sem `sequencia` (cliente antigo), a escolha vale como a
  * mais nova, uma acima da gravada. Depois do envio ou do encerramento responde `ATIVIDADE_ENCERRADA`.
  */
-export const esquemaPedidoResponderQuestao = z.strictObject({ alternativa: esquemaAlternativa, sequencia: esquemaSequencia.optional() })
-export type PedidoResponderQuestao = z.infer<typeof esquemaPedidoResponderQuestao>
+export const responderQuestaoRequestSchema = z.strictObject({ alternativa: alternativaSchema, sequencia: sequenciaSchema.optional() })
+export type ResponderQuestaoRequest = z.infer<typeof responderQuestaoRequestSchema>
 
 /**
  * Resposta de `PUT …/respostas/:questao`: o que ficou gravado, para a tela dizer "Resposta salva". Nunca se está certa.
  * Quando o pedido perde para uma `sequencia` maior, a resposta é **a gravada** (alternativa e `sequencia`), não a pedida.
  */
-export const esquemaRespostaQuestaoSalva = z.strictObject({
-  questao: esquemaNumeroDaQuestao,
-  alternativa: esquemaAlternativa,
-  sequencia: esquemaSequencia,
+export const questaoSalvaResponseSchema = z.strictObject({
+  questao: numeroDaQuestaoSchema,
+  alternativa: alternativaSchema,
+  sequencia: sequenciaSchema,
   respondidaEm: z.iso.datetime(),
 })
-export type RespostaQuestaoSalva = z.infer<typeof esquemaRespostaQuestaoSalva>
+export type QuestaoSalvaResponse = z.infer<typeof questaoSalvaResponseSchema>
 
 /** Resposta de `POST /v1/atividades-aplicadas/:id/enviar`: quando foi enviada e quantas questões têm resposta. Enviar de novo devolve o mesmo. */
-export const esquemaRespostaAtividadeEnviada = z.strictObject({
+export const atividadeEnviadaResponseSchema = z.strictObject({
   enviadaEm: z.iso.datetime(),
   respondidas: z.number().int().nonnegative(),
   questoes: z.number().int().min(1),
 })
-export type RespostaAtividadeEnviada = z.infer<typeof esquemaRespostaAtividadeEnviada>
+export type AtividadeEnviadaResponse = z.infer<typeof atividadeEnviadaResponseSchema>
 
 /** O acerto numa habilidade: quantas questões dela o aluno acertou, de quantas. Contagem, não nota (D46). */
-export const esquemaAcertoPorHabilidade = z.strictObject({
-  habilidade: esquemaHabilidade,
+export const acertoPorHabilidadeSchema = z.strictObject({
+  habilidade: habilidadeSchema,
   acertos: z.number().int().nonnegative(),
   total: z.number().int().min(1),
 })
-export type AcertoPorHabilidade = z.infer<typeof esquemaAcertoPorHabilidade>
+export type AcertoPorHabilidade = z.infer<typeof acertoPorHabilidadeSchema>
 
 /** Uma questão no diagnóstico: o que o aluno marcou, o gabarito, a explicação e a página. Só existe depois da aprovação. */
-export const esquemaQuestaoDoDiagnostico = z.strictObject({
-  numero: esquemaNumeroDaQuestao,
-  alternativa: esquemaAlternativa.nullable(),
-  gabarito: esquemaAlternativa,
+export const questaoDoDiagnosticoSchema = z.strictObject({
+  numero: numeroDaQuestaoSchema,
+  alternativa: alternativaSchema.nullable(),
+  gabarito: alternativaSchema,
   correta: z.boolean(),
   explicacao: z.string().min(1),
-  citacao: esquemaCitacao,
+  citacao: citacaoSchema,
 })
 
 /**
@@ -178,15 +178,15 @@ export const esquemaQuestaoDoDiagnostico = z.strictObject({
  * pendente, rejeitado ou ainda não corrigido) a rota responde como inexistente, igual à atividade de outra turma. Não é
  * nota nem conceito, e não traz a turma nem colega.
  */
-export const esquemaRespostaMeuDiagnostico = z.strictObject({
+export const meuDiagnosticoResponseSchema = z.strictObject({
   atividadeAplicadaId: z.uuid(),
   titulo: z.string().min(1),
   acertos: z.number().int().nonnegative(),
   total: z.number().int().min(1),
-  porHabilidade: z.array(esquemaAcertoPorHabilidade).max(MAXIMO_DE_QUESTOES_POR_ATIVIDADE),
-  questoes: z.array(esquemaQuestaoDoDiagnostico).min(1).max(MAXIMO_DE_QUESTOES_POR_ATIVIDADE),
+  porHabilidade: z.array(acertoPorHabilidadeSchema).max(MAXIMO_DE_QUESTOES_POR_ATIVIDADE),
+  questoes: z.array(questaoDoDiagnosticoSchema).min(1).max(MAXIMO_DE_QUESTOES_POR_ATIVIDADE),
   /** Nulo só se quem aprovou foi eliminado da escola depois: a aprovação e a data ficam. */
   aprovadoPor: z.strictObject({ nome: z.string().min(1) }).nullable(),
   aprovadoEm: z.iso.datetime(),
 })
-export type RespostaMeuDiagnostico = z.infer<typeof esquemaRespostaMeuDiagnostico>
+export type MeuDiagnosticoResponse = z.infer<typeof meuDiagnosticoResponseSchema>

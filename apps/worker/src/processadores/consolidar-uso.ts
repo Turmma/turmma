@@ -13,7 +13,7 @@ import {
   type UsoDoPeriodo,
   type UsoRepository,
 } from '@educa/nucleo'
-import { CodigoDeFalhaDeJob, type TIPO_CONSOLIDAR_USO } from '@educa/shared'
+import { JobFailureCode, type TIPO_CONSOLIDAR_USO } from '@educa/shared'
 import type { Processador } from '../executor.js'
 import { FalhaDeJob } from '../falha-de-job.js'
 import type { MedidorDeStorage } from '../storage/medidor-de-storage.js'
@@ -98,7 +98,7 @@ export function criarConsolidacaoDeUso(dependencias: DependenciasDaConsolidacao)
   return async () => {
     const contexto = contextoAtual()
     // Só a rotina do sistema consolida: um job de escola com este tipo não alcança as outras escolas.
-    if (contexto?.rotinaDoSistema !== true) throw new FalhaDeJob(CodigoDeFalhaDeJob.DADOS_INVALIDOS, true)
+    if (contexto?.rotinaDoSistema !== true) throw new FalhaDeJob(JobFailureCode.DADOS_INVALIDOS, true)
     const naEscola = <T>(escolaId: string, funcao: () => Promise<T>): Promise<T> =>
       executarNoContexto({ requisicaoId: contexto.requisicaoId, escolaId }, funcao)
 
@@ -171,7 +171,7 @@ export function criarConsolidacaoDeUso(dependencias: DependenciasDaConsolidacao)
       // Contador e storage juntos: não é o `escolasTotal` de `uso.consolidado`, que conta só as pastas do storage.
       const encontradasTotal = encontradas.size
       logger.error({ evento: 'uso.nenhuma_escola_no_banco', encontradasTotal })
-      throw new FalhaDeJob(CodigoDeFalhaDeJob.ERRO_INTERNO)
+      throw new FalhaDeJob(JobFailureCode.ERRO_INTERNO)
     }
     // A pasta com erro não segurou as outras escolas, mas o erro não é engolido: a fila tenta de novo, e a
     // reexecução regrava o mesmo valor nas que já foram (D49).

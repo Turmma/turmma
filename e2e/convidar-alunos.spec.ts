@@ -1,5 +1,5 @@
 import type { Locator, Page } from '@playwright/test'
-import type { RespostaAcessoGerado } from '../packages/shared/src/sala/acesso.ts'
+import type { AcessoGeradoResponse } from '../packages/shared/src/sala/acesso.ts'
 import { PRAZO_DA_ENTRADA_MS } from './__fixtures__/casca.ts'
 import { expect, test } from './__fixtures__/perfis.ts'
 import { confirmarVinculosNoBanco, criarAlocacaoDoProfessor, criarEquipeComSenha, porNaListaDaTurma, type EquipeDeTeste } from './__fixtures__/sessao.ts'
@@ -65,7 +65,7 @@ test.describe('o endereço ?convidar=1', () => {
     // O link e o código nascem no diálogo e nunca no endereço.
     const resposta = page.waitForResponse((r) => r.request().method() === 'POST' && /\/v1\/turmas\/[^/]+\/acesso$/.test(new URL(r.url()).pathname))
     await tocar(dialogo(page), 'Gerar acesso', hasTouch)
-    const gerado = (await (await resposta).json()) as RespostaAcessoGerado
+    const gerado = (await (await resposta).json()) as AcessoGeradoResponse
     await expect(dialogo(page).getByRole('heading', { name: 'Acesso gerado' })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
     for (const segredo of [gerado.token, gerado.codigo]) expect(page.url()).not.toContain(segredo)
     expect(caminhoEBusca(page)).toBe(`${endereco}?aba=alunos&convidar=1`)

@@ -1,4 +1,4 @@
-import { CodigoDeErro, type AtividadeAplicada, type RespostaArtefato } from '@educa/shared'
+import { ErrorCode, type AtividadeAplicada, type ArtefatoResponse } from '@educa/shared'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useId, useRef, useState } from 'react'
 import { Link } from 'wouter'
@@ -15,8 +15,8 @@ import { useCorrigirDeNovo } from './corrigir-de-novo'
 import { EncerramentoDaAtividade } from './EncerramentoDaAtividade'
 
 /** O que a tela diz quando a API recusa aplicar: a que já está aberta, e a versão adaptada que ainda não foi aprovada. */
-const TEXTOS_DA_APLICACAO: Partial<Record<CodigoDeErro, string>> = {
-  [CodigoDeErro.CONFLITO]: 'Esta atividade já está aberta para a turma. Encerre a que está aberta antes de aplicar de novo.',
+const TEXTOS_DA_APLICACAO: Partial<Record<ErrorCode, string>> = {
+  [ErrorCode.CONFLITO]: 'Esta atividade já está aberta para a turma. Encerre a que está aberta antes de aplicar de novo.',
 }
 
 type Escolha = (typeof ESCOLHA_DE_AVALIATIVA)[number]['valor']
@@ -25,14 +25,14 @@ type Escolha = (typeof ESCOLHA_DE_AVALIATIVA)[number]['valor']
  * A atividade pode ir para a turma? Só a atividade objetiva; a versão adaptada, só depois de aprovada (regra 70, item
  * 3: o banco também recusa); e não enquanto ela já está aberta para a turma.
  */
-export function podeAplicar(artefato: Pick<RespostaArtefato, 'tipo' | 'entrega'>, aplicadas: readonly Pick<AtividadeAplicada, 'estado'>[]): boolean {
+export function podeAplicar(artefato: Pick<ArtefatoResponse, 'tipo' | 'entrega'>, aplicadas: readonly Pick<AtividadeAplicada, 'estado'>[]): boolean {
   if (artefato.tipo !== 'atividade_objetiva') return false
   if (artefato.entrega !== null && artefato.entrega.estado !== 'aprovada') return false
   return !aplicadas.some((aplicada) => aplicada.estado === 'aberta')
 }
 
 interface PropsDaAplicacao {
-  readonly artefato: RespostaArtefato
+  readonly artefato: ArtefatoResponse
   readonly nomeDaTurma: string | undefined
 }
 

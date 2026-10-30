@@ -1,4 +1,4 @@
-import { esquemaRespostaConviteDeProfessor, esquemaRespostaListaDeProfessores, type PedidoCadastrarProfessor, type ProfessorDaEscola, type RespostaConviteDeProfessor } from '@educa/shared'
+import { conviteDeProfessorResponseSchema, listaDeProfessoresResponseSchema, type CadastrarProfessorRequest, type ProfessorDaEscola, type ConviteDeProfessorResponse } from '@educa/shared'
 import { mutationOptions, queryOptions } from '@tanstack/react-query'
 import { SEM_CORPO } from '../../../../api/cliente'
 import { CHAVE_DA_ESTRUTURA, lerPaginas } from '../../../../api/estrutura'
@@ -13,20 +13,20 @@ export const CAMINHO_DOS_PROFESSORES = '/v1/professores'
  */
 export const consultaProfessores = queryOptions({
   queryKey: [...CHAVE_DA_ESTRUTURA, 'professores'],
-  queryFn: ({ signal }) => lerPaginas<ProfessorDaEscola>(CAMINHO_DOS_PROFESSORES, esquemaRespostaListaDeProfessores, signal),
+  queryFn: ({ signal }) => lerPaginas<ProfessorDaEscola>(CAMINHO_DOS_PROFESSORES, listaDeProfessoresResponseSchema, signal),
 })
 
 /** `POST /v1/professores`: cadastra o professor na escola da sessão; o token do convite só existe nesta resposta. */
-export function cadastrarProfessor(pedido: PedidoCadastrarProfessor): Promise<RespostaConviteDeProfessor> {
-  return chamarComSessao(CAMINHO_DOS_PROFESSORES, esquemaRespostaConviteDeProfessor, { metodo: 'POST', corpo: pedido })
+export function cadastrarProfessor(pedido: CadastrarProfessorRequest): Promise<ConviteDeProfessorResponse> {
+  return chamarComSessao(CAMINHO_DOS_PROFESSORES, conviteDeProfessorResponseSchema, { metodo: 'POST', corpo: pedido })
 }
 
 /**
  * `POST /v1/professores/:usuarioId/convite/refazer`, pelo usuário do professor que a lista trouxe: o convite anterior
  * deixa de valer, e o token do novo só existe nesta resposta.
  */
-export function refazerConviteDoProfessor(usuarioId: string): Promise<RespostaConviteDeProfessor> {
-  return chamarComSessao(`${CAMINHO_DOS_PROFESSORES}/${encodeURIComponent(usuarioId)}/convite/refazer`, esquemaRespostaConviteDeProfessor, { metodo: 'POST', corpo: {} })
+export function refazerConviteDoProfessor(usuarioId: string): Promise<ConviteDeProfessorResponse> {
+  return chamarComSessao(`${CAMINHO_DOS_PROFESSORES}/${encodeURIComponent(usuarioId)}/convite/refazer`, conviteDeProfessorResponseSchema, { metodo: 'POST', corpo: {} })
 }
 
 /** `POST /v1/professores/:usuarioId/convite/revogar`: 204, sem corpo. */

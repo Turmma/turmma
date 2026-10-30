@@ -1,12 +1,12 @@
 import {
-  CodigoDeErro,
+  ErrorCode,
   ESTADOS_ABERTOS_DO_PEDIDO,
   MAXIMO_DO_NOME_DO_TITULAR,
   type FINALIDADES_DO_ARQUIVO_DA_ESCOLA,
   PRAZO_DA_ELIMINACAO_DIAS,
   TIPOS_DE_PEDIDO_COM_ARQUIVO,
   VALIDADE_DO_ARQUIVO_DIAS,
-  type LinhaDoCompartilhamento,
+  type CompartilhamentoRow,
   type OrigemDoCompartilhamento,
   type PedidoDoTitular,
   type SuboperadorDaEscola,
@@ -214,7 +214,7 @@ export type NomeNovoConferido = { readonly ok: true; readonly nome: string } | {
 export const TEXTO_DO_NOME_IGUAL = 'O nome novo é igual ao atual. Digite o nome como deve ficar.'
 export const TEXTO_DO_NOME_COMPRIDO = `O nome passa de ${String(MAXIMO_DO_NOME_DO_TITULAR)} caracteres.`
 
-/** O que a coordenação digitou, conferido contra o contrato (`esquemaCorrecaoDeNome`) e contra o nome de agora. */
+/** O que a coordenação digitou, conferido contra o contrato (`correcaoDeNomeSchema`) e contra o nome de agora. */
 export function nomeNovoDoTitular(digitado: string, atual: string): NomeNovoConferido {
   const nome = digitado.trim()
   if (nome === '') return { ok: false, erro: 'Digite o nome correto.' }
@@ -249,32 +249,32 @@ const TEXTO_DO_PEDIDO_QUE_MUDOU = 'A página mostra a situação de agora.'
 export const TEXTO_DO_PEDIDO_AUSENTE = 'Este pedido não está mais disponível nesta escola. Volte à lista de pedidos.'
 
 /** A falha de concluir: o pedido que mudou de estado é o caso, e a página já foi relida. */
-export const TEXTOS_DA_FALHA_DE_CONCLUIR: Readonly<Partial<Record<CodigoDeErro, string>>> = {
-  [CodigoDeErro.PEDIDO_EM_ESTADO_INVALIDO]: `Este pedido já foi concluído ou mudou de situação e não pode mais ser concluído. ${TEXTO_DO_PEDIDO_QUE_MUDOU}`,
-  [CodigoDeErro.NAO_ENCONTRADO]: TEXTO_DO_PEDIDO_AUSENTE,
+export const TEXTOS_DA_FALHA_DE_CONCLUIR: Readonly<Partial<Record<ErrorCode, string>>> = {
+  [ErrorCode.PEDIDO_EM_ESTADO_INVALIDO]: `Este pedido já foi concluído ou mudou de situação e não pode mais ser concluído. ${TEXTO_DO_PEDIDO_QUE_MUDOU}`,
+  [ErrorCode.NAO_ENCONTRADO]: TEXTO_DO_PEDIDO_AUSENTE,
 }
 
 /** A falha de cancelar: depois dos 7 dias, ou com a eliminação já enfileirada, a API recusa, e a tela diz por quê. */
-export const TEXTOS_DA_FALHA_DE_CANCELAR: Readonly<Partial<Record<CodigoDeErro, string>>> = {
-  [CodigoDeErro.PEDIDO_EM_ESTADO_INVALIDO]: `Esta eliminação já não pode ser cancelada: o prazo de ${String(PRAZO_DA_ELIMINACAO_DIAS)} dias passou, ela já começou ou outra pessoa a cancelou. ${TEXTO_DO_PEDIDO_QUE_MUDOU}`,
-  [CodigoDeErro.NAO_ENCONTRADO]: TEXTO_DO_PEDIDO_AUSENTE,
+export const TEXTOS_DA_FALHA_DE_CANCELAR: Readonly<Partial<Record<ErrorCode, string>>> = {
+  [ErrorCode.PEDIDO_EM_ESTADO_INVALIDO]: `Esta eliminação já não pode ser cancelada: o prazo de ${String(PRAZO_DA_ELIMINACAO_DIAS)} dias passou, ela já começou ou outra pessoa a cancelou. ${TEXTO_DO_PEDIDO_QUE_MUDOU}`,
+  [ErrorCode.NAO_ENCONTRADO]: TEXTO_DO_PEDIDO_AUSENTE,
 }
 
 /** A falha de corrigir o nome: o nome fora do tamanho volta como erro do campo, e o pedido que mudou, como a página relida. */
-export const TEXTOS_DA_FALHA_DE_CORRIGIR_NOME: Readonly<Partial<Record<CodigoDeErro, string>>> = {
-  [CodigoDeErro.ENTRADA_INVALIDA]: 'O nome precisa ter de 1 a 200 caracteres. Confira o que foi digitado.',
-  [CodigoDeErro.PEDIDO_EM_ESTADO_INVALIDO]: `Este pedido já não aceita a correção do nome: ele foi concluído ou deixou de ser de correção. ${TEXTO_DO_PEDIDO_QUE_MUDOU}`,
-  [CodigoDeErro.NAO_ENCONTRADO]: TEXTO_DO_PEDIDO_AUSENTE,
+export const TEXTOS_DA_FALHA_DE_CORRIGIR_NOME: Readonly<Partial<Record<ErrorCode, string>>> = {
+  [ErrorCode.ENTRADA_INVALIDA]: 'O nome precisa ter de 1 a 200 caracteres. Confira o que foi digitado.',
+  [ErrorCode.PEDIDO_EM_ESTADO_INVALIDO]: `Este pedido já não aceita a correção do nome: ele foi concluído ou deixou de ser de correção. ${TEXTO_DO_PEDIDO_QUE_MUDOU}`,
+  [ErrorCode.NAO_ENCONTRADO]: TEXTO_DO_PEDIDO_AUSENTE,
 }
 
 /** A falha do download: sem a versão da escola, a pessoa ainda tem conta ativa (ela baixa o dela) ou o arquivo passou dos 7 dias. */
-export const TEXTOS_DA_FALHA_DE_BAIXAR: Readonly<Partial<Record<CodigoDeErro, string>>> = {
-  [CodigoDeErro.NAO_ENCONTRADO]: `A versão da escola não existe para este pedido: a pessoa ainda tem conta ativa nesta escola e baixa o arquivo completo em Meus dados, ou o arquivo passou dos ${String(VALIDADE_DO_ARQUIVO_DIAS)} dias e foi apagado.`,
-  [CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO]: 'Não foi possível preparar o download agora. Tente de novo em instantes: o arquivo continua guardado.',
+export const TEXTOS_DA_FALHA_DE_BAIXAR: Readonly<Partial<Record<ErrorCode, string>>> = {
+  [ErrorCode.NAO_ENCONTRADO]: `A versão da escola não existe para este pedido: a pessoa ainda tem conta ativa nesta escola e baixa o arquivo completo em Meus dados, ou o arquivo passou dos ${String(VALIDADE_DO_ARQUIVO_DIAS)} dias e foi apagado.`,
+  [ErrorCode.INDISPONIVEL_TENTE_DE_NOVO]: 'Não foi possível preparar o download agora. Tente de novo em instantes: o arquivo continua guardado.',
 }
 
 /** A falha que muda o que a página mostra: o diálogo some com o botão de confirmar e fica só o "Fechar", e a página é relida. */
-export const CODIGOS_QUE_MUDAM_O_PEDIDO: readonly CodigoDeErro[] = [CodigoDeErro.PEDIDO_EM_ESTADO_INVALIDO, CodigoDeErro.NAO_ENCONTRADO]
+export const CODIGOS_QUE_MUDAM_O_PEDIDO: readonly ErrorCode[] = [ErrorCode.PEDIDO_EM_ESTADO_INVALIDO, ErrorCode.NAO_ENCONTRADO]
 
 /** Como cada origem da linha do compartilhamento é dita: do rastro das chamadas, ou do período em que a empresa atendia a escola. */
 export const ROTULO_DA_ORIGEM: Readonly<Record<OrigemDoCompartilhamento, string>> = {
@@ -289,7 +289,7 @@ export const ROTULO_DA_ORIGEM: Readonly<Record<OrigemDoCompartilhamento, string>
 export const AVISO_DE_AVISAR_AS_EMPRESAS = 'Ao corrigir ou eliminar os dados da pessoa, a escola precisa avisar cada empresa desta lista (LGPD, art. 18, § 6º).'
 
 /** O nome da empresa de uma linha: o cadastrado, que casa pela chave na época da chamada; ou o que diz que não há cadastro. */
-export function nomeDaEmpresa(linha: LinhaDoCompartilhamento, suboperadores: readonly SuboperadorDaEscola[] | undefined): string {
+export function nomeDaEmpresa(linha: CompartilhamentoRow, suboperadores: readonly SuboperadorDaEscola[] | undefined): string {
   if (linha.suboperadorId === null) return `Provedor não cadastrado: ${linha.chave}`
   const mesmaChave = (suboperadores ?? []).filter((suboperador) => suboperador.chave === linha.chave)
   // A chave recadastrada rende duas empresas com a mesma chave: vale a que estava vigente na última chamada da linha.
@@ -298,13 +298,13 @@ export function nomeDaEmpresa(linha: LinhaDoCompartilhamento, suboperadores: rea
 }
 
 /** O período da linha: o dia, quando começa e termina no mesmo; senão de um dia até o outro. */
-export function periodoDaLinha(linha: Pick<LinhaDoCompartilhamento, 'primeiroEm' | 'ultimoEm'>): string {
+export function periodoDaLinha(linha: Pick<CompartilhamentoRow, 'primeiroEm' | 'ultimoEm'>): string {
   const primeiro = formatarDiaDoInstante(linha.primeiroEm)
   const ultimo = formatarDiaDoInstante(linha.ultimoEm)
   return primeiro === ultimo ? `Em ${primeiro}` : `De ${primeiro} até ${ultimo}`
 }
 
 /** A foto do compartilhamento vem sem ordem: aqui vai do primeiro a ter dado ao último, e a chave desempata. */
-export function ordenarOCompartilhamento(linhas: readonly LinhaDoCompartilhamento[]): LinhaDoCompartilhamento[] {
+export function ordenarOCompartilhamento(linhas: readonly CompartilhamentoRow[]): CompartilhamentoRow[] {
   return [...linhas].sort((a, b) => (a.primeiroEm === b.primeiroEm ? a.chave.localeCompare(b.chave) : a.primeiroEm < b.primeiroEm ? -1 : 1))
 }

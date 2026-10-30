@@ -1,4 +1,4 @@
-import { CodigoDeErro } from '@educa/shared'
+import { ErrorCode } from '@educa/shared'
 import type { ExecutionContext } from '@nestjs/common'
 import { Reflector } from '@nestjs/core'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -69,7 +69,7 @@ describe('GuardaDeSessao', () => {
       const leitura: LeituraDeSessao = { lerParaGuarda: vi.fn().mockRejectedValue(falha), marcarAtualApresentado: vi.fn() }
       await executarNoContexto({ requisicaoId: 'r' }, async () => {
         await expect(new GuardaDeSessao(new Reflector(), leitura).canActivate(execucao(comToken()))).rejects.toMatchObject({
-          codigo: CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO,
+          codigo: ErrorCode.INDISPONIVEL_TENTE_DE_NOVO,
           status: 503,
           tenteDeNovoEmSegundos: expect.any(Number),
         })
@@ -81,7 +81,7 @@ describe('GuardaDeSessao', () => {
   it('sessão que não vale (inexistente) responde NAO_AUTENTICADO e não grava contexto', async () => {
     const leitura: LeituraDeSessao = { lerParaGuarda: vi.fn().mockResolvedValue(undefined), marcarAtualApresentado: vi.fn() }
     await executarNoContexto({ requisicaoId: 'r' }, async () => {
-      await expect(new GuardaDeSessao(new Reflector(), leitura).canActivate(execucao(comToken()))).rejects.toMatchObject({ codigo: CodigoDeErro.NAO_AUTENTICADO, status: 401 })
+      await expect(new GuardaDeSessao(new Reflector(), leitura).canActivate(execucao(comToken()))).rejects.toMatchObject({ codigo: ErrorCode.NAO_AUTENTICADO, status: 401 })
       expect(contextoAtual()?.escolaId).toBeUndefined()
     })
   })
@@ -89,7 +89,7 @@ describe('GuardaDeSessao', () => {
   it('sem token verificado na requisição (guarda fora de ordem), falha fechada sem ler o banco', async () => {
     const leitura: LeituraDeSessao = { lerParaGuarda: vi.fn(), marcarAtualApresentado: vi.fn() }
     await executarNoContexto({ requisicaoId: 'r' }, async () => {
-      await expect(new GuardaDeSessao(new Reflector(), leitura).canActivate(execucao({}))).rejects.toMatchObject({ codigo: CodigoDeErro.NAO_AUTENTICADO })
+      await expect(new GuardaDeSessao(new Reflector(), leitura).canActivate(execucao({}))).rejects.toMatchObject({ codigo: ErrorCode.NAO_AUTENTICADO })
     })
     expect(leitura.lerParaGuarda).not.toHaveBeenCalled()
   })

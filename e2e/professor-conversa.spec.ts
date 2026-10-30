@@ -1,5 +1,5 @@
 import type { Locator, Page } from '@playwright/test'
-import { MENSAGENS_DE_ERRO } from '../packages/shared/src/erros/mensagens.ts'
+import { MENSAGENS_DE_ERRO } from '../packages/shared/src/errors/messages.ts'
 import { atividadeSintetica, erroDaApi, mensagemDela, portao, propostaDeAtividade, respostaComPagina, TITULO_DO_MATERIAL } from './__fixtures__/assistente.ts'
 import { PRAZO_DA_ENTRADA_MS } from './__fixtures__/casca.ts'
 import { caixa } from './__fixtures__/fluxo-do-professor.ts'

@@ -1,4 +1,4 @@
-import type { DecisaoDePedido, DecisorDaReivindicacao, PedidoDaTurma, RespostaDecisao } from '@educa/shared'
+import type { DecisaoDePedido, DecisorDaReivindicacao, PedidoDaTurma, DecisaoResponse } from '@educa/shared'
 import { useRef, type ReactNode } from 'react'
 import { decidirPedidos } from '../../api/pedidos'
 import { CLASSES_DO_BOTAO_OFICIAL, CLASSES_DO_BOTAO_PERIGO_CHEIO, CLASSES_DO_BOTAO_SECUNDARIO } from '../ui/botao-secundario'
@@ -29,7 +29,7 @@ interface PropsDaDecisao {
   readonly turmaNome: string
   readonly quem: DecisorDaReivindicacao
   /** A decisão respondeu: a lista tira o que foi decidido, mesmo com o diálogo já fechado. */
-  readonly aoDecidir: (resposta: RespostaDecisao) => Promise<void>
+  readonly aoDecidir: (resposta: DecisaoResponse) => Promise<void>
   /** A decisão falhou: a lista da tela deixou de valer. */
   readonly aoFalhar: () => Promise<void>
   readonly aoFechar: () => void

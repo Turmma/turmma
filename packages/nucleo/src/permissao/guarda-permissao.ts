@@ -1,4 +1,4 @@
-import { alcanceDe, CodigoDeErro, type Alcance } from '@educa/shared'
+import { alcanceDe, ErrorCode, type Alcance } from '@educa/shared'
 import type { CanActivate, ExecutionContext } from '@nestjs/common'
 import type { Reflector } from '@nestjs/core'
 import { contextoAtual } from '../contexto/contexto.js'
@@ -23,10 +23,10 @@ export class GuardaDePermissao implements CanActivate {
     const alvos = [execucao.getHandler(), execucao.getClass()]
     if (rotaSemSessao(this.reflector, execucao)) return true
     const papel = contextoAtual()?.papel
-    if (papel === undefined) throw new ErroDeDominio(CodigoDeErro.NAO_AUTENTICADO)
+    if (papel === undefined) throw new ErroDeDominio(ErrorCode.NAO_AUTENTICADO)
     const celula = this.reflector.getAllAndOverride<CelulaPermitida | undefined>(METADADO_PERMITE, alvos)
     const alcance: Alcance = celula === undefined ? 'nunca' : alcanceDe(papel, celula.recurso, celula.acao)
-    if (alcance === 'nunca') throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
+    if (alcance === 'nunca') throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
     return true
   }
 }

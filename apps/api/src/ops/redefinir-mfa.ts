@@ -1,5 +1,5 @@
 import { ConfiguracaoInvalida, ErroDeDominio, resumirErro } from '@educa/nucleo'
-import { CodigoDeErro } from '@educa/shared'
+import { ErrorCode } from '@educa/shared'
 import { pathToFileURL } from 'node:url'
 import { parseArgs } from 'node:util'
 import { z } from 'zod'
@@ -71,12 +71,12 @@ export async function executarOpsRedefinirMfa(
       terminal.erro(`${erro.message}\n`)
       return 2
     }
-    if (erro instanceof ErroDeDominio && erro.codigo === CodigoDeErro.NAO_ENCONTRADO) {
-      terminal.erro(`${CodigoDeErro.NAO_ENCONTRADO}\n`)
+    if (erro instanceof ErroDeDominio && erro.codigo === ErrorCode.NAO_ENCONTRADO) {
+      terminal.erro(`${ErrorCode.NAO_ENCONTRADO}\n`)
       return 1
     }
     // O erro cru do Postgres traz o valor da linha na mensagem e no `detail`: sai só o resumo seguro.
-    terminal.erro(`${CodigoDeErro.ERRO_INTERNO}: ${JSON.stringify(resumirErro(erro))}\n`)
+    terminal.erro(`${ErrorCode.ERRO_INTERNO}: ${JSON.stringify(resumirErro(erro))}\n`)
     return 1
   }
 }

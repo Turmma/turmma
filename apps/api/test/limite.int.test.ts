@@ -9,7 +9,7 @@ import {
   RotaAnonima,
   TIMEOUT_COMANDO_REDIS_API_MS,
 } from '@educa/nucleo'
-import { CodigoDeErro, MENSAGENS_DE_ERRO } from '@educa/shared'
+import { ErrorCode, MENSAGENS_DE_ERRO } from '@educa/shared'
 import { Controller, Get, Module, type INestApplication } from '@nestjs/common'
 import { NestFactory } from '@nestjs/core'
 import { Redis } from 'ioredis'
@@ -106,7 +106,7 @@ async function pedir(url: string, rota: string, cabecalhos: Record<string, strin
   const duracaoMs = performance.now() - inicio
   if (resposta.status === 429) {
     expect(corpo).toEqual({
-      erro: { codigo: CodigoDeErro.LIMITE_EXCEDIDO, mensagem: MENSAGENS_DE_ERRO.LIMITE_EXCEDIDO, requisicaoId: expect.stringMatching(UUID) },
+      erro: { codigo: ErrorCode.LIMITE_EXCEDIDO, mensagem: MENSAGENS_DE_ERRO.LIMITE_EXCEDIDO, requisicaoId: expect.stringMatching(UUID) },
     })
   }
   return { status: resposta.status, retryAfter: resposta.headers.get('retry-after'), codigo: corpo.erro?.codigo, duracaoMs }
@@ -140,7 +140,7 @@ function esperarRetryAfterDaJanela(respostas: Resposta[]): void {
   const recusadas = respostas.filter((resposta) => resposta.status === 429)
   expect(recusadas.length).toBeGreaterThan(0)
   for (const { retryAfter, codigo } of recusadas) {
-    expect(codigo).toBe(CodigoDeErro.LIMITE_EXCEDIDO)
+    expect(codigo).toBe(ErrorCode.LIMITE_EXCEDIDO)
     expect(retryAfter).toMatch(/^\d+$/)
     expect(Number(retryAfter)).toBeGreaterThanOrEqual(1)
     expect(Number(retryAfter)).toBeLessThanOrEqual(JANELA_LIMITE_SEGUNDOS)

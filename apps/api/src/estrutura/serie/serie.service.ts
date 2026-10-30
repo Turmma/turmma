@@ -1,11 +1,11 @@
 import type { Banco } from '@educa/nucleo'
 import {
-  esquemaRespostaListaDeSeries,
-  esquemaRespostaSerie,
-  type ConsultaPaginada,
-  type PedidoCriarSerie,
-  type RespostaListaDeSeries,
-  type RespostaSerie,
+  listaDeSeriesResponseSchema,
+  serieResponseSchema,
+  type PaginationQuery,
+  type CriarSerieRequest,
+  type ListaDeSeriesResponse,
+  type SerieResponse,
 } from '@educa/shared'
 import { paginar } from '../../http/paginacao.js'
 import { SerieRepository } from './serie.repository.js'
@@ -17,12 +17,12 @@ import { SerieRepository } from './serie.repository.js'
 export class SerieService {
   constructor(private readonly banco: Banco) {}
 
-  async criar(pedido: PedidoCriarSerie): Promise<RespostaSerie> {
-    return esquemaRespostaSerie.parse(await new SerieRepository(this.banco).criar(pedido))
+  async criar(pedido: CriarSerieRequest): Promise<SerieResponse> {
+    return serieResponseSchema.parse(await new SerieRepository(this.banco).criar(pedido))
   }
 
-  async listar(consulta: ConsultaPaginada): Promise<RespostaListaDeSeries> {
+  async listar(consulta: PaginationQuery): Promise<ListaDeSeriesResponse> {
     const linhas = await new SerieRepository(this.banco).listar(consulta)
-    return esquemaRespostaListaDeSeries.parse(paginar(linhas, consulta.limite))
+    return listaDeSeriesResponseSchema.parse(paginar(linhas, consulta.limite))
   }
 }

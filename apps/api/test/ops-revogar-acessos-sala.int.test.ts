@@ -1,4 +1,4 @@
-import { CodigoDeErro } from '@educa/shared'
+import { ErrorCode } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { lerAmbienteDeTeste } from '../../../tools/ci/compose.ts'
@@ -172,7 +172,7 @@ describe('ops:revogar-acessos-sala (A1, tarefa 9.0): o operador revoga os acesso
 
   it('E29: escola inexistente é NAO_ENCONTRADO, com saída 1, sem gravar nada; o id que não é UUID é ArgumentoInvalido, com saída 2', async () => {
     const inexistente = randomUUID()
-    expect(await rodar(['--escola', inexistente])).toEqual({ codigo: 1, saida: '', erro: `${CodigoDeErro.NAO_ENCONTRADO}\n` })
+    expect(await rodar(['--escola', inexistente])).toEqual({ codigo: 1, saida: '', erro: `${ErrorCode.NAO_ENCONTRADO}\n` })
     const { rows } = await bancada.pool.query('select 1 from auditoria where escola_id = $1', [inexistente])
     expect(rows).toEqual([])
     expect(await rodar(['--escola', 'sala-limite-atingido'])).toEqual({ codigo: 2, saida: '', erro: 'Opção inválida ou ausente: --escola\n' })

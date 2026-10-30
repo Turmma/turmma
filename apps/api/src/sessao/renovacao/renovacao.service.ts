@@ -10,7 +10,7 @@ import {
   type EmissorDeToken,
   type Meter,
 } from '@educa/nucleo'
-import { CodigoDeErro, ErroDeInvariante, JANELA_DE_RENOVACAO_SIMULTANEA_MS, type RespostaRenovacao } from '@educa/shared'
+import { ErrorCode, InvariantException, JANELA_DE_RENOVACAO_SIMULTANEA_MS, type RenovacaoResponse } from '@educa/shared'
 import { randomBytes, randomUUID } from 'node:crypto'
 import { COOKIE_SESSAO, lerCookie, serializarCookie } from '../../credencial/cookies.js'
 import { BYTES_DO_REFRESH, hashDoRefresh } from '../../credencial/identificadores-do-login.js'
@@ -44,7 +44,7 @@ export type ResultadoDaRenovacao = (typeof RESULTADOS_DA_RENOVACAO)[number]
 const FORMATO_DO_REFRESH = /^[A-Za-z0-9_-]{43}$/
 
 export interface ResultadoDaRenovacaoHttp {
-  readonly resposta: RespostaRenovacao
+  readonly resposta: RenovacaoResponse
   readonly cookies: readonly string[]
 }
 
@@ -53,7 +53,7 @@ export class RenovacaoRecusada extends ErroDeDominio {
   /** `ACESSO_SUSPENSO` quando o cookie é de uma pessoa com a eliminação agendada (14.0); `NAO_AUTENTICADO` em todo o resto. */
   constructor(
     readonly cookies: readonly string[],
-    codigo: CodigoDeErro = CodigoDeErro.NAO_AUTENTICADO,
+    codigo: ErrorCode = ErrorCode.NAO_AUTENTICADO,
   ) {
     super(codigo)
   }
@@ -105,12 +105,12 @@ export class RenovacaoService {
     this.#renovacoes.add(1, { resultado: decisao.resultado })
     switch (decisao.resultado) {
       case 'ja_renovado':
-        throw new ErroDeDominio(CodigoDeErro.JA_RENOVADO)
+        throw new ErroDeDominio(ErrorCode.JA_RENOVADO)
       case 'reuso':
       case 'recusada':
         throw new RenovacaoRecusada(
           [serializarCookie(COOKIE_SESSAO, '', { ambiente: this.dependencias.ambiente, maxAgeSegundos: 0 })],
-          decisao.resultado === 'recusada' && decisao.suspenso === true ? CodigoDeErro.ACESSO_SUSPENSO : undefined,
+          decisao.resultado === 'recusada' && decisao.suspenso === true ? ErrorCode.ACESSO_SUSPENSO : undefined,
         )
       default:
         return this.#emitir(decisao)
@@ -146,7 +146,7 @@ export class RenovacaoService {
           return { resultado }
         }
         const rotacionadoEm = await sessoes.rotacionar(achada.id, hashDoRefresh(novoRefresh), resultado === 'ok')
-        if (rotacionadoEm === undefined) throw new ErroDeInvariante('sessão travada não rotacionou')
+        if (rotacionadoEm === undefined) throw new InvariantException('sessão travada não rotacionou')
         await new RegistroDeAcessoRepository(tx).gravar('renovacao', achada.usuarioId, ipParaRegistro(ip))
         return { resultado, sessao: achada, rotacionadoEm, novoRefresh }
       })

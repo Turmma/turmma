@@ -1,4 +1,4 @@
-import { esquemaConteudoDaMensagemDoAgente, esquemaConteudoDoResumoDoAnalista, HIPOTESES_DO_ANALISTA } from '@educa/shared'
+import { conteudoDaMensagemDoAgenteSchema, conteudoDoResumoDoAnalistaSchema, HIPOTESES_DO_ANALISTA } from '@educa/shared'
 import { describe, expect, it, vi } from 'vitest'
 import { comContextoDaEscolaDoPedido } from '../__fixtures__/contexto-da-escola.js'
 import { AdaptadorRoteirizado } from '../__fixtures__/adaptador-roteirizado.js'
@@ -42,7 +42,7 @@ describe('propor_ferramenta: o Assistente pergunta antes de abrir a ferramenta (
     for (const mensagem of ['monta uma atividade com 5 questões sobre reagente limitante', 'plano de aula sobre mol', 'o que é rendimento teórico?', 'bom dia']) {
       const saida = proposta(mensagem)
       const conteudo = saida.tipo === 'texto' ? saida : { ...saida, proposta: { ...saida.proposta, parametros: { ...saida.proposta.parametros, turmaId, disciplinaId } } }
-      expect(esquemaConteudoDaMensagemDoAgente.safeParse(conteudo).success, mensagem).toBe(true)
+      expect(conteudoDaMensagemDoAgenteSchema.safeParse(conteudo).success, mensagem).toBe(true)
     }
   })
 
@@ -737,8 +737,8 @@ describe('resumo_do_analista: só agregado, em listas fechadas, sem texto do mod
   const bom = resumoDoAnalista.falso(entrada)
 
   it('a saída é exatamente o que `resumo_do_analista.conteudo` guarda: passa no schema do contrato de @educa/shared', () => {
-    expect(resumoDoAnalista.esquemaDeSaida).toBe(esquemaConteudoDoResumoDoAnalista)
-    expect(esquemaConteudoDoResumoDoAnalista.safeParse(bom).success).toBe(true)
+    expect(resumoDoAnalista.esquemaDeSaida).toBe(conteudoDoResumoDoAnalistaSchema)
+    expect(conteudoDoResumoDoAnalistaSchema.safeParse(bom).success).toBe(true)
     expect(resumoDoAnalista.conferir?.(entrada, bom)).toEqual([])
   })
 

@@ -1,5 +1,5 @@
 import { Permite, ZodValidationPipe } from '@educa/nucleo'
-import { esquemaPedidoSemCorpoOuAusente, type PedidoSemCorpo, type RespostaEu, type RespostaIntroducao } from '@educa/shared'
+import { emptyOrMissingBodyRequestSchema, type EmptyBodyRequest, type EuResponse, type IntroducaoResponse } from '@educa/shared'
 import { Body, Controller, Get, Header, HttpCode, HttpStatus, Post } from '@nestjs/common'
 import { EuService } from './eu.service.js'
 
@@ -14,7 +14,7 @@ export class EuController {
   @Get()
   @Permite('eu', 'ler')
   @Header('Cache-Control', 'no-store')
-  obter(): Promise<RespostaEu> {
+  obter(): Promise<EuResponse> {
     return this.eu.obter()
   }
 
@@ -22,7 +22,7 @@ export class EuController {
   @Permite('eu', 'concluir_introducao')
   @HttpCode(HttpStatus.OK)
   @Header('Cache-Control', 'no-store')
-  concluirIntroducao(@Body(new ZodValidationPipe(esquemaPedidoSemCorpoOuAusente)) _corpo: PedidoSemCorpo): Promise<RespostaIntroducao> {
+  concluirIntroducao(@Body(new ZodValidationPipe(emptyOrMissingBodyRequestSchema)) _corpo: EmptyBodyRequest): Promise<IntroducaoResponse> {
     return this.eu.concluirIntroducao()
   }
 }

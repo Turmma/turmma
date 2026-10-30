@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { QueryClient } from '@tanstack/react-query'
-import type { RespostaEu, RespostaQuestaoSalva } from '@educa/shared'
+import type { EuResponse, QuestaoSalvaResponse } from '@educa/shared'
 import type * as ModuloDaSessao from '../../api/sessao'
 import type * as ModuloDasAtividades from '../../api/atividades-do-aluno'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -37,7 +37,7 @@ const servidor = vi.hoisted(() => ({ envios: [] as unknown[] }))
 vi.mock('../../api/atividades-do-aluno', async (original) => ({
   ...(await original<typeof ModuloDasAtividades>()),
   responderQuestao: (atividade: string, questao: number, alternativa: number, sequencia: number) =>
-    new Promise<RespostaQuestaoSalva>((resolver) => {
+    new Promise<QuestaoSalvaResponse>((resolver) => {
       servidor.envios.push({ atividade, questao, alternativa, sequencia, aceitar: () => resolver({ questao, alternativa, sequencia, respondidaEm: '2026-10-22T13:10:00.000Z' }) })
     }),
 }))
@@ -56,7 +56,7 @@ const assentar = () => new Promise<void>((resolver) => setTimeout(resolver, 0))
 function abaDe(usuarioId: string | undefined): QueryClient {
   const cliente = new QueryClient()
   if (usuarioId !== undefined) {
-    const eu: RespostaEu = { usuarioId, papel: 'aluno', nome: 'Aluna Sintética', escola: { id: '0197a1c0-0000-7000-8000-00000000c001', nome: 'Escola Sintética', slug: 'escola-sintetica' }, inatividadeMin: 30, introducaoVistaEm: '2026-02-01T10:00:00.000Z', acessos: [] }
+    const eu: EuResponse = { usuarioId, papel: 'aluno', nome: 'Aluna Sintética', escola: { id: '0197a1c0-0000-7000-8000-00000000c001', nome: 'Escola Sintética', slug: 'escola-sintetica' }, inatividadeMin: 30, introducaoVistaEm: '2026-02-01T10:00:00.000Z', acessos: [] }
     cliente.setQueryData(consultaEu.queryKey, eu)
   }
   return cliente

@@ -1,4 +1,4 @@
-import type { ConsultaDoPainel, EscolaDoPainel } from '@educa/shared'
+import type { PainelQuery, EscolaDoPainel } from '@educa/shared'
 import { useQuery } from '@tanstack/react-query'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useLocation, useSearch } from 'wouter'
@@ -162,7 +162,7 @@ export function Escolas() {
     else regiaoDoAnuncio.current?.focus()
   }, [])
 
-  function irPara(nova: ConsultaDoPainel): void {
+  function irPara(nova: PainelQuery): void {
     navegar(`${INICIO_DA_OPERACAO}?${buscaDaConsulta(nova)}`)
   }
 

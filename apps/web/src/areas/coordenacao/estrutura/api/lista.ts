@@ -1,13 +1,13 @@
 import {
-  esquemaNomeDaLista,
-  esquemaRespostaGravacaoDaLista,
-  esquemaRespostaListaDaTurma,
-  esquemaRespostaPreviaDaLista,
+  nomeDaListaSchema,
+  gravacaoDaListaResponseSchema,
+  listaDaTurmaResponseSchema,
+  previaDaListaResponseSchema,
   type FinalidadeDaLeituraDeAlunos,
   type NomeDaLista,
-  type PedidoNomeAvulso,
-  type RespostaGravacaoDaLista,
-  type RespostaPreviaDaLista,
+  type NomeAvulsoRequest,
+  type GravacaoDaListaResponse,
+  type PreviaDaListaResponse,
 } from '@educa/shared'
 import { infiniteQueryOptions } from '@tanstack/react-query'
 import { SEM_CORPO } from '../../../../api/cliente'
@@ -40,7 +40,7 @@ export function consultaListaDaTurma(turmaId: string) {
     queryFn: ({ pageParam, signal }) => {
       const consulta = new URLSearchParams({ finalidade: FINALIDADE_DA_LISTA_NA_ESTRUTURA, limite: String(NOMES_POR_PAGINA) })
       if (pageParam !== undefined) consulta.set('pagina', pageParam)
-      return buscarComSessao(`/v1/turmas/${encodeURIComponent(turmaId)}/lista?${consulta.toString()}`, esquemaRespostaListaDaTurma, signal)
+      return buscarComSessao(`/v1/turmas/${encodeURIComponent(turmaId)}/lista?${consulta.toString()}`, listaDaTurmaResponseSchema, signal)
     },
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (ultima) => ultima.proxima,
@@ -49,18 +49,18 @@ export function consultaListaDaTurma(turmaId: string) {
 }
 
 /** `POST /v1/turmas/:id/lista/previa`: o que aconteceria com cada linha, sem gravar nada. */
-export function previaDaLista(turmaId: string, texto: string): Promise<RespostaPreviaDaLista> {
-  return chamarComSessao(`/v1/turmas/${encodeURIComponent(turmaId)}/lista/previa`, esquemaRespostaPreviaDaLista, { metodo: 'POST', corpo: { texto } })
+export function previaDaLista(turmaId: string, texto: string): Promise<PreviaDaListaResponse> {
+  return chamarComSessao(`/v1/turmas/${encodeURIComponent(turmaId)}/lista/previa`, previaDaListaResponseSchema, { metodo: 'POST', corpo: { texto } })
 }
 
 /** `POST /v1/turmas/:id/lista`: grava só se nenhuma linha tiver erro; reenviar acrescenta só o que falta (RF5). */
-export function gravarLista(turmaId: string, texto: string): Promise<RespostaGravacaoDaLista> {
-  return chamarComSessao(`/v1/turmas/${encodeURIComponent(turmaId)}/lista`, esquemaRespostaGravacaoDaLista, { metodo: 'POST', corpo: { texto } })
+export function gravarLista(turmaId: string, texto: string): Promise<GravacaoDaListaResponse> {
+  return chamarComSessao(`/v1/turmas/${encodeURIComponent(turmaId)}/lista`, gravacaoDaListaResponseSchema, { metodo: 'POST', corpo: { texto } })
 }
 
 /** `POST /v1/turmas/:id/lista/nome`: o nome avulso, o aluno que chega em maio. */
-export function acrescentarNome(turmaId: string, pedido: PedidoNomeAvulso): Promise<NomeDaLista> {
-  return chamarComSessao(`/v1/turmas/${encodeURIComponent(turmaId)}/lista/nome`, esquemaNomeDaLista, { metodo: 'POST', corpo: pedido })
+export function acrescentarNome(turmaId: string, pedido: NomeAvulsoRequest): Promise<NomeDaLista> {
+  return chamarComSessao(`/v1/turmas/${encodeURIComponent(turmaId)}/lista/nome`, nomeDaListaSchema, { metodo: 'POST', corpo: pedido })
 }
 
 /** `DELETE /v1/lista-nomes/:id`: só o nome livre sai; reivindicado ou aprovado é `CONFLITO`. */

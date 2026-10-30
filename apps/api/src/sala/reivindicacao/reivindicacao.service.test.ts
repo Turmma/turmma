@@ -1,5 +1,5 @@
 import { ErroDeDominio, medidorGlobal, type Banco } from '@educa/nucleo'
-import { CodigoDeErro } from '@educa/shared'
+import { ErrorCode } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { TurmaRepository } from '../../estrutura/turma/turma.repository.js'
@@ -29,10 +29,10 @@ const SALA: Parameters<Parameters<AcessoDaSala['naSala']>[1]>[0] = { acessoId: r
 /** Os cinco casos do R3: o que o `insert` do pedido e o `update` do nome fazem em cada um. */
 const CASOS = [
   { caso: 'matrícula certa', inserir: 'grava', tomar: true, resposta: 'enviado' },
-  { caso: 'matrícula errada', inserir: 'grava', tomar: false, resposta: CodigoDeErro.REIVINDICACAO_RECUSADA },
-  { caso: 'nome tomado (23505 do pendente por nome)', inserir: '23505', tomar: true, resposta: CodigoDeErro.REIVINDICACAO_RECUSADA },
-  { caso: 'listaNomeId inexistente (23503 da FK)', inserir: '23503', tomar: true, resposta: CodigoDeErro.REIVINDICACAO_RECUSADA },
-  { caso: 'nome de outra turma', inserir: 'grava', tomar: false, resposta: CodigoDeErro.REIVINDICACAO_RECUSADA },
+  { caso: 'matrícula errada', inserir: 'grava', tomar: false, resposta: ErrorCode.REIVINDICACAO_RECUSADA },
+  { caso: 'nome tomado (23505 do pendente por nome)', inserir: '23505', tomar: true, resposta: ErrorCode.REIVINDICACAO_RECUSADA },
+  { caso: 'listaNomeId inexistente (23503 da FK)', inserir: '23503', tomar: true, resposta: ErrorCode.REIVINDICACAO_RECUSADA },
+  { caso: 'nome de outra turma', inserir: 'grava', tomar: false, resposta: ErrorCode.REIVINDICACAO_RECUSADA },
 ] as const
 
 describe('reivindicação: o hash sempre, pelo semáforo, antes da transação (R3)', () => {
@@ -157,7 +157,7 @@ describe('reivindicação: o hash sempre, pelo semáforo, antes da transação (
 
   it('L6 (7.0): a matrícula errada num nome livre vai aos limites como errada, pelo acesso e pelo nome escolhido, antes do hash; a recusa conta na turma; o pedido criado não conta', async () => {
     const recusada = montar(CASOS[1], { livreComOutraMatricula: true })
-    await expect(recusada.servico.reivindicar(pedido)).rejects.toMatchObject({ codigo: CodigoDeErro.REIVINDICACAO_RECUSADA })
+    await expect(recusada.servico.reivindicar(pedido)).rejects.toMatchObject({ codigo: ErrorCode.REIVINDICACAO_RECUSADA })
     expect(recusada.limites.antesDoHash).toHaveBeenCalledWith({ acessoId: SALA.acessoId, listaNomeId: pedido.listaNomeId }, SALA.turmaId, SALA.escolaId, true)
     expect(recusada.limites.hashSemPedido).toHaveBeenCalledWith(SALA.turmaId)
     vi.restoreAllMocks()
@@ -170,8 +170,8 @@ describe('reivindicação: o hash sempre, pelo semáforo, antes da transação (
 
   it('o nome travado (LIMITE_EXCEDIDO do limite) sai antes do hash, sem semáforo e sem transação', async () => {
     const { servico, eventos, hash, limites } = montar(CASOS[0])
-    limites.antesDoHash.mockRejectedValueOnce(new ErroDeDominio(CodigoDeErro.LIMITE_EXCEDIDO, undefined, 42))
-    await expect(servico.reivindicar(pedido)).rejects.toMatchObject({ codigo: CodigoDeErro.LIMITE_EXCEDIDO, tenteDeNovoEmSegundos: 42 })
+    limites.antesDoHash.mockRejectedValueOnce(new ErroDeDominio(ErrorCode.LIMITE_EXCEDIDO, undefined, 42))
+    await expect(servico.reivindicar(pedido)).rejects.toMatchObject({ codigo: ErrorCode.LIMITE_EXCEDIDO, tenteDeNovoEmSegundos: 42 })
     expect(hash.gerar).not.toHaveBeenCalled()
     expect(eventos).toEqual(['lê a chave', 'lê o nome livre'])
   })
@@ -184,7 +184,7 @@ describe('reivindicação: o hash sempre, pelo semáforo, antes da transação (
 
   it('C10 (10.0): o ano que deixou de estar em curso faz a transação voltar atrás antes do `insert`; relê a chave e, sem ela, recusa e conta na turma', async () => {
     const { servico, eventos, limites } = montar(CASOS[0], { anoEmCurso: false })
-    await expect(servico.reivindicar(pedido)).rejects.toMatchObject({ codigo: CodigoDeErro.REIVINDICACAO_RECUSADA })
+    await expect(servico.reivindicar(pedido)).rejects.toMatchObject({ codigo: ErrorCode.REIVINDICACAO_RECUSADA })
     expect(eventos).toEqual(['lê a chave', 'lê o nome livre', 'limites antes do hash', 'hash no semáforo', 'lê a marca do nome', 'transação', 'trava o ano', 'lê a chave', 'conta na turma'])
     expect(limites.hashSemPedido).toHaveBeenCalledWith(SALA.turmaId)
   })

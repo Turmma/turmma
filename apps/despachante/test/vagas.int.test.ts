@@ -13,7 +13,7 @@ import {
   VALIDADE_DA_VAGA_MS,
   type VagasPorEscola,
 } from '@educa/nucleo'
-import { CodigoDeFalhaDeJob, definirJob, DEFINICOES_DE_JOB, TIPO_EXPURGAR_JOBS, TIPO_JOB_SINTETICO, type Fila } from '@educa/shared'
+import { JobFailureCode, defineJob, JOB_DEFINITIONS, TIPO_EXPURGAR_JOBS, TIPO_JOB_SINTETICO, type QueueName } from '@educa/shared'
 import { Queue } from 'bullmq'
 import { randomUUID } from 'node:crypto'
 import { setTimeout as esperar } from 'node:timers/promises'
@@ -45,9 +45,9 @@ function nosDoPlano(no: NoDoPlano | undefined): NoDoPlano[] {
  * porque os casos que não contam por escola enfileiram o dado padrão da bancada.
  */
 const DEFINICOES_DO_TESTE = {
-  ...DEFINICOES_DE_JOB,
-  [TIPO_JOB_SINTETICO]: definirJob({
-    ...DEFINICOES_DE_JOB[TIPO_JOB_SINTETICO],
+  ...JOB_DEFINITIONS,
+  [TIPO_JOB_SINTETICO]: defineJob({
+    ...JOB_DEFINITIONS[TIPO_JOB_SINTETICO],
     dados: z.strictObject({ rotulo: z.string().optional(), cpuMs: z.number().optional(), falhar: z.boolean().optional() }),
   }),
 }
@@ -126,7 +126,7 @@ describe('vagas por escola e filas por prioridade', () => {
   }
 
   /** Muitos jobs de uma vez, numa instrução só, como o fim de uma transação que enfileirou uma apostila inteira. */
-  async function inserirJobs(escolaId: string, fila: Fila, quantidade: number, rotulo: string): Promise<string[]> {
+  async function inserirJobs(escolaId: string, fila: QueueName, quantidade: number, rotulo: string): Promise<string[]> {
     const { rows } = await bancada.pool.query<{ id: string }>(
       `insert into job_registro (escola_id, fila, prioridade, tipo, dados)
        select $1, $2, $3, 'sintetico', jsonb_build_object('rotulo', $4::text) from generate_series(1, $5)
@@ -142,7 +142,7 @@ describe('vagas por escola e filas por prioridade', () => {
     return Number(rows[0]?.total)
   }
 
-  const membrosDaVaga = async (fila: Fila, escolaId: string) => (await bancada.redis.zrange(bancada.vagas.chave(fila, escolaId), '0', '-1')).sort()
+  const membrosDaVaga = async (fila: QueueName, escolaId: string) => (await bancada.redis.zrange(bancada.vagas.chave(fila, escolaId), '0', '-1')).sort()
   const aguardarEstado = (id: string, estado: string, timeout = 10_000) =>
     expect.poll(async () => (await bancada.estado(id))?.estado, { timeout, interval: 50 }).toBe(estado)
   /**
@@ -155,7 +155,7 @@ describe('vagas por escola e filas por prioridade', () => {
    * Que a chave conferida é mesmo a que o worker ocupa, quem prova são os dois testes que afirmam o
    * `zscore` dela com o job em execução, antes de esperar o fim: uma chave errada aqui ficaria vazia lá.
    */
-  const aguardarVagaVazia = (fila: Fila, escolaId: string, timeout = 5_000) => {
+  const aguardarVagaVazia = (fila: QueueName, escolaId: string, timeout = 5_000) => {
     // O verde tem de vir da liberação, nunca do vencimento: num teste com validade curta (há um com
     // 1 s), esperar mais que ela deixaria a vaga sumir sozinha e a asserção passar sem o worker.
     expect(timeout).toBeLessThan(VALIDADE_DA_VAGA_MS / 2)
@@ -327,7 +327,7 @@ describe('vagas por escola e filas por prioridade', () => {
       tentativas++
       if (tentativas === 1) {
         await esperar(800)
-        throw new FalhaDeJob(CodigoDeFalhaDeJob.FALHA_SINTETICA)
+        throw new FalhaDeJob(JobFailureCode.FALHA_SINTETICA)
       }
       await segundaTentativa
     }
@@ -376,7 +376,7 @@ describe('vagas por escola e filas por prioridade', () => {
   it('a retentativa é a da definição do tipo: com a definição injetada de duas tentativas, o job sai do despachante com attempts 2 e o recuo dela', async () => {
     const definicoes = {
       ...DEFINICOES_DO_TESTE,
-      [TIPO_JOB_SINTETICO]: definirJob({ ...DEFINICOES_DO_TESTE[TIPO_JOB_SINTETICO], retentativa: { tentativas: 2, recuoMs: 50, jitter: 0 } }),
+      [TIPO_JOB_SINTETICO]: defineJob({ ...DEFINICOES_DO_TESTE[TIPO_JOB_SINTETICO], retentativa: { tentativas: 2, recuoMs: 50, jitter: 0 } }),
     }
     const curta = new BancadaDeFila(definicoes)
     try {
@@ -391,7 +391,7 @@ describe('vagas por escola e filas por prioridade', () => {
   })
 
   it('o tipo da API vai à fila da API: o worker, que consome as filas do worker, não o recebe, e a linha segue publicada', async () => {
-    const daApi = new BancadaDeFila({ ...DEFINICOES_DO_TESTE, [TIPO_JOB_SINTETICO]: definirJob({ ...DEFINICOES_DO_TESTE[TIPO_JOB_SINTETICO], executor: 'api' }) })
+    const daApi = new BancadaDeFila({ ...DEFINICOES_DO_TESTE, [TIPO_JOB_SINTETICO]: defineJob({ ...DEFINICOES_DO_TESTE[TIPO_JOB_SINTETICO], executor: 'api' }) })
     const filaDaApi = new Queue(nomeDaFilaBullMQ('interativa', 'api'), { connection: daApi.redis, prefix: daApi.prefixo })
     filaDaApi.on('error', () => undefined)
     const processador = contado()

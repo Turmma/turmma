@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { FALHAS_DO_LOGIN_EXTERNO } from '../sessao/externa.js'
-import { CodigoDeErro } from './codigo-de-erro.js'
+import { ErrorCode } from './error-code.js'
 import {
   AVISO_DO_CONVITE_COM_SENHA_NOVA,
   AVISO_DO_CONVITE_PARA_CONTA_EXISTENTE,
@@ -13,7 +13,7 @@ import {
   mensagemDoSegundoFator,
   MENSAGENS_DA_FALHA_EXTERNA,
   MENSAGENS_DE_ERRO,
-} from './mensagens.js'
+} from './messages.js'
 
 describe('formatarEspera', () => {
   it('diz o tempo por extenso em pt-BR, no singular só no 1, e arredonda para cima', () => {
@@ -35,7 +35,7 @@ describe('formatarEspera', () => {
 
 describe('mensagemDaEntrada', () => {
   it('não diz se o e-mail existe: senha errada e e-mail inexistente chegam no mesmo código e no mesmo texto', () => {
-    const mensagem = mensagemDaEntrada(CodigoDeErro.NAO_AUTENTICADO)
+    const mensagem = mensagemDaEntrada(ErrorCode.NAO_AUTENTICADO)
     expect(mensagem).toBe('E-mail ou senha incorretos. Confira os dois e tente de novo.')
     // A mensagem geral fala em sessão expirada, que na tela de entrada não quer dizer nada.
     expect(mensagem).not.toBe(MENSAGENS_DE_ERRO.NAO_AUTENTICADO)
@@ -43,15 +43,15 @@ describe('mensagemDaEntrada', () => {
   })
 
   it('conta segurada diz quanto esperar, a partir do Retry-After, e sem ele fica a faixa do catálogo', () => {
-    expect(mensagemDaEntrada(CodigoDeErro.CONTA_SEGURADA, 30)).toBe('Muitas tentativas com senha errada nesta conta. Espere 30 segundos e tente de novo.')
-    expect(mensagemDaEntrada(CodigoDeErro.CONTA_SEGURADA, 900)).toBe('Muitas tentativas com senha errada nesta conta. Espere 15 minutos e tente de novo.')
-    expect(mensagemDaEntrada(CodigoDeErro.CONTA_SEGURADA)).toBe(MENSAGENS_DE_ERRO.CONTA_SEGURADA)
-    expect(mensagemDaEntrada(CodigoDeErro.CONTA_SEGURADA, Number.NaN)).toBe(MENSAGENS_DE_ERRO.CONTA_SEGURADA)
+    expect(mensagemDaEntrada(ErrorCode.CONTA_SEGURADA, 30)).toBe('Muitas tentativas com senha errada nesta conta. Espere 30 segundos e tente de novo.')
+    expect(mensagemDaEntrada(ErrorCode.CONTA_SEGURADA, 900)).toBe('Muitas tentativas com senha errada nesta conta. Espere 15 minutos e tente de novo.')
+    expect(mensagemDaEntrada(ErrorCode.CONTA_SEGURADA)).toBe(MENSAGENS_DE_ERRO.CONTA_SEGURADA)
+    expect(mensagemDaEntrada(ErrorCode.CONTA_SEGURADA, Number.NaN)).toBe(MENSAGENS_DE_ERRO.CONTA_SEGURADA)
   })
 
   it('W10 (A0b): o convite que já não ativa, com a senha certa, mostra o texto da tela de convite inválido, sem dizer que a senha estava certa', () => {
-    const mensagem = mensagemDaEntrada(CodigoDeErro.NAO_ENCONTRADO)
-    expect(mensagem).toBe(mensagemDoConvite(CodigoDeErro.NAO_ENCONTRADO))
+    const mensagem = mensagemDaEntrada(ErrorCode.NAO_ENCONTRADO)
+    expect(mensagem).toBe(mensagemDoConvite(ErrorCode.NAO_ENCONTRADO))
     expect(mensagem).toBe('Este convite não vale mais. Peça outro à coordenação da sua escola. Se o convite era para a coordenação, peça a quem enviou o link.')
     // A mensagem geral ("Não encontramos o que você procurou…") não diz o que fazer na entrada.
     expect(mensagem).not.toBe(MENSAGENS_DE_ERRO.NAO_ENCONTRADO)
@@ -59,8 +59,8 @@ describe('mensagemDaEntrada', () => {
   })
 
   it('o código sem texto próprio cai no catálogo geral, e nenhuma mensagem mostra código nem status', () => {
-    expect(mensagemDaEntrada(CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO)).toBe(MENSAGENS_DE_ERRO.INDISPONIVEL_TENTE_DE_NOVO)
-    for (const codigo of Object.values(CodigoDeErro)) {
+    expect(mensagemDaEntrada(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO)).toBe(MENSAGENS_DE_ERRO.INDISPONIVEL_TENTE_DE_NOVO)
+    for (const codigo of Object.values(ErrorCode)) {
       const mensagem = mensagemDaEntrada(codigo, 60)
       expect(mensagem.length, codigo).toBeGreaterThan(0)
       expect(mensagem, codigo).not.toContain(codigo)
@@ -71,7 +71,7 @@ describe('mensagemDaEntrada', () => {
 
 describe('mensagemDaEntradaPorMatricula', () => {
   it('não diz se a matrícula existe: matrícula inexistente, senha errada e aluno desativado têm o mesmo texto', () => {
-    const mensagem = mensagemDaEntradaPorMatricula(CodigoDeErro.NAO_AUTENTICADO)
+    const mensagem = mensagemDaEntradaPorMatricula(ErrorCode.NAO_AUTENTICADO)
     expect(mensagem).toBe('Matrícula ou senha incorretas. Confira as duas e tente de novo.')
     expect(mensagem).not.toMatch(/não existe|inexistente|desativad|cadastr/i)
     // A tela do aluno nunca fala em e-mail: ele não tem e-mail no sistema (regra 20, item 2).
@@ -79,13 +79,13 @@ describe('mensagemDaEntradaPorMatricula', () => {
   })
 
   it('conta segurada diz quanto esperar, para o aluno saber que não adianta insistir (RF11)', () => {
-    expect(mensagemDaEntradaPorMatricula(CodigoDeErro.CONTA_SEGURADA, 90)).toContain('2 minutos')
+    expect(mensagemDaEntradaPorMatricula(ErrorCode.CONTA_SEGURADA, 90)).toContain('2 minutos')
   })
 })
 
 describe('mensagemDoAcessoDaEscola', () => {
   it('endereço que não existe manda conferir com a escola, e nunca lista escola nenhuma', () => {
-    const mensagem = mensagemDoAcessoDaEscola(CodigoDeErro.NAO_ENCONTRADO)
+    const mensagem = mensagemDoAcessoDaEscola(ErrorCode.NAO_ENCONTRADO)
     expect(mensagem).toContain('Endereço não encontrado')
     expect(mensagem).toMatch(/professor|coordena/i)
   })
@@ -93,26 +93,26 @@ describe('mensagemDoAcessoDaEscola', () => {
 
 describe('mensagemDoSegundoFator', () => {
   it('código errado, código já usado e desafio vencido chegam no mesmo texto, que diz o que fazer', () => {
-    const mensagem = mensagemDoSegundoFator(CodigoDeErro.NAO_AUTENTICADO)
+    const mensagem = mensagemDoSegundoFator(ErrorCode.NAO_AUTENTICADO)
     expect(mensagem).toContain('Código incorreto')
     expect(mensagem).not.toBe(MENSAGENS_DE_ERRO.NAO_AUTENTICADO)
   })
 
   it('W10 (A0b): o código certo com o convite que já não ativa mostra o texto da tela de convite inválido, sem falar do código nem da senha', () => {
-    const mensagem = mensagemDoSegundoFator(CodigoDeErro.NAO_ENCONTRADO)
-    expect(mensagem).toBe(mensagemDoConvite(CodigoDeErro.NAO_ENCONTRADO))
+    const mensagem = mensagemDoSegundoFator(ErrorCode.NAO_ENCONTRADO)
+    expect(mensagem).toBe(mensagemDoConvite(ErrorCode.NAO_ENCONTRADO))
     expect(mensagem).not.toBe(MENSAGENS_DE_ERRO.NAO_ENCONTRADO)
     expect(mensagem).not.toMatch(/senha|código|corret/i)
   })
 
   it('a conta segurada no quinto código errado diz a espera, como na senha', () => {
-    expect(mensagemDoSegundoFator(CodigoDeErro.CONTA_SEGURADA, 30)).toContain('30 segundos')
+    expect(mensagemDoSegundoFator(ErrorCode.CONTA_SEGURADA, 30)).toContain('30 segundos')
   })
 })
 
 describe('mensagemDoConvite', () => {
   it('W14 (A1): expirado, revogado, refeito, usado e inexistente pedem outro convite à coordenação, sem dizer qual deles foi', () => {
-    const mensagem = mensagemDoConvite(CodigoDeErro.NAO_ENCONTRADO)
+    const mensagem = mensagemDoConvite(ErrorCode.NAO_ENCONTRADO)
     expect(mensagem).toBe('Este convite não vale mais. Peça outro à coordenação da sua escola. Se o convite era para a coordenação, peça a quem enviou o link.')
     expect(mensagem).not.toMatch(/expirad|revogad|usad|não existe/i)
   })

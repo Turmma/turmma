@@ -1,5 +1,5 @@
 import { ErroDeDominio, type PoolBanco } from '@educa/nucleo'
-import { CodigoDeErro } from '@educa/shared'
+import { ErrorCode } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { criarConviteDeCoordenador, refazerConviteDaCoordenacao, revogarConvitePeloOperador } from '../src/sessao/index.js'
@@ -170,7 +170,7 @@ describe('ativação por convite sob a trava da escola (E15)', () => {
         await esperarNaTravaDaEscola(cenario.pool, convite.escolaId, 1)
         await gatilho.soltar()
         expect(await gerar).toEqual({ conviteId: expect.any(String), token: expect.any(String) })
-        esperarErro(await chamada, 404, CodigoDeErro.NAO_ENCONTRADO)
+        esperarErro(await chamada, 404, ErrorCode.NAO_ENCONTRADO)
         expect(await cenario.registrosDeAcesso()).toEqual(registrosAntes)
       } finally {
         await gatilho.desarmar()
@@ -194,7 +194,7 @@ describe('ativação por convite sob a trava da escola (E15)', () => {
         await esperarNaTravaDaEscola(cenario.pool, convite.escolaId, 1)
         await gatilho.soltar()
         novo = await gerar
-        esperarErro(await chamada, 404, CodigoDeErro.NAO_ENCONTRADO)
+        esperarErro(await chamada, 404, ErrorCode.NAO_ENCONTRADO)
       } finally {
         await gatilho.desarmar()
       }
@@ -222,7 +222,7 @@ describe('ativação por convite sob a trava da escola (E15)', () => {
         await soltar()
         esperarAtivou(await chamada, login)
         expect(await gerar).toBeInstanceOf(ErroDeDominio)
-        expect(await gerar).toMatchObject({ codigo: CodigoDeErro.CONFLITO })
+        expect(await gerar).toMatchObject({ codigo: ErrorCode.CONFLITO })
       } finally {
         await soltar()
       }
@@ -281,13 +281,13 @@ describe('ativação por convite sob a trava da escola (E15)', () => {
         // O aceite vence e ativa; o operador lê `ativa` e recebe o CONFLITO da matriz.
         expect(doAceite.corpo).toEqual({ etapa: 'configurar_mfa', desafio: expect.any(String) })
         expect(doOperador).toBeInstanceOf(ErroDeDominio)
-        expect(doOperador).toMatchObject({ codigo: CodigoDeErro.CONFLITO })
+        expect(doOperador).toMatchObject({ codigo: ErrorCode.CONFLITO })
         expect(await cenario.estado(convite.escolaId)).toBe('ativa')
         expect(await cenario.ativo(convite.usuarioId)).toBe(true)
       } else {
         // O operador vence; o aceite não acha o convite e responde como convite inválido, sem gravar senha.
         expect(doOperador).not.toBeInstanceOf(Error)
-        esperarErro(doAceite, 404, CodigoDeErro.NAO_ENCONTRADO)
+        esperarErro(doAceite, 404, ErrorCode.NAO_ENCONTRADO)
         expect(await cenario.estado(convite.escolaId)).toBe(operacao === 'refazer' ? 'pendente' : 'revogado')
         expect(await cenario.ativo(convite.usuarioId)).toBe(false)
         const { rows } = await cenario.pool.query<{ senha: boolean }>('select c.senha_hash is not null as senha from conta c join usuario u on u.conta_id = c.id where u.id = $1', [
@@ -305,15 +305,15 @@ describe('ativação por convite sob a trava da escola (E15)', () => {
       try {
         const ativacao = await ativacaoPeloLogin(login, conta, convite.bilhete, curta.url)
         // Uma falha antes, para o contador ter o que mostrar: sem desfazer a reserva, ficariam duas.
-        if (login === 'sem MFA') esperarErro(await cenario.entrar(conta.email, SENHA_ERRADA, convite.bilhete), 401, CodigoDeErro.NAO_AUTENTICADO)
-        else esperarErro(await cenario.codigo(await desafioNovo(conta, convite.bilhete), cenario.codigoErrado(conta.base32)), 401, CodigoDeErro.NAO_AUTENTICADO)
+        if (login === 'sem MFA') esperarErro(await cenario.entrar(conta.email, SENHA_ERRADA, convite.bilhete), 401, ErrorCode.NAO_AUTENTICADO)
+        else esperarErro(await cenario.codigo(await desafioNovo(conta, convite.bilhete), cenario.codigoErrado(conta.base32)), 401, ErrorCode.NAO_AUTENTICADO)
         const falhasAntes = await ativacao.falhas()
         expect(falhasAntes).toBe(1)
         const registrosAntes = await cenario.registrosDeAcesso()
         const soltar = await segurarTravaDaEscola(cenario.pool, convite.escolaId)
         try {
           const esgotado = await ativacao.disparar()
-          esperarErro(esgotado, 503, CodigoDeErro.TEMPO_ESGOTADO)
+          esperarErro(esgotado, 503, ErrorCode.TEMPO_ESGOTADO)
           expect(esgotado.retryAfter).not.toBeNull()
         } finally {
           await soltar()
@@ -336,7 +336,7 @@ describe('ativação por convite sob a trava da escola (E15)', () => {
         const soltar = await segurarTravaDaEscola(cenario.pool, convite.escolaId)
         try {
           const esgotado = await cenario.aceitar(convite.token, SENHA_NOVA, curta.url)
-          esperarErro(esgotado, 503, CodigoDeErro.TEMPO_ESGOTADO)
+          esperarErro(esgotado, 503, ErrorCode.TEMPO_ESGOTADO)
           expect(esgotado.retryAfter).not.toBeNull()
         } finally {
           await soltar()
@@ -356,7 +356,7 @@ describe('ativação por convite sob a trava da escola (E15)', () => {
       const convite = await cenario.convidar(await cenario.escolas.escola(), `nova-${randomUUID()}@escola.invalid`)
       // O `usado_em` do aceite fica antes do `desativado_em`: `ativarPorConvite` não ativa.
       await cenario.pool.query("update usuario set desativado_em = now() + interval '1 hour' where id = $1", [convite.usuarioId])
-      esperarErro(await cenario.aceitar(convite.token, SENHA_NOVA), 404, CodigoDeErro.NAO_ENCONTRADO)
+      esperarErro(await cenario.aceitar(convite.token, SENHA_NOVA), 404, ErrorCode.NAO_ENCONTRADO)
       const { rows } = await cenario.pool.query<{ usado: boolean; senha: boolean }>(
         'select c.usado_em is not null as usado, co.senha_hash is not null as senha from convite c join usuario u on u.id = c.usuario_id join conta co on co.id = u.conta_id where c.id = $1',
         [convite.conviteId],

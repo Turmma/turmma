@@ -1,4 +1,4 @@
-import { CodigoDeErro } from '@educa/shared'
+import { ErrorCode } from '@educa/shared'
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, CircleAlert, Hourglass, Lock, MoonStar, PauseCircle, type LucideIcon } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
@@ -190,7 +190,7 @@ function ConversaComOTutor({ atividadeAplicadaId }: { atividadeAplicadaId: strin
     definirTexto('')
   }
 
-  const naoEncontrada = conversa.error instanceof ErroDaApi && conversa.error.codigo === CodigoDeErro.NAO_ENCONTRADO
+  const naoEncontrada = conversa.error instanceof ErroDaApi && conversa.error.codigo === ErrorCode.NAO_ENCONTRADO
   const semNada = conversa.data !== undefined && itens.length === 0 && pendente === undefined && pausa === undefined
 
   return (

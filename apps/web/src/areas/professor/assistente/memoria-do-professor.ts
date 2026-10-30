@@ -1,4 +1,4 @@
-import type { Ferramenta, PedidoMensagemAoAssistente, RespostaExecucaoAceita } from '@educa/shared'
+import type { Ferramenta, MensagemAoAssistenteRequest, ExecucaoAceitaResponse } from '@educa/shared'
 import { adaptarArtefato } from '../artefatos/api/artefatos'
 import { enviarMensagemAoAssistente } from './api/assistente'
 import { emCurso, type CicloDeExecucao } from '../../../api/ciclo-de-execucao'
@@ -13,12 +13,12 @@ import type { IniciaisDaFerramenta, PedidoDeFerramenta } from '../ferramentas/fe
  */
 
 /** A mensagem que a professora mandou ao Assistente, sem a `chaveEnvio`, que o ciclo sorteia. */
-export type PedidoDaConversa = Omit<PedidoMensagemAoAssistente, 'chaveEnvio'>
+export type PedidoDaConversa = Omit<MensagemAoAssistenteRequest, 'chaveEnvio'>
 
 /** O pedido ao Assistente que está no ar: sai da Home e é acompanhado na Conversa. */
 export const CICLO_DA_CONVERSA = criarLugarNaAba<CicloDeExecucao<PedidoDaConversa>>()
 
-export function enviarPedidoDaConversa(pedido: PedidoDaConversa, chaveEnvio: string): Promise<RespostaExecucaoAceita> {
+export function enviarPedidoDaConversa(pedido: PedidoDaConversa, chaveEnvio: string): Promise<ExecucaoAceitaResponse> {
   return enviarMensagemAoAssistente({ ...pedido, chaveEnvio })
 }
 
@@ -33,7 +33,7 @@ export const CICLO_DA_FERRAMENTA: Readonly<Record<Ferramenta, LugarNaAba<CicloDe
 }
 
 /** O `POST` de cada ferramenta. Na Adaptação vão só os tipos e o tempo extra: o pedido não tem onde levar texto. */
-export function enviarPedidoDeFerramenta(pedido: PedidoDeFerramenta, chaveEnvio: string): Promise<RespostaExecucaoAceita> {
+export function enviarPedidoDeFerramenta(pedido: PedidoDeFerramenta, chaveEnvio: string): Promise<ExecucaoAceitaResponse> {
   if (pedido.ferramenta === 'adaptacao')
     return adaptarArtefato(pedido.artefatoId, { tipos: [...pedido.tipos], ...(pedido.tempoExtraPercentual === undefined ? {} : { tempoExtraPercentual: pedido.tempoExtraPercentual }), chaveEnvio })
   return gerarComFerramenta(pedido.ferramenta, { ...pedido.parametros, chaveEnvio })

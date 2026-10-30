@@ -1,5 +1,5 @@
 import { Permite } from '@educa/nucleo'
-import type { RespostaTime } from '@educa/shared'
+import type { TimeResponse } from '@educa/shared'
 import { Controller, Get, Header } from '@nestjs/common'
 import { TimeService } from './time.service.js'
 
@@ -11,7 +11,7 @@ export class TimeController {
   @Get()
   @Permite('time', 'ler')
   @Header('Cache-Control', 'no-store')
-  ler(): Promise<RespostaTime> {
+  ler(): Promise<TimeResponse> {
     return this.time.ler()
   }
 }

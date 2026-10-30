@@ -1,5 +1,5 @@
 import { ErroDeDominio, limiteDoSeguro, METRICAS, segundosParaTentarDeNovo, type LoggerBase, type Meter } from '@educa/nucleo'
-import { CodigoDeErro } from '@educa/shared'
+import { ErrorCode } from '@educa/shared'
 import { Logger } from '@nestjs/common'
 import type { GuardaDoCodigo } from '../sessao/index.js'
 import type { ContadorEmJanela } from '../credencial/index.js'
@@ -139,7 +139,7 @@ export class LimitesDaSala implements GuardaDoCodigo {
     const anteriores = matriculaErrada ? doNome.valor - 1 : doNome.valor
     if (anteriores >= efetivo(TETO_DE_MATRICULAS_ERRADAS_POR_NOME, doNome.doSeguro)) {
       await this.#atingido('nome', escolaId)
-      throw new ErroDeDominio(CodigoDeErro.LIMITE_EXCEDIDO, undefined, segundosParaTentarDeNovo(await janela.restanteMs(chaveDoNome)))
+      throw new ErroDeDominio(ErrorCode.LIMITE_EXCEDIDO, undefined, segundosParaTentarDeNovo(await janela.restanteMs(chaveDoNome)))
     }
     const rebaixado = daTurma.valor >= efetivo(TETO_DE_HASHES_SEM_PEDIDO_POR_TURMA, daTurma.doSeguro)
     if (rebaixado) await this.#atingido('turma', escolaId)

@@ -1,4 +1,4 @@
-import { esquemaRespostaMinhaTurma } from '@educa/shared'
+import { minhaTurmaResponseSchema } from '@educa/shared'
 import { queryOptions } from '@tanstack/react-query'
 import { buscarComSessao } from './sessao'
 
@@ -9,5 +9,5 @@ import { buscarComSessao } from './sessao'
  */
 export const consultaMinhaTurma = queryOptions({
   queryKey: ['minha-turma'],
-  queryFn: ({ signal }) => buscarComSessao('/v1/minha-turma', esquemaRespostaMinhaTurma, signal),
+  queryFn: ({ signal }) => buscarComSessao('/v1/minha-turma', minhaTurmaResponseSchema, signal),
 })

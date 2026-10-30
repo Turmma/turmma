@@ -1,4 +1,4 @@
-import { CodigoDeErro } from '@educa/shared'
+import { ErrorCode } from '@educa/shared'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { executarNoContexto } from '../contexto/contexto.js'
 import { AdaptadorRoteirizado, PROVEDOR_ROTEIRIZADO } from './__fixtures__/adaptador-roteirizado.js'
@@ -369,7 +369,7 @@ describe('ProvedorDeIa: o domínio nunca vê erro cru', () => {
     expect(new ErroDeIa('FUNCAO_SUSPENSA')).toMatchObject({ codigo: 'FUNCAO_SUSPENSA', status: 409 })
     expect(new ErroDeIa('MATERIAL_INSUFICIENTE')).toMatchObject({ codigo: 'MATERIAL_INSUFICIENTE', status: 422 })
     // Todo código da camada é um código do contrato da API: o que a execução grava é o que a tela sabe mostrar.
-    for (const codigo of CODIGOS_DE_ERRO_DE_IA) expect(Object.values(CodigoDeErro)).toContain(codigo)
+    for (const codigo of CODIGOS_DE_ERRO_DE_IA) expect(Object.values(ErrorCode)).toContain(codigo)
   })
 })
 

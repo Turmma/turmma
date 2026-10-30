@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { CodigoDeErro } from '@educa/shared'
+import { ErrorCode } from '@educa/shared'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { esquecerEspelhosDeOutroDono, gravarEspelho, lerEspelho } from './espelho-da-fila'
 
@@ -158,14 +158,14 @@ describe('o fim da sessão e o espelho, sem a tela da Atividade (a sessão é a 
     deixarEspelhos()
     respostas.push(entrada)
     await sessao.entrarPorEmail({ email: 'camila@escola.test', senha: 'segredo-da-camila' })
-    respostas.push({ status: 500, corpo: envelope(CodigoDeErro.ERRO_INTERNO) })
+    respostas.push({ status: 500, corpo: envelope(ErrorCode.ERRO_INTERNO) })
     await sessao.sair()
     expect(espelhosQueFicaram()).toEqual([])
   })
 
   it('a sessão suspensa apaga: quem tem a eliminação agendada não volta', async () => {
     deixarEspelhos()
-    respostas.push({ status: 403, corpo: envelope(CodigoDeErro.ACESSO_SUSPENSO) })
+    respostas.push({ status: 403, corpo: envelope(ErrorCode.ACESSO_SUSPENSO) })
     await sessao.abrirSessaoPeloCookie()
     expect(sessao.estadoDaSessao()).toBe('suspensa')
     expect(espelhosQueFicaram()).toEqual([])
@@ -183,7 +183,7 @@ describe('o fim da sessão e o espelho, sem a tela da Atividade (a sessão é a 
 
   it('o F5 com a sessão vencida: a aba nova abre anônima sem trocar de sessão, e o espelho fica para o mesmo aluno entrar', async () => {
     deixarEspelhos()
-    respostas.push({ status: 401, corpo: envelope(CodigoDeErro.NAO_AUTENTICADO) })
+    respostas.push({ status: 401, corpo: envelope(ErrorCode.NAO_AUTENTICADO) })
     await sessao.abrirSessaoPeloCookie()
     expect(sessao.estadoDaSessao()).toBe('anonima')
     expect(espelhosQueFicaram()).toHaveLength(3)

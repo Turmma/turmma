@@ -1,7 +1,7 @@
 import { artefato, atividadeAplicada, entrega, exigirAnoEmCurso, exigirEscolaDoContexto, sessaoDaRequisicao, tentativaAtividade, turma, usuario, vinculo, type Banco, type TransacaoBanco } from '@educa/nucleo'
-import type { ConsultaAtividadesAplicadas, EstadoDeAtividadeAplicada, EstadoDeEntrega, TipoDeArtefato } from '@educa/shared'
+import type { AtividadesAplicadasQuery, EstadoDeAtividadeAplicada, EstadoDeEntrega, TipoDeArtefato } from '@educa/shared'
 import { and, desc, eq, lt, sql, type AnyColumn, type SQL } from 'drizzle-orm'
-import { ErroDeInvariante } from '@educa/shared'
+import { InvariantException } from '@educa/shared'
 import { comVinculoConfirmadoDoProfessor, disciplinaDoArtefato } from '../../assistente/turma-do-professor.repository.js'
 
 /** Uma atividade aplicada como a professora da turma a lê: só contagem de participação, sem aluno. */
@@ -109,7 +109,7 @@ export class AtividadeAplicadaRepository {
   }
 
   /** Uma página das aplicações da turma no alcance, da mais nova para a mais antiga, com uma linha a mais que diz se há próxima. */
-  listar({ turmaId, pagina, limite }: ConsultaAtividadesAplicadas): Promise<AplicacaoLida[]> {
+  listar({ turmaId, pagina, limite }: AtividadesAplicadasQuery): Promise<AplicacaoLida[]> {
     return this.#lidas(and(eq(atividadeAplicada.turmaId, turmaId), pagina === undefined ? undefined : lt(atividadeAplicada.id, pagina)))
       .orderBy(desc(atividadeAplicada.id))
       .limit(limite + 1)
@@ -160,7 +160,7 @@ export class AtividadeAplicadaRepository {
       .insert(atividadeAplicada)
       .values({ escolaId: exigirEscolaDoContexto(), anoLetivoId: exigirAnoEmCurso(), turmaId: nova.turmaId, artefatoId: nova.artefatoId, avaliativa: nova.avaliativa, aplicadaPor: sessaoDaRequisicao().usuarioId })
       .returning({ id: atividadeAplicada.id })
-    if (criada === undefined) throw new ErroDeInvariante('atividade aplicada não criada')
+    if (criada === undefined) throw new InvariantException('atividade aplicada não criada')
     return criada.id
   }
 

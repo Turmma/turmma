@@ -1,5 +1,5 @@
 import { ConfiguracaoInvalida, ErroDeDominio, executarNoContexto, RegistroDeAuditoria, resumirErro, type Banco } from '@educa/nucleo'
-import { CodigoDeErro } from '@educa/shared'
+import { ErrorCode } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { pathToFileURL } from 'node:url'
 import { parseArgs } from 'node:util'
@@ -51,7 +51,7 @@ export function revogarAcessosDaEscola(banco: Banco, autor: ConferenciaDoAutor, 
     banco.transaction(async (tx) => {
       const autorOperador = await autor(tx)
       return executarNoContexto({ requisicaoId, escolaId }, async () => {
-        if ((await new AcessoDaEscolaRepository(tx).nome()) === undefined) throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
+        if ((await new AcessoDaEscolaRepository(tx).nome()) === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
         const revogados = await new AcessoDaTurmaRepository(tx).revogarVigentesDaEscola()
         for (const { id, turmaId } of revogados) await registro.gravar(tx, 'acesso_turma.revogado', { entidadeId: id, depois: { turmaId }, autorOperador })
         return revogados.length
@@ -87,11 +87,11 @@ export async function executarOpsRevogarAcessosSala(
       terminal.erro(`${erro.message}\n`)
       return 2
     }
-    if (erro instanceof ErroDeDominio && erro.codigo === CodigoDeErro.NAO_ENCONTRADO) {
+    if (erro instanceof ErroDeDominio && erro.codigo === ErrorCode.NAO_ENCONTRADO) {
       terminal.erro(`${erro.codigo}\n`)
       return 1
     }
-    terminal.erro(`${CodigoDeErro.ERRO_INTERNO}: ${JSON.stringify(resumirErro(erro))}\n`)
+    terminal.erro(`${ErrorCode.ERRO_INTERNO}: ${JSON.stringify(resumirErro(erro))}\n`)
     return 1
   }
 }

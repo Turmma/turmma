@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { esquemaMatriculaDigitada } from '../estrutura/lista.js'
+import { matriculaDigitadaSchema } from '../estrutura/lista.js'
 import { TAMANHO_MAXIMO_TOKEN_DE_CONVITE, TAMANHO_MINIMO_SENHA_NOVA } from '../sessao/convite.js'
 import { TAMANHO_MAXIMO_SENHA } from '../sessao/login.js'
 import { TAMANHO_MAXIMO_SLUG_NO_LOGIN } from '../sessao/matricula.js'
@@ -32,21 +32,21 @@ const codigo = z.string().min(1).max(TAMANHO_MAXIMO_CODIGO_DIGITADO)
  * não é conferido aqui: o que não é um acesso vigente responde o mesmo `NAO_ENCONTRADO`, e a página escolhe o texto pelo
  * caminho que usou.
  */
-export const esquemaPedidoAbrirSala = z.union([z.strictObject({ slug, token }), z.strictObject({ slug, codigo })])
+export const abrirSalaRequestSchema = z.union([z.strictObject({ slug, token }), z.strictObject({ slug, codigo })])
 
-export type PedidoAbrirSala = z.infer<typeof esquemaPedidoAbrirSala>
+export type AbrirSalaRequest = z.infer<typeof abrirSalaRequestSchema>
 
 /**
  * Resposta de `POST /v1/salas/abrir` (sai com `no-store`): o nome da turma e os nomes livres da lista dela, cada um com
  * o id (que a reivindicação leva, 6.0) e o nome, em ordem de nome, até `MAXIMO_DE_NOMES_NA_SALA`. Nunca a matrícula, o
  * nome reivindicado ou aprovado, nem id de escola, ano ou turma. Estrito.
  */
-export const esquemaRespostaSalaAberta = z.strictObject({
+export const salaAbertaResponseSchema = z.strictObject({
   turma: z.strictObject({ nome: z.string().min(1) }),
   nomes: z.array(z.strictObject({ id: z.uuid(), nome: z.string().min(1) })).max(MAXIMO_DE_NOMES_NA_SALA),
 })
 
-export type RespostaSalaAberta = z.infer<typeof esquemaRespostaSalaAberta>
+export type SalaAbertaResponse = z.infer<typeof salaAbertaResponseSchema>
 
 /**
  * O estado do pedido de reivindicação (A1; Tech Spec da A1, seção 3): `pendente` até a decisão (6.0), `aprovada` ou
@@ -68,7 +68,7 @@ export type DecisorDaReivindicacao = (typeof DECISORES_DA_REIVINDICACAO)[number]
  */
 const camposDaReivindicacao = {
   listaNomeId: z.uuid(),
-  matricula: esquemaMatriculaDigitada,
+  matricula: matriculaDigitadaSchema,
   senha: z.string().min(TAMANHO_MINIMO_SENHA_NOVA).max(TAMANHO_MAXIMO_SENHA),
   chaveEnvio: z.uuid(),
 }
@@ -78,17 +78,17 @@ const camposDaReivindicacao = {
  * os campos da reivindicação. Estrito: `escolaId`, `turmaId` ou qualquer campo a mais é `ENTRADA_INVALIDA`. Escola, ano
  * e turma saem do acesso vigente; o nome é conferido contra a turma dele.
  */
-export const esquemaPedidoReivindicarSala = z.union([
+export const reivindicarSalaRequestSchema = z.union([
   z.strictObject({ slug, token, ...camposDaReivindicacao }),
   z.strictObject({ slug, codigo, ...camposDaReivindicacao }),
 ])
 
-export type PedidoReivindicarSala = z.infer<typeof esquemaPedidoReivindicarSala>
+export type ReivindicarSalaRequest = z.infer<typeof reivindicarSalaRequestSchema>
 
 /**
  * Resposta de `POST /v1/salas/reivindicar` (sai com `no-store`): só `enviado`, igual para o pedido novo e para o reenvio
  * com a mesma chave. Não diz quem vai decidir, nem traz id, nome ou matrícula. Estrito.
  */
-export const esquemaRespostaReivindicacao = z.strictObject({ resultado: z.literal('enviado') })
+export const reivindicacaoResponseSchema = z.strictObject({ resultado: z.literal('enviado') })
 
-export type RespostaReivindicacao = z.infer<typeof esquemaRespostaReivindicacao>
+export type ReivindicacaoResponse = z.infer<typeof reivindicacaoResponseSchema>

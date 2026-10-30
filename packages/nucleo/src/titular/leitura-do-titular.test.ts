@@ -1,4 +1,4 @@
-import { CLASSIFICACAO_DAS_TABELAS, ErroDeInvariante } from '@educa/shared'
+import { CLASSIFICACAO_DAS_TABELAS, InvariantException } from '@educa/shared'
 import { PgDialect } from 'drizzle-orm/pg-core'
 import { describe, expect, it } from 'vitest'
 import { colunasDoSelect, LEITURAS_DO_ARQUIVO } from './leitura-do-titular.js'
@@ -11,7 +11,7 @@ describe('colunasDoSelect: a lista de colunas que entra no SQL do arquivo', () =
   })
 
   it.each(['id; drop table usuario', 'a b', 'Id', '1id', "id'", 'id--', ''])('recusa o nome fora do formato %j: nada que não seja nome de coluna chega ao SQL', (nome) => {
-    expect(() => colunasDoSelect('id', nome)).toThrow(new ErroDeInvariante('nome de coluna fora do formato'))
+    expect(() => colunasDoSelect('id', nome)).toThrow(new InvariantException('nome de coluna fora do formato'))
     // O motivo é texto fixo: o nome recusado não entra na mensagem.
     if (nome !== '') expect(() => colunasDoSelect('id', nome)).not.toThrow(nome)
   })

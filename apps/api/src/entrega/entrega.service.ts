@@ -1,5 +1,5 @@
 import { ErroDeDominio, RegistroDeAuditoria, type Banco } from '@educa/nucleo'
-import { CodigoDeErro, esquemaRespostaEntrega, esquemaRespostaListaDeEntregas, type ConsultaEntregas, type PedidoDecidirEntrega, type RespostaEntrega, type RespostaListaDeEntregas } from '@educa/shared'
+import { ErrorCode, entregaResponseSchema, listaDeEntregasResponseSchema, type EntregasQuery, type DecidirEntregaRequest, type EntregaResponse, type ListaDeEntregasResponse } from '@educa/shared'
 import { paginar } from '../http/paginacao.js'
 import { EntregaRepository, type EntregaLida } from './entrega.repository.js'
 
@@ -41,30 +41,30 @@ function paraATela(lida: EntregaLida): unknown {
 export class EntregaService {
   constructor(private readonly banco: Banco) {}
 
-  async listar(consulta: ConsultaEntregas): Promise<RespostaListaDeEntregas> {
+  async listar(consulta: EntregasQuery): Promise<ListaDeEntregasResponse> {
     const linhas = await new EntregaRepository(this.banco).listar({ ...consulta, ...(consulta.turmaId === undefined ? {} : { turmaId: consulta.turmaId.toLowerCase() }) })
     const { itens, proxima } = paginar(linhas, consulta.limite)
-    return esquemaRespostaListaDeEntregas.parse({ itens: itens.map(paraATela), ...(proxima === undefined ? {} : { proxima }) })
+    return listaDeEntregasResponseSchema.parse({ itens: itens.map(paraATela), ...(proxima === undefined ? {} : { proxima }) })
   }
 
-  async decidir(id: string, pedido: PedidoDecidirEntrega): Promise<RespostaEntrega> {
+  async decidir(id: string, pedido: DecidirEntregaRequest): Promise<EntregaResponse> {
     const decidida = await this.banco.transaction(async (tx) => {
       const entregas = new EntregaRepository(tx)
       const pendente = await entregas.porId(id)
-      if (pendente === undefined) throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
-      if (pedido.decisao === 'aprovar' && pendente.tipo === 'lote_de_correcao') throw new ErroDeDominio(CodigoDeErro.ENTRADA_INVALIDA)
+      if (pendente === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+      if (pedido.decisao === 'aprovar' && pendente.tipo === 'lote_de_correcao') throw new ErroDeDominio(ErrorCode.ENTRADA_INVALIDA)
       const estado = pedido.decisao === 'aprovar' ? 'aprovada' : 'rejeitada'
       const gravou = await entregas.decidir(id, estado, pedido.decisao === 'rejeitar' ? pedido.justificativa : null)
-      if (!gravou) throw new ErroDeDominio(CodigoDeErro.ENTREGA_JA_DECIDIDA)
+      if (!gravou) throw new ErroDeDominio(ErrorCode.ENTREGA_JA_DECIDIDA)
       await registro.gravar(tx, 'entrega.decidida', {
         entidadeId: id,
         antes: { estado: 'pendente' },
         depois: { tipo: pendente.tipo, funcao: pendente.funcao, turmaId: pendente.turmaId, estado, artefatoId: pendente.artefatoId, atividadeAplicadaId: pendente.atividadeAplicadaId },
       })
       const gravada = await entregas.porId(id)
-      if (gravada === undefined) throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
+      if (gravada === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
       return gravada
     })
-    return esquemaRespostaEntrega.parse(paraATela(decidida))
+    return entregaResponseSchema.parse(paraATela(decidida))
   }
 }

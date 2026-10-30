@@ -19,7 +19,7 @@ const codigoDoAutenticador = z.string().regex(new RegExp(`^\\d{${String(DIGITOS_
  * código de recuperação, nunca os dois. O de recuperação aceita minúsculas, espaço e hífen, que a pessoa copia do
  * papel; o servidor normaliza.
  */
-export const esquemaPedidoMfa = z.union([
+export const mfaRequestSchema = z.union([
   z.object({ codigo: codigoDoAutenticador }).strict(),
   z
     .object({
@@ -32,7 +32,7 @@ export const esquemaPedidoMfa = z.union([
     .strict(),
 ])
 
-export type PedidoMfa = z.infer<typeof esquemaPedidoMfa>
+export type MfaRequest = z.infer<typeof mfaRequestSchema>
 
 /**
  * Resposta de `POST /v1/conta/mfa/configurar`, com o desafio de etapa `configurar_mfa` e o MFA ainda inativo: a URI
@@ -40,25 +40,25 @@ export type PedidoMfa = z.infer<typeof esquemaPedidoMfa>
  * (KeePassXC, Bitwarden, 1Password), sem precisar de celular (regra 50, item 2). Sai com `Cache-Control: no-store`, e
  * é a exceção nominal da varredura de contratos (Tech Spec, seção 7).
  */
-export const esquemaRespostaConfigurarMfa = z
+export const configurarMfaResponseSchema = z
   .object({
     uri: z.string().startsWith('otpauth://totp/'),
     segredo: z.string().regex(/^[A-Z2-7]+$/),
   })
   .strict()
 
-export type RespostaConfigurarMfa = z.infer<typeof esquemaRespostaConfigurarMfa>
+export type ConfigurarMfaResponse = z.infer<typeof configurarMfaResponseSchema>
 
 /** Corpo de `POST /v1/conta/mfa/ativar`: o código que o app autenticador mostra, provando que o segredo foi guardado. */
-export const esquemaPedidoAtivarMfa = z.object({ codigo: codigoDoAutenticador }).strict()
+export const ativarMfaRequestSchema = z.object({ codigo: codigoDoAutenticador }).strict()
 
-export type PedidoAtivarMfa = z.infer<typeof esquemaPedidoAtivarMfa>
+export type AtivarMfaRequest = z.infer<typeof ativarMfaRequestSchema>
 
 /**
  * Resposta de `POST /v1/conta/mfa/ativar`: os dez códigos de recuperação, mostrados uma vez só (o banco guarda só o
  * HMAC), com `Cache-Control: no-store`. A ativação não abre sessão: a pessoa entra de novo, com a senha e o código.
  */
-export const esquemaRespostaAtivarMfa = z
+export const ativarMfaResponseSchema = z
   .object({
     codigosRecuperacao: z
       .array(z.string().regex(new RegExp(`^[${ALFABETO_DO_CODIGO_DE_RECUPERACAO}]{${String(TAMANHO_DO_CODIGO_DE_RECUPERACAO)}}$`)))
@@ -66,7 +66,7 @@ export const esquemaRespostaAtivarMfa = z
   })
   .strict()
 
-export type RespostaAtivarMfa = z.infer<typeof esquemaRespostaAtivarMfa>
+export type AtivarMfaResponse = z.infer<typeof ativarMfaResponseSchema>
 
 /**
  * Por que a coordenação redefine o MFA de outro coordenador. Códigos fixos, nunca texto livre: a auditoria fica cinco
@@ -82,6 +82,6 @@ export const FINALIDADE_DA_REDEFINICAO_PELO_OPERADOR = 'pedido_formal_da_escola'
  * Corpo de `POST /v1/usuarios/:id/mfa/redefinir`: só a finalidade. A resposta é 202 sem corpo, sempre, tenha a
  * redefinição agido ou não (Tech Spec, seção 5, "TOTP").
  */
-export const esquemaPedidoRedefinirMfa = z.object({ finalidade: z.enum(FINALIDADES_DA_REDEFINICAO_DE_MFA) }).strict()
+export const redefinirMfaRequestSchema = z.object({ finalidade: z.enum(FINALIDADES_DA_REDEFINICAO_DE_MFA) }).strict()
 
-export type PedidoRedefinirMfa = z.infer<typeof esquemaPedidoRedefinirMfa>
+export type RedefinirMfaRequest = z.infer<typeof redefinirMfaRequestSchema>

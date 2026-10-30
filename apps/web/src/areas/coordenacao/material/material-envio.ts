@@ -1,5 +1,5 @@
 import {
-  CodigoDeErro,
+  ErrorCode,
   LICENCAS_DE_MATERIAL,
   MAXIMO_DE_BYTES_DO_MATERIAL,
   MENSAGEM_DA_FALHA_DE_MATERIAL,
@@ -155,15 +155,15 @@ export function origemDoMaterial(material: Pick<Material, 'titularidade' | 'lice
 }
 
 /** O que a tela diz de cada falha do envio que não é a recusa por licença. */
-export const TEXTOS_DA_FALHA_DO_ENVIO: Partial<Record<CodigoDeErro, string>> = {
-  [CodigoDeErro.CONFLITO]: 'Este arquivo já foi enviado nesta escola. Procure o material na lista abaixo.',
-  [CodigoDeErro.ENTRADA_INVALIDA]: `O arquivo não é um PDF que conseguimos abrir, ou passa de ${String(MEGABYTES_DO_MAXIMO)} MB. Confira o arquivo e envie de novo.`,
-  [CodigoDeErro.NAO_ENCONTRADO]: 'A disciplina escolhida não existe mais. Atualize a página e escolha a disciplina de novo.',
-  [CodigoDeErro.LIMITE_EXCEDIDO]: 'Há materiais demais sendo lidos ou enviados agora. Espere a leitura terminar e envie de novo.',
+export const TEXTOS_DA_FALHA_DO_ENVIO: Partial<Record<ErrorCode, string>> = {
+  [ErrorCode.CONFLITO]: 'Este arquivo já foi enviado nesta escola. Procure o material na lista abaixo.',
+  [ErrorCode.ENTRADA_INVALIDA]: `O arquivo não é um PDF que conseguimos abrir, ou passa de ${String(MEGABYTES_DO_MAXIMO)} MB. Confira o arquivo e envie de novo.`,
+  [ErrorCode.NAO_ENCONTRADO]: 'A disciplina escolhida não existe mais. Atualize a página e escolha a disciplina de novo.',
+  [ErrorCode.LIMITE_EXCEDIDO]: 'Há materiais demais sendo lidos ou enviados agora. Espere a leitura terminar e envie de novo.',
 }
 
-export const TEXTOS_DA_FALHA_DA_EXCLUSAO: Partial<Record<CodigoDeErro, string>> = {
-  [CodigoDeErro.NAO_ENCONTRADO]: 'Este material já não está na lista. A lista foi atualizada.',
+export const TEXTOS_DA_FALHA_DA_EXCLUSAO: Partial<Record<ErrorCode, string>> = {
+  [ErrorCode.NAO_ENCONTRADO]: 'Este material já não está na lista. A lista foi atualizada.',
 }
 
 /** O mais novo primeiro: a API lista em ordem de envio, e quem acabou de enviar quer ver o que enviou no topo. */

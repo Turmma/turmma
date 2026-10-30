@@ -1,4 +1,4 @@
-import { CodigoDeErro } from '@educa/shared'
+import { ErrorCode } from '@educa/shared'
 import { decodeProtectedHeader, errors, jwtVerify } from 'jose'
 import { z } from 'zod'
 import { EMISSOR_TOKEN, type ConfiguracaoIdentidade } from '../config/validar-config.js'
@@ -55,7 +55,7 @@ const esquemaClaims = z.object({
 
 /** Toda recusa é a mesma: quem manda um token meio válido não descobre qual parte falhou. */
 function naoAutenticado(): ErroDeDominio {
-  return new ErroDeDominio(CodigoDeErro.NAO_AUTENTICADO)
+  return new ErroDeDominio(ErrorCode.NAO_AUTENTICADO)
 }
 
 /**

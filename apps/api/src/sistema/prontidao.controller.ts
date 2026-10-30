@@ -1,5 +1,5 @@
 import { Drenagem, RotaAnonima, SemLimite } from '@educa/nucleo'
-import type { RespostaProntidao } from '@educa/shared'
+import type { ReadinessResponse } from '@educa/shared'
 import { Controller, Get, Header, Res } from '@nestjs/common'
 
 interface RespostaHttp {
@@ -20,7 +20,7 @@ export class ProntidaoController {
 
   @Get()
   @Header('Cache-Control', 'no-store')
-  obter(@Res({ passthrough: true }) resposta: RespostaHttp): RespostaProntidao {
+  obter(@Res({ passthrough: true }) resposta: RespostaHttp): ReadinessResponse {
     const { status, corpo } = this.drenagem.prontidao()
     resposta.status(status)
     return corpo

@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import type { Locator, Page, Request, Route } from '@playwright/test'
-import type { RespostaDesempenhoDaTurma } from '../packages/shared/src/atividade/desempenho.ts'
+import type { DesempenhoDaTurmaResponse } from '../packages/shared/src/atividade/desempenho.ts'
 import { desempenhoSintetico, simularAssistente, type ApiDoAssistente } from './__fixtures__/assistente.ts'
 import { PRAZO_DA_ENTRADA_MS } from './__fixtures__/casca.ts'
 import { cacheDeConsultas } from './__fixtures__/consultas.ts'
@@ -78,7 +78,7 @@ async function nomesNaTela(page: Page): Promise<string[]> {
 const linhaDe = (page: Page, nome: string): Locator => regiaoDosAlunos(page).locator('tbody tr, [data-tabela="lista"] > li').filter({ hasText: nome }).first()
 
 /** O que a aba mostra do desempenho aprovado: o de cada aluno que o teste diz, e quem não consta. */
-function desempenhoDe(turmaId: string, alunos: ReadonlyArray<{ alunoId: string; nome: string; acertos: number; total: number }>): RespostaDesempenhoDaTurma {
+function desempenhoDe(turmaId: string, alunos: ReadonlyArray<{ alunoId: string; nome: string; acertos: number; total: number }>): DesempenhoDaTurmaResponse {
   const base = desempenhoSintetico(turmaId)
   const habilidade = base.porHabilidade[0]?.habilidade
   if (habilidade === undefined) throw new Error('o desempenho sintético não tem habilidade')

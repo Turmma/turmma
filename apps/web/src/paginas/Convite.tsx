@@ -1,7 +1,7 @@
 import {
   AVISO_DO_CONVITE_COM_SENHA_NOVA,
   AVISO_DO_CONVITE_PARA_CONTA_EXISTENTE,
-  CodigoDeErro,
+  ErrorCode,
   mensagemDoConvite,
   TAMANHO_MAXIMO_SENHA,
   TAMANHO_MINIMO_SENHA_NOVA,
@@ -87,7 +87,7 @@ export function Convite() {
     let atual = true
     consultarConvite(token).then(
       (resposta) => atual && definirEtapa({ nome: 'confirmar', token, escolaNome: resposta.escolaNome }),
-      (erro: unknown) => atual && definirEtapa(erro instanceof ErroDaApi && erro.codigo === CodigoDeErro.NAO_ENCONTRADO ? { nome: 'invalido' } : { nome: 'falhou', erro }),
+      (erro: unknown) => atual && definirEtapa(erro instanceof ErroDaApi && erro.codigo === ErrorCode.NAO_ENCONTRADO ? { nome: 'invalido' } : { nome: 'falhou', erro }),
     )
     return () => {
       atual = false
@@ -120,9 +120,9 @@ export function Convite() {
     }
     const codigo = desfecho.erro instanceof ErroDaApi ? desfecho.erro.codigo : undefined
     // Conta nova: a API recusa o aceite sem senha e não gasta o convite. Agora dá para pedir a senha com segurança.
-    if (senha === undefined && codigo === CodigoDeErro.ENTRADA_INVALIDA) definirEtapa({ nome: 'definir-senha', token: tokenDoLink, escolaNome })
+    if (senha === undefined && codigo === ErrorCode.ENTRADA_INVALIDA) definirEtapa({ nome: 'definir-senha', token: tokenDoLink, escolaNome })
     // Usado, refeito ou revogado entre a consulta e o aceite: a mesma tela do convite que não vale, sem o nome da escola.
-    else if (codigo === CodigoDeErro.NAO_ENCONTRADO) definirEtapa({ nome: 'invalido' })
+    else if (codigo === ErrorCode.NAO_ENCONTRADO) definirEtapa({ nome: 'invalido' })
     else definirFalha(desfecho.erro)
   }
 
@@ -154,7 +154,7 @@ export function Convite() {
         <p role="alert" className="rounded-controle border border-pendente bg-pendente-cx p-4 text-pendente">
           {etapa.nome === 'sem-token'
             ? 'O endereço do convite está incompleto. Abra o link inteiro que a escola enviou, ou peça um convite novo.'
-            : mensagemDoConvite(CodigoDeErro.NAO_ENCONTRADO)}
+            : mensagemDoConvite(ErrorCode.NAO_ENCONTRADO)}
         </p>
         {/* Quem abriu de novo o convite que já aceitou só precisa entrar; a tela não sabe qual dos casos aconteceu. */}
         <p className="text-apoio">Já aceitou o convite? Entre com o seu e-mail e a sua senha.</p>
@@ -176,7 +176,7 @@ export function Convite() {
       </p>
       {falha !== undefined && (
         <p role="alert" className="rounded-controle border border-erro bg-erro-cx p-4 text-erro">
-          {falha instanceof ErroDaApi ? mensagemDoConvite(falha.codigo) : mensagemDoConvite(CodigoDeErro.ERRO_INTERNO)}
+          {falha instanceof ErroDaApi ? mensagemDoConvite(falha.codigo) : mensagemDoConvite(ErrorCode.ERRO_INTERNO)}
         </p>
       )}
       {etapa.nome === 'confirmar' ? (

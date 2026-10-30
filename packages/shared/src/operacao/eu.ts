@@ -16,11 +16,11 @@ const apelidoDoOperador = z.string().regex(FORMATO_OPERADOR)
  * Corpo de `GET /v1/operacao/eu` (Tech Spec da A0, seção 4): o apelido e o nome do operador da sessão, e nada mais.
  * Estrito: nem id, nem e-mail, nem nada da sessão sai por aqui (seção 7, "DTO de saída").
  */
-export const esquemaRespostaEuDoOperador = z
+export const euDoOperadorResponseSchema = z
   .object({
     apelido: apelidoDoOperador,
     nome: z.string().min(1).max(200),
   })
   .strict()
 
-export type RespostaEuDoOperador = z.infer<typeof esquemaRespostaEuDoOperador>
+export type EuDoOperadorResponse = z.infer<typeof euDoOperadorResponseSchema>

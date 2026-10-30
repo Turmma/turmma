@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { esquemaConsultaPaginada, esquemaDePagina } from '../estrutura/paginacao.js'
+import { paginationQuerySchema, pageSchema } from '../estrutura/pagination.js'
 
 /**
  * O material da escola (MVP, A2; D5, D22, D75): a coordenação sobe o PDF com a titularidade e a licença declaradas, e o
@@ -63,7 +63,7 @@ const declaracao = z.union([z.boolean(), z.enum(['true', 'false']).transform((va
  * O schema aceita `sem_licenca` e `declaracao=false`: quem recusa é `motivoDaRecusaDoMaterial`, com `MATERIAL_SEM_LICENCA`
  * e registro em auditoria, e não um `ENTRADA_INVALIDA` que não deixaria rastro.
  */
-export const esquemaPedidoEnviarMaterial = z
+export const enviarMaterialRequestSchema = z
   .strictObject({
     titulo: z.string().trim().min(1).max(TAMANHO_MAXIMO_TITULO_DO_MATERIAL),
     disciplinaId: z.uuid(),
@@ -73,7 +73,7 @@ export const esquemaPedidoEnviarMaterial = z
     declaracao,
   })
   .refine((pedido) => (pedido.titularidade === 'terceiro_com_licenca') === (pedido.licenciante !== undefined), { path: ['licenciante'], message: 'licenciante só com material de terceiro' })
-export type PedidoEnviarMaterial = z.infer<typeof esquemaPedidoEnviarMaterial>
+export type EnviarMaterialRequest = z.infer<typeof enviarMaterialRequestSchema>
 
 export const MOTIVOS_DA_RECUSA_DO_MATERIAL = ['sem_licenca', 'sem_declaracao'] as const
 export type MotivoDaRecusaDoMaterial = (typeof MOTIVOS_DA_RECUSA_DO_MATERIAL)[number]
@@ -91,7 +91,7 @@ export function motivoDaRecusaDoMaterial(pedido: { readonly licenca: LicencaDecl
  * Um material, como a coordenação e o professor o veem: metadados, estado e quantas páginas viraram trecho. Nunca o
  * texto, o hash do arquivo nem quem enviou (a autoria fica na auditoria, `material.enviado`).
  */
-export const esquemaMaterial = z.strictObject({
+export const materialSchema = z.strictObject({
   id: z.uuid(),
   titulo: z.string().min(1),
   disciplinaId: z.uuid(),
@@ -106,21 +106,21 @@ export const esquemaMaterial = z.strictObject({
   trechos: z.number().int().nonnegative(),
   enviadoEm: z.iso.datetime(),
 })
-export type Material = z.infer<typeof esquemaMaterial>
+export type Material = z.infer<typeof materialSchema>
 
 /** Resposta de `POST /v1/materiais` (201) e de `GET /v1/materiais/:id`. `DELETE /v1/materiais/:id` responde 204, sem corpo. */
-export const esquemaRespostaMaterial = esquemaMaterial
-export type RespostaMaterial = Material
+export const materialResponseSchema = materialSchema
+export type MaterialResponse = Material
 
 /**
  * Consulta de `GET /v1/materiais`: a página e, se quiser, a disciplina. A coordenação lê os da escola; o professor, só
  * os das disciplinas em que tem vínculo confirmado, com ou sem o filtro. Só os não excluídos.
  */
-export const esquemaConsultaMateriais = esquemaConsultaPaginada.extend({ disciplinaId: z.uuid().optional() }).strict()
-export type ConsultaMateriais = z.infer<typeof esquemaConsultaMateriais>
+export const materiaisQuerySchema = paginationQuerySchema.extend({ disciplinaId: z.uuid().optional() }).strict()
+export type MateriaisQuery = z.infer<typeof materiaisQuerySchema>
 
-export const esquemaRespostaListaDeMateriais = esquemaDePagina(esquemaMaterial)
-export type RespostaListaDeMateriais = z.infer<typeof esquemaRespostaListaDeMateriais>
+export const listaDeMateriaisResponseSchema = pageSchema(materialSchema)
+export type ListaDeMateriaisResponse = z.infer<typeof listaDeMateriaisResponseSchema>
 
 export const MAXIMO_DE_TRECHOS_NA_BUSCA = 20
 export const TRECHOS_PADRAO_NA_BUSCA = 8
@@ -132,22 +132,22 @@ export const TAMANHO_MAXIMO_DO_TRECHO_CITADO = 400
  * Consulta de `GET /v1/materiais/busca`: o texto procurado (`q`), a disciplina e quantos trechos. A busca é por texto
  * completo em português (`trecho.busca`), só em material `pronto` e não excluído, e sempre dentro da escola do contexto.
  */
-export const esquemaConsultaBuscaDeMaterial = z.strictObject({
+export const buscaDeMaterialQuerySchema = z.strictObject({
   q: z.string().trim().min(2).max(TAMANHO_MAXIMO_DA_BUSCA),
   disciplinaId: z.uuid().optional(),
   limite: z.coerce.number().int().min(1).max(MAXIMO_DE_TRECHOS_NA_BUSCA).default(TRECHOS_PADRAO_NA_BUSCA),
 })
-export type ConsultaBuscaDeMaterial = z.infer<typeof esquemaConsultaBuscaDeMaterial>
+export type BuscaDeMaterialQuery = z.infer<typeof buscaDeMaterialQuerySchema>
 
 /** Um trecho achado: o material, o título dele, a página e um pedaço curto do texto. É a origem de toda citação (D6). */
-export const esquemaTrechoEncontrado = z.strictObject({
+export const trechoEncontradoSchema = z.strictObject({
   materialId: z.uuid(),
   titulo: z.string().min(1),
   pagina: z.number().int().min(1),
   trecho: z.string().min(1).max(TAMANHO_MAXIMO_DO_TRECHO_CITADO),
 })
-export type TrechoEncontrado = z.infer<typeof esquemaTrechoEncontrado>
+export type TrechoEncontrado = z.infer<typeof trechoEncontradoSchema>
 
 /** Resposta de `GET /v1/materiais/busca`: os trechos por relevância. Sem página seguinte: é o topo da busca. */
-export const esquemaRespostaBuscaDeMaterial = z.strictObject({ itens: z.array(esquemaTrechoEncontrado).max(MAXIMO_DE_TRECHOS_NA_BUSCA) })
-export type RespostaBuscaDeMaterial = z.infer<typeof esquemaRespostaBuscaDeMaterial>
+export const buscaDeMaterialResponseSchema = z.strictObject({ itens: z.array(trechoEncontradoSchema).max(MAXIMO_DE_TRECHOS_NA_BUSCA) })
+export type BuscaDeMaterialResponse = z.infer<typeof buscaDeMaterialResponseSchema>

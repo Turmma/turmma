@@ -1,4 +1,4 @@
-import { CodigoDeErro, type RespostaQuestaoSalva } from '@educa/shared'
+import { ErrorCode, type QuestaoSalvaResponse } from '@educa/shared'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ErroDaApi } from '../../api/cliente'
 import { criarFilaDeRespostas, provaComRespostaSalva } from './fila-de-respostas'
@@ -35,7 +35,7 @@ describe('a fila das respostas ainda não salvas (regra 80, item 6)', () => {
 
   it('a gravação que falha NÃO tira a escolha da fila, e a escolha que sai de novo leva a mesma sequência', () => {
     const noAr = comecarEnvio(escolher(FILA_VAZIA, 3, 1))
-    const falhou = falharEnvio(noAr, CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO)
+    const falhou = falharEnvio(noAr, ErrorCode.INDISPONIVEL_TENTE_DE_NOVO)
     expect(falhou.pendentes).toEqual([{ questao: 3, alternativa: 1, sequencia: 1 }])
     expect(falhou).toMatchObject({ noAr: undefined, falha: 'passageira', tentativas: 1 })
     // E volta a ser a próxima a sair, com a mesma `sequencia`: o servidor grava uma vez só.
@@ -55,18 +55,18 @@ describe('a fila das respostas ainda não salvas (regra 80, item 6)', () => {
   })
 
   it('com a atividade encerrada a fila para, guarda o que não foi salvo e não aceita escolha nova', () => {
-    const encerrada = falharEnvio(comecarEnvio(escolher(FILA_VAZIA, 3, 1)), CodigoDeErro.ATIVIDADE_ENCERRADA)
+    const encerrada = falharEnvio(comecarEnvio(escolher(FILA_VAZIA, 3, 1)), ErrorCode.ATIVIDADE_ENCERRADA)
     expect(encerrada).toMatchObject({ falha: 'encerrada', pendentes: [{ questao: 3, alternativa: 1, sequencia: 1 }] })
     expect(proximoEnvio(encerrada)).toBeUndefined()
     expect(escolher(encerrada, 1, 0)).toBe(encerrada)
   })
 
   it('só o encerramento e a recusa que não passa com o tempo param a fila; o resto é tentado de novo', () => {
-    expect(tipoDaFalha(CodigoDeErro.ATIVIDADE_ENCERRADA)).toBe('encerrada')
-    expect(tipoDaFalha(CodigoDeErro.NAO_ENCONTRADO)).toBe('recusada')
-    for (const codigo of [CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO, CodigoDeErro.TEMPO_ESGOTADO, CodigoDeErro.ERRO_INTERNO, CodigoDeErro.LIMITE_EXCEDIDO, CodigoDeErro.NAO_AUTENTICADO]) expect(tipoDaFalha(codigo), codigo).toBe('passageira')
+    expect(tipoDaFalha(ErrorCode.ATIVIDADE_ENCERRADA)).toBe('encerrada')
+    expect(tipoDaFalha(ErrorCode.NAO_ENCONTRADO)).toBe('recusada')
+    for (const codigo of [ErrorCode.INDISPONIVEL_TENTE_DE_NOVO, ErrorCode.TEMPO_ESGOTADO, ErrorCode.ERRO_INTERNO, ErrorCode.LIMITE_EXCEDIDO, ErrorCode.NAO_AUTENTICADO]) expect(tipoDaFalha(codigo), codigo).toBe('passageira')
     // Depois de uma recusa, a escolha nova tenta de novo.
-    const recusada = falharEnvio(comecarEnvio(escolher(FILA_VAZIA, 3, 1)), CodigoDeErro.NAO_ENCONTRADO)
+    const recusada = falharEnvio(comecarEnvio(escolher(FILA_VAZIA, 3, 1)), ErrorCode.NAO_ENCONTRADO)
     expect(proximoEnvio(recusada)).toBeUndefined()
     expect(proximoEnvio(escolher(recusada, 3, 2))).toEqual({ questao: 3, alternativa: 2, sequencia: 2 })
   })
@@ -229,8 +229,8 @@ describe('só a escolha mais nova vale: a sequência manda max(local, servidor) 
  * `gravadaPorOutraJanela` responde com uma escolha mais nova, que não é a mandada.
  */
 function servidorDeMentira() {
-  const chamadas: { questao: number; alternativa: number; sequencia: number; aceitar: () => void; gravadaPorOutraJanela: (alternativa: number, sequencia: number) => void; recusar: (codigo: CodigoDeErro) => void }[] = []
-  const salvar = (questao: number, alternativa: number, sequencia: number): Promise<RespostaQuestaoSalva> =>
+  const chamadas: { questao: number; alternativa: number; sequencia: number; aceitar: () => void; gravadaPorOutraJanela: (alternativa: number, sequencia: number) => void; recusar: (codigo: ErrorCode) => void }[] = []
+  const salvar = (questao: number, alternativa: number, sequencia: number): Promise<QuestaoSalvaResponse> =>
     new Promise((resolver, rejeitar) => {
       chamadas.push({
         questao,
@@ -264,12 +264,12 @@ describe('o reenvio das respostas', () => {
     semJitter()
     const servidor = servidorDeMentira()
     const relogio = relogioDeMentira()
-    const salvas: RespostaQuestaoSalva[] = []
+    const salvas: QuestaoSalvaResponse[] = []
     const fila = criarFilaDeRespostas({ salvar: servidor.salvar, aoSalvar: (salva) => salvas.push(salva), agendar: relogio.agendar })
 
     fila.escolher(3, 1)
     expect(servidor.chamadas).toHaveLength(1)
-    servidor.chamadas[0]?.recusar(CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO)
+    servidor.chamadas[0]?.recusar(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO)
     await assentar()
     // Falhou: a escolha fica, nada foi dado como salvo, e a tentativa seguinte está agendada.
     expect(fila.ler()).toMatchObject({ pendentes: [{ questao: 3, alternativa: 1, sequencia: 1 }], falha: 'passageira', tentativas: 1 })
@@ -280,7 +280,7 @@ describe('o reenvio das respostas', () => {
     relogio.agendados[0]?.funcao()
     // A mesma escolha, com a mesma `sequencia`: o servidor grava uma vez só, por mais que o reenvio chegue.
     expect(servidor.chamadas[1]).toMatchObject({ questao: 3, alternativa: 1, sequencia: 1 })
-    servidor.chamadas[1]?.recusar(CodigoDeErro.TEMPO_ESGOTADO)
+    servidor.chamadas[1]?.recusar(ErrorCode.TEMPO_ESGOTADO)
     await assentar()
     expect(relogio.agendados.map((item) => item.esperaMs)).toEqual([2_000, 4_000])
 
@@ -299,7 +299,7 @@ describe('o reenvio das respostas', () => {
     const relogio = relogioDeMentira()
     const fila = criarFilaDeRespostas({ salvar: servidor.salvar, aoSalvar: () => undefined, agendar: relogio.agendar })
     fila.escolher(1, 0)
-    servidor.chamadas[0]?.recusar(CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO)
+    servidor.chamadas[0]?.recusar(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO)
     await assentar()
     fila.tentarAgora()
     expect(servidor.chamadas).toHaveLength(2)
@@ -315,7 +315,7 @@ describe('o reenvio das respostas', () => {
     const salvas: number[] = []
     const fila = criarFilaDeRespostas({ salvar: servidor.salvar, aoSalvar: (salva) => salvas.push(salva.questao), agendar: relogio.agendar })
     fila.escolher(1, 0)
-    servidor.chamadas[0]?.recusar(CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO)
+    servidor.chamadas[0]?.recusar(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO)
     await assentar()
     // O aluno continua respondendo sem rede: a escolha nova tenta na hora (e a questão 1 continua na frente).
     fila.escolher(2, 3)
@@ -334,7 +334,7 @@ describe('o reenvio das respostas', () => {
     const relogio = relogioDeMentira()
     const fila = criarFilaDeRespostas({ salvar: servidor.salvar, aoSalvar: () => undefined, agendar: relogio.agendar })
     fila.escolher(3, 1)
-    servidor.chamadas[0]?.recusar(CodigoDeErro.ATIVIDADE_ENCERRADA)
+    servidor.chamadas[0]?.recusar(ErrorCode.ATIVIDADE_ENCERRADA)
     await assentar()
     expect(fila.ler()).toMatchObject({ falha: 'encerrada', pendentes: [{ questao: 3, alternativa: 1, sequencia: 1 }] })
     expect(relogio.agendados).toEqual([])
@@ -346,7 +346,7 @@ describe('o reenvio das respostas', () => {
   it('a sessão que acaba esvazia a fila: nada da pessoa anterior é mandado nem mostrado à seguinte', async () => {
     const servidor = servidorDeMentira()
     const relogio = relogioDeMentira()
-    const salvas: RespostaQuestaoSalva[] = []
+    const salvas: QuestaoSalvaResponse[] = []
     const fila = criarFilaDeRespostas({ salvar: servidor.salvar, aoSalvar: (salva) => salvas.push(salva), agendar: relogio.agendar })
     fila.escolher(3, 1)
     fila.parar()
@@ -362,7 +362,7 @@ describe('o reenvio das respostas', () => {
   it('o envio que perdeu para uma escolha mais nova de outra janela não é reenviado: a fila esvazia, a tela acerta a gravada e avisa', async () => {
     const servidor = servidorDeMentira()
     const relogio = relogioDeMentira()
-    const salvas: RespostaQuestaoSalva[] = []
+    const salvas: QuestaoSalvaResponse[] = []
     const fila = criarFilaDeRespostas({ salvar: servidor.salvar, aoSalvar: (salva) => salvas.push(salva), agendar: relogio.agendar })
     fila.escolher(3, 1)
     servidor.chamadas[0]?.gravadaPorOutraJanela(2, 8)

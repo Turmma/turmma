@@ -1,15 +1,15 @@
 import { ErroDeDominio, RegistroDeAuditoria, type Banco, type TransacaoBanco } from '@educa/nucleo'
 import {
-  CodigoDeErro,
-  esquemaConteudoDeAtividade,
-  esquemaRespostaAtividadeAplicada,
-  esquemaRespostaAtividadeEncerrada,
-  esquemaRespostaListaDeAtividadesAplicadas,
-  type ConsultaAtividadesAplicadas,
-  type PedidoAplicarAtividade,
-  type RespostaAtividadeAplicada,
-  type RespostaAtividadeEncerrada,
-  type RespostaListaDeAtividadesAplicadas,
+  ErrorCode,
+  conteudoDeAtividadeSchema,
+  atividadeAplicadaResponseSchema,
+  atividadeEncerradaResponseSchema,
+  listaDeAtividadesAplicadasResponseSchema,
+  type AtividadesAplicadasQuery,
+  type AplicarAtividadeRequest,
+  type AtividadeAplicadaResponse,
+  type AtividadeEncerradaResponse,
+  type ListaDeAtividadesAplicadasResponse,
 } from '@educa/shared'
 import { paginar } from '../../http/paginacao.js'
 import type { ConferenciaDeFuncao } from '../../ia/conferencia-de-funcao.js'
@@ -58,44 +58,44 @@ export class AtividadeAplicadaService {
     private readonly conferencia: ConferenciaDeFuncao,
   ) {}
 
-  async aplicar(pedido: PedidoAplicarAtividade): Promise<RespostaAtividadeAplicada> {
+  async aplicar(pedido: AplicarAtividadeRequest): Promise<AtividadeAplicadaResponse> {
     const artefatoId = pedido.artefatoId.toLowerCase()
     const turmaId = pedido.turmaId.toLowerCase()
     const criada = await this.banco.transaction(async (tx) => {
       const aplicacoes = new AtividadeAplicadaRepository(tx)
       const alvo = await aplicacoes.artefatoParaAplicar(artefatoId)
       // O artefato fora do alcance e a turma sem vínculo na disciplina dele respondem igual: nenhum confirma o outro.
-      if (alvo === undefined || !(await aplicacoes.podeAplicarNaTurma(turmaId, alvo.disciplinaId))) throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
-      if (alvo.tipo !== 'atividade_objetiva') throw new ErroDeDominio(CodigoDeErro.ENTRADA_INVALIDA)
-      if (alvo.versaoAdaptada && alvo.entregaEstado !== 'aprovada') throw new ErroDeDominio(CodigoDeErro.VERSAO_ADAPTADA_NAO_APROVADA)
+      if (alvo === undefined || !(await aplicacoes.podeAplicarNaTurma(turmaId, alvo.disciplinaId))) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+      if (alvo.tipo !== 'atividade_objetiva') throw new ErroDeDominio(ErrorCode.ENTRADA_INVALIDA)
+      if (alvo.versaoAdaptada && alvo.entregaEstado !== 'aprovada') throw new ErroDeDominio(ErrorCode.VERSAO_ADAPTADA_NAO_APROVADA)
       const id = await aplicacoes.criar({ turmaId, artefatoId, avaliativa: pedido.avaliativa })
       await registro.gravar(tx, 'atividade.aplicada', { entidadeId: id, depois: { artefatoId, turmaId, avaliativa: pedido.avaliativa, versaoAdaptada: alvo.versaoAdaptada } })
       const lida = await aplicacoes.porId(id)
-      if (lida === undefined) throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
+      if (lida === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
       return lida
     })
-    return esquemaRespostaAtividadeAplicada.parse(paraATela(criada))
+    return atividadeAplicadaResponseSchema.parse(paraATela(criada))
   }
 
-  async listar(consulta: ConsultaAtividadesAplicadas): Promise<RespostaListaDeAtividadesAplicadas> {
+  async listar(consulta: AtividadesAplicadasQuery): Promise<ListaDeAtividadesAplicadasResponse> {
     const linhas = await new AtividadeAplicadaRepository(this.banco).listar({ ...consulta, turmaId: consulta.turmaId.toLowerCase() })
     const { itens, proxima } = paginar(linhas, consulta.limite)
-    return esquemaRespostaListaDeAtividadesAplicadas.parse({ itens: itens.map(paraATela), ...(proxima === undefined ? {} : { proxima }) })
+    return listaDeAtividadesAplicadasResponseSchema.parse({ itens: itens.map(paraATela), ...(proxima === undefined ? {} : { proxima }) })
   }
 
-  async encerrar(id: string): Promise<RespostaAtividadeEncerrada> {
+  async encerrar(id: string): Promise<AtividadeEncerradaResponse> {
     const encerrada = await this.banco.transaction(async (tx) => {
       const aplicacoes = new AtividadeAplicadaRepository(tx)
       const travada = await aplicacoes.travar(id)
-      if (travada === undefined) throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
+      if (travada === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
       if (travada.estado === 'aberta') await aplicacoes.encerrar(id)
       await this.#corrigir(tx, travada)
       const lida = await aplicacoes.porId(id)
-      if (lida === undefined) throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
+      if (lida === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
       return lida
     })
     // A correção é uma conta, feita na transação: não há execução de agente a consultar.
-    return esquemaRespostaAtividadeEncerrada.parse({ atividade: paraATela(encerrada), execucaoId: null })
+    return atividadeEncerradaResponseSchema.parse({ atividade: paraATela(encerrada), execucaoId: null })
   }
 
   /** A função `correcao_de_objetiva` está suspensa na escola? Falha da consulta não vira "ativa": sobe como erro. */
@@ -104,7 +104,7 @@ export class AtividadeAplicadaService {
       await this.conferencia.exigirAtiva('correcao_de_objetiva')
       return false
     } catch (erro) {
-      if (erro instanceof ErroDeDominio && erro.codigo === CodigoDeErro.FUNCAO_SUSPENSA) return true
+      if (erro instanceof ErroDeDominio && erro.codigo === ErrorCode.FUNCAO_SUSPENSA) return true
       throw erro
     }
   }
@@ -121,7 +121,7 @@ export class AtividadeAplicadaService {
     const respostas = await correcoes.respostasPorAluno(aplicacao.id)
     if (respostas.size === 0) return
 
-    const { questoes } = esquemaConteudoDeAtividade.parse(aplicacao.conteudo)
+    const { questoes } = conteudoDeAtividadeSchema.parse(aplicacao.conteudo)
     const historico = new Map<string, HistoricoAprovado>()
     for (const anterior of await correcoes.historicoAprovado([...respostas.keys()], aplicacao.disciplinaId)) {
       const soma = historico.get(anterior.alunoId) ?? { acertos: 0, total: 0 }

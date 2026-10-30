@@ -22,7 +22,7 @@ import {
   type Relogio,
   type VagasPorFila,
 } from '@educa/nucleo'
-import type { RegistroDeJobs } from '@educa/shared'
+import type { JobRegistry } from '@educa/shared'
 import { Queue } from 'bullmq'
 import type { ConfiguracaoDespachante } from './config.js'
 import { Despachante } from './despachante.js'
@@ -52,7 +52,7 @@ export interface OpcoesDaMontagem {
   /** Intervalo da medição das filas. Só o teste troca. */
   intervaloMedicaoMs?: number
   /** O registro de jobs que decide a fila e a retentativa de cada tipo. Só o teste troca, para ter uma retentativa curta ou um tipo seu. */
-  definicoes?: RegistroDeJobs
+  definicoes?: JobRegistry
 }
 
 export interface DespachanteMontado {

@@ -1,4 +1,4 @@
-import type { CodigoDeFalhaDeJob, Fila } from '@educa/shared'
+import type { JobFailureCode, QueueName } from '@educa/shared'
 import { and, eq, inArray, sql, type SQL } from 'drizzle-orm'
 import type { Banco } from '../db/banco.js'
 import { jobRegistro } from '../db/schema/job-registro.js'
@@ -20,7 +20,7 @@ export type JobReservado = {
   escolaId: string | null
   requisicaoId: string | null
   tipo: string
-  fila: Fila
+  fila: QueueName
 }
 
 /**
@@ -46,7 +46,7 @@ export type MedicaoDeFalhos = {
  * observação: o mais antigo que ainda não começou, urgente e não urgente, e quantos ainda não começaram.
  */
 export type MedicaoDePendentes = {
-  fila: Fila
+  fila: QueueName
   escolaId: string | null
   /** O `now()` do banco na medição: a espera é contada no mesmo relógio que gravou `criado_em`. */
   agora: Date
@@ -63,7 +63,7 @@ export type MedicaoDePendentes = {
 }
 
 type LinhaDaMedicao = {
-  fila: Fila
+  fila: QueueName
   escolaId: string | null
   // `numeric` chega como texto.
   agoraMs: number | string
@@ -74,7 +74,7 @@ type LinhaDaMedicao = {
 
 /** Uma escola (ou a rotina do sistema, sem escola) com job esperando despacho numa fila. */
 export type EscolaComPendentes = {
-  fila: Fila
+  fila: QueueName
   escolaId: string | null
 }
 
@@ -263,7 +263,7 @@ export class DespachoRepository {
    * Com `soUrgentes`, o não urgente fica de fora (a escola está no horário letivo): nem é reservado nem
    * chega a tomar vaga. Desce pelo índice de pendentes urgentes, sem atravessar os segurados.
    */
-  async reservarDaEscola(fila: Fila, limite: number, { soUrgentes = false }: { soUrgentes?: boolean } = {}): Promise<JobReservado[]> {
+  async reservarDaEscola(fila: QueueName, limite: number, { soUrgentes = false }: { soUrgentes?: boolean } = {}): Promise<JobReservado[]> {
     const escopo = escopoDoJobNoContexto()
     // Literal, e não parâmetro: é o predicado do índice parcial, e um plano genérico de instrução preparada
     // só o casaria enxergando a condição escrita.
@@ -359,7 +359,7 @@ export class DespachoRepository {
    * terminou não muda. Devolve `false` se a linha não estava mais nesses estados.
    */
   @SemEscopo(JUSTIFICATIVA)
-  async registrarFalhaDaFila(id: string, codigo: CodigoDeFalhaDeJob): Promise<boolean> {
+  async registrarFalhaDaFila(id: string, codigo: JobFailureCode): Promise<boolean> {
     const alteradas = await this.banco
       .update(jobRegistro)
       .set({ estado: 'falhou', codigoFalha: codigo, concluidoEm: sql`now()`, reservadoAte: null })

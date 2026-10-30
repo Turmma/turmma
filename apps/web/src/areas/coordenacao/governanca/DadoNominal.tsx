@@ -1,4 +1,4 @@
-import { FINALIDADES_DA_LEITURA_NOMINAL, NOME_DA_FINALIDADE_NOMINAL, nomeDaSerie, type FinalidadeDaLeituraNominal, type RespostaAnalistaNominal } from '@educa/shared'
+import { FINALIDADES_DA_LEITURA_NOMINAL, NOME_DA_FINALIDADE_NOMINAL, nomeDaSerie, type FinalidadeDaLeituraNominal, type AnalistaNominalResponse } from '@educa/shared'
 import { useQuery } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
 import { consultaTurmas } from '../../../api/estrutura'
@@ -130,7 +130,7 @@ function PedidoNominal({ aoFechar, aoConfirmar, confirmando, falha }: PropsDoPed
 }
 
 interface PropsDoResultado {
-  readonly dado: RespostaAnalistaNominal
+  readonly dado: AnalistaNominalResponse
   readonly aoFechar: () => void
 }
 

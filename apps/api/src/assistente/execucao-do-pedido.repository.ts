@@ -1,5 +1,5 @@
 import { ErroDeDominio, execucaoAgente, exigirAnoEmCurso, exigirEscolaDoContexto, sessaoDaRequisicao, type Banco, type TransacaoBanco } from '@educa/nucleo'
-import { CodigoDeErro, esquemaEntradaDaExecucao, type EntradaDaExecucao, type TarefaDeIa } from '@educa/shared'
+import { ErrorCode, execucaoInputSchema, type ExecucaoInput, type TarefaDeIa } from '@educa/shared'
 import { and, eq } from 'drizzle-orm'
 
 /**
@@ -12,7 +12,7 @@ export class ExecucaoDoPedidoRepository {
   constructor(private readonly banco: Banco | TransacaoBanco) {}
 
   /** A entrada gravada da execução desta chave, da tarefa esperada. A de outra pessoa, de outra escola ou de outra tarefa: `NAO_ENCONTRADO`. */
-  async entradaDaChave<Tarefa extends TarefaDeIa>(chaveEnvio: string, tarefa: Tarefa): Promise<Extract<EntradaDaExecucao, { tarefa: Tarefa }>> {
+  async entradaDaChave<Tarefa extends TarefaDeIa>(chaveEnvio: string, tarefa: Tarefa): Promise<Extract<ExecucaoInput, { tarefa: Tarefa }>> {
     const [linha] = await this.banco
       .select({ entrada: execucaoAgente.entrada })
       .from(execucaoAgente)
@@ -25,8 +25,8 @@ export class ExecucaoDoPedidoRepository {
           eq(execucaoAgente.tarefa, tarefa),
         ),
       )
-    const lida = esquemaEntradaDaExecucao.safeParse(linha?.entrada)
-    if (!lida.success || lida.data.tarefa !== tarefa) throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
-    return lida.data as Extract<EntradaDaExecucao, { tarefa: Tarefa }>
+    const lida = execucaoInputSchema.safeParse(linha?.entrada)
+    if (!lida.success || lida.data.tarefa !== tarefa) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+    return lida.data as Extract<ExecucaoInput, { tarefa: Tarefa }>
   }
 }

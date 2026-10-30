@@ -15,7 +15,7 @@ import {
   type Relogio,
   type RetencaoDaEscolaRepository,
 } from '@educa/nucleo'
-import { CodigoDeFalhaDeJob, ErroDeInvariante, retencaoDaEscola, type TIPO_EXPURGAR_ESCOLA } from '@educa/shared'
+import { JobFailureCode, InvariantException, retencaoDaEscola, type TIPO_EXPURGAR_ESCOLA } from '@educa/shared'
 import type { Processador } from '../executor.js'
 import { FalhaDeJob } from '../falha-de-job.js'
 
@@ -63,7 +63,7 @@ export interface DependenciasDoExpurgoDaEscola {
  */
 export function criarExpurgoDaEscola({ repositorio, arquivos, armazem, retencao, janelaDaEscola, enfileirador, relogio, logger, lote = LOTE_DO_EXPURGO }: DependenciasDoExpurgoDaEscola): Processador<typeof TIPO_EXPURGAR_ESCOLA> {
   return async () => {
-    if (contextoAtual()?.escolaId === undefined) throw new FalhaDeJob(CodigoDeFalhaDeJob.DADOS_INVALIDOS, true)
+    if (contextoAtual()?.escolaId === undefined) throw new FalhaDeJob(JobFailureCode.DADOS_INVALIDOS, true)
     const agora = relogio.agora()
     // Primeiro, as eliminações vencidas (F3, tarefa 15.0): cada pedido `agendado` com `eliminar_em` passado vira um
     // `titular.eliminar` na fila de lote, na mesma transação da marca `eliminacao_enfileirada_em`. É só gravar linhas: o
@@ -78,7 +78,7 @@ export function criarExpurgoDaEscola({ repositorio, arquivos, armazem, retencao,
     let linhasTotal = 0
     for (const categoria of ordem) {
       const meses = prazos.get(categoria)
-      if (meses === undefined) throw new ErroDeInvariante('categoria sem prazo no catálogo')
+      if (meses === undefined) throw new InvariantException('categoria sem prazo no catálogo')
       let linhasDaCategoriaTotal = 0
       try {
         for (const alvo of ALVOS_DO_EXPURGO_DA_ESCOLA[categoria]) {

@@ -1,5 +1,5 @@
 import { Permite, ZodValidationPipe } from '@educa/nucleo'
-import { esquemaConsultaSinais, type ConsultaSinais, type RespostaSinais } from '@educa/shared'
+import { sinaisQuerySchema, type SinaisQuery, type SinaisResponse } from '@educa/shared'
 import { Controller, Get, Header, Query } from '@nestjs/common'
 import { SupervisaoDoTutorService } from './supervisao.service.js'
 
@@ -15,7 +15,7 @@ export class SinaisController {
   @Get()
   @Permite('sinal', 'ler')
   @Header('Cache-Control', 'no-store')
-  listar(@Query(new ZodValidationPipe(esquemaConsultaSinais)) consulta: ConsultaSinais): Promise<RespostaSinais> {
+  listar(@Query(new ZodValidationPipe(sinaisQuerySchema)) consulta: SinaisQuery): Promise<SinaisResponse> {
     return this.supervisao.sinais(consulta)
   }
 }

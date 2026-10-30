@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest'
 import {
   ALFABETO_DO_CODIGO_DA_TURMA,
   codigoDaTurmaValido,
-  esquemaPedidoGerarAcesso,
-  esquemaRespostaAcessoGerado,
+  gerarAcessoRequestSchema,
+  acessoGeradoResponseSchema,
   exibirCodigoDaTurma,
   normalizarCodigoDaTurma,
   TAMANHO_DO_CODIGO_DA_TURMA,
@@ -44,19 +44,19 @@ describe('código da turma (A1, 4.0, E15)', () => {
 
 describe('contrato do acesso da turma (A1, 4.0, E13)', () => {
   it('a validade é 1, 7 ou 30 dias; 0, 2, 31, texto e campo a mais são recusados', () => {
-    for (const validadeDias of [1, 7, 30]) expect(esquemaPedidoGerarAcesso.safeParse({ validadeDias }).success, String(validadeDias)).toBe(true)
-    for (const validadeDias of [0, 2, 31, '7', 7.5]) expect(esquemaPedidoGerarAcesso.safeParse({ validadeDias }).success, String(validadeDias)).toBe(false)
-    expect(esquemaPedidoGerarAcesso.safeParse({}).success).toBe(false)
-    expect(esquemaPedidoGerarAcesso.safeParse({ validadeDias: 7, turmaId: '0190c7e2-0000-7000-8000-000000000000' }).success).toBe(false)
+    for (const validadeDias of [1, 7, 30]) expect(gerarAcessoRequestSchema.safeParse({ validadeDias }).success, String(validadeDias)).toBe(true)
+    for (const validadeDias of [0, 2, 31, '7', 7.5]) expect(gerarAcessoRequestSchema.safeParse({ validadeDias }).success, String(validadeDias)).toBe(false)
+    expect(gerarAcessoRequestSchema.safeParse({}).success).toBe(false)
+    expect(gerarAcessoRequestSchema.safeParse({ validadeDias: 7, turmaId: '0190c7e2-0000-7000-8000-000000000000' }).success).toBe(false)
   })
 
   it('a resposta do gerar é estrita e só aceita o código sem os espaços', () => {
     const resposta = { token: 'a'.repeat(43), codigo: 'ABCD2345', expiraEm: '2026-09-26T12:00:00.000Z' }
-    expect(esquemaRespostaAcessoGerado.safeParse(resposta).success).toBe(true)
-    expect(esquemaRespostaAcessoGerado.safeParse({ ...resposta, codigo: 'ABCD 2345' }).success).toBe(false)
+    expect(acessoGeradoResponseSchema.safeParse(resposta).success).toBe(true)
+    expect(acessoGeradoResponseSchema.safeParse({ ...resposta, codigo: 'ABCD 2345' }).success).toBe(false)
     for (const token of ['a'.repeat(42), 'a'.repeat(44), `${'a'.repeat(42)}=`, `${'a'.repeat(42)}+`]) {
-      expect(esquemaRespostaAcessoGerado.safeParse({ ...resposta, token }).success, token).toBe(false)
+      expect(acessoGeradoResponseSchema.safeParse({ ...resposta, token }).success, token).toBe(false)
     }
-    expect(esquemaRespostaAcessoGerado.safeParse({ ...resposta, turmaId: '0190c7e2-0000-7000-8000-000000000000' }).success).toBe(false)
+    expect(acessoGeradoResponseSchema.safeParse({ ...resposta, turmaId: '0190c7e2-0000-7000-8000-000000000000' }).success).toBe(false)
   })
 })

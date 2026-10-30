@@ -1,26 +1,26 @@
 import { Permite, ZodValidationPipe } from '@educa/nucleo'
 import {
-  CodigoDeErro,
-  esquemaChaveDeFuncao,
-  esquemaConsultaConsumo,
-  esquemaConsultaResumoDaGovernanca,
-  esquemaPedidoSemCorpo,
-  esquemaPedidoSuspenderFuncao,
+  ErrorCode,
+  chaveDeFuncaoSchema,
+  consumoQuerySchema,
+  resumoDaGovernancaQuerySchema,
+  emptyBodyRequestSchema,
+  suspenderFuncaoRequestSchema,
   type ChaveDeFuncao,
-  type ConsultaConsumo,
-  type ConsultaResumoDaGovernanca,
-  type PedidoSemCorpo,
-  type PedidoSuspenderFuncao,
-  type RespostaConsumo,
-  type RespostaFuncaoDaGovernanca,
-  type RespostaFuncoesDaGovernanca,
-  type RespostaResumoDaGovernanca,
+  type ConsumoQuery,
+  type ResumoDaGovernancaQuery,
+  type EmptyBodyRequest,
+  type SuspenderFuncaoRequest,
+  type ConsumoResponse,
+  type FuncaoDaGovernancaResponse,
+  type FuncoesDaGovernancaResponse,
+  type ResumoDaGovernancaResponse,
 } from '@educa/shared'
 import { Body, Controller, Get, Header, HttpCode, HttpStatus, Param, Post, Query } from '@nestjs/common'
 import { GovernancaService } from './governanca.service.js'
 
 /** A `:chave` da rota. Fora do catálogo, nenhuma função existe assim: responde como o inexistente (regra 10, item 6). */
-const pipeDaChave = new ZodValidationPipe(esquemaChaveDeFuncao, { errorCode: CodigoDeErro.NAO_ENCONTRADO })
+const pipeDaChave = new ZodValidationPipe(chaveDeFuncaoSchema, { errorCode: ErrorCode.NAO_ENCONTRADO })
 
 /**
  * `/v1/governanca` (MVP, A5): a governança de IA, **só da coordenação**. Professor, aluno e rede recebem da guarda a
@@ -34,35 +34,35 @@ export class GovernancaController {
   @Get('resumo')
   @Permite('governanca', 'ler_resumo')
   @Header('Cache-Control', 'no-store')
-  resumo(@Query(new ZodValidationPipe(esquemaConsultaResumoDaGovernanca)) consulta: ConsultaResumoDaGovernanca): Promise<RespostaResumoDaGovernanca> {
+  resumo(@Query(new ZodValidationPipe(resumoDaGovernancaQuerySchema)) consulta: ResumoDaGovernancaQuery): Promise<ResumoDaGovernancaResponse> {
     return this.governanca.resumo(consulta)
   }
 
   @Get('funcoes')
   @Permite('governanca', 'ler_funcoes')
   @Header('Cache-Control', 'no-store')
-  funcoes(): Promise<RespostaFuncoesDaGovernanca> {
+  funcoes(): Promise<FuncoesDaGovernancaResponse> {
     return this.governanca.funcoes()
   }
 
   @Post('funcoes/:chave/suspender')
   @Permite('governanca', 'suspender_funcao')
   @HttpCode(HttpStatus.OK)
-  suspender(@Param('chave', pipeDaChave) chave: ChaveDeFuncao, @Body(new ZodValidationPipe(esquemaPedidoSuspenderFuncao)) pedido: PedidoSuspenderFuncao): Promise<RespostaFuncaoDaGovernanca> {
+  suspender(@Param('chave', pipeDaChave) chave: ChaveDeFuncao, @Body(new ZodValidationPipe(suspenderFuncaoRequestSchema)) pedido: SuspenderFuncaoRequest): Promise<FuncaoDaGovernancaResponse> {
     return this.governanca.suspender(chave, pedido)
   }
 
   @Post('funcoes/:chave/retomar')
   @Permite('governanca', 'retomar_funcao')
   @HttpCode(HttpStatus.OK)
-  retomar(@Param('chave', pipeDaChave) chave: ChaveDeFuncao, @Body(new ZodValidationPipe(esquemaPedidoSemCorpo)) _corpo: PedidoSemCorpo): Promise<RespostaFuncaoDaGovernanca> {
+  retomar(@Param('chave', pipeDaChave) chave: ChaveDeFuncao, @Body(new ZodValidationPipe(emptyBodyRequestSchema)) _corpo: EmptyBodyRequest): Promise<FuncaoDaGovernancaResponse> {
     return this.governanca.retomar(chave)
   }
 
   @Get('consumo')
   @Permite('governanca', 'ler_consumo')
   @Header('Cache-Control', 'no-store')
-  consumo(@Query(new ZodValidationPipe(esquemaConsultaConsumo)) consulta: ConsultaConsumo): Promise<RespostaConsumo> {
+  consumo(@Query(new ZodValidationPipe(consumoQuerySchema)) consulta: ConsumoQuery): Promise<ConsumoResponse> {
     return this.governanca.consumo(consulta)
   }
 }

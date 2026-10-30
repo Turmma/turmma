@@ -1,4 +1,4 @@
-import { CodigoDeErro, MENSAGENS_DE_ERRO, type PapelDeUsuario } from '@educa/shared'
+import { ErrorCode, MENSAGENS_DE_ERRO, type PapelDeUsuario } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
@@ -13,9 +13,9 @@ import { BancadaDeSessoes, type SessaoDeTeste } from './sessao-de-teste.js'
  * no caso dele. Postgres e Redis reais do compose de teste; nada é gravado, e o banco prova.
  */
 
-const NAO_ENCONTRADO = { status: 404, corpo: { erro: { codigo: CodigoDeErro.NAO_ENCONTRADO, mensagem: MENSAGENS_DE_ERRO.NAO_ENCONTRADO } } }
-const NAO_AUTENTICADO = { status: 401, corpo: { erro: { codigo: CodigoDeErro.NAO_AUTENTICADO, mensagem: MENSAGENS_DE_ERRO.NAO_AUTENTICADO } } }
-const ENTRADA_INVALIDA = { status: 400, corpo: { erro: { codigo: CodigoDeErro.ENTRADA_INVALIDA, mensagem: MENSAGENS_DE_ERRO.ENTRADA_INVALIDA } } }
+const NAO_ENCONTRADO = { status: 404, corpo: { erro: { codigo: ErrorCode.NAO_ENCONTRADO, mensagem: MENSAGENS_DE_ERRO.NAO_ENCONTRADO } } }
+const NAO_AUTENTICADO = { status: 401, corpo: { erro: { codigo: ErrorCode.NAO_AUTENTICADO, mensagem: MENSAGENS_DE_ERRO.NAO_AUTENTICADO } } }
+const ENTRADA_INVALIDA = { status: 400, corpo: { erro: { codigo: ErrorCode.ENTRADA_INVALIDA, mensagem: MENSAGENS_DE_ERRO.ENTRADA_INVALIDA } } }
 
 const semRequisicao = (resposta: RespostaHttp) => ({ status: resposta.status, corpo: { ...resposta.corpo, erro: { ...resposta.corpo.erro, requisicaoId: undefined } } })
 

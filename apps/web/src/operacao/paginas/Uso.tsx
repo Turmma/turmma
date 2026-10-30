@@ -1,4 +1,4 @@
-import type { ConsultaDoPainel, RespostaUsoDoPainel, UsoDaEscolaDoPainel, UsoDoPeriodoDoPainel } from '@educa/shared'
+import type { PainelQuery, UsoDoPainelResponse, UsoDaEscolaDoPainel, UsoDoPeriodoDoPainel } from '@educa/shared'
 import { useQuery } from '@tanstack/react-query'
 import { useRef } from 'react'
 import { useLocation, useSearch } from 'wouter'
@@ -18,7 +18,7 @@ import { useTituloDaPagina } from '../titulo'
 const PERIODOS = ['dia', 'mes'] as const
 type Periodo = (typeof PERIODOS)[number]
 
-type Referencia = Pick<RespostaUsoDoPainel, 'dia' | 'mes'>
+type Referencia = Pick<UsoDoPainelResponse, 'dia' | 'mes'>
 
 /**
  * O título de cada período, com a data que **a API** devolveu (nunca a de hoje no navegador): o dia é o último fechado em
@@ -152,7 +152,7 @@ export function Uso() {
   const consulta = lerConsultaDaTela(busca)
   const uso = useQuery(consultaDoUso(consulta))
 
-  function irPara(nova: ConsultaDoPainel): void {
+  function irPara(nova: PainelQuery): void {
     navegar(`${USO_DA_OPERACAO}?${buscaDaConsulta(nova)}`)
   }
 

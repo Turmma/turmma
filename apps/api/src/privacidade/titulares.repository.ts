@@ -14,7 +14,7 @@ import {
 import {
   CATEGORIAS_DE_CADASTRO_E_VINCULO,
   CHAVES_DE_RETENCAO,
-  ErroDeInvariante,
+  InvariantException,
   MAXIMO_DE_RESULTADOS_DA_BUSCA,
   type CategoriaDeRetencao,
   type EstadoDoTitular,
@@ -69,7 +69,7 @@ const PAPEIS_QUE_PODEM_SER_TITULAR = ['aluno', 'professor'] as const
 /** O papel do `usuario` é o de um titular, e o tipo fecha nele. Quem não é aluno nem professor não é achado. */
 function papelDeTitular(papel: PapelDeUsuario): PapelDoTitular {
   if (papel === 'aluno' || papel === 'professor') return papel
-  throw new ErroDeInvariante('papel fora da busca de titulares')
+  throw new InvariantException('papel fora da busca de titulares')
 }
 
 /** O nome como a comparação o lê: sem espaço nas pontas e sem caixa ("Ana Souza" é "ana souza"). */

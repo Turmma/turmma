@@ -1,4 +1,4 @@
-import { CodigoDeErro } from '@educa/shared'
+import { ErrorCode } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
@@ -37,11 +37,11 @@ describe('o corpo fora do esquema conta no balde do IP, como antes do pipe', () 
 
   it.each(['/v1/convites/consultar', '/v1/operacao/convite/consultar'])('%s: o corpo inválido gasta o limite do IP: a sexta recusa é 429 LIMITE_EXCEDIDO, e o outro IP continua lendo o corpo', async (caminho) => {
     const [ip, outro] = [ipSorteado(), ipSorteado()]
-    for (let vez = 1; vez <= LIMITE_POR_IP; vez++) expect(await postar(caminho, {}, ip), `${caminho} vez ${String(vez)}`).toEqual({ status: 400, codigo: CodigoDeErro.ENTRADA_INVALIDA })
-    expect(await postar(caminho, {}, ip)).toEqual({ status: 429, codigo: CodigoDeErro.LIMITE_EXCEDIDO })
+    for (let vez = 1; vez <= LIMITE_POR_IP; vez++) expect(await postar(caminho, {}, ip), `${caminho} vez ${String(vez)}`).toEqual({ status: 400, codigo: ErrorCode.ENTRADA_INVALIDA })
+    expect(await postar(caminho, {}, ip)).toEqual({ status: 429, codigo: ErrorCode.LIMITE_EXCEDIDO })
     // Acima do limite nem o corpo válido é lido: a guarda recusa antes do pipe e do service.
-    expect(await postar(caminho, { token: 'x'.repeat(43) }, ip)).toEqual({ status: 429, codigo: CodigoDeErro.LIMITE_EXCEDIDO })
-    expect(await postar(caminho, {}, outro)).toEqual({ status: 400, codigo: CodigoDeErro.ENTRADA_INVALIDA })
+    expect(await postar(caminho, { token: 'x'.repeat(43) }, ip)).toEqual({ status: 429, codigo: ErrorCode.LIMITE_EXCEDIDO })
+    expect(await postar(caminho, {}, outro)).toEqual({ status: 400, codigo: ErrorCode.ENTRADA_INVALIDA })
   })
 
   it.each([
@@ -53,7 +53,7 @@ describe('o corpo fora do esquema conta no balde do IP, como antes do pipe', () 
     const semaforo = api.app.get(SemaforoDeHash)
     const vezes = vi.spyOn(semaforo, 'executar')
     try {
-      for (let vez = 1; vez <= 2 * LIMITE_POR_IP; vez++) expect(await postar(caminho, {}, ip), `${caminho} vez ${String(vez)}`).toEqual({ status: 400, codigo: CodigoDeErro.ENTRADA_INVALIDA })
+      for (let vez = 1; vez <= 2 * LIMITE_POR_IP; vez++) expect(await postar(caminho, {}, ip), `${caminho} vez ${String(vez)}`).toEqual({ status: 400, codigo: ErrorCode.ENTRADA_INVALIDA })
       expect(vezes).not.toHaveBeenCalled()
 
       const email = `ninguem-${randomUUID()}@turmma.invalid`

@@ -1,12 +1,12 @@
 import {
-  esquemaRespostaDecisao,
-  esquemaRespostaPedidosDaTurma,
+  decisaoResponseSchema,
+  pedidosDaTurmaResponseSchema,
   TAMANHO_MAXIMO_DA_PAGINA,
   type DecisorDaReivindicacao,
   type FinalidadeDaLeituraDeAlunos,
-  type PedidoDecidirReivindicacoes,
-  type RespostaDecisao,
-  type RespostaPedidosDaTurma,
+  type DecidirReivindicacoesRequest,
+  type DecisaoResponse,
+  type PedidosDaTurmaResponse,
 } from '@educa/shared'
 import { queryOptions, type QueryClient } from '@tanstack/react-query'
 import { CHAVE_DOS_ALUNOS_DA_TURMA } from './alunos-da-turma'
@@ -53,7 +53,7 @@ export function consultaPedidosDaTurma(turmaId: string, quem: DecisorDaReivindic
     queryFn: ({ signal }) => {
       const consulta = new URLSearchParams({ limite: String(PEDIDOS_POR_LEITURA) })
       if (daCoordenacao) consulta.set('finalidade', FINALIDADE_DOS_PEDIDOS_NA_ESTRUTURA)
-      return buscarComSessao(`/v1/turmas/${encodeURIComponent(turmaId)}/reivindicacoes?${consulta.toString()}`, esquemaRespostaPedidosDaTurma, signal)
+      return buscarComSessao(`/v1/turmas/${encodeURIComponent(turmaId)}/reivindicacoes?${consulta.toString()}`, pedidosDaTurmaResponseSchema, signal)
     },
     enabled: !daCoordenacao,
     gcTime: 0,
@@ -87,7 +87,7 @@ export function consultaContagemDePedidos(turmaId: string) {
   return queryOptions({
     queryKey: [...CHAVE_DA_CONTAGEM_DE_PEDIDOS, turmaId],
     queryFn: async ({ signal }): Promise<ContagemDePedidos> => {
-      const lista = await buscarComSessao(`/v1/turmas/${encodeURIComponent(turmaId)}/reivindicacoes?limite=${String(PEDIDOS_POR_LEITURA)}`, esquemaRespostaPedidosDaTurma, signal)
+      const lista = await buscarComSessao(`/v1/turmas/${encodeURIComponent(turmaId)}/reivindicacoes?limite=${String(PEDIDOS_POR_LEITURA)}`, pedidosDaTurmaResponseSchema, signal)
       return { quantidade: lista.itens.length, haMais: lista.proxima !== undefined }
     },
     gcTime: 0,
@@ -95,8 +95,8 @@ export function consultaContagemDePedidos(turmaId: string) {
 }
 
 /** `POST /v1/reivindicacoes/decidir`: aprova ou recusa os pedidos dados, e diz o que aconteceu com cada um. */
-export function decidirPedidos(pedido: PedidoDecidirReivindicacoes): Promise<RespostaDecisao> {
-  return chamarComSessao('/v1/reivindicacoes/decidir', esquemaRespostaDecisao, { metodo: 'POST', corpo: pedido })
+export function decidirPedidos(pedido: DecidirReivindicacoesRequest): Promise<DecisaoResponse> {
+  return chamarComSessao('/v1/reivindicacoes/decidir', decisaoResponseSchema, { metodo: 'POST', corpo: pedido })
 }
 
 /**
@@ -105,11 +105,11 @@ export function decidirPedidos(pedido: PedidoDecidirReivindicacoes): Promise<Res
  * feita antes da decisão, e traria de volta o pedido decidido. Depois a lista é marcada como velha: a do professor, que
  * está ligada, é relida em seguida; a da coordenação, desligada (`enabled: false`), não é: leitura dela só no "Atualizar".
  */
-export async function aplicarDecisao(cliente: QueryClient, turmaId: string, quem: DecisorDaReivindicacao, resposta: RespostaDecisao): Promise<void> {
+export async function aplicarDecisao(cliente: QueryClient, turmaId: string, quem: DecisorDaReivindicacao, resposta: DecisaoResponse): Promise<void> {
   const { queryKey } = consultaPedidosDaTurma(turmaId, quem)
   await cliente.cancelQueries({ queryKey })
   const fechados = new Set(resposta.resultados.map((resultado) => resultado.id))
-  cliente.setQueryData<RespostaPedidosDaTurma>(queryKey, (lista) => (lista === undefined ? undefined : { ...lista, itens: lista.itens.filter((pedido) => !fechados.has(pedido.id)) }))
+  cliente.setQueryData<PedidosDaTurmaResponse>(queryKey, (lista) => (lista === undefined ? undefined : { ...lista, itens: lista.itens.filter((pedido) => !fechados.has(pedido.id)) }))
   void cliente.invalidateQueries({ queryKey })
   invalidarAContagem(cliente, turmaId, quem)
   invalidarOsAlunos(cliente, turmaId)

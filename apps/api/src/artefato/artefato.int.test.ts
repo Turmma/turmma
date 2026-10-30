@@ -1,5 +1,5 @@
 import { type ExecutorDeAgente, type ExecutorNoProcesso, type LLMProvider, type SuspensaoDeFuncao } from '@educa/nucleo'
-import { esquemaConteudoDeAtividade, esquemaRespostaArtefato, esquemaRespostaListaDeArtefatos, esquemaRespostaListaDeEntregas, esquemaRespostaTime, type ChaveDeFuncao, type ConteudoDeAtividade } from '@educa/shared'
+import { conteudoDeAtividadeSchema, artefatoResponseSchema, listaDeArtefatosResponseSchema, listaDeEntregasResponseSchema, timeResponseSchema, type ChaveDeFuncao, type ConteudoDeAtividade } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { normalizarTexto, textoDaPagina } from '../../../../tools/demonstracao/conteudo-estequiometria.ts'
@@ -57,7 +57,7 @@ describe('ferramentas e artefato', () => {
   const pedir = async (sessao: SessaoDeTeste, metodo: string, caminho: string, corpo?: unknown): Promise<RespostaHttp> => chamar(api.url, metodo, caminho, await sessao.tokenNovo(), corpo)
   const get = (sessao: SessaoDeTeste, caminho: string) => pedir(sessao, 'GET', caminho)
   const parametros = (escola: EscolaComAssistente, tema: string, extra: Record<string, unknown> = {}) => ({ turmaId: escola.turma, disciplinaId: escola.quimica, tema, ...extra })
-  const artefatoDe = async (sessao: SessaoDeTeste, id: string) => esquemaRespostaArtefato.parse((await get(sessao, `/v1/artefatos/${id}`)).corpo)
+  const artefatoDe = async (sessao: SessaoDeTeste, id: string) => artefatoResponseSchema.parse((await get(sessao, `/v1/artefatos/${id}`)).corpo)
   const suspender = (escola: EscolaComAssistente, funcao: ChaveDeFuncao) => sql('insert into suspensao_de_funcao (escola_id, funcao, suspensa_por) values ($1, $2, $3)', [escola.escolaId, funcao, escola.coordenacao.usuarioId])
   const retomar = (escola: EscolaComAssistente, funcao: ChaveDeFuncao) =>
     sql('update suspensao_de_funcao set retomada_em = now(), retomada_por = $3 where escola_id = $1 and funcao = $2 and retomada_em is null', [escola.escolaId, funcao, escola.coordenacao.usuarioId])
@@ -120,7 +120,7 @@ describe('ferramentas e artefato', () => {
       const artefatoId = geracao.resultado?.artefatoId ?? ''
       const artefato = await artefatoDe(a.professora, artefatoId)
       expect(artefato).toMatchObject({ tipo: 'atividade_objetiva', turmaId: a.turma, disciplinaId: a.quimica, origemId: null, adaptacao: null, entrega: null, versoesAdaptadas: [], aplicacoes: [] })
-      const conteudo = esquemaConteudoDeAtividade.parse(artefato.conteudo)
+      const conteudo = conteudoDeAtividadeSchema.parse(artefato.conteudo)
       expect(conteudo.questoes).toHaveLength(5)
       // Toda questão cita o material da escola, e o trecho citado está mesmo na página citada.
       for (const questao of conteudo.questoes) {
@@ -154,7 +154,7 @@ describe('ferramentas e artefato', () => {
       const entregaId = adaptacao.resultado?.entregaId ?? ''
       const adaptada = await artefatoDe(a.professora, adaptadaId)
       expect(adaptada).toMatchObject({ origemId: artefatoId, turmaId: a.turma, adaptacao: { tipos: ['fonte_ampliada', 'tempo_adicional'], tempoExtraPercentual: 25 }, entrega: { id: entregaId, estado: 'pendente', decididaEm: null } })
-      const questoesAdaptadas = esquemaConteudoDeAtividade.parse(adaptada.conteudo).questoes
+      const questoesAdaptadas = conteudoDeAtividadeSchema.parse(adaptada.conteudo).questoes
       expect(questoesAdaptadas.map((questao) => [questao.gabarito, questao.habilidade, questao.citacao])).toEqual(conteudo.questoes.map((questao) => [questao.gabarito, questao.habilidade, questao.citacao]))
       expect((await artefatoDe(a.professora, artefatoId)).versoesAdaptadas.map((versao) => [versao.id, versao.entrega?.estado])).toEqual([[adaptadaId, 'pendente']])
       const { rows: pendente } = await sql('select estado, funcao, tipo, turma_id, decidida_por, decidida_em from entrega where id = $1', [entregaId])
@@ -256,7 +256,7 @@ describe('ferramentas e artefato', () => {
     })
 
     it('a listagem traz só os artefatos das turmas da professora, paginados, e o filtro de turma não abre a turma dos outros', async () => {
-      const listar = async (sessao: SessaoDeTeste, consulta = '') => esquemaRespostaListaDeArtefatos.parse((await get(sessao, `/v1/artefatos${consulta}`)).corpo)
+      const listar = async (sessao: SessaoDeTeste, consulta = '') => listaDeArtefatosResponseSchema.parse((await get(sessao, `/v1/artefatos${consulta}`)).corpo)
       const deA = await listar(a.professora)
       expect(deA.itens.map((item) => item.id)).toContain(atividadeDeA)
       expect(deA.itens.map((item) => item.id)).not.toContain(atividadeDeB)
@@ -315,10 +315,10 @@ describe('ferramentas e artefato', () => {
         }
         expect(await comoPessoa(b, b.professora, 'professor', () => new ArtefatoRepository(bancada.banco).porId(id))).toBeUndefined()
       }
-      const lista = esquemaRespostaListaDeArtefatos.parse((await get(b.professora, '/v1/artefatos?limite=100')).corpo).itens
+      const lista = listaDeArtefatosResponseSchema.parse((await get(b.professora, '/v1/artefatos?limite=100')).corpo).itens
       expect(lista.map((item) => item.id)).toContain(atividadeDeB)
       expect(lista.some((item) => [de2025.artefatoId, de2025.adaptadaId].includes(item.id) || item.turmaId === anterior.turmaId)).toBe(false)
-      expect(esquemaRespostaListaDeArtefatos.parse((await get(b.professora, `/v1/artefatos?turmaId=${anterior.turmaId}`)).corpo).itens).toEqual([])
+      expect(listaDeArtefatosResponseSchema.parse((await get(b.professora, `/v1/artefatos?turmaId=${anterior.turmaId}`)).corpo).itens).toEqual([])
       expect(await comoPessoa(b, b.professora, 'professor', () => new ArtefatoRepository(bancada.banco).versoesAdaptadas(de2025.artefatoId))).toEqual([])
       const { rows } = await sql('select titulo from artefato where id = $1', [de2025.artefatoId])
       expect((rows[0] as { titulo: string }).titulo).not.toBe('Título de 2025 trocado em 2026')
@@ -548,10 +548,10 @@ describe('ferramentas e artefato', () => {
         expect((await execucaoTerminada(api, b.professora, await dispararExecucao(api, b.professora, `/v1/artefatos/${atividadeDeB}/adaptar`, { tipos: ['fonte_ampliada'] }))).estado).toBe('concluida')
 
         // O que a função já produziu fica: a entrega pendente aparece, diz de que função é, e o time diz que ela está suspensa.
-        const entregas = esquemaRespostaListaDeEntregas.parse((await get(a.professora, '/v1/entregas?estado=pendente')).corpo)
+        const entregas = listaDeEntregasResponseSchema.parse((await get(a.professora, '/v1/entregas?estado=pendente')).corpo)
         const daSuspensa = entregas.itens.find((entrega) => entrega.id === pendente.resultado?.entregaId)
         expect(daSuspensa).toMatchObject({ funcao: 'adaptacao', estado: 'pendente' })
-        const time = esquemaRespostaTime.parse((await get(a.professora, '/v1/time')).corpo)
+        const time = timeResponseSchema.parse((await get(a.professora, '/v1/time')).corpo)
         expect(time.agentes.flatMap((agente) => agente.funcoes).find((funcao) => funcao.chave === daSuspensa?.funcao)?.suspensa).toBe(true)
         // E continua podendo ser decidida: quem decide é a pessoa.
         expect(await pedir(a.professora, 'POST', `/v1/entregas/${daSuspensa?.id ?? ''}/decidir`, { decisao: 'aprovar' })).toMatchObject({ status: 200, corpo: { estado: 'aprovada' } })

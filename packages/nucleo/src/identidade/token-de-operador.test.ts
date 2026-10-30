@@ -1,4 +1,4 @@
-import { CodigoDeErro } from '@educa/shared'
+import { ErrorCode } from '@educa/shared'
 import { decodeJwt, decodeProtectedHeader, SignJWT, type JWTPayload } from 'jose'
 import { describe, expect, it } from 'vitest'
 import { EMISSOR_TOKEN, type ConfiguracaoIdentidade } from '../config/validar-config.js'
@@ -64,7 +64,7 @@ describe('verificarTokenDeOperador', () => {
     const vencido = { iat: agora() - 7200, exp: agora() - 60 }
     for (const opcoes of [{ chave: OUTRA_CHAVE }, { claims: { iss: 'login-real' } }, { typ: 'JWT' }, { claims: { esc: ESCOLA } }, { claims: { sid: 'sessao-1' } }] satisfies OpcoesDeToken[]) {
       const token = await assinar({ ...opcoes, claims: { ...vencido, ...opcoes.claims } })
-      expect(await recusa(verificarTokenDeOperador(token, config)), JSON.stringify(opcoes)).toMatchObject({ codigo: CodigoDeErro.NAO_AUTENTICADO })
+      expect(await recusa(verificarTokenDeOperador(token, config)), JSON.stringify(opcoes)).toMatchObject({ codigo: ErrorCode.NAO_AUTENTICADO })
     }
   })
 
@@ -82,12 +82,12 @@ describe('verificarTokenDeOperador', () => {
   ]
 
   it.each(recusados)('recusa %s com NAO_AUTENTICADO', async (_caso, gerar) => {
-    expect(await recusa(verificarTokenDeOperador(await gerar(), config))).toMatchObject({ codigo: CodigoDeErro.NAO_AUTENTICADO, status: 401 })
+    expect(await recusa(verificarTokenDeOperador(await gerar(), config))).toMatchObject({ codigo: ErrorCode.NAO_AUTENTICADO, status: 401 })
   })
 
   it('o verificarToken da escola recusa o token de operador pelo typ, com a mesma chave', async () => {
     const { token } = await new EmissorDeTokenDeOperador(CHAVE).emitir({ operadorId: OPERADOR, sessaoId: SESSAO })
-    expect(await recusa(verificarToken(token, config))).toMatchObject({ codigo: CodigoDeErro.NAO_AUTENTICADO })
+    expect(await recusa(verificarToken(token, config))).toMatchObject({ codigo: ErrorCode.NAO_AUTENTICADO })
   })
 })
 

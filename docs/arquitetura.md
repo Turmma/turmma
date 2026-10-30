@@ -44,7 +44,7 @@ Nas camadas, o mesmo `dependency-cruiser` reprova o controller que importa repos
 Drizzle e o repository que importa service ou controller. O tamanho tem catraca: função acima de 10 de complexidade, 80
 linhas de código ou 4 níveis de aninhamento reprova o ESLint, e o que já passava disso em 22/10/2026 está em
 `eslint-suppressions.json`, que só encolhe (`tools/guardas/catraca.test.ts`). Em produção só se lança erro com tipo:
-`ErroDeDominio` com o `CodigoDeErro`, uma classe do módulo, ou `ErroDeInvariante` para o que não pode acontecer, com o
+`ErroDeDominio` com o `ErrorCode`, uma classe do módulo, ou `InvariantException` para o que não pode acontecer, com o
 motivo em texto fixo (lint `guardas/erro-tipado`, regra 00, item 9).
 
 **As pastas.** Uma por módulo de domínio. Nos módulos com vários recursos (`estrutura`, `operacao`, `sala` e

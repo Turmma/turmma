@@ -18,15 +18,15 @@ import { MAXIMO_DE_QUESTOES_POR_ATIVIDADE } from '../assistente/conversa.js'
  */
 
 /** Consulta de `GET /v1/tutor/uso`: a turma, obrigatória. Não aceita aluno, período nem ordenação. */
-export const esquemaConsultaUsoDoTutor = z.strictObject({ turmaId: z.uuid() })
-export type ConsultaUsoDoTutor = z.infer<typeof esquemaConsultaUsoDoTutor>
+export const usoDoTutorQuerySchema = z.strictObject({ turmaId: z.uuid() })
+export type UsoDoTutorQuery = z.infer<typeof usoDoTutorQuerySchema>
 
 /**
  * Em que o aluno estava na última troca: a atividade aplicada e o número da questão, ou o material e a página. É a
  * referência ao trabalho que a própria tela do aluno mandou junto da pergunta; tudo nulo quando ele perguntou fora de
  * atividade e de material.
  */
-export const esquemaReferenciaDaUltimaTroca = z.strictObject({
+export const referenciaDaUltimaTrocaSchema = z.strictObject({
   atividadeAplicadaId: z.uuid().nullable(),
   questao: z.number().int().min(1).max(MAXIMO_DE_QUESTOES_POR_ATIVIDADE).nullable(),
   materialId: z.uuid().nullable(),
@@ -34,13 +34,13 @@ export const esquemaReferenciaDaUltimaTroca = z.strictObject({
 })
 
 /** O uso de um aluno: nomeado só para o professor da turma (D34). Troca é a mensagem que o aluno mandou ao Tutor. */
-export const esquemaUsoDoAluno = z.strictObject({
+export const usoDoAlunoSchema = z.strictObject({
   aluno: z.strictObject({ id: z.uuid(), nome: z.string().min(1) }),
   trocasHoje: z.number().int().nonnegative(),
   ultimaTrocaEm: z.iso.datetime(),
-  ultimaReferencia: esquemaReferenciaDaUltimaTroca,
+  ultimaReferencia: referenciaDaUltimaTrocaSchema,
 })
-export type UsoDoAluno = z.infer<typeof esquemaUsoDoAluno>
+export type UsoDoAluno = z.infer<typeof usoDoAlunoSchema>
 
 export const MAXIMO_DE_ALUNOS_NO_USO = 200
 
@@ -50,11 +50,11 @@ export const MAXIMO_DE_ALUNOS_NO_USO = 200
  * do dia configurado na escola, para a tela dizer "12 de 60"; e a soma da turma no mês contra o pacote (D38). Turma em
  * que ninguém usou vem com a lista vazia.
  */
-export const esquemaRespostaUsoDoTutor = z.strictObject({
+export const usoDoTutorResponseSchema = z.strictObject({
   turmaId: z.uuid(),
   limiteDoDia: z.number().int().min(1),
   trocasDaTurmaNoMes: z.number().int().nonnegative(),
   pacoteDaTurmaNoMes: z.number().int().nonnegative(),
-  alunos: z.array(esquemaUsoDoAluno).max(MAXIMO_DE_ALUNOS_NO_USO),
+  alunos: z.array(usoDoAlunoSchema).max(MAXIMO_DE_ALUNOS_NO_USO),
 })
-export type RespostaUsoDoTutor = z.infer<typeof esquemaRespostaUsoDoTutor>
+export type UsoDoTutorResponse = z.infer<typeof usoDoTutorResponseSchema>

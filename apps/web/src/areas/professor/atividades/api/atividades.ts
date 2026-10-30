@@ -1,17 +1,17 @@
 import {
-  esquemaRespostaAtividadeAplicada,
-  esquemaRespostaAtividadeEncerrada,
-  esquemaRespostaCorrecaoDoLote,
-  esquemaRespostaDesempenhoDaTurma,
-  esquemaRespostaDestaqueAberto,
-  esquemaRespostaListaDeAtividadesAplicadas,
-  esquemaRespostaLoteAprovado,
+  atividadeAplicadaResponseSchema,
+  atividadeEncerradaResponseSchema,
+  correcaoDoLoteResponseSchema,
+  desempenhoDaTurmaResponseSchema,
+  destaqueAbertoResponseSchema,
+  listaDeAtividadesAplicadasResponseSchema,
+  loteAprovadoResponseSchema,
   TAMANHO_MAXIMO_DA_PAGINA,
-  type PedidoAplicarAtividade,
-  type RespostaAtividadeAplicada,
-  type RespostaAtividadeEncerrada,
-  type RespostaDestaqueAberto,
-  type RespostaLoteAprovado,
+  type AplicarAtividadeRequest,
+  type AtividadeAplicadaResponse,
+  type AtividadeEncerradaResponse,
+  type DestaqueAbertoResponse,
+  type LoteAprovadoResponse,
 } from '@educa/shared'
 import { queryOptions, type QueryClient } from '@tanstack/react-query'
 import { CHAVE_DA_CORRECAO, CHAVE_DAS_ATIVIDADES, CHAVE_DAS_ENTREGAS, CHAVE_DO_DESEMPENHO, CHAVE_DOS_ARTEFATOS } from '../../../../api/chaves-do-professor'
@@ -29,21 +29,21 @@ const CAMINHO = '/v1/atividades-aplicadas'
  * a atividade (quem aplicou e quando ficam gravados). A versão adaptada só aplica aprovada
  * (`VERSAO_ADAPTADA_NAO_APROVADA`), e a que já está aberta para a turma responde `CONFLITO`.
  */
-export function aplicarAtividade(pedido: PedidoAplicarAtividade): Promise<RespostaAtividadeAplicada> {
-  return chamarComSessao(CAMINHO, esquemaRespostaAtividadeAplicada, { metodo: 'POST', corpo: pedido })
+export function aplicarAtividade(pedido: AplicarAtividadeRequest): Promise<AtividadeAplicadaResponse> {
+  return chamarComSessao(CAMINHO, atividadeAplicadaResponseSchema, { metodo: 'POST', corpo: pedido })
 }
 
 /** As atividades aplicadas à turma, com quantos alunos começaram e enviaram, e a entrega do lote quando já foi corrigida. */
 export function consultaAtividadesAplicadas(turmaId: string) {
   return queryOptions({
     queryKey: [...CHAVE_DAS_ATIVIDADES, turmaId],
-    queryFn: ({ signal }) => buscarComSessao(`${CAMINHO}?turmaId=${encodeURIComponent(turmaId)}&limite=${String(TAMANHO_MAXIMO_DA_PAGINA)}`, esquemaRespostaListaDeAtividadesAplicadas, signal),
+    queryFn: ({ signal }) => buscarComSessao(`${CAMINHO}?turmaId=${encodeURIComponent(turmaId)}&limite=${String(TAMANHO_MAXIMO_DA_PAGINA)}`, listaDeAtividadesAplicadasResponseSchema, signal),
   })
 }
 
 /** `POST /v1/atividades-aplicadas/:id/encerrar`: as respostas param, a correção é feita e a entrega do lote nasce pendente. */
-export function encerrarAtividade(id: string): Promise<RespostaAtividadeEncerrada> {
-  return chamarComSessao(`${CAMINHO}/${encodeURIComponent(id)}/encerrar`, esquemaRespostaAtividadeEncerrada, { metodo: 'POST', corpo: {} })
+export function encerrarAtividade(id: string): Promise<AtividadeEncerradaResponse> {
+  return chamarComSessao(`${CAMINHO}/${encodeURIComponent(id)}/encerrar`, atividadeEncerradaResponseSchema, { metodo: 'POST', corpo: {} })
 }
 
 /** O que muda na tela quando uma atividade é aplicada ou encerrada: as atividades da turma, o artefato e as entregas. */
@@ -61,7 +61,7 @@ export function recarregarAtividades(cliente: QueryClient): void {
 export function consultaCorrecaoDoLote(atividadeAplicadaId: string) {
   return queryOptions({
     queryKey: [...CHAVE_DA_CORRECAO, atividadeAplicadaId],
-    queryFn: ({ signal }) => buscarComSessao(`${CAMINHO}/${encodeURIComponent(atividadeAplicadaId)}/correcao`, esquemaRespostaCorrecaoDoLote, signal),
+    queryFn: ({ signal }) => buscarComSessao(`${CAMINHO}/${encodeURIComponent(atividadeAplicadaId)}/correcao`, correcaoDoLoteResponseSchema, signal),
     gcTime: 0,
   })
 }
@@ -71,16 +71,16 @@ export function consultaCorrecaoDoLote(atividadeAplicadaId: string) {
  * uma vez só, e devolve as respostas do aluno e o histórico dele. A tela não manda o que mostrou: quem monta o
  * "apresentado" é o servidor.
  */
-export function abrirDestaque(atividadeAplicadaId: string, alunoId: string): Promise<RespostaDestaqueAberto> {
-  return chamarComSessao(`${CAMINHO}/${encodeURIComponent(atividadeAplicadaId)}/correcao/destaques/${encodeURIComponent(alunoId)}/abrir`, esquemaRespostaDestaqueAberto, { metodo: 'POST', corpo: {} })
+export function abrirDestaque(atividadeAplicadaId: string, alunoId: string): Promise<DestaqueAbertoResponse> {
+  return chamarComSessao(`${CAMINHO}/${encodeURIComponent(atividadeAplicadaId)}/correcao/destaques/${encodeURIComponent(alunoId)}/abrir`, destaqueAbertoResponseSchema, { metodo: 'POST', corpo: {} })
 }
 
 /**
  * `POST /v1/entregas/:id/aprovar-lote`, de corpo vazio: a aprovação com o registro da validação. Com destaque sem abrir
  * responde `DESTAQUES_NAO_ABERTOS`; já decidida, `ENTREGA_JA_DECIDIDA`. Rejeitar o lote é `decidirEntrega`.
  */
-export function aprovarLote(entregaId: string): Promise<RespostaLoteAprovado> {
-  return chamarComSessao(`/v1/entregas/${encodeURIComponent(entregaId)}/aprovar-lote`, esquemaRespostaLoteAprovado, { metodo: 'POST', corpo: {} })
+export function aprovarLote(entregaId: string): Promise<LoteAprovadoResponse> {
+  return chamarComSessao(`/v1/entregas/${encodeURIComponent(entregaId)}/aprovar-lote`, loteAprovadoResponseSchema, { metodo: 'POST', corpo: {} })
 }
 
 /** O que muda na tela quando o lote é decidido: a correção, as entregas, as atividades e o desempenho da turma. */
@@ -95,7 +95,7 @@ export async function recarregarDepoisDoLote(cliente: QueryClient): Promise<void
 export function consultaDesempenhoDaTurma(turmaId: string) {
   return queryOptions({
     queryKey: [...CHAVE_DO_DESEMPENHO, turmaId],
-    queryFn: ({ signal }) => buscarComSessao(`/v1/turmas/${encodeURIComponent(turmaId)}/desempenho`, esquemaRespostaDesempenhoDaTurma, signal),
+    queryFn: ({ signal }) => buscarComSessao(`/v1/turmas/${encodeURIComponent(turmaId)}/desempenho`, desempenhoDaTurmaResponseSchema, signal),
     gcTime: 0,
   })
 }

@@ -12,7 +12,7 @@ import {
   type LinhaDaSessao,
   type LoggerBase,
 } from '@educa/nucleo'
-import { CodigoDeErro, MENSAGENS_DE_ERRO } from '@educa/shared'
+import { ErrorCode, MENSAGENS_DE_ERRO } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import type { Socket } from 'socket.io'
 import { z } from 'zod'
@@ -25,10 +25,10 @@ export interface DadosDoSocket {
 export type SocketRealtime = Socket<Record<string, never>, Record<string, never>, Record<string, never>, DadosDoSocket>
 
 export interface ErroDeConexao extends Error {
-  data: { codigo: CodigoDeErro; mensagem: string }
+  data: { codigo: ErrorCode; mensagem: string }
 }
 
-type CodigoDeRecusaDeConexao = typeof CodigoDeErro.NAO_AUTENTICADO | typeof CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO
+type CodigoDeRecusaDeConexao = typeof ErrorCode.NAO_AUTENTICADO | typeof ErrorCode.INDISPONIVEL_TENTE_DE_NOVO
 
 function erroDeConexao(codigo: CodigoDeRecusaDeConexao): ErroDeConexao {
   const erro = new Error(codigo) as ErroDeConexao
@@ -42,16 +42,16 @@ function erroDeConexao(codigo: CodigoDeRecusaDeConexao): ErroDeConexao {
  * sessão gravada.
  */
 export function erroDeConexaoNaoAutenticada(): ErroDeConexao {
-  return erroDeConexao(CodigoDeErro.NAO_AUTENTICADO)
+  return erroDeConexao(ErrorCode.NAO_AUTENTICADO)
 }
 
 /**
  * Recusa por indisponibilidade do Postgres. É outro código de propósito: a queda do banco não pode
  * virar "não autenticado", que na web deslogaria a escola inteira no meio da aula. O cliente
- * reconecta com o recuo espalhado de `RECONEXAO_REALTIME` e volta com o mesmo token.
+ * reconecta com o recuo espalhado de `REALTIME_RECONNECTION` e volta com o mesmo token.
  */
 export function erroDeConexaoIndisponivel(): ErroDeConexao {
-  return erroDeConexao(CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO)
+  return erroDeConexao(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO)
 }
 
 // Três partes base64url, com teto de tamanho: nada além disso é lido do pacote de conexão.
@@ -87,7 +87,7 @@ export function autenticacaoDoHandshake(config: ConfiguracaoIdentidade, leitura:
     void executarNoContexto({ requisicaoId: randomUUID() }, async () => {
       const autenticacao = esquemaAutenticacao.safeParse(socket.handshake.auth)
       try {
-        if (!autenticacao.success) throw new ErroDeDominio(CodigoDeErro.NAO_AUTENTICADO)
+        if (!autenticacao.success) throw new ErroDeDominio(ErrorCode.NAO_AUTENTICADO)
         const token = await verificarToken(autenticacao.data.token, config)
         let linha: LinhaDaSessao | undefined
         try {
@@ -102,7 +102,7 @@ export function autenticacaoDoHandshake(config: ConfiguracaoIdentidade, leitura:
           return
         }
         const sessao = avaliarSessao(token, linha)
-        if (sessao === undefined) throw new ErroDeDominio(CodigoDeErro.NAO_AUTENTICADO)
+        if (sessao === undefined) throw new ErroDeDominio(ErrorCode.NAO_AUTENTICADO)
         definirSessaoNoContexto(sessao)
         // Só escola e usuário no socket: a sala sai da escola da sessão, nunca de nada que o cliente mande.
         const identidade: Identidade = { escolaId: sessao.escolaId, usuarioId: sessao.usuarioId }

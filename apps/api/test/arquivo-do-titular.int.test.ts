@@ -1,6 +1,6 @@
 import { ArmazemEmMemoria, ArquivoDoTitularRepository, criarLogger, type Banco, diaDeUso, executarNoContexto, instrucaoDoRastroDoAluno, LEITURAS_DO_ARQUIVO, type Relogio } from '@educa/nucleo'
 import {
-  CodigoDeErro,
+  ErrorCode,
   COLUNAS_FORA_DO_ARQUIVO,
   CLASSIFICACAO_DAS_TABELAS,
   FINALIDADE_DO_ARQUIVO_DO_PROPRIO_TITULAR,
@@ -36,7 +36,7 @@ import { execucaoDoJob } from '../../worker/test/execucao-do-job.js'
 const MARCA = randomUUID().slice(0, 8)
 const HOJE = (): string => diaDeUso(new Date())
 
-const NAO_ENCONTRADO = { status: 404, corpo: { erro: { codigo: CodigoDeErro.NAO_ENCONTRADO, mensagem: MENSAGENS_DE_ERRO.NAO_ENCONTRADO } } }
+const NAO_ENCONTRADO = { status: 404, corpo: { erro: { codigo: ErrorCode.NAO_ENCONTRADO, mensagem: MENSAGENS_DE_ERRO.NAO_ENCONTRADO } } }
 
 /** A resposta sem o `requisicaoId`, que muda a cada chamada: o resto precisa ser idêntico. */
 function semRequisicao(resposta: { status: number; corpo: Record<string, unknown> }): unknown {
@@ -1169,7 +1169,7 @@ describe('arquivo do titular (F3, tarefa 13.0): do pedido ao download', () => {
         armazem.fora = true
         const indisponivel = await baixar(aluno.sessao, pedidoId)
         expect(indisponivel.status).toBe(503)
-        expect((indisponivel.corpo['erro'] as { codigo: string }).codigo).toBe(CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO)
+        expect((indisponivel.corpo['erro'] as { codigo: string }).codigo).toBe(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO)
         expect(JSON.stringify(indisponivel.corpo)).not.toContain('titular/')
         armazem.fora = false
         expect((await baixar(aluno.sessao, pedidoId)).status).toBe(200)

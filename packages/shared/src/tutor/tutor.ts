@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { camposDaConsultaDeConversa, MAXIMO_DE_MENSAGENS_POR_PAGINA, MAXIMO_DE_QUESTOES_POR_ATIVIDADE } from '../assistente/conversa.js'
-import { esquemaCitacao, esquemaHabilidade } from '../assistente/conteudo.js'
-import { esquemaChaveEnvio } from '../time/chave-envio.js'
+import { citacaoSchema, habilidadeSchema } from '../assistente/conteudo.js'
+import { idempotencyKeySchema } from '../time/idempotency-key.js'
 import { TIPOS_DE_SINAL_DE_TRABALHO } from './sinal.js'
 
 /**
@@ -47,7 +47,7 @@ export type EstadoDoTutor = (typeof ESTADOS_DO_TUTOR)[number]
  * chama modelo e a execução já volta `concluida`. A trava da avaliação existe para o Tutor não ajudar na prova, e a
  * mensagem fixa não ajuda em prova nenhuma. Por isso a tela não trava a caixa de texto nos estados `avaliacao` e `limite`.
  */
-export const esquemaPedidoMensagemAoTutor = z
+export const mensagemAoTutorRequestSchema = z
   .strictObject({
     texto: z.string().trim().min(1).max(TAMANHO_MAXIMO_DA_PERGUNTA_AO_TUTOR),
     atividadeAplicadaId: z.uuid().optional(),
@@ -56,11 +56,11 @@ export const esquemaPedidoMensagemAoTutor = z
     materialId: z.uuid().optional(),
     /** A página do material que o aluno tem aberta, a partir de 1. Só junto do material. */
     pagina: z.number().int().min(1).optional(),
-    chaveEnvio: esquemaChaveEnvio,
+    chaveEnvio: idempotencyKeySchema,
   })
   .refine((pedido) => pedido.questao === undefined || pedido.atividadeAplicadaId !== undefined, { path: ['questao'], message: 'questão só com atividade aplicada' })
   .refine((pedido) => pedido.pagina === undefined || pedido.materialId !== undefined, { path: ['pagina'], message: 'página só com material' })
-export type PedidoMensagemAoTutor = z.infer<typeof esquemaPedidoMensagemAoTutor>
+export type MensagemAoTutorRequest = z.infer<typeof mensagemAoTutorRequestSchema>
 
 export const AUTORES_DE_MENSAGEM_DO_TUTOR = ['aluno', 'tutor'] as const
 export type AutorDeMensagemDoTutor = (typeof AUTORES_DE_MENSAGEM_DO_TUTOR)[number]
@@ -76,36 +76,36 @@ export type TipoDeMensagemDoTutor = (typeof TIPOS_DE_MENSAGEM_DO_TUTOR)[number]
 const camposDaMensagem = { id: z.uuid(), criadaEm: z.iso.datetime() }
 
 /** O que o Tutor disse. Toda mensagem dele é saída de IA, rotulada como tal, e ele nunca se passa por pessoa (D58). */
-export const esquemaMensagemDoTutorAoAluno = z.discriminatedUnion('tipo', [
-  z.strictObject({ ...camposDaMensagem, autor: z.literal('tutor'), tipo: z.literal('texto'), texto: z.string().min(1), citacoes: z.array(esquemaCitacao).max(MAXIMO_DE_CITACOES_DO_TUTOR) }),
+export const mensagemDoTutorAoAlunoSchema = z.discriminatedUnion('tipo', [
+  z.strictObject({ ...camposDaMensagem, autor: z.literal('tutor'), tipo: z.literal('texto'), texto: z.string().min(1), citacoes: z.array(citacaoSchema).max(MAXIMO_DE_CITACOES_DO_TUTOR) }),
   z.strictObject({ ...camposDaMensagem, autor: z.literal('tutor'), tipo: z.literal('assunto_delicado'), texto: z.string().min(1) }),
 ])
-export type MensagemDoTutorAoAluno = z.infer<typeof esquemaMensagemDoTutorAoAluno>
+export type MensagemDoTutorAoAluno = z.infer<typeof mensagemDoTutorAoAlunoSchema>
 
 /** O que o aluno escreveu, devolvido só a ele. */
-export const esquemaMensagemDoAlunoAoTutor = z.strictObject({ ...camposDaMensagem, autor: z.literal('aluno'), tipo: z.literal('texto'), texto: z.string().min(1) })
-export type MensagemDoAlunoAoTutor = z.infer<typeof esquemaMensagemDoAlunoAoTutor>
+export const mensagemDoAlunoAoTutorSchema = z.strictObject({ ...camposDaMensagem, autor: z.literal('aluno'), tipo: z.literal('texto'), texto: z.string().min(1) })
+export type MensagemDoAlunoAoTutor = z.infer<typeof mensagemDoAlunoAoTutorSchema>
 
-export const esquemaMensagemDoTutor = z.union([esquemaMensagemDoAlunoAoTutor, esquemaMensagemDoTutorAoAluno])
-export type MensagemDoTutor = z.infer<typeof esquemaMensagemDoTutor>
+export const mensagemDoTutorSchema = z.union([mensagemDoAlunoAoTutorSchema, mensagemDoTutorAoAlunoSchema])
+export type MensagemDoTutor = z.infer<typeof mensagemDoTutorSchema>
 
 /** Consulta de `GET /v1/tutor/conversa`: a atividade aplicada (sem ela, a conversa fora de atividade) e a paginação para trás. */
-export const esquemaConsultaConversaDoTutor = z.strictObject({ atividadeAplicadaId: z.uuid().optional(), ...camposDaConsultaDeConversa })
-export type ConsultaConversaDoTutor = z.infer<typeof esquemaConsultaConversaDoTutor>
+export const conversaDoTutorQuerySchema = z.strictObject({ atividadeAplicadaId: z.uuid().optional(), ...camposDaConsultaDeConversa })
+export type ConversaDoTutorQuery = z.infer<typeof conversaDoTutorQuerySchema>
 
 /**
  * Resposta de `GET /v1/tutor/conversa`: o estado do Tutor para este aluno agora, quanto do freio do dia ele já usou
  * ("Hoje: N de 60"), o título da avaliação que o trava (só no estado `avaliacao`) e as mensagens da conversa, da mais
  * antiga para a mais nova. Só a conversa do próprio aluno.
  */
-export const esquemaRespostaConversaDoTutor = z.strictObject({
+export const conversaDoTutorResponseSchema = z.strictObject({
   estado: z.enum(ESTADOS_DO_TUTOR),
   uso: z.strictObject({ hoje: z.number().int().nonnegative(), limiteDoDia: z.number().int().min(1) }),
   avaliacaoAberta: z.strictObject({ titulo: z.string().min(1) }).nullable(),
-  mensagens: z.array(esquemaMensagemDoTutor).max(MAXIMO_DE_MENSAGENS_POR_PAGINA),
+  mensagens: z.array(mensagemDoTutorSchema).max(MAXIMO_DE_MENSAGENS_POR_PAGINA),
   anterior: z.uuid().optional(),
 })
-export type RespostaConversaDoTutor = z.infer<typeof esquemaRespostaConversaDoTutor>
+export type ConversaDoTutorResponse = z.infer<typeof conversaDoTutorResponseSchema>
 
 export const MAXIMO_DE_ITENS_NA_MEMORIA = 50
 
@@ -114,7 +114,7 @@ export const MAXIMO_DE_ITENS_NA_MEMORIA = 50
  * resultado e as habilidades em que ele errou mais. Antes da aprovação, `resultado` é nulo: o Tutor não sabe nem diz ao
  * aluno o que a correção ainda pendente achou (regra 70, item 3).
  */
-export const esquemaTrabalhoNaMemoria = z.strictObject({
+export const trabalhoNaMemoriaSchema = z.strictObject({
   atividadeAplicadaId: z.uuid(),
   titulo: z.string().min(1),
   enviadaEm: z.iso.datetime().nullable(),
@@ -122,13 +122,13 @@ export const esquemaTrabalhoNaMemoria = z.strictObject({
     .strictObject({
       acertos: z.number().int().nonnegative(),
       total: z.number().int().min(1),
-      aReforcar: z.array(esquemaHabilidade).max(6),
+      aReforcar: z.array(habilidadeSchema).max(6),
     })
     .nullable(),
 })
 
 /** Onde o aluno travou com o Tutor: o tipo do sinal e a referência ao trabalho. `atencao_humana` não é memória e não aparece aqui. */
-export const esquemaSinalNaMemoria = z.strictObject({
+export const sinalNaMemoriaSchema = z.strictObject({
   tipo: z.enum(TIPOS_DE_SINAL_DE_TRABALHO),
   atividadeAplicadaId: z.uuid().nullable(),
   questao: z.number().int().min(1).nullable(),
@@ -140,8 +140,8 @@ export const esquemaSinalNaMemoria = z.strictObject({
  * derivada dos registros (tentativa, correção de lote aprovado e sinais): não existe tabela nem campo de texto sobre o
  * jeito, o humor, a atenção ou o comportamento do aluno, escrito por modelo ou por pessoa.
  */
-export const esquemaRespostaMemoriaDoTutor = z.strictObject({
-  trabalhos: z.array(esquemaTrabalhoNaMemoria).max(MAXIMO_DE_ITENS_NA_MEMORIA),
-  sinais: z.array(esquemaSinalNaMemoria).max(MAXIMO_DE_ITENS_NA_MEMORIA),
+export const memoriaDoTutorResponseSchema = z.strictObject({
+  trabalhos: z.array(trabalhoNaMemoriaSchema).max(MAXIMO_DE_ITENS_NA_MEMORIA),
+  sinais: z.array(sinalNaMemoriaSchema).max(MAXIMO_DE_ITENS_NA_MEMORIA),
 })
-export type RespostaMemoriaDoTutor = z.infer<typeof esquemaRespostaMemoriaDoTutor>
+export type MemoriaDoTutorResponse = z.infer<typeof memoriaDoTutorResponseSchema>

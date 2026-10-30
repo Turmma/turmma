@@ -16,21 +16,21 @@ import {
   type TransacaoBanco,
 } from '@educa/nucleo'
 import {
-  CodigoDeErro,
-  esquemaCitacao,
-  esquemaConteudoDeAtividade,
-  esquemaDiagnosticoGravado,
-  esquemaRespostaConversaDoTutor,
-  esquemaRespostaMemoriaDoTutor,
+  ErrorCode,
+  citacaoSchema,
+  conteudoDeAtividadeSchema,
+  diagnosticoGravadoSchema,
+  conversaDoTutorResponseSchema,
+  memoriaDoTutorResponseSchema,
   MAXIMO_DE_ITENS_NA_MEMORIA,
   nomeDaSerie,
-  type ConsultaConversaDoTutor,
+  type ConversaDoTutorQuery,
   type EstadoDoTutor,
   type Habilidade,
-  type PedidoMensagemAoTutor,
-  type RespostaConversaDoTutor,
-  type RespostaExecucaoAceita,
-  type RespostaMemoriaDoTutor,
+  type MensagemAoTutorRequest,
+  type ConversaDoTutorResponse,
+  type ExecucaoAceitaResponse,
+  type MemoriaDoTutorResponse,
 } from '@educa/shared'
 import { z } from 'zod'
 import { exigirCitacoesEntregues } from '../assistente/citacoes.js'
@@ -68,7 +68,7 @@ const listaEmPortugues = new Intl.ListFormat('pt-BR', { style: 'long', type: 'co
 
 /** As habilidades das questões de uma atividade, pelo código: é de onde sai a descrição que a correção não guarda. */
 function habilidadesDaAtividade(conteudo: unknown): Map<string, Habilidade> {
-  const lido = esquemaConteudoDeAtividade.safeParse(conteudo)
+  const lido = conteudoDeAtividadeSchema.safeParse(conteudo)
   return new Map(lido.success ? lido.data.questoes.map((questao) => [questao.habilidade.codigo, questao.habilidade]) : [])
 }
 
@@ -78,7 +78,7 @@ function habilidadesDaAtividade(conteudo: unknown): Map<string, Habilidade> {
  * (`docs/aia/tutor.md`, N4). Nunca espalhe a questão do artefato aqui.
  */
 export function questaoSemGabarito(conteudo: unknown, numero: number): QuestaoEmAndamento | undefined {
-  const lido = esquemaConteudoDeAtividade.safeParse(conteudo)
+  const lido = conteudoDeAtividadeSchema.safeParse(conteudo)
   const questao = lido.success ? lido.data.questoes[numero - 1] : undefined
   if (questao === undefined) return undefined
   return { numero, enunciado: questao.enunciado, alternativas: [...questao.alternativas], habilidade: { codigo: questao.habilidade.codigo, descricao: questao.habilidade.descricao } }
@@ -93,7 +93,7 @@ export function memoriaDoTrabalho(trabalhos: readonly TrabalhoDoAluno[]): Memori
   for (const trabalho of trabalhos) {
     if (trabalho.porHabilidade === null) continue
     const habilidades = habilidadesDaAtividade(trabalho.conteudo)
-    for (const item of esquemaDiagnosticoGravado.parse(trabalho.porHabilidade)) {
+    for (const item of diagnosticoGravadoSchema.parse(trabalho.porHabilidade)) {
       const habilidade = habilidades.get(item.codigo)
       if (habilidade === undefined) continue
       const atual = soma.get(item.codigo) ?? { habilidade, acertos: 0, erros: 0 }
@@ -109,7 +109,7 @@ function paraATela(mensagem: MensagemDaConversa): unknown {
   // A mensagem fixa de assunto delicado não tem citação: a tela a mostra com o botão de avisar um adulto.
   if (mensagem.tipo === 'assunto_delicado') return { ...comum, tipo: 'assunto_delicado' }
   // As citações gravadas são validadas de novo na leitura (regra 30, item 7).
-  return { ...comum, tipo: 'texto', citacoes: z.array(esquemaCitacao).parse(mensagem.citacoes ?? []) }
+  return { ...comum, tipo: 'texto', citacoes: z.array(citacaoSchema).parse(mensagem.citacoes ?? []) }
 }
 
 /**
@@ -154,7 +154,7 @@ export class TutorService {
   ) {}
 
   /** `POST /v1/tutor/mensagens`: confere, grava a pergunta com a execução e responde o id dela. */
-  async enviar(pedido: PedidoMensagemAoTutor): Promise<RespostaExecucaoAceita> {
+  async enviar(pedido: MensagemAoTutorRequest): Promise<ExecucaoAceitaResponse> {
     const alcance = await this.#alcance(pedido)
     const onde: ReferenciaDaPergunta = { atividadeAplicadaId: alcance.atividade?.id ?? null, questao: pedido.questao ?? null, materialId: alcance.material?.id ?? null, pagina: pedido.pagina ?? null }
     const { turmaId } = alcance.turma
@@ -162,7 +162,7 @@ export class TutorService {
 
     // O reenvio com a mesma chave devolve a mesma execução, mesmo que o freio tenha fechado ou a avaliação aberto depois.
     const jaAceita = await new ExecucaoDaSessaoRepository(this.banco).daChave(pedido.chaveEnvio)
-    if (jaAceita !== undefined && jaAceita.tarefa !== turnoDoTutor.nome) throw new ErroDeDominio(CodigoDeErro.CONFLITO)
+    if (jaAceita !== undefined && jaAceita.tarefa !== turnoDoTutor.nome) throw new ErroDeDominio(ErrorCode.CONFLITO)
 
     // Antes de tudo, até da avaliação aberta: a trava existe para o Tutor não ajudar na prova, e a mensagem fixa não ajuda em prova nenhuma.
     if (ehAssuntoDelicado(pedido.texto)) return jaAceita === undefined ? this.#encaminhar(pedido, alcance) : { execucaoId: jaAceita.id }
@@ -172,7 +172,7 @@ export class TutorService {
     // receberia "espere um minuto" no lugar do 188 (D36). O encaminhamento não chama modelo, então não há o que proteger.
     await this.limite.contar()
 
-    if (jaAceita === undefined && (await new TutorDoAlunoRepository(this.banco).avaliativaAberta(turmaId)) !== undefined) throw new ErroDeDominio(CodigoDeErro.TUTOR_PAUSADO_EM_AVALIACAO)
+    if (jaAceita === undefined && (await new TutorDoAlunoRepository(this.banco).avaliativaAberta(turmaId)) !== undefined) throw new ErroDeDominio(ErrorCode.TUTOR_PAUSADO_EM_AVALIACAO)
 
     if (jaAceita === undefined) {
       // Sem a trava: recusa na hora quem já está no limite. A conta que vale é a de dentro da transação, abaixo.
@@ -201,13 +201,13 @@ export class TutorService {
         const tutor = new TutorDoAlunoRepository(this.banco, this.relogio)
         // A pergunta gravada, e não a do corpo: no reenvio com a mesma chave, vale a que entrou na conversa.
         const pergunta = await tutor.perguntaDaChave(pedido.chaveEnvio)
-        if (pergunta === undefined) throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
+        if (pergunta === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
         // O alcance é conferido de novo na hora de rodar: quem saiu da turma depois do `202` não recebe resposta sobre ela.
         const agora = await this.#alcance({ ...(pergunta.atividadeAplicadaId === null ? {} : { atividadeAplicadaId: pergunta.atividadeAplicadaId }), ...(pergunta.materialId === null ? {} : { materialId: pergunta.materialId }) })
-        if (agora.turma.turmaId !== pergunta.turmaId) throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
+        if (agora.turma.turmaId !== pergunta.turmaId) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
         // A avaliação que abriu entre o `202` e agora trava o turno antes de qualquer trabalho: sem trecho, sem memória e sem
         // chamar o modelo. A execução falha com o código da pausa, `trocas()` a ignora e a pergunta fica só em `mensagem_tutor`.
-        if ((await tutor.avaliativaAberta(agora.turma.turmaId)) !== undefined) throw new ErroDeDominio(CodigoDeErro.TUTOR_PAUSADO_EM_AVALIACAO)
+        if ((await tutor.avaliativaAberta(agora.turma.turmaId)) !== undefined) throw new ErroDeDominio(ErrorCode.TUTOR_PAUSADO_EM_AVALIACAO)
         const questao = agora.atividade === undefined || pergunta.questao === null ? undefined : questaoSemGabarito(agora.atividade.conteudo, pergunta.questao)
         const entregues = await this.#trechosDoTurno(pergunta, agora, questao)
         const turnosAnteriores = (await tutor.turnosParaATarefa(pergunta, TURNOS_ANTERIORES_NO_TURNO)).reverse().map((turno) => ({ autor: turno.autor, texto: turno.texto.slice(0, TAMANHO_MAXIMO_DO_TURNO) }))
@@ -228,7 +228,7 @@ export class TutorService {
         // Sem trava: a conferência lê e grava em READ COMMITTED, e a avaliação que comita logo depois da leitura ainda deixa a
         // resposta passar. O resultado equivale à ordem serial "a resposta grava antes de a prova abrir": nenhuma transação lê o que a outra escreve.
         if (saida.classificacao !== 'assunto_delicado' && (await new TutorDoAlunoRepository(tx, this.relogio).avaliativaAberta(lido.pergunta.turmaId)) !== undefined) {
-          throw new ErroDeDominio(CodigoDeErro.TUTOR_PAUSADO_EM_AVALIACAO)
+          throw new ErroDeDominio(ErrorCode.TUTOR_PAUSADO_EM_AVALIACAO)
         }
         exigirCitacoesEntregues(saida.citacoes, lido.entregues)
         return { tipo: 'mensagem_do_tutor', mensagemId: await this.#gravarTurno(tx, lido.pergunta, saida) }
@@ -241,10 +241,10 @@ export class TutorService {
    * atividade e material juntos, o material precisa ser da disciplina da atividade. Fora do alcance, de outra escola,
    * de outro ano ou inexistente: `NAO_ENCONTRADO`, igual para todos (regra 10, item 6).
    */
-  async #alcance(pedido: Pick<PedidoMensagemAoTutor, 'atividadeAplicadaId' | 'questao' | 'materialId' | 'pagina'>): Promise<Alcance> {
+  async #alcance(pedido: Pick<MensagemAoTutorRequest, 'atividadeAplicadaId' | 'questao' | 'materialId' | 'pagina'>): Promise<Alcance> {
     const tutor = new TutorDoAlunoRepository(this.banco, this.relogio)
     const naoEncontrado = (): never => {
-      throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
+      throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
     }
     const turma = (await tutor.turmaDoAluno()) ?? naoEncontrado()
     const atividade = pedido.atividadeAplicadaId === undefined ? undefined : ((await tutor.atividadeDaTurma(turma.turmaId, pedido.atividadeAplicadaId.toLowerCase())) ?? naoEncontrado())
@@ -329,7 +329,7 @@ export class TutorService {
    * A pergunta fica na conversa em que foi feita, **sem a questão, o material e a página**: não é referência a
    * trabalho. O consumo registra só a medição, como regra fixa, sem entrada nem saída.
    */
-  async #encaminhar(pedido: PedidoMensagemAoTutor, alcance: Alcance): Promise<RespostaExecucaoAceita> {
+  async #encaminhar(pedido: MensagemAoTutorRequest, alcance: Alcance): Promise<ExecucaoAceitaResponse> {
     const inicio = performance.now()
     const { escolaId, usuarioId: alunoId } = sessaoDaRequisicao()
     const fixa = turnoDoTutor.semModelo?.({ duvida: pedido.texto, contexto: await this.#contexto(new TutorDoAlunoRepository(this.banco, this.relogio), alcance), trechos: [], memoria: [], turnosAnteriores: [] })
@@ -340,8 +340,8 @@ export class TutorService {
       if (nova === undefined) {
         // A chave entrou entre a consulta e a gravação: se foi este aluno, é o reenvio; se não, é como se não existisse.
         const existente = await execucoes.daChave(pedido.chaveEnvio)
-        if (existente === undefined) throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
-        if (existente.tarefa !== turnoDoTutor.nome) throw new ErroDeDominio(CodigoDeErro.CONFLITO)
+        if (existente === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+        if (existente.tarefa !== turnoDoTutor.nome) throw new ErroDeDominio(ErrorCode.CONFLITO)
         return existente.id
       }
       const tutor = new TutorDoAlunoRepository(tx, this.relogio)
@@ -383,7 +383,7 @@ export class TutorService {
    * `limite` com o freio do dia ou o pacote do mês atingido; senão, `ligado`. Nesta fatia não há política de Tutor por
    * turma (D19), e por isso `fora` não é devolvido.
    */
-  async conversa({ atividadeAplicadaId, antes, limite }: ConsultaConversaDoTutor): Promise<RespostaConversaDoTutor> {
+  async conversa({ atividadeAplicadaId, antes, limite }: ConversaDoTutorQuery): Promise<ConversaDoTutorResponse> {
     const tutor = new TutorDoAlunoRepository(this.banco, this.relogio)
     const alcance = await this.#alcance(atividadeAplicadaId === undefined ? {} : { atividadeAplicadaId })
     const { turmaId } = alcance.turma
@@ -395,7 +395,7 @@ export class TutorService {
     let estado: EstadoDoTutor = 'ligado'
     if (avaliacaoAberta !== null) estado = 'avaliacao'
     else if (!(await this.orcamento.consultar({ funcao: FUNCAO_DO_TUTOR, alunoId, turmaId })).permitido) estado = 'limite'
-    return esquemaRespostaConversaDoTutor.parse({ estado, uso: await tutor.usoDeHoje(), avaliacaoAberta, mensagens: pagina.reverse().map(paraATela), ...(anterior === undefined ? {} : { anterior }) })
+    return conversaDoTutorResponseSchema.parse({ estado, uso: await tutor.usoDeHoje(), avaliacaoAberta, mensagens: pagina.reverse().map(paraATela), ...(anterior === undefined ? {} : { anterior }) })
   }
 
   /**
@@ -404,9 +404,9 @@ export class TutorService {
    * sinais de trabalho (em que atividade e questão ele travou, pediu a resposta ou voltou). O `atencao_humana` não é
    * memória e não aparece. Não há texto sobre o aluno em campo nenhum.
    */
-  async memoria(): Promise<RespostaMemoriaDoTutor> {
+  async memoria(): Promise<MemoriaDoTutorResponse> {
     const tutor = new TutorDoAlunoRepository(this.banco, this.relogio)
-    if ((await tutor.turmaDoAluno()) === undefined) throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
+    if ((await tutor.turmaDoAluno()) === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
     const trabalhos = (await tutor.trabalhos(MAXIMO_DE_ITENS_NA_MEMORIA)).map((trabalho) => ({
       atividadeAplicadaId: trabalho.atividadeAplicadaId,
       titulo: trabalho.titulo,
@@ -424,6 +424,6 @@ export class TutorService {
             },
     }))
     const sinais = (await tutor.sinaisDeTrabalho(MAXIMO_DE_ITENS_NA_MEMORIA)).map((sinal) => ({ tipo: sinal.tipo, atividadeAplicadaId: sinal.atividadeAplicadaId, questao: sinal.questao, criadoEm: sinal.criadoEm.toISOString() }))
-    return esquemaRespostaMemoriaDoTutor.parse({ trabalhos, sinais })
+    return memoriaDoTutorResponseSchema.parse({ trabalhos, sinais })
   }
 }

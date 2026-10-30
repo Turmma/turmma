@@ -11,21 +11,21 @@ const minutosDeInatividade = z.number().int().min(INATIVIDADE_MINIMA_MIN).max(IN
  * Corpo de `PUT /v1/escola/sessao`: os minutos sem uso até a sessão vencer, do aluno e da equipe (RF13). Estrito: nada
  * além dos dois números, e nunca a escola, que vem da sessão.
  */
-export const esquemaPedidoEscolaSessao = z
+export const escolaSessaoRequestSchema = z
   .object({
     inatividadeAlunoMin: minutosDeInatividade,
     inatividadeEquipeMin: minutosDeInatividade,
   })
   .strict()
 
-export type PedidoEscolaSessao = z.infer<typeof esquemaPedidoEscolaSessao>
+export type EscolaSessaoRequest = z.infer<typeof escolaSessaoRequestSchema>
 
 /** Resposta de `PUT /v1/escola/sessao`: os dois números como ficaram gravados. */
-export const esquemaRespostaEscolaSessao = z
+export const escolaSessaoResponseSchema = z
   .object({
     inatividadeAlunoMin: z.number().int().positive(),
     inatividadeEquipeMin: z.number().int().positive(),
   })
   .strict()
 
-export type RespostaEscolaSessao = z.infer<typeof esquemaRespostaEscolaSessao>
+export type EscolaSessaoResponse = z.infer<typeof escolaSessaoResponseSchema>

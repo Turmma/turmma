@@ -86,7 +86,7 @@ Cada item traz o fundamento e o jeito de conferir, por teste automatizado ou por
 
 **N1. Não recebe, não guarda e não mostra diagnóstico, laudo, CID nem nome de condição.**
 Fundamento: D35; LGPD, art. 11; regra 20, item 3.
-Como se confere: o esquema da adaptação (`esquemaAdaptacaoAplicada`) é estrito e só tem `tipos` e
+Como se confere: o esquema da adaptação (`adaptacaoAplicadaSchema`) é estrito e só tem `tipos` e
 `tempoExtraPercentual`; um teste envia campo a mais e espera recusa.
 
 **N2. Não tem campo de texto livre sobre o aluno, e não aceita tipo fora da lista fechada.**

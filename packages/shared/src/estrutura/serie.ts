@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { esquemaDePagina } from './paginacao.js'
+import { pageSchema } from './pagination.js'
 
 /** As etapas do recorte (D43): anos finais do Ensino Fundamental e Ensino Médio. */
 export const ETAPAS = ['ef_anos_finais', 'em'] as const
@@ -27,16 +27,16 @@ export function nomeDaSerie(serie: { readonly etapa: Etapa; readonly ano: number
  * Corpo de `POST /v1/series`: a etapa e o ano dentro dela. "5º ano" e "4º do Ensino Médio" são recusados aqui, e de novo
  * pelo check do banco. Estrito: nada de escola, que vem da sessão.
  */
-export const esquemaPedidoCriarSerie = z.discriminatedUnion('etapa', [
+export const criarSerieRequestSchema = z.discriminatedUnion('etapa', [
   z
     .object({ etapa: z.literal('ef_anos_finais'), ano: z.number().int().min(ANOS_DA_ETAPA.ef_anos_finais.menor).max(ANOS_DA_ETAPA.ef_anos_finais.maior) })
     .strict(),
   z.object({ etapa: z.literal('em'), ano: z.number().int().min(ANOS_DA_ETAPA.em.menor).max(ANOS_DA_ETAPA.em.maior) }).strict(),
 ])
 
-export type PedidoCriarSerie = z.infer<typeof esquemaPedidoCriarSerie>
+export type CriarSerieRequest = z.infer<typeof criarSerieRequestSchema>
 
-export const esquemaSerie = z
+export const serieSchema = z
   .object({
     id: z.uuid(),
     etapa: z.enum(ETAPAS),
@@ -44,12 +44,12 @@ export const esquemaSerie = z
   })
   .strict()
 
-export type Serie = z.infer<typeof esquemaSerie>
+export type Serie = z.infer<typeof serieSchema>
 
 /** Resposta de `POST /v1/series`. */
-export const esquemaRespostaSerie = esquemaSerie
-export type RespostaSerie = Serie
+export const serieResponseSchema = serieSchema
+export type SerieResponse = Serie
 
 /** Resposta de `GET /v1/series`. */
-export const esquemaRespostaListaDeSeries = esquemaDePagina(esquemaSerie)
-export type RespostaListaDeSeries = z.infer<typeof esquemaRespostaListaDeSeries>
+export const listaDeSeriesResponseSchema = pageSchema(serieSchema)
+export type ListaDeSeriesResponse = z.infer<typeof listaDeSeriesResponseSchema>

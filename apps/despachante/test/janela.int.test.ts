@@ -1,6 +1,6 @@
 import 'reflect-metadata'
 import { criarBanco, criarPool, DespachoRepository, executarNoContexto, PRIORIDADE_DA_FILA } from '@educa/nucleo'
-import type { Fila } from '@educa/shared'
+import type { QueueName } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { compose, PROCESSOS_DA_FILA } from '../../../tools/testes/compose.ts'
@@ -53,14 +53,14 @@ describe('lote não urgente segurado no horário letivo da escola', () => {
     await bancada.fechar()
   }, 60_000)
 
-  const enfileirar = (escolaId: string, fila: Fila, naoUrgente: boolean) => bancada.enfileirar(escolaId, { fila, naoUrgente })
+  const enfileirar = (escolaId: string, fila: QueueName, naoUrgente: boolean) => bancada.enfileirar(escolaId, { fila, naoUrgente })
 
   async function linha(id: string): Promise<{ estado: string; reservadoAte: Date | null } | undefined> {
     const { rows } = await bancada.pool.query<{ estado: string; reservadoAte: Date | null }>('select estado, reservado_ate as "reservadoAte" from job_registro where id = $1', [id])
     return rows[0]
   }
 
-  const membrosDaVaga = async (fila: Fila, escolaId: string) => (await bancada.redis.zrange(bancada.vagas.chave(fila, escolaId), '0', '-1')).sort()
+  const membrosDaVaga = async (fila: QueueName, escolaId: string) => (await bancada.redis.zrange(bancada.vagas.chave(fila, escolaId), '0', '-1')).sort()
 
   it('caminho feliz: não urgente criado numa terça às 10h fica aguardando, sem reserva nem vaga, até as 18h, e sai às 18h00', async () => {
     const id = await enfileirar(ESCOLA_A, 'lote', true)

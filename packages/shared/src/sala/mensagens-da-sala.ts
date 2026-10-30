@@ -1,5 +1,5 @@
-import { CodigoDeErro } from '../erros/codigo-de-erro.js'
-import { MENSAGENS_DE_ERRO } from '../erros/mensagens.js'
+import { ErrorCode } from '../errors/error-code.js'
+import { MENSAGENS_DE_ERRO } from '../errors/messages.js'
 
 /**
  * Os textos da página pública da turma, `/e/<slug>/turma` (A1, tarefa 17.0; Tech Spec da A1, seção 9, "Textos"; W9).
@@ -51,13 +51,13 @@ export function mensagemDoLimiteDaSala(esperaSegundos?: number): string {
  * O texto de uma falha da página pública, pelo código e pelo caminho que a página usou. `esgotado` é o 503 que a página
  * já repetiu três vezes. O que não é da sala cai no catálogo geral, que também não traz código nem "computador".
  */
-export function mensagemDaSala(codigo: CodigoDeErro, contexto: { readonly caminho: CaminhoDaSala; readonly esperaSegundos?: number | undefined; readonly esgotado?: boolean }): string {
+export function mensagemDaSala(codigo: ErrorCode, contexto: { readonly caminho: CaminhoDaSala; readonly esperaSegundos?: number | undefined; readonly esgotado?: boolean }): string {
   switch (codigo) {
-    case CodigoDeErro.NAO_ENCONTRADO:
+    case ErrorCode.NAO_ENCONTRADO:
       return contexto.caminho === 'link' ? MENSAGENS_DA_SALA.linkNaoVale : MENSAGENS_DA_SALA.codigoNaoEncontrado
-    case CodigoDeErro.LIMITE_EXCEDIDO:
+    case ErrorCode.LIMITE_EXCEDIDO:
       return mensagemDoLimiteDaSala(contexto.esperaSegundos)
-    case CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO:
+    case ErrorCode.INDISPONIVEL_TENTE_DE_NOVO:
       return contexto.esgotado === true ? MENSAGENS_DA_SALA.cheio : MENSAGENS_DA_SALA.tentandoDeNovo
     // A recusa cai aqui: o texto do catálogo é o do W9 (`MENSAGENS_DA_SALA.recusada`).
     default:

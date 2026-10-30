@@ -1,12 +1,12 @@
 import { executarNoContexto } from '@educa/nucleo'
 import {
-  CodigoDeErro,
-  esquemaRespostaAlunosDaTurma,
-  esquemaRespostaDecisao,
-  esquemaRespostaLogin,
-  esquemaRespostaPedidosDaTurma,
-  esquemaRespostaPreviaDaLista,
-  esquemaRespostaSalaAberta,
+  ErrorCode,
+  alunosDaTurmaResponseSchema,
+  decisaoResponseSchema,
+  loginResponseSchema,
+  pedidosDaTurmaResponseSchema,
+  previaDaListaResponseSchema,
+  salaAbertaResponseSchema,
   MENSAGENS_DE_ERRO,
   type ResultadoDaDecisao,
 } from '@educa/shared'
@@ -60,7 +60,7 @@ describe('decisão dos pedidos (A1, tarefa 8.0): uma pessoa aprova ou recusa, e 
   /** O resultado de cada id, na ordem do pedido, de uma decisão que respondeu 200. */
   function resultados(resposta: RespostaHttp): ResultadoDaDecisao[] {
     expect(resposta.status).toBe(200)
-    return esquemaRespostaDecisao.parse(resposta.corpo).resultados.map((linha) => linha.resultado)
+    return decisaoResponseSchema.parse(resposta.corpo).resultados.map((linha) => linha.resultado)
   }
 
   /** O aluno reivindica o nome pela sala, com a matrícula certa, e o id do pedido pendente que nasceu. */
@@ -139,7 +139,7 @@ describe('decisão dos pedidos (A1, tarefa 8.0): uma pessoa aprova ou recusa, e 
       // E22: antes da aprovação a credencial não existe, e cinco tentativas seguram a matrícula.
       const tentativas: RespostaHttp[] = []
       for (let vez = 0; vez < 5; vez++) tentativas.push(await entrar(s, '123'))
-      expect(tentativas.map((resposta) => resposta.corpo.erro?.codigo)).toEqual([...Array<string>(4).fill(CodigoDeErro.NAO_AUTENTICADO), CodigoDeErro.CONTA_SEGURADA])
+      expect(tentativas.map((resposta) => resposta.corpo.erro?.codigo)).toEqual([...Array<string>(4).fill(ErrorCode.NAO_AUTENTICADO), ErrorCode.CONTA_SEGURADA])
 
       expect(resultados(await decidir(s.professor, [pedidoId]))).toEqual(['decidida'])
 
@@ -173,7 +173,7 @@ describe('decisão dos pedidos (A1, tarefa 8.0): uma pessoa aprova ou recusa, e 
       for (const matricula of ['123', ' 123 ']) {
         const entrada = await entrar(s, matricula)
         expect(entrada.status, matricula).toBe(200)
-        expect(esquemaRespostaLogin.parse(entrada.corpo)).toMatchObject({ etapa: 'pronta' })
+        expect(loginResponseSchema.parse(entrada.corpo)).toMatchObject({ etapa: 'pronta' })
       }
     })
   })
@@ -186,7 +186,7 @@ describe('decisão dos pedidos (A1, tarefa 8.0): uma pessoa aprova ou recusa, e 
       for (const nome of nomes) {
         aprovados.push(await pedir(s, nome))
         for (let vez = 0; vez < 5; vez++) await entrar(s, nome.matricula)
-        expect((await entrar(s, nome.matricula)).corpo.erro?.codigo).toBe(CodigoDeErro.CONTA_SEGURADA)
+        expect((await entrar(s, nome.matricula)).corpo.erro?.codigo).toBe(ErrorCode.CONTA_SEGURADA)
       }
       // Um pedido pendente que aponta para um nome de outro ano da escola, que a FK (só com a escola) aceita e a API nunca
       // grava: a aprovação dele não acha o nome no ano em curso e para o lote com um erro interno.
@@ -236,7 +236,7 @@ describe('decisão dos pedidos (A1, tarefa 8.0): uma pessoa aprova ou recusa, e 
       for (const lote of invalidos) {
         const resposta = await decidir(s.professor, lote)
         expect(resposta.status, String(lote.length)).toBe(400)
-        expect(resposta.corpo.erro?.codigo).toBe(CodigoDeErro.ENTRADA_INVALIDA)
+        expect(resposta.corpo.erro?.codigo).toBe(ErrorCode.ENTRADA_INVALIDA)
       }
       expect((await post(s.professor, '/v1/reivindicacoes/decidir', { ids: [primeiro], decisao: 'aprovar_todos' })).status).toBe(400)
       expect((await post(s.professor, '/v1/reivindicacoes/decidir', { ids: [primeiro], decisao: 'aprovar', escolaId: s.escolaId })).status).toBe(400)
@@ -246,7 +246,7 @@ describe('decisão dos pedidos (A1, tarefa 8.0): uma pessoa aprova ou recusa, e 
       const lote = [primeiro, segundo, terceiro.toUpperCase(), ...Array.from({ length: 37 }, () => randomUUID())]
       const decididos = await decidir(s.professor, lote)
       expect(resultados(decididos)).toEqual(['decidida', 'decidida', 'decidida', ...Array<string>(37).fill('nao_encontrada')])
-      expect(esquemaRespostaDecisao.parse(decididos.corpo).resultados.slice(0, 3).map((linha) => linha.id)).toEqual([primeiro, segundo, terceiro])
+      expect(decisaoResponseSchema.parse(decididos.corpo).resultados.slice(0, 3).map((linha) => linha.id)).toEqual([primeiro, segundo, terceiro])
       expect(await alunosDa(s.escolaId)).toEqual({ usuarios: 3, credenciais: 3 })
       expect((await pedidoNoBanco(quarto)).estado).toBe('pendente')
     })
@@ -273,7 +273,7 @@ describe('decisão dos pedidos (A1, tarefa 8.0): uma pessoa aprova ou recusa, e 
       expect(await alunosDa(s.escolaId)).toEqual({ usuarios: 0, credenciais: 0 })
       expect(await auditoriaDo(pedidoId)).toEqual([{ autor_usuario_id: s.professor.usuarioId, depois: { turmaId: s.turma, estado: 'recusada', decididaComo: 'professor', alunoId: null } }])
 
-      const aberta = esquemaRespostaSalaAberta.parse(JSON.parse((await sala.abrir({ slug: s.slug, codigo: s.codigo })).texto))
+      const aberta = salaAbertaResponseSchema.parse(JSON.parse((await sala.abrir({ slug: s.slug, codigo: s.codigo })).texto))
       expect(aberta.nomes.map((nome) => nome.id)).toContain(dono.id)
       const doDono = await pedir(s, dono)
       expect(doDono).not.toBe(pedidoId)
@@ -290,7 +290,7 @@ describe('decisão dos pedidos (A1, tarefa 8.0): uma pessoa aprova ou recusa, e 
       const recusado = await pedir(s, marcadoRecusado)
       const semMarca = await pedir(s, limpo)
 
-      const lidos = esquemaRespostaPedidosDaTurma.parse((await lerPedidos(s.professor, s.turma)).corpo).itens
+      const lidos = pedidosDaTurmaResponseSchema.parse((await lerPedidos(s.professor, s.turma)).corpo).itens
       expect(Object.fromEntries(lidos.map((pedido) => [pedido.id, pedido.teveMatriculaErrada]))).toEqual({ [aprovado]: true, [recusado]: true, [semMarca]: false })
 
       expect(resultados(await decidir(s.professor, [aprovado]))).toEqual(['decidida'])
@@ -313,7 +313,7 @@ describe('decisão dos pedidos (A1, tarefa 8.0): uma pessoa aprova ou recusa, e 
       const idDa = (matricula: string) => rows.find((linha) => linha.matricula === matricula)?.id ?? ''
       const daPrimeira = await pedir(s, { id: idDa(primeira), nome, matricula: primeira })
       const daSegunda = await pedir(s, { id: idDa(segunda), nome, matricula: segunda })
-      const lidos = esquemaRespostaPedidosDaTurma.parse((await lerPedidos(s.professor, s.turma)).corpo).itens
+      const lidos = pedidosDaTurmaResponseSchema.parse((await lerPedidos(s.professor, s.turma)).corpo).itens
       expect(lidos.map((pedido) => [pedido.id, pedido.nome])).toEqual([
         [daPrimeira, nome],
         [daSegunda, nome],
@@ -408,7 +408,7 @@ describe('decisão dos pedidos (A1, tarefa 8.0): uma pessoa aprova ou recusa, e 
       const resposta = await decidir(a.professor, lote)
       expect(resultados(resposta)).toEqual([...Array<string>(9).fill('nao_encontrada'), 'decidida'])
       // Idênticos entre si e ao aleatório: o mesmo objeto, só com o id de cada um.
-      const linhas = esquemaRespostaDecisao.parse(resposta.corpo).resultados
+      const linhas = decisaoResponseSchema.parse(resposta.corpo).resultados
       expect(linhas.map((linha) => linha.id)).toEqual(lote)
       expect(await estadosDe(deFora)).toEqual(antes)
       expect((await pedidoNoBanco(t1Pendente)).estado).toBe('aprovada')
@@ -442,7 +442,7 @@ describe('decisão dos pedidos (A1, tarefa 8.0): uma pessoa aprova ou recusa, e 
       const alocado = await bancada.sessao(s.escolaId, 'professor')
       expect((await post(s.coordenacao, '/v1/vinculos', { usuarioId: alocado.usuarioId, turmaId: s.turma, disciplinaId: s.fisica, papel: 'professor' })).status).toBe(201)
       const aluno = await bancada.sessao(s.escolaId, 'aluno')
-      const NAO_ENCONTRADO = { codigo: CodigoDeErro.NAO_ENCONTRADO, mensagem: MENSAGENS_DE_ERRO.NAO_ENCONTRADO }
+      const NAO_ENCONTRADO = { codigo: ErrorCode.NAO_ENCONTRADO, mensagem: MENSAGENS_DE_ERRO.NAO_ENCONTRADO }
       for (const [quem, sessao] of [
         ['professor com o vínculo pendente', alocado],
         ['aluno', aluno],
@@ -465,12 +465,12 @@ describe('decisão dos pedidos (A1, tarefa 8.0): uma pessoa aprova ou recusa, e 
       const respostas = await Promise.all([s.turma, randomUUID(), b.turma].map((turmaId) => lerPedidos(s.coordenacao, turmaId)))
       for (const resposta of respostas) {
         expect(resposta.status).toBe(400)
-        expect(resposta.corpo.erro?.codigo).toBe(CodigoDeErro.ENTRADA_INVALIDA)
+        expect(resposta.corpo.erro?.codigo).toBe(ErrorCode.ENTRADA_INVALIDA)
       }
       // A consulta é estrita: a escola nunca vem do cliente, nem com a finalidade.
       const comEscola = await lerPedidos(s.coordenacao, s.turma, `?finalidade=${FINALIDADE}&escolaId=${s.escolaId}`)
       expect(comEscola.status).toBe(400)
-      expect(comEscola.corpo.erro?.codigo).toBe(CodigoDeErro.ENTRADA_INVALIDA)
+      expect(comEscola.corpo.erro?.codigo).toBe(ErrorCode.ENTRADA_INVALIDA)
       const { rows } = await bancada.pool.query('select id from auditoria where escola_id = $1 and em >= $2', [s.escolaId, marco[0]?.agora])
       expect(rows).toEqual([])
     })
@@ -485,7 +485,7 @@ describe('decisão dos pedidos (A1, tarefa 8.0): uma pessoa aprova ou recusa, e 
       // Química confirmada e Física pendente: decide.
       expect(resultados(await decidir(s.professor, [ids[0] as string]))).toEqual(['decidida'])
       expect((await post(s.professor, `/v1/vinculos/${fisica.corpo['id'] as string}/confirmar`)).status).toBe(200)
-      const lidos = esquemaRespostaPedidosDaTurma.parse((await lerPedidos(s.professor, s.turma)).corpo).itens
+      const lidos = pedidosDaTurmaResponseSchema.parse((await lerPedidos(s.professor, s.turma)).corpo).itens
       expect(lidos.map((pedido) => pedido.id)).toEqual([ids[1], ids[2]])
     })
 
@@ -504,7 +504,7 @@ describe('decisão dos pedidos (A1, tarefa 8.0): uma pessoa aprova ou recusa, e 
       const peloProfessor = [await lerPedidos(s.professor, s.turma), await lerPedidos(s.professor, s.turma, `?finalidade=${FINALIDADE}`)]
       for (const resposta of [...pelaCoordenacao, ...peloProfessor]) {
         expect(resposta.status).toBe(200)
-        const { itens } = esquemaRespostaPedidosDaTurma.parse(resposta.corpo)
+        const { itens } = pedidosDaTurmaResponseSchema.parse(resposta.corpo)
         expect(itens).toEqual(
           nomes.map((nome, posicao) => ({ id: ids[posicao], nome: nome.nome, solicitadaEm: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/), teveMatriculaErrada: false })),
         )
@@ -521,10 +521,10 @@ describe('decisão dos pedidos (A1, tarefa 8.0): uma pessoa aprova ou recusa, e 
       const s = await sala.montar()
       const ids: string[] = []
       for (const nome of await sala.nomes(s, s.turma, 2)) ids.push(await pedir(s, nome))
-      const primeira = esquemaRespostaPedidosDaTurma.parse((await lerPedidos(s.professor, s.turma, '?limite=1')).corpo)
+      const primeira = pedidosDaTurmaResponseSchema.parse((await lerPedidos(s.professor, s.turma, '?limite=1')).corpo)
       expect(primeira.itens.map((pedido) => pedido.id)).toEqual([ids[0]])
       expect(primeira.proxima).toBe(ids[0])
-      const segunda = esquemaRespostaPedidosDaTurma.parse((await lerPedidos(s.professor, s.turma, `?limite=1&pagina=${primeira.proxima ?? ''}`)).corpo)
+      const segunda = pedidosDaTurmaResponseSchema.parse((await lerPedidos(s.professor, s.turma, `?limite=1&pagina=${primeira.proxima ?? ''}`)).corpo)
       expect(segunda).toEqual({ itens: [expect.objectContaining({ id: ids[1] })] })
     })
   })
@@ -628,12 +628,12 @@ describe('decisão dos pedidos (A1, tarefa 8.0): uma pessoa aprova ou recusa, e 
       const s = await sala.montar()
       const { nome } = await aprovado(s)
       const nova = `nova-${randomUUID().slice(0, 8)}`
-      const previa = esquemaRespostaPreviaDaLista.parse((await post(s.coordenacao, `/v1/turmas/${s.turma}/lista/previa`, { texto: `${nome.nome};${nome.matricula}\nNova;${nova}` })).corpo)
+      const previa = previaDaListaResponseSchema.parse((await post(s.coordenacao, `/v1/turmas/${s.turma}/lista/previa`, { texto: `${nome.nome};${nome.matricula}\nNova;${nova}` })).corpo)
       expect(previa.linhas.map((linha) => [linha.matricula, linha.resultado, linha.erro])).toEqual([
         [nome.matricula, 'ja_existe', undefined],
         [nova, 'entra', undefined],
       ])
-      const naOutra = esquemaRespostaPreviaDaLista.parse((await post(s.coordenacao, `/v1/turmas/${s.outraTurma}/lista/previa`, { texto: `${nome.nome};${nome.matricula}` })).corpo)
+      const naOutra = previaDaListaResponseSchema.parse((await post(s.coordenacao, `/v1/turmas/${s.outraTurma}/lista/previa`, { texto: `${nome.nome};${nome.matricula}` })).corpo)
       expect(naOutra.linhas.map((linha) => [linha.resultado, linha.erro])).toEqual([['erro', 'matricula_em_uso']])
 
       const gravada = await post(s.coordenacao, `/v1/turmas/${s.turma}/lista`, { texto: `${nome.nome};${nome.matricula}` })
@@ -648,19 +648,19 @@ describe('decisão dos pedidos (A1, tarefa 8.0): uma pessoa aprova ou recusa, e 
       const { nome, alunoId } = await aprovado(s)
       const retirada = await chamar(api.url, 'DELETE', `/v1/lista-nomes/${nome.id}`, s.coordenacao.token)
       expect(retirada.status).toBe(409)
-      expect(retirada.corpo.erro?.codigo).toBe(CodigoDeErro.CONFLITO)
+      expect(retirada.corpo.erro?.codigo).toBe(ErrorCode.CONFLITO)
       expect(await nomeNoBanco(nome.id)).toMatchObject({ estado: 'aprovado', usuario_id: alunoId })
 
       const avulso = await post(s.coordenacao, `/v1/turmas/${s.outraTurma}/lista/nome`, { nome: 'Chegou em maio', matricula: nome.matricula })
       expect(avulso.status).toBe(409)
-      expect(avulso.corpo.erro?.codigo).toBe(CodigoDeErro.CONFLITO)
+      expect(avulso.corpo.erro?.codigo).toBe(ErrorCode.CONFLITO)
       const { rows: lista } = await bancada.pool.query('select id from lista_nome where escola_id = $1', [s.escolaId])
       expect(lista).toHaveLength(1)
 
       const { rows: pedidosAntes } = await bancada.pool.query('select id from reivindicacao where escola_id = $1', [s.escolaId])
       const recusa = await sala.reivindicar(pedidoDaSala(s, nome))
       expect(recusa.status).toBe(409)
-      expect(JSON.parse(recusa.texto)).toMatchObject({ erro: { codigo: CodigoDeErro.REIVINDICACAO_RECUSADA } })
+      expect(JSON.parse(recusa.texto)).toMatchObject({ erro: { codigo: ErrorCode.REIVINDICACAO_RECUSADA } })
       const { rows: pedidosDepois } = await bancada.pool.query('select id from reivindicacao where escola_id = $1', [s.escolaId])
       expect(pedidosDepois).toEqual(pedidosAntes)
     })
@@ -671,7 +671,7 @@ describe('decisão dos pedidos (A1, tarefa 8.0): uma pessoa aprova ou recusa, e 
       expect((await post(s.coordenacao, `/v1/anos-letivos/${s.anoLetivoId}/encerrar`)).status).toBe(200)
       const lidos = await chamar(api.url, 'GET', `/v1/turmas/${s.turma}/alunos?anoLetivoId=${s.anoLetivoId}&finalidade=${FINALIDADE}`, s.coordenacao.token)
       expect(lidos.status).toBe(200)
-      expect(esquemaRespostaAlunosDaTurma.parse(lidos.corpo).itens).toEqual([{ usuarioId: alunoId, nome: nome.nome }])
+      expect(alunosDaTurmaResponseSchema.parse(lidos.corpo).itens).toEqual([{ usuarioId: alunoId, nome: nome.nome }])
     })
   })
 
@@ -694,7 +694,7 @@ describe('decisão dos pedidos (A1, tarefa 8.0): uma pessoa aprova ou recusa, e 
             const [aprovada, acrescentado] = await Promise.all([aprovando, acrescentando])
             expect(resultados(aprovada)).toEqual(['decidida'])
             expect(acrescentado.status).toBe(409)
-            expect(acrescentado.corpo.erro?.codigo).toBe(CodigoDeErro.CONFLITO)
+            expect(acrescentado.corpo.erro?.codigo).toBe(ErrorCode.CONFLITO)
           } else {
             // A lista é lida antes da credencial: a matrícula ainda está na lista, sem o commit da aprovação.
             const naOutra = await post(s.coordenacao, `/v1/turmas/${s.outraTurma}/lista`, { texto: `Outro;${nome.matricula}` })

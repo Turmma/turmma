@@ -1,5 +1,5 @@
 import type { Locator, Page } from '@playwright/test'
-import { MENSAGENS_DE_ERRO } from '../packages/shared/src/erros/mensagens.ts'
+import { MENSAGENS_DE_ERRO } from '../packages/shared/src/errors/messages.ts'
 import { conferirAssinaturas, conferirQueAOncaNaoTemNome } from './__fixtures__/avatar.ts'
 import { encaminhamento, erroDaApi, minhaAtividade, perguntaDoAluno, portao, provaDa, respostaDoTutor, simularAluno, type ApiDoAluno } from './__fixtures__/aluno.ts'
 import { entrarComoAluno, irPelaNavegacao, PRAZO_DA_ENTRADA_MS } from './__fixtures__/casca.ts'

@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { esquemaConsultaPaginada, esquemaDePagina } from './paginacao.js'
+import { paginationQuerySchema, pageSchema } from './pagination.js'
 
 /**
  * O vínculo de uma pessoa a uma turma, e a uma disciplina quando é de professor, no ano letivo em curso (glossário,
@@ -73,7 +73,7 @@ export const EFEITO_DA_CONTESTACAO =
   'A coordenação vê a sua contestação e corrige a alocação. Até lá, este vínculo não dá acesso à turma nem aos alunos dela.'
 
 /** Corpo de `POST /v1/vinculos`. Estrito: nada de escola, de ano letivo nem de estado, que vêm da sessão e nascem `pendente`. */
-export const esquemaPedidoCriarVinculo = z
+export const criarVinculoRequestSchema = z
   .object({
     usuarioId: z.uuid(),
     turmaId: z.uuid(),
@@ -82,50 +82,50 @@ export const esquemaPedidoCriarVinculo = z
   })
   .strict()
 
-export type PedidoCriarVinculo = z.infer<typeof esquemaPedidoCriarVinculo>
+export type CriarVinculoRequest = z.infer<typeof criarVinculoRequestSchema>
 
 /** Consulta de `GET /v1/vinculos`: a página e, opcional, o estado (a coordenação procura os `contestado`). */
-export const esquemaConsultaVinculos = esquemaConsultaPaginada.extend({ estado: z.enum(ESTADOS_DE_VINCULO).optional() }).strict()
-export type ConsultaVinculos = z.infer<typeof esquemaConsultaVinculos>
+export const vinculosQuerySchema = paginationQuerySchema.extend({ estado: z.enum(ESTADOS_DE_VINCULO).optional() }).strict()
+export type VinculosQuery = z.infer<typeof vinculosQuerySchema>
 
 /** Corpo de `POST /v1/vinculos/:id/encerrar`. */
-export const esquemaPedidoEncerrarVinculo = z.object({ motivo: z.enum(MOTIVOS_DE_ENCERRAMENTO_PELA_COORDENACAO) }).strict()
-export type PedidoEncerrarVinculo = z.infer<typeof esquemaPedidoEncerrarVinculo>
+export const encerrarVinculoRequestSchema = z.object({ motivo: z.enum(MOTIVOS_DE_ENCERRAMENTO_PELA_COORDENACAO) }).strict()
+export type EncerrarVinculoRequest = z.infer<typeof encerrarVinculoRequestSchema>
 
 /** Corpo de `POST /v1/vinculos/:id/contestar`: o código e, se quiser, um complemento curto. */
-export const esquemaPedidoContestarVinculo = z
+export const contestarVinculoRequestSchema = z
   .object({
     contestacao: z.enum(CONTESTACOES_DE_VINCULO),
     complemento: z.string().trim().min(1).max(TAMANHO_MAXIMO_DO_COMPLEMENTO).optional(),
   })
   .strict()
 
-export type PedidoContestarVinculo = z.infer<typeof esquemaPedidoContestarVinculo>
+export type ContestarVinculoRequest = z.infer<typeof contestarVinculoRequestSchema>
 
-const esquemaReferencia = z.object({ id: z.uuid(), nome: z.string() }).strict()
+const referenciaSchema = z.object({ id: z.uuid(), nome: z.string() }).strict()
 
 /**
  * O vínculo como o professor dono o vê (`meus-vinculos`, `confirmar`, `contestar`): a turma, a disciplina, o estado, o
  * código da contestação e quando ele decidiu. Nunca o `complemento`, que é só da coordenação.
  */
-export const esquemaVinculo = z
+export const vinculoSchema = z
   .object({
     id: z.uuid(),
-    turma: esquemaReferencia,
-    disciplina: esquemaReferencia.optional(),
+    turma: referenciaSchema,
+    disciplina: referenciaSchema.optional(),
     estado: z.enum(ESTADOS_DE_VINCULO),
     contestacao: z.enum(CONTESTACOES_DE_VINCULO).optional(),
     decididoEm: z.iso.datetime().optional(),
   })
   .strict()
 
-export type Vinculo = z.infer<typeof esquemaVinculo>
+export type Vinculo = z.infer<typeof vinculoSchema>
 
 /**
  * O vínculo como a coordenação o vê (`GET /v1/vinculos`, criar, encerrar): o do professor, mais o id de quem é (sem
  * nome: a coordenação já tem a equipe), o papel, o `complemento` da contestação e o motivo do encerramento.
  */
-export const esquemaVinculoDaCoordenacao = esquemaVinculo
+export const vinculoDaCoordenacaoSchema = vinculoSchema
   .extend({
     usuarioId: z.uuid(),
     papel: z.enum(PAPEIS_DE_VINCULO),
@@ -134,20 +134,20 @@ export const esquemaVinculoDaCoordenacao = esquemaVinculo
   })
   .strict()
 
-export type VinculoDaCoordenacao = z.infer<typeof esquemaVinculoDaCoordenacao>
+export type VinculoDaCoordenacao = z.infer<typeof vinculoDaCoordenacaoSchema>
 
 /** Resposta de `POST /v1/vinculos/:id/confirmar` e `/contestar`. */
-export const esquemaRespostaVinculo = esquemaVinculo
-export type RespostaVinculo = Vinculo
+export const vinculoResponseSchema = vinculoSchema
+export type VinculoResponse = Vinculo
 
 /** Resposta de `POST /v1/vinculos` e `/:id/encerrar`. */
-export const esquemaRespostaVinculoDaCoordenacao = esquemaVinculoDaCoordenacao
-export type RespostaVinculoDaCoordenacao = VinculoDaCoordenacao
+export const vinculoDaCoordenacaoResponseSchema = vinculoDaCoordenacaoSchema
+export type VinculoDaCoordenacaoResponse = VinculoDaCoordenacao
 
 /** Resposta de `GET /v1/vinculos`. */
-export const esquemaRespostaListaDeVinculos = esquemaDePagina(esquemaVinculoDaCoordenacao)
-export type RespostaListaDeVinculos = z.infer<typeof esquemaRespostaListaDeVinculos>
+export const listaDeVinculosResponseSchema = pageSchema(vinculoDaCoordenacaoSchema)
+export type ListaDeVinculosResponse = z.infer<typeof listaDeVinculosResponseSchema>
 
 /** Resposta de `GET /v1/meus-vinculos`. */
-export const esquemaRespostaMeusVinculos = esquemaDePagina(esquemaVinculo)
-export type RespostaMeusVinculos = z.infer<typeof esquemaRespostaMeusVinculos>
+export const meusVinculosResponseSchema = pageSchema(vinculoSchema)
+export type MeusVinculosResponse = z.infer<typeof meusVinculosResponseSchema>

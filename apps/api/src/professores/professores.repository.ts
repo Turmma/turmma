@@ -1,5 +1,5 @@
 import { convite, exigirEscolaDoContexto, usuario, type Banco, type DadosDoProfessor, type TransacaoBanco, type UltimoConviteDoProfessor } from '@educa/nucleo'
-import type { ConsultaPaginada } from '@educa/shared'
+import type { PaginationQuery } from '@educa/shared'
 import { and, asc, desc, eq, gt, inArray, sql } from 'drizzle-orm'
 
 /** Um professor da página, com o que decide o estado dele (`estadoDoProfessor`): nunca o e-mail nem a conta. */
@@ -22,7 +22,7 @@ export class ProfessoresRepository {
    * `ConviteRepository.dadosDoProfessor`), com a hora do banco. Os convites são lidos só para os ids da página, com a
    * escola no `where` das duas consultas, pelo índice `convite_escola_usuario_idx`.
    */
-  async pagina({ pagina, limite }: ConsultaPaginada): Promise<ProfessorLido[]> {
+  async pagina({ pagina, limite }: PaginationQuery): Promise<ProfessorLido[]> {
     const escolaId = exigirEscolaDoContexto()
     const professores = await this.banco
       .select({ usuarioId: usuario.id, nome: usuario.nome, desativadoEm: usuario.desativadoEm, agora: sql<Date>`now()`.mapWith(usuario.desativadoEm) })

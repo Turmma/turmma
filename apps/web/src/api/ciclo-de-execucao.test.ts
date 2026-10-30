@@ -1,4 +1,4 @@
-import { CodigoDeErro, INTERVALO_DA_CONSULTA_DE_EXECUCAO_MS, MENSAGENS_DE_ERRO, type MensagemDoAgente, type RespostaExecucao } from '@educa/shared'
+import { ErrorCode, INTERVALO_DA_CONSULTA_DE_EXECUCAO_MS, MENSAGENS_DE_ERRO, type MensagemDoAgente, type ExecucaoResponse } from '@educa/shared'
 import { describe, expect, it } from 'vitest'
 import {
   aceitarEnvio,
@@ -37,7 +37,7 @@ function sorteio(...chaves: string[]): () => string {
 type Pedido = { readonly texto: string }
 const PEDIDO: Pedido = { texto: 'uma atividade de estequiometria' }
 
-function execucao(estado: RespostaExecucao['estado'], campos: Partial<RespostaExecucao> = {}): RespostaExecucao {
+function execucao(estado: ExecucaoResponse['estado'], campos: Partial<ExecucaoResponse> = {}): ExecucaoResponse {
   return { id: EXECUCAO, tarefa: 'propor_ferramenta', estado, resultado: null, erro: null, ...campos }
 }
 
@@ -75,7 +75,7 @@ describe('o envio: a chave e o pedido duplo', () => {
 
   it('o envio recusado guarda o código do catálogo, e nunca o erro cru', () => {
     const enviando = comecarEnvio<Pedido>(undefined, PEDIDO, sorteio('chave-1'), 1_000)
-    expect(recusarEnvio(enviando, 'chave-1', new ErroDaApi(CodigoDeErro.FUNCAO_SUSPENSA))).toEqual({ etapa: 'falhou', pedido: PEDIDO, chaveEnvio: 'chave-1', erro: 'FUNCAO_SUSPENSA' })
+    expect(recusarEnvio(enviando, 'chave-1', new ErroDaApi(ErrorCode.FUNCAO_SUSPENSA))).toEqual({ etapa: 'falhou', pedido: PEDIDO, chaveEnvio: 'chave-1', erro: 'FUNCAO_SUSPENSA' })
     const semCodigo = recusarEnvio(enviando, 'chave-1', new TypeError('Failed to fetch at https://provedor.example/v1'))
     expect(semCodigo).toEqual({ etapa: 'falhou', pedido: PEDIDO, chaveEnvio: 'chave-1', erro: 'ERRO_INTERNO' })
     expect(codigoDoErro('texto solto')).toBe('ERRO_INTERNO')
@@ -84,18 +84,18 @@ describe('o envio: a chave e o pedido duplo', () => {
 
 describe('"Tentar de novo": qual chave vai', () => {
   it('o envio que não foi aceito repete com a mesma chave: a mesma chave devolve a mesma execução', () => {
-    const falhou = recusarEnvio(comecarEnvio<Pedido>(undefined, PEDIDO, sorteio('chave-1'), 1_000), 'chave-1', new ErroDaApi(CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO))
+    const falhou = recusarEnvio(comecarEnvio<Pedido>(undefined, PEDIDO, sorteio('chave-1'), 1_000), 'chave-1', new ErroDaApi(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO))
     expect(tentarDeNovo(falhou, sorteio(), 5_000)).toEqual({ etapa: 'enviando', pedido: PEDIDO, chaveEnvio: 'chave-1', desde: 5_000 })
   })
 
   it('a consulta que deixou de responder também repete com a mesma chave, para reencontrar a execução', () => {
-    const semConsulta = desistirDaConsulta(esperando(), new ErroDaApi(CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO))
+    const semConsulta = desistirDaConsulta(esperando(), new ErroDaApi(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO))
     expect(semConsulta).toEqual({ etapa: 'falhou', pedido: PEDIDO, chaveEnvio: 'chave-1', erro: 'INDISPONIVEL_TENTE_DE_NOVO' })
     expect(tentarDeNovo(semConsulta, sorteio(), 5_000)?.chaveEnvio).toBe('chave-1')
   })
 
   it('a execução que falhou repete com chave nova: a antiga devolveria a execução que falhou', () => {
-    const falhou = registrarExecucao(esperando(), execucao('falhou', { erro: CodigoDeErro.IA_INDISPONIVEL }))
+    const falhou = registrarExecucao(esperando(), execucao('falhou', { erro: ErrorCode.IA_INDISPONIVEL }))
     expect(falhou).toEqual({ etapa: 'falhou', pedido: PEDIDO, chaveEnvio: 'chave-1', execucaoId: EXECUCAO, erro: 'IA_INDISPONIVEL' })
     expect(tentarDeNovo(falhou, sorteio('chave-2'), 5_000)).toEqual({ etapa: 'enviando', pedido: PEDIDO, chaveEnvio: 'chave-2', desde: 5_000 })
   })
@@ -156,22 +156,22 @@ describe('o que a tela lê de novo quando a execução conclui', () => {
 
 describe('como a falha aparece: nunca erro cru (regra 80, item 4)', () => {
   it('função suspensa pela escola é aviso que explica, e não erro que se repete', () => {
-    expect(aparenciaDaFalha(CodigoDeErro.FUNCAO_SUSPENSA)).toBe('suspensa')
+    expect(aparenciaDaFalha(ErrorCode.FUNCAO_SUSPENSA)).toBe('suspensa')
   })
 
   it('o limite de pedidos por minuto é dito com calma, e não como falha da IA nem como erro', () => {
-    expect(aparenciaDaFalha(CodigoDeErro.LIMITE_EXCEDIDO)).toBe('limite')
+    expect(aparenciaDaFalha(ErrorCode.LIMITE_EXCEDIDO)).toBe('limite')
     // O envio recusado pelo limite não chegou a virar execução: repetir usa a mesma chave.
-    const recusado = recusarEnvio(comecarEnvio<Pedido>(undefined, PEDIDO, sorteio('chave-1'), 1_000), 'chave-1', new ErroDaApi(CodigoDeErro.LIMITE_EXCEDIDO))
+    const recusado = recusarEnvio(comecarEnvio<Pedido>(undefined, PEDIDO, sorteio('chave-1'), 1_000), 'chave-1', new ErroDaApi(ErrorCode.LIMITE_EXCEDIDO))
     expect(tentarDeNovo(recusado, sorteio(), 70_000)?.chaveEnvio).toBe('chave-1')
   })
 
   it('o que passa sozinho vira aviso com "Tentar de novo"; o que pede mudança vem com a mensagem do catálogo', () => {
-    expect([CodigoDeErro.IA_INDISPONIVEL, CodigoDeErro.IA_TEMPO_ESGOTADO, CodigoDeErro.EXECUCAO_INTERROMPIDA, CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO, CodigoDeErro.ERRO_INTERNO].map(aparenciaDaFalha)).toEqual(['fila', 'fila', 'fila', 'fila', 'fila'])
-    expect([CodigoDeErro.MATERIAL_INSUFICIENTE, CodigoDeErro.IA_ORCAMENTO_ESGOTADO, CodigoDeErro.NAO_ENCONTRADO, CodigoDeErro.CONFLITO].map(aparenciaDaFalha)).toEqual(['explicada', 'explicada', 'explicada', 'explicada'])
+    expect([ErrorCode.IA_INDISPONIVEL, ErrorCode.IA_TEMPO_ESGOTADO, ErrorCode.EXECUCAO_INTERROMPIDA, ErrorCode.INDISPONIVEL_TENTE_DE_NOVO, ErrorCode.ERRO_INTERNO].map(aparenciaDaFalha)).toEqual(['fila', 'fila', 'fila', 'fila', 'fila'])
+    expect([ErrorCode.MATERIAL_INSUFICIENTE, ErrorCode.IA_ORCAMENTO_ESGOTADO, ErrorCode.NAO_ENCONTRADO, ErrorCode.CONFLITO].map(aparenciaDaFalha)).toEqual(['explicada', 'explicada', 'explicada', 'explicada'])
   })
 
   it('todo código que o ciclo guarda tem mensagem em português no catálogo', () => {
-    for (const codigo of Object.values(CodigoDeErro)) expect(MENSAGENS_DE_ERRO[codigo]).toMatch(/\p{L}/u)
+    for (const codigo of Object.values(ErrorCode)) expect(MENSAGENS_DE_ERRO[codigo]).toMatch(/\p{L}/u)
   })
 })

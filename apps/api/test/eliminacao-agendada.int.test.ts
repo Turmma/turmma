@@ -1,6 +1,6 @@
 import { diaDeUso, executarNoContexto } from '@educa/nucleo'
 import { CicloDeVidaRepository, CicloDeVidaService } from '@educa/nucleo/ciclo-de-vida'
-import { CodigoDeErro, MENSAGENS_DE_ERRO, PRAZO_DA_ELIMINACAO_DIAS } from '@educa/shared'
+import { ErrorCode, MENSAGENS_DE_ERRO, PRAZO_DA_ELIMINACAO_DIAS } from '@educa/shared'
 import { randomBytes, randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
@@ -38,19 +38,19 @@ function semRequisicao(entrada: Pick<Entrada, 'status' | 'corpo'>): unknown {
 
 const ACESSO_SUSPENSO = {
   status: 403,
-  corpo: { erro: { codigo: CodigoDeErro.ACESSO_SUSPENSO, mensagem: MENSAGENS_DE_ERRO.ACESSO_SUSPENSO } },
+  corpo: { erro: { codigo: ErrorCode.ACESSO_SUSPENSO, mensagem: MENSAGENS_DE_ERRO.ACESSO_SUSPENSO } },
 }
 const NAO_AUTENTICADO = {
   status: 401,
-  corpo: { erro: { codigo: CodigoDeErro.NAO_AUTENTICADO, mensagem: MENSAGENS_DE_ERRO.NAO_AUTENTICADO } },
+  corpo: { erro: { codigo: ErrorCode.NAO_AUTENTICADO, mensagem: MENSAGENS_DE_ERRO.NAO_AUTENTICADO } },
 }
 const NAO_ENCONTRADO = {
   status: 404,
-  corpo: { erro: { codigo: CodigoDeErro.NAO_ENCONTRADO, mensagem: MENSAGENS_DE_ERRO.NAO_ENCONTRADO } },
+  corpo: { erro: { codigo: ErrorCode.NAO_ENCONTRADO, mensagem: MENSAGENS_DE_ERRO.NAO_ENCONTRADO } },
 }
 const ESTADO_INVALIDO = {
   status: 409,
-  corpo: { erro: { codigo: CodigoDeErro.PEDIDO_EM_ESTADO_INVALIDO, mensagem: MENSAGENS_DE_ERRO.PEDIDO_EM_ESTADO_INVALIDO } },
+  corpo: { erro: { codigo: ErrorCode.PEDIDO_EM_ESTADO_INVALIDO, mensagem: MENSAGENS_DE_ERRO.PEDIDO_EM_ESTADO_INVALIDO } },
 }
 
 describe('eliminação agendada (F3, tarefa 14.0): suspende o acesso, não revela e o cancelamento devolve', () => {
@@ -364,7 +364,7 @@ describe('eliminação agendada (F3, tarefa 14.0): suspende o acesso, não revel
       // Segurada, nem a senha certa diz que o acesso está suspenso: a credencial nem é lida.
       const certa = await entrar(slug, suspensa.matricula)
       expect(certa.status).toBe(429)
-      expect(certa.corpo.erro?.codigo).toBe(CodigoDeErro.CONTA_SEGURADA)
+      expect(certa.corpo.erro?.codigo).toBe(ErrorCode.CONTA_SEGURADA)
     })
 
     it('a mesma matrícula em outra escola segue entrando: a suspensão é da pessoa naquela escola', async () => {
@@ -392,11 +392,11 @@ describe('eliminação agendada (F3, tarefa 14.0): suspende o acesso, não revel
       const desconhecido = await renovar(api.url, `educa_sessao=${randomBytes(32).toString('base64url')}`)
 
       expect(suspenso.status).toBe(403)
-      expect(suspenso.corpo.erro?.codigo).toBe(CodigoDeErro.ACESSO_SUSPENSO)
+      expect(suspenso.corpo.erro?.codigo).toBe(ErrorCode.ACESSO_SUSPENSO)
       expect(suspenso.setCookie).toEqual([expect.stringMatching(/^educa_sessao=; Path=\/v1\/sessao; HttpOnly; SameSite=Strict; Max-Age=0$/)])
       expect(doColega.status).toBe(200)
       expect(desconhecido.status).toBe(401)
-      expect(desconhecido.corpo.erro?.codigo).toBe(CodigoDeErro.NAO_AUTENTICADO)
+      expect(desconhecido.corpo.erro?.codigo).toBe(ErrorCode.NAO_AUTENTICADO)
     })
 
     it('renovação: o cookie vencido por inatividade ou pelas 12 h, encerrado por saída ou já rotacionado, de quem tem a eliminação agendada, responde 401 e apaga o cookie, como o desconhecido: nunca ACESSO_SUSPENSO', async () => {
@@ -460,7 +460,7 @@ describe('eliminação agendada (F3, tarefa 14.0): suspende o acesso, não revel
       expect((await eu(tokenDe(entrada))).status).toBe(401)
       const renovacao = await renovar(api.url, cookieDeRenovacao(entrada))
       expect(renovacao.status).toBe(403)
-      expect(renovacao.corpo.erro?.codigo).toBe(CodigoDeErro.ACESSO_SUSPENSO)
+      expect(renovacao.corpo.erro?.codigo).toBe(ErrorCode.ACESSO_SUSPENSO)
     })
 
     it('cancelar devolve o acesso com a mesma senha, e o que foi encerrado não volta: token e cookie de antes seguem recusados', async () => {
@@ -481,7 +481,7 @@ describe('eliminação agendada (F3, tarefa 14.0): suspende o acesso, não revel
       expect((await eu(tokenDe(antes))).status).toBe(401)
       const renovacaoAntiga = await renovar(api.url, cookieDeRenovacao(antes))
       expect(renovacaoAntiga.status).toBe(401)
-      expect(renovacaoAntiga.corpo.erro?.codigo).toBe(CodigoDeErro.NAO_AUTENTICADO)
+      expect(renovacaoAntiga.corpo.erro?.codigo).toBe(ErrorCode.NAO_AUTENTICADO)
     })
   })
 

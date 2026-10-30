@@ -1,5 +1,5 @@
 import { ConfiguracaoInvalida, ErroDeDominio, FORMATO_SLUG, resumirErro, TAMANHO_MAXIMO_SLUG } from '@educa/nucleo'
-import { CodigoDeErro, esquemaEmailConvidado } from '@educa/shared'
+import { ErrorCode, emailConvidadoSchema } from '@educa/shared'
 import { rm } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -45,7 +45,7 @@ export function lerPedidoDoConvite(argumentos: string[]): PedidoDoConvite {
   }
   const slug = valores.escola
   if (slug === undefined || slug.length > TAMANHO_MAXIMO_SLUG || !FORMATO_SLUG.test(slug)) throw new ArgumentoInvalido('--escola')
-  const email = esquemaEmailConvidado.safeParse(valores.email)
+  const email = emailConvidadoSchema.safeParse(valores.email)
   if (!email.success) throw new ArgumentoInvalido('--email')
   const nome = esquemaNome.safeParse(valores.nome)
   if (!nome.success) throw new ArgumentoInvalido('--nome')
@@ -54,7 +54,7 @@ export function lerPedidoDoConvite(argumentos: string[]): PedidoDoConvite {
 }
 
 /** Texto fixo por código, sem nada do pedido: o e-mail, o nome e o endereço nunca voltam na mensagem. */
-const MENSAGEM_DO_OPERADOR: Partial<Record<CodigoDeErro, string>> = {
+const MENSAGEM_DO_OPERADOR: Partial<Record<ErrorCode, string>> = {
   NAO_ENCONTRADO: 'escola não encontrada',
   CONFLITO: 'a escola já tem coordenação ativa ou convite em aberto; revogue o convite antes de gerar outro',
 }
@@ -100,7 +100,7 @@ export async function executarOpsConviteCoordenador(
       return 1
     }
     // O erro cru do Postgres traz o valor da linha na mensagem e no `detail`: sai só o resumo seguro.
-    terminal.erro(`${CodigoDeErro.ERRO_INTERNO}: ${JSON.stringify(resumirErro(erro))}\n`)
+    terminal.erro(`${ErrorCode.ERRO_INTERNO}: ${JSON.stringify(resumirErro(erro))}\n`)
     return 1
   }
 }

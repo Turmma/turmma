@@ -1,6 +1,6 @@
 import 'reflect-metadata'
 import { contextoAtual, EfeitoSinteticoRepository, executarNoContexto, IDADE_PARA_RECONCILIAR_SEGUNDOS, nomeDaFilaBullMQ, TABELA_DO_EFEITO_SINTETICO } from '@educa/nucleo'
-import { CodigoDeFalhaDeJob, DEFINICOES_DE_JOB, TIPO_JOB_SINTETICO, type DadosJobSintetico } from '@educa/shared'
+import { JobFailureCode, JOB_DEFINITIONS, TIPO_JOB_SINTETICO, type SyntheticJobData } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { compose, PROCESSOS_DA_FILA } from '../../../tools/testes/compose.ts'
@@ -13,10 +13,10 @@ import { BancadaDeFila, LogEmMemoria } from './fila-de-teste.js'
 // de verdade no processo do teste, contra o Postgres e o Redis de fila do compose de teste. O efeito é o do
 // processador sintético no modo `efeito`, gravado numa tabela que só este arquivo cria.
 
-const COM_EFEITO: DadosJobSintetico = { cpuMs: 0, falhar: false, efeito: true }
+const COM_EFEITO: SyntheticJobData = { cpuMs: 0, falhar: false, efeito: true }
 
 /** O prazo que o executor entrega ao processador do sintético: o da definição do tipo. */
-const PRAZO_DO_SINTETICO_MS = DEFINICOES_DE_JOB[TIPO_JOB_SINTETICO].prazoMs
+const PRAZO_DO_SINTETICO_MS = JOB_DEFINITIONS[TIPO_JOB_SINTETICO].prazoMs
 
 interface LinhaDeEfeito {
   escolaId: string
@@ -236,7 +236,7 @@ describe('reexecução do mesmo job: a chave de idempotência é a do job, e o e
           execucoes.push(execucao)
           await sintetico(dados, execucao)
           // O efeito já foi gravado quando a tentativa falha: é o que a retentativa precisa aguentar.
-          if (execucao.tentativa < 3) throw new FalhaDeJob(CodigoDeFalhaDeJob.FALHA_SINTETICA)
+          if (execucao.tentativa < 3) throw new FalhaDeJob(JobFailureCode.FALHA_SINTETICA)
         },
       },
     })

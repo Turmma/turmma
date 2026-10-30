@@ -1,7 +1,7 @@
 import {
   AGENTES,
   type Agente,
-  type CodigoDeErro,
+  type ErrorCode,
   ESTADOS_DE_ENTREGA,
   FUNCOES,
   MENSAGENS_DE_ERRO,
@@ -175,7 +175,7 @@ export const AVISO_DO_NOMINAL = 'Esta abertura fica na auditoria da escola, com 
 export const EFEITO_DO_NOMINAL = 'A resposta mostra os professores da turma pelo nome e o acerto por habilidade dela. Não mostra aluno, e não serve para avaliar nem comparar professores.'
 
 /** Como a falha de "Gerar resumo" aparece: a que passa sozinha oferece tentar de novo; as outras dizem o que fazer. */
-export function falhaDoResumo(erro: CodigoDeErro): { readonly repetivel: boolean; readonly texto: string } {
+export function falhaDoResumo(erro: ErrorCode): { readonly repetivel: boolean; readonly texto: string } {
   const aparencia = aparenciaDaFalha(erro)
   if (aparencia === 'fila') return { repetivel: true, texto: '' }
   if (aparencia === 'suspensa') return { repetivel: false, texto: 'A função "Resumo e alerta" está suspensa nesta escola. Para gerar um resumo novo, retome a função em Agentes.' }

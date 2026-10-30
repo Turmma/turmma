@@ -1,4 +1,4 @@
-import { CHAVES_DE_FUNCAO, CodigoDeErro, montarTime, TIPOS_DE_ALERTA_DO_ANALISTA, type AlertaDoAnalista, type FuncaoDaGovernanca, type RespostaFuncoesDaGovernanca } from '@educa/shared'
+import { CHAVES_DE_FUNCAO, ErrorCode, montarTime, TIPOS_DE_ALERTA_DO_ANALISTA, type AlertaDoAnalista, type FuncaoDaGovernanca, type FuncoesDaGovernancaResponse } from '@educa/shared'
 import { describe, expect, it } from 'vitest'
 import { trocarFuncao } from './api/governanca'
 import { textoDaAprovacao } from '../../../componentes/ui/ia/aprovacao'
@@ -102,18 +102,18 @@ describe('o alerta do Analista é hipótese com contexto', () => {
 
 describe('gerar o resumo: a falha nunca é erro cru', () => {
   it('a que passa sozinha oferece tentar de novo', () => {
-    expect(falhaDoResumo(CodigoDeErro.IA_INDISPONIVEL)).toEqual({ repetivel: true, texto: '' })
+    expect(falhaDoResumo(ErrorCode.IA_INDISPONIVEL)).toEqual({ repetivel: true, texto: '' })
   })
 
   it('a função suspensa manda retomar em Agentes, e não "falar com a coordenação": quem lê é a coordenação', () => {
-    const { repetivel, texto } = falhaDoResumo(CodigoDeErro.FUNCAO_SUSPENSA)
+    const { repetivel, texto } = falhaDoResumo(ErrorCode.FUNCAO_SUSPENSA)
     expect(repetivel).toBe(false)
     expect(texto).toContain('Agentes')
     expect(texto).not.toContain('coordenação')
   })
 
   it('o limite de pedidos pede para esperar, com calma', () => {
-    expect(falhaDoResumo(CodigoDeErro.LIMITE_EXCEDIDO)).toEqual({ repetivel: false, texto: 'Foram muitos pedidos em pouco tempo. Espere um minuto e peça de novo.' })
+    expect(falhaDoResumo(ErrorCode.LIMITE_EXCEDIDO)).toEqual({ repetivel: false, texto: 'Foram muitos pedidos em pouco tempo. Espere um minuto e peça de novo.' })
   })
 })
 
@@ -159,7 +159,7 @@ describe('a suspensão e o dado nominal dizem o que acontece antes de confirmar'
 })
 
 describe('a função que a API devolve entra no lugar da antiga', () => {
-  const lista: RespostaFuncoesDaGovernanca = { agentes: montarTime(new Set()).agentes.map((agente) => ({ ...agente, funcoes: agente.funcoes.map((funcao) => ({ ...funcao, suspensao: null })) })) }
+  const lista: FuncoesDaGovernancaResponse = { agentes: montarTime(new Set()).agentes.map((agente) => ({ ...agente, funcoes: agente.funcoes.map((funcao) => ({ ...funcao, suspensao: null })) })) }
   const suspensa: FuncaoDaGovernanca = { ...(lista.agentes[0]?.funcoes[1] as FuncaoDaGovernanca), suspensa: true, suspensao: { suspensaEm: QUANDO, motivo: 'incidente' } }
 
   it('só a função suspensa muda; as outras do mesmo agente e dos outros ficam como estavam', () => {

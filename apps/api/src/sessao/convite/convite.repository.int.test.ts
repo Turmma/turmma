@@ -1,5 +1,5 @@
 import { ErroDeDominio, executarNoContexto } from '@educa/nucleo'
-import { CodigoDeErro } from '@educa/shared'
+import { ErrorCode } from '@educa/shared'
 import { createHash, randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { BancadaDeSessoes } from '../../../test/sessao-de-teste.js'
@@ -173,7 +173,7 @@ describe('ConviteRepository: o convite e o usuário convidado só na escola do c
     // O erro do índice sai tipado, e não como o erro cru do Postgres (que traria o valor da linha no `detail`).
     const recusa = await criar(usuarioId).catch((erro: unknown) => erro)
     expect(recusa).toBeInstanceOf(ErroDeDominio)
-    expect(recusa).toMatchObject({ codigo: CodigoDeErro.CONFLITO })
+    expect(recusa).toMatchObject({ codigo: ErrorCode.CONFLITO })
     expect(await convitesDe(usuarioId)).toEqual([primeiro])
 
     // Outro usuário na mesma escola não é bloqueado: a chave é (escola_id, usuario_id).

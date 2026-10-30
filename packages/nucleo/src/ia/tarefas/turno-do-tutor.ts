@@ -1,4 +1,4 @@
-import { esquemaCitacao, esquemaHabilidade, FRASE_DO_AVISO_AO_PROFESSOR, type Citacao } from '@educa/shared'
+import { citacaoSchema, habilidadeSchema, FRASE_DO_AVISO_AO_PROFESSOR, type Citacao } from '@educa/shared'
 import { z } from 'zod'
 import {
   dadoEmJson,
@@ -39,7 +39,7 @@ const esquemaQuestaoEmAndamento = z.strictObject({
   numero: z.number().int().min(1).max(20),
   enunciado: z.string().min(1).max(1200),
   alternativas: z.array(z.string().min(1).max(400)).length(4),
-  habilidade: esquemaHabilidade,
+  habilidade: habilidadeSchema,
 })
 
 /**
@@ -47,7 +47,7 @@ const esquemaQuestaoEmAndamento = z.strictObject({
  * não há campo de texto, e por isso não há onde escrever sobre o jeito, o humor ou o comportamento dele.
  */
 const esquemaMemoriaDoTrabalho = z.strictObject({
-  habilidade: esquemaHabilidade,
+  habilidade: habilidadeSchema,
   acertos: z.number().int().min(0),
   erros: z.number().int().min(0),
 })
@@ -68,7 +68,7 @@ export type EntradaDoTutor = z.infer<typeof esquemaEntradaDoTutor>
 export const esquemaSaidaDoTutor = z.strictObject({
   classificacao: z.enum(CLASSIFICACOES_DO_MODELO),
   resposta: z.string().min(1).max(1500),
-  citacoes: z.array(esquemaCitacao).max(3),
+  citacoes: z.array(citacaoSchema).max(3),
 })
 export type SaidaDoTutor = z.infer<typeof esquemaSaidaDoTutor>
 

@@ -1,4 +1,4 @@
-import { CodigoDeErro, nomeDaSerie, pareceDocumento, TAMANHO_MAXIMO_MATRICULA, TAMANHO_MAXIMO_NOME_DIGITADO, type EstadoDoNomeDaLista, type NomeDaLista, type RespostaPreviaDaLista } from '@educa/shared'
+import { ErrorCode, nomeDaSerie, pareceDocumento, TAMANHO_MAXIMO_MATRICULA, TAMANHO_MAXIMO_NOME_DIGITADO, type EstadoDoNomeDaLista, type NomeDaLista, type PreviaDaListaResponse } from '@educa/shared'
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft } from 'lucide-react'
 import { useCallback, useEffect, useId, useRef, useState, type ChangeEvent, type RefObject } from 'react'
@@ -86,7 +86,7 @@ type AlvoDoFoco = 'previa' | 'falha_da_previa' | 'falha_da_gravacao'
 /** A prévia de um texto: só vale enquanto o texto na tela é o mesmo que foi para a API. */
 interface PreviaDoTexto {
   readonly texto: string
-  readonly resposta: RespostaPreviaDaLista
+  readonly resposta: PreviaDaListaResponse
 }
 
 /**
@@ -137,7 +137,7 @@ export default function ListaDaTurma({ turmaId }: { turmaId: string }) {
   if (turma.isError || perdida)
     return (
       <Tela titulo={nomeDaTurma} antes={voltar}>
-        {perdida || (turma.error instanceof ErroDaApi && turma.error.codigo === CodigoDeErro.NAO_ENCONTRADO) ? (
+        {perdida || (turma.error instanceof ErroDaApi && turma.error.codigo === ErrorCode.NAO_ENCONTRADO) ? (
           // Quando a turma sai com a tela aberta, o "Atualizar" que tinha o foco saiu com ela: o foco vem para o aviso.
           <TurmaIndisponivel texto={TEXTO_DA_TURMA_FORA_DO_ANO} comFoco={perdida} />
         ) : (
@@ -311,8 +311,8 @@ function ConteudoDaLista({ turmaId, turmaNome, aoPerderATurma }: { turmaId: stri
           }}
           aoTerminar={recarregarNomes}
           textosDaFalha={{
-            [CodigoDeErro.CONFLITO]: 'Este nome não está mais livre: o aluno já pediu o nome ou foi aprovado, e ele não sai por aqui. A lista foi atualizada.',
-            [CodigoDeErro.NAO_ENCONTRADO]: 'Este nome já saiu da lista. A lista foi atualizada.',
+            [ErrorCode.CONFLITO]: 'Este nome não está mais livre: o aluno já pediu o nome ou foi aprovado, e ele não sai por aqui. A lista foi atualizada.',
+            [ErrorCode.NAO_ENCONTRADO]: 'Este nome já saiu da lista. A lista foi atualizada.',
           }}
           focoDeReserva={() => tituloDosNomes.current?.focus()}
         />
@@ -385,7 +385,7 @@ function SubirLista({ turmaId, aoGravar, recarregarNomes }: { turmaId: string; a
     // turma saiu do ano): ela sai, e o "Gravar lista" com ela, até a pessoa ver a prévia de novo. A queda de rede ou do
     // servidor não diz nada da prévia: ela fica, e "Gravar lista" tenta de novo.
     onError: (erro) => {
-      if (listaMudou(erro, [CodigoDeErro.CONFLITO, CodigoDeErro.ENTRADA_INVALIDA, CodigoDeErro.NAO_ENCONTRADO])) definirPrevia(undefined)
+      if (listaMudou(erro, [ErrorCode.CONFLITO, ErrorCode.ENTRADA_INVALIDA, ErrorCode.NAO_ENCONTRADO])) definirPrevia(undefined)
       chegou('falha_da_gravacao')
       void recarregarNomes()
     },
@@ -435,17 +435,17 @@ function SubirLista({ turmaId, aoGravar, recarregarNomes }: { turmaId: string; a
   const falhaDaPrevia =
     pedirPrevia.mutacao.isError && pedirPrevia.mutacao.variables === texto
     ? textoDaFalha(pedirPrevia.mutacao.error, {
-        [CodigoDeErro.ENTRADA_INVALIDA]:
+        [ErrorCode.ENTRADA_INVALIDA]:
           'Não deu para ler a lista. Confira se cada linha tem o nome e a matrícula, se há ao menos um aluno e se ela não passa de 200 nomes.',
-        [CodigoDeErro.NAO_ENCONTRADO]: 'Esta turma não está mais no ano letivo em curso. Volte para Escola › Turmas.',
+        [ErrorCode.NAO_ENCONTRADO]: 'Esta turma não está mais no ano letivo em curso. Volte para Escola › Turmas.',
       })
     : undefined
   const falhaDaGravacao =
     gravar.mutacao.isError && gravar.mutacao.variables === texto
     ? textoDaFalha(gravar.mutacao.error, {
-        [CodigoDeErro.CONFLITO]: 'Uma das matrículas passou a ser usada em outra turma ou por um aluno depois da prévia. Nada foi gravado: veja a prévia de novo.',
-        [CodigoDeErro.ENTRADA_INVALIDA]: 'A lista tem linha com erro. Nada foi gravado: veja a prévia de novo.',
-        [CodigoDeErro.NAO_ENCONTRADO]: 'Esta turma não está mais no ano letivo em curso. Nada foi gravado.',
+        [ErrorCode.CONFLITO]: 'Uma das matrículas passou a ser usada em outra turma ou por um aluno depois da prévia. Nada foi gravado: veja a prévia de novo.',
+        [ErrorCode.ENTRADA_INVALIDA]: 'A lista tem linha com erro. Nada foi gravado: veja a prévia de novo.',
+        [ErrorCode.NAO_ENCONTRADO]: 'Esta turma não está mais no ano letivo em curso. Nada foi gravado.',
       })
     : undefined
 
@@ -511,7 +511,7 @@ function SubirLista({ turmaId, aoGravar, recarregarNomes }: { turmaId: string; a
 }
 
 interface PropsDaPrevia {
-  readonly previa: RespostaPreviaDaLista
+  readonly previa: PreviaDaListaResponse
   /**
    * O título, que recebe o foco quando a prévia chega (quem decide é o `SubirLista`): o leitor de tela lê o resumo e as
    * linhas em seguida, e o Tab seguinte cai no "Gravar lista". Uma região `status` que nasce já com o texto nem sempre é
@@ -609,10 +609,10 @@ function NomeAvulso({ turmaId, aoFechar, aoAcrescentar, recarregar }: { turmaId:
       falha={
         mutacao.isError
           ? textoDaFalha(mutacao.error, {
-              [CodigoDeErro.CONFLITO]: 'Esta matrícula já está na lista de uma turma da escola ou é de um aluno da escola. Nada foi gravado.',
-              [CodigoDeErro.NAO_ENCONTRADO]: 'Esta turma não está mais no ano letivo em curso. Nada foi gravado.',
+              [ErrorCode.CONFLITO]: 'Esta matrícula já está na lista de uma turma da escola ou é de um aluno da escola. Nada foi gravado.',
+              [ErrorCode.NAO_ENCONTRADO]: 'Esta turma não está mais no ano letivo em curso. Nada foi gravado.',
               // A tela segura antes, com a mesma regra do contrato; se as duas divergirem, a recusa da API diz o que fazer.
-              [CodigoDeErro.ENTRADA_INVALIDA]: 'Confira o nome e a matrícula: a matrícula não pode ter forma de CPF ou de data de nascimento. Nada foi gravado.',
+              [ErrorCode.ENTRADA_INVALIDA]: 'Confira o nome e a matrícula: a matrícula não pode ter forma de CPF ou de data de nascimento. Nada foi gravado.',
             })
           : undefined
       }

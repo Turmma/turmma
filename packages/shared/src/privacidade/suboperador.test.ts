@@ -3,7 +3,7 @@ import {
   ALCANCES_DO_SUBOPERADOR,
   CATEGORIAS_DE_DADO_DO_SUBOPERADOR,
   CHAVES_DE_CATEGORIA_DO_SUBOPERADOR,
-  esquemaRespostaSuboperadores,
+  suboperadoresResponseSchema,
   FORMATO_DA_CHAVE_DO_SUBOPERADOR,
   FORMATO_DO_CONTRATO_DO_SUBOPERADOR,
   FORMATO_DO_PAIS_DO_SUBOPERADOR,
@@ -42,8 +42,8 @@ describe('contrato dos suboperadores (F3, 8.0)', () => {
   })
 
   it('a resposta aceita só os campos da escola: campo a mais (id, contrato), categoria fora da lista ou sem categoria e data fora do formato são recusados', () => {
-    expect(esquemaRespostaSuboperadores.safeParse({ suboperadores: [valido] }).success).toBe(true)
-    expect(esquemaRespostaSuboperadores.safeParse({ suboperadores: [] }).success).toBe(true)
+    expect(suboperadoresResponseSchema.safeParse({ suboperadores: [valido] }).success).toBe(true)
+    expect(suboperadoresResponseSchema.safeParse({ suboperadores: [] }).success).toBe(true)
     for (const [caso, mudanca] of [
       ['id', { id: '0190f5a0-0000-7000-8000-000000000001' }],
       ['contrato', { contrato: 'DPA-1' }],
@@ -53,8 +53,8 @@ describe('contrato dos suboperadores (F3, 8.0)', () => {
       ['data sem formato', { inicio: '05/10/2026' }],
       ['fim ausente', { fim: undefined }],
     ] as const) {
-      expect(esquemaRespostaSuboperadores.safeParse({ suboperadores: [{ ...valido, ...mudanca }] }).success, caso).toBe(false)
+      expect(suboperadoresResponseSchema.safeParse({ suboperadores: [{ ...valido, ...mudanca }] }).success, caso).toBe(false)
     }
-    expect(esquemaRespostaSuboperadores.safeParse({ suboperadores: [valido], contrato: 'x' }).success).toBe(false)
+    expect(suboperadoresResponseSchema.safeParse({ suboperadores: [valido], contrato: 'x' }).success).toBe(false)
   })
 })

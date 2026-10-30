@@ -1,4 +1,4 @@
-import { pareceDocumento, type ErroDaLinhaDaLista, type LinhaDaPrevia, type RespostaPreviaDaLista } from '@educa/shared'
+import { pareceDocumento, type ErroDaLinhaDaLista, type PreviaRow, type PreviaDaListaResponse } from '@educa/shared'
 
 /**
  * O que a prévia da lista diz à coordenação (A1, 13.0; RF4), fora da tela para ser provado sem navegador. A API dá o
@@ -24,8 +24,8 @@ export const TEXTO_DO_RESULTADO = {
 } as const
 
 /** As linhas na ordem da tela: as de erro primeiro, e cada grupo na ordem do texto. */
-export function linhasNaOrdemDaTela(linhas: readonly LinhaDaPrevia[]): LinhaDaPrevia[] {
-  const pelaLinha = (a: LinhaDaPrevia, b: LinhaDaPrevia) => a.linha - b.linha
+export function linhasNaOrdemDaTela(linhas: readonly PreviaRow[]): PreviaRow[] {
+  const pelaLinha = (a: PreviaRow, b: PreviaRow) => a.linha - b.linha
   return [...linhas.filter((linha) => linha.resultado === 'erro').sort(pelaLinha), ...linhas.filter((linha) => linha.resultado !== 'erro').sort(pelaLinha)]
 }
 
@@ -55,7 +55,7 @@ export const TEXTO_DO_AVISO: Readonly<Record<AvisoDaPrevia, string>> = {
     'A segunda coluna parece CPF ou data de nascimento, e não matrícula. A lista leva só nome e matrícula: confira as colunas e tire o CPF e a data antes de gravar.',
 }
 
-export function avisosDaPrevia(linhas: readonly LinhaDaPrevia[]): AvisoDaPrevia[] {
+export function avisosDaPrevia(linhas: readonly PreviaRow[]): AvisoDaPrevia[] {
   const avisos: AvisoDaPrevia[] = []
   const semMatricula = linhas.filter((linha) => linha.erro === 'sem_matricula').length
   if (semMatricula >= 2 && semMatricula * 2 >= linhas.length) avisos.push('titulo_antes_da_lista')
@@ -70,7 +70,7 @@ export function avisosDaPrevia(linhas: readonly LinhaDaPrevia[]): AvisoDaPrevia[
  * documento. O motivo vai para a tela quando não pode, sem repetir o texto do aviso. A linha que parece documento é erro
  * para a API; sem outro erro, o motivo é o da coluna, que o aviso explica.
  */
-export function podeGravar(previa: RespostaPreviaDaLista): { readonly pode: true } | { readonly pode: false; readonly motivo: string } {
+export function podeGravar(previa: PreviaDaListaResponse): { readonly pode: true } | { readonly pode: false; readonly motivo: string } {
   const outrosErros = previa.linhas.filter((linha) => linha.resultado === 'erro' && linha.erro !== 'matricula_parece_documento').length
   if (outrosErros > 0) return { pode: false, motivo: 'Corrija as linhas com erro no texto e veja a prévia de novo: a lista só é gravada sem erro nenhum.' }
   // Daqui em diante, todo erro que sobrar é de documento. O aviso acima da prévia já diz o que fazer: aqui, só que a

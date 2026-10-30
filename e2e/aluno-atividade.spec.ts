@@ -1,6 +1,6 @@
 import type { Locator, Page, Route } from '@playwright/test'
-import { MENSAGENS_DE_ERRO } from '../packages/shared/src/erros/mensagens.ts'
-import type { RespostaProva } from '../packages/shared/src/index.ts'
+import { MENSAGENS_DE_ERRO } from '../packages/shared/src/errors/messages.ts'
+import type { ProvaResponse } from '../packages/shared/src/index.ts'
 import { diagnosticoDa, erroDaApi, minhaAtividade, portao, provaDa, QUEM_APROVA, QUESTOES_SINTETICAS, simularAluno, type ApiDoAluno } from './__fixtures__/aluno.ts'
 import { abrirNavegacao, entrarComoAluno, esperarInicioDoAluno, irPelaNavegacao, lateral, PRAZO_DA_ENTRADA_MS } from './__fixtures__/casca.ts'
 import { expect, test } from './__fixtures__/perfis.ts'
@@ -406,7 +406,7 @@ test.describe('a atividade aberta: uma questão por vez, e a resposta salva no s
  * O aluno entra e abre a tarefa pelo endereço, sem colega nem a ida pela lista: estes casos provam a comemoração, e a
  * entrada mais curta deixa cada um bem abaixo da metade do prazo do portão (15 s).
  */
-async function entrarNaTarefa(page: Page, hasTouch: boolean, respostas: RespostaProva['respostas']): Promise<void> {
+async function entrarNaTarefa(page: Page, hasTouch: boolean, respostas: ProvaResponse['respostas']): Promise<void> {
   const api = await simularAluno(page)
   const atividade = minhaAtividade({ situacao: 'em_andamento', respondidas: respostas.length })
   api.atividades = [atividade]
@@ -636,7 +636,7 @@ test.describe('a tarefa aberta na janela do aluno (RF20)', () => {
     const segunda = base.questoes.find((item) => item.numero === 2)
     if (segunda === undefined) throw new Error('o diagnóstico sintético não tem a questão 2')
     const quarta = { ...segunda, numero: 4, explicacao: 'A proporção é de 3 para 2, e o hidrogênio acaba primeiro.' }
-    const questoes: RespostaProva['questoes'] = [...QUESTOES_SINTETICAS, { numero: 4, enunciado: 'Quantos mols de N₂ reagem com 9 mol de H₂?', alternativas: ['1 mol', '2 mol', '3 mol', '9 mol'] }]
+    const questoes: ProvaResponse['questoes'] = [...QUESTOES_SINTETICAS, { numero: 4, enunciado: 'Quantos mols de N₂ reagem com 9 mol de H₂?', alternativas: ['1 mol', '2 mol', '3 mol', '9 mol'] }]
     api.atividades = [atividade]
     api.provas.set(atividade.id, provaDa(atividade, { questoes, enviadaEm: atividade.enviadaEm, respostas: questoes.map((q) => ({ questao: q.numero, alternativa: 0, sequencia: 1 })) }))
     api.diagnosticos.set(atividade.id, { ...base, total: 4, questoes: [...base.questoes, quarta] })

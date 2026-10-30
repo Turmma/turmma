@@ -1,7 +1,7 @@
 import { acessoTurma, anoLetivo, exigirEscolaDoContexto, listaNome, reivindicacao, type Banco, type TransacaoBanco } from '@educa/nucleo'
-import type { AnoLetivo, ConsultaPaginada, PedidoCriarAnoLetivo, SituacaoDoAnoLetivo } from '@educa/shared'
+import type { AnoLetivo, PaginationQuery, CriarAnoLetivoRequest, SituacaoDoAnoLetivo } from '@educa/shared'
 import { and, asc, eq, gt, inArray, isNull, sql } from 'drizzle-orm'
-import { ErroDeInvariante } from '@educa/shared'
+import { InvariantException } from '@educa/shared'
 
 /** O que a virada fez na sala das turmas do ano: só contagens, que a auditoria `ano_letivo.encerrado` leva. */
 export interface ViradaDaSala {
@@ -23,17 +23,17 @@ const colunas = { id: anoLetivo.id, ano: anoLetivo.ano, inicio: anoLetivo.inicio
 export class AnoLetivoRepository {
   constructor(private readonly banco: Banco | TransacaoBanco) {}
 
-  async criar(pedido: PedidoCriarAnoLetivo): Promise<AnoLetivo> {
+  async criar(pedido: CriarAnoLetivoRequest): Promise<AnoLetivo> {
     const [criado] = await this.banco
       .insert(anoLetivo)
       .values({ escolaId: exigirEscolaDoContexto(), ano: pedido.ano, inicio: pedido.inicio, fim: pedido.fim, situacao: 'planejado' })
       .returning(colunas)
-    if (criado === undefined) throw new ErroDeInvariante('ano letivo não criado')
+    if (criado === undefined) throw new InvariantException('ano letivo não criado')
     return criado
   }
 
   /** Uma página dos anos da escola, em ordem de criação, com uma linha a mais que diz se há próxima. */
-  listar({ pagina, limite }: ConsultaPaginada): Promise<AnoLetivo[]> {
+  listar({ pagina, limite }: PaginationQuery): Promise<AnoLetivo[]> {
     return this.banco
       .select(colunas)
       .from(anoLetivo)

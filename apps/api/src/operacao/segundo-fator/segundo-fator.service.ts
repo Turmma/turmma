@@ -1,10 +1,10 @@
 import { contextoAtual, ErroDeDominio, executarNoContexto, relogioDoSistema, type Ambiente, type Banco, type EmissorDeTokenDeOperador, type Relogio } from '@educa/nucleo'
 import {
-  CodigoDeErro,
-  type PedidoConfigurarSegundoFatorDeOperador,
-  type PedidoSegundoFatorDeOperador,
-  type RespostaConfigurarSegundoFatorDeOperador,
-  type RespostaSegundoFatorDeOperador,
+  ErrorCode,
+  type ConfigurarSegundoFatorDeOperadorRequest,
+  type SegundoFatorDeOperadorRequest,
+  type ConfigurarSegundoFatorDeOperadorResponse,
+  type SegundoFatorDeOperadorResponse,
 } from '@educa/shared'
 import { Logger } from '@nestjs/common'
 import { randomBytes } from 'node:crypto'
@@ -48,12 +48,12 @@ export interface OrigemDoSegundoFator {
 
 /** A sessão aberta: o corpo da resposta e os dois `Set-Cookie`. */
 export interface SessaoDeOperadorAberta {
-  readonly resposta: RespostaSegundoFatorDeOperador
+  readonly resposta: SegundoFatorDeOperadorResponse
   readonly cookies: readonly string[]
 }
 
 /** Desafio inválido, usado, de outra etapa, de operador desativado ou sem segundo fator para conferir: uma resposta só. */
-const desafioInvalido = () => new ErroDeDominio(CodigoDeErro.NAO_AUTENTICADO)
+const desafioInvalido = () => new ErroDeDominio(ErrorCode.NAO_AUTENTICADO)
 
 /** O que a transação do `/sessao/mfa` decidiu. Só `aberta` gravou alguma coisa. */
 type Desfecho =
@@ -102,7 +102,7 @@ export class SegundoFatorDoOperadorService {
     this.#relogio = dependencias.relogio ?? relogioDoSistema
   }
 
-  async configurar(pedido: PedidoConfigurarSegundoFatorDeOperador): Promise<RespostaConfigurarSegundoFatorDeOperador> {
+  async configurar(pedido: ConfigurarSegundoFatorDeOperadorRequest): Promise<ConfigurarSegundoFatorDeOperadorResponse> {
     const { banco, cifra, chaveRecuperacao, emissorDeDesafio } = this.dependencias
     const verificado = await this.#desafioConsumido(pedido.desafio, 'configurar_mfa')
     const novo = gerarSegredo(ROTULO_TOTP_DA_OPERACAO)
@@ -121,12 +121,12 @@ export class SegundoFatorDoOperadorService {
     return { uri: novo.uri, segredo: novo.base32, codigosRecuperacao, etapa: 'mfa', desafio }
   }
 
-  async entrar(pedido: PedidoSegundoFatorDeOperador, origem: OrigemDoSegundoFator): Promise<SessaoDeOperadorAberta> {
+  async entrar(pedido: SegundoFatorDeOperadorRequest, origem: OrigemDoSegundoFator): Promise<SessaoDeOperadorAberta> {
     const { banco, contador, emissorDeToken, dispositivo, ambiente } = this.dependencias
     // O middleware abre o contexto em toda requisição HTTP. Sem ele é falha de montagem: recusa antes de gastar o desafio
     // ou gravar qualquer coisa, em vez de inventar um `requisicaoId` para a linha de log do fim.
     const requisicao = contextoAtual()
-    if (requisicao === undefined) throw new ErroDeDominio(CodigoDeErro.ERRO_INTERNO)
+    if (requisicao === undefined) throw new ErroDeDominio(ErrorCode.ERRO_INTERNO)
     const verificado = await this.#desafioConsumido(pedido.desafio, 'mfa')
     const refresh = randomBytes(BYTES_DO_REFRESH).toString('base64url')
     const cookieDeDispositivo = lerCookie(origem.cabecalhoCookie, COOKIE_DISPOSITIVO_DE_OPERADOR)
@@ -152,7 +152,7 @@ export class SegundoFatorDoOperadorService {
       }
       if (!linha.mfaAtivo) {
         // A linha está travada desde o `for update`, com a versão conferida acima: a ativação não tem como não casar.
-        if (!(await repositorio.ativarSegundoFator(linha.id, linha.mfaVersao))) throw new ErroDeDominio(CodigoDeErro.ERRO_INTERNO)
+        if (!(await repositorio.ativarSegundoFator(linha.id, linha.mfaVersao))) throw new ErroDeDominio(ErrorCode.ERRO_INTERNO)
         await repositorio.auditar({ autor: linha.apelido, acao: 'operador.mfa_configurado', operadorAlvoId: linha.id })
       }
       const sessaoId = await repositorio.abrirSessao(linha.id, hashDoRefresh(refresh))
@@ -164,13 +164,13 @@ export class SegundoFatorDoOperadorService {
       case 'desafio_invalido':
         throw desafioInvalido()
       case 'configure_de_novo':
-        throw new ErroDeDominio(CodigoDeErro.CONFLITO)
+        throw new ErroDeDominio(ErrorCode.CONFLITO)
       case 'segurada':
         this.dependencias.falhas.somar()
         throw contaSegurada(desfecho.esperaMs)
       case 'codigo_recusado':
         this.dependencias.falhas.somar()
-        throw desfecho.esperaMs > 0 ? contaSegurada(desfecho.esperaMs) : new ErroDeDominio(CodigoDeErro.NAO_AUTENTICADO)
+        throw desfecho.esperaMs > 0 ? contaSegurada(desfecho.esperaMs) : new ErroDeDominio(ErrorCode.NAO_AUTENTICADO)
       case 'aberta': {
         if (!(await contador.zerar(desfecho.chave))) {
           const operadorId = verificado.operadorId
@@ -186,7 +186,7 @@ export class SegundoFatorDoOperadorService {
   }
 
   /** O código do app (passo novo, gasto no banco) ou o de recuperação (gasto no banco, e só com o segundo fator ativo). */
-  async #codigoConfere(repositorio: OperadorRepository, linha: OperadorParaSegundoFator, segredo: Uint8Array, pedido: PedidoSegundoFatorDeOperador): Promise<boolean> {
+  async #codigoConfere(repositorio: OperadorRepository, linha: OperadorParaSegundoFator, segredo: Uint8Array, pedido: SegundoFatorDeOperadorRequest): Promise<boolean> {
     if ('codigo' in pedido) {
       const passo = passoDoCodigo(segredo, pedido.codigo, this.#relogio.agora())
       return passo !== undefined && (await repositorio.avancarPassoDoSegundoFator(linha.id, passo))
@@ -217,5 +217,5 @@ export class SegundoFatorDoOperadorService {
 }
 
 function contaSegurada(esperaMs: number): ErroDeDominio {
-  return new ErroDeDominio(CodigoDeErro.CONTA_SEGURADA, undefined, Math.max(1, Math.ceil(esperaMs / 1_000)))
+  return new ErroDeDominio(ErrorCode.CONTA_SEGURADA, undefined, Math.max(1, Math.ceil(esperaMs / 1_000)))
 }

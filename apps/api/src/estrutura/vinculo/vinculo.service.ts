@@ -2,23 +2,23 @@ import { ErroDeDominio, RegistroDeAuditoria, type Banco } from '@educa/nucleo'
 import { CicloDeVidaRepository } from '@educa/nucleo/ciclo-de-vida'
 import { Logger } from '@nestjs/common'
 import {
-  CodigoDeErro,
-  ErroDeInvariante,
-  esquemaRespostaListaDeVinculos,
-  esquemaRespostaMeusVinculos,
-  esquemaRespostaVinculo,
-  esquemaRespostaVinculoDaCoordenacao,
+  ErrorCode,
+  InvariantException,
+  listaDeVinculosResponseSchema,
+  meusVinculosResponseSchema,
+  vinculoResponseSchema,
+  vinculoDaCoordenacaoResponseSchema,
   ESTADOS_EM_DECISAO,
-  type ConsultaPaginada,
-  type ConsultaVinculos,
+  type PaginationQuery,
+  type VinculosQuery,
   type EstadoDeVinculo,
-  type PedidoContestarVinculo,
-  type PedidoCriarVinculo,
-  type PedidoEncerrarVinculo,
-  type RespostaListaDeVinculos,
-  type RespostaMeusVinculos,
-  type RespostaVinculo,
-  type RespostaVinculoDaCoordenacao,
+  type ContestarVinculoRequest,
+  type CriarVinculoRequest,
+  type EncerrarVinculoRequest,
+  type ListaDeVinculosResponse,
+  type MeusVinculosResponse,
+  type VinculoResponse,
+  type VinculoDaCoordenacaoResponse,
   type Vinculo,
   type VinculoDaCoordenacao,
 } from '@educa/shared'
@@ -78,7 +78,7 @@ export class VinculoService {
 
   constructor(private readonly banco: Banco) {}
 
-  async criar(pedido: PedidoCriarVinculo): Promise<RespostaVinculoDaCoordenacao> {
+  async criar(pedido: CriarVinculoRequest): Promise<VinculoDaCoordenacaoResponse> {
     const turmaId = pedido.turmaId.toLowerCase()
     const usuarioId = pedido.usuarioId.toLowerCase()
     const disciplinaId = pedido.disciplinaId?.toLowerCase() ?? null
@@ -86,52 +86,52 @@ export class VinculoService {
       const turmas = new TurmaRepository(tx)
       const vinculos = new VinculoRepository(tx)
       // O ano em curso travado em `FOR SHARE`: o encerramento do ano espera o vínculo nascer, e o que chega depois não nasce.
-      if (!(await turmas.travarAnoEmCurso())) throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
-      if ((await turmas.aberta(turmaId, 'unidade')) === undefined) throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
+      if (!(await turmas.travarAnoEmCurso())) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+      if ((await turmas.aberta(turmaId, 'unidade')) === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
       // A guarda confere o papel de professor, o único que a coordenação cria (`PAPEIS_DE_VINCULO_PELA_COORDENACAO`):
       // outro papel naquela lista pede outra guarda aqui.
-      if (!(await vinculos.professorAlocavel(usuarioId))) throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
-      if (disciplinaId !== null && (await new DisciplinaRepository(tx).porId(disciplinaId)) === undefined) throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
+      if (!(await vinculos.professorAlocavel(usuarioId))) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+      if (disciplinaId !== null && (await new DisciplinaRepository(tx).porId(disciplinaId)) === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
       const id = await vinculos.criar({ usuarioId, turmaId, disciplinaId, papel: pedido.papel })
       await registro.gravar(tx, 'vinculo.criado', { entidadeId: id, depois: { usuarioId, turmaId, disciplinaId, papel: pedido.papel, estado: 'pendente' } })
       return this.#lido(vinculos.porId(id))
     })
     this.#logger.log('vinculo.criado')
-    return esquemaRespostaVinculoDaCoordenacao.parse(daCoordenacao(criado))
+    return vinculoDaCoordenacaoResponseSchema.parse(daCoordenacao(criado))
   }
 
-  async listar(consulta: ConsultaVinculos): Promise<RespostaListaDeVinculos> {
+  async listar(consulta: VinculosQuery): Promise<ListaDeVinculosResponse> {
     const linhas = await new VinculoRepository(this.banco).listar(consulta)
     const pagina = paginar(linhas, consulta.limite)
-    return esquemaRespostaListaDeVinculos.parse({ ...pagina, itens: pagina.itens.map(daCoordenacao) })
+    return listaDeVinculosResponseSchema.parse({ ...pagina, itens: pagina.itens.map(daCoordenacao) })
   }
 
-  async meus(consulta: ConsultaPaginada): Promise<RespostaMeusVinculos> {
+  async meus(consulta: PaginationQuery): Promise<MeusVinculosResponse> {
     const linhas = await new VinculoRepository(this.banco).listarDoUsuario(consulta)
     const pagina = paginar(linhas, consulta.limite)
-    return esquemaRespostaMeusVinculos.parse({ ...pagina, itens: pagina.itens.map(doProfessor) })
+    return meusVinculosResponseSchema.parse({ ...pagina, itens: pagina.itens.map(doProfessor) })
   }
 
-  confirmar(id: string): Promise<RespostaVinculo> {
+  confirmar(id: string): Promise<VinculoResponse> {
     return this.#decidir(id, { estado: 'confirmado' })
   }
 
-  contestar(id: string, pedido: PedidoContestarVinculo): Promise<RespostaVinculo> {
+  contestar(id: string, pedido: ContestarVinculoRequest): Promise<VinculoResponse> {
     return this.#decidir(id, { estado: 'contestado', contestacao: pedido.contestacao, complemento: pedido.complemento ?? null })
   }
 
-  async encerrar(id: string, pedido: PedidoEncerrarVinculo): Promise<RespostaVinculoDaCoordenacao> {
+  async encerrar(id: string, pedido: EncerrarVinculoRequest): Promise<VinculoDaCoordenacaoResponse> {
     const encerrado = await this.banco.transaction(async (tx) => {
       const vinculos = new VinculoRepository(tx)
       // A turma travada antes do vínculo, na ordem do excluir e da eliminação (turma → vínculo): o gerar do professor que
       // está no meio termina primeiro, e o acesso dele cai abaixo; o que chega depois espera, reconfere o vínculo e sai
       // `NAO_ENCONTRADO`. O vínculo é relido com a trava: o estado lido aqui pode ter mudado na espera.
       const turmaId = await vinculos.turmaDe(id)
-      if (turmaId === undefined || !(await new TurmaRepository(tx).travarContraOGerar(turmaId, 'no key update'))) throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
+      if (turmaId === undefined || !(await new TurmaRepository(tx).travarContraOGerar(turmaId, 'no key update'))) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
       const antes = await vinculos.travar(id, { doUsuario: false })
-      if (antes === undefined) throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
+      if (antes === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
       if (antes.estado !== 'encerrado') {
-        if (!(await vinculos.encerrar(id, pedido.motivo))) throw new ErroDeDominio(CodigoDeErro.CONFLITO)
+        if (!(await vinculos.encerrar(id, pedido.motivo))) throw new ErroDeDominio(ErrorCode.CONFLITO)
         await registro.gravar(tx, 'vinculo.encerrado', { entidadeId: id, antes: { estado: antes.estado }, depois: { estado: 'encerrado', motivo: pedido.motivo } })
         const revogados = await new CicloDeVidaRepository(tx).revogarDeQuemSaiu(antes.usuarioId, antes.turmaId)
         for (const revogado of revogados) await registro.gravar(tx, 'acesso_turma.revogado', { entidadeId: revogado.id, depois: { turmaId: revogado.turmaId } })
@@ -139,22 +139,22 @@ export class VinculoService {
       }
       return this.#lido(vinculos.porId(id))
     })
-    return esquemaRespostaVinculoDaCoordenacao.parse(daCoordenacao(encerrado))
+    return vinculoDaCoordenacaoResponseSchema.parse(daCoordenacao(encerrado))
   }
 
-  async #decidir(id: string, decisao: Decisao): Promise<RespostaVinculo> {
+  async #decidir(id: string, decisao: Decisao): Promise<VinculoResponse> {
     const decidido = await this.banco.transaction(async (tx) => {
       const vinculos = new VinculoRepository(tx)
       const travado = await vinculos.travar(id, { doUsuario: true })
-      if (travado === undefined) throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
+      if (travado === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
       const antes = travado.estado
       // Contestar só sai de `pendente` ou `contestado`: o vínculo confirmado, o único que gera acesso, nunca é contestado,
       // e a decisão não tem acesso a revogar.
       if (!emDecisao(antes)) {
         if (antes === 'confirmado' && decisao.estado === 'confirmado') return this.#lido(vinculos.porIdDoUsuario(id))
-        throw new ErroDeDominio(CodigoDeErro.CONFLITO)
+        throw new ErroDeDominio(ErrorCode.CONFLITO)
       }
-      if (!(await vinculos.decidir(id, decisao))) throw new ErroDeDominio(CodigoDeErro.CONFLITO)
+      if (!(await vinculos.decidir(id, decisao))) throw new ErroDeDominio(ErrorCode.CONFLITO)
       if (decisao.estado === 'confirmado') {
         await registro.gravar(tx, 'vinculo.confirmado', { entidadeId: id, antes: { estado: antes }, depois: { estado: 'confirmado' } })
         this.#logger.log('vinculo.confirmado')
@@ -165,12 +165,12 @@ export class VinculoService {
       }
       return this.#lido(vinculos.porIdDoUsuario(id))
     })
-    return esquemaRespostaVinculo.parse(doProfessor(decidido))
+    return vinculoResponseSchema.parse(doProfessor(decidido))
   }
 
   async #lido(leitura: Promise<VinculoLido | undefined>): Promise<VinculoLido> {
     const lido = await leitura
-    if (lido === undefined) throw new ErroDeInvariante('vínculo lido na mesma transação não encontrado')
+    if (lido === undefined) throw new InvariantException('vínculo lido na mesma transação não encontrado')
     return lido
   }
 }

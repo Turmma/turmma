@@ -1,4 +1,4 @@
-import { CodigoDeErro } from '@educa/shared'
+import { ErrorCode } from '@educa/shared'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { chamar, cookieDeRenovacao, estadoDaSessao, registrosDeAcesso, renovar, subirApi, type ApiDeTeste } from './api-com-sessao.js'
@@ -33,7 +33,7 @@ describe('DELETE /v1/sessao: sair encerra na hora', () => {
     expect(await registrosDeAcesso(bancada, aluno, 'saida')).toBe(saidasAntes + 1)
     const seguinte = await chamar(api.url, 'GET', '/v1/eu', aluno.token)
     expect(seguinte.status).toBe(401)
-    expect(seguinte.corpo.erro?.codigo).toBe(CodigoDeErro.NAO_AUTENTICADO)
+    expect(seguinte.corpo.erro?.codigo).toBe(ErrorCode.NAO_AUTENTICADO)
     expect((await renovar(api.url, cookie)).status).toBe(401)
     // Sair de novo com o mesmo token já não passa da guarda, e não grava outra saída.
     expect((await chamar(api.url, 'DELETE', '/v1/sessao', aluno.token)).status).toBe(401)

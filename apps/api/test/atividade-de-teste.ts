@@ -1,4 +1,4 @@
-import { esquemaConteudoDeAtividade, type ConteudoDeAtividade } from '@educa/shared'
+import { conteudoDeAtividadeSchema, type ConteudoDeAtividade } from '@educa/shared'
 import { chamar, type ApiDeTeste, type RespostaHttp } from './api-com-sessao.js'
 import type { EscolaComAssistente } from './escola-com-assistente.js'
 import type { BancadaDeSessoes, SessaoDeTeste } from './sessao-de-teste.js'
@@ -17,7 +17,7 @@ export const EXPLICACAO_DE_TESTE = 'Explicação sintética do gabarito que só 
 
 /** Uma atividade objetiva com o gabarito dado (o de teste, se nada for dito): três questões de uma habilidade e o resto de outra. */
 export function conteudoDeTeste(materialId: string, titulo = 'Estequiometria: lista sintética', gabarito: readonly number[] = GABARITO_DE_TESTE): ConteudoDeAtividade {
-  return esquemaConteudoDeAtividade.parse({
+  return conteudoDeAtividadeSchema.parse({
     tipo: 'atividade_objetiva',
     titulo,
     questoes: gabarito.map((correta, indice) => ({

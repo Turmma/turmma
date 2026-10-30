@@ -1,5 +1,5 @@
 import type { BrowserContext, Locator, Page, Request, Route } from '@playwright/test'
-import { MENSAGENS_DE_ERRO } from '../packages/shared/src/erros/mensagens.ts'
+import { MENSAGENS_DE_ERRO } from '../packages/shared/src/errors/messages.ts'
 import { entrarComoAluno, entrarPelaApi, entrarPorEmail, esperarInicioDoAluno, esperarNovaConversa, irPelaNavegacao, PRAZO_DA_ENTRADA_MS } from './__fixtures__/casca.ts'
 import { carregarSemRedeLenta, expect, test } from './__fixtures__/perfis.ts'
 import {

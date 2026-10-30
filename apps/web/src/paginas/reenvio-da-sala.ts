@@ -1,4 +1,4 @@
-import { CodigoDeErro } from '@educa/shared'
+import { ErrorCode } from '@educa/shared'
 import { ErroDaApi } from '../api/cliente'
 
 /**
@@ -53,7 +53,7 @@ export interface OpcoesDoReenvio {
   readonly valendo: () => boolean
 }
 
-const ehSistemaCheio = (erro: unknown): erro is ErroDaApi => erro instanceof ErroDaApi && erro.codigo === CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO
+const ehSistemaCheio = (erro: unknown): erro is ErroDaApi => erro instanceof ErroDaApi && erro.codigo === ErrorCode.INDISPONIVEL_TENTE_DE_NOVO
 
 /**
  * Manda o envio e repete o 503 até `MAXIMO_DE_REENVIOS` vezes. `enviar` é sempre o mesmo pedido, com a mesma chave: quem

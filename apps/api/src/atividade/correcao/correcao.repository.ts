@@ -15,7 +15,7 @@ import {
 } from '@educa/nucleo'
 import type { DestaquesAbertos, DiagnosticoGravado, EstadoDeEntrega, LoteApresentado, MotivoDeDestaque } from '@educa/shared'
 import { and, asc, desc, eq, inArray, isNull, lt, lte, ne, sql, type SQL } from 'drizzle-orm'
-import { ErroDeInvariante } from '@educa/shared'
+import { InvariantException } from '@educa/shared'
 import { comVinculoConfirmadoDoProfessor, disciplinaDaEntrega } from '../../assistente/turma-do-professor.repository.js'
 import { alunosDaTurma } from '../atividade-aplicada/atividade-aplicada.repository.js'
 import { MAXIMO_DE_LOTES_NO_HISTORICO, type RespostasDaTentativa } from './correcao-de-objetiva.js'
@@ -227,7 +227,7 @@ export class CorrecaoRepository {
       .insert(entrega)
       .values({ escolaId, anoLetivoId, turmaId: aplicacao.turmaId, funcao: 'correcao_de_objetiva', tipo: 'lote_de_correcao', atividadeAplicadaId: aplicacao.id })
       .returning({ id: entrega.id })
-    if (criada === undefined) throw new ErroDeInvariante('lote não criado')
+    if (criada === undefined) throw new InvariantException('lote não criado')
     await this.banco.insert(correcao).values(correcoes.map((nova) => ({ escolaId, anoLetivoId, entregaId: criada.id, atividadeAplicadaId: aplicacao.id, ...nova })))
     return criada.id
   }
@@ -282,7 +282,7 @@ export class CorrecaoRepository {
       .insert(validacaoDoLote)
       .values({ escolaId: exigirEscolaDoContexto(), anoLetivoId: exigirAnoEmCurso(), entregaId: lote.entregaId, atividadeAplicadaId: lote.atividadeAplicadaId, apresentado, aberto, confirmadaPor: sessaoDaRequisicao().usuarioId })
       .returning({ id: validacaoDoLote.id })
-    if (gravada === undefined) throw new ErroDeInvariante('validação não gravada')
+    if (gravada === undefined) throw new InvariantException('validação não gravada')
     return gravada.id
   }
 

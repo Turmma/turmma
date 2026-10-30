@@ -1,4 +1,4 @@
-import { CodigoDeErro, type Entrega, type Vinculo } from '@educa/shared'
+import { ErrorCode, type Entrega, type Vinculo } from '@educa/shared'
 import { describe, expect, it } from 'vitest'
 import { ErroDaApi } from '../../../api/cliente'
 import { caminhoDaCorrecaoDoProfessor, ROTAS_DO_PROFESSOR } from '../../../caminhos'
@@ -192,13 +192,13 @@ describe('a situação da fila: nunca "Tudo em dia" sem ter lido tudo', () => {
   })
 
   it('sem ano letivo em curso a fila é parcial, não lê turma e não diz "em dia"', () => {
-    const semAno = new ErroDaApi(CodigoDeErro.NAO_ENCONTRADO)
+    const semAno = new ErroDaApi(ErrorCode.NAO_ENCONTRADO)
     const fila = filaDoProfessor(entrada({ vinculos: { estado: 'erro', erro: semAno }, entregas: { estado: 'erro', erro: semAno } }))
     expect(fila).toMatchObject({ situacao: 'parcial', semAnoLetivo: true, itens: [] })
   })
 
   it('a falha que não é "não encontrado" não vira "sem ano letivo"', () => {
-    const fila = filaDoProfessor(entrada({ vinculos: { estado: 'erro', erro: new ErroDaApi(CodigoDeErro.ERRO_INTERNO) } }))
+    const fila = filaDoProfessor(entrada({ vinculos: { estado: 'erro', erro: new ErroDaApi(ErrorCode.ERRO_INTERNO) } }))
     expect(fila.semAnoLetivo).toBe(false)
   })
 })

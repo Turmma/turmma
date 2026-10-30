@@ -1,8 +1,8 @@
-import type { Fila } from '@educa/shared'
+import type { QueueName } from '@educa/shared'
 import type { Redis } from 'ioredis'
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
-import { ErroDeInvariante } from '@educa/shared'
+import { InvariantException } from '@educa/shared'
 
 /** Quanto uma vaga vale sem renovação. Worker morto segurando vaga a perde nesse prazo (Tech Spec, seção 5). */
 export const VALIDADE_DA_VAGA_MS = 60_000
@@ -40,7 +40,7 @@ export class VagasPorEscola {
     this.#prefixo = prefixo === undefined ? '' : `${prefixo}:`
   }
 
-  chave(fila: Fila, escolaId: string | null): string {
+  chave(fila: QueueName, escolaId: string | null): string {
     return `${this.#prefixo}vaga:${fila}:${escolaId ?? DONO_DAS_VAGAS_DO_SISTEMA}`
   }
 
@@ -48,31 +48,31 @@ export class VagasPorEscola {
    * Estimativa de vagas livres, para o despachante não reservar linha que certamente não teria vaga.
    * Não garante nada: quem garante é `tomar`, depois da reserva.
    */
-  async livres(fila: Fila, escolaId: string | null, limite: number): Promise<number> {
+  async livres(fila: QueueName, escolaId: string | null, limite: number): Promise<number> {
     return Number(await this.executar(this.chave(fila, escolaId), 'livres', limite))
   }
 
   /** Vagas tomadas agora na escola e fila, sem as vencidas. É a métrica `fila.vagas_em_uso`. */
-  async emUso(fila: Fila, escolaId: string | null): Promise<number> {
+  async emUso(fila: QueueName, escolaId: string | null): Promise<number> {
     // `livres` com limite 0 devolve menos as vagas em uso, depois de tirar as vencidas, no mesmo script.
     return 0 - Number(await this.executar(this.chave(fila, escolaId), 'livres', 0))
   }
 
   /** Toma vaga para cada job, na ordem, até o limite. Devolve os que ficaram com vaga; job que já tinha, mantém. */
-  async tomar(fila: Fila, escolaId: string | null, limite: number, jobIds: readonly string[]): Promise<ReadonlySet<string>> {
+  async tomar(fila: QueueName, escolaId: string | null, limite: number, jobIds: readonly string[]): Promise<ReadonlySet<string>> {
     if (jobIds.length === 0) return new Set()
     const concedidos = await this.executar(this.chave(fila, escolaId), 'tomar', this.validadeMs, limite, ...jobIds)
-    if (!Array.isArray(concedidos)) throw new ErroDeInvariante('vaga.lua devolveu resposta inesperada ao tomar')
+    if (!Array.isArray(concedidos)) throw new InvariantException('vaga.lua devolveu resposta inesperada ao tomar')
     return new Set(concedidos.map(String))
   }
 
   /** Renova a vaga do job em execução por mais uma validade. */
-  async renovar(fila: Fila, escolaId: string | null, jobId: string): Promise<void> {
+  async renovar(fila: QueueName, escolaId: string | null, jobId: string): Promise<void> {
     await this.executar(this.chave(fila, escolaId), 'renovar', this.validadeMs, jobId)
   }
 
   /** Os jobs que têm vaga na escola e fila, vencida ou não: no máximo cerca do limite dela. */
-  async membros(fila: Fila, escolaId: string | null): Promise<string[]> {
+  async membros(fila: QueueName, escolaId: string | null): Promise<string[]> {
     return this.redis.zrange(this.chave(fila, escolaId), '0', '-1')
   }
 
@@ -81,12 +81,12 @@ export class VagasPorEscola {
    * isto, a vaga de um job parado na fila do BullMQ (pool cheio, réplica fora) venceria em 60 s, e a
    * escola ganharia mais jobs publicados a cada minuto, acima do teto.
    */
-  async manter(fila: Fila, escolaId: string | null, jobIds: readonly string[]): Promise<void> {
+  async manter(fila: QueueName, escolaId: string | null, jobIds: readonly string[]): Promise<void> {
     if (jobIds.length === 0) return
     await this.executar(this.chave(fila, escolaId), 'manter', this.validadeMs, ...jobIds)
   }
 
-  async liberar(fila: Fila, escolaId: string | null, jobIds: readonly string[]): Promise<void> {
+  async liberar(fila: QueueName, escolaId: string | null, jobIds: readonly string[]): Promise<void> {
     if (jobIds.length === 0) return
     await this.executar(this.chave(fila, escolaId), 'liberar', ...jobIds)
   }

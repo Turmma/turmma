@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'
 import type { Locator, Page, Request, Route } from '@playwright/test'
-import { MENSAGENS_DE_ERRO } from '../packages/shared/src/erros/mensagens.ts'
+import { MENSAGENS_DE_ERRO } from '../packages/shared/src/errors/messages.ts'
 import { abrirNavegacao, entrarComoCoordenacaoNaMesmaAba, abrirEstrutura, esperarPainel, lateral, PRAZO_DA_ENTRADA_MS, secoes as secoesDaNavegacao } from './__fixtures__/casca.ts'
 import { abrirAnoEDisciplinas, comOQueFalta, fecharPainel, irPelaCoordenacao, linhasDaTabela, paginaNaoRola, painelDoAno } from './__fixtures__/coordenacao.ts'
 import { expect, test } from './__fixtures__/perfis.ts'

@@ -1,15 +1,15 @@
 import { ipDaRequisicao, PROVEDORES_EXTERNOS, ProxiesConfiaveis, RotaAnonima, ZodValidationPipe, type ProvedorExterno } from '@educa/nucleo'
-import { CodigoDeErro, esquemaSlugDaEscola } from '@educa/shared'
+import { ErrorCode, slugDaEscolaSchema } from '@educa/shared'
 import { Controller, Get, Param, Query, Req, Res } from '@nestjs/common'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { z } from 'zod'
 import { LoginExterno, type Redirecionamento } from './externa.service.js'
 
 /** O provedor e o slug que não têm o formato de nenhum existente respondem como o inexistente (regra 10, item 6). */
-const COMO_INEXISTENTE = { errorCode: CodigoDeErro.NAO_ENCONTRADO }
+const COMO_INEXISTENTE = { errorCode: ErrorCode.NAO_ENCONTRADO }
 const esquemaProvedor = z.enum(PROVEDORES_EXTERNOS)
 /** O slug da query vem digitado na barra de endereço da escola: espaço em volta é cortado antes do formato. */
-const esquemaSlugDigitado = z.string().trim().pipe(esquemaSlugDaEscola)
+const esquemaSlugDigitado = z.string().trim().pipe(slugDaEscolaSchema)
 
 /** Responde o redirecionamento: 302, sem cache, sem `Referer` com o código do provedor. */
 function redirecionar(resposta: ServerResponse, { endereco, cookies }: Redirecionamento): void {

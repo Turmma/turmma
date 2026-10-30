@@ -1,4 +1,4 @@
-import { CodigoDeErro } from '@educa/shared'
+import { ErrorCode } from '@educa/shared'
 import pg from 'pg'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { urlDoBancoDeTeste } from '../../../tools/testes/integracao.setup.ts'
@@ -105,7 +105,7 @@ describe('estrutura: a coordenação monta o ano letivo, as séries, as discipli
     for (const invalida of ['limite=101', 'limite=0', 'pagina=nao-e-uuid', 'escolaId=00000000-0000-7000-8000-000000000000']) {
       const resposta = await get(coordenacao, `/v1/disciplinas?${invalida}`)
       expect(resposta.status, invalida).toBe(400)
-      expect(resposta.corpo.erro?.codigo, invalida).toBe(CodigoDeErro.ENTRADA_INVALIDA)
+      expect(resposta.corpo.erro?.codigo, invalida).toBe(ErrorCode.ENTRADA_INVALIDA)
     }
     // O teto é 100: o limite 100 passa e traz as três, e o 101 acima não.
     const noTeto = await get(coordenacao, '/v1/disciplinas?limite=100')
@@ -125,7 +125,7 @@ describe('estrutura: a coordenação monta o ano letivo, as séries, as discipli
       ]) {
         const resposta = await post(coordenacao, '/v1/series', fora)
         expect(resposta.status, JSON.stringify(fora)).toBe(400)
-        expect(resposta.corpo.erro?.codigo, JSON.stringify(fora)).toBe(CodigoDeErro.ENTRADA_INVALIDA)
+        expect(resposta.corpo.erro?.codigo, JSON.stringify(fora)).toBe(ErrorCode.ENTRADA_INVALIDA)
       }
       expect(await contar('serie', coordenacao.escolaId)).toBe(0)
 
@@ -153,7 +153,7 @@ describe('estrutura: a coordenação monta o ano letivo, as séries, as discipli
 
       const repetida = await post(coordenacao, '/v1/series', { etapa: 'ef_anos_finais', ano: 8 })
       expect(repetida.status).toBe(409)
-      expect(repetida.corpo.erro?.codigo).toBe(CodigoDeErro.CONFLITO)
+      expect(repetida.corpo.erro?.codigo).toBe(ErrorCode.CONFLITO)
       const texto = JSON.stringify(repetida.corpo)
       for (const vazamento of ['ef_anos_finais', 'serie_escola_etapa_ano_unico', 'etapa', 'escola_id', '(8)']) expect(texto).not.toContain(vazamento)
 
@@ -183,7 +183,7 @@ describe('estrutura: a coordenação monta o ano letivo, as séries, as discipli
       const juntas = await Promise.all([post(coordenacao, `/v1/anos-letivos/${de2026}/abrir`), post(coordenacao, `/v1/anos-letivos/${de2027}/abrir`)])
 
       expect(juntas.map((resposta) => resposta.status).sort()).toEqual([200, 409])
-      expect(juntas.find((resposta) => resposta.status === 409)?.corpo.erro?.codigo).toBe(CodigoDeErro.CONFLITO)
+      expect(juntas.find((resposta) => resposta.status === 409)?.corpo.erro?.codigo).toBe(ErrorCode.CONFLITO)
       expect(Object.values(await situacoes(coordenacao.escolaId)).sort()).toEqual(['em_curso', 'planejado'])
     })
 
@@ -204,7 +204,7 @@ describe('estrutura: a coordenação monta o ano letivo, as séries, as discipli
 
       const reabrir = await post(coordenacao, `/v1/anos-letivos/${anoId}/abrir`)
       expect(reabrir.status).toBe(409)
-      expect(reabrir.corpo.erro?.codigo).toBe(CodigoDeErro.CONFLITO)
+      expect(reabrir.corpo.erro?.codigo).toBe(ErrorCode.CONFLITO)
       const planejado = await criarAno(coordenacao, 2027)
       expect((await post(coordenacao, `/v1/anos-letivos/${planejado}/encerrar`)).status).toBe(409)
       expect(await situacoes(coordenacao.escolaId)).toEqual({ 2026: 'encerrado', 2027: 'planejado' })
@@ -228,7 +228,7 @@ describe('estrutura: a coordenação monta o ano letivo, as séries, as discipli
       ]) {
         const resposta = await post(coordenacao, '/v1/anos-letivos', invalido)
         expect(resposta.status, JSON.stringify(invalido)).toBe(400)
-        expect(resposta.corpo.erro?.codigo).toBe(CodigoDeErro.ENTRADA_INVALIDA)
+        expect(resposta.corpo.erro?.codigo).toBe(ErrorCode.ENTRADA_INVALIDA)
       }
       expect(await contar('ano_letivo', coordenacao.escolaId)).toBe(1)
       // A rede que termina o ano letivo em janeiro do ano seguinte: passa.
@@ -252,7 +252,7 @@ describe('estrutura: a coordenação monta o ano letivo, as séries, as discipli
       for (const nome of ['7ºa', ' 7ºA ']) {
         const repetida = await post(coordenacao, '/v1/turmas', { serieId: setimo, nome })
         expect(repetida.status, nome).toBe(409)
-        expect(repetida.corpo.erro?.codigo, nome).toBe(CodigoDeErro.CONFLITO)
+        expect(repetida.corpo.erro?.codigo, nome).toBe(ErrorCode.CONFLITO)
       }
       const juntas = await Promise.all([post(coordenacao, '/v1/turmas', { serieId: setimo, nome: '7ºB' }), post(coordenacao, '/v1/turmas', { serieId: setimo, nome: '7ºb' })])
       expect(juntas.map((resposta) => resposta.status).sort()).toEqual([201, 409])
@@ -280,7 +280,7 @@ describe('estrutura: a coordenação monta o ano letivo, as séries, as discipli
       ] as const) {
         const resposta = await post(coordenacao, caminho, corpo)
         expect(resposta.status, JSON.stringify(corpo)).toBe(400)
-        expect(resposta.corpo.erro?.codigo, JSON.stringify(corpo)).toBe(CodigoDeErro.ENTRADA_INVALIDA)
+        expect(resposta.corpo.erro?.codigo, JSON.stringify(corpo)).toBe(ErrorCode.ENTRADA_INVALIDA)
       }
 
       const cliente = new pg.Client({ connectionString: urlDoBancoDeTeste() })
@@ -315,7 +315,7 @@ describe('estrutura: a coordenação monta o ano letivo, as séries, as discipli
 
       for (const resposta of [await get(coordenacao, '/v1/turmas'), await post(coordenacao, '/v1/turmas', { serieId: serie, nome: '3ºA' })]) {
         expect(resposta.status).toBe(404)
-        expect(resposta.corpo.erro?.codigo).toBe(CodigoDeErro.NAO_ENCONTRADO)
+        expect(resposta.corpo.erro?.codigo).toBe(ErrorCode.NAO_ENCONTRADO)
       }
 
       const planejado = await criarAno(coordenacao, 2026)
@@ -333,12 +333,12 @@ describe('estrutura: a coordenação monta o ano letivo, as séries, as discipli
 
       const semAno = await post(coordenacao, '/v1/turmas', { serieId: serie, nome: '9ºA' })
       expect(semAno.status).toBe(404)
-      expect(semAno.corpo.erro?.codigo).toBe(CodigoDeErro.NAO_ENCONTRADO)
+      expect(semAno.corpo.erro?.codigo).toBe(ErrorCode.NAO_ENCONTRADO)
 
       await anoEmCurso(coordenacao, 2027)
       const noEncerrado = await post(coordenacao, '/v1/turmas', { serieId: serie, nome: '9ºA', anoLetivoId: de2026 })
       expect(noEncerrado.status).toBe(404)
-      expect(noEncerrado.corpo.erro?.codigo).toBe(CodigoDeErro.NAO_ENCONTRADO)
+      expect(noEncerrado.corpo.erro?.codigo).toBe(ErrorCode.NAO_ENCONTRADO)
       const planejado = await criarAno(coordenacao, 2028)
       expect((await post(coordenacao, '/v1/turmas', { serieId: serie, nome: '9ºA', anoLetivoId: planejado })).status).toBe(404)
       expect(await contar('turma', coordenacao.escolaId)).toBe(0)
@@ -371,7 +371,7 @@ describe('estrutura: a coordenação monta o ano letivo, as séries, as discipli
 
         const resposta = await criando
         expect(resposta.status).toBe(404)
-        expect(resposta.corpo.erro?.codigo).toBe(CodigoDeErro.NAO_ENCONTRADO)
+        expect(resposta.corpo.erro?.codigo).toBe(ErrorCode.NAO_ENCONTRADO)
         expect(await contar('turma', coordenacao.escolaId)).toBe(0)
       } finally {
         await cliente.end()
@@ -424,7 +424,7 @@ describe('estrutura: a coordenação monta o ano letivo, as séries, as discipli
       ] as const) {
         const repetido = await patch(coordenacao, caminho, { nome })
         expect(repetido.status, caminho).toBe(409)
-        expect(repetido.corpo.erro?.codigo, caminho).toBe(CodigoDeErro.CONFLITO)
+        expect(repetido.corpo.erro?.codigo, caminho).toBe(ErrorCode.CONFLITO)
         const texto = JSON.stringify(repetido.corpo)
         for (const vazamento of [nome, 'unico', 'nome']) expect(texto, caminho).not.toContain(vazamento)
       }
@@ -458,7 +458,7 @@ describe('estrutura: a coordenação monta o ano letivo, as séries, as discipli
       ] as const) {
         const resposta = await patch(coordenacao, caminho, corpo)
         expect(resposta.status, JSON.stringify(corpo)).toBe(400)
-        expect(resposta.corpo.erro?.codigo, JSON.stringify(corpo)).toBe(CodigoDeErro.ENTRADA_INVALIDA)
+        expect(resposta.corpo.erro?.codigo, JSON.stringify(corpo)).toBe(ErrorCode.ENTRADA_INVALIDA)
       }
       expect((await get(coordenacao, '/v1/disciplinas')).corpo).toEqual({ itens: [quimica] })
       expect((await get(coordenacao, '/v1/turmas')).corpo).toEqual({ itens: [turma] })
@@ -505,7 +505,7 @@ describe('estrutura: a coordenação monta o ano letivo, as séries, as discipli
         for (const caminho of [`/v1/disciplinas/${String(comVinculo.disciplina['id'])}`, `/v1/turmas/${String(comVinculo.turma['id'])}`]) {
           const resposta = await excluir(coordenacao, caminho)
           expect(resposta.status, caminho).toBe(409)
-          expect(resposta.corpo.erro?.codigo, caminho).toBe(CodigoDeErro.CONFLITO)
+          expect(resposta.corpo.erro?.codigo, caminho).toBe(ErrorCode.CONFLITO)
           for (const vazamento of ['vinculo', '_fk', 'Química', '3ºA']) expect(JSON.stringify(resposta.corpo), caminho).not.toContain(vazamento)
         }
       }
@@ -536,7 +536,7 @@ describe('estrutura: a coordenação monta o ano letivo, as séries, as discipli
       for (const caminho of [`/v1/turmas/${String(semVinculo.turma['id'])}`, `/v1/disciplinas/${String(semVinculo.disciplina['id'])}`]) {
         const denovo = await excluir(coordenacao, caminho)
         expect(denovo.status, caminho).toBe(404)
-        expect(denovo.corpo.erro?.codigo, caminho).toBe(CodigoDeErro.NAO_ENCONTRADO)
+        expect(denovo.corpo.erro?.codigo, caminho).toBe(ErrorCode.NAO_ENCONTRADO)
       }
     })
 
@@ -572,7 +572,7 @@ describe('estrutura: a coordenação monta o ano letivo, as séries, as discipli
           await excluir(coordenacao, `/v1/turmas/${String(antiga['id'])}`),
         ]) {
           expect(resposta.status).toBe(404)
-          expect(resposta.corpo.erro?.codigo).toBe(CodigoDeErro.NAO_ENCONTRADO)
+          expect(resposta.corpo.erro?.codigo).toBe(ErrorCode.NAO_ENCONTRADO)
         }
       }
       // Entre encerrar um ano e abrir o outro, a escola não tem ano em curso: as duas rotas falham fechadas.
@@ -614,7 +614,7 @@ describe('estrutura: a coordenação monta o ano letivo, as séries, as discipli
         ] as const
         for (const [rota, resposta] of tentativas) {
           expect(resposta.status, `${papel} ${rota}`).toBe(404)
-          expect(resposta.corpo.erro?.codigo, `${papel} ${rota}`).toBe(CodigoDeErro.NAO_ENCONTRADO)
+          expect(resposta.corpo.erro?.codigo, `${papel} ${rota}`).toBe(ErrorCode.NAO_ENCONTRADO)
         }
       }
 

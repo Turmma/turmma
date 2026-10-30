@@ -9,20 +9,20 @@ import { z } from 'zod'
  * fechada, nunca texto livre.
  */
 
-export const esquemaCitacao = z.strictObject({
+export const citacaoSchema = z.strictObject({
   materialId: z.uuid(),
   /** Página do PDF, a partir de 1. */
   pagina: z.number().int().min(1),
   /** Um trecho curto da página, para a professora conferir de relance. */
   trecho: z.string().min(1).max(400),
 })
-export type Citacao = z.infer<typeof esquemaCitacao>
+export type Citacao = z.infer<typeof citacaoSchema>
 
-export const esquemaHabilidade = z.strictObject({
+export const habilidadeSchema = z.strictObject({
   codigo: z.string().min(1).max(20),
   descricao: z.string().min(1).max(300),
 })
-export type Habilidade = z.infer<typeof esquemaHabilidade>
+export type Habilidade = z.infer<typeof habilidadeSchema>
 
 export const TIPOS_DE_ADAPTACAO = [
   'fonte_ampliada',
@@ -43,57 +43,57 @@ export const ROTULOS_DA_ADAPTACAO: Readonly<Record<TipoDeAdaptacao, string>> = {
   leitura_de_apoio: 'Leitura de apoio',
 }
 
-export const esquemaAdaptacaoAplicada = z.strictObject({
+export const adaptacaoAplicadaSchema = z.strictObject({
   tipos: z.array(z.enum(TIPOS_DE_ADAPTACAO)).min(1).max(TIPOS_DE_ADAPTACAO.length),
   /** Só com `tempo_adicional`, em % sobre o tempo da turma. */
   tempoExtraPercentual: z.number().int().min(10).max(100).optional(),
 })
-export type AdaptacaoAplicada = z.infer<typeof esquemaAdaptacaoAplicada>
+export type AdaptacaoAplicada = z.infer<typeof adaptacaoAplicadaSchema>
 
 export const ALTERNATIVAS_POR_QUESTAO = 4
 
-export const esquemaQuestaoObjetiva = z.strictObject({
+export const questaoObjetivaSchema = z.strictObject({
   enunciado: z.string().min(1).max(1200),
   alternativas: z.array(z.string().min(1).max(400)).length(ALTERNATIVAS_POR_QUESTAO),
   /** Índice da alternativa correta, de 0 a 3. */
   gabarito: z.number().int().min(0).max(ALTERNATIVAS_POR_QUESTAO - 1),
-  habilidade: esquemaHabilidade,
-  citacao: esquemaCitacao,
+  habilidade: habilidadeSchema,
+  citacao: citacaoSchema,
   /** Por que a alternativa é a correta: alimenta o relatório por questão. Nunca chega ao aluno antes da aprovação. */
   explicacao: z.string().min(1).max(600),
 })
-export type QuestaoObjetiva = z.infer<typeof esquemaQuestaoObjetiva>
+export type QuestaoObjetiva = z.infer<typeof questaoObjetivaSchema>
 
-export const esquemaConteudoDeAtividade = z.strictObject({
+export const conteudoDeAtividadeSchema = z.strictObject({
   tipo: z.literal('atividade_objetiva'),
   titulo: z.string().min(1).max(160),
-  questoes: z.array(esquemaQuestaoObjetiva).min(1).max(20),
+  questoes: z.array(questaoObjetivaSchema).min(1).max(20),
   /** Presente só na versão adaptada. */
-  adaptacao: esquemaAdaptacaoAplicada.optional(),
+  adaptacao: adaptacaoAplicadaSchema.optional(),
 })
-export type ConteudoDeAtividade = z.infer<typeof esquemaConteudoDeAtividade>
+export type ConteudoDeAtividade = z.infer<typeof conteudoDeAtividadeSchema>
 
-export const esquemaEtapaDoPlano = z.strictObject({
+export const etapaDoPlanoSchema = z.strictObject({
   titulo: z.string().min(1).max(120),
   minutos: z.number().int().min(1).max(240),
   descricao: z.string().min(1).max(800),
-  citacao: esquemaCitacao.optional(),
+  citacao: citacaoSchema.optional(),
 })
 
-export const esquemaConteudoDePlanoDeAula = z.strictObject({
+export const conteudoDePlanoDeAulaSchema = z.strictObject({
   tipo: z.literal('plano_de_aula'),
   titulo: z.string().min(1).max(160),
   objetivos: z.array(z.string().min(1).max(300)).min(1).max(6),
-  habilidades: z.array(esquemaHabilidade).min(1).max(6),
+  habilidades: z.array(habilidadeSchema).min(1).max(6),
   duracaoMinutos: z.number().int().min(10).max(240),
-  etapas: z.array(esquemaEtapaDoPlano).min(1).max(8),
+  etapas: z.array(etapaDoPlanoSchema).min(1).max(8),
   avaliacao: z.string().min(1).max(600),
-  citacoes: z.array(esquemaCitacao).min(1).max(8),
+  citacoes: z.array(citacaoSchema).min(1).max(8),
 })
-export type ConteudoDePlanoDeAula = z.infer<typeof esquemaConteudoDePlanoDeAula>
+export type ConteudoDePlanoDeAula = z.infer<typeof conteudoDePlanoDeAulaSchema>
 
-export const esquemaConteudoDoArtefato = z.discriminatedUnion('tipo', [esquemaConteudoDeAtividade, esquemaConteudoDePlanoDeAula])
-export type ConteudoDoArtefato = z.infer<typeof esquemaConteudoDoArtefato>
+export const conteudoDoArtefatoSchema = z.discriminatedUnion('tipo', [conteudoDeAtividadeSchema, conteudoDePlanoDeAulaSchema])
+export type ConteudoDoArtefato = z.infer<typeof conteudoDoArtefatoSchema>
 
 export const TIPOS_DE_ARTEFATO = ['atividade_objetiva', 'plano_de_aula'] as const
 export type TipoDeArtefato = (typeof TIPOS_DE_ARTEFATO)[number]

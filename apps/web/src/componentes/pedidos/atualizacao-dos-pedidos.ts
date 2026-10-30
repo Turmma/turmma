@@ -1,4 +1,4 @@
-import { MAXIMO_DE_PEDIDOS_POR_DECISAO, type DecisorDaReivindicacao, type PedidoDaTurma, type RespostaDecisao } from '@educa/shared'
+import { MAXIMO_DE_PEDIDOS_POR_DECISAO, type DecisorDaReivindicacao, type PedidoDaTurma, type DecisaoResponse } from '@educa/shared'
 
 /**
  * A lista de pedidos que se atualiza, e o que sobrevive a cada atualização (A1, 16.0; RF12; W15): quem tem a lista
@@ -76,7 +76,7 @@ export function pedidosQueContinuam(ids: Iterable<string>, pedidos: readonly Ped
  * `ja_decidida` ou `nao_encontrada`) e sai dela na hora, sem depender de a tela desenhar a lista sem ele. Uma releitura
  * velha que ainda o traga volta com ele desmarcado (correção 2026-10-03-decididos-continuam-marcados).
  */
-export function semOsDecididos(marcados: readonly string[], resposta: RespostaDecisao): string[] {
+export function semOsDecididos(marcados: readonly string[], resposta: DecisaoResponse): string[] {
   const fechados = new Set(resposta.resultados.map((resultado) => resultado.id))
   return marcados.filter((id) => !fechados.has(id))
 }

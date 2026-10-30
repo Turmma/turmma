@@ -1,11 +1,11 @@
 import { IdPipe, Permite, ZodValidationPipe } from '@educa/nucleo'
-import { esquemaPedidoGerarAcesso, esquemaPedidoRevogarAcesso, type PedidoGerarAcesso, type RespostaAcessoDaTurma, type RespostaAcessoGerado } from '@educa/shared'
+import { gerarAcessoRequestSchema, revogarAcessoRequestSchema, type GerarAcessoRequest, type AcessoDaTurmaResponse, type AcessoGeradoResponse } from '@educa/shared'
 import { Body, Controller, Get, Header, HttpCode, HttpStatus, Param, Post } from '@nestjs/common'
 import type { z } from 'zod'
 import { AcessoDaTurmaService } from './acesso-da-turma.service.js'
 
 /** Revogar não tem campo: nenhum corpo vale como `{}` (o Express 5 deixa `req.body` indefinido), e qualquer campo é `ENTRADA_INVALIDA`. */
-const esquemaSemCorpo = esquemaPedidoRevogarAcesso.default({})
+const esquemaSemCorpo = revogarAcessoRequestSchema.default({})
 type PedidoSemCorpo = z.output<typeof esquemaSemCorpo>
 
 /**
@@ -21,14 +21,14 @@ export class AcessoDaTurmaController {
   @Post()
   @Permite('acesso_turma', 'gerar')
   @Header('Cache-Control', 'no-store')
-  gerar(@Param('id', IdPipe) turmaId: string, @Body(new ZodValidationPipe(esquemaPedidoGerarAcesso)) pedido: PedidoGerarAcesso): Promise<RespostaAcessoGerado> {
+  gerar(@Param('id', IdPipe) turmaId: string, @Body(new ZodValidationPipe(gerarAcessoRequestSchema)) pedido: GerarAcessoRequest): Promise<AcessoGeradoResponse> {
     return this.acessos.gerar(turmaId, pedido)
   }
 
   @Get()
   @Permite('acesso_turma', 'ler')
   @Header('Cache-Control', 'no-store')
-  ler(@Param('id', IdPipe) turmaId: string): Promise<RespostaAcessoDaTurma> {
+  ler(@Param('id', IdPipe) turmaId: string): Promise<AcessoDaTurmaResponse> {
     return this.acessos.ler(turmaId)
   }
 

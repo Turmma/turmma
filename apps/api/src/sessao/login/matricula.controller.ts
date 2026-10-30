@@ -1,5 +1,5 @@
 import { acimaDoLimiteDoIp, ipDaRequisicao, LimiteQueRebaixa, ProxiesConfiaveis, RotaAnonima, ZodValidationPipe } from '@educa/nucleo'
-import { esquemaPedidoLoginMatricula, esquemaRespostaLogin, type PedidoLoginMatricula, type RespostaLogin } from '@educa/shared'
+import { loginMatriculaRequestSchema, loginResponseSchema, type LoginMatriculaRequest, type LoginResponse } from '@educa/shared'
 import { Body, Controller, Header, HttpCode, HttpStatus, Post, Req, Res } from '@nestjs/common'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { LoginPorMatricula } from './matricula.service.js'
@@ -22,16 +22,16 @@ export class LoginMatriculaController {
   @HttpCode(HttpStatus.OK)
   @Header('Cache-Control', 'no-store')
   async entrar(
-    @Body(new ZodValidationPipe(esquemaPedidoLoginMatricula)) pedido: PedidoLoginMatricula,
+    @Body(new ZodValidationPipe(loginMatriculaRequestSchema)) pedido: LoginMatriculaRequest,
     @Req() requisicao: IncomingMessage,
     @Res({ passthrough: true }) resposta: ServerResponse,
-  ): Promise<RespostaLogin> {
+  ): Promise<LoginResponse> {
     const { resposta: corpoDaResposta, cookies } = await this.login.entrar(pedido, {
       ip: await ipDaRequisicao(requisicao, this.proxies),
       cabecalhoCookie: requisicao.headers.cookie,
       acimaDoLimiteDoIp: acimaDoLimiteDoIp(requisicao),
     })
     resposta.setHeader('Set-Cookie', [...cookies])
-    return esquemaRespostaLogin.parse(corpoDaResposta)
+    return loginResponseSchema.parse(corpoDaResposta)
   }
 }

@@ -1,19 +1,19 @@
 import {
-  esquemaRespostaAnalistaNominal,
-  esquemaRespostaConsumo,
-  esquemaRespostaExecucaoAceita,
-  esquemaRespostaFuncaoDaGovernanca,
-  esquemaRespostaFuncoesDaGovernanca,
-  esquemaRespostaResumoDaGovernanca,
-  esquemaRespostaResumoDoAnalista,
+  analistaNominalResponseSchema,
+  consumoResponseSchema,
+  execucaoAceitaResponseSchema,
+  funcaoDaGovernancaResponseSchema,
+  funcoesDaGovernancaResponseSchema,
+  resumoDaGovernancaResponseSchema,
+  resumoDoAnalistaResponseSchema,
   type ChaveDeFuncao,
   type EstadoDeEntrega,
   type FinalidadeDaLeituraNominal,
   type FuncaoDaGovernanca,
   type MotivoDeSuspensao,
-  type RespostaAnalistaNominal,
-  type RespostaExecucaoAceita,
-  type RespostaFuncoesDaGovernanca,
+  type AnalistaNominalResponse,
+  type ExecucaoAceitaResponse,
+  type FuncoesDaGovernancaResponse,
 } from '@educa/shared'
 import { infiniteQueryOptions, queryOptions, type QueryClient } from '@tanstack/react-query'
 import type { CicloDeExecucao } from '../../../../api/ciclo-de-execucao'
@@ -39,7 +39,7 @@ const lerPaginaDoResumo = (pagina: string | undefined, signal: AbortSignal, esta
   if (estado !== undefined) consulta.set('estado', estado)
   if (pagina !== undefined) consulta.set('pagina', pagina)
   const resto = consulta.toString()
-  return buscarComSessao(resto === '' ? `${CAMINHO_DA_GOVERNANCA}/resumo` : `${CAMINHO_DA_GOVERNANCA}/resumo?${resto}`, esquemaRespostaResumoDaGovernanca, signal)
+  return buscarComSessao(resto === '' ? `${CAMINHO_DA_GOVERNANCA}/resumo` : `${CAMINHO_DA_GOVERNANCA}/resumo?${resto}`, resumoDaGovernancaResponseSchema, signal)
 }
 
 /** "O que a IA gerou e quem aprovou", da mais nova para a mais antiga, uma página por vez (`proxima`). Os números vêm em toda página. */
@@ -86,29 +86,29 @@ export const consultaPrimeiraPaginaDoResumo = queryOptions({
 /** O consumo do mês corrente, somado por função. */
 export const consultaConsumo = queryOptions({
   queryKey: [...CHAVE_DA_GOVERNANCA, 'consumo'],
-  queryFn: ({ signal }) => buscarComSessao(`${CAMINHO_DA_GOVERNANCA}/consumo`, esquemaRespostaConsumo, signal),
+  queryFn: ({ signal }) => buscarComSessao(`${CAMINHO_DA_GOVERNANCA}/consumo`, consumoResponseSchema, signal),
 })
 
 /** Os três agentes e as funções, com a autonomia em português comum e a suspensão vigente na escola. */
 export const consultaFuncoesDaGovernanca = queryOptions({
   queryKey: [...CHAVE_DA_GOVERNANCA, 'funcoes'],
-  queryFn: ({ signal }) => buscarComSessao(`${CAMINHO_DA_GOVERNANCA}/funcoes`, esquemaRespostaFuncoesDaGovernanca, signal),
+  queryFn: ({ signal }) => buscarComSessao(`${CAMINHO_DA_GOVERNANCA}/funcoes`, funcoesDaGovernancaResponseSchema, signal),
 })
 
 const caminhoDaFuncao = (chave: ChaveDeFuncao, acao: 'suspender' | 'retomar'): string => `${CAMINHO_DA_GOVERNANCA}/funcoes/${encodeURIComponent(chave)}/${acao}`
 
 /** `POST …/suspender`: a função passa a recusar execução nova na escola. O motivo é opcional e de lista fechada. */
 export function suspenderFuncao(chave: ChaveDeFuncao, motivo: MotivoDeSuspensao | undefined): Promise<FuncaoDaGovernanca> {
-  return chamarComSessao(caminhoDaFuncao(chave, 'suspender'), esquemaRespostaFuncaoDaGovernanca, { metodo: 'POST', corpo: motivo === undefined ? {} : { motivo } })
+  return chamarComSessao(caminhoDaFuncao(chave, 'suspender'), funcaoDaGovernancaResponseSchema, { metodo: 'POST', corpo: motivo === undefined ? {} : { motivo } })
 }
 
 /** `POST …/retomar`: fecha a suspensão vigente. Sem suspensão vigente, a API responde como inexistente. */
 export function retomarFuncao(chave: ChaveDeFuncao): Promise<FuncaoDaGovernanca> {
-  return chamarComSessao(caminhoDaFuncao(chave, 'retomar'), esquemaRespostaFuncaoDaGovernanca, { metodo: 'POST', corpo: {} })
+  return chamarComSessao(caminhoDaFuncao(chave, 'retomar'), funcaoDaGovernancaResponseSchema, { metodo: 'POST', corpo: {} })
 }
 
 /** A função como a API a devolveu entra no lugar da antiga, em qualquer lista já lida. Sem lista lida, nada muda. */
-export function trocarFuncao(lista: RespostaFuncoesDaGovernanca | undefined, nova: FuncaoDaGovernanca): RespostaFuncoesDaGovernanca | undefined {
+export function trocarFuncao(lista: FuncoesDaGovernancaResponse | undefined, nova: FuncaoDaGovernanca): FuncoesDaGovernancaResponse | undefined {
   if (lista === undefined) return undefined
   return { agentes: lista.agentes.map((agente) => ({ ...agente, funcoes: agente.funcoes.map((funcao) => (funcao.chave === nova.chave ? nova : funcao)) })) }
 }
@@ -118,19 +118,19 @@ export function trocarFuncao(lista: RespostaFuncoesDaGovernanca | undefined, nov
  * o professor lê (`GET /v1/time`) é de outra sessão, com o cache dela: ele o relê quando abre a tela.
  */
 export function aplicarFuncao(cliente: QueryClient, nova: FuncaoDaGovernanca): void {
-  cliente.setQueryData<RespostaFuncoesDaGovernanca>(consultaFuncoesDaGovernanca.queryKey, (lista) => trocarFuncao(lista, nova))
+  cliente.setQueryData<FuncoesDaGovernancaResponse>(consultaFuncoesDaGovernanca.queryKey, (lista) => trocarFuncao(lista, nova))
   void cliente.invalidateQueries({ queryKey: consultaFuncoesDaGovernanca.queryKey })
 }
 
 /** O resumo mais recente do Analista na escola, ou `null` se nenhum foi gerado. */
 export const consultaResumoDoAnalista = queryOptions({
   queryKey: [...CHAVE_DO_ANALISTA, 'resumo'],
-  queryFn: ({ signal }) => buscarComSessao(`${CAMINHO_DO_ANALISTA}/resumo`, esquemaRespostaResumoDoAnalista, signal),
+  queryFn: ({ signal }) => buscarComSessao(`${CAMINHO_DO_ANALISTA}/resumo`, resumoDoAnalistaResponseSchema, signal),
 })
 
 /** `POST /v1/analista/gerar`: 202 com a execução, que a tela acompanha pelo ciclo de `execucoes.ts`. */
-export function gerarResumoDoAnalista(chaveEnvio: string): Promise<RespostaExecucaoAceita> {
-  return chamarComSessao(`${CAMINHO_DO_ANALISTA}/gerar`, esquemaRespostaExecucaoAceita, { metodo: 'POST', corpo: { chaveEnvio } })
+export function gerarResumoDoAnalista(chaveEnvio: string): Promise<ExecucaoAceitaResponse> {
+  return chamarComSessao(`${CAMINHO_DO_ANALISTA}/gerar`, execucaoAceitaResponseSchema, { metodo: 'POST', corpo: { chaveEnvio } })
 }
 
 /** Onde o pedido de "Gerar resumo" mora enquanto está no ar: sair da tela e voltar não o perde nem o manda de novo. */
@@ -140,6 +140,6 @@ export const lugarDoResumoDoAnalista = criarLugarNaAba<CicloDeExecucao<null>>()
  * `GET /v1/analista/nominal`: o detalhe de uma turma, que nomeia os professores dela. **Cada chamada grava auditoria**,
  * com a finalidade, e por isso não é consulta com cache: é uma leitura pedida uma vez, de dentro do diálogo que avisa.
  */
-export function lerDadoNominal(turmaId: string, finalidade: FinalidadeDaLeituraNominal): Promise<RespostaAnalistaNominal> {
-  return chamarComSessao(`${CAMINHO_DO_ANALISTA}/nominal?turmaId=${encodeURIComponent(turmaId)}&finalidade=${encodeURIComponent(finalidade)}`, esquemaRespostaAnalistaNominal)
+export function lerDadoNominal(turmaId: string, finalidade: FinalidadeDaLeituraNominal): Promise<AnalistaNominalResponse> {
+  return chamarComSessao(`${CAMINHO_DO_ANALISTA}/nominal?turmaId=${encodeURIComponent(turmaId)}&finalidade=${encodeURIComponent(finalidade)}`, analistaNominalResponseSchema)
 }

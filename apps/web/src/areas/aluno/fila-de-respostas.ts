@@ -1,4 +1,4 @@
-import type { RespostaProva, RespostaQuestaoSalva, RespostaSalva } from '@educa/shared'
+import type { ProvaResponse, QuestaoSalvaResponse, RespostaSalva } from '@educa/shared'
 import type { QueryClient } from '@tanstack/react-query'
 import { responderQuestao, consultaProva } from '../../api/atividades-do-aluno'
 import { CHAVE_DAS_MINHAS_ATIVIDADES } from '../../api/chaves-do-aluno'
@@ -35,9 +35,9 @@ export interface FilaDeRespostas {
 }
 
 interface PartesDaFila {
-  readonly salvar: (questao: number, alternativa: number, sequencia: number) => Promise<RespostaQuestaoSalva>
+  readonly salvar: (questao: number, alternativa: number, sequencia: number) => Promise<QuestaoSalvaResponse>
   /** O servidor respondeu com o que ficou gravado (a escolha mandada, ou a mais nova de outra janela): a tela acerta o que ela lê como salvo. */
-  readonly aoSalvar: (salva: RespostaQuestaoSalva) => void
+  readonly aoSalvar: (salva: QuestaoSalvaResponse) => void
   /** Chama a função depois da espera; devolve o cancelamento. No teste, um relógio que o teste adianta. */
   readonly agendar?: (funcao: () => void, esperaMs: number) => () => void
   /**
@@ -141,7 +141,7 @@ export function criarFilaDeRespostas({ salvar, aoSalvar, agendar = agendarNoRelo
  * resposta que chega **atrasada**, com `sequencia` menor que a que o cache já tem (uma leitura mais nova passou na
  * frente), não a troca.
  */
-export function provaComRespostaSalva(prova: RespostaProva, salva: Pick<RespostaQuestaoSalva, 'questao' | 'alternativa' | 'sequencia'>): RespostaProva {
+export function provaComRespostaSalva(prova: ProvaResponse, salva: Pick<QuestaoSalvaResponse, 'questao' | 'alternativa' | 'sequencia'>): ProvaResponse {
   const atual = prova.respostas.find((resposta) => resposta.questao === salva.questao)
   if (atual !== undefined && atual.sequencia > salva.sequencia) return prova
   return { ...prova, respostas: [...prova.respostas.filter((resposta) => resposta.questao !== salva.questao), { questao: salva.questao, alternativa: salva.alternativa, sequencia: salva.sequencia }] }

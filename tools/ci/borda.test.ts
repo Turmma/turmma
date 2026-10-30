@@ -1,4 +1,4 @@
-import { CodigoDeErro, MENSAGENS_DE_ERRO } from '@educa/shared'
+import { ErrorCode, MENSAGENS_DE_ERRO } from '@educa/shared'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -86,7 +86,7 @@ describe('borda (infra/Caddyfile) e drenagem das instâncias', () => {
     const envelope = JSON.parse(corpo ?? '') as { erro: Record<string, string> }
     expect(envelope).toEqual({
       erro: {
-        codigo: CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO,
+        codigo: ErrorCode.INDISPONIVEL_TENTE_DE_NOVO,
         mensagem: MENSAGENS_DE_ERRO.INDISPONIVEL_TENTE_DE_NOVO,
         requisicaoId: '{http.request.uuid}',
       },

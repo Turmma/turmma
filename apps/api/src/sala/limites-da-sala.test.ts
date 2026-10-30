@@ -1,5 +1,5 @@
 import { ErroDeDominio } from '@educa/nucleo'
-import { CodigoDeErro } from '@educa/shared'
+import { ErrorCode } from '@educa/shared'
 import type { Redis } from 'ioredis'
 import { randomUUID } from 'node:crypto'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -96,7 +96,7 @@ describe('L7: com o Redis de fila fora, o seguro conta e o teto cai para o divid
     for (const errada of [true, false]) {
       const travado = await limites.antesDoHash(nome, turmaId, escolaId, errada).catch((erro: unknown) => erro)
       expect(travado).toBeInstanceOf(ErroDeDominio)
-      expect(travado).toMatchObject({ codigo: CodigoDeErro.LIMITE_EXCEDIDO, status: 429, tenteDeNovoEmSegundos: (JANELA_DOS_LIMITES_DA_SALA_MS - 60_000) / 1_000 })
+      expect(travado).toMatchObject({ codigo: ErrorCode.LIMITE_EXCEDIDO, status: 429, tenteDeNovoEmSegundos: (JANELA_DOS_LIMITES_DA_SALA_MS - 60_000) / 1_000 })
     }
     for (const outro of [{ ...nome, listaNomeId: randomUUID() }, { ...nome, acessoId: randomUUID() }]) {
       expect(await limites.antesDoHash(outro, turmaId, escolaId, false)).toEqual({ rebaixado: false })
@@ -113,7 +113,7 @@ describe('L7: com o Redis de fila fora, o seguro conta e o teto cai para o divid
     const nome = { acessoId: randomUUID(), listaNomeId: randomUUID() }
     const resultados = await Promise.all(Array.from({ length: 10 }, () => codigoDoErro(limites.antesDoHash(nome, randomUUID(), randomUUID(), true))))
     expect(resultados.filter((resultado) => resultado === 'passou')).toHaveLength(TETO_DE_MATRICULAS_ERRADAS_POR_NOME)
-    expect(resultados.filter((resultado) => resultado === CodigoDeErro.LIMITE_EXCEDIDO)).toHaveLength(10 - TETO_DE_MATRICULAS_ERRADAS_POR_NOME)
+    expect(resultados.filter((resultado) => resultado === ErrorCode.LIMITE_EXCEDIDO)).toHaveLength(10 - TETO_DE_MATRICULAS_ERRADAS_POR_NOME)
   })
 
   it('turma: a partir do teto dividido, o hash vai rebaixado; nunca recusa', async () => {
@@ -134,7 +134,7 @@ describe('L7: com o Redis de fila fora, o seguro conta e o teto cai para o divid
     for (let vez = 0; vez < TETO_DE_MATRICULAS_ERRADAS_POR_NOME - 1; vez++) await limites.antesDoHash(nome, randomUUID(), randomUUID(), true)
     expect(await codigoDoErro(limites.antesDoHash(nome, randomUUID(), randomUUID(), false))).toBe('passou')
     expect(await codigoDoErro(limites.antesDoHash(nome, randomUUID(), randomUUID(), true))).toBe('passou')
-    expect(await codigoDoErro(limites.antesDoHash(nome, randomUUID(), randomUUID(), false))).toBe(CodigoDeErro.LIMITE_EXCEDIDO)
+    expect(await codigoDoErro(limites.antesDoHash(nome, randomUUID(), randomUUID(), false))).toBe(ErrorCode.LIMITE_EXCEDIDO)
   })
 })
 
@@ -148,8 +148,8 @@ describe('o log sala.limite_atingido e a métrica sala.limite_atingido{tipo}', (
     for (const nome of nomes) for (let vez = 0; vez < TETO_DE_MATRICULAS_ERRADAS_POR_NOME; vez++) await limites.antesDoHash(nome, randomUUID(), escolaA, true)
     expect(linhas).toEqual([])
     // Três nomes travados na A, duas vezes cada, e um na B: uma linha da A e uma da B.
-    for (const nome of nomes) for (let vez = 0; vez < 2; vez++) expect(await codigoDoErro(limites.antesDoHash(nome, randomUUID(), escolaA, false))).toBe(CodigoDeErro.LIMITE_EXCEDIDO)
-    expect(await codigoDoErro(limites.antesDoHash(primeiro, randomUUID(), escolaB, false))).toBe(CodigoDeErro.LIMITE_EXCEDIDO)
+    for (const nome of nomes) for (let vez = 0; vez < 2; vez++) expect(await codigoDoErro(limites.antesDoHash(nome, randomUUID(), escolaA, false))).toBe(ErrorCode.LIMITE_EXCEDIDO)
+    expect(await codigoDoErro(limites.antesDoHash(primeiro, randomUUID(), escolaB, false))).toBe(ErrorCode.LIMITE_EXCEDIDO)
     // A escola da A no teto de códigos: outra linha, do tipo escola.
     for (let vez = 0; vez < TETO_DE_CODIGOS_ERRADOS_POR_ESCOLA; vez++) await limites.codigoErrado(escolaA)
     await limites.antesDaBusca(escolaA)
@@ -165,7 +165,7 @@ describe('o log sala.limite_atingido e a métrica sala.limite_atingido{tipo}', (
     // Na janela seguinte, a mesma escola e o mesmo tipo escrevem de novo, uma vez.
     relogio.avancar(JANELA_DOS_LIMITES_DA_SALA_MS)
     for (let vez = 0; vez < TETO_DE_MATRICULAS_ERRADAS_POR_NOME; vez++) await limites.antesDoHash(primeiro, randomUUID(), escolaA, true)
-    for (let vez = 0; vez < 2; vez++) expect(await codigoDoErro(limites.antesDoHash(primeiro, randomUUID(), escolaA, false))).toBe(CodigoDeErro.LIMITE_EXCEDIDO)
+    for (let vez = 0; vez < 2; vez++) expect(await codigoDoErro(limites.antesDoHash(primeiro, randomUUID(), escolaA, false))).toBe(ErrorCode.LIMITE_EXCEDIDO)
     expect(linhas.slice(3)).toEqual([{ evento: 'sala.limite_atingido', tipo: 'nome', escolaId: escolaA }])
   })
 

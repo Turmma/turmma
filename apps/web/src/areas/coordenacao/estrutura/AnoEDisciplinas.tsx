@@ -1,6 +1,6 @@
 import {
   ANOS_DA_ETAPA,
-  CodigoDeErro,
+  ErrorCode,
   ETAPAS,
   fimCaiAteOAnoSeguinte,
   fimDepoisDoInicio,
@@ -139,8 +139,8 @@ function AnosLetivos({
       {mutacao.isError && (
         <AlertaDaFalha
           texto={textoDaFalha(mutacao.error, {
-            [CodigoDeErro.CONFLITO]: 'Já há um ano letivo em curso na escola. Só um fica em curso por vez.',
-            [CodigoDeErro.NAO_ENCONTRADO]: 'Este ano letivo já não existe. A lista foi atualizada.',
+            [ErrorCode.CONFLITO]: 'Já há um ano letivo em curso na escola. Só um fica em curso por vez.',
+            [ErrorCode.NAO_ENCONTRADO]: 'Este ano letivo já não existe. A lista foi atualizada.',
           })}
         />
       )}
@@ -251,7 +251,7 @@ export function NovoAnoLetivo({ aoFechar, aoCriar, recarregar, focoDeReserva }: 
       falha={
         mutacao.isError
           ? textoDaFalha(mutacao.error, {
-              [CodigoDeErro.CONFLITO]: 'Este ano letivo já existe na escola.',
+              [ErrorCode.CONFLITO]: 'Este ano letivo já existe na escola.',
             })
           : undefined
       }
@@ -313,7 +313,7 @@ export function NovaSerie({ existentes, aoFechar, aoCriar, recarregar }: PropsDe
       falha={
         mutacao.isError
           ? textoDaFalha(mutacao.error, {
-              [CodigoDeErro.CONFLITO]: 'Esta série já existe na escola.',
+              [ErrorCode.CONFLITO]: 'Esta série já existe na escola.',
             })
           : undefined
       }
@@ -365,7 +365,7 @@ export function NovaDisciplina({ aoFechar, aoCriar, recarregar }: PropsDeCriar<D
       falha={
         mutacao.isError
           ? textoDaFalha(mutacao.error, {
-              [CodigoDeErro.CONFLITO]: 'Já existe uma disciplina com este nome na escola.',
+              [ErrorCode.CONFLITO]: 'Já existe uma disciplina com este nome na escola.',
             })
           : undefined
       }

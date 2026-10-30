@@ -1,4 +1,4 @@
-import { esquemaRespostaConversaDoTutor, esquemaRespostaExecucaoAceita, type MensagemDoTutor, type PedidoMensagemAoTutor, type RespostaConversaDoTutor, type RespostaExecucaoAceita } from '@educa/shared'
+import { conversaDoTutorResponseSchema, execucaoAceitaResponseSchema, type MensagemDoTutor, type MensagemAoTutorRequest, type ConversaDoTutorResponse, type ExecucaoAceitaResponse } from '@educa/shared'
 import { infiniteQueryOptions } from '@tanstack/react-query'
 import { CHAVE_DA_CONVERSA_DO_TUTOR } from './chaves-do-aluno'
 import { buscarComSessao, chamarComSessao } from './sessao'
@@ -19,7 +19,7 @@ export function consultaConversaDoTutor(atividadeAplicadaId: string) {
     queryFn: ({ pageParam, signal }) => {
       const consulta = new URLSearchParams({ atividadeAplicadaId })
       if (pageParam !== undefined) consulta.set('antes', pageParam)
-      return buscarComSessao(`${CAMINHO_DA_CONVERSA}?${consulta.toString()}`, esquemaRespostaConversaDoTutor, signal)
+      return buscarComSessao(`${CAMINHO_DA_CONVERSA}?${consulta.toString()}`, conversaDoTutorResponseSchema, signal)
     },
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (ultima) => ultima.anterior,
@@ -32,7 +32,7 @@ export function consultaConversaDoTutor(atividadeAplicadaId: string) {
  * As mensagens das páginas lidas, **da mais antiga para a mais nova**: cada página vem nessa ordem, e as páginas vêm da
  * mais recente para a mais antiga. A mensagem que aparecer em duas páginas fica uma vez só.
  */
-export function mensagensDoTutorEmOrdem(paginas: readonly RespostaConversaDoTutor[]): MensagemDoTutor[] {
+export function mensagensDoTutorEmOrdem(paginas: readonly ConversaDoTutorResponse[]): MensagemDoTutor[] {
   const vistas = new Set<string>()
   const mensagens: MensagemDoTutor[] = []
   for (const pagina of [...paginas].reverse())
@@ -45,6 +45,6 @@ export function mensagensDoTutorEmOrdem(paginas: readonly RespostaConversaDoTuto
 }
 
 /** `POST /v1/tutor/mensagens`: responde 202 com a execução. A resposta do Tutor chega pela execução. */
-export function enviarMensagemAoTutor(pedido: PedidoMensagemAoTutor): Promise<RespostaExecucaoAceita> {
-  return chamarComSessao('/v1/tutor/mensagens', esquemaRespostaExecucaoAceita, { metodo: 'POST', corpo: pedido })
+export function enviarMensagemAoTutor(pedido: MensagemAoTutorRequest): Promise<ExecucaoAceitaResponse> {
+  return chamarComSessao('/v1/tutor/mensagens', execucaoAceitaResponseSchema, { metodo: 'POST', corpo: pedido })
 }

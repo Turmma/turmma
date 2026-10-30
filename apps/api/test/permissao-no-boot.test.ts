@@ -1,6 +1,6 @@
 import 'reflect-metadata'
 import { ConferenciaDasPermissoes, METADADO_ENTRADA_DE_OPERACAO, METADADO_ROTA_DE_OPERACAO, Permite, RotaAnonima, RotasSemPermissao } from '@educa/nucleo'
-import { ErroDeInvariante } from '@educa/shared'
+import { InvariantException } from '@educa/shared'
 import { Controller, Get, Module, SetMetadata } from '@nestjs/common'
 import { DiscoveryModule, DiscoveryService, NestFactory } from '@nestjs/core'
 import { describe, expect, it } from 'vitest'
@@ -76,7 +76,7 @@ describe('boot da API: toda rota declara quem pode chamá-la', () => {
     const recusa = await subir([ComPermissaoController, OperacaoNoMetodoController, EsquecidoController]).catch((erro: unknown) => erro)
 
     expect(recusa).toBeInstanceOf(RotasSemPermissao)
-    expect(recusa).toBeInstanceOf(ErroDeInvariante)
+    expect(recusa).toBeInstanceOf(InvariantException)
     expect(recusa).toMatchObject({
       name: 'RotasSemPermissao',
       message: 'rota sem @Permite, @RotaAnonima nem marcador da operação',

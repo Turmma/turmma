@@ -1,5 +1,5 @@
 import { criarBanco, criarPool, type Banco, type PoolBanco } from '@educa/nucleo'
-import { CodigoDeErro, esquemaRespostaCriadoNoPainel, esquemaRespostaRedesDoPainel, MAXIMO_DE_REDES_DO_PAINEL } from '@educa/shared'
+import { ErrorCode, criadoNoPainelResponseSchema, redesDoPainelResponseSchema, MAXIMO_DE_REDES_DO_PAINEL } from '@educa/shared'
 import type { INestApplication } from '@nestjs/common'
 import { randomUUID } from 'node:crypto'
 import { existsSync, mkdtempSync, rmSync } from 'node:fs'
@@ -91,7 +91,7 @@ describe('painel da operação: rede e escola, com o autor conferido na transaç
       const rede = await pedir(url, 'POST', '/v1/operacao/redes', sessao.token, pedidoDaRede)
       expect(rede.status).toBe(201)
       expect(rede.corpo).toStrictEqual({ id: pedidoDaRede.id })
-      expect(esquemaRespostaCriadoNoPainel.safeParse(rede.corpo).success).toBe(true)
+      expect(criadoNoPainelResponseSchema.safeParse(rede.corpo).success).toBe(true)
       expect(rede.cacheControl).toBe('no-store')
       redes.push(pedidoDaRede.id)
 
@@ -124,7 +124,7 @@ describe('painel da operação: rede e escola, com o autor conferido na transaç
       const lidas = await pedir(url, 'GET', '/v1/operacao/redes', sessao.token)
       expect(lidas.status).toBe(200)
       expect(lidas.cacheControl).toBe('no-store')
-      expect(esquemaRespostaRedesDoPainel.safeParse(lidas.corpo).success).toBe(true)
+      expect(redesDoPainelResponseSchema.safeParse(lidas.corpo).success).toBe(true)
       const { itens } = lidas.corpo as { itens: { id: string }[] }
       expect(itens.find((item) => item.id === redeId)).toStrictEqual({ id: redeId, nome: pedido.nome, tipo: 'prefeitura' })
 
@@ -209,8 +209,8 @@ describe('painel da operação: rede e escola, com o autor conferido na transaç
       const pedidoDaRede = novaRede()
       expect((await pedir(url, 'POST', '/v1/operacao/redes', sessao.token, pedidoDaRede)).status).toBe(201)
       redes.push(pedidoDaRede.id)
-      esperarErro(await pedir(url, 'POST', '/v1/operacao/redes', sessao.token, { ...pedidoDaRede, nome: `${pedidoDaRede.nome} Outra` }), 409, CodigoDeErro.CONFLITO)
-      esperarErro(await pedir(url, 'POST', '/v1/operacao/redes', sessao.token, { ...pedidoDaRede, tipo: 'grupo' }), 409, CodigoDeErro.CONFLITO)
+      esperarErro(await pedir(url, 'POST', '/v1/operacao/redes', sessao.token, { ...pedidoDaRede, nome: `${pedidoDaRede.nome} Outra` }), 409, ErrorCode.CONFLITO)
+      esperarErro(await pedir(url, 'POST', '/v1/operacao/redes', sessao.token, { ...pedidoDaRede, tipo: 'grupo' }), 409, ErrorCode.CONFLITO)
       expect((await pool.query('select nome, tipo from rede where id = $1', [pedidoDaRede.id])).rows).toEqual([{ nome: pedidoDaRede.nome, tipo: 'prefeitura' }])
       expect((await auditoriaDe(pedidoDaRede.id)).rows).toHaveLength(1)
 
@@ -220,7 +220,7 @@ describe('painel da operação: rede e escola, com o autor conferido na transaç
       escolas.push(pedidoDaEscola.id)
       const outroSlug = `outro-${randomUUID().slice(0, 12)}`
       for (const diferente of [{ slug: outroSlug }, { nome: 'Colégio Sintético Outro' }, { redeId: outraRede }]) {
-        esperarErro(await pedir(url, 'POST', '/v1/operacao/escolas', sessao.token, { ...pedidoDaEscola, ...diferente }), 409, CodigoDeErro.CONFLITO)
+        esperarErro(await pedir(url, 'POST', '/v1/operacao/escolas', sessao.token, { ...pedidoDaEscola, ...diferente }), 409, ErrorCode.CONFLITO)
       }
       expect((await pool.query('select rede_id, nome, slug from escola where id = $1', [pedidoDaEscola.id])).rows).toEqual([
         { rede_id: pedidoDaRede.id, nome: pedidoDaEscola.nome, slug: pedidoDaEscola.slug },
@@ -246,7 +246,7 @@ describe('painel da operação: rede e escola, com o autor conferido na transaç
         await gatilho.soltar()
         const [criou, perdeu] = await Promise.all([primeira, segunda])
         expect(criou).toMatchObject({ status: 201, corpo: { id: primeiro.id } })
-        esperarErro(perdeu, 409, CodigoDeErro.CONFLITO)
+        esperarErro(perdeu, 409, ErrorCode.CONFLITO)
         expect((await pool.query('select id from escola where slug = $1', [slug])).rows).toEqual([{ id: primeiro.id }])
         expect((await auditoriaDe(primeiro.id)).rows).toHaveLength(1)
         expect((await auditoriaDe(segundo.id)).rows).toHaveLength(0)
@@ -262,14 +262,14 @@ describe('painel da operação: rede e escola, com o autor conferido na transaç
       expect((await pedir(url, 'POST', '/v1/operacao/escolas', sessao.token, original)).status).toBe(201)
       escolas.push(original.id)
       const repetido = novaEscola(redeId, original.slug)
-      esperarErro(await pedir(url, 'POST', '/v1/operacao/escolas', sessao.token, repetido), 409, CodigoDeErro.CONFLITO)
+      esperarErro(await pedir(url, 'POST', '/v1/operacao/escolas', sessao.token, repetido), 409, ErrorCode.CONFLITO)
       expect(await contar('select 1 from escola where id = $1', [repetido.id])).toBe(0)
     })
 
     it('E5: rede inexistente é NAO_ENCONTRADO, sem escola nem auditoria', async () => {
       const sessao = await operadores.operadorComSessao()
       const pedido = novaEscola(randomUUID())
-      esperarErro(await pedir(url, 'POST', '/v1/operacao/escolas', sessao.token, pedido), 404, CodigoDeErro.NAO_ENCONTRADO)
+      esperarErro(await pedir(url, 'POST', '/v1/operacao/escolas', sessao.token, pedido), 404, ErrorCode.NAO_ENCONTRADO)
       expect(await contar('select 1 from escola where id = $1 or slug = $2', [pedido.id, pedido.slug])).toBe(0)
       expect((await auditoriaDe(pedido.id)).rows).toHaveLength(0)
     })
@@ -279,14 +279,14 @@ describe('painel da operação: rede e escola, com o autor conferido na transaç
     it('corpo com autor, ou qualquer campo a mais, é 400 ENTRADA_INVALIDA, sem linha nem auditoria', async () => {
       const sessao = await operadores.operadorComSessao()
       const pedidoDaRede = novaRede()
-      esperarErro(await pedir(url, 'POST', '/v1/operacao/redes', sessao.token, { ...pedidoDaRede, autor: 'outra-pessoa' }), 400, CodigoDeErro.ENTRADA_INVALIDA)
+      esperarErro(await pedir(url, 'POST', '/v1/operacao/redes', sessao.token, { ...pedidoDaRede, autor: 'outra-pessoa' }), 400, ErrorCode.ENTRADA_INVALIDA)
       expect(await contar('select 1 from rede where id = $1', [pedidoDaRede.id])).toBe(0)
       expect((await auditoriaDe(pedidoDaRede.id)).rows).toHaveLength(0)
 
       const redeId = await criarRedePeloPainel(sessao)
       const pedidoDaEscola = novaEscola(redeId)
       for (const aMais of [{ autor: 'outra-pessoa' }, { autorOperador: 'outra-pessoa' }, { escolaId: randomUUID() }]) {
-        esperarErro(await pedir(url, 'POST', '/v1/operacao/escolas', sessao.token, { ...pedidoDaEscola, ...aMais }), 400, CodigoDeErro.ENTRADA_INVALIDA)
+        esperarErro(await pedir(url, 'POST', '/v1/operacao/escolas', sessao.token, { ...pedidoDaEscola, ...aMais }), 400, ErrorCode.ENTRADA_INVALIDA)
       }
       expect(await contar('select 1 from escola where id = $1', [pedidoDaEscola.id])).toBe(0)
       expect((await auditoriaDe(pedidoDaEscola.id)).rows).toHaveLength(0)
@@ -299,7 +299,7 @@ describe('painel da operação: rede e escola, com o autor conferido na transaç
       const sessao = await operadores.operadorComSessao()
       for (const caminho of ['/v1/operacao/escolas', '/v1/operacao/uso']) {
         for (const consulta of ['ordem=aluno', 'pagina=0', `escolaId=${randomUUID()}`]) {
-          esperarErro(await pedir(url, 'GET', `${caminho}?${consulta}`, sessao.token), 400, CodigoDeErro.ENTRADA_INVALIDA)
+          esperarErro(await pedir(url, 'GET', `${caminho}?${consulta}`, sessao.token), 400, ErrorCode.ENTRADA_INVALIDA)
         }
         expect((await pedir(url, 'GET', `${caminho}?ordem=nome`, sessao.token)).status, caminho).toBe(200)
       }
@@ -317,7 +317,7 @@ describe('painel da operação: rede e escola, com o autor conferido na transaç
         const escrita = pedir(url, 'POST', '/v1/operacao/escolas', sessao.token, pedido)
         await esperarNaTrava(pool, ESPERA_DO_AUTOR)
         await desativar.confirmar()
-        esperarErro(await escrita, 401, CodigoDeErro.SESSAO_ENCERRADA)
+        esperarErro(await escrita, 401, ErrorCode.SESSAO_ENCERRADA)
       } finally {
         await desativar.desfazer()
       }
@@ -479,7 +479,7 @@ describe('painel da operação: rede e escola, com o autor conferido na transaç
       }
       const recusado = novaEscola(redeId)
       const resposta = await pedir(urlLimitada, 'POST', '/v1/operacao/escolas', sessao.token, recusado)
-      esperarErro(resposta, 429, CodigoDeErro.LIMITE_EXCEDIDO)
+      esperarErro(resposta, 429, ErrorCode.LIMITE_EXCEDIDO)
       expect(Number(resposta.retryAfter)).toBeGreaterThanOrEqual(1)
       expect(await contar('select 1 from escola where id = $1', [recusado.id])).toBe(0)
     })

@@ -1,4 +1,4 @@
-import { esquemaIdDoPedido, TAMANHO_MAXIMO_SLUG } from '@educa/shared'
+import { idDoPedidoSchema, TAMANHO_MAXIMO_SLUG } from '@educa/shared'
 import { describe, expect, it } from 'vitest'
 import { TEXTO_DO_EMAIL_INVALIDO, TEXTO_DO_NOME_INVALIDO } from '../componentes/pedido-de-convite'
 import { pedidoDeConvite, pedidoDeEscola, pedidoDeRede, sortearIdDoPedido } from './pedidos-do-painel'
@@ -12,7 +12,7 @@ describe('o id do pedido de rede e de escola (Tech Spec da A0b, seção 5, "Idem
     const ids = Array.from({ length: 500 }, sortearIdDoPedido)
     for (const id of ids) {
       expect(id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/)
-      expect(esquemaIdDoPedido.safeParse(id).success).toBe(true)
+      expect(idDoPedidoSchema.safeParse(id).success).toBe(true)
     }
     expect(new Set(ids).size).toBe(ids.length)
   })

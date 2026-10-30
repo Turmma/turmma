@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { MENSAGENS_DE_ERRO } from '../packages/shared/src/erros/mensagens.ts'
+import { MENSAGENS_DE_ERRO } from '../packages/shared/src/errors/messages.ts'
 import { atividadeSintetica, erroDaApi, portao, QUEM_DECIDE, resumoDoArtefato, TITULO_DO_MATERIAL, versaoAdaptada } from './__fixtures__/assistente.ts'
 import { entrarPelaApi, entrarPorEmail, PRAZO_DA_ENTRADA_MS, secoes } from './__fixtures__/casca.ts'
 import { cacheDeConsultas, semAcessosDaConta } from './__fixtures__/consultas.ts'

@@ -1,6 +1,6 @@
 import { contextoAtual, ErroDeDominio, executarNoContexto, RegistroDeAuditoria, sessaoDaRequisicao, type Banco } from '@educa/nucleo'
 import { ContaGlobalRepository } from '@educa/nucleo/conta-global'
-import { CodigoDeErro, FINALIDADE_DA_REDEFINICAO_PELO_OPERADOR, type FinalidadeDaRedefinicaoDeMfa } from '@educa/shared'
+import { ErrorCode, FINALIDADE_DA_REDEFINICAO_PELO_OPERADOR, type FinalidadeDaRedefinicaoDeMfa } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { RedefinicaoDeMfaRepository } from './redefinicao-de-mfa.repository.js'
 import { ResolucaoDeTenantRepository } from '../tenant/resolucao-de-tenant.repository.js'
@@ -69,11 +69,11 @@ export async function redefinirMfaPeloOperador(banco: Banco, autor: ConferenciaD
       const autorOperador = await autor(tx)
       const resolucao = new ResolucaoDeTenantRepository(tx)
       const alvo = await resolucao.escolaDoUsuarioParaOperador(usuarioId)
-      if (alvo?.contaId === null || alvo === undefined || !alvo.ativo) throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
+      if (alvo?.contaId === null || alvo === undefined || !alvo.ativo) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
       const { contaId } = alvo
       await executarNoContexto({ requisicaoId, escolaId: alvo.escolaId }, async () => {
         const conta = await resolucao.travarContaParaRedefinir(contaId)
-        if (conta === undefined) throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
+        if (conta === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
         await resolucao.apagarMfa(contaId)
         await new ContaGlobalRepository(tx).encerrarSessoesDaConta(contaId, 'mfa_redefinido')
         // Com os agendados para eliminação (14.0): a coordenação de cada escola da conta é avisada, entre em ela ou não.

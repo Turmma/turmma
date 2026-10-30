@@ -1,5 +1,5 @@
 import type { Page, Route } from '@playwright/test'
-import { MENSAGENS_DE_ERRO, mensagemDaEntradaPorMatricula, mensagemDaFalhaExterna, mensagemDoAcessoDaEscola } from '../packages/shared/src/erros/mensagens.ts'
+import { MENSAGENS_DE_ERRO, mensagemDaEntradaPorMatricula, mensagemDaFalhaExterna, mensagemDoAcessoDaEscola } from '../packages/shared/src/errors/messages.ts'
 import { criarAlunoComMatricula, criarEscolaSintetica, liberarProvedorDaEscola, ligarContaExterna, type AlunoDeTeste } from './__fixtures__/sessao.ts'
 import { esperarInicioDoAluno } from './__fixtures__/casca.ts'
 import { expect, test } from './__fixtures__/perfis.ts'

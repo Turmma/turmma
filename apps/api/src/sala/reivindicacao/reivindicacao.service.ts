@@ -1,5 +1,5 @@
 import { ErroDeDominio, erroDoPostgresEm, METRICAS, type Banco, type Meter } from '@educa/nucleo'
-import { CodigoDeErro, esquemaRespostaReivindicacao, type PedidoReivindicarSala, type RespostaReivindicacao } from '@educa/shared'
+import { ErrorCode, reivindicacaoResponseSchema, type ReivindicarSalaRequest, type ReivindicacaoResponse } from '@educa/shared'
 import { TurmaRepository } from '../../estrutura/turma/turma.repository.js'
 import type { AcessoDaSala } from '../../sessao/index.js'
 import { baldeDaEscola, type HashDeSenha, type SemaforoDeHash } from '../../credencial/index.js'
@@ -23,11 +23,11 @@ export interface DependenciasDaReivindicacao {
 /** Os valores de `resultado` em `sala.reivindicacao` (7.0): fechados, para a série não crescer com texto de erro. */
 export type ResultadoDaReivindicacao = 'enviado' | 'reenvio' | 'recusada' | 'limite' | 'sem_acesso' | 'indisponivel' | 'erro'
 
-const RESULTADO_DO_ERRO: Partial<Record<CodigoDeErro, ResultadoDaReivindicacao>> = {
-  [CodigoDeErro.REIVINDICACAO_RECUSADA]: 'recusada',
-  [CodigoDeErro.LIMITE_EXCEDIDO]: 'limite',
-  [CodigoDeErro.NAO_ENCONTRADO]: 'sem_acesso',
-  [CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO]: 'indisponivel',
+const RESULTADO_DO_ERRO: Partial<Record<ErrorCode, ResultadoDaReivindicacao>> = {
+  [ErrorCode.REIVINDICACAO_RECUSADA]: 'recusada',
+  [ErrorCode.LIMITE_EXCEDIDO]: 'limite',
+  [ErrorCode.NAO_ENCONTRADO]: 'sem_acesso',
+  [ErrorCode.INDISPONIVEL_TENTE_DE_NOVO]: 'indisponivel',
 }
 
 /**
@@ -43,7 +43,7 @@ const VOLTA_E_RELE = new Set(['23503', '23505'])
  */
 class NaoGravou extends Error {}
 
-const ENVIADO: RespostaReivindicacao = esquemaRespostaReivindicacao.parse({ resultado: 'enviado' })
+const ENVIADO: ReivindicacaoResponse = reivindicacaoResponseSchema.parse({ resultado: 'enviado' })
 
 /** O que o pedido virou, para a resposta (sempre o mesmo `enviado`) e para a métrica. */
 type Desfecho = 'enviado' | 'reenvio'
@@ -86,7 +86,7 @@ export class ReivindicacaoService {
   }
 
   /** `POST /v1/salas/reivindicar`: o pedido fica pendente e o nome sai da lista, ou a recusa única. */
-  async reivindicar(pedido: PedidoReivindicarSala): Promise<RespostaReivindicacao> {
+  async reivindicar(pedido: ReivindicarSalaRequest): Promise<ReivindicacaoResponse> {
     let resultado: ResultadoDaReivindicacao = 'erro'
     try {
       resultado = await this.#reivindicar(pedido)
@@ -99,7 +99,7 @@ export class ReivindicacaoService {
     }
   }
 
-  async #reivindicar(pedido: PedidoReivindicarSala): Promise<Desfecho> {
+  async #reivindicar(pedido: ReivindicarSalaRequest): Promise<Desfecho> {
     const { banco, acessoDaSala, semaforo, hash, chaveCodigo, limites } = this.dependencias
     const { listaNomeId, matricula, senha, chaveEnvio } = pedido
     return acessoDaSala.naSala(
@@ -122,7 +122,7 @@ export class ReivindicacaoService {
           if (!(erro instanceof NaoGravou) && !VOLTA_E_RELE.has(erroDoPostgresEm(erro)?.code ?? '')) throw erro
           if (await pedidos.chaveGravada(turmaId, chaveEnvio)) return 'reenvio'
           await limites.hashSemPedido(turmaId)
-          throw new ErroDeDominio(CodigoDeErro.REIVINDICACAO_RECUSADA)
+          throw new ErroDeDominio(ErrorCode.REIVINDICACAO_RECUSADA)
         }
         return 'enviado'
       },

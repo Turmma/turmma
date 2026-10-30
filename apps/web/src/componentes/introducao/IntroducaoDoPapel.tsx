@@ -1,4 +1,4 @@
-import type { Agente, RespostaEu } from '@educa/shared'
+import type { Agente, EuResponse } from '@educa/shared'
 import { useId } from 'react'
 import { Link } from 'wouter'
 import { useTituloDaTela } from '../../titulo'
@@ -18,7 +18,7 @@ interface PropsDaIntroducaoDoPapel {
   /** A fala do passo 1, que o carregando mostra enquanto a leitura do `/v1/eu` não chega. */
   readonly falaDoCarregando: string
   /** Os passos do papel. Recebem o `/v1/eu` já lido: a coordenação diz o nome da escola no passo 1. */
-  readonly passosDe: (eu: RespostaEu) => readonly PassoDaIntroducao[]
+  readonly passosDe: (eu: EuResponse) => readonly PassoDaIntroducao[]
   /** Para onde vai quem termina ou pula pela primeira vez, e quem escolhe "Voltar para a abertura" no erro. */
   readonly aoTerminar: string
   /** Para onde vai quem revê e fecha: cada papel diz o seu. */

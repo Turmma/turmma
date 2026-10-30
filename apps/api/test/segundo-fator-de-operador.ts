@@ -1,5 +1,5 @@
 import { criarLogger, type Meter, type PoolBanco } from '@educa/nucleo'
-import { CodigoDeErro, esquemaRespostaConfigurarSegundoFatorDeOperador, MENSAGENS_DE_ERRO, type RespostaConfigurarSegundoFatorDeOperador } from '@educa/shared'
+import { ErrorCode, configurarSegundoFatorDeOperadorResponseSchema, MENSAGENS_DE_ERRO, type ConfigurarSegundoFatorDeOperadorResponse } from '@educa/shared'
 import type { INestApplication } from '@nestjs/common'
 import { NestFactory } from '@nestjs/core'
 import { randomBytes } from 'node:crypto'
@@ -59,7 +59,7 @@ export function semRequisicaoId(corpo: unknown): unknown {
 /** Status e corpo (sem o `requisicaoId`), para comparar respostas que precisam ser iguais. */
 export const forma = (resposta: Resposta) => ({ status: resposta.status, corpo: semRequisicaoId(resposta.corpo) })
 
-export function esperarErro(resposta: Resposta, status: number, codigo: CodigoDeErro): void {
+export function esperarErro(resposta: Resposta, status: number, codigo: ErrorCode): void {
   expect(resposta.status).toBe(status)
   expect(resposta.corpo).toEqual({ erro: { codigo, mensagem: MENSAGENS_DE_ERRO[codigo], requisicaoId: expect.stringMatching(UUID) } })
 }
@@ -187,9 +187,9 @@ export function esperarSoIdApelidoEDatas(estado: EstadoDoOperador): void {
 }
 
 /** `POST /mfa/configurar` com o desafio, e a resposta já conferida pelo contrato quando é 200. */
-export async function configurar(url: string, desafioDaEtapa: string, cabecalhos: Cabecalhos = doIp()): Promise<{ resposta: Resposta; corpo: RespostaConfigurarSegundoFatorDeOperador | undefined }> {
+export async function configurar(url: string, desafioDaEtapa: string, cabecalhos: Cabecalhos = doIp()): Promise<{ resposta: Resposta; corpo: ConfigurarSegundoFatorDeOperadorResponse | undefined }> {
   const resposta = await pedir(url, 'POST', CONFIGURAR, { desafio: desafioDaEtapa }, cabecalhos)
-  return { resposta, corpo: resposta.status === 200 ? esquemaRespostaConfigurarSegundoFatorDeOperador.parse(resposta.corpo) : undefined }
+  return { resposta, corpo: resposta.status === 200 ? configurarSegundoFatorDeOperadorResponseSchema.parse(resposta.corpo) : undefined }
 }
 
 /** `POST /sessao/mfa` com o desafio e o código do app ou o de recuperação. */

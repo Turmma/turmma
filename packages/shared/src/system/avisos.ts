@@ -7,7 +7,7 @@ export const MAXIMO_DE_AVISOS = 10
  * Um aviso do sistema, escrito por nós na configuração (manutenção, janela de atualização). Texto
  * fixo e público: nunca dado de escola nem de pessoa. `publicadoEm` é a data, sem hora.
  */
-export const esquemaAviso = z
+export const avisoSchema = z
   .object({
     id: z.string().regex(/^[a-z0-9-]{1,64}$/),
     texto: z.string().min(1).max(280),
@@ -15,13 +15,13 @@ export const esquemaAviso = z
   })
   .strict()
 
-export type Aviso = z.infer<typeof esquemaAviso>
+export type Aviso = z.infer<typeof avisoSchema>
 
 /** Corpo de `GET /v1/sistema/avisos`, rota anônima. Lista vazia é o estado normal. */
-export const esquemaRespostaAvisos = z
+export const avisosResponseSchema = z
   .object({
-    itens: z.array(esquemaAviso).max(MAXIMO_DE_AVISOS),
+    itens: z.array(avisoSchema).max(MAXIMO_DE_AVISOS),
   })
   .strict()
 
-export type RespostaAvisos = z.infer<typeof esquemaRespostaAvisos>
+export type AvisosResponse = z.infer<typeof avisosResponseSchema>

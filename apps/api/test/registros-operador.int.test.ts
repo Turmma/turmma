@@ -1,6 +1,6 @@
 import 'reflect-metadata'
 import { METRICAS, type Banco } from '@educa/nucleo'
-import { CodigoDeErro, esquemaRespostaAceitarConviteDeOperador, esquemaRespostaEntradaDeOperador } from '@educa/shared'
+import { ErrorCode, aceitarConviteDeOperadorResponseSchema, entradaDeOperadorResponseSchema } from '@educa/shared'
 import type { INestApplication } from '@nestjs/common'
 import { randomBytes } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -72,7 +72,7 @@ describe('registros da operação: acesso e auditoria (C37, tarefa 8.0)', () => 
     await gerarConviteDeOperador(banco, autor, apelido)
     const [ipDoAceite, ipDaEntrada, ipDaSegunda, ipDaSaida] = [ipSorteado(), ipSorteado(), ipSorteado(), ipSorteado()]
     const token = (await gerarConviteDeOperador(banco, autor, apelido)).token
-    const aceite = esquemaRespostaAceitarConviteDeOperador.parse((await pedir(url, 'POST', '/v1/operacao/convite/aceitar', { token, senha: SENHA }, doIp(ipDoAceite))).corpo)
+    const aceite = aceitarConviteDeOperadorResponseSchema.parse((await pedir(url, 'POST', '/v1/operacao/convite/aceitar', { token, senha: SENHA }, doIp(ipDoAceite))).corpo)
     const { corpo: configurado } = await configurar(url, aceite.desafio)
     if (configurado === undefined) throw new Error('configurar recusado')
     // O configurar sozinho não é "segundo fator configurado": nada fica ativo, e nada é auditado.
@@ -83,7 +83,7 @@ describe('registros da operação: acesso e auditoria (C37, tarefa 8.0)', () => 
     expect(await acessosDoIp(ipDaEntrada)).toEqual([{ operadorId, evento: 'entrada', ip: ipDaEntrada }])
 
     // A segunda entrada, com o segundo fator já ativo, grava outra `entrada` e nenhuma auditoria nova.
-    const deNovo = esquemaRespostaEntradaDeOperador.parse((await pedir(url, 'POST', '/v1/operacao/sessao/email', { email: `${apelido}@turmma.invalid`, senha: SENHA }, doIp(ipDaSegunda))).corpo)
+    const deNovo = entradaDeOperadorResponseSchema.parse((await pedir(url, 'POST', '/v1/operacao/sessao/email', { email: `${apelido}@turmma.invalid`, senha: SENHA }, doIp(ipDaSegunda))).corpo)
     expect((await entrar(url, { desafio: deNovo.desafio, codigo: codigoDoPasso(configurado.segredo, passoAtual() + 1) }, doIp(ipDaSegunda))).status).toBe(200)
     expect(await acessosDoIp(ipDaSegunda)).toEqual([{ operadorId, evento: 'entrada', ip: ipDaSegunda }])
 
@@ -106,22 +106,22 @@ describe('registros da operação: acesso e auditoria (C37, tarefa 8.0)', () => 
   it('a falha de entrada, pela senha e pelo código, grava `entrada_falha` com o IP e sem operador, e soma na métrica; a senha certa e o código certo não', async () => {
     const { operadorId, apelido } = await operadores.operador()
     const token = (await gerarConviteDeOperador(banco, autor, apelido)).token
-    const aceite = esquemaRespostaAceitarConviteDeOperador.parse((await pedir(url, 'POST', '/v1/operacao/convite/aceitar', { token, senha: SENHA }, doIp())).corpo)
+    const aceite = aceitarConviteDeOperadorResponseSchema.parse((await pedir(url, 'POST', '/v1/operacao/convite/aceitar', { token, senha: SENHA }, doIp())).corpo)
     const { corpo: configurado } = await configurar(url, aceite.desafio)
     if (configurado === undefined) throw new Error('configurar recusado')
     const antes = await falhasNaMetrica()
 
     const [ipDaSenha, ipDoCodigo] = [ipSorteado(), ipSorteado()]
-    esperarErro(await pedir(url, 'POST', '/v1/operacao/sessao/email', { email: `${apelido}@turmma.invalid`, senha: 'senha-errada-de-proposito' }, doIp(ipDaSenha)), 401, CodigoDeErro.NAO_AUTENTICADO)
+    esperarErro(await pedir(url, 'POST', '/v1/operacao/sessao/email', { email: `${apelido}@turmma.invalid`, senha: 'senha-errada-de-proposito' }, doIp(ipDaSenha)), 401, ErrorCode.NAO_AUTENTICADO)
     // Um código que não é o do passo: o segredo é o certo, o passo está fora da janela.
-    esperarErro(await entrar(url, { desafio: configurado.desafio, codigo: codigoDoPasso(configurado.segredo, passoAtual() + 10) }, doIp(ipDoCodigo)), 401, CodigoDeErro.NAO_AUTENTICADO)
+    esperarErro(await entrar(url, { desafio: configurado.desafio, codigo: codigoDoPasso(configurado.segredo, passoAtual() + 10) }, doIp(ipDoCodigo)), 401, ErrorCode.NAO_AUTENTICADO)
     expect(await acessosDoIp(ipDaSenha)).toEqual([{ operadorId: null, evento: 'entrada_falha', ip: ipDaSenha }])
     expect(await acessosDoIp(ipDoCodigo)).toEqual([{ operadorId: null, evento: 'entrada_falha', ip: ipDoCodigo }])
     expect(await falhasNaMetrica()).toBe(antes + 2)
 
     // Com a senha e o código certos: nenhuma falha a mais, nem no registro, nem na métrica.
     const ipCerto = ipSorteado()
-    const certo = esquemaRespostaEntradaDeOperador.parse((await pedir(url, 'POST', '/v1/operacao/sessao/email', { email: `${apelido}@turmma.invalid`, senha: SENHA }, doIp(ipCerto))).corpo)
+    const certo = entradaDeOperadorResponseSchema.parse((await pedir(url, 'POST', '/v1/operacao/sessao/email', { email: `${apelido}@turmma.invalid`, senha: SENHA }, doIp(ipCerto))).corpo)
     expect(certo.etapa).toBe('configurar_mfa')
     const { corpo: deNovo } = await configurar(url, certo.desafio, doIp(ipCerto))
     if (deNovo === undefined) throw new Error('configurar recusado')

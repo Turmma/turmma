@@ -1,4 +1,4 @@
-import { ErroDeInvariante } from '@educa/shared'
+import { InvariantException } from '@educa/shared'
 /** Tamanho mínimo da justificativa: "rotina" não explica nada, uma frase explica. */
 export const TAMANHO_MINIMO_JUSTIFICATIVA_SEM_ESCOPO = 30
 
@@ -15,7 +15,7 @@ const justificativas = new WeakMap<object, Map<string | symbol, string>>()
  */
 export function SemEscopo(justificativa: string): MethodDecorator {
   if (justificativa.trim().length < TAMANHO_MINIMO_JUSTIFICATIVA_SEM_ESCOPO) {
-    throw new ErroDeInvariante('@SemEscopo exige justificativa escrita')
+    throw new InvariantException('@SemEscopo exige justificativa escrita')
   }
   return (alvo, metodo) => {
     const doAlvo = justificativas.get(alvo) ?? new Map<string | symbol, string>()

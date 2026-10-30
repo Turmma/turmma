@@ -1,4 +1,4 @@
-import type { RespostaEuDoOperador } from '@educa/shared'
+import type { EuDoOperadorResponse } from '@educa/shared'
 import { Controller, Get, Header, Inject } from '@nestjs/common'
 import { EuDoOperadorService } from './eu.service.js'
 import { RotaDeOperacao } from '../marcadores.js'
@@ -11,7 +11,7 @@ export class EuDoOperadorController {
   @Get()
   @RotaDeOperacao()
   @Header('Cache-Control', 'no-store')
-  obter(): Promise<RespostaEuDoOperador> {
+  obter(): Promise<EuDoOperadorResponse> {
     return this.eu.obter()
   }
 }

@@ -10,7 +10,7 @@ import {
   type LoggerBase,
   type Relogio,
 } from '@educa/nucleo'
-import { CodigoDeFalhaDeJob, ErroDeInvariante, TIPO_EXPURGAR_ESCOLA, type TIPO_EXPURGAR_DADO_PESSOAL } from '@educa/shared'
+import { JobFailureCode, InvariantException, TIPO_EXPURGAR_ESCOLA, type TIPO_EXPURGAR_DADO_PESSOAL } from '@educa/shared'
 import type { Processador } from '../executor.js'
 import { FalhaDeJob } from '../falha-de-job.js'
 
@@ -42,7 +42,7 @@ export interface DependenciasDaRotinaDeExpurgo {
 export function criarRotinaDeExpurgo({ escolas, banco, enfileirador, janelaDaEscola, relogio, logger }: DependenciasDaRotinaDeExpurgo): Processador<typeof TIPO_EXPURGAR_DADO_PESSOAL> {
   return async () => {
     const contexto = contextoAtual()
-    if (contexto?.rotinaDoSistema !== true) throw new FalhaDeJob(CodigoDeFalhaDeJob.DADOS_INVALIDOS, true)
+    if (contexto?.rotinaDoSistema !== true) throw new FalhaDeJob(JobFailureCode.DADOS_INVALIDOS, true)
     const agora = relogio.agora()
     const ids = await escolas.listarIds()
     let enfileiradosTotal = 0
@@ -63,6 +63,6 @@ export function criarRotinaDeExpurgo({ escolas, banco, enfileirador, janelaDaEsc
     }
     const escolasTotal = ids.length
     logger.info({ evento: 'retencao.rotina_disparada', escolasTotal, enfileiradosTotal, jaEnfileiradosTotal, falhasTotal })
-    if (falhasTotal > 0) throw new ErroDeInvariante('expurgo não enfileirado em alguma escola')
+    if (falhasTotal > 0) throw new InvariantException('expurgo não enfileirado em alguma escola')
   }
 }

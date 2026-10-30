@@ -1,6 +1,6 @@
 import 'reflect-metadata'
 import { ALGORITMO_TOKEN, EMISSOR_TOKEN, TIPO_TOKEN } from '@educa/nucleo'
-import { CodigoDeErro, MENSAGENS_DE_ERRO, NAMESPACE_REALTIME_SISTEMA, RECONEXAO_REALTIME } from '@educa/shared'
+import { ErrorCode, MENSAGENS_DE_ERRO, SYSTEM_REALTIME_NAMESPACE, REALTIME_RECONNECTION } from '@educa/shared'
 import { Redis } from 'ioredis'
 import { SignJWT } from 'jose'
 import { randomUUID } from 'node:crypto'
@@ -119,7 +119,7 @@ describe('realtime em duas instâncias, com o adaptador de streams no Redis de f
   }
 
   function emitirParaEscola(escolaId: string, dados: Record<string, string>): void {
-    emissor.servidor.of(NAMESPACE_REALTIME_SISTEMA).to(salaDaEscola(escolaId)).emit('sistema.teste', dados)
+    emissor.servidor.of(SYSTEM_REALTIME_NAMESPACE).to(salaDaEscola(escolaId)).emit('sistema.teste', dados)
   }
 
   it('clientes da mesma escola em instâncias diferentes recebem a mesma emissão', async () => {
@@ -144,7 +144,7 @@ describe('realtime em duas instâncias, com o adaptador de streams no Redis de f
     await conectado(instancia1, SESSAO_B1)
     await conectado(instancia2, SESSAO_B2)
 
-    const naSalaA = await emissor.servidor.of(NAMESPACE_REALTIME_SISTEMA).in(salaDaEscola(ESCOLA_A)).fetchSockets()
+    const naSalaA = await emissor.servidor.of(SYSTEM_REALTIME_NAMESPACE).in(salaDaEscola(ESCOLA_A)).fetchSockets()
 
     expect(naSalaA.map((socket) => socket.id).sort()).toEqual([a1.id, a2.id].sort())
     // O handshake atravessa o Redis nessa consulta: o token verificado e a query já não estão nele.
@@ -202,16 +202,16 @@ describe('realtime em duas instâncias, com o adaptador de streams no Redis de f
     await esperar(JANELA_DE_SILENCIO_MS)
 
     expect(recebidosIntruso).toEqual([])
-    const naSalaA = await emissor.servidor.of(NAMESPACE_REALTIME_SISTEMA).in(salaDaEscola(ESCOLA_A)).fetchSockets()
+    const naSalaA = await emissor.servidor.of(SYSTEM_REALTIME_NAMESPACE).in(salaDaEscola(ESCOLA_A)).fetchSockets()
     expect(naSalaA.map((socket) => socket.id)).toEqual([a1.id])
-    const naSalaB = await emissor.servidor.of(NAMESPACE_REALTIME_SISTEMA).in(salaDaEscola(ESCOLA_B)).fetchSockets()
+    const naSalaB = await emissor.servidor.of(SYSTEM_REALTIME_NAMESPACE).in(salaDaEscola(ESCOLA_B)).fetchSockets()
     expect(naSalaB.map((socket) => socket.data)).toEqual([{ identidade: { escolaId: ESCOLA_B, usuarioId: USUARIO_B2 } }])
   })
 
   describe('autenticação no handshake', () => {
     const recusaEsperada = {
-      message: CodigoDeErro.NAO_AUTENTICADO,
-      data: { codigo: CodigoDeErro.NAO_AUTENTICADO, mensagem: MENSAGENS_DE_ERRO.NAO_AUTENTICADO },
+      message: ErrorCode.NAO_AUTENTICADO,
+      data: { codigo: ErrorCode.NAO_AUTENTICADO, mensagem: MENSAGENS_DE_ERRO.NAO_AUTENTICADO },
     }
 
     it.each<[string, () => Promise<{ token: string; auth?: Record<string, unknown>; query?: Record<string, string> }>]>([
@@ -290,14 +290,14 @@ describe('realtime em duas instâncias, com o adaptador de streams no Redis de f
   it('Postgres fora: o handshake é recusado com INDISPONIVEL_TENTE_DE_NOVO, nunca com NAO_AUTENTICADO, e a tentativa seguinte entra com o mesmo token', async () => {
     const token = await SESSAO_A1.tokenNovo()
     const cliente = registrar(criarCliente(instancia1.url, token))
-    // O recuo com que o cliente volta: `RECONEXAO_REALTIME` espalha as tentativas em ±50%, para a sala inteira
+    // O recuo com que o cliente volta: `REALTIME_RECONNECTION` espalha as tentativas em ±50%, para a sala inteira
     // não tentar no mesmo milissegundo. Recusa de middleware o socket.io não repete sozinho (ele destrói o
     // socket ao receber CONNECT_ERROR), então quem tenta de novo é a web, com estas opções.
-    expect(cliente.io.opts).toMatchObject(RECONEXAO_REALTIME)
+    expect(cliente.io.opts).toMatchObject(REALTIME_RECONNECTION)
 
     const indisponivel = {
-      message: CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO,
-      data: { codigo: CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO, mensagem: MENSAGENS_DE_ERRO.INDISPONIVEL_TENTE_DE_NOVO },
+      message: ErrorCode.INDISPONIVEL_TENTE_DE_NOVO,
+      data: { codigo: ErrorCode.INDISPONIVEL_TENTE_DE_NOVO, mensagem: MENSAGENS_DE_ERRO.INDISPONIVEL_TENTE_DE_NOVO },
     }
     log1.linhas.length = 0
     compose('pause', 'postgres')
@@ -338,7 +338,7 @@ describe('realtime em duas instâncias, com o adaptador de streams no Redis de f
 
     await expect
       .poll(async () => {
-        const naSala = await emissor.servidor.of(NAMESPACE_REALTIME_SISTEMA).in(salaDaEscola(ESCOLA_A)).fetchSockets()
+        const naSala = await emissor.servidor.of(SYSTEM_REALTIME_NAMESPACE).in(salaDaEscola(ESCOLA_A)).fetchSockets()
         return naSala.map((socket) => socket.data.identidade?.usuarioId)
       })
       .toEqual([USUARIO_A2])
@@ -393,7 +393,7 @@ describe('realtime em duas instâncias, com o adaptador de streams no Redis de f
       escolaId: ESCOLA_A,
       usuarioId: USUARIO_A1,
     })
-    expect(registros.find((registro) => registro.evento === 'realtime.conexao_recusada')).toMatchObject({ codigo: CodigoDeErro.NAO_AUTENTICADO })
+    expect(registros.find((registro) => registro.evento === 'realtime.conexao_recusada')).toMatchObject({ codigo: ErrorCode.NAO_AUTENTICADO })
     const bruto = log1.linhas.join('')
     for (const parte of token.split('.')) expect(bruto).not.toContain(parte)
     expect(bruto).not.toContain('valor-da-query')
@@ -408,7 +408,7 @@ describe('stream do adaptador no Redis de fila', () => {
     const emissor = await criarEmissor(100)
     try {
       for (let indice = 0; indice < 1_000; indice++) {
-        emissor.servidor.of(NAMESPACE_REALTIME_SISTEMA).to(salaDaEscola(ESCOLA_A)).emit('sistema.teste', { indice })
+        emissor.servidor.of(SYSTEM_REALTIME_NAMESPACE).to(salaDaEscola(ESCOLA_A)).emit('sistema.teste', { indice })
       }
       await expect.poll(async () => redis.xinfo('STREAM', PREFIXO_REDIS_REALTIME).then(() => true), { timeout: 5_000 }).toBe(true)
       await esperar(500)

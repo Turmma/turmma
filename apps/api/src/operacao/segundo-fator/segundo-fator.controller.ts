@@ -1,13 +1,13 @@
 import { ipDaRequisicao, LimiteQueRebaixa, ProxiesConfiaveis, ZodValidationPipe } from '@educa/nucleo'
 import {
-  esquemaPedidoConfigurarSegundoFatorDeOperador,
-  esquemaPedidoSegundoFatorDeOperador,
-  esquemaRespostaConfigurarSegundoFatorDeOperador,
-  esquemaRespostaSegundoFatorDeOperador,
-  type PedidoConfigurarSegundoFatorDeOperador,
-  type PedidoSegundoFatorDeOperador,
-  type RespostaConfigurarSegundoFatorDeOperador,
-  type RespostaSegundoFatorDeOperador,
+  configurarSegundoFatorDeOperadorRequestSchema,
+  segundoFatorDeOperadorRequestSchema,
+  configurarSegundoFatorDeOperadorResponseSchema,
+  segundoFatorDeOperadorResponseSchema,
+  type ConfigurarSegundoFatorDeOperadorRequest,
+  type SegundoFatorDeOperadorRequest,
+  type ConfigurarSegundoFatorDeOperadorResponse,
+  type SegundoFatorDeOperadorResponse,
 } from '@educa/shared'
 import { Body, Controller, Header, HttpCode, HttpStatus, Inject, Post, Req, Res } from '@nestjs/common'
 import type { IncomingMessage, ServerResponse } from 'node:http'
@@ -38,8 +38,8 @@ export class SegundoFatorDoOperadorController {
   @EntradaDeOperacao()
   @HttpCode(HttpStatus.OK)
   @Header('Cache-Control', 'no-store')
-  async configurar(@Body(new ZodValidationPipe(esquemaPedidoConfigurarSegundoFatorDeOperador)) pedido: PedidoConfigurarSegundoFatorDeOperador): Promise<RespostaConfigurarSegundoFatorDeOperador> {
-    return esquemaRespostaConfigurarSegundoFatorDeOperador.parse(await this.segundoFator.configurar(pedido))
+  async configurar(@Body(new ZodValidationPipe(configurarSegundoFatorDeOperadorRequestSchema)) pedido: ConfigurarSegundoFatorDeOperadorRequest): Promise<ConfigurarSegundoFatorDeOperadorResponse> {
+    return configurarSegundoFatorDeOperadorResponseSchema.parse(await this.segundoFator.configurar(pedido))
   }
 
   @Post('mfa')
@@ -48,12 +48,12 @@ export class SegundoFatorDoOperadorController {
   @HttpCode(HttpStatus.OK)
   @Header('Cache-Control', 'no-store')
   async entrar(
-    @Body(new ZodValidationPipe(esquemaPedidoSegundoFatorDeOperador)) pedido: PedidoSegundoFatorDeOperador,
+    @Body(new ZodValidationPipe(segundoFatorDeOperadorRequestSchema)) pedido: SegundoFatorDeOperadorRequest,
     @Req() requisicao: IncomingMessage,
     @Res({ passthrough: true }) resposta: ServerResponse,
-  ): Promise<RespostaSegundoFatorDeOperador> {
+  ): Promise<SegundoFatorDeOperadorResponse> {
     const aberta = await this.segundoFator.entrar(pedido, { cabecalhoCookie: requisicao.headers.cookie, ip: await ipDaRequisicao(requisicao, this.proxies) })
-    const corpoDaResposta = esquemaRespostaSegundoFatorDeOperador.parse(aberta.resposta)
+    const corpoDaResposta = segundoFatorDeOperadorResponseSchema.parse(aberta.resposta)
     resposta.setHeader('Set-Cookie', [...aberta.cookies])
     return corpoDaResposta
   }

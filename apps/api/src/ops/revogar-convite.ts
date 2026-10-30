@@ -1,5 +1,5 @@
 import { ConfiguracaoInvalida, ErroDeDominio, resumirErro } from '@educa/nucleo'
-import { CodigoDeErro } from '@educa/shared'
+import { ErrorCode } from '@educa/shared'
 import { pathToFileURL } from 'node:url'
 import { parseArgs } from 'node:util'
 import { z } from 'zod'
@@ -54,11 +54,11 @@ export async function executarOpsRevogarConvite(
       terminal.erro(`${erro.message}\n`)
       return 2
     }
-    if (erro instanceof ErroDeDominio && (erro.codigo === CodigoDeErro.NAO_ENCONTRADO || erro.codigo === CodigoDeErro.CONFLITO)) {
+    if (erro instanceof ErroDeDominio && (erro.codigo === ErrorCode.NAO_ENCONTRADO || erro.codigo === ErrorCode.CONFLITO)) {
       terminal.erro(`${erro.codigo}\n`)
       return 1
     }
-    terminal.erro(`${CodigoDeErro.ERRO_INTERNO}: ${JSON.stringify(resumirErro(erro))}\n`)
+    terminal.erro(`${ErrorCode.ERRO_INTERNO}: ${JSON.stringify(resumirErro(erro))}\n`)
     return 1
   }
 }

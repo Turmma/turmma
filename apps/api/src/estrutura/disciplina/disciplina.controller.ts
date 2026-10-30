@@ -1,13 +1,13 @@
 import { IdPipe, Permite, ZodValidationPipe } from '@educa/nucleo'
 import {
-  esquemaConsultaPaginada,
-  esquemaPedidoCriarDisciplina,
-  esquemaPedidoRenomearDisciplina,
-  type ConsultaPaginada,
-  type PedidoCriarDisciplina,
-  type PedidoRenomearDisciplina,
-  type RespostaDisciplina,
-  type RespostaListaDeDisciplinas,
+  paginationQuerySchema,
+  criarDisciplinaRequestSchema,
+  renomearDisciplinaRequestSchema,
+  type PaginationQuery,
+  type CriarDisciplinaRequest,
+  type RenomearDisciplinaRequest,
+  type DisciplinaResponse,
+  type ListaDeDisciplinasResponse,
 } from '@educa/shared'
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Query } from '@nestjs/common'
 import { DisciplinaService } from './disciplina.service.js'
@@ -22,13 +22,13 @@ export class DisciplinaController {
 
   @Post()
   @Permite('disciplina', 'criar')
-  criar(@Body(new ZodValidationPipe(esquemaPedidoCriarDisciplina)) pedido: PedidoCriarDisciplina): Promise<RespostaDisciplina> {
+  criar(@Body(new ZodValidationPipe(criarDisciplinaRequestSchema)) pedido: CriarDisciplinaRequest): Promise<DisciplinaResponse> {
     return this.disciplinas.criar(pedido)
   }
 
   @Patch(':id')
   @Permite('disciplina', 'renomear')
-  renomear(@Param('id', IdPipe) id: string, @Body(new ZodValidationPipe(esquemaPedidoRenomearDisciplina)) pedido: PedidoRenomearDisciplina): Promise<RespostaDisciplina> {
+  renomear(@Param('id', IdPipe) id: string, @Body(new ZodValidationPipe(renomearDisciplinaRequestSchema)) pedido: RenomearDisciplinaRequest): Promise<DisciplinaResponse> {
     return this.disciplinas.renomear(id, pedido)
   }
 
@@ -41,7 +41,7 @@ export class DisciplinaController {
 
   @Get()
   @Permite('disciplina', 'ler')
-  listar(@Query(new ZodValidationPipe(esquemaConsultaPaginada)) consulta: ConsultaPaginada): Promise<RespostaListaDeDisciplinas> {
+  listar(@Query(new ZodValidationPipe(paginationQuerySchema)) consulta: PaginationQuery): Promise<ListaDeDisciplinasResponse> {
     return this.disciplinas.listar(consulta)
   }
 }

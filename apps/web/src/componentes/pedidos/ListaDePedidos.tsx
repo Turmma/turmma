@@ -1,4 +1,4 @@
-import { CodigoDeErro, type DecisaoDePedido, type DecisorDaReivindicacao, type PedidoDaTurma, type RespostaPedidosDaTurma } from '@educa/shared'
+import { ErrorCode, type DecisaoDePedido, type DecisorDaReivindicacao, type PedidoDaTurma, type PedidosDaTurmaResponse } from '@educa/shared'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { aplicarDecisao, consultaPedidosDaTurma, descartarListaDepoisDaFalha } from '../../api/pedidos'
@@ -42,7 +42,7 @@ interface PropsDosPedidos {
 
 /** A lista como a tela a viu por último, para dizer quantos pedidos chegaram na atualização seguinte. */
 interface ListaVista {
-  readonly dados: RespostaPedidosDaTurma | undefined
+  readonly dados: PedidosDaTurmaResponse | undefined
   readonly novos: { readonly texto: string; readonly vez: number }
 }
 
@@ -89,7 +89,7 @@ export function ListaDePedidos({ turma, quem, vazio, aoPerderATurma, aoDecidir }
 
   // A turma que saiu do alcance (o vínculo encerrado com a tela aberta, a turma excluída, o ano virado): quem desenha a
   // página a troca inteira pelo aviso dela, e esta seção sai com os nomes.
-  const semATurma = listaMudou(pedidos.error, [CodigoDeErro.NAO_ENCONTRADO])
+  const semATurma = listaMudou(pedidos.error, [ErrorCode.NAO_ENCONTRADO])
   useEffect(() => {
     if (semATurma) aoPerderATurma()
   }, [semATurma, aoPerderATurma])

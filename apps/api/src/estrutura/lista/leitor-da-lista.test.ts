@@ -1,5 +1,5 @@
 import { ErroDeDominio } from '@educa/nucleo'
-import { CodigoDeErro, MAXIMO_DE_BYTES_DA_LISTA, MAXIMO_DE_LINHAS_DA_LISTA } from '@educa/shared'
+import { ErrorCode, MAXIMO_DE_BYTES_DA_LISTA, MAXIMO_DE_LINHAS_DA_LISTA } from '@educa/shared'
 import { describe, expect, it } from 'vitest'
 import { errosDasLinhas, lerTextoDaLista } from './leitor-da-lista.js'
 
@@ -123,7 +123,7 @@ describe('E3: a leitura do texto da lista (A1, 2.0)', () => {
   it('200 linhas de aluno passam; 201 recusam com ENTRADA_INVALIDA; o cabeçalho e a linha em branco não contam', () => {
     expect(MAXIMO_DE_LINHAS_DA_LISTA).toBe(200)
     expect(lerTextoDaLista(['Nome;Matrícula', '', ...linhasDeAluno(200), ''].join('\n'))).toHaveLength(200)
-    expect(codigoDaRecusa(linhasDeAluno(201).join('\n'))).toBe(CodigoDeErro.ENTRADA_INVALIDA)
+    expect(codigoDaRecusa(linhasDeAluno(201).join('\n'))).toBe(ErrorCode.ENTRADA_INVALIDA)
   })
 
   it('64 KB em UTF-8 passam; 64 KB + 1 byte recusam com ENTRADA_INVALIDA, contando o acento como dois bytes', () => {
@@ -137,11 +137,11 @@ describe('E3: a leitura do texto da lista (A1, 2.0)', () => {
     const noLimite = `${base}\nx;${'1'.repeat(falta)}`
     expect(Buffer.byteLength(noLimite, 'utf8')).toBe(MAXIMO_DE_BYTES_DA_LISTA)
     expect(lerTextoDaLista(noLimite)).toHaveLength(200)
-    expect(codigoDaRecusa(`${noLimite}1`)).toBe(CodigoDeErro.ENTRADA_INVALIDA)
+    expect(codigoDaRecusa(`${noLimite}1`)).toBe(ErrorCode.ENTRADA_INVALIDA)
   })
 
   it('texto sem nenhuma linha de aluno recusa com ENTRADA_INVALIDA: vazio, só em branco, só separadores, só o cabeçalho', () => {
-    for (const texto of ['', '\n\n  \n', ';;\n ; ;', ',,', '\uFEFF', 'Nome;Matrícula\n\n']) expect(codigoDaRecusa(texto), JSON.stringify(texto)).toBe(CodigoDeErro.ENTRADA_INVALIDA)
+    for (const texto of ['', '\n\n  \n', ';;\n ; ;', ',,', '\uFEFF', 'Nome;Matrícula\n\n']) expect(codigoDaRecusa(texto), JSON.stringify(texto)).toBe(ErrorCode.ENTRADA_INVALIDA)
   })
 })
 

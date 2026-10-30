@@ -1,4 +1,4 @@
-import { CodigoDeErro } from '@educa/shared'
+import { ErrorCode } from '@educa/shared'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 /**
@@ -47,8 +47,8 @@ describe('concluirIntroducao', () => {
 
   it('resposta fora do contrato (sem a data, ou com campo a mais) é recusada', async () => {
     fila.push({ status: 200, corpo: { introducaoVistaEm: '2026-10-24T12:00:00.000Z', usuarioId: 'x' } })
-    await expect(modulos.eu.concluirIntroducao()).rejects.toMatchObject({ name: 'ErroDaApi', codigo: CodigoDeErro.ERRO_INTERNO })
+    await expect(modulos.eu.concluirIntroducao()).rejects.toMatchObject({ name: 'ErroDaApi', codigo: ErrorCode.ERRO_INTERNO })
     fila.push({ status: 200, corpo: {} })
-    await expect(modulos.eu.concluirIntroducao()).rejects.toMatchObject({ name: 'ErroDaApi', codigo: CodigoDeErro.ERRO_INTERNO })
+    await expect(modulos.eu.concluirIntroducao()).rejects.toMatchObject({ name: 'ErroDaApi', codigo: ErrorCode.ERRO_INTERNO })
   })
 })

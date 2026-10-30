@@ -1,4 +1,4 @@
-import { CATEGORIAS_DE_RETENCAO, CHAVES_DE_PRAZO_FIXO, CHAVES_DE_RETENCAO, CodigoDeErro, esquemaRespostaRetencao, FINALIDADE_DO_AJUSTE_DE_RETENCAO, type CategoriaDeRetencao, type RespostaRetencao } from '@educa/shared'
+import { CATEGORIAS_DE_RETENCAO, CHAVES_DE_PRAZO_FIXO, CHAVES_DE_RETENCAO, ErrorCode, retencaoResponseSchema, FINALIDADE_DO_AJUSTE_DE_RETENCAO, type CategoriaDeRetencao, type RetencaoResponse } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { lerAmbienteDeTeste } from '../../../tools/ci/compose.ts'
@@ -64,10 +64,10 @@ describe('retenção da escola: a operação ajusta por comando, e a coordenaç�
   const ajustar = (escolaId: string, categoria: string, meses: number, contrato = 14) =>
     rodar(['ajustar', '--escola', escolaId, '--categoria', categoria, '--meses', String(meses), '--contrato', String(contrato)])
 
-  async function retencaoDe(coordenacao: SessaoDeTeste): Promise<RespostaRetencao> {
+  async function retencaoDe(coordenacao: SessaoDeTeste): Promise<RetencaoResponse> {
     const resposta = await chamar(api.url, 'GET', '/v1/privacidade/retencao', await coordenacao.tokenNovo())
     expect(resposta.status).toBe(200)
-    return esquemaRespostaRetencao.parse(resposta.corpo)
+    return retencaoResponseSchema.parse(resposta.corpo)
   }
 
   async function categoriaDe(coordenacao: SessaoDeTeste, categoria: CategoriaDeRetencao) {
@@ -123,7 +123,7 @@ describe('retenção da escola: a operação ajusta por comando, e a coordenaç�
     for (const meses of [piso - 1, teto + 1]) {
       const recusada = await ajustar(coordenacao.escolaId, 'sinal_tutor', meses)
       expect({ codigo: recusada.codigo, saida: recusada.saida }, String(meses)).toEqual({ codigo: 1, saida: '' })
-      expect(recusada.erro).toMatch(new RegExp(`^${CodigoDeErro.RETENCAO_FORA_DO_LIMITE}:`))
+      expect(recusada.erro).toMatch(new RegExp(`^${ErrorCode.RETENCAO_FORA_DO_LIMITE}:`))
     }
     expect(await ajustesNoBanco(coordenacao.escolaId)).toEqual([])
     expect(await auditoriasDoAjuste(coordenacao.escolaId)).toEqual([])
@@ -144,7 +144,7 @@ describe('retenção da escola: a operação ajusta por comando, e a coordenaç�
     for (const fixa of ['registro_acesso', 'registro_de_decisao']) {
       const recusada = await ajustar(coordenacao.escolaId, fixa, 12)
       expect(recusada.codigo, fixa).toBe(1)
-      expect(recusada.erro, fixa).toMatch(new RegExp(`^${CodigoDeErro.RETENCAO_FORA_DO_LIMITE}:`))
+      expect(recusada.erro, fixa).toMatch(new RegExp(`^${ErrorCode.RETENCAO_FORA_DO_LIMITE}:`))
     }
     expect(await ajustesNoBanco(coordenacao.escolaId)).toEqual([])
     expect(await auditoriasDoAjuste(coordenacao.escolaId)).toEqual([])
@@ -158,13 +158,13 @@ describe('retenção da escola: a operação ajusta por comando, e a coordenaç�
     expect((await ajustar(escolaId, 'conversa_professor', 6)).codigo).toBe(0)
     const textoAcima = await ajustar(escolaId, 'texto_do_modelo', 7)
     expect(textoAcima.codigo).toBe(1)
-    expect(textoAcima.erro).toMatch(new RegExp(`^${CodigoDeErro.RETENCAO_FORA_DO_LIMITE}:`))
+    expect(textoAcima.erro).toMatch(new RegExp(`^${ErrorCode.RETENCAO_FORA_DO_LIMITE}:`))
     expect((await ajustar(escolaId, 'texto_do_modelo', 6)).codigo).toBe(0)
 
     // A conversa do Tutor no padrão (12): o consumo por aluno em 13 é recusado; com a conversa do Tutor em 24, aceito.
     const consumoAcima = await ajustar(escolaId, 'consumo_por_aluno', 13)
     expect(consumoAcima.codigo).toBe(1)
-    expect(consumoAcima.erro).toMatch(new RegExp(`^${CodigoDeErro.RETENCAO_FORA_DO_LIMITE}:`))
+    expect(consumoAcima.erro).toMatch(new RegExp(`^${ErrorCode.RETENCAO_FORA_DO_LIMITE}:`))
     expect((await ajustar(escolaId, 'conversa_tutor', 24)).codigo).toBe(0)
     expect((await ajustar(escolaId, 'consumo_por_aluno', 13)).codigo).toBe(0)
 
@@ -239,10 +239,10 @@ describe('retenção da escola: a operação ajusta por comando, e a coordenaç�
     const inexistente = randomUUID()
     const ajuste = await ajustar(inexistente, 'conversa_tutor', 6)
     expect({ codigo: ajuste.codigo, saida: ajuste.saida }).toEqual({ codigo: 1, saida: '' })
-    expect(ajuste.erro).toMatch(new RegExp(`^${CodigoDeErro.NAO_ENCONTRADO}:`))
+    expect(ajuste.erro).toMatch(new RegExp(`^${ErrorCode.NAO_ENCONTRADO}:`))
     const lista = await rodar(['listar', '--escola', inexistente])
     expect(lista.codigo).toBe(1)
-    expect(lista.erro).toMatch(new RegExp(`^${CodigoDeErro.NAO_ENCONTRADO}:`))
+    expect(lista.erro).toMatch(new RegExp(`^${ErrorCode.NAO_ENCONTRADO}:`))
     expect((await bancada.pool.query('select 1 from retencao_escola where escola_id = $1', [inexistente])).rowCount).toBe(0)
 
     const coordenacao = await escolaComCoordenacao()
@@ -324,7 +324,7 @@ describe('retenção da escola: a operação ajusta por comando, e a coordenaç�
       await gatilho.desarmar()
     }
     expect({ codigo: travada.codigo, saida: travada.saida }).toEqual({ codigo: 1, saida: '' })
-    expect(travada.erro).toMatch(new RegExp(`^${CodigoDeErro.RETENCAO_FORA_DO_LIMITE}:`))
+    expect(travada.erro).toMatch(new RegExp(`^${ErrorCode.RETENCAO_FORA_DO_LIMITE}:`))
     expect(await ajustesNoBanco(escolaId)).toEqual([{ categoria: 'conversa_professor', meses: 3, referencia_contrato: 14, alterada_por: OPERADOR }])
     expect((await auditoriasDoAjuste(escolaId)).map(({ depois }) => depois)).toEqual([{ categoria: 'conversa_professor', meses: 3, referenciaContrato: 14 }])
   })
@@ -409,10 +409,10 @@ describe('retenção da escola: a operação ajusta por comando, e a coordenaç�
       expect((await pedir(await coordenacao.tokenNovo())).status, `coordenação ${rota.caminho}`).toBe(200)
       for (const [quem, sessao] of [['aluno', aluno], ['professor', professor]] as const) {
         const resposta = await pedir(await sessao.tokenNovo())
-        expect({ status: resposta.status, codigo: resposta.corpo.erro?.codigo }, `${quem} ${rota.caminho}`).toEqual({ status: 404, codigo: CodigoDeErro.NAO_ENCONTRADO })
+        expect({ status: resposta.status, codigo: resposta.corpo.erro?.codigo }, `${quem} ${rota.caminho}`).toEqual({ status: 404, codigo: ErrorCode.NAO_ENCONTRADO })
       }
       const semMfa = await pedir(desafio)
-      expect({ status: semMfa.status, codigo: semMfa.corpo.erro?.codigo }, `desafio ${rota.caminho}`).toEqual({ status: 401, codigo: CodigoDeErro.NAO_AUTENTICADO })
+      expect({ status: semMfa.status, codigo: semMfa.corpo.erro?.codigo }, `desafio ${rota.caminho}`).toEqual({ status: 401, codigo: ErrorCode.NAO_AUTENTICADO })
     }
   })
 })

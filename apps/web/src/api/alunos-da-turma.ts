@@ -1,4 +1,4 @@
-import { esquemaRespostaAlunosDaTurma, TAMANHO_MAXIMO_DA_PAGINA } from '@educa/shared'
+import { alunosDaTurmaResponseSchema, TAMANHO_MAXIMO_DA_PAGINA } from '@educa/shared'
 import { infiniteQueryOptions } from '@tanstack/react-query'
 import { buscarComSessao } from './sessao'
 
@@ -28,7 +28,7 @@ export function consultaAlunosDaTurma(turmaId: string) {
     queryFn: ({ pageParam, signal }) => {
       const consulta = new URLSearchParams({ limite: String(ALUNOS_POR_LEITURA) })
       if (pageParam !== undefined) consulta.set('pagina', pageParam)
-      return buscarComSessao(`/v1/turmas/${encodeURIComponent(turmaId)}/alunos?${consulta.toString()}`, esquemaRespostaAlunosDaTurma, signal)
+      return buscarComSessao(`/v1/turmas/${encodeURIComponent(turmaId)}/alunos?${consulta.toString()}`, alunosDaTurmaResponseSchema, signal)
     },
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (ultima) => ultima.proxima,

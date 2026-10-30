@@ -1,5 +1,5 @@
 import {
-  CodigoDeErro,
+  ErrorCode,
   MINIMO_DE_LETRAS_DO_TERMO,
   PRAZO_DA_ELIMINACAO_DIAS,
   SOLICITANTES_DO_PEDIDO,
@@ -135,19 +135,19 @@ export const ROTULO_DA_CATEGORIA_NA_PREVIA: Readonly<Record<CategoriaDeRetencao,
 export const TEXTO_DA_PREVIA_SEM_DADO = 'Nenhum dado desta pessoa foi encontrado nas categorias que a escola guarda.'
 
 /** A falha da busca: o limite de buscas por minuto diz o que fazer, em vez do "muitas tentativas" do catálogo. */
-export const TEXTOS_DA_FALHA_DA_BUSCA: Readonly<Partial<Record<CodigoDeErro, string>>> = {
-  [CodigoDeErro.LIMITE_EXCEDIDO]: 'Muitas buscas em pouco tempo. Aguarde um minuto e busque de novo.',
+export const TEXTOS_DA_FALHA_DA_BUSCA: Readonly<Partial<Record<ErrorCode, string>>> = {
+  [ErrorCode.LIMITE_EXCEDIDO]: 'Muitas buscas em pouco tempo. Aguarde um minuto e busque de novo.',
 }
 
 /**
  * A falha do registro. A queda de rede e o 503 dizem que tentar de novo não duplica o pedido (é a chave de envio), que é o que
  * a coordenação teme ao ver um erro depois de confirmar. Os demais explicam o que mudou.
  */
-export const TEXTOS_DA_FALHA_DO_REGISTRO: Readonly<Partial<Record<CodigoDeErro, string>>> = {
-  [CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO]: 'Não foi possível confirmar o registro agora. Tente de novo: o pedido não será registrado duas vezes.',
-  [CodigoDeErro.ENTRADA_INVALIDA]: 'Os dados do pedido não foram aceitos. Confira o dia em que ele chegou à escola, que não pode ser depois de hoje: cancele e registre o pedido de novo.',
-  [CodigoDeErro.NAO_ENCONTRADO]: 'Esta pessoa não está mais disponível para pedido. Cancele e busque de novo.',
-  [CodigoDeErro.PEDIDO_EM_ESTADO_INVALIDO]: 'Esta pessoa já tem um pedido de eliminação aberto. Cancele e veja a lista de pedidos.',
+export const TEXTOS_DA_FALHA_DO_REGISTRO: Readonly<Partial<Record<ErrorCode, string>>> = {
+  [ErrorCode.INDISPONIVEL_TENTE_DE_NOVO]: 'Não foi possível confirmar o registro agora. Tente de novo: o pedido não será registrado duas vezes.',
+  [ErrorCode.ENTRADA_INVALIDA]: 'Os dados do pedido não foram aceitos. Confira o dia em que ele chegou à escola, que não pode ser depois de hoje: cancele e registre o pedido de novo.',
+  [ErrorCode.NAO_ENCONTRADO]: 'Esta pessoa não está mais disponível para pedido. Cancele e busque de novo.',
+  [ErrorCode.PEDIDO_EM_ESTADO_INVALIDO]: 'Esta pessoa já tem um pedido de eliminação aberto. Cancele e veja a lista de pedidos.',
 }
 
 export type CampoDoPedido = 'tipo' | 'solicitante' | 'chegouEm'
@@ -180,7 +180,7 @@ function ehDiaDoCalendario(texto: string): boolean {
 }
 
 /**
- * Confere os três campos do pedido contra o contrato (`esquemaRegistroDePedido`): tipo e quem pediu da lista fechada, e o
+ * Confere os três campos do pedido contra o contrato (`registroDePedidoSchema`): tipo e quem pediu da lista fechada, e o
  * dia no formato `AAAA-MM-DD` e **não depois de hoje**, o mesmo corte da API (`ENTRADA_INVALIDA`). O `hoje` é o dia de São Paulo.
  */
 export function validarOPedido(escolhas: EscolhasDoPedido, hoje: string): ValidacaoDoPedido {

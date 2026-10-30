@@ -1,7 +1,7 @@
 // O jeito certo de receber a entrada num controller dos módulos migrados (eslint.config.mjs, D81): o pipe no parâmetro.
 // Nenhuma linha tem marca, e a regra `no-restricted-syntax` não pode acusar nenhuma.
 
-import { CodigoDeErro } from '@educa/shared'
+import { ErrorCode } from '@educa/shared'
 import { Body, Controller, Get, Param, Post, Query, Res, UploadedFile } from '@nestjs/common'
 import { z } from 'zod'
 import { IdPipe, ZodValidationPipe } from '@educa/nucleo'
@@ -33,7 +33,7 @@ export class ExemploController {
   }
 
   @Get('ferramentas/:ferramenta')
-  ferramenta(@Param('ferramenta', new ZodValidationPipe(esquemaFerramenta, { errorCode: CodigoDeErro.NAO_ENCONTRADO })) ferramenta: string): string {
+  ferramenta(@Param('ferramenta', new ZodValidationPipe(esquemaFerramenta, { errorCode: ErrorCode.NAO_ENCONTRADO })) ferramenta: string): string {
     return ferramenta
   }
 

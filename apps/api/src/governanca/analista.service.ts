@@ -1,15 +1,15 @@
 import { diaDeUso, ErroDeDominio, RegistroDeAuditoria, relogioDoSistema, resumoDoAnalista, type Banco, type EntradaDoAnalista, type Relogio } from '@educa/nucleo'
 import {
-  CodigoDeErro,
-  esquemaConteudoDoResumoDoAnalista,
-  esquemaRespostaAnalistaNominal,
-  esquemaRespostaResumoDoAnalista,
+  ErrorCode,
+  conteudoDoResumoDoAnalistaSchema,
+  analistaNominalResponseSchema,
+  resumoDoAnalistaResponseSchema,
   GRUPO_MINIMO_DE_PROFESSORES,
-  type ConsultaAnalistaNominal,
-  type PedidoGerarResumoDoAnalista,
-  type RespostaAnalistaNominal,
-  type RespostaExecucaoAceita,
-  type RespostaResumoDoAnalista,
+  type AnalistaNominalQuery,
+  type GerarResumoDoAnalistaRequest,
+  type AnalistaNominalResponse,
+  type ExecucaoAceitaResponse,
+  type ResumoDoAnalistaResponse,
 } from '@educa/shared'
 import type { LimiteDePedidosDeIa } from '../assistente/limite-de-pedidos-de-ia.js'
 import type { AgendadorDeExecucoes } from '../ia/agendador-de-execucoes.js'
@@ -54,12 +54,12 @@ export class AnalistaService {
     private readonly relogio: Relogio = relogioDoSistema,
   ) {}
 
-  async resumo(): Promise<RespostaResumoDoAnalista> {
+  async resumo(): Promise<ResumoDoAnalistaResponse> {
     const ultimo = await new AnalistaRepository(this.banco).ultimoResumo()
-    return esquemaRespostaResumoDoAnalista.parse({ resumo: ultimo === undefined ? null : { id: ultimo.id, geradoEm: ultimo.geradoEm.toISOString(), conteudo: ultimo.conteudo } })
+    return resumoDoAnalistaResponseSchema.parse({ resumo: ultimo === undefined ? null : { id: ultimo.id, geradoEm: ultimo.geradoEm.toISOString(), conteudo: ultimo.conteudo } })
   }
 
-  async gerar({ chaveEnvio }: PedidoGerarResumoDoAnalista): Promise<RespostaExecucaoAceita> {
+  async gerar({ chaveEnvio }: GerarResumoDoAnalistaRequest): Promise<ExecucaoAceitaResponse> {
     await this.limite.contar()
     return this.agendador.agendar({
       tarefa: resumoDoAnalista,
@@ -69,7 +69,7 @@ export class AnalistaService {
       entrada: () => this.agregados(),
       aoConcluir: async (saida, tx, execucaoId) => {
         // Validado de novo antes de gravar (regra 30, item 7): o que não cabe no schema estrito não vira resumo.
-        const conteudo = esquemaConteudoDoResumoDoAnalista.parse(saida)
+        const conteudo = conteudoDoResumoDoAnalistaSchema.parse(saida)
         return { tipo: 'resumo_do_analista', resumoId: await new AnalistaRepository(tx).gravarResumo(conteudo, execucaoId) }
       },
     })
@@ -79,7 +79,7 @@ export class AnalistaService {
   async agregados(): Promise<EntradaDoAnalista> {
     const analista = new AnalistaRepository(this.banco)
     const periodoDoAno = await analista.periodoDoAno()
-    if (periodoDoAno === undefined) throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
+    if (periodoDoAno === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
     const hoje = diaDeUso(this.relogio.agora())
     // Do começo do ano letivo até hoje (ou até o fim dele, se já passou).
     const fim = hoje < periodoDoAno.inicio ? periodoDoAno.inicio : hoje > periodoDoAno.fim ? periodoDoAno.fim : hoje
@@ -130,13 +130,13 @@ export class AnalistaService {
     }
   }
 
-  async nominal({ turmaId, finalidade }: ConsultaAnalistaNominal): Promise<RespostaAnalistaNominal> {
+  async nominal({ turmaId, finalidade }: AnalistaNominalQuery): Promise<AnalistaNominalResponse> {
     const id = turmaId.toLowerCase()
     const resposta = await this.banco.transaction(async (tx) => {
       const analista = new AnalistaRepository(tx)
       const turma = await analista.turmaDaEscola(id)
       // A turma de outra escola, de outro ano ou inexistente: a mesma resposta, e nenhuma auditoria.
-      if (turma === undefined) throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
+      if (turma === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
       const professores = await analista.professoresDaTurma(id)
       const lotesAprovados = await analista.lotesAprovadosDaTurma(id)
       const acertos = lotesAprovados === 0 ? [] : await analista.acertosDaTurma(id)
@@ -156,6 +156,6 @@ export class AnalistaService {
       await registro.gravar(tx, 'analista.nominal_lido', { entidadeId: turma.id, depois: { professores: new Set(professores.map((professor) => professor.id)).size }, finalidade })
       return montada
     })
-    return esquemaRespostaAnalistaNominal.parse(resposta)
+    return analistaNominalResponseSchema.parse(resposta)
   }
 }

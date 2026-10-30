@@ -1,19 +1,19 @@
-import { CodigoDeErro, esquemaRespostaMemoriaDoTutor, type RespostaMemoriaDoTutor } from '@educa/shared'
+import { ErrorCode, memoriaDoTutorResponseSchema, type MemoriaDoTutorResponse } from '@educa/shared'
 import { queryOptions } from '@tanstack/react-query'
 import { ErroDaApi } from './cliente'
 import { CHAVE_DA_MEMORIA_DO_TUTOR } from './chaves-do-aluno'
 import { buscarComSessao } from './sessao'
 
 /** Um trabalho que o professor já aprovou: o `resultado` deixa de ser opcional, e é o que "Como estou indo" mostra. */
-export type TrabalhoCorrigido = Omit<RespostaMemoriaDoTutor['trabalhos'][number], 'resultado'> & {
-  readonly resultado: NonNullable<RespostaMemoriaDoTutor['trabalhos'][number]['resultado']>
+export type TrabalhoCorrigido = Omit<MemoriaDoTutorResponse['trabalhos'][number], 'resultado'> & {
+  readonly resultado: NonNullable<MemoriaDoTutorResponse['trabalhos'][number]['resultado']>
 }
 
 /**
  * Do que a API entrega, só os trabalhos de **correção aprovada** (`resultado` não nulo). O trabalho enviado e ainda sem
  * aprovação fica de fora, e a contagem dele também (regra 70, item 3); os `sinais` não entram (D66: ficam para o F9).
  */
-export function trabalhosCorrigidos(memoria: RespostaMemoriaDoTutor): TrabalhoCorrigido[] {
+export function trabalhosCorrigidos(memoria: MemoriaDoTutorResponse): TrabalhoCorrigido[] {
   const corrigidos: TrabalhoCorrigido[] = []
   for (const trabalho of memoria.trabalhos) if (trabalho.resultado !== null) corrigidos.push({ ...trabalho, resultado: trabalho.resultado })
   return corrigidos
@@ -34,9 +34,9 @@ export const consultaMemoriaDoTutor = queryOptions({
   queryKey: CHAVE_DA_MEMORIA_DO_TUTOR,
   queryFn: async ({ signal }): Promise<TrabalhoCorrigido[]> => {
     try {
-      return trabalhosCorrigidos(await buscarComSessao('/v1/tutor/memoria', esquemaRespostaMemoriaDoTutor, signal))
+      return trabalhosCorrigidos(await buscarComSessao('/v1/tutor/memoria', memoriaDoTutorResponseSchema, signal))
     } catch (erro) {
-      if (erro instanceof ErroDaApi && erro.codigo === CodigoDeErro.NAO_ENCONTRADO) return []
+      if (erro instanceof ErroDaApi && erro.codigo === ErrorCode.NAO_ENCONTRADO) return []
       throw erro
     }
   },

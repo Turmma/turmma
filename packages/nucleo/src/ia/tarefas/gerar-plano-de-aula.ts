@@ -1,4 +1,4 @@
-import { esquemaConteudoDePlanoDeAula, TAMANHO_MAXIMO_DO_TEMA, type Citacao, type ConteudoDePlanoDeAula } from '@educa/shared'
+import { conteudoDePlanoDeAulaSchema, TAMANHO_MAXIMO_DO_TEMA, type Citacao, type ConteudoDePlanoDeAula } from '@educa/shared'
 import { z } from 'zod'
 import {
   citacaoDaFrase,
@@ -90,7 +90,7 @@ export const gerarPlanoDeAula = definirTarefa({
   funcao: 'conversa_e_ferramentas',
   perfil: 'padrao',
   esquemaDeEntrada: esquemaEntradaDePlanoDeAula,
-  esquemaDeSaida: esquemaConteudoDePlanoDeAula,
+  esquemaDeSaida: conteudoDePlanoDeAulaSchema,
   prompt: PROMPT_GERAR_PLANO_DE_AULA,
   maximoDeTokensDeSaida: 4000,
   levaTextoLivreDePessoa: false,

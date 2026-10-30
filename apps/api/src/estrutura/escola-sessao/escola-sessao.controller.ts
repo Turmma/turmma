@@ -1,5 +1,5 @@
 import { Permite, ZodValidationPipe } from '@educa/nucleo'
-import { esquemaPedidoEscolaSessao, type PedidoEscolaSessao, type RespostaEscolaSessao } from '@educa/shared'
+import { escolaSessaoRequestSchema, type EscolaSessaoRequest, type EscolaSessaoResponse } from '@educa/shared'
 import { Body, Controller, Put } from '@nestjs/common'
 import { EscolaSessaoService } from './escola-sessao.service.js'
 
@@ -10,7 +10,7 @@ export class EscolaSessaoController {
 
   @Put('sessao')
   @Permite('escola_configuracao', 'alterar')
-  alterar(@Body(new ZodValidationPipe(esquemaPedidoEscolaSessao)) pedido: PedidoEscolaSessao): Promise<RespostaEscolaSessao> {
+  alterar(@Body(new ZodValidationPipe(escolaSessaoRequestSchema)) pedido: EscolaSessaoRequest): Promise<EscolaSessaoResponse> {
     return this.escolaSessao.alterar(pedido)
   }
 }

@@ -1,6 +1,6 @@
 import 'reflect-metadata'
 import { contextoAtual, criarLogger, EMISSOR_TOKEN, EmissorDeToken, Permite, RotaAnonima } from '@educa/nucleo'
-import { CodigoDeErro, MENSAGENS_DE_ERRO } from '@educa/shared'
+import { ErrorCode, MENSAGENS_DE_ERRO } from '@educa/shared'
 import { Controller, Get, Module, type INestApplication } from '@nestjs/common'
 import { NestFactory } from '@nestjs/core'
 import { SignJWT } from 'jose'
@@ -63,7 +63,7 @@ function esperarNaoAutenticado(resposta: request.Response): void {
   expect(resposta.status).toBe(401)
   expect(resposta.body).toEqual({
     erro: {
-      codigo: CodigoDeErro.NAO_AUTENTICADO,
+      codigo: ErrorCode.NAO_AUTENTICADO,
       mensagem: MENSAGENS_DE_ERRO.NAO_AUTENTICADO,
       requisicaoId: expect.stringMatching(UUID),
     },

@@ -1,6 +1,6 @@
 import 'reflect-metadata'
 import { ALVOS_DO_EXPURGO_DE_ACESSO, executarNoContexto, ExpurgoDeAcessoRepository, instrucaoDoLoteDeAcesso, LOTE_DO_EXPURGO, type AlvoDoExpurgoDeAcesso } from '@educa/nucleo'
-import { CodigoDeFalhaDeJob, TIPO_EXPURGAR_ACESSO } from '@educa/shared'
+import { JobFailureCode, TIPO_EXPURGAR_ACESSO } from '@educa/shared'
 import { Queue } from 'bullmq'
 import { PgDialect } from 'drizzle-orm/pg-core'
 import { randomBytes, randomUUID } from 'node:crypto'
@@ -812,7 +812,7 @@ describe('sistema.expurgar-acesso', () => {
     const jobId = randomUUID()
     await expect(executarNoContexto({ requisicaoId: randomUUID(), escolaId }, () => processador({}, execucaoDoJob(jobId)))).rejects.toMatchObject({
       name: 'FalhaDeJob',
-      codigo: CodigoDeFalhaDeJob.DADOS_INVALIDOS,
+      codigo: JobFailureCode.DADOS_INVALIDOS,
       definitiva: true,
     })
     for (const alvo of ALVOS_DO_EXPURGO_DE_ACESSO) expect(await restantes(alvo, semeado.sai[alvo]), alvo).toHaveLength(semeado.sai[alvo].length)

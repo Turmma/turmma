@@ -1,5 +1,5 @@
 import { contextoAtual, ErroDeDominio, RegistroDeAuditoria, type Banco } from '@educa/nucleo'
-import { CodigoDeErro, esquemaRespostaProvedoresDaEscola, type PedidoProvedoresDaEscola, type RespostaProvedoresDaEscola } from '@educa/shared'
+import { ErrorCode, provedoresDaEscolaResponseSchema, type ProvedoresDaEscolaRequest, type ProvedoresDaEscolaResponse } from '@educa/shared'
 import { ProvedoresLiberadosRepository, type ProvedorLiberado } from './provedores-liberados.repository.js'
 
 /** Os ids liberados por provedor, como a auditoria `escola.provedores_alterados` os guarda. */
@@ -24,12 +24,12 @@ export class ProvedoresDaEscolaService {
 
   constructor(private readonly banco: Banco) {}
 
-  async alterar(pedido: PedidoProvedoresDaEscola): Promise<RespostaProvedoresDaEscola> {
+  async alterar(pedido: ProvedoresDaEscolaRequest): Promise<ProvedoresDaEscolaResponse> {
     const escolaId = contextoAtual()?.escolaId
-    if (escolaId === undefined) throw new ErroDeDominio(CodigoDeErro.NAO_AUTENTICADO)
+    if (escolaId === undefined) throw new ErroDeDominio(ErrorCode.NAO_AUTENTICADO)
     const depois = await this.banco.transaction(async (tx) => {
       const repositorio = new ProvedoresLiberadosRepository(tx)
-      if (!(await repositorio.travarEscola())) throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
+      if (!(await repositorio.travarEscola())) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
       const antes = await repositorio.liberados()
       const pedidas = new Set(pedido.provedores.map(chaveDe))
       const atuais = new Set(antes.map(chaveDe))
@@ -39,6 +39,6 @@ export class ProvedoresDaEscolaService {
       await this.#auditoria.gravar(tx, 'escola.provedores_alterados', { entidadeId: escolaId, antes: idsPorProvedor(antes), depois: idsPorProvedor(gravados) })
       return gravados
     })
-    return esquemaRespostaProvedoresDaEscola.parse({ provedores: depois.map((linha) => ({ provedor: linha.provedor, valor: linha.valor })) })
+    return provedoresDaEscolaResponseSchema.parse({ provedores: depois.map((linha) => ({ provedor: linha.provedor, valor: linha.valor })) })
   }
 }

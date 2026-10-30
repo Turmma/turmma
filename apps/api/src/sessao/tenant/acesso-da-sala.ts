@@ -1,5 +1,5 @@
 import { ErroDeDominio } from '@educa/nucleo'
-import { CodigoDeErro } from '@educa/shared'
+import { ErrorCode } from '@educa/shared'
 import { naEscolaSemUsuario } from './escola-sem-usuario.js'
 import type { AcessoDaSalaAchado, ResolucaoDeTenantRepository } from './resolucao-de-tenant.repository.js'
 
@@ -44,7 +44,7 @@ export class AcessoDaSala {
    */
   async naSala<T>(entrada: EntradaDaSala, funcao: (sala: AcessoDaSalaAchado) => Promise<T>, guarda: GuardaDoCodigo): Promise<T> {
     const sala = 'tokenHash' in entrada ? await this.resolucao.acessoDaSalaPorToken(entrada.slug, entrada.tokenHash) : await this.#peloCodigo(entrada, guarda)
-    if (sala === undefined) throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
+    if (sala === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
     return naEscolaSemUsuario({ escolaId: sala.escolaId, anoLetivoId: sala.anoLetivoId }, () => funcao(sala))
   }
 

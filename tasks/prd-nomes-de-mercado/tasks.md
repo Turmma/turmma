@@ -18,7 +18,7 @@
   - [ ] 2.3 A trava contra filtro vazio, com o mínimo de cada fonte
   - [ ] 2.4 Testes: os casos de `casos.md` para os três
 
-- [ ] **3.0 — Onda do `shared`: schemas, DTOs, erros e as pastas `erros/` e `sistema/`**
+- [x] **3.0 — Onda do `shared`: schemas, DTOs, erros e as pastas `erros/` e `sistema/`**
 - [ ] **4.0 — Onda do core, símbolos**
 - [ ] **5.0 — Onda do core, arquivos e pastas, e `@educa/nucleo` vira `@educa/core`**
 - [ ] **6.0 — Onda dos arquivos e das pastas de todos os apps e do e2e**

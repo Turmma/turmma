@@ -1,5 +1,5 @@
 import { criarBanco, criarPool, ErroDeDominio, estadoDaCoordenacao, executarNoContexto, type Banco, type PoolBanco, type TransacaoBanco } from '@educa/nucleo'
-import { CodigoDeErro, esquemaRespostaConviteDaCoordenacao, esquemaRespostaEscolasDoPainel, ESTADOS_DA_COORDENACAO, type EstadoDaCoordenacao, type RespostaConviteDaCoordenacao } from '@educa/shared'
+import { ErrorCode, conviteDaCoordenacaoResponseSchema, escolasDoPainelResponseSchema, ESTADOS_DA_COORDENACAO, type EstadoDaCoordenacao, type ConviteDaCoordenacaoResponse } from '@educa/shared'
 import type { INestApplication } from '@nestjs/common'
 import { is, SQL } from 'drizzle-orm'
 import { PgDialect } from 'drizzle-orm/pg-core'
@@ -66,7 +66,7 @@ const REFAZER: Readonly<Record<EstadoDaCoordenacao, 201 | 404 | 409>> = {
   sem_coordenacao: 409,
   ativa: 409,
 }
-const CODIGO: Readonly<Record<404 | 409, CodigoDeErro>> = { 404: CodigoDeErro.NAO_ENCONTRADO, 409: CodigoDeErro.CONFLITO }
+const CODIGO: Readonly<Record<404 | 409, ErrorCode>> = { 404: ErrorCode.NAO_ENCONTRADO, 409: ErrorCode.CONFLITO }
 /** O prazo das consultas da API da I6 que deixa o `statement_timeout` estourar na trava segura pelo teste. */
 const PRAZO_CURTO_MS = 1_000
 
@@ -120,7 +120,7 @@ describe('painel da operação: o convite da coordenação, gerar e revogar (tar
   const refazer = (token: string, conviteId: string, corpo?: unknown, naApi = url) => pedir(naApi, 'POST', `/v1/operacao/convites/${conviteId}/refazer`, token, corpo)
   const consultar = (link: string) => pedir(url, 'POST', '/v1/convites/consultar', undefined, { token: link })
   const aceitar = (token: string, senha?: string) => pedir(url, 'POST', '/v1/convites/aceitar', undefined, senha === undefined ? { token } : { token, senha })
-  const gerado = (resposta: Resposta): RespostaConviteDaCoordenacao => esquemaRespostaConviteDaCoordenacao.parse(resposta.corpo)
+  const gerado = (resposta: Resposta): ConviteDaCoordenacaoResponse => conviteDaCoordenacaoResponseSchema.parse(resposta.corpo)
 
   /** O estado da coordenação da escola, pela mesma função e pela mesma leitura da escrita. */
   const estadoDe = (escolaId: string) =>
@@ -233,7 +233,7 @@ describe('painel da operação: o convite da coordenação, gerar e revogar (tar
 
       const esperado = GERAR[estado]
       if (esperado === 409) {
-        esperarErro(resposta, 409, CodigoDeErro.CONFLITO)
+        esperarErro(resposta, 409, ErrorCode.CONFLITO)
         expect(await retrato(escola.escolaId, outra.email)).toEqual(antes)
         expect(await estadoDe(escola.escolaId)).toBe(estado)
         return
@@ -323,7 +323,7 @@ describe('painel da operação: o convite da coordenação, gerar e revogar (tar
       const sessao = await operadores.operadorComSessao()
       const escola = await escolaEm('aceito', sessao.token)
       expect((await gerar(sessao.token, escola.escolaId)).status).toBe(201)
-      esperarErro(await revogar(sessao.token, escola.conviteId ?? ''), 404, CodigoDeErro.NAO_ENCONTRADO)
+      esperarErro(await revogar(sessao.token, escola.conviteId ?? ''), 404, ErrorCode.NAO_ENCONTRADO)
 
       // Um convite em aberto de outro usuário, que vence antes do último: só dado de antes da trava chega a isso.
       const outraConta = pessoa()
@@ -338,7 +338,7 @@ describe('painel da operação: o convite da coordenação, gerar e revogar (tar
       )
       const antigo = convites[0]?.id ?? ''
       const antes = await retrato(escola.escolaId, outraConta.email)
-      esperarErro(await revogar(sessao.token, antigo), 409, CodigoDeErro.CONFLITO)
+      esperarErro(await revogar(sessao.token, antigo), 409, ErrorCode.CONFLITO)
       expect(await retrato(escola.escolaId, outraConta.email)).toEqual(antes)
     })
   })
@@ -348,13 +348,13 @@ describe('painel da operação: o convite da coordenação, gerar e revogar (tar
       const sessao = await operadores.operadorComSessao()
       const quem = pessoa()
       const escolaId = randomUUID()
-      esperarErro(await gerar(sessao.token, escolaId, quem), 404, CodigoDeErro.NAO_ENCONTRADO)
-      esperarErro(await gerar(sessao.token, 'nao-e-uuid', quem), 404, CodigoDeErro.NAO_ENCONTRADO)
+      esperarErro(await gerar(sessao.token, escolaId, quem), 404, ErrorCode.NAO_ENCONTRADO)
+      esperarErro(await gerar(sessao.token, 'nao-e-uuid', quem), 404, ErrorCode.NAO_ENCONTRADO)
       expect((await pool.query('select id from conta where email = $1', [quem.email])).rows).toEqual([])
       expect((await pool.query('select id from usuario where escola_id = $1', [escolaId])).rows).toEqual([])
       expect((await pool.query('select id from auditoria where escola_id = $1', [escolaId])).rows).toEqual([])
-      esperarErro(await revogar(sessao.token, 'nao-e-uuid'), 404, CodigoDeErro.NAO_ENCONTRADO)
-      esperarErro(await refazer(sessao.token, 'nao-e-uuid'), 404, CodigoDeErro.NAO_ENCONTRADO)
+      esperarErro(await revogar(sessao.token, 'nao-e-uuid'), 404, ErrorCode.NAO_ENCONTRADO)
+      esperarErro(await refazer(sessao.token, 'nao-e-uuid'), 404, ErrorCode.NAO_ENCONTRADO)
     })
   })
 
@@ -367,11 +367,11 @@ describe('painel da operação: o convite da coordenação, gerar e revogar (tar
       const quem = pessoa()
       const [livreAntes, antes] = [await retrato(livre, quem.email), await retrato(escola.escolaId, quem.email)]
       for (const aMais of [{ autor: 'outra-pessoa' }, { autorOperador: 'outra-pessoa' }, { escolaId: escola.escolaId }]) {
-        esperarErro(await gerar(sessao.token, livre, { ...quem, ...aMais }), 400, CodigoDeErro.ENTRADA_INVALIDA)
+        esperarErro(await gerar(sessao.token, livre, { ...quem, ...aMais }), 400, ErrorCode.ENTRADA_INVALIDA)
       }
       for (const corpo of [{ autor: 'outra-pessoa' }, { conviteId: escola.conviteId }]) {
-        esperarErro(await revogar(sessao.token, escola.conviteId ?? '', corpo), 400, CodigoDeErro.ENTRADA_INVALIDA)
-        esperarErro(await refazer(sessao.token, escola.conviteId ?? '', corpo), 400, CodigoDeErro.ENTRADA_INVALIDA)
+        esperarErro(await revogar(sessao.token, escola.conviteId ?? '', corpo), 400, ErrorCode.ENTRADA_INVALIDA)
+        esperarErro(await refazer(sessao.token, escola.conviteId ?? '', corpo), 400, ErrorCode.ENTRADA_INVALIDA)
       }
       expect(await retrato(livre, quem.email)).toEqual(livreAntes)
       expect(await retrato(escola.escolaId, quem.email)).toEqual(antes)
@@ -386,7 +386,7 @@ describe('painel da operação: o convite da coordenação, gerar e revogar (tar
       const escolaId = await escolas.escola()
       const respostas = await naFilaDaTrava(escolaId, () => [gerar(sessao.token, escolaId), gerar(sessao.token, escolaId)])
       expect(respostas.map((resposta) => resposta.status).sort()).toEqual([201, 409])
-      esperarErro(respostas.find((resposta) => resposta.status === 409) as Resposta, 409, CodigoDeErro.CONFLITO)
+      esperarErro(respostas.find((resposta) => resposta.status === 409) as Resposta, 409, ErrorCode.CONFLITO)
       expect(await abertos(escolaId)).toBe(1)
       expect(await auditoriaDe(escolaId, 'convite.criado')).toHaveLength(1)
     })
@@ -397,7 +397,7 @@ describe('painel da operação: o convite da coordenação, gerar e revogar (tar
       const quem = pessoa()
       const respostas = await naFilaDaTrava(escolaId, () => [gerar(sessao.token, escolaId, quem), gerar(sessao.token, escolaId, quem)])
       expect(respostas.map((resposta) => resposta.status).sort()).toEqual([201, 409])
-      esperarErro(respostas.find((resposta) => resposta.status === 409) as Resposta, 409, CodigoDeErro.CONFLITO)
+      esperarErro(respostas.find((resposta) => resposta.status === 409) as Resposta, 409, ErrorCode.CONFLITO)
       expect((await pool.query('select id from conta where email = $1', [quem.email])).rows).toHaveLength(1)
       expect((await pool.query('select id from usuario where escola_id = $1', [escolaId])).rows).toHaveLength(1)
       expect((await pool.query('select id from convite where escola_id = $1', [escolaId])).rows).toHaveLength(1)
@@ -410,7 +410,7 @@ describe('painel da operação: o convite da coordenação, gerar e revogar (tar
       expect(doGerar?.status).toBe(201)
       // O revogar que perde para o gerar acha o convite já revogado por ele: NAO_ENCONTRADO, como no F1.
       if (doRevogar?.status === 204) expect(doRevogar.texto).toBe('')
-      else esperarErro(doRevogar as Resposta, 404, CodigoDeErro.NAO_ENCONTRADO)
+      else esperarErro(doRevogar as Resposta, 404, ErrorCode.NAO_ENCONTRADO)
       expect(await abertos(escola.escolaId)).toBe(1)
       expect((await auditoriaDe(escola.escolaId, 'convite.revogado')).filter((linha) => linha.entidade_id === escola.conviteId)).toHaveLength(1)
     })
@@ -420,7 +420,7 @@ describe('painel da operação: o convite da coordenação, gerar e revogar (tar
       const escola = await escolaEm('pendente', sessao.token)
       const respostas = await naFilaDaTrava(escola.escolaId, () => [revogar(sessao.token, escola.conviteId ?? ''), revogar(sessao.token, escola.conviteId ?? '')])
       expect(respostas.map((resposta) => resposta.status).sort()).toEqual([204, 404])
-      esperarErro(respostas.find((resposta) => resposta.status === 404) as Resposta, 404, CodigoDeErro.NAO_ENCONTRADO)
+      esperarErro(respostas.find((resposta) => resposta.status === 404) as Resposta, 404, ErrorCode.NAO_ENCONTRADO)
       expect(await auditoriaDe(escola.escolaId, 'convite.revogado')).toHaveLength(1)
       expect(await abertos(escola.escolaId)).toBe(0)
     })
@@ -479,7 +479,7 @@ describe('painel da operação: o convite da coordenação, gerar e revogar (tar
         const escrita = gerar(sessao.token, escolaId, quem)
         await esperarNaTrava(pool, ESPERA_DO_AUTOR)
         await desativar.confirmar()
-        esperarErro(await escrita, 401, CodigoDeErro.SESSAO_ENCERRADA)
+        esperarErro(await escrita, 401, ErrorCode.SESSAO_ENCERRADA)
       } finally {
         await desativar.desfazer()
       }
@@ -495,7 +495,7 @@ describe('painel da operação: o convite da coordenação, gerar e revogar (tar
         const escrita = revogar(sessao.token, escola.conviteId ?? '')
         await esperarNaTrava(pool, ESPERA_DO_AUTOR)
         await desativar.confirmar()
-        esperarErro(await escrita, 401, CodigoDeErro.SESSAO_ENCERRADA)
+        esperarErro(await escrita, 401, ErrorCode.SESSAO_ENCERRADA)
       } finally {
         await desativar.desfazer()
       }
@@ -512,7 +512,7 @@ describe('painel da operação: o convite da coordenação, gerar e revogar (tar
         const escrita = refazer(sessao.token, escola.conviteId ?? '')
         await esperarNaTrava(pool, ESPERA_DO_AUTOR)
         await desativar.confirmar()
-        esperarErro(await escrita, 401, CodigoDeErro.SESSAO_ENCERRADA)
+        esperarErro(await escrita, 401, ErrorCode.SESSAO_ENCERRADA)
       } finally {
         await desativar.desfazer()
       }
@@ -592,7 +592,7 @@ describe('painel da operação: o convite da coordenação, gerar e revogar (tar
       const sessao = await operadores.operadorComSessao()
       const escola = await escolaEm('ativa', sessao.token)
       const antes = await retrato(escola.escolaId, escola.quem.email)
-      esperarErro(await revogar(sessao.token, escola.conviteId ?? ''), 409, CodigoDeErro.CONFLITO)
+      esperarErro(await revogar(sessao.token, escola.conviteId ?? ''), 409, ErrorCode.CONFLITO)
       expect(await retrato(escola.escolaId, escola.quem.email)).toEqual(antes)
     })
 
@@ -600,7 +600,7 @@ describe('painel da operação: o convite da coordenação, gerar e revogar (tar
       const sessao = await operadores.operadorComSessao()
       const ativa = await escolaEm('ativa', sessao.token)
       const antes = await retrato(ativa.escolaId, ativa.quem.email)
-      esperarErro(await refazer(sessao.token, ativa.conviteId ?? ''), 409, CodigoDeErro.CONFLITO)
+      esperarErro(await refazer(sessao.token, ativa.conviteId ?? ''), 409, ErrorCode.CONFLITO)
       expect(await retrato(ativa.escolaId, ativa.quem.email)).toEqual(antes)
 
       // O convite pendente continua o último, e em aberto; com uma coordenadora ativa semeada, a escola está `ativa`. Sem
@@ -609,7 +609,7 @@ describe('painel da operação: o convite da coordenação, gerar e revogar (tar
       await escolas.equipeComEmail(pendente.escolaId, `coordenacao-ativa-${randomUUID()}@escola.invalid`, 'coordenador')
       expect(await estadoDe(pendente.escolaId)).toBe('ativa')
       const antesDaPendente = await retrato(pendente.escolaId, pendente.quem.email)
-      esperarErro(await refazer(sessao.token, pendente.conviteId ?? ''), 409, CodigoDeErro.CONFLITO)
+      esperarErro(await refazer(sessao.token, pendente.conviteId ?? ''), 409, ErrorCode.CONFLITO)
       expect(await retrato(pendente.escolaId, pendente.quem.email)).toEqual(antesDaPendente)
       expect(await abertos(pendente.escolaId)).toBe(1)
     })
@@ -632,7 +632,7 @@ describe('painel da operação: o convite da coordenação, gerar e revogar (tar
 
       // A mesma resposta do id inexistente: nada diz que o convite existe.
       for (const resposta of [await refazer(sessao.token, deProfessor), await revogar(sessao.token, deProfessor), await refazer(sessao.token, randomUUID())]) {
-        esperarErro(resposta, 404, CodigoDeErro.NAO_ENCONTRADO)
+        esperarErro(resposta, 404, ErrorCode.NAO_ENCONTRADO)
       }
       expect(await retrato(escola.escolaId, escola.quem.email)).toEqual(antes)
       // O convite da coordenação continua o último e em aberto: o do professor não entra no estado dela.
@@ -673,7 +673,7 @@ describe('painel da operação: o convite da coordenação, gerar e revogar (tar
       expect({ usuarios, contas }).toEqual({ usuarios: antes.usuarios, contas: antes.contas })
       expect(await estadoDe(escola.escolaId)).toBe('pendente')
       // O link de origem não abre mais, e o novo abre.
-      esperarErro(await consultar(escola.link ?? ''), 404, CodigoDeErro.NAO_ENCONTRADO)
+      esperarErro(await consultar(escola.link ?? ''), 404, ErrorCode.NAO_ENCONTRADO)
       expect((await consultar(token)).status).toBe(200)
 
       // A1: uma linha nova de auditoria, `convite.refeito` do convite novo, com a origem, o usuário e a validade gravada.
@@ -699,7 +699,7 @@ describe('painel da operação: o convite da coordenação, gerar e revogar (tar
       const escola = await escolaEm('pendente', sessao.token)
       expect((await refazer(sessao.token, escola.conviteId ?? '')).status).toBe(201)
       const antes = await retrato(escola.escolaId, escola.quem.email)
-      esperarErro(await refazer(sessao.token, escola.conviteId ?? ''), 409, CodigoDeErro.CONFLITO)
+      esperarErro(await refazer(sessao.token, escola.conviteId ?? ''), 409, ErrorCode.CONFLITO)
       expect(await retrato(escola.escolaId, escola.quem.email)).toEqual(antes)
 
       // Um convite em aberto de outro usuário, que vence antes do último: só dado de antes da trava chega a isso. O update
@@ -715,7 +715,7 @@ describe('painel da operação: o convite da coordenação, gerar e revogar (tar
         [escola.escolaId, createHash('sha256').update(randomUUID()).digest('hex'), antigos[0]?.id],
       )
       const antesDoAntigo = await retrato(escola.escolaId, outraConta.email)
-      esperarErro(await refazer(sessao.token, convites[0]?.id ?? ''), 409, CodigoDeErro.CONFLITO)
+      esperarErro(await refazer(sessao.token, convites[0]?.id ?? ''), 409, ErrorCode.CONFLITO)
       expect(await retrato(escola.escolaId, outraConta.email)).toEqual(antesDoAntigo)
     })
   })
@@ -727,7 +727,7 @@ describe('painel da operação: o convite da coordenação, gerar e revogar (tar
       const alvo = escola.conviteId ?? ''
       const [primeiro, segundo] = await emOrdemNaTrava(escola.escolaId, () => refazer(sessao.token, alvo), () => refazer(sessao.token, alvo))
       expect(primeiro.status).toBe(201)
-      esperarErro(segundo, 409, CodigoDeErro.CONFLITO)
+      esperarErro(segundo, 409, ErrorCode.CONFLITO)
       expect((await convitesDa(escola.escolaId)).filter((convite) => convite.aberto).map((convite) => convite.id)).toEqual([gerado(primeiro).conviteId])
       expect(await auditoriaDe(escola.escolaId, 'convite.refeito')).toHaveLength(1)
     })
@@ -738,7 +738,7 @@ describe('painel da operação: o convite da coordenação, gerar e revogar (tar
       const alvo = escola.conviteId ?? ''
       const [doRefazer, doRevogar] = await emOrdemNaTrava(escola.escolaId, () => refazer(sessao.token, alvo), () => revogar(sessao.token, alvo))
       expect(doRefazer.status).toBe(201)
-      esperarErro(doRevogar, 404, CodigoDeErro.NAO_ENCONTRADO)
+      esperarErro(doRevogar, 404, ErrorCode.NAO_ENCONTRADO)
       expect((await convitesDa(escola.escolaId)).filter((convite) => convite.aberto).map((convite) => convite.id)).toEqual([gerado(doRefazer).conviteId])
       expect(await auditoriaDe(escola.escolaId, 'convite.refeito')).toHaveLength(1)
       expect(await auditoriaDe(escola.escolaId, 'convite.revogado')).toEqual([])
@@ -750,7 +750,7 @@ describe('painel da operação: o convite da coordenação, gerar e revogar (tar
       const alvo = escola.conviteId ?? ''
       const [doRevogar, doRefazer] = await emOrdemNaTrava(escola.escolaId, () => revogar(sessao.token, alvo), () => refazer(sessao.token, alvo))
       expect(doRevogar.status).toBe(204)
-      esperarErro(doRefazer, 409, CodigoDeErro.CONFLITO)
+      esperarErro(doRefazer, 409, ErrorCode.CONFLITO)
       expect(await abertos(escola.escolaId)).toBe(0)
       expect((await convitesDa(escola.escolaId)).map((convite) => convite.id)).toEqual([alvo])
       expect(await auditoriaDe(escola.escolaId, 'convite.refeito')).toEqual([])
@@ -778,7 +778,7 @@ describe('painel da operação: o convite da coordenação, gerar e revogar (tar
         await gatilho.soltar()
         expect(await primeiro).toEqual({ conviteId: expect.any(String), token: expect.any(String), escolaId: escola.escolaId })
         expect(await segundo).toBeInstanceOf(ErroDeDominio)
-        expect(await segundo).toMatchObject({ codigo: CodigoDeErro.CONFLITO })
+        expect(await segundo).toMatchObject({ codigo: ErrorCode.CONFLITO })
       } finally {
         await gatilho.desarmar()
       }
@@ -803,7 +803,7 @@ describe('painel da operação: o convite da coordenação, gerar e revogar (tar
         await gatilho.soltar()
         expect((await aceite).corpo).toEqual({ etapa: 'configurar_mfa', desafio: expect.any(String) })
         expect(await doRefazer).toBeInstanceOf(ErroDeDominio)
-        expect(await doRefazer).toMatchObject({ codigo: CodigoDeErro.CONFLITO })
+        expect(await doRefazer).toMatchObject({ codigo: ErrorCode.CONFLITO })
       } finally {
         await gatilho.desarmar()
       }
@@ -830,7 +830,7 @@ describe('painel da operação: o convite da coordenação, gerar e revogar (tar
       const leitor = await operadores.operadorComSessao()
       const resposta = await pedir(url, 'GET', '/v1/operacao/escolas?pagina=1&ordem=nome', leitor.token)
       expect(resposta.status).toBe(200)
-      const { itens } = esquemaRespostaEscolasDoPainel.parse(resposta.corpo)
+      const { itens } = escolasDoPainelResponseSchema.parse(resposta.corpo)
       const naLista = (escolaId: string) => {
         const achadas = itens.filter((item) => item.id === escolaId)
         expect(achadas).toHaveLength(1)
@@ -866,11 +866,11 @@ describe('painel da operação: o convite da coordenação, gerar e revogar (tar
         respostas.push(resposta)
         return resposta
       }
-      esperarErro(guardar(await refazer(sessao.token, deOrigem, { autor: coordenacao.nome })), 400, CodigoDeErro.ENTRADA_INVALIDA)
-      esperarErro(guardar(await refazer(sessao.token, randomUUID())), 404, CodigoDeErro.NAO_ENCONTRADO)
+      esperarErro(guardar(await refazer(sessao.token, deOrigem, { autor: coordenacao.nome })), 400, ErrorCode.ENTRADA_INVALIDA)
+      esperarErro(guardar(await refazer(sessao.token, randomUUID())), 404, ErrorCode.NAO_ENCONTRADO)
       const refeito = guardar(await refazer(sessao.token, deOrigem))
       expect(refeito.status).toBe(201)
-      esperarErro(guardar(await refazer(sessao.token, deOrigem)), 409, CodigoDeErro.CONFLITO)
+      esperarErro(guardar(await refazer(sessao.token, deOrigem)), 409, ErrorCode.CONFLITO)
 
       // 503: numa API com o prazo das consultas curto, o refazer espera a trava que o teste segura até o
       // `statement_timeout` cortar; nada é gravado.
@@ -880,7 +880,7 @@ describe('painel da operação: o convite da coordenação, gerar e revogar (tar
       const soltar = await segurarTravaDaEscola(escolaId)
       try {
         const esgotado = guardar(await refazer(sessao.token, gerado(refeito).conviteId, undefined, curta.url))
-        esperarErro(esgotado, 503, CodigoDeErro.TEMPO_ESGOTADO)
+        esperarErro(esgotado, 503, ErrorCode.TEMPO_ESGOTADO)
         expect(esgotado.retryAfter).not.toBeNull()
       } finally {
         await soltar()
@@ -929,8 +929,8 @@ describe('painel da operação: o convite da coordenação, gerar e revogar (tar
       const { conviteId, token: deOrigem } = gerado(await gerar(sessao.token, escolaId, quem))
       linhasDeLog.length = 0
       const { token } = gerado(await refazer(sessao.token, conviteId))
-      esperarErro(await refazer(sessao.token, conviteId), 409, CodigoDeErro.CONFLITO)
-      esperarErro(await refazer(sessao.token, randomUUID()), 404, CodigoDeErro.NAO_ENCONTRADO)
+      esperarErro(await refazer(sessao.token, conviteId), 409, ErrorCode.CONFLITO)
+      esperarErro(await refazer(sessao.token, randomUUID()), 404, ErrorCode.NAO_ENCONTRADO)
 
       expect(linhasComEvento('operacao.convite.refeito')).toEqual([expect.objectContaining({ escolaId })])
       const todoOLog = linhasDeLog.join('\n')
@@ -945,9 +945,9 @@ describe('painel da operação: o convite da coordenação, gerar e revogar (tar
       linhasDeLog.length = 0
       const resposta = await gerar(sessao.token, escolaId, quem)
       const { conviteId, token } = gerado(resposta)
-      esperarErro(await gerar(sessao.token, escolaId, quem), 409, CodigoDeErro.CONFLITO)
+      esperarErro(await gerar(sessao.token, escolaId, quem), 409, ErrorCode.CONFLITO)
       expect((await revogar(sessao.token, conviteId)).status).toBe(204)
-      esperarErro(await revogar(sessao.token, conviteId), 404, CodigoDeErro.NAO_ENCONTRADO)
+      esperarErro(await revogar(sessao.token, conviteId), 404, ErrorCode.NAO_ENCONTRADO)
 
       expect(linhasComEvento('operacao.convite.gerado')).toEqual([expect.objectContaining({ escolaId })])
       expect(linhasComEvento('operacao.convite.revogado')).toEqual([expect.objectContaining({ escolaId })])

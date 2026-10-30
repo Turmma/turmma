@@ -1,4 +1,4 @@
-import { CodigoDeFalhaDeJob } from '@educa/shared'
+import { JobFailureCode } from '@educa/shared'
 import { afterEach, describe, expect, it } from 'vitest'
 import { FalhaDeJob } from '../falha-de-job.js'
 import { criarProcessadorSintetico, SandboxDeCpu } from './sintetico.js'
@@ -74,8 +74,8 @@ describe('SandboxDeCpu: o job sintético queima CPU de verdade, fora do event lo
   it('thread que morre no meio falha só aquele job, com ERRO_INTERNO (nova tentativa), e dá lugar a outra', async () => {
     const quebrada = new URL('data:text/javascript,import { parentPort } from "node:worker_threads"; parentPort.on("message", () => process.exit(3))')
     const cpu = sandbox(1, quebrada)
-    expect(await codigoDe(cpu.queimar(50))).toBe(CodigoDeFalhaDeJob.ERRO_INTERNO)
-    expect(await codigoDe(cpu.queimar(50))).toBe(CodigoDeFalhaDeJob.ERRO_INTERNO)
+    expect(await codigoDe(cpu.queimar(50))).toBe(JobFailureCode.ERRO_INTERNO)
+    expect(await codigoDe(cpu.queimar(50))).toBe(JobFailureCode.ERRO_INTERNO)
     const erro = await cpu.queimar(50).catch((falha: unknown) => falha)
     expect(erro).toBeInstanceOf(FalhaDeJob)
     expect((erro as FalhaDeJob).definitiva).toBe(false)
@@ -89,11 +89,11 @@ describe('SandboxDeCpu: o job sintético queima CPU de verdade, fora do event lo
     await new Promise((resolver) => setTimeout(resolver, 50))
     const inicio = performance.now()
     await cpu.encerrar()
-    expect(await emAndamento).toBe(CodigoDeFalhaDeJob.ERRO_INTERNO)
-    expect(await naFila).toBe(CodigoDeFalhaDeJob.ERRO_INTERNO)
+    expect(await emAndamento).toBe(JobFailureCode.ERRO_INTERNO)
+    expect(await naFila).toBe(JobFailureCode.ERRO_INTERNO)
     expect(performance.now() - inicio).toBeLessThan(2_000)
     expect(cpu.threads).toBe(0)
-    expect(await codigoDe(cpu.queimar(10))).toBe(CodigoDeFalhaDeJob.ERRO_INTERNO)
+    expect(await codigoDe(cpu.queimar(10))).toBe(JobFailureCode.ERRO_INTERNO)
   })
 
   describe('sinal abortado (o prazo do job estourou, ou o worker foi desligado)', () => {
@@ -108,7 +108,7 @@ describe('SandboxDeCpu: o job sintético queima CPU de verdade, fora do event lo
       controle.abort()
       // A thread que o aborto está terminando já não é contada: o teto de threads não espera o `exit` dela.
       expect(cpu.threads).toBe(0)
-      expect(await queimando).toBe(CodigoDeFalhaDeJob.EXECUCAO_INTERROMPIDA)
+      expect(await queimando).toBe(JobFailureCode.EXECUCAO_INTERROMPIDA)
       // Os 60 s de CPU não chegam ao fim: o pedido seguinte usa outra thread, e a primeira não segue queimando.
       await cpu.queimar(20)
       expect(performance.now() - inicio).toBeLessThan(3_000)
@@ -125,7 +125,7 @@ describe('SandboxDeCpu: o job sintético queima CPU de verdade, fora do event lo
       const naFila = codigoDe(cpu.queimar(60_000, controle.signal))
       await new Promise((resolver) => setTimeout(resolver, 20))
       controle.abort()
-      expect(await naFila).toBe(CodigoDeFalhaDeJob.EXECUCAO_INTERROMPIDA)
+      expect(await naFila).toBe(JobFailureCode.EXECUCAO_INTERROMPIDA)
 
       const inicio = performance.now()
       await primeiro
@@ -136,7 +136,7 @@ describe('SandboxDeCpu: o job sintético queima CPU de verdade, fora do event lo
 
     it('sinal que já chegou abortado rejeita na hora, sem criar thread', async () => {
       const cpu = sandbox(1)
-      expect(await codigoDe(cpu.queimar(5_000, AbortSignal.abort()))).toBe(CodigoDeFalhaDeJob.EXECUCAO_INTERROMPIDA)
+      expect(await codigoDe(cpu.queimar(5_000, AbortSignal.abort()))).toBe(JobFailureCode.EXECUCAO_INTERROMPIDA)
       expect(cpu.threads).toBe(0)
     })
 
@@ -164,7 +164,7 @@ describe('processador sintético', () => {
     const pedidos: number[] = []
     const processar = criarProcessadorSintetico({ queimar: async (cpuMs) => void pedidos.push(cpuMs) }, semEfeito)
     await expect(processar({ cpuMs: 120, falhar: false }, EXECUCAO)).resolves.toBeUndefined()
-    expect(await codigoDe(processar({ cpuMs: 80, falhar: true }, EXECUCAO))).toBe(CodigoDeFalhaDeJob.FALHA_SINTETICA)
+    expect(await codigoDe(processar({ cpuMs: 80, falhar: true }, EXECUCAO))).toBe(JobFailureCode.FALHA_SINTETICA)
     expect(pedidos).toEqual([120, 80])
   })
 
@@ -189,7 +189,7 @@ describe('processador sintético', () => {
     )
     const chaveIdempotencia = '0190f5a0-0000-7000-8000-0000000000f2'
     expect(await codigoDe(processar({ cpuMs: 10, falhar: true, efeito: true }, { jobId: chaveIdempotencia, tentativa: 2, chaveIdempotencia, prazoMs: 90_000 }))).toBe(
-      CodigoDeFalhaDeJob.FALHA_SINTETICA,
+      JobFailureCode.FALHA_SINTETICA,
     )
     expect(passos).toEqual(['queimou', `gravou:${chaveIdempotencia}:2`])
   })

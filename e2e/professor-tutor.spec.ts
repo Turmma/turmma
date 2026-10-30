@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { MENSAGENS_DE_ERRO } from '../packages/shared/src/erros/mensagens.ts'
+import { MENSAGENS_DE_ERRO } from '../packages/shared/src/errors/messages.ts'
 import { ALUNOS_DO_LOTE, erroDaApi, type ApiDoAssistente } from './__fixtures__/assistente.ts'
 import { PRAZO_DA_ENTRADA_MS } from './__fixtures__/casca.ts'
 import { principal } from './__fixtures__/fluxo-do-professor.ts'

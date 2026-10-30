@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { CodigoDeErro, MENSAGENS_DE_ERRO, type RespostaMeuDiagnostico } from '@educa/shared'
+import { ErrorCode, MENSAGENS_DE_ERRO, type MeuDiagnosticoResponse } from '@educa/shared'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -256,13 +256,13 @@ describe('a atividade na tela: a escolha pendente sobrevive ao F5 (53.0, RF21)',
 
 const REQUISICAO = '0190f5a0-0000-7000-8000-000000000001'
 const erroDaApi = (status: number, codigo: string): RespostaFalsa => ({ status, corpo: { erro: { codigo, mensagem: 'x', requisicaoId: REQUISICAO } } })
-const NAO_ACHADA = erroDaApi(404, CodigoDeErro.NAO_ENCONTRADO)
+const NAO_ACHADA = erroDaApi(404, ErrorCode.NAO_ENCONTRADO)
 const ENVIADA_EM = '2026-10-22T13:30:00.000Z'
 const respostaDe = (questaoNumero: number, alternativa: number) => ({ questao: questaoNumero, alternativa, sequencia: 1 })
 const DUAS_RESPONDIDAS = [respostaDe(1, 1), respostaDe(2, 0)]
 
 function diagnosticoDe(atividadeAplicadaId: string): RespostaFalsa {
-  const corpo: RespostaMeuDiagnostico = {
+  const corpo: MeuDiagnosticoResponse = {
     atividadeAplicadaId,
     titulo: 'Lista sintética',
     acertos: 2,
@@ -430,7 +430,7 @@ describe('a comemoração do envio (X4, 6.0; RF8; D59)', () => {
     rede.responderPor(`/v1/atividades-aplicadas/${id}/prova`, () => prova(id, DUAS_RESPONDIDAS, encerrou ? { estado: 'encerrada' } : {}))
     rede.responderPor(`/v1/atividades-aplicadas/${id}/enviar`, () => {
       encerrou = true
-      return erroDaApi(409, CodigoDeErro.ATIVIDADE_ENCERRADA)
+      return erroDaApi(409, ErrorCode.ATIVIDADE_ENCERRADA)
     })
     rede.responderPor(`/v1/atividades-aplicadas/${id}/meu-diagnostico`, NAO_ACHADA)
     montar(id)
@@ -448,7 +448,7 @@ describe('a comemoração do envio (X4, 6.0; RF8; D59)', () => {
     const rede = redeFalsa()
     rede.responderPor(`/v1/atividades-aplicadas/${id}/prova`, prova(id, DUAS_RESPONDIDAS))
     let tentativas = 0
-    rede.responderPor(`/v1/atividades-aplicadas/${id}/enviar`, () => (++tentativas === 1 ? erroDaApi(503, CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO) : enviadaAgora))
+    rede.responderPor(`/v1/atividades-aplicadas/${id}/enviar`, () => (++tentativas === 1 ? erroDaApi(503, ErrorCode.INDISPONIVEL_TENTE_DE_NOVO) : enviadaAgora))
     rede.responderPor(`/v1/atividades-aplicadas/${id}/meu-diagnostico`, NAO_ACHADA)
     montar(id)
     await screen.findByRole('radio', { name: /^A\./ })
@@ -474,7 +474,7 @@ describe('a comemoração do envio (X4, 6.0; RF8; D59)', () => {
     rede.responderPor(`/v1/atividades-aplicadas/${id}/prova`, () => prova(id, DUAS_RESPONDIDAS, enviadaEmOutraJanela ? { enviadaEm: ENVIADA_EM } : {}))
     rede.responderPor(`/v1/atividades-aplicadas/${id}/enviar`, () => {
       enviadaEmOutraJanela = true
-      return erroDaApi(409, CodigoDeErro.ATIVIDADE_ENCERRADA)
+      return erroDaApi(409, ErrorCode.ATIVIDADE_ENCERRADA)
     })
     rede.responderPor(`/v1/atividades-aplicadas/${id}/meu-diagnostico`, NAO_ACHADA)
     montar(id)
@@ -628,7 +628,7 @@ describe('a tarefa aberta: os quatro estados (X4, 6.1; RF20)', () => {
     const rede = redeFalsa()
     let tentativas = 0
     // Limite excedido não é repetido sozinho (`deveTentarDeNovo`): o erro aparece na hora, sem esperar a nova tentativa de 1 s.
-    rede.responderPor(`/v1/atividades-aplicadas/${id}/prova`, () => (++tentativas === 1 ? erroDaApi(429, CodigoDeErro.LIMITE_EXCEDIDO) : prova(id)))
+    rede.responderPor(`/v1/atividades-aplicadas/${id}/prova`, () => (++tentativas === 1 ? erroDaApi(429, ErrorCode.LIMITE_EXCEDIDO) : prova(id)))
     montar(id)
 
     expect((await screen.findByRole('alert')).textContent).toBe(MENSAGENS_DE_ERRO.LIMITE_EXCEDIDO)

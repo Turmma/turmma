@@ -10,7 +10,7 @@ export type CampoDoConvite = 'nome' | 'email'
 /** O nome que não passa no contrato: vazio depois de tirar os espaços, ou longo demais. */
 export const TEXTO_DO_NOME_INVALIDO = 'Escreva o nome, com até 200 caracteres.'
 
-/** O e-mail que não passa no contrato do convite (`esquemaEmailConvidado`). */
+/** O e-mail que não passa no contrato do convite (`emailConvidadoSchema`). */
 export const TEXTO_DO_EMAIL_INVALIDO = 'Escreva o e-mail inteiro, com @ e o domínio, com até 254 caracteres.'
 
 const TEXTO_DO_CAMPO: Readonly<Record<CampoDoConvite, string>> = { nome: TEXTO_DO_NOME_INVALIDO, email: TEXTO_DO_EMAIL_INVALIDO }

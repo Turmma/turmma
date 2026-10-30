@@ -1,5 +1,5 @@
 import { type Banco } from '@educa/nucleo'
-import { esquemaRespostaTime, montarTime, type RespostaTime } from '@educa/shared'
+import { timeResponseSchema, montarTime, type TimeResponse } from '@educa/shared'
 import { SuspensoesDaEscolaRepository } from './suspensoes-da-escola.repository.js'
 
 /**
@@ -13,7 +13,7 @@ import { SuspensoesDaEscolaRepository } from './suspensoes-da-escola.repository.
 export class TimeService {
   constructor(private readonly banco: Banco) {}
 
-  async ler(): Promise<RespostaTime> {
-    return esquemaRespostaTime.parse(montarTime(new Set(await new SuspensoesDaEscolaRepository(this.banco).vigentes())))
+  async ler(): Promise<TimeResponse> {
+    return timeResponseSchema.parse(montarTime(new Set(await new SuspensoesDaEscolaRepository(this.banco).vigentes())))
   }
 }

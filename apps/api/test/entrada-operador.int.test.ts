@@ -1,6 +1,6 @@
 import 'reflect-metadata'
 import { criarLogger, METRICAS, relogioDoSistema, type Banco } from '@educa/nucleo'
-import { CodigoDeErro, esquemaRespostaEntradaDeOperador, MENSAGENS_DE_ERRO } from '@educa/shared'
+import { ErrorCode, entradaDeOperadorResponseSchema, MENSAGENS_DE_ERRO } from '@educa/shared'
 import type { INestApplication } from '@nestjs/common'
 import { NestFactory } from '@nestjs/core'
 import type { Redis } from 'ioredis'
@@ -59,16 +59,16 @@ function semRequisicaoId(corpo: unknown): unknown {
 /** Status, corpo (sem o `requisicaoId`) e cabeçalhos que diriam algo: o que precisa ser igual entre as recusas. */
 const forma = (resposta: Resposta) => ({ status: resposta.status, corpo: semRequisicaoId(resposta.corpo), retryAfter: resposta.retryAfter, setCookie: resposta.setCookie })
 
-function esperarErro(resposta: Resposta, status: number, codigo: CodigoDeErro): void {
+function esperarErro(resposta: Resposta, status: number, codigo: ErrorCode): void {
   expect(resposta.status).toBe(status)
   expect(resposta.corpo).toEqual({ erro: { codigo, mensagem: MENSAGENS_DE_ERRO[codigo], requisicaoId: expect.stringMatching(UUID) } })
   expect(resposta.setCookie).toEqual([])
 }
 
-const esperarNaoAutenticado = (resposta: Resposta) => esperarErro(resposta, 401, CodigoDeErro.NAO_AUTENTICADO)
+const esperarNaoAutenticado = (resposta: Resposta) => esperarErro(resposta, 401, ErrorCode.NAO_AUTENTICADO)
 
 function esperarSegurada(resposta: Resposta, retryAfter?: number): void {
-  esperarErro(resposta, 429, CodigoDeErro.CONTA_SEGURADA)
+  esperarErro(resposta, 429, ErrorCode.CONTA_SEGURADA)
   if (retryAfter === undefined) expect(Number(resposta.retryAfter)).toBeGreaterThanOrEqual(1)
   else expect(Number(resposta.retryAfter)).toBe(retryAfter)
 }
@@ -169,13 +169,13 @@ describe('POST /v1/operacao/sessao/email: o operador entra por e-mail e senha (t
       expect(resposta.status).toBe(200)
       expect(resposta.cacheControl).toBe('no-store')
       expect(resposta.setCookie).toEqual([])
-      const corpo = esquemaRespostaEntradaDeOperador.parse(resposta.corpo)
+      const corpo = entradaDeOperadorResponseSchema.parse(resposta.corpo)
       expect(corpo.etapa).toBe('configurar_mfa')
       expect(await verificarDesafioDeOperador(corpo.desafio, config.identidade.chaveAssinatura, 'configurar_mfa')).toMatchObject({ operadorId: semSegundoFator.operadorId })
 
       const comSegundoFator = await operadorComSenha()
       await ativarSegundoFator(comSegundoFator.operadorId)
-      const comMfa = esquemaRespostaEntradaDeOperador.parse((await entrar(comSegundoFator.email, SENHA)).corpo)
+      const comMfa = entradaDeOperadorResponseSchema.parse((await entrar(comSegundoFator.email, SENHA)).corpo)
       expect(comMfa.etapa).toBe('mfa')
       expect(await verificarDesafioDeOperador(comMfa.desafio, config.identidade.chaveAssinatura, 'mfa')).toMatchObject({ operadorId: comSegundoFator.operadorId })
       // Nenhuma sessão nasce na entrada: ela só existe depois do segundo fator (7.0).
@@ -188,7 +188,7 @@ describe('POST /v1/operacao/sessao/email: o operador entra por e-mail e senha (t
       await aceiteHa(dentro.operadorId, '71 hours 59 minutes')
       const noPrazo = await entrar(dentro.email, SENHA)
       expect(noPrazo.status).toBe(200)
-      expect(esquemaRespostaEntradaDeOperador.parse(noPrazo.corpo).etapa).toBe('configurar_mfa')
+      expect(entradaDeOperadorResponseSchema.parse(noPrazo.corpo).etapa).toBe('configurar_mfa')
 
       const fora = await operadorComSenha()
       await aceiteHa(fora.operadorId, '72 hours 1 minute')
@@ -207,11 +207,11 @@ describe('POST /v1/operacao/sessao/email: o operador entra por e-mail e senha (t
       const ativoAntigo = await operadorComSenha()
       await ativarSegundoFator(ativoAntigo.operadorId)
       await aceiteHa(ativoAntigo.operadorId, '30 days')
-      expect(esquemaRespostaEntradaDeOperador.parse((await entrar(ativoAntigo.email, SENHA)).corpo).etapa).toBe('mfa')
+      expect(entradaDeOperadorResponseSchema.parse((await entrar(ativoAntigo.email, SENHA)).corpo).etapa).toBe('mfa')
 
       const recente = await operadorComSenha()
       await aceiteHa(recente.operadorId, '1 hour')
-      expect(esquemaRespostaEntradaDeOperador.parse((await entrar(recente.email, SENHA)).corpo).etapa).toBe('configurar_mfa')
+      expect(entradaDeOperadorResponseSchema.parse((await entrar(recente.email, SENHA)).corpo).etapa).toBe('configurar_mfa')
     })
   })
 
@@ -254,10 +254,10 @@ describe('POST /v1/operacao/sessao/email: o operador entra por e-mail e senha (t
         { email: operador.email, senha: '' },
         { email: operador.email },
       ]) {
-        esperarErro(await pedir(url, CAMINHO, corpo, doIp(ipSorteado())), 400, CodigoDeErro.ENTRADA_INVALIDA)
+        esperarErro(await pedir(url, CAMINHO, corpo, doIp(ipSorteado())), 400, ErrorCode.ENTRADA_INVALIDA)
       }
       expect(verificacoes).not.toHaveBeenCalled()
-      expect(() => esquemaRespostaEntradaDeOperador.parse({ etapa: 'mfa', desafio: 'x', operadorId: operador.operadorId })).toThrow()
+      expect(() => entradaDeOperadorResponseSchema.parse({ etapa: 'mfa', desafio: 'x', operadorId: operador.operadorId })).toThrow()
     })
   })
 
@@ -284,7 +284,7 @@ describe('POST /v1/operacao/sessao/email: o operador entra por e-mail e senha (t
       esperarSegurada(await entrar(x.email, SENHA, doIp(ip)))
       const doY = await entrar(y.email, SENHA, doIp(ip))
       expect(doY.status).toBe(200)
-      expect(esquemaRespostaEntradaDeOperador.parse(doY.corpo).etapa).toBe('configurar_mfa')
+      expect(entradaDeOperadorResponseSchema.parse(doY.corpo).etapa).toBe('configurar_mfa')
     })
 
     it('C24: o mesmo e-mail como operador e como coordenador: errar num não segura o outro, nos dois sentidos', async () => {
@@ -310,7 +310,7 @@ describe('POST /v1/operacao/sessao/email: o operador entra por e-mail e senha (t
       esperarSegurada(await pedir(url, '/v1/sessao/email', { email: outro.email, senha: SENHA_ERRADA }, doIp(ip)), 30)
       const daOperacao = await entrar(outro.email, SENHA, doIp(ip))
       expect(daOperacao.status).toBe(200)
-      expect(esquemaRespostaEntradaDeOperador.parse(daOperacao.corpo).etapa).toBe('configurar_mfa')
+      expect(entradaDeOperadorResponseSchema.parse(daOperacao.corpo).etapa).toBe('configurar_mfa')
       esperarSegurada(await pedir(url, '/v1/sessao/email', { email: outro.email, senha: SENHA_DA_COORDENACAO }, doIp(ip)))
     })
 
@@ -329,7 +329,7 @@ describe('POST /v1/operacao/sessao/email: o operador entra por e-mail e senha (t
       // O aparelho de sempre entra, do mesmo IP.
       const doAparelho = await entrar(operador.email, SENHA, doIp(ip, `${COOKIE_DISPOSITIVO_DE_OPERADOR}=${doOperador}`))
       expect(doAparelho.status).toBe(200)
-      expect(esquemaRespostaEntradaDeOperador.parse(doAparelho.corpo).etapa).toBe('configurar_mfa')
+      expect(entradaDeOperadorResponseSchema.parse(doAparelho.corpo).etapa).toBe('configurar_mfa')
     })
 
     it('concorrência: 15 senhas erradas em paralelo na mesma conta contam todas: cinco hashes, quatro 401, onze 429, cinco entrada_falha (as que passaram pelo hash) e quinze na métrica; a 16ª está segurada', async () => {
@@ -400,7 +400,7 @@ describe('POST /v1/operacao/sessao/email: o operador entra por e-mail e senha (t
       // As duas falhas foram ao log (o `http.erro` do filtro), só com evento, status e código; nenhuma linha leva o
       // e-mail, a parte local dele nem a senha.
       const dasFalhas = linhasDeLog.slice(linhasAntes).map((linha) => JSON.parse(linha) as Record<string, unknown>)
-      expect(dasFalhas.filter((linha) => linha['evento'] === 'http.erro' && linha['codigo'] === CodigoDeErro.NAO_AUTENTICADO)).toHaveLength(2)
+      expect(dasFalhas.filter((linha) => linha['evento'] === 'http.erro' && linha['codigo'] === ErrorCode.NAO_AUTENTICADO)).toHaveLength(2)
       for (const linha of linhasDeLog) {
         for (const segredo of [sentinela, sentinela.split('@')[0] ?? sentinela, operador.email, SENHA_ERRADA, SENHA]) expect(linha.toLowerCase()).not.toContain(segredo.toLowerCase())
       }

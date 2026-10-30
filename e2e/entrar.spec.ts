@@ -1,5 +1,5 @@
 import type { Page, Request, Route } from '@playwright/test'
-import { MENSAGENS_DE_ERRO, mensagemDaEntrada } from '../packages/shared/src/erros/mensagens.ts'
+import { MENSAGENS_DE_ERRO, mensagemDaEntrada } from '../packages/shared/src/errors/messages.ts'
 import { criarEquipeComSenha, criarUsuarioEmOutraEscola, type EquipeDeTeste } from './__fixtures__/sessao.ts'
 import { entrarPelaApiSemMedirAPrimeiraCarga, esperarNovaConversa } from './__fixtures__/casca.ts'
 import { expect, test } from './__fixtures__/perfis.ts'

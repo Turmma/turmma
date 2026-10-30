@@ -11,7 +11,7 @@ import {
   type JanelaLetiva,
   type VagasPorFila,
 } from '@educa/nucleo'
-import { FILAS, type Fila } from '@educa/shared'
+import { QUEUE_NAMES, type QueueName } from '@educa/shared'
 import { z } from 'zod'
 
 export { ConfiguracaoInvalida }
@@ -19,7 +19,7 @@ export { ConfiguracaoInvalida }
 const inteiroPositivo = z.coerce.number().int().positive()
 
 /** Variável do pool de cada fila: `WORKER_POOL_INTERATIVA`, `WORKER_POOL_NORMAL`, `WORKER_POOL_LOTE`. */
-export function variavelDoPool(fila: Fila): string {
+export function variavelDoPool(fila: QueueName): string {
   return `WORKER_POOL_${fila.toUpperCase()}`
 }
 
@@ -28,7 +28,7 @@ const esquemaFilas = z.object({
   FILAS: z
     .string()
     .transform((texto) => texto.split(',').map((fila) => fila.trim()))
-    .pipe(z.array(z.enum(FILAS)).min(1).refine((filas) => new Set(filas).size === filas.length, 'fila repetida')),
+    .pipe(z.array(z.enum(QUEUE_NAMES)).min(1).refine((filas) => new Set(filas).size === filas.length, 'fila repetida')),
 })
 
 const esquemaAmbiente = z.object({
@@ -61,7 +61,7 @@ export interface ConfiguracaoWorker {
   banco: ConfiguracaoBanco
   redisFilaUrl: string
   /** Jobs ao mesmo tempo nesta réplica, por fila atendida. Fila fora daqui não é consumida por esta réplica. */
-  pools: Partial<Record<Fila, number>>
+  pools: Partial<Record<QueueName, number>>
   /** Vagas por fila da escola sem vagas próprias: o worker confere a vaga do job ao começar (D41). */
   vagasPadrao: VagasPorFila
   /**

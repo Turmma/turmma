@@ -1,4 +1,4 @@
-import { esquemaRespostaExecucao, type RespostaExecucaoAceita } from '@educa/shared'
+import { execucaoResponseSchema, type ExecucaoAceitaResponse } from '@educa/shared'
 import { queryOptions, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useState } from 'react'
 import { CHAVE_DAS_EXECUCOES } from './chaves-do-professor'
@@ -28,7 +28,7 @@ import { buscarComSessao } from './sessao'
 export function consultaExecucao(id: string) {
   return queryOptions({
     queryKey: [...CHAVE_DAS_EXECUCOES, id],
-    queryFn: ({ signal }) => buscarComSessao(`/v1/execucoes/${encodeURIComponent(id)}`, esquemaRespostaExecucao, signal),
+    queryFn: ({ signal }) => buscarComSessao(`/v1/execucoes/${encodeURIComponent(id)}`, execucaoResponseSchema, signal),
     refetchInterval: (consulta) => intervaloDaConsulta(consulta.state.data, consulta.state.status === 'error'),
     staleTime: 0,
     gcTime: 0,
@@ -58,7 +58,7 @@ export interface CicloNaTela<Pedido> {
  * **A mudança de estado é síncrona**: `iniciar` grava `enviando` antes de devolver, e o segundo toque encontra o pedido
  * no ar sem depender de nenhum `isPending` que só chega no render seguinte.
  */
-export function useCicloDeExecucao<Pedido>(lugar: LugarNaAba<CicloDeExecucao<Pedido>>, enviar: (pedido: Pedido, chaveEnvio: string) => Promise<RespostaExecucaoAceita>): CicloNaTela<Pedido> {
+export function useCicloDeExecucao<Pedido>(lugar: LugarNaAba<CicloDeExecucao<Pedido>>, enviar: (pedido: Pedido, chaveEnvio: string) => Promise<ExecucaoAceitaResponse>): CicloNaTela<Pedido> {
   const cliente = useQueryClient()
   const ciclo = useLugarNaAba(lugar)
   const execucaoId = ciclo?.etapa === 'esperando' ? ciclo.execucaoId : undefined

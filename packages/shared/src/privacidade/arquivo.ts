@@ -38,19 +38,19 @@ export const FINALIDADES_DO_ARQUIVO = [...FINALIDADES_DO_ARQUIVO_DA_ESCOLA, FINA
 export type FinalidadeDoArquivo = (typeof FINALIDADES_DO_ARQUIVO)[number]
 
 /** `POST /v1/privacidade/pedidos/:id/arquivo`: para que a coordenação baixa a versão da escola. */
-export const esquemaBaixarArquivoDaEscola = z.strictObject({ finalidade: z.enum(FINALIDADES_DO_ARQUIVO_DA_ESCOLA) })
-export type BaixarArquivoDaEscola = z.infer<typeof esquemaBaixarArquivoDaEscola>
+export const baixarArquivoDaEscolaSchema = z.strictObject({ finalidade: z.enum(FINALIDADES_DO_ARQUIVO_DA_ESCOLA) })
+export type BaixarArquivoDaEscola = z.infer<typeof baixarArquivoDaEscolaSchema>
 
 /**
  * A resposta de `POST pedidos/:id/arquivo` e de `POST meus-dados/:id/baixar`: a URL assinada de 5 minutos e o nome do
  * arquivo, `meus-dados-AAAA-MM-DD.json`. **Nunca a chave do objeto no storage** (`chave_objeto`).
  */
-export const esquemaRespostaDoArquivo = z.strictObject({
+export const arquivoResponseSchema = z.strictObject({
   url: z.url(),
   nome: z.string().regex(/^meus-dados-\d{4}-\d{2}-\d{2}\.json$/),
   validaAte: z.iso.datetime(),
 })
-export type RespostaDoArquivo = z.infer<typeof esquemaRespostaDoArquivo>
+export type ArquivoResponse = z.infer<typeof arquivoResponseSchema>
 
 /** O nome do arquivo que o navegador grava: o dia (de São Paulo) em que foi pedido. */
 export function nomeDoArquivoDoTitular(dia: string): string {
@@ -61,7 +61,7 @@ export function nomeDoArquivoDoTitular(dia: string): string {
  * Um pedido do próprio usuário em "Meus dados": o tipo, o estado, quando chegou à escola e, se o arquivo existe, até
  * quando ele fica. Nunca quem registrou o pedido nem a foto do compartilhamento.
  */
-export const esquemaPedidoDeMeusDados = z.strictObject({
+export const pedidoDeMeusDadosSchema = z.strictObject({
   id: z.uuid(),
   tipo: z.enum(TIPOS_DE_PEDIDO_DO_TITULAR),
   estado: z.enum(ESTADOS_DO_PEDIDO),
@@ -74,15 +74,15 @@ export const esquemaPedidoDeMeusDados = z.strictObject({
     })
     .nullable(),
 })
-export type PedidoDeMeusDados = z.infer<typeof esquemaPedidoDeMeusDados>
+export type PedidoDeMeusDados = z.infer<typeof pedidoDeMeusDadosSchema>
 
 /**
  * `GET /v1/meus-dados`: os pedidos do próprio usuário na escola ativa, e a contagem do que a escola guarda dele por
  * categoria de retenção. A contagem é a do próprio usuário sobre si (D45): nunca sai para a coordenação, que só vê a
  * prévia, e a do professor não traz uso da IA.
  */
-export const esquemaRespostaMeusDados = z.strictObject({
-  pedidos: z.array(esquemaPedidoDeMeusDados),
+export const meusDadosResponseSchema = z.strictObject({
+  pedidos: z.array(pedidoDeMeusDadosSchema),
   categorias: z.array(z.strictObject({ categoria: z.enum(CHAVES_DE_RETENCAO), quantidade: z.number().int().nonnegative() })),
 })
-export type RespostaMeusDados = z.infer<typeof esquemaRespostaMeusDados>
+export type MeusDadosResponse = z.infer<typeof meusDadosResponseSchema>

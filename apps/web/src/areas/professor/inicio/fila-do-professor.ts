@@ -1,4 +1,4 @@
-import { CodigoDeErro, FUNCOES, NOME_DO_TIPO_DE_ENTREGA, type ChaveDeFuncao, type Entrega, type RespostaListaDeEntregas, type RespostaMeusVinculos, type Vinculo } from '@educa/shared'
+import { ErrorCode, FUNCOES, NOME_DO_TIPO_DE_ENTREGA, type ChaveDeFuncao, type Entrega, type ListaDeEntregasResponse, type MeusVinculosResponse, type Vinculo } from '@educa/shared'
 import { useInfiniteQuery, useQueries, useQuery, useQueryClient, type InfiniteData, type UseInfiniteQueryResult, type UseQueryResult } from '@tanstack/react-query'
 import { useState } from 'react'
 import { ErroDaApi } from '../../../api/cliente'
@@ -77,7 +77,7 @@ function lida<Dado>(leitura: LeituraDaFila<Dado>): Dado | undefined {
 
 /** Sem ano letivo em curso, `meus-vinculos` e `entregas` respondem `NAO_ENCONTRADO` (`exigirAnoEmCurso`), e a professora não tem como ler o ano. */
 function semAnoLetivoPelaResposta(leitura: LeituraDaFila<unknown>): boolean {
-  return leitura.estado === 'erro' && leitura.erro instanceof ErroDaApi && leitura.erro.codigo === CodigoDeErro.NAO_ENCONTRADO
+  return leitura.estado === 'erro' && leitura.erro instanceof ErroDaApi && leitura.erro.codigo === ErrorCode.NAO_ENCONTRADO
 }
 
 const porNome = (a: string, b: string) => a.localeCompare(b, 'pt-BR', { numeric: true })
@@ -281,13 +281,13 @@ export interface FilaLidaDoProfessor extends FilaDoProfessor {
   readonly atualizadoEm: Date | undefined
 }
 
-function leituraDasEntregas(consulta: UseQueryResult<RespostaListaDeEntregas>): LeituraDaFila<readonly Entrega[]> {
+function leituraDasEntregas(consulta: UseQueryResult<ListaDeEntregasResponse>): LeituraDaFila<readonly Entrega[]> {
   if (consulta.isError) return { estado: 'erro', erro: consulta.error }
   if (consulta.data === undefined) return { estado: 'carregando' }
   return { estado: 'lida', dado: consulta.data.itens, completa: consulta.data.proxima === undefined }
 }
 
-function leituraDosVinculos(consulta: UseInfiniteQueryResult<InfiniteData<RespostaMeusVinculos>>): LeituraDaFila<readonly Vinculo[]> {
+function leituraDosVinculos(consulta: UseInfiniteQueryResult<InfiniteData<MeusVinculosResponse>>): LeituraDaFila<readonly Vinculo[]> {
   if (consulta.isError) return { estado: 'erro', erro: consulta.error }
   if (consulta.data === undefined) return { estado: 'carregando' }
   return { estado: 'lida', dado: consulta.data.pages.flatMap((pagina) => pagina.itens), completa: !consulta.hasNextPage }
@@ -295,7 +295,7 @@ function leituraDosVinculos(consulta: UseInfiniteQueryResult<InfiniteData<Respos
 
 /** A recusa por limite (`LIMITE_EXCEDIDO`): repetir é o que ela pede para não fazer, e o sino para de ler as turmas. */
 function foiRecusadaPorLimite(erro: unknown): boolean {
-  return erro instanceof ErroDaApi && erro.codigo === CodigoDeErro.LIMITE_EXCEDIDO
+  return erro instanceof ErroDaApi && erro.codigo === ErrorCode.LIMITE_EXCEDIDO
 }
 
 /**

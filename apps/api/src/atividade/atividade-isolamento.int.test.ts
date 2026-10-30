@@ -1,5 +1,5 @@
 import { executarNoContexto, type ContextoDaRequisicao } from '@educa/nucleo'
-import { esquemaRespostaDesempenhoDaTurma, esquemaRespostaMinhasAtividades, esquemaRespostaProva, type PapelDeUsuario } from '@educa/shared'
+import { desempenhoDaTurmaResponseSchema, minhasAtividadesResponseSchema, provaResponseSchema, type PapelDeUsuario } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../../tools/testes/metricas.ts'
@@ -161,7 +161,7 @@ describe('isolamento da atividade e da correção', () => {
     it('o desempenho da turma: outra escola e outra turma respondem como inexistente, sem auditoria; a professora de Física lê a turma dela sem nada de Química', async () => {
       const antes = await retrato()
       const FINALIDADE = '?finalidade=acompanhamento_pedagogico'
-      const daProfessora = esquemaRespostaDesempenhoDaTurma.parse((await rotas.desempenho(a.professora, a.turma)).corpo)
+      const daProfessora = desempenhoDaTurmaResponseSchema.parse((await rotas.desempenho(a.professora, a.turma)).corpo)
       expect(daProfessora.lotesAprovados).toBe(1)
       expect(daProfessora.alunos.find((aluno) => aluno.alunoId === a.aluno.usuarioId)).toMatchObject({ acertos: 5, total: 5 })
 
@@ -176,7 +176,7 @@ describe('isolamento da atividade e da correção', () => {
       for (const sessao of [a.aluno, alunoDoC]) expect(erro(await rotas.desempenho(sessao, a.turma))).toEqual(NAO_ENCONTRADO)
 
       // A professora de Física é professora do 2ºB: lê a turma, e não lê o acerto de Química (D45: o desempenho da turma numa disciplina é o de uma professora só).
-      const deFisica = esquemaRespostaDesempenhoDaTurma.parse((await rotas.desempenho(a.deFisica, a.turma)).corpo)
+      const deFisica = desempenhoDaTurmaResponseSchema.parse((await rotas.desempenho(a.deFisica, a.turma)).corpo)
       expect(deFisica).toMatchObject({ lotesAprovados: 0, porHabilidade: [] })
       expect(deFisica.alunos.every((aluno) => aluno.total === 0 && aluno.porHabilidade.length === 0)).toBe(true)
       expect(await retrato()).toEqual(antes)
@@ -188,7 +188,7 @@ describe('isolamento da atividade e da correção', () => {
       const antes = await retrato()
       const inexistente = randomUUID()
       for (const aluno of [alunoDoC, b.aluno]) {
-        const lista = esquemaRespostaMinhasAtividades.parse((await rotas.minhas(aluno)).corpo)
+        const lista = minhasAtividadesResponseSchema.parse((await rotas.minhas(aluno)).corpo)
         for (const id of [aberta, corrigida.id, aprovada.id]) expect(lista.itens.map((item) => item.id)).not.toContain(id)
         for (const [daAtividade, doInexistente] of [
           [await rotas.prova(aluno, aberta), await rotas.prova(aluno, inexistente)],
@@ -201,7 +201,7 @@ describe('isolamento da atividade e da correção', () => {
           expect(erro(doInexistente)).toEqual(erro(daAtividade))
         }
       }
-      expect(esquemaRespostaMinhasAtividades.parse((await rotas.minhas(alunoDoC)).corpo).itens).toEqual([])
+      expect(minhasAtividadesResponseSchema.parse((await rotas.minhas(alunoDoC)).corpo).itens).toEqual([])
       expect(await retrato()).toEqual(antes)
     })
 
@@ -220,11 +220,11 @@ describe('isolamento da atividade e da correção', () => {
 
     it('cada aluno só lê e grava o que é dele: a colega da mesma turma não vê a resposta do Caio, e a dela não troca a dele', async () => {
       // Caio marcou a alternativa 0 na questão 1 da atividade aberta. A Bia abre a mesma prova e marca outra.
-      const daBia = esquemaRespostaProva.parse((await rotas.prova(bia, aberta)).corpo)
+      const daBia = provaResponseSchema.parse((await rotas.prova(bia, aberta)).corpo)
       expect(daBia.respostas).toEqual([])
       expect((await rotas.responder(bia, aberta, 1, 3)).status).toBe(200)
-      expect(esquemaRespostaProva.parse((await rotas.prova(a.aluno, aberta)).corpo).respostas).toEqual([{ questao: 1, alternativa: 0, sequencia: 1 }])
-      expect(esquemaRespostaProva.parse((await rotas.prova(bia, aberta)).corpo).respostas).toEqual([{ questao: 1, alternativa: 3, sequencia: 1 }])
+      expect(provaResponseSchema.parse((await rotas.prova(a.aluno, aberta)).corpo).respostas).toEqual([{ questao: 1, alternativa: 0, sequencia: 1 }])
+      expect(provaResponseSchema.parse((await rotas.prova(bia, aberta)).corpo).respostas).toEqual([{ questao: 1, alternativa: 3, sequencia: 1 }])
       expect(await sql('select aluno_id, alternativa from resposta_atividade where atividade_aplicada_id = $1 order by alternativa', [aberta])).toEqual([
         { aluno_id: a.aluno.usuarioId, alternativa: 0 },
         { aluno_id: bia.usuarioId, alternativa: 3 },
@@ -243,7 +243,7 @@ describe('isolamento da atividade e da correção', () => {
       await responderProva(rotas, c.aluno, id, [0], false)
       await sql(`update vinculo set estado = 'encerrado', motivo_encerramento = 'realocacao', encerrado_em = now() where escola_id = $1 and usuario_id = $2 and turma_id = $3`, [c.escolaId, c.aluno.usuarioId, c.turma])
       await sql(`insert into vinculo (escola_id, ano_letivo_id, usuario_id, turma_id, papel, estado, criado_por, decidido_em) values ($1, $2, $3, $4, 'aluno', 'confirmado', $5, now())`, [c.escolaId, c.anoLetivoId, c.aluno.usuarioId, c.outraTurma, c.coordenacao.usuarioId])
-      expect(esquemaRespostaMinhasAtividades.parse((await rotas.minhas(c.aluno)).corpo).itens).toEqual([])
+      expect(minhasAtividadesResponseSchema.parse((await rotas.minhas(c.aluno)).corpo).itens).toEqual([])
       for (const resposta of [await rotas.prova(c.aluno, id), await rotas.responder(c.aluno, id, 2, 1), await rotas.enviar(c.aluno, id)]) expect(erro(resposta)).toEqual(NAO_ENCONTRADO)
       expect(await sql('select questao from resposta_atividade where atividade_aplicada_id = $1', [id])).toEqual([{ questao: 1 }])
     })

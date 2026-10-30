@@ -7,7 +7,7 @@ import {
   TIMEOUT_COMANDO_REDIS_FILA_MS,
   type DadosDoJobNaFila,
 } from '@educa/nucleo'
-import { CodigoDeFalhaDeJob } from '@educa/shared'
+import { JobFailureCode } from '@educa/shared'
 import { Queue, UnrecoverableError, Worker } from 'bullmq'
 import { Redis } from 'ioredis'
 import { randomUUID } from 'node:crypto'
@@ -314,7 +314,7 @@ describe('reconciliação entre job_registro e o BullMQ', () => {
           // O Postgres cai durante o job: o `falhou` que o worker grava no fim não chega ao banco.
           sintetico: async () => {
             await composeAssincronoOuFalha('stop', 'postgres')
-            throw new FalhaDeJob(CodigoDeFalhaDeJob.FALHA_SINTETICA)
+            throw new FalhaDeJob(JobFailureCode.FALHA_SINTETICA)
           },
         },
       })
@@ -328,9 +328,9 @@ describe('reconciliação entre job_registro e o BullMQ', () => {
       const resultado = await bancada.despachante(log).reconciliacao.reconciliar()
 
       expect(resultado).toEqual({ conferidos: 1, republicados: [], falhasRegistradas: [id], semConfirmacao: 0 })
-      expect(await bancada.estado(id)).toEqual({ estado: 'falhou', escolaId: ESCOLA_A, codigoFalha: CodigoDeFalhaDeJob.FALHA_SINTETICA })
+      expect(await bancada.estado(id)).toEqual({ estado: 'falhou', escolaId: ESCOLA_A, codigoFalha: JobFailureCode.FALHA_SINTETICA })
       expect(log.doEvento('job.falha_reconciliada')).toEqual([
-        expect.objectContaining({ jobId: id, codigo: CodigoDeFalhaDeJob.FALHA_SINTETICA, requisicaoId, escolaId: ESCOLA_A }),
+        expect.objectContaining({ jobId: id, codigo: JobFailureCode.FALHA_SINTETICA, requisicaoId, escolaId: ESCOLA_A }),
       ])
       // Terminou: a próxima reconciliação não o vê mais.
       expect((await bancada.despachante(log).reconciliacao.reconciliar()).conferidos).toBe(0)
@@ -372,8 +372,8 @@ describe('reconciliação entre job_registro e o BullMQ', () => {
       const resultado = await bancada.despachante(log).reconciliacao.reconciliar()
 
       expect([...resultado.falhasRegistradas].sort()).toEqual([stalled, comDadoInvalido].sort())
-      expect(await bancada.estado(stalled)).toEqual({ estado: 'falhou', escolaId: ESCOLA_A, codigoFalha: CodigoDeFalhaDeJob.ERRO_INTERNO })
-      expect(await bancada.estado(comDadoInvalido)).toEqual({ estado: 'falhou', escolaId: ESCOLA_A, codigoFalha: CodigoDeFalhaDeJob.DADOS_INVALIDOS })
+      expect(await bancada.estado(stalled)).toEqual({ estado: 'falhou', escolaId: ESCOLA_A, codigoFalha: JobFailureCode.ERRO_INTERNO })
+      expect(await bancada.estado(comDadoInvalido)).toEqual({ estado: 'falhou', escolaId: ESCOLA_A, codigoFalha: JobFailureCode.DADOS_INVALIDOS })
       // A falha reconciliada libera a vaga, em vez de deixá-la vencer em 60 s.
       expect(await bancada.redis.zrange(chaveDaVaga, '0', '-1')).toEqual([])
     }, 60_000)
@@ -385,7 +385,7 @@ describe('reconciliação entre job_registro e o BullMQ', () => {
         await bancada.registro.concluir(id)
       })
 
-      expect(await bancada.despacho.registrarFalhaDaFila(id, CodigoDeFalhaDeJob.ERRO_INTERNO)).toBe(false)
+      expect(await bancada.despacho.registrarFalhaDaFila(id, JobFailureCode.ERRO_INTERNO)).toBe(false)
       expect(await bancada.estado(id)).toEqual({ estado: 'concluido', escolaId: ESCOLA_A, codigoFalha: null })
     })
   })

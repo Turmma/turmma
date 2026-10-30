@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { esquemaPedidoProvedoresDaEscola, MAXIMO_DE_PROVEDORES_DA_ESCOLA, TENANT_DE_CONTA_PESSOAL_MICROSOFT } from './provedores.js'
+import { provedoresDaEscolaRequestSchema, MAXIMO_DE_PROVEDORES_DA_ESCOLA, TENANT_DE_CONTA_PESSOAL_MICROSOFT } from './provedores.js'
 
 const TENANT_SINTETICO = 'aaaaaaaa-0000-4000-8000-00000000000a'
 
-const aceita = (provedores: unknown) => esquemaPedidoProvedoresDaEscola.safeParse({ provedores }).success
+const aceita = (provedores: unknown) => provedoresDaEscolaRequestSchema.safeParse({ provedores }).success
 
 describe('contrato de PUT /v1/escola/provedores', () => {
   it('normaliza domínio e tenant em minúsculas, sem espaço nas pontas', () => {
-    const lido = esquemaPedidoProvedoresDaEscola.parse({
+    const lido = provedoresDaEscolaRequestSchema.parse({
       provedores: [
         { provedor: 'google', valor: ' Escola-A.Educa-Sintetica.TEST ' },
         { provedor: 'microsoft', valor: TENANT_SINTETICO.toUpperCase() },

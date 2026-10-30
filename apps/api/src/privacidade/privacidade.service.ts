@@ -22,16 +22,16 @@ import { CicloDeVidaService } from '@educa/nucleo/ciclo-de-vida'
 import {
   CATEGORIAS_DE_RETENCAO,
   CHAVES_DE_PRAZO_FIXO,
-  CodigoDeErro,
-  esquemaPedidoDoTitular,
-  esquemaRespostaBuscaDeTitulares,
-  esquemaRespostaIncidentes,
-  esquemaRespostaPedidos,
-  esquemaRespostaPreviaDoTitular,
-  esquemaRespostaRetencao,
-  esquemaRespostaSuboperadores,
-  esquemaRespostaDoArquivo,
-  esquemaRespostaMeusDados,
+  ErrorCode,
+  pedidoDoTitularSchema,
+  buscaDeTitularesResponseSchema,
+  incidentesResponseSchema,
+  pedidosResponseSchema,
+  previaDoTitularResponseSchema,
+  retencaoResponseSchema,
+  suboperadoresResponseSchema,
+  arquivoResponseSchema,
+  meusDadosResponseSchema,
   FINALIDADE_DO_ARQUIVO_DO_PROPRIO_TITULAR,
   FINALIDADE_DO_ATENDIMENTO_DO_TITULAR,
   FINALIDADE_DO_REGISTRO_DE_INCIDENTE,
@@ -44,18 +44,18 @@ import {
   VALIDADE_DA_URL_DO_ARQUIVO_SEGUNDOS,
   type FinalidadeDoArquivo,
   type ItemDoPedido,
-  type ConsultaPaginada,
+  type PaginationQuery,
   type PedidoDoTitular,
-  type RespostaDoArquivo,
-  type RespostaMeusDados,
+  type ArquivoResponse,
+  type MeusDadosResponse,
   type VersaoDoArquivo,
   type RegistroDePedido,
-  type RespostaBuscaDeTitulares,
-  type RespostaIncidentes,
-  type RespostaPedidos,
-  type RespostaPreviaDoTitular,
-  type RespostaRetencao,
-  type RespostaSuboperadores,
+  type BuscaDeTitularesResponse,
+  type IncidentesResponse,
+  type PedidosResponse,
+  type PreviaDoTitularResponse,
+  type RetencaoResponse,
+  type SuboperadoresResponse,
 } from '@educa/shared'
 import { PedidosRepository, type PedidoAchado } from './pedidos.repository.js'
 import { TitularesRepository, type TitularAchadoNoBanco, type TitularParaOPedido } from './titulares.repository.js'
@@ -73,7 +73,7 @@ export interface DependenciasDoPrivacidadeService {
 }
 
 /** O erro do pedido que não está no estado que a ação pede: tipado, sem dizer o estado de quem (F3, RF16). */
-const pedidoEmEstadoInvalido = (): ErroDeDominio => new ErroDeDominio(CodigoDeErro.PEDIDO_EM_ESTADO_INVALIDO)
+const pedidoEmEstadoInvalido = (): ErroDeDominio => new ErroDeDominio(ErrorCode.PEDIDO_EM_ESTADO_INVALIDO)
 
 /**
  * A privacidade da escola, para a coordenação (F3, RF3 e RF10 a RF13b). A retenção é o catálogo em código com os
@@ -96,9 +96,9 @@ export class PrivacidadeService {
     this.#relogio = dependencias.relogio ?? relogioDoSistema
   }
 
-  async retencao(): Promise<RespostaRetencao> {
+  async retencao(): Promise<RetencaoResponse> {
     const categorias = retencaoDaEscola(await new RetencaoDaEscolaRepository(this.banco).ajustes())
-    return esquemaRespostaRetencao.parse({
+    return retencaoResponseSchema.parse({
       categorias: categorias.map(({ categoria, meses, origem, limitadaPor }) => ({
         categoria,
         descricao: CATEGORIAS_DE_RETENCAO[categoria].descricao,
@@ -116,9 +116,9 @@ export class PrivacidadeService {
    * resposta é montada campo a campo e conferida pelo schema estrito: não leva id, contrato, quem cadastrou nem as outras
    * escolas da lista.
    */
-  async suboperadores(): Promise<RespostaSuboperadores> {
+  async suboperadores(): Promise<SuboperadoresResponse> {
     const lidos = await new SuboperadorDaEscolaRepository(this.banco).daEscola()
-    return esquemaRespostaSuboperadores.parse({
+    return suboperadoresResponseSchema.parse({
       suboperadores: lidos.map((lido) => ({
         chave: lido.chave,
         nome: lido.nome,
@@ -137,9 +137,9 @@ export class PrivacidadeService {
    * e conferida pelo schema estrito: só a seção da escola, com o id dela. Não leva quem registrou, o id do incidente, as outras
    * escolas nem os números delas.
    */
-  async incidentes(): Promise<RespostaIncidentes> {
+  async incidentes(): Promise<IncidentesResponse> {
     const lidos = await new IncidenteDaEscolaRepository(this.banco).daEscola()
-    return esquemaRespostaIncidentes.parse({
+    return incidentesResponseSchema.parse({
       incidentes: lidos.map((lido) => ({
         id: lido.id,
         conhecidoEm: lido.conhecidoEm.toISOString(),
@@ -169,7 +169,7 @@ export class PrivacidadeService {
         await registro.gravar(tx, 'incidente.confirmado', { entidadeId: id, finalidade: FINALIDADE_DO_REGISTRO_DE_INCIDENTE })
         return
       }
-      if (!(await incidentes.existe(id))) throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
+      if (!(await incidentes.existe(id))) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
     })
   }
 
@@ -178,11 +178,11 @@ export class PrivacidadeService {
    * turmas e disciplinas, para a coordenação escolher a pessoa certa entre homônimos. A leitura é auditada com os ids
    * na mesma transação (`titular.buscado`), e **o termo nunca vai a log nem à auditoria**: é nome de pessoa (RF17).
    */
-  async buscaDeTitulares(termo: string): Promise<RespostaBuscaDeTitulares> {
+  async buscaDeTitulares(termo: string): Promise<BuscaDeTitularesResponse> {
     return this.banco.transaction(async (tx) => {
       const achados = await new TitularesRepository(tx).buscar(termo)
       await registro.gravar(tx, 'titular.buscado', { entidadeId: this.#escola(), depois: { ids: achados.map(({ id }) => id) }, finalidade: FINALIDADE_DO_ATENDIMENTO_DO_TITULAR })
-      return esquemaRespostaBuscaDeTitulares.parse({ titulares: achados })
+      return buscaDeTitularesResponseSchema.parse({ titulares: achados })
     })
   }
 
@@ -193,17 +193,17 @@ export class PrivacidadeService {
    * regra da troca de nome. Auditada como `titular.previa_lida`; o titular de outra escola, o de quem pediu e o
    * inexistente respondem igual.
    */
-  async previaDoTitular(titularId: string): Promise<RespostaPreviaDoTitular> {
+  async previaDoTitular(titularId: string): Promise<PreviaDoTitularResponse> {
     return this.banco.transaction(async (tx) => {
       const titulares = new TitularesRepository(tx)
       const titular = await this.#titularAlvo(titulares, titularId)
       await registro.gravar(tx, 'titular.previa_lida', { entidadeId: titular.id, finalidade: FINALIDADE_DO_ATENDIMENTO_DO_TITULAR })
       const base = { id: titular.id, nome: titular.nome, homonimo: await titulares.homonimo(titular.id) }
       if (titular.papel === 'professor') {
-        return esquemaRespostaPreviaDoTitular.parse({ ...base, papel: 'professor', categorias: [...titulares.categoriasDoProfessor()] })
+        return previaDoTitularResponseSchema.parse({ ...base, papel: 'professor', categorias: [...titulares.categoriasDoProfessor()] })
       }
       const contagens = await titulares.contagemPorCategoria(titular.id)
-      return esquemaRespostaPreviaDoTitular.parse({ ...base, papel: 'aluno', categorias: contagens.map(({ categoria, quantidade }) => ({ categoria, quantidade })) })
+      return previaDoTitularResponseSchema.parse({ ...base, papel: 'aluno', categorias: contagens.map(({ categoria, quantidade }) => ({ categoria, quantidade })) })
     })
   }
 
@@ -220,7 +220,7 @@ export class PrivacidadeService {
    * `current_date` da sessão, é só a segunda camada e mais frouxa.
    */
   async registrarPedido(pedido: RegistroDePedido): Promise<PedidoDoTitular> {
-    if (pedido.chegouEm > diaDeUso(new Date())) throw new ErroDeDominio(CodigoDeErro.ENTRADA_INVALIDA)
+    if (pedido.chegouEm > diaDeUso(new Date())) throw new ErroDeDominio(ErrorCode.ENTRADA_INVALIDA)
     return this.banco.transaction(async (tx) => {
       const titulares = new TitularesRepository(tx)
       const titular = await this.#titularAlvo(titulares, pedido.titularId)
@@ -247,11 +247,11 @@ export class PrivacidadeService {
         }
       }
       const lido = id === undefined ? await pedidos.daChave(pedido.chaveEnvio) : await pedidos.de(id)
-      if (lido === undefined) throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
+      if (lido === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
       // A chave que colide só devolve o pedido que é este mesmo: outro titular, tipo, solicitante ou chegada responde
       // como inexistente, e nada é gravado nem auditado (a transação não escreveu nada quando a chave já existia).
       if (id === undefined && (lido.titularId !== pedido.titularId || lido.tipo !== pedido.tipo || lido.solicitante !== pedido.solicitante || lido.chegouEm !== pedido.chegouEm)) {
-        throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
+        throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
       }
       return this.#montarPedido(lido, await titulares.titularesParaOPedido([lido.titularId]))
     })
@@ -262,7 +262,7 @@ export class PrivacidadeService {
    * existe. A lista audita `pedidos.listados` com os ids da página, na mesma transação da leitura; o pedido sobre a
    * própria pessoa não entra.
    */
-  async pedidos(consulta: ConsultaPaginada): Promise<RespostaPedidos> {
+  async pedidos(consulta: PaginationQuery): Promise<PedidosResponse> {
     return this.banco.transaction(async (tx) => {
       const titulares = new TitularesRepository(tx)
       const { usuarioId } = identidadeDaRequisicao()
@@ -274,7 +274,7 @@ export class PrivacidadeService {
         const { id, tipo, solicitante, chegouEm, estado } = this.#montarPedido(pedido, nomes)
         return { id, tipo, solicitante, chegouEm, estado, titular: this.#titularDe(pedido, nomes) }
       })
-      return esquemaRespostaPedidos.parse({ itens, ...(pedidos.length > consulta.limite ? { proxima: daPágina.at(-1)?.id } : {}) })
+      return pedidosResponseSchema.parse({ itens, ...(pedidos.length > consulta.limite ? { proxima: daPágina.at(-1)?.id } : {}) })
     })
   }
 
@@ -345,7 +345,7 @@ export class PrivacidadeService {
    * não existe, a vencida, a apagada, a de outra escola, a do pedido sobre quem pede e o id de ninguém respondem igual
    * (`NAO_ENCONTRADO`, regra 10, item 6). Auditada como `titular.arquivo_baixado`, com a finalidade, na mesma transação.
    */
-  async arquivoDaEscola(pedidoId: string, finalidade: FinalidadeDoArquivo): Promise<RespostaDoArquivo> {
+  async arquivoDaEscola(pedidoId: string, finalidade: FinalidadeDoArquivo): Promise<ArquivoResponse> {
     // Leitura curta, sem transação: nenhuma conexão do pool fica presa enquanto o storage responde (regra 80, item 3).
     const pedido = await this.#pedidoAlvo(new PedidosRepository(this.banco), new TitularesRepository(this.banco), pedidoId)
     const arquivos = new ArquivoDoTitularRepository(this.banco)
@@ -353,7 +353,7 @@ export class PrivacidadeService {
     const agora = this.#relogio.agora()
     // A versão da escola só vale enquanto o titular segue sem conta ativa: se ela voltou, ele baixa o dele.
     if (arquivo === undefined || !this.#vale(arquivo, agora) || (await arquivos.contaAtiva(pedido.titularId)) !== false) {
-      throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
+      throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
     }
     const resposta = await this.#assinar(arquivo, agora)
     // A auditoria é a transação curta, e vem antes de a resposta sair: se ela falhar, a URL não sai.
@@ -368,12 +368,12 @@ export class PrivacidadeService {
    * validade do arquivo, e a contagem do que a escola guarda dela por categoria. Só o que é dela (`usuario_id` da sessão):
    * o pedido de um colega nunca entra. A leitura é da própria pessoa sobre si, e não vai para a auditoria.
    */
-  async meusDados(): Promise<RespostaMeusDados> {
+  async meusDados(): Promise<MeusDadosResponse> {
     const { usuarioId } = identidadeDaRequisicao()
     const agora = this.#relogio.agora()
     const pedidos = await new ArquivoDoTitularRepository(this.banco).pedidosDoUsuario(usuarioId, PEDIDOS_EM_MEUS_DADOS)
     const categorias = await new TitularesRepository(this.banco).contagemPorCategoria(usuarioId)
-    return esquemaRespostaMeusDados.parse({
+    return meusDadosResponseSchema.parse({
       pedidos: pedidos.map(({ id, tipo, estado, chegouEm, arquivo }) => ({
         id,
         tipo,
@@ -391,12 +391,12 @@ export class PrivacidadeService {
    * arquivo vencido ou apagado também. Quem pediu pelo titular (o responsável legal) recebe na conta do aluno: o arquivo é
    * sempre dele. Auditada como `titular.arquivo_baixado`.
    */
-  async baixarMeuArquivo(pedidoId: string): Promise<RespostaDoArquivo> {
+  async baixarMeuArquivo(pedidoId: string): Promise<ArquivoResponse> {
     const { usuarioId } = identidadeDaRequisicao()
     // Leitura curta, sem transação: a consulta ao storage não segura conexão do pool (regra 80, item 3).
     const arquivo = await new ArquivoDoTitularRepository(this.banco).arquivoCompletoDoUsuario(usuarioId, pedidoId)
     const agora = this.#relogio.agora()
-    if (arquivo === undefined || !this.#vale(arquivo, agora)) throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
+    if (arquivo === undefined || !this.#vale(arquivo, agora)) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
     const resposta = await this.#assinar(arquivo, agora)
     await this.banco.transaction(async (tx) => {
       await registro.gravar(tx, 'titular.arquivo_baixado', {
@@ -431,14 +431,14 @@ export class PrivacidadeService {
    * Confere que o objeto está no armazém e assina a URL de 5 minutos. Armazém fora, ou objeto que a linha diz que existe e o
    * storage não tem: `INDISPONIVEL_TENTE_DE_NOVO`, nunca o erro do SDK nem a chave do objeto. A chave não sai daqui.
    */
-  async #assinar(arquivo: ArquivoLido, agora: Date): Promise<RespostaDoArquivo> {
+  async #assinar(arquivo: ArquivoLido, agora: Date): Promise<ArquivoResponse> {
     try {
       if (!(await this.dependencias.armazem.existe(arquivo.chaveObjeto))) throw new ArmazemIndisponivel()
       const nome = nomeDoArquivoDoTitular(diaDeUso(agora))
       const url = await this.dependencias.armazem.urlDeDownload(arquivo.chaveObjeto, { nome, validadeSegundos: VALIDADE_DA_URL_DO_ARQUIVO_SEGUNDOS })
-      return esquemaRespostaDoArquivo.parse({ url, nome, validaAte: new Date(agora.getTime() + VALIDADE_DA_URL_DO_ARQUIVO_SEGUNDOS * 1_000).toISOString() })
+      return arquivoResponseSchema.parse({ url, nome, validaAte: new Date(agora.getTime() + VALIDADE_DA_URL_DO_ARQUIVO_SEGUNDOS * 1_000).toISOString() })
     } catch (erro) {
-      if (erro instanceof ArmazemIndisponivel) throw new ErroDeDominio(CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO, undefined, TENTE_DE_NOVO_PADRAO_SEGUNDOS)
+      if (erro instanceof ArmazemIndisponivel) throw new ErroDeDominio(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO, undefined, TENTE_DE_NOVO_PADRAO_SEGUNDOS)
       throw erro
     }
   }
@@ -446,18 +446,18 @@ export class PrivacidadeService {
   /** O titular do pedido, ou `NAO_ENCONTRADO` como o inexistente: outra escola, o de quem pediu e o id de ninguém. */
   async #titularAlvo(titulares: TitularesRepository, titularId: string): Promise<TitularAchadoNoBanco> {
     const titular = await titulares.paraOPedido(titularId)
-    if (titular === undefined || (await this.#ehDeQuemPediu(titulares, titular))) throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
+    if (titular === undefined || (await this.#ehDeQuemPediu(titulares, titular))) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
     return titular
   }
 
   /** O pedido do id, ou `NAO_ENCONTRADO` como o inexistente: outra escola, o sobre quem pediu e o id de ninguém. */
   async #pedidoAlvo(pedidos: PedidosRepository, titulares: TitularesRepository, id: string): Promise<PedidoAchado> {
     const pedido = await pedidos.de(id)
-    if (pedido === undefined) throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
+    if (pedido === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
     const { usuarioId } = identidadeDaRequisicao()
     const contaDeQuemPediu = await titulares.contaDeQuemPediu()
     if (pedido.titularId === usuarioId || (pedido.contaDoTitular !== null && pedido.contaDoTitular === contaDeQuemPediu)) {
-      throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
+      throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
     }
     return pedido
   }
@@ -479,7 +479,7 @@ export class PrivacidadeService {
 
   /** O pedido como a coordenação o lê: sem nome de quem registrou, sem matrícula e sem texto. */
   #montarPedido(pedido: PedidoAchado, titulares: ReadonlyMap<string, TitularParaOPedido>): PedidoDoTitular {
-    return esquemaPedidoDoTitular.parse({
+    return pedidoDoTitularSchema.parse({
       id: pedido.id,
       tipo: pedido.tipo,
       solicitante: pedido.solicitante,

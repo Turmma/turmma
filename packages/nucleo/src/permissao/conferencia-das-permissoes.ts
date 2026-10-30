@@ -1,7 +1,7 @@
 import type { OnModuleInit } from '@nestjs/common'
 import { PATH_METADATA } from '@nestjs/common/constants.js'
 import { Reflector, type DiscoveryService } from '@nestjs/core'
-import { ErroDeInvariante } from '@educa/shared'
+import { InvariantException } from '@educa/shared'
 import { METADADO_ENTRADA_DE_OPERACAO, METADADO_ROTA_DE_OPERACAO } from '../identidade/marcadores-de-operacao.js'
 import { METADADO_ROTA_ANONIMA } from '../limite/rota-anonima.decorator.js'
 import { METADADO_PERMITE } from './permite.decorator.js'
@@ -60,7 +60,7 @@ export function rotasSemPermissao(controladores: readonly Controlador[]): string
  * pilha do erro (`resumirErro`), então `rotas` aparece em quem captura o erro (o teste, o Nest com `abortOnError: false`), e
  * não no log do boot real.
  */
-export class RotasSemPermissao extends ErroDeInvariante {
+export class RotasSemPermissao extends InvariantException {
   readonly codigo = 'ROTA_SEM_PERMISSAO'
 
   constructor(readonly rotas: readonly RotaSemDeclaracao[]) {

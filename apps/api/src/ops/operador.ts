@@ -10,7 +10,7 @@ import {
   type Banco,
   type Relogio,
 } from '@educa/nucleo'
-import { AUTOR_DA_ROTINA, CodigoDeErro, TAMANHO_MAXIMO_EMAIL } from '@educa/shared'
+import { AUTOR_DA_ROTINA, ErrorCode, TAMANHO_MAXIMO_EMAIL } from '@educa/shared'
 import { rm } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -154,7 +154,7 @@ export async function criarOperador(
     })
   } catch (erro) {
     // unique_violation: o apelido ou o e-mail já é de outro operador.
-    if (erroDoPostgresEm(erro)?.code === '23505') throw new ErroDeDominio(CodigoDeErro.CONFLITO)
+    if (erroDoPostgresEm(erro)?.code === '23505') throw new ErroDeDominio(ErrorCode.CONFLITO)
     throw erro
   }
 }
@@ -169,7 +169,7 @@ export async function desativarOperador(banco: Banco, operadorDoAmbiente: string
     const repositorio = new OperadorRepository(tx)
     const autor = await autorSobATrava(repositorio, operadorDoAmbiente)
     const alvo = await repositorio.ativoParaAtualizar(apelido)
-    if (alvo === undefined) throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
+    if (alvo === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
     if ((await repositorio.contarAtivos()) <= 1) throw new DesativacaoRecusada('ultimo_ativo')
     if (alvo.apelido === autor) throw new DesativacaoRecusada('a_si_mesmo')
     await repositorio.desativar(alvo.id)
@@ -191,7 +191,7 @@ export async function gerarConviteDeOperador(banco: Banco, operadorDoAmbiente: s
     const repositorio = new OperadorRepository(tx)
     const autor = await autorSobATrava(repositorio, operadorDoAmbiente)
     const alvo = await repositorio.ativoParaAtualizar(apelido)
-    if (alvo === undefined) throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
+    if (alvo === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
     const revogou = await repositorio.revogarConvitePendente(alvo.id)
     const conviteId = await repositorio.criarConvite({ operadorId: alvo.id, tokenHash: hashDoTokenDeConvite(token), expiraEm: expiracaoDoConvite(relogio) })
     if (revogou) await repositorio.auditar({ autor, acao: 'convite_operador.revogado', operadorAlvoId: alvo.id })
@@ -201,7 +201,7 @@ export async function gerarConviteDeOperador(banco: Banco, operadorDoAmbiente: s
 }
 
 /** Texto fixo por código, sem nada do pedido: o apelido, o nome e o e-mail nunca voltam na mensagem. */
-const MENSAGEM_DO_OPERADOR: Partial<Record<CodigoDeErro, string>> = {
+const MENSAGEM_DO_OPERADOR: Partial<Record<ErrorCode, string>> = {
   NAO_ENCONTRADO: 'operador ativo não encontrado',
   CONFLITO: 'já existe operador com este apelido ou e-mail',
 }
@@ -260,7 +260,7 @@ export async function executarOpsOperador(
       return 2
     }
     if (erro instanceof DesativacaoRecusada) {
-      terminal.erro(`${CodigoDeErro.CONFLITO}: ${erro.message}\n`)
+      terminal.erro(`${ErrorCode.CONFLITO}: ${erro.message}\n`)
       return 1
     }
     if (erro instanceof ErroDeDominio && MENSAGEM_DO_OPERADOR[erro.codigo] !== undefined) {
@@ -268,7 +268,7 @@ export async function executarOpsOperador(
       return 1
     }
     // O erro cru do Postgres traz o valor da linha na mensagem e no `detail`: sai só o resumo seguro.
-    terminal.erro(`${CodigoDeErro.ERRO_INTERNO}: ${JSON.stringify(resumirErro(erro))}\n`)
+    terminal.erro(`${ErrorCode.ERRO_INTERNO}: ${JSON.stringify(resumirErro(erro))}\n`)
     return 1
   }
 }

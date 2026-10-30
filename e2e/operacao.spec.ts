@@ -1,5 +1,5 @@
 import type { Locator, Page, Request, Route } from '@playwright/test'
-import { MENSAGENS_DE_ERRO } from '../packages/shared/src/erros/mensagens.ts'
+import { MENSAGENS_DE_ERRO } from '../packages/shared/src/errors/messages.ts'
 import { codigoDoOperador, criarOperadorComSegundoFator as criarOperador, encerrarSessoesDoOperador, removerOperador, type OperadorDeTeste } from './__fixtures__/operacao.ts'
 import { criarEquipeComSenha } from './__fixtures__/sessao.ts'
 import { esperarNovaConversa } from './__fixtures__/casca.ts'

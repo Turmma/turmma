@@ -1,4 +1,4 @@
-import { CodigoDeErro, DIGITOS_DO_CODIGO_MFA, mensagemDoSegundoFator, type RespostaConfigurarMfa } from '@educa/shared'
+import { ErrorCode, DIGITOS_DO_CODIGO_MFA, mensagemDoSegundoFator, type ConfigurarMfaResponse } from '@educa/shared'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link } from 'wouter'
 import { ErroDaApi, mensagemDoErro } from '../api/cliente'
@@ -23,12 +23,12 @@ import { SemDesafio } from './SemDesafio'
  */
 export function ConfigurarMfa() {
   const temDesafio = desafioDaEtapa('configurar_mfa') !== undefined
-  const [segredo, definirSegredo] = useState<RespostaConfigurarMfa | undefined>(undefined)
+  const [segredo, definirSegredo] = useState<ConfigurarMfaResponse | undefined>(undefined)
   const [falhaDoPreparo, definirFalhaDoPreparo] = useState<unknown>(undefined)
   const [codigosDeRecuperacao, definirCodigosDeRecuperacao] = useState<readonly string[] | undefined>(undefined)
   const [tentativa, definirTentativa] = useState(0)
   /** O pedido de segredo em voo, preso à tentativa que o motivou. Ver o efeito abaixo. */
-  const pedido = useRef<{ tentativa: number; promessa: Promise<RespostaConfigurarMfa> } | undefined>(undefined)
+  const pedido = useRef<{ tentativa: number; promessa: Promise<ConfigurarMfaResponse> } | undefined>(undefined)
 
   // Cada chamada gera um segredo novo e sobrescreve o anterior na conta; por isso a tela pede um só, e o "tentar de
   // novo" é uma escolha da pessoa, nunca uma repetição automática que trocaria o segredo já copiado.
@@ -92,7 +92,7 @@ export function ConfigurarMfa() {
 }
 
 /** O segredo em texto, o QR e o código que prova que o aplicativo guardou o segredo. */
-function Segredo({ segredo, aoAtivar }: { segredo: RespostaConfigurarMfa; aoAtivar: (codigos: readonly string[]) => void }) {
+function Segredo({ segredo, aoAtivar }: { segredo: ConfigurarMfaResponse; aoAtivar: (codigos: readonly string[]) => void }) {
   const [codigo, definirCodigo] = useState('')
   const [ativando, definirAtivando] = useState(false)
   const [falha, definirFalha] = useState<unknown>(undefined)
@@ -141,7 +141,7 @@ function Segredo({ segredo, aoAtivar }: { segredo: RespostaConfigurarMfa; aoAtiv
         />
         {falha !== undefined && (
           <p role="alert" className="rounded-controle border border-erro bg-erro-cx p-4 text-erro">
-            {falha instanceof ErroDaApi ? mensagemDoSegundoFator(falha.codigo, falha.esperaSegundos) : mensagemDoSegundoFator(CodigoDeErro.ERRO_INTERNO)}
+            {falha instanceof ErroDaApi ? mensagemDoSegundoFator(falha.codigo, falha.esperaSegundos) : mensagemDoSegundoFator(ErrorCode.ERRO_INTERNO)}
           </p>
         )}
         <Botao type="submit" disabled={ativando} className="w-full">

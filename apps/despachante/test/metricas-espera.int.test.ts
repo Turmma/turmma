@@ -11,7 +11,7 @@ import {
   type MedicaoDeFalhos,
   type MedicaoDePendentes,
 } from '@educa/nucleo'
-import type { Fila } from '@educa/shared'
+import type { QueueName } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { compose, PROCESSOS_DA_FILA } from '../../../tools/testes/compose.ts'
@@ -63,7 +63,7 @@ describe('medição das filas por escola, no despachante', () => {
   }, 60_000)
 
   /** Enfileira e recua a criação, para a espera ter um valor conhecido no relógio do banco. */
-  async function job(escolaId: string, fila: Fila, { naoUrgente = false, haSegundos = 0, estado }: { naoUrgente?: boolean; haSegundos?: number; estado?: string } = {}): Promise<string> {
+  async function job(escolaId: string, fila: QueueName, { naoUrgente = false, haSegundos = 0, estado }: { naoUrgente?: boolean; haSegundos?: number; estado?: string } = {}): Promise<string> {
     const id = await bancada.enfileirar(escolaId, { fila, naoUrgente })
     await bancada.pool.query(`update job_registro set criado_em = now() - make_interval(secs => $2), estado = coalesce($3, estado) where id = $1`, [id, haSegundos, estado ?? null])
     return id

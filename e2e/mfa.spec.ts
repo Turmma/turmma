@@ -1,4 +1,4 @@
-import { AVISO_DO_SEGUNDO_FATOR_CONSUMIDO, mensagemDoSegundoFator } from '../packages/shared/src/erros/mensagens.ts'
+import { AVISO_DO_SEGUNDO_FATOR_CONSUMIDO, mensagemDoSegundoFator } from '../packages/shared/src/errors/messages.ts'
 import { QUANTIDADE_DE_CODIGOS_DE_RECUPERACAO } from '../packages/shared/src/sessao/mfa.ts'
 import { entrarComoCoordenacaoNaMesmaAba, esperarPainel } from './__fixtures__/casca.ts'
 import { expect, test } from './__fixtures__/perfis.ts'

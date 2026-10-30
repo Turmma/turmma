@@ -1,4 +1,4 @@
-import { esquemaConteudoDoResumoDoAnalista, type AlertaDoAnalista, type ConteudoDoResumoDoAnalista, type HipoteseDoAnalista, type RecorteDoAnalista } from '@educa/shared'
+import { conteudoDoResumoDoAnalistaSchema, type AlertaDoAnalista, type ConteudoDoResumoDoAnalista, type HipoteseDoAnalista, type RecorteDoAnalista } from '@educa/shared'
 import { isDeepStrictEqual } from 'node:util'
 import { z } from 'zod'
 import { dadoEmJson } from '../material.js'
@@ -7,13 +7,13 @@ import { definirTarefa } from '../tarefa.js'
 
 /**
  * O Analista recebe **só agregados**: o período, os números da escola e os recortes de série e disciplina que o
- * domínio já montou, nas formas do contrato (`esquemaConteudoDoResumoDoAnalista`, em `@educa/shared`). O recorte com
+ * domínio já montou, nas formas do contrato (`conteudoDoResumoDoAnalistaSchema`, em `@educa/shared`). O recorte com
  * menos de dois professores nem cabe no schema (D45): entra só em `recortesNominais`, sem número. Não há professor,
  * turma nem aluno na entrada; o que não entra não tem como sair.
  *
  * O limiar do alerta é de quem chama, nunca constante daqui (os indicadores ainda são decisão em aberto).
  */
-export const esquemaEntradaDoAnalista = esquemaConteudoDoResumoDoAnalista.omit({ alertas: true }).extend({
+export const esquemaEntradaDoAnalista = conteudoDoResumoDoAnalistaSchema.omit({ alertas: true }).extend({
   /** Abaixo deste acerto a habilidade vira alerta. */
   limiarDeAcertoBaixoPercentual: z.number().min(0).max(100),
 })
@@ -24,7 +24,7 @@ export type EntradaDoAnalista = z.infer<typeof esquemaEntradaDoAnalista>
  * O que a IA acrescenta são os alertas, e neles só escolhe o tipo e as hipóteses, de listas fechadas; a frase quem
  * monta é a tela (`docs/mvp-contratos.md`, decisão 14). Não existe onde escrever sobre uma pessoa.
  */
-export const esquemaSaidaDoAnalista = esquemaConteudoDoResumoDoAnalista
+export const esquemaSaidaDoAnalista = conteudoDoResumoDoAnalistaSchema
 export type SaidaDoAnalista = ConteudoDoResumoDoAnalista
 
 /** O acerto de uma habilidade no recorte, em percentual com uma casa: é o `valor` do alerta. */

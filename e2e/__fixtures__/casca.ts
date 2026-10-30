@@ -1,5 +1,5 @@
 import type { Locator, Page } from '@playwright/test'
-import { mensagemDoSegundoFator } from '../../packages/shared/src/erros/mensagens.ts'
+import { mensagemDoSegundoFator } from '../../packages/shared/src/errors/messages.ts'
 import { carregarSemRedeLenta, expect } from './perfis.ts'
 import { campoCodigo } from './segundo-fator.ts'
 import { codigoDoAutenticador, criarEquipeComSenha, type ConviteDeCoordenadorDeTeste, type EquipeDeTeste } from './sessao.ts'

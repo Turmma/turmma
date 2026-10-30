@@ -1,7 +1,7 @@
 import {
-  CodigoDeErro,
-  esquemaRespostaListaDeMateriais,
-  esquemaRespostaMaterial,
+  ErrorCode,
+  listaDeMateriaisResponseSchema,
+  materialResponseSchema,
   type LicencaDeclarada,
   type Material,
   type TitularidadeDeMaterial,
@@ -35,7 +35,7 @@ export function intervaloDaLista(lista: ListaDaEstrutura<Pick<Material, 'estado'
  */
 export const consultaMateriais = queryOptions({
   queryKey: [...CHAVE_DO_MATERIAL, 'lista'],
-  queryFn: ({ signal }) => lerPaginas<Material>(CAMINHO, esquemaRespostaListaDeMateriais, signal),
+  queryFn: ({ signal }) => lerPaginas<Material>(CAMINHO, listaDeMateriaisResponseSchema, signal),
   refetchInterval: (consulta) => intervaloDaLista(consulta.state.data),
 })
 
@@ -49,21 +49,21 @@ export interface CamposDoEnvioDeMaterial {
   readonly declaracao: boolean
 }
 
-function ehCodigoDeErro(valor: unknown): valor is CodigoDeErro {
-  return typeof valor === 'string' && Object.hasOwn(CodigoDeErro, valor)
+function ehCodigoDeErro(valor: unknown): valor is ErrorCode {
+  return typeof valor === 'string' && Object.hasOwn(ErrorCode, valor)
 }
 
 /** O código do envelope `{ erro: { codigo } }`; sem envelope reconhecível, o que o status permite deduzir. */
-function codigoDaResposta(corpo: unknown, status: number): CodigoDeErro {
+function codigoDaResposta(corpo: unknown, status: number): ErrorCode {
   if (typeof corpo === 'object' && corpo !== null && 'erro' in corpo) {
     const { erro } = corpo
     if (typeof erro === 'object' && erro !== null && 'codigo' in erro && ehCodigoDeErro(erro.codigo)) return erro.codigo
   }
-  if (status === 401) return CodigoDeErro.NAO_AUTENTICADO
-  if (status === 413) return CodigoDeErro.ENTRADA_INVALIDA
-  if (status === 429) return CodigoDeErro.LIMITE_EXCEDIDO
-  if (status === 502 || status === 503 || status === 504) return CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO
-  return CodigoDeErro.ERRO_INTERNO
+  if (status === 401) return ErrorCode.NAO_AUTENTICADO
+  if (status === 413) return ErrorCode.ENTRADA_INVALIDA
+  if (status === 429) return ErrorCode.LIMITE_EXCEDIDO
+  if (status === 502 || status === 503 || status === 504) return ErrorCode.INDISPONIVEL_TENTE_DE_NOVO
+  return ErrorCode.ERRO_INTERNO
 }
 
 /**
@@ -76,9 +76,9 @@ function codigoDaResposta(corpo: unknown, status: number): CodigoDeErro {
  * envio é o que ficou em memória depois dela, no cabeçalho, nunca na URL (regra 50, item 7).
  */
 export async function enviarMaterial(campos: CamposDoEnvioDeMaterial, arquivo: File | undefined): Promise<Material> {
-  await buscarComSessao(`${CAMINHO}?limite=1`, esquemaRespostaListaDeMateriais)
+  await buscarComSessao(`${CAMINHO}?limite=1`, listaDeMateriaisResponseSchema)
   const token = tokenDeAcesso()
-  if (token === undefined) throw new ErroDaApi(CodigoDeErro.NAO_AUTENTICADO)
+  if (token === undefined) throw new ErroDaApi(ErrorCode.NAO_AUTENTICADO)
   const formulario = new FormData()
   formulario.append('titulo', campos.titulo)
   formulario.append('disciplinaId', campos.disciplinaId)
@@ -92,7 +92,7 @@ export async function enviarMaterial(campos: CamposDoEnvioDeMaterial, arquivo: F
   try {
     resposta = await fetch(CAMINHO, { method: 'POST', cache: 'no-store', headers: { Accept: 'application/json', Authorization: `Bearer ${token}` }, body: formulario })
   } catch {
-    throw new ErroDaApi(CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO)
+    throw new ErroDaApi(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO)
   }
   let corpo: unknown
   try {
@@ -104,8 +104,8 @@ export async function enviarMaterial(campos: CamposDoEnvioDeMaterial, arquivo: F
     const espera = Number(resposta.headers.get('Retry-After'))
     throw new ErroDaApi(codigoDaResposta(corpo, resposta.status), Number.isFinite(espera) && espera > 0 ? espera : undefined)
   }
-  const lido = esquemaRespostaMaterial.safeParse(corpo)
-  if (!lido.success) throw new ErroDaApi(CodigoDeErro.ERRO_INTERNO)
+  const lido = materialResponseSchema.safeParse(corpo)
+  if (!lido.success) throw new ErroDaApi(ErrorCode.ERRO_INTERNO)
   return lido.data
 }
 

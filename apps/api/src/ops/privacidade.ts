@@ -1,5 +1,5 @@
 import { ConfiguracaoInvalida, ErroDeDominio, executarNoContexto, IncidenteDaEscolaRepository, resumirErro, SuboperadorDaEscolaRepository, type Banco } from '@educa/nucleo'
-import { CodigoDeErro } from '@educa/shared'
+import { ErrorCode } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { pathToFileURL } from 'node:url'
 import { parseArgs } from 'node:util'
@@ -63,7 +63,7 @@ export function consultarPrivacidade(banco: Banco, autor: ConferenciaDoAutor, pe
     banco.transaction(async (tx) => {
       await autor(tx)
       return executarNoContexto({ requisicaoId, escolaId: pedido.escolaId }, async () => {
-        if ((await new AcessoDaEscolaRepository(tx).nome()) === undefined) throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
+        if ((await new AcessoDaEscolaRepository(tx).nome()) === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
         const { expurgo, ...atendimento } = await new ContagensDePrivacidadeRepository(tx).doAtendimento()
         const suboperadores = await new SuboperadorDaEscolaRepository(tx).daEscola()
         const incidentes = await new IncidenteDaEscolaRepository(tx).daEscola()
@@ -106,12 +106,12 @@ export async function executarOpsPrivacidade(
       terminal.erro(`${erro.message}\n`)
       return 2
     }
-    if (erro instanceof ErroDeDominio && erro.codigo === CodigoDeErro.NAO_ENCONTRADO) {
-      terminal.erro(`${CodigoDeErro.NAO_ENCONTRADO}: escola não encontrada\n`)
+    if (erro instanceof ErroDeDominio && erro.codigo === ErrorCode.NAO_ENCONTRADO) {
+      terminal.erro(`${ErrorCode.NAO_ENCONTRADO}: escola não encontrada\n`)
       return 1
     }
     // O erro cru do Postgres traz o valor da linha na mensagem e no `detail`: sai só o resumo seguro.
-    terminal.erro(`${CodigoDeErro.ERRO_INTERNO}: ${JSON.stringify(resumirErro(erro))}\n`)
+    terminal.erro(`${ErrorCode.ERRO_INTERNO}: ${JSON.stringify(resumirErro(erro))}\n`)
     return 1
   }
 }

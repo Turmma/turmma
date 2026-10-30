@@ -1,4 +1,4 @@
-import { CodigoDeErro } from '@educa/shared'
+import { ErrorCode } from '@educa/shared'
 import { describe, expect, it } from 'vitest'
 import { ErroDaApi } from '../api/cliente'
 import { enviarComReenvio, ESPERA_SEM_RETRY_AFTER_SEGUNDOS, esperaDoReenvio, MAXIMO_DE_REENVIOS, VARIACAO_MAXIMA_MS, type OpcoesDoReenvio } from './reenvio-da-sala'
@@ -9,7 +9,7 @@ import { enviarComReenvio, ESPERA_SEM_RETRY_AFTER_SEGUNDOS, esperaDoReenvio, MAX
  * `e2e/turma-publica.spec.ts`.
  */
 
-const cheio = (segundos?: number) => new ErroDaApi(CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO, segundos)
+const cheio = (segundos?: number) => new ErroDaApi(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO, segundos)
 
 /** As opções com um relógio de mentira: guarda cada espera pedida, e quantas vezes a tela foi avisada. */
 function relogio(aleatorios: readonly number[] = [0.5]) {
@@ -88,7 +88,7 @@ describe('enviarComReenvio', () => {
   })
 
   it('a recusa e o limite não se repetem: voltam na hora, com o erro', async () => {
-    for (const erro of [new ErroDaApi(CodigoDeErro.REIVINDICACAO_RECUSADA), new ErroDaApi(CodigoDeErro.LIMITE_EXCEDIDO, 600), new ErroDaApi(CodigoDeErro.NAO_ENCONTRADO)]) {
+    for (const erro of [new ErroDaApi(ErrorCode.REIVINDICACAO_RECUSADA), new ErroDaApi(ErrorCode.LIMITE_EXCEDIDO, 600), new ErroDaApi(ErrorCode.NAO_ENCONTRADO)]) {
       const { opcoes, esperas } = relogio()
       const { enviar, pedidos } = servidor([erro], { chaveEnvio: 'chave-1' })
       expect(await enviarComReenvio(enviar, opcoes)).toEqual({ tipo: 'falhou', erro })
@@ -98,7 +98,7 @@ describe('enviarComReenvio', () => {
   })
 
   it('o 503 depois de um reenvio que achou a recusa para na recusa', async () => {
-    const recusa = new ErroDaApi(CodigoDeErro.REIVINDICACAO_RECUSADA)
+    const recusa = new ErroDaApi(ErrorCode.REIVINDICACAO_RECUSADA)
     const { opcoes } = relogio()
     const { enviar, pedidos } = servidor([cheio(1), recusa], { chaveEnvio: 'chave-1' })
     expect(await enviarComReenvio(enviar, opcoes)).toEqual({ tipo: 'falhou', erro: recusa })
@@ -119,7 +119,7 @@ describe('enviarComReenvio', () => {
     expect(await enviarComReenvio(primeiro.enviar, opcoes)).toEqual({ tipo: 'descartado' })
     expect(primeiro.pedidos).toHaveLength(1)
 
-    for (const resposta of ['ok', cheio(1), new ErroDaApi(CodigoDeErro.REIVINDICACAO_RECUSADA)] as const) {
+    for (const resposta of ['ok', cheio(1), new ErroDaApi(ErrorCode.REIVINDICACAO_RECUSADA)] as const) {
       const noAr = relogio()
       noAr.largar()
       const segundo = servidor([resposta], { chaveEnvio: 'chave-2' })

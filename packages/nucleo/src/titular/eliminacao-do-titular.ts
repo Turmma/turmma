@@ -1,4 +1,4 @@
-import { AUTOR_DA_ROTINA, ErroDeInvariante } from '@educa/shared'
+import { AUTOR_DA_ROTINA, InvariantException } from '@educa/shared'
 import { RegistroDeAuditoria } from '../auditoria/registro-de-auditoria.js'
 import { CicloDeVidaService, type AutoriaDoCicloDeVida } from '../ciclo-de-vida/ciclo-de-vida.service.js'
 import { contextoAtual, executarNoContexto } from '../contexto/contexto.js'
@@ -103,7 +103,7 @@ export class EliminacaoDoTitular {
           await registro.gravar(tx, 'pedido.concluido', { entidadeId: outro.id, antes: { estado: outro.estado }, depois: { estado: 'concluido' }, ...autoria })
         }
         // Sob a trava do pedido, `agendado` não muda: se mesmo assim não concluir, a transação inteira (a pessoa, a anonimização) desfaz.
-        if (!(await gravacao.concluir(travado.id, { nomeTrocado, homonimo }))) throw new ErroDeInvariante('pedido de eliminação não concluído sob a trava')
+        if (!(await gravacao.concluir(travado.id, { nomeTrocado, homonimo }))) throw new InvariantException('pedido de eliminação não concluído sob a trava')
         await registro.gravar(tx, 'pedido.concluido', { entidadeId: travado.id, antes: { estado: 'agendado' }, depois: { estado: 'concluido' }, ...autoria })
         return 'concluida' as const
       })
@@ -116,7 +116,7 @@ export class EliminacaoDoTitular {
    */
   async #comAutor<T>(usuarioId: string | undefined, acao: (autoria: AutoriaDoCicloDeVida) => Promise<T>): Promise<T> {
     const contexto = contextoAtual()
-    if (contexto === undefined) throw new ErroDeInvariante('eliminação do titular fora de um contexto')
+    if (contexto === undefined) throw new InvariantException('eliminação do titular fora de um contexto')
     if (usuarioId === undefined) return acao({ autorOperador: AUTOR_DA_ROTINA })
     return executarNoContexto({ ...contexto, usuarioId }, () => acao({}))
   }

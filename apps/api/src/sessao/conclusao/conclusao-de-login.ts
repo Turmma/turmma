@@ -1,5 +1,5 @@
 import { contextoAtual, DURACAO_DA_SESSAO_HORAS, ErroDeDominio, executarNoContexto, type Ambiente, type Banco, type EmissorDeToken, type MetodoDeSessao } from '@educa/nucleo'
-import { CodigoDeErro, ErroDeInvariante, type EtapaComDesafio, type RespostaLogin } from '@educa/shared'
+import { ErrorCode, InvariantException, type EtapaComDesafio, type LoginResponse } from '@educa/shared'
 import { randomBytes, randomUUID } from 'node:crypto'
 import { MAX_AGE_DO_COOKIE_DISPOSITIVO_SEGUNDOS, type CookieDeDispositivo } from '../../credencial/cookie-dispositivo.js'
 import { COOKIE_DISPOSITIVO, COOKIE_SESSAO, lerCookie, serializarCookie } from '../../credencial/cookies.js'
@@ -54,7 +54,7 @@ export class ConclusaoDeLogin {
       return { resposta: { etapa, desafio }, cookies: [] }
     }
     const [unico] = credencial.usuarios
-    if (unico === undefined) throw new ErroDeInvariante('etapa pronta sem usuário')
+    if (unico === undefined) throw new InvariantException('etapa pronta sem usuário')
     return this.#pronta(unico, credencial.contaId, 'email', credencial.email, origem)
   }
 
@@ -105,7 +105,7 @@ export class ConclusaoDeLogin {
     troca?: SessaoDeOrigemDaTroca,
   ): Promise<ResultadoDoLogin> {
     const { token, expiraEm, refresh } = await this.#criarSessao(usuario, contaId, metodo, origem.ip, troca)
-    const resposta: RespostaLogin = { etapa: 'pronta', token, expiraEm: expiraEm.toISOString() }
+    const resposta: LoginResponse = { etapa: 'pronta', token, expiraEm: expiraEm.toISOString() }
     const dispositivo =
       identificadorDoDispositivo === undefined
         ? []
@@ -158,12 +158,12 @@ export class ConclusaoDeLogin {
               await new RegistroDeAcessoRepository(tx).gravar('saida', usuarioDaOrigem, ipParaRegistro(ip))
               return true
             }))
-          if (!saiu) throw new ErroDeDominio(CodigoDeErro.NAO_AUTENTICADO)
+          if (!saiu) throw new ErroDeDominio(ErrorCode.NAO_AUTENTICADO)
         }
         const [criada] = await new CriacaoDeSessaoRepository(tx).criarSessoes([
           { usuarioId: usuario.usuarioId, contaId, metodo, refreshHash: hashDoRefresh(refresh), duracaoHoras: DURACAO_DA_SESSAO_HORAS },
         ])
-        if (criada === undefined) throw new ErroDeInvariante('sessão não criada')
+        if (criada === undefined) throw new InvariantException('sessão não criada')
         await new RegistroDeAcessoRepository(tx).gravar('login', usuario.usuarioId, ipParaRegistro(ip))
         return criada.id
       }),

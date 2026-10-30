@@ -1,8 +1,8 @@
 import { z } from 'zod'
 import { TIPOS_DE_ADAPTACAO } from '../assistente/conteudo.js'
-import { esquemaMensagemDoAgente, esquemaParametrosDeFerramenta, RESPOSTAS_A_PROPOSTA } from '../assistente/conversa.js'
-import { CodigoDeErro } from '../erros/codigo-de-erro.js'
-import { esquemaMensagemDoTutorAoAluno } from '../tutor/tutor.js'
+import { mensagemDoAgenteSchema, parametrosDeFerramentaSchema, RESPOSTAS_A_PROPOSTA } from '../assistente/conversa.js'
+import { ErrorCode } from '../errors/error-code.js'
+import { mensagemDoTutorAoAlunoSchema } from '../tutor/tutor.js'
 import type { ChaveDeFuncao } from './funcoes.js'
 
 /**
@@ -72,8 +72,8 @@ export type EstadoDeConsumoDeIa = (typeof ESTADOS_DE_CONSUMO_DE_IA)[number]
 export const FORMATO_DO_CODIGO_DE_ERRO = /^[A-Z][A-Z0-9_]{2,63}$/
 
 /** Resposta 202 de todo `POST` que dispara IA: só o id da execução. O reenvio com a mesma `chaveEnvio` devolve o mesmo id. */
-export const esquemaRespostaExecucaoAceita = z.strictObject({ execucaoId: z.uuid() })
-export type RespostaExecucaoAceita = z.infer<typeof esquemaRespostaExecucaoAceita>
+export const execucaoAceitaResponseSchema = z.strictObject({ execucaoId: z.uuid() })
+export type ExecucaoAceitaResponse = z.infer<typeof execucaoAceitaResponseSchema>
 
 const tiposDeAdaptacao = z.array(z.enum(TIPOS_DE_ADAPTACAO)).min(1).max(TIPOS_DE_ADAPTACAO.length)
 
@@ -82,31 +82,31 @@ const tiposDeAdaptacao = z.array(z.enum(TIPOS_DE_ADAPTACAO)).min(1).max(TIPOS_DE
  * do professor e a do aluno ficam em `mensagem_agente` e `mensagem_tutor`, ligadas pela execução, e **não se repetem
  * aqui**. Os ids são entrada, e não vínculo: quem executa os relê pelo repository, no escopo da escola da execução.
  */
-export const esquemaEntradaDaExecucao = z.discriminatedUnion('tarefa', [
+export const execucaoInputSchema = z.discriminatedUnion('tarefa', [
   // `resposta` é a marca de lista fechada de quem escolheu "só conversar" na proposta (D18): nunca o texto da mensagem.
   z.strictObject({ tarefa: z.literal('propor_ferramenta'), resposta: z.enum(RESPOSTAS_A_PROPOSTA).optional() }),
-  z.strictObject({ tarefa: z.literal('gerar_atividade_objetiva'), parametros: esquemaParametrosDeFerramenta }),
-  z.strictObject({ tarefa: z.literal('gerar_plano_de_aula'), parametros: esquemaParametrosDeFerramenta }),
+  z.strictObject({ tarefa: z.literal('gerar_atividade_objetiva'), parametros: parametrosDeFerramentaSchema }),
+  z.strictObject({ tarefa: z.literal('gerar_plano_de_aula'), parametros: parametrosDeFerramentaSchema }),
   z.strictObject({ tarefa: z.literal('adaptar_atividade'), artefatoId: z.uuid(), tipos: tiposDeAdaptacao, tempoExtraPercentual: z.number().int().min(10).max(100).optional() }),
   z.strictObject({ tarefa: z.literal('turno_do_tutor') }),
   z.strictObject({ tarefa: z.literal('relatorio_da_correcao'), atividadeAplicadaId: z.uuid() }),
   z.strictObject({ tarefa: z.literal('resumo_do_analista') }),
 ])
-export type EntradaDaExecucao = z.infer<typeof esquemaEntradaDaExecucao>
+export type ExecucaoInput = z.infer<typeof execucaoInputSchema>
 
 /**
  * O que se guarda em `execucao_agente.resultado`, e o que o trabalho da execução devolve ao `ExecutorDeAgente`: **só a
  * referência** ao que ela gravou. A mensagem do Assistente e a do Tutor ficam em `mensagem_agente` e `mensagem_tutor`, e
  * o texto delas não é copiado para a execução: a conversa do aluno tem um lugar só, com a retenção dela.
  */
-export const esquemaResultadoGravado = z.discriminatedUnion('tipo', [
+export const resultadoGravadoSchema = z.discriminatedUnion('tipo', [
   z.strictObject({ tipo: z.literal('mensagem'), mensagemId: z.uuid() }),
   z.strictObject({ tipo: z.literal('artefato'), artefatoId: z.uuid(), entregaId: z.uuid().nullable() }),
   z.strictObject({ tipo: z.literal('mensagem_do_tutor'), mensagemId: z.uuid() }),
   z.strictObject({ tipo: z.literal('lote_de_correcao'), entregaId: z.uuid() }),
   z.strictObject({ tipo: z.literal('resumo_do_analista'), resumoId: z.uuid() }),
 ])
-export type ResultadoGravado = z.infer<typeof esquemaResultadoGravado>
+export type ResultadoGravado = z.infer<typeof resultadoGravadoSchema>
 
 /**
  * O resultado da execução concluída, como a tela o recebe. A API o monta a partir do `resultado` gravado, lendo a
@@ -118,29 +118,29 @@ export type ResultadoGravado = z.infer<typeof esquemaResultadoGravado>
  * - `lote_de_correcao`: a entrega do lote, pendente, que o professor abre em `GET /v1/atividades-aplicadas/:id/correcao`.
  * - `resumo_do_analista`: o resumo gerado, que a coordenação lê em `GET /v1/analista/resumo`.
  */
-export const esquemaResultadoDaExecucao = z.discriminatedUnion('tipo', [
-  z.strictObject({ tipo: z.literal('mensagem'), mensagem: esquemaMensagemDoAgente }),
+export const resultadoDaExecucaoSchema = z.discriminatedUnion('tipo', [
+  z.strictObject({ tipo: z.literal('mensagem'), mensagem: mensagemDoAgenteSchema }),
   z.strictObject({ tipo: z.literal('artefato'), artefatoId: z.uuid(), entregaId: z.uuid().nullable() }),
-  z.strictObject({ tipo: z.literal('mensagem_do_tutor'), mensagem: esquemaMensagemDoTutorAoAluno }),
+  z.strictObject({ tipo: z.literal('mensagem_do_tutor'), mensagem: mensagemDoTutorAoAlunoSchema }),
   z.strictObject({ tipo: z.literal('lote_de_correcao'), entregaId: z.uuid() }),
   z.strictObject({ tipo: z.literal('resumo_do_analista'), resumoId: z.uuid() }),
 ])
-export type ResultadoDaExecucao = z.infer<typeof esquemaResultadoDaExecucao>
+export type ResultadoDaExecucao = z.infer<typeof resultadoDaExecucaoSchema>
 
 /**
  * Resposta de `GET /v1/execucoes/:id`, só para quem pediu a execução (a de outra pessoa, mesmo da mesma escola, responde
- * como inexistente). `resultado` só existe na `concluida`, e `erro`, só na `falhou`. `erro` é um `CodigoDeErro`: a tela
+ * como inexistente). `resultado` só existe na `concluida`, e `erro`, só na `falhou`. `erro` é um `ErrorCode`: a tela
  * mostra a mensagem do catálogo (`MENSAGENS_DE_ERRO`), e o aluno nunca vê erro cru (regra 80, item 4). Nunca a entrada, o
  * prompt, o modelo nem o custo.
  */
-export const esquemaRespostaExecucao = z
+export const execucaoResponseSchema = z
   .strictObject({
     id: z.uuid(),
     tarefa: z.enum(TAREFAS_DE_IA),
     estado: z.enum(ESTADOS_DE_EXECUCAO),
-    resultado: esquemaResultadoDaExecucao.nullable(),
-    erro: z.enum(CodigoDeErro).nullable(),
+    resultado: resultadoDaExecucaoSchema.nullable(),
+    erro: z.enum(ErrorCode).nullable(),
   })
   .refine((execucao) => (execucao.estado === 'concluida') === (execucao.resultado !== null), { path: ['resultado'], message: 'resultado só na execução concluída' })
   .refine((execucao) => (execucao.estado === 'falhou') === (execucao.erro !== null), { path: ['erro'], message: 'erro só na execução que falhou' })
-export type RespostaExecucao = z.infer<typeof esquemaRespostaExecucao>
+export type ExecucaoResponse = z.infer<typeof execucaoResponseSchema>

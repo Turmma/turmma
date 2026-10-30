@@ -1,6 +1,6 @@
 import 'reflect-metadata'
 import { contextoAtual, criarLogger, EmissorDeTokenDeOperador, METADADO_ROTA_DE_OPERACAO, type Banco } from '@educa/nucleo'
-import { CodigoDeErro, esquemaRespostaEuDoOperador, MENSAGENS_DE_ERRO } from '@educa/shared'
+import { ErrorCode, euDoOperadorResponseSchema, MENSAGENS_DE_ERRO } from '@educa/shared'
 import { Controller, Get, Inject, Module, SetMetadata, type DynamicModule, type INestApplication, type Type } from '@nestjs/common'
 import { DiscoveryService, NestFactory } from '@nestjs/core'
 import { randomUUID } from 'node:crypto'
@@ -52,7 +52,7 @@ function semRequisicaoId(corpo: unknown): unknown {
   return { erro }
 }
 
-function esperarErro(resposta: Resposta, status: number, codigo: CodigoDeErro): void {
+function esperarErro(resposta: Resposta, status: number, codigo: ErrorCode): void {
   expect(resposta.status).toBe(status)
   expect(resposta.corpo).toEqual({ erro: { codigo, mensagem: MENSAGENS_DE_ERRO[codigo], requisicaoId: expect.stringMatching(UUID) } })
 }
@@ -145,13 +145,13 @@ describe('área da operação: as cercas entre a operação e a escola (tarefa 4
       const resposta = await eu(url, sessao.token)
       expect(resposta.status).toBe(200)
       expect(resposta.corpo).toStrictEqual({ apelido: sessao.apelido, nome: sessao.nome })
-      expect(esquemaRespostaEuDoOperador.safeParse(resposta.corpo).success).toBe(true)
+      expect(euDoOperadorResponseSchema.safeParse(resposta.corpo).success).toBe(true)
       expect(resposta.cacheControl).toBe('no-store')
     })
 
     it('o contrato é estrito: campo a mais não passa', () => {
-      expect(esquemaRespostaEuDoOperador.safeParse({ apelido: 'ana-ops', nome: 'Ana', email: 'ana@turmma.invalid' }).success).toBe(false)
-      expect(esquemaRespostaEuDoOperador.safeParse({ apelido: 'ana-ops', nome: 'Ana', id: randomUUID() }).success).toBe(false)
+      expect(euDoOperadorResponseSchema.safeParse({ apelido: 'ana-ops', nome: 'Ana', email: 'ana@turmma.invalid' }).success).toBe(false)
+      expect(euDoOperadorResponseSchema.safeParse({ apelido: 'ana-ops', nome: 'Ana', id: randomUUID() }).success).toBe(false)
     })
   })
 
@@ -278,7 +278,7 @@ describe('área da operação: as cercas entre a operação e a escola (tarefa 4
       let erro = ''
       const codigo = await executarOpsOperador(['desativar', '--apelido', desativado.apelido], { ...ambienteDeTeste, OPERADOR: quemDesativa.apelido }, { saida: () => undefined, erro: (texto) => (erro += texto) })
       expect({ codigo, erro }).toEqual({ codigo: 0, erro: '' })
-      esperarErro(await eu(url, desativado.token), 401, CodigoDeErro.SESSAO_ENCERRADA)
+      esperarErro(await eu(url, desativado.token), 401, ErrorCode.SESSAO_ENCERRADA)
       expect((await eu(url, quemDesativa.token)).status).toBe(200)
     })
 
@@ -289,7 +289,7 @@ describe('área da operação: as cercas entre a operação e a escola (tarefa 4
       await operadores.pool.query(`update sessao_operador set criada_em = now() - interval '9 hours', expira_em = now() - interval '1 second' where id = $1`, [oitoHoras.sessaoId])
       await operadores.pool.query(`update sessao_operador set ultimo_uso_em = now() - interval '31 minutes' where id = $1`, [parada.sessaoId])
       await operadores.pool.query(`update sessao_operador set ultimo_uso_em = now() - interval '29 minutes' where id = $1`, [quase.sessaoId])
-      for (const sessao of [encerrada, oitoHoras, parada]) esperarErro(await eu(url, sessao.token), 401, CodigoDeErro.SESSAO_ENCERRADA)
+      for (const sessao of [encerrada, oitoHoras, parada]) esperarErro(await eu(url, sessao.token), 401, ErrorCode.SESSAO_ENCERRADA)
       expect((await eu(url, quase.token)).status).toBe(200)
     })
 
@@ -300,17 +300,17 @@ describe('área da operação: as cercas entre a operação e a escola (tarefa 4
       expect((await eu(url, outro.token)).status).toBe(200)
       // Mesmo emissor e mesma chave, com o `sub` de um operador e o `sid` do outro.
       const misturado = (await new EmissorDeTokenDeOperador(CHAVE).emitir({ operadorId: outro.operadorId, sessaoId: dono.sessaoId })).token
-      esperarErro(await eu(url, misturado), 401, CodigoDeErro.SESSAO_ENCERRADA)
+      esperarErro(await eu(url, misturado), 401, ErrorCode.SESSAO_ENCERRADA)
     })
 
     it('borda: acesso de 10 min vencido com a sessão viva dá ACESSO_VENCIDO, e não SESSAO_ENCERRADA; com a sessão encerrada, SESSAO_ENCERRADA', async () => {
       const sessao = await operadores.operadorComSessao()
       const vencido = await sessao.tokenEm(new Date(Date.now() - 11 * 60_000))
-      esperarErro(await eu(url, vencido), 401, CodigoDeErro.ACESSO_VENCIDO)
+      esperarErro(await eu(url, vencido), 401, ErrorCode.ACESSO_VENCIDO)
       // A sessão continua viva: o token novo entra.
       expect((await eu(url, sessao.token)).status).toBe(200)
       await operadores.pool.query(`update sessao_operador set encerrada_em = now(), motivo = 'saida' where id = $1`, [sessao.sessaoId])
-      esperarErro(await eu(url, vencido), 401, CodigoDeErro.SESSAO_ENCERRADA)
+      esperarErro(await eu(url, vencido), 401, ErrorCode.SESSAO_ENCERRADA)
     })
 
     it('concorrência: 20 requisições juntas na mesma sessão gravam `ultimoUsoEm` uma vez só no minuto, e o minuto seguinte grava de novo', async () => {
@@ -350,7 +350,7 @@ describe('área da operação: as cercas entre a operação e a escola (tarefa 4
       try {
         const respostas = await Promise.all([eu(url, sessao.token), eu(url, sessao.token)])
         for (const resposta of respostas) {
-          esperarErro(resposta, 503, CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO)
+          esperarErro(resposta, 503, ErrorCode.INDISPONIVEL_TENTE_DE_NOVO)
           expect(Number(resposta.retryAfter)).toBeGreaterThanOrEqual(1)
         }
       } finally {
@@ -417,7 +417,7 @@ describe('C35: o limite do operador é por operador, não por IP', () => {
     const [um, outro] = await Promise.all([operadores.operadorComSessao(), operadores.operadorComSessao()])
     for (let vez = 0; vez < LIMITE_DO_OPERADOR; vez++) expect((await eu(url, um.token)).status).toBe(200)
     const recusada = await eu(url, um.token)
-    esperarErro(recusada, 429, CodigoDeErro.LIMITE_EXCEDIDO)
+    esperarErro(recusada, 429, ErrorCode.LIMITE_EXCEDIDO)
     expect(Number(recusada.retryAfter)).toBeGreaterThanOrEqual(1)
     // Mesmo IP (127.0.0.1), outro operador: o balde dele está cheio.
     expect((await eu(url, outro.token)).status).toBe(200)

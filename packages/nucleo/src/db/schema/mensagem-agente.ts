@@ -11,7 +11,7 @@ import { turma } from './turma.js'
  * Uma mensagem da thread (MVP, A2; D18): o que o professor escreveu ao Assistente de ensino, ou o que o Assistente
  * respondeu. É a "conversa do professor com o chat" de `docs/lgpd.md`: 12 meses, e nunca visível à coordenação.
  *
- * - `conteudo` é validado por `esquemaConteudoDaMensagemDoUsuario` ou `esquemaConteudoDaMensagemDoAgente`: o texto do
+ * - `conteudo` é validado por `conteudoDaMensagemDoUsuarioSchema` ou `conteudoDaMensagemDoAgenteSchema`: o texto do
  *   professor; ou a resposta do agente, que é texto com as páginas citadas ou a **proposta de ferramenta** da D18. O
  *   check garante no banco o tipo, e que só o agente propõe ferramenta. O texto nunca vai a log nem a auditoria.
  * - `turma_id` e `disciplina_id` são o contexto que o professor escolheu ao escrever, e existem só, e sempre, na

@@ -1,4 +1,4 @@
-import { ALTERNATIVAS_POR_QUESTAO, esquemaHabilidade } from '@educa/shared'
+import { ALTERNATIVAS_POR_QUESTAO, habilidadeSchema } from '@educa/shared'
 import { z } from 'zod'
 import { dadoEmJson } from '../material.js'
 import { PROMPT_RELATORIO_DA_CORRECAO } from '../prompts/relatorio-da-correcao.js'
@@ -21,7 +21,7 @@ export const esquemaEntradaDoRelatorio = z.strictObject({
     .array(
       z.strictObject({
         numero: z.number().int().min(1).max(20),
-        habilidade: esquemaHabilidade,
+        habilidade: habilidadeSchema,
         gabarito: z.number().int().min(0).max(ALTERNATIVAS_POR_QUESTAO - 1),
         /** Quantas respostas em cada alternativa, na ordem da questão. */
         marcacoes: z.array(contagem).length(ALTERNATIVAS_POR_QUESTAO),

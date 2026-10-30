@@ -1,12 +1,12 @@
 import { ErroDeDominio, type Banco } from '@educa/nucleo'
-import { CodigoDeErro, type PedidoAceitarConviteDeOperador, type RespostaAceitarConviteDeOperador, type RespostaConsultarConviteDeOperador } from '@educa/shared'
+import { ErrorCode, type AceitarConviteDeOperadorRequest, type AceitarConviteDeOperadorResponse, type ConsultarConviteDeOperadorResponse } from '@educa/shared'
 import { baldeDaEquipe, type HashDeSenha, type SemaforoDeHash } from '../../credencial/index.js'
 import type { EmissorDeDesafioDeOperador } from '../desafio-de-operador.js'
 import { OperadorRepository } from '../operador/operador.repository.js'
 import { hashDoTokenDeConvite } from '../token-do-convite.js'
 
 /** Usado, vencido, revogado, de operador desativado e inexistente: a mesma resposta, que não diz qual (C9; regra 20, item 6). */
-const conviteInvalido = () => new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
+const conviteInvalido = () => new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
 
 export interface DependenciasDoConviteDeOperador {
   readonly banco: Banco
@@ -39,13 +39,13 @@ export interface OrigemDoAceite {
 export class ConviteDeOperadorService {
   constructor(private readonly dependencias: DependenciasDoConviteDeOperador) {}
 
-  async consultar(token: string): Promise<RespostaConsultarConviteDeOperador> {
+  async consultar(token: string): Promise<ConsultarConviteDeOperadorResponse> {
     const valido = await new OperadorRepository(this.dependencias.banco).conviteValidoPorHash(hashDoTokenDeConvite(token))
     if (valido === undefined) throw conviteInvalido()
     return { valido: true }
   }
 
-  async aceitar(pedido: PedidoAceitarConviteDeOperador, origem: OrigemDoAceite): Promise<RespostaAceitarConviteDeOperador> {
+  async aceitar(pedido: AceitarConviteDeOperadorRequest, origem: OrigemDoAceite): Promise<AceitarConviteDeOperadorResponse> {
     const { banco, hash, semaforo, emissorDeDesafio } = this.dependencias
     const valido = await new OperadorRepository(banco).conviteValidoPorHash(hashDoTokenDeConvite(pedido.token))
     if (valido === undefined) throw conviteInvalido()

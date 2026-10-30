@@ -1,5 +1,5 @@
 import { executarNoContexto } from '@educa/nucleo'
-import { CodigoDeErro } from '@educa/shared'
+import { ErrorCode } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import pg from 'pg'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -15,7 +15,7 @@ import { BancadaDeSessoes, type SessaoDeTeste } from './sessao-de-teste.js'
 /** O status e o código do erro: o `requisicaoId` muda a cada chamada, e o resto precisa ser idêntico. */
 const semRequisicao = (resposta: RespostaHttp) => ({ status: resposta.status, codigo: resposta.corpo.erro?.codigo, mensagem: (resposta.corpo.erro as { mensagem?: string } | undefined)?.mensagem })
 
-const NAO_ENCONTRADO = { status: 404, codigo: CodigoDeErro.NAO_ENCONTRADO, mensagem: expect.any(String) }
+const NAO_ENCONTRADO = { status: 404, codigo: ErrorCode.NAO_ENCONTRADO, mensagem: expect.any(String) }
 
 const FINALIDADE = 'acompanhamento_pedagogico'
 
@@ -201,7 +201,7 @@ describe('acesso à turma: só o vínculo confirmado abre a turma e os alunos (R
       for (const consulta of ['', '?finalidade=curiosidade', `?finalidade=${FINALIDADE}&escolaId=${randomUUID()}`]) {
         const resposta = await get(escola.coordenacao, `/v1/turmas/${escola.turma}/alunos${consulta}`)
         expect(resposta.status, consulta).toBe(400)
-        expect(resposta.corpo.erro?.codigo).toBe(CodigoDeErro.ENTRADA_INVALIDA)
+        expect(resposta.corpo.erro?.codigo).toBe(ErrorCode.ENTRADA_INVALIDA)
       }
       expect(await leiturasDeAlunos(escola.coordenacao.escolaId)).toEqual([])
 

@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import {
   AGENTES,
   CHAVES_DE_FUNCAO,
-  CodigoDeErro,
+  ErrorCode,
   ESTADOS_DE_ATIVIDADE_APLICADA,
   ESTADOS_DE_CONSUMO_DE_IA,
   ESTADOS_DE_ENTREGA,
@@ -749,7 +749,7 @@ describe('tabelas do MVP de apresentação: o banco recusa o que o contrato pro�
       })
       await expect(mudar("estado = 'concluida', concluida_em = now(), resultado = $3", [JSON.stringify({ tipo: 'artefato', artefatoId: randomUUID(), entregaId: null })])).resolves.toMatchObject({ rowCount: 1 })
       // Todo código do contrato cabe na coluna: é o que a execução que falhou guarda, e o que a tela recebe.
-      for (const codigo of Object.values(CodigoDeErro)) expect(codigo, codigo).toMatch(FORMATO_DO_CODIGO_DE_ERRO)
+      for (const codigo of Object.values(ErrorCode)) expect(codigo, codigo).toMatch(FORMATO_DO_CODIGO_DE_ERRO)
       const outra = await novaExecucao(c)
       await expect(cliente.query("update execucao_agente set estado = 'falhou', erro = 'EXECUCAO_INTERROMPIDA', concluida_em = now() where id = $1", [outra])).resolves.toMatchObject({ rowCount: 1 })
     })
@@ -1237,23 +1237,23 @@ describe('tabelas do MVP de apresentação: o banco recusa o que o contrato pro�
         [[...TABELAS_DO_MVP]],
       )
       expect(jsonbs).toEqual([
-        // Questões e plano, com a página citada: `esquemaConteudoDoArtefato`.
+        // Questões e plano, com a página citada: `conteudoDoArtefatoSchema`.
         { tabela: 'artefato', coluna: 'conteudo' },
         // O que foi ao modelo e o que voltou, nulos nas tarefas do Tutor (`docs/lgpd.md`).
         { tabela: 'consumo_ia', coluna: 'entrada' },
         { tabela: 'consumo_ia', coluna: 'saida' },
-        // Código da habilidade, acertos e total: `esquemaDiagnosticoGravado`.
+        // Código da habilidade, acertos e total: `diagnosticoGravadoSchema`.
         { tabela: 'correcao', coluna: 'por_habilidade' },
-        // Parâmetros da ferramenta e tipos de adaptação (`esquemaEntradaDaExecucao`), e a referência ao que a execução gravou (`esquemaResultadoGravado`).
+        // Parâmetros da ferramenta e tipos de adaptação (`execucaoInputSchema`), e a referência ao que a execução gravou (`resultadoGravadoSchema`).
         { tabela: 'execucao_agente', coluna: 'entrada' },
         { tabela: 'execucao_agente', coluna: 'resultado' },
         // A conversa do professor com o Assistente, que só ele lê (`docs/lgpd.md`).
         { tabela: 'mensagem_agente', coluna: 'conteudo' },
         // As páginas que o Tutor citou.
         { tabela: 'mensagem_tutor', coluna: 'citacoes' },
-        // Números, ids de série e disciplina e códigos: `esquemaConteudoDoResumoDoAnalista`.
+        // Números, ids de série e disciplina e códigos: `conteudoDoResumoDoAnalistaSchema`.
         { tabela: 'resumo_do_analista', coluna: 'conteudo' },
-        // O que foi aberto e o que foi apresentado, com ids e números: `esquemaDestaquesAbertos` e `esquemaLoteApresentado`.
+        // O que foi aberto e o que foi apresentado, com ids e números: `destaquesAbertosSchema` e `loteApresentadoSchema`.
         { tabela: 'validacao_do_lote', coluna: 'aberto' },
         { tabela: 'validacao_do_lote', coluna: 'apresentado' },
       ])

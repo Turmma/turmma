@@ -1,6 +1,6 @@
 import { z } from 'zod'
-import { esquemaConsultaPaginada, esquemaDePagina } from './paginacao.js'
-import { esquemaSerie } from './serie.js'
+import { paginationQuerySchema, pageSchema } from './pagination.js'
+import { serieSchema } from './serie.js'
 
 export const TURNOS = ['manha', 'tarde', 'noite', 'integral'] as const
 export type Turno = (typeof TURNOS)[number]
@@ -15,7 +15,7 @@ export const TAMANHO_MAXIMO_NOME_TURMA = 40
  * escola (o planejado de 2027, o encerrado de 2025, o de outra escola) responde como inexistente, em vez de a turma
  * cair calada no ano em curso. Nunca escolhe o ano da turma.
  */
-export const esquemaPedidoCriarTurma = z
+export const criarTurmaRequestSchema = z
   .object({
     serieId: z.uuid(),
     nome: z.string().trim().min(1).max(TAMANHO_MAXIMO_NOME_TURMA),
@@ -24,46 +24,46 @@ export const esquemaPedidoCriarTurma = z
   })
   .strict()
 
-export type PedidoCriarTurma = z.infer<typeof esquemaPedidoCriarTurma>
+export type CriarTurmaRequest = z.infer<typeof criarTurmaRequestSchema>
 
 /**
  * Corpo de `PATCH /v1/turmas/:id`: só o nome novo, com a mesma regra do criar. Estrito: série, turno, ano e escola não
  * mudam por aqui. A turma é do ano em curso; o nome de outra turma do mesmo ano, sem diferenciar maiúscula, é `CONFLITO`.
  */
-export const esquemaPedidoRenomearTurma = z.object({ nome: esquemaPedidoCriarTurma.shape.nome }).strict()
+export const renomearTurmaRequestSchema = z.object({ nome: criarTurmaRequestSchema.shape.nome }).strict()
 
-export type PedidoRenomearTurma = z.infer<typeof esquemaPedidoRenomearTurma>
+export type RenomearTurmaRequest = z.infer<typeof renomearTurmaRequestSchema>
 
-export const esquemaTurma = z
+export const turmaSchema = z
   .object({
     id: z.uuid(),
     anoLetivoId: z.uuid(),
     nome: z.string(),
     turno: z.enum(TURNOS).nullable(),
-    serie: esquemaSerie,
+    serie: serieSchema,
   })
   .strict()
 
-export type Turma = z.infer<typeof esquemaTurma>
+export type Turma = z.infer<typeof turmaSchema>
 
 /** Resposta de `POST /v1/turmas` e de `PATCH /v1/turmas/:id`. */
-export const esquemaRespostaTurma = esquemaTurma
-export type RespostaTurma = Turma
+export const turmaResponseSchema = turmaSchema
+export type TurmaResponse = Turma
 
 /** Resposta de `GET /v1/turmas`: as turmas do ano em curso. */
-export const esquemaRespostaListaDeTurmas = esquemaDePagina(esquemaTurma)
-export type RespostaListaDeTurmas = z.infer<typeof esquemaRespostaListaDeTurmas>
+export const listaDeTurmasResponseSchema = pageSchema(turmaSchema)
+export type ListaDeTurmasResponse = z.infer<typeof listaDeTurmasResponseSchema>
 
 /** Resposta de `GET /v1/turmas/:id`: a turma aberta por quem tem acesso a ela (a coordenação, ou o professor com vínculo confirmado). */
-export const esquemaRespostaTurmaAberta = z
+export const turmaAbertaResponseSchema = z
   .object({
     id: z.uuid(),
     nome: z.string(),
-    serie: esquemaSerie,
+    serie: serieSchema,
   })
   .strict()
 
-export type RespostaTurmaAberta = z.infer<typeof esquemaRespostaTurmaAberta>
+export type TurmaAbertaResponse = z.infer<typeof turmaAbertaResponseSchema>
 
 /**
  * Por que a coordenação abre a lista de alunos de uma turma (regra 20, item 10): código fixo, nunca texto livre, que
@@ -80,19 +80,19 @@ export type FinalidadeDaLeituraDeAlunos = (typeof FINALIDADES_DA_LEITURA_DE_ALUN
 const campoAnoDaLeitura = { anoLetivoId: z.uuid().optional() }
 
 /** Consulta de `GET /v1/turmas/:id`: só o ano encerrado que se quer ler, se houver. */
-export const esquemaConsultaTurma = z.object(campoAnoDaLeitura).strict()
-export type ConsultaTurma = z.infer<typeof esquemaConsultaTurma>
+export const turmaQuerySchema = z.object(campoAnoDaLeitura).strict()
+export type TurmaQuery = z.infer<typeof turmaQuerySchema>
 
 /** Consulta de `GET /v1/turmas/:id/alunos`: a página, a finalidade, que a coordenação é obrigada a mandar, e o ano encerrado, se houver. */
-export const esquemaConsultaAlunosDaTurma = esquemaConsultaPaginada
+export const alunosDaTurmaQuerySchema = paginationQuerySchema
   .extend({ finalidade: z.enum(FINALIDADES_DA_LEITURA_DE_ALUNOS).optional(), ...campoAnoDaLeitura })
   .strict()
-export type ConsultaAlunosDaTurma = z.infer<typeof esquemaConsultaAlunosDaTurma>
+export type AlunosDaTurmaQuery = z.infer<typeof alunosDaTurmaQuerySchema>
 
 /** Um aluno da turma: o id e o nome, e nada mais (regra 20, item 4). */
-export const esquemaAlunoDaTurma = z.object({ usuarioId: z.uuid(), nome: z.string() }).strict()
-export type AlunoDaTurma = z.infer<typeof esquemaAlunoDaTurma>
+export const alunoDaTurmaSchema = z.object({ usuarioId: z.uuid(), nome: z.string() }).strict()
+export type AlunoDaTurma = z.infer<typeof alunoDaTurmaSchema>
 
 /** Resposta de `GET /v1/turmas/:id/alunos`, em ordem de id, com `proxima` quando há mais. */
-export const esquemaRespostaAlunosDaTurma = esquemaDePagina(esquemaAlunoDaTurma)
-export type RespostaAlunosDaTurma = z.infer<typeof esquemaRespostaAlunosDaTurma>
+export const alunosDaTurmaResponseSchema = pageSchema(alunoDaTurmaSchema)
+export type AlunosDaTurmaResponse = z.infer<typeof alunosDaTurmaResponseSchema>

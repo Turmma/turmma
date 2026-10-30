@@ -1,8 +1,8 @@
 import { describe, expect, expectTypeOf, it } from 'vitest'
 import { z } from 'zod'
 import {
-  DEFINICOES_DE_JOB,
-  definirJob,
+  JOB_DEFINITIONS,
+  defineJob,
   TIPO_CONSOLIDAR_USO,
   TIPO_ELIMINAR_TITULAR,
   TIPO_EXPURGAR_ACESSO,
@@ -11,13 +11,13 @@ import {
   TIPO_EXPURGAR_JOBS,
   TIPO_JOB_SINTETICO,
   TIPO_MONTAR_ARQUIVO,
-  type DadosDoJob,
-  type DefinicaoDeJob,
-  type OpcoesDoJob,
-  type TipoDeJob,
-} from './definicoes-de-job.js'
-import { CPU_MS_MAXIMO_SINTETICO } from './jobs-sinteticos.js'
-import { FILAS } from './jobs.js'
+  type JobData,
+  type JobDefinition,
+  type JobOptions,
+  type JobType,
+} from './job-definitions.js'
+import { CPU_MS_MAXIMO_SINTETICO } from './synthetic-jobs.js'
+import { QUEUE_NAMES } from './jobs.js'
 
 const OS_8_TIPOS = [
   TIPO_MONTAR_ARQUIVO,
@@ -36,7 +36,7 @@ const base = { filas: ['lote'], escopo: 'escola', executor: 'worker', retentativ
 
 describe('o registro de jobs', () => {
   it('tem os 8 tipos de hoje, com o nome que o banco e o worker já usam', () => {
-    expect(Object.keys(DEFINICOES_DE_JOB).sort()).toEqual(
+    expect(Object.keys(JOB_DEFINITIONS).sort()).toEqual(
       [
         'titular.montar-arquivo',
         'titular.eliminar',
@@ -48,11 +48,11 @@ describe('o registro de jobs', () => {
         'sintetico',
       ].sort(),
     )
-    expect([...OS_8_TIPOS].sort()).toEqual(Object.keys(DEFINICOES_DE_JOB).sort())
+    expect([...OS_8_TIPOS].sort()).toEqual(Object.keys(JOB_DEFINITIONS).sort())
   })
 
   it('cada tipo declara a fila, o não urgente, o escopo e o executor de hoje', () => {
-    const resumo = Object.fromEntries(Object.entries(DEFINICOES_DE_JOB).map(([tipo, d]) => [tipo, [d.filas, d.naoUrgente, d.escopo, d.executor]]))
+    const resumo = Object.fromEntries(Object.entries(JOB_DEFINITIONS).map(([tipo, d]) => [tipo, [d.filas, d.naoUrgente, d.escopo, d.executor]]))
     expect(resumo).toEqual({
       'titular.montar-arquivo': [['normal'], false, 'escola', 'worker'],
       'titular.eliminar': [['lote'], true, 'escola', 'worker'],
@@ -61,19 +61,19 @@ describe('o registro de jobs', () => {
       'sistema.expurgar-acesso': [['lote'], true, 'sistema', 'worker'],
       'sistema.expurgar-jobs': [['lote'], true, 'sistema', 'worker'],
       'sistema.expurgar-dado-pessoal': [['lote'], true, 'sistema', 'worker'],
-      sintetico: [[...FILAS], 'do-pedido', 'escola', 'worker'],
+      sintetico: [[...QUEUE_NAMES], 'do-pedido', 'escola', 'worker'],
     })
   })
 
   it('o escopo é `sistema` se, e somente se, o tipo começa com `sistema.`: é o que o check do banco aceita', () => {
-    for (const [tipo, definicao] of Object.entries(DEFINICOES_DE_JOB)) {
+    for (const [tipo, definicao] of Object.entries(JOB_DEFINITIONS)) {
       expect(definicao.escopo === 'sistema', tipo).toBe(tipo.startsWith('sistema.'))
     }
   })
 
   it('o payload de hoje de cada tipo passa, e a chave a mais não', () => {
     const pedidoId = UM_UUID
-    const payloads: Record<TipoDeJob, Record<string, unknown>> = {
+    const payloads: Record<JobType, Record<string, unknown>> = {
       [TIPO_MONTAR_ARQUIVO]: { pedidoId },
       [TIPO_ELIMINAR_TITULAR]: { pedidoId },
       [TIPO_EXPURGAR_ESCOLA]: {},
@@ -84,25 +84,25 @@ describe('o registro de jobs', () => {
       [TIPO_JOB_SINTETICO]: { cpuMs: 0, falhar: false },
     }
     for (const tipo of OS_8_TIPOS) {
-      const { dados } = DEFINICOES_DE_JOB[tipo]
+      const { dados } = JOB_DEFINITIONS[tipo]
       expect(dados.safeParse(payloads[tipo]).success, `${tipo} aceita o de hoje`).toBe(true)
       expect(dados.safeParse({ ...payloads[tipo], escolaId: UM_UUID }).success, `${tipo} recusa a chave a mais`).toBe(false)
     }
   })
 
   it('o prazo é positivo e a retentativa é a de hoje: cinco tentativas, recuo de 2 s e jitter de 0,5', () => {
-    for (const [tipo, definicao] of Object.entries(DEFINICOES_DE_JOB)) {
+    for (const [tipo, definicao] of Object.entries(JOB_DEFINITIONS)) {
       expect(definicao.prazoMs, tipo).toBeGreaterThan(0)
       expect(definicao.retentativa, tipo).toEqual({ tentativas: 5, recuoMs: 2_000, jitter: 0.5 })
     }
   })
 
   it('o prazo do sintético cobre o teto de CPU dele', () => {
-    expect(DEFINICOES_DE_JOB[TIPO_JOB_SINTETICO].prazoMs).toBeGreaterThan(CPU_MS_MAXIMO_SINTETICO)
+    expect(JOB_DEFINITIONS[TIPO_JOB_SINTETICO].prazoMs).toBeGreaterThan(CPU_MS_MAXIMO_SINTETICO)
   })
 
   it('o prazo de cada um dos 8 tipos é o conferido na 43.0: o worker corta a tentativa nele, então mudar um valor é decisão de quem mede o tipo', () => {
-    expect(Object.fromEntries(OS_8_TIPOS.map((tipo) => [tipo, DEFINICOES_DE_JOB[tipo].prazoMs]))).toEqual({
+    expect(Object.fromEntries(OS_8_TIPOS.map((tipo) => [tipo, JOB_DEFINITIONS[tipo].prazoMs]))).toEqual({
       [TIPO_MONTAR_ARQUIVO]: 300_000,
       [TIPO_ELIMINAR_TITULAR]: 600_000,
       [TIPO_EXPURGAR_ESCOLA]: 21_600_000,
@@ -119,29 +119,29 @@ describe('definirJob', () => {
   it('devolve a definição que recebeu, com o esquema estrito de `z.strictObject` ou de `.strict()`', () => {
     const estrita = { ...base, dados: z.strictObject({ id: z.uuid() }) }
     const comMetodo = { ...base, dados: z.object({ id: z.uuid() }).strict() }
-    expect(definirJob(estrita)).toBe(estrita)
-    expect(definirJob(comMetodo)).toBe(comMetodo)
+    expect(defineJob(estrita)).toBe(estrita)
+    expect(defineJob(comMetodo)).toBe(comMetodo)
   })
 
   it('recusa, ao carregar, o esquema que ignora chave a mais: `z.object()` tem o mesmo tipo do estrito', () => {
-    expect(() => definirJob({ ...base, dados: z.object({ id: z.uuid() }) })).toThrow(TypeError)
+    expect(() => defineJob({ ...base, dados: z.object({ id: z.uuid() }) })).toThrow(TypeError)
   })
 
   it('não compila: esquema que aceita chave a mais, definição sem prazo, sem fila ou com valor fora do que se declara', () => {
     // O compilador é o teste: cada linha precisa do seu `@ts-expect-error`, e nada disto roda.
     const naoChamada = () => [
       // @ts-expect-error `z.looseObject` aceita qualquer chave
-      definirJob({ ...base, dados: z.looseObject({ id: z.uuid() }) }),
+      defineJob({ ...base, dados: z.looseObject({ id: z.uuid() }) }),
       // @ts-expect-error `.catchall()` também
-      definirJob({ ...base, dados: z.object({ id: z.uuid() }).catchall(z.unknown()) }),
+      defineJob({ ...base, dados: z.object({ id: z.uuid() }).catchall(z.unknown()) }),
       // @ts-expect-error falta o prazo
-      definirJob({ filas: ['lote'], escopo: 'escola', executor: 'worker', retentativa: base.retentativa, naoUrgente: true, dados: z.strictObject({}) }),
+      defineJob({ filas: ['lote'], escopo: 'escola', executor: 'worker', retentativa: base.retentativa, naoUrgente: true, dados: z.strictObject({}) }),
       // @ts-expect-error uma definição sem fila
-      definirJob({ ...base, filas: [], dados: z.strictObject({}) }),
+      defineJob({ ...base, filas: [], dados: z.strictObject({}) }),
       // @ts-expect-error fila que não existe
-      definirJob({ ...base, filas: ['urgentissima'], dados: z.strictObject({}) }),
+      defineJob({ ...base, filas: ['urgentissima'], dados: z.strictObject({}) }),
       // @ts-expect-error o escopo é `escola` ou `sistema`
-      definirJob({ ...base, escopo: 'rede', dados: z.strictObject({}) }),
+      defineJob({ ...base, escopo: 'rede', dados: z.strictObject({}) }),
     ]
     expect(naoChamada).toBeTypeOf('function')
   })
@@ -149,23 +149,23 @@ describe('definirJob', () => {
 
 describe('os tipos que o `Enfileirador` lê da definição', () => {
   it('o tipo é uma das chaves do registro, e os dados são os do tipo', () => {
-    expectTypeOf<TipoDeJob>().toEqualTypeOf<(typeof OS_8_TIPOS)[number]>()
-    expectTypeOf<DadosDoJob<typeof TIPO_MONTAR_ARQUIVO>>().toEqualTypeOf<{ pedidoId: string }>()
-    expectTypeOf<DadosDoJob<typeof TIPO_EXPURGAR_JOBS>>().toEqualTypeOf<Record<string, never>>()
+    expectTypeOf<JobType>().toEqualTypeOf<(typeof OS_8_TIPOS)[number]>()
+    expectTypeOf<JobData<typeof TIPO_MONTAR_ARQUIVO>>().toEqualTypeOf<{ pedidoId: string }>()
+    expectTypeOf<JobData<typeof TIPO_EXPURGAR_JOBS>>().toEqualTypeOf<Record<string, never>>()
     // @ts-expect-error tipo que não está no registro
-    const deTipoInexistente: DadosDoJob<'tipo.inexistente'> = {}
+    const deTipoInexistente: JobData<'tipo.inexistente'> = {}
     // @ts-expect-error os dados de montar-arquivo não são os do sintético
-    const deOutroTipo: DadosDoJob<typeof TIPO_MONTAR_ARQUIVO> = { cpuMs: 0, falhar: false }
+    const deOutroTipo: JobData<typeof TIPO_MONTAR_ARQUIVO> = { cpuMs: 0, falhar: false }
     expect([deTipoInexistente, deOutroTipo]).toHaveLength(2)
   })
 
   it('a fila das opções é uma das do tipo, e o não urgente só existe no tipo que o deixa com quem enfileira', () => {
-    expectTypeOf<OpcoesDoJob<typeof TIPO_MONTAR_ARQUIVO>>().toEqualTypeOf<{ readonly fila?: 'normal' } & { readonly naoUrgente?: never }>()
-    expectTypeOf<OpcoesDoJob<typeof TIPO_JOB_SINTETICO>>().toEqualTypeOf<{ readonly fila?: 'interativa' | 'normal' | 'lote' } & { readonly naoUrgente: boolean }>()
+    expectTypeOf<JobOptions<typeof TIPO_MONTAR_ARQUIVO>>().toEqualTypeOf<{ readonly fila?: 'normal' } & { readonly naoUrgente?: never }>()
+    expectTypeOf<JobOptions<typeof TIPO_JOB_SINTETICO>>().toEqualTypeOf<{ readonly fila?: 'interativa' | 'normal' | 'lote' } & { readonly naoUrgente: boolean }>()
   })
 
   it('uma definição, vista como `DefinicaoDeJob`, tem os campos que o Enfileirador e o worker leem', () => {
-    const definicao: DefinicaoDeJob = DEFINICOES_DE_JOB[TIPO_MONTAR_ARQUIVO]
+    const definicao: JobDefinition = JOB_DEFINITIONS[TIPO_MONTAR_ARQUIVO]
     expect(Object.keys(definicao).sort()).toEqual(['dados', 'escopo', 'executor', 'filas', 'naoUrgente', 'prazoMs', 'retentativa'])
   })
 })

@@ -1,5 +1,5 @@
 import { ErroDeDominio, executarNoContexto, type ExecutorNoProcesso } from '@educa/nucleo'
-import { esquemaRespostaEntrega, esquemaRespostaListaDeEntregas, esquemaRespostaTime } from '@educa/shared'
+import { entregaResponseSchema, listaDeEntregasResponseSchema, timeResponseSchema } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { readdirSync, readFileSync } from 'node:fs'
 import { join, relative, sep } from 'node:path'
@@ -46,7 +46,7 @@ describe('entregas', () => {
   const sql = (texto: string, valores: unknown[] = []) => bancada.pool.query(texto, valores)
   const pedir = async (sessao: SessaoDeTeste, metodo: string, caminho: string, corpo?: unknown): Promise<RespostaHttp> => chamar(api.url, metodo, caminho, await sessao.tokenNovo(), corpo)
   const decidir = (sessao: SessaoDeTeste, id: string, corpo: unknown) => pedir(sessao, 'POST', `/v1/entregas/${id}/decidir`, corpo)
-  const listar = async (sessao: SessaoDeTeste, consulta = '') => esquemaRespostaListaDeEntregas.parse((await pedir(sessao, 'GET', `/v1/entregas${consulta}`)).corpo)
+  const listar = async (sessao: SessaoDeTeste, consulta = '') => listaDeEntregasResponseSchema.parse((await pedir(sessao, 'GET', `/v1/entregas${consulta}`)).corpo)
   const semId = (resposta: RespostaHttp) => ({ status: resposta.status, codigo: resposta.corpo.erro?.codigo })
 
   interface EntregaNoBanco {
@@ -191,7 +191,7 @@ describe('entregas', () => {
       const antes = Date.now()
       const resposta = await decidir(a.professora, entregaId, { decisao: 'aprovar' })
       expect(resposta.status).toBe(200)
-      const entrega = esquemaRespostaEntrega.parse(resposta.corpo)
+      const entrega = entregaResponseSchema.parse(resposta.corpo)
       expect(entrega).toMatchObject({ id: entregaId, tipo: 'versao_adaptada', funcao: 'adaptacao', estado: 'aprovada', turmaId: a.turma, artefatoId: adaptadaId, atividadeAplicadaId: null, justificativa: null, decididaPor: { id: a.professora.usuarioId, nome: NOME_DA_PROFESSORA_DE_TESTE } })
       expect(entrega.titulo).toContain('versão adaptada')
 
@@ -390,7 +390,7 @@ describe('entregas', () => {
       try {
         const pendentes = (await listar(a.professora, '?estado=pendente')).itens
         expect(pendentes.filter((item) => [paraAprovar.entregaId, paraRejeitar.entregaId].includes(item.id)).map((item) => item.funcao)).toEqual(['adaptacao', 'adaptacao'])
-        const funcoes = esquemaRespostaTime.parse((await pedir(a.professora, 'GET', '/v1/time')).corpo).agentes.flatMap((agente) => agente.funcoes)
+        const funcoes = timeResponseSchema.parse((await pedir(a.professora, 'GET', '/v1/time')).corpo).agentes.flatMap((agente) => agente.funcoes)
         expect(funcoes.find((funcao) => funcao.chave === 'adaptacao')?.suspensa).toBe(true)
         expect(await decidir(a.professora, paraAprovar.entregaId, { decisao: 'aprovar' })).toMatchObject({ status: 200, corpo: { estado: 'aprovada' } })
         expect(await decidir(a.professora, paraRejeitar.entregaId, { decisao: 'rejeitar', justificativa: 'A função foi suspensa pela coordenação.' })).toMatchObject({ status: 200, corpo: { estado: 'rejeitada' } })

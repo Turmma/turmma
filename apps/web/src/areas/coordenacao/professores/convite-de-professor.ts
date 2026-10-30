@@ -1,11 +1,11 @@
 import {
-  CodigoDeErro,
-  esquemaPedidoCadastrarProfessor,
+  ErrorCode,
+  cadastrarProfessorRequestSchema,
   REFAZER_CONVITE_DE_PROFESSOR_POR_ESTADO,
   REVOGAR_CONVITE_DE_PROFESSOR_POR_ESTADO,
   VALIDADE_DO_CONVITE_HORAS_POR_TIPO,
   type EstadoDoProfessor,
-  type PedidoCadastrarProfessor,
+  type CadastrarProfessorRequest,
 } from '@educa/shared'
 import type { FalhaDoConvite } from '../../../componentes/DialogoDoConvite'
 import { pedidoDeConvitePelo, type ValidacaoDoConvite } from '../../../componentes/pedido-de-convite'
@@ -90,8 +90,8 @@ export const TEXTO_DO_NOME_REPETIDO =
   'Já há um professor com este nome na lista. Se é a mesma pessoa voltando, pode seguir. Se é outra, acrescente um sobrenome: a lista mostra só o nome.'
 
 /** O pedido de `POST /v1/professores`, pelo mesmo contrato estrito da API: é o que o resumo mostra e o que sai. */
-export function pedidoDeProfessor(campos: { readonly nome: string; readonly email: string }): ValidacaoDoConvite<PedidoCadastrarProfessor> {
-  return pedidoDeConvitePelo(esquemaPedidoCadastrarProfessor, campos)
+export function pedidoDeProfessor(campos: { readonly nome: string; readonly email: string }): ValidacaoDoConvite<CadastrarProfessorRequest> {
+  return pedidoDeConvitePelo(cadastrarProfessorRequestSchema, campos)
 }
 
 /**
@@ -106,16 +106,16 @@ export const TEXTO_DO_EMAIL_JA_CADASTRADO =
  * continua com os botões (`listaMudou` falso). O resto (429, 503) é o texto do catálogo, e o mesmo botão tenta de novo.
  */
 export function falhaDoCadastroDeProfessor(erro: unknown): FalhaDoConvite {
-  return { texto: textoDaFalha(erro, { [CodigoDeErro.CONFLITO]: TEXTO_DO_EMAIL_JA_CADASTRADO }), listaMudou: false }
+  return { texto: textoDaFalha(erro, { [ErrorCode.CONFLITO]: TEXTO_DO_EMAIL_JA_CADASTRADO }), listaMudou: false }
 }
 
 /**
  * O texto do `CONFLITO` e do `NAO_ENCONTRADO` do refazer e do revogar, que dizem que o convite daquela linha mudou: os
  * mesmos do convite da coordenação, na operação (`componentes/textos-do-convite.ts`).
  */
-export const TEXTOS_DO_CONVITE_QUE_MUDOU: Readonly<Partial<Record<CodigoDeErro, string>>> = {
-  [CodigoDeErro.CONFLITO]: TEXTO_DO_CONVITE_QUE_MUDOU,
-  [CodigoDeErro.NAO_ENCONTRADO]: TEXTO_DO_CONVITE_QUE_NAO_VALE,
+export const TEXTOS_DO_CONVITE_QUE_MUDOU: Readonly<Partial<Record<ErrorCode, string>>> = {
+  [ErrorCode.CONFLITO]: TEXTO_DO_CONVITE_QUE_MUDOU,
+  [ErrorCode.NAO_ENCONTRADO]: TEXTO_DO_CONVITE_QUE_NAO_VALE,
 }
 
 /**
@@ -123,5 +123,5 @@ export const TEXTOS_DO_CONVITE_QUE_MUDOU: Readonly<Partial<Record<CodigoDeErro, 
  * só "Fechar". O resto é o texto do catálogo, e o mesmo botão tenta de novo. Nenhum texto diz o código.
  */
 export function falhaDoRefazerConviteDeProfessor(erro: unknown): FalhaDoConvite {
-  return { texto: textoDaFalha(erro, TEXTOS_DO_CONVITE_QUE_MUDOU), listaMudou: listaMudou(erro, [CodigoDeErro.CONFLITO, CodigoDeErro.NAO_ENCONTRADO]) }
+  return { texto: textoDaFalha(erro, TEXTOS_DO_CONVITE_QUE_MUDOU), listaMudou: listaMudou(erro, [ErrorCode.CONFLITO, ErrorCode.NAO_ENCONTRADO]) }
 }

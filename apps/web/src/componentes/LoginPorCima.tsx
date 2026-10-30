@@ -1,4 +1,4 @@
-import { CodigoDeErro, mensagemDaEntrada, mensagemDaEntradaPorMatricula, TAMANHO_MAXIMO_EMAIL, TAMANHO_MAXIMO_MATRICULA, TAMANHO_MAXIMO_SENHA } from '@educa/shared'
+import { ErrorCode, mensagemDaEntrada, mensagemDaEntradaPorMatricula, TAMANHO_MAXIMO_EMAIL, TAMANHO_MAXIMO_MATRICULA, TAMANHO_MAXIMO_SENHA } from '@educa/shared'
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { useLocation } from 'wouter'
 import { ErroDaApi } from '../api/cliente'
@@ -74,7 +74,7 @@ export function LoginPorCima() {
   }
 
   const mensagem = (erro: unknown): string => {
-    const codigo = erro instanceof ErroDaApi ? erro.codigo : CodigoDeErro.ERRO_INTERNO
+    const codigo = erro instanceof ErroDaApi ? erro.codigo : ErrorCode.ERRO_INTERNO
     const espera = erro instanceof ErroDaApi ? erro.esperaSegundos : undefined
     return porMatricula ? mensagemDaEntradaPorMatricula(codigo, espera) : mensagemDaEntrada(codigo, espera)
   }

@@ -1,10 +1,10 @@
 import {
   avisoDoSegundoFatorConsumido,
-  CodigoDeErro,
+  ErrorCode,
   DIGITOS_DO_CODIGO_MFA,
   mensagemDoSegundoFator,
   TAMANHO_DO_CODIGO_DE_RECUPERACAO,
-  type PedidoMfa,
+  type MfaRequest,
 } from '@educa/shared'
 import { useState, type FormEvent } from 'react'
 import { useLocation } from 'wouter'
@@ -42,7 +42,7 @@ export function Mfa() {
     if (entrando) return
     definirEntrando(true)
     definirFalha(undefined)
-    const pedido: PedidoMfa = recuperacao ? { recuperacao: codigo } : { codigo }
+    const pedido: MfaRequest = recuperacao ? { recuperacao: codigo } : { codigo }
     try {
       const resposta = await entrarComSegundoFator(pedido)
       definirCodigo('')
@@ -50,7 +50,7 @@ export function Mfa() {
     } catch (erro) {
       // O quinto código errado gasta o desafio na API (6.0): daí em diante nem o código certo passa com ele, e
       // insistir aqui só seguraria mais a conta. A pessoa refaz a senha, e a entrada explica por quê.
-      if (erro instanceof ErroDaApi && erro.codigo === CodigoDeErro.CONTA_SEGURADA) {
+      if (erro instanceof ErroDaApi && erro.codigo === ErrorCode.CONTA_SEGURADA) {
         esquecerDesafio()
         definirAvisoDaEntrada(avisoDoSegundoFatorConsumido(erro.esperaSegundos))
         navegar(ROTAS.entrar, { replace: true })
@@ -58,9 +58,9 @@ export function Mfa() {
       }
       // O código certo com o convite que já não vale (A0b, E16): a API já gastou o desafio, e repetir o código aqui só
       // daria "Código incorreto". A pessoa volta à entrada, que diz o que fazer: pedir um convite novo.
-      if (erro instanceof ErroDaApi && erro.codigo === CodigoDeErro.NAO_ENCONTRADO) {
+      if (erro instanceof ErroDaApi && erro.codigo === ErrorCode.NAO_ENCONTRADO) {
         esquecerDesafio()
-        definirAvisoDaEntrada(mensagemDoSegundoFator(CodigoDeErro.NAO_ENCONTRADO))
+        definirAvisoDaEntrada(mensagemDoSegundoFator(ErrorCode.NAO_ENCONTRADO))
         navegar(ROTAS.entrar, { replace: true })
         return
       }
@@ -117,7 +117,7 @@ export function Mfa() {
         )}
         {falha !== undefined && (
           <p role="alert" className="rounded-controle border border-erro bg-erro-cx p-4 text-erro">
-            {falha instanceof ErroDaApi ? mensagemDoSegundoFator(falha.codigo, falha.esperaSegundos) : mensagemDoSegundoFator(CodigoDeErro.ERRO_INTERNO)}
+            {falha instanceof ErroDaApi ? mensagemDoSegundoFator(falha.codigo, falha.esperaSegundos) : mensagemDoSegundoFator(ErrorCode.ERRO_INTERNO)}
           </p>
         )}
         <Botao type="submit" disabled={entrando} className="w-full">

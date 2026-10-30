@@ -1,4 +1,4 @@
-import { CodigoDeErro, ErroDeInvariante } from '@educa/shared'
+import { ErrorCode, InvariantException } from '@educa/shared'
 import type { CanActivate, ExecutionContext } from '@nestjs/common'
 import type { Reflector } from '@nestjs/core'
 import type { IncomingMessage } from 'node:http'
@@ -68,7 +68,7 @@ export class GuardaDeLimite implements CanActivate {
     if (marcador === 'entrada') {
       const daOperacao = await this.limitador.consumirDaOperacao(await this.#ipDaRequisicao(requisicao))
       if (daOperacao.aceita) return true
-      if (!rebaixa) throw new ErroDeDominio(CodigoDeErro.LIMITE_EXCEDIDO, undefined, segundosParaTentarDeNovo(daOperacao.msAteLiberar))
+      if (!rebaixa) throw new ErroDeDominio(ErrorCode.LIMITE_EXCEDIDO, undefined, segundosParaTentarDeNovo(daOperacao.msAteLiberar))
       ACIMA_DO_LIMITE_DO_IP.add(requisicao)
       return true
     }
@@ -81,17 +81,17 @@ export class GuardaDeLimite implements CanActivate {
       ? await this.limitador.consumirAnonima(await this.#ipDaRequisicao(requisicao))
       : await this.#consumirAutenticada(requisicao)
     if (!resultado.aceita) {
-      throw new ErroDeDominio(CodigoDeErro.LIMITE_EXCEDIDO, undefined, segundosParaTentarDeNovo(resultado.msAteLiberar))
+      throw new ErroDeDominio(ErrorCode.LIMITE_EXCEDIDO, undefined, segundosParaTentarDeNovo(resultado.msAteLiberar))
     }
     // A busca de titulares (`@LimiteDaBuscaDeTitulares`) conta ainda no balde próprio dela, por usuário: além do
     // balde do F0, que continua valendo, ela tem o teto de 30 por minuto (Tech Spec do F3, seção 7c).
     if (!anonima && this.reflector.getAllAndOverride<boolean | undefined>(METADADO_LIMITE_DA_BUSCA_DE_TITULARES, alvos) === true) {
       const token = tokenDaRequisicao(requisicao)
       // Sem token verificado (guarda fora de ordem), falha fechada, como no limite autenticado.
-      if (token === undefined) throw new ErroDeDominio(CodigoDeErro.NAO_AUTENTICADO)
+      if (token === undefined) throw new ErroDeDominio(ErrorCode.NAO_AUTENTICADO)
       const daBusca = await this.limitador.consumirDaBuscaDeTitulares(token.usuarioId)
       if (!daBusca.aceita) {
-        throw new ErroDeDominio(CodigoDeErro.LIMITE_EXCEDIDO, undefined, segundosParaTentarDeNovo(daBusca.msAteLiberar))
+        throw new ErroDeDominio(ErrorCode.LIMITE_EXCEDIDO, undefined, segundosParaTentarDeNovo(daBusca.msAteLiberar))
       }
     }
     return true
@@ -102,7 +102,7 @@ export class GuardaDeLimite implements CanActivate {
     if (token === undefined) return true
     const resultado = await this.limitador.consumirDeOperador(token.operadorId)
     if (!resultado.aceita) {
-      throw new ErroDeDominio(CodigoDeErro.LIMITE_EXCEDIDO, undefined, segundosParaTentarDeNovo(resultado.msAteLiberar))
+      throw new ErroDeDominio(ErrorCode.LIMITE_EXCEDIDO, undefined, segundosParaTentarDeNovo(resultado.msAteLiberar))
     }
     return true
   }
@@ -115,9 +115,9 @@ export class GuardaDeLimite implements CanActivate {
   async #consumirAutenticada(requisicao: IncomingMessage) {
     const token = tokenDaRequisicao(requisicao)
     // Sem token verificado (guarda fora de ordem), falha fechada.
-    if (token === undefined) throw new ErroDeDominio(CodigoDeErro.NAO_AUTENTICADO)
+    if (token === undefined) throw new ErroDeDominio(ErrorCode.NAO_AUTENTICADO)
     const requisicaoId = contextoAtual()?.requisicaoId
-    if (requisicaoId === undefined) throw new ErroDeInvariante('contexto da requisição ausente')
+    if (requisicaoId === undefined) throw new InvariantException('contexto da requisição ausente')
     const identidade = { escolaId: token.escolaId, usuarioId: token.usuarioId }
     const limites = await executarNoContexto({ requisicaoId, escolaId: token.escolaId }, () => this.limitesDaEscola.daEscola())
     return this.limitador.consumirAutenticada(identidade, limites)

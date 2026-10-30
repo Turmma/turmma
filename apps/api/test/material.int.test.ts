@@ -1,5 +1,5 @@
 import { executarNoContexto } from '@educa/nucleo'
-import { CodigoDeErro, esquemaRespostaBuscaDeMaterial, esquemaRespostaListaDeMateriais, esquemaRespostaMaterial, MAXIMO_DE_BYTES_DO_MATERIAL, TAMANHO_MAXIMO_DO_TRECHO_CITADO } from '@educa/shared'
+import { ErrorCode, buscaDeMaterialResponseSchema, listaDeMateriaisResponseSchema, materialResponseSchema, MAXIMO_DE_BYTES_DO_MATERIAL, TAMANHO_MAXIMO_DO_TRECHO_CITADO } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { linhasDoBloco, normalizarTexto, paginaDoMaterial, PAGINAS_DO_MATERIAL } from '../../../tools/demonstracao/conteudo-estequiometria.ts'
@@ -60,7 +60,7 @@ describe('material da escola', () => {
   const post = (sessao: SessaoDeTeste, caminho: string, corpo?: unknown): Promise<RespostaHttp> => chamar(api.url, 'POST', caminho, sessao.token, corpo)
   const erroDe = (resposta: RespostaHttp) => ({ status: resposta.status, codigo: resposta.corpo.erro?.codigo })
   const buscar = (sessao: SessaoDeTeste, q: string, resto = '') => get(sessao, `/v1/materiais/busca?q=${encodeURIComponent(q)}${resto}`)
-  const itensDe = (resposta: RespostaHttp) => esquemaRespostaBuscaDeMaterial.parse(resposta.corpo).itens
+  const itensDe = (resposta: RespostaHttp) => buscaDeMaterialResponseSchema.parse(resposta.corpo).itens
 
   /** O conteúdo da página como o material o escreve, sem o rodapé corrido. */
   const conteudoDaPagina = (numero: number): string => normalizarTexto(paginaDoMaterial(numero).blocos.flatMap(linhasDoBloco).join('\n'))
@@ -104,11 +104,11 @@ describe('material da escola', () => {
 
       expect(enviado.status).toBe(201)
       // O contrato é estrito: a resposta não leva o resumo do arquivo, quem enviou nem a declaração.
-      const resposta = esquemaRespostaMaterial.parse(enviado.corpo)
+      const resposta = materialResponseSchema.parse(enviado.corpo)
       expect(resposta).toMatchObject({ titulo: 'Química 2 — Capítulo 7', disciplinaId: escola.quimica, titularidade: 'escola', licenciante: null, licenca: 'autoria_da_escola', estado: 'processando', falha: null, paginas: null, trechos: 0 })
 
       await esperarExtracao(api)
-      const lido = esquemaRespostaMaterial.parse((await get(escola.coordenacao, `/v1/materiais/${resposta.id}`)).corpo)
+      const lido = materialResponseSchema.parse((await get(escola.coordenacao, `/v1/materiais/${resposta.id}`)).corpo)
       expect(lido).toMatchObject({ id: resposta.id, estado: 'pronto', falha: null, paginas: 6, trechos: 6 })
 
       const trechos = await trechosDa(bancada, escola.coordenacao.escolaId)
@@ -139,7 +139,7 @@ describe('material da escola', () => {
       const licencianteAMais = await enviarMaterial(api, escola.coordenacao, { disciplinaId: escola.quimica, titularidade: 'escola', licenciante: 'Editora sintética' }, { arquivo: variacaoDoPdf() })
       // Nada de escola vem do cliente: o contrato é estrito.
       const comEscola = await enviarMaterial(api, escola.coordenacao, { disciplinaId: escola.quimica, extra: { escolaId: escola.coordenacao.escolaId } }, { arquivo: variacaoDoPdf() })
-      for (const resposta of [semLicenciante, licencianteAMais, comEscola]) expect(erroDe(resposta)).toEqual({ status: 400, codigo: CodigoDeErro.ENTRADA_INVALIDA })
+      for (const resposta of [semLicenciante, licencianteAMais, comEscola]) expect(erroDe(resposta)).toEqual({ status: 400, codigo: ErrorCode.ENTRADA_INVALIDA })
       expect(await materiaisDa(bancada, escola.coordenacao.escolaId)).toHaveLength(1)
     })
 
@@ -153,7 +153,7 @@ describe('material da escola', () => {
       ]
       for (const campos of foraDoContrato) {
         const resposta = await enviarMaterial(api, escola.coordenacao, campos, { arquivo: variacaoDoPdf() })
-        expect(erroDe(resposta), JSON.stringify(campos)).toEqual({ status: 400, codigo: CodigoDeErro.ENTRADA_INVALIDA })
+        expect(erroDe(resposta), JSON.stringify(campos)).toEqual({ status: 400, codigo: ErrorCode.ENTRADA_INVALIDA })
       }
       await esperarExtracao(api)
       expect(extrair).not.toHaveBeenCalled()
@@ -203,7 +203,7 @@ describe('material da escola', () => {
       ]
       await esperarExtracao(api)
 
-      for (const resposta of respostas) expect(erroDe(resposta)).toEqual({ status: 422, codigo: CodigoDeErro.MATERIAL_SEM_LICENCA })
+      for (const resposta of respostas) expect(erroDe(resposta)).toEqual({ status: 422, codigo: ErrorCode.MATERIAL_SEM_LICENCA })
       expect(extrair).not.toHaveBeenCalled()
       expect(await materiaisDa(bancada, escola.coordenacao.escolaId)).toEqual([])
       expect(await trechosDa(bancada, escola.coordenacao.escolaId)).toEqual([])
@@ -220,15 +220,15 @@ describe('material da escola', () => {
       const escola = await montarEscolaComTurma(api, bancada)
       const semLicenca = await enviarMaterial(api, escola.coordenacao, { disciplinaId: randomUUID(), licenca: 'sem_licenca' })
       const comLicenca = await enviarMaterial(api, escola.coordenacao, { disciplinaId: randomUUID() })
-      expect(erroDe(semLicenca)).toEqual({ status: 404, codigo: CodigoDeErro.NAO_ENCONTRADO })
-      expect(erroDe(comLicenca)).toEqual({ status: 404, codigo: CodigoDeErro.NAO_ENCONTRADO })
+      expect(erroDe(semLicenca)).toEqual({ status: 404, codigo: ErrorCode.NAO_ENCONTRADO })
+      expect(erroDe(comLicenca)).toEqual({ status: 404, codigo: ErrorCode.NAO_ENCONTRADO })
       expect(await auditoriaDa(bancada, escola.coordenacao.escolaId, 'material.recusado')).toEqual([])
       expect(await materiaisDa(bancada, escola.coordenacao.escolaId)).toEqual([])
     })
 
     it('com licença, o pedido sem arquivo é `ENTRADA_INVALIDA`: só a recusa dispensa o arquivo', async () => {
       const escola = await montarEscolaComTurma(api, bancada)
-      expect(erroDe(await enviarMaterial(api, escola.coordenacao, { disciplinaId: escola.quimica }, { arquivo: null }))).toEqual({ status: 400, codigo: CodigoDeErro.ENTRADA_INVALIDA })
+      expect(erroDe(await enviarMaterial(api, escola.coordenacao, { disciplinaId: escola.quimica }, { arquivo: null }))).toEqual({ status: 400, codigo: ErrorCode.ENTRADA_INVALIDA })
       expect(await materiaisDa(bancada, escola.coordenacao.escolaId)).toEqual([])
     })
   })
@@ -240,8 +240,8 @@ describe('material da escola', () => {
       const planilha = Buffer.from('nome;turma\nAluno sintético;2B\n')
       const comNomeDePdf = await enviarMaterial(api, escola.coordenacao, { disciplinaId: escola.quimica }, { arquivo: planilha, nomeDoArquivo: 'apostila.pdf', tipo: 'application/pdf' })
       const vazio = await enviarMaterial(api, escola.coordenacao, { disciplinaId: escola.quimica }, { arquivo: Buffer.alloc(0) })
-      expect(erroDe(comNomeDePdf)).toEqual({ status: 400, codigo: CodigoDeErro.ENTRADA_INVALIDA })
-      expect(erroDe(vazio)).toEqual({ status: 400, codigo: CodigoDeErro.ENTRADA_INVALIDA })
+      expect(erroDe(comNomeDePdf)).toEqual({ status: 400, codigo: ErrorCode.ENTRADA_INVALIDA })
+      expect(erroDe(vazio)).toEqual({ status: 400, codigo: ErrorCode.ENTRADA_INVALIDA })
       expect(extrair).not.toHaveBeenCalled()
       expect(await materiaisDa(bancada, escola.coordenacao.escolaId)).toEqual([])
     })
@@ -263,7 +263,7 @@ describe('material da escola', () => {
       await esperarExtracao(api)
       expect([primeiro.status, segundo.status]).toEqual([201, 201])
 
-      const lidos = await Promise.all([primeiro, segundo].map(async (enviado) => esquemaRespostaMaterial.parse((await get(escola.coordenacao, `/v1/materiais/${enviado.corpo['id'] as string}`)).corpo)))
+      const lidos = await Promise.all([primeiro, segundo].map(async (enviado) => materialResponseSchema.parse((await get(escola.coordenacao, `/v1/materiais/${enviado.corpo['id'] as string}`)).corpo)))
       expect(lidos.map(({ estado, falha, paginas, trechos }) => ({ estado, falha, paginas, trechos }))).toEqual([
         { estado: 'falhou', falha: 'sem_texto', paginas: null, trechos: 0 },
         { estado: 'falhou', falha: 'arquivo_invalido', paginas: null, trechos: 0 },
@@ -284,7 +284,7 @@ describe('material da escola', () => {
 
       const recusado = await enviarMaterial(api, escola.coordenacao, { disciplinaId: escola.quimica }, { arquivo: grande })
 
-      expect(erroDe(recusado)).toEqual({ status: 413, codigo: CodigoDeErro.ENTRADA_INVALIDA })
+      expect(erroDe(recusado)).toEqual({ status: 413, codigo: ErrorCode.ENTRADA_INVALIDA })
       expect(extrair).not.toHaveBeenCalled()
       expect(await materiaisDa(bancada, escola.coordenacao.escolaId)).toEqual([])
     })
@@ -319,7 +319,7 @@ describe('material da escola', () => {
       const recusado = await enviarMaterial(api, escola.coordenacao, { disciplinaId: escola.quimica, ...campos }, opcoes)
       await esperarExtracao(api)
 
-      expect(erroDe(recusado)).toEqual({ status: 400, codigo: CodigoDeErro.ENTRADA_INVALIDA })
+      expect(erroDe(recusado)).toEqual({ status: 400, codigo: ErrorCode.ENTRADA_INVALIDA })
       expect(extrair).not.toHaveBeenCalled()
       expect(await materiaisDa(bancada, escola.coordenacao.escolaId)).toEqual([])
       expect(await auditoriaDa(bancada, escola.coordenacao.escolaId, 'material.enviado')).toEqual([])
@@ -343,7 +343,7 @@ describe('material da escola', () => {
       await materialPronto(escola)
 
       const repetido = await enviarMaterial(api, escola.coordenacao, { titulo: 'Outro título', disciplinaId: escola.fisica })
-      expect(erroDe(repetido)).toEqual({ status: 409, codigo: CodigoDeErro.CONFLITO })
+      expect(erroDe(repetido)).toEqual({ status: 409, codigo: ErrorCode.CONFLITO })
       expect(await materiaisDa(bancada, escola.coordenacao.escolaId)).toHaveLength(1)
       expect(await trechosDa(bancada, escola.coordenacao.escolaId)).toHaveLength(6)
 
@@ -414,7 +414,7 @@ describe('material da escola', () => {
 
     it('busca fora do contrato é `ENTRADA_INVALIDA`: sem texto, com uma letra, com limite acima do teto ou com escola na consulta', async () => {
       for (const consulta of ['', '?q=a', '?q=mol&limite=21', `?q=mol&escolaId=${escola.coordenacao.escolaId}`]) {
-        expect(erroDe(await get(escola.coordenacao, `/v1/materiais/busca${consulta}`)), consulta).toEqual({ status: 400, codigo: CodigoDeErro.ENTRADA_INVALIDA })
+        expect(erroDe(await get(escola.coordenacao, `/v1/materiais/busca${consulta}`)), consulta).toEqual({ status: 400, codigo: ErrorCode.ENTRADA_INVALIDA })
       }
     })
 
@@ -488,14 +488,14 @@ describe('material da escola', () => {
       expect(await auditoriaDa(bancada, escola.coordenacao.escolaId, 'material.excluido')).toEqual([
         { entidade: 'material', entidade_id: id, autor_usuario_id: escola.coordenacao.usuarioId, antes: { disciplinaId: escola.quimica, estado: 'pronto' }, depois: { trechosApagados: 6 } },
       ])
-      expect(erroDe(await get(escola.coordenacao, `/v1/materiais/${id}`))).toEqual({ status: 404, codigo: CodigoDeErro.NAO_ENCONTRADO })
-      expect(esquemaRespostaListaDeMateriais.parse((await get(escola.coordenacao, '/v1/materiais')).corpo).itens).toEqual([])
+      expect(erroDe(await get(escola.coordenacao, `/v1/materiais/${id}`))).toEqual({ status: 404, codigo: ErrorCode.NAO_ENCONTRADO })
+      expect(listaDeMateriaisResponseSchema.parse((await get(escola.coordenacao, '/v1/materiais')).corpo).itens).toEqual([])
       expect(itensDe(await buscar(escola.coordenacao, 'reagente limitante'))).toEqual([])
       const porta = api.app.get(BuscaDeTrechos)
       expect(await executarNoContexto({ requisicaoId: randomUUID(), escolaId: escola.coordenacao.escolaId }, () => porta.doMaterial(id, escola.quimica))).toEqual([])
 
       // Excluir de novo é como excluir o que não existe, e não grava segunda auditoria.
-      expect(erroDe(await del(escola.coordenacao, `/v1/materiais/${id}`))).toEqual({ status: 404, codigo: CodigoDeErro.NAO_ENCONTRADO })
+      expect(erroDe(await del(escola.coordenacao, `/v1/materiais/${id}`))).toEqual({ status: 404, codigo: ErrorCode.NAO_ENCONTRADO })
       expect(await auditoriaDa(bancada, escola.coordenacao.escolaId, 'material.excluido')).toHaveLength(1)
 
       // O arquivo excluído pode voltar: o índice único deixa de fora o excluído.
@@ -537,7 +537,7 @@ describe('material da escola', () => {
       const excluido = await materialPronto(escola, escola.quimica, variacaoDoPdf())
       expect((await del(escola.coordenacao, `/v1/materiais/${excluido}`)).status).toBe(204)
 
-      const lista = async (consulta = '') => esquemaRespostaListaDeMateriais.parse((await get(escola.coordenacao, `/v1/materiais${consulta}`)).corpo)
+      const lista = async (consulta = '') => listaDeMateriaisResponseSchema.parse((await get(escola.coordenacao, `/v1/materiais${consulta}`)).corpo)
       expect((await lista()).itens.map((item) => item.id)).toEqual([deQuimica, deFisica])
       expect((await lista(`?disciplinaId=${escola.fisica}`)).itens.map((item) => item.id)).toEqual([deFisica])
 
@@ -549,7 +549,7 @@ describe('material da escola', () => {
       expect(paginaDois.proxima).toBeUndefined()
 
       for (const consulta of ['?limite=101', '?pagina=nao-e-um-id', `?escolaId=${escola.coordenacao.escolaId}`, '?disciplinaId=x']) {
-        expect(erroDe(await get(escola.coordenacao, `/v1/materiais${consulta}`)), consulta).toEqual({ status: 400, codigo: CodigoDeErro.ENTRADA_INVALIDA })
+        expect(erroDe(await get(escola.coordenacao, `/v1/materiais${consulta}`)), consulta).toEqual({ status: 400, codigo: ErrorCode.ENTRADA_INVALIDA })
       }
     })
   })
@@ -563,21 +563,21 @@ describe('material da escola', () => {
       const pendente = await professorCom(escola, escola.quimica, false)
       const semVinculo = await bancada.sessao(escola.coordenacao.escolaId, 'professor')
 
-      const lista = async (sessao: SessaoDeTeste, consulta = '') => esquemaRespostaListaDeMateriais.parse((await get(sessao, `/v1/materiais${consulta}`)).corpo).itens.map((item) => item.id)
+      const lista = async (sessao: SessaoDeTeste, consulta = '') => listaDeMateriaisResponseSchema.parse((await get(sessao, `/v1/materiais${consulta}`)).corpo).itens.map((item) => item.id)
       expect(await lista(confirmado)).toEqual([deQuimica])
       // O filtro do cliente só restringe: pedir a disciplina sem vínculo não a abre.
       expect(await lista(confirmado, `?disciplinaId=${escola.fisica}`)).toEqual([])
       expect((await get(confirmado, `/v1/materiais/${deQuimica}`)).corpo).toMatchObject({ id: deQuimica, estado: 'pronto' })
       const deOutraDisciplina = await get(confirmado, `/v1/materiais/${deFisica}`)
       const inexistente = await get(confirmado, `/v1/materiais/${randomUUID()}`)
-      expect(erroDe(deOutraDisciplina)).toEqual({ status: 404, codigo: CodigoDeErro.NAO_ENCONTRADO })
+      expect(erroDe(deOutraDisciplina)).toEqual({ status: 404, codigo: ErrorCode.NAO_ENCONTRADO })
       expect({ ...deOutraDisciplina.corpo.erro, requisicaoId: undefined }).toEqual({ ...inexistente.corpo.erro, requisicaoId: undefined })
       expect(new Set(itensDe(await buscar(confirmado, 'reagente limitante')).map((item) => item.materialId))).toEqual(new Set([deQuimica]))
       expect(itensDe(await buscar(confirmado, 'reagente limitante', `&disciplinaId=${escola.fisica}`))).toEqual([])
 
       for (const professor of [pendente, semVinculo]) {
         expect(await lista(professor)).toEqual([])
-        expect(erroDe(await get(professor, `/v1/materiais/${deQuimica}`))).toEqual({ status: 404, codigo: CodigoDeErro.NAO_ENCONTRADO })
+        expect(erroDe(await get(professor, `/v1/materiais/${deQuimica}`))).toEqual({ status: 404, codigo: ErrorCode.NAO_ENCONTRADO })
         expect(itensDe(await buscar(professor, 'reagente limitante'))).toEqual([])
       }
 
@@ -594,7 +594,7 @@ describe('material da escola', () => {
       const { rows } = await bancada.pool.query<{ id: string }>('select id from vinculo where escola_id = $1 and usuario_id = $2', [escola.coordenacao.escolaId, professor.usuarioId])
       expect((await post(escola.coordenacao, `/v1/vinculos/${rows[0]?.id ?? ''}/encerrar`, { motivo: 'realocacao' })).status).toBe(200)
 
-      expect(erroDe(await get(professor, `/v1/materiais/${id}`))).toEqual({ status: 404, codigo: CodigoDeErro.NAO_ENCONTRADO })
+      expect(erroDe(await get(professor, `/v1/materiais/${id}`))).toEqual({ status: 404, codigo: ErrorCode.NAO_ENCONTRADO })
       expect(itensDe(await buscar(professor, 'reagente limitante'))).toEqual([])
     })
 
@@ -606,7 +606,7 @@ describe('material da escola', () => {
       const extrair = vi.spyOn(api.app.get(ExtratorDePdf), 'extrair')
       const rotaInexistente = await get(aluno, '/v1/rota-que-nao-existe')
       const igualAoInexistente = (resposta: RespostaHttp): void => {
-        expect(erroDe(resposta)).toEqual({ status: 404, codigo: CodigoDeErro.NAO_ENCONTRADO })
+        expect(erroDe(resposta)).toEqual({ status: 404, codigo: ErrorCode.NAO_ENCONTRADO })
         expect({ ...resposta.corpo.erro, requisicaoId: undefined }).toEqual({ ...rotaInexistente.corpo.erro, requisicaoId: undefined })
       }
 
@@ -640,7 +640,7 @@ describe('material da escola', () => {
       await esperarExtracao(api)
 
       const acimaDoTeto = await enviarMaterial(api, escola.coordenacao, { disciplinaId: escola.quimica }, { arquivo: variacaoDoPdf() })
-      expect(erroDe(acimaDoTeto)).toEqual({ status: 429, codigo: CodigoDeErro.LIMITE_EXCEDIDO })
+      expect(erroDe(acimaDoTeto)).toEqual({ status: 429, codigo: ErrorCode.LIMITE_EXCEDIDO })
       expect(Number(acimaDoTeto.retryAfter)).toBeGreaterThan(0)
       expect(await materiaisDa(bancada, escola.coordenacao.escolaId)).toHaveLength(ENVIOS_POR_USUARIO_NA_JANELA)
 
@@ -658,7 +658,7 @@ describe('material da escola', () => {
 
       // A escola chegou ao teto dela: a terceira pessoa, que quase não enviou, também é segurada.
       const comAEscolaNoTeto = await enviarMaterial(api, terceira, { disciplinaId: escola.quimica }, { arquivo: variacaoDoPdf() })
-      expect(erroDe(comAEscolaNoTeto)).toEqual({ status: 429, codigo: CodigoDeErro.LIMITE_EXCEDIDO })
+      expect(erroDe(comAEscolaNoTeto)).toEqual({ status: 429, codigo: ErrorCode.LIMITE_EXCEDIDO })
 
       // Uma escola não degrada outra.
       expect((await enviarMaterial(api, outraEscola.coordenacao, { disciplinaId: outraEscola.quimica }, { arquivo: variacaoDoPdf() })).status).toBe(201)
@@ -669,7 +669,7 @@ describe('material da escola', () => {
       const escola = await montarEscolaComTurma(api, bancada)
       await materiaisJaEnviados(bancada, escola.coordenacao, escola.quimica, ENVIOS_POR_USUARIO_NA_JANELA)
       const resposta = await enviarMaterial(api, escola.coordenacao, { disciplinaId: escola.quimica, licenca: 'sem_licenca' })
-      expect(erroDe(resposta)).toEqual({ status: 429, codigo: CodigoDeErro.LIMITE_EXCEDIDO })
+      expect(erroDe(resposta)).toEqual({ status: 429, codigo: ErrorCode.LIMITE_EXCEDIDO })
       expect(await auditoriaDa(bancada, escola.coordenacao.escolaId, 'material.recusado')).toEqual([])
     })
 
@@ -679,7 +679,7 @@ describe('material da escola', () => {
       const emLeitura = await materiaisJaEnviados(bancada, escola.coordenacao, escola.quimica, MATERIAIS_EM_PROCESSAMENTO_POR_ESCOLA, { estado: 'processando' })
 
       const segurado = await enviarMaterial(api, escola.coordenacao, { disciplinaId: escola.quimica })
-      expect(erroDe(segurado)).toEqual({ status: 429, codigo: CodigoDeErro.LIMITE_EXCEDIDO })
+      expect(erroDe(segurado)).toEqual({ status: 429, codigo: ErrorCode.LIMITE_EXCEDIDO })
       expect(Number(segurado.retryAfter)).toBeGreaterThan(0)
       expect((await enviarMaterial(api, outraEscola.coordenacao, { disciplinaId: outraEscola.quimica })).status).toBe(201)
       await esperarExtracao(api)

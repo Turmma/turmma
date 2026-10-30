@@ -16,7 +16,7 @@ import {
   type VagasPorEscola,
   type VagasPorFila,
 } from '@educa/nucleo'
-import type { Fila } from '@educa/shared'
+import type { QueueName } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import type { FilaDePublicacao } from './fila-de-publicacao.js'
 
@@ -28,7 +28,7 @@ export const LOTE_DE_RESERVA = 100
  * A única fila em que o não urgente é segurado no horário letivo (regra 80, item 2). Na interativa e na
  * normal há alguém esperando, e urgente nunca espera: esses saem na hora, com ou sem a marca.
  */
-export const FILA_QUE_SEGURA_NAO_URGENTE: Fila = 'lote'
+export const FILA_QUE_SEGURA_NAO_URGENTE: QueueName = 'lote'
 
 export interface DependenciasDaPublicacao {
   repositorio: Pick<DespachoRepository, 'marcarPublicados' | 'devolverParaAguardando'>
@@ -83,7 +83,7 @@ export interface OpcoesDoDespachante {
 export class Despachante {
   readonly #intervaloMs: number
   readonly #lote: number
-  readonly #proximaNoRodizio = new Map<Fila, number>()
+  readonly #proximaNoRodizio = new Map<QueueName, number>()
   readonly #avisarVagaIndisponivel: (erro: unknown) => void
   #ativo = false
   #laco: Promise<void> | undefined
@@ -144,7 +144,7 @@ export class Despachante {
   }
 
   /** As escolas da fila, começando por uma diferente a cada rodada. */
-  private emRodizio(fila: Fila, pendentes: readonly EscolaComPendentes[]): Array<string | null> {
+  private emRodizio(fila: QueueName, pendentes: readonly EscolaComPendentes[]): Array<string | null> {
     const escolas = pendentes.filter((pendente) => pendente.fila === fila).map((pendente) => pendente.escolaId)
     if (escolas.length === 0) return escolas
     const inicio = (this.#proximaNoRodizio.get(fila) ?? 0) % escolas.length
@@ -153,7 +153,7 @@ export class Despachante {
   }
 
   /** Passos 0 a 4 para uma escola numa fila, no contexto dela: a configuração, a janela e a reserva são dela. */
-  private despacharDaEscola(fila: Fila, escolaId: string | null, maximo: number): Promise<number | 'vaga_indisponivel'> {
+  private despacharDaEscola(fila: QueueName, escolaId: string | null, maximo: number): Promise<number | 'vaga_indisponivel'> {
     return executarNoContexto(contextoDaEscola(escolaId), async () => {
       const { repositorio, vagas, vagasDaEscola, janelaDaEscola, relogio } = this.dependencias
       const limite = (await vagasDaEscola.daEscola())[fila]
@@ -185,7 +185,7 @@ export class Despachante {
    * reserva curta: os urgentes pelo índice deles; e, só fora do horário letivo e com vaga sobrando,
    * o resto por ordem de chegada (os urgentes disponíveis já foram, então é o não urgente).
    */
-  private async reservar(fila: Fila, maximo: number, segurarNaoUrgentes: boolean): Promise<JobReservado[]> {
+  private async reservar(fila: QueueName, maximo: number, segurarNaoUrgentes: boolean): Promise<JobReservado[]> {
     const { repositorio } = this.dependencias
     if (fila !== FILA_QUE_SEGURA_NAO_URGENTE) return repositorio.reservarDaEscola(fila, maximo)
     const urgentes = await repositorio.reservarDaEscola(fila, maximo, { soUrgentes: true })
@@ -244,7 +244,7 @@ export async function publicarComVaga(dependencias: DependenciasDaPublicacao, jo
 }
 
 interface GrupoDeJobs {
-  fila: Fila
+  fila: QueueName
   escolaId: string | null
   jobs: JobReservado[]
 }

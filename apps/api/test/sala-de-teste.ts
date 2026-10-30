@@ -1,4 +1,4 @@
-import { esquemaRespostaAcessoGerado } from '@educa/shared'
+import { acessoGeradoResponseSchema } from '@educa/shared'
 import type { Redis } from 'ioredis'
 import { randomUUID } from 'node:crypto'
 import { expect } from 'vitest'
@@ -87,7 +87,7 @@ export class FerramentasDaSala {
   async gerar(sala: Pick<SalaDeTeste, 'professor'>, turmaId: string): Promise<{ token: string; codigo: string }> {
     const gerado = await chamar(this.api.url, 'POST', `/v1/turmas/${turmaId}/acesso`, sala.professor.token, { validadeDias: 7 })
     expect(gerado.status).toBe(201)
-    const { token, codigo } = esquemaRespostaAcessoGerado.parse(gerado.corpo)
+    const { token, codigo } = acessoGeradoResponseSchema.parse(gerado.corpo)
     return { token, codigo }
   }
 

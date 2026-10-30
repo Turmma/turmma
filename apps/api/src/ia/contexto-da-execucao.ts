@@ -1,5 +1,5 @@
 import { contextoAtual, exigirEscolaDoContexto, type ContextoDaRequisicao } from '@educa/nucleo'
-import { ErroDeInvariante } from '@educa/shared'
+import { InvariantException } from '@educa/shared'
 
 /**
  * A pessoa da sessão, gravada no contexto pela `GuardaDeSessao`. É quem pede a execução e quem pode lê-la. Sem pessoa
@@ -7,7 +7,7 @@ import { ErroDeInvariante } from '@educa/shared'
  */
 export function exigirUsuarioDoContexto(): string {
   const usuarioId = contextoAtual()?.usuarioId
-  if (usuarioId === undefined) throw new ErroDeInvariante('consulta da própria pessoa sem usuário no contexto')
+  if (usuarioId === undefined) throw new InvariantException('consulta da própria pessoa sem usuário no contexto')
   return usuarioId
 }
 

@@ -1,9 +1,9 @@
 import { IdPipe, Permite, ZodValidationPipe } from '@educa/nucleo'
 import {
-  esquemaPedidoJobSintetico,
-  type PedidoJobSintetico,
-  type RespostaEstadoDeJob,
-  type RespostaJobAceito,
+  syntheticJobRequestSchema,
+  type SyntheticJobRequest,
+  type JobStateResponse,
+  type JobAcceptedResponse,
 } from '@educa/shared'
 import { Body, Controller, Get, Header, HttpCode, HttpStatus, Param, Post } from '@nestjs/common'
 import { JobsSinteticosService } from './jobs-sinteticos.service.js'
@@ -20,7 +20,7 @@ export class JobsSinteticosController {
   @Permite('sistema_job_sintetico', 'criar')
   @HttpCode(HttpStatus.ACCEPTED)
   @Header('Cache-Control', 'no-store')
-  criar(@Body(new ZodValidationPipe(esquemaPedidoJobSintetico)) pedido: PedidoJobSintetico): Promise<RespostaJobAceito> {
+  criar(@Body(new ZodValidationPipe(syntheticJobRequestSchema)) pedido: SyntheticJobRequest): Promise<JobAcceptedResponse> {
     return this.jobs.enfileirar(pedido)
   }
 }
@@ -33,7 +33,7 @@ export class JobsSinteticosConsultaController {
   @Get(':id')
   @Permite('sistema_job_sintetico', 'ler')
   @Header('Cache-Control', 'no-store')
-  consultar(@Param('id', IdPipe) id: string): Promise<RespostaEstadoDeJob> {
+  consultar(@Param('id', IdPipe) id: string): Promise<JobStateResponse> {
     return this.jobs.consultar(id)
   }
 }

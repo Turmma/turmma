@@ -1,7 +1,7 @@
 import { disciplina, exigirEscolaDoContexto, type Banco, type TransacaoBanco } from '@educa/nucleo'
-import type { ConsultaPaginada, Disciplina, PedidoCriarDisciplina } from '@educa/shared'
+import type { PaginationQuery, Disciplina, CriarDisciplinaRequest } from '@educa/shared'
 import { and, asc, eq, gt } from 'drizzle-orm'
-import { ErroDeInvariante } from '@educa/shared'
+import { InvariantException } from '@educa/shared'
 import { excluirSemReferencia } from '../exclusao.js'
 
 const colunas = { id: disciplina.id, nome: disciplina.nome, area: disciplina.area }
@@ -13,17 +13,17 @@ const colunas = { id: disciplina.id, nome: disciplina.nome, area: disciplina.are
 export class DisciplinaRepository {
   constructor(private readonly banco: Banco | TransacaoBanco) {}
 
-  async criar(pedido: PedidoCriarDisciplina): Promise<Disciplina> {
+  async criar(pedido: CriarDisciplinaRequest): Promise<Disciplina> {
     const [criada] = await this.banco
       .insert(disciplina)
       .values({ escolaId: exigirEscolaDoContexto(), nome: pedido.nome, area: pedido.area ?? null })
       .returning(colunas)
-    if (criada === undefined) throw new ErroDeInvariante('disciplina não criada')
+    if (criada === undefined) throw new InvariantException('disciplina não criada')
     return criada
   }
 
   /** Uma página das disciplinas da escola, em ordem de criação, com uma linha a mais que diz se há próxima. */
-  listar({ pagina, limite }: ConsultaPaginada): Promise<Disciplina[]> {
+  listar({ pagina, limite }: PaginationQuery): Promise<Disciplina[]> {
     return this.banco
       .select(colunas)
       .from(disciplina)

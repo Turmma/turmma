@@ -9,7 +9,7 @@ import {
   type Banco,
   type Relogio,
 } from '@educa/nucleo'
-import { CodigoDeErro, ErroDeInvariante, type PapelDeUsuario } from '@educa/shared'
+import { ErrorCode, InvariantException, type PapelDeUsuario } from '@educa/shared'
 import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import { z } from 'zod'
 import { CredencialMatriculaRepository } from '../../credencial/credencial-matricula.repository.js'
@@ -82,7 +82,7 @@ export async function criarSessoesSinteticas(
 ): Promise<SessaoSintetica[]> {
   const emissor = emissorDeTokenSintetico(ambiente)
   if (!Number.isInteger(pedido.quantidade) || pedido.quantidade < 1 || pedido.quantidade > QUANTIDADE_MAXIMA_DE_SESSOES_SINTETICAS) {
-    throw new ErroDeDominio(CodigoDeErro.ENTRADA_INVALIDA)
+    throw new ErroDeDominio(ErrorCode.ENTRADA_INVALIDA)
   }
   let criadas: Array<{ usuarioId: string; sessaoId: string }>
   try {
@@ -108,7 +108,7 @@ export async function criarSessoesSinteticas(
     )
   } catch (erro) {
     // foreign_key_violation: a escola informada não existe.
-    if (erroDoPostgresEm(erro)?.code === '23503') throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
+    if (erroDoPostgresEm(erro)?.code === '23503') throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
     throw erro
   }
   return Promise.all(
@@ -138,13 +138,13 @@ export async function criarAlunosComMatricula(
   alunos: readonly AlunoComMatriculaSintetico[],
 ): Promise<string[]> {
   validarAmbiente(esquemaAmbiente, ambiente)
-  if (alunos.length < 1 || alunos.length > QUANTIDADE_MAXIMA_DE_SESSOES_SINTETICAS) throw new ErroDeDominio(CodigoDeErro.ENTRADA_INVALIDA)
+  if (alunos.length < 1 || alunos.length > QUANTIDADE_MAXIMA_DE_SESSOES_SINTETICAS) throw new ErroDeDominio(ErrorCode.ENTRADA_INVALIDA)
   return executarNoContexto({ requisicaoId: randomUUID(), escolaId }, () =>
     banco.transaction(async (tx) => {
       const usuarios = await new CriacaoDeSessaoRepository(tx).criarUsuarios(alunos.map(() => ({ contaId: null, papel: 'aluno' as const, nome: NOME_SINTETICO })))
       const credenciais = alunos.map((aluno, posicao) => {
         const usuario = usuarios[posicao]
-        if (usuario === undefined) throw new ErroDeInvariante('aluno sintético não criado')
+        if (usuario === undefined) throw new InvariantException('aluno sintético não criado')
         return { usuarioId: usuario.id, matricula: aluno.matricula, senhaHash: aluno.senhaHash }
       })
       await new CredencialMatriculaRepository(tx).criar(credenciais)

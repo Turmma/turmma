@@ -1,11 +1,11 @@
 import { Permite, ZodValidationPipe } from '@educa/nucleo'
 import {
-  CodigoDeErro,
-  esquemaParametroFerramenta,
-  esquemaPedidoGerarComFerramenta,
+  ErrorCode,
+  parametroFerramentaSchema,
+  gerarComFerramentaRequestSchema,
   type ParametroFerramenta,
-  type PedidoGerarComFerramenta,
-  type RespostaExecucaoAceita,
+  type GerarComFerramentaRequest,
+  type ExecucaoAceitaResponse,
 } from '@educa/shared'
 import { Body, Controller, HttpCode, HttpStatus, Param, Post } from '@nestjs/common'
 import { FerramentasService } from './ferramentas.service.js'
@@ -23,9 +23,9 @@ export class FerramentasController {
   @Permite('ferramenta', 'gerar')
   @HttpCode(HttpStatus.ACCEPTED)
   gerar(
-    @Param('ferramenta', new ZodValidationPipe(esquemaParametroFerramenta, { errorCode: CodigoDeErro.NAO_ENCONTRADO })) ferramenta: ParametroFerramenta,
-    @Body(new ZodValidationPipe(esquemaPedidoGerarComFerramenta)) pedido: PedidoGerarComFerramenta,
-  ): Promise<RespostaExecucaoAceita> {
+    @Param('ferramenta', new ZodValidationPipe(parametroFerramentaSchema, { errorCode: ErrorCode.NAO_ENCONTRADO })) ferramenta: ParametroFerramenta,
+    @Body(new ZodValidationPipe(gerarComFerramentaRequestSchema)) pedido: GerarComFerramentaRequest,
+  ): Promise<ExecucaoAceitaResponse> {
     return this.ferramentas.gerar(ferramenta, pedido)
   }
 }

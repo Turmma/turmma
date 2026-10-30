@@ -89,33 +89,33 @@ export type OrigemDoCompartilhamento = (typeof ORIGENS_DO_COMPARTILHAMENTO)[numb
  * Uma empresa por onde passou dado do titular, com o período. Sem pessoa: a chave do suboperador e as datas.
  * É o que o `POST pedidos` calcula e grava no registro (tarefa 12.0), e o que o detalhe do pedido devolve.
  */
-export const esquemaLinhaDoCompartilhamento = z.strictObject({
+export const linhaDoCompartilhamentoSchema = z.strictObject({
   suboperadorId: z.uuid().nullable(),
   chave: z.string().min(1),
   primeiroEm: z.iso.datetime(),
   ultimoEm: z.iso.datetime(),
   origem: z.enum(ORIGENS_DO_COMPARTILHAMENTO),
 })
-export type LinhaDoCompartilhamento = z.infer<typeof esquemaLinhaDoCompartilhamento>
+export type CompartilhamentoRow = z.infer<typeof linhaDoCompartilhamentoSchema>
 
 /** A foto do compartilhamento do pedido: as linhas, sem ordem garantida. */
-export const esquemaCompartilhamento = z.array(esquemaLinhaDoCompartilhamento)
-export type Compartilhamento = z.infer<typeof esquemaCompartilhamento>
+export const compartilhamentoSchema = z.array(linhaDoCompartilhamentoSchema)
+export type Compartilhamento = z.infer<typeof compartilhamentoSchema>
 
 /**
  * `POST /v1/privacidade/titulares/busca`: o termo, de três letras a um nome inteiro. É aparado antes de conferir: o
  * termo de espaços não vale como busca (que viraria a lista da escola inteira), e o acima de 200 não é nome de
  * pessoa. O termo nunca vai a log nem à auditoria.
  */
-export const esquemaBuscaDeTitulares = z.strictObject({ termo: z.string().trim().min(MINIMO_DE_LETRAS_DO_TERMO).max(MAXIMO_DO_NOME_DO_TITULAR) })
-export type BuscaDeTitulares = z.infer<typeof esquemaBuscaDeTitulares>
+export const buscaDeTitularesSchema = z.strictObject({ termo: z.string().trim().min(MINIMO_DE_LETRAS_DO_TERMO).max(MAXIMO_DO_NOME_DO_TITULAR) })
+export type BuscaDeTitulares = z.infer<typeof buscaDeTitularesSchema>
 
 /**
  * O titular como a busca o devolve: id, nome, papel, matrícula e turma do ano (aluno) ou disciplinas e turmas desta
  * escola (professor), e o estado. A busca só acha quem é `usuario` da escola: o aluno que só está na lista de nomes é
  * atendido pela lista da turma (A1), e a tela de Pedidos explica o caminho.
  */
-export const esquemaTitularAchado = z.strictObject({
+export const titularAchadoSchema = z.strictObject({
   id: z.uuid(),
   nome: z.string().min(1),
   papel: z.enum(PAPEIS_DO_TITULAR),
@@ -124,10 +124,10 @@ export const esquemaTitularAchado = z.strictObject({
   disciplinas: z.array(z.strictObject({ id: z.uuid(), nome: z.string() })),
   estado: z.enum(ESTADOS_DO_TITULAR),
 })
-export type TitularAchado = z.infer<typeof esquemaTitularAchado>
+export type TitularAchado = z.infer<typeof titularAchadoSchema>
 
-export const esquemaRespostaBuscaDeTitulares = z.strictObject({ titulares: z.array(esquemaTitularAchado).max(MAXIMO_DE_RESULTADOS_DA_BUSCA) })
-export type RespostaBuscaDeTitulares = z.infer<typeof esquemaRespostaBuscaDeTitulares>
+export const buscaDeTitularesResponseSchema = z.strictObject({ titulares: z.array(titularAchadoSchema).max(MAXIMO_DE_RESULTADOS_DA_BUSCA) })
+export type BuscaDeTitularesResponse = z.infer<typeof buscaDeTitularesResponseSchema>
 
 /**
  * A prévia do titular, antes de registrar o pedido (Tech Spec do F3, seção 4; D64):
@@ -141,7 +141,7 @@ export type RespostaBuscaDeTitulares = z.infer<typeof esquemaRespostaBuscaDeTitu
  * nome completo nesta escola, ou um nome livre igual na lista. Sem ele, a coordenação confirmaria uma troca que não
  * vai acontecer. Nunca identifica o outro aluno.
  */
-export const esquemaRespostaPreviaDoTitular = z.discriminatedUnion('papel', [
+export const previaDoTitularResponseSchema = z.discriminatedUnion('papel', [
   z.strictObject({
     id: z.uuid(),
     nome: z.string().min(1),
@@ -157,63 +157,63 @@ export const esquemaRespostaPreviaDoTitular = z.discriminatedUnion('papel', [
     homonimo: z.boolean(),
   }),
 ])
-export type RespostaPreviaDoTitular = z.infer<typeof esquemaRespostaPreviaDoTitular>
+export type PreviaDoTitularResponse = z.infer<typeof previaDoTitularResponseSchema>
 
 /** As categorias que a prévia do professor mostra: as de cadastro e de vínculo, e nada mais (D64). */
 export const CATEGORIAS_DE_CADASTRO_E_VINCULO: readonly (typeof CHAVES_DE_RETENCAO)[number][] = ['pessoa_desativada', 'vinculo_encerrado']
 
 /** `POST /v1/privacidade/pedidos`: o titular, o tipo, quem pediu, quando chegou à escola e a chave de envio. */
-export const esquemaRegistroDePedido = z.strictObject({
+export const registroDePedidoSchema = z.strictObject({
   titularId: z.uuid(),
   tipo: z.enum(TIPOS_DE_PEDIDO_DO_TITULAR),
   solicitante: z.enum(SOLICITANTES_DO_PEDIDO),
   chegouEm: z.iso.date(),
   chaveEnvio: z.uuid(),
 })
-export type RegistroDePedido = z.infer<typeof esquemaRegistroDePedido>
+export type RegistroDePedido = z.infer<typeof registroDePedidoSchema>
 
 /**
  * `POST /v1/privacidade/pedidos/:id/corrigir-nome`: o nome novo, de 1 a 200 caracteres depois de tirar o espaço das
  * pontas (o mesmo do check `usuario_nome_preenchido`). Fora daí, `ENTRADA_INVALIDA` — nunca o erro cru do banco. O nome
  * anterior não entra em lugar nenhum.
  */
-export const esquemaCorrecaoDeNome = z.strictObject({ nome: z.string().trim().min(1).max(MAXIMO_DO_NOME_DO_TITULAR) })
-export type CorrecaoDeNome = z.infer<typeof esquemaCorrecaoDeNome>
+export const correcaoDeNomeSchema = z.strictObject({ nome: z.string().trim().min(1).max(MAXIMO_DO_NOME_DO_TITULAR) })
+export type CorrecaoDeNome = z.infer<typeof correcaoDeNomeSchema>
 
 /**
  * O titular como o pedido o mostra: nome e turmas enquanto ele existe, e `null` quando foi eliminado (a tela mostra
  * "Titular eliminado"). Nunca o nome de quem registrou nem a matrícula.
  */
-export const esquemaTitularDoPedido = z.strictObject({
+export const titularDoPedidoSchema = z.strictObject({
   nome: z.string().min(1),
   turmas: z.array(z.string()),
 })
-export type TitularDoPedido = z.infer<typeof esquemaTitularDoPedido>
+export type TitularDoPedido = z.infer<typeof titularDoPedidoSchema>
 
 /** O pedido como a lista o devolve: nome e turma do titular enquanto ele existe, e `null` quando foi eliminado. */
-export const esquemaItemDoPedido = z.strictObject({
+export const itemDoPedidoSchema = z.strictObject({
   id: z.uuid(),
   tipo: z.enum(TIPOS_DE_PEDIDO_DO_TITULAR),
   solicitante: z.enum(SOLICITANTES_DO_PEDIDO),
   chegouEm: z.iso.date(),
   estado: z.enum(ESTADOS_DO_PEDIDO),
-  titular: esquemaTitularDoPedido.nullable(),
+  titular: titularDoPedidoSchema.nullable(),
 })
-export type ItemDoPedido = z.infer<typeof esquemaItemDoPedido>
+export type ItemDoPedido = z.infer<typeof itemDoPedidoSchema>
 
 /**
  * O detalhe do pedido: a lista, mais a foto do compartilhamento salva no registro, o `nomeTrocado` e o `homonimo`
  * (Tech Spec do F3, seção 4). `nomeTrocado` e `homonimo` são nulos enquanto a eliminação não os marcou; o nome
  * anterior a uma correção nunca volta em nenhuma resposta.
  */
-export const esquemaPedidoDoTitular = esquemaItemDoPedido.extend({
+export const pedidoDoTitularSchema = itemDoPedidoSchema.extend({
   homonimo: z.boolean().nullable(),
   nomeTrocado: z.boolean().nullable(),
-  compartilhamento: esquemaCompartilhamento,
+  compartilhamento: compartilhamentoSchema,
   concluidoEm: z.iso.datetime().nullable(),
 })
-export type PedidoDoTitular = z.infer<typeof esquemaPedidoDoTitular>
+export type PedidoDoTitular = z.infer<typeof pedidoDoTitularSchema>
 
 /** `GET /v1/privacidade/pedidos`: a página de pedidos da escola. */
-export const esquemaRespostaPedidos = z.strictObject({ itens: z.array(esquemaItemDoPedido), proxima: z.uuid().optional() })
-export type RespostaPedidos = z.infer<typeof esquemaRespostaPedidos>
+export const pedidosResponseSchema = z.strictObject({ itens: z.array(itemDoPedidoSchema), proxima: z.uuid().optional() })
+export type PedidosResponse = z.infer<typeof pedidosResponseSchema>

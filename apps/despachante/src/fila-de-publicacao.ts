@@ -1,12 +1,12 @@
 import { executorDoJob, nomeDaFilaBullMQ, opcoesDeJob, TIMEOUT_COMANDO_REDIS_FILA_MS, type DadosDoJobNaFila, type JobReservado, type OpcoesDeJobPublicado } from '@educa/nucleo'
-import { CODIGOS_DE_FALHA_DE_JOB, CodigoDeFalhaDeJob, DEFINICOES_DE_JOB, FILAS, type ExecutorDeJob, type Fila, type RegistroDeJobs } from '@educa/shared'
+import { JOB_FAILURE_CODES, JobFailureCode, JOB_DEFINITIONS, QUEUE_NAMES, type JobExecutor, type QueueName, type JobRegistry } from '@educa/shared'
 
 /** O que a consulta à fila diz de um job. Só `inexistente` autoriza publicar de novo. */
 export type SituacaoNaFila =
   | { situacao: 'inexistente' }
   | { situacao: 'presente' }
   /** A fila desistiu do job (tentativas esgotadas, stalled acima do limite, dado inválido). */
-  | { situacao: 'falhou'; codigo: CodigoDeFalhaDeJob }
+  | { situacao: 'falhou'; codigo: JobFailureCode }
 
 /** O lado do Redis de fila que o despachante usa: publicar e consultar, sempre com prazo. */
 export interface FilaDePublicacao {
@@ -43,16 +43,16 @@ export class PublicacaoBullMQ implements FilaDePublicacao {
   readonly #filas = new Map<string, FilaBullMQ>()
 
   constructor(
-    private readonly criarFila: (fila: Fila, executor: ExecutorDeJob) => FilaBullMQ,
+    private readonly criarFila: (fila: QueueName, executor: JobExecutor) => FilaBullMQ,
     private readonly prazoMs: number = TIMEOUT_COMANDO_REDIS_FILA_MS,
-    private readonly definicoes: RegistroDeJobs = DEFINICOES_DE_JOB,
+    private readonly definicoes: JobRegistry = JOB_DEFINITIONS,
   ) {
-    for (const fila of FILAS) this.#filas.set(nomeDaFilaBullMQ(fila, 'worker'), criarFila(fila, 'worker'))
+    for (const fila of QUEUE_NAMES) this.#filas.set(nomeDaFilaBullMQ(fila, 'worker'), criarFila(fila, 'worker'))
   }
 
   /** Um `addBulk` por fila e executor, todos dentro do mesmo prazo. */
   publicar(jobs: readonly JobReservado[]): Promise<void> {
-    const porFila = new Map<string, { fila: Fila; executor: ExecutorDeJob; jobs: JobReservado[] }>()
+    const porFila = new Map<string, { fila: QueueName; executor: JobExecutor; jobs: JobReservado[] }>()
     for (const job of jobs) {
       const executor = executorDoJob(job.tipo, this.definicoes)
       const chave = nomeDaFilaBullMQ(job.fila, executor)
@@ -96,7 +96,7 @@ export class PublicacaoBullMQ implements FilaDePublicacao {
     await Promise.all([...this.#filas.values()].map((queue) => queue.close()))
   }
 
-  private async comFila<T>(fila: Fila, executor: ExecutorDeJob, operacao: (queue: FilaBullMQ) => Promise<T>): Promise<T> {
+  private async comFila<T>(fila: QueueName, executor: JobExecutor, operacao: (queue: FilaBullMQ) => Promise<T>): Promise<T> {
     const queue = this.queueDa(fila, executor)
     try {
       await queue.waitUntilReady()
@@ -108,7 +108,7 @@ export class PublicacaoBullMQ implements FilaDePublicacao {
   }
 
   /** A `Queue` do nome, criada na primeira vez que alguém a pede (as do executor `api`; as do worker já nasceram no construtor). */
-  private queueDa(fila: Fila, executor: ExecutorDeJob): FilaBullMQ {
+  private queueDa(fila: QueueName, executor: JobExecutor): FilaBullMQ {
     const nome = nomeDaFilaBullMQ(fila, executor)
     const existente = this.#filas.get(nome)
     if (existente !== undefined) return existente
@@ -117,7 +117,7 @@ export class PublicacaoBullMQ implements FilaDePublicacao {
     return nova
   }
 
-  private trocar(fila: Fila, executor: ExecutorDeJob, falhou: FilaBullMQ): void {
+  private trocar(fila: QueueName, executor: JobExecutor, falhou: FilaBullMQ): void {
     const nome = nomeDaFilaBullMQ(fila, executor)
     if (this.#filas.get(nome) !== falhou) return
     this.#filas.set(nome, this.criarFila(fila, executor))
@@ -126,8 +126,8 @@ export class PublicacaoBullMQ implements FilaDePublicacao {
 }
 
 /** O worker só manda à fila o código tipado; o que não for um deles (stalled do BullMQ) é erro interno. */
-function codigoDaFalha(motivo: string): CodigoDeFalhaDeJob {
-  return CODIGOS_DE_FALHA_DE_JOB.find((codigo) => codigo === motivo) ?? CodigoDeFalhaDeJob.ERRO_INTERNO
+function codigoDaFalha(motivo: string): JobFailureCode {
+  return JOB_FAILURE_CODES.find((codigo) => codigo === motivo) ?? JobFailureCode.ERRO_INTERNO
 }
 
 /**

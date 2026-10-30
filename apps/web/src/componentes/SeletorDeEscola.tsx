@@ -1,4 +1,4 @@
-import { AVISO_DA_TROCA_RECUSADA, CodigoDeErro, type AcessoDaConta } from '@educa/shared'
+import { AVISO_DA_TROCA_RECUSADA, ErrorCode, type AcessoDaConta } from '@educa/shared'
 import { Check, ChevronsUpDown } from 'lucide-react'
 import { useId, useRef, useState, type KeyboardEvent } from 'react'
 import { useLocation } from 'wouter'
@@ -13,7 +13,7 @@ import { NOME_DO_PAPEL } from '../papeis'
  * (regra 10, item 6). Qualquer outra falha é a mensagem do catálogo, que já diz o que fazer.
  */
 function mensagemDaTroca(erro: unknown): string {
-  return erro instanceof ErroDaApi && erro.codigo === CodigoDeErro.NAO_ENCONTRADO ? AVISO_DA_TROCA_RECUSADA : mensagemDoErro(erro)
+  return erro instanceof ErroDaApi && erro.codigo === ErrorCode.NAO_ENCONTRADO ? AVISO_DA_TROCA_RECUSADA : mensagemDoErro(erro)
 }
 
 /**

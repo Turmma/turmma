@@ -1,4 +1,4 @@
-import { esquemaPedidoEnviarMaterial, MAXIMO_DE_BYTES_DO_MATERIAL, motivoDaRecusaDoMaterial } from '@educa/shared'
+import { enviarMaterialRequestSchema, MAXIMO_DE_BYTES_DO_MATERIAL, motivoDaRecusaDoMaterial } from '@educa/shared'
 import { Injectable, type CanActivate } from '@nestjs/common'
 import { FileInterceptor } from '@nestjs/platform-express'
 import { MaterialService } from './material.service.js'
@@ -17,7 +17,7 @@ const MAXIMO_DE_BYTES_POR_CAMPO = 2 * 1024
  * quem decide é o serviço, na mesma ordem (disciplina, licença, e só então o arquivo).
  */
 export function seraRecusadoPorLicenca(campos: unknown): boolean {
-  const pedido = esquemaPedidoEnviarMaterial.safeParse(campos)
+  const pedido = enviarMaterialRequestSchema.safeParse(campos)
   return pedido.success && motivoDaRecusaDoMaterial(pedido.data) !== null
 }
 

@@ -1,5 +1,5 @@
 import { executarNoContexto, RECUSA_DE_CORRECAO_DE_TEXTO_DE_ALUNO, type ExecutorDeAgente, type ExecutorNoProcesso, type LLMProvider, type SuspensaoDeFuncao } from '@educa/nucleo'
-import { esquemaRespostaConversaDoAssistente, esquemaRespostaTime, FUNCOES, MENSAGENS_DE_ERRO, type ChaveDeFuncao } from '@educa/shared'
+import { conversaDoAssistenteResponseSchema, timeResponseSchema, FUNCOES, MENSAGENS_DE_ERRO, type ChaveDeFuncao } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { readdirSync, readFileSync } from 'node:fs'
 import { join, relative, sep } from 'node:path'
@@ -48,7 +48,7 @@ describe('Assistente de ensino', () => {
   const get = async (sessao: SessaoDeTeste, caminho: string): Promise<RespostaHttp> => chamar(api.url, 'GET', caminho, await sessao.tokenNovo())
   const post = async (sessao: SessaoDeTeste, caminho: string, corpo: unknown): Promise<RespostaHttp> => chamar(api.url, 'POST', caminho, await sessao.tokenNovo(), corpo)
   const mensagem = (escola: EscolaComAssistente, texto: string, extra: Record<string, unknown> = {}) => ({ texto, turmaId: escola.turma, disciplinaId: escola.quimica, chaveEnvio: randomUUID(), ...extra })
-  const conversaDe = async (sessao: SessaoDeTeste, consulta = '') => esquemaRespostaConversaDoAssistente.parse((await get(sessao, `/v1/assistente/conversa${consulta}`)).corpo)
+  const conversaDe = async (sessao: SessaoDeTeste, consulta = '') => conversaDoAssistenteResponseSchema.parse((await get(sessao, `/v1/assistente/conversa${consulta}`)).corpo)
   const suspender = (escola: EscolaComAssistente, funcao: ChaveDeFuncao) => sql('insert into suspensao_de_funcao (escola_id, funcao, suspensa_por) values ($1, $2, $3)', [escola.escolaId, funcao, escola.coordenacao.usuarioId])
   const retomar = (escola: EscolaComAssistente, funcao: ChaveDeFuncao) =>
     sql('update suspensao_de_funcao set retomada_em = now(), retomada_por = $3 where escola_id = $1 and funcao = $2 and retomada_em is null', [escola.escolaId, funcao, escola.coordenacao.usuarioId])
@@ -73,7 +73,7 @@ describe('Assistente de ensino', () => {
   describe('GET /v1/time', () => {
     it('professor e coordenação leem os três agentes e as funções do catálogo, com a autonomia em português comum', async () => {
       for (const sessao of [a.professora, a.coordenacao]) {
-        const time = esquemaRespostaTime.parse((await get(sessao, '/v1/time')).corpo)
+        const time = timeResponseSchema.parse((await get(sessao, '/v1/time')).corpo)
         expect(time.agentes.map((agente) => agente.agente)).toEqual(['assistente_de_ensino', 'tutor', 'analista_de_desempenho_escolar'])
         const adaptacao = time.agentes[0]?.funcoes.find((funcao) => funcao.chave === 'adaptacao')
         expect(adaptacao).toEqual({ chave: 'adaptacao', nome: FUNCOES.adaptacao.nome, autonomia: 3, altoRisco: true, fazSozinha: FUNCOES.adaptacao.fazSozinha, esperaAprovacao: FUNCOES.adaptacao.esperaAprovacao, suspensa: false })
@@ -82,7 +82,7 @@ describe('Assistente de ensino', () => {
 
     it('a suspensão que aparece é a da escola de quem lê: suspensa em A, a mesma função segue ativa em B, e a retomada some', async () => {
       const suspensas = async (sessao: SessaoDeTeste) =>
-        esquemaRespostaTime
+        timeResponseSchema
           .parse((await get(sessao, '/v1/time')).corpo)
           .agentes.flatMap((agente) => agente.funcoes)
           .filter((funcao) => funcao.suspensa)

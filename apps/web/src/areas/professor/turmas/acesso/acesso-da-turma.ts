@@ -1,4 +1,4 @@
-import { CodigoDeErro, exibirCodigoDaTurma, type ValidadeDoAcessoDias } from '@educa/shared'
+import { ErrorCode, exibirCodigoDaTurma, type ValidadeDoAcessoDias } from '@educa/shared'
 import { ErroDaApi } from '../../../../api/cliente'
 import type { DitosDaCopia } from '../../../../componentes/copia-unica'
 import { listaMudou, textoDaFalha } from '../../../../componentes/texto-da-falha'
@@ -116,7 +116,7 @@ export const TEXTO_DA_TURMA_INDISPONIVEL =
   'Esta turma não está disponível para você agora: o seu vínculo com ela pode não estar confirmado, ou ela saiu do ano letivo em curso. Volte para Turmas; se ela deveria estar lá, fale com a coordenação.'
 
 export function turmaIndisponivel(erro: unknown): boolean {
-  return erro instanceof ErroDaApi && erro.codigo === CodigoDeErro.NAO_ENCONTRADO
+  return erro instanceof ErroDaApi && erro.codigo === ErrorCode.NAO_ENCONTRADO
 }
 
 /** A falha do gerar: o texto, e se o que a seção mostrava deixou de valer (aí ela recarrega, e o diálogo só oferece "Fechar"). */
@@ -135,8 +135,8 @@ const TEXTO_DO_ACESSO_GERADO_EM_OUTRO_LUGAR =
  */
 export function falhaDoGerarAcesso(erro: unknown): FalhaDoAcesso {
   return {
-    texto: textoDaFalha(erro, { [CodigoDeErro.CONFLITO]: TEXTO_DO_ACESSO_GERADO_EM_OUTRO_LUGAR, [CodigoDeErro.NAO_ENCONTRADO]: TEXTO_DA_TURMA_INDISPONIVEL }),
-    secaoMudou: listaMudou(erro, [CodigoDeErro.CONFLITO, CodigoDeErro.NAO_ENCONTRADO]),
+    texto: textoDaFalha(erro, { [ErrorCode.CONFLITO]: TEXTO_DO_ACESSO_GERADO_EM_OUTRO_LUGAR, [ErrorCode.NAO_ENCONTRADO]: TEXTO_DA_TURMA_INDISPONIVEL }),
+    secaoMudou: listaMudou(erro, [ErrorCode.CONFLITO, ErrorCode.NAO_ENCONTRADO]),
   }
 }
 
@@ -144,6 +144,6 @@ export function falhaDoGerarAcesso(erro: unknown): FalhaDoAcesso {
  * O `NAO_ENCONTRADO` do revogar: não há mais acesso vigente (venceu, ou outra pessoa revogou antes), ou a turma saiu do
  * alcance. A seção recarrega e mostra qual dos dois.
  */
-export const TEXTOS_DA_FALHA_DO_REVOGAR: Partial<Record<CodigoDeErro, string>> = {
-  [CodigoDeErro.NAO_ENCONTRADO]: 'Esta turma já não tem acesso ativo. A tela foi atualizada.',
+export const TEXTOS_DA_FALHA_DO_REVOGAR: Partial<Record<ErrorCode, string>> = {
+  [ErrorCode.NAO_ENCONTRADO]: 'Esta turma já não tem acesso ativo. A tela foi atualizada.',
 }

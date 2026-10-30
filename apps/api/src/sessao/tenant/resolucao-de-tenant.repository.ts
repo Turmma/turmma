@@ -1,5 +1,5 @@
 import { acessoTurma, anoLetivo, codigoRecuperacao, conta, convite, ErroDeDominio, escola, rede, registroAcesso, SemEscopo, sessao, usuario, type Banco, type EstadoDaSessao, type MotivoDeEncerramento, type TipoDeConvite, type TransacaoBanco } from '@educa/nucleo'
-import { CodigoDeErro, type PapelDeUsuario } from '@educa/shared'
+import { ErrorCode, type PapelDeUsuario } from '@educa/shared'
 import { and, eq, gt, gte, isNotNull, isNull, lt, ne, or, sql, type SQL } from 'drizzle-orm'
 
 /**
@@ -456,7 +456,7 @@ export class ResolucaoDeTenantRepository {
       if (existente !== undefined) return { id: existente.id, nova: false }
     }
     // Três limpezas seguidas da mesma conta no meio de um convite não acontecem: se acontecer, o operador tenta de novo.
-    throw new ErroDeDominio(CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO)
+    throw new ErroDeDominio(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO)
   }
 
   /**

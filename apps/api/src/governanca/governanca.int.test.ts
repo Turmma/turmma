@@ -1,5 +1,5 @@
 import type { ExecutorNoProcesso } from '@educa/nucleo'
-import { CHAVES_DE_FUNCAO, esquemaRespostaConsumo, esquemaRespostaFuncaoDaGovernanca, esquemaRespostaFuncoesDaGovernanca, esquemaRespostaResumoDaGovernanca, FUNCOES, TROCAS_POR_MES_PADRAO_DO_TUTOR, type ChaveDeFuncao } from '@educa/shared'
+import { CHAVES_DE_FUNCAO, consumoResponseSchema, funcaoDaGovernancaResponseSchema, funcoesDaGovernancaResponseSchema, resumoDaGovernancaResponseSchema, FUNCOES, TROCAS_POR_MES_PADRAO_DO_TUTOR, type ChaveDeFuncao } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../../tools/testes/metricas.ts'
@@ -54,10 +54,10 @@ describe('governança de IA da coordenação', () => {
   const resumoDe = async (escola: EscolaComAssistente, consulta = '') => {
     const resposta = await get(escola.coordenacao, `/v1/governanca/resumo${consulta}`)
     expect(resposta.status).toBe(200)
-    return { lido: esquemaRespostaResumoDaGovernanca.parse(resposta.corpo), texto: JSON.stringify(resposta.corpo) }
+    return { lido: resumoDaGovernancaResponseSchema.parse(resposta.corpo), texto: JSON.stringify(resposta.corpo) }
   }
   const funcaoDe = async (escola: EscolaComAssistente, chave: ChaveDeFuncao) => {
-    const { agentes } = esquemaRespostaFuncoesDaGovernanca.parse((await get(escola.coordenacao, '/v1/governanca/funcoes')).corpo)
+    const { agentes } = funcoesDaGovernancaResponseSchema.parse((await get(escola.coordenacao, '/v1/governanca/funcoes')).corpo)
     const funcao = agentes.flatMap((agente) => agente.funcoes).find((candidata) => candidata.chave === chave)
     if (funcao === undefined) throw new Error('função fora da resposta')
     return funcao
@@ -270,7 +270,7 @@ describe('governança de IA da coordenação', () => {
   describe('o que cada função faz sozinha', () => {
     it('os três agentes e as seis funções, com a autonomia do catálogo e sem suspensão', async () => {
       const resposta = await get(b.coordenacao, '/v1/governanca/funcoes')
-      const { agentes } = esquemaRespostaFuncoesDaGovernanca.parse(resposta.corpo)
+      const { agentes } = funcoesDaGovernancaResponseSchema.parse(resposta.corpo)
       expect(agentes.map((agente) => agente.agente)).toEqual(['assistente_de_ensino', 'tutor', 'analista_de_desempenho_escolar'])
       const funcoes = agentes.flatMap((agente) => agente.funcoes)
       expect(funcoes.map((funcao) => funcao.chave)).toEqual(CHAVES_DE_FUNCAO)
@@ -286,14 +286,14 @@ describe('governança de IA da coordenação', () => {
       const primeira = await suspender(a, 'resumo_e_alerta', { motivo: 'revisao_pedagogica' })
       try {
         expect(primeira.status).toBe(200)
-        const funcao = esquemaRespostaFuncaoDaGovernanca.parse(primeira.corpo)
+        const funcao = funcaoDaGovernancaResponseSchema.parse(primeira.corpo)
         expect(funcao).toMatchObject({ chave: 'resumo_e_alerta', suspensa: true, suspensao: { motivo: 'revisao_pedagogica' } })
         const [linha, ...outras] = await suspensoes(a, 'resumo_e_alerta')
         expect(outras).toEqual([])
         expect(linha).toMatchObject({ suspensa_por: a.coordenacao.usuarioId, retomada_em: null, motivo: 'revisao_pedagogica' })
         expect(await auditorias(a, 'funcao.suspensa')).toMatchObject([{ autor_usuario_id: a.coordenacao.usuarioId, entidade_id: linha?.id, depois: { funcao: 'resumo_e_alerta', motivo: 'revisao_pedagogica' } }])
 
-        const segunda = esquemaRespostaFuncaoDaGovernanca.parse((await suspender(a, 'resumo_e_alerta', { motivo: 'incidente' })).corpo)
+        const segunda = funcaoDaGovernancaResponseSchema.parse((await suspender(a, 'resumo_e_alerta', { motivo: 'incidente' })).corpo)
         expect(segunda.suspensao).toEqual(funcao.suspensao)
         expect(await suspensoes(a, 'resumo_e_alerta')).toHaveLength(1)
         expect(await auditorias(a, 'funcao.suspensa')).toHaveLength(1)
@@ -318,7 +318,7 @@ describe('governança de IA da coordenação', () => {
       expect(erro(await retomar(b, 'sinais_para_o_professor'))).toEqual(NAO_ENCONTRADO)
       await suspender(b, 'sinais_para_o_professor')
       const retomada = await retomar(b, 'sinais_para_o_professor')
-      expect(esquemaRespostaFuncaoDaGovernanca.parse(retomada.corpo)).toMatchObject({ chave: 'sinais_para_o_professor', suspensa: false, suspensao: null })
+      expect(funcaoDaGovernancaResponseSchema.parse(retomada.corpo)).toMatchObject({ chave: 'sinais_para_o_professor', suspensa: false, suspensao: null })
       const [linha] = await suspensoes(b, 'sinais_para_o_professor')
       expect(linha?.retomada_por).toBe(b.coordenacao.usuarioId)
       expect(linha?.retomada_em).toBeInstanceOf(Date)
@@ -443,7 +443,7 @@ describe('governança de IA da coordenação', () => {
       await executor.ociosa()
       const resposta = await get(a.coordenacao, '/v1/governanca/consumo')
       expect(resposta.status).toBe(200)
-      const consumo = esquemaRespostaConsumo.parse(resposta.corpo)
+      const consumo = consumoResponseSchema.parse(resposta.corpo)
       const noBanco = await sql<{ funcao: string; chamadas: number; entrada: number; saida: number }>(
         `select funcao, count(*)::int as chamadas, sum(tokens_de_entrada)::int as entrada, sum(tokens_de_saida)::int as saida from consumo_ia where escola_id = $1 group by funcao`,
         [a.escolaId],
@@ -462,14 +462,14 @@ describe('governança de IA da coordenação', () => {
       for (const proibido of ['origem', 'regra_fixa', 'falso', 'alunoId', 'usuarioId', '"entrada"', '"saida"', 'modelo', 'perfil', a.aluno.usuarioId, a.professora.usuarioId]) expect(texto).not.toContain(proibido)
 
       // A escola B gastou menos, e o que A gastou não aparece lá.
-      const deB = esquemaRespostaConsumo.parse((await get(b.coordenacao, '/v1/governanca/consumo')).corpo)
+      const deB = consumoResponseSchema.parse((await get(b.coordenacao, '/v1/governanca/consumo')).corpo)
       const [totalDeB] = await sql<{ chamadas: number }>('select count(*)::int as chamadas from consumo_ia where escola_id = $1', [b.escolaId])
       expect(deB.total.chamadas).toBe(totalDeB?.chamadas)
       expect(deB.total.chamadas).not.toBe(consumo.total.chamadas)
     })
 
     it('a chamada com provedor entra na soma como qualquer outra, e o provedor não sai pela governança', async () => {
-      const antes = esquemaRespostaConsumo.parse((await get(a.coordenacao, '/v1/governanca/consumo')).corpo)
+      const antes = consumoResponseSchema.parse((await get(a.coordenacao, '/v1/governanca/consumo')).corpo)
       const provedor = `provedor-${randomUUID().slice(0, 8)}`
       const chamada = (externo: boolean, provedorDaLinha: string | null) =>
         sql(
@@ -480,7 +480,7 @@ describe('governança de IA da coordenação', () => {
       await chamada(true, provedor)
       await chamada(false, null)
       const resposta = await get(a.coordenacao, '/v1/governanca/consumo')
-      const depois = esquemaRespostaConsumo.parse(resposta.corpo)
+      const depois = consumoResponseSchema.parse(resposta.corpo)
       expect(depois.total.chamadas).toBe(antes.total.chamadas + 2)
       expect(depois.total.tokensDeEntrada).toBe(antes.total.tokensDeEntrada + 2000)
       expect(depois.total.tokensDeSaida).toBe(antes.total.tokensDeSaida + 1000)
@@ -490,9 +490,9 @@ describe('governança de IA da coordenação', () => {
     })
 
     it('o mês sem consumo responde zerado, e o pacote do Tutor soma os alunos das turmas', async () => {
-      const passado = esquemaRespostaConsumo.parse((await get(a.coordenacao, '/v1/governanca/consumo?mes=2020-01')).corpo)
+      const passado = consumoResponseSchema.parse((await get(a.coordenacao, '/v1/governanca/consumo?mes=2020-01')).corpo)
       expect(passado).toMatchObject({ mes: '2020-01', total: { chamadas: 0, tokensDeEntrada: 0, tokensDeSaida: 0, custoMicros: 0, comEnvioExterno: 0 }, porFuncao: [], tutor: { trocasNoMes: 0 } })
-      const atual = esquemaRespostaConsumo.parse((await get(a.coordenacao, '/v1/governanca/consumo')).corpo)
+      const atual = consumoResponseSchema.parse((await get(a.coordenacao, '/v1/governanca/consumo')).corpo)
       const alunos = await contarNaEscola(bancada, 'vinculo', a.escolaId, `papel = 'aluno' and estado = 'confirmado'`)
       expect(alunos).toBeGreaterThan(0)
       expect(atual.tutor.pacoteDoMes).toBe(TROCAS_POR_MES_PADRAO_DO_TUTOR * alunos)

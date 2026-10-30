@@ -1,5 +1,5 @@
 import { contextoAtual, criarLogger, type JobParaExecutar, type ResultadoDoInicio } from '@educa/nucleo'
-import { CodigoDeErro, CodigoDeFalhaDeJob, definirJob, DEFINICOES_DE_JOB, TIPO_CONSOLIDAR_USO, TIPO_ELIMINAR_TITULAR, TIPO_EXPURGAR_ACESSO, TIPO_EXPURGAR_DADO_PESSOAL, TIPO_EXPURGAR_ESCOLA, TIPO_EXPURGAR_JOBS, TIPO_JOB_SINTETICO, TIPO_MONTAR_ARQUIVO, type Fila, type RegistroDeJobs, type TipoDeJob } from '@educa/shared'
+import { ErrorCode, JobFailureCode, defineJob, JOB_DEFINITIONS, TIPO_CONSOLIDAR_USO, TIPO_ELIMINAR_TITULAR, TIPO_EXPURGAR_ACESSO, TIPO_EXPURGAR_DADO_PESSOAL, TIPO_EXPURGAR_ESCOLA, TIPO_EXPURGAR_JOBS, TIPO_JOB_SINTETICO, TIPO_MONTAR_ARQUIVO, type QueueName, type JobRegistry, type JobType } from '@educa/shared'
 import { DelayedError, UnrecoverableError } from 'bullmq'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
@@ -34,8 +34,8 @@ function montar({
   /** O tipo e os dados que a linha tem em `job_registro`: o que o executor valida. */
   tipo?: string
   dados?: Record<string, unknown>
-  /** O registro de jobs que o executor usa, no lugar do `DEFINICOES_DE_JOB`. */
-  definicoes?: RegistroDeJobs
+  /** O registro de jobs que o executor usa, no lugar do `JOB_DEFINITIONS`. */
+  definicoes?: JobRegistry
   liberar?: () => Promise<void>
   renovar?: (eventos: string[]) => Promise<void>
   tentativas?: number
@@ -53,7 +53,7 @@ function montar({
   const linhas: string[] = []
   /** A escola do contexto em que cada uma delas foi gravada. */
   const escolasDasFalhas: Array<string | undefined> = []
-  const limites: Array<{ fila: Fila; escolaId: string | null; limite: number }> = []
+  const limites: Array<{ fila: QueueName; escolaId: string | null; limite: number }> = []
   /** Cada marcação de uso, com a escola do contexto em que foi feita. */
   const marcacoes: string[] = []
   const dependencias: DependenciasDoExecutor = {
@@ -79,7 +79,7 @@ function montar({
     processadores: processadores ?? { sintetico: processador },
     ...(definicoes === undefined && prazoMs === undefined
       ? {}
-      : { definicoes: definicoes ?? { ...DEFINICOES_DE_JOB, [TIPO_JOB_SINTETICO]: { ...DEFINICOES_DE_JOB[TIPO_JOB_SINTETICO], prazoMs: prazoMs ?? 0 } } }),
+      : { definicoes: definicoes ?? { ...JOB_DEFINITIONS, [TIPO_JOB_SINTETICO]: { ...JOB_DEFINITIONS[TIPO_JOB_SINTETICO], prazoMs: prazoMs ?? 0 } } }),
     logger: criarLogger({ servico: 'worker-teste', destino: { write: (linha: string) => linhas.push(linha) } }),
     vagas: {
       tomar: (fila, escolaId, limite, ids) => {
@@ -127,7 +127,7 @@ describe('ExecutorDeJobs e a vaga', () => {
     const { executor, job } = montar({ processador: (...argumentos) => (recebidos.push(argumentos), Promise.resolve()) })
     await executor.processar(job, 'token')
     await executor.processar({ ...job, attemptsMade: 3 } as JobDaFila, 'token')
-    const { prazoMs } = DEFINICOES_DE_JOB[TIPO_JOB_SINTETICO]
+    const { prazoMs } = JOB_DEFINITIONS[TIPO_JOB_SINTETICO]
     expect(recebidos).toEqual([
       [{ cpuMs: 0, falhar: false }, { jobId: JOB_ID, tentativa: 1, chaveIdempotencia: JOB_ID, prazoMs }, expect.any(AbortSignal)],
       [{ cpuMs: 0, falhar: false }, { jobId: JOB_ID, tentativa: 4, chaveIdempotencia: JOB_ID, prazoMs }, expect.any(AbortSignal)],
@@ -150,7 +150,7 @@ describe('ExecutorDeJobs e a vaga', () => {
   it('job inexistente ou de outra escola não toca vaga nenhuma', async () => {
     const { executor, eventos, job } = montar({ alvo: null })
     await expect(executor.processar(job, 'token')).rejects.toThrow(UnrecoverableError)
-    await expect(executor.processar(job, 'token')).rejects.toThrow(CodigoDeErro.NAO_ENCONTRADO)
+    await expect(executor.processar(job, 'token')).rejects.toThrow(ErrorCode.NAO_ENCONTRADO)
     expect(eventos.filter((evento) => !evento.startsWith('localizar'))).toEqual([])
   })
 
@@ -202,7 +202,7 @@ describe('ExecutorDeJobs e a vaga', () => {
   function comFalhaDuranteRenovacao(definitiva: boolean) {
     let responderRenovacao: () => void = () => undefined
     const montado = montar({
-      processador: () => new Promise<void>((_resolver, rejeitar) => setTimeout(() => rejeitar(new FalhaDeJob(CodigoDeFalhaDeJob.FALHA_SINTETICA, definitiva)), 150)),
+      processador: () => new Promise<void>((_resolver, rejeitar) => setTimeout(() => rejeitar(new FalhaDeJob(JobFailureCode.FALHA_SINTETICA, definitiva)), 150)),
       renovar: (registro) =>
         new Promise<void>((resolver) => {
           responderRenovacao = () => {
@@ -231,7 +231,7 @@ describe('ExecutorDeJobs e a vaga', () => {
   it('falha que ainda vai ser tentada de novo: a vaga fica com o job, e a renovação para ao sair', async () => {
     const { executor, eventos, job, responderRenovacao } = comFalhaDuranteRenovacao(false)
     const execucao = executor.processar(job, 'token')
-    const rejeitada = expect(execucao).rejects.toThrow(CodigoDeFalhaDeJob.FALHA_SINTETICA)
+    const rejeitada = expect(execucao).rejects.toThrow(JobFailureCode.FALHA_SINTETICA)
     await vi.advanceTimersByTimeAsync(160)
     responderRenovacao()
     await rejeitada
@@ -254,7 +254,7 @@ describe('ExecutorDeJobs e a vaga', () => {
     it('processador pendente: aos 5 000 ms a tentativa falha com TEMPO_ESGOTADO, o sinal aborta e a vaga sai', async () => {
       const { guardado, processador } = pendente()
       const { executor, eventos, falhas, job } = montar({ prazoMs: 5_000, tentativas: 1, processador })
-      const rejeitada = expect(executor.processar(job, 'token')).rejects.toThrow(CodigoDeFalhaDeJob.TEMPO_ESGOTADO)
+      const rejeitada = expect(executor.processar(job, 'token')).rejects.toThrow(JobFailureCode.TEMPO_ESGOTADO)
       await vi.advanceTimersByTimeAsync(4_999)
       expect(guardado.sinal?.aborted).toBe(false)
       expect(falhas).toEqual([])
@@ -263,14 +263,14 @@ describe('ExecutorDeJobs e a vaga', () => {
       await vi.advanceTimersByTimeAsync(1)
       await rejeitada
       expect(guardado.sinal?.aborted).toBe(true)
-      expect(falhas).toEqual([CodigoDeFalhaDeJob.TEMPO_ESGOTADO])
+      expect(falhas).toEqual([JobFailureCode.TEMPO_ESGOTADO])
       expect(eventos).toContain('liberar')
     })
 
     it('o corte é o prazo da definição do tipo, e não um valor fixo: 12 000 ms cortam aos 12 000 e não antes', async () => {
       const { guardado, processador } = pendente()
       const { executor, falhas, job } = montar({ prazoMs: 12_000, tentativas: 1, processador })
-      const rejeitada = expect(executor.processar(job, 'token')).rejects.toThrow(CodigoDeFalhaDeJob.TEMPO_ESGOTADO)
+      const rejeitada = expect(executor.processar(job, 'token')).rejects.toThrow(JobFailureCode.TEMPO_ESGOTADO)
       await vi.advanceTimersByTimeAsync(11_999)
       expect(falhas).toEqual([])
       await vi.advanceTimersByTimeAsync(1)
@@ -304,7 +304,7 @@ describe('ExecutorDeJobs e a vaga', () => {
       await vi.advanceTimersByTimeAsync(5_000)
       const erro = await rejeitada
       expect(erro).not.toBeInstanceOf(UnrecoverableError)
-      expect(erro).toMatchObject({ message: CodigoDeFalhaDeJob.TEMPO_ESGOTADO })
+      expect(erro).toMatchObject({ message: JobFailureCode.TEMPO_ESGOTADO })
       expect(falhas).toEqual([])
       expect(eventos.slice(eventos.indexOf('liberar'))).toEqual(['liberar', 'avisou_vaga_livre'])
     })
@@ -316,13 +316,13 @@ describe('ExecutorDeJobs e a vaga', () => {
         tentativas: 1,
         processador: (_dados, _execucao, sinal) => {
           sinalRecebido = sinal
-          return Promise.reject(new FalhaDeJob(CodigoDeFalhaDeJob.FALHA_SINTETICA, true))
+          return Promise.reject(new FalhaDeJob(JobFailureCode.FALHA_SINTETICA, true))
         },
       })
-      await expect(executor.processar(job, 'token')).rejects.toThrow(CodigoDeFalhaDeJob.FALHA_SINTETICA)
+      await expect(executor.processar(job, 'token')).rejects.toThrow(JobFailureCode.FALHA_SINTETICA)
       await vi.advanceTimersByTimeAsync(10_000)
       expect(sinalRecebido?.aborted).toBe(false)
-      expect(falhas).toEqual([CodigoDeFalhaDeJob.FALHA_SINTETICA])
+      expect(falhas).toEqual([JobFailureCode.FALHA_SINTETICA])
     })
 
     it('a rejeição que o processador dá depois do corte é engolida: nenhuma rejeição sem tratamento, e a linha fica como o corte a deixou', async () => {
@@ -335,13 +335,13 @@ describe('ExecutorDeJobs e a vaga', () => {
           tentativas: 1,
           processador: () => new Promise<void>((_resolver, rejeitar) => setTimeout(() => rejeitar(new Error('depois do corte')), 6_000)),
         })
-        const rejeitada = expect(executor.processar(job, 'token')).rejects.toThrow(CodigoDeFalhaDeJob.TEMPO_ESGOTADO)
+        const rejeitada = expect(executor.processar(job, 'token')).rejects.toThrow(JobFailureCode.TEMPO_ESGOTADO)
         await vi.advanceTimersByTimeAsync(5_000)
         await rejeitada
         await vi.advanceTimersByTimeAsync(2_000)
         await vi.advanceTimersByTimeAsync(10)
         expect(naoTratadas).toEqual([])
-        expect(falhas).toEqual([CodigoDeFalhaDeJob.TEMPO_ESGOTADO])
+        expect(falhas).toEqual([JobFailureCode.TEMPO_ESGOTADO])
       } finally {
         process.off('unhandledRejection', ouvir)
       }
@@ -368,7 +368,7 @@ describe('ExecutorDeJobs e a vaga', () => {
 
       await executor.interromper()
       expect(sinalRecebido?.aborted).toBe(true)
-      expect(falhas).toEqual([CodigoDeFalhaDeJob.EXECUCAO_INTERROMPIDA])
+      expect(falhas).toEqual([JobFailureCode.EXECUCAO_INTERROMPIDA])
       expect(escolasDasFalhas).toEqual([ESCOLA_A])
       expect(eventos).toContain('liberar')
     })
@@ -399,8 +399,8 @@ describe('ExecutorDeJobs e a vaga', () => {
       await executor.interromper()
       const erro = await rejeitada
       expect(erro).not.toBeInstanceOf(UnrecoverableError)
-      expect(erro).toMatchObject({ message: CodigoDeFalhaDeJob.EXECUCAO_INTERROMPIDA })
-      expect(falhas).toEqual([CodigoDeFalhaDeJob.EXECUCAO_INTERROMPIDA])
+      expect(erro).toMatchObject({ message: JobFailureCode.EXECUCAO_INTERROMPIDA })
+      expect(falhas).toEqual([JobFailureCode.EXECUCAO_INTERROMPIDA])
       expect(eventos.filter((evento) => evento === 'liberar')).toHaveLength(1)
     })
 
@@ -410,7 +410,7 @@ describe('ExecutorDeJobs e a vaga', () => {
       await vi.advanceTimersByTimeAsync(10)
 
       await executor.interromper()
-      expect(await rejeitada).toMatchObject({ message: CodigoDeFalhaDeJob.EXECUCAO_INTERROMPIDA })
+      expect(await rejeitada).toMatchObject({ message: JobFailureCode.EXECUCAO_INTERROMPIDA })
       expect(falhas).toEqual([])
       expect(eventos).not.toContain('liberar')
     })
@@ -424,7 +424,7 @@ describe('ExecutorDeJobs e a vaga', () => {
       await vi.advanceTimersByTimeAsync(10)
 
       await Promise.all([quinta.executor.interromper(), quarta.executor.interromper()])
-      expect(quinta.falhas).toEqual([CodigoDeFalhaDeJob.EXECUCAO_INTERROMPIDA])
+      expect(quinta.falhas).toEqual([JobFailureCode.EXECUCAO_INTERROMPIDA])
       expect(quarta.falhas).toEqual([])
     })
 
@@ -434,7 +434,7 @@ describe('ExecutorDeJobs e a vaga', () => {
       await vi.advanceTimersByTimeAsync(10)
 
       await executor.interromper()
-      expect(falhas).toEqual([CodigoDeFalhaDeJob.EXECUCAO_INTERROMPIDA])
+      expect(falhas).toEqual([JobFailureCode.EXECUCAO_INTERROMPIDA])
     })
 
     it('o desligamento com a conclusão da linha em andamento não grava falha sobre o job que terminou: a vaga sai uma vez só', async () => {
@@ -459,25 +459,25 @@ describe('ExecutorDeJobs e a vaga', () => {
         processador: () => new Promise<void>(() => undefined),
         registrarFalha: () => new Promise<boolean>((resolver) => (terminarGravacao = () => resolver(true))),
       })
-      const rejeitada = expect(executor.processar(job, 'token')).rejects.toThrow(CodigoDeFalhaDeJob.TEMPO_ESGOTADO)
+      const rejeitada = expect(executor.processar(job, 'token')).rejects.toThrow(JobFailureCode.TEMPO_ESGOTADO)
       await vi.advanceTimersByTimeAsync(5_000)
-      expect(falhas).toEqual([CodigoDeFalhaDeJob.TEMPO_ESGOTADO])
+      expect(falhas).toEqual([JobFailureCode.TEMPO_ESGOTADO])
 
       await executor.interromper()
       terminarGravacao()
       await rejeitada
-      expect(falhas).toEqual([CodigoDeFalhaDeJob.TEMPO_ESGOTADO])
+      expect(falhas).toEqual([JobFailureCode.TEMPO_ESGOTADO])
       expect(eventos.filter((evento) => evento === 'liberar')).toHaveLength(1)
     })
 
     it('o log só afirma `job.falhou` quando a linha mudou: a falha que não alterou nada (a linha já tinha terminado) não é escrita', async () => {
-      const gravada = montar({ tentativas: 1, processador: () => Promise.reject(new FalhaDeJob(CodigoDeFalhaDeJob.FALHA_SINTETICA)) })
+      const gravada = montar({ tentativas: 1, processador: () => Promise.reject(new FalhaDeJob(JobFailureCode.FALHA_SINTETICA)) })
       await expect(gravada.executor.processar(gravada.job, 'token')).rejects.toThrow(UnrecoverableError)
       expect(gravada.linhas.filter((linha) => linha.includes('job.falhou'))).toHaveLength(1)
 
-      const jaTerminada = montar({ tentativas: 1, processador: () => Promise.reject(new FalhaDeJob(CodigoDeFalhaDeJob.FALHA_SINTETICA)), registrarFalha: () => Promise.resolve(false) })
+      const jaTerminada = montar({ tentativas: 1, processador: () => Promise.reject(new FalhaDeJob(JobFailureCode.FALHA_SINTETICA)), registrarFalha: () => Promise.resolve(false) })
       await expect(jaTerminada.executor.processar(jaTerminada.job, 'token')).rejects.toThrow(UnrecoverableError)
-      expect(jaTerminada.falhas).toEqual([CodigoDeFalhaDeJob.FALHA_SINTETICA])
+      expect(jaTerminada.falhas).toEqual([JobFailureCode.FALHA_SINTETICA])
       expect(jaTerminada.linhas.filter((linha) => linha.includes('job.falhou'))).toEqual([])
     })
 
@@ -525,7 +525,7 @@ describe('ExecutorDeJobs e a vaga', () => {
 })
 
 /** O payload que cada um dos 8 tipos tem hoje em `job_registro`: o que o executor precisa aceitar para nenhum job gravado antes quebrar. */
-const PAYLOAD_DE_HOJE: Readonly<Record<TipoDeJob, Record<string, unknown>>> = {
+const PAYLOAD_DE_HOJE: Readonly<Record<JobType, Record<string, unknown>>> = {
   [TIPO_MONTAR_ARQUIVO]: { pedidoId: '0190f5a0-0000-7000-8000-0000000000c1' },
   [TIPO_ELIMINAR_TITULAR]: { pedidoId: '0190f5a0-0000-7000-8000-0000000000c2' },
   [TIPO_EXPURGAR_ESCOLA]: {},
@@ -538,11 +538,11 @@ const PAYLOAD_DE_HOJE: Readonly<Record<TipoDeJob, Record<string, unknown>>> = {
 
 describe('ExecutorDeJobs e a definição do tipo', () => {
   /** A linha de `job_registro` que o worker lê, com a escola que o tipo pede: o job de rotina do sistema não tem escola. */
-  const alvoDo = (tipo: TipoDeJob): JobParaExecutar => ({ fila: 'lote', escolaId: DEFINICOES_DE_JOB[tipo].escopo === 'sistema' ? null : ESCOLA_A, finalizado: false })
+  const alvoDo = (tipo: JobType): JobParaExecutar => ({ fila: 'lote', escolaId: JOB_DEFINITIONS[tipo].escopo === 'sistema' ? null : ESCOLA_A, finalizado: false })
 
   it('o payload de hoje de cada um dos 8 tipos passa pela definição e chega ao processador do tipo, que roda uma vez', async () => {
-    expect(Object.keys(PAYLOAD_DE_HOJE).sort()).toEqual(Object.keys(DEFINICOES_DE_JOB).sort())
-    for (const [tipo, dados] of Object.entries(PAYLOAD_DE_HOJE) as Array<[TipoDeJob, Record<string, unknown>]>) {
+    expect(Object.keys(PAYLOAD_DE_HOJE).sort()).toEqual(Object.keys(JOB_DEFINITIONS).sort())
+    for (const [tipo, dados] of Object.entries(PAYLOAD_DE_HOJE) as Array<[JobType, Record<string, unknown>]>) {
       const processador = vi.fn<Processador>(() => Promise.resolve())
       const { executor, job, falhas } = montar({ tipo, dados, alvo: alvoDo(tipo), processadores: { [tipo]: processador } })
       await executor.processar(job, 'token')
@@ -563,8 +563,8 @@ describe('ExecutorDeJobs e a definição do tipo', () => {
     // Cinco tentativas e a primeira: dado inválido não melhora numa segunda, e a retentativa gastaria o recuo à toa.
     const erro = await executor.processar(job, 'token').catch((falha: unknown) => falha)
     expect(erro).toBeInstanceOf(UnrecoverableError)
-    expect(erro).toMatchObject({ message: CodigoDeFalhaDeJob.DADOS_INVALIDOS })
-    expect(falhas).toEqual([CodigoDeFalhaDeJob.DADOS_INVALIDOS])
+    expect(erro).toMatchObject({ message: JobFailureCode.DADOS_INVALIDOS })
+    expect(falhas).toEqual([JobFailureCode.DADOS_INVALIDOS])
     expect(processador).not.toHaveBeenCalled()
     expect(eventos).toContain('liberar')
   })
@@ -572,36 +572,36 @@ describe('ExecutorDeJobs e a definição do tipo', () => {
   it('tipo que o registro não tem: TIPO_DESCONHECIDO, definitivo, sem processador, e o erro não é um TypeError de quem lê a definição que falta', async () => {
     const processador = vi.fn<Processador>(() => Promise.resolve())
     const { executor, job, falhas } = montar({ tipo: 'tipo.de-uma-versao-antiga', dados: { qualquer: 'coisa' }, processador })
-    await expect(executor.processar(job, 'token')).rejects.toThrow(CodigoDeFalhaDeJob.TIPO_DESCONHECIDO)
-    expect(falhas).toEqual([CodigoDeFalhaDeJob.TIPO_DESCONHECIDO])
+    await expect(executor.processar(job, 'token')).rejects.toThrow(JobFailureCode.TIPO_DESCONHECIDO)
+    expect(falhas).toEqual([JobFailureCode.TIPO_DESCONHECIDO])
     expect(processador).not.toHaveBeenCalled()
   })
 
   it('tipo com definição e sem processador nesta réplica: TIPO_DESCONHECIDO, definitivo', async () => {
     const { executor, job, falhas } = montar({ tipo: TIPO_MONTAR_ARQUIVO, dados: PAYLOAD_DE_HOJE[TIPO_MONTAR_ARQUIVO], processadores: {} })
-    await expect(executor.processar(job, 'token')).rejects.toThrow(CodigoDeFalhaDeJob.TIPO_DESCONHECIDO)
-    expect(falhas).toEqual([CodigoDeFalhaDeJob.TIPO_DESCONHECIDO])
+    await expect(executor.processar(job, 'token')).rejects.toThrow(JobFailureCode.TIPO_DESCONHECIDO)
+    expect(falhas).toEqual([JobFailureCode.TIPO_DESCONHECIDO])
   })
 
   it('o escopo da definição se confere com a escola da linha: rotina do sistema com escola (escrita por SQL) e job de escola sem escola não rodam', async () => {
     const rotinaComEscola = vi.fn<Processador>(() => Promise.resolve())
     const sistemaComEscola = montar({ tipo: TIPO_EXPURGAR_JOBS, dados: {}, alvo: { fila: 'lote', escolaId: ESCOLA_A, finalizado: false }, processadores: { [TIPO_EXPURGAR_JOBS]: rotinaComEscola } })
-    await expect(sistemaComEscola.executor.processar(sistemaComEscola.job, 'token')).rejects.toThrow(CodigoDeFalhaDeJob.DADOS_INVALIDOS)
-    expect(sistemaComEscola.falhas).toEqual([CodigoDeFalhaDeJob.DADOS_INVALIDOS])
+    await expect(sistemaComEscola.executor.processar(sistemaComEscola.job, 'token')).rejects.toThrow(JobFailureCode.DADOS_INVALIDOS)
+    expect(sistemaComEscola.falhas).toEqual([JobFailureCode.DADOS_INVALIDOS])
 
     const jobDeEscola = vi.fn<Processador>(() => Promise.resolve())
     const escolaSemEscola = montar({ tipo: TIPO_MONTAR_ARQUIVO, dados: PAYLOAD_DE_HOJE[TIPO_MONTAR_ARQUIVO], alvo: { fila: 'normal', escolaId: null, finalizado: false }, processadores: { [TIPO_MONTAR_ARQUIVO]: jobDeEscola } })
-    await expect(escolaSemEscola.executor.processar(escolaSemEscola.job, 'token')).rejects.toThrow(CodigoDeFalhaDeJob.DADOS_INVALIDOS)
-    expect(escolaSemEscola.falhas).toEqual([CodigoDeFalhaDeJob.DADOS_INVALIDOS])
+    await expect(escolaSemEscola.executor.processar(escolaSemEscola.job, 'token')).rejects.toThrow(JobFailureCode.DADOS_INVALIDOS)
+    expect(escolaSemEscola.falhas).toEqual([JobFailureCode.DADOS_INVALIDOS])
     expect(rotinaComEscola).not.toHaveBeenCalled()
     expect(jobDeEscola).not.toHaveBeenCalled()
   })
 
   it('o processador recebe os dados que o esquema leu, com o `default` aplicado, e o prazo que a definição do tipo dá', async () => {
-    const definicoes: RegistroDeJobs = {
-      ...DEFINICOES_DE_JOB,
-      [TIPO_JOB_SINTETICO]: definirJob({
-        ...DEFINICOES_DE_JOB[TIPO_JOB_SINTETICO],
+    const definicoes: JobRegistry = {
+      ...JOB_DEFINITIONS,
+      [TIPO_JOB_SINTETICO]: defineJob({
+        ...JOB_DEFINITIONS[TIPO_JOB_SINTETICO],
         dados: z.strictObject({ cpuMs: z.number().default(7), falhar: z.boolean().default(false) }),
         prazoMs: 1_234,
       }),
@@ -615,7 +615,7 @@ describe('ExecutorDeJobs e a definição do tipo', () => {
   it('o tipo dos dados do processador é o da definição: ler campo que ela não tem, ou registrar processador de tipo que ela não tem, não compila', () => {
     // @ts-expect-error `titular.montar-arquivo` só tem `pedidoId`
     const lerCampoInexistente: Processador<typeof TIPO_MONTAR_ARQUIVO> = ({ cpuMs }) => Promise.resolve(void cpuMs)
-    // @ts-expect-error `sistema.fantasma` não está em `DEFINICOES_DE_JOB`
+    // @ts-expect-error `sistema.fantasma` não está em `JOB_DEFINITIONS`
     const tipoSemDefinicao: ProcessadoresDeJob = { 'sistema.fantasma': () => Promise.resolve() }
     expect([typeof lerCampoInexistente, typeof tipoSemDefinicao]).toEqual(['function', 'object'])
   })

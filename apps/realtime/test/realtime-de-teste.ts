@@ -1,5 +1,5 @@
 import { criarLogger, type LoggerBase, type Meter } from '@educa/nucleo'
-import { NAMESPACE_REALTIME_SISTEMA, opcoesDoClienteRealtime } from '@educa/shared'
+import { SYSTEM_REALTIME_NAMESPACE, realtimeClientOptions } from '@educa/shared'
 import type { INestApplication } from '@nestjs/common'
 import { createServer } from 'node:http'
 import type { AddressInfo } from 'node:net'
@@ -63,8 +63,8 @@ export interface OpcoesDeConexao {
 
 /** Cliente com as opções de reconexão de `@educa/shared`, sem conectar ainda. */
 export function criarCliente(url: string, token: string | (() => string), opcoes: OpcoesDeConexao = {}): SocketCliente {
-  const padrao = opcoesDoClienteRealtime(typeof token === 'string' ? () => token : token)
-  return io(`${url}${opcoes.namespace ?? NAMESPACE_REALTIME_SISTEMA}`, {
+  const padrao = realtimeClientOptions(typeof token === 'string' ? () => token : token)
+  return io(`${url}${opcoes.namespace ?? SYSTEM_REALTIME_NAMESPACE}`, {
     ...padrao,
     ...(opcoes.auth === undefined ? {} : { auth: opcoes.auth }),
     ...(opcoes.query === undefined ? {} : { query: opcoes.query }),
@@ -121,7 +121,7 @@ export async function criarEmissor(tamanhoMaximoDoStream = 10_000): Promise<{ se
   // Servidor HTTP que nunca escuta: só para o `close()` do socket.io ter o que fechar.
   const servidor = prepararServidorRealtime(new Server(createServer()), cliente, tamanhoMaximoDoStream)
   // Um namespace precisa existir no nó para ele publicar no stream.
-  servidor.of(NAMESPACE_REALTIME_SISTEMA)
+  servidor.of(SYSTEM_REALTIME_NAMESPACE)
   return {
     servidor,
     fechar: async () => {

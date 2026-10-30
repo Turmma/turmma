@@ -1,4 +1,4 @@
-import { CodigoDeErro, ESTADOS_FINAIS_DE_EXECUCAO, INTERVALO_DA_CONSULTA_DE_EXECUCAO_MS, type EstadoDeExecucao, type RespostaExecucao, type ResultadoDaExecucao } from '@educa/shared'
+import { ErrorCode, ESTADOS_FINAIS_DE_EXECUCAO, INTERVALO_DA_CONSULTA_DE_EXECUCAO_MS, type EstadoDeExecucao, type ExecucaoResponse, type ResultadoDaExecucao } from '@educa/shared'
 import { CHAVE_DA_CONVERSA, CHAVE_DAS_ENTREGAS, CHAVE_DOS_ARTEFATOS } from './chaves-do-professor'
 import { ErroDaApi } from './cliente'
 
@@ -16,7 +16,7 @@ export type CicloDeExecucao<Pedido> =
   | { readonly etapa: 'enviando'; readonly pedido: Pedido; readonly chaveEnvio: string; readonly desde: number }
   | { readonly etapa: 'esperando'; readonly pedido: Pedido; readonly chaveEnvio: string; readonly desde: number; readonly execucaoId: string }
   | { readonly etapa: 'concluida'; readonly pedido: Pedido; readonly chaveEnvio: string; readonly execucaoId: string; readonly resultado: ResultadoDaExecucao }
-  | { readonly etapa: 'falhou'; readonly pedido: Pedido; readonly chaveEnvio: string; readonly erro: CodigoDeErro; readonly execucaoId?: string }
+  | { readonly etapa: 'falhou'; readonly pedido: Pedido; readonly chaveEnvio: string; readonly erro: ErrorCode; readonly execucaoId?: string }
 
 /** O pedido ainda está no ar: saiu e não terminou. */
 export function emCurso<Pedido>(ciclo: CicloDeExecucao<Pedido> | undefined): ciclo is Extract<CicloDeExecucao<Pedido>, { etapa: 'enviando' | 'esperando' }> {
@@ -55,10 +55,10 @@ export function recusarEnvio<Pedido>(atual: CicloDeExecucao<Pedido> | undefined,
 }
 
 /** O que a consulta da execução trouxe. `pendente` e `rodando` não mudam nada; a de outra execução é ignorada. */
-export function registrarExecucao<Pedido>(atual: CicloDeExecucao<Pedido> | undefined, execucao: RespostaExecucao): CicloDeExecucao<Pedido> | undefined {
+export function registrarExecucao<Pedido>(atual: CicloDeExecucao<Pedido> | undefined, execucao: ExecucaoResponse): CicloDeExecucao<Pedido> | undefined {
   if (atual?.etapa !== 'esperando' || atual.execucaoId !== execucao.id) return atual
   if (execucao.estado === 'concluida' && execucao.resultado !== null) return { etapa: 'concluida', pedido: atual.pedido, chaveEnvio: atual.chaveEnvio, execucaoId: execucao.id, resultado: execucao.resultado }
-  if (execucao.estado === 'falhou') return { etapa: 'falhou', pedido: atual.pedido, chaveEnvio: atual.chaveEnvio, execucaoId: execucao.id, erro: execucao.erro ?? CodigoDeErro.ERRO_INTERNO }
+  if (execucao.estado === 'falhou') return { etapa: 'falhou', pedido: atual.pedido, chaveEnvio: atual.chaveEnvio, execucaoId: execucao.id, erro: execucao.erro ?? ErrorCode.ERRO_INTERNO }
   return atual
 }
 
@@ -69,8 +69,8 @@ export function desistirDaConsulta<Pedido>(atual: CicloDeExecucao<Pedido> | unde
 }
 
 /** O código de qualquer falha: o da API quando ela respondeu, erro interno para o resto. */
-export function codigoDoErro(erro: unknown): CodigoDeErro {
-  return erro instanceof ErroDaApi ? erro.codigo : CodigoDeErro.ERRO_INTERNO
+export function codigoDoErro(erro: unknown): ErrorCode {
+  return erro instanceof ErroDaApi ? erro.codigo : ErrorCode.ERRO_INTERNO
 }
 
 /**
@@ -106,15 +106,15 @@ export function chavesParaInvalidar(resultado: ResultadoDaExecucao): readonly (r
 }
 
 /** Os erros que passam sozinhos: vale pedir de novo com o mesmo pedido. O resto pede que algo mude antes. */
-const PASSAGEIROS: readonly CodigoDeErro[] = [
-  CodigoDeErro.IA_INDISPONIVEL,
-  CodigoDeErro.IA_TEMPO_ESGOTADO,
-  CodigoDeErro.IA_SAIDA_INVALIDA,
-  CodigoDeErro.IA_ENTRADA_INVALIDA,
-  CodigoDeErro.EXECUCAO_INTERROMPIDA,
-  CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO,
-  CodigoDeErro.TEMPO_ESGOTADO,
-  CodigoDeErro.ERRO_INTERNO,
+const PASSAGEIROS: readonly ErrorCode[] = [
+  ErrorCode.IA_INDISPONIVEL,
+  ErrorCode.IA_TEMPO_ESGOTADO,
+  ErrorCode.IA_SAIDA_INVALIDA,
+  ErrorCode.IA_ENTRADA_INVALIDA,
+  ErrorCode.EXECUCAO_INTERROMPIDA,
+  ErrorCode.INDISPONIVEL_TENTE_DE_NOVO,
+  ErrorCode.TEMPO_ESGOTADO,
+  ErrorCode.ERRO_INTERNO,
 ]
 
 /**
@@ -127,8 +127,8 @@ const PASSAGEIROS: readonly CodigoDeErro[] = [
  */
 export type AparenciaDaFalha = 'fila' | 'suspensa' | 'limite' | 'explicada'
 
-export function aparenciaDaFalha(erro: CodigoDeErro): AparenciaDaFalha {
-  if (erro === CodigoDeErro.FUNCAO_SUSPENSA) return 'suspensa'
-  if (erro === CodigoDeErro.LIMITE_EXCEDIDO) return 'limite'
+export function aparenciaDaFalha(erro: ErrorCode): AparenciaDaFalha {
+  if (erro === ErrorCode.FUNCAO_SUSPENSA) return 'suspensa'
+  if (erro === ErrorCode.LIMITE_EXCEDIDO) return 'limite'
   return PASSAGEIROS.includes(erro) ? 'fila' : 'explicada'
 }

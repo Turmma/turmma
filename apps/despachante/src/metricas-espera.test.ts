@@ -1,5 +1,5 @@
 import { criarLogger, METRICAS, type JanelaLetiva, type MedicaoDeFalhos, type MedicaoDePendentes } from '@educa/nucleo'
-import type { Fila } from '@educa/shared'
+import type { QueueName } from '@educa/shared'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { esperaDoMaisAntigo, MedicaoDaFila, RETENCAO_DA_SERIE_ZERADA_MS } from './metricas-espera.js'
@@ -14,7 +14,7 @@ const ESCOLA_B = '0190f5a0-0000-7000-8000-00000000000b'
 
 const segundosAntes = (instante: Date, segundos: number) => new Date(instante.getTime() - segundos * 1_000)
 
-function medicao(parcial: Partial<MedicaoDePendentes> & { fila: Fila }): MedicaoDePendentes {
+function medicao(parcial: Partial<MedicaoDePendentes> & { fila: QueueName }): MedicaoDePendentes {
   return { escolaId: ESCOLA_A, agora: TERCA_10H, urgenteCriadoEm: null, naoUrgenteCriadoEm: null, pendentes: 1, ...parcial }
 }
 

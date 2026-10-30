@@ -1,5 +1,5 @@
 import { METRICAS } from '@educa/nucleo'
-import { CodigoDeErro, type PapelDeUsuario } from '@educa/shared'
+import { ErrorCode, type PapelDeUsuario } from '@educa/shared'
 import { randomBytes } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
@@ -112,7 +112,7 @@ describe('introdução vista: POST /v1/eu/introducao grava a data da própria pe
     expect((await concluir(undefined)).status).toBe(401)
     for (const corpo of [{ introducaoVistaEm: DATA_ANTIGA }, { usuarioId: sessao.usuarioId }, { escolaId: sessao.escolaId }]) {
       const resposta = await concluir(sessao.token, corpo)
-      expect(resposta.corpo.erro?.codigo, JSON.stringify(Object.keys(corpo))).toBe(CodigoDeErro.ENTRADA_INVALIDA)
+      expect(resposta.corpo.erro?.codigo, JSON.stringify(Object.keys(corpo))).toBe(ErrorCode.ENTRADA_INVALIDA)
     }
     expect(await dataNoBanco(sessao.usuarioId)).toBeNull()
   })

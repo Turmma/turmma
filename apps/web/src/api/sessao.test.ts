@@ -1,4 +1,4 @@
-import { CodigoDeErro, JANELA_DE_RENOVACAO_SIMULTANEA_MS } from '@educa/shared'
+import { ErrorCode, JANELA_DE_RENOVACAO_SIMULTANEA_MS } from '@educa/shared'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 /**
@@ -147,7 +147,7 @@ describe('renovação', () => {
   it('409 JA_RENOVADO (outra aba, ou a nossa resposta perdida) espera mais que a janela e repete com o cookie atual, sem logout', async () => {
     vi.useFakeTimers()
     await comSessaoAberta()
-    responderCom({ status: 409, corpo: envelope(CodigoDeErro.JA_RENOVADO) }, { status: 200, corpo: TOKEN_NOVO })
+    responderCom({ status: 409, corpo: envelope(ErrorCode.JA_RENOVADO) }, { status: 200, corpo: TOKEN_NOVO })
 
     const renovacao = sessao.renovarSessao()
     await vi.advanceTimersByTimeAsync(JANELA_DE_RENOVACAO_SIMULTANEA_MS)
@@ -166,7 +166,7 @@ describe('renovação', () => {
 
   it('409 nas duas tentativas não manda ninguém para o login: a sessão fica indisponível, para tentar de novo', async () => {
     vi.useFakeTimers()
-    responderCom({ status: 409, corpo: envelope(CodigoDeErro.JA_RENOVADO) }, { status: 409, corpo: envelope(CodigoDeErro.JA_RENOVADO) })
+    responderCom({ status: 409, corpo: envelope(ErrorCode.JA_RENOVADO) }, { status: 409, corpo: envelope(ErrorCode.JA_RENOVADO) })
 
     const abertura = sessao.abrirSessaoPeloCookie()
     await vi.advanceTimersByTimeAsync(sessao.ESPERA_DEPOIS_DO_JA_RENOVADO_MS)
@@ -182,7 +182,7 @@ describe('renovação', () => {
     responderCom({ status: 0, semRede: true })
 
     const erro = await erroDe(sessao.renovarSessao())
-    expect(erro.codigo).toBe(CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO)
+    expect(erro.codigo).toBe(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO)
     // O token que já estava em memória continua valendo, e ninguém foi mandado para a entrada.
     expect(sessao.tokenDeAcesso()).toBe('token-1')
     expect(sessao.estadoDaSessao()).toBe('aberta')
@@ -215,8 +215,8 @@ describe('renovação', () => {
   it('as chamadas que caíram em 401 juntas esperam a mesma renovação, e não uma por chamada', async () => {
     await comSessaoAberta()
     responderCom(
-      { status: 401, corpo: envelope(CodigoDeErro.NAO_AUTENTICADO) },
-      { status: 401, corpo: envelope(CodigoDeErro.NAO_AUTENTICADO) },
+      { status: 401, corpo: envelope(ErrorCode.NAO_AUTENTICADO) },
+      { status: 401, corpo: envelope(ErrorCode.NAO_AUTENTICADO) },
       { status: 200, corpo: TOKEN_NOVO },
       { status: 200, corpo: { itens: [] } },
       { status: 200, corpo: { itens: [] } },
@@ -235,7 +235,7 @@ describe('renovação', () => {
 describe('chamada com sessão', () => {
   it('manda o token no cabeçalho e, no 401, renova uma vez e repete a chamada', async () => {
     await comSessaoAberta()
-    responderCom({ status: 401, corpo: envelope(CodigoDeErro.NAO_AUTENTICADO) }, { status: 200, corpo: TOKEN_NOVO }, { status: 200, corpo: { nome: 'Camila' } })
+    responderCom({ status: 401, corpo: envelope(ErrorCode.NAO_AUTENTICADO) }, { status: 200, corpo: TOKEN_NOVO }, { status: 200, corpo: { nome: 'Camila' } })
 
     const esquema = { safeParse: (valor: unknown) => ({ success: true as const, data: valor as { nome: string } }) }
     await expect(sessao.buscarComSessao('/v1/eu', esquema)).resolves.toEqual({ nome: 'Camila' })
@@ -251,11 +251,11 @@ describe('chamada com sessão', () => {
     await comSessaoAberta()
     const esquema = { safeParse: (valor: unknown) => ({ success: true as const, data: valor }) }
 
-    responderCom({ status: 503, corpo: envelope(CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO) })
-    expect((await erroDe(sessao.buscarComSessao('/v1/eu', esquema))).codigo).toBe(CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO)
+    responderCom({ status: 503, corpo: envelope(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO) })
+    expect((await erroDe(sessao.buscarComSessao('/v1/eu', esquema))).codigo).toBe(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO)
 
     responderCom({ status: 0, semRede: true })
-    expect((await erroDe(sessao.buscarComSessao('/v1/eu', esquema))).codigo).toBe(CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO)
+    expect((await erroDe(sessao.buscarComSessao('/v1/eu', esquema))).codigo).toBe(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO)
 
     expect(sessao.tokenDeAcesso()).toBe('token-1')
     expect(sessao.estadoDaSessao()).toBe('aberta')
@@ -265,13 +265,13 @@ describe('chamada com sessão', () => {
   it('só o NAO_AUTENTICADO que persiste depois da renovação encerra a sessão, e ela fica vencida, não anônima', async () => {
     await comSessaoAberta()
     responderCom(
-      { status: 401, corpo: envelope(CodigoDeErro.NAO_AUTENTICADO) },
+      { status: 401, corpo: envelope(ErrorCode.NAO_AUTENTICADO) },
       { status: 200, corpo: TOKEN_NOVO },
-      { status: 401, corpo: envelope(CodigoDeErro.NAO_AUTENTICADO) },
+      { status: 401, corpo: envelope(ErrorCode.NAO_AUTENTICADO) },
     )
 
     const esquema = { safeParse: (valor: unknown) => ({ success: true as const, data: valor }) }
-    expect((await erroDe(sessao.buscarComSessao('/v1/eu', esquema))).codigo).toBe(CodigoDeErro.NAO_AUTENTICADO)
+    expect((await erroDe(sessao.buscarComSessao('/v1/eu', esquema))).codigo).toBe(ErrorCode.NAO_AUTENTICADO)
     expect(sessao.tokenDeAcesso()).toBeUndefined()
     // `vencida`, e não `anonima`: a tela continua montada e o login abre por cima dela (20.0). Anônima só pelo
     // "Sair" ou pela aba que abriu sem sessão nenhuma — nos dois a pessoa vai para a entrada e não perde nada.
@@ -285,7 +285,7 @@ describe('chamada com sessão', () => {
     chamadas.length = 0
 
     const esquema = { safeParse: (valor: unknown) => ({ success: true as const, data: valor }) }
-    expect((await erroDe(sessao.buscarComSessao('/v1/eu', esquema))).codigo).toBe(CodigoDeErro.NAO_AUTENTICADO)
+    expect((await erroDe(sessao.buscarComSessao('/v1/eu', esquema))).codigo).toBe(ErrorCode.NAO_AUTENTICADO)
     expect(chamadas, 'consulta de tela sem sessão não pode virar requisição à API').toEqual([])
   })
 
@@ -314,13 +314,13 @@ describe('abrir a sessão ao carregar a página', () => {
   })
 
   it('cookie que não vale mais deixa a aba anônima, e a rota protegida leva à entrada', async () => {
-    responderCom({ status: 401, corpo: envelope(CodigoDeErro.NAO_AUTENTICADO) })
+    responderCom({ status: 401, corpo: envelope(ErrorCode.NAO_AUTENTICADO) })
     await sessao.abrirSessaoPeloCookie()
     expect(sessao.estadoDaSessao()).toBe('anonima')
   })
 
   it('API fora do ar não desloga: o estado é indisponível, e a nova tentativa abre a sessão', async () => {
-    responderCom({ status: 503, corpo: envelope(CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO) })
+    responderCom({ status: 503, corpo: envelope(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO) })
     await sessao.abrirSessaoPeloCookie()
     expect(sessao.estadoDaSessao()).toBe('indisponivel')
 
@@ -332,7 +332,7 @@ describe('abrir a sessão ao carregar a página', () => {
   it('avisa quem assina a cada mudança de estado, e para de avisar depois de cancelada', async () => {
     const mudancas: string[] = []
     const cancelar = sessao.assinarSessao(() => mudancas.push(sessao.estadoDaSessao()))
-    responderCom({ status: 401, corpo: envelope(CodigoDeErro.NAO_AUTENTICADO) })
+    responderCom({ status: 401, corpo: envelope(ErrorCode.NAO_AUTENTICADO) })
     await sessao.abrirSessaoPeloCookie()
     expect(mudancas).toEqual(['abrindo', 'anonima'])
 
@@ -347,8 +347,8 @@ describe('entrada por e-mail', () => {
   it('503 do semáforo é atraso: espera o Retry-After, tenta de novo sozinha e entra, sem erro na tela', async () => {
     vi.useFakeTimers()
     responderCom(
-      { status: 503, corpo: envelope(CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO), cabecalhos: { 'Retry-After': '3' } },
-      { status: 503, corpo: envelope(CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO), cabecalhos: { 'Retry-After': '2' } },
+      { status: 503, corpo: envelope(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO), cabecalhos: { 'Retry-After': '3' } },
+      { status: 503, corpo: envelope(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO), cabecalhos: { 'Retry-After': '2' } },
       { status: 200, corpo: { etapa: 'pronta', ...TOKEN_NOVO } },
     )
 
@@ -364,20 +364,20 @@ describe('entrada por e-mail', () => {
 
   it('503 que passa dos 30 s sobe como erro: a pessoa precisa saber que não entrou', async () => {
     vi.useFakeTimers()
-    const lenta = { status: 503, corpo: envelope(CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO), cabecalhos: { 'Retry-After': '6' } }
+    const lenta = { status: 503, corpo: envelope(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO), cabecalhos: { 'Retry-After': '6' } }
     responderCom(...Array.from({ length: 6 }, () => lenta))
 
     const entrada = sessao.entrarPorEmail({ email: 'camila@escola.test', senha: 'segredo-da-camila' })
     const erro = erroDe(entrada)
     await vi.advanceTimersByTimeAsync(sessao.PRAZO_DA_ENTRADA_NO_503_MS + 6_000)
-    expect((await erro).codigo).toBe(CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO)
+    expect((await erro).codigo).toBe(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO)
     expect(sessao.estadoDaSessao()).toBe('desconhecida')
   })
 
   it('Retry-After zerado não vira repetição sem intervalo contra a rota que o semáforo protege', async () => {
     vi.useFakeTimers()
     responderCom(
-      { status: 503, corpo: envelope(CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO), cabecalhos: { 'Retry-After': '0' } },
+      { status: 503, corpo: envelope(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO), cabecalhos: { 'Retry-After': '0' } },
       { status: 200, corpo: { etapa: 'pronta', ...TOKEN_NOVO } },
     )
 
@@ -393,10 +393,10 @@ describe('entrada por e-mail', () => {
   it('Retry-After maior que o orçamento sobe na hora, em vez de deixar "Entrando…" além dos 30 s', async () => {
     vi.useFakeTimers()
     const comeco = Date.now()
-    responderCom({ status: 503, corpo: envelope(CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO), cabecalhos: { 'Retry-After': '120' } })
+    responderCom({ status: 503, corpo: envelope(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO), cabecalhos: { 'Retry-After': '120' } })
 
     const erro = await erroDe(sessao.entrarPorEmail({ email: 'camila@escola.test', senha: 'segredo-da-camila' }))
-    expect(erro.codigo).toBe(CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO)
+    expect(erro.codigo).toBe(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO)
     expect(chamadas).toHaveLength(1)
     expect(Date.now() - comeco).toBeLessThan(sessao.PRAZO_DA_ENTRADA_NO_503_MS)
   })
@@ -404,14 +404,14 @@ describe('entrada por e-mail', () => {
   it('sem rede, a entrada avisa na hora: "Entrando…" por trinta segundos esconderia a queda da rede da escola', async () => {
     responderCom({ status: 0, semRede: true })
     const erro = await erroDe(sessao.entrarPorEmail({ email: 'camila@escola.test', senha: 'segredo-da-camila' }))
-    expect(erro.codigo).toBe(CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO)
+    expect(erro.codigo).toBe(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO)
     expect(chamadas).toHaveLength(1)
   })
 
   it('conta segurada não é repetida sozinha, e o erro leva os segundos do Retry-After para a tela', async () => {
-    responderCom({ status: 429, corpo: envelope(CodigoDeErro.CONTA_SEGURADA), cabecalhos: { 'Retry-After': '90' } })
+    responderCom({ status: 429, corpo: envelope(ErrorCode.CONTA_SEGURADA), cabecalhos: { 'Retry-After': '90' } })
     const erro = await erroDe(sessao.entrarPorEmail({ email: 'camila@escola.test', senha: 'errada' }))
-    expect(erro.codigo).toBe(CodigoDeErro.CONTA_SEGURADA)
+    expect(erro.codigo).toBe(ErrorCode.CONTA_SEGURADA)
     expect(erro.esperaSegundos).toBe(90)
     expect(chamadas).toHaveLength(1)
   })
@@ -455,7 +455,7 @@ describe('sair', () => {
   it('a repetição basta quando só a primeira falhou, e aí a saída não fica pendente', async () => {
     vi.useFakeTimers()
     await comSessaoAberta()
-    responderCom({ status: 503, corpo: envelope(CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO) }, { status: 204 })
+    responderCom({ status: 503, corpo: envelope(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO) }, { status: 204 })
 
     const saida = sessao.sair()
     await vi.advanceTimersByTimeAsync(sessao.ESPERA_ENTRE_TENTATIVAS_DE_SAIDA_MS)
@@ -467,7 +467,7 @@ describe('sair', () => {
 
   it('com o token em dia, o 401 no DELETE é sessão que já não existe: nem repetição, nem aviso', async () => {
     await comSessaoAberta()
-    responderCom({ status: 401, corpo: envelope(CodigoDeErro.NAO_AUTENTICADO) })
+    responderCom({ status: 401, corpo: envelope(ErrorCode.NAO_AUTENTICADO) })
     await sessao.sair()
     expect(chamadas).toHaveLength(1)
     expect(sessao.saidaPendente()).toBe(false)
@@ -476,7 +476,7 @@ describe('sair', () => {
   it('resposta perdida do primeiro DELETE: a repetição recebe 401 e a saída conta como feita, sem aviso à toa', async () => {
     vi.useFakeTimers()
     await comSessaoAberta()
-    responderCom({ status: 0, semRede: true }, { status: 401, corpo: envelope(CodigoDeErro.NAO_AUTENTICADO) })
+    responderCom({ status: 0, semRede: true }, { status: 401, corpo: envelope(ErrorCode.NAO_AUTENTICADO) })
 
     const saida = sessao.sair()
     await vi.advanceTimersByTimeAsync(sessao.ESPERA_ENTRE_TENTATIVAS_DE_SAIDA_MS)
@@ -503,7 +503,7 @@ describe('sair', () => {
 
   it('token vencido e cookie recusado: a sessão acabou mesmo, e não há aviso a dar', async () => {
     await comSessaoVencida()
-    responderCom({ status: 401, corpo: envelope(CodigoDeErro.NAO_AUTENTICADO) })
+    responderCom({ status: 401, corpo: envelope(ErrorCode.NAO_AUTENTICADO) })
     await sessao.sair()
     expect(chamadas.map((chamada) => chamada.caminho)).toEqual([sessao.CAMINHO_DA_RENOVACAO])
     expect(sessao.saidaPendente()).toBe(false)
@@ -511,7 +511,7 @@ describe('sair', () => {
 
   it('token vencido e API fora: a saída fica pendente, sem mandar DELETE nenhum nem fingir que encerrou', async () => {
     await comSessaoVencida()
-    responderCom({ status: 503, corpo: envelope(CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO) })
+    responderCom({ status: 503, corpo: envelope(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO) })
     await sessao.sair()
     expect(chamadas.map((chamada) => chamada.caminho)).toEqual([sessao.CAMINHO_DA_RENOVACAO])
     expect(sessao.saidaPendente()).toBe(true)
@@ -531,7 +531,7 @@ describe('sair', () => {
     // 20.0 a busca nem chega a sair da aba, o que fecha o mesmo furo antes: sem sessão, nada vai à API — e por isso
     // nenhuma resposta é preparada aqui: se alguma requisição saísse, ela não teria o que consumir.
     const esquema = { safeParse: (valor: unknown) => ({ success: true as const, data: valor }) }
-    expect((await erroDe(sessao.buscarComSessao('/v1/eu', esquema))).codigo).toBe(CodigoDeErro.NAO_AUTENTICADO)
+    expect((await erroDe(sessao.buscarComSessao('/v1/eu', esquema))).codigo).toBe(ErrorCode.NAO_AUTENTICADO)
 
     expect(chamadas.map((chamada) => chamada.caminho), 'nenhuma requisição depois do "Sair", muito menos uma renovação').toEqual([])
     expect(sessao.estadoDaSessao()).toBe('anonima')
@@ -571,9 +571,9 @@ describe('fim de sessão', () => {
     // O outro caminho: o `NAO_AUTENTICADO` que persiste depois da renovação.
     await comSessaoAberta('token-3')
     responderCom(
-      { status: 401, corpo: envelope(CodigoDeErro.NAO_AUTENTICADO) },
+      { status: 401, corpo: envelope(ErrorCode.NAO_AUTENTICADO) },
       { status: 200, corpo: TOKEN_NOVO },
-      { status: 401, corpo: envelope(CodigoDeErro.NAO_AUTENTICADO) },
+      { status: 401, corpo: envelope(ErrorCode.NAO_AUTENTICADO) },
     )
     const esquema = { safeParse: (valor: unknown) => ({ success: true as const, data: valor }) }
     await erroDe(sessao.buscarComSessao('/v1/eu', esquema))
@@ -602,10 +602,10 @@ describe('fim de sessão', () => {
     const esquema = { safeParse: (valor: unknown) => ({ success: true as const, data: valor }) }
     // A consulta da tela sai antes do clique em "Sair" e só volta depois dele, recusada: é a recarga da lista que a
     // professora tinha acabado de pedir.
-    responderCom({ status: 401, corpo: envelope(CodigoDeErro.NAO_AUTENTICADO) }, { status: 204 })
+    responderCom({ status: 401, corpo: envelope(ErrorCode.NAO_AUTENTICADO) }, { status: 204 })
     const emVoo = erroDe(sessao.buscarComSessao('/v1/vinculos', esquema))
     await sessao.sair()
-    expect((await emVoo).codigo).toBe(CodigoDeErro.NAO_AUTENTICADO)
+    expect((await emVoo).codigo).toBe(ErrorCode.NAO_AUTENTICADO)
 
     // Vencida, a rota protegida remontaria a tela da pessoa que acabou de sair, com o login por cima, em vez de
     // levar à entrada — e o Voltar do navegador a traria de volta.
@@ -622,8 +622,8 @@ describe('fim de sessão', () => {
     // termina — depois de a aba já estar anônima (regra 80, item 7).
     responderCom(
       { status: 204 },
-      { status: 503, corpo: envelope(CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO) },
-      { status: 503, corpo: envelope(CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO) },
+      { status: 503, corpo: envelope(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO) },
+      { status: 503, corpo: envelope(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO) },
     )
     const saida = sessao.sair()
     const inatividade = sessao.encerrarPorInatividade()
@@ -657,7 +657,7 @@ describe('fim de sessão', () => {
  */
 describe('acesso suspenso', () => {
   const esquemaQualquer = { safeParse: (valor: unknown) => ({ success: true as const, data: valor }) }
-  const suspenso = { status: 403, corpo: envelope(CodigoDeErro.ACESSO_SUSPENSO) }
+  const suspenso = { status: 403, corpo: envelope(ErrorCode.ACESSO_SUSPENSO) }
 
   /** A aba que abre pelo cookie de quem tem a eliminação agendada: a primeira renovação já é recusada. */
   async function abrirSuspensa(): Promise<void> {
@@ -689,7 +689,7 @@ describe('acesso suspenso', () => {
 
     const erro = await erroDe(sessao.buscarComSessao('/v1/eu', esquemaQualquer))
 
-    expect(erro.codigo).toBe(CodigoDeErro.ACESSO_SUSPENSO)
+    expect(erro.codigo).toBe(ErrorCode.ACESSO_SUSPENSO)
     expect(sessao.estadoDaSessao()).toBe('suspensa')
     expect(sessao.tokenDeAcesso()).toBeUndefined()
     expect(limpezas).toBe(1)
@@ -698,11 +698,11 @@ describe('acesso suspenso', () => {
 
   it('a consulta recusada com 401 e depois a renovação recusada com 403 também deixam a aba suspensa', async () => {
     await comSessaoAberta()
-    responderCom({ status: 401, corpo: envelope(CodigoDeErro.NAO_AUTENTICADO) }, suspenso)
+    responderCom({ status: 401, corpo: envelope(ErrorCode.NAO_AUTENTICADO) }, suspenso)
 
     const erro = await erroDe(sessao.buscarComSessao('/v1/eu', esquemaQualquer))
 
-    expect(erro.codigo).toBe(CodigoDeErro.ACESSO_SUSPENSO)
+    expect(erro.codigo).toBe(ErrorCode.ACESSO_SUSPENSO)
     expect(sessao.estadoDaSessao()).toBe('suspensa')
     expect(chamadas.map((chamada) => chamada.caminho)).toEqual(['/v1/eu', sessao.CAMINHO_DA_RENOVACAO])
   })
@@ -711,12 +711,12 @@ describe('acesso suspenso', () => {
     await comSessaoAberta()
     let limpezas = 0
     sessao.aoTrocarDeSessao(() => limpezas++)
-    responderCom({ status: 401, corpo: envelope(CodigoDeErro.NAO_AUTENTICADO) }, { status: 401, corpo: envelope(CodigoDeErro.NAO_AUTENTICADO) }, suspenso)
+    responderCom({ status: 401, corpo: envelope(ErrorCode.NAO_AUTENTICADO) }, { status: 401, corpo: envelope(ErrorCode.NAO_AUTENTICADO) }, suspenso)
 
     const [a, b] = await Promise.all([erroDe(sessao.buscarComSessao('/v1/a', esquemaQualquer)), erroDe(sessao.buscarComSessao('/v1/b', esquemaQualquer))])
 
-    expect(a.codigo).toBe(CodigoDeErro.ACESSO_SUSPENSO)
-    expect(b.codigo).toBe(CodigoDeErro.ACESSO_SUSPENSO)
+    expect(a.codigo).toBe(ErrorCode.ACESSO_SUSPENSO)
+    expect(b.codigo).toBe(ErrorCode.ACESSO_SUSPENSO)
     expect(sessao.estadoDaSessao()).toBe('suspensa')
     expect(limpezas).toBe(1)
     // Nenhuma das duas repete o pedido, e a renovação sai uma vez só.
@@ -725,11 +725,11 @@ describe('acesso suspenso', () => {
 
   it('5xx na renovação continua indisponível, e a sessão aberta segue de pé: só o 403 do catálogo suspende', async () => {
     await comSessaoAberta()
-    responderCom({ status: 503, corpo: envelope(CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO) })
+    responderCom({ status: 503, corpo: envelope(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO) })
 
     const erro = await erroDe(sessao.renovarSessao())
 
-    expect(erro.codigo).toBe(CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO)
+    expect(erro.codigo).toBe(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO)
     expect(sessao.estadoDaSessao()).toBe('aberta')
     expect(sessao.tokenDeAcesso()).toBe('token-1')
   })
@@ -737,9 +737,9 @@ describe('acesso suspenso', () => {
   it('suspensa, nenhuma chamada sai da aba: nem consulta, nem renovação, nem abertura pelo cookie, nem aviso de atividade', async () => {
     await abrirSuspensa()
 
-    expect((await erroDe(sessao.buscarComSessao('/v1/eu', esquemaQualquer))).codigo).toBe(CodigoDeErro.ACESSO_SUSPENSO)
-    expect((await erroDe(sessao.renovarSessao())).codigo).toBe(CodigoDeErro.ACESSO_SUSPENSO)
-    expect((await erroDe(sessao.registrarAtividade())).codigo).toBe(CodigoDeErro.ACESSO_SUSPENSO)
+    expect((await erroDe(sessao.buscarComSessao('/v1/eu', esquemaQualquer))).codigo).toBe(ErrorCode.ACESSO_SUSPENSO)
+    expect((await erroDe(sessao.renovarSessao())).codigo).toBe(ErrorCode.ACESSO_SUSPENSO)
+    expect((await erroDe(sessao.registrarAtividade())).codigo).toBe(ErrorCode.ACESSO_SUSPENSO)
     await sessao.abrirSessaoPeloCookie()
 
     expect(chamadas).toHaveLength(0)
@@ -758,10 +758,10 @@ describe('acesso suspenso', () => {
         if (caminho === '/v1/vinculos' && primeira) {
           primeira = false
           await new Promise<void>((resolver) => (soltar401 = resolver))
-          return new Response(JSON.stringify(envelope(CodigoDeErro.NAO_AUTENTICADO)), { status: 401 })
+          return new Response(JSON.stringify(envelope(ErrorCode.NAO_AUTENTICADO)), { status: 401 })
         }
-        if (caminho === '/v1/vinculos') return new Response(JSON.stringify(envelope(CodigoDeErro.NAO_AUTENTICADO)), { status: 401 })
-        return new Response(JSON.stringify(envelope(CodigoDeErro.ACESSO_SUSPENSO)), { status: 403 })
+        if (caminho === '/v1/vinculos') return new Response(JSON.stringify(envelope(ErrorCode.NAO_AUTENTICADO)), { status: 401 })
+        return new Response(JSON.stringify(envelope(ErrorCode.ACESSO_SUSPENSO)), { status: 403 })
       }),
     )
     const atrasada = erroDe(sessao.buscarComSessao('/v1/vinculos', esquemaQualquer))
@@ -770,7 +770,7 @@ describe('acesso suspenso', () => {
 
     soltar401()
 
-    expect((await atrasada).codigo).toBe(CodigoDeErro.NAO_AUTENTICADO)
+    expect((await atrasada).codigo).toBe(ErrorCode.NAO_AUTENTICADO)
     expect(sessao.estadoDaSessao()).toBe('suspensa')
     // Uma consulta e uma renovação: o 401 atrasado não repetiu nada, e nada saiu sem credencial.
     expect(chamadas.map((chamada) => chamada.caminho)).toEqual(['/v1/vinculos', sessao.CAMINHO_DA_RENOVACAO])
@@ -821,7 +821,7 @@ describe('acesso suspenso', () => {
     await sessao.sair()
     expect(sessao.estadoDaSessao()).toBe('anonima')
     liberarARenovacao()
-    expect((await renovacao).codigo).toBe(CodigoDeErro.ACESSO_SUSPENSO)
+    expect((await renovacao).codigo).toBe(ErrorCode.ACESSO_SUSPENSO)
 
     expect(sessao.estadoDaSessao()).toBe('anonima')
     expect(sessao.saidaPendente()).toBe(false)
@@ -830,7 +830,7 @@ describe('acesso suspenso', () => {
   it('a memória de quem estava fica na aba suspensa, para o link saber o caminho, e o link a esquece e deixa a aba anônima', async () => {
     await comSessaoAberta()
     sessao.lembrarQuemEsta({ usuarioId: 'aluno-1', papel: 'aluno', escola: { slug: 'escola-do-aluno' } })
-    responderCom({ status: 401, corpo: envelope(CodigoDeErro.NAO_AUTENTICADO) }, suspenso)
+    responderCom({ status: 401, corpo: envelope(ErrorCode.NAO_AUTENTICADO) }, suspenso)
     await erroDe(sessao.buscarComSessao('/v1/eu', esquemaQualquer))
     expect(sessao.quemEstaNaSessao()).toEqual({ usuarioId: 'aluno-1', papel: 'aluno', escolaSlug: 'escola-do-aluno' })
 

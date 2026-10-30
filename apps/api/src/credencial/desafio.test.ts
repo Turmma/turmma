@@ -1,5 +1,5 @@
 import { EmissorDeToken, ErroDeDominio, verificarToken } from '@educa/nucleo'
-import { CodigoDeErro } from '@educa/shared'
+import { ErrorCode } from '@educa/shared'
 import { decodeJwt, decodeProtectedHeader, SignJWT } from 'jose'
 import { randomUUID } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
@@ -10,7 +10,7 @@ const CONTA = '0190f5a0-0000-7000-8000-0000000000c1'
 
 async function recusado(promessa: Promise<unknown>): Promise<void> {
   await expect(promessa).rejects.toBeInstanceOf(ErroDeDominio)
-  await expect(promessa).rejects.toMatchObject({ codigo: CodigoDeErro.NAO_AUTENTICADO })
+  await expect(promessa).rejects.toMatchObject({ codigo: ErrorCode.NAO_AUTENTICADO })
 }
 
 describe('desafio de login', () => {

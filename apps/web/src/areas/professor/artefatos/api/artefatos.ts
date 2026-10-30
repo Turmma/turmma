@@ -1,11 +1,11 @@
 import {
-  CodigoDeErro,
-  esquemaRespostaArtefato,
-  esquemaRespostaExecucaoAceita,
-  esquemaRespostaListaDeArtefatos,
-  type PedidoAdaptarArtefato,
-  type RespostaArtefato,
-  type RespostaExecucaoAceita,
+  ErrorCode,
+  artefatoResponseSchema,
+  execucaoAceitaResponseSchema,
+  listaDeArtefatosResponseSchema,
+  type AdaptarArtefatoRequest,
+  type ArtefatoResponse,
+  type ExecucaoAceitaResponse,
 } from '@educa/shared'
 import { infiniteQueryOptions, queryOptions } from '@tanstack/react-query'
 import { CHAVE_DOS_ARTEFATOS } from '../../../../api/chaves-do-professor'
@@ -31,7 +31,7 @@ export function consultaArtefatos(turmaId?: string) {
       if (turmaId !== undefined) consulta.set('turmaId', turmaId)
       if (pageParam !== undefined) consulta.set('pagina', pageParam)
       const texto = consulta.toString()
-      return buscarComSessao(texto === '' ? CAMINHO_DOS_ARTEFATOS : `${CAMINHO_DOS_ARTEFATOS}?${texto}`, esquemaRespostaListaDeArtefatos, signal)
+      return buscarComSessao(texto === '' ? CAMINHO_DOS_ARTEFATOS : `${CAMINHO_DOS_ARTEFATOS}?${texto}`, listaDeArtefatosResponseSchema, signal)
     },
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (ultima) => ultima.proxima,
@@ -42,22 +42,22 @@ export function consultaArtefatos(turmaId?: string) {
 export function consultaArtefato(id: string) {
   return queryOptions({
     queryKey: [...CHAVE_DOS_ARTEFATOS, 'um', id],
-    queryFn: ({ signal }) => buscarComSessao(`${CAMINHO_DOS_ARTEFATOS}/${encodeURIComponent(id)}`, esquemaRespostaArtefato, signal),
+    queryFn: ({ signal }) => buscarComSessao(`${CAMINHO_DOS_ARTEFATOS}/${encodeURIComponent(id)}`, artefatoResponseSchema, signal),
   })
 }
 
 /** `PATCH /v1/artefatos/:id`: só o título. O conteúdo gerado não se edita por aqui. */
-export function renomearArtefato(id: string, titulo: string): Promise<RespostaArtefato> {
-  return chamarComSessao(`${CAMINHO_DOS_ARTEFATOS}/${encodeURIComponent(id)}`, esquemaRespostaArtefato, { metodo: 'PATCH', corpo: { titulo } })
+export function renomearArtefato(id: string, titulo: string): Promise<ArtefatoResponse> {
+  return chamarComSessao(`${CAMINHO_DOS_ARTEFATOS}/${encodeURIComponent(id)}`, artefatoResponseSchema, { metodo: 'PATCH', corpo: { titulo } })
 }
 
 /**
  * `POST /v1/artefatos/:id/adaptar`: os **tipos de adaptação**, de lista fechada, o tempo extra e a chave do envio. O
- * pedido não tem campo de texto, e o tipo `PedidoAdaptarArtefato` não deixa pôr um (D35, D67). Responde 202; a versão
+ * pedido não tem campo de texto, e o tipo `AdaptarArtefatoRequest` não deixa pôr um (D35, D67). Responde 202; a versão
  * nasce com uma entrega pendente.
  */
-export function adaptarArtefato(id: string, pedido: PedidoAdaptarArtefato): Promise<RespostaExecucaoAceita> {
-  return chamarComSessao(`${CAMINHO_DOS_ARTEFATOS}/${encodeURIComponent(id)}/adaptar`, esquemaRespostaExecucaoAceita, { metodo: 'POST', corpo: pedido })
+export function adaptarArtefato(id: string, pedido: AdaptarArtefatoRequest): Promise<ExecucaoAceitaResponse> {
+  return chamarComSessao(`${CAMINHO_DOS_ARTEFATOS}/${encodeURIComponent(id)}/adaptar`, execucaoAceitaResponseSchema, { metodo: 'POST', corpo: pedido })
 }
 
 /** O nome do arquivo quando o cabeçalho não diz: o título, sem o que um nome de arquivo não aceita. */
@@ -87,8 +87,8 @@ export function nomeNoCabecalho(cabecalho: string | null): string | undefined {
   return nome === undefined || nome === '' ? undefined : nome
 }
 
-function ehCodigoDeErro(valor: unknown): valor is CodigoDeErro {
-  return typeof valor === 'string' && Object.hasOwn(CodigoDeErro, valor)
+function ehCodigoDeErro(valor: unknown): valor is ErrorCode {
+  return typeof valor === 'string' && Object.hasOwn(ErrorCode, valor)
 }
 
 /** O erro de uma resposta que não trouxe o PDF: o código do envelope da API, ou o que o status permite dizer. */
@@ -102,10 +102,10 @@ async function erroDoPdf(resposta: Response): Promise<ErroDaApi> {
   } catch {
     // Sem envelope: o status decide.
   }
-  if (resposta.status === 404) return new ErroDaApi(CodigoDeErro.NAO_ENCONTRADO)
-  if (resposta.status === 429) return new ErroDaApi(CodigoDeErro.LIMITE_EXCEDIDO)
-  if (resposta.status >= 502 && resposta.status <= 504) return new ErroDaApi(CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO)
-  return new ErroDaApi(CodigoDeErro.ERRO_INTERNO)
+  if (resposta.status === 404) return new ErroDaApi(ErrorCode.NAO_ENCONTRADO)
+  if (resposta.status === 429) return new ErroDaApi(ErrorCode.LIMITE_EXCEDIDO)
+  if (resposta.status >= 502 && resposta.status <= 504) return new ErroDaApi(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO)
+  return new ErroDaApi(ErrorCode.ERRO_INTERNO)
 }
 
 async function pedirPdf(caminho: string): Promise<Response> {
@@ -114,7 +114,7 @@ async function pedirPdf(caminho: string): Promise<Response> {
     // `no-store`: o PDF tem o gabarito, e o cache HTTP do navegador fica em disco no computador da escola.
     return await fetch(caminho, { cache: 'no-store', headers: { Accept: 'application/pdf', ...(token === undefined ? {} : { Authorization: `Bearer ${token}` }) } })
   } catch {
-    throw new ErroDaApi(CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO)
+    throw new ErroDaApi(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO)
   }
 }
 

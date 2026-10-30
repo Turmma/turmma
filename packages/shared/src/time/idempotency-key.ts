@@ -6,4 +6,4 @@ import { z } from 'zod'
  * devolve a mesma execução, sem gerar de novo nem gastar o modelo duas vezes. No banco é `execucao_agente.chave_envio`,
  * única na escola.
  */
-export const esquemaChaveEnvio = z.uuid()
+export const idempotencyKeySchema = z.uuid()

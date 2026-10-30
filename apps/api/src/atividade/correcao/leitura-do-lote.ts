@@ -1,5 +1,5 @@
 import { ErroDeDominio, sessaoDaRequisicao } from '@educa/nucleo'
-import { CodigoDeErro } from '@educa/shared'
+import { ErrorCode } from '@educa/shared'
 import { Logger } from '@nestjs/common'
 import type { Redis } from 'ioredis'
 import { createHash } from 'node:crypto'
@@ -50,7 +50,7 @@ export class LeituraDoLote {
     try {
       return (await this.cliente.get(chave)) ?? undefined
     } catch {
-      throw new ErroDeDominio(CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO)
+      throw new ErroDeDominio(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO)
     }
   }
 }

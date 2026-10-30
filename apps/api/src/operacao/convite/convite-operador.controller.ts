@@ -1,13 +1,13 @@
 import { acimaDoLimiteDoIp, ipDaRequisicao, LimiteQueRebaixa, ProxiesConfiaveis, ZodValidationPipe } from '@educa/nucleo'
 import {
-  esquemaPedidoAceitarConviteDeOperador,
-  esquemaPedidoConsultarConviteDeOperador,
-  esquemaRespostaAceitarConviteDeOperador,
-  esquemaRespostaConsultarConviteDeOperador,
-  type PedidoAceitarConviteDeOperador,
-  type PedidoConsultarConviteDeOperador,
-  type RespostaAceitarConviteDeOperador,
-  type RespostaConsultarConviteDeOperador,
+  aceitarConviteDeOperadorRequestSchema,
+  consultarConviteDeOperadorRequestSchema,
+  aceitarConviteDeOperadorResponseSchema,
+  consultarConviteDeOperadorResponseSchema,
+  type AceitarConviteDeOperadorRequest,
+  type ConsultarConviteDeOperadorRequest,
+  type AceitarConviteDeOperadorResponse,
+  type ConsultarConviteDeOperadorResponse,
 } from '@educa/shared'
 import { Body, Controller, Header, HttpCode, HttpStatus, Inject, Post, Req } from '@nestjs/common'
 import type { IncomingMessage } from 'node:http'
@@ -37,8 +37,8 @@ export class ConviteDeOperadorController {
   @EntradaDeOperacao()
   @HttpCode(HttpStatus.OK)
   @Header('Cache-Control', 'no-store')
-  async consultar(@Body(new ZodValidationPipe(esquemaPedidoConsultarConviteDeOperador)) pedido: PedidoConsultarConviteDeOperador): Promise<RespostaConsultarConviteDeOperador> {
-    return esquemaRespostaConsultarConviteDeOperador.parse(await this.convites.consultar(pedido.token))
+  async consultar(@Body(new ZodValidationPipe(consultarConviteDeOperadorRequestSchema)) pedido: ConsultarConviteDeOperadorRequest): Promise<ConsultarConviteDeOperadorResponse> {
+    return consultarConviteDeOperadorResponseSchema.parse(await this.convites.consultar(pedido.token))
   }
 
   @Post('aceitar')
@@ -47,10 +47,10 @@ export class ConviteDeOperadorController {
   @HttpCode(HttpStatus.OK)
   @Header('Cache-Control', 'no-store')
   async aceitar(
-    @Body(new ZodValidationPipe(esquemaPedidoAceitarConviteDeOperador)) pedido: PedidoAceitarConviteDeOperador,
+    @Body(new ZodValidationPipe(aceitarConviteDeOperadorRequestSchema)) pedido: AceitarConviteDeOperadorRequest,
     @Req() requisicao: IncomingMessage,
-  ): Promise<RespostaAceitarConviteDeOperador> {
+  ): Promise<AceitarConviteDeOperadorResponse> {
     const origem = { ip: await ipDaRequisicao(requisicao, this.proxies), acimaDoLimiteDoIp: acimaDoLimiteDoIp(requisicao) }
-    return esquemaRespostaAceitarConviteDeOperador.parse(await this.convites.aceitar(pedido, origem))
+    return aceitarConviteDeOperadorResponseSchema.parse(await this.convites.aceitar(pedido, origem))
   }
 }

@@ -1,19 +1,19 @@
 import { IdPipe, Permite, ZodValidationPipe } from '@educa/nucleo'
 import {
-  esquemaConsultaAlunosDaTurma,
-  esquemaConsultaPaginada,
-  esquemaConsultaTurma,
-  esquemaPedidoCriarTurma,
-  esquemaPedidoRenomearTurma,
-  type ConsultaAlunosDaTurma,
-  type ConsultaPaginada,
-  type ConsultaTurma,
-  type PedidoCriarTurma,
-  type PedidoRenomearTurma,
-  type RespostaAlunosDaTurma,
-  type RespostaListaDeTurmas,
-  type RespostaTurma,
-  type RespostaTurmaAberta,
+  alunosDaTurmaQuerySchema,
+  paginationQuerySchema,
+  turmaQuerySchema,
+  criarTurmaRequestSchema,
+  renomearTurmaRequestSchema,
+  type AlunosDaTurmaQuery,
+  type PaginationQuery,
+  type TurmaQuery,
+  type CriarTurmaRequest,
+  type RenomearTurmaRequest,
+  type AlunosDaTurmaResponse,
+  type ListaDeTurmasResponse,
+  type TurmaResponse,
+  type TurmaAbertaResponse,
 } from '@educa/shared'
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Query } from '@nestjs/common'
 import { TurmaService } from './turma.service.js'
@@ -29,25 +29,25 @@ export class TurmaController {
 
   @Post()
   @Permite('turma', 'criar')
-  criar(@Body(new ZodValidationPipe(esquemaPedidoCriarTurma)) pedido: PedidoCriarTurma): Promise<RespostaTurma> {
+  criar(@Body(new ZodValidationPipe(criarTurmaRequestSchema)) pedido: CriarTurmaRequest): Promise<TurmaResponse> {
     return this.turmas.criar(pedido)
   }
 
   @Get()
   @Permite('turma', 'listar')
-  listar(@Query(new ZodValidationPipe(esquemaConsultaPaginada)) consulta: ConsultaPaginada): Promise<RespostaListaDeTurmas> {
+  listar(@Query(new ZodValidationPipe(paginationQuerySchema)) consulta: PaginationQuery): Promise<ListaDeTurmasResponse> {
     return this.turmas.listar(consulta)
   }
 
   @Get(':id')
   @Permite('turma', 'ler')
-  abrir(@Param('id', IdPipe) id: string, @Query(new ZodValidationPipe(esquemaConsultaTurma)) consulta: ConsultaTurma): Promise<RespostaTurmaAberta> {
+  abrir(@Param('id', IdPipe) id: string, @Query(new ZodValidationPipe(turmaQuerySchema)) consulta: TurmaQuery): Promise<TurmaAbertaResponse> {
     return this.turmas.abrir(id, consulta)
   }
 
   @Patch(':id')
   @Permite('turma', 'renomear')
-  renomear(@Param('id', IdPipe) id: string, @Body(new ZodValidationPipe(esquemaPedidoRenomearTurma)) pedido: PedidoRenomearTurma): Promise<RespostaTurma> {
+  renomear(@Param('id', IdPipe) id: string, @Body(new ZodValidationPipe(renomearTurmaRequestSchema)) pedido: RenomearTurmaRequest): Promise<TurmaResponse> {
     return this.turmas.renomear(id, pedido)
   }
 
@@ -60,7 +60,7 @@ export class TurmaController {
 
   @Get(':id/alunos')
   @Permite('aluno_da_turma', 'ler')
-  alunos(@Param('id', IdPipe) id: string, @Query(new ZodValidationPipe(esquemaConsultaAlunosDaTurma)) consulta: ConsultaAlunosDaTurma): Promise<RespostaAlunosDaTurma> {
+  alunos(@Param('id', IdPipe) id: string, @Query(new ZodValidationPipe(alunosDaTurmaQuerySchema)) consulta: AlunosDaTurmaQuery): Promise<AlunosDaTurmaResponse> {
     return this.turmas.alunos(id, consulta)
   }
 }

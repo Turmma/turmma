@@ -26,7 +26,7 @@ leia a regra de `.claude/rules/` da área em que você vai mexer.
 É um monorepo com npm workspaces, o equivalente a um projeto Maven multi-módulo:
 
 ```
-packages/shared      contrato: esquemas zod de pedido e resposta, CodigoDeErro, matriz de permissão, filas
+packages/shared      contrato: esquemas zod de pedido e resposta, ErrorCode, matriz de permissão, filas
 packages/nucleo      infraestrutura do backend: contexto, guardas, erro, schema e migrations, fila, IA, log
 apps/api             API REST (NestJS): controllers, services, repositories, por módulo de domínio
 apps/despachante     lê o outbox (job_registro) e publica no BullMQ, respeitando as vagas de cada escola
@@ -69,12 +69,12 @@ realtime, despachante, worker, web.
 | Entidade JPA | tabela do Drizzle, sem lazy loading e sem entidade gerenciada | `packages/nucleo/src/db/schema/disciplina.ts` |
 | Flyway | migrations do `drizzle-kit`, aplicadas pelo serviço `migrar` do compose | `packages/nucleo/drizzle/` |
 | Bean Validation (`@Valid` no `@RequestBody`) | esquema zod de `shared` com o `ZodValidationPipe` do NestJS | §5.1 |
-| DTO de resposta (record) | esquema de resposta zod, aplicado com `.parse` no service | `esquemaRespostaDisciplina` |
+| DTO de resposta (record) | esquema de resposta zod, aplicado com `.parse` no service | `disciplinaResponseSchema` |
 | Spring Security filter chain | quatro guardas globais, nesta ordem: autenticação, limite, sessão, permissão | `app.module.ts`, `APP_GUARD` |
 | `@PreAuthorize("hasRole(...)")` na rota | `@Permite('disciplina', 'criar')` sobre a `MATRIZ`: cobre **a rota e o papel**, não o objeto | `nucleo/src/permissao/permite.decorator.ts`, `shared/src/permissao/matriz.ts` |
 | `@PostAuthorize` / `hasPermission(obj)` no objeto | o alcance `turma_vinculada` ou `proprio`, aplicado **no repository** com o usuário do contexto | `assistente/turma-do-professor.repository.ts` |
 | `SecurityContextHolder` / `RequestContextHolder` (ThreadLocal) | contexto da requisição em `AsyncLocalStorage` | `nucleo/src/contexto/contexto.ts` |
-| Exceção de negócio + `@ControllerAdvice` | `ErroDeDominio(CodigoDeErro.X)` + `FiltroGlobalDeErro` | `nucleo/src/erro/` |
+| Exceção de negócio + `@ControllerAdvice` | `ErroDeDominio(ErrorCode.X)` + `FiltroGlobalDeErro` | `nucleo/src/erro/` |
 | `@ConfigurationProperties` + `@Validated` | `config.ts` com zod, que lista todos os erros de uma vez | `apps/api/src/config.ts` |
 | `ApplicationEventPublisher` transacional / outbox | `Enfileirador` (transactional outbox) + despachante | `nucleo/src/fila/enfileirador.ts`, `apps/despachante/` |
 | `@RabbitListener` / `@KafkaListener` | processador do worker, registrado por tipo de job | `apps/worker/src/montagem.ts` |
@@ -182,13 +182,13 @@ Exemplo: a disciplina (`apps/api/src/estrutura/`, `packages/shared/src/estrutura
 1. **Contrato em `shared`.** Escreva o esquema do pedido, sempre `.strict()`, e o da resposta. Exporte os dois em
    `packages/shared/src/index.ts`.
    ```ts
-   export const esquemaPedidoCriarDisciplina = z
+   export const criarDisciplinaRequestSchema = z
      .object({
        nome: z.string().trim().min(1).max(TAMANHO_MAXIMO_NOME_DISCIPLINA),
        area: z.enum(AREAS_DO_CONHECIMENTO).optional(),
      })
      .strict()
-   export const esquemaRespostaDisciplina = esquemaDisciplina
+   export const disciplinaResponseSchema = disciplinaSchema
    ```
 2. **Permissão.** Acrescente a ação na `MATRIZ` (`packages/shared/src/permissao/matriz.ts`), com o alcance de cada
    papel. O teste da matriz diz o que falta. **A guarda só aplica o `nunca`.** O `turma_vinculada` e o `proprio` são
@@ -199,7 +199,7 @@ Exemplo: a disciplina (`apps/api/src/estrutura/`, `packages/shared/src/estrutura
    export class DisciplinaController {
      @Post()
      @Permite('disciplina', 'criar')
-     criar(@Body(new ZodValidationPipe(esquemaPedidoCriarDisciplina)) pedido: PedidoCriarDisciplina) {
+     criar(@Body(new ZodValidationPipe(criarDisciplinaRequestSchema)) pedido: CriarDisciplinaRequest) {
        return this.disciplinas.criar(pedido)
      }
 
@@ -212,10 +212,10 @@ Exemplo: a disciplina (`apps/api/src/estrutura/`, `packages/shared/src/estrutura
    responde `ENTRADA_INVALIDA`. Em todo `*.controller.ts` de `apps/api/src` o lint não deixa passar `@Body()`, `@Query()`
    nem `@Param()` sem pipe, nem `@Req()` cru (só `sessao/` e `operacao/` leem cookie e IP da requisição). O parâmetro
    de caminho que não é um id e que, fora do formato, deve responder como o inexistente (`ferramenta`, `questao`, `slug`)
-   leva `new ZodValidationPipe(esquema, { errorCode: CodigoDeErro.NAO_ENCONTRADO })`. A rota que aceita não receber corpo
-   usa o esquema vazio com `.default({})` (`esquemaPedidoSemCorpoOuAusente`).
+   leva `new ZodValidationPipe(esquema, { errorCode: ErrorCode.NAO_ENCONTRADO })`. A rota que aceita não receber corpo
+   usa o esquema vazio com `.default({})` (`emptyOrMissingBodyRequestSchema`).
 4. **Service.** A regra de negócio fica aqui, e a resposta passa pelo esquema:
-   `return esquemaRespostaDisciplina.parse(linha)`. Quando não achar, lance `new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)`.
+   `return disciplinaResponseSchema.parse(linha)`. Quando não achar, lance `new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)`.
 5. **Repository.** É o único lugar que toca o banco. A escola vem do contexto, nunca do argumento:
    ```ts
    .where(and(eq(disciplina.escolaId, exigirEscolaDoContexto()), eq(disciplina.id, id)))
@@ -267,7 +267,7 @@ Exemplo: `packages/nucleo/src/db/schema/disciplina.ts` e `turma.ts`.
 
 Exemplo: a montagem do arquivo do titular (`privacidade.service.ts`, `apps/worker/src/processadores/`).
 
-1. **Declare o tipo em `DEFINICOES_DE_JOB`** (`packages/shared/src/sistema/definicoes-de-job.ts`), com `definirJob`:
+1. **Declare o tipo em `JOB_DEFINITIONS`** (`packages/shared/src/system/job-definitions.ts`), com `defineJob`:
    as filas em que ele pode nascer (a primeira é a padrão), o escopo (`escola` ou `sistema`), quem executa, o esquema
    estrito dos `dados`, a retentativa, o prazo (`prazoMs`) e se é não urgente. Os `dados` levam **só ids**, nunca nome
    nem conteúdo (regra 20). Rotina sem escola tem escopo `sistema` e o tipo começa por `sistema.`.
@@ -318,7 +318,7 @@ Exemplo: as disciplinas da coordenação (`apps/web/src/api/estrutura.ts` e a te
    ```ts
    export const consultaDisciplinas = queryOptions({
      queryKey: [...CHAVE_DA_ESTRUTURA, 'disciplinas'],
-     queryFn: ({ signal }) => lerPaginas<Disciplina>('/v1/disciplinas', esquemaRespostaListaDeDisciplinas, signal),
+     queryFn: ({ signal }) => lerPaginas<Disciplina>('/v1/disciplinas', listaDeDisciplinasResponseSchema, signal),
    })
    ```
    A resposta é validada pelo mesmo esquema de `shared` que a API usa.
@@ -414,7 +414,7 @@ falha?**
 | Lint de entrada | `@Body()`, `@Query()` ou `@Param()` sem pipe em todo controller da API, e `@Req()` cru fora de `sessao/` e `operacao/` | `eslint.config.mjs` |
 | Lint do kit | `componentes/ui/` importando `api/`, `areas/` ou `sessao/` | `eslint.config.mjs` |
 | Lint de tabela | importar tabela do núcleo fora de um repository | `tools/guardas/tabelas-do-nucleo.mjs` |
-| Lint `guardas/erro-tipado` | `throw new Error(...)` ou literal lançado em produção, e `ErroDeInvariante` com motivo que não é texto fixo | `tools/guardas/regras-erro.mjs` |
+| Lint `guardas/erro-tipado` | `throw new Error(...)` ou literal lançado em produção, e `InvariantException` com motivo que não é texto fixo | `tools/guardas/regras-erro.mjs` |
 | `dependency-cruiser` | import contra a direção `shared ← nucleo ← apps`, app importando app, produção importando teste, controller importando repository ou Drizzle, service importando Drizzle, repository importando service, `sessao/` e `credencial/` por fora do `index.ts`, e ciclo | `tools/guardas/camadas.cjs`, `npm run guarda:camadas` (dentro do `npm run lint`) |
 | ESLint `complexity`, `max-lines-per-function`, `max-depth` | função acima de 10 de complexidade, 80 linhas de código ou 4 níveis de aninhamento. O que já passava disso em 22/10/2026 está em `eslint-suppressions.json`, que só encolhe: supressão nova reprova | `eslint.config.mjs`, `tools/guardas/catraca.test.ts` |
 | Teste dos repositories | repository sem prova de escopo nem motivo escrito | `tools/guardas/repositories-com-escopo.test.ts`, sobre `escopo-dos-repositories.ts` |
@@ -457,8 +457,8 @@ Ainda não há `npm run dev` com recarga a quente: a stack sobe pelo compose. O 
 | `OuvinteDeJobs` | Listener de Postgres `LISTEN/NOTIFY` |
 | `VagasPorEscola` | Limite de concorrência por tenant (semáforo distribuído no Redis, em Lua) |
 | `ExecutorDeJobs` e `Processador` | Registro de job handlers por tipo |
-| `ErroDeDominio` + `CodigoDeErro` | Domain exception com código de erro |
-| `ErroDeInvariante` | `IllegalStateException`: o que não pode acontecer, com motivo em texto fixo |
+| `ErroDeDominio` + `ErrorCode` | Domain exception com código de erro |
+| `InvariantException` | `IllegalStateException`: o que não pode acontecer, com motivo em texto fixo |
 | `FiltroGlobalDeErro` | Global exception handler (`@ControllerAdvice`) |
 | `@Permite` + `MATRIZ` | Autorização declarativa (`@PreAuthorize`) com matriz de permissões |
 | `GuardaDeAutenticacao`, `DeLimite`, `DeSessao`, `DePermissao` | Filter chain de segurança |

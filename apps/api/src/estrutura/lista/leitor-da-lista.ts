@@ -1,8 +1,8 @@
 import { ErroDeDominio } from '@educa/nucleo'
 import {
-  CodigoDeErro,
-  esquemaMatriculaDigitada,
-  esquemaNomeDigitado,
+  ErrorCode,
+  matriculaDigitadaSchema,
+  nomeDigitadoSchema,
   MAXIMO_DE_BYTES_DA_LISTA,
   MAXIMO_DE_LINHAS_DA_LISTA,
   matriculasQueParecemDocumento,
@@ -91,7 +91,7 @@ function colunasDoCabecalho(campos: readonly string[]): { readonly nome: number;
  *   (`errosDasLinhas`) aponta.
  */
 export function lerTextoDaLista(texto: string): LinhaLida[] {
-  if (Buffer.byteLength(texto, 'utf8') > MAXIMO_DE_BYTES_DA_LISTA) throw new ErroDeDominio(CodigoDeErro.ENTRADA_INVALIDA)
+  if (Buffer.byteLength(texto, 'utf8') > MAXIMO_DE_BYTES_DA_LISTA) throw new ErroDeDominio(ErrorCode.ENTRADA_INVALIDA)
   const fisicas = texto.split(/\r\n|\r|\n/)
   let separador: Separador | undefined
   for (const conteudo of fisicas) {
@@ -103,7 +103,7 @@ export function lerTextoDaLista(texto: string): LinhaLida[] {
     .filter(({ campos }) => campos.some((campo) => campo !== ''))
   const cabecalho = lidas[0] === undefined ? undefined : colunasDoCabecalho(lidas[0].campos)
   const deAlunos = cabecalho === undefined ? lidas : lidas.slice(1)
-  if (deAlunos.length === 0 || deAlunos.length > MAXIMO_DE_LINHAS_DA_LISTA) throw new ErroDeDominio(CodigoDeErro.ENTRADA_INVALIDA)
+  if (deAlunos.length === 0 || deAlunos.length > MAXIMO_DE_LINHAS_DA_LISTA) throw new ErroDeDominio(ErrorCode.ENTRADA_INVALIDA)
   const colunas = cabecalho ?? { nome: 0, matricula: 1 }
   return deAlunos.map(({ linha, campos }) => ({ linha, nome: campos[colunas.nome] ?? '', matricula: campos[colunas.matricula] ?? '' }))
 }
@@ -114,7 +114,7 @@ export function lerTextoDaLista(texto: string): LinhaLida[] {
  * documento (`matricula_parece_documento`: CPF pontuado ou data, ou CPF sem pontuação na lista que é uma coluna de CPF,
  * `matriculasQueParecemDocumento` de `packages/shared`, a mesma que a tela usa; regra 20, item 2), depois a repetição no
  * texto (`matricula_repetida`, em cada linha da matrícula que aparece mais de uma vez; a linha que tem outro erro conta
- * na repetição, e mostra o erro dela). O nome e a matrícula seguem as regras do nome avulso (`esquemaNomeDigitado`, `esquemaMatriculaDigitada`): as duas entradas gravam a mesma coisa.
+ * na repetição, e mostra o erro dela). O nome e a matrícula seguem as regras do nome avulso (`nomeDigitadoSchema`, `matriculaDigitadaSchema`): as duas entradas gravam a mesma coisa.
  */
 export function errosDasLinhas(linhas: readonly LinhaLida[]): Array<ErroDaLinhaDaLista | undefined> {
   // A maioria da coluna de CPF conta todas as matrículas preenchidas, também as de linha com outro erro: é a coluna do
@@ -122,9 +122,9 @@ export function errosDasLinhas(linhas: readonly LinhaLida[]): Array<ErroDaLinhaD
   const parecemDocumento = matriculasQueParecemDocumento(linhas.map((linha) => linha.matricula))
   const doCampo = linhas.map(({ nome, matricula }, posicao): ErroDaLinhaDaLista | undefined => {
     if (nome === '') return 'sem_nome'
-    if (!esquemaNomeDigitado.safeParse(nome).success) return 'nome_invalido'
+    if (!nomeDigitadoSchema.safeParse(nome).success) return 'nome_invalido'
     if (matricula === '') return 'sem_matricula'
-    if (!esquemaMatriculaDigitada.safeParse(matricula).success) return 'matricula_invalida'
+    if (!matriculaDigitadaSchema.safeParse(matricula).success) return 'matricula_invalida'
     if (parecemDocumento[posicao] === true) return 'matricula_parece_documento'
     return undefined
   })

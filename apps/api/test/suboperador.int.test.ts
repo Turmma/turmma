@@ -1,4 +1,4 @@
-import { CHAVES_DE_CATEGORIA_DO_SUBOPERADOR, CodigoDeErro, esquemaRespostaSuboperadores, FINALIDADE_DO_REGISTRO_DE_SUBOPERADOR, type RespostaSuboperadores, type SuboperadorDaEscola } from '@educa/shared'
+import { CHAVES_DE_CATEGORIA_DO_SUBOPERADOR, ErrorCode, suboperadoresResponseSchema, FINALIDADE_DO_REGISTRO_DE_SUBOPERADOR, type SuboperadoresResponse, type SuboperadorDaEscola } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { lerAmbienteDeTeste } from '../../../tools/ci/compose.ts'
@@ -156,10 +156,10 @@ describe('suboperadores: a operação cadastra e encerra por comando, e a coorde
     return rows
   }
 
-  async function dosSuboperadores(coordenacao: SessaoDeTeste): Promise<RespostaSuboperadores> {
+  async function dosSuboperadores(coordenacao: SessaoDeTeste): Promise<SuboperadoresResponse> {
     const resposta = await chamar(api.url, 'GET', '/v1/privacidade/suboperadores', await coordenacao.tokenNovo())
     expect(resposta.status).toBe(200)
-    return esquemaRespostaSuboperadores.parse(resposta.corpo)
+    return suboperadoresResponseSchema.parse(resposta.corpo)
   }
 
   /** O que a escola lê das chaves que o teste criou: um suboperador `todas` de outro teste não entra na conta. */
@@ -231,7 +231,7 @@ describe('suboperadores: a operação cadastra e encerra por comando, e a coorde
     // Encerrar de novo não acha vigente; a chave encerrada se cadastra outra vez, e as duas linhas ficam.
     const repetido = await encerrar(primeiro.chave)
     expect({ codigo: repetido.codigo, saida: repetido.saida }).toEqual({ codigo: 1, saida: '' })
-    expect(repetido.erro).toMatch(new RegExp(`^${CodigoDeErro.NAO_ENCONTRADO}:`))
+    expect(repetido.erro).toMatch(new RegExp(`^${ErrorCode.NAO_ENCONTRADO}:`))
     expect(await auditoriasDe(id)).toHaveLength(2)
 
     const outra = await cadastrar({ chave: primeiro.chave })
@@ -274,7 +274,7 @@ describe('suboperadores: a operação cadastra e encerra por comando, e a coorde
     const id = idDoCadastro(await vigente)
     const igual = await cadastrar({ chave: vigente.chave })
     expect({ codigo: igual.codigo, saida: igual.saida }).toEqual({ codigo: 1, saida: '' })
-    expect(igual.erro).toMatch(new RegExp(`^${CodigoDeErro.CONFLITO}:`))
+    expect(igual.erro).toMatch(new RegExp(`^${ErrorCode.CONFLITO}:`))
     expect((await linhasDa(vigente.chave)).map((linha) => linha.id)).toEqual([id])
     expect(await auditoriasDe(id)).toHaveLength(1)
 
@@ -282,7 +282,7 @@ describe('suboperadores: a operação cadastra e encerra por comando, e a coorde
     const chave = chaveNova()
     const inexistente = await cadastrar({ chave, alcance: [existente, randomUUID()] })
     expect({ codigo: inexistente.codigo, saida: inexistente.saida }).toEqual({ codigo: 1, saida: '' })
-    expect(inexistente.erro).toMatch(new RegExp(`^${CodigoDeErro.NAO_ENCONTRADO}:`))
+    expect(inexistente.erro).toMatch(new RegExp(`^${ErrorCode.NAO_ENCONTRADO}:`))
     expect(await linhasDa(chave)).toEqual([])
     const { rows } = await bancada.pool.query('select 1 from suboperador_escola where escola_id = $1', [existente])
     expect(rows).toEqual([])
@@ -436,7 +436,7 @@ describe('suboperadores: a operação cadastra e encerra por comando, e a coorde
 
     const resposta = await chamar(api.url, 'GET', '/v1/privacidade/suboperadores', await coordenacao.tokenNovo())
     expect(resposta.status).toBe(200)
-    const nossos = esquemaRespostaSuboperadores.parse(resposta.corpo).suboperadores.filter((lido) => [zeta.chave, alfa.chave].includes(lido.chave))
+    const nossos = suboperadoresResponseSchema.parse(resposta.corpo).suboperadores.filter((lido) => [zeta.chave, alfa.chave].includes(lido.chave))
     expect(nossos.map((lido) => lido.nome)).toEqual([alfa.nome, zeta.nome])
     expect(nossos[0]).toMatchObject({ chave: alfa.chave, finalidade: 'Hospedagem do banco e dos arquivos', pais: 'US', vedaTreinamento: false, fim: null })
     expect(nossos[1]).toMatchObject({ pais: 'BR', vedaTreinamento: true, categorias: ['cadastro', 'material_da_escola'] })
@@ -485,7 +485,7 @@ describe('suboperadores: a operação cadastra e encerra por comando, e a coorde
       await gatilho.desarmar()
     }
     expect(resultados.map(({ codigo }) => codigo)).toEqual([0, 1])
-    expect(resultados[1]?.erro).toMatch(new RegExp(`^${CodigoDeErro.CONFLITO}:`))
+    expect(resultados[1]?.erro).toMatch(new RegExp(`^${ErrorCode.CONFLITO}:`))
     const linhas = await linhasDa(chave)
     expect(linhas).toHaveLength(1)
     expect(await auditoriasDe(linhas[0]?.id ?? '')).toHaveLength(1)
@@ -510,7 +510,7 @@ describe('suboperadores: a operação cadastra e encerra por comando, e a coorde
       await gatilho.desarmar()
     }
     expect(resultados.map(({ codigo }) => codigo)).toEqual([0, 1])
-    expect(resultados[1]?.erro).toMatch(new RegExp(`^${CodigoDeErro.NAO_ENCONTRADO}:`))
+    expect(resultados[1]?.erro).toMatch(new RegExp(`^${ErrorCode.NAO_ENCONTRADO}:`))
     expect((await auditoriasDe(id)).map((auditoria) => auditoria.acao)).toEqual(['suboperador.cadastrado', 'suboperador.encerrado'])
   })
 

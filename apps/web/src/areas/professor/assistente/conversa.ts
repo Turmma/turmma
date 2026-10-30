@@ -1,4 +1,4 @@
-import type { CodigoDeErro, MensagemDaConversa, MensagemDoAgente, PropostaDeFerramenta } from '@educa/shared'
+import type { ErrorCode, MensagemDaConversa, MensagemDoAgente, PropostaDeFerramenta } from '@educa/shared'
 import { emCurso, type CicloDeExecucao } from '../../../api/ciclo-de-execucao'
 import type { EscolhaDaProposta, PedidoDaConversa } from './memoria-do-professor'
 
@@ -15,7 +15,7 @@ export interface PendenteNaConversa {
   /** A resposta do Assistente que a execução trouxe e a conversa lida ainda não tem. */
   readonly resposta?: MensagemDoAgente
   /** O pedido falhou: o código, que a tela troca pelo aviso certo. */
-  readonly erro?: CodigoDeErro
+  readonly erro?: ErrorCode
 }
 
 /**

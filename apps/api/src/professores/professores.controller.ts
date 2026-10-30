@@ -1,18 +1,18 @@
 import { IdPipe, Permite, ZodValidationPipe } from '@educa/nucleo'
 import {
-  esquemaConsultaPaginada,
-  esquemaPedidoCadastrarProfessor,
-  esquemaPedidoSemCorpoDoConviteDeProfessor,
-  type ConsultaPaginada,
-  type PedidoCadastrarProfessor,
-  type RespostaConviteDeProfessor,
-  type RespostaListaDeProfessores,
+  paginationQuerySchema,
+  cadastrarProfessorRequestSchema,
+  conviteDeProfessorEmptyBodyRequestSchema,
+  type PaginationQuery,
+  type CadastrarProfessorRequest,
+  type ConviteDeProfessorResponse,
+  type ListaDeProfessoresResponse,
 } from '@educa/shared'
 import { Body, Controller, Get, Header, HttpCode, HttpStatus, Param, Post, Query } from '@nestjs/common'
 import { ProfessoresService } from './professores.service.js'
 
 /** Refazer e revogar não têm corpo: nenhum corpo vale como `{}` (o Express 5 deixa `req.body` indefinido), e qualquer campo é `ENTRADA_INVALIDA`. */
-const esquemaSemCorpo = esquemaPedidoSemCorpoDoConviteDeProfessor.default({})
+const esquemaSemCorpo = conviteDeProfessorEmptyBodyRequestSchema.default({})
 
 /**
  * `/v1/professores` (A1, tarefa 3.0, RF6), só da coordenação, na escola da sessão: cadastrar o professor (o link do
@@ -27,20 +27,20 @@ export class ProfessoresController {
   @Post()
   @Permite('professor', 'cadastrar')
   @Header('Cache-Control', 'no-store')
-  cadastrar(@Body(new ZodValidationPipe(esquemaPedidoCadastrarProfessor)) pedido: PedidoCadastrarProfessor): Promise<RespostaConviteDeProfessor> {
+  cadastrar(@Body(new ZodValidationPipe(cadastrarProfessorRequestSchema)) pedido: CadastrarProfessorRequest): Promise<ConviteDeProfessorResponse> {
     return this.professores.cadastrar(pedido)
   }
 
   @Get()
   @Permite('professor', 'listar')
-  listar(@Query(new ZodValidationPipe(esquemaConsultaPaginada)) consulta: ConsultaPaginada): Promise<RespostaListaDeProfessores> {
+  listar(@Query(new ZodValidationPipe(paginationQuerySchema)) consulta: PaginationQuery): Promise<ListaDeProfessoresResponse> {
     return this.professores.listar(consulta)
   }
 
   @Post(':usuarioId/convite/refazer')
   @Permite('professor', 'refazer_convite')
   @Header('Cache-Control', 'no-store')
-  refazerConvite(@Param('usuarioId', IdPipe) usuarioId: string, @Body(new ZodValidationPipe(esquemaSemCorpo)) _corpo: Record<string, never>): Promise<RespostaConviteDeProfessor> {
+  refazerConvite(@Param('usuarioId', IdPipe) usuarioId: string, @Body(new ZodValidationPipe(esquemaSemCorpo)) _corpo: Record<string, never>): Promise<ConviteDeProfessorResponse> {
     return this.professores.refazerConvite(usuarioId)
   }
 

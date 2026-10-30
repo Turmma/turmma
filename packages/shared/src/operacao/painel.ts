@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { esquemaTokenDeLink } from '../sessao/token.js'
+import { tokenDeLinkSchema } from '../sessao/token.js'
 import { FORMATO_SLUG, TAMANHO_MAXIMO_SLUG, TIPOS_DE_REDE } from '../estrutura/rede-e-escola.js'
 import { TAMANHO_MAXIMO_EMAIL } from '../sessao/login.js'
 
@@ -13,7 +13,7 @@ export const MAXIMO_DE_REDES_DO_PAINEL = 200
  * Nome de rede, de escola ou da pessoa convidada, digitado pelo operador no painel ou no `ops:*`: texto de uma linha, sem
  * caractere de controle, sem espaço nas pontas.
  */
-export const esquemaNomeDigitado = z
+export const nomeDigitadoSchema = z
   .string()
   .trim()
   .min(1)
@@ -25,53 +25,53 @@ export const esquemaNomeDigitado = z
  * "Idempotência"): o clique duplo repete o mesmo id, e o servidor devolve o que já criou. Só UUID v4 ou v7, os que se
  * sorteiam: nada de id escolhido à mão, sequencial ou nulo (regra 10, item 7).
  */
-export const esquemaIdDoPedido = z.union([z.uuidv4(), z.uuidv7()])
+export const idDoPedidoSchema = z.union([z.uuidv4(), z.uuidv7()])
 
 /** Endereço da escola (`/e/<slug>`), com o formato e o tamanho do check de `escola.slug`. */
-export const esquemaSlugDaEscola = z.string().max(TAMANHO_MAXIMO_SLUG).regex(FORMATO_SLUG)
+export const slugDaEscolaSchema = z.string().max(TAMANHO_MAXIMO_SLUG).regex(FORMATO_SLUG)
 
 /**
  * Corpo de `POST /v1/operacao/redes`. Estrito: campo a mais, como `autor`, é `ENTRADA_INVALIDA`. O autor da auditoria é
  * sempre o operador da sessão, conferido dentro da transação, nunca o corpo (RF6).
  */
-export const esquemaPedidoCriarRede = z.strictObject({
-  id: esquemaIdDoPedido,
-  nome: esquemaNomeDigitado,
+export const criarRedeRequestSchema = z.strictObject({
+  id: idDoPedidoSchema,
+  nome: nomeDigitadoSchema,
   tipo: z.enum(TIPOS_DE_REDE),
 })
 
-export type PedidoCriarRede = z.infer<typeof esquemaPedidoCriarRede>
+export type CriarRedeRequest = z.infer<typeof criarRedeRequestSchema>
 
 /** Corpo de `POST /v1/operacao/escolas`. Estrito, como o da rede. O slug não muda depois de criado. */
-export const esquemaPedidoCriarEscola = z.strictObject({
-  id: esquemaIdDoPedido,
+export const criarEscolaRequestSchema = z.strictObject({
+  id: idDoPedidoSchema,
   redeId: z.uuid(),
-  nome: esquemaNomeDigitado,
-  slug: esquemaSlugDaEscola,
+  nome: nomeDigitadoSchema,
+  slug: slugDaEscolaSchema,
 })
 
-export type PedidoCriarEscola = z.infer<typeof esquemaPedidoCriarEscola>
+export type CriarEscolaRequest = z.infer<typeof criarEscolaRequestSchema>
 
 /** Resposta de `POST /v1/operacao/redes` e `/escolas`: só o id, o mesmo no pedido repetido. */
-export const esquemaRespostaCriadoNoPainel = z.strictObject({ id: z.uuid() })
+export const criadoNoPainelResponseSchema = z.strictObject({ id: z.uuid() })
 
-export type RespostaCriadoNoPainel = z.infer<typeof esquemaRespostaCriadoNoPainel>
+export type CriadoNoPainelResponse = z.infer<typeof criadoNoPainelResponseSchema>
 
 /** Uma rede na lista do painel: id, nome e tipo, e nada de escola nem de pessoa. */
-export const esquemaRedeDoPainel = z.strictObject({
+export const redeDoPainelSchema = z.strictObject({
   id: z.uuid(),
   nome: z.string().min(1).max(TAMANHO_MAXIMO_NOME_DIGITADO),
   tipo: z.enum(TIPOS_DE_REDE),
 })
 
-export type RedeDoPainel = z.infer<typeof esquemaRedeDoPainel>
+export type RedeDoPainel = z.infer<typeof redeDoPainelSchema>
 
 /** Resposta de `GET /v1/operacao/redes`: até 200 redes, por nome, para o diálogo Nova escola. */
-export const esquemaRespostaRedesDoPainel = z.strictObject({
-  itens: z.array(esquemaRedeDoPainel).max(MAXIMO_DE_REDES_DO_PAINEL),
+export const redesDoPainelResponseSchema = z.strictObject({
+  itens: z.array(redeDoPainelSchema).max(MAXIMO_DE_REDES_DO_PAINEL),
 })
 
-export type RespostaRedesDoPainel = z.infer<typeof esquemaRespostaRedesDoPainel>
+export type RedesDoPainelResponse = z.infer<typeof redesDoPainelResponseSchema>
 
 /**
  * O estado da primeira coordenação de uma escola (Tech Spec da A0b, seção 5), que decide o que gerar, refazer e revogar
@@ -132,18 +132,18 @@ export const REVOGAR_CONVITE_POR_ESTADO: Readonly<Record<EstadoDaCoordenacao, 'r
  * O e-mail da pessoa convidada, digitado no painel ou no `ops:convite-coordenador`: sem espaço nas pontas, em minúsculas
  * (como o login o procura), no formato de e-mail e até 254.
  */
-export const esquemaEmailConvidado = z.string().trim().toLowerCase().pipe(z.email().max(TAMANHO_MAXIMO_EMAIL))
+export const emailConvidadoSchema = z.string().trim().toLowerCase().pipe(z.email().max(TAMANHO_MAXIMO_EMAIL))
 
 /**
  * Corpo de `POST /v1/operacao/escolas/:id/convite-coordenacao`: o nome e o e-mail da primeira coordenadora. Estrito: campo
  * a mais, como `autor` ou `escolaId`, é `ENTRADA_INVALIDA`. A escola vem do caminho; o autor, da sessão.
  */
-export const esquemaPedidoConviteDaCoordenacao = z.strictObject({
-  nome: esquemaNomeDigitado,
-  email: esquemaEmailConvidado,
+export const conviteDaCoordenacaoRequestSchema = z.strictObject({
+  nome: nomeDigitadoSchema,
+  email: emailConvidadoSchema,
 })
 
-export type PedidoConviteDaCoordenacao = z.infer<typeof esquemaPedidoConviteDaCoordenacao>
+export type ConviteDaCoordenacaoRequest = z.infer<typeof conviteDaCoordenacaoRequestSchema>
 
 /**
  * Resposta do gerar (`POST /v1/operacao/escolas/:id/convite-coordenacao`) e do refazer
@@ -151,12 +151,12 @@ export type PedidoConviteDaCoordenacao = z.infer<typeof esquemaPedidoConviteDaCo
  * existe nesta resposta (o banco guarda o SHA-256). A web monta o link `/convite#<token>`. Sai com `no-store`. Estrito:
  * nada da pessoa.
  */
-export const esquemaRespostaConviteDaCoordenacao = z.strictObject({
+export const conviteDaCoordenacaoResponseSchema = z.strictObject({
   conviteId: z.uuid(),
-  token: esquemaTokenDeLink,
+  token: tokenDeLinkSchema,
 })
 
-export type RespostaConviteDaCoordenacao = z.infer<typeof esquemaRespostaConviteDaCoordenacao>
+export type ConviteDaCoordenacaoResponse = z.infer<typeof conviteDaCoordenacaoResponseSchema>
 
 /** Quantas escolas cada página da lista e do uso traz (Tech Spec da A0b, seções 4 e 5; D25). */
 export const ESCOLAS_POR_PAGINA = 25
@@ -177,12 +177,12 @@ export type OrdemDoPainel = (typeof ORDENS_DO_PAINEL)[number]
  * Consulta de `GET /v1/operacao/escolas` e `GET /v1/operacao/uso`: `?pagina=` (de 1, padrão 1) e `?ordem=` (padrão
  * `nome`). Estrita: nada de escola, rede ou filtro a mais, e o parâmetro repetido não passa.
  */
-export const esquemaConsultaDoPainel = z.strictObject({
+export const painelQuerySchema = z.strictObject({
   pagina: z.coerce.number().int().min(1).max(MAXIMA_PAGINA_DO_PAINEL).default(1),
   ordem: z.enum(ORDENS_DO_PAINEL).default('nome'),
 })
 
-export type ConsultaDoPainel = z.infer<typeof esquemaConsultaDoPainel>
+export type PainelQuery = z.infer<typeof painelQuerySchema>
 
 const esquemaContagem = z.number().int().nonnegative()
 
@@ -191,10 +191,10 @@ const esquemaContagem = z.number().int().nonnegative()
  * de coordenação, quando há, para refazer e revogar) e as contagens do ano letivo em curso. **Só número**: nada de nome,
  * e-mail ou matrícula de pessoa, nem nome de turma (RF3).
  */
-export const esquemaEscolaDoPainel = z.strictObject({
+export const escolaDoPainelSchema = z.strictObject({
   id: z.uuid(),
   nome: z.string().min(1).max(TAMANHO_MAXIMO_NOME_DIGITADO),
-  slug: esquemaSlugDaEscola,
+  slug: slugDaEscolaSchema,
   rede: z.strictObject({ id: z.uuid(), nome: z.string().min(1).max(TAMANHO_MAXIMO_NOME_DIGITADO) }),
   estado: z.enum(ESTADOS_DA_COORDENACAO),
   conviteId: z.uuid().optional(),
@@ -203,50 +203,50 @@ export const esquemaEscolaDoPainel = z.strictObject({
   alunos: esquemaContagem,
 })
 
-export type EscolaDoPainel = z.infer<typeof esquemaEscolaDoPainel>
+export type EscolaDoPainel = z.infer<typeof escolaDoPainelSchema>
 
 /** Resposta de `GET /v1/operacao/escolas`: a página (até 25), o número dela e o total de escolas. */
-export const esquemaRespostaEscolasDoPainel = z.strictObject({
-  itens: z.array(esquemaEscolaDoPainel).max(ESCOLAS_POR_PAGINA),
+export const escolasDoPainelResponseSchema = z.strictObject({
+  itens: z.array(escolaDoPainelSchema).max(ESCOLAS_POR_PAGINA),
   pagina: z.number().int().min(1),
   total: esquemaContagem,
 })
 
-export type RespostaEscolasDoPainel = z.infer<typeof esquemaRespostaEscolasDoPainel>
+export type EscolasDoPainelResponse = z.infer<typeof escolasDoPainelResponseSchema>
 
 /** O uso de infra de uma escola num período (D30): requisições, jobs e bytes de storage. */
-export const esquemaUsoDoPeriodoDoPainel = z.strictObject({
+export const usoDoPeriodoDoPainelSchema = z.strictObject({
   requisicoes: esquemaContagem,
   jobs: esquemaContagem,
   bytesStorage: esquemaContagem,
 })
 
-export type UsoDoPeriodoDoPainel = z.infer<typeof esquemaUsoDoPeriodoDoPainel>
+export type UsoDoPeriodoDoPainel = z.infer<typeof usoDoPeriodoDoPainelSchema>
 
 /**
  * O uso de uma escola: o do último dia fechado e o do mês dele, até esse dia (requisições e jobs somados, e o pico de
  * bytes). Zero quando não há linha. Só id, nome e número.
  */
-export const esquemaUsoDaEscolaDoPainel = z.strictObject({
+export const usoDaEscolaDoPainelSchema = z.strictObject({
   id: z.uuid(),
   nome: z.string().min(1).max(TAMANHO_MAXIMO_NOME_DIGITADO),
-  dia: esquemaUsoDoPeriodoDoPainel,
-  mes: esquemaUsoDoPeriodoDoPainel,
+  dia: usoDoPeriodoDoPainelSchema,
+  mes: usoDoPeriodoDoPainelSchema,
 })
 
-export type UsoDaEscolaDoPainel = z.infer<typeof esquemaUsoDaEscolaDoPainel>
+export type UsoDaEscolaDoPainel = z.infer<typeof usoDaEscolaDoPainelSchema>
 
 /**
  * Resposta de `GET /v1/operacao/uso`: a página, o total, e as referências: `dia`, o último dia fechado (o dia civil de
  * São Paulo anterior ao de hoje, `AAAA-MM-DD`), e `mes`, o mês dele (`AAAA-MM`), contado do dia 1 até `dia`. O dia de
  * hoje só aparece depois da consolidação.
  */
-export const esquemaRespostaUsoDoPainel = z.strictObject({
-  itens: z.array(esquemaUsoDaEscolaDoPainel).max(ESCOLAS_POR_PAGINA),
+export const usoDoPainelResponseSchema = z.strictObject({
+  itens: z.array(usoDaEscolaDoPainelSchema).max(ESCOLAS_POR_PAGINA),
   pagina: z.number().int().min(1),
   total: esquemaContagem,
   dia: z.iso.date(),
   mes: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/),
 })
 
-export type RespostaUsoDoPainel = z.infer<typeof esquemaRespostaUsoDoPainel>
+export type UsoDoPainelResponse = z.infer<typeof usoDoPainelResponseSchema>

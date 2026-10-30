@@ -6,7 +6,7 @@ import { PAPEIS_DE_USUARIO } from '../permissao/matriz.js'
  * e o ano letivo em curso da escola, nulo quando ela não tem. Só ids e o papel. Estrito: nada além destes
  * campos sai na resposta.
  */
-export const esquemaRespostaContexto = z
+export const contextResponseSchema = z
   .object({
     escolaId: z.uuid(),
     usuarioId: z.uuid(),
@@ -16,4 +16,4 @@ export const esquemaRespostaContexto = z
   })
   .strict()
 
-export type RespostaContexto = z.infer<typeof esquemaRespostaContexto>
+export type ContextResponse = z.infer<typeof contextResponseSchema>

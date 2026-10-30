@@ -1,4 +1,4 @@
-import type { RespostaUsoDoPainel, UsoDoPeriodoDoPainel } from '@educa/shared'
+import type { UsoDoPainelResponse, UsoDoPeriodoDoPainel } from '@educa/shared'
 import { formatarNumero, formatarQuantidade } from '../formatar'
 
 /**
@@ -55,7 +55,7 @@ const mesPorExtenso = new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'n
  * → `setembro de 2026, até 23/09`. O mês é contado do dia 1 até o último dia fechado (Tech Spec da A0b, seção 5). A
  * referência fora do formato, que o contrato já recusa, volta como veio, em vez de o `Intl` lançar e derrubar a tela.
  */
-export function formatarMesDeReferencia({ mes, dia }: Pick<RespostaUsoDoPainel, 'mes' | 'dia'>): string {
+export function formatarMesDeReferencia({ mes, dia }: Pick<UsoDoPainelResponse, 'mes' | 'dia'>): string {
   const partes = FORMATO_DO_MES.exec(mes)
   const nome = partes === null ? mes : mesPorExtenso.format(new Date(Date.UTC(Number(partes[1]), Number(partes[2]) - 1, 15)))
   return `${nome}, até ${formatarDia(dia).slice(0, 5)}`

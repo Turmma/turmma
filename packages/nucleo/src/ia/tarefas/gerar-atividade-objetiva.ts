@@ -1,4 +1,4 @@
-import { esquemaConteudoDeAtividade, MAXIMO_DE_QUESTOES_POR_ATIVIDADE, TAMANHO_MAXIMO_DO_TEMA, type ConteudoDeAtividade, type Habilidade, type QuestaoObjetiva } from '@educa/shared'
+import { conteudoDeAtividadeSchema, MAXIMO_DE_QUESTOES_POR_ATIVIDADE, TAMANHO_MAXIMO_DO_TEMA, type ConteudoDeAtividade, type Habilidade, type QuestaoObjetiva } from '@educa/shared'
 import { z } from 'zod'
 import {
   citacaoDaFrase,
@@ -231,7 +231,7 @@ export const gerarAtividadeObjetiva = definirTarefa({
   funcao: 'conversa_e_ferramentas',
   perfil: 'padrao',
   esquemaDeEntrada: esquemaEntradaDeAtividadeObjetiva,
-  esquemaDeSaida: esquemaConteudoDeAtividade,
+  esquemaDeSaida: conteudoDeAtividadeSchema,
   prompt: PROMPT_GERAR_ATIVIDADE_OBJETIVA,
   maximoDeTokensDeSaida: 6000,
   levaTextoLivreDePessoa: false,

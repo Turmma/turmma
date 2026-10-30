@@ -1,7 +1,7 @@
 import { acessoTurma, exigirAnoEmCurso, exigirEscolaDoContexto, sessaoDaRequisicao, type Banco, type TransacaoBanco } from '@educa/nucleo'
 import type { ValidadeDoAcessoDias } from '@educa/shared'
 import { and, eq, gt, isNull, sql } from 'drizzle-orm'
-import { ErroDeInvariante } from '@educa/shared'
+import { InvariantException } from '@educa/shared'
 
 export interface NovoAcesso {
   readonly turmaId: string
@@ -59,7 +59,7 @@ export class AcessoDaTurmaRepository {
         criadoPor: sessaoDaRequisicao().usuarioId,
       })
       .returning({ id: acessoTurma.id, expiraEm: acessoTurma.expiraEm })
-    if (gravado === undefined) throw new ErroDeInvariante('acesso da turma não gravado')
+    if (gravado === undefined) throw new InvariantException('acesso da turma não gravado')
     return gravado
   }
 

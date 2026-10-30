@@ -1,4 +1,4 @@
-import { CodigoDeErro } from '@educa/shared'
+import { ErrorCode } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
@@ -216,7 +216,7 @@ describe('vínculo: a coordenação cria, o professor confirma ou contesta, a co
       const corpo = { usuarioId: professor.usuarioId, turmaId: escola.turma, papel: 'professor', ...disciplina }
       const respostas = await Promise.all([post(escola.coordenacao, '/v1/vinculos', corpo), post(escola.coordenacao, '/v1/vinculos', corpo)])
       expect(respostas.map((resposta) => resposta.status).sort()).toEqual([201, 409])
-      expect(respostas.find((resposta) => resposta.status === 409)?.corpo.erro?.codigo).toBe(CodigoDeErro.CONFLITO)
+      expect(respostas.find((resposta) => resposta.status === 409)?.corpo.erro?.codigo).toBe(ErrorCode.CONFLITO)
     }
 
     expect(await contarVinculos(escola.coordenacao.escolaId)).toBe(antes + 2)
@@ -248,7 +248,7 @@ describe('vínculo: a coordenação cria, o professor confirma ou contesta, a co
       ]
       for (const tentativa of tentativas) {
         expect(tentativa.status).toBe(409)
-        expect(tentativa.corpo.erro?.codigo).toBe(CodigoDeErro.CONFLITO)
+        expect(tentativa.corpo.erro?.codigo).toBe(ErrorCode.CONFLITO)
       }
       expect(await linhaDoVinculo(confirmado)).toMatchObject({ estado: 'confirmado', contestacao: null })
       expect(await linhaDoVinculo(encerrado)).toMatchObject({ estado: 'encerrado', motivo_encerramento: 'realocacao', decidido_em: null })
@@ -263,7 +263,7 @@ describe('vínculo: a coordenação cria, o professor confirma ou contesta, a co
       for (const invalido of [{ motivo: 'fim_do_ano' }, { motivo: 'desligamento', escolaId: randomUUID() }, {}]) {
         const resposta = await post(escola.coordenacao, `/v1/vinculos/${id}/encerrar`, invalido)
         expect(resposta.status, JSON.stringify(invalido)).toBe(400)
-        expect(resposta.corpo.erro?.codigo).toBe(CodigoDeErro.ENTRADA_INVALIDA)
+        expect(resposta.corpo.erro?.codigo).toBe(ErrorCode.ENTRADA_INVALIDA)
       }
 
       const [primeiro, segundo] = await Promise.all([
@@ -288,7 +288,7 @@ describe('vínculo: a coordenação cria, o professor confirma ou contesta, a co
       for (const usuarioId of [escola.coordenacao.usuarioId, aluno.usuarioId, desativado.usuarioId, randomUUID()]) {
         const resposta = await post(escola.coordenacao, '/v1/vinculos', { usuarioId, turmaId: escola.turma, papel: 'professor' })
         expect(resposta.status).toBe(404)
-        expect(resposta.corpo.erro?.codigo).toBe(CodigoDeErro.NAO_ENCONTRADO)
+        expect(resposta.corpo.erro?.codigo).toBe(ErrorCode.NAO_ENCONTRADO)
       }
       for (const invalido of [
         { usuarioId: aluno.usuarioId, turmaId: escola.turma, papel: 'aluno' },
@@ -297,7 +297,7 @@ describe('vínculo: a coordenação cria, o professor confirma ou contesta, a co
       ]) {
         const resposta = await post(escola.coordenacao, '/v1/vinculos', invalido)
         expect(resposta.status).toBe(400)
-        expect(resposta.corpo.erro?.codigo).toBe(CodigoDeErro.ENTRADA_INVALIDA)
+        expect(resposta.corpo.erro?.codigo).toBe(ErrorCode.ENTRADA_INVALIDA)
       }
       expect(await contarVinculos(escola.coordenacao.escolaId)).toBe(antes)
     })
@@ -312,7 +312,7 @@ describe('vínculo: a coordenação cria, o professor confirma ou contesta, a co
       ]
       for (const resposta of respostas) {
         expect(resposta.status).toBe(404)
-        expect(resposta.corpo.erro?.codigo).toBe(CodigoDeErro.NAO_ENCONTRADO)
+        expect(resposta.corpo.erro?.codigo).toBe(ErrorCode.NAO_ENCONTRADO)
       }
     })
 
@@ -346,7 +346,7 @@ describe('vínculo: a coordenação cria, o professor confirma ou contesta, a co
       }
       const statusECodigo = (resposta: RespostaHttp) => ({ status: resposta.status, codigo: resposta.corpo.erro?.codigo })
       const encerrarDoAluno = await post(escola.coordenacao, `/v1/vinculos/${doAluno}/encerrar`, { motivo: 'realocacao' })
-      expect(statusECodigo(encerrarDoAluno)).toEqual({ status: 404, codigo: CodigoDeErro.NAO_ENCONTRADO })
+      expect(statusECodigo(encerrarDoAluno)).toEqual({ status: 404, codigo: ErrorCode.NAO_ENCONTRADO })
       expect(statusECodigo(encerrarDoAluno)).toEqual(statusECodigo(await post(escola.coordenacao, `/v1/vinculos/${randomUUID()}/encerrar`, { motivo: 'realocacao' })))
       expect(await linhaDoVinculo(doAluno)).toEqual(expect.objectContaining({ estado: 'confirmado', motivo_encerramento: null }))
       expect(await auditoriaDe(doAluno)).toEqual([])
@@ -373,7 +373,7 @@ describe('vínculo: a coordenação cria, o professor confirma ou contesta, a co
       ]
       for (const recusada of recusadas) {
         expect(recusada.status).toBe(404)
-        expect(recusada.corpo.erro?.codigo).toBe(CodigoDeErro.NAO_ENCONTRADO)
+        expect(recusada.corpo.erro?.codigo).toBe(ErrorCode.NAO_ENCONTRADO)
       }
       expect(await contarVinculos(escola.coordenacao.escolaId)).toBe(antes)
       expect(await linhaDoVinculo(id)).toMatchObject({ estado: 'pendente', decidido_em: null })
@@ -388,7 +388,7 @@ describe('vínculo: a coordenação cria, o professor confirma ou contesta, a co
 
       const doColega = [await post(colega, `/v1/vinculos/${id}/confirmar`), await post(colega, `/v1/vinculos/${id}/contestar`, { contestacao: 'nao_leciono' })]
       const inexistente = await post(colega, `/v1/vinculos/${randomUUID()}/confirmar`)
-      for (const resposta of doColega) expect(semRequisicao(resposta)).toEqual({ status: 404, codigo: CodigoDeErro.NAO_ENCONTRADO })
+      for (const resposta of doColega) expect(semRequisicao(resposta)).toEqual({ status: 404, codigo: ErrorCode.NAO_ENCONTRADO })
       expect(semRequisicao(inexistente)).toEqual(semRequisicao(doColega[0] as RespostaHttp))
       expect(await linhaDoVinculo(id)).toMatchObject({ estado: 'pendente', decidido_em: null })
       expect((await get(colega, '/v1/meus-vinculos')).corpo).toEqual({ itens: [] })
@@ -409,7 +409,7 @@ describe('vínculo: a coordenação cria, o professor confirma ou contesta, a co
       ]) {
         const resposta = await post(professor, `/v1/vinculos/${id}/contestar`, invalido)
         expect(resposta.status).toBe(400)
-        expect(resposta.corpo.erro?.codigo).toBe(CodigoDeErro.ENTRADA_INVALIDA)
+        expect(resposta.corpo.erro?.codigo).toBe(ErrorCode.ENTRADA_INVALIDA)
       }
       expect((await post(professor, `/v1/vinculos/${id}/contestar`, { contestacao: 'outro', complemento: 'y'.repeat(140) })).status).toBe(200)
 

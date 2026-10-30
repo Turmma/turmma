@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { esquemaDePagina } from './paginacao.js'
+import { pageSchema } from './pagination.js'
 
 export const SITUACOES_DO_ANO_LETIVO = ['planejado', 'em_curso', 'encerrado'] as const
 export type SituacaoDoAnoLetivo = (typeof SITUACOES_DO_ANO_LETIVO)[number]
@@ -34,7 +34,7 @@ export function fimCaiAteOAnoSeguinte(ano: number, fim: string): boolean {
  * altera nem se exclui depois de criado (não há rota para isso), e um 2027 com o período de 2026 ficaria na escola para
  * sempre. A tela mostra o erro no campo, com as mesmas três funções; quem recusa é a API (regra 00, item 1).
  */
-export const esquemaPedidoCriarAnoLetivo = z
+export const criarAnoLetivoRequestSchema = z
   .object({
     ano: z.number().int().min(MENOR_ANO_LETIVO).max(MAIOR_ANO_LETIVO),
     inicio: z.iso.date(),
@@ -45,9 +45,9 @@ export const esquemaPedidoCriarAnoLetivo = z
   .refine((pedido) => inicioCaiNoAnoLetivo(pedido.ano, pedido.inicio), { path: ['inicio'] })
   .refine((pedido) => fimCaiAteOAnoSeguinte(pedido.ano, pedido.fim), { path: ['fim'] })
 
-export type PedidoCriarAnoLetivo = z.infer<typeof esquemaPedidoCriarAnoLetivo>
+export type CriarAnoLetivoRequest = z.infer<typeof criarAnoLetivoRequestSchema>
 
-export const esquemaAnoLetivo = z
+export const anoLetivoSchema = z
   .object({
     id: z.uuid(),
     ano: z.number().int(),
@@ -57,12 +57,12 @@ export const esquemaAnoLetivo = z
   })
   .strict()
 
-export type AnoLetivo = z.infer<typeof esquemaAnoLetivo>
+export type AnoLetivo = z.infer<typeof anoLetivoSchema>
 
 /** Resposta de criar, abrir e encerrar um ano letivo. */
-export const esquemaRespostaAnoLetivo = esquemaAnoLetivo
-export type RespostaAnoLetivo = AnoLetivo
+export const anoLetivoResponseSchema = anoLetivoSchema
+export type AnoLetivoResponse = AnoLetivo
 
 /** Resposta de `GET /v1/anos-letivos`. */
-export const esquemaRespostaListaDeAnosLetivos = esquemaDePagina(esquemaAnoLetivo)
-export type RespostaListaDeAnosLetivos = z.infer<typeof esquemaRespostaListaDeAnosLetivos>
+export const listaDeAnosLetivosResponseSchema = pageSchema(anoLetivoSchema)
+export type ListaDeAnosLetivosResponse = z.infer<typeof listaDeAnosLetivosResponseSchema>

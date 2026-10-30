@@ -1,4 +1,4 @@
-import { CodigoDeErro } from '@educa/shared'
+import { ErrorCode } from '@educa/shared'
 import { Controller, Get, Post, type ExecutionContext } from '@nestjs/common'
 import { Reflector } from '@nestjs/core'
 import { describe, expect, it } from 'vitest'
@@ -86,7 +86,7 @@ describe('GuardaDePermissao', () => {
   it('papel com alcance nunca recebe NAO_ENCONTRADO 404, igual a rota inexistente, nunca um 403', () => {
     for (const [papel, metodo] of [['professor', 'criar'], ['aluno', 'ler'], ['aluno', 'criar']] as const) {
       expect(() => comPapel(papel, () => guarda.canActivate(execucaoDe(TurmasController, metodo))), `${papel} ${metodo}`).toThrow(
-        expect.objectContaining({ codigo: CodigoDeErro.NAO_ENCONTRADO, status: 404 }),
+        expect.objectContaining({ codigo: ErrorCode.NAO_ENCONTRADO, status: 404 }),
       )
     }
   })
@@ -97,13 +97,13 @@ describe('GuardaDePermissao', () => {
 
   it('rota autenticada sem @Permite é recusada mesmo assim: nunca libera por omissão', () => {
     expect(() => comPapel('coordenador', () => guarda.canActivate(execucaoDe(TurmasController, 'esquecida')))).toThrow(
-      expect.objectContaining({ codigo: CodigoDeErro.NAO_ENCONTRADO }),
+      expect.objectContaining({ codigo: ErrorCode.NAO_ENCONTRADO }),
     )
   })
 
   it('sem papel no contexto (guarda fora de ordem), NAO_AUTENTICADO', () => {
     expect(() => executarNoContexto({ requisicaoId: 'r' }, () => guarda.canActivate(execucaoDe(TurmasController, 'ler')))).toThrow(
-      expect.objectContaining({ codigo: CodigoDeErro.NAO_AUTENTICADO }),
+      expect.objectContaining({ codigo: ErrorCode.NAO_AUTENTICADO }),
     )
   })
 

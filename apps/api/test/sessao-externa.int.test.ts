@@ -1,4 +1,4 @@
-import { CodigoDeErro } from '@educa/shared'
+import { ErrorCode } from '@educa/shared'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { aguardarSaudavel, composeAssincronoOuFalha } from '../../../tools/testes/compose.ts'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
@@ -381,7 +381,7 @@ describe('login pela conta Google ou Microsoft da escola, contra o oidc-falso do
       body: JSON.stringify({ slug, matricula: aluna.matricula, senha: SENHA_SINTETICA_DO_ALUNO }),
     })
     expect(porMatricula.status).toBe(403)
-    expect(((await porMatricula.json()) as { erro: { codigo: string } }).erro.codigo).toBe(CodigoDeErro.ACESSO_SUSPENSO)
+    expect(((await porMatricula.json()) as { erro: { codigo: string } }).erro.codigo).toBe(ErrorCode.ACESSO_SUSPENSO)
   })
 
   it('borda: a escola com dois domínios Google aceita conta de qualquer um deles', async () => {
@@ -519,7 +519,7 @@ describe('login pela conta Google ou Microsoft da escola, contra o oidc-falso do
       const resposta = await fetch(`${api.url}${caminho}`, { redirect: 'manual' })
       const corpo = (await resposta.json()) as { erro?: { codigo?: string } }
       expect(resposta.status, caminho).toBe(404)
-      expect(corpo.erro?.codigo, caminho).toBe(CodigoDeErro.NAO_ENCONTRADO)
+      expect(corpo.erro?.codigo, caminho).toBe(ErrorCode.NAO_ENCONTRADO)
       expect(resposta.headers.getSetCookie(), caminho).toEqual([])
     }
   })
@@ -537,7 +537,7 @@ describe('login pela conta Google ou Microsoft da escola, contra o oidc-falso do
       const resposta = await fetch(`${api.url}${caminho}`, { redirect: 'manual' })
       const corpo = (await resposta.json()) as { erro?: { codigo?: string } }
       expect(resposta.status, caminho).toBe(404)
-      expect(corpo.erro?.codigo, caminho).toBe(CodigoDeErro.NAO_ENCONTRADO)
+      expect(corpo.erro?.codigo, caminho).toBe(ErrorCode.NAO_ENCONTRADO)
       expect(resposta.headers.getSetCookie(), caminho).toEqual([])
     }
   })

@@ -1,9 +1,9 @@
 import {
-  CodigoDeErro,
-  esquemaRespostaAceitarConviteDeOperador,
-  esquemaRespostaConsultarConviteDeOperador,
-  type PedidoAceitarConviteDeOperador,
-  type RespostaConsultarConviteDeOperador,
+  ErrorCode,
+  aceitarConviteDeOperadorResponseSchema,
+  consultarConviteDeOperadorResponseSchema,
+  type AceitarConviteDeOperadorRequest,
+  type ConsultarConviteDeOperadorResponse,
 } from '@educa/shared'
 import { chamarApi, ErroDaApi } from '../../api/cliente'
 import { esquecerDesafioDeOperador, guardarDesafioDeOperador } from './sessao'
@@ -18,8 +18,8 @@ export const CAMINHO_DO_ACEITE_DE_CONVITE_DE_OPERADOR = '/v1/operacao/convite/ac
  *
  * Não passa pelo TanStack Query: o token é o argumento, e uma chave de cache com ele dentro é o que não pode existir.
  */
-export function consultarConviteDeOperador(token: string): Promise<RespostaConsultarConviteDeOperador> {
-  return chamarApi(CAMINHO_DA_CONSULTA_DE_CONVITE_DE_OPERADOR, esquemaRespostaConsultarConviteDeOperador, { metodo: 'POST', corpo: { token } })
+export function consultarConviteDeOperador(token: string): Promise<ConsultarConviteDeOperadorResponse> {
+  return chamarApi(CAMINHO_DA_CONSULTA_DE_CONVITE_DE_OPERADOR, consultarConviteDeOperadorResponseSchema, { metodo: 'POST', corpo: { token } })
 }
 
 /**
@@ -27,15 +27,15 @@ export function consultarConviteDeOperador(token: string): Promise<RespostaConsu
  * fica só na memória desta aba, no módulo da sessão do operador, para a tela de configurar o segundo fator. O desafio
  * de qualquer tentativa anterior sai antes: o de outra pessoa nunca sobra na aba.
  */
-export async function aceitarConviteDeOperador(pedido: PedidoAceitarConviteDeOperador): Promise<void> {
+export async function aceitarConviteDeOperador(pedido: AceitarConviteDeOperadorRequest): Promise<void> {
   esquecerDesafioDeOperador()
-  const resposta = await chamarApi(CAMINHO_DO_ACEITE_DE_CONVITE_DE_OPERADOR, esquemaRespostaAceitarConviteDeOperador, { metodo: 'POST', corpo: pedido })
+  const resposta = await chamarApi(CAMINHO_DO_ACEITE_DE_CONVITE_DE_OPERADOR, aceitarConviteDeOperadorResponseSchema, { metodo: 'POST', corpo: pedido })
   guardarDesafioDeOperador(resposta.etapa, resposta.desafio)
 }
 
 /** O convite que não vale chega como `NAO_ENCONTRADO`, igual nos cinco casos (C9). */
 export function ehConviteInvalido(erro: unknown): boolean {
-  return erro instanceof ErroDaApi && erro.codigo === CodigoDeErro.NAO_ENCONTRADO
+  return erro instanceof ErroDaApi && erro.codigo === ErrorCode.NAO_ENCONTRADO
 }
 
 /** O que a tela do convite faz com a resposta do aceite. */
@@ -52,7 +52,7 @@ export type DesfechoDoAceite =
  * anterior e a tela agora mostra outro (tarefa 10.0 da A0b). Quando o aceite anterior deu certo no servidor, a senha
  * daquela conta já está criada: quem a criou entra depois com o e-mail e a senha, e configura o segundo fator por lá.
  */
-export async function aceitarConviteDeOperadorNaVez(pedido: PedidoAceitarConviteDeOperador, vezDoLink: () => number): Promise<DesfechoDoAceite> {
+export async function aceitarConviteDeOperadorNaVez(pedido: AceitarConviteDeOperadorRequest, vezDoLink: () => number): Promise<DesfechoDoAceite> {
   const vez = vezDoLink()
   try {
     await aceitarConviteDeOperador(pedido)

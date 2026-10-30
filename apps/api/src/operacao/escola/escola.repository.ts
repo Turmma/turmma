@@ -1,5 +1,5 @@
 import { ErroDeDominio, escola, rede, SemEscopo, type ExecutorDeAuditoria, type TipoDeRede } from '@educa/nucleo'
-import { CodigoDeErro } from '@educa/shared'
+import { ErrorCode } from '@educa/shared'
 import { eq } from 'drizzle-orm'
 
 /** O que a criação devolve: o id, e se a linha nasceu agora ou já existia com os mesmos dados (o pedido repetido). */
@@ -28,7 +28,7 @@ export class RedeEEscolaRepository {
     if (criada !== undefined) return { id: criada.id, nova: true }
     const [existente] = await this.banco.select({ nome: rede.nome, tipo: rede.tipo }).from(rede).where(eq(rede.id, dados.id)).limit(1)
     if (existente?.nome === dados.nome && existente.tipo === dados.tipo) return { id: dados.id, nova: false }
-    throw new ErroDeDominio(CodigoDeErro.CONFLITO)
+    throw new ErroDeDominio(ErrorCode.CONFLITO)
   }
 
   @SemEscopo('a escola é o próprio tenant e nasce aqui, antes de existir contexto dela; só o comando ou o painel do operador cria, e devolve só o id')
@@ -37,6 +37,6 @@ export class RedeEEscolaRepository {
     if (criada !== undefined) return { id: criada.id, nova: true }
     const [existente] = await this.banco.select({ redeId: escola.redeId, nome: escola.nome, slug: escola.slug }).from(escola).where(eq(escola.id, dados.id)).limit(1)
     if (existente?.redeId === dados.redeId && existente.nome === dados.nome && existente.slug === dados.slug) return { id: dados.id, nova: false }
-    throw new ErroDeDominio(CodigoDeErro.CONFLITO)
+    throw new ErroDeDominio(ErrorCode.CONFLITO)
   }
 }

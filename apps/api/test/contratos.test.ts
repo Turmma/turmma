@@ -6,7 +6,7 @@ import { z } from 'zod'
 /**
  * Nenhuma resposta traz senha, hash, segredo de MFA, identificador externo, refresh ou campo de credencial (RF18;
  * Tech Spec, seção 7). A varredura percorre todo esquema de resposta exportado por `packages/shared` (os
- * `esquemaResposta*`), em qualquer profundidade: contrato que uma tarefa seguinte criar entra sozinho, sem mudar este
+ * `*ResponseSchema`), em qualquer profundidade: contrato que uma tarefa seguinte criar entra sozinho, sem mudar este
  * teste.
  */
 
@@ -29,8 +29,8 @@ const CONTRATOS_SO_DA_EQUIPE: readonly string[] = []
  * Os `codigosRecuperacao` não batem em nenhuma chave proibida e por isso não precisam de exceção.
  */
 const EXCECOES_NOMINAIS: Readonly<Record<string, readonly string[]>> = {
-  esquemaRespostaConfigurarMfa: ['segredo'],
-  esquemaRespostaConfigurarSegundoFatorDeOperador: ['segredo'],
+  configurarMfaResponseSchema: ['segredo'],
+  configurarSegundoFatorDeOperadorResponseSchema: ['segredo'],
 }
 
 /** Os caminhos de todo campo do esquema, em qualquer profundidade (`itens[].aluno.nome`). */
@@ -84,17 +84,17 @@ function problemasDoContrato(nome: string, esquema: z.ZodType): string[] {
 }
 
 const esquemasDeResposta: Array<[string, z.ZodType]> = Object.entries(shared as Record<string, unknown>).flatMap(([nome, valor]) =>
-  nome.startsWith('esquemaResposta') && valor instanceof z.ZodType ? [[nome, valor] as [string, z.ZodType]] : [],
+  nome.endsWith('ResponseSchema') && valor instanceof z.ZodType ? [[nome, valor] as [string, z.ZodType]] : [],
 )
 
 describe('contratos de saída: nenhuma resposta traz credencial, segredo ou identificador externo', () => {
   it('a varredura enxerga os contratos exportados, e os campos deles', () => {
     const nomes = esquemasDeResposta.map(([nome]) => nome)
     expect(nomes).toEqual(
-      expect.arrayContaining(['esquemaRespostaContexto', 'esquemaRespostaEstado', 'esquemaRespostaAvisos', 'esquemaRespostaEstadoDeJob', 'esquemaRespostaJobAceito', 'esquemaRespostaConfigurarMfa', 'esquemaRespostaAtivarMfa']),
+      expect.arrayContaining(['contextResponseSchema', 'systemStatusResponseSchema', 'avisosResponseSchema', 'jobStateResponseSchema', 'jobAcceptedResponseSchema', 'configurarMfaResponseSchema', 'ativarMfaResponseSchema']),
     )
-    expect(camposDoEsquema(shared.esquemaRespostaConfigurarMfa)).toEqual(['uri', 'segredo'])
-    expect(camposDoEsquema(shared.esquemaRespostaContexto)).toEqual(['escolaId', 'usuarioId', 'papel', 'sessaoId', 'anoLetivoId'])
+    expect(camposDoEsquema(shared.configurarMfaResponseSchema)).toEqual(['uri', 'segredo'])
+    expect(camposDoEsquema(shared.contextResponseSchema)).toEqual(['escolaId', 'usuarioId', 'papel', 'sessaoId', 'anoLetivoId'])
     expect(CHAVES_DE_CREDENCIAL_DO_REDACT).toEqual(['authorization', 'cookie', 'set-cookie'])
   })
 
@@ -103,8 +103,8 @@ describe('contratos de saída: nenhuma resposta traz credencial, segredo ou iden
   })
 
   it('a exceção do segredo vale só no contrato do configurar: o mesmo campo em outro contrato é reprovado', () => {
-    expect(problemasDoContrato('esquemaRespostaConfigurarMfa', shared.esquemaRespostaConfigurarMfa)).toEqual([])
-    expect(problemasDoContrato('esquemaRespostaAtivarMfa', shared.esquemaRespostaConfigurarMfa)).toEqual(['esquemaRespostaAtivarMfa: segredo (segredo)'])
+    expect(problemasDoContrato('configurarMfaResponseSchema', shared.configurarMfaResponseSchema)).toEqual([])
+    expect(problemasDoContrato('ativarMfaResponseSchema', shared.configurarMfaResponseSchema)).toEqual(['ativarMfaResponseSchema: segredo (segredo)'])
   })
 
   it('privacidade: reprova o contrato de fixture com senhaHash, em qualquer profundidade e forma', () => {
@@ -116,20 +116,20 @@ describe('contratos de saída: nenhuma resposta traz credencial, segredo ou iden
       porEscola: z.record(z.string(), z.object({ refreshToken: z.string() })),
       cabecalhos: z.object({ Cookie: z.string() }),
     })
-    expect(problemasDoContrato('esquemaRespostaFixture', fixture)).toEqual([
-      'esquemaRespostaFixture: senhaHash (senha)',
-      'esquemaRespostaFixture: senhaHash (hash)',
-      'esquemaRespostaFixture: acessos[].escola.mfaSegredo (segredo)',
-      'esquemaRespostaFixture: externo.sujeitoExterno (sujeito)',
-      'esquemaRespostaFixture: porEscola{}.refreshToken (refresh)',
-      'esquemaRespostaFixture: cabecalhos.Cookie (cookie)',
+    expect(problemasDoContrato('fixtureResponseSchema', fixture)).toEqual([
+      'fixtureResponseSchema: senhaHash (senha)',
+      'fixtureResponseSchema: senhaHash (hash)',
+      'fixtureResponseSchema: acessos[].escola.mfaSegredo (segredo)',
+      'fixtureResponseSchema: externo.sujeitoExterno (sujeito)',
+      'fixtureResponseSchema: porEscola{}.refreshToken (refresh)',
+      'fixtureResponseSchema: cabecalhos.Cookie (cookie)',
     ])
   })
 
   it('e-mail é recusado em contrato que pode chegar ao aluno, e só passa em contrato declarado da equipe', () => {
     const comEmail = z.object({ itens: z.array(z.object({ usuarioId: z.uuid(), email: z.email() })) })
-    expect(problemasDoContrato('esquemaRespostaAlunosDaTurma', comEmail)).toEqual(['esquemaRespostaAlunosDaTurma: itens[].email (email)'])
+    expect(problemasDoContrato('alunosDaTurmaResponseSchema', comEmail)).toEqual(['alunosDaTurmaResponseSchema: itens[].email (email)'])
     expect(CONTRATOS_SO_DA_EQUIPE).toEqual([])
-    expect(EXCECOES_NOMINAIS).toEqual({ esquemaRespostaConfigurarMfa: ['segredo'], esquemaRespostaConfigurarSegundoFatorDeOperador: ['segredo'] })
+    expect(EXCECOES_NOMINAIS).toEqual({ configurarMfaResponseSchema: ['segredo'], configurarSegundoFatorDeOperadorResponseSchema: ['segredo'] })
   })
 })

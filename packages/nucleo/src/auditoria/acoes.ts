@@ -5,7 +5,7 @@ import {
   CHAVES_DE_RETENCAO,
   CONTESTACOES_DE_VINCULO,
   DECISORES_DA_REIVINDICACAO,
-  ErroDeInvariante,
+  InvariantException,
   ESTADOS_DE_MATERIAL,
   ESTADOS_DE_VINCULO,
   ESTADOS_DO_PEDIDO,
@@ -805,7 +805,7 @@ export function problemasDoMapaDeAcoes(mapa: Readonly<Record<string, DefinicaoDe
  * O mapa tem campo proibido ou objeto não estrito. Os problemas são caminhos do próprio mapa (`teste.acao.depois.dados`),
  * escritos no código e sem dado de pessoa: vão num campo, e a mensagem continua fixa.
  */
-export class MapaDeAuditoriaInvalido extends ErroDeInvariante {
+export class MapaDeAuditoriaInvalido extends InvariantException {
   constructor(readonly problemas: readonly string[]) {
     super('mapa de auditoria inválido')
     this.name = 'MapaDeAuditoriaInvalido'

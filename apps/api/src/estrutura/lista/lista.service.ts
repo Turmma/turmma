@@ -1,19 +1,19 @@
 import { ErroDeDominio, RegistroDeAuditoria, type Banco } from '@educa/nucleo'
 import {
-  CodigoDeErro,
-  esquemaNomeDaLista,
-  esquemaRespostaGravacaoDaLista,
-  esquemaRespostaListaDaTurma,
-  esquemaRespostaPreviaDaLista,
-  type ConsultaListaDaTurma,
+  ErrorCode,
+  nomeDaListaSchema,
+  gravacaoDaListaResponseSchema,
+  listaDaTurmaResponseSchema,
+  previaDaListaResponseSchema,
+  type ListaDaTurmaQuery,
   type ErroDaLinhaDaLista,
-  type LinhaDaPrevia,
+  type PreviaRow,
   type NomeDaLista,
-  type PedidoNomeAvulso,
-  type PedidoTextoDaLista,
-  type RespostaGravacaoDaLista,
-  type RespostaListaDaTurma,
-  type RespostaPreviaDaLista,
+  type NomeAvulsoRequest,
+  type TextoDaListaRequest,
+  type GravacaoDaListaResponse,
+  type ListaDaTurmaResponse,
+  type PreviaDaListaResponse,
 } from '@educa/shared'
 import { paginar } from '../../http/paginacao.js'
 import { errosDasLinhas, lerTextoDaLista, type LinhaLida } from './leitor-da-lista.js'
@@ -35,13 +35,13 @@ const registro = new RegistroDeAuditoria()
  * credencial num commit só, e o comando da lista, anterior a ele, ainda a acha na lista; o da credencial, posterior, já a
  * acha na credencial. A matrícula que está sendo aprovada nunca sai `entra` (C12).
  */
-async function classificar(lista: ListaRepository, turmaId: string, linhas: readonly LinhaLida[], errosDoTexto: ReadonlyArray<ErroDaLinhaDaLista | undefined>): Promise<LinhaDaPrevia[]> {
+async function classificar(lista: ListaRepository, turmaId: string, linhas: readonly LinhaLida[], errosDoTexto: ReadonlyArray<ErroDaLinhaDaLista | undefined>): Promise<PreviaRow[]> {
   const procuradas = linhas.map((linha) => linha.matricula)
   const turmaDaMatricula = new Map((await lista.naLista(procuradas)).map(({ matricula, turmaId: daLista }) => [matricula, daLista]))
   const deAluno = new Set(await lista.comCredencial(procuradas))
   const aprovadasNaTurma = new Set(await lista.aprovadasNaTurma(turmaId, procuradas))
   /** O resultado da matrícula que passou na conferência do texto, pelo que está gravado. */
-  const peloBanco = (matricula: string): Pick<LinhaDaPrevia, 'resultado' | 'erro'> => {
+  const peloBanco = (matricula: string): Pick<PreviaRow, 'resultado' | 'erro'> => {
     const naLista = turmaDaMatricula.get(matricula)
     if (naLista === turmaId || aprovadasNaTurma.has(matricula)) return { resultado: 'ja_existe' }
     if (naLista !== undefined || deAluno.has(matricula)) return { resultado: 'erro', erro: 'matricula_em_uso' }
@@ -69,13 +69,13 @@ export class ListaService {
    * `POST /v1/turmas/:id/lista/previa`: o que aconteceria com cada linha se a lista fosse gravada, sem gravar nada. O
    * texto acima do teto responde `ENTRADA_INVALIDA` antes de procurar a turma.
    */
-  async previa(turmaId: string, { texto }: PedidoTextoDaLista): Promise<RespostaPreviaDaLista> {
+  async previa(turmaId: string, { texto }: TextoDaListaRequest): Promise<PreviaDaListaResponse> {
     const linhas = lerTextoDaLista(texto)
     const errosDoTexto = errosDasLinhas(linhas)
-    if ((await new TurmaRepository(this.banco).aberta(turmaId, 'unidade')) === undefined) throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
+    if ((await new TurmaRepository(this.banco).aberta(turmaId, 'unidade')) === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
     const classificadas = await classificar(new ListaRepository(this.banco), turmaId, linhas, errosDoTexto)
-    const quantas = (resultado: LinhaDaPrevia['resultado']) => classificadas.filter((linha) => linha.resultado === resultado).length
-    return esquemaRespostaPreviaDaLista.parse({ linhas: classificadas, entram: quantas('entra'), jaExistem: quantas('ja_existe'), comErro: quantas('erro') })
+    const quantas = (resultado: PreviaRow['resultado']) => classificadas.filter((linha) => linha.resultado === resultado).length
+    return previaDaListaResponseSchema.parse({ linhas: classificadas, entram: quantas('entra'), jaExistem: quantas('ja_existe'), comErro: quantas('erro') })
   }
 
   /**
@@ -93,26 +93,26 @@ export class ListaService {
    * - A matrícula que outra gravação pôs, ao mesmo tempo, na lista de **outra** turma não entra aqui e não conta como já
    *   existente: a gravação inteira volta atrás com `CONFLITO`.
    */
-  async gravar(turmaId: string, { texto }: PedidoTextoDaLista): Promise<RespostaGravacaoDaLista> {
+  async gravar(turmaId: string, { texto }: TextoDaListaRequest): Promise<GravacaoDaListaResponse> {
     const linhas = lerTextoDaLista(texto)
     const errosDoTexto = errosDasLinhas(linhas)
-    if (errosDoTexto.some((erro) => erro !== undefined)) throw new ErroDeDominio(CodigoDeErro.ENTRADA_INVALIDA)
+    if (errosDoTexto.some((erro) => erro !== undefined)) throw new ErroDeDominio(ErrorCode.ENTRADA_INVALIDA)
     const gravacao = await this.banco.transaction(async (tx) => {
       const turmas = new TurmaRepository(tx)
-      if (!(await turmas.travarAnoEmCurso()) || !(await turmas.travarContraExclusao(turmaId))) throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
+      if (!(await turmas.travarAnoEmCurso()) || !(await turmas.travarContraExclusao(turmaId))) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
       const lista = new ListaRepository(tx)
       const classificadas = await classificar(lista, turmaId, linhas, errosDoTexto)
-      if (classificadas.some((linha) => linha.resultado === 'erro')) throw new ErroDeDominio(CodigoDeErro.CONFLITO)
+      if (classificadas.some((linha) => linha.resultado === 'erro')) throw new ErroDeDominio(ErrorCode.CONFLITO)
       const novas = classificadas.filter((linha) => linha.resultado === 'entra')
       const gravadas = await lista.inserirSemRepetir(turmaId, novas)
       const matriculasGravadas = new Set(gravadas.map((gravada) => gravada.matricula))
       const deOutraGravacao = novas.filter((linha) => !matriculasGravadas.has(linha.matricula)).map((linha) => linha.matricula)
-      if ((await lista.quantasNaTurma(turmaId, deOutraGravacao)) !== deOutraGravacao.length) throw new ErroDeDominio(CodigoDeErro.CONFLITO)
+      if ((await lista.quantasNaTurma(turmaId, deOutraGravacao)) !== deOutraGravacao.length) throw new ErroDeDominio(ErrorCode.CONFLITO)
       const contagens = { gravados: gravadas.length, jaExistentes: linhas.length - gravadas.length }
       await registro.gravar(tx, 'lista.gravada', { entidadeId: turmaId, depois: { ids: gravadas.map((gravada) => gravada.id), ...contagens } })
       return contagens
     })
-    return esquemaRespostaGravacaoDaLista.parse(gravacao)
+    return gravacaoDaListaResponseSchema.parse(gravacao)
   }
 
   /**
@@ -126,17 +126,17 @@ export class ListaService {
    * dele, entra; a conferência, num comando novo, já acha a credencial, e a transação volta atrás. Conferida antes do
    * `insert`, ela não acharia a credencial ainda sem commit, e a lista ganharia um nome livre com a matrícula do aprovado.
    */
-  async acrescentar(turmaId: string, pedido: PedidoNomeAvulso): Promise<NomeDaLista> {
+  async acrescentar(turmaId: string, pedido: NomeAvulsoRequest): Promise<NomeDaLista> {
     const criado = await this.banco.transaction(async (tx) => {
       const turmas = new TurmaRepository(tx)
-      if (!(await turmas.travarAnoEmCurso()) || !(await turmas.travarContraExclusao(turmaId))) throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
+      if (!(await turmas.travarAnoEmCurso()) || !(await turmas.travarContraExclusao(turmaId))) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
       const lista = new ListaRepository(tx)
       const gravado = await lista.inserir(turmaId, pedido)
-      if ((await lista.comCredencial([pedido.matricula])).length > 0) throw new ErroDeDominio(CodigoDeErro.CONFLITO)
+      if ((await lista.comCredencial([pedido.matricula])).length > 0) throw new ErroDeDominio(ErrorCode.CONFLITO)
       await registro.gravar(tx, 'lista.gravada', { entidadeId: turmaId, depois: { ids: [gravado.id], gravados: 1, jaExistentes: 0 } })
       return gravado
     })
-    return esquemaNomeDaLista.parse(criado)
+    return nomeDaListaSchema.parse(criado)
   }
 
   /**
@@ -148,7 +148,7 @@ export class ListaService {
     await this.banco.transaction(async (tx) => {
       const lista = new ListaRepository(tx)
       const retirado = await lista.retirarLivre(id)
-      if (retirado === undefined) throw new ErroDeDominio((await lista.existe(id)) ? CodigoDeErro.CONFLITO : CodigoDeErro.NAO_ENCONTRADO)
+      if (retirado === undefined) throw new ErroDeDominio((await lista.existe(id)) ? ErrorCode.CONFLITO : ErrorCode.NAO_ENCONTRADO)
       await registro.gravar(tx, 'lista_nome.retirado', { entidadeId: id, antes: { turmaId: retirado.turmaId, estado: 'livre' } })
     })
   }
@@ -159,14 +159,14 @@ export class ListaService {
    * de chegar aqui, então a falta dela responde igual para qualquer id. A leitura grava `turma.lista_lida` na mesma
    * transação, a cada leitura: sem registro, sem lista.
    */
-  async ler(turmaId: string, consulta: ConsultaListaDaTurma): Promise<RespostaListaDaTurma> {
+  async ler(turmaId: string, consulta: ListaDaTurmaQuery): Promise<ListaDaTurmaResponse> {
     const { finalidade } = consulta
     const pagina = await this.banco.transaction(async (tx) => {
-      if ((await new TurmaRepository(tx).aberta(turmaId, 'unidade')) === undefined) throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
+      if ((await new TurmaRepository(tx).aberta(turmaId, 'unidade')) === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
       const cortada = paginar(await new ListaRepository(tx).pagina(turmaId, consulta), consulta.limite)
       await registro.gravar(tx, 'turma.lista_lida', { entidadeId: turmaId, depois: { quantidade: cortada.itens.length }, finalidade })
       return cortada
     })
-    return esquemaRespostaListaDaTurma.parse(pagina)
+    return listaDaTurmaResponseSchema.parse(pagina)
   }
 }

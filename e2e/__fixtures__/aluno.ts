@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import type { Page, Route } from '@playwright/test'
-import type { MensagemDoTutor, MensagemDoTutorAoAluno, MinhaAtividade, RespostaConversaDoTutor, RespostaExecucao, RespostaMemoriaDoTutor, RespostaMeuDiagnostico, RespostaProva } from '../../packages/shared/src/index.ts'
+import type { MensagemDoTutor, MensagemDoTutorAoAluno, MinhaAtividade, ConversaDoTutorResponse, ExecucaoResponse, MemoriaDoTutorResponse, MeuDiagnosticoResponse, ProvaResponse } from '../../packages/shared/src/index.ts'
 import { erroDaApi, portao, type PedidoRegistrado } from './assistente.ts'
 
 export { erroDaApi, portao }
@@ -47,19 +47,19 @@ function campo(corpo: unknown, nome: string): unknown {
 
 export class ApiDoAluno {
   atividades: MinhaAtividade[] = []
-  readonly provas = new Map<string, RespostaProva>()
-  readonly diagnosticos = new Map<string, RespostaMeuDiagnostico>()
+  readonly provas = new Map<string, ProvaResponse>()
+  readonly diagnosticos = new Map<string, MeuDiagnosticoResponse>()
   readonly conversas = new Map<string, MensagemDoTutor[]>()
   /** A página anterior da conversa de cada atividade: com ela, a primeira leitura diz que há mensagens antes (`anterior`). */
   readonly conversasAnteriores = new Map<string, MensagemDoTutor[]>()
-  tutor: Pick<RespostaConversaDoTutor, 'estado' | 'uso' | 'avaliacaoAberta'> = { estado: 'ligado', uso: { hoje: 12, limiteDoDia: 60 }, avaliacaoAberta: null }
-  readonly execucoes = new Map<string, RespostaExecucao>()
+  tutor: Pick<ConversaDoTutorResponse, 'estado' | 'uso' | 'avaliacaoAberta'> = { estado: 'ligado', uso: { hoje: 12, limiteDoDia: 60 }, avaliacaoAberta: null }
+  readonly execucoes = new Map<string, ExecucaoResponse>()
   /**
    * O que o Tutor sabe do trabalho do aluno (`GET /v1/tutor/memoria`). Sem ela, a API responde como responde ao aluno sem turma
    * no ano: `NAO_ENCONTRADO`. Nenhuma tela do aluno lê isso ainda: Eu o tratará como "sem resultado" e não como erro quando a 7.0
    * ligar a leitura (telas do aluno e primeiro acesso, Tech Spec seção 9).
    */
-  memoria: RespostaMemoriaDoTutor | null = null
+  memoria: MemoriaDoTutorResponse | null = null
   /** Todo `PUT` e `POST` que a tela mandou, na ordem. */
   readonly pedidos: PedidoRegistrado[] = []
   private readonly trocadas = new Map<Rota, (entrada: Entrada) => Resposta | Promise<Resposta>>()
@@ -90,7 +90,7 @@ export class ApiDoAluno {
     if (mensagem.tipo === 'texto') this.tutor = { ...this.tutor, uso: { ...this.tutor.uso, hoje: this.tutor.uso.hoje + 1 } }
   }
 
-  falharNoTutor(erro: NonNullable<RespostaExecucao['erro']>): void {
+  falharNoTutor(erro: NonNullable<ExecucaoResponse['erro']>): void {
     const id = this.ultimaExecucao()
     const atual = this.execucoes.get(id)
     if (atual === undefined) throw new Error('execução desconhecida')
@@ -205,19 +205,19 @@ export function minhaAtividade(campos: Partial<MinhaAtividade> = {}): MinhaAtivi
   }
 }
 
-export const QUESTOES_SINTETICAS: RespostaProva['questoes'] = [
+export const QUESTOES_SINTETICAS: ProvaResponse['questoes'] = [
   { numero: 1, enunciado: 'Qual é a massa molar da água, H₂O?', alternativas: ['16 g/mol', '18 g/mol', '20 g/mol', '34 g/mol'] },
   { numero: 2, enunciado: 'Na reação N₂ + 3 H₂ → 2 NH₃, quantos mols de amônia se formam a partir de 6 mol de H₂?', alternativas: ['2 mol', '3 mol', '4 mol', '6 mol'] },
   { numero: 3, enunciado: 'Em uma reação química, o que é o reagente limitante?', alternativas: ['O que acaba primeiro', 'O que sobra no fim', 'O produto em maior quantidade', 'O de maior massa molar'] },
 ]
 
 /** A prova de uma atividade da lista, como o aluno a recebe: sem gabarito. */
-export function provaDa(atividade: MinhaAtividade, campos: Partial<RespostaProva> = {}): RespostaProva {
+export function provaDa(atividade: MinhaAtividade, campos: Partial<ProvaResponse> = {}): ProvaResponse {
   return { atividadeAplicadaId: atividade.id, titulo: atividade.titulo, avaliativa: atividade.avaliativa, estado: 'aberta', adaptacao: null, questoes: QUESTOES_SINTETICAS, respostas: [], enviadaEm: atividade.enviadaEm, ...campos }
 }
 
 /** O diagnóstico aprovado da prova sintética: acertou as questões 1 e 3, e a 2 ficou para rever. */
-export function diagnosticoDa(atividade: MinhaAtividade): RespostaMeuDiagnostico {
+export function diagnosticoDa(atividade: MinhaAtividade): MeuDiagnosticoResponse {
   const citacao = (pagina: number) => ({ materialId: MATERIAL, pagina, trecho: `Trecho sintético da página ${String(pagina)}.` })
   return {
     atividadeAplicadaId: atividade.id,

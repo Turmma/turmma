@@ -1,6 +1,6 @@
 import { executarNoContexto, ExpurgoDeAcessoRepository } from '@educa/nucleo'
 import { CicloDeVidaService } from '@educa/nucleo/ciclo-de-vida'
-import { CHAVES_DE_CATEGORIA_DO_INCIDENTE, CodigoDeErro, esquemaRespostaIncidentes, FINALIDADE_DO_REGISTRO_DE_INCIDENTE, MAXIMO_DE_TITULARES_ESTIMADOS, TEXTO_DO_PRAZO_LEGAL_DO_INCIDENTE, type RespostaIncidentes } from '@educa/shared'
+import { CHAVES_DE_CATEGORIA_DO_INCIDENTE, ErrorCode, incidentesResponseSchema, FINALIDADE_DO_REGISTRO_DE_INCIDENTE, MAXIMO_DE_TITULARES_ESTIMADOS, TEXTO_DO_PRAZO_LEGAL_DO_INCIDENTE, type IncidentesResponse } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -160,10 +160,10 @@ describe('incidente: a operação registra por comando, e cada coordenação lê
 
   const quantasSecoes = async (...escolas: EscolaDoTeste[]) => (await bancada.pool.query('select 1 from incidente_escola where escola_id = any($1::uuid[])', [escolas.map((escola) => escola.id)])).rowCount
 
-  async function lista(escola: EscolaDoTeste): Promise<RespostaIncidentes> {
+  async function lista(escola: EscolaDoTeste): Promise<IncidentesResponse> {
     const resposta = await chamar(api.url, 'GET', '/v1/privacidade/incidentes', await escola.coordenacao.tokenNovo())
     expect(resposta.status).toBe(200)
-    return esquemaRespostaIncidentes.parse(resposta.corpo)
+    return incidentesResponseSchema.parse(resposta.corpo)
   }
 
   const confirmar = async (escola: EscolaDoTeste, id: string) => chamar(api.url, 'POST', `/v1/privacidade/incidentes/${id}/confirmar`, await escola.coordenacao.tokenNovo(), {})
@@ -409,7 +409,7 @@ describe('incidente: a operação registra por comando, e cada coordenação lê
     /** O que a resposta diz a quem perguntou: o status, o código e a mensagem. O `requisicaoId` é de cada chamada. */
     const resposta404 = (resposta: Awaited<ReturnType<typeof confirmar>>) => ({ status: resposta.status, codigo: resposta.corpo.erro?.codigo, mensagem: (resposta.corpo.erro as { mensagem?: string } | undefined)?.mensagem })
     const inexistente = resposta404(await confirmar(a, randomUUID()))
-    expect(inexistente).toMatchObject({ status: 404, codigo: CodigoDeErro.NAO_ENCONTRADO })
+    expect(inexistente).toMatchObject({ status: 404, codigo: ErrorCode.NAO_ENCONTRADO })
     for (const alheio of [daB, daC]) expect(resposta404(await confirmar(a, alheio?.id ?? ''))).toEqual(inexistente)
     // O id que nem é um id responde igual.
     expect(resposta404(await confirmar(a, 'nao-e-um-id'))).toEqual(inexistente)
@@ -533,7 +533,7 @@ describe('incidente: a operação registra por comando, e cada coordenação lê
       const pedir = (token: string | undefined) => chamar(api.url, verbo, caminho, token, verbo === 'POST' ? {} : undefined)
       for (const [quem, sessao] of [['professor', professor], ['aluno', aluno]] as const) {
         const resposta = await pedir(await sessao.tokenNovo())
-        expect({ status: resposta.status, codigo: resposta.corpo.erro?.codigo }, `${quem} ${verbo}`).toEqual({ status: 404, codigo: CodigoDeErro.NAO_ENCONTRADO })
+        expect({ status: resposta.status, codigo: resposta.corpo.erro?.codigo }, `${quem} ${verbo}`).toEqual({ status: 404, codigo: ErrorCode.NAO_ENCONTRADO })
       }
       expect((await pedir(desafio)).status, `sem segundo fator ${verbo}`).toBe(401)
       expect((await pedir(undefined)).status, `sem token ${verbo}`).toBe(401)

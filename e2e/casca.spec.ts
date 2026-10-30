@@ -1,5 +1,5 @@
 import type { Locator, Page, Route } from '@playwright/test'
-import { MENSAGENS_DE_ERRO } from '../packages/shared/src/erros/mensagens.ts'
+import { MENSAGENS_DE_ERRO } from '../packages/shared/src/errors/messages.ts'
 import { entrarComoCoordenacaoNaMesmaAba, entrarComoAluno, entrarComoProfessora, gaveta, PRAZO_DA_ENTRADA_MS, reservaDaBarraDeBaixo, secoes } from './__fixtures__/casca.ts'
 import { carregarSemRedeLenta, expect, test } from './__fixtures__/perfis.ts'
 import { instanteGravado, vigiarODado } from './__fixtures__/dado-na-tela.ts'

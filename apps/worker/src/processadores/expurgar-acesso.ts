@@ -1,5 +1,5 @@
 import { contextoAtual, LOTE_DO_EXPURGO, type AlvoDoExpurgoDeAcesso, type ExpurgoDeAcessoRepository, type LoggerBase, type Relogio } from '@educa/nucleo'
-import { CodigoDeFalhaDeJob, type TIPO_EXPURGAR_ACESSO } from '@educa/shared'
+import { JobFailureCode, type TIPO_EXPURGAR_ACESSO } from '@educa/shared'
 import type { Processador } from '../executor.js'
 import { FalhaDeJob } from '../falha-de-job.js'
 
@@ -33,7 +33,7 @@ export interface DependenciasDoExpurgoDeAcesso {
  */
 export function criarExpurgoDeAcesso({ repositorio, relogio, logger, lote = LOTE_DO_EXPURGO }: DependenciasDoExpurgoDeAcesso): Processador<typeof TIPO_EXPURGAR_ACESSO> {
   return async () => {
-    if (contextoAtual()?.rotinaDoSistema !== true) throw new FalhaDeJob(CodigoDeFalhaDeJob.DADOS_INVALIDOS, true)
+    if (contextoAtual()?.rotinaDoSistema !== true) throw new FalhaDeJob(JobFailureCode.DADOS_INVALIDOS, true)
     const agora = relogio.agora()
     const apagar = async (alvo: AlvoDoExpurgoDeAcesso): Promise<number> => {
       let total = 0

@@ -1,4 +1,4 @@
-import { CodigoDeErro } from '@educa/shared'
+import { ErrorCode } from '@educa/shared'
 import pg from 'pg'
 import { describe, expect, it } from 'vitest'
 import { ErroDeDominio } from './erro-de-dominio.js'
@@ -19,16 +19,16 @@ describe('mapearErroPostgres', () => {
     })
     const mapeado = mapearErroPostgres(erro)
     expect(mapeado).toBeInstanceOf(ErroDeDominio)
-    expect(mapeado).toMatchObject({ codigo: CodigoDeErro.CONFLITO, status: 409 })
+    expect(mapeado).toMatchObject({ codigo: ErrorCode.CONFLITO, status: 409 })
     expect(JSON.stringify({ ...mapeado, message: mapeado?.message, stack: mapeado?.stack })).not.toContain('Enzo Martins')
   })
 
   it('traduz consulta cancelada pelo statement_timeout em TEMPO_ESGOTADO 503', () => {
-    expect(mapearErroPostgres(erroDoPostgres('57014'))).toMatchObject({ codigo: CodigoDeErro.TEMPO_ESGOTADO, status: 503 })
+    expect(mapearErroPostgres(erroDoPostgres('57014'))).toMatchObject({ codigo: ErrorCode.TEMPO_ESGOTADO, status: 503 })
   })
 
   it.each(['22P02', '23503', '40001', '42P01', '53300'])('traduz o SQLSTATE %s em ERRO_INTERNO 500', (code) => {
-    expect(mapearErroPostgres(erroDoPostgres(code))).toMatchObject({ codigo: CodigoDeErro.ERRO_INTERNO, status: 500 })
+    expect(mapearErroPostgres(erroDoPostgres(code))).toMatchObject({ codigo: ErrorCode.ERRO_INTERNO, status: 500 })
   })
 
   it('não trata como Postgres erro comum nem erro de sistema do Node com código de cinco letras', () => {
@@ -41,7 +41,7 @@ describe('mapearErroPostgres', () => {
     const { DrizzleQueryError } = await import('drizzle-orm/errors')
     const embrulhado = new DrizzleQueryError('insert into aluno (nome) values ($1)', ['Enzo Martins'], erroDoPostgres('57014'))
     const mapeado = mapearErroPostgres(embrulhado)
-    expect(mapeado).toMatchObject({ codigo: CodigoDeErro.TEMPO_ESGOTADO, status: 503 })
+    expect(mapeado).toMatchObject({ codigo: ErrorCode.TEMPO_ESGOTADO, status: 503 })
     expect(resumirErro(embrulhado)).toEqual({ tipo: 'ErroDoPostgres', sqlstate: '57014' })
     expect(JSON.stringify(resumirErro(embrulhado))).not.toContain('Enzo')
   })

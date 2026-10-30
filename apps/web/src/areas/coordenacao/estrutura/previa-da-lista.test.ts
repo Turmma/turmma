@@ -1,10 +1,10 @@
-import type { LinhaDaPrevia, RespostaPreviaDaLista } from '@educa/shared'
+import type { PreviaRow, PreviaDaListaResponse } from '@educa/shared'
 import { describe, expect, it } from 'vitest'
 import { avisosDaPrevia, linhasNaOrdemDaTela, podeGravar, TEXTO_DO_ERRO_DA_LINHA } from './previa-da-lista'
 
-const entra = (linha: number, nome: string, matricula: string): LinhaDaPrevia => ({ linha, nome, matricula, resultado: 'entra' })
-const comErro = (linha: number, erro: NonNullable<LinhaDaPrevia['erro']>, nome = 'Nome', matricula = ''): LinhaDaPrevia => ({ linha, nome, matricula, resultado: 'erro', erro })
-const previa = (linhas: LinhaDaPrevia[]): RespostaPreviaDaLista => ({
+const entra = (linha: number, nome: string, matricula: string): PreviaRow => ({ linha, nome, matricula, resultado: 'entra' })
+const comErro = (linha: number, erro: NonNullable<PreviaRow['erro']>, nome = 'Nome', matricula = ''): PreviaRow => ({ linha, nome, matricula, resultado: 'erro', erro })
+const previa = (linhas: PreviaRow[]): PreviaDaListaResponse => ({
   linhas,
   entram: linhas.filter((linha) => linha.resultado === 'entra').length,
   jaExistem: linhas.filter((linha) => linha.resultado === 'ja_existe').length,

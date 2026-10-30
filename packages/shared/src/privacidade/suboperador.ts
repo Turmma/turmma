@@ -57,7 +57,7 @@ export const FINALIDADE_DO_REGISTRO_DE_SUBOPERADOR = 'informar_o_compartilhament
  * suboperador quando ele atende toda escola, a da ligação quando atende só as listadas; o `fim` é o mais cedo entre os
  * dois, e nulo é vigente. Sem id, sem contrato, sem quem cadastrou e sem a lista das outras escolas.
  */
-export const esquemaSuboperadorDaEscola = z.strictObject({
+export const suboperadorDaEscolaSchema = z.strictObject({
   chave: z.string().regex(FORMATO_DA_CHAVE_DO_SUBOPERADOR),
   nome: z.string().min(1).max(MAXIMO_DO_NOME_DO_SUBOPERADOR),
   finalidade: z.string().min(1).max(MAXIMO_DA_FINALIDADE_DO_SUBOPERADOR),
@@ -67,7 +67,7 @@ export const esquemaSuboperadorDaEscola = z.strictObject({
   inicio: z.iso.datetime(),
   fim: z.iso.datetime().nullable(),
 })
-export type SuboperadorDaEscola = z.infer<typeof esquemaSuboperadorDaEscola>
+export type SuboperadorDaEscola = z.infer<typeof suboperadorDaEscolaSchema>
 
-export const esquemaRespostaSuboperadores = z.strictObject({ suboperadores: z.array(esquemaSuboperadorDaEscola) })
-export type RespostaSuboperadores = z.infer<typeof esquemaRespostaSuboperadores>
+export const suboperadoresResponseSchema = z.strictObject({ suboperadores: z.array(suboperadorDaEscolaSchema) })
+export type SuboperadoresResponse = z.infer<typeof suboperadoresResponseSchema>

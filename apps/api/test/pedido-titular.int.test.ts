@@ -1,7 +1,7 @@
 import { ArmazemEmMemoria, diaDeUso, Enfileirador, executarNoContexto, JobRegistroRepository, PedidoDeJobRecusado } from '@educa/nucleo'
 import { CicloDeVidaService } from '@educa/nucleo/ciclo-de-vida'
 import {
-  CodigoDeErro,
+  ErrorCode,
   FINALIDADE_DO_ATENDIMENTO_DO_TITULAR,
   LIMITE_DA_BUSCA_DE_TITULARES_POR_MINUTO,
   MENSAGENS_DE_ERRO,
@@ -41,9 +41,9 @@ const nome = (quem: string): string => `${PREFIXO} ${quem} ${randomUUID().slice(
 const termoDe = (gerado: string): string => gerado.slice(6, 26)
 const CHAVE = new TextEncoder().encode(lerAmbienteDeTeste()['IDENTIDADE_CHAVE_ASSINATURA'])
 
-const NAO_ENCONTRADO = { status: 404, corpo: { erro: { codigo: CodigoDeErro.NAO_ENCONTRADO, mensagem: MENSAGENS_DE_ERRO.NAO_ENCONTRADO } } }
-const ENTRADA_INVALIDA = { status: 400, corpo: { erro: { codigo: CodigoDeErro.ENTRADA_INVALIDA, mensagem: MENSAGENS_DE_ERRO.ENTRADA_INVALIDA } } }
-const ESTADO_INVALIDO = { status: 409, corpo: { erro: { codigo: CodigoDeErro.PEDIDO_EM_ESTADO_INVALIDO, mensagem: MENSAGENS_DE_ERRO.PEDIDO_EM_ESTADO_INVALIDO } } }
+const NAO_ENCONTRADO = { status: 404, corpo: { erro: { codigo: ErrorCode.NAO_ENCONTRADO, mensagem: MENSAGENS_DE_ERRO.NAO_ENCONTRADO } } }
+const ENTRADA_INVALIDA = { status: 400, corpo: { erro: { codigo: ErrorCode.ENTRADA_INVALIDA, mensagem: MENSAGENS_DE_ERRO.ENTRADA_INVALIDA } } }
+const ESTADO_INVALIDO = { status: 409, corpo: { erro: { codigo: ErrorCode.PEDIDO_EM_ESTADO_INVALIDO, mensagem: MENSAGENS_DE_ERRO.PEDIDO_EM_ESTADO_INVALIDO } } }
 
 /** A resposta sem o `requisicaoId` (que muda a cada chamada) nem os cookies: o resto precisa ser idêntico. */
 function resposta(http: Pick<RespostaHttp, 'status' | 'corpo'>): unknown {
@@ -621,7 +621,7 @@ describe('pedido do titular (F3, tarefa 11.0): busca, prévia, registro, lista, 
         const pedir = (token: string | undefined) => chamar(api.url, verbo, caminho, token, corpo)
         for (const [quem, sessao] of [['professor', professor], ['aluno', alunoDeSessao]] as const) {
           const resposta = await pedir(await sessao.tokenNovo())
-          expect({ status: resposta.status, codigo: resposta.corpo.erro?.codigo }, `${quem} ${verbo} ${caminho}`).toEqual({ status: 404, codigo: CodigoDeErro.NAO_ENCONTRADO })
+          expect({ status: resposta.status, codigo: resposta.corpo.erro?.codigo }, `${quem} ${verbo} ${caminho}`).toEqual({ status: 404, codigo: ErrorCode.NAO_ENCONTRADO })
         }
         expect((await pedir(desafio)).status, `sem segundo fator ${verbo} ${caminho}`).toBe(401)
         expect((await pedir(undefined)).status, `sem token ${verbo} ${caminho}`).toBe(401)
@@ -1008,7 +1008,7 @@ describe('pedido do titular (F3, tarefa 11.0): busca, prévia, registro, lista, 
         body: JSON.stringify({ termo: PREFIXO }),
       })
       const corpo = (await trigésimaPrimeira.json()) as { erro?: { codigo?: string } }
-      expect({ status: trigésimaPrimeira.status, codigo: corpo.erro?.codigo }).toEqual({ status: 429, codigo: CodigoDeErro.LIMITE_EXCEDIDO })
+      expect({ status: trigésimaPrimeira.status, codigo: corpo.erro?.codigo }).toEqual({ status: 429, codigo: ErrorCode.LIMITE_EXCEDIDO })
       expect(trigésimaPrimeira.headers.get('retry-after')).not.toBeNull()
 
       // Duas coordenações da mesma escola, atrás do mesmo IP (a máquina do teste): 30 cada.
@@ -1279,7 +1279,7 @@ describe('pedido do titular (F3, tarefa 11.0): busca, prévia, registro, lista, 
       }
       expect([primeira?.status, segunda?.status]).toEqual([204, 409])
       expect([primeira, segunda].map((resposta) => resposta?.status)).not.toContain(500)
-      expect(segunda?.corpo.erro?.codigo).toBe(CodigoDeErro.PEDIDO_EM_ESTADO_INVALIDO)
+      expect(segunda?.corpo.erro?.codigo).toBe(ErrorCode.PEDIDO_EM_ESTADO_INVALIDO)
       expect(await auditoriasDa(a.escolaId, 'pedido.concluido')).toHaveLength(1)
     })
   })

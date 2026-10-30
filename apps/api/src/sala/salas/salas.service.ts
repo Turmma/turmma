@@ -1,5 +1,5 @@
 import { ErroDeDominio, type Banco } from '@educa/nucleo'
-import { CodigoDeErro, esquemaRespostaSalaAberta, type PedidoAbrirSala, type RespostaSalaAberta } from '@educa/shared'
+import { ErrorCode, salaAbertaResponseSchema, type AbrirSalaRequest, type SalaAbertaResponse } from '@educa/shared'
 import type { AcessoDaSala, GuardaDoCodigo } from '../../sessao/index.js'
 import { entradaDaSala } from '../entrada-da-sala.js'
 import { ListaLivreRepository } from '../reivindicacao/lista-livre.repository.js'
@@ -25,13 +25,13 @@ export class SalasService {
   ) {}
 
   /** `POST /v1/salas/abrir`: o nome da turma e os nomes livres, lidos a cada abertura. */
-  async abrir(pedido: PedidoAbrirSala): Promise<RespostaSalaAberta> {
+  async abrir(pedido: AbrirSalaRequest): Promise<SalaAbertaResponse> {
     return this.acessoDaSala.naSala(entradaDaSala(pedido, this.chaveCodigo), async ({ turmaId }) => {
       const lista = new ListaLivreRepository(this.banco)
       const nomeDaTurma = await lista.nomeDaTurma(turmaId)
       // A turma excluída leva o acesso pela cascata: sem ela aqui, a exclusão chegou entre as duas leituras.
-      if (nomeDaTurma === undefined) throw new ErroDeDominio(CodigoDeErro.NAO_ENCONTRADO)
-      return esquemaRespostaSalaAberta.parse({ turma: { nome: nomeDaTurma }, nomes: await lista.nomesLivres(turmaId) })
+      if (nomeDaTurma === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+      return salaAbertaResponseSchema.parse({ turma: { nome: nomeDaTurma }, nomes: await lista.nomesLivres(turmaId) })
     }, this.guarda)
   }
 }

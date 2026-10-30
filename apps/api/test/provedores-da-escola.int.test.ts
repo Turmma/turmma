@@ -1,5 +1,5 @@
 import { executarNoContexto } from '@educa/nucleo'
-import { CodigoDeErro, TENANT_DE_CONTA_PESSOAL_MICROSOFT } from '@educa/shared'
+import { ErrorCode, TENANT_DE_CONTA_PESSOAL_MICROSOFT } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
@@ -121,7 +121,7 @@ describe('PUT /v1/escola/provedores: a coordenação libera os domínios Google 
     for (const papel of ['professor', 'aluno'] as const) {
       const resposta = await alterar(await bancada.sessao(escola, papel), { provedores: [{ provedor: 'google', valor: DOMINIO_A }] })
       expect(resposta.status, papel).toBe(404)
-      expect(resposta.corpo.erro?.codigo, papel).toBe(CodigoDeErro.NAO_ENCONTRADO)
+      expect(resposta.corpo.erro?.codigo, papel).toBe(ErrorCode.NAO_ENCONTRADO)
     }
     expect(await linhasDa(escola)).toEqual([])
     expect(await auditoriasDa(escola)).toEqual([])
@@ -172,7 +172,7 @@ describe('PUT /v1/escola/provedores: a coordenação libera os domínios Google 
     ]) {
       const resposta = await alterar(coordenador, corpo)
       expect(resposta.status, JSON.stringify(corpo)).toBe(400)
-      expect(resposta.corpo.erro?.codigo).toBe(CodigoDeErro.ENTRADA_INVALIDA)
+      expect(resposta.corpo.erro?.codigo).toBe(ErrorCode.ENTRADA_INVALIDA)
     }
     expect(await linhasDa(escola)).toEqual([])
     expect(await auditoriasDa(escola)).toEqual([])

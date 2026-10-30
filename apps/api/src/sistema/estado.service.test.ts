@@ -1,4 +1,4 @@
-import { esquemaRespostaEstado } from '@educa/shared'
+import { systemStatusResponseSchema } from '@educa/shared'
 import { describe, expect, it } from 'vitest'
 import { EstadoService, VALIDADE_DA_VERIFICACAO_MS } from './estado.service.js'
 import type { SaudeService } from './saude.service.js'
@@ -37,7 +37,7 @@ describe('EstadoService', () => {
   it('devolve versão, ambiente e a situação da API e do banco no contrato de packages/shared', async () => {
     const { servico } = montar()
     const estado = await servico.obter()
-    expect(esquemaRespostaEstado.parse(estado)).toEqual(estado)
+    expect(systemStatusResponseSchema.parse(estado)).toEqual(estado)
     expect(estado).toEqual({
       versao: '3d4099c',
       ambiente: 'local',

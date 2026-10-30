@@ -1,14 +1,14 @@
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { getTableConfig, PgDialect } from 'drizzle-orm/pg-core'
-import { DEFINICOES_DE_JOB, FILAS, type EsquemaDosDadosDoJob } from '@educa/shared'
+import { JOB_DEFINITIONS, QUEUE_NAMES, type JobDataSchema } from '@educa/shared'
 import { describe, expect, it } from 'vitest'
 import { z } from 'zod'
 import { jobRegistro } from '../../packages/nucleo/src/db/schema/job-registro.ts'
 import { raizRepositorio } from '../ci/executar.ts'
 import { ehNomePessoal } from './regras-log.mjs'
 
-// O registro de jobs (`packages/shared/src/sistema/definicoes-de-job.ts`) contra o que ele não enxerga de dentro do `shared`: o
+// O registro de jobs (`packages/shared/src/system/job-definitions.ts`) contra o que ele não enxerga de dentro do `shared`: o
 // banco, que recusa fila e escopo por check, e o worker, que não pode ter outra lista de tipos (reengenharia, 18.0).
 
 /** O check de `job_registro` pelo nome, como o Postgres o recebe. */
@@ -19,7 +19,7 @@ function check(nome: string): string {
 }
 
 /** As chaves do esquema com nome pessoal, palavra por palavra: `nomeDoAluno` é pessoal, e `pedidoId`, não. */
-function chavesPessoaisDe(esquema: EsquemaDosDadosDoJob): string[] {
+function chavesPessoaisDe(esquema: JobDataSchema): string[] {
   return Object.keys(esquema.shape).filter((chave) => ehNomePessoal(chave))
 }
 
@@ -27,8 +27,8 @@ describe('o registro de jobs contra o banco', () => {
   it('toda fila de toda definição está no check `job_registro_fila_valida`, e o check não tem fila que o registro ignore', () => {
     const lidas = /fila in \((.+)\)/.exec(check('job_registro_fila_valida'))?.[1]
     const filasDoBanco = (lidas ?? '').split(',').map((fila) => fila.trim().replaceAll("'", ''))
-    expect([...filasDoBanco].sort()).toEqual([...FILAS].sort())
-    for (const [tipo, definicao] of Object.entries(DEFINICOES_DE_JOB)) {
+    expect([...filasDoBanco].sort()).toEqual([...QUEUE_NAMES].sort())
+    for (const [tipo, definicao] of Object.entries(JOB_DEFINITIONS)) {
       for (const fila of definicao.filas) expect(filasDoBanco, `${tipo} / ${fila}`).toContain(fila)
     }
   })
@@ -36,13 +36,13 @@ describe('o registro de jobs contra o banco', () => {
   it('o escopo é `sistema` se, e somente se, o tipo começa com o prefixo que o check `job_registro_escola_ou_sistema` aceita sem escola', () => {
     const prefixo = /^escola_id is not null or tipo like '([^%']+)%'$/.exec(check('job_registro_escola_ou_sistema'))?.[1]
     expect(prefixo).toBe('sistema.')
-    for (const [tipo, definicao] of Object.entries(DEFINICOES_DE_JOB)) {
+    for (const [tipo, definicao] of Object.entries(JOB_DEFINITIONS)) {
       expect(definicao.escopo === 'sistema', tipo).toBe(tipo.startsWith(prefixo ?? ''))
     }
   })
 
   it('a retentativa de todo tipo é a de hoje: cinco tentativas, recuo de 2 s e jitter de 0,5, em literal', () => {
-    for (const [tipo, definicao] of Object.entries(DEFINICOES_DE_JOB)) {
+    for (const [tipo, definicao] of Object.entries(JOB_DEFINITIONS)) {
       expect(definicao.retentativa, tipo).toEqual({ tentativas: 5, recuoMs: 2_000, jitter: 0.5 })
     }
   })
@@ -55,7 +55,7 @@ describe('o payload de um job é só id e parâmetro técnico (regra 20, item 9)
   })
 
   it('nenhum esquema do registro tem chave de `CHAVES_PESSOAIS`', () => {
-    for (const [tipo, definicao] of Object.entries(DEFINICOES_DE_JOB)) {
+    for (const [tipo, definicao] of Object.entries(JOB_DEFINITIONS)) {
       expect(chavesPessoaisDe(definicao.dados), tipo).toEqual([])
     }
   })

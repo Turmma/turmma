@@ -1,13 +1,13 @@
 import {
-  CodigoDeErro,
-  esquemaRespostaAcessoGerado,
-  esquemaRespostaSalaAberta,
+  ErrorCode,
+  acessoGeradoResponseSchema,
+  salaAbertaResponseSchema,
   MAXIMO_DE_NOMES_NA_SALA,
   MENSAGENS_DE_ERRO,
   TAMANHO_MAXIMO_CODIGO_DIGITADO,
   TAMANHO_MAXIMO_SLUG_NO_LOGIN,
   TAMANHO_MAXIMO_TOKEN_DE_CONVITE,
-  type RespostaSalaAberta,
+  type SalaAbertaResponse,
 } from '@educa/shared'
 import { randomBytes, randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
@@ -47,7 +47,7 @@ const semRequisicao = (resposta: RespostaCrua) => ({ status: resposta.status, te
 
 const NAO_ENCONTRADO = {
   status: 404,
-  texto: JSON.stringify({ erro: { codigo: CodigoDeErro.NAO_ENCONTRADO, mensagem: MENSAGENS_DE_ERRO.NAO_ENCONTRADO, requisicaoId: '-' } }),
+  texto: JSON.stringify({ erro: { codigo: ErrorCode.NAO_ENCONTRADO, mensagem: MENSAGENS_DE_ERRO.NAO_ENCONTRADO, requisicaoId: '-' } }),
 }
 
 /** Uma escola com o professor confirmado nas duas turmas, a lista da `turma` e o acesso vigente dela. */
@@ -100,9 +100,9 @@ describe('salas/abrir (A1, tarefa 5.0): o aluno abre a turma pelo link ou pelo c
     }
   }
 
-  const aberta = (resposta: RespostaCrua): RespostaSalaAberta => {
+  const aberta = (resposta: RespostaCrua): SalaAbertaResponse => {
     expect(resposta.status, resposta.texto).toBe(200)
-    return esquemaRespostaSalaAberta.parse(JSON.parse(resposta.texto))
+    return salaAbertaResponseSchema.parse(JSON.parse(resposta.texto))
   }
 
   const post = (sessao: SessaoDeTeste, caminho: string, corpo?: unknown) => chamar(api.url, 'POST', caminho, sessao.token, corpo)
@@ -110,7 +110,7 @@ describe('salas/abrir (A1, tarefa 5.0): o aluno abre a turma pelo link ou pelo c
   async function gerar(sala: Pick<Sala, 'professor'>, turmaId: string, url = api.url): Promise<{ token: string; codigo: string }> {
     const gerado = await chamar(url, 'POST', `/v1/turmas/${turmaId}/acesso`, sala.professor.token, { validadeDias: 7 })
     expect(gerado.status).toBe(201)
-    const { token, codigo } = esquemaRespostaAcessoGerado.parse(gerado.corpo)
+    const { token, codigo } = acessoGeradoResponseSchema.parse(gerado.corpo)
     return { token, codigo }
   }
 
@@ -358,7 +358,7 @@ describe('salas/abrir (A1, tarefa 5.0): o aluno abre a turma pelo link ou pelo c
       ]
       const ENTRADA_INVALIDA = {
         status: 400,
-        texto: JSON.stringify({ erro: { codigo: CodigoDeErro.ENTRADA_INVALIDA, mensagem: MENSAGENS_DE_ERRO.ENTRADA_INVALIDA, requisicaoId: '-' } }),
+        texto: JSON.stringify({ erro: { codigo: ErrorCode.ENTRADA_INVALIDA, mensagem: MENSAGENS_DE_ERRO.ENTRADA_INVALIDA, requisicaoId: '-' } }),
       }
       for (const [caso, corpo] of invalidos) expect(semRequisicao(await abrir(corpo)), caso).toEqual(ENTRADA_INVALIDA)
       expect(await estado()).toEqual(antes)
@@ -374,7 +374,7 @@ describe('salas/abrir (A1, tarefa 5.0): o aluno abre a turma pelo link ou pelo c
       for (let vez = 0; vez < LIMITE_POR_IP; vez++) expect((await abrir(pelo.codigo(sala), { url: apiDoLimite.url, ip })).status).toBe(200)
       const recusada = await abrir(pelo.codigo(sala), { url: apiDoLimite.url, ip })
       expect(recusada.status).toBe(429)
-      expect(JSON.parse(recusada.texto)).toEqual({ erro: { codigo: CodigoDeErro.LIMITE_EXCEDIDO, mensagem: MENSAGENS_DE_ERRO.LIMITE_EXCEDIDO, requisicaoId: expect.any(String) } })
+      expect(JSON.parse(recusada.texto)).toEqual({ erro: { codigo: ErrorCode.LIMITE_EXCEDIDO, mensagem: MENSAGENS_DE_ERRO.LIMITE_EXCEDIDO, requisicaoId: expect.any(String) } })
       expect(Number(recusada.retryAfter)).toBeGreaterThanOrEqual(1)
       expect((await abrir(pelo.codigo(sala), { url: apiDoLimite.url, ip: outro })).status).toBe(200)
     })

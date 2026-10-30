@@ -1,6 +1,6 @@
 import 'reflect-metadata'
 import { LimitadorDeRequisicoes, PREFIXO_LIMITE_IP, PREFIXO_LIMITE_IP_LOGIN, PREFIXO_LIMITE_IP_OPERACAO } from '@educa/nucleo'
-import { CodigoDeErro, esquemaRespostaRenovacaoDeOperador } from '@educa/shared'
+import { ErrorCode, renovacaoDeOperadorResponseSchema } from '@educa/shared'
 import type { INestApplication } from '@nestjs/common'
 import type { Redis } from 'ioredis'
 import { createHash, randomBytes } from 'node:crypto'
@@ -81,7 +81,7 @@ describe('sessão do operador: renovar, sair e os prazos (tarefa 8.0)', () => {
 
   /** A renovação recusada: 401 `SESSAO_ENCERRADA`, no-store, e o cookie apagado no mesmo caminho. */
   function esperarRecusa(resposta: Resposta): void {
-    esperarErro(resposta, 401, CodigoDeErro.SESSAO_ENCERRADA)
+    esperarErro(resposta, 401, ErrorCode.SESSAO_ENCERRADA)
     expect(resposta.cacheControl).toBe('no-store')
     expect(resposta.setCookie).toEqual([`${COOKIE_SESSAO_DE_OPERADOR}=; Path=/v1/operacao/sessao; HttpOnly; SameSite=Strict; Max-Age=0`])
   }
@@ -89,12 +89,12 @@ describe('sessão do operador: renovar, sair e os prazos (tarefa 8.0)', () => {
   describe('C29: acesso vencido com a sessão viva', () => {
     it('dá ACESSO_VENCIDO; renova (token novo, cookie novo com os atributos, o anterior guardado) e a ação seguinte passa', async () => {
       const sessao = await operadores.operadorComSessao()
-      esperarErro(await eu(await sessao.tokenEm(new Date(Date.now() - 11 * 60_000))), 401, CodigoDeErro.ACESSO_VENCIDO)
+      esperarErro(await eu(await sessao.tokenEm(new Date(Date.now() - 11 * 60_000))), 401, ErrorCode.ACESSO_VENCIDO)
 
       const renovada = await renovar(sessao.refresh)
       expect(renovada.status).toBe(200)
       expect(renovada.cacheControl).toBe('no-store')
-      const corpo = esquemaRespostaRenovacaoDeOperador.parse(renovada.corpo)
+      const corpo = renovacaoDeOperadorResponseSchema.parse(renovada.corpo)
       expect(Object.keys(renovada.corpo as object).sort()).toEqual(['expiraEm', 'token'])
       const novo = valorDoCookie(renovada.setCookie, COOKIE_SESSAO_DE_OPERADOR)
       expect(novo).toMatch(/^[A-Za-z0-9_-]{43}$/)
@@ -121,7 +121,7 @@ describe('sessão do operador: renovar, sair e os prazos (tarefa 8.0)', () => {
     it('30 min sem uso dão SESSAO_ENCERRADA; o uso aos 29 min mantém a sessão viva aos 31, e 30 min depois dele ela termina', async () => {
       const parada = await operadores.operadorComSessao()
       await avancar(parada.sessaoId, '30 minutes')
-      esperarErro(await euAgora(parada), 401, CodigoDeErro.SESSAO_ENCERRADA)
+      esperarErro(await euAgora(parada), 401, ErrorCode.SESSAO_ENCERRADA)
 
       const usada = await operadores.operadorComSessao()
       await avancar(usada.sessaoId, '29 minutes')
@@ -133,7 +133,7 @@ describe('sessão do operador: renovar, sair e os prazos (tarefa 8.0)', () => {
       await avancar(usada.sessaoId, '29 minutes')
       expect((await euAgora(usada)).status).toBe(200)
       await avancar(usada.sessaoId, '30 minutes')
-      esperarErro(await euAgora(usada), 401, CodigoDeErro.SESSAO_ENCERRADA)
+      esperarErro(await euAgora(usada), 401, ErrorCode.SESSAO_ENCERRADA)
     })
   })
 
@@ -148,7 +148,7 @@ describe('sessão do operador: renovar, sair e os prazos (tarefa 8.0)', () => {
       // 17 × 29 min = 8h13: o último uso foi há 29 min, mas as 8 h passaram.
       await avancar(sessao.sessaoId, '29 minutes')
       expect((await linha(sessao.sessaoId)).usoHaSegundos).toBeLessThan(30 * 60)
-      esperarErro(await euAgora(sessao), 401, CodigoDeErro.SESSAO_ENCERRADA)
+      esperarErro(await euAgora(sessao), 401, ErrorCode.SESSAO_ENCERRADA)
       esperarRecusa(await renovar(sessao.refresh))
     })
   })
@@ -204,14 +204,14 @@ describe('sessão do operador: renovar, sair e os prazos (tarefa 8.0)', () => {
       expect(comCookieNovo).toHaveLength(1)
       const novo = valorDoCookie(comCookieNovo[0]?.setCookie ?? [], COOKIE_SESSAO_DE_OPERADOR) ?? ''
       expect(await linha(sessao.sessaoId)).toMatchObject({ refreshHash: hash(novo), refreshHashAnterior: hash(sessao.refresh), encerrada: false })
-      for (const resposta of respostas) expect((await eu(esquemaRespostaRenovacaoDeOperador.parse(resposta.corpo).token)).status).toBe(200)
+      for (const resposta of respostas) expect((await eu(renovacaoDeOperadorResponseSchema.parse(resposta.corpo).token)).status).toBe(200)
     })
 
     it('o anterior vale até 30 s depois da rotação; reusado depois disso, encerra a sessão (a do cookie novo também)', async () => {
       const sessao = await operadores.operadorComSessao()
       const primeira = await renovar(sessao.refresh)
       const novo = valorDoCookie(primeira.setCookie, COOKIE_SESSAO_DE_OPERADOR) ?? ''
-      const { token } = esquemaRespostaRenovacaoDeOperador.parse(primeira.corpo)
+      const { token } = renovacaoDeOperadorResponseSchema.parse(primeira.corpo)
 
       await operadores.pool.query(`update sessao_operador set rotacionado_em = now() - make_interval(secs => $2) where id = $1`, [sessao.sessaoId, JANELA_DO_REFRESH_ANTERIOR_SEGUNDOS - 1])
       const naJanela = await renovar(sessao.refresh)
@@ -223,7 +223,7 @@ describe('sessão do operador: renovar, sair e os prazos (tarefa 8.0)', () => {
       esperarRecusa(await renovar(sessao.refresh))
       expect(await linha(sessao.sessaoId)).toMatchObject({ encerrada: true, motivo: 'reuso_de_refresh' })
       esperarRecusa(await renovar(novo))
-      esperarErro(await eu(token), 401, CodigoDeErro.SESSAO_ENCERRADA)
+      esperarErro(await eu(token), 401, ErrorCode.SESSAO_ENCERRADA)
     })
 
     it('o cookie de duas rotações atrás não renova, e não encerra a sessão: só o anterior imediato é conhecido', async () => {
@@ -239,7 +239,7 @@ describe('sessão do operador: renovar, sair e os prazos (tarefa 8.0)', () => {
       const sessao = await operadores.operadorComSessao()
       const primeira = await renovar(sessao.refresh)
       const novo = valorDoCookie(primeira.setCookie, COOKIE_SESSAO_DE_OPERADOR) ?? ''
-      const { token } = esquemaRespostaRenovacaoDeOperador.parse(primeira.corpo)
+      const { token } = renovacaoDeOperadorResponseSchema.parse(primeira.corpo)
       await operadores.pool.query(`update sessao_operador set rotacionado_em = now() - make_interval(secs => $2) where id = $1`, [sessao.sessaoId, JANELA_DO_REFRESH_ANTERIOR_SEGUNDOS + 1])
 
       const antes = linhasDeLog.length
@@ -297,7 +297,7 @@ describe('sessão do operador: renovar, sair e os prazos (tarefa 8.0)', () => {
       expect(await linha(sessao.sessaoId)).toMatchObject({ refreshHash: hash(novo), refreshHashAnterior: hash(sessao.refresh), encerrada: true, motivo: 'saida' })
       esperarRecusa(await renovar(novo))
       esperarRecusa(await renovar(sessao.refresh))
-      esperarErro(await eu(esquemaRespostaRenovacaoDeOperador.parse(renovada.corpo).token), 401, CodigoDeErro.SESSAO_ENCERRADA)
+      esperarErro(await eu(renovacaoDeOperadorResponseSchema.parse(renovada.corpo).token), 401, ErrorCode.SESSAO_ENCERRADA)
     })
 
     it('sair antes, renovar depois: a renovação que esperava relê a sessão encerrada e é recusada, sem rotacionar e sem acesso novo', async () => {
@@ -322,7 +322,7 @@ describe('sessão do operador: renovar, sair e os prazos (tarefa 8.0)', () => {
       expect(await linha(sessao.sessaoId)).toMatchObject({ encerrada: true, motivo: 'saida' })
       const { rows } = await operadores.pool.query<{ evento: string; ip: string }>('select evento, host(ip) as ip from acesso_operacao where operador_id = $1', [sessao.operadorId])
       expect(rows).toEqual([{ evento: 'saida', ip }])
-      esperarErro(await eu(sessao.token), 401, CodigoDeErro.SESSAO_ENCERRADA)
+      esperarErro(await eu(sessao.token), 401, ErrorCode.SESSAO_ENCERRADA)
       esperarRecusa(await renovar(sessao.refresh))
     })
 
@@ -358,7 +358,7 @@ describe('sessão do operador: renovar, sair e os prazos (tarefa 8.0)', () => {
       const sessao = await operadores.operadorComSessao()
       for (const caminho of [RENOVAR, SAIR]) {
         const resposta = await pedir(url, 'POST', caminho, { sessaoId: sessao.sessaoId }, comCookie(sessao.refresh))
-        esperarErro(resposta, 400, CodigoDeErro.ENTRADA_INVALIDA)
+        esperarErro(resposta, 400, ErrorCode.ENTRADA_INVALIDA)
         expect(resposta.cacheControl).toBe('no-store')
       }
       expect(await linha(sessao.sessaoId)).toMatchObject({ refreshHash: hash(sessao.refresh), encerrada: false })
@@ -367,9 +367,9 @@ describe('sessão do operador: renovar, sair e os prazos (tarefa 8.0)', () => {
 
     it('o contrato da resposta não deixa sair campo a mais', () => {
       const valido = { token: 'a.b.c', expiraEm: new Date().toISOString() }
-      expect(esquemaRespostaRenovacaoDeOperador.safeParse(valido).success).toBe(true)
-      expect(esquemaRespostaRenovacaoDeOperador.safeParse({ ...valido, sessaoId: 'x' }).success).toBe(false)
-      expect(esquemaRespostaRenovacaoDeOperador.safeParse({ ...valido, operadorId: 'x' }).success).toBe(false)
+      expect(renovacaoDeOperadorResponseSchema.safeParse(valido).success).toBe(true)
+      expect(renovacaoDeOperadorResponseSchema.safeParse({ ...valido, sessaoId: 'x' }).success).toBe(false)
+      expect(renovacaoDeOperadorResponseSchema.safeParse({ ...valido, operadorId: 'x' }).success).toBe(false)
     })
   })
 
@@ -381,7 +381,7 @@ describe('sessão do operador: renovar, sair e os prazos (tarefa 8.0)', () => {
       try {
         const respostas = await Promise.all([eu(sessao.token), renovar(sessao.refresh), sair(sessao.refresh)])
         for (const resposta of respostas) {
-          esperarErro(resposta, 503, CodigoDeErro.INDISPONIVEL_TENTE_DE_NOVO)
+          esperarErro(resposta, 503, ErrorCode.INDISPONIVEL_TENTE_DE_NOVO)
           expect(Number(resposta.retryAfter)).toBeGreaterThanOrEqual(1)
         }
         // O 503 da renovação não apaga o cookie: a queda do banco não desloga ninguém.
@@ -417,7 +417,7 @@ describe('sessão do operador: o limite de renovar e sair (C32) e o Redis de cac
       // Sem cookie: a renovação recusa (401) e a saída não tem o que encerrar (204); as duas contam no IP.
       for (let vez = 0; vez < LIMITE_POR_IP; vez++) expect((await pedir(url, 'POST', caminho, undefined, doIp(ip))).status).not.toBe(429)
       const recusada = await pedir(url, 'POST', caminho, undefined, comCookie(sessao.refresh, ip))
-      esperarErro(recusada, 429, CodigoDeErro.LIMITE_EXCEDIDO)
+      esperarErro(recusada, 429, ErrorCode.LIMITE_EXCEDIDO)
       expect(Number(recusada.retryAfter)).toBeGreaterThanOrEqual(1)
       expect(recusada.cacheControl).toBe('no-store')
     }
@@ -444,12 +444,12 @@ describe('sessão do operador: o limite de renovar e sair (C32) e o Redis de cac
       // A escola passa do `rl:ip` e do `rl:ip-login` do IP X; o operador, pelo mesmo X, renova e entra sem rebaixar.
       const x = ipSorteado()
       for (let vez = 0; vez < LIMITE_POR_IP; vez++) expect((await renovarNaEscola(x)).status).toBe(401)
-      esperarErro(await renovarNaEscola(x), 429, CodigoDeErro.LIMITE_EXCEDIDO)
+      esperarErro(await renovarNaEscola(x), 429, ErrorCode.LIMITE_EXCEDIDO)
       // O corpo vazio é recusado depois da guarda, sem hash: cada um conta no `rl:ip-login`.
-      for (let vez = 0; vez <= LIMITE_POR_IP; vez++) esperarErro(await entrarNaEscola(x), 400, CodigoDeErro.ENTRADA_INVALIDA)
+      for (let vez = 0; vez <= LIMITE_POR_IP; vez++) esperarErro(await entrarNaEscola(x), 400, ErrorCode.ENTRADA_INVALIDA)
       expect([await contagem(PREFIXO_LIMITE_IP, x), await contagem(PREFIXO_LIMITE_IP_LOGIN, x)]).toEqual([LIMITE_POR_IP + 1, LIMITE_POR_IP + 1])
       expect((await pedir(url, 'POST', RENOVAR, undefined, comCookie(sessao.refresh, x))).status).toBe(200)
-      esperarErro(await entrarNaOperacao(x), 401, CodigoDeErro.NAO_AUTENTICADO)
+      esperarErro(await entrarNaOperacao(x), 401, ErrorCode.NAO_AUTENTICADO)
       expect(rebaixadas).toEqual([false])
       // As duas do operador contaram no balde dele, e nada a mais no da escola.
       expect([await contagem(PREFIXO_LIMITE_IP_OPERACAO, x), await contagem(PREFIXO_LIMITE_IP, x), await contagem(PREFIXO_LIMITE_IP_LOGIN, x)]).toEqual([2, LIMITE_POR_IP + 1, LIMITE_POR_IP + 1])
@@ -457,9 +457,9 @@ describe('sessão do operador: o limite de renovar e sair (C32) e o Redis de cac
       // O operador passa do `rl:ip:op` do IP Y; a escola, pelo mesmo Y, segue sem 429, e a entrada do operador rebaixa.
       const y = ipSorteado()
       for (let vez = 0; vez < LIMITE_POR_IP; vez++) expect((await pedir(url, 'POST', RENOVAR, undefined, doIp(y))).status).toBe(401)
-      esperarErro(await pedir(url, 'POST', RENOVAR, undefined, doIp(y)), 429, CodigoDeErro.LIMITE_EXCEDIDO)
-      esperarErro(await renovarNaEscola(y), 401, CodigoDeErro.NAO_AUTENTICADO)
-      esperarErro(await entrarNaOperacao(y), 401, CodigoDeErro.NAO_AUTENTICADO)
+      esperarErro(await pedir(url, 'POST', RENOVAR, undefined, doIp(y)), 429, ErrorCode.LIMITE_EXCEDIDO)
+      esperarErro(await renovarNaEscola(y), 401, ErrorCode.NAO_AUTENTICADO)
+      esperarErro(await entrarNaOperacao(y), 401, ErrorCode.NAO_AUTENTICADO)
       expect(rebaixadas).toEqual([false, true])
       expect([await contagem(PREFIXO_LIMITE_IP_OPERACAO, y), await contagem(PREFIXO_LIMITE_IP, y), await contagem(PREFIXO_LIMITE_IP_LOGIN, y)]).toEqual([LIMITE_POR_IP + 2, 1, 0])
     } finally {
