@@ -22,11 +22,28 @@ const FORMATACAO = ts.getDefaultFormatCodeSettings()
 
 export const paraAbsoluto = (arvore: Arvore, caminho: string): string => join(arvore.raiz, caminho)
 
-/** O caminho do repositório (com `/`), ou `undefined` se o arquivo está fora da raiz. */
-export function paraRelativo(arvore: Arvore, absoluto: string): string | undefined {
+// O serviço de linguagem pergunta a versão de todo arquivo do programa a cada `getProgram()`, e o `getEditsForFileRename` chama o
+// `getProgram()` muitas vezes por dentro: sem lembrar a resposta, o `path.relative` desta função dominava o custo do move.
+// A resposta só depende da raiz e do texto do caminho, por isso a memória é por árvore.
+const RELATIVOS = new WeakMap<Arvore, Map<string, string | undefined>>()
+
+function calcularRelativo(arvore: Arvore, absoluto: string): string | undefined {
   if (!isAbsolute(absoluto)) return undefined
   const caminho = relative(arvore.raiz, absoluto)
   return caminho === '' || caminho.startsWith('..') || isAbsolute(caminho) ? undefined : caminho.split(sep).join('/')
+}
+
+/** O caminho do repositório (com `/`), ou `undefined` se o arquivo está fora da raiz. */
+export function paraRelativo(arvore: Arvore, absoluto: string): string | undefined {
+  let lembrados = RELATIVOS.get(arvore)
+  if (lembrados === undefined) {
+    lembrados = new Map()
+    RELATIVOS.set(arvore, lembrados)
+  }
+  if (lembrados.has(absoluto)) return lembrados.get(absoluto)
+  const caminho = calcularRelativo(arvore, absoluto)
+  lembrados.set(absoluto, caminho)
+  return caminho
 }
 
 function leitorDaArvore(arvore: Arvore) {
