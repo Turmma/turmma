@@ -74,7 +74,10 @@ Só grava depois de calcular tudo; a onda se desfaz com `git reset --hard` e `gi
 **O `conferir`** roda nas ondas 3.0 a 11.0 e 13.0. Tira uma foto de `apps/`, `packages/`, `e2e/`, `infra/test/`, `infra/scripts/` e `tools/` (menos `tools/renomear/`) antes da onda e
 outra depois. A foto tem: as strings, as partes fixas de template, os literais de regex, os `JsxText`, as chaves de
 objeto literal, os nomes exportados por pacote, os especificadores de módulo e os casos de teste por arquivo. Antes de
-comparar, o `conferir` aplica o mapa à foto de antes: o especificador, o caminho dos casos e o nome exportado. Depois
+comparar, o `conferir` aplica o mapa à foto de antes: o especificador, o caminho dos casos e o nome exportado. O nome
+exportado segue a entrada `simbolo` só no pacote do `arquivo` dela e em quem o reexporta desse pacote (`export { X } from`);
+o homônimo exportado por outro pacote fica com o nome (a `migrar` de `tools/processo/separar-achados.ts` não é a do core), e
+a entrada sem `arquivo` vale em todo pacote. Depois
 disso, qualquer diferença fora de `excecoesDoConferir` deixa o `conferir` vermelho.
 
 **O `restos`** busca cada `de` de todos os mapas aplicados no escopo do passo 6 e nos documentos vivos, com a forma
