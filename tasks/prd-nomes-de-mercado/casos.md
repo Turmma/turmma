@@ -28,7 +28,9 @@ Cada cláusula da Tech Spec §5 tem ao menos um caso que a deixa vermelha, se fo
 - `/\bFila\b/` numa regex e `'migrar('` numa string (palavra comum colada);
 - `'@Banco'` num literal que não é e-mail (precedida de `@`);
 - `'./Fila/x'` numa string (segmento de caminho; `Fila` não tem arquivo nem pasta com o mesmo nome e a mesma caixa);
-- `'packages/nucleo/src/fila/x'` e `'dist/credencial/hash-de-senha.js'` (pasta-mãe e nome, com e sem extensão);
+- `'dist/src/fila/x'`, com a pasta `packages/nucleo/src/fila` no mapa, e `'dist/credencial/hash-de-senha.js'`, com o
+  arquivo `apps/api/src/credencial/hash-de-senha.ts` (pasta-mãe e nome, sem o caminho inteiro);
+- `'@educa/nucleo'` numa string (o pacote inteiro);
 - `'schema.Banco'` numa string e `/Banco\.x/` numa regex (acesso a membro);
 - `'@SemEscopo('` numa string (identificador);
 - um `-w` do `package.json` da raiz, um caminho antigo no `knip.json` e um caminho em `.github/`.
@@ -36,7 +38,9 @@ Cada cláusula da Tech Spec §5 tem ao menos um caso que a deixa vermelha, se fo
 **Não listados (passo 6):**
 - "com" numa string de tela, porque a palavra comum em prosa não é listada;
 - `'teste@exemplo.com'` e `'https://github.com/x'` (e-mail e URL);
-- `'./fila/x'`, com o símbolo `Fila` e a pasta `packages/nucleo/src/fila` no mapa: o nome solto da pasta é limite
+- `'hash-de-senha.js'` numa string, com o arquivo `apps/api/src/credencial/hash-de-senha.ts` no mapa (nome solto);
+- `'nucleo'` numa string, com o pacote `@educa/nucleo` no mapa;
+- `'./fila/x'` numa string, fora de import, com o símbolo `Fila` e a pasta `packages/nucleo/src/fila` no mapa: o nome solto da pasta é limite
   declarado, e em minúscula não é o símbolo;
 - um arquivo não versionado da raiz.
 

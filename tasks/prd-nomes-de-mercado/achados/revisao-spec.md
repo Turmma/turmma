@@ -1551,3 +1551,78 @@ Arquivos:
 - /home/joaquimdp/Documents/git/.maestri/floors/educaia--specnomes-de-mercado/tasks/prd-nomes-de-mercado/inventario-web-e2e.md
 - /home/joaquimdp/Documents/git/.maestri/floors/educaia--specnomes-de-mercado/tasks/prd-nomes-de-mercado/inventario-core-shared.md
 - /home/joaquimdp/Documents/git/.maestri/floors/educaia--specnomes-de-mercado/tasks/prd-nomes-de-mercado/guarda.md
+
+## revisor-geral · 8ª rodada · APROVADO · 2026-10-30 01:31:52 · `tasks/prd-nomes-de-mercado/revisao-spec.md`
+
+VEREDITO: APROVADO
+Escopo: respeitado
+Aderência à Tech Spec: ok
+Portão local: o `conferir` responde "nunca passou nesta árvore". Esta é revisão de spec e ainda não há código, então não bloqueia.
+
+**Bloqueantes da rodada 7:**
+- **`casos.md:30`, resolvido.** O caso agora é `'./Fila/x'`, e no inventário não há `Fila.tsx`, `Fila.ts` nem pasta `Fila`; o único arquivo com o nome é `AvisoFila.tsx`. Também não há URL, `@`, `(` nem acesso a membro. Sem a condição de segmento de caminho, o caso não é listado e fica vermelho.
+- **`techspec.md:57-62`, resolvido.** O trecho de `arquivo` e de `pasta` agora é "pasta-mãe e nome, com e sem extensão", e os três exemplos seguem essa forma (`packages/nucleo`, `componentes/ui`, `credencial/hash-de-senha`). O nome solto é limite declarado, e o import relativo fica no passo 3. O `casos.md` acompanha a regra:
+  - `:31` ganha os casos listados de pasta-mãe e nome;
+  - `:39` diz o que o mapa do caso leva.
+  - Com isso, `'./fila/x'` deixa vermelhas as duas mutações: buscar o nome solto e buscar sem distinguir a caixa.
+- **Os casos reais do inventário passam pela regra nova:**
+  - `cp src/fila/vaga.lua` contém `src/fila`, e `dist/fila/vaga.lua` contém `fila/vaga`: os dois são listados.
+  - `new URL('./vaga.lua', ...)` e `ARQUIVO_DO_SANDBOX` são nome solto, e os dois já estão no `travas.md:82-83`.
+- **`guarda.md:24`:** o `loadConfig` do nome exato entrou na própria linha.
+
+As correções desta rodada não abriram lacuna que bloqueie.
+
+Bloqueantes: nenhum.
+
+Recomendações:
+- **`techspec.md:60`, sem rede escrita.** O nome solto é limite declarado, mas o texto não diz o que o cobre, ao contrário da regex com alternância, que diz "coberto pelo `travas.md`". Hoje os dois casos reais conhecidos (`vaga.lua` e `ARQUIVO_DO_SANDBOX`) estão no `travas.md:82-83`. Vale escrever o mesmo no passo 6, porque o `restos` usa a mesma busca e também não acha nome solto.
+- **`techspec.md:4`:** o status ainda diz "rodada 5 da revisão da spec".
+- **`estado.md`:** continua modificado e sem commit, como apontei nas rodadas 5 a 7. Isso é do Orquestrador.
+
+Arquivos:
+- /home/joaquimdp/Documents/git/.maestri/floors/educaia--specnomes-de-mercado/tasks/prd-nomes-de-mercado/techspec.md
+- /home/joaquimdp/Documents/git/.maestri/floors/educaia--specnomes-de-mercado/tasks/prd-nomes-de-mercado/casos.md
+- /home/joaquimdp/Documents/git/.maestri/floors/educaia--specnomes-de-mercado/tasks/prd-nomes-de-mercado/guarda.md
+- /home/joaquimdp/Documents/git/.maestri/floors/educaia--specnomes-de-mercado/tasks/prd-nomes-de-mercado/travas.md
+
+## test-engineer · 8ª rodada · REPROVADO · 2026-10-30 01:32:19 · `tasks/prd-nomes-de-mercado/revisao-spec.md`
+
+VEREDITO: REPROVADO
+
+**Cenários exigidos (rodada 8, só o diff `a1329999..ac817b43`):** cada cláusula nova do passo 6 (`techspec.md:57-61`) precisa de um caso que fique vermelho se ela sair. As cláusulas são cinco:
+- o pacote é buscado inteiro;
+- o símbolo é buscado com a caixa dele;
+- o `arquivo` e a `pasta` são buscados pelo trecho de pasta-mãe e nome, com e sem extensão;
+- o nome solto é limite declarado;
+- o import relativo é do passo 3.
+
+**Cobertos:**
+- **Segmento de caminho (`casos.md:30`, `'./Fila/x'`).** Só a condição de segmento de caminho o lista:
+  - `Fila` é o tipo de `shared/src/sistema/jobs.ts`, sem arquivo nem pasta `Fila`.
+  - `AvisoFila.tsx` tem o trecho `ia/AvisoFila`, que não aparece no caso.
+  - Antes de `Fila` vem `/`, então não é acesso a membro.
+  - O bloqueante 1 do `revisor-geral` na rodada 7 está resolvido.
+- **Arquivo pela pasta-mãe e nome, sem extensão (`casos.md:31`, `'dist/credencial/hash-de-senha.js'`).** Se a busca usar o caminho inteiro (`apps/api/src/credencial/hash-de-senha`), o caso fica vermelho. Se só aceitar a extensão `.ts`, também. Basta para as duas mutações. O "com extensão" está contido no "sem extensão", então não precisa de caso próprio.
+- **Nome solto e caixa da pasta (`casos.md:39-40`, `'./fila/x'`).** O caso declara o mapa (o símbolo `Fila` e a pasta `packages/nucleo/src/fila`), como recomendei na rodada 7. Ele deixa vermelhas duas mutações: buscar a pasta pelo nome solto e buscar o símbolo sem caixa.
+- **A definição do trecho (`techspec.md:58-61`).** Os exemplos agora seguem um critério só: `packages/nucleo`, `componentes/ui` e `credencial/hash-de-senha`. O bloqueante 2 do `revisor-geral` está resolvido.
+- **`guarda.md:24`.** `loadConfig` no nome exato é só texto e não abre lacuna.
+
+**Bloqueantes:**
+1. **A pasta pela pasta-mãe e nome não tem caso que a prove (`casos.md:31`).**
+   - **O que está errado.** `'packages/nucleo/src/fila/x'` contém o caminho inteiro da pasta `packages/nucleo/src/fila`. Se a pasta for buscada pelo caminho inteiro, e não por `src/fila`, o caso continua listado e não fica vermelho.
+   - **O caso nem depende da pasta `fila`.** Se o mapa de teste tiver a pasta `packages/nucleo`, o trecho dela também está no literal. Só o arquivo tem a mutação provada, pelo caso do `dist`.
+   - **Correção exigida.** Trocar por um literal que tenha `src/fila`, mas não o caminho inteiro nem `packages/nucleo`. Por exemplo `'dist/src/fila/x'`, dizendo no caso que a pasta `packages/nucleo/src/fila` está no mapa.
+2. **O nome solto do arquivo não tem caso em "Não listados" (`casos.md:36-41`).**
+   - **O que está errado.** O passo 6 declara `'hash-de-senha.js'` como limite (`techspec.md:60`), mas o único caso de nome solto é o da pasta (`'./fila/x'`). Se o arquivo for buscado pelo nome solto, nenhum caso fica vermelho: os listados continuam listados, e `'./fila/x'` é pasta.
+   - **Correção exigida.** Pôr em "Não listados" o literal `'hash-de-senha.js'`, com o arquivo `apps/api/src/credencial/hash-de-senha.ts` no mapa. O símbolo `HashDeSenha` não acerta esse literal, porque a busca distingue a caixa, então o resultado fica determinado.
+
+**Recomendações:**
+- **`casos.md:39`: escrever "numa string, fora de import".** O passo 6 entrega o import relativo ao passo 3. Sem essa indicação, o Implementador pode montar o caso como import, e aí ele prova outra coisa.
+- **`techspec.md:60`: o nome solto em `.mjs`, `.cjs` e YAML.** Um caminho relativo num `require` de `.mjs` fora de um `tsconfig` não é alcançado pelo passo 3 nem pelo passo 6. Hoje isso só está implícito no limite. Vale escrevê-lo em `travas.md`, junto com o limite da regex com alternância.
+- **O pacote buscado inteiro (`techspec.md:57-58`).** A frase é a mesma de antes, só reescrita. Mesmo assim, não há caso de `'@educa/nucleo'` listado nem de `'nucleo'` solto não listado. Não reabro como bloqueante, porque já estava dado por resolvido. Os dois casos custam pouco.
+
+Arquivos:
+- /home/joaquimdp/Documents/git/.maestri/floors/educaia--specnomes-de-mercado/tasks/prd-nomes-de-mercado/casos.md
+- /home/joaquimdp/Documents/git/.maestri/floors/educaia--specnomes-de-mercado/tasks/prd-nomes-de-mercado/techspec.md
+- /home/joaquimdp/Documents/git/.maestri/floors/educaia--specnomes-de-mercado/tasks/prd-nomes-de-mercado/inventario-back.md
+- /home/joaquimdp/Documents/git/.maestri/floors/educaia--specnomes-de-mercado/tasks/prd-nomes-de-mercado/inventario-core-shared.md

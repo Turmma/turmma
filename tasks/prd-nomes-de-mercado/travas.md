@@ -20,6 +20,10 @@ neste anexo.
 Nenhum caso de teste entra (RF7). Onde a coluna da prova diz "X: vermelho", X é um caso que já existe hoje com o nome
 antigo. Trava que não cabe em nenhuma das três é divergência, e é parada do Joaquim.
 
+**Os limites da busca** (Tech Spec §5, passo 6) ficam cobertos por este anexo: a regex com alternância que parte o
+nome (`CHAVES_DOS_MARCADORES`) e o nome solto de arquivo ou pasta, inclusive num `require` relativo de `.mjs`, `.cjs`
+ou YAML fora de um `tsconfig` (`vaga.lua`, `ARQUIVO_DO_SANDBOX`). O que o relatório achar dessa forma ganha linha aqui.
+
 Os nomes novos são os dos anexos do inventário. A coluna "Onda" usa a numeração da Tech Spec §5.
 
 ## Regra 10 — isolamento

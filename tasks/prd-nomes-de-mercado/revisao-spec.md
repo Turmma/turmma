@@ -174,6 +174,21 @@ Os bloqueantes da rodada 5 estão resolvidos. Os dois revisores apontam o mesmo 
 - `casos.md`: o segmento de caminho é provado por `'./Fila/x'`; entram a pasta-mãe e nome listados; `'./fila/x'` traz o mapa do caso (revisor-geral; test-engineer, recomendação)
 - `guarda.md`: `loadConfig` no nome exato (test-engineer e revisor-geral, recomendação)
 
+## Rodada 8 — 30/10/2026
+
+**Veredito: REPROVADA**
+
+| Revisor | Veredito | Bloqueantes |
+|---|---|---|
+| `revisor-geral` | APROVADO | — |
+| `test-engineer` | REPROVADO | 2: a pasta por pasta-mãe e nome sem caso que a separe do caminho inteiro; o nome solto de arquivo sem caso em "Não listados" |
+
+### Correções exigidas na Tech Spec
+
+- `casos.md`: `'dist/src/fila/x'` listado, com o mapa do caso; `'hash-de-senha.js'` não listado (test-engineer)
+- `casos.md`: `'@educa/nucleo'` listado e `'nucleo'` solto não listado; `'./fila/x'` numa string, fora de import (test-engineer, recomendação)
+- §5, passo 6, e `travas.md`: o nome solto é limite coberto pelo `travas.md`, inclusive o `require` relativo de `.mjs`, `.cjs` e YAML fora de `tsconfig` (test-engineer e revisor-geral, recomendação)
+
 ## Revisões
 
 Preenchida pelo hook `tools/processo/revisoes.ts` quando cada revisor termina. Não edite à mão:
@@ -209,3 +224,5 @@ atual, com APROVADO quando o revisor tem veto.
 | 2026-10-30 01:27:01 | 2026-10-30 01:28:13 | `test-engineer` | 6 | REPROVADO | a07021e07ebc18682 |
 | 2026-10-30 01:28:35 | 2026-10-30 01:29:13 | `test-engineer` | 7 | APROVADO | aa95751ec9d49fbcf |
 | 2026-10-30 01:28:37 | 2026-10-30 01:30:03 | `revisor-geral` | 7 | REPROVADO | a970e62aa93afa919 |
+| 2026-10-30 01:30:46 | 2026-10-30 01:31:52 | `revisor-geral` | 8 | APROVADO | a9f8cdefd1c7c4ac0 |
+| 2026-10-30 01:30:49 | 2026-10-30 01:32:19 | `test-engineer` | 8 | REPROVADO | a580c68310405257b |
