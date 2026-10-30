@@ -57,6 +57,8 @@ recusavam.
 | `tools/ci/ambiente-de-teste.test.ts`, `tools/ci/dockerfile.test.ts`, `tools/processo/separar-achados.test.ts` | sem diff no fim: o passo 5 troca o `migrar` entre crases, que aí é o serviço do compose ou a `migrar` de `separar-achados.ts`, e a onda desfaz à mão (Tech Spec §5, passo 5) |
 | `tools/ci/borda.test.ts` | alterado: só o nome da constante na regex da linha 95 (`DEFAULT_RETRY_AFTER_SECONDS`); o caminho é da 5.0 |
 | `tools/processo/harness/guardioes.test.ts` | alterado: só a marca `@SemEscopo()` por extenso dos casos das linhas 128 e 316 |
+| `tools/processo/harness/__fixtures__/revisores-antes/tenancy-guardian.verificar.md` | alterado: só o literal `@SemEscopo()` → `@Unscoped()` da linha 13, igual ao item 8 do `tenancy-guardian.md` |
+| `tools/processo/harness/revisores.test.ts` | alterado: só o comentário do topo (linhas 5 a 7), com uma frase dizendo que a gravação de 24/10 teve esse literal trocado pela 4.0 de nomes-de-mercado e nada mais |
 | `tools/ia/` | alterado |
 | `tools/testes/` | alterado |
 | `tools/renomear/mapas/` | novo |
@@ -103,6 +105,7 @@ Arquivo, pasta e pacote do core (5.0). Os símbolos dos apps (7.0 a 11.0).
 
 - 2026-10-30, Arquiteto: o `aplicar` recusou seis arquivos fora dos previstos. `portao.ts` e `eslint.config.mjs` (comentário) e `ia-com-o-material.test.ts` (import relativo de `DefinicaoDeTarefa`, já no `inventario-core-shared.md`, 1116 a 1118) entram restritos ao que a onda arrasta. Nos três de `migrar`, e em `docs/guia-do-desenvolvedor.md` e `docs/infra.md`, o passo 5 troca a palavra comum entre crases onde ela nomeia o serviço do compose (ou a `migrar` de `separar-achados.ts`): a onda desfaz à mão e registra cada ocorrência como `fica` no `4.json`, com o motivo. Registrado na Tech Spec §5, passo 5. Nenhum critério muda.
 - 2026-10-30, Arquiteto: o `conferir` ficou vermelho só por três homônimos de outro pacote (`DependenciasDoExecutor` de `apps/worker`, `LinhaNova` e `migrar` de `tools/processo`), que o `aplicar` corretamente não renomeou. O nome exportado segue a entrada só no pacote do `arquivo` dela e em quem reexporta dele (Tech Spec §5, "O `conferir`"; `casos.md`, `conferir`): o conserto do `conferir` é correção à parte, antes da retomada, e esta tarefa não toca `tools/renomear/`. `borda.test.ts` (regex da 95) e `guardioes.test.ts` (a marca por extenso) entram nos previstos, restritos a esses literais (`travas.md`). Nenhum critério muda.
+- 2026-10-30, Arquiteto: o portão da correção `conferir-homonimo-de-outro-pacote`, rodado na árvore da 4.0, ficou vermelho em `revisores.test.ts:421` ("os de hoje são os de antes"): a 4.0 trocou o item 8 do `tenancy-guardian.md` para `@Unscoped()`, e a gravação de 24/10 (`revisores-antes/tenancy-guardian.verificar.md`, linha 13) ficou com `@SemEscopo()`. A troca no agente é da 4.0 e fica: com o nome velho, o guardião procuraria uma marca que não existe mais (regra 10, item 9). A gravação acompanha o mesmo literal, e só ele; não é regravada, e o comentário do topo do `revisores.test.ts` registra a troca. As duas entram nos previstos (`travas.md`). A lista do guardião não muda de sentido, e nenhum critério muda.
 
 ## Mutações
 
