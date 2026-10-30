@@ -1774,6 +1774,13 @@ A entrada, o convite, a reivindicação de nome e a verificação em duas etapas
 
 - **A partir de 1024 px a tela se divide**: à esquerda, o painel em `papel`, com a marca e a pinta
   parada; à direita, o cartão do formulário. **Abaixo disso, empilha**
+- **A pinta do painel fica no centro dele**, nos dois eixos, com 384 px e a 15% de opacidade, na mesma altura do
+  centro do cartão (os dois são centrados): os dois se leem como um par. Ela esteve a 40 px do canto de baixo e da direita
+  (X1, 14.0) e deixava o meio do painel vazio; o Joaquim apontou em 30/10 (correção `2026-10-30-tela-de-entrar`).
+  Continua parada, sem imagem nova (9.6), e **não vira onça nem ganha movimento**: a onça de corpo inteiro só entra onde um
+  agente produziu algo (9.7). **O painel tem 40 rem de altura no mínimo**, para a pinta ficar sempre abaixo da marca: numa
+  janela de computador mais baixa que isso a página rola. O `e2e/casca-publica.spec.ts` mede o centro, o respiro de 40 px de cada
+  lado e a pinta abaixo da marca, de 1366 × 768 a 1024 × 500
 - **O formulário.** Aluno: "Entrar com a conta da escola" (Google ou Microsoft, quando a escola
   tem) ou escola, matrícula e senha (D48). Professor e coordenação: o que o F1 definiu, com o
   segundo fator da coordenação. Não existe "Cadastre-se" (D2), nem busca pública de escola. Um

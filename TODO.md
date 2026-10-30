@@ -2324,3 +2324,15 @@ repetem aqui.
       anéis (o da moldura e o do controle). Se o Joaquim achar feio na validação, é correção própria, com foto do foco por Tab (test-engineer)
 - [ ] Da correção `2026-10-29-contorno-do-campo-de-conversa`: no tema escuro, o anel da `CaixaPedido` fica sempre em `foco`; sobre `.bg-noite` ele daria
       1,99:1. Hoje a caixa só aparece sobre `bg-fundo` e `bg-superficie`; entra na tarefa que puser a caixa sobre `bg-noite` (frontend-reviewer)
+
+## Da correção 2026-10-30-tela-de-entrar (a pinta centrada da casca pública), fora dela
+
+- [ ] Da correção `2026-10-30-tela-de-entrar`: teste de guarda do `lg:` da altura mínima da `CascaPublica` (`lg:min-h-[40rem]`). Trocar por
+      `min-h-[40rem]` empilharia 640 px de painel no celular sem nenhum teste vermelho; o caso de 1023 e 360 px poderia exigir o painel empilhado
+      baixo (uma quarta mutação). Junto, medir a rolagem vertical a 1024 × 500 (`scrollHeight >= 640`), que o comentário afirma e o caso não mede: a
+      altura do painel hoje é provada só de forma indireta, pela pinta abaixo da marca (test-engineer, rodada 2)
+- [ ] Da correção `2026-10-30-tela-de-entrar`: observação, só a reabrir se houver queixa. A 1024 × 500 o botão "Entrar" fica a poucos pixels da borda de
+      baixo da janela, e quem não sabe que a página rola pode achar que o formulário termina ali; a saída seria `lg:min-h-[40rem]` valer só acima de uma
+      altura de janela (frontend-reviewer, rodada 2)
+- [ ] Da correção `2026-10-30-tela-de-entrar`: acompanhar o tempo do caso novo de `e2e/casca-publica.spec.ts` na esteira da `develop`, depois do pouso
+      (3,6 a 4,1 s contra os 15 s do portão); se passar de 10 s, entra no lote de e2e perto do prazo (infra-guardian, rodadas 1 e 2)

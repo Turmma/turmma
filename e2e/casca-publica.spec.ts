@@ -107,6 +107,38 @@ test.describe('a moldura das páginas públicas', () => {
     expect(await daMarca.evaluate((imagem) => Number(getComputedStyle(imagem).opacity))).toBe(1)
   })
 
+  for (const { endereco } of TELAS) {
+    test(`${endereco}: a pinta do painel está no centro dele, na altura do centro do cartão, com respiro dos quatro lados e abaixo da marca, mesmo em janela baixa`, async ({ page }) => {
+      // 1366 × 650 é o Chromebook de referência com a barra do navegador (regra 50, item 1); 1024 × 500 é a janela mais baixa
+      // em que o painel ainda se divide e a pinta já passaria por cima da marca se o painel acompanhasse só a janela.
+      // A página abre uma vez só: o layout é CSS, e trocar o tamanho da janela basta (quatro `goto` levavam 11 s, perto dos 15 s do portão).
+      await page.goto(endereco)
+      const pinta = pintaDoPainel(page)
+      for (const [largura, altura] of [[1366, 768], [1366, 650], [1024, 768], [1024, 500]] as const) {
+        const janela = `${String(largura)} × ${String(altura)} px`
+        await page.setViewportSize({ width: largura, height: altura })
+        await expect(pinta).toBeVisible()
+
+        const [lateral, dela, principal, marca] = [await caixa(painel(page)), await caixa(pinta), await caixa(cartao(page)), await caixa(page.getByRole('banner'))]
+        // O centro dela é o do painel, nos dois eixos (2 px de folga para o arredondamento do navegador): no canto, o desenho
+        // ficava a um quarto do painel do centro, e o painel parecia vazio no meio.
+        expect(Math.abs(dela.x + dela.width / 2 - (lateral.x + lateral.width / 2)), `centro da pinta na horizontal a ${janela}`).toBeLessThanOrEqual(2)
+        expect(Math.abs(dela.y + dela.height / 2 - (lateral.y + lateral.height / 2)), `centro da pinta na vertical a ${janela}`).toBeLessThanOrEqual(2)
+        // Na mesma linha do cartão: os dois são centrados na altura da janela, e a pinta e o formulário se leem como um par.
+        expect(Math.abs(dela.y + dela.height / 2 - (principal.y + principal.height / 2)), `a pinta e o cartão na mesma altura a ${janela}`).toBeLessThanOrEqual(2)
+        // Respiro: pelo menos 40 px de cada lado do painel, sem encostar na borda nem passar para o lado do formulário.
+        expect(dela.x - lateral.x, `respiro à esquerda a ${janela}`).toBeGreaterThanOrEqual(40)
+        expect(lateral.x + lateral.width - (dela.x + dela.width), `respiro à direita a ${janela}`).toBeGreaterThanOrEqual(40)
+        expect(dela.y - lateral.y, `respiro em cima a ${janela}`).toBeGreaterThanOrEqual(40)
+        expect(lateral.y + lateral.height - (dela.y + dela.height), `respiro embaixo a ${janela}`).toBeGreaterThanOrEqual(40)
+        // Abaixo da marca: a caixa da pinta começa onde a do `banner` termina, ou depois. O painel tem altura mínima (`lg:min-h-[40rem]`)
+        // justamente para isso: sem ela, a 1024 × 500 o topo da pinta ficaria uns 50 px acima do pé da marca.
+        expect(dela.y, `a pinta começa abaixo da marca a ${janela}`).toBeGreaterThanOrEqual(marca.y + marca.height)
+        expect(await larguraExcedente(page), `rolagem de lado a ${janela}`).toBe(0)
+      }
+    })
+  }
+
   test('o painel é o `papel` dos dois temas, e o cartão é a `superficie`', async ({ page }) => {
     await page.setViewportSize({ width: 1366, height: 768 })
     await page.goto('/entrar')
