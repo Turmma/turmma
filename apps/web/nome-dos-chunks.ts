@@ -26,8 +26,8 @@
  *   `parte-*`, ele contaria no teto do primeiro carregamento sem nunca ser baixado nele: as peças só chegam por
  *   `import()`, com a tela que as usa. O teste do build de verdade prova as duas metades — nenhuma peça na entrada nem
  *   no que ela baixa junto, e nada do que ela baixa junto com outro nome que não `parte-*`;
- * - o pedaço **com fachada** que é peça e só tem peças — a `OncaDaMarca`, que a casca pública busca por `import()` — também é
- *   `pecas-*.js`, com o nome da peça (`pecas-OncaDaMarca-*`): a onça cai em Peças, e não nasce pedaço `parte-*` para ela;
+ * - o pedaço **com fachada** que é peça e só tem peças — a `OncaDaMarca` e a `CenaDaOnca`, que a casca pública busca por `import()` — também é
+ *   `pecas-*.js`, com o nome da peça (`pecas-OncaDaMarca-*`, `pecas-CenaDaOnca-*`): a onça e o cenário caem em Peças, e não nasce pedaço `parte-*` para eles;
  *
  * Por nome, e não por `manualChunks`: no Rolldown do Vite 8 ele vira um grupo que, por padrão, puxa junto as
  * dependências dos módulos capturados (React, os componentes da entrada), e a entrada passaria a importar o chunk da
@@ -122,6 +122,7 @@ export const PECAS_FORA_DA_ENTRADA = [
   'ui/midia',
   'ui/NumeroPainel',
   'ui/onca/CabecaOnca',
+  'ui/onca/CenaDaOnca',
   'ui/onca/DesenhoDaOnca',
   'ui/onca/geometria',
   'ui/onca/movimento-da-onca',

@@ -1,7 +1,7 @@
 import { DesenhoDaOnca } from './DesenhoDaOnca'
 
-/** A largura da onça da marca, em px: 160 no painel do computador e 88 acima do formulário no celular (`docs/interface.md` 11.3). */
-export type TamanhoDaOncaDaMarca = 88 | 160
+/** A largura da onça da marca, em px: 240 no cenário do painel do computador e 88 acima do formulário no celular (`docs/interface.md` 9.7, 11.3). */
+export type TamanhoDaOncaDaMarca = 88 | 160 | 240
 
 interface PropsDaOncaDaMarca {
   readonly tamanho: TamanhoDaOncaDaMarca

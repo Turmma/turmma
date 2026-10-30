@@ -19,6 +19,10 @@ import { especificadoresDe, importadoresDe, semComentarios, type ArquivoDaWeb } 
  * nome acessível (`OncaDaMarca`), porque não é saída de agente nenhum. Só a `CascaPublica` a importa, e só por `import()`
  * tardio: ela não vai para o primeiro carregamento da entrada. Quem quiser a onça sem assinatura em outro lugar entra na lista
  * fechada `QUEM_IMPORTA_A_ONCA_DA_MARCA`, com parecer do `conformidade-reviewer`.
+ *
+ * **O cenário da onça da marca** (`CenaDaOnca`; D80 revista em 30/10/2026, às 21:45; 9.7) é a peça que a põe sobre uma sala de aula,
+ * de 432 × 300 px. Ele importa a `OncaDaMarca` (e só ele, além da `CascaPublica`), e só a `CascaPublica` o importa, por `import()`
+ * tardio: ele também fica fora do primeiro carregamento da entrada.
  */
 const RAIZ_DA_WEB = join(import.meta.dirname, '..', '..', '..')
 
@@ -27,6 +31,7 @@ const AVATAR = 'componentes/ui/ia/AvatarAgente'
 const ASSINATURA = 'componentes/ui/ia/AssinaturaIA'
 const ONCA_INTEIRA = 'componentes/ui/onca/Onca'
 const ONCA_DA_MARCA = 'componentes/ui/onca/OncaDaMarca'
+const CENA_DA_ONCA = 'componentes/ui/onca/CenaDaOnca'
 const DESENHO_DA_ONCA = 'componentes/ui/onca/DesenhoDaOnca'
 const COMEMORACAO = 'componentes/ui/Comemoracao'
 const PECAS_DA_INTRODUCAO = 'componentes/introducao/'
@@ -40,8 +45,10 @@ const BEM_VINDO_DOS_PAPEIS = ['areas/aluno/introducao/BemVindo.tsx', 'areas/prof
  */
 const TELAS_COM_A_ONCA = ['areas/professor/artefatos/Criados.tsx']
 const QUEM_IMPORTA_A_ONCA_INTEIRA = ['componentes/introducao/Introducao.tsx', 'componentes/introducao/IntroducaoDoPapel.tsx', 'componentes/ui/Comemoracao.tsx', ...BEM_VINDO_DOS_PAPEIS, ...TELAS_COM_A_ONCA]
-/** A onça sem assinatura: só a casca pública, e só por `import()` tardio (a prova está no caso da entrada, abaixo). */
-const QUEM_IMPORTA_A_ONCA_DA_MARCA = ['componentes/CascaPublica.tsx']
+/** O cenário da onça da marca: só a casca pública, e só por `import()` tardio (a prova está no caso da entrada, abaixo). */
+const QUEM_IMPORTA_A_CENA_DA_ONCA = ['componentes/CascaPublica.tsx']
+/** A onça sem assinatura: a casca pública, por `import()` tardio (a de 88 px do celular), e o cenário, que a põe sobre a sala. */
+const QUEM_IMPORTA_A_ONCA_DA_MARCA = ['componentes/CascaPublica.tsx', 'componentes/ui/onca/CenaDaOnca.tsx']
 const QUEM_IMPORTA_A_PASTA_DA_ONCA = ['componentes/ui/ia/AvatarAgente.tsx', ...QUEM_IMPORTA_A_ONCA_INTEIRA, ...QUEM_IMPORTA_A_ONCA_DA_MARCA]
 /** A `Comemoracao` é da tarefa aberta; a galeria é o palco dela até lá (o e2e de movimento precisa de uma página). */
 const QUEM_IMPORTA_A_COMEMORACAO = ['areas/aluno/Atividade.tsx', 'galeria/secoes/introducao.tsx']
@@ -107,12 +114,12 @@ describe('a onça de corpo inteiro e a comemoração', () => {
       // Arquivo da entrada que mudou de nome faria o laço passar vazio: aqui ele reprova.
       expect(conteudo, `${entrada} mudou de nome: atualize a lista da entrada`).toBeDefined()
       if (conteudo === undefined) continue
-      // A `CascaPublica` é a única que toca a pasta, e só pela onça da marca, por `import()`: o import estático dela reprova.
+      // A `CascaPublica` é a única que toca a pasta, e só pela onça da marca e pelo cenário dela, por `import()`: o import estático reprova.
       const daPasta = importadoresDe([{ nome: entrada, conteudo }], PASTA_DA_ONCA)
       if (QUEM_IMPORTA_A_ONCA_DA_MARCA.includes(entrada)) {
         expect(daPasta, `${entrada} desenha a onça da marca: a varredura não a achou`).toEqual([entrada])
         expect(importacoesEstaticasDaPasta(conteudo), `${entrada}: a onça da marca vem por \`import()\` tardio, e não por import estático`).toEqual([])
-        expect(importacoesTardiasDaPasta(conteudo), entrada).toEqual(['./ui/onca/OncaDaMarca'])
+        expect(importacoesTardiasDaPasta(conteudo), entrada).toEqual(['./ui/onca/OncaDaMarca', './ui/onca/CenaDaOnca'])
       } else {
         expect(daPasta, entrada).toEqual([])
       }
@@ -133,6 +140,22 @@ describe('a onça de corpo inteiro e a comemoração', () => {
     // O desenho sem figura: só as duas peças que o põem numa figura, a assinada e a da marca.
     const doDesenho = importadoresDe(arquivos, DESENHO_DA_ONCA)
     expect(doDesenho.sort()).toEqual(['componentes/ui/onca/Onca.tsx', 'componentes/ui/onca/OncaDaMarca.tsx'])
+  })
+
+  it('o cenário da onça só é importado pela `CascaPublica`, e a `OncaDaMarca` só por ela e pelo cenário', () => {
+    const arquivos = arquivosDaWeb()
+    const doCenario = importadoresDe(arquivos, CENA_DA_ONCA)
+    expect(doCenario, 'a `CascaPublica` desenha o cenário: a varredura não a achou').toEqual(QUEM_IMPORTA_A_CENA_DA_ONCA)
+    const daMarca = importadoresDe(arquivos, ONCA_DA_MARCA)
+    expect(daMarca, 'o cenário desenha a onça da marca: a varredura não o achou').toContain('componentes/ui/onca/CenaDaOnca.tsx')
+    expect(daMarca.sort()).toEqual([...QUEM_IMPORTA_A_ONCA_DA_MARCA].sort())
+    // O cenário vem por `import()`, nunca estático, e o que ele importa é a onça da marca, e não a assinada nem o desenho cru.
+    const cenario = arquivos.find(({ nome }) => nome === 'componentes/ui/onca/CenaDaOnca.tsx')?.conteudo ?? ''
+    expect(importadoresDe([{ nome: 'componentes/ui/onca/CenaDaOnca.tsx', conteudo: cenario }], ONCA_DA_MARCA)).toEqual(['componentes/ui/onca/CenaDaOnca.tsx'])
+    expect(importadoresDe([{ nome: 'componentes/ui/onca/CenaDaOnca.tsx', conteudo: cenario }], ONCA_INTEIRA)).toEqual([])
+    expect(importadoresDe([{ nome: 'componentes/ui/onca/CenaDaOnca.tsx', conteudo: cenario }], DESENHO_DA_ONCA)).toEqual([])
+    // Nem a galeria, nem a operação, nem `areas/`.
+    expect(doCenario.filter((nome) => nome.startsWith('areas/') || nome.startsWith('galeria/') || nome.startsWith('operacao/'))).toEqual([])
   })
 
   it('a pose `comemorando` só é escrita pelo `DesenhoDaOnca` (que a `Onca` e a `OncaDaMarca` usam) e pela `Comemoracao`', () => {

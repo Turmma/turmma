@@ -85,8 +85,12 @@ function cssDoProduto(): string {
 /** Os nomes de cor da 9.10: os únicos que uma classe de cor pode pedir. */
 const NOMES_DE_COR = new Set(blocosDe(cssDoProduto()).claro.keys())
 
-/** `white` e `black` não mudam com o tema: classe com eles fica errada no escuro. Só o QR, que precisa ficar claro, pode. */
-const ARQUIVOS_COM_BRANCO_FIXO = ['componentes/CodigoQr.tsx']
+/**
+ * `white` e `black` não mudam com o tema: classe com eles fica errada no escuro. Só o QR, que precisa ficar claro, e o cenário da
+ * onça da marca, cujo giz e cujas páginas de livro são brancos nos dois temas (`docs/interface.md` 9.7, tabela do cenário: o giz
+ * sobre a lousa verde e a página dentro da lombada, sobre cores que também não invertem), podem.
+ */
+const ARQUIVOS_COM_BRANCO_FIXO = ['componentes/CodigoQr.tsx', 'componentes/ui/onca/CenaDaOnca.tsx']
 
 /**
  * Os arquivos que podem escrever cor à mão: o QR, que precisa de preto e branco, e a cabeça da onça, cujas nove cores são

@@ -12,6 +12,9 @@ import { CascaPublica } from './CascaPublica'
 vi.mock('./ui/onca/OncaDaMarca', () => {
   throw new Error('o pedaço da onça não carregou')
 })
+vi.mock('./ui/onca/CenaDaOnca', () => {
+  throw new Error('o pedaço do cenário não carregou')
+})
 
 afterEach(cleanup)
 
@@ -22,7 +25,7 @@ async function esperarOImportFalhar(): Promise<void> {
 }
 
 describe('CascaPublica sem o pedaço da onça', () => {
-  it('o formulário continua na tela, e as duas caixas ficam no lugar, vazias', async () => {
+  it('o formulário continua na tela, e a caixa de 432 × 300 e a de 88 px ficam no lugar, vazias', async () => {
     const { container } = render(
       <CascaPublica titulo="Entrar">
         <label>
@@ -39,12 +42,13 @@ describe('CascaPublica sem o pedaço da onça', () => {
     expect(within(principal).getByLabelText('E-mail')).toBeTruthy()
     expect(within(principal).getByRole('button', { name: 'Entrar' })).toBeTruthy()
     expect(within(screen.getByRole('banner')).getByText('Turmma')).toBeTruthy()
-    // A página não pula: as caixas de 160 e 88 px seguem, sem a onça dentro.
-    const grande = container.querySelector('[data-onca-da-marca-grande]') as HTMLElement
+    // A página não pula: as caixas de 432 × 300 e de 88 px seguem, sem o cenário nem a onça dentro.
+    const cenario = container.querySelector('[data-cena-da-onca-caixa]') as HTMLElement
     const pequena = container.querySelector('[data-onca-da-marca-pequena]') as HTMLElement
-    expect(grande.getAttribute('class')).toMatch(/\bsize-40\b/)
+    const classesDoCenario = (cenario.getAttribute('class') ?? '').split(/\s+/)
+    for (const classe of ['w-108', 'h-75', 'max-w-full']) expect(classesDoCenario, classe).toContain(classe)
     expect(pequena.getAttribute('class')).toMatch(/\bsize-22\b/)
-    expect(container.querySelectorAll('[data-onca-da-marca], svg')).toHaveLength(0)
-    expect(grande.childElementCount + pequena.childElementCount).toBe(0)
+    expect(container.querySelectorAll('[data-onca-da-marca], [data-cena-da-onca], svg')).toHaveLength(0)
+    expect(cenario.childElementCount + pequena.childElementCount).toBe(0)
   })
 })

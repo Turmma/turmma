@@ -4,8 +4,9 @@ import { corDoToken, larguraExcedente, violacoesGraves } from './__fixtures__/ve
 
 /**
  * A moldura das páginas de fora da sessão (X1, tarefa 14.0; `docs/interface.md` 11.3, 9.6): a partir de 1024 px a tela
- * se divide, com o painel `papel` e a onça da marca acenando à esquerda e o cartão do formulário à direita; abaixo disso
- * empilha, com a onça de 88 px, parada, acima do formulário (D80 revista em 30/10/2026; correção `2026-10-30-onca-na-entrada`).
+ * se divide, com o painel `papel` e o cenário da onça da marca (um canto de sala de 432 × 300 px, com a onça de 240 px acenando)
+ * à esquerda e o cartão do formulário à direita; abaixo disso empilha, com a onça de 88 px, parada e sem cenário, acima do
+ * formulário (D80 revista em 30/10/2026; correções `2026-10-30-onca-na-entrada` e `2026-10-30-cenario-da-onca`).
  * Nenhum texto, ordem de campo ou resposta muda: os e2e de `entrar`, `convite`, `mfa` e `turma-publica` rodam sem edição.
  *
  * As duas telas aqui não pedem dado nenhum: `/entrar` (a entrada) e `/mfa` (o segundo fator sem desafio, que é a mesma
@@ -19,8 +20,9 @@ const TELAS = [
 
 const painel = (page: Page): Locator => page.locator('[data-painel-publico]')
 const cartao = (page: Page): Locator => page.getByRole('main')
-/** A caixa de 160 px do painel, que não se mexe (a figura dentro dela entra e acena): é ela que a medida de posição lê. */
-const caixaDaOnca = (page: Page): Locator => page.locator('[data-painel-publico] [data-onca-da-marca-grande]')
+/** A caixa do cenário no painel, de até 432 × 300 px, que não se mexe (a onça dentro dela entra e acena): é ela que a medida de posição lê. */
+const caixaDoCenario = (page: Page): Locator => page.locator('[data-painel-publico] [data-cena-da-onca-caixa]')
+const cenario = (page: Page): Locator => page.locator('[data-painel-publico] [data-cena-da-onca]')
 const oncaDoPainel = (page: Page): Locator => page.locator('[data-painel-publico] [data-onca-da-marca]')
 /** A de 88 px, fora do painel, acima do formulário. */
 const caixaDaOncaPequena = (page: Page): Locator => page.locator('[data-onca-da-marca-pequena]')
@@ -58,14 +60,17 @@ test.describe('a moldura das páginas públicas', () => {
         // O formulário não se espalha: a largura do cartão é a de `max-w-md` (28 rem), e não a da coluna (a 1366 px, 603 px).
         expect(principal.width, `largura do cartão a ${String(largura)} px`).toBeLessThanOrEqual(448)
 
-        // A onça da marca está à vista dentro do painel, com 160 px, sem passar da borda dele; a de 88 px, só do celular, não.
+        // O cenário e a onça da marca estão à vista dentro do painel: a onça com 240 px e o cenário com até 432 px de largura e
+        // 40 px de respiro de cada lado do painel, também a 1024 px. A onça de 88 px, só do celular, não.
         const onca = oncaDoPainel(page)
         await expect(onca).toBeVisible()
-        await expect(onca.locator('svg')).toHaveAttribute('width', '160')
-        const dela = await caixa(caixaDaOnca(page))
-        expect(dela.width, `caixa da onça a ${String(largura)} px`).toBe(160)
-        expect(dela.x).toBeGreaterThanOrEqual(lateral.x)
-        expect(dela.x + dela.width).toBeLessThanOrEqual(lateral.x + lateral.width)
+        await expect(cenario(page)).toBeVisible()
+        await expect(onca.locator('svg')).toHaveAttribute('width', '240')
+        const dela = await caixa(caixaDoCenario(page))
+        expect(dela.width, `largura do cenário a ${String(largura)} px`).toBeLessThanOrEqual(432)
+        expect(dela.width, `o cenário não encolhe a ${String(largura)} px`).toBeGreaterThanOrEqual(430)
+        expect(dela.x - lateral.x, `respiro à esquerda a ${String(largura)} px`).toBeGreaterThanOrEqual(40)
+        expect(lateral.x + lateral.width - (dela.x + dela.width), `respiro à direita a ${String(largura)} px`).toBeGreaterThanOrEqual(40)
         expect(dela.y + dela.height).toBeLessThanOrEqual(lateral.y + lateral.height)
         await expect(oncaPequena(page)).toBeHidden()
       }
@@ -85,9 +90,10 @@ test.describe('a moldura das páginas públicas', () => {
         expect(principal.x).toBeGreaterThanOrEqual(0)
         expect(principal.x + principal.width).toBeLessThanOrEqual(largura)
         expect(await larguraExcedente(page), `rolagem de lado a ${String(largura)} px`).toBe(0)
-        // Empilhado o painel é só a marca: a onça de 160 px é do computador. A de 88 px vai sobre `fundo`, fora do painel, entre ele
+        // Empilhado o painel é só a marca: o cenário e a onça de 240 px são do computador. A de 88 px vai sobre `fundo`, fora do painel, entre ele
         // e o formulário, centrada, e fica parada.
         await expect(oncaDoPainel(page)).toBeHidden()
+        await expect(cenario(page)).toBeHidden()
         await expect(page.getByRole('banner').getByText('Turmma')).toBeVisible()
         const pequena = oncaPequena(page)
         await expect(pequena).toBeVisible()
@@ -127,6 +133,12 @@ test.describe('a moldura das páginas públicas', () => {
     const voltas = await page.evaluate(() => document.getAnimations().map((a) => a.effect?.getComputedTiming().iterations))
     expect(voltas.length).toBeGreaterThan(0)
     for (const volta of voltas) expect(volta, 'cada animação roda uma vez').toBe(1)
+    // O cenário não anima nada, e nenhuma peça dele tem transição: só a onça se mexe.
+    const doCenario = await cenario(page).locator('> svg').evaluate((svg) => ({
+      animacoes: svg.getAnimations({ subtree: true }).length,
+      transicoes: [svg, ...svg.querySelectorAll('*')].filter((no) => getComputedStyle(no).transitionDuration !== '0s').length,
+    }))
+    expect(doCenario).toEqual({ animacoes: 0, transicoes: 0 })
   })
 
   test.describe('com "reduzir movimento"', () => {
@@ -137,7 +149,7 @@ test.describe('a moldura das páginas públicas', () => {
       await page.goto('/entrar')
       const onca = oncaDoPainel(page)
       await expect(onca).toBeVisible()
-      await expect(onca.locator('svg')).toHaveAttribute('width', '160')
+      await expect(onca.locator('svg')).toHaveAttribute('width', '240')
       expect(await page.evaluate(() => document.getAnimations().length)).toBe(0)
       // O desenho está inteiro, não escondido no começo do movimento.
       expect(await onca.locator('.onca-entra').evaluate((corpo) => Number(getComputedStyle(corpo).opacity))).toBe(1)
@@ -145,37 +157,82 @@ test.describe('a moldura das páginas públicas', () => {
   })
 
   for (const { endereco } of TELAS) {
-    test(`${endereco}: a onça do painel está no centro dele, na altura do centro do cartão, com respiro dos quatro lados e abaixo da marca, mesmo em janela baixa`, async ({ page }) => {
-      // 1366 × 650 é o Chromebook de referência com a barra do navegador (regra 50, item 1); 1024 × 500 é a janela mais baixa
-      // em que o painel ainda se divide, e a onça de 160 px ainda cabe abaixo da marca sem o painel precisar de altura mínima.
-      // A medida é a da caixa fixa de 160 px: a figura dentro dela entra (8 px de deslocamento nos primeiros 240 ms) e não serve de régua.
+    test(`${endereco}: o cenário está no centro do painel, na altura do centro do cartão, com respiro dos quatro lados e abaixo da marca, mesmo em janela baixa`, async ({ page }) => {
+      // 1366 × 650 é o Chromebook de referência com a barra do navegador (regra 50, item 1); 1024 × 500 é a janela mais baixa em que
+      // o painel ainda se divide: a altura mínima de 34rem do painel mantém o cenário de 300 px abaixo da marca de 108 px.
+      // A medida é a da caixa fixa do cenário: a onça dentro dela entra (8 px de deslocamento nos primeiros 240 ms) e não serve de régua.
       // A página abre uma vez só: o layout é CSS, e trocar o tamanho da janela basta (quatro `goto` levavam 11 s, perto dos 15 s do portão).
       await page.goto(endereco)
-      const onca = caixaDaOnca(page)
+      const onca = caixaDoCenario(page)
       for (const [largura, altura] of [[1366, 768], [1366, 650], [1024, 768], [1024, 500]] as const) {
         const janela = `${String(largura)} × ${String(altura)} px`
         await page.setViewportSize({ width: largura, height: altura })
         await expect(onca).toBeVisible()
 
         const [lateral, dela, principal, marca] = [await caixa(painel(page)), await caixa(onca), await caixa(cartao(page)), await caixa(page.getByRole('banner'))]
-        // O centro dela é o do painel, nos dois eixos (2 px de folga para o arredondamento do navegador): no canto, o desenho
-        // ficava a um quarto do painel do centro, e o painel parecia vazio no meio.
-        expect(Math.abs(dela.x + dela.width / 2 - (lateral.x + lateral.width / 2)), `centro da onça na horizontal a ${janela}`).toBeLessThanOrEqual(2)
-        expect(Math.abs(dela.y + dela.height / 2 - (lateral.y + lateral.height / 2)), `centro da onça na vertical a ${janela}`).toBeLessThanOrEqual(2)
-        // Na mesma linha do cartão: os dois são centrados na altura da janela, e a onça e o formulário se leem como um par.
-        expect(Math.abs(dela.y + dela.height / 2 - (principal.y + principal.height / 2)), `a onça e o cartão na mesma altura a ${janela}`).toBeLessThanOrEqual(2)
+        expect(dela.height, `altura do cenário a ${janela}`).toBe(300)
+        expect(dela.width, `largura do cenário a ${janela}`).toBeLessThanOrEqual(432)
+        // O centro dele é o do painel, nos dois eixos (2 px de folga para o arredondamento do navegador; a borda de 2 px do painel
+        // desloca o centro do espaço útil em 1 px): no canto, o desenho ficava a um quarto do painel do centro.
+        expect(Math.abs(dela.x + dela.width / 2 - (lateral.x + lateral.width / 2)), `centro do cenário na horizontal a ${janela}`).toBeLessThanOrEqual(2)
+        expect(Math.abs(dela.y + dela.height / 2 - (lateral.y + lateral.height / 2)), `centro do cenário na vertical a ${janela}`).toBeLessThanOrEqual(2)
+        // Na mesma linha do cartão: os dois são centrados na altura da janela, e o cenário e o formulário se leem como um par.
+        expect(Math.abs(dela.y + dela.height / 2 - (principal.y + principal.height / 2)), `o cenário e o cartão na mesma altura a ${janela}`).toBeLessThanOrEqual(2)
         // Respiro: pelo menos 40 px de cada lado do painel, sem encostar na borda nem passar para o lado do formulário.
         expect(dela.x - lateral.x, `respiro à esquerda a ${janela}`).toBeGreaterThanOrEqual(40)
         expect(lateral.x + lateral.width - (dela.x + dela.width), `respiro à direita a ${janela}`).toBeGreaterThanOrEqual(40)
         expect(dela.y - lateral.y, `respiro em cima a ${janela}`).toBeGreaterThanOrEqual(40)
         expect(lateral.y + lateral.height - (dela.y + dela.height), `respiro embaixo a ${janela}`).toBeGreaterThanOrEqual(40)
-        // Abaixo da marca: a caixa da onça começa onde a do `banner` termina, ou depois. Com 160 px não precisa de altura mínima:
-        // a 1024 × 500 o topo dela fica uns 170 px abaixo do topo do painel, e a marca acaba em 108.
-        expect(dela.y, `a onça começa abaixo da marca a ${janela}`).toBeGreaterThanOrEqual(marca.y + marca.height)
+        // O topo do cenário fica abaixo da marca, e a base dentro do painel, também a 1366 × 650.
+        expect(dela.y, `o cenário começa abaixo da marca a ${janela}`).toBeGreaterThanOrEqual(marca.y + marca.height)
+        expect(dela.y + dela.height, `a base do cenário dentro do painel a ${janela}`).toBeLessThanOrEqual(lateral.y + lateral.height)
+        // A onça de 240 px cabe na caixa, e a lousa (x 0–168) fica ao lado dela, nunca atrás: não se cruzam.
+        const [oncaDesenhada, lousa] = [await caixa(oncaDoPainel(page).locator('svg')), await caixa(cenario(page).locator('[data-lousa]'))]
+        expect(oncaDesenhada.width, `a onça a ${janela}`).toBe(240)
+        expect(oncaDesenhada.x + oncaDesenhada.width, `a onça dentro do cenário a ${janela}`).toBeLessThanOrEqual(dela.x + dela.width + 2)
+        expect(lousa.x + lousa.width, `a lousa à esquerda da onça a ${janela}`).toBeLessThanOrEqual(oncaDesenhada.x + 36)
         expect(await larguraExcedente(page), `rolagem de lado a ${janela}`).toBe(0)
       }
     })
   }
+
+  test('o giz da lousa fica longe da pata que acena, e a lousa não se sobrepõe ao corpo da onça', async ({ page }) => {
+    await page.setViewportSize({ width: 1366, height: 768 })
+    await page.goto('/entrar')
+    await expect(oncaDoPainel(page)).toBeVisible()
+    // A pata e as duas linhas do aceno ficam à direita; o giz, à esquerda. Medidas de tela, depois de a onça acenar (a pata gira).
+    await expect.poll(() => oncaDoPainel(page).evaluate((figura) => figura.getAnimations({ subtree: true }).every((animacao) => animacao.playState === 'finished')), { message: 'a onça terminou de acenar' }).toBe(true)
+    const giz = await caixa(cenario(page).locator('[data-giz]'))
+    for (const parte of ['pata-d', 'movimento']) {
+      const dela = await caixa(oncaDoPainel(page).locator(`[data-parte="${parte}"]`))
+      expect(giz.x + giz.width, `o giz termina antes de ${parte}`).toBeLessThan(dela.x)
+    }
+    const corpo = await caixa(oncaDoPainel(page).locator('[data-parte="corpo"]'))
+    const moldura = await caixa(cenario(page).locator('[data-lousa]'))
+    expect(moldura.x + moldura.width, 'a lousa termina antes do corpo da onça').toBeLessThan(corpo.x)
+  })
+
+  test('a lousa tem contraste de pelo menos 3:1 contra o painel, nos dois temas', async ({ page }) => {
+    await page.setViewportSize({ width: 1366, height: 768 })
+    await page.goto('/entrar')
+    await expect(cenario(page)).toBeVisible()
+    for (const tema of ['claro', 'escuro']) {
+      await page.evaluate((nome) => document.documentElement.setAttribute('data-tema', nome), tema)
+      const razao = await page.evaluate(() => {
+        const luminancia = (cor: string): number => {
+          const [r = 0, g = 0, b = 0] = (cor.match(/[\d.]+/g) ?? []).map(Number)
+          const canal = (c: number): number => { const x = c / 255; return x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4 }
+          return 0.2126 * canal(r) + 0.7152 * canal(g) + 0.0722 * canal(b)
+        }
+        const lousa = document.querySelector('[data-painel-publico] [data-cena-da-onca] > svg > rect.fill-verde-degrau')
+        const painelDaCasca = document.querySelector('[data-painel-publico]')
+        if (lousa === null || painelDaCasca === null) return 0
+        const [a, b] = [luminancia(getComputedStyle(lousa).fill), luminancia(getComputedStyle(painelDaCasca).backgroundColor)]
+        return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05)
+      })
+      expect(razao, `contraste da lousa contra o painel no tema ${tema}`).toBeGreaterThanOrEqual(3)
+    }
+  })
 
   test('o painel é o `papel` e a borda dele a `borda` nos dois temas, e o cartão é a `superficie`: o `laranja-claro` esconderia os pés da onça', async ({ page }) => {
     await page.setViewportSize({ width: 1366, height: 768 })

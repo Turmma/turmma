@@ -13,8 +13,8 @@ export type Pose = (typeof POSES)[number]
 /** As poses da introdução: acenando, apontando e pensando. A comemorando é só da `Comemoracao`, e o tipo já a recusa. */
 export type PoseDaIntroducao = Exclude<Pose, 'comemorando'>
 
-/** A largura do desenho, em px: 88 no celular e 120 no computador, e 120 e 160 na comemoração (mockup 2.8). */
-export type TamanhoDaOnca = 88 | 120 | 160
+/** A largura do desenho, em px: 88 no celular e 120 no computador, 120 e 160 na comemoração (mockup 2.8) e 240 no cenário da marca (9.7). */
+export type TamanhoDaOnca = 88 | 120 | 160 | 240
 
 /** O quadro do desenho, em unidades: o do mockup, quadrado. O desenho é um quadrado de `tamanho` × `tamanho`. */
 const QUADRO = 240
