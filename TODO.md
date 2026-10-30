@@ -2276,15 +2276,15 @@ repetem aqui.
       id (frontend-reviewer, rodada 1)
 - [ ] Da correção `2026-10-28-onca-do-mockup-v2`: se aparecer um segundo export "só para os testes" no código de produção, criar a guarda
       que reprove o uso fora de `*.test.*` (hoje só `esquecerQueAcenou`, em `movimento-da-onca.ts`)
-- [ ] Da correção `2026-10-28-onca-do-mockup-v2`: `tasks/prd-pele-e-casca/mockup.md:1369` e `docs/interface.md:1154` ainda descrevem o aceno
-      pela chave do `sessionStorage` ou sem dizer que "sessão" é a página aberta; o Arquiteto ajusta na próxima passagem por `docs/interface.md`
+- [x] *(feito em 30/10/2026 no `docs/interface.md` 9.7, que diz "desde que a página abriu" e onde a marca fica; o `mockup.md` da X1 é registro e não se edita)* ~~Da correção `2026-10-28-onca-do-mockup-v2`: `tasks/prd-pele-e-casca/mockup.md:1369` e `docs/interface.md:1154` ainda descrevem o aceno
+      pela chave do `sessionStorage` ou sem dizer que "sessão" é a página aberta; o Arquiteto ajusta na próxima passagem por `docs/interface.md`~~
 - [ ] Da correção `2026-10-28-onca-do-mockup-v2`: congelar a mão de cada pose (`maoD`, punho ou creme, e o `cy` 212 em acenando e apontando) em
       `fidelidade-ao-mockup.test.tsx`, junto da fidelidade da onça
 - [ ] e2e com "reduzir movimento" no passo `pensando` da introdução do aluno (test-engineer, rodada 1); o da árvore da
       comemoração entrou na correção
-- [ ] Da rodada 2 da onça: `docs/interface.md` (tabela da 9.5) ainda diz que a comemoração usa o `t-salto` (600 ms, `curva-quique`), e o
+- [x] *(feito em 30/10/2026: a 9.5 e o bloco da 9.10 não têm mais `t-salto`, `t-barra` nem `curva-quique`, que o `estilos.css` já não tinha; a 9.7 não fala mais em movimento próprio)* ~~Da rodada 2 da onça: `docs/interface.md` (tabela da 9.5) ainda diz que a comemoração usa o `t-salto` (600 ms, `curva-quique`), e o
       salto que ficou é o `onca-comemorar` (500 ms, `ease-out`); nenhum CSS de `apps/web/src` usa o token: alinhar a linha ou tirar
-      `--t-salto` do `estilos.css`. E a linha da 9.7 que ainda fala em "movimento próprio do conformidade-reviewer" na `Comemoracao`
+      `--t-salto` do `estilos.css`. E a linha da 9.7 que ainda fala em "movimento próprio do conformidade-reviewer" na `Comemoracao`~~
 - [ ] Da rodada 2 da onça, só de arrumação: `estilos.test.ts` (caso "nenhum CSS de `apps/web/src`… tem laço") faz uma segunda busca
       recursiva de pasta, e o arquivo já tem uma; `Introducao.test.tsx` ("a onça não se mexe: nenhum temporizador entre um passo e
       outro") pede nome revisto; o comentário da prop `animada` em `Onca.tsx` virou uma linha só, longa; os 30 s do caso "nenhuma

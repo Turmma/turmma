@@ -108,6 +108,12 @@ existe e onde nasce o que falta: a **X1** troca a pele e a casca com os itens de
 - **Meu uso**, o espelho da D45, sai de Turmas e vai para a **conta do professor** (D69 revista): é
   dele primeiro, o que a coordenação vê dele é agregado, e o nominal só abre com auditoria. A tela
   diz isso em português comum. Nasce no F12; a conta já tem "Meus dados", do F3
+- **A introdução** (X4, tarefa 10.0) abre na primeira entrada, em tela de foco: quatro passos, todos
+  que se pulam, falados pelo Assistente de ensino (com a função e o selo "IA"): ele prepara e a
+  professora aprova; só a resposta do Tutor chega ao aluno sem a aprovação dela; a IA não corrige
+  redação nem discursiva; e usar ou não a ferramenta não gera número sobre ela. O último passo traz
+  "Onde fica cada coisa", lida da navegação do papel. "Rever a introdução" fica no menu da pessoa,
+  depois de "Meus dados"; revendo, nada é gravado e todo passo fecha
 - **Lugar sem tela não aparece** (D73, que continua valendo). **Projetos** e **Fixados** só entram
   se o `descobrir` do P05 aceitar
 
@@ -394,8 +400,12 @@ acendem Início, `/aluno/atividades` é Tarefas, `/aluno/privacidade` acende Eu,
 leva a `/aluno/eu`, sem ficar no histórico. O rodapé fixo da lateral do aluno saiu: "Privacidade" é
 uma linha de Eu, e o "Sair" fica à vista na casca em todo lugar e também é uma linha de Eu (D59).
 
-- **Início** é a conversa com o **Tutor**, restrito ao conteúdo da turma, citando a página do
-  material. Travado durante avaliação em andamento. Se apresenta pela função, como os outros
+- **Início** é onde o aluno abre (X4, tarefa 3.0): a saudação do Tutor, com a função e o selo "IA",
+  a faixa de supervisão, presa, e até três tarefas "Para fazer", cada uma com "Pedir ajuda ao Tutor",
+  que leva à conversa daquela tarefa. O Início não mostra o uso do dia, que fica na tela do Tutor
+  (regra 80: a leitura do uso iria para a rajada de login), e a avaliação aberta é avisada antes de o
+  aluno abrir a tarefa, sem tirar o caminho até o Tutor (D36). A conversa é com o **Tutor**, restrito
+  ao conteúdo da turma, citando a página do material. Travado durante avaliação em andamento. Se apresenta pela função, como os outros
   agentes do time (D17, D58); **nunca afirma ser uma pessoa** e, perguntado sobre si, explica o que
   é, como funciona e que pode errar, em linguagem da faixa etária (D65)
 - **Pesquisa em fontes aprovadas**, quando a escola liberou e o professor ligou para a turma
@@ -408,11 +418,10 @@ uma linha de Eu, e o "Sair" fica à vista na casca em todo lugar e também é um
 - **A caixa de escrever nunca some**, nem depois de um assunto delicado: é por ela que a mensagem
   fixa chega, com o caminho para um adulto (D36; D80, item 7)
 - **Tarefas** são as atividades e as provas atribuídas pelo professor, em Para fazer, Entregues e
-  Corrigidas, e a tarefa aberta. O item se chama Tarefas desde a tarefa 2.0 da X4, no endereço de
-  Atividades; os três grupos chegam na 4.0
-- **Eu** é como estou indo, só do próprio aluno, por assunto, a partir do que o professor já
-  aprovou; a porta para **Privacidade** ("Meus dados", do F3) e para os ajustes de aparência e de
-  tamanho da letra; e, com o F9, **o que o Tutor lembra**: tudo que o aluno já fez no sistema —
+  Corrigidas, e a tarefa aberta, no endereço de Atividades (X4). O desenho das duas está na 11.5
+- **Eu** é **"Como estou indo"**, só do próprio aluno: uma linha por tarefa de correção aprovada,
+  com "N de M certas" e as habilidades a rever; as linhas **Privacidade** ("Meus dados", do F3),
+  **Ajustes** (aparência e tamanho da letra), **Rever a introdução** e **Sair**; e, com o F9, **o que o Tutor lembra**: tudo que o aluno já fez no sistema —
   atividades, trabalhos, avaliações e sessões (D66) —, que ele consegue ver e contestar. Toma o
   lugar de "Minha turma"
 - **Avisar um adulto** é o caminho para avisar sobre algo errado no sistema: o canal de notificação
@@ -517,8 +526,19 @@ item Agentes e o item Privacidade de hoje.
   coordenação da escola afetada; "Ver depois" deixa uma faixa fixa, sem botão de fechar, até a confirmação, e o "Sair" nunca fica
   fora de alcance (D59)
 
-**O sino "Esperando você"** da coordenação nasce na X2, com o que espera uma decisão dela e o
-produto já sabe. A lista fecha no PRD da X2.
+**O sino "Esperando você"** da coordenação (X2, RF4 a RF7) lista cinco tipos, e só eles: incidente
+sem confirmação, professor que contestou a turma, convite vencido, material que falhou e turmas sem
+professor. Cada item leva à tela que resolve e sai quando o estado muda; sem item, o vazio diz "Tudo
+em dia". Nenhum item conta por professor (o único número é o das turmas sem professor), e o que só
+se lê com leitura auditada (lista de nomes, pedidos de nome, pedidos do titular) não entra (regra 20,
+item 10; D45, D64). O sino não pisca, não soa e não relê por tempo.
+
+**A introdução** (X4, tarefa 11.0) abre na primeira entrada, em tela de foco, falada pelo Analista
+de desempenho escolar: quatro passos ("Eu ajudo a ler os números de <nome da escola>."; a escola em números
+agregados, com professor só em grupo de dois ou mais, D45; dado com nome só abre com motivo, e fica
+registrado; e o que a IA nunca faz, com "Onde fica cada coisa"). O último leva ao Painel. O aviso de
+incidente aparece por cima dela: "Ver depois" o fecha e a introdução continua. "Rever a introdução"
+é a única linha do menu da pessoa da coordenação.
 
 **Fica na fase de cada um, e não aparece antes dela** (D73; D80, item 7): Adaptações, o Dossiê
 (Conformidade), os Avisos (Denúncias), Exportar, Auditoria e Configurações da escola.
@@ -651,9 +671,6 @@ para ninguém confundir com a tela de uma escola. As medidas estão na seção 1
   a "15ª rodada" da conversa (voto, refazer e editar em toda resposta, anexo na caixa), que mexe no
   registro que o professor supervisiona e cria dado novo de menor; e os painéis de gestão, que
   pintam "melhoraram" de verde e "pioraram" de vermelho, contra a regra de cor por categoria (9.1)
-- **A cor do Assistente e a do Tutor.** O texto da D80, item 3, diz Assistente em laranja e Tutor
-  em azul; o mockup e a Tech Spec da X1 dizem o contrário, e é o Tutor que já é laranja no produto.
-  Este documento segue o mockup (9.7). Falta acertar a frase da decisão
 - **O rótulo em caixa-alta de 15 px na lateral**, medido na fonte do ChromeOS: se cortar, desce a
   14 px (Tech Spec da X1, seção 12)
 - **O script do tema diante de uma política de segurança de conteúdo**: quando o F16 trouxer uma,
@@ -665,8 +682,6 @@ para ninguém confundir com a tela de uma escola. As medidas estão na seção 1
   oito ferramentas novas do catálogo (P22)
 - **Indicadores da turma aberta e do Meu uso**: quais, limiar e texto do alerta (decisão em aberto
   no `CLAUDE.md`; o ponto de partida está no P11)
-- **O que entra na fila "Esperando você"** de cada papel, e a composição de cada tela: fecham nos
-  PRDs da X2, da X3 e da X4
 - Imagens da ferramenta de apresentação (D67)
 
 ---
@@ -1098,9 +1113,7 @@ de menu, 20 px em botão.
 | `t-toque` | 100 ms | linear | A peça com degrau descendo e voltando |
 | `t-estado` | 150 ms | `curva-estado` | A bolinha do interruptor, o chevron da linha no hover |
 | `t-gesto` | 260 ms | `curva-estado` | Abrir menu, diálogo e painel ao lado |
-| `t-barra` | 400 ms | `ease-out` | O preenchimento da barra de progresso, por `scaleX` |
 | `t-entrada` | 420 ms | `curva-entrada` | Mensagem nova na conversa, passo da introdução |
-| `t-salto` | 600 ms | `curva-quique` | A comemoração (X4) |
 
 1. **Só `transform` e `opacity` animam.** Cor, borda e sombra trocam na hora, e o teste do CSS
    servido confere as propriedades animadas (RF8 da X1)
@@ -1116,8 +1129,10 @@ de menu, 20 px em botão.
 6. **`prefers-reduced-motion`** desliga tudo o que desloca, por uma regra global: sobra só a troca
    de opacidade
 7. **A comemoração** aparece uma vez, só na **entrega** de uma tarefa, nunca em nota, em acerto ou
-   em tempo de uso, e some com `prefers-reduced-motion` (D80, item 7; D59). Nasce na X4, se o
-   parecer do `conformidade-reviewer` aceitar (seção 7)
+   em tempo de uso, e some com `prefers-reduced-motion` (D80, item 7; D59). Nasceu na X4, com o
+   parecer do `conformidade-reviewer` (seção 7). O salto é o da onça, `onca-comemorar` (500 ms,
+   `ease-out`; 9.7), e não um token desta tabela. A barra de progresso não anima: o preenchimento
+   é desenho parado
 8. **Área do aluno:** sem número subindo, sem selo de conquista, sem nada que premie ficar (D59)
 
 ### 9.6 A marca na interface
@@ -1154,7 +1169,9 @@ que a tela escolhe, nunca de quem usa.
 
 **O movimento é pouco, e nada fica em laço** (parecer do `conformidade-reviewer` na correção `2026-10-28-onca-do-mockup`; D59;
 regra 70, item 4b). Vem do `Onca.css`, copiado do mockup, e são três, cada um **uma vez**: **entrar** na tela (240 ms), **acenar**
-(a pata, na primeira vez da sessão, e só enquanto a pose é `acenando`) e o **salto da comemoração** (500 ms; é o único salto da
+(a pata, na primeira vez desde que a página abriu, e só enquanto a pose é `acenando`: a marca de que já acenou fica na
+memória da página, e não no navegador, de modo que recarregar acena de novo e quem entra depois no mesmo computador não
+herda nada) e o **salto da comemoração** (500 ms; é o único salto da
 `Comemoracao`, que não põe outro por cima). Os três **param com `prefers-reduced-motion`**, e o avatar nunca se mexe. **Não
 entram**, por veto: a onça piscando por temporizador, e o laço dos três pontos do `pensando`, que ficam **parados**. A sombra do
 chão sob a onça de corpo inteiro é do cenário, o token `onca-chao` (9.10), e não uma das cores dela. As **duas linhas curtas ao lado
@@ -1377,12 +1394,9 @@ variável. `veu` e `onca-chao` são as únicas cores fora do hex de seis dígito
   --t-toque: 100ms;
   --t-estado: 150ms;
   --t-gesto: 260ms;
-  --t-barra: 400ms;
   --t-entrada: 420ms;
-  --t-salto: 600ms;
   --curva-estado: cubic-bezier(0.2, 0, 0, 1);
   --curva-entrada: cubic-bezier(0.22, 1, 0.36, 1);
-  --curva-quique: cubic-bezier(0.35, 1.8, 0.35, 0.83);
 }
 ```
 
@@ -1521,8 +1535,10 @@ teclado.
    grade na tabela) a peça do produto tem
 2. **Um anel de foco só**: contorno de 3 px em `foco`, com 2 px de afastamento, em tudo o que
    recebe foco pelo teclado, nos dois temas. No campo de texto o afastamento é zero; na linha de
-   tabela e no item da barra de baixo (que encosta no pé e nas laterais da janela) o anel vai por dentro. Nenhuma peça apaga o contorno, nem depende de `:has()` para
-   mostrá-lo. A única exceção é a face `noite` no escuro, onde ela é clara e o `foco` dá 1,99:1: ali o
+   tabela e no item da barra de baixo (que encosta no pé e nas laterais da janela) o anel vai por dentro. Nenhuma peça apaga o contorno sem passá-lo à moldura, nem depende de `:has()` para
+   mostrá-lo: onde a moldura é maior que o campo (a opção de marcar, o formulário da ferramenta e a caixa de conversa do
+   Tutor e do Assistente), o anel é da moldura, por `focus-within`, colado à borda, e o campo de dentro não desenha o seu
+   (correção `2026-10-29-contorno-do-campo-de-conversa`). A única exceção é a face `noite` no escuro, onde ela é clara e o `foco` dá 1,99:1: ali o
    anel é o `sobre-grafite`, o texto da própria face (e volta ao `foco` dentro de peça com chão próprio)
 3. **Os quatro estados** (regra 50, item 5). O mockup não fala com servidor e não desenha
    carregando nem erro: valem os três de `componentes/estado/`, e botão que dispara pedido não
@@ -1877,15 +1893,35 @@ seção 1.3, a fila.
   campo do professor (D55)
 - No MVP (A3) o que se aprova é **diagnóstico**, não nota (D46). O desenho é o mesmo
 
-**Área do aluno** (era 11.6; X4). A mesma casca, mais calma:
+**Área do aluno** (era 11.6; recomposta na X4). A mesma casca, mais calma:
 
-- **Faixa fixa no alto do Tutor**: "Seu professor acompanha como você usa o Tutor." Não fecha (D8)
+- **Início** (X4, 3.0): a saudação ("Oi, <nome>.") com a assinatura do Tutor, a faixa de supervisão e "Para fazer", até três
+  tarefas, sem número de uso. A partir de 768 px a tarefa vira linha, com "Pedir ajuda ao Tutor" ao lado do título; abaixo,
+  cartão. O título abre a tarefa e o "Pedir ajuda" abre a conversa dela: são dois links, nenhum dentro do outro. O Início
+  cabe em 1366 × 768 com três tarefas (RF20 da X4)
+- **Tarefas** (X4, 4.0): Para fazer, Entregues e Corrigidas, sem número no título dos grupos (a lista é paginada, e o
+  número seria só o das já carregadas); cada tarefa é uma linha com o ladrilho na cor e no ícone da matéria, e a matéria
+  desconhecida vai em `anil`, com um livro aberto
+- **A tarefa aberta** (X4, 6.0 e correção `2026-10-25-tarefa-aberta-cabe-em-1366`): uma questão por vez, com as
+  alternativas em rádio grande, "Anterior" e "Próxima" e o mapa de quais já têm resposta. Cada escolha vai ao servidor na
+  hora, e "Resposta salva" só aparece com a confirmação dele (regra 80, item 6). "Pedir ajuda ao Tutor nesta questão" fica
+  no cartão da questão. A partir de 768 px, "Enviar a atividade", o ponto de parada e "Anterior" e "Próxima" ficam numa
+  linha só, sem barra presa; no celular a barra fica presa embaixo. Corrigida, ela mostra o diagnóstico (acertos por
+  habilidade e questão por questão, em contagem, sem nota, sem percentual e sem comparação), com a assinatura da função
+  que corrigiu e quem aprovou; a partir de 1024 px em duas colunas, com "Questão por questão" rolando por dentro. A
+  comemoração, uma vez, no envio confirmado (9.5, regra 7)
+- **Eu** (X4, 2.0, 7.0 e 8.0): a turma, a série e a escola na linha de apoio do título, sem cartão; os avisos de
+  carregando, erro e "sem turma" logo abaixo dele; "Como estou indo" e as quatro linhas da conta (Privacidade, Ajustes,
+  Rever a introdução, Sair) em duas colunas e em grade 2 × 2 a partir de 1024 px, numa coluna abaixo. As linhas existem
+  em todo estado: o "Sair" nunca depende da leitura da turma (D59). "Ajustes" abre um diálogo com a aparência e o tamanho
+  da letra, que só grava ao escolher. Cabe em 1366 × 768 com duas tarefas corrigidas
+- **Faixa fixa no alto do Início e do Tutor**: "Quem dá a aula acompanha como você usa o Tutor." Não fecha (D8)
 - **A caixa de pedido é só texto e enviar.** Sem seletor, sem anexo, sem texto de exemplo que
-  troca sozinho. Atalho, só para o que o professor atribuiu ("Continuar a atividade de
-  estequiometria")
-- **"Hoje: 12 de 60 perguntas"** em texto, com barra fina em cor neutra. Não fica vermelha, não
+  troca sozinho, e sem atalho. A conversa é a de uma tarefa atribuída pelo professor: o caminho
+  até ela é o "Pedir ajuda ao Tutor" do Início e da tarefa aberta
+- **Na tela do Tutor, e não no Início, "Hoje: 12 de 60 perguntas"** em texto, com barra fina em cor neutra (12b da X4). Não fica vermelha, não
   pisca; no fim, diz com calma que por hoje acabou e que amanhã volta (D38, D59)
-- **Privacidade** fica no rodapé da lateral, e a **seção "Meus dados"** abre dentro dela (F3, tarefa 18.0; RF12 e RF20). A tela
+- **Privacidade** é uma linha de Eu (o rodapé da lateral do aluno saiu na X4), e a **seção "Meus dados"** abre dentro dela (F3, tarefa 18.0; RF12 e RF20). A tela
   é a mesma do professor (menu da pessoa), com o mesmo texto, escrito para quem está no 6º ano: **os pedidos da própria pessoa na
   escola ativa**, o mais recente primeiro, cada um com o que é ("Cópia dos seus dados"), o dia em que chegou à escola, o selo em
   texto e uma explicação; e **"O que a escola guarda de você"**, a contagem de registros por categoria, com o nome de cada categoria dito a quem é
