@@ -1145,7 +1145,8 @@ de menu, 20 px em botão.
 - **A turma se reconhece pela cor da matéria**, no selo e no ladrilho, e não por um avatar próprio:
   a proposta de uma pinta por turma sai
 - Nenhuma tela tem textura de fundo. A pinta grande e apagada do painel da casca pública saiu em 30/10/2026: o lugar
-  passou para a onça da marca (9.7, 11.3; D80 revista)
+  passou para a onça da marca e o cenário dela, um canto de sala parado (9.7, 11.3; D80 revista). O cenário é ilustração
+  de um lugar só, e não textura
 
 ### 9.7 A onça e o avatar dos agentes
 
@@ -1212,7 +1213,7 @@ correções aprovadas pelo professor), nem para dar estado a um agente: a pose `
 | Acenando · apontando · pensando | Os passos da introdução (pensando: o passo da letra, com os três pontos parados) | X4, tarefa 5.0, com parecer dado; `pensando` e o movimento (entrar e acenar, uma vez), na correção `2026-10-28-onca-do-mockup`, com parecer |
 | Comemorando | A entrega de uma tarefa (9.5, regra 7) | X4, tarefa 5.0, com parecer dado, nas condições da Parte B, item "A comemoração na entrega e a onça acolhendo" |
 | Acolhendo (expressão de preocupação) | — | não entra (D80, item 3) |
-| Acenando, **da marca** | O painel da casca pública (11.3): de 1024 px para cima, 160 px, centrada, entra e acena uma vez; no celular, 88 px e parada, acima do formulário. Sem legenda | a correção da onça na entrada, com parecer (D80 revista em 30/10/2026, à noite) |
+| Acenando, **da marca** | O painel da casca pública (11.3): de 1024 px para cima, 240 px, sobre o cenário da sala, entra e acena uma vez; no celular, 88 px e parada, sem cenário, acima do formulário. Sem legenda | a correção da onça na entrada, com parecer (D80 revista em 30/10/2026, à noite); o cenário e os 240 px, na correção `2026-10-30-cenario-da-onca`, com parecer (D80 revista às 21:45) |
 
 O que a onça **nunca** é, em nenhuma spec (D58; Decreto 12.880, art. 11; regra 70, item 4a):
 
@@ -1238,6 +1239,41 @@ CSS, também é montada. Se o pedaço da onça não carregar, a casca fica sem e
 
 A onça fica fora do primeiro carregamento (10.4), e o caminho da pinta, que as rosetas repetem, é
 declarado uma vez, e não copiado em cada avatar.
+
+**O cenário da onça da marca (D80 revista em 30/10/2026, às 21:45).** De 1024 px para cima, a onça da marca fica num canto de
+sala de aula, desenhado chapado, sem contorno e sem degradê, dentro de uma `figure` `aria-hidden` de até 432 × 300 px, a
+`CenaDaOnca`. A onça tem 240 px, um para um com o quadro do desenho, e é a mesma da `OncaDaMarca`, sem traço novo, na pose `acenando`.
+
+- **O lugar**: a lousa fica ao lado da onça, nunca atrás nem diante dela. A onça pisa numa pilha de três livros deitados e fica de
+  frente para quem chega. Há também um vaso com planta e um lápis deitado no chão. A sombra `onca-chao` da onça cai no livro de
+  cima, e uma segunda, do mesmo token, fica no chão sob a pilha
+- **A onça não ensina**: não segura, não aponta e não olha para a lousa. Nada vai na pata, nem giz, nem ponteiro, nem lápis.
+  Também não entram óculos, capelo, roupa, crachá, mesa de professor nem a pose `apontando`
+- **A lousa não tem texto**: só triângulo, círculo e linha ondulada em giz. Não entram letra, algarismo, sinal de conta, certo
+  ou X, estrela, pinta da marca nem nada que lembre nota ou prêmio. O SVG não tem `<text>`, `<title>`, `<desc>`, `role` nem
+  `aria-label`
+- **As cores** são só classes `fill-*` e `stroke-*` de tokens que não invertem entre os temas, sem hex, sem `style` e sem
+  opacidade:
+
+  | Objeto | Token |
+  |---|---|
+  | Lousa | `verde-degrau` |
+  | Giz | `white` |
+  | Moldura, calha e vaso | `laranja-degrau` |
+  | Livros | `roxo-degrau`, `turquesa-degrau` e `rosa-degrau` |
+  | Páginas | `white`, só dentro da lombada |
+  | Folhas | `lima-degrau` |
+  | Lápis | `amarelo-degrau`, com a ponta em `white` |
+  | Sombras | `onca-chao` |
+
+  Não entram `grafite`, `noite`, `-texto`, `-claro` nem `sobre-cor`, porque invertem entre os temas. Os livros não repetem o trio
+  dos agentes, laranja, azul e anil, nem verde, vermelho ou amarelo de estado, e nenhum leva nome ou ícone de matéria
+- **Parado**: o cenário não tem `animation` nem `transition`, e não reage ao cursor, ao foco nem ao que se digita. O único
+  movimento é o da onça, entrar e acenar uma vez, que some com `prefers-reduced-motion`. As marcas de giz ficam fora da caixa da
+  pata que acena
+- **O peso**: até 40 nós e 3 kB, sem filtro, degradê nem `clipPath`. Vai no pedaço Peças, no mesmo import tardio
+- **A fronteira**: a `CenaDaOnca` só é importada pela `CascaPublica`, e de forma tardia. Ela entra na lista fechada de
+  `avatar-so-nas-duas-pecas.test.ts`. No celular não há cenário: lá continua a `OncaDaMarca` de 88 px
 
 ### 9.8 Tom da interface
 
@@ -1670,7 +1706,7 @@ perto de 127 kB, e o teto **não sobe** com a pele (RF22 da X1).
 | Galeria | Todas as peças, nos dois temas | Só com a variável do build ligada |
 
 - **A casca mora na entrada**, e por isso não importa de forma estática peça de fora dela: nem a onça, nem peça de
-  `componentes/ui/ia/`. A única exceção é a onça da marca da casca pública (9.7, 11.3), que entra por import tardio
+  `componentes/ui/ia/`. A única exceção é a onça da marca da casca pública, com o cenário dela (9.7, 11.3), que entra por import tardio
   (`React.lazy`), com a caixa reservada e um `fallback` vazio, e cai no pedaço Peças que já existe, sem pedaço novo nem
   teto maior
 - **A área de um papel não baixa ícone nem peça de outro**
@@ -1807,13 +1843,14 @@ a aula ao vivo (F10). Topo de 64 px com o sair, o miolo rolando por dentro e o r
 A entrada, o convite, a reivindicação de nome e a verificação em duas etapas, no tema do sistema.
 
 - **A partir de 1024 px a tela se divide**: à esquerda, o painel em `papel`, com a borda de 2 px em `borda`, a marca no
-  topo e a onça da marca (9.7) de 160 px no centro, na pose `acenando`, que entra e acena uma vez; à direita, o cartão do
-  formulário. **Abaixo disso, empilha**: a faixa de topo fica só com a marca, e a onça da marca, de 88 px e parada, vai
-  sobre `fundo`, acima do formulário. A pinta grande e apagada saiu (D80 revista em 30/10/2026, à noite). **O painel
-  ficou em `papel`, e não em `laranja-claro`**: a foto do tema claro (30/10/2026) mostrou que os pés da onça, de creme
-  `#FDEBDD`, somem sobre o `laranja-claro`, que é o mesmo `#FDEBDD`, e o painel voltou a `papel` como a decisão previa, sem
-  cor nova e sem mexer na onça. O painel não tem altura mínima: a onça de 160 px, no centro, cabe abaixo da marca em qualquer
-  janela de computador
+  topo e, no centro, o cenário da onça da marca (9.7): um canto de sala de 432 × 300 px no máximo, com 40 px de respiro dos
+  lados também a 1024 px, e a onça de 240 px sobre os livros, na pose `acenando`, que entra e acena uma vez. À direita, o
+  cartão do formulário. O painel tem altura mínima de 34rem, para o cenário centrado não encostar na marca em janela baixa,
+  e o topo do cenário fica abaixo da marca também a 1366 × 650. **Abaixo disso, empilha**: a faixa de topo fica só com a
+  marca, e a onça da marca, de 88 px, parada e sem cenário, vai sobre `fundo`, acima do formulário. A pinta grande e
+  apagada saiu (D80 revista em 30/10/2026, à noite). O painel é `papel`, e não `laranja-claro`, porque a foto do tema claro
+  mostrou os pés da onça, de creme `#FDEBDD`, sumindo no `laranja-claro`, que tem o mesmo valor. O cenário veio às 21:45
+  (D80 revista)
 - **O formulário.** Aluno: "Entrar com a conta da escola" (Google ou Microsoft, quando a escola
   tem) ou escola, matrícula e senha (D48). Professor e coordenação: o que o F1 definiu, com o
   segundo fator da coordenação. Não existe "Cadastre-se" (D2), nem busca pública de escola. Um
