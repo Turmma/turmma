@@ -2332,3 +2332,10 @@ repetem aqui.
 - [ ] Da tarefa 1.0 da X8: em `tools/renomear/aplicar.test.ts`, no caso "quem contorna é acusado", a asserção
       `` `| ${Object.keys(arquivos)[0] ?? ''} | ` `` passaria com string vazia; escrever o nome do arquivo por extenso na tabela dos casos. Hoje toda forma tem
       arquivo, por isso não segura a tarefa (test-engineer, rodada 2, 30/10/2026)
+
+## Da correção 2026-10-30-introducao-da-coordenacao-no-celular, fora dela
+
+- [ ] Da correção `2026-10-30-introducao-da-coordenacao-no-celular`: não há foto da gaveta aberta no celular, porque o clique da vitrine
+      (`tools/vitrine/foto.ts`) roda só a 1366 px; quando ele aceitar clique na largura do celular, tirar essa foto (conformidade-reviewer, rodada 1)
+- [ ] Da correção `2026-10-30-introducao-da-coordenacao-no-celular`: um caso curto em `apps/web/src/componentes/CascaDaEscola.test.tsx`, igual ao de "de A por ninguém e de
+      ninguém para B" mas liberando A de novo, que fixe que a mesma pessoa voltando depois do `undefined` não fecha a gaveta (test-engineer, rodada 2)

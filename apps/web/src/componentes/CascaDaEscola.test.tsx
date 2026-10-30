@@ -105,6 +105,47 @@ describe('a gaveta fecha com a rota e com a pessoa da sessão', () => {
     expect(localizacao.history).toEqual([ROTAS.estrutura])
   })
 
+  it('o /v1/eu que chega depois do toque no menu não fecha a gaveta: a pessoa passou de ninguém a alguém, e não de uma a outra', async () => {
+    instalarLargura('estreita')
+    const rede = redeFalsa()
+    const eu = rede.segurar()
+    desenhar(ROTAS.estrutura)
+
+    // A barra do topo já está na tela, e o botão do menu responde, antes de a consulta da pessoa voltar (CPU lenta, rede de escola).
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir o menu' }))
+    expect(gavetaDaPagina().hasAttribute('open')).toBe(true)
+
+    eu.liberar(respostaEu('coordenador', PESSOA_A, 'Camila Souza'))
+    // O nome vem do `/v1/eu`: achá-lo prova que a consulta voltou e a casca já a desenhou (o `textContent` da gaveta lê também o `dialog` fechado,
+    // e por isso a espera é pelo nome, e não pelo estado da gaveta).
+    await screen.findByText('Camila Souza')
+    expect(gavetaDaPagina().hasAttribute('open')).toBe(true)
+    expect(screen.getByRole('button', { name: 'Abrir o menu' }).getAttribute('aria-expanded')).toBe('true')
+  })
+
+  it('a troca de pessoa como a aplicação faz, de A por ninguém e de ninguém para B, fecha a gaveta aberta no meio: a última pessoa conhecida fica guardada', async () => {
+    const rede = redeFalsa()
+    const { cliente } = await abrirCasca(rede, 'coordenador', 'estreita', ROTAS.estrutura)
+
+    // `aoTrocarDeSessao` (main.tsx) esvazia as consultas: o `/v1/eu` de A some e o de B ainda não voltou.
+    const deB = rede.segurar()
+    void cliente.resetQueries()
+    await waitFor(() => {
+      expect(cliente.getQueryData(consultaEu.queryKey)).toBeUndefined()
+    })
+    // Sem ninguém na sessão a barra do topo continua na tela, e o toque no menu abre a gaveta.
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir o menu' }))
+    expect(gavetaDaPagina().hasAttribute('open')).toBe(true)
+
+    // B chega: é outra pessoa, e a gaveta que A deixou aberta não fica por cima da sessão dele.
+    deB.liberar(respostaEu('coordenador', PESSOA_B, 'Beatriz Lima'))
+    await screen.findByText('Beatriz Lima')
+    await waitFor(() => {
+      expect(gavetaDaPagina().hasAttribute('open')).toBe(false)
+    })
+    expect(screen.getByRole('button', { name: 'Abrir o menu' }).getAttribute('aria-expanded')).toBe('false')
+  })
+
   it('a rota troca com a gaveta aberta', async () => {
     const rede = redeFalsa()
     const { localizacao } = await abrirCasca(rede, 'coordenador', 'media', ROTAS.estrutura)

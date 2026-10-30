@@ -157,7 +157,8 @@ function Trilho({ itens, rodape, menuDaPessoa, botaoDeAbrir, aoAbrir, lateralAbe
  * está atrás fica inerte. A barra do topo, de 56 px, mostra o botão do menu, a pinta, a escola (cortada com reticências
  * quando não cabe) e o **Sair**, que continua a um toque também no celular (D59). Os itens de navegação do professor e do
  * aluno (de um a quatro) ficam na **barra de baixo**, fixa, e saem da gaveta, que leva o resto: a escola, o
- * rodapé e a conta. A coordenação, com sete, mantém os itens na gaveta (`ondeFicamOsItens`). A gaveta fecha ao escolher
+ * rodapé e a conta. A coordenação, com os quatro lugares dela (X2), também fica na barra de baixo; só quem passa de quatro itens
+ * mantém os itens na gaveta (`ondeFicamOsItens`, `MAXIMO_NA_BARRA`). A gaveta fecha ao escolher
  * um item, e fecha sozinha quando uma fronteira de erro assume a tela (`FronteiraDaArea`).
  *
  * Esta é a única peça que existe em toda tela com sessão, e por isso é daqui que saem o relógio de inatividade (RF13
@@ -210,12 +211,25 @@ export function CascaDaEscola({ children }: { children: ReactNode }) {
     definirGavetaAberta(true)
   }
 
-  // A gaveta não sobrevive à troca de rota, à de pessoa ou escola (o seletor, o login por cima) nem à de largura: a tela
-  // nova aparece sem nada por cima dela. O usuário entra nas dependências só para disparar o fechamento.
+  // A gaveta não sobrevive à troca de rota, à de pessoa (o login por cima) nem à de largura: a tela nova aparece sem nada por
+  // cima dela. A troca de escola pelo seletor a fecha porque muda a rota ou a pessoa, e não pela escola em si; quem prova isso é o
+  // e2e `areas.spec.ts › troca de escola pelo seletor…`. O usuário entra nas dependências só para disparar o fechamento.
+  // A pessoa que a consulta ainda não trouxe (`undefined`) não é outra pessoa: o `/v1/eu` que volta depois do toque no menu
+  // (CPU lenta, rede de escola) passa de ninguém a alguém e deixa a gaveta onde está. Só a troca de uma pessoa por outra a fecha.
   const usuarioDaSessao = dados?.usuarioId
+  const usuarioDaGaveta = useRef(usuarioDaSessao)
   useEffect(() => {
+    if (usuarioDaSessao === undefined) return
+    const trocouDePessoa = usuarioDaGaveta.current !== undefined && usuarioDaGaveta.current !== usuarioDaSessao
+    usuarioDaGaveta.current = usuarioDaSessao
+    if (trocouDePessoa) fecharGaveta()
+  }, [usuarioDaSessao, fecharGaveta])
+  const caminhoDaGaveta = useRef(caminho)
+  useEffect(() => {
+    if (caminhoDaGaveta.current === caminho) return
+    caminhoDaGaveta.current = caminho
     fecharGaveta()
-  }, [caminho, usuarioDaSessao, fecharGaveta])
+  }, [caminho, fecharGaveta])
   // Entrar na largura do computador desmonta a gaveta sem o `onClose`: o estado acompanha já no render, como a React
   // recomenda para estado que depende de outro valor, e não num efeito que pintaria a tela duas vezes. Entre o celular e
   // o trilho a gaveta continua montada, e aberta se estava: o estado fica como está.
