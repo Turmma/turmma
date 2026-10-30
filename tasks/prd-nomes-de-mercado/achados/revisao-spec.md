@@ -1314,3 +1314,85 @@ Evidência do bloqueante 1:
 - `/home/joaquimdp/Documents/git/.maestri/floors/educaia--specnomes-de-mercado/tools/guardas/index.mjs:108`
 - `/home/joaquimdp/Documents/git/.maestri/floors/educaia--specnomes-de-mercado/tools/guardas/camadas.cjs:174`
 - `/home/joaquimdp/Documents/git/.maestri/floors/educaia--specnomes-de-mercado/knip.json:4`
+
+## revisor-geral · 5ª rodada · REPROVADO · 2026-10-30 01:25:20 · `tasks/prd-nomes-de-mercado/revisao-spec.md`
+
+VEREDITO: REPROVADO
+Escopo: respeitado
+Aderência à Tech Spec: divergência em `inventario-back.md` §"Montagem e bootstrap" (linhas 306 e 329) contra a adenda 3 e o §1 do `inventario.md`
+Portão local: não se aplica. É revisão de spec e não tem código. O `conferir` responde "nunca passou nesta árvore", o que é esperado nesta fase e não bloqueia.
+
+Bloqueantes:
+- `/home/joaquimdp/Documents/git/.maestri/floors/educaia--specnomes-de-mercado/tasks/prd-nomes-de-mercado/inventario-back.md:306` e `:329`. O meu bloqueante da rodada 4 foi resolvido só em parte. A adenda 3 (`inventario.md:195`) diz que `lerConfiguracao<X>` vira `load<X>Config` "em todo o inventário", mas só enumera quatro nomes. Ficou de fora o mais usado do padrão: `lerConfiguracao` dos quatro apps (`apps/{api,worker,despachante,realtime}/src/config.ts`, 16 usos). O anexo back ainda manda esse nome para `readConfig`, tanto na regra do grupo ("`lerConfiguracao` vira `readConfig`", linha 306) quanto na linha da tabela (329). É o mesmo problema que reprovei na rodada 4: dois verbos para o mesmo padrão. O Implementador da 7.0 segue o anexo e grava `readConfig`, enquanto a 4.0 grava `load…` no core. A guarda não pega isso. `guarda.md:24` recusa só o prefixo antigo e aceita `readConfig`, embora a mensagem dela mande `load<X>Config`.
+
+  A pergunta feita ao Joaquim (`estado.md:13`, "`read<X>Config` (4 nomes)") não contou esse nome. Por isso não dá para saber se a aprovação dele cobria o quinto.
+
+  Correção exigida: trocar as linhas 306 e 329 para `loadConfig`, com a marca "(adenda 3)", como foi feito nas linhas 237 e 239. Se o Arquiteto entender que a aprovação valeu só para os quatro nomes listados, a escolha volta ao Joaquim antes da rodada 6, e ele não decide sozinho.
+
+Conferência das correções da rodada 4:
+- **§1 do `inventario.md` de volta a `load<X>Config` e adenda 3 registrada:** feito (`inventario.md:34` e `:193-196`). Os quatro `read…` passaram a `load…` no anexo back (237 e 239), na adenda 2 (57 e 59) e em `guarda.md:24`. Falta só o quinto nome, apontado acima.
+- **§5, trava contra filtro vazio** (base inteira para o item que nomeia `__fixtures__/` ou `mockups/`, saída não versionada como exceção nominal, mínimo por fonte): feito em `techspec.md` §5 e em `casos.md`. Conferi contra o `eslint.config.mjs:31-42`. Cada item do `ignores` cai na base inteira (`__fixtures__/**`, `mockups/**`, que tem arquivo versionado) ou numa exceção nominal (`node_modules`, `dist`, `playwright-report`, `test-results`, `.claude/worktrees`). Nenhum fica vermelho já na 2.0.
+- **§5, `comum` calculado, o lado da colagem e a exclusão de URL e e-mail:** feito.
+- **`casos.md`:** palavra comum colada, e-mail e URL, `knip.json`, arquivo não versionado da raiz e `infra/scripts/` estão presentes.
+- **`travas.md`:** a coluna "Forma" está detalhada em `erro.int`, `porta-unica` e `tools/ci`, e as linhas exatas dos marcadores foram acertadas.
+- **`guarda.md`:** recusa `guarda-*`, `*-em-memoria` e `limite/` em `packages/`.
+
+Recomendações:
+- `techspec.md` §5, passo 6. A exclusão de "URL e e-mail" não diz como cada um é reconhecido. Sem isso, `exemplo.com` cai na regra de "segmento de acesso a membro". Vale escrever o critério (por exemplo, o literal que casa com `://` ou com `\S+@\S+\.\S+`).
+- `guarda.md`, frase "Com o inventário, a adenda 1 e a adenda 2 aplicados": incluir a adenda 3.
+- `estado.md:13` ainda dá como aberta a pergunta do verbo, que o Joaquim já respondeu. Atualizar quando o Orquestrador mexer no estado.
+
+## test-engineer · 5ª rodada · REPROVADO · 2026-10-30 01:26:34 · `tasks/prd-nomes-de-mercado/revisao-spec.md`
+
+VEREDITO: REPROVADO
+
+Audito o diff `1aa859a4..2521ac8c`. A árvore de trabalho já tem edições da rodada 5 sem commit (o passo 6 com a URL e o e-mail definidos, `guarda.md` com "adendas 1 a 3", a adenda 3 com um quinto nome, `readConfig`). Li essas edições só como contexto: nenhuma muda o que está abaixo.
+
+**Cenários exigidos (os meus dois bloqueantes da rodada 4):**
+- **B1.** A trava contra filtro vazio não pode ficar vermelha já na 2.0 por causa dos `ignores` que nomeiam fixture, `mockups/` ou saída não versionada. E cada fonte precisa de um mínimo de itens.
+- **B2.** Três cláusulas precisam de caso:
+  - a palavra comum colada;
+  - `infra/scripts/` no `conferir`;
+  - todo arquivo versionado da raiz no passo 6.
+
+**Cobertos:**
+- **B1, resolvido.** A techspec, §5, mais o caso "Trava contra filtro vazio" do `casos.md`:
+  - **A base.** O item que nomeia `__fixtures__/` ou `mockups/` confere contra o `git ls-files` inteiro; os demais, contra a base sem essas pastas e sem `dist/`.
+  - **A saída não versionada.** `node_modules`, `dist`, `playwright-report`, `test-results` e `.claude/worktrees` são exceção nominal. Conferi contra a árvore: a lista cobre todos os `ignores` do `eslint.config.mjs` (linhas 31 a 42) e os `path` do `camadas.cjs` (`node_modules/drizzle-orm` na 24, e `dist|__fixtures__/camadas` na 174, que existe versionado).
+  - **O mínimo.** O mínimo por fonte é o número de hoje, gravado no teste, e as fontes estão listadas.
+  - **Os casos.** Verdes: o `__fixtures__/**`, e o `**/dist/**`, que passa só pela exceção. Vermelhos: a fonte abaixo do mínimo, e o glob que só casa dentro de `__fixtures__/` sem nomear a pasta. Esses quatro casos provam cada lado da cláusula.
+- **B2, resolvido no que pedi:**
+  - **Palavra comum colada.** `/\bFila\b/` cobre o "precedida de `\b`" e `'migrar('` cobre o "seguida de `(`" (`casos.md:28`). O literal inteiro (`'Banco'`) já tinha caso.
+  - **URL e e-mail.** `'teste@exemplo.com'` e `'https://github.com/x'` aparecem como não listados (`casos.md:34`).
+  - **`infra/scripts/`.** "muda uma string em `infra/scripts/`" (`casos.md:48`).
+  - **Raiz.** O caminho no `knip.json` é listado e o arquivo não versionado da raiz não é (`casos.md:30` e `:35`).
+- **Coluna "Forma" do `travas.md`.** Conferi a classificação contra o código:
+  - **`erro.int`.** A linha 169 (`tipo: 'ErroDeInvariante'`) e `erro-de-invariante.test.ts:10` (`toBe`) são A; a 166 (`not.toContain`) é B.
+  - **`porta-unica`.** A 74 é B; a 83 e a regex da 49 são A. Se a regex ficar com o nome antigo, a 73 também fica vermelha.
+  - **`dockerfile.test.ts`.** A 111 é A e a 118 é B.
+  - **`borda`.** As linhas 78 e 95 (`lerArquivo`) falham alto: C.
+- **Marcadores.** As linhas 651 a 660 de `arquitetura.test.ts` batem com o anexo: a 653, a 654 e a 660 citam a chave; a 651, a 652 e a 657 a 659 citam o decorator.
+- **Adenda 3.** Não sobrou nenhum `read…Config` nos anexos.
+
+**Bloqueantes:**
+- **A techspec, §5, passo 6 (linhas 60 e 61), tem três condições para listar a palavra comum que nenhum caso do `casos.md` prova:**
+  - **"precedida de `@`".** Até a rodada 3, o caso dela era `'@SemEscopo('`. Esta rodada o reclassificou, com razão, como identificador (`casos.md:29`), porque `SemEscopo` tem maiúscula interna e não é `comum`. Com isso a condição ficou sem caso.
+  - **"segmento de caminho" e "acesso a membro".** Elas entraram nesta rodada, no lugar das colagens a `/` e a `.`, e nenhum caso as cobre.
+
+  Hoje dá para retirar qualquer uma das três da implementação sem que nenhum caso fique vermelho. É exatamente o que `casos.md:6` diz que não pode acontecer. E é esse caminho que deixa calada uma trava que cita a palavra num caminho em texto ou como `obj.Banco`.
+
+  **Correção exigida:** em `casos.md`, "Listados (passo 6)", um caso por condição:
+  - a palavra comum depois de `@` num literal, que não seja e-mail;
+  - a palavra comum como segmento de caminho numa string, por exemplo `'./fila/x'` ou `'apps/x/Tela/y'`;
+  - a palavra comum em acesso a membro numa string ou regex, por exemplo `'schema.Banco'` ou `'Banco.x'`.
+
+**Recomendações:**
+- **Ambiguidade no passo 6 da techspec.** A linha 58 diz "caminho e pacote como trecho inteiro, nunca segmento solto", e a linha 61 lista a palavra comum quando é "segmento de caminho". Vale dizer que a segunda regra vale para o símbolo de uma palavra que aparece num caminho em texto, e que a entrada `pasta` e a `arquivo` continuam buscadas como trecho inteiro.
+- **`travas.md`, linha do `porta-unica`.** A coluna "Forma" não diz a forma dos caminhos das linhas 11 e 12 (`MODULO_DA_INSERCAO`, e o `REGISTRO` que a 73 compara). O mesmo na linha do `tools/ci`: falta a forma de `resolucao-do-shared.test.ts:23` e de `caminhos-da-esteira.ts:7`.
+- **`knip.json`.** O `ignore` (com `tools/ci/fixtures/**`) e o `project` não são fontes da trava contra filtro vazio, só os workspaces e as entries. Um glob de `project` que fica com o caminho antigo depois da 5.0 encolhe o knip sem ninguém ver; só o `restos` o pegaria.
+- **Ponto para o `revisor-geral`, não para mim.** A árvore de trabalho acrescenta um quinto nome à adenda 3 (`readConfig` → `loadConfig`, nos quatro apps), "achado na rodada 5". Ele deve conferir se a aprovação do Joaquim ("para todos") cobre esse nome. Não reabro.
+
+Arquivos:
+- /home/joaquimdp/Documents/git/.maestri/floors/educaia--specnomes-de-mercado/tasks/prd-nomes-de-mercado/techspec.md
+- /home/joaquimdp/Documents/git/.maestri/floors/educaia--specnomes-de-mercado/tasks/prd-nomes-de-mercado/casos.md
+- /home/joaquimdp/Documents/git/.maestri/floors/educaia--specnomes-de-mercado/tasks/prd-nomes-de-mercado/travas.md

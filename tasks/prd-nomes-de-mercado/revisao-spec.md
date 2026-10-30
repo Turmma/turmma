@@ -125,6 +125,22 @@ Os bloqueantes da rodada 3 estão resolvidos. O B3 do `test-engineer` está reso
 - `travas.md`: a coluna "Forma" detalhada em `erro.int`, `porta-unica` e `tools/ci`; as linhas exatas dos marcadores (test-engineer e revisor-geral, recomendação)
 - `guarda.md`: recusados `guarda-*`, `*-em-memoria` e a pasta `limite/` em `packages/` (test-engineer, recomendação)
 
+## Rodada 5 — 30/10/2026
+
+**Veredito: REPROVADA**
+
+| Revisor | Veredito | Bloqueantes |
+|---|---|---|
+| `test-engineer` | REPROVADO | 1: três condições da palavra comum (precedida de `@`, segmento de caminho, acesso a membro) sem caso |
+| `revisor-geral` | REPROVADO | 1: o quinto `read…`, `lerConfiguracao` → `readConfig` nos quatro apps, ficou fora da adenda 3 |
+
+### Correções exigidas na Tech Spec
+
+- `casos.md`: `'@Banco'`, `'./fila/x'`, `'schema.Banco'` e `/Banco\.x/` listados (test-engineer)
+- `inventario-back.md` (linhas 306 e 329) e adenda 3: `lerConfiguracao` → `loadConfig`. A resposta do Joaquim na rodada 4 foi o verbo "para todos", e isso cobre o quinto nome (revisor-geral)
+- §5, passo 6: a regra da palavra comum vale para o símbolo de uma palavra; `arquivo` e `pasta` são sempre trecho inteiro. URL e e-mail ganham critério (`://`, `\S+@\S+\.\S+`). O `project` e o `ignore` do `knip.json` entram como fontes da trava contra filtro vazio (test-engineer e revisor-geral, recomendação)
+- `travas.md`: a forma de cada caminho de `porta-unica` e de `tools/ci` (test-engineer, recomendação)
+
 ## Revisões
 
 Preenchida pelo hook `tools/processo/revisoes.ts` quando cada revisor termina. Não edite à mão:
@@ -154,3 +170,5 @@ atual, com APROVADO quando o revisor tem veto.
 | 2026-10-29 22:55:05 | 2026-10-29 22:59:32 | `revisor-geral` | 3 | REPROVADO | adb372b9383e936d3 |
 | 2026-10-29 23:01:41 | 2026-10-29 23:04:21 | `revisor-geral` | 4 | REPROVADO | abba4ceb9d4d4d737 |
 | 2026-10-29 23:01:38 | 2026-10-29 23:04:22 | `test-engineer` | 4 | REPROVADO | af07f2537cee1a685 |
+| 2026-10-30 01:24:10 | 2026-10-30 01:25:20 | `revisor-geral` | 5 | REPROVADO | adfe8ce5ab6649734 |
+| 2026-10-30 01:24:07 | 2026-10-30 01:26:34 | `test-engineer` | 5 | REPROVADO | a4e64649176e93356 |

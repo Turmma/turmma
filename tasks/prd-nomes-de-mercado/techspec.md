@@ -58,7 +58,9 @@ arquivo que importa o nome, sem `alias`; o `de` se repete; falta `linhaDoAnexo`;
    extensão (`packages/nucleo`, `componentes/ui/`, `hash-de-senha`), nunca segmento solto. Em regex e `String.raw`,
    busca na forma sem escape, sem exigir borda depois de `\b`, e pega o prefixo da gramática em
    `startsWith`/`endsWith`. A palavra `comum` só é listada quando o literal inteiro é ela, quando vem seguida de `(`,
-   precedida de `@` ou `\b`, ou é segmento de caminho ou de acesso a membro; em prosa, URL e e-mail, não. A regex com alternância que parte o nome é limite declarado, coberto pelo
+   precedida de `@` ou `\b`, ou é segmento de caminho ou de acesso a membro (isso vale para o
+   símbolo de uma palavra; a entrada `arquivo` e a `pasta` são sempre trecho inteiro); em prosa, URL (o literal com `://`) e e-mail
+   (`\S+@\S+\.\S+`), não. A regex com alternância que parte o nome é limite declarado, coberto pelo
    `travas.md`. Ocorrência não classificada deixa o relatório vermelho.
 7. Grava o `<N>.relatorio.md`.
 
@@ -83,7 +85,7 @@ roda `conferir` e `restos`. A correção `links-do-runbook` entra antes da 4.0.
 **A trava contra filtro vazio** (2.0, antes de qualquer rename): cada glob, caminho e `path` em regex de
 `configuracaoDasGuardas`, `EXCECOES_DAS_GUARDAS`, `PASTA_DOS_ADAPTADORES`, `ESCOPO_DO_ERRO_TIPADO`, `camadas.cjs`,
 `guardioes-por-caminho.ts`, dos `files`/`ignores` do `eslint.config.mjs` (lido da configuração exportada), dos
-workspaces e entries do `knip.json` e do `paths:` das regras casa com ao menos um arquivo, item a item, e cada fonte
+workspaces, entries, `project` e `ignore` do `knip.json` e do `paths:` das regras casa com ao menos um arquivo, item a item, e cada fonte
 rende um mínimo de itens. A base é o `git ls-files`: o item que nomeia `__fixtures__/` ou `mockups/` confere contra
 ela inteira, e os demais contra ela sem essas pastas e sem `dist/`. Saída não versionada (`node_modules`, `dist`,
 `playwright-report`, `test-results`, `.claude/worktrees`) é exceção nominal, com o motivo.

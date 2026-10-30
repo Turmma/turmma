@@ -26,6 +26,9 @@ Cada cláusula da Tech Spec §5 tem ao menos um caso que a deixa vermelha, se fo
 - `startsWith('esquemaResposta')` e um `endsWith` com o sufixo da gramática;
 - `'Banco'` num array (palavra comum como literal inteiro);
 - `/\bFila\b/` numa regex e `'migrar('` numa string (palavra comum colada);
+- `'@Banco'` num literal que não é e-mail (precedida de `@`);
+- `'./fila/x'` numa string (segmento de caminho);
+- `'schema.Banco'` numa string e `/Banco\.x/` numa regex (acesso a membro);
 - `'@SemEscopo('` numa string (identificador);
 - um `-w` do `package.json` da raiz, um caminho antigo no `knip.json` e um caminho em `.github/`.
 
@@ -77,7 +80,7 @@ A base é o `git ls-files`. O item que nomeia `__fixtures__/` ou `mockups/` conf
 contra a base sem essas pastas e sem `dist/`. As fontes, cada uma com o seu mínimo de itens lidos (o número de hoje,
 gravado no teste): `configuracaoDasGuardas`, `EXCECOES_DAS_GUARDAS`, `PASTA_DOS_ADAPTADORES`, `ESCOPO_DO_ERRO_TIPADO`,
 os `path` do `camadas.cjs`, `guardioes-por-caminho.ts`, os `files` e os `ignores` do `eslint.config.mjs`, os
-workspaces e as entries do `knip.json` (duas fontes) e o `paths:` das regras.
+workspaces, as entries, o `project` e o `ignore` do `knip.json` (quatro fontes) e o `paths:` das regras.
 
 **Verde:**
 - `tools/guardas/__fixtures__/**`, que casa na base inteira;

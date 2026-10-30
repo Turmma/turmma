@@ -193,4 +193,6 @@ caso que pegava.
 **Adenda 3 — 30/10/2026, aprovada pelo Joaquim no terminal do Arquiteto, na revisão da spec (rodada 4)**
 
 - `lerConfiguracao<X>` vira `load<X>Config` em todo o inventário, como o §1 e o anexo do core: `readLoginConfig`,
-  `readExternalLoginConfig` (anexo back), `readFileStorageConfig` e `readSalaConfig` (adenda 2) passam a `load…`
+  `readExternalLoginConfig` e `readConfig` dos quatro apps (anexo back), `readFileStorageConfig` e `readSalaConfig`
+  (adenda 2) passam a `load…`. O Joaquim escolheu o verbo "para todos"; o quinto nome, `readConfig`, foi achado na
+  rodada 5

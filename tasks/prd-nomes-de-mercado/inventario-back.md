@@ -303,7 +303,7 @@ Levantamento só de leitura, em `src` e `test` dos quatro apps (sem `node_module
 
 ### Montagem e bootstrap
 
-**Regra do grupo:** `montar*` vira `create*` (fábrica), `*Montado` vira `*Runtime`, `montagem.ts` vira `composition.ts` (composition root); `Configuracao*` vira `*Config`, `lerConfiguracao` vira `readConfig`.
+**Regra do grupo:** `montar*` vira `create*` (fábrica), `*Montado` vira `*Runtime`, `montagem.ts` vira `composition.ts` (composition root); `Configuracao*` vira `*Config`, `lerConfiguracao` vira `loadConfig` (adenda 3).
 
 | Atual | Proposto | Tipo | Onde (caminho) | Usos (arquivos de código, +docs) |
 |---|---|---|---|---|
@@ -326,7 +326,7 @@ Levantamento só de leitura, em `src` e `test` dos quatro apps (sem `node_module
 | `ConfiguracaoDespachante` | `DespachanteConfig` | interface | `apps/despachante/src/config.ts` | 3 (+0) |
 | `ConfiguracaoRealtime` | `RealtimeConfig` | interface | `apps/realtime/src/config.ts` | 4 (+0) |
 | `ConfiguracaoApi` | `ApiConfig` | interface | `apps/api/src/config.ts` | 5 (+0) |
-| `lerConfiguracao (4 apps)` | `readConfig` | função (config.ts de api, worker, despachante, realtime) | `apps/*/src/config.ts` | 16 (+0) |
+| `lerConfiguracao (4 apps)` | `loadConfig` (adenda 3) | função (config.ts de api, worker, despachante, realtime) | `apps/*/src/config.ts` | 16 (+0) |
 
 ### Medição e métricas
 

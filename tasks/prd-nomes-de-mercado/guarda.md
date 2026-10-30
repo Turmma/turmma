@@ -44,7 +44,7 @@ o esquema de cor da tela (`prefers-color-scheme`), e não um schema zod.
 - o nome misto: `TurmaController`, `EliminacaoDoTitular`, `PedidoDoTitular`, `CorrecaoService`, `ValidacaoDoLote`;
 - a exceção nominal `esquemaDeCor`.
 
-Com o inventário, a adenda 1 e a adenda 2 aplicados, a árvore inteira passa.
+Com o inventário e as adendas 1 a 3 aplicados, a árvore inteira passa.
 
 ## Os casos (12.0)
 
