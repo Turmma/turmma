@@ -9,11 +9,11 @@ const justificativas = new WeakMap<object, Map<string | symbol, string>>()
  * rotina nossa, nunca para atender requisição: despachante e expurgo olham a fila inteira,
  * consolidação olha o uso de todas as escolas.
  *
- * A justificativa é obrigatória e fica consultável em `justificativaSemEscopo`: quem lê o
+ * A justificativa é obrigatória e fica consultável em `unscopedJustification`: quem lê o
  * repository vê o motivo na linha de cima, e quem revisa acha toda exceção procurando por
- * `@SemEscopo`.
+ * `@Unscoped`.
  */
-export function SemEscopo(justificativa: string): MethodDecorator {
+export function Unscoped(justificativa: string): MethodDecorator {
   if (justificativa.trim().length < TAMANHO_MINIMO_JUSTIFICATIVA_SEM_ESCOPO) {
     throw new InvariantException('@SemEscopo exige justificativa escrita')
   }
@@ -25,6 +25,6 @@ export function SemEscopo(justificativa: string): MethodDecorator {
 }
 
 /** A justificativa registrada para o método, ou `undefined` se ele não foi marcado. */
-export function justificativaSemEscopo(classe: abstract new (...argumentos: never[]) => unknown, metodo: string): string | undefined {
+export function unscopedJustification(classe: abstract new (...argumentos: never[]) => unknown, metodo: string): string | undefined {
   return justificativas.get(classe.prototype as object)?.get(metodo)
 }

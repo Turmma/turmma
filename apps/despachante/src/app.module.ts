@@ -1,4 +1,4 @@
-import { Batimento, type LoggerBase, type Meter } from '@educa/nucleo'
+import { Heartbeat, type LoggerBase, type Meter } from '@educa/nucleo'
 import { Module, type DynamicModule, type OnApplicationBootstrap, type OnApplicationShutdown } from '@nestjs/common'
 import type { ConfiguracaoDespachante } from './config.js'
 import { montarDespachante, type DespachanteMontado } from './montagem.js'
@@ -21,7 +21,7 @@ export class AppModule {
   static com(config: ConfiguracaoDespachante, logger: LoggerBase, medidor: Meter): DynamicModule {
     return {
       module: AppModule,
-      providers: [{ provide: CicloDoDespachante, useValue: new CicloDoDespachante(montarDespachante(config, logger, { batimento: new Batimento(), medidor })) }],
+      providers: [{ provide: CicloDoDespachante, useValue: new CicloDoDespachante(montarDespachante(config, logger, { batimento: new Heartbeat(), medidor })) }],
     }
   }
 }

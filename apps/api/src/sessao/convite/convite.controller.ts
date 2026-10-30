@@ -1,4 +1,4 @@
-import { RotaAnonima, ZodValidationPipe } from '@educa/nucleo'
+import { Public, ZodValidationPipe } from '@educa/nucleo'
 import {
   aceitarConviteRequestSchema,
   consultarConviteRequestSchema,
@@ -18,7 +18,7 @@ import { ConviteService } from './convite.service.js'
  * `no-store`. Nenhuma rota de escola cria convite: ele nasce só pelo operador, no `ops:convite-coordenador` ou no painel
  * da operação (`@RotaDeOperacao`, A0b) (RF1).
  */
-@RotaAnonima()
+@Public()
 @Controller('v1/convites')
 export class ConviteController {
   constructor(private readonly convites: ConviteService) {}

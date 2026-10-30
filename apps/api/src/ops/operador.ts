@@ -1,14 +1,14 @@
 import {
   AUTOR_BOOTSTRAP,
-  ConfiguracaoInvalida,
-  ErroDeDominio,
-  erroDoPostgresEm,
+  InvalidConfigError,
+  DomainException,
+  postgresErrorIn,
   FORMATO_OPERADOR,
-  relogioDoSistema,
-  resumirErro,
+  systemClock,
+  summarizeError,
   VALIDADE_DO_CONVITE_DE_OPERADOR_HORAS,
-  type Banco,
-  type Relogio,
+  type Database,
+  type Clock,
 } from '@educa/nucleo'
 import { AUTOR_DA_ROTINA, ErrorCode, TAMANHO_MAXIMO_EMAIL } from '@educa/shared'
 import { rm } from 'node:fs/promises'
@@ -121,7 +121,7 @@ async function autorSobATrava(repositorio: OperadorRepository, operadorDoAmbient
   return situacao === 'bootstrap' ? AUTOR_BOOTSTRAP : operadorDoAmbiente
 }
 
-function expiracaoDoConvite(relogio: Relogio): Date {
+function expiracaoDoConvite(relogio: Clock): Date {
   return new Date(relogio.agora().getTime() + VALIDADE_DO_CONVITE_DE_OPERADOR_HORAS * 60 * 60 * 1_000)
 }
 
@@ -136,10 +136,10 @@ export interface ConviteGerado {
  * Apelido ou e-mail repetido: `CONFLITO`, sem o valor.
  */
 export async function criarOperador(
-  banco: Banco,
+  banco: Database,
   operadorDoAmbiente: string,
   dados: { apelido: string; nome: string; email: string },
-  relogio: Relogio = relogioDoSistema,
+  relogio: Clock = systemClock,
 ): Promise<ConviteGerado> {
   const token = sortearTokenDeConvite()
   try {
@@ -154,7 +154,7 @@ export async function criarOperador(
     })
   } catch (erro) {
     // unique_violation: o apelido ou o e-mail já é de outro operador.
-    if (erroDoPostgresEm(erro)?.code === '23505') throw new ErroDeDominio(ErrorCode.CONFLITO)
+    if (postgresErrorIn(erro)?.code === '23505') throw new DomainException(ErrorCode.CONFLITO)
     throw erro
   }
 }
@@ -164,12 +164,12 @@ export async function criarOperador(
  * sessões e grava `operador.desativado` (e `convite_operador.revogado`, se havia um pendente), numa transação sob a
  * trava. Apelido inexistente ou já desativado: `NAO_ENCONTRADO`. O último ativo e a si mesmo: `DesativacaoRecusada`.
  */
-export async function desativarOperador(banco: Banco, operadorDoAmbiente: string, apelido: string): Promise<void> {
+export async function desativarOperador(banco: Database, operadorDoAmbiente: string, apelido: string): Promise<void> {
   await banco.transaction(async (tx) => {
     const repositorio = new OperadorRepository(tx)
     const autor = await autorSobATrava(repositorio, operadorDoAmbiente)
     const alvo = await repositorio.ativoParaAtualizar(apelido)
-    if (alvo === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+    if (alvo === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
     if ((await repositorio.contarAtivos()) <= 1) throw new DesativacaoRecusada('ultimo_ativo')
     if (alvo.apelido === autor) throw new DesativacaoRecusada('a_si_mesmo')
     await repositorio.desativar(alvo.id)
@@ -185,13 +185,13 @@ export async function desativarOperador(banco: Banco, operadorDoAmbiente: string
  * Gera um convite novo para o operador ativo do apelido, revogando o pendente na mesma transação, com
  * `convite_operador.revogado` (se havia) e `convite_operador.gerado`. Apelido inexistente ou desativado: `NAO_ENCONTRADO`.
  */
-export async function gerarConviteDeOperador(banco: Banco, operadorDoAmbiente: string, apelido: string, relogio: Relogio = relogioDoSistema): Promise<ConviteGerado> {
+export async function gerarConviteDeOperador(banco: Database, operadorDoAmbiente: string, apelido: string, relogio: Clock = systemClock): Promise<ConviteGerado> {
   const token = sortearTokenDeConvite()
   return banco.transaction(async (tx) => {
     const repositorio = new OperadorRepository(tx)
     const autor = await autorSobATrava(repositorio, operadorDoAmbiente)
     const alvo = await repositorio.ativoParaAtualizar(apelido)
-    if (alvo === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+    if (alvo === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
     const revogou = await repositorio.revogarConvitePendente(alvo.id)
     const conviteId = await repositorio.criarConvite({ operadorId: alvo.id, tokenHash: hashDoTokenDeConvite(token), expiraEm: expiracaoDoConvite(relogio) })
     if (revogou) await repositorio.auditar({ autor, acao: 'convite_operador.revogado', operadorAlvoId: alvo.id })
@@ -206,7 +206,7 @@ const MENSAGEM_DO_OPERADOR: Partial<Record<ErrorCode, string>> = {
   CONFLITO: 'já existe operador com este apelido ou e-mail',
 }
 
-async function executarComBanco(pedido: PedidoDeOperador, operadorDoAmbiente: string, banco: Banco): Promise<{ resposta: Record<string, string>; token?: string }> {
+async function executarComBanco(pedido: PedidoDeOperador, operadorDoAmbiente: string, banco: Database): Promise<{ resposta: Record<string, string>; token?: string }> {
   if (pedido.acao === 'desativar') {
     await desativarOperador(banco, operadorDoAmbiente, pedido.apelido)
     return { resposta: {} }
@@ -254,7 +254,7 @@ export async function executarOpsOperador(
       }
     }
   } catch (erro) {
-    if (erro instanceof ArgumentoInvalido || erro instanceof ConfiguracaoInvalida || erro instanceof OperadorRecusado) {
+    if (erro instanceof ArgumentoInvalido || erro instanceof InvalidConfigError || erro instanceof OperadorRecusado) {
       // Só o nome da opção ou da variável: nunca o valor.
       terminal.erro(`${erro.message}\n`)
       return 2
@@ -263,12 +263,12 @@ export async function executarOpsOperador(
       terminal.erro(`${ErrorCode.CONFLITO}: ${erro.message}\n`)
       return 1
     }
-    if (erro instanceof ErroDeDominio && MENSAGEM_DO_OPERADOR[erro.codigo] !== undefined) {
+    if (erro instanceof DomainException && MENSAGEM_DO_OPERADOR[erro.codigo] !== undefined) {
       terminal.erro(`${erro.codigo}: ${MENSAGEM_DO_OPERADOR[erro.codigo]}\n`)
       return 1
     }
     // O erro cru do Postgres traz o valor da linha na mensagem e no `detail`: sai só o resumo seguro.
-    terminal.erro(`${ErrorCode.ERRO_INTERNO}: ${JSON.stringify(resumirErro(erro))}\n`)
+    terminal.erro(`${ErrorCode.ERRO_INTERNO}: ${JSON.stringify(summarizeError(erro))}\n`)
     return 1
   }
 }

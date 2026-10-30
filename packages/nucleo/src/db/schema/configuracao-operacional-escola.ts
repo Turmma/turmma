@@ -3,7 +3,7 @@ import { check, integer, jsonb, pgTable, smallint, text, time, uuid } from 'driz
 import { escola } from './escola.js'
 
 /** Vagas por fila numa escola. Fila ausente usa o padrão do ambiente. */
-export type VagasConfiguradas = Partial<Record<'interativa' | 'normal' | 'lote', number>>
+export type ConfiguredConcurrency = Partial<Record<'interativa' | 'normal' | 'lote', number>>
 
 /**
  * O que a escola tem de diferente do padrão do ambiente na operação: limite de requisição, vagas
@@ -36,7 +36,7 @@ export const configuracaoOperacionalEscola = pgTable(
     fim: time(),
     limiteReqUsuarioMin: integer(),
     limiteReqEscolaMin: integer(),
-    vagas: jsonb().$type<VagasConfiguradas>(),
+    vagas: jsonb().$type<ConfiguredConcurrency>(),
     /** Trocas com o Tutor por aluno e por dia (D38). */
     tutorTrocasPorDia: integer(),
     /** Trocas com o Tutor por aluno e por mês, somadas na turma (D38). */

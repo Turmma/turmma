@@ -1,4 +1,4 @@
-import { ConfiguracaoInvalida, criarBanco, criarPool, validarAmbiente, type Banco } from '@educa/nucleo'
+import { InvalidConfigError, createDatabase, createPool, validateEnvironment, type Database } from '@educa/nucleo'
 import { nomeDigitadoSchema, FORMATO_OPERADOR } from '@educa/shared'
 import { open, type FileHandle } from 'node:fs/promises'
 import { z } from 'zod'
@@ -29,7 +29,7 @@ const esquemaAmbienteOperador = z.object({ OPERADOR: z.string().regex(FORMATO_OP
 
 /** Quem da equipe roda o comando. Ausente ou fora do formato, recusa pelo nome da variável, sem o valor. */
 export function lerOperador(ambiente: Record<string, string | undefined>): string {
-  return validarAmbiente(esquemaAmbienteOperador, ambiente).OPERADOR
+  return validateEnvironment(esquemaAmbienteOperador, ambiente).OPERADOR
 }
 
 /** O `OPERADOR` não é um operador ativo, e há operador ativo. A mensagem é fixa: nunca repete o valor da variável. */
@@ -77,13 +77,13 @@ export interface SaidaDoComando {
 }
 
 export interface BancoDoComando {
-  banco: Banco
+  banco: Database
   fechar: () => Promise<void>
 }
 
 export function abrirBancoDeOperacao(ambiente: Record<string, string | undefined>): BancoDoComando {
-  const pool = criarPool({ ...urlDoBancoDeOperacao(ambiente), maximoConexoes: 1 }, () => undefined)
-  return { banco: criarBanco(pool), fechar: () => pool.end() }
+  const pool = createPool({ ...urlDoBancoDeOperacao(ambiente), maximoConexoes: 1 }, () => undefined)
+  return { banco: createDatabase(pool), fechar: () => pool.end() }
 }
 
 const inteiroPositivo = z.coerce.number().int().positive()
@@ -100,13 +100,13 @@ const esquemaAmbienteDoBanco = z.object({
 })
 
 export function urlDoBancoDeOperacao(ambiente: Record<string, string | undefined>): { url: string; timeoutConexaoMs: number; timeoutConsultaMs: number } {
-  const valores = validarAmbiente(esquemaAmbienteDoBanco, ambiente)
+  const valores = validateEnvironment(esquemaAmbienteDoBanco, ambiente)
   const { POSTGRES_USUARIO: usuario, POSTGRES_SENHA: senha, POSTGRES_BANCO: nome, POSTGRES_PORTA_HOST: porta } = valores
   const url =
     valores.BANCO_URL ??
     (usuario === undefined || senha === undefined || nome === undefined || porta === undefined
       ? undefined
       : `postgres://${encodeURIComponent(usuario)}:${encodeURIComponent(senha)}@127.0.0.1:${porta}/${nome}`)
-  if (url === undefined) throw new ConfiguracaoInvalida(['BANCO_URL'])
+  if (url === undefined) throw new InvalidConfigError(['BANCO_URL'])
   return { url, timeoutConexaoMs: valores.BANCO_TIMEOUT_CONEXAO_MS, timeoutConsultaMs: valores.BANCO_TIMEOUT_CONSULTA_MS }
 }

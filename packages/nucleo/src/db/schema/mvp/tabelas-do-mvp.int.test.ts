@@ -369,10 +369,10 @@ describe('tabelas do MVP de apresentação: o banco recusa o que o contrato pro�
         [[...TABELAS_DO_MVP]],
       )
       expect(rows.map((linha) => linha.table_name)).toEqual([...TABELAS_DO_MVP].sort())
-      // O que o pacote exporta do schema são estas dezessete, pelo nome exportado e pelo objeto `tabelasDoMvp`.
-      const { tabelasDoMvp, ...porNome } = exportadas
-      expect(Object.values(tabelasDoMvp).map((tabela) => getTableName(tabela)).sort()).toEqual([...TABELAS_DO_MVP].sort())
-      expect(Object.keys(porNome).sort()).toEqual(Object.keys(tabelasDoMvp).sort())
+      // O que o pacote exporta do schema são estas dezessete, pelo nome exportado e pelo objeto `mvpTables`.
+      const { mvpTables, ...porNome } = exportadas
+      expect(Object.values(mvpTables).map((tabela) => getTableName(tabela)).sort()).toEqual([...TABELAS_DO_MVP].sort())
+      expect(Object.keys(porNome).sort()).toEqual(Object.keys(mvpTables).sort())
       expect(rows.filter((linha) => linha.is_nullable !== 'NO')).toEqual([])
       const { rows: fks } = await cliente.query<{ tabela: string }>(
         "select conrelid::regclass::text as tabela from pg_constraint where contype = 'f' and confrelid = 'escola'::regclass and conrelid::regclass::text = any($1::text[]) order by 1",

@@ -1,16 +1,16 @@
-import { type Banco } from '@educa/nucleo'
+import { type Database } from '@educa/nucleo'
 import { aluno } from './tabelas.js'
 
-// A cópia local de `exigirEscolaDoContexto` não é a função que lê o contexto: só a importada vale.
-function exigirEscolaDoContexto(): string {
+// A cópia local de `requireEscolaId` não é a função que lê o contexto: só a importada vale.
+function requireEscolaId(): string {
   return 'qualquer-escola'
 }
 
 export class CopiaLocalRepository {
-  constructor(private readonly banco: Banco) {}
+  constructor(private readonly banco: Database) {}
 
   async listar() { // reprova: sem-prova-de-escopo
-    const escolaId = exigirEscolaDoContexto()
+    const escolaId = requireEscolaId()
     return this.banco.select().from(aluno).where(escolaId)
   }
 }

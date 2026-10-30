@@ -1,9 +1,9 @@
 import { ErrorCode } from '@educa/shared'
 import type { PipeTransform } from '@nestjs/common'
 import type { z } from 'zod'
-import { ErroDeDominio } from '../erro/erro-de-dominio.js'
+import { DomainException } from '../erro/erro-de-dominio.js'
 
-export interface OpcoesDoZodValidationPipe {
+export interface ZodValidationPipeOptions {
   /** O código do erro quando o valor não passa no esquema. Por padrão, `ENTRADA_INVALIDA`. */
   readonly errorCode?: ErrorCode
 }
@@ -18,12 +18,12 @@ export interface OpcoesDoZodValidationPipe {
 export class ZodValidationPipe<Esquema extends z.ZodType> implements PipeTransform<unknown, z.output<Esquema>> {
   constructor(
     private readonly esquema: Esquema,
-    private readonly opcoes: OpcoesDoZodValidationPipe = {},
+    private readonly opcoes: ZodValidationPipeOptions = {},
   ) {}
 
   transform(valor: unknown): z.output<Esquema> {
     const lido = this.esquema.safeParse(valor)
-    if (!lido.success) throw new ErroDeDominio(this.opcoes.errorCode ?? ErrorCode.ENTRADA_INVALIDA)
+    if (!lido.success) throw new DomainException(this.opcoes.errorCode ?? ErrorCode.ENTRADA_INVALIDA)
     return lido.data
   }
 }

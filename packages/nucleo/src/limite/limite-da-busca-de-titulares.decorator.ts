@@ -1,6 +1,6 @@
 import { SetMetadata, type CustomDecorator } from '@nestjs/common'
 
-export const METADADO_LIMITE_DA_BUSCA_DE_TITULARES = 'educa:limite-da-busca-de-titulares'
+export const TITULAR_SEARCH_RATE_LIMIT_KEY = 'educa:limite-da-busca-de-titulares'
 
 /**
  * A rota de busca de titulares (`POST /v1/privacidade/titulares/busca`, F3, tarefa 11.0): além do rate limit do F0, ela
@@ -8,6 +8,6 @@ export const METADADO_LIMITE_DA_BUSCA_DE_TITULARES = 'educa:limite-da-busca-de-t
  * (429). A busca acha nome de pessoa, e o balde próprio impede que um laço nela esgote a cota de requisição da pessoa
  * ou da escola (Tech Spec do F3, seção 7c).
  */
-export function LimiteDaBuscaDeTitulares(): CustomDecorator<string> {
-  return SetMetadata(METADADO_LIMITE_DA_BUSCA_DE_TITULARES, true)
+export function TitularSearchRateLimit(): CustomDecorator<string> {
+  return SetMetadata(TITULAR_SEARCH_RATE_LIMIT_KEY, true)
 }

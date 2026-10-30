@@ -1,6 +1,6 @@
-import type { SessaoDaRequisicao } from '../contexto/contexto.js'
-import type { LinhaDaSessao } from './sessao.repository.js'
-import type { TokenVerificado } from './verificar-token.js'
+import type { RequestSessao } from '../contexto/contexto.js'
+import type { SessaoRow } from './sessao.repository.js'
+import type { VerifiedToken } from './verificar-token.js'
 
 /**
  * Minutos além da inatividade configurada pela escola antes de a sessão vencer: uma atividade perdida (a web
@@ -11,13 +11,13 @@ export const TOLERANCIA_DE_INATIVIDADE_MIN = 5
 const MS_POR_MINUTO = 60_000
 
 /** Os minutos sem uso que a escola dá ao papel: o do aluno, ou o da equipe para professor e coordenador. */
-export function inatividadeDoPapel(linha: Pick<LinhaDaSessao, 'papel' | 'inatividadeAlunoMin' | 'inatividadeEquipeMin'>): number {
+export function inatividadeDoPapel(linha: Pick<SessaoRow, 'papel' | 'inatividadeAlunoMin' | 'inatividadeEquipeMin'>): number {
   return linha.papel === 'aluno' ? linha.inatividadeAlunoMin : linha.inatividadeEquipeMin
 }
 
 /** O que decide se uma sessão ainda vale, sem olhar o token: a guarda e a renovação conferem o mesmo. */
 export type EstadoDaSessao = Pick<
-  LinhaDaSessao,
+  SessaoRow,
   'papel' | 'desativadoEm' | 'eliminacaoAgendadaEm' | 'encerradaEm' | 'expiraEm' | 'ultimoUsoEm' | 'inatividadeAlunoMin' | 'inatividadeEquipeMin' | 'agora'
 >
 
@@ -39,7 +39,7 @@ export function sessaoAindaVale(linha: EstadoDaSessao): boolean {
  * Se a requisição traz o token que a última renovação emitiu, e a sessão ainda não foi marcada: o `iat` dele não é
  * anterior a `rotacionado_em`. O banco confere de novo, com a hora exata, na marcação.
  */
-export function tokenDaUltimaRenovacao(token: TokenVerificado, linha: Pick<LinhaDaSessao, 'rotacionadoEm' | 'atualApresentado'>): boolean {
+export function tokenDaUltimaRenovacao(token: VerifiedToken, linha: Pick<SessaoRow, 'rotacionadoEm' | 'atualApresentado'>): boolean {
   if (linha.atualApresentado || linha.rotacionadoEm === null || token.emitidoEm === undefined) return false
   return token.emitidoEm * 1_000 >= linha.rotacionadoEm.getTime()
 }
@@ -53,7 +53,7 @@ export function tokenDaUltimaRenovacao(token: TokenVerificado, linha: Pick<Linha
  * - usuário desativado, ou com a eliminação agendada (14.0);
  * - inatividade vencida: `ultimo_uso_em` mais a inatividade do papel e a tolerância já passou.
  */
-export function avaliarSessao(token: TokenVerificado, linha: LinhaDaSessao | undefined): SessaoDaRequisicao | undefined {
+export function avaliarSessao(token: VerifiedToken, linha: SessaoRow | undefined): RequestSessao | undefined {
   if (linha === undefined) return undefined
   if (linha.usuarioId !== token.usuarioId) return undefined
   if (!sessaoAindaVale(linha)) return undefined

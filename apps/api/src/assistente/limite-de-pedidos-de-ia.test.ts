@@ -1,4 +1,4 @@
-import { ErroDeDominio, executarNoContexto } from '@educa/nucleo'
+import { DomainException, runInContext } from '@educa/nucleo'
 import { describe, expect, it } from 'vitest'
 import { LimiteDePedidosDeIa, TETO_DE_PEDIDOS_DE_IA_POR_ESCOLA, TETO_DE_PEDIDOS_DE_IA_POR_USUARIO } from './limite-de-pedidos-de-ia.js'
 
@@ -22,13 +22,13 @@ function janelaDeTeste(doSeguro = false) {
 const semLog = { warn: () => undefined }
 
 const como = <T>(escolaId: string, usuarioId: string, funcao: () => T): T =>
-  executarNoContexto({ requisicaoId: 'r', escolaId, usuarioId, papel: 'professor', sessaoId: 's', anoLetivoId: 'a' }, funcao)
+  runInContext({ requisicaoId: 'r', escolaId, usuarioId, papel: 'professor', sessaoId: 's', anoLetivoId: 'a' }, funcao)
 
-async function recusaDe(promessa: Promise<void>): Promise<ErroDeDominio | undefined> {
+async function recusaDe(promessa: Promise<void>): Promise<DomainException | undefined> {
   return promessa.then(
     () => undefined,
     (erro: unknown) => {
-      if (erro instanceof ErroDeDominio) return erro
+      if (erro instanceof DomainException) return erro
       throw erro
     },
   )

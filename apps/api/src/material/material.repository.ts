@@ -1,4 +1,4 @@
-import { exigirEscolaDoContexto, material, SemEscopo, sessaoDaRequisicao, trecho, vinculo, type Banco, type TransacaoBanco } from '@educa/nucleo'
+import { requireEscolaId, material, Unscoped, requestSessao, trecho, vinculo, type Database, type DatabaseTransaction } from '@educa/nucleo'
 import type { MateriaisQuery, EstadoDeMaterial, FalhaDeMaterial, LicencaDeMaterial, TitularidadeDeMaterial } from '@educa/shared'
 import { and, asc, desc, eq, exists, gt, gte, isNull, lt, sql, type SQL } from 'drizzle-orm'
 import { InvariantException } from '@educa/shared'
@@ -91,13 +91,13 @@ const TRECHOS_POR_INSERCAO = 50
 
 /**
  * O material e os trechos da escola do contexto, e só dela: nenhum método recebe escola (regra 10, item 3). A escola
- * vem de `exigirEscolaDoContexto()`, na requisição e na extração em segundo plano, que roda num contexto com a escola
+ * vem de `requireEscolaId()`, na requisição e na extração em segundo plano, que roda num contexto com a escola
  * do material que ela lê.
  *
  * Toda leitura deixa de fora o material excluído (`excluido_em`). A busca só enxerga material `pronto`.
  */
 export class MaterialRepository {
-  constructor(private readonly banco: Banco | TransacaoBanco) {}
+  constructor(private readonly banco: Database | DatabaseTransaction) {}
 
   /**
    * Só o material das disciplinas em que o professor do contexto tem vínculo `confirmado` no ano em curso da escola.
@@ -105,7 +105,7 @@ export class MaterialRepository {
    */
   #noAlcance(alcance: AlcanceDoMaterial): SQL | undefined {
     if (alcance === 'unidade') return undefined
-    const { usuarioId, anoLetivoId } = sessaoDaRequisicao()
+    const { usuarioId, anoLetivoId } = requestSessao()
     if (anoLetivoId === null) return sql`false`
     return exists(
       this.banco
@@ -129,7 +129,7 @@ export class MaterialRepository {
    * outro, e o teto não é furado pela corrida (regra 80, item 7). A trava é da escola: outra escola não espera.
    */
   async travarEnviosDaEscola(): Promise<void> {
-    await this.banco.execute(sql`select pg_advisory_xact_lock(hashtextextended(${`material.envio:${exigirEscolaDoContexto()}`}, 0))`)
+    await this.banco.execute(sql`select pg_advisory_xact_lock(hashtextextended(${`material.envio:${requireEscolaId()}`}, 0))`)
   }
 
   /**
@@ -137,7 +137,7 @@ export class MaterialRepository {
    * arquivo foi recebido do mesmo jeito), e quantos materiais da escola estão `processando` agora.
    */
   async enviosNaJanela(desde: Date): Promise<EnviosNaJanela> {
-    const { usuarioId } = sessaoDaRequisicao()
+    const { usuarioId } = requestSessao()
     const [linha] = await this.banco
       .select({
         daEscola: sql<number>`count(*) filter (where ${gte(material.enviadoEm, desde)})::int`,
@@ -145,7 +145,7 @@ export class MaterialRepository {
         emProcessamento: sql<number>`count(*) filter (where ${and(eq(material.estado, 'processando'), isNull(material.excluidoEm))})::int`,
       })
       .from(material)
-      .where(eq(material.escolaId, exigirEscolaDoContexto()))
+      .where(eq(material.escolaId, requireEscolaId()))
     return linha ?? { daEscola: 0, doUsuario: 0, emProcessamento: 0 }
   }
 
@@ -155,10 +155,10 @@ export class MaterialRepository {
    * os não excluídos e não falhos, e sai `CONFLITO` pelo filtro de erro: dois envios ao mesmo tempo gravam um.
    */
   async inserir(novo: NovoMaterial): Promise<MaterialLido> {
-    const { usuarioId } = sessaoDaRequisicao()
+    const { usuarioId } = requestSessao()
     const [gravado] = await this.banco
       .insert(material)
-      .values({ ...novo, escolaId: exigirEscolaDoContexto(), declaracao: true, enviadoPor: usuarioId })
+      .values({ ...novo, escolaId: requireEscolaId(), declaracao: true, enviadoPor: usuarioId })
       .returning({ ...colunas, trechos: sql<number>`0` })
     if (gravado === undefined) throw new InvariantException('material não gravado')
     return gravado
@@ -171,7 +171,7 @@ export class MaterialRepository {
       .from(material)
       .where(
         and(
-          eq(material.escolaId, exigirEscolaDoContexto()),
+          eq(material.escolaId, requireEscolaId()),
           isNull(material.excluidoEm),
           disciplinaId === undefined ? undefined : eq(material.disciplinaId, disciplinaId),
           pagina === undefined ? undefined : gt(material.id, pagina),
@@ -187,7 +187,7 @@ export class MaterialRepository {
     const [linha] = await this.banco
       .select(colunas)
       .from(material)
-      .where(and(eq(material.escolaId, exigirEscolaDoContexto()), eq(material.id, id), isNull(material.excluidoEm), this.#noAlcance(alcance)))
+      .where(and(eq(material.escolaId, requireEscolaId()), eq(material.id, id), isNull(material.excluidoEm), this.#noAlcance(alcance)))
     return linha
   }
 
@@ -196,11 +196,11 @@ export class MaterialRepository {
    * escola, o inexistente e o já excluído não são achados (`undefined`), e nada muda.
    */
   async excluir(id: string): Promise<{ disciplinaId: string; estado: EstadoDeMaterial } | undefined> {
-    const { usuarioId } = sessaoDaRequisicao()
+    const { usuarioId } = requestSessao()
     const [excluido] = await this.banco
       .update(material)
       .set({ excluidoEm: sql`now()`, excluidoPor: usuarioId })
-      .where(and(eq(material.escolaId, exigirEscolaDoContexto()), eq(material.id, id), isNull(material.excluidoEm)))
+      .where(and(eq(material.escolaId, requireEscolaId()), eq(material.id, id), isNull(material.excluidoEm)))
       .returning({ disciplinaId: material.disciplinaId, estado: material.estado })
     return excluido
   }
@@ -209,7 +209,7 @@ export class MaterialRepository {
   async apagarTrechos(materialId: string): Promise<number> {
     const apagados = await this.banco
       .delete(trecho)
-      .where(and(eq(trecho.escolaId, exigirEscolaDoContexto()), eq(trecho.materialId, materialId)))
+      .where(and(eq(trecho.escolaId, requireEscolaId()), eq(trecho.materialId, materialId)))
       .returning({ id: trecho.id })
     return apagados.length
   }
@@ -223,7 +223,7 @@ export class MaterialRepository {
     const [pronto] = await this.banco
       .update(material)
       .set({ estado: 'pronto', paginas })
-      .where(and(eq(material.escolaId, exigirEscolaDoContexto()), eq(material.id, id), eq(material.estado, 'processando'), isNull(material.excluidoEm)))
+      .where(and(eq(material.escolaId, requireEscolaId()), eq(material.id, id), eq(material.estado, 'processando'), isNull(material.excluidoEm)))
       .returning({ disciplinaId: material.disciplinaId })
     return pronto?.disciplinaId
   }
@@ -233,14 +233,14 @@ export class MaterialRepository {
     const falhos = await this.banco
       .update(material)
       .set({ estado: 'falhou', falha })
-      .where(and(eq(material.escolaId, exigirEscolaDoContexto()), eq(material.id, id), eq(material.estado, 'processando')))
+      .where(and(eq(material.escolaId, requireEscolaId()), eq(material.id, id), eq(material.estado, 'processando')))
       .returning({ id: material.id })
     return falhos.length > 0
   }
 
   /** Grava um trecho por página com texto. A página repetida não entra duas vezes (`trecho_pagina_do_material_unica`). */
   async gravarTrechos(materialId: string, disciplinaId: string, paginas: readonly PaginaExtraida[]): Promise<void> {
-    const escolaId = exigirEscolaDoContexto()
+    const escolaId = requireEscolaId()
     for (let inicio = 0; inicio < paginas.length; inicio += TRECHOS_POR_INSERCAO) {
       const lote = paginas.slice(inicio, inicio + TRECHOS_POR_INSERCAO)
       await this.banco
@@ -258,7 +258,7 @@ export class MaterialRepository {
    * O filtro começa por `trecho.escola_id` e `disciplina_id`, que são o começo do índice GIN (regra 80, item 8).
    */
   buscar({ texto, disciplinaId, materialId, limite, palavras }: FiltroDaBusca, alcance: AlcanceDoMaterial): Promise<TrechoAchado[]> {
-    const escolaId = exigirEscolaDoContexto()
+    const escolaId = requireEscolaId()
     const todas = sql`websearch_to_tsquery('portuguese', ${texto})`
     // `a & b` vira `a | b`: a consulta já saiu do analisador do Postgres, e o texto dela só tem lexemas e operadores.
     const consulta = palavras === 'todas' ? todas : sql`replace(${todas}::text, '&', '|')::tsquery`
@@ -284,7 +284,7 @@ export class MaterialRepository {
 
   /** As páginas de um material `pronto` e não excluído da escola **e da disciplina pedida**, em ordem, até `limite`. */
   paginasDoMaterial(materialId: string, disciplinaId: string, limite: number, alcance: AlcanceDoMaterial): Promise<TrechoAchado[]> {
-    const escolaId = exigirEscolaDoContexto()
+    const escolaId = requireEscolaId()
     return this.banco
       .select(colunasDoTrecho)
       .from(trecho)
@@ -313,13 +313,13 @@ const JUSTIFICATIVA_DA_VARREDURA =
  * classe própria para o repository que atende requisição não ter método sem escopo nenhum.
  */
 export class MaterialParadoRepository {
-  constructor(private readonly banco: Banco) {}
+  constructor(private readonly banco: Database) {}
 
   /**
    * Todo material `processando` enviado antes de `antesDe` vira `falhou` com `extracao_falhou`, em qualquer escola.
    * Devolve quantos. O excluído fica como está: ninguém o vê.
    */
-  @SemEscopo(JUSTIFICATIVA_DA_VARREDURA)
+  @Unscoped(JUSTIFICATIVA_DA_VARREDURA)
   async falharParados(antesDe: Date): Promise<number> {
     const falhos = await this.banco
       .update(material)

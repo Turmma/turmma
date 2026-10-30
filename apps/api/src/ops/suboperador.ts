@@ -1,4 +1,4 @@
-import { ConfiguracaoInvalida, ErroDeDominio, executarNoContexto, RegistroDeAuditoria, resumirErro, type Banco } from '@educa/nucleo'
+import { InvalidConfigError, DomainException, runInContext, AuditoriaRecorder, summarizeError, type Database } from '@educa/nucleo'
 import {
   CHAVES_DE_CATEGORIA_DO_SUBOPERADOR,
   ErrorCode,
@@ -20,7 +20,7 @@ import { abrirBancoDeOperacao, ArgumentoInvalido, autorDoComando, lerOperador, O
 import { OperacaoPrivacidadeRepository } from './operacao-privacidade.repository.js'
 import type { ConferenciaDoAutor } from '../sessao/index.js'
 
-const registro = new RegistroDeAuditoria()
+const registro = new AuditoriaRecorder()
 
 /**
  * O cadastro e o encerramento de suboperador pela operação (F3, RF6; Tech Spec do F3, seções 3 e 6):
@@ -133,17 +133,17 @@ export function lerPedidoDeSuboperador(argumentos: string[]): PedidoDeSuboperado
  * Cadastra o suboperador, liga cada escola da lista no contexto dela e grava `suboperador.cadastrado`, na mesma transação,
  * com o autor conferido como primeira instrução. Devolve o id.
  */
-export function cadastrarSuboperador(banco: Banco, autor: ConferenciaDoAutor, pedido: Extract<PedidoDeSuboperador, { comando: 'cadastrar' }>): Promise<{ suboperadorId: string; escolas: number }> {
+export function cadastrarSuboperador(banco: Database, autor: ConferenciaDoAutor, pedido: Extract<PedidoDeSuboperador, { comando: 'cadastrar' }>): Promise<{ suboperadorId: string; escolas: number }> {
   const requisicaoId = randomUUID()
-  return executarNoContexto({ requisicaoId }, () =>
+  return runInContext({ requisicaoId }, () =>
     banco.transaction(async (tx) => {
       const autorOperador = await autor(tx)
       const repositorio = new OperacaoPrivacidadeRepository(tx)
       const suboperadorId = await repositorio.cadastrar({ ...pedido, registradoPor: autorOperador })
-      if (suboperadorId === undefined) throw new ErroDeDominio(ErrorCode.CONFLITO)
+      if (suboperadorId === undefined) throw new DomainException(ErrorCode.CONFLITO)
       for (const escolaId of pedido.escolas) {
-        await executarNoContexto({ requisicaoId, escolaId }, async () => {
-          if ((await new AcessoDaEscolaRepository(tx).nome()) === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+        await runInContext({ requisicaoId, escolaId }, async () => {
+          if ((await new AcessoDaEscolaRepository(tx).nome()) === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
           await repositorio.ligarEscola(suboperadorId)
         })
       }
@@ -159,14 +159,14 @@ export function cadastrarSuboperador(banco: Banco, autor: ConferenciaDoAutor, pe
 }
 
 /** Encerra o suboperador vigente da chave e as ligações abertas dele, e grava `suboperador.encerrado`, numa transação só. */
-export function encerrarSuboperador(banco: Banco, autor: ConferenciaDoAutor, pedido: Extract<PedidoDeSuboperador, { comando: 'encerrar' }>): Promise<{ suboperadorId: string; ligacoesEncerradas: number }> {
+export function encerrarSuboperador(banco: Database, autor: ConferenciaDoAutor, pedido: Extract<PedidoDeSuboperador, { comando: 'encerrar' }>): Promise<{ suboperadorId: string; ligacoesEncerradas: number }> {
   const requisicaoId = randomUUID()
-  return executarNoContexto({ requisicaoId }, () =>
+  return runInContext({ requisicaoId }, () =>
     banco.transaction(async (tx) => {
       const autorOperador = await autor(tx)
       const repositorio = new OperacaoPrivacidadeRepository(tx)
       const vigente = await repositorio.travarVigente(pedido.chave)
-      if (vigente === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+      if (vigente === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
       await repositorio.encerrar(vigente.id)
       const ligacoesEncerradas = await repositorio.encerrarLigacoes(vigente.id)
       await registro.gravar(tx, 'suboperador.encerrado', {
@@ -211,17 +211,17 @@ export async function executarOpsSuboperador(
       await fechar()
     }
   } catch (erro) {
-    if (erro instanceof ArgumentoInvalido || erro instanceof ConfiguracaoInvalida || erro instanceof OperadorRecusado) {
+    if (erro instanceof ArgumentoInvalido || erro instanceof InvalidConfigError || erro instanceof OperadorRecusado) {
       // Só o nome da opção ou da variável: nunca o valor.
       terminal.erro(`${erro.message}\n`)
       return 2
     }
-    if (erro instanceof ErroDeDominio && MENSAGEM_DO_OPERADOR[erro.codigo] !== undefined) {
+    if (erro instanceof DomainException && MENSAGEM_DO_OPERADOR[erro.codigo] !== undefined) {
       terminal.erro(`${erro.codigo}: ${MENSAGEM_DO_OPERADOR[erro.codigo]}\n`)
       return 1
     }
     // O erro cru do Postgres traz o valor da linha na mensagem e no `detail`: sai só o resumo seguro.
-    terminal.erro(`${ErrorCode.ERRO_INTERNO}: ${JSON.stringify(resumirErro(erro))}\n`)
+    terminal.erro(`${ErrorCode.ERRO_INTERNO}: ${JSON.stringify(summarizeError(erro))}\n`)
     return 1
   }
 }

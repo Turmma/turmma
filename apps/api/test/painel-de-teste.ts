@@ -1,5 +1,5 @@
 import 'reflect-metadata'
-import { criarLogger, type PoolBanco } from '@educa/nucleo'
+import { createLogger, type DatabasePool } from '@educa/nucleo'
 import { ESCOLAS_POR_PAGINA, MENSAGENS_DE_ERRO, type ErrorCode } from '@educa/shared'
 import type { INestApplication } from '@nestjs/common'
 import { NestFactory } from '@nestjs/core'
@@ -59,7 +59,7 @@ export function esperarErro(resposta: Resposta, status: number, codigo: ErrorCod
  */
 export async function subirApiDoPainel(linhasDeLog: string[], ambiente: Record<string, string> = {}, prazoDasConsultasMs = PRAZO_DAS_CONSULTAS_MS): Promise<{ app: INestApplication; url: string }> {
   const app = await NestFactory.create(AppModule.com(configuracaoDeTeste({ banco: { timeoutConsultaMs: prazoDasConsultasMs }, ambiente }), MONTAGEM_DE_TESTE), { logger: false })
-  configurarAplicacao(app, criarLogger({ servico: 'api-teste', nivel: 'info', destino: { write: (linha: string) => linhasDeLog.push(linha) } }))
+  configurarAplicacao(app, createLogger({ servico: 'api-teste', nivel: 'info', destino: { write: (linha: string) => linhasDeLog.push(linha) } }))
   await app.listen(0, '127.0.0.1')
   return { app, url: `http://127.0.0.1:${(app.getHttpServer().address() as AddressInfo).port}` }
 }
@@ -68,7 +68,7 @@ export async function subirApiDoPainel(linhasDeLog: string[], ambiente: Record<s
  * O que o `desativar` do `ops:operador` faz na linha do operador, numa transação que o teste abre e segura com o
  * `for update`: `confirmar` desativa e confirma; `desfazer` desiste, se ainda não confirmou.
  */
-export async function segurarODesativar(pool: PoolBanco, operadorId: string): Promise<{ confirmar: () => Promise<void>; desfazer: () => Promise<void> }> {
+export async function segurarODesativar(pool: DatabasePool, operadorId: string): Promise<{ confirmar: () => Promise<void>; desfazer: () => Promise<void> }> {
   const conexao = await pool.connect()
   await conexao.query('begin')
   await conexao.query('select id from operador where id = $1 for update', [operadorId])

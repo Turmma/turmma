@@ -1,13 +1,13 @@
 import {
-  avisoEspacado,
-  definirOperadorNoContexto,
-  ErroDeDominio,
-  extrairTokenBearer,
-  TENTE_DE_NOVO_PADRAO_SEGUNDOS,
-  verificarTokenDeOperador,
-  type Banco,
-  type ConfiguracaoIdentidade,
-  type TokenDeOperadorVerificado,
+  throttledWarn,
+  setContextOperador,
+  DomainException,
+  extractBearerToken,
+  DEFAULT_RETRY_AFTER_SECONDS,
+  verifyOperadorToken,
+  type Database,
+  type AuthConfig,
+  type VerifiedOperadorToken,
 } from '@educa/nucleo'
 import { ErrorCode } from '@educa/shared'
 import { Inject, Injectable, Logger, type CanActivate, type ExecutionContext, type Provider } from '@nestjs/common'
@@ -27,14 +27,14 @@ export type LeituraDaSessaoDeOperador = Pick<OperadorRepository, 'lerSessaoParaG
  * Os provedores que a `GuardaDeOperador` pede. O `OperacaoModule` os registra; um módulo de teste com rota
  * `@RotaDeOperacao` registra os mesmos, e a guarda que roda nele é a de produção.
  */
-export function provedoresDaGuardaDeOperador(identidade: ConfiguracaoIdentidade): Provider[] {
+export function provedoresDaGuardaDeOperador(identidade: AuthConfig): Provider[] {
   return [
     { provide: IDENTIDADE_DA_OPERACAO, useValue: identidade },
-    { provide: SESSOES_DE_OPERADOR, useFactory: (banco: Banco) => new OperadorRepository(banco), inject: [BANCO] },
+    { provide: SESSOES_DE_OPERADOR, useFactory: (banco: Database) => new OperadorRepository(banco), inject: [BANCO] },
   ]
 }
 
-const naoEncontrado = () => new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+const naoEncontrado = () => new DomainException(ErrorCode.NAO_ENCONTRADO)
 
 /**
  * A guarda de toda rota `@RotaDeOperacao()` (Tech Spec da A0, seção 5, "Conferência da sessão"). Roda depois das quatro
@@ -56,10 +56,10 @@ export class GuardaDeOperador implements CanActivate {
   readonly #logger = new Logger('operacao')
   // Com o Postgres fora, toda requisição falharia aqui: uma linha a cada 30 s basta, e o 503 de cada uma já vai para o
   // log pelo filtro de erro.
-  readonly #avisarIndisponivel = avisoEspacado(() => this.#logger.warn('operacao.sessao_indisponivel'))
+  readonly #avisarIndisponivel = throttledWarn(() => this.#logger.warn('operacao.sessao_indisponivel'))
 
   constructor(
-    @Inject(IDENTIDADE_DA_OPERACAO) private readonly identidade: ConfiguracaoIdentidade,
+    @Inject(IDENTIDADE_DA_OPERACAO) private readonly identidade: AuthConfig,
     @Inject(SESSOES_DE_OPERADOR) private readonly sessoes: LeituraDaSessaoDeOperador,
   ) {}
 
@@ -75,20 +75,20 @@ export class GuardaDeOperador implements CanActivate {
     } catch {
       // Nada do erro vai ao log: nem a consulta nem a mensagem (regra 20, item 9).
       this.#avisarIndisponivel()
-      throw new ErroDeDominio(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO, undefined, TENTE_DE_NOVO_PADRAO_SEGUNDOS)
+      throw new DomainException(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO, undefined, DEFAULT_RETRY_AFTER_SECONDS)
     }
-    if (!sessaoDeOperadorVale(linha)) throw new ErroDeDominio(ErrorCode.SESSAO_ENCERRADA)
-    if (token.vencido) throw new ErroDeDominio(ErrorCode.ACESSO_VENCIDO)
-    definirOperadorNoContexto(token.operadorId)
+    if (!sessaoDeOperadorVale(linha)) throw new DomainException(ErrorCode.SESSAO_ENCERRADA)
+    if (token.vencido) throw new DomainException(ErrorCode.ACESSO_VENCIDO)
+    setContextOperador(token.operadorId)
     return true
   }
 
   /** O token de operador do `Authorization`, verificado. Qualquer recusa vira o 404 de uma rota inexistente. */
-  async #tokenDeOperador(requisicao: IncomingMessage): Promise<TokenDeOperadorVerificado> {
+  async #tokenDeOperador(requisicao: IncomingMessage): Promise<VerifiedOperadorToken> {
     try {
-      return await verificarTokenDeOperador(extrairTokenBearer(requisicao.headers.authorization), this.identidade)
+      return await verifyOperadorToken(extractBearerToken(requisicao.headers.authorization), this.identidade)
     } catch (erro) {
-      if (erro instanceof ErroDeDominio) throw naoEncontrado()
+      if (erro instanceof DomainException) throw naoEncontrado()
       throw erro
     }
   }

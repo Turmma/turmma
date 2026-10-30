@@ -1,13 +1,13 @@
 import { AUTOR_DA_ROTINA, ErrorCode, HORAS_PARA_REENFILEIRAR_A_ELIMINACAO, TIPO_ELIMINAR_TITULAR, type CategoriaDeRetencao } from '@educa/shared'
 import { and, desc, eq, sql, type SQL } from 'drizzle-orm'
 import { CicloDeVidaService } from '../ciclo-de-vida/ciclo-de-vida.service.js'
-import { exigirEscolaDoContexto } from '../contexto/escola-do-contexto.js'
-import type { Banco } from '../db/banco.js'
-import type { Enfileirador } from '../fila/enfileirador.js'
+import { requireEscolaId } from '../contexto/escola-do-contexto.js'
+import type { Database } from '../db/banco.js'
+import type { JobOutbox } from '../fila/enfileirador.js'
 import { expurgoExecucao } from '../db/schema/expurgo-execucao.js'
 import { pedidoTitular } from '../db/schema/pedido-titular.js'
 import { usuario } from '../db/schema/usuario.js'
-import { ErroDeDominio } from '../erro/erro-de-dominio.js'
+import { DomainException } from '../erro/erro-de-dominio.js'
 
 /**
  * As categorias do catálogo que o expurgo da escola percorre, na ordem do catálogo (`CHAVES_DE_RETENCAO`): as que apagam
@@ -328,7 +328,7 @@ const THREAD_VAZIA_E_VENCIDA = (escolaId: string, agora: Date, meses: number): S
 
 /**
  * O expurgo noturno da escola (F3, RF4 e RF5; Tech Spec do F3, seção 5), sempre no escopo da escola do contexto, que o
- * job tira do `job_registro` (regra 10, item 3): nenhum método recebe escola, e nenhum é `@SemEscopo`. O processador
+ * job tira do `job_registro` (regra 10, item 3): nenhum método recebe escola, e nenhum é `@Unscoped`. O processador
  * `retencao.expurgar-escola` percorre as categorias com o prazo efetivo e grava `expurgo_execucao`; a medição do alerta
  * lê as noites daqui.
  *
@@ -347,7 +347,7 @@ const THREAD_VAZIA_E_VENCIDA = (escolaId: string, agora: Date, meses: number): S
 export class ExpurgoDaEscolaRepository {
   readonly #cicloDeVida: CicloDeVidaService
 
-  constructor(private readonly banco: Banco) {
+  constructor(private readonly banco: Database) {
     this.#cicloDeVida = new CicloDeVidaService(banco)
   }
 
@@ -367,7 +367,7 @@ export class ExpurgoDaEscolaRepository {
    */
   async expurgarLote(alvo: AlvoDoExpurgoDaEscola, prazo: PrazoDoLote, limite: number, depoisDeTravar?: () => Promise<void>): Promise<LoteDoExpurgo> {
     const { agora, meses } = prazo
-    const escolaId = exigirEscolaDoContexto()
+    const escolaId = requireEscolaId()
     if (alvo === 'usuario') return this.#eliminarPessoasDesativadas(escolaId, prazo, Math.min(limite, LOTE_MAXIMO_DO_ALVO.usuario ?? limite))
     if (alvo !== 'thread_agente') {
       const resultado = await this.banco.execute(INSTRUCAO_DO_LOTE[alvo](escolaId, prazo, limite))
@@ -430,12 +430,12 @@ export class ExpurgoDaEscolaRepository {
             )
             .limit(1)
             .for('no key update')
-          if (ainda === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+          if (ainda === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
           await this.#cicloDeVida.eliminar(id, { autorOperador: AUTOR_DA_ROTINA }, tx)
         })
         eliminadas += 1
       } catch (erro) {
-        if (!(erro instanceof ErroDeDominio) || erro.codigo !== ErrorCode.NAO_ENCONTRADO) throw erro
+        if (!(erro instanceof DomainException) || erro.codigo !== ErrorCode.NAO_ENCONTRADO) throw erro
       }
     }
     return { linhas: eliminadas, cheio: escolhidos.rows.length >= limite }
@@ -455,8 +455,8 @@ export class ExpurgoDaEscolaRepository {
    * seguinte, e dois jobs da mesma escola ao mesmo tempo levam pedidos diferentes. A mesma chave colide só com o job ainda
    * não terminado do mesmo pedido, e conta como "já enfileirado".
    */
-  async enfileirarEliminacoes(enfileirador: Pick<Enfileirador, 'enfileirarUmaVez'>): Promise<EliminacoesEnfileiradas> {
-    const escolaId = exigirEscolaDoContexto()
+  async enfileirarEliminacoes(enfileirador: Pick<JobOutbox, 'enfileirarUmaVez'>): Promise<EliminacoesEnfileiradas> {
+    const escolaId = requireEscolaId()
     return this.banco.transaction(async (tx) => {
       const marcados = await tx.execute<{ id: string }>(sql`
         update pedido_titular
@@ -491,7 +491,7 @@ export class ExpurgoDaEscolaRepository {
     const [linha] = await this.banco
       .select({ vencimento: sql<Date | string | null>`min(${pedidoTitular.eliminarEm})` })
       .from(pedidoTitular)
-      .where(and(eq(pedidoTitular.escolaId, exigirEscolaDoContexto()), eq(pedidoTitular.estado, 'agendado'), sql`${pedidoTitular.eliminarEm} <= now()`))
+      .where(and(eq(pedidoTitular.escolaId, requireEscolaId()), eq(pedidoTitular.estado, 'agendado'), sql`${pedidoTitular.eliminarEm} <= now()`))
     const valor = linha?.vencimento
     return valor === null || valor === undefined ? undefined : valor instanceof Date ? valor : new Date(valor)
   }
@@ -502,7 +502,7 @@ export class ExpurgoDaEscolaRepository {
    * do F3, seção 3). Roda no fim da noite, depois das categorias, e não grava linha sobre si mesmo.
    */
   async expurgarRegistroDoExpurgo(agora: Date, limite: number): Promise<LoteDoExpurgo> {
-    const escolaId = exigirEscolaDoContexto()
+    const escolaId = requireEscolaId()
     const resultado = await this.banco.execute(REGISTRO_DO_EXPURGO_VENCIDO(escolaId, agora, limite))
     const linhas = resultado.rowCount ?? 0
     return { linhas, cheio: linhas >= limite }
@@ -510,7 +510,7 @@ export class ExpurgoDaEscolaRepository {
 
   /** Grava o que a execução fez numa categoria: só a contagem e se terminou. */
   async registrar(categoria: CategoriaDeRetencao, linhas: number, concluida: boolean, em: Date): Promise<void> {
-    await this.banco.insert(expurgoExecucao).values({ escolaId: exigirEscolaDoContexto(), categoria, linhas, concluida, em })
+    await this.banco.insert(expurgoExecucao).values({ escolaId: requireEscolaId(), categoria, linhas, concluida, em })
   }
 
   /**
@@ -521,7 +521,7 @@ export class ExpurgoDaEscolaRepository {
     const [ultima] = await this.banco
       .select({ categoria: expurgoExecucao.categoria, concluida: expurgoExecucao.concluida })
       .from(expurgoExecucao)
-      .where(eq(expurgoExecucao.escolaId, exigirEscolaDoContexto()))
+      .where(eq(expurgoExecucao.escolaId, requireEscolaId()))
       .orderBy(desc(expurgoExecucao.em), desc(expurgoExecucao.id))
       .limit(1)
     return ultima === undefined || ultima.concluida ? undefined : ultima.categoria
@@ -536,7 +536,7 @@ export class ExpurgoDaEscolaRepository {
    * disparam o alerta.
    */
   async noitesDoAlerta(fuso: string, agora: Date, categorias: readonly CategoriaDeRetencao[]): Promise<NoiteDoExpurgo[] | undefined> {
-    const escolaId = exigirEscolaDoContexto()
+    const escolaId = requireEscolaId()
     const [primeira] = await this.banco
       .select({ dia: sql<string>`(${expurgoExecucao.em} at time zone ${fuso})::date::text` })
       .from(expurgoExecucao)
@@ -579,16 +579,16 @@ export function ordemDaNoite(pendente: CategoriaDeRetencao | undefined): Categor
 }
 
 /** A instrução do lote, para o teste conferir o plano sem mudar nada. A thread vazia e a pessoa não têm instrução única. */
-export function instrucaoDoLoteDaEscola(alvo: Exclude<AlvoDoExpurgoDaEscola, 'thread_agente' | 'usuario'>, escolaId: string, prazo: PrazoDoLote, limite: number): SQL {
+export function expurgoSchoolBatchStatement(alvo: Exclude<AlvoDoExpurgoDaEscola, 'thread_agente' | 'usuario'>, escolaId: string, prazo: PrazoDoLote, limite: number): SQL {
   return INSTRUCAO_DO_LOTE[alvo](escolaId, prazo, limite)
 }
 
 /** A escolha das pessoas a eliminar, para o teste conferir o plano sem mudar nada. */
-export function instrucaoDasPessoasDesativadas(escolaId: string, prazo: PrazoDoLote, limite: number): SQL {
+export function expurgoDeactivatedPeopleStatement(escolaId: string, prazo: PrazoDoLote, limite: number): SQL {
   return PESSOAS_DESATIVADAS(escolaId, prazo, limite)
 }
 
 /** A instrução do lote do registro do expurgo, para o teste conferir o plano sem mudar nada. */
-export function instrucaoDoRegistroDoExpurgo(escolaId: string, agora: Date, limite: number): SQL {
+export function expurgoRecordStatement(escolaId: string, agora: Date, limite: number): SQL {
   return REGISTRO_DO_EXPURGO_VENCIDO(escolaId, agora, limite)
 }

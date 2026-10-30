@@ -1,4 +1,4 @@
-import { IdPipe, Permite, ZodValidationPipe } from '@educa/nucleo'
+import { IdPipe, RequirePermissao, ZodValidationPipe } from '@educa/nucleo'
 import {
   paginationQuerySchema,
   cadastrarProfessorRequestSchema,
@@ -25,27 +25,27 @@ export class ProfessoresController {
   constructor(private readonly professores: ProfessoresService) {}
 
   @Post()
-  @Permite('professor', 'cadastrar')
+  @RequirePermissao('professor', 'cadastrar')
   @Header('Cache-Control', 'no-store')
   cadastrar(@Body(new ZodValidationPipe(cadastrarProfessorRequestSchema)) pedido: CadastrarProfessorRequest): Promise<ConviteDeProfessorResponse> {
     return this.professores.cadastrar(pedido)
   }
 
   @Get()
-  @Permite('professor', 'listar')
+  @RequirePermissao('professor', 'listar')
   listar(@Query(new ZodValidationPipe(paginationQuerySchema)) consulta: PaginationQuery): Promise<ListaDeProfessoresResponse> {
     return this.professores.listar(consulta)
   }
 
   @Post(':usuarioId/convite/refazer')
-  @Permite('professor', 'refazer_convite')
+  @RequirePermissao('professor', 'refazer_convite')
   @Header('Cache-Control', 'no-store')
   refazerConvite(@Param('usuarioId', IdPipe) usuarioId: string, @Body(new ZodValidationPipe(esquemaSemCorpo)) _corpo: Record<string, never>): Promise<ConviteDeProfessorResponse> {
     return this.professores.refazerConvite(usuarioId)
   }
 
   @Post(':usuarioId/convite/revogar')
-  @Permite('professor', 'revogar_convite')
+  @RequirePermissao('professor', 'revogar_convite')
   @HttpCode(HttpStatus.NO_CONTENT)
   revogarConvite(@Param('usuarioId', IdPipe) usuarioId: string, @Body(new ZodValidationPipe(esquemaSemCorpo)) _corpo: Record<string, never>): Promise<void> {
     return this.professores.revogarConvite(usuarioId)

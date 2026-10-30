@@ -1,13 +1,13 @@
 import { ErrorCode } from '@educa/shared'
-import { ErroDeDominio } from '../erro/erro-de-dominio.js'
+import { DomainException } from '../erro/erro-de-dominio.js'
 
 /**
  * O que pode dar errado numa chamada de IA, do jeito que o domínio enxerga. São códigos do contrato da API
- * (`ErrorCode`, em `@educa/shared`), com o status de `STATUS_HTTP_DO_CODIGO`: o mesmo código vai para a resposta
+ * (`ErrorCode`, em `@educa/shared`), com o status de `HTTP_STATUS_BY_CODE`: o mesmo código vai para a resposta
  * HTTP, para `execucao_agente.erro` e para `consumo_ia.codigo_de_erro`. O erro cru do provedor (status, corpo,
  * mensagem do `fetch`) nunca sai da camada: ele pode repetir o prompt, e o prompt do Tutor é texto de aluno.
  */
-export const CODIGOS_DE_ERRO_DE_IA = [
+export const LLM_ERROR_CODES = [
   /** O provedor não respondeu, recusou (429, mesmo depois da única repetição), falhou (5xx) ou está com o disjuntor aberto. */
   ErrorCode.IA_INDISPONIVEL,
   /** A chamada passou do prazo do perfil (`LLM_TIMEOUT_MS`, `_RAPIDO` ou `_PADRAO`) ou a execução passou do dela. */
@@ -27,16 +27,16 @@ export const CODIGOS_DE_ERRO_DE_IA = [
   /** Os trechos do material não sustentam o que foi pedido: sem página para citar, nada é gerado (regra 30, item 12). */
   ErrorCode.MATERIAL_INSUFICIENTE,
 ] as const
-export type CodigoDeErroDeIa = (typeof CODIGOS_DE_ERRO_DE_IA)[number]
+export type LLMErrorCode = (typeof LLM_ERROR_CODES)[number]
 
-/** Como o `ErroDeDominio`, não tem texto livre: não há onde levar prompt, resposta de modelo ou nome. */
-export class ErroDeIa extends ErroDeDominio {
+/** Como o `DomainException`, não tem texto livre: não há onde levar prompt, resposta de modelo ou nome. */
+export class LLMError extends DomainException {
   /** O mesmo `codigo`, com o tipo restrito aos da camada de IA. */
-  readonly codigoDeIa: CodigoDeErroDeIa
+  readonly codigoDeIa: LLMErrorCode
 
-  constructor(codigoDeIa: CodigoDeErroDeIa, tenteDeNovoEmSegundos?: number) {
+  constructor(codigoDeIa: LLMErrorCode, tenteDeNovoEmSegundos?: number) {
     super(codigoDeIa, undefined, tenteDeNovoEmSegundos)
-    this.name = 'ErroDeIa'
+    this.name = 'LLMError'
     this.codigoDeIa = codigoDeIa
   }
 }
@@ -49,19 +49,19 @@ export class ErroDeIa extends ErroDeDominio {
  * - `tempo`: o prazo acabou. Pode ter cobrado: não se repete, e pesa.
  * - `rejeitada`: outro 4xx. O pedido ou a configuração está errada e repetir daria o mesmo: não se repete e não pesa.
  */
-export type FalhaDoProvedor = 'limite' | 'recusada' | 'servidor' | 'tempo' | 'rejeitada'
+export type ProviderFailure = 'limite' | 'recusada' | 'servidor' | 'tempo' | 'rejeitada'
 
 /**
- * O erro que o adaptador do provedor lança: um `ErroDeIa` que diz também **por que** falhou. Continua sem texto livre,
+ * O erro que o adaptador do provedor lança: um `LLMError` que diz também **por que** falhou. Continua sem texto livre,
  * e por isso o corpo do provedor, que pode repetir o prompt, não tem como sair dele. A camada de resiliência o troca por
- * um `ErroDeIa` simples antes de devolver, e quem está acima dela não conhece o `falha`.
+ * um `LLMError` simples antes de devolver, e quem está acima dela não conhece o `falha`.
  */
-export class ErroDoProvedor extends ErroDeIa {
+export class ProviderError extends LLMError {
   constructor(
-    readonly falha: FalhaDoProvedor,
+    readonly falha: ProviderFailure,
     tenteDeNovoEmSegundos?: number,
   ) {
     super(falha === 'tempo' ? 'IA_TEMPO_ESGOTADO' : 'IA_INDISPONIVEL', tenteDeNovoEmSegundos)
-    this.name = 'ErroDoProvedor'
+    this.name = 'ProviderError'
   }
 }

@@ -1,4 +1,4 @@
-import { acimaDoLimiteDoIp, ipDaRequisicao, LimiteQueRebaixa, ProxiesConfiaveis, RotaAnonima, ZodValidationPipe } from '@educa/nucleo'
+import { isOverIpLimit, requestIp, DowngradeRateLimit, TrustedProxies, Public, ZodValidationPipe } from '@educa/nucleo'
 import { loginMatriculaRequestSchema, loginResponseSchema, type LoginMatriculaRequest, type LoginResponse } from '@educa/shared'
 import { Body, Controller, Header, HttpCode, HttpStatus, Post, Req, Res } from '@nestjs/common'
 import type { IncomingMessage, ServerResponse } from 'node:http'
@@ -6,16 +6,16 @@ import { LoginPorMatricula } from './matricula.service.js'
 
 /**
  * `POST /v1/sessao/matricula`: o aluno entra pelo endereço da escola com matrícula e senha. Anônima; o limite por IP dela
- * (`@LimiteQueRebaixa()`, 15.0) nunca recusa, só rebaixa a tentativa no semáforo; o que segura a senha errada é o
+ * (`@DowngradeRateLimit()`, 15.0) nunca recusa, só rebaixa a tentativa no semáforo; o que segura a senha errada é o
  * contador por escola e matrícula, no service.
  */
-@RotaAnonima()
-@LimiteQueRebaixa()
+@Public()
+@DowngradeRateLimit()
 @Controller('v1/sessao')
 export class LoginMatriculaController {
   constructor(
     private readonly login: LoginPorMatricula,
-    private readonly proxies: ProxiesConfiaveis,
+    private readonly proxies: TrustedProxies,
   ) {}
 
   @Post('matricula')
@@ -27,9 +27,9 @@ export class LoginMatriculaController {
     @Res({ passthrough: true }) resposta: ServerResponse,
   ): Promise<LoginResponse> {
     const { resposta: corpoDaResposta, cookies } = await this.login.entrar(pedido, {
-      ip: await ipDaRequisicao(requisicao, this.proxies),
+      ip: await requestIp(requisicao, this.proxies),
       cabecalhoCookie: requisicao.headers.cookie,
-      acimaDoLimiteDoIp: acimaDoLimiteDoIp(requisicao),
+      acimaDoLimiteDoIp: isOverIpLimit(requisicao),
     })
     resposta.setHeader('Set-Cookie', [...cookies])
     return loginResponseSchema.parse(corpoDaResposta)

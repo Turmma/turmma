@@ -1,5 +1,5 @@
 import 'reflect-metadata'
-import { contextoAtual, criarLogger, ErroDeDominio, Permite, RotaAnonima, TENTE_DE_NOVO_PADRAO_SEGUNDOS, type PoolBanco } from '@educa/nucleo'
+import { currentContext, createLogger, DomainException, RequirePermissao, Public, DEFAULT_RETRY_AFTER_SECONDS, type DatabasePool } from '@educa/nucleo'
 import { ErrorCode, InvariantException, MENSAGENS_DE_ERRO } from '@educa/shared'
 import {
   Body,
@@ -33,14 +33,14 @@ const MOTIVO_DA_INVARIANTE = 'turma gravada sem a linha de volta'
 const ESCOLA_INJETADA = '0190f5a0-0000-7000-8000-00000000000b'
 
 const linhasDeLog: string[] = []
-const registrador = criarLogger({ servico: 'api-teste', destino: { write: (linha: string) => linhasDeLog.push(linha) } })
+const registrador = createLogger({ servico: 'api-teste', destino: { write: (linha: string) => linhasDeLog.push(linha) } })
 const registros = () => linhasDeLog.map((linha) => JSON.parse(linha) as Record<string, unknown>)
 
 // Anônimo: este arquivo prova o erro e o log; a autenticação é provada em contexto.int.test.ts.
-@RotaAnonima()
+@Public()
 @Controller('teste')
 class ControladorDeTeste {
-  constructor(@Inject(POOL_BANCO) private readonly pool: PoolBanco) {}
+  constructor(@Inject(POOL_BANCO) private readonly pool: DatabasePool) {}
 
   @Get('excecao')
   lancar(): never {
@@ -54,12 +54,12 @@ class ControladorDeTeste {
 
   @Get('dominio/limite')
   limite(): never {
-    throw new ErroDeDominio(ErrorCode.LIMITE_EXCEDIDO)
+    throw new DomainException(ErrorCode.LIMITE_EXCEDIDO)
   }
 
   @Get('dominio/conflito-422')
   conflitoComStatus(): never {
-    throw new ErroDeDominio(ErrorCode.CONFLITO, 422)
+    throw new DomainException(ErrorCode.CONFLITO, 422)
   }
 
   @Get('http/nao-autenticado')
@@ -85,13 +85,13 @@ class ControladorDeTeste {
   }
 }
 
-/** Sem `@RotaAnonima()`: a escola de cada requisição vem da sessão do token, como em qualquer rota real. */
+/** Sem `@Public()`: a escola de cada requisição vem da sessão do token, como em qualquer rota real. */
 @Controller('teste-autenticado')
 class ControladorDeEco {
-  constructor(@Inject(POOL_BANCO) private readonly pool: PoolBanco) {}
+  constructor(@Inject(POOL_BANCO) private readonly pool: DatabasePool) {}
 
   @Get('eco')
-  @Permite('sistema_contexto', 'ler')
+  @RequirePermissao('sistema_contexto', 'ler')
   async eco(@Query('indice') indice: string): Promise<{ requisicaoId: string }> {
     // Esperas desencontradas e fixas por índice: sem isolamento real do contexto, as linhas
     // trocariam de requisição, e sempre do mesmo jeito.
@@ -101,7 +101,7 @@ class ControladorDeEco {
     await this.pool.query('select 1')
     await esperar((posicao * 5) % 11)
     registrador.info({ evento: 'teste.eco', etapa: 2 })
-    return { requisicaoId: contextoAtual()?.requisicaoId ?? '' }
+    return { requisicaoId: currentContext()?.requisicaoId ?? '' }
   }
 }
 
@@ -128,12 +128,12 @@ describe('erro tipado e log sem dado pessoal', () => {
     // Um servidor só, já ouvindo: sem isso o supertest abre uma porta por requisição, e 50 em
     // paralelo esbarram no backlog do sistema (ECONNRESET) em vez de testar o contexto.
     await app.listen(0, '127.0.0.1')
-    const pool = app.get<PoolBanco>(POOL_BANCO)
+    const pool = app.get<DatabasePool>(POOL_BANCO)
     await pool.query(`create table ${TABELA} (id uuid primary key default gen_random_uuid(), nome text not null constraint ${TABELA}_nome_key unique)`)
   })
 
   afterAll(async () => {
-    await app.get<PoolBanco>(POOL_BANCO).query(`drop table if exists ${TABELA}`)
+    await app.get<DatabasePool>(POOL_BANCO).query(`drop table if exists ${TABELA}`)
     await app.close()
     await bancada.fechar()
   })
@@ -177,7 +177,7 @@ describe('erro tipado e log sem dado pessoal', () => {
     expect(limite.status).toBe(429)
     esperarEnvelopeSemVazamento(limite.body, ErrorCode.LIMITE_EXCEDIDO)
     // Quem lançou não disse quanto esperar: sai o padrão, e o cliente não repete na hora.
-    expect(limite.headers['retry-after']).toBe(String(TENTE_DE_NOVO_PADRAO_SEGUNDOS))
+    expect(limite.headers['retry-after']).toBe(String(DEFAULT_RETRY_AFTER_SECONDS))
 
     const conflito = await request(app.getHttpServer()).get('/teste/dominio/conflito-422')
     expect(conflito.status).toBe(422)
@@ -214,7 +214,7 @@ describe('erro tipado e log sem dado pessoal', () => {
 
     expect(resposta.status).toBe(503)
     esperarEnvelopeSemVazamento(resposta.body, ErrorCode.TEMPO_ESGOTADO)
-    expect(resposta.headers['retry-after']).toBe(String(TENTE_DE_NOVO_PADRAO_SEGUNDOS))
+    expect(resposta.headers['retry-after']).toBe(String(DEFAULT_RETRY_AFTER_SECONDS))
     expect(registros().find((registro) => registro.evento === 'http.erro')).toMatchObject({ erro: { sqlstate: '57014' } })
   })
 

@@ -1,18 +1,18 @@
 import {
   ALVOS_DO_EXPURGO_DA_ESCOLA,
-  contextoAtual,
+  currentContext,
   estaNaJanela,
   LOTE_DO_EXPURGO,
   ordemDaNoite,
-  resumirErro,
-  type ArmazemDeArquivos,
+  summarizeError,
+  type FileStorage,
   type ArquivoDoTitularRepository,
-  type ConfiguracaoOperacional,
-  type Enfileirador,
+  type OperationalSettings,
+  type JobOutbox,
   type ExpurgoDaEscolaRepository,
   type JanelaLetiva,
   type LoggerBase,
-  type Relogio,
+  type Clock,
   type RetencaoDaEscolaRepository,
 } from '@educa/nucleo'
 import { JobFailureCode, InvariantException, retencaoDaEscola, type TIPO_EXPURGAR_ESCOLA } from '@educa/shared'
@@ -25,14 +25,14 @@ export const LOTE_DOS_ARQUIVOS_DO_TITULAR = 100
 export interface DependenciasDoExpurgoDaEscola {
   repositorio: Pick<ExpurgoDaEscolaRepository, 'expurgarLote' | 'expurgarRegistroDoExpurgo' | 'registrar' | 'categoriaPendente' | 'enfileirarEliminacoes'>
   /** A porta de entrada do trabalho demorado: o job `titular.eliminar` de cada pedido de eliminação vencido sai por ela (F3, tarefa 15.0). */
-  enfileirador: Pick<Enfileirador, 'enfileirarUmaVez'>
+  enfileirador: Pick<JobOutbox, 'enfileirarUmaVez'>
   /** Os arquivos do titular vencidos ou marcados `apagado_em` (F3, tarefa 13.0): o objeto sai do storage, e só então a linha. */
   arquivos: Pick<ArquivoDoTitularRepository, 'aApagar' | 'apagarLinhas'>
-  armazem: Pick<ArmazemDeArquivos, 'apagar'>
+  armazem: Pick<FileStorage, 'apagar'>
   retencao: Pick<RetencaoDaEscolaRepository, 'ajustes'>
   /** O horário letivo da escola do contexto: o expurgo confere a cada lote, e para quando ele abre. */
-  janelaDaEscola: Pick<ConfiguracaoOperacional<JanelaLetiva>, 'daEscola'>
-  relogio: Relogio
+  janelaDaEscola: Pick<OperationalSettings<JanelaLetiva>, 'daEscola'>
+  relogio: Clock
   logger: LoggerBase
   /** Linhas por lote. Só o teste troca. */
   lote?: number
@@ -63,7 +63,7 @@ export interface DependenciasDoExpurgoDaEscola {
  */
 export function criarExpurgoDaEscola({ repositorio, arquivos, armazem, retencao, janelaDaEscola, enfileirador, relogio, logger, lote = LOTE_DO_EXPURGO }: DependenciasDoExpurgoDaEscola): Processador<typeof TIPO_EXPURGAR_ESCOLA> {
   return async () => {
-    if (contextoAtual()?.escolaId === undefined) throw new FalhaDeJob(JobFailureCode.DADOS_INVALIDOS, true)
+    if (currentContext()?.escolaId === undefined) throw new FalhaDeJob(JobFailureCode.DADOS_INVALIDOS, true)
     const agora = relogio.agora()
     // Primeiro, as eliminações vencidas (F3, tarefa 15.0): cada pedido `agendado` com `eliminar_em` passado vira um
     // `titular.eliminar` na fila de lote, na mesma transação da marca `eliminacao_enfileirada_em`. É só gravar linhas: o
@@ -103,7 +103,7 @@ export function criarExpurgoDaEscola({ repositorio, arquivos, armazem, retencao,
         // janela letiva, acima, também está aqui dentro: se ela falhar, esta tenta a mesma linha de novo, uma vez só.
         await repositorio.registrar(categoria, linhasDaCategoriaTotal, false, relogio.agora()).catch((falhaDoRegistro: unknown) => {
           const tipo = categoria
-          logger.warn({ evento: 'retencao.registro_nao_gravado', tipo, erro: resumirErro(falhaDoRegistro) })
+          logger.warn({ evento: 'retencao.registro_nao_gravado', tipo, erro: summarizeError(falhaDoRegistro) })
         })
         throw erro
       }
@@ -141,7 +141,7 @@ interface DependenciasDoApagarArquivos {
   arquivos: DependenciasDoExpurgoDaEscola['arquivos']
   armazem: DependenciasDoExpurgoDaEscola['armazem']
   janela: JanelaLetiva
-  relogio: Relogio
+  relogio: Clock
   agora: Date
   logger: LoggerBase
 }
@@ -169,7 +169,7 @@ async function apagarArquivosDoTitular({ arquivos, armazem, janela, relogio, ago
       } catch (erro) {
         naoApagados += 1
         // Nem a chave do objeto nem o texto do erro vão ao log: só que um objeto ficou, e o motivo resumido.
-        logger.warn({ evento: 'retencao.arquivo_nao_apagado', erro: resumirErro(erro) })
+        logger.warn({ evento: 'retencao.arquivo_nao_apagado', erro: summarizeError(erro) })
       }
     }
     const linhasApagadas = await arquivos.apagarLinhas(sairam)

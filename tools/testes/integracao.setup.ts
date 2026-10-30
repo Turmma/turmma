@@ -1,6 +1,6 @@
 import { spawnSync } from 'node:child_process'
-import { criarLogger } from '../../packages/nucleo/src/log/logger.ts'
-import { migrar } from '../../packages/nucleo/src/db/migrar.ts'
+import { createLogger } from '../../packages/nucleo/src/log/logger.ts'
+import { migrate } from '../../packages/nucleo/src/db/migrar.ts'
 import { ARGUMENTOS_COMPOSE, comandosDaSubidaDeTeste, urlDoBancoDeTeste } from '../ci/compose.ts'
 import { raizRepositorio } from '../ci/executar.ts'
 
@@ -20,5 +20,5 @@ export default async function subirInfra(): Promise<void> {
       throw new Error(`Não foi possível rodar \`docker compose ${argumentos[0] ?? ''}\` na infraestrutura de teste.`)
     }
   }
-  await migrar({ url: urlDoBancoDeTeste(), timeoutConexaoMs: 5_000, timeoutConsultaMs: 60_000 }, criarLogger({ servico: 'migrar-teste', nivel: 'warn' }))
+  await migrate({ url: urlDoBancoDeTeste(), timeoutConexaoMs: 5_000, timeoutConsultaMs: 60_000 }, createLogger({ servico: 'migrar-teste', nivel: 'warn' }))
 }

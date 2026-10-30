@@ -1,6 +1,6 @@
 import { sql } from 'drizzle-orm'
-import { exigirEscolaDoContexto } from '../contexto/escola-do-contexto.js'
-import type { Banco, TransacaoBanco } from '../db/banco.js'
+import { requireEscolaId } from '../contexto/escola-do-contexto.js'
+import type { Database, DatabaseTransaction } from '../db/banco.js'
 
 /**
  * Se o nome do titular é o de outra pessoa da escola (F3, RF15; Tech Spec do F3, seção 5, "Eliminação"): outro **aluno ativo**
@@ -12,8 +12,8 @@ import type { Banco, TransacaoBanco } from '../db/banco.js'
  * A resposta é só sim ou não: nunca diz quem é o outro. A escola é a do contexto, e o professor nunca conta como
  * homônimo (a troca só acontece para aluno).
  */
-export async function haHomonimoDoTitular(banco: Banco | TransacaoBanco, titularId: string): Promise<boolean> {
-  const escolaId = exigirEscolaDoContexto()
+export async function haHomonimoDoTitular(banco: Database | DatabaseTransaction, titularId: string): Promise<boolean> {
+  const escolaId = requireEscolaId()
   const { rows } = await banco.execute<{ homonimo: boolean }>(sql`
     select (
       exists (

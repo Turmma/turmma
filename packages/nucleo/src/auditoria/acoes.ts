@@ -805,17 +805,17 @@ export function problemasDoMapaDeAcoes(mapa: Readonly<Record<string, DefinicaoDe
  * O mapa tem campo proibido ou objeto não estrito. Os problemas são caminhos do próprio mapa (`teste.acao.depois.dados`),
  * escritos no código e sem dado de pessoa: vão num campo, e a mensagem continua fixa.
  */
-export class MapaDeAuditoriaInvalido extends InvariantException {
+export class InvalidAuditoriaMapError extends InvariantException {
   constructor(readonly problemas: readonly string[]) {
     super('mapa de auditoria inválido')
-    this.name = 'MapaDeAuditoriaInvalido'
+    this.name = 'InvalidAuditoriaMapError'
   }
 }
 
 /** Recusa o mapa que tem problema, com os caminhos deles no erro. */
 export function exigirMapaDeAcoesValido(mapa: Readonly<Record<string, DefinicaoDeAcao>>): void {
   const problemas = problemasDoMapaDeAcoes(mapa)
-  if (problemas.length > 0) throw new MapaDeAuditoriaInvalido(problemas)
+  if (problemas.length > 0) throw new InvalidAuditoriaMapError(problemas)
 }
 
 // Falha no carregamento do módulo: um mapa com campo proibido não chega a gravar uma linha.

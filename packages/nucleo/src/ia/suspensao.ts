@@ -1,12 +1,12 @@
 import type { ChaveDeFuncao } from '@educa/shared'
-import { exigirEscolaDoContexto } from '../contexto/escola-do-contexto.js'
-import { ErroDeIa } from './erros.js'
+import { requireEscolaId } from '../contexto/escola-do-contexto.js'
+import { LLMError } from './erros.js'
 
 /**
  * A escola pode suspender **uma função** de IA sem desligar as outras (D60): suspende a correção automática e o chat
  * do professor continua. A suspensão vale no servidor, e é esta porta que responde, a cada execução, se a função
  * está suspensa naquela escola agora. **A escola é a do contexto de quem executa** (a requisição ou a execução em segundo
- * plano), lida a cada chamada com `exigirEscolaDoContexto()`: a porta não a recebe por argumento (regra 10, item 3). A
+ * plano), lida a cada chamada com `requireEscolaId()`: a porta não a recebe por argumento (regra 10, item 3). A
  * implementação em Postgres lê `suspensao_de_funcao`, com `escola_id` na cláusula.
  */
 export interface SuspensaoDeFuncao {
@@ -25,16 +25,16 @@ export async function exigirFuncaoAtiva(suspensao: SuspensaoDeFuncao, funcao: Ch
   try {
     suspensa = await suspensao.estaSuspensa(funcao)
   } catch {
-    throw new ErroDeIa('IA_INDISPONIVEL')
+    throw new LLMError('IA_INDISPONIVEL')
   }
-  if (suspensa) throw new ErroDeIa('FUNCAO_SUSPENSA')
+  if (suspensa) throw new LLMError('FUNCAO_SUSPENSA')
 }
 
 /**
  * Suspensões em memória, para teste. Quem prepara o cenário diz a escola (`suspender`, `retomar`); quem consulta
  * (`estaSuspensa`) é perguntado pela escola do contexto, como a implementação em Postgres, e sem contexto lança.
  */
-export class SuspensoesEmMemoria implements SuspensaoDeFuncao {
+export class InMemorySuspensoes implements SuspensaoDeFuncao {
   private readonly suspensas = new Set<string>()
 
   suspender(escolaId: string, funcao: ChaveDeFuncao): void {
@@ -46,6 +46,6 @@ export class SuspensoesEmMemoria implements SuspensaoDeFuncao {
   }
 
   async estaSuspensa(funcao: ChaveDeFuncao): Promise<boolean> {
-    return this.suspensas.has(`${exigirEscolaDoContexto()}:${funcao}`)
+    return this.suspensas.has(`${requireEscolaId()}:${funcao}`)
   }
 }

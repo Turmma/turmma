@@ -1,4 +1,4 @@
-import { exigirEscolaDoContexto, registroAcesso, type Banco, type EventoDeAcesso, type TransacaoBanco } from '@educa/nucleo'
+import { requireEscolaId, registroAcesso, type Database, type EventoDeAcesso, type DatabaseTransaction } from '@educa/nucleo'
 
 /**
  * O registro de acesso (Marco Civil, art. 15) de quem já tem escola: login, renovação e saída, gravados na escola do
@@ -8,10 +8,10 @@ import { exigirEscolaDoContexto, registroAcesso, type Banco, type EventoDeAcesso
  * Grava só evento, usuário, IP e hora: nada de e-mail, cookie ou navegador (`docs/lgpd.md`).
  */
 export class RegistroDeAcessoRepository {
-  constructor(private readonly tx: Banco | TransacaoBanco) {}
+  constructor(private readonly tx: Database | DatabaseTransaction) {}
 
   async gravar(evento: Exclude<EventoDeAcesso, 'login_falho'>, usuarioId: string, ip: string): Promise<void> {
-    await this.tx.insert(registroAcesso).values({ escolaId: exigirEscolaDoContexto(), usuarioId, evento, ip })
+    await this.tx.insert(registroAcesso).values({ escolaId: requireEscolaId(), usuarioId, evento, ip })
   }
 
   /**
@@ -19,6 +19,6 @@ export class RegistroDeAcessoRepository {
    * se a matrícula existe.
    */
   async gravarFalha(ip: string): Promise<void> {
-    await this.tx.insert(registroAcesso).values({ escolaId: exigirEscolaDoContexto(), usuarioId: null, evento: 'login_falho', ip })
+    await this.tx.insert(registroAcesso).values({ escolaId: requireEscolaId(), usuarioId: null, evento: 'login_falho', ip })
   }
 }

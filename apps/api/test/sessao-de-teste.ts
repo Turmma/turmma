@@ -1,4 +1,4 @@
-import { criarBanco, criarPool, DURACAO_DA_SESSAO_HORAS, executarNoContexto, type Banco, type PoolBanco } from '@educa/nucleo'
+import { createDatabase, createPool, DURACAO_DA_SESSAO_HORAS, runInContext, type Database, type DatabasePool } from '@educa/nucleo'
 import type { PapelDeUsuario } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { lerAmbienteDeTeste } from '../../../tools/ci/compose.ts'
@@ -22,7 +22,7 @@ export interface SessaoDeTeste {
   readonly sessaoId: string
   /** Token de acesso emitido na criação: vale 10 min. Teste mais longo pede outro a `tokenNovo`. */
   readonly token: string
-  /** Um token novo da mesma sessão, pelo `EmissorDeToken`. */
+  /** Um token novo da mesma sessão, pelo `TokenIssuer`. */
   tokenNovo(): Promise<string>
   /** Um token desta sessão emitido em outro instante, para o caso do token já vencido. */
   tokenEm(agora: Date): Promise<string>
@@ -35,7 +35,7 @@ export interface OpcoesDeSessao {
 
 /**
  * Escola e sessão reais para os testes que chamam a API autenticada, pelos mesmos serviços de `ops:escola` e de
- * `ops:sessao-sintetica`, no Postgres do compose de teste. A `GuardaDeSessao` lê a sessão gravada: token sem sessão
+ * `ops:sessao-sintetica`, no Postgres do compose de teste. A `SessaoGuard` lê a sessão gravada: token sem sessão
  * não passa. Nada de pessoa: nomes fixos e sintéticos.
  */
 /**
@@ -65,14 +65,14 @@ export const TABELAS_DO_MVP_NA_ORDEM_DE_LIMPEZA = [
 ] as const
 
 export class BancadaDeSessoes {
-  readonly pool: PoolBanco
-  readonly banco: Banco
+  readonly pool: DatabasePool
+  readonly banco: Database
   readonly #ambiente: Record<string, string | undefined>
   readonly #escolas: string[] = []
 
   constructor(url = urlDoBancoDeTeste(), ambiente: Record<string, string | undefined> = lerAmbienteDeTeste()) {
-    this.pool = criarPool({ url, maximoConexoes: 2, timeoutConexaoMs: 5_000, timeoutConsultaMs: 30_000 }, () => undefined)
-    this.banco = criarBanco(this.pool)
+    this.pool = createPool({ url, maximoConexoes: 2, timeoutConexaoMs: 5_000, timeoutConsultaMs: 30_000 }, () => undefined)
+    this.banco = createDatabase(this.pool)
     this.#ambiente = ambiente
   }
 
@@ -132,7 +132,7 @@ export class BancadaDeSessoes {
     const origem = rows[0]
     if (origem?.conta_id === null || origem === undefined) throw new Error('o usuário de origem precisa ter conta')
     const contaId = origem.conta_id
-    const criada = await executarNoContexto({ requisicaoId: randomUUID(), escolaId }, () =>
+    const criada = await runInContext({ requisicaoId: randomUUID(), escolaId }, () =>
       this.banco.transaction(async (tx) => {
         const criacao = new CriacaoDeSessaoRepository(tx)
         const [usuario] = await criacao.criarUsuarios([{ contaId, papel: origem.papel, nome: NOME_SINTETICO }])

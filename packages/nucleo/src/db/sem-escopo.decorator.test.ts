@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { ConfiguracaoOperacionalRepository } from '../configuracao/configuracao-operacional.repository.js'
-import { DespachoRepository } from '../fila/despacho.repository.js'
-import { JobRegistroRepository } from '../fila/job-registro.repository.js'
+import { OperationalSettingsRepository } from '../configuracao/configuracao-operacional.repository.js'
+import { DispatchRepository } from '../fila/despacho.repository.js'
+import { JobOutboxRepository } from '../fila/job-registro.repository.js'
 import { ExpurgoDeAcessoRepository } from '../retencao/expurgo-de-acesso.repository.js'
 import { ExpurgoDeJobsRepository } from '../retencao/expurgo-de-jobs.repository.js'
-import { ContadorDeUso } from '../uso/contador-uso.js'
-import { UsoRepository } from '../uso/uso.repository.js'
-import { justificativaSemEscopo, SemEscopo } from './sem-escopo.decorator.js'
+import { UsageMeter } from '../uso/contador-uso.js'
+import { UsageRepository } from '../uso/uso.repository.js'
+import { unscopedJustification, Unscoped } from './sem-escopo.decorator.js'
 
 function metodosDe(classe: { prototype: object }): string[] {
   return Object.getOwnPropertyNames(classe.prototype).filter((nome) => nome !== 'constructor')
@@ -14,36 +14,36 @@ function metodosDe(classe: { prototype: object }): string[] {
 
 describe('@SemEscopo', () => {
   it('recusa marcação sem justificativa escrita', () => {
-    expect(() => SemEscopo('')).toThrow('@SemEscopo exige justificativa escrita')
-    expect(() => SemEscopo('rotina')).toThrow('@SemEscopo exige justificativa escrita')
+    expect(() => Unscoped('')).toThrow('@SemEscopo exige justificativa escrita')
+    expect(() => Unscoped('rotina')).toThrow('@SemEscopo exige justificativa escrita')
   })
 
   it('só as consultas da fila inteira do despachante saem sem escopo, e cada uma diz por quê', () => {
-    const semEscopo = metodosDe(DespachoRepository).filter((metodo) => justificativaSemEscopo(DespachoRepository, metodo) !== undefined)
+    const semEscopo = metodosDe(DispatchRepository).filter((metodo) => unscopedJustification(DispatchRepository, metodo) !== undefined)
     expect(semEscopo.sort()).toEqual(['listarEscolasComPendentes', 'listarParaReconciliar', 'medirFalhos', 'medirPendentes', 'registrarFalhaDaFila', 'reservarParaRepublicar'])
-    for (const metodo of semEscopo) expect(justificativaSemEscopo(DespachoRepository, metodo), metodo).toMatch(/despachante/)
+    for (const metodo of semEscopo) expect(unscopedJustification(DispatchRepository, metodo), metodo).toMatch(/despachante/)
     // A medição é só leitura para a observabilidade: diz que nada dela chega a resposta de escola.
-    expect(justificativaSemEscopo(DespachoRepository, 'medirPendentes')).toMatch(/observabilidade local/)
-    expect(justificativaSemEscopo(DespachoRepository, 'medirFalhos')).toMatch(/observabilidade local/)
+    expect(unscopedJustification(DispatchRepository, 'medirPendentes')).toMatch(/observabilidade local/)
+    expect(unscopedJustification(DispatchRepository, 'medirFalhos')).toMatch(/observabilidade local/)
     // Reservar, devolver, listar e marcar publicados são da escola do contexto: a vaga e a configuração lidas junto são dela.
-    for (const metodo of ['reservarDaEscola', 'devolverParaAguardando', 'publicadosEntre', 'marcarPublicados']) expect(justificativaSemEscopo(DespachoRepository, metodo), metodo).toBeUndefined()
+    for (const metodo of ['reservarDaEscola', 'devolverParaAguardando', 'publicadosEntre', 'marcarPublicados']) expect(unscopedJustification(DispatchRepository, metodo), metodo).toBeUndefined()
     // Os repositories que atendem a API e o worker não têm exceção nenhuma.
-    for (const classe of [JobRegistroRepository, ConfiguracaoOperacionalRepository]) {
-      for (const metodo of metodosDe(classe)) expect(justificativaSemEscopo(classe, metodo), metodo).toBeUndefined()
+    for (const classe of [JobOutboxRepository, OperationalSettingsRepository]) {
+      for (const metodo of metodosDe(classe)) expect(unscopedJustification(classe, metodo), metodo).toBeUndefined()
     }
   })
 
   it('uso e retenção: só a descoberta das escolas com uso e os lotes dos expurgos (jobs e acesso) saem sem escopo; gravar e consultar uso é sempre na escola do contexto', () => {
     const marcados = (classe: { prototype: object }) =>
       metodosDe(classe)
-        .filter((metodo) => justificativaSemEscopo(classe as abstract new (...argumentos: never[]) => unknown, metodo) !== undefined)
+        .filter((metodo) => unscopedJustification(classe as abstract new (...argumentos: never[]) => unknown, metodo) !== undefined)
         .sort()
-    expect(marcados(ContadorDeUso)).toEqual(['lerDiasFechados'])
+    expect(marcados(UsageMeter)).toEqual(['lerDiasFechados'])
     expect(marcados(ExpurgoDeJobsRepository)).toEqual(['apagarLoteVencido'])
     expect(marcados(ExpurgoDeAcessoRepository)).toEqual(['apagarLoteVencido', 'limparLoteDeContasSemUso'])
-    for (const metodo of ['apagarLoteVencido', 'limparLoteDeContasSemUso']) expect(justificativaSemEscopo(ExpurgoDeAcessoRepository, metodo), metodo).toMatch(/expurgo/)
-    expect(marcados(UsoRepository)).toEqual([])
-    expect(justificativaSemEscopo(ContadorDeUso, 'lerDiasFechados')).toMatch(/consolidação/)
-    expect(justificativaSemEscopo(ExpurgoDeJobsRepository, 'apagarLoteVencido')).toMatch(/expurgo/)
+    for (const metodo of ['apagarLoteVencido', 'limparLoteDeContasSemUso']) expect(unscopedJustification(ExpurgoDeAcessoRepository, metodo), metodo).toMatch(/expurgo/)
+    expect(marcados(UsageRepository)).toEqual([])
+    expect(unscopedJustification(UsageMeter, 'lerDiasFechados')).toMatch(/consolidação/)
+    expect(unscopedJustification(ExpurgoDeJobsRepository, 'apagarLoteVencido')).toMatch(/expurgo/)
   })
 })

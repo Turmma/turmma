@@ -1,4 +1,4 @@
-import { executarNoContexto, opcoesDeJob } from '@educa/nucleo'
+import { runInContext, jobOptions } from '@educa/nucleo'
 import { JobFailureCode, JOB_DEFINITIONS, TIPO_JOB_SINTETICO, type JobRegistry } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
@@ -44,8 +44,8 @@ describe('o worker corta a tentativa no prazo do tipo', () => {
   async function publicado(tentativas: number, cpuMs = CPU_QUE_SO_O_JOB_TEM): Promise<string> {
     const id = await bancada.enfileirar(ESCOLA_A, { dados: { cpuMs, falhar: false } })
     await bancada.reservar(ESCOLA_A)
-    await bancada.fila.add('sintetico', { escolaId: ESCOLA_A, requisicaoId: null }, { ...opcoesDeJob(TIPO_JOB_SINTETICO), attempts: tentativas, jobId: id })
-    await executarNoContexto({ requisicaoId: randomUUID(), escolaId: ESCOLA_A }, () => bancada.despacho.marcarPublicados([id]))
+    await bancada.fila.add('sintetico', { escolaId: ESCOLA_A, requisicaoId: null }, { ...jobOptions(TIPO_JOB_SINTETICO), attempts: tentativas, jobId: id })
+    await runInContext({ requisicaoId: randomUUID(), escolaId: ESCOLA_A }, () => bancada.despacho.marcarPublicados([id]))
     return id
   }
 

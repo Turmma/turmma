@@ -1,4 +1,4 @@
-import { criarBanco, criarPool, type Banco, type PoolBanco } from '@educa/nucleo'
+import { createDatabase, createPool, type Database, type DatabasePool } from '@educa/nucleo'
 import { ErrorCode, criadoNoPainelResponseSchema, redesDoPainelResponseSchema, MAXIMO_DE_REDES_DO_PAINEL } from '@educa/shared'
 import type { INestApplication } from '@nestjs/common'
 import { randomUUID } from 'node:crypto'
@@ -41,8 +41,8 @@ describe('painel da operação: rede e escola, com o autor conferido na transaç
   const sufixo = randomUUID().slice(0, 8)
   let app: INestApplication
   let url: string
-  let pool: PoolBanco
-  let banco: Banco
+  let pool: DatabasePool
+  let banco: Database
 
   const novaRede = (nome = `Rede Sintética ${randomUUID().slice(0, 8)}`) => ({ id: randomUUID(), nome, tipo: 'prefeitura' as const })
   const novaEscola = (redeId: string, slug = `painel-${randomUUID().slice(0, 12)}`) => ({ id: randomUUID(), redeId, nome: `Colégio Sintético ${slug}`, slug })
@@ -66,8 +66,8 @@ describe('painel da operação: rede e escola, com o autor conferido na transaç
   const segurarODesativar = (operadorId: string) => segurarODesativarNoBanco(pool, operadorId)
 
   beforeAll(async () => {
-    pool = criarPool({ url: urlDoBancoDeTeste(), maximoConexoes: 6, timeoutConexaoMs: 5_000, timeoutConsultaMs: PRAZO_DAS_CONSULTAS_MS }, () => undefined)
-    banco = criarBanco(pool)
+    pool = createPool({ url: urlDoBancoDeTeste(), maximoConexoes: 6, timeoutConexaoMs: 5_000, timeoutConsultaMs: PRAZO_DAS_CONSULTAS_MS }, () => undefined)
+    banco = createDatabase(pool)
     ;({ app, url } = await subir(linhasDeLog))
   })
 

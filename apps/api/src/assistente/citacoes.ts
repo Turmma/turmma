@@ -1,4 +1,4 @@
-import { ErroDeIa } from '@educa/nucleo'
+import { LLMError } from '@educa/nucleo'
 import type { Citacao } from '@educa/shared'
 
 /** O que identifica um trecho entregue a uma tarefa: o material e a página. */
@@ -14,5 +14,5 @@ export interface PaginaEntregue {
  */
 export function exigirCitacoesEntregues(citacoes: readonly Pick<Citacao, 'materialId' | 'pagina'>[], entregues: readonly PaginaEntregue[]): void {
   const paginas = new Set(entregues.map((trecho) => `${trecho.materialId}:${String(trecho.pagina)}`))
-  if (citacoes.some((citacao) => !paginas.has(`${citacao.materialId}:${String(citacao.pagina)}`))) throw new ErroDeIa('IA_SAIDA_INVALIDA')
+  if (citacoes.some((citacao) => !paginas.has(`${citacao.materialId}:${String(citacao.pagina)}`))) throw new LLMError('IA_SAIDA_INVALIDA')
 }

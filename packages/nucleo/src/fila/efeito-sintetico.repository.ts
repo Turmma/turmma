@@ -1,6 +1,6 @@
 import { sql } from 'drizzle-orm'
-import { exigirEscolaDoContexto } from '../contexto/escola-do-contexto.js'
-import type { Banco } from '../db/banco.js'
+import { requireEscolaId } from '../contexto/escola-do-contexto.js'
+import type { Database } from '../db/banco.js'
 
 /**
  * A tabela do efeito do job sintético. Não tem migration nem schema do Drizzle: só o teste de integração a
@@ -15,10 +15,10 @@ import type { Banco } from '../db/banco.js'
  * )
  * ```
  */
-export const TABELA_DO_EFEITO_SINTETICO = 'efeito_sintetico'
+export const SYNTHETIC_EFFECT_TABLE = 'efeito_sintetico'
 
 /** O que identifica a execução que grava o efeito. */
-export interface EfeitoDaExecucao {
+export interface SyntheticEffect {
   /** O id do job em `job_registro`: igual em toda tentativa, stalled e republicação. */
   chaveIdempotencia: string
   tentativa: number
@@ -33,14 +33,14 @@ export interface EfeitoDaExecucao {
  * reexecução, em sequência ou ao mesmo tempo que a primeira, cai no conflito e não grava outra linha: a
  * concorrência se resolve no banco, e não com "verifica e depois grava" (regra 80, item 7).
  */
-export class EfeitoSinteticoRepository {
-  constructor(private readonly banco: Banco) {}
+export class SyntheticEffectRepository {
+  constructor(private readonly banco: Database) {}
 
   /** Grava o efeito da execução. Devolve `false` quando outra execução do mesmo job já o gravou. */
-  async gravar({ chaveIdempotencia, tentativa }: EfeitoDaExecucao): Promise<boolean> {
-    const escolaId = exigirEscolaDoContexto()
+  async gravar({ chaveIdempotencia, tentativa }: SyntheticEffect): Promise<boolean> {
+    const escolaId = requireEscolaId()
     const resultado = await this.banco.execute(sql`
-      insert into ${sql.identifier(TABELA_DO_EFEITO_SINTETICO)} (escola_id, chave_idempotencia, tentativa)
+      insert into ${sql.identifier(SYNTHETIC_EFFECT_TABLE)} (escola_id, chave_idempotencia, tentativa)
       values (${escolaId}, ${chaveIdempotencia}, ${tentativa})
       on conflict (escola_id, chave_idempotencia) do nothing
       returning chave_idempotencia

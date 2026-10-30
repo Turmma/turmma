@@ -1,12 +1,12 @@
 import 'reflect-metadata'
 import {
-  criarClienteRedisDaApi,
-  criarLogger,
-  criarPool,
-  EmissorDeToken,
+  createApiRedisClient,
+  createLogger,
+  createPool,
+  TokenIssuer,
   JANELA_LIMITE_SEGUNDOS,
-  LimitadorDeRequisicoes,
-  RotaAnonima,
+  RateLimiter,
+  Public,
   TIMEOUT_COMANDO_REDIS_API_MS,
 } from '@educa/nucleo'
 import { ErrorCode, MENSAGENS_DE_ERRO } from '@educa/shared'
@@ -29,7 +29,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 const ROTA_AUTENTICADA = '/v1/sistema/contexto'
 const ROTA_ANONIMA = '/teste-limite/anonima'
 
-@RotaAnonima()
+@Public()
 @Controller('teste-limite')
 class ControladorAnonimo {
   @Get('anonima')
@@ -41,7 +41,7 @@ class ControladorAnonimo {
 interface Instancia {
   app: INestApplication
   url: string
-  limitador: LimitadorDeRequisicoes
+  limitador: RateLimiter
 }
 
 const instancias: Instancia[] = []
@@ -63,12 +63,12 @@ async function subirApi(
   class ModuloDeTeste {}
 
   const app = await NestFactory.create(ModuloDeTeste, { logger: false })
-  configurarAplicacao(app, criarLogger({ servico: 'api-teste', nivel: 'silent' }))
+  configurarAplicacao(app, createLogger({ servico: 'api-teste', nivel: 'silent' }))
   await app.listen(0, endereco)
   const { port } = app.getHttpServer().address() as AddressInfo
   // Até o cliente conectar, a instância conta no seguro, como no boot real (antes de a borda mandar tráfego).
   if (esperarRedis) await clientePronto(app.get<Redis>(CLIENTE_REDIS_CACHE, { strict: false }))
-  const instancia = { app, url: `http://${endereco.includes(':') ? `[${endereco}]` : endereco}:${port}`, limitador: app.get(LimitadorDeRequisicoes) }
+  const instancia = { app, url: `http://${endereco.includes(':') ? `[${endereco}]` : endereco}:${port}`, limitador: app.get(RateLimiter) }
   instancias.push(instancia)
   return instancia
 }
@@ -77,7 +77,7 @@ async function fecharInstancias(): Promise<void> {
   await Promise.all(instancias.splice(0).map((instancia) => instancia.app.close()))
 }
 
-/** Escolas e sessões reais: a GuardaDeSessao lê a sessão do token depois do limite. */
+/** Escolas e sessões reais: a SessaoGuard lê a sessão do token depois do limite. */
 const sessoes = new BancadaDeSessoes()
 afterAll(async () => {
   await sessoes.fechar()
@@ -288,7 +288,7 @@ describe('rate limit por usuário e por escola, em instâncias no processo', () 
   it('turma com token vencido às 7h30: rota autenticada responde 401, nunca 429, e não gasta o limite anônimo do IP', async () => {
     const ip = ipSorteado()
     const sessao = await sessoes.escolaComSessao()
-    const emissorNoPassado = new EmissorDeToken(new TextEncoder().encode(valorObrigatorio(ambienteDeTeste, 'IDENTIDADE_CHAVE_ASSINATURA')), { agora: () => new Date(Date.now() - 11 * 60_000) })
+    const emissorNoPassado = new TokenIssuer(new TextEncoder().encode(valorObrigatorio(ambienteDeTeste, 'IDENTIDADE_CHAVE_ASSINATURA')), { agora: () => new Date(Date.now() - 11 * 60_000) })
     const { token: vencido } = await emissorNoPassado.emitir(sessao)
     const semToken = Array.from({ length: 15 }, () => pedir(api1.url, ROTA_AUTENTICADA, { 'X-Forwarded-For': ip }))
     const comVencido = Array.from({ length: 15 }, () => pedir(api2.url, ROTA_AUTENTICADA, { 'X-Forwarded-For': ip, Authorization: `Bearer ${vencido}` }))
@@ -311,7 +311,7 @@ describe('rate limit por usuário e por escola, em instâncias no processo', () 
 
 describe('limites por escola, da configuracao_operacional_escola', () => {
   const LIMITES = { LIMITE_REQ_USUARIO_MIN: '20', LIMITE_REQ_ESCOLA_MIN: '30', LIMITE_REQ_IP_ANONIMO_MIN: '10', LIMITE_INSTANCIAS_API: '2', LIMITE_PROXIES_CONFIAVEIS: '127.0.0.1' }
-  const pool = criarPool(configuracaoDeTeste().banco, () => undefined)
+  const pool = createPool(configuracaoDeTeste().banco, () => undefined)
   let api1: Instancia
   let api2: Instancia
 
@@ -479,11 +479,11 @@ describe('Redis de cache fora: seguro em memória', () => {
   }
 
   it('cliente Redis da API: com o Redis parado, o comando falha na hora, sem fila offline, no boot e depois de conectado', async () => {
-    const conectado = criarClienteRedisDaApi(urlDoRedisDeCache, 'teste-conectado', () => undefined)
+    const conectado = createApiRedisClient(urlDoRedisDeCache, 'teste-conectado', () => undefined)
     try {
       await clientePronto(conectado)
       composeOuFalha('stop', 'redis-cache')
-      const noBoot = criarClienteRedisDaApi(urlDoRedisDeCache, 'teste-boot', () => undefined)
+      const noBoot = createApiRedisClient(urlDoRedisDeCache, 'teste-boot', () => undefined)
       try {
         // Com fila offline, o comando esperaria a reconexão até o commandTimeout (100 ms).
         for (let tentativa = 0; tentativa < 5; tentativa++) {
@@ -499,7 +499,7 @@ describe('Redis de cache fora: seguro em memória', () => {
   })
 
   it('cliente Redis da API: com o Redis travado, o comando corta no commandTimeout, sem pendurar', async () => {
-    const cliente = criarClienteRedisDaApi(urlDoRedisDeCache, 'teste-travado', () => undefined)
+    const cliente = createApiRedisClient(urlDoRedisDeCache, 'teste-travado', () => undefined)
     try {
       await clientePronto(cliente)
       composeOuFalha('pause', 'redis-cache')

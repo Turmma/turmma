@@ -4,20 +4,20 @@ import {
   configuracaoOperacionalEscola,
   diaDeUso,
   execucaoAgente,
-  exigirAnoEmCurso,
-  exigirEscolaDoContexto,
+  requireAnoEmCurso,
+  requireEscolaId,
   FUSO_DO_USO,
   material,
   mensagemTutor,
-  relogioDoSistema,
-  sessaoDaRequisicao,
+  systemClock,
+  requestSessao,
   sinalTutor,
   turma,
   usuario,
   vinculo,
-  type Banco,
-  type Relogio,
-  type TransacaoBanco,
+  type Database,
+  type Clock,
+  type DatabaseTransaction,
 } from '@educa/nucleo'
 import { TIPOS_DE_SINAL_DE_TRABALHO, TROCAS_POR_DIA_PADRAO_DO_TUTOR, TROCAS_POR_MES_PADRAO_DO_TUTOR, type TipoDeSinal, type TipoDeSinalDeTrabalho } from '@educa/shared'
 import { and, asc, count, countDistinct, desc, eq, exists, gte, inArray, isNull, lt, notExists, or, sql, type AnyColumn, type SQL } from 'drizzle-orm'
@@ -85,17 +85,17 @@ const alunoDaTurma = alias(vinculo, 'aluno_da_turma')
  */
 export class SupervisaoDoTutorRepository {
   constructor(
-    private readonly banco: Banco | TransacaoBanco,
-    private readonly relogio: Relogio = relogioDoSistema,
+    private readonly banco: Database | DatabaseTransaction,
+    private readonly relogio: Clock = systemClock,
   ) {}
 
   #escopo(): { escolaId: string; anoLetivoId: string } {
-    return { escolaId: exigirEscolaDoContexto(), anoLetivoId: exigirAnoEmCurso() }
+    return { escolaId: requireEscolaId(), anoLetivoId: requireAnoEmCurso() }
   }
 
   /** Existe vínculo `confirmado` de professor do usuário do contexto na turma da linha, **em qualquer disciplina**. */
   #comVinculoNaTurma(colunas: ColunasDaTurma): SQL {
-    const { usuarioId } = sessaoDaRequisicao()
+    const { usuarioId } = requestSessao()
     return exists(
       this.banco
         .select({ um: vinculo.id })

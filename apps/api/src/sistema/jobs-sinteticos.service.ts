@@ -1,4 +1,4 @@
-import { Enfileirador, ErroDeDominio, JobRegistroRepository, type Banco } from '@educa/nucleo'
+import { JobOutbox, DomainException, JobOutboxRepository, type Database } from '@educa/nucleo'
 import {
   ErrorCode,
   jobStateResponseSchema,
@@ -15,9 +15,9 @@ export class JobsSinteticosService {
   private readonly logger = new Logger('jobs')
 
   constructor(
-    @Inject(BANCO) private readonly banco: Banco,
-    private readonly enfileirador: Enfileirador,
-    private readonly repositorio: JobRegistroRepository,
+    @Inject(BANCO) private readonly banco: Database,
+    private readonly enfileirador: JobOutbox,
+    private readonly repositorio: JobOutboxRepository,
   ) {}
 
   /**
@@ -37,7 +37,7 @@ export class JobsSinteticosService {
   /** Estado do job da escola do token. De outra escola ou inexistente, o mesmo 404. */
   async consultar(id: string): Promise<JobStateResponse> {
     const registro = await this.repositorio.buscarDaEscola(id)
-    if (registro === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+    if (registro === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
     return jobStateResponseSchema.parse({
       estado: registro.estado,
       criadoEm: registro.criadoEm.toISOString(),

@@ -16,7 +16,7 @@ import type * as tiposDoNucleo from '@educa/nucleo' // reprova: guardas/tabela-s
 import nucleoPorRequire = require('@educa/nucleo') // reprova: guardas/tabela-so-no-repository
 import { conta as daSubpasta } from '@educa/nucleo/ciclo-de-vida' // reprova: guardas/tabela-so-no-repository
 import * as cicloDeVida from '@educa/nucleo/ciclo-de-vida' // reprova: guardas/tabela-so-no-repository
-import { exigirEscolaDoContexto, type Banco } from '@educa/nucleo'
+import { requireEscolaId, type Database } from '@educa/nucleo'
 import { CicloDeVidaService } from '@educa/nucleo/ciclo-de-vida'
 import '@educa/nucleo'
 import { escola as deOutroNucleo } from '@educa/nucleo-legado'
@@ -37,7 +37,7 @@ export * as todoOPacote from '@educa/nucleo' // reprova: guardas/tabela-so-no-re
 export type * from '@educa/nucleo' // reprova: guardas/tabela-so-no-repository
 export * as deOutroPacote from 'outro-pacote'
 export * from 'outro-pacote'
-export { exigirAnoEmCurso } from '@educa/nucleo'
+export { requireAnoEmCurso } from '@educa/nucleo'
 export { registroAcesso, schema as esquemaReexportadoDeOutro } from 'outro-pacote'
 
 const trecho = 1
@@ -89,6 +89,6 @@ const { escola: desestruturada, ...resto } = nucleo
 
 export type { TudoDoNucleo, DaSubpasta, TudoDeOutro, PeloTipo, Schema }
 export { textoDoPacote }
-export { escola, apelido, vinculo, disciplina, comoTexto, exigirEscolaDoContexto, sessao, daSubpasta, cicloDeVida, CicloDeVidaService }
+export { escola, apelido, vinculo, disciplina, comoTexto, requireEscolaId, sessao, daSubpasta, cicloDeVida, CicloDeVidaService }
 export { deOutroNucleo, outroPacote, esquemaDeOutro, padraoDeOutro, moduloDeOutro, desestruturada, resto }
-export type { turma, suspensaoDeFuncao, Banco }
+export type { turma, suspensaoDeFuncao, Database }

@@ -1,5 +1,5 @@
 import 'reflect-metadata'
-import { criarLogger, METRICAS, relogioDoSistema, type Banco } from '@educa/nucleo'
+import { createLogger, METRICS, systemClock, type Database } from '@educa/nucleo'
 import { ErrorCode, entradaDeOperadorResponseSchema, MENSAGENS_DE_ERRO } from '@educa/shared'
 import type { INestApplication } from '@nestjs/common'
 import { NestFactory } from '@nestjs/core'
@@ -83,7 +83,7 @@ async function subir(config: ConfiguracaoApi, opcoes: { medidor?: MedidorDeTeste
   const medidor = opcoes.medidor?.medidor
   const app = await NestFactory.create(AppModule.com(config, { ...MONTAGEM_DE_TESTE, ...(medidor === undefined ? {} : { medidor }) }), { logger: false })
   const linhas = opcoes.linhasDeLog
-  const logger = linhas === undefined ? criarLogger({ servico: 'api-teste', nivel: 'silent' }) : criarLogger({ servico: 'api-teste', nivel: 'trace', destino: { write: (linha: string) => linhas.push(linha) } })
+  const logger = linhas === undefined ? createLogger({ servico: 'api-teste', nivel: 'silent' }) : createLogger({ servico: 'api-teste', nivel: 'trace', destino: { write: (linha: string) => linhas.push(linha) } })
   configurarAplicacao(app, logger, medidor)
   await app.listen(0, '127.0.0.1')
   return { app, url: `http://127.0.0.1:${(app.getHttpServer().address() as AddressInfo).port}` }
@@ -96,7 +96,7 @@ interface OperadorComSenha {
 }
 
 /** O que os dois `describe` precisam para criar operador com senha: a API, o banco da app e o autor dos comandos. */
-function preparadorDeOperadores(operadores: BancadaDeOperadores, contexto: () => { url: string; banco: Banco; autor: string }) {
+function preparadorDeOperadores(operadores: BancadaDeOperadores, contexto: () => { url: string; banco: Database; autor: string }) {
   return async function operadorComSenha(): Promise<OperadorComSenha> {
     const { url, banco, autor } = contexto()
     const { operadorId, apelido } = await operadores.operador()
@@ -115,14 +115,14 @@ describe('POST /v1/operacao/sessao/email: o operador entra por e-mail e senha (t
   const config = configuracaoDeTeste({ ambiente: { LIMITE_PROXIES_CONFIAVEIS: '127.0.0.1' } })
   let app: INestApplication
   let url: string
-  let banco: Banco
+  let banco: Database
   let hash: HashDeSenha
   let autor: string
   let verificacoes: ReturnType<typeof vi.spyOn>
 
   beforeAll(async () => {
     ;({ app, url } = await subir(config, { medidor, linhasDeLog }))
-    banco = app.get<Banco>(BANCO)
+    banco = app.get<Database>(BANCO)
     hash = app.get(HashDeSenha)
     autor = (await operadores.operador()).apelido
     verificacoes = vi.spyOn(hash, 'verificar')
@@ -159,7 +159,7 @@ describe('POST /v1/operacao/sessao/email: o operador entra por e-mail e senha (t
   }
 
   async function falhasNaMetrica(): Promise<number> {
-    return (await medidor.pontos(METRICAS.entradaFalhaDaOperacao)).reduce((soma, ponto) => soma + (typeof ponto.valor === 'number' ? ponto.valor : 0), 0)
+    return (await medidor.pontos(METRICS.entradaFalhaDaOperacao)).reduce((soma, ponto) => soma + (typeof ponto.valor === 'number' ? ponto.valor : 0), 0)
   }
 
   describe('as etapas', () => {
@@ -266,7 +266,7 @@ describe('POST /v1/operacao/sessao/email: o operador entra por e-mail e senha (t
       const [x, y] = [await operadorComSenha(), await operadorComSenha()]
       const ip = ipSorteado()
       let deslocamentoMs = 0
-      const relogio = vi.spyOn(relogioDoSistema, 'agora').mockImplementation(() => new Date(Date.now() + deslocamentoMs))
+      const relogio = vi.spyOn(systemClock, 'agora').mockImplementation(() => new Date(Date.now() + deslocamentoMs))
       try {
         for (let falha = 1; falha <= 4; falha++) esperarNaoAutenticado(await entrar(x.email, SENHA_ERRADA, doIp(ip)))
         for (const esperaS of [30, 60, 120, 240, 480, 900]) {
@@ -414,12 +414,12 @@ describe('POST /v1/operacao/sessao/email: o limite por IP rebaixa, e quem recusa
   const config = configuracaoDeTeste({ ambiente: { LIMITE_REQ_IP_ANONIMO_MIN: String(LIMITE_POR_IP), LIMITE_PROXIES_CONFIAVEIS: '127.0.0.1' } })
   let app: INestApplication
   let url: string
-  let banco: Banco
+  let banco: Database
   let autor: string
 
   beforeAll(async () => {
     ;({ app, url } = await subir(config))
-    banco = app.get<Banco>(BANCO)
+    banco = app.get<Database>(BANCO)
     autor = (await operadores.operador()).apelido
   })
 

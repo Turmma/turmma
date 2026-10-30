@@ -1,4 +1,4 @@
-import { criarClienteRedisDaApi, criarClienteRedisDaFila } from '@educa/nucleo'
+import { createApiRedisClient, createQueueRedisClient } from '@educa/nucleo'
 import type { Redis } from 'ioredis'
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -34,7 +34,7 @@ describe('ContadorEmJanela: os contadores por IP do login (15.0), no Redis de fi
   beforeAll(async () => {
     // O que se prova aqui é o script e a chave, não o corte dos 100 ms: o cliente da fila, com prazo de 2 s. O corte é
     // provado no fim do arquivo, com o cliente de produção e o Redis travado.
-    cliente = criarClienteRedisDaFila(URL_REDIS_FILA, 'teste-janela', () => undefined)
+    cliente = createQueueRedisClient(URL_REDIS_FILA, 'teste-janela', () => undefined)
     await pronto(cliente)
   })
 
@@ -92,7 +92,7 @@ describe('ContadorEmJanela: os contadores por IP do login (15.0), no Redis de fi
   })
 
   it('falha (Redis de fila fora): o seguro em memória conta, na mesma janela, diz que é do seguro, volta a 0 depois do minuto e esquece a chave', async () => {
-    const fora = criarClienteRedisDaApi('redis://127.0.0.1:9', 'teste-janela-fora', () => undefined)
+    const fora = createApiRedisClient('redis://127.0.0.1:9', 'teste-janela-fora', () => undefined)
     try {
       const relogio = relogioParado()
       const contador = new ContadorEmJanela(fora, CHAVE, { relogio })
@@ -114,7 +114,7 @@ describe('ContadorEmJanela: os contadores por IP do login (15.0), no Redis de fi
   })
 
   it('falha (Redis de fila travado, com a conexão aberta): cada soma corta nos 100 ms do cliente de produção e cai no seguro, que conta; nenhuma responde "zero" por não saber', async () => {
-    const producao = criarClienteRedisDaApi(URL_REDIS_FILA, 'teste-janela-travada', () => undefined)
+    const producao = createApiRedisClient(URL_REDIS_FILA, 'teste-janela-travada', () => undefined)
     try {
       await pronto(producao)
       const contador = new ContadorEmJanela(producao, CHAVE)

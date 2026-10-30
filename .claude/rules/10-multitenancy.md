@@ -91,7 +91,7 @@ tudo vira, e um sistema que trata turma como permanente quebra inteiro na virada
    que um jurídico de prefeitura pergunta.
    Checagem: `packages/shared/src/permissao/matriz.test.ts`, `packages/nucleo/src/identidade/tabelas-de-identidade.int.test.ts`, `tenancy-guardian`.
 
-9. **Query sem escopo só em rotina administrativa nossa**, marcada com `@SemEscopo()` e com
+9. **Query sem escopo só em rotina administrativa nossa**, marcada com `@Unscoped()` e com
    uma linha de justificativa. Se aparecer uma terceira dessas no mesmo módulo, tem algo
    errado no desenho.
    Checagem: `tools/guardas/repositories-com-escopo.test.ts`, `apps/api/test/arquitetura.test.ts`.

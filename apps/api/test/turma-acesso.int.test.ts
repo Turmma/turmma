@@ -1,4 +1,4 @@
-import { executarNoContexto } from '@educa/nucleo'
+import { runInContext } from '@educa/nucleo'
 import { ErrorCode } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import pg from 'pg'
@@ -320,7 +320,7 @@ describe('acesso à turma: só o vínculo confirmado abre a turma e os alunos (R
       // cada consulta abaixo traria a linha de B.
       const forjado = { requisicaoId: randomUUID(), escolaId: a.coordenacao.escolaId, usuarioId: b.professor.usuarioId, papel: 'professor' as const, sessaoId: randomUUID(), anoLetivoId: b.anoLetivoId }
       const antesEmB = await estadoDe(b)
-      const resultado = await executarNoContexto(forjado, async () => {
+      const resultado = await runInContext(forjado, async () => {
         const turmas = new TurmaRepository(bancada.banco)
         const vinculos = new VinculoRepository(bancada.banco)
         const naTransacao = await bancada.banco.transaction(async (tx) => {
@@ -363,7 +363,7 @@ describe('acesso à turma: só o vínculo confirmado abre a turma e os alunos (R
       expect(await estadoDe(b)).toEqual(antesEmB)
 
       // O controle: o mesmo contexto com a escola de B alcança tudo isso, então o vazio acima veio da escola.
-      const deB = await executarNoContexto({ ...forjado, escolaId: b.coordenacao.escolaId }, async () => ({
+      const deB = await runInContext({ ...forjado, escolaId: b.coordenacao.escolaId }, async () => ({
         turma: await new TurmaRepository(bancada.banco).aberta(b.turma, 'turma_vinculada'),
         alunos: (await new TurmaRepository(bancada.banco).alunos(b.turma, { limite: 50 })).length,
         meus: (await new VinculoRepository(bancada.banco).listarDoUsuario({ limite: 50 })).length,

@@ -1,6 +1,6 @@
 import { InvariantException, retencaoDaEscola, type CompartilhamentoRow, type PapelDoTitular } from '@educa/shared'
-import type { Banco, TransacaoBanco } from '../db/banco.js'
-import { relogioDoSistema, type Relogio } from '../relogio.js'
+import type { Database, DatabaseTransaction } from '../db/banco.js'
+import { systemClock, type Clock } from '../relogio.js'
 import { RetencaoDaEscolaRepository } from '../retencao/retencao-da-escola.repository.js'
 import { CompartilhamentoRepository, type ChamadaDoRastro } from './compartilhamento.repository.js'
 import { SuboperadorDaEscolaRepository, type SuboperadorLidoPelaEscola } from './suboperador-da-escola.repository.js'
@@ -56,8 +56,8 @@ interface PeriodoDoTitular {
  */
 export class Compartilhamento {
   constructor(
-    private readonly banco: Banco | TransacaoBanco,
-    private readonly relogio: Relogio = relogioDoSistema,
+    private readonly banco: Database | DatabaseTransaction,
+    private readonly relogio: Clock = systemClock,
   ) {}
 
   /** A foto do titular, sem ordem garantida, no formato que o `compartilhamentoSchema` do contrato aceita. */

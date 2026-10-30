@@ -1,4 +1,4 @@
-import { ProporcaoEmJanela } from '@educa/nucleo'
+import { SlidingWindowRatio } from '@educa/nucleo'
 import type { Redis } from 'ioredis'
 import { createHmac } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
@@ -122,7 +122,7 @@ describe('ContadorDeTentativas no seguro em memória (Redis de fila fora): a mes
   })
 
   it('a proporção do seguro (limite.seguro_ativo) vai a 1 quando só o seguro conta', async () => {
-    const contador = new ContadorDeTentativas(redisFora, CHAVE, relogioParado(), new ProporcaoEmJanela())
+    const contador = new ContadorDeTentativas(redisFora, CHAVE, relogioParado(), new SlidingWindowRatio())
     expect(contador.proporcaoDoSeguro).toBe(0)
     await contador.reservar(contador.chaveDe('camila@escola.invalid', 'outro'))
     expect(contador.proporcaoDoSeguro).toBe(1)

@@ -1,4 +1,4 @@
-import { ErroDeDominio, RegistroDeAuditoria, type Banco } from '@educa/nucleo'
+import { DomainException, AuditoriaRecorder, type Database } from '@educa/nucleo'
 import {
   ErrorCode,
   nomeDaListaSchema,
@@ -20,7 +20,7 @@ import { errosDasLinhas, lerTextoDaLista, type LinhaLida } from './leitor-da-lis
 import { ListaRepository } from './lista.repository.js'
 import { TurmaRepository } from '../turma/turma.repository.js'
 
-const registro = new RegistroDeAuditoria()
+const registro = new AuditoriaRecorder()
 
 /**
  * O resultado de cada linha contra a lista da escola neste ano e os alunos da escola (A1, 2.0, E4 a E6), na ordem do
@@ -63,7 +63,7 @@ async function classificar(lista: ListaRepository, turmaId: string, linhas: read
  * auditoria leva ids e contagens.
  */
 export class ListaService {
-  constructor(private readonly banco: Banco) {}
+  constructor(private readonly banco: Database) {}
 
   /**
    * `POST /v1/turmas/:id/lista/previa`: o que aconteceria com cada linha se a lista fosse gravada, sem gravar nada. O
@@ -72,7 +72,7 @@ export class ListaService {
   async previa(turmaId: string, { texto }: TextoDaListaRequest): Promise<PreviaDaListaResponse> {
     const linhas = lerTextoDaLista(texto)
     const errosDoTexto = errosDasLinhas(linhas)
-    if ((await new TurmaRepository(this.banco).aberta(turmaId, 'unidade')) === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+    if ((await new TurmaRepository(this.banco).aberta(turmaId, 'unidade')) === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
     const classificadas = await classificar(new ListaRepository(this.banco), turmaId, linhas, errosDoTexto)
     const quantas = (resultado: PreviaRow['resultado']) => classificadas.filter((linha) => linha.resultado === resultado).length
     return previaDaListaResponseSchema.parse({ linhas: classificadas, entram: quantas('entra'), jaExistem: quantas('ja_existe'), comErro: quantas('erro') })
@@ -96,18 +96,18 @@ export class ListaService {
   async gravar(turmaId: string, { texto }: TextoDaListaRequest): Promise<GravacaoDaListaResponse> {
     const linhas = lerTextoDaLista(texto)
     const errosDoTexto = errosDasLinhas(linhas)
-    if (errosDoTexto.some((erro) => erro !== undefined)) throw new ErroDeDominio(ErrorCode.ENTRADA_INVALIDA)
+    if (errosDoTexto.some((erro) => erro !== undefined)) throw new DomainException(ErrorCode.ENTRADA_INVALIDA)
     const gravacao = await this.banco.transaction(async (tx) => {
       const turmas = new TurmaRepository(tx)
-      if (!(await turmas.travarAnoEmCurso()) || !(await turmas.travarContraExclusao(turmaId))) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+      if (!(await turmas.travarAnoEmCurso()) || !(await turmas.travarContraExclusao(turmaId))) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
       const lista = new ListaRepository(tx)
       const classificadas = await classificar(lista, turmaId, linhas, errosDoTexto)
-      if (classificadas.some((linha) => linha.resultado === 'erro')) throw new ErroDeDominio(ErrorCode.CONFLITO)
+      if (classificadas.some((linha) => linha.resultado === 'erro')) throw new DomainException(ErrorCode.CONFLITO)
       const novas = classificadas.filter((linha) => linha.resultado === 'entra')
       const gravadas = await lista.inserirSemRepetir(turmaId, novas)
       const matriculasGravadas = new Set(gravadas.map((gravada) => gravada.matricula))
       const deOutraGravacao = novas.filter((linha) => !matriculasGravadas.has(linha.matricula)).map((linha) => linha.matricula)
-      if ((await lista.quantasNaTurma(turmaId, deOutraGravacao)) !== deOutraGravacao.length) throw new ErroDeDominio(ErrorCode.CONFLITO)
+      if ((await lista.quantasNaTurma(turmaId, deOutraGravacao)) !== deOutraGravacao.length) throw new DomainException(ErrorCode.CONFLITO)
       const contagens = { gravados: gravadas.length, jaExistentes: linhas.length - gravadas.length }
       await registro.gravar(tx, 'lista.gravada', { entidadeId: turmaId, depois: { ids: gravadas.map((gravada) => gravada.id), ...contagens } })
       return contagens
@@ -129,10 +129,10 @@ export class ListaService {
   async acrescentar(turmaId: string, pedido: NomeAvulsoRequest): Promise<NomeDaLista> {
     const criado = await this.banco.transaction(async (tx) => {
       const turmas = new TurmaRepository(tx)
-      if (!(await turmas.travarAnoEmCurso()) || !(await turmas.travarContraExclusao(turmaId))) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+      if (!(await turmas.travarAnoEmCurso()) || !(await turmas.travarContraExclusao(turmaId))) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
       const lista = new ListaRepository(tx)
       const gravado = await lista.inserir(turmaId, pedido)
-      if ((await lista.comCredencial([pedido.matricula])).length > 0) throw new ErroDeDominio(ErrorCode.CONFLITO)
+      if ((await lista.comCredencial([pedido.matricula])).length > 0) throw new DomainException(ErrorCode.CONFLITO)
       await registro.gravar(tx, 'lista.gravada', { entidadeId: turmaId, depois: { ids: [gravado.id], gravados: 1, jaExistentes: 0 } })
       return gravado
     })
@@ -148,7 +148,7 @@ export class ListaService {
     await this.banco.transaction(async (tx) => {
       const lista = new ListaRepository(tx)
       const retirado = await lista.retirarLivre(id)
-      if (retirado === undefined) throw new ErroDeDominio((await lista.existe(id)) ? ErrorCode.CONFLITO : ErrorCode.NAO_ENCONTRADO)
+      if (retirado === undefined) throw new DomainException((await lista.existe(id)) ? ErrorCode.CONFLITO : ErrorCode.NAO_ENCONTRADO)
       await registro.gravar(tx, 'lista_nome.retirado', { entidadeId: id, antes: { turmaId: retirado.turmaId, estado: 'livre' } })
     })
   }
@@ -162,7 +162,7 @@ export class ListaService {
   async ler(turmaId: string, consulta: ListaDaTurmaQuery): Promise<ListaDaTurmaResponse> {
     const { finalidade } = consulta
     const pagina = await this.banco.transaction(async (tx) => {
-      if ((await new TurmaRepository(tx).aberta(turmaId, 'unidade')) === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+      if ((await new TurmaRepository(tx).aberta(turmaId, 'unidade')) === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
       const cortada = paginar(await new ListaRepository(tx).pagina(turmaId, consulta), consulta.limite)
       await registro.gravar(tx, 'turma.lista_lida', { entidadeId: turmaId, depois: { quantidade: cortada.itens.length }, finalidade })
       return cortada

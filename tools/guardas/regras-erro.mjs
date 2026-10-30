@@ -1,7 +1,7 @@
 /**
  * Guarda de erro tipado (X5, 25.0; RF13; regra 00, item 9; regra 20, item 11).
  *
- * Em código de produção, o que se lança é erro com tipo: `ErroDeDominio` (o cliente distingue pelo código), uma
+ * Em código de produção, o que se lança é erro com tipo: `DomainException` (o cliente distingue pelo código), uma
  * classe do módulo, ou `InvariantException` (a linha que "não pode acontecer"). Esta regra reprova:
  *
  * - `throw new Error(...)` e `throw Error(...)`: o filtro global não distingue um do outro, e a mensagem solta é onde
@@ -80,7 +80,7 @@ export const erroTipado = {
     schema: [],
     messages: {
       generico:
-        'Não lance `Error` genérico: lance `ErroDeDominio` (o cliente precisa do código), `InvariantException` (a linha que não pode acontecer) ou uma classe própria do módulo (regra 00, item 9).',
+        'Não lance `Error` genérico: lance `DomainException` (o cliente precisa do código), `InvariantException` (a linha que não pode acontecer) ou uma classe própria do módulo (regra 00, item 9).',
       solto: 'Não lance texto, template nem literal: lance um erro tipado. Só um `Error` tem pilha e `instanceof` (regra 00, item 9).',
       motivo:
         'O motivo do `InvariantException` é texto fixo, escrito no código: sem `${valor}`, sem `+` e sem variável. Valor de execução (nome, matrícula, id) não entra na mensagem do erro (regra 20, item 11); dado de diagnóstico que não é pessoal vai em campo de uma subclasse.',

@@ -1,8 +1,8 @@
-import { ErroDeDominio, RegistroDeAuditoria, sessaoDaRequisicao, type Banco } from '@educa/nucleo'
+import { DomainException, AuditoriaRecorder, requestSessao, type Database } from '@educa/nucleo'
 import { alcanceDe, ErrorCode, desempenhoDaTurmaResponseSchema, MAXIMO_DE_HABILIDADES_NO_DESEMPENHO, type DesempenhoDaTurmaQuery, type DesempenhoDaTurmaResponse } from '@educa/shared'
 import { DesempenhoRepository, type DisciplinasDaLeitura } from './desempenho.repository.js'
 
-const registro = new RegistroDeAuditoria()
+const registro = new AuditoriaRecorder()
 
 interface Soma {
   acertos: number
@@ -23,23 +23,23 @@ interface Soma {
  * - Entram os alunos que estão na turma agora; a soma da turma é a soma deles, para o número da tela fechar.
  */
 export class DesempenhoService {
-  constructor(private readonly banco: Banco) {}
+  constructor(private readonly banco: Database) {}
 
   async ler(turmaId: string, { finalidade }: DesempenhoDaTurmaQuery): Promise<DesempenhoDaTurmaResponse> {
-    const alcance = alcanceDe(sessaoDaRequisicao().papel, 'desempenho_da_turma', 'ler')
+    const alcance = alcanceDe(requestSessao().papel, 'desempenho_da_turma', 'ler')
     const nominalAuditado = alcance === 'nominal_auditado'
-    if (!nominalAuditado && alcance !== 'turma_vinculada') throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
-    if (nominalAuditado && finalidade === undefined) throw new ErroDeDominio(ErrorCode.ENTRADA_INVALIDA)
+    if (!nominalAuditado && alcance !== 'turma_vinculada') throw new DomainException(ErrorCode.NAO_ENCONTRADO)
+    if (nominalAuditado && finalidade === undefined) throw new DomainException(ErrorCode.ENTRADA_INVALIDA)
 
     const resposta = await this.banco.transaction(async (tx) => {
       const desempenho = new DesempenhoRepository(tx)
       let disciplinas: DisciplinasDaLeitura
       if (nominalAuditado) {
-        if (!(await desempenho.turmaDaEscola(turmaId))) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+        if (!(await desempenho.turmaDaEscola(turmaId))) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
         disciplinas = 'todas'
       } else {
         disciplinas = await desempenho.disciplinasDaProfessora(turmaId)
-        if (disciplinas.length === 0) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+        if (disciplinas.length === 0) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
       }
 
       const lotesAprovados = await desempenho.lotesAprovados(turmaId, disciplinas)

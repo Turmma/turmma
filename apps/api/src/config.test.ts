@@ -2,7 +2,7 @@ import { hkdfSync } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
 import { lerAmbienteDeCarga, lerAmbienteDeTeste, lerAmbienteExemplo } from '../../../tools/ci/compose.ts'
 import { MOTIVO_ADAPTADOR_FALSO_EM_PRODUCAO, TIMEOUT_COMANDO_REDIS_API_MS, TIMEOUT_COMANDO_REDIS_FILA_MS } from '@educa/nucleo'
-import { ConfiguracaoInvalida, lerConfiguracao, MOTIVO_AVISOS_SEM_JSON, MOTIVO_ROTAS_SINTETICAS_EM_PRODUCAO } from './config.js'
+import { InvalidConfigError, lerConfiguracao, MOTIVO_AVISOS_SEM_JSON, MOTIVO_ROTAS_SINTETICAS_EM_PRODUCAO } from './config.js'
 import { MOTIVO_CHAVE_DA_SALA_REPETIDA } from './sala/configuracao-da-sala.js'
 import { lerConfiguracaoLogin, MOTIVO_PRAZO_DO_REDIS_DO_LOGIN, PRAZO_MINIMO_DO_REDIS_DO_LOGIN_MS } from './credencial/index.js'
 
@@ -62,21 +62,21 @@ function chaveDerivada(texto: string): Uint8Array {
 }
 
 /** O erro de `lerConfiguracaoLogin` chamada direto, para o que `lerConfiguracao` não alcança. */
-function erroDeLogin(ambiente: Record<string, string | undefined>): ConfiguracaoInvalida {
+function erroDeLogin(ambiente: Record<string, string | undefined>): InvalidConfigError {
   try {
     lerConfiguracaoLogin(ambiente)
   } catch (erro) {
-    if (erro instanceof ConfiguracaoInvalida) return erro
+    if (erro instanceof InvalidConfigError) return erro
     throw erro
   }
   throw new Error('a configuração do login deveria ter sido recusada')
 }
 
-function erroDe(ambiente: Record<string, string | undefined>): ConfiguracaoInvalida {
+function erroDe(ambiente: Record<string, string | undefined>): InvalidConfigError {
   try {
     lerConfiguracao(ambiente)
   } catch (erro) {
-    if (erro instanceof ConfiguracaoInvalida) return erro
+    if (erro instanceof InvalidConfigError) return erro
     throw erro
   }
   throw new Error('a configuração deveria ter sido recusada')
@@ -285,7 +285,7 @@ describe('lerConfiguracao', () => {
   })
 
   it('AMBIENTE ausente ou inválido vale como produção na leitura do login, e o prazo acima do corte cai junto', () => {
-    // `lerConfiguracao` nunca chega aqui: `esquemaAmbienteIdentidade` exige o enum e derruba o boot antes. A leitura
+    // `lerConfiguracao` nunca chega aqui: `authEnvSchema` exige o enum e derruba o boot antes. A leitura
     // restrita é defesa em profundidade de `lerConfiguracaoLogin`, e só se prova chamando-a direto.
     const acimaDoCorte = { ...ambienteValido, LOGIN_REDIS_PRAZO_MS: String(TIMEOUT_COMANDO_REDIS_FILA_MS) }
     expect(lerConfiguracaoLogin(acimaDoCorte).prazoDoRedisMs).toBe(TIMEOUT_COMANDO_REDIS_FILA_MS)

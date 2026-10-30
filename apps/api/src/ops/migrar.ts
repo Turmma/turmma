@@ -1,4 +1,4 @@
-import { ConfiguracaoInvalida, criarLogger, migrar, validarAmbiente } from '@educa/nucleo'
+import { InvalidConfigError, createLogger, migrate, validateEnvironment } from '@educa/nucleo'
 import { pathToFileURL } from 'node:url'
 import { z } from 'zod'
 
@@ -16,16 +16,16 @@ const esquemaAmbienteMigrar = z.object({
 })
 
 async function executar(): Promise<void> {
-  const logger = criarLogger({ servico: 'migrar' })
+  const logger = createLogger({ servico: 'migrar' })
   try {
-    const valores = validarAmbiente(esquemaAmbienteMigrar, process.env)
-    await migrar(
+    const valores = validateEnvironment(esquemaAmbienteMigrar, process.env)
+    await migrate(
       { url: valores.BANCO_URL, timeoutConexaoMs: valores.BANCO_TIMEOUT_CONEXAO_MS, timeoutConsultaMs: valores.MIGRAR_TIMEOUT_CONSULTA_MS },
       logger,
     )
   } catch (erro) {
     // A mensagem de configuração inválida cita só o nome da variável; o resto sai resumido pelo logger.
-    if (erro instanceof ConfiguracaoInvalida) process.stderr.write(`${erro.message}\n`)
+    if (erro instanceof InvalidConfigError) process.stderr.write(`${erro.message}\n`)
     logger.fatal({ evento: 'migracao.abortada', erro })
     process.exitCode = 1
   }

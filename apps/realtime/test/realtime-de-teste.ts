@@ -1,4 +1,4 @@
-import { criarLogger, type LoggerBase, type Meter } from '@educa/nucleo'
+import { createLogger, type LoggerBase, type Meter } from '@educa/nucleo'
 import { SYSTEM_REALTIME_NAMESPACE, realtimeClientOptions } from '@educa/shared'
 import type { INestApplication } from '@nestjs/common'
 import { createServer } from 'node:http'
@@ -49,7 +49,7 @@ export async function subirInstancia(logger: LoggerBase, ambiente: Record<string
 /** Log em memória, para o teste ler o que a instância escreveria no stdout. */
 export function loggerEmMemoria(): { logger: LoggerBase; linhas: string[] } {
   const linhas: string[] = []
-  return { linhas, logger: criarLogger({ servico: 'realtime-teste', destino: { write: (linha: string) => linhas.push(linha) } }) }
+  return { linhas, logger: createLogger({ servico: 'realtime-teste', destino: { write: (linha: string) => linhas.push(linha) } }) }
 }
 
 export interface OpcoesDeConexao {

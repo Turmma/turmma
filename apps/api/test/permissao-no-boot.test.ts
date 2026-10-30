@@ -1,5 +1,5 @@
 import 'reflect-metadata'
-import { ConferenciaDasPermissoes, METADADO_ENTRADA_DE_OPERACAO, METADADO_ROTA_DE_OPERACAO, Permite, RotaAnonima, RotasSemPermissao } from '@educa/nucleo'
+import { PermissaoBootCheck, OPERACAO_ENTRY_KEY, OPERACAO_ROUTE_KEY, RequirePermissao, Public, RoutesWithoutPermissaoError } from '@educa/nucleo'
 import { InvariantException } from '@educa/shared'
 import { Controller, Get, Module, SetMetadata } from '@nestjs/common'
 import { DiscoveryModule, DiscoveryService, NestFactory } from '@nestjs/core'
@@ -8,11 +8,11 @@ import { describe, expect, it } from 'vitest'
 @Controller('com-permissao')
 class ComPermissaoController {
   @Get()
-  @Permite('sistema_contexto', 'ler')
+  @RequirePermissao('sistema_contexto', 'ler')
   obter(): void {}
 }
 
-@RotaAnonima()
+@Public()
 @Controller('anonimo')
 class AnonimoController {
   @Get()
@@ -23,15 +23,15 @@ class AnonimoController {
 @Controller('v1/operacao/metodo')
 class OperacaoNoMetodoController {
   @Get('eu')
-  @SetMetadata(METADADO_ROTA_DE_OPERACAO, true)
+  @SetMetadata(OPERACAO_ROUTE_KEY, true)
   eu(): void {}
 
   @Get('entrar')
-  @SetMetadata(METADADO_ENTRADA_DE_OPERACAO, true)
+  @SetMetadata(OPERACAO_ENTRY_KEY, true)
   entrar(): void {}
 }
 
-@SetMetadata(METADADO_ROTA_DE_OPERACAO, true)
+@SetMetadata(OPERACAO_ROUTE_KEY, true)
 @Controller('v1/operacao/classe')
 class OperacaoNaClasseController {
   @Get()
@@ -48,7 +48,7 @@ function moduloCom(controladores: Array<new () => object>) {
   @Module({
     imports: [DiscoveryModule],
     controllers: controladores,
-    providers: [{ provide: ConferenciaDasPermissoes, useFactory: (descoberta: DiscoveryService) => new ConferenciaDasPermissoes(descoberta), inject: [DiscoveryService] }],
+    providers: [{ provide: PermissaoBootCheck, useFactory: (descoberta: DiscoveryService) => new PermissaoBootCheck(descoberta), inject: [DiscoveryService] }],
   })
   class ModuloDeTeste {}
   return ModuloDeTeste
@@ -75,10 +75,10 @@ describe('boot da API: toda rota declara quem pode chamá-la', () => {
   it('rota sem @Permite, sem @RotaAnonima e sem marcador da operação derruba o boot, com o nome do controller e do método', async () => {
     const recusa = await subir([ComPermissaoController, OperacaoNoMetodoController, EsquecidoController]).catch((erro: unknown) => erro)
 
-    expect(recusa).toBeInstanceOf(RotasSemPermissao)
+    expect(recusa).toBeInstanceOf(RoutesWithoutPermissaoError)
     expect(recusa).toBeInstanceOf(InvariantException)
     expect(recusa).toMatchObject({
-      name: 'RotasSemPermissao',
+      name: 'RoutesWithoutPermissaoError',
       message: 'rota sem @Permite, @RotaAnonima nem marcador da operação',
       codigo: 'ROTA_SEM_PERMISSAO',
       rotas: [{ controller: 'EsquecidoController', metodo: 'rotaNova' }],

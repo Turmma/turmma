@@ -1,4 +1,4 @@
-import { ConfiguracaoInvalida, ErroDeDominio, executarNoContexto, RegistroDeAuditoria, resumirErro, type Banco } from '@educa/nucleo'
+import { InvalidConfigError, DomainException, runInContext, AuditoriaRecorder, summarizeError, type Database } from '@educa/nucleo'
 import {
   CHAVES_DE_CATEGORIA_DO_INCIDENTE,
   ErrorCode,
@@ -19,7 +19,7 @@ import { abrirBancoDeOperacao, ArgumentoInvalido, autorDoComando, lerOperador, O
 import { OperacaoPrivacidadeRepository, type SecaoDoIncidente } from './operacao-privacidade.repository.js'
 import type { ConferenciaDoAutor } from '../sessao/index.js'
 
-const registro = new RegistroDeAuditoria()
+const registro = new AuditoriaRecorder()
 
 /**
  * O registro de incidente de segurança pela operação (F3, RF8; Tech Spec do F3, seções 3, 5 e 6):
@@ -163,15 +163,15 @@ export function citaOutraEscola(texto: string, propria: EscolaDoIncidente, outra
  * Registra o incidente, escreve a seção de cada escola no contexto dela e grava `incidente.registrado` na auditoria da escola, numa
  * transação só, com o autor conferido como primeira instrução. Devolve o id do incidente e quantas escolas ele alcançou.
  */
-export function registrarIncidente(banco: Banco, autor: ConferenciaDoAutor, pedido: PedidoDeIncidente): Promise<{ incidenteId: string; escolas: number }> {
+export function registrarIncidente(banco: Database, autor: ConferenciaDoAutor, pedido: PedidoDeIncidente): Promise<{ incidenteId: string; escolas: number }> {
   const requisicaoId = randomUUID()
-  return executarNoContexto({ requisicaoId }, () =>
+  return runInContext({ requisicaoId }, () =>
     banco.transaction(async (tx) => {
       const autorOperador = await autor(tx)
       const nomes: EscolaDoIncidente[] = []
       for (const { escolaId } of pedido.secoes) {
-        const nome = await executarNoContexto({ requisicaoId, escolaId }, () => new AcessoDaEscolaRepository(tx).nome())
-        if (nome === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+        const nome = await runInContext({ requisicaoId, escolaId }, () => new AcessoDaEscolaRepository(tx).nome())
+        if (nome === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
         nomes.push({ id: escolaId, nome })
       }
       pedido.secoes.forEach((secao, posicao) => {
@@ -185,7 +185,7 @@ export function registrarIncidente(banco: Banco, autor: ConferenciaDoAutor, pedi
       const repositorio = new OperacaoPrivacidadeRepository(tx)
       const incidenteId = await repositorio.registrarIncidente(pedido.conhecidoEm, autorOperador)
       for (const { escolaId, ...secao } of pedido.secoes) {
-        await executarNoContexto({ requisicaoId, escolaId }, async () => {
+        await runInContext({ requisicaoId, escolaId }, async () => {
           const secaoId = await repositorio.ligarEscolaAoIncidente(incidenteId, secao)
           await registro.gravar(tx, 'incidente.registrado', {
             entidadeId: secaoId,
@@ -228,17 +228,17 @@ export async function executarOpsIncidente(
       await fechar()
     }
   } catch (erro) {
-    if (erro instanceof ArgumentoInvalido || erro instanceof ConfiguracaoInvalida || erro instanceof OperadorRecusado) {
+    if (erro instanceof ArgumentoInvalido || erro instanceof InvalidConfigError || erro instanceof OperadorRecusado) {
       // Só o nome da opção ou da variável, e a posição da seção: nunca o valor.
       terminal.erro(`${erro.message}\n`)
       return 2
     }
-    if (erro instanceof ErroDeDominio && MENSAGEM_DO_OPERADOR[erro.codigo] !== undefined) {
+    if (erro instanceof DomainException && MENSAGEM_DO_OPERADOR[erro.codigo] !== undefined) {
       terminal.erro(`${erro.codigo}: ${MENSAGEM_DO_OPERADOR[erro.codigo]}\n`)
       return 1
     }
     // O erro cru do Postgres traz o valor da linha na mensagem e no `detail`: sai só o resumo seguro.
-    terminal.erro(`${ErrorCode.ERRO_INTERNO}: ${JSON.stringify(resumirErro(erro))}\n`)
+    terminal.erro(`${ErrorCode.ERRO_INTERNO}: ${JSON.stringify(summarizeError(erro))}\n`)
     return 1
   }
 }

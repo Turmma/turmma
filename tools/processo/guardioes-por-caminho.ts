@@ -111,7 +111,7 @@ const ENTRADAS: readonly Entrada[] = [
 
 /** O sufixo de arquivo que toca dado de escola ou de pessoa: onde estiver, nunca cai em exceção e pede os quatro. */
 const SUFIXOS_QUE_NUNCA_SAO_EXCECAO = ['.repository.ts', '.controller.ts', '.gateway.ts', '.service.ts']
-const SEM_ESCOPO = '@SemEscopo('
+const SEM_ESCOPO = '@Unscoped('
 
 /**
  * A citação de uma regra soma o guardião dela. Sem diferença de maiúscula. A citação de uma das decisões do item M6 da retro da X7
@@ -137,7 +137,7 @@ function guardioesDoArquivo(arquivo: string, conteudoDe: ConteudoDe): Guardiao[]
   const entrada = entradaDe(arquivo)
   if (!entrada) return []
   // O padrão pede os quatro e nada soma a mais: ler o arquivo não mudaria a resposta, e um commit grande de `apps/` não pagaria 2 leituras por arquivo.
-  // Só a exceção chega abaixo, e é a ela que o sufixo e o `@SemEscopo(` se aplicam.
+  // Só a exceção chega abaixo, e é a ela que o sufixo e o `@Unscoped(` se aplicam.
   if (entrada.guardioes.length === OS_QUATRO.length) return [...OS_QUATRO]
   // Os dois lados: tirar a garantia junto com o comentário que a citava não tira o guardião, porque o HEAD ainda a tem.
   const textos = [conteudoDe(arquivo, 'indice'), conteudoDe(arquivo, 'head')].filter((texto): texto is string => texto !== null)
@@ -147,7 +147,7 @@ function guardioesDoArquivo(arquivo: string, conteudoDe: ConteudoDe): Guardiao[]
 }
 
 /**
- * Os guardiões que os arquivos pedem, na ordem dos quatro. `conteudoDe` serve à citação e ao `@SemEscopo(`: lê o índice e o
+ * Os guardiões que os arquivos pedem, na ordem dos quatro. `conteudoDe` serve à citação e ao `@Unscoped(`: lê o índice e o
  * HEAD, e o arquivo que não existe num dos dois lados vale pelo outro.
  */
 export function guardioesDoCaminho(arquivos: readonly string[], conteudoDe: ConteudoDe): Guardiao[] {

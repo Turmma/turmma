@@ -1,7 +1,7 @@
-import { ErroDeIa } from '@educa/nucleo'
+import { LLMError } from '@educa/nucleo'
 import { habilidadesDaDisciplina, type AdaptacaoAplicada, type Citacao, type ConteudoDeAtividade, type ConteudoDoArtefato, type Etapa, type Habilidade } from '@educa/shared'
 
-/** Quantas habilidades uma tarefa aceita (`esquemaHabilidades`, na camada de IA). */
+/** Quantas habilidades uma tarefa aceita (`habilidadesSchema`, na camada de IA). */
 export const MAXIMO_DE_HABILIDADES_NA_TAREFA = 6
 
 function palavrasDe(texto: string): Set<string> {
@@ -59,5 +59,5 @@ export function exigirAdaptacaoFiel(original: ConteudoDeAtividade, adaptada: Con
     adaptada.adaptacao !== undefined &&
     mesmosTipos(adaptada.adaptacao.tipos, pedida.tipos) &&
     adaptada.adaptacao.tempoExtraPercentual === pedida.tempoExtraPercentual
-  if (!fiel) throw new ErroDeIa('IA_SAIDA_INVALIDA')
+  if (!fiel) throw new LLMError('IA_SAIDA_INVALIDA')
 }

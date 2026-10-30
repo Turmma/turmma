@@ -1,4 +1,4 @@
-import { IdPipe, Permite, ZodValidationPipe } from '@educa/nucleo'
+import { IdPipe, RequirePermissao, ZodValidationPipe } from '@educa/nucleo'
 import {
   paginationQuerySchema,
   vinculosQuerySchema,
@@ -27,33 +27,33 @@ export class VinculoController {
   constructor(private readonly vinculos: VinculoService) {}
 
   @Post()
-  @Permite('vinculo', 'criar')
+  @RequirePermissao('vinculo', 'criar')
   criar(@Body(new ZodValidationPipe(criarVinculoRequestSchema)) pedido: CriarVinculoRequest): Promise<VinculoDaCoordenacaoResponse> {
     return this.vinculos.criar(pedido)
   }
 
   @Get()
-  @Permite('vinculo', 'ler')
+  @RequirePermissao('vinculo', 'ler')
   listar(@Query(new ZodValidationPipe(vinculosQuerySchema)) consulta: VinculosQuery): Promise<ListaDeVinculosResponse> {
     return this.vinculos.listar(consulta)
   }
 
   @Post(':id/encerrar')
-  @Permite('vinculo', 'encerrar')
+  @RequirePermissao('vinculo', 'encerrar')
   @HttpCode(HttpStatus.OK)
   encerrar(@Param('id', IdPipe) id: string, @Body(new ZodValidationPipe(encerrarVinculoRequestSchema)) pedido: EncerrarVinculoRequest): Promise<VinculoDaCoordenacaoResponse> {
     return this.vinculos.encerrar(id, pedido)
   }
 
   @Post(':id/confirmar')
-  @Permite('vinculo', 'confirmar')
+  @RequirePermissao('vinculo', 'confirmar')
   @HttpCode(HttpStatus.OK)
   confirmar(@Param('id', IdPipe) id: string): Promise<VinculoResponse> {
     return this.vinculos.confirmar(id)
   }
 
   @Post(':id/contestar')
-  @Permite('vinculo', 'contestar')
+  @RequirePermissao('vinculo', 'contestar')
   @HttpCode(HttpStatus.OK)
   contestar(@Param('id', IdPipe) id: string, @Body(new ZodValidationPipe(contestarVinculoRequestSchema)) pedido: ContestarVinculoRequest): Promise<VinculoResponse> {
     return this.vinculos.contestar(id, pedido)
@@ -66,7 +66,7 @@ export class MeusVinculosController {
   constructor(private readonly vinculos: VinculoService) {}
 
   @Get()
-  @Permite('vinculo', 'ler_proprios')
+  @RequirePermissao('vinculo', 'ler_proprios')
   listar(@Query(new ZodValidationPipe(paginationQuerySchema)) consulta: PaginationQuery): Promise<MeusVinculosResponse> {
     return this.vinculos.meus(consulta)
   }

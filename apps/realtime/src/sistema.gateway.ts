@@ -1,4 +1,4 @@
-import type { ConfiguracaoIdentidade, LeituraDeSessao, LoggerBase } from '@educa/nucleo'
+import type { AuthConfig, SessaoReader, LoggerBase } from '@educa/nucleo'
 import { SYSTEM_REALTIME_NAMESPACE } from '@educa/shared'
 import { Inject } from '@nestjs/common'
 import { WebSocketGateway, type OnGatewayConnection, type OnGatewayInit } from '@nestjs/websockets'
@@ -22,8 +22,8 @@ export function salaDaEscola(escolaId: string): string {
 @WebSocketGateway({ namespace: SYSTEM_REALTIME_NAMESPACE })
 export class SistemaGateway implements OnGatewayInit<Namespace>, OnGatewayConnection<SocketRealtime> {
   constructor(
-    @Inject(CONFIGURACAO_IDENTIDADE) private readonly identidade: ConfiguracaoIdentidade,
-    @Inject(LEITURA_DE_SESSAO) private readonly sessoes: LeituraDeSessao,
+    @Inject(CONFIGURACAO_IDENTIDADE) private readonly identidade: AuthConfig,
+    @Inject(LEITURA_DE_SESSAO) private readonly sessoes: SessaoReader,
     @Inject(LOGGER_REALTIME) private readonly logger: LoggerBase,
   ) {}
 

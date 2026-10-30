@@ -1,4 +1,4 @@
-import { EmissorDeToken, verificarToken } from '@educa/nucleo'
+import { TokenIssuer, verifyToken } from '@educa/nucleo'
 import { decodeJwt, decodeProtectedHeader } from 'jose'
 import { randomUUID } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
@@ -33,11 +33,11 @@ describe('bilhete do convite aceito por conta que já tem senha', () => {
   it('permissão: o desafio e o token de acesso não servem de bilhete, e o bilhete não serve de desafio nem de token de acesso', async () => {
     const bilhetes = new BilheteDeConvite(CHAVE)
     const desafio = await new EmissorDeDesafio(CHAVE).emitir({ contaId: CONTA, etapa: 'mfa', mfaCumprido: false })
-    const { token } = await new EmissorDeToken(CHAVE).emitir({ escolaId: randomUUID(), usuarioId: randomUUID(), sessaoId: randomUUID() })
+    const { token } = await new TokenIssuer(CHAVE).emitir({ escolaId: randomUUID(), usuarioId: randomUUID(), sessaoId: randomUUID() })
     expect(await bilhetes.verificar(desafio)).toBeUndefined()
     expect(await bilhetes.verificar(token)).toBeUndefined()
     const bilhete = await bilhetes.emitir({ contaId: CONTA, conviteId: CONVITE })
     await expect(verificarDesafio(bilhete, CHAVE, ['mfa', 'escolher', 'configurar_mfa'])).rejects.toMatchObject({ codigo: 'NAO_AUTENTICADO' })
-    await expect(verificarToken(bilhete, { ambiente: 'local', chaveAssinatura: CHAVE })).rejects.toMatchObject({ codigo: 'NAO_AUTENTICADO' })
+    await expect(verifyToken(bilhete, { ambiente: 'local', chaveAssinatura: CHAVE })).rejects.toMatchObject({ codigo: 'NAO_AUTENTICADO' })
   })
 })

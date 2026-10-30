@@ -1,4 +1,4 @@
-import { ErroDeDominio, type Banco } from '@educa/nucleo'
+import { DomainException, type Database } from '@educa/nucleo'
 import { ErrorCode, type EntradaDeOperadorRequest, type EntradaDeOperadorResponse } from '@educa/shared'
 import { baldeDaEquipe, type ContadorDeTentativas, type CookieDeDispositivo, type HashDeSenha, ipParaRegistro, lerCookie, normalizarEmail, type PrefixoDoContador, type SemaforoDeHash } from '../../credencial/index.js'
 import type { EmissorDeDesafioDeOperador, EtapaDoDesafioDeOperador } from '../desafio-de-operador.js'
@@ -10,7 +10,7 @@ import { OperadorRepository, type CredencialDeEntrada } from '../operador/operad
 export const PREFIXO_DO_CONTADOR_DA_OPERACAO: PrefixoDoContador = 'login-op'
 
 export interface DependenciasDaEntrada {
-  readonly banco: Banco
+  readonly banco: Database
   /** O semáforo do hash do F1, o mesmo do login da escola: o teto é das threads da instância. */
   readonly semaforo: Pick<SemaforoDeHash, 'executar'>
   /** O contador do F1, com o prefixo `login-op`: uma instância só, e o seguro em memória dela vale para os dois. */
@@ -51,7 +51,7 @@ export function etapaDaEntrada(credencial: Pick<CredencialDeEntrada, 'mfaAtivo' 
  *   antes do hash, dentro da vez no semáforo. A origem `conhecido` vem do cookie de dispositivo do operador. Segurada,
  *   a conta responde 429 `CONTA_SEGURADA` com `Retry-After`, sem ler a credencial nem fazer o hash. O contador por
  *   `operador.id` é o do segundo fator (tarefa 7.0, C34), que não passa por aqui.
- * - **Limite por IP que rebaixa** (`@LimiteQueRebaixa`): acima dele, a tentativa vai para o fim do balde da equipe no
+ * - **Limite por IP que rebaixa** (`@DowngradeRateLimit`): acima dele, a tentativa vai para o fim do balde da equipe no
  *   semáforo, nunca 429; quem traz o cookie de dispositivo daquela conta mantém a vez.
  * - **Registro:** a falha que passou pelo hash grava `entrada_falha` em `acesso_operacao`, com IP e data, sem o e-mail
  *   e sem operador; a tentativa com a conta já segurada não grava (o hash é o que freia o ritmo das gravações). Toda
@@ -97,7 +97,7 @@ export class EntradaDoOperadorService {
   /** `NAO_AUTENTICADO`, ou `CONTA_SEGURADA` com a espera se a conta está ou ficou segurada; antes, a métrica. */
   #falhar(esperaMs: number): never {
     this.dependencias.falhas.somar()
-    if (esperaMs <= 0) throw new ErroDeDominio(ErrorCode.NAO_AUTENTICADO)
-    throw new ErroDeDominio(ErrorCode.CONTA_SEGURADA, undefined, Math.max(1, Math.ceil(esperaMs / 1_000)))
+    if (esperaMs <= 0) throw new DomainException(ErrorCode.NAO_AUTENTICADO)
+    throw new DomainException(ErrorCode.CONTA_SEGURADA, undefined, Math.max(1, Math.ceil(esperaMs / 1_000)))
   }
 }

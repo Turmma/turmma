@@ -1,9 +1,9 @@
-import { Marcador, Outro, type Banco } from '@educa/nucleo'
+import { Marcador, Outro, type Database } from '@educa/nucleo'
 import { aluno } from './tabelas.js'
 
-// Decorator que não é o `@SemEscopo` importado (com ou sem chamada) não prova nada.
+// Decorator que não é o `@Unscoped` importado (com ou sem chamada) não prova nada.
 export class OutrosDecoratorsRepository {
-  constructor(private readonly banco: Banco) {}
+  constructor(private readonly banco: Database) {}
 
   @Marcador
   async semChamada() { // reprova: sem-prova-de-escopo

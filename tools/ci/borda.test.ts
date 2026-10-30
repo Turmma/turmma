@@ -92,7 +92,7 @@ describe('borda (infra/Caddyfile) e drenagem das instâncias', () => {
       },
     })
     // O cliente espera o mesmo tempo, venha o 503 da borda ou da API.
-    const daApi = /export const TENTE_DE_NOVO_PADRAO_SEGUNDOS = (\d+)/.exec(lerArquivo('packages/nucleo/src/erro/erro-de-dominio.ts'))?.[1]
+    const daApi = /export const DEFAULT_RETRY_AFTER_SECONDS = (\d+)/.exec(lerArquivo('packages/nucleo/src/erro/erro-de-dominio.ts'))?.[1]
     expect(daApi).toBeDefined()
     expect(/header Retry-After (\d+)/.exec(caddyfile)?.[1]).toBe(daApi)
   })

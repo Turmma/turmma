@@ -1,4 +1,4 @@
-import { artefato, atividadeAplicada, entrega, exigirAnoEmCurso, exigirEscolaDoContexto, sessaoDaRequisicao, tentativaAtividade, turma, usuario, vinculo, type Banco, type TransacaoBanco } from '@educa/nucleo'
+import { artefato, atividadeAplicada, entrega, requireAnoEmCurso, requireEscolaId, requestSessao, tentativaAtividade, turma, usuario, vinculo, type Database, type DatabaseTransaction } from '@educa/nucleo'
 import type { AtividadesAplicadasQuery, EstadoDeAtividadeAplicada, EstadoDeEntrega, TipoDeArtefato } from '@educa/shared'
 import { and, desc, eq, lt, sql, type AnyColumn, type SQL } from 'drizzle-orm'
 import { InvariantException } from '@educa/shared'
@@ -84,12 +84,12 @@ const colunas = {
  * Nada daqui serve ao aluno: o conteúdo do artefato tem o gabarito.
  */
 export class AtividadeAplicadaRepository {
-  constructor(private readonly banco: Banco | TransacaoBanco) {}
+  constructor(private readonly banco: Database | DatabaseTransaction) {}
 
   #noAlcance(): SQL | undefined {
     return and(
-      eq(atividadeAplicada.escolaId, exigirEscolaDoContexto()),
-      eq(atividadeAplicada.anoLetivoId, exigirAnoEmCurso()),
+      eq(atividadeAplicada.escolaId, requireEscolaId()),
+      eq(atividadeAplicada.anoLetivoId, requireAnoEmCurso()),
       comVinculoConfirmadoDoProfessor(this.banco, atividadeAplicada, disciplinaDoArtefato(this.banco, atividadeAplicada)),
     )
   }
@@ -126,8 +126,8 @@ export class AtividadeAplicadaRepository {
       .leftJoin(entrega, and(eq(entrega.escolaId, artefato.escolaId), eq(entrega.anoLetivoId, artefato.anoLetivoId), eq(entrega.artefatoId, artefato.id)))
       .where(
         and(
-          eq(artefato.escolaId, exigirEscolaDoContexto()),
-          eq(artefato.anoLetivoId, exigirAnoEmCurso()),
+          eq(artefato.escolaId, requireEscolaId()),
+          eq(artefato.anoLetivoId, requireAnoEmCurso()),
           eq(artefato.id, artefatoId),
           comVinculoConfirmadoDoProfessor(this.banco, artefato, artefato.disciplinaId),
         ),
@@ -142,8 +142,8 @@ export class AtividadeAplicadaRepository {
       .from(turma)
       .where(
         and(
-          eq(turma.escolaId, exigirEscolaDoContexto()),
-          eq(turma.anoLetivoId, exigirAnoEmCurso()),
+          eq(turma.escolaId, requireEscolaId()),
+          eq(turma.anoLetivoId, requireAnoEmCurso()),
           eq(turma.id, turmaId),
           comVinculoConfirmadoDoProfessor(this.banco, { escolaId: turma.escolaId, anoLetivoId: turma.anoLetivoId, turmaId: turma.id }, disciplinaId),
         ),
@@ -158,7 +158,7 @@ export class AtividadeAplicadaRepository {
   async criar(nova: NovaAplicacao): Promise<string> {
     const [criada] = await this.banco
       .insert(atividadeAplicada)
-      .values({ escolaId: exigirEscolaDoContexto(), anoLetivoId: exigirAnoEmCurso(), turmaId: nova.turmaId, artefatoId: nova.artefatoId, avaliativa: nova.avaliativa, aplicadaPor: sessaoDaRequisicao().usuarioId })
+      .values({ escolaId: requireEscolaId(), anoLetivoId: requireAnoEmCurso(), turmaId: nova.turmaId, artefatoId: nova.artefatoId, avaliativa: nova.avaliativa, aplicadaPor: requestSessao().usuarioId })
       .returning({ id: atividadeAplicada.id })
     if (criada === undefined) throw new InvariantException('atividade aplicada não criada')
     return criada.id
@@ -184,6 +184,6 @@ export class AtividadeAplicadaRepository {
     await this.banco
       .update(atividadeAplicada)
       .set({ estado: 'encerrada', encerradaEm: sql`now()` })
-      .where(and(eq(atividadeAplicada.escolaId, exigirEscolaDoContexto()), eq(atividadeAplicada.anoLetivoId, exigirAnoEmCurso()), eq(atividadeAplicada.id, id), eq(atividadeAplicada.estado, 'aberta')))
+      .where(and(eq(atividadeAplicada.escolaId, requireEscolaId()), eq(atividadeAplicada.anoLetivoId, requireAnoEmCurso()), eq(atividadeAplicada.id, id), eq(atividadeAplicada.estado, 'aberta')))
   }
 }

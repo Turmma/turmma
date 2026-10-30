@@ -1,4 +1,4 @@
-import { Compartilhamento, diaDeUso, executarNoContexto } from '@educa/nucleo'
+import { Compartilhamento, diaDeUso, runInContext } from '@educa/nucleo'
 import type { CompartilhamentoRow, PedidoDoTitular, PreviaDoTitularResponse } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it, onTestFinished } from 'vitest'
@@ -319,7 +319,7 @@ describe('compartilhamento do titular (F3, tarefa 12.0): o pedido guarda por qua
 
     // O relógio é injetado, como no job da eliminação: com o horário de volta a vinte meses atrás, o período dele
     // ainda está dentro do rastro, a reserva não entra, e a hospedagem é tudo o que a foto mostra.
-    const noPassado = await executarNoContexto({ requisicaoId: randomUUID(), escolaId: escolaA }, () =>
+    const noPassado = await runInContext({ requisicaoId: randomUUID(), escolaId: escolaA }, () =>
       new Compartilhamento(bancada.banco, { agora: () => ha(20 * MES) }).doTitular({ titularId: aluno.usuarioId, papel: 'aluno' }),
     )
     expect(chavesDe(noPassado, 'periodo', doTeste)).toEqual([`${chaveHospedagem}:${hospedagem}`])
@@ -474,7 +474,7 @@ describe('compartilhamento do titular (F3, tarefa 12.0): o pedido guarda por qua
     const em = new Date('2026-03-10T22:00:00.000Z')
     await consumo({ escolaId: escolaA, alunoId: aluno.usuarioId, provedor: chaveX, em })
 
-    const foto = await executarNoContexto({ requisicaoId: randomUUID(), escolaId: escolaA }, () =>
+    const foto = await runInContext({ requisicaoId: randomUUID(), escolaId: escolaA }, () =>
       new Compartilhamento(bancada.banco, { agora: () => agora }).doTitular({ titularId: aluno.usuarioId, papel: 'aluno' }),
     )
     expect(foto.filter((linha) => linha.chave === chaveX && linha.origem === 'rastro')).toEqual([{ suboperadorId: provedorX, chave: chaveX, primeiroEm: em.toISOString(), ultimoEm: em.toISOString(), origem: 'rastro' }])
@@ -495,7 +495,7 @@ describe('compartilhamento do titular (F3, tarefa 12.0): o pedido guarda por qua
     const [aluno] = await bancada.sessoes(escolaA, { papel: 'aluno' })
     if (aluno === undefined) throw new Error('aluno de teste não criado')
 
-    const foto = await executarNoContexto({ requisicaoId: randomUUID(), escolaId: escolaA }, () =>
+    const foto = await runInContext({ requisicaoId: randomUUID(), escolaId: escolaA }, () =>
       new Compartilhamento(bancada.banco, { agora: () => agora }).doTitular({ titularId: aluno.usuarioId, papel: 'aluno' }),
     )
     // Sem credencial e sem conta externa não há período anterior ao rastro: a reserva não entra, e só a hospedagem aparece.

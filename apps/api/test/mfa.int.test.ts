@@ -1,5 +1,5 @@
 import 'reflect-metadata'
-import { criarLogger, EmissorDeToken } from '@educa/nucleo'
+import { createLogger, TokenIssuer } from '@educa/nucleo'
 import { ErrorCode, type PapelDeUsuario } from '@educa/shared'
 import type { INestApplication } from '@nestjs/common'
 import { NestFactory } from '@nestjs/core'
@@ -72,7 +72,7 @@ describe('MFA do coordenador: configurar, ativar, entrar com o código e redefin
 
   beforeAll(async () => {
     app = await NestFactory.create(AppModule.com(configuracao, { medidor: medidor.medidor, ...MONTAGEM_DE_TESTE }), { logger: false })
-    configurarAplicacao(app, criarLogger({ servico: 'api-teste', nivel: 'trace', destino: { write: (linha: string) => linhasDeLog.push(linha) } }), medidor.medidor)
+    configurarAplicacao(app, createLogger({ servico: 'api-teste', nivel: 'trace', destino: { write: (linha: string) => linhasDeLog.push(linha) } }), medidor.medidor)
     await app.listen(0, '127.0.0.1')
     url = `http://127.0.0.1:${(app.getHttpServer().address() as AddressInfo).port}`
     hash = app.get(HashDeSenha)
@@ -200,7 +200,7 @@ describe('MFA do coordenador: configurar, ativar, entrar com o código e redefin
       [escolaId, contaId, usuarioId, randomBytes(32).toString('hex')],
     )
     const sessaoId = rows[0]?.id ?? ''
-    const { token } = await new EmissorDeToken(configuracao.identidade.chaveAssinatura).emitir({ escolaId, usuarioId, sessaoId })
+    const { token } = await new TokenIssuer(configuracao.identidade.chaveAssinatura).emitir({ escolaId, usuarioId, sessaoId })
     return { sessaoId, token }
   }
 

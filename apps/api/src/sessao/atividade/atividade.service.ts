@@ -1,4 +1,4 @@
-import { avisoEspacado, METRICAS, sessaoDaRequisicao, type Banco, type Meter } from '@educa/nucleo'
+import { throttledWarn, METRICS, requestSessao, type Database, type Meter } from '@educa/nucleo'
 import { Logger } from '@nestjs/common'
 import { EscritaDeSessaoRepository } from '../../credencial/escrita-de-sessao.repository.js'
 
@@ -13,13 +13,13 @@ import { EscritaDeSessaoRepository } from '../../credencial/escrita-de-sessao.re
 export class RegistroDeAtividade {
   readonly #logger = new Logger('sessao')
   readonly #falhas: ReturnType<Meter['createCounter']>
-  readonly #avisar = avisoEspacado(() => this.#logger.warn('sessao.atividade_falhou'))
+  readonly #avisar = throttledWarn(() => this.#logger.warn('sessao.atividade_falhou'))
 
   constructor(
-    private readonly banco: Banco,
+    private readonly banco: Database,
     medidor: Meter,
   ) {
-    this.#falhas = medidor.createCounter(METRICAS.atividadeFalha, { description: 'Gravações de atividade de sessão que falharam' })
+    this.#falhas = medidor.createCounter(METRICS.atividadeFalha, { description: 'Gravações de atividade de sessão que falharam' })
     this.#falhas.add(0)
   }
 
@@ -28,7 +28,7 @@ export class RegistroDeAtividade {
    * gravação, para quem precisar saber quando terminou (o teste); ela nunca rejeita.
    */
   registrarAtividade(): Promise<void> {
-    const { sessaoId } = sessaoDaRequisicao()
+    const { sessaoId } = requestSessao()
     return new EscritaDeSessaoRepository(this.banco)
       .registrarUso(sessaoId)
       .then(() => undefined)

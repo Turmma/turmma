@@ -1,4 +1,4 @@
-import { Enfileirador, JobRegistroRepository, type Ambiente, type Banco } from '@educa/nucleo'
+import { JobOutbox, JobOutboxRepository, type Environment, type Database } from '@educa/nucleo'
 import type { Aviso } from '@educa/shared'
 import { Module, type DynamicModule } from '@nestjs/common'
 import { BANCO } from '../banco.module.js'
@@ -17,7 +17,7 @@ export class SistemaModule {
    * Com `rotasSinteticas` desligado, o `POST` de job sintético nem é registrado: a rota responde o
    * mesmo 404 de qualquer rota inexistente, com ou sem token.
    */
-  static com(opcoes: { rotasSinteticas: boolean; versao: string; ambiente: Ambiente; avisos: readonly Aviso[] }): DynamicModule {
+  static com(opcoes: { rotasSinteticas: boolean; versao: string; ambiente: Environment; avisos: readonly Aviso[] }): DynamicModule {
     return {
       module: SistemaModule,
       controllers: [
@@ -36,8 +36,8 @@ export class SistemaModule {
         { provide: RELOGIO_DO_ESTADO, useValue: () => new Date() },
         { provide: AVISOS_DO_SISTEMA, useValue: opcoes.avisos },
         JobsSinteticosService,
-        { provide: JobRegistroRepository, useFactory: (banco: Banco) => new JobRegistroRepository(banco), inject: [BANCO] },
-        { provide: Enfileirador, useFactory: (repositorio: JobRegistroRepository) => new Enfileirador(repositorio), inject: [JobRegistroRepository] },
+        { provide: JobOutboxRepository, useFactory: (banco: Database) => new JobOutboxRepository(banco), inject: [BANCO] },
+        { provide: JobOutbox, useFactory: (repositorio: JobOutboxRepository) => new JobOutbox(repositorio), inject: [JobOutboxRepository] },
       ],
     }
   }

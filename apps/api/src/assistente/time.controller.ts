@@ -1,4 +1,4 @@
-import { Permite } from '@educa/nucleo'
+import { RequirePermissao } from '@educa/nucleo'
 import type { TimeResponse } from '@educa/shared'
 import { Controller, Get, Header } from '@nestjs/common'
 import { TimeService } from './time.service.js'
@@ -9,7 +9,7 @@ export class TimeController {
   constructor(private readonly time: TimeService) {}
 
   @Get()
-  @Permite('time', 'ler')
+  @RequirePermissao('time', 'ler')
   @Header('Cache-Control', 'no-store')
   ler(): Promise<TimeResponse> {
     return this.time.ler()

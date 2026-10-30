@@ -1,4 +1,4 @@
-import { criarBanco, criarPool, estadoDaCoordenacao, executarNoContexto, type Banco, type PoolBanco } from '@educa/nucleo'
+import { createDatabase, createPool, estadoDaCoordenacao, runInContext, type Database, type DatabasePool } from '@educa/nucleo'
 import type { EstadoDaCoordenacao, PapelDeUsuario } from '@educa/shared'
 import type { INestApplication } from '@nestjs/common'
 import type { Redis } from 'ioredis'
@@ -44,8 +44,8 @@ export class CenarioDeAtivacao {
   readonly escolas = new BancadaDeSessoes()
   readonly linhasDeLog: string[] = []
   readonly #cifra: CifraDoSegredo
-  pool!: PoolBanco
-  banco!: Banco
+  pool!: DatabasePool
+  banco!: Database
   app!: INestApplication
   url!: string
   #hash!: HashDeSenha
@@ -59,8 +59,8 @@ export class CenarioDeAtivacao {
 
   async subir(): Promise<void> {
     // Conexões de sobra para a trava segura pelo teste, o gatilho de parada e as leituras, ao mesmo tempo.
-    this.pool = criarPool({ url: urlDoBancoDeTeste(), maximoConexoes: 8, timeoutConexaoMs: 5_000, timeoutConsultaMs: PRAZO_DAS_CONSULTAS_MS }, () => undefined)
-    this.banco = criarBanco(this.pool)
+    this.pool = createPool({ url: urlDoBancoDeTeste(), maximoConexoes: 8, timeoutConexaoMs: 5_000, timeoutConsultaMs: PRAZO_DAS_CONSULTAS_MS }, () => undefined)
+    this.banco = createDatabase(this.pool)
     ;({ app: this.app, url: this.url } = await subirApiDoPainel(this.linhasDeLog))
     this.#hash = this.app.get(HashDeSenha, { strict: false })
     this.#contador = this.app.get(ContadorDeTentativas, { strict: false })
@@ -195,7 +195,7 @@ export class CenarioDeAtivacao {
 
   /** O estado da coordenação da escola, pela mesma função e pela mesma leitura da escrita. */
   estado(escolaId: string): Promise<EstadoDaCoordenacao> {
-    return executarNoContexto({ requisicaoId: randomUUID(), escolaId }, async () => {
+    return runInContext({ requisicaoId: randomUUID(), escolaId }, async () => {
       const dados = await new ConviteRepository(this.banco).dadosDaCoordenacao()
       if (dados === undefined) throw new Error('escola de teste não encontrada')
       return estadoDaCoordenacao(dados)

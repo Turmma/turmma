@@ -1,4 +1,4 @@
-import { ErroDeDominio, relogioDoSistema, type Banco, type Relogio } from '@educa/nucleo'
+import { DomainException, systemClock, type Database, type Clock } from '@educa/nucleo'
 import { ErrorCode, sinaisResponseSchema, usoDoTutorResponseSchema, MAXIMO_DE_ALUNOS_NO_USO, MAXIMO_DE_GRUPOS_DE_SINAL, type SinaisQuery, type UsoDoTutorQuery, type SinaisResponse, type UsoDoTutorResponse } from '@educa/shared'
 import { SupervisaoDoTutorRepository, type SinalDaTurma } from './supervisao.repository.js'
 
@@ -30,13 +30,13 @@ function paraOProfessor(sinal: SinalDaTurma): unknown {
  */
 export class SupervisaoDoTutorService {
   constructor(
-    private readonly banco: Banco,
-    private readonly relogio: Relogio = relogioDoSistema,
+    private readonly banco: Database,
+    private readonly relogio: Clock = systemClock,
   ) {}
 
   async #turmaDoProfessor(repositorio: SupervisaoDoTutorRepository, turmaId: string): Promise<string> {
     const id = turmaId.toLowerCase()
-    if (!(await repositorio.turmaDoProfessor(id))) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+    if (!(await repositorio.turmaDoProfessor(id))) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
     return id
   }
 

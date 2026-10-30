@@ -1,4 +1,4 @@
-import { contextoAtual, ErroDeDominio, RegistroDeAuditoria, type Banco } from '@educa/nucleo'
+import { currentContext, DomainException, AuditoriaRecorder, type Database } from '@educa/nucleo'
 import { ErrorCode, provedoresDaEscolaResponseSchema, type ProvedoresDaEscolaRequest, type ProvedoresDaEscolaResponse } from '@educa/shared'
 import { ProvedoresLiberadosRepository, type ProvedorLiberado } from './provedores-liberados.repository.js'
 
@@ -20,16 +20,16 @@ const chaveDe = (item: { provedor: string; valor: string }): string => `${item.p
  * seguinte, que lê a lista a cada retorno. A escola vem da sessão.
  */
 export class ProvedoresDaEscolaService {
-  readonly #auditoria = new RegistroDeAuditoria()
+  readonly #auditoria = new AuditoriaRecorder()
 
-  constructor(private readonly banco: Banco) {}
+  constructor(private readonly banco: Database) {}
 
   async alterar(pedido: ProvedoresDaEscolaRequest): Promise<ProvedoresDaEscolaResponse> {
-    const escolaId = contextoAtual()?.escolaId
-    if (escolaId === undefined) throw new ErroDeDominio(ErrorCode.NAO_AUTENTICADO)
+    const escolaId = currentContext()?.escolaId
+    if (escolaId === undefined) throw new DomainException(ErrorCode.NAO_AUTENTICADO)
     const depois = await this.banco.transaction(async (tx) => {
       const repositorio = new ProvedoresLiberadosRepository(tx)
-      if (!(await repositorio.travarEscola())) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+      if (!(await repositorio.travarEscola())) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
       const antes = await repositorio.liberados()
       const pedidas = new Set(pedido.provedores.map(chaveDe))
       const atuais = new Set(antes.map(chaveDe))

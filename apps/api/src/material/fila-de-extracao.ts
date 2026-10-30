@@ -40,7 +40,7 @@ const proximaVolta = (): Promise<void> => new Promise((resolver) => setImmediate
  * teto de materiais em processamento por escola, conferido no envio.
  *
  * TODO(fila): trocar por job do worker. O envio passa a gravar o PDF num objeto temporário do storage privado, com
- * validade curta, e a publicar um job pelo `Enfileirador` (prioridade `lote`, chave de idempotência = id do
+ * validade curta, e a publicar um job pelo `JobOutbox` (prioridade `lote`, chave de idempotência = id do
  * material); o processador do worker lê o objeto, extrai, grava os trechos e apaga o objeto. Somem esta fila em
  * memória, as vagas deste processo (a vaga por escola é do despachante) e a varredura dos parados, que vira a
  * reconciliação da fila. O serviço, o repository e o contrato da API não mudam.

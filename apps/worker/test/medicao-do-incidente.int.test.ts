@@ -1,5 +1,5 @@
 import 'reflect-metadata'
-import { contextoAtual, IncidenteDaEscolaRepository } from '@educa/nucleo'
+import { currentContext, IncidenteDaEscolaRepository } from '@educa/nucleo'
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it, onTestFinished } from 'vitest'
 import { lerAmbienteDeTeste, valorObrigatorio } from '../../../tools/ci/compose.ts'
@@ -102,7 +102,7 @@ describe('medição das horas do incidente sem confirmação', () => {
     await incidente(26, [a, b])
     const real = new IncidenteDaEscolaRepository(bancada.banco)
     const falhaEmB: Pick<IncidenteDaEscolaRepository, 'conhecidoEmDoPendenteMaisAntigo'> = {
-      conhecidoEmDoPendenteMaisAntigo: () => (contextoAtual()?.escolaId === b ? Promise.reject(new Error('banco lento')) : real.conhecidoEmDoPendenteMaisAntigo()),
+      conhecidoEmDoPendenteMaisAntigo: () => (currentContext()?.escolaId === b ? Promise.reject(new Error('banco lento')) : real.conhecidoEmDoPendenteMaisAntigo()),
     }
     const medidor = new MedidorDeTeste()
     onTestFinished(() => medidor.encerrar())

@@ -1,4 +1,4 @@
-import { Permite } from '@educa/nucleo'
+import { RequirePermissao } from '@educa/nucleo'
 import type { MinhaTurmaResponse } from '@educa/shared'
 import { Controller, Get } from '@nestjs/common'
 import { MinhaTurmaService } from './minha-turma.service.js'
@@ -9,7 +9,7 @@ export class MinhaTurmaController {
   constructor(private readonly minhaTurma: MinhaTurmaService) {}
 
   @Get()
-  @Permite('minha_turma', 'ler')
+  @RequirePermissao('minha_turma', 'ler')
   ler(): Promise<MinhaTurmaResponse> {
     return this.minhaTurma.ler()
   }

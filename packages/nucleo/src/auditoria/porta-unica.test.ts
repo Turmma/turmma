@@ -3,7 +3,7 @@ import { join, relative, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import * as nucleo from '../index.js'
-import { justificativaSemEscopo } from '../db/sem-escopo.decorator.js'
+import { unscopedJustification } from '../db/sem-escopo.decorator.js'
 import { AuditoriaRepository } from './auditoria.repository.js'
 
 const RAIZ = fileURLToPath(new URL('../../../../', import.meta.url))
@@ -71,7 +71,7 @@ describe('auditoria: uma porta só de escrita', () => {
       .filter((arquivo) => arquivo.caminho !== MODULO_DA_INSERCAO && importaOModuloDeInsercao(arquivo.texto))
       .map((arquivo) => arquivo.caminho)
     expect(importam).toEqual([REGISTRO])
-    expect(Object.keys(nucleo)).not.toContain('inserirAuditoria')
+    expect(Object.keys(nucleo)).not.toContain('insertAuditoria')
     expect(Object.keys(nucleo)).not.toContain('auditoria')
   })
 
@@ -101,10 +101,10 @@ describe('auditoria: uma porta só de escrita', () => {
 
   it('a varredura de importação pega cada forma de importar e deixa o caminho citado como dado', () => {
     for (const trecho of [
-      "import { inserirAuditoria } from './insercao-de-auditoria.repository.js'",
+      "import { insertAuditoria } from './insercao-de-auditoria.repository.js'",
       "import type { Linha } from './insercao-de-auditoria.repository.js'",
-      'import {\n  inserirAuditoria,\n} from "../auditoria/insercao-de-auditoria.repository"',
-      "export { inserirAuditoria } from './insercao-de-auditoria.repository.js'",
+      'import {\n  insertAuditoria,\n} from "../auditoria/insercao-de-auditoria.repository"',
+      "export { insertAuditoria } from './insercao-de-auditoria.repository.js'",
       "export * from './insercao-de-auditoria.repository.js'",
       "const modulo = await import('./insercao-de-auditoria.repository.js')",
       "const modulo = require('./insercao-de-auditoria.repository')",
@@ -129,6 +129,6 @@ describe('auditoria: uma porta só de escrita', () => {
   it('o AuditoriaRepository só lê, na escola do contexto: sem método de escrita e sem @SemEscopo', () => {
     const metodos = Object.getOwnPropertyNames(AuditoriaRepository.prototype).filter((nome) => nome !== 'constructor')
     expect(metodos).toEqual(['listarDaEscola'])
-    expect(justificativaSemEscopo(AuditoriaRepository, 'listarDaEscola')).toBeUndefined()
+    expect(unscopedJustification(AuditoriaRepository, 'listarDaEscola')).toBeUndefined()
   })
 })

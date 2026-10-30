@@ -1,4 +1,4 @@
-import { ConfiguracaoInvalida, ErroDeDominio, executarNoContexto, RegistroDeAuditoria, resumirErro, RetencaoDaEscolaRepository, type Banco } from '@educa/nucleo'
+import { InvalidConfigError, DomainException, runInContext, AuditoriaRecorder, summarizeError, RetencaoDaEscolaRepository, type Database } from '@educa/nucleo'
 import {
   ajusteDeRetencaoCabe,
   CATEGORIAS_DE_RETENCAO,
@@ -18,7 +18,7 @@ import { AcessoDaEscolaRepository } from '../credencial/index.js'
 import { abrirBancoDeOperacao, ArgumentoInvalido, autorDoComando, lerOperador, OperadorRecusado, type BancoDoComando, type SaidaDoComando } from './comando.js'
 import type { ConferenciaDoAutor } from '../sessao/index.js'
 
-const registro = new RegistroDeAuditoria()
+const registro = new AuditoriaRecorder()
 
 /**
  * O ajuste da retenção de uma escola pela operação (F3, RF2; Tech Spec do F3, seções 3 e 6):
@@ -27,7 +27,7 @@ const registro = new RegistroDeAuditoria()
  *   OPERADOR=<pessoa da equipe> npm run -s ops:retencao -- listar --escola <uuid>
  *
  * - O contexto é o da escola do id, como os outros `ops:*`: quem lê e grava é o `RetencaoDaEscolaRepository`, com o
- *   escopo dela, e nenhum `@SemEscopo` novo.
+ *   escopo dela, e nenhum `@Unscoped` novo.
  * - `ajustar` confere o prazo contra o catálogo (`ajusteDeRetencaoCabe`): dentro do piso e do teto, nunca acima da
  *   categoria que a trava, e só nas doze categorias; os prazos fixos (registro de acesso, auditoria…) e o que estiver
  *   fora disso dão `RETENCAO_FORA_DO_LIMITE`, sem gravar nada. Baixar a categoria que trava outra é aceito: o prazo
@@ -83,17 +83,17 @@ export function lerPedidoDeRetencao(argumentos: string[]): PedidoDeRetencao {
  * Ajusta o prazo de uma categoria da escola e grava `retencao.ajustada`, na mesma transação, com o autor conferido como
  * primeira instrução. Devolve o prazo efetivo da categoria depois do ajuste.
  */
-export function ajustarRetencao(banco: Banco, autor: ConferenciaDoAutor, pedido: Extract<PedidoDeRetencao, { comando: 'ajustar' }>): Promise<RetencaoDaCategoria> {
+export function ajustarRetencao(banco: Database, autor: ConferenciaDoAutor, pedido: Extract<PedidoDeRetencao, { comando: 'ajustar' }>): Promise<RetencaoDaCategoria> {
   const requisicaoId = randomUUID()
-  return executarNoContexto({ requisicaoId }, () =>
+  return runInContext({ requisicaoId }, () =>
     banco.transaction(async (tx) => {
       const autorOperador = await autor(tx)
-      return executarNoContexto({ requisicaoId, escolaId: pedido.escolaId }, async () => {
+      return runInContext({ requisicaoId, escolaId: pedido.escolaId }, async () => {
         const repositorio = new RetencaoDaEscolaRepository(tx)
-        if (!(await repositorio.travarEscola())) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+        if (!(await repositorio.travarEscola())) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
         const ajustes = await repositorio.ajustes()
         const categoria = CHAVES_DE_RETENCAO.find((chave) => chave === pedido.categoria)
-        if (categoria === undefined || !ajusteDeRetencaoCabe(categoria, pedido.meses, ajustes)) throw new ErroDeDominio(ErrorCode.RETENCAO_FORA_DO_LIMITE)
+        if (categoria === undefined || !ajusteDeRetencaoCabe(categoria, pedido.meses, ajustes)) throw new DomainException(ErrorCode.RETENCAO_FORA_DO_LIMITE)
         const anterior = ajustes.find((ajuste) => ajuste.categoria === categoria)
         await repositorio.gravar({ categoria, meses: pedido.meses, referenciaContrato: pedido.referenciaContrato, alteradaPor: autorOperador })
         await registro.gravar(tx, 'retencao.ajustada', {
@@ -112,13 +112,13 @@ export function ajustarRetencao(banco: Banco, autor: ConferenciaDoAutor, pedido:
 }
 
 /** O prazo efetivo de cada categoria da escola, lido no contexto dela, numa transação que começa pelo autor. */
-export function listarRetencao(banco: Banco, autor: ConferenciaDoAutor, escolaId: string): Promise<RetencaoDaCategoria[]> {
+export function listarRetencao(banco: Database, autor: ConferenciaDoAutor, escolaId: string): Promise<RetencaoDaCategoria[]> {
   const requisicaoId = randomUUID()
-  return executarNoContexto({ requisicaoId }, () =>
+  return runInContext({ requisicaoId }, () =>
     banco.transaction(async (tx) => {
       await autor(tx)
-      return executarNoContexto({ requisicaoId, escolaId }, async () => {
-        if ((await new AcessoDaEscolaRepository(tx).nome()) === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+      return runInContext({ requisicaoId, escolaId }, async () => {
+        if ((await new AcessoDaEscolaRepository(tx).nome()) === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
         return retencaoDaEscola(await new RetencaoDaEscolaRepository(tx).ajustes())
       })
     }),
@@ -155,17 +155,17 @@ export async function executarOpsRetencao(
       await fechar()
     }
   } catch (erro) {
-    if (erro instanceof ArgumentoInvalido || erro instanceof ConfiguracaoInvalida || erro instanceof OperadorRecusado) {
+    if (erro instanceof ArgumentoInvalido || erro instanceof InvalidConfigError || erro instanceof OperadorRecusado) {
       // Só o nome da opção ou da variável: nunca o valor.
       terminal.erro(`${erro.message}\n`)
       return 2
     }
-    if (erro instanceof ErroDeDominio && MENSAGEM_DO_OPERADOR[erro.codigo] !== undefined) {
+    if (erro instanceof DomainException && MENSAGEM_DO_OPERADOR[erro.codigo] !== undefined) {
       terminal.erro(`${erro.codigo}: ${MENSAGEM_DO_OPERADOR[erro.codigo]}\n`)
       return 1
     }
     // O erro cru do Postgres traz o valor da linha na mensagem e no `detail`: sai só o resumo seguro.
-    terminal.erro(`${ErrorCode.ERRO_INTERNO}: ${JSON.stringify(resumirErro(erro))}\n`)
+    terminal.erro(`${ErrorCode.ERRO_INTERNO}: ${JSON.stringify(summarizeError(erro))}\n`)
     return 1
   }
 }

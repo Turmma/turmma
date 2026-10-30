@@ -24,8 +24,8 @@ import { TABELAS_DO_NUCLEO } from './tabelas-do-nucleo.mjs'
  *   estáticos são das camadas (12.0, depcruise);
  * - a tabela que sai por um arquivo de exceção (o repository ou o `db/**` que a reexporta) e o arquivo que a importa
  *   dele: seguir o nome de um arquivo para outro é análise entre arquivos, e o `tenancy-guardian` audita todo repository;
- * - o `Banco` injetado em service ou controller alcança tabela sem import nenhum, pela consulta relacional
- *   (`banco.query.turma.findMany()`) ou por SQL cru: impedir que o `Banco` chegue lá é das camadas (12.0).
+ * - o `Database` injetado em service ou controller alcança tabela sem import nenhum, pela consulta relacional
+ *   (`banco.query.turma.findMany()`) ou por SQL cru: impedir que o `Database` chegue lá é das camadas (12.0).
  */
 
 const PACOTE = '@educa/nucleo'

@@ -1,16 +1,16 @@
 import { JOB_DEFINITIONS, type JobData, type JobDefinition, type QueueName, type JobOptions, type JobType } from '@educa/shared'
-import type { TransacaoBanco } from '../db/banco.js'
-import type { JobRegistroRepository, LinhaNova, ResultadoDaChave } from './job-registro.repository.js'
-import { MotivoDaRecusaDoJob, PedidoDeJobRecusado } from './pedido-de-job-recusado.js'
+import type { DatabaseTransaction } from '../db/banco.js'
+import type { JobOutboxRepository, NewJobRow, IdempotencyKeyResult } from './job-registro.repository.js'
+import { JobRejectionReason, JobRequestRejectedError } from './pedido-de-job-recusado.js'
 
 /** A prioridade vem só da fila: 1 é a mais urgente. */
-export const PRIORIDADE_DA_FILA: Readonly<Record<QueueName, number>> = { interativa: 1, normal: 2, lote: 3 }
+export const QUEUE_PRIORITY: Readonly<Record<QueueName, number>> = { interativa: 1, normal: 2, lote: 3 }
 
 /** As opções são opcionais, salvo no tipo que deixa o `naoUrgente` com quem enfileira (o sintético). */
 type ArgumentosDeOpcoes<Tipo extends JobType> = Record<never, never> extends JobOptions<Tipo> ? [opcoes?: JobOptions<Tipo>] : [opcoes: JobOptions<Tipo>]
 
 /** O que as opções carregam, sem o tipo do job: a conferência é em execução, contra a definição. */
-interface OpcoesLidas {
+interface ParsedOptions {
   readonly fila?: QueueName
   readonly naoUrgente?: boolean
 }
@@ -22,17 +22,17 @@ interface OpcoesLidas {
  *
  * O pedido é um tipo de `JOB_DEFINITIONS`, os dados desse tipo e, no máximo, a fila e o `naoUrgente` que a definição
  * deixa escolher. Antes de gravar, os dados passam pelo esquema estrito do tipo e a fila e o `naoUrgente` pela definição:
- * pedido que ela recusa lança `PedidoDeJobRecusado` e não grava linha nem ocupa chave de idempotência.
+ * pedido que ela recusa lança `JobRequestRejectedError` e não grava linha nem ocupa chave de idempotência.
  *
  * A recusa é sempre uma promessa rejeitada, nunca uma exceção síncrona: quem engole o erro com `.catch` o engole de verdade.
  *
  * Nada vai ao Redis aqui: quem publica é o despachante. Com o Redis de fila fora, o pedido continua
  * sendo aceito.
  */
-export class Enfileirador {
-  constructor(private readonly repositorio: JobRegistroRepository) {}
+export class JobOutbox {
+  constructor(private readonly repositorio: JobOutboxRepository) {}
 
-  async enfileirar<Tipo extends JobType>(tx: TransacaoBanco, tipo: Tipo, dados: JobData<Tipo>, ...opcoes: ArgumentosDeOpcoes<Tipo>): Promise<string> {
+  async enfileirar<Tipo extends JobType>(tx: DatabaseTransaction, tipo: Tipo, dados: JobData<Tipo>, ...opcoes: ArgumentosDeOpcoes<Tipo>): Promise<string> {
     return this.repositorio.inserir(tx, linhaDoPedido(tipo, dados, opcoes[0]))
   }
 
@@ -43,31 +43,31 @@ export class Enfileirador {
    * quem usa a chave precisa tolerar a reexecução. Só em job de escola, com a escola no contexto.
    */
   async enfileirarUmaVez<Tipo extends JobType>(
-    tx: TransacaoBanco,
+    tx: DatabaseTransaction,
     tipo: Tipo,
     dados: JobData<Tipo>,
     chaveIdempotencia: string,
     ...opcoes: ArgumentosDeOpcoes<Tipo>
-  ): Promise<ResultadoDaChave> {
+  ): Promise<IdempotencyKeyResult> {
     return this.repositorio.inserirUmaVez(tx, linhaDoPedido(tipo, dados, opcoes[0]), chaveIdempotencia)
   }
 }
 
-/** A linha que o repository grava, ou `PedidoDeJobRecusado`: a fila e o `naoUrgente` da definição, os dados lidos pelo esquema. */
-function linhaDoPedido(tipo: JobType, dados: unknown, opcoes: OpcoesLidas | undefined): LinhaNova {
+/** A linha que o repository grava, ou `JobRequestRejectedError`: a fila e o `naoUrgente` da definição, os dados lidos pelo esquema. */
+function linhaDoPedido(tipo: JobType, dados: unknown, opcoes: ParsedOptions | undefined): NewJobRow {
   const definicao: JobDefinition = JOB_DEFINITIONS[tipo]
   const fila = opcoes?.fila ?? definicao.filas[0]
-  if (!definicao.filas.includes(fila)) throw new PedidoDeJobRecusado(tipo, MotivoDaRecusaDoJob.FILA_FORA_DA_DEFINICAO)
+  if (!definicao.filas.includes(fila)) throw new JobRequestRejectedError(tipo, JobRejectionReason.FILA_FORA_DA_DEFINICAO)
   const lidos = definicao.dados.safeParse(dados)
-  if (!lidos.success) throw new PedidoDeJobRecusado(tipo, MotivoDaRecusaDoJob.DADOS_INVALIDOS)
-  return { tipo, fila, prioridade: PRIORIDADE_DA_FILA[fila], dados: lidos.data, naoUrgente: naoUrgenteDo(tipo, definicao, opcoes) }
+  if (!lidos.success) throw new JobRequestRejectedError(tipo, JobRejectionReason.DADOS_INVALIDOS)
+  return { tipo, fila, prioridade: QUEUE_PRIORITY[fila], dados: lidos.data, naoUrgente: naoUrgenteDo(tipo, definicao, opcoes) }
 }
 
-function naoUrgenteDo(tipo: JobType, definicao: JobDefinition, opcoes: OpcoesLidas | undefined): boolean {
+function naoUrgenteDo(tipo: JobType, definicao: JobDefinition, opcoes: ParsedOptions | undefined): boolean {
   if (definicao.naoUrgente !== 'do-pedido') {
-    if (opcoes?.naoUrgente !== undefined) throw new PedidoDeJobRecusado(tipo, MotivoDaRecusaDoJob.NAO_URGENTE_FIXO)
+    if (opcoes?.naoUrgente !== undefined) throw new JobRequestRejectedError(tipo, JobRejectionReason.NAO_URGENTE_FIXO)
     return definicao.naoUrgente
   }
-  if (opcoes?.naoUrgente === undefined) throw new PedidoDeJobRecusado(tipo, MotivoDaRecusaDoJob.NAO_URGENTE_AUSENTE)
+  if (opcoes?.naoUrgente === undefined) throw new JobRequestRejectedError(tipo, JobRejectionReason.NAO_URGENTE_AUSENTE)
   return opcoes.naoUrgente
 }

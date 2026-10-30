@@ -1,4 +1,4 @@
-import { ErroDeDominio, LIMITES_DO_HISTOGRAMA_HTTP_S, METRICAS, ROTULO_ESCOLA, type Meter } from '@educa/nucleo'
+import { DomainException, LIMITES_DO_HISTOGRAMA_HTTP_S, METRICS, ROTULO_ESCOLA, type Meter } from '@educa/nucleo'
 import { ErrorCode } from '@educa/shared'
 import { randomInt } from 'node:crypto'
 import type { BaldeDeLogin } from './baldes-de-login.js'
@@ -32,7 +32,7 @@ interface Espera {
   readonly balde: BaldeDeLogin
   readonly inicio: number
   readonly entrar: () => void
-  readonly sair: (erro: ErroDeDominio) => void
+  readonly sair: (erro: DomainException) => void
   readonly timer: ReturnType<typeof setTimeout>
 }
 
@@ -107,12 +107,12 @@ export class SemaforoDeHash {
     private readonly agora: () => number = () => performance.now(),
   ) {
     if (!Number.isInteger(concorrencia) || concorrencia < 1) throw new RangeError('a concorrência do semáforo do hash precisa ser um inteiro positivo')
-    this.#esperaPeloHash = medidor.createHistogram(METRICAS.esperaPeloHash, {
+    this.#esperaPeloHash = medidor.createHistogram(METRICS.esperaPeloHash, {
       unit: 's',
       description: 'Espera pela vez no semáforo do hash de senha, por escola',
       advice: { explicitBucketBoundaries: LIMITES_DO_HISTOGRAMA_HTTP_S },
     })
-    this.#recusados = medidor.createCounter(METRICAS.hashRecusado, { description: 'Logins que esperaram mais que o prazo pelo hash e saíram com 503' })
+    this.#recusados = medidor.createCounter(METRICS.hashRecusado, { description: 'Logins que esperaram mais que o prazo pelo hash e saíram com 503' })
     // A série nasce em 0 no boot: a taxa do alerta `login-hash-recusado` conta o primeiro 503 desde o boot.
     this.#recusados.add(0)
     this.#esquecidoEm = this.agora()
@@ -309,9 +309,9 @@ export class SemaforoDeHash {
     if (filas.normal.size === 0 && filas.rebaixada.size === 0) this.#baldes.delete(espera.balde.id)
   }
 
-  #recusar(): ErroDeDominio {
+  #recusar(): DomainException {
     this.#recusados.add(1)
-    return new ErroDeDominio(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO, undefined, randomInt(RETRY_AFTER_MINIMO_S, RETRY_AFTER_MAXIMO_S + 1))
+    return new DomainException(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO, undefined, randomInt(RETRY_AFTER_MINIMO_S, RETRY_AFTER_MAXIMO_S + 1))
   }
 
   #medirEspera(balde: BaldeDeLogin, inicio: number): void {

@@ -1,4 +1,4 @@
-import { executarNoContexto, ExpurgoDeAcessoRepository } from '@educa/nucleo'
+import { runInContext, ExpurgoDeAcessoRepository } from '@educa/nucleo'
 import { CicloDeVidaService } from '@educa/nucleo/ciclo-de-vida'
 import { CHAVES_DE_CATEGORIA_DO_INCIDENTE, ErrorCode, incidentesResponseSchema, FINALIDADE_DO_REGISTRO_DE_INCIDENTE, MAXIMO_DE_TITULARES_ESTIMADOS, TEXTO_DO_PRAZO_LEGAL_DO_INCIDENTE, type IncidentesResponse } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
@@ -555,7 +555,7 @@ describe('incidente: a operação registra por comando, e cada coordenação lê
     expect((await secoesDe(a.id))[0]?.confirmado_por).toBe(a.coordenacao.usuarioId)
 
     const servico = new CicloDeVidaService(bancada.banco)
-    await executarNoContexto({ requisicaoId: randomUUID(), escolaId: a.id, usuarioId: outra.usuarioId, papel: 'coordenador' }, () => servico.eliminar(a.coordenacao.usuarioId))
+    await runInContext({ requisicaoId: randomUUID(), escolaId: a.id, usuarioId: outra.usuarioId, papel: 'coordenador' }, () => servico.eliminar(a.coordenacao.usuarioId))
     const [depois] = await secoesDe(a.id)
     expect(depois).toMatchObject({ id: daA?.id, confirmado_por: null })
     expect(depois?.confirmado_em).toBeInstanceOf(Date)

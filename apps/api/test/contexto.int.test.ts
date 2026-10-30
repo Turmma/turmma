@@ -1,5 +1,5 @@
 import 'reflect-metadata'
-import { contextoAtual, criarLogger, EMISSOR_TOKEN, EmissorDeToken, Permite, RotaAnonima } from '@educa/nucleo'
+import { currentContext, createLogger, EMISSOR_TOKEN, TokenIssuer, RequirePermissao, Public } from '@educa/nucleo'
 import { ErrorCode, MENSAGENS_DE_ERRO } from '@educa/shared'
 import { Controller, Get, Module, type INestApplication } from '@nestjs/common'
 import { NestFactory } from '@nestjs/core'
@@ -18,27 +18,27 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 const ambienteDeTeste = lerAmbienteDeTeste()
 
 const linhasDeLog: string[] = []
-const registrador = criarLogger({ servico: 'api-teste', destino: { write: (linha: string) => linhasDeLog.push(linha) } })
+const registrador = createLogger({ servico: 'api-teste', destino: { write: (linha: string) => linhasDeLog.push(linha) } })
 const registros = () => linhasDeLog.map((linha) => JSON.parse(linha) as Record<string, unknown>)
 
-/** Sem `@RotaAnonima()`: prova que rota nova nasce exigindo token. O `@Permite` é obrigatório no boot. */
+/** Sem `@Public()`: prova que rota nova nasce exigindo token. O `@RequirePermissao` é obrigatório no boot. */
 @Controller('teste-protegido')
 class ControladorSemMarcacao {
   @Get('eco')
-  @Permite('sistema_contexto', 'ler')
+  @RequirePermissao('sistema_contexto', 'ler')
   eco(): { escolaId: string | undefined } {
     registrador.info({ evento: 'teste.protegido' })
-    return { escolaId: contextoAtual()?.escolaId }
+    return { escolaId: currentContext()?.escolaId }
   }
 }
 
 /** Rota anônima que mostra o contexto: prova que ele não herda escola de requisição anterior. */
-@RotaAnonima()
+@Public()
 @Controller('teste-anonimo')
 class ControladorAnonimo {
   @Get('contexto')
   contexto(): { escolaId: string | null; usuarioId: string | null } {
-    return { escolaId: contextoAtual()?.escolaId ?? null, usuarioId: contextoAtual()?.usuarioId ?? null }
+    return { escolaId: currentContext()?.escolaId ?? null, usuarioId: currentContext()?.usuarioId ?? null }
   }
 }
 
@@ -124,8 +124,8 @@ describe('identidade pela sessão do token e GET /v1/sistema/contexto', () => {
     const [cabecalho, corpo] = tokenA.split('.')
     const daSessaoA = { escolaId: a.escolaId, usuarioId: a.usuarioId, sessaoId: a.sessaoId }
     const tokens = {
-      assinaturaErrada: (await new EmissorDeToken(new TextEncoder().encode('outra_chave_sintetica_com_32_caracteres')).emitir(daSessaoA)).token,
-      vencido: (await new EmissorDeToken(new TextEncoder().encode(ambienteDeTeste['IDENTIDADE_CHAVE_ASSINATURA']), { agora: () => new Date(Date.now() - 11 * 60_000) }).emitir(daSessaoA)).token,
+      assinaturaErrada: (await new TokenIssuer(new TextEncoder().encode('outra_chave_sintetica_com_32_caracteres')).emitir(daSessaoA)).token,
+      vencido: (await new TokenIssuer(new TextEncoder().encode(ambienteDeTeste['IDENTIDADE_CHAVE_ASSINATURA']), { agora: () => new Date(Date.now() - 11 * 60_000) }).emitir(daSessaoA)).token,
       semEsc: await tokenAssinadoComAChaveDoAmbiente({ sub: a.usuarioId, sid: a.sessaoId }),
       semSid: await tokenAssinadoComAChaveDoAmbiente({ sub: a.usuarioId, esc: a.escolaId }),
       semSessao: await tokenAssinadoComAChaveDoAmbiente({ sub: a.usuarioId, esc: a.escolaId, sid: randomUUID() }),

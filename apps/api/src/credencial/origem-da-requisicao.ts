@@ -6,7 +6,7 @@ export interface OrigemDaRequisicao {
   readonly ip: string
   readonly cabecalhoCookie: string | undefined
   /**
-   * Só nas rotas de login por senha (`@LimiteQueRebaixa()`, 15.0): o IP passou do limite por IP delas. A tentativa não é
+   * Só nas rotas de login por senha (`@DowngradeRateLimit()`, 15.0): o IP passou do limite por IP delas. A tentativa não é
    * recusada: vai para o fim do balde, salvo quem traz o `educa_dispositivo` da conta.
    */
   readonly acimaDoLimiteDoIp?: boolean

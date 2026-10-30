@@ -1,10 +1,10 @@
 import { eq } from 'drizzle-orm'
-import { exigirEscolaDoContexto } from '../contexto/escola-do-contexto.js'
-import type { Banco } from '../db/banco.js'
-import { configuracaoOperacionalEscola, type VagasConfiguradas } from '../db/schema/configuracao-operacional-escola.js'
+import { requireEscolaId } from '../contexto/escola-do-contexto.js'
+import type { Database } from '../db/banco.js'
+import { configuracaoOperacionalEscola, type ConfiguredConcurrency } from '../db/schema/configuracao-operacional-escola.js'
 
 /** O que a escola configurou. Nulo é "usa o padrão do ambiente". */
-export interface LinhaOperacional {
+export interface OperationalSettingsRow {
   fuso: string | null
   diasLetivos: number[] | null
   /** `HH:MM:SS`, como o Postgres devolve `time`. */
@@ -12,7 +12,7 @@ export interface LinhaOperacional {
   fim: string | null
   limiteReqUsuarioMin: number | null
   limiteReqEscolaMin: number | null
-  vagas: VagasConfiguradas | null
+  vagas: ConfiguredConcurrency | null
 }
 
 /**
@@ -20,12 +20,12 @@ export interface LinhaOperacional {
  * da escola do token, e o despachante, a da escola do job, abrindo o contexto dela. Não existe
  * leitura por escola vinda de argumento.
  */
-export class ConfiguracaoOperacionalRepository {
-  constructor(private readonly banco: Banco) {}
+export class OperationalSettingsRepository {
+  constructor(private readonly banco: Database) {}
 
   /** A linha da escola do contexto, ou `undefined` se ela não configurou nada. */
-  async daEscola(): Promise<LinhaOperacional | undefined> {
-    const escolaId = exigirEscolaDoContexto()
+  async daEscola(): Promise<OperationalSettingsRow | undefined> {
+    const escolaId = requireEscolaId()
     const [linha] = await this.banco
       .select({
         fuso: configuracaoOperacionalEscola.fuso,

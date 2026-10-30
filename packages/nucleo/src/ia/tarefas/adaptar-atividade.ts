@@ -2,14 +2,14 @@ import { adaptacaoAplicadaSchema, conteudoDeAtividadeSchema, type ConteudoDeAtiv
 import { z } from 'zod'
 import { PROMPT_ADAPTAR_ATIVIDADE } from '../prompts/adaptar-atividade.js'
 import { dadoEmJson } from '../material.js'
-import { definirTarefa } from '../tarefa.js'
+import { defineTask } from '../tarefa.js'
 import { capitalizar, cortar } from '../texto.js'
 
 /**
  * A entrada da Adaptação é a atividade e os **tipos** de adaptação, e mais nada (D35, D67). O objeto é estrito: não
  * existe chave para nome, condição, diagnóstico, laudo ou observação sobre aluno, e mandar uma é entrada inválida.
  */
-export const esquemaEntradaDeAdaptacao = z
+export const adaptacaoInputSchema = z
   .strictObject({
     /** A atividade original, ainda sem adaptação. */
     conteudo: conteudoDeAtividadeSchema,
@@ -23,7 +23,7 @@ export const esquemaEntradaDeAdaptacao = z
       contexto.addIssue({ code: 'custom', path: ['adaptacao', 'tempoExtraPercentual'], message: 'tempo extra só vale com o tipo tempo_adicional' })
     }
   })
-export type EntradaDeAdaptacao = z.infer<typeof esquemaEntradaDeAdaptacao>
+export type AdaptacaoInput = z.infer<typeof adaptacaoInputSchema>
 
 const ABERTURAS_INDIRETAS = /^(Segundo o material|De acordo com o material|Conforme o material|Com base no material)\s*,\s*/iu
 
@@ -60,11 +60,11 @@ function adaptarQuestao(questao: QuestaoObjetiva, tipos: readonly TipoDeAdaptaca
   return { ...questao, enunciado: cortar(enunciado, 1200) }
 }
 
-export const adaptarAtividade = definirTarefa({
+export const adaptarAtividade = defineTask({
   nome: 'adaptar_atividade',
   funcao: 'adaptacao',
   perfil: 'padrao',
-  esquemaDeEntrada: esquemaEntradaDeAdaptacao,
+  esquemaDeEntrada: adaptacaoInputSchema,
   esquemaDeSaida: conteudoDeAtividadeSchema,
   prompt: PROMPT_ADAPTAR_ATIVIDADE,
   maximoDeTokensDeSaida: 6000,

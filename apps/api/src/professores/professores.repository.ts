@@ -1,4 +1,4 @@
-import { convite, exigirEscolaDoContexto, usuario, type Banco, type DadosDoProfessor, type TransacaoBanco, type UltimoConviteDoProfessor } from '@educa/nucleo'
+import { convite, requireEscolaId, usuario, type Database, type DadosDoProfessor, type DatabaseTransaction, type UltimoConviteDoProfessor } from '@educa/nucleo'
 import type { PaginationQuery } from '@educa/shared'
 import { and, asc, desc, eq, gt, inArray, sql } from 'drizzle-orm'
 
@@ -10,11 +10,11 @@ export interface ProfessorLido extends DadosDoProfessor {
 
 /**
  * Os professores da escola do contexto, para a lista da coordenação (A1, tarefa 3.0): a escola vem do contexto que a
- * `GuardaDeSessao` gravou, nunca de argumento (regra 10, item 3). O usuário não pertence a um ano letivo: a lista é da
+ * `SessaoGuard` gravou, nunca de argumento (regra 10, item 3). O usuário não pertence a um ano letivo: a lista é da
  * escola.
  */
 export class ProfessoresRepository {
-  constructor(private readonly banco: Banco | TransacaoBanco) {}
+  constructor(private readonly banco: Database | DatabaseTransaction) {}
 
   /**
    * Uma página dos usuários `professor` da escola, em ordem de id (`limite + 1`, para o `paginar` saber se há próxima), e
@@ -23,7 +23,7 @@ export class ProfessoresRepository {
    * escola no `where` das duas consultas, pelo índice `convite_escola_usuario_idx`.
    */
   async pagina({ pagina, limite }: PaginationQuery): Promise<ProfessorLido[]> {
-    const escolaId = exigirEscolaDoContexto()
+    const escolaId = requireEscolaId()
     const professores = await this.banco
       .select({ usuarioId: usuario.id, nome: usuario.nome, desativadoEm: usuario.desativadoEm, agora: sql<Date>`now()`.mapWith(usuario.desativadoEm) })
       .from(usuario)

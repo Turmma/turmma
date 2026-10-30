@@ -1,5 +1,5 @@
 import 'reflect-metadata'
-import { criarPool, executarNoContexto, type PoolBanco } from '@educa/nucleo'
+import { createPool, runInContext, type DatabasePool } from '@educa/nucleo'
 import { ErrorCode, JobFailureCode, MENSAGENS_DE_ERRO, TIPO_JOB_SINTETICO } from '@educa/shared'
 import type { INestApplication } from '@nestjs/common'
 import { NestFactory } from '@nestjs/core'
@@ -39,8 +39,8 @@ describe('POST e GET /v1/sistema/jobs-sinteticos', () => {
   const log = new LogEmMemoria('api')
   const sessoes = new BancadaDeSessoes()
   let app: INestApplication
-  let pool: PoolBanco
-  // Escolas e sessões reais: a GuardaDeSessao lê a sessão do token. Coordenação: a rota de job sintético é da unidade.
+  let pool: DatabasePool
+  // Escolas e sessões reais: a SessaoGuard lê a sessão do token. Coordenação: a rota de job sintético é da unidade.
   let ESCOLA_A: string
   let ESCOLA_B: string
   let tokenA: string
@@ -55,7 +55,7 @@ describe('POST e GET /v1/sistema/jobs-sinteticos', () => {
     // Um despachante do compose de pé tiraria o job de `aguardando` antes de o teste olhar.
     compose('stop', ...PROCESSOS_DA_FILA)
     app = await subirApi(log, { ROTAS_SINTETICAS: 'true' })
-    pool = criarPool(configuracaoDeTeste().banco, () => undefined)
+    pool = createPool(configuracaoDeTeste().banco, () => undefined)
     const sessaoA = await sessoes.escolaComSessao('coordenador')
     const sessaoB = await sessoes.escolaComSessao('coordenador')
     ESCOLA_A = sessaoA.escolaId
@@ -150,7 +150,7 @@ describe('POST e GET /v1/sistema/jobs-sinteticos', () => {
     try {
       // O que o worker grava na última tentativa, pelo mesmo repository e no escopo da escola do job.
       await bancada.reservar(ESCOLA_A)
-      await executarNoContexto({ requisicaoId: randomUUID(), escolaId: ESCOLA_A }, () =>
+      await runInContext({ requisicaoId: randomUUID(), escolaId: ESCOLA_A }, () =>
         bancada.registro.registrarFalha(jobId, JobFailureCode.FALHA_SINTETICA),
       )
     } finally {

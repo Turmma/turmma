@@ -5,14 +5,14 @@ import { join } from 'node:path'
 import pg from 'pg'
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { urlDoBancoDeTeste } from '../../../../tools/testes/integracao.setup.ts'
-import { criarLogger } from '../log/logger.js'
-import { LOCK_TIMEOUT_MIGRACAO_MS, migrar, MigracaoFalhou, PASTA_MIGRACOES, TENTATIVAS_MIGRACAO, type ConfiguracaoMigracao } from './migrar.js'
+import { createLogger } from '../log/logger.js'
+import { LOCK_TIMEOUT_MIGRACAO_MS, migrate, MigrationFailedError, PASTA_MIGRACOES, TENTATIVAS_MIGRACAO, type MigrationConfig } from './migrar.js'
 
 const linhas: string[] = []
-const logger = criarLogger({ servico: 'migrar-teste', destino: { write: (linha: string) => linhas.push(linha) } })
+const logger = createLogger({ servico: 'migrar-teste', destino: { write: (linha: string) => linhas.push(linha) } })
 const registros = () => linhas.map((linha) => JSON.parse(linha) as Record<string, unknown>)
 
-const configuracao = (ajuste: Partial<ConfiguracaoMigracao> = {}): ConfiguracaoMigracao => ({
+const configuracao = (ajuste: Partial<MigrationConfig> = {}): MigrationConfig => ({
   url: urlDoBancoDeTeste(),
   timeoutConexaoMs: 2_000,
   timeoutConsultaMs: 60_000,
@@ -57,8 +57,8 @@ describe('migrar', () => {
   })
 
   it('rodar de novo não reaplica nada: o serviço migrar pode subir a cada `docker compose up`', async () => {
-    await migrar(configuracao(), logger)
-    await migrar(configuracao(), logger)
+    await migrate(configuracao(), logger)
+    await migrate(configuracao(), logger)
     const { rows } = await administrador.query<{ total: string }>('select count(*) as total from drizzle.__drizzle_migrations')
     const diario = JSON.parse(readFileSync(join(PASTA_MIGRACOES, 'meta', '_journal.json'), 'utf8')) as { entries: unknown[] }
     expect(Number(rows[0]?.total)).toBe(diario.entries.length)
@@ -110,7 +110,7 @@ describe('migrar', () => {
     const soltar = setTimeout(() => void bloqueio.query('rollback'), LOCK_TIMEOUT_MIGRACAO_MS + 2_000)
     try {
       const inicio = performance.now()
-      await migrar(configuracao({ pasta: pastaCom(`alter table ${tabela} add column nova int`), schemaDoRegistro: registroDoTeste }), logger)
+      await migrate(configuracao({ pasta: pastaCom(`alter table ${tabela} add column nova int`), schemaDoRegistro: registroDoTeste }), logger)
       expect(performance.now() - inicio).toBeGreaterThanOrEqual(LOCK_TIMEOUT_MIGRACAO_MS)
       const tentativasFalhas = registros().filter((registro) => registro['evento'] === 'migracao.tentativa_falhou')
       expect(tentativasFalhas).toEqual([expect.objectContaining({ tentativa: 1, erro: expect.objectContaining({ sqlstate: '55P03' }) })])
@@ -129,8 +129,8 @@ describe('migrar', () => {
     await bloqueio.query(`lock table ${tabela} in access exclusive mode`)
     try {
       await expect(
-        migrar(configuracao({ pasta: pastaCom(`alter table ${tabela} add column nova int`), schemaDoRegistro: registroDoTeste, lockTimeoutMs: 500 }), logger),
-      ).rejects.toEqual(new MigracaoFalhou(TENTATIVAS_MIGRACAO))
+        migrate(configuracao({ pasta: pastaCom(`alter table ${tabela} add column nova int`), schemaDoRegistro: registroDoTeste, lockTimeoutMs: 500 }), logger),
+      ).rejects.toEqual(new MigrationFailedError(TENTATIVAS_MIGRACAO))
       expect(registros().filter((registro) => registro['evento'] === 'migracao.tentativa_falhou')).toHaveLength(TENTATIVAS_MIGRACAO)
     } finally {
       await bloqueio.query('rollback')
@@ -156,7 +156,7 @@ describe('migrar', () => {
     await worker.query('begin')
     await worker.query(`insert into job_registro (fila, prioridade, tipo) values ('lote', 3, 'sistema.teste-migrar')`)
     try {
-      await expect(migrar(configuracao({ pasta, schemaDoRegistro: registroDoTeste, lockTimeoutMs: 500 }), logger)).rejects.toEqual(new MigracaoFalhou(TENTATIVAS_MIGRACAO))
+      await expect(migrate(configuracao({ pasta, schemaDoRegistro: registroDoTeste, lockTimeoutMs: 500 }), logger)).rejects.toEqual(new MigrationFailedError(TENTATIVAS_MIGRACAO))
       const falhas = registros().filter((registro) => registro['evento'] === 'migracao.tentativa_falhou')
       expect(falhas).toHaveLength(TENTATIVAS_MIGRACAO)
       expect(falhas.every((falha) => (falha['erro'] as { sqlstate?: string }).sqlstate === '55P03')).toBe(true)
@@ -222,7 +222,7 @@ describe('migrar', () => {
       await administrador.query(`insert into ${schemaDoTeste}.configuracao_operacional_escola (escola_id) values ($1)`, [orfa])
 
       const pasta = pastaCom([`set local search_path to ${schemaDoTeste}`, daTarefa].join('\n--> statement-breakpoint\n'))
-      await migrar(configuracao({ pasta, schemaDoRegistro: registroDoTeste }), logger)
+      await migrate(configuracao({ pasta, schemaDoRegistro: registroDoTeste }), logger)
 
       // Aplicou, e as três restrições ficaram por validar: é o `NOT VALID` que deixa a migration passar com órfão.
       const { rows: restricoes } = await administrador.query<{ conname: string; convalidated: boolean }>(
@@ -253,8 +253,8 @@ describe('migrar', () => {
 
   it('erro que não é de lock falha na primeira tentativa: repetir não conserta migration errada', async () => {
     await expect(
-      migrar(configuracao({ pasta: pastaCom(`alter table ${tabela} add column nova tipo_que_nao_existe`), schemaDoRegistro: registroDoTeste }), logger),
-    ).rejects.toBeInstanceOf(MigracaoFalhou)
+      migrate(configuracao({ pasta: pastaCom(`alter table ${tabela} add column nova tipo_que_nao_existe`), schemaDoRegistro: registroDoTeste }), logger),
+    ).rejects.toBeInstanceOf(MigrationFailedError)
     expect(registros().filter((registro) => registro['evento'] === 'migracao.tentativa_falhou')).toEqual([
       expect.objectContaining({ tentativa: 1, erro: expect.objectContaining({ sqlstate: '42704' }) }),
     ])

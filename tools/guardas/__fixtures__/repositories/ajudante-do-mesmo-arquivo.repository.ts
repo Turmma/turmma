@@ -1,13 +1,13 @@
-import { exigirEscolaDoContexto, type Banco } from '@educa/nucleo'
+import { requireEscolaId, type Database } from '@educa/nucleo'
 import { aluno } from './tabelas.js'
 
 function escopoDoArquivo(): string {
-  return exigirEscolaDoContexto()
+  return requireEscolaId()
 }
 
-const escopoDeSeta = () => exigirEscolaDoContexto()
+const escopoDeSeta = () => requireEscolaId()
 const escopoDeExpressao = function () {
-  return exigirEscolaDoContexto()
+  return requireEscolaId()
 }
 
 function ajudanteComThis(this: AjudanteDoMesmoArquivoRepository) {
@@ -16,7 +16,7 @@ function ajudanteComThis(this: AjudanteDoMesmoArquivoRepository) {
 
 // A prova pode estar num ajudante do mesmo arquivo: método privado, função de topo, ou os dois encadeados.
 export class AjudanteDoMesmoArquivoRepository {
-  constructor(private readonly banco: Banco) {}
+  constructor(private readonly banco: Database) {}
 
   async viaMetodoPrivado() {
     return this.#lerNaEscola()
@@ -61,7 +61,7 @@ export class AjudanteDoMesmoArquivoRepository {
 
   #cicloB(): unknown {
     this.#cicloA()
-    return this.banco.select().from(aluno).where(exigirEscolaDoContexto())
+    return this.banco.select().from(aluno).where(requireEscolaId())
   }
 
   #lerNaEscola() {
@@ -73,7 +73,7 @@ export class AjudanteDoMesmoArquivoRepository {
   }
 
   #escola(): string {
-    return exigirEscolaDoContexto()
+    return requireEscolaId()
   }
 
   #lerSemEscola() {

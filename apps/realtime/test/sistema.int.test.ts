@@ -28,7 +28,7 @@ import {
 } from './realtime-de-teste.js'
 
 // Escolas e sessões reais no Postgres do compose de teste: desde a tarefa 3.0 o handshake lê a sessão
-// gravada, com a mesma consulta da `GuardaDeSessao` da API. Token sem sessão não entra.
+// gravada, com a mesma consulta da `SessaoGuard` da API. Token sem sessão não entra.
 const bancada = new BancadaDeSessoes()
 let ESCOLA_A: string
 let ESCOLA_B: string
@@ -61,7 +61,7 @@ const JANELA_DE_SILENCIO_MS = 600
 
 const chaveDeAssinatura = () => new TextEncoder().encode(valorObrigatorio(ambienteDeTeste, 'IDENTIDADE_CHAVE_ASSINATURA'))
 
-/** Um token assinado à mão, com a chave do ambiente, para o caso que o `EmissorDeToken` não produz. */
+/** Um token assinado à mão, com a chave do ambiente, para o caso que o `TokenIssuer` não produz. */
 function assinar(claims: { esc: string; sub: string; sid: string }, emissor: string): Promise<string> {
   const agora = Math.floor(Date.now() / 1000)
   return new SignJWT({ esc: claims.esc, sid: claims.sid })

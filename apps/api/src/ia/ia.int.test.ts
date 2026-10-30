@@ -1,24 +1,24 @@
 import {
-  contextoAtual,
-  executarNoContexto,
-  ErroDeDominio,
-  ErroDeIa,
+  currentContext,
+  runInContext,
+  DomainException,
+  LLMError,
   EXECUCAO_INTERROMPIDA,
   gerarAtividadeObjetiva,
-  justificativaSemEscopo,
+  unscopedJustification,
   mensagemAgente,
   mensagemTutor,
   proporFerramenta,
   threadAgente,
   turnoDoTutor,
-  type ConsultaDeOrcamento,
+  type OrcamentoQuery,
   type ConsumoDeIa,
-  type ContextoDaRequisicao,
-  type ExecutorNoProcesso,
+  type RequestContext,
+  type InProcessAgenteExecutor,
   type LLMProvider,
   type OrcamentoDeIa,
   type SuspensaoDeFuncao,
-  type TransacaoBanco,
+  type DatabaseTransaction,
 } from '@educa/nucleo'
 import { ErrorCode, execucaoResponseSchema, TROCAS_POR_DIA_PADRAO_DO_TUTOR, type ChaveDeFuncao, type PapelDeUsuario, type ResultadoGravado } from '@educa/shared'
 import { and, eq } from 'drizzle-orm'
@@ -48,7 +48,7 @@ describe('camada de IA na API', () => {
   const medidor = new MedidorDeTeste()
   let api: ApiDeTeste
   let agendador: AgendadorDeExecucoes
-  let executor: ExecutorNoProcesso
+  let executor: InProcessAgenteExecutor
 
   interface Escola extends EscolaComTurma {
     readonly escolaId: string
@@ -78,8 +78,8 @@ describe('camada de IA na API', () => {
     return { ...escola, escolaId, professor, outroProfessor, aluno, outroAluno }
   }
 
-  /** O contexto que a `GuardaDeSessao` gravaria para esta pessoa: é nele que o serviço roda, como numa rota. */
-  const contextoDe = (escola: Escola, sessao: SessaoDeTeste, papel: PapelDeUsuario): ContextoDaRequisicao => ({
+  /** O contexto que a `SessaoGuard` gravaria para esta pessoa: é nele que o serviço roda, como numa rota. */
+  const contextoDe = (escola: Escola, sessao: SessaoDeTeste, papel: PapelDeUsuario): RequestContext => ({
     requisicaoId: randomUUID(),
     escolaId: escola.escolaId,
     usuarioId: sessao.usuarioId,
@@ -87,9 +87,9 @@ describe('camada de IA na API', () => {
     sessaoId: sessao.sessaoId,
     anoLetivoId: escola.anoLetivoId,
   })
-  const como = <T>(escola: Escola, sessao: SessaoDeTeste, papel: PapelDeUsuario, funcao: () => T): T => executarNoContexto(contextoDe(escola, sessao, papel), funcao)
+  const como = <T>(escola: Escola, sessao: SessaoDeTeste, papel: PapelDeUsuario, funcao: () => T): T => runInContext(contextoDe(escola, sessao, papel), funcao)
   /** Só a escola, sem pessoa: o contexto que as portas de IA leem, a escola de quem pede (8.0). */
-  const noContextoDe = <T>(escola: Escola, funcao: () => T): T => executarNoContexto({ requisicaoId: randomUUID(), escolaId: escola.escolaId }, funcao)
+  const noContextoDe = <T>(escola: Escola, funcao: () => T): T => runInContext({ requisicaoId: randomUUID(), escolaId: escola.escolaId }, funcao)
 
   interface ExecucaoGravada {
     readonly id: string
@@ -139,9 +139,9 @@ describe('camada de IA na API', () => {
   }
 
   /** O pedido que o pacote do Assistente faria para a mensagem de um professor: grava a mensagem dele e, ao concluir, a do agente. */
-  function pedidoDoAssistente(escola: Escola, opcoes: { chaveEnvio?: string; texto?: string; aoConcluir?: (tx: TransacaoBanco) => Promise<void> } = {}) {
-    const aoGravar = vi.fn(async (tx: TransacaoBanco, execucaoId: string) => {
-      const dono = { escolaId: escola.escolaId, anoLetivoId: escola.anoLetivoId, usuarioId: contextoAtual()?.usuarioId ?? '' }
+  function pedidoDoAssistente(escola: Escola, opcoes: { chaveEnvio?: string; texto?: string; aoConcluir?: (tx: DatabaseTransaction) => Promise<void> } = {}) {
+    const aoGravar = vi.fn(async (tx: DatabaseTransaction, execucaoId: string) => {
+      const dono = { escolaId: escola.escolaId, anoLetivoId: escola.anoLetivoId, usuarioId: currentContext()?.usuarioId ?? '' }
       await tx.insert(threadAgente).values({ ...dono, agente: 'assistente_de_ensino' }).onConflictDoNothing()
       const [thread] = await tx
         .select({ id: threadAgente.id })
@@ -158,7 +158,7 @@ describe('camada de IA na API', () => {
         disciplinaId: escola.quimica,
       })
     })
-    const aoConcluir = vi.fn(async (saida: Awaited<ReturnType<typeof proporFerramenta.falso>>, tx: TransacaoBanco, execucaoId: string): Promise<ResultadoGravado> => {
+    const aoConcluir = vi.fn(async (saida: Awaited<ReturnType<typeof proporFerramenta.falso>>, tx: DatabaseTransaction, execucaoId: string): Promise<ResultadoGravado> => {
       await opcoes.aoConcluir?.(tx)
       const [pergunta] = await tx
         .select({ threadId: mensagemAgente.threadId })
@@ -172,13 +172,13 @@ describe('camada de IA na API', () => {
         .returning({ id: mensagemAgente.id })
       return { tipo: 'mensagem', mensagemId: mensagem?.id ?? '' }
     })
-    const contextoVisto: (ContextoDaRequisicao | undefined)[] = []
+    const contextoVisto: (RequestContext | undefined)[] = []
     const pedido: PedidoDeExecucao<Parameters<typeof proporFerramenta.falso>[0], Awaited<ReturnType<typeof proporFerramenta.falso>>> = {
       tarefa: proporFerramenta,
       chaveEnvio: opcoes.chaveEnvio ?? randomUUID(),
       entradaDaExecucao: { tarefa: 'propor_ferramenta' },
       entrada: async () => {
-        contextoVisto.push(contextoAtual())
+        contextoVisto.push(currentContext())
         return { mensagem: opcoes.texto ?? 'monta uma atividade com 5 questões sobre reagente limitante', contexto: { serie: '2º ano do Ensino Médio', disciplina: 'Química' }, trechos: [], turnosAnteriores: [] }
       },
       aoGravar,
@@ -189,7 +189,7 @@ describe('camada de IA na API', () => {
 
   /** O pedido que o pacote do Tutor faria para a pergunta de um aluno. */
   function pedidoDoTutor(escola: Escola, aluno: SessaoDeTeste, duvida: string) {
-    const aoConcluir = vi.fn(async (saida: Awaited<ReturnType<typeof turnoDoTutor.falso>>, tx: TransacaoBanco, execucaoId: string): Promise<ResultadoGravado> => {
+    const aoConcluir = vi.fn(async (saida: Awaited<ReturnType<typeof turnoDoTutor.falso>>, tx: DatabaseTransaction, execucaoId: string): Promise<ResultadoGravado> => {
       const [mensagem] = await tx
         .insert(mensagemTutor)
         .values({
@@ -221,19 +221,19 @@ describe('camada de IA na API', () => {
     return { pedido, aoConcluir }
   }
 
-  async function erroDe(promessa: Promise<unknown>): Promise<ErroDeDominio> {
+  async function erroDe(promessa: Promise<unknown>): Promise<DomainException> {
     const erro: unknown = await promessa.then(
       () => undefined,
       (motivo: unknown) => motivo,
     )
-    if (!(erro instanceof ErroDeDominio)) throw new Error('a chamada deveria ter falhado com erro de domínio', { cause: erro })
+    if (!(erro instanceof DomainException)) throw new Error('a chamada deveria ter falhado com erro de domínio', { cause: erro })
     return erro
   }
 
   beforeAll(async () => {
     api = await subirApi(medidor.medidor)
     agendador = api.app.get(AgendadorDeExecucoes)
-    executor = api.app.get<ExecutorNoProcesso>(EXECUTOR_DE_AGENTE)
+    executor = api.app.get<InProcessAgenteExecutor>(EXECUTOR_DE_AGENTE)
     a = await montarEscola()
     b = await montarEscola()
   })
@@ -299,8 +299,8 @@ describe('camada de IA na API', () => {
 
     it('a única consulta entre escolas é a varredura, marcada @SemEscopo com a justificativa', () => {
       const metodos = Object.getOwnPropertyNames(ExecucaoRepository.prototype).filter((metodo) => metodo !== 'constructor')
-      expect(metodos.filter((metodo) => justificativaSemEscopo(ExecucaoRepository, metodo) !== undefined)).toEqual(['falharInterrompidas'])
-      expect(justificativaSemEscopo(ExecucaoRepository, 'falharInterrompidas')).toMatch(/^varredura da subida da API: /)
+      expect(metodos.filter((metodo) => unscopedJustification(ExecucaoRepository, metodo) !== undefined)).toEqual(['falharInterrompidas'])
+      expect(unscopedJustification(ExecucaoRepository, 'falharInterrompidas')).toMatch(/^varredura da subida da API: /)
     })
   })
 
@@ -356,7 +356,7 @@ describe('camada de IA na API', () => {
       try {
         const suspensao = new SuspensaoRepository(bancada.banco)
         await expect(suspensao.estaSuspensa('adaptacao')).rejects.toThrow('consulta com escopo sem escola no contexto')
-        await expect(executarNoContexto({ requisicaoId: randomUUID(), rotinaDoSistema: true }, () => suspensao.estaSuspensa('adaptacao'))).rejects.toThrow('consulta com escopo sem escola no contexto')
+        await expect(runInContext({ requisicaoId: randomUUID(), rotinaDoSistema: true }, () => suspensao.estaSuspensa('adaptacao'))).rejects.toThrow('consulta com escopo sem escola no contexto')
       } finally {
         await retomar(b, 'adaptacao')
       }
@@ -436,7 +436,7 @@ describe('camada de IA na API', () => {
       const antes = [await contar('consumo_ia', a.escolaId), await contar('consumo_ia', b.escolaId)]
       const repositorio = new ConsumoRepository(bancada.banco)
       await expect(repositorio.registrar(consumoDe())).rejects.toThrow('consulta com escopo sem escola no contexto')
-      await expect(executarNoContexto({ requisicaoId: randomUUID(), rotinaDoSistema: true }, () => repositorio.registrar(consumoDe()))).rejects.toThrow('consulta com escopo sem escola no contexto')
+      await expect(runInContext({ requisicaoId: randomUUID(), rotinaDoSistema: true }, () => repositorio.registrar(consumoDe()))).rejects.toThrow('consulta com escopo sem escola no contexto')
       expect([await contar('consumo_ia', a.escolaId), await contar('consumo_ia', b.escolaId)]).toEqual(antes)
     })
 
@@ -479,7 +479,7 @@ describe('camada de IA na API', () => {
   describe('OrcamentoRepository: o freio diário do Tutor', () => {
     const consulta = (escola: Escola, aluno: SessaoDeTeste) => ({ funcao: 'tutor_com_o_aluno' as const, alunoId: aluno.usuarioId, turmaId: escola.turma })
     /** A consulta feita no contexto da escola: é de lá que a porta lê a escola, e a consulta não a traz (8.0). */
-    const consultarEm = (escola: Escola, orcamento: OrcamentoDeIa, pergunta: ConsultaDeOrcamento) => noContextoDe(escola, () => orcamento.consultar(pergunta))
+    const consultarEm = (escola: Escola, orcamento: OrcamentoDeIa, pergunta: OrcamentoQuery) => noContextoDe(escola, () => orcamento.consultar(pergunta))
 
     it('recusa a 61ª troca do aluno no dia, e não a de outro aluno; a pergunta que falhou não conta', async () => {
       const orcamento = api.app.get<OrcamentoDeIa>(ORCAMENTO_DE_IA)
@@ -592,7 +592,7 @@ describe('camada de IA na API', () => {
     it('sem escola no contexto, o Tutor não é consultado: lança antes de ler o limite, o dia ou o pacote', async () => {
       const orcamento = new OrcamentoRepository(bancada.banco)
       await expect(orcamento.consultar({ funcao: 'tutor_com_o_aluno', alunoId: a.aluno.usuarioId, turmaId: a.turma })).rejects.toThrow('consulta com escopo sem escola no contexto')
-      await expect(executarNoContexto({ requisicaoId: randomUUID(), rotinaDoSistema: true }, () => orcamento.consultar(consulta(a, a.aluno)))).rejects.toThrow('consulta com escopo sem escola no contexto')
+      await expect(runInContext({ requisicaoId: randomUUID(), rotinaDoSistema: true }, () => orcamento.consultar(consulta(a, a.aluno)))).rejects.toThrow('consulta com escopo sem escola no contexto')
     })
 
     it('sem escola no contexto, a função que não é o Tutor também lança: o exigir vem antes do "permitido" que ela receberia', async () => {
@@ -819,7 +819,7 @@ describe('camada de IA na API', () => {
       await executor.ociosa()
       expect(await execucaoNoBanco(execucaoId)).toMatchObject({ estado: 'falhou', erro: 'MATERIAL_INSUFICIENTE' })
       expect(aoConcluir).not.toHaveBeenCalled()
-      expect(new ErroDeIa('MATERIAL_INSUFICIENTE').status).toBe(422)
+      expect(new LLMError('MATERIAL_INSUFICIENTE').status).toBe(422)
     })
   })
 
@@ -908,7 +908,7 @@ describe('camada de IA na API', () => {
       const [idDoTutor, idDoAssistente] = [(doTutor as { id: string }[])[0]?.id ?? '', (doAssistente as { id: string }[])[0]?.id ?? '']
       expect(idDoTutor).not.toBe('')
       expect(idDoAssistente).not.toBe('')
-      const naEscola = <T>(escolaId: string, usuarioId: string, funcao: () => T): T => executarNoContexto({ requisicaoId: randomUUID(), escolaId, usuarioId }, funcao)
+      const naEscola = <T>(escolaId: string, usuarioId: string, funcao: () => T): T => runInContext({ requisicaoId: randomUUID(), escolaId, usuarioId }, funcao)
       const execucoes = new ExecucaoDaSessaoRepository(bancada.banco)
 
       expect(await naEscola(a.escolaId, b.outroAluno.usuarioId, () => execucoes.mensagemDoTutor(idDoTutor))).toBeUndefined()

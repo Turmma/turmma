@@ -1,4 +1,4 @@
-import { IdPipe, Permite, ZodValidationPipe } from '@educa/nucleo'
+import { IdPipe, RequirePermissao, ZodValidationPipe } from '@educa/nucleo'
 import { emptyBodyRequestSchema, type EmptyBodyRequest, type ArquivoResponse, type MeusDadosResponse } from '@educa/shared'
 import { Body, Controller, Get, Header, HttpCode, HttpStatus, Param, Post } from '@nestjs/common'
 import { PrivacidadeService } from './privacidade.service.js'
@@ -14,7 +14,7 @@ export class MeusDadosController {
 
   /** Os pedidos da própria pessoa na escola ativa, com o estado e a validade do arquivo, e o que a escola guarda dela por categoria. */
   @Get()
-  @Permite('meus_dados', 'listar')
+  @RequirePermissao('meus_dados', 'listar')
   @Header('Cache-Control', 'no-store')
   meusDados(): Promise<MeusDadosResponse> {
     return this.privacidade.meusDados()
@@ -25,7 +25,7 @@ export class MeusDadosController {
    * `no-store` assinados. O pedido do colega, o de outra escola e o inexistente respondem igual. Auditada.
    */
   @Post(':id/baixar')
-  @Permite('meus_dados', 'baixar')
+  @RequirePermissao('meus_dados', 'baixar')
   @HttpCode(HttpStatus.OK)
   @Header('Cache-Control', 'no-store')
   baixar(@Param('id', IdPipe) pedidoId: string, @Body(new ZodValidationPipe(emptyBodyRequestSchema)) _corpo: EmptyBodyRequest): Promise<ArquivoResponse> {

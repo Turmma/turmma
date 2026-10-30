@@ -1,4 +1,4 @@
-import { ErroDeDominio, type Banco } from '@educa/nucleo'
+import { DomainException, type Database } from '@educa/nucleo'
 import { ErrorCode, minhaTurmaResponseSchema, type MinhaTurmaResponse } from '@educa/shared'
 import { MinhaTurmaRepository } from './minha-turma.repository.js'
 
@@ -8,11 +8,11 @@ import { MinhaTurmaRepository } from './minha-turma.repository.js'
  * `NAO_ENCONTRADO`; a célula `minha_turma` é só do aluno, e professor e coordenação recebem o mesmo 404 da guarda (P4).
  */
 export class MinhaTurmaService {
-  constructor(private readonly banco: Banco) {}
+  constructor(private readonly banco: Database) {}
 
   async ler(): Promise<MinhaTurmaResponse> {
     const minha = await new MinhaTurmaRepository(this.banco).daSessao()
-    if (minha === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+    if (minha === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
     return minhaTurmaResponseSchema.parse(minha)
   }
 }

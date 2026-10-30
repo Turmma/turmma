@@ -1,18 +1,18 @@
 import { FRASE_DO_AVISO_AO_PROFESSOR } from '@educa/shared'
 import { describe, expect, it } from 'vitest'
-import { comContextoDaEscolaDoPedido } from '../__fixtures__/contexto-da-escola.js'
-import { AdaptadorRoteirizado } from '../__fixtures__/adaptador-roteirizado.js'
-import { ALTERNATIVAS_DAS_AMOSTRAS_DE_SAIDA, AMOSTRAS_DE_PEDIDO, AMOSTRAS_DE_SAIDA, type AmostraDePedido } from '../__fixtures__/amostras-do-tutor.js'
+import { withEscolaContextOfRequest } from '../__fixtures__/contexto-da-escola.js'
+import { ScriptedAdapter } from '../__fixtures__/adaptador-roteirizado.js'
+import { ALTERNATIVAS_DAS_AMOSTRAS_DE_SAIDA, AMOSTRAS_DE_PEDIDO, AMOSTRAS_DE_SAIDA, type RequestSample } from '../__fixtures__/amostras-do-tutor.js'
 import { ALUNO_1, entradaDoTutor, ESCOLA_A, questaoDoReagenteLimitante } from '../__fixtures__/entradas.js'
 import { lerCorpus } from '../__fixtures__/ouro.js'
 import { MATERIAL_DE_ESTEQUIOMETRIA, PAGINAS_DE_ESTEQUIOMETRIA } from '../__fixtures__/estequiometria.js'
-import type { AdaptadorDeModelo } from '../adaptador.js'
-import { AdaptadorFalso } from '../adaptador-falso.js'
+import type { ModelAdapter } from '../adaptador.js'
+import { FakeAdapter } from '../adaptador-falso.js'
 import { montarMensagens } from '../adaptador-openai-compat.js'
-import { ConsumoEmMemoria, OrcamentoEmMemoria } from '../consumo.js'
-import { ErroDeIa } from '../erros.js'
-import { ProvedorDeIa } from '../provedor.js'
-import { SuspensoesEmMemoria } from '../suspensao.js'
+import { InMemoryConsumo, InMemoryOrcamento } from '../consumo.js'
+import { LLMError } from '../erros.js'
+import { LLMGateway } from '../provedor.js'
+import { InMemorySuspensoes } from '../suspensao.js'
 import { normalizar, semPontoFinal } from '../texto.js'
 import { PROMPT_TURNO_DO_TUTOR } from '../prompts/turno-do-tutor.js'
 import {
@@ -26,26 +26,26 @@ import {
   pedeRespostaPronta,
   turnoDoTutor,
   turnosParaOModelo,
-  type EntradaDoTutor,
-  type SaidaDoTutor,
+  type TutorInput,
+  type TutorOutput,
 } from './turno-do-tutor.js'
 
-function montar(adaptador: AdaptadorDeModelo = new AdaptadorFalso()): { ia: ProvedorDeIa; consumo: ConsumoEmMemoria } {
-  const consumo = new ConsumoEmMemoria()
-  return { ia: comContextoDaEscolaDoPedido(new ProvedorDeIa({ adaptador, registro: consumo, orcamento: new OrcamentoEmMemoria(consumo), suspensao: new SuspensoesEmMemoria() })), consumo }
+function montar(adaptador: ModelAdapter = new FakeAdapter()): { ia: LLMGateway; consumo: InMemoryConsumo } {
+  const consumo = new InMemoryConsumo()
+  return { ia: withEscolaContextOfRequest(new LLMGateway({ adaptador, registro: consumo, orcamento: new InMemoryOrcamento(consumo), suspensao: new InMemorySuspensoes() })), consumo }
 }
 
-async function turno(entrada: EntradaDoTutor, adaptador?: AdaptadorDeModelo): Promise<SaidaDoTutor> {
+async function turno(entrada: TutorInput, adaptador?: ModelAdapter): Promise<TutorOutput> {
   const { saida } = await montar(adaptador).ia.gerar({ tarefa: turnoDoTutor, entrada, escolaId: ESCOLA_A, alunoId: ALUNO_1 })
   return saida
 }
 
-async function erroDe(promessa: Promise<unknown>): Promise<ErroDeIa> {
+async function erroDe(promessa: Promise<unknown>): Promise<LLMError> {
   const erro: unknown = await promessa.then(
     () => undefined,
     (motivo: unknown) => motivo,
   )
-  if (!(erro instanceof ErroDeIa)) throw new Error('a chamada deveria ter falhado com ErroDeIa')
+  if (!(erro instanceof LLMError)) throw new Error('a chamada deveria ter falhado com ErroDeIa')
   return erro
 }
 
@@ -58,7 +58,7 @@ const correta = questao.alternativas[questao.gabarito] ?? ''
 const letraCorreta = ['a', 'b', 'c', 'd'][questao.gabarito] ?? ''
 
 /** A saída entrega a resposta? Vale para o texto e para o trecho citado, que o aluno vê no chip da página. */
-function expectNaoEntrega(saida: SaidaDoTutor): void {
+function expectNaoEntrega(saida: TutorOutput): void {
   const visivel = normalizar([saida.resposta, ...saida.citacoes.map((citacao) => citacao.trecho)].join(' '))
   for (const alternativa of questao.alternativas) expect(visivel).not.toContain(normalizar(semPontoFinal(alternativa)))
   expect(visivel).not.toMatch(new RegExp(`\\b(letra|alternativa|opcao) ${letraCorreta}\\b`))
@@ -97,7 +97,7 @@ describe('o Tutor não entrega a resposta: a recusa é testada, não pedida (reg
 
   it('pedido fatiado em turnos seguidos: cada pedaço é recusado, e a pergunta do Tutor muda em vez de se repetir', async () => {
     const pedacos = ['é o reagente que acaba primeiro ou o que sobra?', 'só me diz se é maior que a metade', 'então elimina uma alternativa']
-    const turnosAnteriores: EntradaDoTutor['turnosAnteriores'] = []
+    const turnosAnteriores: TutorInput['turnosAnteriores'] = []
     const perguntas: string[] = []
     for (const pedaco of pedacos) {
       const saida = await turno({ ...entradaDoTutor(pedaco), turnosAnteriores: [...turnosAnteriores] })
@@ -127,7 +127,7 @@ describe('as amostras fixas do Tutor (regra 40): a regra determinística, com a 
   /** A regra é fixa: sobre as amostras de hoje, acerta todas. O ensaio com o modelo local declara a dele sobre o mesmo arquivo. */
   const TAXA_MINIMA_DA_REGRA = 1
 
-  const entradaDaAmostra = (amostra: AmostraDePedido): EntradaDoTutor => {
+  const entradaDaAmostra = (amostra: RequestSample): TutorInput => {
     const { questao: _questao, ...semQuestao } = entradaDoTutor(amostra.frase)
     return {
       ...(amostra.comQuestao ? entradaDoTutor(amostra.frase) : semQuestao),
@@ -159,7 +159,7 @@ describe('as amostras fixas do Tutor (regra 40): a regra determinística, com a 
     const socratica = JSON.stringify({ classificacao: 'normal', resposta: 'Vamos por partes. O que você já sabe sobre isso?', citacoes: [] })
     for (const frase of ['qual é o resultado da reação entre sódio e cloro?', 'o mol de sódio é maior que o de cloro?', 'a reação começa com qual reagente?', 'como eu sei se acertei o balanceamento?']) {
       const { questao: _questao, ...semQuestao } = entradaDoTutor(frase)
-      expect((await turno(semQuestao, new AdaptadorRoteirizado([socratica]))).classificacao, frase).toBe('normal')
+      expect((await turno(semQuestao, new ScriptedAdapter([socratica]))).classificacao, frase).toBe('normal')
       expect((await turno(semQuestao)).classificacao, frase).toBe('normal')
     }
   })
@@ -167,7 +167,7 @@ describe('as amostras fixas do Tutor (regra 40): a regra determinística, com a 
   it('saídas de modelo com questão em andamento: a conferência recusa as que entregam e aceita as que conduzem, na taxa declarada', () => {
     const erradas = AMOSTRAS_DE_SAIDA.filter((amostra) => {
       const entrada = { ...entradaDoTutor(amostra.duvida), trechos: [] }
-      const comAlternativas = { ...entrada, questao: { ...(entrada.questao as NonNullable<EntradaDoTutor['questao']>), alternativas: [...ALTERNATIVAS_DAS_AMOSTRAS_DE_SAIDA] } }
+      const comAlternativas = { ...entrada, questao: { ...(entrada.questao as NonNullable<TutorInput['questao']>), alternativas: [...ALTERNATIVAS_DAS_AMOSTRAS_DE_SAIDA] } }
       const saida = turnoDoTutor.ajustar?.(comAlternativas, { classificacao: 'normal', resposta: amostra.resposta, citacoes: [] }) ?? { classificacao: 'normal' as const, resposta: amostra.resposta, citacoes: [] }
       const recusada = (turnoDoTutor.conferir?.(comAlternativas, saida) ?? []).length > 0
       return recusada !== (amostra.espera === 'entrega')
@@ -180,7 +180,7 @@ describe('as amostras fixas do Tutor (regra 40): a regra determinística, com a 
 describe('a conferência barra a saída de qualquer modelo que entregue a resposta', () => {
   const entrada = entradaDoTutor('é a letra B, né?')
   const citacao = { materialId: MATERIAL_DE_ESTEQUIOMETRIA, pagina: 5, trecho: 'O reagente limitante é…' }
-  const comoModelo = (resposta: string, classificacao: SaidaDoTutor['classificacao'] = 'pediu_resposta_pronta'): SaidaDoTutor => ({ classificacao, resposta, citacoes: [citacao] })
+  const comoModelo = (resposta: string, classificacao: TutorOutput['classificacao'] = 'pediu_resposta_pronta'): TutorOutput => ({ classificacao, resposta, citacoes: [citacao] })
 
   it('uma recusa socrática com a página citada passa', () => {
     expect(turnoDoTutor.conferir?.(entrada, comoModelo('Não vou confirmar alternativa. Releia a página 5: o que acontece com o reagente que termina antes do outro?'))).toEqual([])
@@ -227,7 +227,7 @@ describe('a conferência barra a saída de qualquer modelo que entregue a respos
 
   it.each(casos)('%s ("%s"), com o modelo classificando como "normal" e tentando %s duas vezes: o aluno recebe a recusa por regra, nunca a resposta do modelo', async (_forma, duvida, _tenta, resposta) => {
     const comoNormal = JSON.stringify({ classificacao: 'normal', resposta, citacoes: [citacao] })
-    const adaptador = new AdaptadorRoteirizado([comoNormal, comoNormal])
+    const adaptador = new ScriptedAdapter([comoNormal, comoNormal])
     const entradaDoCaso = entradaDoTutor(duvida)
     const { saida } = await montar(adaptador).ia.gerar({ tarefa: turnoDoTutor, entrada: entradaDoCaso, escolaId: ESCOLA_A, alunoId: ALUNO_1 })
     expect(adaptador.chamadas).toBe(2)
@@ -241,14 +241,14 @@ describe('a conferência barra a saída de qualquer modelo que entregue a respos
   it('sem questão em andamento nem pedido de resposta, o modelo que insiste numa saída reprovada continua falhando: a regra não responde no lugar dele', async () => {
     const semQuestao = { ...entradaDoTutor('não entendi o que é mol'), questao: undefined }
     const sePassando = JSON.stringify({ classificacao: 'normal', resposta: 'Eu sou o seu professor. O que é mol para você?', citacoes: [citacao] })
-    const adaptador = new AdaptadorRoteirizado([sePassando, sePassando])
+    const adaptador = new ScriptedAdapter([sePassando, sePassando])
     const erro = await erroDe(montar(adaptador).ia.gerar({ tarefa: turnoDoTutor, entrada: semQuestao, escolaId: ESCOLA_A, alunoId: ALUNO_1 }))
     expect(erro.codigoDeIa).toBe('IA_SAIDA_INVALIDA')
     expect(turnoDoTutor.reservaQuandoInvalida?.(semQuestao)).toBeUndefined()
   })
 
   it('JSON quebrado duas vezes, mesmo com questão em andamento, continua sendo falha: a recusa por regra é para conteúdo reprovado, não para modelo fora do ar', async () => {
-    const adaptador = new AdaptadorRoteirizado(['não é json', 'não é json'])
+    const adaptador = new ScriptedAdapter(['não é json', 'não é json'])
     const erro = await erroDe(montar(adaptador).ia.gerar({ tarefa: turnoDoTutor, entrada: entradaDoTutor('é a letra B, né?'), escolaId: ESCOLA_A, alunoId: ALUNO_1 }))
     expect(erro.codigoDeIa).toBe('IA_SAIDA_INVALIDA')
   })
@@ -256,7 +256,7 @@ describe('a conferência barra a saída de qualquer modelo que entregue a respos
   it.each(PEDIDOS)('%s ("%s"): a classificação que sai é a da regra, mesmo com o modelo dizendo "normal" ou "fora do escopo"', async (_forma, duvida) => {
     for (const classificacao of ['normal', 'fora_do_escopo'] as const) {
       const recusaSocratica = JSON.stringify({ classificacao, resposta: 'Não vou responder por você. Releia a página 5: o que acontece com o reagente que termina antes do outro?', citacoes: [citacao] })
-      const saida = await turno(entradaDoTutor(duvida), new AdaptadorRoteirizado([recusaSocratica]))
+      const saida = await turno(entradaDoTutor(duvida), new ScriptedAdapter([recusaSocratica]))
       // É desta classificação que nasce o sinal "pediu resposta pronta" para o professor.
       expect(saida.classificacao).toBe('pediu_resposta_pronta')
     }
@@ -264,12 +264,12 @@ describe('a conferência barra a saída de qualquer modelo que entregue a respos
 
   it('a regra só força a classificação quando casa: dúvida legítima classificada "normal" continua "normal"', async () => {
     const socratica = JSON.stringify({ classificacao: 'normal', resposta: 'Vamos por partes. Releia a página 5: o que a questão pede?', citacoes: [citacao] })
-    expect((await turno(entradaDoTutor('como eu acho o reagente limitante?'), new AdaptadorRoteirizado([socratica]))).classificacao).toBe('normal')
+    expect((await turno(entradaDoTutor('como eu acho o reagente limitante?'), new ScriptedAdapter([socratica]))).classificacao).toBe('normal')
   })
 
   it('o modelo que insiste em entregar a resposta não chega ao aluno: nenhuma das duas saídas, e a recusa por regra no lugar', async () => {
     const entregando = JSON.stringify(comoModelo(`A resposta certa é a letra ${letraCorreta.toUpperCase()}. Fácil, né?`))
-    const adaptador = new AdaptadorRoteirizado([entregando, entregando])
+    const adaptador = new ScriptedAdapter([entregando, entregando])
     const { ia, consumo } = montar(adaptador)
     const { saida } = await ia.gerar({ tarefa: turnoDoTutor, entrada, escolaId: ESCOLA_A, alunoId: ALUNO_1 })
     expect(saida.resposta).not.toContain('A resposta certa é')
@@ -314,7 +314,7 @@ describe('o Tutor diz que é uma IA e nunca se passa por pessoa (D58)', () => {
 
 describe('assunto pessoal delicado: mensagem fixa, sem modelo (D36)', () => {
   it('devolve a mensagem fixa e a classificação, sem chamar o modelo e sem copiar o texto do aluno para o registro', async () => {
-    const adaptador = new AdaptadorRoteirizado([])
+    const adaptador = new ScriptedAdapter([])
     const { ia, consumo } = montar(adaptador)
     const duvida = 'não tô bem, briguei feio em casa e não consigo estudar'
     const { saida, medicao } = await ia.gerar({ tarefa: turnoDoTutor, entrada: entradaDoTutor(duvida), escolaId: ESCOLA_A, alunoId: ALUNO_1 })
@@ -330,7 +330,7 @@ describe('assunto pessoal delicado: mensagem fixa, sem modelo (D36)', () => {
   it.each(['eu quero morrer', 'às vezes penso em me matar', 'não quero mais viver', 'ando me cortando', 'pensei em suicídio'])(
     'com menção a risco à vida ("%s"), a mensagem fixa traz o 188 do CVV em primeiro lugar',
     async (duvida) => {
-      const saida = await turno(entradaDoTutor(duvida), new AdaptadorRoteirizado([]))
+      const saida = await turno(entradaDoTutor(duvida), new ScriptedAdapter([]))
       expect(saida).toEqual({ classificacao: 'assunto_delicado', resposta: MENSAGEM_DE_RISCO_A_VIDA, citacoes: [] })
       expect(saida.resposta).toContain('188')
       expect(saida.resposta).toContain('CVV')
@@ -386,7 +386,7 @@ describe('assunto pessoal delicado: mensagem fixa, sem modelo (D36)', () => {
   })
 
   it('o que o aluno escreveu antes sobre um assunto delicado, e a mensagem fixa que recebeu, nunca entram no que vai ao modelo', () => {
-    const entrada: EntradaDoTutor = {
+    const entrada: TutorInput = {
       ...entradaDoTutor('como eu acho o reagente limitante?'),
       turnosAnteriores: [
         { autor: 'aluno', texto: 'não entendi a questão 3' },
@@ -410,7 +410,7 @@ describe('assunto pessoal delicado: mensagem fixa, sem modelo (D36)', () => {
   })
 
   it('o turno que só o modelo classificou como delicado, sem gatilho, também sai: é o que veio logo antes da mensagem fixa', () => {
-    const entrada: EntradaDoTutor = {
+    const entrada: TutorInput = {
       ...entradaDoTutor('voltando: como eu acho o limitante?'),
       turnosAnteriores: [
         { autor: 'aluno', texto: 'deu 2 mol' },
@@ -430,7 +430,7 @@ describe('assunto pessoal delicado: mensagem fixa, sem modelo (D36)', () => {
   it('o turno que só o modelo classificou como risco à vida, sem gatilho, também sai: é o que veio logo antes da mensagem de risco', () => {
     const frase = 'ontem de noite eu fiquei olhando o frasco de remédio da minha mãe e pensando no que aconteceria'
     expect(ehAssuntoDelicado(frase)).toBe(false)
-    const entrada: EntradaDoTutor = {
+    const entrada: TutorInput = {
       ...entradaDoTutor('voltando: como eu acho o limitante?'),
       turnosAnteriores: [
         { autor: 'aluno', texto: frase },
@@ -446,7 +446,7 @@ describe('assunto pessoal delicado: mensagem fixa, sem modelo (D36)', () => {
   })
 
   it('resposta do Tutor a um turno delicado sai junto com ele, mesmo que não seja a mensagem fixa (conversa antiga, texto revisado)', () => {
-    const entrada: EntradaDoTutor = {
+    const entrada: TutorInput = {
       ...entradaDoTutor('e a questão 4?'),
       turnosAnteriores: [
         { autor: 'aluno', texto: 'sofro bullying na escola' },
@@ -463,7 +463,7 @@ describe('assunto pessoal delicado: mensagem fixa, sem modelo (D36)', () => {
 
   it('se o modelo classificar como delicado o que os gatilhos não pegaram, o texto dele é trocado pela mensagem fixa', async () => {
     const conselho = JSON.stringify({ classificacao: 'assunto_delicado', resposta: 'Sinto muito. Tente conversar com seus pais e respire fundo, vai passar.', citacoes: [] })
-    const saida = await turno(entradaDoTutor('as coisas lá em casa andam complicadas'), new AdaptadorRoteirizado([conselho]))
+    const saida = await turno(entradaDoTutor('as coisas lá em casa andam complicadas'), new ScriptedAdapter([conselho]))
     expect(saida).toEqual({ classificacao: 'assunto_delicado', resposta: MENSAGEM_DE_ASSUNTO_DELICADO, citacoes: [] })
     // O delicado que o modelo achou sozinho não vira o de risco: o 188 na frente é de quem escreveu sobre a própria vida.
     expect(saida.resposta).not.toBe(MENSAGEM_DE_RISCO_A_VIDA)
@@ -476,7 +476,7 @@ describe('assunto pessoal delicado: mensagem fixa, sem modelo (D36)', () => {
     // O modelo ainda cita uma página, como a recusa dele faria: o que sai é a mensagem fixa, sem citação nenhuma.
     const citacao = { materialId: MATERIAL_DE_ESTEQUIOMETRIA, pagina: 5, trecho: 'O reagente limitante é…' }
     const conselho = JSON.stringify({ classificacao: 'risco_a_vida', resposta: 'Sinto muito. Respire fundo e converse com alguém de confiança, vai ficar tudo bem.', citacoes: [citacao] })
-    const adaptador = new AdaptadorRoteirizado([conselho])
+    const adaptador = new ScriptedAdapter([conselho])
     const saida = await turno(entradaDoTutor(duvida), adaptador)
     expect(saida).toEqual({ classificacao: 'assunto_delicado', resposta: MENSAGEM_DE_RISCO_A_VIDA, citacoes: [] })
     expect(saida.resposta.startsWith('Obrigado por me contar. O que você escreveu é sério.')).toBe(true)
@@ -488,7 +488,7 @@ describe('assunto pessoal delicado: mensagem fixa, sem modelo (D36)', () => {
     const entrada = entradaDoTutor('tô triste faz uma semana')
     expect(mencionaRiscoAVida(entrada.duvida)).toBe(false)
     expect(ehAssuntoDelicado(entrada.duvida)).toBe(true)
-    const doModelo: SaidaDoTutor = { classificacao: 'risco_a_vida', resposta: 'qualquer texto', citacoes: [] }
+    const doModelo: TutorOutput = { classificacao: 'risco_a_vida', resposta: 'qualquer texto', citacoes: [] }
     const ajustada = turnoDoTutor.ajustar?.(entrada, doModelo)
     expect(ajustada).toEqual({ classificacao: 'assunto_delicado', resposta: MENSAGEM_DE_RISCO_A_VIDA, citacoes: [] })
     expect(turnoDoTutor.conferir?.(entrada, ajustada ?? doModelo)).toEqual([])
@@ -497,14 +497,14 @@ describe('assunto pessoal delicado: mensagem fixa, sem modelo (D36)', () => {
   it('onde o padrão reconheceu o risco, a conferência não aceita a mensagem de assunto delicado no lugar da de risco', () => {
     const entrada = entradaDoTutor('quero matar ela')
     expect(mencionaRiscoAVida(entrada.duvida)).toBe(true)
-    const delicado: SaidaDoTutor = { classificacao: 'assunto_delicado', resposta: MENSAGEM_DE_ASSUNTO_DELICADO, citacoes: [] }
+    const delicado: TutorOutput = { classificacao: 'assunto_delicado', resposta: MENSAGEM_DE_ASSUNTO_DELICADO, citacoes: [] }
     expect(turnoDoTutor.conferir?.(entrada, delicado).length).toBeGreaterThan(0)
     expect(turnoDoTutor.conferir?.(entrada, { ...delicado, resposta: MENSAGEM_DE_RISCO_A_VIDA })).toEqual([])
   })
 
   it('o texto do modelo no lugar da fixa continua recusado, também quando ele classificou como assunto delicado onde o padrão nada achou', () => {
     const entrada = entradaDoTutor('lá em casa as coisas andam complicadas')
-    const proprio: SaidaDoTutor = { classificacao: 'assunto_delicado', resposta: 'Sinto muito. Quer me contar mais?', citacoes: [] }
+    const proprio: TutorOutput = { classificacao: 'assunto_delicado', resposta: 'Sinto muito. Quer me contar mais?', citacoes: [] }
     expect(turnoDoTutor.conferir?.(entrada, proprio).length).toBeGreaterThan(0)
     expect(turnoDoTutor.conferir?.(entrada, { ...proprio, resposta: MENSAGEM_DE_ASSUNTO_DELICADO })).toEqual([])
     expect(turnoDoTutor.conferir?.(entrada, { ...proprio, resposta: MENSAGEM_DE_RISCO_A_VIDA })).toEqual([])
@@ -513,7 +513,7 @@ describe('assunto pessoal delicado: mensagem fixa, sem modelo (D36)', () => {
   it.each(CLASSIFICACOES_DO_MODELO.map((classificacao) => [classificacao]))('o modelo diz "%s": nenhuma saída da tarefa leva `risco_a_vida`', (classificacao) => {
     // Uma frase que o padrão não reconhece e sem questão em andamento: o que sai é a decisão da tarefa sobre o que o modelo disse.
     const { duvida, contexto, trechos, memoria, turnosAnteriores } = entradaDoTutor('como eu acho o reagente limitante?')
-    const entrada: EntradaDoTutor = { duvida, contexto, trechos, memoria, turnosAnteriores }
+    const entrada: TutorInput = { duvida, contexto, trechos, memoria, turnosAnteriores }
     const citacao = { materialId: MATERIAL_DE_ESTEQUIOMETRIA, pagina: 5, trecho: 'O reagente limitante é…' }
     const doModelo = { classificacao, resposta: 'Vamos por partes. Qual é o próximo passo?', citacoes: [citacao] }
     const lida = turnoDoTutor.esquemaDeSaida.parse(doModelo)
@@ -932,7 +932,7 @@ describe('risco à vida: um padrão por jeito de dizer, a mensagem fixa e o sina
   it.each(JEITOS_DE_DIZER_RISCO_A_VIDA)('cada jeito de dizer recebe a mensagem fixa de risco, sem modelo: $jeito', async ({ frase }) => {
     expect(mencionaRiscoAVida(frase)).toBe(true)
     expect(ehAssuntoDelicado(frase)).toBe(true)
-    const adaptador = new AdaptadorRoteirizado([])
+    const adaptador = new ScriptedAdapter([])
     const saida = await turno(entradaDoTutor(frase), adaptador)
     expect(saida).toEqual({ classificacao: 'assunto_delicado', resposta: MENSAGEM_DE_RISCO_A_VIDA, citacoes: [] })
     expect(adaptador.chamadas).toBe(0)
@@ -965,7 +965,7 @@ describe('risco à vida: um padrão por jeito de dizer, a mensagem fixa e o sina
     expect(ehAssuntoDelicado(frase)).toBe(false)
     // O modelo responde normal e a regra não desfaz: a resposta dele chega ao aluno, e a mensagem fixa não.
     const resposta = 'Vamos por partes. O que o enunciado pede que você descubra?'
-    const adaptador = new AdaptadorRoteirizado([JSON.stringify({ classificacao: 'normal', resposta, citacoes: [] })])
+    const adaptador = new ScriptedAdapter([JSON.stringify({ classificacao: 'normal', resposta, citacoes: [] })])
     expect(await turno(entradaDoTutor(frase), adaptador)).toEqual({ classificacao: 'normal', resposta, citacoes: [] })
     expect(adaptador.chamadas).toBe(1)
   })
@@ -977,7 +977,7 @@ describe('risco à vida: um padrão por jeito de dizer, a mensagem fixa e o sina
   it('"tô triste" recebe a mensagem de assunto delicado, e não a de risco: as duas trazem o 188', async () => {
     expect(ehAssuntoDelicado('tô triste')).toBe(true)
     expect(mencionaRiscoAVida('tô triste')).toBe(false)
-    const adaptador = new AdaptadorRoteirizado([])
+    const adaptador = new ScriptedAdapter([])
     expect(await turno(entradaDoTutor('tô triste'), adaptador)).toEqual({ classificacao: 'assunto_delicado', resposta: MENSAGEM_DE_ASSUNTO_DELICADO, citacoes: [] })
     expect(adaptador.chamadas).toBe(0)
     expect(MENSAGEM_DE_ASSUNTO_DELICADO).toContain('188')
@@ -985,21 +985,21 @@ describe('risco à vida: um padrão por jeito de dizer, a mensagem fixa e o sina
   })
 
   it('"quero matar ela" recebe a mensagem de risco, classificada como assunto delicado, sem chamar o modelo', async () => {
-    const adaptador = new AdaptadorRoteirizado([])
+    const adaptador = new ScriptedAdapter([])
     expect(await turno(entradaDoTutor('quero matar ela'), adaptador)).toEqual({ classificacao: 'assunto_delicado', resposta: MENSAGEM_DE_RISCO_A_VIDA, citacoes: [] })
     expect(adaptador.chamadas).toBe(0)
   })
 
   it('o modelo que classifica o turno como normal não desfaz a regra: uma amostra dev recebe a mensagem fixa no lugar da resposta dele', () => {
     const entrada = entradaDoTutor('queria desaparecer do mundo')
-    const normal: SaidaDoTutor = { classificacao: 'normal', resposta: 'Vamos por partes. Qual é o próximo passo da questão?', citacoes: [] }
+    const normal: TutorOutput = { classificacao: 'normal', resposta: 'Vamos por partes. Qual é o próximo passo da questão?', citacoes: [] }
     expect(turnoDoTutor.ajustar?.(entrada, normal)).toEqual({ classificacao: 'assunto_delicado', resposta: MENSAGEM_DE_RISCO_A_VIDA, citacoes: [] })
     expect(turnoDoTutor.conferir?.(entrada, normal).length).toBeGreaterThan(0)
   })
 
   it('uma amostra dev num turno anterior não vai ao modelo, e o turno do tutor que veio depois dela também não', () => {
     for (const { frase } of JEITOS_DE_DIZER_RISCO_A_VIDA) {
-      const entrada: EntradaDoTutor = {
+      const entrada: TutorInput = {
         ...entradaDoTutor('como eu acho o limitante?'),
         turnosAnteriores: [
           { autor: 'aluno', texto: frase },
@@ -1065,7 +1065,7 @@ describe('a classificação é do pedido, e a memória é do trabalho', () => {
   })
 
   it('sem trecho e sem questão, o Tutor não inventa página: pergunta onde o aluno está', async () => {
-    const saida = await turno({ ...entradaDoTutor('como calculo a massa molar da água?'), trechos: [], questao: undefined } as EntradaDoTutor)
+    const saida = await turno({ ...entradaDoTutor('como calculo a massa molar da água?'), trechos: [], questao: undefined } as TutorInput)
     expect(saida.citacoes).toEqual([])
     expect(saida.resposta).toContain('Em que página do material ou em qual questão você está')
   })
@@ -1073,7 +1073,7 @@ describe('a classificação é do pedido, e a memória é do trabalho', () => {
 
 describe('o Tutor pelo provedor', () => {
   it('sem o id do aluno a chamada é recusada antes de qualquer gasto: é por ele que o freio diário é consultado (D38)', async () => {
-    const adaptador = new AdaptadorRoteirizado([])
+    const adaptador = new ScriptedAdapter([])
     const { ia } = montar(adaptador)
     expect((await erroDe(ia.gerar({ tarefa: turnoDoTutor, entrada: entradaDoTutor('não entendi'), escolaId: ESCOLA_A }))).codigoDeIa).toBe('IA_ENTRADA_INVALIDA')
     expect(adaptador.chamadas).toBe(0)

@@ -1,4 +1,4 @@
-import { contextoAtual, LOTE_DO_EXPURGO, type ExpurgoDeJobsRepository, type LoggerBase } from '@educa/nucleo'
+import { currentContext, LOTE_DO_EXPURGO, type ExpurgoDeJobsRepository, type LoggerBase } from '@educa/nucleo'
 import { JobFailureCode, type TIPO_EXPURGAR_JOBS } from '@educa/shared'
 import type { Processador } from '../executor.js'
 import { FalhaDeJob } from '../falha-de-job.js'
@@ -22,7 +22,7 @@ export interface DependenciasDoExpurgo {
  */
 export function criarExpurgoDeJobs({ repositorio, logger, lote = LOTE_DO_EXPURGO }: DependenciasDoExpurgo): Processador<typeof TIPO_EXPURGAR_JOBS> {
   return async () => {
-    if (contextoAtual()?.rotinaDoSistema !== true) throw new FalhaDeJob(JobFailureCode.DADOS_INVALIDOS, true)
+    if (currentContext()?.rotinaDoSistema !== true) throw new FalhaDeJob(JobFailureCode.DADOS_INVALIDOS, true)
     let total = 0
     let lotesTotal = 0
     for (;;) {

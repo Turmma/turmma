@@ -225,7 +225,7 @@ describe('a borda de entrada de estrutura, sala e governança: cada rota respond
     api = await subirApi(medidor.medidor)
     escola = await bancada.escola()
     for (const papel of ['coordenador', 'professor', 'aluno'] as const) sessoes.set(papel, await bancada.sessao(escola, papel))
-    // Com o ano em curso: sem ele a rota da turma responde o 404 de `exigirAnoEmCurso()` antes de olhar o id, e o caso passaria
+    // Com o ano em curso: sem ele a rota da turma responde o 404 de `requireAnoEmCurso()` antes de olhar o id, e o caso passaria
     // com o pipe ou sem ele.
     const coordenacao = sessoes.get('coordenador')
     const ano = await chamar(api.url, 'POST', '/v1/anos-letivos', coordenacao?.token, { ano: 2026, inicio: '2026-02-01', fim: '2026-12-15' })

@@ -1,5 +1,5 @@
 import 'reflect-metadata'
-import { criarLogger, type Banco } from '@educa/nucleo'
+import { createLogger, type Database } from '@educa/nucleo'
 import { ErrorCode, aceitarConviteDeOperadorResponseSchema, consultarConviteDeOperadorResponseSchema, MENSAGENS_DE_ERRO } from '@educa/shared'
 import type { INestApplication, Type } from '@nestjs/common'
 import { DiscoveryService, NestFactory } from '@nestjs/core'
@@ -75,7 +75,7 @@ const ipSorteado = () => `10.${[...randomBytes(3)].join('.')}`
 
 async function subir(config = configuracaoDeTeste()): Promise<{ app: INestApplication; url: string }> {
   const app = await NestFactory.create(AppModule.com(config, MONTAGEM_DE_TESTE), { logger: false })
-  configurarAplicacao(app, criarLogger({ servico: 'api-teste', nivel: 'silent' }))
+  configurarAplicacao(app, createLogger({ servico: 'api-teste', nivel: 'silent' }))
   await app.listen(0, '127.0.0.1')
   return { app, url: `http://127.0.0.1:${(app.getHttpServer().address() as AddressInfo).port}` }
 }
@@ -103,13 +103,13 @@ describe('convite do operador: consultar e aceitar (tarefa 5.0)', () => {
   const escolas = new BancadaDeSessoes()
   let app: INestApplication
   let url: string
-  let banco: Banco
+  let banco: Database
   let hash: HashDeSenha
   let autor: string
 
   beforeAll(async () => {
     ;({ app, url } = await subir(configuracaoDeTeste({ ambiente: { LIMITE_PROXIES_CONFIAVEIS: '127.0.0.1' } })))
-    banco = app.get<Banco>(BANCO)
+    banco = app.get<Database>(BANCO)
     hash = app.get(HashDeSenha)
     // O autor dos `ops:operador convite` dos testes: com um operador ativo, o comando exige um deles.
     autor = (await operadores.operador()).apelido
@@ -550,12 +550,12 @@ describe('convite do operador: o limite por IP (C32 e C33, parte)', () => {
   const operadores = new BancadaDeOperadores()
   let app: INestApplication
   let url: string
-  let banco: Banco
+  let banco: Database
   let autor: string
 
   beforeAll(async () => {
     ;({ app, url } = await subir(configuracaoDeTeste({ ambiente: { LIMITE_REQ_IP_ANONIMO_MIN: String(LIMITE_POR_IP), LIMITE_PROXIES_CONFIAVEIS: '127.0.0.1' } })))
-    banco = app.get<Banco>(BANCO)
+    banco = app.get<Database>(BANCO)
     autor = (await operadores.operador()).apelido
   })
 

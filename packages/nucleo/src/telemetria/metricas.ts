@@ -2,7 +2,7 @@ import type { Meter } from '@opentelemetry/api'
 import type { Redis } from 'ioredis'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { monitorEventLoopDelay } from 'node:perf_hooks'
-import type { PoolBanco } from '../db/pool.js'
+import type { DatabasePool } from '../db/pool.js'
 
 /**
  * Nome de toda métrica do sistema (Tech Spec, seção 5, "Observação local"). O painel
@@ -10,9 +10,9 @@ import type { PoolBanco } from '../db/pool.js'
  * ponto vira sublinhado, contador ganha `_total`, e unidade em segundos ganha `_seconds`.
  *
  * Métrica só leva id e rótulo de estrutura (regra 20, item 9). Nenhuma leva usuário nem IP, e só as de job e as três de
- * login da seção 7c da identidade levam escola (`METRICAS_COM_ESCOLA`).
+ * login da seção 7c da identidade levam escola (`METRICS_WITH_ESCOLA`).
  */
-export const METRICAS = {
+export const METRICS = {
   /** Histograma, em segundos, por rota template, método e status. */
   duracaoHttp: 'http.server.request.duration',
   /** Há quantos segundos o job mais antigo que ainda não começou espera, por fila e escola. Sem unidade declarada: o nome já a traz. */
@@ -119,10 +119,10 @@ export const METRICAS = {
   /**
    * Vezes que um limite da sala segurou um pedido (A1, tarefa 7.0; Tech Spec da A1, 7c), por `tipo`: `escola` (a espera
    * de 1 s do código errado demais), `nome` (o `LIMITE_EXCEDIDO` do nome travado) e `turma` (o hash rebaixado). Sem
-   * escola (`METRICAS_COM_ESCOLA` é fechada): a escola vai no log `sala.limite_atingido`, uma linha por escola e janela.
+   * escola (`METRICS_WITH_ESCOLA` é fechada): a escola vai no log `sala.limite_atingido`, uma linha por escola e janela.
    */
   limiteDaSala: 'sala.limite_atingido',
-  /** Histograma, em segundos, da leitura de sessão da `GuardaDeSessao`, uma por requisição autenticada. */
+  /** Histograma, em segundos, da leitura de sessão da `SessaoGuard`, uma por requisição autenticada. */
   leituraDeSessao: 'sessao.leitura.duracao',
   /** p99 do atraso do event loop no intervalo, em segundos. */
   atrasoEventLoop: 'nodejs.eventloop.delay.p99',
@@ -158,18 +158,18 @@ export const METRICAS = {
  * 7c), com cardinalidade de uma série por escola: a espera pelo hash, as falhas e o rebaixamento; e as noites sem
  * expurgo (F3, tarefa 3.0) as horas do incidente sem confirmação (F3, tarefa 9.0) as do arquivo em preparação (F3, tarefa 13.0) e as da eliminação vencida (F3, tarefa 15.0). Nenhuma outra pode levar escola, e nenhuma leva usuário.
  */
-export const METRICAS_COM_ESCOLA: readonly string[] = [
-  METRICAS.esperaMaisAntiga,
-  METRICAS.pendentes,
-  METRICAS.aguardandoVaga,
-  METRICAS.vagasEmUso,
-  METRICAS.esperaPeloHash,
-  METRICAS.falhasDeLogin,
-  METRICAS.prioridadeRebaixada,
-  METRICAS.noitesIncompletasDoExpurgo,
-  METRICAS.horasDoIncidenteSemConfirmacao,
-  METRICAS.horasDoArquivoEmPreparacao,
-  METRICAS.horasDaEliminacaoVencida,
+export const METRICS_WITH_ESCOLA: readonly string[] = [
+  METRICS.esperaMaisAntiga,
+  METRICS.pendentes,
+  METRICS.aguardandoVaga,
+  METRICS.vagasEmUso,
+  METRICS.esperaPeloHash,
+  METRICS.falhasDeLogin,
+  METRICS.prioridadeRebaixada,
+  METRICS.noitesIncompletasDoExpurgo,
+  METRICS.horasDoIncidenteSemConfirmacao,
+  METRICS.horasDoArquivoEmPreparacao,
+  METRICS.horasDaEliminacaoVencida,
 ]
 
 /** O rótulo da escola nas métricas de job. Rotina do sistema, sem escola, aparece como `sistema`, como na chave da vaga. */
@@ -193,7 +193,7 @@ interface RequisicaoComRota extends IncomingMessage {
  * A rota template da requisição (`/v1/sistema/jobs-sinteticos/:id`), como o roteador a casou. Sem rota
  * casada, `ROTA_NAO_ENCONTRADA`: o caminho de verdade (com o id, ou o que alguém digitou) nunca vira rótulo.
  */
-export function rotaDaRequisicao(requisicao: RequisicaoComRota): string {
+export function requestRoute(requisicao: RequisicaoComRota): string {
   const caminho = requisicao.route?.path
   if (typeof caminho !== 'string') return ROTA_NAO_ENCONTRADA
   return `${requisicao.baseUrl ?? ''}${caminho}`
@@ -204,8 +204,8 @@ export function rotaDaRequisicao(requisicao: RequisicaoComRota): string {
  * o método e o status. Mede no `close` da resposta: aí o roteador já casou a rota, e a requisição
  * recusada pela guarda (401, 429) e a que não casou (404) também contam.
  */
-export function middlewareDeMetricasHttp(medidor: Meter): (requisicao: IncomingMessage, resposta: ServerResponse, proximo: () => void) => void {
-  const duracao = medidor.createHistogram(METRICAS.duracaoHttp, {
+export function httpMetricsMiddleware(medidor: Meter): (requisicao: IncomingMessage, resposta: ServerResponse, proximo: () => void) => void {
+  const duracao = medidor.createHistogram(METRICS.duracaoHttp, {
     unit: 's',
     description: 'Duração da requisição HTTP, por rota template',
     advice: { explicitBucketBoundaries: LIMITES_DO_HISTOGRAMA_HTTP_S },
@@ -216,7 +216,7 @@ export function middlewareDeMetricasHttp(medidor: Meter): (requisicao: IncomingM
       const metodo = requisicao.method ?? ''
       duracao.record((performance.now() - inicio) / 1_000, {
         'http.request.method': METODOS_HTTP.has(metodo) ? metodo : '_OTHER',
-        'http.route': rotaDaRequisicao(requisicao),
+        'http.route': requestRoute(requisicao),
         'http.response.status_code': resposta.statusCode,
       })
     })
@@ -225,11 +225,11 @@ export function middlewareDeMetricasHttp(medidor: Meter): (requisicao: IncomingM
 }
 
 /** Uso do pool do banco: conexões emprestadas agora e conexões descartadas desde o boot. */
-export function observarPoolDoBanco(medidor: Meter, pool: PoolBanco): void {
+export function observeDatabasePool(medidor: Meter, pool: DatabasePool): void {
   medidor
-    .createObservableGauge(METRICAS.poolEmUso, { description: 'Conexões do pool emprestadas agora' })
+    .createObservableGauge(METRICS.poolEmUso, { description: 'Conexões do pool emprestadas agora' })
     .addCallback((observador) => observador.observe(pool.totalCount - pool.idleCount))
-  const descartadas = medidor.createCounter(METRICAS.conexoesDescartadas, { description: 'Conexões que o pool descartou' })
+  const descartadas = medidor.createCounter(METRICS.conexoesDescartadas, { description: 'Conexões que o pool descartou' })
   // O pool devolve a conexão com erro para descartá-la (pool.ts: erro de conexão, sessão suja).
   pool.on('release', (erro: Error | undefined) => {
     if (erro !== undefined) descartadas.add(1)
@@ -239,14 +239,14 @@ export function observarPoolDoBanco(medidor: Meter, pool: PoolBanco): void {
 }
 
 /** Instância de Redis que o processo usa: o de fila (BullMQ, vagas, uso, realtime) ou o de cache (rate limit). */
-export type InstanciaRedis = 'fila' | 'cache'
+export type RedisInstance = 'fila' | 'cache'
 
 /**
  * `redis.disponivel{instancia}`: 1 só se todos os clientes do processo para aquela instância estão
  * prontos. Lê o estado do cliente, sem mandar comando: com o Redis fora, a coleta não espera nada.
  */
-export function observarRedis(medidor: Meter, clientes: Partial<Record<InstanciaRedis, readonly Redis[]>>): void {
-  medidor.createObservableGauge(METRICAS.redisDisponivel, { description: '1 se o Redis responde a este processo' }).addCallback((observador) => {
+export function observeRedis(medidor: Meter, clientes: Partial<Record<RedisInstance, readonly Redis[]>>): void {
+  medidor.createObservableGauge(METRICS.redisDisponivel, { description: '1 se o Redis responde a este processo' }).addCallback((observador) => {
     for (const [instancia, daInstancia] of Object.entries(clientes)) {
       if (daInstancia === undefined || daInstancia.length === 0) continue
       observador.observe(daInstancia.every((cliente) => cliente.status === 'ready') ? 1 : 0, { instancia })
@@ -259,24 +259,24 @@ export function observarRedis(medidor: Meter, clientes: Partial<Record<Instancia
  * uma fonte (o rate limit no Redis de cache e, no Redis de fila, o contador de tentativas, os contadores por IP e o
  * desafio do login e os limites da sala), vale a maior: o alerta `seguro-limite-ativo` dispara quando qualquer uma conta sozinha em memória.
  */
-export function observarSeguroDoLimite(medidor: Meter, ...fontes: ReadonlyArray<{ readonly proporcaoDoSeguro: number }>): void {
+export function observeInsuranceLimiter(medidor: Meter, ...fontes: ReadonlyArray<{ readonly proporcaoDoSeguro: number }>): void {
   medidor
-    .createObservableGauge(METRICAS.seguroAtivo, { description: 'Proporção das requisições limitadas pelo seguro em memória, de 0 a 1' })
+    .createObservableGauge(METRICS.seguroAtivo, { description: 'Proporção das requisições limitadas pelo seguro em memória, de 0 a 1' })
     .addCallback((observador) => observador.observe(Math.max(0, ...fontes.map((fonte) => fonte.proporcaoDoSeguro))))
 }
 
 /** `realtime.conexoes`: conexões abertas nesta instância, sem rótulo de escola nem de sala. */
-export function observarConexoesRealtime(medidor: Meter, conexoesAbertas: () => number): void {
+export function observeRealtimeConnections(medidor: Meter, conexoesAbertas: () => number): void {
   medidor
-    .createObservableGauge(METRICAS.conexoesRealtime, { description: 'Conexões abertas nesta instância do realtime' })
+    .createObservableGauge(METRICS.conexoesRealtime, { description: 'Conexões abertas nesta instância do realtime' })
     .addCallback((observador) => observador.observe(conexoesAbertas()))
 }
 
 /** p99 do atraso do event loop entre duas coletas: job de CPU no event loop, GC longo, travamento. */
-export function observarEventLoop(medidor: Meter): void {
+export function observeEventLoop(medidor: Meter): void {
   const monitor = monitorEventLoopDelay({ resolution: 20 })
   monitor.enable()
-  medidor.createObservableGauge(METRICAS.atrasoEventLoop, { unit: 's', description: 'p99 do atraso do event loop' }).addCallback((observador) => {
+  medidor.createObservableGauge(METRICS.atrasoEventLoop, { unit: 's', description: 'p99 do atraso do event loop' }).addCallback((observador) => {
     // O histograma registra em nanossegundos. Zerado a cada coleta: o valor é o do intervalo, não desde o boot.
     observador.observe(monitor.percentile(99) / 1e9)
     monitor.reset()

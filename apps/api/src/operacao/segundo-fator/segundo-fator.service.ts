@@ -1,4 +1,4 @@
-import { contextoAtual, ErroDeDominio, executarNoContexto, relogioDoSistema, type Ambiente, type Banco, type EmissorDeTokenDeOperador, type Relogio } from '@educa/nucleo'
+import { currentContext, DomainException, runInContext, systemClock, type Environment, type Database, type OperadorTokenIssuer, type Clock } from '@educa/nucleo'
 import {
   ErrorCode,
   type ConfigurarSegundoFatorDeOperadorRequest,
@@ -17,7 +17,7 @@ import type { FalhasDeEntradaDaOperacao } from '../falhas-de-entrada.js'
 import { OperadorRepository, type OperadorParaSegundoFator } from '../operador/operador.repository.js'
 
 export interface DependenciasDoSegundoFator {
-  readonly banco: Banco
+  readonly banco: Database
   /** A cifra do segredo do F1, com as mesmas chaves; o dado autenticado (AAD) é o `operador.id`. */
   readonly cifra: Pick<CifraDoSegredo, 'cifrar' | 'decifrar'>
   /** A chave do HMAC dos códigos de recuperação (`IDENTIDADE_CHAVE_RECUPERACAO`), a do F1. */
@@ -30,11 +30,11 @@ export interface DependenciasDoSegundoFator {
   /** O cookie de dispositivo do operador, com a chave própria (`dispositivo-de-operador.ts`). */
   readonly dispositivo: Pick<CookieDeDispositivo, 'conhece' | 'comEntrada'>
   readonly emissorDeDesafio: Pick<EmissorDeDesafioDeOperador, 'emitir'>
-  readonly emissorDeToken: Pick<EmissorDeTokenDeOperador, 'emitir'>
-  readonly ambiente: Ambiente
+  readonly emissorDeToken: Pick<OperadorTokenIssuer, 'emitir'>
+  readonly ambiente: Environment
   /** A série `operacao.entrada_falha`, a mesma da entrada por e-mail. */
   readonly falhas: Pick<FalhasDeEntradaDaOperacao, 'somar'>
-  readonly relogio?: Relogio
+  readonly relogio?: Clock
 }
 
 /**
@@ -53,7 +53,7 @@ export interface SessaoDeOperadorAberta {
 }
 
 /** Desafio inválido, usado, de outra etapa, de operador desativado ou sem segundo fator para conferir: uma resposta só. */
-const desafioInvalido = () => new ErroDeDominio(ErrorCode.NAO_AUTENTICADO)
+const desafioInvalido = () => new DomainException(ErrorCode.NAO_AUTENTICADO)
 
 /** O que a transação do `/sessao/mfa` decidiu. Só `aberta` gravou alguma coisa. */
 type Desfecho =
@@ -96,10 +96,10 @@ type Desfecho =
  */
 export class SegundoFatorDoOperadorService {
   readonly #logger = new Logger('operacao')
-  readonly #relogio: Relogio
+  readonly #relogio: Clock
 
   constructor(private readonly dependencias: DependenciasDoSegundoFator) {
-    this.#relogio = dependencias.relogio ?? relogioDoSistema
+    this.#relogio = dependencias.relogio ?? systemClock
   }
 
   async configurar(pedido: ConfigurarSegundoFatorDeOperadorRequest): Promise<ConfigurarSegundoFatorDeOperadorResponse> {
@@ -125,8 +125,8 @@ export class SegundoFatorDoOperadorService {
     const { banco, contador, emissorDeToken, dispositivo, ambiente } = this.dependencias
     // O middleware abre o contexto em toda requisição HTTP. Sem ele é falha de montagem: recusa antes de gastar o desafio
     // ou gravar qualquer coisa, em vez de inventar um `requisicaoId` para a linha de log do fim.
-    const requisicao = contextoAtual()
-    if (requisicao === undefined) throw new ErroDeDominio(ErrorCode.ERRO_INTERNO)
+    const requisicao = currentContext()
+    if (requisicao === undefined) throw new DomainException(ErrorCode.ERRO_INTERNO)
     const verificado = await this.#desafioConsumido(pedido.desafio, 'mfa')
     const refresh = randomBytes(BYTES_DO_REFRESH).toString('base64url')
     const cookieDeDispositivo = lerCookie(origem.cabecalhoCookie, COOKIE_DISPOSITIVO_DE_OPERADOR)
@@ -152,7 +152,7 @@ export class SegundoFatorDoOperadorService {
       }
       if (!linha.mfaAtivo) {
         // A linha está travada desde o `for update`, com a versão conferida acima: a ativação não tem como não casar.
-        if (!(await repositorio.ativarSegundoFator(linha.id, linha.mfaVersao))) throw new ErroDeDominio(ErrorCode.ERRO_INTERNO)
+        if (!(await repositorio.ativarSegundoFator(linha.id, linha.mfaVersao))) throw new DomainException(ErrorCode.ERRO_INTERNO)
         await repositorio.auditar({ autor: linha.apelido, acao: 'operador.mfa_configurado', operadorAlvoId: linha.id })
       }
       const sessaoId = await repositorio.abrirSessao(linha.id, hashDoRefresh(refresh))
@@ -164,17 +164,17 @@ export class SegundoFatorDoOperadorService {
       case 'desafio_invalido':
         throw desafioInvalido()
       case 'configure_de_novo':
-        throw new ErroDeDominio(ErrorCode.CONFLITO)
+        throw new DomainException(ErrorCode.CONFLITO)
       case 'segurada':
         this.dependencias.falhas.somar()
         throw contaSegurada(desfecho.esperaMs)
       case 'codigo_recusado':
         this.dependencias.falhas.somar()
-        throw desfecho.esperaMs > 0 ? contaSegurada(desfecho.esperaMs) : new ErroDeDominio(ErrorCode.NAO_AUTENTICADO)
+        throw desfecho.esperaMs > 0 ? contaSegurada(desfecho.esperaMs) : new DomainException(ErrorCode.NAO_AUTENTICADO)
       case 'aberta': {
         if (!(await contador.zerar(desfecho.chave))) {
           const operadorId = verificado.operadorId
-          executarNoContexto({ ...requisicao, operadorId }, () => this.#logger.warn('operacao.contador_nao_zerado'))
+          runInContext({ ...requisicao, operadorId }, () => this.#logger.warn('operacao.contador_nao_zerado'))
         }
         const { token, expiraEm } = await emissorDeToken.emitir({ operadorId: verificado.operadorId, sessaoId: desfecho.sessaoId })
         return {
@@ -216,6 +216,6 @@ export class SegundoFatorDoOperadorService {
   }
 }
 
-function contaSegurada(esperaMs: number): ErroDeDominio {
-  return new ErroDeDominio(ErrorCode.CONTA_SEGURADA, undefined, Math.max(1, Math.ceil(esperaMs / 1_000)))
+function contaSegurada(esperaMs: number): DomainException {
+  return new DomainException(ErrorCode.CONTA_SEGURADA, undefined, Math.max(1, Math.ceil(esperaMs / 1_000)))
 }

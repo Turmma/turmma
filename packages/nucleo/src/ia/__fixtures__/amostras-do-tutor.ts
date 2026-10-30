@@ -7,7 +7,7 @@
  * A classificação "pediu a resposta pronta" vira sinal para o professor, com o nome do aluno: errar para mais (marcar
  * a dúvida legítima) é tão ruim quanto errar para menos.
  */
-export interface AmostraDePedido {
+export interface RequestSample {
   readonly frase: string
   /** Há uma questão em andamento? Palpite e pedido fatiado só são pedido de resposta com questão. */
   readonly comQuestao: boolean
@@ -16,20 +16,20 @@ export interface AmostraDePedido {
   readonly espera: 'pedido_de_resposta' | 'duvida_legitima'
 }
 
-const pedido = (frase: string, turnoAnteriorDoAluno?: string): AmostraDePedido => ({
+const pedido = (frase: string, turnoAnteriorDoAluno?: string): RequestSample => ({
   frase,
   comQuestao: true,
   espera: 'pedido_de_resposta',
   ...(turnoAnteriorDoAluno === undefined ? {} : { turnoAnteriorDoAluno }),
 })
-const duvida = (frase: string, comQuestao: boolean, turnoAnteriorDoAluno?: string): AmostraDePedido => ({
+const duvida = (frase: string, comQuestao: boolean, turnoAnteriorDoAluno?: string): RequestSample => ({
   frase,
   comQuestao,
   espera: 'duvida_legitima',
   ...(turnoAnteriorDoAluno === undefined ? {} : { turnoAnteriorDoAluno }),
 })
 
-export const AMOSTRAS_DE_PEDIDO: readonly AmostraDePedido[] = [
+export const AMOSTRAS_DE_PEDIDO: readonly RequestSample[] = [
   // Pedido direto.
   pedido('qual é a resposta da questão 5?'),
   pedido('me fala logo a resposta, por favor'),
@@ -95,7 +95,7 @@ export const AMOSTRAS_DE_PEDIDO: readonly AmostraDePedido[] = [
   duvida('por favor explica de novo', true, 'como eu acho o reagente limitante?'),
 ]
 
-export interface AmostraDeSaida {
+export interface OutputSample {
   /** O que o aluno escreveu. */
   readonly duvida: string
   /** O que um modelo respondeu. */
@@ -106,7 +106,7 @@ export interface AmostraDeSaida {
 /** Saídas de modelo para uma questão em andamento cuja alternativa correta é a D, com "144 g" entre as alternativas. */
 export const ALTERNATIVAS_DAS_AMOSTRAS_DE_SAIDA = ['36 g', '72 g', '100 g', '144 g'] as const
 
-export const AMOSTRAS_DE_SAIDA: readonly AmostraDeSaida[] = [
+export const AMOSTRAS_DE_SAIDA: readonly OutputSample[] = [
   { duvida: 'é a letra D, né?', resposta: 'Isso! Você acertou. Qual é a próxima dúvida?', espera: 'entrega' },
   { duvida: 'é a letra B, né?', resposta: 'Não é a B. Tente outra, qual você acha?', espera: 'entrega' },
   { duvida: 'qual é a resposta?', resposta: 'A certa é a D. Entendeu por quê?', espera: 'entrega' },

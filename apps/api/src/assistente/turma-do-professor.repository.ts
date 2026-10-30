@@ -1,4 +1,4 @@
-import { artefato, atividadeAplicada, disciplina, exigirAnoEmCurso, exigirEscolaDoContexto, serie, sessaoDaRequisicao, turma, vinculo, type Banco, type TransacaoBanco } from '@educa/nucleo'
+import { artefato, atividadeAplicada, disciplina, requireAnoEmCurso, requireEscolaId, serie, requestSessao, turma, vinculo, type Database, type DatabaseTransaction } from '@educa/nucleo'
 import type { Etapa } from '@educa/shared'
 import { and, eq, exists, sql, type AnyColumn, type SQL } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/pg-core'
@@ -27,8 +27,8 @@ export type DisciplinaDoVinculo = string | AnyColumn | SQL
  * `disciplina_id` do artefato, `disciplinaDoArtefato` para a atividade aplicada, `disciplinaDaEntrega` para a entrega
  * (versão adaptada ou lote). Subconsulta que não acha a disciplina dá nulo, e nulo não casa com vínculo nenhum.
  */
-export function comVinculoConfirmadoDoProfessor(banco: Banco | TransacaoBanco, colunas: ColunasDaTurma, disciplinaId: DisciplinaDoVinculo): SQL {
-  const { usuarioId } = sessaoDaRequisicao()
+export function comVinculoConfirmadoDoProfessor(banco: Database | DatabaseTransaction, colunas: ColunasDaTurma, disciplinaId: DisciplinaDoVinculo): SQL {
+  const { usuarioId } = requestSessao()
   return exists(
     banco
       .select({ um: vinculo.id })
@@ -63,7 +63,7 @@ const artefatoDaAplicacao = alias(artefato, 'artefato_da_aplicacao')
  * `comVinculoConfirmadoDoProfessor` para a **atividade aplicada** (`atividade_aplicada.artefato_id`). O artefato é
  * lido na escola e no ano da própria linha.
  */
-export function disciplinaDoArtefato(banco: Banco | TransacaoBanco, colunas: ColunasDoArtefato): SQL {
+export function disciplinaDoArtefato(banco: Database | DatabaseTransaction, colunas: ColunasDoArtefato): SQL {
   const consulta = banco
     .select({ disciplinaId: artefatoDaLinha.disciplinaId })
     .from(artefatoDaLinha)
@@ -76,7 +76,7 @@ export function disciplinaDoArtefato(banco: Banco | TransacaoBanco, colunas: Col
  * aplicada, no lote de correção. É o `disciplinaId` de `comVinculoConfirmadoDoProfessor` para listar e decidir entrega
  * e para aprovar o lote. `colunas` são as da tabela `entrega` (ou de um alias dela).
  */
-export function disciplinaDaEntrega(banco: Banco | TransacaoBanco, colunas: ColunasDoArtefato & { readonly atividadeAplicadaId: AnyColumn }): SQL {
+export function disciplinaDaEntrega(banco: Database | DatabaseTransaction, colunas: ColunasDoArtefato & { readonly atividadeAplicadaId: AnyColumn }): SQL {
   const doLote = banco
     .select({ disciplinaId: artefatoDaAplicacao.disciplinaId })
     .from(aplicacaoDaEntrega)
@@ -96,7 +96,7 @@ export interface TurmaComDisciplina {
  * vínculo `confirmado` dele **naquela disciplina**. Escola, ano e pessoa vêm da sessão (regra 10, item 3).
  */
 export class TurmaDoProfessorRepository {
-  constructor(private readonly banco: Banco | TransacaoBanco) {}
+  constructor(private readonly banco: Database | DatabaseTransaction) {}
 
   /**
    * A série da turma e o nome da disciplina, se o professor do contexto tem vínculo confirmado nas duas. Turma ou
@@ -104,13 +104,13 @@ export class TurmaDoProfessorRepository {
    * `NAO_ENCONTRADO`, igual para todas (regra 10, item 6).
    */
   async turmaComDisciplina(turmaId: string, disciplinaId: string): Promise<TurmaComDisciplina | undefined> {
-    const escolaId = exigirEscolaDoContexto()
+    const escolaId = requireEscolaId()
     const [linha] = await this.banco
       .select({ etapa: serie.etapa, ano: serie.ano, disciplina: disciplina.nome })
       .from(turma)
       .innerJoin(serie, and(eq(serie.escolaId, turma.escolaId), eq(serie.id, turma.serieId)))
       .innerJoin(disciplina, and(eq(disciplina.escolaId, turma.escolaId), eq(disciplina.id, disciplinaId)))
-      .where(and(eq(turma.escolaId, escolaId), eq(turma.anoLetivoId, exigirAnoEmCurso()), eq(turma.id, turmaId), comVinculoConfirmadoDoProfessor(this.banco, { escolaId: turma.escolaId, anoLetivoId: turma.anoLetivoId, turmaId: turma.id }, disciplinaId)))
+      .where(and(eq(turma.escolaId, escolaId), eq(turma.anoLetivoId, requireAnoEmCurso()), eq(turma.id, turmaId), comVinculoConfirmadoDoProfessor(this.banco, { escolaId: turma.escolaId, anoLetivoId: turma.anoLetivoId, turmaId: turma.id }, disciplinaId)))
     return linha === undefined ? undefined : { serie: { etapa: linha.etapa, ano: linha.ano }, disciplina: linha.disciplina }
   }
 }

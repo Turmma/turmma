@@ -1,42 +1,42 @@
 import {
   ArquivoDoTitularRepository,
-  avisoEspacado,
-  ConfiguracaoOperacional,
-  ConfiguracaoOperacionalRepository,
-  ContadorDeUso,
-  criarBanco,
+  throttledWarn,
+  OperationalSettings,
+  OperationalSettingsRepository,
+  UsageMeter,
+  createDatabase,
   DONO_DAS_VAGAS_DO_SISTEMA,
-  criarClienteRedisDaFila,
-  criarPool,
-  EfeitoSinteticoRepository,
-  Enfileirador,
-  EscolasDaRotinaRepository,
+  createQueueRedisClient,
+  createPool,
+  SyntheticEffectRepository,
+  JobOutbox,
+  CronEscolasRepository,
   ExpurgoDaEscolaRepository,
   ExpurgoDeAcessoRepository,
   ExpurgoDeJobsRepository,
   IncidenteDaEscolaRepository,
-  JobRegistroRepository,
-  METRICAS,
-  nomeDaFilaBullMQ,
-  observarPoolDoBanco,
-  observarRedis,
-  OPCOES_DO_POOL_POR_FILA,
+  JobOutboxRepository,
+  METRICS,
+  bullmqQueueName,
+  observeDatabasePool,
+  observeRedis,
+  WORKER_POOL_OPTIONS_BY_QUEUE,
   RETENCAO_JOB_CONCLUIDO_SEGUNDOS,
   RETENCAO_JOB_FALHO_SEGUNDOS,
-  relogioDoSistema,
+  systemClock,
   resolverJanela,
   resolverVagasDaEscola,
   RetencaoDaEscolaRepository,
-  UsoRepository,
-  VagasPorEscola,
-  type ArmazemDeArquivos,
-  type Banco,
-  type Batimento,
-  type DadosDoJobNaFila,
+  UsageRepository,
+  EscolaConcurrencyLimiter,
+  type FileStorage,
+  type Database,
+  type Heartbeat,
+  type QueuedJobData,
   type JanelaLetiva,
   type LoggerBase,
   type Meter,
-  type Relogio,
+  type Clock,
 } from '@educa/nucleo'
 import {
   TIPO_CONSOLIDAR_USO,
@@ -50,7 +50,7 @@ import {
   type QueueName,
   type JobRegistry,
 } from '@educa/shared'
-import { ArmazemS3 } from '@educa/nucleo/armazem-s3'
+import { S3FileStorage } from '@educa/nucleo/armazem-s3'
 import { Queue, Worker } from 'bullmq'
 import { Redis } from 'ioredis'
 import { AGENDAMENTOS, criarDisparoDeAgendamento, FILA_DOS_AGENDAMENTOS, registrarAgendamentos, type Agendamento } from './agendamentos.js'
@@ -92,10 +92,10 @@ export interface OpcoesDaMontagem {
    * Relógio do dia de uso (contador e consolidação), do corte do expurgo do acesso e do expurgo da escola, e da janela
    * conferida a cada lote. Só o teste troca, para marcar às 23h59 e consolidar às 2h.
    */
-  relogio?: Relogio
+  relogio?: Clock
   /** Agendamentos registrados na réplica de lote. Só o teste troca, para não esperar as 2h. */
   agendamentos?: readonly Agendamento[]
-  batimento?: Batimento
+  batimento?: Heartbeat
   graca?: number
   /**
    * Medidor da telemetria. Com ele, o worker mede o pool, o Redis, o stalled e o job que chega sem vaga;
@@ -106,7 +106,7 @@ export interface OpcoesDaMontagem {
 
 export interface WorkerMontado {
   /** Um `Worker` do BullMQ por fila atendida, cada um com o próprio pool. */
-  workers: ReadonlyMap<QueueName, Worker<DadosDoJobNaFila>>
+  workers: ReadonlyMap<QueueName, Worker<QueuedJobData>>
   /** Só na réplica que atende o lote: a fila dos disparos agendados e o worker que os grava em `job_registro`. */
   agendamentos?: { fila: Queue; worker: Worker }
   /** `close()` com graça em todos: espera os jobs em andamento até o prazo e só então força. */
@@ -118,7 +118,7 @@ export interface WorkerMontado {
  * atende (`QUEUE_NAMES`), com a concorrência do pool da fila. Pools separados são o que garante que lote
  * nenhum ocupa a vez do interativo: o `worker-lote` nem consome a fila interativa.
  *
- * O stalled é o do BullMQ, com lock e verificação por fila (`OPCOES_DO_POOL_POR_FILA`): se a réplica
+ * O stalled é o do BullMQ, com lock e verificação por fila (`WORKER_POOL_OPTIONS_BY_QUEUE`): se a réplica
  * morre no meio, o lock vence e outra réplica retoma o job, ainda dono da vaga.
  */
 export function montarWorker(config: Omit<ConfiguracaoWorker, 'telemetria'>, logger: LoggerBase, opcoes: OpcoesDaMontagem = {}): WorkerMontado {
@@ -126,31 +126,31 @@ export function montarWorker(config: Omit<ConfiguracaoWorker, 'telemetria'>, log
     // Só o controle negativo do cenário de carga chega aqui, e ele precisa ficar visível no log de quem subiu assim.
     logger.warn({ evento: 'worker.vagas_por_escola_desligadas' })
   }
-  const pool = criarPool(config.banco, () => logger.warn({ evento: 'banco.conexao_ociosa_perdida' }))
+  const pool = createPool(config.banco, () => logger.warn({ evento: 'banco.conexao_ociosa_perdida' }))
   // O BullMQ exige `maxRetriesPerRequest: null` no worker: o comando bloqueante espera o Redis voltar.
   const redis = new Redis(config.redisFilaUrl, { connectionName: 'worker', maxRetriesPerRequest: null })
-  const avisarRedisIndisponivel = avisoEspacado(() => logger.warn({ evento: 'worker.redis_indisponivel' }))
+  const avisarRedisIndisponivel = throttledWarn(() => logger.warn({ evento: 'worker.redis_indisponivel' }))
   redis.on('error', avisarRedisIndisponivel)
   // As vagas usam outro cliente, sem fila offline e com prazo: Redis fora não pendura o fim do job.
-  const redisDasVagas = criarClienteRedisDaFila(config.redisFilaUrl, 'worker-vagas', avisarRedisIndisponivel)
-  const banco = criarBanco(pool)
-  const relogio = opcoes.relogio ?? relogioDoSistema
-  const uso = new ContadorDeUso(redisDasVagas, {
+  const redisDasVagas = createQueueRedisClient(config.redisFilaUrl, 'worker-vagas', avisarRedisIndisponivel)
+  const banco = createDatabase(pool)
+  const relogio = opcoes.relogio ?? systemClock
+  const uso = new UsageMeter(redisDasVagas, {
     relogio,
     ...(opcoes.prefixo === undefined ? {} : { prefixo: opcoes.prefixo }),
-    aoFalhar: avisoEspacado(() => logger.warn({ evento: 'worker.contador_de_uso_indisponivel' })),
+    aoFalhar: throttledWarn(() => logger.warn({ evento: 'worker.contador_de_uso_indisponivel' })),
   })
   const { medidor } = opcoes
   if (medidor !== undefined) {
-    observarPoolDoBanco(medidor, pool)
-    observarRedis(medidor, { fila: [redis, redisDasVagas] })
+    observeDatabasePool(medidor, pool)
+    observeRedis(medidor, { fila: [redis, redisDasVagas] })
   }
-  const aguardandoVaga = medidor?.createCounter(METRICAS.aguardandoVaga, { description: 'Jobs que chegaram ao worker sem vaga e voltaram a esperar' })
-  const stalled = medidor?.createCounter(METRICAS.jobsStalled, { description: 'Jobs devolvidos à espera por lock vencido' })
+  const aguardandoVaga = medidor?.createCounter(METRICS.aguardandoVaga, { description: 'Jobs que chegaram ao worker sem vaga e voltaram a esperar' })
+  const stalled = medidor?.createCounter(METRICS.jobsStalled, { description: 'Jobs devolvidos à espera por lock vencido' })
   // O armazém do arquivo do titular (F3, tarefa 13.0): a réplica da fila normal grava o JSON, e a do lote apaga o vencido.
-  const armazemS3 = config.storage === undefined ? undefined : ArmazemS3.criar(config.storage)
+  const armazemS3 = config.storage === undefined ? undefined : S3FileStorage.criar(config.storage)
   const sandbox = new SandboxDeCpu(config.threadsMaximo)
-  const repositorio = new JobRegistroRepository(banco)
+  const repositorio = new JobOutboxRepository(banco)
   // Banco fora: o despachante acorda pela sondagem, e só.
   const { processadores, rotinas } = montarProcessadores(config, {
     banco,
@@ -159,10 +159,10 @@ export function montarWorker(config: Omit<ConfiguracaoWorker, 'telemetria'>, log
     logger,
     medidor,
     cpu: sandbox,
-    efeitos: new EfeitoSinteticoRepository(banco),
+    efeitos: new SyntheticEffectRepository(banco),
     armazem: armazemS3?.armazem,
   })
-  const avisoDeVagaLivre = new AvisoDeVagaLivre(() => repositorio.avisarVagaLivre(), avisoEspacado(() => logger.warn({ evento: 'worker.aviso_de_vaga_indisponivel' })))
+  const avisoDeVagaLivre = new AvisoDeVagaLivre(() => repositorio.avisarVagaLivre(), throttledWarn(() => logger.warn({ evento: 'worker.aviso_de_vaga_indisponivel' })))
   const executor = new ExecutorDeJobs({
     repositorio,
     aoLiberarVaga: avisoDeVagaLivre.avisar,
@@ -171,24 +171,24 @@ export function montarWorker(config: Omit<ConfiguracaoWorker, 'telemetria'>, log
     logger,
     uso,
     ...(aguardandoVaga === undefined ? {} : { aoAguardarVaga: (fila: QueueName, escolaId: string | null) => aguardandoVaga.add(1, { fila, escola_id: escolaId ?? DONO_DAS_VAGAS_DO_SISTEMA }) }),
-    vagas: new VagasPorEscola(redisDasVagas, opcoes.prefixo, opcoes.validadeDaVagaMs),
-    vagasDaEscola: new ConfiguracaoOperacional(
-      new ConfiguracaoOperacionalRepository(banco),
+    vagas: new EscolaConcurrencyLimiter(redisDasVagas, opcoes.prefixo, opcoes.validadeDaVagaMs),
+    vagasDaEscola: new OperationalSettings(
+      new OperationalSettingsRepository(banco),
       (linha) => resolverVagasDaEscola(config.vagasPadrao, linha, config.vagasPorEscolaDesligadas === true),
       {
-        aoFalhar: avisoEspacado(() => logger.warn({ evento: 'worker.configuracao_indisponivel' })),
+        aoFalhar: throttledWarn(() => logger.warn({ evento: 'worker.configuracao_indisponivel' })),
       },
     ),
     ...(opcoes.intervaloRenovacaoDaVagaMs === undefined ? {} : { intervaloRenovacaoMs: opcoes.intervaloRenovacaoDaVagaMs }),
   })
-  const avisarErroDaFila = avisoEspacado(() => logger.warn({ evento: 'worker.fila_com_erro' }))
-  const workers = new Map<QueueName, Worker<DadosDoJobNaFila>>()
+  const avisarErroDaFila = throttledWarn(() => logger.warn({ evento: 'worker.fila_com_erro' }))
+  const workers = new Map<QueueName, Worker<QueuedJobData>>()
   for (const [fila, concorrencia] of Object.entries(config.pools) as Array<[QueueName, number]>) {
-    const worker = new Worker<DadosDoJobNaFila>(nomeDaFilaBullMQ(fila, 'worker'), (job, token) => executor.processar(job, token), {
+    const worker = new Worker<QueuedJobData>(bullmqQueueName(fila, 'worker'), (job, token) => executor.processar(job, token), {
       connection: redis,
       concurrency: concorrencia,
-      lockDuration: OPCOES_DO_POOL_POR_FILA[fila].lockDurationMs,
-      stalledInterval: OPCOES_DO_POOL_POR_FILA[fila].stalledIntervalMs,
+      lockDuration: WORKER_POOL_OPTIONS_BY_QUEUE[fila].lockDurationMs,
+      stalledInterval: WORKER_POOL_OPTIONS_BY_QUEUE[fila].stalledIntervalMs,
       removeOnComplete: { age: RETENCAO_JOB_CONCLUIDO_SEGUNDOS },
       removeOnFail: { age: RETENCAO_JOB_FALHO_SEGUNDOS },
       ...(opcoes.prefixo === undefined ? {} : { prefix: opcoes.prefixo }),
@@ -245,16 +245,16 @@ export function montarWorker(config: Omit<ConfiguracaoWorker, 'telemetria'>, log
 
 /** As peças que os processadores usam, já criadas: quem monta decide quais processadores a réplica leva, e não como se constroem as peças. */
 export interface PecasDosProcessadores {
-  banco: Banco
-  uso: ContadorDeUso
-  relogio: Relogio
+  banco: Database
+  uso: UsageMeter
+  relogio: Clock
   logger: LoggerBase
   medidor: Meter | undefined
   /** O sandbox de CPU do job sintético. */
   cpu: QueimaDeCpu
-  efeitos: Pick<EfeitoSinteticoRepository, 'gravar'>
+  efeitos: Pick<SyntheticEffectRepository, 'gravar'>
   /** O armazém do storage; sem credencial de storage (`config.storage`), não há. */
-  armazem: ArmazemDeArquivos | undefined
+  armazem: FileStorage | undefined
 }
 
 export interface ProcessadoresMontados {
@@ -292,20 +292,20 @@ export function montarProcessadores(config: Pick<ConfiguracaoWorker, 'pools' | '
 function montarRotinas(
   storage: ConfiguracaoStorage,
   janelaPadrao: JanelaLetiva,
-  banco: Banco,
-  contador: ContadorDeUso,
-  relogio: Relogio,
+  banco: Database,
+  contador: UsageMeter,
+  relogio: Clock,
   logger: LoggerBase,
   medidor: Meter | undefined,
-  armazem: ArmazemDeArquivos,
+  armazem: FileStorage,
 ): { processadores: ProcessadoresDeJob; encerrar(): Promise<void> } {
   const s3 = criarClienteS3(storage)
-  const avisarJanelaDescartada = avisoEspacado(() => logger.warn({ evento: 'worker.janela_da_escola_invalida' }))
+  const avisarJanelaDescartada = throttledWarn(() => logger.warn({ evento: 'worker.janela_da_escola_invalida' }))
   // O horário letivo da escola, lido como o despachante lê: o lote não urgente que ele soltou fora da janela para quando ela abre.
-  const janelaDaEscola = new ConfiguracaoOperacional<JanelaLetiva>(new ConfiguracaoOperacionalRepository(banco), (linha) => resolverJanela(janelaPadrao, linha, avisarJanelaDescartada), {
-    aoFalhar: avisoEspacado(() => logger.warn({ evento: 'worker.configuracao_indisponivel' })),
+  const janelaDaEscola = new OperationalSettings<JanelaLetiva>(new OperationalSettingsRepository(banco), (linha) => resolverJanela(janelaPadrao, linha, avisarJanelaDescartada), {
+    aoFalhar: throttledWarn(() => logger.warn({ evento: 'worker.configuracao_indisponivel' })),
   })
-  const escolas = new EscolasDaRotinaRepository(banco)
+  const escolas = new CronEscolasRepository(banco)
   const expurgoDaEscola = new ExpurgoDaEscolaRepository(banco)
   const medicao = medidor === undefined ? undefined : new MedicaoDoExpurgo({ escolas, repositorio: expurgoDaEscola, janelaDaEscola, relogio, logger, medidor })
   medicao?.iniciar()
@@ -320,7 +320,7 @@ function montarRotinas(
     processadores: {
       [TIPO_CONSOLIDAR_USO]: criarConsolidacaoDeUso({
         contador,
-        repositorio: new UsoRepository(banco),
+        repositorio: new UsageRepository(banco),
         storage: new MedidorDeStorage(s3, storage.bucket),
         relogio,
         logger,
@@ -328,14 +328,14 @@ function montarRotinas(
       }),
       [TIPO_EXPURGAR_JOBS]: criarExpurgoDeJobs({ repositorio: new ExpurgoDeJobsRepository(banco), logger }),
       [TIPO_EXPURGAR_ACESSO]: criarExpurgoDeAcesso({ repositorio: new ExpurgoDeAcessoRepository(banco), relogio, logger }),
-      [TIPO_EXPURGAR_DADO_PESSOAL]: criarRotinaDeExpurgo({ escolas, banco, enfileirador: new Enfileirador(new JobRegistroRepository(banco)), janelaDaEscola, relogio, logger }),
+      [TIPO_EXPURGAR_DADO_PESSOAL]: criarRotinaDeExpurgo({ escolas, banco, enfileirador: new JobOutbox(new JobOutboxRepository(banco)), janelaDaEscola, relogio, logger }),
       [TIPO_EXPURGAR_ESCOLA]: criarExpurgoDaEscola({
         repositorio: expurgoDaEscola,
         arquivos,
         armazem,
         retencao: new RetencaoDaEscolaRepository(banco),
         janelaDaEscola,
-        enfileirador: new Enfileirador(new JobRegistroRepository(banco)),
+        enfileirador: new JobOutbox(new JobOutboxRepository(banco)),
         relogio,
         logger,
       }),
@@ -353,26 +353,26 @@ function montarRotinas(
 
 /**
  * A fila dos disparos agendados, com um worker de concorrência 1 que grava o job da rotina pelo
- * `Enfileirador`. O registro dos agendadores não segura o boot: com o Redis de fila fora, ele espera a
+ * `JobOutbox`. O registro dos agendadores não segura o boot: com o Redis de fila fora, ele espera a
  * conexão na fila offline do cliente do BullMQ e completa quando o Redis volta.
  */
 function montarAgendamentos(
   redis: Redis,
-  banco: Banco,
+  banco: Database,
   logger: LoggerBase,
   prefixo: string | undefined,
   agendamentos: readonly Agendamento[],
 ): { fila: Queue; worker: Worker } {
   const comPrefixo = prefixo === undefined ? {} : { prefix: prefixo }
   const fila = new Queue(FILA_DOS_AGENDAMENTOS, { connection: redis, ...comPrefixo })
-  const avisarErro = avisoEspacado(() => logger.warn({ evento: 'worker.agendamentos_com_erro' }))
+  const avisarErro = throttledWarn(() => logger.warn({ evento: 'worker.agendamentos_com_erro' }))
   fila.on('error', avisarErro)
   const agendamentosTotal = agendamentos.length
   registrarAgendamentos(fila, agendamentos).then(
     () => logger.info({ evento: 'agendamentos.registrados', agendamentosTotal }),
     () => logger.warn({ evento: 'agendamentos.nao_registrados' }),
   )
-  const disparar = criarDisparoDeAgendamento(banco, new Enfileirador(new JobRegistroRepository(banco)), logger, agendamentos)
+  const disparar = criarDisparoDeAgendamento(banco, new JobOutbox(new JobOutboxRepository(banco)), logger, agendamentos)
   const worker = new Worker(FILA_DOS_AGENDAMENTOS, (job) => disparar(job), { connection: redis, concurrency: 1, ...comPrefixo })
   worker.on('error', avisarErro)
   return { fila, worker }

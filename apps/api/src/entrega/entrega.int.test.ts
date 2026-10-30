@@ -1,4 +1,4 @@
-import { ErroDeDominio, executarNoContexto, type ExecutorNoProcesso } from '@educa/nucleo'
+import { DomainException, runInContext, type InProcessAgenteExecutor } from '@educa/nucleo'
 import { entregaResponseSchema, listaDeEntregasResponseSchema, timeResponseSchema } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { readdirSync, readFileSync } from 'node:fs'
@@ -37,7 +37,7 @@ describe('entregas', () => {
   const medidor = new MedidorDeTeste()
   const linhasDeLog: string[] = []
   let api: ApiDeTeste
-  let executor: ExecutorNoProcesso
+  let executor: InProcessAgenteExecutor
   let a: EscolaComAssistente
   let b: EscolaComAssistente
   let atividadeDeA: string
@@ -96,7 +96,7 @@ describe('entregas', () => {
 
   beforeAll(async () => {
     api = await subirApi(medidor.medidor, {}, linhasDeLog)
-    executor = api.app.get<ExecutorNoProcesso>(EXECUTOR_DE_AGENTE)
+    executor = api.app.get<InProcessAgenteExecutor>(EXECUTOR_DE_AGENTE)
     a = await montarEscolaComAssistente(api, bancada)
     b = await montarEscolaComAssistente(api, bancada)
     atividadeDeA = await atividade(a)
@@ -164,7 +164,7 @@ describe('entregas', () => {
       expect(await comoPessoa(b, b.professora, 'professor', () => new EntregaRepository(bancada.banco).decidir(de2025.entregaId, 'aprovada', null))).toBe(false)
       // No contexto do próprio ano de 2025, a mesma consulta acha: o que separou foi o ano letivo, e não o vínculo.
       const em2025 = { requisicaoId: randomUUID(), escolaId: b.escolaId, usuarioId: b.professora.usuarioId, papel: 'professor' as const, sessaoId: b.professora.sessaoId, anoLetivoId: anterior.anoLetivoId }
-      expect((await executarNoContexto(em2025, () => new EntregaRepository(bancada.banco).porId(de2025.entregaId)))?.id).toBe(de2025.entregaId)
+      expect((await runInContext(em2025, () => new EntregaRepository(bancada.banco).porId(de2025.entregaId)))?.id).toBe(de2025.entregaId)
     })
 
     it('a turma e a disciplina que autorizam são as da entrega: a colega passa a decidir quando ganha vínculo confirmado em Química na turma, e deixa de decidir quando ele acaba', async () => {
@@ -327,12 +327,12 @@ describe('entregas', () => {
         { requisicaoId: randomUUID(), escolaId: a.escolaId, anoLetivoId: a.anoLetivoId, rotinaDoSistema: true as const },
         { requisicaoId: randomUUID(), escolaId: a.escolaId, usuarioId: a.professora.usuarioId, anoLetivoId: a.anoLetivoId }, // pessoa sem sessão nem papel
       ]) {
-        const erro: unknown = await executarNoContexto(contexto, () => servico.decidir(entregaId, { decisao: 'aprovar' })).then(
+        const erro: unknown = await runInContext(contexto, () => servico.decidir(entregaId, { decisao: 'aprovar' })).then(
           () => undefined,
           (motivo: unknown) => motivo,
         )
-        expect(erro).toBeInstanceOf(ErroDeDominio)
-        expect((erro as ErroDeDominio).codigo).toMatch(/^(NAO_AUTENTICADO|NAO_ENCONTRADO)$/u)
+        expect(erro).toBeInstanceOf(DomainException)
+        expect((erro as DomainException).codigo).toMatch(/^(NAO_AUTENTICADO|NAO_ENCONTRADO)$/u)
       }
       expect(await noBanco(entregaId)).toEqual({ estado: 'pendente', decidida_por: null, decidida_em: null, justificativa: null })
     })

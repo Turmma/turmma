@@ -1,10 +1,10 @@
 import { ErrorCode } from '@educa/shared'
 import { z } from 'zod'
-import { RegistroDeAuditoria } from '../auditoria/registro-de-auditoria.js'
-import { contextoAtual } from '../contexto/contexto.js'
-import { exigirEscolaDoContexto } from '../contexto/escola-do-contexto.js'
-import type { Banco, TransacaoBanco } from '../db/banco.js'
-import { ErroDeDominio } from '../erro/erro-de-dominio.js'
+import { AuditoriaRecorder } from '../auditoria/registro-de-auditoria.js'
+import { currentContext } from '../contexto/contexto.js'
+import { requireEscolaId } from '../contexto/escola-do-contexto.js'
+import type { Database, DatabaseTransaction } from '../db/banco.js'
+import { DomainException } from '../erro/erro-de-dominio.js'
 import { CicloDeVidaRepository, type UsuarioDoCicloDeVida } from './ciclo-de-vida.repository.js'
 import { ContaGlobalRepository } from './conta-global.repository.js'
 
@@ -13,11 +13,11 @@ export interface AutoriaDoCicloDeVida {
   readonly autorOperador?: string
 }
 
-const registro = new RegistroDeAuditoria()
-const esquemaId = z.uuid()
+const registro = new AuditoriaRecorder()
+const idSchema = z.uuid()
 
 /** Id de outra escola, de ninguém, já desativado (na desativação) ou o próprio: a mesma resposta (regra 10, item 6). */
-const naoEncontrado = () => new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+const naoEncontrado = () => new DomainException(ErrorCode.NAO_ENCONTRADO)
 
 /**
  * O fim do acesso de quem sai da escola (tarefa 17.0; Tech Spec, seção 5, "Ciclo de vida"; regra 20, itens 15 e 18).
@@ -55,9 +55,9 @@ const naoEncontrado = () => new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
  * esperam uma pela outra na conta, e a segunda vê que ninguém mais está ativo.
  */
 export class CicloDeVidaService {
-  constructor(private readonly banco: Banco) {}
+  constructor(private readonly banco: Database) {}
 
-  async desativar(usuarioId: string, autoria: AutoriaDoCicloDeVida = {}, transacao?: TransacaoBanco): Promise<void> {
+  async desativar(usuarioId: string, autoria: AutoriaDoCicloDeVida = {}, transacao?: DatabaseTransaction): Promise<void> {
     await this.#naTransacao(usuarioId, transacao, async (tx, alvo) => {
       if (alvo.desativadoEm !== null) throw naoEncontrado()
       const repositorio = new CicloDeVidaRepository(tx)
@@ -76,7 +76,7 @@ export class CicloDeVidaService {
     })
   }
 
-  async eliminar(usuarioId: string, autoria: AutoriaDoCicloDeVida = {}, transacao?: TransacaoBanco): Promise<void> {
+  async eliminar(usuarioId: string, autoria: AutoriaDoCicloDeVida = {}, transacao?: DatabaseTransaction): Promise<void> {
     await this.#naTransacao(usuarioId, transacao, async (tx, alvo) => {
       const repositorio = new CicloDeVidaRepository(tx)
       const sessoesApagadas = await repositorio.apagarSessoes(usuarioId)
@@ -111,12 +111,12 @@ export class CicloDeVidaService {
    * O próprio usuário da sessão não se agenda (a mesma regra do `desativar`), e a pessoa que não é desta escola responde
    * `NAO_ENCONTRADO`. Se ela já estava agendada, responde `PEDIDO_EM_ESTADO_INVALIDO`: o registro nunca agenda duas vezes.
    */
-  async agendarEliminacao(usuarioId: string, transacao: TransacaoBanco): Promise<{ readonly agendadaEm: Date; readonly sessoesEncerradas: number }> {
+  async agendarEliminacao(usuarioId: string, transacao: DatabaseTransaction): Promise<{ readonly agendadaEm: Date; readonly sessoesEncerradas: number }> {
     this.#conferirAlvo(usuarioId)
     const repositorio = new CicloDeVidaRepository(transacao)
     if ((await repositorio.travarUsuario(usuarioId)) === undefined) throw naoEncontrado()
     const agendadaEm = await repositorio.suspender(usuarioId)
-    if (agendadaEm === undefined) throw new ErroDeDominio(ErrorCode.PEDIDO_EM_ESTADO_INVALIDO)
+    if (agendadaEm === undefined) throw new DomainException(ErrorCode.PEDIDO_EM_ESTADO_INVALIDO)
     return { agendadaEm, sessoesEncerradas: await repositorio.encerrarSessoesDoUsuario(usuarioId, 'eliminacao_agendada') }
   }
 
@@ -126,7 +126,7 @@ export class CicloDeVidaService {
    * pessoa já saiu da escola (eliminada por outro caminho, como a rotina de `pessoa_desativada`), e o cancelamento do pedido
    * vale mesmo assim. As sessões que o registro encerrou **não** voltam: a pessoa entra de novo com a senha.
    */
-  async cancelarEliminacao(usuarioId: string, transacao: TransacaoBanco): Promise<boolean> {
+  async cancelarEliminacao(usuarioId: string, transacao: DatabaseTransaction): Promise<boolean> {
     this.#conferirAlvo(usuarioId)
     const repositorio = new CicloDeVidaRepository(transacao)
     if ((await repositorio.travarUsuario(usuarioId)) === undefined) return false
@@ -144,9 +144,9 @@ export class CicloDeVidaService {
 
   /** A escola do contexto, um id bem formado e que não é o da própria sessão: o que o agendamento e o cancelamento exigem antes de travar. */
   #conferirAlvo(usuarioId: string): void {
-    exigirEscolaDoContexto()
-    if (!esquemaId.safeParse(usuarioId).success) throw naoEncontrado()
-    if (contextoAtual()?.usuarioId === usuarioId.toLowerCase()) throw naoEncontrado()
+    requireEscolaId()
+    if (!idSchema.safeParse(usuarioId).success) throw naoEncontrado()
+    if (currentContext()?.usuarioId === usuarioId.toLowerCase()) throw naoEncontrado()
   }
 
   /**
@@ -154,12 +154,12 @@ export class CicloDeVidaService {
    * então roda a ação. O próprio usuário da sessão não se desativa nem se elimina: a escola ficaria sem quem pediu, e a
    * resposta é a mesma do id de ninguém.
    */
-  async #naTransacao(usuarioId: string, transacao: TransacaoBanco | undefined, acao: (tx: TransacaoBanco, alvo: UsuarioDoCicloDeVida) => Promise<void>): Promise<void> {
-    exigirEscolaDoContexto()
-    if (!esquemaId.safeParse(usuarioId).success) throw naoEncontrado()
+  async #naTransacao(usuarioId: string, transacao: DatabaseTransaction | undefined, acao: (tx: DatabaseTransaction, alvo: UsuarioDoCicloDeVida) => Promise<void>): Promise<void> {
+    requireEscolaId()
+    if (!idSchema.safeParse(usuarioId).success) throw naoEncontrado()
     // O contexto guarda o id em minúsculas, como o Postgres o devolve: a comparação com o próprio usuário vale em qualquer caixa.
-    if (contextoAtual()?.usuarioId === usuarioId.toLowerCase()) throw naoEncontrado()
-    const rodar = async (tx: TransacaoBanco): Promise<void> => {
+    if (currentContext()?.usuarioId === usuarioId.toLowerCase()) throw naoEncontrado()
+    const rodar = async (tx: DatabaseTransaction): Promise<void> => {
       const alvo = await new CicloDeVidaRepository(tx).travarUsuario(usuarioId)
       if (alvo === undefined) throw naoEncontrado()
       if (alvo.contaId !== null) await new ContaGlobalRepository(tx).travarConta(alvo.contaId)

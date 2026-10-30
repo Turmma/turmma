@@ -2,11 +2,11 @@ import { FORMATO_OPERADOR } from '@educa/shared'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { urlDoBancoDeTeste } from '../../../../tools/testes/integracao.setup.ts'
 import { FORMATO_OPERADOR as DO_SCHEMA } from './schema/auditoria.js'
-import { criarPool, type PoolBanco } from './pool.js'
+import { createPool, type DatabasePool } from './pool.js'
 
 /**
  * O formato do apelido do operador tem uma definição só, `FORMATO_OPERADOR` em `@educa/shared` (retro da A0, pendência
- * da 4.0): o contrato do `GET /v1/operacao/eu`, o `OPERADOR` dos comandos e a `RegistroDeAuditoria` a leem. Os checks do
+ * da 4.0): o contrato do `GET /v1/operacao/eu`, o `OPERADOR` dos comandos e a `AuditoriaRecorder` a leem. Os checks do
  * banco a escrevem por extenso (o drizzle-kit lê o pacote pelo `dist`); aqui se prova, no banco migrado, que cada um
  * deles tem exatamente a expressão da constante. Mudar a constante sem a migration, ou a migration sem a constante,
  * deixa este teste vermelho.
@@ -14,10 +14,10 @@ import { criarPool, type PoolBanco } from './pool.js'
 const CHECKS_DO_FORMATO = ['auditoria_operacao_autor_formato', 'auditoria_operador_formato', 'operador_apelido_formato', 'retencao_escola_alterada_por_formato']
 
 describe('FORMATO_OPERADOR: a constante e os checks do banco', () => {
-  let pool: PoolBanco
+  let pool: DatabasePool
 
   beforeAll(() => {
-    pool = criarPool({ url: urlDoBancoDeTeste(), maximoConexoes: 1, timeoutConexaoMs: 2_000, timeoutConsultaMs: 2_000 }, () => undefined)
+    pool = createPool({ url: urlDoBancoDeTeste(), maximoConexoes: 1, timeoutConexaoMs: 2_000, timeoutConsultaMs: 2_000 }, () => undefined)
   })
 
   afterAll(async () => {

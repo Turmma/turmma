@@ -1,9 +1,9 @@
 import { ErrorCode } from '@educa/shared'
 import { SignJWT, UnsecuredJWT, type JWTPayload } from 'jose'
 import { describe, expect, it } from 'vitest'
-import { EMISSOR_TOKEN, type ConfiguracaoIdentidade } from '../config/validar-config.js'
-import { ErroDeDominio } from '../erro/erro-de-dominio.js'
-import { extrairTokenBearer, VALIDADE_MAXIMA_TOKEN_SEGUNDOS, verificarToken } from './verificar-token.js'
+import { EMISSOR_TOKEN, type AuthConfig } from '../config/validar-config.js'
+import { DomainException } from '../erro/erro-de-dominio.js'
+import { extractBearerToken, VALIDADE_MAXIMA_TOKEN_SEGUNDOS, verifyToken } from './verificar-token.js'
 
 const ESCOLA_A = '0190f5a0-0000-7000-8000-00000000000a'
 const USUARIO = '0190f5a0-0000-7000-8000-0000000000c1'
@@ -11,7 +11,7 @@ const SESSAO = '0190f5a0-0000-7000-8000-0000000000d1'
 const codificar = (texto: string) => new TextEncoder().encode(texto)
 const CHAVE = codificar('chave_sintetica_de_teste_com_32_caracteres')
 
-const config: ConfiguracaoIdentidade = { ambiente: 'local', chaveAssinatura: CHAVE }
+const config: AuthConfig = { ambiente: 'local', chaveAssinatura: CHAVE }
 
 /** O emissor do token sintético do F0, que saiu na tarefa 3.0: nenhum ambiente volta a aceitá-lo. */
 const EMISSOR_SINTETICO_DO_F0 = 'sintetico'
@@ -42,11 +42,11 @@ async function assinar(opcoes: OpcoesDeToken = {}): Promise<string> {
   return new SignJWT(claims).setProtectedHeader(cabecalho).sign(opcoes.chave ?? CHAVE)
 }
 
-async function recusa(token: string, configuracao: ConfiguracaoIdentidade = config): Promise<ErroDeDominio> {
+async function recusa(token: string, configuracao: AuthConfig = config): Promise<DomainException> {
   try {
-    await verificarToken(token, configuracao)
+    await verifyToken(token, configuracao)
   } catch (erro) {
-    if (erro instanceof ErroDeDominio) return erro
+    if (erro instanceof DomainException) return erro
     throw erro
   }
   throw new Error('o token deveria ter sido recusado')
@@ -55,27 +55,27 @@ async function recusa(token: string, configuracao: ConfiguracaoIdentidade = conf
 describe('verificarToken', () => {
   it('devolve a escola, o usuário, a sessão e o `iat` do token válido, e nada além deles', async () => {
     const emitidoEm = agora() - 7
-    expect(await verificarToken(await assinar({ claims: { iat: emitidoEm } }), config)).toStrictEqual({ escolaId: ESCOLA_A, usuarioId: USUARIO, sessaoId: SESSAO, emitidoEm })
+    expect(await verifyToken(await assinar({ claims: { iat: emitidoEm } }), config)).toStrictEqual({ escolaId: ESCOLA_A, usuarioId: USUARIO, sessaoId: SESSAO, emitidoEm })
   })
 
   it('token sem `iat` passa sem `emitidoEm`: ele nunca conta como o token da última renovação', async () => {
-    expect(await verificarToken(await assinar({ semClaims: ['iat'] }), config)).toStrictEqual({ escolaId: ESCOLA_A, usuarioId: USUARIO, sessaoId: SESSAO })
+    expect(await verifyToken(await assinar({ semClaims: ['iat'] }), config)).toStrictEqual({ escolaId: ESCOLA_A, usuarioId: USUARIO, sessaoId: SESSAO })
   })
 
   it('devolve os ids em minúsculas: a mesma escola não vira outra chave por causa da caixa', async () => {
     const token = await assinar({ claims: { esc: ESCOLA_A.toUpperCase(), sub: USUARIO.toUpperCase(), sid: SESSAO.toUpperCase() } })
-    expect(await verificarToken(token, config)).toEqual({ escolaId: ESCOLA_A, usuarioId: USUARIO, sessaoId: SESSAO, emitidoEm: expect.any(Number) })
+    expect(await verifyToken(token, config)).toEqual({ escolaId: ESCOLA_A, usuarioId: USUARIO, sessaoId: SESSAO, emitidoEm: expect.any(Number) })
   })
 
   it('aceita o token com a validade máxima de 24 horas pela frente', async () => {
     const token = await assinar({ claims: { exp: agora() + VALIDADE_MAXIMA_TOKEN_SEGUNDOS } })
-    expect(await verificarToken(token, config)).toEqual({ escolaId: ESCOLA_A, usuarioId: USUARIO, sessaoId: SESSAO, emitidoEm: expect.any(Number) })
+    expect(await verifyToken(token, config)).toEqual({ escolaId: ESCOLA_A, usuarioId: USUARIO, sessaoId: SESSAO, emitidoEm: expect.any(Number) })
   })
 
   it('recusa o token do emissor sintético do F0, assinado com a mesma chave e no prazo: o emissor é constante, não configuração', async () => {
     const token = await assinar({ claims: { iss: EMISSOR_SINTETICO_DO_F0 } })
     expect(await recusa(token)).toMatchObject({ codigo: ErrorCode.NAO_AUTENTICADO, status: 401 })
-    // A `ConfiguracaoIdentidade` não tem por onde aceitar outro emissor: `validar-config.test.ts` fecha a forma dela.
+    // A `AuthConfig` não tem por onde aceitar outro emissor: `validar-config.test.ts` fecha a forma dela.
     expect(Object.keys(config).sort()).toEqual(['ambiente', 'chaveAssinatura'])
   })
 
@@ -113,8 +113,8 @@ describe('verificarToken', () => {
 
 describe('extrairTokenBearer', () => {
   it('extrai o token do esquema Bearer, com o nome do esquema em qualquer caixa', () => {
-    expect(extrairTokenBearer('Bearer aaa.bbb.ccc')).toBe('aaa.bbb.ccc')
-    expect(extrairTokenBearer('bearer aaa.bbb.ccc')).toBe('aaa.bbb.ccc')
+    expect(extractBearerToken('Bearer aaa.bbb.ccc')).toBe('aaa.bbb.ccc')
+    expect(extractBearerToken('bearer aaa.bbb.ccc')).toBe('aaa.bbb.ccc')
   })
 
   it.each([
@@ -126,6 +126,6 @@ describe('extrairTokenBearer', () => {
     ['texto depois do token', 'Bearer aaa.bbb.ccc extra'],
     ['repetido', ['Bearer aaa.bbb.ccc', 'Bearer ddd.eee.fff']],
   ])('recusa cabeçalho %s com NAO_AUTENTICADO', (_caso, cabecalho) => {
-    expect(() => extrairTokenBearer(cabecalho)).toThrow(expect.objectContaining({ codigo: ErrorCode.NAO_AUTENTICADO }))
+    expect(() => extractBearerToken(cabecalho)).toThrow(expect.objectContaining({ codigo: ErrorCode.NAO_AUTENTICADO }))
   })
 })

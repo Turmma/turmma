@@ -1,19 +1,19 @@
 import {
   diaDeUso,
   ehAssuntoDelicado,
-  ErroDeDominio,
-  ErroDeIa,
+  DomainException,
+  LLMError,
   MODELO_DA_REGRA_FIXA,
-  relogioDoSistema,
-  sessaoDaRequisicao,
+  systemClock,
+  requestSessao,
   turnoDoTutor,
-  type Banco,
-  type EntradaDoTutor,
+  type Database,
+  type TutorInput,
   type OrcamentoDeIa,
-  type Relogio,
-  type SaidaDoTutor,
+  type Clock,
+  type TutorOutput,
   type SuspensaoDeFuncao,
-  type TransacaoBanco,
+  type DatabaseTransaction,
 } from '@educa/nucleo'
 import {
   ErrorCode,
@@ -43,10 +43,10 @@ import type { BuscaDeTrechos, TrechoDoMaterial } from '../material/busca-de-trec
 import { sinaisDeTrabalhoDoTurno, TURNOS_QUE_A_REGRA_OLHA } from './sinais-do-turno.js'
 import { TutorDoAlunoRepository, type AtividadeDaTurma, type MaterialDaTurma, type MensagemDaConversa, type PerguntaGravada, type ReferenciaDaPergunta, type TrabalhoDoAluno, type TurmaDoAluno } from './tutor.repository.js'
 
-/** Quantos trechos do material acompanham a dúvida, e quantos turnos anteriores (os tetos de `esquemaEntradaDoTutor`). */
+/** Quantos trechos do material acompanham a dúvida, e quantos turnos anteriores (os tetos de `tutorInputSchema`). */
 export const TRECHOS_NO_TURNO = 6
 export const TURNOS_ANTERIORES_NO_TURNO = 8
-/** Quantas habilidades a memória leva à tarefa (o teto de `esquemaEntradaDoTutor`), e quantas o aluno vê por atividade (o do contrato). */
+/** Quantas habilidades a memória leva à tarefa (o teto de `tutorInputSchema`), e quantas o aluno vê por atividade (o do contrato). */
 export const HABILIDADES_NA_MEMORIA_DA_TAREFA = 12
 const HABILIDADES_A_REFORCAR = 6
 const TAMANHO_MAXIMO_DO_TURNO = 2000
@@ -61,8 +61,8 @@ interface Alcance {
   readonly material?: MaterialDaTurma
 }
 
-type MemoriaDoTrabalho = EntradaDoTutor['memoria']
-type QuestaoEmAndamento = NonNullable<EntradaDoTutor['questao']>
+type MemoriaDoTrabalho = TutorInput['memoria']
+type QuestaoEmAndamento = NonNullable<TutorInput['questao']>
 
 const listaEmPortugues = new Intl.ListFormat('pt-BR', { style: 'long', type: 'conjunction' })
 
@@ -144,13 +144,13 @@ function paraATela(mensagem: MensagemDaConversa): unknown {
  */
 export class TutorService {
   constructor(
-    private readonly banco: Banco,
+    private readonly banco: Database,
     private readonly agendador: AgendadorDeExecucoes,
     private readonly limite: LimiteDePedidosDeIa,
     private readonly trechos: BuscaDeTrechos,
     private readonly orcamento: OrcamentoDeIa,
     private readonly suspensao: SuspensaoDeFuncao,
-    private readonly relogio: Relogio = relogioDoSistema,
+    private readonly relogio: Clock = systemClock,
   ) {}
 
   /** `POST /v1/tutor/mensagens`: confere, grava a pergunta com a execução e responde o id dela. */
@@ -158,11 +158,11 @@ export class TutorService {
     const alcance = await this.#alcance(pedido)
     const onde: ReferenciaDaPergunta = { atividadeAplicadaId: alcance.atividade?.id ?? null, questao: pedido.questao ?? null, materialId: alcance.material?.id ?? null, pagina: pedido.pagina ?? null }
     const { turmaId } = alcance.turma
-    const { usuarioId: alunoId } = sessaoDaRequisicao()
+    const { usuarioId: alunoId } = requestSessao()
 
     // O reenvio com a mesma chave devolve a mesma execução, mesmo que o freio tenha fechado ou a avaliação aberto depois.
     const jaAceita = await new ExecucaoDaSessaoRepository(this.banco).daChave(pedido.chaveEnvio)
-    if (jaAceita !== undefined && jaAceita.tarefa !== turnoDoTutor.nome) throw new ErroDeDominio(ErrorCode.CONFLITO)
+    if (jaAceita !== undefined && jaAceita.tarefa !== turnoDoTutor.nome) throw new DomainException(ErrorCode.CONFLITO)
 
     // Antes de tudo, até da avaliação aberta: a trava existe para o Tutor não ajudar na prova, e a mensagem fixa não ajuda em prova nenhuma.
     if (ehAssuntoDelicado(pedido.texto)) return jaAceita === undefined ? this.#encaminhar(pedido, alcance) : { execucaoId: jaAceita.id }
@@ -172,12 +172,12 @@ export class TutorService {
     // receberia "espere um minuto" no lugar do 188 (D36). O encaminhamento não chama modelo, então não há o que proteger.
     await this.limite.contar()
 
-    if (jaAceita === undefined && (await new TutorDoAlunoRepository(this.banco).avaliativaAberta(turmaId)) !== undefined) throw new ErroDeDominio(ErrorCode.TUTOR_PAUSADO_EM_AVALIACAO)
+    if (jaAceita === undefined && (await new TutorDoAlunoRepository(this.banco).avaliativaAberta(turmaId)) !== undefined) throw new DomainException(ErrorCode.TUTOR_PAUSADO_EM_AVALIACAO)
 
     if (jaAceita === undefined) {
       // Sem a trava: recusa na hora quem já está no limite. A conta que vale é a de dentro da transação, abaixo.
       const decisao = await this.orcamento.consultar({ funcao: FUNCAO_DO_TUTOR, alunoId, turmaId })
-      if (!decisao.permitido) throw new ErroDeIa(decisao.codigo, decisao.tenteDeNovoEmSegundos)
+      if (!decisao.permitido) throw new LLMError(decisao.codigo, decisao.tenteDeNovoEmSegundos)
     }
 
     // O que a execução leu antes de chamar o modelo, e que a conclusão usa: só existe depois de `entrada` rodar.
@@ -194,20 +194,20 @@ export class TutorService {
         await tutor.travarAluno()
         const decisao = await new OrcamentoRepository(tx, this.relogio).consultar({ funcao: FUNCAO_DO_TUTOR, alunoId, turmaId, execucaoId })
         // Recusar aqui desfaz a transação: nem a execução nem a pergunta ficam gravadas, e a troca não é contada.
-        if (!decisao.permitido) throw new ErroDeIa(decisao.codigo, decisao.tenteDeNovoEmSegundos)
+        if (!decisao.permitido) throw new LLMError(decisao.codigo, decisao.tenteDeNovoEmSegundos)
         await tutor.gravarPergunta(execucaoId, turmaId, pedido.texto, onde)
       },
       entrada: async () => {
         const tutor = new TutorDoAlunoRepository(this.banco, this.relogio)
         // A pergunta gravada, e não a do corpo: no reenvio com a mesma chave, vale a que entrou na conversa.
         const pergunta = await tutor.perguntaDaChave(pedido.chaveEnvio)
-        if (pergunta === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+        if (pergunta === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
         // O alcance é conferido de novo na hora de rodar: quem saiu da turma depois do `202` não recebe resposta sobre ela.
         const agora = await this.#alcance({ ...(pergunta.atividadeAplicadaId === null ? {} : { atividadeAplicadaId: pergunta.atividadeAplicadaId }), ...(pergunta.materialId === null ? {} : { materialId: pergunta.materialId }) })
-        if (agora.turma.turmaId !== pergunta.turmaId) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+        if (agora.turma.turmaId !== pergunta.turmaId) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
         // A avaliação que abriu entre o `202` e agora trava o turno antes de qualquer trabalho: sem trecho, sem memória e sem
         // chamar o modelo. A execução falha com o código da pausa, `trocas()` a ignora e a pergunta fica só em `mensagem_tutor`.
-        if ((await tutor.avaliativaAberta(agora.turma.turmaId)) !== undefined) throw new ErroDeDominio(ErrorCode.TUTOR_PAUSADO_EM_AVALIACAO)
+        if ((await tutor.avaliativaAberta(agora.turma.turmaId)) !== undefined) throw new DomainException(ErrorCode.TUTOR_PAUSADO_EM_AVALIACAO)
         const questao = agora.atividade === undefined || pergunta.questao === null ? undefined : questaoSemGabarito(agora.atividade.conteudo, pergunta.questao)
         const entregues = await this.#trechosDoTurno(pergunta, agora, questao)
         const turnosAnteriores = (await tutor.turnosParaATarefa(pergunta, TURNOS_ANTERIORES_NO_TURNO)).reverse().map((turno) => ({ autor: turno.autor, texto: turno.texto.slice(0, TAMANHO_MAXIMO_DO_TURNO) }))
@@ -222,13 +222,13 @@ export class TutorService {
         }
       },
       aoConcluir: async (saida, tx) => {
-        if (lido === undefined) throw new ErroDeIa('IA_ENTRADA_INVALIDA')
+        if (lido === undefined) throw new LLMError('IA_ENTRADA_INVALIDA')
         // A avaliação que abriu enquanto o modelo respondia descarta a resposta e desfaz a transação: nada é gravado e a troca
         // não conta. A exceção é o encaminhamento da D36: a mensagem fixa e o sinal ficam mesmo com a avaliação aberta.
         // Sem trava: a conferência lê e grava em READ COMMITTED, e a avaliação que comita logo depois da leitura ainda deixa a
         // resposta passar. O resultado equivale à ordem serial "a resposta grava antes de a prova abrir": nenhuma transação lê o que a outra escreve.
         if (saida.classificacao !== 'assunto_delicado' && (await new TutorDoAlunoRepository(tx, this.relogio).avaliativaAberta(lido.pergunta.turmaId)) !== undefined) {
-          throw new ErroDeDominio(ErrorCode.TUTOR_PAUSADO_EM_AVALIACAO)
+          throw new DomainException(ErrorCode.TUTOR_PAUSADO_EM_AVALIACAO)
         }
         exigirCitacoesEntregues(saida.citacoes, lido.entregues)
         return { tipo: 'mensagem_do_tutor', mensagemId: await this.#gravarTurno(tx, lido.pergunta, saida) }
@@ -244,7 +244,7 @@ export class TutorService {
   async #alcance(pedido: Pick<MensagemAoTutorRequest, 'atividadeAplicadaId' | 'questao' | 'materialId' | 'pagina'>): Promise<Alcance> {
     const tutor = new TutorDoAlunoRepository(this.banco, this.relogio)
     const naoEncontrado = (): never => {
-      throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+      throw new DomainException(ErrorCode.NAO_ENCONTRADO)
     }
     const turma = (await tutor.turmaDoAluno()) ?? naoEncontrado()
     const atividade = pedido.atividadeAplicadaId === undefined ? undefined : ((await tutor.atividadeDaTurma(turma.turmaId, pedido.atividadeAplicadaId.toLowerCase())) ?? naoEncontrado())
@@ -256,7 +256,7 @@ export class TutorService {
   }
 
   /** Série e disciplina como a tarefa as recebe: o nome que a escola deu, sem nome de turma nem de pessoa. */
-  async #contexto(tutor: TutorDoAlunoRepository, alcance: Alcance): Promise<EntradaDoTutor['contexto']> {
+  async #contexto(tutor: TutorDoAlunoRepository, alcance: Alcance): Promise<TutorInput['contexto']> {
     let disciplina = alcance.atividade?.disciplina ?? alcance.material?.disciplina
     // Sem atividade e sem material, o Tutor não sabe de que disciplina é a dúvida: recebe as da turma, e pergunta onde o aluno está.
     if (disciplina === undefined) {
@@ -300,7 +300,7 @@ export class TutorService {
    * Nenhum sinal leva texto. Com `sinais_para_o_professor` suspensa, os três sinais de aprendizagem não nascem; o uso
    * do Tutor continua visível ao professor em `GET /v1/tutor/uso`, que não é sinal.
    */
-  async #gravarTurno(tx: TransacaoBanco, pergunta: PerguntaGravada, saida: SaidaDoTutor): Promise<string> {
+  async #gravarTurno(tx: DatabaseTransaction, pergunta: PerguntaGravada, saida: TutorOutput): Promise<string> {
     const tutor = new TutorDoAlunoRepository(tx, this.relogio)
     const { execucaoId, turmaId } = pergunta
     if (saida.classificacao === 'assunto_delicado') {
@@ -331,17 +331,17 @@ export class TutorService {
    */
   async #encaminhar(pedido: MensagemAoTutorRequest, alcance: Alcance): Promise<ExecucaoAceitaResponse> {
     const inicio = performance.now()
-    const { escolaId, usuarioId: alunoId } = sessaoDaRequisicao()
+    const { escolaId, usuarioId: alunoId } = requestSessao()
     const fixa = turnoDoTutor.semModelo?.({ duvida: pedido.texto, contexto: await this.#contexto(new TutorDoAlunoRepository(this.banco, this.relogio), alcance), trechos: [], memoria: [], turnosAnteriores: [] })
-    if (fixa === undefined || fixa.classificacao !== 'assunto_delicado') throw new ErroDeIa('IA_SAIDA_INVALIDA')
+    if (fixa === undefined || fixa.classificacao !== 'assunto_delicado') throw new LLMError('IA_SAIDA_INVALIDA')
     const execucaoId = await this.banco.transaction(async (tx) => {
       const execucoes = new ExecucaoDaSessaoRepository(tx)
       const nova = await execucoes.gravarPendente(turnoDoTutor.nome, pedido.chaveEnvio, { tarefa: 'turno_do_tutor' })
       if (nova === undefined) {
         // A chave entrou entre a consulta e a gravação: se foi este aluno, é o reenvio; se não, é como se não existisse.
         const existente = await execucoes.daChave(pedido.chaveEnvio)
-        if (existente === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
-        if (existente.tarefa !== turnoDoTutor.nome) throw new ErroDeDominio(ErrorCode.CONFLITO)
+        if (existente === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
+        if (existente.tarefa !== turnoDoTutor.nome) throw new DomainException(ErrorCode.CONFLITO)
         return existente.id
       }
       const tutor = new TutorDoAlunoRepository(tx, this.relogio)
@@ -351,7 +351,7 @@ export class TutorService {
       await tutor.gravarSinal(nova, naConversa.turmaId, { tipo: 'atencao_humana' })
       const execucao = { id: nova, escolaId, chave: pedido.chaveEnvio }
       const estados = new ExecucaoRepository(tx)
-      if (!(await estados.marcarRodando(execucao)) || !(await estados.concluirRodando(execucao, { tipo: 'mensagem_do_tutor', mensagemId }))) throw new ErroDeIa('IA_INDISPONIVEL')
+      if (!(await estados.marcarRodando(execucao)) || !(await estados.concluirRodando(execucao, { tipo: 'mensagem_do_tutor', mensagemId }))) throw new LLMError('IA_INDISPONIVEL')
       await new ConsumoRepository(tx).registrar({
         alunoId,
         execucaoId: nova,
@@ -391,7 +391,7 @@ export class TutorService {
     const pagina = linhas.slice(0, limite)
     const anterior = linhas.length > limite ? pagina.at(-1)?.id : undefined
     const avaliacaoAberta = (await tutor.avaliativaAberta(turmaId)) ?? null
-    const { usuarioId: alunoId } = sessaoDaRequisicao()
+    const { usuarioId: alunoId } = requestSessao()
     let estado: EstadoDoTutor = 'ligado'
     if (avaliacaoAberta !== null) estado = 'avaliacao'
     else if (!(await this.orcamento.consultar({ funcao: FUNCAO_DO_TUTOR, alunoId, turmaId })).permitido) estado = 'limite'
@@ -406,7 +406,7 @@ export class TutorService {
    */
   async memoria(): Promise<MemoriaDoTutorResponse> {
     const tutor = new TutorDoAlunoRepository(this.banco, this.relogio)
-    if ((await tutor.turmaDoAluno()) === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+    if ((await tutor.turmaDoAluno()) === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
     const trabalhos = (await tutor.trabalhos(MAXIMO_DE_ITENS_NA_MEMORIA)).map((trabalho) => ({
       atividadeAplicadaId: trabalho.atividadeAplicadaId,
       titulo: trabalho.titulo,

@@ -3,7 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { aguardarSaudavel, composeAssincronoOuFalha } from '../../../tools/testes/compose.ts'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { lerAmbienteDeTeste } from '../../../tools/ci/compose.ts'
-import { executarNoContexto, METRICAS } from '@educa/nucleo'
+import { runInContext, METRICS } from '@educa/nucleo'
 import { randomUUID } from 'node:crypto'
 import { HashDeSenha, lerConfiguracaoLoginExterno } from '../src/credencial/index.js'
 import { ContaExternaRepository, COOKIE_OIDC, CookieOidc } from '../src/sessao/index.js'
@@ -153,11 +153,11 @@ describe('login pela conta Google ou Microsoft da escola, contra o oidc-falso do
     return rows
   }
 
-  const naEscola = <T>(escolaId: string, funcao: () => Promise<T>) => executarNoContexto({ requisicaoId: randomUUID(), escolaId }, funcao)
+  const naEscola = <T>(escolaId: string, funcao: () => Promise<T>) => runInContext({ requisicaoId: randomUUID(), escolaId }, funcao)
 
   /** Quantos retornos a métrica `login.externo` contou com o resultado, desde o começo do arquivo (contador cumulativo). */
   async function retornosContados(resultado: 'entrou' | 'recusado' | 'provedor'): Promise<number> {
-    const pontos = await medidor.pontos(METRICAS.loginExterno)
+    const pontos = await medidor.pontos(METRICS.loginExterno)
     return pontos.filter((ponto) => ponto.atributos['resultado'] === resultado).reduce((soma, ponto) => soma + (typeof ponto.valor === 'number' ? ponto.valor : 0), 0)
   }
 

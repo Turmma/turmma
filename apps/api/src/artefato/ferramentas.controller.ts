@@ -1,4 +1,4 @@
-import { Permite, ZodValidationPipe } from '@educa/nucleo'
+import { RequirePermissao, ZodValidationPipe } from '@educa/nucleo'
 import {
   ErrorCode,
   parametroFerramentaSchema,
@@ -20,7 +20,7 @@ export class FerramentasController {
   constructor(private readonly ferramentas: FerramentasService) {}
 
   @Post(':ferramenta/gerar')
-  @Permite('ferramenta', 'gerar')
+  @RequirePermissao('ferramenta', 'gerar')
   @HttpCode(HttpStatus.ACCEPTED)
   gerar(
     @Param('ferramenta', new ZodValidationPipe(parametroFerramentaSchema, { errorCode: ErrorCode.NAO_ENCONTRADO })) ferramenta: ParametroFerramenta,

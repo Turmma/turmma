@@ -1,4 +1,4 @@
-import type { Banco, LoggerBase } from '@educa/nucleo'
+import type { Database, LoggerBase } from '@educa/nucleo'
 import { Global, Module, type DynamicModule } from '@nestjs/common'
 import type { Redis } from 'ioredis'
 import { BANCO } from '../banco.module.js'
@@ -40,10 +40,10 @@ export class AssistenteModule {
           useFactory: (cliente: Redis) => new LimiteDePedidosDeIa({ janela: new ContadorEmJanela(cliente, chaveContador, { janelaMs: JANELA_DOS_PEDIDOS_DE_IA_MS, avisarSeguro: avisarSeguroDosPedidosDeIa }), instancias, logger }),
           inject: [CLIENTE_REDIS_LOGIN],
         },
-        { provide: TimeService, useFactory: (banco: Banco) => new TimeService(banco), inject: [BANCO] },
+        { provide: TimeService, useFactory: (banco: Database) => new TimeService(banco), inject: [BANCO] },
         {
           provide: AssistenteService,
-          useFactory: (banco: Banco, agendador: AgendadorDeExecucoes, limite: LimiteDePedidosDeIa, trechos: BuscaDeTrechos) => new AssistenteService(banco, agendador, limite, trechos),
+          useFactory: (banco: Database, agendador: AgendadorDeExecucoes, limite: LimiteDePedidosDeIa, trechos: BuscaDeTrechos) => new AssistenteService(banco, agendador, limite, trechos),
           inject: [BANCO, AgendadorDeExecucoes, LimiteDePedidosDeIa, BuscaDeTrechos],
         },
       ],

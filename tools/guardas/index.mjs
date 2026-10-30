@@ -119,7 +119,7 @@ export const EXCECOES_DAS_GUARDAS = [
     regras: REGRAS_DE_LOG,
   },
   {
-    // O LoggerDoNest repassa ao logger a mensagem do Nest, depois de conferir que é evento fixo ou
+    // O NestLogger repassa ao logger a mensagem do Nest, depois de conferir que é evento fixo ou
     // do boot. Só a guarda de conteúdo montado sai; a de dado pessoal continua valendo aqui.
     files: ['packages/nucleo/src/log/logger-do-nest.ts'],
     regras: ['guardas/log-sem-conteudo-montado'],

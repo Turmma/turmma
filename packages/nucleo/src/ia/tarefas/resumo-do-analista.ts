@@ -3,7 +3,7 @@ import { isDeepStrictEqual } from 'node:util'
 import { z } from 'zod'
 import { dadoEmJson } from '../material.js'
 import { PROMPT_RESUMO_DO_ANALISTA } from '../prompts/resumo-do-analista.js'
-import { definirTarefa } from '../tarefa.js'
+import { defineTask } from '../tarefa.js'
 
 /**
  * O Analista recebe **só agregados**: o período, os números da escola e os recortes de série e disciplina que o
@@ -13,19 +13,19 @@ import { definirTarefa } from '../tarefa.js'
  *
  * O limiar do alerta é de quem chama, nunca constante daqui (os indicadores ainda são decisão em aberto).
  */
-export const esquemaEntradaDoAnalista = conteudoDoResumoDoAnalistaSchema.omit({ alertas: true }).extend({
+export const analistaInputSchema = conteudoDoResumoDoAnalistaSchema.omit({ alertas: true }).extend({
   /** Abaixo deste acerto a habilidade vira alerta. */
   limiarDeAcertoBaixoPercentual: z.number().min(0).max(100),
 })
-export type EntradaDoAnalista = z.infer<typeof esquemaEntradaDoAnalista>
+export type AnalistaInput = z.infer<typeof analistaInputSchema>
 
 /**
  * A saída é **exatamente o que `resumo_do_analista.conteudo` guarda**: o mesmo schema do contrato, sem campo de texto.
  * O que a IA acrescenta são os alertas, e neles só escolhe o tipo e as hipóteses, de listas fechadas; a frase quem
  * monta é a tela (`docs/mvp-contratos.md`, decisão 14). Não existe onde escrever sobre uma pessoa.
  */
-export const esquemaSaidaDoAnalista = conteudoDoResumoDoAnalistaSchema
-export type SaidaDoAnalista = ConteudoDoResumoDoAnalista
+export const analistaOutputSchema = conteudoDoResumoDoAnalistaSchema
+export type AnalistaOutput = ConteudoDoResumoDoAnalista
 
 /** O acerto de uma habilidade no recorte, em percentual com uma casa: é o `valor` do alerta. */
 export function acertoPercentual(acertos: number, total: number): number {
@@ -40,7 +40,7 @@ const mesmoRecorte = (alerta: AlertaDoAnalista, recorte: RecorteDoAnalista): boo
  * recebido. Série, disciplina e habilidade do alerta são as da entrada, campo por campo: é o único texto que há ali,
  * e o modelo não tem como trocá-lo.
  */
-function problemasDoResumo(entrada: EntradaDoAnalista, saida: SaidaDoAnalista): string[] {
+function problemasDoResumo(entrada: AnalistaInput, saida: AnalistaOutput): string[] {
   const problemas: string[] = []
   const { limiarDeAcertoBaixoPercentual: limiar, ...agregados } = entrada
   const { alertas, ...devolvidos } = saida
@@ -77,12 +77,12 @@ function hipotesesDoRecorte(recorte: RecorteDoAnalista): HipoteseDoAnalista[] {
 
 const MAXIMO_DE_ALERTAS = 20
 
-export const resumoDoAnalista = definirTarefa({
+export const resumoDoAnalista = defineTask({
   nome: 'resumo_do_analista',
   funcao: 'resumo_e_alerta',
   perfil: 'padrao',
-  esquemaDeEntrada: esquemaEntradaDoAnalista,
-  esquemaDeSaida: esquemaSaidaDoAnalista,
+  esquemaDeEntrada: analistaInputSchema,
+  esquemaDeSaida: analistaOutputSchema,
   prompt: PROMPT_RESUMO_DO_ANALISTA,
   maximoDeTokensDeSaida: 6000,
   levaTextoLivreDePessoa: false,
@@ -97,7 +97,7 @@ export const resumoDoAnalista = definirTarefa({
 
   conferir: problemasDoResumo,
 
-  falso(entrada): SaidaDoAnalista {
+  falso(entrada): AnalistaOutput {
     const { limiarDeAcertoBaixoPercentual: limiar, ...agregados } = entrada
     const alertas: AlertaDoAnalista[] = entrada.recortes
       .flatMap((recorte) =>

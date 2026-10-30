@@ -1,5 +1,5 @@
 import 'reflect-metadata'
-import { contextoAtual, ExpurgoDaEscolaRepository } from '@educa/nucleo'
+import { currentContext, ExpurgoDaEscolaRepository } from '@educa/nucleo'
 import { randomUUID } from 'node:crypto'
 import { afterAll, describe, expect, it, onTestFinished } from 'vitest'
 import { lerAmbienteDeTeste, valorObrigatorio } from '../../../tools/ci/compose.ts'
@@ -97,7 +97,7 @@ describe('medição das horas da eliminação do titular vencida', () => {
     await pedido(b, 4)
     const real = new ExpurgoDaEscolaRepository(bancada.banco)
     const falhaEmB: Pick<ExpurgoDaEscolaRepository, 'vencimentoDoAgendadoMaisAntigo'> = {
-      vencimentoDoAgendadoMaisAntigo: () => (contextoAtual()?.escolaId === b ? Promise.reject(new Error('banco lento')) : real.vencimentoDoAgendadoMaisAntigo()),
+      vencimentoDoAgendadoMaisAntigo: () => (currentContext()?.escolaId === b ? Promise.reject(new Error('banco lento')) : real.vencimentoDoAgendadoMaisAntigo()),
     }
     const medidor = new MedidorDeTeste()
     onTestFinished(() => medidor.encerrar())

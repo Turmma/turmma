@@ -1,4 +1,4 @@
-import { extrairTokenBearer, ipDaRequisicao, ProxiesConfiaveis, RotaAnonima, ZodValidationPipe } from '@educa/nucleo'
+import { extractBearerToken, requestIp, TrustedProxies, Public, ZodValidationPipe } from '@educa/nucleo'
 import {
   ativarMfaRequestSchema,
   mfaRequestSchema,
@@ -19,10 +19,10 @@ import { MfaService } from './mfa.service.js'
  * `POST /v1/conta/mfa/configurar` e `/ativar`: o coordenador sem MFA configura o app autenticador. Anônimas para a
  * guarda de acesso: quem autoriza é o desafio `configurar_mfa`, no `Authorization`, e o token de acesso não vale
  * aqui. As duas respostas levam o segredo ou os códigos de recuperação, e por isso saem com `no-store`.
- * O token é lido no handler, da requisição (`extrairTokenBearer`), e não no pipe: o corpo fora do esquema dá o 400 antes
+ * O token é lido no handler, da requisição (`extractBearerToken`), e não no pipe: o corpo fora do esquema dá o 400 antes
  * do 401 do token que falta, sem gastar tentativa (16.0, `onda-1a.md` T1).
  */
-@RotaAnonima()
+@Public()
 @Controller('v1/conta/mfa')
 export class ContaMfaController {
   constructor(private readonly mfa: MfaService) {}
@@ -31,14 +31,14 @@ export class ContaMfaController {
   @HttpCode(HttpStatus.OK)
   @Header('Cache-Control', 'no-store')
   async configurar(@Req() requisicao: IncomingMessage): Promise<ConfigurarMfaResponse> {
-    return configurarMfaResponseSchema.parse(await this.mfa.configurar(extrairTokenBearer(requisicao.headers.authorization)))
+    return configurarMfaResponseSchema.parse(await this.mfa.configurar(extractBearerToken(requisicao.headers.authorization)))
   }
 
   @Post('ativar')
   @HttpCode(HttpStatus.OK)
   @Header('Cache-Control', 'no-store')
   async ativar(@Body(new ZodValidationPipe(ativarMfaRequestSchema)) pedido: AtivarMfaRequest, @Req() requisicao: IncomingMessage): Promise<AtivarMfaResponse> {
-    const desafio = extrairTokenBearer(requisicao.headers.authorization)
+    const desafio = extractBearerToken(requisicao.headers.authorization)
     return ativarMfaResponseSchema.parse(await this.mfa.ativar(desafio, pedido.codigo))
   }
 }
@@ -49,12 +49,12 @@ export class ContaMfaController {
  * o código errado é o contador por conta, no service. Como em `ContaMfaController`, o token é lido no handler e o corpo
  * fora do esquema dá o 400 antes do 401, sem gastar tentativa (16.0, `onda-1a.md` T1).
  */
-@RotaAnonima()
+@Public()
 @Controller('v1/sessao')
 export class SessaoMfaController {
   constructor(
     private readonly mfa: MfaService,
-    private readonly proxies: ProxiesConfiaveis,
+    private readonly proxies: TrustedProxies,
   ) {}
 
   @Post('mfa')
@@ -65,9 +65,9 @@ export class SessaoMfaController {
     @Req() requisicao: IncomingMessage,
     @Res({ passthrough: true }) resposta: ServerResponse,
   ): Promise<LoginResponse> {
-    const desafio = extrairTokenBearer(requisicao.headers.authorization)
+    const desafio = extractBearerToken(requisicao.headers.authorization)
     const { resposta: corpoDaResposta, cookies } = await this.mfa.entrar(desafio, pedido, {
-      ip: await ipDaRequisicao(requisicao, this.proxies),
+      ip: await requestIp(requisicao, this.proxies),
       cabecalhoCookie: requisicao.headers.cookie,
     })
     resposta.setHeader('Set-Cookie', [...cookies])

@@ -1,4 +1,4 @@
-import { sessaoDaRequisicao, type Ambiente, type Banco } from '@educa/nucleo'
+import { requestSessao, type Environment, type Database } from '@educa/nucleo'
 import { COOKIE_SESSAO, serializarCookie } from '../../credencial/cookies.js'
 import { ipParaRegistro } from '../../credencial/origem-da-requisicao.js'
 import { RegistroDeAcessoRepository } from '../../credencial/registro-de-acesso.repository.js'
@@ -12,12 +12,12 @@ import { EscritaDeSessaoRepository } from '../../credencial/escrita-de-sessao.re
  */
 export class SaidaService {
   constructor(
-    private readonly banco: Banco,
-    private readonly ambiente: Ambiente,
+    private readonly banco: Database,
+    private readonly ambiente: Environment,
   ) {}
 
   async sair(ip: string): Promise<readonly string[]> {
-    const { sessaoId, usuarioId } = sessaoDaRequisicao()
+    const { sessaoId, usuarioId } = requestSessao()
     await this.banco.transaction(async (tx) => {
       if (await new EscritaDeSessaoRepository(tx).encerrar(sessaoId, 'saida')) {
         await new RegistroDeAcessoRepository(tx).gravar('saida', usuarioId, ipParaRegistro(ip))

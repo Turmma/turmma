@@ -2,7 +2,7 @@
  * Erro devolvido pelo servidor Postgres. Identificado pela forma, e não por `instanceof`, para
  * não depender de haver uma única cópia de `pg-protocol` instalada.
  */
-export interface ErroDoPostgres extends Error {
+export interface PostgresError extends Error {
   code: string
   severity: string
   constraint?: string | undefined
@@ -10,9 +10,9 @@ export interface ErroDoPostgres extends Error {
 
 const FORMATO_SQLSTATE = /^[0-9A-Z]{5}$/
 
-export function ehErroDoPostgres(erro: unknown): erro is ErroDoPostgres {
+export function isPostgresError(erro: unknown): erro is PostgresError {
   if (!(erro instanceof Error)) return false
-  const { code, severity } = erro as Partial<ErroDoPostgres>
+  const { code, severity } = erro as Partial<PostgresError>
   // `severity` separa o SQLSTATE do servidor de código de sistema do Node com cinco letras (EPIPE).
   return typeof code === 'string' && FORMATO_SQLSTATE.test(code) && typeof severity === 'string'
 }
@@ -22,14 +22,14 @@ export function ehErroDoPostgres(erro: unknown): erro is ErroDoPostgres {
  * `DrizzleQueryError` com o erro do servidor em `cause`, e com a consulta e os parâmetros na
  * mensagem e em campos próprios: nada disso sai daqui, só o erro do servidor, para ser resumido.
  */
-export function erroDoPostgresEm(erro: unknown): ErroDoPostgres | undefined {
-  if (ehErroDoPostgres(erro)) return erro
-  if (erro instanceof Error && ehErroDoPostgres(erro.cause)) return erro.cause
+export function postgresErrorIn(erro: unknown): PostgresError | undefined {
+  if (isPostgresError(erro)) return erro
+  if (erro instanceof Error && isPostgresError(erro.cause)) return erro.cause
   return undefined
 }
 
 /** O que um erro pode deixar no log. Nenhum campo carrega texto montado com dado. */
-export interface ResumoDeErro {
+export interface ErrorSummary {
   tipo: string
   sqlstate?: string
   constraint?: string
@@ -46,8 +46,8 @@ const LINHA_DE_PILHA = /^\s+at\s/
  * dele também: o `SyntaxError` de um corpo JSON inválido cita o trecho recebido. A pilha fica,
  * sem a primeira linha, que repete a mensagem.
  */
-export function resumirErro(erro: unknown): ResumoDeErro {
-  const doPostgres = erroDoPostgresEm(erro)
+export function summarizeError(erro: unknown): ErrorSummary {
+  const doPostgres = postgresErrorIn(erro)
   if (doPostgres !== undefined) {
     return {
       tipo: 'ErroDoPostgres',

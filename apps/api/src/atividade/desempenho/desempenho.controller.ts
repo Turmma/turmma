@@ -1,4 +1,4 @@
-import { IdPipe, Permite, ZodValidationPipe } from '@educa/nucleo'
+import { IdPipe, RequirePermissao, ZodValidationPipe } from '@educa/nucleo'
 import { desempenhoDaTurmaQuerySchema, type DesempenhoDaTurmaQuery, type DesempenhoDaTurmaResponse } from '@educa/shared'
 import { Controller, Get, Header, Param, Query } from '@nestjs/common'
 import { DesempenhoService } from './desempenho.service.js'
@@ -13,7 +13,7 @@ export class DesempenhoController {
   constructor(private readonly desempenho: DesempenhoService) {}
 
   @Get(':id/desempenho')
-  @Permite('desempenho_da_turma', 'ler')
+  @RequirePermissao('desempenho_da_turma', 'ler')
   @Header('Cache-Control', 'no-store')
   ler(@Param('id', IdPipe) turmaId: string, @Query(new ZodValidationPipe(desempenhoDaTurmaQuerySchema)) consulta: DesempenhoDaTurmaQuery): Promise<DesempenhoDaTurmaResponse> {
     return this.desempenho.ler(turmaId, consulta)

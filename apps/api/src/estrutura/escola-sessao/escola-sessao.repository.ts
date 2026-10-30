@@ -1,4 +1,4 @@
-import { escola, exigirEscolaDoContexto, type TransacaoBanco } from '@educa/nucleo'
+import { escola, requireEscolaId, type DatabaseTransaction } from '@educa/nucleo'
 import { eq } from 'drizzle-orm'
 
 export interface InatividadeDaEscola {
@@ -11,7 +11,7 @@ export interface InatividadeDaEscola {
  * escola é o tenant, e por isso a cláusula é `escola.id`.
  */
 export class EscolaSessaoRepository {
-  constructor(private readonly tx: TransacaoBanco) {}
+  constructor(private readonly tx: DatabaseTransaction) {}
 
   /**
    * Os valores atuais, com a linha travada até o fim da transação: duas alterações juntas não perdem o `antes`. A trava
@@ -22,7 +22,7 @@ export class EscolaSessaoRepository {
     const [linha] = await this.tx
       .select({ inatividadeAlunoMin: escola.inatividadeAlunoMin, inatividadeEquipeMin: escola.inatividadeEquipeMin })
       .from(escola)
-      .where(eq(escola.id, exigirEscolaDoContexto()))
+      .where(eq(escola.id, requireEscolaId()))
       .for('no key update')
     return linha
   }
@@ -31,7 +31,7 @@ export class EscolaSessaoRepository {
     const [linha] = await this.tx
       .update(escola)
       .set({ inatividadeAlunoMin: valores.inatividadeAlunoMin, inatividadeEquipeMin: valores.inatividadeEquipeMin })
-      .where(eq(escola.id, exigirEscolaDoContexto()))
+      .where(eq(escola.id, requireEscolaId()))
       .returning({ inatividadeAlunoMin: escola.inatividadeAlunoMin, inatividadeEquipeMin: escola.inatividadeEquipeMin })
     return linha
   }

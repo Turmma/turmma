@@ -14,7 +14,7 @@ export { FORMATO_OPERADOR }
  * O registro consultável de quem fez o quê, em qual escola e quando (regra 20, item 10; RF19). Não é
  * log: tem autor, data e finalidade, e fica pela retenção legal (vigência + 5 anos, `docs/lgpd.md`).
  *
- * - Só grava por `RegistroDeAuditoria.gravar`, que confere `antes`, `depois` e `finalidade` contra a lista
+ * - Só grava por `AuditoriaRecorder.gravar`, que confere `antes`, `depois` e `finalidade` contra a lista
  *   fechada da ação: ids, estados, códigos e datas, nunca nome, e-mail, matrícula, complemento, hash ou
  *   segredo. O insert fica num módulo fora do `index.ts` do pacote, e um teste procura outra escrita.
  * - `escola_id` só é nulo quando o operador faz algo acima do tenant, que não pertence a uma escola: criar a rede (que

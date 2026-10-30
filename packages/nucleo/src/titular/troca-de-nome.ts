@@ -1,9 +1,9 @@
 import { sql, type SQL } from 'drizzle-orm'
 import { TABELAS_AUDITADAS_NA_TROCA_DE_NOME } from '../auditoria/acoes.js'
-import { RegistroDeAuditoria } from '../auditoria/registro-de-auditoria.js'
+import { AuditoriaRecorder } from '../auditoria/registro-de-auditoria.js'
 import type { AutoriaDoCicloDeVida } from '../ciclo-de-vida/ciclo-de-vida.service.js'
-import { exigirEscolaDoContexto } from '../contexto/escola-do-contexto.js'
-import type { Banco } from '../db/banco.js'
+import { requireEscolaId } from '../contexto/escola-do-contexto.js'
+import type { Database } from '../db/banco.js'
 
 /** O que entra no lugar do nome: o mesmo texto nas sete colunas, para quem lê saber que havia um nome ali. */
 export const NOME_REMOVIDO = '[nome removido]'
@@ -75,7 +75,7 @@ export interface ResultadoDaTroca {
   readonly linhas: number
 }
 
-const registro = new RegistroDeAuditoria()
+const registro = new AuditoriaRecorder()
 const ESPECIAIS_DO_REGEX = new Set([...'\\^$.|?*+()[]{}'])
 const AUDITADAS: ReadonlySet<string> = new Set(TABELAS_AUDITADAS_NA_TROCA_DE_NOME)
 
@@ -140,10 +140,10 @@ function idsDentroDoOrcamento(linhas: ReadonlyArray<{ id: string; bytes: number 
  * - A escola vem do contexto, nunca do argumento; toda instrução leva `escola_id`.
  */
 export class TrocaDeNome {
-  constructor(private readonly banco: Banco) {}
+  constructor(private readonly banco: Database) {}
 
   async trocar({ pedidoId, nome, autoria, janelaAberta, faixa = FAIXA_DA_TROCA_DE_NOME }: PedidoDeTroca): Promise<ResultadoDaTroca> {
-    const escolaId = exigirEscolaDoContexto()
+    const escolaId = requireEscolaId()
     // Nome vazio casaria tudo: nada a procurar.
     if (nome.trim() === '') return { concluida: true, linhas: 0 }
     let linhas = 0

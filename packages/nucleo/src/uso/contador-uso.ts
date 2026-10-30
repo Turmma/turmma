@@ -1,12 +1,12 @@
 import type { Redis } from 'ioredis'
 import { InvariantException } from '@educa/shared'
-import { contextoAtual } from '../contexto/contexto.js'
-import { SemEscopo } from '../db/sem-escopo.decorator.js'
-import { relogioDoSistema, type Relogio } from '../relogio.js'
+import { currentContext } from '../contexto/contexto.js'
+import { Unscoped } from '../db/sem-escopo.decorator.js'
+import { systemClock, type Clock } from '../relogio.js'
 import { diaDeUso } from './dia-de-uso.js'
 
 /** O que é contado por escola e por dia: requisição atendida pela API e execução de job no worker. */
-export type MetricaDeUso = 'req' | 'jobs'
+export type UsageMetric = 'req' | 'jobs'
 
 /**
  * Por quanto tempo o contador de um dia fica no Redis sem ser consolidado. A consolidação roda toda
@@ -19,7 +19,7 @@ export const VALIDADE_DO_CONTADOR_SEGUNDOS = 35 * 24 * 60 * 60
 export const CHAVES_POR_LEITURA = 1_000
 
 /** A contagem de um dia fechado de uma escola, como estava no Redis. Métrica sem chave fica ausente. */
-export interface ContagemDoDia {
+export interface DailyCount {
   escolaId: string
   dia: string
   requisicoes?: number
@@ -39,9 +39,9 @@ const JUSTIFICATIVA_LEITURA =
   'a consolidação noturna é rotina nossa e precisa descobrir quais escolas tiveram uso; ' +
   'devolve só escola, dia e contagem, e toda gravação volta ao escopo da escola lida'
 
-export interface OpcoesDoContadorDeUso {
+export interface UsageMeterOptions {
   /** De onde vem a hora que decide o dia. Só o teste troca, para marcar às 23h59 e às 00h01. */
-  relogio?: Relogio
+  relogio?: Clock
   /** Prefixo das chaves. Só o teste troca, para não disputar os contadores com outro teste. */
   prefixo?: string
   /** Chamado quando o incremento falha. A falha nunca chega a quem marcou. */
@@ -59,23 +59,23 @@ export interface OpcoesDoContadorDeUso {
  *   anônima, rotina do sistema), nada é contado.
  * - O dia é o de São Paulo no instante da marcação.
  */
-export class ContadorDeUso {
-  readonly #relogio: Relogio
+export class UsageMeter {
+  readonly #relogio: Clock
   readonly #prefixo: string
   readonly #aoFalhar: (erro: unknown) => void
 
   constructor(
     private readonly redis: Redis,
-    opcoes: OpcoesDoContadorDeUso = {},
+    opcoes: UsageMeterOptions = {},
   ) {
-    this.#relogio = opcoes.relogio ?? relogioDoSistema
+    this.#relogio = opcoes.relogio ?? systemClock
     this.#prefixo = opcoes.prefixo === undefined ? '' : `${opcoes.prefixo}:`
     this.#aoFalhar = opcoes.aoFalhar ?? (() => undefined)
   }
 
   /** Soma um na métrica da escola do contexto, no dia de agora. Sem esperar e sem lançar. */
-  marcar(metrica: MetricaDeUso): void {
-    const escolaId = contextoAtual()?.escolaId
+  marcar(metrica: UsageMetric): void {
+    const escolaId = currentContext()?.escolaId
     if (escolaId === undefined) return
     try {
       const chave = this.chave(diaDeUso(this.#relogio.agora()), escolaId, metrica)
@@ -98,9 +98,9 @@ export class ContadorDeUso {
    * As contagens de todos os dias anteriores a `hoje`, de todas as escolas. `hoje` segue aberto e
    * não entra. Chave que sumiu entre o `SCAN` e o `GET` (outra consolidação a apagou) é ignorada.
    */
-  @SemEscopo(JUSTIFICATIVA_LEITURA)
-  async lerDiasFechados(hoje: string): Promise<ContagemDoDia[]> {
-    const chaves: Array<{ chave: string; escolaId: string; dia: string; metrica: MetricaDeUso }> = []
+  @Unscoped(JUSTIFICATIVA_LEITURA)
+  async lerDiasFechados(hoje: string): Promise<DailyCount[]> {
+    const chaves: Array<{ chave: string; escolaId: string; dia: string; metrica: UsageMetric }> = []
     const vistas = new Set<string>()
     let cursor = '0'
     do {
@@ -111,14 +111,14 @@ export class ContadorDeUso {
         if (!chave.startsWith(this.#prefixo) || vistas.has(chave)) continue
         const achado = FORMATO_CHAVE.exec(chave.slice(this.#prefixo.length))
         if (achado === null) continue
-        const [, dia, escolaId, metrica] = achado as unknown as [string, string, string, MetricaDeUso]
+        const [, dia, escolaId, metrica] = achado as unknown as [string, string, string, UsageMetric]
         vistas.add(chave)
         // Comparar texto de data ISO é comparar datas.
         if (dia < hoje) chaves.push({ chave, escolaId, dia, metrica })
       }
     } while (cursor !== '0')
 
-    const contagens = new Map<string, ContagemDoDia>()
+    const contagens = new Map<string, DailyCount>()
     for (let inicio = 0; inicio < chaves.length; inicio += CHAVES_POR_LEITURA) {
       const parte = chaves.slice(inicio, inicio + CHAVES_POR_LEITURA)
       const valores = await this.redis.mget(parte.map(({ chave }) => chave))
@@ -138,14 +138,14 @@ export class ContadorDeUso {
    * Depois de gravar no banco, apaga o contador do dia da escola do contexto, se ele ainda tem o
    * valor gravado. Devolve `true` se apagou.
    */
-  async apagarConsolidado(dia: string, metrica: MetricaDeUso, valorGravado: number): Promise<boolean> {
-    const escolaId = contextoAtual()?.escolaId
+  async apagarConsolidado(dia: string, metrica: UsageMetric, valorGravado: number): Promise<boolean> {
+    const escolaId = currentContext()?.escolaId
     if (escolaId === undefined) throw new InvariantException('contador de uso sem escola no contexto')
     const apagadas = await this.redis.eval(APAGAR_SE_IGUAL, 1, this.chave(dia, escolaId, metrica), String(valorGravado))
     return apagadas === 1
   }
 
-  private chave(dia: string, escolaId: string, metrica: MetricaDeUso): string {
+  private chave(dia: string, escolaId: string, metrica: UsageMetric): string {
     return `${this.#prefixo}uso:${dia}:${escolaId}:${metrica}`
   }
 }

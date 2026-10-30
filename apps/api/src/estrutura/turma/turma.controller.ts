@@ -1,4 +1,4 @@
-import { IdPipe, Permite, ZodValidationPipe } from '@educa/nucleo'
+import { IdPipe, RequirePermissao, ZodValidationPipe } from '@educa/nucleo'
 import {
   alunosDaTurmaQuerySchema,
   paginationQuerySchema,
@@ -28,38 +28,38 @@ export class TurmaController {
   constructor(private readonly turmas: TurmaService) {}
 
   @Post()
-  @Permite('turma', 'criar')
+  @RequirePermissao('turma', 'criar')
   criar(@Body(new ZodValidationPipe(criarTurmaRequestSchema)) pedido: CriarTurmaRequest): Promise<TurmaResponse> {
     return this.turmas.criar(pedido)
   }
 
   @Get()
-  @Permite('turma', 'listar')
+  @RequirePermissao('turma', 'listar')
   listar(@Query(new ZodValidationPipe(paginationQuerySchema)) consulta: PaginationQuery): Promise<ListaDeTurmasResponse> {
     return this.turmas.listar(consulta)
   }
 
   @Get(':id')
-  @Permite('turma', 'ler')
+  @RequirePermissao('turma', 'ler')
   abrir(@Param('id', IdPipe) id: string, @Query(new ZodValidationPipe(turmaQuerySchema)) consulta: TurmaQuery): Promise<TurmaAbertaResponse> {
     return this.turmas.abrir(id, consulta)
   }
 
   @Patch(':id')
-  @Permite('turma', 'renomear')
+  @RequirePermissao('turma', 'renomear')
   renomear(@Param('id', IdPipe) id: string, @Body(new ZodValidationPipe(renomearTurmaRequestSchema)) pedido: RenomearTurmaRequest): Promise<TurmaResponse> {
     return this.turmas.renomear(id, pedido)
   }
 
   @Delete(':id')
-  @Permite('turma', 'excluir')
+  @RequirePermissao('turma', 'excluir')
   @HttpCode(HttpStatus.NO_CONTENT)
   excluir(@Param('id', IdPipe) id: string): Promise<void> {
     return this.turmas.excluir(id)
   }
 
   @Get(':id/alunos')
-  @Permite('aluno_da_turma', 'ler')
+  @RequirePermissao('aluno_da_turma', 'ler')
   alunos(@Param('id', IdPipe) id: string, @Query(new ZodValidationPipe(alunosDaTurmaQuerySchema)) consulta: AlunosDaTurmaQuery): Promise<AlunosDaTurmaResponse> {
     return this.turmas.alunos(id, consulta)
   }

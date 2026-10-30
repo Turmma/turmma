@@ -1,4 +1,4 @@
-import { ErroDeDominio, sessaoDaRequisicao } from '@educa/nucleo'
+import { DomainException, requestSessao } from '@educa/nucleo'
 import { ErrorCode } from '@educa/shared'
 import { Logger } from '@nestjs/common'
 import type { Redis } from 'ioredis'
@@ -29,7 +29,7 @@ export class LeituraDoLote {
 
   /** A chave da leitura do lote pela pessoa da sessão. */
   chave(entregaId: string): string {
-    const { escolaId, usuarioId } = sessaoDaRequisicao()
+    const { escolaId, usuarioId } = requestSessao()
     return `${PREFIXO_DA_LEITURA_DO_LOTE}:${createHash('sha256').update(`${escolaId}|${entregaId}|${usuarioId}`).digest('base64url')}`
   }
 
@@ -50,7 +50,7 @@ export class LeituraDoLote {
     try {
       return (await this.cliente.get(chave)) ?? undefined
     } catch {
-      throw new ErroDeDominio(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO)
+      throw new DomainException(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO)
     }
   }
 }

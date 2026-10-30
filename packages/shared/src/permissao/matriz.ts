@@ -1,6 +1,6 @@
 /**
  * Quem pode chamar o quê, declarado num lugar só (RF17). Toda rota autenticada da API aponta para uma célula
- * daqui com `@Permite(recurso, acao)`, e a guarda de permissão barra pelo papel da sessão.
+ * daqui com `@RequirePermissao(recurso, acao)`, e a guarda de permissão barra pelo papel da sessão.
  *
  * O alcance diz até onde a célula chega, e é o repository que o aplica ao objeto (regra 10, item 4):
  * - `nunca`: o papel não chama a rota, e ela responde como inexistente;

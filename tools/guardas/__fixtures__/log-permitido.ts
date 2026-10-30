@@ -12,7 +12,7 @@ declare const inicioMs: number
 declare const erro: Error
 declare const evento: string
 declare const erroSemPilha: object
-declare function resumirErro(erro: unknown): object
+declare function summarizeError(erro: unknown): object
 
 logger.info({ evento: 'correcao.concluida', escolaId, avaliacaoId, alunoId: aluno.id })
 logger.warn({ evento: 'nota.aprovada', notaId: nota.id, aluno: { id: aluno.id, turmaId: aluno.turmaId } })
@@ -24,7 +24,7 @@ logger.info(`mensagem fixa em template`)
 logger.info('mensagem ' + 'fixa')
 logger.info({ evento: 'lote', total: 1 + 2, lista: [1, 'a', null, -1, undefined] })
 logger.info({ evento: 'job.concluido', fila, duracaoMs: Date.now() - inicioMs, criadoEm: new Date() })
-logger.fatal({ evento, erro: resumirErro(erro) })
+logger.fatal({ evento, erro: summarizeError(erro) })
 logger.warn({ evento: 'http.erro', status: resposta.status, erro: erroSemPilha, causa: erro })
 logger.info({ evento: 'nota.aprovada', notaId: nota.id.toString(), alunoIds: [aluno.id], tipo: erro ? 'a' : 'b' })
 logger.info({ evento: 'ia.execucao', promptTokens: uso.prompt_tokens, respostaStatus: resposta.status, promptVersao: 'v3' })

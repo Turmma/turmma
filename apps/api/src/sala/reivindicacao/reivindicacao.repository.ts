@@ -1,4 +1,4 @@
-import { exigirAnoEmCurso, exigirEscolaDoContexto, reivindicacao, type Banco, type TransacaoBanco } from '@educa/nucleo'
+import { requireAnoEmCurso, requireEscolaId, reivindicacao, type Database, type DatabaseTransaction } from '@educa/nucleo'
 import { and, eq } from 'drizzle-orm'
 
 /** O pedido novo: a turma do acesso, o nome escolhido, a chave do envio e o hash da senha, já calculado fora da transação. */
@@ -20,7 +20,7 @@ export interface NovoPedido {
  * Nada daqui devolve o hash, a chave nem a matrícula, e nada daqui vai a log.
  */
 export class ReivindicacaoRepository {
-  constructor(private readonly banco: Banco | TransacaoBanco) {}
+  constructor(private readonly banco: Database | DatabaseTransaction) {}
 
   /**
    * Se a chave do envio já está num pedido da turma do acesso, na escola e no ano do contexto: é o reenvio do mesmo pedido
@@ -36,9 +36,9 @@ export class ReivindicacaoRepository {
       .from(reivindicacao)
       .where(
         and(
-          eq(reivindicacao.escolaId, exigirEscolaDoContexto()),
+          eq(reivindicacao.escolaId, requireEscolaId()),
           eq(reivindicacao.chaveEnvio, chaveEnvio),
-          eq(reivindicacao.anoLetivoId, exigirAnoEmCurso()),
+          eq(reivindicacao.anoLetivoId, requireAnoEmCurso()),
           eq(reivindicacao.turmaId, turmaId),
         ),
       )
@@ -53,8 +53,8 @@ export class ReivindicacaoRepository {
    */
   async inserirPendente(novo: NovoPedido): Promise<void> {
     await this.banco.insert(reivindicacao).values({
-      escolaId: exigirEscolaDoContexto(),
-      anoLetivoId: exigirAnoEmCurso(),
+      escolaId: requireEscolaId(),
+      anoLetivoId: requireAnoEmCurso(),
       turmaId: novo.turmaId,
       listaNomeId: novo.listaNomeId,
       chaveEnvio: novo.chaveEnvio,

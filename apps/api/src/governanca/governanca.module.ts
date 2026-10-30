@@ -1,4 +1,4 @@
-import type { Banco } from '@educa/nucleo'
+import type { Database } from '@educa/nucleo'
 import { Module } from '@nestjs/common'
 import { LimiteDePedidosDeIa } from '../assistente/limite-de-pedidos-de-ia.js'
 import { BANCO } from '../banco.module.js'
@@ -19,10 +19,10 @@ import { GovernancaService } from './governanca.service.js'
 @Module({
   controllers: [GovernancaController, AnalistaController],
   providers: [
-    { provide: GovernancaService, useFactory: (banco: Banco) => new GovernancaService(banco), inject: [BANCO] },
+    { provide: GovernancaService, useFactory: (banco: Database) => new GovernancaService(banco), inject: [BANCO] },
     {
       provide: AnalistaService,
-      useFactory: (banco: Banco, agendador: AgendadorDeExecucoes, limite: LimiteDePedidosDeIa) => new AnalistaService(banco, agendador, limite),
+      useFactory: (banco: Database, agendador: AgendadorDeExecucoes, limite: LimiteDePedidosDeIa) => new AnalistaService(banco, agendador, limite),
       inject: [BANCO, AgendadorDeExecucoes, LimiteDePedidosDeIa],
     },
   ],

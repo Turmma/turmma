@@ -1,31 +1,31 @@
 import type { ChaveDeFuncao } from '@educa/shared'
-import type { ConfiguracaoDeIa } from '../config/config-ia.js'
-import { ConfiguracaoInvalida } from '../config/validar-config.js'
-import { contextoAtual } from '../contexto/contexto.js'
-import { resumirErro } from '../erro/resumir-erro.js'
+import type { LLMConfig } from '../config/config-ia.js'
+import { InvalidConfigError } from '../config/validar-config.js'
+import { currentContext } from '../contexto/contexto.js'
+import { summarizeError } from '../erro/resumir-erro.js'
 import type { LoggerBase } from '../log/logger.js'
-import { relogioDoSistema, type Relogio } from '../relogio.js'
-import type { AdaptadorDeModelo, CorrecaoPedida } from './adaptador.js'
-import { AdaptadorFalso } from './adaptador-falso.js'
-import { AdaptadorOpenAICompat } from './adaptador-openai-compat.js'
-import { AdaptadorResiliente } from './adaptador-resiliente.js'
+import { systemClock, type Clock } from '../relogio.js'
+import type { ModelAdapter, RepairHint } from './adaptador.js'
+import { FakeAdapter } from './adaptador-falso.js'
+import { OpenAICompatAdapter } from './adaptador-openai-compat.js'
+import { ResilientAdapter } from './adaptador-resiliente.js'
 import type { ConsumoDeIa, OrcamentoDeIa, RegistroDeConsumo } from './consumo.js'
-import { ErroDeIa, type CodigoDeErroDeIa } from './erros.js'
+import { LLMError, type LLMErrorCode } from './erros.js'
 import { semMarcacao } from './limpar-saida.js'
-import { SEM_ENVIO_EXTERNO, type LLMProvider, type MedicaoDaGeracao, type PedidoDeGeracao, type ResultadoDaGeracao } from './porta.js'
+import { SEM_ENVIO_EXTERNO, type LLMProvider, type GenerationMeasurement, type GenerationRequest, type GenerationResult } from './porta.js'
 import { exigirFuncaoAtiva, type SuspensaoDeFuncao } from './suspensao.js'
-import type { DefinicaoDeTarefa } from './tarefa.js'
+import type { TaskDefinition } from './tarefa.js'
 
 /** O que o provedor escreve no log: evento fixo, ids, duração. Nunca entrada, saída nem prompt (regra 20, item 9). */
-export type RegistradorDeIa = Pick<LoggerBase, 'info' | 'warn'>
+export type LLMLogger = Pick<LoggerBase, 'info' | 'warn'>
 
-export interface DependenciasDoProvedor {
-  readonly adaptador: AdaptadorDeModelo
+export interface LLMGatewayDependencies {
+  readonly adaptador: ModelAdapter
   readonly registro: RegistroDeConsumo
   readonly orcamento: OrcamentoDeIa
   readonly suspensao: SuspensaoDeFuncao
-  readonly logger?: RegistradorDeIa
-  readonly relogio?: Relogio
+  readonly logger?: LLMLogger
+  readonly relogio?: Clock
 }
 
 /** Funções cujo gasto é de um aluno: sem `alunoId` não há como consultar o freio dele, e a chamada é recusada. */
@@ -42,7 +42,7 @@ type Interpretacao<Saida> =
   | { readonly ok: false; readonly problemas: readonly string[]; readonly naConferencia?: boolean }
 
 /** Do texto do modelo à saída que o domínio pode usar: JSON, schema, ajuste e conferência da tarefa, nesta ordem. */
-function interpretar<Entrada, Saida>(tarefa: DefinicaoDeTarefa<Entrada, Saida>, entrada: Entrada, texto: string): Interpretacao<Saida> {
+function interpretar<Entrada, Saida>(tarefa: TaskDefinition<Entrada, Saida>, entrada: Entrada, texto: string): Interpretacao<Saida> {
   let bruto: unknown
   try {
     bruto = JSON.parse(texto)
@@ -54,7 +54,7 @@ function interpretar<Entrada, Saida>(tarefa: DefinicaoDeTarefa<Entrada, Saida>, 
   return validar(tarefa, entrada, tarefa.prepararResposta?.(entrada, limpo) ?? limpo)
 }
 
-function validar<Entrada, Saida>(tarefa: DefinicaoDeTarefa<Entrada, Saida>, entrada: Entrada, bruto: unknown): Interpretacao<Saida> {
+function validar<Entrada, Saida>(tarefa: TaskDefinition<Entrada, Saida>, entrada: Entrada, bruto: unknown): Interpretacao<Saida> {
   const lida = tarefa.esquemaDeSaida.safeParse(bruto)
   if (!lida.success) {
     const problemas = lida.error.issues.slice(0, PROBLEMAS_MAXIMOS_NA_REPETICAO).map((problema) => `${problema.path.join('.') || 'resposta'}: ${problema.message}`)
@@ -74,19 +74,19 @@ interface Gasto {
 
 /**
  * A implementação da porta, igual para todo adaptador. Em toda chamada, nesta ordem: valida a entrada, confere se a
- * escola suspendeu a função, consulta o orçamento (salvo na resposta de regra fixa), chama o modelo (o prazo e a repetição do que não cobrou são do `AdaptadorResiliente`), valida a saída (repetindo uma vez),
+ * escola suspendeu a função, consulta o orçamento (salvo na resposta de regra fixa), chama o modelo (o prazo e a repetição do que não cobrou são do `ResilientAdapter`), valida a saída (repetindo uma vez),
  * registra o consumo e escreve o log.
  *
  * Nada que não foi registrado é devolvido: se o registro falhar, a chamada falha (regra 30, item 4).
  */
-export class ProvedorDeIa implements LLMProvider {
-  private readonly relogio: Relogio
+export class LLMGateway implements LLMProvider {
+  private readonly relogio: Clock
 
-  constructor(private readonly dependencias: DependenciasDoProvedor) {
-    this.relogio = dependencias.relogio ?? relogioDoSistema
+  constructor(private readonly dependencias: LLMGatewayDependencies) {
+    this.relogio = dependencias.relogio ?? systemClock
   }
 
-  async gerar<Entrada, Saida>(pedido: PedidoDeGeracao<Entrada, Saida>): Promise<ResultadoDaGeracao<Saida>> {
+  async gerar<Entrada, Saida>(pedido: GenerationRequest<Entrada, Saida>): Promise<GenerationResult<Saida>> {
     const { tarefa } = pedido
     const { adaptador } = this.dependencias
     const inicio = performance.now()
@@ -99,18 +99,18 @@ export class ProvedorDeIa implements LLMProvider {
     // na escola errada (regra 10, item 3). Sem escola no contexto não há com o que comparar aqui, e quem recusa é a porta
     // da suspensão, logo abaixo, que lê a escola do contexto e falha fechada (`IA_INDISPONIVEL`): nada executa, nem
     // consulta orçamento, nem registra consumo.
-    const escolaDoContexto = contextoAtual()?.escolaId
+    const escolaDoContexto = currentContext()?.escolaId
     if (escolaDoContexto !== undefined && escolaDoContexto !== pedido.escolaId) {
       const tipo = tarefa.nome
       this.dependencias.logger?.warn({ evento: 'ia.geracao.escola_fora_do_contexto', tipo })
-      throw new ErroDeIa('IA_ENTRADA_INVALIDA')
+      throw new LLMError('IA_ENTRADA_INVALIDA')
     }
 
     // Entrada fora do schema é erro de quem chamou, antes de qualquer gasto: chave a mais (um nome) para aqui.
     const lida = tarefa.esquemaDeEntrada.safeParse(pedido.entrada)
     if (!lida.success || (FUNCOES_COM_ORCAMENTO_POR_ALUNO.has(tarefa.funcao) && pedido.alunoId === undefined)) {
       this.avisar(pedido, 'IA_ENTRADA_INVALIDA', inicio, 0)
-      throw new ErroDeIa('IA_ENTRADA_INVALIDA')
+      throw new LLMError('IA_ENTRADA_INVALIDA')
     }
     const entrada = lida.data
 
@@ -118,7 +118,7 @@ export class ProvedorDeIa implements LLMProvider {
     try {
       await exigirFuncaoAtiva(this.dependencias.suspensao, tarefa.funcao)
     } catch (erro) {
-      this.avisar(pedido, erro instanceof ErroDeIa ? erro.codigoDeIa : 'IA_INDISPONIVEL', inicio, 0)
+      this.avisar(pedido, erro instanceof LLMError ? erro.codigoDeIa : 'IA_INDISPONIVEL', inicio, 0)
       throw erro
     }
     // A resposta de regra fixa não gasta modelo e não passa pelo orçamento: o aluno que escreve sobre um assunto
@@ -131,14 +131,14 @@ export class ProvedorDeIa implements LLMProvider {
     try {
       saida = fixa === undefined ? await this.chamarAteValer(pedido, entrada, gasto) : this.exigirSaidaFixa(tarefa, entrada, fixa)
     } catch (erro) {
-      const codigo: CodigoDeErroDeIa = erro instanceof ErroDeIa ? erro.codigoDeIa : 'IA_INDISPONIVEL'
+      const codigo: LLMErrorCode = erro instanceof LLMError ? erro.codigoDeIa : 'IA_INDISPONIVEL'
       // Erro que não é da camada é defeito nosso (na versão determinística, na conferência): fica o resumo, sem mensagem.
-      if (!(erro instanceof ErroDeIa)) this.dependencias.logger?.warn({ evento: 'ia.geracao.erro_inesperado', erro: resumirErro(erro) })
+      if (!(erro instanceof LLMError)) this.dependencias.logger?.warn({ evento: 'ia.geracao.erro_inesperado', erro: summarizeError(erro) })
       const medicao = this.medir(pedido, gasto, inicio, false)
       // O registro da falha é o melhor possível: se ele também falhar, o erro que sobe continua sendo o da chamada.
       await this.dependencias.registro.registrar(this.consumo(pedido, medicao, { ...conteudo({ entrada }), estado: 'falhou', codigoDeErro: codigo })).catch(() => undefined)
       this.avisar(pedido, codigo, inicio, gasto.tentativas)
-      throw erro instanceof ErroDeIa ? erro : new ErroDeIa('IA_INDISPONIVEL')
+      throw erro instanceof LLMError ? erro : new LLMError('IA_INDISPONIVEL')
     }
 
     const medicao = this.medir(pedido, gasto, inicio, fixa !== undefined)
@@ -146,7 +146,7 @@ export class ProvedorDeIa implements LLMProvider {
       await this.dependencias.registro.registrar(this.consumo(pedido, medicao, { ...conteudo({ entrada, saida }), estado: 'concluida' }))
     } catch {
       this.avisar(pedido, 'IA_INDISPONIVEL', inicio, gasto.tentativas)
-      throw new ErroDeIa('IA_INDISPONIVEL')
+      throw new LLMError('IA_INDISPONIVEL')
     }
     const tipo = tarefa.nome
     const { duracaoMs, tentativas } = medicao
@@ -155,8 +155,8 @@ export class ProvedorDeIa implements LLMProvider {
   }
 
   /** Sem conseguir consultar o orçamento, não se gasta: a falha da consulta fecha a porta, não abre. */
-  private async exigirOrcamento<Entrada, Saida>(pedido: PedidoDeGeracao<Entrada, Saida>, inicio: number): Promise<void> {
-    let codigo: CodigoDeErroDeIa | undefined
+  private async exigirOrcamento<Entrada, Saida>(pedido: GenerationRequest<Entrada, Saida>, inicio: number): Promise<void> {
+    let codigo: LLMErrorCode | undefined
     let tenteDeNovoEmSegundos: number | undefined
     try {
       const decisao = await this.dependencias.orcamento.consultar({
@@ -174,24 +174,24 @@ export class ProvedorDeIa implements LLMProvider {
     }
     if (codigo === undefined) return
     this.avisar(pedido, codigo, inicio, 0)
-    throw new ErroDeIa(codigo, tenteDeNovoEmSegundos)
+    throw new LLMError(codigo, tenteDeNovoEmSegundos)
   }
 
   /** A regra fixa também passa pelo schema e pela conferência: texto nosso com defeito não chega a ninguém. */
-  private exigirSaidaFixa<Entrada, Saida>(tarefa: DefinicaoDeTarefa<Entrada, Saida>, entrada: Entrada, fixa: Saida): Saida {
+  private exigirSaidaFixa<Entrada, Saida>(tarefa: TaskDefinition<Entrada, Saida>, entrada: Entrada, fixa: Saida): Saida {
     const validada = validar(tarefa, entrada, fixa)
-    if (!validada.ok) throw new ErroDeIa('IA_SAIDA_INVALIDA')
+    if (!validada.ok) throw new LLMError('IA_SAIDA_INVALIDA')
     return validada.saida
   }
 
-  private async chamarAteValer<Entrada, Saida>(pedido: PedidoDeGeracao<Entrada, Saida>, entrada: Entrada, gasto: Gasto): Promise<Saida> {
+  private async chamarAteValer<Entrada, Saida>(pedido: GenerationRequest<Entrada, Saida>, entrada: Entrada, gasto: Gasto): Promise<Saida> {
     const { tarefa } = pedido
-    let correcao: CorrecaoPedida | undefined
+    let correcao: RepairHint | undefined
     let reprovadaNaConferencia = false
     let problemasDaUltima: readonly string[] = []
     while (gasto.tentativas < TENTATIVAS_MAXIMAS) {
       gasto.tentativas += 1
-      // O prazo da chamada é do `AdaptadorResiliente`, que sabe o do perfil. O sinal de quem chamou (o executor) o cancela.
+      // O prazo da chamada é do `ResilientAdapter`, que sabe o do perfil. O sinal de quem chamou (o executor) o cancela.
       const sinal = pedido.sinal ?? new AbortController().signal
       const resposta = await this.dependencias.adaptador.chamar({ tarefa, entrada, sinal, ...(correcao === undefined ? {} : { correcao }) })
       gasto.modelo = resposta.modelo
@@ -213,10 +213,10 @@ export class ProvedorDeIa implements LLMProvider {
         return validada.saida
       }
     }
-    throw new ErroDeIa('IA_SAIDA_INVALIDA')
+    throw new LLMError('IA_SAIDA_INVALIDA')
   }
 
-  private medir<Entrada, Saida>(pedido: PedidoDeGeracao<Entrada, Saida>, gasto: Gasto, inicio: number, regraFixa: boolean): MedicaoDaGeracao {
+  private medir<Entrada, Saida>(pedido: GenerationRequest<Entrada, Saida>, gasto: Gasto, inicio: number, regraFixa: boolean): GenerationMeasurement {
     const { adaptador } = this.dependencias
     return {
       origem: regraFixa ? 'regra_fixa' : adaptador.origem,
@@ -234,8 +234,8 @@ export class ProvedorDeIa implements LLMProvider {
   }
 
   private consumo<Entrada, Saida>(
-    pedido: PedidoDeGeracao<Entrada, Saida>,
-    medicao: MedicaoDaGeracao,
+    pedido: GenerationRequest<Entrada, Saida>,
+    medicao: GenerationMeasurement,
     resultado: Pick<ConsumoDeIa, 'entrada' | 'saida' | 'estado' | 'codigoDeErro'>,
   ): ConsumoDeIa {
     return {
@@ -251,30 +251,30 @@ export class ProvedorDeIa implements LLMProvider {
   }
 
   /** A tarefa fixa a função e o perfil: o `tipo` no log diz os dois. */
-  private avisar<Entrada, Saida>(pedido: PedidoDeGeracao<Entrada, Saida>, codigo: CodigoDeErroDeIa, inicio: number, tentativas: number): void {
+  private avisar<Entrada, Saida>(pedido: GenerationRequest<Entrada, Saida>, codigo: LLMErrorCode, inicio: number, tentativas: number): void {
     const tipo = pedido.tarefa.nome
     const duracaoMs = Math.round(performance.now() - inicio)
     this.dependencias.logger?.warn({ evento: 'ia.geracao.falhou', tipo, codigo, escolaId: pedido.escolaId, execucaoId: pedido.execucaoId, duracaoMs, tentativas })
   }
 }
 
-export interface PortasDoProvedor {
+export interface LLMGatewayPorts {
   readonly registro: RegistroDeConsumo
   readonly orcamento: OrcamentoDeIa
   readonly suspensao: SuspensaoDeFuncao
-  readonly logger?: RegistradorDeIa
-  readonly relogio?: Relogio
+  readonly logger?: LLMLogger
+  readonly relogio?: Clock
 }
 
 /**
  * Monta a porta a partir da configuração: é aqui, e só aqui, que `IA_ADAPTADOR` escolhe o adaptador, e que ele ganha o
  * prazo por perfil, a repetição e o disjuntor.
  */
-export function criarProvedorDeIa(config: ConfiguracaoDeIa, portas: PortasDoProvedor): LLMProvider {
-  if (config.adaptador === 'openai_compat' && config.modelo === undefined) throw new ConfiguracaoInvalida(['LLM_BASE_URL', 'LLM_MODELO'])
+export function createLLMGateway(config: LLMConfig, portas: LLMGatewayPorts): LLMProvider {
+  if (config.adaptador === 'openai_compat' && config.modelo === undefined) throw new InvalidConfigError(['LLM_BASE_URL', 'LLM_MODELO'])
   // A latência simulada é só do adaptador falso (teste de carga, regra 80, item 11): o do provedor tem a do provedor.
   const interno =
-    config.modelo === undefined ? new AdaptadorFalso(config.latenciaFalsaMs === undefined ? {} : { latenciaMs: config.latenciaFalsaMs }) : new AdaptadorOpenAICompat(config.modelo)
-  const adaptador = new AdaptadorResiliente(interno, { prazosMs: config.prazosMs, recuoMs: config.recuoMs, aleatorio: Math.random })
-  return new ProvedorDeIa({ adaptador, ...portas })
+    config.modelo === undefined ? new FakeAdapter(config.latenciaFalsaMs === undefined ? {} : { latenciaMs: config.latenciaFalsaMs }) : new OpenAICompatAdapter(config.modelo)
+  const adaptador = new ResilientAdapter(interno, { prazosMs: config.prazosMs, recuoMs: config.recuoMs, aleatorio: Math.random })
+  return new LLMGateway({ adaptador, ...portas })
 }

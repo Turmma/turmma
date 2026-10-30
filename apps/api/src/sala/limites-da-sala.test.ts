@@ -1,4 +1,4 @@
-import { ErroDeDominio } from '@educa/nucleo'
+import { DomainException } from '@educa/nucleo'
 import { ErrorCode } from '@educa/shared'
 import type { Redis } from 'ioredis'
 import { randomUUID } from 'node:crypto'
@@ -65,7 +65,7 @@ async function atingidos(): Promise<Record<string, number>> {
 const codigoDoErro = (promessa: Promise<unknown>) =>
   promessa.then(
     () => 'passou',
-    (erro: unknown) => (erro instanceof ErroDeDominio ? erro.codigo : erro),
+    (erro: unknown) => (erro instanceof DomainException ? erro.codigo : erro),
   )
 
 describe('L7: com o Redis de fila fora, o seguro conta e o teto cai para o dividido pelas instâncias', () => {
@@ -95,7 +95,7 @@ describe('L7: com o Redis de fila fora, o seguro conta e o teto cai para o divid
     relogio.avancar(60_000)
     for (const errada of [true, false]) {
       const travado = await limites.antesDoHash(nome, turmaId, escolaId, errada).catch((erro: unknown) => erro)
-      expect(travado).toBeInstanceOf(ErroDeDominio)
+      expect(travado).toBeInstanceOf(DomainException)
       expect(travado).toMatchObject({ codigo: ErrorCode.LIMITE_EXCEDIDO, status: 429, tenteDeNovoEmSegundos: (JANELA_DOS_LIMITES_DA_SALA_MS - 60_000) / 1_000 })
     }
     for (const outro of [{ ...nome, listaNomeId: randomUUID() }, { ...nome, acessoId: randomUUID() }]) {

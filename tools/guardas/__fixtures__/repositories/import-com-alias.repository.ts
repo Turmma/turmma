@@ -1,9 +1,9 @@
-import { exigirEscolaDoContexto as escolaDaVez, identidadeDaRequisicao as quemPede, type Banco } from '@educa/nucleo'
+import { requireEscolaId as escolaDaVez, requestIdentity as quemPede, type Database } from '@educa/nucleo'
 import { aluno } from './tabelas.js'
 
 // O alias conta: o que vale é o nome exportado.
 export class ImportComAliasRepository {
-  constructor(private readonly banco: Banco) {}
+  constructor(private readonly banco: Database) {}
 
   async daEscola() {
     return this.banco.select().from(aluno).where(escolaDaVez())

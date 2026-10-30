@@ -1,4 +1,4 @@
-import { ErroDeDominio, type Banco } from '@educa/nucleo'
+import { DomainException, type Database } from '@educa/nucleo'
 import {
   ErrorCode,
   conteudoDeAtividadeSchema,
@@ -66,7 +66,7 @@ function paraATela(lida: MinhaAtividadeLida): unknown {
  * e fica para depois do MVP de apresentação (decisão do pacote Z; teste em `correcao.int.test.ts`, "aluno transferido").
  */
 export class MinhaAtividadeService {
-  constructor(private readonly banco: Banco) {}
+  constructor(private readonly banco: Database) {}
 
   async listar(consulta: PaginationQuery): Promise<MinhasAtividadesResponse> {
     const linhas = await new MinhaAtividadeRepository(this.banco).listar(consulta)
@@ -79,7 +79,7 @@ export class MinhaAtividadeService {
     const aberta = await this.banco.transaction(async (tx) => {
       const atividades = new MinhaAtividadeRepository(tx)
       const prova = await atividades.prova(id, true)
-      if (prova === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+      if (prova === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
       const tentativa = prova.estado === 'aberta' ? await atividades.abrirTentativa(id) : await atividades.tentativa(id)
       const respostas = tentativa === undefined ? [] : await atividades.respostas(id)
       return { prova, tentativa, respostas }
@@ -102,12 +102,12 @@ export class MinhaAtividadeService {
     const salva = await this.banco.transaction(async (tx) => {
       const atividades = new MinhaAtividadeRepository(tx)
       const atividade = await atividades.travarParaGravar(id)
-      if (atividade === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
-      if (atividade.estado !== 'aberta') throw new ErroDeDominio(ErrorCode.ATIVIDADE_ENCERRADA)
+      if (atividade === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
+      if (atividade.estado !== 'aberta') throw new DomainException(ErrorCode.ATIVIDADE_ENCERRADA)
       // A questão que a atividade não tem não existe.
-      if (questao > atividade.questoes) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+      if (questao > atividade.questoes) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
       const tentativa = await atividades.abrirTentativa(id)
-      if (tentativa.enviadaEm !== null) throw new ErroDeDominio(ErrorCode.ATIVIDADE_ENCERRADA)
+      if (tentativa.enviadaEm !== null) throw new DomainException(ErrorCode.ATIVIDADE_ENCERRADA)
       return atividades.responder(id, questao, alternativa, sequencia)
     })
     return questaoSalvaResponseSchema.parse({ questao: salva.questao, alternativa: salva.alternativa, sequencia: salva.sequencia, respondidaEm: salva.respondidaEm.toISOString() })
@@ -118,10 +118,10 @@ export class MinhaAtividadeService {
     const enviada = await this.banco.transaction(async (tx) => {
       const atividades = new MinhaAtividadeRepository(tx)
       const atividade = await atividades.travarParaGravar(id)
-      if (atividade === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+      if (atividade === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
       let tentativa = await atividades.tentativa(id)
       if (tentativa === undefined || tentativa.enviadaEm === null) {
-        if (atividade.estado !== 'aberta') throw new ErroDeDominio(ErrorCode.ATIVIDADE_ENCERRADA)
+        if (atividade.estado !== 'aberta') throw new DomainException(ErrorCode.ATIVIDADE_ENCERRADA)
         await atividades.abrirTentativa(id)
         await atividades.enviar(id)
         tentativa = await atividades.tentativa(id)
@@ -129,7 +129,7 @@ export class MinhaAtividadeService {
       const respostas = await atividades.respostas(id)
       return { enviadaEm: tentativa?.enviadaEm ?? null, respondidas: respostas.length, questoes: atividade.questoes }
     })
-    if (enviada.enviadaEm === null) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+    if (enviada.enviadaEm === null) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
     return atividadeEnviadaResponseSchema.parse({ ...enviada, enviadaEm: enviada.enviadaEm.toISOString() })
   }
 
@@ -137,7 +137,7 @@ export class MinhaAtividadeService {
     const atividades = new MinhaAtividadeRepository(this.banco)
     const diagnostico = await atividades.diagnostico(id)
     // Sem lote aprovado, a resposta é a do inexistente: nada confirma que há correção esperando.
-    if (diagnostico === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+    if (diagnostico === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
     const { questoes } = conteudoDeAtividadeSchema.parse(diagnostico.conteudo)
     const marcadas = new Map((await atividades.respostas(id)).map((resposta) => [resposta.questao, resposta.alternativa]))
     const habilidades = habilidadesDaAtividade(questoes)

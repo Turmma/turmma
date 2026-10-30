@@ -1,26 +1,26 @@
 import {
-  avisoEspacado,
-  ConfiguracaoOperacional,
-  ConfiguracaoOperacionalRepository,
-  criarBanco,
-  criarClienteRedisDaFila,
-  criarPool,
-  DespachoRepository,
-  nomeDaFilaBullMQ,
-  observarPoolDoBanco,
-  observarRedis,
-  OuvinteDeJobs,
-  relogioDoSistema,
+  throttledWarn,
+  OperationalSettings,
+  OperationalSettingsRepository,
+  createDatabase,
+  createQueueRedisClient,
+  createPool,
+  DispatchRepository,
+  bullmqQueueName,
+  observeDatabasePool,
+  observeRedis,
+  JobNotificationListener,
+  systemClock,
   resolverJanela,
   resolverVagasDaEscola,
-  VagasPorEscola,
-  type Batimento,
-  type DadosDoJobNaFila,
+  EscolaConcurrencyLimiter,
+  type Heartbeat,
+  type QueuedJobData,
   type JanelaLetiva,
   type LoggerBase,
   type Meter,
-  type Relogio,
-  type VagasPorFila,
+  type Clock,
+  type ConcurrencyByQueue,
 } from '@educa/nucleo'
 import type { JobRegistry } from '@educa/shared'
 import { Queue } from 'bullmq'
@@ -38,12 +38,12 @@ export interface OpcoesDaMontagem {
   /** Intervalo da reconciliação. Só o teste troca, para provar que ela roda sozinha. */
   intervaloReconciliacaoMs?: number
   /** Troca as vagas. Só o teste usa, para simular outro despachante tomando a vaga no meio da rodada. */
-  embrulharVagas?: (vagas: VagasPorEscola) => Pick<VagasPorEscola, 'membros' | 'manter' | 'livres' | 'tomar' | 'liberar'>
+  embrulharVagas?: (vagas: EscolaConcurrencyLimiter) => Pick<EscolaConcurrencyLimiter, 'membros' | 'manter' | 'livres' | 'tomar' | 'liberar'>
   /** Validade da vaga. Só o teste troca, para ver a vaga vencer sem esperar 60 s. */
   validadeDaVagaMs?: number
   /** Relógio do horário letivo. Só o teste troca, para ver o lote não urgente de terça às 10h sair às 18h. */
-  relogio?: Relogio
-  batimento?: Batimento
+  relogio?: Clock
+  batimento?: Heartbeat
   /**
    * Medidor da telemetria. Com ele, o despachante mede as filas por escola, o pool e o Redis; sem ele (os
    * testes que não olham métrica), não mede nada.
@@ -87,16 +87,16 @@ export function montarDespachante(config: Omit<ConfiguracaoDespachante, 'telemet
     // Só o controle negativo do cenário de carga chega aqui, e ele precisa ficar visível no log de quem subiu assim.
     logger.warn({ evento: 'despachante.vagas_por_escola_desligadas' })
   }
-  const pool = criarPool(config.banco, () => logger.warn({ evento: 'banco.conexao_ociosa_perdida' }))
-  const redis = criarClienteRedisDaFila(
+  const pool = createPool(config.banco, () => logger.warn({ evento: 'banco.conexao_ociosa_perdida' }))
+  const redis = createQueueRedisClient(
     config.redisFilaUrl,
     'despachante',
-    avisoEspacado(() => logger.warn({ evento: 'despachante.redis_indisponivel' })),
+    throttledWarn(() => logger.warn({ evento: 'despachante.redis_indisponivel' })),
   )
-  const avisarErroDaFila = avisoEspacado(() => logger.warn({ evento: 'despachante.fila_com_erro' }))
+  const avisarErroDaFila = throttledWarn(() => logger.warn({ evento: 'despachante.fila_com_erro' }))
   const fila = new PublicacaoBullMQ(
     (nome, executor) => {
-      const queue = new Queue<DadosDoJobNaFila>(nomeDaFilaBullMQ(nome, executor), {
+      const queue = new Queue<QueuedJobData>(bullmqQueueName(nome, executor), {
         connection: redis,
         ...(opcoes.prefixo === undefined ? {} : { prefix: opcoes.prefixo }),
       })
@@ -106,29 +106,29 @@ export function montarDespachante(config: Omit<ConfiguracaoDespachante, 'telemet
     undefined,
     opcoes.definicoes,
   )
-  const banco = criarBanco(pool)
-  const repositorio = new DespachoRepository(banco)
-  const vagasReais = new VagasPorEscola(redis, opcoes.prefixo, opcoes.validadeDaVagaMs)
+  const banco = createDatabase(pool)
+  const repositorio = new DispatchRepository(banco)
+  const vagasReais = new EscolaConcurrencyLimiter(redis, opcoes.prefixo, opcoes.validadeDaVagaMs)
   const vagas = opcoes.embrulharVagas?.(vagasReais) ?? vagasReais
   // Vagas e horário letivo saem da mesma linha: uma leitura por escola, guardada uma vez. Se a primeira
   // leitura da escola falha, valem as vagas e o horário padrão até a próxima tentativa, em 5 s.
-  const avisarJanelaDescartada = avisoEspacado(() => logger.warn({ evento: 'despachante.janela_da_escola_invalida' }))
-  const operacao = new ConfiguracaoOperacional<{ vagas: VagasPorFila; janela: JanelaLetiva }>(
-    new ConfiguracaoOperacionalRepository(banco),
+  const avisarJanelaDescartada = throttledWarn(() => logger.warn({ evento: 'despachante.janela_da_escola_invalida' }))
+  const operacao = new OperationalSettings<{ vagas: ConcurrencyByQueue; janela: JanelaLetiva }>(
+    new OperationalSettingsRepository(banco),
     (linha) => ({
       vagas: resolverVagasDaEscola(config.vagasPadrao, linha, config.vagasPorEscolaDesligadas === true),
       janela: resolverJanela(config.janelaPadrao, linha, avisarJanelaDescartada),
     }),
-    { aoFalhar: avisoEspacado(() => logger.warn({ evento: 'despachante.configuracao_indisponivel' })) },
+    { aoFalhar: throttledWarn(() => logger.warn({ evento: 'despachante.configuracao_indisponivel' })) },
   )
   const vagasDaEscola = { daEscola: async () => (await operacao.daEscola()).vagas }
   const janelaDaEscola = { daEscola: async () => (await operacao.daEscola()).janela }
 
   // O aviso só chega depois de o laço abrir a escuta, e o laço só começa com o despachante construído.
-  const ouvinte = new OuvinteDeJobs(
+  const ouvinte = new JobNotificationListener(
     pool,
     () => despachante.acordar(),
-    avisoEspacado(() => logger.warn({ evento: 'despachante.escuta_indisponivel' })),
+    throttledWarn(() => logger.warn({ evento: 'despachante.escuta_indisponivel' })),
   )
   const despachante = new Despachante({
     repositorio,
@@ -136,7 +136,7 @@ export function montarDespachante(config: Omit<ConfiguracaoDespachante, 'telemet
     vagas,
     vagasDaEscola,
     janelaDaEscola,
-    relogio: opcoes.relogio ?? relogioDoSistema,
+    relogio: opcoes.relogio ?? systemClock,
     logger,
     ouvinte,
     ...(opcoes.batimento === undefined ? {} : { batimento: opcoes.batimento }),
@@ -149,10 +149,10 @@ export function montarDespachante(config: Omit<ConfiguracaoDespachante, 'telemet
   const { medidor } = opcoes
   let medicao: MedicaoDaFila | undefined
   if (medidor !== undefined) {
-    observarPoolDoBanco(medidor, pool)
-    observarRedis(medidor, { fila: [redis] })
+    observeDatabasePool(medidor, pool)
+    observeRedis(medidor, { fila: [redis] })
     medicao = new MedicaoDaFila(
-      { repositorio, vagas: vagasReais, janelaDaEscola, relogio: opcoes.relogio ?? relogioDoSistema, logger, medidor },
+      { repositorio, vagas: vagasReais, janelaDaEscola, relogio: opcoes.relogio ?? systemClock, logger, medidor },
       opcoes.intervaloMedicaoMs === undefined ? {} : { intervaloMs: opcoes.intervaloMedicaoMs },
     )
   }

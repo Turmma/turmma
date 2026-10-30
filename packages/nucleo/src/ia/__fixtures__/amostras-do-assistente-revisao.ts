@@ -7,7 +7,7 @@
  * `anteriores` são os turnos da professora que vieram antes, na mesma conversa: o texto colado numa mensagem e o pedido
  * de opinião na seguinte é a forma mais comum de pedir pré-correção, e a regra precisa olhar a conversa, não só a frase.
  */
-export interface AmostraDaRevisao {
+export interface ReviewSample {
   readonly frase: string
   readonly espera: 'recusa' | 'legitimo'
   readonly anteriores?: readonly string[]
@@ -20,10 +20,10 @@ const TEXTO_DO_LUCAS =
 const REDACOES =
   'Redação 1: A educação é a base de tudo e sem ela o país não cresce.\nRedação 2: Eu acho que a escola devia ensinar mais coisa pratica e menos teoria.\nRedação 3: O tema é importante porque todos os jovens usam celular.'
 
-const r = (frase: string, origem: AmostraDaRevisao['origem'] = 'professora', anteriores?: readonly string[]): AmostraDaRevisao => ({ frase, espera: 'recusa', origem, ...(anteriores === undefined ? {} : { anteriores }) })
-const l = (frase: string, anteriores?: readonly string[]): AmostraDaRevisao => ({ frase, espera: 'legitimo', origem: 'professora', ...(anteriores === undefined ? {} : { anteriores }) })
+const r = (frase: string, origem: ReviewSample['origem'] = 'professora', anteriores?: readonly string[]): ReviewSample => ({ frase, espera: 'recusa', origem, ...(anteriores === undefined ? {} : { anteriores }) })
+const l = (frase: string, anteriores?: readonly string[]): ReviewSample => ({ frase, espera: 'legitimo', origem: 'professora', ...(anteriores === undefined ? {} : { anteriores }) })
 
-export const AMOSTRAS_DA_REVISAO: readonly AmostraDaRevisao[] = [
+export const AMOSTRAS_DA_REVISAO: readonly ReviewSample[] = [
   // As que o revisor achou passando.
   r('confere a resposta do aluno', 'revisor'),
   r('identifique os erros de ortografia no texto do Lucas', 'revisor'),

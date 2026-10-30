@@ -1,4 +1,4 @@
-import { TIMEOUT_COMANDO_REDIS_FILA_MS, type ConfiguracaoBanco } from '@educa/nucleo'
+import { TIMEOUT_COMANDO_REDIS_FILA_MS, type DatabaseConfig } from '@educa/nucleo'
 import type { ConfiguracaoLogin } from '../src/credencial/index.js'
 import { lerAmbienteDeTeste, valorObrigatorio } from '../../../tools/ci/compose.ts'
 import { lerConfiguracao, type ConfiguracaoApi } from '../src/config.js'
@@ -19,12 +19,12 @@ export function urlDoOidcFalso(ambiente: Record<string, string> = lerAmbienteDeT
  * quem decide é `LOGIN_REDIS_PRAZO_MS`, e o do compose de teste é o de 2 s. Quem quer provar o corte de 100 ms pela
  * aplicação montada pede o prazo na configuração, com `{ login: { prazoDoRedisMs: TIMEOUT_COMANDO_REDIS_API_MS } }`
  * (`ataque-de-senha.int.test.ts`, "falha (15.5)"); quem o prova pelo cliente monta o cliente direto com
- * `criarClienteRedisDaApi` (`limite.int.test.ts`, e o "Redis fora" e o "Redis travado" do contador e do desafio).
+ * `createApiRedisClient` (`limite.int.test.ts`, e o "Redis fora" e o "Redis travado" do contador e do desafio).
  */
 export const MONTAGEM_DE_TESTE = { prazoDoRedisDeLoginMs: TIMEOUT_COMANDO_REDIS_FILA_MS } as const
 
 export interface SobreposicaoDeTeste {
-  banco?: Partial<ConfiguracaoBanco>
+  banco?: Partial<DatabaseConfig>
   /**
    * O prazo do Redis do login que o teste quer, depois da leitura da configuração. O caso é o teste que prova o corte
    * de 100 ms **pela aplicação montada**: ele precisa do valor de produção sem trocar o `AMBIENTE` para `staging`, que

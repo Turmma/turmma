@@ -1,4 +1,4 @@
-import { ConfiguracaoInvalida, ErroDeDominio, executarNoContexto, RegistroDeAuditoria, resumirErro, type Banco } from '@educa/nucleo'
+import { InvalidConfigError, DomainException, runInContext, AuditoriaRecorder, summarizeError, type Database } from '@educa/nucleo'
 import { ErrorCode } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { pathToFileURL } from 'node:url'
@@ -9,7 +9,7 @@ import { AcessoDaEscolaRepository } from '../credencial/index.js'
 import { abrirBancoDeOperacao, ArgumentoInvalido, autorDoComando, lerOperador, OperadorRecusado, type BancoDoComando, type SaidaDoComando } from './comando.js'
 import type { ConferenciaDoAutor } from '../sessao/index.js'
 
-const registro = new RegistroDeAuditoria()
+const registro = new AuditoriaRecorder()
 
 /**
  * A resposta do operador ao alerta "Código da turma errado em massa numa escola" (A1, tarefa 9.0; Tech Spec da A1,
@@ -19,7 +19,7 @@ const registro = new RegistroDeAuditoria()
  *
  * - O id da escola é o `escolaId` que a linha `sala.limite_atingido` do log traz: o comando não lê IP, slug nem código.
  * - O contexto é o da escola do id, como os outros `ops:*`, e a revogação passa pelo `AcessoDaTurmaRepository`, com o
- *   escopo dela: nenhum `@SemEscopo` novo.
+ *   escopo dela: nenhum `@Unscoped` novo.
  * - Revoga na hora todo link e código vigente da escola, de todas as turmas, e grava um `acesso_turma.revogado` por acesso
  *   na auditoria dela, com `autor_operador`, na mesma transação. Imprime só a contagem.
  * - A segunda execução revoga zero. Escola inexistente: `NAO_ENCONTRADO`. Id que não é UUID: `ArgumentoInvalido`, saída 2.
@@ -45,13 +45,13 @@ export function lerEscolaARevogar(argumentos: string[]): string {
  * Revoga os acessos vigentes da escola, numa transação que começa pela conferência do autor (Tech Spec da A0b, seção 7c,
  * "Autor ativo"): nada é lido nem gravado antes dela. Devolve quantos acessos caíram.
  */
-export function revogarAcessosDaEscola(banco: Banco, autor: ConferenciaDoAutor, escolaId: string): Promise<number> {
+export function revogarAcessosDaEscola(banco: Database, autor: ConferenciaDoAutor, escolaId: string): Promise<number> {
   const requisicaoId = randomUUID()
-  return executarNoContexto({ requisicaoId }, () =>
+  return runInContext({ requisicaoId }, () =>
     banco.transaction(async (tx) => {
       const autorOperador = await autor(tx)
-      return executarNoContexto({ requisicaoId, escolaId }, async () => {
-        if ((await new AcessoDaEscolaRepository(tx).nome()) === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+      return runInContext({ requisicaoId, escolaId }, async () => {
+        if ((await new AcessoDaEscolaRepository(tx).nome()) === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
         const revogados = await new AcessoDaTurmaRepository(tx).revogarVigentesDaEscola()
         for (const { id, turmaId } of revogados) await registro.gravar(tx, 'acesso_turma.revogado', { entidadeId: id, depois: { turmaId }, autorOperador })
         return revogados.length
@@ -83,15 +83,15 @@ export async function executarOpsRevogarAcessosSala(
       await fechar()
     }
   } catch (erro) {
-    if (erro instanceof ArgumentoInvalido || erro instanceof ConfiguracaoInvalida || erro instanceof OperadorRecusado) {
+    if (erro instanceof ArgumentoInvalido || erro instanceof InvalidConfigError || erro instanceof OperadorRecusado) {
       terminal.erro(`${erro.message}\n`)
       return 2
     }
-    if (erro instanceof ErroDeDominio && erro.codigo === ErrorCode.NAO_ENCONTRADO) {
+    if (erro instanceof DomainException && erro.codigo === ErrorCode.NAO_ENCONTRADO) {
       terminal.erro(`${erro.codigo}\n`)
       return 1
     }
-    terminal.erro(`${ErrorCode.ERRO_INTERNO}: ${JSON.stringify(resumirErro(erro))}\n`)
+    terminal.erro(`${ErrorCode.ERRO_INTERNO}: ${JSON.stringify(summarizeError(erro))}\n`)
     return 1
   }
 }

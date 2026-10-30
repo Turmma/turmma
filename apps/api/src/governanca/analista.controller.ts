@@ -1,4 +1,4 @@
-import { Permite, ZodValidationPipe } from '@educa/nucleo'
+import { RequirePermissao, ZodValidationPipe } from '@educa/nucleo'
 import {
   analistaNominalQuerySchema,
   gerarResumoDoAnalistaRequestSchema,
@@ -21,21 +21,21 @@ export class AnalistaController {
   constructor(private readonly analista: AnalistaService) {}
 
   @Get('resumo')
-  @Permite('analista', 'ler_resumo')
+  @RequirePermissao('analista', 'ler_resumo')
   @Header('Cache-Control', 'no-store')
   resumo(): Promise<ResumoDoAnalistaResponse> {
     return this.analista.resumo()
   }
 
   @Post('gerar')
-  @Permite('analista', 'gerar')
+  @RequirePermissao('analista', 'gerar')
   @HttpCode(HttpStatus.ACCEPTED)
   gerar(@Body(new ZodValidationPipe(gerarResumoDoAnalistaRequestSchema)) pedido: GerarResumoDoAnalistaRequest): Promise<ExecucaoAceitaResponse> {
     return this.analista.gerar(pedido)
   }
 
   @Get('nominal')
-  @Permite('analista', 'ler_nominal')
+  @RequirePermissao('analista', 'ler_nominal')
   @Header('Cache-Control', 'no-store')
   nominal(@Query(new ZodValidationPipe(analistaNominalQuerySchema)) consulta: AnalistaNominalQuery): Promise<AnalistaNominalResponse> {
     return this.analista.nominal(consulta)

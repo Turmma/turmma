@@ -13,7 +13,7 @@ import { turnoDoTutor } from './turno-do-tutor.js'
  * próprio nome e a função que o contrato dá a ela (`FUNCAO_DA_TAREFA_DE_IA`). Tarefa nova entra nos dois lugares,
  * com prompt, schemas, conferência e versão determinística.
  */
-export const CATALOGO_DE_TAREFAS = {
+export const TASK_CATALOG = {
   propor_ferramenta: proporFerramenta,
   gerar_atividade_objetiva: gerarAtividadeObjetiva,
   gerar_plano_de_aula: gerarPlanoDeAula,

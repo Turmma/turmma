@@ -3,8 +3,8 @@ import { z } from 'zod'
 import {
   dadoEmJson,
   dadosDosTrechos,
-  esquemaContextoDaTurma,
-  esquemaTrecho,
+  contextoDaTurmaSchema,
+  trechoSchema,
   extrairFatos,
   fatoCitadoNoTexto,
   fraseMaisProxima,
@@ -13,7 +13,7 @@ import {
   type FraseDoMaterial,
 } from '../material.js'
 import { PROMPT_TURNO_DO_TUTOR } from '../prompts/turno-do-tutor.js'
-import { definirTarefa } from '../tarefa.js'
+import { defineTask } from '../tarefa.js'
 import { contemTexto, cortar, normalizar, palavras, palavrasDeConteudo, semPontoFinal } from '../texto.js'
 
 /**
@@ -35,7 +35,7 @@ export const CLASSIFICACOES_DO_MODELO = [...CLASSIFICACOES_DO_TURNO, 'risco_a_vi
  * A questão em que o aluno está, **sem gabarito e sem explicação**: o objeto é estrito, então mandar qualquer um
  * dos dois é entrada inválida. O Tutor não tem como entregar o que não recebeu, em nenhum estado da atividade.
  */
-const esquemaQuestaoEmAndamento = z.strictObject({
+const questaoEmAndamentoSchema = z.strictObject({
   numero: z.number().int().min(1).max(20),
   enunciado: z.string().min(1).max(1200),
   alternativas: z.array(z.string().min(1).max(400)).length(4),
@@ -46,31 +46,31 @@ const esquemaQuestaoEmAndamento = z.strictObject({
  * A memória é do **trabalho** do aluno: acertos e erros por habilidade (D66). Só números e a habilidade do catálogo;
  * não há campo de texto, e por isso não há onde escrever sobre o jeito, o humor ou o comportamento dele.
  */
-const esquemaMemoriaDoTrabalho = z.strictObject({
+const memoriaDoTrabalhoSchema = z.strictObject({
   habilidade: habilidadeSchema,
   acertos: z.number().int().min(0),
   erros: z.number().int().min(0),
 })
 
-export const esquemaEntradaDoTutor = z.strictObject({
+export const tutorInputSchema = z.strictObject({
   /** O que o aluno escreveu agora. Vai ao modelo como dado, nunca como instrução. */
   duvida: z.string().min(1).max(2000),
-  contexto: esquemaContextoDaTurma,
+  contexto: contextoDaTurmaSchema,
   /** Os trechos do material da turma que a busca achou para a dúvida. O Tutor só fala a partir deles. */
-  trechos: z.array(esquemaTrecho).max(8),
-  questao: esquemaQuestaoEmAndamento.optional(),
-  memoria: z.array(esquemaMemoriaDoTrabalho).max(12),
+  trechos: z.array(trechoSchema).max(8),
+  questao: questaoEmAndamentoSchema.optional(),
+  memoria: z.array(memoriaDoTrabalhoSchema).max(12),
   /** Os últimos turnos desta conversa, para o Tutor não repetir a mesma pergunta. O histórico inteiro não vem (D66). */
   turnosAnteriores: z.array(z.strictObject({ autor: z.enum(['aluno', 'tutor']), texto: z.string().min(1).max(2000) })).max(8),
 })
-export type EntradaDoTutor = z.infer<typeof esquemaEntradaDoTutor>
+export type TutorInput = z.infer<typeof tutorInputSchema>
 
-export const esquemaSaidaDoTutor = z.strictObject({
+export const tutorOutputSchema = z.strictObject({
   classificacao: z.enum(CLASSIFICACOES_DO_MODELO),
   resposta: z.string().min(1).max(1500),
   citacoes: z.array(citacaoSchema).max(3),
 })
-export type SaidaDoTutor = z.infer<typeof esquemaSaidaDoTutor>
+export type TutorOutput = z.infer<typeof tutorOutputSchema>
 
 /**
  * As duas mensagens fixas do assunto delicado (D36). O Tutor não aconselha e não continua o assunto: acolhe em uma
@@ -392,7 +392,7 @@ function pedeNestaMensagem(texto: string, comQuestao: boolean): boolean {
  * O aluno pediu a resposta pronta? Decide a regra, pelo que ele escreveu: o pedido direto, sempre; a conferência de
  * palpite e o pedido fatiado, só com questão em andamento; e, com questão, a insistência curta logo depois de um pedido.
  */
-export function pedeRespostaPronta(entrada: Pick<EntradaDoTutor, 'duvida' | 'questao' | 'turnosAnteriores'>): boolean {
+export function pedeRespostaPronta(entrada: Pick<TutorInput, 'duvida' | 'questao' | 'turnosAnteriores'>): boolean {
   const comQuestao = entrada.questao !== undefined
   const texto = normalizar(entrada.duvida)
   if (pedeNestaMensagem(texto, comQuestao)) return true
@@ -401,7 +401,7 @@ export function pedeRespostaPronta(entrada: Pick<EntradaDoTutor, 'duvida' | 'que
   return anterior !== undefined && pedeNestaMensagem(normalizar(anterior.texto), true)
 }
 
-function mensagemFixaDoAssuntoDelicado(duvida: string): SaidaDoTutor {
+function mensagemFixaDoAssuntoDelicado(duvida: string): TutorOutput {
   return {
     classificacao: 'assunto_delicado',
     resposta: mencionaRiscoAVida(duvida) ? MENSAGEM_DE_RISCO_A_VIDA : MENSAGEM_DE_ASSUNTO_DELICADO,
@@ -425,7 +425,7 @@ const radical = (palavra: string): string => palavra.slice(0, 5)
  * Fora do escopo é o pedido que não toca em nada do que a turma está estudando: nenhuma palavra de conteúdo da
  * dúvida aparece no material, na questão ou na disciplina. Dúvida curta, sem palavra de conteúdo, é continuação.
  */
-function estaForaDoEscopo(entrada: EntradaDoTutor): boolean {
+function estaForaDoEscopo(entrada: TutorInput): boolean {
   // Sem trecho e sem questão não há com o que comparar: o Tutor pergunta onde o aluno está, em vez de acusar desvio.
   if (entrada.trechos.length === 0 && entrada.questao === undefined) return false
   const doAssunto = palavrasDeConteudo(entrada.duvida).filter((palavra) => !PALAVRAS_DE_ESTUDO.has(palavra))
@@ -449,7 +449,7 @@ const TAMANHO_DA_ALTERNATIVA_LONGA = 6
  * "2 mol") também, quando tem número: ela aparece como palavra solta, fora de "página 5", "questão 5" e da contagem
  * da memória ("errou 3 questões"), que são referência e não resposta. Letra sozinha fica com os padrões de letra.
  */
-function repeteAlternativa(texto: string, entrada: EntradaDoTutor): boolean {
+function repeteAlternativa(texto: string, entrada: TutorInput): boolean {
   const normalizado = normalizar(texto)
   return (entrada.questao?.alternativas ?? []).some((alternativa) => {
     const alvo = normalizar(semPontoFinal(alternativa))
@@ -465,11 +465,11 @@ function repeteAlternativa(texto: string, entrada: EntradaDoTutor): boolean {
  * nunca a frase inteira. A frase que ajuda costuma ser a própria definição que ele pediu, ou, palavra por palavra, a
  * alternativa correta da questão. Se até o começo repete uma alternativa, o chip mostra só a página.
  */
-function comecoSemAResposta(frase: FraseDoMaterial, comeco: string, entrada: EntradaDoTutor): string {
+function comecoSemAResposta(frase: FraseDoMaterial, comeco: string, entrada: TutorInput): string {
   return repeteAlternativa(comeco, entrada) ? `Página ${frase.pagina} do material` : comeco
 }
 
-function apoioNoMaterial(entrada: EntradaDoTutor): { citacao: Citacao; orientacao: string } | undefined {
+function apoioNoMaterial(entrada: TutorInput): { citacao: Citacao; orientacao: string } | undefined {
   const busca = `${entrada.duvida} ${entrada.questao?.enunciado ?? ''}`
   // Quando a dúvida ou a questão nomeiam um conceito que o material define, a página certa é a da definição dele.
   const fato = fatoCitadoNoTexto(extrairFatos(entrada.trechos).filter((candidato) => !candidato.numerico), busca)
@@ -488,7 +488,7 @@ function apoioNoMaterial(entrada: EntradaDoTutor): { citacao: Citacao; orientaca
 }
 
 /** O que o Tutor lembra é o trabalho: quantas questões daquela habilidade o aluno errou antes (D66). */
-function lembrancaDoTrabalho(entrada: EntradaDoTutor): string {
+function lembrancaDoTrabalho(entrada: TutorInput): string {
   const daQuestao = entrada.memoria.find((item) => item.habilidade.codigo === entrada.questao?.habilidade.codigo)
   const item = daQuestao ?? [...entrada.memoria].sort((a, b) => b.erros - a.erros)[0]
   if (item === undefined || item.erros === 0) return ''
@@ -496,7 +496,7 @@ function lembrancaDoTrabalho(entrada: EntradaDoTutor): string {
 }
 
 /** A pergunta muda a cada turno do Tutor nesta conversa: ele não repete a mesma, e sempre termina perguntando. */
-function proximaPergunta(entrada: EntradaDoTutor, pagina: number | undefined): string {
+function proximaPergunta(entrada: TutorInput, pagina: number | undefined): string {
   const passo = entrada.turnosAnteriores.filter((turno) => turno.autor === 'tutor').length
   if (entrada.questao !== undefined) {
     if (passo === 0) return `O que a questão ${entrada.questao.numero} pede que você descubra?`
@@ -512,7 +512,7 @@ function proximaPergunta(entrada: EntradaDoTutor, pagina: number | undefined): s
 
 const juntar = (...partes: string[]): string => partes.filter((parte) => parte.length > 0).join(' ')
 
-function conduzirPorPerguntas(entrada: EntradaDoTutor, abertura: string, classificacao: ClassificacaoDoTurno): SaidaDoTutor {
+function conduzirPorPerguntas(entrada: TutorInput, abertura: string, classificacao: ClassificacaoDoTurno): TutorOutput {
   const apoio = apoioNoMaterial(entrada)
   const primeiroTurno = entrada.turnosAnteriores.every((turno) => turno.autor !== 'tutor')
   return {
@@ -546,7 +546,7 @@ const CONFIRMA_OU_NEGA =
  * O aluno pediu a resposta pronta? Quem decide é a **regra**, pelo que ele escreveu; a classificação do modelo só
  * soma. Um modelo que classifica "é a B, né?" como dúvida normal não desliga a recusa, nem o sinal ao professor.
  */
-function pediuRespostaPronta(entrada: EntradaDoTutor, saida: SaidaDoTutor): boolean {
+function pediuRespostaPronta(entrada: TutorInput, saida: TutorOutput): boolean {
   return saida.classificacao === 'pediu_resposta_pronta' || pedeRespostaPronta(entrada)
 }
 
@@ -556,8 +556,8 @@ function pediuRespostaPronta(entrada: EntradaDoTutor, saida: SaidaDoTutor): bool
  * (D36; D62). Sai o turno que casa com gatilho, com a resposta dele; e sai o turno do aluno que veio logo antes de uma
  * mensagem fixa, mesmo sem gatilho: foi o modelo que o classificou como delicado.
  */
-export function turnosParaOModelo(entrada: EntradaDoTutor): EntradaDoTutor['turnosAnteriores'] {
-  const turnos: EntradaDoTutor['turnosAnteriores'] = []
+export function turnosParaOModelo(entrada: TutorInput): TutorInput['turnosAnteriores'] {
+  const turnos: TutorInput['turnosAnteriores'] = []
   let anteriorEraDoAluno = false
   let pulaAResposta = false
   for (const turno of entrada.turnosAnteriores) {
@@ -590,7 +590,7 @@ export function turnosParaOModelo(entrada: EntradaDoTutor): EntradaDoTutor['turn
  * palavra) passa. Isso fica com o prompt, com a avaliação do modelo nas amostras fixas, e com a supervisão do
  * professor, que vê os sinais e o uso da turma (D47): o Tutor é supervisionado, não infalível.
  */
-function problemasDoTurno(entrada: EntradaDoTutor, saida: SaidaDoTutor): string[] {
+function problemasDoTurno(entrada: TutorInput, saida: TutorOutput): string[] {
   const problemas = problemasDasCitacoes(saida.citacoes, entrada.trechos, 'Citações')
   // Assunto delicado só tem uma resposta, a fixa. Texto do modelo no lugar dela é recusado, classifique ele como classificar.
   // A de risco à vida também vale onde o padrão não reconheceu a frase: foi o modelo que a classificou, e o `ajustar` a pôs.
@@ -619,12 +619,12 @@ function problemasDoTurno(entrada: EntradaDoTutor, saida: SaidaDoTutor): string[
   return problemas
 }
 
-export const turnoDoTutor = definirTarefa({
+export const turnoDoTutor = defineTask({
   nome: 'turno_do_tutor',
   funcao: 'tutor_com_o_aluno',
   perfil: 'rapido',
-  esquemaDeEntrada: esquemaEntradaDoTutor,
-  esquemaDeSaida: esquemaSaidaDoTutor,
+  esquemaDeEntrada: tutorInputSchema,
+  esquemaDeSaida: tutorOutputSchema,
   prompt: PROMPT_TURNO_DO_TUTOR,
   maximoDeTokensDeSaida: 700,
   levaTextoLivreDePessoa: true,
@@ -658,7 +658,7 @@ export const turnoDoTutor = definirTarefa({
    * o padrão não reconheça a frase. A classificação que sai é sempre uma de `CLASSIFICACOES_DO_TURNO`, e é por ela que o serviço
    * grava o sinal `atencao_humana`, sem referência e sem o que o aluno escreveu.
    */
-  ajustar(entrada, saida): SaidaDoTutor {
+  ajustar(entrada, saida): TutorOutput {
     if (saida.classificacao === 'risco_a_vida') return { classificacao: 'assunto_delicado', resposta: MENSAGEM_DE_RISCO_A_VIDA, citacoes: [] }
     if (saida.classificacao === 'assunto_delicado' || ehAssuntoDelicado(entrada.duvida)) return mensagemFixaDoAssuntoDelicado(entrada.duvida)
     return pedeRespostaPronta(entrada) ? { ...saida, classificacao: 'pediu_resposta_pronta' } : saida
@@ -683,7 +683,7 @@ export const turnoDoTutor = definirTarefa({
     )
   },
 
-  falso(entrada): SaidaDoTutor {
+  falso(entrada): TutorOutput {
     if (ehAssuntoDelicado(entrada.duvida)) return mensagemFixaDoAssuntoDelicado(entrada.duvida)
     const texto = normalizar(entrada.duvida)
     // Antes de tudo: quem pede a resposta junto de outra pergunta continua pedindo a resposta.

@@ -1,4 +1,4 @@
-import { executarNoContexto, RECUSA_DE_CORRECAO_DE_TEXTO_DE_ALUNO, type ExecutorDeAgente, type ExecutorNoProcesso, type LLMProvider, type SuspensaoDeFuncao } from '@educa/nucleo'
+import { runInContext, RECUSA_DE_CORRECAO_DE_TEXTO_DE_ALUNO, type AgenteExecutor, type InProcessAgenteExecutor, type LLMProvider, type SuspensaoDeFuncao } from '@educa/nucleo'
 import { conversaDoAssistenteResponseSchema, timeResponseSchema, FUNCOES, MENSAGENS_DE_ERRO, type ChaveDeFuncao } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { readdirSync, readFileSync } from 'node:fs'
@@ -40,7 +40,7 @@ describe('Assistente de ensino', () => {
   const medidor = new MedidorDeTeste()
   const linhasDeLog: string[] = []
   let api: ApiDeTeste
-  let executor: ExecutorNoProcesso
+  let executor: InProcessAgenteExecutor
   let a: EscolaComAssistente
   let b: EscolaComAssistente
 
@@ -55,7 +55,7 @@ describe('Assistente de ensino', () => {
 
   beforeAll(async () => {
     api = await subirApi(medidor.medidor, {}, linhasDeLog)
-    executor = api.app.get<ExecutorNoProcesso>(EXECUTOR_DE_AGENTE)
+    executor = api.app.get<InProcessAgenteExecutor>(EXECUTOR_DE_AGENTE)
     a = await montarEscolaComAssistente(api, bancada)
     b = await montarEscolaComAssistente(api, bancada)
   })
@@ -299,8 +299,8 @@ describe('Assistente de ensino', () => {
       expect(await comoPessoa(b, b.professora, 'professor', () => new ConversaRepository(bancada.banco).perguntaDaChave(chaveDe2025))).toBeUndefined()
       // No contexto de 2025, as mesmas consultas acham: o que separou foi o ano letivo.
       const em2025 = { requisicaoId: randomUUID(), escolaId: b.escolaId, usuarioId: b.professora.usuarioId, papel: 'professor' as const, sessaoId: b.professora.sessaoId, anoLetivoId: anterior.anoLetivoId }
-      expect((await executarNoContexto(em2025, () => new ConversaRepository(bancada.banco).anteriores(undefined, 100))).map((item) => item.id)).toEqual([mensagemDe2025])
-      expect((await executarNoContexto(em2025, () => new ConversaRepository(bancada.banco).perguntaDaChave(chaveDe2025)))?.id).toBe(mensagemDe2025)
+      expect((await runInContext(em2025, () => new ConversaRepository(bancada.banco).anteriores(undefined, 100))).map((item) => item.id)).toEqual([mensagemDe2025])
+      expect((await runInContext(em2025, () => new ConversaRepository(bancada.banco).perguntaDaChave(chaveDe2025)))?.id).toBe(mensagemDe2025)
 
       // A execução de 2025 não é lida em 2026, e a chave dela não devolve a execução antiga nem grava uma nova.
       expect(await get(b.professora, `/v1/execucoes/${execucaoDe2025}`)).toMatchObject({ status: 404, corpo: { erro: { codigo: 'NAO_ENCONTRADO' } } })
@@ -323,7 +323,7 @@ describe('Assistente de ensino', () => {
         },
       } as unknown as LLMProvider
       // O trabalho da execução espera o teste liberar: é o intervalo entre o `202` e a execução.
-      const comEspera: ExecutorDeAgente = { agendar: (execucao, trabalho) => executor.agendar(execucao, async (sinal) => (await antesDeRodar, trabalho(sinal))) }
+      const comEspera: AgenteExecutor = { agendar: (execucao, trabalho) => executor.agendar(execucao, async (sinal) => (await antesDeRodar, trabalho(sinal))) }
       const servico = new AssistenteService(bancada.banco, new AgendadorDeExecucoes(bancada.banco, ia, comEspera, api.app.get<SuspensaoDeFuncao>(SUSPENSAO_DE_FUNCAO)), api.app.get(LimiteDePedidosDeIa), api.app.get(BuscaDeTrechos))
 
       await vincularProfessor(bancada, b, b.colega.usuarioId, b.turma, b.quimica)

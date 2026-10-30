@@ -12,11 +12,11 @@ import { interpretarCorpus, medir, type Amostra, type Contagem, type Medida } fr
  * - **padrão ou modelo**: o que o aluno recebe pelo `turnoDoTutor` inteiro (a mensagem de risco, com o 188), em três execuções,
  *   valendo a **pior** de cada categoria (regra 40, "Testar coisa probabilística").
  *
- * **Não roda no portão**, e nenhum teste o chama com modelo: o teste prova a conta com o `AdaptadorRoteirizado`. Quem o roda é o
+ * **Não roda no portão**, e nenhum teste o chama com modelo: o teste prova a conta com o `ScriptedAdapter`. Quem o roda é o
  * Arquiteto, à mão, com o modelo local (regra 30, item 3), sobre o lote retido que ninguém que escreve padrão leu. A precisão e
  * os pisos saem da mesma `medir` do `ouro.ts`, com `ameaca_a_terceiro` fora do alvo (README do `ouro`, decisão 5).
  *
- * O adaptador é o da configuração (`lerConfiguracaoDeIa`): `IA_ADAPTADOR=openai_compat` com `LLM_BASE_URL` apontando para o
+ * O adaptador é o da configuração (`loadLLMConfig`): `IA_ADAPTADOR=openai_compat` com `LLM_BASE_URL` apontando para o
  * `llama-server` ou o Ollama desta máquina (`.env.example`). O adaptador falso nunca classifica `risco_a_vida`, e por isso a
  * medida com ele é recusada.
  */
@@ -146,7 +146,7 @@ const REQUISICAO_DA_MEDIDA = '1b2c3d4e-5f60-4a71-8b82-9c0d1e2f3a45'
 export const entradaDaMedida = (duvida: string) => ({ duvida, contexto: { serie: '8º ano do Ensino Fundamental', disciplina: 'Ciências' }, trechos: [], memoria: [], turnosAnteriores: [] })
 
 /**
- * A medida pelo caminho de verdade: o `ProvedorDeIa` com a `turnoDoTutor`, e o aluno "barrado" quando recebe a mensagem de risco, com
+ * A medida pelo caminho de verdade: o `LLMGateway` com a `turnoDoTutor`, e o aluno "barrado" quando recebe a mensagem de risco, com
  * o 188 na frente. A tarefa só devolve essa mensagem como `assunto_delicado`, de modo que o texto basta para dizer que barrou.
  */
 export function medirComProvedor(amostras: readonly Amostra[], pecas: PecasDoNucleo, opcoes: Pick<DependenciasDaMedida, 'execucoes' | 'aoTerminarExecucao'> = {}): Promise<ResultadoDaMedida> {
@@ -170,12 +170,12 @@ export interface ConfiguracaoLida {
   readonly modelo?: { readonly processamentoLocal: boolean }
 }
 interface NucleoEmDist {
-  lerConfiguracaoDeIa(ambiente: Record<string, string | undefined>): ConfiguracaoLida
-  criarProvedorDeIa(config: ConfiguracaoLida, portas: { registro: unknown; orcamento: unknown; suspensao: unknown }): ProvedorDeTurnos
-  executarNoContexto: ExecutarNoContexto
-  ConsumoEmMemoria: new () => unknown
-  OrcamentoEmMemoria: new (consumo: unknown) => unknown
-  SuspensoesEmMemoria: new () => unknown
+  loadLLMConfig(ambiente: Record<string, string | undefined>): ConfiguracaoLida
+  createLLMGateway(config: ConfiguracaoLida, portas: { registro: unknown; orcamento: unknown; suspensao: unknown }): ProvedorDeTurnos
+  runInContext: ExecutarNoContexto
+  InMemoryConsumo: new () => unknown
+  InMemoryOrcamento: new (consumo: unknown) => unknown
+  InMemorySuspensoes: new () => unknown
 }
 interface TarefaEmDist {
   readonly turnoDoTutor: unknown
@@ -211,11 +211,11 @@ async function principal(argumentos: readonly string[]): Promise<void> {
   // O núcleo vem do `dist` (`npm run -s build -w @educa/shared && npm run -s build -w @educa/nucleo`), como nos scripts de `infra/scripts/`.
   const nucleo = await importar<NucleoEmDist>('packages/nucleo/dist/index.js')
   const tarefa = await importar<TarefaEmDist>('packages/nucleo/dist/ia/tarefas/turno-do-tutor.js')
-  const config = nucleo.lerConfiguracaoDeIa(process.env)
+  const config = nucleo.loadLLMConfig(process.env)
   exigirModeloDaMedida(config, argumentos)
-  const consumo = new nucleo.ConsumoEmMemoria()
-  const provedor = nucleo.criarProvedorDeIa(config, { registro: consumo, orcamento: new nucleo.OrcamentoEmMemoria(consumo), suspensao: new nucleo.SuspensoesEmMemoria() })
-  const resultado = await medirComProvedor(amostras, { provedor, executarNoContexto: nucleo.executarNoContexto, ...tarefa }, {
+  const consumo = new nucleo.InMemoryConsumo()
+  const provedor = nucleo.createLLMGateway(config, { registro: consumo, orcamento: new nucleo.InMemoryOrcamento(consumo), suspensao: new nucleo.InMemorySuspensoes() })
+  const resultado = await medirComProvedor(amostras, { provedor, executarNoContexto: nucleo.runInContext, ...tarefa }, {
     aoTerminarExecucao: (execucao, execucoes) => process.stderr.write(`execução ${String(execucao)} de ${String(execucoes)} terminada\n`),
   })
   process.stdout.write(`${descreverMedida(amostras, resultado)}\n`)

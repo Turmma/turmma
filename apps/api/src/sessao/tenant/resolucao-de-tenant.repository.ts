@@ -1,4 +1,4 @@
-import { acessoTurma, anoLetivo, codigoRecuperacao, conta, convite, ErroDeDominio, escola, rede, registroAcesso, SemEscopo, sessao, usuario, type Banco, type EstadoDaSessao, type MotivoDeEncerramento, type TipoDeConvite, type TransacaoBanco } from '@educa/nucleo'
+import { acessoTurma, anoLetivo, codigoRecuperacao, conta, convite, DomainException, escola, rede, registroAcesso, Unscoped, sessao, usuario, type Database, type EstadoDaSessao, type MotivoDeEncerramento, type TipoDeConvite, type DatabaseTransaction } from '@educa/nucleo'
 import { ErrorCode, type PapelDeUsuario } from '@educa/shared'
 import { and, eq, gt, gte, isNotNull, isNull, lt, ne, or, sql, type SQL } from 'drizzle-orm'
 
@@ -83,7 +83,7 @@ export interface AcessoDaSalaAchado {
 
 /**
  * A fronteira da resolução de tenant (Tech Spec, seção 6): toda operação que acontece antes de existir escola no
- * contexto, e as da `conta` global, que não tem escola, fora as do ciclo de vida. Cada método leva `@SemEscopo` com a
+ * contexto, e as da `conta` global, que não tem escola, fora as do ciclo de vida. Cada método leva `@Unscoped` com a
  * justificativa da tabela da seção 6, e devolve o mínimo para quem chama chegar à escola certa. As três escritas na conta
  * global que o ciclo de vida faz (travar, limpar e encerrar as sessões dela) moram na `ContaGlobalRepository`, em
  * `nucleo/ciclo-de-vida` (F3, tarefa 1.0), que o worker alcança.
@@ -93,14 +93,14 @@ export interface AcessoDaSalaAchado {
  * acrescentam os outros métodos da mesma tabela.
  */
 export class ResolucaoDeTenantRepository {
-  constructor(private readonly banco: Banco | TransacaoBanco) {}
+  constructor(private readonly banco: Database | DatabaseTransaction) {}
 
   /**
    * Com o `banco` sendo a transação da renovação: acha a sessão cujo hash atual ou anterior é o do cookie e a trava
    * (`FOR UPDATE OF sessao`, sem travar o usuário nem a escola). Duas renovações do mesmo cookie esperam uma pela
    * outra, e a segunda relê a linha já rotacionada: o hash que era atual passa a ser o anterior.
    */
-  @SemEscopo('o cookie de renovação não diz a escola: a sessão é achada pelo hash atual ou anterior do refresh, e só depois a escola dela vira contexto')
+  @Unscoped('o cookie de renovação não diz a escola: a sessão é achada pelo hash atual ou anterior do refresh, e só depois a escola dela vira contexto')
   async sessaoParaRenovar(refreshHash: string): Promise<SessaoParaRenovar | undefined> {
     const [linha] = await this.banco
       .select({
@@ -139,7 +139,7 @@ export class ResolucaoDeTenantRepository {
    * continua entrando nas outras. `comSuspensos` devolve também os agendados: só a redefinição do MFA pelo operador o usa, para
    * que a coordenação de cada escola da conta saiba que o segundo fator foi redefinido.
    */
-  @SemEscopo('a credencial da equipe é global: depois da senha verificada, lista em que escolas a conta tem usuário ativo, só com id, escola e papel')
+  @Unscoped('a credencial da equipe é global: depois da senha verificada, lista em que escolas a conta tem usuário ativo, só com id, escola e papel')
   usuariosAtivosDaConta(contaId: string, opcoes: { readonly comSuspensos?: boolean } = {}): Promise<UsuarioAtivoDaConta[]> {
     return this.banco
       .select({ usuarioId: usuario.id, escolaId: usuario.escolaId, papel: usuario.papel })
@@ -152,7 +152,7 @@ export class ResolucaoDeTenantRepository {
    * Se a conta tem usuário de equipe ativo com a eliminação agendada (F3, 14.0). Só depois da senha certa e só quando nenhum
    * usuário da conta pode entrar: é o que decide entre `ACESSO_SUSPENSO` e a resposta única do login.
    */
-  @SemEscopo('a credencial da equipe é global: depois da senha verificada e sem usuário que possa entrar, diz se a conta tem uma escola com a eliminação agendada, sem dizer qual')
+  @Unscoped('a credencial da equipe é global: depois da senha verificada e sem usuário que possa entrar, diz se a conta tem uma escola com a eliminação agendada, sem dizer qual')
   async temAcessoSuspenso(contaId: string): Promise<boolean> {
     const [linha] = await this.banco
       .select({ id: usuario.id })
@@ -169,7 +169,7 @@ export class ResolucaoDeTenantRepository {
    * não aparecem. Nada da outra escola além
    * do nome dela e do da rede: nem id, nem turma, nem número de turmas, nem vínculo.
    */
-  @SemEscopo('a credencial da equipe é global: o /v1/eu e a etapa escolher listam, pela conta já verificada, em que escolas ela tem usuário ativo, só com id, nome da escola, nome da rede e papel')
+  @Unscoped('a credencial da equipe é global: o /v1/eu e a etapa escolher listam, pela conta já verificada, em que escolas ela tem usuário ativo, só com id, nome da escola, nome da rede e papel')
   acessosDaConta(contaId: string): Promise<Array<{ usuarioId: string; escolaNome: string; redeNome: string; papel: PapelDeUsuario }>> {
     return this.banco
       .select({ usuarioId: usuario.id, escolaNome: escola.nome, redeNome: rede.nome, papel: usuario.papel })
@@ -187,7 +187,7 @@ export class ResolucaoDeTenantRepository {
    * eliminação agendada); o `min` ignora quem ainda não viu. Devolve só a data: nada da outra escola, nem o nome dela, e ela não
    * sai em `acessos` nem na etapa `escolher` do login.
    */
-  @SemEscopo('a credencial da equipe é global: o /v1/eu lê, pela conta da sessão, a data mais antiga em que um usuário ativo dela, com o mesmo papel, viu a introdução; devolve só essa data, que não sai em acessos nem no login')
+  @Unscoped('a credencial da equipe é global: o /v1/eu lê, pela conta da sessão, a data mais antiga em que um usuário ativo dela, com o mesmo papel, viu a introdução; devolve só essa data, que não sai em acessos nem no login')
   async introducaoMaisAntigaDaConta(contaId: string, papel: PapelDeUsuario): Promise<Date | null> {
     const [linha] = await this.banco
       .select({ maisAntiga: sql<Date | string | null>`min(${usuario.introducaoVistaEm})` })
@@ -196,7 +196,7 @@ export class ResolucaoDeTenantRepository {
     return linha?.maisAntiga == null ? null : new Date(linha.maisAntiga)
   }
 
-  @SemEscopo('a credencial da equipe é global: o login por e-mail acha a conta pelo e-mail antes de haver escola, e devolve só o id, o hash e se o MFA está ativo')
+  @Unscoped('a credencial da equipe é global: o login por e-mail acha a conta pelo e-mail antes de haver escola, e devolve só o id, o hash e se o MFA está ativo')
   async contaPorEmail(email: string): Promise<CredencialDaConta | undefined> {
     const [linha] = await this.banco
       .select({ id: conta.id, senhaHash: conta.senhaHash, mfaAtivadoEm: conta.mfaAtivadoEm })
@@ -206,12 +206,12 @@ export class ResolucaoDeTenantRepository {
     return linha === undefined ? undefined : { id: linha.id, senhaHash: linha.senhaHash, mfaAtivo: linha.mfaAtivadoEm !== null }
   }
 
-  @SemEscopo('a falha de login por e-mail acontece antes de haver escola: grava o registro de acesso com escola e usuário nulos, só com o evento e o IP')
+  @Unscoped('a falha de login por e-mail acontece antes de haver escola: grava o registro de acesso com escola e usuário nulos, só com o evento e o IP')
   async gravarFalhaDeLoginPorEmail(ip: string): Promise<void> {
     await this.banco.insert(registroAcesso).values({ escolaId: null, usuarioId: null, evento: 'login_falho', ip })
   }
 
-  @SemEscopo('a conta é global e não tem escola: criar a credencial da equipe grava só o e-mail e devolve só os ids, sem ler conta existente')
+  @Unscoped('a conta é global e não tem escola: criar a credencial da equipe grava só o e-mail e devolve só os ids, sem ler conta existente')
   async criarContas(emails: readonly string[]): Promise<string[]> {
     if (emails.length === 0) return []
     const criadas = await this.banco
@@ -224,7 +224,7 @@ export class ResolucaoDeTenantRepository {
    * A conta limpa (17.0), sem e-mail, não é achada: um desafio emitido antes da limpeza não conclui nada e responde como
    * credencial inválida.
    */
-  @SemEscopo('a credencial da equipe é global: verificar o TOTP e a recuperação lê a conta pelo conta_id do desafio ou da sessão verificados, nunca pelo do cliente')
+  @Unscoped('a credencial da equipe é global: verificar o TOTP e a recuperação lê a conta pelo conta_id do desafio ou da sessão verificados, nunca pelo do cliente')
   async mfaDaConta(contaId: string): Promise<MfaDaConta | undefined> {
     const [linha] = await this.banco
       .select({
@@ -246,7 +246,7 @@ export class ResolucaoDeTenantRepository {
    * Grava o segredo novo só enquanto o MFA está inativo (`mfa_ativado_em is null`): quem tem só a senha de uma conta
    * com MFA não troca o segundo fator. Devolve se gravou.
    */
-  @SemEscopo('a credencial da equipe é global: configurar o MFA escreve na conta pelo conta_id do desafio verificado, e só com o MFA inativo')
+  @Unscoped('a credencial da equipe é global: configurar o MFA escreve na conta pelo conta_id do desafio verificado, e só com o MFA inativo')
   async gravarSegredoDeMfa(contaId: string, cifrado: Buffer, versao: number): Promise<boolean> {
     const gravadas = await this.banco
       .update(conta)
@@ -261,7 +261,7 @@ export class ResolucaoDeTenantRepository {
    * inativo e com o mesmo segredo que foi conferido (duas ativações juntas passam uma vez), troca os códigos de
    * recuperação da conta pelos novos (só HMAC) e devolve se ativou.
    */
-  @SemEscopo('a credencial da equipe é global: ativar o MFA escreve na conta e nos códigos de recuperação dela, pelo conta_id do desafio verificado')
+  @Unscoped('a credencial da equipe é global: ativar o MFA escreve na conta e nos códigos de recuperação dela, pelo conta_id do desafio verificado')
   async ativarMfa(contaId: string, segredoConferido: Buffer, passo: number, hmacs: readonly string[]): Promise<boolean> {
     const ativadas = await this.banco
       .update(conta)
@@ -278,7 +278,7 @@ export class ResolucaoDeTenantRepository {
    * Aceita o passo do TOTP só se ele é maior que o último aceito (`update … where mfa_ultimo_passo < $passo`): o mesmo
    * código em dois pedidos ao mesmo tempo passa uma vez, e um código já usado não volta (regra 80, item 7).
    */
-  @SemEscopo('a credencial da equipe é global: aceitar o código do app autenticador grava mfa_ultimo_passo na conta do desafio verificado')
+  @Unscoped('a credencial da equipe é global: aceitar o código do app autenticador grava mfa_ultimo_passo na conta do desafio verificado')
   async avancarPassoDoMfa(contaId: string, passo: number): Promise<boolean> {
     const aceitas = await this.banco
       .update(conta)
@@ -292,7 +292,7 @@ export class ResolucaoDeTenantRepository {
    * Marca o código de recuperação como usado, uma vez só (`where usado_em is null`), e devolve se ele valia. Os códigos
    * só existem com o MFA ativo: nascem na ativação e saem na redefinição, na mesma transação de cada uma.
    */
-  @SemEscopo('a credencial da equipe é global: consumir o código de recuperação escreve nos códigos da conta do desafio verificado')
+  @Unscoped('a credencial da equipe é global: consumir o código de recuperação escreve nos códigos da conta do desafio verificado')
   async usarCodigoDeRecuperacao(contaId: string, hmac: string): Promise<boolean> {
     const usados = await this.banco
       .update(codigoRecuperacao)
@@ -308,7 +308,7 @@ export class ResolucaoDeTenantRepository {
    * com o `FOR KEY SHARE` da FK de `usuario`, então um usuário novo dessa conta em outra escola (convite, 7.0) ou já
    * foi gravado antes e aparece aqui, ou espera o commit. Duas redefinições da mesma conta esperam uma pela outra.
    */
-  @SemEscopo('a credencial da equipe é global: redefinir o MFA confere, com a conta travada, em que escolas ela tem usuário ativo, só pelos ids')
+  @Unscoped('a credencial da equipe é global: redefinir o MFA confere, com a conta travada, em que escolas ela tem usuário ativo, só pelos ids')
   async travarContaParaRedefinir(contaId: string): Promise<{ mfaAtivo: boolean; escolasAtivas: string[] } | undefined> {
     const [linha] = await this.banco.select({ ativadoEm: conta.mfaAtivadoEm }).from(conta).where(eq(conta.id, contaId)).for('update')
     if (linha === undefined) return undefined
@@ -321,7 +321,7 @@ export class ResolucaoDeTenantRepository {
   }
 
   /** Apaga o segundo fator da conta: segredo, versão, ativação, último passo e todos os códigos de recuperação. */
-  @SemEscopo('a credencial da equipe é global: a redefinição do MFA apaga o segundo fator da conta, depois de conferida a escola de todos os usuários ativos dela')
+  @Unscoped('a credencial da equipe é global: a redefinição do MFA apaga o segundo fator da conta, depois de conferida a escola de todos os usuários ativos dela')
   async apagarMfa(contaId: string): Promise<void> {
     await this.banco.update(conta).set({ mfaSegredoCifrado: null, mfaChaveVersao: null, mfaAtivadoEm: null, mfaUltimoPasso: null }).where(eq(conta.id, contaId))
     await this.banco.delete(codigoRecuperacao).where(eq(codigoRecuperacao.contaId, contaId))
@@ -331,7 +331,7 @@ export class ResolucaoDeTenantRepository {
    * A escola de um usuário, para o `ops:redefinir-mfa` abrir o contexto dela: o operador recebe só o id do usuário,
    * e a escola vem daqui, nunca do argumento. Devolve só a escola e a conta, nunca o nome.
    */
-  @SemEscopo('rotina do operador (ops:redefinir-mfa): o comando recebe só o usuarioId do pedido formal, e a escola dele vira o contexto')
+  @Unscoped('rotina do operador (ops:redefinir-mfa): o comando recebe só o usuarioId do pedido formal, e a escola dele vira o contexto')
   async escolaDoUsuarioParaOperador(usuarioId: string): Promise<{ escolaId: string; contaId: string | null; ativo: boolean } | undefined> {
     const [linha] = await this.banco
       .select({ escolaId: usuario.escolaId, contaId: usuario.contaId, desativadoEm: usuario.desativadoEm })
@@ -345,7 +345,7 @@ export class ResolucaoDeTenantRepository {
    * O convite que ainda vale, pelo hash do token: expirado, revogado, usado e inexistente dão todos `undefined`, e quem
    * chama responde o mesmo erro (regra 10, item 6).
    */
-  @SemEscopo('o link do convite não diz a escola: o convite válido é achado pelo hash do token, e só depois a escola dele vira contexto; devolve só ids, o tipo e se a conta tem senha')
+  @Unscoped('o link do convite não diz a escola: o convite válido é achado pelo hash do token, e só depois a escola dele vira contexto; devolve só ids, o tipo e se a conta tem senha')
   async conviteValidoPorHash(tokenHash: string): Promise<ConviteValido | undefined> {
     const [linha] = await this.banco
       .select({ escolaId: convite.escolaId, usuarioId: convite.usuarioId, contaId: conta.id, tipo: convite.tipo, senhaHash: conta.senhaHash })
@@ -362,7 +362,7 @@ export class ResolucaoDeTenantRepository {
    * and revogado_em is null and expira_em > now()`). Dois aceites com o mesmo token ao mesmo tempo passam um: o segundo
    * espera a trava da linha e, relendo, já não a acha (regra 80, item 7).
    */
-  @SemEscopo('o link do convite não diz a escola: o aceite marca como usado o convite do hash do token, uma vez só, e devolve só os ids')
+  @Unscoped('o link do convite não diz a escola: o aceite marca como usado o convite do hash do token, uma vez só, e devolve só os ids')
   async usarConvitePorHash(tokenHash: string): Promise<ConviteUsado | undefined> {
     const [usado] = await this.banco
       .update(convite)
@@ -376,7 +376,7 @@ export class ResolucaoDeTenantRepository {
    * Grava a senha da conta só enquanto ela não tem senha (`where senha_hash is null`): o link do convite nunca troca a
    * senha de uma conta existente, nem na corrida com o aceite de outro convite da mesma conta. Devolve se gravou.
    */
-  @SemEscopo('a credencial da equipe é global: a senha no aceite do convite é gravada na conta do usuário do convite, e só enquanto ela não tem senha')
+  @Unscoped('a credencial da equipe é global: a senha no aceite do convite é gravada na conta do usuário do convite, e só enquanto ela não tem senha')
   async definirSenhaNoAceite(contaId: string, senhaHash: string): Promise<boolean> {
     const gravadas = await this.banco
       .update(conta)
@@ -393,7 +393,7 @@ export class ResolucaoDeTenantRepository {
    * não volta pelo convite antigo. O prazo depois do aceite é o do bilhete (30 min), não o `expira_em`, que valeu no
    * aceite.
    */
-  @SemEscopo('a credencial da equipe é global: depois da senha (e do segundo fator) verificados, acha o usuário da conta que espera o convite do bilhete, só com ids, escola e papel')
+  @Unscoped('a credencial da equipe é global: depois da senha (e do segundo fator) verificados, acha o usuário da conta que espera o convite do bilhete, só com ids, escola e papel')
   async usuarioComConviteAceito(contaId: string, conviteId: string): Promise<UsuarioComConviteAceito | undefined> {
     const [linha] = await this.banco
       .select({ usuarioId: usuario.id, escolaId: usuario.escolaId, papel: usuario.papel, conviteId: convite.id })
@@ -416,9 +416,9 @@ export class ResolucaoDeTenantRepository {
   /**
    * Quantas escolas tem a rede cujo IP público de saída (`rede.ips_saida`) é este (15.2): o limite por IP da rota de
    * e-mail é multiplicado por elas, porque a rede municipal sai por um IP só. Devolve só o número, 0 quando o IP não é de
-   * rede nenhuma; com o mesmo IP em duas redes, vale a maior. O IP vem normalizado da borda (`ipDaRequisicao`).
+   * rede nenhuma; com o mesmo IP em duas redes, vale a maior. O IP vem normalizado da borda (`requestIp`).
    */
-  @SemEscopo('ler rede por IP de saída: o limite por IP da rota de e-mail acontece antes de haver escola; devolve só o número de escolas da rede, nunca id nem nome')
+  @Unscoped('ler rede por IP de saída: o limite por IP da rota de e-mail acontece antes de haver escola; devolve só o número de escolas da rede, nunca id nem nome')
   async escolasDaRedeDoIpDeSaida(ip: string): Promise<number> {
     const porRede = this.banco
       .select({ escolas: sql<number>`count(${escola.id})::int`.as('escolas') })
@@ -431,7 +431,7 @@ export class ResolucaoDeTenantRepository {
     return linha?.maior ?? 0
   }
 
-  @SemEscopo('ler escola por slug: o slug é o que dá a escola, e é público (/acesso); devolve só o id, para a escola virar o contexto')
+  @Unscoped('ler escola por slug: o slug é o que dá a escola, e é público (/acesso); devolve só o id, para a escola virar o contexto')
   async escolaPorSlug(slug: string): Promise<string | undefined> {
     const [linha] = await this.banco.select({ id: escola.id }).from(escola).where(eq(escola.slug, slug)).limit(1)
     return linha?.id
@@ -447,7 +447,7 @@ export class ResolucaoDeTenantRepository {
    * expurgo a pula, com `skip locked`, e a desativação espera). Se a limpeza travou antes, esta leitura espera o commit
    * dela, relê a linha, e a conta sem e-mail não é achada: o convite cria outra conta, com o e-mail.
    */
-  @SemEscopo('a conta é global e não tem escola: o convite da coordenação, pelo comando ou pelo painel, e o do professor, pela coordenação da escola, acham ou criam a conta pelo e-mail, travando a existente, sem ler nada dela, e devolvem só o id e se ela é nova')
+  @Unscoped('a conta é global e não tem escola: o convite da coordenação, pelo comando ou pelo painel, e o do professor, pela coordenação da escola, acham ou criam a conta pelo e-mail, travando a existente, sem ler nada dela, e devolvem só o id e se ela é nova')
   async contaParaConvite(email: string): Promise<{ id: string; nova: boolean }> {
     for (let tentativa = 0; tentativa < 3; tentativa++) {
       const [criada] = await this.banco.insert(conta).values({ email }).onConflictDoNothing({ target: conta.email }).returning({ id: conta.id })
@@ -456,14 +456,14 @@ export class ResolucaoDeTenantRepository {
       if (existente !== undefined) return { id: existente.id, nova: false }
     }
     // Três limpezas seguidas da mesma conta no meio de um convite não acontecem: se acontecer, o operador tenta de novo.
-    throw new ErroDeDominio(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO)
+    throw new DomainException(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO)
   }
 
   /**
    * A escola de um convite de coordenação, para o revogar (e o refazer) do operador abrir o contexto dela: o comando e o
    * painel recebem só o id do convite. Só convite `tipo = 'coordenador'`: o de outro tipo não é achado, como o inexistente.
    */
-  @SemEscopo('rotina do operador, pelo comando ou pelo painel: recebe só o id do convite de coordenação, e a escola dele vira o contexto, nunca o argumento')
+  @Unscoped('rotina do operador, pelo comando ou pelo painel: recebe só o id do convite de coordenação, e a escola dele vira o contexto, nunca o argumento')
   async escolaDoConviteParaOperador(conviteId: string): Promise<string | undefined> {
     const [linha] = await this.banco
       .select({ escolaId: convite.escolaId })
@@ -480,7 +480,7 @@ export class ResolucaoDeTenantRepository {
    * (a cascata o levou) dão todos `undefined` (regra 10, item 6). O acesso, a escola, o ano e a turma saem da linha, nunca
    * do cliente.
    */
-  @SemEscopo('o link e o código da sala não dizem a escola: o acesso vigente é achado pelo hash do token, conferido contra a escola do slug e o ano em curso dela, e devolve só o acesso, a escola, o ano e a turma')
+  @Unscoped('o link e o código da sala não dizem a escola: o acesso vigente é achado pelo hash do token, conferido contra a escola do slug e o ano em curso dela, e devolve só o acesso, a escola, o ano e a turma')
   async acessoDaSalaPorToken(slug: string, tokenHash: string): Promise<AcessoDaSalaAchado | undefined> {
     return this.#acessoDaSala(slug, eq(acessoTurma.tokenHash, tokenHash))
   }
@@ -490,7 +490,7 @@ export class ResolucaoDeTenantRepository {
    * no ano `em_curso` dela. O código é único só entre os não revogados de uma escola, e a chave do HMAC é uma só: o mesmo
    * código vigente em duas escolas tem o mesmo HMAC, e só o slug separa as duas.
    */
-  @SemEscopo('o link e o código da sala não dizem a escola: o acesso vigente é achado pelo HMAC do código dentro da escola do slug, no ano em curso dela, e devolve só o acesso, a escola, o ano e a turma')
+  @Unscoped('o link e o código da sala não dizem a escola: o acesso vigente é achado pelo HMAC do código dentro da escola do slug, no ano em curso dela, e devolve só o acesso, a escola, o ano e a turma')
   async acessoDaSalaPorCodigo(slug: string, codigoHmac: string): Promise<AcessoDaSalaAchado | undefined> {
     return this.#acessoDaSala(slug, eq(acessoTurma.codigoHmac, codigoHmac))
   }

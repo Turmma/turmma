@@ -1,10 +1,10 @@
 import { setTimeout as esperar } from 'node:timers/promises'
 import { describe, expect, it, vi } from 'vitest'
-import { contextoAtual, executarNoContexto } from '../contexto/contexto.js'
-import { ErroDeDominio } from '../erro/erro-de-dominio.js'
+import { currentContext, runInContext } from '../contexto/contexto.js'
+import { DomainException } from '../erro/erro-de-dominio.js'
 import { ESCOLA_A, ESCOLA_B } from './__fixtures__/entradas.js'
-import { ErroDeIa } from './erros.js'
-import { ExecucoesEmMemoria, ExecutorNoProcesso, EXECUCAO_INTERROMPIDA, type ExecucaoAgendada, type RepositorioDeExecucoes } from './executor.js'
+import { LLMError } from './erros.js'
+import { InMemoryExecucoes, InProcessAgenteExecutor, EXECUCAO_INTERROMPIDA, type ExecucaoAgendada, type ExecucaoRepository } from './executor.js'
 
 /** Uma promessa que o teste resolve quando quiser: é o "trabalho que ainda está rodando". */
 function adiada<Valor = void>(): { promessa: Promise<Valor>; resolver: (valor: Valor) => void; rejeitar: (erro: unknown) => void } {
@@ -23,11 +23,11 @@ function execucao(escolaId: string, chave?: string): ExecucaoAgendada {
   return { id: `00000000-0000-4000-8000-${String(sequencia).padStart(12, '0')}`, escolaId, chave: chave ?? `chave-${sequencia}` }
 }
 
-function montar(opcoes: { vagasPorEscola?: number; vagasNoTotal?: number; timeoutMs?: number; repositorio?: RepositorioDeExecucoes; agora?: () => Date } = {}) {
+function montar(opcoes: { vagasPorEscola?: number; vagasNoTotal?: number; timeoutMs?: number; repositorio?: ExecucaoRepository; agora?: () => Date } = {}) {
   const relogio = { agora: opcoes.agora ?? (() => new Date('2026-10-05T13:00:00Z')) }
-  const memoria = new ExecucoesEmMemoria(relogio)
+  const memoria = new InMemoryExecucoes(relogio)
   const logger = { info: vi.fn(), warn: vi.fn() }
-  const executor = new ExecutorNoProcesso({
+  const executor = new InProcessAgenteExecutor({
     repositorio: opcoes.repositorio ?? memoria,
     config: { vagasPorEscola: opcoes.vagasPorEscola ?? 2, vagasNoTotal: opcoes.vagasNoTotal ?? 8, timeoutMs: opcoes.timeoutMs ?? 5_000 },
     logger,
@@ -165,12 +165,12 @@ describe('ExecutorNoProcesso: cada execução roda no contexto da escola dela', 
   it('a execução de B, despachada quando a de A termina dentro da requisição de A, não herda a escola nem o usuário de A', async () => {
     const { executor, pendente } = montar({ vagasNoTotal: 1 })
     const [deA, deB] = [pendente(ESCOLA_A), pendente(ESCOLA_B)]
-    const vistos: (ReturnType<typeof contextoAtual> | undefined)[] = []
+    const vistos: (ReturnType<typeof currentContext> | undefined)[] = []
     const requisicaoDeA = { requisicaoId: 'requisicao-de-a', escolaId: ESCOLA_A, usuarioId: 'usuario-de-a' }
     // As duas são agendadas de dentro da requisição de A; com uma vaga só, a de B começa no fim da de A.
-    executarNoContexto(requisicaoDeA, () => {
-      executor.agendar(deA, async () => void vistos.push(contextoAtual()))
-      executor.agendar(deB, async () => void vistos.push(contextoAtual()))
+    runInContext(requisicaoDeA, () => {
+      executor.agendar(deA, async () => void vistos.push(currentContext()))
+      executor.agendar(deB, async () => void vistos.push(currentContext()))
     })
     await executor.ociosa()
     expect(vistos.map((contexto) => contexto?.escolaId)).toEqual([ESCOLA_A, ESCOLA_B])
@@ -183,8 +183,8 @@ describe('ExecutorNoProcesso: cada execução roda no contexto da escola dela', 
 
 describe('ExecutorNoProcesso: falha vira estado com código, nunca exceção solta', () => {
   it.each([
-    ['erro de IA', new ErroDeIa('IA_SAIDA_INVALIDA'), 'IA_SAIDA_INVALIDA'],
-    ['erro de domínio', new ErroDeDominio('NAO_ENCONTRADO'), 'NAO_ENCONTRADO'],
+    ['erro de IA', new LLMError('IA_SAIDA_INVALIDA'), 'IA_SAIDA_INVALIDA'],
+    ['erro de domínio', new DomainException('NAO_ENCONTRADO'), 'NAO_ENCONTRADO'],
     ['erro qualquer', new Error('mensagem com o texto do aluno'), 'ERRO_INTERNO'],
   ])('%s: a execução fica "falhou" com o código, sem a mensagem do erro', async (_caso, erro, codigo) => {
     const { executor, memoria, logger, pendente } = montar()
@@ -209,7 +209,7 @@ describe('ExecutorNoProcesso: falha vira estado com código, nunca exceção sol
   })
 
   it('banco fora ao gravar a falha não derruba o processo: nenhuma promessa fica rejeitada sem dono', async () => {
-    const repositorio: RepositorioDeExecucoes = {
+    const repositorio: ExecucaoRepository = {
       marcarRodando: async () => true,
       marcarConcluida: async () => Promise.reject(new Error('banco fora')),
       marcarFalhou: async () => Promise.reject(new Error('banco fora')),
@@ -302,7 +302,7 @@ describe('ExecutorNoProcesso: nada fica preso em "rodando" quando o processo sob
 
 describe('ExecucoesEmMemoria: o escopo acompanha a execução', () => {
   it('com o id certo e a escola errada, nada muda', async () => {
-    const memoria = new ExecucoesEmMemoria()
+    const memoria = new InMemoryExecucoes()
     const daEscolaA = execucao(ESCOLA_A)
     memoria.criarPendente(daEscolaA)
     expect(await memoria.marcarRodando({ ...daEscolaA, escolaId: ESCOLA_B })).toBe(false)

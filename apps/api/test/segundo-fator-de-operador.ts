@@ -1,4 +1,4 @@
-import { criarLogger, type Meter, type PoolBanco } from '@educa/nucleo'
+import { createLogger, type Meter, type DatabasePool } from '@educa/nucleo'
 import { ErrorCode, configurarSegundoFatorDeOperadorResponseSchema, MENSAGENS_DE_ERRO, type ConfigurarSegundoFatorDeOperadorResponse } from '@educa/shared'
 import type { INestApplication } from '@nestjs/common'
 import { NestFactory } from '@nestjs/core'
@@ -76,8 +76,8 @@ export async function subir(
   const app = await NestFactory.create(AppModule.com(config, { ...MONTAGEM_DE_TESTE, ...(medidor === undefined ? {} : { medidor }) }), { logger: false })
   const logger =
     linhasDeLog === undefined
-      ? criarLogger({ servico: 'api-teste', nivel: 'silent' })
-      : criarLogger({ servico: 'api-teste', nivel: 'trace', destino: { write: (linha: string) => linhasDeLog.push(linha) } })
+      ? createLogger({ servico: 'api-teste', nivel: 'silent' })
+      : createLogger({ servico: 'api-teste', nivel: 'trace', destino: { write: (linha: string) => linhasDeLog.push(linha) } })
   configurarAplicacao(app, logger, medidor)
   await app.listen(0, '127.0.0.1')
   return { app, url: `http://127.0.0.1:${(app.getHttpServer().address() as AddressInfo).port}` }
@@ -131,7 +131,7 @@ export function base32DoGravado(operadorId: string, cifrado: Buffer, versao: num
 }
 
 /** O segundo fator ativo gravado direto no banco, com a cifra de produção: o estado depois do primeiro código. Sem sessão. */
-export async function ativarNoBanco(pool: PoolBanco, operadorId: string): Promise<{ base32: string; codigos: string[] }> {
+export async function ativarNoBanco(pool: DatabasePool, operadorId: string): Promise<{ base32: string; codigos: string[] }> {
   const novo = gerarSegredo()
   const { cifrado, versao } = cifra.cifrar(novo.bytes, operadorId)
   await pool.query('update operador set mfa_segredo_cifrado = $1, mfa_chave_versao = $2, mfa_versao = mfa_versao + 1, mfa_ativado_em = now(), mfa_ultimo_passo = null where id = $3', [cifrado, versao, operadorId])
@@ -155,7 +155,7 @@ export interface EstadoDoOperador {
   readonly sessoesAbertas: number
 }
 
-export async function estadoDoOperador(pool: PoolBanco, operadorId: string): Promise<EstadoDoOperador> {
+export async function estadoDoOperador(pool: DatabasePool, operadorId: string): Promise<EstadoDoOperador> {
   const { rows } = await pool.query<EstadoDoOperador>(
     `select o.nome, o.email, o.senha_hash as "senhaHash", o.mfa_segredo_cifrado as "segredoCifrado", o.mfa_chave_versao as "chaveVersao",
             o.mfa_versao as "mfaVersao", o.mfa_ativado_em as "ativadoEm", o.mfa_ultimo_passo as "ultimoPasso", o.desativado_em as "desativadoEm",
@@ -207,7 +207,7 @@ export function valorDoCookie(setCookie: readonly string[], nome: string): strin
  * Espera até algum backend deste banco estar parado num lock que não ganhou, com a consulta que casa o padrão (`like`):
  * é a prova de que a transação está na fila da trava, e não só atrasada.
  */
-export async function esperarNaFila(pool: PoolBanco, padraoDaConsulta: string): Promise<void> {
+export async function esperarNaFila(pool: DatabasePool, padraoDaConsulta: string): Promise<void> {
   await expect
     .poll(
       async () => {

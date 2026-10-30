@@ -1,4 +1,4 @@
-import { conta, contaExterna, exigirEscolaDoContexto, provedorEscola, usuario, type Banco, type ProvedorExterno, type TransacaoBanco } from '@educa/nucleo'
+import { conta, contaExterna, requireEscolaId, provedorEscola, usuario, type Database, type ProvedorExterno, type DatabaseTransaction } from '@educa/nucleo'
 import { and, eq, isNull, sql } from 'drizzle-orm'
 
 /** A chave da conta externa: o provedor, o tenant (só na Microsoft) e o identificador estável. */
@@ -31,11 +31,11 @@ export interface ProfessorPeloEmail {
  * não existe para B, e o domínio que B cadastrou não abre a ligação de A (Tech Spec, seção 6).
  */
 export class ContaExternaRepository {
-  constructor(private readonly banco: Banco | TransacaoBanco) {}
+  constructor(private readonly banco: Database | DatabaseTransaction) {}
 
   /** Se o domínio (`hd`) ou o tenant (`tid`) está liberado para o provedor na escola do contexto. */
   async dominioLiberado(provedor: ProvedorExterno, dominio: string): Promise<boolean> {
-    const escolaId = exigirEscolaDoContexto()
+    const escolaId = requireEscolaId()
     const [linha] = await this.banco
       .select({ id: provedorEscola.id })
       .from(provedorEscola)
@@ -46,7 +46,7 @@ export class ContaExternaRepository {
 
   /** Se a escola do contexto liberou algum domínio ou tenant do provedor. */
   async provedorLiberado(provedor: ProvedorExterno): Promise<boolean> {
-    const escolaId = exigirEscolaDoContexto()
+    const escolaId = requireEscolaId()
     const [linha] = await this.banco
       .select({ id: provedorEscola.id })
       .from(provedorEscola)
@@ -60,7 +60,7 @@ export class ContaExternaRepository {
    * usuário dela. Ligação de outra escola não aparece.
    */
   async ligacao(chave: ChaveDaContaExterna): Promise<LigacaoDaContaExterna | undefined> {
-    const escolaId = exigirEscolaDoContexto()
+    const escolaId = requireEscolaId()
     const [linha] = await this.banco
       .select({ usuarioId: contaExterna.usuarioId, contaId: usuario.contaId, desativadoEm: usuario.desativadoEm, eliminacaoAgendadaEm: usuario.eliminacaoAgendadaEm })
       .from(contaExterna)
@@ -84,7 +84,7 @@ export class ContaExternaRepository {
    * a coordenação e o aluno nunca aparecem (só o professor é ligado pelo e-mail, RF9 e RF10).
    */
   async professorPeloEmail(email: string): Promise<ProfessorPeloEmail | undefined> {
-    const escolaId = exigirEscolaDoContexto()
+    const escolaId = requireEscolaId()
     const [linha] = await this.banco
       .select({
         usuarioId: usuario.id,
@@ -105,7 +105,7 @@ export class ContaExternaRepository {
    * já tem outra conta externa (RF9). Quem chama relê a ligação para saber qual dos dois foi.
    */
   async ligar(usuarioId: string, chave: ChaveDaContaExterna): Promise<string | undefined> {
-    const escolaId = exigirEscolaDoContexto()
+    const escolaId = requireEscolaId()
     const [criada] = await this.banco
       .insert(contaExterna)
       .values({ escolaId, usuarioId, provedor: chave.provedor, tenant: chave.tenant, sujeito: chave.sujeito })

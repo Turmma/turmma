@@ -1,4 +1,4 @@
-import { credencialMatricula, exigirAnoEmCurso, exigirEscolaDoContexto, listaNome, sessaoDaRequisicao, type Banco, type TransacaoBanco } from '@educa/nucleo'
+import { credencialMatricula, requireAnoEmCurso, requireEscolaId, listaNome, requestSessao, type Database, type DatabaseTransaction } from '@educa/nucleo'
 import type { PaginationQuery, NomeDaLista } from '@educa/shared'
 import { and, asc, eq, gt, inArray, sql } from 'drizzle-orm'
 import { InvariantException } from '@educa/shared'
@@ -22,14 +22,14 @@ const matriculaDoIndice = sql<string>`btrim(${listaNome.matricula})`
 
 /**
  * A lista de nomes da escola do contexto no ano letivo em curso dela, e só dela (A1, 2.0; regra 10, itens 2 e 3): escola
- * e ano vêm do contexto que a `GuardaDeSessao` gravou, nunca de argumento. Sem ano em curso, `exigirAnoEmCurso` falha
+ * e ano vêm do contexto que a `SessaoGuard` gravou, nunca de argumento. Sem ano em curso, `requireAnoEmCurso` falha
  * fechado com `NAO_ENCONTRADO` antes de qualquer consulta. A turma de cada escrita já foi conferida pelo service
  * (`TurmaRepository.travarContraExclusao`), e a FK composta `(escola_id, ano_letivo_id, turma_id)` é a segunda camada.
  *
  * O nome e a matrícula nunca saem daqui para log: só para a resposta da coordenação.
  */
 export class ListaRepository {
-  constructor(private readonly banco: Banco | TransacaoBanco) {}
+  constructor(private readonly banco: Database | DatabaseTransaction) {}
 
   /** Das matrículas dadas, as que já estão na lista de alguma turma da escola neste ano, com a turma. */
   async naLista(matriculas: readonly string[]): Promise<MatriculaNaLista[]> {
@@ -37,7 +37,7 @@ export class ListaRepository {
     return this.banco
       .select({ matricula: matriculaDoIndice, turmaId: listaNome.turmaId })
       .from(listaNome)
-      .where(and(eq(listaNome.escolaId, exigirEscolaDoContexto()), eq(listaNome.anoLetivoId, exigirAnoEmCurso()), inArray(matriculaDoIndice, [...matriculas])))
+      .where(and(eq(listaNome.escolaId, requireEscolaId()), eq(listaNome.anoLetivoId, requireAnoEmCurso()), inArray(matriculaDoIndice, [...matriculas])))
   }
 
   /**
@@ -50,7 +50,7 @@ export class ListaRepository {
     const linhas = await this.banco
       .select({ matricula: credencialMatricula.matricula })
       .from(credencialMatricula)
-      .where(and(eq(credencialMatricula.escolaId, exigirEscolaDoContexto()), inArray(credencialMatricula.matricula, [...matriculas])))
+      .where(and(eq(credencialMatricula.escolaId, requireEscolaId()), inArray(credencialMatricula.matricula, [...matriculas])))
     return linhas.map((linha) => linha.matricula)
   }
 
@@ -62,7 +62,7 @@ export class ListaRepository {
    */
   async aprovadasNaTurma(turmaId: string, matriculas: readonly string[]): Promise<string[]> {
     if (matriculas.length === 0) return []
-    const escolaId = exigirEscolaDoContexto()
+    const escolaId = requireEscolaId()
     const linhas = await this.banco
       .select({ matricula: credencialMatricula.matricula })
       .from(credencialMatricula)
@@ -71,7 +71,7 @@ export class ListaRepository {
         and(
           eq(credencialMatricula.escolaId, escolaId),
           inArray(credencialMatricula.matricula, [...matriculas]),
-          eq(listaNome.anoLetivoId, exigirAnoEmCurso()),
+          eq(listaNome.anoLetivoId, requireAnoEmCurso()),
           eq(listaNome.turmaId, turmaId),
         ),
       )
@@ -85,9 +85,9 @@ export class ListaRepository {
    */
   inserirSemRepetir(turmaId: string, nomes: readonly NomeNovo[]): Promise<Array<{ readonly id: string; readonly matricula: string | null }>> {
     if (nomes.length === 0) return Promise.resolve([])
-    const escolaId = exigirEscolaDoContexto()
-    const anoLetivoId = exigirAnoEmCurso()
-    const criadoPor = sessaoDaRequisicao().usuarioId
+    const escolaId = requireEscolaId()
+    const anoLetivoId = requireAnoEmCurso()
+    const criadoPor = requestSessao().usuarioId
     return this.banco
       .insert(listaNome)
       .values(nomes.map(({ nome, matricula }) => ({ escolaId, anoLetivoId, turmaId, nome, matricula, criadoPor })))
@@ -103,8 +103,8 @@ export class ListaRepository {
       .from(listaNome)
       .where(
         and(
-          eq(listaNome.escolaId, exigirEscolaDoContexto()),
-          eq(listaNome.anoLetivoId, exigirAnoEmCurso()),
+          eq(listaNome.escolaId, requireEscolaId()),
+          eq(listaNome.anoLetivoId, requireAnoEmCurso()),
           eq(listaNome.turmaId, turmaId),
           inArray(matriculaDoIndice, [...matriculas]),
         ),
@@ -119,7 +119,7 @@ export class ListaRepository {
   async inserir(turmaId: string, { nome, matricula }: NomeNovo): Promise<NomeDaLista> {
     const [criado] = await this.banco
       .insert(listaNome)
-      .values({ escolaId: exigirEscolaDoContexto(), anoLetivoId: exigirAnoEmCurso(), turmaId, nome, matricula, criadoPor: sessaoDaRequisicao().usuarioId })
+      .values({ escolaId: requireEscolaId(), anoLetivoId: requireAnoEmCurso(), turmaId, nome, matricula, criadoPor: requestSessao().usuarioId })
       .returning(colunas)
     if (criado === undefined) throw new InvariantException('nome da lista não criado')
     return criado
@@ -133,7 +133,7 @@ export class ListaRepository {
   async retirarLivre(id: string): Promise<{ readonly turmaId: string } | undefined> {
     const [apagado] = await this.banco
       .delete(listaNome)
-      .where(and(eq(listaNome.escolaId, exigirEscolaDoContexto()), eq(listaNome.anoLetivoId, exigirAnoEmCurso()), eq(listaNome.id, id), eq(listaNome.estado, 'livre')))
+      .where(and(eq(listaNome.escolaId, requireEscolaId()), eq(listaNome.anoLetivoId, requireAnoEmCurso()), eq(listaNome.id, id), eq(listaNome.estado, 'livre')))
       .returning({ turmaId: listaNome.turmaId })
     return apagado
   }
@@ -143,7 +143,7 @@ export class ListaRepository {
     const [linha] = await this.banco
       .select({ id: listaNome.id })
       .from(listaNome)
-      .where(and(eq(listaNome.escolaId, exigirEscolaDoContexto()), eq(listaNome.anoLetivoId, exigirAnoEmCurso()), eq(listaNome.id, id)))
+      .where(and(eq(listaNome.escolaId, requireEscolaId()), eq(listaNome.anoLetivoId, requireAnoEmCurso()), eq(listaNome.id, id)))
     return linha !== undefined
   }
 
@@ -157,8 +157,8 @@ export class ListaRepository {
       .from(listaNome)
       .where(
         and(
-          eq(listaNome.escolaId, exigirEscolaDoContexto()),
-          eq(listaNome.anoLetivoId, exigirAnoEmCurso()),
+          eq(listaNome.escolaId, requireEscolaId()),
+          eq(listaNome.anoLetivoId, requireAnoEmCurso()),
           eq(listaNome.turmaId, turmaId),
           pagina === undefined ? undefined : gt(listaNome.id, pagina),
         ),

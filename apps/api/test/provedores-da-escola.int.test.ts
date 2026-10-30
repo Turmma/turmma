@@ -1,4 +1,4 @@
-import { executarNoContexto } from '@educa/nucleo'
+import { runInContext } from '@educa/nucleo'
 import { ErrorCode, TENANT_DE_CONTA_PESSOAL_MICROSOFT } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -150,7 +150,7 @@ describe('PUT /v1/escola/provedores: a coordenação libera os domínios Google 
     await bancada.pool.query("insert into provedor_escola (escola_id, provedor, valor) values ($1, 'google', $2)", [escolaB, DOMINIO_B])
     const [linhaDeB] = await linhasDa(escolaB)
     if (linhaDeB === undefined) throw new Error('domínio de B não gravado')
-    await executarNoContexto({ requisicaoId: randomUUID(), escolaId: escolaA }, () =>
+    await runInContext({ requisicaoId: randomUUID(), escolaId: escolaA }, () =>
       bancada.banco.transaction(async (tx) => {
         const repositorio = new ProvedoresLiberadosRepository(tx)
         expect(await repositorio.liberados()).toEqual([])

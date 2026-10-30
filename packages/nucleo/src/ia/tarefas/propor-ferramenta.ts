@@ -4,8 +4,8 @@ import {
   citacaoDaFrase,
   dadoEmJson,
   dadosDosTrechos,
-  esquemaContextoDaTurma,
-  esquemaTrecho,
+  contextoDaTurmaSchema,
+  trechoSchema,
   extrairFatos,
   fatoCitadoNoTexto,
   fraseMaisProxima,
@@ -13,15 +13,15 @@ import {
   problemasDasCitacoes,
 } from '../material.js'
 import { PROMPT_PROPOR_FERRAMENTA } from '../prompts/propor-ferramenta.js'
-import { definirTarefa } from '../tarefa.js'
+import { defineTask } from '../tarefa.js'
 import { cortar, normalizar } from '../texto.js'
 
-export const esquemaEntradaDoAssistente = z.strictObject({
+export const assistenteInputSchema = z.strictObject({
   /** O que o professor escreveu agora. Vai ao modelo como dado. */
   mensagem: z.string().min(1).max(2000),
-  contexto: esquemaContextoDaTurma,
+  contexto: contextoDaTurmaSchema,
   /** Trechos do material que a busca achou para a mensagem; pode vir vazio. */
-  trechos: z.array(esquemaTrecho).max(6),
+  trechos: z.array(trechoSchema).max(6),
   turnosAnteriores: z.array(z.strictObject({ autor: z.enum(['professor', 'assistente']), texto: z.string().min(1).max(2000) })).max(8),
   /**
    * O professor respondeu "só conversar" à proposta de ferramenta (D18): a saída é **sempre texto**, sobre o último
@@ -29,7 +29,7 @@ export const esquemaEntradaDoAssistente = z.strictObject({
    */
   semProposta: z.boolean().optional(),
 })
-export type EntradaDoAssistente = z.infer<typeof esquemaEntradaDoAssistente>
+export type AssistenteInput = z.infer<typeof assistenteInputSchema>
 
 /**
  * A proposta é o que a tela mostra como "quer abrir a ferramenta?" (D18): a ferramenta e o que deu para entender do
@@ -38,22 +38,22 @@ export type EntradaDoAssistente = z.infer<typeof esquemaEntradaDoAssistente>
  * mensagem do professor. Só as ferramentas que geram a partir de um tema: a Adaptação parte de uma atividade pronta
  * e tem rota própria, então pedido de adaptação vira texto que diz onde ela fica.
  */
-export const esquemaPropostaDoAssistente = z.strictObject({
+export const propostaDoAssistenteSchema = z.strictObject({
   ferramenta: z.enum(FERRAMENTAS_GERADORAS),
   parametros: z.strictObject({
     tema: z.string().min(1).max(TAMANHO_MAXIMO_DO_TEMA),
     quantidade: z.number().int().min(1).max(MAXIMO_DE_QUESTOES_POR_ATIVIDADE).optional(),
   }),
 })
-export type PropostaDoAssistente = z.infer<typeof esquemaPropostaDoAssistente>
+export type PropostaDoAssistente = z.infer<typeof propostaDoAssistenteSchema>
 
 /** Os mesmos dois tipos, e os mesmos tetos, do conteúdo que `mensagem_agente` guarda (`conteudoDaMensagemDoAgenteSchema`). */
-export const esquemaSaidaDoAssistente = z.discriminatedUnion('tipo', [
+export const assistenteOutputSchema = z.discriminatedUnion('tipo', [
   z.strictObject({ tipo: z.literal('texto'), texto: z.string().min(1).max(8000), citacoes: z.array(citacaoSchema).max(MAXIMO_DE_CITACOES_POR_MENSAGEM) }),
   /** `texto` é a pergunta ao professor. */
-  z.strictObject({ tipo: z.literal('proposta_de_ferramenta'), texto: z.string().min(1).max(1000), proposta: esquemaPropostaDoAssistente }),
+  z.strictObject({ tipo: z.literal('proposta_de_ferramenta'), texto: z.string().min(1).max(1000), proposta: propostaDoAssistenteSchema }),
 ])
-export type SaidaDoAssistente = z.infer<typeof esquemaSaidaDoAssistente>
+export type AssistenteOutput = z.infer<typeof assistenteOutputSchema>
 
 /**
  * A resposta fixa ao pedido de corrigir, avaliar, comentar ou dar nota a texto ou resposta de aluno (D55; regra 70,
@@ -247,7 +247,7 @@ export function pedeJulgamentoDeTextoDeAluno(mensagem: string): boolean {
 }
 
 /** Os turnos da conversa, como a tarefa os recebe. */
-type Turno = EntradaDoAssistente['turnosAnteriores'][number]
+type Turno = AssistenteInput['turnosAnteriores'][number]
 
 /**
  * Uma mensagem do professor traz texto de aluno: colado, de aluno, de uma pessoa **dona do texto** ("o texto da Ana", "Bianca usou
@@ -578,7 +578,7 @@ function numeroEntre(achado: RegExpExecArray | null, minimo: number, maximo: num
  * A resposta de quem escolheu "só conversar": texto, sobre o **último pedido** do professor (o turno anterior dele mais
  * recente; sem turno anterior, a mensagem de agora), com a página citada quando o material tem o que dizer. Nunca proposta.
  */
-function respostaSoEmTexto(entrada: EntradaDoAssistente): SaidaDoAssistente {
+function respostaSoEmTexto(entrada: AssistenteInput): AssistenteOutput {
   const pedido = entrada.turnosAnteriores.findLast((turno) => turno.autor === 'professor')?.texto ?? entrada.mensagem
   if (PEDE_ADAPTACAO.test(normalizar(pedido))) {
     return {
@@ -602,12 +602,12 @@ function respostaSoEmTexto(entrada: EntradaDoAssistente): SaidaDoAssistente {
   }
 }
 
-export const proporFerramenta = definirTarefa({
+export const proporFerramenta = defineTask({
   nome: 'propor_ferramenta',
   funcao: 'conversa_e_ferramentas',
   perfil: 'rapido',
-  esquemaDeEntrada: esquemaEntradaDoAssistente,
-  esquemaDeSaida: esquemaSaidaDoAssistente,
+  esquemaDeEntrada: assistenteInputSchema,
+  esquemaDeSaida: assistenteOutputSchema,
   prompt: PROMPT_PROPOR_FERRAMENTA,
   maximoDeTokensDeSaida: 800,
   levaTextoLivreDePessoa: true,
@@ -619,7 +619,7 @@ export const proporFerramenta = definirTarefa({
    * A regra da D55 na frente do modelo: pedido de nota, conceito ou pontuação, ou de julgamento de texto de aluno,
    * recebe a recusa fixa **sem chamar modelo nenhum**, qualquer que seja o adaptador. A mensagem não sai daqui.
    */
-  semModelo(entrada): SaidaDoAssistente | undefined {
+  semModelo(entrada): AssistenteOutput | undefined {
     return conversaPedeJulgamentoDeTextoDeAluno(entrada.mensagem, entrada.turnosAnteriores, entrada.semProposta === true) ? { tipo: 'texto', texto: RECUSA_DE_CORRECAO_DE_TEXTO_DE_ALUNO, citacoes: [] } : undefined
   },
 
@@ -644,7 +644,7 @@ export const proporFerramenta = definirTarefa({
    * reprovação foi da D55: citação inválida sem julgamento segue falha (`IA_SAIDA_INVALIDA`), como o JSON quebrado, que nem
    * chega aqui. A recusa passa pelas duas conferências da D55 e pelo schema, e a chamada gasta as duas tentativas.
    */
-  reservaQuandoInvalida(_entrada, problemas = []): SaidaDoAssistente | undefined {
+  reservaQuandoInvalida(_entrada, problemas = []): AssistenteOutput | undefined {
     if (!problemas.some((problema) => PROBLEMAS_DA_D55.includes(problema))) return undefined
     return { tipo: 'texto', texto: RECUSA_DE_CORRECAO_DE_TEXTO_DE_ALUNO, citacoes: [] }
   },
@@ -660,7 +660,7 @@ export const proporFerramenta = definirTarefa({
     return [...daD55, ...(entrada.semProposta === true ? ['O professor escolheu só conversar: responda com "tipo": "texto", sem "proposta_de_ferramenta".'] : [])]
   },
 
-  falso(entrada): SaidaDoAssistente {
+  falso(entrada): AssistenteOutput {
     if (entrada.semProposta === true) return respostaSoEmTexto(entrada)
     const texto = normalizar(entrada.mensagem)
     if (PEDE_ADAPTACAO.test(texto)) {

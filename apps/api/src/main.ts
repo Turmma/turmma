@@ -1,5 +1,5 @@
 import 'reflect-metadata'
-import { criarLogger, iniciarTelemetria, LimitadorDeRequisicoes, observarPoolDoBanco, observarRedis, observarSeguroDoLimite, registrarErrosDoProcesso } from '@educa/nucleo'
+import { createLogger, startTelemetry, RateLimiter, observeDatabasePool, observeRedis, observeInsuranceLimiter, registerProcessErrorHandlers } from '@educa/nucleo'
 import { NestFactory } from '@nestjs/core'
 import type { NestExpressApplication } from '@nestjs/platform-express'
 import { AppModule } from './app.module.js'
@@ -12,20 +12,20 @@ import { LimitesDaSala } from './sala/limites-da-sala.js'
 import { CLIENTE_REDIS_USO } from './uso.module.js'
 
 const config = lerConfiguracao(process.env)
-const logger = criarLogger({ servico: 'api' })
-registrarErrosDoProcesso(logger)
+const logger = createLogger({ servico: 'api' })
+registerProcessErrorHandlers(logger)
 // Antes da aplicação: toda métrica nasce do medidor que exporta.
-const { medidor } = iniciarTelemetria('api', config.telemetria)
+const { medidor } = startTelemetry('api', config.telemetria)
 // `bufferLogs` segura o log do boot até o logger JSON estar ligado.
 const app = await NestFactory.create<NestExpressApplication>(AppModule.com(config, { logger }), { bufferLogs: true })
 configurarAplicacao(app, logger, medidor)
-observarPoolDoBanco(medidor, app.get(POOL_BANCO))
-observarRedis(medidor, { cache: [app.get(CLIENTE_REDIS_CACHE)], fila: [app.get(CLIENTE_REDIS_USO), app.get(CLIENTE_REDIS_LOGIN)] })
+observeDatabasePool(medidor, app.get(POOL_BANCO))
+observeRedis(medidor, { cache: [app.get(CLIENTE_REDIS_CACHE)], fila: [app.get(CLIENTE_REDIS_USO), app.get(CLIENTE_REDIS_LOGIN)] })
 // O rate limit no Redis de cache e, no Redis de fila, os contadores e o desafio do login e os limites da sala: vale o que
 // estiver no seguro.
-observarSeguroDoLimite(medidor, app.get(LimitadorDeRequisicoes), app.get(SeguroDoLogin), app.get(LimitesDaSala))
+observeInsuranceLimiter(medidor, app.get(RateLimiter), app.get(SeguroDoLogin), app.get(LimitesDaSala))
 app.disable('x-powered-by')
-// SIGTERM drena antes de sair (Drenagem, em @educa/nucleo). `useProcessExit`: o Node é o PID 1 do
+// SIGTERM drena antes de sair (GracefulShutdown, em @educa/nucleo). `useProcessExit`: o Node é o PID 1 do
 // container e ignoraria o sinal que o Nest reenvia a si mesmo no fim.
 app.enableShutdownHooks(['SIGTERM', 'SIGINT'], { useProcessExit: true })
 await app.listen(config.porta, '0.0.0.0')

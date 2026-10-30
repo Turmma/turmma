@@ -1,4 +1,4 @@
-import { ErroDeDominio, erroDoPostgresEm, METRICAS, type Banco, type Meter } from '@educa/nucleo'
+import { DomainException, postgresErrorIn, METRICS, type Database, type Meter } from '@educa/nucleo'
 import { ErrorCode, reivindicacaoResponseSchema, type ReivindicarSalaRequest, type ReivindicacaoResponse } from '@educa/shared'
 import { TurmaRepository } from '../../estrutura/turma/turma.repository.js'
 import type { AcessoDaSala } from '../../sessao/index.js'
@@ -9,7 +9,7 @@ import { ReivindicacaoRepository } from './reivindicacao.repository.js'
 import { entradaDaSala } from '../entrada-da-sala.js'
 
 export interface DependenciasDaReivindicacao {
-  readonly banco: Banco
+  readonly banco: Database
   readonly acessoDaSala: Pick<AcessoDaSala, 'naSala'>
   /** O semáforo do hash do login, um só por instância: o teto que ele guarda é o das threads do processo. */
   readonly semaforo: Pick<SemaforoDeHash, 'executar'>
@@ -82,7 +82,7 @@ export class ReivindicacaoService {
   readonly #pedidos: ReturnType<Meter['createCounter']>
 
   constructor(private readonly dependencias: DependenciasDaReivindicacao) {
-    this.#pedidos = dependencias.medidor.createCounter(METRICAS.reivindicacaoNaSala, { description: 'Pedidos de reivindicação de nome na página da sala, por resultado' })
+    this.#pedidos = dependencias.medidor.createCounter(METRICS.reivindicacaoNaSala, { description: 'Pedidos de reivindicação de nome na página da sala, por resultado' })
   }
 
   /** `POST /v1/salas/reivindicar`: o pedido fica pendente e o nome sai da lista, ou a recusa única. */
@@ -92,7 +92,7 @@ export class ReivindicacaoService {
       resultado = await this.#reivindicar(pedido)
       return ENVIADO
     } catch (erro) {
-      resultado = (erro instanceof ErroDeDominio ? RESULTADO_DO_ERRO[erro.codigo] : undefined) ?? 'erro'
+      resultado = (erro instanceof DomainException ? RESULTADO_DO_ERRO[erro.codigo] : undefined) ?? 'erro'
       throw erro
     } finally {
       this.#pedidos.add(1, { resultado })
@@ -119,10 +119,10 @@ export class ReivindicacaoService {
             if (!(await new ListaLivreRepository(tx).tomar({ turmaId, listaNomeId, matricula }))) throw new NaoGravou()
           })
         } catch (erro) {
-          if (!(erro instanceof NaoGravou) && !VOLTA_E_RELE.has(erroDoPostgresEm(erro)?.code ?? '')) throw erro
+          if (!(erro instanceof NaoGravou) && !VOLTA_E_RELE.has(postgresErrorIn(erro)?.code ?? '')) throw erro
           if (await pedidos.chaveGravada(turmaId, chaveEnvio)) return 'reenvio'
           await limites.hashSemPedido(turmaId)
-          throw new ErroDeDominio(ErrorCode.REIVINDICACAO_RECUSADA)
+          throw new DomainException(ErrorCode.REIVINDICACAO_RECUSADA)
         }
         return 'enviado'
       },

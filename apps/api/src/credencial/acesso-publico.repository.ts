@@ -1,4 +1,4 @@
-import { escola, exigirEscolaDoContexto, provedorEscola, type Banco, type ProvedorExterno, type TransacaoBanco } from '@educa/nucleo'
+import { escola, requireEscolaId, provedorEscola, type Database, type ProvedorExterno, type DatabaseTransaction } from '@educa/nucleo'
 import { and, eq, isNull } from 'drizzle-orm'
 
 /**
@@ -7,10 +7,10 @@ import { and, eq, isNull } from 'drizzle-orm'
  * `ops:revogar-acessos-sala` (A1, 9.0) usa o `nome` dentro da transação dele para saber se a escola do id existe.
  */
 export class AcessoDaEscolaRepository {
-  constructor(private readonly banco: Banco | TransacaoBanco) {}
+  constructor(private readonly banco: Database | DatabaseTransaction) {}
 
   async nome(): Promise<string | undefined> {
-    const [linha] = await this.banco.select({ nome: escola.nome }).from(escola).where(eq(escola.id, exigirEscolaDoContexto())).limit(1)
+    const [linha] = await this.banco.select({ nome: escola.nome }).from(escola).where(eq(escola.id, requireEscolaId())).limit(1)
     return linha?.nome
   }
 
@@ -19,7 +19,7 @@ export class AcessoDaEscolaRepository {
     const linhas = await this.banco
       .selectDistinct({ provedor: provedorEscola.provedor })
       .from(provedorEscola)
-      .where(and(eq(provedorEscola.escolaId, exigirEscolaDoContexto()), isNull(provedorEscola.removidoEm)))
+      .where(and(eq(provedorEscola.escolaId, requireEscolaId()), isNull(provedorEscola.removidoEm)))
     return linhas.map((linha) => linha.provedor)
   }
 }

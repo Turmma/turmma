@@ -1,13 +1,13 @@
 import {
-  contextoAtual,
-  ErroDeDominio,
-  executarNoContexto,
-  METRICAS,
-  RegistroDeAuditoria,
+  currentContext,
+  DomainException,
+  runInContext,
+  METRICS,
+  AuditoriaRecorder,
   sessaoAindaVale,
-  type Ambiente,
-  type Banco,
-  type EmissorDeToken,
+  type Environment,
+  type Database,
+  type TokenIssuer,
   type Meter,
 } from '@educa/nucleo'
 import { ErrorCode, InvariantException, JANELA_DE_RENOVACAO_SIMULTANEA_MS, type RenovacaoResponse } from '@educa/shared'
@@ -49,7 +49,7 @@ export interface ResultadoDaRenovacaoHttp {
 }
 
 /** O erro da renovação recusada, com o `Set-Cookie` que apaga o cookie que não vale mais. */
-export class RenovacaoRecusada extends ErroDeDominio {
+export class RenovacaoRecusada extends DomainException {
   /** `ACESSO_SUSPENSO` quando o cookie é de uma pessoa com a eliminação agendada (14.0); `NAO_AUTENTICADO` em todo o resto. */
   constructor(
     readonly cookies: readonly string[],
@@ -60,9 +60,9 @@ export class RenovacaoRecusada extends ErroDeDominio {
 }
 
 export interface DependenciasDaRenovacao {
-  readonly banco: Banco
-  readonly emissorDeToken: EmissorDeToken
-  readonly ambiente: Ambiente
+  readonly banco: Database
+  readonly emissorDeToken: TokenIssuer
+  readonly ambiente: Environment
   readonly medidor: Meter
 }
 
@@ -77,7 +77,7 @@ type Decisao =
  *
  * - **Cookie atual**, sessão válida (não encerrada, dentro das 12 h e da inatividade com tolerância): rotaciona, guarda o
  *   anterior e devolve token e cookie novos. O token sai com `iat` depois de `rotacionado_em`, e a primeira requisição
- *   com ele marca `atual_apresentado` (na `GuardaDeSessao`).
+ *   com ele marca `atual_apresentado` (na `SessaoGuard`).
  * - **Cookie anterior, token novo nunca usado**: a resposta anterior se perdeu. Rotaciona de novo, sem encerrar, e o
  *   anterior continua o mesmo. Se a rotação é de menos de 2 s, é a renovação simultânea de outra aba: 409.
  * - **Cookie anterior, token novo já usado**: até 30 s, 409 `JA_RENOVADO` (outra aba renovou). Depois, é reuso: encerra
@@ -90,10 +90,10 @@ type Decisao =
  */
 export class RenovacaoService {
   readonly #renovacoes: ReturnType<Meter['createCounter']>
-  readonly #auditoria = new RegistroDeAuditoria()
+  readonly #auditoria = new AuditoriaRecorder()
 
   constructor(private readonly dependencias: DependenciasDaRenovacao) {
-    this.#renovacoes = dependencias.medidor.createCounter(METRICAS.renovacaoDeSessao, { description: 'Renovações de sessão pelo cookie, por resultado' })
+    this.#renovacoes = dependencias.medidor.createCounter(METRICS.renovacaoDeSessao, { description: 'Renovações de sessão pelo cookie, por resultado' })
     // Cada resultado nasce em 0: o alerta de reuso compara o máximo e o mínimo da janela, e a série que só aparece no
     // primeiro reuso esconderia os primeiros.
     for (const resultado of RESULTADOS_DA_RENOVACAO) this.#renovacoes.add(0, { resultado })
@@ -105,7 +105,7 @@ export class RenovacaoService {
     this.#renovacoes.add(1, { resultado: decisao.resultado })
     switch (decisao.resultado) {
       case 'ja_renovado':
-        throw new ErroDeDominio(ErrorCode.JA_RENOVADO)
+        throw new DomainException(ErrorCode.JA_RENOVADO)
       case 'reuso':
       case 'recusada':
         throw new RenovacaoRecusada(
@@ -119,7 +119,7 @@ export class RenovacaoService {
 
   async #decidir(refreshHash: string, ip: string): Promise<Decisao> {
     const novoRefresh = randomBytes(BYTES_DO_REFRESH).toString('base64url')
-    const requisicaoId = contextoAtual()?.requisicaoId ?? randomUUID()
+    const requisicaoId = currentContext()?.requisicaoId ?? randomUUID()
     return this.dependencias.banco.transaction(async (tx): Promise<Decisao> => {
       const achada = await new ResolucaoDeTenantRepository(tx).sessaoParaRenovar(refreshHash)
       if (achada === undefined) return { resultado: 'recusada' }
@@ -136,7 +136,7 @@ export class RenovacaoService {
       }
       if (!sessaoAindaVale(achada)) return { resultado: 'recusada' }
       // Daqui em diante, a escola e o usuário da sessão travada são o contexto: toda escrita é na escola dela.
-      return executarNoContexto({ requisicaoId, escolaId: achada.escolaId, usuarioId: achada.usuarioId }, async () => {
+      return runInContext({ requisicaoId, escolaId: achada.escolaId, usuarioId: achada.usuarioId }, async () => {
         const sessoes = new EscritaDeSessaoRepository(tx)
         const resultado = resultadoPeloCookie(achada)
         if (resultado === 'ja_renovado') return { resultado }

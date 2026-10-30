@@ -1,20 +1,20 @@
 import {
   EliminacaoDoTitular,
   estaNaJanela,
-  type Banco,
-  type ConfiguracaoOperacional,
+  type Database,
+  type OperationalSettings,
   type JanelaLetiva,
   type LoggerBase,
-  type Relogio,
+  type Clock,
 } from '@educa/nucleo'
 import type { TIPO_ELIMINAR_TITULAR } from '@educa/shared'
 import type { Processador } from '../executor.js'
 
 export interface DependenciasDaEliminacaoDoTitular {
-  banco: Banco
+  banco: Database
   /** O horário letivo da escola do contexto: a troca de nome confere a janela entre uma faixa e outra, e para quando ela abre. */
-  janelaDaEscola: Pick<ConfiguracaoOperacional<JanelaLetiva>, 'daEscola'>
-  relogio: Relogio
+  janelaDaEscola: Pick<OperationalSettings<JanelaLetiva>, 'daEscola'>
+  relogio: Clock
   logger: LoggerBase
   /** Linhas examinadas por faixa da troca de nome. Só o teste troca. */
   faixa?: number

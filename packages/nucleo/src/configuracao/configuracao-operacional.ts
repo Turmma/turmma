@@ -1,24 +1,24 @@
 import { QUEUE_NAMES, type QueueName } from '@educa/shared'
 import { z } from 'zod'
-import { validarAmbiente } from '../config/validar-config.js'
-import { contextoAtual } from '../contexto/contexto.js'
+import { validateEnvironment } from '../config/validar-config.js'
+import { currentContext } from '../contexto/contexto.js'
 import { fusoValido, msDoHorario, type JanelaLetiva } from '../fila/janela-letiva.js'
-import type { ConfiguracaoOperacionalRepository, LinhaOperacional } from './configuracao-operacional.repository.js'
+import type { OperationalSettingsRepository, OperationalSettingsRow } from './configuracao-operacional.repository.js'
 
 /** Por quanto tempo a configuração lida de uma escola vale na memória do processo. Mudança leva até isso para valer. */
 export const VALIDADE_DA_CONFIGURACAO_MS = 30_000
 /** Leitura que falhou (Postgres fora ou lento) é tentada de novo depois disso, e não a cada requisição. */
 export const NOVA_TENTATIVA_DA_CONFIGURACAO_MS = 5_000
 
-export type VagasPorFila = Readonly<Record<QueueName, number>>
+export type ConcurrencyByQueue = Readonly<Record<QueueName, number>>
 
-export interface LimitesDeRequisicao {
+export interface RateLimits {
   readonly porUsuarioMin: number
   readonly porEscolaMin: number
 }
 
 const vagaPositiva = z.coerce.number().int().positive()
-const esquemaAmbienteVagas = z.object({
+const concurrencyLimitEnvSchema = z.object({
   VAGAS_ESCOLA_INTERATIVA: vagaPositiva,
   VAGAS_ESCOLA_NORMAL: vagaPositiva,
   VAGAS_ESCOLA_LOTE: vagaPositiva,
@@ -28,13 +28,13 @@ const esquemaAmbienteVagas = z.object({
  * Vagas por fila de toda escola sem vagas próprias (D41). Despachante e worker leem o mesmo padrão:
  * o despachante toma a vaga ao publicar, e o worker a confere ao começar.
  */
-export function lerVagasPadrao(ambiente: Record<string, string | undefined>): VagasPorFila {
-  const valores = validarAmbiente(esquemaAmbienteVagas, ambiente)
+export function lerVagasPadrao(ambiente: Record<string, string | undefined>): ConcurrencyByQueue {
+  const valores = validateEnvironment(concurrencyLimitEnvSchema, ambiente)
   return { interativa: valores.VAGAS_ESCOLA_INTERATIVA, normal: valores.VAGAS_ESCOLA_NORMAL, lote: valores.VAGAS_ESCOLA_LOTE }
 }
 
 /** Vagas da escola: a fila que ela não configurou usa o padrão do ambiente. */
-export function resolverVagas(padrao: VagasPorFila, linha: LinhaOperacional | undefined): VagasPorFila {
+export function resolverVagas(padrao: ConcurrencyByQueue, linha: OperationalSettingsRow | undefined): ConcurrencyByQueue {
   return Object.fromEntries(QUEUE_NAMES.map((fila) => [fila, linha?.vagas?.[fila] ?? padrao[fila]])) as Record<QueueName, number>
 }
 
@@ -43,18 +43,18 @@ export function resolverVagas(padrao: VagasPorFila, linha: LinhaOperacional | un
  * cenário de carga: a vaga continua sendo tomada e liberada pelo mesmo caminho, mas nunca falta. Sobra só o
  * pool de cada worker, e é exatamente o que o cenário precisa ver reprovar.
  */
-export const VAGAS_SEM_LIMITE: VagasPorFila = Object.fromEntries(QUEUE_NAMES.map((fila) => [fila, Number.MAX_SAFE_INTEGER])) as Record<QueueName, number>
+export const VAGAS_SEM_LIMITE: ConcurrencyByQueue = Object.fromEntries(QUEUE_NAMES.map((fila) => [fila, Number.MAX_SAFE_INTEGER])) as Record<QueueName, number>
 
 /**
  * Como `resolverVagas`, a não ser no controle negativo do cenário de carga, em que nenhuma escola tem teto.
  * Despachante e worker resolvem pela mesma função: ligar a flag só num deles deixaria o outro segurando a
  * escola, e o controle negativo passaria sem provar nada.
  */
-export function resolverVagasDaEscola(padrao: VagasPorFila, linha: LinhaOperacional | undefined, vagasPorEscolaDesligadas: boolean): VagasPorFila {
+export function resolverVagasDaEscola(padrao: ConcurrencyByQueue, linha: OperationalSettingsRow | undefined, vagasPorEscolaDesligadas: boolean): ConcurrencyByQueue {
   return vagasPorEscolaDesligadas ? VAGAS_SEM_LIMITE : resolverVagas(padrao, linha)
 }
 
-const esquemaAmbienteJanela = z
+const windowEnvSchema = z
   .object({
     JANELA_LETIVA_FUSO: z.string().refine(fusoValido, { message: 'JANELA_LETIVA_FUSO precisa ser um fuso IANA, como America/Sao_Paulo' }),
     JANELA_LETIVA_DIAS: z
@@ -75,7 +75,7 @@ const esquemaAmbienteJanela = z
  * `.env.example`: `America/Sao_Paulo`, de segunda a sexta, das 07:00 às 18:00.
  */
 export function lerJanelaPadrao(ambiente: Record<string, string | undefined>): JanelaLetiva {
-  const valores = validarAmbiente(esquemaAmbienteJanela, ambiente)
+  const valores = validateEnvironment(windowEnvSchema, ambiente)
   return { fuso: valores.JANELA_LETIVA_FUSO, diasLetivos: valores.JANELA_LETIVA_DIAS, inicio: valores.JANELA_LETIVA_INICIO, fim: valores.JANELA_LETIVA_FIM }
 }
 
@@ -90,7 +90,7 @@ export type CampoDaJanelaDescartado = 'fuso' | 'horario'
  *   início padrão) usam os dois do padrão. O banco já recusa os dois configurados fora de ordem.
  * - Dias letivos vazios (`{}`) é uma escola sem dia letivo: o lote não urgente nunca é segurado.
  */
-export function resolverJanela(padrao: JanelaLetiva, linha: LinhaOperacional | undefined, aoDescartar: (campo: CampoDaJanelaDescartado) => void = () => undefined): JanelaLetiva {
+export function resolverJanela(padrao: JanelaLetiva, linha: OperationalSettingsRow | undefined, aoDescartar: (campo: CampoDaJanelaDescartado) => void = () => undefined): JanelaLetiva {
   let fuso = linha?.fuso ?? padrao.fuso
   if (!fusoValido(fuso)) {
     aoDescartar('fuso')
@@ -109,7 +109,7 @@ export function resolverJanela(padrao: JanelaLetiva, linha: LinhaOperacional | u
 }
 
 /** Limites de requisição da escola, cada um caindo no padrão do ambiente quando nulo. */
-export function resolverLimites(padrao: LimitesDeRequisicao, linha: LinhaOperacional | undefined): LimitesDeRequisicao {
+export function resolverLimites(padrao: RateLimits, linha: OperationalSettingsRow | undefined): RateLimits {
   return {
     porUsuarioMin: linha?.limiteReqUsuarioMin ?? padrao.porUsuarioMin,
     porEscolaMin: linha?.limiteReqEscolaMin ?? padrao.porEscolaMin,
@@ -121,7 +121,7 @@ interface Entrada<T> {
   validaAte: number
 }
 
-export interface OpcoesDaConfiguracaoOperacional {
+export interface OperationalSettingsOptions {
   /** Relógio em ms. Só o teste troca. */
   agora?: () => number
   /** Chamado quando a leitura falha; o valor usado segue sendo o último lido, ou o padrão. */
@@ -143,23 +143,23 @@ export interface OpcoesDaConfiguracaoOperacional {
  *
  * Não é estado que outra instância precise (regra 80, item 5): cada instância lê do Postgres.
  */
-export class ConfiguracaoOperacional<T> {
+export class OperationalSettings<T> {
   readonly #entradas = new Map<string, Entrada<T>>()
   readonly #leituras = new Map<string, Promise<T>>()
   readonly #agora: () => number
   readonly #aoFalhar: (erro: unknown) => void
 
   constructor(
-    private readonly repositorio: Pick<ConfiguracaoOperacionalRepository, 'daEscola'>,
-    private readonly resolver: (linha: LinhaOperacional | undefined) => T,
-    opcoes: OpcoesDaConfiguracaoOperacional = {},
+    private readonly repositorio: Pick<OperationalSettingsRepository, 'daEscola'>,
+    private readonly resolver: (linha: OperationalSettingsRow | undefined) => T,
+    opcoes: OperationalSettingsOptions = {},
   ) {
     this.#agora = opcoes.agora ?? (() => performance.now())
     this.#aoFalhar = opcoes.aoFalhar ?? (() => undefined)
   }
 
   daEscola(): Promise<T> {
-    const contexto = contextoAtual()
+    const contexto = currentContext()
     if (contexto?.escolaId === undefined) {
       if (contexto?.rotinaDoSistema === true) return Promise.resolve(this.resolver(undefined))
       return Promise.reject(new Error('configuração operacional sem escola no contexto'))

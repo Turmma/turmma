@@ -3,9 +3,9 @@ import { Logger, type BeforeApplicationShutdown, type OnApplicationShutdown } fr
 import type { IncomingMessage, Server, ServerResponse } from 'node:http'
 import type { Socket } from 'node:net'
 import { z } from 'zod'
-import { validarAmbiente } from '../config/validar-config.js'
+import { validateEnvironment } from '../config/validar-config.js'
 
-export interface ConfiguracaoDrenagem {
+export interface GracefulShutdownConfig {
   /**
    * Quanto a instância segue atendendo depois de pôr `/prontidao` em 503, antes de fechar o
    * servidor. Precisa passar do intervalo da sonda da borda (2 s no Caddy), senão a borda ainda
@@ -18,7 +18,7 @@ export interface ConfiguracaoDrenagem {
 
 const inteiroPositivo = z.coerce.number().int().positive()
 
-const esquemaAmbienteDrenagem = z
+const drainEnvSchema = z
   .object({
     DRENAGEM_ESPERA_BORDA_MS: inteiroPositivo,
     DRENAGEM_PRAZO_MS: inteiroPositivo,
@@ -33,13 +33,13 @@ const esquemaAmbienteDrenagem = z
     }
   })
 
-export function lerConfiguracaoDrenagem(ambiente: Record<string, string | undefined>): ConfiguracaoDrenagem {
-  const valores = validarAmbiente(esquemaAmbienteDrenagem, ambiente)
+export function loadGracefulShutdownConfig(ambiente: Record<string, string | undefined>): GracefulShutdownConfig {
+  const valores = validateEnvironment(drainEnvSchema, ambiente)
   return { esperaDaBordaMs: valores.DRENAGEM_ESPERA_BORDA_MS, prazoMs: valores.DRENAGEM_PRAZO_MS }
 }
 
 /** Resposta de `/prontidao`, sem consultar dependência: é só o estado da própria instância. */
-export interface RespostaDeProntidao {
+export interface ReadinessResult {
   readonly status: 200 | 503
   readonly corpo: ReadinessResponse
 }
@@ -74,7 +74,7 @@ const INTERVALO_FECHAR_OCIOSAS_MS = 200
  *
  * Não guarda nada que outra instância precise: o estado é só "esta instância está saindo".
  */
-export class Drenagem implements BeforeApplicationShutdown, OnApplicationShutdown {
+export class GracefulShutdown implements BeforeApplicationShutdown, OnApplicationShutdown {
   readonly #logger = new Logger('instancia')
   #drenando = false
   #prazo: NodeJS.Timeout | undefined
@@ -85,7 +85,7 @@ export class Drenagem implements BeforeApplicationShutdown, OnApplicationShutdow
   #semBytesNaPassadaAnterior = new Set<Socket>()
 
   constructor(
-    private readonly config: ConfiguracaoDrenagem,
+    private readonly config: GracefulShutdownConfig,
     private readonly encerrarProcesso: (codigo: number) => void = (codigo) => process.exit(codigo),
   ) {}
 
@@ -118,7 +118,7 @@ export class Drenagem implements BeforeApplicationShutdown, OnApplicationShutdow
     return this.#drenando
   }
 
-  prontidao(): RespostaDeProntidao {
+  prontidao(): ReadinessResult {
     return this.#drenando ? { status: 503, corpo: { pronta: false } } : { status: 200, corpo: { pronta: true } }
   }
 

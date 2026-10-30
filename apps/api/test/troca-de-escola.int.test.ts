@@ -1,5 +1,5 @@
 import 'reflect-metadata'
-import { criarLogger, EmissorDeToken } from '@educa/nucleo'
+import { createLogger, TokenIssuer } from '@educa/nucleo'
 import { ErrorCode, type PapelDeUsuario } from '@educa/shared'
 import type { INestApplication } from '@nestjs/common'
 import { NestFactory } from '@nestjs/core'
@@ -87,7 +87,7 @@ describe('POST /v1/sessao/escola e /v1/eu.acessos: quem trabalha em mais de uma 
 
   beforeAll(async () => {
     app = await NestFactory.create(AppModule.com(configuracao, { medidor: medidor.medidor, ...MONTAGEM_DE_TESTE }), { logger: false })
-    configurarAplicacao(app, criarLogger({ servico: 'api-teste', nivel: 'trace', destino: { write: (linha: string) => linhasDeLog.push(linha) } }), medidor.medidor)
+    configurarAplicacao(app, createLogger({ servico: 'api-teste', nivel: 'trace', destino: { write: (linha: string) => linhasDeLog.push(linha) } }), medidor.medidor)
     await app.listen(0, '127.0.0.1')
     url = `http://127.0.0.1:${(app.getHttpServer().address() as AddressInfo).port}`
     hash = app.get(HashDeSenha)
@@ -505,7 +505,7 @@ describe('POST /v1/sessao/escola e /v1/eu.acessos: quem trabalha em mais de uma 
       [a.id, coordenadora.contaId, coordenadora.usuarioId, randomBytes(32).toString('hex')],
     )
     const sessaoA = semMfa.rows[0]?.id ?? ''
-    const { token: tokenSemMfa } = await new EmissorDeToken(configuracao.identidade.chaveAssinatura).emitir({ escolaId: a.id, usuarioId: coordenadora.usuarioId, sessaoId: sessaoA })
+    const { token: tokenSemMfa } = await new TokenIssuer(configuracao.identidade.chaveAssinatura).emitir({ escolaId: a.id, usuarioId: coordenadora.usuarioId, sessaoId: sessaoA })
     const configurar = await escolherEscola(tokenSemMfa, emB)
     expect(configurar.corpo).toEqual({ etapa: 'configurar_mfa', desafio: expect.any(String) })
     expect(configurar.setCookie).toEqual([])
@@ -772,7 +772,7 @@ describe('POST /v1/sessao/escola e /v1/eu.acessos: quem trabalha em mais de uma 
     const medidorDoCompose = new MedidorDeTeste()
     const logDoCompose: string[] = []
     const instancia = await NestFactory.create(AppModule.com(configuracaoDeTeste(), { medidor: medidorDoCompose.medidor }), { logger: false })
-    configurarAplicacao(instancia, criarLogger({ servico: 'api-teste', nivel: 'trace', destino: { write: (linha: string) => logDoCompose.push(linha) } }), medidorDoCompose.medidor)
+    configurarAplicacao(instancia, createLogger({ servico: 'api-teste', nivel: 'trace', destino: { write: (linha: string) => logDoCompose.push(linha) } }), medidorDoCompose.medidor)
     await instancia.listen(0, '127.0.0.1')
     const urlDoCompose = `http://127.0.0.1:${String((instancia.getHttpServer().address() as AddressInfo).port)}`
     let travado: Awaited<ReturnType<typeof travarRedis>> | undefined

@@ -7,7 +7,7 @@ import type { ChaveDeFuncao } from './funcoes.js'
 
 /**
  * A execução de agente (MVP, seção 4, item 1; glossário, "Agente"; D49): todo `POST` que dispara IA grava uma
- * `execucao_agente` `pendente` e responde 202 com o id dela. A execução roda depois, pelo `ExecutorDeAgente` da camada
+ * `execucao_agente` `pendente` e responde 202 com o id dela. A execução roda depois, pelo `AgenteExecutor` da camada
  * de IA, e a tela consulta `GET /v1/execucoes/:id` até ela terminar. Não há WebSocket nesta fatia.
  */
 export const ESTADOS_DE_EXECUCAO = ['pendente', 'rodando', 'concluida', 'falhou'] as const
@@ -55,7 +55,7 @@ export type PerfilDeIa = (typeof PERFIS_DE_IA)[number]
 
 /**
  * Quem atendeu a chamada: o adaptador falso, o provedor do padrão OpenAI, ou nenhum, quando a resposta saiu de regra
- * fixa (o assunto delicado no Tutor, D36). É a `OrigemDaSaida` da camada de IA; o check `consumo_ia_origem_valida` repete
+ * fixa (o assunto delicado no Tutor, D36). É a `OutputSource` da camada de IA; o check `consumo_ia_origem_valida` repete
  * a lista.
  */
 export const ORIGENS_DA_SAIDA_DE_IA = ['falso', 'openai_compat', 'regra_fixa'] as const
@@ -95,7 +95,7 @@ export const execucaoInputSchema = z.discriminatedUnion('tarefa', [
 export type ExecucaoInput = z.infer<typeof execucaoInputSchema>
 
 /**
- * O que se guarda em `execucao_agente.resultado`, e o que o trabalho da execução devolve ao `ExecutorDeAgente`: **só a
+ * O que se guarda em `execucao_agente.resultado`, e o que o trabalho da execução devolve ao `AgenteExecutor`: **só a
  * referência** ao que ela gravou. A mensagem do Assistente e a do Tutor ficam em `mensagem_agente` e `mensagem_tutor`, e
  * o texto delas não é copiado para a execução: a conversa do aluno tem um lugar só, com a retenção dela.
  */

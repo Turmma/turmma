@@ -92,7 +92,7 @@ só o id do titular e as duas marcas, `nome_trocado` e `homonimo`.
 não tem `escolaId` porque é o login; `Usuario` é a pessoa *naquela* escola, com o papel dela.
 Um professor em duas escolas é uma `Conta` com dois `Usuario`, e o escopo de tenant continua
 inteiro na regra 10: toda tabela de domínio tem `escolaId`, e quem resolve a fronteira é a
-`ResolucaoDeTenantRepository`, com `@SemEscopo` e teste de arquitetura que prova que só `sessao`
+`ResolucaoDeTenantRepository`, com `@Unscoped` e teste de arquitetura que prova que só `sessao`
 a importa. Ela não é mais a única a alcançar a `Conta` sem escopo: as três operações sobre a
 `Conta` global que o ciclo de vida faz (travar, limpar a conta sem uso e encerrar as sessões dela) moram
 na `ContaGlobalRepository`, em `packages/nucleo/src/ciclo-de-vida`, desde que o ciclo de vida foi
@@ -210,7 +210,7 @@ pela mesma validade. A coordenação não gera acesso.
 
 **A página pública da sala** (`POST /v1/salas/abrir`, tarefa 5.0) não tem sessão: o aluno chega com o
 slug da escola e o link ou o código, e a escola, o ano e a turma saem da linha do acesso vigente. As duas
-consultas sem escopo que ela alcança são estas, cada uma com `@SemEscopo` e a justificativa no código:
+consultas sem escopo que ela alcança são estas, cada uma com `@Unscoped` e a justificativa no código:
 
 | Repository e método | O que faz | Justificativa |
 |---|---|---|
@@ -335,7 +335,7 @@ Um convite pendente por operador, por único parcial.
 
 **O painel da operação** (A0b, D76) lê entre escolas, e é a exceção da regra 10, item 9. O desenho
 está na Tech Spec da A0b (`tasks/prd-apresentacao-painel/techspec.md`, seções 6 e 11), e as consultas
-sem escopo que uma rota do painel alcança são estas, cada uma com `@SemEscopo` e a justificativa no
+sem escopo que uma rota do painel alcança são estas, cada uma com `@Unscoped` e a justificativa no
 código:
 
 | Repository e método | O que faz | Justificativa |
@@ -348,7 +348,7 @@ código:
 | `ResolucaoDeTenantRepository.escolaDoConviteParaOperador` | a escola do convite de coordenação | recebe só o id do convite, e a escola dele vira o contexto, nunca o argumento |
 
 O `PainelRepository` é o único lugar da leitura entre escolas: os três métodos dele são todos
-`@SemEscopo`, e só o `painel.service.ts` o importa (teste de arquitetura I1). Os outros quatro já
+`@Unscoped`, e só o `painel.service.ts` o importa (teste de arquitetura I1). Os outros quatro já
 existiam para os comandos `ops:*` e passaram a servir também ao painel, com a justificativa "comando
 ou painel" (o `ops` continua com os dois, I2, e o `sessao` não ganhou nenhum). Eles servem às
 escritas: fora a leitura da escola do convite, que só devolve o `escola_id`, as escritas abrem o
@@ -632,7 +632,7 @@ colunas de segredo, em `COLUNAS_FORA_DO_ARQUIVO`; o teste de arquitetura confere
 **Os suboperadores (F3, tarefa 8.0).** `Suboperador` é a empresa que recebe dado da escola (hospedagem, provedor de IA, e-mail,
 busca) e **não tem `escolaId`**: a hospedagem atende toda escola, e uma linha por escola seria a mesma linha cem vezes. Só o
 `ops:suboperador` escreve (`cadastrar` e `encerrar`), pelo `OperacaoPrivacidadeRepository` (o `encerrar` fecha as ligações de uma
-empresa em todas as escolas, e é o **único `@SemEscopo`** do F3 nos comandos `ops:*`: grava só a data de fim e devolve só a
+empresa em todas as escolas, e é o **único `@Unscoped`** do F3 nos comandos `ops:*`: grava só a data de fim e devolve só a
 contagem), e a escola lê pelo
 `SuboperadorDaEscolaRepository`, que filtra por `(alcance = 'todas' or exists (ligação com a escola do contexto))` e é só
 leitura; o teste de arquitetura procura outro uso, por import e por SQL. `SuboperadorEscola` liga o de alcance `lista` a cada
@@ -673,18 +673,18 @@ quantas pararam e quando foi a mais recente. Não há nome, id de titular, texto
 erro não repete o que o operador digitou. Abre o contexto da escola do pedido, na mesma transação que confere o `OPERADOR`, e
 lê pelo `ContagensDePrivacidadeRepository` (`pedido_titular`, `arquivo_titular` e `expurgo_execucao`, cada leitura com o
 `escola_id` do contexto, nenhuma coluna de pessoa) e pelos leitores que a escola já usa, `SuboperadorDaEscolaRepository` e
-`IncidenteDaEscolaRepository`, que ele só conta: **nenhum `@SemEscopo` novo**, e as quatro tabelas da operação continuam
+`IncidenteDaEscolaRepository`, que ele só conta: **nenhum `@Unscoped` novo**, e as quatro tabelas da operação continuam
 com dono único no teste de arquitetura. Escola que não existe responde `NAO_ENCONTRADO`, igual a qualquer outra.
 
 **O expurgo noturno da escola (F3, tarefa 3.0).** À 1h, a rotina do sistema `sistema.expurgar-dado-pessoal` lista as
-escolas pela `EscolasDaRotinaRepository` (em `packages/nucleo/src/rotina`), a **única consulta sem escopo do expurgo**:
-`listarIds`, `@SemEscopo` com a justificativa da rotina, devolve só os ids. Ela não é de retenção: é a infraestrutura de
+escolas pela `CronEscolasRepository` (em `packages/nucleo/src/rotina`), a **única consulta sem escopo do expurgo**:
+`listarIds`, `@Unscoped` com a justificativa da rotina, devolve só os ids. Ela não é de retenção: é a infraestrutura de
 que a rotina, sem escola, precisa para abrir o contexto de cada escola, e o teste de arquitetura confere que só o
 worker-lote a usa (a rotina e a medição do alerta). No contexto de cada escola, a rotina grava um
-`retencao.expurgar-escola` na fila de lote, não urgente, pelo `Enfileirador.enfileirarUmaVez`, com a **chave de
+`retencao.expurgar-escola` na fila de lote, não urgente, pelo `JobOutbox.enfileirarUmaVez`, com a **chave de
 idempotência** "data local da noite" no fuso da escola: `JobRegistro.chaveIdempotencia`, única por escola e tipo entre os
 jobs não finalizados (índice parcial), e só em job de escola (check). O job da escola roda com a escola do
-`job_registro`, e o `ExpurgoDaEscolaRepository` tira o escopo do contexto, sem nenhum `@SemEscopo`: apaga a conversa do
+`job_registro`, e o `ExpurgoDaEscolaRepository` tira o escopo do contexto, sem nenhum `@Unscoped`: apaga a conversa do
 Tutor, os sinais e a conversa do professor vencidos (a thread vazia e criada antes do corte sai depois), em lotes de
 5.000 pelo índice `(escola_id, <data>)`, confere a janela letiva antes de cada lote e grava uma linha de
 `ExpurgoExecucao` por categoria percorrida, mesmo com zero: `concluida` é `true` quando a categoria terminou e `false`
@@ -755,7 +755,7 @@ liga a decisão sobre o professor (D45, regra 70 item 8). Os dois estão no mapa
    - o `Incidente` (F3), o que as escolas afetadas por um incidente de segurança dividem, da nossa operação: só o
      `OperacaoPrivacidadeRepository` escreve, o `IncidenteDaEscolaRepository` lê pela `IncidenteEscola` (esta tem `escolaId`) e
      o expurgo de acesso apaga por prazo — ver "Comunicação, conta e conformidade".
-   A lista de escolas da rotina noturna (`EscolasDaRotinaRepository.listarIds`, F3) não é tabela sem escola: é a
+   A lista de escolas da rotina noturna (`CronEscolasRepository.listarIds`, F3) não é tabela sem escola: é a
    consulta sem escopo que abre o contexto de cada escola — ver "Comunicação, conta e conformidade".
 2. Id é UUID. Nunca sequencial.
 3. Nada é apagado de verdade: exclusão é lógica, com data e autor — exceto em pedido de

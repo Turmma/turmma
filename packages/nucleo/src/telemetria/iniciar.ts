@@ -4,48 +4,48 @@ import { resourceFromAttributes } from '@opentelemetry/resources'
 import { MeterProvider, PeriodicExportingMetricReader, type PushMetricExporter } from '@opentelemetry/sdk-metrics'
 import { hostname } from 'node:os'
 import { z } from 'zod'
-import { validarAmbiente } from '../config/validar-config.js'
-import { observarEventLoop } from './metricas.js'
-import { temporalidadeDasMetricas } from './temporalidade.js'
+import { validateEnvironment } from '../config/validar-config.js'
+import { observeEventLoop } from './metricas.js'
+import { metricsTemporality } from './temporalidade.js'
 
 /** Nome do medidor de todo processo. As métricas se distinguem pelo `service.name`, não pelo medidor. */
 export const NOME_DO_MEDIDOR = 'educa'
 
 /** Os processos que exportam métrica. Vira `service.name`, e o Prometheus o mostra no rótulo `job`. */
-export type ServicoInstrumentado = 'api' | 'realtime' | 'despachante' | 'worker'
+export type InstrumentedService = 'api' | 'realtime' | 'despachante' | 'worker'
 
 /** Prazo de cada exportação. Observabilidade fora não segura nada: a exportação desiste, e a seguinte tenta de novo. */
 export const PRAZO_DA_EXPORTACAO_MS = 5_000
 
-export interface ConfiguracaoTelemetria {
+export interface TelemetryConfig {
   /** Base do receptor OTLP/HTTP (o `observabilidade` do compose). As métricas vão para `/v1/metrics`. */
   readonly otlpUrl: string
   /** De quanto em quanto tempo o processo coleta e exporta. */
   readonly intervaloMs: number
 }
 
-const esquemaAmbienteTelemetria = z.object({
+const telemetryEnvSchema = z.object({
   TELEMETRIA_OTLP_URL: z.url({ protocol: /^https?$/ }),
   TELEMETRIA_INTERVALO_MS: z.coerce.number().int().min(1_000),
 })
 
 /** Destino e intervalo da exportação, do ambiente. Nenhum dos dois tem padrão escondido no código. */
-export function lerConfiguracaoTelemetria(ambiente: Record<string, string | undefined>): ConfiguracaoTelemetria {
-  const valores = validarAmbiente(esquemaAmbienteTelemetria, ambiente)
+export function loadTelemetryConfig(ambiente: Record<string, string | undefined>): TelemetryConfig {
+  const valores = validateEnvironment(telemetryEnvSchema, ambiente)
   return { otlpUrl: valores.TELEMETRIA_OTLP_URL.replace(/\/+$/, ''), intervaloMs: valores.TELEMETRIA_INTERVALO_MS }
 }
 
-/** O exportador OTLP com a temporalidade de `temporalidadeDasMetricas`, que a opção dele não permite escolher por instrumento. */
+/** O exportador OTLP com a temporalidade de `metricsTemporality`, que a opção dele não permite escolher por instrumento. */
 function comTemporalidade(exportador: PushMetricExporter): PushMetricExporter {
   return {
     export: (metricas, aoTerminar) => exportador.export(metricas, aoTerminar),
     forceFlush: () => exportador.forceFlush(),
     shutdown: () => exportador.shutdown(),
-    selectAggregationTemporality: temporalidadeDasMetricas,
+    selectAggregationTemporality: metricsTemporality,
   }
 }
 
-export interface Telemetria {
+export interface Telemetry {
   /** O medidor com que o processo cria as métricas dele. */
   readonly medidor: Meter
   /** Exporta o que falta e para. Não lança: observabilidade fora não atrasa o desligamento. */
@@ -63,7 +63,7 @@ export interface Telemetria {
  * Exportação que falha (observabilidade fora) não escreve no log nem derruba o processo: o erro vai ao
  * `diag` do OpenTelemetry, que fica desligado.
  */
-export function iniciarTelemetria(servico: ServicoInstrumentado, config: ConfiguracaoTelemetria): Telemetria {
+export function startTelemetry(servico: InstrumentedService, config: TelemetryConfig): Telemetry {
   const exportador = new OTLPMetricExporter({ url: `${config.otlpUrl}/v1/metrics`, timeoutMillis: PRAZO_DA_EXPORTACAO_MS })
   const provedor = new MeterProvider({
     resource: resourceFromAttributes({
@@ -81,7 +81,7 @@ export function iniciarTelemetria(servico: ServicoInstrumentado, config: Configu
   })
   metrics.setGlobalMeterProvider(provedor)
   const medidor = provedor.getMeter(NOME_DO_MEDIDOR)
-  observarEventLoop(medidor)
+  observeEventLoop(medidor)
   return {
     medidor,
     encerrar: () => provedor.shutdown({ timeoutMillis: PRAZO_DA_EXPORTACAO_MS }).catch(() => undefined),
@@ -89,9 +89,9 @@ export function iniciarTelemetria(servico: ServicoInstrumentado, config: Configu
 }
 
 /**
- * O medidor global. No processo que chamou `iniciarTelemetria`, é o que exporta; no teste que monta a
+ * O medidor global. No processo que chamou `startTelemetry`, é o que exporta; no teste que monta a
  * aplicação sem ela, é um medidor vazio, que não guarda nem envia nada.
  */
-export function medidorGlobal(): Meter {
+export function globalMeter(): Meter {
   return metrics.getMeter(NOME_DO_MEDIDOR)
 }

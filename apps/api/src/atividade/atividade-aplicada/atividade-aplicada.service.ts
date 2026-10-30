@@ -1,4 +1,4 @@
-import { ErroDeDominio, RegistroDeAuditoria, type Banco, type TransacaoBanco } from '@educa/nucleo'
+import { DomainException, AuditoriaRecorder, type Database, type DatabaseTransaction } from '@educa/nucleo'
 import {
   ErrorCode,
   conteudoDeAtividadeSchema,
@@ -17,7 +17,7 @@ import { AtividadeAplicadaRepository, type AplicacaoLida, type AplicacaoTravada 
 import { acertosDoLote, corrigirTentativa, destaquesDaTentativa, type HistoricoAprovado } from '../correcao/correcao-de-objetiva.js'
 import { CorrecaoRepository, type NovaCorrecao } from '../correcao/correcao.repository.js'
 
-const registro = new RegistroDeAuditoria()
+const registro = new AuditoriaRecorder()
 
 /** A atividade aplicada como a tela a recebe (DTO explícito; regra 20, item 4): só contagem de participação, nenhum aluno. */
 function paraATela(lida: AplicacaoLida): unknown {
@@ -54,7 +54,7 @@ function paraATela(lida: AplicacaoLida): unknown {
  */
 export class AtividadeAplicadaService {
   constructor(
-    private readonly banco: Banco,
+    private readonly banco: Database,
     private readonly conferencia: ConferenciaDeFuncao,
   ) {}
 
@@ -65,13 +65,13 @@ export class AtividadeAplicadaService {
       const aplicacoes = new AtividadeAplicadaRepository(tx)
       const alvo = await aplicacoes.artefatoParaAplicar(artefatoId)
       // O artefato fora do alcance e a turma sem vínculo na disciplina dele respondem igual: nenhum confirma o outro.
-      if (alvo === undefined || !(await aplicacoes.podeAplicarNaTurma(turmaId, alvo.disciplinaId))) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
-      if (alvo.tipo !== 'atividade_objetiva') throw new ErroDeDominio(ErrorCode.ENTRADA_INVALIDA)
-      if (alvo.versaoAdaptada && alvo.entregaEstado !== 'aprovada') throw new ErroDeDominio(ErrorCode.VERSAO_ADAPTADA_NAO_APROVADA)
+      if (alvo === undefined || !(await aplicacoes.podeAplicarNaTurma(turmaId, alvo.disciplinaId))) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
+      if (alvo.tipo !== 'atividade_objetiva') throw new DomainException(ErrorCode.ENTRADA_INVALIDA)
+      if (alvo.versaoAdaptada && alvo.entregaEstado !== 'aprovada') throw new DomainException(ErrorCode.VERSAO_ADAPTADA_NAO_APROVADA)
       const id = await aplicacoes.criar({ turmaId, artefatoId, avaliativa: pedido.avaliativa })
       await registro.gravar(tx, 'atividade.aplicada', { entidadeId: id, depois: { artefatoId, turmaId, avaliativa: pedido.avaliativa, versaoAdaptada: alvo.versaoAdaptada } })
       const lida = await aplicacoes.porId(id)
-      if (lida === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+      if (lida === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
       return lida
     })
     return atividadeAplicadaResponseSchema.parse(paraATela(criada))
@@ -87,11 +87,11 @@ export class AtividadeAplicadaService {
     const encerrada = await this.banco.transaction(async (tx) => {
       const aplicacoes = new AtividadeAplicadaRepository(tx)
       const travada = await aplicacoes.travar(id)
-      if (travada === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+      if (travada === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
       if (travada.estado === 'aberta') await aplicacoes.encerrar(id)
       await this.#corrigir(tx, travada)
       const lida = await aplicacoes.porId(id)
-      if (lida === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+      if (lida === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
       return lida
     })
     // A correção é uma conta, feita na transação: não há execução de agente a consultar.
@@ -104,7 +104,7 @@ export class AtividadeAplicadaService {
       await this.conferencia.exigirAtiva('correcao_de_objetiva')
       return false
     } catch (erro) {
-      if (erro instanceof ErroDeDominio && erro.codigo === ErrorCode.FUNCAO_SUSPENSA) return true
+      if (erro instanceof DomainException && erro.codigo === ErrorCode.FUNCAO_SUSPENSA) return true
       throw erro
     }
   }
@@ -114,7 +114,7 @@ export class AtividadeAplicadaService {
    * que faz a reexecução não inserir nem alterar correção), se a função está suspensa, ou se ninguém abriu a atividade.
    * **Quem nunca abriu não tem correção**: faltar não é ficar em branco.
    */
-  async #corrigir(tx: TransacaoBanco, aplicacao: AplicacaoTravada): Promise<void> {
+  async #corrigir(tx: DatabaseTransaction, aplicacao: AplicacaoTravada): Promise<void> {
     const correcoes = new CorrecaoRepository(tx)
     if (await correcoes.temLoteVigente(aplicacao.id)) return
     if (await this.#suspensa()) return

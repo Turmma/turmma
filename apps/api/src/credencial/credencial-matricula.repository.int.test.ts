@@ -1,4 +1,4 @@
-import { executarNoContexto } from '@educa/nucleo'
+import { runInContext } from '@educa/nucleo'
 import { randomUUID } from 'node:crypto'
 import { afterAll, describe, expect, it } from 'vitest'
 import { BancadaDeSessoes } from '../../test/sessao-de-teste.js'
@@ -14,7 +14,7 @@ describe('CredencialMatriculaRepository: a matrícula é lida só na escola do c
     await bancada.fechar()
   })
 
-  const naEscola = <T>(escolaId: string, funcao: () => Promise<T>) => executarNoContexto({ requisicaoId: randomUUID(), escolaId }, funcao)
+  const naEscola = <T>(escolaId: string, funcao: () => Promise<T>) => runInContext({ requisicaoId: randomUUID(), escolaId }, funcao)
 
   it('isolamento: com contexto forjado (escola A), a matrícula que só existe em B não é achada; na escola B, é', async () => {
     const escolaA = await bancada.escola()
@@ -24,7 +24,7 @@ describe('CredencialMatriculaRepository: a matrícula é lida só na escola do c
     const repositorio = new CredencialMatriculaRepository(bancada.banco)
     expect(await naEscola(escolaA, () => repositorio.doAlunoAtivo(matricula))).toBeUndefined()
     expect(await naEscola(escolaB, () => repositorio.doAlunoAtivo(matricula))).toEqual({ usuarioId: alunoDeB, senhaHash: HASH_SINTETICO, suspenso: false })
-    await expect(executarNoContexto({ requisicaoId: randomUUID() }, () => repositorio.doAlunoAtivo(matricula))).rejects.toThrow('consulta com escopo sem escola no contexto')
+    await expect(runInContext({ requisicaoId: randomUUID() }, () => repositorio.doAlunoAtivo(matricula))).rejects.toThrow('consulta com escopo sem escola no contexto')
   })
 
   it('eliminação agendada (14.0): o aluno é achado, com `suspenso`, para o login conferir a senha antes de dizer que o acesso está suspenso', async () => {

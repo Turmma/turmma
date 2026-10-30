@@ -15,12 +15,12 @@ const caminhos = {
 }
 
 interface Modulos {
-  ProvedorDeIa: new (dependencias: Record<string, unknown>) => ProvedorDeTurnos
-  AdaptadorRoteirizado: new (roteiro: readonly string[]) => { chamadas: number }
-  ConsumoEmMemoria: new () => unknown
-  OrcamentoEmMemoria: new (consumo: unknown) => unknown
-  SuspensoesEmMemoria: new () => unknown
-  executarNoContexto: PecasDoNucleo['executarNoContexto']
+  LLMGateway: new (dependencias: Record<string, unknown>) => ProvedorDeTurnos
+  ScriptedAdapter: new (roteiro: readonly string[]) => { chamadas: number }
+  InMemoryConsumo: new () => unknown
+  InMemoryOrcamento: new (consumo: unknown) => unknown
+  InMemorySuspensoes: new () => unknown
+  runInContext: PecasDoNucleo['executarNoContexto']
   turnoDoTutor: unknown
   mencionaRiscoAVida: (duvida: string) => boolean
   MENSAGEM_DE_RISCO_A_VIDA: string
@@ -50,10 +50,10 @@ const AMOSTRAS = [
 
 async function medirComRoteiro(roteiro: readonly string[], execucoes?: number) {
   const nucleo = await carregar()
-  const adaptador = new nucleo.AdaptadorRoteirizado(roteiro)
-  const consumo = new nucleo.ConsumoEmMemoria()
-  const provedor = new nucleo.ProvedorDeIa({ adaptador, registro: consumo, orcamento: new nucleo.OrcamentoEmMemoria(consumo), suspensao: new nucleo.SuspensoesEmMemoria() })
-  const pecas: PecasDoNucleo = { provedor, executarNoContexto: nucleo.executarNoContexto, turnoDoTutor: nucleo.turnoDoTutor, mencionaRiscoAVida: nucleo.mencionaRiscoAVida, MENSAGEM_DE_RISCO_A_VIDA: nucleo.MENSAGEM_DE_RISCO_A_VIDA }
+  const adaptador = new nucleo.ScriptedAdapter(roteiro)
+  const consumo = new nucleo.InMemoryConsumo()
+  const provedor = new nucleo.LLMGateway({ adaptador, registro: consumo, orcamento: new nucleo.InMemoryOrcamento(consumo), suspensao: new nucleo.InMemorySuspensoes() })
+  const pecas: PecasDoNucleo = { provedor, executarNoContexto: nucleo.runInContext, turnoDoTutor: nucleo.turnoDoTutor, mencionaRiscoAVida: nucleo.mencionaRiscoAVida, MENSAGEM_DE_RISCO_A_VIDA: nucleo.MENSAGEM_DE_RISCO_A_VIDA }
   const resultado = await medirComProvedor(AMOSTRAS, pecas, execucoes === undefined ? {} : { execucoes })
   return { resultado, adaptador }
 }

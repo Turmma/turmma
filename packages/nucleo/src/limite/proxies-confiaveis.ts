@@ -1,8 +1,8 @@
 import { lookup } from 'node:dns/promises'
 import { isIP } from 'node:net'
-import { normalizarIp } from './chaves.js'
+import { normalizeIp } from './chaves.js'
 
-export type ResolverNome = (nome: string) => Promise<readonly string[]>
+export type NameResolver = (nome: string) => Promise<readonly string[]>
 
 /** Uma resolução por vez, e no máximo uma a cada este intervalo, por mais conexões desconhecidas que cheguem. */
 export const INTERVALO_MINIMO_RESOLUCAO_MS = 2_000
@@ -23,7 +23,7 @@ async function resolverPeloSistema(nome: string): Promise<readonly string[]> {
  *
  * Guarda só o cache de endereços da própria instância, que nenhuma outra precisa.
  */
-export class ProxiesConfiaveis {
+export class TrustedProxies {
   readonly #ipsFixos: ReadonlySet<string>
   readonly #nomes: readonly string[]
   #ipsResolvidos: ReadonlySet<string> = new Set()
@@ -34,15 +34,15 @@ export class ProxiesConfiaveis {
 
   constructor(
     entradas: readonly string[],
-    private readonly resolver: ResolverNome = resolverPeloSistema,
+    private readonly resolver: NameResolver = resolverPeloSistema,
     private readonly agora: () => number = () => performance.now(),
   ) {
-    this.#ipsFixos = new Set(entradas.flatMap((entrada) => normalizarIp(entrada) ?? []))
+    this.#ipsFixos = new Set(entradas.flatMap((entrada) => normalizeIp(entrada) ?? []))
     this.#nomes = entradas.filter((entrada) => isIP(entrada) === 0)
   }
 
   async ehConfiavel(enderecoDaConexao: string | undefined): Promise<boolean> {
-    const ip = normalizarIp(enderecoDaConexao)
+    const ip = normalizeIp(enderecoDaConexao)
     if (ip === undefined) return false
     if (this.#ipsFixos.has(ip) || this.#ipsResolvidos.has(ip)) return true
     if (this.#nomes.length === 0 || this.agora() - this.#resolvidoEm < INTERVALO_MINIMO_RESOLUCAO_MS) return false
@@ -82,6 +82,6 @@ export class ProxiesConfiaveis {
   #aplicar(resolvidos: Array<PromiseSettledResult<readonly string[]>>): void {
     if (!resolvidos.some((resultado) => resultado.status === 'fulfilled')) return
     const enderecos = resolvidos.flatMap((resultado) => (resultado.status === 'fulfilled' ? resultado.value : []))
-    this.#ipsResolvidos = new Set(enderecos.flatMap((endereco) => normalizarIp(endereco) ?? []))
+    this.#ipsResolvidos = new Set(enderecos.flatMap((endereco) => normalizeIp(endereco) ?? []))
   }
 }

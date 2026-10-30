@@ -1,4 +1,4 @@
-import { EMISSOR_TOKEN, ErroDeDominio, TIPO_DESAFIO_DE_OPERADOR, verificarToken, verificarTokenDeOperador } from '@educa/nucleo'
+import { EMISSOR_TOKEN, DomainException, TIPO_DESAFIO_DE_OPERADOR, verifyToken, verifyOperadorToken } from '@educa/nucleo'
 import { ErrorCode } from '@educa/shared'
 import { decodeJwt, decodeProtectedHeader, SignJWT, type JWTPayload } from 'jose'
 import { randomUUID } from 'node:crypto'
@@ -13,11 +13,11 @@ const CHAVE = new TextEncoder().encode('chave_sintetica_de_teste_com_32_caracter
 const OUTRA_CHAVE = new TextEncoder().encode('outra_chave_sintetica_com_32_caracteres')
 const agora = () => Math.floor(Date.now() / 1_000)
 
-async function recusa(promessa: Promise<unknown>): Promise<ErroDeDominio> {
+async function recusa(promessa: Promise<unknown>): Promise<DomainException> {
   try {
     await promessa
   } catch (erro) {
-    if (erro instanceof ErroDeDominio) return erro
+    if (erro instanceof DomainException) return erro
     throw erro
   }
   throw new Error('o desafio deveria ter sido recusado')
@@ -72,8 +72,8 @@ describe('desafio do operador (tarefa 5.0)', () => {
     const desafio = await new EmissorDeDesafioDeOperador(CHAVE).emitir({ operadorId: OPERADOR, etapa: 'configurar_mfa' })
     const config = { ambiente: 'local' as const, chaveAssinatura: CHAVE }
     expect(await recusa(verificarDesafio(desafio, CHAVE, ['configurar_mfa', 'mfa']))).toMatchObject({ codigo: ErrorCode.NAO_AUTENTICADO })
-    expect(await recusa(verificarToken(desafio, config))).toMatchObject({ codigo: ErrorCode.NAO_AUTENTICADO })
-    expect(await recusa(verificarTokenDeOperador(desafio, config))).toMatchObject({ codigo: ErrorCode.NAO_AUTENTICADO })
+    expect(await recusa(verifyToken(desafio, config))).toMatchObject({ codigo: ErrorCode.NAO_AUTENTICADO })
+    expect(await recusa(verifyOperadorToken(desafio, config))).toMatchObject({ codigo: ErrorCode.NAO_AUTENTICADO })
     const daEscola = await new EmissorDeDesafio(CHAVE).emitir({ contaId: OPERADOR, etapa: 'configurar_mfa', mfaCumprido: false })
     expect(await recusa(verificarDesafioDeOperador(daEscola, CHAVE, 'configurar_mfa'))).toMatchObject({ codigo: ErrorCode.NAO_AUTENTICADO })
   })

@@ -1,4 +1,4 @@
-import { METRICAS } from '@educa/nucleo'
+import { METRICS } from '@educa/nucleo'
 import { ErrorCode, JANELA_DE_RENOVACAO_SIMULTANEA_MS } from '@educa/shared'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
@@ -23,7 +23,7 @@ describe('POST /v1/sessao/renovar: a sessão dura enquanto a pessoa usa, e o coo
   })
 
   async function renovacoes(resultado: string): Promise<number> {
-    const pontos = await medidor.pontos(METRICAS.renovacaoDeSessao)
+    const pontos = await medidor.pontos(METRICS.renovacaoDeSessao)
     const ponto = pontos.find((candidato) => candidato.atributos['resultado'] === resultado)
     return typeof ponto?.valor === 'number' ? ponto.valor : 0
   }

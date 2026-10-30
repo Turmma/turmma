@@ -1,9 +1,9 @@
 import { drizzle } from 'drizzle-orm/node-postgres'
-import { migrate } from 'drizzle-orm/node-postgres/migrator'
+import { migrate as drizzleMigrate } from 'drizzle-orm/node-postgres/migrator'
 import { fileURLToPath } from 'node:url'
 import { setTimeout as esperar } from 'node:timers/promises'
 import pg from 'pg'
-import { erroDoPostgresEm, resumirErro } from '../erro/resumir-erro.js'
+import { postgresErrorIn, summarizeError } from '../erro/resumir-erro.js'
 import type { LoggerBase } from '../log/logger.js'
 
 /** Pasta das migrations geradas pelo drizzle-kit. Mesma profundidade em `src/db` e em `dist/db`. */
@@ -24,7 +24,7 @@ const SQLSTATE_LOCK_TIMEOUT = '55P03'
 /** Chave do advisory lock que impede duas migrações ao mesmo tempo (`docker compose up` em paralelo). */
 const CHAVE_LOCK_MIGRACAO = 7_000_001
 
-export interface ConfiguracaoMigracao {
+export interface MigrationConfig {
   url: string
   /** Prazo de cada instrução. Maior que o da API: criar índice pode passar de 2 s. */
   timeoutConsultaMs: number
@@ -36,17 +36,17 @@ export interface ConfiguracaoMigracao {
   schemaDoRegistro?: string
 }
 
-export class MigracaoFalhou extends Error {
+export class MigrationFailedError extends Error {
   readonly tentativas: number
 
   constructor(tentativas: number) {
     super('migracao.falhou')
     this.tentativas = tentativas
-    this.name = 'MigracaoFalhou'
+    this.name = 'MigrationFailedError'
   }
 }
 
-async function aplicarUmaVez(config: ConfiguracaoMigracao): Promise<void> {
+async function aplicarUmaVez(config: MigrationConfig): Promise<void> {
   const cliente = new pg.Client({
     connectionString: config.url,
     connectionTimeoutMillis: config.timeoutConexaoMs,
@@ -59,7 +59,7 @@ async function aplicarUmaVez(config: ConfiguracaoMigracao): Promise<void> {
   try {
     // O advisory lock também respeita o `lock_timeout`: outra migração em andamento vira nova tentativa.
     await cliente.query('select pg_advisory_lock($1)', [CHAVE_LOCK_MIGRACAO])
-    await migrate(drizzle({ client: cliente }), {
+    await drizzleMigrate(drizzle({ client: cliente }), {
       migrationsFolder: config.pasta ?? PASTA_MIGRACOES,
       migrationsSchema: config.schemaDoRegistro ?? 'drizzle',
     })
@@ -73,7 +73,7 @@ async function aplicarUmaVez(config: ConfiguracaoMigracao): Promise<void> {
  * Roda no serviço `migrar`, antes de qualquer instância subir. Tenta de novo só quando o
  * `lock_timeout` estoura; qualquer outro erro falha na hora, porque repetir não o resolve.
  */
-export async function migrar(config: ConfiguracaoMigracao, logger: LoggerBase): Promise<void> {
+export async function migrate(config: MigrationConfig, logger: LoggerBase): Promise<void> {
   const tentativas = config.tentativas ?? TENTATIVAS_MIGRACAO
   for (let tentativa = 1; tentativa <= tentativas; tentativa++) {
     try {
@@ -82,11 +82,11 @@ export async function migrar(config: ConfiguracaoMigracao, logger: LoggerBase): 
       return
     } catch (erro) {
       // O migrador do Drizzle embrulha o erro do servidor.
-      const esperouLock = erroDoPostgresEm(erro)?.code === SQLSTATE_LOCK_TIMEOUT
-      logger.warn({ evento: 'migracao.tentativa_falhou', tentativa, erro: resumirErro(erro) })
-      if (!esperouLock) throw new MigracaoFalhou(tentativa)
+      const esperouLock = postgresErrorIn(erro)?.code === SQLSTATE_LOCK_TIMEOUT
+      logger.warn({ evento: 'migracao.tentativa_falhou', tentativa, erro: summarizeError(erro) })
+      if (!esperouLock) throw new MigrationFailedError(tentativa)
       if (tentativa < tentativas) await esperar(RECUO_ENTRE_TENTATIVAS_MS)
     }
   }
-  throw new MigracaoFalhou(tentativas)
+  throw new MigrationFailedError(tentativas)
 }

@@ -1,4 +1,4 @@
-import { disciplina, exigirEscolaDoContexto, type Banco, type TransacaoBanco } from '@educa/nucleo'
+import { disciplina, requireEscolaId, type Database, type DatabaseTransaction } from '@educa/nucleo'
 import type { PaginationQuery, Disciplina, CriarDisciplinaRequest } from '@educa/shared'
 import { and, asc, eq, gt } from 'drizzle-orm'
 import { InvariantException } from '@educa/shared'
@@ -11,12 +11,12 @@ const colunas = { id: disciplina.id, nome: disciplina.nome, area: disciplina.are
  * sem diferenciar maiúscula, é barrado pelo banco (`disciplina_nome_na_escola_unico`).
  */
 export class DisciplinaRepository {
-  constructor(private readonly banco: Banco | TransacaoBanco) {}
+  constructor(private readonly banco: Database | DatabaseTransaction) {}
 
   async criar(pedido: CriarDisciplinaRequest): Promise<Disciplina> {
     const [criada] = await this.banco
       .insert(disciplina)
-      .values({ escolaId: exigirEscolaDoContexto(), nome: pedido.nome, area: pedido.area ?? null })
+      .values({ escolaId: requireEscolaId(), nome: pedido.nome, area: pedido.area ?? null })
       .returning(colunas)
     if (criada === undefined) throw new InvariantException('disciplina não criada')
     return criada
@@ -27,7 +27,7 @@ export class DisciplinaRepository {
     return this.banco
       .select(colunas)
       .from(disciplina)
-      .where(and(eq(disciplina.escolaId, exigirEscolaDoContexto()), pagina === undefined ? undefined : gt(disciplina.id, pagina)))
+      .where(and(eq(disciplina.escolaId, requireEscolaId()), pagina === undefined ? undefined : gt(disciplina.id, pagina)))
       .orderBy(asc(disciplina.id))
       .limit(limite + 1)
   }
@@ -41,7 +41,7 @@ export class DisciplinaRepository {
     const [renomeada] = await this.banco
       .update(disciplina)
       .set({ nome })
-      .where(and(eq(disciplina.escolaId, exigirEscolaDoContexto()), eq(disciplina.id, id)))
+      .where(and(eq(disciplina.escolaId, requireEscolaId()), eq(disciplina.id, id)))
       .returning(colunas)
     return renomeada
   }
@@ -55,7 +55,7 @@ export class DisciplinaRepository {
     return excluirSemReferencia(async () => {
       const apagadas = await this.banco
         .delete(disciplina)
-        .where(and(eq(disciplina.escolaId, exigirEscolaDoContexto()), eq(disciplina.id, id)))
+        .where(and(eq(disciplina.escolaId, requireEscolaId()), eq(disciplina.id, id)))
         .returning({ id: disciplina.id })
       return apagadas.length > 0
     })
@@ -66,7 +66,7 @@ export class DisciplinaRepository {
     const [linha] = await this.banco
       .select(colunas)
       .from(disciplina)
-      .where(and(eq(disciplina.escolaId, exigirEscolaDoContexto()), eq(disciplina.id, id)))
+      .where(and(eq(disciplina.escolaId, requireEscolaId()), eq(disciplina.id, id)))
     return linha
   }
 }

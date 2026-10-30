@@ -1,4 +1,4 @@
-import { ErroDeDominio, RegistroDeAuditoria, type Banco } from '@educa/nucleo'
+import { DomainException, AuditoriaRecorder, type Database } from '@educa/nucleo'
 import { CicloDeVidaRepository } from '@educa/nucleo/ciclo-de-vida'
 import { Logger } from '@nestjs/common'
 import {
@@ -27,7 +27,7 @@ import { paginar } from '../../http/paginacao.js'
 import { TurmaRepository } from '../turma/turma.repository.js'
 import { VinculoRepository, type Decisao, type VinculoLido } from './vinculo.repository.js'
 
-const registro = new RegistroDeAuditoria()
+const registro = new AuditoriaRecorder()
 
 const emDecisao = (estado: EstadoDeVinculo): estado is (typeof ESTADOS_EM_DECISAO)[number] => (ESTADOS_EM_DECISAO as readonly EstadoDeVinculo[]).includes(estado)
 
@@ -76,7 +76,7 @@ export class VinculoService {
   /** Só o nome do evento: escola, usuário e requisição vêm do contexto, e o complemento nunca vai a log (regra 20, item 9). */
   readonly #logger = new Logger('vinculo')
 
-  constructor(private readonly banco: Banco) {}
+  constructor(private readonly banco: Database) {}
 
   async criar(pedido: CriarVinculoRequest): Promise<VinculoDaCoordenacaoResponse> {
     const turmaId = pedido.turmaId.toLowerCase()
@@ -86,12 +86,12 @@ export class VinculoService {
       const turmas = new TurmaRepository(tx)
       const vinculos = new VinculoRepository(tx)
       // O ano em curso travado em `FOR SHARE`: o encerramento do ano espera o vínculo nascer, e o que chega depois não nasce.
-      if (!(await turmas.travarAnoEmCurso())) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
-      if ((await turmas.aberta(turmaId, 'unidade')) === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+      if (!(await turmas.travarAnoEmCurso())) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
+      if ((await turmas.aberta(turmaId, 'unidade')) === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
       // A guarda confere o papel de professor, o único que a coordenação cria (`PAPEIS_DE_VINCULO_PELA_COORDENACAO`):
       // outro papel naquela lista pede outra guarda aqui.
-      if (!(await vinculos.professorAlocavel(usuarioId))) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
-      if (disciplinaId !== null && (await new DisciplinaRepository(tx).porId(disciplinaId)) === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+      if (!(await vinculos.professorAlocavel(usuarioId))) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
+      if (disciplinaId !== null && (await new DisciplinaRepository(tx).porId(disciplinaId)) === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
       const id = await vinculos.criar({ usuarioId, turmaId, disciplinaId, papel: pedido.papel })
       await registro.gravar(tx, 'vinculo.criado', { entidadeId: id, depois: { usuarioId, turmaId, disciplinaId, papel: pedido.papel, estado: 'pendente' } })
       return this.#lido(vinculos.porId(id))
@@ -127,11 +127,11 @@ export class VinculoService {
       // está no meio termina primeiro, e o acesso dele cai abaixo; o que chega depois espera, reconfere o vínculo e sai
       // `NAO_ENCONTRADO`. O vínculo é relido com a trava: o estado lido aqui pode ter mudado na espera.
       const turmaId = await vinculos.turmaDe(id)
-      if (turmaId === undefined || !(await new TurmaRepository(tx).travarContraOGerar(turmaId, 'no key update'))) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+      if (turmaId === undefined || !(await new TurmaRepository(tx).travarContraOGerar(turmaId, 'no key update'))) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
       const antes = await vinculos.travar(id, { doUsuario: false })
-      if (antes === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+      if (antes === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
       if (antes.estado !== 'encerrado') {
-        if (!(await vinculos.encerrar(id, pedido.motivo))) throw new ErroDeDominio(ErrorCode.CONFLITO)
+        if (!(await vinculos.encerrar(id, pedido.motivo))) throw new DomainException(ErrorCode.CONFLITO)
         await registro.gravar(tx, 'vinculo.encerrado', { entidadeId: id, antes: { estado: antes.estado }, depois: { estado: 'encerrado', motivo: pedido.motivo } })
         const revogados = await new CicloDeVidaRepository(tx).revogarDeQuemSaiu(antes.usuarioId, antes.turmaId)
         for (const revogado of revogados) await registro.gravar(tx, 'acesso_turma.revogado', { entidadeId: revogado.id, depois: { turmaId: revogado.turmaId } })
@@ -146,15 +146,15 @@ export class VinculoService {
     const decidido = await this.banco.transaction(async (tx) => {
       const vinculos = new VinculoRepository(tx)
       const travado = await vinculos.travar(id, { doUsuario: true })
-      if (travado === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+      if (travado === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
       const antes = travado.estado
       // Contestar só sai de `pendente` ou `contestado`: o vínculo confirmado, o único que gera acesso, nunca é contestado,
       // e a decisão não tem acesso a revogar.
       if (!emDecisao(antes)) {
         if (antes === 'confirmado' && decisao.estado === 'confirmado') return this.#lido(vinculos.porIdDoUsuario(id))
-        throw new ErroDeDominio(ErrorCode.CONFLITO)
+        throw new DomainException(ErrorCode.CONFLITO)
       }
-      if (!(await vinculos.decidir(id, decisao))) throw new ErroDeDominio(ErrorCode.CONFLITO)
+      if (!(await vinculos.decidir(id, decisao))) throw new DomainException(ErrorCode.CONFLITO)
       if (decisao.estado === 'confirmado') {
         await registro.gravar(tx, 'vinculo.confirmado', { entidadeId: id, antes: { estado: antes }, depois: { estado: 'confirmado' } })
         this.#logger.log('vinculo.confirmado')

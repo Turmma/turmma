@@ -1,4 +1,4 @@
-import { ErroDeDominio, executarNoContexto } from '@educa/nucleo'
+import { DomainException, runInContext } from '@educa/nucleo'
 import { ErrorCode } from '@educa/shared'
 import { createHash, randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -30,7 +30,7 @@ describe('ConviteRepository: o convite e o usuário convidado só na escola do c
   })
 
   const naEscola = <T>(escolaId: string, funcao: (repositorio: ConviteRepository) => Promise<T>) =>
-    executarNoContexto({ requisicaoId: randomUUID(), escolaId }, () => funcao(new ConviteRepository(bancada.banco)))
+    runInContext({ requisicaoId: randomUUID(), escolaId }, () => funcao(new ConviteRepository(bancada.banco)))
 
   /** Um coordenador inativo em A com um convite no estado pedido. Por padrão: inativo há 60 s e aceito há 10 s. */
   async function convidado({ inativoHaS = 60, aceitoHaS = 10, revogado = false }: EstadoDoConvite = {}): Promise<{ usuarioId: string; conviteId: string; contaId: string }> {
@@ -172,7 +172,7 @@ describe('ConviteRepository: o convite e o usuário convidado só na escola do c
     const primeiro = await criar(usuarioId)
     // O erro do índice sai tipado, e não como o erro cru do Postgres (que traria o valor da linha no `detail`).
     const recusa = await criar(usuarioId).catch((erro: unknown) => erro)
-    expect(recusa).toBeInstanceOf(ErroDeDominio)
+    expect(recusa).toBeInstanceOf(DomainException)
     expect(recusa).toMatchObject({ codigo: ErrorCode.CONFLITO })
     expect(await convitesDe(usuarioId)).toEqual([primeiro])
 
@@ -234,7 +234,7 @@ describe('ConviteRepository: o convite e o usuário convidado só na escola do c
 
   it('sem escola no contexto, falha fechada', async () => {
     const alvo = await convidado()
-    await expect(executarNoContexto({ requisicaoId: randomUUID() }, () => new ConviteRepository(bancada.banco).ativarPorConvite(alvo.usuarioId, alvo.conviteId))).rejects.toThrow(
+    await expect(runInContext({ requisicaoId: randomUUID() }, () => new ConviteRepository(bancada.banco).ativarPorConvite(alvo.usuarioId, alvo.conviteId))).rejects.toThrow(
       'consulta com escopo sem escola no contexto',
     )
   })

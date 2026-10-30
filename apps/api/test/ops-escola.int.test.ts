@@ -1,5 +1,5 @@
 import 'reflect-metadata'
-import { AuditoriaRecusada, AuditoriaRepository, criarBanco, criarLogger, criarPool, executarNoContexto, type Banco, type PoolBanco } from '@educa/nucleo'
+import { AuditoriaRejectedError, AuditoriaRepository, createDatabase, createLogger, createPool, runInContext, type Database, type DatabasePool } from '@educa/nucleo'
 import type { INestApplication } from '@nestjs/common'
 import { NestFactory } from '@nestjs/core'
 import { randomUUID } from 'node:crypto'
@@ -38,12 +38,12 @@ describe('npm run ops:escola: rede e escola nascem só por comando do operador',
   const slug = `colegio-sintetico-${sufixo}`
   const redes: string[] = []
   const escolas: string[] = []
-  let pool: PoolBanco
-  let banco: Banco
+  let pool: DatabasePool
+  let banco: Database
 
   beforeAll(() => {
-    pool = criarPool({ url: urlDoBancoDeTeste(), maximoConexoes: 2, timeoutConexaoMs: 2_000, timeoutConsultaMs: 2_000 }, () => undefined)
-    banco = criarBanco(pool)
+    pool = createPool({ url: urlDoBancoDeTeste(), maximoConexoes: 2, timeoutConexaoMs: 2_000, timeoutConsultaMs: 2_000 }, () => undefined)
+    banco = createDatabase(pool)
   })
 
   afterAll(async () => {
@@ -91,7 +91,7 @@ describe('npm run ops:escola: rede e escola nascem só por comando do operador',
     ])
 
     // O registro da escola é da própria escola: aparece na listagem com o contexto dela.
-    const daEscola = await executarNoContexto({ requisicaoId: randomUUID(), escolaId: resposta.escolaId }, () => new AuditoriaRepository(banco).listarDaEscola())
+    const daEscola = await runInContext({ requisicaoId: randomUUID(), escolaId: resposta.escolaId }, () => new AuditoriaRepository(banco).listarDaEscola())
     expect(daEscola).toEqual([
       expect.objectContaining({
         escolaId: resposta.escolaId,
@@ -135,14 +135,14 @@ describe('npm run ops:escola: rede e escola nascem só por comando do operador',
 
   it('a escola e a rede não nascem sem a auditoria delas: com a gravação recusada, a transação desfaz a criação', async () => {
     const nomeDaRede = `Rede Sintética Sem Auditoria ${sufixo}`
-    await expect(criarRede(banco, autorFixo('Operador Invalido'), { id: randomUUID(), nome: nomeDaRede, tipo: 'independente' })).rejects.toEqual(new AuditoriaRecusada('sem_autor'))
+    await expect(criarRede(banco, autorFixo('Operador Invalido'), { id: randomUUID(), nome: nomeDaRede, tipo: 'independente' })).rejects.toEqual(new AuditoriaRejectedError('sem_autor'))
     const { rows: redesCriadas } = await pool.query('select 1 from rede where nome = $1', [nomeDaRede])
     expect(redesCriadas).toHaveLength(0)
 
     const { id: redeId } = await criarRede(banco, autorFixo('operador-teste'), { id: randomUUID(), nome: `Rede Sintética Com Auditoria ${sufixo}`, tipo: 'independente' })
     redes.push(redeId)
     const slugSemAuditoria = `sem-auditoria-${sufixo}`
-    await expect(criarEscola(banco, autorFixo('Operador Invalido'), { id: randomUUID(), redeId, nome: 'Colégio Sintético', slug: slugSemAuditoria })).rejects.toEqual(new AuditoriaRecusada('sem_autor'))
+    await expect(criarEscola(banco, autorFixo('Operador Invalido'), { id: randomUUID(), redeId, nome: 'Colégio Sintético', slug: slugSemAuditoria })).rejects.toEqual(new AuditoriaRejectedError('sem_autor'))
     const { rows: escolasCriadas } = await pool.query('select 1 from escola where slug = $1', [slugSemAuditoria])
     expect(escolasCriadas).toHaveLength(0)
   })
@@ -213,7 +213,7 @@ describe('permissão: nenhuma rota da API cria rede nem escola, fora das duas do
   beforeAll(async () => {
     // Com as rotas sintéticas ligadas: a lista inclui toda rota que alguma configuração registra.
     app = await NestFactory.create(AppModule.com(configuracaoDeTeste({ ambiente: { ROTAS_SINTETICAS: 'true' } })), { logger: false })
-    configurarAplicacao(app, criarLogger({ servico: 'api-teste', nivel: 'silent' }))
+    configurarAplicacao(app, createLogger({ servico: 'api-teste', nivel: 'silent' }))
     await app.init()
   })
 

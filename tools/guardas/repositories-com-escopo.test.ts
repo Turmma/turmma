@@ -139,7 +139,7 @@ describe('a lista real só encolhe', () => {
       ['apps/api/src/ops/operacao-privacidade.repository.ts', ['cadastrar', 'travarVigente', 'encerrar', 'registrarIncidente']],
       ['apps/api/src/privacidade/titulares.repository.ts', ['homonimo']],
       ['packages/nucleo/src/auditoria/auditoria.repository.ts', ['listarDaEscola']],
-      ['packages/nucleo/src/auditoria/insercao-de-auditoria.repository.ts', ['inserirAuditoria']],
+      ['packages/nucleo/src/auditoria/insercao-de-auditoria.repository.ts', ['insertAuditoria']],
       ['packages/nucleo/src/fila/job-registro.repository.ts', ['inserir', 'inserirUmaVez', 'buscarDaEscola', 'localizarParaExecucao', 'iniciarExecucao', 'concluir', 'avisarVagaLivre', 'registrarFalha']],
       ['packages/nucleo/src/identidade/sessao.repository.ts', ['lerParaGuarda', 'marcarAtualApresentado']],
       ['packages/nucleo/src/titular/compartilhamento.repository.ts', ['datasDeReferencia']],

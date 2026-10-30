@@ -2,20 +2,20 @@ import { ErrorCode } from '@educa/shared'
 import { Controller, Get, Post, type ExecutionContext } from '@nestjs/common'
 import { Reflector } from '@nestjs/core'
 import { describe, expect, it } from 'vitest'
-import { definirSessaoNoContexto, executarNoContexto } from '../contexto/contexto.js'
-import { RotaAnonima } from '../limite/rota-anonima.decorator.js'
-import { rotasSemPermissao } from './conferencia-das-permissoes.js'
-import { GuardaDePermissao } from './guarda-permissao.js'
-import { Permite } from './permite.decorator.js'
+import { setContextSessao, runInContext } from '../contexto/contexto.js'
+import { Public } from '../limite/rota-anonima.decorator.js'
+import { routesWithoutPermissao } from './conferencia-das-permissoes.js'
+import { PermissaoGuard } from './guarda-permissao.js'
+import { RequirePermissao } from './permite.decorator.js'
 
 @Controller('turmas')
 class TurmasController {
   @Get(':id')
-  @Permite('turma', 'ler')
+  @RequirePermissao('turma', 'ler')
   ler(): void {}
 
   @Post()
-  @Permite('turma', 'criar')
+  @RequirePermissao('turma', 'criar')
   criar(): void {}
 
   @Get('sem-marcacao')
@@ -25,14 +25,14 @@ class TurmasController {
   auxiliar(): void {}
 }
 
-@Permite('sistema_contexto', 'ler')
+@RequirePermissao('sistema_contexto', 'ler')
 @Controller('contexto')
 class MarcadoNaClasseController {
   @Get()
   obter(): void {}
 }
 
-@RotaAnonima()
+@Public()
 @Controller('publico')
 class AnonimoController {
   @Get()
@@ -41,7 +41,7 @@ class AnonimoController {
 
 @Controller('misto')
 class MistoController {
-  @RotaAnonima()
+  @Public()
   @Get('aberta')
   aberta(): void {}
 
@@ -57,7 +57,7 @@ class BaseSemMarcacao {
 @Controller('filho')
 class FilhoController extends BaseSemMarcacao {
   @Get()
-  @Permite('turma', 'ler')
+  @RequirePermissao('turma', 'ler')
   proprio(): void {}
 }
 
@@ -67,12 +67,12 @@ function execucaoDe(controlador: new () => object, metodo: string): ExecutionCon
   return { getHandler: () => handler, getClass: () => controlador, getType: () => 'http' } as unknown as ExecutionContext
 }
 
-const guarda = new GuardaDePermissao(new Reflector())
+const guarda = new PermissaoGuard(new Reflector())
 const sessaoDo = (papel: 'coordenador' | 'professor' | 'aluno') => ({ escolaId: 'e', usuarioId: 'u', papel, sessaoId: 's', anoLetivoId: null })
 
 function comPapel<T>(papel: 'coordenador' | 'professor' | 'aluno', funcao: () => T): T {
-  return executarNoContexto({ requisicaoId: 'r' }, () => {
-    definirSessaoNoContexto(sessaoDo(papel))
+  return runInContext({ requisicaoId: 'r' }, () => {
+    setContextSessao(sessaoDo(papel))
     return funcao()
   })
 }
@@ -102,25 +102,25 @@ describe('GuardaDePermissao', () => {
   })
 
   it('sem papel no contexto (guarda fora de ordem), NAO_AUTENTICADO', () => {
-    expect(() => executarNoContexto({ requisicaoId: 'r' }, () => guarda.canActivate(execucaoDe(TurmasController, 'ler')))).toThrow(
+    expect(() => runInContext({ requisicaoId: 'r' }, () => guarda.canActivate(execucaoDe(TurmasController, 'ler')))).toThrow(
       expect.objectContaining({ codigo: ErrorCode.NAO_AUTENTICADO }),
     )
   })
 
   it('rota anônima passa sem papel', () => {
-    expect(executarNoContexto({ requisicaoId: 'r' }, () => guarda.canActivate(execucaoDe(AnonimoController, 'obter')))).toBe(true)
+    expect(runInContext({ requisicaoId: 'r' }, () => guarda.canActivate(execucaoDe(AnonimoController, 'obter')))).toBe(true)
   })
 })
 
 describe('rotasSemPermissao', () => {
   it('aponta só as rotas sem @Permite e sem @RotaAnonima, no método ou na classe, e ignora método sem rota', () => {
-    expect(rotasSemPermissao([TurmasController, MarcadoNaClasseController, AnonimoController, MistoController])).toEqual([
+    expect(routesWithoutPermissao([TurmasController, MarcadoNaClasseController, AnonimoController, MistoController])).toEqual([
       'TurmasController.esquecida',
       'MistoController.fechada',
     ])
   })
 
   it('rota herdada de controller base sem marcação também é apontada', () => {
-    expect(rotasSemPermissao([FilhoController])).toEqual(['FilhoController.herdada'])
+    expect(routesWithoutPermissao([FilhoController])).toEqual(['FilhoController.herdada'])
   })
 })

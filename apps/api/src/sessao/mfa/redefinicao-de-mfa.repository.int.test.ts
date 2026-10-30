@@ -1,4 +1,4 @@
-import { executarNoContexto } from '@educa/nucleo'
+import { runInContext } from '@educa/nucleo'
 import { randomUUID } from 'node:crypto'
 import { afterAll, describe, expect, it } from 'vitest'
 import { BancadaDeSessoes } from '../../../test/sessao-de-teste.js'
@@ -23,7 +23,7 @@ describe('RedefinicaoDeMfaRepository: o alvo é procurado só na escola do conte
   }
 
   const naEscola = <T>(escolaId: string, funcao: (repositorio: RedefinicaoDeMfaRepository) => Promise<T>) =>
-    executarNoContexto({ requisicaoId: randomUUID(), escolaId }, () => bancada.banco.transaction((tx) => funcao(new RedefinicaoDeMfaRepository(tx))))
+    runInContext({ requisicaoId: randomUUID(), escolaId }, () => bancada.banco.transaction((tx) => funcao(new RedefinicaoDeMfaRepository(tx))))
 
   it('isolamento: em B o usuário de A não é achado, e em A devolve a conta; desativado e inexistente não são achados', async () => {
     const escolaA = await bancada.escola()
@@ -39,7 +39,7 @@ describe('RedefinicaoDeMfaRepository: o alvo é procurado só na escola do conte
 
   it('sem escola no contexto, falha fechada antes de tocar o banco', async () => {
     await expect(
-      executarNoContexto({ requisicaoId: randomUUID() }, () => bancada.banco.transaction((tx) => new RedefinicaoDeMfaRepository(tx).contaDoUsuarioAtivo(randomUUID()))),
+      runInContext({ requisicaoId: randomUUID() }, () => bancada.banco.transaction((tx) => new RedefinicaoDeMfaRepository(tx).contaDoUsuarioAtivo(randomUUID()))),
     ).rejects.toThrow('consulta com escopo sem escola no contexto')
   })
 })

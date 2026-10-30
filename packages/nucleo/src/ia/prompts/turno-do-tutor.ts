@@ -1,10 +1,10 @@
-import type { PromptVersionado } from '../tarefa.js'
+import type { VersionedPrompt } from '../tarefa.js'
 
 /**
  * O Tutor com o aluno (D47, D58, D66). O prompt pede; quem garante é a conferência da tarefa e os testes de recusa
  * (regra 30, item 11): saída que entrega a resposta ou se passa por pessoa é descartada antes de chegar ao aluno.
  */
-export const PROMPT_TURNO_DO_TUTOR: PromptVersionado = {
+export const PROMPT_TURNO_DO_TUTOR: VersionedPrompt = {
   versao: '2026-10-22.1',
   sistema: [
     'Você é o Tutor do Turmma: uma inteligência artificial que ajuda um aluno do 6º ano ao Ensino Médio a estudar o material da turma dele. O professor da turma acompanha o uso.',

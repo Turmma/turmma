@@ -1,4 +1,4 @@
-import { ErroDeDominio } from '@educa/nucleo'
+import { DomainException } from '@educa/nucleo'
 import {
   ErrorCode,
   matriculaDigitadaSchema,
@@ -91,7 +91,7 @@ function colunasDoCabecalho(campos: readonly string[]): { readonly nome: number;
  *   (`errosDasLinhas`) aponta.
  */
 export function lerTextoDaLista(texto: string): LinhaLida[] {
-  if (Buffer.byteLength(texto, 'utf8') > MAXIMO_DE_BYTES_DA_LISTA) throw new ErroDeDominio(ErrorCode.ENTRADA_INVALIDA)
+  if (Buffer.byteLength(texto, 'utf8') > MAXIMO_DE_BYTES_DA_LISTA) throw new DomainException(ErrorCode.ENTRADA_INVALIDA)
   const fisicas = texto.split(/\r\n|\r|\n/)
   let separador: Separador | undefined
   for (const conteudo of fisicas) {
@@ -103,7 +103,7 @@ export function lerTextoDaLista(texto: string): LinhaLida[] {
     .filter(({ campos }) => campos.some((campo) => campo !== ''))
   const cabecalho = lidas[0] === undefined ? undefined : colunasDoCabecalho(lidas[0].campos)
   const deAlunos = cabecalho === undefined ? lidas : lidas.slice(1)
-  if (deAlunos.length === 0 || deAlunos.length > MAXIMO_DE_LINHAS_DA_LISTA) throw new ErroDeDominio(ErrorCode.ENTRADA_INVALIDA)
+  if (deAlunos.length === 0 || deAlunos.length > MAXIMO_DE_LINHAS_DA_LISTA) throw new DomainException(ErrorCode.ENTRADA_INVALIDA)
   const colunas = cabecalho ?? { nome: 0, matricula: 1 }
   return deAlunos.map(({ linha, campos }) => ({ linha, nome: campos[colunas.nome] ?? '', matricula: campos[colunas.matricula] ?? '' }))
 }

@@ -1,4 +1,4 @@
-import { ConfiguracaoInvalida, ErroDeDominio, resumirErro } from '@educa/nucleo'
+import { InvalidConfigError, DomainException, summarizeError } from '@educa/nucleo'
 import { ErrorCode } from '@educa/shared'
 import { pathToFileURL } from 'node:url'
 import { parseArgs } from 'node:util'
@@ -50,15 +50,15 @@ export async function executarOpsRevogarConvite(
       await fechar()
     }
   } catch (erro) {
-    if (erro instanceof ArgumentoInvalido || erro instanceof ConfiguracaoInvalida || erro instanceof OperadorRecusado) {
+    if (erro instanceof ArgumentoInvalido || erro instanceof InvalidConfigError || erro instanceof OperadorRecusado) {
       terminal.erro(`${erro.message}\n`)
       return 2
     }
-    if (erro instanceof ErroDeDominio && (erro.codigo === ErrorCode.NAO_ENCONTRADO || erro.codigo === ErrorCode.CONFLITO)) {
+    if (erro instanceof DomainException && (erro.codigo === ErrorCode.NAO_ENCONTRADO || erro.codigo === ErrorCode.CONFLITO)) {
       terminal.erro(`${erro.codigo}\n`)
       return 1
     }
-    terminal.erro(`${ErrorCode.ERRO_INTERNO}: ${JSON.stringify(resumirErro(erro))}\n`)
+    terminal.erro(`${ErrorCode.ERRO_INTERNO}: ${JSON.stringify(summarizeError(erro))}\n`)
     return 1
   }
 }

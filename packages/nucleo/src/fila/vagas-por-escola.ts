@@ -23,7 +23,7 @@ const SHA_DO_SCRIPT = createHash('sha1').update(SCRIPT).digest('hex')
  * contexto dessa escola (D41). A escola também vem de quem chama, e sempre da linha persistida em
  * `job_registro`, nunca do `data` do job no BullMQ.
  */
-export class VagasPorEscola {
+export class EscolaConcurrencyLimiter {
   readonly #prefixo: string
 
   /**

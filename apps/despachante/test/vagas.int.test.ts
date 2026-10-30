@@ -1,17 +1,17 @@
 import 'reflect-metadata'
 import {
-  ConfiguracaoOperacionalRepository,
-  criarBanco,
-  criarClienteRedisDaFila,
-  criarPool,
-  DespachoRepository,
-  executarNoContexto,
-  METRICAS,
-  nomeDaFilaBullMQ,
-  opcoesDeJob,
-  PRIORIDADE_DA_FILA,
+  OperationalSettingsRepository,
+  createDatabase,
+  createQueueRedisClient,
+  createPool,
+  DispatchRepository,
+  runInContext,
+  METRICS,
+  bullmqQueueName,
+  jobOptions,
+  QUEUE_PRIORITY,
   VALIDADE_DA_VAGA_MS,
-  type VagasPorEscola,
+  type EscolaConcurrencyLimiter,
 } from '@educa/nucleo'
 import { JobFailureCode, defineJob, JOB_DEFINITIONS, TIPO_EXPURGAR_JOBS, TIPO_JOB_SINTETICO, type QueueName } from '@educa/shared'
 import { Queue } from 'bullmq'
@@ -131,7 +131,7 @@ describe('vagas por escola e filas por prioridade', () => {
       `insert into job_registro (escola_id, fila, prioridade, tipo, dados)
        select $1, $2, $3, 'sintetico', jsonb_build_object('rotulo', $4::text) from generate_series(1, $5)
        returning id`,
-      [escolaId, fila, PRIORIDADE_DA_FILA[fila], rotulo, quantidade],
+      [escolaId, fila, QUEUE_PRIORITY[fila], rotulo, quantidade],
     )
     await bancada.pool.query(`select pg_notify('job', '')`)
     return rows.map((linha) => linha.id)
@@ -237,19 +237,19 @@ describe('vagas por escola e filas por prioridade', () => {
   }, 60_000)
 
   it('concorrência: dois despachantes tomando vaga da mesma escola ao mesmo tempo nunca passam do limite', async () => {
-    const clientes = ['despachante-1', 'despachante-2'].map((nome) => criarClienteRedisDaFila(urlRedisDeFila(), nome, () => undefined))
+    const clientes = ['despachante-1', 'despachante-2'].map((nome) => createQueueRedisClient(urlRedisDeFila(), nome, () => undefined))
     try {
       await Promise.all(clientes.map((cliente) => new Promise((resolver) => cliente.once('ready', resolver))))
       const vagas = clientes.map((cliente) => bancada.vagasCom(cliente))
-      const pedidos = Array.from({ length: 200 }, (_, indice) => (vagas[indice % 2] as VagasPorEscola).tomar('lote', ESCOLA_A, 2, [`job-${indice}`]))
+      const pedidos = Array.from({ length: 200 }, (_, indice) => (vagas[indice % 2] as EscolaConcurrencyLimiter).tomar('lote', ESCOLA_A, 2, [`job-${indice}`]))
       const concedidos = (await Promise.all(pedidos)).flatMap((concedido) => [...concedido])
       expect(concedidos).toHaveLength(2)
       expect(await membrosDaVaga('lote', ESCOLA_A)).toEqual([...concedidos].sort())
 
       // Num pedido só com vários jobs, também só até o limite; e job que já tem vaga a mantém sem contar de novo.
-      const deUmaVez = await (vagas[0] as VagasPorEscola).tomar('normal', ESCOLA_A, 3, ['n-1', 'n-2', 'n-3', 'n-4', 'n-5'])
+      const deUmaVez = await (vagas[0] as EscolaConcurrencyLimiter).tomar('normal', ESCOLA_A, 3, ['n-1', 'n-2', 'n-3', 'n-4', 'n-5'])
       expect([...deUmaVez]).toEqual(['n-1', 'n-2', 'n-3'])
-      expect([...(await (vagas[1] as VagasPorEscola).tomar('normal', ESCOLA_A, 3, ['n-2', 'n-6']))]).toEqual(['n-2'])
+      expect([...(await (vagas[1] as EscolaConcurrencyLimiter).tomar('normal', ESCOLA_A, 3, ['n-2', 'n-6']))]).toEqual(['n-2'])
     } finally {
       for (const cliente of clientes) cliente.disconnect()
     }
@@ -392,7 +392,7 @@ describe('vagas por escola e filas por prioridade', () => {
 
   it('o tipo da API vai à fila da API: o worker, que consome as filas do worker, não o recebe, e a linha segue publicada', async () => {
     const daApi = new BancadaDeFila({ ...DEFINICOES_DO_TESTE, [TIPO_JOB_SINTETICO]: defineJob({ ...DEFINICOES_DO_TESTE[TIPO_JOB_SINTETICO], executor: 'api' }) })
-    const filaDaApi = new Queue(nomeDaFilaBullMQ('interativa', 'api'), { connection: daApi.redis, prefix: daApi.prefixo })
+    const filaDaApi = new Queue(bullmqQueueName('interativa', 'api'), { connection: daApi.redis, prefix: daApi.prefixo })
     filaDaApi.on('error', () => undefined)
     const processador = contado()
     try {
@@ -417,8 +417,8 @@ describe('vagas por escola e filas por prioridade', () => {
     const ids = await inserirJobs(ESCOLA_A, 'lote', 6, 'A')
     // Como um addBulk que expirou no despachante depois de gravar: os jobs estão na fila, e a vaga foi devolvida.
     await bancada.reservar(ESCOLA_A, 'lote')
-    await bancada.filas.lote.addBulk(ids.map((jobId) => ({ name: 'sintetico', data: { escolaId: ESCOLA_A, requisicaoId: null }, opts: { ...opcoesDeJob(TIPO_JOB_SINTETICO), jobId } })))
-    await executarNoContexto({ requisicaoId: randomUUID(), escolaId: ESCOLA_A }, () => bancada.despacho.marcarPublicados(ids))
+    await bancada.filas.lote.addBulk(ids.map((jobId) => ({ name: 'sintetico', data: { escolaId: ESCOLA_A, requisicaoId: null }, opts: { ...jobOptions(TIPO_JOB_SINTETICO), jobId } })))
+    await runInContext({ requisicaoId: randomUUID(), escolaId: ESCOLA_A }, () => bancada.despacho.marcarPublicados(ids))
     const processador = contado(300)
     const log = new LogEmMemoria('worker-lote')
     const medidor = new MedidorDeTeste()
@@ -427,7 +427,7 @@ describe('vagas por escola e filas por prioridade', () => {
     for (const id of ids) await aguardarEstado(id, 'concluido', 20_000)
     expect(processador.maximo('A')).toBe(2)
     // A espera por vaga é contada por fila e escola, e não vai ao log a cada volta.
-    const esperasPorVaga = await medidor.pontos(METRICAS.aguardandoVaga)
+    const esperasPorVaga = await medidor.pontos(METRICS.aguardandoVaga)
     expect(esperasPorVaga.map(({ atributos }) => atributos)).toEqual([{ fila: 'lote', escola_id: ESCOLA_A }])
     expect(esperasPorVaga[0]?.valor).toBeGreaterThan(0)
     expect(log.doEvento('job.aguardando_vaga')).toEqual([])
@@ -448,7 +448,7 @@ describe('vagas por escola e filas por prioridade', () => {
     await bancada.pool.query('analyze job_registro')
 
     // O banco do teste registra a instrução que o repository manda, para o EXPLAIN ser da consulta de verdade.
-    const pool = criarPool(configuracaoDoBanco(), () => undefined)
+    const pool = createPool(configuracaoDoBanco(), () => undefined)
     const enviadas: Array<{ text: string; values: unknown[] }> = []
     const consultar = pool.query.bind(pool) as (...argumentos: unknown[]) => Promise<unknown>
     pool.query = ((...argumentos: unknown[]) => {
@@ -457,9 +457,9 @@ describe('vagas por escola e filas por prioridade', () => {
       return consultar(...argumentos)
     }) as typeof pool.query
     try {
-      const repositorio = new DespachoRepository(criarBanco(pool))
+      const repositorio = new DispatchRepository(createDatabase(pool))
       const membros = await bancada.vagas.membros('lote', ESCOLA_A)
-      expect(await executarNoContexto({ requisicaoId: randomUUID(), escolaId: ESCOLA_A }, () => repositorio.publicadosEntre(membros))).toEqual([])
+      expect(await runInContext({ requisicaoId: randomUUID(), escolaId: ESCOLA_A }, () => repositorio.publicadosEntre(membros))).toEqual([])
       const [consulta] = enviadas
       if (consulta === undefined) throw new Error('o repository não consultou o banco')
 
@@ -504,7 +504,7 @@ describe('vagas por escola e filas por prioridade', () => {
 
     it('reservar, devolver, listar e marcar publicados só alcançam a escola do contexto: ids da B no contexto da A não mudam nada', async () => {
       const [daEscolaB = ''] = await inserirJobs(ESCOLA_B, 'lote', 1, 'B')
-      const naEscola = <T>(escolaId: string, funcao: () => Promise<T>) => executarNoContexto({ requisicaoId: randomUUID(), escolaId }, funcao)
+      const naEscola = <T>(escolaId: string, funcao: () => Promise<T>) => runInContext({ requisicaoId: randomUUID(), escolaId }, funcao)
 
       expect(await bancada.reservar(ESCOLA_A, 'lote')).toEqual([])
       expect((await bancada.estado(daEscolaB))?.estado).toBe('aguardando')
@@ -525,13 +525,13 @@ describe('vagas por escola e filas por prioridade', () => {
 
     it('a configuração operacional é lida só para a escola do contexto, e contexto sem escola não lê nada', async () => {
       await bancada.configurarEscola(ESCOLA_A, { vagas: { lote: 5 }, limiteReqEscolaMin: 10 })
-      const repositorio = new ConfiguracaoOperacionalRepository(bancada.banco)
-      const naEscola = (escolaId: string) => executarNoContexto({ requisicaoId: randomUUID(), escolaId }, () => repositorio.daEscola())
+      const repositorio = new OperationalSettingsRepository(bancada.banco)
+      const naEscola = (escolaId: string) => runInContext({ requisicaoId: randomUUID(), escolaId }, () => repositorio.daEscola())
 
       expect(await naEscola(ESCOLA_A)).toEqual({ fuso: null, diasLetivos: null, inicio: null, fim: null, limiteReqUsuarioMin: null, limiteReqEscolaMin: 10, vagas: { lote: 5 } })
       expect(await naEscola(ESCOLA_B)).toBeUndefined()
-      await expect(executarNoContexto({ requisicaoId: randomUUID() }, () => repositorio.daEscola())).rejects.toThrow('consulta com escopo sem escola no contexto')
-      await expect(executarNoContexto({ requisicaoId: randomUUID(), rotinaDoSistema: true }, () => repositorio.daEscola())).rejects.toThrow('consulta com escopo sem escola no contexto')
+      await expect(runInContext({ requisicaoId: randomUUID() }, () => repositorio.daEscola())).rejects.toThrow('consulta com escopo sem escola no contexto')
+      await expect(runInContext({ requisicaoId: randomUUID(), rotinaDoSistema: true }, () => repositorio.daEscola())).rejects.toThrow('consulta com escopo sem escola no contexto')
     })
   })
 
@@ -553,7 +553,7 @@ describe('vagas por escola e filas por prioridade', () => {
     // A C tem uma reserva de um despachante que caiu: volta a ser disponível.
     const [reservaVencida = ''] = await inserirJobs(ESCOLA_C, 'normal', 1, 'C')
     await bancada.pool.query(`update job_registro set estado = 'reservado', reservado_ate = now() - interval '1 second' where id = $1`, [reservaVencida])
-    await executarNoContexto({ requisicaoId: randomUUID(), rotinaDoSistema: true }, () =>
+    await runInContext({ requisicaoId: randomUUID(), rotinaDoSistema: true }, () =>
       bancada.banco.transaction((tx) => bancada.enfileirador.enfileirar(tx, TIPO_EXPURGAR_JOBS, {})),
     )
 

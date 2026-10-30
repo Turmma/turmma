@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { justificativaSemEscopo, TAMANHO_MINIMO_JUSTIFICATIVA_SEM_ESCOPO } from '../db/sem-escopo.decorator.js'
+import { unscopedJustification, TAMANHO_MINIMO_JUSTIFICATIVA_SEM_ESCOPO } from '../db/sem-escopo.decorator.js'
 import { CicloDeVidaRepository } from './ciclo-de-vida.repository.js'
 import { ContaGlobalRepository } from './conta-global.repository.js'
 
@@ -14,7 +14,7 @@ describe('ciclo de vida no nucleo: as exceções ao escopo são só as da conta 
   it('a ContaGlobalRepository tem só os três métodos da conta global, cada um com @SemEscopo e a justificativa da credencial global', () => {
     expect(metodosDe(ContaGlobalRepository)).toEqual(['encerrarSessoesDaConta', 'limparContaSemUso', 'travarConta'])
     for (const metodo of metodosDe(ContaGlobalRepository)) {
-      const justificativa = justificativaSemEscopo(ContaGlobalRepository, metodo)
+      const justificativa = unscopedJustification(ContaGlobalRepository, metodo)
       expect(justificativa?.length ?? 0, metodo).toBeGreaterThanOrEqual(TAMANHO_MINIMO_JUSTIFICATIVA_SEM_ESCOPO)
       expect(justificativa, metodo).toMatch(/credencial da equipe é global/)
     }
@@ -23,6 +23,6 @@ describe('ciclo de vida no nucleo: as exceções ao escopo são só as da conta 
   it('a desativação e a eliminação não saem sem escopo: o CicloDeVidaRepository usa a escola do contexto em todo método', () => {
     const metodos = metodosDe(CicloDeVidaRepository)
     expect(metodos.length).toBeGreaterThan(0)
-    for (const metodo of metodos) expect(justificativaSemEscopo(CicloDeVidaRepository, metodo), metodo).toBeUndefined()
+    for (const metodo of metodos) expect(unscopedJustification(CicloDeVidaRepository, metodo), metodo).toBeUndefined()
   })
 })

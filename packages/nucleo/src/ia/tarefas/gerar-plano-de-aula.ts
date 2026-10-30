@@ -4,26 +4,26 @@ import {
   citacaoDaFrase,
   dadoEmJson,
   dadosDosTrechos,
-  esquemaContextoDaTurma,
-  esquemaHabilidades,
-  esquemaTrecho,
+  contextoDaTurmaSchema,
+  habilidadesSchema,
+  trechoSchema,
   extrairFatos,
   frasesDoMaterial,
   problemasDasCitacoes,
   type FraseDoMaterial,
 } from '../material.js'
 import { PROMPT_GERAR_PLANO_DE_AULA } from '../prompts/gerar-plano-de-aula.js'
-import { definirTarefa, MaterialSemConteudoAproveitavel } from '../tarefa.js'
+import { defineTask, MaterialSemConteudoAproveitavelError } from '../tarefa.js'
 import { cortar, enumerar, palavras, palavrasEmComum } from '../texto.js'
 
-export const esquemaEntradaDePlanoDeAula = z.strictObject({
+export const planoDeAulaInputSchema = z.strictObject({
   tema: z.string().min(1).max(TAMANHO_MAXIMO_DO_TEMA),
   duracaoMinutos: z.number().int().min(10).max(240),
-  contexto: esquemaContextoDaTurma,
-  habilidades: esquemaHabilidades,
-  trechos: z.array(esquemaTrecho).min(1).max(12),
+  contexto: contextoDaTurmaSchema,
+  habilidades: habilidadesSchema,
+  trechos: z.array(trechoSchema).min(1).max(12),
 })
-export type EntradaDePlanoDeAula = z.infer<typeof esquemaEntradaDePlanoDeAula>
+export type PlanoDeAulaInput = z.infer<typeof planoDeAulaInputSchema>
 
 /** Um ponto do material em que uma etapa se apoia: como chamá-lo no meio da frase, entre aspas, e a frase de onde saiu. */
 interface Apoio extends FraseDoMaterial {
@@ -35,7 +35,7 @@ interface Apoio extends FraseDoMaterial {
   readonly afinidade: number
 }
 
-function apoiosDoMaterial(entrada: EntradaDePlanoDeAula): Apoio[] {
+function apoiosDoMaterial(entrada: PlanoDeAulaInput): Apoio[] {
   const fatos = extrairFatos(entrada.trechos).filter((fato) => !fato.numerico)
   if (fatos.length > 0) {
     return fatos.map((fato) => ({
@@ -69,7 +69,7 @@ function quatroApoios(apoios: readonly Apoio[]): [Apoio, Apoio, Apoio, Apoio] {
   const escolher = (posicao: number): Apoio => {
     const apoio = apoios[escolhidos[Math.min(posicao, escolhidos.length - 1)] ?? -1]
     // Material sem nenhuma frase aproveitável não vira plano inventado.
-    if (apoio === undefined) throw new MaterialSemConteudoAproveitavel()
+    if (apoio === undefined) throw new MaterialSemConteudoAproveitavelError()
     return apoio
   }
   return [escolher(0), escolher(1), escolher(2), escolher(3)]
@@ -85,11 +85,11 @@ function citacoesSemRepetir(apoios: readonly Apoio[]): Citacao[] {
   })
 }
 
-export const gerarPlanoDeAula = definirTarefa({
+export const gerarPlanoDeAula = defineTask({
   nome: 'gerar_plano_de_aula',
   funcao: 'conversa_e_ferramentas',
   perfil: 'padrao',
-  esquemaDeEntrada: esquemaEntradaDePlanoDeAula,
+  esquemaDeEntrada: planoDeAulaInputSchema,
   esquemaDeSaida: conteudoDePlanoDeAulaSchema,
   prompt: PROMPT_GERAR_PLANO_DE_AULA,
   maximoDeTokensDeSaida: 4000,

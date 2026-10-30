@@ -1,4 +1,4 @@
-import { ErroDeIa } from '@educa/nucleo'
+import { LLMError } from '@educa/nucleo'
 import type { AdaptacaoAplicada, ConteudoDeAtividade, QuestaoObjetiva } from '@educa/shared'
 import { describe, expect, it } from 'vitest'
 import { exigirCitacoesEntregues } from '../assistente/citacoes.js'
@@ -39,8 +39,8 @@ describe('exigirCitacoesEntregues', () => {
     expect(recusa(() => exigirCitacoesEntregues(citacoesDoConteudo(original), entregues))).toBeUndefined()
     for (const fora of [{ materialId: MATERIAL, pagina: 3 }, { materialId: OUTRO_MATERIAL, pagina: 1 }]) {
       const erro = recusa(() => exigirCitacoesEntregues([...citacoesDoConteudo(original), fora], entregues))
-      expect(erro).toBeInstanceOf(ErroDeIa)
-      expect((erro as ErroDeIa).codigo).toBe('IA_SAIDA_INVALIDA')
+      expect(erro).toBeInstanceOf(LLMError)
+      expect((erro as LLMError).codigo).toBe('IA_SAIDA_INVALIDA')
     }
   })
 
@@ -57,7 +57,7 @@ describe('exigirCitacoesEntregues', () => {
       citacoes: [citacao],
     })
     expect(citadas.map((citada) => citada.pagina)).toEqual([1, 9])
-    expect(recusa(() => exigirCitacoesEntregues(citadas, entregues))).toBeInstanceOf(ErroDeIa)
+    expect(recusa(() => exigirCitacoesEntregues(citadas, entregues))).toBeInstanceOf(LLMError)
   })
 })
 
@@ -78,8 +78,8 @@ describe('exigirAdaptacaoFiel: a versão adaptada muda a forma, nunca o que é c
     ['veio sem a adaptação', { ...structuredClone(original) }],
   ])('recusa quando %s', (_caso, saida) => {
     const erro = recusa(() => exigirAdaptacaoFiel(original, saida, pedida))
-    expect(erro).toBeInstanceOf(ErroDeIa)
-    expect((erro as ErroDeIa).codigo).toBe('IA_SAIDA_INVALIDA')
+    expect(erro).toBeInstanceOf(LLMError)
+    expect((erro as LLMError).codigo).toBe('IA_SAIDA_INVALIDA')
   })
 })
 

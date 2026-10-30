@@ -1,4 +1,4 @@
-import { acessoTurma, anoLetivo, exigirAnoEmCurso, exigirEscolaDoContexto, serie, sessaoDaRequisicao, turma, usuario, vinculo, type Banco, type TransacaoBanco } from '@educa/nucleo'
+import { acessoTurma, anoLetivo, requireAnoEmCurso, requireEscolaId, serie, requestSessao, turma, usuario, vinculo, type Database, type DatabaseTransaction } from '@educa/nucleo'
 import type { AlunoDaTurma, PaginationQuery, TurmaAbertaResponse, Turma, Turno } from '@educa/shared'
 import { and, asc, eq, exists, gt, isNotNull, isNull, not, or, sql, type SQL } from 'drizzle-orm'
 import { InvariantException } from '@educa/shared'
@@ -23,14 +23,14 @@ const colunas = { id: turma.id, anoLetivoId: turma.anoLetivoId, nome: turma.nome
 
 /**
  * As turmas da escola do contexto no ano letivo em curso dela, e só delas: escola e ano vêm do contexto que a
- * `GuardaDeSessao` gravou, nunca de argumento (regra 10, itens 2 e 3). Sem ano em curso, `exigirAnoEmCurso` falha
+ * `SessaoGuard` gravou, nunca de argumento (regra 10, itens 2 e 3). Sem ano em curso, `requireAnoEmCurso` falha
  * fechado com `NAO_ENCONTRADO` antes de qualquer consulta.
  *
  * As FKs compostas `(escola_id, serie_id)` e `(escola_id, ano_letivo_id)` são a segunda camada: mesmo que a série de
  * outra escola passasse por aqui, o banco recusaria a turma.
  */
 export class TurmaRepository {
-  constructor(private readonly banco: Banco | TransacaoBanco) {}
+  constructor(private readonly banco: Database | DatabaseTransaction) {}
 
   /**
    * Confirma que o ano do contexto ainda está em curso e o trava em `FOR SHARE` até o fim da transação. O `update` do
@@ -41,7 +41,7 @@ export class TurmaRepository {
     const [linha] = await this.banco
       .select({ id: anoLetivo.id })
       .from(anoLetivo)
-      .where(and(eq(anoLetivo.escolaId, exigirEscolaDoContexto()), eq(anoLetivo.id, exigirAnoEmCurso()), eq(anoLetivo.situacao, 'em_curso')))
+      .where(and(eq(anoLetivo.escolaId, requireEscolaId()), eq(anoLetivo.id, requireAnoEmCurso()), eq(anoLetivo.situacao, 'em_curso')))
       .for('share')
     return linha !== undefined
   }
@@ -55,7 +55,7 @@ export class TurmaRepository {
     const [linha] = await this.banco
       .select({ id: turma.id })
       .from(turma)
-      .where(and(eq(turma.escolaId, exigirEscolaDoContexto()), eq(turma.anoLetivoId, exigirAnoEmCurso()), eq(turma.id, id)))
+      .where(and(eq(turma.escolaId, requireEscolaId()), eq(turma.anoLetivoId, requireAnoEmCurso()), eq(turma.id, id)))
       .for('key share')
     return linha !== undefined
   }
@@ -68,7 +68,7 @@ export class TurmaRepository {
    * `NAO_ENCONTRADO` em vez de esbarrar na FK (C11). Dois gerar não se esperam aqui: o único por turma decide (C5).
    */
   async travarComVinculoDoProfessor(id: string): Promise<boolean> {
-    const daTurmaVinculada = and(eq(turma.escolaId, exigirEscolaDoContexto()), eq(turma.anoLetivoId, exigirAnoEmCurso()), eq(turma.id, id), this.#comVinculoDoProfessor(undefined))
+    const daTurmaVinculada = and(eq(turma.escolaId, requireEscolaId()), eq(turma.anoLetivoId, requireAnoEmCurso()), eq(turma.id, id), this.#comVinculoDoProfessor(undefined))
     const [travada] = await this.banco.select({ id: turma.id }).from(turma).where(daTurmaVinculada).for('share')
     if (travada === undefined) return false
     // O vínculo de novo, num comando próprio, depois da trava (correção 2026-10-03-acesso-sobrevive-ao-vinculo): o
@@ -98,7 +98,7 @@ export class TurmaRepository {
     const [linha] = await this.banco
       .select({ id: turma.id })
       .from(turma)
-      .where(and(eq(turma.escolaId, exigirEscolaDoContexto()), eq(turma.anoLetivoId, exigirAnoEmCurso()), eq(turma.id, id)))
+      .where(and(eq(turma.escolaId, requireEscolaId()), eq(turma.anoLetivoId, requireAnoEmCurso()), eq(turma.id, id)))
       .for(modo)
     return linha !== undefined
   }
@@ -106,7 +106,7 @@ export class TurmaRepository {
   async criar(nova: NovaTurma): Promise<TurmaGravada> {
     const [criada] = await this.banco
       .insert(turma)
-      .values({ escolaId: exigirEscolaDoContexto(), anoLetivoId: exigirAnoEmCurso(), serieId: nova.serieId, nome: nova.nome, turno: nova.turno })
+      .values({ escolaId: requireEscolaId(), anoLetivoId: requireAnoEmCurso(), serieId: nova.serieId, nome: nova.nome, turno: nova.turno })
       .returning(colunas)
     if (criada === undefined) throw new InvariantException('turma não criada')
     return criada
@@ -121,7 +121,7 @@ export class TurmaRepository {
     const [renomeada] = await this.banco
       .update(turma)
       .set({ nome })
-      .where(and(eq(turma.escolaId, exigirEscolaDoContexto()), eq(turma.anoLetivoId, exigirAnoEmCurso()), eq(turma.id, id)))
+      .where(and(eq(turma.escolaId, requireEscolaId()), eq(turma.anoLetivoId, requireAnoEmCurso()), eq(turma.id, id)))
       .returning({ ...colunas, serieId: turma.serieId })
     return renomeada
   }
@@ -135,8 +135,8 @@ export class TurmaRepository {
    */
   excluir(id: string): Promise<boolean> {
     return excluirSemReferencia(async () => {
-      const escolaId = exigirEscolaDoContexto()
-      const anoLetivoId = exigirAnoEmCurso()
+      const escolaId = requireEscolaId()
+      const anoLetivoId = requireAnoEmCurso()
       const acessoVigente = this.banco
         .select({ um: acessoTurma.id })
         .from(acessoTurma)
@@ -159,12 +159,12 @@ export class TurmaRepository {
 
   /** Uma página das turmas do ano em curso, com a série, em ordem de criação e uma linha a mais que diz se há próxima. */
   async listar({ pagina, limite }: PaginationQuery): Promise<Turma[]> {
-    const escolaId = exigirEscolaDoContexto()
+    const escolaId = requireEscolaId()
     const linhas = await this.banco
       .select({ ...colunas, serieId: serie.id, etapa: serie.etapa, ano: serie.ano })
       .from(turma)
       .innerJoin(serie, and(eq(serie.escolaId, turma.escolaId), eq(serie.id, turma.serieId)))
-      .where(and(eq(turma.escolaId, escolaId), eq(turma.anoLetivoId, exigirAnoEmCurso()), pagina === undefined ? undefined : gt(turma.id, pagina)))
+      .where(and(eq(turma.escolaId, escolaId), eq(turma.anoLetivoId, requireAnoEmCurso()), pagina === undefined ? undefined : gt(turma.id, pagina)))
       .orderBy(asc(turma.id))
       .limit(limite + 1)
     return linhas.map(({ serieId, etapa, ano, ...resto }) => ({ ...resto, serie: { id: serieId, etapa, ano } }))
@@ -191,7 +191,7 @@ export class TurmaRepository {
       .innerJoin(serie, and(eq(serie.escolaId, turma.escolaId), eq(serie.id, turma.serieId)))
       .where(
         and(
-          eq(turma.escolaId, exigirEscolaDoContexto()),
+          eq(turma.escolaId, requireEscolaId()),
           this.#doAnoDaLeitura(anoEncerrado),
           eq(turma.id, id),
           alcance === 'unidade' ? undefined : this.#comVinculoDoProfessor(anoEncerrado),
@@ -204,7 +204,7 @@ export class TurmaRepository {
 
   /** A turma do ano em curso, ou do ano pedido, se ele for da escola da turma e estiver `encerrado`. */
   #doAnoDaLeitura(anoEncerrado: string | undefined): SQL | undefined {
-    if (anoEncerrado === undefined) return eq(turma.anoLetivoId, exigirAnoEmCurso())
+    if (anoEncerrado === undefined) return eq(turma.anoLetivoId, requireAnoEmCurso())
     return and(
       eq(turma.anoLetivoId, anoEncerrado),
       exists(
@@ -217,7 +217,7 @@ export class TurmaRepository {
   }
 
   #comVinculoDoProfessor(anoEncerrado: string | undefined) {
-    const { usuarioId } = sessaoDaRequisicao()
+    const { usuarioId } = requestSessao()
     return exists(
       this.banco
         .select({ um: vinculo.id })
@@ -261,8 +261,8 @@ export class TurmaRepository {
       .innerJoin(usuario, and(eq(usuario.escolaId, vinculo.escolaId), eq(usuario.id, vinculo.usuarioId)))
       .where(
         and(
-          eq(vinculo.escolaId, exigirEscolaDoContexto()),
-          eq(vinculo.anoLetivoId, anoEncerrado ?? exigirAnoEmCurso()),
+          eq(vinculo.escolaId, requireEscolaId()),
+          eq(vinculo.anoLetivoId, anoEncerrado ?? requireAnoEmCurso()),
           eq(vinculo.turmaId, turmaId),
           eq(vinculo.papel, 'aluno'),
           anoEncerrado === undefined ? eq(vinculo.estado, 'confirmado') : TurmaRepository.#confirmadoAteOFimDoAno(),

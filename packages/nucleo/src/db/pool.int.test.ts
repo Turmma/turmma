@@ -3,10 +3,10 @@ import pg from 'pg'
 import { afterEach, describe, expect, it, onTestFinished } from 'vitest'
 import { lerAmbienteDeTeste, valorObrigatorio } from '../../../../tools/ci/compose.ts'
 import { aguardarSaudavel, compose, composeOuFalha } from '../../../../tools/testes/compose.ts'
-import { criarBanco } from './banco.js'
-import { bancoResponde, criarPool, type ConfiguracaoBanco, type PoolBanco } from './pool.js'
+import { createDatabase } from './banco.js'
+import { pingDatabase, createPool, type DatabaseConfig, type DatabasePool } from './pool.js'
 
-function configuracaoLocal(): ConfiguracaoBanco {
+function configuracaoLocal(): DatabaseConfig {
   const ambiente = lerAmbienteDeTeste()
   const usuario = valorObrigatorio(ambiente, 'POSTGRES_USUARIO')
   const senha = valorObrigatorio(ambiente, 'POSTGRES_SENHA')
@@ -21,14 +21,14 @@ function configuracaoLocal(): ConfiguracaoBanco {
 }
 
 describe('criarPool', () => {
-  const abertos: Array<PoolBanco | pg.Client> = []
+  const abertos: Array<DatabasePool | pg.Client> = []
   afterEach(async () => {
     await Promise.all(abertos.splice(0).map((recurso) => recurso.end()))
   })
 
   it('sobrevive à conexão ociosa derrubada pelo Postgres e avisa, em vez de encerrar o processo', async () => {
     const perdas: number[] = []
-    const pool = criarPool(configuracaoLocal(), () => perdas.push(Date.now()))
+    const pool = createPool(configuracaoLocal(), () => perdas.push(Date.now()))
     abertos.push(pool)
     const { rows } = await pool.query<{ pid: number }>('select pg_backend_pid() as pid')
     const pidOcioso = rows[0]?.pid
@@ -39,27 +39,27 @@ describe('criarPool', () => {
     await administrador.query('select pg_terminate_backend($1)', [pidOcioso])
 
     await expect.poll(() => perdas.length).toBe(1)
-    expect(await bancoResponde(pool)).toBe(true)
+    expect(await pingDatabase(pool)).toBe(true)
   })
 
   it('aplica o timeout de consulta no servidor, para uma consulta lenta não segurar a conexão', async () => {
-    const pool = criarPool(configuracaoLocal(), () => undefined)
+    const pool = createPool(configuracaoLocal(), () => undefined)
     abertos.push(pool)
     const { rows } = await pool.query<{ statement_timeout: string }>('show statement_timeout')
     expect(rows[0]?.statement_timeout).toBe('300ms')
     // 57014 é o cancelamento pelo statement_timeout do servidor, não o timeout do cliente.
     await expect(pool.query('select pg_sleep(2)')).rejects.toMatchObject({ code: '57014' })
-    expect(await bancoResponde(pool)).toBe(true)
+    expect(await pingDatabase(pool)).toBe(true)
   })
 
   describe('erro de consulta devolve a conexão ao pool, e só erro de conexão a descarta', () => {
-    async function pidDa(pool: PoolBanco): Promise<number | undefined> {
+    async function pidDa(pool: DatabasePool): Promise<number | undefined> {
       const { rows } = await pool.query<{ pid: number }>('select pg_backend_pid() as pid')
       return rows[0]?.pid
     }
 
-    function poolComContagemDeDescarte(ajuste: Partial<ConfiguracaoBanco> = {}) {
-      const pool = criarPool({ ...configuracaoLocal(), ...ajuste }, () => undefined)
+    function poolComContagemDeDescarte(ajuste: Partial<DatabaseConfig> = {}) {
+      const pool = createPool({ ...configuracaoLocal(), ...ajuste }, () => undefined)
       abertos.push(pool)
       const descartes: unknown[] = []
       pool.on('remove', (conexao) => descartes.push(conexao))
@@ -153,7 +153,7 @@ describe('criarPool', () => {
    */
   describe('transação do Drizzle com o prazo do cliente estourado', () => {
     /** `true` se `end()` terminou dentro do prazo: com conexão presa, ele nunca termina. */
-    async function encerraNoPrazo(pool: PoolBanco, limiteMs: number): Promise<boolean> {
+    async function encerraNoPrazo(pool: DatabasePool, limiteMs: number): Promise<boolean> {
       let prazo: NodeJS.Timeout | undefined
       const esgotado = new Promise<false>((resolver) => (prazo = setTimeout(() => resolver(false), limiteMs)))
       try {
@@ -165,25 +165,25 @@ describe('criarPool', () => {
 
     it('o `begin` que estoura não prende a conexão: o pool de uma conexão volta a responder e o `end()` termina', async () => {
       // Sem entrar em `abertos`: com a conexão presa, o `end()` do afterEach esperaria até o prazo do hook.
-      const pool = criarPool(configuracaoLocal(), () => undefined)
+      const pool = createPool(configuracaoLocal(), () => undefined)
       // A conexão ociosa que a transação vai pegar: é ela que recebe o `begin` com o Postgres parado.
-      expect(await bancoResponde(pool)).toBe(true)
+      expect(await pingDatabase(pool)).toBe(true)
       composeOuFalha('pause', 'postgres')
       try {
-        await expect(criarBanco(pool).transaction(async (tx) => tx.execute(sql`select 1`))).rejects.toThrow()
+        await expect(createDatabase(pool).transaction(async (tx) => tx.execute(sql`select 1`))).rejects.toThrow()
         expect(pool.totalCount - pool.idleCount).toBe(0)
       } finally {
         compose('unpause', 'postgres')
         await aguardarSaudavel('postgres')
       }
-      expect(await bancoResponde(pool)).toBe(true)
+      expect(await pingDatabase(pool)).toBe(true)
       expect(await encerraNoPrazo(pool, 5_000)).toBe(true)
     })
 
     it('o `rollback` que estoura não devolve a transação aberta: a escrita da requisição que falhou não é confirmada por outra', async () => {
-      const pool = criarPool(configuracaoLocal(), () => undefined)
+      const pool = createPool(configuracaoLocal(), () => undefined)
       abertos.push(pool)
-      const banco = criarBanco(pool)
+      const banco = createDatabase(pool)
       const tabela = `teste_pool_rollback_${Date.now()}`
       await pool.query(`create table ${tabela} (nome text)`)
       try {
@@ -222,7 +222,7 @@ describe('criarPool', () => {
     }
 
     it('descartada no erro de conexão, aceita o `release` de quem a pegou sem lançar, e o pool abre outra', async () => {
-      const pool = criarPool({ ...configuracaoLocal(), timeoutConsultaMs: 10_000 }, () => undefined)
+      const pool = createPool({ ...configuracaoLocal(), timeoutConsultaMs: 10_000 }, () => undefined)
       abertos.push(pool)
       const descartes: unknown[] = []
       pool.on('remove', (conexao) => descartes.push(conexao))
@@ -241,7 +241,7 @@ describe('criarPool', () => {
       await administrador.query('select pg_terminate_backend($1)', [pid])
       await rejeitada
 
-      // O `finally` do Drizzle e o `catch` do `OuvinteDeJobs` devolvem a conexão de novo, e isso não pode lançar.
+      // O `finally` do Drizzle e o `catch` do `JobNotificationListener` devolvem a conexão de novo, e isso não pode lançar.
       expect(() => conexao.release()).not.toThrow()
       expect(() => conexao.release(true)).not.toThrow()
       await expect.poll(() => descartes.length).toBe(1)
@@ -270,7 +270,7 @@ describe('criarPool', () => {
       }
 
       function poolComDescartes() {
-        const pool = criarPool({ ...configuracaoLocal(), timeoutConsultaMs: 10_000 }, () => undefined)
+        const pool = createPool({ ...configuracaoLocal(), timeoutConsultaMs: 10_000 }, () => undefined)
         abertos.push(pool)
         const descartes: unknown[] = []
         pool.on('remove', (conexao) => descartes.push(conexao))
@@ -293,7 +293,7 @@ describe('criarPool', () => {
         await expect(conexao.query('select 1')).rejects.toThrow()
         expect(() => conexao.release()).not.toThrow()
         expect(excecoes).toEqual([])
-        expect(await bancoResponde(pool)).toBe(true)
+        expect(await pingDatabase(pool)).toBe(true)
       })
 
       it('socket resetado no meio de uma consulta da transação: nada sobe ao processo, a conexão sai do pool e o pool responde', async () => {
@@ -310,12 +310,12 @@ describe('criarPool', () => {
         await expect.poll(() => descartes.length).toBe(1)
         expect(() => conexao.release()).not.toThrow()
         expect(excecoes).toEqual([])
-        expect(await bancoResponde(pool)).toBe(true)
+        expect(await pingDatabase(pool)).toBe(true)
       })
     })
 
     it('emprestada e devolvida dezenas de milhares de vezes, a mesma conexão ainda consulta: a troca da `query` não se empilha', async () => {
-      const pool = criarPool(configuracaoLocal(), () => undefined)
+      const pool = createPool(configuracaoLocal(), () => undefined)
       abertos.push(pool)
       const pid = await pool.query<{ pid: number }>('select pg_backend_pid() as pid')
       for (let vez = 0; vez < 50_000; vez++) (await pool.connect()).release()
@@ -327,15 +327,15 @@ describe('criarPool', () => {
       } finally {
         conexao.release()
       }
-      expect(await bancoResponde(pool)).toBe(true)
+      expect(await pingDatabase(pool)).toBe(true)
     })
 
     it('na transação do Drizzle, o erro de consulta (unicidade) não descarta: o `rollback` é do Drizzle e a conexão volta limpa', async () => {
-      const pool = criarPool(configuracaoLocal(), () => undefined)
+      const pool = createPool(configuracaoLocal(), () => undefined)
       abertos.push(pool)
       const descartes: unknown[] = []
       pool.on('remove', (conexao) => descartes.push(conexao))
-      const banco = criarBanco(pool)
+      const banco = createDatabase(pool)
       const tabela = `teste_pool_tx_unica_${Date.now()}`
       await pool.query(`create table ${tabela} (nome text unique)`)
       try {
@@ -355,7 +355,7 @@ describe('criarPool', () => {
     })
 
     it('a forma com callback, a do `pg.Pool#query` por dentro, segue respondendo', async () => {
-      const pool = criarPool(configuracaoLocal(), () => undefined)
+      const pool = createPool(configuracaoLocal(), () => undefined)
       abertos.push(pool)
       const resultado = await new Promise<pg.QueryResult<{ um: number }>>((resolver, rejeitar) => {
         pool.query<{ um: number }>('select 1 as um', (erro, resposta) => (erro ? rejeitar(erro) : resolver(resposta)))
@@ -365,12 +365,12 @@ describe('criarPool', () => {
   })
 
   it('desiste de abrir conexão dentro do timeout quando o Postgres trava, mesmo com o pool vazio', async () => {
-    const pool = criarPool({ ...configuracaoLocal(), timeoutConsultaMs: 10_000 }, () => undefined)
+    const pool = createPool({ ...configuracaoLocal(), timeoutConsultaMs: 10_000 }, () => undefined)
     abertos.push(pool)
     composeOuFalha('pause', 'postgres')
     try {
       const inicio = performance.now()
-      expect(await bancoResponde(pool)).toBe(false)
+      expect(await pingDatabase(pool)).toBe(false)
       expect(performance.now() - inicio).toBeLessThan(3_000)
     } finally {
       compose('unpause', 'postgres')

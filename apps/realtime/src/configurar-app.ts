@@ -1,16 +1,16 @@
 import 'reflect-metadata'
 import {
-  criarPool,
-  Drenagem,
-  FiltroGlobalDeErro,
-  LoggerDoNest,
-  medidorGlobal,
-  middlewareDeContexto,
-  middlewareDeMetricasHttp,
-  observarConexoesRealtime,
-  observarPoolDoBanco,
-  observarRedis,
-  resumirErro,
+  createPool,
+  GracefulShutdown,
+  AllExceptionsFilter,
+  NestLogger,
+  globalMeter,
+  contextMiddleware,
+  httpMetricsMiddleware,
+  observeRealtimeConnections,
+  observeDatabasePool,
+  observeRedis,
+  summarizeError,
   type LoggerBase,
   type Meter,
 } from '@educa/nucleo'
@@ -26,23 +26,23 @@ import type { ConfiguracaoRealtime } from './config.js'
  * (duração por rota, conexões abertas, Redis, pool do banco). O boot e os testes de integração passam por
  * aqui, para provar a mesma ligação que sobe no container.
  */
-export async function criarAplicacaoRealtime(config: ConfiguracaoRealtime, logger: LoggerBase, medidor: Meter = medidorGlobal()): Promise<NestExpressApplication> {
+export async function criarAplicacaoRealtime(config: ConfiguracaoRealtime, logger: LoggerBase, medidor: Meter = globalMeter()): Promise<NestExpressApplication> {
   const cliente = criarClienteRedisDoRealtime(config.redis.url, (erro) =>
-    logger.warn({ evento: 'realtime.redis_indisponivel', erro: resumirErro(erro) }),
+    logger.warn({ evento: 'realtime.redis_indisponivel', erro: summarizeError(erro) }),
   )
   await cliente.connect()
-  const pool = criarPool(config.banco, () => logger.warn({ evento: 'realtime.conexao_ociosa_perdida' }))
+  const pool = createPool(config.banco, () => logger.warn({ evento: 'realtime.conexao_ociosa_perdida' }))
   const app = await NestFactory.create<NestExpressApplication>(AppModule.com(config, cliente, pool, logger), { bufferLogs: true })
-  app.use(middlewareDeContexto)
-  app.use(middlewareDeMetricasHttp(medidor))
-  app.useLogger(new LoggerDoNest(logger))
-  app.useGlobalFilters(new FiltroGlobalDeErro(logger))
+  app.use(contextMiddleware)
+  app.use(httpMetricsMiddleware(medidor))
+  app.useLogger(new NestLogger(logger))
+  app.useGlobalFilters(new AllExceptionsFilter(logger))
   const adaptador = new AdaptadorSocketIoComRedis(app, cliente, config.redis.tamanhoMaximoDoStream)
   app.useWebSocketAdapter(adaptador)
-  observarConexoesRealtime(medidor, () => adaptador.conexoesAbertas())
-  observarRedis(medidor, { fila: [cliente] })
-  observarPoolDoBanco(medidor, pool)
+  observeRealtimeConnections(medidor, () => adaptador.conexoesAbertas())
+  observeRedis(medidor, { fila: [cliente] })
+  observeDatabasePool(medidor, pool)
   app.disable('x-powered-by')
-  app.get(Drenagem).prepararServidor(app.getHttpServer())
+  app.get(GracefulShutdown).prepararServidor(app.getHttpServer())
   return app
 }

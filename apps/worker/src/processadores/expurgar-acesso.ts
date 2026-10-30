@@ -1,4 +1,4 @@
-import { contextoAtual, LOTE_DO_EXPURGO, type AlvoDoExpurgoDeAcesso, type ExpurgoDeAcessoRepository, type LoggerBase, type Relogio } from '@educa/nucleo'
+import { currentContext, LOTE_DO_EXPURGO, type AlvoDoExpurgoDeAcesso, type ExpurgoDeAcessoRepository, type LoggerBase, type Clock } from '@educa/nucleo'
 import { JobFailureCode, type TIPO_EXPURGAR_ACESSO } from '@educa/shared'
 import type { Processador } from '../executor.js'
 import { FalhaDeJob } from '../falha-de-job.js'
@@ -8,7 +8,7 @@ export type TotaisDoExpurgoDeAcesso = Record<AlvoDoExpurgoDeAcesso, number>
 
 export interface DependenciasDoExpurgoDeAcesso {
   repositorio: Pick<ExpurgoDeAcessoRepository, 'apagarLoteVencido' | 'limparLoteDeContasSemUso'>
-  relogio: Relogio
+  relogio: Clock
   logger: LoggerBase
   /** Linhas por lote. Só o teste troca. */
   lote?: number
@@ -33,7 +33,7 @@ export interface DependenciasDoExpurgoDeAcesso {
  */
 export function criarExpurgoDeAcesso({ repositorio, relogio, logger, lote = LOTE_DO_EXPURGO }: DependenciasDoExpurgoDeAcesso): Processador<typeof TIPO_EXPURGAR_ACESSO> {
   return async () => {
-    if (contextoAtual()?.rotinaDoSistema !== true) throw new FalhaDeJob(JobFailureCode.DADOS_INVALIDOS, true)
+    if (currentContext()?.rotinaDoSistema !== true) throw new FalhaDeJob(JobFailureCode.DADOS_INVALIDOS, true)
     const agora = relogio.agora()
     const apagar = async (alvo: AlvoDoExpurgoDeAcesso): Promise<number> => {
       let total = 0

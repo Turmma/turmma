@@ -1,4 +1,4 @@
-import { validarAmbiente } from '@educa/nucleo'
+import { validateEnvironment } from '@educa/nucleo'
 import { z } from 'zod'
 
 const esquemaDoArmazem = z.object({
@@ -33,7 +33,7 @@ export const TENTATIVAS_DO_ARMAZEM_NA_API = 1
 export const TIMEOUT_DO_ARMAZEM_NA_API_MS = 5_000
 
 export function lerConfiguracaoDoArmazem(ambiente: Record<string, string | undefined>): ConfiguracaoDoArmazemDaApi {
-  const lido = validarAmbiente(esquemaDoArmazem, ambiente)
+  const lido = validateEnvironment(esquemaDoArmazem, ambiente)
   return {
     url: lido.STORAGE_URL,
     ...(lido.STORAGE_URL_PUBLICA === undefined ? {} : { urlPublica: lido.STORAGE_URL_PUBLICA }),

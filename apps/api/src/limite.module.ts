@@ -1,14 +1,14 @@
 import {
-  avisoEspacado,
-  ConfiguracaoOperacional,
-  ConfiguracaoOperacionalRepository,
-  criarClienteRedisDaApi,
-  LimitadorDeRequisicoes,
-  ProxiesConfiaveis,
+  throttledWarn,
+  OperationalSettings,
+  OperationalSettingsRepository,
+  createApiRedisClient,
+  RateLimiter,
+  TrustedProxies,
   resolverLimites,
-  type Banco,
-  type ConfiguracaoLimite,
-  type LimitesDeRequisicao,
+  type Database,
+  type RateLimitConfig,
+  type RateLimits,
 } from '@educa/nucleo'
 import { Global, Inject, Logger, Module, type DynamicModule, type OnApplicationShutdown } from '@nestjs/common'
 import type { Redis } from 'ioredis'
@@ -29,7 +29,7 @@ export const LIMITES_DA_ESCOLA = Symbol('LIMITES_DA_ESCOLA')
 export class LimiteModule implements OnApplicationShutdown {
   private static readonly logger = new Logger('limite')
 
-  static com(config: ConfiguracaoLimite): DynamicModule {
+  static com(config: RateLimitConfig): DynamicModule {
     let ultimoErroRegistradoEm = Number.NEGATIVE_INFINITY
     return {
       module: LimiteModule,
@@ -37,7 +37,7 @@ export class LimiteModule implements OnApplicationShutdown {
         {
           provide: CLIENTE_REDIS_CACHE,
           useFactory: () =>
-            criarClienteRedisDaApi(config.redisCacheUrl, 'api-limite', () => {
+            createApiRedisClient(config.redisCacheUrl, 'api-limite', () => {
               // Com o Redis fora, o ioredis erra a cada tentativa de reconexão: uma linha a cada 30 s basta.
               if (performance.now() - ultimoErroRegistradoEm < 30_000) return
               ultimoErroRegistradoEm = performance.now()
@@ -45,24 +45,24 @@ export class LimiteModule implements OnApplicationShutdown {
             }),
         },
         {
-          provide: LimitadorDeRequisicoes,
-          useFactory: (cliente: Redis) => new LimitadorDeRequisicoes(cliente, config),
+          provide: RateLimiter,
+          useFactory: (cliente: Redis) => new RateLimiter(cliente, config),
           inject: [CLIENTE_REDIS_CACHE],
         },
         {
           provide: LIMITES_DA_ESCOLA,
-          useFactory: (banco: Banco): ConfiguracaoOperacional<LimitesDeRequisicao> => {
+          useFactory: (banco: Database): OperationalSettings<RateLimits> => {
             const padrao = { porUsuarioMin: config.porUsuarioMin, porEscolaMin: config.porEscolaMin }
-            const avisarFalha = avisoEspacado(() => LimiteModule.logger.warn('limite.configuracao_indisponivel'))
-            return new ConfiguracaoOperacional(new ConfiguracaoOperacionalRepository(banco), (linha) => resolverLimites(padrao, linha), {
+            const avisarFalha = throttledWarn(() => LimiteModule.logger.warn('limite.configuracao_indisponivel'))
+            return new OperationalSettings(new OperationalSettingsRepository(banco), (linha) => resolverLimites(padrao, linha), {
               aoFalhar: avisarFalha,
             })
           },
           inject: [BANCO],
         },
-        { provide: ProxiesConfiaveis, useValue: new ProxiesConfiaveis(config.proxiesConfiaveis) },
+        { provide: TrustedProxies, useValue: new TrustedProxies(config.proxiesConfiaveis) },
       ],
-      exports: [LimitadorDeRequisicoes, ProxiesConfiaveis, LIMITES_DA_ESCOLA],
+      exports: [RateLimiter, TrustedProxies, LIMITES_DA_ESCOLA],
     }
   }
 

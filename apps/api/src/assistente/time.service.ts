@@ -1,4 +1,4 @@
-import { type Banco } from '@educa/nucleo'
+import { type Database } from '@educa/nucleo'
 import { timeResponseSchema, montarTime, type TimeResponse } from '@educa/shared'
 import { SuspensoesDaEscolaRepository } from './suspensoes-da-escola.repository.js'
 
@@ -11,7 +11,7 @@ import { SuspensoesDaEscolaRepository } from './suspensoes-da-escola.repository.
  * traz a `funcao`, e o time, o `suspensa` dela.
  */
 export class TimeService {
-  constructor(private readonly banco: Banco) {}
+  constructor(private readonly banco: Database) {}
 
   async ler(): Promise<TimeResponse> {
     return timeResponseSchema.parse(montarTime(new Set(await new SuspensoesDaEscolaRepository(this.banco).vigentes())))

@@ -1,5 +1,5 @@
 import 'reflect-metadata'
-import { METRICAS } from '@educa/nucleo'
+import { METRICS } from '@educa/nucleo'
 import type { Socket as SocketCliente } from 'socket.io-client'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
@@ -33,25 +33,25 @@ describe('métricas do realtime', () => {
   const valores = async (nome: string) => (await medidor.pontos(nome)).map(({ atributos, valor }) => ({ atributos, valor }))
 
   it('realtime.conexoes acompanha os clientes abertos nesta instância, sem rótulo de escola, sala ou usuário', async () => {
-    expect(await valores(METRICAS.conexoesRealtime)).toEqual([{ atributos: {}, valor: 0 }])
+    expect(await valores(METRICS.conexoesRealtime)).toEqual([{ atributos: {}, valor: 0 }])
     for (const sessao of [sessaoDeA, sessaoDeB]) {
       const cliente = criarCliente(instancia.url, await sessao.tokenNovo())
       clientes.push(cliente)
       await conectar(cliente)
     }
-    expect(await valores(METRICAS.conexoesRealtime)).toEqual([{ atributos: {}, valor: 2 }])
+    expect(await valores(METRICS.conexoesRealtime)).toEqual([{ atributos: {}, valor: 2 }])
 
     clientes[0]?.disconnect()
-    await expect.poll(async () => (await valores(METRICAS.conexoesRealtime))[0]?.valor, { timeout: 5_000, interval: 50 }).toBe(1)
+    await expect.poll(async () => (await valores(METRICS.conexoesRealtime))[0]?.valor, { timeout: 5_000, interval: 50 }).toBe(1)
   })
 
   it('o Redis de fila do adaptador aparece disponível, o pool do banco do handshake é medido, e a prontidão é medida pela rota template', async () => {
-    expect(await valores(METRICAS.redisDisponivel)).toEqual([{ atributos: { instancia: 'fila' }, valor: 1 }])
+    expect(await valores(METRICS.redisDisponivel)).toEqual([{ atributos: { instancia: 'fila' }, valor: 1 }])
     // O pool novo é caminho quente (todo handshake lê a sessão): sem esta série, ninguém vê o pool saturar (regra 80, item 10).
-    expect((await medidor.pontos(METRICAS.poolEmUso)).length).toBeGreaterThan(0)
+    expect((await medidor.pontos(METRICS.poolEmUso)).length).toBeGreaterThan(0)
     expect((await fetch(`${instancia.url}/prontidao`)).status).toBe(200)
     await expect
-      .poll(async () => (await medidor.pontos(METRICAS.duracaoHttp)).map(({ atributos }) => atributos['http.route']), { timeout: 5_000, interval: 50 })
+      .poll(async () => (await medidor.pontos(METRICS.duracaoHttp)).map(({ atributos }) => atributos['http.route']), { timeout: 5_000, interval: 50 })
       .toContain('/prontidao')
   })
 })

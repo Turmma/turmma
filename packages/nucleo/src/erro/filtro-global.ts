@@ -2,11 +2,11 @@ import { ErrorCode, MENSAGENS_DE_ERRO, type ErrorResponse } from '@educa/shared'
 import { Catch, HttpException, type ArgumentsHost, type ExceptionFilter } from '@nestjs/common'
 import { randomUUID } from 'node:crypto'
 import type { ServerResponse } from 'node:http'
-import { contextoAtual } from '../contexto/contexto.js'
+import { currentContext } from '../contexto/contexto.js'
 import type { LoggerBase } from '../log/logger.js'
-import { ErroDeDominio, TENTE_DE_NOVO_PADRAO_SEGUNDOS } from './erro-de-dominio.js'
-import { mapearErroPostgres } from './mapear-erro-postgres.js'
-import { resumirErro } from './resumir-erro.js'
+import { DomainException, DEFAULT_RETRY_AFTER_SECONDS } from './erro-de-dominio.js'
+import { mapPostgresError } from './mapear-erro-postgres.js'
+import { summarizeError } from './resumir-erro.js'
 
 /** Exceção HTTP do próprio Nest (rota inexistente, corpo JSON inválido) vira código tipado. */
 function codigoDoStatusHttp(status: number): ErrorCode {
@@ -26,21 +26,21 @@ function codigoDoStatusHttp(status: number): ErrorCode {
  * `Retry-After` de toda resposta que pede para esperar: 429 com o tempo do limite, 503 com o que
  * quem lançou informou ou o padrão. Sem ele, o cliente repete na hora e piora a manhã de segunda.
  */
-function segundosDoRetryAfter(erro: ErroDeDominio): number | undefined {
+function segundosDoRetryAfter(erro: DomainException): number | undefined {
   if (erro.status !== 429 && erro.status !== 503) return undefined
-  return erro.tenteDeNovoEmSegundos ?? TENTE_DE_NOVO_PADRAO_SEGUNDOS
+  return erro.tenteDeNovoEmSegundos ?? DEFAULT_RETRY_AFTER_SECONDS
 }
 
-function traduzir(excecao: unknown): ErroDeDominio {
-  if (excecao instanceof ErroDeDominio) return excecao
-  const doPostgres = mapearErroPostgres(excecao)
+function traduzir(excecao: unknown): DomainException {
+  if (excecao instanceof DomainException) return excecao
+  const doPostgres = mapPostgresError(excecao)
   if (doPostgres !== undefined) return doPostgres
   if (excecao instanceof HttpException) {
     const status = excecao.getStatus()
     const codigo = codigoDoStatusHttp(status)
-    return new ErroDeDominio(codigo, codigo === ErrorCode.ERRO_INTERNO ? 500 : status)
+    return new DomainException(codigo, codigo === ErrorCode.ERRO_INTERNO ? 500 : status)
   }
-  return new ErroDeDominio(ErrorCode.ERRO_INTERNO)
+  return new DomainException(ErrorCode.ERRO_INTERNO)
 }
 
 /**
@@ -49,17 +49,17 @@ function traduzir(excecao: unknown): ErroDeDominio {
  * saem da API (regra 20, item 11). O log leva o resumo do erro, também sem mensagem.
  */
 @Catch()
-export class FiltroGlobalDeErro implements ExceptionFilter {
+export class AllExceptionsFilter implements ExceptionFilter {
   constructor(private readonly logger: LoggerBase) {}
 
   catch(excecao: unknown, host: ArgumentsHost): void {
     const erro = traduzir(excecao)
-    const requisicaoId = contextoAtual()?.requisicaoId ?? randomUUID()
+    const requisicaoId = currentContext()?.requisicaoId ?? randomUUID()
     if (erro.status >= 500) {
-      this.logger.error({ evento: 'http.erro', status: erro.status, codigo: erro.codigo, erro: resumirErro(excecao) })
+      this.logger.error({ evento: 'http.erro', status: erro.status, codigo: erro.codigo, erro: summarizeError(excecao) })
     } else {
       // Erro do cliente não precisa de pilha, e numa manhã de 404 ela só engorda o log.
-      const { pilha: _pilha, ...erroSemPilha } = resumirErro(excecao)
+      const { pilha: _pilha, ...erroSemPilha } = summarizeError(excecao)
       this.logger.warn({ evento: 'http.erro', status: erro.status, codigo: erro.codigo, erro: erroSemPilha })
     }
 

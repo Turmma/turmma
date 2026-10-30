@@ -1,4 +1,4 @@
-import { IdPipe, Permite, ZodValidationPipe } from '@educa/nucleo'
+import { IdPipe, RequirePermissao, ZodValidationPipe } from '@educa/nucleo'
 import {
   artefatosQuerySchema,
   adaptarArtefatoRequestSchema,
@@ -25,28 +25,28 @@ export class ArtefatoController {
   constructor(private readonly artefatos: ArtefatoService) {}
 
   @Get()
-  @Permite('artefato', 'listar')
+  @RequirePermissao('artefato', 'listar')
   @Header('Cache-Control', 'no-store')
   listar(@Query(new ZodValidationPipe(artefatosQuerySchema)) consulta: ArtefatosQuery): Promise<ListaDeArtefatosResponse> {
     return this.artefatos.listar(consulta)
   }
 
   @Get(':id')
-  @Permite('artefato', 'ler')
+  @RequirePermissao('artefato', 'ler')
   @Header('Cache-Control', 'no-store')
   ler(@Param('id', IdPipe) artefatoId: string): Promise<ArtefatoResponse> {
     return this.artefatos.ler(artefatoId)
   }
 
   @Patch(':id')
-  @Permite('artefato', 'renomear')
+  @RequirePermissao('artefato', 'renomear')
   @Header('Cache-Control', 'no-store')
   renomear(@Param('id', IdPipe) artefatoId: string, @Body(new ZodValidationPipe(renomearArtefatoRequestSchema)) pedido: RenomearArtefatoRequest): Promise<ArtefatoResponse> {
     return this.artefatos.renomear(artefatoId, pedido)
   }
 
   @Get(':id/pdf')
-  @Permite('artefato', 'exportar')
+  @RequirePermissao('artefato', 'exportar')
   @Header('Cache-Control', 'no-store')
   async pdf(@Param('id', IdPipe) artefatoId: string): Promise<StreamableFile> {
     const { nome, bytes } = await this.artefatos.pdf(artefatoId)
@@ -54,7 +54,7 @@ export class ArtefatoController {
   }
 
   @Post(':id/adaptar')
-  @Permite('artefato', 'adaptar')
+  @RequirePermissao('artefato', 'adaptar')
   @HttpCode(HttpStatus.ACCEPTED)
   adaptar(@Param('id', IdPipe) artefatoId: string, @Body(new ZodValidationPipe(adaptarArtefatoRequestSchema)) pedido: AdaptarArtefatoRequest): Promise<ExecucaoAceitaResponse> {
     return this.artefatos.adaptar(artefatoId, pedido)

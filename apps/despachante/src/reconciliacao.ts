@@ -1,9 +1,9 @@
 import {
-  executarNoContexto,
-  resumirErro,
-  type CursorDaReconciliacao,
-  type DespachoRepository,
-  type JobParaReconciliar,
+  runInContext,
+  summarizeError,
+  type SweepCursor,
+  type DispatchRepository,
+  type JobToSweep,
 } from '@educa/nucleo'
 import type { JobFailureCode } from '@educa/shared'
 import { contextoDoJob, publicarComVaga, type DependenciasDaPublicacao } from './despachante.js'
@@ -21,7 +21,7 @@ export const LOTE_DE_RECONCILIACAO = 100
 export const DURACAO_MAXIMA_RECONCILIACAO_MS = 30_000
 
 export interface DependenciasDaReconciliacao extends DependenciasDaPublicacao {
-  repositorio: DespachoRepository
+  repositorio: DispatchRepository
   fila: FilaDePublicacao
 }
 
@@ -59,7 +59,7 @@ export class Reconciliacao {
   #ativa = false
   #laco: Promise<void> | undefined
   #encerrarEspera: (() => void) | undefined
-  #cursor: CursorDaReconciliacao | undefined
+  #cursor: SweepCursor | undefined
   /** No SIGTERM, a varredura em andamento termina a página e cede: o prazo do contêiner é curto. */
   #parando = false
 
@@ -106,12 +106,12 @@ export class Reconciliacao {
   }
 
   /** Confere uma página e soma ao resultado. Devolve quantas consultas ficaram sem resposta. */
-  private async reconciliarPagina(pagina: readonly JobParaReconciliar[], resultado: ResultadoDaReconciliacao): Promise<number> {
+  private async reconciliarPagina(pagina: readonly JobToSweep[], resultado: ResultadoDaReconciliacao): Promise<number> {
     const { repositorio, fila, vagas, logger } = this.dependencias
     const consultas = await Promise.allSettled(pagina.map((job) => fila.consultar(job)))
 
     const inexistentes: string[] = []
-    const falhos: Array<{ job: JobParaReconciliar; codigo: JobFailureCode }> = []
+    const falhos: Array<{ job: JobToSweep; codigo: JobFailureCode }> = []
     consultas.forEach((consulta, indice) => {
       const job = pagina[indice]
       if (job === undefined || consulta.status === 'rejected') return
@@ -122,16 +122,16 @@ export class Reconciliacao {
     const [primeiraRecusada] = recusadas
     if (primeiraRecusada !== undefined) {
       const quantidade = recusadas.length
-      logger.warn({ evento: 'reconciliacao.consulta_falhou', quantidade, erro: resumirErro(primeiraRecusada.reason) })
+      logger.warn({ evento: 'reconciliacao.consulta_falhou', quantidade, erro: summarizeError(primeiraRecusada.reason) })
     }
 
     for (const { job, codigo } of falhos) {
       if (!(await repositorio.registrarFalhaDaFila(job.id, codigo))) continue
       resultado.falhasRegistradas.push(job.id)
-      executarNoContexto(contextoDoJob(job), () => logger.warn({ evento: 'job.falha_reconciliada', jobId: job.id, codigo }))
+      runInContext(contextoDoJob(job), () => logger.warn({ evento: 'job.falha_reconciliada', jobId: job.id, codigo }))
       // O worker que não gravou a falha também não liberou a vaga; sem isto, ela só venceria em 60 s.
       await vagas.liberar(job.fila, job.escolaId, [job.id]).catch((erro: unknown) =>
-        logger.warn({ evento: 'reconciliacao.vaga_nao_liberada', jobId: job.id, erro: resumirErro(erro) }),
+        logger.warn({ evento: 'reconciliacao.vaga_nao_liberada', jobId: job.id, erro: summarizeError(erro) }),
       )
     }
 
@@ -150,7 +150,7 @@ export class Reconciliacao {
         await this.reconciliar()
       } catch (erro) {
         // Banco fora: a próxima reconciliação tenta de novo, do mesmo ponto. Nunca derruba o processo.
-        this.dependencias.logger.warn({ evento: 'reconciliacao.falhou', erro: resumirErro(erro) })
+        this.dependencias.logger.warn({ evento: 'reconciliacao.falhou', erro: summarizeError(erro) })
       }
     }
   }

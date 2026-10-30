@@ -1,4 +1,4 @@
-import { ConfiguracaoInvalida } from '@educa/nucleo'
+import { InvalidConfigError } from '@educa/nucleo'
 import { describe, expect, it } from 'vitest'
 import { ArgumentoInvalido, lerOperador, lerPedidoDoOperador } from './escola.js'
 
@@ -53,7 +53,7 @@ describe('lerOperador', () => {
   })
 
   it.each([undefined, '', 'Joaquim', 'joaquim@educa.ia', 'j', 'a'.repeat(33)])('"%s" é recusado pelo nome da variável, sem o valor', (operador) => {
-    expect(() => lerOperador({ OPERADOR: operador })).toThrow(new ConfiguracaoInvalida(['OPERADOR']))
+    expect(() => lerOperador({ OPERADOR: operador })).toThrow(new InvalidConfigError(['OPERADOR']))
     if (operador !== undefined && operador !== '') expect(() => lerOperador({ OPERADOR: operador })).not.toThrow(operador)
   })
 })

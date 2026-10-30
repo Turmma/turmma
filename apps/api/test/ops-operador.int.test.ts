@@ -1,4 +1,4 @@
-import { criarPool, type PoolBanco } from '@educa/nucleo'
+import { createPool, type DatabasePool } from '@educa/nucleo'
 import { CHAVES_DE_RETENCAO } from '@educa/shared'
 import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import { existsSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
@@ -54,7 +54,7 @@ const sha256 = (texto: string) => createHash('sha256').update(texto).digest('hex
 describe('npm run ops:operador: o operador nasce, é reconvidado e é desativado só por comando', () => {
   const pasta = mkdtempSync(join(tmpdir(), 'ops-operador-int-'))
   const redes: string[] = []
-  let pool: PoolBanco
+  let pool: DatabasePool
   let arquivos = 0
 
   const arquivoNovo = () => join(pasta, `token-${++arquivos}.txt`)
@@ -116,7 +116,7 @@ describe('npm run ops:operador: o operador nasce, é reconvidado e é desativado
   }
 
   beforeAll(() => {
-    pool = criarPool({ url: urlDoBancoDeTeste(), maximoConexoes: 4, timeoutConexaoMs: 2_000, timeoutConsultaMs: 5_000 }, () => undefined)
+    pool = createPool({ url: urlDoBancoDeTeste(), maximoConexoes: 4, timeoutConexaoMs: 2_000, timeoutConsultaMs: 5_000 }, () => undefined)
   })
 
   // A conferência do OPERADOR é global: os outros arquivos de teste rodam `ops:*` sem operador ativo (bootstrap). Cada

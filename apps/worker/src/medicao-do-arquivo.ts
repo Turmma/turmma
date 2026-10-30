@@ -1,12 +1,12 @@
-import { METRICAS, type ArquivoDoTitularRepository, type EscolasDaRotinaRepository, type LoggerBase, type Meter, type Relogio } from '@educa/nucleo'
+import { METRICS, type ArquivoDoTitularRepository, type CronEscolasRepository, type LoggerBase, type Meter, type Clock } from '@educa/nucleo'
 import { MedicaoPorEscola } from './medicao-por-escola.js'
 
 const MS_POR_HORA = 3_600_000
 
 export interface DependenciasDaMedicaoDoArquivo {
-  escolas: Pick<EscolasDaRotinaRepository, 'listarIds'>
+  escolas: Pick<CronEscolasRepository, 'listarIds'>
   repositorio: Pick<ArquivoDoTitularRepository, 'registradoEmDoEmPreparacaoMaisAntigo'>
-  relogio: Relogio
+  relogio: Clock
   logger: LoggerBase
   medidor: Meter
 }
@@ -29,7 +29,7 @@ export class MedicaoDoArquivo extends MedicaoPorEscola {
     super(
       dependencias,
       {
-        metrica: METRICAS.horasDoArquivoEmPreparacao,
+        metrica: METRICS.horasDoArquivoEmPreparacao,
         descricao: 'Horas que o pedido de acesso mais antigo da escola espera o arquivo do titular ficar pronto',
         evento: 'worker.medicao_do_arquivo_indisponivel',
       },

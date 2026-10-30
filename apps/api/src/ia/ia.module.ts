@@ -1,10 +1,10 @@
 import {
-  criarLogger,
-  criarProvedorDeIa,
-  ExecutorNoProcesso,
-  type Banco,
-  type ConfiguracaoDeIa,
-  type ExecutorDeAgente,
+  createLogger,
+  createLLMGateway,
+  InProcessAgenteExecutor,
+  type Database,
+  type LLMConfig,
+  type AgenteExecutor,
   type LLMProvider,
   type LoggerBase,
   type OrcamentoDeIa,
@@ -32,7 +32,7 @@ export const ORCAMENTO_DE_IA = Symbol('ORCAMENTO_DE_IA')
 
 export interface OpcoesDoModuloDeIa {
   /** A configuração de IA que o `lerConfiguracao` da API leu e validou (`IA_ADAPTADOR`, `LLM_*`, `IA_EXECUC*`). */
-  readonly config: ConfiguracaoDeIa
+  readonly config: LLMConfig
   readonly logger?: LoggerBase
 }
 
@@ -55,37 +55,37 @@ export interface OpcoesDoModuloDeIa {
 export class IaModule implements OnApplicationBootstrap, OnApplicationShutdown {
   static com(opcoes: OpcoesDoModuloDeIa): DynamicModule {
     const { config } = opcoes
-    const logger = opcoes.logger ?? criarLogger({ servico: 'api' })
+    const logger = opcoes.logger ?? createLogger({ servico: 'api' })
     return {
       module: IaModule,
       controllers: [ExecucoesController],
       providers: [
-        { provide: SUSPENSAO_DE_FUNCAO, useFactory: (banco: Banco) => new SuspensaoRepository(banco), inject: [BANCO] },
-        { provide: ORCAMENTO_DE_IA, useFactory: (banco: Banco) => new OrcamentoRepository(banco), inject: [BANCO] },
+        { provide: SUSPENSAO_DE_FUNCAO, useFactory: (banco: Database) => new SuspensaoRepository(banco), inject: [BANCO] },
+        { provide: ORCAMENTO_DE_IA, useFactory: (banco: Database) => new OrcamentoRepository(banco), inject: [BANCO] },
         {
           provide: LLM_PROVIDER,
-          useFactory: (banco: Banco, orcamento: OrcamentoDeIa, suspensao: SuspensaoDeFuncao) =>
-            criarProvedorDeIa(config, { registro: new ConsumoRepository(banco), orcamento, suspensao, logger }),
+          useFactory: (banco: Database, orcamento: OrcamentoDeIa, suspensao: SuspensaoDeFuncao) =>
+            createLLMGateway(config, { registro: new ConsumoRepository(banco), orcamento, suspensao, logger }),
           inject: [BANCO, ORCAMENTO_DE_IA, SUSPENSAO_DE_FUNCAO],
         },
         {
           provide: EXECUTOR_DE_AGENTE,
-          useFactory: (banco: Banco) => new ExecutorNoProcesso({ repositorio: new ExecucaoRepository(banco), config: config.executor, logger }),
+          useFactory: (banco: Database) => new InProcessAgenteExecutor({ repositorio: new ExecucaoRepository(banco), config: config.executor, logger }),
           inject: [BANCO],
         },
         {
           provide: AgendadorDeExecucoes,
-          useFactory: (banco: Banco, ia: LLMProvider, executor: ExecutorDeAgente, suspensao: SuspensaoDeFuncao) => new AgendadorDeExecucoes(banco, ia, executor, suspensao),
+          useFactory: (banco: Database, ia: LLMProvider, executor: AgenteExecutor, suspensao: SuspensaoDeFuncao) => new AgendadorDeExecucoes(banco, ia, executor, suspensao),
           inject: [BANCO, LLM_PROVIDER, EXECUTOR_DE_AGENTE, SUSPENSAO_DE_FUNCAO],
         },
         { provide: ConferenciaDeFuncao, useFactory: (suspensao: SuspensaoDeFuncao) => new ConferenciaDeFuncao(suspensao), inject: [SUSPENSAO_DE_FUNCAO] },
-        { provide: ExecucoesService, useFactory: (banco: Banco) => new ExecucoesService(banco), inject: [BANCO] },
+        { provide: ExecucoesService, useFactory: (banco: Database) => new ExecucoesService(banco), inject: [BANCO] },
       ],
       exports: [LLM_PROVIDER, EXECUTOR_DE_AGENTE, SUSPENSAO_DE_FUNCAO, ORCAMENTO_DE_IA, AgendadorDeExecucoes, ConferenciaDeFuncao],
     }
   }
 
-  constructor(@Inject(EXECUTOR_DE_AGENTE) private readonly executor: ExecutorNoProcesso) {}
+  constructor(@Inject(EXECUTOR_DE_AGENTE) private readonly executor: InProcessAgenteExecutor) {}
 
   async onApplicationBootstrap(): Promise<void> {
     await this.executor.iniciar()

@@ -1,7 +1,7 @@
 import { once } from 'node:events'
 import { createServer, type AddressInfo, type Socket } from 'node:net'
 import { afterEach, describe, expect, it } from 'vitest'
-import { criarClienteRedisDaFila, TIMEOUT_COMANDO_REDIS_FILA_MS } from './clientes.js'
+import { createQueueRedisClient, TIMEOUT_COMANDO_REDIS_FILA_MS } from './clientes.js'
 
 /** Comandos RESP completos em `buffer`, e o que sobrou de um comando ainda pela metade. */
 function lerComandos(buffer: string): { comandos: string[][]; resto: string } {
@@ -70,9 +70,9 @@ describe('criarClienteRedisDaFila', () => {
 
   it('com o Redis fora, ou aceitando a conexão sem ficar pronto, o comando falha na hora, sem esperar numa fila', async () => {
     // Porta sem ninguém escutando.
-    const fora = criarClienteRedisDaFila('redis://127.0.0.1:1', 'teste', () => undefined)
+    const fora = createQueueRedisClient('redis://127.0.0.1:1', 'teste', () => undefined)
     const semAperto = await redisTravado(false)
-    const semFicarPronto = criarClienteRedisDaFila(semAperto.url, 'teste', () => undefined)
+    const semFicarPronto = createQueueRedisClient(semAperto.url, 'teste', () => undefined)
     abertos.push(() => {
       fora.disconnect()
       semFicarPronto.disconnect()
@@ -88,7 +88,7 @@ describe('criarClienteRedisDaFila', () => {
 
   it('com o Redis travado, o comando desiste no prazo da fila', async () => {
     const travado = await redisTravado(true)
-    const cliente = criarClienteRedisDaFila(travado.url, 'teste', () => undefined)
+    const cliente = createQueueRedisClient(travado.url, 'teste', () => undefined)
     abertos.push(() => {
       cliente.disconnect()
       travado.fechar()

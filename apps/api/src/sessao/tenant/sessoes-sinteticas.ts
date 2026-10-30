@@ -1,13 +1,13 @@
 import {
   DURACAO_DA_SESSAO_HORAS,
-  EmissorDeToken,
-  ErroDeDominio,
-  erroDoPostgresEm,
-  executarNoContexto,
+  TokenIssuer,
+  DomainException,
+  postgresErrorIn,
+  runInContext,
   TAMANHO_MINIMO_CHAVE_ASSINATURA,
-  validarAmbiente,
-  type Banco,
-  type Relogio,
+  validateEnvironment,
+  type Database,
+  type Clock,
 } from '@educa/nucleo'
 import { ErrorCode, InvariantException, type PapelDeUsuario } from '@educa/shared'
 import { createHash, randomBytes, randomUUID } from 'node:crypto'
@@ -48,15 +48,15 @@ export interface SessaoSintetica {
 
 /**
  * O emissor da chave do ambiente, só com `AMBIENTE=local`. Com `AMBIENTE` ausente ou diferente, recusa com
- * `ConfiguracaoInvalida` antes de qualquer banco: a sessão sintética não vira porta em staging nem em produção.
+ * `InvalidConfigError` antes de qualquer banco: a sessão sintética não vira porta em staging nem em produção.
  *
  * O `relogio` só é usado por teste que precisa de um token já vencido de uma sessão que existe; sem ele, vale
  * o relógio do sistema.
  */
-export function emissorDeTokenSintetico(ambiente: Record<string, string | undefined>, relogio?: Relogio): EmissorDeToken {
-  const { IDENTIDADE_CHAVE_ASSINATURA: chave } = validarAmbiente(esquemaAmbiente, ambiente)
+export function emissorDeTokenSintetico(ambiente: Record<string, string | undefined>, relogio?: Clock): TokenIssuer {
+  const { IDENTIDADE_CHAVE_ASSINATURA: chave } = validateEnvironment(esquemaAmbiente, ambiente)
   const codificada = new TextEncoder().encode(chave)
-  return relogio === undefined ? new EmissorDeToken(codificada) : new EmissorDeToken(codificada, relogio)
+  return relogio === undefined ? new TokenIssuer(codificada) : new TokenIssuer(codificada, relogio)
 }
 
 /** Hash de um refresh sorteado que ninguém guarda: a sessão sintética não se renova. */
@@ -66,8 +66,8 @@ function refreshHashDescartavel(): string {
 
 /**
  * Cria, na escola pedida, `quantidade` usuários sintéticos com o papel pedido e uma sessão para cada, e emite o
- * token de cada sessão pelo `EmissorDeToken`. É o que `ops:sessao-sintetica` e os testes usam para montar a sessão
- * real que a `GuardaDeSessao` lê.
+ * token de cada sessão pelo `TokenIssuer`. É o que `ops:sessao-sintetica` e os testes usam para montar a sessão
+ * real que a `SessaoGuard` lê.
  *
  * - Só com `AMBIENTE=local` (ver `emissorDeTokenSintetico`).
  * - Tudo numa transação, no contexto da escola pedida: usuário e sessão são gravados nela, nunca em outra.
@@ -76,17 +76,17 @@ function refreshHashDescartavel(): string {
  * - Escola inexistente sai como `NAO_ENCONTRADO`, sem o id na mensagem.
  */
 export async function criarSessoesSinteticas(
-  banco: Banco,
+  banco: Database,
   ambiente: Record<string, string | undefined>,
   pedido: PedidoDeSessoesSinteticas,
 ): Promise<SessaoSintetica[]> {
   const emissor = emissorDeTokenSintetico(ambiente)
   if (!Number.isInteger(pedido.quantidade) || pedido.quantidade < 1 || pedido.quantidade > QUANTIDADE_MAXIMA_DE_SESSOES_SINTETICAS) {
-    throw new ErroDeDominio(ErrorCode.ENTRADA_INVALIDA)
+    throw new DomainException(ErrorCode.ENTRADA_INVALIDA)
   }
   let criadas: Array<{ usuarioId: string; sessaoId: string }>
   try {
-    criadas = await executarNoContexto({ requisicaoId: randomUUID(), escolaId: pedido.escolaId }, () =>
+    criadas = await runInContext({ requisicaoId: randomUUID(), escolaId: pedido.escolaId }, () =>
       banco.transaction(async (tx) => {
         const criacao = new CriacaoDeSessaoRepository(tx)
         const contas: Array<string | null> =
@@ -108,7 +108,7 @@ export async function criarSessoesSinteticas(
     )
   } catch (erro) {
     // foreign_key_violation: a escola informada não existe.
-    if (erroDoPostgresEm(erro)?.code === '23503') throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+    if (postgresErrorIn(erro)?.code === '23503') throw new DomainException(ErrorCode.NAO_ENCONTRADO)
     throw erro
   }
   return Promise.all(
@@ -132,14 +132,14 @@ export interface AlunoComMatriculaSintetico {
  * escola. Só com `AMBIENTE=local`, como as sessões sintéticas. Devolve os ids na ordem pedida.
  */
 export async function criarAlunosComMatricula(
-  banco: Banco,
+  banco: Database,
   ambiente: Record<string, string | undefined>,
   escolaId: string,
   alunos: readonly AlunoComMatriculaSintetico[],
 ): Promise<string[]> {
-  validarAmbiente(esquemaAmbiente, ambiente)
-  if (alunos.length < 1 || alunos.length > QUANTIDADE_MAXIMA_DE_SESSOES_SINTETICAS) throw new ErroDeDominio(ErrorCode.ENTRADA_INVALIDA)
-  return executarNoContexto({ requisicaoId: randomUUID(), escolaId }, () =>
+  validateEnvironment(esquemaAmbiente, ambiente)
+  if (alunos.length < 1 || alunos.length > QUANTIDADE_MAXIMA_DE_SESSOES_SINTETICAS) throw new DomainException(ErrorCode.ENTRADA_INVALIDA)
+  return runInContext({ requisicaoId: randomUUID(), escolaId }, () =>
     banco.transaction(async (tx) => {
       const usuarios = await new CriacaoDeSessaoRepository(tx).criarUsuarios(alunos.map(() => ({ contaId: null, papel: 'aluno' as const, nome: NOME_SINTETICO })))
       const credenciais = alunos.map((aluno, posicao) => {

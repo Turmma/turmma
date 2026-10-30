@@ -1,4 +1,4 @@
-import { METRICAS } from '@educa/nucleo'
+import { METRICS } from '@educa/nucleo'
 import { ErrorCode, type PapelDeUsuario } from '@educa/shared'
 import { randomBytes } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -71,7 +71,7 @@ describe('introdução vista: POST /v1/eu/introducao grava a data da própria pe
   }
 
   async function falhasContadas(): Promise<number> {
-    const [ponto] = await medidor.pontos(METRICAS.introducaoFalha)
+    const [ponto] = await medidor.pontos(METRICS.introducaoFalha)
     return typeof ponto?.valor === 'number' ? ponto.valor : 0
   }
 
@@ -311,7 +311,7 @@ describe('introdução vista: POST /v1/eu/introducao grava a data da própria pe
         expect(resposta.corpo['introducaoVistaEm']).toBe(DATA_ANTIGA)
         expect(await dataNoBanco(usuarioB)).toBeNull()
         expect(await falhasContadas()).toBe(antes + 1)
-        expect((await medidor.pontos(METRICAS.introducaoFalha)).map((ponto) => ponto.atributos)).toEqual([{}])
+        expect((await medidor.pontos(METRICS.introducaoFalha)).map((ponto) => ponto.atributos)).toEqual([{}])
       } finally {
         await soltar()
       }

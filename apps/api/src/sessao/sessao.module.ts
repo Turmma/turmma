@@ -1,10 +1,10 @@
 import {
-  avisoEspacado,
-  criarClienteRedisDaApi,
-  EmissorDeToken,
-  medidorGlobal,
-  type Banco,
-  type ConfiguracaoIdentidade,
+  throttledWarn,
+  createApiRedisClient,
+  TokenIssuer,
+  globalMeter,
+  type Database,
+  type AuthConfig,
   type Meter,
 } from '@educa/nucleo'
 import { Inject, Logger, Module, type DynamicModule, type OnApplicationShutdown } from '@nestjs/common'
@@ -63,7 +63,7 @@ import { TrocaDeEscolaService } from './troca-de-escola/troca-de-escola.service.
 export const PROVEDOR_EXTERNO = Symbol('PROVEDOR_EXTERNO')
 
 export interface OpcoesDoModuloDeSessao {
-  readonly identidade: ConfiguracaoIdentidade
+  readonly identidade: AuthConfig
   readonly login: ConfiguracaoLogin
   /** O login pela conta Google ou Microsoft da escola (13.0), desligado sem as variáveis de um provedor. */
   readonly loginExterno: ConfiguracaoLoginExterno
@@ -95,7 +95,7 @@ export class SessaoModule implements OnApplicationShutdown {
   private static readonly logger = new Logger('login')
 
   static com(opcoes: OpcoesDoModuloDeSessao): DynamicModule {
-    const avisar = avisoEspacado(() => SessaoModule.logger.warn('login.redis_indisponivel'))
+    const avisar = throttledWarn(() => SessaoModule.logger.warn('login.redis_indisponivel'))
     return {
       module: SessaoModule,
       controllers: [
@@ -114,17 +114,17 @@ export class SessaoModule implements OnApplicationShutdown {
         LoginExternoController,
       ],
       providers: [
-        { provide: CLIENTE_REDIS_LOGIN, useFactory: () => criarClienteRedisDaApi(opcoes.redisFilaUrl, 'api-login', avisar, opcoes.prazoDoRedisMs ?? opcoes.login.prazoDoRedisMs) },
-        { provide: ResolucaoDeTenantRepository, useFactory: (banco: Banco) => new ResolucaoDeTenantRepository(banco), inject: [BANCO] },
+        { provide: CLIENTE_REDIS_LOGIN, useFactory: () => createApiRedisClient(opcoes.redisFilaUrl, 'api-login', avisar, opcoes.prazoDoRedisMs ?? opcoes.login.prazoDoRedisMs) },
+        { provide: ResolucaoDeTenantRepository, useFactory: (banco: Database) => new ResolucaoDeTenantRepository(banco), inject: [BANCO] },
         { provide: HashDeSenha, useFactory: () => HashDeSenha.criar(opcoes.login.hash) },
         // Um semáforo por instância, dividido pelo login por e-mail e pelo por matrícula: o teto é das threads do processo.
         // Sem proteção só no controle negativo do cenário "login às 7h30" (16.0), nunca em produção (a configuração recusa).
         {
           provide: SemaforoDeHash,
           useFactory: () => {
-            if (!opcoes.login.protecaoDesligada) return new SemaforoDeHash(opcoes.login.concorrenciaDoHash, opcoes.medidor ?? medidorGlobal())
+            if (!opcoes.login.protecaoDesligada) return new SemaforoDeHash(opcoes.login.concorrenciaDoHash, opcoes.medidor ?? globalMeter())
             SessaoModule.logger.warn('login.protecao_desligada')
-            return new SemaforoSemProtecao(opcoes.login.concorrenciaDoHash, opcoes.medidor ?? medidorGlobal())
+            return new SemaforoSemProtecao(opcoes.login.concorrenciaDoHash, opcoes.medidor ?? globalMeter())
           },
         },
         { provide: ContadorDeTentativas, useFactory: (cliente: Redis) => new ContadorDeTentativas(cliente, opcoes.login.chaveContador), inject: [CLIENTE_REDIS_LOGIN] },
@@ -132,8 +132,8 @@ export class SessaoModule implements OnApplicationShutdown {
         { provide: ContadorEmJanela, useFactory: (cliente: Redis) => new ContadorEmJanela(cliente, opcoes.login.chaveContador), inject: [CLIENTE_REDIS_LOGIN] },
         {
           provide: RebaixamentoPorEscola,
-          useFactory: (banco: Banco, janela: ContadorEmJanela) =>
-            new RebaixamentoPorEscola({ janela, alunosAtivos: () => new AlunosAtivosRepository(banco).contar(), instancias: opcoes.instancias, medidor: opcoes.medidor ?? medidorGlobal() }),
+          useFactory: (banco: Database, janela: ContadorEmJanela) =>
+            new RebaixamentoPorEscola({ janela, alunosAtivos: () => new AlunosAtivosRepository(banco).contar(), instancias: opcoes.instancias, medidor: opcoes.medidor ?? globalMeter() }),
           inject: [BANCO, ContadorEmJanela],
         },
         {
@@ -144,13 +144,13 @@ export class SessaoModule implements OnApplicationShutdown {
               limitePorMinuto: opcoes.login.limiteEmailPorIpMin,
               escolasDaRede: (ip) => resolucao.escolasDaRedeDoIpDeSaida(ip),
               instancias: opcoes.instancias,
-              medidor: opcoes.medidor ?? medidorGlobal(),
+              medidor: opcoes.medidor ?? globalMeter(),
             }),
           inject: [ContadorEmJanela, ResolucaoDeTenantRepository],
         },
         {
           provide: ConferenciaNaVez,
-          useFactory: (semaforo: SemaforoDeHash, contador: ContadorDeTentativas, hash: HashDeSenha) => new ConferenciaNaVez({ semaforo, contador, hash, medidor: opcoes.medidor ?? medidorGlobal() }),
+          useFactory: (semaforo: SemaforoDeHash, contador: ContadorDeTentativas, hash: HashDeSenha) => new ConferenciaNaVez({ semaforo, contador, hash, medidor: opcoes.medidor ?? globalMeter() }),
           inject: [SemaforoDeHash, ContadorDeTentativas, HashDeSenha],
         },
         // Um consumo de desafio só, dividido pelo MFA e pela troca de escola: a proporção do seguro dele é uma.
@@ -160,16 +160,16 @@ export class SessaoModule implements OnApplicationShutdown {
           useFactory: (contador: ContadorDeTentativas, janela: ContadorEmJanela, consumo: ConsumoDeDesafio) => new SeguroDoLogin(contador, janela, consumo),
           inject: [ContadorDeTentativas, ContadorEmJanela, ConsumoDeDesafio],
         },
-        { provide: EuRepository, useFactory: (banco: Banco) => new EuRepository(banco), inject: [BANCO] },
-        { provide: EuService, useFactory: (eu: EuRepository, resolucao: ResolucaoDeTenantRepository) => new EuService(eu, resolucao, opcoes.medidor ?? medidorGlobal()), inject: [EuRepository, ResolucaoDeTenantRepository] },
+        { provide: EuRepository, useFactory: (banco: Database) => new EuRepository(banco), inject: [BANCO] },
+        { provide: EuService, useFactory: (eu: EuRepository, resolucao: ResolucaoDeTenantRepository) => new EuService(eu, resolucao, opcoes.medidor ?? globalMeter()), inject: [EuRepository, ResolucaoDeTenantRepository] },
         { provide: CookieDeDispositivo, useFactory: () => new CookieDeDispositivo(opcoes.login.dispositivo.versao, opcoes.login.dispositivo.chave) },
         {
           provide: ConclusaoDeLogin,
-          useFactory: (banco: Banco, dispositivo: CookieDeDispositivo, resolucao: ResolucaoDeTenantRepository) =>
+          useFactory: (banco: Database, dispositivo: CookieDeDispositivo, resolucao: ResolucaoDeTenantRepository) =>
             new ConclusaoDeLogin({
               banco,
               dispositivo,
-              emissorDeToken: new EmissorDeToken(opcoes.identidade.chaveAssinatura),
+              emissorDeToken: new TokenIssuer(opcoes.identidade.chaveAssinatura),
               emissorDeDesafio: new EmissorDeDesafio(opcoes.identidade.chaveAssinatura),
               ambiente: opcoes.identidade.ambiente,
               resolucao,
@@ -177,7 +177,7 @@ export class SessaoModule implements OnApplicationShutdown {
           inject: [BANCO, CookieDeDispositivo, ResolucaoDeTenantRepository],
         },
         { provide: BilheteDeConvite, useFactory: () => new BilheteDeConvite(opcoes.identidade.chaveAssinatura) },
-        { provide: AtivacaoPorConvite, useFactory: (banco: Banco, bilhetes: BilheteDeConvite) => new AtivacaoPorConvite(banco, bilhetes), inject: [BANCO, BilheteDeConvite] },
+        { provide: AtivacaoPorConvite, useFactory: (banco: Database, bilhetes: BilheteDeConvite) => new AtivacaoPorConvite(banco, bilhetes), inject: [BANCO, BilheteDeConvite] },
         {
           provide: LoginService,
           useFactory: (
@@ -188,25 +188,25 @@ export class SessaoModule implements OnApplicationShutdown {
             dispositivo: CookieDeDispositivo,
             conclusao: ConclusaoDeLogin,
             ativacao: AtivacaoPorConvite,
-          ) => new LoginService({ resolucao, conferencia, contador, limitePorIp, dispositivo, conclusao, ativacao, medidor: opcoes.medidor ?? medidorGlobal() }),
+          ) => new LoginService({ resolucao, conferencia, contador, limitePorIp, dispositivo, conclusao, ativacao, medidor: opcoes.medidor ?? globalMeter() }),
           inject: [ResolucaoDeTenantRepository, ConferenciaNaVez, ContadorDeTentativas, LimiteDoEmailPorIp, CookieDeDispositivo, ConclusaoDeLogin, AtivacaoPorConvite],
         },
         {
           provide: LoginPorMatricula,
           useFactory: (
-            banco: Banco,
+            banco: Database,
             resolucao: ResolucaoDeTenantRepository,
             conferencia: ConferenciaNaVez,
             contador: ContadorDeTentativas,
             rebaixamento: RebaixamentoPorEscola,
             dispositivo: CookieDeDispositivo,
             conclusao: ConclusaoDeLogin,
-          ) => new LoginPorMatricula({ banco, resolucao, conferencia, contador, rebaixamento, dispositivo, conclusao, medidor: opcoes.medidor ?? medidorGlobal() }),
+          ) => new LoginPorMatricula({ banco, resolucao, conferencia, contador, rebaixamento, dispositivo, conclusao, medidor: opcoes.medidor ?? globalMeter() }),
           inject: [BANCO, ResolucaoDeTenantRepository, ConferenciaNaVez, ContadorDeTentativas, RebaixamentoPorEscola, CookieDeDispositivo, ConclusaoDeLogin],
         },
         {
           provide: AcessoDaEscolaService,
-          useFactory: (banco: Banco, resolucao: ResolucaoDeTenantRepository, provedor: ProvedorExternoPort) => new AcessoDaEscolaService(banco, resolucao, provedor.ligados),
+          useFactory: (banco: Database, resolucao: ResolucaoDeTenantRepository, provedor: ProvedorExternoPort) => new AcessoDaEscolaService(banco, resolucao, provedor.ligados),
           inject: [BANCO, ResolucaoDeTenantRepository, PROVEDOR_EXTERNO],
         },
         { provide: PROVEDOR_EXTERNO, useFactory: () => new OpenIdClientAdapter(opcoes.loginExterno) },
@@ -215,7 +215,7 @@ export class SessaoModule implements OnApplicationShutdown {
         { provide: AcessoDaSala, useFactory: (resolucao: ResolucaoDeTenantRepository) => new AcessoDaSala(resolucao), inject: [ResolucaoDeTenantRepository] },
         {
           provide: LoginExterno,
-          useFactory: (banco: Banco, resolucao: ResolucaoDeTenantRepository, provedor: ProvedorExternoPort, conclusao: ConclusaoDeLogin) =>
+          useFactory: (banco: Database, resolucao: ResolucaoDeTenantRepository, provedor: ProvedorExternoPort, conclusao: ConclusaoDeLogin) =>
             new LoginExterno({
               banco,
               resolucao,
@@ -224,20 +224,20 @@ export class SessaoModule implements OnApplicationShutdown {
               cookie: new CookieOidc(opcoes.loginExterno.chaveDoCookie ?? new Uint8Array(randomBytes(32)), opcoes.identidade.ambiente),
               conclusao,
               retorno: opcoes.loginExterno.retorno,
-              medidor: opcoes.medidor ?? medidorGlobal(),
+              medidor: opcoes.medidor ?? globalMeter(),
             }),
           inject: [BANCO, ResolucaoDeTenantRepository, PROVEDOR_EXTERNO, ConclusaoDeLogin],
         },
         {
           provide: ConviteService,
-          useFactory: (banco: Banco, resolucao: ResolucaoDeTenantRepository, hash: HashDeSenha, bilhetes: BilheteDeConvite) =>
+          useFactory: (banco: Database, resolucao: ResolucaoDeTenantRepository, hash: HashDeSenha, bilhetes: BilheteDeConvite) =>
             new ConviteService({ banco, resolucao, hash, bilhetes, emissorDeDesafio: new EmissorDeDesafio(opcoes.identidade.chaveAssinatura) }),
           inject: [BANCO, ResolucaoDeTenantRepository, HashDeSenha, BilheteDeConvite],
         },
         {
           provide: MfaService,
           useFactory: (
-            banco: Banco,
+            banco: Database,
             resolucao: ResolucaoDeTenantRepository,
             contador: ContadorDeTentativas,
             dispositivo: CookieDeDispositivo,
@@ -256,13 +256,13 @@ export class SessaoModule implements OnApplicationShutdown {
               consumo,
               chaveAssinatura: opcoes.identidade.chaveAssinatura,
               chaveRecuperacao: opcoes.login.mfa.chaveRecuperacao,
-              medidor: opcoes.medidor ?? medidorGlobal(),
+              medidor: opcoes.medidor ?? globalMeter(),
             }),
           inject: [BANCO, ResolucaoDeTenantRepository, ContadorDeTentativas, CookieDeDispositivo, ConclusaoDeLogin, ConsumoDeDesafio, AtivacaoPorConvite],
         },
         {
           provide: TrocaDeEscolaService,
-          useFactory: (banco: Banco, resolucao: ResolucaoDeTenantRepository, conclusao: ConclusaoDeLogin, consumo: ConsumoDeDesafio) =>
+          useFactory: (banco: Database, resolucao: ResolucaoDeTenantRepository, conclusao: ConclusaoDeLogin, consumo: ConsumoDeDesafio) =>
             new TrocaDeEscolaService({
               banco,
               resolucao,
@@ -273,20 +273,20 @@ export class SessaoModule implements OnApplicationShutdown {
             }),
           inject: [BANCO, ResolucaoDeTenantRepository, ConclusaoDeLogin, ConsumoDeDesafio],
         },
-        { provide: RedefinicaoDeMfa, useFactory: (banco: Banco) => new RedefinicaoDeMfa(banco), inject: [BANCO] },
+        { provide: RedefinicaoDeMfa, useFactory: (banco: Database) => new RedefinicaoDeMfa(banco), inject: [BANCO] },
         {
           provide: RenovacaoService,
-          useFactory: (banco: Banco) =>
+          useFactory: (banco: Database) =>
             new RenovacaoService({
               banco,
-              emissorDeToken: new EmissorDeToken(opcoes.identidade.chaveAssinatura),
+              emissorDeToken: new TokenIssuer(opcoes.identidade.chaveAssinatura),
               ambiente: opcoes.identidade.ambiente,
-              medidor: opcoes.medidor ?? medidorGlobal(),
+              medidor: opcoes.medidor ?? globalMeter(),
             }),
           inject: [BANCO],
         },
-        { provide: RegistroDeAtividade, useFactory: (banco: Banco) => new RegistroDeAtividade(banco, opcoes.medidor ?? medidorGlobal()), inject: [BANCO] },
-        { provide: SaidaService, useFactory: (banco: Banco) => new SaidaService(banco, opcoes.identidade.ambiente), inject: [BANCO] },
+        { provide: RegistroDeAtividade, useFactory: (banco: Database) => new RegistroDeAtividade(banco, opcoes.medidor ?? globalMeter()), inject: [BANCO] },
+        { provide: SaidaService, useFactory: (banco: Database) => new SaidaService(banco, opcoes.identidade.ambiente), inject: [BANCO] },
       ],
       // O `AcessoDaSala` vai ao `SalaModule` (A1, tarefa 5.0), e só ele: a resolução continua dentro deste módulo.
       // `RegistroDeAtividade` é o contrato para o F6: a gravação de resposta de avaliação também conta como uso. O

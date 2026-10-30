@@ -1,11 +1,11 @@
 import 'reflect-metadata'
 import {
-  criarClienteRedisDaFila,
-  executarNoContexto,
+  createQueueRedisClient,
+  runInContext,
   IDADE_PARA_RECONCILIAR_SEGUNDOS,
-  nomeDaFilaBullMQ,
+  bullmqQueueName,
   TIMEOUT_COMANDO_REDIS_FILA_MS,
-  type DadosDoJobNaFila,
+  type QueuedJobData,
 } from '@educa/nucleo'
 import { JobFailureCode } from '@educa/shared'
 import { Queue, UnrecoverableError, Worker } from 'bullmq'
@@ -76,13 +76,13 @@ describe('reconciliação entre job_registro e o BullMQ', () => {
   }
 
   function comoAtivo(id: string): Promise<unknown> {
-    return executarNoContexto({ requisicaoId: randomUUID(), escolaId: ESCOLA_A }, () => bancada.registro.iniciarExecucao(id))
+    return runInContext({ requisicaoId: randomUUID(), escolaId: ESCOLA_A }, () => bancada.registro.iniciarExecucao(id))
   }
 
   /** Uma reconciliação à parte, com cliente e `Queue` próprios, e a consulta à fila embrulhada pelo teste. */
   function reconciliacaoAParte(nome: string, embrulhar: (consultar: FilaDePublicacao['consultar']) => FilaDePublicacao['consultar'], lote?: number) {
-    const redis = criarClienteRedisDaFila(urlRedisDeFila(), nome, () => undefined)
-    const publicacao = new PublicacaoBullMQ((filaDoJob, executor) => new Queue<DadosDoJobNaFila>(nomeDaFilaBullMQ(filaDoJob, executor), { connection: redis, prefix: bancada.prefixo }))
+    const redis = createQueueRedisClient(urlRedisDeFila(), nome, () => undefined)
+    const publicacao = new PublicacaoBullMQ((filaDoJob, executor) => new Queue<QueuedJobData>(bullmqQueueName(filaDoJob, executor), { connection: redis, prefix: bancada.prefixo }))
     const fila: FilaDePublicacao = { publicar: (jobs) => publicacao.publicar(jobs), consultar: embrulhar((job) => publicacao.consultar(job)) }
     const log = new LogEmMemoria(nome)
     return {
@@ -212,7 +212,7 @@ describe('reconciliação entre job_registro e o BullMQ', () => {
     // recuperação, como o caso do Postgres abaixo já faz.
     await aguardarSaudavel('redis-fila')
     // Só faltava a confirmação: a mesma linha, com a fila respondendo, volta. O prazo mede só a recuperação, que é de
-    // milissegundos com a máquina livre e de ~1,5 s sob contenção total: é a garantia do `criarClienteRedisDaFila`,
+    // milissegundos com a máquina livre e de ~1,5 s sob contenção total: é a garantia do `createQueueRedisClient`,
     // "o Redis que volta é usado de novo em segundos".
     await expect.poll(async () => (await montado.reconciliacao.reconciliar()).republicados, { timeout: 20_000, interval: 500 }).toEqual([id])
     // 120 s como o caso do Postgres: com 90 s o prefixo, o teto da espera e o prazo do poll cabiam justo, e no pior
@@ -306,7 +306,7 @@ describe('reconciliação entre job_registro e o BullMQ', () => {
       await bancada.reservar(ESCOLA_A)
       // Uma tentativa só: esta é a última.
       await bancada.fila.add('sintetico', { escolaId: ESCOLA_A, requisicaoId }, { jobId: id, attempts: 1 })
-      await executarNoContexto({ requisicaoId: randomUUID(), escolaId: ESCOLA_A }, () => bancada.despacho.marcarPublicados([id]))
+      await runInContext({ requisicaoId: randomUUID(), escolaId: ESCOLA_A }, () => bancada.despacho.marcarPublicados([id]))
 
       const logWorker = new LogEmMemoria('worker')
       bancada.worker(logWorker, {
@@ -347,7 +347,7 @@ describe('reconciliação entre job_registro e o BullMQ', () => {
       // O BullMQ falha o job com esta mensagem quando ele trava mais vezes que o limite. Aqui ela vem
       // de um worker à parte, para não esperar dois ciclos de stalled de 30 s.
       const redisStalled = new Redis(urlRedisDeFila(), { maxRetriesPerRequest: null })
-      const workerStalled = new Worker(nomeDaFilaBullMQ('interativa', 'worker'), () => Promise.reject(new UnrecoverableError('job stalled more than allowable limit')), {
+      const workerStalled = new Worker(bullmqQueueName('interativa', 'worker'), () => Promise.reject(new UnrecoverableError('job stalled more than allowable limit')), {
         connection: redisStalled,
         prefix: bancada.prefixo,
       })
@@ -380,7 +380,7 @@ describe('reconciliação entre job_registro e o BullMQ', () => {
 
     it('a falha da fila não muda job que já terminou: o worker lento concluiu antes de a falha ser gravada', async () => {
       const { ids: [id = ''] } = await publicados(new LogEmMemoria('despachante'), 1)
-      await executarNoContexto({ requisicaoId: randomUUID(), escolaId: ESCOLA_A }, async () => {
+      await runInContext({ requisicaoId: randomUUID(), escolaId: ESCOLA_A }, async () => {
         await bancada.registro.iniciarExecucao(id)
         await bancada.registro.concluir(id)
       })

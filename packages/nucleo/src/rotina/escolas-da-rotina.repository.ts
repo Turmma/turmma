@@ -1,7 +1,7 @@
 import { asc } from 'drizzle-orm'
-import type { Banco } from '../db/banco.js'
+import type { Database } from '../db/banco.js'
 import { escola } from '../db/schema/escola.js'
-import { SemEscopo } from '../db/sem-escopo.decorator.js'
+import { Unscoped } from '../db/sem-escopo.decorator.js'
 
 /**
  * As escolas que a rotina noturna percorre (F3, tarefa 3.0; Tech Spec do F3, seção 6). A rotina do sistema não tem
@@ -11,11 +11,11 @@ import { SemEscopo } from '../db/sem-escopo.decorator.js'
  * É infraestrutura de rotina, e não de retenção: devolve só os ids, nada mais da escola, e nenhum dado de pessoa. É a
  * única consulta sem escopo do F3 que não é da conta global, da operação ou do expurgo de acesso.
  */
-export class EscolasDaRotinaRepository {
-  constructor(private readonly banco: Banco) {}
+export class CronEscolasRepository {
+  constructor(private readonly banco: Database) {}
 
   /** Os ids de todas as escolas, em ordem: para a rotina noturna e para a medição do alerta de duas noites. Só os ids. */
-  @SemEscopo(
+  @Unscoped(
     'rotina noturna: para abrir o contexto de cada escola, a rotina do sistema (sem escola) e a medição do alerta dela, ' +
       'no worker-lote, precisam saber quais escolas existem; devolve só os ids, sem nenhum outro campo da escola nem dado de ' +
       'pessoa, e não atende requisição de escola nenhuma',

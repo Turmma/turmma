@@ -1,4 +1,4 @@
-import { escola, exigirEscolaDoContexto, provedorEscola, type ProvedorExterno, type TransacaoBanco } from '@educa/nucleo'
+import { escola, requireEscolaId, provedorEscola, type ProvedorExterno, type DatabaseTransaction } from '@educa/nucleo'
 import { and, eq, inArray, isNull } from 'drizzle-orm'
 
 /** Uma linha liberada: o id (o que a auditoria guarda), o provedor e o domínio ou tenant. */
@@ -14,14 +14,14 @@ export interface ProvedorLiberado {
  * domínio foi.
  */
 export class ProvedoresLiberadosRepository {
-  constructor(private readonly tx: TransacaoBanco) {}
+  constructor(private readonly tx: DatabaseTransaction) {}
 
   /**
    * Trava a linha da escola até o fim da transação: duas trocas da lista ao mesmo tempo passam uma depois da outra, e
    * a segunda lê o `antes` já com a primeira. `FOR NO KEY UPDATE`, que não segura o login nem a renovação da escola.
    */
   async travarEscola(): Promise<boolean> {
-    const [linha] = await this.tx.select({ id: escola.id }).from(escola).where(eq(escola.id, exigirEscolaDoContexto())).for('no key update')
+    const [linha] = await this.tx.select({ id: escola.id }).from(escola).where(eq(escola.id, requireEscolaId())).for('no key update')
     return linha !== undefined
   }
 
@@ -30,7 +30,7 @@ export class ProvedoresLiberadosRepository {
     return this.tx
       .select({ id: provedorEscola.id, provedor: provedorEscola.provedor, valor: provedorEscola.valor })
       .from(provedorEscola)
-      .where(and(eq(provedorEscola.escolaId, exigirEscolaDoContexto()), isNull(provedorEscola.removidoEm)))
+      .where(and(eq(provedorEscola.escolaId, requireEscolaId()), isNull(provedorEscola.removidoEm)))
       .orderBy(provedorEscola.id)
   }
 
@@ -40,13 +40,13 @@ export class ProvedoresLiberadosRepository {
     await this.tx
       .update(provedorEscola)
       .set({ removidoEm: new Date() })
-      .where(and(eq(provedorEscola.escolaId, exigirEscolaDoContexto()), inArray(provedorEscola.id, [...ids]), isNull(provedorEscola.removidoEm)))
+      .where(and(eq(provedorEscola.escolaId, requireEscolaId()), inArray(provedorEscola.id, [...ids]), isNull(provedorEscola.removidoEm)))
   }
 
   /** Libera os domínios e tenants novos na escola do contexto. */
   async liberar(novos: ReadonlyArray<{ provedor: ProvedorExterno; valor: string }>): Promise<void> {
     if (novos.length === 0) return
-    const escolaId = exigirEscolaDoContexto()
+    const escolaId = requireEscolaId()
     await this.tx.insert(provedorEscola).values(novos.map((novo) => ({ escolaId, provedor: novo.provedor, valor: novo.valor })))
   }
 }

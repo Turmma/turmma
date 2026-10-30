@@ -3,14 +3,14 @@ import {
   auditoriaOperacao,
   codigoRecuperacaoOperador,
   conviteOperador,
-  ErroDeDominio,
+  DomainException,
   operador,
   sessaoOperador,
   type AcaoDaAuditoriaDaOperacao,
-  type Banco,
+  type Database,
   type EventoDeAcessoDaOperacao,
   type MotivoDeEncerramentoDeOperador,
-  type TransacaoBanco,
+  type DatabaseTransaction,
 } from '@educa/nucleo'
 import { ErrorCode } from '@educa/shared'
 import { and, count, eq, exists, isNull, lt, or, sql } from 'drizzle-orm'
@@ -89,7 +89,7 @@ export interface OperadorDaSessao {
 
 /**
  * O único código que toca as seis tabelas da operação (Tech Spec da A0, seção 6; o expurgo entra na tarefa 9.0). As
- * tabelas são da nossa equipe e não têm `escola_id`, então nenhum método leva escopo de escola nem `@SemEscopo`; o
+ * tabelas são da nossa equipe e não têm `escola_id`, então nenhum método leva escopo de escola nem `@Unscoped`; o
  * contrapeso é que este repository não toca nenhuma outra tabela, e nenhuma outra classe toca estas (C45, em
  * `apps/api/test/arquitetura.test.ts`).
  *
@@ -97,7 +97,7 @@ export interface OperadorDaSessao {
  * Devolve id e apelido, e o nome só ao `eu` do próprio operador (`daSessao`): e-mail, hash e segredo nunca saem daqui.
  */
 export class OperadorRepository {
-  constructor(private readonly banco: Banco | TransacaoBanco) {}
+  constructor(private readonly banco: Database | DatabaseTransaction) {}
 
   /**
    * O autor ativo de uma escrita, dentro da transação dela (Tech Spec da A0b, seção 7c, "Autor ativo"): `select apelido
@@ -108,7 +108,7 @@ export class OperadorRepository {
    *
    * Recebe a transação, e não o banco: fora de uma, o `for share` soltaria a linha na hora e não seguraria nada.
    */
-  static async autorAtivoNaTransacao(tx: TransacaoBanco, quem: QuemEscreve): Promise<string | undefined> {
+  static async autorAtivoNaTransacao(tx: DatabaseTransaction, quem: QuemEscreve): Promise<string | undefined> {
     const [linha] = await tx
       .select({ apelido: operador.apelido })
       .from(operador)
@@ -152,13 +152,13 @@ export class OperadorRepository {
   /** Apelido ou e-mail repetido sai como erro do banco (23505), que o comando traduz sem o valor. */
   async criar(dados: { apelido: string; nome: string; email: string }): Promise<string> {
     const [criado] = await this.banco.insert(operador).values(dados).returning({ id: operador.id })
-    if (criado === undefined) throw new ErroDeDominio(ErrorCode.ERRO_INTERNO)
+    if (criado === undefined) throw new DomainException(ErrorCode.ERRO_INTERNO)
     return criado.id
   }
 
   async criarConvite(dados: { operadorId: string; tokenHash: string; expiraEm: Date }): Promise<string> {
     const [criado] = await this.banco.insert(conviteOperador).values(dados).returning({ id: conviteOperador.id })
-    if (criado === undefined) throw new ErroDeDominio(ErrorCode.ERRO_INTERNO)
+    if (criado === undefined) throw new DomainException(ErrorCode.ERRO_INTERNO)
     return criado.id
   }
 
@@ -379,7 +379,7 @@ export class OperadorRepository {
       .where(and(eq(operador.id, dados.operadorId), isNull(operador.desativadoEm)))
       .returning({ id: operador.id })
     // A linha está travada desde o passo 1: só não casa se alguém mudou a trava; aí nada do aceite fica.
-    if (gravados.length === 0) throw new ErroDeDominio(ErrorCode.ERRO_INTERNO)
+    if (gravados.length === 0) throw new DomainException(ErrorCode.ERRO_INTERNO)
     await this.apagarCodigosDeRecuperacao(dados.operadorId)
     return ativo.apelido
   }
@@ -477,7 +477,7 @@ export class OperadorRepository {
       .insert(sessaoOperador)
       .values({ operadorId, refreshHash, expiraEm: sql`now() + make_interval(hours => ${DURACAO_DA_SESSAO_DE_OPERADOR_HORAS})` })
       .returning({ id: sessaoOperador.id })
-    if (criada === undefined) throw new ErroDeDominio(ErrorCode.ERRO_INTERNO)
+    if (criada === undefined) throw new DomainException(ErrorCode.ERRO_INTERNO)
     return criada.id
   }
 

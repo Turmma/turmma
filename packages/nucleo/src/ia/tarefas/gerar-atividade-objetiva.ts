@@ -5,9 +5,9 @@ import {
   citacaoVeioDosTrechos,
   dadoEmJson,
   dadosDosTrechos,
-  esquemaContextoDaTurma,
-  esquemaHabilidades,
-  esquemaTrecho,
+  contextoDaTurmaSchema,
+  habilidadesSchema,
+  trechoSchema,
   extrairFatos,
   frasesDoMaterial,
   habilidadeMaisProxima,
@@ -16,25 +16,25 @@ import {
   type FraseDoMaterial,
 } from '../material.js'
 import { PROMPT_GERAR_ATIVIDADE_OBJETIVA } from '../prompts/gerar-atividade-objetiva.js'
-import { definirTarefa, MaterialSemConteudoAproveitavel } from '../tarefa.js'
+import { defineTask, MaterialSemConteudoAproveitavelError } from '../tarefa.js'
 import { capitalizar, cortar, hashEstavel, normalizar, palavras, palavrasEmComum } from '../texto.js'
 
-export const esquemaEntradaDeAtividadeObjetiva = z.strictObject({
+export const atividadeObjetivaInputSchema = z.strictObject({
   /** O que o professor pediu, com as palavras dele. Vai ao modelo como dado. */
   tema: z.string().min(1).max(TAMANHO_MAXIMO_DO_TEMA),
   quantidade: z.number().int().min(1).max(MAXIMO_DE_QUESTOES_POR_ATIVIDADE),
-  contexto: esquemaContextoDaTurma,
+  contexto: contextoDaTurmaSchema,
   /** As habilidades da disciplina que a atividade pode cobrar: toda questão leva uma delas. */
-  habilidades: esquemaHabilidades,
+  habilidades: habilidadesSchema,
   /** Os trechos que a busca achou para o tema. Sem trecho não há o que citar, e por isso não há atividade. */
-  trechos: z.array(esquemaTrecho).min(1).max(12),
+  trechos: z.array(trechoSchema).min(1).max(12),
 })
-export type EntradaDeAtividadeObjetiva = z.infer<typeof esquemaEntradaDeAtividadeObjetiva>
+export type AtividadeObjetivaInput = z.infer<typeof atividadeObjetivaInputSchema>
 
 /** Página citada que veio nos trechos, habilidade que veio na entrada, quatro alternativas diferentes. */
 export function problemasDasQuestoes(
   questoes: readonly QuestaoObjetiva[],
-  entrada: Pick<EntradaDeAtividadeObjetiva, 'trechos' | 'habilidades'>,
+  entrada: Pick<AtividadeObjetivaInput, 'trechos' | 'habilidades'>,
 ): string[] {
   const codigos = new Set(entrada.habilidades.map((habilidade) => habilidade.codigo))
   return questoes.flatMap((questao, indice) => {
@@ -203,7 +203,7 @@ function primeiroODoTema(ordem: readonly number[], fatos: readonly Fato[], tema:
  * Questões tiradas das frases definitórias do material ("X é Y", "X corresponde a Y", relação com número). Quando
  * elas não bastam, completa com lacuna: a frase do material com uma palavra escondida.
  */
-export function questoesDoMaterial(entrada: Pick<EntradaDeAtividadeObjetiva, 'tema' | 'trechos' | 'habilidades' | 'quantidade'>): QuestaoObjetiva[] {
+export function questoesDoMaterial(entrada: Pick<AtividadeObjetivaInput, 'tema' | 'trechos' | 'habilidades' | 'quantidade'>): QuestaoObjetiva[] {
   const fatos = alternandoDefinicaoEValor(extrairFatos(entrada.trechos))
   const questoes: QuestaoObjetiva[] = []
   const frasesUsadas = new Set<string>()
@@ -226,11 +226,11 @@ export function questoesDoMaterial(entrada: Pick<EntradaDeAtividadeObjetiva, 'te
   return questoes
 }
 
-export const gerarAtividadeObjetiva = definirTarefa({
+export const gerarAtividadeObjetiva = defineTask({
   nome: 'gerar_atividade_objetiva',
   funcao: 'conversa_e_ferramentas',
   perfil: 'padrao',
-  esquemaDeEntrada: esquemaEntradaDeAtividadeObjetiva,
+  esquemaDeEntrada: atividadeObjetivaInputSchema,
   esquemaDeSaida: conteudoDeAtividadeSchema,
   prompt: PROMPT_GERAR_ATIVIDADE_OBJETIVA,
   maximoDeTokensDeSaida: 6000,
@@ -269,7 +269,7 @@ export const gerarAtividadeObjetiva = definirTarefa({
   falso(entrada): ConteudoDeAtividade {
     const questoes = questoesDoMaterial(entrada)
     // Material sem frase aproveitável não vira atividade inventada: falha como saída inválida, e o professor é avisado.
-    if (questoes.length === 0) throw new MaterialSemConteudoAproveitavel()
+    if (questoes.length === 0) throw new MaterialSemConteudoAproveitavelError()
     return { tipo: 'atividade_objetiva', titulo: cortar(`Atividade — ${entrada.tema}`, 160), questoes }
   },
 })

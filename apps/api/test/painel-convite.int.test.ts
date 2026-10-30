@@ -1,4 +1,4 @@
-import { criarBanco, criarPool, ErroDeDominio, estadoDaCoordenacao, executarNoContexto, type Banco, type PoolBanco, type TransacaoBanco } from '@educa/nucleo'
+import { createDatabase, createPool, DomainException, estadoDaCoordenacao, runInContext, type Database, type DatabasePool, type DatabaseTransaction } from '@educa/nucleo'
 import { ErrorCode, conviteDaCoordenacaoResponseSchema, escolasDoPainelResponseSchema, ESTADOS_DA_COORDENACAO, type EstadoDaCoordenacao, type ConviteDaCoordenacaoResponse } from '@educa/shared'
 import type { INestApplication } from '@nestjs/common'
 import { is, SQL } from 'drizzle-orm'
@@ -75,17 +75,17 @@ const PRAZO_CURTO_MS = 1_000
  * recebe um `execute` que devolve na hora a consulta do `pg_advisory_xact_lock` e passa as outras adiante; nada muda no
  * código de produção, que chama o caso de uso com este banco no lugar do de verdade.
  */
-function semATravaDaEscola(banco: Banco): Banco {
+function semATravaDaEscola(banco: Database): Database {
   const dialeto = new PgDialect()
   const ehATrava = (consulta: unknown): boolean => is(consulta, SQL) && dialeto.sqlToQuery(consulta).sql.includes('pg_advisory_xact_lock')
-  const transacaoSemATrava = (tx: TransacaoBanco): TransacaoBanco =>
+  const transacaoSemATrava = (tx: DatabaseTransaction): DatabaseTransaction =>
     new Proxy(tx, {
       get: (alvo, chave, receptor) =>
         chave === 'execute' ? (consulta: SQL) => (ehATrava(consulta) ? Promise.resolve({ rows: [] }) : alvo.execute(consulta)) : Reflect.get(alvo, chave, receptor),
     })
   return new Proxy(banco, {
     get: (alvo, chave, receptor) =>
-      chave === 'transaction' ? <T>(corpo: (tx: TransacaoBanco) => Promise<T>) => alvo.transaction((tx) => corpo(transacaoSemATrava(tx))) : Reflect.get(alvo, chave, receptor),
+      chave === 'transaction' ? <T>(corpo: (tx: DatabaseTransaction) => Promise<T>) => alvo.transaction((tx) => corpo(transacaoSemATrava(tx))) : Reflect.get(alvo, chave, receptor),
   })
 }
 
@@ -111,8 +111,8 @@ describe('painel da operação: o convite da coordenação, gerar e revogar (tar
   const pasta = mkdtempSync(join(tmpdir(), 'painel-convite-int-'))
   let app: INestApplication
   let url: string
-  let pool: PoolBanco
-  let banco: Banco
+  let pool: DatabasePool
+  let banco: Database
 
   const pessoa = (): Pessoa => ({ nome: `Coordenação Sintética ${randomUUID().slice(0, 8)}`, email: `coordenacao-${randomUUID()}@escola.invalid` })
   const gerar = (token: string, escolaId: string, corpo: unknown = pessoa()) => pedir(url, 'POST', `/v1/operacao/escolas/${escolaId}/convite-coordenacao`, token, corpo)
@@ -124,7 +124,7 @@ describe('painel da operação: o convite da coordenação, gerar e revogar (tar
 
   /** O estado da coordenação da escola, pela mesma função e pela mesma leitura da escrita. */
   const estadoDe = (escolaId: string) =>
-    executarNoContexto({ requisicaoId: randomUUID(), escolaId }, async () => {
+    runInContext({ requisicaoId: randomUUID(), escolaId }, async () => {
       const dados = await new ConviteRepository(banco).dadosDaCoordenacao()
       if (dados === undefined) throw new Error('escola de teste não encontrada')
       return estadoDaCoordenacao(dados)
@@ -208,8 +208,8 @@ describe('painel da operação: o convite da coordenação, gerar e revogar (tar
   }
 
   beforeAll(async () => {
-    pool = criarPool({ url: urlDoBancoDeTeste(), maximoConexoes: 6, timeoutConexaoMs: 5_000, timeoutConsultaMs: PRAZO_DAS_CONSULTAS_MS }, () => undefined)
-    banco = criarBanco(pool)
+    pool = createPool({ url: urlDoBancoDeTeste(), maximoConexoes: 6, timeoutConexaoMs: 5_000, timeoutConsultaMs: PRAZO_DAS_CONSULTAS_MS }, () => undefined)
+    banco = createDatabase(pool)
     ;({ app, url } = await subirApiDoPainel(linhasDeLog))
   })
 
@@ -777,7 +777,7 @@ describe('painel da operação: o convite da coordenação, gerar e revogar (tar
         await esperarNaTrava(pool, '%update "convite"%', 2)
         await gatilho.soltar()
         expect(await primeiro).toEqual({ conviteId: expect.any(String), token: expect.any(String), escolaId: escola.escolaId })
-        expect(await segundo).toBeInstanceOf(ErroDeDominio)
+        expect(await segundo).toBeInstanceOf(DomainException)
         expect(await segundo).toMatchObject({ codigo: ErrorCode.CONFLITO })
       } finally {
         await gatilho.desarmar()
@@ -802,7 +802,7 @@ describe('painel da operação: o convite da coordenação, gerar e revogar (tar
         await esperarNaTrava(pool, '%set "revogado_em"%')
         await gatilho.soltar()
         expect((await aceite).corpo).toEqual({ etapa: 'configurar_mfa', desafio: expect.any(String) })
-        expect(await doRefazer).toBeInstanceOf(ErroDeDominio)
+        expect(await doRefazer).toBeInstanceOf(DomainException)
         expect(await doRefazer).toMatchObject({ codigo: ErrorCode.CONFLITO })
       } finally {
         await gatilho.desarmar()

@@ -1,4 +1,4 @@
-import { executarNoContexto } from '@educa/nucleo'
+import { runInContext } from '@educa/nucleo'
 import { ErrorCode, buscaDeMaterialResponseSchema, listaDeMateriaisResponseSchema, materialResponseSchema, MAXIMO_DE_BYTES_DO_MATERIAL, TAMANHO_MAXIMO_DO_TRECHO_CITADO } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
@@ -424,7 +424,7 @@ describe('material da escola', () => {
       expect(itensDe(await buscar(escola.coordenacao, pergunta))).toEqual([])
 
       const trechos = api.app.get(BuscaDeTrechos)
-      const noContexto = <T>(funcao: () => Promise<T>): Promise<T> => executarNoContexto({ requisicaoId: randomUUID(), escolaId: escola.coordenacao.escolaId }, funcao)
+      const noContexto = <T>(funcao: () => Promise<T>): Promise<T> => runInContext({ requisicaoId: randomUUID(), escolaId: escola.coordenacao.escolaId }, funcao)
       const achados = await noContexto(() => trechos.buscar({ texto: pergunta, disciplinaId: escola.quimica, limite: 3 }))
       expect(achados).toHaveLength(3)
       expect(achados[0]).toMatchObject({ materialId, disciplinaId: escola.quimica, titulo: 'Material sintético de teste', pagina: 4 })
@@ -492,7 +492,7 @@ describe('material da escola', () => {
       expect(listaDeMateriaisResponseSchema.parse((await get(escola.coordenacao, '/v1/materiais')).corpo).itens).toEqual([])
       expect(itensDe(await buscar(escola.coordenacao, 'reagente limitante'))).toEqual([])
       const porta = api.app.get(BuscaDeTrechos)
-      expect(await executarNoContexto({ requisicaoId: randomUUID(), escolaId: escola.coordenacao.escolaId }, () => porta.doMaterial(id, escola.quimica))).toEqual([])
+      expect(await runInContext({ requisicaoId: randomUUID(), escolaId: escola.coordenacao.escolaId }, () => porta.doMaterial(id, escola.quimica))).toEqual([])
 
       // Excluir de novo é como excluir o que não existe, e não grava segunda auditoria.
       expect(erroDe(await del(escola.coordenacao, `/v1/materiais/${id}`))).toEqual({ status: 404, codigo: ErrorCode.NAO_ENCONTRADO })

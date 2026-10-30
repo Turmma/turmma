@@ -1,9 +1,9 @@
 import type { JobFailureCode, QueueName } from '@educa/shared'
 import { and, eq, inArray, sql, type SQL } from 'drizzle-orm'
-import type { Banco } from '../db/banco.js'
+import type { Database } from '../db/banco.js'
 import { jobRegistro } from '../db/schema/job-registro.js'
-import { SemEscopo } from '../db/sem-escopo.decorator.js'
-import { escopoDoJobNoContexto } from './job-registro.repository.js'
+import { Unscoped } from '../db/sem-escopo.decorator.js'
+import { jobScopeInContext } from './job-registro.repository.js'
 
 /** Quanto tempo a reserva de um despachante vale. Vencida, outro despachante pode pegar a linha. */
 export const RESERVA_SEGUNDOS = 30
@@ -15,7 +15,7 @@ export const RESERVA_SEGUNDOS = 30
 export const IDADE_PARA_RECONCILIAR_SEGUNDOS = 120
 
 // Tipo, e não interface: o `execute` do Drizzle só aceita linha que cabe em `Record<string, unknown>`.
-export type JobReservado = {
+export type ReservedJob = {
   id: string
   escolaId: string | null
   requisicaoId: string | null
@@ -36,7 +36,7 @@ export const TETO_DA_CONTAGEM_DE_PENDENTES = 10_000
 export const TETO_DA_CONTAGEM_DE_FALHOS = 10_000
 
 /** Quantos jobs de um tipo terminaram `falhou` e ainda estão em `job_registro` (até `TETO_DA_CONTAGEM_DE_FALHOS`). */
-export type MedicaoDeFalhos = {
+export type FailedJobsMeasurement = {
   tipo: string
   falhos: number
 }
@@ -45,7 +45,7 @@ export type MedicaoDeFalhos = {
  * Uma escola (ou a rotina do sistema, sem escola) com job ainda não terminado numa fila, medida para a
  * observação: o mais antigo que ainda não começou, urgente e não urgente, e quantos ainda não começaram.
  */
-export type MedicaoDePendentes = {
+export type PendingJobsMeasurement = {
   fila: QueueName
   escolaId: string | null
   /** O `now()` do banco na medição: a espera é contada no mesmo relógio que gravou `criado_em`. */
@@ -62,7 +62,7 @@ export type MedicaoDePendentes = {
   pendentes: number
 }
 
-type LinhaDaMedicao = {
+type MedicaoRow = {
   fila: QueueName
   escolaId: string | null
   // `numeric` chega como texto.
@@ -73,20 +73,20 @@ type LinhaDaMedicao = {
 }
 
 /** Uma escola (ou a rotina do sistema, sem escola) com job esperando despacho numa fila. */
-export type EscolaComPendentes = {
+export type EscolaWithPendingJobs = {
   fila: QueueName
   escolaId: string | null
 }
 
 /** Um job que a reconciliação confere, com a chave da ordem da varredura. */
-export type JobParaReconciliar = JobReservado & {
+export type JobToSweep = ReservedJob & {
   prioridade: number
   // Em texto, com os microssegundos do Postgres: volta intacta como ponto de parada da varredura.
   criadoEm: string
 }
 
 /** Onde a varredura da reconciliação parou: o último job conferido, na ordem da consulta. */
-export type CursorDaReconciliacao = Pick<JobParaReconciliar, 'prioridade' | 'criadoEm' | 'id'>
+export type SweepCursor = Pick<JobToSweep, 'prioridade' | 'criadoEm' | 'id'>
 
 /**
  * `publicado` ou `ativo` há mais de `IDADE_PARA_RECONCILIAR_SEGUNDOS`. Não há data de publicação na
@@ -121,8 +121,8 @@ const JUSTIFICATIVA =
  * escola do contexto, marca publicado e reconcilia com o que a fila tem. Não atende requisição de
  * escola nenhuma.
  */
-export class DespachoRepository {
-  constructor(private readonly banco: Banco) {}
+export class DispatchRepository {
+  constructor(private readonly banco: Database) {}
 
   /**
    * Por fila, as escolas com job disponível para reserva. É a lista que o despachante percorre em
@@ -130,9 +130,9 @@ export class DespachoRepository {
    * descida por escola, sem varrer os mil lotes de quem enfileirou mil: a consulta custa o número de
    * escolas, não o de jobs. A rotina do sistema (sem escola) entra como `escolaId` nulo.
    */
-  @SemEscopo(JUSTIFICATIVA)
-  async listarEscolasComPendentes(): Promise<EscolaComPendentes[]> {
-    const resultado = await this.banco.execute<EscolaComPendentes>(sql`
+  @Unscoped(JUSTIFICATIVA)
+  async listarEscolasComPendentes(): Promise<EscolaWithPendingJobs[]> {
+    const resultado = await this.banco.execute<EscolaWithPendingJobs>(sql`
       with recursive escolas as (
         (
           select fila, escola_id from job_registro
@@ -169,8 +169,8 @@ export class DespachoRepository {
    * O primeiro da fila desce pelo índice de pendentes, pulando só os `ativo` (no máximo as vagas da escola);
    * o urgente, pelo índice de urgentes, sem atravessar os não urgentes segurados; e a contagem para no teto.
    */
-  @SemEscopo(JUSTIFICATIVA_DA_MEDICAO)
-  async medirPendentes(): Promise<MedicaoDePendentes[]> {
+  @Unscoped(JUSTIFICATIVA_DA_MEDICAO)
+  async medirPendentes(): Promise<PendingJobsMeasurement[]> {
     const naoIniciado = sql`job.estado not in ('concluido', 'falhou') and job.estado <> 'ativo'`
     // Instantes em milissegundos desde a época: o driver devolve timestamptz como texto, e o texto do Postgres não é ISO.
     const medidas = (daEscola: SQL) => sql`
@@ -186,7 +186,7 @@ export class DespachoRepository {
         where ${naoIniciado} and job.fila = pares.fila and ${daEscola}
         limit ${TETO_DA_CONTAGEM_DE_PENDENTES}
       ) as limitados) as pendentes`
-    const resultado = await this.banco.execute<LinhaDaMedicao>(sql`
+    const resultado = await this.banco.execute<MedicaoRow>(sql`
       with recursive escolas as (
         (
           select fila, escola_id from job_registro
@@ -228,8 +228,8 @@ export class DespachoRepository {
    * `titular.*` fica até a ação do operador e entra na contagem enquanto estiver na tabela; o de tipo que o expurgo já
    * levou sai dela. Não devolve escola nem `dados`: só o nome do tipo e a quantidade.
    */
-  @SemEscopo(JUSTIFICATIVA_DA_MEDICAO)
-  async medirFalhos(): Promise<MedicaoDeFalhos[]> {
+  @Unscoped(JUSTIFICATIVA_DA_MEDICAO)
+  async medirFalhos(): Promise<FailedJobsMeasurement[]> {
     const resultado = await this.banco.execute<{ tipo: string; falhos: number | string }>(sql`
       with recursive tipos as (
         (select tipo from job_registro where estado = 'falhou' order by tipo limit 1)
@@ -263,12 +263,12 @@ export class DespachoRepository {
    * Com `soUrgentes`, o não urgente fica de fora (a escola está no horário letivo): nem é reservado nem
    * chega a tomar vaga. Desce pelo índice de pendentes urgentes, sem atravessar os segurados.
    */
-  async reservarDaEscola(fila: QueueName, limite: number, { soUrgentes = false }: { soUrgentes?: boolean } = {}): Promise<JobReservado[]> {
-    const escopo = escopoDoJobNoContexto()
+  async reservarDaEscola(fila: QueueName, limite: number, { soUrgentes = false }: { soUrgentes?: boolean } = {}): Promise<ReservedJob[]> {
+    const escopo = jobScopeInContext()
     // Literal, e não parâmetro: é o predicado do índice parcial, e um plano genérico de instrução preparada
     // só o casaria enxergando a condição escrita.
     const urgencia = soUrgentes ? sql`and not nao_urgente` : sql``
-    const resultado = await this.banco.execute<JobReservado>(sql`
+    const resultado = await this.banco.execute<ReservedJob>(sql`
       with candidatos as (
         select id from job_registro
         where estado not in ('concluido', 'falhou') and fila = ${fila} and ${escopo} and ${DISPONIVEL_PARA_RESERVA} ${urgencia}
@@ -296,7 +296,7 @@ export class DespachoRepository {
     const linhas = await this.banco
       .select({ id: jobRegistro.id })
       .from(jobRegistro)
-      .where(and(inArray(jobRegistro.id, [...ids]), escopoDoJobNoContexto(), eq(jobRegistro.estado, 'publicado')))
+      .where(and(inArray(jobRegistro.id, [...ids]), jobScopeInContext(), eq(jobRegistro.estado, 'publicado')))
     return linhas.map((linha) => linha.id)
   }
 
@@ -309,7 +309,7 @@ export class DespachoRepository {
     const alteradas = await this.banco
       .update(jobRegistro)
       .set({ estado: 'aguardando', reservadoAte: null })
-      .where(and(inArray(jobRegistro.id, [...ids]), escopoDoJobNoContexto(), eq(jobRegistro.estado, 'reservado')))
+      .where(and(inArray(jobRegistro.id, [...ids]), jobScopeInContext(), eq(jobRegistro.estado, 'reservado')))
       .returning({ id: jobRegistro.id })
     return alteradas.length
   }
@@ -319,11 +319,11 @@ export class DespachoRepository {
    * perdido é conferido antes do lote. `depoisDe` continua de onde a página anterior parou, para a
    * varredura passar por todos, e não pelos mesmos `limite` mais antigos a cada vez.
    */
-  @SemEscopo(JUSTIFICATIVA)
-  async listarParaReconciliar(limite: number, depoisDe?: CursorDaReconciliacao): Promise<JobParaReconciliar[]> {
+  @Unscoped(JUSTIFICATIVA)
+  async listarParaReconciliar(limite: number, depoisDe?: SweepCursor): Promise<JobToSweep[]> {
     const continuacao =
       depoisDe === undefined ? sql`` : sql`and (prioridade, criado_em, id) > (${depoisDe.prioridade}, ${depoisDe.criadoEm}::timestamptz, ${depoisDe.id}::uuid)`
-    const resultado = await this.banco.execute<JobParaReconciliar>(sql`
+    const resultado = await this.banco.execute<JobToSweep>(sql`
       select id, escola_id as "escolaId", requisicao_id as "requisicaoId", tipo, fila, prioridade, criado_em::text as "criadoEm"
       from job_registro
       where ${CONDICAO_PARA_RECONCILIAR} ${continuacao}
@@ -340,10 +340,10 @@ export class DespachoRepository {
    * e isso vale também quando a outra já o republicou e o worker o recomeçou desde a consulta. Se a
    * publicação falhar, a reserva vence e a rodada comum o publica.
    */
-  @SemEscopo(JUSTIFICATIVA)
-  async reservarParaRepublicar(ids: readonly string[]): Promise<JobReservado[]> {
+  @Unscoped(JUSTIFICATIVA)
+  async reservarParaRepublicar(ids: readonly string[]): Promise<ReservedJob[]> {
     if (ids.length === 0) return []
-    const resultado = await this.banco.execute<JobReservado>(sql`
+    const resultado = await this.banco.execute<ReservedJob>(sql`
       update job_registro
       set estado = 'reservado', reservado_ate = now() + make_interval(secs => ${RESERVA_SEGUNDOS})
       where id in (${sql.join(ids.map((id) => sql`${id}`), sql`, `)})
@@ -358,7 +358,7 @@ export class DespachoRepository {
    * stalled acima do limite, dado inválido na fila). Só sai de `publicado` ou `ativo`: o que já
    * terminou não muda. Devolve `false` se a linha não estava mais nesses estados.
    */
-  @SemEscopo(JUSTIFICATIVA)
+  @Unscoped(JUSTIFICATIVA)
   async registrarFalhaDaFila(id: string, codigo: JobFailureCode): Promise<boolean> {
     const alteradas = await this.banco
       .update(jobRegistro)
@@ -377,7 +377,7 @@ export class DespachoRepository {
     const alteradas = await this.banco
       .update(jobRegistro)
       .set({ estado: 'publicado' })
-      .where(and(inArray(jobRegistro.id, [...ids]), escopoDoJobNoContexto(), eq(jobRegistro.estado, 'reservado')))
+      .where(and(inArray(jobRegistro.id, [...ids]), jobScopeInContext(), eq(jobRegistro.estado, 'reservado')))
       .returning({ id: jobRegistro.id })
     return alteradas.length
   }

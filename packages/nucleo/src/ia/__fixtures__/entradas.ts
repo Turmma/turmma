@@ -1,11 +1,11 @@
 import type { ConteudoDeAtividade } from '@educa/shared'
-import type { EntradaDeAdaptacao } from '../tarefas/adaptar-atividade.js'
-import { gerarAtividadeObjetiva, type EntradaDeAtividadeObjetiva } from '../tarefas/gerar-atividade-objetiva.js'
-import type { EntradaDePlanoDeAula } from '../tarefas/gerar-plano-de-aula.js'
-import type { EntradaDoAssistente } from '../tarefas/propor-ferramenta.js'
-import type { EntradaDoRelatorio } from '../tarefas/relatorio-da-correcao.js'
-import type { EntradaDoAnalista } from '../tarefas/resumo-do-analista.js'
-import type { EntradaDoTutor } from '../tarefas/turno-do-tutor.js'
+import type { AdaptacaoInput } from '../tarefas/adaptar-atividade.js'
+import { gerarAtividadeObjetiva, type AtividadeObjetivaInput } from '../tarefas/gerar-atividade-objetiva.js'
+import type { PlanoDeAulaInput } from '../tarefas/gerar-plano-de-aula.js'
+import type { AssistenteInput } from '../tarefas/propor-ferramenta.js'
+import type { RelatorioInput } from '../tarefas/relatorio-da-correcao.js'
+import type { AnalistaInput } from '../tarefas/resumo-do-analista.js'
+import type { TutorInput } from '../tarefas/turno-do-tutor.js'
 import { CONTEXTO_DE_QUIMICA, HABILIDADES_DE_ESTEQUIOMETRIA, trechosDeEstequiometria } from './estequiometria.js'
 
 /** Uma entrada válida de cada tarefa, toda sintética, sobre o mesmo material de estequiometria. */
@@ -17,7 +17,7 @@ export const ALUNO_2 = '9c4a5f6e-7d8c-4b9b-9eab-4f5a6b7c8d93'
 
 const habilidades = [...HABILIDADES_DE_ESTEQUIOMETRIA]
 
-export const entradaDeAtividade = (): EntradaDeAtividadeObjetiva => ({
+export const entradaDeAtividade = (): AtividadeObjetivaInput => ({
   tema: 'estequiometria',
   quantidade: 6,
   contexto: { ...CONTEXTO_DE_QUIMICA },
@@ -27,7 +27,7 @@ export const entradaDeAtividade = (): EntradaDeAtividadeObjetiva => ({
 
 export const atividadeDeEstequiometria = (): ConteudoDeAtividade => gerarAtividadeObjetiva.falso(entradaDeAtividade())
 
-export const entradaDePlano = (): EntradaDePlanoDeAula => ({
+export const entradaDePlano = (): PlanoDeAulaInput => ({
   tema: 'reagente limitante',
   duracaoMinutos: 50,
   contexto: { ...CONTEXTO_DE_QUIMICA },
@@ -35,7 +35,7 @@ export const entradaDePlano = (): EntradaDePlanoDeAula => ({
   trechos: trechosDeEstequiometria(),
 })
 
-export const entradaDeAdaptacao = (): EntradaDeAdaptacao => ({
+export const entradaDeAdaptacao = (): AdaptacaoInput => ({
   conteudo: atividadeDeEstequiometria(),
   adaptacao: { tipos: ['linguagem_direta', 'tempo_adicional'], tempoExtraPercentual: 50 },
 })
@@ -47,7 +47,7 @@ export function questaoDoReagenteLimitante(): ConteudoDeAtividade['questoes'][nu
   return questao
 }
 
-export function entradaDoTutor(duvida: string): EntradaDoTutor {
+export function entradaDoTutor(duvida: string): TutorInput {
   const questao = questaoDoReagenteLimitante()
   return {
     duvida,
@@ -62,14 +62,14 @@ export function entradaDoTutor(duvida: string): EntradaDoTutor {
   }
 }
 
-export const entradaDoAssistente = (mensagem = 'monta uma atividade com 5 questões sobre reagente limitante'): EntradaDoAssistente => ({
+export const entradaDoAssistente = (mensagem = 'monta uma atividade com 5 questões sobre reagente limitante'): AssistenteInput => ({
   mensagem,
   contexto: { ...CONTEXTO_DE_QUIMICA },
   trechos: trechosDeEstequiometria([5, 6]),
   turnosAnteriores: [],
 })
 
-export const entradaDoRelatorio = (): EntradaDoRelatorio => ({
+export const entradaDoRelatorio = (): RelatorioInput => ({
   titulo: 'Atividade — estequiometria',
   respondentes: 30,
   questoes: [
@@ -85,7 +85,7 @@ const QUIMICA = { id: 'c3d4e5f6-a7b8-4c9d-8e1f-2a3b4c5d6e7f', nome: 'Química' }
 const FISICA = { id: 'd4e5f6a7-b8c9-4d0e-9f2a-3b4c5d6e7f80', nome: 'Física' } as const
 
 /** Os agregados como o domínio os monta, nas formas do contrato: dois recortes com grupo mínimo e um que ficou de fora. */
-export const entradaDoAnalista = (): EntradaDoAnalista => ({
+export const entradaDoAnalista = (): AnalistaInput => ({
   periodo: { inicio: '2026-09-28', fim: '2026-10-02' },
   escola: {
     atividadesAplicadas: 7,

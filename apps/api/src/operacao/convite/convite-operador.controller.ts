@@ -1,4 +1,4 @@
-import { acimaDoLimiteDoIp, ipDaRequisicao, LimiteQueRebaixa, ProxiesConfiaveis, ZodValidationPipe } from '@educa/nucleo'
+import { isOverIpLimit, requestIp, DowngradeRateLimit, TrustedProxies, ZodValidationPipe } from '@educa/nucleo'
 import {
   aceitarConviteDeOperadorRequestSchema,
   consultarConviteDeOperadorRequestSchema,
@@ -20,7 +20,7 @@ import { EntradaDeOperacao } from '../marcadores.js'
  * único que abre alguma coisa é o token do convite, no corpo, conferido pelo service contra o hash no banco.
  *
  * - `consultar`: limite por IP da operação (`rl:ip:op`, balde próprio, tarefa 9.0 da A0b), que recusa com 429.
- * - `aceitar`: `@LimiteQueRebaixa`, como o login por senha: acima do mesmo limite por IP da operação, o aceite vai para
+ * - `aceitar`: `@DowngradeRateLimit`, como o login por senha: acima do mesmo limite por IP da operação, o aceite vai para
  *   o fim do balde no semáforo do hash, nunca 429 (Tech Spec da A0, seção 5, "Limite").
  *
  * As duas saem com `no-store`, e o contrato estrito recusa campo a mais na entrada e não deixa sair campo a mais (C39).
@@ -30,7 +30,7 @@ import { EntradaDeOperacao } from '../marcadores.js'
 export class ConviteDeOperadorController {
   constructor(
     @Inject(ConviteDeOperadorService) private readonly convites: ConviteDeOperadorService,
-    @Inject(ProxiesConfiaveis) private readonly proxies: ProxiesConfiaveis,
+    @Inject(TrustedProxies) private readonly proxies: TrustedProxies,
   ) {}
 
   @Post('consultar')
@@ -43,14 +43,14 @@ export class ConviteDeOperadorController {
 
   @Post('aceitar')
   @EntradaDeOperacao()
-  @LimiteQueRebaixa()
+  @DowngradeRateLimit()
   @HttpCode(HttpStatus.OK)
   @Header('Cache-Control', 'no-store')
   async aceitar(
     @Body(new ZodValidationPipe(aceitarConviteDeOperadorRequestSchema)) pedido: AceitarConviteDeOperadorRequest,
     @Req() requisicao: IncomingMessage,
   ): Promise<AceitarConviteDeOperadorResponse> {
-    const origem = { ip: await ipDaRequisicao(requisicao, this.proxies), acimaDoLimiteDoIp: acimaDoLimiteDoIp(requisicao) }
+    const origem = { ip: await requestIp(requisicao, this.proxies), acimaDoLimiteDoIp: isOverIpLimit(requisicao) }
     return aceitarConviteDeOperadorResponseSchema.parse(await this.convites.aceitar(pedido, origem))
   }
 }

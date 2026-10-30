@@ -1,4 +1,4 @@
-import { criarBanco, criarPool, type Banco, type PoolBanco } from '@educa/nucleo'
+import { createDatabase, createPool, type Database, type DatabasePool } from '@educa/nucleo'
 import {
   ErrorCode,
   ESCOLAS_POR_PAGINA,
@@ -50,8 +50,8 @@ describe('painel da operação: a lista de escolas e o uso, entre escolas (taref
   const redes: string[] = []
   let app: INestApplication
   let url: string
-  let pool: PoolBanco
-  let banco: Banco
+  let pool: DatabasePool
+  let banco: Database
   let redeId: string
   let sessao: SessaoDeOperadorDeTeste
 
@@ -164,8 +164,8 @@ describe('painel da operação: a lista de escolas e o uso, entre escolas (taref
   const soAsMinhas = <Item extends { id: string }>(itens: readonly Item[], minhas: readonly string[]) => itens.filter((item) => minhas.includes(item.id))
 
   beforeAll(async () => {
-    pool = criarPool({ url: urlDoBancoDeTeste(), maximoConexoes: 6, timeoutConexaoMs: 5_000, timeoutConsultaMs: PRAZO_DAS_CONSULTAS_MS }, () => undefined)
-    banco = criarBanco(pool)
+    pool = createPool({ url: urlDoBancoDeTeste(), maximoConexoes: 6, timeoutConexaoMs: 5_000, timeoutConsultaMs: PRAZO_DAS_CONSULTAS_MS }, () => undefined)
+    banco = createDatabase(pool)
     ;({ app, url } = await subirApiDoPainel(linhasDeLog, AMBIENTE))
     redeId = await idDe(`insert into rede (nome, tipo) values ($1, 'grupo') returning id`, [`Rede Leitura ${sufixo}`])
     redes.push(redeId)

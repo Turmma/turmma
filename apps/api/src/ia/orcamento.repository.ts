@@ -2,17 +2,17 @@ import {
   configuracaoOperacionalEscola,
   diaDeUso,
   execucaoAgente,
-  exigirEscolaDoContexto,
+  requireEscolaId,
   FUSO_DO_USO,
   mensagemTutor,
-  relogioDoSistema,
+  systemClock,
   vinculo,
-  type Banco,
-  type ConsultaDeOrcamento,
-  type DecisaoDoOrcamento,
+  type Database,
+  type OrcamentoQuery,
+  type OrcamentoDecision,
   type OrcamentoDeIa,
-  type Relogio,
-  type TransacaoBanco,
+  type Clock,
+  type DatabaseTransaction,
 } from '@educa/nucleo'
 import { TROCAS_POR_DIA_PADRAO_DO_TUTOR, TROCAS_POR_MES_PADRAO_DO_TUTOR } from '@educa/shared'
 import { and, count, eq, gte, ne, notExists, sql, type SQL } from 'drizzle-orm'
@@ -27,19 +27,19 @@ import { and, count, eq, gte, ne, notExists, sql, type SQL } from 'drizzle-orm'
  * - A pergunta ainda em andamento conta: quem manda dez de uma vez não passa do freio.
  * - A mesma linha serve ao dia (por aluno) e ao mês (por turma), que `consumo_ia` não saberia somar: ele não tem turma.
  *
- * A escola é a do contexto de quem pediu, lida **antes** de qualquer retorno (`exigirEscolaDoContexto()`): a consulta não
+ * A escola é a do contexto de quem pediu, lida **antes** de qualquer retorno (`requireEscolaId()`): a consulta não
  * a recebe, e sem escola no contexto lança até para a função que não é o Tutor, que de outro modo seria permitida sem
  * olhar para ninguém. O contrato ainda não tem teto de IA por escola configurável:
  * fora do Tutor, a consulta permite.
  */
 export class OrcamentoRepository implements OrcamentoDeIa {
   constructor(
-    private readonly banco: Banco | TransacaoBanco,
-    private readonly relogio: Relogio = relogioDoSistema,
+    private readonly banco: Database | DatabaseTransaction,
+    private readonly relogio: Clock = systemClock,
   ) {}
 
-  async consultar(consulta: ConsultaDeOrcamento): Promise<DecisaoDoOrcamento> {
-    const escolaId = exigirEscolaDoContexto()
+  async consultar(consulta: OrcamentoQuery): Promise<OrcamentoDecision> {
+    const escolaId = requireEscolaId()
     if (consulta.funcao !== 'tutor_com_o_aluno' || consulta.alunoId === undefined) return { permitido: true }
     const { alunoId, turmaId } = consulta
     const [limites] = await this.banco
@@ -64,7 +64,7 @@ export class OrcamentoRepository implements OrcamentoDeIa {
   }
 
   /** As perguntas de aluno desde o começo do dia `desde`, na escola, de quem o filtro disser, fora as que falharam e a de quem está perguntando. */
-  private async trocas(escolaId: string, consulta: ConsultaDeOrcamento, deQuem: SQL | undefined, desde: string): Promise<number> {
+  private async trocas(escolaId: string, consulta: OrcamentoQuery, deQuem: SQL | undefined, desde: string): Promise<number> {
     const falhou = this.banco
       .select({ id: execucaoAgente.id })
       .from(execucaoAgente)

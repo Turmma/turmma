@@ -65,22 +65,22 @@ realtime, despachante, worker, web.
 | `@Configuration` + `@Bean` | `@Module` do NestJS; o módulo que recebe configuração usa `static com(config): DynamicModule` | `apps/api/src/app.module.ts`, `estrutura/estrutura.module.ts` |
 | `@RestController` + `@RequestMapping("/v1/x")` | `@Controller('v1/x')` | `apps/api/src/estrutura/disciplina/disciplina.controller.ts` |
 | `@Service` | classe de service, criada pelo módulo com `useFactory` | `estrutura/disciplina/disciplina.service.ts` |
-| `@Repository` + filtro de tenant do Hibernate | repository do Drizzle que lê a escola por `exigirEscolaDoContexto()` | `estrutura/disciplina/disciplina.repository.ts` |
+| `@Repository` + filtro de tenant do Hibernate | repository do Drizzle que lê a escola por `requireEscolaId()` | `estrutura/disciplina/disciplina.repository.ts` |
 | Entidade JPA | tabela do Drizzle, sem lazy loading e sem entidade gerenciada | `packages/nucleo/src/db/schema/disciplina.ts` |
 | Flyway | migrations do `drizzle-kit`, aplicadas pelo serviço `migrar` do compose | `packages/nucleo/drizzle/` |
 | Bean Validation (`@Valid` no `@RequestBody`) | esquema zod de `shared` com o `ZodValidationPipe` do NestJS | §5.1 |
 | DTO de resposta (record) | esquema de resposta zod, aplicado com `.parse` no service | `disciplinaResponseSchema` |
 | Spring Security filter chain | quatro guardas globais, nesta ordem: autenticação, limite, sessão, permissão | `app.module.ts`, `APP_GUARD` |
-| `@PreAuthorize("hasRole(...)")` na rota | `@Permite('disciplina', 'criar')` sobre a `MATRIZ`: cobre **a rota e o papel**, não o objeto | `nucleo/src/permissao/permite.decorator.ts`, `shared/src/permissao/matriz.ts` |
+| `@PreAuthorize("hasRole(...)")` na rota | `@RequirePermissao('disciplina', 'criar')` sobre a `MATRIZ`: cobre **a rota e o papel**, não o objeto | `nucleo/src/permissao/permite.decorator.ts`, `shared/src/permissao/matriz.ts` |
 | `@PostAuthorize` / `hasPermission(obj)` no objeto | o alcance `turma_vinculada` ou `proprio`, aplicado **no repository** com o usuário do contexto | `assistente/turma-do-professor.repository.ts` |
 | `SecurityContextHolder` / `RequestContextHolder` (ThreadLocal) | contexto da requisição em `AsyncLocalStorage` | `nucleo/src/contexto/contexto.ts` |
-| Exceção de negócio + `@ControllerAdvice` | `ErroDeDominio(ErrorCode.X)` + `FiltroGlobalDeErro` | `nucleo/src/erro/` |
+| Exceção de negócio + `@ControllerAdvice` | `DomainException(ErrorCode.X)` + `AllExceptionsFilter` | `nucleo/src/erro/` |
 | `@ConfigurationProperties` + `@Validated` | `config.ts` com zod, que lista todos os erros de uma vez | `apps/api/src/config.ts` |
-| `ApplicationEventPublisher` transacional / outbox | `Enfileirador` (transactional outbox) + despachante | `nucleo/src/fila/enfileirador.ts`, `apps/despachante/` |
+| `ApplicationEventPublisher` transacional / outbox | `JobOutbox` (transactional outbox) + despachante | `nucleo/src/fila/enfileirador.ts`, `apps/despachante/` |
 | `@RabbitListener` / `@KafkaListener` | processador do worker, registrado por tipo de job | `apps/worker/src/montagem.ts` |
 | `@Scheduled` | `AGENDAMENTOS` (job scheduler do BullMQ) | `apps/worker/src/agendamentos.ts` |
-| Spring AI `ChatClient` atrás de uma interface | porta `LLMProvider` e gateway `ProvedorDeIa` | `nucleo/src/ia/porta.ts`, `provedor.ts` |
-| Actuator `/health`, graceful shutdown | `/saude` e `ProntidaoController`; `Drenagem` | `apps/api/src/sistema/prontidao.controller.ts`, `nucleo/src/instancia/drenagem.ts` |
+| Spring AI `ChatClient` atrás de uma interface | porta `LLMProvider` e gateway `LLMGateway` | `nucleo/src/ia/porta.ts`, `provedor.ts` |
+| Actuator `/health`, graceful shutdown | `/saude` e `ProntidaoController`; `GracefulShutdown` | `apps/api/src/sistema/prontidao.controller.ts`, `nucleo/src/instancia/drenagem.ts` |
 | JUnit + Mockito | Vitest, projeto `unidade` (`x.test.ts`) | `vitest.config.ts` |
 | `@SpringBootTest` + Testcontainers | Vitest, projeto `integracao` (`x.int.test.ts`), com Postgres e Redis reais no compose de teste | `tools/testes/integracao.setup.ts` |
 | ArchUnit / Checkstyle | regras de ESLint em `tools/guardas/`, `dependency-cruiser` e testes de arquitetura | §7 |
@@ -89,7 +89,7 @@ realtime, despachante, worker, web.
 **O que é diferente de propósito:**
 - **Outra escola responde 404, não 403** (regra 10.6): o 403 confirmaria que o id existe. O filtro global já
   converte o 403 do Nest em 404.
-- **A guarda não protege o objeto.** A `GuardaDePermissao` só barra o alcance `nunca`. Ter o papel de professor
+- **A guarda não protege o objeto.** A `PermissaoGuard` só barra o alcance `nunca`. Ter o papel de professor
   passa pela guarda; **aquela turma ser dele** é conferido no repository (regra 10.4). Sem isso, o professor lê
   qualquer turma da escola.
 - **O service não recebe a escola por parâmetro.** O repository lê do contexto. Se você se pegar passando `escolaId`
@@ -104,19 +104,19 @@ realtime, despachante, worker, web.
 
 ```
 navegador ──HTTP──▶ borda (Caddy) ──▶ api
-  1. middlewareDeContexto        abre o contexto com o requisicaoId
-  2. GuardaDeAutenticacao        confere o JWT do "Authorization: Bearer", sem tocar o banco
-  3. GuardaDeLimite              rate limit por usuário e por escola (nunca só por IP)
-  4. GuardaDeSessao              lê a sessão no Postgres e grava escola, ano letivo, papel e usuário no contexto
-  5. GuardaDePermissao           @Permite(recurso, acao) contra a MATRIZ; só barra "nunca", que vira 404
+  1. contextMiddleware           abre o contexto com o requisicaoId
+  2. AuthGuard                   confere o JWT do "Authorization: Bearer", sem tocar o banco
+  3. RateLimitGuard              rate limit por usuário e por escola (nunca só por IP)
+  4. SessaoGuard                 lê a sessão no Postgres e grava escola, ano letivo, papel e usuário no contexto
+  5. PermissaoGuard              @RequirePermissao(recurso, acao) contra a MATRIZ; só barra "nunca", que vira 404
   6. Controller                  valida a entrada pelo esquema de shared e chama o service
   7. Service                     regra de negócio; valida a resposta pelo esquema de shared
   8. Repository                  SQL com o escopo da escola (e do ano letivo) lido do contexto, e o alcance do objeto
                                  (turma_vinculada, proprio) pelo usuário do contexto
-  ◀── FiltroGlobalDeErro         ErroDeDominio vira { erro: { codigo, mensagem, requisicaoId } }
+  ◀── AllExceptionsFilter        DomainException vira { erro: { codigo, mensagem, requisicaoId } }
 ```
 
-- **O boot falha** se uma rota não tiver `@Permite` nem `@RotaAnonima` (`ConferenciaDasPermissoes`).
+- **O boot falha** se uma rota não tiver `@RequirePermissao` nem `@Public` (`PermissaoBootCheck`).
 - **O access token** é um JWT de vida curta, guardado só na memória da web. A renovação é pelo cookie `educa_sessao`
   (`HttpOnly`, `SameSite=Strict`, `Path=/v1/sessao`).
 - **O erro tem código, nunca texto livre.** A web decide pelo `codigo` (`ENTRADA_INVALIDA`, `CONFLITO`,
@@ -198,13 +198,13 @@ Exemplo: a disciplina (`apps/api/src/estrutura/`, `packages/shared/src/estrutura
    @Controller('v1/disciplinas')
    export class DisciplinaController {
      @Post()
-     @Permite('disciplina', 'criar')
+     @RequirePermissao('disciplina', 'criar')
      criar(@Body(new ZodValidationPipe(criarDisciplinaRequestSchema)) pedido: CriarDisciplinaRequest) {
        return this.disciplinas.criar(pedido)
      }
 
      @Get(':id')
-     @Permite('disciplina', 'ler')
+     @RequirePermissao('disciplina', 'ler')
      abrir(@Param('id', IdPipe) id: string) { ... }   // id fora do formato responde 404, como o inexistente
    }
    ```
@@ -215,12 +215,12 @@ Exemplo: a disciplina (`apps/api/src/estrutura/`, `packages/shared/src/estrutura
    leva `new ZodValidationPipe(esquema, { errorCode: ErrorCode.NAO_ENCONTRADO })`. A rota que aceita não receber corpo
    usa o esquema vazio com `.default({})` (`emptyOrMissingBodyRequestSchema`).
 4. **Service.** A regra de negócio fica aqui, e a resposta passa pelo esquema:
-   `return disciplinaResponseSchema.parse(linha)`. Quando não achar, lance `new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)`.
+   `return disciplinaResponseSchema.parse(linha)`. Quando não achar, lance `new DomainException(ErrorCode.NAO_ENCONTRADO)`.
 5. **Repository.** É o único lugar que toca o banco. A escola vem do contexto, nunca do argumento:
    ```ts
-   .where(and(eq(disciplina.escolaId, exigirEscolaDoContexto()), eq(disciplina.id, id)))
+   .where(and(eq(disciplina.escolaId, requireEscolaId()), eq(disciplina.id, id)))
    ```
-   Tabela que varia por ano usa também `exigirAnoEmCurso()`. Listagem é paginada por cursor (`paginar`, de
+   Tabela que varia por ano usa também `requireAnoEmCurso()`. Listagem é paginada por cursor (`paginar`, de
    `apps/api/src/http/paginacao.ts`).
    **O alcance do objeto também é do repository**, e cada alcance tem o seu jeito:
    - **`turma_vinculada`:** um `exists` sobre o vínculo `confirmado` do usuário do contexto na turma da linha.
@@ -273,7 +273,7 @@ Exemplo: a montagem do arquivo do titular (`privacidade.service.ts`, `apps/worke
    nem conteúdo (regra 20). Rotina sem escola tem escopo `sistema` e o tipo começa por `sistema.`.
 2. **Enfileire na transação de quem pede:** `enfileirador.enfileirar(tx, tipo, dados)`, dentro do
    `banco.transaction`. O job existe se, e somente se, o que o originou foi gravado: é o transactional outbox. Os
-   `dados` passam pelo esquema do tipo antes de gravar, e o pedido que a definição recusa lança `PedidoDeJobRecusado`.
+   `dados` passam pelo esquema do tipo antes de gravar, e o pedido que a definição recusa lança `JobRequestRejectedError`.
    Se o mesmo pedido pode chegar duas vezes (dois cliques, reenvio do cliente), use
    `enfileirarUmaVez(tx, tipo, dados, chave)`: o id do job não deduplica dois jobs do mesmo pedido, e a chave sim.
 3. **Escreva o processador** em `apps/worker/src/processadores/<nome>.ts`. Ele **precisa ser idempotente**: a entrega
@@ -295,16 +295,16 @@ Qual fila usar:
 
 Exemplo: `apps/api/src/artefato/ferramentas.service.ts`.
 
-1. **A tarefa** fica em `packages/nucleo/src/ia/tarefas/<tarefa>.ts`, com `definirTarefa`, o perfil (`rapido`,
+1. **A tarefa** fica em `packages/nucleo/src/ia/tarefas/<tarefa>.ts`, com `defineTask`, o perfil (`rapido`,
    `padrao`, `complexo`, `visao`) e os esquemas de entrada e saída. O prompt é versionado em `ia/prompts/`. Registre
-   em `CATALOGO_DE_TAREFAS`.
+   em `TASK_CATALOG`.
 2. **O módulo chama** o `AgendadorDeExecucoes.agendar({ tarefa, chaveEnvio, ... })`. A resposta é 202 com
    `execucaoId`, e a execução roda em segundo plano, passando pelo gateway: orçamento, suspensão da função, prazo e
    validação da saída.
 3. **Nunca chame o adaptador nem a porta direto.** O lint barra só o import de SDK de IA. Chamar o
-   `AdaptadorOpenAICompat` ou o `LLMProvider` sem passar pelo `AgendadorDeExecucoes` e pelo gateway não tem trava de
+   `OpenAICompatAdapter` ou o `LLMProvider` sem passar pelo `AgendadorDeExecucoes` e pelo gateway não tem trava de
    máquina: é proibido pela regra 30, e quem segura é a revisão.
-4. **Teste com o `AdaptadorFalso`.** Nenhum teste chama provedor pago.
+4. **Teste com o `FakeAdapter`.** Nenhum teste chama provedor pago.
 5. **Funcionalidade de alto risco** só entra com a AIA escrita em `docs/aia/` (regra 70.6a). A lista da regra é:
    Tutor, correção de objetiva, diagnóstico por habilidade, sinais e alertas, e adaptação. Na dúvida, leia a regra e
    não a lista. Saída de IA que chega ao aluno nasce pendente de aprovação humana, com uma só exceção:
@@ -363,7 +363,7 @@ colega da mesma escola, só pelo alcance do objeto. Os dois recebem o mesmo 404:
   disciplina.
 - **`proprio`:** outra pessoa da mesma escola, com o mesmo papel, pedindo a linha que não é dela.
 
-A pergunta que valida o teste: **se eu apagar o `eq(x.escolaId, exigirEscolaDoContexto())`, ou a conferência do
+A pergunta que valida o teste: **se eu apagar o `eq(x.escolaId, requireEscolaId())`, ou a conferência do
 vínculo, do repository, ele quebra?** Se não quebra, ele não testa nada.
 
 ---
@@ -407,7 +407,7 @@ falha?**
 
 | Trava | O que barra | Onde |
 |---|---|---|
-| Boot da API | rota sem `@Permite` ou `@RotaAnonima` | `ConferenciaDasPermissoes` |
+| Boot da API | rota sem `@RequirePermissao` ou `@Public` | `PermissaoBootCheck` |
 | Lint `guardas/log-sem-dado-pessoal` e `log-sem-conteudo-montado` | nome, nota ou conteúdo em log | `tools/guardas/regras-log.mjs` |
 | Lint `guardas/sdk-de-ia-so-no-adaptador` | import de SDK de IA fora do adaptador (não a chamada ao adaptador: essa é da revisão) | `tools/guardas/regras-ia.mjs` |
 | Lint `guardas/teste-sem-desligar` | `.skip`, `.only`, `.todo` | `tools/guardas/regras-teste.mjs` |
@@ -451,31 +451,31 @@ Ainda não há `npm run dev` com recarga a quente: a stack sobe pelo compose. O 
 
 | Aqui | Conceito de mercado |
 |---|---|
-| `Enfileirador` + tabela `job_registro` | Transactional outbox |
+| `JobOutbox` + tabela `job_registro` | Transactional outbox |
 | despachante (`apps/despachante`) | Outbox relay |
 | `Reconciliacao` | Outbox sweeper (republica o que o Redis perdeu) |
-| `OuvinteDeJobs` | Listener de Postgres `LISTEN/NOTIFY` |
-| `VagasPorEscola` | Limite de concorrência por tenant (semáforo distribuído no Redis, em Lua) |
+| `JobNotificationListener` | Listener de Postgres `LISTEN/NOTIFY` |
+| `EscolaConcurrencyLimiter` | Limite de concorrência por tenant (semáforo distribuído no Redis, em Lua) |
 | `ExecutorDeJobs` e `Processador` | Registro de job handlers por tipo |
-| `ErroDeDominio` + `ErrorCode` | Domain exception com código de erro |
+| `DomainException` + `ErrorCode` | Domain exception com código de erro |
 | `InvariantException` | `IllegalStateException`: o que não pode acontecer, com motivo em texto fixo |
-| `FiltroGlobalDeErro` | Global exception handler (`@ControllerAdvice`) |
-| `@Permite` + `MATRIZ` | Autorização declarativa (`@PreAuthorize`) com matriz de permissões |
-| `GuardaDeAutenticacao`, `DeLimite`, `DeSessao`, `DePermissao` | Filter chain de segurança |
-| `ConferenciaDasPermissoes` | Verificação fail-fast no boot |
+| `AllExceptionsFilter` | Global exception handler (`@ControllerAdvice`) |
+| `@RequirePermissao` + `MATRIZ` | Autorização declarativa (`@PreAuthorize`) com matriz de permissões |
+| `AuthGuard`, `DeLimite`, `DeSessao`, `DePermissao` | Filter chain de segurança |
+| `PermissaoBootCheck` | Verificação fail-fast no boot |
 | contexto (`AsyncLocalStorage`) | ThreadLocal / TenantContext |
-| `@SemEscopo` | Bypass explícito e justificado do filtro de tenant |
-| `LimitadorDeRequisicoes` | Rate limiter (Redis, com reserva em memória) |
+| `@Unscoped` | Bypass explícito e justificado do filtro de tenant |
+| `RateLimiter` | Rate limiter (Redis, com reserva em memória) |
 | `ContadorEmJanela` | Rate limiter por janela de tempo (login, sala e pedidos de IA do Assistente) |
 | `ContadorDeTentativas` | Proteção contra força bruta / lockout de login |
 | `SemaforoDeHash` | Bulkhead (limita o argon2 ao mesmo tempo) |
-| `Drenagem` | Graceful shutdown |
-| `Batimento` | Heartbeat / liveness |
-| `LLMProvider` / `ProvedorDeIa` | Porta hexagonal e gateway de LLM |
-| `AdaptadorFalso` | Fake adapter / test double |
+| `GracefulShutdown` | Graceful shutdown |
+| `Heartbeat` | Heartbeat / liveness |
+| `LLMProvider` / `LLMGateway` | Porta hexagonal e gateway de LLM |
+| `FakeAdapter` | Fake adapter / test double |
 | `AgendadorDeExecucoes` | Comando assíncrono idempotente (202 Accepted) |
-| `RegistroDeAuditoria` | Audit log |
-| `ContadorDeUso` | Usage metering |
+| `AuditoriaRecorder` | Audit log |
+| `UsageMeter` | Usage metering |
 | `BancadaDeSessoes` | Test fixture builder |
 
 ---

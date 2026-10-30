@@ -1,7 +1,7 @@
 import type { Attributes } from '@opentelemetry/api'
 import { MeterProvider, MetricReader, type DataPoint } from '@opentelemetry/sdk-metrics'
-import { temporalidadeDasMetricas } from '../../packages/nucleo/src/telemetria/temporalidade.ts'
-import type { METRICAS } from '../../packages/nucleo/src/telemetria/metricas.ts'
+import { metricsTemporality } from '../../packages/nucleo/src/telemetria/temporalidade.ts'
+import type { METRICS } from '../../packages/nucleo/src/telemetria/metricas.ts'
 
 /** Leitor que só coleta quando o teste pede: nada é exportado, e o teste lê o que o processo exportaria. */
 class LeitorManual extends MetricReader {
@@ -26,7 +26,7 @@ export interface PontoLido {
  */
 export class MedidorDeTeste {
   // A mesma temporalidade da exportação: o gauge que parou de ser observado some aqui como some lá.
-  readonly #leitor = new LeitorManual({ aggregationTemporalitySelector: temporalidadeDasMetricas })
+  readonly #leitor = new LeitorManual({ aggregationTemporalitySelector: metricsTemporality })
   readonly #provedor = new MeterProvider({ readers: [this.#leitor] })
   readonly medidor = this.#provedor.getMeter('teste')
 
@@ -56,7 +56,7 @@ export class MedidorDeTeste {
 }
 
 /**
- * Como cada métrica de `METRICAS` aparece no Prometheus da observabilidade local, pela tradução do receptor
+ * Como cada métrica de `METRICS` aparece no Prometheus da observabilidade local, pela tradução do receptor
  * OTLP dele: ponto vira sublinhado, contador ganha `_total`, unidade `s` ganha `_seconds`, e o histograma
  * sai em `_bucket`, `_count` e `_sum`. É o nome que o painel e os alertas consultam.
  */
@@ -95,4 +95,4 @@ export const NOMES_NO_PROMETHEUS = {
   horasDoIncidenteSemConfirmacao: ['incidente_horas_sem_confirmacao'],
   horasDoArquivoEmPreparacao: ['arquivo_horas_em_preparacao'],
   horasDaEliminacaoVencida: ['eliminacao_horas_vencida'],
-} as const satisfies Record<keyof typeof METRICAS, readonly string[]>
+} as const satisfies Record<keyof typeof METRICS, readonly string[]>

@@ -1,4 +1,4 @@
-import { diaDeUso, ErroDeDominio, RegistroDeAuditoria, relogioDoSistema, resumoDoAnalista, type Banco, type EntradaDoAnalista, type Relogio } from '@educa/nucleo'
+import { diaDeUso, DomainException, AuditoriaRecorder, systemClock, resumoDoAnalista, type Database, type AnalistaInput, type Clock } from '@educa/nucleo'
 import {
   ErrorCode,
   conteudoDoResumoDoAnalistaSchema,
@@ -15,7 +15,7 @@ import type { LimiteDePedidosDeIa } from '../assistente/limite-de-pedidos-de-ia.
 import type { AgendadorDeExecucoes } from '../ia/agendador-de-execucoes.js'
 import { AnalistaRepository } from './analista.repository.js'
 
-const registro = new RegistroDeAuditoria()
+const registro = new AuditoriaRecorder()
 
 /**
  * Abaixo deste acerto a habilidade vira alerta. **Ponto de partida desta fatia, não decisão de produto**: os limiares
@@ -48,10 +48,10 @@ const percentual = (acertos: number, total: number): number => (total === 0 ? 0 
  */
 export class AnalistaService {
   constructor(
-    private readonly banco: Banco,
+    private readonly banco: Database,
     private readonly agendador: AgendadorDeExecucoes,
     private readonly limite: LimiteDePedidosDeIa,
-    private readonly relogio: Relogio = relogioDoSistema,
+    private readonly relogio: Clock = systemClock,
   ) {}
 
   async resumo(): Promise<ResumoDoAnalistaResponse> {
@@ -76,10 +76,10 @@ export class AnalistaService {
   }
 
   /** Os agregados da escola no ano em curso, na forma que a tarefa recebe. Sem professor, sem turma e sem aluno. */
-  async agregados(): Promise<EntradaDoAnalista> {
+  async agregados(): Promise<AnalistaInput> {
     const analista = new AnalistaRepository(this.banco)
     const periodoDoAno = await analista.periodoDoAno()
-    if (periodoDoAno === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+    if (periodoDoAno === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
     const hoje = diaDeUso(this.relogio.agora())
     // Do começo do ano letivo até hoje (ou até o fim dele, se já passou).
     const fim = hoje < periodoDoAno.inicio ? periodoDoAno.inicio : hoje > periodoDoAno.fim ? periodoDoAno.fim : hoje
@@ -92,8 +92,8 @@ export class AnalistaService {
     const acertos = await analista.acertosPorRecorte()
     const descricoes = await analista.descricoesDasHabilidades()
 
-    const recortes: EntradaDoAnalista['recortes'] = []
-    const recortesNominais: EntradaDoAnalista['recortesNominais'] = []
+    const recortes: AnalistaInput['recortes'] = []
+    const recortesNominais: AnalistaInput['recortesNominais'] = []
     for (const recorte of comLotes) {
       const chave = chaveDoRecorte(recorte.serieId, recorte.disciplinaId)
       const identificacao = { serie: { id: recorte.serieId, etapa: recorte.etapa, ano: recorte.ano }, disciplina: { id: recorte.disciplinaId, nome: recorte.disciplina } }
@@ -136,7 +136,7 @@ export class AnalistaService {
       const analista = new AnalistaRepository(tx)
       const turma = await analista.turmaDaEscola(id)
       // A turma de outra escola, de outro ano ou inexistente: a mesma resposta, e nenhuma auditoria.
-      if (turma === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+      if (turma === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
       const professores = await analista.professoresDaTurma(id)
       const lotesAprovados = await analista.lotesAprovadosDaTurma(id)
       const acertos = lotesAprovados === 0 ? [] : await analista.acertosDaTurma(id)

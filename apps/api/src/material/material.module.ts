@@ -1,4 +1,4 @@
-import type { Banco, LoggerBase } from '@educa/nucleo'
+import type { Database, LoggerBase } from '@educa/nucleo'
 import { Global, Module, type BeforeApplicationShutdown, type DynamicModule, type OnApplicationBootstrap } from '@nestjs/common'
 import { BANCO } from '../banco.module.js'
 import { BuscaDeTrechos } from './busca-de-trechos.js'
@@ -54,10 +54,10 @@ export class MaterialModule {
         { provide: FilaDeExtracao, useValue: new FilaDeExtracao() },
         {
           provide: MaterialService,
-          useFactory: (banco: Banco, extrator: ExtratorDePdf, fila: FilaDeExtracao) => new MaterialService({ banco, extrator, fila, logger }),
+          useFactory: (banco: Database, extrator: ExtratorDePdf, fila: FilaDeExtracao) => new MaterialService({ banco, extrator, fila, logger }),
           inject: [BANCO, ExtratorDePdf, FilaDeExtracao],
         },
-        { provide: BuscaDeTrechos, useFactory: (banco: Banco) => new BuscaDeTrechos(banco), inject: [BANCO] },
+        { provide: BuscaDeTrechos, useFactory: (banco: Database) => new BuscaDeTrechos(banco), inject: [BANCO] },
         { provide: CicloDaExtracao, useFactory: (materiais: MaterialService, fila: FilaDeExtracao) => new CicloDaExtracao(materiais, fila), inject: [MaterialService, FilaDeExtracao] },
         GuardaDoEnvio,
       ],

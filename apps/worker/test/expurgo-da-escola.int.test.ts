@@ -1,27 +1,27 @@
 import 'reflect-metadata'
 import {
-  ArmazemEmMemoria,
+  InMemoryFileStorage,
   ArquivoDoTitularRepository,
   CATEGORIAS_DO_EXPURGO,
-  ConfiguracaoOperacional,
-  contextoAtual,
-  ConfiguracaoOperacionalRepository,
-  EscolasDaRotinaRepository,
-  executarNoContexto,
+  OperationalSettings,
+  currentContext,
+  OperationalSettingsRepository,
+  CronEscolasRepository,
+  runInContext,
   ExpurgoDaEscolaRepository,
-  instrucaoDasPessoasDesativadas,
-  instrucaoDoLoteDaEscola,
-  instrucaoDoRegistroDoExpurgo,
+  expurgoDeactivatedPeopleStatement,
+  expurgoSchoolBatchStatement,
+  expurgoRecordStatement,
   LIMITE_DE_ELIMINACOES_ENFILEIRADAS_POR_NOITE,
   LOTE_DO_EXPURGO,
   resolverJanela,
   RetencaoDaEscolaRepository,
   type AlvoDoExpurgoDaEscola,
-  type ArmazemDeArquivos,
+  type FileStorage,
   type CategoriaDoExpurgo,
   type JanelaLetiva,
   type PrazoDoLote,
-  type Relogio,
+  type Clock,
 } from '@educa/nucleo'
 import { AUTOR_DA_ROTINA, CATEGORIAS_DE_RETENCAO, CHAVES_DE_RETENCAO, JobFailureCode, TIPO_EXPURGAR_ESCOLA } from '@educa/shared'
 import { PgDialect } from 'drizzle-orm/pg-core'
@@ -65,7 +65,7 @@ const QUINTA_1H = new Date('2026-10-08T01:00:00-03:00')
 const FUSO = 'America/Sao_Paulo'
 
 /** Um relógio que o teste avança. */
-function relogioEm(inicio: Date): Relogio & { atual: Date } {
+function relogioEm(inicio: Date): Clock & { atual: Date } {
   const relogio = { atual: inicio, agora: () => relogio.atual }
   return relogio
 }
@@ -531,13 +531,13 @@ describe('retencao.expurgar-escola e sistema.expurgar-dado-pessoal', () => {
   }
 
   /** O horário letivo da escola do contexto, lido como o worker-lote lê. */
-  const janelaDaEscola = () => new ConfiguracaoOperacional<JanelaLetiva>(new ConfiguracaoOperacionalRepository(bancada.banco), (linha) => resolverJanela(janelaPadraoDoAmbiente(), linha))
+  const janelaDaEscola = () => new OperationalSettings<JanelaLetiva>(new OperationalSettingsRepository(bancada.banco), (linha) => resolverJanela(janelaPadraoDoAmbiente(), linha))
 
-  function expurgo(relogio: Relogio, opcoes: { lote?: number; repositorio?: ExpurgoDaEscolaRepository; armazem?: ArmazemDeArquivos } = {}): Processador {
+  function expurgo(relogio: Clock, opcoes: { lote?: number; repositorio?: ExpurgoDaEscolaRepository; armazem?: FileStorage } = {}): Processador {
     return criarExpurgoDaEscola({
       repositorio: opcoes.repositorio ?? new ExpurgoDaEscolaRepository(bancada.banco),
       arquivos: new ArquivoDoTitularRepository(bancada.banco),
-      armazem: opcoes.armazem ?? new ArmazemEmMemoria(),
+      armazem: opcoes.armazem ?? new InMemoryFileStorage(),
       retencao: new RetencaoDaEscolaRepository(bancada.banco),
       janelaDaEscola: janelaDaEscola(),
       enfileirador: bancada.enfileirador,
@@ -549,10 +549,10 @@ describe('retencao.expurgar-escola e sistema.expurgar-dado-pessoal', () => {
 
   function rodar(escolaId: string, processador: Processador): Promise<void> {
     const jobId = randomUUID()
-    return executarNoContexto({ requisicaoId: randomUUID(), escolaId }, () => processador({}, execucaoDoJob(jobId)))
+    return runInContext({ requisicaoId: randomUUID(), escolaId }, () => processador({}, execucaoDoJob(jobId)))
   }
 
-  function rotina(relogio: Relogio, ids: readonly string[]): Processador {
+  function rotina(relogio: Clock, ids: readonly string[]): Processador {
     return criarRotinaDeExpurgo({
       escolas: { listarIds: () => Promise.resolve([...ids]) },
       banco: bancada.banco,
@@ -565,7 +565,7 @@ describe('retencao.expurgar-escola e sistema.expurgar-dado-pessoal', () => {
 
   function rodarRotina(processador: Processador): Promise<void> {
     const jobId = randomUUID()
-    return executarNoContexto({ requisicaoId: randomUUID(), rotinaDoSistema: true }, () => processador({}, execucaoDoJob(jobId)))
+    return runInContext({ requisicaoId: randomUUID(), rotinaDoSistema: true }, () => processador({}, execucaoDoJob(jobId)))
   }
 
   async function jobsDoExpurgo(escolaId: string): Promise<Array<{ id: string; chave: string; fila: string; prioridade: number; naoUrgente: boolean; estado: string }>> {
@@ -686,7 +686,7 @@ describe('retencao.expurgar-escola e sistema.expurgar-dado-pessoal', () => {
           cliente.release()
         }
       }
-      const lote = await executarNoContexto({ requisicaoId: randomUUID(), escolaId: a.escolaId }, () => repositorio.expurgarLote('thread_agente', { agora: QUARTA_1H, meses: 12, fuso: FUSO }, LOTE_DO_EXPURGO, gravarNaJanela))
+      const lote = await runInContext({ requisicaoId: randomUUID(), escolaId: a.escolaId }, () => repositorio.expurgarLote('thread_agente', { agora: QUARTA_1H, meses: 12, fuso: FUSO }, LOTE_DO_EXPURGO, gravarNaJanela))
       expect(lote).toEqual({ linhas: 0, cheio: false })
       expect(await existe('thread_agente', alvo.threadId)).toBe(true)
       expect(await quantas('mensagem_agente', a.escolaId)).toBe(1)
@@ -812,7 +812,7 @@ describe('retencao.expurgar-escola e sistema.expurgar-dado-pessoal', () => {
       // Meia hora antes de vencer, contado do começo: fica. Contado de qualquer leitura seguinte do relógio, venceria.
       const quaseVencida = await mensagemTutor(a, QUARTA_1H, '12 months - 30 minutes')
       let leituras = 0
-      const andando: Relogio = { agora: () => new Date(QUARTA_1H.getTime() + leituras++ * 60 * 60_000) }
+      const andando: Clock = { agora: () => new Date(QUARTA_1H.getTime() + leituras++ * 60 * 60_000) }
       await rodar(a.escolaId, expurgo(andando))
       expect(await existe('mensagem_tutor', quaseVencida)).toBe(true)
       expect(leituras).toBeGreaterThan(2)
@@ -922,7 +922,7 @@ describe('retencao.expurgar-escola e sistema.expurgar-dado-pessoal', () => {
         await cliente.query('set local enable_sort = off')
         await cliente.query('set local enable_bitmapscan = off')
         const prazo: PrazoDoLote = { agora: QUARTA_1H, meses: 12, fuso: FUSO }
-        const doLote = (alvo: Parameters<typeof instrucaoDoLoteDaEscola>[0]) => instrucaoDoLoteDaEscola(alvo, a.escolaId, prazo, LOTE_DO_EXPURGO)
+        const doLote = (alvo: Parameters<typeof expurgoSchoolBatchStatement>[0]) => expurgoSchoolBatchStatement(alvo, a.escolaId, prazo, LOTE_DO_EXPURGO)
         for (const [alvo, indice, instrucao] of [
           ['mensagem_tutor', 'mensagem_tutor_criada_em_idx', doLote('mensagem_tutor')],
           ['sinal_tutor', 'sinal_tutor_criado_em_idx', doLote('sinal_tutor')],
@@ -938,8 +938,8 @@ describe('retencao.expurgar-escola e sistema.expurgar-dado-pessoal', () => {
           ['reivindicacao', 'reivindicacao_decidida_idx', doLote('reivindicacao')],
           ['material', 'material_excluido_idx', doLote('material')],
           ['vinculo', 'vinculo_encerrado_idx', doLote('vinculo')],
-          ['usuario', 'usuario_desativado_idx', instrucaoDasPessoasDesativadas(a.escolaId, prazo, 100)],
-          ['expurgo_execucao', 'expurgo_execucao_escola_em_idx', instrucaoDoRegistroDoExpurgo(a.escolaId, QUARTA_1H, LOTE_DO_EXPURGO)],
+          ['usuario', 'usuario_desativado_idx', expurgoDeactivatedPeopleStatement(a.escolaId, prazo, 100)],
+          ['expurgo_execucao', 'expurgo_execucao_escola_em_idx', expurgoRecordStatement(a.escolaId, QUARTA_1H, LOTE_DO_EXPURGO)],
         ] as const) {
           const { sql: texto, params } = new PgDialect({ casing: 'snake_case' }).sqlToQuery(instrucao)
           const { rows } = await cliente.query<{ 'QUERY PLAN': Array<{ Plan: NoDoPlano }> }>(`explain (format json) ${texto}`, params)
@@ -990,7 +990,7 @@ describe('retencao.expurgar-escola e sistema.expurgar-dado-pessoal', () => {
         for (const tabela of ['tentativa_atividade', 'ano_letivo', 'atividade_aplicada']) await cliente.query(`analyze ${tabela}`)
         await cliente.query('set local enable_seqscan = off')
         const { sql: texto, params } = new PgDialect({ casing: 'snake_case' }).sqlToQuery(
-          instrucaoDoLoteDaEscola('tentativa_atividade', a.escolaId, { agora: QUARTA_1H, meses: 12, fuso: FUSO }, LOTE_DO_EXPURGO),
+          expurgoSchoolBatchStatement('tentativa_atividade', a.escolaId, { agora: QUARTA_1H, meses: 12, fuso: FUSO }, LOTE_DO_EXPURGO),
         )
         const { rows } = await cliente.query<{ 'QUERY PLAN': Array<{ Plan: NoDoPlano }> }>(`explain (format json) ${texto}`, params)
         const nos = nosDoPlano(rows[0]?.['QUERY PLAN'][0]?.Plan)
@@ -1070,7 +1070,7 @@ describe('retencao.expurgar-escola e sistema.expurgar-dado-pessoal', () => {
     it('[P] a mesma chave ao mesmo tempo dá um job só, e as duas gravações devolvem o mesmo id', async () => {
       const a = await escolaNova()
       const chave = `chave-${randomUUID()}`
-      const gravar = () => executarNoContexto({ requisicaoId: randomUUID(), escolaId: a.escolaId }, () => bancada.banco.transaction((tx) => bancada.enfileirador.enfileirarUmaVez(tx, TIPO_EXPURGAR_ESCOLA, {}, chave)))
+      const gravar = () => runInContext({ requisicaoId: randomUUID(), escolaId: a.escolaId }, () => bancada.banco.transaction((tx) => bancada.enfileirador.enfileirarUmaVez(tx, TIPO_EXPURGAR_ESCOLA, {}, chave)))
       // A primeira para depois de inserir, sem confirmar; a segunda chega e espera no índice único; só então a primeira segue.
       const gatilho = new GatilhoDeParada(bancada.pool, { tabela: 'job_registro', evento: 'insert', quando: `new.chave_idempotencia = '${chave}'` })
       await gatilho.armar()
@@ -1090,13 +1090,13 @@ describe('retencao.expurgar-escola e sistema.expurgar-dado-pessoal', () => {
       const a = await escolaNova()
       const chave = `chave-${randomUUID()}`
       const linha = { tipo: TIPO_EXPURGAR_ESCOLA, fila: 'lote' as const, prioridade: 3, naoUrgente: true, dados: {} }
-      const noContexto = <T>(funcao: () => Promise<T>) => executarNoContexto({ requisicaoId: randomUUID(), escolaId: a.escolaId }, funcao)
+      const noContexto = <T>(funcao: () => Promise<T>) => runInContext({ requisicaoId: randomUUID(), escolaId: a.escolaId }, funcao)
       // Três jobs pendentes que só diferem do da chave numa coisa: a chave, o tipo ou a escola. A leitura da colisão não
       // pode devolver nenhum deles.
       const b = await escolaNova()
       await noContexto(() => bancada.banco.transaction((tx) => bancada.registro.inserirUmaVez(tx, linha, `outra-${chave}`)))
       await noContexto(() => bancada.banco.transaction((tx) => bancada.registro.inserirUmaVez(tx, { ...linha, tipo: 'retencao.outro-tipo' }, chave)))
-      await executarNoContexto({ requisicaoId: randomUUID(), escolaId: b.escolaId }, () => bancada.banco.transaction((tx) => bancada.registro.inserirUmaVez(tx, linha, chave)))
+      await runInContext({ requisicaoId: randomUUID(), escolaId: b.escolaId }, () => bancada.banco.transaction((tx) => bancada.registro.inserirUmaVez(tx, linha, chave)))
       const primeiro = await noContexto(() => bancada.banco.transaction((tx) => bancada.registro.inserirUmaVez(tx, linha, chave)))
       if (primeiro.situacao !== 'enfileirado') throw new Error('o primeiro job deveria ter entrado')
       const terminarOPrimeiro = async () => {
@@ -1120,7 +1120,7 @@ describe('retencao.expurgar-escola e sistema.expurgar-dado-pessoal', () => {
       })
       try {
         await ouvinte.query('listen job')
-        const gravar = () => executarNoContexto({ requisicaoId: randomUUID(), escolaId: a.escolaId }, () => bancada.banco.transaction((tx) => bancada.enfileirador.enfileirarUmaVez(tx, TIPO_EXPURGAR_ESCOLA, {}, chave)))
+        const gravar = () => runInContext({ requisicaoId: randomUUID(), escolaId: a.escolaId }, () => bancada.banco.transaction((tx) => bancada.enfileirador.enfileirarUmaVez(tx, TIPO_EXPURGAR_ESCOLA, {}, chave)))
         await gravar()
         await expect.poll(() => avisos, { timeout: 5_000, interval: 20 }).toBe(1)
         expect((await gravar()).situacao).toBe('ja_enfileirado')
@@ -1136,17 +1136,17 @@ describe('retencao.expurgar-escola e sistema.expurgar-dado-pessoal', () => {
     it('a chave sem escola é recusada: pelo código, na rotina do sistema, e pelo banco, no insert direto', async () => {
       const linha = { tipo: 'sistema.qualquer-rotina', fila: 'lote' as const, prioridade: 3, naoUrgente: true, dados: {} }
       await expect(
-        executarNoContexto({ requisicaoId: randomUUID(), rotinaDoSistema: true }, () => bancada.banco.transaction((tx) => bancada.registro.inserirUmaVez(tx, linha, 'sem-escola'))),
+        runInContext({ requisicaoId: randomUUID(), rotinaDoSistema: true }, () => bancada.banco.transaction((tx) => bancada.registro.inserirUmaVez(tx, linha, 'sem-escola'))),
       ).rejects.toThrow('chave de idempotência só em job de escola')
       // O job de escola, pedido sem escola no contexto, também é recusado pelo código, antes do banco.
       await expect(
-        executarNoContexto({ requisicaoId: randomUUID(), rotinaDoSistema: true }, () =>
+        runInContext({ requisicaoId: randomUUID(), rotinaDoSistema: true }, () =>
           bancada.banco.transaction((tx) => bancada.registro.inserirUmaVez(tx, { ...linha, tipo: TIPO_EXPURGAR_ESCOLA }, 'sem-escola')),
         ),
       ).rejects.toThrow('chave de idempotência só em job de escola')
       const a = await escolaNova()
       await expect(
-        executarNoContexto({ requisicaoId: randomUUID(), escolaId: a.escolaId }, () => bancada.banco.transaction((tx) => bancada.registro.inserirUmaVez(tx, linha, 'tipo-de-sistema'))),
+        runInContext({ requisicaoId: randomUUID(), escolaId: a.escolaId }, () => bancada.banco.transaction((tx) => bancada.registro.inserirUmaVez(tx, linha, 'tipo-de-sistema'))),
       ).rejects.toThrow('chave de idempotência só em job de escola')
       await expect(
         bancada.pool.query("insert into job_registro (fila, prioridade, tipo, chave_idempotencia) values ('lote', 3, 'sistema.qualquer-rotina', 'sem-escola')"),
@@ -1204,7 +1204,7 @@ describe('retencao.expurgar-escola e sistema.expurgar-dado-pessoal', () => {
 
     it('permissão: a rotina só roda como rotina do sistema, e o job da escola só no contexto de uma escola', async () => {
       const a = await escolaNova()
-      await expect(executarNoContexto({ requisicaoId: randomUUID(), escolaId: a.escolaId }, () => rotina(relogioEm(QUARTA_1H), [a.escolaId])({}, execucaoDoJob('x')))).rejects.toMatchObject({
+      await expect(runInContext({ requisicaoId: randomUUID(), escolaId: a.escolaId }, () => rotina(relogioEm(QUARTA_1H), [a.escolaId])({}, execucaoDoJob('x')))).rejects.toMatchObject({
         name: 'FalhaDeJob',
         codigo: JobFailureCode.DADOS_INVALIDOS,
       })
@@ -1217,7 +1217,7 @@ describe('retencao.expurgar-escola e sistema.expurgar-dado-pessoal', () => {
     it('a lista de escolas da rotina traz as escolas do banco, só pelo id', async () => {
       const a = await escolaNova()
       const b = await escolaNova()
-      const ids = await new EscolasDaRotinaRepository(bancada.banco).listarIds()
+      const ids = await new CronEscolasRepository(bancada.banco).listarIds()
       expect(ids).toEqual(expect.arrayContaining([a.escolaId, b.escolaId]))
       expect(ids.every((id) => typeof id === 'string' && /^[0-9a-f-]{36}$/.test(id))).toBe(true)
     })
@@ -1238,7 +1238,7 @@ describe('retencao.expurgar-escola e sistema.expurgar-dado-pessoal', () => {
       const outraRecente = await semear('14 months')
       const travada = await semear('30 months')
       const repositorio = new ExpurgoDaEscolaRepository(bancada.banco)
-      const lote = () => executarNoContexto({ requisicaoId: randomUUID(), escolaId: a.escolaId }, () => repositorio.expurgarLote(alvo, { agora: QUARTA_1H, meses: 12, fuso: FUSO }, 1))
+      const lote = () => runInContext({ requisicaoId: randomUUID(), escolaId: a.escolaId }, () => repositorio.expurgarLote(alvo, { agora: QUARTA_1H, meses: 12, fuso: FUSO }, 1))
       // Outra transação segura a mais antiga de todas: sem `skip locked`, o lote esperaria por ela até o prazo da instrução.
       const outra = await bancada.pool.connect()
       try {
@@ -1268,7 +1268,7 @@ describe('retencao.expurgar-escola e sistema.expurgar-dado-pessoal', () => {
       // B tem linhas vencidas mais antigas que as de A: o lote de A, que desce pela idade, não pode escolhê-las.
       for (let indice = 0; indice < 3; indice += 1) await semear(b, '20 months')
       const repositorio = new ExpurgoDaEscolaRepository(bancada.banco)
-      const lote = () => executarNoContexto({ requisicaoId: randomUUID(), escolaId: a.escolaId }, () => repositorio.expurgarLote(alvo, { agora: QUARTA_1H, meses: 12, fuso: FUSO }, 2))
+      const lote = () => runInContext({ requisicaoId: randomUUID(), escolaId: a.escolaId }, () => repositorio.expurgarLote(alvo, { agora: QUARTA_1H, meses: 12, fuso: FUSO }, 2))
       expect(await lote()).toEqual({ linhas: 2, cheio: true })
       expect(await lote()).toEqual({ linhas: 1, cheio: false })
       expect(await lote()).toEqual({ linhas: 0, cheio: false })
@@ -1279,7 +1279,7 @@ describe('retencao.expurgar-escola e sistema.expurgar-dado-pessoal', () => {
   describe('lote por tabela (tarefa 5.0)', () => {
     const PRAZO = { agora: QUARTA_1H, meses: 12, fuso: FUSO } satisfies PrazoDoLote
     const lote = (escolaId: string, alvo: Exclude<AlvoDoExpurgoDaEscola, 'thread_agente'>, limite: number) =>
-      executarNoContexto({ requisicaoId: randomUUID(), escolaId }, () => new ExpurgoDaEscolaRepository(bancada.banco).expurgarLote(alvo, PRAZO, limite))
+      runInContext({ requisicaoId: randomUUID(), escolaId }, () => new ExpurgoDaEscolaRepository(bancada.banco).expurgarLote(alvo, PRAZO, limite))
 
     /** Uma linha vencida do alvo, na idade pedida (para os alvos de data; o trabalho vai pelo `fim` do ano). */
     async function semear(alvo: 'tentativa_atividade' | 'reivindicacao' | 'material' | 'vinculo', escola: Escola, idade: string): Promise<string> {
@@ -1396,7 +1396,7 @@ describe('retencao.expurgar-escola e sistema.expurgar-dado-pessoal', () => {
     }
 
     const lote = (repositorio: ExpurgoDaEscolaRepository, escolaId: string, alvo: AlvoDoExpurgoDaEscola, limite: number, agora = QUARTA_1H) =>
-      executarNoContexto({ requisicaoId: randomUUID(), escolaId }, () => repositorio.expurgarLote(alvo, { agora, meses: 12, fuso: FUSO }, limite))
+      runInContext({ requisicaoId: randomUUID(), escolaId }, () => repositorio.expurgarLote(alvo, { agora, meses: 12, fuso: FUSO }, limite))
 
     it.each(Object.keys(LER_PESSOA) as AlvoDeAnonimizacao[])(
       '%s: o lote alcança no máximo o limite, diz que veio cheio, o seguinte leva o resto, o que já perdeu a pessoa não é relido, e o de outra escola, mais antigo, fica',
@@ -1626,7 +1626,7 @@ describe('retencao.expurgar-escola e sistema.expurgar-dado-pessoal', () => {
         )
       const governanca = new GovernancaRepository(bancada.banco)
       const soma = () =>
-        executarNoContexto({ requisicaoId: randomUUID(), escolaId: a.escolaId, anoLetivoId: a.anoId }, async () => ({
+        runInContext({ requisicaoId: randomUUID(), escolaId: a.escolaId, anoLetivoId: a.anoId }, async () => ({
           numeros: await governanca.numeros(),
           consumo: await governanca.consumoPorFuncao('2020-01-01', '2030-01-01'),
           trocas: await governanca.trocasComOTutor('2020-01-01', '2030-01-01'),
@@ -1884,7 +1884,7 @@ describe('retencao.expurgar-escola e sistema.expurgar-dado-pessoal', () => {
         expect(await quantas('resposta_atividade', escolaId)).toBe(2 + 20 * lote)
         const repositorio = new ExpurgoDaEscolaRepository(bancada.banco)
         const inicio = performance.now()
-        const doLote = await executarNoContexto({ requisicaoId: randomUUID(), escolaId }, () => repositorio.expurgarLote('tentativa_atividade', { agora: QUARTA_1H, meses: 12, fuso: FUSO }, lote))
+        const doLote = await runInContext({ requisicaoId: randomUUID(), escolaId }, () => repositorio.expurgarLote('tentativa_atividade', { agora: QUARTA_1H, meses: 12, fuso: FUSO }, lote))
         const duracaoMs = performance.now() - inicio
         expect(doLote).toEqual({ linhas: lote, cheio: true })
         expect(duracaoMs).toBeLessThan(2_000)
@@ -2172,7 +2172,7 @@ describe('retencao.expurgar-escola e sistema.expurgar-dado-pessoal', () => {
           if (marcar) await bancada.pool.query('update usuario set eliminacao_agendada_em = now() where id = $1', [agendada])
           else await eliminacaoAgendada(a.escolaId, agendada, { marcar: false })
 
-          const doLote = await executarNoContexto({ requisicaoId: randomUUID(), escolaId: a.escolaId }, () =>
+          const doLote = await runInContext({ requisicaoId: randomUUID(), escolaId: a.escolaId }, () =>
             new ExpurgoDaEscolaRepository(bancada.banco).expurgarLote('usuario', { agora: QUARTA_1H, meses: 60, fuso: FUSO }, 1),
           )
 
@@ -2260,7 +2260,7 @@ describe('retencao.expurgar-escola e sistema.expurgar-dado-pessoal', () => {
           "insert into usuario (escola_id, papel, nome, desativado_em) select $1, 'aluno', 'Aluno desativado ' || n, $2::timestamptz - interval '61 months' - n * interval '1 day' from generate_series(1, 101) as n",
           [a.escolaId, QUARTA_1H.toISOString()],
         )
-        const doLote = await executarNoContexto({ requisicaoId: randomUUID(), escolaId: a.escolaId }, () =>
+        const doLote = await runInContext({ requisicaoId: randomUUID(), escolaId: a.escolaId }, () =>
           new ExpurgoDaEscolaRepository(bancada.banco).expurgarLote('usuario', { agora: QUARTA_1H, meses: 60, fuso: FUSO }, 1_000),
         )
         expect(doLote).toEqual({ linhas: 100, cheio: true })
@@ -2274,7 +2274,7 @@ describe('retencao.expurgar-escola e sistema.expurgar-dado-pessoal', () => {
         const b = await escolaNova()
         const deB = await alunoDesativado(b, QUARTA_1H, '70 months')
         const deA = await alunoDesativado(a, QUARTA_1H, '61 months')
-        const doLote = await executarNoContexto({ requisicaoId: randomUUID(), escolaId: a.escolaId }, () =>
+        const doLote = await runInContext({ requisicaoId: randomUUID(), escolaId: a.escolaId }, () =>
           new ExpurgoDaEscolaRepository(bancada.banco).expurgarLote('usuario', { agora: QUARTA_1H, meses: 60, fuso: FUSO }, 1),
         )
         expect(doLote).toEqual({ linhas: 1, cheio: true })
@@ -2291,7 +2291,7 @@ describe('retencao.expurgar-escola e sistema.expurgar-dado-pessoal', () => {
         try {
           await cliente.query('begin')
           await cliente.query('select 1 from usuario where id = $1 for update', [maisAntiga])
-          const doLote = executarNoContexto({ requisicaoId: randomUUID(), escolaId: a.escolaId }, () =>
+          const doLote = runInContext({ requisicaoId: randomUUID(), escolaId: a.escolaId }, () =>
             new ExpurgoDaEscolaRepository(bancada.banco).expurgarLote('usuario', { agora: QUARTA_1H, meses: 60, fuso: FUSO }, 2),
           )
           await esperarNaTrava(bancada.pool, '%"desativado_em" from "usuario"%no key update%')
@@ -2396,7 +2396,7 @@ describe('retencao.expurgar-escola e sistema.expurgar-dado-pessoal', () => {
         const b = await escolaNova()
         for (let marca = 7001; marca <= 7005; marca += 1) await registro(a.escolaId, marca, `${String(60 + marca - 7000)} months`)
         await registro(b.escolaId, 7001, '70 months')
-        const lote = (limite: number) => executarNoContexto({ requisicaoId: randomUUID(), escolaId: a.escolaId }, () => new ExpurgoDaEscolaRepository(bancada.banco).expurgarRegistroDoExpurgo(QUARTA_1H, limite))
+        const lote = (limite: number) => runInContext({ requisicaoId: randomUUID(), escolaId: a.escolaId }, () => new ExpurgoDaEscolaRepository(bancada.banco).expurgarRegistroDoExpurgo(QUARTA_1H, limite))
         // A 7005 é a mais antiga (65 meses), a 7001, a mais recente (61): o lote de 2 leva a 7005 e a 7004, e pula a travada.
         const outra = await bancada.pool.connect()
         try {
@@ -2480,7 +2480,7 @@ describe('retencao.expurgar-escola e sistema.expurgar-dado-pessoal', () => {
       await inserir('conversa_tutor', true)
       await inserir('sinal_tutor', false)
       const repositorio = new ExpurgoDaEscolaRepository(bancada.banco)
-      const pendente = () => executarNoContexto({ requisicaoId: randomUUID(), escolaId: a.escolaId }, () => repositorio.categoriaPendente())
+      const pendente = () => runInContext({ requisicaoId: randomUUID(), escolaId: a.escolaId }, () => repositorio.categoriaPendente())
       expect(await pendente()).toBe('sinal_tutor')
       // A noite seguinte terminou a pendente: a última linha é `true`, e não há mais pendente.
       await bancada.pool.query("insert into expurgo_execucao (escola_id, categoria, linhas, concluida, em) values ($1, 'sinal_tutor', 0, true, $2)", [a.escolaId, QUINTA_1H.toISOString()])
@@ -2493,7 +2493,7 @@ describe('retencao.expurgar-escola e sistema.expurgar-dado-pessoal', () => {
       // B parou na conversa do professor; A nunca rodou.
       await bancada.pool.query("insert into expurgo_execucao (escola_id, categoria, linhas, concluida, em) values ($1, 'conversa_professor', 3, false, $2)", [b.escolaId, QUARTA_1H.toISOString()])
       const repositorio = new ExpurgoDaEscolaRepository(bancada.banco)
-      const emA = <T>(funcao: () => Promise<T>) => executarNoContexto({ requisicaoId: randomUUID(), escolaId: a.escolaId }, funcao)
+      const emA = <T>(funcao: () => Promise<T>) => runInContext({ requisicaoId: randomUUID(), escolaId: a.escolaId }, funcao)
       expect(await emA(() => repositorio.categoriaPendente())).toBeUndefined()
       expect(await emA(() => repositorio.noitesDoAlerta('America/Sao_Paulo', QUINTA_1H, CATEGORIAS_DO_EXPURGO))).toBeUndefined()
       await rodar(a.escolaId, expurgo(relogioEm(QUINTA_1H)))
@@ -2603,7 +2603,7 @@ describe('retencao.expurgar-escola e sistema.expurgar-dado-pessoal', () => {
       const real = new ExpurgoDaEscolaRepository(bancada.banco)
       // A leitura da escola B falha (o Postgres recusou a consulta dela); a de A segue.
       const falhaEmB: Pick<ExpurgoDaEscolaRepository, 'noitesDoAlerta'> = {
-        noitesDoAlerta: (fuso, agora, categorias) => (contextoAtual()?.escolaId === b.escolaId ? Promise.reject(new Error('banco lento')) : real.noitesDoAlerta(fuso, agora, categorias)),
+        noitesDoAlerta: (fuso, agora, categorias) => (currentContext()?.escolaId === b.escolaId ? Promise.reject(new Error('banco lento')) : real.noitesDoAlerta(fuso, agora, categorias)),
       }
       const medidor = new MedidorDeTeste()
       onTestFinished(() => medidor.encerrar())
@@ -2686,7 +2686,7 @@ describe('retencao.expurgar-escola e sistema.expurgar-dado-pessoal', () => {
      */
     async function arquivoPronto(
       escola: Escola,
-      armazem: ArmazemEmMemoria,
+      armazem: InMemoryFileStorage,
       agora: Date,
       ha: string,
       opcoes: { versao?: 'completa' | 'coordenacao'; apagadoEm?: Date; pedidoId?: string } = {},
@@ -2715,7 +2715,7 @@ describe('retencao.expurgar-escola e sistema.expurgar-dado-pessoal', () => {
     it('com 7 dias o arquivo fica; com 8 saem o objeto e a linha; o de B, com a mesma idade, não é tocado', async () => {
       const a = await escolaNova()
       const b = await escolaNova()
-      const armazem = new ArmazemEmMemoria()
+      const armazem = new InMemoryFileStorage()
       const seteDias = await arquivoPronto(a, armazem, QUARTA_1H, '7 days')
       const oitoDias = await arquivoPronto(a, armazem, QUARTA_1H, '8 days')
       const oitoDiasEmB = await arquivoPronto(b, armazem, QUARTA_1H, '8 days')
@@ -2736,7 +2736,7 @@ describe('retencao.expurgar-escola e sistema.expurgar-dado-pessoal', () => {
 
     it('o arquivo marcado `apagado_em` sai mesmo dentro dos 7 dias, e o que falha ao apagar fica com a linha para a noite seguinte', async () => {
       const a = await escolaNova()
-      const armazem = new ArmazemEmMemoria()
+      const armazem = new InMemoryFileStorage()
       const marcado = await arquivoPronto(a, armazem, QUARTA_1H, '1 day', { apagadoEm: QUARTA_1H })
       const intacto = await arquivoPronto(a, armazem, QUARTA_1H, '1 day')
       armazem.falhaAoApagar = true
@@ -2758,7 +2758,7 @@ describe('retencao.expurgar-escola e sistema.expurgar-dado-pessoal', () => {
 
     it('com o storage fora de vez, nenhum arquivo sai, e o job não falha por causa disso', async () => {
       const a = await escolaNova()
-      const armazem = new ArmazemEmMemoria()
+      const armazem = new InMemoryFileStorage()
       const vencido = await arquivoPronto(a, armazem, QUARTA_1H, '9 days')
       armazem.fora = true
       await rodar(a.escolaId, expurgo(relogioEm(QUARTA_1H), { armazem }))
@@ -2769,7 +2769,7 @@ describe('retencao.expurgar-escola e sistema.expurgar-dado-pessoal', () => {
 
     it('com a janela letiva aberta nenhum arquivo é apagado: o lote não urgente espera a noite', async () => {
       const a = await escolaNova()
-      const armazem = new ArmazemEmMemoria()
+      const armazem = new InMemoryFileStorage()
       const vencido = await arquivoPronto(a, armazem, QUARTA_8H, '9 days')
       await rodar(a.escolaId, expurgo(relogioEm(QUARTA_8H), { armazem }))
       expect(await existe('arquivo_titular', vencido.arquivoId)).toBe(true)
@@ -2778,7 +2778,7 @@ describe('retencao.expurgar-escola e sistema.expurgar-dado-pessoal', () => {
 
     it('mais de um lote de arquivos vencidos: 205 saem na mesma noite, em lotes de 100, e o recente fica', async () => {
       const a = await escolaNova()
-      const armazem = new ArmazemEmMemoria()
+      const armazem = new InMemoryFileStorage()
       const registrador = await professorNovo(a)
       const { rows: pedidos } = await bancada.pool.query<{ id: string }>(
         `insert into pedido_titular (escola_id, titular_id, papel_titular, tipo, solicitante, chegou_em, estado, compartilhamento, registrado_por, chave_envio)
@@ -2803,7 +2803,7 @@ describe('retencao.expurgar-escola e sistema.expurgar-dado-pessoal', () => {
 
     it('[P] dois jobs da mesma escola ao mesmo tempo apagam cada arquivo uma vez, sem erro', async () => {
       const a = await escolaNova()
-      const armazem = new ArmazemEmMemoria()
+      const armazem = new InMemoryFileStorage()
       const vencidos = await Promise.all([1, 2, 3].map(() => arquivoPronto(a, armazem, QUARTA_1H, '10 days')))
       await Promise.all([rodar(a.escolaId, expurgo(relogioEm(QUARTA_1H), { armazem })), rodar(a.escolaId, expurgo(relogioEm(QUARTA_1H), { armazem }))])
       for (const { arquivoId, chave } of vencidos) {
@@ -2995,7 +2995,7 @@ describe('retencao.expurgar-escola e sistema.expurgar-dado-pessoal', () => {
       )
       onTestFinished(() => worker.encerrar())
       bancada.despachante(log, { relogio }).iniciar()
-      const enfileirado = await executarNoContexto({ requisicaoId: randomUUID(), escolaId: a.escolaId }, () =>
+      const enfileirado = await runInContext({ requisicaoId: randomUUID(), escolaId: a.escolaId }, () =>
         bancada.banco.transaction((tx) => bancada.enfileirador.enfileirarUmaVez(tx, TIPO_EXPURGAR_ESCOLA, {}, chaveDaNoite('America/Sao_Paulo', QUARTA_1H))),
       )
       await expect.poll(async () => (await bancada.estado(enfileirado.id ?? ''))?.estado, { timeout: 20_000, interval: 100 }).toBe('concluido')

@@ -1,9 +1,9 @@
-import { type Banco } from '@educa/nucleo'
+import { type Database } from '@educa/nucleo'
 import { aluno } from './tabelas.js'
 
 // O acessor (`get` e `set`) também é público.
 export class AcessorRepository {
-  constructor(private readonly banco: Banco) {}
+  constructor(private readonly banco: Database) {}
 
   get todos() { // reprova: sem-prova-de-escopo
     return this.banco.select().from(aluno)

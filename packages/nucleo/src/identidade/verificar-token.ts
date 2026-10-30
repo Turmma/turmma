@@ -1,11 +1,11 @@
 import { ErrorCode } from '@educa/shared'
 import { decodeProtectedHeader, errors, jwtVerify } from 'jose'
 import { z } from 'zod'
-import { EMISSOR_TOKEN, type ConfiguracaoIdentidade } from '../config/validar-config.js'
-import { ErroDeDominio } from '../erro/erro-de-dominio.js'
+import { EMISSOR_TOKEN, type AuthConfig } from '../config/validar-config.js'
+import { DomainException } from '../erro/erro-de-dominio.js'
 
 /** Quem fez a requisição. Só ids: o token não carrega nome, papel nem nada da pessoa (regra 20). */
-export interface Identidade {
+export interface Identity {
   readonly escolaId: string
   readonly usuarioId: string
 }
@@ -15,16 +15,16 @@ declare const MARCA_DO_TOKEN_VERIFICADO: unique symbol
 
 /**
  * O que um JWT com assinatura, emissor, tipo e prazo conferidos diz: a escola, o usuário e a sessão. Só o
- * `verificarToken` produz este tipo, e é só com ele que a guarda lê a sessão: nenhum id que o cliente mande em
+ * `verifyToken` produz este tipo, e é só com ele que a guarda lê a sessão: nenhum id que o cliente mande em
  * query, corpo ou cabeçalho vira escopo (regra 10, item 3).
  *
  * Verificado não quer dizer válido: a sessão ainda pode estar encerrada, ou o usuário desativado. Quem decide é a
- * `GuardaDeSessao`, que lê a sessão por `(escolaId, sessaoId)`.
+ * `SessaoGuard`, que lê a sessão por `(escolaId, sessaoId)`.
  */
-export interface TokenVerificado extends Identidade {
+export interface VerifiedToken extends Identity {
   readonly sessaoId: string
   /**
-   * O `iat` do token, em segundos. A `GuardaDeSessao` o compara com `sessao.rotacionado_em` para saber se o token é o
+   * O `iat` do token, em segundos. A `SessaoGuard` o compara com `sessao.rotacionado_em` para saber se o token é o
    * que a última renovação emitiu (Tech Spec, seção 5, "Renovar"). Ausente num token sem `iat`, que nunca conta.
    */
   readonly emitidoEm?: number
@@ -54,8 +54,8 @@ const esquemaClaims = z.object({
 })
 
 /** Toda recusa é a mesma: quem manda um token meio válido não descobre qual parte falhou. */
-function naoAutenticado(): ErroDeDominio {
-  return new ErroDeDominio(ErrorCode.NAO_AUTENTICADO)
+function naoAutenticado(): DomainException {
+  return new DomainException(ErrorCode.NAO_AUTENTICADO)
 }
 
 /**
@@ -70,7 +70,7 @@ function naoAutenticado(): ErroDeDominio {
  * Os ids saem em minúsculas: a mesma escola escrita com letra maiúscula não pode virar outra
  * chave de limite, de sessão ou de sala mais adiante.
  */
-export async function verificarToken(token: string, config: ConfiguracaoIdentidade): Promise<TokenVerificado> {
+export async function verifyToken(token: string, config: AuthConfig): Promise<VerifiedToken> {
   let claims: unknown
   try {
     const verificado = await jwtVerify(token, config.chaveAssinatura, {
@@ -93,14 +93,14 @@ export async function verificarToken(token: string, config: ConfiguracaoIdentida
     sessaoId: resultado.data.sid.toLowerCase(),
     ...(resultado.data.iat === undefined ? {} : { emitidoEm: resultado.data.iat }),
   }
-  return ids as TokenVerificado
+  return ids as VerifiedToken
 }
 
 // Três partes base64url. Nada além disso é lido do cabeçalho.
 const FORMATO_BEARER = /^Bearer ([A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)$/i
 
 /** Tira o token do cabeçalho `Authorization: Bearer <token>`, ou recusa com `NAO_AUTENTICADO`. */
-export function extrairTokenBearer(cabecalho: string | string[] | undefined): string {
+export function extractBearerToken(cabecalho: string | string[] | undefined): string {
   const token = typeof cabecalho === 'string' ? FORMATO_BEARER.exec(cabecalho)?.[1] : undefined
   if (token === undefined) throw naoAutenticado()
   return token
@@ -108,7 +108,7 @@ export function extrairTokenBearer(cabecalho: string | string[] | undefined): st
 
 /**
  * O `typ` do token de acesso do operador Turmma (Tech Spec da A0, seção 1): o JWT de 10 min da área da operação, sem
- * `esc`. O `verificarToken` da escola o recusa pelo `typ`, e a `GuardaDeAutenticacao` responde a ele, numa rota de
+ * `esc`. O `verifyToken` da escola o recusa pelo `typ`, e a `AuthGuard` responde a ele, numa rota de
  * escola, igual a uma rota inexistente.
  */
 export const TIPO_TOKEN_DE_OPERADOR = 'operador+jwt'
@@ -116,8 +116,8 @@ export const TIPO_TOKEN_DE_OPERADOR = 'operador+jwt'
 /**
  * O `typ` do desafio do operador (Tech Spec da A0, seção 4): o JWT de 5 min que leva do aceite do convite, e da entrada
  * por e-mail, ao segundo fator, sem sessão. Só as rotas de entrada da operação o aceitam, e só no corpo da etapa dela;
- * como bearer, ele não vale em rota nenhuma: o `verificarToken` da escola e o `verificarTokenDeOperador` o recusam pelo
- * `typ`, e a `GuardaDeAutenticacao` responde a ele, numa rota de escola, igual a uma rota inexistente (C21, C47).
+ * como bearer, ele não vale em rota nenhuma: o `verifyToken` da escola e o `verifyOperadorToken` o recusam pelo
+ * `typ`, e a `AuthGuard` responde a ele, numa rota de escola, igual a uma rota inexistente (C21, C47).
  */
 export const TIPO_DESAFIO_DE_OPERADOR = 'desafio-operador+jwt'
 
@@ -126,20 +126,20 @@ declare const MARCA_DO_TOKEN_DE_OPERADOR: unique symbol
 
 /**
  * O que um token de operador com assinatura, emissor, `typ` e claims conferidos diz: o operador e a sessão dele, e se
- * o prazo de 10 min já passou. Só o `verificarTokenDeOperador` produz este tipo.
+ * o prazo de 10 min já passou. Só o `verifyOperadorToken` produz este tipo.
  *
  * Vencido não quer dizer recusado: a `GuardaDeOperador` lê a sessão e responde `ACESSO_VENCIDO` quando ela está viva
  * (a web renova) e `SESSAO_ENCERRADA` quando não está. O limite `rl:op` também conta o vencido, porque ele também
  * chega ao Postgres.
  */
-export interface TokenDeOperadorVerificado {
+export interface VerifiedOperadorToken {
   readonly operadorId: string
   readonly sessaoId: string
   readonly vencido: boolean
   readonly [MARCA_DO_TOKEN_DE_OPERADOR]: true
 }
 
-const esquemaClaimsDeOperador = z.object({
+const claimsDeOperadorSchema = z.object({
   sub: z.uuid(),
   sid: z.uuid(),
   exp: z.number(),
@@ -148,7 +148,7 @@ const esquemaClaimsDeOperador = z.object({
   esc: z.never().optional(),
 })
 
-async function claimsDeOperador(token: string, config: ConfiguracaoIdentidade, currentDate?: Date): Promise<unknown> {
+async function claimsDeOperador(token: string, config: AuthConfig, currentDate?: Date): Promise<unknown> {
   const verificado = await jwtVerify(token, config.chaveAssinatura, {
     algorithms: [ALGORITMO_TOKEN],
     typ: TIPO_TOKEN_DE_OPERADOR,
@@ -168,7 +168,7 @@ async function claimsDeOperador(token: string, config: ConfiguracaoIdentidade, c
  * O vencido é conferido de novo inteiro na véspera do `exp`: só é "vencido" o token em que **tudo o mais** confere, e
  * nenhuma outra falha se esconde atrás do prazo.
  */
-export async function verificarTokenDeOperador(token: string, config: ConfiguracaoIdentidade): Promise<TokenDeOperadorVerificado> {
+export async function verifyOperadorToken(token: string, config: AuthConfig): Promise<VerifiedOperadorToken> {
   let claims: unknown
   let vencido = false
   try {
@@ -188,11 +188,11 @@ export async function verificarTokenDeOperador(token: string, config: Configurac
       throw erro
     }
   }
-  const resultado = esquemaClaimsDeOperador.safeParse(claims)
+  const resultado = claimsDeOperadorSchema.safeParse(claims)
   if (!resultado.success) throw naoAutenticado()
   if (resultado.data.exp - Date.now() / 1000 > VALIDADE_MAXIMA_TOKEN_SEGUNDOS) throw naoAutenticado()
   const verificado = { operadorId: resultado.data.sub.toLowerCase(), sessaoId: resultado.data.sid.toLowerCase(), vencido }
-  return verificado as TokenDeOperadorVerificado
+  return verificado as VerifiedOperadorToken
 }
 
 /** Os `typ` da área da operação: o token de acesso e o desafio do operador. */
@@ -202,9 +202,9 @@ const TIPOS_DA_OPERACAO: readonly unknown[] = [TIPO_TOKEN_DE_OPERADOR, TIPO_DESA
  * Se o bearer do cabeçalho diz, no cabeçalho do JWT, ser uma credencial da operação: o token de acesso ou o desafio do
  * operador. Não verifica nada: só separa o caminho.
  */
-export function bearerDeOperador(cabecalho: string | string[] | undefined): boolean {
+export function operadorBearer(cabecalho: string | string[] | undefined): boolean {
   try {
-    return TIPOS_DA_OPERACAO.includes(decodeProtectedHeader(extrairTokenBearer(cabecalho)).typ)
+    return TIPOS_DA_OPERACAO.includes(decodeProtectedHeader(extractBearerToken(cabecalho)).typ)
   } catch {
     return false
   }
@@ -218,10 +218,10 @@ export const COOKIE_SESSAO_DE_OPERADOR = 'turmma_operacao'
 
 /**
  * Se o cabeçalho `Cookie` traz o cookie de sessão do operador. Não confere o valor: só separa o caminho, como o
- * `bearerDeOperador`. O cookie de dispositivo do operador (`turmma_operacao_dispositivo`) não conta: ele não é
+ * `operadorBearer`. O cookie de dispositivo do operador (`turmma_operacao_dispositivo`) não conta: ele não é
  * credencial de nada.
  */
-export function cookieDeOperador(cabecalho: string | undefined): boolean {
+export function operadorCookie(cabecalho: string | undefined): boolean {
   if (cabecalho === undefined) return false
   return cabecalho.split(';').some((parte) => {
     const igual = parte.indexOf('=')

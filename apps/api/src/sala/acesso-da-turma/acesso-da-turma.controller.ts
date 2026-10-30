@@ -1,4 +1,4 @@
-import { IdPipe, Permite, ZodValidationPipe } from '@educa/nucleo'
+import { IdPipe, RequirePermissao, ZodValidationPipe } from '@educa/nucleo'
 import { gerarAcessoRequestSchema, revogarAcessoRequestSchema, type GerarAcessoRequest, type AcessoDaTurmaResponse, type AcessoGeradoResponse } from '@educa/shared'
 import { Body, Controller, Get, Header, HttpCode, HttpStatus, Param, Post } from '@nestjs/common'
 import type { z } from 'zod'
@@ -19,21 +19,21 @@ export class AcessoDaTurmaController {
   constructor(private readonly acessos: AcessoDaTurmaService) {}
 
   @Post()
-  @Permite('acesso_turma', 'gerar')
+  @RequirePermissao('acesso_turma', 'gerar')
   @Header('Cache-Control', 'no-store')
   gerar(@Param('id', IdPipe) turmaId: string, @Body(new ZodValidationPipe(gerarAcessoRequestSchema)) pedido: GerarAcessoRequest): Promise<AcessoGeradoResponse> {
     return this.acessos.gerar(turmaId, pedido)
   }
 
   @Get()
-  @Permite('acesso_turma', 'ler')
+  @RequirePermissao('acesso_turma', 'ler')
   @Header('Cache-Control', 'no-store')
   ler(@Param('id', IdPipe) turmaId: string): Promise<AcessoDaTurmaResponse> {
     return this.acessos.ler(turmaId)
   }
 
   @Post('revogar')
-  @Permite('acesso_turma', 'revogar')
+  @RequirePermissao('acesso_turma', 'revogar')
   @HttpCode(HttpStatus.NO_CONTENT)
   revogar(@Param('id', IdPipe) turmaId: string, @Body(new ZodValidationPipe(esquemaSemCorpo)) _corpo: PedidoSemCorpo): Promise<void> {
     return this.acessos.revogar(turmaId)

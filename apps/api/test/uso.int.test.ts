@@ -1,5 +1,5 @@
 import 'reflect-metadata'
-import { criarLogger, diaDeUso } from '@educa/nucleo'
+import { createLogger, diaDeUso } from '@educa/nucleo'
 import type { INestApplication } from '@nestjs/common'
 import { NestFactory } from '@nestjs/core'
 import { Redis } from 'ioredis'
@@ -22,7 +22,7 @@ redis.on('error', () => undefined)
 
 async function subirApi(ambiente: Record<string, string> = {}): Promise<string> {
   const app = await NestFactory.create(AppModule.com(configuracaoDeTeste({ ambiente }), MONTAGEM_DE_TESTE), { logger: false })
-  configurarAplicacao(app, criarLogger({ servico: 'api-teste', nivel: 'silent' }))
+  configurarAplicacao(app, createLogger({ servico: 'api-teste', nivel: 'silent' }))
   await app.listen(0, '127.0.0.1')
   apps.push(app)
   return `http://127.0.0.1:${(app.getHttpServer().address() as AddressInfo).port}`

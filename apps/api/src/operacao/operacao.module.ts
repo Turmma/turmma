@@ -1,4 +1,4 @@
-import { EmissorDeTokenDeOperador, medidorGlobal, type Banco, type ConfiguracaoIdentidade, type Meter } from '@educa/nucleo'
+import { OperadorTokenIssuer, globalMeter, type Database, type AuthConfig, type Meter } from '@educa/nucleo'
 import { Module, type DynamicModule } from '@nestjs/common'
 import type { Redis } from 'ioredis'
 import { BANCO } from '../banco.module.js'
@@ -40,23 +40,23 @@ export interface OpcoesDoModuloDaOperacao {
  */
 @Module({})
 export class OperacaoModule {
-  static com(identidade: ConfiguracaoIdentidade, opcoes: OpcoesDoModuloDaOperacao): DynamicModule {
+  static com(identidade: AuthConfig, opcoes: OpcoesDoModuloDaOperacao): DynamicModule {
     return {
       module: OperacaoModule,
       controllers: [EuDoOperadorController, ConviteDeOperadorController, EntradaDoOperadorController, SegundoFatorDoOperadorController, SessaoDoOperadorController, PainelController],
       providers: [
         ...provedoresDaGuardaDeOperador(identidade),
         // Uma série só para as duas etapas da entrada, criada uma vez.
-        { provide: FalhasDeEntradaDaOperacao, useFactory: () => new FalhasDeEntradaDaOperacao(opcoes.medidor ?? medidorGlobal()) },
+        { provide: FalhasDeEntradaDaOperacao, useFactory: () => new FalhasDeEntradaDaOperacao(opcoes.medidor ?? globalMeter()) },
         {
           provide: ConviteDeOperadorService,
-          useFactory: (banco: Banco, hash: HashDeSenha, semaforo: SemaforoDeHash) =>
+          useFactory: (banco: Database, hash: HashDeSenha, semaforo: SemaforoDeHash) =>
             new ConviteDeOperadorService({ banco, hash, semaforo, emissorDeDesafio: new EmissorDeDesafioDeOperador(identidade.chaveAssinatura) }),
           inject: [BANCO, HashDeSenha, SemaforoDeHash],
         },
         {
           provide: EntradaDoOperadorService,
-          useFactory: (banco: Banco, hash: HashDeSenha, semaforo: SemaforoDeHash, contador: ContadorDeTentativas, falhas: FalhasDeEntradaDaOperacao) =>
+          useFactory: (banco: Database, hash: HashDeSenha, semaforo: SemaforoDeHash, contador: ContadorDeTentativas, falhas: FalhasDeEntradaDaOperacao) =>
             new EntradaDoOperadorService({
               banco,
               hash,
@@ -72,7 +72,7 @@ export class OperacaoModule {
         { provide: ConsumoDeDesafioDeOperador, useFactory: (cliente: Redis) => new ConsumoDeDesafioDeOperador(cliente), inject: [CLIENTE_REDIS_LOGIN] },
         {
           provide: SegundoFatorDoOperadorService,
-          useFactory: (banco: Banco, contador: ContadorDeTentativas, consumo: ConsumoDeDesafioDeOperador, falhas: FalhasDeEntradaDaOperacao) =>
+          useFactory: (banco: Database, contador: ContadorDeTentativas, consumo: ConsumoDeDesafioDeOperador, falhas: FalhasDeEntradaDaOperacao) =>
             new SegundoFatorDoOperadorService({
               banco,
               cifra: new CifraDoSegredo(opcoes.mfa.versaoCifra, opcoes.mfa.chavesCifra),
@@ -82,7 +82,7 @@ export class OperacaoModule {
               contador,
               dispositivo: cookieDeDispositivoDeOperador(opcoes.dispositivo),
               emissorDeDesafio: new EmissorDeDesafioDeOperador(identidade.chaveAssinatura),
-              emissorDeToken: new EmissorDeTokenDeOperador(identidade.chaveAssinatura),
+              emissorDeToken: new OperadorTokenIssuer(identidade.chaveAssinatura),
               ambiente: identidade.ambiente,
               falhas,
             }),
@@ -90,11 +90,11 @@ export class OperacaoModule {
         },
         {
           provide: SessaoDoOperadorService,
-          useFactory: (banco: Banco) => new SessaoDoOperadorService({ banco, emissorDeToken: new EmissorDeTokenDeOperador(identidade.chaveAssinatura), ambiente: identidade.ambiente }),
+          useFactory: (banco: Database) => new SessaoDoOperadorService({ banco, emissorDeToken: new OperadorTokenIssuer(identidade.chaveAssinatura), ambiente: identidade.ambiente }),
           inject: [BANCO],
         },
-        { provide: EuDoOperadorService, useFactory: (banco: Banco) => new EuDoOperadorService(new OperadorRepository(banco)), inject: [BANCO] },
-        { provide: PainelService, useFactory: (banco: Banco) => new PainelService(banco), inject: [BANCO] },
+        { provide: EuDoOperadorService, useFactory: (banco: Database) => new EuDoOperadorService(new OperadorRepository(banco)), inject: [BANCO] },
+        { provide: PainelService, useFactory: (banco: Database) => new PainelService(banco), inject: [BANCO] },
       ],
     }
   }

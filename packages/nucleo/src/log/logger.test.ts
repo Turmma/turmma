@@ -1,16 +1,16 @@
 import pg from 'pg'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { executarNoContexto } from '../contexto/contexto.js'
-import { LoggerDoNest, TEXTO_MENSAGEM_OMITIDA } from './logger-do-nest.js'
+import { runInContext } from '../contexto/contexto.js'
+import { NestLogger, TEXTO_MENSAGEM_OMITIDA } from './logger-do-nest.js'
 import {
   CHAVES_DE_CREDENCIAL,
   CHAVES_DE_IDENTIDADE,
   CHAVES_PESSOAIS,
-  criarLogger,
+  createLogger,
   TEXTO_OMITIDO_POR_PROFUNDIDADE,
   TEXTO_REMOVIDO,
   TEXTO_TOJSON_FALHOU,
-  tratadorDeErroDoProcesso,
+  processErrorHandler,
 } from './logger.js'
 
 function erroDeUnicidade(): pg.DatabaseError {
@@ -31,7 +31,7 @@ const INSTANTE_COLIDENTE = '2026-09-22T01:45:37.569Z'
 
 function loggerCapturado() {
   const linhas: string[] = []
-  const logger = criarLogger({ servico: 'teste', nivel: 'trace', destino: { write: (linha: string) => linhas.push(linha) } })
+  const logger = createLogger({ servico: 'teste', nivel: 'trace', destino: { write: (linha: string) => linhas.push(linha) } })
   const registros = () => linhas.map((linha) => JSON.parse(linha) as Record<string, unknown>)
   /**
    * As linhas cruas com o **valor** de `time` substituído, e só ele.
@@ -55,7 +55,7 @@ function loggerCapturado() {
 }
 
 // Devolve o relógio real mesmo quando o caso falha no meio, e no nível do arquivo para valer também
-// para `LoggerDoNest` e `tratadorDeErroDoProcesso`: relógio parado vazando entre casos seria defeito
+// para `NestLogger` e `processErrorHandler`: relógio parado vazando entre casos seria defeito
 // bem pior que o que esta correção conserta.
 //
 // O `afterEach` de arquivo é o **último** a rodar (o Vitest recorre ao pai depois do filho). Se algum
@@ -174,7 +174,7 @@ describe('criarLogger', () => {
   it('põe requisicaoId, escolaId e usuarioId do contexto em toda linha, e nada fora de uma requisição', () => {
     const { logger, registros } = loggerCapturado()
     logger.info('boot')
-    executarNoContexto({ requisicaoId: 'r-1', escolaId: 'e-1', usuarioId: 'u-1' }, () => {
+    runInContext({ requisicaoId: 'r-1', escolaId: 'e-1', usuarioId: 'u-1' }, () => {
       logger.warn({ evento: 'teste' })
     })
     const [boot, dentro] = registros()
@@ -185,7 +185,7 @@ describe('criarLogger', () => {
 
   it('põe o operadorId do contexto da operação (A0b, tarefa 9.0), sem escola nem usuário', () => {
     const { logger, registros } = loggerCapturado()
-    executarNoContexto({ requisicaoId: 'r-2', operadorId: 'o-1' }, () => {
+    runInContext({ requisicaoId: 'r-2', operadorId: 'o-1' }, () => {
       logger.warn({ evento: 'teste' })
     })
     const [linha] = registros()
@@ -297,7 +297,7 @@ describe('criarLogger', () => {
 describe('LoggerDoNest', () => {
   it('escreve o log interno do Nest em JSON, com a origem e sem a pilha que repete a mensagem', () => {
     const { logger, linhas, registros } = loggerCapturado()
-    const nest = new LoggerDoNest(logger)
+    const nest = new NestLogger(logger)
     nest.log('Nest application successfully started', 'NestApplication')
     nest.error('falhou com Enzo Martins', 'Error: falhou com Enzo Martins\n    at algum-lugar.js:1:1', 'ExceptionsHandler')
     nest.error('sem origem', 'Error: Enzo Martins\n    at algum-lugar.js:1:1')
@@ -315,7 +315,7 @@ describe('LoggerDoNest', () => {
 
   it('só deixa sair a mensagem em texto que é evento fixo ou do boot do Nest; as outras saem omitidas', () => {
     const { logger, linhas, registros } = loggerCapturado()
-    const nest = new LoggerDoNest(logger)
+    const nest = new NestLogger(logger)
     nest.log('Mapped {/v1/sistema/estado, GET} route', 'RouterExplorer')
     nest.warn('banco.conexao_ociosa_perdida', 'banco')
     nest.error('Falha ao corrigir a prova de Enzo Martins', 'ExceptionsHandler')
@@ -336,7 +336,7 @@ describe('LoggerDoNest', () => {
 
   it('resume o erro do Postgres passado ao Nest e omite o objeto que não é erro', () => {
     const { logger, linhas, registros } = loggerCapturado()
-    const nest = new LoggerDoNest(logger)
+    const nest = new NestLogger(logger)
     nest.error({ erro: erroDeUnicidade() }, 'banco')
     nest.error(erroDeUnicidade(), 'banco')
     expect(registros()[0]).toMatchObject({ origem: 'banco', msg: TEXTO_MENSAGEM_OMITIDA })
@@ -350,7 +350,7 @@ describe('tratadorDeErroDoProcesso', () => {
   it('registra a rejeição não tratada em JSON, só com o resumo do erro, e encerra com código diferente de zero', () => {
     const { logger, linhas, registros } = loggerCapturado()
     const codigos: number[] = []
-    tratadorDeErroDoProcesso(logger, 'processo.rejeicao_nao_tratada', (codigo) => codigos.push(codigo))(erroDeUnicidade())
+    processErrorHandler(logger, 'processo.rejeicao_nao_tratada', (codigo) => codigos.push(codigo))(erroDeUnicidade())
     expect(registros()[0]).toMatchObject({
       level: 'fatal',
       evento: 'processo.rejeicao_nao_tratada',

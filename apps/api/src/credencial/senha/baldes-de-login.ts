@@ -1,4 +1,4 @@
-import { METRICAS, type Meter } from '@educa/nucleo'
+import { METRICS, type Meter } from '@educa/nucleo'
 /**
  * Os baldes do semáforo do hash de senha (Tech Spec da identidade, seção 5, "Baldes do semáforo, sem revelar
  * existência"). O balde é resolvido antes do semáforo e nunca depende de a credencial existir:
@@ -50,7 +50,7 @@ export function baldeDaEquipe(ip: string, rebaixado = false): BaldeDeLogin {
  * série nasce em 0, para a taxa contar a primeira. O login por matrícula e o por e-mail somam no mesmo contador.
  */
 export function contadorDoRebaixamentoPorIp(medidor: Meter): { contar: () => void } {
-  const contador = medidor.createCounter(METRICAS.rebaixadoPorIp, { description: 'Tentativas de login rebaixadas pelo limite por IP das rotas de login' })
+  const contador = medidor.createCounter(METRICS.rebaixadoPorIp, { description: 'Tentativas de login rebaixadas pelo limite por IP das rotas de login' })
   contador.add(0)
   return { contar: () => contador.add(1) }
 }

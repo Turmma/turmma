@@ -1,4 +1,4 @@
-import { ErroDeDominio, type PoolBanco } from '@educa/nucleo'
+import { DomainException, type DatabasePool } from '@educa/nucleo'
 import { ErrorCode } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -36,7 +36,7 @@ function emAndamento<T>(promessa: Promise<T>): { promessa: Promise<T>; terminou:
 }
 
 /** Espera alguma transação parada numa trava (de linha ou consultiva) com a consulta que casa um dos padrões. */
-async function esperarParadaEm(pool: PoolBanco, ...padroes: string[]): Promise<void> {
+async function esperarParadaEm(pool: DatabasePool, ...padroes: string[]): Promise<void> {
   await aguardar(async () => {
     const { rows } = await pool.query<{ total: number }>(
       `select count(*)::int as total from pg_stat_activity
@@ -221,7 +221,7 @@ describe('ativação por convite sob a trava da escola (E15)', () => {
         await esperarNaTravaDaEscola(cenario.pool, convite.escolaId, 2)
         await soltar()
         esperarAtivou(await chamada, login)
-        expect(await gerar).toBeInstanceOf(ErroDeDominio)
+        expect(await gerar).toBeInstanceOf(DomainException)
         expect(await gerar).toMatchObject({ codigo: ErrorCode.CONFLITO })
       } finally {
         await soltar()
@@ -280,7 +280,7 @@ describe('ativação por convite sob a trava da escola (E15)', () => {
       if (ordem === 'aceite primeiro') {
         // O aceite vence e ativa; o operador lê `ativa` e recebe o CONFLITO da matriz.
         expect(doAceite.corpo).toEqual({ etapa: 'configurar_mfa', desafio: expect.any(String) })
-        expect(doOperador).toBeInstanceOf(ErroDeDominio)
+        expect(doOperador).toBeInstanceOf(DomainException)
         expect(doOperador).toMatchObject({ codigo: ErrorCode.CONFLITO })
         expect(await cenario.estado(convite.escolaId)).toBe('ativa')
         expect(await cenario.ativo(convite.usuarioId)).toBe(true)

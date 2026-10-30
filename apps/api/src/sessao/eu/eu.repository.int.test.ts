@@ -1,4 +1,4 @@
-import { executarNoContexto } from '@educa/nucleo'
+import { runInContext } from '@educa/nucleo'
 import { randomUUID } from 'node:crypto'
 import { afterAll, describe, expect, it } from 'vitest'
 import { BancadaDeSessoes } from '../../../test/sessao-de-teste.js'
@@ -16,9 +16,9 @@ describe('repositories do login com escopo: a escola vem do contexto', () => {
     const professorEmA = await bancada.escolaComSessao('professor')
     const escolaB = await bancada.escola()
     const repositorio = new EuRepository(bancada.banco)
-    const naPropria = await executarNoContexto({ requisicaoId: randomUUID(), escolaId: professorEmA.escolaId, usuarioId: professorEmA.usuarioId }, () => repositorio.doContexto())
+    const naPropria = await runInContext({ requisicaoId: randomUUID(), escolaId: professorEmA.escolaId, usuarioId: professorEmA.usuarioId }, () => repositorio.doContexto())
     expect(naPropria).toMatchObject({ usuarioId: professorEmA.usuarioId, papel: 'professor', escola: { id: professorEmA.escolaId } })
-    const naOutra = await executarNoContexto({ requisicaoId: randomUUID(), escolaId: escolaB, usuarioId: professorEmA.usuarioId }, () => repositorio.doContexto())
+    const naOutra = await runInContext({ requisicaoId: randomUUID(), escolaId: escolaB, usuarioId: professorEmA.usuarioId }, () => repositorio.doContexto())
     expect(naOutra).toBeUndefined()
   })
 
@@ -29,27 +29,27 @@ describe('repositories do login com escopo: a escola vem do contexto', () => {
     const repositorio = new EuRepository(bancada.banco)
     const dataDe = async (usuarioId: string) => (await bancada.pool.query<{ d: Date | null }>('select introducao_vista_em as d from usuario where id = $1', [usuarioId])).rows[0]?.d ?? null
 
-    const deOutraEscola = await executarNoContexto({ requisicaoId: randomUUID(), escolaId: escolaB, usuarioId: professorEmA.usuarioId }, () => repositorio.marcarIntroducaoVista())
+    const deOutraEscola = await runInContext({ requisicaoId: randomUUID(), escolaId: escolaB, usuarioId: professorEmA.usuarioId }, () => repositorio.marcarIntroducaoVista())
     expect(deOutraEscola).toBeUndefined()
     expect(await dataDe(professorEmA.usuarioId)).toBeNull()
 
-    const naPropria = await executarNoContexto({ requisicaoId: randomUUID(), escolaId: professorEmA.escolaId, usuarioId: professorEmA.usuarioId }, () => repositorio.marcarIntroducaoVista())
+    const naPropria = await runInContext({ requisicaoId: randomUUID(), escolaId: professorEmA.escolaId, usuarioId: professorEmA.usuarioId }, () => repositorio.marcarIntroducaoVista())
     expect(naPropria).toBeInstanceOf(Date)
     expect((await dataDe(professorEmA.usuarioId))?.getTime()).toBe(naPropria?.getTime())
     expect(await dataDe(colegaEmA.usuarioId)).toBeNull()
-    const lida = await executarNoContexto({ requisicaoId: randomUUID(), escolaId: professorEmA.escolaId, usuarioId: professorEmA.usuarioId }, () => repositorio.doContexto())
+    const lida = await runInContext({ requisicaoId: randomUUID(), escolaId: professorEmA.escolaId, usuarioId: professorEmA.usuarioId }, () => repositorio.doContexto())
     expect(lida?.introducaoVistaEm?.getTime()).toBe(naPropria?.getTime())
   })
 
   it('isolamento: o registro de acesso do login grava na escola do contexto, e sem escola no contexto não grava', async () => {
     const professor = await bancada.escolaComSessao('professor')
-    await executarNoContexto({ requisicaoId: randomUUID(), escolaId: professor.escolaId }, () =>
+    await runInContext({ requisicaoId: randomUUID(), escolaId: professor.escolaId }, () =>
       bancada.banco.transaction((tx) => new RegistroDeAcessoRepository(tx).gravar('login', professor.usuarioId, '10.1.2.3')),
     )
     const { rows } = await bancada.pool.query<{ escola_id: string; evento: string; ip: string }>('select escola_id, evento, host(ip) as ip from registro_acesso where usuario_id = $1', [professor.usuarioId])
     expect(rows).toEqual([{ escola_id: professor.escolaId, evento: 'login', ip: '10.1.2.3' }])
     await expect(
-      executarNoContexto({ requisicaoId: randomUUID() }, () => bancada.banco.transaction((tx) => new RegistroDeAcessoRepository(tx).gravar('login', professor.usuarioId, '10.1.2.3'))),
+      runInContext({ requisicaoId: randomUUID() }, () => bancada.banco.transaction((tx) => new RegistroDeAcessoRepository(tx).gravar('login', professor.usuarioId, '10.1.2.3'))),
     ).rejects.toThrow('consulta com escopo sem escola no contexto')
   })
 })

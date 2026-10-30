@@ -1,4 +1,4 @@
-import { RotaAnonima, ZodValidationPipe } from '@educa/nucleo'
+import { Public, ZodValidationPipe } from '@educa/nucleo'
 import {
   abrirSalaRequestSchema,
   reivindicarSalaRequestSchema,
@@ -18,7 +18,7 @@ import { SalasService } from './salas.service.js'
  * estrito (`escolaId`, `turmaId` ou campo a mais é `ENTRADA_INVALIDA`), e a resposta sai com `no-store`. Nenhum cookie é
  * lido e nenhum registro de acesso é gravado.
  */
-@RotaAnonima()
+@Public()
 @Controller('v1/salas')
 export class SalasController {
   constructor(

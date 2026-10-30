@@ -1,4 +1,4 @@
-import { ipDaRequisicao, LimiteQueRebaixa, ProxiesConfiaveis, ZodValidationPipe } from '@educa/nucleo'
+import { requestIp, DowngradeRateLimit, TrustedProxies, ZodValidationPipe } from '@educa/nucleo'
 import {
   configurarSegundoFatorDeOperadorRequestSchema,
   segundoFatorDeOperadorRequestSchema,
@@ -24,14 +24,14 @@ import { SegundoFatorDoOperadorService } from './segundo-fator.service.js'
  * - `mfa/configurar`: o limite por IP da operação (`rl:ip:op`, balde próprio, tarefa 9.0 da A0b), que recusa com 429
  *   (C32).
  * - `mfa`: quem recusa é o contador pelo `operador.id`, no service (C34), e nunca o IP: a equipe inteira pode sair por
- *   um IP só. Por isso leva `@LimiteQueRebaixa`, que conta no mesmo `rl:ip:op` e nunca responde 429; sem hash aqui, o
+ *   um IP só. Por isso leva `@DowngradeRateLimit`, que conta no mesmo `rl:ip:op` e nunca responde 429; sem hash aqui, o
  *   rebaixamento não tem efeito, e cada tentativa já exige um desafio novo, que só a senha dá.
  */
 @Controller('v1/operacao/sessao')
 export class SegundoFatorDoOperadorController {
   constructor(
     @Inject(SegundoFatorDoOperadorService) private readonly segundoFator: SegundoFatorDoOperadorService,
-    @Inject(ProxiesConfiaveis) private readonly proxies: ProxiesConfiaveis,
+    @Inject(TrustedProxies) private readonly proxies: TrustedProxies,
   ) {}
 
   @Post('mfa/configurar')
@@ -44,7 +44,7 @@ export class SegundoFatorDoOperadorController {
 
   @Post('mfa')
   @EntradaDeOperacao()
-  @LimiteQueRebaixa()
+  @DowngradeRateLimit()
   @HttpCode(HttpStatus.OK)
   @Header('Cache-Control', 'no-store')
   async entrar(
@@ -52,7 +52,7 @@ export class SegundoFatorDoOperadorController {
     @Req() requisicao: IncomingMessage,
     @Res({ passthrough: true }) resposta: ServerResponse,
   ): Promise<SegundoFatorDeOperadorResponse> {
-    const aberta = await this.segundoFator.entrar(pedido, { cabecalhoCookie: requisicao.headers.cookie, ip: await ipDaRequisicao(requisicao, this.proxies) })
+    const aberta = await this.segundoFator.entrar(pedido, { cabecalhoCookie: requisicao.headers.cookie, ip: await requestIp(requisicao, this.proxies) })
     const corpoDaResposta = segundoFatorDeOperadorResponseSchema.parse(aberta.resposta)
     resposta.setHeader('Set-Cookie', [...aberta.cookies])
     return corpoDaResposta

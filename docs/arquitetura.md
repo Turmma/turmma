@@ -44,7 +44,7 @@ Nas camadas, o mesmo `dependency-cruiser` reprova o controller que importa repos
 Drizzle e o repository que importa service ou controller. O tamanho tem catraca: função acima de 10 de complexidade, 80
 linhas de código ou 4 níveis de aninhamento reprova o ESLint, e o que já passava disso em 22/10/2026 está em
 `eslint-suppressions.json`, que só encolhe (`tools/guardas/catraca.test.ts`). Em produção só se lança erro com tipo:
-`ErroDeDominio` com o `ErrorCode`, uma classe do módulo, ou `InvariantException` para o que não pode acontecer, com o
+`DomainException` com o `ErrorCode`, uma classe do módulo, ou `InvariantException` para o que não pode acontecer, com o
 motivo em texto fixo (lint `guardas/erro-tipado`, regra 00, item 9).
 
 **As pastas.** Uma por módulo de domínio. Nos módulos com vários recursos (`estrutura`, `operacao`, `sala` e
@@ -71,8 +71,8 @@ Os módulos de ingestão, questão, avaliação, correção, nota e notificaçã
 
 ## Multi-tenant
 
-Escopo aplicado no repository, lido do contexto da requisição. O token só identifica: a `GuardaDeSessao` lê a sessão
-no banco e grava no contexto a escola, o ano letivo e o papel, e o repository lê de lá com `exigirEscolaDoContexto()`.
+Escopo aplicado no repository, lido do contexto da requisição. O token só identifica: a `SessaoGuard` lê a sessão
+no banco e grava no contexto a escola, o ano letivo e o papel, e o repository lê de lá com `requireEscolaId()`.
 Nunca de parâmetro do cliente. Toda tabela de domínio tem `escolaId`;
 as que variam por período têm `anoLetivoId`. Id é UUID. Teste de isolamento acompanha todo
 módulo novo. Ver `.claude/rules/10-multitenancy.md`.
@@ -80,13 +80,13 @@ módulo novo. Ver `.claude/rules/10-multitenancy.md`.
 **O único alcance entre escolas é o módulo `operacao`** (A0b, painel da operação Turmma), e só
 para o operador com sessão (`@RotaDeOperacao`). Ele cria rede e escola pelos casos de uso do
 `ops:escola`, e lê entre escolas por um só repository, o `PainelRepository`, em que cada método
-é `@SemEscopo` com a justificativa do painel (regra 10, item 9), devolvendo id, nome e número,
-nunca pessoa. As escritas do painel alcançam mais quatro `@SemEscopo` dos comandos `ops:*`,
+é `@Unscoped` com a justificativa do painel (regra 10, item 9), devolvendo id, nome e número,
+nunca pessoa. As escritas do painel alcançam mais quatro `@Unscoped` dos comandos `ops:*`,
 listados com a justificativa em `docs/modelo-de-dados.md` ("Operação Turmma"). Nenhum outro
 módulo lê fora da escola do token, e credencial de escola não alcança rota do painel (teste C46). O desenho está na Tech Spec da A0b
 (`tasks/prd-apresentacao-painel/techspec.md`, seções 6 e 11).
 
-O F3 acrescentou **um** `@SemEscopo` aos comandos `ops:*`: o `ops:suboperador encerrar`, que fecha as ligações de uma
+O F3 acrescentou **um** `@Unscoped` aos comandos `ops:*`: o `ops:suboperador encerrar`, que fecha as ligações de uma
 empresa em todas as escolas e devolve só a contagem (`OperacaoPrivacidadeRepository.encerrarLigacoes`). O `ops:privacidade`
 (tarefa 19.0) não ganhou nenhum: abre o contexto da escola do pedido e lê só contagens, pelo repository de contagens e
 pelos leitores que a escola já usa (`docs/modelo-de-dados.md`, "A leitura da operação").
@@ -122,7 +122,7 @@ pelos leitores que a escola já usa (`docs/modelo-de-dados.md`, "A leitura da op
 
 Nada demorado em request. São três filas, uma por prioridade: `interativa`, `normal` e `lote`. O trabalho se
 distingue pelo **tipo** do job (`retencao.expurgar-escola`, `titular.montar-arquivo`…), não por uma fila própria.
-Cada escola tem um limite de concorrência (`VagasPorEscola`), e o lote não urgente roda fora do horário letivo. No
+Cada escola tem um limite de concorrência (`EscolaConcurrencyLimiter`), e o lote não urgente roda fora do horário letivo. No
 compose, o `worker-interativo` atende `interativa` e `normal`, e o `worker-lote` atende `lote`.
 
 **Exceção declarada:** as tarefas de IA (Tutor, ferramentas do professor) ainda rodam no processo da API, pelo
@@ -162,10 +162,10 @@ uma janela permanente sobre o comportamento do aluno.
 ## Camada de IA
 
 ```
-Serviço de domínio → AgendadorDeExecucoes → ProvedorDeIa (gateway: orçamento, suspensão, prazo, validação da saída)
+Serviço de domínio → AgendadorDeExecucoes → LLMGateway (gateway: orçamento, suspensão, prazo, validação da saída)
                                               → LLMProvider (porta)
-                                                  ├── AdaptadorFalso          testes e carga, custo zero (padrão)
-                                                  └── AdaptadorOpenAICompat   produção, e o modelo local no
+                                                  ├── FakeAdapter          testes e carga, custo zero (padrão)
+                                                  └── OpenAICompatAdapter   produção, e o modelo local no
                                                                               desenvolvimento (llama-server)
 ```
 

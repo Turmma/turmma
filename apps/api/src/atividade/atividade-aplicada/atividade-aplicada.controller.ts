@@ -1,4 +1,4 @@
-import { IdPipe, Permite, ZodValidationPipe } from '@educa/nucleo'
+import { IdPipe, RequirePermissao, ZodValidationPipe } from '@educa/nucleo'
 import {
   atividadesAplicadasQuerySchema,
   aplicarAtividadeRequestSchema,
@@ -31,34 +31,34 @@ export class AtividadeAplicadaController {
   ) {}
 
   @Post()
-  @Permite('atividade_aplicada', 'aplicar')
+  @RequirePermissao('atividade_aplicada', 'aplicar')
   aplicar(@Body(new ZodValidationPipe(aplicarAtividadeRequestSchema)) pedido: AplicarAtividadeRequest): Promise<AtividadeAplicadaResponse> {
     return this.atividades.aplicar(pedido)
   }
 
   @Get()
-  @Permite('atividade_aplicada', 'listar')
+  @RequirePermissao('atividade_aplicada', 'listar')
   @Header('Cache-Control', 'no-store')
   listar(@Query(new ZodValidationPipe(atividadesAplicadasQuerySchema)) consulta: AtividadesAplicadasQuery): Promise<ListaDeAtividadesAplicadasResponse> {
     return this.atividades.listar(consulta)
   }
 
   @Post(':id/encerrar')
-  @Permite('atividade_aplicada', 'encerrar')
+  @RequirePermissao('atividade_aplicada', 'encerrar')
   @HttpCode(HttpStatus.OK)
   encerrar(@Param('id', IdPipe) atividadeAplicadaId: string, @Body(new ZodValidationPipe(emptyOrMissingBodyRequestSchema)) _corpo: EmptyBodyRequest): Promise<AtividadeEncerradaResponse> {
     return this.atividades.encerrar(atividadeAplicadaId)
   }
 
   @Get(':id/correcao')
-  @Permite('correcao', 'ler')
+  @RequirePermissao('correcao', 'ler')
   @Header('Cache-Control', 'no-store')
   correcao(@Param('id', IdPipe) atividadeAplicadaId: string): Promise<CorrecaoDoLoteResponse> {
     return this.correcoes.ler(atividadeAplicadaId)
   }
 
   @Post(':id/correcao/destaques/:alunoId/abrir')
-  @Permite('correcao', 'abrir_destaque')
+  @RequirePermissao('correcao', 'abrir_destaque')
   @HttpCode(HttpStatus.OK)
   @Header('Cache-Control', 'no-store')
   abrirDestaque(

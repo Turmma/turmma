@@ -81,7 +81,7 @@ export const TIPO_DO_EXPURGO = 'retencao.expurgar-escola'
 export const TIPO_DA_ELIMINACAO = 'titular.eliminar'
 /** O mesmo canal de `CANAL_NOTIFICACAO_JOB`: acorda o despachante logo depois do commit. */
 const CANAL_DO_JOB = 'job'
-/** A fila de lote tem prioridade 3 (`PRIORIDADE_DA_FILA`). */
+/** A fila de lote tem prioridade 3 (`QUEUE_PRIORITY`). */
 const PRIORIDADE_DO_LOTE = 3
 
 type Consultavel = Pick<pg.ClientBase, 'query'>

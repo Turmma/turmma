@@ -1,4 +1,4 @@
-import { artefato, atividadeAplicada, entrega, exigirAnoEmCurso, exigirEscolaDoContexto, sessaoDaRequisicao, usuario, type Banco, type TransacaoBanco } from '@educa/nucleo'
+import { artefato, atividadeAplicada, entrega, requireAnoEmCurso, requireEscolaId, requestSessao, usuario, type Database, type DatabaseTransaction } from '@educa/nucleo'
 import type { ChaveDeFuncao, EntregasQuery, EstadoDeEntrega, TipoDeEntrega } from '@educa/shared'
 import { and, desc, eq, lt, sql, type SQL } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/pg-core'
@@ -40,16 +40,16 @@ const artefatoDoLote = alias(artefato, 'artefato_do_lote')
  * para autorizar. A professora de outra disciplina da mesma turma não lê nem decide a entrega da colega.
  *
  * Decidir é um `update … where estado = 'pendente'`: a segunda decisão não acha linha e não troca a primeira (regra 80,
- * item 7). Quem decide é a pessoa da **sessão**: sem sessão no contexto, `sessaoDaRequisicao` recusa, e nada é decidido.
+ * item 7). Quem decide é a pessoa da **sessão**: sem sessão no contexto, `requestSessao` recusa, e nada é decidido.
  * A justificativa é texto do professor: fica só na linha, e nunca vai a log nem a auditoria (regra 20, item 9).
  */
 export class EntregaRepository {
-  constructor(private readonly banco: Banco | TransacaoBanco) {}
+  constructor(private readonly banco: Database | DatabaseTransaction) {}
 
   #noAlcance(): SQL | undefined {
     return and(
-      eq(entrega.escolaId, exigirEscolaDoContexto()),
-      eq(entrega.anoLetivoId, exigirAnoEmCurso()),
+      eq(entrega.escolaId, requireEscolaId()),
+      eq(entrega.anoLetivoId, requireAnoEmCurso()),
       comVinculoConfirmadoDoProfessor(this.banco, { escolaId: entrega.escolaId, anoLetivoId: entrega.anoLetivoId, turmaId: entrega.turmaId }, disciplinaDaEntrega(this.banco, entrega)),
     )
   }
@@ -102,7 +102,7 @@ export class EntregaRepository {
   async decidir(id: string, estado: 'aprovada' | 'rejeitada', justificativa: string | null): Promise<boolean> {
     const decididas = await this.banco
       .update(entrega)
-      .set({ estado, decididaPor: sessaoDaRequisicao().usuarioId, decididaEm: sql`now()`, justificativa })
+      .set({ estado, decididaPor: requestSessao().usuarioId, decididaEm: sql`now()`, justificativa })
       .where(and(this.#noAlcance(), eq(entrega.id, id), eq(entrega.estado, 'pendente')))
       .returning({ id: entrega.id })
     return decididas.length > 0
@@ -115,7 +115,7 @@ export class EntregaRepository {
   async criarDaVersaoAdaptada(nova: NovaEntregaDeVersaoAdaptada): Promise<string> {
     const [criada] = await this.banco
       .insert(entrega)
-      .values({ escolaId: exigirEscolaDoContexto(), anoLetivoId: exigirAnoEmCurso(), turmaId: nova.turmaId, funcao: 'adaptacao', tipo: 'versao_adaptada', artefatoId: nova.artefatoId, execucaoId: nova.execucaoId })
+      .values({ escolaId: requireEscolaId(), anoLetivoId: requireAnoEmCurso(), turmaId: nova.turmaId, funcao: 'adaptacao', tipo: 'versao_adaptada', artefatoId: nova.artefatoId, execucaoId: nova.execucaoId })
       .returning({ id: entrega.id })
     if (criada === undefined) throw new InvariantException('entrega não criada')
     return criada.id

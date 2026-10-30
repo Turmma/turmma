@@ -1,4 +1,4 @@
-import { exigirEscolaDoContexto, serie, type Banco, type TransacaoBanco } from '@educa/nucleo'
+import { requireEscolaId, serie, type Database, type DatabaseTransaction } from '@educa/nucleo'
 import type { PaginationQuery, CriarSerieRequest, Serie } from '@educa/shared'
 import { and, asc, eq, gt } from 'drizzle-orm'
 import { InvariantException } from '@educa/shared'
@@ -10,10 +10,10 @@ const colunas = { id: serie.id, etapa: serie.etapa, ano: serie.ano }
  * série repetida são barrados pelo banco (`serie_no_recorte`, `serie_escola_etapa_ano_unico`).
  */
 export class SerieRepository {
-  constructor(private readonly banco: Banco | TransacaoBanco) {}
+  constructor(private readonly banco: Database | DatabaseTransaction) {}
 
   async criar(pedido: CriarSerieRequest): Promise<Serie> {
-    const [criada] = await this.banco.insert(serie).values({ escolaId: exigirEscolaDoContexto(), etapa: pedido.etapa, ano: pedido.ano }).returning(colunas)
+    const [criada] = await this.banco.insert(serie).values({ escolaId: requireEscolaId(), etapa: pedido.etapa, ano: pedido.ano }).returning(colunas)
     if (criada === undefined) throw new InvariantException('série não criada')
     return criada
   }
@@ -23,7 +23,7 @@ export class SerieRepository {
     return this.banco
       .select(colunas)
       .from(serie)
-      .where(and(eq(serie.escolaId, exigirEscolaDoContexto()), pagina === undefined ? undefined : gt(serie.id, pagina)))
+      .where(and(eq(serie.escolaId, requireEscolaId()), pagina === undefined ? undefined : gt(serie.id, pagina)))
       .orderBy(asc(serie.id))
       .limit(limite + 1)
   }
@@ -33,7 +33,7 @@ export class SerieRepository {
     const [linha] = await this.banco
       .select(colunas)
       .from(serie)
-      .where(and(eq(serie.escolaId, exigirEscolaDoContexto()), eq(serie.id, id)))
+      .where(and(eq(serie.escolaId, requireEscolaId()), eq(serie.id, id)))
     return linha
   }
 }

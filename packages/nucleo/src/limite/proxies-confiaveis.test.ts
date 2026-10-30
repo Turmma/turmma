@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { INTERVALO_MINIMO_RESOLUCAO_MS, ProxiesConfiaveis, TIMEOUT_RESOLUCAO_MS } from './proxies-confiaveis.js'
+import { INTERVALO_MINIMO_RESOLUCAO_MS, TrustedProxies, TIMEOUT_RESOLUCAO_MS } from './proxies-confiaveis.js'
 
 function relogio() {
   let instante = 0
@@ -8,7 +8,7 @@ function relogio() {
 
 describe('ProxiesConfiaveis', () => {
   it('IP da configuração é confiável, também chegando como IPv4 mapeado; outro IP não é', async () => {
-    const proxies = new ProxiesConfiaveis(['10.0.0.2'], async () => {
+    const proxies = new TrustedProxies(['10.0.0.2'], async () => {
       throw new Error('IP fixo não deveria ser resolvido')
     })
     expect(await proxies.ehConfiavel('10.0.0.2')).toBe(true)
@@ -20,7 +20,7 @@ describe('ProxiesConfiaveis', () => {
   it('nome da configuração vale pelo endereço resolvido, e a borda que volta com outro IP é reconhecida', async () => {
     const { agora, avancar } = relogio()
     let enderecoDaBorda = '172.20.0.5'
-    const proxies = new ProxiesConfiaveis(['borda'], async (nome) => (nome === 'borda' ? [enderecoDaBorda] : []), agora)
+    const proxies = new TrustedProxies(['borda'], async (nome) => (nome === 'borda' ? [enderecoDaBorda] : []), agora)
 
     expect(await proxies.ehConfiavel('172.20.0.5')).toBe(true)
     enderecoDaBorda = '172.20.0.8'
@@ -34,7 +34,7 @@ describe('ProxiesConfiaveis', () => {
   it('quem forja o cabeçalho de fora não provoca uma resolução por requisição', async () => {
     const { agora, avancar } = relogio()
     let resolucoes = 0
-    const proxies = new ProxiesConfiaveis(['borda'], async () => {
+    const proxies = new TrustedProxies(['borda'], async () => {
       resolucoes++
       return ['172.20.0.5']
     }, agora)
@@ -51,7 +51,7 @@ describe('ProxiesConfiaveis', () => {
   it('resolução que não volta a tempo não segura a requisição e mantém o que já se sabia', async () => {
     const { agora, avancar } = relogio()
     let travar = false
-    const proxies = new ProxiesConfiaveis(['borda'], (nome) => (travar ? new Promise(() => undefined) : Promise.resolve(nome === 'borda' ? ['172.20.0.5'] : [])), agora)
+    const proxies = new TrustedProxies(['borda'], (nome) => (travar ? new Promise(() => undefined) : Promise.resolve(nome === 'borda' ? ['172.20.0.5'] : [])), agora)
     expect(await proxies.ehConfiavel('172.20.0.5')).toBe(true)
 
     travar = true
@@ -66,7 +66,7 @@ describe('ProxiesConfiaveis', () => {
     const { agora, avancar } = relogio()
     let consultas = 0
     let liberar: (enderecos: readonly string[]) => void = () => undefined
-    const proxies = new ProxiesConfiaveis(['borda'], () => {
+    const proxies = new TrustedProxies(['borda'], () => {
       consultas++
       return new Promise((resolver) => {
         liberar = resolver
@@ -87,7 +87,7 @@ describe('ProxiesConfiaveis', () => {
   it('resolução que falha mantém o que já se sabia', async () => {
     const { agora, avancar } = relogio()
     let falhar = false
-    const proxies = new ProxiesConfiaveis(['borda'], async () => {
+    const proxies = new TrustedProxies(['borda'], async () => {
       if (falhar) throw new Error('ENOTFOUND')
       return ['172.20.0.5']
     }, agora)

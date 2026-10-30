@@ -2,19 +2,19 @@ import {
   artefato,
   configuracaoOperacionalEscola,
   consumoIa,
-  contextoAtual,
+  currentContext,
   entrega,
   execucaoAgente,
-  exigirEscolaDoContexto,
+  requireEscolaId,
   FUSO_DO_USO,
   mensagemTutor,
   serie,
-  sessaoDaRequisicao,
+  requestSessao,
   suspensaoDeFuncao,
   turma,
   vinculo,
-  type Banco,
-  type TransacaoBanco,
+  type Database,
+  type DatabaseTransaction,
 } from '@educa/nucleo'
 import { GRUPO_MINIMO_DE_PROFESSORES, type ChaveDeFuncao, type ResumoDaGovernancaQuery, type EstadoDeEntrega, type Etapa, type MotivoDeSuspensao, type TipoDeEntrega } from '@educa/shared'
 import { and, count, desc, eq, gte, isNull, lt, notExists, sql, type SQL } from 'drizzle-orm'
@@ -65,7 +65,7 @@ export interface SuspensaoRetomada {
 
 /** O ano letivo em curso da sessão, ou `null` na escola que ainda não abriu nenhum: a governança abre vazia, não com erro. */
 export function anoEmCursoOuNulo(): string | null {
-  const anoLetivoId = contextoAtual()?.anoLetivoId
+  const anoLetivoId = currentContext()?.anoLetivoId
   return typeof anoLetivoId === 'string' ? anoLetivoId : null
 }
 
@@ -79,13 +79,13 @@ export function anoEmCursoOuNulo(): string | null {
  * série, para a linha de uma série com um professor só não identificar quem ele é.
  */
 export class GovernancaRepository {
-  constructor(private readonly banco: Banco | TransacaoBanco) {}
+  constructor(private readonly banco: Database | DatabaseTransaction) {}
 
   /** O que a IA gerou no ano (artefatos e lotes de correção) e o que as pessoas decidiram sobre as entregas. */
   async numeros(): Promise<NumerosDaGovernanca> {
     const anoLetivoId = anoEmCursoOuNulo()
     if (anoLetivoId === null) return { geradoPorIa: 0, aprovadoPorPessoa: 0, rejeitado: 0, esperando: 0 }
-    const escolaId = exigirEscolaDoContexto()
+    const escolaId = requireEscolaId()
     const [entregas] = await this.banco
       .select({
         lotes: sql<number>`count(*) filter (where ${entrega.tipo} = 'lote_de_correcao')::int`,
@@ -146,7 +146,7 @@ export class GovernancaRepository {
       .innerJoin(serie, and(eq(serie.escolaId, turma.escolaId), eq(serie.id, turma.serieId)))
       .where(
         and(
-          eq(entrega.escolaId, exigirEscolaDoContexto()),
+          eq(entrega.escolaId, requireEscolaId()),
           eq(entrega.anoLetivoId, anoLetivoId),
           estado === undefined ? undefined : eq(entrega.estado, estado),
           pagina === undefined ? undefined : lt(entrega.id, pagina),
@@ -178,7 +178,7 @@ export class GovernancaRepository {
         comEnvioExterno: sql<number>`count(*) filter (where ${consumoIa.envioExterno})::int`,
       })
       .from(consumoIa)
-      .where(and(eq(consumoIa.escolaId, exigirEscolaDoContexto()), gte(consumoIa.em, this.#inicioDoDia(desde)), lt(consumoIa.em, this.#inicioDoDia(ate))))
+      .where(and(eq(consumoIa.escolaId, requireEscolaId()), gte(consumoIa.em, this.#inicioDoDia(desde)), lt(consumoIa.em, this.#inicioDoDia(ate))))
       .groupBy(consumoIa.funcao)
   }
 
@@ -198,7 +198,7 @@ export class GovernancaRepository {
       .from(mensagemTutor)
       .where(
         and(
-          eq(mensagemTutor.escolaId, exigirEscolaDoContexto()),
+          eq(mensagemTutor.escolaId, requireEscolaId()),
           eq(mensagemTutor.anoLetivoId, anoLetivoId),
           eq(mensagemTutor.autor, 'aluno'),
           gte(mensagemTutor.criadaEm, this.#inicioDoDia(desde)),
@@ -211,7 +211,7 @@ export class GovernancaRepository {
 
   /** Os limites do Tutor configurados na escola (nulo vale o padrão do contrato) e quantos alunos as turmas do ano somam. */
   async pacoteDoTutor(): Promise<{ porDia: number | null; porMes: number | null; alunos: number }> {
-    const escolaId = exigirEscolaDoContexto()
+    const escolaId = requireEscolaId()
     const anoLetivoId = anoEmCursoOuNulo()
     const [limites] = await this.banco
       .select({ porDia: configuracaoOperacionalEscola.tutorTrocasPorDia, porMes: configuracaoOperacionalEscola.tutorTrocasPorMes })
@@ -232,7 +232,7 @@ export class GovernancaRepository {
     return this.banco
       .select({ id: suspensaoDeFuncao.id, funcao: suspensaoDeFuncao.funcao, motivo: suspensaoDeFuncao.motivo, suspensaEm: suspensaoDeFuncao.suspensaEm })
       .from(suspensaoDeFuncao)
-      .where(and(eq(suspensaoDeFuncao.escolaId, exigirEscolaDoContexto()), isNull(suspensaoDeFuncao.retomadaEm)))
+      .where(and(eq(suspensaoDeFuncao.escolaId, requireEscolaId()), isNull(suspensaoDeFuncao.retomadaEm)))
   }
 
   /**
@@ -243,7 +243,7 @@ export class GovernancaRepository {
   async suspender(funcao: ChaveDeFuncao, motivo: MotivoDeSuspensao | null): Promise<string | undefined> {
     const [criada] = await this.banco
       .insert(suspensaoDeFuncao)
-      .values({ escolaId: exigirEscolaDoContexto(), funcao, motivo, suspensaPor: sessaoDaRequisicao().usuarioId })
+      .values({ escolaId: requireEscolaId(), funcao, motivo, suspensaPor: requestSessao().usuarioId })
       .onConflictDoNothing({ target: [suspensaoDeFuncao.escolaId, suspensaoDeFuncao.funcao], where: sql`retomada_em is null` })
       .returning({ id: suspensaoDeFuncao.id })
     return criada?.id
@@ -256,8 +256,8 @@ export class GovernancaRepository {
   async retomar(funcao: ChaveDeFuncao): Promise<SuspensaoRetomada | undefined> {
     const [fechada] = await this.banco
       .update(suspensaoDeFuncao)
-      .set({ retomadaPor: sessaoDaRequisicao().usuarioId, retomadaEm: sql`now()` })
-      .where(and(eq(suspensaoDeFuncao.escolaId, exigirEscolaDoContexto()), eq(suspensaoDeFuncao.funcao, funcao), isNull(suspensaoDeFuncao.retomadaEm)))
+      .set({ retomadaPor: requestSessao().usuarioId, retomadaEm: sql`now()` })
+      .where(and(eq(suspensaoDeFuncao.escolaId, requireEscolaId()), eq(suspensaoDeFuncao.funcao, funcao), isNull(suspensaoDeFuncao.retomadaEm)))
       .returning({ id: suspensaoDeFuncao.id, suspensaEm: suspensaoDeFuncao.suspensaEm, retomadaEm: suspensaoDeFuncao.retomadaEm })
     if (fechada === undefined || fechada.retomadaEm === null) return undefined
     return { id: fechada.id, suspensaEm: fechada.suspensaEm, retomadaEm: fechada.retomadaEm }

@@ -1,4 +1,4 @@
-import { METADADO_ENTRADA_DE_OPERACAO, METADADO_ROTA_DE_OPERACAO } from '@educa/nucleo'
+import { OPERACAO_ENTRY_KEY, OPERACAO_ROUTE_KEY } from '@educa/nucleo'
 import { applyDecorators, SetMetadata, UseGuards } from '@nestjs/common'
 import { GuardaDeOperador } from './guarda-de-operador.js'
 
@@ -9,7 +9,7 @@ import { GuardaDeOperador } from './guarda-de-operador.js'
  * rota sob `/v1/operacao` (C42).
  */
 export function RotaDeOperacao(): MethodDecorator & ClassDecorator {
-  return applyDecorators(SetMetadata(METADADO_ROTA_DE_OPERACAO, true), UseGuards(GuardaDeOperador))
+  return applyDecorators(SetMetadata(OPERACAO_ROUTE_KEY, true), UseGuards(GuardaDeOperador))
 }
 
 /**
@@ -18,5 +18,5 @@ export function RotaDeOperacao(): MethodDecorator & ClassDecorator {
  * Só se usa em `apps/api/src/operacao/` (C40), em rota sob `/v1/operacao` (C42).
  */
 export function EntradaDeOperacao(): MethodDecorator & ClassDecorator {
-  return applyDecorators(SetMetadata(METADADO_ENTRADA_DE_OPERACAO, true))
+  return applyDecorators(SetMetadata(OPERACAO_ENTRY_KEY, true))
 }

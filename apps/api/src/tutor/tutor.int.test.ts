@@ -1,4 +1,4 @@
-import { MENSAGEM_DE_ASSUNTO_DELICADO, MENSAGEM_DE_RISCO_A_VIDA, type ExecutorNoProcesso } from '@educa/nucleo'
+import { MENSAGEM_DE_ASSUNTO_DELICADO, MENSAGEM_DE_RISCO_A_VIDA, type InProcessAgenteExecutor } from '@educa/nucleo'
 import {
   conversaDoTutorResponseSchema,
   memoriaDoTutorResponseSchema,
@@ -71,7 +71,7 @@ describe('Tutor e sinais', () => {
   const medidor = new MedidorDeTeste()
   const linhasDeLog: string[] = []
   let api: ApiDeTeste
-  let executor: ExecutorNoProcesso
+  let executor: InProcessAgenteExecutor
   let a: EscolaComAssistente
   let b: EscolaComAssistente
   /** A lista de Química aplicada ao 2ºB da escola A, não avaliativa, e a mesma na escola B. */
@@ -159,7 +159,7 @@ describe('Tutor e sinais', () => {
 
   beforeAll(async () => {
     api = await subirApi(medidor.medidor, {}, linhasDeLog)
-    executor = api.app.get<ExecutorNoProcesso>(EXECUTOR_DE_AGENTE)
+    executor = api.app.get<InProcessAgenteExecutor>(EXECUTOR_DE_AGENTE)
     rotas = pelaRota.rotasDaAtividade(api)
     a = await montarEscolaComAssistente(api, bancada)
     b = await montarEscolaComAssistente(api, bancada)

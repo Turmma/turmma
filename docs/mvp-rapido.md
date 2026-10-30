@@ -39,7 +39,7 @@ AIAs, os limiares abaixo e o destaque `padrao_de_erro`.
   a revisão do Gabriel vem depois.
 - **Fase 1 integrada** (`7fddb5f`), com o portão local verde (254 arquivos, 3353 testes): migration 0022 com 17 tabelas,
   schemas das 41 rotas, `MATRIZ`, códigos de erro, auditoria e `docs/mvp-contratos.md` (S); porta `LLMProvider`,
-  adaptador falso e OpenAI-compatível, sete tarefas, `ExecutorDeAgente`, suspensão por função (L); peças da web e
+  adaptador falso e OpenAI-compatível, sete tarefas, `AgenteExecutor`, suspensão por função (L); peças da web e
   convenção de pedaço por tela (C); conteúdo, script e PDF de demonstração (D).
 
 **Revisão da fase 1** (uma passada, sobre `mvp/fase-1` em `88e2d32`)
@@ -330,7 +330,7 @@ shared) leva só uma linha por módulo, e o conflito se resolve no merge.
 
 | Fase | Entrega | Pacotes | Revisão no fim da fase |
 |---|---|---|---|
-| 1 | Contratos, dados e camada de IA: a migration 0022, os schemas de `packages/shared`, as células da `MATRIZ`, a porta `LLMProvider` com o adaptador falso e o OpenAI-compatível, o `ExecutorDeAgente` e o registro de consumo; as peças da web e o PDF de demonstração, que não dependem do contrato | S, L, C, D | `tenancy-guardian`, `privacy-guardian`, `conformidade-reviewer`, mais `frontend-reviewer` nas peças |
+| 1 | Contratos, dados e camada de IA: a migration 0022, os schemas de `packages/shared`, as células da `MATRIZ`, a porta `LLMProvider` com o adaptador falso e o OpenAI-compatível, o `AgenteExecutor` e o registro de consumo; as peças da web e o PDF de demonstração, que não dependem do contrato | S, L, C, D | `tenancy-guardian`, `privacy-guardian`, `conformidade-reviewer`, mais `frontend-reviewer` nas peças |
 | 2 | **A2**: material com licença, Assistente de ensino (conversa, ferramentas, artefato, adaptação pendente, PDF), Home, Ferramentas e Seu time, e o PDF de demonstração | M, P, W | os três, mais `frontend-reviewer` |
 | 3 | **A3 e A4**: atividade aplicada, respostas do aluno, correção de objetiva com o registro da validação, diagnóstico por habilidade em Turmas; Tutor e sinais | A, T | os três, mais `test-engineer` (correção e Tutor) e `frontend-reviewer` |
 | 4 | **A5**: governança, suspensão por função, consumo e o resumo do Analista | G | os três, mais `frontend-reviewer` |
@@ -346,13 +346,13 @@ fase seguinte começa sem esperar por ela. O fechamento (seção 8) só acontece
   cria ou altera tela.
 - **As regras 00, 50, 60 e 80 continuam valendo.** A D77 lista 10, 20, 30, 40 e 70 como "não muda"; as outras quatro
   também não mudam. A **única exceção declarada** é o item 4 da regra 00 junto com a D49: a execução de IA roda no
-  processo da API, atrás do `ExecutorDeAgente`, marcada `TODO(fila)` (seção 4, item 1). Tudo o mais da regra 80
+  processo da API, atrás do `AgenteExecutor`, marcada `TODO(fila)` (seção 4, item 1). Tudo o mais da regra 80
   (limite por usuário e por escola, concorrência resolvida no banco, índice começando pelo escopo, listagem paginada,
   timeout em chamada de modelo) vale como está.
 
 ## 4. Decisões de atalho (para o MVP, anotadas para voltar depois)
 
-1. **A execução de IA roda no processo da API, em segundo plano**, atrás de uma interface `ExecutorDeAgente`
+1. **A execução de IA roda no processo da API, em segundo plano**, atrás de uma interface `AgenteExecutor`
    (`packages/nucleo/src/ia`). O `POST` grava a `execucao_agente` como `pendente` e responde na hora; a execução roda
    depois, grava `concluida` ou `falhou`, e a tela consulta `GET /v1/execucoes/:id` a cada segundo. Idempotente por
    chave. Trocar por job do worker depois é mudar a implementação da interface (D49, regra 00 item 4: **dívida

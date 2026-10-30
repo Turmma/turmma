@@ -1,5 +1,5 @@
 import 'reflect-metadata'
-import { criarLogger } from '@educa/nucleo'
+import { createLogger } from '@educa/nucleo'
 import type { INestApplication } from '@nestjs/common'
 import { NestFactory } from '@nestjs/core'
 import request from 'supertest'
@@ -26,7 +26,7 @@ describe('GET /saude', () => {
     })
     app = await NestFactory.create(AppModule.com(config), { logger: false })
     // Com o filtro global ligado, como em produção: o 503 da sonda mantém o corpo `{ ok }`.
-    configurarAplicacao(app, criarLogger({ servico: 'api-teste', nivel: 'silent' }))
+    configurarAplicacao(app, createLogger({ servico: 'api-teste', nivel: 'silent' }))
     await app.init()
   })
 

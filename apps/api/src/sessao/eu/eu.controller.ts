@@ -1,4 +1,4 @@
-import { Permite, ZodValidationPipe } from '@educa/nucleo'
+import { RequirePermissao, ZodValidationPipe } from '@educa/nucleo'
 import { emptyOrMissingBodyRequestSchema, type EmptyBodyRequest, type EuResponse, type IntroducaoResponse } from '@educa/shared'
 import { Body, Controller, Get, Header, HttpCode, HttpStatus, Post } from '@nestjs/common'
 import { EuService } from './eu.service.js'
@@ -12,14 +12,14 @@ export class EuController {
   constructor(private readonly eu: EuService) {}
 
   @Get()
-  @Permite('eu', 'ler')
+  @RequirePermissao('eu', 'ler')
   @Header('Cache-Control', 'no-store')
   obter(): Promise<EuResponse> {
     return this.eu.obter()
   }
 
   @Post('introducao')
-  @Permite('eu', 'concluir_introducao')
+  @RequirePermissao('eu', 'concluir_introducao')
   @HttpCode(HttpStatus.OK)
   @Header('Cache-Control', 'no-store')
   concluirIntroducao(@Body(new ZodValidationPipe(emptyOrMissingBodyRequestSchema)) _corpo: EmptyBodyRequest): Promise<IntroducaoResponse> {

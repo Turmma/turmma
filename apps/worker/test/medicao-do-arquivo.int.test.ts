@@ -1,5 +1,5 @@
 import 'reflect-metadata'
-import { ArquivoDoTitularRepository, contextoAtual } from '@educa/nucleo'
+import { ArquivoDoTitularRepository, currentContext } from '@educa/nucleo'
 import { randomUUID } from 'node:crypto'
 import { afterAll, describe, expect, it, onTestFinished } from 'vitest'
 import { lerAmbienteDeTeste, valorObrigatorio } from '../../../tools/ci/compose.ts'
@@ -93,7 +93,7 @@ describe('medição das horas do arquivo do titular em preparação', () => {
     await pedido(b, 4)
     const real = new ArquivoDoTitularRepository(bancada.banco)
     const falhaEmB: Pick<ArquivoDoTitularRepository, 'registradoEmDoEmPreparacaoMaisAntigo'> = {
-      registradoEmDoEmPreparacaoMaisAntigo: () => (contextoAtual()?.escolaId === b ? Promise.reject(new Error('banco lento')) : real.registradoEmDoEmPreparacaoMaisAntigo()),
+      registradoEmDoEmPreparacaoMaisAntigo: () => (currentContext()?.escolaId === b ? Promise.reject(new Error('banco lento')) : real.registradoEmDoEmPreparacaoMaisAntigo()),
     }
     const medidor = new MedidorDeTeste()
     onTestFinished(() => medidor.encerrar())

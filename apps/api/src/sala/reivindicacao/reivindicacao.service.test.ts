@@ -1,4 +1,4 @@
-import { ErroDeDominio, medidorGlobal, type Banco } from '@educa/nucleo'
+import { DomainException, globalMeter, type Database } from '@educa/nucleo'
 import { ErrorCode } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -66,7 +66,7 @@ describe('reivindicação: o hash sempre, pelo semáforo, antes da transação (
         eventos.push('transação')
         await funcao({})
       },
-    } as unknown as Banco
+    } as unknown as Database
     vi.spyOn(ReivindicacaoRepository.prototype, 'chaveGravada').mockImplementation(async () => {
       eventos.push('lê a chave')
       return false
@@ -111,7 +111,7 @@ describe('reivindicação: o hash sempre, pelo semáforo, antes da transação (
       hash,
       chaveCodigo: new Uint8Array(32),
       limites,
-      medidor: medidorGlobal(),
+      medidor: globalMeter(),
     })
     return { servico, eventos, baldes, hash, limites }
   }
@@ -123,7 +123,7 @@ describe('reivindicação: o hash sempre, pelo semáforo, antes da transação (
       const { servico, eventos, baldes, hash } = montar(caso)
       const resultado = await servico.reivindicar(pedido).then(
         (resposta) => resposta.resultado,
-        (erro: unknown) => (erro instanceof ErroDeDominio ? erro.codigo : erro),
+        (erro: unknown) => (erro instanceof DomainException ? erro.codigo : erro),
       )
 
       expect(resultado).toBe(caso.resposta)
@@ -170,7 +170,7 @@ describe('reivindicação: o hash sempre, pelo semáforo, antes da transação (
 
   it('o nome travado (LIMITE_EXCEDIDO do limite) sai antes do hash, sem semáforo e sem transação', async () => {
     const { servico, eventos, hash, limites } = montar(CASOS[0])
-    limites.antesDoHash.mockRejectedValueOnce(new ErroDeDominio(ErrorCode.LIMITE_EXCEDIDO, undefined, 42))
+    limites.antesDoHash.mockRejectedValueOnce(new DomainException(ErrorCode.LIMITE_EXCEDIDO, undefined, 42))
     await expect(servico.reivindicar(pedido)).rejects.toMatchObject({ codigo: ErrorCode.LIMITE_EXCEDIDO, tenteDeNovoEmSegundos: 42 })
     expect(hash.gerar).not.toHaveBeenCalled()
     expect(eventos).toEqual(['lê a chave', 'lê o nome livre'])

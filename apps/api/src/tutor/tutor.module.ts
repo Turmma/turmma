@@ -1,4 +1,4 @@
-import type { Banco, OrcamentoDeIa, SuspensaoDeFuncao } from '@educa/nucleo'
+import type { Database, OrcamentoDeIa, SuspensaoDeFuncao } from '@educa/nucleo'
 import { Module } from '@nestjs/common'
 import { LimiteDePedidosDeIa } from '../assistente/limite-de-pedidos-de-ia.js'
 import { BANCO } from '../banco.module.js'
@@ -20,11 +20,11 @@ import { TutorService } from './tutor.service.js'
   providers: [
     {
       provide: TutorService,
-      useFactory: (banco: Banco, agendador: AgendadorDeExecucoes, limite: LimiteDePedidosDeIa, trechos: BuscaDeTrechos, orcamento: OrcamentoDeIa, suspensao: SuspensaoDeFuncao) =>
+      useFactory: (banco: Database, agendador: AgendadorDeExecucoes, limite: LimiteDePedidosDeIa, trechos: BuscaDeTrechos, orcamento: OrcamentoDeIa, suspensao: SuspensaoDeFuncao) =>
         new TutorService(banco, agendador, limite, trechos, orcamento, suspensao),
       inject: [BANCO, AgendadorDeExecucoes, LimiteDePedidosDeIa, BuscaDeTrechos, ORCAMENTO_DE_IA, SUSPENSAO_DE_FUNCAO],
     },
-    { provide: SupervisaoDoTutorService, useFactory: (banco: Banco) => new SupervisaoDoTutorService(banco), inject: [BANCO] },
+    { provide: SupervisaoDoTutorService, useFactory: (banco: Database) => new SupervisaoDoTutorService(banco), inject: [BANCO] },
   ],
 })
 export class TutorModule {}

@@ -1,6 +1,6 @@
 import { sql } from 'drizzle-orm'
-import type { Banco } from '../db/banco.js'
-import { SemEscopo } from '../db/sem-escopo.decorator.js'
+import type { Database } from '../db/banco.js'
+import { Unscoped } from '../db/sem-escopo.decorator.js'
 
 /** Por quantos dias `job_registro` guarda o job que terminou `concluido` (Tech Spec, seção 7, "Retenção e expurgo"). */
 export const RETENCAO_JOB_REGISTRO_DIAS = 7
@@ -55,14 +55,14 @@ const APAGAR_LOTE_VENCIDO = (limite: number) => sql`
  * propósito: o despachante distribui, este apaga, e o expurgo por retenção de dado de escola (F3) mora aqui também.
  */
 export class ExpurgoDeJobsRepository {
-  constructor(private readonly banco: Banco) {}
+  constructor(private readonly banco: Database) {}
 
   /**
    * Apaga até `limite` jobs vencidos, de qualquer escola. Job `aguardando`, `reservado`, `publicado`
    * ou `ativo` nunca sai, por mais antigo que seja; o `concluido` há menos de 7 dias e o `falhou` há menos de 30
    * também não, e o `falhou` de `titular.*` não sai por prazo nenhum.
    */
-  @SemEscopo(
+  @Unscoped(
     'o expurgo é rotina nossa e aplica a mesma retenção de job a todas as escolas; ' +
       'não devolve linha, só a quantidade apagada, e não atende requisição de escola nenhuma',
   )
@@ -73,6 +73,6 @@ export class ExpurgoDeJobsRepository {
 }
 
 /** A instrução do lote, para o teste conferir o plano sem apagar nada. */
-export function instrucaoDoLoteVencido(limite: number = LOTE_DO_EXPURGO) {
+export function expurgoExpiredBatchStatement(limite: number = LOTE_DO_EXPURGO) {
   return APAGAR_LOTE_VENCIDO(limite)
 }

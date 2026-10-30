@@ -1,4 +1,4 @@
-import { acessoTurma, anoLetivo, exigirEscolaDoContexto, listaNome, reivindicacao, type Banco, type TransacaoBanco } from '@educa/nucleo'
+import { acessoTurma, anoLetivo, requireEscolaId, listaNome, reivindicacao, type Database, type DatabaseTransaction } from '@educa/nucleo'
 import type { AnoLetivo, PaginationQuery, CriarAnoLetivoRequest, SituacaoDoAnoLetivo } from '@educa/shared'
 import { and, asc, eq, gt, inArray, isNull, sql } from 'drizzle-orm'
 import { InvariantException } from '@educa/shared'
@@ -21,12 +21,12 @@ const colunas = { id: anoLetivo.id, ano: anoLetivo.ano, inicio: anoLetivo.inicio
  * escrita (regra 80, item 7).
  */
 export class AnoLetivoRepository {
-  constructor(private readonly banco: Banco | TransacaoBanco) {}
+  constructor(private readonly banco: Database | DatabaseTransaction) {}
 
   async criar(pedido: CriarAnoLetivoRequest): Promise<AnoLetivo> {
     const [criado] = await this.banco
       .insert(anoLetivo)
-      .values({ escolaId: exigirEscolaDoContexto(), ano: pedido.ano, inicio: pedido.inicio, fim: pedido.fim, situacao: 'planejado' })
+      .values({ escolaId: requireEscolaId(), ano: pedido.ano, inicio: pedido.inicio, fim: pedido.fim, situacao: 'planejado' })
       .returning(colunas)
     if (criado === undefined) throw new InvariantException('ano letivo não criado')
     return criado
@@ -37,7 +37,7 @@ export class AnoLetivoRepository {
     return this.banco
       .select(colunas)
       .from(anoLetivo)
-      .where(and(eq(anoLetivo.escolaId, exigirEscolaDoContexto()), pagina === undefined ? undefined : gt(anoLetivo.id, pagina)))
+      .where(and(eq(anoLetivo.escolaId, requireEscolaId()), pagina === undefined ? undefined : gt(anoLetivo.id, pagina)))
       .orderBy(asc(anoLetivo.id))
       .limit(limite + 1)
   }
@@ -46,7 +46,7 @@ export class AnoLetivoRepository {
     const [linha] = await this.banco
       .select(colunas)
       .from(anoLetivo)
-      .where(and(eq(anoLetivo.escolaId, exigirEscolaDoContexto()), eq(anoLetivo.id, id)))
+      .where(and(eq(anoLetivo.escolaId, requireEscolaId()), eq(anoLetivo.id, id)))
     return linha
   }
 
@@ -55,7 +55,7 @@ export class AnoLetivoRepository {
     const [mudado] = await this.banco
       .update(anoLetivo)
       .set({ situacao: para })
-      .where(and(eq(anoLetivo.escolaId, exigirEscolaDoContexto()), eq(anoLetivo.id, id), eq(anoLetivo.situacao, de)))
+      .where(and(eq(anoLetivo.escolaId, requireEscolaId()), eq(anoLetivo.id, id), eq(anoLetivo.situacao, de)))
       .returning(colunas)
     return mudado
   }
@@ -76,7 +76,7 @@ export class AnoLetivoRepository {
    * do ano, que veio antes, as fez esperar ou recusar.
    */
   async virarSala(anoLetivoId: string): Promise<ViradaDaSala> {
-    const escolaId = exigirEscolaDoContexto()
+    const escolaId = requireEscolaId()
     const revogados = await this.banco
       .update(acessoTurma)
       .set({ revogadoEm: sql`now()` })

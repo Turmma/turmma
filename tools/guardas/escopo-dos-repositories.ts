@@ -14,32 +14,32 @@ import { TAMANHO_MINIMO_JUSTIFICATIVA_SEM_ESCOPO } from '../../packages/nucleo/s
  *
  * A prova é uma de três:
  * - (a) chama uma função de `PROVAS_DE_ESCOPO`, importada, direto ou por ajudante do mesmo arquivo;
- * - (b) tem `@SemEscopo(<motivo>)`, com motivo estático de pelo menos 30 caracteres: texto, soma de textos ou `const` do
+ * - (b) tem `@Unscoped(<motivo>)`, com motivo estático de pelo menos 30 caracteres: texto, soma de textos ou `const` do
  *   mesmo arquivo com um desses;
  * - (c) está em `REPOSITORIES_SEM_ESCOPO`, com `motivo` de pelo menos 30 caracteres.
  *
- * **O limite declarado:** a prova (a) vê a chamada, não o uso: `exigirEscolaDoContexto()` chamada e jogada fora passa, e o
+ * **O limite declarado:** a prova (a) vê a chamada, não o uso: `requireEscolaId()` chamada e jogada fora passa, e o
  * `where` sem o `escolaId` também. Quem prova o `where` é o teste de isolamento de cada repository; este teste só impede
  * que um repository nasça sem nenhuma das três coisas.
  *
  * **Outros limites declarados** (nenhum existe hoje no código; cada um passa sem acusação):
  * - só são lidos os arquivos `*.repository.ts` e os que declaram `class *Repository`: uma função de outro arquivo que receba
- *   `Banco` e consulte, como a de `homonimo.ts`, fica fora da trava;
+ *   `Database` e consulte, como a de `homonimo.ts`, fica fora da trava;
  * - só é função exportada a que traz `export` na própria declaração: `function f() {}` seguida de `export { f }` ou de
  *   `export default f` não é vista;
- * - o parâmetro desestruturado, como `({ banco }: { banco: Banco })`, não é visto: o nome que se guarda é o texto do padrão
+ * - o parâmetro desestruturado, como `({ banco }: { banco: Database })`, não é visto: o nome que se guarda é o texto do padrão
  *   (`{ banco }`), e o uso de `banco` no corpo não bate com ele;
- * - o tipo do banco é reconhecido pelo nome (`TIPOS_DO_BANCO`): o alias local, como `type Db = Banco`, não é.
+ * - o tipo do banco é reconhecido pelo nome (`TIPOS_DO_BANCO`): o alias local, como `type Db = Database`, não é.
  */
 
 /** As funções que lêem o escopo do contexto autenticado (ou do job) em vez de recebê-lo por argumento. */
-export const PROVAS_DE_ESCOPO: ReadonlySet<string> = new Set(['exigirEscolaDoContexto', 'identidadeDaRequisicao', 'escopoDoJobNoContexto'])
+export const PROVAS_DE_ESCOPO: ReadonlySet<string> = new Set(['requireEscolaId', 'requestIdentity', 'jobScopeInContext'])
 
 /**
- * Os tipos que fazem uma propriedade ou um parâmetro ser "o banco": `this.banco`, `this.tx`, `tx: TransacaoBanco`.
- * `ExecutorDeAuditoria` é o banco ou a transação de quem chama, e é como o `AuditoriaRepository` e o `RedeEEscolaRepository` o recebem.
+ * Os tipos que fazem uma propriedade ou um parâmetro ser "o banco": `this.banco`, `this.tx`, `tx: DatabaseTransaction`.
+ * `DatabaseExecutor` é o banco ou a transação de quem chama, e é como o `AuditoriaRepository` e o `RedeEEscolaRepository` o recebem.
  */
-export const TIPOS_DO_BANCO: ReadonlySet<string> = new Set(['Banco', 'TransacaoBanco', 'ExecutorDeAuditoria'])
+export const TIPOS_DO_BANCO: ReadonlySet<string> = new Set(['Database', 'DatabaseTransaction', 'DatabaseExecutor'])
 
 export interface EntradaSemEscopo {
   /** Caminho a partir da raiz do repositório, com `/`. */
@@ -88,7 +88,7 @@ export const REPOSITORIES_SEM_ESCOPO: readonly EntradaSemEscopo[] = [
   {
     arquivo: 'packages/nucleo/src/auditoria/insercao-de-auditoria.repository.ts',
     motivo: 'grava a escola do contexto, e escola nula nas ações da operação global (check auditoria_escola_ou_operacao_global); a escola nula é legítima aqui',
-    metodos: ['inserirAuditoria'],
+    metodos: ['insertAuditoria'],
   },
   {
     arquivo: 'packages/nucleo/src/fila/job-registro.repository.ts',
@@ -140,9 +140,9 @@ export interface MetodoPublico {
   linha: number
   /** Toca o banco, direto ou por ajudante do mesmo arquivo. */
   tocaBanco: boolean
-  /** `contexto` é a prova (a), `sem-escopo` é o `@SemEscopo` (b) com motivo válido; `null` não prova nada. */
+  /** `contexto` é a prova (a), `sem-escopo` é o `@Unscoped` (b) com motivo válido; `null` não prova nada. */
   prova: 'contexto' | 'sem-escopo' | null
-  /** O que há de errado com o `@SemEscopo` do método, se ele o tem. */
+  /** O que há de errado com o `@Unscoped` do método, se ele o tem. */
   erroDoDecorator: 'motivo-curto' | 'motivo-nao-literal' | null
 }
 
@@ -192,7 +192,7 @@ function tipoEhOBanco(tipo: ts.TypeNode | undefined): boolean {
   return achou
 }
 
-/** Os parâmetros do método ou da função que são o banco (`tx: TransacaoBanco`). */
+/** Os parâmetros do método ou da função que são o banco (`tx: DatabaseTransaction`). */
 function parametrosDoBanco(chamavel: Chamavel): Set<string> {
   const nomes = new Set<string>()
   for (const parametro of chamavel.parameters) {
@@ -254,7 +254,7 @@ export function analisarFonte(arquivo: ArquivoFonte): AnaliseDoArquivo {
   // Campo interno do compilador, como em `tools/processo/revisoes.ts`: se sumir numa versão nova, quebra alto em vez de aceitar tudo.
   if ((fonte as unknown as { parseDiagnostics: readonly unknown[] }).parseDiagnostics.length > 0) return { erroDeSintaxe: true, classes: [], metodos: [] }
 
-  /** Os nomes locais que são `PROVAS_DE_ESCOPO` importadas, e o do `SemEscopo` importado: o alias conta, e função local do mesmo nome não. */
+  /** Os nomes locais que são `PROVAS_DE_ESCOPO` importadas, e o do `Unscoped` importado: o alias conta, e função local do mesmo nome não. */
   const provasImportadas = new Set<string>()
   const decoratorsSemEscopo = new Set<string>()
   const funcoes = new Map<string, Chamavel>()
@@ -269,7 +269,7 @@ export function analisarFonte(arquivo: ArquivoFonte): AnaliseDoArquivo {
         for (const elemento of nomeados.elements) {
           const exportado = (elemento.propertyName ?? elemento.name).text
           if (PROVAS_DE_ESCOPO.has(exportado)) provasImportadas.add(elemento.name.text)
-          if (exportado === 'SemEscopo') decoratorsSemEscopo.add(elemento.name.text)
+          if (exportado === 'Unscoped') decoratorsSemEscopo.add(elemento.name.text)
         }
       }
     } else if (ts.isFunctionDeclaration(declaracao) && temCorpo(declaracao)) {
@@ -324,7 +324,7 @@ export function analisarFonte(arquivo: ArquivoFonte): AnaliseDoArquivo {
     return resumo
   }
 
-  /** O `@SemEscopo(<motivo>)` do membro: `undefined` se não tem; senão, o erro do motivo ou `null` se ele vale. */
+  /** O `@Unscoped(<motivo>)` do membro: `undefined` se não tem; senão, o erro do motivo ou `null` se ele vale. */
   const decoratorDe = (membro: Membro): null | 'motivo-curto' | 'motivo-nao-literal' | undefined => {
     for (const decorator of ts.getDecorators(membro) ?? []) {
       const chamada = decorator.expression
@@ -396,14 +396,14 @@ export function verificarRepositories(fontes: readonly ArquivoFonte[], lista: re
           arquivo,
           linha: metodo.linha,
           codigo: metodo.erroDoDecorator,
-          detalhe: `${qual}: o motivo do @SemEscopo precisa ser texto de pelo menos ${String(TAMANHO_MINIMO_JUSTIFICATIVA_SEM_ESCOPO)} caracteres, escrito ali ou numa const do mesmo arquivo`,
+          detalhe: `${qual}: o motivo do @Unscoped precisa ser texto de pelo menos ${String(TAMANHO_MINIMO_JUSTIFICATIVA_SEM_ESCOPO)} caracteres, escrito ali ou numa const do mesmo arquivo`,
         })
       } else if (metodo.tocaBanco && metodo.prova === null && !naLista(arquivo, metodo.nome)) {
         violacoes.push({
           arquivo,
           linha: metodo.linha,
           codigo: 'sem-prova-de-escopo',
-          detalhe: `${qual} toca o banco sem ${[...PROVAS_DE_ESCOPO].join(', ')}, sem @SemEscopo e fora de REPOSITORIES_SEM_ESCOPO`,
+          detalhe: `${qual} toca o banco sem ${[...PROVAS_DE_ESCOPO].join(', ')}, sem @Unscoped e fora de REPOSITORIES_SEM_ESCOPO`,
         })
       }
     }

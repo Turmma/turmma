@@ -1,4 +1,4 @@
-import { executarNoContexto } from '@educa/nucleo'
+import { runInContext } from '@educa/nucleo'
 import { randomUUID } from 'node:crypto'
 import { afterAll, describe, expect, it } from 'vitest'
 import { BancadaDeSessoes } from '../../test/sessao-de-teste.js'
@@ -11,7 +11,7 @@ describe('SessaoDeOrigemRepository: a sessão de onde a troca parte, só na esco
     await bancada.fechar()
   })
 
-  const naEscola = <T>(escolaId: string, funcao: () => Promise<T>) => executarNoContexto({ requisicaoId: randomUUID(), escolaId }, funcao)
+  const naEscola = <T>(escolaId: string, funcao: () => Promise<T>) => runInContext({ requisicaoId: randomUUID(), escolaId }, funcao)
 
   async function estado(sessaoId: string): Promise<{ encerrada_em: Date | null; motivo: string | null }> {
     const { rows } = await bancada.pool.query<{ encerrada_em: Date | null; motivo: string | null }>('select encerrada_em, motivo from sessao where id = $1', [sessaoId])
@@ -32,7 +32,7 @@ describe('SessaoDeOrigemRepository: a sessão de onde a troca parte, só na esco
 
     expect(await naEscola(professorEmA.escolaId, () => repositorio.metodoEConta(professorEmA.sessaoId))).toEqual({ metodo: 'email', contaId: await contaDe(professorEmA.usuarioId) })
     expect(await naEscola(escolaB, () => repositorio.metodoEConta(professorEmA.sessaoId))).toBeUndefined()
-    await expect(executarNoContexto({ requisicaoId: randomUUID() }, () => repositorio.metodoEConta(professorEmA.sessaoId))).rejects.toThrow('sem escola no contexto')
+    await expect(runInContext({ requisicaoId: randomUUID() }, () => repositorio.metodoEConta(professorEmA.sessaoId))).rejects.toThrow('sem escola no contexto')
   })
 
   it('isolamento: encerrar a sessão de A no contexto de B não muda nada; no contexto de A encerra uma vez, com troca_de_escola', async () => {

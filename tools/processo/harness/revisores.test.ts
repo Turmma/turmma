@@ -4,7 +4,7 @@
 // nove arquivos de `.claude/agents/`: quem mexe numa cópia e esquece as outras faz um revisor julgar por regra diferente de outro,
 // e ninguém vê. (2) A lista "O que verificar" e o formato da resposta de um guardião com veto são o contrato dele com a Mesa e com
 // o hook: a deduplicação não pode tocá-los, e a medida de antes (24/10/2026) está em `__fixtures__/revisores-antes/`, gravada antes
-// de qualquer edição e nunca regravada. (3) O `executar-task` volta a crescer com cada incidente contado nele; os casos moram em
+// de qualquer edição e nunca regravada, salvo o literal da marca de rotina sem escopo na linha 13 do `tenancy-guardian`, que a 4.0 de nomes-de-mercado trocou por `@Unscoped()` (nada mais dela muda). (3) O `executar-task` volta a crescer com cada incidente contado nele; os casos moram em
 // `docs/processo-licoes.md`, com data e origem, e o arquivo fica abaixo de 500 linhas.
 //
 // Cada conferência é uma função sobre o texto (`Arquivos`: caminho a partir da raiz → conteúdo) e roda sobre o repositório e sobre

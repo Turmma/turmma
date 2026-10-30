@@ -1,21 +1,21 @@
 import 'reflect-metadata'
 import {
-  ArmazemEmMemoria,
+  InMemoryFileStorage,
   ArquivoDoTitularRepository,
-  ConfiguracaoOperacional,
-  ConfiguracaoOperacionalRepository,
+  OperationalSettings,
+  OperationalSettingsRepository,
   EliminacaoDoTitularRepository,
-  executarNoContexto,
+  runInContext,
   ExpurgoDaEscolaRepository,
   haHomonimoDoTitular,
   padraoDoNome,
-  PedidoDeJobRecusado,
+  JobRequestRejectedError,
   resolverJanela,
   RetencaoDaEscolaRepository,
   TrocaDeNome,
   type JanelaLetiva,
-  type Relogio,
-  type TransacaoBanco,
+  type Clock,
+  type DatabaseTransaction,
 } from '@educa/nucleo'
 import { AUTOR_DA_ROTINA, TIPO_ELIMINAR_TITULAR } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
@@ -57,13 +57,13 @@ beforeAll(() => {
 })
 
 /** Um relógio que o teste avança. */
-function relogioEm(inicio: Date): Relogio & { atual: Date } {
+function relogioEm(inicio: Date): Clock & { atual: Date } {
   const relogio = { atual: inicio, agora: () => relogio.atual }
   return relogio
 }
 
 /** Um relógio fora da janela nas primeiras `chamadas` leituras e dentro dela depois: a janela abre no meio da troca. */
-function relogioQueAbreDepoisDe(chamadas: number): Relogio {
+function relogioQueAbreDepoisDe(chamadas: number): Clock {
   let lidas = 0
   return {
     agora: () => {
@@ -135,12 +135,12 @@ describe('titular.eliminar', () => {
     return pedidoId
   }
 
-  async function janelaDaEscola(): Promise<ConfiguracaoOperacional<JanelaLetiva>> {
-    return new ConfiguracaoOperacional<JanelaLetiva>(new ConfiguracaoOperacionalRepository(bancada.banco), (linha) => resolverJanela(janelaPadraoDoAmbiente(), linha))
+  async function janelaDaEscola(): Promise<OperationalSettings<JanelaLetiva>> {
+    return new OperationalSettings<JanelaLetiva>(new OperationalSettingsRepository(bancada.banco), (linha) => resolverJanela(janelaPadraoDoAmbiente(), linha))
   }
 
   /** Roda o processador `titular.eliminar` na escola dada, com o relógio, a faixa e os dados. */
-  async function rodar(escolaId: string | undefined, dados: { pedidoId: string }, opcoes: { relogio?: Relogio; faixa?: number } = {}): Promise<void> {
+  async function rodar(escolaId: string | undefined, dados: { pedidoId: string }, opcoes: { relogio?: Clock; faixa?: number } = {}): Promise<void> {
     const processador = criarEliminacaoDoTitular({
       banco: bancada.banco,
       janelaDaEscola: await janelaDaEscola(),
@@ -150,7 +150,7 @@ describe('titular.eliminar', () => {
     })
     const jobId = randomUUID()
     const executar = () => processador(dados, execucaoDoJob(jobId))
-    return escolaId === undefined ? executar() : executarNoContexto({ requisicaoId: randomUUID(), escolaId }, executar)
+    return escolaId === undefined ? executar() : runInContext({ requisicaoId: randomUUID(), escolaId }, executar)
   }
 
   async function existeUsuario(id: string): Promise<boolean> {
@@ -411,7 +411,7 @@ describe('titular.eliminar', () => {
     it('nome em branco não troca nada: o padrão sem letra casaria em todo lugar', async () => {
       const c = await cenario()
       const execucaoId = await execucaoDoProfessor(c, { tarefa: 'gerar_plano_de_aula', parametros: { tema: `Reforço para ${c.nome}` } })
-      const resultado = await executarNoContexto({ requisicaoId: randomUUID(), escolaId: c.escolaId, usuarioId: c.coordenadoraId }, () =>
+      const resultado = await runInContext({ requisicaoId: randomUUID(), escolaId: c.escolaId, usuarioId: c.coordenadoraId }, () =>
         new TrocaDeNome(bancada.banco).trocar({ pedidoId: randomUUID(), nome: '   ', autoria: {}, janelaAberta: () => false }),
       )
       expect(resultado).toEqual({ concluida: true, linhas: 0 })
@@ -821,14 +821,14 @@ describe('titular.eliminar', () => {
         repositorio: new ExpurgoDaEscolaRepository(bancada.banco),
         enfileirador: bancada.enfileirador,
         arquivos: new ArquivoDoTitularRepository(bancada.banco),
-        armazem: new ArmazemEmMemoria(),
+        armazem: new InMemoryFileStorage(),
         retencao: new RetencaoDaEscolaRepository(bancada.banco),
         janelaDaEscola: await janelaDaEscola(),
         relogio,
         logger: log.logger,
       })
       const jobId = randomUUID()
-      const expurgar = executarNoContexto({ requisicaoId: randomUUID(), escolaId: c.escolaId }, () => expurgo({}, execucaoDoJob(jobId)))
+      const expurgar = runInContext({ requisicaoId: randomUUID(), escolaId: c.escolaId }, () => expurgo({}, execucaoDoJob(jobId)))
       await Promise.all([rodar(c.escolaId, { pedidoId }, { relogio }), expurgar])
       expect(await existeUsuario(c.alunoId)).toBe(false)
       expect((await pedido(pedidoId)).estado).toBe('concluido')
@@ -913,7 +913,7 @@ describe('titular.eliminar', () => {
       // Em A o titular tem homônimo: visto do contexto de B, a pessoa não existe, e a resposta é `false` (não "tem homônimo").
       await um("insert into usuario (escola_id, papel, nome) values ($1, 'aluno', $2) returning id", [a.escolaId, a.nome])
 
-      const resultado = await executarNoContexto({ requisicaoId: randomUUID(), escolaId: b.escolaId }, () =>
+      const resultado = await runInContext({ requisicaoId: randomUUID(), escolaId: b.escolaId }, () =>
         bancada.banco.transaction(async (tx) => {
           const repositorio = new EliminacaoDoTitularRepository(tx)
           return {
@@ -930,7 +930,7 @@ describe('titular.eliminar', () => {
         }),
       )
       expect(resultado).toEqual({ vencido: undefined, travado: undefined, nome: undefined, registrador: false, execucoes: 0, arquivos: 0, abertos: [], concluiu: false, homonimo: false })
-      await executarNoContexto({ requisicaoId: randomUUID(), escolaId: b.escolaId }, () => new EliminacaoDoTitularRepository(bancada.banco).gravarCompartilhamento(pedidoId, [{ suboperadorId: null, chave: 'x', primeiroEm: new Date().toISOString(), ultimoEm: new Date().toISOString(), origem: 'rastro' }]))
+      await runInContext({ requisicaoId: randomUUID(), escolaId: b.escolaId }, () => new EliminacaoDoTitularRepository(bancada.banco).gravarCompartilhamento(pedidoId, [{ suboperadorId: null, chave: 'x', primeiroEm: new Date().toISOString(), ultimoEm: new Date().toISOString(), origem: 'rastro' }]))
 
       // A linha de A continua como estava.
       expect((await pedido(pedidoId)).estado).toBe('agendado')
@@ -940,7 +940,7 @@ describe('titular.eliminar', () => {
       expect((await bancada.pool.query<{ marcado: boolean }>('select apagado_em is not null as marcado from arquivo_titular where id = $1', [arquivoId])).rows[0]).toEqual({ marcado: false })
 
       // O arquivo, no contexto de B: o pedido e a pessoa de A não existem.
-      const doArquivo = await executarNoContexto({ requisicaoId: randomUUID(), escolaId: b.escolaId }, async () => {
+      const doArquivo = await runInContext({ requisicaoId: randomUUID(), escolaId: b.escolaId }, async () => {
         const arquivos = new ArquivoDoTitularRepository(bancada.banco)
         return { arquivo: await arquivos.doPedido(acessoId, 'completa'), conta: await arquivos.contaAtiva(a.alunoId) }
       })
@@ -953,12 +953,12 @@ describe('titular.eliminar', () => {
       const escolaId = await bancada.escola()
       const pedidoId = randomUUID()
       const chave = `eliminacao:${pedidoId}`
-      const naEscola = <T>(fazer: (tx: TransacaoBanco) => Promise<T>) => executarNoContexto({ requisicaoId: randomUUID(), escolaId }, () => bancada.banco.transaction((tx) => fazer(tx)))
+      const naEscola = <T>(fazer: (tx: DatabaseTransaction) => Promise<T>) => runInContext({ requisicaoId: randomUUID(), escolaId }, () => bancada.banco.transaction((tx) => fazer(tx)))
       const jobs = async () => Number((await bancada.pool.query<{ total: string }>('select count(*) as total from job_registro where escola_id = $1', [escolaId])).rows[0]?.total)
 
       // @ts-expect-error o payload da eliminação é só o pedidoId
       const invalido = naEscola((tx) => bancada.enfileirador.enfileirarUmaVez(tx, TIPO_ELIMINAR_TITULAR, { pedidoId, escolaId }, chave))
-      await expect(invalido).rejects.toBeInstanceOf(PedidoDeJobRecusado)
+      await expect(invalido).rejects.toBeInstanceOf(JobRequestRejectedError)
       expect(await jobs()).toBe(0)
 
       const valido = await naEscola((tx) => bancada.enfileirador.enfileirarUmaVez(tx, TIPO_ELIMINAR_TITULAR, { pedidoId }, chave))
@@ -980,7 +980,7 @@ describe('titular.eliminar', () => {
       )
       onTestFinished(() => worker.encerrar())
       bancada.despachante(log, { relogio }).iniciar()
-      const enfileirado = await executarNoContexto({ requisicaoId: randomUUID(), escolaId: c.escolaId }, () =>
+      const enfileirado = await runInContext({ requisicaoId: randomUUID(), escolaId: c.escolaId }, () =>
         bancada.banco.transaction((tx) =>
           bancada.enfileirador.enfileirarUmaVez(tx, TIPO_ELIMINAR_TITULAR, { pedidoId }, `eliminacao:${pedidoId}`),
         ),

@@ -1,5 +1,5 @@
-import { Enfileirador, JobRegistroRepository, type ArmazemDeArquivos, type Banco, type Relogio } from '@educa/nucleo'
-import { ArmazemS3 } from '@educa/nucleo/armazem-s3'
+import { JobOutbox, JobOutboxRepository, type FileStorage, type Database, type Clock } from '@educa/nucleo'
+import { S3FileStorage } from '@educa/nucleo/armazem-s3'
 import { Module, type BeforeApplicationShutdown, type DynamicModule } from '@nestjs/common'
 import { BANCO } from '../banco.module.js'
 import type { ConfiguracaoDoArmazemDaApi } from './configuracao-do-armazem.js'
@@ -20,8 +20,8 @@ class CicloDoArmazem implements BeforeApplicationShutdown {
 export interface OpcoesDaPrivacidade {
   readonly armazem: ConfiguracaoDoArmazemDaApi
   /** O armazém falso do teste. Sem ele, o S3 da configuração. Nunca vem do ambiente. */
-  readonly armazemDeTeste?: ArmazemDeArquivos
-  readonly relogio?: Relogio
+  readonly armazemDeTeste?: FileStorage
+  readonly relogio?: Clock
 }
 
 /**
@@ -33,17 +33,17 @@ export interface OpcoesDaPrivacidade {
 export class PrivacidadeModule {
   static com(opcoes: OpcoesDaPrivacidade): DynamicModule {
     const { armazem, encerrar } =
-      opcoes.armazemDeTeste === undefined ? ArmazemS3.criar(opcoes.armazem) : { armazem: opcoes.armazemDeTeste, encerrar: (): void => undefined }
+      opcoes.armazemDeTeste === undefined ? S3FileStorage.criar(opcoes.armazem) : { armazem: opcoes.armazemDeTeste, encerrar: (): void => undefined }
     return {
       module: PrivacidadeModule,
       controllers: [PrivacidadeController, MeusDadosController],
       providers: [
-        { provide: JobRegistroRepository, useFactory: (banco: Banco) => new JobRegistroRepository(banco), inject: [BANCO] },
+        { provide: JobOutboxRepository, useFactory: (banco: Database) => new JobOutboxRepository(banco), inject: [BANCO] },
         {
           provide: PrivacidadeService,
-          useFactory: (banco: Banco, repositorio: JobRegistroRepository) =>
-            new PrivacidadeService(banco, { enfileirador: new Enfileirador(repositorio), armazem, ...(opcoes.relogio === undefined ? {} : { relogio: opcoes.relogio }) }),
-          inject: [BANCO, JobRegistroRepository],
+          useFactory: (banco: Database, repositorio: JobOutboxRepository) =>
+            new PrivacidadeService(banco, { enfileirador: new JobOutbox(repositorio), armazem, ...(opcoes.relogio === undefined ? {} : { relogio: opcoes.relogio }) }),
+          inject: [BANCO, JobOutboxRepository],
         },
         { provide: CicloDoArmazem, useFactory: () => new CicloDoArmazem(encerrar) },
       ],

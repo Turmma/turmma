@@ -1,5 +1,5 @@
 import 'reflect-metadata'
-import { criarLogger, EmissorDeToken, exigirAnoEmCurso, Permite, SessaoRepository } from '@educa/nucleo'
+import { createLogger, TokenIssuer, requireAnoEmCurso, RequirePermissao, SessaoRepository } from '@educa/nucleo'
 import { ErrorCode, MENSAGENS_DE_ERRO } from '@educa/shared'
 import { Controller, Get, Module, type INestApplication } from '@nestjs/common'
 import { NestFactory } from '@nestjs/core'
@@ -20,7 +20,7 @@ import { BancadaDeSessoes, type SessaoDeTeste } from './sessao-de-teste.js'
 
 const ambienteDeTeste = lerAmbienteDeTeste()
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
-const emissor = new EmissorDeToken(new TextEncoder().encode(ambienteDeTeste['IDENTIDADE_CHAVE_ASSINATURA']))
+const emissor = new TokenIssuer(new TextEncoder().encode(ambienteDeTeste['IDENTIDADE_CHAVE_ASSINATURA']))
 /** Limite de usuário baixo neste arquivo, para a rajada acima dele caber num teste. */
 const LIMITE_DO_USUARIO = 8
 
@@ -28,9 +28,9 @@ const LIMITE_DO_USUARIO = 8
 @Controller('teste-sessao')
 class ControladorDoAno {
   @Get('ano')
-  @Permite('turma', 'ler')
+  @RequirePermissao('turma', 'ler')
   ano(): { anoLetivoId: string } {
-    return { anoLetivoId: exigirAnoEmCurso() }
+    return { anoLetivoId: requireAnoEmCurso() }
   }
 }
 
@@ -64,7 +64,7 @@ describe('GuardaDeSessao: toda requisição autenticada é conferida contra a se
     @Module({ imports: [AppModule.com(configuracaoDeTeste({ ambiente: { LIMITE_REQ_USUARIO_MIN: String(LIMITE_DO_USUARIO) } }))], controllers: [ControladorDoAno] })
     class ModuloDeTeste {}
     app = await NestFactory.create(ModuloDeTeste, { logger: false })
-    configurarAplicacao(app, criarLogger({ servico: 'api-teste', nivel: 'silent' }))
+    configurarAplicacao(app, createLogger({ servico: 'api-teste', nivel: 'silent' }))
     await app.listen(0, '127.0.0.1')
     url = `http://127.0.0.1:${(app.getHttpServer().address() as AddressInfo).port}`
     leituras = vi.spyOn(app.get(SessaoRepository), 'lerParaGuarda')

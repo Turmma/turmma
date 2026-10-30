@@ -1,4 +1,4 @@
-import { avisoEspacado, IP_DESCONHECIDO, limiteDoSeguro, METRICAS, relogioDoSistema, type Meter, type Relogio } from '@educa/nucleo'
+import { throttledWarn, IP_DESCONHECIDO, insuranceLimit, METRICS, systemClock, type Meter, type Clock } from '@educa/nucleo'
 import { Logger } from '@nestjs/common'
 import { JANELA_DO_CONTADOR_POR_IP_MS, type ContadorEmJanela } from './contador-em-janela.js'
 
@@ -18,7 +18,7 @@ export interface DependenciasDoLimiteDoEmail {
   /** Quantas instâncias da API dividem o limite quando a contagem é do seguro em memória (`LIMITE_INSTANCIAS_API`). */
   readonly instancias: number
   readonly medidor: Meter
-  readonly relogio?: Relogio
+  readonly relogio?: Clock
 }
 
 /**
@@ -35,17 +35,17 @@ export interface DependenciasDoLimiteDoEmail {
  * - **Banco com erro na leitura da rede:** vale o limite simples, com o aviso `login.rede_do_ip_sem_banco` espaçado.
  */
 export class LimiteDoEmailPorIp {
-  readonly #relogio: Relogio
+  readonly #relogio: Clock
   readonly #rebaixadas: ReturnType<Meter['createCounter']>
   readonly #logger = new Logger('login')
-  readonly #avisarRedeSemBanco = avisoEspacado(() => this.#logger.warn('login.rede_do_ip_sem_banco'))
+  readonly #avisarRedeSemBanco = throttledWarn(() => this.#logger.warn('login.rede_do_ip_sem_banco'))
   /** IP → escolas da rede dele, por 1 min: o IP fica na memória da instância no máximo o prazo e a varredura seguinte. */
   readonly #redes = new Map<string, { readonly escolas: number; readonly venceEm: number }>()
   #varridoEm = Number.NEGATIVE_INFINITY
 
   constructor(private readonly dependencias: DependenciasDoLimiteDoEmail) {
-    this.#relogio = dependencias.relogio ?? relogioDoSistema
-    this.#rebaixadas = dependencias.medidor.createCounter(METRICAS.limiteEmailIp, { description: 'Tentativas de login por e-mail rebaixadas pelo limite por IP da rota' })
+    this.#relogio = dependencias.relogio ?? systemClock
+    this.#rebaixadas = dependencias.medidor.createCounter(METRICS.limiteEmailIp, { description: 'Tentativas de login por e-mail rebaixadas pelo limite por IP da rota' })
     // A série nasce em 0 no boot: a taxa do alerta `login-email-limite-ip` conta a primeira rebaixada.
     this.#rebaixadas.add(0)
   }
@@ -54,7 +54,7 @@ export class LimiteDoEmailPorIp {
   async rebaixar(ip: string, conhecido: boolean): Promise<boolean> {
     const { janela, limitePorMinuto, instancias } = this.dependencias
     const { valor, doSeguro } = await janela.somar(janela.chaveDe(PREFIXO_EMAIL_POR_IP, ip))
-    const efetivo = (limite: number) => (doSeguro ? limiteDoSeguro(limite, instancias) : limite)
+    const efetivo = (limite: number) => (doSeguro ? insuranceLimit(limite, instancias) : limite)
     if (conhecido || valor <= efetivo(limitePorMinuto)) return false
     if (valor <= efetivo(limitePorMinuto * Math.max(1, await this.#escolasDaRede(ip)))) return false
     this.#rebaixadas.add(1)

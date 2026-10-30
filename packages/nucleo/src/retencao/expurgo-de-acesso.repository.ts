@@ -1,6 +1,6 @@
 import { sql, type SQL } from 'drizzle-orm'
-import type { Banco } from '../db/banco.js'
-import { SemEscopo } from '../db/sem-escopo.decorator.js'
+import type { Database } from '../db/banco.js'
+import { Unscoped } from '../db/sem-escopo.decorator.js'
 import { LOTE_DO_EXPURGO } from './expurgo-de-jobs.repository.js'
 
 /** Por quantos meses o registro de acesso fica (Marco Civil, art. 15; `docs/lgpd.md`). */
@@ -209,13 +209,13 @@ const LIMPAR_TRAVADAS = (ids: readonly string[], agora: Date) => sql`
  * sem requisição de escola.
  */
 export class ExpurgoDeAcessoRepository {
-  constructor(private readonly banco: Banco) {}
+  constructor(private readonly banco: Database) {}
 
   /**
    * Apaga até `limite` linhas vencidas de `alvo`, de qualquer escola ou da operação, e diz quantas saíram. O critério é
    * só o prazo: nada no prazo sai, de escola nenhuma nem da equipe.
    */
-  @SemEscopo(
+  @Unscoped(
     'o expurgo é rotina nossa e aplica o mesmo prazo de registro de acesso, sessão, convite (de coordenador e de professor) ' +
       'e acesso da turma (link e código da sala) a todas as escolas (e à falha de login sem escola), e às tabelas de acesso, ' +
       'sessão e convite da operação Turmma, que são da equipe e não têm escola, e ao incidente de segurança, que também não tem ' +
@@ -231,7 +231,7 @@ export class ExpurgoDeAcessoRepository {
    * Limpa até `limite` contas da equipe que não servem mais a escola nenhuma, e diz quantas. O critério é o mesmo da
    * desativação: nenhuma conta com usuário ativo, ou com convite ainda válido, é tocada.
    */
-  @SemEscopo(
+  @Unscoped(
     'o expurgo é rotina nossa: a conta da equipe é global e não tem escola, e a que ficou sem usuário ativo e sem convite ' +
       'válido em escola nenhuma perde a credencial; não devolve linha, só a quantidade limpa, e não atende requisição de escola nenhuma',
   )
@@ -249,6 +249,6 @@ export class ExpurgoDeAcessoRepository {
 }
 
 /** A instrução do lote, para o teste conferir o plano sem apagar nada. */
-export function instrucaoDoLoteDeAcesso(alvo: AlvoDoExpurgoDeAcesso, agora: Date, limite: number = LOTE_DO_EXPURGO) {
+export function expurgoAccessBatchStatement(alvo: AlvoDoExpurgoDeAcesso, agora: Date, limite: number = LOTE_DO_EXPURGO) {
   return APAGAR_LOTE[alvo](agora, limite)
 }

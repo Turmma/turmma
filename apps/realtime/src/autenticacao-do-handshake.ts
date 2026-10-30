@@ -1,15 +1,15 @@
 import {
   avaliarSessao,
-  avisoEspacado,
-  definirSessaoNoContexto,
-  ErroDeDominio,
-  executarNoContexto,
-  resumirErro,
-  verificarToken,
-  type ConfiguracaoIdentidade,
-  type Identidade,
-  type LeituraDeSessao,
-  type LinhaDaSessao,
+  throttledWarn,
+  setContextSessao,
+  DomainException,
+  runInContext,
+  summarizeError,
+  verifyToken,
+  type AuthConfig,
+  type Identity,
+  type SessaoReader,
+  type SessaoRow,
   type LoggerBase,
 } from '@educa/nucleo'
 import { ErrorCode, MENSAGENS_DE_ERRO } from '@educa/shared'
@@ -19,7 +19,7 @@ import { z } from 'zod'
 
 /** O que o servidor guarda no socket. Só a identidade verificada, só ids (regra 20). */
 export interface DadosDoSocket {
-  identidade?: Identidade
+  identidade?: Identity
 }
 
 export type SocketRealtime = Socket<Record<string, never>, Record<string, never>, Record<string, never>, DadosDoSocket>
@@ -64,7 +64,7 @@ const esquemaAutenticacao = z.object({
 
 /**
  * Middleware do namespace: verifica o JWT do pacote de conexão (`auth.token`) com a mesma
- * verificação da API, lê a sessão gravada com a mesma consulta da `GuardaDeSessao` e só então grava
+ * verificação da API, lê a sessão gravada com a mesma consulta da `SessaoGuard` e só então grava
  * a identidade no contexto e no socket. O token só é lido do `auth`: query da URL e cabeçalho não
  * autenticam, porque URL vai parar em log e histórico.
  *
@@ -75,21 +75,21 @@ const esquemaAutenticacao = z.object({
  *
  * Nada que o cliente manda além do token entra na identidade. A sala da escola sai daqui.
  */
-export function autenticacaoDoHandshake(config: ConfiguracaoIdentidade, leitura: LeituraDeSessao, logger: LoggerBase) {
+export function autenticacaoDoHandshake(config: AuthConfig, leitura: SessaoReader, logger: LoggerBase) {
   // Com o Postgres fora, a escola inteira reconecta ao mesmo tempo e todo handshake falharia aqui: uma linha a
   // cada 30 s diz o mesmo que mil (regra 80). O erro que vale, o resumo, sai nessa linha.
   let ultimoErro: unknown
-  const avisarIndisponivel = avisoEspacado(() => {
-    logger.warn({ evento: 'realtime.sessao_indisponivel', erro: resumirErro(ultimoErro) })
+  const avisarIndisponivel = throttledWarn(() => {
+    logger.warn({ evento: 'realtime.sessao_indisponivel', erro: summarizeError(ultimoErro) })
     ultimoErro = undefined
   })
   return (socket: SocketRealtime, proximo: (erro?: Error) => void): void => {
-    void executarNoContexto({ requisicaoId: randomUUID() }, async () => {
+    void runInContext({ requisicaoId: randomUUID() }, async () => {
       const autenticacao = esquemaAutenticacao.safeParse(socket.handshake.auth)
       try {
-        if (!autenticacao.success) throw new ErroDeDominio(ErrorCode.NAO_AUTENTICADO)
-        const token = await verificarToken(autenticacao.data.token, config)
-        let linha: LinhaDaSessao | undefined
+        if (!autenticacao.success) throw new DomainException(ErrorCode.NAO_AUTENTICADO)
+        const token = await verifyToken(autenticacao.data.token, config)
+        let linha: SessaoRow | undefined
         try {
           linha = await leitura.lerParaGuarda(token)
         } catch (erro) {
@@ -102,17 +102,17 @@ export function autenticacaoDoHandshake(config: ConfiguracaoIdentidade, leitura:
           return
         }
         const sessao = avaliarSessao(token, linha)
-        if (sessao === undefined) throw new ErroDeDominio(ErrorCode.NAO_AUTENTICADO)
-        definirSessaoNoContexto(sessao)
+        if (sessao === undefined) throw new DomainException(ErrorCode.NAO_AUTENTICADO)
+        setContextSessao(sessao)
         // Só escola e usuário no socket: a sala sai da escola da sessão, nunca de nada que o cliente mande.
-        const identidade: Identidade = { escolaId: sessao.escolaId, usuarioId: sessao.usuarioId }
+        const identidade: Identity = { escolaId: sessao.escolaId, usuarioId: sessao.usuarioId }
         socket.data.identidade = identidade
         // Verificado, o token não fica na conexão: o handshake é copiado para outras instâncias pelo
         // Redis (fetchSockets), e a query é texto livre do cliente.
         socket.handshake.auth = {}
         socket.handshake.query = {}
       } catch (erro) {
-        if (erro instanceof ErroDeDominio) {
+        if (erro instanceof DomainException) {
           logger.info({ evento: 'realtime.conexao_recusada', codigo: erro.codigo })
         } else {
           logger.error({ evento: 'realtime.conexao_falhou', erro })

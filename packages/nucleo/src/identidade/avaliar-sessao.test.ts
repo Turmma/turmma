@@ -1,18 +1,18 @@
 import { describe, expect, it } from 'vitest'
 import { avaliarSessao, sessaoAindaVale, tokenDaUltimaRenovacao, TOLERANCIA_DE_INATIVIDADE_MIN } from './avaliar-sessao.js'
-import type { LinhaDaSessao } from './sessao.repository.js'
-import type { TokenVerificado } from './verificar-token.js'
+import type { SessaoRow } from './sessao.repository.js'
+import type { VerifiedToken } from './verificar-token.js'
 
 const token = {
   escolaId: '0190f5a0-0000-7000-8000-00000000000a',
   usuarioId: '0190f5a0-0000-7000-8000-0000000000a1',
   sessaoId: '0190f5a0-0000-7000-8000-0000000000d1',
-} as TokenVerificado
+} as VerifiedToken
 
 const AGORA = new Date('2026-09-15T10:00:00-03:00')
 const minutosAntes = (minutos: number) => new Date(AGORA.getTime() - minutos * 60_000)
 
-function linha(ajuste: Partial<LinhaDaSessao> = {}): LinhaDaSessao {
+function linha(ajuste: Partial<SessaoRow> = {}): SessaoRow {
   return {
     usuarioId: token.usuarioId,
     papel: 'aluno',
@@ -40,7 +40,7 @@ describe('avaliarSessao', () => {
     expect(avaliarSessao(token, linha({ anoLetivoId: null }))?.anoLetivoId).toBeNull()
   })
 
-  it.each<[string, LinhaDaSessao | undefined]>([
+  it.each<[string, SessaoRow | undefined]>([
     ['sessão inexistente para (esc, sid)', undefined],
     ['sessão de outro usuário (sessao.usuario_id ≠ sub)', linha({ usuarioId: '0190f5a0-0000-7000-8000-0000000000a2' })],
     ['sessão encerrada', linha({ encerradaEm: minutosAntes(1) })],
@@ -96,7 +96,7 @@ describe('sessaoAindaVale: o que a renovação confere, igual à guarda', () => 
 
 describe('tokenDaUltimaRenovacao: só o token emitido depois da rotação marca a sessão', () => {
   const rotacionadoEm = new Date('2026-09-15T10:00:00.400-03:00')
-  const iat = (data: Date) => ({ ...token, emitidoEm: Math.floor(data.getTime() / 1_000) }) as TokenVerificado
+  const iat = (data: Date) => ({ ...token, emitidoEm: Math.floor(data.getTime() / 1_000) }) as VerifiedToken
 
   it('o token do segundo seguinte à rotação marca; o de antes dela, do mesmo segundo arredondado para baixo, não', () => {
     expect(tokenDaUltimaRenovacao(iat(new Date(rotacionadoEm.getTime() + 1_000)), linha({ rotacionadoEm }))).toBe(true)

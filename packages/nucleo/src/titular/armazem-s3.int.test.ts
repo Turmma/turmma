@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { afterAll, describe, expect, it } from 'vitest'
 import { lerAmbienteDeTeste, valorObrigatorio } from '../../../../tools/ci/compose.ts'
-import { ArmazemS3 } from './armazem-s3.js'
+import { S3FileStorage } from './armazem-s3.js'
 
 // O armazém do arquivo do titular contra o SeaweedFS do compose de teste (F3, tarefa 13.0; Tech Spec do F3, seção 12, premissa "o
 // SeaweedFS assina a URL de GET com o SDK S3"): guardar, conferir, baixar pela URL assinada, ver o `no-store` e o `attachment`
@@ -9,7 +9,7 @@ import { ArmazemS3 } from './armazem-s3.js'
 
 const ambiente = lerAmbienteDeTeste()
 const ENDERECO = `http://127.0.0.1:${valorObrigatorio(ambiente, 'STORAGE_PORTA_HOST')}`
-const { armazem, encerrar } = ArmazemS3.criar({
+const { armazem, encerrar } = S3FileStorage.criar({
   url: ENDERECO,
   regiao: valorObrigatorio(ambiente, 'STORAGE_REGIAO'),
   bucket: valorObrigatorio(ambiente, 'STORAGE_BUCKET'),

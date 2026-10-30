@@ -1,7 +1,7 @@
 import type { Compartilhamento, PapelDoTitular } from '@educa/shared'
 import { and, eq, isNull, sql } from 'drizzle-orm'
-import { exigirEscolaDoContexto } from '../contexto/escola-do-contexto.js'
-import type { Banco, TransacaoBanco } from '../db/banco.js'
+import { requireEscolaId } from '../contexto/escola-do-contexto.js'
+import type { Database, DatabaseTransaction } from '../db/banco.js'
 import { arquivoTitular } from '../db/schema/arquivo-titular.js'
 import { pedidoTitular } from '../db/schema/pedido-titular.js'
 import { usuario } from '../db/schema/usuario.js'
@@ -23,14 +23,14 @@ export interface PedidoConcluidoComOTitular {
 /**
  * As leituras e escritas da eliminação do titular (F3, tarefa 15.0; Tech Spec do F3, seção 5, "Eliminação") na escola do
  * contexto, nunca na de um argumento (regra 10, item 3). O escopo da escola é o de toda instrução daqui; o que muda o
- * `usuario` é o `CicloDeVidaService`, e o que muda a auditoria é o `RegistroDeAuditoria`: este repositório só toca o pedido,
+ * `usuario` é o `CicloDeVidaService`, e o que muda a auditoria é o `AuditoriaRecorder`: este repositório só toca o pedido,
  * as execuções e o consumo do titular e as linhas de `arquivo_titular`.
  *
  * **O relógio é o do banco** (`now()`): o `eliminar_em` foi gravado com ele, e o prazo se confere com ele. O `agora` injetado
  * só serve ao que o job grava como "data da anonimização" (`anonimizada_em`), como o expurgo por prazo.
  */
 export class EliminacaoDoTitularRepository {
-  constructor(private readonly banco: Banco | TransacaoBanco) {}
+  constructor(private readonly banco: Database | DatabaseTransaction) {}
 
   /**
    * O pedido de eliminação `agendado` e já vencido (`eliminar_em <= now()`) da escola do contexto, sem travar. O de outra
@@ -40,7 +40,7 @@ export class EliminacaoDoTitularRepository {
     const [linha] = await this.banco
       .select({ id: pedidoTitular.id, titularId: pedidoTitular.titularId, papel: pedidoTitular.papelTitular, registradoPor: pedidoTitular.registradoPor })
       .from(pedidoTitular)
-      .where(and(eq(pedidoTitular.escolaId, exigirEscolaDoContexto()), eq(pedidoTitular.id, pedidoId), eq(pedidoTitular.tipo, 'eliminacao'), eq(pedidoTitular.estado, 'agendado'), sql`${pedidoTitular.eliminarEm} <= now()`))
+      .where(and(eq(pedidoTitular.escolaId, requireEscolaId()), eq(pedidoTitular.id, pedidoId), eq(pedidoTitular.tipo, 'eliminacao'), eq(pedidoTitular.estado, 'agendado'), sql`${pedidoTitular.eliminarEm} <= now()`))
       .limit(1)
     return linha
   }
@@ -54,7 +54,7 @@ export class EliminacaoDoTitularRepository {
     const [linha] = await this.banco
       .select({ id: pedidoTitular.id, titularId: pedidoTitular.titularId, papel: pedidoTitular.papelTitular, registradoPor: pedidoTitular.registradoPor })
       .from(pedidoTitular)
-      .where(and(eq(pedidoTitular.escolaId, exigirEscolaDoContexto()), eq(pedidoTitular.id, pedidoId), eq(pedidoTitular.tipo, 'eliminacao'), eq(pedidoTitular.estado, 'agendado'), sql`${pedidoTitular.eliminarEm} <= now()`))
+      .where(and(eq(pedidoTitular.escolaId, requireEscolaId()), eq(pedidoTitular.id, pedidoId), eq(pedidoTitular.tipo, 'eliminacao'), eq(pedidoTitular.estado, 'agendado'), sql`${pedidoTitular.eliminarEm} <= now()`))
       .limit(1)
       .for('update')
     return linha
@@ -65,7 +65,7 @@ export class EliminacaoDoTitularRepository {
     const [linha] = await this.banco
       .select({ nome: usuario.nome })
       .from(usuario)
-      .where(and(eq(usuario.escolaId, exigirEscolaDoContexto()), eq(usuario.id, titularId)))
+      .where(and(eq(usuario.escolaId, requireEscolaId()), eq(usuario.id, titularId)))
       .limit(1)
     return linha?.nome
   }
@@ -81,7 +81,7 @@ export class EliminacaoDoTitularRepository {
     const [linha] = await this.banco
       .select({ id: usuario.id })
       .from(usuario)
-      .where(and(eq(usuario.escolaId, exigirEscolaDoContexto()), eq(usuario.id, registradoPor), isNull(usuario.desativadoEm)))
+      .where(and(eq(usuario.escolaId, requireEscolaId()), eq(usuario.id, registradoPor), isNull(usuario.desativadoEm)))
       .limit(1)
       .for('key share')
     return linha !== undefined
@@ -92,7 +92,7 @@ export class EliminacaoDoTitularRepository {
     await this.banco
       .update(pedidoTitular)
       .set({ compartilhamento: foto })
-      .where(and(eq(pedidoTitular.escolaId, exigirEscolaDoContexto()), eq(pedidoTitular.id, pedidoId)))
+      .where(and(eq(pedidoTitular.escolaId, requireEscolaId()), eq(pedidoTitular.id, pedidoId)))
   }
 
   /**
@@ -103,7 +103,7 @@ export class EliminacaoDoTitularRepository {
    * deixaria o tema do professor na `entrada`. Devolve quantas execuções.
    */
   async anonimizarExecucoes(titularId: string, agora: Date): Promise<number> {
-    const escolaId = exigirEscolaDoContexto()
+    const escolaId = requireEscolaId()
     const resultado = await this.banco.execute<{ execucoes: number }>(sql`
       with execucoes as (
         update execucao_agente
@@ -127,7 +127,7 @@ export class EliminacaoDoTitularRepository {
    * escola, e a linha só depois). O que já estava marcado não muda. Devolve quantos.
    */
   async marcarArquivosApagados(titularId: string): Promise<number> {
-    const escolaId = exigirEscolaDoContexto()
+    const escolaId = requireEscolaId()
     const marcados = await this.banco
       .update(arquivoTitular)
       .set({ apagadoEm: sql`now()` })
@@ -148,7 +148,7 @@ export class EliminacaoDoTitularRepository {
    * auditoria `pedido.concluido`. Trava em `FOR UPDATE`, em ordem de `id`. O `concluido_por` é o de quem registrou o pedido.
    */
   async concluirOutrosAbertos(titularId: string, pedidoDaEliminacaoId: string): Promise<PedidoConcluidoComOTitular[]> {
-    const escolaId = exigirEscolaDoContexto()
+    const escolaId = requireEscolaId()
     const resultado = await this.banco.execute<{ id: string; estado: PedidoConcluidoComOTitular['estado'] }>(sql`
       with alvo as (
         select id, estado from pedido_titular
@@ -175,7 +175,7 @@ export class EliminacaoDoTitularRepository {
     const concluidos = await this.banco
       .update(pedidoTitular)
       .set({ estado: 'concluido', concluidoEm: sql`now()`, concluidoPor: pedidoTitular.registradoPor, nomeTrocado: marcas.nomeTrocado, homonimo: marcas.homonimo })
-      .where(and(eq(pedidoTitular.escolaId, exigirEscolaDoContexto()), eq(pedidoTitular.id, pedidoId), eq(pedidoTitular.estado, 'agendado')))
+      .where(and(eq(pedidoTitular.escolaId, requireEscolaId()), eq(pedidoTitular.id, pedidoId), eq(pedidoTitular.estado, 'agendado')))
       .returning({ id: pedidoTitular.id })
     return concluidos.length > 0
   }

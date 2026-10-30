@@ -1,4 +1,4 @@
-import { contextoAtual, ErroDeDominio, executarNoContexto, RegistroDeAuditoria, sessaoDaRequisicao, type Banco } from '@educa/nucleo'
+import { currentContext, DomainException, runInContext, AuditoriaRecorder, requestSessao, type Database } from '@educa/nucleo'
 import { ContaGlobalRepository } from '@educa/nucleo/conta-global'
 import { ErrorCode, FINALIDADE_DA_REDEFINICAO_PELO_OPERADOR, type FinalidadeDaRedefinicaoDeMfa } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
@@ -6,7 +6,7 @@ import { RedefinicaoDeMfaRepository } from './redefinicao-de-mfa.repository.js'
 import { ResolucaoDeTenantRepository } from '../tenant/resolucao-de-tenant.repository.js'
 import type { ConferenciaDoAutor } from '../conferencia-do-autor.js'
 
-const registro = new RegistroDeAuditoria()
+const registro = new AuditoriaRecorder()
 
 /**
  * A redefinição do segundo fator de quem perdeu o app autenticador e os códigos (RF19; Tech Spec, seção 5, "TOTP").
@@ -25,10 +25,10 @@ const registro = new RegistroDeAuditoria()
  *   novo. A resposta e a auditoria não dizem quantas sessões caíram, que podiam ser também de outra escola.
  */
 export class RedefinicaoDeMfa {
-  constructor(private readonly banco: Banco) {}
+  constructor(private readonly banco: Database) {}
 
   async pelaCoordenacao(alvoId: string, finalidade: FinalidadeDaRedefinicaoDeMfa): Promise<void> {
-    const { escolaId, usuarioId } = sessaoDaRequisicao()
+    const { escolaId, usuarioId } = requestSessao()
     if (alvoId === usuarioId) return
     await this.banco.transaction(async (tx) => {
       const contaId = await new RedefinicaoDeMfaRepository(tx).contaDoUsuarioAtivo(alvoId)
@@ -62,18 +62,18 @@ export class RedefinicaoDeMfa {
  * - Usuário inexistente, desativado ou sem conta: `NAO_ENCONTRADO`, sem nada gravado.
  * - Devolve nada: o comando imprime só "ok" ou o código do erro.
  */
-export async function redefinirMfaPeloOperador(banco: Banco, autor: ConferenciaDoAutor, usuarioId: string, pedido: number): Promise<void> {
-  const requisicaoId = contextoAtual()?.requisicaoId ?? randomUUID()
-  await executarNoContexto({ requisicaoId }, () =>
+export async function redefinirMfaPeloOperador(banco: Database, autor: ConferenciaDoAutor, usuarioId: string, pedido: number): Promise<void> {
+  const requisicaoId = currentContext()?.requisicaoId ?? randomUUID()
+  await runInContext({ requisicaoId }, () =>
     banco.transaction(async (tx) => {
       const autorOperador = await autor(tx)
       const resolucao = new ResolucaoDeTenantRepository(tx)
       const alvo = await resolucao.escolaDoUsuarioParaOperador(usuarioId)
-      if (alvo?.contaId === null || alvo === undefined || !alvo.ativo) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+      if (alvo?.contaId === null || alvo === undefined || !alvo.ativo) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
       const { contaId } = alvo
-      await executarNoContexto({ requisicaoId, escolaId: alvo.escolaId }, async () => {
+      await runInContext({ requisicaoId, escolaId: alvo.escolaId }, async () => {
         const conta = await resolucao.travarContaParaRedefinir(contaId)
-        if (conta === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+        if (conta === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
         await resolucao.apagarMfa(contaId)
         await new ContaGlobalRepository(tx).encerrarSessoesDaConta(contaId, 'mfa_redefinido')
         // Com os agendados para eliminação (14.0): a coordenação de cada escola da conta é avisada, entre em ela ou não.
@@ -81,7 +81,7 @@ export async function redefinirMfaPeloOperador(banco: Banco, autor: ConferenciaD
         const porEscola = new Map<string, string>([[alvo.escolaId, usuarioId]])
         for (const ativo of usuarios) if (!porEscola.has(ativo.escolaId)) porEscola.set(ativo.escolaId, ativo.usuarioId)
         for (const [escolaId, entidadeId] of porEscola) {
-          await executarNoContexto({ requisicaoId, escolaId }, () =>
+          await runInContext({ requisicaoId, escolaId }, () =>
             registro.gravar(tx, 'usuario.mfa_redefinido', {
               entidadeId,
               antes: { mfaAtivo: conta.mfaAtivo },

@@ -1,5 +1,5 @@
 import 'reflect-metadata'
-import { criarLogger } from '@educa/nucleo'
+import { createLogger } from '@educa/nucleo'
 import { ErrorCode } from '@educa/shared'
 import type { INestApplication } from '@nestjs/common'
 import { NestFactory } from '@nestjs/core'
@@ -76,7 +76,7 @@ describe('convite do primeiro coordenador: o operador gera, a pessoa consulta e 
 
   beforeAll(async () => {
     app = await NestFactory.create(AppModule.com(configuracao, { medidor: medidor.medidor, ...MONTAGEM_DE_TESTE }), { logger: false })
-    configurarAplicacao(app, criarLogger({ servico: 'api-teste', nivel: 'trace', destino: { write: (linha: string) => linhasDeLog.push(linha) } }), medidor.medidor)
+    configurarAplicacao(app, createLogger({ servico: 'api-teste', nivel: 'trace', destino: { write: (linha: string) => linhasDeLog.push(linha) } }), medidor.medidor)
     await app.listen(0, '127.0.0.1')
     url = `http://127.0.0.1:${(app.getHttpServer().address() as AddressInfo).port}`
     hash = app.get(HashDeSenha)

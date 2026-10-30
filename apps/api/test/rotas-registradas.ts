@@ -1,5 +1,5 @@
 import 'reflect-metadata'
-import { METADADO_ENTRADA_DE_OPERACAO, METADADO_ROTA_ANONIMA, METADADO_ROTA_DE_OPERACAO } from '@educa/nucleo'
+import { OPERACAO_ENTRY_KEY, IS_PUBLIC_KEY, OPERACAO_ROUTE_KEY } from '@educa/nucleo'
 import { RequestMethod, type DynamicModule, type Type } from '@nestjs/common'
 import { GUARDS_METADATA, METHOD_METADATA, MODULE_METADATA, PATH_METADATA } from '@nestjs/common/constants.js'
 import { Reflector } from '@nestjs/core'
@@ -53,12 +53,12 @@ export function rotasDe(controladores: readonly Type[]): RotaRegistrada[] {
       if (caminhoDoMetodo === undefined) return []
       const verbo = RequestMethod[Reflect.getMetadata(METHOD_METADATA, handler) as RequestMethod] as RotaRegistrada['verbo']
       const alvos: Alvo[] = [handler as (...argumentos: never[]) => unknown, controlador]
-      const marcador = reflector.getAllAndOverride<boolean | undefined>(METADADO_ROTA_DE_OPERACAO, alvos) === true
+      const marcador = reflector.getAllAndOverride<boolean | undefined>(OPERACAO_ROUTE_KEY, alvos) === true
         ? 'rota'
-        : reflector.getAllAndOverride<boolean | undefined>(METADADO_ENTRADA_DE_OPERACAO, alvos) === true
+        : reflector.getAllAndOverride<boolean | undefined>(OPERACAO_ENTRY_KEY, alvos) === true
           ? 'entrada'
           : undefined
-      const anonima = reflector.getAllAndOverride<boolean | undefined>(METADADO_ROTA_ANONIMA, alvos) === true
+      const anonima = reflector.getAllAndOverride<boolean | undefined>(IS_PUBLIC_KEY, alvos) === true
       const guardas = [...((Reflect.getMetadata(GUARDS_METADATA, controlador) as unknown[] | undefined) ?? []), ...((Reflect.getMetadata(GUARDS_METADATA, handler) as unknown[] | undefined) ?? [])]
       return paraLista(Reflect.getMetadata(PATH_METADATA, controlador)).flatMap((doControlador) =>
         paraLista(caminhoDoMetodo).map((doMetodo) => ({ controlador, metodo, handler: handler as (...argumentos: never[]) => unknown, verbo, caminho: juntar(doControlador, doMetodo), marcador, anonima, guardas })),

@@ -1,7 +1,7 @@
 import type { PapelDeUsuario } from '@educa/shared'
 import { and, asc, eq, exists, gt, inArray, isNotNull, isNull, notExists, sql } from 'drizzle-orm'
-import { exigirEscolaDoContexto } from '../contexto/escola-do-contexto.js'
-import type { TransacaoBanco } from '../db/banco.js'
+import { requireEscolaId } from '../contexto/escola-do-contexto.js'
+import type { DatabaseTransaction } from '../db/banco.js'
 import { acessoTurma } from '../db/schema/acesso-turma.js'
 import { contaExterna, type ProvedorExterno } from '../db/schema/conta-externa.js'
 import { credencialMatricula } from '../db/schema/credencial-matricula.js'
@@ -30,7 +30,7 @@ export interface UsuarioDoCicloDeVida {
  * `apps/api`. O encerramento do vínculo pela coordenação (`VinculoService.encerrar`) usa a mesma revogação daqui.
  */
 export class CicloDeVidaRepository {
-  constructor(private readonly tx: TransacaoBanco) {}
+  constructor(private readonly tx: DatabaseTransaction) {}
 
   /**
    * Encerra todas as sessões ainda abertas do usuário, só na escola do contexto (a desativação, 17.0): o usuário da
@@ -40,7 +40,7 @@ export class CicloDeVidaRepository {
     const encerradas = await this.tx
       .update(sessao)
       .set({ encerradaEm: sql`now()`, motivo })
-      .where(and(eq(sessao.escolaId, exigirEscolaDoContexto()), eq(sessao.usuarioId, usuarioId), isNull(sessao.encerradaEm)))
+      .where(and(eq(sessao.escolaId, requireEscolaId()), eq(sessao.usuarioId, usuarioId), isNull(sessao.encerradaEm)))
       .returning({ id: sessao.id })
     return encerradas.length
   }
@@ -60,7 +60,7 @@ export class CicloDeVidaRepository {
       .from(turma)
       .where(
         and(
-          eq(turma.escolaId, exigirEscolaDoContexto()),
+          eq(turma.escolaId, requireEscolaId()),
           exists(
             this.tx
               .select({ um: vinculo.id })
@@ -95,7 +95,7 @@ export class CicloDeVidaRepository {
    * do próprio acesso.
    */
   async revogarDeQuemSaiu(usuarioId: string, turmaId?: string): Promise<Array<{ readonly id: string; readonly turmaId: string }>> {
-    const escolaId = exigirEscolaDoContexto()
+    const escolaId = requireEscolaId()
     const vinculoQueSegura = this.tx
       .select({ um: vinculo.id })
       .from(vinculo)
@@ -135,7 +135,7 @@ export class CicloDeVidaRepository {
     const [linha] = await this.tx
       .select({ papel: usuario.papel, contaId: usuario.contaId, desativadoEm: usuario.desativadoEm })
       .from(usuario)
-      .where(and(eq(usuario.escolaId, exigirEscolaDoContexto()), eq(usuario.id, usuarioId)))
+      .where(and(eq(usuario.escolaId, requireEscolaId()), eq(usuario.id, usuarioId)))
       .limit(1)
       .for('no key update')
     return linha
@@ -146,7 +146,7 @@ export class CicloDeVidaRepository {
     const [linha] = await this.tx
       .update(usuario)
       .set({ desativadoEm: sql`now()` })
-      .where(and(eq(usuario.escolaId, exigirEscolaDoContexto()), eq(usuario.id, usuarioId), isNull(usuario.desativadoEm)))
+      .where(and(eq(usuario.escolaId, requireEscolaId()), eq(usuario.id, usuarioId), isNull(usuario.desativadoEm)))
       .returning({ desativadoEm: usuario.desativadoEm })
     return linha?.desativadoEm ?? undefined
   }
@@ -161,7 +161,7 @@ export class CicloDeVidaRepository {
     const [linha] = await this.tx
       .update(usuario)
       .set({ eliminacaoAgendadaEm: sql`now()` })
-      .where(and(eq(usuario.escolaId, exigirEscolaDoContexto()), eq(usuario.id, usuarioId), isNull(usuario.eliminacaoAgendadaEm)))
+      .where(and(eq(usuario.escolaId, requireEscolaId()), eq(usuario.id, usuarioId), isNull(usuario.eliminacaoAgendadaEm)))
       .returning({ eliminacaoAgendadaEm: usuario.eliminacaoAgendadaEm })
     return linha?.eliminacaoAgendadaEm ?? undefined
   }
@@ -171,7 +171,7 @@ export class CicloDeVidaRepository {
     const devolvidos = await this.tx
       .update(usuario)
       .set({ eliminacaoAgendadaEm: null })
-      .where(and(eq(usuario.escolaId, exigirEscolaDoContexto()), eq(usuario.id, usuarioId), isNotNull(usuario.eliminacaoAgendadaEm)))
+      .where(and(eq(usuario.escolaId, requireEscolaId()), eq(usuario.id, usuarioId), isNotNull(usuario.eliminacaoAgendadaEm)))
       .returning({ id: usuario.id })
     return devolvidos.length > 0
   }
@@ -184,7 +184,7 @@ export class CicloDeVidaRepository {
     const apagadas = await this.tx
       .update(credencialMatricula)
       .set({ senhaHash: null })
-      .where(and(eq(credencialMatricula.escolaId, exigirEscolaDoContexto()), eq(credencialMatricula.usuarioId, usuarioId), isNotNull(credencialMatricula.senhaHash)))
+      .where(and(eq(credencialMatricula.escolaId, requireEscolaId()), eq(credencialMatricula.usuarioId, usuarioId), isNotNull(credencialMatricula.senhaHash)))
       .returning({ id: credencialMatricula.id })
     return apagadas.length > 0
   }
@@ -193,7 +193,7 @@ export class CicloDeVidaRepository {
   async apagarCredencialDaMatricula(usuarioId: string): Promise<boolean> {
     const apagadas = await this.tx
       .delete(credencialMatricula)
-      .where(and(eq(credencialMatricula.escolaId, exigirEscolaDoContexto()), eq(credencialMatricula.usuarioId, usuarioId)))
+      .where(and(eq(credencialMatricula.escolaId, requireEscolaId()), eq(credencialMatricula.usuarioId, usuarioId)))
       .returning({ id: credencialMatricula.id })
     return apagadas.length > 0
   }
@@ -202,7 +202,7 @@ export class CicloDeVidaRepository {
   async apagarContaExterna(usuarioId: string): Promise<{ id: string; provedor: ProvedorExterno } | undefined> {
     const [apagada] = await this.tx
       .delete(contaExterna)
-      .where(and(eq(contaExterna.escolaId, exigirEscolaDoContexto()), eq(contaExterna.usuarioId, usuarioId)))
+      .where(and(eq(contaExterna.escolaId, requireEscolaId()), eq(contaExterna.usuarioId, usuarioId)))
       .returning({ id: contaExterna.id, provedor: contaExterna.provedor })
     return apagada
   }
@@ -211,7 +211,7 @@ export class CicloDeVidaRepository {
   async apagarSessoes(usuarioId: string): Promise<number> {
     const apagadas = await this.tx
       .delete(sessao)
-      .where(and(eq(sessao.escolaId, exigirEscolaDoContexto()), eq(sessao.usuarioId, usuarioId)))
+      .where(and(eq(sessao.escolaId, requireEscolaId()), eq(sessao.usuarioId, usuarioId)))
       .returning({ id: sessao.id })
     return apagadas.length
   }
@@ -220,7 +220,7 @@ export class CicloDeVidaRepository {
   async apagarVinculos(usuarioId: string): Promise<number> {
     const apagados = await this.tx
       .delete(vinculo)
-      .where(and(eq(vinculo.escolaId, exigirEscolaDoContexto()), eq(vinculo.usuarioId, usuarioId)))
+      .where(and(eq(vinculo.escolaId, requireEscolaId()), eq(vinculo.usuarioId, usuarioId)))
       .returning({ id: vinculo.id })
     return apagados.length
   }
@@ -235,7 +235,7 @@ export class CicloDeVidaRepository {
    * como a FK do `usuario_id` no `delete` do usuário; a eliminação é rara, e o índice fica no `TODO.md`.
    */
   async apagarDaListaDeNomes(usuarioId: string): Promise<{ readonly linhaDaListaApagada: boolean; readonly pedidosApagados: number }> {
-    const escolaId = exigirEscolaDoContexto()
+    const escolaId = requireEscolaId()
     const doUsuario = and(eq(listaNome.escolaId, escolaId), eq(listaNome.usuarioId, usuarioId))
     const pedidos = await this.tx
       .delete(reivindicacao)
@@ -250,6 +250,6 @@ export class CicloDeVidaRepository {
    * pessoa que ele criou ficam, com o id dele (migration 0013).
    */
   async apagarUsuario(usuarioId: string): Promise<void> {
-    await this.tx.delete(usuario).where(and(eq(usuario.escolaId, exigirEscolaDoContexto()), eq(usuario.id, usuarioId)))
+    await this.tx.delete(usuario).where(and(eq(usuario.escolaId, requireEscolaId()), eq(usuario.id, usuarioId)))
   }
 }

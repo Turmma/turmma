@@ -372,7 +372,7 @@ function bloqueioDoDocumento(entrada: EntradaDoCommit, alterados: string[], cami
  * (`.processo/`, a pasta `tasks/`, o documento de correção citado); e a caducidade (`alteracoesDeCodigo`), que compara bytes
  * e hora dos arquivos de código com o carimbo, e por isso não passa por `conteudoDe`, que devolve texto: os bytes dos
  * arquivos alterados saem do disco. O `conteudoDe` lê o documento da tarefa e, dos arquivos que o commit leva, o índice e o HEAD:
- * é o texto de onde `guardioesDoCaminho` tira o `@SemEscopo(` e a citação de regra.
+ * é o texto de onde `guardioesDoCaminho` tira o `@Unscoped(` e a citação de regra.
  */
 export function decidirCommit(entrada: EntradaDoCommit, conferencia: ConferenciaDoDocumento = () => null): string | null {
   const alterados = entrada.alterados ?? entrada.arquivos

@@ -1,11 +1,11 @@
-import { executarNoContexto, type Banco, type Enfileirador, type LoggerBase } from '@educa/nucleo'
+import { runInContext, type Database, type JobOutbox, type LoggerBase } from '@educa/nucleo'
 import { TIPO_CONSOLIDAR_USO, TIPO_EXPURGAR_ACESSO, TIPO_EXPURGAR_DADO_PESSOAL, TIPO_EXPURGAR_JOBS, type JobType } from '@educa/shared'
 import { UnrecoverableError, type Job, type Queue } from 'bullmq'
 import { randomUUID } from 'node:crypto'
 
 /**
  * A fila do BullMQ onde só moram os disparos agendados. O disparo não executa a rotina: grava o job
- * dela em `job_registro` pelo `Enfileirador`, e dali ela segue a trilha de todo job (despachante, vaga,
+ * dela em `job_registro` pelo `JobOutbox`, e dali ela segue a trilha de todo job (despachante, vaga,
  * worker de lote, estado consultável).
  */
 export const FILA_DOS_AGENDAMENTOS = 'agendamentos'
@@ -77,8 +77,8 @@ export async function registrarAgendamentos(fila: Pick<Queue, 'upsertJobSchedule
  * as duas rotinas toleram reexecução (D49), e a segunda não muda o que a primeira gravou.
  */
 export function criarDisparoDeAgendamento(
-  banco: Banco,
-  enfileirador: Pick<Enfileirador, 'enfileirar'>,
+  banco: Database,
+  enfileirador: Pick<JobOutbox, 'enfileirar'>,
   logger: LoggerBase,
   agendamentos: readonly Agendamento[] = AGENDAMENTOS,
 ): (job: Pick<Job, 'name'>) => Promise<string> {
@@ -86,7 +86,7 @@ export function criarDisparoDeAgendamento(
     const agendamento = agendamentos.find(({ tipo }) => tipo === job.name)
     if (agendamento === undefined) return Promise.reject(new UnrecoverableError('agendamento desconhecido'))
     const { tipo } = agendamento
-    return executarNoContexto({ requisicaoId: randomUUID(), rotinaDoSistema: true }, async () => {
+    return runInContext({ requisicaoId: randomUUID(), rotinaDoSistema: true }, async () => {
       const jobId = await banco.transaction((tx) => enfileirador.enfileirar(tx, tipo, {}))
       logger.info({ evento: 'agendamento.disparado', tipo, jobId })
       return jobId

@@ -1,16 +1,16 @@
-import { exigirEscolaDoContexto, type Banco } from '@educa/nucleo'
+import { requireEscolaId, type Database } from '@educa/nucleo'
 import { aluno } from './tabelas.js'
 
 // A propriedade-função pública é método público do mesmo jeito.
 export class PropriedadeArrowRepository {
-  constructor(private readonly banco: Banco) {}
+  constructor(private readonly banco: Database) {}
 
   listar = async () => { // reprova: sem-prova-de-escopo
     return this.banco.select().from(aluno)
   }
 
   readonly listarNaEscola = async () => {
-    return this.banco.select().from(aluno).where(exigirEscolaDoContexto())
+    return this.banco.select().from(aluno).where(requireEscolaId())
   }
 
   listarComFuncao = async function (this: PropriedadeArrowRepository) { // reprova: sem-prova-de-escopo

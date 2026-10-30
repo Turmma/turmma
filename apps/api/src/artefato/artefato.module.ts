@@ -1,4 +1,4 @@
-import type { Banco } from '@educa/nucleo'
+import type { Database } from '@educa/nucleo'
 import { Module } from '@nestjs/common'
 import { LimiteDePedidosDeIa } from '../assistente/limite-de-pedidos-de-ia.js'
 import { BANCO } from '../banco.module.js'
@@ -19,12 +19,12 @@ import { FerramentasService } from './ferramentas.service.js'
   providers: [
     {
       provide: FerramentasService,
-      useFactory: (banco: Banco, agendador: AgendadorDeExecucoes, limite: LimiteDePedidosDeIa, trechos: BuscaDeTrechos) => new FerramentasService(banco, agendador, limite, trechos),
+      useFactory: (banco: Database, agendador: AgendadorDeExecucoes, limite: LimiteDePedidosDeIa, trechos: BuscaDeTrechos) => new FerramentasService(banco, agendador, limite, trechos),
       inject: [BANCO, AgendadorDeExecucoes, LimiteDePedidosDeIa, BuscaDeTrechos],
     },
     {
       provide: ArtefatoService,
-      useFactory: (banco: Banco, agendador: AgendadorDeExecucoes, limite: LimiteDePedidosDeIa) => new ArtefatoService(banco, agendador, limite),
+      useFactory: (banco: Database, agendador: AgendadorDeExecucoes, limite: LimiteDePedidosDeIa) => new ArtefatoService(banco, agendador, limite),
       inject: [BANCO, AgendadorDeExecucoes, LimiteDePedidosDeIa],
     },
   ],

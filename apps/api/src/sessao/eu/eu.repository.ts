@@ -1,4 +1,4 @@
-import { escola, identidadeDaRequisicao, usuario, type Banco } from '@educa/nucleo'
+import { escola, requestIdentity, usuario, type Database } from '@educa/nucleo'
 import type { PapelDeUsuario } from '@educa/shared'
 import { and, eq, sql } from 'drizzle-orm'
 
@@ -16,14 +16,14 @@ export interface LinhaDoEu {
 }
 
 /**
- * Quem está na sessão: o usuário e a escola do contexto que a `GuardaDeSessao` gravou, e só eles. Não recebe id:
+ * Quem está na sessão: o usuário e a escola do contexto que a `SessaoGuard` gravou, e só eles. Não recebe id:
  * não há como pedir outro usuário nem outra escola (regra 10, item 3).
  */
 export class EuRepository {
-  constructor(private readonly banco: Banco) {}
+  constructor(private readonly banco: Database) {}
 
   async doContexto(): Promise<LinhaDoEu | undefined> {
-    const { escolaId, usuarioId } = identidadeDaRequisicao()
+    const { escolaId, usuarioId } = requestIdentity()
     const [linha] = await this.banco
       .select({
         usuarioId: usuario.id,
@@ -49,7 +49,7 @@ export class EuRepository {
    * curso: a escola recém-criada ainda não tem e grava do mesmo jeito. Sem linha (a pessoa saiu entre a guarda e aqui), nada.
    */
   async marcarIntroducaoVista(): Promise<Date | undefined> {
-    const { escolaId, usuarioId } = identidadeDaRequisicao()
+    const { escolaId, usuarioId } = requestIdentity()
     const [linha] = await this.banco
       .update(usuario)
       .set({ introducaoVistaEm: sql`coalesce(${usuario.introducaoVistaEm}, now())` })

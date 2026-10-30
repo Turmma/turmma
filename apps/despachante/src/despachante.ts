@@ -1,20 +1,20 @@
 import {
-  avisoEspacado,
+  throttledWarn,
   estaNaJanela,
-  executarNoContexto,
-  FILAS_POR_PRIORIDADE,
-  resumirErro,
-  type Batimento,
-  type ConfiguracaoOperacional,
-  type ContextoDaRequisicao,
-  type DespachoRepository,
-  type EscolaComPendentes,
+  runInContext,
+  QUEUES_BY_PRIORITY,
+  summarizeError,
+  type Heartbeat,
+  type OperationalSettings,
+  type RequestContext,
+  type DispatchRepository,
+  type EscolaWithPendingJobs,
   type JanelaLetiva,
-  type JobReservado,
+  type ReservedJob,
   type LoggerBase,
-  type Relogio,
-  type VagasPorEscola,
-  type VagasPorFila,
+  type Clock,
+  type EscolaConcurrencyLimiter,
+  type ConcurrencyByQueue,
 } from '@educa/nucleo'
 import type { QueueName } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
@@ -31,24 +31,24 @@ export const LOTE_DE_RESERVA = 100
 export const FILA_QUE_SEGURA_NAO_URGENTE: QueueName = 'lote'
 
 export interface DependenciasDaPublicacao {
-  repositorio: Pick<DespachoRepository, 'marcarPublicados' | 'devolverParaAguardando'>
+  repositorio: Pick<DispatchRepository, 'marcarPublicados' | 'devolverParaAguardando'>
   fila: Pick<FilaDePublicacao, 'publicar'>
-  vagas: Pick<VagasPorEscola, 'tomar' | 'liberar'>
+  vagas: Pick<EscolaConcurrencyLimiter, 'tomar' | 'liberar'>
   /** Vagas por fila da escola do contexto: as da configuração dela, ou o padrão do ambiente. */
-  vagasDaEscola: Pick<ConfiguracaoOperacional<VagasPorFila>, 'daEscola'>
+  vagasDaEscola: Pick<OperationalSettings<ConcurrencyByQueue>, 'daEscola'>
   logger: LoggerBase
 }
 
 export interface DependenciasDoDespachante extends DependenciasDaPublicacao {
-  repositorio: Pick<DespachoRepository, 'listarEscolasComPendentes' | 'publicadosEntre' | 'reservarDaEscola' | 'devolverParaAguardando' | 'marcarPublicados'>
-  vagas: Pick<VagasPorEscola, 'membros' | 'manter' | 'livres' | 'tomar' | 'liberar'>
+  repositorio: Pick<DispatchRepository, 'listarEscolasComPendentes' | 'publicadosEntre' | 'reservarDaEscola' | 'devolverParaAguardando' | 'marcarPublicados'>
+  vagas: Pick<EscolaConcurrencyLimiter, 'membros' | 'manter' | 'livres' | 'tomar' | 'liberar'>
   /** Horário letivo da escola do contexto: o da configuração dela, ou o padrão do ambiente. */
-  janelaDaEscola: Pick<ConfiguracaoOperacional<JanelaLetiva>, 'daEscola'>
+  janelaDaEscola: Pick<OperationalSettings<JanelaLetiva>, 'daEscola'>
   /** De onde vem a hora que decide se a escola está em aula. Só o teste troca. */
-  relogio: Relogio
+  relogio: Clock
   /** `LISTEN job`. Sem ele, o despachante só sonda; nada se perde, só demora até 500 ms. */
   ouvinte?: { garantir(): Promise<void> }
-  batimento?: Batimento
+  batimento?: Heartbeat
 }
 
 export interface OpcoesDoDespachante {
@@ -97,7 +97,7 @@ export class Despachante {
     this.#intervaloMs = opcoes.intervaloMs ?? INTERVALO_SONDAGEM_MS
     this.#lote = opcoes.lote ?? LOTE_DE_RESERVA
     let ultimoErro: unknown
-    const aviso = avisoEspacado(() => dependencias.logger.warn({ evento: 'despachante.vaga_indisponivel', erro: resumirErro(ultimoErro) }))
+    const aviso = throttledWarn(() => dependencias.logger.warn({ evento: 'despachante.vaga_indisponivel', erro: summarizeError(ultimoErro) }))
     this.#avisarVagaIndisponivel = (erro) => {
       ultimoErro = erro
       aviso()
@@ -132,7 +132,7 @@ export class Despachante {
     this.#avisoPendente = false
     const pendentes = await this.dependencias.repositorio.listarEscolasComPendentes()
     let publicados = 0
-    for (const fila of FILAS_POR_PRIORIDADE) {
+    for (const fila of QUEUES_BY_PRIORITY) {
       for (const escolaId of this.emRodizio(fila, pendentes)) {
         if (publicados >= this.#lote) return publicados
         const despachados = await this.despacharDaEscola(fila, escolaId, this.#lote - publicados)
@@ -144,7 +144,7 @@ export class Despachante {
   }
 
   /** As escolas da fila, começando por uma diferente a cada rodada. */
-  private emRodizio(fila: QueueName, pendentes: readonly EscolaComPendentes[]): Array<string | null> {
+  private emRodizio(fila: QueueName, pendentes: readonly EscolaWithPendingJobs[]): Array<string | null> {
     const escolas = pendentes.filter((pendente) => pendente.fila === fila).map((pendente) => pendente.escolaId)
     if (escolas.length === 0) return escolas
     const inicio = (this.#proximaNoRodizio.get(fila) ?? 0) % escolas.length
@@ -154,7 +154,7 @@ export class Despachante {
 
   /** Passos 0 a 4 para uma escola numa fila, no contexto dela: a configuração, a janela e a reserva são dela. */
   private despacharDaEscola(fila: QueueName, escolaId: string | null, maximo: number): Promise<number | 'vaga_indisponivel'> {
-    return executarNoContexto(contextoDaEscola(escolaId), async () => {
+    return runInContext(contextoDaEscola(escolaId), async () => {
       const { repositorio, vagas, vagasDaEscola, janelaDaEscola, relogio } = this.dependencias
       const limite = (await vagasDaEscola.daEscola())[fila]
       const segurarNaoUrgentes = fila === FILA_QUE_SEGURA_NAO_URGENTE && estaNaJanela(await janelaDaEscola.daEscola(), relogio.agora())
@@ -185,7 +185,7 @@ export class Despachante {
    * reserva curta: os urgentes pelo índice deles; e, só fora do horário letivo e com vaga sobrando,
    * o resto por ordem de chegada (os urgentes disponíveis já foram, então é o não urgente).
    */
-  private async reservar(fila: QueueName, maximo: number, segurarNaoUrgentes: boolean): Promise<JobReservado[]> {
+  private async reservar(fila: QueueName, maximo: number, segurarNaoUrgentes: boolean): Promise<ReservedJob[]> {
     const { repositorio } = this.dependencias
     if (fila !== FILA_QUE_SEGURA_NAO_URGENTE) return repositorio.reservarDaEscola(fila, maximo)
     const urgentes = await repositorio.reservarDaEscola(fila, maximo, { soUrgentes: true })
@@ -202,7 +202,7 @@ export class Despachante {
         publicados = await this.rodada()
       } catch (erro) {
         // Banco fora: o laço segue, e a próxima rodada tenta de novo. Nunca derruba o processo.
-        logger.warn({ evento: 'despachante.rodada_falhou', erro: resumirErro(erro) })
+        logger.warn({ evento: 'despachante.rodada_falhou', erro: summarizeError(erro) })
       }
       batimento?.bater()
       // Rodada cheia emenda na seguinte; rodada que publicou pouco, ou que falhou, espera.
@@ -234,10 +234,10 @@ export class Despachante {
  *
  * Devolve os ids publicados.
  */
-export async function publicarComVaga(dependencias: DependenciasDaPublicacao, jobs: readonly JobReservado[], evento: 'job.publicado' | 'job.republicado'): Promise<string[]> {
+export async function publicarComVaga(dependencias: DependenciasDaPublicacao, jobs: readonly ReservedJob[], evento: 'job.publicado' | 'job.republicado'): Promise<string[]> {
   const publicados: string[] = []
   for (const grupo of agruparPorFilaEEscola(jobs)) {
-    const doGrupo = await executarNoContexto(contextoDaEscola(grupo.escolaId), () => publicarGrupoComVaga(dependencias, grupo, evento))
+    const doGrupo = await runInContext(contextoDaEscola(grupo.escolaId), () => publicarGrupoComVaga(dependencias, grupo, evento))
     publicados.push(...doGrupo)
   }
   return publicados
@@ -246,7 +246,7 @@ export async function publicarComVaga(dependencias: DependenciasDaPublicacao, jo
 interface GrupoDeJobs {
   fila: QueueName
   escolaId: string | null
-  jobs: JobReservado[]
+  jobs: ReservedJob[]
 }
 
 async function publicarGrupoComVaga(dependencias: DependenciasDaPublicacao, { fila, escolaId, jobs }: GrupoDeJobs, evento: 'job.publicado' | 'job.republicado'): Promise<string[]> {
@@ -256,7 +256,7 @@ async function publicarGrupoComVaga(dependencias: DependenciasDaPublicacao, { fi
   try {
     concedidos = await vagas.tomar(fila, escolaId, (await vagasDaEscola.daEscola())[fila], ids)
   } catch (erro) {
-    logger.warn({ evento: 'despachante.vaga_indisponivel', jobIds: ids, erro: resumirErro(erro) })
+    logger.warn({ evento: 'despachante.vaga_indisponivel', jobIds: ids, erro: summarizeError(erro) })
     await repositorio.devolverParaAguardando(ids)
     return []
   }
@@ -269,12 +269,12 @@ async function publicarGrupoComVaga(dependencias: DependenciasDaPublicacao, { fi
     await vagas.liberar(fila, escolaId, comVagaIds)
   } catch (erro) {
     // A vaga vence sozinha em 60 s.
-    logger.warn({ evento: 'despachante.vaga_nao_liberada', jobIds: comVagaIds, erro: resumirErro(erro) })
+    logger.warn({ evento: 'despachante.vaga_nao_liberada', jobIds: comVagaIds, erro: summarizeError(erro) })
   }
   return []
 }
 
-function agruparPorFilaEEscola(jobs: readonly JobReservado[]): GrupoDeJobs[] {
+function agruparPorFilaEEscola(jobs: readonly ReservedJob[]): GrupoDeJobs[] {
   const grupos = new Map<string, GrupoDeJobs>()
   for (const job of jobs) {
     const chave = `${job.fila}:${job.escolaId ?? ''}`
@@ -292,30 +292,30 @@ function agruparPorFilaEEscola(jobs: readonly JobReservado[]): GrupoDeJobs[] {
  */
 async function publicarReservados(
   { repositorio, fila, logger }: Pick<DependenciasDaPublicacao, 'repositorio' | 'fila' | 'logger'>,
-  jobs: readonly JobReservado[],
+  jobs: readonly ReservedJob[],
   evento: 'job.publicado' | 'job.republicado',
 ): Promise<boolean> {
   const ids = jobs.map((job) => job.id)
   try {
     await fila.publicar(jobs)
   } catch (erro) {
-    logger.warn({ evento: 'despachante.publicacao_falhou', jobIds: ids, erro: resumirErro(erro) })
+    logger.warn({ evento: 'despachante.publicacao_falhou', jobIds: ids, erro: summarizeError(erro) })
     return false
   }
   await repositorio.marcarPublicados(ids)
   for (const job of jobs) {
-    executarNoContexto(contextoDoJob(job), () => logger.info({ evento, jobId: job.id }))
+    runInContext(contextoDoJob(job), () => logger.info({ evento, jobId: job.id }))
   }
   return true
 }
 
 /** Contexto de uma escola (ou da rotina do sistema, sem escola) para ler a configuração e reservar os jobs dela. */
-export function contextoDaEscola(escolaId: string | null): ContextoDaRequisicao {
+export function contextoDaEscola(escolaId: string | null): RequestContext {
   return { requisicaoId: randomUUID(), ...(escolaId === null ? { rotinaDoSistema: true } : { escolaId }) }
 }
 
 /** O log da publicação sai com a escola e a requisição do job: é a mesma trilha da API e do worker. */
-export function contextoDoJob(job: JobReservado): { requisicaoId: string; escolaId?: string } {
+export function contextoDoJob(job: ReservedJob): { requisicaoId: string; escolaId?: string } {
   return {
     requisicaoId: job.requisicaoId ?? randomUUID(),
     ...(job.escolaId === null ? {} : { escolaId: job.escolaId }),

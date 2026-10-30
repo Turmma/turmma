@@ -8,8 +8,8 @@ import { usuario } from './usuario.js'
 /**
  * Uma execução de agente (MVP, seção 4, item 1; `docs/agentes.md`, "Requisitos de runtime"; D49): todo `POST` que
  * dispara IA grava a linha `pendente` e responde na hora; a execução roda depois e termina `concluida` ou `falhou`. Nesta
- * fatia ela roda no processo da API, atrás do `ExecutorDeAgente` (`packages/nucleo/src/ia`), e não na fila: dívida
- * declarada, `TODO(fila)`. É a tabela da porta `RepositorioDeExecucoes`.
+ * fatia ela roda no processo da API, atrás do `AgenteExecutor` (`packages/nucleo/src/ia`), e não na fila: dívida
+ * declarada, `TODO(fila)`. É a tabela da porta `ExecucaoRepository`.
  *
  * - `chave_envio` é a chave de idempotência (a `chave` da `ExecucaoAgendada`), que a tela sorteia a cada envio. Índice
  *   único `(escola_id, chave_envio)`: o reenvio, o clique duplo e a reexecução caem no 23505, e quem grava relê a execução
@@ -38,7 +38,7 @@ import { usuario } from './usuario.js'
  * - O consumo de cada chamada ao modelo fica em `consumo_ia`, com tokens, custo e duração (regra 30, item 4).
  * - Cresce com o Tutor (uma por troca). Lê-se por id ou pela chave. O índice parcial das abertas, `(escola_id, estado,
  *   criada_em)`, só tem as `pendente` e `rodando`: é por ele que a varredura da subida do processo (`falharInterrompidas`,
- *   rotina nossa entre escolas, `@SemEscopo`) encerra as que ficaram para trás, sem ler a tabela.
+ *   rotina nossa entre escolas, `@Unscoped`) encerra as que ficaram para trás, sem ler a tabela.
  * - **Anonimizada no prazo** (F3, tarefa 4.0; categoria `execucao_agente` da retenção): o expurgo noturno da escola troca
  *   a `entrada` por `{ tarefa }` (o que o check `execucao_agente_entrada_da_tarefa` exige), anula `solicitada_por` e
  *   grava `anonimizada_em`. A linha, o estado, o `resultado` e o `erro` ficam, e com eles as FKs de quem aponta para ela:

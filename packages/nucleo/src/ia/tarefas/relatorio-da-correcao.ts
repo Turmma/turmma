@@ -2,7 +2,7 @@ import { ALTERNATIVAS_POR_QUESTAO, habilidadeSchema } from '@educa/shared'
 import { z } from 'zod'
 import { dadoEmJson } from '../material.js'
 import { PROMPT_RELATORIO_DA_CORRECAO } from '../prompts/relatorio-da-correcao.js'
-import { definirTarefa } from '../tarefa.js'
+import { defineTask } from '../tarefa.js'
 import { cortar } from '../texto.js'
 
 const contagem = z.number().int().min(0)
@@ -12,7 +12,7 @@ const contagem = z.number().int().min(0)
  * **números já calculados**, por questão, da turma inteira; a IA os põe em palavras para o professor. Não há
  * resposta de aluno nem aluno identificado na entrada, e por isso nada do que sai é sobre um aluno.
  */
-export const esquemaEntradaDoRelatorio = z.strictObject({
+export const relatorioInputSchema = z.strictObject({
   /** O título do artefato, escrito pelo professor ou pelo Assistente. */
   titulo: z.string().min(1).max(160),
   /** Quantos alunos enviaram a atividade. */
@@ -31,15 +31,15 @@ export const esquemaEntradaDoRelatorio = z.strictObject({
     .min(1)
     .max(20),
 })
-export type EntradaDoRelatorio = z.infer<typeof esquemaEntradaDoRelatorio>
+export type RelatorioInput = z.infer<typeof relatorioInputSchema>
 
-export const esquemaSaidaDoRelatorio = z.strictObject({
+export const relatorioOutputSchema = z.strictObject({
   visaoGeral: z.string().min(1).max(800),
   questoes: z.array(z.strictObject({ numero: z.number().int().min(1).max(20), texto: z.string().min(1).max(500) })).min(1).max(20),
 })
-export type SaidaDoRelatorio = z.infer<typeof esquemaSaidaDoRelatorio>
+export type RelatorioOutput = z.infer<typeof relatorioOutputSchema>
 
-type QuestaoCorrigida = EntradaDoRelatorio['questoes'][number]
+type QuestaoCorrigida = RelatorioInput['questoes'][number]
 
 const LETRAS = ['A', 'B', 'C', 'D'] as const
 const letra = (indice: number): string => LETRAS[indice] ?? '?'
@@ -67,12 +67,12 @@ function textoDaQuestao(questao: QuestaoCorrigida): string {
   return cortar(partes.join(' '), 500)
 }
 
-export const relatorioDaCorrecao = definirTarefa({
+export const relatorioDaCorrecao = defineTask({
   nome: 'relatorio_da_correcao',
   funcao: 'correcao_de_objetiva',
   perfil: 'rapido',
-  esquemaDeEntrada: esquemaEntradaDoRelatorio,
-  esquemaDeSaida: esquemaSaidaDoRelatorio,
+  esquemaDeEntrada: relatorioInputSchema,
+  esquemaDeSaida: relatorioOutputSchema,
   prompt: PROMPT_RELATORIO_DA_CORRECAO,
   maximoDeTokensDeSaida: 2500,
   levaTextoLivreDePessoa: false,
@@ -91,7 +91,7 @@ export const relatorioDaCorrecao = definirTarefa({
     return pedidas === devolvidas ? [] : [`O relatório precisa ter um texto para cada questão recebida, na mesma ordem: ${pedidas}.`]
   },
 
-  falso(entrada): SaidaDoRelatorio {
+  falso(entrada): RelatorioOutput {
     const porAcerto = [...entrada.questoes].sort((a, b) => numerosDaQuestao(a).percentual - numerosDaQuestao(b).percentual || a.numero - b.numero)
     const [menor] = porAcerto
     const maior = porAcerto.at(-1)

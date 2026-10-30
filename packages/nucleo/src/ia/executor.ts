@@ -1,13 +1,13 @@
 import { ErrorCode } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { setImmediate as proximaVolta, setTimeout as esperar } from 'node:timers/promises'
-import type { ConfiguracaoDoExecutor } from '../config/config-ia.js'
-import { executarNoContexto } from '../contexto/contexto.js'
-import { ErroDeDominio } from '../erro/erro-de-dominio.js'
-import { resumirErro } from '../erro/resumir-erro.js'
+import type { AgenteExecutorConfig } from '../config/config-ia.js'
+import { runInContext } from '../contexto/contexto.js'
+import { DomainException } from '../erro/erro-de-dominio.js'
+import { summarizeError } from '../erro/resumir-erro.js'
 import type { LoggerBase } from '../log/logger.js'
-import { relogioDoSistema, type Relogio } from '../relogio.js'
-import { ErroDeIa } from './erros.js'
+import { systemClock, type Clock } from '../relogio.js'
+import { LLMError } from './erros.js'
 
 export const ESTADOS_DA_EXECUCAO = ['pendente', 'rodando', 'concluida', 'falhou'] as const
 export type EstadoDaExecucao = (typeof ESTADOS_DA_EXECUCAO)[number]
@@ -31,7 +31,7 @@ export interface ExecucaoAgendada {
  * `escola_id` na cláusula (regra 10), e resolve a disputa no banco, não com "verifica e depois grava" (regra 80,
  * item 7).
  */
-export interface RepositorioDeExecucoes {
+export interface ExecucaoRepository {
   /**
    * `pendente` → `rodando`, numa instrução só (`update … where estado = 'pendente'`), gravando o instante do início.
    * Devolve `false` quando a execução não estava mais `pendente`: outra instância pegou, ela já terminou, ou a
@@ -44,7 +44,7 @@ export interface RepositorioDeExecucoes {
   marcarFalhou(execucao: ExecucaoAgendada, codigo: CodigoDeFalhaDaExecucao): Promise<void>
   /**
    * A varredura: toda execução `rodando` iniciada antes de `antesDe`, e toda `pendente` criada antes de `antesDe`,
-   * vira `falhou` com `EXECUCAO_INTERROMPIDA`. Devolve quantas. É rotina nossa entre escolas (`@SemEscopo`, regra 10,
+   * vira `falhou` com `EXECUCAO_INTERROMPIDA`. Devolve quantas. É rotina nossa entre escolas (`@Unscoped`, regra 10,
    * item 9): não lê conteúdo, só encerra o que o processo que caiu deixou para trás.
    */
   falharInterrompidas(antesDe: Date): Promise<number>
@@ -54,7 +54,7 @@ export interface RepositorioDeExecucoes {
  * Roda o trabalho de IA **depois** de a requisição responder. O domínio grava a execução como `pendente`, chama
  * `agendar` e devolve `202`; a tela consulta `GET /v1/execucoes/:id`.
  */
-export interface ExecutorDeAgente {
+export interface AgenteExecutor {
   /**
    * Devolve na hora e nunca lança pelo trabalho. O que `trabalho` devolve é o `resultado` da execução. Ele precisa
    * tolerar reexecução com a mesma chave sem duplicar efeito (D49), e respeitar o `sinal`, que aborta no prazo.
@@ -67,11 +67,11 @@ interface NaFila {
   readonly trabalho: (sinal: AbortSignal) => Promise<unknown>
 }
 
-export interface DependenciasDoExecutor {
-  readonly repositorio: RepositorioDeExecucoes
-  readonly config: ConfiguracaoDoExecutor
+export interface AgenteExecutorDependencies {
+  readonly repositorio: ExecucaoRepository
+  readonly config: AgenteExecutorConfig
   readonly logger?: Pick<LoggerBase, 'info' | 'warn'>
-  readonly relogio?: Relogio
+  readonly relogio?: Clock
 }
 
 /** Quantos prazos de execução uma linha pode ficar parada antes de a varredura a encerrar. */
@@ -80,7 +80,7 @@ const PRAZOS_ATE_A_VARREDURA = 2
 const chaveDe = (execucao: ExecucaoAgendada): string => `${execucao.escolaId}:${execucao.chave}`
 
 function codigoDaFalha(erro: unknown): CodigoDeFalhaDaExecucao {
-  if (erro instanceof ErroDeDominio) return erro.codigo
+  if (erro instanceof DomainException) return erro.codigo
   return 'ERRO_INTERNO'
 }
 
@@ -91,13 +91,13 @@ function codigoDaFalha(erro: unknown): CodigoDeFalhaDaExecucao {
  * O que ele garante mesmo assim: idempotência por chave, teto de execuções por escola e no total (regra 80, item 3),
  * prazo por execução, e nenhuma execução presa em `rodando` depois que o processo cai.
  *
- * TODO(fila): trocar por job do worker. `agendar` passa a publicar um job pelo `Enfileirador` (fila `agentes`,
+ * TODO(fila): trocar por job do worker. `agendar` passa a publicar um job pelo `JobOutbox` (fila `agentes`,
  * prioridade interativa), com a chave da execução como chave de idempotência; o processador do worker faz o que
  * `rodar` faz aqui. Somem a fila em memória e as vagas deste processo (a vaga por escola já é do despachante,
- * `VagasPorEscola`), e a varredura vira a reconciliação da fila. A interface e o repositório não mudam, e o
+ * `EscolaConcurrencyLimiter`), e a varredura vira a reconciliação da fila. A interface e o repositório não mudam, e o
  * domínio não percebe a troca.
  */
-export class ExecutorNoProcesso implements ExecutorDeAgente {
+export class InProcessAgenteExecutor implements AgenteExecutor {
   private readonly fila: NaFila[] = []
   /** Chaves agendadas ou rodando nesta instância: a segunda chamada com a mesma chave não entra. */
   private readonly emCurso = new Set<string>()
@@ -105,10 +105,10 @@ export class ExecutorNoProcesso implements ExecutorDeAgente {
   private rodando = 0
   private readonly promessas = new Set<Promise<void>>()
   private varredura: NodeJS.Timeout | undefined
-  private readonly relogio: Relogio
+  private readonly relogio: Clock
 
-  constructor(private readonly dependencias: DependenciasDoExecutor) {
-    this.relogio = dependencias.relogio ?? relogioDoSistema
+  constructor(private readonly dependencias: AgenteExecutorDependencies) {
+    this.relogio = dependencias.relogio ?? systemClock
   }
 
   agendar(execucao: ExecucaoAgendada, trabalho: (sinal: AbortSignal) => Promise<unknown>): void {
@@ -144,7 +144,7 @@ export class ExecutorNoProcesso implements ExecutorDeAgente {
       if (total > 0) this.dependencias.logger?.warn({ evento: 'ia.execucao.interrompidas_encerradas', total })
       return total
     } catch (erro) {
-      this.dependencias.logger?.warn({ evento: 'ia.execucao.varredura_falhou', erro: resumirErro(erro) })
+      this.dependencias.logger?.warn({ evento: 'ia.execucao.varredura_falhou', erro: summarizeError(erro) })
       return 0
     }
   }
@@ -171,7 +171,7 @@ export class ExecutorNoProcesso implements ExecutorDeAgente {
       // disparou o despacho, que pode ser a requisição de outra pessoa, de outra escola: a execução que termina é
       // quem chama a próxima da fila. O log sairia com o usuário errado, e um repository com escopo no contexto
       // leria a escola errada.
-      const promessa = executarNoContexto({ requisicaoId: randomUUID(), escolaId }, () => this.rodar(item)).finally(() => {
+      const promessa = runInContext({ requisicaoId: randomUUID(), escolaId }, () => this.rodar(item)).finally(() => {
         this.rodando -= 1
         const restantes = (this.rodandoPorEscola.get(escolaId) ?? 1) - 1
         if (restantes === 0) this.rodandoPorEscola.delete(escolaId)
@@ -184,7 +184,7 @@ export class ExecutorNoProcesso implements ExecutorDeAgente {
     }
   }
 
-  /** Nunca rejeita: promessa rejeitada sem tratamento derruba o processo (`registrarErrosDoProcesso`). */
+  /** Nunca rejeita: promessa rejeitada sem tratamento derruba o processo (`registerProcessErrorHandlers`). */
   private async rodar({ execucao, trabalho }: NaFila): Promise<void> {
     const inicio = performance.now()
     const execucaoId = execucao.id
@@ -200,7 +200,7 @@ export class ExecutorNoProcesso implements ExecutorDeAgente {
     } catch (erro) {
       const codigo = codigoDaFalha(erro)
       const duracaoMs = Math.round(performance.now() - inicio)
-      this.dependencias.logger?.warn({ evento: 'ia.execucao.falhou', execucaoId, escolaId, codigo, duracaoMs, erro: resumirErro(erro) })
+      this.dependencias.logger?.warn({ evento: 'ia.execucao.falhou', execucaoId, escolaId, codigo, duracaoMs, erro: summarizeError(erro) })
       // Sem conseguir gravar a falha, a linha fica `rodando` e a varredura a encerra.
       await this.dependencias.repositorio.marcarFalhou(execucao, codigo).catch(() => undefined)
     }
@@ -211,7 +211,7 @@ export class ExecutorNoProcesso implements ExecutorDeAgente {
     const cancelarPrazo = new AbortController()
     const prazo = esperar(this.dependencias.config.timeoutMs, undefined, { signal: cancelarPrazo.signal }).then(() => {
       controle.abort()
-      throw new ErroDeIa('IA_TEMPO_ESGOTADO')
+      throw new LLMError('IA_TEMPO_ESGOTADO')
     })
     // O trabalho abandonado no prazo pode rejeitar depois: a rejeição tardia já tem dono.
     trabalho.catch(() => undefined)
@@ -224,7 +224,7 @@ export class ExecutorNoProcesso implements ExecutorDeAgente {
   }
 }
 
-interface LinhaEmMemoria {
+interface InMemoryRow {
   estado: EstadoDaExecucao
   escolaId: string
   criadaEm: Date
@@ -234,20 +234,20 @@ interface LinhaEmMemoria {
 }
 
 /** Repositório em memória, para teste. A linha nasce com `criarPendente`, como o `POST` faz no banco. */
-export class ExecucoesEmMemoria implements RepositorioDeExecucoes {
-  private readonly linhas = new Map<string, LinhaEmMemoria>()
+export class InMemoryExecucoes implements ExecucaoRepository {
+  private readonly linhas = new Map<string, InMemoryRow>()
 
-  constructor(private readonly relogio: Relogio = relogioDoSistema) {}
+  constructor(private readonly relogio: Clock = systemClock) {}
 
   criarPendente(execucao: ExecucaoAgendada): void {
     if (!this.linhas.has(execucao.id)) this.linhas.set(execucao.id, { estado: 'pendente', escolaId: execucao.escolaId, criadaEm: this.relogio.agora() })
   }
 
-  ler(execucaoId: string): Readonly<LinhaEmMemoria> | undefined {
+  ler(execucaoId: string): Readonly<InMemoryRow> | undefined {
     return this.linhas.get(execucaoId)
   }
 
-  private daEscola(execucao: ExecucaoAgendada): LinhaEmMemoria | undefined {
+  private daEscola(execucao: ExecucaoAgendada): InMemoryRow | undefined {
     const linha = this.linhas.get(execucao.id)
     return linha?.escolaId === execucao.escolaId ? linha : undefined
   }

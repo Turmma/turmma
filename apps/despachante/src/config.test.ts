@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { MOTIVO_VAGAS_DESLIGADAS_EM_PRODUCAO } from '@educa/nucleo'
-import { ConfiguracaoInvalida, lerConfiguracao } from './config.js'
+import { InvalidConfigError, lerConfiguracao } from './config.js'
 
 const ambienteValido = {
   AMBIENTE: 'local',
@@ -21,11 +21,11 @@ const ambienteValido = {
   TELEMETRIA_INTERVALO_MS: '5000',
 }
 
-function erroDe(ambiente: Record<string, string | undefined>): ConfiguracaoInvalida {
+function erroDe(ambiente: Record<string, string | undefined>): InvalidConfigError {
   try {
     lerConfiguracao(ambiente)
   } catch (erro) {
-    if (erro instanceof ConfiguracaoInvalida) return erro
+    if (erro instanceof InvalidConfigError) return erro
     throw erro
   }
   throw new Error('a configuração deveria ter sido recusada')

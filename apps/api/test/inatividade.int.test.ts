@@ -1,4 +1,4 @@
-import { METRICAS } from '@educa/nucleo'
+import { METRICS } from '@educa/nucleo'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { chamar, cookieDaResposta, cookieDeRenovacao, estadoDaSessao, registrosDeAcesso, renovar, subirApi, type ApiDeTeste } from './api-com-sessao.js'
@@ -142,7 +142,7 @@ describe('atividade e inatividade: a sessão vence sem uso, renovar não é uso,
     })
 
     async function falhas(): Promise<number> {
-      const [ponto] = await medidorDaFalha.pontos(METRICAS.atividadeFalha)
+      const [ponto] = await medidorDaFalha.pontos(METRICS.atividadeFalha)
       return typeof ponto?.valor === 'number' ? ponto.valor : 0
     }
 

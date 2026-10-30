@@ -1,10 +1,10 @@
-import { type Banco } from '@educa/nucleo'
+import { type Database } from '@educa/nucleo'
 
 // O parâmetro do construtor sem modificador não vira propriedade: `this.banco` aqui é outra coisa, e não é o banco.
 export class ParametroSemModificadorRepository {
   readonly banco = 'não é o banco'
 
-  constructor(banco: Banco) {
+  constructor(banco: Database) {
     void banco
   }
 

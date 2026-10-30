@@ -1,7 +1,7 @@
 import './efeito.js'
 import * as todas from './tabelas.js'
 import padrao from './padrao.js'
-import { type Banco, type TransacaoBanco } from '@educa/nucleo'
+import { type Database, type DatabaseTransaction } from '@educa/nucleo'
 
 let contador: number
 void todas
@@ -13,7 +13,7 @@ export class PublicoSemBancoRepository {
   private readonly cache: Map<string, number> = new Map()
 
   constructor(
-    private readonly banco: Banco,
+    private readonly banco: Database,
     private readonly relogio: { agora(): Date },
   ) {}
 
@@ -34,7 +34,7 @@ export class PublicoSemBancoRepository {
     return contexto.banco
   }
 
-  descartar(tx: TransacaoBanco, opcoes: { tx: number }) {
+  descartar(tx: DatabaseTransaction, opcoes: { tx: number }) {
     const rotulo = 'tx'
     return `${rotulo}${opcoes.tx}`
   }

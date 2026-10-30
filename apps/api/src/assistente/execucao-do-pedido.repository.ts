@@ -1,4 +1,4 @@
-import { ErroDeDominio, execucaoAgente, exigirAnoEmCurso, exigirEscolaDoContexto, sessaoDaRequisicao, type Banco, type TransacaoBanco } from '@educa/nucleo'
+import { DomainException, execucaoAgente, requireAnoEmCurso, requireEscolaId, requestSessao, type Database, type DatabaseTransaction } from '@educa/nucleo'
 import { ErrorCode, execucaoInputSchema, type ExecucaoInput, type TarefaDeIa } from '@educa/shared'
 import { and, eq } from 'drizzle-orm'
 
@@ -9,7 +9,7 @@ import { and, eq } from 'drizzle-orm'
  * pelo repository de cada um, no mesmo escopo.
  */
 export class ExecucaoDoPedidoRepository {
-  constructor(private readonly banco: Banco | TransacaoBanco) {}
+  constructor(private readonly banco: Database | DatabaseTransaction) {}
 
   /** A entrada gravada da execução desta chave, da tarefa esperada. A de outra pessoa, de outra escola ou de outra tarefa: `NAO_ENCONTRADO`. */
   async entradaDaChave<Tarefa extends TarefaDeIa>(chaveEnvio: string, tarefa: Tarefa): Promise<Extract<ExecucaoInput, { tarefa: Tarefa }>> {
@@ -18,15 +18,15 @@ export class ExecucaoDoPedidoRepository {
       .from(execucaoAgente)
       .where(
         and(
-          eq(execucaoAgente.escolaId, exigirEscolaDoContexto()),
-          eq(execucaoAgente.anoLetivoId, exigirAnoEmCurso()),
+          eq(execucaoAgente.escolaId, requireEscolaId()),
+          eq(execucaoAgente.anoLetivoId, requireAnoEmCurso()),
           eq(execucaoAgente.chaveEnvio, chaveEnvio),
-          eq(execucaoAgente.solicitadaPor, sessaoDaRequisicao().usuarioId),
+          eq(execucaoAgente.solicitadaPor, requestSessao().usuarioId),
           eq(execucaoAgente.tarefa, tarefa),
         ),
       )
     const lida = execucaoInputSchema.safeParse(linha?.entrada)
-    if (!lida.success || lida.data.tarefa !== tarefa) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+    if (!lida.success || lida.data.tarefa !== tarefa) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
     return lida.data as Extract<ExecucaoInput, { tarefa: Tarefa }>
   }
 }

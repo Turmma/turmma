@@ -1,4 +1,4 @@
-import { ErroDeDominio, escola, rede, SemEscopo, type ExecutorDeAuditoria, type TipoDeRede } from '@educa/nucleo'
+import { DomainException, escola, rede, Unscoped, type DatabaseExecutor, type TipoDeRede } from '@educa/nucleo'
 import { ErrorCode } from '@educa/shared'
 import { eq } from 'drizzle-orm'
 
@@ -20,23 +20,23 @@ export interface Criada {
  * **e** no do slug, e nenhum dos dois levanta 23505; o slug de outra escola também não levanta, e cai no `CONFLITO`.
  */
 export class RedeEEscolaRepository {
-  constructor(private readonly banco: ExecutorDeAuditoria) {}
+  constructor(private readonly banco: DatabaseExecutor) {}
 
-  @SemEscopo('a rede fica acima do tenant e ainda não tem escola; só o comando ou o painel do operador cria, e devolve só o id')
+  @Unscoped('a rede fica acima do tenant e ainda não tem escola; só o comando ou o painel do operador cria, e devolve só o id')
   async criarRede(dados: { id: string; nome: string; tipo: TipoDeRede }): Promise<Criada> {
     const [criada] = await this.banco.insert(rede).values(dados).onConflictDoNothing().returning({ id: rede.id })
     if (criada !== undefined) return { id: criada.id, nova: true }
     const [existente] = await this.banco.select({ nome: rede.nome, tipo: rede.tipo }).from(rede).where(eq(rede.id, dados.id)).limit(1)
     if (existente?.nome === dados.nome && existente.tipo === dados.tipo) return { id: dados.id, nova: false }
-    throw new ErroDeDominio(ErrorCode.CONFLITO)
+    throw new DomainException(ErrorCode.CONFLITO)
   }
 
-  @SemEscopo('a escola é o próprio tenant e nasce aqui, antes de existir contexto dela; só o comando ou o painel do operador cria, e devolve só o id')
+  @Unscoped('a escola é o próprio tenant e nasce aqui, antes de existir contexto dela; só o comando ou o painel do operador cria, e devolve só o id')
   async criarEscola(dados: { id: string; redeId: string; nome: string; slug: string }): Promise<Criada> {
     const [criada] = await this.banco.insert(escola).values(dados).onConflictDoNothing().returning({ id: escola.id })
     if (criada !== undefined) return { id: criada.id, nova: true }
     const [existente] = await this.banco.select({ redeId: escola.redeId, nome: escola.nome, slug: escola.slug }).from(escola).where(eq(escola.id, dados.id)).limit(1)
     if (existente?.redeId === dados.redeId && existente.nome === dados.nome && existente.slug === dados.slug) return { id: dados.id, nova: false }
-    throw new ErroDeDominio(ErrorCode.CONFLITO)
+    throw new DomainException(ErrorCode.CONFLITO)
   }
 }

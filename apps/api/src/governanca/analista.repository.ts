@@ -6,17 +6,17 @@ import {
   disciplina,
   entrega,
   execucaoAgente,
-  exigirAnoEmCurso,
-  exigirEscolaDoContexto,
+  requireAnoEmCurso,
+  requireEscolaId,
   mensagemTutor,
   serie,
   sinalTutor,
-  tabelasDoMvp,
+  mvpTables,
   turma,
   usuario,
   vinculo,
-  type Banco,
-  type TransacaoBanco,
+  type Database,
+  type DatabaseTransaction,
 } from '@educa/nucleo'
 import type { ConteudoDoResumoDoAnalista, Etapa, TipoDeSinal } from '@educa/shared'
 import { and, asc, count, desc, eq, isNull, ne, notExists, sql, type SQL } from 'drizzle-orm'
@@ -73,9 +73,9 @@ export interface ProfessorDaTurma {
 
 /**
  * A tabela `resumo_do_analista`. No índice do `@educa/nucleo` o nome `resumoDoAnalista` é o da tarefa de IA (a exportação
- * explícita vence o `export *` das tabelas), então a tabela sai de `tabelasDoMvp`.
+ * explícita vence o `export *` das tabelas), então a tabela sai de `mvpTables`.
  */
-const resumoDoAnalista = tabelasDoMvp.resumoDoAnalista
+const resumoDoAnalista = mvpTables.resumoDoAnalista
 
 const aplicacaoDaEntrega = and(eq(atividadeAplicada.escolaId, entrega.escolaId), eq(atividadeAplicada.anoLetivoId, entrega.anoLetivoId), eq(atividadeAplicada.id, entrega.atividadeAplicadaId))
 const artefatoDaAplicacao = and(eq(artefato.escolaId, atividadeAplicada.escolaId), eq(artefato.anoLetivoId, atividadeAplicada.anoLetivoId), eq(artefato.id, atividadeAplicada.artefatoId))
@@ -91,10 +91,10 @@ const correcaoDaEntrega = and(eq(correcao.escolaId, entrega.escolaId), eq(correc
  * só é chamado pela leitura nominal, que audita antes de responder.
  */
 export class AnalistaRepository {
-  constructor(private readonly banco: Banco | TransacaoBanco) {}
+  constructor(private readonly banco: Database | DatabaseTransaction) {}
 
   #escopo(): { escolaId: string; anoLetivoId: string } {
-    return { escolaId: exigirEscolaDoContexto(), anoLetivoId: exigirAnoEmCurso() }
+    return { escolaId: requireEscolaId(), anoLetivoId: requireAnoEmCurso() }
   }
 
   /** As entregas que valem como desempenho: lote de correção aprovado, na escola e no ano do contexto. */
@@ -242,7 +242,7 @@ export class AnalistaRepository {
     const [linha] = await this.banco
       .select({ id: resumoDoAnalista.id, geradoEm: resumoDoAnalista.geradoEm, conteudo: resumoDoAnalista.conteudo })
       .from(resumoDoAnalista)
-      .where(and(eq(resumoDoAnalista.escolaId, exigirEscolaDoContexto()), eq(resumoDoAnalista.anoLetivoId, anoLetivoId)))
+      .where(and(eq(resumoDoAnalista.escolaId, requireEscolaId()), eq(resumoDoAnalista.anoLetivoId, anoLetivoId)))
       .orderBy(desc(resumoDoAnalista.id))
       .limit(1)
     return linha

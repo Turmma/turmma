@@ -1,4 +1,4 @@
-import { executarNoContexto } from '@educa/nucleo'
+import { runInContext } from '@educa/nucleo'
 import { ErrorCode } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -135,7 +135,7 @@ describe('PUT /v1/escola/sessao: a coordenação configura a inatividade da pró
     await bancada.pool.query('update escola set inatividade_aluno_min = 10, inatividade_equipe_min = 50 where id = $1', [escolaA])
     await bancada.pool.query('update escola set inatividade_aluno_min = 20, inatividade_equipe_min = 70 where id = $1', [escolaB])
     const naEscola = <T>(escolaId: string, funcao: (repositorio: EscolaSessaoRepository) => Promise<T>) =>
-      executarNoContexto({ requisicaoId: randomUUID(), escolaId }, () => bancada.banco.transaction((tx) => funcao(new EscolaSessaoRepository(tx))))
+      runInContext({ requisicaoId: randomUUID(), escolaId }, () => bancada.banco.transaction((tx) => funcao(new EscolaSessaoRepository(tx))))
 
     expect(await naEscola(escolaA, (repositorio) => repositorio.lerParaAlterar())).toEqual({ inatividadeAlunoMin: 10, inatividadeEquipeMin: 50 })
     expect(await naEscola(escolaB, (repositorio) => repositorio.lerParaAlterar())).toEqual({ inatividadeAlunoMin: 20, inatividadeEquipeMin: 70 })
@@ -145,7 +145,7 @@ describe('PUT /v1/escola/sessao: a coordenação configura a inatividade da pró
     expect(await inatividadeDa(escolaB)).toEqual({ aluno: 20, equipe: 70 })
 
     const semEscola = <T>(funcao: (repositorio: EscolaSessaoRepository) => Promise<T>) =>
-      executarNoContexto({ requisicaoId: randomUUID() }, () => bancada.banco.transaction((tx) => funcao(new EscolaSessaoRepository(tx))))
+      runInContext({ requisicaoId: randomUUID() }, () => bancada.banco.transaction((tx) => funcao(new EscolaSessaoRepository(tx))))
     await expect(semEscola((repositorio) => repositorio.lerParaAlterar())).rejects.toThrow('consulta com escopo sem escola no contexto')
     await expect(semEscola((repositorio) => repositorio.alterar({ inatividadeAlunoMin: 5, inatividadeEquipeMin: 5 }))).rejects.toThrow('consulta com escopo sem escola no contexto')
     expect(await inatividadeDa(escolaB)).toEqual({ aluno: 20, equipe: 70 })

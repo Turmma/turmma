@@ -1,7 +1,7 @@
 import type { ErrorCode } from '@educa/shared'
 
 /** Status HTTP padrão de cada código. Quem lança só muda quando o caso pede outro. */
-export const STATUS_HTTP_DO_CODIGO: Readonly<Record<ErrorCode, number>> = {
+export const HTTP_STATUS_BY_CODE: Readonly<Record<ErrorCode, number>> = {
   ERRO_INTERNO: 500,
   ENTRADA_INVALIDA: 400,
   NAO_AUTENTICADO: 401,
@@ -49,14 +49,14 @@ export const STATUS_HTTP_DO_CODIGO: Readonly<Record<ErrorCode, number>> = {
  * Espera sugerida ao cliente (`Retry-After`) quando o erro diz "tente de novo" e quem lançou não
  * sabe quanto: 503 de indisponibilidade ou de tempo esgotado. Igual à da borda (`infra/Caddyfile`).
  */
-export const TENTE_DE_NOVO_PADRAO_SEGUNDOS = 5
+export const DEFAULT_RETRY_AFTER_SECONDS = 5
 
 /**
  * Erro esperado do domínio. Carrega só o código, o status e, quando o cliente deve esperar, em
  * quantos segundos tentar de novo: não existe construtor com texto livre, então um erro de
  * domínio não tem onde levar nome, matrícula ou valor de campo para a resposta ou para o log.
  */
-export class ErroDeDominio extends Error {
+export class DomainException extends Error {
   readonly status: number
 
   constructor(
@@ -65,8 +65,8 @@ export class ErroDeDominio extends Error {
     readonly tenteDeNovoEmSegundos?: number,
   ) {
     super(codigo)
-    this.name = 'ErroDeDominio'
+    this.name = 'DomainException'
     // "Não encontrado" nunca sai com outro status: um 403 confirmaria que o objeto existe (regra 10, item 6).
-    this.status = codigo === 'NAO_ENCONTRADO' ? STATUS_HTTP_DO_CODIGO.NAO_ENCONTRADO : (status ?? STATUS_HTTP_DO_CODIGO[codigo])
+    this.status = codigo === 'NAO_ENCONTRADO' ? HTTP_STATUS_BY_CODE.NAO_ENCONTRADO : (status ?? HTTP_STATUS_BY_CODE[codigo])
   }
 }

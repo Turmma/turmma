@@ -1,23 +1,23 @@
 import {
   CATEGORIAS_DO_EXPURGO,
-  METRICAS,
+  METRICS,
   noitesSeguidasSemConcluir,
-  type ConfiguracaoOperacional,
-  type EscolasDaRotinaRepository,
+  type OperationalSettings,
+  type CronEscolasRepository,
   type ExpurgoDaEscolaRepository,
   type JanelaLetiva,
   type LoggerBase,
   type Meter,
-  type Relogio,
+  type Clock,
 } from '@educa/nucleo'
 import { MedicaoPorEscola } from './medicao-por-escola.js'
 
 export interface DependenciasDaMedicaoDoExpurgo {
-  escolas: Pick<EscolasDaRotinaRepository, 'listarIds'>
+  escolas: Pick<CronEscolasRepository, 'listarIds'>
   repositorio: Pick<ExpurgoDaEscolaRepository, 'noitesDoAlerta'>
   /** O horário letivo da escola do contexto: dele sai o fuso em que a noite é contada. */
-  janelaDaEscola: Pick<ConfiguracaoOperacional<JanelaLetiva>, 'daEscola'>
-  relogio: Relogio
+  janelaDaEscola: Pick<OperationalSettings<JanelaLetiva>, 'daEscola'>
+  relogio: Clock
   logger: LoggerBase
   medidor: Meter
 }
@@ -39,7 +39,7 @@ export class MedicaoDoExpurgo extends MedicaoPorEscola {
     super(
       dependencias,
       {
-        metrica: METRICAS.noitesIncompletasDoExpurgo,
+        metrica: METRICS.noitesIncompletasDoExpurgo,
         descricao: 'Noites seguidas em que o expurgo da escola não terminou todas as categorias',
         evento: 'worker.medicao_do_expurgo_indisponivel',
       },

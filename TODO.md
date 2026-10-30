@@ -2361,6 +2361,25 @@ repetem aqui.
 - [ ] Da tarefa 2.0 da X8, na primeira onda que renomear um símbolo exportado por dois pacotes: `conferir.ts` troca o nome exportado só pelo `de` e ignora o
       `arquivo` da entrada; dá vermelho falso se dois pacotes exportam o mesmo nome e só um é renomeado (revisor-geral, rodada 1)
 
+
+## Da X8 (nomes de mercado), tarefa 4.0, fora dela
+
+- [ ] Da tarefa 4.0 da X8, para o Arquiteto antes da 5.0: o mapa aponta para a linha do `travas.md` (`travas.md:N`), e a linha anda a cada edição do anexo (a 4.0
+      levou +1 em todas); e nas `ocorrencias` com `fica` o campo `linha` aponta para o símbolo no inventário e não para o motivo, e as de `migrar` não levam o
+      motivo, porque o formato só tem `trecho` (revisor-geral, rodada 1; conformidade-reviewer, rodada 2)
+- [ ] Da tarefa 4.0 da X8: títulos de `it` e `describe` com `@SemEscopo`, `RegistroDeAuditoria` e `type Banco` (`arquitetura.test.ts` 178, 179, 316, 415, 512, 1342,
+      1348, 346, 428, 527; `porta-unica.test.ts` 69 e 129; `logger.test.ts` e `guardas.test.ts`) e `camadas.cjs:148` e `:162`: o `conferir` compara pelo título, e o RF7 pede os
+      mesmos casos; trocar na onda que libera os títulos (conformidade-reviewer, rodada 1; revisor-geral, rodada 2)
+- [ ] Da tarefa 4.0 da X8: a mensagem `@SemEscopo exige justificativa escrita` (`sem-escopo.decorator.ts:18`) e o `toThrow` de `sem-escopo.decorator.test.ts:17-18`; a mensagem
+      `rota sem @Permite, @RotaAnonima nem marcador da operação` (`conferencia-das-permissoes.ts:67`) com os títulos de `permissao-no-boot.test.ts` (67, 75, 82); e os
+      motivos de `REPOSITORIES_SEM_ESCOPO` (`escopo-dos-repositories.ts`, 80 a 100), que ainda citam `exigirEscolaDoContexto`, `contextoAtual()` e `escopoDoJobNoContexto`.
+      Mudam texto que um teste lê: trocar a mensagem e o teste juntos (tenancy-guardian e privacy-guardian, rodada 1; llm-integrator, rodada 2)
+- [ ] Da tarefa 4.0 da X8: `carga-login.ts`, `carga-sala.ts` e `ensaio-alertas.ts` carregam o `dist` do core: rodar `npm run build` antes do próximo ensaio de carga e de
+      alertas (infra-guardian, rodadas 1 e 2)
+- [ ] Da tarefa 4.0 da X8: `infra/scripts/expurgo-da-carga.ts:85`, `PRIORIDADE_DO_LOTE = 3` é cópia de `QUEUE_PRIORITY`; já existia antes da onda (infra-guardian, rodada 1)
+- [ ] Da tarefa 4.0 da X8: em `tools/processo/harness/revisores.test.ts`, o comentário do topo (linha 7) ficou bem mais longo que as linhas vizinhas; quebrar na mesma largura
+      (revisor-geral, rodada 2)
+
 ## Da correção 2026-10-30-gaveta-aberta-na-alocacao, fora dela
 
 - [ ] Da correção `2026-10-30-gaveta-aberta-na-alocacao`: `esperarASessaoNaBarraDoTopo` (`e2e/__fixtures__/casca.ts`) acha o nome da escola por

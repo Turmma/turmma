@@ -1,4 +1,4 @@
-import { executarNoContexto, type ContextoDaRequisicao } from '@educa/nucleo'
+import { runInContext, type RequestContext } from '@educa/nucleo'
 import { randomUUID } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
 import { LeituraDoLote } from './leitura-do-lote.js'
@@ -17,8 +17,8 @@ function redisEmMemoria(): { cliente: ConstructorParameters<typeof LeituraDoLote
 }
 
 const comoProfessora = <T>(escolaId: string, usuarioId: string, funcao: () => Promise<T>): Promise<T> => {
-  const contexto: ContextoDaRequisicao = { requisicaoId: randomUUID(), escolaId, usuarioId, papel: 'professor', sessaoId: randomUUID(), anoLetivoId: randomUUID() }
-  return executarNoContexto(contexto, funcao)
+  const contexto: RequestContext = { requisicaoId: randomUUID(), escolaId, usuarioId, papel: 'professor', sessaoId: randomUUID(), anoLetivoId: randomUUID() }
+  return runInContext(contexto, funcao)
 }
 
 describe('a marca de leitura do lote no Redis (D56)', () => {

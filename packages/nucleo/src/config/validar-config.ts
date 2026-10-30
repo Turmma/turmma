@@ -5,13 +5,13 @@ import { z } from 'zod'
  * Configuração inválida no boot. A mensagem cita só o nome da variável, e o motivo quando ele
  * é texto fixo nosso: o valor pode ser senha ou chave de assinatura.
  */
-export class ConfiguracaoInvalida extends Error {
+export class InvalidConfigError extends Error {
   constructor(
     readonly variaveis: string[],
     readonly motivos: string[] = [],
   ) {
     super(['Configuração inválida ou ausente: ' + variaveis.join(', '), ...motivos].join('. '))
-    this.name = 'ConfiguracaoInvalida'
+    this.name = 'InvalidConfigError'
   }
 }
 
@@ -20,7 +20,7 @@ export class ConfiguracaoInvalida extends Error {
  * apontada de uma vez, pelo nome. Mensagem de problema só entra quando é de regra nossa
  * (`code: 'custom'`), que é texto fixo; a do zod pode repetir o valor recebido.
  */
-export function validarAmbiente<Esquema extends z.ZodType>(
+export function validateEnvironment<Esquema extends z.ZodType>(
   esquema: Esquema,
   ambiente: Record<string, string | undefined>,
 ): z.output<Esquema> {
@@ -29,15 +29,15 @@ export function validarAmbiente<Esquema extends z.ZodType>(
   const problemas = resultado.error.issues
   const variaveis = [...new Set(problemas.map((problema) => String(problema.path[0])))].sort()
   const motivos = problemas.filter((problema) => problema.code === 'custom').map((problema) => problema.message)
-  throw new ConfiguracaoInvalida(variaveis, motivos)
+  throw new InvalidConfigError(variaveis, motivos)
 }
 
 /** Um só conjunto: a casca recebe o ambiente pelo contrato de `packages/shared`. */
 export const AMBIENTES = SYSTEM_ENVIRONMENTS
-export type Ambiente = (typeof AMBIENTES)[number]
+export type Environment = (typeof AMBIENTES)[number]
 
 /**
- * Único emissor de token de acesso do sistema: o da sessão real (`EmissorDeToken`). Não há segundo emissor
+ * Único emissor de token de acesso do sistema: o da sessão real (`TokenIssuer`). Não há segundo emissor
  * nem variável que acrescente um: o token sintético do F0 saiu na tarefa 3.0, e com ele o caminho de
  * identidade que não passava por `sessao`.
  */
@@ -47,7 +47,7 @@ export const EMISSOR_TOKEN = 'educa'
 export const TAMANHO_MINIMO_CHAVE_ASSINATURA = 32
 
 /** Variáveis da identidade. O emissor não é configurável: só `educa` vale, em todo ambiente. */
-export const esquemaAmbienteIdentidade = z.object({
+export const authEnvSchema = z.object({
   AMBIENTE: z.enum(AMBIENTES),
   IDENTIDADE_CHAVE_ASSINATURA: z.string().min(TAMANHO_MINIMO_CHAVE_ASSINATURA),
 })
@@ -61,7 +61,7 @@ export const MOTIVO_VAGAS_DESLIGADAS_EM_PRODUCAO =
  * reprovar. Só aceita `true` ou `false`, escritos assim, e nunca `true` em produção: a flag de teste não
  * pode virar porta aberta (regra 80, item 3).
  */
-export const esquemaAmbienteVagasDesligadas = z
+export const concurrencyLimitDisabledEnvSchema = z
   .object({
     AMBIENTE: z.enum(AMBIENTES),
     VAGAS_POR_ESCOLA_DESLIGADAS: z.enum(['true', 'false']),
@@ -73,8 +73,8 @@ export const esquemaAmbienteVagasDesligadas = z
   })
 
 /** `true` só no controle negativo do cenário de carga, e nunca em produção. */
-export function lerVagasPorEscolaDesligadas(ambiente: Record<string, string | undefined>): boolean {
-  return validarAmbiente(esquemaAmbienteVagasDesligadas, ambiente).VAGAS_POR_ESCOLA_DESLIGADAS === 'true'
+export function isEscolaConcurrencyLimitDisabled(ambiente: Record<string, string | undefined>): boolean {
+  return validateEnvironment(concurrencyLimitDisabledEnvSchema, ambiente).VAGAS_POR_ESCOLA_DESLIGADAS === 'true'
 }
 
 export const MOTIVO_PROTECAO_DO_LOGIN_DESLIGADA_EM_PRODUCAO =
@@ -86,7 +86,7 @@ export const MOTIVO_PROTECAO_DO_LOGIN_DESLIGADA_EM_PRODUCAO =
  * rebaixamento, e o cenário precisa reprovar. Como a `VAGAS_POR_ESCOLA_DESLIGADAS`, só aceita `true` ou `false`,
  * escritos assim, e nunca `true` em produção: a flag de teste não pode virar porta aberta (regra 80, itens 1 e 3).
  */
-export const esquemaAmbienteProtecaoDoLogin = z
+export const loginProtectionEnvSchema = z
   .object({
     AMBIENTE: z.enum(AMBIENTES),
     LOGIN_PROTECAO_DESLIGADA: z.enum(['true', 'false']),
@@ -98,18 +98,18 @@ export const esquemaAmbienteProtecaoDoLogin = z
   })
 
 /** `true` só no controle negativo do cenário de login, e nunca em produção. */
-export function lerProtecaoDoLoginDesligada(ambiente: Record<string, string | undefined>): boolean {
-  return validarAmbiente(esquemaAmbienteProtecaoDoLogin, ambiente).LOGIN_PROTECAO_DESLIGADA === 'true'
+export function isLoginProtectionDisabled(ambiente: Record<string, string | undefined>): boolean {
+  return validateEnvironment(loginProtectionEnvSchema, ambiente).LOGIN_PROTECAO_DESLIGADA === 'true'
 }
 
-export interface ConfiguracaoIdentidade {
-  readonly ambiente: Ambiente
+export interface AuthConfig {
+  readonly ambiente: Environment
   /** Chave HMAC do HS256. Nunca vai para log nem para resposta. */
   readonly chaveAssinatura: Uint8Array
 }
 
-export function lerConfiguracaoIdentidade(ambiente: Record<string, string | undefined>): ConfiguracaoIdentidade {
-  const valores = validarAmbiente(esquemaAmbienteIdentidade, ambiente)
+export function loadAuthConfig(ambiente: Record<string, string | undefined>): AuthConfig {
+  const valores = validateEnvironment(authEnvSchema, ambiente)
   return {
     ambiente: valores.AMBIENTE,
     chaveAssinatura: new TextEncoder().encode(valores.IDENTIDADE_CHAVE_ASSINATURA),

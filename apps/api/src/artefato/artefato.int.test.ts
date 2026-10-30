@@ -1,4 +1,4 @@
-import { type ExecutorDeAgente, type ExecutorNoProcesso, type LLMProvider, type SuspensaoDeFuncao } from '@educa/nucleo'
+import { type AgenteExecutor, type InProcessAgenteExecutor, type LLMProvider, type SuspensaoDeFuncao } from '@educa/nucleo'
 import { conteudoDeAtividadeSchema, artefatoResponseSchema, listaDeArtefatosResponseSchema, listaDeEntregasResponseSchema, timeResponseSchema, type ChaveDeFuncao, type ConteudoDeAtividade } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
@@ -46,7 +46,7 @@ describe('ferramentas e artefato', () => {
   const medidor = new MedidorDeTeste()
   const linhasDeLog: string[] = []
   let api: ApiDeTeste
-  let executor: ExecutorNoProcesso
+  let executor: InProcessAgenteExecutor
   let a: EscolaComAssistente
   let b: EscolaComAssistente
   /** A atividade objetiva que a professora de A gerou, e a que a de B gerou. */
@@ -81,7 +81,7 @@ describe('ferramentas e artefato', () => {
   function comProvedor(gerarSaida: (pedido: { entrada: unknown; execucaoId?: string }) => Promise<unknown>, antesDeRodar: Promise<void> = Promise.resolve()) {
     const ia = { gerar: async (pedido: { entrada: unknown; execucaoId?: string }) => ({ saida: await gerarSaida(pedido), medicao: {} }) } as unknown as LLMProvider
     // `antesDeRodar` segura o trabalho da execução até o teste liberar: é o intervalo entre o `202` e a execução.
-    const comEspera: ExecutorDeAgente = { agendar: (execucao, trabalho) => executor.agendar(execucao, async (sinal) => (await antesDeRodar, trabalho(sinal))) }
+    const comEspera: AgenteExecutor = { agendar: (execucao, trabalho) => executor.agendar(execucao, async (sinal) => (await antesDeRodar, trabalho(sinal))) }
     const agendador = new AgendadorDeExecucoes(bancada.banco, ia, comEspera, api.app.get<SuspensaoDeFuncao>(SUSPENSAO_DE_FUNCAO))
     const limite = api.app.get(LimiteDePedidosDeIa)
     return { ferramentas: new FerramentasService(bancada.banco, agendador, limite, api.app.get(BuscaDeTrechos)), artefatos: new ArtefatoService(bancada.banco, agendador, limite) }
@@ -90,7 +90,7 @@ describe('ferramentas e artefato', () => {
 
   beforeAll(async () => {
     api = await subirApi(medidor.medidor, {}, linhasDeLog)
-    executor = api.app.get<ExecutorNoProcesso>(EXECUTOR_DE_AGENTE)
+    executor = api.app.get<InProcessAgenteExecutor>(EXECUTOR_DE_AGENTE)
     a = await montarEscolaComAssistente(api, bancada)
     b = await montarEscolaComAssistente(api, bancada)
     atividadeDeA = await gerar(a, 'atividade_objetiva', 'reagente limitante e reagente em excesso', { quantidade: 4 })

@@ -1,7 +1,7 @@
-import type { PromptVersionado } from '../tarefa.js'
+import type { VersionedPrompt } from '../tarefa.js'
 
 /** A conversa do professor com o Assistente de ensino (D18): responde, ou pergunta se ele quer abrir a ferramenta. */
-export const PROMPT_PROPOR_FERRAMENTA: PromptVersionado = {
+export const PROMPT_PROPOR_FERRAMENTA: VersionedPrompt = {
   versao: '2026-10-22.1',
   sistema: [
     'Você é o Assistente de ensino do Turmma, uma inteligência artificial que ajuda o professor a preparar aula a partir do material que a escola subiu. Você não é uma pessoa e nunca diz que é.',

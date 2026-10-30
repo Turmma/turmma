@@ -1,4 +1,4 @@
-import { contextoAtual, ErroDeDominio, executarNoContexto, RegistroDeAuditoria, resumirErro, sessaoDaRequisicao, type Banco, type LoggerBase } from '@educa/nucleo'
+import { currentContext, DomainException, runInContext, AuditoriaRecorder, summarizeError, requestSessao, type Database, type LoggerBase } from '@educa/nucleo'
 import {
   alcanceDe,
   ErrorCode,
@@ -24,7 +24,7 @@ import { PRAZO_DA_EXTRACAO_MS, type FilaDeExtracao } from './fila-de-extracao.js
 import { MaterialParadoRepository, MaterialRepository, type AlcanceDoMaterial, type MaterialLido } from './material.repository.js'
 import { trechoCitado } from './trecho-citado.js'
 
-const registro = new RegistroDeAuditoria()
+const registro = new AuditoriaRecorder()
 
 /** A janela dos tetos de envio. */
 export const JANELA_DOS_ENVIOS_MS = 60 * 60_000
@@ -64,10 +64,10 @@ function ehArquivoRecebido(valor: unknown): valor is ArquivoRecebido {
  * aqui (a guarda de permissão barra o `nunca`) e, se chegasse, responderia como inexistente.
  */
 function alcanceDoMaterial(acao: 'listar' | 'ler' | 'buscar'): AlcanceDoMaterial {
-  const alcance = alcanceDe(sessaoDaRequisicao().papel, 'material', acao)
+  const alcance = alcanceDe(requestSessao().papel, 'material', acao)
   if (alcance === 'unidade') return 'unidade'
   if (alcance === 'turma_vinculada') return 'disciplinas_vinculadas'
-  throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+  throw new DomainException(ErrorCode.NAO_ENCONTRADO)
 }
 
 /**
@@ -80,7 +80,7 @@ function paraResposta(lido: MaterialLido, alcance: AlcanceDoMaterial): MaterialR
 }
 
 export interface DependenciasDoMaterial {
-  readonly banco: Banco
+  readonly banco: Database
   readonly extrator: ExtratorDePdf
   readonly fila: FilaDeExtracao
   /** O logger JSON do processo: as linhas levam o id do material e medidas, que o `Logger` do Nest não carrega. */
@@ -116,7 +116,7 @@ export class MaterialService {
   async enviar(pedido: EnviarMaterialRequest, arquivo: unknown): Promise<MaterialResponse> {
     const { banco, logger } = this.dependencias
     const disciplinaId = pedido.disciplinaId.toLowerCase()
-    if ((await new DisciplinaRepository(banco).porId(disciplinaId)) === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+    if ((await new DisciplinaRepository(banco).porId(disciplinaId)) === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
 
     const motivo = motivoDaRecusaDoMaterial(pedido)
     if (motivo !== null) {
@@ -128,12 +128,12 @@ export class MaterialService {
       )
       const codigo: string = motivo
       logger.info({ evento: 'material.recusado', disciplinaId, codigo })
-      throw new ErroDeDominio(ErrorCode.MATERIAL_SEM_LICENCA)
+      throw new DomainException(ErrorCode.MATERIAL_SEM_LICENCA)
     }
     // Depois da recusa, a licença é uma das quatro com que um material entra.
     const licenca = pedido.licenca as LicencaDeMaterial
 
-    if (!ehArquivoRecebido(arquivo) || arquivo.size === 0 || !temAssinaturaDePdf(arquivo.buffer)) throw new ErroDeDominio(ErrorCode.ENTRADA_INVALIDA)
+    if (!ehArquivoRecebido(arquivo) || arquivo.size === 0 || !temAssinaturaDePdf(arquivo.buffer)) throw new DomainException(ErrorCode.ENTRADA_INVALIDA)
     const bytes = arquivo.buffer
     const sha256 = createHash('sha256').update(bytes).digest('hex')
 
@@ -163,11 +163,11 @@ export class MaterialService {
   /** Por pessoa e por escola, nunca por IP (regra 80, itens 1 e 3): a escola inteira sai pelo mesmo IP. */
   async #exigirDentroDosTetos(materiais: MaterialRepository): Promise<void> {
     const envios = await materiais.enviosNaJanela(new Date(Date.now() - JANELA_DOS_ENVIOS_MS))
-    if (envios.emProcessamento >= MATERIAIS_EM_PROCESSAMENTO_POR_ESCOLA) throw new ErroDeDominio(ErrorCode.LIMITE_EXCEDIDO, undefined, ESPERA_PELO_PROCESSAMENTO_S)
+    if (envios.emProcessamento >= MATERIAIS_EM_PROCESSAMENTO_POR_ESCOLA) throw new DomainException(ErrorCode.LIMITE_EXCEDIDO, undefined, ESPERA_PELO_PROCESSAMENTO_S)
     if (envios.doUsuario >= ENVIOS_POR_USUARIO_NA_JANELA || envios.daEscola >= ENVIOS_POR_ESCOLA_NA_JANELA) {
       const tipo = envios.daEscola >= ENVIOS_POR_ESCOLA_NA_JANELA ? 'escola' : 'usuario'
       this.dependencias.logger.warn({ evento: 'material.teto_de_envios', tipo })
-      throw new ErroDeDominio(ErrorCode.LIMITE_EXCEDIDO, undefined, JANELA_DOS_ENVIOS_MS / 1_000)
+      throw new DomainException(ErrorCode.LIMITE_EXCEDIDO, undefined, JANELA_DOS_ENVIOS_MS / 1_000)
     }
   }
 
@@ -177,10 +177,10 @@ export class MaterialService {
    * gravaria com a escola dela.
    */
   #agendarExtracao(materialId: string, bytes: Buffer): void {
-    const { escolaId } = sessaoDaRequisicao()
-    const requisicaoId = contextoAtual()?.requisicaoId
+    const { escolaId } = requestSessao()
+    const requisicaoId = currentContext()?.requisicaoId
     if (requisicaoId === undefined) throw new InvariantException('contexto da requisição ausente')
-    this.dependencias.fila.agendar(escolaId, (sinal) => executarNoContexto({ requisicaoId, escolaId }, () => this.#extrair(materialId, bytes, sinal)))
+    this.dependencias.fila.agendar(escolaId, (sinal) => runInContext({ requisicaoId, escolaId }, () => this.#extrair(materialId, bytes, sinal)))
   }
 
   /** Nunca rejeita: a falha vira estado do material e uma linha de log com o código. */
@@ -212,7 +212,7 @@ export class MaterialService {
       if (gravou) logger.info({ evento: 'material.extraido', materialId, paginasTotal, trechosTotal, duracaoMs })
       else logger.info({ evento: 'material.extracao_descartada', materialId, duracaoMs })
     } catch (erro) {
-      logger.warn({ evento: 'material.extracao_erro', materialId, erro: resumirErro(erro) })
+      logger.warn({ evento: 'material.extracao_erro', materialId, erro: summarizeError(erro) })
       await falhar('extracao_falhou')
     }
   }
@@ -228,7 +228,7 @@ export class MaterialService {
       if (total > 0) logger.warn({ evento: 'material.parados_encerrados', total })
       return total
     } catch (erro) {
-      logger.warn({ evento: 'material.varredura_falhou', erro: resumirErro(erro) })
+      logger.warn({ evento: 'material.varredura_falhou', erro: summarizeError(erro) })
       return 0
     }
   }
@@ -246,7 +246,7 @@ export class MaterialService {
   async ler(id: string): Promise<MaterialResponse> {
     const alcance = alcanceDoMaterial('ler')
     const lido = await new MaterialRepository(this.dependencias.banco).porId(id, alcance)
-    if (lido === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+    if (lido === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
     return paraResposta(lido, alcance)
   }
 
@@ -260,7 +260,7 @@ export class MaterialService {
     const trechosTotal = await banco.transaction(async (tx) => {
       const materiais = new MaterialRepository(tx)
       const excluido = await materiais.excluir(id)
-      if (excluido === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+      if (excluido === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
       const apagados = await materiais.apagarTrechos(id)
       await registro.gravar(tx, 'material.excluido', { entidadeId: id, antes: { disciplinaId: excluido.disciplinaId, estado: excluido.estado }, depois: { trechosApagados: apagados } })
       return apagados

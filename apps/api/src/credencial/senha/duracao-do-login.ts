@@ -1,4 +1,4 @@
-import { LIMITES_DO_HISTOGRAMA_HTTP_S, METRICAS, type Meter } from '@educa/nucleo'
+import { LIMITES_DO_HISTOGRAMA_HTTP_S, METRICS, type Meter } from '@educa/nucleo'
 
 /** O rótulo `metodo` de `login.duracao`: só os dois logins que conferem senha. */
 export type MetodoDoLogin = 'email' | 'matricula'
@@ -15,7 +15,7 @@ export class DuracaoDoLogin {
     medidor: Meter,
     private readonly metodo: MetodoDoLogin,
   ) {
-    this.#histograma = medidor.createHistogram(METRICAS.duracaoDoLogin, {
+    this.#histograma = medidor.createHistogram(METRICS.duracaoDoLogin, {
       unit: 's',
       description: 'Duração do login por e-mail ou matrícula, do pedido à resposta',
       advice: { explicitBucketBoundaries: LIMITES_DO_HISTOGRAMA_HTTP_S },

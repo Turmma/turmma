@@ -15,7 +15,7 @@ import { escola } from './escola.js'
  *   validação das linhas antigas é uma pendência de deploy (`TODO.md`).
  * - `chave_idempotencia` (F3, tarefa 3.0) é o "uma vez só" de quem enfileira: o índice único parcial
  *   `(escola_id, tipo, chave_idempotencia)`, só entre os não finalizados, faz a segunda gravação da mesma chave
- *   colidir (`Enfileirador.enfileirarUmaVez`). Depois de o job terminar, a mesma chave grava outro: quem usa a chave
+ *   colidir (`JobOutbox.enfileirarUmaVez`). Depois de o job terminar, a mesma chave grava outro: quem usa a chave
  *   (o expurgo da escola, com "a data local da noite") tolera reexecução. Só existe em job de escola: rotina do
  *   sistema não tem escola para a chave, e o check recusa.
  */

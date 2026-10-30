@@ -1,4 +1,4 @@
-import type { ExecutorNoProcesso } from '@educa/nucleo'
+import type { InProcessAgenteExecutor } from '@educa/nucleo'
 import { CHAVES_DE_FUNCAO, consumoResponseSchema, funcaoDaGovernancaResponseSchema, funcoesDaGovernancaResponseSchema, resumoDaGovernancaResponseSchema, FUNCOES, TROCAS_POR_MES_PADRAO_DO_TUTOR, type ChaveDeFuncao } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
@@ -31,7 +31,7 @@ describe('governança de IA da coordenação', () => {
   const bancada = new BancadaDeSessoes()
   const medidor = new MedidorDeTeste()
   let api: ApiDeTeste
-  let executor: ExecutorNoProcesso
+  let executor: InProcessAgenteExecutor
   let rotas: RotasDaAtividade
   let a: EscolaComAssistente
   let b: EscolaComAssistente
@@ -104,7 +104,7 @@ describe('governança de IA da coordenação', () => {
 
   beforeAll(async () => {
     api = await subirApi(medidor.medidor)
-    executor = api.app.get<ExecutorNoProcesso>(EXECUTOR_DE_AGENTE)
+    executor = api.app.get<InProcessAgenteExecutor>(EXECUTOR_DE_AGENTE)
     rotas = rotasDaAtividade(api)
     a = await montarEscolaComAssistente(api, bancada)
     b = await montarEscolaComAssistente(api, bancada)

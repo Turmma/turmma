@@ -1,4 +1,4 @@
-import { ErroDeDominio, METRICAS } from '@educa/nucleo'
+import { DomainException, METRICS } from '@educa/nucleo'
 import { ErrorCode } from '@educa/shared'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { MedidorDeTeste } from '../../../../../tools/testes/metricas.ts'
@@ -295,14 +295,14 @@ describe('SemaforoDeHash: prazo de 2 s', () => {
     expect(resultado).toBe('esperando')
     await vi.advanceTimersByTimeAsync(1)
     await segundo
-    expect(resultado).toBeInstanceOf(ErroDeDominio)
-    const erro = resultado as ErroDeDominio
+    expect(resultado).toBeInstanceOf(DomainException)
+    const erro = resultado as DomainException
     expect([erro.codigo, erro.status]).toEqual([ErrorCode.INDISPONIVEL_TENTE_DE_NOVO, 503])
     expect(erro.tenteDeNovoEmSegundos).toBeGreaterThanOrEqual(RETRY_AFTER_MINIMO_S)
     expect(erro.tenteDeNovoEmSegundos).toBeLessThanOrEqual(RETRY_AFTER_MAXIMO_S)
     expect(tarefa).not.toHaveBeenCalled()
     expect(semaforo.esperando).toBe(0)
-    expect(await medidor.pontos(METRICAS.hashRecusado)).toEqual([{ atributos: {}, valor: 1 }])
+    expect(await medidor.pontos(METRICS.hashRecusado)).toEqual([{ atributos: {}, valor: 1 }])
 
     // A vez que abre depois não vai para quem já desistiu: fica livre.
     emAndamento.soltar()
@@ -319,7 +319,7 @@ describe('SemaforoDeHash: prazo de 2 s', () => {
     const recusas = Array.from({ length: 200 }, () =>
       semaforo.executar(baldeDaEscola(ESCOLA_A), () => Promise.resolve()).then(
         () => undefined,
-        (erro: unknown) => (erro as ErroDeDominio).tenteDeNovoEmSegundos,
+        (erro: unknown) => (erro as DomainException).tenteDeNovoEmSegundos,
       ),
     )
     await vi.advanceTimersByTimeAsync(ESPERA_MAXIMA_PELO_HASH_MS)
@@ -477,7 +477,7 @@ describe('SemaforoSemProtecao: o controle negativo do cenário de carga (16.0)',
   it('a espera continua medida com o rótulo do balde de verdade, nunca o do balde único', async () => {
     const semaforo = new SemaforoSemProtecao(1, medidor.medidor)
     await semaforo.executar(baldeDaEscola(ESCOLA_B), () => Promise.resolve())
-    const rotulos = (await medidor.pontos(METRICAS.esperaPeloHash)).map((ponto) => ponto.atributos['escola_id'])
+    const rotulos = (await medidor.pontos(METRICS.esperaPeloHash)).map((ponto) => ponto.atributos['escola_id'])
     expect(rotulos).toEqual([ESCOLA_B])
   })
 })
@@ -485,11 +485,11 @@ describe('SemaforoSemProtecao: o controle negativo do cenário de carga (16.0)',
 describe('SemaforoDeHash: métricas', () => {
   it('login.hash_espera leva só o rótulo do balde (a escola, `equipe` ou `desconhecida`), nunca o IP; login.hash_recusado nasce em 0', async () => {
     const semaforo = new SemaforoDeHash(2, medidor.medidor)
-    expect(await medidor.pontos(METRICAS.hashRecusado)).toEqual([{ atributos: {}, valor: 0 }])
+    expect(await medidor.pontos(METRICS.hashRecusado)).toEqual([{ atributos: {}, valor: 0 }])
     for (const balde of [baldeDaEscola(ESCOLA_A), baldeDaEscola(ESCOLA_B), baldeDaEquipe(IP_DA_ESCOLA), baldeDaEquipe(IP_DE_FORA), baldeDaEscolaDesconhecida()]) {
       await semaforo.executar(balde, () => Promise.resolve())
     }
-    const pontos = await medidor.pontos(METRICAS.esperaPeloHash)
+    const pontos = await medidor.pontos(METRICS.esperaPeloHash)
     expect(pontos.map(({ atributos }) => atributos)).toEqual([{ escola_id: ESCOLA_A }, { escola_id: ESCOLA_B }, { escola_id: 'equipe' }, { escola_id: 'desconhecida' }])
     expect(pontos.find(({ atributos }) => atributos['escola_id'] === 'equipe')?.valor).toMatchObject({ contagem: 2 })
     expect(JSON.stringify(await medidor.atributosDeTodas())).not.toMatch(new RegExp(`${IP_DA_ESCOLA}|${IP_DE_FORA}`.replaceAll('.', '\\.')))

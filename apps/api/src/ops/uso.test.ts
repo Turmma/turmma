@@ -1,4 +1,4 @@
-import { ConfiguracaoInvalida } from '@educa/nucleo'
+import { InvalidConfigError } from '@educa/nucleo'
 import { describe, expect, it, vi } from 'vitest'
 import { ArgumentoInvalido as ArgumentoInvalidoDoComando } from './comando.js'
 import { ArgumentoInvalido, executarOpsUso, lerPedidoDeUso, urlDoBancoDeOperacao } from './uso.js'
@@ -56,7 +56,7 @@ describe('urlDoBancoDeOperacao', () => {
   })
 
   it('sem nenhum dos dois, recusa pelo nome da variável, sem valor', () => {
-    expect(() => urlDoBancoDeOperacao({ ...prazos, POSTGRES_SENHA: 'segredo_sintetico' })).toThrow(ConfiguracaoInvalida)
+    expect(() => urlDoBancoDeOperacao({ ...prazos, POSTGRES_SENHA: 'segredo_sintetico' })).toThrow(InvalidConfigError)
     expect(() => urlDoBancoDeOperacao({ ...prazos, POSTGRES_SENHA: 'segredo_sintetico' })).not.toThrow(/segredo_sintetico/)
   })
 })
@@ -70,7 +70,7 @@ describe('executarOpsUso: desde a A0 lê o OPERADOR, conferido antes de abrir o 
     let erro = ''
     const codigo = await executarOpsUso(['--escola', ESCOLA_A], ambiente, { saida: () => undefined, erro: (texto) => (erro += texto) }, abrirBanco)
     expect(codigo).toBe(2)
-    expect(erro).toBe(`${new ConfiguracaoInvalida(['OPERADOR']).message}\n`)
+    expect(erro).toBe(`${new InvalidConfigError(['OPERADOR']).message}\n`)
     expect(abrirBanco).not.toHaveBeenCalled()
   })
 })

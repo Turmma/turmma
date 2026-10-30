@@ -1,4 +1,4 @@
-import { avisoEspacado, ProporcaoEmJanela, relogioDoSistema, type Relogio } from '@educa/nucleo'
+import { throttledWarn, SlidingWindowRatio, systemClock, type Clock } from '@educa/nucleo'
 import { Logger } from '@nestjs/common'
 import type { Redis } from 'ioredis'
 import { createHmac } from 'node:crypto'
@@ -172,15 +172,15 @@ class SeguroEmMemoria {
 export class ContadorDeTentativas {
   readonly #logger = new Logger('login')
   readonly #seguro = new SeguroEmMemoria()
-  readonly #proporcaoDoSeguro: ProporcaoEmJanela
-  readonly #avisarSeguro = avisoEspacado(() => this.#logger.warn('login.contador_no_seguro'))
+  readonly #proporcaoDoSeguro: SlidingWindowRatio
+  readonly #avisarSeguro = throttledWarn(() => this.#logger.warn('login.contador_no_seguro'))
 
   /** @param proporcaoDoSeguro só o teste troca, para mover a janela sem esperar 30 s. */
   constructor(
     private readonly cliente: Redis,
     private readonly chave: Uint8Array,
-    private readonly relogio: Relogio = relogioDoSistema,
-    proporcaoDoSeguro = new ProporcaoEmJanela(),
+    private readonly relogio: Clock = systemClock,
+    proporcaoDoSeguro = new SlidingWindowRatio(),
   ) {
     this.#proporcaoDoSeguro = proporcaoDoSeguro
   }

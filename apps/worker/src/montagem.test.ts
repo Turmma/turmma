@@ -1,4 +1,4 @@
-import { ArmazemEmMemoria, ContadorDeUso, criarBanco, criarLogger, criarPool, type JanelaLetiva } from '@educa/nucleo'
+import { InMemoryFileStorage, UsageMeter, createDatabase, createLogger, createPool, type JanelaLetiva } from '@educa/nucleo'
 import { JOB_DEFINITIONS, QUEUE_NAMES, type QueueName, type JobRegistry } from '@educa/shared'
 import { Redis } from 'ioredis'
 import { afterAll, describe, expect, it } from 'vitest'
@@ -14,7 +14,7 @@ const STORAGE: ConfiguracaoStorage = { url: 'http://127.0.0.1:1', regiao: 'sa-ea
 const REGISTRO: JobRegistry = JOB_DEFINITIONS
 const JANELA: JanelaLetiva = { fuso: 'America/Sao_Paulo', diasLetivos: [1, 2, 3, 4, 5], inicio: '07:00', fim: '18:00' }
 
-const pool = criarPool({ url: 'postgres://teste:teste@127.0.0.1:1/teste', maximoConexoes: 1, timeoutConexaoMs: 100, timeoutConsultaMs: 100 }, () => undefined)
+const pool = createPool({ url: 'postgres://teste:teste@127.0.0.1:1/teste', maximoConexoes: 1, timeoutConexaoMs: 100, timeoutConsultaMs: 100 }, () => undefined)
 const redis = new Redis('redis://127.0.0.1:1', { lazyConnect: true })
 
 afterAll(async () => {
@@ -27,14 +27,14 @@ async function tiposDaReplicaDa(fila: QueueName): Promise<string[]> {
   const montados = montarProcessadores(
     { pools: { [fila]: 1 }, storage: STORAGE, janelaPadrao: JANELA },
     {
-      banco: criarBanco(pool),
-      uso: new ContadorDeUso(redis),
+      banco: createDatabase(pool),
+      uso: new UsageMeter(redis),
       relogio: { agora: () => new Date('2026-10-22T10:00:00-03:00') },
-      logger: criarLogger({ servico: 'worker-teste', nivel: 'silent' }),
+      logger: createLogger({ servico: 'worker-teste', nivel: 'silent' }),
       medidor: undefined,
       cpu: { queimar: () => Promise.resolve() },
       efeitos: { gravar: () => Promise.resolve(true) },
-      armazem: new ArmazemEmMemoria(),
+      armazem: new InMemoryFileStorage(),
     },
   )
   await montados.rotinas?.encerrar()

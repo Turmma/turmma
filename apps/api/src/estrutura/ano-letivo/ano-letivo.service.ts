@@ -1,4 +1,4 @@
-import { ErroDeDominio, RegistroDeAuditoria, type Banco, type TransacaoBanco } from '@educa/nucleo'
+import { DomainException, AuditoriaRecorder, type Database, type DatabaseTransaction } from '@educa/nucleo'
 import {
   ErrorCode,
   anoLetivoResponseSchema,
@@ -14,7 +14,7 @@ import { AnoLetivoRepository } from './ano-letivo.repository.js'
 import { paginar } from '../../http/paginacao.js'
 import { VinculoRepository } from '../vinculo/vinculo.repository.js'
 
-const registro = new RegistroDeAuditoria()
+const registro = new AuditoriaRecorder()
 
 /**
  * A coordenação cria, abre e encerra o ano letivo da escola (RF2; Tech Spec, seção 4). Não depende de haver ano em
@@ -35,7 +35,7 @@ const registro = new RegistroDeAuditoria()
  * - Id de outra escola, inexistente ou fora do formato: `NAO_ENCONTRADO`, igual (regra 10, item 6).
  */
 export class AnoLetivoService {
-  constructor(private readonly banco: Banco) {}
+  constructor(private readonly banco: Database) {}
 
   async criar(pedido: CriarAnoLetivoRequest): Promise<AnoLetivoResponse> {
     return anoLetivoResponseSchema.parse(await new AnoLetivoRepository(this.banco).criar(pedido))
@@ -65,7 +65,7 @@ export class AnoLetivoService {
    * clique relê o ano já mudado e responde como está, sem repetir o efeito.
    */
   async #transitar(
-    executor: Banco | TransacaoBanco,
+    executor: Database | DatabaseTransaction,
     id: string,
     de: SituacaoDoAnoLetivo,
     para: SituacaoDoAnoLetivo,
@@ -78,8 +78,8 @@ export class AnoLetivoService {
       return anoLetivoResponseSchema.parse(mudado)
     }
     const atual = await repositorio.porId(id)
-    if (atual === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+    if (atual === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
     if (atual.situacao === para) return anoLetivoResponseSchema.parse(atual)
-    throw new ErroDeDominio(ErrorCode.CONFLITO)
+    throw new DomainException(ErrorCode.CONFLITO)
   }
 }

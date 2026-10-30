@@ -1,4 +1,4 @@
-import { avisoEspacado, ProporcaoEmJanela, relogioDoSistema, type Relogio } from '@educa/nucleo'
+import { throttledWarn, SlidingWindowRatio, systemClock, type Clock } from '@educa/nucleo'
 import { Logger } from '@nestjs/common'
 import type { Redis } from 'ioredis'
 import { createHmac } from 'node:crypto'
@@ -18,9 +18,9 @@ export interface OpcoesDoContador {
   /** O aviso de contagem no seguro, um evento fixo, que o contador espaça; o padrão é o do login. */
   readonly avisarSeguro?: () => void
   /** Só o teste troca, para mover a janela sem esperar. */
-  readonly relogio?: Relogio
+  readonly relogio?: Clock
   /** Só o teste troca, para mover a janela da proporção sem esperar 30 s. */
-  readonly proporcaoDoSeguro?: ProporcaoEmJanela
+  readonly proporcaoDoSeguro?: SlidingWindowRatio
 }
 
 /** O que o contador diz: o valor na janela e se quem contou foi o seguro em memória (o limite é dividido pelas instâncias). */
@@ -57,14 +57,14 @@ interface EntradaEmMemoria {
  *   (`docs/lgpd.md`, "Contadores da sala").
  *
  * **Redis fora ou travado** (Tech Spec, seção 5, "Redis de fila fora"): cada instância conta em memória, com a mesma
- * janela, e diz que a contagem é do seguro, para quem compara dividir o limite pelas instâncias (`limiteDoSeguro`). A
+ * janela, e diz que a contagem é do seguro, para quem compara dividir o limite pelas instâncias (`insuranceLimit`). A
  * proporção do seguro alimenta `limite.seguro_ativo`. Nunca responde "zero" por não saber: conta sempre, em algum lugar.
  */
 export class ContadorEmJanela {
   readonly #seguro = new Map<string, EntradaEmMemoria>()
-  readonly #proporcaoDoSeguro: ProporcaoEmJanela
+  readonly #proporcaoDoSeguro: SlidingWindowRatio
   readonly #avisarSeguro: () => void
-  readonly #relogio: Relogio
+  readonly #relogio: Clock
   /** Quanto cada chave vive desde a primeira soma. */
   readonly janelaMs: number
   #ultimaVarredura = Number.NEGATIVE_INFINITY
@@ -77,13 +77,13 @@ export class ContadorEmJanela {
   constructor(
     private readonly cliente: Redis,
     private readonly chave: Uint8Array,
-    { janelaMs = JANELA_DO_CONTADOR_POR_IP_MS, avisarSeguro = avisarSeguroDoLogin, relogio = relogioDoSistema, proporcaoDoSeguro = new ProporcaoEmJanela() }: OpcoesDoContador = {},
+    { janelaMs = JANELA_DO_CONTADOR_POR_IP_MS, avisarSeguro = avisarSeguroDoLogin, relogio = systemClock, proporcaoDoSeguro = new SlidingWindowRatio() }: OpcoesDoContador = {},
   ) {
     if (!Number.isInteger(janelaMs) || janelaMs < 1) throw new RangeError('a janela do contador precisa ser um inteiro positivo de milissegundos')
     this.janelaMs = janelaMs
     this.#relogio = relogio
     this.#proporcaoDoSeguro = proporcaoDoSeguro
-    this.#avisarSeguro = avisoEspacado(avisarSeguro)
+    this.#avisarSeguro = throttledWarn(avisarSeguro)
   }
 
   /** Das contagens dos últimos 30 s, a proporção que o seguro em memória atendeu, de 0 a 1 (`limite.seguro_ativo`). */

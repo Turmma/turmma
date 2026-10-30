@@ -330,7 +330,7 @@ describe('atividade aplicada', () => {
 
       it('a migration 0037 aplicada sobre linhas antigas deixa todas com sequência 0 (e o cliente antigo, a partir delas, sobe para 1)', async () => {
         const aluno = alunos[8] as SessaoDeTeste
-        // O texto do arquivo da migration, aplicado a uma tabela de rascunho que já tem linhas: é ele que o `migrar` roda no banco da escola.
+        // O texto do arquivo da migration, aplicado a uma tabela de rascunho que já tem linhas: é ele que o `migrate` roda no banco da escola.
         const migration = readFileSync(join(PASTA_MIGRACOES, '0037_sequencia_da_resposta.sql'), 'utf8')
         const cliente = await bancada.pool.connect()
         try {

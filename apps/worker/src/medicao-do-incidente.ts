@@ -1,12 +1,12 @@
-import { METRICAS, type EscolasDaRotinaRepository, type IncidenteDaEscolaRepository, type LoggerBase, type Meter, type Relogio } from '@educa/nucleo'
+import { METRICS, type CronEscolasRepository, type IncidenteDaEscolaRepository, type LoggerBase, type Meter, type Clock } from '@educa/nucleo'
 import { MedicaoPorEscola } from './medicao-por-escola.js'
 
 const MS_POR_HORA = 3_600_000
 
 export interface DependenciasDaMedicaoDoIncidente {
-  escolas: Pick<EscolasDaRotinaRepository, 'listarIds'>
+  escolas: Pick<CronEscolasRepository, 'listarIds'>
   repositorio: Pick<IncidenteDaEscolaRepository, 'conhecidoEmDoPendenteMaisAntigo'>
-  relogio: Relogio
+  relogio: Clock
   logger: LoggerBase
   medidor: Meter
 }
@@ -29,7 +29,7 @@ export class MedicaoDoIncidente extends MedicaoPorEscola {
     super(
       dependencias,
       {
-        metrica: METRICAS.horasDoIncidenteSemConfirmacao,
+        metrica: METRICS.horasDoIncidenteSemConfirmacao,
         descricao: 'Horas desde que a Turmma soube do incidente mais antigo da escola que ainda não foi confirmado como recebido',
         evento: 'worker.medicao_do_incidente_indisponivel',
       },

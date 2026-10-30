@@ -43,7 +43,7 @@ export type AcaoDaAuditoriaDaOperacao = (typeof ACOES_DA_AUDITORIA_DA_OPERACAO)[
  * As seis tabelas da operação Turmma (A0, D76; Tech Spec, seção 3). São da nossa equipe, não de escola: **sem
  * `escola_id`**, o único desvio declarado da regra 10, item 1 (Tech Spec, seção 11). Por isso só o
  * `OperadorRepository` (`apps/api/src/operacao/`) as toca, e o expurgo (tarefa 9.0); um teste de arquitetura procura
- * outro uso, pelo `import` e pelo nome da tabela em SQL. Nenhuma delas entra no `schema` do `criarBanco`, como a
+ * outro uso, pelo `import` e pelo nome da tabela em SQL. Nenhuma delas entra no `schema` do `createDatabase`, como a
  * `auditoria`: a consulta relacional (`banco.query.*`) não as alcança de fora.
  *
  * Nenhum dado de escola nem de aluno. Nome, e-mail, hash e segredo nunca saem em log nem em DTO (`docs/lgpd.md`,

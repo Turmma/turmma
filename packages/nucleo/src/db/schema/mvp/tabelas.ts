@@ -19,14 +19,14 @@ import { validacaoDoLote } from '../validacao-do-lote.js'
 /**
  * As dezessete tabelas do MVP de apresentação (migration 0022; `docs/mvp-contratos.md`), num lugar só, para o pacote
  * exportá-las com uma linha (`export * from './db/schema/mvp/tabelas.js'` no `index.ts`) e para o `schema` do drizzle
- * recebê-las com `...tabelasDoMvp` (`db/banco.ts`).
+ * recebê-las com `...mvpTables` (`db/banco.ts`).
  *
  * Fica nesta subpasta de propósito: o `drizzle.config.ts` lê `schema/*.ts`, e um arquivo ali que reexportasse as tabelas
  * as faria aparecer duas vezes na geração da migration.
  */
 export { artefato, atividadeAplicada, consumoIa, correcao, entrega, execucaoAgente, material, mensagemAgente, mensagemTutor, respostaAtividade, resumoDoAnalista, sinalTutor, suspensaoDeFuncao, tentativaAtividade, threadAgente, trecho, validacaoDoLote }
 
-export const tabelasDoMvp = {
+export const mvpTables = {
   material,
   trecho,
   consumoIa,

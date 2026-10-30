@@ -440,7 +440,7 @@ ataque, sem IP.
 errados numa escola (1.000 em 10 min), por 5 min seguidos (`sum (rate(sala_limite_atingido_total{job="educa/api",
 tipo="escola"}[1m])) * 60 > 10`, regra `infra/grafana/alertas/sala-codigo-errado-por-escola.yaml`; Tech Spec da A1, seção
 7c). A manhã da escola inteira no primeiro dia erra uns 420 códigos em 5 min, abaixo do teto: acima dele, por 5 min, é
-alguém tentando códigos. O alerta não traz escola nem IP (`METRICAS_COM_ESCOLA` é fechada).
+alguém tentando códigos. O alerta não traz escola nem IP (`METRICS_WITH_ESCOLA` é fechada).
 
 **Impacto:** ninguém é recusado. Enquanto a escola estiver acima do teto, todo `salas/abrir` pelo código dela espera 1 s,
 também o do código certo; o link, o login e as outras escolas não sentem. A espera atrasa cada tentativa, mas não limita

@@ -1,17 +1,17 @@
 import {
-  contextoAtual,
+  currentContext,
   diaAnterior,
   diaDeUso,
-  erroDoPostgresEm,
-  executarNoContexto,
-  METRICAS,
-  resumirErro,
-  type ContadorDeUso,
+  postgresErrorIn,
+  runInContext,
+  METRICS,
+  summarizeError,
+  type UsageMeter,
   type LoggerBase,
   type Meter,
-  type Relogio,
-  type UsoDoPeriodo,
-  type UsoRepository,
+  type Clock,
+  type UsagePeriod,
+  type UsageRepository,
 } from '@educa/nucleo'
 import { JobFailureCode, type TIPO_CONSOLIDAR_USO } from '@educa/shared'
 import type { Processador } from '../executor.js'
@@ -46,7 +46,7 @@ const CLASSE_DADO_INVALIDO = '22'
  * derrubando a sessão) devolve `undefined` e sobe: o job falha e a fila tenta de novo.
  */
 function causaNaEscola(erro: unknown): CausaDaEscolaIgnorada | undefined {
-  const doPostgres = erroDoPostgresEm(erro)
+  const doPostgres = postgresErrorIn(erro)
   if (doPostgres === undefined) return undefined
   if (doPostgres.code === SQLSTATE_FK && doPostgres.constraint === FK_DA_ESCOLA) return 'escola_inexistente'
   if (doPostgres.code === SQLSTATE_CHECK || doPostgres.code.startsWith(CLASSE_DADO_INVALIDO)) return 'valor_invalido'
@@ -54,11 +54,11 @@ function causaNaEscola(erro: unknown): CausaDaEscolaIgnorada | undefined {
 }
 
 export interface DependenciasDaConsolidacao {
-  contador: Pick<ContadorDeUso, 'lerDiasFechados' | 'apagarConsolidado'>
-  repositorio: Pick<UsoRepository, 'gravarDia'>
+  contador: Pick<UsageMeter, 'lerDiasFechados' | 'apagarConsolidado'>
+  repositorio: Pick<UsageRepository, 'gravarDia'>
   storage: Pick<MedidorDeStorage, 'listarEscolas' | 'bytesDaEscola'>
   /** De onde vem a hora que decide quais dias fecharam. Só o teste troca. */
-  relogio: Relogio
+  relogio: Clock
   logger: LoggerBase
   /** Medidor da telemetria, para `uso.escola_ignorada`. Sem ele (os testes que não olham métrica), só o log. */
   medidor?: Meter
@@ -76,7 +76,7 @@ export interface DependenciasDaConsolidacao {
  *    fechar, também como valor absoluto.
  *
  * Toda leitura e gravação de uma escola roda no contexto dela: a descoberta das escolas é a única
- * parte sem escopo (`@SemEscopo` no contador e no medidor). Com o Redis de fila, o Postgres ou o
+ * parte sem escopo (`@Unscoped` no contador e no medidor). Com o Redis de fila, o Postgres ou o
  * storage fora, a tentativa falha e a fila tenta de novo; o que já foi gravado continua certo.
  *
  * Uma escola não para a consolidação das outras (regra 80, item 3). A gravação que o banco recusa por causa da
@@ -92,15 +92,15 @@ export interface DependenciasDaConsolidacao {
  */
 export function criarConsolidacaoDeUso(dependencias: DependenciasDaConsolidacao): Processador<typeof TIPO_CONSOLIDAR_USO> {
   const { contador, repositorio, storage, relogio, logger, medidor } = dependencias
-  const escolaIgnorada = medidor?.createCounter(METRICAS.escolaIgnoradaNoUso, {
+  const escolaIgnorada = medidor?.createCounter(METRICS.escolaIgnoradaNoUso, {
     description: 'Gravações de uso de uma escola que a consolidação noturna pulou, por origem e causa',
   })
   return async () => {
-    const contexto = contextoAtual()
+    const contexto = currentContext()
     // Só a rotina do sistema consolida: um job de escola com este tipo não alcança as outras escolas.
     if (contexto?.rotinaDoSistema !== true) throw new FalhaDeJob(JobFailureCode.DADOS_INVALIDOS, true)
     const naEscola = <T>(escolaId: string, funcao: () => Promise<T>): Promise<T> =>
-      executarNoContexto({ requisicaoId: contexto.requisicaoId, escolaId }, funcao)
+      runInContext({ requisicaoId: contexto.requisicaoId, escolaId }, funcao)
 
     let ignoradasTotal = 0
     /** As escolas que o banco não tem: se forem todas as encontradas, o job falha no fim. */
@@ -110,10 +110,10 @@ export function criarConsolidacaoDeUso(dependencias: DependenciasDaConsolidacao)
       if (causa === 'escola_inexistente') inexistentes.add(escolaId)
       escolaIgnorada?.add(1, { origem, causa })
       // Só o id e o erro resumido (SQLSTATE e restrição, ou o tipo): a mensagem do banco traz o valor da linha (regra 20, item 9).
-      logger.warn({ evento: 'uso.escola_ignorada', escolaId, origem, causa, erro: resumirErro(erro) })
+      logger.warn({ evento: 'uso.escola_ignorada', escolaId, origem, causa, erro: summarizeError(erro) })
     }
     /** Grava o dia da escola, ou devolve a causa se o banco o recusou por causa dela. Erro do banco sobe. */
-    const gravar = async (escolaId: string, dia: string, valores: Partial<UsoDoPeriodo>): Promise<{ causa: CausaDaEscolaIgnorada; erro: unknown } | undefined> => {
+    const gravar = async (escolaId: string, dia: string, valores: Partial<UsagePeriod>): Promise<{ causa: CausaDaEscolaIgnorada; erro: unknown } | undefined> => {
       try {
         await naEscola(escolaId, () => repositorio.gravarDia(dia, valores))
         return undefined
@@ -127,7 +127,7 @@ export function criarConsolidacaoDeUso(dependencias: DependenciasDaConsolidacao)
     const hoje = diaDeUso(relogio.agora())
     const contagens = await contador.lerDiasFechados(hoje)
     for (const { escolaId, dia, requisicoes, jobs } of contagens) {
-      const valores: Partial<UsoDoPeriodo> = {
+      const valores: Partial<UsagePeriod> = {
         ...(requisicoes === undefined ? {} : { requisicoes }),
         ...(jobs === undefined ? {} : { jobs }),
       }

@@ -1,4 +1,4 @@
-import { artefato, atividadeAplicada, correcao, entrega, exigirAnoEmCurso, exigirEscolaDoContexto, sessaoDaRequisicao, turma, usuario, vinculo, type Banco, type TransacaoBanco } from '@educa/nucleo'
+import { artefato, atividadeAplicada, correcao, entrega, requireAnoEmCurso, requireEscolaId, requestSessao, turma, usuario, vinculo, type Database, type DatabaseTransaction } from '@educa/nucleo'
 import { MAXIMO_DE_ALUNOS_NO_DESEMPENHO } from '@educa/shared'
 import { and, asc, eq, inArray, isNull, sql, type SQL } from 'drizzle-orm'
 
@@ -15,8 +15,8 @@ export interface AcertoDoAlunoNaHabilidade {
 
 const lotesAprovadosDaTurma = (turmaId: string, disciplinas: DisciplinasDaLeitura): SQL | undefined =>
   and(
-    eq(entrega.escolaId, exigirEscolaDoContexto()),
-    eq(entrega.anoLetivoId, exigirAnoEmCurso()),
+    eq(entrega.escolaId, requireEscolaId()),
+    eq(entrega.anoLetivoId, requireAnoEmCurso()),
     eq(entrega.turmaId, turmaId),
     eq(entrega.tipo, 'lote_de_correcao'),
     // Só o que a professora validou vale como desempenho: lote pendente ou rejeitado não entra em número nenhum.
@@ -33,14 +33,14 @@ const artefatoDaAplicacao = and(eq(artefato.escolaId, atividadeAplicada.escolaId
  * de dado recebem as disciplinas e não conferem quem pede.
  */
 export class DesempenhoRepository {
-  constructor(private readonly banco: Banco | TransacaoBanco) {}
+  constructor(private readonly banco: Database | DatabaseTransaction) {}
 
   /** A turma do ano em curso da escola do contexto existe? A de outra escola ou de outro ano não é achada. */
   async turmaDaEscola(turmaId: string): Promise<boolean> {
     const [linha] = await this.banco
       .select({ id: turma.id })
       .from(turma)
-      .where(and(eq(turma.escolaId, exigirEscolaDoContexto()), eq(turma.anoLetivoId, exigirAnoEmCurso()), eq(turma.id, turmaId)))
+      .where(and(eq(turma.escolaId, requireEscolaId()), eq(turma.anoLetivoId, requireAnoEmCurso()), eq(turma.id, turmaId)))
     return linha !== undefined
   }
 
@@ -54,10 +54,10 @@ export class DesempenhoRepository {
       .from(vinculo)
       .where(
         and(
-          eq(vinculo.escolaId, exigirEscolaDoContexto()),
-          eq(vinculo.anoLetivoId, exigirAnoEmCurso()),
+          eq(vinculo.escolaId, requireEscolaId()),
+          eq(vinculo.anoLetivoId, requireAnoEmCurso()),
           eq(vinculo.turmaId, turmaId),
-          eq(vinculo.usuarioId, sessaoDaRequisicao().usuarioId),
+          eq(vinculo.usuarioId, requestSessao().usuarioId),
           eq(vinculo.papel, 'professor'),
           eq(vinculo.estado, 'confirmado'),
         ),
@@ -114,8 +114,8 @@ export class DesempenhoRepository {
       .innerJoin(usuario, and(eq(usuario.escolaId, vinculo.escolaId), eq(usuario.id, vinculo.usuarioId)))
       .where(
         and(
-          eq(vinculo.escolaId, exigirEscolaDoContexto()),
-          eq(vinculo.anoLetivoId, exigirAnoEmCurso()),
+          eq(vinculo.escolaId, requireEscolaId()),
+          eq(vinculo.anoLetivoId, requireAnoEmCurso()),
           eq(vinculo.turmaId, turmaId),
           eq(vinculo.papel, 'aluno'),
           eq(vinculo.estado, 'confirmado'),

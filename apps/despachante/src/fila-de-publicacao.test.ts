@@ -1,9 +1,9 @@
-import { nomeDaFilaBullMQ, type JobReservado } from '@educa/nucleo'
+import { bullmqQueueName, type ReservedJob } from '@educa/nucleo'
 import { JobFailureCode, defineJob, JOB_DEFINITIONS, TIPO_JOB_SINTETICO, type JobExecutor, type QueueName, type JobRegistry } from '@educa/shared'
 import { describe, expect, it, vi } from 'vitest'
 import { PrazoDaFilaEsgotado, PublicacaoBullMQ, type FilaBullMQ } from './fila-de-publicacao.js'
 
-const JOB: JobReservado = {
+const JOB: ReservedJob = {
   id: '0190f5a0-0000-7000-8000-0000000000f1',
   escolaId: '0190f5a0-0000-7000-8000-00000000000a',
   requisicaoId: '0190f5a0-0000-7000-8000-0000000000e1',
@@ -57,7 +57,7 @@ describe('PublicacaoBullMQ', () => {
     const consultadas: string[] = []
     const criadas: string[] = []
     const criar = (fila: QueueName, executor: JobExecutor) => {
-      const nome = nomeDaFilaBullMQ(fila, executor)
+      const nome = bullmqQueueName(fila, executor)
       criadas.push(nome)
       return filaFalsa({
         addBulk: (jobs) => {

@@ -127,7 +127,7 @@ describe('as exceções do código', () => {
 
   it('@SemEscopo( no índice, só no HEAD ou em nenhum: quatro, quatro, e C I (componentes/ui/)', () => {
     const arquivo = 'apps/web/src/componentes/ui/Aviso.tsx'
-    const marca = '@SemEscopo() // rotina administrativa nossa\n'
+    const marca = '@Unscoped() // rotina administrativa nossa\n'
     expect(pede(arquivo, textos(marca, 'export const a = 1\n'))).toEqual(OS_QUATRO)
     expect(pede(arquivo, textos('export const a = 1\n', marca))).toEqual(OS_QUATRO)
     expect(pede(arquivo, textos('export const a = 1\n'))).toEqual([C, I])
@@ -319,7 +319,7 @@ describe('o código de processo (RF16)', () => {
         expect(pede(`${pasta}${nome}`), `${pasta}${nome}`).toEqual(OS_QUATRO)
       }
     }
-    const marca = '@SemEscopo() // rotina administrativa nossa\n'
+    const marca = '@Unscoped() // rotina administrativa nossa\n'
     // No índice, só no HEAD, e em nenhum: os quatro, os quatro, e a linha dele.
     expect(pede('tools/vitrine/x.ts', textos(marca, 'export const a = 1\n'))).toEqual(OS_QUATRO)
     expect(pede('tools/vitrine/x.ts', textos('export const a = 1\n', marca))).toEqual(OS_QUATRO)

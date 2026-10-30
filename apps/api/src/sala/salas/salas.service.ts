@@ -1,4 +1,4 @@
-import { ErroDeDominio, type Banco } from '@educa/nucleo'
+import { DomainException, type Database } from '@educa/nucleo'
 import { ErrorCode, salaAbertaResponseSchema, type AbrirSalaRequest, type SalaAbertaResponse } from '@educa/shared'
 import type { AcessoDaSala, GuardaDoCodigo } from '../../sessao/index.js'
 import { entradaDaSala } from '../entrada-da-sala.js'
@@ -18,7 +18,7 @@ import { ListaLivreRepository } from '../reivindicacao/lista-livre.repository.js
  */
 export class SalasService {
   constructor(
-    private readonly banco: Banco,
+    private readonly banco: Database,
     private readonly acessoDaSala: AcessoDaSala,
     private readonly chaveCodigo: Uint8Array,
     private readonly guarda: GuardaDoCodigo,
@@ -30,7 +30,7 @@ export class SalasService {
       const lista = new ListaLivreRepository(this.banco)
       const nomeDaTurma = await lista.nomeDaTurma(turmaId)
       // A turma excluída leva o acesso pela cascata: sem ela aqui, a exclusão chegou entre as duas leituras.
-      if (nomeDaTurma === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+      if (nomeDaTurma === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
       return salaAbertaResponseSchema.parse({ turma: { nome: nomeDaTurma }, nomes: await lista.nomesLivres(turmaId) })
     }, this.guarda)
   }

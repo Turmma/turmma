@@ -1,4 +1,4 @@
-import { acessoTurma, exigirAnoEmCurso, exigirEscolaDoContexto, sessaoDaRequisicao, type Banco, type TransacaoBanco } from '@educa/nucleo'
+import { acessoTurma, requireAnoEmCurso, requireEscolaId, requestSessao, type Database, type DatabaseTransaction } from '@educa/nucleo'
 import type { ValidadeDoAcessoDias } from '@educa/shared'
 import { and, eq, gt, isNull, sql } from 'drizzle-orm'
 import { InvariantException } from '@educa/shared'
@@ -12,18 +12,18 @@ export interface NovoAcesso {
 
 /**
  * O acesso da turma na escola do contexto, no ano letivo em curso dela (A1, tarefa 4.0; regra 10, itens 2 e 3): escola
- * e ano vêm do contexto que a `GuardaDeSessao` gravou, nunca de argumento. Quem chama confere antes que a turma é do
+ * e ano vêm do contexto que a `SessaoGuard` gravou, nunca de argumento. Quem chama confere antes que a turma é do
  * professor (`TurmaRepository.travarComVinculoDoProfessor` ou `aberta` com `turma_vinculada`); aqui a turma é só um
  * filtro, e as FKs compostas `(escola_id, ano_letivo_id, turma_id)` e `(escola_id, criado_por)` são a segunda camada.
  *
  * Vigente é o não revogado com `expira_em > now()`. Nada daqui devolve o hash do token nem o HMAC do código.
  */
 export class AcessoDaTurmaRepository {
-  constructor(private readonly banco: Banco | TransacaoBanco) {}
+  constructor(private readonly banco: Database | DatabaseTransaction) {}
 
   /** O acesso da turma, na escola e no ano do contexto. */
   #daTurma(turmaId: string) {
-    return and(eq(acessoTurma.escolaId, exigirEscolaDoContexto()), eq(acessoTurma.anoLetivoId, exigirAnoEmCurso()), eq(acessoTurma.turmaId, turmaId))
+    return and(eq(acessoTurma.escolaId, requireEscolaId()), eq(acessoTurma.anoLetivoId, requireAnoEmCurso()), eq(acessoTurma.turmaId, turmaId))
   }
 
   /**
@@ -49,14 +49,14 @@ export class AcessoDaTurmaRepository {
     const [gravado] = await this.banco
       .insert(acessoTurma)
       .values({
-        escolaId: exigirEscolaDoContexto(),
-        anoLetivoId: exigirAnoEmCurso(),
+        escolaId: requireEscolaId(),
+        anoLetivoId: requireAnoEmCurso(),
         turmaId: novo.turmaId,
         tokenHash: novo.tokenHash,
         codigoHmac: novo.codigoHmac,
         validadeDias: novo.validadeDias,
         expiraEm: sql`now() + make_interval(days => ${novo.validadeDias}::int)`,
-        criadoPor: sessaoDaRequisicao().usuarioId,
+        criadoPor: requestSessao().usuarioId,
       })
       .returning({ id: acessoTurma.id, expiraEm: acessoTurma.expiraEm })
     if (gravado === undefined) throw new InvariantException('acesso da turma não gravado')
@@ -95,7 +95,7 @@ export class AcessoDaTurmaRepository {
     return this.banco
       .update(acessoTurma)
       .set({ revogadoEm: sql`now()` })
-      .where(and(eq(acessoTurma.escolaId, exigirEscolaDoContexto()), isNull(acessoTurma.revogadoEm), gt(acessoTurma.expiraEm, sql`now()`)))
+      .where(and(eq(acessoTurma.escolaId, requireEscolaId()), isNull(acessoTurma.revogadoEm), gt(acessoTurma.expiraEm, sql`now()`)))
       .returning({ id: acessoTurma.id, turmaId: acessoTurma.turmaId })
   }
 

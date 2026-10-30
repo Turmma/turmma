@@ -1,4 +1,4 @@
-import { ErroDeDominio, FORMATO_SLUG, TAMANHO_MAXIMO_SLUG, type Banco, type Meter } from '@educa/nucleo'
+import { DomainException, FORMATO_SLUG, TAMANHO_MAXIMO_SLUG, type Database, type Meter } from '@educa/nucleo'
 import { ErrorCode, type LoginMatriculaRequest } from '@educa/shared'
 import type { ConclusaoDeLogin } from '../conclusao/conclusao-de-login.js'
 import type { ContadorDeTentativas } from '../../credencial/contador-de-tentativas.js'
@@ -23,7 +23,7 @@ import type { RebaixamentoPorEscola } from '../../credencial/senha/rebaixamento.
 export const ESCOLA_DESCONHECIDA = '00000000-0000-0000-0000-000000000000'
 
 export interface DependenciasDoLoginPorMatricula {
-  readonly banco: Banco
+  readonly banco: Database
   readonly resolucao: ResolucaoDeTenantRepository
   /** A vez no semáforo do hash (14.0), no balde da escola do endereço ou no da escola desconhecida, o contador e o hash. */
   readonly conferencia: ConferenciaNaVez
@@ -68,7 +68,7 @@ interface ChaveDaTentativa {
  * - **Rebaixamento** (15.1): o IP com mais falhas que o limiar da escola no último minuto vai para o fim do balde dela,
  *   sem recusa; quem traz o `educa_dispositivo` daquela matrícula mantém a vez. Toda falha na escola conta para o IP.
  *   O endereço que não existe não conta falha por IP: o balde dele não tem aluno de verdade a proteger.
- * - **Limite por IP do login** (15.0): o IP acima do limite por IP das rotas de login (`@LimiteQueRebaixa()`) também vai
+ * - **Limite por IP do login** (15.0): o IP acima do limite por IP das rotas de login (`@DowngradeRateLimit()`) também vai
  *   para o fim do balde, com a mesma passagem pelo cookie, e nunca recebe 429.
  */
 export class LoginPorMatricula {
@@ -111,7 +111,7 @@ export class LoginPorMatricula {
       // emitido e nenhuma sessão nasce; o registro de acesso é o de uma tentativa que não entrou.
       if (credencial.suspenso) {
         await new RegistroDeAcessoRepository(banco).gravarFalha(ipParaRegistro(origem.ip))
-        throw new ErroDeDominio(ErrorCode.ACESSO_SUSPENSO)
+        throw new DomainException(ErrorCode.ACESSO_SUSPENSO)
       }
       return conclusao.entrarComoAluno({ usuarioId: credencial.usuarioId, escolaId }, identificador, origem)
     })

@@ -1,4 +1,4 @@
-import { Permite, ZodValidationPipe } from '@educa/nucleo'
+import { RequirePermissao, ZodValidationPipe } from '@educa/nucleo'
 import { paginationQuerySchema, criarSerieRequestSchema, type PaginationQuery, type CriarSerieRequest, type ListaDeSeriesResponse, type SerieResponse } from '@educa/shared'
 import { Body, Controller, Get, Post, Query } from '@nestjs/common'
 import { SerieService } from './serie.service.js'
@@ -9,13 +9,13 @@ export class SerieController {
   constructor(private readonly series: SerieService) {}
 
   @Post()
-  @Permite('serie', 'criar')
+  @RequirePermissao('serie', 'criar')
   criar(@Body(new ZodValidationPipe(criarSerieRequestSchema)) pedido: CriarSerieRequest): Promise<SerieResponse> {
     return this.series.criar(pedido)
   }
 
   @Get()
-  @Permite('serie', 'ler')
+  @RequirePermissao('serie', 'ler')
   listar(@Query(new ZodValidationPipe(paginationQuerySchema)) consulta: PaginationQuery): Promise<ListaDeSeriesResponse> {
     return this.series.listar(consulta)
   }

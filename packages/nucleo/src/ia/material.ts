@@ -1,33 +1,33 @@
 import { InvariantException, habilidadeSchema, type Citacao, type Habilidade } from '@educa/shared'
 import { z } from 'zod'
-import type { Dado } from './tarefa.js'
+import type { PromptData } from './tarefa.js'
 import { contemTexto, cortar, frases, normalizar, palavras, palavrasEmComum, semPontoFinal } from './texto.js'
 
 /**
  * Um trecho do material da escola, como a busca devolve: a página e o texto dela. É a única forma de conteúdo de
  * material que uma tarefa recebe, e é contra ele que toda citação é conferida (regra 30, item 12).
  */
-export const esquemaTrecho = z.strictObject({
+export const trechoSchema = z.strictObject({
   materialId: z.uuid(),
   /** Página do PDF, a partir de 1. */
   pagina: z.number().int().min(1),
   texto: z.string().min(1).max(8000),
 })
-export type Trecho = z.infer<typeof esquemaTrecho>
+export type Trecho = z.infer<typeof trechoSchema>
 
 /**
  * Série e disciplina, pelo nome que a escola deu ("2ª série do Ensino Médio", "Química"). É contexto para o tom e o
  * nível do texto; não há campo para o nome da turma, do professor ou de aluno.
  */
-export const esquemaContextoDaTurma = z.strictObject({
+export const contextoDaTurmaSchema = z.strictObject({
   serie: z.string().min(1).max(60),
   disciplina: z.string().min(1).max(60),
 })
-export type ContextoDaTurma = z.infer<typeof esquemaContextoDaTurma>
+export type ContextoDaTurma = z.infer<typeof contextoDaTurmaSchema>
 
-export const esquemaHabilidades = z.array(habilidadeSchema).min(1).max(6)
+export const habilidadesSchema = z.array(habilidadeSchema).min(1).max(6)
 
-export function dadosDosTrechos(trechos: readonly Trecho[]): Dado[] {
+export function dadosDosTrechos(trechos: readonly Trecho[]): PromptData[] {
   return trechos.map((trecho) => ({
     tipo: 'trecho_do_material',
     atributos: { materialId: trecho.materialId, pagina: trecho.pagina },
@@ -35,7 +35,7 @@ export function dadosDosTrechos(trechos: readonly Trecho[]): Dado[] {
   }))
 }
 
-export function dadoEmJson(tipo: string, valor: unknown): Dado {
+export function dadoEmJson(tipo: string, valor: unknown): PromptData {
   return { tipo, corpo: JSON.stringify(valor) }
 }
 

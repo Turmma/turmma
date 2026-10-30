@@ -1,7 +1,7 @@
 import { VALIDADE_DO_ARQUIVO_DIAS, type Compartilhamento as FotoDoCompartilhamento, type EstadoDoPedido, type PapelDoTitular, type TipoDePedidoDoTitular, type VersaoDoArquivo } from '@educa/shared'
 import { and, asc, desc, eq, inArray, isNotNull, lt, or, sql } from 'drizzle-orm'
-import { exigirEscolaDoContexto } from '../contexto/escola-do-contexto.js'
-import type { Banco, TransacaoBanco } from '../db/banco.js'
+import { requireEscolaId } from '../contexto/escola-do-contexto.js'
+import type { Database, DatabaseTransaction } from '../db/banco.js'
 import { arquivoTitular } from '../db/schema/arquivo-titular.js'
 import { pedidoTitular } from '../db/schema/pedido-titular.js'
 import { usuario } from '../db/schema/usuario.js'
@@ -54,7 +54,7 @@ export interface PedidoDoUsuario {
  * `em_preparacao → pronto` é um `update` condicional, que só uma das duas chamadas faz: o job grava a linha antes, na mesma transação.
  */
 export class ArquivoDoTitularRepository {
-  constructor(private readonly banco: Banco | TransacaoBanco) {}
+  constructor(private readonly banco: Database | DatabaseTransaction) {}
 
   /** O pedido que o job monta, na escola do contexto. O de outra escola e o inexistente não vêm. */
   async pedidoParaMontar(pedidoId: string): Promise<PedidoParaMontar | undefined> {
@@ -68,7 +68,7 @@ export class ArquivoDoTitularRepository {
         compartilhamento: pedidoTitular.compartilhamento,
       })
       .from(pedidoTitular)
-      .where(and(eq(pedidoTitular.escolaId, exigirEscolaDoContexto()), eq(pedidoTitular.id, pedidoId)))
+      .where(and(eq(pedidoTitular.escolaId, requireEscolaId()), eq(pedidoTitular.id, pedidoId)))
       .limit(1)
     return linha
   }
@@ -82,7 +82,7 @@ export class ArquivoDoTitularRepository {
     const [linha] = await this.banco
       .select({ desativadoEm: usuario.desativadoEm, eliminacaoAgendadaEm: usuario.eliminacaoAgendadaEm })
       .from(usuario)
-      .where(and(eq(usuario.escolaId, exigirEscolaDoContexto()), eq(usuario.id, titularId)))
+      .where(and(eq(usuario.escolaId, requireEscolaId()), eq(usuario.id, titularId)))
       .limit(1)
     return linha === undefined ? undefined : linha.desativadoEm === null && linha.eliminacaoAgendadaEm === null
   }
@@ -95,8 +95,8 @@ export class ArquivoDoTitularRepository {
    * A chave do objeto é a do check `arquivo_titular_chave_da_escola`: `titular/<escola>/<pedido>/<versao>.json`.
    */
   async gravar(pedidoId: string, versao: VersaoDoArquivo, bytes: number, prontoEm: Date): Promise<string> {
-    const escolaId = exigirEscolaDoContexto()
-    const chaveObjeto = chaveDoObjeto(escolaId, pedidoId, versao)
+    const escolaId = requireEscolaId()
+    const chaveObjeto = objectKey(escolaId, pedidoId, versao)
     const expiraEm = new Date(prontoEm.getTime() + VALIDADE_DO_ARQUIVO_DIAS * MS_POR_DIA)
     await this.banco
       .insert(arquivoTitular)
@@ -113,7 +113,7 @@ export class ArquivoDoTitularRepository {
     const [pronto] = await this.banco
       .update(pedidoTitular)
       .set({ estado: 'pronto' })
-      .where(and(eq(pedidoTitular.escolaId, exigirEscolaDoContexto()), eq(pedidoTitular.id, pedidoId), eq(pedidoTitular.estado, 'em_preparacao')))
+      .where(and(eq(pedidoTitular.escolaId, requireEscolaId()), eq(pedidoTitular.id, pedidoId), eq(pedidoTitular.estado, 'em_preparacao')))
       .returning({ id: pedidoTitular.id })
     return pronto !== undefined
   }
@@ -130,7 +130,7 @@ export class ArquivoDoTitularRepository {
         apagadoEm: arquivoTitular.apagadoEm,
       })
       .from(arquivoTitular)
-      .where(and(eq(arquivoTitular.escolaId, exigirEscolaDoContexto()), eq(arquivoTitular.pedidoId, pedidoId), eq(arquivoTitular.versao, versao)))
+      .where(and(eq(arquivoTitular.escolaId, requireEscolaId()), eq(arquivoTitular.pedidoId, pedidoId), eq(arquivoTitular.versao, versao)))
       .limit(1)
     return linha
   }
@@ -143,7 +143,7 @@ export class ArquivoDoTitularRepository {
     return this.banco
       .select({ id: arquivoTitular.id, chaveObjeto: arquivoTitular.chaveObjeto })
       .from(arquivoTitular)
-      .where(and(eq(arquivoTitular.escolaId, exigirEscolaDoContexto()), or(isNotNull(arquivoTitular.apagadoEm), lt(arquivoTitular.expiraEm, agora))))
+      .where(and(eq(arquivoTitular.escolaId, requireEscolaId()), or(isNotNull(arquivoTitular.apagadoEm), lt(arquivoTitular.expiraEm, agora))))
       .orderBy(asc(arquivoTitular.expiraEm), asc(arquivoTitular.id))
       .limit(limite)
   }
@@ -153,7 +153,7 @@ export class ArquivoDoTitularRepository {
     if (ids.length === 0) return 0
     const apagadas = await this.banco
       .delete(arquivoTitular)
-      .where(and(eq(arquivoTitular.escolaId, exigirEscolaDoContexto()), inArray(arquivoTitular.id, [...ids])))
+      .where(and(eq(arquivoTitular.escolaId, requireEscolaId()), inArray(arquivoTitular.id, [...ids])))
       .returning({ id: arquivoTitular.id })
     return apagadas.length
   }
@@ -178,7 +178,7 @@ export class ArquivoDoTitularRepository {
         arquivoTitular,
         and(eq(arquivoTitular.escolaId, pedidoTitular.escolaId), eq(arquivoTitular.pedidoId, pedidoTitular.id), eq(arquivoTitular.versao, 'completa')),
       )
-      .where(and(eq(pedidoTitular.escolaId, exigirEscolaDoContexto()), eq(pedidoTitular.titularId, usuarioId)))
+      .where(and(eq(pedidoTitular.escolaId, requireEscolaId()), eq(pedidoTitular.titularId, usuarioId)))
       .orderBy(desc(pedidoTitular.id))
       .limit(limite)
     return linhas.map(({ expiraEm, apagadoEm, ...pedido }) => ({ ...pedido, arquivo: expiraEm === null ? null : { expiraEm, apagadoEm } }))
@@ -203,7 +203,7 @@ export class ArquivoDoTitularRepository {
       .innerJoin(pedidoTitular, and(eq(pedidoTitular.escolaId, arquivoTitular.escolaId), eq(pedidoTitular.id, arquivoTitular.pedidoId)))
       .where(
         and(
-          eq(arquivoTitular.escolaId, exigirEscolaDoContexto()),
+          eq(arquivoTitular.escolaId, requireEscolaId()),
           eq(arquivoTitular.pedidoId, pedidoId),
           eq(arquivoTitular.versao, 'completa'),
           eq(pedidoTitular.titularId, usuarioId),
@@ -221,13 +221,13 @@ export class ArquivoDoTitularRepository {
     const [linha] = await this.banco
       .select({ registradoEm: sql<Date | string | null>`min(${pedidoTitular.registradoEm})` })
       .from(pedidoTitular)
-      .where(and(eq(pedidoTitular.escolaId, exigirEscolaDoContexto()), eq(pedidoTitular.estado, 'em_preparacao')))
+      .where(and(eq(pedidoTitular.escolaId, requireEscolaId()), eq(pedidoTitular.estado, 'em_preparacao')))
     const valor = linha?.registradoEm
     return valor === null || valor === undefined ? undefined : valor instanceof Date ? valor : new Date(valor)
   }
 }
 
 /** A chave do objeto no storage: o check `arquivo_titular_chave_da_escola` a exige exatamente assim. */
-export function chaveDoObjeto(escolaId: string, pedidoId: string, versao: VersaoDoArquivo): string {
+export function objectKey(escolaId: string, pedidoId: string, versao: VersaoDoArquivo): string {
   return `titular/${escolaId}/${pedidoId}/${versao}.json`
 }

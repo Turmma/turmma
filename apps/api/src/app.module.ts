@@ -1,24 +1,24 @@
 import {
-  ConferenciaDasPermissoes,
-  ConfiguracaoOperacional,
-  ContadorDeUso,
-  Drenagem,
-  GuardaDeAutenticacao,
-  GuardaDeLimite,
-  GuardaDePermissao,
-  GuardaDeSessao,
-  criarLogger,
-  InterceptorDeUso,
-  LimitadorDeRequisicoes,
-  medidorGlobal,
-  ProxiesConfiaveis,
+  PermissaoBootCheck,
+  OperationalSettings,
+  UsageMeter,
+  GracefulShutdown,
+  AuthGuard,
+  RateLimitGuard,
+  PermissaoGuard,
+  SessaoGuard,
+  createLogger,
+  UsageInterceptor,
+  RateLimiter,
+  globalMeter,
+  TrustedProxies,
   SessaoRepository,
-  type ArmazemDeArquivos,
-  type Banco,
-  type LimitesDeRequisicao,
+  type FileStorage,
+  type Database,
+  type RateLimits,
   type LoggerBase,
   type Meter,
-  type Relogio,
+  type Clock,
 } from '@educa/nucleo'
 import { Module, type DynamicModule } from '@nestjs/common'
 import { APP_GUARD, APP_INTERCEPTOR, DiscoveryModule, DiscoveryService, Reflector } from '@nestjs/core'
@@ -59,9 +59,9 @@ export interface OpcoesDeMontagem {
    * O armazém do arquivo do titular que o teste usa no lugar do S3 da configuração (F3, 13.0): o falso, que o teste também
    * entrega ao processador do worker, para conferir o que foi gravado e derrubar o storage. Nunca vem do ambiente.
    */
-  readonly armazemDeArquivos?: ArmazemDeArquivos
+  readonly armazemDeArquivos?: FileStorage
   /** O relógio do arquivo do titular (validade de 7 dias e da URL), que o teste injeta. Nunca vem do ambiente. */
-  readonly relogioDaPrivacidade?: Relogio
+  readonly relogioDaPrivacidade?: Clock
 }
 
 @Module({})
@@ -92,9 +92,9 @@ export class AppModule {
         }),
         EstruturaModule,
         ProfessoresModule,
-        MaterialModule.com(opcoes.logger ?? criarLogger({ servico: 'api' })),
+        MaterialModule.com(opcoes.logger ?? createLogger({ servico: 'api' })),
         IaModule.com({ config: config.ia, ...(opcoes.logger === undefined ? {} : { logger: opcoes.logger }) }),
-        AssistenteModule.com({ chaveContador: config.login.chaveContador, instancias: config.limite.instancias, logger: opcoes.logger ?? criarLogger({ servico: 'api' }) }),
+        AssistenteModule.com({ chaveContador: config.login.chaveContador, instancias: config.limite.instancias, logger: opcoes.logger ?? createLogger({ servico: 'api' }) }),
         ArtefatoModule,
         EntregaModule,
         AtividadeModule,
@@ -109,7 +109,7 @@ export class AppModule {
           config: config.sala,
           chaveContador: config.login.chaveContador,
           instancias: config.limite.instancias,
-          logger: opcoes.logger ?? criarLogger({ servico: 'api' }),
+          logger: opcoes.logger ?? createLogger({ servico: 'api' }),
           ...(opcoes.medidor === undefined ? {} : { medidor: opcoes.medidor }),
           ...(opcoes.sortearCodigoDaSala === undefined ? {} : { sortearCodigo: opcoes.sortearCodigoDaSala }),
         }),
@@ -125,49 +125,49 @@ export class AppModule {
       // por último, e o prazo da drenagem só é desarmado depois de o pool do banco fechar.
       controllers: [ProntidaoController],
       providers: [
-        { provide: Drenagem, useValue: new Drenagem(config.drenagem) },
+        { provide: GracefulShutdown, useValue: new GracefulShutdown(config.drenagem) },
         {
-          // No boot: rota sem @Permite e sem @RotaAnonima não sobe (RF17).
-          provide: ConferenciaDasPermissoes,
-          useFactory: (descoberta: DiscoveryService) => new ConferenciaDasPermissoes(descoberta),
+          // No boot: rota sem @RequirePermissao e sem @Public não sobe (RF17).
+          provide: PermissaoBootCheck,
+          useFactory: (descoberta: DiscoveryService) => new PermissaoBootCheck(descoberta),
           inject: [DiscoveryService],
         },
         // As guardas globais rodam na ordem de registro (Tech Spec, seção 1): JWT, limite, sessão, permissão. A rota
         // `@RotaDeOperacao` passa pelas quatro como sem sessão de escola e só então pela `GuardaDeOperador`, que o
         // marcador aplica no handler (Tech Spec da A0, seção 1).
         {
-          // 1. Só o JWT, sem banco nem Redis: toda rota exige token, salvo as marcadas com `@RotaAnonima()`.
+          // 1. Só o JWT, sem banco nem Redis: toda rota exige token, salvo as marcadas com `@Public()`.
           provide: APP_GUARD,
-          useFactory: (reflector: Reflector) => new GuardaDeAutenticacao(reflector, config.identidade),
+          useFactory: (reflector: Reflector) => new AuthGuard(reflector, config.identidade),
           inject: [Reflector],
         },
         {
           // 2. O limite pelo `sub` e pelo `esc` do token verificado, com os limites da escola: rajada acima do
           // limite é recusada antes de chegar ao Postgres. Na rota `@RotaDeOperacao`, pelo `sub` do token de operador.
           provide: APP_GUARD,
-          useFactory: (reflector: Reflector, limitador: LimitadorDeRequisicoes, proxies: ProxiesConfiaveis, limites: ConfiguracaoOperacional<LimitesDeRequisicao>) =>
-            new GuardaDeLimite(reflector, limitador, proxies, limites, config.identidade),
-          inject: [Reflector, LimitadorDeRequisicoes, ProxiesConfiaveis, LIMITES_DA_ESCOLA],
+          useFactory: (reflector: Reflector, limitador: RateLimiter, proxies: TrustedProxies, limites: OperationalSettings<RateLimits>) =>
+            new RateLimitGuard(reflector, limitador, proxies, limites, config.identidade),
+          inject: [Reflector, RateLimiter, TrustedProxies, LIMITES_DA_ESCOLA],
         },
-        { provide: SessaoRepository, useFactory: (banco: Banco) => new SessaoRepository(banco), inject: [BANCO] },
+        { provide: SessaoRepository, useFactory: (banco: Database) => new SessaoRepository(banco), inject: [BANCO] },
         {
           // 3. A sessão no Postgres, sem cache: grava escola, usuário, papel, sessão e ano letivo no contexto.
           provide: APP_GUARD,
-          useFactory: (reflector: Reflector, sessoes: SessaoRepository) => new GuardaDeSessao(reflector, sessoes, opcoes.medidor ?? medidorGlobal()),
+          useFactory: (reflector: Reflector, sessoes: SessaoRepository) => new SessaoGuard(reflector, sessoes, opcoes.medidor ?? globalMeter()),
           inject: [Reflector, SessaoRepository],
         },
         {
-          // 4. O papel da sessão contra a célula da `MATRIZ` que a rota declarou em `@Permite`.
+          // 4. O papel da sessão contra a célula da `MATRIZ` que a rota declarou em `@RequirePermissao`.
           provide: APP_GUARD,
-          useFactory: (reflector: Reflector) => new GuardaDePermissao(reflector),
+          useFactory: (reflector: Reflector) => new PermissaoGuard(reflector),
           inject: [Reflector],
         },
         {
           // Interceptor roda depois das guardas: conta só a requisição autenticada e dentro do limite,
           // na escola da sessão.
           provide: APP_INTERCEPTOR,
-          useFactory: (contador: ContadorDeUso) => new InterceptorDeUso(contador),
-          inject: [ContadorDeUso],
+          useFactory: (contador: UsageMeter) => new UsageInterceptor(contador),
+          inject: [UsageMeter],
         },
       ],
     }

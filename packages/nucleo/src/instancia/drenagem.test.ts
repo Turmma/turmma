@@ -4,8 +4,8 @@ import { createServer } from 'node:http'
 import { connect, type AddressInfo, type Socket } from 'node:net'
 import { setTimeout as esperar } from 'node:timers/promises'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
-import { ConfiguracaoInvalida } from '../config/validar-config.js'
-import { Drenagem, lerConfiguracaoDrenagem } from './drenagem.js'
+import { InvalidConfigError } from '../config/validar-config.js'
+import { GracefulShutdown, loadGracefulShutdownConfig } from './drenagem.js'
 
 const config = { esperaDaBordaMs: 4_000, prazoMs: 10_000 }
 
@@ -23,7 +23,7 @@ describe('Drenagem', () => {
   })
 
   it('pronta até o SIGTERM; a partir dele a prontidão é 503 na hora, antes de a espera da borda acabar', async () => {
-    const drenagem = new Drenagem(config, () => undefined)
+    const drenagem = new GracefulShutdown(config, () => undefined)
     expect(drenagem.prontidao()).toEqual({ status: 200, corpo: { pronta: true } })
 
     let esperaAcabou = false
@@ -42,7 +42,7 @@ describe('Drenagem', () => {
 
   it('sai com código 1 quando o fechamento passa do prazo, com requisição ainda presa', async () => {
     const encerrar = vi.fn<(codigo: number) => void>()
-    const drenagem = new Drenagem(config, encerrar)
+    const drenagem = new GracefulShutdown(config, encerrar)
     const antesDeFechar = drenagem.beforeApplicationShutdown()
     await vi.advanceTimersByTimeAsync(config.esperaDaBordaMs)
     await antesDeFechar
@@ -56,7 +56,7 @@ describe('Drenagem', () => {
 
   it('não força a saída quando tudo fechou dentro do prazo', async () => {
     const encerrar = vi.fn<(codigo: number) => void>()
-    const drenagem = new Drenagem(config, encerrar)
+    const drenagem = new GracefulShutdown(config, encerrar)
     const antesDeFechar = drenagem.beforeApplicationShutdown()
     await vi.advanceTimersByTimeAsync(config.esperaDaBordaMs)
     await antesDeFechar
@@ -68,7 +68,7 @@ describe('Drenagem', () => {
 
   it('um segundo sinal durante a drenagem não reinicia a espera nem o prazo', async () => {
     const encerrar = vi.fn<(codigo: number) => void>()
-    const drenagem = new Drenagem(config, encerrar)
+    const drenagem = new GracefulShutdown(config, encerrar)
     void drenagem.beforeApplicationShutdown()
     await vi.advanceTimersByTimeAsync(3_000)
     await drenagem.beforeApplicationShutdown()
@@ -85,7 +85,7 @@ describe('Drenagem com um servidor HTTP de verdade', () => {
 
   it('conexão que a borda abriu e nunca usou não segura o fechamento, e a requisição que já começou termina', async () => {
     const encerrar = vi.fn<(codigo: number) => void>()
-    const drenagem = new Drenagem({ esperaDaBordaMs: 50, prazoMs: 5_000 }, encerrar)
+    const drenagem = new GracefulShutdown({ esperaDaBordaMs: 50, prazoMs: 5_000 }, encerrar)
     const servidor = createServer((_pedido, resposta) => {
       setTimeout(() => resposta.end('ok'), 300)
     })
@@ -133,7 +133,7 @@ describe('Drenagem com um servidor HTTP de verdade', () => {
 
 describe('lerConfiguracaoDrenagem', () => {
   it('lê espera e prazo do ambiente', () => {
-    expect(lerConfiguracaoDrenagem({ DRENAGEM_ESPERA_BORDA_MS: '4000', DRENAGEM_PRAZO_MS: '10000' })).toEqual(config)
+    expect(loadGracefulShutdownConfig({ DRENAGEM_ESPERA_BORDA_MS: '4000', DRENAGEM_PRAZO_MS: '10000' })).toEqual(config)
   })
 
   it.each([
@@ -142,11 +142,11 @@ describe('lerConfiguracaoDrenagem', () => {
     ['espera igual ao prazo', { DRENAGEM_ESPERA_BORDA_MS: '10000', DRENAGEM_PRAZO_MS: '10000' }, ['DRENAGEM_ESPERA_BORDA_MS']],
     ['espera zero', { DRENAGEM_ESPERA_BORDA_MS: '0', DRENAGEM_PRAZO_MS: '10000' }, ['DRENAGEM_ESPERA_BORDA_MS']],
   ])('recusa %s', (_caso, ambiente, variaveis) => {
-    expect(() => lerConfiguracaoDrenagem(ambiente)).toThrow(ConfiguracaoInvalida)
+    expect(() => loadGracefulShutdownConfig(ambiente)).toThrow(InvalidConfigError)
     try {
-      lerConfiguracaoDrenagem(ambiente)
+      loadGracefulShutdownConfig(ambiente)
     } catch (erro) {
-      expect((erro as ConfiguracaoInvalida).variaveis).toEqual(variaveis)
+      expect((erro as InvalidConfigError).variaveis).toEqual(variaveis)
     }
   })
 })

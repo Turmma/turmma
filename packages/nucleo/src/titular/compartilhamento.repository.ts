@@ -1,7 +1,7 @@
 import { sql, type SQL } from 'drizzle-orm'
 import { InvariantException } from '@educa/shared'
-import { exigirEscolaDoContexto } from '../contexto/escola-do-contexto.js'
-import type { Banco, TransacaoBanco } from '../db/banco.js'
+import { requireEscolaId } from '../contexto/escola-do-contexto.js'
+import type { Database, DatabaseTransaction } from '../db/banco.js'
 import { FUSO_DO_USO, diaDeUso } from '../uso/dia-de-uso.js'
 
 /** Uma chamada com envio externo atribuível ao titular: o `provedor` é nulo na linha anterior à migration da 7.0. */
@@ -16,8 +16,8 @@ export interface ChamadaDoRastro {
  * `execucao_agente_solicitada_por_idx` e pelo `consumo_ia_execucao_idx`, os dois começando pela escola. Fica fora da classe
  * para o teste de plano usar a mesma instrução que o código roda; a escola é a do contexto, e nunca um argumento.
  */
-export function instrucaoDoRastroDoAluno(titularId: string): SQL {
-  const escolaId = exigirEscolaDoContexto()
+export function alunoTrailStatement(titularId: string): SQL {
+  const escolaId = requireEscolaId()
   return sql`
       select c.provedor, c.em from consumo_ia c
       where c.escola_id = ${escolaId} and c.envio_externo and c.aluno_id = ${titularId}
@@ -53,7 +53,7 @@ export interface VinculosDoProfessor {
  * a linha de outra escola de apontar para o titular: ele fica para quem alterar a consulta.
  */
 export class CompartilhamentoRepository {
-  constructor(private readonly banco: Banco | TransacaoBanco) {}
+  constructor(private readonly banco: Database | DatabaseTransaction) {}
 
   /** O horizonte do rastro (o prazo da categoria, em meses) e o fim do dia de uso do `agora`, pela aritmética do banco. */
   async datasDeReferencia(agora: Date, meses: number): Promise<{ horizonte: Date; fimDoDia: Date }> {
@@ -69,7 +69,7 @@ export class CompartilhamentoRepository {
 
   /** O vínculo do titular como professor, na escola do contexto: o `encerrado_em` mais recente e quantos seguem abertos. */
   async vinculosDoProfessor(titularId: string): Promise<VinculosDoProfessor> {
-    const escolaId = exigirEscolaDoContexto()
+    const escolaId = requireEscolaId()
     const { rows } = await this.banco.execute<{ encerrado: Date | string | null; abertos: number }>(sql`
       select max(encerrado_em) as encerrado, count(*) filter (where encerrado_em is null)::int as abertos
       from vinculo where escola_id = ${escolaId} and usuario_id = ${titularId} and papel = 'professor'
@@ -79,7 +79,7 @@ export class CompartilhamentoRepository {
 
   /** A entrada do aluno na escola do contexto: a mais antiga entre a credencial de matrícula e a conta externa ligada. */
   async entradaDoAluno(titularId: string): Promise<Date | null> {
-    const escolaId = exigirEscolaDoContexto()
+    const escolaId = requireEscolaId()
     const { rows } = await this.banco.execute<{ entrada: Date | string | null }>(sql`
       select least(
         (select min(criada_em) from credencial_matricula where escola_id = ${escolaId} and usuario_id = ${titularId}),
@@ -91,7 +91,7 @@ export class CompartilhamentoRepository {
 
   /** A entrada do titular como professor, na escola do contexto: o `criado_em` mais antigo dos vínculos dele. */
   async entradaDoProfessor(titularId: string): Promise<Date | null> {
-    const escolaId = exigirEscolaDoContexto()
+    const escolaId = requireEscolaId()
     const { rows } = await this.banco.execute<{ entrada: Date | string | null }>(sql`
       select min(criado_em) as entrada from vinculo
       where escola_id = ${escolaId} and usuario_id = ${titularId} and papel = 'professor'
@@ -110,7 +110,7 @@ export class CompartilhamentoRepository {
    * agrupamento usa só a primeira e a última data de cada (`provedor`, suboperador), e a repetição não muda nenhuma.
    */
   async rastroDoAluno(titularId: string): Promise<ChamadaDoRastro[]> {
-    const { rows } = await this.banco.execute<{ provedor: string | null; em: Date | string }>(instrucaoDoRastroDoAluno(titularId))
+    const { rows } = await this.banco.execute<{ provedor: string | null; em: Date | string }>(alunoTrailStatement(titularId))
     return rows.map(({ provedor, em }) => ({ provedor, em: dataDoBanco(em) ?? new Date(NaN) }))
   }
 
@@ -120,7 +120,7 @@ export class CompartilhamentoRepository {
    * nunca vê quando um professor usou a IA, e a foto do pedido dele é só por período. A linha sem `provedor` é a antiga.
    */
   async usoRealDoProfessor(titularId: string): Promise<UsoRealPorProvedor[]> {
-    const escolaId = exigirEscolaDoContexto()
+    const escolaId = requireEscolaId()
     const { rows } = await this.banco.execute<{ provedor: string | null; primeiro: Date | string; ultimo: Date | string }>(sql`
       select c.provedor, min(c.em) as primeiro, max(c.em) as ultimo from consumo_ia c
       join execucao_agente x on x.escola_id = c.escola_id and x.id = c.execucao_id

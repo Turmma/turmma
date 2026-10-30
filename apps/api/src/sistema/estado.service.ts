@@ -1,4 +1,4 @@
-import type { Ambiente } from '@educa/nucleo'
+import type { Environment } from '@educa/nucleo'
 import { systemStatusResponseSchema, type SystemStatusResponse } from '@educa/shared'
 import { Inject, Injectable } from '@nestjs/common'
 import { SaudeService } from './saude.service.js'
@@ -27,7 +27,7 @@ export class EstadoService {
   constructor(
     private readonly saude: SaudeService,
     @Inject(VERSAO_DO_SISTEMA) private readonly versao: string,
-    @Inject(AMBIENTE_DO_SISTEMA) private readonly ambiente: Ambiente,
+    @Inject(AMBIENTE_DO_SISTEMA) private readonly ambiente: Environment,
     @Inject(RELOGIO_DO_ESTADO) private readonly agora: () => Date,
   ) {}
 

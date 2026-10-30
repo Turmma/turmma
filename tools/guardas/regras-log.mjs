@@ -253,7 +253,7 @@ function ehValorLiteral(no) {
   return no.type === 'UnaryExpression' && no.argument.type === 'Literal'
 }
 
-/** Chaves que recebem o erro: só o próprio erro ou o resumo dele (`resumirErro(x)`). */
+/** Chaves que recebem o erro: só o próprio erro ou o resumo dele (`summarizeError(x)`). */
 const CHAVES_DE_ERRO = new Set(['erro', 'err', 'error', 'causa'])
 /** Conversões que não mudam o que o valor é: `nota.id.toString()` continua sendo id. */
 const CONVERSOES = new Set(['toString', 'toISOString', 'valueOf'])
@@ -311,7 +311,7 @@ function valorCombinaComChave(no, categoria) {
     return valorCombinaComChave(atual.left, categoria) && valorCombinaComChave(atual.right, categoria)
   }
   if (categoria === 'erro') {
-    if (atual.type === 'CallExpression' && atual.callee.type === 'Identifier' && atual.callee.name === 'resumirErro') return true
+    if (atual.type === 'CallExpression' && atual.callee.type === 'Identifier' && atual.callee.name === 'summarizeError') return true
     // O próprio erro (`erro`, `err`) ou uma variável derivada do resumo (`erroSemPilha`).
     return atual.type === 'Identifier' && NOMES_DE_ERRO.has(palavras(atual.name)[0])
   }
@@ -397,7 +397,7 @@ export const logSemDadoPessoal = criarRegra(['pessoal', 'opaco'], {
     pessoal:
       'Log não leva "{{nome}}": dado pessoal fica fora do log (nome, matrícula, contato, senha, resposta, nota, conversa, prompt, conteúdo, adaptação). Registre só ids (regra 20, item 9).',
     opaco:
-      'Log não leva este valor sob esta chave. Id recebe o que termina em id (`aluno.id`); erro, o erro ou `resumirErro(erro)`; chave operacional (evento, status, duracaoMs, criadoEm...), outro valor operacional, conta ou instante. Objeto inteiro ou `err.message` levariam o que tiverem dentro (regra 20, item 9).',
+      'Log não leva este valor sob esta chave. Id recebe o que termina em id (`aluno.id`); erro, o erro ou `summarizeError(erro)`; chave operacional (evento, status, duracaoMs, criadoEm...), outro valor operacional, conta ou instante. Objeto inteiro ou `err.message` levariam o que tiverem dentro (regra 20, item 9).',
   },
 })
 

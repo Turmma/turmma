@@ -1,4 +1,4 @@
-import { executarNoContexto } from '@educa/nucleo'
+import { runInContext } from '@educa/nucleo'
 import { ErrorCode, decisaoResponseSchema, loginResponseSchema, minhaTurmaResponseSchema, MENSAGENS_DE_ERRO } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -110,7 +110,7 @@ describe('minha-turma (A1, tarefa 8.0): o aluno aprovado vê a própria turma, e
     const b = await sala.montar()
     const aluno = await alunoAprovado(s, s.turma)
     const contexto = { requisicaoId: randomUUID(), escolaId: b.escolaId, anoLetivoId: s.anoLetivoId, usuarioId: aluno.usuarioId, papel: 'aluno' as const, sessaoId: randomUUID() }
-    expect(await executarNoContexto(contexto, () => new MinhaTurmaRepository(bancada.banco).daSessao())).toBeUndefined()
-    expect(await executarNoContexto({ ...contexto, escolaId: s.escolaId }, () => new MinhaTurmaRepository(bancada.banco).daSessao())).toMatchObject({ turma: { id: s.turma } })
+    expect(await runInContext(contexto, () => new MinhaTurmaRepository(bancada.banco).daSessao())).toBeUndefined()
+    expect(await runInContext({ ...contexto, escolaId: s.escolaId }, () => new MinhaTurmaRepository(bancada.banco).daSessao())).toMatchObject({ turma: { id: s.turma } })
   })
 })

@@ -1,4 +1,4 @@
-import { IdPipe, Permite, ZodValidationPipe } from '@educa/nucleo'
+import { IdPipe, RequirePermissao, ZodValidationPipe } from '@educa/nucleo'
 import {
   paginationQuerySchema,
   criarAnoLetivoRequestSchema,
@@ -16,26 +16,26 @@ export class AnoLetivoController {
   constructor(private readonly anos: AnoLetivoService) {}
 
   @Post()
-  @Permite('ano_letivo', 'criar')
+  @RequirePermissao('ano_letivo', 'criar')
   criar(@Body(new ZodValidationPipe(criarAnoLetivoRequestSchema)) pedido: CriarAnoLetivoRequest): Promise<AnoLetivoResponse> {
     return this.anos.criar(pedido)
   }
 
   @Get()
-  @Permite('ano_letivo', 'ler')
+  @RequirePermissao('ano_letivo', 'ler')
   listar(@Query(new ZodValidationPipe(paginationQuerySchema)) consulta: PaginationQuery): Promise<ListaDeAnosLetivosResponse> {
     return this.anos.listar(consulta)
   }
 
   @Post(':id/abrir')
-  @Permite('ano_letivo', 'abrir')
+  @RequirePermissao('ano_letivo', 'abrir')
   @HttpCode(HttpStatus.OK)
   abrir(@Param('id', IdPipe) id: string): Promise<AnoLetivoResponse> {
     return this.anos.abrir(id)
   }
 
   @Post(':id/encerrar')
-  @Permite('ano_letivo', 'encerrar')
+  @RequirePermissao('ano_letivo', 'encerrar')
   @HttpCode(HttpStatus.OK)
   encerrar(@Param('id', IdPipe) id: string): Promise<AnoLetivoResponse> {
     return this.anos.encerrar(id)

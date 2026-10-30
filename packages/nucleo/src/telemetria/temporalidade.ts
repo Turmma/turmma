@@ -6,6 +6,6 @@ import { AggregationTemporality, InstrumentType } from '@opentelemetry/sdk-metri
  * repetiria para sempre o último valor de uma série que parou de ser observada (a espera de antes de o
  * Postgres cair, a escola que saiu da medição).
  */
-export function temporalidadeDasMetricas(tipo: InstrumentType): AggregationTemporality {
+export function metricsTemporality(tipo: InstrumentType): AggregationTemporality {
   return tipo === InstrumentType.OBSERVABLE_GAUGE ? AggregationTemporality.DELTA : AggregationTemporality.CUMULATIVE
 }

@@ -1,5 +1,5 @@
 import 'reflect-metadata'
-import { METRICAS, type Banco } from '@educa/nucleo'
+import { METRICS, type Database } from '@educa/nucleo'
 import { ErrorCode, aceitarConviteDeOperadorResponseSchema, entradaDeOperadorResponseSchema } from '@educa/shared'
 import type { INestApplication } from '@nestjs/common'
 import { randomBytes } from 'node:crypto'
@@ -36,12 +36,12 @@ describe('registros da operação: acesso e auditoria (C37, tarefa 8.0)', () => 
   const criadosAqui: string[] = []
   let app: INestApplication
   let url: string
-  let banco: Banco
+  let banco: Database
   let autor: string
 
   beforeAll(async () => {
     ;({ app, url } = await subir(undefined, undefined, medidor.medidor))
-    banco = app.get<Banco>(BANCO)
+    banco = app.get<Database>(BANCO)
     autor = (await operadores.operador()).apelido
   })
 
@@ -64,7 +64,7 @@ describe('registros da operação: acesso e auditoria (C37, tarefa 8.0)', () => 
     return rows
   }
 
-  const falhasNaMetrica = async () => (await medidor.pontos(METRICAS.entradaFalhaDaOperacao)).reduce((soma, ponto) => soma + (typeof ponto.valor === 'number' ? ponto.valor : 0), 0)
+  const falhasNaMetrica = async () => (await medidor.pontos(METRICS.entradaFalhaDaOperacao)).reduce((soma, ponto) => soma + (typeof ponto.valor === 'number' ? ponto.valor : 0), 0)
 
   it('pela API: a entrada grava `entrada` com operador e IP; o primeiro código grava `operador.mfa_configurado` com o próprio operador como autor, uma vez só; a saída grava `saida` com o IP', async () => {
     const { operadorId, apelido } = await operadores.operador()

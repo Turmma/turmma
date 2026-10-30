@@ -1,4 +1,4 @@
-import { IdPipe, Permite, ZodValidationPipe } from '@educa/nucleo'
+import { IdPipe, RequirePermissao, ZodValidationPipe } from '@educa/nucleo'
 import {
   ErrorCode,
   minhasAtividadesQuerySchema,
@@ -32,21 +32,21 @@ export class MinhaAtividadeController {
   constructor(private readonly atividades: MinhaAtividadeService) {}
 
   @Get('minhas-atividades')
-  @Permite('minha_atividade', 'listar')
+  @RequirePermissao('minha_atividade', 'listar')
   @Header('Cache-Control', 'no-store')
   listar(@Query(new ZodValidationPipe(minhasAtividadesQuerySchema)) consulta: MinhasAtividadesQuery): Promise<MinhasAtividadesResponse> {
     return this.atividades.listar(consulta)
   }
 
   @Get('atividades-aplicadas/:id/prova')
-  @Permite('minha_atividade', 'ler_prova')
+  @RequirePermissao('minha_atividade', 'ler_prova')
   @Header('Cache-Control', 'no-store')
   prova(@Param('id', IdPipe) atividadeAplicadaId: string): Promise<ProvaResponse> {
     return this.atividades.prova(atividadeAplicadaId)
   }
 
   @Put('atividades-aplicadas/:id/respostas/:questao')
-  @Permite('minha_atividade', 'responder')
+  @RequirePermissao('minha_atividade', 'responder')
   @Header('Cache-Control', 'no-store')
   responder(
     @Param('id', IdPipe) atividadeAplicadaId: string,
@@ -57,7 +57,7 @@ export class MinhaAtividadeController {
   }
 
   @Post('atividades-aplicadas/:id/enviar')
-  @Permite('minha_atividade', 'enviar')
+  @RequirePermissao('minha_atividade', 'enviar')
   @HttpCode(HttpStatus.OK)
   @Header('Cache-Control', 'no-store')
   enviar(@Param('id', IdPipe) atividadeAplicadaId: string, @Body(new ZodValidationPipe(emptyOrMissingBodyRequestSchema)) _corpo: EmptyBodyRequest): Promise<AtividadeEnviadaResponse> {
@@ -65,7 +65,7 @@ export class MinhaAtividadeController {
   }
 
   @Get('atividades-aplicadas/:id/meu-diagnostico')
-  @Permite('minha_atividade', 'ler_diagnostico')
+  @RequirePermissao('minha_atividade', 'ler_diagnostico')
   @Header('Cache-Control', 'no-store')
   meuDiagnostico(@Param('id', IdPipe) atividadeAplicadaId: string): Promise<MeuDiagnosticoResponse> {
     return this.atividades.meuDiagnostico(atividadeAplicadaId)

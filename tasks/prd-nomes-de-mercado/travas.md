@@ -99,3 +99,14 @@ altera o ouro (X7, RF16). Depois da 5.0, uma correção do Arquiteto troca as ci
 | `tools/ci/dockerfile.test.ts`, `borda.test.ts`, `resolucao-do-shared.test.ts`, `caminhos-da-esteira.ts` | `not.toContain('@educa/nucleo')` (dockerfile, 118), `COPY packages/nucleo/drizzle` (111), as linhas 78 e 95 de `borda` (na 95, o nome `TENTE_DE_NOVO_PADRAO_SEGUNDOS` da regex passa a `DEFAULT_RETRY_AFTER_SECONDS` na 4.0, e o caminho na 5.0), a 23 de `resolucao-do-shared` e a 7 de `caminhos-da-esteira` | 5.0 | A, B e C (118, B; 111, A; `borda` 78 e 95, `resolucao-do-shared` 23 e `caminhos-da-esteira` 7, C) | A asserção passa ao nome novo, e a mutação que põe no Dockerfile o que a 118 proíbe a deixa vermelha |
 | `tools/processo/mutacoes.ts` (linhas 681 e 696) | `__fixtures__/` como apoio de teste | 6.0 | A | `e2e/support/` continua classificado como apoio |
 | `apps/web/nome-dos-chunks.ts` | o caminho do kit em texto | 6.0 | A | O teste dele, com o caminho novo |
+
+## Achadas na 4.0
+
+O relatório do `aplicar` da 4.0 achou estas, que a revisão da spec não listou (Tech Spec §5, passo 6). As linhas acima não mudam de número.
+
+| Trava | O que lê pelo nome | Onda | Forma | Prova vermelha com o nome novo |
+|---|---|---|---|---|
+| `apps/api/test/arquitetura.test.ts`, o caso "o repository lê a escola do contexto e nenhum método a recebe" | `toContain('exigirEscolaDoContexto()')` sobre o texto de `compartilhamento.repository.ts` → `requireEscolaId()` | 4.0 | A | O `compartilhamento.repository.ts` sem a chamada `requireEscolaId()`: vermelho, como hoje |
+| `arquitetura.test.ts`, `USO_DA_ROTINA` | `/\bEscolasDaRotinaRepository\b\|escolas-da-rotina\.repository/` → `CronEscolasRepository` (a metade do caminho é da 5.0) | 4.0 e 5.0 | A | O caso "…lista de escolas da rotina…" (`filter(USO_DA_ROTINA.test)`): uma rota da API que importe `CronEscolasRepository` fica vermelha |
+| `tools/ia/medir-risco-a-vida.ts` e `medir-risco-a-vida.test.ts` | os nomes que a medida lê por chave do módulo importado: `ProvedorDeIa`, `AdaptadorRoteirizado`, `ConsumoEmMemoria`, `OrcamentoEmMemoria`, `SuspensoesEmMemoria`, `executarNoContexto`, `lerConfiguracaoDeIa`, `criarProvedorDeIa`. O `as unknown as` esconde a chave que ficar para trás do `tsc` | 4.0 | A | O teste da medida, com a chave antiga num dos nomes: `is not a constructor` |
+| `infra/scripts/carga-login.ts`, `carga-sala.ts`, `ensaio-alertas.ts` | as chaves `criarBanco` e `criarPool` do tipo literal passam a `createDatabase` e `createPool`; o caminho do `dist` é da 5.0 e o `HashDeSenha`, da 7.0 (linha 84) | 4.0 | C (`tsc`) | `tsc -p infra/tsconfig.json`: a chave antiga numa chamada `nucleo.createPool(` fica vermelha |

@@ -1,4 +1,4 @@
-import { EMISSOR_TOKEN, relogioDoSistema, type Relogio } from '@educa/nucleo'
+import { EMISSOR_TOKEN, systemClock, type Clock } from '@educa/nucleo'
 import { errors, jwtVerify, SignJWT } from 'jose'
 import { z } from 'zod'
 
@@ -26,7 +26,7 @@ const esquemaClaims = z.object({ conta_id: z.uuid(), convite_id: z.uuid() })
 export class BilheteDeConvite {
   constructor(
     private readonly chaveAssinatura: Uint8Array,
-    private readonly relogio: Relogio = relogioDoSistema,
+    private readonly relogio: Clock = systemClock,
   ) {}
 
   /** Leva só a conta e o convite, nunca nada da pessoa (regra 20). */

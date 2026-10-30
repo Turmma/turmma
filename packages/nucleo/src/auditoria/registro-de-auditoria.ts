@@ -1,10 +1,10 @@
 import { FORMATO_OPERADOR } from '@educa/shared'
 import { z } from 'zod'
-import { contextoAtual } from '../contexto/contexto.js'
+import { currentContext } from '../contexto/contexto.js'
 import { ACOES_DE_AUDITORIA, type AcaoDeAuditoria, type DefinicaoDeAcao, type EstadosDaAcao } from './acoes.js'
-import { AuditoriaRecusada } from './auditoria-recusada.js'
-import type { ExecutorDeAuditoria } from './auditoria.repository.js'
-import { inserirAuditoria } from './insercao-de-auditoria.repository.js'
+import { AuditoriaRejectedError } from './auditoria-recusada.js'
+import type { DatabaseExecutor } from './auditoria.repository.js'
+import { insertAuditoria } from './insercao-de-auditoria.repository.js'
 
 export type DadosDaAuditoria<Acao extends AcaoDeAuditoria> = EstadosDaAcao<Acao> & {
   entidadeId: string
@@ -12,7 +12,7 @@ export type DadosDaAuditoria<Acao extends AcaoDeAuditoria> = EstadosDaAcao<Acao>
   autorOperador?: string
 }
 
-const esquemaEntidadeId = z.uuid()
+const entidadeIdSchema = z.uuid()
 
 /**
  * As entidades que o operador audita sem escola no contexto (F3, 8.0): a rede, que ainda não tem escola, e o suboperador,
@@ -24,11 +24,11 @@ export const ENTIDADES_DE_AUDITORIA_SEM_ESCOLA: readonly string[] = ['rede', 'su
 /** O valor conferido contra o schema da ação; ação sem schema para a parte não aceita valor nenhum. */
 function conferido<Valor>(esquema: z.ZodType<Valor> | null, valor: unknown): Valor | null {
   if (esquema === null) {
-    if (valor !== undefined) throw new AuditoriaRecusada('dados_fora_do_schema')
+    if (valor !== undefined) throw new AuditoriaRejectedError('dados_fora_do_schema')
     return null
   }
   const resultado = esquema.safeParse(valor)
-  if (!resultado.success) throw new AuditoriaRecusada('dados_fora_do_schema')
+  if (!resultado.success) throw new AuditoriaRejectedError('dados_fora_do_schema')
   return resultado.data
 }
 
@@ -37,32 +37,32 @@ function conferido<Valor>(esquema: z.ZodType<Valor> | null, valor: unknown): Val
  * ação e o registro dela existirem juntos ou nenhum dos dois. Sem estado: a API o recebe por injeção, e o
  * comando do operador cria o seu.
  */
-export class RegistroDeAuditoria {
+export class AuditoriaRecorder {
   /**
    * Confere a ação, a lista fechada de `antes`, `depois` e `finalidade`, o autor e a escola, e grava. A
    * escola e o usuário vêm do contexto, nunca do argumento (regra 10, item 3).
    */
-  async gravar<Acao extends AcaoDeAuditoria>(executor: ExecutorDeAuditoria, acao: Acao, dados: DadosDaAuditoria<Acao>): Promise<void> {
-    const contexto = contextoAtual()
-    if (contexto === undefined) throw new AuditoriaRecusada('sem_contexto')
+  async gravar<Acao extends AcaoDeAuditoria>(executor: DatabaseExecutor, acao: Acao, dados: DadosDaAuditoria<Acao>): Promise<void> {
+    const contexto = currentContext()
+    if (contexto === undefined) throw new AuditoriaRejectedError('sem_contexto')
     const definicao: DefinicaoDeAcao | undefined = Object.hasOwn(ACOES_DE_AUDITORIA, acao) ? ACOES_DE_AUDITORIA[acao] : undefined
-    if (definicao === undefined) throw new AuditoriaRecusada('acao_desconhecida')
+    if (definicao === undefined) throw new AuditoriaRejectedError('acao_desconhecida')
 
     const antes = conferido(definicao.antes, dados.antes)
     const depois = conferido(definicao.depois, dados.depois)
     // Ação que aceita finalidade exige uma; a que não aceita recusa qualquer valor.
     const finalidade = conferido(definicao.finalidade, dados.finalidade)
-    if (!esquemaEntidadeId.safeParse(dados.entidadeId).success) throw new AuditoriaRecusada('dados_fora_do_schema')
+    if (!entidadeIdSchema.safeParse(dados.entidadeId).success) throw new AuditoriaRejectedError('dados_fora_do_schema')
 
     const { usuarioId } = contexto
-    if (usuarioId !== undefined && dados.autorOperador !== undefined) throw new AuditoriaRecusada('operador_com_usuario')
+    if (usuarioId !== undefined && dados.autorOperador !== undefined) throw new AuditoriaRejectedError('operador_com_usuario')
     if (usuarioId === undefined && (dados.autorOperador === undefined || !FORMATO_OPERADOR.test(dados.autorOperador))) {
-      throw new AuditoriaRecusada('sem_autor')
+      throw new AuditoriaRejectedError('sem_autor')
     }
     const autorOperador = usuarioId === undefined ? (dados.autorOperador ?? null) : null
-    if (contexto.escolaId === undefined && !(ENTIDADES_DE_AUDITORIA_SEM_ESCOLA.includes(definicao.entidade) && autorOperador !== null)) throw new AuditoriaRecusada('sem_escola')
+    if (contexto.escolaId === undefined && !(ENTIDADES_DE_AUDITORIA_SEM_ESCOLA.includes(definicao.entidade) && autorOperador !== null)) throw new AuditoriaRejectedError('sem_escola')
 
-    await inserirAuditoria(executor, {
+    await insertAuditoria(executor, {
       acao,
       entidade: definicao.entidade,
       entidadeId: dados.entidadeId,

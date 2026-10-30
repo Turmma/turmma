@@ -16,7 +16,7 @@ export const DURACAO_DA_SESSAO_HORAS = 12
 
 /**
  * A sessão de uma pessoa numa escola, no Postgres (Tech Spec, seção 11: não no Redis de cache, que expulsaria
- * sessão no meio da aula). A `GuardaDeSessao` lê esta linha em toda requisição autenticada, por `(escola_id, id)`.
+ * sessão no meio da aula). A `SessaoGuard` lê esta linha em toda requisição autenticada, por `(escola_id, id)`.
  *
  * - `(escola_id, usuario_id)` é FK composta para `usuario (escola_id, id)`: a sessão nunca aponta para usuário de
  *   outra escola.

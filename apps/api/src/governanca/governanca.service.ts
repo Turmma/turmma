@@ -1,4 +1,4 @@
-import { diaDeUso, ErroDeDominio, limitesDoMes, RegistroDeAuditoria, relogioDoSistema, type Banco, type Relogio } from '@educa/nucleo'
+import { diaDeUso, DomainException, limitesDoMes, AuditoriaRecorder, systemClock, type Database, type Clock } from '@educa/nucleo'
 import {
   CHAVES_DE_FUNCAO,
   ErrorCode,
@@ -22,7 +22,7 @@ import {
 import { paginar } from '../http/paginacao.js'
 import { GovernancaRepository, type SuspensaoLida } from './governanca.repository.js'
 
-const registro = new RegistroDeAuditoria()
+const registro = new AuditoriaRecorder()
 
 /** O primeiro dia do mês seguinte a `mes` (`AAAA-MM`): é onde o período do consumo fecha, sem incluir. */
 function primeiroDiaDoMesSeguinte(mes: string): string {
@@ -49,8 +49,8 @@ const SEM_CONSUMO: ConsumoSomado = { chamadas: 0, tokensDeEntrada: 0, tokensDeSa
  */
 export class GovernancaService {
   constructor(
-    private readonly banco: Banco,
-    private readonly relogio: Relogio = relogioDoSistema,
+    private readonly banco: Database,
+    private readonly relogio: Clock = systemClock,
   ) {}
 
   async resumo(consulta: ResumoDaGovernancaQuery): Promise<ResumoDaGovernancaResponse> {
@@ -91,7 +91,7 @@ export class GovernancaService {
     const funcao = this.#agentes(vigentes)
       .flatMap((agente) => agente.funcoes)
       .find((candidata) => candidata.chave === chave)
-    if (funcao === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+    if (funcao === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
     return funcaoDaGovernancaResponseSchema.parse(funcao)
   }
 
@@ -109,7 +109,7 @@ export class GovernancaService {
     return this.banco.transaction(async (tx) => {
       const governanca = new GovernancaRepository(tx)
       const retomada = await governanca.retomar(chave)
-      if (retomada === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+      if (retomada === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
       await registro.gravar(tx, 'funcao.retomada', {
         entidadeId: retomada.id,
         antes: { funcao: chave, suspensaEm: retomada.suspensaEm.toISOString() },

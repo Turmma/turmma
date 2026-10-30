@@ -1,4 +1,4 @@
-import { IdPipe, Permite, ZodValidationPipe } from '@educa/nucleo'
+import { IdPipe, RequirePermissao, ZodValidationPipe } from '@educa/nucleo'
 import {
   buscaDeMaterialQuerySchema,
   materiaisQuerySchema,
@@ -32,7 +32,7 @@ export class MaterialController {
    * então o arquivo recebido não vai a lugar nenhum.
    */
   @Post()
-  @Permite('material', 'enviar')
+  @RequirePermissao('material', 'enviar')
   @UseGuards(GuardaDoEnvio)
   @UseInterceptors(RecebimentoDoMaterial)
   enviar(@Body(new ZodValidationPipe(enviarMaterialRequestSchema)) campos: EnviarMaterialRequest, @UploadedFile() arquivo: unknown): Promise<MaterialResponse> {
@@ -40,26 +40,26 @@ export class MaterialController {
   }
 
   @Get()
-  @Permite('material', 'listar')
+  @RequirePermissao('material', 'listar')
   listar(@Query(new ZodValidationPipe(materiaisQuerySchema)) consulta: MateriaisQuery): Promise<ListaDeMateriaisResponse> {
     return this.materiais.listar(consulta)
   }
 
   /** Declarada antes de `:id`: `busca` não é id de material. */
   @Get('busca')
-  @Permite('material', 'buscar')
+  @RequirePermissao('material', 'buscar')
   buscar(@Query(new ZodValidationPipe(buscaDeMaterialQuerySchema)) consulta: BuscaDeMaterialQuery): Promise<BuscaDeMaterialResponse> {
     return this.materiais.buscar(consulta)
   }
 
   @Get(':id')
-  @Permite('material', 'ler')
+  @RequirePermissao('material', 'ler')
   ler(@Param('id', IdPipe) materialId: string): Promise<MaterialResponse> {
     return this.materiais.ler(materialId)
   }
 
   @Delete(':id')
-  @Permite('material', 'excluir')
+  @RequirePermissao('material', 'excluir')
   @HttpCode(HttpStatus.NO_CONTENT)
   excluir(@Param('id', IdPipe) materialId: string): Promise<void> {
     return this.materiais.excluir(materialId)

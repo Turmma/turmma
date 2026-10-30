@@ -1,11 +1,11 @@
-import { ErroDeDominio, erroDoPostgresEm, RegistroDeAuditoria, TENTE_DE_NOVO_PADRAO_SEGUNDOS, type Banco } from '@educa/nucleo'
+import { DomainException, postgresErrorIn, AuditoriaRecorder, DEFAULT_RETRY_AFTER_SECONDS, type Database } from '@educa/nucleo'
 import { ErrorCode, acessoDaTurmaResponseSchema, acessoGeradoResponseSchema, type GerarAcessoRequest, type AcessoDaTurmaResponse, type AcessoGeradoResponse } from '@educa/shared'
 import { TurmaRepository } from '../../estrutura/turma/turma.repository.js'
 import { AcessoDaTurmaRepository } from './acesso-da-turma.repository.js'
 import { hashDoToken } from '../../credencial/index.js'
 import { hmacDoCodigoDaTurma, sortearTokenDaSala, type SorteioDoCodigo } from '../codigo-da-sala.js'
 
-const registro = new RegistroDeAuditoria()
+const registro = new AuditoriaRecorder()
 
 /** SQLSTATE `unique_violation`: o índice único recusou a linha. */
 const LINHA_REPETIDA = '23505'
@@ -28,7 +28,7 @@ export const SORTEIOS_DO_CODIGO = 3
  */
 export class AcessoDaTurmaService {
   constructor(
-    private readonly banco: Banco,
+    private readonly banco: Database,
     private readonly chaveCodigo: Uint8Array,
     private readonly sortearCodigo: SorteioDoCodigo,
   ) {}
@@ -49,8 +49,8 @@ export class AcessoDaTurmaService {
   async gerar(turmaId: string, { validadeDias }: GerarAcessoRequest): Promise<AcessoGeradoResponse> {
     const gerado = await this.banco.transaction(async (tx) => {
       const turmas = new TurmaRepository(tx)
-      if (!(await turmas.travarAnoEmCurso())) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
-      if (!(await turmas.travarComVinculoDoProfessor(turmaId))) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+      if (!(await turmas.travarAnoEmCurso())) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
+      if (!(await turmas.travarComVinculoDoProfessor(turmaId))) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
       const acessos = new AcessoDaTurmaRepository(tx)
       const substituidos = await acessos.revogarNaoRevogados(turmaId)
       for (let sorteio = 1; sorteio <= SORTEIOS_DO_CODIGO; sorteio++) {
@@ -61,15 +61,15 @@ export class AcessoDaTurmaService {
         try {
           gravado = await tx.transaction((savepoint) => new AcessoDaTurmaRepository(savepoint).inserir(novo))
         } catch (erro) {
-          if (erroDoPostgresEm(erro)?.code !== LINHA_REPETIDA) throw erro
-          if (await acessos.temNaoRevogado(turmaId)) throw new ErroDeDominio(ErrorCode.CONFLITO)
+          if (postgresErrorIn(erro)?.code !== LINHA_REPETIDA) throw erro
+          if (await acessos.temNaoRevogado(turmaId)) throw new DomainException(ErrorCode.CONFLITO)
           continue
         }
         const expiraEm = gravado.expiraEm.toISOString()
         await registro.gravar(tx, 'acesso_turma.gerado', { entidadeId: gravado.id, depois: { turmaId, validadeDias, expiraEm, substituidos } })
         return { token, codigo, expiraEm }
       }
-      throw new ErroDeDominio(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO, undefined, TENTE_DE_NOVO_PADRAO_SEGUNDOS)
+      throw new DomainException(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO, undefined, DEFAULT_RETRY_AFTER_SECONDS)
     })
     return acessoGeradoResponseSchema.parse(gerado)
   }
@@ -81,16 +81,16 @@ export class AcessoDaTurmaService {
    */
   async revogar(turmaId: string): Promise<void> {
     await this.banco.transaction(async (tx) => {
-      if ((await new TurmaRepository(tx).aberta(turmaId, 'turma_vinculada')) === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+      if ((await new TurmaRepository(tx).aberta(turmaId, 'turma_vinculada')) === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
       const revogado = await new AcessoDaTurmaRepository(tx).revogarVigente(turmaId)
-      if (revogado === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+      if (revogado === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
       await registro.gravar(tx, 'acesso_turma.revogado', { entidadeId: revogado, depois: { turmaId } })
     })
   }
 
   /** `GET /v1/turmas/:id/acesso`: só até quando vale o acesso vigente, ou `null` sem nenhum. Nunca o link nem o código. */
   async ler(turmaId: string): Promise<AcessoDaTurmaResponse> {
-    if ((await new TurmaRepository(this.banco).aberta(turmaId, 'turma_vinculada')) === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+    if ((await new TurmaRepository(this.banco).aberta(turmaId, 'turma_vinculada')) === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
     const expiraEm = await new AcessoDaTurmaRepository(this.banco).vigente(turmaId)
     return acessoDaTurmaResponseSchema.parse({ expiraEm: expiraEm?.toISOString() ?? null })
   }

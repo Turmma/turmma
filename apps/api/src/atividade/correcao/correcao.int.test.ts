@@ -1,4 +1,4 @@
-import { ErroDeDominio } from '@educa/nucleo'
+import { DomainException } from '@educa/nucleo'
 import {
   correcaoDoLoteResponseSchema,
   desempenhoDaTurmaResponseSchema,
@@ -358,7 +358,7 @@ describe('correção de objetiva e validação do lote', () => {
 
       // Chamado direto, como um job ou uma rotina faria, sem o contexto que a guarda de sessão grava.
       const servico = new CorrecaoService(bancada.banco, api.app.get(LeituraDoLote))
-      await expect(servico.aprovarLote(entregaId)).rejects.toBeInstanceOf(ErroDeDominio)
+      await expect(servico.aprovarLote(entregaId)).rejects.toBeInstanceOf(DomainException)
       await rotas.encerrar(turma.escola.professora, id)
       expect(await entregaNoBanco(entregaId)).toEqual({ estado: 'pendente', decidida_por: null, decidida_em: null })
       expect(await contar('validacao_do_lote', 'entrega_id = $1', [entregaId])).toBe(0)

@@ -1,4 +1,4 @@
-import { Permite, ZodValidationPipe } from '@educa/nucleo'
+import { RequirePermissao, ZodValidationPipe } from '@educa/nucleo'
 import {
   ErrorCode,
   chaveDeFuncaoSchema,
@@ -32,35 +32,35 @@ export class GovernancaController {
   constructor(private readonly governanca: GovernancaService) {}
 
   @Get('resumo')
-  @Permite('governanca', 'ler_resumo')
+  @RequirePermissao('governanca', 'ler_resumo')
   @Header('Cache-Control', 'no-store')
   resumo(@Query(new ZodValidationPipe(resumoDaGovernancaQuerySchema)) consulta: ResumoDaGovernancaQuery): Promise<ResumoDaGovernancaResponse> {
     return this.governanca.resumo(consulta)
   }
 
   @Get('funcoes')
-  @Permite('governanca', 'ler_funcoes')
+  @RequirePermissao('governanca', 'ler_funcoes')
   @Header('Cache-Control', 'no-store')
   funcoes(): Promise<FuncoesDaGovernancaResponse> {
     return this.governanca.funcoes()
   }
 
   @Post('funcoes/:chave/suspender')
-  @Permite('governanca', 'suspender_funcao')
+  @RequirePermissao('governanca', 'suspender_funcao')
   @HttpCode(HttpStatus.OK)
   suspender(@Param('chave', pipeDaChave) chave: ChaveDeFuncao, @Body(new ZodValidationPipe(suspenderFuncaoRequestSchema)) pedido: SuspenderFuncaoRequest): Promise<FuncaoDaGovernancaResponse> {
     return this.governanca.suspender(chave, pedido)
   }
 
   @Post('funcoes/:chave/retomar')
-  @Permite('governanca', 'retomar_funcao')
+  @RequirePermissao('governanca', 'retomar_funcao')
   @HttpCode(HttpStatus.OK)
   retomar(@Param('chave', pipeDaChave) chave: ChaveDeFuncao, @Body(new ZodValidationPipe(emptyBodyRequestSchema)) _corpo: EmptyBodyRequest): Promise<FuncaoDaGovernancaResponse> {
     return this.governanca.retomar(chave)
   }
 
   @Get('consumo')
-  @Permite('governanca', 'ler_consumo')
+  @RequirePermissao('governanca', 'ler_consumo')
   @Header('Cache-Control', 'no-store')
   consumo(@Query(new ZodValidationPipe(consumoQuerySchema)) consulta: ConsumoQuery): Promise<ConsumoResponse> {
     return this.governanca.consumo(consulta)

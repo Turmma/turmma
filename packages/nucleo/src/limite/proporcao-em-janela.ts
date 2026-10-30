@@ -17,7 +17,7 @@ interface Fatia {
  * Sem evento na janela, a proporção é 0: ninguém foi limitado pelo seguro. Redis fora sem tráfego
  * aparece em `redis.disponivel`.
  */
-export class ProporcaoEmJanela {
+export class SlidingWindowRatio {
   readonly #fatias: Fatia[]
   readonly #duracaoDaFatiaMs: number
 

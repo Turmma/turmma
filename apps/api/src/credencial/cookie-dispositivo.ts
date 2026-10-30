@@ -1,4 +1,4 @@
-import { relogioDoSistema, type Relogio } from '@educa/nucleo'
+import { systemClock, type Clock } from '@educa/nucleo'
 import { createHmac, timingSafeEqual } from 'node:crypto'
 
 /** Contas lembradas por navegador: no Chromebook do carrinho, uma turma inteira passa pelo mesmo. */
@@ -34,7 +34,7 @@ export class CookieDeDispositivo {
   constructor(
     private readonly versao: number,
     private readonly chave: Uint8Array,
-    private readonly relogio: Relogio = relogioDoSistema,
+    private readonly relogio: Clock = systemClock,
   ) {}
 
   /** A entrada da conta: o HMAC do identificador já normalizado, com a chave desta versão. */

@@ -1,12 +1,12 @@
-import { avisoEspacado, executarNoContexto, resumirErro, ROTULO_ESCOLA, type EscolasDaRotinaRepository, type LoggerBase, type Meter, type Relogio } from '@educa/nucleo'
+import { throttledWarn, runInContext, summarizeError, ROTULO_ESCOLA, type CronEscolasRepository, type LoggerBase, type Meter, type Clock } from '@educa/nucleo'
 import { randomUUID } from 'node:crypto'
 
 /** De quanto em quanto tempo o worker-lote mede uma série por escola. Os valores mudam devagar (uma vez por noite, ou por hora): 5 min sobram. */
 export const INTERVALO_DA_MEDICAO_POR_ESCOLA_MS = 5 * 60_000
 
 export interface DependenciasDaMedicaoPorEscola {
-  escolas: Pick<EscolasDaRotinaRepository, 'listarIds'>
-  relogio: Relogio
+  escolas: Pick<CronEscolasRepository, 'listarIds'>
+  relogio: Clock
   logger: LoggerBase
   medidor: Meter
 }
@@ -22,7 +22,7 @@ export interface DescricaoDaMedicaoPorEscola {
  * Uma métrica por escola, medida pelo worker-lote num laço próprio (F3, tarefas 3.0 e 9.0; Tech Spec do F3, seção 7c): a cada 5 min,
  * mede todas as escolas, e a exportação só lê o resultado guardado (como a medição da fila no despachante). A medição não guarda
  * estado que outra réplica precise: cada worker-lote mede do Postgres, e o painel usa `max`. A lista de escolas sai da
- * `EscolasDaRotinaRepository`, a mesma da rotina, e cada escola é lida no contexto dela. Quem herda diz só **o que medir numa
+ * `CronEscolasRepository`, a mesma da rotina, e cada escola é lida no contexto dela. Quem herda diz só **o que medir numa
  * escola** (`medirEscola`); a escola que devolve `undefined` não tem série. Com o Postgres fora, a medição anterior sai da exportação.
  */
 export abstract class MedicaoPorEscola {
@@ -41,7 +41,7 @@ export abstract class MedicaoPorEscola {
   ) {
     this.#intervaloMs = opcoes.intervaloMs ?? INTERVALO_DA_MEDICAO_POR_ESCOLA_MS
     let ultimoErro: unknown
-    const aviso = avisoEspacado(() => base.logger.warn({ evento: descricao.evento, erro: resumirErro(ultimoErro) }))
+    const aviso = throttledWarn(() => base.logger.warn({ evento: descricao.evento, erro: summarizeError(ultimoErro) }))
     this.#avisarFalha = (erro) => {
       ultimoErro = erro
       aviso()
@@ -75,7 +75,7 @@ export abstract class MedicaoPorEscola {
       // O desligamento não espera a volta inteira: com milhares de escolas, ela leva segundos.
       if (this.#encerrada) return
       try {
-        const valor = await executarNoContexto({ requisicaoId: randomUUID(), escolaId }, () => this.medirEscola(agora))
+        const valor = await runInContext({ requisicaoId: randomUUID(), escolaId }, () => this.medirEscola(agora))
         if (valor !== undefined) medidas.set(escolaId, valor)
       } catch (erro) {
         this.#avisarFalha(erro)

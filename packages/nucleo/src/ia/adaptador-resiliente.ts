@@ -12,8 +12,8 @@ import {
   type IDefaultPolicyContext,
   type IPolicy,
 } from 'cockatiel'
-import type { AdaptadorDeModelo, ChamadaAoModelo, RespostaDoModelo } from './adaptador.js'
-import { ErroDeIa, ErroDoProvedor, type FalhaDoProvedor } from './erros.js'
+import type { ModelAdapter, ModelCall, ModelResponse } from './adaptador.js'
+import { LLMError, ProviderError, type ProviderFailure } from './erros.js'
 import type { Perfil } from './perfis.js'
 import type { EnvioDaChamada } from './porta.js'
 
@@ -24,7 +24,7 @@ const MEIO_ABRE_O_DISJUNTOR_EM_MS = 30_000
 /** Só o `rapido` tem chamada lenta: acima de metade do prazo dele a chamada vale, mas pesa no disjuntor. */
 const PERFIL_COM_CHAMADA_LENTA: Perfil = 'rapido'
 
-export interface PoliticaDeResiliencia {
+export interface ResiliencePolicy {
   /** O prazo de cada perfil. Cobre a chamada **e** a repetição. */
   readonly prazosMs: Readonly<Record<Perfil, number>>
   /** Espera antes da única repetição, quando o provedor não disse quanto (com jitter). */
@@ -34,7 +34,7 @@ export interface PoliticaDeResiliencia {
 }
 
 interface Tentativa {
-  readonly resposta: RespostaDoModelo
+  readonly resposta: ModelResponse
   /** Chamada do `rapido` acima de metade do prazo: devolve a resposta, e pesa no disjuntor como uma falha. */
   readonly lenta: boolean
 }
@@ -45,10 +45,10 @@ type Resiliencia = IPolicy<IDefaultPolicyContext, never>
 class ChamadaCancelada extends Error {}
 
 /** O que o adaptador contou. O erro de IA que não é dele (a entrada inválida, o material insuficiente) não é falha do provedor. */
-function falhaDe(erro: unknown): FalhaDoProvedor | undefined {
-  if (erro instanceof ErroDoProvedor) return erro.falha
-  if (erro instanceof ErroDeIa && erro.codigoDeIa === 'IA_INDISPONIVEL') return 'servidor'
-  if (erro instanceof ErroDeIa && erro.codigoDeIa === 'IA_TEMPO_ESGOTADO') return 'tempo'
+function falhaDe(erro: unknown): ProviderFailure | undefined {
+  if (erro instanceof ProviderError) return erro.falha
+  if (erro instanceof LLMError && erro.codigoDeIa === 'IA_INDISPONIVEL') return 'servidor'
+  if (erro instanceof LLMError && erro.codigoDeIa === 'IA_TEMPO_ESGOTADO') return 'tempo'
   return undefined
 }
 
@@ -60,20 +60,20 @@ function pesaNoDisjuntor(erro: unknown): boolean {
 
 /** O `Retry-After` do 429 em segundos, quando o provedor o mandou. */
 function esperaSugeridaMs(erro: unknown): number | undefined {
-  return erro instanceof ErroDoProvedor && erro.tenteDeNovoEmSegundos !== undefined ? erro.tenteDeNovoEmSegundos * 1_000 : undefined
+  return erro instanceof ProviderError && erro.tenteDeNovoEmSegundos !== undefined ? erro.tenteDeNovoEmSegundos * 1_000 : undefined
 }
 
 /**
- * Troca pelo `ErroDeIa` simples o que é de dentro desta camada: o `ErroDoProvedor`, que leva a classificação, e o erro do
+ * Troca pelo `LLMError` simples o que é de dentro desta camada: o `ProviderError`, que leva a classificação, e o erro do
  * `cockatiel` (`TaskCancelledError`, `BrokenCircuitError`), que tem texto próprio e não é código do contrato. O resto passa
  * como veio (a `ChamadaCancelada` só chega até aqui se o prazo não tiver respondido primeiro, e não chega: o `Aggressive`
- * responde antes), e o `ProvedorDeIa`, acima, cobre qualquer erro que não seja `ErroDeIa`.
+ * responde antes), e o `LLMGateway`, acima, cobre qualquer erro que não seja `LLMError`.
  */
 function traduzir(erro: unknown): unknown {
-  if (erro instanceof ErroDoProvedor) return new ErroDeIa(erro.codigoDeIa, erro.tenteDeNovoEmSegundos)
-  if (erro instanceof BrokenCircuitError) return new ErroDeIa('IA_INDISPONIVEL')
+  if (erro instanceof ProviderError) return new LLMError(erro.codigoDeIa, erro.tenteDeNovoEmSegundos)
+  if (erro instanceof BrokenCircuitError) return new LLMError('IA_INDISPONIVEL')
   // O prazo vencido e a desistência de quem chamou abortam o mesmo sinal, e a política de prazo é quem responde primeiro.
-  if (erro instanceof TaskCancelledError) return new ErroDeIa('IA_TEMPO_ESGOTADO')
+  if (erro instanceof TaskCancelledError) return new LLMError('IA_TEMPO_ESGOTADO')
   return erro
 }
 
@@ -91,14 +91,14 @@ function traduzir(erro: unknown): unknown {
  *   por réplica, de propósito: é saúde local do provedor, a exceção declarada à regra 80, item 5 (Tech Spec da X5,
  *   `onda-3c.md` T10 e ADR da onda 6).
  */
-export class AdaptadorResiliente implements AdaptadorDeModelo {
-  readonly origem: AdaptadorDeModelo['origem']
+export class ResilientAdapter implements ModelAdapter {
+  readonly origem: ModelAdapter['origem']
   readonly envio: EnvioDaChamada
   private readonly politicas = new Map<string, Resiliencia>()
 
   constructor(
-    private readonly interno: AdaptadorDeModelo,
-    private readonly politica: PoliticaDeResiliencia,
+    private readonly interno: ModelAdapter,
+    private readonly politica: ResiliencePolicy,
   ) {
     this.origem = interno.origem
     this.envio = interno.envio
@@ -108,7 +108,7 @@ export class AdaptadorResiliente implements AdaptadorDeModelo {
     return this.interno.modeloDoPerfil(perfil)
   }
 
-  async chamar<Entrada, Saida>(chamada: ChamadaAoModelo<Entrada, Saida>): Promise<RespostaDoModelo> {
+  async chamar<Entrada, Saida>(chamada: ModelCall<Entrada, Saida>): Promise<ModelResponse> {
     const perfil = chamada.tarefa.perfil
     try {
       const { resposta } = await this.resiliencia(perfil).execute((contexto) => this.tentar(chamada, contexto.signal), chamada.sinal)
@@ -119,7 +119,7 @@ export class AdaptadorResiliente implements AdaptadorDeModelo {
   }
 
   /** Uma tentativa. O `cockatiel` não corta a espera da repetição, e por isso uma tentativa que começa com o prazo já vencido não sai. */
-  private async tentar<Entrada, Saida>(chamada: ChamadaAoModelo<Entrada, Saida>, sinal: AbortSignal): Promise<Tentativa> {
+  private async tentar<Entrada, Saida>(chamada: ModelCall<Entrada, Saida>, sinal: AbortSignal): Promise<Tentativa> {
     if (sinal.aborted) throw new ChamadaCancelada()
     const perfil = chamada.tarefa.perfil
     const inicio = Date.now()
@@ -135,7 +135,7 @@ export class AdaptadorResiliente implements AdaptadorDeModelo {
 
   /**
    * Um disjuntor por modelo e perfil, criado na primeira chamada e mantido: ele só vale compartilhado. O provedor é
-   * o desta instância (uma por `criarProvedorDeIa`), e por isso não entra na chave.
+   * o desta instância (uma por `createLLMGateway`), e por isso não entra na chave.
    */
   private resiliencia(perfil: Perfil): Resiliencia {
     const chave = `${this.interno.modeloDoPerfil(perfil)}|${perfil}`

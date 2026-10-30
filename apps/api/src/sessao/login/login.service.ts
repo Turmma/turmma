@@ -1,4 +1,4 @@
-import { ErroDeDominio, type Meter } from '@educa/nucleo'
+import { DomainException, type Meter } from '@educa/nucleo'
 import { ErrorCode, type LoginEmailRequest } from '@educa/shared'
 import type { ConclusaoDeLogin } from '../conclusao/conclusao-de-login.js'
 import type { AtivacaoPorConvite } from '../convite/convite.service.js'
@@ -109,7 +109,7 @@ export class LoginService {
         // resposta diz que o acesso está suspenso. Conta sem usuário ativo nenhum segue como a senha errada.
         if (await this.dependencias.resolucao.temAcessoSuspenso(credencial.id)) {
           await contador.zerar(chave)
-          throw new ErroDeDominio(ErrorCode.ACESSO_SUSPENSO)
+          throw new DomainException(ErrorCode.ACESSO_SUSPENSO)
         }
         return this.#recusar(tentativa, reserva, origem)
       }
@@ -117,7 +117,7 @@ export class LoginService {
       // venceu a trava) e sem outro usuário ativo: não houve acesso, e não foi senha errada. Nem `login` nem
       // `login_falho`, e o contador volta ao que era antes (Tech Spec da A0b, seção 5).
       await contador.desfazer(chave, reserva)
-      throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+      throw new DomainException(ErrorCode.NAO_ENCONTRADO)
     }
 
     await contador.zerar(chave)

@@ -1,5 +1,5 @@
 import 'reflect-metadata'
-import { criarLogger, LimitadorDeRequisicoes, METRICAS, observarSeguroDoLimite } from '@educa/nucleo'
+import { createLogger, RateLimiter, METRICS, observeInsuranceLimiter } from '@educa/nucleo'
 import { ErrorCode, MENSAGENS_DE_ERRO, type PapelDeUsuario } from '@educa/shared'
 import type { INestApplication } from '@nestjs/common'
 import { NestFactory } from '@nestjs/core'
@@ -55,7 +55,7 @@ describe('POST /v1/sessao/email: a equipe entra por e-mail e senha', () => {
 
   beforeAll(async () => {
     app = await NestFactory.create(AppModule.com(configuracaoDeTeste(), { medidor: medidor.medidor, ...MONTAGEM_DE_TESTE }), { logger: false })
-    configurarAplicacao(app, criarLogger({ servico: 'api-teste', nivel: 'trace', destino: { write: (linha: string) => linhasDeLog.push(linha) } }), medidor.medidor)
+    configurarAplicacao(app, createLogger({ servico: 'api-teste', nivel: 'trace', destino: { write: (linha: string) => linhasDeLog.push(linha) } }), medidor.medidor)
     await app.listen(0, '127.0.0.1')
     url = `http://127.0.0.1:${(app.getHttpServer().address() as AddressInfo).port}`
     hash = app.get(HashDeSenha)
@@ -128,7 +128,7 @@ describe('POST /v1/sessao/email: a equipe entra por e-mail e senha', () => {
   }
 
   async function contasSeguradas(): Promise<number> {
-    return (await medidor.pontos(METRICAS.contaSegurada)).reduce((soma, ponto) => soma + (typeof ponto.valor === 'number' ? ponto.valor : 0), 0)
+    return (await medidor.pontos(METRICS.contaSegurada)).reduce((soma, ponto) => soma + (typeof ponto.valor === 'number' ? ponto.valor : 0), 0)
   }
 
   async function falhasSemEscola(): Promise<number> {
@@ -405,12 +405,12 @@ describe('POST /v1/sessao/email: a equipe entra por e-mail e senha', () => {
     // tentativa foi contada pelo Redis antes de ele cair.
     const medidorDaQueda = new MedidorDeTeste()
     const instancia = await NestFactory.create(AppModule.com(configuracaoDeTeste(), { medidor: medidorDaQueda.medidor }), { logger: false })
-    configurarAplicacao(instancia, criarLogger({ servico: 'api-teste', nivel: 'trace', destino: { write: (linha: string) => linhasDeLog.push(linha) } }), medidorDaQueda.medidor)
+    configurarAplicacao(instancia, createLogger({ servico: 'api-teste', nivel: 'trace', destino: { write: (linha: string) => linhasDeLog.push(linha) } }), medidorDaQueda.medidor)
     await instancia.listen(0, '127.0.0.1')
     const urlDaQueda = `http://127.0.0.1:${(instancia.getHttpServer().address() as AddressInfo).port}`
     const cliente = instancia.get<Redis>(CLIENTE_REDIS_LOGIN, { strict: false })
     await clientePronto(cliente)
-    observarSeguroDoLimite(medidorDaQueda.medidor, instancia.get(LimitadorDeRequisicoes), instancia.get(ContadorDeTentativas))
+    observeInsuranceLimiter(medidorDaQueda.medidor, instancia.get(RateLimiter), instancia.get(ContadorDeTentativas))
     const escolaId = await bancada.escola()
     const [professor, colega] = [await pessoa(escolaId), await pessoa(escolaId)]
     const naQueda = (email: string, senha = SENHA) => entrar({ email, senha }, undefined, urlDaQueda)
@@ -423,7 +423,7 @@ describe('POST /v1/sessao/email: a equipe entra por e-mail e senha', () => {
       esperarSegurada(await naQueda(professor.email, SENHA_ERRADA), 30)
       esperarSegurada(await naQueda(professor.email), 30)
       expect(instancia.get(ContadorDeTentativas).proporcaoDoSeguro).toBe(1)
-      expect((await medidorDaQueda.pontos(METRICAS.seguroAtivo)).map((ponto) => ponto.valor)).toEqual([1])
+      expect((await medidorDaQueda.pontos(METRICS.seguroAtivo)).map((ponto) => ponto.valor)).toEqual([1])
       expect((await naQueda(colega.email)).status).toBe(200)
     } finally {
       composeOuFalha('start', 'redis-fila')

@@ -15,7 +15,7 @@ const bytea = customType<{ data: Buffer }>({ dataType: () => 'bytea' })
  *
  * - Não tem `escola_id`: é o desvio declarado da regra 10, itens 1 e 9 (Tech Spec, seção 6). Toda operação nela
  *   passa pelo repository de resolução de tenant do módulo de sessão, pelo repository da conta global em
- *   `nucleo/ciclo-de-vida` (F3, tarefa 1.0) ou pela limpeza do expurgo de acesso, com `@SemEscopo` justificado.
+ *   `nucleo/ciclo-de-vida` (F3, tarefa 1.0) ou pela limpeza do expurgo de acesso, com `@Unscoped` justificado.
  * - Aluno não tem conta: não tem e-mail no sistema (regra 20, item 2).
  * - Hash, segredo e passo do TOTP nunca saem em DTO nem em log (`docs/lgpd.md`); as colunas de MFA ficam vazias
  *   até a tarefa 6.0.

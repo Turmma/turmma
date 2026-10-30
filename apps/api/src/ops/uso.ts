@@ -1,15 +1,15 @@
 import {
-  ConfiguracaoInvalida,
+  InvalidConfigError,
   diaAnterior,
   diaDeUso,
   diaValido,
-  executarNoContexto,
+  runInContext,
   FORMATO_MES,
-  relogioDoSistema,
-  UsoRepository,
-  type Banco,
-  type Relogio,
-  type UsoDoPeriodo,
+  systemClock,
+  UsageRepository,
+  type Database,
+  type Clock,
+  type UsagePeriod,
 } from '@educa/nucleo'
 import { randomUUID } from 'node:crypto'
 import { pathToFileURL } from 'node:url'
@@ -44,8 +44,8 @@ export interface PedidoDeUso {
 
 export interface RespostaDeUso {
   escolaId: string
-  dia: UsoDoPeriodo & { data: string }
-  mes: UsoDoPeriodo & { referencia: string }
+  dia: UsagePeriod & { data: string }
+  mes: UsagePeriod & { referencia: string }
 }
 
 function lerOpcoes(argumentos: string[]) {
@@ -62,7 +62,7 @@ function lerOpcoes(argumentos: string[]) {
   }
 }
 
-export function lerPedidoDeUso(argumentos: string[], relogio: Relogio = relogioDoSistema): PedidoDeUso {
+export function lerPedidoDeUso(argumentos: string[], relogio: Clock = systemClock): PedidoDeUso {
   const valores = lerOpcoes(argumentos)
   if (valores.escola === undefined || !z.uuid().safeParse(valores.escola).success) throw new ArgumentoInvalido('--escola')
   const dia = valores.dia ?? diaAnterior(diaDeUso(relogio.agora()))
@@ -76,13 +76,13 @@ export function lerPedidoDeUso(argumentos: string[], relogio: Relogio = relogioD
  * O uso da escola do pedido no dia e no mês, lido no contexto dela, numa transação curta que começa pela conferência do
  * autor (Tech Spec da A0b, seção 7c, "Autor ativo"): o comando só lê, e mesmo assim só um operador ativo lê.
  */
-export function consultarUso(banco: Banco, autor: ConferenciaDoAutor, pedido: PedidoDeUso): Promise<RespostaDeUso> {
+export function consultarUso(banco: Database, autor: ConferenciaDoAutor, pedido: PedidoDeUso): Promise<RespostaDeUso> {
   const requisicaoId = randomUUID()
-  return executarNoContexto({ requisicaoId }, () =>
+  return runInContext({ requisicaoId }, () =>
     banco.transaction(async (tx) => {
       await autor(tx)
-      const repositorio = new UsoRepository(tx)
-      return executarNoContexto({ requisicaoId, escolaId: pedido.escolaId }, async () => ({
+      const repositorio = new UsageRepository(tx)
+      return runInContext({ requisicaoId, escolaId: pedido.escolaId }, async () => ({
         escolaId: pedido.escolaId,
         dia: { data: pedido.dia, ...(await repositorio.doDia(pedido.dia)) },
         mes: { referencia: pedido.mes, ...(await repositorio.doMes(pedido.mes)) },
@@ -113,7 +113,7 @@ export async function executarOpsUso(
       await fechar()
     }
   } catch (erro) {
-    if (!(erro instanceof ArgumentoInvalido || erro instanceof ConfiguracaoInvalida || erro instanceof OperadorRecusado)) throw erro
+    if (!(erro instanceof ArgumentoInvalido || erro instanceof InvalidConfigError || erro instanceof OperadorRecusado)) throw erro
     // Só o nome da opção ou da variável: nunca o valor, que pode ser a senha do banco.
     terminal.erro(`${erro.message}\n`)
     return 2

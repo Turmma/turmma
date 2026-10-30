@@ -142,7 +142,7 @@ rotina, e a conta global só cai se não serve a escola nenhuma). A noite termin
 só contagens: pedidos por estado, eliminações agendadas e vencidas, arquivos ativos e vencidos, suboperadores vigentes, incidentes
 avisados e sem confirmação, e quantas categorias do expurgo terminaram na última execução, com a data dela. Nunca nome, id de
 titular, texto de pedido ou chave de objeto (D76: a operação acompanha o uso, sem ver dado de pessoa), e o erro não repete o que
-foi digitado. A leitura é no contexto da escola, sem `@SemEscopo`. **O expurgo não atrapalha a aula** é provado no cenário de
+foi digitado. A leitura é no contexto da escola, sem `@Unscoped`. **O expurgo não atrapalha a aula** é provado no cenário de
 carga "justiça entre escolas" (`npm run carga`): a escola A expurga 1 milhão de linhas e troca um nome enquanto a B usa a fila
 interativa e **o Tutor pela rota** (`POST /v1/tutor/mensagens`, com o adaptador falso de latência simulada), com nenhum statement
 no teto de 1,5 s nem cancelado pelo `statement_timeout` de 2 s, a espera da B e o turno do Tutor da B até 500 ms acima da base

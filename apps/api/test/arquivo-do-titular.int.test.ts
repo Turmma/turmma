@@ -1,4 +1,4 @@
-import { ArmazemEmMemoria, ArquivoDoTitularRepository, criarLogger, type Banco, diaDeUso, executarNoContexto, instrucaoDoRastroDoAluno, LEITURAS_DO_ARQUIVO, type Relogio } from '@educa/nucleo'
+import { InMemoryFileStorage, ArquivoDoTitularRepository, createLogger, type Database, diaDeUso, runInContext, alunoTrailStatement, LEITURAS_DO_ARQUIVO, type Clock } from '@educa/nucleo'
 import {
   ErrorCode,
   COLUNAS_FORA_DO_ARQUIVO,
@@ -26,7 +26,7 @@ import { execucaoDoJob } from '../../worker/test/execucao-do-job.js'
 /**
  * O arquivo do titular (F3, tarefa 13.0; `tasks/prd-lgpd-e-titular/cenarios.md`, RF11 a RF13 e RF17): o pedido de acesso gera o
  * JSON fora da requisição, e "Meus dados" e a versão da escola entregam a URL de 5 minutos. Os armazéns são o falso
- * (`ArmazemEmMemoria`), que o teste entrega à API e ao processador do job, e o relógio é injetado nos dois: a validade de 7 dias se
+ * (`InMemoryFileStorage`), que o teste entrega à API e ao processador do job, e o relógio é injetado nos dois: a validade de 7 dias se
  * prova sem esperar. A prova do S3 de verdade (a assinatura aceita pelo SeaweedFS) está em `armazem-s3.int.test.ts`.
  *
  * Cada pessoa leva **uma sentinela por tabela** que o arquivo lê: o `id` da linha, e o texto onde houver. O que nunca pode
@@ -67,8 +67,8 @@ interface Semeado {
 describe('arquivo do titular (F3, tarefa 13.0): do pedido ao download', () => {
   const bancada = new BancadaDeSessoes()
   const medidor = new MedidorDeTeste()
-  const armazem = new ArmazemEmMemoria()
-  const relogio: Relogio & { atual: Date } = { atual: new Date(), agora: () => relogio.atual }
+  const armazem = new InMemoryFileStorage()
+  const relogio: Clock & { atual: Date } = { atual: new Date(), agora: () => relogio.atual }
   const linhasDeLog: string[] = []
   let api: ApiDeTeste
 
@@ -112,9 +112,9 @@ describe('arquivo do titular (F3, tarefa 13.0): do pedido ao download', () => {
 
   /** O job, como o worker o roda: no contexto da escola do pedido, com o armazém e o relógio do teste. */
   async function montar(escolaId: string, pedidoId: string): Promise<void> {
-    const processador = criarMontagemDoArquivo({ banco: bancada.banco, armazem, relogio, logger: criarLogger({ servico: 'teste', nivel: 'silent' }) })
+    const processador = criarMontagemDoArquivo({ banco: bancada.banco, armazem, relogio, logger: createLogger({ servico: 'teste', nivel: 'silent' }) })
     const jobId = randomUUID()
-    await executarNoContexto({ requisicaoId: randomUUID(), escolaId }, () => processador({ pedidoId }, execucaoDoJob(jobId)))
+    await runInContext({ requisicaoId: randomUUID(), escolaId }, () => processador({ pedidoId }, execucaoDoJob(jobId)))
   }
 
   /** O JSON que o job gravou para o pedido e a versão, já lido. */
@@ -852,7 +852,7 @@ describe('arquivo do titular (F3, tarefa 13.0): do pedido ao download', () => {
       const alunoDeB = await pessoa(b, 'aluno', 'AlunoDeB')
       const pedidoDeB = await pedidoPronto(b, alunoDeB)
       const noContexto = <T>(escolaId: string, consulta: (repository: ArquivoDoTitularRepository) => Promise<T>): Promise<T> =>
-        executarNoContexto({ requisicaoId: randomUUID(), escolaId }, () => consulta(new ArquivoDoTitularRepository(bancada.banco)))
+        runInContext({ requisicaoId: randomUUID(), escolaId }, () => consulta(new ArquivoDoTitularRepository(bancada.banco)))
 
       // O pedido e a versão são os mesmos nas duas leituras: só a escola do contexto muda.
       expect(await noContexto(a.escolaId, (repository) => repository.doPedido(pedidoDeB, 'completa'))).toBeUndefined()
@@ -1157,7 +1157,7 @@ describe('arquivo do titular (F3, tarefa 13.0): do pedido ao download', () => {
         expect(criado.corpo['estado']).toBe('em_preparacao')
         // Tira o job da API da fila: com um worker de pé ele montaria o arquivo (o armazém dele não é este) e as asserções abaixo correriam contra ele.
         await tirarDaFila(cenario.escolaId, pedidoId)
-        await expect(montar(cenario.escolaId, pedidoId)).rejects.toMatchObject({ name: 'ArmazemIndisponivel' })
+        await expect(montar(cenario.escolaId, pedidoId)).rejects.toMatchObject({ name: 'FileStorageUnavailableError' })
         const { rows: depois } = await bancada.pool.query<{ estado: string }>('select estado from pedido_titular where id = $1', [pedidoId])
         expect(depois[0]?.estado).toBe('em_preparacao')
         const { rows: linhas } = await bancada.pool.query('select 1 from arquivo_titular where pedido_id = $1', [pedidoId])
@@ -1202,14 +1202,14 @@ describe('arquivo do titular (F3, tarefa 13.0): do pedido ao download', () => {
           const valor = Reflect.get(alvo, propriedade) as unknown
           return typeof valor === 'function' ? (valor as (...args: unknown[]) => unknown).bind(alvo) : valor
         },
-      }) as Banco
+      }) as Database
       const consultas: boolean[] = []
-      class ArmazemQueOlha extends ArmazemEmMemoria {
+      class ArmazemQueOlha extends InMemoryFileStorage {
         override async existe(chave: string): Promise<boolean> {
           consultas.push(dentro)
           return super.existe(chave)
         }
-        override async urlDeDownload(...argumentos: Parameters<ArmazemEmMemoria['urlDeDownload']>): Promise<string> {
+        override async urlDeDownload(...argumentos: Parameters<InMemoryFileStorage['urlDeDownload']>): Promise<string> {
           consultas.push(dentro)
           return super.urlDeDownload(...argumentos)
         }
@@ -1224,9 +1224,9 @@ describe('arquivo do titular (F3, tarefa 13.0): do pedido ao download', () => {
       const comoAluno = { requisicaoId: randomUUID(), escolaId: cenario.escolaId, usuarioId: aluno.id, papel: 'aluno' as const, sessaoId: aluno.sessao.sessaoId, anoLetivoId: null }
 
       // O aluno baixa o dele; a coordenação, a da escola (para isso o titular precisa estar sem conta ativa de novo).
-      expect((await executarNoContexto(comoAluno, () => servico.baixarMeuArquivo(pedidoId))).url).toContain('/completa.json')
+      expect((await runInContext(comoAluno, () => servico.baixarMeuArquivo(pedidoId))).url).toContain('/completa.json')
       await bancada.pool.query('update usuario set desativado_em = now() where id = $1', [aluno.id])
-      expect((await executarNoContexto(comoCoordenacao, () => servico.arquivoDaEscola(pedidoId, 'entregar_ao_titular'))).url).toContain('/coordenacao.json')
+      expect((await runInContext(comoCoordenacao, () => servico.arquivoDaEscola(pedidoId, 'entregar_ao_titular'))).url).toContain('/coordenacao.json')
 
       // Quatro consultas ao armazém (`existe` e `urlDeDownload`, nas duas rotas), e nenhuma com transação aberta.
       expect(consultas).toEqual([false, false, false, false])
@@ -1484,8 +1484,8 @@ describe('arquivo do titular (F3, tarefa 13.0): do pedido ao download', () => {
         const dialeto = new PgDialect({ casing: 'snake_case' })
         const titular = alunos[0] ?? aluno.id
         for (const [rotulo, instrucao] of [
-          ['rastro', await executarNoContexto({ requisicaoId: randomUUID(), escolaId: cenario.escolaId }, async () => instrucaoDoRastroDoAluno(titular))],
-          ['texto_do_modelo', await executarNoContexto({ requisicaoId: randomUUID(), escolaId: cenario.escolaId }, async () => instrucaoDoTextoDoModelo(titular))],
+          ['rastro', await runInContext({ requisicaoId: randomUUID(), escolaId: cenario.escolaId }, async () => alunoTrailStatement(titular))],
+          ['texto_do_modelo', await runInContext({ requisicaoId: randomUUID(), escolaId: cenario.escolaId }, async () => instrucaoDoTextoDoModelo(titular))],
         ] as const) {
           const { sql: texto, params } = dialeto.sqlToQuery(instrucao)
           const { rows } = await cliente.query<{ 'QUERY PLAN': Array<{ Plan: Record<string, unknown> }> }>(`explain (format json) ${texto}`, params)

@@ -1,4 +1,4 @@
-import { contextoAtual, executarNoContexto } from '@educa/nucleo'
+import { currentContext, runInContext } from '@educa/nucleo'
 import { randomUUID } from 'node:crypto'
 
 /**
@@ -8,6 +8,6 @@ import { randomUUID } from 'node:crypto'
  * contexto: o da linha do acesso da sala (A1, tarefa 5.0), achada com o ano `em_curso`.
  */
 export function naEscolaSemUsuario<T>({ escolaId, anoLetivoId }: { readonly escolaId: string; readonly anoLetivoId?: string }, funcao: () => Promise<T>): Promise<T> {
-  const requisicaoId = contextoAtual()?.requisicaoId ?? randomUUID()
-  return executarNoContexto({ requisicaoId, escolaId, ...(anoLetivoId === undefined ? {} : { anoLetivoId }) }, funcao)
+  const requisicaoId = currentContext()?.requisicaoId ?? randomUUID()
+  return runInContext({ requisicaoId, escolaId, ...(anoLetivoId === undefined ? {} : { anoLetivoId }) }, funcao)
 }

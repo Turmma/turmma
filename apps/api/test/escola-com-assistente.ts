@@ -1,4 +1,4 @@
-import { executarNoContexto, PREFIXO_LIMITE_USUARIO, type ContextoDaRequisicao, type ExecutorNoProcesso } from '@educa/nucleo'
+import { runInContext, PREFIXO_LIMITE_USUARIO, type RequestContext, type InProcessAgenteExecutor } from '@educa/nucleo'
 import type { PapelDeUsuario } from '@educa/shared'
 import type { Redis } from 'ioredis'
 import { randomUUID } from 'node:crypto'
@@ -123,10 +123,10 @@ export async function copiarArtefatoParaOAnoAnterior(bancada: BancadaDeSessoes, 
   return { artefatoId: original, adaptadaId, entregaId }
 }
 
-/** O contexto que a `GuardaDeSessao` gravaria para esta pessoa: é nele que um service chamado direto roda, como numa rota. */
+/** O contexto que a `SessaoGuard` gravaria para esta pessoa: é nele que um service chamado direto roda, como numa rota. */
 export function comoPessoa<T>(escola: EscolaComAssistente, sessao: SessaoDeTeste, papel: PapelDeUsuario, funcao: () => T): T {
-  const contexto: ContextoDaRequisicao = { requisicaoId: randomUUID(), escolaId: escola.escolaId, usuarioId: sessao.usuarioId, papel, sessaoId: sessao.sessaoId, anoLetivoId: escola.anoLetivoId }
-  return executarNoContexto(contexto, funcao)
+  const contexto: RequestContext = { requisicaoId: randomUUID(), escolaId: escola.escolaId, usuarioId: sessao.usuarioId, papel, sessaoId: sessao.sessaoId, anoLetivoId: escola.anoLetivoId }
+  return runInContext(contexto, funcao)
 }
 
 export interface ExecucaoLida {
@@ -137,7 +137,7 @@ export interface ExecucaoLida {
 
 /** Espera o executor terminar o que tem e lê a execução como a tela lê, em `GET /v1/execucoes/:id`. */
 export async function execucaoTerminada(api: ApiDeTeste, sessao: SessaoDeTeste, execucaoId: string): Promise<ExecucaoLida> {
-  await api.app.get<ExecutorNoProcesso>(EXECUTOR_DE_AGENTE).ociosa()
+  await api.app.get<InProcessAgenteExecutor>(EXECUTOR_DE_AGENTE).ociosa()
   const resposta = await chamar(api.url, 'GET', `/v1/execucoes/${execucaoId}`, await sessao.tokenNovo())
   if (resposta.status !== 200) throw new Error(`a execução não foi lida: ${String(resposta.status)}`)
   return resposta.corpo as unknown as ExecucaoLida

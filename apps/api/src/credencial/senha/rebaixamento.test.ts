@@ -1,4 +1,4 @@
-import { METRICAS } from '@educa/nucleo'
+import { METRICS } from '@educa/nucleo'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { MedidorDeTeste } from '../../../../../tools/testes/metricas.ts'
 import type { ContagemNaJanela } from './contador-em-janela.js'
@@ -70,7 +70,7 @@ describe('RebaixamentoPorEscola', () => {
   }
 
   async function serieDa(escolaId: string): Promise<number | undefined> {
-    const ponto = (await medidor.pontos(METRICAS.prioridadeRebaixada)).find(({ atributos }) => atributos['escola_id'] === escolaId)
+    const ponto = (await medidor.pontos(METRICS.prioridadeRebaixada)).find(({ atributos }) => atributos['escola_id'] === escolaId)
     return typeof ponto?.valor === 'number' ? ponto.valor : undefined
   }
 
@@ -164,7 +164,7 @@ describe('LimiteDoEmailPorIp', () => {
   }
 
   async function rebaixadas(): Promise<number> {
-    const [ponto] = await medidor.pontos(METRICAS.limiteEmailIp)
+    const [ponto] = await medidor.pontos(METRICS.limiteEmailIp)
     return typeof ponto?.valor === 'number' ? ponto.valor : Number.NaN
   }
 

@@ -1,5 +1,5 @@
 import 'reflect-metadata'
-import { executarNoContexto, ExpurgoDeJobsRepository, instrucaoDoLoteVencido, LOTE_DO_EXPURGO } from '@educa/nucleo'
+import { runInContext, ExpurgoDeJobsRepository, expurgoExpiredBatchStatement, LOTE_DO_EXPURGO } from '@educa/nucleo'
 import { PgDialect } from 'drizzle-orm/pg-core'
 import pg from 'pg'
 import { randomUUID } from 'node:crypto'
@@ -52,7 +52,7 @@ describe('sistema.expurgar-jobs', () => {
       logger: log.logger,
     })
     const jobId = randomUUID()
-    return executarNoContexto({ requisicaoId: randomUUID(), rotinaDoSistema: true }, () => processador({}, execucaoDoJob(jobId)))
+    return runInContext({ requisicaoId: randomUUID(), rotinaDoSistema: true }, () => processador({}, execucaoDoJob(jobId)))
   }
 
   const contar = async (condicao: string): Promise<number> =>
@@ -200,7 +200,7 @@ describe('sistema.expurgar-jobs', () => {
   })
 
   it('o lote desce pelo índice parcial de finalizados, sem varrer a tabela', async () => {
-    const { sql: texto, params } = new PgDialect({ casing: 'snake_case' }).sqlToQuery(instrucaoDoLoteVencido())
+    const { sql: texto, params } = new PgDialect({ casing: 'snake_case' }).sqlToQuery(expurgoExpiredBatchStatement())
     const cliente = await bancada.pool.connect()
     try {
       await cliente.query('begin')
@@ -222,7 +222,7 @@ describe('sistema.expurgar-jobs', () => {
     const morto = new pg.Client({ connectionString: urlDoBancoDeTeste() })
     morto.on('error', () => undefined)
     await morto.connect()
-    const { sql: texto, params } = new PgDialect({ casing: 'snake_case' }).sqlToQuery(instrucaoDoLoteVencido())
+    const { sql: texto, params } = new PgDialect({ casing: 'snake_case' }).sqlToQuery(expurgoExpiredBatchStatement())
     const pid = (await morto.query<{ pid: number }>('select pg_backend_pid() as pid')).rows[0]?.pid
     await morto.query('begin')
     expect((await morto.query(texto, params)).rowCount).toBe(LOTE_DO_EXPURGO)
@@ -250,7 +250,7 @@ describe('sistema.expurgar-jobs', () => {
   it('só a rotina do sistema expurga: um job de escola com esse tipo falha sem apagar nada', async () => {
     const processador = criarExpurgoDeJobs({ repositorio: new ExpurgoDeJobsRepository(bancada.banco), logger: log.logger })
     const jobId = randomUUID()
-    await expect(executarNoContexto({ requisicaoId: randomUUID(), escolaId: ESCOLA_A }, () => processador({}, execucaoDoJob(jobId)))).rejects.toThrow()
+    await expect(runInContext({ requisicaoId: randomUUID(), escolaId: ESCOLA_A }, () => processador({}, execucaoDoJob(jobId)))).rejects.toThrow()
     expect(await vencidosRestantes()).toBe(VENCIDOS)
   })
 })

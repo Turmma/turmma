@@ -1,4 +1,4 @@
-import { avisoEspacado, EMISSOR_TOKEN, ErroDeDominio, relogioDoSistema, TENTE_DE_NOVO_PADRAO_SEGUNDOS, TIPO_DESAFIO_DE_OPERADOR, type Relogio } from '@educa/nucleo'
+import { throttledWarn, EMISSOR_TOKEN, DomainException, systemClock, DEFAULT_RETRY_AFTER_SECONDS, TIPO_DESAFIO_DE_OPERADOR, type Clock } from '@educa/nucleo'
 import { ErrorCode, InvariantException } from '@educa/shared'
 import { Logger } from '@nestjs/common'
 import type { Redis } from 'ioredis'
@@ -49,7 +49,7 @@ const esquemaClaims = z.object({
 export class EmissorDeDesafioDeOperador {
   constructor(
     private readonly chaveAssinatura: Uint8Array,
-    private readonly relogio: Relogio = relogioDoSistema,
+    private readonly relogio: Clock = systemClock,
   ) {}
 
   async emitir(pedido: PedidoDeDesafioDeOperador): Promise<string> {
@@ -85,14 +85,14 @@ export async function verificarDesafioDeOperador(desafio: string, chaveAssinatur
     })
     claims = verificado.payload
   } catch (erro) {
-    if (erro instanceof errors.JOSEError) throw new ErroDeDominio(ErrorCode.NAO_AUTENTICADO)
+    if (erro instanceof errors.JOSEError) throw new DomainException(ErrorCode.NAO_AUTENTICADO)
     throw erro
   }
   const resultado = esquemaClaims.safeParse(claims)
-  if (!resultado.success || resultado.data.etapa !== etapa) throw new ErroDeDominio(ErrorCode.NAO_AUTENTICADO)
+  if (!resultado.success || resultado.data.etapa !== etapa) throw new DomainException(ErrorCode.NAO_AUTENTICADO)
   const { jti, exp, sub, ver } = resultado.data
   // A versão só existe no desafio `mfa`: um `configurar_mfa` com versão não saiu do emissor.
-  if (ver !== undefined && etapa !== 'mfa') throw new ErroDeDominio(ErrorCode.NAO_AUTENTICADO)
+  if (ver !== undefined && etapa !== 'mfa') throw new DomainException(ErrorCode.NAO_AUTENTICADO)
   return { jti, expiraEm: new Date(exp * 1_000), operadorId: sub.toLowerCase(), etapa, ...(ver === undefined ? {} : { versao: ver }) }
 }
 
@@ -114,11 +114,11 @@ export const PREFIXO_DESAFIO_DE_OPERADOR_USADO = 'desafio-op:usado:'
  */
 export class ConsumoDeDesafioDeOperador {
   readonly #logger = new Logger('operacao')
-  readonly #avisarSemRedis = avisoEspacado(() => this.#logger.warn('operacao.desafio_sem_redis'))
+  readonly #avisarSemRedis = throttledWarn(() => this.#logger.warn('operacao.desafio_sem_redis'))
 
   constructor(
     private readonly cliente: Redis,
-    private readonly relogio: Relogio = relogioDoSistema,
+    private readonly relogio: Clock = systemClock,
   ) {}
 
   async consumir(desafio: Pick<DesafioDeOperadorVerificado, 'jti' | 'expiraEm'>): Promise<void> {
@@ -130,11 +130,11 @@ export class ConsumoDeDesafioDeOperador {
     } catch {
       throw this.#semRedis()
     }
-    if (marcado !== 'OK') throw new ErroDeDominio(ErrorCode.NAO_AUTENTICADO)
+    if (marcado !== 'OK') throw new DomainException(ErrorCode.NAO_AUTENTICADO)
   }
 
-  #semRedis(): ErroDeDominio {
+  #semRedis(): DomainException {
     this.#avisarSemRedis()
-    return new ErroDeDominio(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO, undefined, TENTE_DE_NOVO_PADRAO_SEGUNDOS)
+    return new DomainException(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO, undefined, DEFAULT_RETRY_AFTER_SECONDS)
   }
 }

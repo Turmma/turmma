@@ -1,4 +1,4 @@
-import { ArmazemEmMemoria, diaDeUso, Enfileirador, executarNoContexto, JobRegistroRepository, PedidoDeJobRecusado } from '@educa/nucleo'
+import { InMemoryFileStorage, diaDeUso, JobOutbox, runInContext, JobOutboxRepository, JobRequestRejectedError } from '@educa/nucleo'
 import { CicloDeVidaService } from '@educa/nucleo/ciclo-de-vida'
 import {
   ErrorCode,
@@ -476,21 +476,21 @@ describe('pedido do titular (F3, tarefa 11.0): busca, prévia, registro, lista, 
       const escola = await escolaComPessoas()
       const aluno = escola.alunos[0]
       if (aluno === undefined) throw new Error('aluno de teste não criado')
-      const real = new Enfileirador(new JobRegistroRepository(bancada.banco))
-      // O serviço manda o pedidoId certo; o que se estraga é só o payload, no caminho até o `Enfileirador` de verdade.
-      const comPayloadEstragado: Pick<Enfileirador, 'enfileirar'> = { enfileirar: (tx, tipo, dados, ...opcoes) => real.enfileirar(tx, tipo, Object.assign({}, dados, { escolaId: escola.escolaId }), ...opcoes) }
+      const real = new JobOutbox(new JobOutboxRepository(bancada.banco))
+      // O serviço manda o pedidoId certo; o que se estraga é só o payload, no caminho até o `JobOutbox` de verdade.
+      const comPayloadEstragado: Pick<JobOutbox, 'enfileirar'> = { enfileirar: (tx, tipo, dados, ...opcoes) => real.enfileirar(tx, tipo, Object.assign({}, dados, { escolaId: escola.escolaId }), ...opcoes) }
       const comoCoordenacao = { requisicaoId: randomUUID(), escolaId: escola.escolaId, usuarioId: escola.coordenacao.usuarioId, papel: 'coordenador' as const, sessaoId: escola.coordenacao.sessaoId, anoLetivoId: null }
       const registro = () => ({ titularId: aluno.id, tipo: 'acesso' as const, solicitante: 'titular' as const, chegouEm: HOJE(), chaveEnvio: randomUUID() })
       const jobs = async () => Number((await bancada.pool.query<{ total: string }>('select count(*) as total from job_registro where escola_id = $1', [escola.escolaId])).rows[0]?.total)
 
-      const comDefeito = new PrivacidadeService(bancada.banco, { enfileirador: comPayloadEstragado, armazem: new ArmazemEmMemoria() })
-      await expect(executarNoContexto(comoCoordenacao, () => comDefeito.registrarPedido(registro()))).rejects.toBeInstanceOf(PedidoDeJobRecusado)
+      const comDefeito = new PrivacidadeService(bancada.banco, { enfileirador: comPayloadEstragado, armazem: new InMemoryFileStorage() })
+      await expect(runInContext(comoCoordenacao, () => comDefeito.registrarPedido(registro()))).rejects.toBeInstanceOf(JobRequestRejectedError)
       expect(await pedidosNoBanco(escola.escolaId)).toEqual([])
       expect(await jobs()).toBe(0)
       expect(await auditoriasDa(escola.escolaId, 'pedido.registrado')).toEqual([])
 
-      const semDefeito = new PrivacidadeService(bancada.banco, { enfileirador: real, armazem: new ArmazemEmMemoria() })
-      const pedido = await executarNoContexto(comoCoordenacao, () => semDefeito.registrarPedido(registro()))
+      const semDefeito = new PrivacidadeService(bancada.banco, { enfileirador: real, armazem: new InMemoryFileStorage() })
+      const pedido = await runInContext(comoCoordenacao, () => semDefeito.registrarPedido(registro()))
       expect((await pedidosNoBanco(escola.escolaId)).map((linha) => linha['id'])).toEqual([pedido.id])
       expect(await jobs()).toBe(1)
     })
@@ -782,7 +782,7 @@ describe('pedido do titular (F3, tarefa 11.0): busca, prévia, registro, lista, 
       const id = criado.corpo['id'] as string
       expect((await ler(a.coordenacao, id)).corpo).toMatchObject({ titular: { nome: aluno.nome } })
 
-      await executarNoContexto({ requisicaoId: randomUUID(), escolaId: a.escolaId, usuarioId: a.coordenacao.usuarioId, papel: 'coordenador' }, () =>
+      await runInContext({ requisicaoId: randomUUID(), escolaId: a.escolaId, usuarioId: a.coordenacao.usuarioId, papel: 'coordenador' }, () =>
         new CicloDeVidaService(bancada.banco).eliminar(aluno.id),
       )
       expect((await ler(a.coordenacao, id)).corpo).toMatchObject({ titular: null })
@@ -798,7 +798,7 @@ describe('pedido do titular (F3, tarefa 11.0): busca, prévia, registro, lista, 
       await linhasDeEquipe(a, professor, execucao)
 
       // O que a prévia de professor esconde (D64) é o que o `GET meus-dados` mostra a ele (13.0): a contagem é a mesma.
-      const contagens = await executarNoContexto({ requisicaoId: randomUUID(), escolaId: a.escolaId, usuarioId: a.coordenacao.usuarioId }, () => new TitularesRepository(bancada.banco).contagemPorCategoria(professor.id))
+      const contagens = await runInContext({ requisicaoId: randomUUID(), escolaId: a.escolaId, usuarioId: a.coordenacao.usuarioId }, () => new TitularesRepository(bancada.banco).contagemPorCategoria(professor.id))
       expect(contagens).toEqual([
         { categoria: 'execucao_agente', quantidade: 1 },
         { categoria: 'autoria_de_artefato', quantidade: 1 },

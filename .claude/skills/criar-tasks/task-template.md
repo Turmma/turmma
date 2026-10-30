@@ -99,7 +99,7 @@ rodada nova; o caso que originou cada pergunta está em `docs/processo-licoes.md
 3. **O cenário tem o segundo dado que torna a cláusula observável?** Se o repository filtra por turma, aluno em **duas**
    turmas; se filtra por estado, vínculo em cada estado; se lê `inatividadeMin`, escola com valor **diferente** do padrão.
    Apagar a cláusula tem de deixar algo vermelho.
-4. **Alguma checagem anterior responde antes da regra sob teste?** A rota cai em `exigirAnoEmCurso()`, o e-mail não acha
+4. **Alguma checagem anterior responde antes da regra sob teste?** A rota cai em `requireAnoEmCurso()`, o e-mail não acha
    ninguém: o teste fica verde pelo motivo errado. Percorra o caminho até a linha que interessa e confirme que o cenário
    chega nela.
 5. **A asserção olha o resultado, ou a forma do código?** Asserção sobre texto de arquivo, nome de função ou lista vazia

@@ -1,20 +1,20 @@
 import type { OrigemDaSaidaDeIa } from '@educa/shared'
 import type { Perfil } from './perfis.js'
-import type { DefinicaoDeTarefa } from './tarefa.js'
+import type { TaskDefinition } from './tarefa.js'
 
 /**
  * Quem atendeu: um adaptador, ou nenhum, quando a resposta saiu de regra fixa da tarefa (assunto delicado no Tutor).
  * A lista é `ORIGENS_DA_SAIDA_DE_IA`, de `@educa/shared`, a mesma do check de `consumo_ia`.
  */
-export type OrigemDaSaida = OrigemDaSaidaDeIa
+export type OutputSource = OrigemDaSaidaDeIa
 
 /**
  * Uma chamada de IA. A tarefa já declara a função e o perfil (regra 30, item 2); quem chama diz de que escola é o
  * gasto (que o provedor confere com a do contexto: as portas de suspensão, orçamento e consumo leem só a do contexto)
  * e, no Tutor, de que aluno. Não há campo para modelo nem para provedor: isso é configuração.
  */
-export interface PedidoDeGeracao<Entrada, Saida> {
-  readonly tarefa: DefinicaoDeTarefa<Entrada, Saida>
+export interface GenerationRequest<Entrada, Saida> {
+  readonly tarefa: TaskDefinition<Entrada, Saida>
   readonly entrada: Entrada
   /** Do contexto autenticado ou da execução gravada, nunca do cliente (regra 10). */
   readonly escolaId: string
@@ -24,7 +24,7 @@ export interface PedidoDeGeracao<Entrada, Saida> {
   readonly turmaId?: string
   /** A `execucao_agente` que pediu, para o consumo apontar para ela. */
   readonly execucaoId?: string
-  /** Cancela a chamada em curso: o `ExecutorDeAgente` passa o dele, e a execução que estourou o prazo não segue gastando. */
+  /** Cancela a chamada em curso: o `AgenteExecutor` passa o dele, e a execução que estourou o prazo não segue gastando. */
   readonly sinal?: AbortSignal
 }
 
@@ -41,7 +41,7 @@ export type EnvioDaChamada =
 export const SEM_ENVIO_EXTERNO: EnvioDaChamada = { envioExterno: false, provedorId: null }
 
 interface DadosDaMedicao {
-  readonly origem: OrigemDaSaida
+  readonly origem: OutputSource
   readonly perfil: Perfil
   readonly modelo: string
   readonly promptVersao: string
@@ -53,19 +53,19 @@ interface DadosDaMedicao {
 }
 
 /** `envioExterno`: o conteúdo saiu desta máquina para um provedor de fora (`LLM_PROCESSAMENTO_LOCAL=false`), e `provedorId` diz qual. */
-export type MedicaoDaGeracao = DadosDaMedicao & EnvioDaChamada
+export type GenerationMeasurement = DadosDaMedicao & EnvioDaChamada
 
-export interface ResultadoDaGeracao<Saida> {
+export interface GenerationResult<Saida> {
   /** Já validada pelo schema e pela conferência da tarefa. */
   readonly saida: Saida
-  readonly medicao: MedicaoDaGeracao
+  readonly medicao: GenerationMeasurement
 }
 
 /**
  * A porta. É a única coisa que o domínio conhece da camada de IA (regra 30, item 1): ele entrega uma tarefa e a
- * entrada, e recebe a saída validada e a medição. Falha é sempre `ErroDeIa`, com código; erro cru de provedor não
+ * entrada, e recebe a saída validada e a medição. Falha é sempre `LLMError`, com código; erro cru de provedor não
  * atravessa.
  */
 export interface LLMProvider {
-  gerar<Entrada, Saida>(pedido: PedidoDeGeracao<Entrada, Saida>): Promise<ResultadoDaGeracao<Saida>>
+  gerar<Entrada, Saida>(pedido: GenerationRequest<Entrada, Saida>): Promise<GenerationResult<Saida>>
 }

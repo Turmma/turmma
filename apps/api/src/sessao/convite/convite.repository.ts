@@ -1,4 +1,4 @@
-import { convite, ErroDeDominio, erroDoPostgresEm, escola, exigirEscolaDoContexto, usuario, type Banco, type DadosDaCoordenacao, type DadosDoProfessor, type TipoDeConvite, type TransacaoBanco } from '@educa/nucleo'
+import { convite, DomainException, postgresErrorIn, escola, requireEscolaId, usuario, type Database, type DadosDaCoordenacao, type DadosDoProfessor, type TipoDeConvite, type DatabaseTransaction } from '@educa/nucleo'
 import { ErrorCode, InvariantException } from '@educa/shared'
 import { and, desc, eq, exists, gte, isNotNull, isNull, sql } from 'drizzle-orm'
 
@@ -17,11 +17,11 @@ export const CHAVE_DA_TRAVA_DO_CONVITE_DA_ESCOLA = 7_000_003
  * pelo hash do token, a conta global) fica na resolução de tenant; aqui tudo leva a escola do contexto.
  */
 export class ConviteRepository {
-  constructor(private readonly banco: Banco | TransacaoBanco) {}
+  constructor(private readonly banco: Database | DatabaseTransaction) {}
 
   /** O nome da escola do contexto, que o `consultar` mostra. */
   async nomeDaEscola(): Promise<string | undefined> {
-    const [linha] = await this.banco.select({ nome: escola.nome }).from(escola).where(eq(escola.id, exigirEscolaDoContexto())).limit(1)
+    const [linha] = await this.banco.select({ nome: escola.nome }).from(escola).where(eq(escola.id, requireEscolaId())).limit(1)
     return linha?.nome
   }
 
@@ -37,7 +37,7 @@ export class ConviteRepository {
   async usuarioConvidado(contaId: string, nome: string, papel: TipoDeConvite): Promise<string | undefined> {
     const [linha] = await this.banco
       .insert(usuario)
-      .values({ escolaId: exigirEscolaDoContexto(), contaId, papel, nome, desativadoEm: sql`now()` })
+      .values({ escolaId: requireEscolaId(), contaId, papel, nome, desativadoEm: sql`now()` })
       .onConflictDoUpdate({
         target: [usuario.escolaId, usuario.contaId, usuario.papel],
         set: { desativadoEm: sql`now()`, nome },
@@ -56,11 +56,11 @@ export class ConviteRepository {
     try {
       ;[criado] = await this.banco
         .insert(convite)
-        .values({ escolaId: exigirEscolaDoContexto(), tokenHash: dados.tokenHash, tipo: dados.tipo, usuarioId: dados.usuarioId, expiraEm: dados.expiraEm })
+        .values({ escolaId: requireEscolaId(), tokenHash: dados.tokenHash, tipo: dados.tipo, usuarioId: dados.usuarioId, expiraEm: dados.expiraEm })
         .returning({ id: convite.id })
     } catch (erro) {
-      const doPostgres = erroDoPostgresEm(erro)
-      if (doPostgres?.code === '23505' && doPostgres.constraint === 'convite_pendente_unico') throw new ErroDeDominio(ErrorCode.CONFLITO)
+      const doPostgres = postgresErrorIn(erro)
+      if (doPostgres?.code === '23505' && doPostgres.constraint === 'convite_pendente_unico') throw new DomainException(ErrorCode.CONFLITO)
       throw erro
     }
     if (criado === undefined) throw new InvariantException('convite não devolvido pelo insert')
@@ -74,7 +74,7 @@ export class ConviteRepository {
    * na mesma escola decidem um depois do outro, cada um vendo o que o anterior gravou.
    */
   async travarEscola(): Promise<void> {
-    await this.banco.execute(sql`select pg_advisory_xact_lock(${CHAVE_DA_TRAVA_DO_CONVITE_DA_ESCOLA}, hashtext(${exigirEscolaDoContexto()}::uuid::text))`)
+    await this.banco.execute(sql`select pg_advisory_xact_lock(${CHAVE_DA_TRAVA_DO_CONVITE_DA_ESCOLA}, hashtext(${requireEscolaId()}::uuid::text))`)
   }
 
   /**
@@ -83,7 +83,7 @@ export class ConviteRepository {
    * hora do banco. Só convite `tipo = 'coordenador'`. Escola inexistente: `undefined`.
    */
   async dadosDaCoordenacao(): Promise<DadosDaCoordenacao | undefined> {
-    const escolaId = exigirEscolaDoContexto()
+    const escolaId = requireEscolaId()
     const coordenadorAtivo = this.banco
       .select({ um: sql`1` })
       .from(usuario)
@@ -108,7 +108,7 @@ export class ConviteRepository {
     const [linha] = await this.banco
       .select({ revogadoEm: convite.revogadoEm })
       .from(convite)
-      .where(and(eq(convite.escolaId, exigirEscolaDoContexto()), eq(convite.id, conviteId), eq(convite.tipo, 'coordenador')))
+      .where(and(eq(convite.escolaId, requireEscolaId()), eq(convite.id, conviteId), eq(convite.tipo, 'coordenador')))
       .limit(1)
     return linha === undefined ? undefined : linha.revogadoEm !== null
   }
@@ -120,7 +120,7 @@ export class ConviteRepository {
    * ativou.
    */
   async ativarPorConvite(usuarioId: string, conviteId: string): Promise<boolean> {
-    const escolaId = exigirEscolaDoContexto()
+    const escolaId = requireEscolaId()
     const conviteAceito = this.banco
       .select({ um: sql`1` })
       .from(convite)
@@ -154,7 +154,7 @@ export class ConviteRepository {
     const [revogado] = await this.banco
       .update(convite)
       .set({ revogadoEm: sql`now()` })
-      .where(and(eq(convite.escolaId, exigirEscolaDoContexto()), eq(convite.id, conviteId), eq(convite.tipo, tipo), isNull(convite.usadoEm), isNull(convite.revogadoEm)))
+      .where(and(eq(convite.escolaId, requireEscolaId()), eq(convite.id, conviteId), eq(convite.tipo, tipo), isNull(convite.usadoEm), isNull(convite.revogadoEm)))
       .returning({ usuarioId: convite.usuarioId })
     return revogado?.usuarioId
   }
@@ -164,7 +164,7 @@ export class ConviteRepository {
     const revogados = await this.banco
       .update(convite)
       .set({ revogadoEm: sql`now()` })
-      .where(and(eq(convite.escolaId, exigirEscolaDoContexto()), eq(convite.id, conviteId), eq(convite.tipo, tipo), isNull(convite.revogadoEm)))
+      .where(and(eq(convite.escolaId, requireEscolaId()), eq(convite.id, conviteId), eq(convite.tipo, tipo), isNull(convite.revogadoEm)))
       .returning({ id: convite.id })
     return revogados.length === 1
   }
@@ -176,7 +176,7 @@ export class ConviteRepository {
    * sem convite de professor nenhum: `undefined`, a resposta do inexistente (I7). O `tipo` e o papel ficam no `where`.
    */
   async dadosDoProfessor(usuarioId: string): Promise<(DadosDoProfessor & { readonly ultimoConvite: NonNullable<DadosDoProfessor['ultimoConvite']> }) | undefined> {
-    const escolaId = exigirEscolaDoContexto()
+    const escolaId = requireEscolaId()
     const [linha] = await this.banco
       .select({
         id: convite.id,

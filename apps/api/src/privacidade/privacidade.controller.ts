@@ -1,4 +1,4 @@
-import { IdPipe, LimiteDaBuscaDeTitulares, Permite, ZodValidationPipe } from '@educa/nucleo'
+import { IdPipe, TitularSearchRateLimit, RequirePermissao, ZodValidationPipe } from '@educa/nucleo'
 import {
   baixarArquivoDaEscolaSchema,
   buscaDeTitularesSchema,
@@ -36,7 +36,7 @@ export class PrivacidadeController {
 
   /** Por quanto tempo a escola guarda cada dado: as categorias, com o prazo que vale e de onde vem, e os prazos fixos. */
   @Get('retencao')
-  @Permite('privacidade_retencao', 'ler')
+  @RequirePermissao('privacidade_retencao', 'ler')
   @Header('Cache-Control', 'no-store')
   retencao(): Promise<RetencaoResponse> {
     return this.privacidade.retencao()
@@ -44,7 +44,7 @@ export class PrivacidadeController {
 
   /** As empresas que recebem dado da escola: vigentes e passadas, com o que fazem, onde processam e o que recebem. */
   @Get('suboperadores')
-  @Permite('privacidade_suboperadores', 'ler')
+  @RequirePermissao('privacidade_suboperadores', 'ler')
   @Header('Cache-Control', 'no-store')
   suboperadores(): Promise<SuboperadoresResponse> {
     return this.privacidade.suboperadores()
@@ -52,7 +52,7 @@ export class PrivacidadeController {
 
   /** Os incidentes de segurança que afetaram a escola, só a seção dela: os sem confirmação primeiro, com o prazo legal dela em texto fixo. */
   @Get('incidentes')
-  @Permite('privacidade_incidentes', 'ler')
+  @RequirePermissao('privacidade_incidentes', 'ler')
   @Header('Cache-Control', 'no-store')
   incidentes(): Promise<IncidentesResponse> {
     return this.privacidade.incidentes()
@@ -63,7 +63,7 @@ export class PrivacidadeController {
    * igual. O id de outra escola, o inexistente e o que nem é um id respondem o mesmo `NAO_ENCONTRADO` (regra 10, item 6).
    */
   @Post('incidentes/:id/confirmar')
-  @Permite('privacidade_incidentes', 'confirmar')
+  @RequirePermissao('privacidade_incidentes', 'confirmar')
   @HttpCode(HttpStatus.NO_CONTENT)
   confirmarIncidente(@Param('id', IdPipe) incidenteId: string, @Body(new ZodValidationPipe(emptyBodyRequestSchema)) _corpo: EmptyBodyRequest): Promise<void> {
     return this.privacidade.confirmarIncidente(incidenteId)
@@ -72,12 +72,12 @@ export class PrivacidadeController {
   /**
    * A coordenação acha o titular antes de registrar o pedido (F3, RF10): até 20 resultados com nome, papel, matrícula,
    * turmas e disciplinas. O termo vai no corpo e nunca a log nem à auditoria; o limite próprio `rl:busca-titular` é
-   * 30 por minuto por usuário, além do limite do F0 (`@LimiteDaBuscaDeTitulares`). Só quem é `usuario` da escola é
+   * 30 por minuto por usuário, além do limite do F0 (`@TitularSearchRateLimit`). Só quem é `usuario` da escola é
    * achado: o aluno que só está na lista de nomes é atendido pela lista da turma (A1).
    */
   @Post('titulares/busca')
-  @Permite('privacidade_titulares', 'buscar')
-  @LimiteDaBuscaDeTitulares()
+  @RequirePermissao('privacidade_titulares', 'buscar')
+  @TitularSearchRateLimit()
   @HttpCode(HttpStatus.OK)
   @Header('Cache-Control', 'no-store')
   buscarTitulares(@Body(new ZodValidationPipe(buscaDeTitularesSchema)) busca: BuscaDeTitulares): Promise<BuscaDeTitularesResponse> {
@@ -90,7 +90,7 @@ export class PrivacidadeController {
    * para quem não usou a IA. O titular de outra escola, o de quem pediu e o inexistente respondem como o id de ninguém.
    */
   @Get('titulares/:id/previa')
-  @Permite('privacidade_titulares', 'previa')
+  @RequirePermissao('privacidade_titulares', 'previa')
   @Header('Cache-Control', 'no-store')
   previaDoTitular(@Param('id', IdPipe) titularId: string): Promise<PreviaDoTitularResponse> {
     return this.privacidade.previaDoTitular(titularId)
@@ -102,7 +102,7 @@ export class PrivacidadeController {
    * pessoa (mesma `conta_id` de quem pediu) responde como inexistente.
    */
   @Post('pedidos')
-  @Permite('privacidade_pedidos', 'registrar')
+  @RequirePermissao('privacidade_pedidos', 'registrar')
   @Header('Cache-Control', 'no-store')
   registrarPedido(@Body(new ZodValidationPipe(registroDePedidoSchema)) registro: RegistroDePedido): Promise<PedidoDoTitular> {
     return this.privacidade.registrarPedido(registro)
@@ -110,7 +110,7 @@ export class PrivacidadeController {
 
   /** A página de pedidos da escola, com nome e turma enquanto o titular existe e "Titular eliminado" depois. */
   @Get('pedidos')
-  @Permite('privacidade_pedidos', 'listar')
+  @RequirePermissao('privacidade_pedidos', 'listar')
   @Header('Cache-Control', 'no-store')
   pedidos(@Query(new ZodValidationPipe(paginationQuerySchema)) consulta: PaginationQuery): Promise<PedidosResponse> {
     return this.privacidade.pedidos(consulta)
@@ -118,7 +118,7 @@ export class PrivacidadeController {
 
   /** O detalhe do pedido, com a foto do compartilhamento, `nomeTrocado` e `homonimo`. */
   @Get('pedidos/:id')
-  @Permite('privacidade_pedidos', 'ler')
+  @RequirePermissao('privacidade_pedidos', 'ler')
   @Header('Cache-Control', 'no-store')
   pedido(@Param('id', IdPipe) pedidoId: string): Promise<PedidoDoTitular> {
     return this.privacidade.pedido(pedidoId)
@@ -126,7 +126,7 @@ export class PrivacidadeController {
 
   /** O fim do atendimento do pedido de acesso, portabilidade, compartilhamento ou correção. O clique duplo decide no banco. */
   @Post('pedidos/:id/concluir')
-  @Permite('privacidade_pedidos', 'concluir')
+  @RequirePermissao('privacidade_pedidos', 'concluir')
   @HttpCode(HttpStatus.NO_CONTENT)
   concluirPedido(@Param('id', IdPipe) pedidoId: string, @Body(new ZodValidationPipe(emptyBodyRequestSchema)) _corpo: EmptyBodyRequest): Promise<void> {
     return this.privacidade.concluirPedido(pedidoId)
@@ -138,7 +138,7 @@ export class PrivacidadeController {
    * respondem `NAO_ENCONTRADO`.
    */
   @Post('pedidos/:id/cancelar')
-  @Permite('privacidade_pedidos', 'cancelar')
+  @RequirePermissao('privacidade_pedidos', 'cancelar')
   @HttpCode(HttpStatus.NO_CONTENT)
   @Header('Cache-Control', 'no-store')
   cancelarPedido(@Param('id', IdPipe) pedidoId: string, @Body(new ZodValidationPipe(emptyBodyRequestSchema)) _corpo: EmptyBodyRequest): Promise<void> {
@@ -147,7 +147,7 @@ export class PrivacidadeController {
 
   /** A correção do nome do titular, só em pedido de correção aberto, auditada sem o nome. */
   @Post('pedidos/:id/corrigir-nome')
-  @Permite('privacidade_pedidos', 'corrigir_nome')
+  @RequirePermissao('privacidade_pedidos', 'corrigir_nome')
   @HttpCode(HttpStatus.NO_CONTENT)
   @Header('Cache-Control', 'no-store')
   corrigirNome(@Param('id', IdPipe) pedidoId: string, @Body(new ZodValidationPipe(correcaoDeNomeSchema)) correcao: CorrecaoDeNome): Promise<void> {
@@ -160,7 +160,7 @@ export class PrivacidadeController {
    * Auditada com a finalidade, e a resposta nunca é guardada (`no-store`).
    */
   @Post('pedidos/:id/arquivo')
-  @Permite('privacidade_pedidos', 'arquivo')
+  @RequirePermissao('privacidade_pedidos', 'arquivo')
   @HttpCode(HttpStatus.OK)
   @Header('Cache-Control', 'no-store')
   arquivoDoPedido(@Param('id', IdPipe) pedidoId: string, @Body(new ZodValidationPipe(baixarArquivoDaEscolaSchema)) arquivo: BaixarArquivoDaEscola): Promise<ArquivoResponse> {

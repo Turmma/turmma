@@ -16,7 +16,7 @@ import {
   lerMedidas,
   medir,
   type Medida,
-  OuroRecusado,
+  GoldenRejectedError,
   POLITICAS,
   type Politica,
   quedasDaBase,
@@ -92,7 +92,7 @@ function recusa(funcao: () => unknown): boolean {
     funcao()
     return false
   } catch (erro) {
-    if (erro instanceof ZodError || erro instanceof OuroRecusado) return true
+    if (erro instanceof ZodError || erro instanceof GoldenRejectedError) return true
     throw erro
   }
 }
@@ -399,7 +399,7 @@ describe('o leitor do ouro', () => {
 
     it('lerMedidas lê a lista de tarefas três pastas acima do ouro', () => {
       expect(() => lerMedidas(repositorioFabricado('- [ ] **3.0 — C**'))).not.toThrow()
-      expect(() => lerMedidas(repositorioFabricado('- [x] **3.0 — C**'))).toThrow(OuroRecusado)
+      expect(() => lerMedidas(repositorioFabricado('- [x] **3.0 — C**'))).toThrow(GoldenRejectedError)
     })
   })
 

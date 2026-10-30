@@ -1,4 +1,4 @@
-import { IdPipe, Permite, ZodValidationPipe } from '@educa/nucleo'
+import { IdPipe, RequirePermissao, ZodValidationPipe } from '@educa/nucleo'
 import {
   entregasQuerySchema,
   decidirEntregaRequestSchema,
@@ -21,14 +21,14 @@ export class EntregaController {
   constructor(private readonly entregas: EntregaService) {}
 
   @Get()
-  @Permite('entrega', 'listar')
+  @RequirePermissao('entrega', 'listar')
   @Header('Cache-Control', 'no-store')
   listar(@Query(new ZodValidationPipe(entregasQuerySchema)) consulta: EntregasQuery): Promise<ListaDeEntregasResponse> {
     return this.entregas.listar(consulta)
   }
 
   @Post(':id/decidir')
-  @Permite('entrega', 'decidir')
+  @RequirePermissao('entrega', 'decidir')
   @HttpCode(HttpStatus.OK)
   decidir(@Param('id', IdPipe) id: string, @Body(new ZodValidationPipe(decidirEntregaRequestSchema)) pedido: DecidirEntregaRequest): Promise<EntregaResponse> {
     return this.entregas.decidir(id, pedido)

@@ -1,4 +1,4 @@
-import { ErroDeDominio, METRICAS, ROTULO_ESCOLA, type Meter } from '@educa/nucleo'
+import { DomainException, METRICS, ROTULO_ESCOLA, type Meter } from '@educa/nucleo'
 import { ErrorCode } from '@educa/shared'
 import type { ContadorDeTentativas, Reserva } from '../contador-de-tentativas.js'
 import type { HashDeSenha } from '../hash-de-senha.js'
@@ -50,8 +50,8 @@ export class ConferenciaNaVez {
   readonly #falhas: ReturnType<Meter['createCounter']>
 
   constructor(private readonly dependencias: DependenciasDaConferencia) {
-    this.#contaSegurada = dependencias.medidor.createCounter(METRICAS.contaSegurada, { description: 'Tentativas de login respondidas com CONTA_SEGURADA' })
-    this.#falhas = dependencias.medidor.createCounter(METRICAS.falhasDeLogin, { description: 'Logins por e-mail ou matrícula que falharam, por escola do endereço, equipe ou desconhecida' })
+    this.#contaSegurada = dependencias.medidor.createCounter(METRICS.contaSegurada, { description: 'Tentativas de login respondidas com CONTA_SEGURADA' })
+    this.#falhas = dependencias.medidor.createCounter(METRICS.falhasDeLogin, { description: 'Logins por e-mail ou matrícula que falharam, por escola do endereço, equipe ou desconhecida' })
   }
 
   /** Espera a vez, reserva a tentativa, lê a credencial e confere a senha. Conta segurada sai daqui com o 429. */
@@ -75,8 +75,8 @@ export class ConferenciaNaVez {
   async #falhar(tentativa: FalhaDaTentativa, esperaMs: number): Promise<never> {
     this.#falhas.add(1, { [ROTULO_ESCOLA]: tentativa.balde.rotulo })
     await tentativa.aoFalhar?.()
-    if (esperaMs <= 0) throw new ErroDeDominio(ErrorCode.NAO_AUTENTICADO)
+    if (esperaMs <= 0) throw new DomainException(ErrorCode.NAO_AUTENTICADO)
     this.#contaSegurada.add(1)
-    throw new ErroDeDominio(ErrorCode.CONTA_SEGURADA, undefined, Math.max(1, Math.ceil(esperaMs / 1_000)))
+    throw new DomainException(ErrorCode.CONTA_SEGURADA, undefined, Math.max(1, Math.ceil(esperaMs / 1_000)))
   }
 }

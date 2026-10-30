@@ -1,18 +1,18 @@
 import {
-  ConfiguracaoInvalida,
-  lerConfiguracaoBanco,
-  lerConfiguracaoDeIa,
-  lerConfiguracaoDrenagem,
-  lerConfiguracaoIdentidade,
-  lerConfiguracaoLimite,
-  lerConfiguracaoTelemetria,
-  validarAmbiente,
-  type ConfiguracaoBanco,
-  type ConfiguracaoDeIa,
-  type ConfiguracaoDrenagem,
-  type ConfiguracaoIdentidade,
-  type ConfiguracaoLimite,
-  type ConfiguracaoTelemetria,
+  InvalidConfigError,
+  loadDatabaseConfig,
+  loadLLMConfig,
+  loadGracefulShutdownConfig,
+  loadAuthConfig,
+  loadRateLimitConfig,
+  loadTelemetryConfig,
+  validateEnvironment,
+  type DatabaseConfig,
+  type LLMConfig,
+  type GracefulShutdownConfig,
+  type AuthConfig,
+  type RateLimitConfig,
+  type TelemetryConfig,
 } from '@educa/nucleo'
 import { avisoSchema, MAXIMO_DE_AVISOS, type Aviso } from '@educa/shared'
 import { z } from 'zod'
@@ -20,7 +20,7 @@ import { lerConfiguracaoDoArmazem, type ConfiguracaoDoArmazemDaApi } from './pri
 import { lerConfiguracaoSala, type ConfiguracaoSala } from './sala/configuracao-da-sala.js'
 import { type ConfiguracaoLogin, type ConfiguracaoLoginExterno, lerConfiguracaoLogin, lerConfiguracaoLoginExterno } from './credencial/index.js'
 
-export { ConfiguracaoInvalida }
+export { InvalidConfigError }
 
 const inteiroPositivo = z.coerce.number().int().positive()
 
@@ -78,24 +78,24 @@ export interface ConfiguracaoApi {
   avisos: readonly Aviso[]
   /** Redis de fila, onde a API marca o uso de cada escola sem esperar resposta. */
   redisFilaUrl: string
-  banco: ConfiguracaoBanco
-  identidade: ConfiguracaoIdentidade
+  banco: DatabaseConfig
+  identidade: AuthConfig
   /** Hash de senha, chave do contador de tentativas e chave do cookie de dispositivo do login por e-mail. */
   login: ConfiguracaoLogin
   /** O login pela conta Google ou Microsoft da escola: provedores ligados, retorno e chave do cookie `educa_oidc`. */
   loginExterno: ConfiguracaoLoginExterno
   /** A chave do HMAC do código da turma (A1, 4.0), separada das do login. */
   sala: ConfiguracaoSala
-  drenagem: ConfiguracaoDrenagem
-  limite: ConfiguracaoLimite
+  drenagem: GracefulShutdownConfig
+  limite: RateLimitConfig
   /** Para onde e de quanto em quanto tempo as métricas vão. */
-  telemetria: ConfiguracaoTelemetria
+  telemetria: TelemetryConfig
   /**
    * A camada de IA: o adaptador (o falso, sem nenhuma variável), o modelo de cada perfil, o prazo da chamada e as vagas
    * e o prazo das execuções em segundo plano. Nenhuma variável dela é obrigatória fora de produção, onde o adaptador
    * falso é recusado.
    */
-  ia: ConfiguracaoDeIa
+  ia: LLMConfig
   /**
    * O storage privado do arquivo do titular (F3, tarefa 13.0): a API confere que o objeto existe e assina a URL de
    * download de 5 minutos. O worker grava e apaga; a API só assina e confere.
@@ -104,11 +104,11 @@ export interface ConfiguracaoApi {
 }
 
 /** Executa a leitura e devolve o erro de configuração em vez de lançar, para somar os problemas. */
-function tentar<T>(ler: () => T): { valor: T } | { erro: ConfiguracaoInvalida } {
+function tentar<T>(ler: () => T): { valor: T } | { erro: InvalidConfigError } {
   try {
     return { valor: ler() }
   } catch (erro) {
-    if (erro instanceof ConfiguracaoInvalida) return { erro }
+    if (erro instanceof InvalidConfigError) return { erro }
     throw erro
   }
 }
@@ -118,20 +118,20 @@ function tentar<T>(ler: () => T): { valor: T } | { erro: ConfiguracaoInvalida } 
  * token sintético ligado em produção. Todos os problemas saem de uma vez, só pelo nome.
  */
 export function lerConfiguracao(ambiente: Record<string, string | undefined>): ConfiguracaoApi {
-  const api = tentar(() => validarAmbiente(esquemaAmbiente, ambiente))
-  const banco = tentar(() => lerConfiguracaoBanco(ambiente))
-  const identidade = tentar(() => lerConfiguracaoIdentidade(ambiente))
+  const api = tentar(() => validateEnvironment(esquemaAmbiente, ambiente))
+  const banco = tentar(() => loadDatabaseConfig(ambiente))
+  const identidade = tentar(() => loadAuthConfig(ambiente))
   const login = tentar(() => lerConfiguracaoLogin(ambiente))
   const loginExterno = tentar(() => lerConfiguracaoLoginExterno(ambiente))
   const sala = tentar(() => lerConfiguracaoSala(ambiente))
-  const drenagem = tentar(() => lerConfiguracaoDrenagem(ambiente))
-  const limite = tentar(() => lerConfiguracaoLimite(ambiente))
-  const telemetria = tentar(() => lerConfiguracaoTelemetria(ambiente))
-  const ia = tentar(() => lerConfiguracaoDeIa(ambiente))
+  const drenagem = tentar(() => loadGracefulShutdownConfig(ambiente))
+  const limite = tentar(() => loadRateLimitConfig(ambiente))
+  const telemetria = tentar(() => loadTelemetryConfig(ambiente))
+  const ia = tentar(() => loadLLMConfig(ambiente))
   const armazem = tentar(() => lerConfiguracaoDoArmazem(ambiente))
   if ('erro' in api || 'erro' in banco || 'erro' in identidade || 'erro' in login || 'erro' in loginExterno || 'erro' in sala || 'erro' in drenagem || 'erro' in limite || 'erro' in telemetria || 'erro' in ia || 'erro' in armazem) {
     const erros = [api, banco, identidade, login, loginExterno, sala, drenagem, limite, telemetria, ia, armazem].flatMap((leitura) => ('erro' in leitura ? [leitura.erro] : []))
-    throw new ConfiguracaoInvalida(
+    throw new InvalidConfigError(
       // Sem repetir: o `AMBIENTE` é validado pela identidade e de novo pela IA, que o lê para a trava de produção.
       [...new Set(erros.flatMap((erro) => erro.variaveis))].sort(),
       erros.flatMap((erro) => erro.motivos),

@@ -1,0 +1,4705 @@
+{
+  "entradas": [
+    {
+      "tipo": "simbolo",
+      "de": "AdaptadorDeIa",
+      "para": "LLMAdapterKind",
+      "arquivo": "packages/nucleo/src/config/config-ia.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:49"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ConfiguracaoDeIa",
+      "para": "LLMConfig",
+      "arquivo": "packages/nucleo/src/config/config-ia.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:50"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ConfiguracaoDoExecutor",
+      "para": "AgenteExecutorConfig",
+      "arquivo": "packages/nucleo/src/config/config-ia.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:51"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ConfiguracaoDoModelo",
+      "para": "ModelConfig",
+      "arquivo": "packages/nucleo/src/config/config-ia.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:52"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaAmbienteDeIa",
+      "para": "llmEnvSchema",
+      "arquivo": "packages/nucleo/src/config/config-ia.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:53"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "lerConfiguracaoDeIa",
+      "para": "loadLLMConfig",
+      "arquivo": "packages/nucleo/src/config/config-ia.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:54"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "AdaptadorFalso",
+      "para": "FakeAdapter",
+      "arquivo": "packages/nucleo/src/ia/adaptador-falso.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:55"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "OpcoesDoAdaptadorFalso",
+      "para": "FakeAdapterOptions",
+      "arquivo": "packages/nucleo/src/ia/adaptador-falso.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:56"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "AdaptadorOpenAICompat",
+      "para": "OpenAICompatAdapter",
+      "arquivo": "packages/nucleo/src/ia/adaptador-openai-compat.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:57"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "MensagemDoChat",
+      "para": "ChatMessage",
+      "arquivo": "packages/nucleo/src/ia/adaptador-openai-compat.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:58"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "AdaptadorResiliente",
+      "para": "ResilientAdapter",
+      "arquivo": "packages/nucleo/src/ia/adaptador-resiliente.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:59"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PoliticaDeResiliencia",
+      "para": "ResiliencePolicy",
+      "arquivo": "packages/nucleo/src/ia/adaptador-resiliente.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:60"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "AdaptadorDeModelo",
+      "para": "ModelAdapter",
+      "arquivo": "packages/nucleo/src/ia/adaptador.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:61"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ChamadaAoModelo",
+      "para": "ModelCall",
+      "arquivo": "packages/nucleo/src/ia/adaptador.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:62"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "CorrecaoPedida",
+      "para": "RepairHint",
+      "arquivo": "packages/nucleo/src/ia/adaptador.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:63"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaDoModelo",
+      "para": "ModelResponse",
+      "arquivo": "packages/nucleo/src/ia/adaptador.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:64"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "CodigoDeOrcamento",
+      "para": "OrcamentoCode",
+      "arquivo": "packages/nucleo/src/ia/consumo.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:65"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ConsultaDeOrcamento",
+      "para": "OrcamentoQuery",
+      "arquivo": "packages/nucleo/src/ia/consumo.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:66"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ConsumoEmMemoria",
+      "para": "InMemoryConsumo",
+      "arquivo": "packages/nucleo/src/ia/consumo.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:67"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "DecisaoDoOrcamento",
+      "para": "OrcamentoDecision",
+      "arquivo": "packages/nucleo/src/ia/consumo.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:68"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "LimitesDoOrcamentoEmMemoria",
+      "para": "InMemoryOrcamentoLimits",
+      "arquivo": "packages/nucleo/src/ia/consumo.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:69"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "OrcamentoEmMemoria",
+      "para": "InMemoryOrcamento",
+      "arquivo": "packages/nucleo/src/ia/consumo.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:70"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RegistroEmMemoria",
+      "para": "InMemoryRecord",
+      "arquivo": "packages/nucleo/src/ia/consumo.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:71"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "CODIGOS_DE_ERRO_DE_IA",
+      "para": "LLM_ERROR_CODES",
+      "arquivo": "packages/nucleo/src/ia/erros.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:72"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "CodigoDeErroDeIa",
+      "para": "LLMErrorCode",
+      "arquivo": "packages/nucleo/src/ia/erros.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:73"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ErroDeIa",
+      "para": "LLMError",
+      "arquivo": "packages/nucleo/src/ia/erros.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:74"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ErroDoProvedor",
+      "para": "ProviderError",
+      "arquivo": "packages/nucleo/src/ia/erros.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:75"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "FalhaDoProvedor",
+      "para": "ProviderFailure",
+      "arquivo": "packages/nucleo/src/ia/erros.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:76"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "DependenciasDoExecutor",
+      "para": "AgenteExecutorDependencies",
+      "arquivo": "packages/nucleo/src/ia/executor.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:77"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ExecucoesEmMemoria",
+      "para": "InMemoryExecucoes",
+      "arquivo": "packages/nucleo/src/ia/executor.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:78"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ExecutorDeAgente",
+      "para": "AgenteExecutor",
+      "arquivo": "packages/nucleo/src/ia/executor.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:79"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ExecutorNoProcesso",
+      "para": "InProcessAgenteExecutor",
+      "arquivo": "packages/nucleo/src/ia/executor.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:81"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RepositorioDeExecucoes",
+      "para": "ExecucaoRepository",
+      "arquivo": "packages/nucleo/src/ia/executor.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:82",
+      "alias": "ExecucaoRepositoryPort"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "MedicaoDaGeracao",
+      "para": "GenerationMeasurement",
+      "arquivo": "packages/nucleo/src/ia/porta.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:83"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "OrigemDaSaida",
+      "para": "OutputSource",
+      "arquivo": "packages/nucleo/src/ia/porta.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:84"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PedidoDeGeracao",
+      "para": "GenerationRequest",
+      "arquivo": "packages/nucleo/src/ia/porta.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:85"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ResultadoDaGeracao",
+      "para": "GenerationResult",
+      "arquivo": "packages/nucleo/src/ia/porta.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:86"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "DependenciasDoProvedor",
+      "para": "LLMGatewayDependencies",
+      "arquivo": "packages/nucleo/src/ia/provedor.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:87"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PortasDoProvedor",
+      "para": "LLMGatewayPorts",
+      "arquivo": "packages/nucleo/src/ia/provedor.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:88"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ProvedorDeIa",
+      "para": "LLMGateway",
+      "arquivo": "packages/nucleo/src/ia/provedor.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:89"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RegistradorDeIa",
+      "para": "LLMLogger",
+      "arquivo": "packages/nucleo/src/ia/provedor.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:90"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "criarProvedorDeIa",
+      "para": "createLLMGateway",
+      "arquivo": "packages/nucleo/src/ia/provedor.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:91"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "SuspensoesEmMemoria",
+      "para": "InMemorySuspensoes",
+      "arquivo": "packages/nucleo/src/ia/suspensao.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:92"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "Dado",
+      "para": "PromptData",
+      "arquivo": "packages/nucleo/src/ia/tarefa.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:93"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "DefinicaoDeTarefa",
+      "para": "TaskDefinition",
+      "arquivo": "packages/nucleo/src/ia/tarefa.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:94"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "MaterialSemConteudoAproveitavel",
+      "para": "MaterialSemConteudoAproveitavelError",
+      "arquivo": "packages/nucleo/src/ia/tarefa.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:95"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PedidoAoModelo",
+      "para": "ModelRequest",
+      "arquivo": "packages/nucleo/src/ia/tarefa.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:96"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PromptVersionado",
+      "para": "VersionedPrompt",
+      "arquivo": "packages/nucleo/src/ia/tarefa.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:97"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "definirTarefa",
+      "para": "defineTask",
+      "arquivo": "packages/nucleo/src/ia/tarefa.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:98"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "CATALOGO_DE_TAREFAS",
+      "para": "TASK_CATALOG",
+      "arquivo": "packages/nucleo/src/ia/tarefas/index.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:99"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "AdaptadorRoteirizado",
+      "para": "ScriptedAdapter",
+      "arquivo": "packages/nucleo/src/ia/__fixtures__/adaptador-roteirizado.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:107"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "AmostraDaRevisao",
+      "para": "ReviewSample",
+      "arquivo": "packages/nucleo/src/ia/__fixtures__/amostras-do-assistente-revisao.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:108"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "AmostraDoAssistente",
+      "para": "AssistenteSample",
+      "arquivo": "packages/nucleo/src/ia/__fixtures__/amostras-do-assistente.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:109"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "AmostraDePedido",
+      "para": "RequestSample",
+      "arquivo": "packages/nucleo/src/ia/__fixtures__/amostras-do-tutor.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:110"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "AmostraDeSaida",
+      "para": "OutputSample",
+      "arquivo": "packages/nucleo/src/ia/__fixtures__/amostras-do-tutor.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:111"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "comContextoDaEscolaDoPedido",
+      "para": "withEscolaContextOfRequest",
+      "arquivo": "packages/nucleo/src/ia/__fixtures__/contexto-da-escola.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:112"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "OuroRecusado",
+      "para": "GoldenRejectedError",
+      "arquivo": "packages/nucleo/src/ia/__fixtures__/ouro.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:113"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PedidoRecebido",
+      "para": "ReceivedRequest",
+      "arquivo": "packages/nucleo/src/ia/__fixtures__/servidor-llama-falso.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:114"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaRoteirizada",
+      "para": "ScriptedResponse",
+      "arquivo": "packages/nucleo/src/ia/__fixtures__/servidor-llama-falso.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:115"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ServidorLlamaFalso",
+      "para": "FakeLlamaServer",
+      "arquivo": "packages/nucleo/src/ia/__fixtures__/servidor-llama-falso.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:116"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "respostaDoChat",
+      "para": "chatResponse",
+      "arquivo": "packages/nucleo/src/ia/__fixtures__/servidor-llama-falso.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:117"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "subirServidorLlamaFalso",
+      "para": "startFakeLlamaServer",
+      "arquivo": "packages/nucleo/src/ia/__fixtures__/servidor-llama-falso.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:118"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "CursorDaReconciliacao",
+      "para": "SweepCursor",
+      "arquivo": "packages/nucleo/src/fila/despacho.repository.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:126"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "DespachoRepository",
+      "para": "DispatchRepository",
+      "arquivo": "packages/nucleo/src/fila/despacho.repository.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:127"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "EscolaComPendentes",
+      "para": "EscolaWithPendingJobs",
+      "arquivo": "packages/nucleo/src/fila/despacho.repository.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:128"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "JobParaReconciliar",
+      "para": "JobToSweep",
+      "arquivo": "packages/nucleo/src/fila/despacho.repository.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:129"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "JobReservado",
+      "para": "ReservedJob",
+      "arquivo": "packages/nucleo/src/fila/despacho.repository.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:130"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "MedicaoDeFalhos",
+      "para": "FailedJobsMeasurement",
+      "arquivo": "packages/nucleo/src/fila/despacho.repository.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:131"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "MedicaoDePendentes",
+      "para": "PendingJobsMeasurement",
+      "arquivo": "packages/nucleo/src/fila/despacho.repository.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:132"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "EfeitoDaExecucao",
+      "para": "SyntheticEffect",
+      "arquivo": "packages/nucleo/src/fila/efeito-sintetico.repository.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:133"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "EfeitoSinteticoRepository",
+      "para": "SyntheticEffectRepository",
+      "arquivo": "packages/nucleo/src/fila/efeito-sintetico.repository.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:134"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "TABELA_DO_EFEITO_SINTETICO",
+      "para": "SYNTHETIC_EFFECT_TABLE",
+      "arquivo": "packages/nucleo/src/fila/efeito-sintetico.repository.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:135"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "Enfileirador",
+      "para": "JobOutbox",
+      "arquivo": "packages/nucleo/src/fila/enfileirador.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:136"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PRIORIDADE_DA_FILA",
+      "para": "QUEUE_PRIORITY",
+      "arquivo": "packages/nucleo/src/fila/enfileirador.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:137"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "FILAS_POR_PRIORIDADE",
+      "para": "QUEUES_BY_PRIORITY",
+      "arquivo": "packages/nucleo/src/fila/filas.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:138"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "OPCOES_DO_POOL_POR_FILA",
+      "para": "WORKER_POOL_OPTIONS_BY_QUEUE",
+      "arquivo": "packages/nucleo/src/fila/filas.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:139"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "OpcoesDoPool",
+      "para": "WorkerPoolOptions",
+      "arquivo": "packages/nucleo/src/fila/filas.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:140"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "nomeDaFilaBullMQ",
+      "para": "bullmqQueueName",
+      "arquivo": "packages/nucleo/src/fila/filas.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:141"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "EstadoRegistrado",
+      "para": "RegisteredJobState",
+      "arquivo": "packages/nucleo/src/fila/job-registro.repository.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:142"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "JobParaExecutar",
+      "para": "JobToRun",
+      "arquivo": "packages/nucleo/src/fila/job-registro.repository.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:143"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "JobRegistroRepository",
+      "para": "JobOutboxRepository",
+      "arquivo": "packages/nucleo/src/fila/job-registro.repository.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:144"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "LinhaNova",
+      "para": "NewJobRow",
+      "arquivo": "packages/nucleo/src/fila/job-registro.repository.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:145"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ResultadoDaChave",
+      "para": "IdempotencyKeyResult",
+      "arquivo": "packages/nucleo/src/fila/job-registro.repository.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:146"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ResultadoDoInicio",
+      "para": "JobStartResult",
+      "arquivo": "packages/nucleo/src/fila/job-registro.repository.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:147"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "escopoDoJobNoContexto",
+      "para": "jobScopeInContext",
+      "arquivo": "packages/nucleo/src/fila/job-registro.repository.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:148"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "OuvinteDeJobs",
+      "para": "JobNotificationListener",
+      "arquivo": "packages/nucleo/src/fila/ouvinte-de-jobs.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:149"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "MotivoDaRecusaDoJob",
+      "para": "JobRejectionReason",
+      "arquivo": "packages/nucleo/src/fila/pedido-de-job-recusado.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:150"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PedidoDeJobRecusado",
+      "para": "JobRequestRejectedError",
+      "arquivo": "packages/nucleo/src/fila/pedido-de-job-recusado.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:151"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "DadosDoJobNaFila",
+      "para": "QueuedJobData",
+      "arquivo": "packages/nucleo/src/fila/publicacao.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:152"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "OpcoesDeJobPublicado",
+      "para": "PublishedJobOptions",
+      "arquivo": "packages/nucleo/src/fila/publicacao.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:153"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaDadosDoJobNaFila",
+      "para": "queuedJobDataSchema",
+      "arquivo": "packages/nucleo/src/fila/publicacao.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:154"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "executorDoJob",
+      "para": "jobExecutor",
+      "arquivo": "packages/nucleo/src/fila/publicacao.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:155"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "opcoesDeJob",
+      "para": "jobOptions",
+      "arquivo": "packages/nucleo/src/fila/publicacao.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:156"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "VagasPorEscola",
+      "para": "EscolaConcurrencyLimiter",
+      "arquivo": "packages/nucleo/src/fila/vagas-por-escola.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:157"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "MapaDeAuditoriaInvalido",
+      "para": "InvalidAuditoriaMapError",
+      "arquivo": "packages/nucleo/src/auditoria/acoes.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:191"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "AuditoriaRecusada",
+      "para": "AuditoriaRejectedError",
+      "arquivo": "packages/nucleo/src/auditoria/auditoria-recusada.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:192"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "MotivoDeRecusaDaAuditoria",
+      "para": "AuditoriaRejectionReason",
+      "arquivo": "packages/nucleo/src/auditoria/auditoria-recusada.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:193"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RegistroDeAuditoria",
+      "para": "AuditoriaRecorder",
+      "arquivo": "packages/nucleo/src/auditoria/registro-de-auditoria.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:194"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ConfiguracaoInvalida",
+      "para": "InvalidConfigError",
+      "arquivo": "packages/nucleo/src/config/validar-config.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:195"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "MigracaoFalhou",
+      "para": "MigrationFailedError",
+      "arquivo": "packages/nucleo/src/db/migrar.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:196"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ErroDeDominio",
+      "para": "DomainException",
+      "arquivo": "packages/nucleo/src/erro/erro-de-dominio.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:197"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "STATUS_HTTP_DO_CODIGO",
+      "para": "HTTP_STATUS_BY_CODE",
+      "arquivo": "packages/nucleo/src/erro/erro-de-dominio.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:198"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "TENTE_DE_NOVO_PADRAO_SEGUNDOS",
+      "para": "DEFAULT_RETRY_AFTER_SECONDS",
+      "arquivo": "packages/nucleo/src/erro/erro-de-dominio.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:199"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "FiltroGlobalDeErro",
+      "para": "AllExceptionsFilter",
+      "arquivo": "packages/nucleo/src/erro/filtro-global.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:200"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "mapearErroPostgres",
+      "para": "mapPostgresError",
+      "arquivo": "packages/nucleo/src/erro/mapear-erro-postgres.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:201"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ErroDoPostgres",
+      "para": "PostgresError",
+      "arquivo": "packages/nucleo/src/erro/resumir-erro.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:202"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ResumoDeErro",
+      "para": "ErrorSummary",
+      "arquivo": "packages/nucleo/src/erro/resumir-erro.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:203"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ehErroDoPostgres",
+      "para": "isPostgresError",
+      "arquivo": "packages/nucleo/src/erro/resumir-erro.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:204"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "erroDoPostgresEm",
+      "para": "postgresErrorIn",
+      "arquivo": "packages/nucleo/src/erro/resumir-erro.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:205"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "resumirErro",
+      "para": "summarizeError",
+      "arquivo": "packages/nucleo/src/erro/resumir-erro.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:206"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RotasSemPermissao",
+      "para": "RoutesWithoutPermissaoError",
+      "arquivo": "packages/nucleo/src/permissao/conferencia-das-permissoes.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:207"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ArmazemIndisponivel",
+      "para": "FileStorageUnavailableError",
+      "arquivo": "packages/nucleo/src/titular/armazem-de-arquivos.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:208"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ExecutorDeAuditoria",
+      "para": "DatabaseExecutor",
+      "arquivo": "packages/nucleo/src/auditoria/auditoria.repository.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:219"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "LinhaNovaDeAuditoria",
+      "para": "AuditoriaInsertRow",
+      "arquivo": "packages/nucleo/src/auditoria/insercao-de-auditoria.repository.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:220"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "inserirAuditoria",
+      "para": "insertAuditoria",
+      "arquivo": "packages/nucleo/src/auditoria/insercao-de-auditoria.repository.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:221"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "LinhaOperacional",
+      "para": "OperationalSettingsRow",
+      "arquivo": "packages/nucleo/src/configuracao/configuracao-operacional.repository.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:222"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "Banco",
+      "para": "Database",
+      "arquivo": "packages/nucleo/src/db/banco.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:223"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "TransacaoBanco",
+      "para": "DatabaseTransaction",
+      "arquivo": "packages/nucleo/src/db/banco.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:224"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "criarBanco",
+      "para": "createDatabase",
+      "arquivo": "packages/nucleo/src/db/banco.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:225"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "lerConfiguracaoBanco",
+      "para": "loadDatabaseConfig",
+      "arquivo": "packages/nucleo/src/db/banco.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:226"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ConfiguracaoMigracao",
+      "para": "MigrationConfig",
+      "arquivo": "packages/nucleo/src/db/migrar.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:227"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "migrar",
+      "para": "migrate",
+      "arquivo": "packages/nucleo/src/db/migrar.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:228"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ConfiguracaoBanco",
+      "para": "DatabaseConfig",
+      "arquivo": "packages/nucleo/src/db/pool.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:229"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PoolBanco",
+      "para": "DatabasePool",
+      "arquivo": "packages/nucleo/src/db/pool.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:230"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "bancoResponde",
+      "para": "pingDatabase",
+      "arquivo": "packages/nucleo/src/db/pool.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:231"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "criarPool",
+      "para": "createPool",
+      "arquivo": "packages/nucleo/src/db/pool.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:232"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ehErroDeConexao",
+      "para": "isConnectionError",
+      "arquivo": "packages/nucleo/src/db/pool.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:233"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "tabelasDoMvp",
+      "para": "mvpTables",
+      "arquivo": "packages/nucleo/src/db/schema/mvp/tabelas.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:234"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "SemEscopo",
+      "para": "Unscoped",
+      "arquivo": "packages/nucleo/src/db/sem-escopo.decorator.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:235"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "justificativaSemEscopo",
+      "para": "unscopedJustification",
+      "arquivo": "packages/nucleo/src/db/sem-escopo.decorator.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:236"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "LinhaDaSessao",
+      "para": "SessaoRow",
+      "arquivo": "packages/nucleo/src/identidade/sessao.repository.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:237"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "instrucaoDasPessoasDesativadas",
+      "para": "expurgoDeactivatedPeopleStatement",
+      "arquivo": "packages/nucleo/src/retencao/expurgo-da-escola.repository.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:238"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "instrucaoDoLoteDaEscola",
+      "para": "expurgoSchoolBatchStatement",
+      "arquivo": "packages/nucleo/src/retencao/expurgo-da-escola.repository.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:239"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "instrucaoDoRegistroDoExpurgo",
+      "para": "expurgoRecordStatement",
+      "arquivo": "packages/nucleo/src/retencao/expurgo-da-escola.repository.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:240"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "instrucaoDoLoteDeAcesso",
+      "para": "expurgoAccessBatchStatement",
+      "arquivo": "packages/nucleo/src/retencao/expurgo-de-acesso.repository.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:241"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "instrucaoDoLoteVencido",
+      "para": "expurgoExpiredBatchStatement",
+      "arquivo": "packages/nucleo/src/retencao/expurgo-de-jobs.repository.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:242"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "instrucaoDoRastroDoAluno",
+      "para": "alunoTrailStatement",
+      "arquivo": "packages/nucleo/src/titular/compartilhamento.repository.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:243"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "LinhasDaTabela",
+      "para": "TableRows",
+      "arquivo": "packages/nucleo/src/titular/leitura-do-titular.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:244"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "colunasDoSelect",
+      "para": "selectColumns",
+      "arquivo": "packages/nucleo/src/titular/leitura-do-titular.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:245"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "exigirAnoEmCurso",
+      "para": "requireAnoEmCurso",
+      "arquivo": "packages/nucleo/src/contexto/ano-em-curso.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:253"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "CABECALHO_REQUISICAO_ID",
+      "para": "REQUEST_ID_HEADER",
+      "arquivo": "packages/nucleo/src/contexto/contexto.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:254"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ContextoDaRequisicao",
+      "para": "RequestContext",
+      "arquivo": "packages/nucleo/src/contexto/contexto.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:255"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "SessaoDaRequisicao",
+      "para": "RequestSessao",
+      "arquivo": "packages/nucleo/src/contexto/contexto.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:256"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "contextoAtual",
+      "para": "currentContext",
+      "arquivo": "packages/nucleo/src/contexto/contexto.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:257"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "definirOperadorNoContexto",
+      "para": "setContextOperador",
+      "arquivo": "packages/nucleo/src/contexto/contexto.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:258"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "definirSessaoNoContexto",
+      "para": "setContextSessao",
+      "arquivo": "packages/nucleo/src/contexto/contexto.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:259"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "executarNoContexto",
+      "para": "runInContext",
+      "arquivo": "packages/nucleo/src/contexto/contexto.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:260"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "exigirOperadorDoContexto",
+      "para": "requireContextOperador",
+      "arquivo": "packages/nucleo/src/contexto/contexto.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:261"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "middlewareDeContexto",
+      "para": "contextMiddleware",
+      "arquivo": "packages/nucleo/src/contexto/contexto.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:262"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "resolverRequisicaoId",
+      "para": "resolveRequestId",
+      "arquivo": "packages/nucleo/src/contexto/contexto.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:263"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "exigirEscolaDoContexto",
+      "para": "requireEscolaId",
+      "arquivo": "packages/nucleo/src/contexto/escola-do-contexto.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:264"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "EmissorDeToken",
+      "para": "TokenIssuer",
+      "arquivo": "packages/nucleo/src/identidade/emissor-de-token.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:272"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "EmissorDeTokenDeOperador",
+      "para": "OperadorTokenIssuer",
+      "arquivo": "packages/nucleo/src/identidade/emissor-de-token.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:273"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PedidoDeTokenDeAcesso",
+      "para": "AccessTokenRequest",
+      "arquivo": "packages/nucleo/src/identidade/emissor-de-token.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:274"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PedidoDeTokenDeOperador",
+      "para": "OperadorTokenRequest",
+      "arquivo": "packages/nucleo/src/identidade/emissor-de-token.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:275"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "TokenDeAcesso",
+      "para": "AccessToken",
+      "arquivo": "packages/nucleo/src/identidade/emissor-de-token.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:276"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "GuardaDeAutenticacao",
+      "para": "AuthGuard",
+      "arquivo": "packages/nucleo/src/identidade/guarda-autenticacao.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:277"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "identidadeDaRequisicao",
+      "para": "requestIdentity",
+      "arquivo": "packages/nucleo/src/identidade/guarda-autenticacao.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:278"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "sessaoDaRequisicao",
+      "para": "requestSessao",
+      "arquivo": "packages/nucleo/src/identidade/guarda-autenticacao.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:279"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "GuardaDeSessao",
+      "para": "SessaoGuard",
+      "arquivo": "packages/nucleo/src/identidade/guarda-sessao.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:280"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "LeituraDeSessao",
+      "para": "SessaoReader",
+      "arquivo": "packages/nucleo/src/identidade/guarda-sessao.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:281"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "METADADO_ENTRADA_DE_OPERACAO",
+      "para": "OPERACAO_ENTRY_KEY",
+      "arquivo": "packages/nucleo/src/identidade/marcadores-de-operacao.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:282"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "METADADO_ROTA_DE_OPERACAO",
+      "para": "OPERACAO_ROUTE_KEY",
+      "arquivo": "packages/nucleo/src/identidade/marcadores-de-operacao.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:283"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "MarcadorDeOperacao",
+      "para": "OperacaoMarker",
+      "arquivo": "packages/nucleo/src/identidade/marcadores-de-operacao.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:284"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "marcadorDeOperacao",
+      "para": "operacaoMarker",
+      "arquivo": "packages/nucleo/src/identidade/marcadores-de-operacao.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:285"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "bearerDeDesafio",
+      "para": "isChallengeBearer",
+      "arquivo": "packages/nucleo/src/identidade/rota-sem-sessao.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:286"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "rotaSemSessao",
+      "para": "isRouteWithoutSessao",
+      "arquivo": "packages/nucleo/src/identidade/rota-sem-sessao.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:287"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "guardarTokenDaRequisicao",
+      "para": "storeRequestToken",
+      "arquivo": "packages/nucleo/src/identidade/token-da-requisicao.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:288"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "tokenDaRequisicao",
+      "para": "requestToken",
+      "arquivo": "packages/nucleo/src/identidade/token-da-requisicao.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:289"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "Identidade",
+      "para": "Identity",
+      "arquivo": "packages/nucleo/src/identidade/verificar-token.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:290"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "TokenDeOperadorVerificado",
+      "para": "VerifiedOperadorToken",
+      "arquivo": "packages/nucleo/src/identidade/verificar-token.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:291"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "TokenVerificado",
+      "para": "VerifiedToken",
+      "arquivo": "packages/nucleo/src/identidade/verificar-token.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:292"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "bearerDeOperador",
+      "para": "operadorBearer",
+      "arquivo": "packages/nucleo/src/identidade/verificar-token.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:293"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "cookieDeOperador",
+      "para": "operadorCookie",
+      "arquivo": "packages/nucleo/src/identidade/verificar-token.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:294"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "extrairTokenBearer",
+      "para": "extractBearerToken",
+      "arquivo": "packages/nucleo/src/identidade/verificar-token.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:295"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "verificarToken",
+      "para": "verifyToken",
+      "arquivo": "packages/nucleo/src/identidade/verificar-token.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:296"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "verificarTokenDeOperador",
+      "para": "verifyOperadorToken",
+      "arquivo": "packages/nucleo/src/identidade/verificar-token.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:297"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "LimiteDaBuscaDeTitulares",
+      "para": "TitularSearchRateLimit",
+      "arquivo": "packages/nucleo/src/limite/limite-da-busca-de-titulares.decorator.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:298"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "METADADO_LIMITE_DA_BUSCA_DE_TITULARES",
+      "para": "TITULAR_SEARCH_RATE_LIMIT_KEY",
+      "arquivo": "packages/nucleo/src/limite/limite-da-busca-de-titulares.decorator.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:299"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "AceitaDesafio",
+      "para": "AcceptsChallenge",
+      "arquivo": "packages/nucleo/src/limite/rota-anonima.decorator.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:300"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "LimiteQueRebaixa",
+      "para": "DowngradeRateLimit",
+      "arquivo": "packages/nucleo/src/limite/rota-anonima.decorator.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:301"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "METADADO_ACEITA_DESAFIO",
+      "para": "ACCEPTS_CHALLENGE_KEY",
+      "arquivo": "packages/nucleo/src/limite/rota-anonima.decorator.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:302"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "METADADO_LIMITE_QUE_REBAIXA",
+      "para": "DOWNGRADE_RATE_LIMIT_KEY",
+      "arquivo": "packages/nucleo/src/limite/rota-anonima.decorator.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:303"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "METADADO_ROTA_ANONIMA",
+      "para": "IS_PUBLIC_KEY",
+      "arquivo": "packages/nucleo/src/limite/rota-anonima.decorator.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:304"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "METADADO_SEM_LIMITE",
+      "para": "SKIP_RATE_LIMIT_KEY",
+      "arquivo": "packages/nucleo/src/limite/rota-anonima.decorator.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:305"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RotaAnonima",
+      "para": "Public",
+      "arquivo": "packages/nucleo/src/limite/rota-anonima.decorator.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:306"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "SemLimite",
+      "para": "SkipRateLimit",
+      "arquivo": "packages/nucleo/src/limite/rota-anonima.decorator.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:307"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ConferenciaDasPermissoes",
+      "para": "PermissaoBootCheck",
+      "arquivo": "packages/nucleo/src/permissao/conferencia-das-permissoes.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:308"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RotaSemDeclaracao",
+      "para": "UndeclaredRoute",
+      "arquivo": "packages/nucleo/src/permissao/conferencia-das-permissoes.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:309"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "rotasSemPermissao",
+      "para": "routesWithoutPermissao",
+      "arquivo": "packages/nucleo/src/permissao/conferencia-das-permissoes.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:310"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "GuardaDePermissao",
+      "para": "PermissaoGuard",
+      "arquivo": "packages/nucleo/src/permissao/guarda-permissao.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:311"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "CelulaPermitida",
+      "para": "PermittedCell",
+      "arquivo": "packages/nucleo/src/permissao/permite.decorator.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:312"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "METADADO_PERMITE",
+      "para": "PERMISSAO_KEY",
+      "arquivo": "packages/nucleo/src/permissao/permite.decorator.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:313"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "Permite",
+      "para": "RequirePermissao",
+      "arquivo": "packages/nucleo/src/permissao/permite.decorator.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:314"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ipDoCliente",
+      "para": "clientIp",
+      "arquivo": "packages/nucleo/src/limite/chaves.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:322"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ipEncaminhado",
+      "para": "forwardedIp",
+      "arquivo": "packages/nucleo/src/limite/chaves.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:323"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "limiteDoSeguro",
+      "para": "insuranceLimit",
+      "arquivo": "packages/nucleo/src/limite/chaves.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:324"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "normalizarIp",
+      "para": "normalizeIp",
+      "arquivo": "packages/nucleo/src/limite/chaves.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:325"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "segundosParaTentarDeNovo",
+      "para": "retryAfterSeconds",
+      "arquivo": "packages/nucleo/src/limite/chaves.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:326"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "GuardaDeLimite",
+      "para": "RateLimitGuard",
+      "arquivo": "packages/nucleo/src/limite/guarda-limite.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:327"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "acimaDoLimiteDoIp",
+      "para": "isOverIpLimit",
+      "arquivo": "packages/nucleo/src/limite/guarda-limite.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:328"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ipDaRequisicao",
+      "para": "requestIp",
+      "arquivo": "packages/nucleo/src/limite/guarda-limite.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:329"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ConfiguracaoLimite",
+      "para": "RateLimitConfig",
+      "arquivo": "packages/nucleo/src/limite/limitador.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:330"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "LimitadorDeRequisicoes",
+      "para": "RateLimiter",
+      "arquivo": "packages/nucleo/src/limite/limitador.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:331"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ResultadoDoLimite",
+      "para": "RateLimitResult",
+      "arquivo": "packages/nucleo/src/limite/limitador.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:332"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "lerConfiguracaoLimite",
+      "para": "loadRateLimitConfig",
+      "arquivo": "packages/nucleo/src/limite/limitador.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:333"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ProporcaoEmJanela",
+      "para": "SlidingWindowRatio",
+      "arquivo": "packages/nucleo/src/limite/proporcao-em-janela.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:334"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ProxiesConfiaveis",
+      "para": "TrustedProxies",
+      "arquivo": "packages/nucleo/src/limite/proxies-confiaveis.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:335"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ResolverNome",
+      "para": "NameResolver",
+      "arquivo": "packages/nucleo/src/limite/proxies-confiaveis.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:336"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "Ambiente",
+      "para": "Environment",
+      "arquivo": "packages/nucleo/src/config/validar-config.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:344"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ConfiguracaoIdentidade",
+      "para": "AuthConfig",
+      "arquivo": "packages/nucleo/src/config/validar-config.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:345"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaAmbienteIdentidade",
+      "para": "authEnvSchema",
+      "arquivo": "packages/nucleo/src/config/validar-config.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:346"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaAmbienteProtecaoDoLogin",
+      "para": "loginProtectionEnvSchema",
+      "arquivo": "packages/nucleo/src/config/validar-config.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:347"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaAmbienteVagasDesligadas",
+      "para": "concurrencyLimitDisabledEnvSchema",
+      "arquivo": "packages/nucleo/src/config/validar-config.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:348"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "lerConfiguracaoIdentidade",
+      "para": "loadAuthConfig",
+      "arquivo": "packages/nucleo/src/config/validar-config.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:349"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "lerProtecaoDoLoginDesligada",
+      "para": "isLoginProtectionDisabled",
+      "arquivo": "packages/nucleo/src/config/validar-config.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:350"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "lerVagasPorEscolaDesligadas",
+      "para": "isEscolaConcurrencyLimitDisabled",
+      "arquivo": "packages/nucleo/src/config/validar-config.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:351"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "validarAmbiente",
+      "para": "validateEnvironment",
+      "arquivo": "packages/nucleo/src/config/validar-config.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:352"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ConfiguracaoOperacionalRepository",
+      "para": "OperationalSettingsRepository",
+      "arquivo": "packages/nucleo/src/configuracao/configuracao-operacional.repository.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:353"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ConfiguracaoOperacional",
+      "para": "OperationalSettings",
+      "arquivo": "packages/nucleo/src/configuracao/configuracao-operacional.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:354"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "LimitesDeRequisicao",
+      "para": "RateLimits",
+      "arquivo": "packages/nucleo/src/configuracao/configuracao-operacional.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:355"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "OpcoesDaConfiguracaoOperacional",
+      "para": "OperationalSettingsOptions",
+      "arquivo": "packages/nucleo/src/configuracao/configuracao-operacional.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:356"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "VagasPorFila",
+      "para": "ConcurrencyByQueue",
+      "arquivo": "packages/nucleo/src/configuracao/configuracao-operacional.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:357"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "VagasConfiguradas",
+      "para": "ConfiguredConcurrency",
+      "arquivo": "packages/nucleo/src/db/schema/configuracao-operacional-escola.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:358"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "Batimento",
+      "para": "Heartbeat",
+      "arquivo": "packages/nucleo/src/instancia/batimento.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:359"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ConfiguracaoDrenagem",
+      "para": "GracefulShutdownConfig",
+      "arquivo": "packages/nucleo/src/instancia/drenagem.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:360"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "Drenagem",
+      "para": "GracefulShutdown",
+      "arquivo": "packages/nucleo/src/instancia/drenagem.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:361"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaDeProntidao",
+      "para": "ReadinessResult",
+      "arquivo": "packages/nucleo/src/instancia/drenagem.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:362"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "lerConfiguracaoDrenagem",
+      "para": "loadGracefulShutdownConfig",
+      "arquivo": "packages/nucleo/src/instancia/drenagem.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:363"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "avisoEspacado",
+      "para": "throttledWarn",
+      "arquivo": "packages/nucleo/src/log/aviso-espacado.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:364"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "LoggerDoNest",
+      "para": "NestLogger",
+      "arquivo": "packages/nucleo/src/log/logger-do-nest.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:365"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "OpcoesDoLogger",
+      "para": "LoggerOptions",
+      "arquivo": "packages/nucleo/src/log/logger.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:366"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "criarLogger",
+      "para": "createLogger",
+      "arquivo": "packages/nucleo/src/log/logger.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:367"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "registrarErrosDoProcesso",
+      "para": "registerProcessErrorHandlers",
+      "arquivo": "packages/nucleo/src/log/logger.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:368"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "tratadorDeErroDoProcesso",
+      "para": "processErrorHandler",
+      "arquivo": "packages/nucleo/src/log/logger.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:369"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "criarClienteRedisDaApi",
+      "para": "createApiRedisClient",
+      "arquivo": "packages/nucleo/src/redis/clientes.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:370"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "criarClienteRedisDaFila",
+      "para": "createQueueRedisClient",
+      "arquivo": "packages/nucleo/src/redis/clientes.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:371"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "Relogio",
+      "para": "Clock",
+      "arquivo": "packages/nucleo/src/relogio.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:372"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "relogioDoSistema",
+      "para": "systemClock",
+      "arquivo": "packages/nucleo/src/relogio.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:373"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "EscolasDaRotinaRepository",
+      "para": "CronEscolasRepository",
+      "arquivo": "packages/nucleo/src/rotina/escolas-da-rotina.repository.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:374"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "InstanciaRedis",
+      "para": "RedisInstance",
+      "arquivo": "packages/nucleo/src/telemetria/metricas.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:375"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ContadorDeUso",
+      "para": "UsageMeter",
+      "arquivo": "packages/nucleo/src/uso/contador-uso.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:376"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ContagemDoDia",
+      "para": "DailyCount",
+      "arquivo": "packages/nucleo/src/uso/contador-uso.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:377"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "MetricaDeUso",
+      "para": "UsageMetric",
+      "arquivo": "packages/nucleo/src/uso/contador-uso.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:378"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "OpcoesDoContadorDeUso",
+      "para": "UsageMeterOptions",
+      "arquivo": "packages/nucleo/src/uso/contador-uso.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:379"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "InterceptorDeUso",
+      "para": "UsageInterceptor",
+      "arquivo": "packages/nucleo/src/uso/interceptor-de-uso.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:380"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "UsoDoPeriodo",
+      "para": "UsagePeriod",
+      "arquivo": "packages/nucleo/src/uso/uso.repository.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:381"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "UsoRepository",
+      "para": "UsageRepository",
+      "arquivo": "packages/nucleo/src/uso/uso.repository.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:382"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ConfiguracaoTelemetria",
+      "para": "TelemetryConfig",
+      "arquivo": "packages/nucleo/src/telemetria/iniciar.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:390"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ServicoInstrumentado",
+      "para": "InstrumentedService",
+      "arquivo": "packages/nucleo/src/telemetria/iniciar.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:391"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "Telemetria",
+      "para": "Telemetry",
+      "arquivo": "packages/nucleo/src/telemetria/iniciar.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:392"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "iniciarTelemetria",
+      "para": "startTelemetry",
+      "arquivo": "packages/nucleo/src/telemetria/iniciar.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:393"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "lerConfiguracaoTelemetria",
+      "para": "loadTelemetryConfig",
+      "arquivo": "packages/nucleo/src/telemetria/iniciar.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:394"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "medidorGlobal",
+      "para": "globalMeter",
+      "arquivo": "packages/nucleo/src/telemetria/iniciar.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:395"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "METRICAS",
+      "para": "METRICS",
+      "arquivo": "packages/nucleo/src/telemetria/metricas.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:396"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "METRICAS_COM_ESCOLA",
+      "para": "METRICS_WITH_ESCOLA",
+      "arquivo": "packages/nucleo/src/telemetria/metricas.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:397"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "middlewareDeMetricasHttp",
+      "para": "httpMetricsMiddleware",
+      "arquivo": "packages/nucleo/src/telemetria/metricas.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:398"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "observarConexoesRealtime",
+      "para": "observeRealtimeConnections",
+      "arquivo": "packages/nucleo/src/telemetria/metricas.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:399"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "observarEventLoop",
+      "para": "observeEventLoop",
+      "arquivo": "packages/nucleo/src/telemetria/metricas.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:400"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "observarPoolDoBanco",
+      "para": "observeDatabasePool",
+      "arquivo": "packages/nucleo/src/telemetria/metricas.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:401"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "observarRedis",
+      "para": "observeRedis",
+      "arquivo": "packages/nucleo/src/telemetria/metricas.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:402"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "observarSeguroDoLimite",
+      "para": "observeInsuranceLimiter",
+      "arquivo": "packages/nucleo/src/telemetria/metricas.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:403"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "rotaDaRequisicao",
+      "para": "requestRoute",
+      "arquivo": "packages/nucleo/src/telemetria/metricas.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:404"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "temporalidadeDasMetricas",
+      "para": "metricsTemporality",
+      "arquivo": "packages/nucleo/src/telemetria/temporalidade.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:405"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ArmazemDeArquivos",
+      "para": "FileStorage",
+      "arquivo": "packages/nucleo/src/titular/armazem-de-arquivos.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:413"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ArmazemEmMemoria",
+      "para": "InMemoryFileStorage",
+      "arquivo": "packages/nucleo/src/titular/armazem-de-arquivos.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:414"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "OpcoesDaUrlDeDownload",
+      "para": "DownloadUrlOptions",
+      "arquivo": "packages/nucleo/src/titular/armazem-de-arquivos.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:415"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "UrlAssinadaPeloFalso",
+      "para": "FakeSignedUrl",
+      "arquivo": "packages/nucleo/src/titular/armazem-de-arquivos.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:416"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ArmazemS3",
+      "para": "S3FileStorage",
+      "arquivo": "packages/nucleo/src/titular/armazem-s3.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:417"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ConfiguracaoDoArmazemS3",
+      "para": "S3FileStorageConfig",
+      "arquivo": "packages/nucleo/src/titular/armazem-s3.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:418"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "criarClienteDoArmazem",
+      "para": "createS3Client",
+      "arquivo": "packages/nucleo/src/titular/armazem-s3.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:419"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "chaveDoObjeto",
+      "para": "objectKey",
+      "arquivo": "packages/nucleo/src/titular/arquivo-do-titular.repository.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:420"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "OpcoesDoIdPipe",
+      "para": "IdPipeOptions",
+      "arquivo": "packages/nucleo/src/entrada/id.pipe.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:428"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "OpcoesDoZodValidationPipe",
+      "para": "ZodValidationPipeOptions",
+      "arquivo": "packages/nucleo/src/entrada/zod-validation.pipe.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:429"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaContextoDaTurma",
+      "para": "contextoDaTurmaSchema",
+      "arquivo": "packages/nucleo/src/ia/material.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:469"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaHabilidades",
+      "para": "habilidadesSchema",
+      "arquivo": "packages/nucleo/src/ia/material.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:470"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaTrecho",
+      "para": "trechoSchema",
+      "arquivo": "packages/nucleo/src/ia/material.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:471"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "EntradaDeAdaptacao",
+      "para": "AdaptacaoInput",
+      "arquivo": "packages/nucleo/src/ia/tarefas/adaptar-atividade.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:472"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaEntradaDeAdaptacao",
+      "para": "adaptacaoInputSchema",
+      "arquivo": "packages/nucleo/src/ia/tarefas/adaptar-atividade.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:473"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "EntradaDeAtividadeObjetiva",
+      "para": "AtividadeObjetivaInput",
+      "arquivo": "packages/nucleo/src/ia/tarefas/gerar-atividade-objetiva.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:474"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaEntradaDeAtividadeObjetiva",
+      "para": "atividadeObjetivaInputSchema",
+      "arquivo": "packages/nucleo/src/ia/tarefas/gerar-atividade-objetiva.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:475"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "EntradaDePlanoDeAula",
+      "para": "PlanoDeAulaInput",
+      "arquivo": "packages/nucleo/src/ia/tarefas/gerar-plano-de-aula.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:476"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaEntradaDePlanoDeAula",
+      "para": "planoDeAulaInputSchema",
+      "arquivo": "packages/nucleo/src/ia/tarefas/gerar-plano-de-aula.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:477"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "EntradaDoAssistente",
+      "para": "AssistenteInput",
+      "arquivo": "packages/nucleo/src/ia/tarefas/propor-ferramenta.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:478"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "SaidaDoAssistente",
+      "para": "AssistenteOutput",
+      "arquivo": "packages/nucleo/src/ia/tarefas/propor-ferramenta.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:479"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaEntradaDoAssistente",
+      "para": "assistenteInputSchema",
+      "arquivo": "packages/nucleo/src/ia/tarefas/propor-ferramenta.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:480"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaPropostaDoAssistente",
+      "para": "propostaDoAssistenteSchema",
+      "arquivo": "packages/nucleo/src/ia/tarefas/propor-ferramenta.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:481"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaSaidaDoAssistente",
+      "para": "assistenteOutputSchema",
+      "arquivo": "packages/nucleo/src/ia/tarefas/propor-ferramenta.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:482"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "EntradaDoRelatorio",
+      "para": "RelatorioInput",
+      "arquivo": "packages/nucleo/src/ia/tarefas/relatorio-da-correcao.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:483"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "SaidaDoRelatorio",
+      "para": "RelatorioOutput",
+      "arquivo": "packages/nucleo/src/ia/tarefas/relatorio-da-correcao.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:484"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaEntradaDoRelatorio",
+      "para": "relatorioInputSchema",
+      "arquivo": "packages/nucleo/src/ia/tarefas/relatorio-da-correcao.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:485"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaSaidaDoRelatorio",
+      "para": "relatorioOutputSchema",
+      "arquivo": "packages/nucleo/src/ia/tarefas/relatorio-da-correcao.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:486"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "EntradaDoAnalista",
+      "para": "AnalistaInput",
+      "arquivo": "packages/nucleo/src/ia/tarefas/resumo-do-analista.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:487"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "SaidaDoAnalista",
+      "para": "AnalistaOutput",
+      "arquivo": "packages/nucleo/src/ia/tarefas/resumo-do-analista.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:488"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaEntradaDoAnalista",
+      "para": "analistaInputSchema",
+      "arquivo": "packages/nucleo/src/ia/tarefas/resumo-do-analista.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:489"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaSaidaDoAnalista",
+      "para": "analistaOutputSchema",
+      "arquivo": "packages/nucleo/src/ia/tarefas/resumo-do-analista.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:490"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "EntradaDoTutor",
+      "para": "TutorInput",
+      "arquivo": "packages/nucleo/src/ia/tarefas/turno-do-tutor.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:491"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "SaidaDoTutor",
+      "para": "TutorOutput",
+      "arquivo": "packages/nucleo/src/ia/tarefas/turno-do-tutor.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:492"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaEntradaDoTutor",
+      "para": "tutorInputSchema",
+      "arquivo": "packages/nucleo/src/ia/tarefas/turno-do-tutor.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:493"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaSaidaDoTutor",
+      "para": "tutorOutputSchema",
+      "arquivo": "packages/nucleo/src/ia/tarefas/turno-do-tutor.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:494"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaEntidadeId",
+      "para": "entidadeIdSchema",
+      "arquivo": "packages/nucleo/src/auditoria/registro-de-auditoria.ts",
+      "linhaDoAnexo": "inventario-adenda-2.md:92"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaId",
+      "para": "idSchema",
+      "arquivo": "packages/nucleo/src/ciclo-de-vida/ciclo-de-vida.service.ts",
+      "linhaDoAnexo": "inventario-adenda-2.md:93"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaAmbienteJanela",
+      "para": "windowEnvSchema",
+      "arquivo": "packages/nucleo/src/configuracao/configuracao-operacional.ts",
+      "linhaDoAnexo": "inventario-adenda-2.md:94"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaAmbienteVagas",
+      "para": "concurrencyLimitEnvSchema",
+      "arquivo": "packages/nucleo/src/configuracao/configuracao-operacional.ts",
+      "linhaDoAnexo": "inventario-adenda-2.md:95"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaAmbienteBanco",
+      "para": "databaseEnvSchema",
+      "arquivo": "packages/nucleo/src/db/banco.ts",
+      "linhaDoAnexo": "inventario-adenda-2.md:96"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "LinhaDaMedicao",
+      "para": "MedicaoRow",
+      "arquivo": "packages/nucleo/src/fila/despacho.repository.ts",
+      "linhaDoAnexo": "inventario-adenda-2.md:97"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "OpcoesLidas",
+      "para": "ParsedOptions",
+      "arquivo": "packages/nucleo/src/fila/enfileirador.ts",
+      "linhaDoAnexo": "inventario-adenda-2.md:98"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaAmostra",
+      "para": "amostraSchema",
+      "arquivo": "packages/nucleo/src/ia/__fixtures__/ouro.ts",
+      "linhaDoAnexo": "inventario-adenda-2.md:99"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaBase",
+      "para": "baseSchema",
+      "arquivo": "packages/nucleo/src/ia/__fixtures__/ouro.ts",
+      "linhaDoAnexo": "inventario-adenda-2.md:100"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaContagem",
+      "para": "contagemSchema",
+      "arquivo": "packages/nucleo/src/ia/__fixtures__/ouro.ts",
+      "linhaDoAnexo": "inventario-adenda-2.md:101"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaContexto",
+      "para": "contextoSchema",
+      "arquivo": "packages/nucleo/src/ia/__fixtures__/ouro.ts",
+      "linhaDoAnexo": "inventario-adenda-2.md:102"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaDasMedidas",
+      "para": "medidasSchema",
+      "arquivo": "packages/nucleo/src/ia/__fixtures__/ouro.ts",
+      "linhaDoAnexo": "inventario-adenda-2.md:103"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaDoCorpus",
+      "para": "corpusSchema",
+      "arquivo": "packages/nucleo/src/ia/__fixtures__/ouro.ts",
+      "linhaDoAnexo": "inventario-adenda-2.md:104"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaDaResposta",
+      "para": "respostaSchema",
+      "arquivo": "packages/nucleo/src/ia/adaptador-openai-compat.ts",
+      "linhaDoAnexo": "inventario-adenda-2.md:105"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaDaSaidaEmJson",
+      "para": "jsonOutputSchema",
+      "arquivo": "packages/nucleo/src/ia/adaptador-openai-compat.ts",
+      "linhaDoAnexo": "inventario-adenda-2.md:106"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "AdaptadorDeRoteiro",
+      "para": "RoteiroAdapter",
+      "arquivo": "packages/nucleo/src/ia/adaptador-resiliente.test.ts",
+      "linhaDoAnexo": "inventario-adenda-2.md:107"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "LinhaEmMemoria",
+      "para": "InMemoryRow",
+      "arquivo": "packages/nucleo/src/ia/executor.ts",
+      "linhaDoAnexo": "inventario-adenda-2.md:108"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaMemoriaDoTrabalho",
+      "para": "memoriaDoTrabalhoSchema",
+      "arquivo": "packages/nucleo/src/ia/tarefas/turno-do-tutor.ts",
+      "linhaDoAnexo": "inventario-adenda-2.md:109"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaQuestaoEmAndamento",
+      "para": "questaoEmAndamentoSchema",
+      "arquivo": "packages/nucleo/src/ia/tarefas/turno-do-tutor.ts",
+      "linhaDoAnexo": "inventario-adenda-2.md:110"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "OpcoesDeToken",
+      "para": "TokenOptions",
+      "arquivo": "packages/nucleo/src/identidade/token-de-operador.test.ts",
+      "linhaDoAnexo": "inventario-adenda-2.md:111"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaClaimsDeOperador",
+      "para": "claimsDeOperadorSchema",
+      "arquivo": "packages/nucleo/src/identidade/verificar-token.ts",
+      "linhaDoAnexo": "inventario-adenda-2.md:112"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaAmbienteDrenagem",
+      "para": "drainEnvSchema",
+      "arquivo": "packages/nucleo/src/instancia/drenagem.ts",
+      "linhaDoAnexo": "inventario-adenda-2.md:113"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "OpcoesDoConsumo",
+      "para": "ConsumoOptions",
+      "arquivo": "packages/nucleo/src/limite/limitador.ts",
+      "linhaDoAnexo": "inventario-adenda-2.md:114"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaAmbienteLimite",
+      "para": "rateLimitEnvSchema",
+      "arquivo": "packages/nucleo/src/limite/limitador.ts",
+      "linhaDoAnexo": "inventario-adenda-2.md:115"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaAmbienteTelemetria",
+      "para": "telemetryEnvSchema",
+      "arquivo": "packages/nucleo/src/telemetria/iniciar.ts",
+      "linhaDoAnexo": "inventario-adenda-2.md:116"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "OpcoesDaEliminacao",
+      "para": "EliminacaoOptions",
+      "arquivo": "packages/nucleo/src/titular/eliminacao-do-titular.ts",
+      "linhaDoAnexo": "inventario-adenda-2.md:117"
+    }
+  ],
+  "ocorrencias": [
+    {
+      "arquivo": "apps/api/src/ia/ia.int.test.ts",
+      "de": "SemEscopo",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:235",
+      "trecho": "a única consulta entre escolas é a varredura, marcada @SemEscopo com a justificativa"
+    },
+    {
+      "arquivo": "apps/api/src/ops/migrar.ts",
+      "de": "migrar",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:228",
+      "trecho": "migrar"
+    },
+    {
+      "arquivo": "apps/api/src/sessao/tenant/resolucao-de-tenant.repository.test.ts",
+      "de": "SemEscopo",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:235",
+      "trecho": "nasce só com os métodos da tabela da seção 6 que a tarefa usa, cada um com @SemEscopo e a justificat"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "de": "EscolasDaRotinaRepository",
+      "classe": "trava",
+      "linha": "travas.md:110",
+      "trecho": "/\u0001EscolasDaRotinaRepository\u0001|escolas-da-rotina.repository/"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "de": "EscolasDaRotinaRepository",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:374",
+      "trecho": "a EscolasDaRotinaRepository tem um método só, `listarIds`, @SemEscopo com a justificativa da rotina"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "de": "SemEscopo",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:235",
+      "trecho": "a EscolasDaRotinaRepository tem um método só, `listarIds`, @SemEscopo com a justificativa da rotina"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "de": "SemEscopo",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:235",
+      "trecho": "o ExpurgoDaEscolaRepository não tem nenhum @SemEscopo: tudo nele vem da escola do contexto"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "de": "SemEscopo",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:235",
+      "trecho": "arquitetura: a leitura entre escolas mora só no PainelRepository, com três métodos @SemEscopo (I1)"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "de": "SemEscopo",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:235",
+      "trecho": "os métodos são exatamente redes, escolas e uso, cada um @SemEscopo com a justificativa que cita o pa"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "de": "SemEscopo",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:235",
+      "trecho": "o expurgo toca da operação só o acesso, a sessão e o convite, e continua com dois métodos @SemEscopo"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "de": "SemEscopo",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:235",
+      "trecho": "o único @SemEscopo é o encerramento das ligações em todas as escolas; a leitura da escola não tem ne"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "de": "exigirEscolaDoContexto",
+      "classe": "trava",
+      "linha": "travas.md:109",
+      "trecho": "exigirEscolaDoContexto()"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "de": "SemEscopo",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:235",
+      "trecho": "o leitor da escola lê as duas, escreve só na seção da escola (a confirmação), nunca no incidente, e "
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "de": "METADADO_ROTA_DE_OPERACAO",
+      "classe": "trava",
+      "linha": "travas.md:45",
+      "trecho": "import { METADADO_ROTA_DE_OPERACAO } from '@educa/nucleo' SetMetadata(METADADO_ROTA_DE_OPERACAO, tru"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "de": "METADADO_ENTRADA_DE_OPERACAO",
+      "classe": "trava",
+      "linha": "travas.md:45",
+      "trecho": "reflector.get(METADADO_ENTRADA_DE_OPERACAO, alvo)"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "de": "METADADO_ROTA_DE_OPERACAO",
+      "classe": "trava",
+      "linha": "travas.md:45",
+      "trecho": "import { METADADO_ROTA_DE_OPERACAO } from '@educa/nucleo'"
+    },
+    {
+      "arquivo": "apps/api/test/arquivo-do-titular.int.test.ts",
+      "de": "ArmazemIndisponivel",
+      "classe": "trava",
+      "linha": "travas.md:55",
+      "trecho": "ArmazemIndisponivel"
+    },
+    {
+      "arquivo": "apps/api/test/contexto.int.test.ts",
+      "de": "RotaAnonima",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:306",
+      "trecho": "rota sem @RotaAnonima exige token, e com ele o log da requisição leva a escola do token"
+    },
+    {
+      "arquivo": "apps/api/test/erro.int.test.ts",
+      "de": "ErroDeDominio",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:197",
+      "trecho": "ErroDeDominio lançado pelo código sai com o próprio código e status, e o status informado vale"
+    },
+    {
+      "arquivo": "apps/api/test/erro.int.test.ts",
+      "de": "ErroDoPostgres",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:202",
+      "trecho": "ErroDoPostgres"
+    },
+    {
+      "arquivo": "apps/api/test/permissao-no-boot.test.ts",
+      "de": "Permite",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:314",
+      "trecho": "sobe com rotas marcadas com @Permite ou @RotaAnonima"
+    },
+    {
+      "arquivo": "apps/api/test/permissao-no-boot.test.ts",
+      "de": "RotaAnonima",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:306",
+      "trecho": "sobe com rotas marcadas com @Permite ou @RotaAnonima"
+    },
+    {
+      "arquivo": "apps/api/test/permissao-no-boot.test.ts",
+      "de": "Permite",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:314",
+      "trecho": "rota sem @Permite, sem @RotaAnonima e sem marcador da operação derruba o boot, com o nome do control"
+    },
+    {
+      "arquivo": "apps/api/test/permissao-no-boot.test.ts",
+      "de": "RotaAnonima",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:306",
+      "trecho": "rota sem @Permite, sem @RotaAnonima e sem marcador da operação derruba o boot, com o nome do control"
+    },
+    {
+      "arquivo": "apps/api/test/permissao-no-boot.test.ts",
+      "de": "RotasSemPermissao",
+      "classe": "trava",
+      "linha": "travas.md:55",
+      "trecho": "RotasSemPermissao"
+    },
+    {
+      "arquivo": "apps/api/test/permissao-no-boot.test.ts",
+      "de": "Permite",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:314",
+      "trecho": "rota sem @Permite, @RotaAnonima nem marcador da operação"
+    },
+    {
+      "arquivo": "apps/api/test/permissao-no-boot.test.ts",
+      "de": "RotaAnonima",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:306",
+      "trecho": "rota sem @Permite, @RotaAnonima nem marcador da operação"
+    },
+    {
+      "arquivo": "apps/api/test/sessao-guarda.int.test.ts",
+      "de": "EmissorDeToken",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:272",
+      "trecho": "JWT assinado à mão pelo EmissorDeToken com sub de A e esc de B é recusado, com linhas existentes nas"
+    },
+    {
+      "arquivo": "apps/api/test/sessao-guarda.int.test.ts",
+      "de": "exigirAnoEmCurso",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:253",
+      "trecho": "autentica com o ano nulo, e exigirAnoEmCurso() falha fechado com 404; o ano em curso de outra escola"
+    },
+    {
+      "arquivo": "apps/api/test/sessao-guarda.int.test.ts",
+      "de": "GuardaDeSessao",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:280",
+      "trecho": "GuardaDeSessao: toda requisição autenticada é conferida contra a sessão gravada"
+    },
+    {
+      "arquivo": "apps/web/src/areas/coordenacao/introducao/textos-da-introducao.test.ts",
+      "de": "Dado",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:93",
+      "trecho": "/Dado com nome só abre com um motivo, e isso fica registrado/"
+    },
+    {
+      "arquivo": "apps/web/src/areas/coordenacao/privacidade/Retencao.tsx",
+      "de": "Dado",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:93",
+      "trecho": "Dado"
+    },
+    {
+      "arquivo": "apps/web/src/areas/coordenacao/privacidade/Retencao.tsx",
+      "de": "Dado",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:93",
+      "trecho": "Dado"
+    },
+    {
+      "arquivo": "apps/worker/test/montar-arquivo.int.test.ts",
+      "de": "ArmazemIndisponivel",
+      "classe": "trava",
+      "linha": "travas.md:55",
+      "trecho": "ArmazemIndisponivel"
+    },
+    {
+      "arquivo": "apps/worker/test/uso.int.test.ts",
+      "de": "ErroDoPostgres",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:202",
+      "trecho": "ErroDoPostgres"
+    },
+    {
+      "arquivo": "infra/compose.yml",
+      "de": "migrar",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:1040",
+      "trecho": "# lock em 5 s, com 3 tentativas (packages/nucleo/src/db/migrar.ts). Mesma imagem da API."
+    },
+    {
+      "arquivo": "infra/compose.yml",
+      "de": "migrar",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:228",
+      "trecho": "command: [node, dist/ops/migrar.js]"
+    },
+    {
+      "arquivo": "infra/grafana/alertas/sala-codigo-errado-por-escola.yaml",
+      "de": "METRICAS_COM_ESCOLA",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:397",
+      "trecho": "# A série não tem escola nem pessoa (`METRICAS_COM_ESCOLA` é fechada): a escola vai na linha `sala.l"
+    },
+    {
+      "arquivo": "infra/test/jobs.int.test.ts",
+      "de": "migrar",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:228",
+      "trecho": "migrar"
+    },
+    {
+      "arquivo": "knip.json",
+      "de": "migrar",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:1040",
+      "trecho": "\"src/db/migrar.ts\""
+    },
+    {
+      "arquivo": "packages/nucleo/src/auditoria/acoes.test.ts",
+      "de": "MapaDeAuditoriaInvalido",
+      "classe": "trava",
+      "linha": "travas.md:55",
+      "trecho": "MapaDeAuditoriaInvalido"
+    },
+    {
+      "arquivo": "packages/nucleo/src/auditoria/acoes.ts",
+      "de": "MapaDeAuditoriaInvalido",
+      "classe": "trava",
+      "linha": "travas.md:55",
+      "trecho": "MapaDeAuditoriaInvalido"
+    },
+    {
+      "arquivo": "packages/nucleo/src/auditoria/auditoria-recusada.ts",
+      "de": "AuditoriaRecusada",
+      "classe": "trava",
+      "linha": "travas.md:55",
+      "trecho": "AuditoriaRecusada"
+    },
+    {
+      "arquivo": "packages/nucleo/src/auditoria/auditoria.int.test.ts",
+      "de": "RegistroDeAuditoria",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:194",
+      "trecho": "checks do banco, mesmo por fora do RegistroDeAuditoria"
+    },
+    {
+      "arquivo": "packages/nucleo/src/auditoria/porta-unica.test.ts",
+      "de": "inserirAuditoria",
+      "classe": "trava",
+      "linha": "travas.md:57",
+      "trecho": "import { inserirAuditoria } from './insercao-de-auditoria.repository.js'"
+    },
+    {
+      "arquivo": "packages/nucleo/src/auditoria/porta-unica.test.ts",
+      "de": "inserirAuditoria",
+      "classe": "trava",
+      "linha": "travas.md:57",
+      "trecho": "import { inserirAuditoria, } from \"../auditoria/insercao-de-auditoria.repository\""
+    },
+    {
+      "arquivo": "packages/nucleo/src/auditoria/porta-unica.test.ts",
+      "de": "inserirAuditoria",
+      "classe": "trava",
+      "linha": "travas.md:57",
+      "trecho": "export { inserirAuditoria } from './insercao-de-auditoria.repository.js'"
+    },
+    {
+      "arquivo": "packages/nucleo/src/auditoria/porta-unica.test.ts",
+      "de": "SemEscopo",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:235",
+      "trecho": "o AuditoriaRepository só lê, na escola do contexto: sem método de escrita e sem @SemEscopo"
+    },
+    {
+      "arquivo": "packages/nucleo/src/auditoria/porta-unica.test.ts",
+      "de": "RegistroDeAuditoria",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:194",
+      "trecho": "só o RegistroDeAuditoria importa o módulo de inserção, e o pacote não o exporta"
+    },
+    {
+      "arquivo": "packages/nucleo/src/auditoria/porta-unica.test.ts",
+      "de": "inserirAuditoria",
+      "classe": "trava",
+      "linha": "travas.md:57",
+      "trecho": "inserirAuditoria"
+    },
+    {
+      "arquivo": "packages/nucleo/src/auditoria/registro-de-auditoria.test.ts",
+      "de": "AuditoriaRecusada",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:192",
+      "trecho": "esperava AuditoriaRecusada"
+    },
+    {
+      "arquivo": "packages/nucleo/src/auditoria/registro-de-auditoria.test.ts",
+      "de": "RegistroDeAuditoria",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:194",
+      "trecho": "RegistroDeAuditoria.gravar: recusa antes de gravar"
+    },
+    {
+      "arquivo": "packages/nucleo/src/ciclo-de-vida/ciclo-de-vida.repository.test.ts",
+      "de": "SemEscopo",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:235",
+      "trecho": "a ContaGlobalRepository tem só os três métodos da conta global, cada um com @SemEscopo e a justifica"
+    },
+    {
+      "arquivo": "packages/nucleo/src/config/config-ia.test.ts",
+      "de": "lerConfiguracaoDeIa",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:54",
+      "trecho": "lerConfiguracaoDeIa"
+    },
+    {
+      "arquivo": "packages/nucleo/src/config/validar-config.test.ts",
+      "de": "lerConfiguracaoIdentidade",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:349",
+      "trecho": "lerConfiguracaoIdentidade"
+    },
+    {
+      "arquivo": "packages/nucleo/src/config/validar-config.test.ts",
+      "de": "lerVagasPorEscolaDesligadas",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:351",
+      "trecho": "lerVagasPorEscolaDesligadas (controle negativo do cenário de carga)"
+    },
+    {
+      "arquivo": "packages/nucleo/src/config/validar-config.test.ts",
+      "de": "lerProtecaoDoLoginDesligada",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:350",
+      "trecho": "lerProtecaoDoLoginDesligada (controle negativo do cenário \"login às 7h30\", tarefa 16.0)"
+    },
+    {
+      "arquivo": "packages/nucleo/src/config/validar-config.ts",
+      "de": "ConfiguracaoInvalida",
+      "classe": "trava",
+      "linha": "travas.md:55",
+      "trecho": "ConfiguracaoInvalida"
+    },
+    {
+      "arquivo": "packages/nucleo/src/configuracao/configuracao-operacional.test.ts",
+      "de": "ConfiguracaoOperacional",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:354",
+      "trecho": "ConfiguracaoOperacional"
+    },
+    {
+      "arquivo": "packages/nucleo/src/contexto/contexto.test.ts",
+      "de": "resolverRequisicaoId",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:263",
+      "trecho": "resolverRequisicaoId"
+    },
+    {
+      "arquivo": "packages/nucleo/src/contexto/contexto.test.ts",
+      "de": "exigirOperadorDoContexto",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:261",
+      "trecho": "sem operador no contexto (rota de escola, rota anônima), exigirOperadorDoContexto falha fechado"
+    },
+    {
+      "arquivo": "packages/nucleo/src/contexto/contexto.test.ts",
+      "de": "executarNoContexto",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:260",
+      "trecho": "executarNoContexto"
+    },
+    {
+      "arquivo": "packages/nucleo/src/contexto/contexto.test.ts",
+      "de": "definirSessaoNoContexto",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:259",
+      "trecho": "definirSessaoNoContexto e exigirAnoEmCurso"
+    },
+    {
+      "arquivo": "packages/nucleo/src/contexto/contexto.test.ts",
+      "de": "exigirAnoEmCurso",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:253",
+      "trecho": "definirSessaoNoContexto e exigirAnoEmCurso"
+    },
+    {
+      "arquivo": "packages/nucleo/src/contexto/contexto.test.ts",
+      "de": "exigirAnoEmCurso",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:253",
+      "trecho": "escola sem ano em curso: exigirAnoEmCurso falha fechado com NAO_ENCONTRADO 404, e nunca devolve um a"
+    },
+    {
+      "arquivo": "packages/nucleo/src/contexto/contexto.test.ts",
+      "de": "exigirAnoEmCurso",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:253",
+      "trecho": "sem sessão no contexto (rota anônima, rotina), exigirAnoEmCurso também falha fechado"
+    },
+    {
+      "arquivo": "packages/nucleo/src/contexto/contexto.test.ts",
+      "de": "definirOperadorNoContexto",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:258",
+      "trecho": "definirOperadorNoContexto"
+    },
+    {
+      "arquivo": "packages/nucleo/src/db/migrar.int.test.ts",
+      "de": "migrar",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:228",
+      "trecho": "migrar"
+    },
+    {
+      "arquivo": "packages/nucleo/src/db/migrar.int.test.ts",
+      "de": "migrar",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:1040",
+      "trecho": "./migrar.js"
+    },
+    {
+      "arquivo": "packages/nucleo/src/db/migrar.ts",
+      "de": "MigracaoFalhou",
+      "classe": "trava",
+      "linha": "travas.md:55",
+      "trecho": "MigracaoFalhou"
+    },
+    {
+      "arquivo": "packages/nucleo/src/db/pool.int.test.ts",
+      "de": "criarPool",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:232",
+      "trecho": "criarPool"
+    },
+    {
+      "arquivo": "packages/nucleo/src/db/pool.test.ts",
+      "de": "ehErroDeConexao",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:233",
+      "trecho": "ehErroDeConexao"
+    },
+    {
+      "arquivo": "packages/nucleo/src/db/pool.test.ts",
+      "de": "criarPool",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:232",
+      "trecho": "criarPool: ReadyForQuery que chega depois do erro da consulta"
+    },
+    {
+      "arquivo": "packages/nucleo/src/db/sem-escopo.decorator.test.ts",
+      "de": "SemEscopo",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:235",
+      "trecho": "@SemEscopo"
+    },
+    {
+      "arquivo": "packages/nucleo/src/db/sem-escopo.decorator.test.ts",
+      "de": "SemEscopo",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:235",
+      "trecho": "@SemEscopo exige justificativa escrita"
+    },
+    {
+      "arquivo": "packages/nucleo/src/db/sem-escopo.decorator.test.ts",
+      "de": "SemEscopo",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:235",
+      "trecho": "@SemEscopo exige justificativa escrita"
+    },
+    {
+      "arquivo": "packages/nucleo/src/db/sem-escopo.decorator.ts",
+      "de": "SemEscopo",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:235",
+      "trecho": "@SemEscopo exige justificativa escrita"
+    },
+    {
+      "arquivo": "packages/nucleo/src/erro/erro-de-dominio.test.ts",
+      "de": "ErroDeDominio",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:197",
+      "trecho": "ErroDeDominio"
+    },
+    {
+      "arquivo": "packages/nucleo/src/erro/erro-de-dominio.ts",
+      "de": "ErroDeDominio",
+      "classe": "trava",
+      "linha": "travas.md:55",
+      "trecho": "ErroDeDominio"
+    },
+    {
+      "arquivo": "packages/nucleo/src/erro/mapear-erro-postgres.test.ts",
+      "de": "mapearErroPostgres",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:201",
+      "trecho": "mapearErroPostgres"
+    },
+    {
+      "arquivo": "packages/nucleo/src/erro/mapear-erro-postgres.test.ts",
+      "de": "ErroDoPostgres",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:202",
+      "trecho": "ErroDoPostgres"
+    },
+    {
+      "arquivo": "packages/nucleo/src/erro/resumir-erro.ts",
+      "de": "ErroDoPostgres",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:202",
+      "trecho": "ErroDoPostgres"
+    },
+    {
+      "arquivo": "packages/nucleo/src/fila/nome-da-fila.test.ts",
+      "de": "nomeDaFilaBullMQ",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:141",
+      "trecho": "nomeDaFilaBullMQ: a fila do BullMQ pela fila e pelo executor"
+    },
+    {
+      "arquivo": "packages/nucleo/src/fila/pedido-de-job-recusado.ts",
+      "de": "PedidoDeJobRecusado",
+      "classe": "trava",
+      "linha": "travas.md:55",
+      "trecho": "PedidoDeJobRecusado"
+    },
+    {
+      "arquivo": "packages/nucleo/src/fila/publicacao.test.ts",
+      "de": "opcoesDeJob",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:156",
+      "trecho": "opcoesDeJob: a retentativa que o despachante publica é a do tipo"
+    },
+    {
+      "arquivo": "packages/nucleo/src/fila/publicacao.test.ts",
+      "de": "executorDoJob",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:155",
+      "trecho": "executorDoJob: de que fila do BullMQ o tipo sai"
+    },
+    {
+      "arquivo": "packages/nucleo/src/ia/adaptador-openai-compat.test.ts",
+      "de": "AdaptadorOpenAICompat",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:57",
+      "trecho": "AdaptadorOpenAICompat: resposta boa"
+    },
+    {
+      "arquivo": "packages/nucleo/src/ia/adaptador-openai-compat.test.ts",
+      "de": "AdaptadorOpenAICompat",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:57",
+      "trecho": "AdaptadorOpenAICompat: raciocínio do modelo nunca é resposta"
+    },
+    {
+      "arquivo": "packages/nucleo/src/ia/adaptador-openai-compat.test.ts",
+      "de": "AdaptadorOpenAICompat",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:57",
+      "trecho": "AdaptadorOpenAICompat: saída inválida repete uma vez, dizendo o que veio errado"
+    },
+    {
+      "arquivo": "packages/nucleo/src/ia/adaptador-openai-compat.test.ts",
+      "de": "AdaptadorOpenAICompat",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:57",
+      "trecho": "AdaptadorOpenAICompat: prazo e indisponibilidade"
+    },
+    {
+      "arquivo": "packages/nucleo/src/ia/adaptador-openai-compat.test.ts",
+      "de": "AdaptadorOpenAICompat",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:57",
+      "trecho": "AdaptadorOpenAICompat: a falha ganha o nome do que aconteceu, e só ele sai"
+    },
+    {
+      "arquivo": "packages/nucleo/src/ia/adaptador-openai-compat.test.ts",
+      "de": "AdaptadorOpenAICompat",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:57",
+      "trecho": "AdaptadorOpenAICompat: redirecionamento nunca é seguido"
+    },
+    {
+      "arquivo": "packages/nucleo/src/ia/adaptador-openai-compat.test.ts",
+      "de": "AdaptadorOpenAICompat",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:57",
+      "trecho": "AdaptadorOpenAICompat: o texto do modelo chega à tela sem Markdown"
+    },
+    {
+      "arquivo": "packages/nucleo/src/ia/adaptador-openai-compat.test.ts",
+      "de": "AdaptadorOpenAICompat",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:57",
+      "trecho": "AdaptadorOpenAICompat: o Tutor com modelo de verdade"
+    },
+    {
+      "arquivo": "packages/nucleo/src/ia/adaptador-openai-compat.test.ts",
+      "de": "ErroDeIa",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:74",
+      "trecho": "a chamada deveria ter falhado com ErroDeIa"
+    },
+    {
+      "arquivo": "packages/nucleo/src/ia/adaptador-openai-compat.test.ts",
+      "de": "AdaptadorOpenAICompat",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:57",
+      "trecho": "AdaptadorOpenAICompat: o pedido"
+    },
+    {
+      "arquivo": "packages/nucleo/src/ia/adaptador-resiliente.test.ts",
+      "de": "AdaptadorResiliente",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:59",
+      "trecho": "AdaptadorResiliente: o prazo"
+    },
+    {
+      "arquivo": "packages/nucleo/src/ia/adaptador-resiliente.test.ts",
+      "de": "AdaptadorResiliente",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:59",
+      "trecho": "AdaptadorResiliente: a repetição"
+    },
+    {
+      "arquivo": "packages/nucleo/src/ia/adaptador-resiliente.test.ts",
+      "de": "AdaptadorResiliente",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:59",
+      "trecho": "AdaptadorResiliente: o disjuntor"
+    },
+    {
+      "arquivo": "packages/nucleo/src/ia/adaptador-resiliente.test.ts",
+      "de": "AdaptadorResiliente",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:59",
+      "trecho": "AdaptadorResiliente: o que sobe"
+    },
+    {
+      "arquivo": "packages/nucleo/src/ia/adaptador-resiliente.test.ts",
+      "de": "AdaptadorResiliente",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:59",
+      "trecho": "AdaptadorResiliente: saída inválida não é falha do provedor"
+    },
+    {
+      "arquivo": "packages/nucleo/src/ia/erros.ts",
+      "de": "ErroDeIa",
+      "classe": "trava",
+      "linha": "travas.md:55",
+      "trecho": "ErroDeIa"
+    },
+    {
+      "arquivo": "packages/nucleo/src/ia/erros.ts",
+      "de": "ErroDoProvedor",
+      "classe": "trava",
+      "linha": "travas.md:55",
+      "trecho": "ErroDoProvedor"
+    },
+    {
+      "arquivo": "packages/nucleo/src/ia/executor.test.ts",
+      "de": "ExecutorNoProcesso",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:81",
+      "trecho": "ExecutorNoProcesso: vagas por escola e no total (regra 80, item 3)"
+    },
+    {
+      "arquivo": "packages/nucleo/src/ia/executor.test.ts",
+      "de": "ExecutorNoProcesso",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:81",
+      "trecho": "ExecutorNoProcesso: cada execução roda no contexto da escola dela"
+    },
+    {
+      "arquivo": "packages/nucleo/src/ia/executor.test.ts",
+      "de": "ExecutorNoProcesso",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:81",
+      "trecho": "ExecutorNoProcesso: falha vira estado com código, nunca exceção solta"
+    },
+    {
+      "arquivo": "packages/nucleo/src/ia/executor.test.ts",
+      "de": "ExecutorNoProcesso",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:81",
+      "trecho": "ExecutorNoProcesso: prazo por execução"
+    },
+    {
+      "arquivo": "packages/nucleo/src/ia/executor.test.ts",
+      "de": "ExecutorNoProcesso",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:81",
+      "trecho": "ExecutorNoProcesso: nada fica preso em \"rodando\" quando o processo sobe de novo"
+    },
+    {
+      "arquivo": "packages/nucleo/src/ia/executor.test.ts",
+      "de": "ExecucoesEmMemoria",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:78",
+      "trecho": "ExecucoesEmMemoria: o escopo acompanha a execução"
+    },
+    {
+      "arquivo": "packages/nucleo/src/ia/executor.test.ts",
+      "de": "ExecutorNoProcesso",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:81",
+      "trecho": "ExecutorNoProcesso: roda depois de responder"
+    },
+    {
+      "arquivo": "packages/nucleo/src/ia/executor.test.ts",
+      "de": "ExecutorNoProcesso",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:81",
+      "trecho": "ExecutorNoProcesso: idempotente por chave"
+    },
+    {
+      "arquivo": "packages/nucleo/src/ia/provedor.test.ts",
+      "de": "criarProvedorDeIa",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:91",
+      "trecho": "criarProvedorDeIa: sem nada configurado, a porta é a do adaptador falso"
+    },
+    {
+      "arquivo": "packages/nucleo/src/ia/provedor.test.ts",
+      "de": "criarProvedorDeIa",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:91",
+      "trecho": "criarProvedorDeIa: com latenciaFalsaMs a chamada do adaptador falso espera pelo menos isso, e sem el"
+    },
+    {
+      "arquivo": "packages/nucleo/src/ia/provedor.test.ts",
+      "de": "criarProvedorDeIa",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:91",
+      "trecho": "criarProvedorDeIa: o adaptador do provedor sai decorado com o prazo do perfil e o recuo da configura"
+    },
+    {
+      "arquivo": "packages/nucleo/src/ia/provedor.test.ts",
+      "de": "ProvedorDeIa",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:89",
+      "trecho": "ProvedorDeIa: toda execução registra (regra 30, item 4)"
+    },
+    {
+      "arquivo": "packages/nucleo/src/ia/provedor.test.ts",
+      "de": "ProvedorDeIa",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:89",
+      "trecho": "ProvedorDeIa: o log leva id, nunca conteúdo (regra 20, item 9)"
+    },
+    {
+      "arquivo": "packages/nucleo/src/ia/provedor.test.ts",
+      "de": "ProvedorDeIa",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:89",
+      "trecho": "ProvedorDeIa: o domínio nunca vê erro cru"
+    },
+    {
+      "arquivo": "packages/nucleo/src/ia/provedor.test.ts",
+      "de": "ErroDeIa",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:74",
+      "trecho": "erro qualquer do adaptador vira ErroDeIa indisponível, sem a mensagem original"
+    },
+    {
+      "arquivo": "packages/nucleo/src/ia/provedor.test.ts",
+      "de": "ProvedorDeIa",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:89",
+      "trecho": "ProvedorDeIa: a escola do pedido é a de quem pede (regra 10, item 3)"
+    },
+    {
+      "arquivo": "packages/nucleo/src/ia/provedor.test.ts",
+      "de": "ProvedorDeIa",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:89",
+      "trecho": "ProvedorDeIa: entrada inválida para antes de qualquer gasto"
+    },
+    {
+      "arquivo": "packages/nucleo/src/ia/provedor.test.ts",
+      "de": "ProvedorDeIa",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:89",
+      "trecho": "ProvedorDeIa: orçamento consultado antes de gastar (D14, D38)"
+    },
+    {
+      "arquivo": "packages/nucleo/src/ia/provedor.test.ts",
+      "de": "ProvedorDeIa",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:89",
+      "trecho": "ProvedorDeIa: função suspensa pela escola não executa (D60)"
+    },
+    {
+      "arquivo": "packages/nucleo/src/ia/provedor.test.ts",
+      "de": "ErroDeIa",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:74",
+      "trecho": "a chamada deveria ter falhado com ErroDeIa"
+    },
+    {
+      "arquivo": "packages/nucleo/src/ia/provedor.test.ts",
+      "de": "OrcamentoEmMemoria",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:70",
+      "trecho": "OrcamentoEmMemoria"
+    },
+    {
+      "arquivo": "packages/nucleo/src/ia/provedor.test.ts",
+      "de": "ProvedorDeIa",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:89",
+      "trecho": "ProvedorDeIa: saída validada e medição"
+    },
+    {
+      "arquivo": "packages/nucleo/src/ia/tarefa.ts",
+      "de": "MaterialSemConteudoAproveitavel",
+      "classe": "trava",
+      "linha": "travas.md:55",
+      "trecho": "MaterialSemConteudoAproveitavel"
+    },
+    {
+      "arquivo": "packages/nucleo/src/ia/tarefas/conteudo.test.ts",
+      "de": "ErroDeIa",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:74",
+      "trecho": "a chamada deveria ter falhado com ErroDeIa"
+    },
+    {
+      "arquivo": "packages/nucleo/src/ia/tarefas/turno-do-tutor.test.ts",
+      "de": "ErroDeIa",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:74",
+      "trecho": "a chamada deveria ter falhado com ErroDeIa"
+    },
+    {
+      "arquivo": "packages/nucleo/src/identidade/emissor-de-token.test.ts",
+      "de": "EmissorDeToken",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:272",
+      "trecho": "EmissorDeToken"
+    },
+    {
+      "arquivo": "packages/nucleo/src/identidade/guarda-sessao.test.ts",
+      "de": "GuardaDeSessao",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:280",
+      "trecho": "GuardaDeSessao"
+    },
+    {
+      "arquivo": "packages/nucleo/src/identidade/guarda-sessao.test.ts",
+      "de": "GuardaDeSessao",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:280",
+      "trecho": "GuardaDeSessao: marcação do token renovado e medida da leitura"
+    },
+    {
+      "arquivo": "packages/nucleo/src/identidade/rota-sem-sessao.test.ts",
+      "de": "rotaSemSessao",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:287",
+      "trecho": "rotaSemSessao: quando as guardas tratam a requisição como anônima"
+    },
+    {
+      "arquivo": "packages/nucleo/src/identidade/rota-sem-sessao.test.ts",
+      "de": "AceitaDesafio",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:300",
+      "trecho": "rota @AceitaDesafio com desafio no Authorization: anônima para as guardas"
+    },
+    {
+      "arquivo": "packages/nucleo/src/identidade/rota-sem-sessao.test.ts",
+      "de": "AceitaDesafio",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:300",
+      "trecho": "rota @AceitaDesafio com token de acesso, sem bearer ou com bearer que não é JWT: segue o caminho aut"
+    },
+    {
+      "arquivo": "packages/nucleo/src/identidade/rota-sem-sessao.test.ts",
+      "de": "AceitaDesafio",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:300",
+      "trecho": "rota sem @AceitaDesafio com desafio no Authorization: não vira anônima, e a autenticação o recusa"
+    },
+    {
+      "arquivo": "packages/nucleo/src/identidade/rota-sem-sessao.test.ts",
+      "de": "RotaAnonima",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:306",
+      "trecho": "rota @RotaAnonima continua anônima, com ou sem token"
+    },
+    {
+      "arquivo": "packages/nucleo/src/identidade/rota-sem-sessao.test.ts",
+      "de": "marcadorDeOperacao",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:285",
+      "trecho": "marcadorDeOperacao separa a rota da entrada, e a rota da escola não tem marcador"
+    },
+    {
+      "arquivo": "packages/nucleo/src/identidade/rota-sem-sessao.test.ts",
+      "de": "bearerDeDesafio",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:286",
+      "trecho": "bearerDeDesafio só lê o typ do cabeçalho do JWT, sem verificar a assinatura"
+    },
+    {
+      "arquivo": "packages/nucleo/src/identidade/token-de-operador.test.ts",
+      "de": "cookieDeOperador",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:294",
+      "trecho": "cookieDeOperador (tarefa 7.0)"
+    },
+    {
+      "arquivo": "packages/nucleo/src/identidade/token-de-operador.test.ts",
+      "de": "EmissorDeTokenDeOperador",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:273",
+      "trecho": "EmissorDeTokenDeOperador"
+    },
+    {
+      "arquivo": "packages/nucleo/src/identidade/token-de-operador.test.ts",
+      "de": "verificarTokenDeOperador",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:297",
+      "trecho": "verificarTokenDeOperador"
+    },
+    {
+      "arquivo": "packages/nucleo/src/identidade/token-de-operador.test.ts",
+      "de": "verificarToken",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:296",
+      "trecho": "o verificarToken da escola recusa o token de operador pelo typ, com a mesma chave"
+    },
+    {
+      "arquivo": "packages/nucleo/src/identidade/token-de-operador.test.ts",
+      "de": "bearerDeOperador",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:293",
+      "trecho": "bearerDeOperador"
+    },
+    {
+      "arquivo": "packages/nucleo/src/identidade/verificar-token.test.ts",
+      "de": "extrairTokenBearer",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:295",
+      "trecho": "extrairTokenBearer"
+    },
+    {
+      "arquivo": "packages/nucleo/src/identidade/verificar-token.test.ts",
+      "de": "verificarToken",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:296",
+      "trecho": "verificarToken"
+    },
+    {
+      "arquivo": "packages/nucleo/src/index.ts",
+      "de": "migrar",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:1040",
+      "trecho": "./db/migrar.js"
+    },
+    {
+      "arquivo": "packages/nucleo/src/index.ts",
+      "de": "migrar",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:1040",
+      "trecho": "./db/migrar.js"
+    },
+    {
+      "arquivo": "packages/nucleo/src/instancia/drenagem.test.ts",
+      "de": "Drenagem",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:361",
+      "trecho": "Drenagem"
+    },
+    {
+      "arquivo": "packages/nucleo/src/instancia/drenagem.test.ts",
+      "de": "lerConfiguracaoDrenagem",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:363",
+      "trecho": "lerConfiguracaoDrenagem"
+    },
+    {
+      "arquivo": "packages/nucleo/src/limite/chaves.test.ts",
+      "de": "ipEncaminhado",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:323",
+      "trecho": "ipEncaminhado"
+    },
+    {
+      "arquivo": "packages/nucleo/src/limite/chaves.test.ts",
+      "de": "ipDoCliente",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:322",
+      "trecho": "ipDoCliente"
+    },
+    {
+      "arquivo": "packages/nucleo/src/limite/chaves.test.ts",
+      "de": "normalizarIp",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:325",
+      "trecho": "normalizarIp"
+    },
+    {
+      "arquivo": "packages/nucleo/src/limite/chaves.test.ts",
+      "de": "limiteDoSeguro",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:324",
+      "trecho": "limiteDoSeguro"
+    },
+    {
+      "arquivo": "packages/nucleo/src/limite/chaves.test.ts",
+      "de": "segundosParaTentarDeNovo",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:326",
+      "trecho": "segundosParaTentarDeNovo"
+    },
+    {
+      "arquivo": "packages/nucleo/src/limite/proporcao-em-janela.test.ts",
+      "de": "ProporcaoEmJanela",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:334",
+      "trecho": "ProporcaoEmJanela (limite.seguro_ativo)"
+    },
+    {
+      "arquivo": "packages/nucleo/src/limite/proxies-confiaveis.test.ts",
+      "de": "ProxiesConfiaveis",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:335",
+      "trecho": "ProxiesConfiaveis"
+    },
+    {
+      "arquivo": "packages/nucleo/src/log/logger.test.ts",
+      "de": "ErroDoPostgres",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:202",
+      "trecho": "ErroDoPostgres"
+    },
+    {
+      "arquivo": "packages/nucleo/src/log/logger.test.ts",
+      "de": "ErroDoPostgres",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:202",
+      "trecho": "ErroDoPostgres"
+    },
+    {
+      "arquivo": "packages/nucleo/src/log/logger.test.ts",
+      "de": "ErroDoPostgres",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:202",
+      "trecho": "ErroDoPostgres"
+    },
+    {
+      "arquivo": "packages/nucleo/src/log/logger.test.ts",
+      "de": "ErroDoPostgres",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:202",
+      "trecho": "ErroDoPostgres"
+    },
+    {
+      "arquivo": "packages/nucleo/src/log/logger.test.ts",
+      "de": "LoggerDoNest",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:365",
+      "trecho": "LoggerDoNest"
+    },
+    {
+      "arquivo": "packages/nucleo/src/log/logger.test.ts",
+      "de": "ErroDoPostgres",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:202",
+      "trecho": "ErroDoPostgres"
+    },
+    {
+      "arquivo": "packages/nucleo/src/log/logger.test.ts",
+      "de": "tratadorDeErroDoProcesso",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:369",
+      "trecho": "tratadorDeErroDoProcesso"
+    },
+    {
+      "arquivo": "packages/nucleo/src/log/logger.test.ts",
+      "de": "ErroDoPostgres",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:202",
+      "trecho": "ErroDoPostgres"
+    },
+    {
+      "arquivo": "packages/nucleo/src/log/logger.test.ts",
+      "de": "criarLogger",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:367",
+      "trecho": "criarLogger"
+    },
+    {
+      "arquivo": "packages/nucleo/src/permissao/conferencia-das-permissoes.ts",
+      "de": "Permite",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:314",
+      "trecho": "rota sem @Permite, @RotaAnonima nem marcador da operação"
+    },
+    {
+      "arquivo": "packages/nucleo/src/permissao/conferencia-das-permissoes.ts",
+      "de": "RotaAnonima",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:306",
+      "trecho": "rota sem @Permite, @RotaAnonima nem marcador da operação"
+    },
+    {
+      "arquivo": "packages/nucleo/src/permissao/conferencia-das-permissoes.ts",
+      "de": "RotasSemPermissao",
+      "classe": "trava",
+      "linha": "travas.md:55",
+      "trecho": "RotasSemPermissao"
+    },
+    {
+      "arquivo": "packages/nucleo/src/permissao/permissao.test.ts",
+      "de": "rotasSemPermissao",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:310",
+      "trecho": "rotasSemPermissao"
+    },
+    {
+      "arquivo": "packages/nucleo/src/permissao/permissao.test.ts",
+      "de": "Permite",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:314",
+      "trecho": "aponta só as rotas sem @Permite e sem @RotaAnonima, no método ou na classe, e ignora método sem rota"
+    },
+    {
+      "arquivo": "packages/nucleo/src/permissao/permissao.test.ts",
+      "de": "RotaAnonima",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:306",
+      "trecho": "aponta só as rotas sem @Permite e sem @RotaAnonima, no método ou na classe, e ignora método sem rota"
+    },
+    {
+      "arquivo": "packages/nucleo/src/permissao/permissao.test.ts",
+      "de": "GuardaDePermissao",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:311",
+      "trecho": "GuardaDePermissao"
+    },
+    {
+      "arquivo": "packages/nucleo/src/permissao/permissao.test.ts",
+      "de": "Permite",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:314",
+      "trecho": "rota autenticada sem @Permite é recusada mesmo assim: nunca libera por omissão"
+    },
+    {
+      "arquivo": "packages/nucleo/src/redis/clientes.test.ts",
+      "de": "criarClienteRedisDaFila",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:371",
+      "trecho": "criarClienteRedisDaFila"
+    },
+    {
+      "arquivo": "packages/nucleo/src/titular/armazem-de-arquivos.ts",
+      "de": "ArmazemIndisponivel",
+      "classe": "trava",
+      "linha": "travas.md:55",
+      "trecho": "ArmazemIndisponivel"
+    },
+    {
+      "arquivo": "packages/nucleo/src/titular/armazem-s3.int.test.ts",
+      "de": "ArmazemS3",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:417",
+      "trecho": "ArmazemS3 no SeaweedFS"
+    },
+    {
+      "arquivo": "packages/nucleo/src/titular/armazem-s3.test.ts",
+      "de": "ArmazemIndisponivel",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:208",
+      "trecho": "qualquer outra falha do storage vira ArmazemIndisponivel, sem o texto do SDK, que traz o endereço e "
+    },
+    {
+      "arquivo": "packages/nucleo/src/titular/armazem-s3.test.ts",
+      "de": "ArmazemIndisponivel",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:208",
+      "trecho": "o prazo corta a chamada: o storage que demora mais que o prazo do cliente vira ArmazemIndisponivel, "
+    },
+    {
+      "arquivo": "packages/nucleo/src/titular/armazem-s3.test.ts",
+      "de": "ArmazemS3",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:417",
+      "trecho": "ArmazemS3: a URL assinada"
+    },
+    {
+      "arquivo": "packages/nucleo/src/titular/armazem-s3.test.ts",
+      "de": "ArmazemS3",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:417",
+      "trecho": "ArmazemS3: as chamadas ao storage"
+    },
+    {
+      "arquivo": "packages/nucleo/src/titular/leitura-do-titular.test.ts",
+      "de": "colunasDoSelect",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:245",
+      "trecho": "colunasDoSelect: a lista de colunas que entra no SQL do arquivo"
+    },
+    {
+      "arquivo": "tools/ci/ambiente.test.ts",
+      "de": "migrar",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:228",
+      "trecho": "migrar"
+    },
+    {
+      "arquivo": "tools/ci/ambiente.test.ts",
+      "de": "migrar",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:228",
+      "trecho": "migrar"
+    },
+    {
+      "arquivo": "tools/ci/borda.test.ts",
+      "de": "TENTE_DE_NOVO_PADRAO_SEGUNDOS",
+      "classe": "trava",
+      "linha": "travas.md:99",
+      "trecho": "/export const TENTE_DE_NOVO_PADRAO_SEGUNDOS = (\\d+)/"
+    },
+    {
+      "arquivo": "tools/ci/compose.int.test.ts",
+      "de": "migrar",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:228",
+      "trecho": "migrar"
+    },
+    {
+      "arquivo": "tools/ci/compose.int.test.ts",
+      "de": "migrar",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:228",
+      "trecho": "migrar"
+    },
+    {
+      "arquivo": "tools/ci/dockerfile.test.ts",
+      "de": "migrar",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:228",
+      "trecho": "migrar"
+    },
+    {
+      "arquivo": "tools/guardas/__fixtures__/filtros/knip.json",
+      "de": "migrar",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:1040",
+      "trecho": "\"src/db/migrar.ts\""
+    },
+    {
+      "arquivo": "tools/guardas/__fixtures__/repositories/prova-so-no-texto.repository.ts",
+      "de": "exigirEscolaDoContexto",
+      "classe": "trava",
+      "linha": "travas.md:33",
+      "trecho": "exigirEscolaDoContexto()"
+    },
+    {
+      "arquivo": "tools/guardas/__fixtures__/repositories/prova-so-no-texto.repository.ts",
+      "de": "exigirEscolaDoContexto",
+      "classe": "trava",
+      "linha": "travas.md:33",
+      "trecho": "exigirEscolaDoContexto()"
+    },
+    {
+      "arquivo": "tools/guardas/camadas.cjs",
+      "de": "SemEscopo",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:235",
+      "trecho": "A `ResolucaoDeTenantRepository` concentra os `@SemEscopo` da resolução de tenant e fica dentro de `s"
+    },
+    {
+      "arquivo": "tools/guardas/camadas.cjs",
+      "de": "SemEscopo",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:235",
+      "trecho": "O `PainelRepository` lê entre escolas, com três `@SemEscopo`: só o `painel.service.ts` o usa (I1, A0"
+    },
+    {
+      "arquivo": "tools/guardas/escopo-dos-repositories.ts",
+      "de": "TokenVerificado",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:292",
+      "trecho": "é a leitura que cria o contexto da requisição: o escopo é a escola e a sessão do TokenVerificado, e "
+    },
+    {
+      "arquivo": "tools/guardas/escopo-dos-repositories.ts",
+      "de": "SemEscopo",
+      "classe": "trava",
+      "linha": "travas.md:33",
+      "trecho": "SemEscopo"
+    },
+    {
+      "arquivo": "tools/guardas/escopo-dos-repositories.ts",
+      "de": "escopoDoJobNoContexto",
+      "classe": "trava",
+      "linha": "travas.md:33",
+      "trecho": "escopoDoJobNoContexto"
+    },
+    {
+      "arquivo": "tools/guardas/escopo-dos-repositories.ts",
+      "de": "exigirEscolaDoContexto",
+      "classe": "trava",
+      "linha": "travas.md:33",
+      "trecho": "exigirEscolaDoContexto"
+    },
+    {
+      "arquivo": "tools/guardas/escopo-dos-repositories.ts",
+      "de": "identidadeDaRequisicao",
+      "classe": "trava",
+      "linha": "travas.md:33",
+      "trecho": "identidadeDaRequisicao"
+    },
+    {
+      "arquivo": "tools/guardas/escopo-dos-repositories.ts",
+      "de": "Repository",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:127",
+      "trecho": "'Repository'))) { violacoes.push({ arquivo: fonte.ca"
+    },
+    {
+      "arquivo": "tools/guardas/escopo-dos-repositories.ts",
+      "de": "SemEscopo",
+      "classe": "trava",
+      "linha": "travas.md:33",
+      "trecho": ": o motivo do @SemEscopo precisa ser texto de pelo menos"
+    },
+    {
+      "arquivo": "tools/guardas/escopo-dos-repositories.ts",
+      "de": "SemEscopo",
+      "classe": "trava",
+      "linha": "travas.md:33",
+      "trecho": ", sem @SemEscopo e fora de REPOSITORIES_SEM_ESCOPO"
+    },
+    {
+      "arquivo": "tools/guardas/escopo-dos-repositories.ts",
+      "de": "Banco",
+      "classe": "trava",
+      "linha": "travas.md:33",
+      "trecho": "Banco"
+    },
+    {
+      "arquivo": "tools/guardas/escopo-dos-repositories.ts",
+      "de": "ExecutorDeAuditoria",
+      "classe": "trava",
+      "linha": "travas.md:33",
+      "trecho": "ExecutorDeAuditoria"
+    },
+    {
+      "arquivo": "tools/guardas/escopo-dos-repositories.ts",
+      "de": "TransacaoBanco",
+      "classe": "trava",
+      "linha": "travas.md:33",
+      "trecho": "TransacaoBanco"
+    },
+    {
+      "arquivo": "tools/guardas/escopo-dos-repositories.ts",
+      "de": "exigirEscolaDoContexto",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:264",
+      "trecho": "repassa o banco a haHomonimoDoTitular (nucleo/titular/homonimo.ts), que lê exigirEscolaDoContexto; a"
+    },
+    {
+      "arquivo": "tools/guardas/escopo-dos-repositories.ts",
+      "de": "AuditoriaRecusada",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:192",
+      "trecho": "lê contextoAtual()?.escolaId no próprio método e recusa sem escola, com AuditoriaRecusada: é a cópia"
+    },
+    {
+      "arquivo": "tools/guardas/escopo-dos-repositories.ts",
+      "de": "contextoAtual",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:257",
+      "trecho": "lê contextoAtual()?.escolaId no próprio método e recusa sem escola, com AuditoriaRecusada: é a cópia"
+    },
+    {
+      "arquivo": "tools/guardas/escopo-dos-repositories.ts",
+      "de": "inserirAuditoria",
+      "classe": "trava",
+      "linha": "travas.md:34",
+      "trecho": "inserirAuditoria"
+    },
+    {
+      "arquivo": "tools/guardas/escopo-dos-repositories.ts",
+      "de": "contextoAtual",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:257",
+      "trecho": "a escola, ou a falta dela nos jobs sistema.*, vem de contextoAtual() e do escopoDoJobNoContexto defi"
+    },
+    {
+      "arquivo": "tools/guardas/escopo-dos-repositories.ts",
+      "de": "escopoDoJobNoContexto",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:148",
+      "trecho": "a escola, ou a falta dela nos jobs sistema.*, vem de contextoAtual() e do escopoDoJobNoContexto defi"
+    },
+    {
+      "arquivo": "tools/guardas/guardas.test.ts",
+      "de": "ErroDeDominio",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:197",
+      "trecho": "o jeito certo passa: ErroDeInvariante com texto fixo, ErroDeDominio, classe do módulo, relançamento "
+    },
+    {
+      "arquivo": "tools/guardas/guardas.test.ts",
+      "de": "LoggerDoNest",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:365",
+      "trecho": "as únicas exceções são o SDK nos adaptadores, a tabela no repository, no teste e no db/ do núcleo, a"
+    },
+    {
+      "arquivo": "tools/guardas/regras-erro.mjs",
+      "de": "ErroDeDominio",
+      "classe": "trava",
+      "linha": "travas.md:52",
+      "trecho": "Não lance `Error` genérico: lance `ErroDeDominio` (o cliente precisa do código), `InvariantException"
+    },
+    {
+      "arquivo": "tools/guardas/regras-log.mjs",
+      "de": "resumirErro",
+      "classe": "trava",
+      "linha": "travas.md:56",
+      "trecho": "resumirErro"
+    },
+    {
+      "arquivo": "tools/guardas/regras-log.mjs",
+      "de": "resumirErro",
+      "classe": "trava",
+      "linha": "travas.md:56",
+      "trecho": "Log não leva este valor sob esta chave. Id recebe o que termina em id (`aluno.id`); erro, o erro ou "
+    },
+    {
+      "arquivo": "tools/guardas/repositories-com-escopo.test.ts",
+      "de": "inserirAuditoria",
+      "classe": "trava",
+      "linha": "travas.md:34",
+      "trecho": "inserirAuditoria"
+    },
+    {
+      "arquivo": "tools/guardas/repositories-com-escopo.test.ts",
+      "de": "exigirEscolaDoContexto",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:264",
+      "trecho": "a cópia local de exigirEscolaDoContexto não vale: só a importada"
+    },
+    {
+      "arquivo": "tools/guardas/repositories-com-escopo.test.ts",
+      "de": "SemEscopo",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:235",
+      "trecho": "o @SemEscopo escrito no arquivo, que não é o importado, não vale"
+    },
+    {
+      "arquivo": "tools/guardas/repositories-com-escopo.test.ts",
+      "de": "escopoDoJobNoContexto",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:148",
+      "trecho": "só identidadeDaRequisicao, ou só escopoDoJobNoContexto, valem cada uma"
+    },
+    {
+      "arquivo": "tools/guardas/repositories-com-escopo.test.ts",
+      "de": "identidadeDaRequisicao",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:278",
+      "trecho": "só identidadeDaRequisicao, ou só escopoDoJobNoContexto, valem cada uma"
+    },
+    {
+      "arquivo": "tools/guardas/repositories-com-escopo.test.ts",
+      "de": "SemEscopo",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:235",
+      "trecho": "decorator, satisfies e as const compilam no parser da raiz, e o @SemEscopo com motivo vale"
+    },
+    {
+      "arquivo": "tools/guardas/repositories-com-escopo.test.ts",
+      "de": "SemEscopo",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:235",
+      "trecho": "todo método público real tem (a) a prova do contexto, (b) @SemEscopo com motivo ou (c) a entrada na "
+    },
+    {
+      "arquivo": "tools/ia/medir-risco-a-vida.test.ts",
+      "de": "executarNoContexto",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:260",
+      "trecho": "executarNoContexto"
+    },
+    {
+      "arquivo": "tools/processo/guardioes-por-caminho.ts",
+      "de": "SemEscopo",
+      "classe": "trava",
+      "linha": "travas.md:39",
+      "trecho": "@SemEscopo("
+    },
+    {
+      "arquivo": "tools/processo/harness/guardioes.test.ts",
+      "de": "SemEscopo",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:235",
+      "trecho": "@SemEscopo( no índice, só no HEAD ou em nenhum: quatro, quatro, e C I (componentes/ui/)"
+    },
+    {
+      "arquivo": "tools/processo/harness/guardioes.test.ts",
+      "de": "SemEscopo",
+      "classe": "trava",
+      "linha": "travas.md:39",
+      "trecho": "@SemEscopo() // rotina administrativa nossa"
+    },
+    {
+      "arquivo": "tools/processo/harness/guardioes.test.ts",
+      "de": "SemEscopo",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:235",
+      "trecho": "nunca cai em exceção: o sufixo e o @SemEscopo( pedem os quatro nas linhas do RF16 que pedem menos"
+    },
+    {
+      "arquivo": "tools/processo/harness/guardioes.test.ts",
+      "de": "SemEscopo",
+      "classe": "trava",
+      "linha": "travas.md:39",
+      "trecho": "@SemEscopo() // rotina administrativa nossa"
+    },
+    {
+      "arquivo": "tools/testes/integracao.setup.ts",
+      "de": "migrar",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:1040",
+      "trecho": "../../packages/nucleo/src/db/migrar.ts"
+    },
+    {
+      "arquivo": "apps/api/test/ciclo-de-vida.int.test.ts",
+      "de": "inserirAuditoria",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:221",
+      "trecho": "await expect(inserirAuditoria(autor)).rejects.toMatchObject({ code: '23503', constraint: 'auditoria_"
+    },
+    {
+      "arquivo": "apps/api/test/operacao-isolamento.int.test.ts",
+      "de": "cookieDeOperador",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:294",
+      "trecho": "if (/\"(?:token|desafio)\"/.test(texto) || cookieDeOperador) produziram.push(`${credencial.nome} ${rot"
+    },
+    {
+      "arquivo": "apps/api/test/sessao-operador.int.test.ts",
+      "de": "LinhaDaSessao",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:237",
+      "trecho": "async function linha(sessaoId: string): Promise<LinhaDaSessao> {"
+    },
+    {
+      "arquivo": "apps/api/test/sessao-operador.int.test.ts",
+      "de": "LinhaDaSessao",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:237",
+      "trecho": "const { rows } = await operadores.pool.query<LinhaDaSessao>("
+    },
+    {
+      "arquivo": "apps/web/src/areas/coordenacao/material/PainelDoMaterial.tsx",
+      "de": "Dado",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:93",
+      "trecho": "<Dado rotulo=\"Disciplina\">{disciplina}</Dado>"
+    },
+    {
+      "arquivo": "apps/web/src/areas/coordenacao/material/PainelDoMaterial.tsx",
+      "de": "Dado",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:93",
+      "trecho": "<Dado rotulo=\"De quem é o material\">{NOME_DA_TITULARIDADE[material.titularidade]}</Dado>"
+    },
+    {
+      "arquivo": "apps/web/src/areas/coordenacao/material/PainelDoMaterial.tsx",
+      "de": "Dado",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:93",
+      "trecho": "{material.licenciante !== null && <Dado rotulo=\"Quem deu a licença\">{material.licenciante}</Dado>}"
+    },
+    {
+      "arquivo": "apps/web/src/areas/coordenacao/material/PainelDoMaterial.tsx",
+      "de": "Dado",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:93",
+      "trecho": "<Dado rotulo=\"Licença de uso\">{NOME_DA_LICENCA[material.licenca]}</Dado>"
+    },
+    {
+      "arquivo": "apps/web/src/areas/coordenacao/material/PainelDoMaterial.tsx",
+      "de": "Dado",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:93",
+      "trecho": "<Dado rotulo=\"Páginas\">{material.paginas === null ? '—' : String(material.paginas)}</Dado>"
+    },
+    {
+      "arquivo": "apps/web/src/areas/coordenacao/painel/fila-da-coordenacao.test.ts",
+      "de": "Dado",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:93",
+      "trecho": "const lida = <Dado>(dado: Dado, completa = true): LeituraDaFila<Dado> => ({ estado: 'lida', dado, co"
+    },
+    {
+      "arquivo": "apps/web/src/areas/coordenacao/painel/fila-da-coordenacao.ts",
+      "de": "Dado",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:93",
+      "trecho": "function lida<Dado>(leitura: LeituraDaFila<Dado>): Dado | undefined {"
+    },
+    {
+      "arquivo": "apps/web/src/areas/coordenacao/painel/fila-da-coordenacao.ts",
+      "de": "Dado",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:93",
+      "trecho": "function inteira<Dado>(leitura: LeituraDaFila<Dado>): Dado | undefined {"
+    },
+    {
+      "arquivo": "apps/web/src/areas/coordenacao/painel/fila-da-coordenacao.ts",
+      "de": "Dado",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:93",
+      "trecho": "function leituraDe<Dado>(consulta: UseQueryResult<ListaDaEstrutura<Dado>>, aplica = true): LeituraDa"
+    },
+    {
+      "arquivo": "apps/web/src/areas/professor/inicio/fila-do-professor.test.ts",
+      "de": "Dado",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:93",
+      "trecho": "const lida = <Dado>(dado: Dado, completa = true): LeituraDaFila<Dado> => ({ estado: 'lida', dado, co"
+    },
+    {
+      "arquivo": "apps/web/src/areas/professor/inicio/fila-do-professor.ts",
+      "de": "Dado",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:93",
+      "trecho": "function lida<Dado>(leitura: LeituraDaFila<Dado>): Dado | undefined {"
+    },
+    {
+      "arquivo": "apps/web/src/componentes/sino/leitura-do-sino.ts",
+      "de": "Dado",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:93",
+      "trecho": "export type LeituraDaFila<Dado> ="
+    },
+    {
+      "arquivo": "apps/web/src/componentes/sino/leitura-do-sino.ts",
+      "de": "Dado",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:93",
+      "trecho": "| { readonly estado: 'lida'; readonly dado: Dado; readonly completa: boolean }"
+    },
+    {
+      "arquivo": "apps/web/src/letra.test.ts",
+      "de": "Ambiente",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:344",
+      "trecho": "function rodarOScript({ letra, caminho }: Ambiente): string | undefined {"
+    },
+    {
+      "arquivo": "apps/web/src/tema.test.ts",
+      "de": "Ambiente",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:344",
+      "trecho": "function rodarOScript({ guardado, sistema }: Ambiente): string | undefined {"
+    },
+    {
+      "arquivo": "apps/worker/src/executor.test.ts",
+      "de": "DependenciasDoExecutor",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:77",
+      "trecho": "import { AvisoDeVagaLivre, ESPERA_POR_VAGA_MS, ExecutorDeJobs, type DependenciasDoExecutor, type Job"
+    },
+    {
+      "arquivo": "apps/worker/src/executor.test.ts",
+      "de": "DependenciasDoExecutor",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:77",
+      "trecho": "const dependencias: DependenciasDoExecutor = {"
+    },
+    {
+      "arquivo": "apps/worker/src/executor.ts",
+      "de": "DependenciasDoExecutor",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:77",
+      "trecho": "constructor(private readonly dependencias: DependenciasDoExecutor) {"
+    },
+    {
+      "arquivo": "packages/nucleo/src/entrada/id.pipe.ts",
+      "de": "esquemaId",
+      "classe": "fica",
+      "linha": "inventario-adenda-2.md:93",
+      "trecho": "const lido = esquemaId.safeParse(valor)"
+    },
+    {
+      "arquivo": "packages/nucleo/src/identidade/verificar-token.test.ts",
+      "de": "OpcoesDeToken",
+      "classe": "fica",
+      "linha": "inventario-adenda-2.md:111",
+      "trecho": "async function assinar(opcoes: OpcoesDeToken = {}): Promise<string> {"
+    },
+    {
+      "arquivo": "packages/shared/src/operacao/painel.ts",
+      "de": "esquemaContagem",
+      "classe": "fica",
+      "linha": "inventario-adenda-2.md:101",
+      "trecho": "turmas: esquemaContagem,"
+    },
+    {
+      "arquivo": "packages/shared/src/operacao/painel.ts",
+      "de": "esquemaContagem",
+      "classe": "fica",
+      "linha": "inventario-adenda-2.md:101",
+      "trecho": "professores: esquemaContagem,"
+    },
+    {
+      "arquivo": "packages/shared/src/operacao/painel.ts",
+      "de": "esquemaContagem",
+      "classe": "fica",
+      "linha": "inventario-adenda-2.md:101",
+      "trecho": "alunos: esquemaContagem,"
+    },
+    {
+      "arquivo": "packages/shared/src/operacao/painel.ts",
+      "de": "esquemaContagem",
+      "classe": "fica",
+      "linha": "inventario-adenda-2.md:101",
+      "trecho": "total: esquemaContagem,"
+    },
+    {
+      "arquivo": "packages/shared/src/operacao/painel.ts",
+      "de": "esquemaContagem",
+      "classe": "fica",
+      "linha": "inventario-adenda-2.md:101",
+      "trecho": "requisicoes: esquemaContagem,"
+    },
+    {
+      "arquivo": "packages/shared/src/operacao/painel.ts",
+      "de": "esquemaContagem",
+      "classe": "fica",
+      "linha": "inventario-adenda-2.md:101",
+      "trecho": "jobs: esquemaContagem,"
+    },
+    {
+      "arquivo": "packages/shared/src/operacao/painel.ts",
+      "de": "esquemaContagem",
+      "classe": "fica",
+      "linha": "inventario-adenda-2.md:101",
+      "trecho": "bytesStorage: esquemaContagem,"
+    },
+    {
+      "arquivo": "tools/processo/mutacoes.test.ts",
+      "de": "LinhaNova",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:145",
+      "trecho": "type LinhaNova,"
+    },
+    {
+      "arquivo": "tools/processo/mutacoes.test.ts",
+      "de": "LinhaNova",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:145",
+      "trecho": "const emTeste: LinhaNova[] = ["
+    },
+    {
+      "arquivo": "tools/processo/mutacoes.test.ts",
+      "de": "LinhaNova",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:145",
+      "trecho": "const deTools: LinhaNova[] = ["
+    },
+    {
+      "arquivo": "tools/processo/mutacoes.ts",
+      "de": "LinhaNova",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:145",
+      "trecho": "export function linhasAcrescentadas(diff: string): LinhaNova[] {"
+    },
+    {
+      "arquivo": "tools/processo/mutacoes.ts",
+      "de": "LinhaNova",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:145",
+      "trecho": "const linhas: LinhaNova[] = []"
+    },
+    {
+      "arquivo": "tools/processo/mutacoes.ts",
+      "de": "LinhaNova",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:145",
+      "trecho": "export interface LinhaSemBloco extends LinhaNova {"
+    },
+    {
+      "arquivo": "tools/processo/mutacoes.ts",
+      "de": "LinhaNova",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:145",
+      "trecho": "export function linhasSemBloco(novas: readonly LinhaNova[], mutacoes: readonly Mutacao[]): LinhaSemB"
+    },
+    {
+      "arquivo": "tools/processo/mutacoes.ts",
+      "de": "LinhaNova",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:145",
+      "trecho": "export function linhasNovasDaArvore(raiz: string): LinhaNova[] {"
+    },
+    {
+      "arquivo": "tools/processo/separar-achados.test.ts",
+      "de": "migrar",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:228",
+      "trecho": "import { conferirPlano, migrar, planejarMigracao, separarBlocos } from './separar-achados.ts'"
+    },
+    {
+      "arquivo": "tools/processo/separar-achados.test.ts",
+      "de": "migrar",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:228",
+      "trecho": "migrar(antigo, raiz)"
+    },
+    {
+      "arquivo": "tools/processo/separar-achados.test.ts",
+      "de": "migrar",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:228",
+      "trecho": "expect(() => migrar(antigo, raiz)).toThrow(/repetido/)"
+    },
+    {
+      "arquivo": "tools/processo/separar-achados.test.ts",
+      "de": "migrar",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:228",
+      "trecho": "expect(() => migrar(antes, raiz)).toThrow(/conservação falhou/)"
+    },
+    {
+      "arquivo": "tools/processo/separar-achados.ts",
+      "de": "migrar",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:228",
+      "trecho": "for (const arquivo of arquivos) process.stdout.write(`${migrar(arquivo, raiz)}\\n`)"
+    },
+    {
+      "arquivo": "infra/scripts/carga.ts",
+      "de": "migrar",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:228",
+      "trecho": "// Só agora: as escolas e as sessões nascem no banco do projeto, já migrado pelo serviço `migrar`. O"
+    },
+    {
+      "arquivo": "packages/nucleo/drizzle.config.ts",
+      "de": "migrar",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:228",
+      "trecho": "// A migration gerada é revisada e versionada; quem aplica é o serviço `migrar` (src/db/migrar.ts)."
+    },
+    {
+      "arquivo": "packages/nucleo/src/db/migrar.ts",
+      "de": "migrar",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:228",
+      "trecho": "/** * Aplica as migrations pendentes, todas numa transação (o migrador do drizzle já faz assim). * R"
+    },
+    {
+      "arquivo": "tools/ci/ambiente-de-teste.test.ts",
+      "de": "migrar",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:228",
+      "trecho": "// Os onze serviços nossos com imagem de nome fixo: o `migrar` e os cinco pares. A `web` não declara"
+    },
+    {
+      "arquivo": "tools/ci/dockerfile.test.ts",
+      "de": "migrar",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:228",
+      "trecho": "// Com a âncora resolvida, os pares (`api-2`, `worker-lote-*`) também têm o `build` do primeiro; o `"
+    },
+    {
+      "arquivo": "tools/processo/separar-achados.test.ts",
+      "de": "migrar",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:228",
+      "trecho": "// O `rmSync` é a última linha de `migrar`, depois de tudo escrito e conferido. Sem um caso que"
+    },
+    {
+      "arquivo": "tools/processo/separar-achados.test.ts",
+      "de": "migrar",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:228",
+      "trecho": "// chegue a `conferirPlano` **dentro** de `migrar`, mover o `rmSync` para antes dele passa"
+    },
+    {
+      "arquivo": "tools/testes/integracao.setup.ts",
+      "de": "migrar",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:228",
+      "trecho": "/** * Garante Postgres, Redis e storage de pé antes da integração, e o banco com as migrations * apl"
+    },
+    {
+      "arquivo": "docs/guia-do-desenvolvedor.md",
+      "de": "migrar",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:228",
+      "trecho": "| Flyway | migrations do `drizzle-kit`, aplicadas pelo serviço `migrar` do compose | `packages/nucle"
+    },
+    {
+      "arquivo": "docs/guia-do-desenvolvedor.md",
+      "de": "migrar",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:228",
+      "trecho": "Ela é aplicada pelo serviço `migrar` do compose e pela integração. A migration precisa ser compatíve"
+    }
+  ],
+  "excecoesDoConferir": [
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "/\\bMETADADO_(?:ROTA|ENTRADA)_DE_OPERACAO\\b/",
+      "motivo": "trava de arquitetura que lê o texto do código pelo nome: troca à mão para o nome novo, prova vermelha em travas.md:45"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "/\\bEscolasDaRotinaRepository\\b|escolas-da-rotina\\.repository/",
+      "motivo": "trava de arquitetura que lê o texto do código pelo nome: troca à mão para o nome novo, prova vermelha em travas.md:110"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "/\\bOPERACAO_(?:ROUTE|ENTRY)_KEY\\b/",
+      "motivo": "trava de arquitetura que lê o texto do código pelo nome: troca à mão para o nome novo, prova vermelha em travas.md:45"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "/\\bCronEscolasRepository\\b|escolas-da-rotina\\.repository/",
+      "motivo": "trava de arquitetura que lê o texto do código pelo nome: troca à mão para o nome novo, prova vermelha em travas.md:110"
+    },
+    {
+      "arquivo": "tools/ci/borda.test.ts",
+      "texto": "/export const TENTE_DE_NOVO_PADRAO_SEGUNDOS = (\\d+)/",
+      "motivo": "a asserção lê a constante pelo nome no texto do código: troca à mão para o nome novo (travas.md:99, divergência de borda registrada no 4_task.md)"
+    },
+    {
+      "arquivo": "tools/ci/borda.test.ts",
+      "texto": "/export const DEFAULT_RETRY_AFTER_SECONDS = (\\d+)/",
+      "motivo": "a asserção lê a constante pelo nome no texto do código: troca à mão para o nome novo (travas.md:99, divergência de borda registrada no 4_task.md)"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "exigirEscolaDoContexto()",
+      "motivo": "trava de arquitetura que lê o texto do código pelo nome: troca à mão para o nome novo, prova vermelha em travas.md:109"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "import { METADADO_ROTA_DE_OPERACAO } from '@educa/nucleo'\nSetMetadata(METADADO_ROTA_DE_OPERACAO, true)",
+      "motivo": "trava de arquitetura que lê o texto do código pelo nome: troca à mão para o nome novo, prova vermelha em travas.md:45"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "reflector.get(METADADO_ENTRADA_DE_OPERACAO, alvo)",
+      "motivo": "trava de arquitetura que lê o texto do código pelo nome: troca à mão para o nome novo, prova vermelha em travas.md:45"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "import { METADADO_ROTA_DE_OPERACAO } from '@educa/nucleo'",
+      "motivo": "trava de arquitetura que lê o texto do código pelo nome: troca à mão para o nome novo, prova vermelha em travas.md:45"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "requireEscolaId()",
+      "motivo": "trava de arquitetura que lê o texto do código pelo nome: troca à mão para o nome novo, prova vermelha em travas.md:109"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "import { OPERACAO_ROUTE_KEY } from '@educa/nucleo'\nSetMetadata(OPERACAO_ROUTE_KEY, true)",
+      "motivo": "trava de arquitetura que lê o texto do código pelo nome: troca à mão para o nome novo, prova vermelha em travas.md:45"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "reflector.get(OPERACAO_ENTRY_KEY, alvo)",
+      "motivo": "trava de arquitetura que lê o texto do código pelo nome: troca à mão para o nome novo, prova vermelha em travas.md:45"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "import { OPERACAO_ROUTE_KEY } from '@educa/nucleo'",
+      "motivo": "trava de arquitetura que lê o texto do código pelo nome: troca à mão para o nome novo, prova vermelha em travas.md:45"
+    },
+    {
+      "arquivo": "apps/api/test/arquivo-do-titular.int.test.ts",
+      "texto": "ArmazemIndisponivel",
+      "motivo": "this.name da classe de erro acompanha a classe (adenda 1 do inventário; travas.md:55)"
+    },
+    {
+      "arquivo": "apps/api/test/arquivo-do-titular.int.test.ts",
+      "texto": "FileStorageUnavailableError",
+      "motivo": "this.name da classe de erro acompanha a classe (adenda 1 do inventário; travas.md:55)"
+    },
+    {
+      "arquivo": "apps/api/test/permissao-no-boot.test.ts",
+      "texto": "RotasSemPermissao",
+      "motivo": "this.name da classe de erro acompanha a classe (adenda 1 do inventário; travas.md:55)"
+    },
+    {
+      "arquivo": "apps/api/test/permissao-no-boot.test.ts",
+      "texto": "RoutesWithoutPermissaoError",
+      "motivo": "this.name da classe de erro acompanha a classe (adenda 1 do inventário; travas.md:55)"
+    },
+    {
+      "arquivo": "apps/worker/test/montar-arquivo.int.test.ts",
+      "texto": "ArmazemIndisponivel",
+      "motivo": "this.name da classe de erro acompanha a classe (adenda 1 do inventário; travas.md:55)"
+    },
+    {
+      "arquivo": "apps/worker/test/montar-arquivo.int.test.ts",
+      "texto": "FileStorageUnavailableError",
+      "motivo": "this.name da classe de erro acompanha a classe (adenda 1 do inventário; travas.md:55)"
+    },
+    {
+      "arquivo": "packages/nucleo/src/auditoria/acoes.test.ts",
+      "texto": "MapaDeAuditoriaInvalido",
+      "motivo": "this.name da classe de erro acompanha a classe (adenda 1 do inventário; travas.md:55)"
+    },
+    {
+      "arquivo": "packages/nucleo/src/auditoria/acoes.test.ts",
+      "texto": "InvalidAuditoriaMapError",
+      "motivo": "this.name da classe de erro acompanha a classe (adenda 1 do inventário; travas.md:55)"
+    },
+    {
+      "arquivo": "packages/nucleo/src/auditoria/acoes.ts",
+      "texto": "MapaDeAuditoriaInvalido",
+      "motivo": "this.name da classe de erro acompanha a classe (adenda 1 do inventário; travas.md:55)"
+    },
+    {
+      "arquivo": "packages/nucleo/src/auditoria/acoes.ts",
+      "texto": "InvalidAuditoriaMapError",
+      "motivo": "this.name da classe de erro acompanha a classe (adenda 1 do inventário; travas.md:55)"
+    },
+    {
+      "arquivo": "packages/nucleo/src/auditoria/auditoria-recusada.ts",
+      "texto": "AuditoriaRecusada",
+      "motivo": "this.name da classe de erro acompanha a classe (adenda 1 do inventário; travas.md:55)"
+    },
+    {
+      "arquivo": "packages/nucleo/src/auditoria/auditoria-recusada.ts",
+      "texto": "AuditoriaRejectedError",
+      "motivo": "this.name da classe de erro acompanha a classe (adenda 1 do inventário; travas.md:55)"
+    },
+    {
+      "arquivo": "packages/nucleo/src/auditoria/porta-unica.test.ts",
+      "texto": "inserirAuditoria",
+      "motivo": "a porta única de auditoria lida por texto: troca à mão (travas.md:57)"
+    },
+    {
+      "arquivo": "packages/nucleo/src/auditoria/porta-unica.test.ts",
+      "texto": "import { inserirAuditoria } from './insercao-de-auditoria.repository.js'",
+      "motivo": "a porta única de auditoria lida por texto: troca à mão (travas.md:57)"
+    },
+    {
+      "arquivo": "packages/nucleo/src/auditoria/porta-unica.test.ts",
+      "texto": "import {\n  inserirAuditoria,\n} from \"../auditoria/insercao-de-auditoria.repository\"",
+      "motivo": "a porta única de auditoria lida por texto: troca à mão (travas.md:57)"
+    },
+    {
+      "arquivo": "packages/nucleo/src/auditoria/porta-unica.test.ts",
+      "texto": "export { inserirAuditoria } from './insercao-de-auditoria.repository.js'",
+      "motivo": "a porta única de auditoria lida por texto: troca à mão (travas.md:57)"
+    },
+    {
+      "arquivo": "packages/nucleo/src/auditoria/porta-unica.test.ts",
+      "texto": "insertAuditoria",
+      "motivo": "a porta única de auditoria lida por texto: troca à mão (travas.md:57)"
+    },
+    {
+      "arquivo": "packages/nucleo/src/auditoria/porta-unica.test.ts",
+      "texto": "import { insertAuditoria } from './insercao-de-auditoria.repository.js'",
+      "motivo": "a porta única de auditoria lida por texto: troca à mão (travas.md:57)"
+    },
+    {
+      "arquivo": "packages/nucleo/src/auditoria/porta-unica.test.ts",
+      "texto": "import {\n  insertAuditoria,\n} from \"../auditoria/insercao-de-auditoria.repository\"",
+      "motivo": "a porta única de auditoria lida por texto: troca à mão (travas.md:57)"
+    },
+    {
+      "arquivo": "packages/nucleo/src/auditoria/porta-unica.test.ts",
+      "texto": "export { insertAuditoria } from './insercao-de-auditoria.repository.js'",
+      "motivo": "a porta única de auditoria lida por texto: troca à mão (travas.md:57)"
+    },
+    {
+      "arquivo": "packages/nucleo/src/config/validar-config.ts",
+      "texto": "ConfiguracaoInvalida",
+      "motivo": "this.name da classe de erro acompanha a classe (adenda 1 do inventário; travas.md:55)"
+    },
+    {
+      "arquivo": "packages/nucleo/src/config/validar-config.ts",
+      "texto": "InvalidConfigError",
+      "motivo": "this.name da classe de erro acompanha a classe (adenda 1 do inventário; travas.md:55)"
+    },
+    {
+      "arquivo": "packages/nucleo/src/db/migrar.ts",
+      "texto": "MigracaoFalhou",
+      "motivo": "this.name da classe de erro acompanha a classe (adenda 1 do inventário; travas.md:55)"
+    },
+    {
+      "arquivo": "packages/nucleo/src/db/migrar.ts",
+      "texto": "MigrationFailedError",
+      "motivo": "this.name da classe de erro acompanha a classe (adenda 1 do inventário; travas.md:55)"
+    },
+    {
+      "arquivo": "packages/nucleo/src/erro/erro-de-dominio.ts",
+      "texto": "ErroDeDominio",
+      "motivo": "this.name da classe de erro acompanha a classe (adenda 1 do inventário; travas.md:55)"
+    },
+    {
+      "arquivo": "packages/nucleo/src/erro/erro-de-dominio.ts",
+      "texto": "DomainException",
+      "motivo": "this.name da classe de erro acompanha a classe (adenda 1 do inventário; travas.md:55)"
+    },
+    {
+      "arquivo": "packages/nucleo/src/fila/pedido-de-job-recusado.ts",
+      "texto": "PedidoDeJobRecusado",
+      "motivo": "this.name da classe de erro acompanha a classe (adenda 1 do inventário; travas.md:55)"
+    },
+    {
+      "arquivo": "packages/nucleo/src/fila/pedido-de-job-recusado.ts",
+      "texto": "JobRequestRejectedError",
+      "motivo": "this.name da classe de erro acompanha a classe (adenda 1 do inventário; travas.md:55)"
+    },
+    {
+      "arquivo": "packages/nucleo/src/ia/erros.ts",
+      "texto": "ErroDeIa",
+      "motivo": "this.name da classe de erro acompanha a classe (adenda 1 do inventário; travas.md:55)"
+    },
+    {
+      "arquivo": "packages/nucleo/src/ia/erros.ts",
+      "texto": "ErroDoProvedor",
+      "motivo": "this.name da classe de erro acompanha a classe (adenda 1 do inventário; travas.md:55)"
+    },
+    {
+      "arquivo": "packages/nucleo/src/ia/erros.ts",
+      "texto": "LLMError",
+      "motivo": "this.name da classe de erro acompanha a classe (adenda 1 do inventário; travas.md:55)"
+    },
+    {
+      "arquivo": "packages/nucleo/src/ia/erros.ts",
+      "texto": "ProviderError",
+      "motivo": "this.name da classe de erro acompanha a classe (adenda 1 do inventário; travas.md:55)"
+    },
+    {
+      "arquivo": "packages/nucleo/src/ia/tarefa.ts",
+      "texto": "MaterialSemConteudoAproveitavel",
+      "motivo": "this.name da classe de erro acompanha a classe (adenda 1 do inventário; travas.md:55)"
+    },
+    {
+      "arquivo": "packages/nucleo/src/ia/tarefa.ts",
+      "texto": "MaterialSemConteudoAproveitavelError",
+      "motivo": "this.name da classe de erro acompanha a classe (adenda 1 do inventário; travas.md:55)"
+    },
+    {
+      "arquivo": "packages/nucleo/src/permissao/conferencia-das-permissoes.ts",
+      "texto": "RotasSemPermissao",
+      "motivo": "this.name da classe de erro acompanha a classe (adenda 1 do inventário; travas.md:55)"
+    },
+    {
+      "arquivo": "packages/nucleo/src/permissao/conferencia-das-permissoes.ts",
+      "texto": "RoutesWithoutPermissaoError",
+      "motivo": "this.name da classe de erro acompanha a classe (adenda 1 do inventário; travas.md:55)"
+    },
+    {
+      "arquivo": "packages/nucleo/src/titular/armazem-de-arquivos.ts",
+      "texto": "ArmazemIndisponivel",
+      "motivo": "this.name da classe de erro acompanha a classe (adenda 1 do inventário; travas.md:55)"
+    },
+    {
+      "arquivo": "packages/nucleo/src/titular/armazem-de-arquivos.ts",
+      "texto": "FileStorageUnavailableError",
+      "motivo": "this.name da classe de erro acompanha a classe (adenda 1 do inventário; travas.md:55)"
+    },
+    {
+      "arquivo": "tools/guardas/__fixtures__/repositories/prova-so-no-texto.repository.ts",
+      "texto": "exigirEscolaDoContexto()",
+      "motivo": "fixture da guarda de escopo: a prova de escopo troca de nome junto com a guarda (travas.md:33)"
+    },
+    {
+      "arquivo": "tools/guardas/__fixtures__/repositories/prova-so-no-texto.repository.ts",
+      "texto": "requireEscolaId()",
+      "motivo": "fixture da guarda de escopo: a prova de escopo troca de nome junto com a guarda (travas.md:33)"
+    },
+    {
+      "arquivo": "tools/guardas/escopo-dos-repositories.ts",
+      "texto": "exigirEscolaDoContexto",
+      "motivo": "nome de tipo, prova de escopo e decorator que a guarda lê por texto: troca à mão, travas.md:33 e 34"
+    },
+    {
+      "arquivo": "tools/guardas/escopo-dos-repositories.ts",
+      "texto": "identidadeDaRequisicao",
+      "motivo": "nome de tipo, prova de escopo e decorator que a guarda lê por texto: troca à mão, travas.md:33 e 34"
+    },
+    {
+      "arquivo": "tools/guardas/escopo-dos-repositories.ts",
+      "texto": "escopoDoJobNoContexto",
+      "motivo": "nome de tipo, prova de escopo e decorator que a guarda lê por texto: troca à mão, travas.md:33 e 34"
+    },
+    {
+      "arquivo": "tools/guardas/escopo-dos-repositories.ts",
+      "texto": "Banco",
+      "motivo": "nome de tipo, prova de escopo e decorator que a guarda lê por texto: troca à mão, travas.md:33 e 34"
+    },
+    {
+      "arquivo": "tools/guardas/escopo-dos-repositories.ts",
+      "texto": "TransacaoBanco",
+      "motivo": "nome de tipo, prova de escopo e decorator que a guarda lê por texto: troca à mão, travas.md:33 e 34"
+    },
+    {
+      "arquivo": "tools/guardas/escopo-dos-repositories.ts",
+      "texto": "ExecutorDeAuditoria",
+      "motivo": "nome de tipo, prova de escopo e decorator que a guarda lê por texto: troca à mão, travas.md:33 e 34"
+    },
+    {
+      "arquivo": "tools/guardas/escopo-dos-repositories.ts",
+      "texto": "inserirAuditoria",
+      "motivo": "nome de tipo, prova de escopo e decorator que a guarda lê por texto: troca à mão, travas.md:33 e 34"
+    },
+    {
+      "arquivo": "tools/guardas/escopo-dos-repositories.ts",
+      "texto": "SemEscopo",
+      "motivo": "nome de tipo, prova de escopo e decorator que a guarda lê por texto: troca à mão, travas.md:33 e 34"
+    },
+    {
+      "arquivo": "tools/guardas/escopo-dos-repositories.ts",
+      "texto": "requireEscolaId",
+      "motivo": "nome de tipo, prova de escopo e decorator que a guarda lê por texto: troca à mão, travas.md:33 e 34"
+    },
+    {
+      "arquivo": "tools/guardas/escopo-dos-repositories.ts",
+      "texto": "requestIdentity",
+      "motivo": "nome de tipo, prova de escopo e decorator que a guarda lê por texto: troca à mão, travas.md:33 e 34"
+    },
+    {
+      "arquivo": "tools/guardas/escopo-dos-repositories.ts",
+      "texto": "jobScopeInContext",
+      "motivo": "nome de tipo, prova de escopo e decorator que a guarda lê por texto: troca à mão, travas.md:33 e 34"
+    },
+    {
+      "arquivo": "tools/guardas/escopo-dos-repositories.ts",
+      "texto": "Database",
+      "motivo": "nome de tipo, prova de escopo e decorator que a guarda lê por texto: troca à mão, travas.md:33 e 34"
+    },
+    {
+      "arquivo": "tools/guardas/escopo-dos-repositories.ts",
+      "texto": "DatabaseTransaction",
+      "motivo": "nome de tipo, prova de escopo e decorator que a guarda lê por texto: troca à mão, travas.md:33 e 34"
+    },
+    {
+      "arquivo": "tools/guardas/escopo-dos-repositories.ts",
+      "texto": "DatabaseExecutor",
+      "motivo": "nome de tipo, prova de escopo e decorator que a guarda lê por texto: troca à mão, travas.md:33 e 34"
+    },
+    {
+      "arquivo": "tools/guardas/escopo-dos-repositories.ts",
+      "texto": "insertAuditoria",
+      "motivo": "nome de tipo, prova de escopo e decorator que a guarda lê por texto: troca à mão, travas.md:33 e 34"
+    },
+    {
+      "arquivo": "tools/guardas/escopo-dos-repositories.ts",
+      "texto": "Unscoped",
+      "motivo": "nome de tipo, prova de escopo e decorator que a guarda lê por texto: troca à mão, travas.md:33 e 34"
+    },
+    {
+      "arquivo": "tools/guardas/regras-erro.mjs",
+      "texto": "Não lance `Error` genérico: lance `ErroDeDominio` (o cliente precisa do código), `InvariantException` (a linha que não pode acontecer) ou uma classe própria do módulo (regra 00, item 9).",
+      "motivo": "mensagem da regra cita a classe pelo nome novo (travas.md:52)"
+    },
+    {
+      "arquivo": "tools/guardas/regras-erro.mjs",
+      "texto": "Não lance `Error` genérico: lance `DomainException` (o cliente precisa do código), `InvariantException` (a linha que não pode acontecer) ou uma classe própria do módulo (regra 00, item 9).",
+      "motivo": "mensagem da regra cita a classe pelo nome novo (travas.md:52)"
+    },
+    {
+      "arquivo": "tools/guardas/regras-log.mjs",
+      "texto": "resumirErro",
+      "motivo": "a regra de log lê o nome do resumo de erro: troca à mão (travas.md:56)"
+    },
+    {
+      "arquivo": "tools/guardas/regras-log.mjs",
+      "texto": "Log não leva este valor sob esta chave. Id recebe o que termina em id (`aluno.id`); erro, o erro ou `resumirErro(erro)`; chave operacional (evento, status, duracaoMs, criadoEm...), outro valor operacional, conta ou instante. Objeto inteiro ou `err.message` levariam o que tiverem dentro (regra 20, item 9).",
+      "motivo": "a regra de log lê o nome do resumo de erro: troca à mão (travas.md:56)"
+    },
+    {
+      "arquivo": "tools/guardas/regras-log.mjs",
+      "texto": "summarizeError",
+      "motivo": "a regra de log lê o nome do resumo de erro: troca à mão (travas.md:56)"
+    },
+    {
+      "arquivo": "tools/guardas/regras-log.mjs",
+      "texto": "Log não leva este valor sob esta chave. Id recebe o que termina em id (`aluno.id`); erro, o erro ou `summarizeError(erro)`; chave operacional (evento, status, duracaoMs, criadoEm...), outro valor operacional, conta ou instante. Objeto inteiro ou `err.message` levariam o que tiverem dentro (regra 20, item 9).",
+      "motivo": "a regra de log lê o nome do resumo de erro: troca à mão (travas.md:56)"
+    },
+    {
+      "arquivo": "tools/guardas/repositories-com-escopo.test.ts",
+      "texto": "inserirAuditoria",
+      "motivo": "o teste da guarda cita o método de auditoria pelo nome (travas.md:34)"
+    },
+    {
+      "arquivo": "tools/guardas/repositories-com-escopo.test.ts",
+      "texto": "insertAuditoria",
+      "motivo": "o teste da guarda cita o método de auditoria pelo nome (travas.md:34)"
+    },
+    {
+      "arquivo": "tools/processo/guardioes-por-caminho.ts",
+      "texto": "@SemEscopo(",
+      "motivo": "o decorator que chama o tenancy-guardian lido por texto: troca à mão (travas.md:39)"
+    },
+    {
+      "arquivo": "tools/processo/guardioes-por-caminho.ts",
+      "texto": "@Unscoped(",
+      "motivo": "o decorator que chama o tenancy-guardian lido por texto: troca à mão (travas.md:39)"
+    },
+    {
+      "arquivo": "tools/processo/harness/guardioes.test.ts",
+      "texto": "@SemEscopo() // rotina administrativa nossa\n",
+      "motivo": "o decorator que chama o tenancy-guardian lido por texto: troca à mão (travas.md:39)"
+    },
+    {
+      "arquivo": "tools/processo/harness/guardioes.test.ts",
+      "texto": "@Unscoped() // rotina administrativa nossa\n",
+      "motivo": "o decorator que chama o tenancy-guardian lido por texto: troca à mão (travas.md:39)"
+    },
+    {
+      "arquivo": "tools/guardas/__fixtures__/repositories/prova-so-no-texto.repository.ts",
+      "texto": " exigirEscolaDoContexto()",
+      "motivo": "fixture da guarda de escopo: a prova de escopo troca de nome junto com a guarda (travas.md:33)"
+    },
+    {
+      "arquivo": "tools/guardas/__fixtures__/repositories/prova-so-no-texto.repository.ts",
+      "texto": " requireEscolaId()",
+      "motivo": "fixture da guarda de escopo: a prova de escopo troca de nome junto com a guarda (travas.md:33)"
+    },
+    {
+      "arquivo": "tools/guardas/escopo-dos-repositories.ts",
+      "texto": ": o motivo do @SemEscopo precisa ser texto de pelo menos ",
+      "motivo": "nome de tipo, prova de escopo e decorator que a guarda lê por texto: troca à mão, travas.md:33 e 34"
+    },
+    {
+      "arquivo": "tools/guardas/escopo-dos-repositories.ts",
+      "texto": ", sem @SemEscopo e fora de REPOSITORIES_SEM_ESCOPO",
+      "motivo": "nome de tipo, prova de escopo e decorator que a guarda lê por texto: troca à mão, travas.md:33 e 34"
+    },
+    {
+      "arquivo": "tools/guardas/escopo-dos-repositories.ts",
+      "texto": ": o motivo do @Unscoped precisa ser texto de pelo menos ",
+      "motivo": "nome de tipo, prova de escopo e decorator que a guarda lê por texto: troca à mão, travas.md:33 e 34"
+    },
+    {
+      "arquivo": "tools/guardas/escopo-dos-repositories.ts",
+      "texto": ", sem @Unscoped e fora de REPOSITORIES_SEM_ESCOPO",
+      "motivo": "nome de tipo, prova de escopo e decorator que a guarda lê por texto: troca à mão, travas.md:33 e 34"
+    }
+  ]
+}

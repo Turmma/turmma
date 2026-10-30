@@ -1,14 +1,14 @@
 import {
-  contextoAtual,
-  executarNoContexto,
-  resumirErro,
-  type Banco,
-  type ConfiguracaoOperacional,
-  type Enfileirador,
-  type EscolasDaRotinaRepository,
+  currentContext,
+  runInContext,
+  summarizeError,
+  type Database,
+  type OperationalSettings,
+  type JobOutbox,
+  type CronEscolasRepository,
   type JanelaLetiva,
   type LoggerBase,
-  type Relogio,
+  type Clock,
 } from '@educa/nucleo'
 import { JobFailureCode, InvariantException, TIPO_EXPURGAR_ESCOLA, type TIPO_EXPURGAR_DADO_PESSOAL } from '@educa/shared'
 import type { Processador } from '../executor.js'
@@ -20,19 +20,19 @@ export function chaveDaNoite(fuso: string, agora: Date): string {
 }
 
 export interface DependenciasDaRotinaDeExpurgo {
-  escolas: Pick<EscolasDaRotinaRepository, 'listarIds'>
-  banco: Banco
-  enfileirador: Pick<Enfileirador, 'enfileirarUmaVez'>
+  escolas: Pick<CronEscolasRepository, 'listarIds'>
+  banco: Database
+  enfileirador: Pick<JobOutbox, 'enfileirarUmaVez'>
   /** O horário letivo da escola do contexto: dele sai o fuso da data local da chave. */
-  janelaDaEscola: Pick<ConfiguracaoOperacional<JanelaLetiva>, 'daEscola'>
-  relogio: Relogio
+  janelaDaEscola: Pick<OperationalSettings<JanelaLetiva>, 'daEscola'>
+  relogio: Clock
   logger: LoggerBase
 }
 
 /**
  * `sistema.expurgar-dado-pessoal` (F3, tarefa 3.0; Tech Spec do F3, seção 5), à 1h: lista as escolas
- * (`EscolasDaRotinaRepository`, a única consulta sem escopo da rotina) e, **no contexto de cada uma**, grava um
- * `retencao.expurgar-escola` na fila de lote, não urgente, pelo `Enfileirador`, com a chave "a data local da noite" no
+ * (`CronEscolasRepository`, a única consulta sem escopo da rotina) e, **no contexto de cada uma**, grava um
+ * `retencao.expurgar-escola` na fila de lote, não urgente, pelo `JobOutbox`, com a chave "a data local da noite" no
  * fuso da escola. Rodar duas vezes na mesma noite, ou duas réplicas ao mesmo tempo, dá um job por escola: a segunda
  * gravação colide na chave e é "já enfileirado".
  *
@@ -41,7 +41,7 @@ export interface DependenciasDaRotinaDeExpurgo {
  */
 export function criarRotinaDeExpurgo({ escolas, banco, enfileirador, janelaDaEscola, relogio, logger }: DependenciasDaRotinaDeExpurgo): Processador<typeof TIPO_EXPURGAR_DADO_PESSOAL> {
   return async () => {
-    const contexto = contextoAtual()
+    const contexto = currentContext()
     if (contexto?.rotinaDoSistema !== true) throw new FalhaDeJob(JobFailureCode.DADOS_INVALIDOS, true)
     const agora = relogio.agora()
     const ids = await escolas.listarIds()
@@ -50,7 +50,7 @@ export function criarRotinaDeExpurgo({ escolas, banco, enfileirador, janelaDaEsc
     let falhasTotal = 0
     for (const escolaId of ids) {
       try {
-        const resultado = await executarNoContexto({ requisicaoId: contexto.requisicaoId, escolaId }, async () => {
+        const resultado = await runInContext({ requisicaoId: contexto.requisicaoId, escolaId }, async () => {
           const { fuso } = await janelaDaEscola.daEscola()
           return banco.transaction((tx) => enfileirador.enfileirarUmaVez(tx, TIPO_EXPURGAR_ESCOLA, {}, chaveDaNoite(fuso, agora)))
         })
@@ -58,7 +58,7 @@ export function criarRotinaDeExpurgo({ escolas, banco, enfileirador, janelaDaEsc
         else jaEnfileiradosTotal += 1
       } catch (erro) {
         falhasTotal += 1
-        logger.warn({ evento: 'retencao.escola_nao_enfileirada', escolaId, erro: resumirErro(erro) })
+        logger.warn({ evento: 'retencao.escola_nao_enfileirada', escolaId, erro: summarizeError(erro) })
       }
     }
     const escolasTotal = ids.length

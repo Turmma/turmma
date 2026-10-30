@@ -1,7 +1,7 @@
 import { isIP } from 'node:net'
 import { z } from 'zod'
 import { PERFIS, type Perfil } from '../ia/perfis.js'
-import { AMBIENTES, validarAmbiente } from './validar-config.js'
+import { AMBIENTES, validateEnvironment } from './validar-config.js'
 
 /**
  * `falso` é o adaptador determinístico dos testes e da demonstração sem modelo; `openai_compat` fala com qualquer
@@ -9,7 +9,7 @@ import { AMBIENTES, validarAmbiente } from './validar-config.js'
  * um para o outro é só variável de ambiente (D13).
  */
 export const ADAPTADORES_DE_IA = ['falso', 'openai_compat'] as const
-export type AdaptadorDeIa = (typeof ADAPTADORES_DE_IA)[number]
+export type LLMAdapterKind = (typeof ADAPTADORES_DE_IA)[number]
 
 export const MOTIVO_ADAPTADOR_FALSO_EM_PRODUCAO =
   'IA_ADAPTADOR=falso é proibido com AMBIENTE=producao: o adaptador falso devolve conteúdo determinístico de demonstração, e escola real receberia isso como se fosse a IA'
@@ -68,7 +68,7 @@ function enderecoDaNossaRede(endereco: string): boolean {
  * Nenhuma destas variáveis é obrigatória: sem elas a API sobe com o adaptador falso. Em produção o falso é recusado,
  * e aí o adaptador, o endereço e o modelo passam a ser exigidos.
  */
-export const esquemaAmbienteDeIa = z
+export const llmEnvSchema = z
   .object({
     AMBIENTE: z.enum(AMBIENTES),
     IA_ADAPTADOR: opcional(z.enum(ADAPTADORES_DE_IA).default('falso')),
@@ -121,7 +121,7 @@ export const esquemaAmbienteDeIa = z
     if (valores.LLM_MODELO === undefined && porPerfil.includes(undefined)) problema('LLM_MODELO', MOTIVO_LLM_SEM_MODELO)
   })
 
-export interface ConfiguracaoDoModelo {
+export interface ModelConfig {
   /** A raiz da API do padrão OpenAI, com o `/v1`: o adaptador só acrescenta `/chat/completions`. */
   readonly baseUrl: string
   /** O id do modelo de cada perfil: o `LLM_MODELO_<PERFIL>`, ou o `LLM_MODELO` comum. */
@@ -133,7 +133,7 @@ export interface ConfiguracaoDoModelo {
   readonly provedorId?: string
 }
 
-export interface ConfiguracaoDoExecutor {
+export interface AgenteExecutorConfig {
   /** Execuções de IA de uma mesma escola ao mesmo tempo (regra 80, item 3). */
   readonly vagasPorEscola: number
   /** Execuções de IA ao mesmo tempo neste processo. */
@@ -141,21 +141,21 @@ export interface ConfiguracaoDoExecutor {
   readonly timeoutMs: number
 }
 
-export interface ConfiguracaoDeIa {
-  readonly adaptador: AdaptadorDeIa
+export interface LLMConfig {
+  readonly adaptador: LLMAdapterKind
   /** Só com `openai_compat`. */
-  readonly modelo?: ConfiguracaoDoModelo
+  readonly modelo?: ModelConfig
   /** O prazo de cada chamada ao modelo, por perfil: cobre a chamada e a repetição, e o disjuntor conta quem o estoura. */
   readonly prazosMs: Readonly<Record<Perfil, number>>
   /** Espera antes da única repetição em 429 e conexão recusada (regra 30, item 8): cabe no menor prazo. */
   readonly recuoMs: number
-  readonly executor: ConfiguracaoDoExecutor
+  readonly executor: AgenteExecutorConfig
   /** Só do adaptador falso: a espera simulada de cada chamada (`IA_LATENCIA_FALSA_MS`). Ausente é sem espera. */
   readonly latenciaFalsaMs?: number
 }
 
-export function lerConfiguracaoDeIa(ambiente: Record<string, string | undefined>): ConfiguracaoDeIa {
-  const valores = validarAmbiente(esquemaAmbienteDeIa, ambiente)
+export function loadLLMConfig(ambiente: Record<string, string | undefined>): LLMConfig {
+  const valores = validateEnvironment(llmEnvSchema, ambiente)
   const base = {
     adaptador: valores.IA_ADAPTADOR,
     prazosMs: { rapido: valores.LLM_TIMEOUT_MS_RAPIDO, padrao: valores.LLM_TIMEOUT_MS_PADRAO, complexo: valores.LLM_TIMEOUT_MS, visao: valores.LLM_TIMEOUT_MS },

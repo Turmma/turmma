@@ -1,4 +1,4 @@
-import type { PoolBanco } from '@educa/nucleo'
+import type { DatabasePool } from '@educa/nucleo'
 import { randomBytes } from 'node:crypto'
 
 /** A primeira metade da chave da trava consultiva dos gatilhos de parada: longe das 7_000_00x do código. */
@@ -20,7 +20,7 @@ export async function aguardar(condicao: () => Promise<boolean>, descricao: stri
  * = 'Lock'`) com a consulta que casa `padrao` (`ilike`). É como o teste confere que a escrita ficou mesmo na fila da
  * trava, e não passou antes por outro caminho.
  */
-export async function esperarNaTrava(pool: PoolBanco, padrao: string, quantos = 1): Promise<void> {
+export async function esperarNaTrava(pool: DatabasePool, padrao: string, quantos = 1): Promise<void> {
   await aguardar(async () => {
     const { rows } = await pool.query<{ total: number }>(
       `select count(*)::int as total from pg_stat_activity
@@ -41,14 +41,14 @@ export async function esperarNaTrava(pool: PoolBanco, padrao: string, quantos = 
  * escrita do mesmo arquivo. `desarmar` apaga o gatilho e a função, e solta a trava se ela ainda estiver segura.
  */
 export class GatilhoDeParada {
-  readonly #pool: PoolBanco
+  readonly #pool: DatabasePool
   readonly #nome = `teste_parada_${randomBytes(6).toString('hex')}`
   readonly #chave = randomBytes(3).readUIntBE(0, 3)
   /** Solta a trava e devolve a conexão que a segura; existe só entre `armar` e `soltar`. */
   #soltarTrava: (() => Promise<void>) | undefined
 
   constructor(
-    pool: PoolBanco,
+    pool: DatabasePool,
     private readonly opcoes: { readonly tabela: string; readonly evento: 'insert' | 'update' | 'delete'; readonly quando: string },
   ) {
     this.#pool = pool

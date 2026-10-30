@@ -1,4 +1,4 @@
-import { Drenagem, RotaAnonima } from '@educa/nucleo'
+import { GracefulShutdown, Public } from '@educa/nucleo'
 import type { ReadinessResponse } from '@educa/shared'
 import { Controller, Get, Header, Res } from '@nestjs/common'
 
@@ -10,10 +10,10 @@ interface RespostaHttp {
  * Sonda da borda. Só o estado da própria instância: não consulta o Redis, para uma lentidão dele
  * não tirar as duas instâncias do balanceamento ao mesmo tempo.
  */
-@RotaAnonima()
+@Public()
 @Controller('prontidao')
 export class ProntidaoController {
-  constructor(private readonly drenagem: Drenagem) {}
+  constructor(private readonly drenagem: GracefulShutdown) {}
 
   @Get()
   @Header('Cache-Control', 'no-store')

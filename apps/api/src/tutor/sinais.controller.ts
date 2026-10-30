@@ -1,4 +1,4 @@
-import { Permite, ZodValidationPipe } from '@educa/nucleo'
+import { RequirePermissao, ZodValidationPipe } from '@educa/nucleo'
 import { sinaisQuerySchema, type SinaisQuery, type SinaisResponse } from '@educa/shared'
 import { Controller, Get, Header, Query } from '@nestjs/common'
 import { SupervisaoDoTutorService } from './supervisao.service.js'
@@ -13,7 +13,7 @@ export class SinaisController {
   constructor(private readonly supervisao: SupervisaoDoTutorService) {}
 
   @Get()
-  @Permite('sinal', 'ler')
+  @RequirePermissao('sinal', 'ler')
   @Header('Cache-Control', 'no-store')
   listar(@Query(new ZodValidationPipe(sinaisQuerySchema)) consulta: SinaisQuery): Promise<SinaisResponse> {
     return this.supervisao.sinais(consulta)

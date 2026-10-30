@@ -1,4 +1,4 @@
-import { executarNoContexto } from '@educa/nucleo'
+import { runInContext } from '@educa/nucleo'
 import { randomUUID } from 'node:crypto'
 import { afterAll, describe, expect, it } from 'vitest'
 import { BancadaDeSessoes } from '../../../test/sessao-de-teste.js'
@@ -14,7 +14,7 @@ describe('AlunosAtivosRepository: o tamanho da escola que dá o limiar do rebaix
     await bancada.fechar()
   })
 
-  const naEscola = <T>(escolaId: string, funcao: () => Promise<T>) => executarNoContexto({ requisicaoId: randomUUID(), escolaId }, funcao)
+  const naEscola = <T>(escolaId: string, funcao: () => Promise<T>) => runInContext({ requisicaoId: randomUUID(), escolaId }, funcao)
   const alunos = (escolaId: string, quantidade: number) =>
     bancada.alunosComMatricula(
       escolaId,
@@ -29,7 +29,7 @@ describe('AlunosAtivosRepository: o tamanho da escola que dá o limiar do rebaix
     const repositorio = new AlunosAtivosRepository(bancada.banco)
     expect(await naEscola(escolaA, () => repositorio.contar())).toBe(3)
     expect(await naEscola(escolaB, () => repositorio.contar())).toBe(40)
-    await expect(executarNoContexto({ requisicaoId: randomUUID() }, () => repositorio.contar())).rejects.toThrow('consulta com escopo sem escola no contexto')
+    await expect(runInContext({ requisicaoId: randomUUID() }, () => repositorio.contar())).rejects.toThrow('consulta com escopo sem escola no contexto')
   })
 
   it('borda: aluno desativado (transferido) e equipe não contam', async () => {

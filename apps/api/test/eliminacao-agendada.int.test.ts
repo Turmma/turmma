@@ -1,4 +1,4 @@
-import { diaDeUso, executarNoContexto } from '@educa/nucleo'
+import { diaDeUso, runInContext } from '@educa/nucleo'
 import { CicloDeVidaRepository, CicloDeVidaService } from '@educa/nucleo/ciclo-de-vida'
 import { ErrorCode, MENSAGENS_DE_ERRO, PRAZO_DA_ELIMINACAO_DIAS } from '@educa/shared'
 import { randomBytes, randomUUID } from 'node:crypto'
@@ -431,7 +431,7 @@ describe('eliminação agendada (F3, tarefa 14.0): suspende o acesso, não revel
       const titular = await aluno(escolaId)
       const cookie = cookieDeRenovacao(await entrar(slug, titular.matricula))
       const desconhecido = await renovar(api.url, `educa_sessao=${randomBytes(32).toString('base64url')}`)
-      await executarNoContexto({ requisicaoId: randomUUID(), escolaId, usuarioId: coordenacao.usuarioId, papel: 'coordenador' }, () =>
+      await runInContext({ requisicaoId: randomUUID(), escolaId, usuarioId: coordenacao.usuarioId, papel: 'coordenador' }, () =>
         new CicloDeVidaService(bancada.banco).desativar(titular.usuarioId),
       )
 
@@ -674,7 +674,7 @@ describe('eliminação agendada (F3, tarefa 14.0): suspende o acesso, não revel
       const titular = await aluno(escolaId)
       await entrar(slug, titular.matricula)
       const id = await agendar(coordenacao, titular.usuarioId)
-      await executarNoContexto({ requisicaoId: randomUUID(), escolaId, usuarioId: coordenacao.usuarioId, papel: 'coordenador' }, () =>
+      await runInContext({ requisicaoId: randomUUID(), escolaId, usuarioId: coordenacao.usuarioId, papel: 'coordenador' }, () =>
         new CicloDeVidaService(bancada.banco).eliminar(titular.usuarioId),
       )
 
@@ -804,7 +804,7 @@ describe('eliminação agendada (F3, tarefa 14.0): suspende o acesso, não revel
       const agendadoDeB = await aluno(b.escolaId)
       const livreDeB = await aluno(b.escolaId)
       const pedidoDeB = await agendar(b.coordenacao, agendadoDeB.usuarioId)
-      const naEscolaA = <T>(acao: () => Promise<T>) => executarNoContexto({ requisicaoId: randomUUID(), escolaId: a.escolaId, usuarioId: a.coordenacao.usuarioId }, acao)
+      const naEscolaA = <T>(acao: () => Promise<T>) => runInContext({ requisicaoId: randomUUID(), escolaId: a.escolaId, usuarioId: a.coordenacao.usuarioId }, acao)
 
       const cancelado = await naEscolaA(() => new PedidosRepository(bancada.banco).cancelar(pedidoDeB))
       const suspensa = await naEscolaA(() => bancada.banco.transaction((tx) => new CicloDeVidaRepository(tx).suspender(livreDeB.usuarioId)))

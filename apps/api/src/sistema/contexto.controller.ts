@@ -1,4 +1,4 @@
-import { Permite, sessaoDaRequisicao } from '@educa/nucleo'
+import { RequirePermissao, requestSessao } from '@educa/nucleo'
 import { contextResponseSchema, type ContextResponse } from '@educa/shared'
 import { Controller, Get, Header } from '@nestjs/common'
 
@@ -9,9 +9,9 @@ export class ContextoController {
    * cliente mande entra nesta resposta.
    */
   @Get()
-  @Permite('sistema_contexto', 'ler')
+  @RequirePermissao('sistema_contexto', 'ler')
   @Header('Cache-Control', 'no-store')
   obter(): ContextResponse {
-    return contextResponseSchema.parse(sessaoDaRequisicao())
+    return contextResponseSchema.parse(requestSessao())
   }
 }

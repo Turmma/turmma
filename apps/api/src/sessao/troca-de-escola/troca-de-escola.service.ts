@@ -1,4 +1,4 @@
-import { ErroDeDominio, sessaoDaRequisicao, type Banco } from '@educa/nucleo'
+import { DomainException, requestSessao, type Database } from '@educa/nucleo'
 import { ErrorCode, type TrocaDeEscolaRequest } from '@educa/shared'
 import type { ConclusaoDeLogin } from '../conclusao/conclusao-de-login.js'
 import { verificarDesafio, type ConsumoDeDesafio, type EmissorDeDesafio, type SessaoDeOrigemDaTroca } from '../../credencial/desafio.js'
@@ -7,7 +7,7 @@ import type { ResolucaoDeTenantRepository, UsuarioAtivoDaConta } from '../tenant
 import { SessaoDeOrigemRepository } from '../../credencial/sessao-de-origem.repository.js'
 
 export interface DependenciasDaTroca {
-  readonly banco: Banco
+  readonly banco: Database
   readonly resolucao: ResolucaoDeTenantRepository
   readonly consumo: ConsumoDeDesafio
   readonly conclusao: ConclusaoDeLogin
@@ -17,7 +17,7 @@ export interface DependenciasDaTroca {
 }
 
 /** `usuarioId` de outra conta, desativado, de aluno ou inexistente: a mesma resposta (regra 10, item 6). */
-const naoEncontrado = () => new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+const naoEncontrado = () => new DomainException(ErrorCode.NAO_ENCONTRADO)
 
 /**
  * Quem trabalha em mais de uma escola escolhe e troca (RF14; Tech Spec, seções 4 e 5, "Etapas" e "Troca de escola").
@@ -48,7 +48,7 @@ export class TrocaDeEscolaService {
   }
 
   async trocar(pedido: TrocaDeEscolaRequest, origem: OrigemDaRequisicao): Promise<ResultadoDoLogin> {
-    const { escolaId, sessaoId } = sessaoDaRequisicao()
+    const { escolaId, sessaoId } = requestSessao()
     const daOrigem = await new SessaoDeOrigemRepository(this.dependencias.banco).metodoEConta(sessaoId)
     if (daOrigem?.metodo !== 'email' || daOrigem.contaId === null) throw naoEncontrado()
     const destino = await this.#destinoDaConta(daOrigem.contaId, pedido.usuarioId)
@@ -71,7 +71,7 @@ export class TrocaDeEscolaService {
     origem: OrigemDaRequisicao,
   ): Promise<ResultadoDoLogin> {
     const conta = await this.dependencias.resolucao.mfaDaConta(contaId)
-    if (conta === undefined) throw new ErroDeDominio(ErrorCode.NAO_AUTENTICADO)
+    if (conta === undefined) throw new DomainException(ErrorCode.NAO_AUTENTICADO)
     if (destino.papel === 'coordenador' && !mfaCumprido) {
       const { emissorDeDesafio } = this.dependencias
       if (conta.ativadoEm === null) {

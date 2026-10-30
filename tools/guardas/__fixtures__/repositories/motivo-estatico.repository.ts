@@ -1,4 +1,4 @@
-import { SemEscopo, type Banco } from '@educa/nucleo'
+import { Unscoped, type Database } from '@educa/nucleo'
 import { MOTIVO_DE_FORA } from './motivos.js'
 import { aluno } from './tabelas.js'
 
@@ -14,69 +14,69 @@ function motivoDeFuncao(): string {
 
 // O motivo é texto que se sabe sem executar: literal, template sem substituição, `+` de literais ou const do arquivo.
 export class MotivoEstaticoRepository {
-  constructor(private readonly banco: Banco) {}
+  constructor(private readonly banco: Database) {}
 
-  @SemEscopo(MOTIVO_DE_FORA)
+  @Unscoped(MOTIVO_DE_FORA)
   async importado() { // reprova: motivo-nao-literal
     return this.banco.select().from(aluno)
   }
 
-  @SemEscopo(`um motivo com ${String(1)} substituição não é um texto literal`)
+  @Unscoped(`um motivo com ${String(1)} substituição não é um texto literal`)
   async comSubstituicao() { // reprova: motivo-nao-literal
     return this.banco.select().from(aluno)
   }
 
-  @SemEscopo(motivoDeFuncao())
+  @Unscoped(motivoDeFuncao())
   async deFuncao() { // reprova: motivo-nao-literal
     return this.banco.select().from(aluno)
   }
 
-  @SemEscopo(`um motivo em template sem substituição, com mais de trinta caracteres`)
+  @Unscoped(`um motivo em template sem substituição, com mais de trinta caracteres`)
   async templateSemSubstituicao() {
     return this.banco.select().from(aluno)
   }
 
-  @SemEscopo(MOTIVO_DO_ARQUIVO)
+  @Unscoped(MOTIVO_DO_ARQUIVO)
   async constDoArquivo() {
     return this.banco.select().from(aluno)
   }
 
-  @SemEscopo(PRIMEIRA_PARTE + 'a segunda parte, que completa o motivo')
+  @Unscoped(PRIMEIRA_PARTE + 'a segunda parte, que completa o motivo')
   async mais() {
     return this.banco.select().from(aluno)
   }
 
-  @SemEscopo(MOTIVO_DE_FORA + ' com a primeira parte que só se sabe importando')
+  @Unscoped(MOTIVO_DE_FORA + ' com a primeira parte que só se sabe importando')
   async somaComImportadoNaEsquerda() { // reprova: motivo-nao-literal
     return this.banco.select().from(aluno)
   }
 
-  @SemEscopo('com a segunda parte que só se sabe importando, ' + MOTIVO_DE_FORA)
+  @Unscoped('com a segunda parte que só se sabe importando, ' + MOTIVO_DE_FORA)
   async somaComImportadoNaDireita() { // reprova: motivo-nao-literal
     return this.banco.select().from(aluno)
   }
 
-  @SemEscopo(PRIMEIRA_PARTE - 'uma conta que não é soma de textos, e não vale')
+  @Unscoped(PRIMEIRA_PARTE - 'uma conta que não é soma de textos, e não vale')
   async subtracao() { // reprova: motivo-nao-literal
     return this.banco.select().from(aluno)
   }
 
-  @SemEscopo(MOTIVO_COM_LET)
+  @Unscoped(MOTIVO_COM_LET)
   async daLet() { // reprova: motivo-nao-literal
     return this.banco.select().from(aluno)
   }
 
-  @SemEscopo(CICLO_A)
+  @Unscoped(CICLO_A)
   async doCiclo() { // reprova: motivo-nao-literal
     return this.banco.select().from(aluno)
   }
 
-  @SemEscopo('um motivo comprido o bastante para valer sozinho', 'e um segundo argumento que o decorator não tem')
+  @Unscoped('um motivo comprido o bastante para valer sozinho', 'e um segundo argumento que o decorator não tem')
   async comDoisArgumentos() { // reprova: motivo-nao-literal
     return this.banco.select().from(aluno)
   }
 
-  @SemEscopo()
+  @Unscoped()
   async semArgumento() { // reprova: motivo-nao-literal
     return this.banco.select().from(aluno)
   }

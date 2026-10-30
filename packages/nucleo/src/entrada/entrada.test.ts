@@ -1,17 +1,17 @@
 import { ErrorCode } from '@educa/shared'
 import { describe, expect, it } from 'vitest'
 import { z } from 'zod'
-import { ErroDeDominio } from '../erro/erro-de-dominio.js'
+import { DomainException } from '../erro/erro-de-dominio.js'
 import { IdPipe } from './id.pipe.js'
 import { ZodValidationPipe } from './zod-validation.pipe.js'
 
 const esquema = z.strictObject({ nome: z.string().min(1), limite: z.coerce.number().int().min(1).max(100).default(20) })
 
-function erroDe(chamada: () => unknown): ErroDeDominio {
+function erroDe(chamada: () => unknown): DomainException {
   try {
     chamada()
   } catch (erro) {
-    if (erro instanceof ErroDeDominio) return erro
+    if (erro instanceof DomainException) return erro
     throw erro
   }
   throw new Error('a chamada não lançou')

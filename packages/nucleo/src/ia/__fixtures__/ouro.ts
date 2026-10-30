@@ -2,8 +2,8 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { z } from 'zod'
-import type { EntradaDoAssistente } from '../tarefas/propor-ferramenta.js'
-import type { EntradaDoTutor } from '../tarefas/turno-do-tutor.js'
+import type { AssistenteInput } from '../tarefas/propor-ferramenta.js'
+import type { TutorInput } from '../tarefas/turno-do-tutor.js'
 
 /**
  * O corpus `ouro` (`docs/aia/ouro/`): as frases que **não** foram usadas para escrever os padrões das políticas de
@@ -25,30 +25,30 @@ export function raizDoOuro(urlDoModulo: string = import.meta.url): string {
 /** Toda chave a mais é recusada: campo novo no `ouro` ou no `MEDIDAS` é decisão do Arquiteto, e não passa calado. */
 const fechado = z.strictObject
 
-const esquemaContexto = fechado({
+const contextoSchema = fechado({
   comQuestao: z.boolean().optional(),
   turnoAnteriorDoAluno: z.string().min(1).optional(),
   turnosDoProfessor: z.array(z.string().min(1)).optional(),
   mensagemDoProfessor: z.string().min(1).optional(),
 })
 
-const esquemaAmostra = fechado({
+const amostraSchema = fechado({
   id: z.string().regex(/^[A-Z]{2}-\d{3}$/),
   texto: z.string().min(1),
   categoria: z.string().min(1),
   esperado: z.enum(['casa', 'nao_casa']),
   fonte: z.enum(['sintetica', 'revisor']),
-  contexto: esquemaContexto.optional(),
+  contexto: contextoSchema.optional(),
 })
-export type Amostra = z.infer<typeof esquemaAmostra>
+export type Amostra = z.infer<typeof amostraSchema>
 
-function esquemaDoCorpus(politica: Politica) {
+function corpusSchema(politica: Politica) {
   return fechado({
     politica: z.literal(politica),
     regra: z.string().min(1),
     escritoPor: z.string().min(1),
     versao: z.number().int().min(1),
-    amostras: z.array(esquemaAmostra).min(1),
+    amostras: z.array(amostraSchema).min(1),
   }).superRefine((corpus, contexto) => {
     const vistos = new Set<string>()
     for (const amostra of corpus.amostras) {
@@ -57,33 +57,33 @@ function esquemaDoCorpus(politica: Politica) {
     }
   })
 }
-export type Corpus = z.infer<ReturnType<typeof esquemaDoCorpus>>
+export type Corpus = z.infer<ReturnType<typeof corpusSchema>>
 
 export function lerJson(nome: string, raiz: string = raizDoOuro()): unknown {
   return JSON.parse(readFileSync(join(raiz, nome), 'utf8'))
 }
 
 export function interpretarCorpus(politica: Politica, bruto: unknown): Corpus {
-  return esquemaDoCorpus(politica).parse(bruto)
+  return corpusSchema(politica).parse(bruto)
 }
 
 export function lerCorpus(politica: Politica, raiz: string = raizDoOuro()): Corpus {
   return interpretarCorpus(politica, lerJson(`${politica}.json`, raiz))
 }
 
-const esquemaContagem = fechado({
+const contagemSchema = fechado({
   certos: z.number().int().min(0),
   total: z.number().int().min(1),
 }).refine((contagem) => contagem.certos <= contagem.total, { message: 'certos passa do total' })
 const proporcao = z.number().min(0).max(1)
 
-const esquemaBase = fechado({
+const baseSchema = fechado({
   medidaEm: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   recall: proporcao,
   precisao: proporcao,
-  porCategoria: z.record(z.string(), esquemaContagem),
+  porCategoria: z.record(z.string(), contagemSchema),
 })
-export type Base = z.infer<typeof esquemaBase>
+export type Base = z.infer<typeof baseSchema>
 
 const naoCairDaBase = z.literal('nao_cair_da_base')
 const tarefaDoDocumento = z.string().regex(/^\d+\.0$/)
@@ -92,9 +92,9 @@ const tarefaDoDocumento = z.string().regex(/^\d+\.0$/)
  * Cada política tem a sua forma de alvo, e a string `nao_cair_da_base` só vale onde a política já tem `base`: política
  * nova (sem função até a tarefa dela) tem alvo absoluto, nunca igual à base (onda-0 §2.1, R42).
  */
-const esquemaDasMedidas = fechado({
+const medidasSchema = fechado({
   riscoAVida: fechado({
-    base: esquemaBase,
+    base: baseSchema,
     alvo: fechado({
       erraPara: z.literal('mais'),
       perdaMaxima: z.record(z.string(), z.number().int().min(0)),
@@ -103,10 +103,10 @@ const esquemaDasMedidas = fechado({
     foraDoAlvo: z.array(z.string()),
     pisoForaDoAlvo: z.record(z.string(), naoCairDaBase),
   }),
-  assuntoDelicado: fechado({ base: esquemaBase, alvo: naoCairDaBase }),
-  pedidoDeRespostaPronta: fechado({ base: esquemaBase, alvo: naoCairDaBase }),
+  assuntoDelicado: fechado({ base: baseSchema, alvo: naoCairDaBase }),
+  pedidoDeRespostaPronta: fechado({ base: baseSchema, alvo: naoCairDaBase }),
   julgamentoDeTextoDeAluno: fechado({
-    base: esquemaBase,
+    base: baseSchema,
     alvo: fechado({
       recall: proporcao,
       semCasar: z.array(z.string()),
@@ -114,17 +114,17 @@ const esquemaDasMedidas = fechado({
       naoCairDaBase: z.array(z.string()),
     }),
   }),
-  saidaComNota: fechado({ base: esquemaBase, alvo: naoCairDaBase }),
+  saidaComNota: fechado({ base: baseSchema, alvo: naoCairDaBase }),
   saidaQualitativa: fechado({
-    base: esquemaBase.nullable(),
+    base: baseSchema.nullable(),
     alvo: fechado({ recall: proporcao, legitimasBarradas: z.number().int().min(0) }),
     semBaseAte: tarefaDoDocumento.optional(),
   }).refine((medida) => medida.base !== null || medida.semBaseAte !== undefined, { message: 'base nula só com semBaseAte' }),
 })
-export type Medidas = z.infer<typeof esquemaDasMedidas>
+export type Medidas = z.infer<typeof medidasSchema>
 
 /** O `ouro` ou o `MEDIDAS` que não confere com o corpus: o teste distingue esta recusa de um erro qualquer. */
-export class OuroRecusado extends Error {}
+export class GoldenRejectedError extends Error {}
 
 /** Se a tarefa do documento (`"3.0"`) já está concluída. O padrão lê a lista de tarefas da reengenharia, `tasks.md`. */
 export type TarefaConcluida = (tarefa: string) => boolean
@@ -138,7 +138,7 @@ export function tarefaConcluidaNaLista(raizDoRepositorio: string): TarefaConclui
 const raizDoRepositorio = (raiz: string): string => join(raiz, '../../..')
 
 export function interpretarMedidas(bruto: unknown, corpora: Readonly<Record<Politica, Corpus>>, tarefaConcluida: TarefaConcluida): Medidas {
-  const medidas = esquemaDasMedidas.parse(bruto)
+  const medidas = medidasSchema.parse(bruto)
   const falhas: string[] = []
   const categoriasDe = (politica: Politica): Set<string> => new Set(corpora[politica].amostras.map((amostra) => amostra.categoria))
   const confere = (politica: Politica, onde: string, categorias: Iterable<string>): void => {
@@ -161,7 +161,7 @@ export function interpretarMedidas(bruto: unknown, corpora: Readonly<Record<Poli
   if (qualitativa.base === null && qualitativa.semBaseAte !== undefined && tarefaConcluida(qualitativa.semBaseAte)) {
     falhas.push(`saidaQualitativa: a tarefa ${qualitativa.semBaseAte} já fechou e a base continua nula`)
   }
-  if (falhas.length > 0) throw new OuroRecusado(falhas.join('\n'))
+  if (falhas.length > 0) throw new GoldenRejectedError(falhas.join('\n'))
   return medidas
 }
 
@@ -250,7 +250,7 @@ export function semOsNaoMedidos(amostras: readonly Amostra[], medidoSem: readonl
 }
 
 /** A questão em andamento que o aluno tem diante de si quando o `ouro` diz `comQuestao: true`. Qualquer uma serve: a regra só olha se existe. */
-const questaoEmAndamento: NonNullable<EntradaDoTutor['questao']> = {
+const questaoEmAndamento: NonNullable<TutorInput['questao']> = {
   numero: 1,
   enunciado: 'Qual é a massa molar da água?',
   alternativas: ['10 g/mol', '18 g/mol', '20 g/mol', '32 g/mol'],
@@ -258,14 +258,14 @@ const questaoEmAndamento: NonNullable<EntradaDoTutor['questao']> = {
 }
 
 /** README do `ouro`, "O que a 1.0 passa à função": `comQuestao` é `questao` definida; `turnoAnteriorDoAluno` é o turno anterior do aluno. */
-export function entradaDoPedidoDeRespostaPronta(amostra: Amostra): Pick<EntradaDoTutor, 'duvida' | 'questao' | 'turnosAnteriores'> {
+export function entradaDoPedidoDeRespostaPronta(amostra: Amostra): Pick<TutorInput, 'duvida' | 'questao' | 'turnosAnteriores'> {
   const anterior = amostra.contexto?.turnoAnteriorDoAluno
-  const turnosAnteriores: EntradaDoTutor['turnosAnteriores'] = anterior === undefined ? [] : [{ autor: 'aluno', texto: anterior }]
+  const turnosAnteriores: TutorInput['turnosAnteriores'] = anterior === undefined ? [] : [{ autor: 'aluno', texto: anterior }]
   const entrada = { duvida: amostra.texto, turnosAnteriores }
   return amostra.contexto?.comQuestao === true ? { ...entrada, questao: questaoEmAndamento } : entrada
 }
 
 /** README do `ouro`: `turnosDoProfessor` são os turnos anteriores do professor, na ordem. */
-export function turnosDoProfessor(amostra: Amostra): EntradaDoAssistente['turnosAnteriores'] {
+export function turnosDoProfessor(amostra: Amostra): AssistenteInput['turnosAnteriores'] {
   return (amostra.contexto?.turnosDoProfessor ?? []).map((texto) => ({ autor: 'professor', texto }))
 }

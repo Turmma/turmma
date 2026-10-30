@@ -1,4 +1,4 @@
-import { ConfiguracaoInvalida, validarAmbiente } from '@educa/nucleo'
+import { InvalidConfigError, validateEnvironment } from '@educa/nucleo'
 import { z } from 'zod'
 
 export interface ConfiguracaoSala {
@@ -25,8 +25,8 @@ const esquemaAmbienteSala = z.object({
  * a de cifra, a do cookie do login externo). As mensagens citam só o nome da variável.
  */
 export function lerConfiguracaoSala(ambiente: Record<string, string | undefined>): ConfiguracaoSala {
-  const { SALA_CHAVE_CODIGO: chave } = validarAmbiente(esquemaAmbienteSala, ambiente)
+  const { SALA_CHAVE_CODIGO: chave } = validateEnvironment(esquemaAmbienteSala, ambiente)
   const repetida = Object.entries(ambiente).some(([nome, valor]) => nome !== 'SALA_CHAVE_CODIGO' && nome.includes('_CHAVE_') && valor === chave)
-  if (repetida) throw new ConfiguracaoInvalida(['SALA_CHAVE_CODIGO'], [MOTIVO_CHAVE_DA_SALA_REPETIDA])
+  if (repetida) throw new InvalidConfigError(['SALA_CHAVE_CODIGO'], [MOTIVO_CHAVE_DA_SALA_REPETIDA])
   return { chaveCodigo: new TextEncoder().encode(chave) }
 }

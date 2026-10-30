@@ -1,4 +1,4 @@
-import { IdPipe, Permite, ZodValidationPipe } from '@educa/nucleo'
+import { IdPipe, RequirePermissao, ZodValidationPipe } from '@educa/nucleo'
 import {
   pedidosDaTurmaQuerySchema,
   decidirReivindicacoesRequestSchema,
@@ -21,13 +21,13 @@ export class PedidosController {
   constructor(private readonly decisoes: DecisaoService) {}
 
   @Get('turmas/:id/reivindicacoes')
-  @Permite('reivindicacao', 'ler')
+  @RequirePermissao('reivindicacao', 'ler')
   pedidos(@Param('id', IdPipe) turmaId: string, @Query(new ZodValidationPipe(pedidosDaTurmaQuerySchema)) consulta: PedidosDaTurmaQuery): Promise<PedidosDaTurmaResponse> {
     return this.decisoes.pedidos(turmaId, consulta)
   }
 
   @Post('reivindicacoes/decidir')
-  @Permite('reivindicacao', 'decidir')
+  @RequirePermissao('reivindicacao', 'decidir')
   @HttpCode(HttpStatus.OK)
   decidir(@Body(new ZodValidationPipe(decidirReivindicacoesRequestSchema)) pedido: DecidirReivindicacoesRequest): Promise<DecisaoResponse> {
     return this.decisoes.decidir(pedido)

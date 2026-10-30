@@ -1,4 +1,4 @@
-import { exigirEscolaDoContexto, usuario, type Banco, type TransacaoBanco } from '@educa/nucleo'
+import { requireEscolaId, usuario, type Database, type DatabaseTransaction } from '@educa/nucleo'
 import { and, count, eq, isNull } from 'drizzle-orm'
 
 /**
@@ -7,10 +7,10 @@ import { and, count, eq, isNull } from 'drizzle-orm'
  * qualquer coisa dela; a contagem nunca sai de outra escola (regra 10, item 3). Devolve só o número.
  */
 export class AlunosAtivosRepository {
-  constructor(private readonly banco: Banco | TransacaoBanco) {}
+  constructor(private readonly banco: Database | DatabaseTransaction) {}
 
   async contar(): Promise<number> {
-    const escolaId = exigirEscolaDoContexto()
+    const escolaId = requireEscolaId()
     const [linha] = await this.banco
       .select({ total: count() })
       .from(usuario)

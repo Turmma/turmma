@@ -1,4 +1,4 @@
-import { ErroDeDominio, type Banco } from '@educa/nucleo'
+import { DomainException, type Database } from '@educa/nucleo'
 import {
   ErrorCode,
   disciplinaResponseSchema,
@@ -18,7 +18,7 @@ import { paginar } from '../../http/paginacao.js'
  * disciplina com vínculo: `CONFLITO`, e nada é apagado.
  */
 export class DisciplinaService {
-  constructor(private readonly banco: Banco) {}
+  constructor(private readonly banco: Database) {}
 
   async criar(pedido: CriarDisciplinaRequest): Promise<DisciplinaResponse> {
     return disciplinaResponseSchema.parse(await new DisciplinaRepository(this.banco).criar(pedido))
@@ -26,12 +26,12 @@ export class DisciplinaService {
 
   async renomear(id: string, pedido: RenomearDisciplinaRequest): Promise<DisciplinaResponse> {
     const renomeada = await new DisciplinaRepository(this.banco).renomear(id, pedido.nome)
-    if (renomeada === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+    if (renomeada === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
     return disciplinaResponseSchema.parse(renomeada)
   }
 
   async excluir(id: string): Promise<void> {
-    if (!(await new DisciplinaRepository(this.banco).excluir(id))) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+    if (!(await new DisciplinaRepository(this.banco).excluir(id))) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
   }
 
   async listar(consulta: PaginationQuery): Promise<ListaDeDisciplinasResponse> {

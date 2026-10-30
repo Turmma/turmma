@@ -1,4 +1,4 @@
-import { ErroDeDominio, type Banco } from '@educa/nucleo'
+import { DomainException, type Database } from '@educa/nucleo'
 import { ErrorCode, type AceitarConviteDeOperadorRequest, type AceitarConviteDeOperadorResponse, type ConsultarConviteDeOperadorResponse } from '@educa/shared'
 import { baldeDaEquipe, type HashDeSenha, type SemaforoDeHash } from '../../credencial/index.js'
 import type { EmissorDeDesafioDeOperador } from '../desafio-de-operador.js'
@@ -6,10 +6,10 @@ import { OperadorRepository } from '../operador/operador.repository.js'
 import { hashDoTokenDeConvite } from '../token-do-convite.js'
 
 /** Usado, vencido, revogado, de operador desativado e inexistente: a mesma resposta, que não diz qual (C9; regra 20, item 6). */
-const conviteInvalido = () => new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+const conviteInvalido = () => new DomainException(ErrorCode.NAO_ENCONTRADO)
 
 export interface DependenciasDoConviteDeOperador {
-  readonly banco: Banco
+  readonly banco: Database
   readonly hash: Pick<HashDeSenha, 'gerar'>
   /** O semáforo do hash do F1, o mesmo do login: o argon2 do aceite divide o teto de CPU da instância com ele. */
   readonly semaforo: Pick<SemaforoDeHash, 'executar'>
@@ -33,7 +33,7 @@ export interface OrigemDoAceite {
  *   quem estava com a credencial de antes não segue dentro), e a `AuditoriaOperacao` recebe `convite_operador.aceito`,
  *   com o próprio operador de autor e alvo (tarefa 9.0): autor, ação, alvo e data, nunca a senha nem o token.
  * - **Hash:** o argon2 roda no semáforo do F1, no balde da equipe com a vez por IP, antes da transação (ela não segura a
- *   linha do operador durante o hash). Acima do limite por IP (`@LimiteQueRebaixa`), o aceite não é recusado: vai para
+ *   linha do operador durante o hash). Acima do limite por IP (`@DowngradeRateLimit`), o aceite não é recusado: vai para
  *   o fim do balde. O convite que não vale sai antes do hash, sem gastar a vez.
  */
 export class ConviteDeOperadorService {

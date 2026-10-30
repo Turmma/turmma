@@ -1,5 +1,5 @@
 import 'reflect-metadata'
-import { type Banco } from '@educa/nucleo'
+import { type Database } from '@educa/nucleo'
 import { ErrorCode, segundoFatorDeOperadorResponseSchema, type ConfigurarSegundoFatorDeOperadorResponse } from '@educa/shared'
 import type { INestApplication } from '@nestjs/common'
 import type { Redis } from 'ioredis'
@@ -46,12 +46,12 @@ describe('segundo fator do operador: as travas contra a corrida (tarefa 7.0)', (
   const operadores = new BancadaDeOperadores()
   let app: INestApplication
   let url: string
-  let banco: Banco
+  let banco: Database
   let autor: string
 
   beforeAll(async () => {
     ;({ app, url } = await subir())
-    banco = app.get<Banco>(BANCO)
+    banco = app.get<Database>(BANCO)
     // O autor dos `desativar`: com ele e o alvo, há sempre dois ativos, e ninguém desativa a si mesmo.
     autor = (await operadores.operador()).apelido
   })

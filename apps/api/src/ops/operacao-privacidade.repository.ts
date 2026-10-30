@@ -1,4 +1,4 @@
-import { exigirEscolaDoContexto, incidente, incidenteEscola, SemEscopo, suboperador, suboperadorEscola, type Banco, type TransacaoBanco } from '@educa/nucleo'
+import { requireEscolaId, incidente, incidenteEscola, Unscoped, suboperador, suboperadorEscola, type Database, type DatabaseTransaction } from '@educa/nucleo'
 import { InvariantException, type AlcanceDoSuboperador, type CategoriaDeDadoDoIncidente, type CategoriaDeDadoDoSuboperador, type RiscoDoIncidente } from '@educa/shared'
 import { and, eq, isNull, sql } from 'drizzle-orm'
 
@@ -43,10 +43,10 @@ export interface SecaoDoIncidente {
  *   têm escopo a aplicar, como os do `OperadorRepository`.
  * - A ligação com a escola é escrita **no contexto da escola**, que o comando abre antes (regra 10, item 3): o `escola_id` vem
  *   do contexto, nunca de argumento. A única exceção é o encerramento, que fecha as ligações de um suboperador em todas as
- *   escolas de uma vez e por isso é `@SemEscopo`, com a justificativa dita.
+ *   escolas de uma vez e por isso é `@Unscoped`, com a justificativa dita.
  */
 export class OperacaoPrivacidadeRepository {
-  constructor(private readonly banco: Banco | TransacaoBanco) {}
+  constructor(private readonly banco: Database | DatabaseTransaction) {}
 
   /**
    * Cadastra o suboperador e devolve o id, ou `undefined` se já há um vigente com a mesma chave. `on conflict do nothing`:
@@ -78,7 +78,7 @@ export class OperacaoPrivacidadeRepository {
    * programação (a chave primária recusa): o comando liga cada escola uma vez só.
    */
   async ligarEscola(suboperadorId: string): Promise<void> {
-    await this.banco.insert(suboperadorEscola).values({ escolaId: exigirEscolaDoContexto(), suboperadorId })
+    await this.banco.insert(suboperadorEscola).values({ escolaId: requireEscolaId(), suboperadorId })
   }
 
   /**
@@ -119,14 +119,14 @@ export class OperacaoPrivacidadeRepository {
   async ligarEscolaAoIncidente(incidenteId: string, secao: SecaoDoIncidente): Promise<string> {
     const [criada] = await this.banco
       .insert(incidenteEscola)
-      .values({ incidenteId, escolaId: exigirEscolaDoContexto(), ...secao, categorias: [...secao.categorias] })
+      .values({ incidenteId, escolaId: requireEscolaId(), ...secao, categorias: [...secao.categorias] })
       .returning({ id: incidenteEscola.id })
     if (criada === undefined) throw new InvariantException('seção do incidente não gravada')
     return criada.id
   }
 
   /** Encerra, em todas as escolas, as ligações abertas do suboperador, e diz quantas eram. */
-  @SemEscopo('comando da operação: encerra as ligações abertas de um suboperador em todas as escolas de uma vez, pelo id dele; grava só a data de fim e devolve só a contagem, sem pessoa')
+  @Unscoped('comando da operação: encerra as ligações abertas de um suboperador em todas as escolas de uma vez, pelo id dele; grava só a data de fim e devolve só a contagem, sem pessoa')
   async encerrarLigacoes(suboperadorId: string): Promise<number> {
     const encerradas = await this.banco
       .update(suboperadorEscola)

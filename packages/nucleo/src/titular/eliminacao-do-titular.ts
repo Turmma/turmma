@@ -1,16 +1,16 @@
 import { AUTOR_DA_ROTINA, InvariantException } from '@educa/shared'
-import { RegistroDeAuditoria } from '../auditoria/registro-de-auditoria.js'
+import { AuditoriaRecorder } from '../auditoria/registro-de-auditoria.js'
 import { CicloDeVidaService, type AutoriaDoCicloDeVida } from '../ciclo-de-vida/ciclo-de-vida.service.js'
-import { contextoAtual, executarNoContexto } from '../contexto/contexto.js'
-import { exigirEscolaDoContexto } from '../contexto/escola-do-contexto.js'
-import type { Banco } from '../db/banco.js'
-import { relogioDoSistema, type Relogio } from '../relogio.js'
+import { currentContext, runInContext } from '../contexto/contexto.js'
+import { requireEscolaId } from '../contexto/escola-do-contexto.js'
+import type { Database } from '../db/banco.js'
+import { systemClock, type Clock } from '../relogio.js'
 import { Compartilhamento } from './compartilhamento.js'
 import { EliminacaoDoTitularRepository } from './eliminacao-do-titular.repository.js'
 import { haHomonimoDoTitular } from './homonimo.js'
 import { FAIXA_DA_TROCA_DE_NOME, TrocaDeNome } from './troca-de-nome.js'
 
-export interface OpcoesDaEliminacao {
+export interface EliminacaoOptions {
   /**
    * `true` quando o horário letivo da escola abriu: conferida **antes de cada faixa** da troca de nome. Quando abre, o job
    * termina sem rodar a etapa 3, e o pedido continua `agendado` (a rotina da noite seguinte o enfileira de novo).
@@ -27,7 +27,7 @@ export interface OpcoesDaEliminacao {
  */
 export type ResultadoDaEliminacao = 'concluida' | 'sem_efeito' | 'interrompida_pela_janela'
 
-const registro = new RegistroDeAuditoria()
+const registro = new AuditoriaRecorder()
 
 /**
  * A eliminação do titular no 8º dia (F3, tarefa 15.0; RF14 e RF15; Tech Spec do F3, seção 5, "`titular.eliminar`"). É o que o
@@ -56,15 +56,15 @@ export class EliminacaoDoTitular {
   readonly #troca: TrocaDeNome
 
   constructor(
-    private readonly banco: Banco,
-    private readonly relogio: Relogio = relogioDoSistema,
+    private readonly banco: Database,
+    private readonly relogio: Clock = systemClock,
   ) {
     this.#cicloDeVida = new CicloDeVidaService(banco)
     this.#troca = new TrocaDeNome(banco)
   }
 
-  async eliminar(pedidoId: string, { janelaAberta, faixa = FAIXA_DA_TROCA_DE_NOME }: OpcoesDaEliminacao): Promise<ResultadoDaEliminacao> {
-    exigirEscolaDoContexto()
+  async eliminar(pedidoId: string, { janelaAberta, faixa = FAIXA_DA_TROCA_DE_NOME }: EliminacaoOptions): Promise<ResultadoDaEliminacao> {
+    requireEscolaId()
     const leitura = new EliminacaoDoTitularRepository(this.banco)
     const pedido = await leitura.vencido(pedidoId)
     if (pedido === undefined) return 'sem_efeito'
@@ -115,9 +115,9 @@ export class EliminacaoDoTitular {
    * sem ela, como a rotina (`autorOperador`). O contexto novo guarda a mesma escola e a mesma requisição.
    */
   async #comAutor<T>(usuarioId: string | undefined, acao: (autoria: AutoriaDoCicloDeVida) => Promise<T>): Promise<T> {
-    const contexto = contextoAtual()
+    const contexto = currentContext()
     if (contexto === undefined) throw new InvariantException('eliminação do titular fora de um contexto')
     if (usuarioId === undefined) return acao({ autorOperador: AUTOR_DA_ROTINA })
-    return executarNoContexto({ ...contexto, usuarioId }, () => acao({}))
+    return runInContext({ ...contexto, usuarioId }, () => acao({}))
   }
 }

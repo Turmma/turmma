@@ -1,4 +1,4 @@
-import { AMBIENTES, ConfiguracaoInvalida, lerProtecaoDoLoginDesligada, TIMEOUT_COMANDO_REDIS_API_MS, validarAmbiente, type Ambiente } from '@educa/nucleo'
+import { AMBIENTES, InvalidConfigError, isLoginProtectionDisabled, TIMEOUT_COMANDO_REDIS_API_MS, validateEnvironment, type Environment } from '@educa/nucleo'
 import { hkdfSync } from 'node:crypto'
 import { z } from 'zod'
 
@@ -47,7 +47,7 @@ export const MOTIVO_PRAZO_DO_REDIS_DO_LOGIN = `LOGIN_REDIS_PRAZO_MS não passa d
  * `2026-09-22-corte-de-100-ms-do-redis-recusa-o-desafio-no-e2e`). O cenário de carga é a exceção dentro de `local`:
  * `infra/carga.env` fixa o corte de produção, porque é lá que ele é medido com a rajada das 7h30.
  */
-function prazoDoRedisDoLoginVale(prazoMs: number, ambiente: Ambiente): boolean {
+function prazoDoRedisDoLoginVale(prazoMs: number, ambiente: Environment): boolean {
   return prazoMs <= TIMEOUT_COMANDO_REDIS_API_MS || ambiente === 'local'
 }
 
@@ -154,7 +154,7 @@ function lerChavesDeCifra(ambiente: Record<string, string | undefined>, versaoAt
     if (chave === undefined) invalidas.push(variavel)
     else chaves.set(versao, chave)
   }
-  if (invalidas.length > 0) throw new ConfiguracaoInvalida(invalidas, [MOTIVO_CHAVE_DE_CIFRA])
+  if (invalidas.length > 0) throw new InvalidConfigError(invalidas, [MOTIVO_CHAVE_DE_CIFRA])
   return chaves
 }
 
@@ -170,28 +170,28 @@ export function variavelDaChaveDeDispositivo(versao: number): string {
  * chave dos códigos de recuperação repetindo outra. As mensagens citam só o nome da variável.
  */
 export function lerConfiguracaoLogin(ambiente: Record<string, string | undefined>): ConfiguracaoLogin {
-  const valores = validarAmbiente(esquemaAmbienteLogin, ambiente)
+  const valores = validateEnvironment(esquemaAmbienteLogin, ambiente)
   // O AMBIENTE é validado pela identidade: aqui, ausente ou inválido vale como produção, a leitura mais restrita, sem
-  // apontar a falta duas vezes. É defesa em profundidade, e não a garantia: `esquemaAmbienteIdentidade` exige o enum e
+  // apontar a falta duas vezes. É defesa em profundidade, e não a garantia: `authEnvSchema` exige o enum e
   // derruba o boot antes de este ramo ser alcançado por `lerConfiguracao`.
   const doAmbiente = AMBIENTES.find((valor) => valor === ambiente['AMBIENTE']) ?? 'producao'
-  const protecaoDesligada = lerProtecaoDoLoginDesligada({ ...ambiente, AMBIENTE: doAmbiente })
+  const protecaoDesligada = isLoginProtectionDisabled({ ...ambiente, AMBIENTE: doAmbiente })
   if (!prazoDoRedisDoLoginVale(valores.LOGIN_REDIS_PRAZO_MS, doAmbiente)) {
-    throw new ConfiguracaoInvalida(['LOGIN_REDIS_PRAZO_MS'], [MOTIVO_PRAZO_DO_REDIS_DO_LOGIN])
+    throw new InvalidConfigError(['LOGIN_REDIS_PRAZO_MS'], [MOTIVO_PRAZO_DO_REDIS_DO_LOGIN])
   }
   if (valores.LOGIN_HASH_CONCORRENCIA > valores.UV_THREADPOOL_SIZE - THREADS_DE_FOLGA_DO_LIBUV) {
-    throw new ConfiguracaoInvalida(['LOGIN_HASH_CONCORRENCIA'], [MOTIVO_CONCORRENCIA_DO_HASH])
+    throw new InvalidConfigError(['LOGIN_HASH_CONCORRENCIA'], [MOTIVO_CONCORRENCIA_DO_HASH])
   }
   const variavel = variavelDaChaveDeDispositivo(valores.LOGIN_CHAVE_DISPOSITIVO_VERSAO)
   const chaveDispositivo = ambiente[variavel]
-  if (chaveDispositivo === undefined || chaveDispositivo.length < TAMANHO_MINIMO_CHAVE_DE_LOGIN) throw new ConfiguracaoInvalida([variavel])
+  if (chaveDispositivo === undefined || chaveDispositivo.length < TAMANHO_MINIMO_CHAVE_DE_LOGIN) throw new InvalidConfigError([variavel])
   if (chaveDispositivo === valores.LOGIN_CHAVE_CONTADOR) {
-    throw new ConfiguracaoInvalida([variavel], [`${variavel} precisa ser diferente de LOGIN_CHAVE_CONTADOR: cada HMAC tem a própria chave`])
+    throw new InvalidConfigError([variavel], [`${variavel} precisa ser diferente de LOGIN_CHAVE_CONTADOR: cada HMAC tem a própria chave`])
   }
   const chavesCifra = lerChavesDeCifra(ambiente, valores.IDENTIDADE_CHAVE_CIFRA_VERSAO)
   const outrasChaves = [valores.LOGIN_CHAVE_CONTADOR, chaveDispositivo, ambiente[variavelDaChaveDeCifra(valores.IDENTIDADE_CHAVE_CIFRA_VERSAO)]]
   if (outrasChaves.includes(valores.IDENTIDADE_CHAVE_RECUPERACAO)) {
-    throw new ConfiguracaoInvalida(['IDENTIDADE_CHAVE_RECUPERACAO'], [MOTIVO_CHAVE_DE_RECUPERACAO_REPETIDA])
+    throw new InvalidConfigError(['IDENTIDADE_CHAVE_RECUPERACAO'], [MOTIVO_CHAVE_DE_RECUPERACAO_REPETIDA])
   }
   const codificar = (texto: string) => new TextEncoder().encode(texto)
   return {

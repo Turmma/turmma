@@ -1,4 +1,4 @@
-import { justificativaSemEscopo } from '@educa/nucleo'
+import { unscopedJustification } from '@educa/nucleo'
 import { readdirSync, readFileSync } from 'node:fs'
 import { dirname, join, relative, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -55,10 +55,10 @@ function importacoesRelativas(arquivo: { caminho: string; texto: string }): stri
 describe('RedeEEscolaRepository: a criação de rede e escola é só do operador', () => {
   it('só criarRede e criarEscola saem sem escopo, cada um com justificativa que cita o comando ou o painel do operador', () => {
     const metodos = Object.getOwnPropertyNames(RedeEEscolaRepository.prototype).filter((nome) => nome !== 'constructor')
-    const semEscopo = metodos.filter((metodo) => justificativaSemEscopo(RedeEEscolaRepository, metodo) !== undefined)
+    const semEscopo = metodos.filter((metodo) => unscopedJustification(RedeEEscolaRepository, metodo) !== undefined)
     expect(metodos.sort()).toEqual(['criarEscola', 'criarRede'])
     expect(semEscopo.sort()).toEqual(['criarEscola', 'criarRede'])
-    for (const metodo of semEscopo) expect(justificativaSemEscopo(RedeEEscolaRepository, metodo), metodo).toMatch(/comando ou o painel do operador/)
+    for (const metodo of semEscopo) expect(unscopedJustification(RedeEEscolaRepository, metodo), metodo).toMatch(/comando ou o painel do operador/)
   })
 
   it('nenhum código fora do repository do operador cria rede ou escola, e só o caso de uso o importa', () => {

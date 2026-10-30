@@ -1,4 +1,4 @@
-import { executarNoContexto } from '@educa/nucleo'
+import { runInContext } from '@educa/nucleo'
 import { ErrorCode, decisaoResponseSchema, MENSAGENS_DE_ERRO, type ResultadoDaDecisao } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -484,13 +484,13 @@ describe('virada do ano: encerrar o ano letivo encerra os vínculos por `fim_do_
       await sala.nomes(b, b.turma, 1)
       const antesEmB = await salaNoBanco(b.escolaId)
       const forjado = { requisicaoId: randomUUID(), escolaId: a.escolaId, usuarioId: a.coordenacao.usuarioId, papel: 'coordenador' as const, sessaoId: randomUUID(), anoLetivoId: b.anoLetivoId }
-      const contagens = await executarNoContexto(forjado, () => new AnoLetivoRepository(bancada.banco).virarSala(b.anoLetivoId))
+      const contagens = await runInContext(forjado, () => new AnoLetivoRepository(bancada.banco).virarSala(b.anoLetivoId))
       expect(contagens).toEqual({ acessosRevogados: 0, pedidosEncerrados: 0, linhasDaListaApagadas: 0 })
       expect(await salaNoBanco(b.escolaId)).toEqual(antesEmB)
 
       // O controle: com a escola de B no contexto, a mesma chamada alcança a sala de B. A transação é desfeita.
       const desfeita = new Error('desfazer o controle')
-      const doControle = await executarNoContexto({ ...forjado, escolaId: b.escolaId }, () =>
+      const doControle = await runInContext({ ...forjado, escolaId: b.escolaId }, () =>
         bancada.banco
           .transaction(async (tx) => {
             const alcancadas = await new AnoLetivoRepository(tx).virarSala(b.anoLetivoId)
@@ -659,13 +659,13 @@ describe('virada do ano: encerrar o ano letivo encerra os vínculos por `fim_do_
     it('o escopo de escola vale sozinho na virada: num contexto de A, `virarAno` com o ano de B não muda nada em B', async () => {
       const antesEmB = await vinculosDoAno(b.anoLetivoId)
       const forjado = { requisicaoId: randomUUID(), escolaId: a.coordenacao.escolaId, usuarioId: a.coordenacao.usuarioId, papel: 'coordenador' as const, sessaoId: randomUUID(), anoLetivoId: b.anoLetivoId }
-      const contagens = await executarNoContexto(forjado, () => new VinculoRepository(bancada.banco).virarAno(b.anoLetivoId))
+      const contagens = await runInContext(forjado, () => new VinculoRepository(bancada.banco).virarAno(b.anoLetivoId))
       expect(contagens).toEqual({ vinculosEncerrados: 0, textosDeContestacaoApagados: 0 })
       expect(await vinculosDoAno(b.anoLetivoId)).toEqual(antesEmB)
 
       // O controle: com a escola de B no contexto, a mesma chamada alcança os vínculos de B. A transação é desfeita.
       const desfeita = new Error('desfazer o controle')
-      const doControle = await executarNoContexto({ ...forjado, escolaId: b.coordenacao.escolaId }, () =>
+      const doControle = await runInContext({ ...forjado, escolaId: b.coordenacao.escolaId }, () =>
         bancada.banco
           .transaction(async (tx) => {
             const alcancadas = await new VinculoRepository(tx).virarAno(b.anoLetivoId)

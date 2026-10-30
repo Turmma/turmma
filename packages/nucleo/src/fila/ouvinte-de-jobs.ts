@@ -1,5 +1,5 @@
 import type pg from 'pg'
-import type { PoolBanco } from '../db/pool.js'
+import type { DatabasePool } from '../db/pool.js'
 import { CANAL_NOTIFICACAO_JOB } from './job-registro.repository.js'
 
 /**
@@ -9,12 +9,12 @@ import { CANAL_NOTIFICACAO_JOB } from './job-registro.repository.js'
  * O aviso é só atalho: o despachante também acorda a cada 500 ms. Por isso, se a conexão cair,
  * nada se perde; ela é aberta de novo na próxima chamada a `garantir()`.
  */
-export class OuvinteDeJobs {
+export class JobNotificationListener {
   #conexao: pg.PoolClient | undefined
   #abrindo: Promise<void> | undefined
 
   constructor(
-    private readonly pool: PoolBanco,
+    private readonly pool: DatabasePool,
     private readonly aoNotificar: () => void,
     private readonly aoPerderConexao: () => void,
   ) {}

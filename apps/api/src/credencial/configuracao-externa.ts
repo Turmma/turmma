@@ -1,4 +1,4 @@
-import { ConfiguracaoInvalida, PROVEDORES_EXTERNOS, type ProvedorExterno } from '@educa/nucleo'
+import { InvalidConfigError, PROVEDORES_EXTERNOS, type ProvedorExterno } from '@educa/nucleo'
 import { hkdfSync } from 'node:crypto'
 import { TAMANHO_MINIMO_CHAVE_DE_LOGIN } from './configuracao-de-login.js'
 
@@ -108,6 +108,6 @@ export function lerConfiguracaoLoginExterno(ambiente: Record<string, string | un
       chaveDoCookie = new Uint8Array(hkdfSync('sha256', texto, new Uint8Array(0), ROTULO_DA_CHAVE_DO_COOKIE, BYTES_DA_CHAVE_DO_COOKIE))
     }
   }
-  if (invalidas.length > 0) throw new ConfiguracaoInvalida([...new Set(invalidas)].sort(), [...motivos])
+  if (invalidas.length > 0) throw new InvalidConfigError([...new Set(invalidas)].sort(), [...motivos])
   return { provedores, retorno, chaveDoCookie, aceitaEmissorSemTls: local }
 }

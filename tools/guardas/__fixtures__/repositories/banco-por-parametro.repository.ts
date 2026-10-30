@@ -1,13 +1,13 @@
-import { exigirEscolaDoContexto, type TransacaoBanco } from '@educa/nucleo'
+import { requireEscolaId, type DatabaseTransaction } from '@educa/nucleo'
 import { aluno } from './tabelas.js'
 
-// O banco também chega por parâmetro (`tx: TransacaoBanco`).
+// O banco também chega por parâmetro (`tx: DatabaseTransaction`).
 export class BancoPorParametroRepository {
-  async listar(tx: TransacaoBanco) { // reprova: sem-prova-de-escopo
+  async listar(tx: DatabaseTransaction) { // reprova: sem-prova-de-escopo
     return tx.select().from(aluno)
   }
 
-  async listarNaEscola(tx: TransacaoBanco) {
-    return tx.select().from(aluno).where(exigirEscolaDoContexto())
+  async listarNaEscola(tx: DatabaseTransaction) {
+    return tx.select().from(aluno).where(requireEscolaId())
   }
 }

@@ -1,4 +1,4 @@
-import { ErroDeDominio, inatividadeDoPapel, METRICAS, type Meter } from '@educa/nucleo'
+import { DomainException, inatividadeDoPapel, METRICS, type Meter } from '@educa/nucleo'
 import { ErrorCode, euResponseSchema, introducaoResponseSchema, type EuResponse, type IntroducaoResponse } from '@educa/shared'
 import type { EuRepository, LinhaDoEu } from './eu.repository.js'
 import type { ResolucaoDeTenantRepository } from '../tenant/resolucao-de-tenant.repository.js'
@@ -21,14 +21,14 @@ export class EuService {
     private readonly resolucao: ResolucaoDeTenantRepository,
     medidor: Meter,
   ) {
-    this.#naoGravadas = medidor.createCounter(METRICAS.introducaoFalha, { description: 'Gravações da linha da sessão, disparadas por data de outra escola da mesma conta, que falharam (grava now(), nunca a data emprestada)' })
+    this.#naoGravadas = medidor.createCounter(METRICS.introducaoFalha, { description: 'Gravações da linha da sessão, disparadas por data de outra escola da mesma conta, que falharam (grava now(), nunca a data emprestada)' })
     this.#naoGravadas.add(0)
   }
 
   async obter(): Promise<EuResponse> {
     const linha = await this.eu.doContexto()
     // A guarda acabou de ler este usuário ativo; sumir entre as duas leituras é o mesmo que não estar autenticado.
-    if (linha === undefined) throw new ErroDeDominio(ErrorCode.NAO_AUTENTICADO)
+    if (linha === undefined) throw new DomainException(ErrorCode.NAO_AUTENTICADO)
     const acessos = linha.contaId === null ? [] : await this.resolucao.acessosDaConta(linha.contaId)
     const emprestada = await this.#emprestada(linha)
     let propria = linha.introducaoVistaEm
@@ -47,9 +47,9 @@ export class EuService {
   /** `POST /v1/eu/introducao`: grava a primeira vez e responde a mesma data que o `GET` devolveria. */
   async concluirIntroducao(): Promise<IntroducaoResponse> {
     const linha = await this.eu.doContexto()
-    if (linha === undefined) throw new ErroDeDominio(ErrorCode.NAO_AUTENTICADO)
+    if (linha === undefined) throw new DomainException(ErrorCode.NAO_AUTENTICADO)
     const gravada = await this.eu.marcarIntroducaoVista()
-    if (gravada === undefined) throw new ErroDeDominio(ErrorCode.NAO_AUTENTICADO)
+    if (gravada === undefined) throw new DomainException(ErrorCode.NAO_AUTENTICADO)
     const vista = maisAntiga(gravada, await this.#emprestada(linha)) ?? gravada
     return introducaoResponseSchema.parse({ introducaoVistaEm: vista.toISOString() })
   }

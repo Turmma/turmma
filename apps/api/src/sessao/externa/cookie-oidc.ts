@@ -1,4 +1,4 @@
-import { PROVEDORES_EXTERNOS, type Ambiente, type ProvedorExterno } from '@educa/nucleo'
+import { PROVEDORES_EXTERNOS, type Environment, type ProvedorExterno } from '@educa/nucleo'
 import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto'
 import { z } from 'zod'
 import { InvariantException } from '@educa/shared'
@@ -58,7 +58,7 @@ const esquemaDoConteudo = z
 export class CookieOidc {
   constructor(
     private readonly chave: Uint8Array,
-    private readonly ambiente: Ambiente,
+    private readonly ambiente: Environment,
     private readonly agora: () => number = Date.now,
   ) {
     if (chave.length !== 32) throw new InvariantException('a chave do cookie do login externo precisa de 256 bits')

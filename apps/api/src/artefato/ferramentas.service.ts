@@ -1,4 +1,4 @@
-import { ErroDeDominio, ErroDeIa, gerarAtividadeObjetiva, gerarPlanoDeAula, type Banco, type TransacaoBanco } from '@educa/nucleo'
+import { DomainException, LLMError, gerarAtividadeObjetiva, gerarPlanoDeAula, type Database, type DatabaseTransaction } from '@educa/nucleo'
 import {
   ErrorCode,
   conteudoDoArtefatoSchema,
@@ -55,7 +55,7 @@ interface Preparado {
  */
 export class FerramentasService {
   constructor(
-    private readonly banco: Banco,
+    private readonly banco: Database,
     private readonly agendador: AgendadorDeExecucoes,
     private readonly limite: LimiteDePedidosDeIa,
     private readonly trechos: BuscaDeTrechos,
@@ -65,7 +65,7 @@ export class FerramentasService {
     await this.limite.contar()
     const { chaveEnvio, ...resto } = pedido
     const parametros: ParametrosDeFerramenta = { ...resto, turmaId: resto.turmaId.toLowerCase(), disciplinaId: resto.disciplinaId.toLowerCase() }
-    if ((await new TurmaDoProfessorRepository(this.banco).turmaComDisciplina(parametros.turmaId, parametros.disciplinaId)) === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+    if ((await new TurmaDoProfessorRepository(this.banco).turmaComDisciplina(parametros.turmaId, parametros.disciplinaId)) === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
 
     const tarefa = TAREFA_DA_FERRAMENTA[ferramenta]
     let preparado: Preparado | undefined
@@ -73,8 +73,8 @@ export class FerramentasService {
       preparado = await this.#preparar(chaveEnvio, tarefa)
       return preparado
     }
-    const aoConcluir = (saida: ConteudoDoArtefato, tx: TransacaoBanco, execucaoId: string): Promise<ResultadoGravado> => {
-      if (preparado === undefined) throw new ErroDeIa('IA_ENTRADA_INVALIDA')
+    const aoConcluir = (saida: ConteudoDoArtefato, tx: DatabaseTransaction, execucaoId: string): Promise<ResultadoGravado> => {
+      if (preparado === undefined) throw new LLMError('IA_ENTRADA_INVALIDA')
       return this.#gravar(saida, preparado, tx, execucaoId)
     }
     const trechosDaTarefa = (lido: Preparado) => lido.entregues.map(({ materialId, pagina, texto }) => ({ materialId, pagina, texto }))
@@ -111,20 +111,20 @@ export class FerramentasService {
   async #preparar(chaveEnvio: string, tarefa: 'gerar_atividade_objetiva' | 'gerar_plano_de_aula'): Promise<Preparado> {
     const { parametros } = await new ExecucaoDoPedidoRepository(this.banco).entradaDaChave(chaveEnvio, tarefa)
     const turma = await new TurmaDoProfessorRepository(this.banco).turmaComDisciplina(parametros.turmaId, parametros.disciplinaId)
-    if (turma === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+    if (turma === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
     // A porta de trechos não confere papel: o vínculo confirmado na disciplina foi conferido logo acima.
     const achados = await this.trechos.buscar({ texto: parametros.tema, disciplinaId: parametros.disciplinaId, limite: TRECHOS_NA_FERRAMENTA })
-    if (achados.length === 0) throw new ErroDeIa('MATERIAL_INSUFICIENTE')
+    if (achados.length === 0) throw new LLMError('MATERIAL_INSUFICIENTE')
     // A busca escolhe por relevância; a tarefa recebe as páginas escolhidas na ordem do material, como quem lê o capítulo.
     const entregues = [...achados].sort((a, b) => a.materialId.localeCompare(b.materialId) || a.pagina - b.pagina)
     return { parametros, contexto: contextoDaTarefa(turma), habilidades: habilidadesParaOTema(turma.disciplina, turma.serie.etapa, parametros.tema), entregues }
   }
 
   /** Na transação que conclui a execução: confere as citações contra o que foi entregue, valida o conteúdo e grava o artefato. */
-  async #gravar(saida: ConteudoDoArtefato, { parametros, entregues }: Preparado, tx: TransacaoBanco, execucaoId: string): Promise<ResultadoGravado> {
+  async #gravar(saida: ConteudoDoArtefato, { parametros, entregues }: Preparado, tx: DatabaseTransaction, execucaoId: string): Promise<ResultadoGravado> {
     const conteudo = conteudoDoArtefatoSchema.safeParse(saida)
     // A versão adaptada só nasce pela Adaptação, com entrega: a geração nunca grava conteúdo com `adaptacao`.
-    if (!conteudo.success || (conteudo.data.tipo === 'atividade_objetiva' && conteudo.data.adaptacao !== undefined)) throw new ErroDeIa('IA_SAIDA_INVALIDA')
+    if (!conteudo.success || (conteudo.data.tipo === 'atividade_objetiva' && conteudo.data.adaptacao !== undefined)) throw new LLMError('IA_SAIDA_INVALIDA')
     exigirCitacoesEntregues(citacoesDoConteudo(conteudo.data), entregues)
     const artefatoId = await new ArtefatoRepository(tx).criar({ turmaId: parametros.turmaId, disciplinaId: parametros.disciplinaId, conteudo: conteudo.data, execucaoId })
     return { tipo: 'artefato', artefatoId, entregaId: null }

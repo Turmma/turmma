@@ -1,9 +1,9 @@
-import { ErroDeDominio, RegistroDeAuditoria, type Banco } from '@educa/nucleo'
+import { DomainException, AuditoriaRecorder, type Database } from '@educa/nucleo'
 import { ErrorCode, entregaResponseSchema, listaDeEntregasResponseSchema, type EntregasQuery, type DecidirEntregaRequest, type EntregaResponse, type ListaDeEntregasResponse } from '@educa/shared'
 import { paginar } from '../http/paginacao.js'
 import { EntregaRepository, type EntregaLida } from './entrega.repository.js'
 
-const registro = new RegistroDeAuditoria()
+const registro = new AuditoriaRecorder()
 
 /** A entrega como a tela a recebe (DTO explícito; regra 20, item 4). Quem decidiu e já foi eliminado sai sem nome. */
 function paraATela(lida: EntregaLida): unknown {
@@ -39,7 +39,7 @@ function paraATela(lida: EntregaLida): unknown {
  * - A auditoria `entrega.decidida` vai na mesma transação, sem a justificativa.
  */
 export class EntregaService {
-  constructor(private readonly banco: Banco) {}
+  constructor(private readonly banco: Database) {}
 
   async listar(consulta: EntregasQuery): Promise<ListaDeEntregasResponse> {
     const linhas = await new EntregaRepository(this.banco).listar({ ...consulta, ...(consulta.turmaId === undefined ? {} : { turmaId: consulta.turmaId.toLowerCase() }) })
@@ -51,18 +51,18 @@ export class EntregaService {
     const decidida = await this.banco.transaction(async (tx) => {
       const entregas = new EntregaRepository(tx)
       const pendente = await entregas.porId(id)
-      if (pendente === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
-      if (pedido.decisao === 'aprovar' && pendente.tipo === 'lote_de_correcao') throw new ErroDeDominio(ErrorCode.ENTRADA_INVALIDA)
+      if (pendente === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
+      if (pedido.decisao === 'aprovar' && pendente.tipo === 'lote_de_correcao') throw new DomainException(ErrorCode.ENTRADA_INVALIDA)
       const estado = pedido.decisao === 'aprovar' ? 'aprovada' : 'rejeitada'
       const gravou = await entregas.decidir(id, estado, pedido.decisao === 'rejeitar' ? pedido.justificativa : null)
-      if (!gravou) throw new ErroDeDominio(ErrorCode.ENTREGA_JA_DECIDIDA)
+      if (!gravou) throw new DomainException(ErrorCode.ENTREGA_JA_DECIDIDA)
       await registro.gravar(tx, 'entrega.decidida', {
         entidadeId: id,
         antes: { estado: 'pendente' },
         depois: { tipo: pendente.tipo, funcao: pendente.funcao, turmaId: pendente.turmaId, estado, artefatoId: pendente.artefatoId, atividadeAplicadaId: pendente.atividadeAplicadaId },
       })
       const gravada = await entregas.porId(id)
-      if (gravada === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+      if (gravada === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
       return gravada
     })
     return entregaResponseSchema.parse(paraATela(decidida))

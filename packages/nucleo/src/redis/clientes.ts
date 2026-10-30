@@ -26,7 +26,7 @@ export const TIMEOUT_COMANDO_REDIS_API_MS = 100
  * A montagem de teste (`prazoDoRedisDeLoginMs` do `AppModule`) o fixa por cima, para o teste não depender do ambiente.
  * Quem prova o corte de 100 ms monta o cliente direto, com o padrão, ou pede `login.prazoDoRedisMs` na configuração.
  */
-export function criarClienteRedisDaApi(url: string, nome: string, aoErrar: (erro: Error) => void, timeoutMs = TIMEOUT_COMANDO_REDIS_API_MS): Redis {
+export function createApiRedisClient(url: string, nome: string, aoErrar: (erro: Error) => void, timeoutMs = TIMEOUT_COMANDO_REDIS_API_MS): Redis {
   return criarClienteSemFilaOffline(url, nome, timeoutMs, aoErrar)
 }
 
@@ -44,7 +44,7 @@ export const TIMEOUT_COMANDO_REDIS_FILA_MS = 2_000
  *
  * Não serve ao worker: o BullMQ exige fila offline e espera sem limite no comando bloqueante dele.
  */
-export function criarClienteRedisDaFila(url: string, nome: string, aoErrar: (erro: Error) => void): Redis {
+export function createQueueRedisClient(url: string, nome: string, aoErrar: (erro: Error) => void): Redis {
   return criarClienteSemFilaOffline(url, nome, TIMEOUT_COMANDO_REDIS_FILA_MS, aoErrar)
 }
 

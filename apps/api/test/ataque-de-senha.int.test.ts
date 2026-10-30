@@ -1,4 +1,4 @@
-import { LimitadorDeRequisicoes, METRICAS, observarSeguroDoLimite, TIMEOUT_COMANDO_REDIS_API_MS, TIMEOUT_COMANDO_REDIS_FILA_MS } from '@educa/nucleo'
+import { RateLimiter, METRICS, observeInsuranceLimiter, TIMEOUT_COMANDO_REDIS_API_MS, TIMEOUT_COMANDO_REDIS_FILA_MS } from '@educa/nucleo'
 import { ErrorCode } from '@educa/shared'
 import type { Redis } from 'ioredis'
 import { randomBytes, randomUUID } from 'node:crypto'
@@ -212,23 +212,23 @@ describe('ataque de senha nunca bloqueia a escola: rebaixa, por IP e escola, e q
   }
 
   async function serieRebaixadaDa(escolaId: string, deQual = medidor): Promise<number | undefined> {
-    const ponto = (await deQual.pontos(METRICAS.prioridadeRebaixada)).find(({ atributos }) => atributos['escola_id'] === escolaId)
+    const ponto = (await deQual.pontos(METRICS.prioridadeRebaixada)).find(({ atributos }) => atributos['escola_id'] === escolaId)
     return typeof ponto?.valor === 'number' ? ponto.valor : undefined
   }
 
   async function falhasDe(rotulo: string): Promise<number> {
-    const ponto = (await medidor.pontos(METRICAS.falhasDeLogin)).find(({ atributos }) => atributos['escola_id'] === rotulo)
+    const ponto = (await medidor.pontos(METRICS.falhasDeLogin)).find(({ atributos }) => atributos['escola_id'] === rotulo)
     return typeof ponto?.valor === 'number' ? ponto.valor : 0
   }
 
   async function rebaixadasNoEmail(): Promise<number> {
-    const [ponto] = await medidor.pontos(METRICAS.limiteEmailIp)
+    const [ponto] = await medidor.pontos(METRICS.limiteEmailIp)
     return typeof ponto?.valor === 'number' ? ponto.valor : Number.NaN
   }
 
   /** `login.rebaixado_ip` (16.5): as tentativas rebaixadas pelo limite por IP das rotas de login, sem rótulo. */
   async function rebaixadasPeloIp(): Promise<number> {
-    const pontos = await medidor.pontos(METRICAS.rebaixadoPorIp)
+    const pontos = await medidor.pontos(METRICS.rebaixadoPorIp)
     expect(pontos.map((ponto) => ponto.atributos)).toEqual([{}])
     const [ponto] = pontos
     return typeof ponto?.valor === 'number' ? ponto.valor : Number.NaN
@@ -488,7 +488,7 @@ describe('ataque de senha nunca bloqueia a escola: rebaixa, por IP e escola, e q
       medidores.push(medidorDaInstancia)
       const instancia = await subirApi(medidorDaInstancia.medidor, { ambiente: { ...AMBIENTE_DO_ATAQUE, LIMITE_INSTANCIAS_API: '2' } })
       instancias.push(instancia)
-      observarSeguroDoLimite(medidorDaInstancia.medidor, instancia.app.get(LimitadorDeRequisicoes), instancia.app.get(SeguroDoLogin))
+      observeInsuranceLimiter(medidorDaInstancia.medidor, instancia.app.get(RateLimiter), instancia.app.get(SeguroDoLogin))
       return { instancia, medidor: medidorDaInstancia }
     }
     const pela = (instancia: ApiDeTeste) => async (matricula: string, senha: string, ip: string) => {
@@ -526,7 +526,7 @@ describe('ataque de senha nunca bloqueia a escola: rebaixa, por IP e escola, e q
       expect(new Set(ataque)).toEqual(new Set([401]))
 
       expect(depois.instancia.app.get(SeguroDoLogin).proporcaoDoSeguro).toBe(1)
-      expect((await depois.medidor.pontos(METRICAS.seguroAtivo)).map(({ valor }) => valor)).toEqual([1])
+      expect((await depois.medidor.pontos(METRICS.seguroAtivo)).map(({ valor }) => valor)).toEqual([1])
     } finally {
       composeOuFalha('start', 'redis-fila')
       await aguardarSaudavel('redis-fila')
@@ -567,7 +567,7 @@ describe('ataque de senha nunca bloqueia a escola: rebaixa, por IP e escola, e q
     for (let falha = 0; falha < 105; falha++) expect((await porMatricula(slugQueNaoExiste, matriculaRara(), SENHA_ERRADA, { ip: doEndereco })).status).toBe(401)
     expect((await falhasDe('desconhecida')) - desconhecidaAntes).toBe(105)
     expect(await falhasDoIp(ESCOLA_DESCONHECIDA, doEndereco)).toBe(0)
-    const rotulosRebaixados = (await medidor.pontos(METRICAS.prioridadeRebaixada)).map(({ atributos }) => atributos['escola_id'])
+    const rotulosRebaixados = (await medidor.pontos(METRICS.prioridadeRebaixada)).map(({ atributos }) => atributos['escola_id'])
     expect(rotulosRebaixados).not.toContain('desconhecida')
     expect(rotulosRebaixados).not.toContain(ESCOLA_DESCONHECIDA)
   }, 60_000)
@@ -582,7 +582,7 @@ describe('ataque de senha nunca bloqueia a escola: rebaixa, por IP e escola, e q
     const instancia = await subirApi(medidorDoDesafio.medidor, { login: { prazoDoRedisMs: TIMEOUT_COMANDO_REDIS_API_MS } }, undefined, {})
     try {
       await clientePronto(instancia.app.get<Redis>(CLIENTE_REDIS_LOGIN, { strict: false }))
-      observarSeguroDoLimite(medidorDoDesafio.medidor, instancia.app.get(LimitadorDeRequisicoes), instancia.app.get(SeguroDoLogin))
+      observeInsuranceLimiter(medidorDoDesafio.medidor, instancia.app.get(RateLimiter), instancia.app.get(SeguroDoLogin))
       const chave = configuracaoDeTeste().identidade.chaveAssinatura
       const desafio = await verificarDesafio(await new EmissorDeDesafio(chave).emitir({ contaId: randomUUID(), etapa: 'mfa', mfaCumprido: false }), chave, ['mfa'])
       const travado = await travarRedis(configuracaoDeTeste().redisFilaUrl, 3_000)
@@ -594,7 +594,7 @@ describe('ataque de senha nunca bloqueia a escola: rebaixa, por IP e escola, e q
       expect(instancia.app.get(ConsumoDeDesafio).proporcaoDoSeguro).toBe(1)
       expect([instancia.app.get(ContadorDeTentativas).proporcaoDoSeguro, instancia.app.get(ContadorEmJanela).proporcaoDoSeguro]).toEqual([0, 0])
       expect(instancia.app.get(SeguroDoLogin).proporcaoDoSeguro).toBe(1)
-      expect((await medidorDoDesafio.pontos(METRICAS.seguroAtivo)).map(({ valor }) => valor)).toEqual([1])
+      expect((await medidorDoDesafio.pontos(METRICS.seguroAtivo)).map(({ valor }) => valor)).toEqual([1])
       await travado.fim
     } finally {
       await instancia.app.close()

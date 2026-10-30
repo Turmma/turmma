@@ -1,4 +1,4 @@
-import { executarNoContexto, METRICAS } from '@educa/nucleo'
+import { runInContext, METRICS } from '@educa/nucleo'
 import { ErrorCode } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -64,7 +64,7 @@ describe('EuService: qual data da introdução vale, e quando o GET grava', () =
     medidores.push(medidor)
     return medidor
   }
-  const comContexto = <T>(corpo: () => Promise<T>) => executarNoContexto({ requisicaoId: randomUUID(), escolaId: LINHA.escola.id, usuarioId: LINHA.usuarioId }, corpo)
+  const comContexto = <T>(corpo: () => Promise<T>) => runInContext({ requisicaoId: randomUUID(), escolaId: LINHA.escola.id, usuarioId: LINHA.usuarioId }, corpo)
 
   afterEach(async () => {
     await Promise.all(medidores.splice(0).map((medidor) => medidor.encerrar()))
@@ -102,7 +102,7 @@ describe('EuService: qual data da introdução vale, e quando o GET grava', () =
 
     expect((await comContexto(() => cenario.servico.obter())).introducaoVistaEm).toBe(ANTIGA.toISOString())
 
-    expect(await medidor.pontos(METRICAS.introducaoFalha)).toEqual([{ atributos: {}, valor: 1 }])
+    expect(await medidor.pontos(METRICS.introducaoFalha)).toEqual([{ atributos: {}, valor: 1 }])
   })
 
   it('só a emprestada, e a linha sumiu na hora de gravar: o GET devolve a emprestada, sem contar falha', async () => {
@@ -112,7 +112,7 @@ describe('EuService: qual data da introdução vale, e quando o GET grava', () =
     expect((await comContexto(() => cenario.servico.obter())).introducaoVistaEm).toBe(ANTIGA.toISOString())
 
     expect(cenario.gravacoes()).toBe(1)
-    expect(await medidor.pontos(METRICAS.introducaoFalha)).toEqual([{ atributos: {}, valor: 0 }])
+    expect(await medidor.pontos(METRICS.introducaoFalha)).toEqual([{ atributos: {}, valor: 0 }])
   })
 
   it('o aluno não tem conta: não consulta as outras escolas, e vale a própria data', async () => {

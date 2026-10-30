@@ -1,11 +1,11 @@
 import { ErrorCode } from '@educa/shared'
 import type { PipeTransform } from '@nestjs/common'
 import { z } from 'zod'
-import { ErroDeDominio } from '../erro/erro-de-dominio.js'
+import { DomainException } from '../erro/erro-de-dominio.js'
 
 const esquemaId = z.uuid()
 
-export interface OpcoesDoIdPipe {
+export interface IdPipeOptions {
   /** Id fora do formato devolve `undefined` em vez de lançar: o `redefinir-mfa` responde 202 sem efeito ao id inválido. */
   readonly invalidAsUndefined?: boolean
 }
@@ -19,12 +19,12 @@ export interface OpcoesDoIdPipe {
  * tentaria injetar `opcoes` e derrubaria o boot.
  */
 export class IdPipe implements PipeTransform<unknown, string | undefined> {
-  constructor(private readonly opcoes: OpcoesDoIdPipe = {}) {}
+  constructor(private readonly opcoes: IdPipeOptions = {}) {}
 
   transform(valor: unknown): string | undefined {
     const lido = esquemaId.safeParse(valor)
     if (lido.success) return lido.data.toLowerCase()
     if (this.opcoes.invalidAsUndefined === true) return undefined
-    throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+    throw new DomainException(ErrorCode.NAO_ENCONTRADO)
   }
 }

@@ -1,4 +1,4 @@
-import { exigirEscolaDoContexto, identidadeDaRequisicao, pedidoTitular, usuario, type Banco, type TransacaoBanco } from '@educa/nucleo'
+import { requireEscolaId, requestIdentity, pedidoTitular, usuario, type Database, type DatabaseTransaction } from '@educa/nucleo'
 import type { Compartilhamento, EstadoDoPedido, SolicitanteDoPedido, TipoDePedidoDoTitular } from '@educa/shared'
 import { PRAZO_DA_ELIMINACAO_DIAS } from '@educa/shared'
 import { and, asc, desc, eq, gt, isNull, lt, ne, or, sql, type SQL } from 'drizzle-orm'
@@ -66,7 +66,7 @@ const colunasDoPedido = {
  * `where` do `update`, e só a chamada que mudou registra o passo na auditoria.
  */
 export class PedidosRepository {
-  constructor(private readonly banco: Banco | TransacaoBanco) {}
+  constructor(private readonly banco: Database | DatabaseTransaction) {}
 
   /**
    * Grava o pedido no estado que `pedido.estado` diz e devolve o id e, na eliminação, o instante `eliminar_em`. Com a chave
@@ -78,11 +78,11 @@ export class PedidosRepository {
    * do banco mais `PRAZO_DA_ELIMINACAO_DIAS`: o relógio é um só, o da transação.
    */
   async registrar(pedido: PedidoParaRegistrar): Promise<{ readonly id: string; readonly eliminarEm: Date | null } | undefined> {
-    const { usuarioId } = identidadeDaRequisicao()
+    const { usuarioId } = requestIdentity()
     const [gravado] = await this.banco
       .insert(pedidoTitular)
       .values({
-        escolaId: exigirEscolaDoContexto(),
+        escolaId: requireEscolaId(),
         titularId: pedido.titularId,
         papelTitular: pedido.papelTitular,
         tipo: pedido.tipo,
@@ -108,13 +108,13 @@ export class PedidosRepository {
    * `cancelado_em` e `cancelado_por` juntos.
    */
   async cancelar(id: string): Promise<{ readonly titularId: string } | undefined> {
-    const { usuarioId } = identidadeDaRequisicao()
+    const { usuarioId } = requestIdentity()
     const [cancelado] = await this.banco
       .update(pedidoTitular)
       .set({ estado: 'cancelado', canceladoEm: sql`now()`, canceladoPor: usuarioId })
       .where(
         and(
-          eq(pedidoTitular.escolaId, exigirEscolaDoContexto()),
+          eq(pedidoTitular.escolaId, requireEscolaId()),
           eq(pedidoTitular.id, id),
           eq(pedidoTitular.estado, 'agendado'),
           sql`${pedidoTitular.eliminarEm} > now()`,
@@ -130,12 +130,12 @@ export class PedidosRepository {
    * como inexistente. É o que a colisão da chave devolve, e quem chama confere que o pedido é este mesmo.
    */
   async daChave(chaveEnvio: string): Promise<PedidoAchado | undefined> {
-    return this.#um(and(eq(pedidoTitular.escolaId, exigirEscolaDoContexto()), eq(pedidoTitular.chaveEnvio, chaveEnvio), eq(pedidoTitular.registradoPor, identidadeDaRequisicao().usuarioId)))
+    return this.#um(and(eq(pedidoTitular.escolaId, requireEscolaId()), eq(pedidoTitular.chaveEnvio, chaveEnvio), eq(pedidoTitular.registradoPor, requestIdentity().usuarioId)))
   }
 
   /** O pedido deste id, na escola do contexto, com a conta do titular. O de outra escola e o inexistente não vêm. */
   async de(id: string): Promise<PedidoAchado | undefined> {
-    return this.#um(and(eq(pedidoTitular.escolaId, exigirEscolaDoContexto()), eq(pedidoTitular.id, id)))
+    return this.#um(and(eq(pedidoTitular.escolaId, requireEscolaId()), eq(pedidoTitular.id, id)))
   }
 
   /**
@@ -153,7 +153,7 @@ export class PedidosRepository {
    */
   async listar(depoisDe: string | undefined, limite: number, deQuemPediu: { readonly usuarioId: string; readonly contaId: string | null }): Promise<PedidoAchado[]> {
     const daLista = and(
-      eq(pedidoTitular.escolaId, exigirEscolaDoContexto()),
+      eq(pedidoTitular.escolaId, requireEscolaId()),
       ne(pedidoTitular.titularId, deQuemPediu.usuarioId),
       ...(deQuemPediu.contaId === null ? [] : [sql`(${usuario.contaId} is null or ${usuario.contaId} <> ${deQuemPediu.contaId})`]),
     )
@@ -175,8 +175,8 @@ export class PedidosRepository {
    * aqui: é o job dela (tarefa 15.0), que assina com o autor `rotina`.
    */
   async concluir(id: string): Promise<EstadoDoPedido | undefined> {
-    const { usuarioId } = identidadeDaRequisicao()
-    const escolaId = exigirEscolaDoContexto()
+    const { usuarioId } = requestIdentity()
+    const escolaId = requireEscolaId()
     const concluidoEm = new Date()
     const { rows } = await this.banco.execute<{ anterior: EstadoDoPedido }>(sql`
       update pedido_titular p set estado = 'concluido', concluido_em = ${concluidoEm.toISOString()}::timestamptz, concluido_por = ${usuarioId}
@@ -199,7 +199,7 @@ export class PedidosRepository {
    * anterior não volta para lugar nenhum: a auditoria não o traz, e quem o tem em texto livre o perde no expurgo.
    */
   async corrigirNome(id: string, nome: string): Promise<boolean> {
-    const escolaId = exigirEscolaDoContexto()
+    const escolaId = requireEscolaId()
     const atualizado = await this.banco.execute(sql`
       update usuario u set nome = ${nome}
       where u.escola_id = ${escolaId} and u.id = (

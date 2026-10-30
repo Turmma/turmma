@@ -2,7 +2,7 @@
 declare const condicao: boolean
 declare const erro: Error
 declare class InvariantException extends Error {}
-declare class ErroDeDominio extends Error {
+declare class DomainException extends Error {
   constructor(codigo: string)
 }
 declare class ErroDoModulo extends Error {
@@ -13,7 +13,7 @@ declare const valor: string
 export function lancamentos(): void {
   if (condicao) throw new InvariantException('turma não criada')
   if (condicao) throw new InvariantException(`turma não criada`)
-  if (condicao) throw new ErroDeDominio('NAO_ENCONTRADO')
+  if (condicao) throw new DomainException('NAO_ENCONTRADO')
   if (condicao) throw new ErroDoModulo(valor)
   if (condicao) throw erro
   if (condicao) throw (condicao ? new InvariantException('a') : new InvariantException('b'))

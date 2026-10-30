@@ -1,4 +1,4 @@
-import { ConfiguracaoInvalida } from '@educa/nucleo'
+import { InvalidConfigError } from '@educa/nucleo'
 import { existsSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
@@ -86,7 +86,7 @@ describe('executarOpsOperador: argumento e OPERADOR conferidos antes de abrir o 
     let erro = ''
     const codigo = await executarOpsOperador(['criar', '--apelido', 'joaquim', '--nome', NOME, '--email', EMAIL, '--saida', saida], ambiente, { saida: () => undefined, erro: (texto) => (erro += texto) }, abrirBanco)
     expect(codigo).toBe(2)
-    expect(erro).toBe(`${new ConfiguracaoInvalida(['OPERADOR']).message}\n`)
+    expect(erro).toBe(`${new InvalidConfigError(['OPERADOR']).message}\n`)
     expect(abrirBanco).not.toHaveBeenCalled()
     expect(existsSync(saida)).toBe(false)
     for (const proibido of [NOME, EMAIL, 'Joaquim Paes']) expect(erro).not.toContain(proibido)

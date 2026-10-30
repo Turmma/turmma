@@ -1,4 +1,4 @@
-import type { AdaptadorDeModelo, ChamadaAoModelo, CorrecaoPedida, RespostaDoModelo } from '../adaptador.js'
+import type { ModelAdapter, ModelCall, RepairHint, ModelResponse } from '../adaptador.js'
 import type { Perfil } from '../perfis.js'
 import { SEM_ENVIO_EXTERNO, type EnvioDaChamada } from '../porta.js'
 
@@ -9,10 +9,10 @@ export const PROVEDOR_ROTEIRIZADO = 'provedor-roteirizado'
  * Um modelo de mentira que devolve, em ordem, os textos do roteiro: é como o teste põe na boca do "modelo" a saída
  * que a conferência precisa barrar. Um item que é `Error` é lançado, como um adaptador com defeito faria.
  */
-export class AdaptadorRoteirizado implements AdaptadorDeModelo {
+export class ScriptedAdapter implements ModelAdapter {
   readonly origem = 'openai_compat'
   /** O que cada chamada recebeu de correção (`undefined` na primeira). */
-  readonly correcoes: (CorrecaoPedida | undefined)[] = []
+  readonly correcoes: (RepairHint | undefined)[] = []
 
   readonly envio: EnvioDaChamada
 
@@ -31,7 +31,7 @@ export class AdaptadorRoteirizado implements AdaptadorDeModelo {
     return `roteirizado-${perfil}`
   }
 
-  async chamar<Entrada, Saida>(chamada: ChamadaAoModelo<Entrada, Saida>): Promise<RespostaDoModelo> {
+  async chamar<Entrada, Saida>(chamada: ModelCall<Entrada, Saida>): Promise<ModelResponse> {
     const item = this.roteiro[this.correcoes.length]
     this.correcoes.push(chamada.correcao)
     if (item === undefined) throw new Error('o roteiro do teste acabou antes das chamadas')

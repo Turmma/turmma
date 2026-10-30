@@ -1,16 +1,16 @@
 import {
-  ErroDeDominio,
-  ErroDeIa,
-  executarNoContexto,
-  exigirEscolaDoContexto,
+  DomainException,
+  LLMError,
+  runInContext,
+  requireEscolaId,
   exigirFuncaoAtiva,
-  type Banco,
-  type DefinicaoDeTarefa,
+  type Database,
+  type TaskDefinition,
   type ExecucaoAgendada,
-  type ExecutorDeAgente,
+  type AgenteExecutor,
   type LLMProvider,
   type SuspensaoDeFuncao,
-  type TransacaoBanco,
+  type DatabaseTransaction,
 } from '@educa/nucleo'
 import { ErrorCode, execucaoInputSchema, resultadoGravadoSchema, type ExecucaoInput, type ExecucaoAceitaResponse, type ResultadoGravado } from '@educa/shared'
 import { copiarContextoDeQuemPede } from './contexto-da-execucao.js'
@@ -18,7 +18,7 @@ import { ExecucaoDaSessaoRepository, ExecucaoRepository } from './execucao.repos
 
 /** O que um pacote de domínio entrega para disparar uma tarefa de IA. Escola, ano letivo e pessoa vêm da sessão. */
 export interface PedidoDeExecucao<Entrada, Saida> {
-  readonly tarefa: DefinicaoDeTarefa<Entrada, Saida>
+  readonly tarefa: TaskDefinition<Entrada, Saida>
   /** A chave que a tela sorteou para este envio (`chaveEnvio` do corpo): a mesma chave devolve a mesma execução. */
   readonly chaveEnvio: string
   /**
@@ -38,19 +38,19 @@ export interface PedidoDeExecucao<Entrada, Saida> {
    * Roda na **mesma transação** que grava a execução, só quando ela é nova: é onde entra a mensagem de quem pediu
    * (`mensagem_agente`, `mensagem_tutor`), ligada à execução. Na chave repetida não roda.
    */
-  readonly aoGravar?: (tx: TransacaoBanco, execucaoId: string) => Promise<void>
+  readonly aoGravar?: (tx: DatabaseTransaction, execucaoId: string) => Promise<void>
   /**
    * Recebe a saída **já validada** e grava o que a execução produz (a mensagem do agente, o artefato, a entrega),
    * devolvendo a referência que vai para `resultado`. Roda na mesma transação que conclui a execução: ou ficam as duas
    * coisas, ou nenhuma. Cada linha gravada aponta para a execução por `execucao_id`.
    */
-  readonly aoConcluir: (saida: Saida, tx: TransacaoBanco, execucaoId: string) => Promise<ResultadoGravado>
+  readonly aoConcluir: (saida: Saida, tx: DatabaseTransaction, execucaoId: string) => Promise<ResultadoGravado>
 }
 
 /**
  * O serviço que os pacotes de domínio usam para disparar IA, para nenhum repetir a dança: confere a suspensão, grava
  * a `execucao_agente` como `pendente` (idempotente pela chave de envio), responde o id e só então roda a tarefa, em
- * segundo plano, pelo `ExecutorDeAgente`.
+ * segundo plano, pelo `AgenteExecutor`.
  *
  * - **Função suspensa** é recusada antes de gravar (`FUNCAO_SUSPENSA`).
  * - **A mesma chave duas vezes** grava uma execução e produz uma vez: o índice único decide quem grava, o `update`
@@ -61,19 +61,19 @@ export interface PedidoDeExecucao<Entrada, Saida> {
  */
 export class AgendadorDeExecucoes {
   constructor(
-    private readonly banco: Banco,
+    private readonly banco: Database,
     private readonly ia: LLMProvider,
-    private readonly executor: ExecutorDeAgente,
+    private readonly executor: AgenteExecutor,
     private readonly suspensao: SuspensaoDeFuncao,
   ) {}
 
   async agendar<Entrada, Saida>(pedido: PedidoDeExecucao<Entrada, Saida>): Promise<ExecucaoAceitaResponse> {
     const { tarefa } = pedido
-    const escolaId = exigirEscolaDoContexto()
+    const escolaId = requireEscolaId()
     const contexto = copiarContextoDeQuemPede()
     const entradaDaExecucao = execucaoInputSchema.parse(pedido.entradaDaExecucao)
     // Defeito de quem chama, não do usuário: a entrada gravada precisa ser a da tarefa que vai rodar.
-    if (entradaDaExecucao.tarefa !== tarefa.nome) throw new ErroDeIa('IA_ENTRADA_INVALIDA')
+    if (entradaDaExecucao.tarefa !== tarefa.nome) throw new LLMError('IA_ENTRADA_INVALIDA')
 
     await exigirFuncaoAtiva(this.suspensao, tarefa.funcao)
 
@@ -86,9 +86,9 @@ export class AgendadorDeExecucoes {
       }
       // A chave já foi usada na escola. Se foi por esta pessoa, é o reenvio: a mesma execução. Se não, é como se não existisse.
       const existente = await execucoes.daChave(pedido.chaveEnvio)
-      if (existente === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+      if (existente === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
       // A chave é desta pessoa, mas de outro pedido: a tela reaproveitou a chave, e não há execução a devolver.
-      if (existente.tarefa !== tarefa.nome) throw new ErroDeDominio(ErrorCode.CONFLITO)
+      if (existente.tarefa !== tarefa.nome) throw new DomainException(ErrorCode.CONFLITO)
       return existente.id
     })
 
@@ -96,7 +96,7 @@ export class AgendadorDeExecucoes {
     // No reenvio também: se a execução ainda está pendente (o processo caiu antes de rodá-la), é isto que a retoma. Se
     // já está rodando ou terminou, o executor e o `update` condicional não a deixam rodar de novo.
     this.executor.agendar(execucao, (sinal) =>
-      executarNoContexto(contexto, async () => {
+      runInContext(contexto, async () => {
         const entrada = typeof pedido.entrada === 'function' ? await (pedido.entrada as () => Promise<Entrada>)() : pedido.entrada
         const { saida } = await this.ia.gerar({
           tarefa,
@@ -110,7 +110,7 @@ export class AgendadorDeExecucoes {
         return this.banco.transaction(async (tx) => {
           const resultado = resultadoGravadoSchema.parse(await pedido.aoConcluir(saida, tx, execucaoId))
           // Se o prazo ou a varredura já encerraram a execução, o que foi produzido agora é desfeito junto.
-          if (!(await new ExecucaoRepository(tx).concluirRodando(execucao, resultado))) throw new ErroDeIa('IA_TEMPO_ESGOTADO')
+          if (!(await new ExecucaoRepository(tx).concluirRodando(execucao, resultado))) throw new LLMError('IA_TEMPO_ESGOTADO')
           return resultado
         })
       }),

@@ -1,7 +1,7 @@
-import type { Banco } from '@educa/nucleo'
+import type { Database } from '@educa/nucleo'
 import { MaterialRepository } from './material.repository.js'
 
-/** O teto do texto de um trecho que vai a uma tarefa de IA (`esquemaTrecho`, em `packages/nucleo/src/ia/material.ts`). */
+/** O teto do texto de um trecho que vai a uma tarefa de IA (`trechoSchema`, em `packages/nucleo/src/ia/material.ts`). */
 export const MAXIMO_DE_CARACTERES_DO_TRECHO_PARA_IA = 8_000
 export const TRECHOS_PADRAO_PARA_IA = 6
 export const MAXIMO_DE_TRECHOS_PARA_IA = 20
@@ -44,7 +44,7 @@ export interface PedidoDeTrechos {
  * Nada aqui loga o texto da busca nem o do trecho (regra 20, item 9).
  */
 export class BuscaDeTrechos {
-  constructor(private readonly banco: Banco) {}
+  constructor(private readonly banco: Database) {}
 
   /**
    * As páginas mais próximas do texto, por relevância. Diferente da rota `GET /v1/materiais/busca`, basta **uma** das

@@ -1,4 +1,4 @@
-import { justificativaSemEscopo, TAMANHO_MINIMO_JUSTIFICATIVA_SEM_ESCOPO } from '@educa/nucleo'
+import { unscopedJustification, TAMANHO_MINIMO_JUSTIFICATIVA_SEM_ESCOPO } from '@educa/nucleo'
 import { describe, expect, it } from 'vitest'
 import { ConviteRepository } from '../convite/convite.repository.js'
 import { CriacaoDeSessaoRepository } from '../../credencial/criacao-de-sessao.repository.js'
@@ -41,7 +41,7 @@ describe('ResolucaoDeTenantRepository: toda operação sem escopo é marcada e j
       'usuarioComConviteAceito',
       'usuariosAtivosDaConta',
     ])
-    const justificativas = Object.fromEntries(metodosDe(ResolucaoDeTenantRepository).map((metodo) => [metodo, justificativaSemEscopo(ResolucaoDeTenantRepository, metodo)]))
+    const justificativas = Object.fromEntries(metodosDe(ResolucaoDeTenantRepository).map((metodo) => [metodo, unscopedJustification(ResolucaoDeTenantRepository, metodo)]))
     for (const [metodo, justificativa] of Object.entries(justificativas)) {
       expect(justificativa?.length ?? 0, metodo).toBeGreaterThanOrEqual(TAMANHO_MINIMO_JUSTIFICATIVA_SEM_ESCOPO)
     }
@@ -88,7 +88,7 @@ describe('ResolucaoDeTenantRepository: toda operação sem escopo é marcada e j
     ]) {
       const metodos = metodosDe(classe)
       expect(metodos.length).toBeGreaterThan(0)
-      for (const metodo of metodos) expect(justificativaSemEscopo(classe, metodo), metodo).toBeUndefined()
+      for (const metodo of metodos) expect(unscopedJustification(classe, metodo), metodo).toBeUndefined()
     }
   })
 })

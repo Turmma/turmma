@@ -1,4 +1,4 @@
-import { METRICAS } from '@educa/nucleo'
+import { METRICS } from '@educa/nucleo'
 import { ErrorCode, MENSAGENS_DE_ERRO } from '@educa/shared'
 import type { Redis } from 'ioredis'
 import { createHash, randomBytes, randomUUID } from 'node:crypto'
@@ -128,7 +128,7 @@ describe('POST /v1/sessao/matricula: o aluno entra pelo endereço da escola com 
   }
 
   async function contasSeguradas(): Promise<number> {
-    return (await medidor.pontos(METRICAS.contaSegurada)).reduce((soma, ponto) => soma + (typeof ponto.valor === 'number' ? ponto.valor : 0), 0)
+    return (await medidor.pontos(METRICS.contaSegurada)).reduce((soma, ponto) => soma + (typeof ponto.valor === 'number' ? ponto.valor : 0), 0)
   }
 
   it('caminho feliz (RF7): o aluno entra no slug da escola dele com um hash, recebe pronta, sessão de método matrícula sem conta, os dois cookies, o registro de acesso, e o /v1/eu devolve o usuário dele', async () => {

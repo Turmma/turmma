@@ -91,7 +91,7 @@ export default tseslint.config(
   },
   {
     // O `@Req()` volta a `sessao/` e `operacao/` (16.0), logo depois do bloco acima, que ele vence por vir depois: o cookie
-    // (`educa_sessao`, `educa_dispositivo`, `turmma_operacao`), o `Authorization` do desafio e o IP (`ipDaRequisicao`)
+    // (`educa_sessao`, `educa_dispositivo`, `turmma_operacao`), o `Authorization` do desafio e o IP (`requestIp`)
     // só existem na requisição (e a `retorno` do login externo lê a URL de volta do OIDC em `requisicao.url`, que os seletores
     // não barram, para entregá-la ao `openid-client`), e o corpo, a consulta e o caminho continuam barrados pelos três seletores que sobram.
     files: ['apps/api/src/{sessao,operacao}/**/*.controller.ts'],

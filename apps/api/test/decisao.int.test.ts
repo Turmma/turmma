@@ -1,4 +1,4 @@
-import { executarNoContexto } from '@educa/nucleo'
+import { runInContext } from '@educa/nucleo'
 import {
   ErrorCode,
   alunosDaTurmaResponseSchema,
@@ -731,7 +731,7 @@ describe('decisão dos pedidos (A1, tarefa 8.0): uma pessoa aprova ou recusa, e 
 
       /** O contexto de A, no ano em curso dela ou num ano que não é o da linha. */
       const emA = <T>(anoLetivoId: string, funcao: () => Promise<T>) =>
-        executarNoContexto({ requisicaoId: randomUUID(), escolaId: a.escolaId, anoLetivoId, usuarioId: a.coordenacao.usuarioId, papel: 'coordenador', sessaoId: a.coordenacao.sessaoId }, funcao)
+        runInContext({ requisicaoId: randomUUID(), escolaId: a.escolaId, anoLetivoId, usuarioId: a.coordenacao.usuarioId, papel: 'coordenador', sessaoId: a.coordenacao.sessaoId }, funcao)
       const outroAno = randomUUID()
       const casos: Array<readonly [string, string, NomeDaLista, NomeDaLista, string, string, string]> = [
         ['B no ano de A', a.anoLetivoId, nomeDeB, livreDeB, pedidoDeB, b.turma, chaveDeB],

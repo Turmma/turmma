@@ -1,18 +1,18 @@
 import {
-  ConfiguracaoInvalida,
-  lerConfiguracaoBanco,
-  lerConfiguracaoDrenagem,
-  lerConfiguracaoIdentidade,
-  lerConfiguracaoTelemetria,
-  validarAmbiente,
-  type ConfiguracaoBanco,
-  type ConfiguracaoDrenagem,
-  type ConfiguracaoIdentidade,
-  type ConfiguracaoTelemetria,
+  InvalidConfigError,
+  loadDatabaseConfig,
+  loadGracefulShutdownConfig,
+  loadAuthConfig,
+  loadTelemetryConfig,
+  validateEnvironment,
+  type DatabaseConfig,
+  type GracefulShutdownConfig,
+  type AuthConfig,
+  type TelemetryConfig,
 } from '@educa/nucleo'
 import { z } from 'zod'
 
-export { ConfiguracaoInvalida }
+export { InvalidConfigError }
 
 const inteiroPositivo = z.coerce.number().int().positive()
 
@@ -29,21 +29,21 @@ export interface ConfiguracaoRealtime {
     /** Teto de mensagens guardadas no stream do adaptador, no Redis de fila (`noeviction`). */
     tamanhoMaximoDoStream: number
   }
-  identidade: ConfiguracaoIdentidade
+  identidade: AuthConfig
   /** O handshake lê a sessão no Postgres, com a mesma consulta da API (Tech Spec, seção 5, "Requisição"). */
-  banco: ConfiguracaoBanco
-  drenagem: ConfiguracaoDrenagem
+  banco: DatabaseConfig
+  drenagem: GracefulShutdownConfig
   /** Para onde e de quanto em quanto tempo as métricas vão. */
-  telemetria: ConfiguracaoTelemetria
+  telemetria: TelemetryConfig
 }
 
-type Leitura<T> = { valor: T } | { erro: ConfiguracaoInvalida }
+type Leitura<T> = { valor: T } | { erro: InvalidConfigError }
 
 function tentar<T>(ler: () => T): Leitura<T> {
   try {
     return { valor: ler() }
   } catch (erro) {
-    if (erro instanceof ConfiguracaoInvalida) return { erro }
+    if (erro instanceof InvalidConfigError) return { erro }
     throw erro
   }
 }
@@ -54,14 +54,14 @@ function tentar<T>(ler: () => T): Leitura<T> {
  * inválida, e todos os problemas saem de uma vez, só pelo nome da variável.
  */
 export function lerConfiguracao(ambiente: Record<string, string | undefined>): ConfiguracaoRealtime {
-  const realtime = tentar(() => validarAmbiente(esquemaAmbiente, ambiente))
-  const identidade = tentar(() => lerConfiguracaoIdentidade(ambiente))
-  const banco = tentar(() => lerConfiguracaoBanco(ambiente))
-  const drenagem = tentar(() => lerConfiguracaoDrenagem(ambiente))
-  const telemetria = tentar(() => lerConfiguracaoTelemetria(ambiente))
+  const realtime = tentar(() => validateEnvironment(esquemaAmbiente, ambiente))
+  const identidade = tentar(() => loadAuthConfig(ambiente))
+  const banco = tentar(() => loadDatabaseConfig(ambiente))
+  const drenagem = tentar(() => loadGracefulShutdownConfig(ambiente))
+  const telemetria = tentar(() => loadTelemetryConfig(ambiente))
   if ('erro' in realtime || 'erro' in identidade || 'erro' in banco || 'erro' in drenagem || 'erro' in telemetria) {
     const erros = [realtime, identidade, banco, drenagem, telemetria].flatMap((leitura) => ('erro' in leitura ? [leitura.erro] : []))
-    throw new ConfiguracaoInvalida(
+    throw new InvalidConfigError(
       erros.flatMap((erro) => erro.variaveis).sort(),
       erros.flatMap((erro) => erro.motivos),
     )

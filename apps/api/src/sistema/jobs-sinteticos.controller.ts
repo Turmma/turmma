@@ -1,4 +1,4 @@
-import { IdPipe, Permite, ZodValidationPipe } from '@educa/nucleo'
+import { IdPipe, RequirePermissao, ZodValidationPipe } from '@educa/nucleo'
 import {
   syntheticJobRequestSchema,
   type SyntheticJobRequest,
@@ -10,14 +10,14 @@ import { JobsSinteticosService } from './jobs-sinteticos.service.js'
 
 /**
  * Cria job sintético, para teste e cenário de carga. Só é registrado com `ROTAS_SINTETICAS=true`
- * (sistema.module.ts) e exige token, como toda rota sem `@RotaAnonima()`.
+ * (sistema.module.ts) e exige token, como toda rota sem `@Public()`.
  */
 @Controller('v1/sistema/jobs-sinteticos')
 export class JobsSinteticosController {
   constructor(private readonly jobs: JobsSinteticosService) {}
 
   @Post()
-  @Permite('sistema_job_sintetico', 'criar')
+  @RequirePermissao('sistema_job_sintetico', 'criar')
   @HttpCode(HttpStatus.ACCEPTED)
   @Header('Cache-Control', 'no-store')
   criar(@Body(new ZodValidationPipe(syntheticJobRequestSchema)) pedido: SyntheticJobRequest): Promise<JobAcceptedResponse> {
@@ -31,7 +31,7 @@ export class JobsSinteticosConsultaController {
   constructor(private readonly jobs: JobsSinteticosService) {}
 
   @Get(':id')
-  @Permite('sistema_job_sintetico', 'ler')
+  @RequirePermissao('sistema_job_sintetico', 'ler')
   @Header('Cache-Control', 'no-store')
   consultar(@Param('id', IdPipe) id: string): Promise<JobStateResponse> {
     return this.jobs.consultar(id)

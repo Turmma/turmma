@@ -12,15 +12,15 @@ export const MOTIVOS_DE_RECUSA_DA_AUDITORIA = [
   'sem_escola',
 ] as const
 
-export type MotivoDeRecusaDaAuditoria = (typeof MOTIVOS_DE_RECUSA_DA_AUDITORIA)[number]
+export type AuditoriaRejectionReason = (typeof MOTIVOS_DE_RECUSA_DA_AUDITORIA)[number]
 
 /**
  * Gravação ou leitura de auditoria recusada. É erro de programação, não do usuário, e a transação de quem
  * chamou desfaz junto. A mensagem leva só o motivo: nunca o campo recebido nem o valor dele.
  */
-export class AuditoriaRecusada extends Error {
-  constructor(readonly motivo: MotivoDeRecusaDaAuditoria) {
+export class AuditoriaRejectedError extends Error {
+  constructor(readonly motivo: AuditoriaRejectionReason) {
     super(`auditoria.recusada: ${motivo}`)
-    this.name = 'AuditoriaRecusada'
+    this.name = 'AuditoriaRejectedError'
   }
 }

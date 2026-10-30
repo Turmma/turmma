@@ -1,5 +1,5 @@
 import 'reflect-metadata'
-import { ALVOS_DO_EXPURGO_DE_ACESSO, executarNoContexto, ExpurgoDeAcessoRepository, instrucaoDoLoteDeAcesso, LOTE_DO_EXPURGO, type AlvoDoExpurgoDeAcesso } from '@educa/nucleo'
+import { ALVOS_DO_EXPURGO_DE_ACESSO, runInContext, ExpurgoDeAcessoRepository, expurgoAccessBatchStatement, LOTE_DO_EXPURGO, type AlvoDoExpurgoDeAcesso } from '@educa/nucleo'
 import { JobFailureCode, TIPO_EXPURGAR_ACESSO } from '@educa/shared'
 import { Queue } from 'bullmq'
 import { PgDialect } from 'drizzle-orm/pg-core'
@@ -427,7 +427,7 @@ describe('sistema.expurgar-acesso', () => {
       ...(lote === undefined ? {} : { lote }),
     })
     const jobId = randomUUID()
-    return executarNoContexto({ requisicaoId: randomUUID(), rotinaDoSistema: true }, () => processador({}, execucaoDoJob(jobId)))
+    return runInContext({ requisicaoId: randomUUID(), rotinaDoSistema: true }, () => processador({}, execucaoDoJob(jobId)))
   }
 
   beforeEach(async () => {
@@ -472,7 +472,7 @@ describe('sistema.expurgar-acesso', () => {
       logger: log.logger,
     })
     const jobId = randomUUID()
-    await executarNoContexto({ requisicaoId: randomUUID(), rotinaDoSistema: true }, () => processador({}, execucaoDoJob(jobId)))
+    await runInContext({ requisicaoId: randomUUID(), rotinaDoSistema: true }, () => processador({}, execucaoDoJob(jobId)))
     expect(log.doEvento('acesso.expurgado')[0]).toMatchObject({
       registrosDeAcessoTotal: porAlvo.registro_acesso,
       sessoesTotal: porAlvo.sessao,
@@ -810,7 +810,7 @@ describe('sistema.expurgar-acesso', () => {
     const escolaId = await bancada.escola()
     const processador = criarExpurgoDeAcesso({ repositorio: new ExpurgoDeAcessoRepository(bancada.banco), relogio, logger: log.logger })
     const jobId = randomUUID()
-    await expect(executarNoContexto({ requisicaoId: randomUUID(), escolaId }, () => processador({}, execucaoDoJob(jobId)))).rejects.toMatchObject({
+    await expect(runInContext({ requisicaoId: randomUUID(), escolaId }, () => processador({}, execucaoDoJob(jobId)))).rejects.toMatchObject({
       name: 'FalhaDeJob',
       codigo: JobFailureCode.DADOS_INVALIDOS,
       definitiva: true,
@@ -834,7 +834,7 @@ describe('sistema.expurgar-acesso', () => {
         ['acesso_operacao', 'acesso_operacao_em_idx'],
         ['sessao_operador', 'sessao_operador_fim_idx'],
       ] as const) {
-        const { sql: texto, params } = new PgDialect({ casing: 'snake_case' }).sqlToQuery(instrucaoDoLoteDeAcesso(alvo, AGORA, LOTE_DO_EXPURGO))
+        const { sql: texto, params } = new PgDialect({ casing: 'snake_case' }).sqlToQuery(expurgoAccessBatchStatement(alvo, AGORA, LOTE_DO_EXPURGO))
         const { rows } = await cliente.query<{ 'QUERY PLAN': Array<{ Plan: NoDoPlano }> }>(`explain (format json) ${texto}`, params)
         const nos = nosDoPlano(rows[0]?.['QUERY PLAN'][0]?.Plan)
         expect(nos.map((no) => no['Index Name']).filter(Boolean), alvo).toContain(indice)

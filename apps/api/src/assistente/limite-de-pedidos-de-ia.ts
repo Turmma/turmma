@@ -1,4 +1,4 @@
-import { ErroDeDominio, limiteDoSeguro, segundosParaTentarDeNovo, sessaoDaRequisicao, type LoggerBase } from '@educa/nucleo'
+import { DomainException, insuranceLimit, retryAfterSeconds, requestSessao, type LoggerBase } from '@educa/nucleo'
 import { ErrorCode } from '@educa/shared'
 import { Logger } from '@nestjs/common'
 import type { ContadorEmJanela } from '../credencial/index.js'
@@ -51,7 +51,7 @@ export class LimiteDePedidosDeIa {
 
   /** Conta o pedido da pessoa e da escola da sessão, e recusa o que passa do teto. */
   async contar(): Promise<void> {
-    const { escolaId, usuarioId } = sessaoDaRequisicao()
+    const { escolaId, usuarioId } = requestSessao()
     await this.#somar('usuario', this.chaveDoUsuario(escolaId, usuarioId), TETO_DE_PEDIDOS_DE_IA_POR_USUARIO, escolaId, usuarioId)
     await this.#somar('escola', this.chaveDaEscola(escolaId), TETO_DE_PEDIDOS_DE_IA_POR_ESCOLA, escolaId, usuarioId)
   }
@@ -59,11 +59,11 @@ export class LimiteDePedidosDeIa {
   async #somar(tipo: TipoDeLimiteDeIa, chave: string, teto: number, escolaId: string, usuarioId: string): Promise<void> {
     const { janela, instancias, logger } = this.dependencias
     const { valor, doSeguro } = await janela.somar(chave)
-    const efetivo = doSeguro ? limiteDoSeguro(teto, instancias) : teto
+    const efetivo = doSeguro ? insuranceLimit(teto, instancias) : teto
     if (valor <= efetivo) return
     // Só o primeiro acima do teto na janela: a soma é atômica, e nenhum outro pedido lê este mesmo valor.
     if (valor === efetivo + 1) logger.warn({ evento: 'ia.limite_de_pedidos_atingido', tipo, escolaId, usuarioId })
-    throw new ErroDeDominio(ErrorCode.LIMITE_EXCEDIDO, undefined, segundosParaTentarDeNovo(await janela.restanteMs(chave)))
+    throw new DomainException(ErrorCode.LIMITE_EXCEDIDO, undefined, retryAfterSeconds(await janela.restanteMs(chave)))
   }
 
   /** As chaves dos contadores (o teste também as usa): o prefixo e o HMAC do identificador, nunca ele em texto. */

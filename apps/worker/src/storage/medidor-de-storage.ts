@@ -1,5 +1,5 @@
 import { ListObjectsV2Command, S3Client } from '@aws-sdk/client-s3'
-import { contextoAtual, SemEscopo } from '@educa/nucleo'
+import { currentContext, Unscoped } from '@educa/nucleo'
 import { InvariantException } from '@educa/shared'
 import type { ConfiguracaoStorage } from '../config.js'
 
@@ -46,7 +46,7 @@ export class MedidorDeStorage {
   ) {}
 
   /** As escolas com alguma pasta no storage. Pasta que não é id de escola é ignorada. */
-  @SemEscopo(
+  @Unscoped(
     'a consolidação noturna é rotina nossa e mede o storage de todas as escolas; ' +
       'devolve só os ids das pastas, e a medição de cada uma volta ao escopo da escola',
   )
@@ -68,7 +68,7 @@ export class MedidorDeStorage {
 
   /** Os bytes guardados pela escola do contexto: a soma de tudo sob `escolas/{escolaId}/`. */
   async bytesDaEscola(): Promise<number> {
-    const escolaId = contextoAtual()?.escolaId
+    const escolaId = currentContext()?.escolaId
     if (escolaId === undefined) throw new InvariantException('medição de storage sem escola no contexto')
     let bytes = 0
     let continuacao: string | undefined

@@ -1,5 +1,5 @@
 import 'reflect-metadata'
-import { criarLogger, type Meter } from '@educa/nucleo'
+import { createLogger, type Meter } from '@educa/nucleo'
 import type { INestApplication } from '@nestjs/common'
 import { NestFactory } from '@nestjs/core'
 import { createHash, randomBytes } from 'node:crypto'
@@ -26,8 +26,8 @@ export interface ApiDeTeste {
 export async function subirApi(medidor: Meter, sobreposicao: SobreposicaoDeTeste = {}, linhasDeLog?: string[], montagem: OpcoesDeMontagem = MONTAGEM_DE_TESTE): Promise<ApiDeTeste> {
   const logger =
     linhasDeLog === undefined
-      ? criarLogger({ servico: 'api-teste', nivel: 'silent' })
-      : criarLogger({ servico: 'api-teste', nivel: 'trace', destino: { write: (linha: string) => linhasDeLog.push(linha) } })
+      ? createLogger({ servico: 'api-teste', nivel: 'silent' })
+      : createLogger({ servico: 'api-teste', nivel: 'trace', destino: { write: (linha: string) => linhasDeLog.push(linha) } })
   const app = await NestFactory.create(AppModule.com(configuracaoDeTeste(sobreposicao), { ...montagem, medidor, logger }), { logger: false })
   configurarAplicacao(app, logger, medidor)
   await app.listen(0, '127.0.0.1')

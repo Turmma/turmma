@@ -3,13 +3,13 @@ import { Logger } from '@nestjs/common'
 import type { Redis } from 'ioredis'
 import { RateLimiterMemory, RateLimiterRedis, RateLimiterRes } from 'rate-limiter-flexible'
 import { z } from 'zod'
-import { validarAmbiente } from '../config/validar-config.js'
-import { avisoEspacado } from '../log/aviso-espacado.js'
-import type { LimitesDeRequisicao } from '../configuracao/configuracao-operacional.js'
-import type { Identidade } from '../identidade/verificar-token.js'
+import { validateEnvironment } from '../config/validar-config.js'
+import { throttledWarn } from '../log/aviso-espacado.js'
+import type { RateLimits } from '../configuracao/configuracao-operacional.js'
+import type { Identity } from '../identidade/verificar-token.js'
 import {
   JANELA_LIMITE_SEGUNDOS,
-  limiteDoSeguro,
+  insuranceLimit,
   PREFIXO_LIMITE_BUSCA_TITULAR,
   PREFIXO_LIMITE_ESCOLA,
   PREFIXO_LIMITE_IP,
@@ -18,9 +18,9 @@ import {
   PREFIXO_LIMITE_OPERADOR,
   PREFIXO_LIMITE_USUARIO,
 } from './chaves.js'
-import { ProporcaoEmJanela } from './proporcao-em-janela.js'
+import { SlidingWindowRatio } from './proporcao-em-janela.js'
 
-export interface ConfiguracaoLimite {
+export interface RateLimitConfig {
   /** Redis de cache (`allkeys-lru`): toda chave de limite tem TTL da janela. */
   readonly redisCacheUrl: string
   readonly porUsuarioMin: number
@@ -38,7 +38,7 @@ const inteiroPositivo = z.coerce.number().int().positive()
 // Nome de host do compose ou IP: nada de URL, porta nem texto livre.
 const entradaDeProxy = z.string().regex(/^[A-Za-z0-9.:-]+$/)
 
-const esquemaAmbienteLimite = z.object({
+const rateLimitEnvSchema = z.object({
   REDIS_CACHE_URL: z.string().regex(/^redis:\/\/[^/\s]+(\/\d+)?$/),
   LIMITE_REQ_USUARIO_MIN: inteiroPositivo,
   LIMITE_REQ_ESCOLA_MIN: inteiroPositivo,
@@ -55,8 +55,8 @@ const esquemaAmbienteLimite = z.object({
  * Limites do ambiente. São o padrão de toda escola que não configurou o próprio em
  * `configuracao_operacional_escola`. Nenhum valor tem padrão escondido no código (D41).
  */
-export function lerConfiguracaoLimite(ambiente: Record<string, string | undefined>): ConfiguracaoLimite {
-  const valores = validarAmbiente(esquemaAmbienteLimite, ambiente)
+export function loadRateLimitConfig(ambiente: Record<string, string | undefined>): RateLimitConfig {
+  const valores = validateEnvironment(rateLimitEnvSchema, ambiente)
   return {
     redisCacheUrl: valores.REDIS_CACHE_URL,
     porUsuarioMin: valores.LIMITE_REQ_USUARIO_MIN,
@@ -68,9 +68,9 @@ export function lerConfiguracaoLimite(ambiente: Record<string, string | undefine
   }
 }
 
-export type ResultadoDoLimite = { readonly aceita: true } | { readonly aceita: false; readonly msAteLiberar: number }
+export type RateLimitResult = { readonly aceita: true } | { readonly aceita: false; readonly msAteLiberar: number }
 
-type OpcoesDoConsumo = Parameters<RateLimiterMemory['consume']>[2]
+type ConsumoOptions = Parameters<RateLimiterMemory['consume']>[2]
 
 /**
  * Seguro em memória de um limite. Marca cada resposta que ele deu, para o limitador saber, por
@@ -79,7 +79,7 @@ type OpcoesDoConsumo = Parameters<RateLimiterMemory['consume']>[2]
 class SeguroEmMemoria extends RateLimiterMemory {
   readonly #respostasDoSeguro = new WeakSet<RateLimiterRes>()
 
-  override async consume(chave: string | number, pontos?: number, opcoes?: OpcoesDoConsumo): Promise<RateLimiterRes> {
+  override async consume(chave: string | number, pontos?: number, opcoes?: ConsumoOptions): Promise<RateLimiterRes> {
     try {
       const resposta = await super.consume(chave, pontos, opcoes)
       this.#respostasDoSeguro.add(resposta)
@@ -126,7 +126,7 @@ class LimitesDoPrefixo {
 type Consumo = { aceita: boolean; resposta: RateLimiterRes; doSeguro: boolean }
 
 function criarLimite(cliente: Redis, prefixo: string, pontos: number, instancias: number): Limite {
-  const seguro = new SeguroEmMemoria({ keyPrefix: prefixo, points: limiteDoSeguro(pontos, instancias), duration: JANELA_LIMITE_SEGUNDOS })
+  const seguro = new SeguroEmMemoria({ keyPrefix: prefixo, points: insuranceLimit(pontos, instancias), duration: JANELA_LIMITE_SEGUNDOS })
   const redis = new RateLimiterRedis({
     storeClient: cliente,
     keyPrefix: prefixo,
@@ -149,7 +149,7 @@ function criarLimite(cliente: Redis, prefixo: string, pontos: number, instancias
  * Redis oscilando, uma linha por troca seria uma por requisição. O que mostra a oscilação é a métrica
  * `limite.seguro_ativo`, pela `proporcaoDoSeguro`.
  */
-export class LimitadorDeRequisicoes {
+export class RateLimiter {
   readonly #logger = new Logger('limite')
   readonly #usuario: LimitesDoPrefixo
   readonly #escola: LimitesDoPrefixo
@@ -158,13 +158,13 @@ export class LimitadorDeRequisicoes {
   readonly #ipDaOperacao: Limite
   readonly #operador: Limite
   readonly #buscaDeTitulares: Limite
-  readonly #proporcaoDoSeguro: ProporcaoEmJanela
-  readonly #avisarAtivado = avisoEspacado(() => this.#logger.warn('limite.seguro_ativado'))
-  readonly #avisarDesativado = avisoEspacado(() => this.#logger.log('limite.seguro_desativado'))
+  readonly #proporcaoDoSeguro: SlidingWindowRatio
+  readonly #avisarAtivado = throttledWarn(() => this.#logger.warn('limite.seguro_ativado'))
+  readonly #avisarDesativado = throttledWarn(() => this.#logger.log('limite.seguro_desativado'))
   #seguroAtivo = false
 
   /** @param proporcaoDoSeguro só o teste troca, para mover o relógio da janela sem esperar 30 s. */
-  constructor(cliente: Redis, config: ConfiguracaoLimite, proporcaoDoSeguro = new ProporcaoEmJanela()) {
+  constructor(cliente: Redis, config: RateLimitConfig, proporcaoDoSeguro = new SlidingWindowRatio()) {
     this.#proporcaoDoSeguro = proporcaoDoSeguro
     this.#usuario = new LimitesDoPrefixo(cliente, PREFIXO_LIMITE_USUARIO, config.instancias)
     this.#escola = new LimitesDoPrefixo(cliente, PREFIXO_LIMITE_ESCOLA, config.instancias)
@@ -199,7 +199,7 @@ export class LimitadorDeRequisicoes {
    *
    * Os `limites` são os da escola do token, lidos da configuração dela por quem chama.
    */
-  async consumirAutenticada(identidade: Identidade, limites: LimitesDeRequisicao): Promise<ResultadoDoLimite> {
+  async consumirAutenticada(identidade: Identity, limites: RateLimits): Promise<RateLimitResult> {
     const limiteDaEscola = this.#escola.com(limites.porEscolaMin)
     const [usuario, escola] = await Promise.all([
       this.#consumir(this.#usuario.com(limites.porUsuarioMin), identidade.usuarioId),
@@ -214,24 +214,24 @@ export class LimitadorDeRequisicoes {
     return { aceita: true }
   }
 
-  async consumirAnonima(ip: string): Promise<ResultadoDoLimite> {
+  async consumirAnonima(ip: string): Promise<RateLimitResult> {
     return this.#consumirUmaChave(this.#ipAnonimo, ip)
   }
 
   /**
-   * O limite por IP das rotas de login por senha (`@LimiteQueRebaixa()`), com o mesmo teto do anônimo e balde próprio.
+   * O limite por IP das rotas de login por senha (`@DowngradeRateLimit()`), com o mesmo teto do anônimo e balde próprio.
    * Quem chama não recusa acima dele: só rebaixa a tentativa.
    */
-  async consumirDoLogin(ip: string): Promise<ResultadoDoLimite> {
+  async consumirDoLogin(ip: string): Promise<RateLimitResult> {
     return this.#consumirUmaChave(this.#ipDoLogin, ip)
   }
 
   /**
    * O limite por IP das rotas de entrada da operação (`@EntradaDeOperacao`, `rl:ip:op`), com o mesmo teto do anônimo e
    * balde próprio: nem a escola atrás do mesmo IP gasta o do operador, nem o contrário. Quem chama recusa acima dele, ou
-   * só rebaixa, nas rotas `@LimiteQueRebaixa`.
+   * só rebaixa, nas rotas `@DowngradeRateLimit`.
    */
-  async consumirDaOperacao(ip: string): Promise<ResultadoDoLimite> {
+  async consumirDaOperacao(ip: string): Promise<RateLimitResult> {
     return this.#consumirUmaChave(this.#ipDaOperacao, ip)
   }
 
@@ -239,7 +239,7 @@ export class LimitadorDeRequisicoes {
    * O limite do operador Turmma nas rotas `@RotaDeOperacao` (`rl:op:{operadorId}`), pelo `sub` do token de operador
    * verificado. Com o Redis fora, o mesmo seguro em memória dos outros limites.
    */
-  async consumirDeOperador(operadorId: string): Promise<ResultadoDoLimite> {
+  async consumirDeOperador(operadorId: string): Promise<RateLimitResult> {
     return this.#consumirUmaChave(this.#operador, operadorId)
   }
 
@@ -248,11 +248,11 @@ export class LimitadorDeRequisicoes {
    * balde próprio. Conta **além** do limite do usuário e do da escola, que continuam valendo; duas coordenações da
    * mesma escola, atrás do mesmo IP, têm 30 cada (regra 80, item 1).
    */
-  async consumirDaBuscaDeTitulares(usuarioId: string): Promise<ResultadoDoLimite> {
+  async consumirDaBuscaDeTitulares(usuarioId: string): Promise<RateLimitResult> {
     return this.#consumirUmaChave(this.#buscaDeTitulares, usuarioId)
   }
 
-  async #consumirUmaChave(limite: Limite, chave: string): Promise<ResultadoDoLimite> {
+  async #consumirUmaChave(limite: Limite, chave: string): Promise<RateLimitResult> {
     const consumo = await this.#consumir(limite, chave)
     this.#registrarSeguro(consumo.doSeguro)
     return consumo.aceita ? { aceita: true } : { aceita: false, msAteLiberar: consumo.resposta.msBeforeNext }

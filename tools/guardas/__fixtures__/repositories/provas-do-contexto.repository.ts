@@ -1,16 +1,16 @@
-import { escopoDoJobNoContexto, identidadeDaRequisicao, type Banco } from '@educa/nucleo'
+import { jobScopeInContext, requestIdentity, type Database } from '@educa/nucleo'
 import { job } from './tabelas.js'
 
 // Cada uma das outras duas provas vale sozinha.
 export class ProvasDoContextoRepository {
-  constructor(private readonly banco: Banco) {}
+  constructor(private readonly banco: Database) {}
 
   async soIdentidade() {
-    const { usuarioId } = identidadeDaRequisicao()
+    const { usuarioId } = requestIdentity()
     return this.banco.select().from(job).where(usuarioId)
   }
 
   async soEscopoDoJob() {
-    return this.banco.select().from(job).where(escopoDoJobNoContexto())
+    return this.banco.select().from(job).where(jobScopeInContext())
   }
 }

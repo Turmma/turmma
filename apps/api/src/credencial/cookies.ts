@@ -1,4 +1,4 @@
-import type { Ambiente } from '@educa/nucleo'
+import type { Environment } from '@educa/nucleo'
 import { InvariantException } from '@educa/shared'
 
 /** Cookie de renovação da sessão: o refresh aleatório, cujo SHA-256 é o `refresh_hash` da `sessao`. */
@@ -12,7 +12,7 @@ export const CAMINHO_DOS_COOKIES = '/v1/sessao'
 const VALOR_SEGURO = /^[\w.:~-]*$/
 
 export interface OpcoesDoCookie {
-  readonly ambiente: Ambiente
+  readonly ambiente: Environment
   /** Sem ele, o cookie é de sessão do navegador: some quando o navegador fecha. */
   readonly maxAgeSegundos?: number
   /**

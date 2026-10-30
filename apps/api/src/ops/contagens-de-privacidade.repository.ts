@@ -1,4 +1,4 @@
-import { arquivoTitular, exigirEscolaDoContexto, expurgoExecucao, pedidoTitular, type Banco, type TransacaoBanco } from '@educa/nucleo'
+import { arquivoTitular, requireEscolaId, expurgoExecucao, pedidoTitular, type Database, type DatabaseTransaction } from '@educa/nucleo'
 import { ESTADOS_DO_PEDIDO, type EstadoDoPedido } from '@educa/shared'
 import { asc, desc, eq, sql } from 'drizzle-orm'
 
@@ -18,17 +18,17 @@ export interface ContagensDoAtendimento {
  * As contagens que a operação lê do atendimento ao titular (F3, tarefa 19.0; RF17; Tech Spec do F3, seção 6): o
  * `pedido_titular`, o `arquivo_titular` e o `expurgo_execucao` de **uma** escola, a do contexto que o `ops:privacidade` abriu
  * para ela (regra 10, item 3). Cada leitura leva o `escola_id` do contexto, nunca de argumento, e **nenhuma coluna de pessoa é
- * lida**: só estado, datas e a categoria do expurgo. Nenhum método é `@SemEscopo`.
+ * lida**: só estado, datas e a categoria do expurgo. Nenhum método é `@Unscoped`.
  *
  * Os suboperadores e os incidentes da escola o comando conta pelos leitores que já existem
  * (`SuboperadorDaEscolaRepository` e `IncidenteDaEscolaRepository`), e não por aqui: as quatro tabelas da operação têm
  * dono único no teste de arquitetura.
  */
 export class ContagensDePrivacidadeRepository {
-  constructor(private readonly banco: Banco | TransacaoBanco) {}
+  constructor(private readonly banco: Database | DatabaseTransaction) {}
 
   async doAtendimento(): Promise<ContagensDoAtendimento> {
-    const escolaId = exigirEscolaDoContexto()
+    const escolaId = requireEscolaId()
 
     const pedidos = await this.banco
       .select({

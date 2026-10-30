@@ -1,4 +1,4 @@
-import { exigirAnoEmCurso, exigirEscolaDoContexto, listaNome, reivindicacao, sessaoDaRequisicao, vinculo, type Banco, type TransacaoBanco } from '@educa/nucleo'
+import { requireAnoEmCurso, requireEscolaId, listaNome, reivindicacao, requestSessao, vinculo, type Database, type DatabaseTransaction } from '@educa/nucleo'
 import type { PaginationQuery, DecisorDaReivindicacao } from '@educa/shared'
 import { and, asc, eq, exists, gt, sql, type SQL } from 'drizzle-orm'
 import { InvariantException } from '@educa/shared'
@@ -33,27 +33,27 @@ export interface NomeDoPedido {
 /**
  * Os pedidos de reivindicação e a decisão sobre eles, na escola e no ano em curso do contexto (A1, tarefa 8.0; Tech Spec
  * da A1, seções 4, 5 e 6; regra 10, item 3): escola, ano e, para o professor, o próprio usuário vêm do contexto que a
- * `GuardaDeSessao` gravou, nunca de argumento. Sem ano em curso, `exigirAnoEmCurso` falha fechado com `NAO_ENCONTRADO`.
+ * `SessaoGuard` gravou, nunca de argumento. Sem ano em curso, `requireAnoEmCurso` falha fechado com `NAO_ENCONTRADO`.
  *
  * O alcance do professor é o `exists` do vínculo confirmado dele na turma do pedido, nunca um `join`: com duas
  * disciplinas na mesma turma, o `join` repetiria a linha (P3). Nada daqui devolve a matrícula para fora da transação da
  * aprovação, nem o hash, a chave ou a marca de matrícula errada para resposta; e nada daqui vai a log.
  */
 export class DecisaoRepository {
-  constructor(private readonly banco: Banco | TransacaoBanco) {}
+  constructor(private readonly banco: Database | DatabaseTransaction) {}
 
   /** O pedido que quem decide alcança, em qualquer estado: a escola e o ano do contexto e, para o professor, o vínculo. */
   #noAlcance(alcance: AlcanceDoPedido): SQL | undefined {
     return and(
-      eq(reivindicacao.escolaId, exigirEscolaDoContexto()),
-      eq(reivindicacao.anoLetivoId, exigirAnoEmCurso()),
+      eq(reivindicacao.escolaId, requireEscolaId()),
+      eq(reivindicacao.anoLetivoId, requireAnoEmCurso()),
       alcance === 'unidade' ? undefined : this.#comVinculoDoProfessor(),
     )
   }
 
   /** Existe vínculo `confirmado` de professor do usuário do contexto na turma do pedido, na escola e no ano do pedido. */
   #comVinculoDoProfessor(): SQL {
-    const { usuarioId } = sessaoDaRequisicao()
+    const { usuarioId } = requestSessao()
     return exists(
       this.banco
         .select({ um: vinculo.id })
@@ -85,8 +85,8 @@ export class DecisaoRepository {
       .innerJoin(listaNome, and(eq(listaNome.escolaId, reivindicacao.escolaId), eq(listaNome.id, reivindicacao.listaNomeId)))
       .where(
         and(
-          eq(reivindicacao.escolaId, exigirEscolaDoContexto()),
-          eq(reivindicacao.anoLetivoId, exigirAnoEmCurso()),
+          eq(reivindicacao.escolaId, requireEscolaId()),
+          eq(reivindicacao.anoLetivoId, requireAnoEmCurso()),
           eq(reivindicacao.turmaId, turmaId),
           eq(reivindicacao.estado, 'pendente'),
           pagina === undefined ? undefined : gt(reivindicacao.id, pagina),
@@ -142,13 +142,13 @@ export class DecisaoRepository {
       .set({
         estado,
         decididaEm: sql`now()`,
-        decididaPor: sessaoDaRequisicao().usuarioId,
+        decididaPor: requestSessao().usuarioId,
         decididaComo,
         senhaHash: null,
         chaveEnvio: null,
         teveMatriculaErrada: null,
       })
-      .where(and(eq(reivindicacao.escolaId, exigirEscolaDoContexto()), eq(reivindicacao.id, id)))
+      .where(and(eq(reivindicacao.escolaId, requireEscolaId()), eq(reivindicacao.id, id)))
   }
 
   /**
@@ -161,7 +161,7 @@ export class DecisaoRepository {
     const [linha] = await this.banco
       .select({ nome: listaNome.nome, matricula: listaNome.matricula })
       .from(listaNome)
-      .where(and(eq(listaNome.escolaId, exigirEscolaDoContexto()), eq(listaNome.anoLetivoId, exigirAnoEmCurso()), eq(listaNome.id, listaNomeId)))
+      .where(and(eq(listaNome.escolaId, requireEscolaId()), eq(listaNome.anoLetivoId, requireAnoEmCurso()), eq(listaNome.id, listaNomeId)))
     if (linha === undefined || linha.nome === null || linha.matricula === null) return undefined
     return { nome: linha.nome, matricula: linha.matricula }
   }
@@ -174,7 +174,7 @@ export class DecisaoRepository {
     await this.banco
       .update(listaNome)
       .set({ estado: 'aprovado', usuarioId, nome: null, matricula: null })
-      .where(and(eq(listaNome.escolaId, exigirEscolaDoContexto()), eq(listaNome.anoLetivoId, exigirAnoEmCurso()), eq(listaNome.id, listaNomeId)))
+      .where(and(eq(listaNome.escolaId, requireEscolaId()), eq(listaNome.anoLetivoId, requireAnoEmCurso()), eq(listaNome.id, listaNomeId)))
   }
 
   /** A linha da lista do pedido recusado volta a `livre` (RF12): o nome reaparece na página da sala, e o dono o reivindica (E25). */
@@ -182,6 +182,6 @@ export class DecisaoRepository {
     await this.banco
       .update(listaNome)
       .set({ estado: 'livre' })
-      .where(and(eq(listaNome.escolaId, exigirEscolaDoContexto()), eq(listaNome.anoLetivoId, exigirAnoEmCurso()), eq(listaNome.id, listaNomeId)))
+      .where(and(eq(listaNome.escolaId, requireEscolaId()), eq(listaNome.anoLetivoId, requireAnoEmCurso()), eq(listaNome.id, listaNomeId)))
   }
 }

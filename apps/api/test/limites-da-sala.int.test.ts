@@ -1,4 +1,4 @@
-import { type PoolBanco } from '@educa/nucleo'
+import { type DatabasePool } from '@educa/nucleo'
 import { ErrorCode, salaAbertaResponseSchema, MENSAGENS_DE_ERRO } from '@educa/shared'
 import { randomBytes, randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest'
@@ -336,7 +336,7 @@ describe('limites da sala (A1, tarefa 7.0): por escola, por nome e por turma, nu
       await emLotes(TETO_DE_CODIGOS_ERRADOS_POR_ESCOLA, 50, () => sala.abrir({ slug: a.slug, codigo: sortearCodigoDaTurma() }))
       expect((await sala.contadores(a, a.turma)).escola).toBe(TETO_DE_CODIGOS_ERRADOS_POR_ESCOLA)
       const limites = apiDoPool.app.get(LimitesDaSala)
-      const pool = apiDoPool.app.get<PoolBanco>(POOL_BANCO, { strict: false })
+      const pool = apiDoPool.app.get<DatabasePool>(POOL_BANCO, { strict: false })
       expect(pool.options.max).toBe(1)
 
       const esperando = Array.from({ length: 50 }, () => sala.abrir({ slug: a.slug, codigo: a.codigo }, { url: apiDoPool.url }))

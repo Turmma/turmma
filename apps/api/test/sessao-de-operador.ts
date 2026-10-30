@@ -1,4 +1,4 @@
-import { criarPool, EmissorDeTokenDeOperador, type PoolBanco } from '@educa/nucleo'
+import { createPool, OperadorTokenIssuer, type DatabasePool } from '@educa/nucleo'
 import { createHash, randomBytes } from 'node:crypto'
 import { lerAmbienteDeTeste } from '../../../tools/ci/compose.ts'
 import { urlDoBancoDeTeste } from '../../../tools/testes/integracao.setup.ts'
@@ -20,7 +20,7 @@ export interface SessaoDeOperadorDeTeste {
 
 /**
  * Operadores e sessões de operador para os testes da área da operação, no Postgres do compose de teste, **antes** de
- * existir o login do operador (tarefa 7.0). O token sai do `EmissorDeTokenDeOperador` de produção, com a chave e o
+ * existir o login do operador (tarefa 7.0). O token sai do `OperadorTokenIssuer` de produção, com a chave e o
  * `typ` que a API confere: a `GuardaDeOperador` recusaria qualquer outro. A 7.0 repete o C47 com o cookie de verdade.
  *
  * Nada de pessoa: apelido sorteado, nome fixo e e-mail em `.invalid`. `fechar` apaga tudo o que a bancada criou, com a
@@ -28,17 +28,17 @@ export interface SessaoDeOperadorDeTeste {
  * de outro arquivo de teste exigir um `OPERADOR` que ele não conhece.
  */
 export class BancadaDeOperadores {
-  readonly pool: PoolBanco
-  readonly #emissor: EmissorDeTokenDeOperador
+  readonly pool: DatabasePool
+  readonly #emissor: OperadorTokenIssuer
   readonly #chave: Uint8Array
   readonly #operadores: string[] = []
 
   constructor(url = urlDoBancoDeTeste(), ambiente: Record<string, string | undefined> = lerAmbienteDeTeste()) {
-    this.pool = criarPool({ url, maximoConexoes: 2, timeoutConexaoMs: 5_000, timeoutConsultaMs: 30_000 }, () => undefined)
+    this.pool = createPool({ url, maximoConexoes: 2, timeoutConexaoMs: 5_000, timeoutConsultaMs: 30_000 }, () => undefined)
     const chave = ambiente['IDENTIDADE_CHAVE_ASSINATURA']
     if (chave === undefined) throw new Error('IDENTIDADE_CHAVE_ASSINATURA ausente no ambiente de teste')
     this.#chave = new TextEncoder().encode(chave)
-    this.#emissor = new EmissorDeTokenDeOperador(this.#chave)
+    this.#emissor = new OperadorTokenIssuer(this.#chave)
   }
 
   /** Um operador ativo novo, sem sessão. */
@@ -68,7 +68,7 @@ export class BancadaDeOperadores {
       sessaoId,
       refresh,
       token: (await this.#emissor.emitir(pedido)).token,
-      tokenEm: async (agora: Date) => (await new EmissorDeTokenDeOperador(this.#chave, { agora: () => agora }).emitir(pedido)).token,
+      tokenEm: async (agora: Date) => (await new OperadorTokenIssuer(this.#chave, { agora: () => agora }).emitir(pedido)).token,
     }
   }
 

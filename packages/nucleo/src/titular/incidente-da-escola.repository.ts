@@ -1,9 +1,9 @@
 import type { CategoriaDeDadoDoIncidente, RiscoDoIncidente } from '@educa/shared'
 import { and, desc, eq, isNull, min, sql } from 'drizzle-orm'
-import { exigirEscolaDoContexto } from '../contexto/escola-do-contexto.js'
-import type { Banco, TransacaoBanco } from '../db/banco.js'
+import { requireEscolaId } from '../contexto/escola-do-contexto.js'
+import type { Database, DatabaseTransaction } from '../db/banco.js'
 import { incidente, incidenteEscola } from '../db/schema/incidente.js'
-import { identidadeDaRequisicao } from '../identidade/guarda-autenticacao.js'
+import { requestIdentity } from '../identidade/guarda-autenticacao.js'
 
 /** Quantos incidentes a leitura devolve: os sem confirmação vêm primeiro, então nenhum pendente fica de fora por causa do corte. */
 export const LIMITE_DA_LISTA_DE_INCIDENTES = 50
@@ -29,11 +29,11 @@ export interface IncidenteLidoPelaEscola {
  * `incidente`, que não tem escola, só entra por junção com a ligação dela, para trazer a data em que a Turmma soube; este
  * arquivo **não escreve** nele. Quem o escreve é o `OperacaoPrivacidadeRepository` (`ops:incidente`), e o expurgo o apaga por prazo.
  *
- * Nenhum método é `@SemEscopo`. O incidente de outra escola, o inexistente e o de id mal formado respondem igual para quem pergunta:
+ * Nenhum método é `@Unscoped`. O incidente de outra escola, o inexistente e o de id mal formado respondem igual para quem pergunta:
  * `existe` e `confirmar` não distinguem (regra 10, item 6).
  */
 export class IncidenteDaEscolaRepository {
-  constructor(private readonly banco: Banco | TransacaoBanco) {}
+  constructor(private readonly banco: Database | DatabaseTransaction) {}
 
   /** Os incidentes da escola: os sem confirmação primeiro, e dentro de cada grupo o mais recente (pela data em que a Turmma soube). */
   async daEscola(): Promise<IncidenteLidoPelaEscola[]> {
@@ -52,7 +52,7 @@ export class IncidenteDaEscolaRepository {
       })
       .from(incidenteEscola)
       .innerJoin(incidente, eq(incidente.id, incidenteEscola.incidenteId))
-      .where(eq(incidenteEscola.escolaId, exigirEscolaDoContexto()))
+      .where(eq(incidenteEscola.escolaId, requireEscolaId()))
       .orderBy(sql`${incidenteEscola.confirmadoEm} is not null`, desc(incidente.conhecidoEm), desc(incidenteEscola.id))
       .limit(LIMITE_DA_LISTA_DE_INCIDENTES)
   }
@@ -62,7 +62,7 @@ export class IncidenteDaEscolaRepository {
     const linhas = await this.banco
       .select({ id: incidenteEscola.id })
       .from(incidenteEscola)
-      .where(and(eq(incidenteEscola.escolaId, exigirEscolaDoContexto()), eq(incidenteEscola.id, id)))
+      .where(and(eq(incidenteEscola.escolaId, requireEscolaId()), eq(incidenteEscola.id, id)))
     return linhas.length > 0
   }
 
@@ -74,8 +74,8 @@ export class IncidenteDaEscolaRepository {
   async confirmar(id: string): Promise<boolean> {
     const confirmadas = await this.banco
       .update(incidenteEscola)
-      .set({ confirmadoEm: sql`now()`, confirmadoPor: identidadeDaRequisicao().usuarioId })
-      .where(and(eq(incidenteEscola.escolaId, exigirEscolaDoContexto()), eq(incidenteEscola.id, id), isNull(incidenteEscola.confirmadoEm)))
+      .set({ confirmadoEm: sql`now()`, confirmadoPor: requestIdentity().usuarioId })
+      .where(and(eq(incidenteEscola.escolaId, requireEscolaId()), eq(incidenteEscola.id, id), isNull(incidenteEscola.confirmadoEm)))
       .returning({ id: incidenteEscola.id })
     return confirmadas.length > 0
   }
@@ -89,7 +89,7 @@ export class IncidenteDaEscolaRepository {
       .select({ conhecidoEm: min(incidente.conhecidoEm) })
       .from(incidenteEscola)
       .innerJoin(incidente, eq(incidente.id, incidenteEscola.incidenteId))
-      .where(and(eq(incidenteEscola.escolaId, exigirEscolaDoContexto()), isNull(incidenteEscola.confirmadoEm)))
+      .where(and(eq(incidenteEscola.escolaId, requireEscolaId()), isNull(incidenteEscola.confirmadoEm)))
     return linha?.conhecidoEm ?? undefined
   }
 }

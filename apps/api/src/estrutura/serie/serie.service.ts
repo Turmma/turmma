@@ -1,4 +1,4 @@
-import type { Banco } from '@educa/nucleo'
+import type { Database } from '@educa/nucleo'
 import {
   listaDeSeriesResponseSchema,
   serieResponseSchema,
@@ -15,7 +15,7 @@ import { SerieRepository } from './serie.repository.js'
  * algum caminho passar dele, o check do banco recusa; a série repetida é `CONFLITO`, sem o valor na resposta.
  */
 export class SerieService {
-  constructor(private readonly banco: Banco) {}
+  constructor(private readonly banco: Database) {}
 
   async criar(pedido: CriarSerieRequest): Promise<SerieResponse> {
     return serieResponseSchema.parse(await new SerieRepository(this.banco).criar(pedido))

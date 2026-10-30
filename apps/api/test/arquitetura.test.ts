@@ -171,7 +171,7 @@ describe('arquitetura: a conta global só pelo módulo sessao e pelo ciclo de vi
 
 /**
  * I1 (Tech Spec da A0b, seção 6; regra 10, item 9): a leitura entre escolas do painel mora num repository só, o
- * `PainelRepository`, com exatamente três métodos, cada um `@SemEscopo` com a justificativa do painel. Um quarto método
+ * `PainelRepository`, com exatamente três métodos, cada um `@Unscoped` com a justificativa do painel. Um quarto método
  * sem escopo é mudança da spec. Que só o `painel.service.ts` o use é a regra `cerca-painel-repository` do `guarda:camadas`
  * (X5, 12.0).
  */
@@ -179,7 +179,7 @@ describe('arquitetura: a leitura entre escolas mora só no PainelRepository, com
   it('os métodos são exatamente redes, escolas e uso, cada um @SemEscopo com a justificativa que cita o painel', () => {
     const metodos = Object.getOwnPropertyNames(PainelRepository.prototype).filter((nome) => nome !== 'constructor')
     expect(metodos.toSorted()).toEqual(['escolas', 'redes', 'uso'])
-    for (const metodo of metodos) expect(nucleo.justificativaSemEscopo(PainelRepository, metodo), metodo).toMatch(/^painel do operador: /)
+    for (const metodo of metodos) expect(nucleo.unscopedJustification(PainelRepository, metodo), metodo).toMatch(/^painel do operador: /)
   })
 })
 
@@ -319,10 +319,10 @@ describe('arquitetura: as seis tabelas da operação só pelo OperadorRepository
     // Os alvos do job são exatamente as tabelas que o arquivo cita: nenhuma a mais passa pelo `apagarLoteVencido`.
     expect(nucleo.ALVOS_DO_EXPURGO_DE_ACESSO.filter((alvo) => FISICOS_DA_OPERACAO.has(alvo)).sort()).toEqual(EXPURGAVEIS_DA_OPERACAO)
     const metodos = Object.getOwnPropertyNames(nucleo.ExpurgoDeAcessoRepository.prototype).filter((metodo) => metodo !== 'constructor')
-    const marcados = metodos.filter((metodo) => nucleo.justificativaSemEscopo(nucleo.ExpurgoDeAcessoRepository, metodo) !== undefined)
+    const marcados = metodos.filter((metodo) => nucleo.unscopedJustification(nucleo.ExpurgoDeAcessoRepository, metodo) !== undefined)
     expect(marcados.sort()).toEqual(['apagarLoteVencido', 'limparLoteDeContasSemUso'])
     // A justificativa do `apagarLoteVencido` cobre as tabelas da equipe, que não têm escola (9.2).
-    expect(nucleo.justificativaSemEscopo(nucleo.ExpurgoDeAcessoRepository, 'apagarLoteVencido')).toMatch(/operação Turmma.*não têm escola/)
+    expect(nucleo.unscopedJustification(nucleo.ExpurgoDeAcessoRepository, 'apagarLoteVencido')).toMatch(/operação Turmma.*não têm escola/)
   })
 
   it('a checagem do expurgo reprova o que apaga operador, código de recuperação ou auditoria da operação', () => {
@@ -416,10 +416,10 @@ describe('arquitetura: o suboperador só pelo OperacaoPrivacidadeRepository, que
     const escritor = await import('../src/ops/operacao-privacidade.repository.js')
     const metodos = Object.getOwnPropertyNames(escritor.OperacaoPrivacidadeRepository.prototype).filter((metodo) => metodo !== 'constructor')
     expect(metodos.toSorted()).toEqual(['cadastrar', 'encerrar', 'encerrarLigacoes', 'ligarEscola', 'ligarEscolaAoIncidente', 'registrarIncidente', 'travarVigente'])
-    expect(metodos.filter((metodo) => nucleo.justificativaSemEscopo(escritor.OperacaoPrivacidadeRepository, metodo) !== undefined)).toEqual(['encerrarLigacoes'])
+    expect(metodos.filter((metodo) => nucleo.unscopedJustification(escritor.OperacaoPrivacidadeRepository, metodo) !== undefined)).toEqual(['encerrarLigacoes'])
     const leitura = Object.getOwnPropertyNames(nucleo.SuboperadorDaEscolaRepository.prototype).filter((metodo) => metodo !== 'constructor')
     expect(leitura).toEqual(['daEscola'])
-    expect(nucleo.justificativaSemEscopo(nucleo.SuboperadorDaEscolaRepository, 'daEscola')).toBeUndefined()
+    expect(nucleo.unscopedJustification(nucleo.SuboperadorDaEscolaRepository, 'daEscola')).toBeUndefined()
   })
 
   it('a varredura pega o uso em qualquer forma, e não confunde variável, comentário nem teste com tabela', () => {
@@ -467,7 +467,7 @@ describe('arquitetura: o Compartilhamento é só regra, e o banco é do Comparti
     const leitor = arquivosDoRepositorio().find((arquivo) => arquivo.caminho === 'packages/nucleo/src/titular/compartilhamento.repository.ts')
     expect(leitor).toBeDefined()
     const texto = semComentarios(leitor?.texto ?? '')
-    expect(texto).toContain('exigirEscolaDoContexto()')
+    expect(texto).toContain('requireEscolaId()')
     expect(texto).not.toMatch(/\(\s*escolaId\s*[:,)]/)
     expect(texto).not.toMatch(/,\s*escolaId\s*:\s*string/)
   })
@@ -518,7 +518,7 @@ describe('arquitetura: o incidente só pelo OperacaoPrivacidadeRepository, pelo 
     expect(leitor && tabelasDeForaNoRepository(leitor.texto, GRUPO_DO_INCIDENTE)).toEqual([])
     const metodos = Object.getOwnPropertyNames(nucleo.IncidenteDaEscolaRepository.prototype).filter((metodo) => metodo !== 'constructor')
     expect(metodos.toSorted()).toEqual(['confirmar', 'conhecidoEmDoPendenteMaisAntigo', 'daEscola', 'existe'])
-    for (const metodo of metodos) expect(nucleo.justificativaSemEscopo(nucleo.IncidenteDaEscolaRepository, metodo), metodo).toBeUndefined()
+    for (const metodo of metodos) expect(nucleo.unscopedJustification(nucleo.IncidenteDaEscolaRepository, metodo), metodo).toBeUndefined()
   })
 
   it('a varredura pega o uso em qualquer forma, e não confunde variável, comentário nem teste com tabela', () => {
@@ -544,13 +544,13 @@ describe('arquitetura: o incidente só pelo OperacaoPrivacidadeRepository, pelo 
 
 /**
  * C40 a C42 e C36 (parte) (Tech Spec da A0, seção 6): as rotas `/v1/operacao/*` escapam das guardas de escola pelo
- * `rotaSemSessao`, e o que impede que isso vire atalho é que os marcadores só existem na pasta da operação, que a rota
+ * `isRouteWithoutSessao`, e o que impede que isso vire atalho é que os marcadores só existem na pasta da operação, que a rota
  * `@RotaDeOperacao` sempre leva a `GuardaDeOperador`, que marcador e caminho andam juntos, e que o limite conta o
  * operador. A lista de rotas é a que o `AppModule` registra, lida dos metadados, sem subir a aplicação.
  */
 const PASTA_DA_OPERACAO = 'apps/api/src/operacao/'
 const NOMES_DOS_MARCADORES = /\b(?:RotaDeOperacao|EntradaDeOperacao)\b/
-const CHAVES_DOS_MARCADORES = /\bMETADADO_(?:ROTA|ENTRADA)_DE_OPERACAO\b/
+const CHAVES_DOS_MARCADORES = /\bOPERACAO_(?:ROUTE|ENTRY)_KEY\b/
 /** Quem pode citar as chaves: onde nascem, o barrel, a conferência do boot, e os decoradores. */
 const QUEM_PODE_CITAR_AS_CHAVES = [
   'packages/nucleo/src/identidade/marcadores-de-operacao.ts',
@@ -584,7 +584,7 @@ const nomeDaRota = (rota: RotaRegistrada) => `${rota.verbo} ${rota.caminho}`
 @Controller('v1/operacao/so-metadado')
 class SoMetadadoController {
   @Get()
-  @SetMetadata(nucleo.METADADO_ROTA_DE_OPERACAO, true)
+  @SetMetadata(nucleo.OPERACAO_ROUTE_KEY, true)
   obter(): void {}
 }
 
@@ -650,14 +650,14 @@ describe('arquitetura: os marcadores da operação só na pasta da operação (C
     const fora = [
       { caminho: 'apps/api/src/estrutura/turma/turma.controller.ts', texto: "import { RotaDeOperacao } from '../operacao/marcadores.js'\n@RotaDeOperacao()\n@Controller('v1/turmas')\nexport class TurmaController {}" },
       { caminho: 'apps/api/src/sessao/atalho.controller.ts', texto: 'export class Atalho {\n  @Get()\n  @EntradaDeOperacao()\n  obter() {}\n}' },
-      { caminho: 'apps/api/src/sessao/chave.ts', texto: "import { METADADO_ROTA_DE_OPERACAO } from '@educa/nucleo'\nSetMetadata(METADADO_ROTA_DE_OPERACAO, true)" },
-      { caminho: 'packages/nucleo/src/limite/outro.ts', texto: 'reflector.get(METADADO_ENTRADA_DE_OPERACAO, alvo)' },
+      { caminho: 'apps/api/src/sessao/chave.ts', texto: "import { OPERACAO_ROUTE_KEY } from '@educa/nucleo'\nSetMetadata(OPERACAO_ROUTE_KEY, true)" },
+      { caminho: 'packages/nucleo/src/limite/outro.ts', texto: 'reflector.get(OPERACAO_ENTRY_KEY, alvo)' },
     ]
     const inocentes = [
       { caminho: 'apps/api/src/operacao/painel/painel.controller.ts', texto: '@RotaDeOperacao()\nexport class PainelController {}' },
       { caminho: 'packages/nucleo/src/limite/guarda-limite.ts', texto: '/** A rota `@RotaDeOperacao()` conta no rl:op. */\n// e a @EntradaDeOperacao não\nconst x = 1' },
       { caminho: 'apps/api/test/qualquer.int.test.ts', texto: '@RotaDeOperacao()\nclass X {}' },
-      { caminho: 'apps/api/test/rotas-registradas.ts', texto: "import { METADADO_ROTA_DE_OPERACAO } from '@educa/nucleo'" },
+      { caminho: 'apps/api/test/rotas-registradas.ts', texto: "import { OPERACAO_ROUTE_KEY } from '@educa/nucleo'" },
     ]
     expect(marcadoresForaDaOperacao([...fora, ...inocentes])).toEqual(fora.map((arquivo) => arquivo.caminho))
   })
@@ -696,7 +696,7 @@ describe('arquitetura: toda rota @RotaDeOperacao conta pelo rl:op:{sub} (C36, pa
   const OPERADOR = '0190f5a0-0000-7000-8000-0000000000e1'
   const SESSAO = '0190f5a0-0000-7000-8000-0000000000f1'
 
-  function guardaComLimitador(resultado: nucleo.ResultadoDoLimite = { aceita: true }) {
+  function guardaComLimitador(resultado: nucleo.RateLimitResult = { aceita: true }) {
     const limitador = {
       consumirDeOperador: vi.fn(async (_operadorId: string) => resultado),
       consumirAnonima: vi.fn(async () => ({ aceita: true }) as const),
@@ -704,7 +704,7 @@ describe('arquitetura: toda rota @RotaDeOperacao conta pelo rl:op:{sub} (C36, pa
       consumirDaOperacao: vi.fn(async () => ({ aceita: true }) as const),
       consumirAutenticada: vi.fn(async () => ({ aceita: true }) as const),
     }
-    const guarda = new nucleo.GuardaDeLimite(new Reflector(), limitador as unknown as nucleo.LimitadorDeRequisicoes, new nucleo.ProxiesConfiaveis(['127.0.0.1']), { daEscola: async () => ({ porUsuarioMin: 1, porEscolaMin: 1 }) }, identidade)
+    const guarda = new nucleo.RateLimitGuard(new Reflector(), limitador as unknown as nucleo.RateLimiter, new nucleo.TrustedProxies(['127.0.0.1']), { daEscola: async () => ({ porUsuarioMin: 1, porEscolaMin: 1 }) }, identidade)
     return { guarda, limitador }
   }
 
@@ -718,7 +718,7 @@ describe('arquitetura: toda rota @RotaDeOperacao conta pelo rl:op:{sub} (C36, pa
     } as unknown as ExecutionContext
   }
 
-  const tokenDeOperador = async () => `Bearer ${(await new nucleo.EmissorDeTokenDeOperador(identidade.chaveAssinatura).emitir({ operadorId: OPERADOR, sessaoId: SESSAO })).token}`
+  const tokenDeOperador = async () => `Bearer ${(await new nucleo.OperadorTokenIssuer(identidade.chaveAssinatura).emitir({ operadorId: OPERADOR, sessaoId: SESSAO })).token}`
 
   it('em cada rota @RotaDeOperacao registrada, o token de operador conta no rl:op do sub, e em nenhum outro limite', async () => {
     const rotas = rotasDaApi().filter((rota) => rota.marcador === 'rota')
@@ -738,7 +738,7 @@ describe('arquitetura: toda rota @RotaDeOperacao conta pelo rl:op:{sub} (C36, pa
     const recusada = guardaComLimitador({ aceita: false, msAteLiberar: 1_500 })
     await expect(recusada.guarda.canActivate(execucao(rota, await tokenDeOperador()))).rejects.toMatchObject({ codigo: ErrorCode.LIMITE_EXCEDIDO, status: 429, tenteDeNovoEmSegundos: 2 })
 
-    const tokenDeEscola = (await new nucleo.EmissorDeToken(identidade.chaveAssinatura).emitir({ escolaId: SESSAO, usuarioId: OPERADOR, sessaoId: SESSAO })).token
+    const tokenDeEscola = (await new nucleo.TokenIssuer(identidade.chaveAssinatura).emitir({ escolaId: SESSAO, usuarioId: OPERADOR, sessaoId: SESSAO })).token
     for (const authorization of [undefined, `Bearer ${tokenDeEscola}`, 'Bearer a.b.c']) {
       const { guarda, limitador } = guardaComLimitador()
       expect(await guarda.canActivate(execucao(rota, authorization))).toBe(true)
@@ -785,7 +785,7 @@ describe('arquitetura: toda rota @EntradaDeOperacao está num dos três grupos d
     'POST /v1/operacao/sessao/sair': 'recusa_pelo_ip',
   }
 
-  /** O que a `GuardaDeLimite` faz com a rota, com o IP acima do limite: qual limite ela conta, e se responde 429. */
+  /** O que a `RateLimitGuard` faz com a rota, com o IP acima do limite: qual limite ela conta, e se responde 429. */
   async function acimaDoLimite(rota: RotaRegistrada): Promise<{ contou: string[]; recusou: boolean; rebaixou: boolean }> {
     const recusa = { aceita: false, msAteLiberar: 1_000 } as const
     const limitador = {
@@ -795,7 +795,7 @@ describe('arquitetura: toda rota @EntradaDeOperacao está num dos três grupos d
       consumirDaOperacao: vi.fn(async () => recusa),
       consumirAutenticada: vi.fn(async () => recusa),
     }
-    const guarda = new nucleo.GuardaDeLimite(new Reflector(), limitador as unknown as nucleo.LimitadorDeRequisicoes, new nucleo.ProxiesConfiaveis(['127.0.0.1']), { daEscola: async () => ({ porUsuarioMin: 1, porEscolaMin: 1 }) }, identidade)
+    const guarda = new nucleo.RateLimitGuard(new Reflector(), limitador as unknown as nucleo.RateLimiter, new nucleo.TrustedProxies(['127.0.0.1']), { daEscola: async () => ({ porUsuarioMin: 1, porEscolaMin: 1 }) }, identidade)
     const requisicao = { headers: {}, socket: { remoteAddress: '127.0.0.1' } }
     const execucao = {
       getHandler: () => rota.handler,
@@ -813,7 +813,7 @@ describe('arquitetura: toda rota @EntradaDeOperacao está num dos três grupos d
     const contou = Object.entries(limitador)
       .filter(([, consumo]) => consumo.mock.calls.length > 0)
       .map(([nome]) => nome)
-    return { contou, recusou, rebaixou: nucleo.acimaDoLimiteDoIp(requisicao as unknown as IncomingMessage) }
+    return { contou, recusou, rebaixou: nucleo.isOverIpLimit(requisicao as unknown as IncomingMessage) }
   }
 
   it('cada entrada conta no rl:ip:op, o balde por IP da operação: o grupo que recusa responde 429; rebaixar e o contador do operador nunca recusam pelo IP, só marcam a requisição', async () => {
@@ -1318,7 +1318,7 @@ describe('arquitetura: o arquivo do titular lê as tabelas da classificação, e
 })
 
 /** Cita a classe da rotina noturna ou o arquivo dela (F3, tarefa 3.0). */
-const USO_DA_ROTINA = /\bEscolasDaRotinaRepository\b|escolas-da-rotina\.repository/
+const USO_DA_ROTINA = /\bCronEscolasRepository\b|escolas-da-rotina\.repository/
 
 /**
  * Fora dos testes, quem pode usar a lista de escolas da rotina: ela mesma, o barrel, e o worker-lote, que a usa na rotina
@@ -1340,15 +1340,15 @@ const QUEM_USA_A_ROTINA = [
 
 describe('arquitetura: a rotina noturna é a única consulta sem escopo do expurgo da escola (F3, tarefa 3.0; Tech Spec do F3, seção 6)', () => {
   it('a EscolasDaRotinaRepository tem um método só, `listarIds`, @SemEscopo com a justificativa da rotina', () => {
-    const metodos = Object.getOwnPropertyNames(nucleo.EscolasDaRotinaRepository.prototype).filter((metodo) => metodo !== 'constructor')
+    const metodos = Object.getOwnPropertyNames(nucleo.CronEscolasRepository.prototype).filter((metodo) => metodo !== 'constructor')
     expect(metodos).toEqual(['listarIds'])
-    expect(nucleo.justificativaSemEscopo(nucleo.EscolasDaRotinaRepository, 'listarIds')).toMatch(/^rotina noturna: .*só os ids/)
+    expect(nucleo.unscopedJustification(nucleo.CronEscolasRepository, 'listarIds')).toMatch(/^rotina noturna: .*só os ids/)
   })
 
   it('o ExpurgoDaEscolaRepository não tem nenhum @SemEscopo: tudo nele vem da escola do contexto', () => {
     const metodos = Object.getOwnPropertyNames(nucleo.ExpurgoDaEscolaRepository.prototype).filter((metodo) => metodo !== 'constructor')
     expect(metodos.length).toBeGreaterThan(0)
-    expect(metodos.filter((metodo) => nucleo.justificativaSemEscopo(nucleo.ExpurgoDaEscolaRepository, metodo) !== undefined)).toEqual([])
+    expect(metodos.filter((metodo) => nucleo.unscopedJustification(nucleo.ExpurgoDaEscolaRepository, metodo) !== undefined)).toEqual([])
   })
 
   it('fora dos testes, só o worker-lote usa a lista de escolas da rotina', () => {

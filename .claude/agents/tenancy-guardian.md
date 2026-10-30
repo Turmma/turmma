@@ -20,7 +20,7 @@ reprovação é falha da tarefa.
 5. Listagem, busca por id e mensagem de erro não revelam existência de dado de outra escola.
 6. Id é UUID.
 7. Consulta agregada da camada rede não alcança dado individual.
-8. `@SemEscopo()` aparece só onde há justificativa escrita.
+8. `@Unscoped()` aparece só onde há justificativa escrita.
 
 ## Severidade e rodada nova
 

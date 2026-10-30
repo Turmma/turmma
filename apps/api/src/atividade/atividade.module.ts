@@ -1,4 +1,4 @@
-import type { Banco } from '@educa/nucleo'
+import type { Database } from '@educa/nucleo'
 import { Module } from '@nestjs/common'
 import type { Redis } from 'ioredis'
 import { BANCO } from '../banco.module.js'
@@ -25,10 +25,10 @@ import { MinhaAtividadeService } from './minha-atividade/minha-atividade.service
   controllers: [AtividadeAplicadaController, MinhaAtividadeController, LoteController, DesempenhoController],
   providers: [
     { provide: LeituraDoLote, useFactory: (cliente: Redis) => new LeituraDoLote(cliente), inject: [CLIENTE_REDIS_LOGIN] },
-    { provide: AtividadeAplicadaService, useFactory: (banco: Banco, conferencia: ConferenciaDeFuncao) => new AtividadeAplicadaService(banco, conferencia), inject: [BANCO, ConferenciaDeFuncao] },
-    { provide: CorrecaoService, useFactory: (banco: Banco, leitura: LeituraDoLote) => new CorrecaoService(banco, leitura), inject: [BANCO, LeituraDoLote] },
-    { provide: MinhaAtividadeService, useFactory: (banco: Banco) => new MinhaAtividadeService(banco), inject: [BANCO] },
-    { provide: DesempenhoService, useFactory: (banco: Banco) => new DesempenhoService(banco), inject: [BANCO] },
+    { provide: AtividadeAplicadaService, useFactory: (banco: Database, conferencia: ConferenciaDeFuncao) => new AtividadeAplicadaService(banco, conferencia), inject: [BANCO, ConferenciaDeFuncao] },
+    { provide: CorrecaoService, useFactory: (banco: Database, leitura: LeituraDoLote) => new CorrecaoService(banco, leitura), inject: [BANCO, LeituraDoLote] },
+    { provide: MinhaAtividadeService, useFactory: (banco: Database) => new MinhaAtividadeService(banco), inject: [BANCO] },
+    { provide: DesempenhoService, useFactory: (banco: Database) => new DesempenhoService(banco), inject: [BANCO] },
   ],
 })
 export class AtividadeModule {}

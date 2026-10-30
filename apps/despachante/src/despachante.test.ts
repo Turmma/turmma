@@ -1,4 +1,4 @@
-import { contextoAtual, criarLogger, type EscolaComPendentes, type JanelaLetiva, type JobReservado } from '@educa/nucleo'
+import { currentContext, createLogger, type EscolaWithPendingJobs, type JanelaLetiva, type ReservedJob } from '@educa/nucleo'
 import type { QueueName } from '@educa/shared'
 import { describe, expect, it } from 'vitest'
 import { Despachante, type DependenciasDoDespachante } from './despachante.js'
@@ -36,7 +36,7 @@ function montar({
   agora = DOMINGO_MEIO_DIA,
   urgentesDisponiveis = Number.POSITIVE_INFINITY,
 }: {
-  pendentes: EscolaComPendentes[]
+  pendentes: EscolaWithPendingJobs[]
   livres?: (fila: QueueName, escolaId: string | null, limite: number) => number
   conceder?: (ids: readonly string[]) => readonly string[]
   publicacaoFalha?: boolean
@@ -65,8 +65,8 @@ function montar({
       consultasDePublicados.push([...ids])
       return Promise.resolve(publicadosDaEscola)
     },
-    reservarDaEscola: (fila: QueueName, limite: number, opcoes?: { soUrgentes?: boolean }): Promise<JobReservado[]> => {
-      const contexto = contextoAtual()
+    reservarDaEscola: (fila: QueueName, limite: number, opcoes?: { soUrgentes?: boolean }): Promise<ReservedJob[]> => {
+      const contexto = currentContext()
       const escolaId = contexto?.escolaId ?? null
       const soUrgentes = opcoes?.soUrgentes === true
       reservas.push({ fila, escolaId, rotinaDoSistema: contexto?.rotinaDoSistema === true, limite, soUrgentes })
@@ -115,16 +115,16 @@ function montar({
     },
     vagasDaEscola: { daEscola: () => Promise.resolve(vagasDaEscola) },
     // Como a configuração de verdade: a janela é a da escola do contexto em que o despachante pergunta.
-    janelaDaEscola: { daEscola: () => Promise.resolve(janelaDaEscola(contextoAtual()?.escolaId ?? null)) },
+    janelaDaEscola: { daEscola: () => Promise.resolve(janelaDaEscola(currentContext()?.escolaId ?? null)) },
     relogio: { agora: () => agora },
-    logger: criarLogger({ servico: 'despachante-teste', nivel: 'silent' }),
+    logger: createLogger({ servico: 'despachante-teste', nivel: 'silent' }),
   }
   return { dependencias, despachante: new Despachante(dependencias, lote === undefined ? {} : { lote }), reservas, devolvidos, publicados, liberados, tomadas, mantidas, ordem, consultasDePublicados }
 }
 
 describe('Despachante.rodada', () => {
   it('atende as filas em ordem de prioridade, e em cada fila as escolas em rodízio: quem começa muda a cada rodada', async () => {
-    const pendentes: EscolaComPendentes[] = [
+    const pendentes: EscolaWithPendingJobs[] = [
       { fila: 'lote', escolaId: ESCOLA_A },
       { fila: 'lote', escolaId: ESCOLA_B },
       { fila: 'interativa', escolaId: ESCOLA_A },
@@ -220,7 +220,7 @@ describe('Despachante.rodada', () => {
   })
 
   it('para no teto de publicações da rodada, e a próxima continua pela escola seguinte do rodízio', async () => {
-    const pendentes: EscolaComPendentes[] = [
+    const pendentes: EscolaWithPendingJobs[] = [
       { fila: 'interativa', escolaId: ESCOLA_A },
       { fila: 'interativa', escolaId: ESCOLA_B },
     ]
@@ -233,7 +233,7 @@ describe('Despachante.rodada', () => {
 })
 
 describe('Despachante.rodada no horário letivo', () => {
-  const pendentesNasTresFilas: EscolaComPendentes[] = [
+  const pendentesNasTresFilas: EscolaWithPendingJobs[] = [
     { fila: 'interativa', escolaId: ESCOLA_A },
     { fila: 'normal', escolaId: ESCOLA_A },
     { fila: 'lote', escolaId: ESCOLA_A },
@@ -269,7 +269,7 @@ describe('Despachante.rodada no horário letivo', () => {
 
   it('a hora vem do relógio injetado a cada rodada: 17h59 segura, 18h00 solta', async () => {
     let agora = new Date('2026-09-15T17:59:59.999-03:00')
-    const pendentes: EscolaComPendentes[] = [{ fila: 'lote', escolaId: ESCOLA_A }]
+    const pendentes: EscolaWithPendingJobs[] = [{ fila: 'lote', escolaId: ESCOLA_A }]
     const falsos = montar({ pendentes, urgentesDisponiveis: 0 })
     const despachante = new Despachante({ ...falsos.dependencias, relogio: { agora: () => agora } })
     await despachante.rodada()

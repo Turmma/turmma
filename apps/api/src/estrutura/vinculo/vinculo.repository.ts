@@ -2,14 +2,14 @@ import {
   convite,
   disciplina,
   estadoDoProfessor,
-  exigirAnoEmCurso,
-  exigirEscolaDoContexto,
-  sessaoDaRequisicao,
+  requireAnoEmCurso,
+  requireEscolaId,
+  requestSessao,
   turma,
   usuario,
   vinculo,
-  type Banco,
-  type TransacaoBanco,
+  type Database,
+  type DatabaseTransaction,
 } from '@educa/nucleo'
 import {
   InvariantException,
@@ -69,23 +69,23 @@ const colunas = {
 
 /**
  * Os vínculos da escola do contexto no ano letivo em curso dela, e só deles: escola, ano e, para o professor, o próprio
- * usuário vêm do contexto que a `GuardaDeSessao` gravou, nunca de argumento (regra 10, itens 2 e 3). Sem ano em curso,
- * `exigirAnoEmCurso` falha fechado com `NAO_ENCONTRADO` antes de qualquer consulta (Tech Spec, seção 5).
+ * usuário vêm do contexto que a `SessaoGuard` gravou, nunca de argumento (regra 10, itens 2 e 3). Sem ano em curso,
+ * `requireAnoEmCurso` falha fechado com `NAO_ENCONTRADO` antes de qualquer consulta (Tech Spec, seção 5).
  *
  * As FKs compostas são a segunda camada: o vínculo nunca aponta para a turma, o usuário ou a disciplina de outra escola,
  * nem para a turma de outro ano.
  */
 export class VinculoRepository {
-  constructor(private readonly banco: Banco | TransacaoBanco) {}
+  constructor(private readonly banco: Database | DatabaseTransaction) {}
 
   /** O vínculo nasce `pendente`, com `criado_por` do contexto. O repetido fora do `encerrado` é barrado pelo índice único. */
   async criar(novo: NovoVinculo): Promise<string> {
-    const { usuarioId: criadoPor } = sessaoDaRequisicao()
+    const { usuarioId: criadoPor } = requestSessao()
     const [criado] = await this.banco
       .insert(vinculo)
       .values({
-        escolaId: exigirEscolaDoContexto(),
-        anoLetivoId: exigirAnoEmCurso(),
+        escolaId: requireEscolaId(),
+        anoLetivoId: requireAnoEmCurso(),
         usuarioId: novo.usuarioId,
         turmaId: novo.turmaId,
         disciplinaId: novo.disciplinaId,
@@ -105,14 +105,14 @@ export class VinculoRepository {
    */
   async criarAlunoConfirmado(usuarioId: string, turmaId: string): Promise<void> {
     await this.banco.insert(vinculo).values({
-      escolaId: exigirEscolaDoContexto(),
-      anoLetivoId: exigirAnoEmCurso(),
+      escolaId: requireEscolaId(),
+      anoLetivoId: requireAnoEmCurso(),
       usuarioId,
       turmaId,
       disciplinaId: null,
       papel: 'aluno',
       estado: 'confirmado',
-      criadoPor: sessaoDaRequisicao().usuarioId,
+      criadoPor: requestSessao().usuarioId,
       decididoEm: sql`now()`,
     })
   }
@@ -129,7 +129,7 @@ export class VinculoRepository {
    * duas consultas; na do convite ela é segunda camada, porque a FK composta já prende o convite à escola do usuário.
    */
   async professorAlocavel(usuarioId: string): Promise<boolean> {
-    const escolaId = exigirEscolaDoContexto()
+    const escolaId = requireEscolaId()
     const [professor] = await this.banco
       .select({ desativadoEm: usuario.desativadoEm, agora: sql<Date>`now()`.mapWith(usuario.desativadoEm) })
       .from(usuario)
@@ -232,7 +232,7 @@ export class VinculoRepository {
    * nunca o id do cliente. A escola vem do contexto aqui também: um ano de outra escola não acha vínculo nenhum.
    */
   async virarAno(anoLetivoId: string): Promise<{ readonly vinculosEncerrados: number; readonly textosDeContestacaoApagados: number }> {
-    const doAno = and(eq(vinculo.escolaId, exigirEscolaDoContexto()), eq(vinculo.anoLetivoId, anoLetivoId))
+    const doAno = and(eq(vinculo.escolaId, requireEscolaId()), eq(vinculo.anoLetivoId, anoLetivoId))
     const encerrados = await this.banco
       .update(vinculo)
       .set({ estado: 'encerrado', motivoEncerramento: 'fim_do_ano', encerradoEm: sql`now()` })
@@ -252,11 +252,11 @@ export class VinculoRepository {
    * inexistente nas rotas de vínculo (10.4, decidido em 18/09/2026).
    */
   #escopo(): SQL | undefined {
-    return and(eq(vinculo.escolaId, exigirEscolaDoContexto()), eq(vinculo.anoLetivoId, exigirAnoEmCurso()), eq(vinculo.papel, 'professor'))
+    return and(eq(vinculo.escolaId, requireEscolaId()), eq(vinculo.anoLetivoId, requireAnoEmCurso()), eq(vinculo.papel, 'professor'))
   }
 
   #doUsuario(): SQL {
-    return eq(vinculo.usuarioId, sessaoDaRequisicao().usuarioId)
+    return eq(vinculo.usuarioId, requestSessao().usuarioId)
   }
 
   async #lerComReferencias(filtro: SQL | undefined, limite: number): Promise<VinculoLido[]> {

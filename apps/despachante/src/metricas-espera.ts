@@ -1,21 +1,21 @@
 import {
-  avisoEspacado,
+  throttledWarn,
   DONO_DAS_VAGAS_DO_SISTEMA,
   estaNaJanela,
-  executarNoContexto,
-  METRICAS,
+  runInContext,
+  METRICS,
   proximaAbertura,
-  resumirErro,
+  summarizeError,
   ROTULO_ESCOLA,
-  type ConfiguracaoOperacional,
-  type DespachoRepository,
+  type OperationalSettings,
+  type DispatchRepository,
   type JanelaLetiva,
   type LoggerBase,
-  type MedicaoDeFalhos,
-  type MedicaoDePendentes,
+  type FailedJobsMeasurement,
+  type PendingJobsMeasurement,
   type Meter,
-  type Relogio,
-  type VagasPorEscola,
+  type Clock,
+  type EscolaConcurrencyLimiter,
 } from '@educa/nucleo'
 import type { QueueName } from '@educa/shared'
 import { contextoDaEscola, FILA_QUE_SEGURA_NAO_URGENTE } from './despachante.js'
@@ -29,11 +29,11 @@ export const INTERVALO_MEDICAO_DA_FILA_MS = 5_000
 export const RETENCAO_DA_SERIE_ZERADA_MS = 10 * 60_000
 
 export interface DependenciasDaMedicao {
-  repositorio: Pick<DespachoRepository, 'medirPendentes' | 'medirFalhos'>
-  vagas: Pick<VagasPorEscola, 'emUso'>
+  repositorio: Pick<DispatchRepository, 'medirPendentes' | 'medirFalhos'>
+  vagas: Pick<EscolaConcurrencyLimiter, 'emUso'>
   /** Horário letivo da escola do contexto: o não urgente segurado nele não conta como espera (10.0). */
-  janelaDaEscola: Pick<ConfiguracaoOperacional<JanelaLetiva>, 'daEscola'>
-  relogio: Relogio
+  janelaDaEscola: Pick<OperationalSettings<JanelaLetiva>, 'daEscola'>
+  relogio: Clock
   logger: LoggerBase
   medidor: Meter
 }
@@ -65,7 +65,7 @@ export interface SerieDaFila {
  *
  * Nas outras filas não há não urgente segurado: vale o mais antigo dos dois.
  */
-export function esperaDoMaisAntigo(medicao: MedicaoDePendentes, janela: { janela: JanelaLetiva; emAula: boolean } | undefined): number | undefined {
+export function esperaDoMaisAntigo(medicao: PendingJobsMeasurement, janela: { janela: JanelaLetiva; emAula: boolean } | undefined): number | undefined {
   const agoraMs = medicao.agora.getTime()
   const desde: number[] = []
   if (medicao.urgenteCriadoEm !== null) desde.push(medicao.urgenteCriadoEm.getTime())
@@ -97,7 +97,7 @@ export class MedicaoDaFila {
   readonly #intervaloMs: number
   readonly #agoraMs: () => number
   readonly #series = new Map<string, SerieDaFila & { vistaEmMs: number }>()
-  #falhos: MedicaoDeFalhos[] = []
+  #falhos: FailedJobsMeasurement[] = []
   readonly #avisarFalha: (erro: unknown) => void
   readonly #observar: Parameters<Meter['addBatchObservableCallback']>[0]
   readonly #instrumentos: Parameters<Meter['addBatchObservableCallback']>[1]
@@ -112,16 +112,16 @@ export class MedicaoDaFila {
     this.#intervaloMs = opcoes.intervaloMs ?? INTERVALO_MEDICAO_DA_FILA_MS
     this.#agoraMs = opcoes.agoraMs ?? (() => performance.now())
     let ultimoErro: unknown
-    const aviso = avisoEspacado(() => dependencias.logger.warn({ evento: 'despachante.medicao_indisponivel', erro: resumirErro(ultimoErro) }))
+    const aviso = throttledWarn(() => dependencias.logger.warn({ evento: 'despachante.medicao_indisponivel', erro: summarizeError(ultimoErro) }))
     this.#avisarFalha = (erro) => {
       ultimoErro = erro
       aviso()
     }
     const { medidor } = dependencias
-    const espera = medidor.createObservableGauge(METRICAS.esperaMaisAntiga, { description: 'Segundos de espera do job mais antigo que ainda não começou' })
-    const pendentes = medidor.createObservableGauge(METRICAS.pendentes, { description: 'Jobs que ainda não começaram' })
-    const vagas = medidor.createObservableGauge(METRICAS.vagasEmUso, { description: 'Vagas tomadas agora' })
-    const falhos = medidor.createObservableGauge(METRICAS.falhos, { description: 'Jobs que terminaram falhos e seguem em job_registro, por tipo' })
+    const espera = medidor.createObservableGauge(METRICS.esperaMaisAntiga, { description: 'Segundos de espera do job mais antigo que ainda não começou' })
+    const pendentes = medidor.createObservableGauge(METRICS.pendentes, { description: 'Jobs que ainda não começaram' })
+    const vagas = medidor.createObservableGauge(METRICS.vagasEmUso, { description: 'Vagas tomadas agora' })
+    const falhos = medidor.createObservableGauge(METRICS.falhos, { description: 'Jobs que terminaram falhos e seguem em job_registro, por tipo' })
     this.#instrumentos = [espera, pendentes, vagas, falhos]
     this.#observar = (observador) => {
       for (const serie of this.#series.values()) {
@@ -156,7 +156,7 @@ export class MedicaoDaFila {
   /** Uma medição. Falha do Postgres esvazia a exportação; falha do Redis só tira as vagas. */
   async medir(): Promise<void> {
     await this.medirFalhos()
-    let medicoes: MedicaoDePendentes[]
+    let medicoes: PendingJobsMeasurement[]
     try {
       medicoes = await this.dependencias.repositorio.medirPendentes()
     } catch (erro) {
@@ -212,10 +212,10 @@ export class MedicaoDaFila {
   }
 
   /** O horário letivo da escola, só quando há não urgente no lote para decidir se está segurado. */
-  private async janelaSeSegura(medicao: MedicaoDePendentes): Promise<{ janela: JanelaLetiva; emAula: boolean } | undefined> {
+  private async janelaSeSegura(medicao: PendingJobsMeasurement): Promise<{ janela: JanelaLetiva; emAula: boolean } | undefined> {
     if (medicao.fila !== FILA_QUE_SEGURA_NAO_URGENTE || medicao.naoUrgenteCriadoEm === null) return undefined
     const { janelaDaEscola, relogio } = this.dependencias
-    const janela = await executarNoContexto(contextoDaEscola(medicao.escolaId), () => janelaDaEscola.daEscola())
+    const janela = await runInContext(contextoDaEscola(medicao.escolaId), () => janelaDaEscola.daEscola())
     return { janela, emAula: estaNaJanela(janela, relogio.agora()) }
   }
 

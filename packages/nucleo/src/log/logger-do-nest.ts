@@ -34,7 +34,7 @@ function mensagemSegura(mensagem: string, origem: string | undefined): boolean {
  * É o único lugar que repassa mensagem variável ao logger, e por isso a guarda
  * `log-sem-conteudo-montado` fica desligada só neste arquivo (tools/guardas/index.mjs).
  */
-export class LoggerDoNest implements LoggerService {
+export class NestLogger implements LoggerService {
   constructor(private readonly logger: LoggerBase) {}
 
   log(mensagem: unknown, ...parametros: unknown[]): void {

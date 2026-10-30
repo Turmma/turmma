@@ -11,7 +11,7 @@ export const IDADE_MAXIMA_BATIMENTO_MS = 10_000
  * cada 2 s pelo event loop: laço parado ou event loop travado deixam o arquivo envelhecer, e o
  * compose vê `unhealthy`.
  */
-export class Batimento {
+export class Heartbeat {
   readonly #arquivo: string
 
   constructor(arquivo: string = ARQUIVO_BATIMENTO) {

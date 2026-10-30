@@ -1,18 +1,18 @@
 import { BrokenCircuitError, TaskCancelledError } from 'cockatiel'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { comContextoDaEscolaDoPedido } from './__fixtures__/contexto-da-escola.js'
-import { AdaptadorRoteirizado } from './__fixtures__/adaptador-roteirizado.js'
+import { withEscolaContextOfRequest } from './__fixtures__/contexto-da-escola.js'
+import { ScriptedAdapter } from './__fixtures__/adaptador-roteirizado.js'
 import { entradaDeAtividade, ESCOLA_A } from './__fixtures__/entradas.js'
-import type { AdaptadorDeModelo, ChamadaAoModelo, RespostaDoModelo } from './adaptador.js'
-import { AdaptadorResiliente, type PoliticaDeResiliencia } from './adaptador-resiliente.js'
-import { ConsumoEmMemoria, OrcamentoEmMemoria } from './consumo.js'
-import { ErroDeIa, ErroDoProvedor, type CodigoDeErroDeIa, type FalhaDoProvedor } from './erros.js'
+import type { ModelAdapter, ModelCall, ModelResponse } from './adaptador.js'
+import { ResilientAdapter, type ResiliencePolicy } from './adaptador-resiliente.js'
+import { InMemoryConsumo, InMemoryOrcamento } from './consumo.js'
+import { LLMError, ProviderError, type LLMErrorCode, type ProviderFailure } from './erros.js'
 import type { Perfil } from './perfis.js'
 import type { EnvioDaChamada } from './porta.js'
-import { ProvedorDeIa } from './provedor.js'
-import { SuspensoesEmMemoria } from './suspensao.js'
+import { LLMGateway } from './provedor.js'
+import { InMemorySuspensoes } from './suspensao.js'
 import { gerarAtividadeObjetiva } from './tarefas/gerar-atividade-objetiva.js'
-import type { DefinicaoDeTarefa } from './tarefa.js'
+import type { TaskDefinition } from './tarefa.js'
 import { turnoDoTutor } from './tarefas/turno-do-tutor.js'
 
 // Cada teste daqui cai em tempo limitado, com ou sem a cláusula que ele prova (um teste que uma mutação deixa
@@ -26,24 +26,24 @@ const MEIO_ABRE_O_DISJUNTOR_EM_MS = 30_000
 
 const PRAZOS = { rapido: 20_000, padrao: 60_000, complexo: 60_000, visao: 60_000 } as const
 const RECUO_MS = 500
-const RESPOSTA: RespostaDoModelo = { texto: '{}', modelo: 'modelo-unico', tokensDeEntrada: 10, tokensDeSaida: 5 }
+const RESPOSTA: ModelResponse = { texto: '{}', modelo: 'modelo-unico', tokensDeEntrada: 10, tokensDeSaida: 5 }
 
-const complexa: DefinicaoDeTarefa<unknown, unknown> = { ...(gerarAtividadeObjetiva as DefinicaoDeTarefa<unknown, unknown>), perfil: 'complexo' }
-const tarefaDo = (perfil: Perfil): DefinicaoDeTarefa<unknown, unknown> =>
-  perfil === 'rapido' ? (turnoDoTutor as DefinicaoDeTarefa<unknown, unknown>) : perfil === 'padrao' ? (gerarAtividadeObjetiva as DefinicaoDeTarefa<unknown, unknown>) : complexa
+const complexa: TaskDefinition<unknown, unknown> = { ...(gerarAtividadeObjetiva as TaskDefinition<unknown, unknown>), perfil: 'complexo' }
+const tarefaDo = (perfil: Perfil): TaskDefinition<unknown, unknown> =>
+  perfil === 'rapido' ? (turnoDoTutor as TaskDefinition<unknown, unknown>) : perfil === 'padrao' ? (gerarAtividadeObjetiva as TaskDefinition<unknown, unknown>) : complexa
 
-type Comportamento = (numero: number, sinal: AbortSignal, perfil: Perfil) => Promise<RespostaDoModelo>
+type Comportamento = (numero: number, sinal: AbortSignal, perfil: Perfil) => Promise<ModelResponse>
 
 const responde: Comportamento = async () => RESPOSTA
 const falha =
-  (motivo: FalhaDoProvedor, tenteDeNovoEmSegundos?: number): Comportamento =>
+  (motivo: ProviderFailure, tenteDeNovoEmSegundos?: number): Comportamento =>
   async () => {
-    throw new ErroDoProvedor(motivo, tenteDeNovoEmSegundos)
+    throw new ProviderError(motivo, tenteDeNovoEmSegundos)
   }
 const erroDeIa =
-  (codigo: CodigoDeErroDeIa): Comportamento =>
+  (codigo: LLMErrorCode): Comportamento =>
   async () => {
-    throw new ErroDeIa(codigo)
+    throw new LLMError(codigo)
   }
 /** O provedor que demora `ms` para responder. Cortado pelo sinal, o `fetch` volta como "tempo esgotado", como o adaptador de verdade faz. */
 const demora =
@@ -53,14 +53,14 @@ const demora =
       const espera = setTimeout(() => resolve(RESPOSTA), ms)
       const cortar = (): void => {
         clearTimeout(espera)
-        reject(new ErroDoProvedor('tempo'))
+        reject(new ProviderError('tempo'))
       }
       if (sinal.aborted) cortar()
       else sinal.addEventListener('abort', cortar, { once: true })
     })
 
 /** O adaptador de dentro: um modelo só para os quatro perfis (o `LLM_MODELO` do ensaio) e o comportamento de cada chamada. */
-class AdaptadorDeRoteiro implements AdaptadorDeModelo {
+class RoteiroAdapter implements ModelAdapter {
   readonly origem = 'openai_compat'
   readonly envio: EnvioDaChamada = { envioExterno: true, provedorId: 'provedor-de-teste' }
   readonly chamadasPorPerfil: Perfil[] = []
@@ -76,15 +76,15 @@ class AdaptadorDeRoteiro implements AdaptadorDeModelo {
     return this.modelo
   }
 
-  async chamar<Entrada, Saida>(chamada: ChamadaAoModelo<Entrada, Saida>): Promise<RespostaDoModelo> {
+  async chamar<Entrada, Saida>(chamada: ModelCall<Entrada, Saida>): Promise<ModelResponse> {
     this.chamadasPorPerfil.push(chamada.tarefa.perfil)
     return this.comportamento(this.chamadasPorPerfil.length, chamada.sinal, chamada.tarefa.perfil)
   }
 }
 
-function montar(comportamento: Comportamento, politica: Partial<PoliticaDeResiliencia> = {}) {
-  const interno = new AdaptadorDeRoteiro(comportamento)
-  const adaptador = new AdaptadorResiliente(interno, { prazosMs: PRAZOS, recuoMs: RECUO_MS, aleatorio: () => 1, ...politica })
+function montar(comportamento: Comportamento, politica: Partial<ResiliencePolicy> = {}) {
+  const interno = new RoteiroAdapter(comportamento)
+  const adaptador = new ResilientAdapter(interno, { prazosMs: PRAZOS, recuoMs: RECUO_MS, aleatorio: () => 1, ...politica })
   const chamar = (perfil: Perfil = 'padrao', sinal: AbortSignal = new AbortController().signal) =>
     adaptador.chamar({ tarefa: tarefaDo(perfil), entrada: entradaDeAtividade(), sinal })
   return { adaptador, interno, chamar }
@@ -93,10 +93,10 @@ function montar(comportamento: Comportamento, politica: Partial<PoliticaDeResili
 /** O desfecho de uma chamada lido do estado: nunca espera o que pode não chegar. */
 interface Desfecho {
   pendente: boolean
-  valor?: RespostaDoModelo
+  valor?: ModelResponse
   erro?: unknown
 }
-function acompanhar(promessa: Promise<RespostaDoModelo>): Desfecho {
+function acompanhar(promessa: Promise<ModelResponse>): Desfecho {
   const desfecho: Desfecho = { pendente: true }
   promessa.then(
     (valor) => Object.assign(desfecho, { pendente: false, valor }),
@@ -107,14 +107,14 @@ function acompanhar(promessa: Promise<RespostaDoModelo>): Desfecho {
 const avancar = (ms: number) => vi.advanceTimersByTimeAsync(ms)
 
 /** Chama, deixa o relógio andar `ms` e devolve o desfecho. */
-async function chamarEEsperar(chamada: Promise<RespostaDoModelo>, ms: number): Promise<Desfecho> {
+async function chamarEEsperar(chamada: Promise<ModelResponse>, ms: number): Promise<Desfecho> {
   const desfecho = acompanhar(chamada)
   await avancar(ms)
   return desfecho
 }
 
 /** O código do erro que a chamada deu, ou `undefined` se ela ainda não terminou ou deu certo. */
-const codigoDe = (desfecho: Desfecho): unknown => (desfecho.erro instanceof ErroDeIa ? desfecho.erro.codigoDeIa : undefined)
+const codigoDe = (desfecho: Desfecho): unknown => (desfecho.erro instanceof LLMError ? desfecho.erro.codigoDeIa : undefined)
 
 beforeEach(() => {
   vi.useFakeTimers()
@@ -286,7 +286,7 @@ describe('AdaptadorResiliente: a repetição', { timeout: LIMITE_DO_TESTE_MS }, 
 
 describe('AdaptadorResiliente: o disjuntor', { timeout: LIMITE_DO_TESTE_MS }, () => {
   /** Faz `quantas` chamadas em fila, deixando o relógio andar `ms` depois de cada uma, e devolve o desfecho da última. */
-  async function chamarEmFila(chamar: () => Promise<RespostaDoModelo>, quantas: number, ms = 10): Promise<Desfecho> {
+  async function chamarEmFila(chamar: () => Promise<ModelResponse>, quantas: number, ms = 10): Promise<Desfecho> {
     let ultimo: Desfecho = { pendente: true }
     for (let vez = 0; vez < quantas; vez += 1) ultimo = await chamarEEsperar(chamar(), ms)
     return ultimo
@@ -301,7 +301,7 @@ describe('AdaptadorResiliente: o disjuntor', { timeout: LIMITE_DO_TESTE_MS }, ()
     expect(interno.chamadas).toBe(FALHAS_PARA_ABRIR_O_DISJUNTOR)
     const sexta = await chamarEEsperar(chamar('padrao'), 10)
     expect(interno.chamadas).toBe(FALHAS_PARA_ABRIR_O_DISJUNTOR)
-    expect(sexta.erro).toBeInstanceOf(ErroDeIa)
+    expect(sexta.erro).toBeInstanceOf(LLMError)
     expect(codigoDe(sexta)).toBe('IA_INDISPONIVEL')
   })
 
@@ -330,7 +330,7 @@ describe('AdaptadorResiliente: o disjuntor', { timeout: LIMITE_DO_TESTE_MS }, ()
     // O provedor segue fora: a chamada de teste leva 2 s para falhar, e as outras chegam enquanto ela está no ar.
     const { interno, chamar } = montar(async () => {
       await new Promise((resolve) => setTimeout(resolve, 2_000))
-      throw new ErroDoProvedor('servidor')
+      throw new ProviderError('servidor')
     })
     for (let vez = 0; vez < FALHAS_PARA_ABRIR_O_DISJUNTOR; vez += 1) await chamarEEsperar(chamar('padrao'), 3_000)
     expect(interno.chamadas).toBe(FALHAS_PARA_ABRIR_O_DISJUNTOR)
@@ -345,7 +345,7 @@ describe('AdaptadorResiliente: o disjuntor', { timeout: LIMITE_DO_TESTE_MS }, ()
     expect(juntas.every((desfecho) => !desfecho.pendente)).toBe(true)
     // A de teste falhou, e nenhuma delas deixou passar o erro do cockatiel: todas saem como IA_INDISPONIVEL.
     expect(juntas.map(codigoDe)).toEqual(Array(6).fill('IA_INDISPONIVEL'))
-    juntas.forEach((desfecho) => expect(desfecho.erro).toBeInstanceOf(ErroDeIa))
+    juntas.forEach((desfecho) => expect(desfecho.erro).toBeInstanceOf(LLMError))
   })
 
   it('conexão recusada pesa: cinco chamadas abrem, e a sexta não sai (cada uma já tinha repetido uma vez)', async () => {
@@ -456,16 +456,16 @@ describe('AdaptadorResiliente: o disjuntor', { timeout: LIMITE_DO_TESTE_MS }, ()
 })
 
 describe('AdaptadorResiliente: o que sobe', { timeout: LIMITE_DO_TESTE_MS }, () => {
-  /** O erro que sobe é um `ErroDeIa` simples: sem a classificação de dentro e sem erro do `cockatiel`. */
-  function esperarErroDeIaSimples(desfecho: Desfecho, codigo: CodigoDeErroDeIa): void {
+  /** O erro que sobe é um `LLMError` simples: sem a classificação de dentro e sem erro do `cockatiel`. */
+  function esperarErroDeIaSimples(desfecho: Desfecho, codigo: LLMErrorCode): void {
     const erro = desfecho.erro
-    expect(erro).toBeInstanceOf(ErroDeIa)
-    expect(erro).not.toBeInstanceOf(ErroDoProvedor)
+    expect(erro).toBeInstanceOf(LLMError)
+    expect(erro).not.toBeInstanceOf(ProviderError)
     expect(erro).not.toBeInstanceOf(TaskCancelledError)
     expect(erro).not.toBeInstanceOf(BrokenCircuitError)
     expect(erro).not.toHaveProperty('falha')
     expect(erro).toMatchObject({ codigoDeIa: codigo, codigo })
-    expect((erro as ErroDeIa).message).toBe(codigo)
+    expect((erro as LLMError).message).toBe(codigo)
   }
 
   it('o prazo, o disjuntor aberto, a desistência e a falha do provedor saem como erro tipado, nunca o do cockatiel ou o de dentro', async () => {
@@ -507,14 +507,14 @@ describe('AdaptadorResiliente: o que sobe', { timeout: LIMITE_DO_TESTE_MS }, () 
 describe('AdaptadorResiliente: saída inválida não é falha do provedor', { timeout: LIMITE_DO_TESTE_MS }, () => {
   it('cinco gerações com saída inválida não abrem o disjuntor: a sexta ainda chega ao modelo', async () => {
     // O provedor respondeu, na forma errada: quem barra é a validação da porta, que está acima do adaptador.
-    const interno = new AdaptadorRoteirizado(Array.from({ length: 12 }, () => 'isto não é um JSON'))
-    const consumo = new ConsumoEmMemoria()
-    const ia = comContextoDaEscolaDoPedido(
-      new ProvedorDeIa({
-        adaptador: new AdaptadorResiliente(interno, { prazosMs: PRAZOS, recuoMs: RECUO_MS, aleatorio: () => 1 }),
+    const interno = new ScriptedAdapter(Array.from({ length: 12 }, () => 'isto não é um JSON'))
+    const consumo = new InMemoryConsumo()
+    const ia = withEscolaContextOfRequest(
+      new LLMGateway({
+        adaptador: new ResilientAdapter(interno, { prazosMs: PRAZOS, recuoMs: RECUO_MS, aleatorio: () => 1 }),
         registro: consumo,
-        orcamento: new OrcamentoEmMemoria(consumo),
-        suspensao: new SuspensoesEmMemoria(),
+        orcamento: new InMemoryOrcamento(consumo),
+        suspensao: new InMemorySuspensoes(),
       }),
     )
     const gerar = () => ia.gerar({ tarefa: gerarAtividadeObjetiva, entrada: entradaDeAtividade(), escolaId: ESCOLA_A })

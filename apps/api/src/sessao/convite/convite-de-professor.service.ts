@@ -1,4 +1,4 @@
-import { ErroDeDominio, estadoDoProfessor, RegistroDeAuditoria, relogioDoSistema, type Banco, type Relogio } from '@educa/nucleo'
+import { DomainException, estadoDoProfessor, AuditoriaRecorder, systemClock, type Database, type Clock } from '@educa/nucleo'
 import { ErrorCode, REFAZER_CONVITE_DE_PROFESSOR_POR_ESTADO, REVOGAR_CONVITE_DE_PROFESSOR_POR_ESTADO, type CadastrarProfessorRequest } from '@educa/shared'
 import { ConviteRepository } from './convite.repository.js'
 import { convidar, expiraEmDo, refazerSobATrava, tokenNovo } from './convite.service.js'
@@ -10,7 +10,7 @@ import { convidar, expiraEmDo, refazerSobATrava, tokenNovo } from './convite.ser
  * autor vêm dele, nunca do corpo.
  */
 
-const registro = new RegistroDeAuditoria()
+const registro = new AuditoriaRecorder()
 
 /** O convite do professor que a coordenação acabou de gerar: o usuário dele, o convite e o token, só nesta resposta. */
 export interface ConviteDeProfessorGerado {
@@ -26,7 +26,7 @@ export interface ConviteDeProfessorGerado {
 async function professorSobATrava(convites: ConviteRepository, usuarioId: string) {
   await convites.travarEscola()
   const dados = await convites.dadosDoProfessor(usuarioId)
-  if (dados === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+  if (dados === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
   return { estado: estadoDoProfessor(dados), conviteId: dados.ultimoConvite.id }
 }
 
@@ -44,7 +44,7 @@ async function professorSobATrava(convites: ConviteRepository, usuarioId: string
  *
  * Devolve o token, que só existe nesta resposta (o banco guarda o SHA-256). Nunca o token, o nome ou o e-mail em log.
  */
-export async function cadastrarProfessor(banco: Banco, pedido: CadastrarProfessorRequest, relogio: Relogio = relogioDoSistema): Promise<ConviteDeProfessorGerado> {
+export async function cadastrarProfessor(banco: Database, pedido: CadastrarProfessorRequest, relogio: Clock = systemClock): Promise<ConviteDeProfessorGerado> {
   const token = tokenNovo()
   const expiraEm = expiraEmDo('professor', relogio)
   return banco.transaction(async (tx) => {
@@ -64,13 +64,13 @@ export async function cadastrarProfessor(banco: Banco, pedido: CadastrarProfesso
  * convite novo vale 7 dias; os outros estados são `CONFLITO`, sem gravar nada. O convite de coordenador nunca é
  * alcançado por aqui (I7).
  */
-export async function refazerConviteDeProfessor(banco: Banco, usuarioId: string, relogio: Relogio = relogioDoSistema): Promise<ConviteDeProfessorGerado> {
+export async function refazerConviteDeProfessor(banco: Database, usuarioId: string, relogio: Clock = systemClock): Promise<ConviteDeProfessorGerado> {
   const token = tokenNovo()
   const expiraEm = expiraEmDo('professor', relogio)
   return banco.transaction(async (tx) => {
     const convites = new ConviteRepository(tx)
     const { estado, conviteId } = await professorSobATrava(convites, usuarioId)
-    if (REFAZER_CONVITE_DE_PROFESSOR_POR_ESTADO[estado] === 'conflito') throw new ErroDeDominio(ErrorCode.CONFLITO)
+    if (REFAZER_CONVITE_DE_PROFESSOR_POR_ESTADO[estado] === 'conflito') throw new DomainException(ErrorCode.CONFLITO)
     const refeito = await refazerSobATrava(tx, convites, 'professor', conviteId, token, expiraEm)
     return { usuarioId: refeito.usuarioId, conviteId: refeito.conviteId, token }
   })
@@ -82,16 +82,16 @@ export async function refazerConviteDeProfessor(banco: Banco, usuarioId: string,
  * `REVOGAR_CONVITE_DE_PROFESSOR_POR_ESTADO` decide: `pendente` e `vencido` revogam, com `convite.revogado`; `revogado`
  * é `NAO_ENCONTRADO`; os outros, `CONFLITO`, sem gravar nada. O convite de coordenador nunca é alcançado por aqui (I7).
  */
-export async function revogarConviteDeProfessor(banco: Banco, usuarioId: string): Promise<void> {
+export async function revogarConviteDeProfessor(banco: Database, usuarioId: string): Promise<void> {
   await banco.transaction(async (tx) => {
     const convites = new ConviteRepository(tx)
     const { estado, conviteId } = await professorSobATrava(convites, usuarioId)
     const acao = REVOGAR_CONVITE_DE_PROFESSOR_POR_ESTADO[estado]
-    if (acao === 'nao_encontrado') throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
-    if (acao === 'conflito') throw new ErroDeDominio(ErrorCode.CONFLITO)
+    if (acao === 'nao_encontrado') throw new DomainException(ErrorCode.NAO_ENCONTRADO)
+    if (acao === 'conflito') throw new DomainException(ErrorCode.CONFLITO)
     // Sob a trava, o convite em aberto não muda de estado entre a leitura e aqui: o aceite, que o usaria, pega a mesma
     // trava antes. O `update` só não revogaria o convite já revogado.
-    if (!(await convites.revogar(conviteId, 'professor'))) throw new ErroDeDominio(ErrorCode.CONFLITO)
+    if (!(await convites.revogar(conviteId, 'professor'))) throw new DomainException(ErrorCode.CONFLITO)
     await registro.gravar(tx, 'convite.revogado', { entidadeId: conviteId, depois: { tipo: 'professor' } })
   })
 }

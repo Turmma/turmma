@@ -1,4 +1,4 @@
-import { MENSAGEM_DE_ASSUNTO_DELICADO, MENSAGEM_DE_RISCO_A_VIDA, type ExecutorNoProcesso } from '@educa/nucleo'
+import { MENSAGEM_DE_ASSUNTO_DELICADO, MENSAGEM_DE_RISCO_A_VIDA, type InProcessAgenteExecutor } from '@educa/nucleo'
 import { ErrorCode, conversaDoTutorResponseSchema } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
@@ -36,7 +36,7 @@ describe('Tutor contra um modelo que não obedece', () => {
   const linhasDeLog: string[] = []
   let modelo: ModeloDeMentira
   let api: ApiDeTeste
-  let executor: ExecutorNoProcesso
+  let executor: InProcessAgenteExecutor
   let a: EscolaComAssistente
   let atividade: string
 
@@ -65,7 +65,7 @@ describe('Tutor contra um modelo que não obedece', () => {
   beforeAll(async () => {
     modelo = await subirModeloDeMentira()
     api = await subirApi(medidor.medidor, { ambiente: ambienteDoModeloDeMentira(modelo) }, linhasDeLog)
-    executor = api.app.get<ExecutorNoProcesso>(EXECUTOR_DE_AGENTE)
+    executor = api.app.get<InProcessAgenteExecutor>(EXECUTOR_DE_AGENTE)
     a = await montarEscolaComAssistente(api, bancada)
     atividade = await aplicarAtividade(bancada, a)
   })

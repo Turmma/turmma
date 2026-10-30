@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { beforeAll, describe, expect, it } from 'vitest'
 import { extrairFatos, type Trecho } from '../../packages/nucleo/src/ia/material.ts'
-import type { DefinicaoDeTarefa } from '../../packages/nucleo/src/ia/tarefa.ts'
+import type { TaskDefinition } from '../../packages/nucleo/src/ia/tarefa.ts'
 import { gerarAtividadeObjetiva } from '../../packages/nucleo/src/ia/tarefas/gerar-atividade-objetiva.ts'
 import { gerarPlanoDeAula } from '../../packages/nucleo/src/ia/tarefas/gerar-plano-de-aula.ts'
 import { turnoDoTutor } from '../../packages/nucleo/src/ia/tarefas/turno-do-tutor.ts'
@@ -40,7 +40,7 @@ function expectFraseSoDaPagina(frase: string, pagina: number): void {
  * aqui só entram as tarefas, que são dado (este teste é conferido pelo `tsconfig` da raiz, que não aceita a sintaxe
  * das classes do provedor).
  */
-function executar<Entrada, Saida>(tarefa: DefinicaoDeTarefa<Entrada, Saida>, entrada: Entrada): Saida {
+function executar<Entrada, Saida>(tarefa: TaskDefinition<Entrada, Saida>, entrada: Entrada): Saida {
   const saida = tarefa.esquemaDeSaida.parse(tarefa.semModelo?.(tarefa.esquemaDeEntrada.parse(entrada)) ?? tarefa.falso(tarefa.esquemaDeEntrada.parse(entrada)))
   expect(tarefa.conferir?.(entrada, saida) ?? []).toEqual([])
   return saida

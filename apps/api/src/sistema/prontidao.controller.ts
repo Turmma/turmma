@@ -1,4 +1,4 @@
-import { Drenagem, RotaAnonima, SemLimite } from '@educa/nucleo'
+import { GracefulShutdown, Public, SkipRateLimit } from '@educa/nucleo'
 import type { ReadinessResponse } from '@educa/shared'
 import { Controller, Get, Header, Res } from '@nestjs/common'
 
@@ -12,11 +12,11 @@ interface RespostaHttp {
  * Caddy trocaria o 503 tipado da API por um 502 dele. A borda não expõe esta rota ao cliente, e
  * ela fica fora do rate limit: um 429 na sonda tiraria as duas instâncias do balanceamento.
  */
-@RotaAnonima()
-@SemLimite()
+@Public()
+@SkipRateLimit()
 @Controller('prontidao')
 export class ProntidaoController {
-  constructor(private readonly drenagem: Drenagem) {}
+  constructor(private readonly drenagem: GracefulShutdown) {}
 
   @Get()
   @Header('Cache-Control', 'no-store')

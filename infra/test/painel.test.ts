@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { parse } from 'yaml'
-import { METRICAS } from '../../packages/nucleo/src/telemetria/metricas.ts'
+import { METRICS } from '../../packages/nucleo/src/telemetria/metricas.ts'
 import { raizRepositorio } from '../../tools/ci/executar.ts'
 import { NOMES_NO_PROMETHEUS } from '../../tools/testes/metricas.ts'
 import { metricasDa } from '../../tools/testes/promql.ts'
@@ -33,9 +33,9 @@ describe('painel provisionado da fundação', () => {
   it('toda métrica do código tem painel: nenhuma é exportada sem que alguém a veja', () => {
     const usadas = new Set<string>(expressoes.flatMap(({ expr }) => metricasDa(expr)))
     for (const [chave, nomes] of Object.entries(NOMES_NO_PROMETHEUS)) {
-      expect(nomes.some((nome) => usadas.has(nome)), `${chave} (${METRICAS[chave as keyof typeof METRICAS]}) sem painel`).toBe(true)
+      expect(nomes.some((nome) => usadas.has(nome)), `${chave} (${METRICS[chave as keyof typeof METRICS]}) sem painel`).toBe(true)
     }
-    expect(Object.keys(NOMES_NO_PROMETHEUS).sort()).toEqual(Object.keys(METRICAS).sort())
+    expect(Object.keys(NOMES_NO_PROMETHEUS).sort()).toEqual(Object.keys(METRICS).sort())
   })
 
   it('o que o RF15 pede está no painel: p95 e erro por rota, espera e tamanho por escola e prioridade, realtime e pool', () => {

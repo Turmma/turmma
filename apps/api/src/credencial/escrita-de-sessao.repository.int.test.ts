@@ -1,4 +1,4 @@
-import { executarNoContexto, SessaoRepository, type TokenVerificado } from '@educa/nucleo'
+import { runInContext, SessaoRepository, type VerifiedToken } from '@educa/nucleo'
 import { randomUUID } from 'node:crypto'
 import { afterAll, describe, expect, it } from 'vitest'
 import { estadoDaSessao } from '../../test/api-com-sessao.js'
@@ -19,7 +19,7 @@ describe('EscritaDeSessaoRepository: toda escrita na sessão fica na escola do c
     const antes = await estadoDaSessao(bancada, deA)
     const repositorio = new EscritaDeSessaoRepository(bancada.banco)
 
-    const emB = await executarNoContexto({ requisicaoId: randomUUID(), escolaId: escolaB }, async () => ({
+    const emB = await runInContext({ requisicaoId: randomUUID(), escolaId: escolaB }, async () => ({
       rotacionou: await repositorio.rotacionar(deA.sessaoId, randomUUID(), true),
       usou: await repositorio.registrarUso(deA.sessaoId),
       familia: await repositorio.encerrarFamilia(antes.familia, 'reuso_de_refresh'),
@@ -29,7 +29,7 @@ describe('EscritaDeSessaoRepository: toda escrita na sessão fica na escola do c
     expect(emB).toEqual({ rotacionou: undefined, usou: false, familia: 0, encerrou: false })
     expect(await estadoDaSessao(bancada, deA)).toEqual(antes)
 
-    const emA = await executarNoContexto({ requisicaoId: randomUUID(), escolaId: deA.escolaId }, async () => ({
+    const emA = await runInContext({ requisicaoId: randomUUID(), escolaId: deA.escolaId }, async () => ({
       usou: await repositorio.registrarUso(deA.sessaoId),
       encerrou: await repositorio.encerrar(deA.sessaoId, 'saida'),
       deNovo: await repositorio.encerrar(deA.sessaoId, 'saida'),
@@ -39,7 +39,7 @@ describe('EscritaDeSessaoRepository: toda escrita na sessão fica na escola do c
 
   it('sem escola no contexto, falha fechada antes de tocar o banco', async () => {
     const repositorio = new EscritaDeSessaoRepository(bancada.banco)
-    await executarNoContexto({ requisicaoId: randomUUID() }, async () => {
+    await runInContext({ requisicaoId: randomUUID() }, async () => {
       await expect(repositorio.registrarUso(randomUUID())).rejects.toThrow('consulta com escopo sem escola no contexto')
     })
   })
@@ -51,7 +51,7 @@ describe('EscritaDeSessaoRepository: toda escrita na sessão fica na escola do c
     const { rotacionado_em: rotacionadoEm } = await estadoDaSessao(bancada, deA)
     if (rotacionadoEm === null) throw new Error('rotação de teste não gravada')
     const segundos = Math.floor(rotacionadoEm.getTime() / 1000)
-    const token = (escolaId: string, emitidoEm: number) => ({ escolaId, usuarioId: deA.usuarioId, sessaoId: deA.sessaoId, emitidoEm }) as TokenVerificado
+    const token = (escolaId: string, emitidoEm: number) => ({ escolaId, usuarioId: deA.usuarioId, sessaoId: deA.sessaoId, emitidoEm }) as VerifiedToken
     const repositorio = new SessaoRepository(bancada.banco)
 
     // O mesmo `sid` com a escola de B, e o token de antes da rotação, não marcam nada.

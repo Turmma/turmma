@@ -1,4 +1,4 @@
-import { executarNoContexto, ExpurgoDeAcessoRepository, sessao } from '@educa/nucleo'
+import { runInContext, ExpurgoDeAcessoRepository, sessao } from '@educa/nucleo'
 import { ContaGlobalRepository } from '@educa/nucleo/conta-global'
 import { and, eq, isNull, sql } from 'drizzle-orm'
 import { randomUUID } from 'node:crypto'
@@ -251,7 +251,7 @@ describe('ResolucaoDeTenantRepository: a resolução antes de haver escola devol
       const travada = new Promise<void>((resolver) => {
         travou = resolver
       })
-      const convite = executarNoContexto({ requisicaoId: randomUUID(), escolaId }, () =>
+      const convite = runInContext({ requisicaoId: randomUUID(), escolaId }, () =>
         bancada.banco.transaction(async (tx) => {
           const achada = await new ResolucaoDeTenantRepository(tx).contaParaConvite(email)
           travou()
@@ -276,7 +276,7 @@ describe('ResolucaoDeTenantRepository: a resolução antes de haver escola devol
         await limpeza.query('begin')
         await limpeza.query('select id from conta where id = $1 for update', [contaId])
         await limpeza.query('update conta set email = null, senha_hash = null where id = $1', [contaId])
-        const convite = executarNoContexto({ requisicaoId: randomUUID() }, () => bancada.banco.transaction((tx) => new ResolucaoDeTenantRepository(tx).contaParaConvite(email)))
+        const convite = runInContext({ requisicaoId: randomUUID() }, () => bancada.banco.transaction((tx) => new ResolucaoDeTenantRepository(tx).contaParaConvite(email)))
         const antesDoCommit = await Promise.race([convite.then(() => 'terminou'), new Promise<string>((resolver) => setTimeout(() => resolver('esperando'), 300))])
         expect(antesDoCommit).toBe('esperando')
         await limpeza.query('commit')

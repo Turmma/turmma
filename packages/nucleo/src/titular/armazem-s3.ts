@@ -1,12 +1,12 @@
 import { DeleteObjectCommand, GetObjectCommand, HeadObjectCommand, PutObjectCommand, S3Client, S3ServiceException } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
-import { ArmazemIndisponivel, type ArmazemDeArquivos, type OpcoesDaUrlDeDownload } from './armazem-de-arquivos.js'
+import { FileStorageUnavailableError, type FileStorage, type DownloadUrlOptions } from './armazem-de-arquivos.js'
 
 /** Tempo máximo de conexão e de cada requisição ao storage: o job de arquivo e a resposta da API não ficam pendurados. */
 export const TIMEOUT_CONEXAO_DO_ARMAZEM_MS = 2_000
 export const TIMEOUT_REQUISICAO_DO_ARMAZEM_MS = 10_000
 
-export interface ConfiguracaoDoArmazemS3 {
+export interface S3FileStorageConfig {
   /** O endereço por onde este processo alcança o storage (o do compose, na rede interna). */
   readonly url: string
   /**
@@ -25,7 +25,7 @@ export interface ConfiguracaoDoArmazemS3 {
 }
 
 /** O cliente S3 puro (regra 00, item 7): endereço por caminho, que qualquer storage compatível atende, e prazos. */
-export function criarClienteDoArmazem(config: Pick<ConfiguracaoDoArmazemS3, 'regiao' | 'chaveAcesso' | 'chaveSecreta' | 'tentativas' | 'timeoutRequisicaoMs'> & { url: string }): S3Client {
+export function createS3Client(config: Pick<S3FileStorageConfig, 'regiao' | 'chaveAcesso' | 'chaveSecreta' | 'tentativas' | 'timeoutRequisicaoMs'> & { url: string }): S3Client {
   return new S3Client({
     endpoint: config.url,
     region: config.regiao,
@@ -42,10 +42,10 @@ export function criarClienteDoArmazem(config: Pick<ConfiguracaoDoArmazemS3, 'reg
  * storage (`cliente`) e o que só assina (`assinador`), com o endereço público. Assinar é conta local, sem rede, então o
  * `assinador` nunca precisa alcançar o storage.
  *
- * Toda falha do storage vira `ArmazemIndisponivel`, sem o texto do SDK: ele traz o endereço interno e a chave do objeto.
+ * Toda falha do storage vira `FileStorageUnavailableError`, sem o texto do SDK: ele traz o endereço interno e a chave do objeto.
  * O objeto ausente em `existe` é a única "falha" que não é falha.
  */
-export class ArmazemS3 implements ArmazemDeArquivos {
+export class S3FileStorage implements FileStorage {
   constructor(
     private readonly cliente: S3Client,
     private readonly bucket: string,
@@ -53,11 +53,11 @@ export class ArmazemS3 implements ArmazemDeArquivos {
   ) {}
 
   /** O armazém pronto para a configuração: o cliente interno e, se houver endereço público, o assinador dele. */
-  static criar(config: ConfiguracaoDoArmazemS3): { armazem: ArmazemS3; encerrar(): void } {
-    const cliente = criarClienteDoArmazem(config)
-    const assinador = config.urlPublica === undefined || config.urlPublica === config.url ? cliente : criarClienteDoArmazem({ ...config, url: config.urlPublica })
+  static criar(config: S3FileStorageConfig): { armazem: S3FileStorage; encerrar(): void } {
+    const cliente = createS3Client(config)
+    const assinador = config.urlPublica === undefined || config.urlPublica === config.url ? cliente : createS3Client({ ...config, url: config.urlPublica })
     return {
-      armazem: new ArmazemS3(cliente, config.bucket, assinador),
+      armazem: new S3FileStorage(cliente, config.bucket, assinador),
       encerrar: () => {
         cliente.destroy()
         if (assinador !== cliente) assinador.destroy()
@@ -85,7 +85,7 @@ export class ArmazemS3 implements ArmazemDeArquivos {
       return true
     } catch (erro) {
       if (erro instanceof S3ServiceException && (erro.name === 'NotFound' || erro.$metadata.httpStatusCode === 404)) return false
-      throw new ArmazemIndisponivel()
+      throw new FileStorageUnavailableError()
     }
   }
 
@@ -93,7 +93,7 @@ export class ArmazemS3 implements ArmazemDeArquivos {
     await this.#enviar(new DeleteObjectCommand({ Bucket: this.bucket, Key: chave }))
   }
 
-  async urlDeDownload(chave: string, opcoes: OpcoesDaUrlDeDownload): Promise<string> {
+  async urlDeDownload(chave: string, opcoes: DownloadUrlOptions): Promise<string> {
     try {
       return await getSignedUrl(
         this.assinador,
@@ -106,7 +106,7 @@ export class ArmazemS3 implements ArmazemDeArquivos {
         { expiresIn: opcoes.validadeSegundos },
       )
     } catch {
-      throw new ArmazemIndisponivel()
+      throw new FileStorageUnavailableError()
     }
   }
 
@@ -114,7 +114,7 @@ export class ArmazemS3 implements ArmazemDeArquivos {
     try {
       await this.cliente.send(comando)
     } catch {
-      throw new ArmazemIndisponivel()
+      throw new FileStorageUnavailableError()
     }
   }
 }

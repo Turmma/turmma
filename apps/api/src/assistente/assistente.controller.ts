@@ -1,4 +1,4 @@
-import { Permite, ZodValidationPipe } from '@educa/nucleo'
+import { RequirePermissao, ZodValidationPipe } from '@educa/nucleo'
 import {
   conversaDoAssistenteQuerySchema,
   mensagemAoAssistenteRequestSchema,
@@ -21,14 +21,14 @@ export class AssistenteController {
   constructor(private readonly assistente: AssistenteService) {}
 
   @Get('conversa')
-  @Permite('assistente', 'ler_conversa')
+  @RequirePermissao('assistente', 'ler_conversa')
   @Header('Cache-Control', 'no-store')
   conversa(@Query(new ZodValidationPipe(conversaDoAssistenteQuerySchema)) consulta: ConversaDoAssistenteQuery): Promise<ConversaDoAssistenteResponse> {
     return this.assistente.conversa(consulta)
   }
 
   @Post('mensagens')
-  @Permite('assistente', 'enviar_mensagem')
+  @RequirePermissao('assistente', 'enviar_mensagem')
   @HttpCode(HttpStatus.ACCEPTED)
   enviar(@Body(new ZodValidationPipe(mensagemAoAssistenteRequestSchema)) pedido: MensagemAoAssistenteRequest): Promise<ExecucaoAceitaResponse> {
     return this.assistente.enviar(pedido)

@@ -1,4 +1,4 @@
-import { ConfiguracaoInvalida, ErroDeDominio, executarNoContexto, IncidenteDaEscolaRepository, resumirErro, SuboperadorDaEscolaRepository, type Banco } from '@educa/nucleo'
+import { InvalidConfigError, DomainException, runInContext, IncidenteDaEscolaRepository, summarizeError, SuboperadorDaEscolaRepository, type Database } from '@educa/nucleo'
 import { ErrorCode } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { pathToFileURL } from 'node:url'
@@ -21,7 +21,7 @@ import type { ConferenciaDoAutor } from '../sessao/index.js'
  *
  * É ferramenta nossa, rodada por quem opera, e não rota. Como o `ops:uso` e o `ops:retencao listar`, abre o contexto da
  * escola do pedido e lê com o escopo dela: o atendimento, o arquivo e o expurgo pelo `ContagensDePrivacidadeRepository`, e os
- * suboperadores e os incidentes pelos leitores da escola que já existem, que o comando só conta. Nenhum `@SemEscopo` novo.
+ * suboperadores e os incidentes pelos leitores da escola que já existem, que o comando só conta. Nenhum `@Unscoped` novo.
  * A conferência do `OPERADOR` é a primeira instrução da transação (Tech Spec da A0b, seção 7c, "Autor ativo").
  *
  * O número de incidentes avisados é o da lista que a coordenação vê, que tem teto de `LIMITE_DA_LISTA_DE_INCIDENTES`: uma
@@ -57,13 +57,13 @@ export interface RespostaDePrivacidade extends Omit<ContagensDoAtendimento, 'exp
 }
 
 /** As contagens da escola, lidas no contexto dela, numa transação curta que começa pela conferência do autor. */
-export function consultarPrivacidade(banco: Banco, autor: ConferenciaDoAutor, pedido: PedidoDePrivacidade): Promise<RespostaDePrivacidade> {
+export function consultarPrivacidade(banco: Database, autor: ConferenciaDoAutor, pedido: PedidoDePrivacidade): Promise<RespostaDePrivacidade> {
   const requisicaoId = randomUUID()
-  return executarNoContexto({ requisicaoId }, () =>
+  return runInContext({ requisicaoId }, () =>
     banco.transaction(async (tx) => {
       await autor(tx)
-      return executarNoContexto({ requisicaoId, escolaId: pedido.escolaId }, async () => {
-        if ((await new AcessoDaEscolaRepository(tx).nome()) === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+      return runInContext({ requisicaoId, escolaId: pedido.escolaId }, async () => {
+        if ((await new AcessoDaEscolaRepository(tx).nome()) === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
         const { expurgo, ...atendimento } = await new ContagensDePrivacidadeRepository(tx).doAtendimento()
         const suboperadores = await new SuboperadorDaEscolaRepository(tx).daEscola()
         const incidentes = await new IncidenteDaEscolaRepository(tx).daEscola()
@@ -101,17 +101,17 @@ export async function executarOpsPrivacidade(
       await fechar()
     }
   } catch (erro) {
-    if (erro instanceof ArgumentoInvalido || erro instanceof ConfiguracaoInvalida || erro instanceof OperadorRecusado) {
+    if (erro instanceof ArgumentoInvalido || erro instanceof InvalidConfigError || erro instanceof OperadorRecusado) {
       // Só o nome da opção ou da variável: nunca o valor.
       terminal.erro(`${erro.message}\n`)
       return 2
     }
-    if (erro instanceof ErroDeDominio && erro.codigo === ErrorCode.NAO_ENCONTRADO) {
+    if (erro instanceof DomainException && erro.codigo === ErrorCode.NAO_ENCONTRADO) {
       terminal.erro(`${ErrorCode.NAO_ENCONTRADO}: escola não encontrada\n`)
       return 1
     }
     // O erro cru do Postgres traz o valor da linha na mensagem e no `detail`: sai só o resumo seguro.
-    terminal.erro(`${ErrorCode.ERRO_INTERNO}: ${JSON.stringify(resumirErro(erro))}\n`)
+    terminal.erro(`${ErrorCode.ERRO_INTERNO}: ${JSON.stringify(summarizeError(erro))}\n`)
     return 1
   }
 }

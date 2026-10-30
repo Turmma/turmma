@@ -1,4 +1,4 @@
-import { executarNoContexto } from '@educa/nucleo'
+import { runInContext } from '@educa/nucleo'
 import { ErrorCode } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -140,7 +140,7 @@ describe('histórico: o ano encerrado fica só em leitura, para a coordenação 
   })
 
   it('só leitura: em janeiro, com 2027 já em curso, toda escrita sobre 2026 é recusada, e nada muda no banco', async () => {
-    // Um estado próprio: com 2027 aberto, a escrita passa por `exigirAnoEmCurso` e só a regra do ano a recusa.
+    // Um estado próprio: com 2027 aberto, a escrita passa por `requireAnoEmCurso` e só a regra do ano a recusa.
     const propria = await montar()
     const ano = propria.anoLetivoId
     const de2027 = await post(propria.coordenacao, '/v1/anos-letivos', { ano: 2027, inicio: '2027-02-01', fim: '2027-12-15' })
@@ -288,10 +288,10 @@ describe('histórico: o ano encerrado fica só em leitura, para a coordenação 
           turmas.alunos(b.turma, { limite: 50 }, b.anoLetivoId),
         ])
       }
-      expect(await executarNoContexto(forjado, consultar)).toEqual([undefined, undefined, []])
+      expect(await runInContext(forjado, consultar)).toEqual([undefined, undefined, []])
 
       // O controle: o mesmo contexto com a escola de B alcança a turma e os alunos, então o vazio acima veio da escola.
-      const [daCoordenacao, doProfessor, alunos] = await executarNoContexto({ ...forjado, escolaId: b.coordenacao.escolaId }, consultar)
+      const [daCoordenacao, doProfessor, alunos] = await runInContext({ ...forjado, escolaId: b.coordenacao.escolaId }, consultar)
       expect(daCoordenacao).toEqual(expect.objectContaining({ id: b.turma }))
       expect(doProfessor).toEqual(expect.objectContaining({ id: b.turma }))
       expect(alunos.map((aluno) => aluno.usuarioId)).toEqual(b.alunosDoB)

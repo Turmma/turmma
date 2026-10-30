@@ -1,4 +1,4 @@
-import { avisoEspacado, ContadorDeUso, criarClienteRedisDaApi } from '@educa/nucleo'
+import { throttledWarn, UsageMeter, createApiRedisClient } from '@educa/nucleo'
 import { Global, Inject, Logger, Module, type DynamicModule, type OnApplicationShutdown } from '@nestjs/common'
 import type { Redis } from 'ioredis'
 
@@ -17,14 +17,14 @@ export class UsoModule implements OnApplicationShutdown {
   private static readonly logger = new Logger('uso')
 
   static com(redisFilaUrl: string): DynamicModule {
-    const avisar = avisoEspacado(() => UsoModule.logger.warn('uso.contador_indisponivel'))
+    const avisar = throttledWarn(() => UsoModule.logger.warn('uso.contador_indisponivel'))
     return {
       module: UsoModule,
       providers: [
-        { provide: CLIENTE_REDIS_USO, useFactory: () => criarClienteRedisDaApi(redisFilaUrl, 'api-uso', avisar) },
-        { provide: ContadorDeUso, useFactory: (cliente: Redis) => new ContadorDeUso(cliente, { aoFalhar: avisar }), inject: [CLIENTE_REDIS_USO] },
+        { provide: CLIENTE_REDIS_USO, useFactory: () => createApiRedisClient(redisFilaUrl, 'api-uso', avisar) },
+        { provide: UsageMeter, useFactory: (cliente: Redis) => new UsageMeter(cliente, { aoFalhar: avisar }), inject: [CLIENTE_REDIS_USO] },
       ],
-      exports: [ContadorDeUso],
+      exports: [UsageMeter],
     }
   }
 

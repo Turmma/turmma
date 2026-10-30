@@ -1,7 +1,7 @@
 import { InvariantException, type JobFailureCode, type JobState, type QueueName } from '@educa/shared'
 import { and, eq, inArray, isNull, like, notInArray, sql, type SQL } from 'drizzle-orm'
-import { contextoAtual } from '../contexto/contexto.js'
-import type { Banco, TransacaoBanco } from '../db/banco.js'
+import { currentContext } from '../contexto/contexto.js'
+import type { Database, DatabaseTransaction } from '../db/banco.js'
 import { jobRegistro } from '../db/schema/job-registro.js'
 
 export const PREFIXO_TIPO_SISTEMA = 'sistema.'
@@ -9,7 +9,7 @@ export const PREFIXO_TIPO_SISTEMA = 'sistema.'
 /** Canal do `pg_notify` que acorda o despachante logo depois do commit de quem enfileirou. */
 export const CANAL_NOTIFICACAO_JOB = 'job'
 
-export interface LinhaNova {
+export interface NewJobRow {
   tipo: string
   fila: QueueName
   prioridade: number
@@ -17,7 +17,7 @@ export interface LinhaNova {
   naoUrgente: boolean
 }
 
-export interface EstadoRegistrado {
+export interface RegisteredJobState {
   estado: JobState
   criadoEm: Date
   iniciadoEm: Date | null
@@ -29,20 +29,20 @@ export interface EstadoRegistrado {
  * O que `inserirUmaVez` fez com a chave: gravou o job, ou a chave já tinha um job não finalizado na escola. Na colisão,
  * `id` é o desse job, ou nulo se ele terminou entre a colisão e a leitura; quem chama trata os dois como "já enfileirado".
  */
-export type ResultadoDaChave = { situacao: 'enfileirado'; id: string } | { situacao: 'ja_enfileirado'; id: string | null }
+export type IdempotencyKeyResult = { situacao: 'enfileirado'; id: string } | { situacao: 'ja_enfileirado'; id: string | null }
 
 /** Os estados de um job que terminou: fora deles, a chave de idempotência ainda está tomada (o predicado do único parcial). */
 const ESTADOS_FINAIS: JobState[] = ['concluido', 'falhou']
 
 /** Onde o job está antes de começar: a fila e a escola da linha persistida, que definem a vaga dele. */
-export interface JobParaExecutar {
+export interface JobToRun {
   fila: QueueName
   escolaId: string | null
   /** `concluido` ou `falhou`: não roda de novo. */
   finalizado: boolean
 }
 
-export type ResultadoDoInicio =
+export type JobStartResult =
   | { situacao: 'iniciado'; tipo: string; dados: Record<string, unknown> }
   /** O job existe na escola, mas não está em estado de executar (já terminou): não roda de novo. */
   | { situacao: 'nao_executavel' }
@@ -60,17 +60,17 @@ const ORIGENS_DA_FALHA: JobState[] = ['reservado', 'publicado', 'ativo']
  *
  * Rotina do sistema (`sistema.*`, sem escola) só é alcançada por um contexto marcado como
  * `rotinaDoSistema`, que nenhuma requisição HTTP tem; um contexto de escola nunca a vê. As
- * consultas da fila inteira, do despachante, ficam em `DespachoRepository`, com `@SemEscopo`.
+ * consultas da fila inteira, do despachante, ficam em `DispatchRepository`, com `@Unscoped`.
  */
-export class JobRegistroRepository {
-  constructor(private readonly banco: Banco) {}
+export class JobOutboxRepository {
+  constructor(private readonly banco: Database) {}
 
   /**
    * Grava o job na transação de quem pediu e avisa o despachante. O `pg_notify` só é entregue no
    * commit: se a transação desfizer, nem o job nem o aviso existem.
    */
-  async inserir(tx: TransacaoBanco, linha: LinhaNova): Promise<string> {
-    const contexto = contextoAtual()
+  async inserir(tx: DatabaseTransaction, linha: NewJobRow): Promise<string> {
+    const contexto = currentContext()
     const doSistema = linha.tipo.startsWith(PREFIXO_TIPO_SISTEMA)
     if (!doSistema && contexto?.escolaId === undefined) throw new InvariantException('job de escola sem escola no contexto')
     if (doSistema && (contexto?.rotinaDoSistema !== true || contexto.escolaId !== undefined)) {
@@ -96,8 +96,8 @@ export class JobRegistroRepository {
    *
    * `depoisDaColisao` é só do teste: é a janela entre a colisão e a leitura, em que o job pode terminar.
    */
-  async inserirUmaVez(tx: TransacaoBanco, linha: LinhaNova, chaveIdempotencia: string, depoisDaColisao?: () => Promise<void>): Promise<ResultadoDaChave> {
-    const contexto = contextoAtual()
+  async inserirUmaVez(tx: DatabaseTransaction, linha: NewJobRow, chaveIdempotencia: string, depoisDaColisao?: () => Promise<void>): Promise<IdempotencyKeyResult> {
+    const contexto = currentContext()
     const escolaId = contexto?.escolaId
     if (escolaId === undefined || linha.tipo.startsWith(PREFIXO_TIPO_SISTEMA)) throw new InvariantException('chave de idempotência só em job de escola, com a escola no contexto')
     const [inserida] = await tx
@@ -128,8 +128,8 @@ export class JobRegistroRepository {
   }
 
   /** O job da escola do token, ou `undefined` (inexistente ou de outra escola, sem distinção). */
-  async buscarDaEscola(id: string): Promise<EstadoRegistrado | undefined> {
-    const escolaId = contextoAtual()?.escolaId
+  async buscarDaEscola(id: string): Promise<RegisteredJobState | undefined> {
+    const escolaId = currentContext()?.escolaId
     if (escolaId === undefined) throw new InvariantException('consulta de job sem escola no contexto')
     const [linha] = await this.banco
       .select({
@@ -146,11 +146,11 @@ export class JobRegistroRepository {
   }
 
   /** A fila e a escola do job na escola do contexto, ou `undefined` (inexistente ou de outra escola, sem distinção). */
-  async localizarParaExecucao(id: string): Promise<JobParaExecutar | undefined> {
+  async localizarParaExecucao(id: string): Promise<JobToRun | undefined> {
     const [linha] = await this.banco
       .select({ fila: jobRegistro.fila, escolaId: jobRegistro.escolaId, estado: jobRegistro.estado })
       .from(jobRegistro)
-      .where(and(eq(jobRegistro.id, id), escopoDoJobNoContexto()))
+      .where(and(eq(jobRegistro.id, id), jobScopeInContext()))
     if (linha === undefined) return undefined
     return { fila: linha.fila as QueueName, escolaId: linha.escolaId, finalizado: linha.estado === 'concluido' || linha.estado === 'falhou' }
   }
@@ -159,8 +159,8 @@ export class JobRegistroRepository {
    * Passa o job a `ativo` e devolve o que executar. A troca é condicional: um job que já concluiu
    * ou falhou não volta a `ativo` e não roda de novo, mesmo que a fila o entregue outra vez.
    */
-  async iniciarExecucao(id: string): Promise<ResultadoDoInicio> {
-    const escopo = escopoDoJobNoContexto()
+  async iniciarExecucao(id: string): Promise<JobStartResult> {
+    const escopo = jobScopeInContext()
     const [iniciada] = await this.banco
       .update(jobRegistro)
       .set({ estado: 'ativo', iniciadoEm: sql`coalesce(${jobRegistro.iniciadoEm}, now())` })
@@ -179,7 +179,7 @@ export class JobRegistroRepository {
     const alteradas = await this.banco
       .update(jobRegistro)
       .set({ estado: 'concluido', concluidoEm: sql`now()`, reservadoAte: null })
-      .where(and(eq(jobRegistro.id, id), escopoDoJobNoContexto(), eq(jobRegistro.estado, 'ativo')))
+      .where(and(eq(jobRegistro.id, id), jobScopeInContext(), eq(jobRegistro.estado, 'ativo')))
       .returning({ id: jobRegistro.id })
     return alteradas.length === 1
   }
@@ -198,7 +198,7 @@ export class JobRegistroRepository {
     const alteradas = await this.banco
       .update(jobRegistro)
       .set({ estado: 'falhou', codigoFalha: codigo, concluidoEm: sql`now()`, reservadoAte: null })
-      .where(and(eq(jobRegistro.id, id), escopoDoJobNoContexto(), inArray(jobRegistro.estado, ORIGENS_DA_FALHA)))
+      .where(and(eq(jobRegistro.id, id), jobScopeInContext(), inArray(jobRegistro.estado, ORIGENS_DA_FALHA)))
       .returning({ id: jobRegistro.id })
     return alteradas.length === 1
   }
@@ -208,8 +208,8 @@ export class JobRegistroRepository {
  * Escopo de `job_registro` pelo contexto: a escola do contexto; rotina do sistema marcada, só os jobs
  * sem escola. Contexto sem escola e sem a marca (rota anônima) ou sem contexto nenhum falha fechado.
  */
-export function escopoDoJobNoContexto(): SQL {
-  const contexto = contextoAtual()
+export function jobScopeInContext(): SQL {
+  const contexto = currentContext()
   if (contexto?.escolaId !== undefined) return eq(jobRegistro.escolaId, contexto.escolaId)
   if (contexto?.rotinaDoSistema === true) {
     return and(isNull(jobRegistro.escolaId), like(jobRegistro.tipo, `${PREFIXO_TIPO_SISTEMA}%`)) as SQL

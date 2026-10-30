@@ -1,4 +1,4 @@
-import { executarNoContexto, type ContextoDaRequisicao } from '@educa/nucleo'
+import { runInContext, type RequestContext } from '@educa/nucleo'
 import { desempenhoDaTurmaResponseSchema, minhasAtividadesResponseSchema, provaResponseSchema, type PapelDeUsuario } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -250,7 +250,7 @@ describe('isolamento da atividade e da correção', () => {
   })
 
   describe('no repository: o id certo com o contexto errado', () => {
-    const contexto = (escolaId: string, anoLetivoId: string, sessao: SessaoDeTeste, papel: PapelDeUsuario): ContextoDaRequisicao => ({ requisicaoId: randomUUID(), escolaId, usuarioId: sessao.usuarioId, papel, sessaoId: sessao.sessaoId, anoLetivoId })
+    const contexto = (escolaId: string, anoLetivoId: string, sessao: SessaoDeTeste, papel: PapelDeUsuario): RequestContext => ({ requisicaoId: randomUUID(), escolaId, usuarioId: sessao.usuarioId, papel, sessaoId: sessao.sessaoId, anoLetivoId })
     const vazio = (lido: unknown): boolean => lido === undefined || lido === false || lido === 0 || (Array.isArray(lido) && lido.length === 0) || (lido instanceof Map && lido.size === 0)
 
     it('cada leitura acha o dado no contexto da dona, e não acha nada com a escola trocada nem com o ano letivo trocado', async () => {
@@ -288,9 +288,9 @@ describe('isolamento da atividade e da correção', () => {
       const outroAno = randomUUID()
       for (const [leituras, sessao, papel] of [[daProfessora, a.professora, 'professor'], [doAluno, a.aluno, 'aluno']] as const) {
         for (const [nome, ler] of Object.entries(leituras)) {
-          expect(vazio(await executarNoContexto(contexto(a.escolaId, a.anoLetivoId, sessao, papel), ler)), `${nome}: acha no contexto da dona`).toBe(false)
-          expect(vazio(await executarNoContexto(contexto(b.escolaId, a.anoLetivoId, sessao, papel), ler)), `${nome}: com a escola trocada`).toBe(true)
-          expect(vazio(await executarNoContexto(contexto(a.escolaId, outroAno, sessao, papel), ler)), `${nome}: com o ano letivo trocado`).toBe(true)
+          expect(vazio(await runInContext(contexto(a.escolaId, a.anoLetivoId, sessao, papel), ler)), `${nome}: acha no contexto da dona`).toBe(false)
+          expect(vazio(await runInContext(contexto(b.escolaId, a.anoLetivoId, sessao, papel), ler)), `${nome}: com a escola trocada`).toBe(true)
+          expect(vazio(await runInContext(contexto(a.escolaId, outroAno, sessao, papel), ler)), `${nome}: com o ano letivo trocado`).toBe(true)
         }
       }
     })
@@ -331,8 +331,8 @@ describe('isolamento da atividade e da correção', () => {
       }
       for (const [leituras, sessao, papel] of [[daProfessora, a.professora, 'professor'], [doAluno, antigo, 'aluno']] as const) {
         for (const [nome, ler] of Object.entries(leituras)) {
-          expect(vazio(await executarNoContexto(contexto(a.escolaId, anterior.anoLetivoId, sessao, papel), ler)), `${nome}: acha no ano dela`).toBe(false)
-          expect(vazio(await executarNoContexto(contexto(a.escolaId, a.anoLetivoId, sessao, papel), ler)), `${nome}: no ano em curso`).toBe(true)
+          expect(vazio(await runInContext(contexto(a.escolaId, anterior.anoLetivoId, sessao, papel), ler)), `${nome}: acha no ano dela`).toBe(false)
+          expect(vazio(await runInContext(contexto(a.escolaId, a.anoLetivoId, sessao, papel), ler)), `${nome}: no ano em curso`).toBe(true)
         }
       }
       // Pela rota, no ano em curso, a professora recebe a resposta do inexistente.
@@ -345,8 +345,8 @@ describe('isolamento da atividade e da correção', () => {
       const antes = await retrato()
       const outroAno = randomUUID()
       for (const [escolaId, anoLetivoId] of [[b.escolaId, a.anoLetivoId], [a.escolaId, outroAno]] as const) {
-        const comoProfessora = <T>(funcao: () => Promise<T>) => executarNoContexto(contexto(escolaId, anoLetivoId, a.professora, 'professor'), funcao)
-        const comoAluno = <T>(funcao: () => Promise<T>) => executarNoContexto(contexto(escolaId, anoLetivoId, a.aluno, 'aluno'), funcao)
+        const comoProfessora = <T>(funcao: () => Promise<T>) => runInContext(contexto(escolaId, anoLetivoId, a.professora, 'professor'), funcao)
+        const comoAluno = <T>(funcao: () => Promise<T>) => runInContext(contexto(escolaId, anoLetivoId, a.aluno, 'aluno'), funcao)
         await comoProfessora(() => new AtividadeAplicadaRepository(banco).encerrar(aberta))
         expect(await comoProfessora(() => new CorrecaoRepository(banco).abrirDestaque(corrigida.entregaId, bia.usuarioId))).toBe(false)
         expect(await comoProfessora(() => new CorrecaoRepository(banco).aprovar(corrigida.entregaId))).toBe(false)
@@ -358,7 +358,7 @@ describe('isolamento da atividade e da correção', () => {
     it('a professora de outra turma, a de outra disciplina e a de vínculo pendente, no contexto da própria escola, não acham a aplicação nem o lote', async () => {
       const { banco } = bancada
       for (const sessao of [a.colega, a.deFisica, pendente, a.coordenacao]) {
-        const comoEla = <T>(funcao: () => Promise<T>) => executarNoContexto(contexto(a.escolaId, a.anoLetivoId, sessao, 'professor'), funcao)
+        const comoEla = <T>(funcao: () => Promise<T>) => runInContext(contexto(a.escolaId, a.anoLetivoId, sessao, 'professor'), funcao)
         expect(await comoEla(() => new AtividadeAplicadaRepository(banco).porId(aberta))).toBeUndefined()
         expect(await comoEla(() => new AtividadeAplicadaRepository(banco).travar(aberta))).toBeUndefined()
         expect(await comoEla(() => new AtividadeAplicadaRepository(banco).artefatoParaAplicar(artefatoDeA))).toBeUndefined()
@@ -367,13 +367,13 @@ describe('isolamento da atividade e da correção', () => {
         expect(await comoEla(() => new CorrecaoRepository(banco).aprovar(corrigida.entregaId))).toBe(false)
       }
       // O aluno de outra turma, no contexto da própria escola.
-      const comoAlunoDoC = <T>(funcao: () => Promise<T>) => executarNoContexto(contexto(a.escolaId, a.anoLetivoId, alunoDoC, 'aluno'), funcao)
+      const comoAlunoDoC = <T>(funcao: () => Promise<T>) => runInContext(contexto(a.escolaId, a.anoLetivoId, alunoDoC, 'aluno'), funcao)
       expect(await comoAlunoDoC(() => new MinhaAtividadeRepository(banco).prova(aberta))).toBeUndefined()
       expect(await comoAlunoDoC(() => new MinhaAtividadeRepository(banco).travarParaGravar(aberta))).toBeUndefined()
       expect(await comoAlunoDoC(() => new MinhaAtividadeRepository(banco).diagnostico(aprovada.id))).toBeUndefined()
       expect(await comoAlunoDoC(() => new MinhaAtividadeRepository(banco).listar({ limite: 50 }))).toEqual([])
       // A colega da mesma turma não lê a tentativa nem as respostas do Caio: as leituras são sempre as dela.
-      const comoBia = <T>(funcao: () => Promise<T>) => executarNoContexto(contexto(a.escolaId, a.anoLetivoId, bia, 'aluno'), funcao)
+      const comoBia = <T>(funcao: () => Promise<T>) => runInContext(contexto(a.escolaId, a.anoLetivoId, bia, 'aluno'), funcao)
       expect(await comoBia(() => new MinhaAtividadeRepository(banco).diagnostico(aprovada.id))).toBeUndefined()
       expect(await comoBia(() => new MinhaAtividadeRepository(banco).tentativa(aprovada.id))).toBeUndefined()
       expect(await comoBia(() => new MinhaAtividadeRepository(banco).respostas(aprovada.id))).toEqual([])

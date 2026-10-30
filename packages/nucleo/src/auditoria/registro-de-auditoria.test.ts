@@ -1,16 +1,16 @@
 import { describe, expect, it } from 'vitest'
-import { executarNoContexto, type ContextoDaRequisicao } from '../contexto/contexto.js'
+import { runInContext, type RequestContext } from '../contexto/contexto.js'
 import { CAMPOS_PROIBIDOS_NA_AUDITORIA } from './acoes.js'
-import type { ExecutorDeAuditoria } from './auditoria.repository.js'
-import { AuditoriaRecusada } from './auditoria-recusada.js'
-import { RegistroDeAuditoria, type DadosDaAuditoria } from './registro-de-auditoria.js'
+import type { DatabaseExecutor } from './auditoria.repository.js'
+import { AuditoriaRejectedError } from './auditoria-recusada.js'
+import { AuditoriaRecorder, type DadosDaAuditoria } from './registro-de-auditoria.js'
 
 const ESCOLA_A = '0190f5a0-0000-7000-8000-00000000000a'
 const REDE = '0190f5a0-0000-7000-8000-0000000000e1'
 const USUARIO = '0190f5a0-0000-7000-8000-0000000000c1'
 const REQUISICAO = '0190f5a0-0000-7000-8000-0000000000f1'
 
-const registro = new RegistroDeAuditoria()
+const registro = new AuditoriaRecorder()
 
 // Toda recusa acontece antes de tocar o banco: o executor falha ao primeiro acesso.
 const bancoIntocavel = new Proxy(
@@ -20,29 +20,29 @@ const bancoIntocavel = new Proxy(
       throw new Error('a recusa não pode chegar ao banco')
     },
   },
-) as ExecutorDeAuditoria
+) as DatabaseExecutor
 
-function gravarNoContexto(contexto: ContextoDaRequisicao | undefined, gravar: () => Promise<void>): Promise<void> {
-  return contexto === undefined ? gravar() : executarNoContexto(contexto, gravar)
+function gravarNoContexto(contexto: RequestContext | undefined, gravar: () => Promise<void>): Promise<void> {
+  return contexto === undefined ? gravar() : runInContext(contexto, gravar)
 }
 
-async function motivoDaRecusa(contexto: ContextoDaRequisicao | undefined, gravar: () => Promise<void>): Promise<string> {
+async function motivoDaRecusa(contexto: RequestContext | undefined, gravar: () => Promise<void>): Promise<string> {
   const erro: unknown = await gravarNoContexto(contexto, gravar).then(
     () => undefined,
     (recusa: unknown) => recusa,
   )
-  if (!(erro instanceof AuditoriaRecusada)) throw new Error('esperava AuditoriaRecusada')
+  if (!(erro instanceof AuditoriaRejectedError)) throw new Error('esperava AuditoriaRecusada')
   return erro.motivo
 }
 
-const contextoDoOperadorNaEscola: ContextoDaRequisicao = { requisicaoId: REQUISICAO, escolaId: ESCOLA_A }
+const contextoDoOperadorNaEscola: RequestContext = { requisicaoId: REQUISICAO, escolaId: ESCOLA_A }
 
 describe('RegistroDeAuditoria.gravar: recusa antes de gravar', () => {
   it.each(CAMPOS_PROIBIDOS_NA_AUDITORIA)('campo "%s" em depois é recusado, e a mensagem não leva o valor', async (proibido) => {
     const dados = { entidadeId: ESCOLA_A, depois: { redeId: REDE, [proibido]: 'Enzo Martins' }, autorOperador: 'joaquim' }
     const gravar = () => registro.gravar(bancoIntocavel, 'escola.criada', dados)
     expect(await motivoDaRecusa(contextoDoOperadorNaEscola, gravar)).toBe('dados_fora_do_schema')
-    await expect(executarNoContexto(contextoDoOperadorNaEscola, gravar)).rejects.not.toThrow(/Enzo|redeId|nome|email/)
+    await expect(runInContext(contextoDoOperadorNaEscola, gravar)).rejects.not.toThrow(/Enzo|redeId|nome|email/)
   })
 
   it('campo pessoal em antes de uma ação sem estado anterior também é recusado', async () => {
@@ -52,7 +52,7 @@ describe('RegistroDeAuditoria.gravar: recusa antes de gravar', () => {
   })
 
   it('valor fora do tipo da lista (tipo de rede inventado, id que não é UUID) é recusado', async () => {
-    const semEscola: ContextoDaRequisicao = { requisicaoId: REQUISICAO }
+    const semEscola: RequestContext = { requisicaoId: REQUISICAO }
     const tipoInventado = { entidadeId: REDE, depois: { tipo: 'municipal' }, autorOperador: 'joaquim' } as unknown as DadosDaAuditoria<'rede.criada'>
     expect(await motivoDaRecusa(semEscola, () => registro.gravar(bancoIntocavel, 'rede.criada', tipoInventado))).toBe('dados_fora_do_schema')
     const idSequencial = { entidadeId: '1837', depois: { tipo: 'grupo' as const }, autorOperador: 'joaquim' }
@@ -72,7 +72,7 @@ describe('RegistroDeAuditoria.gravar: recusa antes de gravar', () => {
 
   it('operador com usuário no contexto é recusado: o operador só age em rotina nossa', async () => {
     const dados = { entidadeId: ESCOLA_A, depois: { redeId: REDE }, autorOperador: 'joaquim' }
-    const contextoComUsuario: ContextoDaRequisicao = { requisicaoId: REQUISICAO, escolaId: ESCOLA_A, usuarioId: USUARIO }
+    const contextoComUsuario: RequestContext = { requisicaoId: REQUISICAO, escolaId: ESCOLA_A, usuarioId: USUARIO }
     expect(await motivoDaRecusa(contextoComUsuario, () => registro.gravar(bancoIntocavel, 'escola.criada', dados))).toBe('operador_com_usuario')
   })
 
@@ -95,6 +95,6 @@ describe('RegistroDeAuditoria.gravar: recusa antes de gravar', () => {
     const comFinalidade = { entidadeId: ESCOLA_A, depois: { redeId: REDE }, autorOperador: 'joaquim', finalidade: 'leitura das notas do Enzo Martins' } as unknown as DadosDaAuditoria<'escola.criada'>
     const gravar = () => registro.gravar(bancoIntocavel, 'escola.criada', comFinalidade)
     expect(await motivoDaRecusa(contextoDoOperadorNaEscola, gravar)).toBe('dados_fora_do_schema')
-    await expect(executarNoContexto(contextoDoOperadorNaEscola, gravar)).rejects.not.toThrow(/Enzo/)
+    await expect(runInContext(contextoDoOperadorNaEscola, gravar)).rejects.not.toThrow(/Enzo/)
   })
 })

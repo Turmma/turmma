@@ -1,5 +1,5 @@
 import 'reflect-metadata'
-import { Batimento, TIMEOUT_COMANDO_REDIS_FILA_MS } from '@educa/nucleo'
+import { Heartbeat, TIMEOUT_COMANDO_REDIS_FILA_MS } from '@educa/nucleo'
 import type { INestApplication } from '@nestjs/common'
 import { NestFactory } from '@nestjs/core'
 import { existsSync, mkdtempSync, statSync } from 'node:fs'
@@ -61,7 +61,7 @@ describe('Redis de fila fora', () => {
     await app.listen(0, '127.0.0.1')
     try {
       const { port } = app.getHttpServer().address() as AddressInfo
-      // Sessão real numa escola nova: a GuardaDeSessao lê a sessão antes de o POST gravar o job.
+      // Sessão real numa escola nova: a SessaoGuard lê a sessão antes de o POST gravar o job.
       const sessoes = new BancadaDeSessoes()
       onTestFinished(() => sessoes.fechar())
       const { token } = await sessoes.escolaComSessao('coordenador')
@@ -120,7 +120,7 @@ describe('Redis de fila fora', () => {
     const arquivoDoBatimento = join(mkdtempSync(join(tmpdir(), 'educa-batimento-')), 'batimento')
     const idadeDoBatimento = () => (existsSync(arquivoDoBatimento) ? Date.now() - statSync(arquivoDoBatimento).mtimeMs : Number.POSITIVE_INFINITY)
     // O despachante sobe com o Redis de pé, e o cliente dele conecta: é o Redis que trava depois.
-    bancada.despachante(logDespachante, { batimento: new Batimento(arquivoDoBatimento) }).despachante.iniciar()
+    bancada.despachante(logDespachante, { batimento: new Heartbeat(arquivoDoBatimento) }).despachante.iniciar()
     await new Promise((resolver) => setTimeout(resolver, 1_000))
 
     // Escolas reais: desde a tarefa 3.0 `job_registro` tem FK para `escola`. Criadas antes do `pause`,

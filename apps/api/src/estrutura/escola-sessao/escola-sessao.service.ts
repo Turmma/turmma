@@ -1,4 +1,4 @@
-import { contextoAtual, ErroDeDominio, RegistroDeAuditoria, type Banco } from '@educa/nucleo'
+import { currentContext, DomainException, AuditoriaRecorder, type Database } from '@educa/nucleo'
 import { ErrorCode, escolaSessaoResponseSchema, type EscolaSessaoRequest, type EscolaSessaoResponse } from '@educa/shared'
 import { EscolaSessaoRepository } from './escola-sessao.repository.js'
 
@@ -9,19 +9,19 @@ import { EscolaSessaoRepository } from './escola-sessao.repository.js'
  * porque a guarda lê a inatividade junto com a sessão.
  */
 export class EscolaSessaoService {
-  readonly #auditoria = new RegistroDeAuditoria()
+  readonly #auditoria = new AuditoriaRecorder()
 
-  constructor(private readonly banco: Banco) {}
+  constructor(private readonly banco: Database) {}
 
   async alterar(pedido: EscolaSessaoRequest): Promise<EscolaSessaoResponse> {
-    const escolaId = contextoAtual()?.escolaId
-    if (escolaId === undefined) throw new ErroDeDominio(ErrorCode.NAO_AUTENTICADO)
+    const escolaId = currentContext()?.escolaId
+    if (escolaId === undefined) throw new DomainException(ErrorCode.NAO_AUTENTICADO)
     const gravada = await this.banco.transaction(async (tx) => {
       const repositorio = new EscolaSessaoRepository(tx)
       const antes = await repositorio.lerParaAlterar()
-      if (antes === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+      if (antes === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
       const depois = await repositorio.alterar(pedido)
-      if (depois === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+      if (depois === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
       await this.#auditoria.gravar(tx, 'escola.sessao_alterada', { entidadeId: escolaId, antes: { ...antes }, depois: { ...depois } })
       return depois
     })

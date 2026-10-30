@@ -1,6 +1,6 @@
 import 'reflect-metadata'
 import { DeleteObjectCommand, DeleteObjectsCommand, PutObjectCommand, type S3Client } from '@aws-sdk/client-s3'
-import { ContadorDeUso, contextoAtual, executarNoContexto, UsoRepository, VALIDADE_DO_CONTADOR_SEGUNDOS, type UsoDoPeriodo } from '@educa/nucleo'
+import { UsageMeter, currentContext, runInContext, UsageRepository, VALIDADE_DO_CONTADOR_SEGUNDOS, type UsagePeriod } from '@educa/nucleo'
 import { JobFailureCode, TIPO_CONSOLIDAR_USO, TIPO_EXPURGAR_ACESSO, TIPO_EXPURGAR_DADO_PESSOAL, TIPO_EXPURGAR_JOBS } from '@educa/shared'
 import { Queue } from 'bullmq'
 import { randomUUID } from 'node:crypto'
@@ -31,7 +31,7 @@ const STORAGE: ConfiguracaoStorage = {
 
 const TERCA_10H = new Date('2026-09-15T10:00:00-03:00')
 const QUARTA_2H = new Date('2026-09-16T02:00:00-03:00')
-const SEM_USO: UsoDoPeriodo = { requisicoes: 0, jobs: 0, bytesStorage: 0 }
+const SEM_USO: UsagePeriod = { requisicoes: 0, jobs: 0, bytesStorage: 0 }
 
 beforeAll(() => {
   // Despachante ou worker do compose de pé disputaria as linhas com os deste arquivo.
@@ -42,8 +42,8 @@ describe('uso por escola: contagem, consolidação e bytes', () => {
   let bancada: BancadaDeFila
   let agora: Date
   const relogio = { agora: () => agora }
-  let contador: ContadorDeUso
-  let repositorio: UsoRepository
+  let contador: UsageMeter
+  let repositorio: UsageRepository
   let s3: S3Client
   const escolasDoTeste: string[] = []
   const objetosDoTeste: string[] = []
@@ -62,7 +62,7 @@ describe('uso por escola: contagem, consolidação e bytes', () => {
 
   /** Marca como a API marca: dentro do contexto da escola do token. */
   const marcarRequisicoes = (escolaId: string, quantidade: number) =>
-    executarNoContexto({ requisicaoId: randomUUID(), escolaId }, () => {
+    runInContext({ requisicaoId: randomUUID(), escolaId }, () => {
       for (let indice = 0; indice < quantidade; indice++) contador.marcar('req')
     })
 
@@ -76,11 +76,11 @@ describe('uso por escola: contagem, consolidação e bytes', () => {
   /** Roda como o worker roda um job `sistema.*`: no contexto da rotina do sistema, sem escola. */
   const consolidar = (processador = consolidacao()) => {
     const jobId = randomUUID()
-    return executarNoContexto({ requisicaoId: randomUUID(), rotinaDoSistema: true }, () => processador({}, execucaoDoJob(jobId)))
+    return runInContext({ requisicaoId: randomUUID(), rotinaDoSistema: true }, () => processador({}, execucaoDoJob(jobId)))
   }
 
-  const usoDoDia = (escolaId: string, dia: string) => executarNoContexto({ requisicaoId: randomUUID(), escolaId }, () => repositorio.doDia(dia))
-  const usoDoMes = (escolaId: string, mes: string) => executarNoContexto({ requisicaoId: randomUUID(), escolaId }, () => repositorio.doMes(mes))
+  const usoDoDia = (escolaId: string, dia: string) => runInContext({ requisicaoId: randomUUID(), escolaId }, () => repositorio.doDia(dia))
+  const usoDoMes = (escolaId: string, mes: string) => runInContext({ requisicaoId: randomUUID(), escolaId }, () => repositorio.doMes(mes))
 
   const guardar = async (chave: string, bytes: number) => {
     objetosDoTeste.push(chave)
@@ -95,8 +95,8 @@ describe('uso por escola: contagem, consolidação e bytes', () => {
     bancada = new BancadaDeFila()
     await bancada.limparRegistro()
     agora = TERCA_10H
-    contador = new ContadorDeUso(bancada.redis, { relogio, prefixo: bancada.prefixo })
-    repositorio = new UsoRepository(bancada.banco)
+    contador = new UsageMeter(bancada.redis, { relogio, prefixo: bancada.prefixo })
+    repositorio = new UsageRepository(bancada.banco)
     s3 = criarClienteS3(STORAGE)
     log.linhas.length = 0
   })
@@ -162,8 +162,8 @@ describe('uso por escola: contagem, consolidação e bytes', () => {
 
   it('repository: sem escola no contexto nada é lido nem gravado, e duas escolas gravando o mesmo dia ao mesmo tempo, na mesma instância, cada uma na sua', async () => {
     const [escolaA, escolaB] = await Promise.all([novaEscola(), novaEscola()])
-    const naEscola = <T>(escolaId: string, funcao: () => Promise<T>) => executarNoContexto({ requisicaoId: randomUUID(), escolaId }, funcao)
-    const semEscola = <T>(funcao: () => Promise<T>) => executarNoContexto({ requisicaoId: randomUUID() }, funcao)
+    const naEscola = <T>(escolaId: string, funcao: () => Promise<T>) => runInContext({ requisicaoId: randomUUID(), escolaId }, funcao)
+    const semEscola = <T>(funcao: () => Promise<T>) => runInContext({ requisicaoId: randomUUID() }, funcao)
 
     await expect(semEscola(() => repositorio.gravarDia('2026-09-15', { requisicoes: 1 }))).rejects.toThrow('consulta com escopo sem escola no contexto')
     await expect(semEscola(() => repositorio.doDia('2026-09-15'))).rejects.toThrow('consulta com escopo sem escola no contexto')
@@ -217,7 +217,7 @@ describe('uso por escola: contagem, consolidação e bytes', () => {
     const escolaA = await novaEscola()
     marcarRequisicoes(escolaA, 2)
     await aguardarContador(escolaA, '2026-09-15', 'req', 2)
-    await executarNoContexto({ requisicaoId: randomUUID(), escolaId: escolaA }, async () => {
+    await runInContext({ requisicaoId: randomUUID(), escolaId: escolaA }, async () => {
       await bancada.redis.incr(`${bancada.prefixo}:uso:2026-09-15:${escolaA}:req`)
       // A consolidação leu 2; o contador já está em 3.
       expect(await contador.apagarConsolidado('2026-09-15', 'req', 2)).toBe(false)
@@ -288,7 +288,7 @@ describe('uso por escola: contagem, consolidação e bytes', () => {
     expect(await usoDoDia(escolaA, '2026-09-17')).toEqual({ requisicoes: 3, jobs: 0, bytesStorage: 150 })
     // Nem a contagem gravada depois da medição (um job atrasado do dia 17) apaga os bytes dele.
     agora = new Date('2026-09-17T23:00:00-03:00')
-    await executarNoContexto({ requisicaoId: randomUUID(), escolaId: escolaA }, async () => contador.marcar('jobs'))
+    await runInContext({ requisicaoId: randomUUID(), escolaId: escolaA }, async () => contador.marcar('jobs'))
     await aguardarContador(escolaA, '2026-09-17', 'jobs', 1)
     agora = new Date('2026-09-19T02:00:00-03:00')
     await consolidar()
@@ -301,7 +301,7 @@ describe('uso por escola: contagem, consolidação e bytes', () => {
     await aguardarContador(escolaA, '2026-09-15', 'req', 2)
     agora = QUARTA_2H
     const jobId = randomUUID()
-    await expect(executarNoContexto({ requisicaoId: randomUUID(), escolaId: escolaA }, () => consolidacao()({}, execucaoDoJob(jobId)))).rejects.toThrow()
+    await expect(runInContext({ requisicaoId: randomUUID(), escolaId: escolaA }, () => consolidacao()({}, execucaoDoJob(jobId)))).rejects.toThrow()
     expect(await usoDoDia(escolaA, '2026-09-15')).toEqual(SEM_USO)
   })
 
@@ -522,7 +522,7 @@ describe('uso por escola: contagem, consolidação e bytes', () => {
       const pastaQuebrada = Object.assign(new Error('AccessDenied'), { name: 'AccessDenied' })
       const storage = {
         listarEscolas: () => Promise.resolve([escolaA, escolaB, escolaC]),
-        bytesDaEscola: () => (contextoAtual()?.escolaId === escolaB ? Promise.reject(pastaQuebrada) : real.bytesDaEscola()),
+        bytesDaEscola: () => (currentContext()?.escolaId === escolaB ? Promise.reject(pastaQuebrada) : real.bytesDaEscola()),
       }
       await guardar(`escolas/${escolaA}/a.pdf`, 11)
       await guardar(`escolas/${escolaC}/c.pdf`, 13)
@@ -544,7 +544,7 @@ describe('uso por escola: contagem, consolidação e bytes', () => {
       const storage = {
         listarEscolas: () => Promise.resolve(escolas),
         bytesDaEscola: () => {
-          const escolaId = contextoAtual()?.escolaId ?? ''
+          const escolaId = currentContext()?.escolaId ?? ''
           medidas.push(escolaId)
           const erro = erros.get(escolaId)
           return erro === undefined ? Promise.resolve(7) : Promise.reject(erro)

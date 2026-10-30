@@ -1,4 +1,4 @@
-import { rede, SemEscopo, type Banco, type DadosDaCoordenacao, type UsoDoPeriodo } from '@educa/nucleo'
+import { rede, Unscoped, type Database, type DadosDaCoordenacao, type UsagePeriod } from '@educa/nucleo'
 import { ESCOLAS_POR_PAGINA, MAXIMO_DE_REDES_DO_PAINEL, type OrdemDoPainel, type RedeDoPainel } from '@educa/shared'
 import { asc, sql, type SQL } from 'drizzle-orm'
 
@@ -31,8 +31,8 @@ export interface EscolaLidaNoPainel {
 export interface UsoLidoNoPainel {
   readonly id: string
   readonly nome: string
-  readonly dia: UsoDoPeriodo
-  readonly mes: UsoDoPeriodo
+  readonly dia: UsagePeriod
+  readonly mes: UsagePeriod
 }
 
 export interface PaginaLidaNoPainel<Item> {
@@ -107,7 +107,7 @@ function pessoasComVinculo(papel: 'professor' | 'aluno', condicao: SQL): SQL {
 
 /**
  * A leitura entre escolas do painel da operação (Tech Spec da A0b, seções 5 e 6): o único lugar desse alcance, e por isso
- * cada método é `@SemEscopo` com a justificativa do painel (regra 10, item 9). Devolve só id, nome, endereço e número,
+ * cada método é `@Unscoped` com a justificativa do painel (regra 10, item 9). Devolve só id, nome, endereço e número,
  * mais as datas que decidem o estado da coordenação: nada de pessoa, nada de dentro da escola. Só o `painel.service.ts`
  * o importa (I1).
  *
@@ -116,9 +116,9 @@ function pessoasComVinculo(papel: 'professor' | 'aluno', condicao: SQL): SQL {
  * item 8; o plano está na tarefa 5.0 da A0b).
  */
 export class PainelRepository {
-  constructor(private readonly banco: Banco) {}
+  constructor(private readonly banco: Database) {}
 
-  @SemEscopo('painel do operador: a lista de redes para criar escola, acima do tenant; só id, nome e tipo, até 200, sem escola nem pessoa')
+  @Unscoped('painel do operador: a lista de redes para criar escola, acima do tenant; só id, nome e tipo, até 200, sem escola nem pessoa')
   async redes(): Promise<RedeDoPainel[]> {
     return this.banco.select({ id: rede.id, nome: rede.nome, tipo: rede.tipo }).from(rede).orderBy(asc(rede.nome), asc(rede.id)).limit(MAXIMO_DE_REDES_DO_PAINEL)
   }
@@ -130,7 +130,7 @@ export class PainelRepository {
    * coordenador ativo, o último convite de coordenação (maior `expira_em`, depois maior `id`) com o `desativado_em` do
    * usuário dele, e a hora do banco.
    */
-  @SemEscopo('painel do operador: a lista de escolas com o estado da coordenação e as contagens do ano em curso; só id, nome, endereço e número, sem pessoa')
+  @Unscoped('painel do operador: a lista de escolas com o estado da coordenação e as contagens do ano em curso; só id, nome, endereço e número, sem pessoa')
   async escolas(pedido: PedidoDePaginaDoPainel): Promise<PaginaLidaNoPainel<EscolaLidaNoPainel>> {
     const [pagina, total] = await Promise.all([
       this.banco.execute<LinhaDaEscola>(sql`
@@ -193,11 +193,11 @@ export class PainelRepository {
   }
 
   /**
-   * Uma página do uso de infra por escola (D30), com a mesma regra do `UsoRepository`: no dia de referência, a linha dele;
+   * Uma página do uso de infra por escola (D30), com a mesma regra do `UsageRepository`: no dia de referência, a linha dele;
    * no mês, do dia 1 até o dia de referência, requisições e jobs somados e o pico de bytes. Sem linha, zero. O que vem
    * depois do dia de referência (o dia de hoje, ainda não fechado) não entra.
    */
-  @SemEscopo('painel do operador: o uso de infra de cada escola no último dia fechado e no mês dele; só id, nome e número, sem pessoa')
+  @Unscoped('painel do operador: o uso de infra de cada escola no último dia fechado e no mês dele; só id, nome e número, sem pessoa')
   async uso(pedido: PedidoDePaginaDoPainel): Promise<PaginaLidaNoPainel<UsoLidoNoPainel>> {
     const { dia, primeiroDoMes } = pedido.referencia
     const [pagina, total] = await Promise.all([

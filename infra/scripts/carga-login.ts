@@ -8,7 +8,7 @@ import pg from 'pg'
 import type { criarEscola, criarRede } from '../../apps/api/src/operacao/escola/escola.ts'
 import type { HashDeSenha } from '../../apps/api/src/credencial/hash-de-senha.ts'
 import type { criarAlunosComMatricula, criarSessoesSinteticas } from '../../apps/api/src/sessao/tenant/sessoes-sinteticas.ts'
-import type { criarBanco, criarPool } from '@educa/nucleo'
+import type { createDatabase, createPool } from '@educa/nucleo'
 import { raizRepositorio } from '../../tools/ci/executar.ts'
 import { argumentosDoCompose, CODIGO_THRESHOLD_CRUZADO, lerAmbienteDeCarga, NOMES_DAS_ESCOLAS, rodar, type NomeDeEscola } from './carga.ts'
 import { urlDoBancoDoAmbiente } from './conferir-carga.ts'
@@ -323,7 +323,7 @@ function escrever(linha: string): void {
 }
 
 interface ModulosDaApi {
-  nucleo: { criarBanco: typeof criarBanco; criarPool: typeof criarPool }
+  nucleo: { createDatabase: typeof createDatabase; createPool: typeof createPool }
   escolas: { criarRede: typeof criarRede; criarEscola: typeof criarEscola }
   sessoes: { criarAlunosComMatricula: typeof criarAlunosComMatricula; criarSessoesSinteticas: typeof criarSessoesSinteticas }
   hash: { HashDeSenha: typeof HashDeSenha }
@@ -417,8 +417,8 @@ async function semearTurmasEAtividades(banco: Pick<pg.Pool, 'query'>, { escolaId
  */
 async function semearContas(doArquivo: Record<string, string>): Promise<ContasDoCenario> {
   const { nucleo, escolas: ops, sessoes, hash } = await importarDaApi()
-  const pool = nucleo.criarPool({ url: urlDoBancoDoAmbiente(doArquivo), maximoConexoes: 2, timeoutConexaoMs: 5_000, timeoutConsultaMs: 120_000 }, () => undefined)
-  const banco = nucleo.criarBanco(pool)
+  const pool = nucleo.createPool({ url: urlDoBancoDoAmbiente(doArquivo), maximoConexoes: 2, timeoutConexaoMs: 5_000, timeoutConsultaMs: 120_000 }, () => undefined)
+  const banco = nucleo.createDatabase(pool)
   try {
     const senha = randomBytes(18).toString('base64url')
     const senhaErrada = randomBytes(18).toString('base64url')

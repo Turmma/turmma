@@ -1,4 +1,4 @@
-import { criarBanco, Drenagem, GuardaDeAutenticacao, SessaoRepository, type LoggerBase, type PoolBanco } from '@educa/nucleo'
+import { createDatabase, GracefulShutdown, AuthGuard, SessaoRepository, type LoggerBase, type DatabasePool } from '@educa/nucleo'
 import { Inject, Module, type DynamicModule, type OnApplicationShutdown } from '@nestjs/common'
 import { APP_GUARD, Reflector } from '@nestjs/core'
 import type { Redis } from 'ioredis'
@@ -11,23 +11,23 @@ export const POOL_BANCO_REALTIME = Symbol('POOL_BANCO_REALTIME')
 
 @Module({})
 export class AppModule implements OnApplicationShutdown {
-  static com(config: ConfiguracaoRealtime, cliente: Redis, pool: PoolBanco, logger: LoggerBase): DynamicModule {
+  static com(config: ConfiguracaoRealtime, cliente: Redis, pool: DatabasePool, logger: LoggerBase): DynamicModule {
     return {
       module: AppModule,
       controllers: [ProntidaoController],
       providers: [
         SistemaGateway,
         { provide: CONFIGURACAO_IDENTIDADE, useValue: config.identidade },
-        // A mesma leitura da `GuardaDeSessao` da API, no pool do realtime: um caminho de identidade só.
-        { provide: LEITURA_DE_SESSAO, useValue: new SessaoRepository(criarBanco(pool)) },
+        // A mesma leitura da `SessaoGuard` da API, no pool do realtime: um caminho de identidade só.
+        { provide: LEITURA_DE_SESSAO, useValue: new SessaoRepository(createDatabase(pool)) },
         { provide: LOGGER_REALTIME, useValue: logger },
         { provide: CLIENTE_REDIS_REALTIME, useValue: cliente },
         { provide: POOL_BANCO_REALTIME, useValue: pool },
-        { provide: Drenagem, useValue: new Drenagem(config.drenagem) },
+        { provide: GracefulShutdown, useValue: new GracefulShutdown(config.drenagem) },
         {
-          // Toda rota HTTP exige token, salvo `@RotaAnonima()`: rota nova nasce fechada.
+          // Toda rota HTTP exige token, salvo `@Public()`: rota nova nasce fechada.
           provide: APP_GUARD,
-          useFactory: (reflector: Reflector) => new GuardaDeAutenticacao(reflector, config.identidade),
+          useFactory: (reflector: Reflector) => new AuthGuard(reflector, config.identidade),
           inject: [Reflector],
         },
       ],
@@ -36,7 +36,7 @@ export class AppModule implements OnApplicationShutdown {
 
   constructor(
     @Inject(CLIENTE_REDIS_REALTIME) private readonly cliente: Redis,
-    @Inject(POOL_BANCO_REALTIME) private readonly pool: PoolBanco,
+    @Inject(POOL_BANCO_REALTIME) private readonly pool: DatabasePool,
   ) {}
 
   /**

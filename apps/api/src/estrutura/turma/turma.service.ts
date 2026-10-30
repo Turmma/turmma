@@ -1,4 +1,4 @@
-import { ErroDeDominio, exigirAnoEmCurso, RegistroDeAuditoria, sessaoDaRequisicao, type Banco } from '@educa/nucleo'
+import { DomainException, requireAnoEmCurso, AuditoriaRecorder, requestSessao, type Database } from '@educa/nucleo'
 import {
   alcanceDe,
   ErrorCode,
@@ -21,7 +21,7 @@ import { paginar, paginarPor } from '../../http/paginacao.js'
 import { SerieRepository } from '../serie/serie.repository.js'
 import { TurmaRepository, type AlcanceDaTurma } from './turma.repository.js'
 
-const registro = new RegistroDeAuditoria()
+const registro = new AuditoriaRecorder()
 
 /**
  * Como o papel da sessão alcança a turma, pela célula da `MATRIZ`: `unidade` e `nominal_auditado` são a coordenação,
@@ -29,10 +29,10 @@ const registro = new RegistroDeAuditoria()
  * alcance não chega aqui (a guarda de permissão barra o `nunca`) e, se chegasse, responderia como inexistente.
  */
 function alcanceDaTurma(recurso: 'turma' | 'aluno_da_turma'): AlcanceDaTurma {
-  const alcance = alcanceDe(sessaoDaRequisicao().papel, recurso, 'ler')
+  const alcance = alcanceDe(requestSessao().papel, recurso, 'ler')
   if (alcance === 'unidade' || alcance === 'nominal_auditado') return 'unidade'
   if (alcance === 'turma_vinculada') return 'turma_vinculada'
-  throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+  throw new DomainException(ErrorCode.NAO_ENCONTRADO)
 }
 
 /**
@@ -45,16 +45,16 @@ function alcanceDaTurma(recurso: 'turma' | 'aluno_da_turma'): AlcanceDaTurma {
  * - O mesmo nome no mesmo ano, sem diferenciar maiúscula: `CONFLITO`, sem o valor.
  */
 export class TurmaService {
-  constructor(private readonly banco: Banco) {}
+  constructor(private readonly banco: Database) {}
 
   async criar(pedido: CriarTurmaRequest): Promise<TurmaResponse> {
-    const anoEmCurso = exigirAnoEmCurso()
-    if (pedido.anoLetivoId !== undefined && pedido.anoLetivoId.toLowerCase() !== anoEmCurso) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+    const anoEmCurso = requireAnoEmCurso()
+    if (pedido.anoLetivoId !== undefined && pedido.anoLetivoId.toLowerCase() !== anoEmCurso) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
     const criada = await this.banco.transaction(async (tx) => {
       const turmas = new TurmaRepository(tx)
-      if (!(await turmas.travarAnoEmCurso())) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+      if (!(await turmas.travarAnoEmCurso())) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
       const serie = await new SerieRepository(tx).porId(pedido.serieId.toLowerCase())
-      if (serie === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+      if (serie === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
       return { ...(await turmas.criar({ serieId: serie.id, nome: pedido.nome, turno: pedido.turno ?? null })), serie }
     })
     return turmaResponseSchema.parse(criada)
@@ -67,7 +67,7 @@ export class TurmaService {
   async renomear(id: string, pedido: RenomearTurmaRequest): Promise<TurmaResponse> {
     const renomeada = await this.banco.transaction(async (tx) => {
       const gravada = await new TurmaRepository(tx).renomear(id, pedido.nome)
-      if (gravada === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+      if (gravada === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
       const { serieId, ...turma } = gravada
       const serie = await new SerieRepository(tx).porId(serieId)
       if (serie === undefined) throw new InvariantException('série da turma não encontrada')
@@ -87,8 +87,8 @@ export class TurmaService {
   async excluir(id: string): Promise<void> {
     await this.banco.transaction(async (tx) => {
       const turmas = new TurmaRepository(tx)
-      if (!(await turmas.travarContraOGerar(id, 'update'))) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
-      if (!(await turmas.excluir(id))) throw new ErroDeDominio(ErrorCode.CONFLITO)
+      if (!(await turmas.travarContraOGerar(id, 'update'))) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
+      if (!(await turmas.excluir(id))) throw new DomainException(ErrorCode.CONFLITO)
     })
   }
 
@@ -108,7 +108,7 @@ export class TurmaService {
    */
   async abrir(id: string, { anoLetivoId }: TurmaQuery): Promise<TurmaAbertaResponse> {
     const aberta = await new TurmaRepository(this.banco).aberta(id, alcanceDaTurma('turma'), anoLetivoId?.toLowerCase())
-    if (aberta === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+    if (aberta === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
     return turmaAbertaResponseSchema.parse(aberta)
   }
 
@@ -124,14 +124,14 @@ export class TurmaService {
    * coordenação.
    */
   async alunos(id: string, consulta: AlunosDaTurmaQuery): Promise<AlunosDaTurmaResponse> {
-    const nominalAuditado = alcanceDe(sessaoDaRequisicao().papel, 'aluno_da_turma', 'ler') === 'nominal_auditado'
+    const nominalAuditado = alcanceDe(requestSessao().papel, 'aluno_da_turma', 'ler') === 'nominal_auditado'
     const { finalidade } = consulta
-    if (nominalAuditado && finalidade === undefined) throw new ErroDeDominio(ErrorCode.ENTRADA_INVALIDA)
+    if (nominalAuditado && finalidade === undefined) throw new DomainException(ErrorCode.ENTRADA_INVALIDA)
     const alcance = alcanceDaTurma('aluno_da_turma')
     const anoEncerrado = consulta.anoLetivoId?.toLowerCase()
     const pagina = await this.banco.transaction(async (tx) => {
       const turmas = new TurmaRepository(tx)
-      if ((await turmas.aberta(id, alcance, anoEncerrado)) === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+      if ((await turmas.aberta(id, alcance, anoEncerrado)) === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
       const cortada = paginarPor(await turmas.alunos(id, consulta, anoEncerrado), consulta.limite, (aluno) => aluno.usuarioId)
       if (nominalAuditado && finalidade !== undefined) {
         await registro.gravar(tx, 'turma.alunos_lidos', { entidadeId: id, depois: { quantidade: cortada.itens.length }, finalidade })

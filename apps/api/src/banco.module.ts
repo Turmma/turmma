@@ -1,4 +1,4 @@
-import { criarBanco, criarPool, type ConfiguracaoBanco, type PoolBanco } from '@educa/nucleo'
+import { createDatabase, createPool, type DatabaseConfig, type DatabasePool } from '@educa/nucleo'
 import { Global, Inject, Logger, Module, type DynamicModule, type OnApplicationShutdown } from '@nestjs/common'
 
 export const POOL_BANCO = Symbol('POOL_BANCO')
@@ -10,21 +10,21 @@ export const BANCO = Symbol('BANCO')
 export class BancoModule implements OnApplicationShutdown {
   private static readonly logger = new Logger('banco')
 
-  static com(config: ConfiguracaoBanco): DynamicModule {
+  static com(config: DatabaseConfig): DynamicModule {
     return {
       module: BancoModule,
       providers: [
         {
           provide: POOL_BANCO,
-          useFactory: () => criarPool(config, () => BancoModule.logger.warn('banco.conexao_ociosa_perdida')),
+          useFactory: () => createPool(config, () => BancoModule.logger.warn('banco.conexao_ociosa_perdida')),
         },
-        { provide: BANCO, useFactory: criarBanco, inject: [POOL_BANCO] },
+        { provide: BANCO, useFactory: createDatabase, inject: [POOL_BANCO] },
       ],
       exports: [POOL_BANCO, BANCO],
     }
   }
 
-  constructor(@Inject(POOL_BANCO) private readonly pool: PoolBanco) {}
+  constructor(@Inject(POOL_BANCO) private readonly pool: DatabasePool) {}
 
   async onApplicationShutdown(): Promise<void> {
     await this.pool.end()

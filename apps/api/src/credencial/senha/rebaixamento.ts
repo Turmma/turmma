@@ -1,4 +1,4 @@
-import { limiteDoSeguro, METRICAS, relogioDoSistema, ROTULO_ESCOLA, type Meter, type Relogio } from '@educa/nucleo'
+import { insuranceLimit, METRICS, systemClock, ROTULO_ESCOLA, type Meter, type Clock } from '@educa/nucleo'
 import { JANELA_DO_CONTADOR_POR_IP_MS, type ContadorEmJanela } from './contador-em-janela.js'
 
 /** O piso do limiar: uma escola pequena não é rebaixada por uma manhã de senhas esquecidas. */
@@ -26,7 +26,7 @@ export interface DependenciasDoRebaixamento {
   /** Quantas instâncias da API dividem o limiar quando a contagem é do seguro em memória (`LIMITE_INSTANCIAS_API`). */
   readonly instancias: number
   readonly medidor: Meter
-  readonly relogio?: Relogio
+  readonly relogio?: Clock
 }
 
 /**
@@ -43,7 +43,7 @@ export interface DependenciasDoRebaixamento {
  * - **Seguro:** com a contagem em memória (Redis de fila fora), o limiar é dividido pelas instâncias.
  */
 export class RebaixamentoPorEscola {
-  readonly #relogio: Relogio
+  readonly #relogio: Clock
   /** Escola → quando esta instância rebaixou uma tentativa dela pela última vez. Só escola, nunca IP. */
   readonly #rebaixadaEm = new Map<string, number>()
   readonly #tamanhos = new Map<string, { readonly alunos: number; readonly venceEm: number }>()
@@ -51,9 +51,9 @@ export class RebaixamentoPorEscola {
   readonly #lendo = new Map<string, Promise<number>>()
 
   constructor(private readonly dependencias: DependenciasDoRebaixamento) {
-    this.#relogio = dependencias.relogio ?? relogioDoSistema
+    this.#relogio = dependencias.relogio ?? systemClock
     dependencias.medidor
-      .createObservableGauge(METRICAS.prioridadeRebaixada, { description: 'Se esta instância rebaixou, no último minuto, tentativas de login de um IP com falhas demais na escola' })
+      .createObservableGauge(METRICS.prioridadeRebaixada, { description: 'Se esta instância rebaixou, no último minuto, tentativas de login de um IP com falhas demais na escola' })
       .addCallback((observador) => {
         const agora = this.#relogio.agora().getTime()
         for (const [escolaId, quando] of this.#rebaixadaEm) {
@@ -69,7 +69,7 @@ export class RebaixamentoPorEscola {
     if (conhecido) return false
     const { janela, instancias } = this.dependencias
     const { valor, doSeguro } = await janela.ler(this.#chave(ip, escolaId))
-    const efetivo = (limiar: number) => (doSeguro ? limiteDoSeguro(limiar, instancias) : limiar)
+    const efetivo = (limiar: number) => (doSeguro ? insuranceLimit(limiar, instancias) : limiar)
     if (valor <= efetivo(LIMIAR_MINIMO_DE_FALHAS_POR_IP)) return false
     if (valor <= efetivo(limiarDeFalhas(await this.#alunosAtivos(escolaId)))) return false
     this.#rebaixadaEm.set(escolaId, this.#relogio.agora().getTime())

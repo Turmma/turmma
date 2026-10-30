@@ -1,14 +1,14 @@
-import { exigirEscolaDoContexto, type Banco } from '@educa/nucleo'
+import { requireEscolaId, type Database } from '@educa/nucleo'
 import { aluno } from './tabelas.js'
 
 // A assinatura de sobrecarga não tem corpo e não é um método à parte: só a implementação conta.
 export class SobrecargaRepository {
-  constructor(private readonly banco: Banco) {}
+  constructor(private readonly banco: Database) {}
 
   async achar(id: string): Promise<unknown>
   async achar(id: string, turmaId: string): Promise<unknown>
   async achar(id: string, turmaId?: string): Promise<unknown> {
-    return this.banco.select().from(aluno).where([exigirEscolaDoContexto(), id, turmaId])
+    return this.banco.select().from(aluno).where([requireEscolaId(), id, turmaId])
   }
 }
 

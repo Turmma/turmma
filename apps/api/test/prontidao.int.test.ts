@@ -1,5 +1,5 @@
 import 'reflect-metadata'
-import { criarLogger, RotaAnonima } from '@educa/nucleo'
+import { createLogger, Public } from '@educa/nucleo'
 import { Controller, Get, Module, type INestApplication } from '@nestjs/common'
 import { NestFactory } from '@nestjs/core'
 import type { AddressInfo } from 'node:net'
@@ -15,7 +15,7 @@ const DURACAO_DA_REQUISICAO_LENTA_MS = 2_500
 const ESPERA_DA_BORDA_MS = 1_500
 
 /** Uma requisição que ainda está em andamento quando o SIGTERM chega. */
-@RotaAnonima()
+@Public()
 @Controller('teste-lento')
 class ControladorLento {
   @Get()
@@ -30,7 +30,7 @@ async function subirApi(ambiente: Record<string, string> = {}): Promise<{ app: I
   class ModuloDeTeste {}
 
   const app = await NestFactory.create(ModuloDeTeste, { logger: false })
-  configurarAplicacao(app, criarLogger({ servico: 'api-teste', nivel: 'silent' }))
+  configurarAplicacao(app, createLogger({ servico: 'api-teste', nivel: 'silent' }))
   await app.listen(0, '127.0.0.1')
   const { port } = app.getHttpServer().address() as AddressInfo
   return { app, url: `http://127.0.0.1:${port}` }

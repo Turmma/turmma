@@ -1,19 +1,19 @@
 import { CLASSIFICACAO_DAS_TABELAS, InvariantException } from '@educa/shared'
 import { PgDialect } from 'drizzle-orm/pg-core'
 import { describe, expect, it } from 'vitest'
-import { colunasDoSelect, LEITURAS_DO_ARQUIVO } from './leitura-do-titular.js'
+import { selectColumns, LEITURAS_DO_ARQUIVO } from './leitura-do-titular.js'
 
-const texto = (instrucao: ReturnType<typeof colunasDoSelect>): string => new PgDialect().sqlToQuery(instrucao).sql
+const texto = (instrucao: ReturnType<typeof selectColumns>): string => new PgDialect().sqlToQuery(instrucao).sql
 
 describe('colunasDoSelect: a lista de colunas que entra no SQL do arquivo', () => {
   it('põe cada coluna sob o alias da tabela, na ordem, sem aspas nem parâmetro', () => {
-    expect(texto(colunasDoSelect('id', 'criada_em'))).toBe('t.id, t.criada_em')
+    expect(texto(selectColumns('id', 'criada_em'))).toBe('t.id, t.criada_em')
   })
 
   it.each(['id; drop table usuario', 'a b', 'Id', '1id', "id'", 'id--', ''])('recusa o nome fora do formato %j: nada que não seja nome de coluna chega ao SQL', (nome) => {
-    expect(() => colunasDoSelect('id', nome)).toThrow(new InvariantException('nome de coluna fora do formato'))
+    expect(() => selectColumns('id', nome)).toThrow(new InvariantException('nome de coluna fora do formato'))
     // O motivo é texto fixo: o nome recusado não entra na mensagem.
-    if (nome !== '') expect(() => colunasDoSelect('id', nome)).not.toThrow(nome)
+    if (nome !== '') expect(() => selectColumns('id', nome)).not.toThrow(nome)
   })
 })
 

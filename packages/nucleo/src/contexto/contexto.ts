@@ -8,10 +8,10 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
  * ser nome, matrícula ou qualquer outro dado de pessoa (regra 20, item 9).
  *
  * `escolaId`, `usuarioId`, `papel`, `sessaoId` e `anoLetivoId` vêm da sessão gravada, lida com o token
- * verificado: na API pela `GuardaDeSessao` (identidade/guarda-sessao.ts), no realtime pelo handshake, com a
+ * verificado: na API pela `SessaoGuard` (identidade/guarda-sessao.ts), no realtime pelo handshake, com a
  * mesma consulta. Nunca do corpo, da query ou de cabeçalho enviado pelo cliente (regra 10).
  */
-export interface ContextoDaRequisicao {
+export interface RequestContext {
   readonly requisicaoId: string
   readonly escolaId?: string
   readonly usuarioId?: string
@@ -29,16 +29,16 @@ export interface ContextoDaRequisicao {
   /**
    * O operador Turmma da sessão de operador que a `GuardaDeOperador` conferiu (Tech Spec da A0, seção 5). É a única
    * identidade da área da operação: nunca vem junto de escola, usuário, papel, sessão de escola nem ano letivo, e por
-   * isso todo repository de escola chamado numa rota de operador falha com erro (`exigirEscolaDoContexto`).
+   * isso todo repository de escola chamado numa rota de operador falha com erro (`requireEscolaId`).
    */
   readonly operadorId?: string
 }
 
-type ContextoGravavel = { -readonly [Campo in keyof ContextoDaRequisicao]: ContextoDaRequisicao[Campo] }
+type ContextoGravavel = { -readonly [Campo in keyof RequestContext]: RequestContext[Campo] }
 
-export const CABECALHO_REQUISICAO_ID = 'x-requisicao-id'
+export const REQUEST_ID_HEADER = 'x-requisicao-id'
 
-const armazenamento = new AsyncLocalStorage<ContextoDaRequisicao>()
+const armazenamento = new AsyncLocalStorage<RequestContext>()
 
 // Qualquer versão de UUID, na forma canônica. Nada além de hexadecimal e hífen chega ao log.
 const FORMATO_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -47,7 +47,7 @@ const FORMATO_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{
  * Aceita o id do cliente só se for UUID, para uma requisição poder ser seguida desde a web.
  * Qualquer outra coisa é trocada por um id novo: texto livre do cliente não entra no log.
  */
-export function resolverRequisicaoId(cabecalho: string | string[] | undefined): string {
+export function resolveRequestId(cabecalho: string | string[] | undefined): string {
   if (typeof cabecalho === 'string' && FORMATO_UUID.test(cabecalho)) {
     return cabecalho.toLowerCase()
   }
@@ -55,12 +55,12 @@ export function resolverRequisicaoId(cabecalho: string | string[] | undefined): 
 }
 
 /** Executa `funcao` com o contexto disponível em todo código assíncrono que ela disparar. */
-export function executarNoContexto<T>(contexto: ContextoDaRequisicao, funcao: () => T): T {
+export function runInContext<T>(contexto: RequestContext, funcao: () => T): T {
   return armazenamento.run(contexto, funcao)
 }
 
 /** O contexto da requisição em andamento, ou `undefined` fora de uma (boot, rotina interna). */
-export function contextoAtual(): ContextoDaRequisicao | undefined {
+export function currentContext(): RequestContext | undefined {
   return armazenamento.getStore()
 }
 
@@ -68,11 +68,11 @@ export function contextoAtual(): ContextoDaRequisicao | undefined {
  * Middleware HTTP que abre o contexto antes de qualquer outro código da requisição. Precisa
  * ser o primeiro registrado, para o log e o filtro de erro sempre encontrarem o `requisicaoId`.
  */
-export function middlewareDeContexto(requisicao: IncomingMessage, _resposta: ServerResponse, proximo: () => void): void {
-  const contexto: ContextoDaRequisicao = {
-    requisicaoId: resolverRequisicaoId(requisicao.headers[CABECALHO_REQUISICAO_ID]),
+export function contextMiddleware(requisicao: IncomingMessage, _resposta: ServerResponse, proximo: () => void): void {
+  const contexto: RequestContext = {
+    requisicaoId: resolveRequestId(requisicao.headers[REQUEST_ID_HEADER]),
   }
-  executarNoContexto(contexto, proximo)
+  runInContext(contexto, proximo)
 }
 
 function contextoAindaSemIdentidade(): ContextoGravavel {
@@ -84,8 +84,8 @@ function contextoAindaSemIdentidade(): ContextoGravavel {
   return contexto
 }
 
-/** A sessão válida que a `GuardaDeSessao` leu do banco. */
-export interface SessaoDaRequisicao {
+/** A sessão válida que a `SessaoGuard` leu do banco. */
+export interface RequestSessao {
   readonly escolaId: string
   readonly usuarioId: string
   readonly papel: PapelDeUsuario
@@ -98,7 +98,7 @@ export interface SessaoDaRequisicao {
  * em curso. É o único jeito de escrevê-los depois que o contexto existe, e só vale uma vez: nenhum código que rode
  * depois da guarda consegue trocar o escopo. Sem contexto, ou com identidade já gravada, falha fechada.
  */
-export function definirSessaoNoContexto(sessao: SessaoDaRequisicao): void {
+export function setContextSessao(sessao: RequestSessao): void {
   const contexto = contextoAindaSemIdentidade()
   contexto.escolaId = sessao.escolaId
   contexto.usuarioId = sessao.usuarioId
@@ -113,7 +113,7 @@ export function definirSessaoNoContexto(sessao: SessaoDaRequisicao): void {
  * papel, sessão nem ano letivo. Vale uma vez, como a sessão de escola, e nunca depois dela: sem contexto, ou com
  * qualquer identidade já gravada, falha fechada.
  */
-export function definirOperadorNoContexto(operadorId: string): void {
+export function setContextOperador(operadorId: string): void {
   const contexto = contextoAindaSemIdentidade()
   contexto.operadorId = operadorId
 }
@@ -122,8 +122,8 @@ export function definirOperadorNoContexto(operadorId: string): void {
  * O operador da requisição em andamento, gravado pela `GuardaDeOperador`. Sem ele, falha fechada: é erro de programação
  * (rota da operação sem a guarda), e nunca vira consulta sem operador.
  */
-export function exigirOperadorDoContexto(): string {
-  const operadorId = contextoAtual()?.operadorId
+export function requireContextOperador(): string {
+  const operadorId = currentContext()?.operadorId
   if (operadorId === undefined) throw new InvariantException('rota da operação sem operador no contexto')
   return operadorId
 }

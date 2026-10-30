@@ -1,4 +1,4 @@
-import { IdPipe, Permite, ZodValidationPipe } from '@educa/nucleo'
+import { IdPipe, RequirePermissao, ZodValidationPipe } from '@educa/nucleo'
 import { redefinirMfaRequestSchema, type RedefinirMfaRequest } from '@educa/shared'
 import { Body, Controller, HttpCode, HttpStatus, Param, Post } from '@nestjs/common'
 import { RedefinicaoDeMfa } from './redefinicao-de-mfa.js'
@@ -14,7 +14,7 @@ export class RedefinirMfaController {
   constructor(private readonly redefinicao: RedefinicaoDeMfa) {}
 
   @Post(':id/mfa/redefinir')
-  @Permite('usuario_mfa', 'redefinir')
+  @RequirePermissao('usuario_mfa', 'redefinir')
   @HttpCode(HttpStatus.ACCEPTED)
   async redefinir(
     @Param('id', new IdPipe({ invalidAsUndefined: true })) alvo: string | undefined,

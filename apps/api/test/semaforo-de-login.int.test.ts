@@ -1,4 +1,4 @@
-import { METRICAS } from '@educa/nucleo'
+import { METRICS } from '@educa/nucleo'
 import { ErrorCode, MENSAGENS_DE_ERRO } from '@educa/shared'
 import type { Redis } from 'ioredis'
 import { randomBytes, randomUUID } from 'node:crypto'
@@ -148,12 +148,12 @@ describe('semáforo do hash no login: fila justa com prazo, sem revelar quem exi
   }
 
   async function duracoesDe(metodo: string): Promise<number> {
-    const ponto = (await medidor.pontos(METRICAS.duracaoDoLogin)).find(({ atributos }) => atributos['metodo'] === metodo)
+    const ponto = (await medidor.pontos(METRICS.duracaoDoLogin)).find(({ atributos }) => atributos['metodo'] === metodo)
     return typeof ponto?.valor === 'object' ? ponto.valor.contagem : 0
   }
 
   async function recusados(): Promise<number> {
-    const [ponto] = await medidor.pontos(METRICAS.hashRecusado)
+    const [ponto] = await medidor.pontos(METRICS.hashRecusado)
     return typeof ponto?.valor === 'number' ? ponto.valor : 0
   }
 
@@ -250,7 +250,7 @@ describe('semáforo do hash no login: fila justa com prazo, sem revelar quem exi
   }, 120_000)
 
   async function esperasDa(escolaId: string): Promise<{ contagem: number; soma: number }> {
-    const ponto = (await medidor.pontos(METRICAS.esperaPeloHash)).find(({ atributos }) => atributos['escola_id'] === escolaId)
+    const ponto = (await medidor.pontos(METRICS.esperaPeloHash)).find(({ atributos }) => atributos['escola_id'] === escolaId)
     return typeof ponto?.valor === 'object' ? ponto.valor : { contagem: 0, soma: 0 }
   }
 
@@ -271,7 +271,7 @@ describe('semáforo do hash no login: fila justa com prazo, sem revelar quem exi
     expect((await porEmail(`ninguem-${randomUUID()}@escola.invalid`)).status).toBe(401)
     expect((await porMatricula(`inexistente-${randomUUID().slice(0, 8)}`, matriculaRara())).status).toBe(401)
 
-    const esperas = await medidor.pontos(METRICAS.esperaPeloHash)
+    const esperas = await medidor.pontos(METRICS.esperaPeloHash)
     const porEscola = (escolaId: string) => esperas.filter(({ atributos }) => atributos['escola_id'] === escolaId)
     // Uma série por escola: na A, a matrícula certa, a errada e a que não existe; na B, a certa e a errada. A equipe e o
     // endereço que não existe têm a sua, sem escola real, e contam exatamente os pedidos deste teste.
@@ -281,7 +281,7 @@ describe('semáforo do hash no login: fila justa com prazo, sem revelar quem exi
     expect((await esperasDa('desconhecida')).contagem - desconhecidaAntes.contagem).toBe(1)
     for (const { atributos } of esperas) expect(Object.keys(atributos)).toEqual(['escola_id'])
 
-    const duracoes: PontoLido[] = await medidor.pontos(METRICAS.duracaoDoLogin)
+    const duracoes: PontoLido[] = await medidor.pontos(METRICS.duracaoDoLogin)
     expect(duracoes.map(({ atributos }) => atributos).sort((x, y) => String(x['metodo']).localeCompare(String(y['metodo'])))).toEqual([{ metodo: 'email' }, { metodo: 'matricula' }])
 
     // Nenhum valor de rótulo, em métrica nenhuma, é matrícula, e-mail, id de aluno ou de usuário, ou o IP de quem pediu.

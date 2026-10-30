@@ -1,5 +1,5 @@
 import 'reflect-metadata'
-import { criarLogger } from '@educa/nucleo'
+import { createLogger } from '@educa/nucleo'
 import { avisosResponseSchema, systemStatusResponseSchema } from '@educa/shared'
 import type { INestApplication } from '@nestjs/common'
 import { NestFactory } from '@nestjs/core'
@@ -13,7 +13,7 @@ const AVISO = { id: 'manutencao-sabado', texto: 'Manutenção programada no sáb
 
 async function subirApi(ambiente: Record<string, string>): Promise<INestApplication> {
   const app = await NestFactory.create(AppModule.com(configuracaoDeTeste({ ambiente })), { logger: false })
-  configurarAplicacao(app, criarLogger({ servico: 'api-teste', nivel: 'silent' }))
+  configurarAplicacao(app, createLogger({ servico: 'api-teste', nivel: 'silent' }))
   await app.init()
   return app
 }

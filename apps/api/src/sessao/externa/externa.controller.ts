@@ -1,4 +1,4 @@
-import { ipDaRequisicao, PROVEDORES_EXTERNOS, ProxiesConfiaveis, RotaAnonima, ZodValidationPipe, type ProvedorExterno } from '@educa/nucleo'
+import { requestIp, PROVEDORES_EXTERNOS, TrustedProxies, Public, ZodValidationPipe, type ProvedorExterno } from '@educa/nucleo'
 import { ErrorCode, slugDaEscolaSchema } from '@educa/shared'
 import { Controller, Get, Param, Query, Req, Res } from '@nestjs/common'
 import type { IncomingMessage, ServerResponse } from 'node:http'
@@ -26,12 +26,12 @@ function redirecionar(resposta: ServerResponse, { endereco, cookies }: Redirecio
  * redirecionamento. Anônimas, com o limite por IP da rota anônima. O controller só tira da requisição o que o serviço
  * precisa; a regra está no `LoginExterno`.
  */
-@RotaAnonima()
+@Public()
 @Controller('v1/sessao/externa')
 export class LoginExternoController {
   constructor(
     private readonly login: LoginExterno,
-    private readonly proxies: ProxiesConfiaveis,
+    private readonly proxies: TrustedProxies,
   ) {}
 
   /** `GET /v1/sessao/externa/:provedor/iniciar?slug=`: vai ao provedor, ou 404 se o provedor ou o slug não têm o formato, ou se a escola não o oferece. */
@@ -48,7 +48,7 @@ export class LoginExternoController {
   @Get('retorno')
   async retorno(@Req() requisicao: IncomingMessage, @Res() resposta: ServerResponse): Promise<void> {
     const consulta = new URL(requisicao.url ?? '/', 'http://retorno.invalid').search
-    const origem = { ip: await ipDaRequisicao(requisicao, this.proxies), cabecalhoCookie: requisicao.headers.cookie }
+    const origem = { ip: await requestIp(requisicao, this.proxies), cabecalhoCookie: requisicao.headers.cookie }
     redirecionar(resposta, await this.login.retorno(consulta, origem))
   }
 }

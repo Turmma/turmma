@@ -1,4 +1,4 @@
-import { criarClienteRedisDaApi, criarClienteRedisDaFila, ErroDeDominio } from '@educa/nucleo'
+import { createApiRedisClient, createQueueRedisClient, DomainException } from '@educa/nucleo'
 import { ErrorCode } from '@educa/shared'
 import { Logger } from '@nestjs/common'
 import type { Redis } from 'ioredis'
@@ -28,7 +28,7 @@ describe('ConsumoDeDesafio: o jti vale uma vez só, no Redis de fila', () => {
     // 100 ms e caiu no seguro (correção 2026-09-18-contador-testado-com-o-prazo-de-producao). O cliente da fila é o
     // mesmo, sem fila offline, com prazo de 2 s. A queda com o Redis fora é provada pelos testes que usam o cliente de
     // produção de propósito, e o Redis travado (conectado, sem responder) pelo teste de `CLIENT PAUSE` no fim do arquivo.
-    cliente = criarClienteRedisDaFila(URL_REDIS_FILA, 'teste-desafio', () => undefined)
+    cliente = createQueueRedisClient(URL_REDIS_FILA, 'teste-desafio', () => undefined)
     await pronto(cliente)
   })
 
@@ -42,7 +42,7 @@ describe('ConsumoDeDesafio: o jti vale uma vez só, no Redis de fila', () => {
     const resultados = await Promise.allSettled([consumo.consumir(desafio), consumo.consumir(desafio)])
     expect(resultados.filter((resultado) => resultado.status === 'fulfilled')).toHaveLength(1)
     const [recusa] = resultados.flatMap((resultado) => (resultado.status === 'rejected' ? [resultado.reason as unknown] : []))
-    expect(recusa).toBeInstanceOf(ErroDeDominio)
+    expect(recusa).toBeInstanceOf(DomainException)
     expect(recusa).toMatchObject({ codigo: ErrorCode.NAO_AUTENTICADO })
     // A marca vence com o desafio: não fica no Redis depois de 5 min.
     const vida = await cliente.pttl(`${PREFIXO_DESAFIO_USADO}${desafio.jti}`)
@@ -51,7 +51,7 @@ describe('ConsumoDeDesafio: o jti vale uma vez só, no Redis de fila', () => {
   })
 
   it('falha: com o Redis de fila fora, o desafio é recusado, e não aceito sem marca', async () => {
-    const fora = criarClienteRedisDaApi('redis://127.0.0.1:9', 'teste-desafio-fora', () => undefined)
+    const fora = createApiRedisClient('redis://127.0.0.1:9', 'teste-desafio-fora', () => undefined)
     try {
       const desafio = await verificarDesafio(await new EmissorDeDesafio(CHAVE).emitir({ contaId: CONTA, etapa: 'escolher', mfaCumprido: false }), CHAVE, ['escolher'])
       const consumo = new ConsumoDeDesafio(fora)
@@ -66,7 +66,7 @@ describe('ConsumoDeDesafio: o jti vale uma vez só, no Redis de fila', () => {
 
   it('falha (15.5): Redis de fila travado, com a conexão aberta; o desafio é recusado no corte dos 100 ms, com o aviso `login.desafio_sem_redis` uma vez só e o sinal de seguro em 1, e o desafio bom continua valendo depois', async () => {
     // O cliente de produção da API, de propósito: o que se prova é o corte dos 100 ms.
-    const producao = criarClienteRedisDaApi(URL_REDIS_FILA, 'teste-desafio-travado', () => undefined)
+    const producao = createApiRedisClient(URL_REDIS_FILA, 'teste-desafio-travado', () => undefined)
     const avisos = vi.spyOn(Logger.prototype, 'warn')
     try {
       await pronto(producao)
@@ -93,7 +93,7 @@ describe('ConsumoDeDesafio: o jti vale uma vez só, no Redis de fila', () => {
           async () =>
             consumo.consumir(await emitir()).then(
               () => 'aceito',
-              (erro: unknown) => (erro instanceof ErroDeDominio && erro.codigo === ErrorCode.NAO_AUTENTICADO ? 'recusado' : `outra recusa: ${String(erro)}`),
+              (erro: unknown) => (erro instanceof DomainException && erro.codigo === ErrorCode.NAO_AUTENTICADO ? 'recusado' : `outra recusa: ${String(erro)}`),
             ),
           { timeout: 5_000, interval: 100 },
         )

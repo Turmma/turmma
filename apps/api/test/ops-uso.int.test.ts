@@ -1,4 +1,4 @@
-import { criarBanco, criarPool, type Banco, type PoolBanco } from '@educa/nucleo'
+import { createDatabase, createPool, type Database, type DatabasePool } from '@educa/nucleo'
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { urlDoBancoDeTeste } from '../../../tools/testes/integracao.setup.ts'
 import { consultarUso } from '../src/ops/uso.js'
@@ -6,8 +6,8 @@ import { autorDaBancada, BancadaDeSessoes } from './sessao-de-teste.js'
 
 describe('npm run ops:uso: consulta de uso por escola no dia e no mês', () => {
   const bancada = new BancadaDeSessoes()
-  let pool: PoolBanco
-  let banco: Banco
+  let pool: DatabasePool
+  let banco: Database
   // Escolas reais: desde a tarefa 3.0 `uso_infra_diario` tem FK para `escola`.
   let escolaA: string
   let escolaB: string
@@ -16,8 +16,8 @@ describe('npm run ops:uso: consulta de uso por escola no dia e no mês', () => {
     pool.query('insert into uso_infra_diario (escola_id, dia, requisicoes, jobs, bytes_storage) values ($1, $2, $3, $4, $5)', [escolaId, dia, requisicoes, jobs, bytes])
 
   beforeAll(async () => {
-    pool = criarPool({ url: urlDoBancoDeTeste(), maximoConexoes: 2, timeoutConexaoMs: 2_000, timeoutConsultaMs: 2_000 }, () => undefined)
-    banco = criarBanco(pool)
+    pool = createPool({ url: urlDoBancoDeTeste(), maximoConexoes: 2, timeoutConexaoMs: 2_000, timeoutConsultaMs: 2_000 }, () => undefined)
+    banco = createDatabase(pool)
     ;[escolaA, escolaB] = await Promise.all([bancada.escola(), bancada.escola()])
   })
 

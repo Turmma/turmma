@@ -1,4 +1,4 @@
-import { criarBanco, erroDoPostgresEm, executarNoContexto, type PoolBanco } from '@educa/nucleo'
+import { createDatabase, postgresErrorIn, runInContext, type DatabasePool } from '@educa/nucleo'
 import { ErrorCode, acessoGeradoResponseSchema, salaAbertaResponseSchema, MENSAGENS_DE_ERRO } from '@educa/shared'
 import { randomBytes, randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest'
@@ -638,9 +638,9 @@ describe('salas/reivindicar (A1, tarefa 6.0): o aluno pede o próprio nome, e o 
       const sala = await montar()
       const nome = await umNome(sala)
       expect(semRequisicao(await reivindicar(pedido(sala, nome)))).toEqual(ENVIADO)
-      const pool = api.app.get<PoolBanco>(POOL_BANCO, { strict: false })
-      const tomou = await executarNoContexto({ requisicaoId: randomUUID(), escolaId: sala.escolaId, anoLetivoId: sala.anoLetivoId }, () =>
-        new ListaLivreRepository(criarBanco(pool)).tomar({ turmaId: sala.turma, listaNomeId: nome.id, matricula: nome.matricula }),
+      const pool = api.app.get<DatabasePool>(POOL_BANCO, { strict: false })
+      const tomou = await runInContext({ requisicaoId: randomUUID(), escolaId: sala.escolaId, anoLetivoId: sala.anoLetivoId }, () =>
+        new ListaLivreRepository(createDatabase(pool)).tomar({ turmaId: sala.turma, listaNomeId: nome.id, matricula: nome.matricula }),
       )
       expect(tomou).toBe(false)
       expect(await estadoDoNome(nome.id)).toBe('reivindicado')
@@ -714,7 +714,7 @@ describe('salas/reivindicar (A1, tarefa 6.0): o aluno pede o próprio nome, e o 
         try {
           await inserirReal.call(this, novo)
         } catch (falha) {
-          restricoes.push(erroDoPostgresEm(falha)?.constraint)
+          restricoes.push(postgresErrorIn(falha)?.constraint)
           throw falha
         }
       })
@@ -801,7 +801,7 @@ describe('salas/reivindicar (A1, tarefa 6.0): o aluno pede o próprio nome, e o 
       hashesDoSemaforo.mockClear()
       const ordem: string[] = []
       const semaforo = apiDoSemaforo.app.get(SemaforoDeHash)
-      const pool = apiDoSemaforo.app.get<PoolBanco>(POOL_BANCO, { strict: false })
+      const pool = apiDoSemaforo.app.get<DatabasePool>(POOL_BANCO, { strict: false })
 
       const segurado = segurarOProximoHash(hashesDoSemaforo, gerarRealDoSemaforo)
       hashesDoSemaforo.mockImplementation(async (senha) => {

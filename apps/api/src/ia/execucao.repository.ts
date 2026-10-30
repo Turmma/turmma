@@ -1,24 +1,24 @@
 import {
   execucaoAgente,
-  exigirAnoEmCurso,
-  exigirEscolaDoContexto,
+  requireAnoEmCurso,
+  requireEscolaId,
   EXECUCAO_INTERROMPIDA,
   mensagemAgente,
   mensagemTutor,
-  SemEscopo,
+  Unscoped,
   threadAgente,
-  type Banco,
+  type Database,
   type CodigoDeFalhaDaExecucao,
   type ExecucaoAgendada,
-  type RepositorioDeExecucoes,
-  type TransacaoBanco,
+  type ExecucaoRepository as ExecucaoRepositoryPort,
+  type DatabaseTransaction,
 } from '@educa/nucleo'
 import { resultadoGravadoSchema, FUNCAO_DA_TAREFA_DE_IA, type ErrorCode, type ExecucaoInput, type EstadoDeExecucao, type ResultadoGravado, type TarefaDeIa } from '@educa/shared'
 import { and, eq, lt, or, sql } from 'drizzle-orm'
 import { exigirUsuarioDoContexto } from './contexto-da-execucao.js'
 
 /**
- * A porta `RepositorioDeExecucoes` do `ExecutorDeAgente`, sobre `execucao_agente`. O executor roda **fora de
+ * A porta `ExecucaoRepository` do `AgenteExecutor`, sobre `execucao_agente`. O executor roda **fora de
  * requisição**, sem sessão: a escola de cada método é a da própria execução agendada, que nasceu do contexto de quem
  * pediu (`ExecucaoAgendada.escolaId`), e entra em toda cláusula (regra 10, item 3). Nenhum método recebe escola do
  * cliente.
@@ -26,8 +26,8 @@ import { exigirUsuarioDoContexto } from './contexto-da-execucao.js'
  * As passagens de estado são um `update` condicional, numa instrução só: duas instâncias, ou duas chamadas com a
  * mesma chave, não rodam a mesma execução (regra 80, item 7).
  */
-export class ExecucaoRepository implements RepositorioDeExecucoes {
-  constructor(private readonly banco: Banco | TransacaoBanco) {}
+export class ExecucaoRepository implements ExecucaoRepositoryPort {
+  constructor(private readonly banco: Database | DatabaseTransaction) {}
 
   async marcarRodando(execucao: ExecucaoAgendada): Promise<boolean> {
     const marcadas = await this.banco
@@ -62,7 +62,7 @@ export class ExecucaoRepository implements RepositorioDeExecucoes {
       .where(and(eq(execucaoAgente.escolaId, execucao.escolaId), eq(execucaoAgente.id, execucao.id), eq(execucaoAgente.estado, 'rodando')))
   }
 
-  @SemEscopo('varredura da subida da API: encerra a execução que o processo caído deixou pendente ou rodando, em qualquer escola; grava só estado, código e data, e não lê conteúdo nem pessoa')
+  @Unscoped('varredura da subida da API: encerra a execução que o processo caído deixou pendente ou rodando, em qualquer escola; grava só estado, código e data, e não lê conteúdo nem pessoa')
   async falharInterrompidas(antesDe: Date): Promise<number> {
     const encerradas = await this.banco
       .update(execucaoAgente)
@@ -91,7 +91,7 @@ export interface MensagemGravada {
  * letivo e pessoa vêm do contexto (regra 10, item 3); nenhum método os recebe.
  */
 export class ExecucaoDaSessaoRepository {
-  constructor(private readonly banco: Banco | TransacaoBanco) {}
+  constructor(private readonly banco: Database | DatabaseTransaction) {}
 
   /**
    * Grava a execução `pendente`, de quem está na sessão, e devolve o id. Com a chave de envio já usada na escola,
@@ -101,8 +101,8 @@ export class ExecucaoDaSessaoRepository {
     const [gravada] = await this.banco
       .insert(execucaoAgente)
       .values({
-        escolaId: exigirEscolaDoContexto(),
-        anoLetivoId: exigirAnoEmCurso(),
+        escolaId: requireEscolaId(),
+        anoLetivoId: requireAnoEmCurso(),
         funcao: FUNCAO_DA_TAREFA_DE_IA[tarefa],
         tarefa,
         solicitadaPor: exigirUsuarioDoContexto(),
@@ -124,8 +124,8 @@ export class ExecucaoDaSessaoRepository {
       .from(execucaoAgente)
       .where(
         and(
-          eq(execucaoAgente.escolaId, exigirEscolaDoContexto()),
-          eq(execucaoAgente.anoLetivoId, exigirAnoEmCurso()),
+          eq(execucaoAgente.escolaId, requireEscolaId()),
+          eq(execucaoAgente.anoLetivoId, requireAnoEmCurso()),
           eq(execucaoAgente.chaveEnvio, chaveEnvio),
           eq(execucaoAgente.solicitadaPor, exigirUsuarioDoContexto()),
         ),
@@ -141,13 +141,13 @@ export class ExecucaoDaSessaoRepository {
     const [linha] = await this.banco
       .select({ id: execucaoAgente.id, tarefa: execucaoAgente.tarefa, estado: execucaoAgente.estado, resultado: execucaoAgente.resultado, erro: execucaoAgente.erro })
       .from(execucaoAgente)
-      .where(and(eq(execucaoAgente.escolaId, exigirEscolaDoContexto()), eq(execucaoAgente.anoLetivoId, exigirAnoEmCurso()), eq(execucaoAgente.id, id), eq(execucaoAgente.solicitadaPor, exigirUsuarioDoContexto())))
+      .where(and(eq(execucaoAgente.escolaId, requireEscolaId()), eq(execucaoAgente.anoLetivoId, requireAnoEmCurso()), eq(execucaoAgente.id, id), eq(execucaoAgente.solicitadaPor, exigirUsuarioDoContexto())))
     return linha
   }
 
   /** A resposta do Assistente com esse id, na conversa desta pessoa: a thread é dela, e a mensagem é do agente. */
   async mensagemDoAssistente(id: string): Promise<(MensagemGravada & { conteudo: unknown }) | undefined> {
-    const escolaId = exigirEscolaDoContexto()
+    const escolaId = requireEscolaId()
     const [linha] = await this.banco
       .select({ id: mensagemAgente.id, criadaEm: mensagemAgente.criadaEm, conteudo: mensagemAgente.conteudo })
       .from(mensagemAgente)
@@ -161,7 +161,7 @@ export class ExecucaoDaSessaoRepository {
     const [linha] = await this.banco
       .select({ id: mensagemTutor.id, criadaEm: mensagemTutor.criadaEm, tipo: mensagemTutor.tipo, texto: mensagemTutor.texto, citacoes: mensagemTutor.citacoes })
       .from(mensagemTutor)
-      .where(and(eq(mensagemTutor.escolaId, exigirEscolaDoContexto()), eq(mensagemTutor.id, id), eq(mensagemTutor.autor, 'tutor'), eq(mensagemTutor.alunoId, exigirUsuarioDoContexto())))
+      .where(and(eq(mensagemTutor.escolaId, requireEscolaId()), eq(mensagemTutor.id, id), eq(mensagemTutor.autor, 'tutor'), eq(mensagemTutor.alunoId, exigirUsuarioDoContexto())))
     return linha
   }
 }

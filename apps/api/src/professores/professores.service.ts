@@ -1,4 +1,4 @@
-import { estadoDoProfessor, type Banco } from '@educa/nucleo'
+import { estadoDoProfessor, type Database } from '@educa/nucleo'
 import {
   conviteDeProfessorResponseSchema,
   listaDeProfessoresResponseSchema,
@@ -23,7 +23,7 @@ import { ProfessoresRepository } from './professores.repository.js'
  * - Nada disto loga: o nome, o e-mail e o token nunca vão a log, e o erro sai pelo filtro global só com ids.
  */
 export class ProfessoresService {
-  constructor(private readonly banco: Banco) {}
+  constructor(private readonly banco: Database) {}
 
   async cadastrar(pedido: CadastrarProfessorRequest): Promise<ConviteDeProfessorResponse> {
     return conviteDeProfessorResponseSchema.parse(await cadastrarProfessor(this.banco, pedido))

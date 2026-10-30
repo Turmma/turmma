@@ -1,4 +1,4 @@
-import { ConfiguracaoInvalida, PROVEDORES_EXTERNOS } from '@educa/nucleo'
+import { InvalidConfigError, PROVEDORES_EXTERNOS } from '@educa/nucleo'
 import { PROVEDORES_DE_CONTA_DA_ESCOLA } from '@educa/shared'
 import { describe, expect, it } from 'vitest'
 import { lerConfiguracaoLoginExterno, MOTIVO_CHAVE_DO_COOKIE, MOTIVO_EMISSOR_SEM_TLS, MOTIVO_PROVEDOR_INCOMPLETO, MOTIVO_RETORNO } from './configuracao-externa.js'
@@ -17,11 +17,11 @@ const BASE = {
   LOGIN_EXTERNO_CHAVE_COOKIE: CHAVE_DO_COOKIE_SINTETICA,
 }
 
-function erroDe(ambiente: Record<string, string>): ConfiguracaoInvalida {
+function erroDe(ambiente: Record<string, string>): InvalidConfigError {
   try {
     lerConfiguracaoLoginExterno(ambiente)
   } catch (erro) {
-    if (erro instanceof ConfiguracaoInvalida) return erro
+    if (erro instanceof InvalidConfigError) return erro
     throw erro
   }
   throw new Error('a configuração deveria ter sido recusada')

@@ -1,20 +1,20 @@
 import {
   ArquivoDoTitularRepository,
-  chaveDoObjeto,
-  exigirEscolaDoContexto,
+  objectKey,
+  requireEscolaId,
   LeituraDoTitular,
-  type ArmazemDeArquivos,
-  type Banco,
+  type FileStorage,
+  type Database,
   type LoggerBase,
-  type Relogio,
+  type Clock,
 } from '@educa/nucleo'
 import { TIPOS_DE_PEDIDO_COM_ARQUIVO, type TIPO_MONTAR_ARQUIVO, type VersaoDoArquivo } from '@educa/shared'
 import type { Processador } from '../executor.js'
 
 export interface DependenciasDaMontagemDoArquivo {
-  banco: Banco
-  armazem: ArmazemDeArquivos
-  relogio: Relogio
+  banco: Database
+  armazem: FileStorage
+  relogio: Clock
   logger: LoggerBase
 }
 
@@ -39,7 +39,7 @@ export interface DependenciasDaMontagemDoArquivo {
  */
 export function criarMontagemDoArquivo({ banco, armazem, relogio, logger }: DependenciasDaMontagemDoArquivo): Processador<typeof TIPO_MONTAR_ARQUIVO> {
   return async ({ pedidoId }) => {
-    const escolaId = exigirEscolaDoContexto()
+    const escolaId = requireEscolaId()
     const arquivos = new ArquivoDoTitularRepository(banco)
     const pedido = await arquivos.pedidoParaMontar(pedidoId)
     if (pedido === undefined || !TIPOS_DE_PEDIDO_COM_ARQUIVO.some((tipo) => tipo === pedido.tipo)) {
@@ -66,7 +66,7 @@ export function criarMontagemDoArquivo({ banco, armazem, relogio, logger }: Depe
     for (const versao of versoes) {
       const documento = await leitura.montar({ titularId: pedido.titularId, papel: pedido.papel, versao, compartilhamento: pedido.compartilhamento, geradoEm: agora })
       const json = JSON.stringify(documento)
-      await armazem.guardar(chaveDoObjeto(escolaId, pedido.id, versao), json)
+      await armazem.guardar(objectKey(escolaId, pedido.id, versao), json)
       prontas.push({ versao, bytes: Buffer.byteLength(json, 'utf8') })
     }
     const mudou = await banco.transaction(async (tx) => {

@@ -49,7 +49,7 @@ const PREFIXO_IPV4_MAPEADO = '::ffff:'
  * Forma única do endereço, para o mesmo cliente não virar duas chaves: IPv4 mapeado em IPv6
  * (`::ffff:10.0.0.1`) vira IPv4, e IPv6 fica em minúsculas. O que não é IP devolve `undefined`.
  */
-export function normalizarIp(endereco: string | undefined): string | undefined {
+export function normalizeIp(endereco: string | undefined): string | undefined {
   if (endereco === undefined) return undefined
   const aparado = endereco.trim().toLowerCase()
   const semMapeamento = aparado.startsWith(PREFIXO_IPV4_MAPEADO) && isIP(aparado.slice(PREFIXO_IPV4_MAPEADO.length)) === 4
@@ -63,32 +63,32 @@ export function normalizarIp(endereco: string | undefined): string | undefined {
  * mais próximo escreveu. As anteriores são texto do cliente, e um cliente que manda
  * `X-Forwarded-For` forjado não escolhe a própria chave.
  */
-export function ipEncaminhado(cabecalho: string | string[] | undefined): string | undefined {
+export function forwardedIp(cabecalho: string | string[] | undefined): string | undefined {
   // Cabeçalho repetido: o Node junta as ocorrências com vírgula, e vale a última do mesmo jeito.
   const texto = Array.isArray(cabecalho) ? cabecalho.join(',') : cabecalho
   if (texto === undefined) return undefined
-  return normalizarIp(texto.split(',').at(-1))
+  return normalizeIp(texto.split(',').at(-1))
 }
 
 /**
  * IP da chave de limite anônimo. O `X-Forwarded-For` só é lido quando a conexão vem de um proxy
  * confiável (a borda); de qualquer outra origem, vale o endereço da própria conexão.
  */
-export function ipDoCliente(enderecoDaConexao: string | undefined, cabecalhoEncaminhado: string | string[] | undefined, conexaoDaBorda: boolean): string {
-  const daConexao = normalizarIp(enderecoDaConexao) ?? IP_DESCONHECIDO
+export function clientIp(enderecoDaConexao: string | undefined, cabecalhoEncaminhado: string | string[] | undefined, conexaoDaBorda: boolean): string {
+  const daConexao = normalizeIp(enderecoDaConexao) ?? IP_DESCONHECIDO
   if (!conexaoDaBorda) return daConexao
-  return ipEncaminhado(cabecalhoEncaminhado) ?? daConexao
+  return forwardedIp(cabecalhoEncaminhado) ?? daConexao
 }
 
 /**
  * Divisão do limite para o seguro em memória: com o Redis fora, cada instância conta sozinha, e a
  * soma das instâncias não passa do limite configurado. Nunca abaixo de 1.
  */
-export function limiteDoSeguro(limite: number, instancias: number): number {
+export function insuranceLimit(limite: number, instancias: number): number {
   return Math.max(1, Math.floor(limite / instancias))
 }
 
 /** Segundos do `Retry-After`: arredonda para cima, e nunca menos de 1 (zero mandaria repetir já). */
-export function segundosParaTentarDeNovo(msAteLiberar: number): number {
+export function retryAfterSeconds(msAteLiberar: number): number {
   return Math.max(1, Math.ceil(msAteLiberar / 1_000))
 }

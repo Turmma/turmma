@@ -1,18 +1,18 @@
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { urlDoBancoDeTeste } from '../../../../tools/testes/integracao.setup.ts'
-import { executarNoContexto } from '../contexto/contexto.js'
-import { criarBanco, type Banco } from '../db/banco.js'
-import { criarPool, type PoolBanco } from '../db/pool.js'
+import { runInContext } from '../contexto/contexto.js'
+import { createDatabase, type Database } from '../db/banco.js'
+import { createPool, type DatabasePool } from '../db/pool.js'
 import { AuditoriaRepository } from './auditoria.repository.js'
-import { AuditoriaRecusada } from './auditoria-recusada.js'
-import { RegistroDeAuditoria, type DadosDaAuditoria } from './registro-de-auditoria.js'
+import { AuditoriaRejectedError } from './auditoria-recusada.js'
+import { AuditoriaRecorder, type DadosDaAuditoria } from './registro-de-auditoria.js'
 
-const registro = new RegistroDeAuditoria()
+const registro = new AuditoriaRecorder()
 
 describe('auditoria no banco', () => {
-  let pool: PoolBanco
-  let banco: Banco
+  let pool: DatabasePool
+  let banco: Database
   let redeId: string
   let escolaA: string
   let escolaB: string
@@ -28,13 +28,13 @@ describe('auditoria no banco', () => {
   }
 
   const gravarComoOperador = (escolaId: string, entidadeId: string) =>
-    executarNoContexto({ requisicaoId: randomUUID(), escolaId }, () =>
+    runInContext({ requisicaoId: randomUUID(), escolaId }, () =>
       banco.transaction((tx) => registro.gravar(tx, 'escola.criada', { entidadeId, depois: { redeId }, autorOperador: 'operador-teste' })),
     )
 
   beforeAll(async () => {
-    pool = criarPool({ url: urlDoBancoDeTeste(), maximoConexoes: 2, timeoutConexaoMs: 2_000, timeoutConsultaMs: 2_000 }, () => undefined)
-    banco = criarBanco(pool)
+    pool = createPool({ url: urlDoBancoDeTeste(), maximoConexoes: 2, timeoutConexaoMs: 2_000, timeoutConsultaMs: 2_000 }, () => undefined)
+    banco = createDatabase(pool)
     const { rows } = await pool.query<{ id: string }>(`insert into rede (nome, tipo) values ('Rede Sintética', 'grupo') returning id`)
     redeId = rows[0]?.id ?? ''
     escolaA = await criarEscola(`auditoria-a-${sufixo}`)
@@ -54,25 +54,25 @@ describe('auditoria no banco', () => {
     await gravarComoOperador(escolaB, escolaB)
     const repositorio = new AuditoriaRepository(banco)
 
-    const deA = await executarNoContexto({ requisicaoId: randomUUID(), escolaId: escolaA }, () => repositorio.listarDaEscola())
+    const deA = await runInContext({ requisicaoId: randomUUID(), escolaId: escolaA }, () => repositorio.listarDaEscola())
     expect(deA.length).toBeGreaterThan(0)
     expect(deA.every((registro) => registro.escolaId === escolaA)).toBe(true)
     expect(deA.map((registro) => registro.entidadeId)).not.toContain(escolaB)
 
-    const deB = await executarNoContexto({ requisicaoId: randomUUID(), escolaId: escolaB }, () => repositorio.listarDaEscola())
+    const deB = await runInContext({ requisicaoId: randomUUID(), escolaId: escolaB }, () => repositorio.listarDaEscola())
     expect(deB.map((registro) => registro.entidadeId)).toEqual([escolaB])
   })
 
   it('listarDaEscola sem escola no contexto falha fechado, em vez de listar tudo', async () => {
     const repositorio = new AuditoriaRepository(banco)
-    await expect(executarNoContexto({ requisicaoId: randomUUID() }, () => repositorio.listarDaEscola())).rejects.toEqual(new AuditoriaRecusada('sem_escola'))
+    await expect(runInContext({ requisicaoId: randomUUID() }, () => repositorio.listarDaEscola())).rejects.toEqual(new AuditoriaRejectedError('sem_escola'))
   })
 
   it('a gravação vai com a transação de quem chama: a transação desfeita não deixa registro', async () => {
     const entidadeId = randomUUID()
     const requisicaoId = randomUUID()
     await expect(
-      executarNoContexto({ requisicaoId, escolaId: escolaA }, () =>
+      runInContext({ requisicaoId, escolaId: escolaA }, () =>
         banco.transaction(async (tx) => {
           await registro.gravar(tx, 'escola.criada', { entidadeId, depois: { redeId }, autorOperador: 'operador-teste' })
           throw new Error('a ação auditada falhou depois do registro')
@@ -89,7 +89,7 @@ describe('auditoria no banco', () => {
     const usuarioId = usuarios[0]?.id ?? ''
     const requisicaoId = randomUUID()
     const entidadeId = randomUUID()
-    await executarNoContexto({ requisicaoId, escolaId: escolaA, usuarioId }, () =>
+    await runInContext({ requisicaoId, escolaId: escolaA, usuarioId }, () =>
       registro.gravar(banco, 'escola.criada', { entidadeId, depois: { redeId } }),
     )
     const { rows } = await pool.query('select escola_id, autor_usuario_id, autor_operador, acao, entidade, antes, depois, finalidade, requisicao_id from auditoria where entidade_id = $1', [
@@ -111,24 +111,24 @@ describe('auditoria no banco', () => {
   })
 
   it('a rede criada pelo operador é o único registro sem escola', async () => {
-    await executarNoContexto({ requisicaoId: randomUUID() }, () =>
+    await runInContext({ requisicaoId: randomUUID() }, () =>
       registro.gravar(banco, 'rede.criada', { entidadeId: redeId, depois: { tipo: 'grupo' }, autorOperador: 'operador-teste' }),
     )
     const { rows } = await pool.query('select escola_id, autor_operador, entidade from auditoria where entidade_id = $1', [redeId])
     expect(rows).toEqual([{ escola_id: null, autor_operador: 'operador-teste', entidade: 'rede' }])
     // A mesma ação com um usuário no contexto, e sem escola, é recusada antes do banco.
     await expect(
-      executarNoContexto({ requisicaoId: randomUUID(), usuarioId: randomUUID() }, () =>
+      runInContext({ requisicaoId: randomUUID(), usuarioId: randomUUID() }, () =>
         registro.gravar(banco, 'rede.criada', { entidadeId: redeId, depois: { tipo: 'grupo' } }),
       ),
-    ).rejects.toEqual(new AuditoriaRecusada('sem_escola'))
+    ).rejects.toEqual(new AuditoriaRejectedError('sem_escola'))
   })
 
   it('o suboperador cadastrado ou encerrado pelo operador também grava sem escola (F3, 8.0); com usuário no contexto, ou outra entidade, é recusado', async () => {
     const suboperadorId = randomUUID()
     suboperadoresAuditados.push(suboperadorId)
     const finalidade = 'informar_o_compartilhamento'
-    await executarNoContexto({ requisicaoId: randomUUID() }, () =>
+    await runInContext({ requisicaoId: randomUUID() }, () =>
       banco.transaction(async (tx) => {
         await registro.gravar(tx, 'suboperador.cadastrado', { entidadeId: suboperadorId, depois: { alcance: 'todas', escolas: 0 }, finalidade, autorOperador: 'operador-teste' })
         await registro.gravar(tx, 'suboperador.encerrado', { entidadeId: suboperadorId, antes: { alcance: 'todas' }, depois: { ligacoesEncerradas: 0 }, finalidade, autorOperador: 'operador-teste' })
@@ -140,13 +140,13 @@ describe('auditoria no banco', () => {
       { escola_id: null, autor_operador: 'operador-teste', acao: 'suboperador.encerrado', entidade: 'suboperador' },
     ])
     await expect(
-      executarNoContexto({ requisicaoId: randomUUID(), usuarioId: randomUUID() }, () =>
+      runInContext({ requisicaoId: randomUUID(), usuarioId: randomUUID() }, () =>
         registro.gravar(banco, 'suboperador.cadastrado', { entidadeId: suboperadorId, depois: { alcance: 'todas', escolas: 0 }, finalidade }),
       ),
-    ).rejects.toEqual(new AuditoriaRecusada('sem_escola'))
+    ).rejects.toEqual(new AuditoriaRejectedError('sem_escola'))
     // Texto livre não entra: nem a chave da empresa, nem o nome dela.
     const comNome = { entidadeId: suboperadorId, depois: { alcance: 'todas', escolas: 0, nome: 'Empresa' }, finalidade, autorOperador: 'operador-teste' } as unknown as DadosDaAuditoria<'suboperador.cadastrado'>
-    await expect(executarNoContexto({ requisicaoId: randomUUID() }, () => registro.gravar(banco, 'suboperador.cadastrado', comNome))).rejects.toEqual(new AuditoriaRecusada('dados_fora_do_schema'))
+    await expect(runInContext({ requisicaoId: randomUUID() }, () => registro.gravar(banco, 'suboperador.cadastrado', comNome))).rejects.toEqual(new AuditoriaRejectedError('dados_fora_do_schema'))
   })
 
   describe('checks do banco, mesmo por fora do RegistroDeAuditoria', () => {

@@ -1,4 +1,4 @@
-import { execucaoAgente, exigirAnoEmCurso, exigirEscolaDoContexto, mensagemAgente, sessaoDaRequisicao, threadAgente, type Banco, type TransacaoBanco } from '@educa/nucleo'
+import { execucaoAgente, requireAnoEmCurso, requireEscolaId, mensagemAgente, requestSessao, threadAgente, type Database, type DatabaseTransaction } from '@educa/nucleo'
 import type { AutorDeMensagemDeAgente, ConteudoDaMensagemDoAgente } from '@educa/shared'
 import { and, desc, eq, lt } from 'drizzle-orm'
 import { InvariantException } from '@educa/shared'
@@ -34,10 +34,10 @@ export interface PerguntaDaExecucao {
  * O texto das mensagens nunca sai daqui para log, auditoria, execução ou consumo (regra 20, item 9).
  */
 export class ConversaRepository {
-  constructor(private readonly banco: Banco | TransacaoBanco) {}
+  constructor(private readonly banco: Database | DatabaseTransaction) {}
 
   #dono() {
-    return { escolaId: exigirEscolaDoContexto(), anoLetivoId: exigirAnoEmCurso(), usuarioId: sessaoDaRequisicao().usuarioId }
+    return { escolaId: requireEscolaId(), anoLetivoId: requireAnoEmCurso(), usuarioId: requestSessao().usuarioId }
   }
 
   /** A thread do professor do contexto com o Assistente, neste ano, se já existe. */

@@ -1,4 +1,4 @@
-import { ErroDeDominio, executarNoContexto, type TransacaoBanco } from '@educa/nucleo'
+import { DomainException, runInContext, type DatabaseTransaction } from '@educa/nucleo'
 import { CicloDeVidaRepository, CicloDeVidaService } from '@educa/nucleo/ciclo-de-vida'
 import { ErrorCode, decisaoResponseSchema, type PapelDeUsuario } from '@educa/shared'
 import { sql } from 'drizzle-orm'
@@ -72,18 +72,18 @@ describe('ciclo de vida da conta: desativação, limpeza da conta global e elimi
 
   /** Como a coordenação chamaria pela tela do F2: no contexto da sessão dela, com a escola e o autor. */
   const pela = <T>(coordenacao: SessaoDeTeste, acao: () => Promise<T>): Promise<T> =>
-    executarNoContexto({ requisicaoId: randomUUID(), escolaId: coordenacao.escolaId, usuarioId: coordenacao.usuarioId, papel: 'coordenador' }, acao)
+    runInContext({ requisicaoId: randomUUID(), escolaId: coordenacao.escolaId, usuarioId: coordenacao.usuarioId, papel: 'coordenador' }, acao)
 
   /** Como o operador chamaria por comando, a pedido formal da escola: sem usuário no contexto. */
-  const peloOperador = <T>(escolaId: string, acao: () => Promise<T>): Promise<T> => executarNoContexto({ requisicaoId: randomUUID(), escolaId }, acao)
+  const peloOperador = <T>(escolaId: string, acao: () => Promise<T>): Promise<T> => runInContext({ requisicaoId: randomUUID(), escolaId }, acao)
 
   async function esperarNaoEncontrado(acao: Promise<unknown>): Promise<void> {
     const erro: unknown = await acao.then(
       () => undefined,
       (motivo: unknown) => motivo,
     )
-    expect(erro).toBeInstanceOf(ErroDeDominio)
-    expect((erro as ErroDeDominio).codigo).toBe(ErrorCode.NAO_ENCONTRADO)
+    expect(erro).toBeInstanceOf(DomainException)
+    expect((erro as DomainException).codigo).toBe(ErrorCode.NAO_ENCONTRADO)
   }
 
   async function pessoa(escolaId: string, papel: PapelDeUsuario = 'professor'): Promise<Pessoa> {
@@ -442,7 +442,7 @@ describe('ciclo de vida da conta: desativação, limpeza da conta global e elimi
     const rui = await pessoa(escolaId)
     const usuarioNoBanco = async (usuarioId: string) =>
       (await bancada.pool.query<{ desativado: boolean }>('select desativado_em is not null as desativado from usuario where id = $1', [usuarioId])).rows[0]
-    const eliminadaNaTransacao = async (tx: TransacaoBanco) =>
+    const eliminadaNaTransacao = async (tx: DatabaseTransaction) =>
       (await tx.execute<{ total: number }>(sql`select count(*)::int as total from usuario where id = ${paula.usuarioId}`)).rows[0]?.total
     const falhaDeQuemChama = new Error('quem chama falhou depois do ciclo de vida')
 
@@ -811,7 +811,7 @@ describe('ciclo de vida da conta: desativação, limpeza da conta global e elimi
       const contexto = (escolaId: string) => ({ requisicaoId: randomUUID(), escolaId, usuarioId: a.coordenacao.usuarioId, papel: 'coordenador' as const })
       const desfeita = new Error('desfazer')
       const apagarEm = (escolaId: string) =>
-        executarNoContexto(contexto(escolaId), () =>
+        runInContext(contexto(escolaId), () =>
           bancada.banco
             .transaction(async (tx) => {
               const apagados = await new CicloDeVidaRepository(tx).apagarDaListaDeNomes(alunoDeB)

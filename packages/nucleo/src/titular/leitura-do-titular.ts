@@ -1,7 +1,7 @@
 import { InvariantException, type PapelDoTitular, type VersaoDoArquivo } from '@educa/shared'
 import { sql, type SQL } from 'drizzle-orm'
-import { exigirEscolaDoContexto } from '../contexto/escola-do-contexto.js'
-import type { Banco, TransacaoBanco } from '../db/banco.js'
+import { requireEscolaId } from '../contexto/escola-do-contexto.js'
+import type { Database, DatabaseTransaction } from '../db/banco.js'
 import { CompartilhamentoRepository } from './compartilhamento.repository.js'
 
 /**
@@ -63,7 +63,7 @@ interface AlvoDaLeitura {
 const NOME_DE_COLUNA = /^[a-z][a-z0-9_]*$/
 
 /** `t.a, t.b, ...`: as colunas de uma lista permitida, conferidas pelo formato, nunca vindas de fora. */
-export function colunasDoSelect(...nomes: readonly string[]): SQL {
+export function selectColumns(...nomes: readonly string[]): SQL {
   for (const nome of nomes) if (!NOME_DE_COLUNA.test(nome)) throw new InvariantException('nome de coluna fora do formato')
   return sql.raw(nomes.map((nome) => `t.${nome}`).join(', '))
 }
@@ -92,7 +92,7 @@ export const LEITURAS_DO_ARQUIVO: Readonly<Record<string, LeituraDaTabela>> = {
     },
     consultas: ({ escolaId, titularId, versao }) => [
       // A data da introdução é do titular: o aluno a recebe nas duas versões (art. 18), e a do professor só na completa (D64).
-      sql`select ${colunasDoSelect('id', 'papel', 'nome', 'desativado_em')}, ${versao === 'completa' ? sql.raw('t.introducao_vista_em') : sql.raw("case when t.papel = 'aluno' then t.introducao_vista_em end as introducao_vista_em")} from usuario t where t.escola_id = ${escolaId} and t.id = ${titularId}`,
+      sql`select ${selectColumns('id', 'papel', 'nome', 'desativado_em')}, ${versao === 'completa' ? sql.raw('t.introducao_vista_em') : sql.raw("case when t.papel = 'aluno' then t.introducao_vista_em end as introducao_vista_em")} from usuario t where t.escola_id = ${escolaId} and t.id = ${titularId}`,
     ],
   },
   conta: {
@@ -106,7 +106,7 @@ export const LEITURAS_DO_ARQUIVO: Readonly<Record<string, LeituraDaTabela>> = {
       mfa_ultimo_passo: SEGREDO,
     },
     consultas: ({ escolaId, titularId }) => [
-      sql`select ${colunasDoSelect('id', 'email')} from conta t join usuario u on u.conta_id = t.id where u.escola_id = ${escolaId} and u.id = ${titularId}`,
+      sql`select ${selectColumns('id', 'email')} from conta t join usuario u on u.conta_id = t.id where u.escola_id = ${escolaId} and u.id = ${titularId}`,
     ],
   },
   credencial_matricula: {
@@ -114,21 +114,21 @@ export const LEITURAS_DO_ARQUIVO: Readonly<Record<string, LeituraDaTabela>> = {
     colunas: ['id', 'matricula', 'criada_em'],
     fora: { escola_id: ESCOPO, usuario_id: 'o próprio titular', senha_hash: SEGREDO },
     consultas: ({ escolaId, titularId }) => [
-      sql`select ${colunasDoSelect('id', 'matricula', 'criada_em')} from credencial_matricula t where t.escola_id = ${escolaId} and t.usuario_id = ${titularId}`,
+      sql`select ${selectColumns('id', 'matricula', 'criada_em')} from credencial_matricula t where t.escola_id = ${escolaId} and t.usuario_id = ${titularId}`,
     ],
   },
   conta_externa: {
     descricao: 'A ligação com a conta Google ou Microsoft da escola',
     colunas: ['id', 'provedor'],
     fora: { escola_id: ESCOPO, usuario_id: 'o próprio titular', tenant: SEGREDO, sujeito: SEGREDO, ligada_em: 'a Tech Spec, seção 3, diz "só o provedor"' },
-    consultas: ({ escolaId, titularId }) => [sql`select ${colunasDoSelect('id', 'provedor')} from conta_externa t where t.escola_id = ${escolaId} and t.usuario_id = ${titularId}`],
+    consultas: ({ escolaId, titularId }) => [sql`select ${selectColumns('id', 'provedor')} from conta_externa t where t.escola_id = ${escolaId} and t.usuario_id = ${titularId}`],
   },
   vinculo: {
     descricao: 'Os seus vínculos com turmas e disciplinas',
     colunas: ['id', 'ano_letivo_id', 'turma_id', 'disciplina_id', 'papel', 'estado', 'contestacao', 'complemento', 'motivo_encerramento', 'criado_em', 'decidido_em', 'encerrado_em'],
     fora: { escola_id: ESCOPO, usuario_id: 'o próprio titular', criado_por: OUTRA_PESSOA },
     consultas: ({ escolaId, titularId }) => [
-      sql`select ${colunasDoSelect('id', 'ano_letivo_id', 'turma_id', 'disciplina_id', 'papel', 'estado', 'contestacao', 'complemento', 'motivo_encerramento', 'criado_em', 'decidido_em', 'encerrado_em')} from vinculo t where t.escola_id = ${escolaId} and t.usuario_id = ${titularId}`,
+      sql`select ${selectColumns('id', 'ano_letivo_id', 'turma_id', 'disciplina_id', 'papel', 'estado', 'contestacao', 'complemento', 'motivo_encerramento', 'criado_em', 'decidido_em', 'encerrado_em')} from vinculo t where t.escola_id = ${escolaId} and t.usuario_id = ${titularId}`,
     ],
   },
   lista_nome: {
@@ -136,7 +136,7 @@ export const LEITURAS_DO_ARQUIVO: Readonly<Record<string, LeituraDaTabela>> = {
     colunas: ['id', 'ano_letivo_id', 'turma_id', 'nome', 'matricula', 'estado', 'criado_em'],
     fora: { escola_id: ESCOPO, usuario_id: 'o próprio titular', criado_por: OUTRA_PESSOA },
     consultas: ({ escolaId, titularId }) => [
-      sql`select ${colunasDoSelect('id', 'ano_letivo_id', 'turma_id', 'nome', 'matricula', 'estado', 'criado_em')} from lista_nome t where t.escola_id = ${escolaId} and t.usuario_id = ${titularId}`,
+      sql`select ${selectColumns('id', 'ano_letivo_id', 'turma_id', 'nome', 'matricula', 'estado', 'criado_em')} from lista_nome t where t.escola_id = ${escolaId} and t.usuario_id = ${titularId}`,
     ],
   },
   reivindicacao: {
@@ -156,7 +156,7 @@ export const LEITURAS_DO_ARQUIVO: Readonly<Record<string, LeituraDaTabela>> = {
       // identifica ninguém: a linha leva `id`, `ano_letivo_id`, `turma_id`, `lista_nome_id`, o estado, as datas e `decidida_como`,
       // e `decidida_por`, `chave_envio`, `senha_hash` e `teve_matricula_errada` ficam na `fora`.
       // Por isso o texto diz "feitos com o seu nome", e não "que você fez".
-      sql`select ${colunasDoSelect('id', 'ano_letivo_id', 'turma_id', 'lista_nome_id', 'estado', 'solicitada_em', 'decidida_em', 'decidida_como')} from reivindicacao t
+      sql`select ${selectColumns('id', 'ano_letivo_id', 'turma_id', 'lista_nome_id', 'estado', 'solicitada_em', 'decidida_em', 'decidida_como')} from reivindicacao t
           where t.escola_id = ${escolaId} and t.lista_nome_id in (select l.id from lista_nome l where l.escola_id = ${escolaId} and l.usuario_id = ${titularId})`,
       // Quem decidiu (o professor): só o ato. A turma e a linha da lista são do aluno que pediu (critério 2).
       sql`select t.id, t.estado, t.decidida_em, t.decidida_como from reivindicacao t where t.escola_id = ${escolaId} and t.decidida_por = ${titularId}`,
@@ -176,7 +176,7 @@ export const LEITURAS_DO_ARQUIVO: Readonly<Record<string, LeituraDaTabela>> = {
       rotacionado_em: 'estado técnico da rotação do token',
     },
     consultas: ({ escolaId, titularId }) => [
-      sql`select ${colunasDoSelect('id', 'metodo', 'ultimo_uso_em', 'expira_em', 'encerrada_em', 'motivo')} from sessao t where t.escola_id = ${escolaId} and t.usuario_id = ${titularId}`,
+      sql`select ${selectColumns('id', 'metodo', 'ultimo_uso_em', 'expira_em', 'encerrada_em', 'motivo')} from sessao t where t.escola_id = ${escolaId} and t.usuario_id = ${titularId}`,
     ],
   },
   registro_acesso: {
@@ -184,7 +184,7 @@ export const LEITURAS_DO_ARQUIVO: Readonly<Record<string, LeituraDaTabela>> = {
     colunas: ['id', 'evento', 'ip', 'em'],
     fora: { escola_id: ESCOPO, usuario_id: 'o próprio titular' },
     consultas: ({ escolaId, titularId }) => [
-      sql`select ${colunasDoSelect('id', 'evento', 'ip', 'em')} from registro_acesso t where t.escola_id = ${escolaId} and t.usuario_id = ${titularId}`,
+      sql`select ${selectColumns('id', 'evento', 'ip', 'em')} from registro_acesso t where t.escola_id = ${escolaId} and t.usuario_id = ${titularId}`,
     ],
   },
   mensagem_tutor: {
@@ -192,7 +192,7 @@ export const LEITURAS_DO_ARQUIVO: Readonly<Record<string, LeituraDaTabela>> = {
     colunas: ['id', 'ano_letivo_id', 'turma_id', 'execucao_id', 'atividade_aplicada_id', 'questao', 'material_id', 'pagina', 'autor', 'tipo', 'texto', 'citacoes', 'criada_em'],
     fora: { escola_id: ESCOPO, aluno_id: 'o próprio titular' },
     consultas: ({ escolaId, titularId }) => [
-      sql`select ${colunasDoSelect('id', 'ano_letivo_id', 'turma_id', 'execucao_id', 'atividade_aplicada_id', 'questao', 'material_id', 'pagina', 'autor', 'tipo', 'texto', 'citacoes', 'criada_em')} from mensagem_tutor t where t.escola_id = ${escolaId} and t.aluno_id = ${titularId}`,
+      sql`select ${selectColumns('id', 'ano_letivo_id', 'turma_id', 'execucao_id', 'atividade_aplicada_id', 'questao', 'material_id', 'pagina', 'autor', 'tipo', 'texto', 'citacoes', 'criada_em')} from mensagem_tutor t where t.escola_id = ${escolaId} and t.aluno_id = ${titularId}`,
     ],
   },
   sinal_tutor: {
@@ -200,7 +200,7 @@ export const LEITURAS_DO_ARQUIVO: Readonly<Record<string, LeituraDaTabela>> = {
     colunas: ['id', 'ano_letivo_id', 'turma_id', 'execucao_id', 'tipo', 'atividade_aplicada_id', 'questao', 'material_id', 'pagina', 'criado_em'],
     fora: { escola_id: ESCOPO, aluno_id: 'o próprio titular' },
     consultas: ({ escolaId, titularId }) => [
-      sql`select ${colunasDoSelect('id', 'ano_letivo_id', 'turma_id', 'execucao_id', 'tipo', 'atividade_aplicada_id', 'questao', 'material_id', 'pagina', 'criado_em')} from sinal_tutor t where t.escola_id = ${escolaId} and t.aluno_id = ${titularId}`,
+      sql`select ${selectColumns('id', 'ano_letivo_id', 'turma_id', 'execucao_id', 'tipo', 'atividade_aplicada_id', 'questao', 'material_id', 'pagina', 'criado_em')} from sinal_tutor t where t.escola_id = ${escolaId} and t.aluno_id = ${titularId}`,
     ],
   },
   thread_agente: {
@@ -209,7 +209,7 @@ export const LEITURAS_DO_ARQUIVO: Readonly<Record<string, LeituraDaTabela>> = {
     colunas: ['id', 'ano_letivo_id', 'agente', 'criada_em'],
     fora: { escola_id: ESCOPO, usuario_id: 'o próprio titular' },
     consultas: ({ escolaId, titularId }) => [
-      sql`select ${colunasDoSelect('id', 'ano_letivo_id', 'agente', 'criada_em')} from thread_agente t where t.escola_id = ${escolaId} and t.usuario_id = ${titularId}`,
+      sql`select ${selectColumns('id', 'ano_letivo_id', 'agente', 'criada_em')} from thread_agente t where t.escola_id = ${escolaId} and t.usuario_id = ${titularId}`,
     ],
   },
   mensagem_agente: {
@@ -218,7 +218,7 @@ export const LEITURAS_DO_ARQUIVO: Readonly<Record<string, LeituraDaTabela>> = {
     colunas: ['id', 'ano_letivo_id', 'thread_id', 'execucao_id', 'autor', 'conteudo', 'turma_id', 'disciplina_id', 'criada_em'],
     fora: { escola_id: ESCOPO },
     consultas: ({ escolaId, titularId }) => [
-      sql`select ${colunasDoSelect('id', 'ano_letivo_id', 'thread_id', 'execucao_id', 'autor', 'conteudo', 'turma_id', 'disciplina_id', 'criada_em')} from mensagem_agente t
+      sql`select ${selectColumns('id', 'ano_letivo_id', 'thread_id', 'execucao_id', 'autor', 'conteudo', 'turma_id', 'disciplina_id', 'criada_em')} from mensagem_agente t
           where t.escola_id = ${escolaId} and t.thread_id in (select h.id from thread_agente h where h.escola_id = ${escolaId} and h.usuario_id = ${titularId})`,
     ],
   },
@@ -228,7 +228,7 @@ export const LEITURAS_DO_ARQUIVO: Readonly<Record<string, LeituraDaTabela>> = {
     fora: { escola_id: ESCOPO, solicitada_por: 'o próprio titular', chave_envio: SEGREDO },
     consultas: ({ escolaId, titularId, versao }) => [
       // A `entrada` leva o tema que o professor escreveu: só na versão completa (critério 5).
-      sql`select ${colunasDoSelect(...porVersao(versao, ['id', 'ano_letivo_id', 'funcao', 'tarefa', 'estado', 'resultado', 'erro', 'criada_em', 'iniciada_em', 'concluida_em', 'anonimizada_em'], ['entrada']))} from execucao_agente t
+      sql`select ${selectColumns(...porVersao(versao, ['id', 'ano_letivo_id', 'funcao', 'tarefa', 'estado', 'resultado', 'erro', 'criada_em', 'iniciada_em', 'concluida_em', 'anonimizada_em'], ['entrada']))} from execucao_agente t
           where t.escola_id = ${escolaId} and t.solicitada_por = ${titularId}`,
     ],
   },
@@ -241,7 +241,7 @@ export const LEITURAS_DO_ARQUIVO: Readonly<Record<string, LeituraDaTabela>> = {
     fora: { escola_id: ESCOPO, aluno_id: 'o próprio titular, quando a chamada é do Tutor' },
     consultas: ({ escolaId, titularId, versao }) => {
       // O `entrada` e a `saida` são o que foi enviado ao modelo e o que ele respondeu: só na versão completa (critério 5).
-      const colunas = colunasDoSelect(
+      const colunas = selectColumns(
         ...porVersao(
           versao,
           ['id', 'execucao_id', 'tarefa', 'funcao', 'perfil', 'origem', 'modelo', 'prompt_versao', 'tokens_de_entrada', 'tokens_de_saida', 'custo_micros', 'duracao_ms', 'envio_externo', 'provedor', 'tentativas', 'estado', 'codigo_de_erro', 'em'],
@@ -261,7 +261,7 @@ export const LEITURAS_DO_ARQUIVO: Readonly<Record<string, LeituraDaTabela>> = {
     colunas: ['id', 'ano_letivo_id', 'atividade_aplicada_id', 'iniciada_em', 'enviada_em'],
     fora: { escola_id: ESCOPO, aluno_id: 'o próprio titular' },
     consultas: ({ escolaId, titularId }) => [
-      sql`select ${colunasDoSelect('id', 'ano_letivo_id', 'atividade_aplicada_id', 'iniciada_em', 'enviada_em')} from tentativa_atividade t where t.escola_id = ${escolaId} and t.aluno_id = ${titularId}`,
+      sql`select ${selectColumns('id', 'ano_letivo_id', 'atividade_aplicada_id', 'iniciada_em', 'enviada_em')} from tentativa_atividade t where t.escola_id = ${escolaId} and t.aluno_id = ${titularId}`,
     ],
   },
   resposta_atividade: {
@@ -269,7 +269,7 @@ export const LEITURAS_DO_ARQUIVO: Readonly<Record<string, LeituraDaTabela>> = {
     colunas: ['id', 'ano_letivo_id', 'atividade_aplicada_id', 'questao', 'alternativa', 'sequencia', 'respondida_em'],
     fora: { escola_id: ESCOPO, aluno_id: 'o próprio titular' },
     consultas: ({ escolaId, titularId }) => [
-      sql`select ${colunasDoSelect('id', 'ano_letivo_id', 'atividade_aplicada_id', 'questao', 'alternativa', 'sequencia', 'respondida_em')} from resposta_atividade t where t.escola_id = ${escolaId} and t.aluno_id = ${titularId}`,
+      sql`select ${selectColumns('id', 'ano_letivo_id', 'atividade_aplicada_id', 'questao', 'alternativa', 'sequencia', 'respondida_em')} from resposta_atividade t where t.escola_id = ${escolaId} and t.aluno_id = ${titularId}`,
     ],
   },
   correcao: {
@@ -308,7 +308,7 @@ export const LEITURAS_DO_ARQUIVO: Readonly<Record<string, LeituraDaTabela>> = {
       conteudo: 'o conteúdo do artefato aplicado tem gabarito, e o aluno nunca o lê (Tech Spec do F3, seção 3)',
     },
     consultas: ({ escolaId, titularId }) => [
-      sql`select ${colunasDoSelect('id', 'ano_letivo_id', 'turma_id', 'disciplina_id', 'tipo', 'titulo', 'origem_id', 'execucao_id', 'criado_em', 'atualizado_em')} from artefato t where t.escola_id = ${escolaId} and t.criado_por = ${titularId}`,
+      sql`select ${selectColumns('id', 'ano_letivo_id', 'turma_id', 'disciplina_id', 'tipo', 'titulo', 'origem_id', 'execucao_id', 'criado_em', 'atualizado_em')} from artefato t where t.escola_id = ${escolaId} and t.criado_por = ${titularId}`,
     ],
   },
   entrega: {
@@ -317,7 +317,7 @@ export const LEITURAS_DO_ARQUIVO: Readonly<Record<string, LeituraDaTabela>> = {
     fora: { escola_id: ESCOPO, decidida_por: 'o próprio titular' },
     consultas: ({ escolaId, titularId, versao }) => [
       // A `justificativa` é texto do professor: só na versão completa (critério 5).
-      sql`select ${colunasDoSelect(...porVersao(versao, ['id', 'ano_letivo_id', 'turma_id', 'funcao', 'tipo', 'artefato_id', 'atividade_aplicada_id', 'execucao_id', 'estado', 'decidida_em', 'criada_em'], ['justificativa']))} from entrega t
+      sql`select ${selectColumns(...porVersao(versao, ['id', 'ano_letivo_id', 'turma_id', 'funcao', 'tipo', 'artefato_id', 'atividade_aplicada_id', 'execucao_id', 'estado', 'decidida_em', 'criada_em'], ['justificativa']))} from entrega t
           where t.escola_id = ${escolaId} and t.decidida_por = ${titularId}`,
     ],
   },
@@ -326,7 +326,7 @@ export const LEITURAS_DO_ARQUIVO: Readonly<Record<string, LeituraDaTabela>> = {
     colunas: ['id', 'ano_letivo_id', 'turma_id', 'artefato_id', 'avaliativa', 'estado', 'aplicada_em', 'encerrada_em'],
     fora: { escola_id: ESCOPO, aplicada_por: 'o próprio titular' },
     consultas: ({ escolaId, titularId }) => [
-      sql`select ${colunasDoSelect('id', 'ano_letivo_id', 'turma_id', 'artefato_id', 'avaliativa', 'estado', 'aplicada_em', 'encerrada_em')} from atividade_aplicada t where t.escola_id = ${escolaId} and t.aplicada_por = ${titularId}`,
+      sql`select ${selectColumns('id', 'ano_letivo_id', 'turma_id', 'artefato_id', 'avaliativa', 'estado', 'aplicada_em', 'encerrada_em')} from atividade_aplicada t where t.escola_id = ${escolaId} and t.aplicada_por = ${titularId}`,
     ],
   },
   validacao_do_lote: {
@@ -339,7 +339,7 @@ export const LEITURAS_DO_ARQUIVO: Readonly<Record<string, LeituraDaTabela>> = {
       aberto: 'quais destaques foram abertos, com o id de outros alunos (critério 2)',
     },
     consultas: ({ escolaId, titularId }) => [
-      sql`select ${colunasDoSelect('id', 'ano_letivo_id', 'entrega_id', 'atividade_aplicada_id', 'confirmada_em')} from validacao_do_lote t where t.escola_id = ${escolaId} and t.confirmada_por = ${titularId}`,
+      sql`select ${selectColumns('id', 'ano_letivo_id', 'entrega_id', 'atividade_aplicada_id', 'confirmada_em')} from validacao_do_lote t where t.escola_id = ${escolaId} and t.confirmada_por = ${titularId}`,
     ],
   },
   material: {
@@ -354,7 +354,7 @@ export const LEITURAS_DO_ARQUIVO: Readonly<Record<string, LeituraDaTabela>> = {
       excluido_por: 'o próprio titular',
     },
     consultas: ({ escolaId, titularId }) => [
-      sql`select ${colunasDoSelect('id', 'disciplina_id', 'titulo', 'titularidade', 'licenca', 'declaracao', 'tamanho_bytes', 'paginas', 'estado', 'enviado_em', 'excluido_em')} from material t
+      sql`select ${selectColumns('id', 'disciplina_id', 'titulo', 'titularidade', 'licenca', 'declaracao', 'tamanho_bytes', 'paginas', 'estado', 'enviado_em', 'excluido_em')} from material t
           where t.escola_id = ${escolaId} and (t.enviado_por = ${titularId} or t.excluido_por = ${titularId})`,
     ],
   },
@@ -363,7 +363,7 @@ export const LEITURAS_DO_ARQUIVO: Readonly<Record<string, LeituraDaTabela>> = {
     colunas: ['id', 'funcao', 'motivo', 'suspensa_em', 'retomada_em'],
     fora: { escola_id: ESCOPO, suspensa_por: 'o próprio titular', retomada_por: 'o próprio titular ou ' + OUTRA_PESSOA },
     consultas: ({ escolaId, titularId }) => [
-      sql`select ${colunasDoSelect('id', 'funcao', 'motivo', 'suspensa_em', 'retomada_em')} from suspensao_de_funcao t
+      sql`select ${selectColumns('id', 'funcao', 'motivo', 'suspensa_em', 'retomada_em')} from suspensao_de_funcao t
           where t.escola_id = ${escolaId} and (t.suspensa_por = ${titularId} or t.retomada_por = ${titularId})`,
     ],
   },
@@ -380,7 +380,7 @@ export const LEITURAS_DO_ARQUIVO: Readonly<Record<string, LeituraDaTabela>> = {
     },
     consultas: ({ escolaId, titularId }) => [
       // Só o ato: a ação, a entidade, a finalidade e o instante (critério 2).
-      sql`select ${colunasDoSelect('id', 'acao', 'entidade', 'entidade_id', 'finalidade', 'em')} from auditoria t where t.escola_id = ${escolaId} and t.autor_usuario_id = ${titularId}`,
+      sql`select ${selectColumns('id', 'acao', 'entidade', 'entidade_id', 'finalidade', 'em')} from auditoria t where t.escola_id = ${escolaId} and t.autor_usuario_id = ${titularId}`,
     ],
   },
   pedido_titular: {
@@ -396,14 +396,14 @@ export const LEITURAS_DO_ARQUIVO: Readonly<Record<string, LeituraDaTabela>> = {
       chave_envio: SEGREDO,
     },
     consultas: ({ escolaId, titularId }) => [
-      sql`select ${colunasDoSelect('id', 'papel_titular', 'tipo', 'solicitante', 'chegou_em', 'estado', 'eliminar_em', 'compartilhamento', 'nome_trocado', 'homonimo', 'registrado_em', 'concluido_em', 'cancelado_em')} from pedido_titular t
+      sql`select ${selectColumns('id', 'papel_titular', 'tipo', 'solicitante', 'chegou_em', 'estado', 'eliminar_em', 'compartilhamento', 'nome_trocado', 'homonimo', 'registrado_em', 'concluido_em', 'cancelado_em')} from pedido_titular t
           where t.escola_id = ${escolaId} and t.titular_id = ${titularId}`,
     ],
   },
 }
 
 /** Uma tabela do arquivo, como o JSON a leva. */
-export type LinhasDaTabela = Array<Record<string, unknown>>
+export type TableRows = Array<Record<string, unknown>>
 
 /**
  * Por onde o dado do titular passou. `empresas` é a foto que o pedido guardou e que a coordenação vê (para o professor, só
@@ -423,7 +423,7 @@ export interface DocumentoDoTitular {
   /** O que o arquivo leva, em linguagem comum: uma linha por tabela que tem registro, com a quantidade. */
   readonly resumo: ReadonlyArray<{ readonly conteudo: string; readonly registros: number }>
   readonly compartilhamento: CompartilhamentoDoArquivo
-  readonly tabelas: Readonly<Record<string, LinhasDaTabela>>
+  readonly tabelas: Readonly<Record<string, TableRows>>
 }
 
 /** O que o `montar` precisa além do titular: a versão, a foto do compartilhamento do pedido e o relógio. */
@@ -441,11 +441,11 @@ export interface PedidoDeLeitura {
  * `inet` e `bigint` chegam como texto e número, e o que o arquivo guarda é o que o Postgres escreveu.
  */
 export class LeituraDoTitular {
-  constructor(private readonly banco: Banco | TransacaoBanco) {}
+  constructor(private readonly banco: Database | DatabaseTransaction) {}
 
   async montar(pedido: PedidoDeLeitura): Promise<DocumentoDoTitular> {
-    const alvo: AlvoDaLeitura = { escolaId: exigirEscolaDoContexto(), titularId: pedido.titularId, versao: pedido.versao }
-    const tabelas: Record<string, LinhasDaTabela> = {}
+    const alvo: AlvoDaLeitura = { escolaId: requireEscolaId(), titularId: pedido.titularId, versao: pedido.versao }
+    const tabelas: Record<string, TableRows> = {}
     const resumo: Array<{ conteudo: string; registros: number }> = []
     for (const [nome, leitura] of Object.entries(LEITURAS_DO_ARQUIVO)) {
       if (leitura.naVersao !== undefined && !leitura.naVersao(pedido.versao)) continue

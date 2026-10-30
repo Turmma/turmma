@@ -1,5 +1,5 @@
 import 'reflect-metadata'
-import { contextoAtual, criarLogger, EmissorDeTokenDeOperador, METADADO_ROTA_DE_OPERACAO, type Banco } from '@educa/nucleo'
+import { currentContext, createLogger, OperadorTokenIssuer, OPERACAO_ROUTE_KEY, type Database } from '@educa/nucleo'
 import { ErrorCode, euDoOperadorResponseSchema, MENSAGENS_DE_ERRO } from '@educa/shared'
 import { Controller, Get, Inject, Module, SetMetadata, type DynamicModule, type INestApplication, type Type } from '@nestjs/common'
 import { DiscoveryService, NestFactory } from '@nestjs/core'
@@ -77,7 +77,7 @@ async function diferentesDaInexistente(url: string, rotas: readonly RotaRegistra
 
 async function subir(modulo: Type | DynamicModule): Promise<{ app: INestApplication; url: string }> {
   const app = await NestFactory.create(modulo, { logger: false })
-  configurarAplicacao(app, criarLogger({ servico: 'api-teste', nivel: 'silent' }))
+  configurarAplicacao(app, createLogger({ servico: 'api-teste', nivel: 'silent' }))
   await app.listen(0, '127.0.0.1')
   return { app, url: `http://127.0.0.1:${(app.getHttpServer().address() as AddressInfo).port}` }
 }
@@ -96,7 +96,7 @@ function rotasRegistradas(app: INestApplication): RotaRegistrada[] {
 @Controller('v1/operacao/teste-sem-guarda')
 class SemGuardaController {
   @Get()
-  @SetMetadata(METADADO_ROTA_DE_OPERACAO, true)
+  @SetMetadata(OPERACAO_ROUTE_KEY, true)
   obter(): { alcancou: true } {
     return { alcancou: true }
   }
@@ -105,12 +105,12 @@ class SemGuardaController {
 /** Uma rota de operador que chama, por engano, um repository de escola (C49). Devolve o que o contexto tinha e o erro. */
 @Controller('v1/operacao/teste-escola')
 class EscolaNaOperacaoController {
-  constructor(@Inject(BANCO) private readonly banco: Banco) {}
+  constructor(@Inject(BANCO) private readonly banco: Database) {}
 
   @Get()
   @RotaDeOperacao()
   async obter(): Promise<{ camposDoContexto: string[]; operadorId: string | undefined; erro: string | undefined }> {
-    const contexto = contextoAtual()
+    const contexto = currentContext()
     const camposDoContexto = Object.keys(contexto ?? {}).sort()
     try {
       await new DisciplinaRepository(this.banco).listar({ limite: 1 })
@@ -299,7 +299,7 @@ describe('área da operação: as cercas entre a operação e a escola (tarefa 4
       expect((await eu(url, dono.token)).status).toBe(200)
       expect((await eu(url, outro.token)).status).toBe(200)
       // Mesmo emissor e mesma chave, com o `sub` de um operador e o `sid` do outro.
-      const misturado = (await new EmissorDeTokenDeOperador(CHAVE).emitir({ operadorId: outro.operadorId, sessaoId: dono.sessaoId })).token
+      const misturado = (await new OperadorTokenIssuer(CHAVE).emitir({ operadorId: outro.operadorId, sessaoId: dono.sessaoId })).token
       esperarErro(await eu(url, misturado), 401, ErrorCode.SESSAO_ENCERRADA)
     })
 

@@ -1,4 +1,4 @@
-import { exigirAnoEmCurso, exigirEscolaDoContexto, listaNome, turma, type Banco, type TransacaoBanco } from '@educa/nucleo'
+import { requireAnoEmCurso, requireEscolaId, listaNome, turma, type Database, type DatabaseTransaction } from '@educa/nucleo'
 import { MAXIMO_DE_NOMES_NA_SALA } from '@educa/shared'
 import { and, asc, eq, ne } from 'drizzle-orm'
 
@@ -25,14 +25,14 @@ export interface NomeEscolhido {
  * nome que alguém reivindicou some. A matrícula não sai daqui, e nada daqui vai a log.
  */
 export class ListaLivreRepository {
-  constructor(private readonly banco: Banco | TransacaoBanco) {}
+  constructor(private readonly banco: Database | DatabaseTransaction) {}
 
   /** O nome da turma, ou `undefined` quando ela não está na escola e no ano do contexto. */
   async nomeDaTurma(turmaId: string): Promise<string | undefined> {
     const [linha] = await this.banco
       .select({ nome: turma.nome })
       .from(turma)
-      .where(and(eq(turma.escolaId, exigirEscolaDoContexto()), eq(turma.anoLetivoId, exigirAnoEmCurso()), eq(turma.id, turmaId)))
+      .where(and(eq(turma.escolaId, requireEscolaId()), eq(turma.anoLetivoId, requireAnoEmCurso()), eq(turma.id, turmaId)))
       .limit(1)
     return linha?.nome
   }
@@ -46,7 +46,7 @@ export class ListaLivreRepository {
       .select({ id: listaNome.id, nome: listaNome.nome })
       .from(listaNome)
       .where(
-        and(eq(listaNome.escolaId, exigirEscolaDoContexto()), eq(listaNome.anoLetivoId, exigirAnoEmCurso()), eq(listaNome.turmaId, turmaId), eq(listaNome.estado, 'livre')),
+        and(eq(listaNome.escolaId, requireEscolaId()), eq(listaNome.anoLetivoId, requireAnoEmCurso()), eq(listaNome.turmaId, turmaId), eq(listaNome.estado, 'livre')),
       )
       .orderBy(asc(listaNome.nome))
       .limit(MAXIMO_DE_NOMES_NA_SALA)
@@ -64,8 +64,8 @@ export class ListaLivreRepository {
       .set({ estado: 'reivindicado' })
       .where(
         and(
-          eq(listaNome.escolaId, exigirEscolaDoContexto()),
-          eq(listaNome.anoLetivoId, exigirAnoEmCurso()),
+          eq(listaNome.escolaId, requireEscolaId()),
+          eq(listaNome.anoLetivoId, requireAnoEmCurso()),
           eq(listaNome.turmaId, turmaId),
           eq(listaNome.id, listaNomeId),
           eq(listaNome.estado, 'livre'),
@@ -90,8 +90,8 @@ export class ListaLivreRepository {
       .from(listaNome)
       .where(
         and(
-          eq(listaNome.escolaId, exigirEscolaDoContexto()),
-          eq(listaNome.anoLetivoId, exigirAnoEmCurso()),
+          eq(listaNome.escolaId, requireEscolaId()),
+          eq(listaNome.anoLetivoId, requireAnoEmCurso()),
           eq(listaNome.turmaId, turmaId),
           eq(listaNome.id, listaNomeId),
           eq(listaNome.estado, 'livre'),

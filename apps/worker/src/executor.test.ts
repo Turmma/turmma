@@ -1,4 +1,4 @@
-import { contextoAtual, criarLogger, type JobParaExecutar, type ResultadoDoInicio } from '@educa/nucleo'
+import { currentContext, createLogger, type JobToRun, type JobStartResult } from '@educa/nucleo'
 import { ErrorCode, JobFailureCode, defineJob, JOB_DEFINITIONS, TIPO_CONSOLIDAR_USO, TIPO_ELIMINAR_TITULAR, TIPO_EXPURGAR_ACESSO, TIPO_EXPURGAR_DADO_PESSOAL, TIPO_EXPURGAR_ESCOLA, TIPO_EXPURGAR_JOBS, TIPO_JOB_SINTETICO, TIPO_MONTAR_ARQUIVO, type QueueName, type JobRegistry, type JobType } from '@educa/shared'
 import { DelayedError, UnrecoverableError } from 'bullmq'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -26,7 +26,7 @@ function montar({
   registrarFalha = () => Promise.resolve(true),
 }: {
   /** `null`: a linha não existe na escola do contexto. */
-  alvo?: JobParaExecutar | null
+  alvo?: JobToRun | null
   concede?: boolean
   processador?: Processador
   /** Os processadores da réplica, no lugar do `processador` no tipo sintético. */
@@ -59,10 +59,10 @@ function montar({
   const dependencias: DependenciasDoExecutor = {
     repositorio: {
       localizarParaExecucao: () => {
-        eventos.push(`localizar:${contextoAtual()?.escolaId ?? ''}`)
+        eventos.push(`localizar:${currentContext()?.escolaId ?? ''}`)
         return Promise.resolve(alvo ?? undefined)
       },
-      iniciarExecucao: (): Promise<ResultadoDoInicio> => {
+      iniciarExecucao: (): Promise<JobStartResult> => {
         eventos.push('iniciar')
         return Promise.resolve({ situacao: 'iniciado', tipo, dados })
       },
@@ -72,7 +72,7 @@ function montar({
       },
       registrarFalha: (_id, codigo) => {
         falhas.push(codigo)
-        escolasDasFalhas.push(contextoAtual()?.escolaId)
+        escolasDasFalhas.push(currentContext()?.escolaId)
         return registrarFalha()
       },
     },
@@ -80,7 +80,7 @@ function montar({
     ...(definicoes === undefined && prazoMs === undefined
       ? {}
       : { definicoes: definicoes ?? { ...JOB_DEFINITIONS, [TIPO_JOB_SINTETICO]: { ...JOB_DEFINITIONS[TIPO_JOB_SINTETICO], prazoMs: prazoMs ?? 0 } } }),
-    logger: criarLogger({ servico: 'worker-teste', destino: { write: (linha: string) => linhas.push(linha) } }),
+    logger: createLogger({ servico: 'worker-teste', destino: { write: (linha: string) => linhas.push(linha) } }),
     vagas: {
       tomar: (fila, escolaId, limite, ids) => {
         eventos.push('tomar')
@@ -97,7 +97,7 @@ function montar({
       },
     },
     vagasDaEscola: { daEscola: () => Promise.resolve({ interativa: 5, normal: 5, lote: 3 }) },
-    uso: { marcar: (metrica) => marcacoes.push(`${metrica}:${contextoAtual()?.escolaId ?? 'sem escola'}`) },
+    uso: { marcar: (metrica) => marcacoes.push(`${metrica}:${currentContext()?.escolaId ?? 'sem escola'}`) },
     aoLiberarVaga: () => eventos.push('avisou_vaga_livre'),
     intervaloRenovacaoMs: 100,
   }
@@ -538,7 +538,7 @@ const PAYLOAD_DE_HOJE: Readonly<Record<JobType, Record<string, unknown>>> = {
 
 describe('ExecutorDeJobs e a definição do tipo', () => {
   /** A linha de `job_registro` que o worker lê, com a escola que o tipo pede: o job de rotina do sistema não tem escola. */
-  const alvoDo = (tipo: JobType): JobParaExecutar => ({ fila: 'lote', escolaId: JOB_DEFINITIONS[tipo].escopo === 'sistema' ? null : ESCOLA_A, finalizado: false })
+  const alvoDo = (tipo: JobType): JobToRun => ({ fila: 'lote', escolaId: JOB_DEFINITIONS[tipo].escopo === 'sistema' ? null : ESCOLA_A, finalizado: false })
 
   it('o payload de hoje de cada um dos 8 tipos passa pela definição e chega ao processador do tipo, que roda uma vez', async () => {
     expect(Object.keys(PAYLOAD_DE_HOJE).sort()).toEqual(Object.keys(JOB_DEFINITIONS).sort())

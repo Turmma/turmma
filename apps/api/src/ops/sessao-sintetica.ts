@@ -1,4 +1,4 @@
-import { ConfiguracaoInvalida, criarBanco, criarPool, ErroDeDominio, resumirErro, type Banco } from '@educa/nucleo'
+import { InvalidConfigError, createDatabase, createPool, DomainException, summarizeError, type Database } from '@educa/nucleo'
 import { ErrorCode, PAPEIS_DE_USUARIO, type PapelDeUsuario } from '@educa/shared'
 import { pathToFileURL } from 'node:url'
 import { parseArgs } from 'node:util'
@@ -15,7 +15,7 @@ export { ArgumentoInvalido }
  *   npm run -s ops:sessao-sintetica -- --escola <uuid> --papel aluno|professor|coordenador [--quantidade <n>]
  *
  * Cria `usuario` e `sessao` (e a conta sintética, para professor e coordenador) e imprime só os tokens, um por
- * linha, emitidos pelo `EmissorDeToken`: valem 10 min, e a sessão, 12 h. Só roda com `AMBIENTE=local`, conferido
+ * linha, emitidos pelo `TokenIssuer`: valem 10 min, e a sessão, 12 h. Só roda com `AMBIENTE=local`, conferido
  * antes de abrir o banco. Nenhum dado de pessoa entra ou sai: o nome é fixo e sintético.
  */
 
@@ -25,14 +25,14 @@ export interface SaidaDoComando {
 }
 
 export interface BancoDoComando {
-  banco: Banco
+  banco: Database
   fechar: () => Promise<void>
 }
 
 /** Pool de uma conexão para o comando, com o banco do ambiente (`BANCO_URL` ou o Postgres da máquina). */
 function abrirBancoDoAmbiente(ambiente: Record<string, string | undefined>): BancoDoComando {
-  const pool = criarPool({ ...urlDoBancoDeOperacao(ambiente), maximoConexoes: 1 }, () => undefined)
-  return { banco: criarBanco(pool), fechar: () => pool.end() }
+  const pool = createPool({ ...urlDoBancoDeOperacao(ambiente), maximoConexoes: 1 }, () => undefined)
+  return { banco: createDatabase(pool), fechar: () => pool.end() }
 }
 
 export interface PedidoDoComando {
@@ -85,16 +85,16 @@ export async function executarOpsSessaoSintetica(
       await fechar()
     }
   } catch (erro) {
-    if (erro instanceof ArgumentoInvalido || erro instanceof ConfiguracaoInvalida) {
+    if (erro instanceof ArgumentoInvalido || erro instanceof InvalidConfigError) {
       // Só o nome da opção ou da variável, e o motivo fixo nosso: nunca o valor, que pode ser a chave.
       terminal.erro(`${erro.message}\n`)
       return 2
     }
-    if (erro instanceof ErroDeDominio && erro.codigo === ErrorCode.NAO_ENCONTRADO) {
+    if (erro instanceof DomainException && erro.codigo === ErrorCode.NAO_ENCONTRADO) {
       terminal.erro(`${ErrorCode.NAO_ENCONTRADO}: escola não encontrada\n`)
       return 1
     }
-    terminal.erro(`${ErrorCode.ERRO_INTERNO}: ${JSON.stringify(resumirErro(erro))}\n`)
+    terminal.erro(`${ErrorCode.ERRO_INTERNO}: ${JSON.stringify(summarizeError(erro))}\n`)
     return 1
   }
 }

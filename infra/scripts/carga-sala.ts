@@ -9,7 +9,7 @@ import pg from 'pg'
 import type { criarEscola, criarRede } from '../../apps/api/src/operacao/escola/escola.ts'
 import type { HashDeSenha } from '../../apps/api/src/credencial/hash-de-senha.ts'
 import type { criarAlunosComMatricula, criarSessoesSinteticas } from '../../apps/api/src/sessao/tenant/sessoes-sinteticas.ts'
-import type { criarBanco, criarPool } from '@educa/nucleo'
+import type { createDatabase, createPool } from '@educa/nucleo'
 import { raizRepositorio } from '../../tools/ci/executar.ts'
 import { argumentosDoCompose, CODIGO_THRESHOLD_CRUZADO, lerAmbienteDeCarga, rodar } from './carga.ts'
 import { lerResumoDaFase, matriculaSintetica, type ResumoDaFase } from './carga-login.ts'
@@ -234,7 +234,7 @@ export function descreverFase(fase: FaseDaSala, resumo: ResumoDaFase): string[] 
 // ---------------------------------------------------------------------------------------------------------------------
 
 interface ModulosDaApi {
-  nucleo: { criarBanco: typeof criarBanco; criarPool: typeof criarPool }
+  nucleo: { createDatabase: typeof createDatabase; createPool: typeof createPool }
   escolas: { criarRede: typeof criarRede; criarEscola: typeof criarEscola }
   sessoes: { criarAlunosComMatricula: typeof criarAlunosComMatricula; criarSessoesSinteticas: typeof criarSessoesSinteticas }
   hash: { HashDeSenha: typeof HashDeSenha }
@@ -293,7 +293,7 @@ const COORDENACOES_DA_MONTAGEM = 4
  * Monta a escola da fase pela API, como a coordenação e o professor fariam na tela: ano letivo aberto, série, disciplina,
  * as turmas com a lista, o vínculo de cada professor confirmado por ele, e o acesso de cada turma gerado pelo professor.
  */
-async function montarEscola(modulos: ModulosDaApi, banco: ReturnType<typeof criarBanco>, doArquivo: Record<string, string>, redeId: string, fase: FaseDaSala, alunos: readonly AlunoDoCenario[]): Promise<EscolaMontada> {
+async function montarEscola(modulos: ModulosDaApi, banco: ReturnType<typeof createDatabase>, doArquivo: Record<string, string>, redeId: string, fase: FaseDaSala, alunos: readonly AlunoDoCenario[]): Promise<EscolaMontada> {
   const autor = async () => OPERADOR_DA_CARGA_DA_SALA
   const slug = `sala-${fase.replace(/_/g, '-')}-${randomUUID()}`
   const { id: escolaId } = await modulos.escolas.criarEscola(banco, autor, { id: randomUUID(), redeId, nome: `Escola sintética da sala ${fase}`, slug })
@@ -384,8 +384,8 @@ async function executar(fases: readonly FaseDaSala[]): Promise<number> {
     if (subida.codigo !== 0) throw new Error('o compose de carga não subiu')
 
     const modulos = await importarDaApi()
-    const pool = modulos.nucleo.criarPool({ url: urlDoBancoDoAmbiente(doArquivo), maximoConexoes: 2, timeoutConexaoMs: 5_000, timeoutConsultaMs: 120_000 }, () => undefined)
-    const banco = modulos.nucleo.criarBanco(pool)
+    const pool = modulos.nucleo.createPool({ url: urlDoBancoDoAmbiente(doArquivo), maximoConexoes: 2, timeoutConexaoMs: 5_000, timeoutConsultaMs: 120_000 }, () => undefined)
+    const banco = modulos.nucleo.createDatabase(pool)
     const resumos = new Map<FaseDaSala, ResumoDaFase>()
     const janelas: JanelaDaFase[] = []
     const escolas: EscolaDaFase[] = []

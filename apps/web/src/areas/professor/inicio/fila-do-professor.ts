@@ -75,7 +75,7 @@ function lida<Dado>(leitura: LeituraDaFila<Dado>): Dado | undefined {
   return leitura.estado === 'lida' ? leitura.dado : undefined
 }
 
-/** Sem ano letivo em curso, `meus-vinculos` e `entregas` respondem `NAO_ENCONTRADO` (`exigirAnoEmCurso`), e a professora não tem como ler o ano. */
+/** Sem ano letivo em curso, `meus-vinculos` e `entregas` respondem `NAO_ENCONTRADO` (`requireAnoEmCurso`), e a professora não tem como ler o ano. */
 function semAnoLetivoPelaResposta(leitura: LeituraDaFila<unknown>): boolean {
   return leitura.estado === 'erro' && leitura.erro instanceof ErroDaApi && leitura.erro.codigo === ErrorCode.NAO_ENCONTRADO
 }

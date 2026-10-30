@@ -1,4 +1,4 @@
-import { ErroDeDominio, exigirEscolaDoContexto, RegistroDeAuditoria, sessaoDaRequisicao, type Banco } from '@educa/nucleo'
+import { DomainException, requireEscolaId, AuditoriaRecorder, requestSessao, type Database } from '@educa/nucleo'
 import {
   alcanceDe,
   ErrorCode,
@@ -19,7 +19,7 @@ import { VinculoRepository } from '../../estrutura/vinculo/vinculo.repository.js
 import { type ContadorDeTentativas, CredencialMatriculaRepository, CriacaoDeSessaoRepository, identificadorDoAluno } from '../../credencial/index.js'
 import { DecisaoRepository, type AlcanceDoPedido } from './decisao.repository.js'
 
-const registro = new RegistroDeAuditoria()
+const registro = new AuditoriaRecorder()
 
 /** Quem decidiu, como o pedido e a auditoria o guardam, pelo alcance da célula de quem decide. */
 const DECISOR_DO_ALCANCE: Readonly<Record<AlcanceDoPedido, DecisorDaReivindicacao>> = { unidade: 'coordenacao', turma_vinculada: 'professor' }
@@ -30,10 +30,10 @@ const DECISOR_DO_ALCANCE: Readonly<Record<AlcanceDoPedido, DecisorDaReivindicaca
  * alcance não chega aqui (a guarda de permissão barra o `nunca`) e, se chegasse, responderia como inexistente.
  */
 function alcanceDaSessao(acao: 'ler' | 'decidir'): AlcanceDoPedido {
-  const alcance = alcanceDe(sessaoDaRequisicao().papel, 'reivindicacao', acao)
+  const alcance = alcanceDe(requestSessao().papel, 'reivindicacao', acao)
   if (alcance === 'unidade' || alcance === 'nominal_auditado') return 'unidade'
   if (alcance === 'turma_vinculada') return 'turma_vinculada'
-  throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+  throw new DomainException(ErrorCode.NAO_ENCONTRADO)
 }
 
 /** O que a transação de um id decidiu, e a matrícula do aluno aprovado, para zerar o contador de login dela depois do lote. */
@@ -48,7 +48,7 @@ type DesfechoDoPedido = { readonly resultado: Exclude<ResultadoDaDecisao, 'decid
  */
 export class DecisaoService {
   constructor(
-    private readonly banco: Banco,
+    private readonly banco: Database,
     /** O contador de falhas do login por matrícula (F1), que a aprovação zera (E22). */
     private readonly contador: Pick<ContadorDeTentativas, 'chaveDe' | 'zerar'>,
   ) {}
@@ -63,12 +63,12 @@ export class DecisaoService {
    * sem registro, sem lista (A2).
    */
   async pedidos(turmaId: string, consulta: PedidosDaTurmaQuery): Promise<PedidosDaTurmaResponse> {
-    const nominalAuditado = alcanceDe(sessaoDaRequisicao().papel, 'reivindicacao', 'ler') === 'nominal_auditado'
+    const nominalAuditado = alcanceDe(requestSessao().papel, 'reivindicacao', 'ler') === 'nominal_auditado'
     const { finalidade } = consulta
-    if (nominalAuditado && finalidade === undefined) throw new ErroDeDominio(ErrorCode.ENTRADA_INVALIDA)
+    if (nominalAuditado && finalidade === undefined) throw new DomainException(ErrorCode.ENTRADA_INVALIDA)
     const alcance = alcanceDaSessao('ler')
     const pagina = await this.banco.transaction(async (tx) => {
-      if ((await new TurmaRepository(tx).aberta(turmaId, alcance)) === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+      if ((await new TurmaRepository(tx).aberta(turmaId, alcance)) === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
       const cortada = paginar(await new DecisaoRepository(tx).pendentes(turmaId, consulta), consulta.limite)
       if (nominalAuditado && finalidade !== undefined) {
         await registro.gravar(tx, 'turma.reivindicacoes_lidas', { entidadeId: turmaId, depois: { quantidade: cortada.itens.length }, finalidade })
@@ -103,7 +103,7 @@ export class DecisaoService {
         resultados.push({ id, resultado: desfecho.resultado })
       }
     } finally {
-      const escolaId = exigirEscolaDoContexto()
+      const escolaId = requireEscolaId()
       await Promise.all(aprovadas.map((matricula) => this.contador.zerar(this.contador.chaveDe(identificadorDoAluno(escolaId, matricula), 'outro'))))
     }
     return decisaoResponseSchema.parse({ resultados })

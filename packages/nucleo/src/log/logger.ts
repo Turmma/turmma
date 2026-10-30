@@ -1,6 +1,6 @@
 import { pino, stdTimeFunctions, type DestinationStream, type Logger, type LevelWithSilent } from 'pino'
-import { contextoAtual } from '../contexto/contexto.js'
-import { resumirErro } from '../erro/resumir-erro.js'
+import { currentContext } from '../contexto/contexto.js'
+import { summarizeError } from '../erro/resumir-erro.js'
 
 export type LoggerBase = Logger
 
@@ -93,7 +93,7 @@ function temToJson(valor: object): valor is { toJSON: () => unknown } {
  * propriedades do objeto original.
  */
 function resumirErrosEmProfundidade(valor: unknown, profundidade: number, vistos: WeakSet<object>): unknown {
-  if (valor instanceof Error) return resumirErro(valor)
+  if (valor instanceof Error) return summarizeError(valor)
   if (typeof valor !== 'object' || valor === null || valor instanceof Date || ArrayBuffer.isView(valor)) return valor
   if (vistos.has(valor)) return '[ciclo]'
   if (profundidade >= PROFUNDIDADE_MAXIMA) return TEXTO_OMITIDO_POR_PROFUNDIDADE
@@ -129,7 +129,7 @@ function resumirErrosEmProfundidade(valor: unknown, profundidade: number, vistos
  */
 function resumirErrosAntesDeLogar(this: unknown, argumentos: unknown[], metodo: MetodoDeLog): void {
   const resumidos = argumentos.map((valor, indice) =>
-    indice === 0 && valor instanceof Error ? { erro: resumirErro(valor) } : resumirErrosEmProfundidade(valor, 0, new WeakSet()),
+    indice === 0 && valor instanceof Error ? { erro: summarizeError(valor) } : resumirErrosEmProfundidade(valor, 0, new WeakSet()),
   )
   metodo.apply(this, resumidos)
 }
@@ -139,20 +139,20 @@ function resumirErrosAntesDeLogar(this: unknown, argumentos: unknown[], metodo: 
  * fora de requisição. Sem isso o Node imprime o erro no stderr com as propriedades próprias,
  * `detail` do Postgres junto, e em texto em vez de JSON.
  */
-export function registrarErrosDoProcesso(logger: LoggerBase): void {
+export function registerProcessErrorHandlers(logger: LoggerBase): void {
   const encerrar = (codigo: number): void => process.exit(codigo)
-  process.on('uncaughtException', tratadorDeErroDoProcesso(logger, 'processo.excecao_nao_tratada', encerrar))
-  process.on('unhandledRejection', tratadorDeErroDoProcesso(logger, 'processo.rejeicao_nao_tratada', encerrar))
+  process.on('uncaughtException', processErrorHandler(logger, 'processo.excecao_nao_tratada', encerrar))
+  process.on('unhandledRejection', processErrorHandler(logger, 'processo.rejeicao_nao_tratada', encerrar))
 }
 
-export function tratadorDeErroDoProcesso(logger: LoggerBase, evento: string, encerrar: (codigo: number) => void) {
+export function processErrorHandler(logger: LoggerBase, evento: string, encerrar: (codigo: number) => void) {
   return (erro: unknown): void => {
-    logger.fatal({ evento, erro: resumirErro(erro) })
+    logger.fatal({ evento, erro: summarizeError(erro) })
     encerrar(1)
   }
 }
 
-export interface OpcoesDoLogger {
+export interface LoggerOptions {
   servico: string
   nivel?: LevelWithSilent
   /** Para teste. Sem destino, o log sai no stdout, em JSON, uma linha por evento. */
@@ -164,7 +164,7 @@ export interface OpcoesDoLogger {
  * `operadorId` (o operador Turmma, A0) quando existirem, lidos do contexto da requisição em
  * andamento: só ids, nunca nome, e-mail ou apelido (regra 20, item 9).
  */
-export function criarLogger(opcoes: OpcoesDoLogger): LoggerBase {
+export function createLogger(opcoes: LoggerOptions): LoggerBase {
   const configuracao = {
     level: opcoes.nivel ?? 'info',
     base: { servico: opcoes.servico },
@@ -173,7 +173,7 @@ export function criarLogger(opcoes: OpcoesDoLogger): LoggerBase {
     redact: { paths: [...CAMINHOS_REDACT], censor: TEXTO_REMOVIDO },
     hooks: { logMethod: resumirErrosAntesDeLogar },
     mixin: () => {
-      const contexto = contextoAtual()
+      const contexto = currentContext()
       if (contexto === undefined) return {}
       return {
         requisicaoId: contexto.requisicaoId,

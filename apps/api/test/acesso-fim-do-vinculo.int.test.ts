@@ -1,4 +1,4 @@
-import { criarBanco, criarPool, executarNoContexto } from '@educa/nucleo'
+import { createDatabase, createPool, runInContext } from '@educa/nucleo'
 import { CicloDeVidaRepository, CicloDeVidaService } from '@educa/nucleo/ciclo-de-vida'
 import { ErrorCode, MENSAGENS_DE_ERRO } from '@educa/shared'
 import { randomBytes, randomUUID } from 'node:crypto'
@@ -37,8 +37,8 @@ describe('acesso da turma × fim do vínculo de quem o gerou (correção 2026-10
   const bancada = new BancadaDeSessoes()
   const medidor = new MedidorDeTeste()
   // Um pool próprio para a eliminação: o da bancada tem duas conexões, e nas corridas uma fica com a trava do gatilho.
-  const poolDoCiclo = criarPool({ url: urlDoBancoDeTeste(), maximoConexoes: 4, timeoutConexaoMs: 5_000, timeoutConsultaMs: 30_000 }, () => undefined)
-  const ciclo = new CicloDeVidaService(criarBanco(poolDoCiclo))
+  const poolDoCiclo = createPool({ url: urlDoBancoDeTeste(), maximoConexoes: 4, timeoutConexaoMs: 5_000, timeoutConsultaMs: 30_000 }, () => undefined)
+  const ciclo = new CicloDeVidaService(createDatabase(poolDoCiclo))
   let api: ApiDeTeste
   let sala: FerramentasDaSala
 
@@ -184,7 +184,7 @@ describe('acesso da turma × fim do vínculo de quem o gerou (correção 2026-10
     const e = await sala.montar()
     await professorConfirmado(e, e.turma, e.fisica)
     const [acessoDeE] = await acessosDa(e, e.turma)
-    await executarNoContexto({ requisicaoId: randomUUID(), escolaId: e.escolaId, usuarioId: e.coordenacao.usuarioId, papel: 'coordenador' }, () => ciclo.eliminar(e.professor.usuarioId))
+    await runInContext({ requisicaoId: randomUUID(), escolaId: e.escolaId, usuarioId: e.coordenacao.usuarioId, papel: 'coordenador' }, () => ciclo.eliminar(e.professor.usuarioId))
     expect(await acessosDa(e, e.turma)).toEqual([{ id: acessoDeE?.id, criado_por: null, revogado_em: expect.any(Date) }])
     await naoAbreASala(e)
     expect(await revogadosNaAuditoria(e)).toEqual([{ entidade_id: acessoDeE?.id, autor_usuario_id: e.coordenacao.usuarioId, depois: { turmaId: e.turma } }])
@@ -231,7 +231,7 @@ describe('acesso da turma × fim do vínculo de quem o gerou (correção 2026-10
     const antesEmB = await acessosDa(b, b.turma)
 
     // Só a cláusula de escola separa: sem ela, o professor e a turma de B casariam.
-    const revogados = await executarNoContexto({ requisicaoId: randomUUID(), escolaId: a.escolaId }, () =>
+    const revogados = await runInContext({ requisicaoId: randomUUID(), escolaId: a.escolaId }, () =>
       bancada.banco.transaction((tx) => new CicloDeVidaRepository(tx).revogarDeQuemSaiu(b.professor.usuarioId, b.turma)),
     )
 
@@ -239,7 +239,7 @@ describe('acesso da turma × fim do vínculo de quem o gerou (correção 2026-10
     expect(await acessosDa(b, b.turma)).toEqual(antesEmB)
     expect(await abreASala(b)).toEqual({ token: 200, codigo: 200 })
     // No contexto de B, o mesmo pedido revoga: o teste acima não passa por o acesso não casar com nada.
-    const deB = await executarNoContexto({ requisicaoId: randomUUID(), escolaId: b.escolaId }, () =>
+    const deB = await runInContext({ requisicaoId: randomUUID(), escolaId: b.escolaId }, () =>
       bancada.banco.transaction((tx) => new CicloDeVidaRepository(tx).revogarDeQuemSaiu(b.professor.usuarioId, b.turma)),
     )
     expect(deB).toEqual([{ id: antesEmB[0]?.id, turmaId: b.turma }])
@@ -257,7 +257,7 @@ describe('acesso da turma × fim do vínculo de quem o gerou (correção 2026-10
     const [daTurma] = await acessosDa(s, s.turma)
     const daOutraTurma = await acessosDa(s, s.outraTurma)
 
-    const revogados = await executarNoContexto({ requisicaoId: randomUUID(), escolaId: s.escolaId }, () =>
+    const revogados = await runInContext({ requisicaoId: randomUUID(), escolaId: s.escolaId }, () =>
       bancada.banco.transaction((tx) => new CicloDeVidaRepository(tx).revogarDeQuemSaiu(s.professor.usuarioId, s.turma)),
     )
 
@@ -272,7 +272,7 @@ describe('acesso da turma × fim do vínculo de quem o gerou (correção 2026-10
     const [acesso] = await acessosDa(s, s.turma)
     const contexto = { requisicaoId: randomUUID(), escolaId: s.escolaId, usuarioId: s.coordenacao.usuarioId, papel: 'coordenador' as const }
 
-    await executarNoContexto(contexto, () => ciclo.eliminar(s.professor.usuarioId))
+    await runInContext(contexto, () => ciclo.eliminar(s.professor.usuarioId))
 
     expect(await acessosDa(s, s.turma)).toEqual([{ id: acesso?.id, criado_por: null, revogado_em: expect.any(Date) }])
     await naoAbreASala(s)
@@ -283,7 +283,7 @@ describe('acesso da turma × fim do vínculo de quem o gerou (correção 2026-10
     const s = await sala.montar()
     const [acesso] = await acessosDa(s, s.turma)
 
-    await executarNoContexto({ requisicaoId: randomUUID(), escolaId: s.escolaId }, () => ciclo.eliminar(s.professor.usuarioId, { autorOperador: 'operador-teste' }))
+    await runInContext({ requisicaoId: randomUUID(), escolaId: s.escolaId }, () => ciclo.eliminar(s.professor.usuarioId, { autorOperador: 'operador-teste' }))
 
     expect(await acessosDa(s, s.turma)).toEqual([{ id: acesso?.id, criado_por: null, revogado_em: expect.any(Date) }])
     const { rows } = await bancada.pool.query<{ entidade_id: string; autor_usuario_id: string | null; autor_operador: string | null }>(
@@ -360,7 +360,7 @@ describe('acesso da turma × fim do vínculo de quem o gerou (correção 2026-10
   })
 
   const eliminarPelaCoordenacao = (s: SalaDeTeste) =>
-    executarNoContexto({ requisicaoId: randomUUID(), escolaId: s.escolaId, usuarioId: s.coordenacao.usuarioId, papel: 'coordenador' as const }, () => ciclo.eliminar(s.professor.usuarioId))
+    runInContext({ requisicaoId: randomUUID(), escolaId: s.escolaId, usuarioId: s.coordenacao.usuarioId, papel: 'coordenador' as const }, () => ciclo.eliminar(s.professor.usuarioId))
 
   describe('a corrida com o gerar, na trava da turma', () => {
     it('o gerar parado depois do insert: o encerrar espera a turma e revoga o acesso que acabou de nascer', async () => {

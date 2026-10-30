@@ -7,21 +7,21 @@ import {
   disciplina,
   entrega,
   execucaoAgente,
-  exigirAnoEmCurso,
-  exigirEscolaDoContexto,
+  requireAnoEmCurso,
+  requireEscolaId,
   FUSO_DO_USO,
   material,
   mensagemTutor,
-  relogioDoSistema,
+  systemClock,
   serie,
-  sessaoDaRequisicao,
+  requestSessao,
   sinalTutor,
   tentativaAtividade,
   turma,
   vinculo,
-  type Banco,
-  type Relogio,
-  type TransacaoBanco,
+  type Database,
+  type Clock,
+  type DatabaseTransaction,
 } from '@educa/nucleo'
 import { InvariantException, TIPOS_DE_SINAL_DE_TRABALHO, TROCAS_POR_DIA_PADRAO_DO_TUTOR, type Citacao, type Etapa, type EstadoDeAtividadeAplicada, type TipoDeMensagemDoTutor, type TipoDeSinal, type TipoDeSinalDeTrabalho } from '@educa/shared'
 import { and, asc, count, desc, eq, exists, gte, inArray, isNull, lt, notExists, sql, type SQL } from 'drizzle-orm'
@@ -118,12 +118,12 @@ const respostaDoTurno = alias(mensagemTutor, 'resposta_do_turno')
  */
 export class TutorDoAlunoRepository {
   constructor(
-    private readonly banco: Banco | TransacaoBanco,
-    private readonly relogio: Relogio = relogioDoSistema,
+    private readonly banco: Database | DatabaseTransaction,
+    private readonly relogio: Clock = systemClock,
   ) {}
 
   #aluno(): { escolaId: string; anoLetivoId: string; alunoId: string } {
-    return { escolaId: exigirEscolaDoContexto(), anoLetivoId: exigirAnoEmCurso(), alunoId: sessaoDaRequisicao().usuarioId }
+    return { escolaId: requireEscolaId(), anoLetivoId: requireAnoEmCurso(), alunoId: requestSessao().usuarioId }
   }
 
   /** As mensagens do aluno do contexto, no ano em curso: a cláusula que toda leitura de conversa leva. */

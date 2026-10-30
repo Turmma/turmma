@@ -1,6 +1,6 @@
 import { ErrorCode } from '@educa/shared'
-import { ErroDeDominio } from './erro-de-dominio.js'
-import { erroDoPostgresEm } from './resumir-erro.js'
+import { DomainException } from './erro-de-dominio.js'
+import { postgresErrorIn } from './resumir-erro.js'
 
 /** SQLSTATE que viram erro que o usuário entende. Todo o resto é `ERRO_INTERNO`. */
 const CODIGO_DO_SQLSTATE: Readonly<Record<string, ErrorCode>> = {
@@ -11,12 +11,12 @@ const CODIGO_DO_SQLSTATE: Readonly<Record<string, ErrorCode>> = {
 }
 
 /**
- * Traduz um erro do Postgres em `ErroDeDominio`. O erro traduzido não carrega nada do original:
+ * Traduz um erro do Postgres em `DomainException`. O erro traduzido não carrega nada do original:
  * nem `message`, nem `detail`, nem `where`, nem a consulta que o Drizzle anexa. Devolve `undefined` se não
  * for erro do Postgres, solto ou embrulhado pelo Drizzle.
  */
-export function mapearErroPostgres(erro: unknown): ErroDeDominio | undefined {
-  const doPostgres = erroDoPostgresEm(erro)
+export function mapPostgresError(erro: unknown): DomainException | undefined {
+  const doPostgres = postgresErrorIn(erro)
   if (doPostgres === undefined) return undefined
-  return new ErroDeDominio(CODIGO_DO_SQLSTATE[doPostgres.code] ?? ErrorCode.ERRO_INTERNO)
+  return new DomainException(CODIGO_DO_SQLSTATE[doPostgres.code] ?? ErrorCode.ERRO_INTERNO)
 }

@@ -1,4 +1,4 @@
-import { ErroDeDominio, ErroDeIa, proporFerramenta, type Banco, type EntradaDoAssistente } from '@educa/nucleo'
+import { DomainException, LLMError, proporFerramenta, type Database, type AssistenteInput } from '@educa/nucleo'
 import {
   ErrorCode,
   conteudoDaMensagemDoAgenteSchema,
@@ -18,7 +18,7 @@ import { ExecucaoDoPedidoRepository } from './execucao-do-pedido.repository.js'
 import type { LimiteDePedidosDeIa } from './limite-de-pedidos-de-ia.js'
 import { TurmaDoProfessorRepository } from './turma-do-professor.repository.js'
 
-/** Quantos trechos do material acompanham a mensagem do professor (o teto de `esquemaEntradaDoAssistente`). */
+/** Quantos trechos do material acompanham a mensagem do professor (o teto de `assistenteInputSchema`). */
 export const TRECHOS_NA_CONVERSA = 6
 /** Quantas mensagens anteriores acompanham a nova, e o tamanho de cada uma (os tetos da tarefa). */
 export const TURNOS_ANTERIORES_NA_CONVERSA = 8
@@ -40,7 +40,7 @@ function paraATela(mensagem: MensagemGravada): unknown {
 }
 
 /** O texto de uma mensagem gravada, para acompanhar a próxima como turno anterior. */
-function turnoAnterior(mensagem: MensagemGravada): EntradaDoAssistente['turnosAnteriores'][number] {
+function turnoAnterior(mensagem: MensagemGravada): AssistenteInput['turnosAnteriores'][number] {
   const texto = mensagem.autor === 'usuario' ? conteudoDaMensagemDoUsuarioSchema.parse(mensagem.conteudo).texto : conteudoDaMensagemDoAgenteSchema.parse(mensagem.conteudo).texto
   return { autor: mensagem.autor === 'usuario' ? 'professor' : 'assistente', texto: texto.slice(0, TAMANHO_MAXIMO_DO_TURNO) }
 }
@@ -64,7 +64,7 @@ function turnoAnterior(mensagem: MensagemGravada): EntradaDoAssistente['turnosAn
  */
 export class AssistenteService {
   constructor(
-    private readonly banco: Banco,
+    private readonly banco: Database,
     private readonly agendador: AgendadorDeExecucoes,
     private readonly limite: LimiteDePedidosDeIa,
     private readonly trechos: BuscaDeTrechos,
@@ -84,7 +84,7 @@ export class AssistenteService {
     const turmaId = pedido.turmaId.toLowerCase()
     const disciplinaId = pedido.disciplinaId.toLowerCase()
     // A turma e a disciplina de outra pessoa, de outra escola ou inexistentes respondem igual (regra 10, item 6).
-    if ((await new TurmaDoProfessorRepository(this.banco).turmaComDisciplina(turmaId, disciplinaId)) === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+    if ((await new TurmaDoProfessorRepository(this.banco).turmaComDisciplina(turmaId, disciplinaId)) === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
 
     // O que a execução leu antes de chamar o modelo, e que a conclusão usa: só existe depois de `entrada` rodar.
     let lido: { pergunta: PerguntaDaExecucao; entregues: readonly TrechoDoMaterial[] } | undefined
@@ -101,10 +101,10 @@ export class AssistenteService {
         const conversa = new ConversaRepository(this.banco)
         // A pergunta gravada, e não a do corpo: no reenvio com a mesma chave, vale a que entrou na conversa.
         const pergunta = await conversa.perguntaDaChave(pedido.chaveEnvio)
-        if (pergunta === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+        if (pergunta === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
         // O vínculo é conferido de novo na hora de rodar: quem saiu da turma depois do `202` não recebe resposta sobre ela.
         const turma = await new TurmaDoProfessorRepository(this.banco).turmaComDisciplina(pergunta.turmaId, pergunta.disciplinaId)
-        if (turma === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+        if (turma === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
         const mensagem = conteudoDaMensagemDoUsuarioSchema.parse(pergunta.conteudo).texto
         const turnosAnteriores = (await conversa.anteriores(pergunta.id, TURNOS_ANTERIORES_NA_CONVERSA)).reverse().map(turnoAnterior)
         // "Só conversar" (D18): a marca gravada com a execução. A resposta é sobre o último pedido dela, e é para ele
@@ -123,14 +123,14 @@ export class AssistenteService {
         }
       },
       aoConcluir: async (saida, tx, execucaoId) => {
-        if (lido === undefined) throw new ErroDeIa('IA_ENTRADA_INVALIDA')
+        if (lido === undefined) throw new LLMError('IA_ENTRADA_INVALIDA')
         const { pergunta, entregues } = lido
         if (saida.tipo === 'texto') exigirCitacoesEntregues(saida.citacoes, entregues)
         // A turma e a disciplina da proposta são as da mensagem do professor: o modelo não conhece id nenhum.
         const conteudo = conteudoDaMensagemDoAgenteSchema.safeParse(
           saida.tipo === 'texto' ? saida : { ...saida, proposta: { ferramenta: saida.proposta.ferramenta, parametros: { ...saida.proposta.parametros, turmaId: pergunta.turmaId, disciplinaId: pergunta.disciplinaId } } },
         )
-        if (!conteudo.success) throw new ErroDeIa('IA_SAIDA_INVALIDA')
+        if (!conteudo.success) throw new LLMError('IA_SAIDA_INVALIDA')
         return { tipo: 'mensagem', mensagemId: await new ConversaRepository(tx).gravarDoAgente(pergunta.threadId, execucaoId, conteudo.data) }
       },
     })

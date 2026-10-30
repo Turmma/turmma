@@ -1,8 +1,8 @@
 import type { AlcanceDoSuboperador, CategoriaDeDadoDoSuboperador } from '@educa/shared'
 import { alias } from 'drizzle-orm/pg-core'
 import { and, asc, desc, eq, exists, gt, isNull, ne, or, sql } from 'drizzle-orm'
-import { exigirEscolaDoContexto } from '../contexto/escola-do-contexto.js'
-import type { Banco, TransacaoBanco } from '../db/banco.js'
+import { requireEscolaId } from '../contexto/escola-do-contexto.js'
+import type { Database, DatabaseTransaction } from '../db/banco.js'
 import { escola } from '../db/schema/escola.js'
 import { suboperador, suboperadorEscola } from '../db/schema/suboperador.js'
 
@@ -49,11 +49,11 @@ export interface SuboperadorLidoPelaEscola {
  * este repositório ganhar aplica a mesma regra.
  */
 export class SuboperadorDaEscolaRepository {
-  constructor(private readonly banco: Banco | TransacaoBanco) {}
+  constructor(private readonly banco: Database | DatabaseTransaction) {}
 
   /** Os suboperadores da escola do contexto, vigentes e passados, pelo nome e do mais recente ao mais antigo. */
   async daEscola(): Promise<SuboperadorLidoPelaEscola[]> {
-    const escolaId = exigirEscolaDoContexto()
+    const escolaId = requireEscolaId()
     const ligacao = suboperadorEscola
     const outra = alias(suboperadorEscola, 'ligacao_da_escola')
     const linhas = await this.banco

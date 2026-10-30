@@ -1,20 +1,20 @@
 import {
-  ConfiguracaoInvalida,
-  lerConfiguracaoBanco,
+  InvalidConfigError,
+  loadDatabaseConfig,
   lerJanelaPadrao,
-  lerConfiguracaoTelemetria,
+  loadTelemetryConfig,
   lerVagasPadrao,
-  lerVagasPorEscolaDesligadas,
-  validarAmbiente,
-  type ConfiguracaoBanco,
-  type ConfiguracaoTelemetria,
+  isEscolaConcurrencyLimitDisabled,
+  validateEnvironment,
+  type DatabaseConfig,
+  type TelemetryConfig,
   type JanelaLetiva,
-  type VagasPorFila,
+  type ConcurrencyByQueue,
 } from '@educa/nucleo'
 import { QUEUE_NAMES, type QueueName } from '@educa/shared'
 import { z } from 'zod'
 
-export { ConfiguracaoInvalida }
+export { InvalidConfigError }
 
 const inteiroPositivo = z.coerce.number().int().positive()
 
@@ -58,12 +58,12 @@ export interface ConfiguracaoStorage {
 
 export interface ConfiguracaoWorker {
   /** Pool próprio, com o `statement_timeout` do ambiente. Cabe na soma dos pools das filas: cada job usa uma conexão por vez. */
-  banco: ConfiguracaoBanco
+  banco: DatabaseConfig
   redisFilaUrl: string
   /** Jobs ao mesmo tempo nesta réplica, por fila atendida. Fila fora daqui não é consumida por esta réplica. */
   pools: Partial<Record<QueueName, number>>
   /** Vagas por fila da escola sem vagas próprias: o worker confere a vaga do job ao começar (D41). */
-  vagasPadrao: VagasPorFila
+  vagasPadrao: ConcurrencyByQueue
   /**
    * Quantas threads do sandbox de CPU a réplica usa ao mesmo tempo (`processadores/sintetico.sandbox.ts`).
    * Coerente com a CPU do container: com uma thread por núcleo, e meio núcleo livre para o event loop, o
@@ -88,34 +88,34 @@ export interface ConfiguracaoWorker {
    */
   janelaPadrao?: JanelaLetiva
   /** Para onde e de quanto em quanto tempo as métricas vão. */
-  telemetria: ConfiguracaoTelemetria
+  telemetria: TelemetryConfig
 }
 
 /** Lê e valida o ambiente do worker. Todos os problemas saem de uma vez, só pelo nome. */
 export function lerConfiguracao(ambiente: Record<string, string | undefined>): ConfiguracaoWorker {
-  const problemas: ConfiguracaoInvalida[] = []
+  const problemas: InvalidConfigError[] = []
   const ler = <T>(leitura: () => T): T | undefined => {
     try {
       return leitura()
     } catch (erro) {
-      if (!(erro instanceof ConfiguracaoInvalida)) throw erro
+      if (!(erro instanceof InvalidConfigError)) throw erro
       problemas.push(erro)
       return undefined
     }
   }
-  const banco = ler(() => lerConfiguracaoBanco(ambiente))
-  const proprio = ler(() => validarAmbiente(esquemaAmbiente, ambiente))
-  const filas = ler(() => validarAmbiente(esquemaFilas, ambiente))
+  const banco = ler(() => loadDatabaseConfig(ambiente))
+  const proprio = ler(() => validateEnvironment(esquemaAmbiente, ambiente))
+  const filas = ler(() => validateEnvironment(esquemaFilas, ambiente))
   // O pool só é exigido para as filas que a réplica atende.
   const esquemaPools = z.object(Object.fromEntries((filas?.FILAS ?? []).map((fila) => [variavelDoPool(fila), inteiroPositivo])))
-  const pools = ler(() => validarAmbiente(esquemaPools, ambiente))
+  const pools = ler(() => validateEnvironment(esquemaPools, ambiente))
   const vagasPadrao = ler(() => lerVagasPadrao(ambiente))
-  const vagasDesligadas = ler(() => lerVagasPorEscolaDesligadas(ambiente))
+  const vagasDesligadas = ler(() => isEscolaConcurrencyLimitDisabled(ambiente))
   const atendeLote = filas?.FILAS.includes('lote') === true
   const atendeStorage = atendeLote || filas?.FILAS.includes('normal') === true
-  const storage = atendeStorage ? ler(() => validarAmbiente(esquemaStorage, ambiente)) : undefined
+  const storage = atendeStorage ? ler(() => validateEnvironment(esquemaStorage, ambiente)) : undefined
   const janelaPadrao = atendeLote ? ler(() => lerJanelaPadrao(ambiente)) : undefined
-  const telemetria = ler(() => lerConfiguracaoTelemetria(ambiente))
+  const telemetria = ler(() => loadTelemetryConfig(ambiente))
   if (
     telemetria === undefined ||
     banco === undefined ||
@@ -127,7 +127,7 @@ export function lerConfiguracao(ambiente: Record<string, string | undefined>): C
     (atendeStorage && storage === undefined) ||
     (atendeLote && janelaPadrao === undefined)
   ) {
-    throw new ConfiguracaoInvalida(problemas.flatMap((erro) => erro.variaveis).sort(), problemas.flatMap((erro) => erro.motivos))
+    throw new InvalidConfigError(problemas.flatMap((erro) => erro.variaveis).sort(), problemas.flatMap((erro) => erro.motivos))
   }
   return {
     banco,

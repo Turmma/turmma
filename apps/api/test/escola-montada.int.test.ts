@@ -210,7 +210,7 @@ const PREFIXO_DA_MATRICULA = `lista-${randomUUID().slice(0, 8)}`
 const matriculaNova = (): string => `${PREFIXO_DA_MATRICULA}-${randomUUID().slice(0, 8)}`
 /**
  * A senha que o aluno cria na reivindicação (6.0): nenhuma resposta nem log pode tê-la (A3, A4). Em minúsculas e com `_`,
- * no formato de evento que o `LoggerDoNest` deixa passar: a sentinela pega o vazamento também por ali.
+ * no formato de evento que o `NestLogger` deixa passar: a sentinela pega o vazamento também por ali.
  */
 const SENHA_DA_SALA = `senha_da_sala_${randomBytes(6).toString('hex')}`
 /** Toda chave de envio que as varreduras mandaram: nenhuma resposta nem log pode tê-la (A3, A4). */

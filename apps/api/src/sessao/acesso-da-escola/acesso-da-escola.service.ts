@@ -1,4 +1,4 @@
-import { ErroDeDominio, type Banco, type ProvedorExterno } from '@educa/nucleo'
+import { DomainException, type Database, type ProvedorExterno } from '@educa/nucleo'
 import { ErrorCode, PROVEDORES_DE_CONTA_DA_ESCOLA, type AcessoDaEscolaResponse } from '@educa/shared'
 import { AcessoDaEscolaRepository } from '../../credencial/acesso-publico.repository.js'
 import { naEscolaSemUsuario } from '../tenant/escola-sem-usuario.js'
@@ -13,19 +13,19 @@ import type { ResolucaoDeTenantRepository } from '../tenant/resolucao-de-tenant.
  */
 export class AcessoDaEscolaService {
   constructor(
-    private readonly banco: Banco,
+    private readonly banco: Database,
     private readonly resolucao: ResolucaoDeTenantRepository,
     private readonly ligados: readonly ProvedorExterno[],
   ) {}
 
   async ler(slug: string): Promise<AcessoDaEscolaResponse> {
     const escolaId = await this.resolucao.escolaPorSlug(slug)
-    if (escolaId === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+    if (escolaId === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
     const lido = await naEscolaSemUsuario({ escolaId }, async () => {
       const repositorio = new AcessoDaEscolaRepository(this.banco)
       return { nome: await repositorio.nome(), liberados: await repositorio.provedoresLiberados() }
     })
-    if (lido.nome === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+    if (lido.nome === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
     // Na ordem fixa do contrato, para a resposta não depender da ordem do banco.
     const provedores = PROVEDORES_DE_CONTA_DA_ESCOLA.filter((provedor) => lido.liberados.includes(provedor) && this.ligados.includes(provedor))
     return { nome: lido.nome, provedores }

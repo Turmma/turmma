@@ -1,15 +1,15 @@
 import type { EventEmitter } from 'node:events'
 import pg from 'pg'
-import { ehErroDoPostgres } from '../erro/resumir-erro.js'
+import { isPostgresError } from '../erro/resumir-erro.js'
 
-export interface ConfiguracaoBanco {
+export interface DatabaseConfig {
   url: string
   maximoConexoes: number
   timeoutConexaoMs: number
   timeoutConsultaMs: number
 }
 
-export type PoolBanco = pg.Pool
+export type DatabasePool = pg.Pool
 
 // SQLSTATE que encerram a sessão ou indicam estado do servidor em que não vale reaproveitá-la:
 // classe 08 (conexão), 57P (servidor desligando, `pg_terminate_backend`, sessão ociosa), XX
@@ -27,8 +27,8 @@ const SQLSTATE_DE_CONEXAO = /^(08|57P|XX|25P0[23])/
  * segue boa. A severidade entra só como reforço, porque o texto dela vem traduzido conforme o
  * `lc_messages` do servidor; o SQLSTATE não.
  */
-export function ehErroDeConexao(erro: unknown): boolean {
-  if (!ehErroDoPostgres(erro)) return true
+export function isConnectionError(erro: unknown): boolean {
+  if (!isPostgresError(erro)) return true
   return SQLSTATE_DE_CONEXAO.test(erro.code) || erro.severity === 'FATAL' || erro.severity === 'PANIC'
 }
 
@@ -100,7 +100,7 @@ function consultaQueDevolveAConexao(pool: pg.Pool, limiteReadyForQueryMs: number
     try {
       return await conexao.query(textoOuConfiguracao, valores)
     } catch (erro) {
-      if (ehErroDeConexao(erro)) {
+      if (isConnectionError(erro)) {
         descartarCom = erro instanceof Error ? erro : new Error('consulta falhou')
       } else if (!(await aguardarReadyForQuery(conexao, limiteReadyForQueryMs))) {
         descartarCom = new Error('sem ReadyForQuery depois do erro da consulta')
@@ -122,7 +122,7 @@ const consultaDoCliente = new WeakMap<pg.PoolClient, Consulta>()
 
 /**
  * `pool.connect()` na forma com promessa, que é a da transação do Drizzle, com a conexão emprestada saindo do pool no
- * primeiro erro de conexão de uma consulta (`ehErroDeConexao`: timeout do cliente, socket, sessão encerrada) ou no
+ * primeiro erro de conexão de uma consulta (`isConnectionError`: timeout do cliente, socket, sessão encerrada) ou no
  * primeiro `'error'` da conexão, que o `pg` emite na queda do socket mesmo entre duas consultas da transação.
  *
  * O Drizzle manda o `begin` fora do `try` e só devolve a conexão no `finally` dele, sem erro. Com o Postgres travado, o
@@ -163,7 +163,7 @@ function conexaoQueSaiNoErroDeConexao(pool: pg.Pool): typeof pool.connect {
       const resultado = consultar.apply(conexao, argumentosDaConsulta)
       if (typeof argumentosDaConsulta.at(-1) === 'function' || ehSubmittable(argumentosDaConsulta[0])) return resultado
       return (resultado as Promise<unknown>).catch((erro: unknown) => {
-        if (ehErroDeConexao(erro)) devolver(erro instanceof Error ? erro : new Error('consulta falhou'))
+        if (isConnectionError(erro)) devolver(erro instanceof Error ? erro : new Error('consulta falhou'))
         throw erro
       })
     } as typeof conexao.query
@@ -175,7 +175,7 @@ function conexaoQueSaiNoErroDeConexao(pool: pg.Pool): typeof pool.connect {
  * Pool único por processo. Os timeouts existem para que um Postgres travado vire resposta
  * rápida de indisponível, e não requisição pendurada ocupando o event loop na hora da aula.
  */
-export function criarPool(config: ConfiguracaoBanco, aoPerderConexaoOciosa: () => void): PoolBanco {
+export function createPool(config: DatabaseConfig, aoPerderConexaoOciosa: () => void): DatabasePool {
   const pool = new pg.Pool({
     connectionString: config.url,
     max: config.maximoConexoes,
@@ -198,7 +198,7 @@ export function criarPool(config: ConfiguracaoBanco, aoPerderConexaoOciosa: () =
 }
 
 /** Consulta real ao banco: `true` só se o Postgres respondeu dentro do timeout. */
-export async function bancoResponde(pool: PoolBanco): Promise<boolean> {
+export async function pingDatabase(pool: DatabasePool): Promise<boolean> {
   try {
     await pool.query('select 1')
     return true

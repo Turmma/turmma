@@ -5,8 +5,8 @@ import { join } from 'node:path'
 import pg from 'pg'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { BancadaDeSessoes, type SessaoDeTeste } from '../../apps/api/test/sessao-de-teste.js'
-import { FILAS_POR_PRIORIDADE, nomeDaFilaBullMQ } from '../../packages/nucleo/src/fila/filas.ts'
-import { METRICAS, METRICAS_COM_ESCOLA } from '../../packages/nucleo/src/telemetria/metricas.ts'
+import { QUEUES_BY_PRIORITY, bullmqQueueName } from '../../packages/nucleo/src/fila/filas.ts'
+import { METRICS, METRICS_WITH_ESCOLA } from '../../packages/nucleo/src/telemetria/metricas.ts'
 import { lerAmbienteDeTeste, valorObrigatorio } from '../../tools/ci/compose.ts'
 import { raizRepositorio } from '../../tools/ci/executar.ts'
 import { aguardarSaudavel, compose, composeAssincronoOuFalha, PROCESSOS_DA_FILA, recriarDoZero } from '../../tools/testes/compose.ts'
@@ -103,8 +103,8 @@ describe('métricas na observabilidade local, por rota, fila e escola', () => {
     await pool.query('delete from job_registro where escola_id = any($1)', [[ESCOLA_A, ESCOLA_B, ESCOLA_C]])
     await pool.end()
     const redis = new Redis(`redis://127.0.0.1:${porta('REDIS_FILA_PORTA_HOST')}`, { maxRetriesPerRequest: null })
-    for (const fila of FILAS_POR_PRIORIDADE) {
-      const queue = new Queue(nomeDaFilaBullMQ(fila, 'worker'), { connection: redis })
+    for (const fila of QUEUES_BY_PRIORITY) {
+      const queue = new Queue(bullmqQueueName(fila, 'worker'), { connection: redis })
       for (const jobId of jobs) await queue.remove(jobId)
       await queue.close()
     }
@@ -226,10 +226,10 @@ describe('métricas na observabilidade local, por rota, fila e escola', () => {
 
     const comEscola = (await consultar('count by (__name__) ({escola_id!=""})')).map(({ metric }) => metric['__name__']).sort()
     expect(comEscola).toEqual(expect.arrayContaining(['job_espera_mais_antiga_s', 'job_pendentes', 'fila_vagas_em_uso']))
-    // A lista fechada de `METRICAS_COM_ESCOLA` (as de job, as três de login, a do expurgo, a do incidente, a do arquivo em preparação e a
+    // A lista fechada de `METRICS_WITH_ESCOLA` (as de job, as três de login, a do expurgo, a do incidente, a do arquivo em preparação e a
     // da eliminação vencida), com o nome do Prometheus.
     const admitidas = new Set<string>(
-      (Object.keys(METRICAS) as Array<keyof typeof METRICAS>).filter((chave) => METRICAS_COM_ESCOLA.includes(METRICAS[chave])).flatMap((chave) => NOMES_NO_PROMETHEUS[chave]),
+      (Object.keys(METRICS) as Array<keyof typeof METRICS>).filter((chave) => METRICS_WITH_ESCOLA.includes(METRICS[chave])).flatMap((chave) => NOMES_NO_PROMETHEUS[chave]),
     )
     expect([...admitidas].sort()).toEqual(
       [

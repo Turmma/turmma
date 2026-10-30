@@ -4,15 +4,15 @@ import {
   correcao,
   disciplina,
   entrega,
-  exigirAnoEmCurso,
-  exigirEscolaDoContexto,
+  requireAnoEmCurso,
+  requireEscolaId,
   respostaAtividade,
-  sessaoDaRequisicao,
+  requestSessao,
   tentativaAtividade,
   usuario,
   vinculo,
-  type Banco,
-  type TransacaoBanco,
+  type Database,
+  type DatabaseTransaction,
 } from '@educa/nucleo'
 import type { PaginationQuery, DiagnosticoGravado, EstadoDeAtividadeAplicada } from '@educa/shared'
 import { and, asc, desc, eq, exists, isNull, lt, sql, type SQL } from 'drizzle-orm'
@@ -81,14 +81,14 @@ const COLUNAS_DA_RESPOSTA = { questao: respostaAtividade.questao, alternativa: r
  * Nenhuma consulta daqui lê tentativa, resposta ou correção de outro aluno, nem soma da turma.
  */
 export class MinhaAtividadeRepository {
-  constructor(private readonly banco: Banco | TransacaoBanco) {}
+  constructor(private readonly banco: Database | DatabaseTransaction) {}
 
   /** Atividade da escola e do ano do contexto, de turma em que o aluno da sessão tem vínculo de aluno `confirmado`. */
   #daMinhaTurma(): SQL | undefined {
-    const { usuarioId } = sessaoDaRequisicao()
+    const { usuarioId } = requestSessao()
     return and(
-      eq(atividadeAplicada.escolaId, exigirEscolaDoContexto()),
-      eq(atividadeAplicada.anoLetivoId, exigirAnoEmCurso()),
+      eq(atividadeAplicada.escolaId, requireEscolaId()),
+      eq(atividadeAplicada.anoLetivoId, requireAnoEmCurso()),
       exists(
         this.banco
           .select({ um: vinculo.id })
@@ -109,7 +109,7 @@ export class MinhaAtividadeRepository {
 
   /** As colunas que prendem uma linha de tentativa, resposta ou correção ao aluno da sessão, na escola e no ano do contexto. */
   #minha<Tabela extends typeof tentativaAtividade | typeof respostaAtividade | typeof correcao>(tabela: Tabela, atividadeAplicadaId: string): SQL | undefined {
-    return and(eq(tabela.escolaId, exigirEscolaDoContexto()), eq(tabela.anoLetivoId, exigirAnoEmCurso()), eq(tabela.atividadeAplicadaId, atividadeAplicadaId), eq(tabela.alunoId, sessaoDaRequisicao().usuarioId))
+    return and(eq(tabela.escolaId, requireEscolaId()), eq(tabela.anoLetivoId, requireAnoEmCurso()), eq(tabela.atividadeAplicadaId, atividadeAplicadaId), eq(tabela.alunoId, requestSessao().usuarioId))
   }
 
   /**
@@ -117,7 +117,7 @@ export class MinhaAtividadeRepository {
    * próxima. `comDiagnostico` só é verdadeiro com correção **dele** em lote `aprovada`: é um sim ou não, sem número.
    */
   listar({ pagina, limite }: PaginationQuery): Promise<MinhaAtividadeLida[]> {
-    const { usuarioId } = sessaoDaRequisicao()
+    const { usuarioId } = requestSessao()
     return this.banco
       .select({
         id: atividadeAplicada.id,
@@ -186,7 +186,7 @@ export class MinhaAtividadeRepository {
   async abrirTentativa(atividadeAplicadaId: string): Promise<TentativaLida> {
     const [linha] = await this.banco
       .insert(tentativaAtividade)
-      .values({ escolaId: exigirEscolaDoContexto(), anoLetivoId: exigirAnoEmCurso(), atividadeAplicadaId, alunoId: sessaoDaRequisicao().usuarioId })
+      .values({ escolaId: requireEscolaId(), anoLetivoId: requireAnoEmCurso(), atividadeAplicadaId, alunoId: requestSessao().usuarioId })
       .onConflictDoUpdate({
         target: [tentativaAtividade.escolaId, tentativaAtividade.anoLetivoId, tentativaAtividade.atividadeAplicadaId, tentativaAtividade.alunoId],
         set: { iniciadaEm: sql`${tentativaAtividade.iniciadaEm}` },
@@ -225,7 +225,7 @@ export class MinhaAtividadeRepository {
     const alvo = [respostaAtividade.escolaId, respostaAtividade.anoLetivoId, respostaAtividade.atividadeAplicadaId, respostaAtividade.alunoId, respostaAtividade.questao]
     const gravar = this.banco
       .insert(respostaAtividade)
-      .values({ escolaId: exigirEscolaDoContexto(), anoLetivoId: exigirAnoEmCurso(), atividadeAplicadaId, alunoId: sessaoDaRequisicao().usuarioId, questao, alternativa, sequencia: sequencia ?? 1 })
+      .values({ escolaId: requireEscolaId(), anoLetivoId: requireAnoEmCurso(), atividadeAplicadaId, alunoId: requestSessao().usuarioId, questao, alternativa, sequencia: sequencia ?? 1 })
     const [gravada] = await (sequencia === undefined
       ? gravar.onConflictDoUpdate({ target: alvo, set: { alternativa, sequencia: sql`${respostaAtividade.sequencia} + 1`, respondidaEm: sql`now()` } })
       : gravar.onConflictDoUpdate({
@@ -272,7 +272,7 @@ export class MinhaAtividadeRepository {
       })
       .from(atividadeAplicada)
       .innerJoin(artefato, artefatoDaAplicacao)
-      .innerJoin(correcao, and(eq(correcao.escolaId, atividadeAplicada.escolaId), eq(correcao.anoLetivoId, atividadeAplicada.anoLetivoId), eq(correcao.atividadeAplicadaId, atividadeAplicada.id), eq(correcao.alunoId, sessaoDaRequisicao().usuarioId)))
+      .innerJoin(correcao, and(eq(correcao.escolaId, atividadeAplicada.escolaId), eq(correcao.anoLetivoId, atividadeAplicada.anoLetivoId), eq(correcao.atividadeAplicadaId, atividadeAplicada.id), eq(correcao.alunoId, requestSessao().usuarioId)))
       .innerJoin(entrega, and(eq(entrega.escolaId, correcao.escolaId), eq(entrega.id, correcao.entregaId), eq(entrega.estado, 'aprovada')))
       .leftJoin(usuario, and(eq(usuario.escolaId, entrega.escolaId), eq(usuario.id, entrega.decididaPor)))
       .where(and(this.#daMinhaTurma(), eq(atividadeAplicada.id, id)))

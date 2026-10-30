@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { ProporcaoEmJanela } from './proporcao-em-janela.js'
+import { SlidingWindowRatio } from './proporcao-em-janela.js'
 
 describe('ProporcaoEmJanela (limite.seguro_ativo)', () => {
   // Janela de 30 s em 6 fatias de 5 s, com relógio na mão.
-  function janela(): { proporcao: ProporcaoEmJanela; avancar: (ms: number) => void } {
+  function janela(): { proporcao: SlidingWindowRatio; avancar: (ms: number) => void } {
     let agora = 1_000_000
-    return { proporcao: new ProporcaoEmJanela(30_000, 6, () => agora), avancar: (ms) => (agora += ms) }
+    return { proporcao: new SlidingWindowRatio(30_000, 6, () => agora), avancar: (ms) => (agora += ms) }
   }
 
   it('Redis de cache fora: toda requisição pelo seguro dá 1; sem requisição na janela, 0', () => {

@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto'
 import { describe, expect, it, vi } from 'vitest'
-import { contextoAtual, executarNoContexto } from '../contexto/contexto.js'
+import { currentContext, runInContext } from '../contexto/contexto.js'
 import {
-  ConfiguracaoOperacional,
+  OperationalSettings,
   NOVA_TENTATIVA_DA_CONFIGURACAO_MS,
   resolverJanela,
   resolverLimites,
@@ -11,7 +11,7 @@ import {
   VAGAS_SEM_LIMITE,
   VALIDADE_DA_CONFIGURACAO_MS,
 } from './configuracao-operacional.js'
-import type { LinhaOperacional } from './configuracao-operacional.repository.js'
+import type { OperationalSettingsRow } from './configuracao-operacional.repository.js'
 
 const ESCOLA_A = '0190f5a0-0000-7000-8000-00000000000a'
 const ESCOLA_B = '0190f5a0-0000-7000-8000-00000000000b'
@@ -19,8 +19,8 @@ const VAGAS_PADRAO = { interativa: 5, normal: 5, lote: 2 }
 const LIMITES_PADRAO = { porUsuarioMin: 120, porEscolaMin: 30_000 }
 const JANELA_PADRAO = { fuso: 'America/Sao_Paulo', diasLetivos: [1, 2, 3, 4, 5], inicio: '07:00', fim: '18:00' }
 
-const linha = (parcial: Partial<LinhaOperacional>): LinhaOperacional => ({ fuso: null, diasLetivos: null, inicio: null, fim: null, limiteReqUsuarioMin: null, limiteReqEscolaMin: null, vagas: null, ...parcial })
-const naEscola = <T>(escolaId: string, funcao: () => T): T => executarNoContexto({ requisicaoId: randomUUID(), escolaId }, funcao)
+const linha = (parcial: Partial<OperationalSettingsRow>): OperationalSettingsRow => ({ fuso: null, diasLetivos: null, inicio: null, fim: null, limiteReqUsuarioMin: null, limiteReqEscolaMin: null, vagas: null, ...parcial })
+const naEscola = <T>(escolaId: string, funcao: () => T): T => runInContext({ requisicaoId: randomUUID(), escolaId }, funcao)
 
 describe('resolverVagas e resolverLimites', () => {
   it('escola sem linha opera com o padrão do ambiente inteiro', () => {
@@ -46,7 +46,7 @@ describe('resolverVagas e resolverLimites', () => {
 })
 
 describe('resolverJanela', () => {
-  function resolver(parcial: Partial<LinhaOperacional> | undefined) {
+  function resolver(parcial: Partial<OperationalSettingsRow> | undefined) {
     const descartados: string[] = []
     const janela = resolverJanela(JANELA_PADRAO, parcial === undefined ? undefined : linha(parcial), (campo) => descartados.push(campo))
     return { janela, descartados }
@@ -80,19 +80,19 @@ describe('resolverJanela', () => {
 
 describe('ConfiguracaoOperacional', () => {
   /** Repository falso que lê a escola do contexto, como o de verdade, a partir de linhas por escola. */
-  function montar(linhas: Record<string, LinhaOperacional>, opcoes: { falhar?: () => boolean } = {}) {
+  function montar(linhas: Record<string, OperationalSettingsRow>, opcoes: { falhar?: () => boolean } = {}) {
     let agora = 0
     const lidas: string[] = []
     const aoFalhar = vi.fn()
     const repositorio = {
       daEscola: vi.fn(async () => {
-        const escolaId = contextoAtual()?.escolaId ?? ''
+        const escolaId = currentContext()?.escolaId ?? ''
         lidas.push(escolaId)
         if (opcoes.falhar?.() === true) throw new Error('Postgres fora')
         return linhas[escolaId]
       }),
     }
-    const configuracao = new ConfiguracaoOperacional(repositorio, (lida) => resolverVagas(VAGAS_PADRAO, lida), { agora: () => agora, aoFalhar })
+    const configuracao = new OperationalSettings(repositorio, (lida) => resolverVagas(VAGAS_PADRAO, lida), { agora: () => agora, aoFalhar })
     return { configuracao, lidas, aoFalhar, avancar: (ms: number) => (agora += ms) }
   }
 
@@ -106,8 +106,8 @@ describe('ConfiguracaoOperacional', () => {
 
   it('sem escola no contexto falha fechado; rotina do sistema usa o padrão sem consultar', async () => {
     const { configuracao, lidas } = montar({})
-    await expect(executarNoContexto({ requisicaoId: randomUUID() }, () => configuracao.daEscola())).rejects.toThrow('sem escola no contexto')
-    expect(await executarNoContexto({ requisicaoId: randomUUID(), rotinaDoSistema: true }, () => configuracao.daEscola())).toEqual(VAGAS_PADRAO)
+    await expect(runInContext({ requisicaoId: randomUUID() }, () => configuracao.daEscola())).rejects.toThrow('sem escola no contexto')
+    expect(await runInContext({ requisicaoId: randomUUID(), rotinaDoSistema: true }, () => configuracao.daEscola())).toEqual(VAGAS_PADRAO)
     expect(lidas).toEqual([])
   })
 

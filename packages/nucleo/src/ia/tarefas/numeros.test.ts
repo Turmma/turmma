@@ -1,24 +1,24 @@
 import { conteudoDaMensagemDoAgenteSchema, conteudoDoResumoDoAnalistaSchema, HIPOTESES_DO_ANALISTA } from '@educa/shared'
 import { describe, expect, it, vi } from 'vitest'
-import { comContextoDaEscolaDoPedido } from '../__fixtures__/contexto-da-escola.js'
-import { AdaptadorRoteirizado } from '../__fixtures__/adaptador-roteirizado.js'
+import { withEscolaContextOfRequest } from '../__fixtures__/contexto-da-escola.js'
+import { ScriptedAdapter } from '../__fixtures__/adaptador-roteirizado.js'
 import { AMOSTRAS_DO_ASSISTENTE } from '../__fixtures__/amostras-do-assistente.js'
 import { AMOSTRAS_DA_REVISAO, SAIDAS_DA_REVISAO } from '../__fixtures__/amostras-do-assistente-revisao.js'
 import { entradaDoAnalista, entradaDoAssistente, entradaDoRelatorio, ESCOLA_A } from '../__fixtures__/entradas.js'
 import { MATERIAL_DE_ESTEQUIOMETRIA } from '../__fixtures__/estequiometria.js'
-import type { AdaptadorDeModelo } from '../adaptador.js'
-import { ConsumoEmMemoria, OrcamentoEmMemoria } from '../consumo.js'
-import { ErroDeIa } from '../erros.js'
+import type { ModelAdapter } from '../adaptador.js'
+import { InMemoryConsumo, InMemoryOrcamento } from '../consumo.js'
+import { LLMError } from '../erros.js'
 import { PROMPT_PROPOR_FERRAMENTA } from '../prompts/propor-ferramenta.js'
-import { ProvedorDeIa } from '../provedor.js'
-import { SuspensoesEmMemoria } from '../suspensao.js'
+import { LLMGateway } from '../provedor.js'
+import { InMemorySuspensoes } from '../suspensao.js'
 import { atribuiNotaOuConceito, conversaPedeJulgamentoDeTextoDeAluno, conversaTrazTextoDeAluno, julgaTextoDeAluno, pedeJulgamentoDeTextoDeAluno, proporFerramenta, RECUSA_DE_CORRECAO_DE_TEXTO_DE_ALUNO, turnosQuePodemIrAoModelo } from './propor-ferramenta.js'
 import { relatorioDaCorrecao } from './relatorio-da-correcao.js'
 import { resumoDoAnalista } from './resumo-do-analista.js'
 
-function provedorCom(adaptador: AdaptadorDeModelo): { ia: ProvedorDeIa; consumo: ConsumoEmMemoria } {
-  const consumo = new ConsumoEmMemoria()
-  return { ia: comContextoDaEscolaDoPedido(new ProvedorDeIa({ adaptador, registro: consumo, orcamento: new OrcamentoEmMemoria(consumo), suspensao: new SuspensoesEmMemoria() })), consumo }
+function provedorCom(adaptador: ModelAdapter): { ia: LLMGateway; consumo: InMemoryConsumo } {
+  const consumo = new InMemoryConsumo()
+  return { ia: withEscolaContextOfRequest(new LLMGateway({ adaptador, registro: consumo, orcamento: new InMemoryOrcamento(consumo), suspensao: new InMemorySuspensoes() })), consumo }
 }
 
 describe('propor_ferramenta: o Assistente pergunta antes de abrir a ferramenta (D18)', () => {
@@ -124,12 +124,12 @@ describe('propor_ferramenta: o Assistente pergunta antes de abrir a ferramenta (
       expect(proporFerramenta.montarPedido(entrada).instrucao).toContain('só conversar')
       expect(proporFerramenta.montarPedido(entradaDoAssistente()).instrucao).not.toContain('só conversar')
       // O modelo que insiste na proposta duas vezes não entrega nada; o que corrige na repetição entrega o texto.
-      const insistente = new AdaptadorRoteirizado([JSON.stringify(umaProposta), JSON.stringify(umaProposta)])
+      const insistente = new ScriptedAdapter([JSON.stringify(umaProposta), JSON.stringify(umaProposta)])
       const erro: unknown = await provedorCom(insistente).ia.gerar({ tarefa: proporFerramenta, entrada, escolaId: ESCOLA_A }).catch((motivo: unknown) => motivo)
-      expect((erro as ErroDeIa).codigoDeIa).toBe('IA_SAIDA_INVALIDA')
+      expect((erro as LLMError).codigoDeIa).toBe('IA_SAIDA_INVALIDA')
       expect(insistente.correcoes[1]?.problemas.join(' ')).toContain('só conversar')
       const emTexto = { tipo: 'texto', texto: 'O mol é a unidade de quantidade de matéria.', citacoes: [] }
-      const { saida } = await provedorCom(new AdaptadorRoteirizado([JSON.stringify(umaProposta), JSON.stringify(emTexto)])).ia.gerar({ tarefa: proporFerramenta, entrada, escolaId: ESCOLA_A })
+      const { saida } = await provedorCom(new ScriptedAdapter([JSON.stringify(umaProposta), JSON.stringify(emTexto)])).ia.gerar({ tarefa: proporFerramenta, entrada, escolaId: ESCOLA_A })
       expect(saida).toEqual(emTexto)
     })
 
@@ -167,7 +167,7 @@ describe('propor_ferramenta e a D55: a IA não julga texto de aluno nem dá nota
 
   it('a mensagem recusada pela regra não sai para o modelo: o adaptador não é chamado em nenhuma das amostras de recusa, e a resposta é a fixa', async () => {
     for (const { frase } of recusas) {
-      const adaptador = new AdaptadorRoteirizado([])
+      const adaptador = new ScriptedAdapter([])
       const { ia, consumo } = provedorCom(adaptador)
       const { saida, medicao } = await ia.gerar({ tarefa: proporFerramenta, entrada: entradaDoAssistente(frase), escolaId: ESCOLA_A })
       expect(adaptador.chamadas, frase).toBe(0)
@@ -232,7 +232,7 @@ describe('propor_ferramenta e a D55: a IA não julga texto de aluno nem dá nota
       const entrada = entradaDoAssistente('Segue o que a Bia escreveu. A tecnologia mudou muito a vida das pessoas e hoje todo mundo conversa pelo celular.')
       expect(proporFerramenta.semModelo?.(entrada)).toBeUndefined()
       const comNota = JSON.stringify({ tipo: 'texto', texto: 'O texto da Bia está razoável. Eu daria nota 6,5: falta desenvolver o argumento.', citacoes: [] })
-      const insistente = new AdaptadorRoteirizado([comNota, comNota])
+      const insistente = new ScriptedAdapter([comNota, comNota])
       const { ia, consumo } = provedorCom(insistente)
       const { saida } = await ia.gerar({ tarefa: proporFerramenta, entrada, escolaId: ESCOLA_A })
       expect(saida).toEqual({ tipo: 'texto', texto: RECUSA_DE_CORRECAO_DE_TEXTO_DE_ALUNO, citacoes: [] })
@@ -242,7 +242,7 @@ describe('propor_ferramenta e a D55: a IA não julga texto de aluno nem dá nota
       expect(JSON.stringify(consumo.registros)).not.toMatch(/6,5|razoável|Bia/u)
 
       const semNota = { tipo: 'texto', texto: 'Eu não avalio texto de aluno: a correção é sua.', citacoes: [] }
-      const { saida: corrigida } = await provedorCom(new AdaptadorRoteirizado([comNota, JSON.stringify(semNota)])).ia.gerar({ tarefa: proporFerramenta, entrada, escolaId: ESCOLA_A })
+      const { saida: corrigida } = await provedorCom(new ScriptedAdapter([comNota, JSON.stringify(semNota)])).ia.gerar({ tarefa: proporFerramenta, entrada, escolaId: ESCOLA_A })
       expect(corrigida).toEqual(semNota)
     })
 
@@ -603,10 +603,10 @@ describe('propor_ferramenta na tarefa 3.0: juízo sobre texto de aluno, na entra
     const citacaoInvalida = JSON.stringify({ tipo: 'texto', texto: 'Está na página 1.', citacoes: [{ materialId: MATERIAL_DE_ESTEQUIOMETRIA, pagina: 1, trecho: 'O mol é…' }] })
     const recusa = { tipo: 'texto' as const, texto: RECUSA_DE_CORRECAO_DE_TEXTO_DE_ALUNO, citacoes: [] }
     const comLog = (roteiro: readonly string[]) => {
-      const consumo = new ConsumoEmMemoria()
+      const consumo = new InMemoryConsumo()
       const logger = { info: vi.fn(), warn: vi.fn() }
-      const adaptador = new AdaptadorRoteirizado(roteiro)
-      const ia = comContextoDaEscolaDoPedido(new ProvedorDeIa({ adaptador, registro: consumo, orcamento: new OrcamentoEmMemoria(consumo), suspensao: new SuspensoesEmMemoria(), logger }))
+      const adaptador = new ScriptedAdapter(roteiro)
+      const ia = withEscolaContextOfRequest(new LLMGateway({ adaptador, registro: consumo, orcamento: new InMemoryOrcamento(consumo), suspensao: new InMemorySuspensoes(), logger }))
       return { ia, consumo, logger, adaptador }
     }
 
@@ -824,11 +824,11 @@ describe('resumo_do_analista: só agregado, em listas fechadas, sem texto do mod
 
   it('o modelo que escreve texto no resumo duas vezes não tem nada entregue à coordenação', async () => {
     const comTexto = JSON.stringify({ ...bom, resumo: 'O resultado indica falha do professor da 2ª série.' })
-    const adaptador = new AdaptadorRoteirizado([comTexto, comTexto])
+    const adaptador = new ScriptedAdapter([comTexto, comTexto])
     const { ia, consumo } = provedorCom(adaptador)
     const erro: unknown = await ia.gerar({ tarefa: resumoDoAnalista, entrada, escolaId: ESCOLA_A }).catch((motivo: unknown) => motivo)
-    expect(erro).toBeInstanceOf(ErroDeIa)
-    expect((erro as ErroDeIa).codigoDeIa).toBe('IA_SAIDA_INVALIDA')
+    expect(erro).toBeInstanceOf(LLMError)
+    expect((erro as LLMError).codigoDeIa).toBe('IA_SAIDA_INVALIDA')
     expect(adaptador.correcoes[1]?.problemas.join(' ')).toContain('resumo')
     expect(consumo.registros).toMatchObject([{ funcao: 'resumo_e_alerta', estado: 'falhou' }])
   })

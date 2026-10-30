@@ -1,4 +1,4 @@
-import { Permite, ZodValidationPipe } from '@educa/nucleo'
+import { RequirePermissao, ZodValidationPipe } from '@educa/nucleo'
 import {
   conversaDoTutorQuerySchema,
   usoDoTutorQuerySchema,
@@ -30,28 +30,28 @@ export class TutorController {
   ) {}
 
   @Post('mensagens')
-  @Permite('tutor', 'enviar_mensagem')
+  @RequirePermissao('tutor', 'enviar_mensagem')
   @HttpCode(HttpStatus.ACCEPTED)
   enviar(@Body(new ZodValidationPipe(mensagemAoTutorRequestSchema)) pedido: MensagemAoTutorRequest): Promise<ExecucaoAceitaResponse> {
     return this.tutor.enviar(pedido)
   }
 
   @Get('conversa')
-  @Permite('tutor', 'ler_conversa')
+  @RequirePermissao('tutor', 'ler_conversa')
   @Header('Cache-Control', 'no-store')
   conversa(@Query(new ZodValidationPipe(conversaDoTutorQuerySchema)) consulta: ConversaDoTutorQuery): Promise<ConversaDoTutorResponse> {
     return this.tutor.conversa(consulta)
   }
 
   @Get('memoria')
-  @Permite('tutor', 'ler_memoria')
+  @RequirePermissao('tutor', 'ler_memoria')
   @Header('Cache-Control', 'no-store')
   memoria(): Promise<MemoriaDoTutorResponse> {
     return this.tutor.memoria()
   }
 
   @Get('uso')
-  @Permite('uso_do_tutor', 'ler')
+  @RequirePermissao('uso_do_tutor', 'ler')
   @Header('Cache-Control', 'no-store')
   uso(@Query(new ZodValidationPipe(usoDoTutorQuerySchema)) consulta: UsoDoTutorQuery): Promise<UsoDoTutorResponse> {
     return this.supervisao.uso(consulta)

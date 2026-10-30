@@ -1,11 +1,11 @@
 import { and, eq, exists, gt, isNotNull, isNull, or, sql } from 'drizzle-orm'
-import type { Banco, TransacaoBanco } from '../db/banco.js'
+import type { Database, DatabaseTransaction } from '../db/banco.js'
 import { codigoRecuperacao } from '../db/schema/codigo-recuperacao.js'
 import { conta } from '../db/schema/conta.js'
 import { convite } from '../db/schema/convite.js'
 import { sessao, type MotivoDeEncerramento } from '../db/schema/sessao.js'
 import { usuario } from '../db/schema/usuario.js'
-import { SemEscopo } from '../db/sem-escopo.decorator.js'
+import { Unscoped } from '../db/sem-escopo.decorator.js'
 
 /**
  * A conta global (o login da equipe), que não tem escola: as três escritas nela que o ciclo de vida e a redefinição do
@@ -19,14 +19,14 @@ import { SemEscopo } from '../db/sem-escopo.decorator.js'
  * spec, discutida antes.
  */
 export class ContaGlobalRepository {
-  constructor(private readonly banco: Banco | TransacaoBanco) {}
+  constructor(private readonly banco: Database | DatabaseTransaction) {}
 
   /**
    * Encerra todas as sessões ainda abertas da conta, em todas as escolas dela, com o motivo dado: a redefinição do MFA
    * (17.4) e a limpeza da conta sem usuário ativo (17.1). A sessão de aluno não tem conta e nunca é alcançada. Devolve
    * só quantas, e quem chama não as põe em resposta nem em auditoria de escola nenhuma: seriam também de outra escola.
    */
-  @SemEscopo('a credencial da equipe é global: redefinir o segundo fator ou limpar a conta encerra as sessões dela em todas as escolas, pelo conta_id já verificado, e devolve só a quantidade')
+  @Unscoped('a credencial da equipe é global: redefinir o segundo fator ou limpar a conta encerra as sessões dela em todas as escolas, pelo conta_id já verificado, e devolve só a quantidade')
   async encerrarSessoesDaConta(contaId: string, motivo: MotivoDeEncerramento): Promise<number> {
     const encerradas = await this.banco
       .update(sessao)
@@ -41,7 +41,7 @@ export class ContaGlobalRepository {
    * sessão: duas desativações de usuários da mesma conta, em A e em B, esperam uma pela outra, e a segunda, relendo,
    * vê a primeira. É a mesma trava da redefinição do MFA, e na mesma ordem (conta, depois sessão).
    */
-  @SemEscopo('a credencial da equipe é global: a desativação e a eliminação travam a conta do usuário da escola do contexto, pelo conta_id lido nela, e não devolvem nada')
+  @Unscoped('a credencial da equipe é global: a desativação e a eliminação travam a conta do usuário da escola do contexto, pelo conta_id lido nela, e não devolvem nada')
   async travarConta(contaId: string): Promise<void> {
     await this.banco.select({ id: conta.id }).from(conta).where(eq(conta.id, contaId)).for('update')
   }
@@ -55,7 +55,7 @@ export class ContaGlobalRepository {
    * usado, não revogado e no prazo): apagar o e-mail agora deixaria o aceite desse convite sem login. Quando esse convite
    * deixa de valer, o `sistema.expurgar-acesso` limpa a conta de madrugada, pelo mesmo critério. Devolve se limpou.
    */
-  @SemEscopo('a credencial da equipe é global: depois de desativar ou eliminar um usuário, confere se a conta ainda tem usuário ativo ou convite válido em alguma escola e, se não tem, apaga a credencial dela; devolve só se limpou')
+  @Unscoped('a credencial da equipe é global: depois de desativar ou eliminar um usuário, confere se a conta ainda tem usuário ativo ou convite válido em alguma escola e, se não tem, apaga a credencial dela; devolve só se limpou')
   async limparContaSemUso(contaId: string): Promise<boolean> {
     const conviteValido = this.banco
       .select({ um: sql`1` })

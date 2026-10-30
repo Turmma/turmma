@@ -3,15 +3,15 @@ import {
   atividadeAplicada,
   correcao,
   entrega,
-  exigirAnoEmCurso,
-  exigirEscolaDoContexto,
+  requireAnoEmCurso,
+  requireEscolaId,
   respostaAtividade,
-  sessaoDaRequisicao,
+  requestSessao,
   tentativaAtividade,
   usuario,
   validacaoDoLote,
-  type Banco,
-  type TransacaoBanco,
+  type Database,
+  type DatabaseTransaction,
 } from '@educa/nucleo'
 import type { DestaquesAbertos, DiagnosticoGravado, EstadoDeEntrega, LoteApresentado, MotivoDeDestaque } from '@educa/shared'
 import { and, asc, desc, eq, inArray, isNull, lt, lte, ne, sql, type SQL } from 'drizzle-orm'
@@ -105,10 +105,10 @@ const colunasDoLote = {
  * Nenhuma coluna daqui guarda nota, conceito ou texto sobre o aluno (D46, D55, D57).
  */
 export class CorrecaoRepository {
-  constructor(private readonly banco: Banco | TransacaoBanco) {}
+  constructor(private readonly banco: Database | DatabaseTransaction) {}
 
   #escopo(): SQL | undefined {
-    return and(eq(entrega.escolaId, exigirEscolaDoContexto()), eq(entrega.anoLetivoId, exigirAnoEmCurso()), eq(entrega.tipo, 'lote_de_correcao'))
+    return and(eq(entrega.escolaId, requireEscolaId()), eq(entrega.anoLetivoId, requireAnoEmCurso()), eq(entrega.tipo, 'lote_de_correcao'))
   }
 
   #lotes(condicao: SQL | undefined) {
@@ -162,8 +162,8 @@ export class CorrecaoRepository {
    * mapa vazio: é a prova em branco. Uma consulta depois da outra: dentro de transação, a conexão é uma só.
    */
   async respostasPorAluno(atividadeAplicadaId: string, alunoId?: string): Promise<Map<string, RespostasDaTentativa>> {
-    const escolaId = exigirEscolaDoContexto()
-    const anoLetivoId = exigirAnoEmCurso()
+    const escolaId = requireEscolaId()
+    const anoLetivoId = requireAnoEmCurso()
     const tentativas = await this.banco
       .select({ alunoId: tentativaAtividade.alunoId })
       .from(tentativaAtividade)
@@ -200,8 +200,8 @@ export class CorrecaoRepository {
       .innerJoin(artefato, artefatoDaAplicacao)
       .where(
         and(
-          eq(correcao.escolaId, exigirEscolaDoContexto()),
-          eq(correcao.anoLetivoId, exigirAnoEmCurso()),
+          eq(correcao.escolaId, requireEscolaId()),
+          eq(correcao.anoLetivoId, requireAnoEmCurso()),
           inArray(correcao.alunoId, [...alunoIds]),
           eq(entrega.estado, 'aprovada'),
           antes === undefined ? undefined : lt(entrega.decididaEm, antes),
@@ -221,8 +221,8 @@ export class CorrecaoRepository {
    * aplicação. O índice único parcial (um lote não rejeitado por aplicação) é a segunda barreira contra o segundo lote.
    */
   async criarLote(aplicacao: { readonly id: string; readonly turmaId: string }, correcoes: readonly NovaCorrecao[]): Promise<string> {
-    const escolaId = exigirEscolaDoContexto()
-    const anoLetivoId = exigirAnoEmCurso()
+    const escolaId = requireEscolaId()
+    const anoLetivoId = requireAnoEmCurso()
     const [criada] = await this.banco
       .insert(entrega)
       .values({ escolaId, anoLetivoId, turmaId: aplicacao.turmaId, funcao: 'correcao_de_objetiva', tipo: 'lote_de_correcao', atividadeAplicadaId: aplicacao.id })
@@ -250,7 +250,7 @@ export class CorrecaoRepository {
       })
       .from(correcao)
       .innerJoin(usuario, and(eq(usuario.escolaId, correcao.escolaId), eq(usuario.id, correcao.alunoId)))
-      .where(and(eq(correcao.escolaId, exigirEscolaDoContexto()), eq(correcao.anoLetivoId, exigirAnoEmCurso()), eq(correcao.entregaId, entregaId), alunoId === undefined ? undefined : eq(correcao.alunoId, alunoId)))
+      .where(and(eq(correcao.escolaId, requireEscolaId()), eq(correcao.anoLetivoId, requireAnoEmCurso()), eq(correcao.entregaId, entregaId), alunoId === undefined ? undefined : eq(correcao.alunoId, alunoId)))
       .orderBy(asc(usuario.nome), asc(correcao.alunoId))
   }
 
@@ -261,11 +261,11 @@ export class CorrecaoRepository {
   async abrirDestaque(entregaId: string, alunoId: string): Promise<boolean> {
     const abertas = await this.banco
       .update(correcao)
-      .set({ destaqueAbertoEm: sql`now()`, destaqueAbertoPor: sessaoDaRequisicao().usuarioId })
+      .set({ destaqueAbertoEm: sql`now()`, destaqueAbertoPor: requestSessao().usuarioId })
       .where(
         and(
-          eq(correcao.escolaId, exigirEscolaDoContexto()),
-          eq(correcao.anoLetivoId, exigirAnoEmCurso()),
+          eq(correcao.escolaId, requireEscolaId()),
+          eq(correcao.anoLetivoId, requireAnoEmCurso()),
           eq(correcao.entregaId, entregaId),
           eq(correcao.alunoId, alunoId),
           isNull(correcao.destaqueAbertoEm),
@@ -280,7 +280,7 @@ export class CorrecaoRepository {
   async gravarValidacao(lote: { readonly entregaId: string; readonly atividadeAplicadaId: string }, apresentado: LoteApresentado, aberto: DestaquesAbertos): Promise<string> {
     const [gravada] = await this.banco
       .insert(validacaoDoLote)
-      .values({ escolaId: exigirEscolaDoContexto(), anoLetivoId: exigirAnoEmCurso(), entregaId: lote.entregaId, atividadeAplicadaId: lote.atividadeAplicadaId, apresentado, aberto, confirmadaPor: sessaoDaRequisicao().usuarioId })
+      .values({ escolaId: requireEscolaId(), anoLetivoId: requireAnoEmCurso(), entregaId: lote.entregaId, atividadeAplicadaId: lote.atividadeAplicadaId, apresentado, aberto, confirmadaPor: requestSessao().usuarioId })
       .returning({ id: validacaoDoLote.id })
     if (gravada === undefined) throw new InvariantException('validação não gravada')
     return gravada.id
@@ -289,12 +289,12 @@ export class CorrecaoRepository {
   /**
    * `pendente` → `aprovada`, com a pessoa da sessão e a hora do banco, e diz se aprovou. Só lote, só no alcance da
    * professora (turma e disciplina). **É o único `update` que aprova lote**, e só roda com sessão de pessoa: sem
-   * sessão, `sessaoDaRequisicao` recusa. O gatilho adiado do banco exige a validação gravada na mesma transação.
+   * sessão, `requestSessao` recusa. O gatilho adiado do banco exige a validação gravada na mesma transação.
    */
   async aprovar(entregaId: string): Promise<boolean> {
     const aprovadas = await this.banco
       .update(entrega)
-      .set({ estado: 'aprovada', decididaPor: sessaoDaRequisicao().usuarioId, decididaEm: sql`now()` })
+      .set({ estado: 'aprovada', decididaPor: requestSessao().usuarioId, decididaEm: sql`now()` })
       .where(and(this.#escopo(), comVinculoConfirmadoDoProfessor(this.banco, entrega, disciplinaDaEntrega(this.banco, entrega)), eq(entrega.id, entregaId), eq(entrega.estado, 'pendente')))
       .returning({ id: entrega.id })
     return aprovadas.length > 0
@@ -313,7 +313,7 @@ export class CorrecaoRepository {
       })
       .from(validacaoDoLote)
       .leftJoin(usuario, and(eq(usuario.escolaId, validacaoDoLote.escolaId), eq(usuario.id, validacaoDoLote.confirmadaPor)))
-      .where(and(eq(validacaoDoLote.escolaId, exigirEscolaDoContexto()), eq(validacaoDoLote.anoLetivoId, exigirAnoEmCurso()), eq(validacaoDoLote.entregaId, entregaId)))
+      .where(and(eq(validacaoDoLote.escolaId, requireEscolaId()), eq(validacaoDoLote.anoLetivoId, requireAnoEmCurso()), eq(validacaoDoLote.entregaId, entregaId)))
     return linha
   }
 }

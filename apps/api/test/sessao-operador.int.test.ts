@@ -1,5 +1,5 @@
 import 'reflect-metadata'
-import { LimitadorDeRequisicoes, PREFIXO_LIMITE_IP, PREFIXO_LIMITE_IP_LOGIN, PREFIXO_LIMITE_IP_OPERACAO } from '@educa/nucleo'
+import { RateLimiter, PREFIXO_LIMITE_IP, PREFIXO_LIMITE_IP_LOGIN, PREFIXO_LIMITE_IP_OPERACAO } from '@educa/nucleo'
 import { ErrorCode, renovacaoDeOperadorResponseSchema } from '@educa/shared'
 import type { INestApplication } from '@nestjs/common'
 import type { Redis } from 'ioredis'
@@ -470,7 +470,7 @@ describe('sessão do operador: o limite de renovar e sair (C32) e o Redis de cac
   it('C36b: com o Redis de cache fora, `rl:ip:op` (renovar) e `rl:op` (/eu) seguem no seguro em memória (limite ÷ instâncias), sem 5xx', async () => {
     const sessao = await operadores.operadorComSessao()
     const cliente = app.get<Redis>(CLIENTE_REDIS_CACHE)
-    const limitador = app.get(LimitadorDeRequisicoes)
+    const limitador = app.get(RateLimiter)
     cliente.disconnect()
     const ip = ipSorteado()
     const renovacoes: number[] = []

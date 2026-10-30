@@ -1,4 +1,4 @@
-import { IdPipe, Permite } from '@educa/nucleo'
+import { IdPipe, RequirePermissao } from '@educa/nucleo'
 import type { ExecucaoResponse } from '@educa/shared'
 import { Controller, Get, Header, Param } from '@nestjs/common'
 import { ExecucoesService } from './execucoes.service.js'
@@ -13,7 +13,7 @@ export class ExecucoesController {
   constructor(private readonly execucoes: ExecucoesService) {}
 
   @Get(':id')
-  @Permite('execucao', 'ler')
+  @RequirePermissao('execucao', 'ler')
   @Header('Cache-Control', 'no-store')
   ler(@Param('id', IdPipe) id: string): Promise<ExecucaoResponse> {
     return this.execucoes.ler(id)

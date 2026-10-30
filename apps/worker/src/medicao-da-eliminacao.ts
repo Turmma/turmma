@@ -1,12 +1,12 @@
-import { METRICAS, type EscolasDaRotinaRepository, type ExpurgoDaEscolaRepository, type LoggerBase, type Meter, type Relogio } from '@educa/nucleo'
+import { METRICS, type CronEscolasRepository, type ExpurgoDaEscolaRepository, type LoggerBase, type Meter, type Clock } from '@educa/nucleo'
 import { MedicaoPorEscola } from './medicao-por-escola.js'
 
 const MS_POR_HORA = 3_600_000
 
 export interface DependenciasDaMedicaoDaEliminacao {
-  escolas: Pick<EscolasDaRotinaRepository, 'listarIds'>
+  escolas: Pick<CronEscolasRepository, 'listarIds'>
   repositorio: Pick<ExpurgoDaEscolaRepository, 'vencimentoDoAgendadoMaisAntigo'>
-  relogio: Relogio
+  relogio: Clock
   logger: LoggerBase
   medidor: Meter
 }
@@ -29,7 +29,7 @@ export class MedicaoDaEliminacao extends MedicaoPorEscola {
     super(
       dependencias,
       {
-        metrica: METRICAS.horasDaEliminacaoVencida,
+        metrica: METRICS.horasDaEliminacaoVencida,
         descricao: 'Horas desde que o pedido de eliminação agendado mais antigo da escola venceu e ainda não foi concluído',
         evento: 'worker.medicao_da_eliminacao_indisponivel',
       },

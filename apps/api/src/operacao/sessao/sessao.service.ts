@@ -1,4 +1,4 @@
-import { ErroDeDominio, TENTE_DE_NOVO_PADRAO_SEGUNDOS, avisoEspacado, type Ambiente, type Banco, type EmissorDeTokenDeOperador } from '@educa/nucleo'
+import { DomainException, DEFAULT_RETRY_AFTER_SECONDS, throttledWarn, type Environment, type Database, type OperadorTokenIssuer } from '@educa/nucleo'
 import { ErrorCode, type RenovacaoDeOperadorResponse } from '@educa/shared'
 import { Logger } from '@nestjs/common'
 import { randomBytes } from 'node:crypto'
@@ -8,9 +8,9 @@ import { OperadorRepository } from '../operador/operador.repository.js'
 import { JANELA_DO_REFRESH_ANTERIOR_SEGUNDOS, sessaoDeOperadorVale } from './prazos-da-sessao.js'
 
 export interface DependenciasDaSessaoDoOperador {
-  readonly banco: Banco
-  readonly emissorDeToken: Pick<EmissorDeTokenDeOperador, 'emitir'>
-  readonly ambiente: Ambiente
+  readonly banco: Database
+  readonly emissorDeToken: Pick<OperadorTokenIssuer, 'emitir'>
+  readonly ambiente: Environment
 }
 
 /** O que o controller tira da requisição: o cabeçalho `Cookie` e, para o registro da saída, o IP. */
@@ -26,7 +26,7 @@ export interface RenovacaoDeOperador {
 }
 
 /** A renovação recusada: 401 `SESSAO_ENCERRADA`, com o `Set-Cookie` que apaga o cookie que não vale mais. */
-export class RenovacaoDeOperadorRecusada extends ErroDeDominio {
+export class RenovacaoDeOperadorRecusada extends DomainException {
   constructor(readonly cookies: readonly string[]) {
     super(ErrorCode.SESSAO_ENCERRADA)
   }
@@ -65,7 +65,7 @@ type Decisao =
  */
 export class SessaoDoOperadorService {
   readonly #logger = new Logger('operacao')
-  readonly #avisarIndisponivel = avisoEspacado(() => this.#logger.warn('operacao.sessao_indisponivel'))
+  readonly #avisarIndisponivel = throttledWarn(() => this.#logger.warn('operacao.sessao_indisponivel'))
 
   constructor(private readonly dependencias: DependenciasDaSessaoDoOperador) {}
 
@@ -132,7 +132,7 @@ export class SessaoDoOperadorService {
       return await operacao()
     } catch {
       this.#avisarIndisponivel()
-      throw new ErroDeDominio(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO, undefined, TENTE_DE_NOVO_PADRAO_SEGUNDOS)
+      throw new DomainException(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO, undefined, DEFAULT_RETRY_AFTER_SECONDS)
     }
   }
 

@@ -1,5 +1,5 @@
 import 'reflect-metadata'
-import { contextoAtual, EfeitoSinteticoRepository, executarNoContexto, IDADE_PARA_RECONCILIAR_SEGUNDOS, nomeDaFilaBullMQ, TABELA_DO_EFEITO_SINTETICO } from '@educa/nucleo'
+import { currentContext, SyntheticEffectRepository, runInContext, IDADE_PARA_RECONCILIAR_SEGUNDOS, bullmqQueueName, SYNTHETIC_EFFECT_TABLE } from '@educa/nucleo'
 import { JobFailureCode, JOB_DEFINITIONS, TIPO_JOB_SINTETICO, type SyntheticJobData } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
@@ -51,22 +51,22 @@ describe('reexecução do mesmo job: a chave de idempotência é a do job, e o e
     // O id da escola é sorteado e não cresce com a criação (o `ops:escola` e o painel mandam UUID v4). A ordem ruim fica
     // fixa: a A com o id maior, para que asserção que dependa da ordem dos ids falhe sempre, e não em metade das vezes.
     ;[ESCOLA_B, ESCOLA_A] = (await Promise.all([bancada.escola(), bancada.escola()])).sort()
-    // A forma de `TABELA_DO_EFEITO_SINTETICO`: a restrição começa pela escola e termina na chave (regra 80, item 8).
-    await bancada.pool.query(`drop table if exists ${TABELA_DO_EFEITO_SINTETICO}`)
+    // A forma de `SYNTHETIC_EFFECT_TABLE`: a restrição começa pela escola e termina na chave (regra 80, item 8).
+    await bancada.pool.query(`drop table if exists ${SYNTHETIC_EFFECT_TABLE}`)
     await bancada.pool.query(
-      `create table ${TABELA_DO_EFEITO_SINTETICO} (
+      `create table ${SYNTHETIC_EFFECT_TABLE} (
          escola_id uuid not null,
          chave_idempotencia uuid not null,
          tentativa integer not null,
          primary key (escola_id, chave_idempotencia)
        )`,
     )
-    sintetico = criarProcessadorSintetico({ queimar: () => Promise.resolve() }, new EfeitoSinteticoRepository(bancada.banco))
+    sintetico = criarProcessadorSintetico({ queimar: () => Promise.resolve() }, new SyntheticEffectRepository(bancada.banco))
   })
 
   afterEach(async () => {
     try {
-      await bancada.pool.query(`drop table if exists ${TABELA_DO_EFEITO_SINTETICO}`)
+      await bancada.pool.query(`drop table if exists ${SYNTHETIC_EFFECT_TABLE}`)
     } finally {
       await bancada.fechar()
     }
@@ -74,7 +74,7 @@ describe('reexecução do mesmo job: a chave de idempotência é a do job, e o e
 
   async function efeitos(): Promise<LinhaDeEfeito[]> {
     const { rows } = await bancada.pool.query<LinhaDeEfeito>(
-      `select escola_id as "escolaId", chave_idempotencia as "chaveIdempotencia", tentativa from ${TABELA_DO_EFEITO_SINTETICO} order by escola_id`,
+      `select escola_id as "escolaId", chave_idempotencia as "chaveIdempotencia", tentativa from ${SYNTHETIC_EFFECT_TABLE} order by escola_id`,
     )
     return rows
   }
@@ -86,34 +86,34 @@ describe('reexecução do mesmo job: a chave de idempotência é a do job, e o e
   const iniciosNoLog = (log: LogEmMemoria, id: string) => log.doEvento('job.iniciado').filter((registro) => registro['jobId'] === id)
 
   it('o repository grava uma vez por chave na escola do contexto, e recusa gravar sem escola', async () => {
-    const repositorio = new EfeitoSinteticoRepository(bancada.banco)
+    const repositorio = new SyntheticEffectRepository(bancada.banco)
     const chaveIdempotencia = randomUUID()
-    const naEscolaA = <T>(funcao: () => Promise<T>) => executarNoContexto({ requisicaoId: randomUUID(), escolaId: ESCOLA_A }, funcao)
+    const naEscolaA = <T>(funcao: () => Promise<T>) => runInContext({ requisicaoId: randomUUID(), escolaId: ESCOLA_A }, funcao)
 
     expect(await naEscolaA(() => repositorio.gravar({ chaveIdempotencia, tentativa: 1 }))).toBe(true)
     expect(await naEscolaA(() => repositorio.gravar({ chaveIdempotencia, tentativa: 2 }))).toBe(false)
-    await expect(executarNoContexto({ requisicaoId: randomUUID() }, () => repositorio.gravar({ chaveIdempotencia, tentativa: 3 }))).rejects.toThrow(
+    await expect(runInContext({ requisicaoId: randomUUID() }, () => repositorio.gravar({ chaveIdempotencia, tentativa: 3 }))).rejects.toThrow(
       'consulta com escopo sem escola no contexto',
     )
     expect(await efeitos()).toEqual([{ escolaId: ESCOLA_A, chaveIdempotencia, tentativa: 1 }])
   })
 
   it('a mesma chave gravada ao mesmo tempo por A e por B, na mesma instância: cada uma na sua escola, as duas entram', async () => {
-    const repositorio = new EfeitoSinteticoRepository(bancada.banco)
+    const repositorio = new SyntheticEffectRepository(bancada.banco)
     const chaveIdempotencia = randomUUID()
     // A chave é a mesma e a restrição única começa pela escola: se a segunda chamada usasse a escola da primeira, cairia no conflito.
-    const resultados = await Promise.all([ESCOLA_A, ESCOLA_B].map((escolaId) => executarNoContexto({ requisicaoId: randomUUID(), escolaId }, () => repositorio.gravar({ chaveIdempotencia, tentativa: 1 }))))
+    const resultados = await Promise.all([ESCOLA_A, ESCOLA_B].map((escolaId) => runInContext({ requisicaoId: randomUUID(), escolaId }, () => repositorio.gravar({ chaveIdempotencia, tentativa: 1 }))))
     expect(resultados).toEqual([true, true])
     expect((await efeitos()).map(({ escolaId }) => escolaId).sort()).toEqual([ESCOLA_A, ESCOLA_B].sort())
   })
 
   it('oito gravações da mesma chave ao mesmo tempo: uma entra, as outras caem no conflito sem erro, e fica uma linha só', async () => {
-    const repositorio = new EfeitoSinteticoRepository(bancada.banco)
+    const repositorio = new SyntheticEffectRepository(bancada.banco)
     const chaveIdempotencia = randomUUID()
     // Com "verifica e depois grava", duas passam da verificação juntas e a segunda estoura a chave primária.
     const resultados = await Promise.all(
       Array.from({ length: 8 }, (_, indice) =>
-        executarNoContexto({ requisicaoId: randomUUID(), escolaId: ESCOLA_A }, () => repositorio.gravar({ chaveIdempotencia, tentativa: indice + 1 })),
+        runInContext({ requisicaoId: randomUUID(), escolaId: ESCOLA_A }, () => repositorio.gravar({ chaveIdempotencia, tentativa: indice + 1 })),
       ),
     )
     expect(resultados.filter((gravou) => gravou)).toHaveLength(1)
@@ -194,7 +194,7 @@ describe('reexecução do mesmo job: a chave de idempotência é a do job, e o e
 
     try {
       // O Redis de fila perdeu o job ativo (AOF sem o último segundo): some o hash, o lock e a entrada na lista de ativos.
-      const base = `${bancada.prefixo}:${nomeDaFilaBullMQ('interativa', 'worker')}`
+      const base = `${bancada.prefixo}:${bullmqQueueName('interativa', 'worker')}`
       await bancada.redis.multi().lrem(`${base}:active`, 0, id).del(`${base}:${id}`, `${base}:${id}:lock`).exec()
       expect(await bancada.fila.getJob(id)).toBeUndefined()
       // Como se estivesse ativo há mais que a idade da reconciliação.
@@ -280,7 +280,7 @@ describe('reexecução do mesmo job: a chave de idempotência é a do job, e o e
         concorrencia: 1,
         processadores: {
           sintetico: async (dados, execucao) => {
-            escolaDaReexecucao.set(execucao.chaveIdempotencia, contextoAtual()?.escolaId)
+            escolaDaReexecucao.set(execucao.chaveIdempotencia, currentContext()?.escolaId)
             await sintetico(dados, execucao)
           },
         },

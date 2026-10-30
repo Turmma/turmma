@@ -1,4 +1,4 @@
-import { adaptarAtividade, ErroDeDominio, ErroDeIa, type Banco } from '@educa/nucleo'
+import { adaptarAtividade, DomainException, LLMError, type Database } from '@educa/nucleo'
 import {
   ErrorCode,
   conteudoDeAtividadeSchema,
@@ -47,7 +47,7 @@ function resumido(lido: ArtefatoLido): Record<string, unknown> {
 /** A atividade que pode ser adaptada: objetiva, e que não é ela mesma uma versão adaptada. Fora disso, `CONFLITO`. */
 function atividadeOriginal(lido: ArtefatoLido): ConteudoDeAtividade {
   const conteudo = conteudoDeAtividadeSchema.safeParse(lido.conteudo)
-  if (lido.tipo !== 'atividade_objetiva' || lido.origemId !== null || !conteudo.success || conteudo.data.adaptacao !== undefined) throw new ErroDeDominio(ErrorCode.CONFLITO)
+  if (lido.tipo !== 'atividade_objetiva' || lido.origemId !== null || !conteudo.success || conteudo.data.adaptacao !== undefined) throw new DomainException(ErrorCode.CONFLITO)
   return conteudo.data
 }
 
@@ -69,7 +69,7 @@ function atividadeOriginal(lido: ArtefatoLido): ConteudoDeAtividade {
  */
 export class ArtefatoService {
   constructor(
-    private readonly banco: Banco,
+    private readonly banco: Database,
     private readonly agendador: AgendadorDeExecucoes,
     private readonly limite: LimiteDePedidosDeIa,
   ) {}
@@ -83,7 +83,7 @@ export class ArtefatoService {
   async ler(id: string): Promise<ArtefatoResponse> {
     const artefatos = new ArtefatoRepository(this.banco)
     const lido = await artefatos.porId(id)
-    if (lido === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+    if (lido === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
     const [versoes, aplicacoes] = await Promise.all([artefatos.versoesAdaptadas(id), artefatos.aplicacoes(id)])
     return artefatoResponseSchema.parse({
       ...resumido(lido),
@@ -98,18 +98,18 @@ export class ArtefatoService {
     const artefatos = new ArtefatoRepository(this.banco)
     if (!(await artefatos.renomear(id, pedido.titulo))) {
       // Não renomeou: ou o artefato não está no alcance, ou é versão adaptada com a entrega já decidida.
-      throw new ErroDeDominio((await artefatos.porId(id)) === undefined ? ErrorCode.NAO_ENCONTRADO : ErrorCode.CONFLITO)
+      throw new DomainException((await artefatos.porId(id)) === undefined ? ErrorCode.NAO_ENCONTRADO : ErrorCode.CONFLITO)
     }
     return this.ler(id)
   }
 
   async pdf(id: string): Promise<PdfDoArtefato> {
     const lido = await new ArtefatoRepository(this.banco).porId(id)
-    if (lido === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+    if (lido === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
     // A versão adaptada só sai limpa depois de aprovada (regra 70, itens 3 e 6): pendente, sai como rascunho, para a
     // professora ver a fonte ampliada antes de decidir; rejeitada, ou sem entrega, não sai.
     const rascunho = lido.origemId !== null && lido.entregaEstado === 'pendente'
-    if (lido.origemId !== null && lido.entregaEstado !== 'aprovada' && !rascunho) throw new ErroDeDominio(ErrorCode.VERSAO_ADAPTADA_NAO_APROVADA)
+    if (lido.origemId !== null && lido.entregaEstado !== 'aprovada' && !rascunho) throw new DomainException(ErrorCode.VERSAO_ADAPTADA_NAO_APROVADA)
     const conteudo = conteudoDoArtefatoSchema.parse(lido.conteudo)
     // O id do material vem do `jsonb`, sem FK: o título é relido pela escola do contexto, e o que não for dela não aparece.
     const titulos = await new ArtefatoRepository(this.banco).titulosDosMateriais([...new Set(citacoesDoConteudo(conteudo).map((citacao) => citacao.materialId))])
@@ -119,7 +119,7 @@ export class ArtefatoService {
   async adaptar(id: string, pedido: AdaptarArtefatoRequest): Promise<ExecucaoAceitaResponse> {
     await this.limite.contar()
     const lido = await new ArtefatoRepository(this.banco).porId(id)
-    if (lido === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+    if (lido === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
     atividadeOriginal(lido)
 
     // O que a execução leu antes de chamar o modelo, e que a conclusão confere: só existe depois de `entrada` rodar.
@@ -132,18 +132,18 @@ export class ArtefatoService {
         // A entrada gravada, e não a do corpo de um reenvio; e o artefato dela relido no alcance, que é `jsonb` sem FK.
         const gravada = await new ExecucaoDoPedidoRepository(this.banco).entradaDaChave(pedido.chaveEnvio, 'adaptar_atividade')
         const origem = await new ArtefatoRepository(this.banco).porId(gravada.artefatoId)
-        if (origem === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+        if (origem === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
         const adaptacao: AdaptacaoAplicada = { tipos: gravada.tipos, ...(gravada.tempoExtraPercentual === undefined ? {} : { tempoExtraPercentual: gravada.tempoExtraPercentual }) }
         lida = { original: atividadeOriginal(origem), adaptacao, artefatoId: origem.id }
         return { conteudo: lida.original, adaptacao }
       },
       aoConcluir: async (saida, tx, execucaoId) => {
-        if (lida === undefined) throw new ErroDeIa('IA_ENTRADA_INVALIDA')
+        if (lida === undefined) throw new LLMError('IA_ENTRADA_INVALIDA')
         const adaptada = conteudoDeAtividadeSchema.safeParse(saida)
-        if (!adaptada.success) throw new ErroDeIa('IA_SAIDA_INVALIDA')
+        if (!adaptada.success) throw new LLMError('IA_SAIDA_INVALIDA')
         // O original relido dentro da transação: é a turma **dele**, e não a do pedido, que a versão e a entrega levam.
         const origem = await new ArtefatoRepository(tx).porId(lida.artefatoId)
-        if (origem === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+        if (origem === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
         exigirAdaptacaoFiel(atividadeOriginal(origem), adaptada.data, lida.adaptacao)
         const artefatoId = await new ArtefatoRepository(tx).criar({ turmaId: origem.turmaId, disciplinaId: origem.disciplinaId, conteudo: adaptada.data, execucaoId, origemId: origem.id })
         // A entrega nasce pendente, aqui, junto da versão: ou ficam as duas, ou nenhuma.

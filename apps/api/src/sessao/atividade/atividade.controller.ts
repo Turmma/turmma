@@ -1,4 +1,4 @@
-import { Permite } from '@educa/nucleo'
+import { RequirePermissao } from '@educa/nucleo'
 import { Controller, HttpCode, HttpStatus, Post } from '@nestjs/common'
 import { RegistroDeAtividade } from './atividade.service.js'
 
@@ -11,7 +11,7 @@ export class AtividadeController {
   constructor(private readonly atividade: RegistroDeAtividade) {}
 
   @Post('atividade')
-  @Permite('sessao', 'registrar_atividade')
+  @RequirePermissao('sessao', 'registrar_atividade')
   @HttpCode(HttpStatus.NO_CONTENT)
   registrar(): void {
     void this.atividade.registrarAtividade()

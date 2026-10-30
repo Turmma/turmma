@@ -1,15 +1,15 @@
 import 'reflect-metadata'
 import {
-  criarBanco,
-  criarPool,
-  DespachoRepository,
+  createDatabase,
+  createPool,
+  DispatchRepository,
   ExpurgoDeJobsRepository,
-  METRICAS,
-  METRICAS_COM_ESCOLA,
+  METRICS,
+  METRICS_WITH_ESCOLA,
   TETO_DA_CONTAGEM_DE_FALHOS,
   TETO_DA_CONTAGEM_DE_PENDENTES,
-  type MedicaoDeFalhos,
-  type MedicaoDePendentes,
+  type FailedJobsMeasurement,
+  type PendingJobsMeasurement,
 } from '@educa/nucleo'
 import type { QueueName } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
@@ -93,7 +93,7 @@ describe('medição das filas por escola, no despachante', () => {
 
     await medir()
 
-    const espera = await porSerie(METRICAS.esperaMaisAntiga)
+    const espera = await porSerie(METRICS.esperaMaisAntiga)
     expect(Object.keys(espera).sort()).toEqual([`interativa:${ESCOLA_A}`, `interativa:${ESCOLA_B}`, `lote:${ESCOLA_A}`].sort())
     // O ativo de 300 s já começou: não espera. O mais antigo que não começou é o de 40 s. Concluído e falho não aparecem.
     expect(espera[`interativa:${ESCOLA_A}`]).toBeGreaterThanOrEqual(40)
@@ -101,8 +101,8 @@ describe('medição das filas por escola, no despachante', () => {
     expect(espera[`lote:${ESCOLA_A}`]).toBeGreaterThanOrEqual(120)
     expect(espera[`interativa:${ESCOLA_B}`]).toBeGreaterThanOrEqual(5)
     expect(espera[`interativa:${ESCOLA_B}`]).toBeLessThan(10)
-    expect(await porSerie(METRICAS.pendentes)).toEqual({ [`interativa:${ESCOLA_A}`]: 2, [`lote:${ESCOLA_A}`]: 1, [`interativa:${ESCOLA_B}`]: 1 })
-    expect(await porSerie(METRICAS.vagasEmUso)).toEqual({ [`interativa:${ESCOLA_A}`]: 2, [`lote:${ESCOLA_A}`]: 0, [`interativa:${ESCOLA_B}`]: 0 })
+    expect(await porSerie(METRICS.pendentes)).toEqual({ [`interativa:${ESCOLA_A}`]: 2, [`lote:${ESCOLA_A}`]: 1, [`interativa:${ESCOLA_B}`]: 1 })
+    expect(await porSerie(METRICS.vagasEmUso)).toEqual({ [`interativa:${ESCOLA_A}`]: 2, [`lote:${ESCOLA_A}`]: 0, [`interativa:${ESCOLA_B}`]: 0 })
   })
 
   it('borda: terça às 10h, o não urgente segurado no lote conta nos pendentes e não na espera; o urgente atrás dele espera', async () => {
@@ -112,8 +112,8 @@ describe('medição das filas por escola, no despachante', () => {
 
     await medir()
 
-    expect(await porSerie(METRICAS.pendentes)).toEqual({ [`lote:${ESCOLA_A}`]: 1, [`lote:${ESCOLA_B}`]: 2 })
-    const espera = await porSerie(METRICAS.esperaMaisAntiga)
+    expect(await porSerie(METRICS.pendentes)).toEqual({ [`lote:${ESCOLA_A}`]: 1, [`lote:${ESCOLA_B}`]: 2 })
+    const espera = await porSerie(METRICS.esperaMaisAntiga)
     expect(Object.keys(espera)).toEqual([`lote:${ESCOLA_B}`])
     expect(espera[`lote:${ESCOLA_B}`]).toBeGreaterThanOrEqual(20)
     expect(espera[`lote:${ESCOLA_B}`]).toBeLessThan(3_600)
@@ -127,15 +127,15 @@ describe('medição das filas por escola, no despachante', () => {
     await medir()
 
     const series = await medidor.atributosDeTodas()
-    const deJob = series.filter(({ nome }) => METRICAS_COM_ESCOLA.includes(nome))
-    expect(new Set(deJob.map(({ nome }) => nome))).toEqual(new Set([METRICAS.esperaMaisAntiga, METRICAS.pendentes, METRICAS.vagasEmUso]))
-    expect(deJob.filter(({ nome }) => nome === METRICAS.pendentes).map(({ atributos }) => `${String(atributos['fila'])}:${String(atributos['escola_id'])}`).sort()).toEqual([
+    const deJob = series.filter(({ nome }) => METRICS_WITH_ESCOLA.includes(nome))
+    expect(new Set(deJob.map(({ nome }) => nome))).toEqual(new Set([METRICS.esperaMaisAntiga, METRICS.pendentes, METRICS.vagasEmUso]))
+    expect(deJob.filter(({ nome }) => nome === METRICS.pendentes).map(({ atributos }) => `${String(atributos['fila'])}:${String(atributos['escola_id'])}`).sort()).toEqual([
       `interativa:${ESCOLA_A}`,
       'normal:sistema',
     ])
     for (const { atributos } of deJob) expect(Object.keys(atributos).sort()).toEqual(['escola_id', 'fila'])
-    const doProcesso = series.filter(({ nome }) => !METRICAS_COM_ESCOLA.includes(nome))
-    expect(new Set(doProcesso.map(({ nome }) => nome))).toEqual(new Set([METRICAS.falhos, METRICAS.poolEmUso, METRICAS.redisDisponivel]))
+    const doProcesso = series.filter(({ nome }) => !METRICS_WITH_ESCOLA.includes(nome))
+    expect(new Set(doProcesso.map(({ nome }) => nome))).toEqual(new Set([METRICS.falhos, METRICS.poolEmUso, METRICS.redisDisponivel]))
     for (const { atributos } of doProcesso) expect(Object.keys(atributos)).not.toContain('escola_id')
   })
 
@@ -157,7 +157,7 @@ describe('medição das filas por escola, no despachante', () => {
     await bancada.semear('analyze job_registro')
 
     // O banco do teste registra a instrução que o repository manda, para o EXPLAIN ser da consulta de verdade.
-    const pool = criarPool(configuracaoDoBanco(), () => undefined)
+    const pool = createPool(configuracaoDoBanco(), () => undefined)
     const enviadas: Array<{ text: string; values: unknown[] }> = []
     const consultar = pool.query.bind(pool) as (...argumentos: unknown[]) => Promise<unknown>
     pool.query = ((...argumentos: unknown[]) => {
@@ -166,7 +166,7 @@ describe('medição das filas por escola, no despachante', () => {
       return consultar(...argumentos)
     }) as typeof pool.query
     try {
-      const medicoes: MedicaoDePendentes[] = await new DespachoRepository(criarBanco(pool)).medirPendentes()
+      const medicoes: PendingJobsMeasurement[] = await new DispatchRepository(createDatabase(pool)).medirPendentes()
       expect(medicoes.find((medicao) => medicao.escolaId === ESCOLA_A)?.pendentes).toBe(5_000)
       expect(medicoes).toHaveLength(4)
       const [consulta] = enviadas
@@ -201,10 +201,10 @@ describe('medição das filas por escola, no despachante', () => {
   }
 
   /** A medição não promete ordem: a série de cada tipo é independente. */
-  const ordenados = (medicoes: MedicaoDeFalhos[]) => [...medicoes].sort((a, b) => a.tipo.localeCompare(b.tipo))
+  const ordenados = (medicoes: FailedJobsMeasurement[]) => [...medicoes].sort((a, b) => a.tipo.localeCompare(b.tipo))
 
   const porTipo = async (medidorDaVez: MedidorDeTeste = medidor) =>
-    Object.fromEntries((await medidorDaVez.pontos(METRICAS.falhos)).map(({ atributos, valor }) => [String(atributos['tipo']), valor]))
+    Object.fromEntries((await medidorDaVez.pontos(METRICS.falhos)).map(({ atributos, valor }) => [String(atributos['tipo']), valor]))
 
   it('falhos: cinco falhas de um tipo, de duas escolas, sobem a série `job.falhos{tipo}`, que leva só o tipo: nem escola, nem dados, nem código', async () => {
     await falhou(ESCOLA_A, 'titular.montar-arquivo', 0, 3)
@@ -224,10 +224,10 @@ describe('medição das filas por escola, no despachante', () => {
     await medir()
 
     expect(await porTipo()).toEqual({ 'titular.montar-arquivo': 5, sintetico: 1 })
-    const dosFalhos = (await medidor.atributosDeTodas()).filter(({ nome }) => nome === METRICAS.falhos)
+    const dosFalhos = (await medidor.atributosDeTodas()).filter(({ nome }) => nome === METRICS.falhos)
     expect(dosFalhos).toHaveLength(2)
     for (const { atributos } of dosFalhos) expect(Object.keys(atributos)).toEqual(['tipo'])
-    expect(METRICAS_COM_ESCOLA).not.toContain(METRICAS.falhos)
+    expect(METRICS_WITH_ESCOLA).not.toContain(METRICS.falhos)
   })
 
   it('falhos: a série some com a linha que o expurgo apagou, e a de `titular.*` fica', async () => {
@@ -262,7 +262,7 @@ describe('medição das filas por escola, no despachante', () => {
     await bancada.semear('analyze job_registro')
 
     // O banco do teste registra a instrução que o repository manda, para o EXPLAIN ser da consulta de verdade.
-    const pool = criarPool(configuracaoDoBanco(), () => undefined)
+    const pool = createPool(configuracaoDoBanco(), () => undefined)
     const enviadas: Array<{ text: string; values: unknown[] }> = []
     const consultar = pool.query.bind(pool) as (...argumentos: unknown[]) => Promise<unknown>
     pool.query = ((...argumentos: unknown[]) => {
@@ -271,7 +271,7 @@ describe('medição das filas por escola, no despachante', () => {
       return consultar(...argumentos)
     }) as typeof pool.query
     try {
-      expect(ordenados(await new DespachoRepository(criarBanco(pool)).medirFalhos())).toEqual([
+      expect(ordenados(await new DispatchRepository(createDatabase(pool)).medirFalhos())).toEqual([
         { tipo: 'sintetico', falhos: 5_000 },
         { tipo: 'titular.eliminar', falhos: 3 },
       ])

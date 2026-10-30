@@ -1,14 +1,14 @@
 import {
-  contextoAtual,
+  currentContext,
   diaAnterior,
   diaDeUso,
-  ErroDeDominio,
+  DomainException,
   estadoDaCoordenacao,
-  executarNoContexto,
-  exigirOperadorDoContexto,
-  relogioDoSistema,
-  type Banco,
-  type Relogio,
+  runInContext,
+  requireContextOperador,
+  systemClock,
+  type Database,
+  type Clock,
 } from '@educa/nucleo'
 import {
   ErrorCode,
@@ -42,7 +42,7 @@ import { PainelRepository, type ReferenciaDoUso } from './painel.repository.js'
 function autorDaSessao(operadorId: string): ConferenciaDoAutor {
   return async (tx) => {
     const apelido = await OperadorRepository.autorAtivoNaTransacao(tx, { operadorId })
-    if (apelido === undefined) throw new ErroDeDominio(ErrorCode.SESSAO_ENCERRADA)
+    if (apelido === undefined) throw new DomainException(ErrorCode.SESSAO_ENCERRADA)
     return apelido
   }
 }
@@ -59,7 +59,7 @@ export function referenciaDoUso(agora: Date): ReferenciaDoUso {
 
 /** Roda `logar` com a escola no contexto, além dos ids da requisição: a linha de log leva só ids (regra 20, item 9). */
 function naEscola(escolaId: string, logar: () => void): void {
-  executarNoContexto({ ...(contextoAtual() ?? { requisicaoId: randomUUID() }), escolaId }, logar)
+  runInContext({ ...(currentContext() ?? { requisicaoId: randomUUID() }), escolaId }, logar)
 }
 
 /**
@@ -83,8 +83,8 @@ export class PainelService {
   readonly #logger = new Logger('operacao')
 
   constructor(
-    private readonly banco: Banco,
-    private readonly relogio: Relogio = relogioDoSistema,
+    private readonly banco: Database,
+    private readonly relogio: Clock = systemClock,
   ) {}
 
   async redes(): Promise<RedesDoPainelResponse> {
@@ -116,14 +116,14 @@ export class PainelService {
   }
 
   async criarRede(pedido: CriarRedeRequest): Promise<CriadoNoPainelResponse> {
-    const autor = autorDaSessao(exigirOperadorDoContexto())
+    const autor = autorDaSessao(requireContextOperador())
     const criada = await criarRede(this.banco, autor, { id: pedido.id.toLowerCase(), nome: pedido.nome, tipo: pedido.tipo })
     if (criada.nova) this.#logger.log('operacao.rede.criada')
     return criadoNoPainelResponseSchema.parse({ id: criada.id })
   }
 
   async criarEscola(pedido: CriarEscolaRequest): Promise<CriadoNoPainelResponse> {
-    const autor = autorDaSessao(exigirOperadorDoContexto())
+    const autor = autorDaSessao(requireContextOperador())
     const criada = await criarEscola(this.banco, autor, { id: pedido.id.toLowerCase(), redeId: pedido.redeId.toLowerCase(), nome: pedido.nome, slug: pedido.slug })
     if (criada.nova) naEscola(criada.id, () => this.#logger.log('operacao.escola.criada'))
     return criadoNoPainelResponseSchema.parse({ id: criada.id })
@@ -131,7 +131,7 @@ export class PainelService {
 
   /** Gera o convite da primeira coordenação da escola do `:id`, pela matriz da seção 5. O token sai só nesta resposta. */
   async gerarConvite(escolaId: string, pedido: ConviteDaCoordenacaoRequest): Promise<ConviteDaCoordenacaoResponse> {
-    const autor = autorDaSessao(exigirOperadorDoContexto())
+    const autor = autorDaSessao(requireContextOperador())
     const gerado = await criarConviteDeCoordenador(this.banco, autor, { escolaId, email: pedido.email, nome: pedido.nome })
     naEscola(escolaId, () => this.#logger.log('operacao.convite.gerado'))
     return conviteDaCoordenacaoResponseSchema.parse(gerado)
@@ -139,7 +139,7 @@ export class PainelService {
 
   /** Refaz o convite da coordenação pelo id, pela matriz da seção 5; a escola vem do convite. O token sai só nesta resposta. */
   async refazerConvite(conviteId: string): Promise<ConviteDaCoordenacaoResponse> {
-    const autor = autorDaSessao(exigirOperadorDoContexto())
+    const autor = autorDaSessao(requireContextOperador())
     const refeito = await refazerConviteDaCoordenacao(this.banco, autor, conviteId)
     naEscola(refeito.escolaId, () => this.#logger.log('operacao.convite.refeito'))
     return conviteDaCoordenacaoResponseSchema.parse({ conviteId: refeito.conviteId, token: refeito.token })
@@ -147,7 +147,7 @@ export class PainelService {
 
   /** Revoga o convite da coordenação pelo id, pela matriz da seção 5; a escola vem do convite. */
   async revogarConvite(conviteId: string): Promise<void> {
-    const autor = autorDaSessao(exigirOperadorDoContexto())
+    const autor = autorDaSessao(requireContextOperador())
     const { escolaId } = await revogarConvitePeloOperador(this.banco, autor, conviteId)
     naEscola(escolaId, () => this.#logger.log('operacao.convite.revogado'))
   }

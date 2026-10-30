@@ -1,4 +1,4 @@
-import { contextoAtual, DURACAO_DA_SESSAO_HORAS, ErroDeDominio, executarNoContexto, type Ambiente, type Banco, type EmissorDeToken, type MetodoDeSessao } from '@educa/nucleo'
+import { currentContext, DURACAO_DA_SESSAO_HORAS, DomainException, runInContext, type Environment, type Database, type TokenIssuer, type MetodoDeSessao } from '@educa/nucleo'
 import { ErrorCode, InvariantException, type EtapaComDesafio, type LoginResponse } from '@educa/shared'
 import { randomBytes, randomUUID } from 'node:crypto'
 import { MAX_AGE_DO_COOKIE_DISPOSITIVO_SEGUNDOS, type CookieDeDispositivo } from '../../credencial/cookie-dispositivo.js'
@@ -12,11 +12,11 @@ import type { ResolucaoDeTenantRepository, UsuarioAtivoDaConta } from '../tenant
 import { SessaoDeOrigemRepository } from '../../credencial/sessao-de-origem.repository.js'
 
 export interface DependenciasDaConclusao {
-  readonly banco: Banco
+  readonly banco: Database
   readonly dispositivo: CookieDeDispositivo
-  readonly emissorDeToken: EmissorDeToken
+  readonly emissorDeToken: TokenIssuer
   readonly emissorDeDesafio: EmissorDeDesafio
-  readonly ambiente: Ambiente
+  readonly ambiente: Environment
   /** Só para a etapa `escolher`: os acessos da conta que a tela lista (20.0). */
   readonly resolucao: ResolucaoDeTenantRepository
 }
@@ -144,21 +144,21 @@ export class ConclusaoDeLogin {
     troca?: SessaoDeOrigemDaTroca,
   ): Promise<{ token: string; expiraEm: Date; refresh: string }> {
     const refresh = randomBytes(BYTES_DO_REFRESH).toString('base64url')
-    const requisicaoId = contextoAtual()?.requisicaoId ?? randomUUID()
-    const sessaoId = await executarNoContexto({ requisicaoId, escolaId: usuario.escolaId }, () =>
+    const requisicaoId = currentContext()?.requisicaoId ?? randomUUID()
+    const sessaoId = await runInContext({ requisicaoId, escolaId: usuario.escolaId }, () =>
       this.dependencias.banco.transaction(async (tx) => {
         if (troca !== undefined) {
           // A saída da origem fica no registro de acesso da escola de origem, só com o usuário de lá (17.5): a sessão
           // sai em 30 dias pelo expurgo, e o registro dura os 6 meses do Marco Civil.
           const saiu =
             contaId !== null &&
-            (await executarNoContexto({ requisicaoId, escolaId: troca.escolaId }, async () => {
+            (await runInContext({ requisicaoId, escolaId: troca.escolaId }, async () => {
               const usuarioDaOrigem = await new SessaoDeOrigemRepository(tx).encerrarParaTroca(troca.sessaoId, contaId)
               if (usuarioDaOrigem === undefined) return false
               await new RegistroDeAcessoRepository(tx).gravar('saida', usuarioDaOrigem, ipParaRegistro(ip))
               return true
             }))
-          if (!saiu) throw new ErroDeDominio(ErrorCode.NAO_AUTENTICADO)
+          if (!saiu) throw new DomainException(ErrorCode.NAO_AUTENTICADO)
         }
         const [criada] = await new CriacaoDeSessaoRepository(tx).criarSessoes([
           { usuarioId: usuario.usuarioId, contaId, metodo, refreshHash: hashDoRefresh(refresh), duracaoHoras: DURACAO_DA_SESSAO_HORAS },

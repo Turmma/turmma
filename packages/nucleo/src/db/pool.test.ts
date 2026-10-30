@@ -1,7 +1,7 @@
 import { EventEmitter } from 'node:events'
 import pg from 'pg'
 import { afterEach, describe, expect, it } from 'vitest'
-import { criarPool, ehErroDeConexao, type PoolBanco } from './pool.js'
+import { createPool, isConnectionError, type DatabasePool } from './pool.js'
 
 function erroDoServidor(code: string, severity: string): pg.DatabaseError {
   return Object.assign(new pg.DatabaseError('mensagem', 0, 'error'), { code, severity })
@@ -14,7 +14,7 @@ describe('ehErroDeConexao', () => {
     ['sintaxe', '42601'],
     ['conflito de serialização', '40001'],
   ])('mantém a conexão depois de erro de consulta: %s', (_caso, code) => {
-    expect(ehErroDeConexao(erroDoServidor(code, 'ERROR'))).toBe(false)
+    expect(isConnectionError(erroDoServidor(code, 'ERROR'))).toBe(false)
   })
 
   it.each([
@@ -27,19 +27,19 @@ describe('ehErroDeConexao', () => {
     ['FATAL com texto traduzido, SQLSTATE de conexão', '57P01', 'FATAL'],
     ['PANIC', '58000', 'PANIC'],
   ])('descarta a conexão depois de erro que encerra a sessão: %s', (_caso, code, severity) => {
-    expect(ehErroDeConexao(erroDoServidor(code, severity))).toBe(true)
+    expect(isConnectionError(erroDoServidor(code, severity))).toBe(true)
   })
 
   it('descarta a conexão em erro que não veio do servidor: socket e timeout do cliente', () => {
-    expect(ehErroDeConexao(new Error('Connection terminated unexpectedly'))).toBe(true)
-    expect(ehErroDeConexao(new Error('Query read timeout'))).toBe(true)
+    expect(isConnectionError(new Error('Connection terminated unexpectedly'))).toBe(true)
+    expect(isConnectionError(new Error('Query read timeout'))).toBe(true)
   })
 })
 
 describe('criarPool: ReadyForQuery que chega depois do erro da consulta', () => {
   // O pg rejeita a consulta no ErrorResponse. Sob carga, o ReadyForQuery (com o estado da
   // transação) chega em outro pacote TCP: a conexão só pode voltar ao pool depois dele.
-  const pools: PoolBanco[] = []
+  const pools: DatabasePool[] = []
   afterEach(async () => {
     await Promise.all(pools.splice(0).map((pool) => pool.end()))
   })
@@ -67,7 +67,7 @@ describe('criarPool: ReadyForQuery que chega depois do erro da consulta', () => 
         throw erroDoServidor('23505', 'ERROR')
       },
     }
-    const pool = criarPool({ url: 'postgres://sintetico:sintetico@127.0.0.1:1/sintetico', maximoConexoes: 1, timeoutConexaoMs: 300, timeoutConsultaMs: 300 }, () => undefined)
+    const pool = createPool({ url: 'postgres://sintetico:sintetico@127.0.0.1:1/sintetico', maximoConexoes: 1, timeoutConexaoMs: 300, timeoutConsultaMs: 300 }, () => undefined)
     pools.push(pool)
     pool.connect = (async () => conexao) as unknown as typeof pool.connect
     return { pool, liberacoes }

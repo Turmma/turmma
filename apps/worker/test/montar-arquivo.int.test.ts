@@ -1,6 +1,6 @@
 import 'reflect-metadata'
-import { ArmazemEmMemoria, executarNoContexto, type Relogio } from '@educa/nucleo'
-import { ArmazemS3 } from '@educa/nucleo/armazem-s3'
+import { InMemoryFileStorage, runInContext, type Clock } from '@educa/nucleo'
+import { S3FileStorage } from '@educa/nucleo/armazem-s3'
 import { TIPO_MONTAR_ARQUIVO } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it, onTestFinished } from 'vitest'
@@ -36,7 +36,7 @@ const UM_DIA_MS = 86_400_000
 describe('titular.montar-arquivo', () => {
   const bancada = new BancadaDeFila()
   const log = new LogEmMemoria('worker-teste')
-  const relogio: Relogio & { atual: Date } = { atual: AGORA, agora: () => relogio.atual }
+  const relogio: Clock & { atual: Date } = { atual: AGORA, agora: () => relogio.atual }
 
   afterAll(async () => {
     await bancada.fechar()
@@ -60,15 +60,15 @@ describe('titular.montar-arquivo', () => {
     return { escolaId, pedidoId: rows[0]?.id ?? '', alunoId }
   }
 
-  function job(armazem: ArmazemEmMemoria) {
+  function job(armazem: InMemoryFileStorage) {
     return criarMontagemDoArquivo({ banco: bancada.banco, armazem, relogio, logger: log.logger })
   }
 
-  function rodar(escolaId: string | undefined, armazem: ArmazemEmMemoria, dados: { pedidoId: string }): Promise<void> {
+  function rodar(escolaId: string | undefined, armazem: InMemoryFileStorage, dados: { pedidoId: string }): Promise<void> {
     const jobId = randomUUID()
     const processador = job(armazem)
     const executar = () => processador(dados, execucaoDoJob(jobId))
-    return escolaId === undefined ? executar() : executarNoContexto({ requisicaoId: randomUUID(), escolaId }, executar)
+    return escolaId === undefined ? executar() : runInContext({ requisicaoId: randomUUID(), escolaId }, executar)
   }
 
   async function estadoDo(pedidoId: string): Promise<string | undefined> {
@@ -85,7 +85,7 @@ describe('titular.montar-arquivo', () => {
 
   it('grava o JSON no armazém, uma linha por versão, a validade de 7 dias do instante em que ficou pronto, e passa o pedido para `pronto`', async () => {
     const { escolaId, pedidoId, alunoId } = await pedidoNovo()
-    const armazem = new ArmazemEmMemoria()
+    const armazem = new InMemoryFileStorage()
     await rodar(escolaId, armazem, { pedidoId })
 
     expect(await estadoDo(pedidoId)).toBe('pronto')
@@ -105,7 +105,7 @@ describe('titular.montar-arquivo', () => {
   it('o titular desativado nesta escola ganha também a versão da escola', async () => {
     const { escolaId, pedidoId, alunoId } = await pedidoNovo()
     await bancada.pool.query('update usuario set desativado_em = now() where id = $1', [alunoId])
-    const armazem = new ArmazemEmMemoria()
+    const armazem = new InMemoryFileStorage()
     await rodar(escolaId, armazem, { pedidoId })
     expect((await linhasDoArquivo(pedidoId)).map(({ versao }) => versao)).toEqual(['completa', 'coordenacao'])
     expect([...armazem.objetos.keys()].sort()).toEqual([`titular/${escolaId}/${pedidoId}/completa.json`, `titular/${escolaId}/${pedidoId}/coordenacao.json`])
@@ -114,7 +114,7 @@ describe('titular.montar-arquivo', () => {
   it('[P] dois jobs do mesmo pedido ao mesmo tempo deixam uma linha por versão, o mesmo objeto e o pedido `pronto`', async () => {
     const { escolaId, pedidoId, alunoId } = await pedidoNovo()
     await bancada.pool.query('update usuario set desativado_em = now() where id = $1', [alunoId])
-    const armazem = new ArmazemEmMemoria()
+    const armazem = new InMemoryFileStorage()
     await Promise.all([rodar(escolaId, armazem, { pedidoId }), rodar(escolaId, armazem, { pedidoId })])
     expect((await linhasDoArquivo(pedidoId)).map(({ versao }) => versao)).toEqual(['completa', 'coordenacao'])
     expect(armazem.objetos.size).toBe(2)
@@ -132,7 +132,7 @@ describe('titular.montar-arquivo', () => {
 
   it('o job repetido depois de pronto e concluído não regrava a linha nem o objeto: o `pronto_em` e a validade seguem os do primeiro job', async () => {
     const { escolaId, pedidoId } = await pedidoNovo()
-    const armazem = new ArmazemEmMemoria()
+    const armazem = new InMemoryFileStorage()
     await rodar(escolaId, armazem, { pedidoId })
     await bancada.pool.query(`update pedido_titular set estado = 'concluido', concluido_em = now(), concluido_por = registrado_por where id = $1`, [pedidoId])
     relogio.atual = new Date(AGORA.getTime() + UM_DIA_MS)
@@ -153,7 +153,7 @@ describe('titular.montar-arquivo', () => {
 
   it('a reentrega de um pedido `pronto` cujo objeto e cuja linha já foram apagados pela validade vencida não recria nenhum dos dois', async () => {
     const { escolaId, pedidoId } = await pedidoNovo()
-    const armazem = new ArmazemEmMemoria()
+    const armazem = new InMemoryFileStorage()
     await rodar(escolaId, armazem, { pedidoId })
     // O que a rotina da escola faz com o arquivo vencido: o objeto, e só depois a linha.
     armazem.objetos.clear()
@@ -168,7 +168,7 @@ describe('titular.montar-arquivo', () => {
   it('o pedido que a coordenação concluiu antes de o job rodar é montado: a linha nasce, e o pedido continua `concluido`', async () => {
     const { escolaId, pedidoId } = await pedidoNovo()
     await bancada.pool.query(`update pedido_titular set estado = 'concluido', concluido_em = now(), concluido_por = registrado_por where id = $1`, [pedidoId])
-    const armazem = new ArmazemEmMemoria()
+    const armazem = new InMemoryFileStorage()
     await rodar(escolaId, armazem, { pedidoId })
     const linhas = await linhasDoArquivo(pedidoId)
     expect(linhas).toHaveLength(1)
@@ -179,7 +179,7 @@ describe('titular.montar-arquivo', () => {
 
   it('o job que perde a disputa pelo pedido porque o outro terminou enquanto ele montava deixa o `pronto_em`, a validade e o `apagado_em` de quem gravou primeiro', async () => {
     const { escolaId, pedidoId } = await pedidoNovo()
-    const armazem = new ArmazemEmMemoria()
+    const armazem = new InMemoryFileStorage()
     const original = armazem.guardar.bind(armazem)
     let ganhador = false
     armazem.guardar = async (chave, conteudo) => {
@@ -210,7 +210,7 @@ describe('titular.montar-arquivo', () => {
 
   it('o arquivo que a eliminação marcou `apagado_em` não é ressuscitado pelo job repetido', async () => {
     const { escolaId, pedidoId } = await pedidoNovo()
-    const armazem = new ArmazemEmMemoria()
+    const armazem = new InMemoryFileStorage()
     await rodar(escolaId, armazem, { pedidoId })
     await bancada.pool.query('update arquivo_titular set apagado_em = now() where pedido_id = $1', [pedidoId])
     await rodar(escolaId, armazem, { pedidoId })
@@ -220,9 +220,9 @@ describe('titular.montar-arquivo', () => {
 
   it('o armazém fora: o erro sobe, o pedido fica `em_preparacao` e nenhuma linha é gravada; com ele de volta, o job conclui', async () => {
     const { escolaId, pedidoId } = await pedidoNovo()
-    const armazem = new ArmazemEmMemoria()
+    const armazem = new InMemoryFileStorage()
     armazem.fora = true
-    await expect(rodar(escolaId, armazem, { pedidoId })).rejects.toMatchObject({ name: 'ArmazemIndisponivel' })
+    await expect(rodar(escolaId, armazem, { pedidoId })).rejects.toMatchObject({ name: 'FileStorageUnavailableError' })
     expect(await estadoDo(pedidoId)).toBe('em_preparacao')
     expect(await linhasDoArquivo(pedidoId)).toEqual([])
     armazem.fora = false
@@ -232,7 +232,7 @@ describe('titular.montar-arquivo', () => {
 
   it('o objeto é gravado antes da linha: no instante em que o armazém recebe os bytes, nenhuma linha do pedido existe ainda', async () => {
     const { escolaId, pedidoId } = await pedidoNovo()
-    const armazem = new ArmazemEmMemoria()
+    const armazem = new InMemoryFileStorage()
     const original = armazem.guardar.bind(armazem)
     const semLinhaNaHora: boolean[] = []
     armazem.guardar = async (chave, conteudo) => {
@@ -246,7 +246,7 @@ describe('titular.montar-arquivo', () => {
 
   it('o pedido que não gera arquivo (compartilhamento), o titular que já não existe e o pedido de outra escola terminam sem efeito', async () => {
     const semArquivo = await pedidoNovo({ tipo: 'compartilhamento', estado: 'recebido' })
-    const armazem = new ArmazemEmMemoria()
+    const armazem = new InMemoryFileStorage()
     await rodar(semArquivo.escolaId, armazem, { pedidoId: semArquivo.pedidoId })
     expect(await estadoDo(semArquivo.pedidoId)).toBe('recebido')
     expect(await linhasDoArquivo(semArquivo.pedidoId)).toEqual([])
@@ -267,7 +267,7 @@ describe('titular.montar-arquivo', () => {
 
   it('sem escola no contexto o processador não monta nada: a escola vem do contexto, nunca dos dados', async () => {
     const { pedidoId } = await pedidoNovo()
-    const armazem = new ArmazemEmMemoria()
+    const armazem = new InMemoryFileStorage()
     await expect(rodar(undefined, armazem, { pedidoId })).rejects.toThrow('sem escola no contexto')
     expect(await estadoDo(pedidoId)).toBe('em_preparacao')
     expect(armazem.objetos.size).toBe(0)
@@ -275,7 +275,7 @@ describe('titular.montar-arquivo', () => {
 
   it('o log do job leva só contagens e o nome do evento', async () => {
     const { escolaId, pedidoId } = await pedidoNovo()
-    const armazem = new ArmazemEmMemoria()
+    const armazem = new InMemoryFileStorage()
     await rodar(escolaId, armazem, { pedidoId })
     const linhas = log.registros().filter((linha) => String(linha['evento']).startsWith('titular.arquivo_'))
     expect(linhas.length).toBeGreaterThan(0)
@@ -295,12 +295,12 @@ describe('titular.montar-arquivo', () => {
       { prefixo: bancada.prefixo, relogio },
     )
     onTestFinished(() => worker.encerrar())
-    const armazem = ArmazemS3.criar(STORAGE)
+    const armazem = S3FileStorage.criar(STORAGE)
     onTestFinished(() => armazem.encerrar())
     bancada.despachante(log, { relogio }).iniciar()
     const chave = `titular/${escolaId}/${pedidoId}/completa.json`
     onTestFinished(() => armazem.armazem.apagar(chave))
-    const jobId = await executarNoContexto({ requisicaoId: randomUUID(), escolaId }, () =>
+    const jobId = await runInContext({ requisicaoId: randomUUID(), escolaId }, () =>
       bancada.banco.transaction((tx) => bancada.enfileirador.enfileirar(tx, TIPO_MONTAR_ARQUIVO, { pedidoId })),
     )
     await expect.poll(async () => (await bancada.estado(jobId))?.estado, { timeout: 20_000, interval: 100 }).toBe('concluido')

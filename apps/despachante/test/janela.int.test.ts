@@ -1,5 +1,5 @@
 import 'reflect-metadata'
-import { criarBanco, criarPool, DespachoRepository, executarNoContexto, PRIORIDADE_DA_FILA } from '@educa/nucleo'
+import { createDatabase, createPool, DispatchRepository, runInContext, QUEUE_PRIORITY } from '@educa/nucleo'
 import type { QueueName } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
@@ -233,7 +233,7 @@ describe('lote não urgente segurado no horário letivo da escola', () => {
 
     it('a reserva só de urgentes continua no escopo da escola do contexto', async () => {
       const urgenteDaB = await enfileirar(ESCOLA_B, 'lote', false)
-      const naEscola = (escolaId: string) => executarNoContexto({ requisicaoId: randomUUID(), escolaId }, () => bancada.despacho.reservarDaEscola('lote', 10, { soUrgentes: true }))
+      const naEscola = (escolaId: string) => runInContext({ requisicaoId: randomUUID(), escolaId }, () => bancada.despacho.reservarDaEscola('lote', 10, { soUrgentes: true }))
       expect(await naEscola(ESCOLA_A)).toEqual([])
       expect((await linha(urgenteDaB))?.estado).toBe('aguardando')
       expect((await naEscola(ESCOLA_B)).map((job) => job.id)).toEqual([urgenteDaB])
@@ -249,13 +249,13 @@ describe('lote não urgente segurado no horário letivo da escola', () => {
   it('com 5.000 não urgentes segurados, a reserva dos urgentes desce pelo índice deles, sem atravessar os segurados', async () => {
     await bancada.pool.query(
       `insert into job_registro (escola_id, fila, prioridade, tipo, nao_urgente) select $1, 'lote', $2, 'sintetico', true from generate_series(1, 5000)`,
-      [ESCOLA_A, PRIORIDADE_DA_FILA.lote],
+      [ESCOLA_A, QUEUE_PRIORITY.lote],
     )
     const urgente = await enfileirar(ESCOLA_A, 'lote', false)
     await bancada.pool.query('analyze job_registro')
 
     // O banco do teste registra a instrução que o repository manda, para o EXPLAIN ser da consulta de verdade.
-    const pool = criarPool(configuracaoDoBanco(), () => undefined)
+    const pool = createPool(configuracaoDoBanco(), () => undefined)
     const enviadas: Array<{ text: string; values: unknown[] }> = []
     const consultar = pool.query.bind(pool) as (...argumentos: unknown[]) => Promise<unknown>
     pool.query = ((...argumentos: unknown[]) => {
@@ -265,8 +265,8 @@ describe('lote não urgente segurado no horário letivo da escola', () => {
     }) as typeof pool.query
     const cliente = await bancada.pool.connect()
     try {
-      const repositorio = new DespachoRepository(criarBanco(pool))
-      const reservados = await executarNoContexto({ requisicaoId: randomUUID(), escolaId: ESCOLA_A }, () => repositorio.reservarDaEscola('lote', 2, { soUrgentes: true }))
+      const repositorio = new DispatchRepository(createDatabase(pool))
+      const reservados = await runInContext({ requisicaoId: randomUUID(), escolaId: ESCOLA_A }, () => repositorio.reservarDaEscola('lote', 2, { soUrgentes: true }))
       expect(reservados.map((job) => job.id)).toEqual([urgente])
       const [consulta] = enviadas
       if (consulta === undefined) throw new Error('o repository não consultou o banco')

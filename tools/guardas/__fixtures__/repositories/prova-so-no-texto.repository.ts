@@ -1,21 +1,21 @@
-import { exigirEscolaDoContexto } from '@educa/nucleo'
-import { type Banco } from '@educa/nucleo'
+import { requireEscolaId } from '@educa/nucleo'
+import { type Database } from '@educa/nucleo'
 import { aluno } from './tabelas.js'
 
 // A função está importada, mas a chamada só aparece em comentário e em texto: não é prova.
 export class ProvaSoNoTextoRepository {
-  constructor(private readonly banco: Banco) {}
+  constructor(private readonly banco: Database) {}
 
   async emComentario() { // reprova: sem-prova-de-escopo
-    // exigirEscolaDoContexto()
-    /* exigirEscolaDoContexto() */
+    // requireEscolaId()
+    /* requireEscolaId() */
     return this.banco.select().from(aluno)
   }
 
   async emTexto() { // reprova: sem-prova-de-escopo
-    const aviso = 'exigirEscolaDoContexto()'
-    const modelo = `${aviso} exigirEscolaDoContexto()`
+    const aviso = 'requireEscolaId()'
+    const modelo = `${aviso} requireEscolaId()`
     return this.banco.select().from(aluno).where(modelo)
   }
 }
-void exigirEscolaDoContexto
+void requireEscolaId

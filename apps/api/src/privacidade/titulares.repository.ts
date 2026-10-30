@@ -1,15 +1,15 @@
 import {
-  contextoAtual,
+  currentContext,
   credencialMatricula,
   disciplina,
-  exigirEscolaDoContexto,
+  requireEscolaId,
   haHomonimoDoTitular,
-  identidadeDaRequisicao,
+  requestIdentity,
   turma,
   usuario,
   vinculo,
-  type Banco,
-  type TransacaoBanco,
+  type Database,
+  type DatabaseTransaction,
 } from '@educa/nucleo'
 import {
   CATEGORIAS_DE_CADASTRO_E_VINCULO,
@@ -30,7 +30,7 @@ import { and, eq, inArray, ne, sql, type SQL } from 'drizzle-orm'
  * classe para o teste de plano usar a mesma instrução que a prévia roda; a escola é a do contexto.
  */
 export function instrucaoDoTextoDoModelo(titularId: string): SQL {
-  const escolaId = exigirEscolaDoContexto()
+  const escolaId = requireEscolaId()
   return sql`select 'texto_do_modelo', count(*)::int from consumo_ia c
         join execucao_agente e on e.escola_id = c.escola_id and e.id = c.execucao_id
         where c.escola_id = ${escolaId} and e.solicitada_por = ${titularId} and (c.entrada is not null or c.saida is not null)`
@@ -84,24 +84,24 @@ const nomeComparavel = (coluna: SQL | typeof usuario.nome) => sql<string>`lower(
  * item 9). O nome sai só para a resposta da coordenação, que é auditada.
  */
 export class TitularesRepository {
-  constructor(private readonly banco: Banco | TransacaoBanco) {}
+  constructor(private readonly banco: Database | DatabaseTransaction) {}
 
   /** O titular deste id na escola do contexto, com a conta dele. O de outra escola e o inexistente não são achados. */
   async paraOPedido(titularId: string): Promise<TitularAchadoNoBanco | undefined> {
     const [linha] = await this.banco
       .select(colunasDoTitular)
       .from(usuario)
-      .where(and(eq(usuario.escolaId, exigirEscolaDoContexto()), eq(usuario.id, titularId), inArray(usuario.papel, [...PAPEIS_QUE_PODEM_SER_TITULAR])))
+      .where(and(eq(usuario.escolaId, requireEscolaId()), eq(usuario.id, titularId), inArray(usuario.papel, [...PAPEIS_QUE_PODEM_SER_TITULAR])))
     return linha === undefined ? undefined : { ...linha, papel: papelDeTitular(linha.papel) }
   }
 
   /** A conta de quem pediu: o pedido sobre a própria pessoa (mesma `conta_id`) responde como inexistente. */
   async contaDeQuemPediu(): Promise<string | null> {
-    const { usuarioId } = identidadeDaRequisicao()
+    const { usuarioId } = requestIdentity()
     const [linha] = await this.banco
       .select({ contaId: usuario.contaId })
       .from(usuario)
-      .where(and(eq(usuario.escolaId, exigirEscolaDoContexto()), eq(usuario.id, usuarioId)))
+      .where(and(eq(usuario.escolaId, requireEscolaId()), eq(usuario.id, usuarioId)))
     return linha?.contaId ?? null
   }
 
@@ -112,7 +112,7 @@ export class TitularesRepository {
    * pessoa certa entre homônimos.
    */
   async buscar(termo: string): Promise<TitularAchado[]> {
-    const escolaId = exigirEscolaDoContexto()
+    const escolaId = requireEscolaId()
     const procurado = termo.trim().toLowerCase()
     const achados = await this.banco
       .select({ ...colunasDoTitular, desativadoEm: usuario.desativadoEm, matricula: credencialMatricula.matricula })
@@ -143,7 +143,7 @@ export class TitularesRepository {
    * escola (eliminado) não vem: a resposta mostra "Titular eliminado".
    */
   async titularesParaOPedido(titularIds: readonly string[]): Promise<Map<string, TitularParaOPedido>> {
-    const escolaId = exigirEscolaDoContexto()
+    const escolaId = requireEscolaId()
     if (titularIds.length === 0) return new Map()
     const linhas = await this.banco
       .select({ id: usuario.id, nome: usuario.nome })
@@ -168,7 +168,7 @@ export class TitularesRepository {
    * (tarefa 13.0). Cada categoria conta as tabelas que `CLASSIFICACAO_DAS_TABELAS` liga a ele.
    */
   async contagemPorCategoria(titularId: string): Promise<ContagemDoTitular[]> {
-    const escolaId = exigirEscolaDoContexto()
+    const escolaId = requireEscolaId()
     const { rows } = await this.banco.execute<{ categoria: string; quantidade: number }>(sql`
       select 'conversa_tutor' as categoria, count(*)::int as quantidade from mensagem_tutor where escola_id = ${escolaId} and aluno_id = ${titularId}
       union all select 'sinal_tutor', count(*)::int from sinal_tutor where escola_id = ${escolaId} and aluno_id = ${titularId}
@@ -210,8 +210,8 @@ export class TitularesRepository {
    * contexto, e sem ela a chamada falha como antes.
    */
   async #vinculosDe(usuarioIds: readonly string[]): Promise<Map<string, { turmas: Array<{ id: string; nome: string }>; disciplinas: Array<{ id: string; nome: string }> }>> {
-    const escolaId = exigirEscolaDoContexto()
-    const anoLetivoId = contextoAtual()?.anoLetivoId
+    const escolaId = requireEscolaId()
+    const anoLetivoId = currentContext()?.anoLetivoId
     if (usuarioIds.length === 0 || typeof anoLetivoId !== 'string') return new Map()
     const linhas = await this.banco
       .select({ usuarioId: vinculo.usuarioId, turmaId: turma.id, turma: turma.nome, disciplinaId: disciplina.id, disciplina: disciplina.nome })

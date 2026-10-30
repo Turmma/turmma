@@ -1,4 +1,4 @@
-import { executarNoContexto } from '@educa/nucleo'
+import { runInContext } from '@educa/nucleo'
 import { randomUUID } from 'node:crypto'
 import { afterAll, describe, expect, it } from 'vitest'
 import { BancadaDeSessoes } from '../../../test/sessao-de-teste.js'
@@ -16,7 +16,7 @@ describe('ContaExternaRepository: ligação, domínio e professor lidos só na e
     await bancada.fechar()
   })
 
-  const naEscola = <T>(escolaId: string, funcao: () => Promise<T>) => executarNoContexto({ requisicaoId: randomUUID(), escolaId }, funcao)
+  const naEscola = <T>(escolaId: string, funcao: () => Promise<T>) => runInContext({ requisicaoId: randomUUID(), escolaId }, funcao)
 
   it('isolamento: a mesma conta Google ligada em A e em B devolve, em cada escola, o usuário dela; sem escola no contexto, recusa', async () => {
     const escolaA = await bancada.escola()
@@ -27,7 +27,7 @@ describe('ContaExternaRepository: ligação, domínio e professor lidos só na e
     await naEscola(escolaB, () => repositorio.ligar(alunoDeB, chave))
     expect(await naEscola(escolaA, () => repositorio.ligacao(chave))).toEqual({ usuarioId: alunoDeA, contaId: null, ativo: true, suspenso: false })
     expect(await naEscola(escolaB, () => repositorio.ligacao(chave))).toEqual({ usuarioId: alunoDeB, contaId: null, ativo: true, suspenso: false })
-    await expect(executarNoContexto({ requisicaoId: randomUUID() }, () => repositorio.ligacao(chave))).rejects.toThrow('consulta com escopo sem escola no contexto')
+    await expect(runInContext({ requisicaoId: randomUUID() }, () => repositorio.ligacao(chave))).rejects.toThrow('consulta com escopo sem escola no contexto')
   })
 
   it('isolamento: a ligação que só existe em B não é achada em A, e ligar em A com usuário de B é recusado pela FK composta', async () => {

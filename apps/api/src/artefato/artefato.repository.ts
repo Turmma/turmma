@@ -1,4 +1,4 @@
-import { artefato, atividadeAplicada, entrega, exigirAnoEmCurso, exigirEscolaDoContexto, material, sessaoDaRequisicao, type Banco, type TransacaoBanco } from '@educa/nucleo'
+import { artefato, atividadeAplicada, entrega, requireAnoEmCurso, requireEscolaId, material, requestSessao, type Database, type DatabaseTransaction } from '@educa/nucleo'
 import { InvariantException, MAXIMO_DE_VERSOES_NO_ARTEFATO, type ArtefatosQuery, type ConteudoDoArtefato, type EstadoDeAtividadeAplicada, type EstadoDeEntrega, type TipoDeArtefato } from '@educa/shared'
 import { and, desc, eq, exists, inArray, lt, ne, not, sql, type SQL } from 'drizzle-orm'
 import { comVinculoConfirmadoDoProfessor, disciplinaDoArtefato } from '../assistente/turma-do-professor.repository.js'
@@ -58,12 +58,12 @@ const colunas = {
  * O artefato tem o gabarito: nenhum método daqui serve ao aluno, que recebe a prova pela atividade aplicada.
  */
 export class ArtefatoRepository {
-  constructor(private readonly banco: Banco | TransacaoBanco) {}
+  constructor(private readonly banco: Database | DatabaseTransaction) {}
 
   #noAlcance(): SQL | undefined {
     return and(
-      eq(artefato.escolaId, exigirEscolaDoContexto()),
-      eq(artefato.anoLetivoId, exigirAnoEmCurso()),
+      eq(artefato.escolaId, requireEscolaId()),
+      eq(artefato.anoLetivoId, requireAnoEmCurso()),
       comVinculoConfirmadoDoProfessor(this.banco, { escolaId: artefato.escolaId, anoLetivoId: artefato.anoLetivoId, turmaId: artefato.turmaId }, artefato.disciplinaId),
     )
   }
@@ -107,8 +107,8 @@ export class ArtefatoRepository {
       .from(atividadeAplicada)
       .where(
         and(
-          eq(atividadeAplicada.escolaId, exigirEscolaDoContexto()),
-          eq(atividadeAplicada.anoLetivoId, exigirAnoEmCurso()),
+          eq(atividadeAplicada.escolaId, requireEscolaId()),
+          eq(atividadeAplicada.anoLetivoId, requireAnoEmCurso()),
           eq(atividadeAplicada.artefatoId, artefatoId),
           comVinculoConfirmadoDoProfessor(
             this.banco,
@@ -130,7 +130,7 @@ export class ArtefatoRepository {
     const linhas = await this.banco
       .select({ id: material.id, titulo: material.titulo })
       .from(material)
-      .where(and(eq(material.escolaId, exigirEscolaDoContexto()), inArray(material.id, [...ids])))
+      .where(and(eq(material.escolaId, requireEscolaId()), inArray(material.id, [...ids])))
     return new Map(linhas.map((linha) => [linha.id, linha.titulo]))
   }
 
@@ -163,8 +163,8 @@ export class ArtefatoRepository {
     const [criado] = await this.banco
       .insert(artefato)
       .values({
-        escolaId: exigirEscolaDoContexto(),
-        anoLetivoId: exigirAnoEmCurso(),
+        escolaId: requireEscolaId(),
+        anoLetivoId: requireAnoEmCurso(),
         turmaId: novo.turmaId,
         disciplinaId: novo.disciplinaId,
         tipo: novo.conteudo.tipo,
@@ -172,7 +172,7 @@ export class ArtefatoRepository {
         conteudo: novo.conteudo,
         origemId: novo.origemId ?? null,
         execucaoId: novo.execucaoId,
-        criadoPor: sessaoDaRequisicao().usuarioId,
+        criadoPor: requestSessao().usuarioId,
       })
       .returning({ id: artefato.id })
     if (criado === undefined) throw new InvariantException('artefato não criado')

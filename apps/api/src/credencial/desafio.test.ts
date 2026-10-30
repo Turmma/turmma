@@ -1,4 +1,4 @@
-import { EmissorDeToken, ErroDeDominio, verificarToken } from '@educa/nucleo'
+import { TokenIssuer, DomainException, verifyToken } from '@educa/nucleo'
 import { ErrorCode } from '@educa/shared'
 import { decodeJwt, decodeProtectedHeader, SignJWT } from 'jose'
 import { randomUUID } from 'node:crypto'
@@ -9,7 +9,7 @@ const CHAVE = new TextEncoder().encode('chave-de-teste-da-assinatura-com-32-byte
 const CONTA = '0190f5a0-0000-7000-8000-0000000000c1'
 
 async function recusado(promessa: Promise<unknown>): Promise<void> {
-  await expect(promessa).rejects.toBeInstanceOf(ErroDeDominio)
+  await expect(promessa).rejects.toBeInstanceOf(DomainException)
   await expect(promessa).rejects.toMatchObject({ codigo: ErrorCode.NAO_AUTENTICADO })
 }
 
@@ -59,11 +59,11 @@ describe('desafio de login', () => {
 
   it('permissão: o desafio não serve de token de acesso (a guarda recusa o typ)', async () => {
     const desafio = await new EmissorDeDesafio(CHAVE).emitir({ contaId: CONTA, etapa: 'mfa', mfaCumprido: false })
-    await recusado(verificarToken(desafio, { ambiente: 'local', chaveAssinatura: CHAVE }))
+    await recusado(verifyToken(desafio, { ambiente: 'local', chaveAssinatura: CHAVE }))
   })
 
   it('permissão: o token de acesso não serve de desafio (sem typ nem aud de desafio)', async () => {
-    const { token } = await new EmissorDeToken(CHAVE).emitir({ escolaId: randomUUID(), usuarioId: randomUUID(), sessaoId: randomUUID() })
+    const { token } = await new TokenIssuer(CHAVE).emitir({ escolaId: randomUUID(), usuarioId: randomUUID(), sessaoId: randomUUID() })
     await recusado(verificarDesafio(token, CHAVE, ['escolher', 'mfa', 'configurar_mfa']))
   })
 

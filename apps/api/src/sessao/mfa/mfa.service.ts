@@ -1,4 +1,4 @@
-import { ErroDeDominio, METRICAS, relogioDoSistema, type Banco, type Meter, type Relogio } from '@educa/nucleo'
+import { DomainException, METRICS, systemClock, type Database, type Meter, type Clock } from '@educa/nucleo'
 import { ErrorCode, type EtapaComDesafio, type MfaRequest, type AtivarMfaResponse, type ConfigurarMfaResponse } from '@educa/shared'
 import type { CifraDoSegredo } from '../../credencial/cifra-do-segredo.js'
 import type { ConclusaoDeLogin } from '../conclusao/conclusao-de-login.js'
@@ -12,7 +12,7 @@ import { ResolucaoDeTenantRepository, type MfaDaConta, type UsuarioAtivoDaConta 
 import { gerarCodigosDeRecuperacao, gerarSegredo, hmacDaRecuperacao, normalizarRecuperacao, passoDoCodigo } from '../../credencial/segundo-fator.js'
 
 export interface DependenciasDoMfa {
-  readonly banco: Banco
+  readonly banco: Database
   readonly resolucao: ResolucaoDeTenantRepository
   readonly contador: ContadorDeTentativas
   readonly dispositivo: CookieDeDispositivo
@@ -25,10 +25,10 @@ export interface DependenciasDoMfa {
   /** Chave do HMAC dos códigos de recuperação (`IDENTIDADE_CHAVE_RECUPERACAO`). */
   readonly chaveRecuperacao: Uint8Array
   readonly medidor: Meter
-  readonly relogio?: Relogio
+  readonly relogio?: Clock
 }
 
-const naoAutenticado = () => new ErroDeDominio(ErrorCode.NAO_AUTENTICADO)
+const naoAutenticado = () => new DomainException(ErrorCode.NAO_AUTENTICADO)
 
 /**
  * O segundo fator do coordenador (RF12; Tech Spec, seções 4 e 5): configurar e ativar o app autenticador, e entrar
@@ -57,12 +57,12 @@ const naoAutenticado = () => new ErroDeDominio(ErrorCode.NAO_AUTENTICADO)
  *   conta como sempre.
  */
 export class MfaService {
-  readonly #relogio: Relogio
+  readonly #relogio: Clock
   readonly #contaSegurada: ReturnType<Meter['createCounter']>
 
   constructor(private readonly dependencias: DependenciasDoMfa) {
-    this.#relogio = dependencias.relogio ?? relogioDoSistema
-    this.#contaSegurada = dependencias.medidor.createCounter(METRICAS.contaSegurada, { description: 'Tentativas de login respondidas com CONTA_SEGURADA' })
+    this.#relogio = dependencias.relogio ?? systemClock
+    this.#contaSegurada = dependencias.medidor.createCounter(METRICS.contaSegurada, { description: 'Tentativas de login respondidas com CONTA_SEGURADA' })
   }
 
   async configurar(desafio: string): Promise<ConfigurarMfaResponse> {
@@ -127,7 +127,7 @@ export class MfaService {
       // tem outro usuário ativo: a resposta de convite inválido, sem `login_falho`, e o contador do código volta ao que
       // era antes (Tech Spec da A0b, seção 5).
       await contador.desfazer(chave, reserva)
-      throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+      throw new DomainException(ErrorCode.NAO_ENCONTRADO)
     }
     await contador.zerar(chave)
     if (usuarios.length === 0) throw naoAutenticado()
@@ -179,8 +179,8 @@ export class MfaService {
     return verificado
   }
 
-  #segurada(esperaMs: number): ErroDeDominio {
+  #segurada(esperaMs: number): DomainException {
     this.#contaSegurada.add(1)
-    return new ErroDeDominio(ErrorCode.CONTA_SEGURADA, undefined, Math.max(1, Math.ceil(esperaMs / 1_000)))
+    return new DomainException(ErrorCode.CONTA_SEGURADA, undefined, Math.max(1, Math.ceil(esperaMs / 1_000)))
   }
 }

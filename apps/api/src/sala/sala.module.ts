@@ -1,4 +1,4 @@
-import { medidorGlobal, type Banco, type LoggerBase, type Meter } from '@educa/nucleo'
+import { globalMeter, type Database, type LoggerBase, type Meter } from '@educa/nucleo'
 import { Module, type DynamicModule } from '@nestjs/common'
 import type { Redis } from 'ioredis'
 import { BANCO } from '../banco.module.js'
@@ -49,31 +49,31 @@ export class SalaModule {
       module: SalaModule,
       controllers: [AcessoDaTurmaController, SalasController, PedidosController, MinhaTurmaController],
       providers: [
-        { provide: AcessoDaTurmaService, useFactory: (banco: Banco) => new AcessoDaTurmaService(banco, config.chaveCodigo, sortearCodigo), inject: [BANCO] },
+        { provide: AcessoDaTurmaService, useFactory: (banco: Database) => new AcessoDaTurmaService(banco, config.chaveCodigo, sortearCodigo), inject: [BANCO] },
         {
           provide: LimitesDaSala,
           useFactory: (cliente: Redis) =>
             new LimitesDaSala({
               janela: new ContadorEmJanela(cliente, chaveContador, { janelaMs: JANELA_DOS_LIMITES_DA_SALA_MS, avisarSeguro: avisarSeguroDaSala }),
               instancias,
-              medidor: medidor ?? medidorGlobal(),
+              medidor: medidor ?? globalMeter(),
               logger,
             }),
           inject: [CLIENTE_REDIS_LOGIN],
         },
         {
           provide: SalasService,
-          useFactory: (banco: Banco, acessoDaSala: AcessoDaSala, limites: LimitesDaSala) => new SalasService(banco, acessoDaSala, config.chaveCodigo, limites),
+          useFactory: (banco: Database, acessoDaSala: AcessoDaSala, limites: LimitesDaSala) => new SalasService(banco, acessoDaSala, config.chaveCodigo, limites),
           inject: [BANCO, AcessoDaSala, LimitesDaSala],
         },
         {
           provide: ReivindicacaoService,
-          useFactory: (banco: Banco, acessoDaSala: AcessoDaSala, semaforo: SemaforoDeHash, hash: HashDeSenha, limites: LimitesDaSala) =>
-            new ReivindicacaoService({ banco, acessoDaSala, semaforo, hash, chaveCodigo: config.chaveCodigo, limites, medidor: medidor ?? medidorGlobal() }),
+          useFactory: (banco: Database, acessoDaSala: AcessoDaSala, semaforo: SemaforoDeHash, hash: HashDeSenha, limites: LimitesDaSala) =>
+            new ReivindicacaoService({ banco, acessoDaSala, semaforo, hash, chaveCodigo: config.chaveCodigo, limites, medidor: medidor ?? globalMeter() }),
           inject: [BANCO, AcessoDaSala, SemaforoDeHash, HashDeSenha, LimitesDaSala],
         },
-        { provide: DecisaoService, useFactory: (banco: Banco, contador: ContadorDeTentativas) => new DecisaoService(banco, contador), inject: [BANCO, ContadorDeTentativas] },
-        { provide: MinhaTurmaService, useFactory: (banco: Banco) => new MinhaTurmaService(banco), inject: [BANCO] },
+        { provide: DecisaoService, useFactory: (banco: Database, contador: ContadorDeTentativas) => new DecisaoService(banco, contador), inject: [BANCO, ContadorDeTentativas] },
+        { provide: MinhaTurmaService, useFactory: (banco: Database) => new MinhaTurmaService(banco), inject: [BANCO] },
       ],
     }
   }

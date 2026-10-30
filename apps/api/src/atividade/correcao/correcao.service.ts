@@ -1,4 +1,4 @@
-import { ErroDeDominio, RegistroDeAuditoria, type Banco } from '@educa/nucleo'
+import { DomainException, AuditoriaRecorder, type Database } from '@educa/nucleo'
 import {
   ErrorCode,
   conteudoDeAtividadeSchema,
@@ -19,7 +19,7 @@ import { CorrecaoRepository, type CorrecaoLida, type LoteLido, type ValidacaoLid
 import type { LeituraDoLote } from './leitura-do-lote.js'
 import { loteApresentado, marcaDoApresentado } from './lote.js'
 
-const registro = new RegistroDeAuditoria()
+const registro = new AuditoriaRecorder()
 
 /** O lote como o servidor o monta, das linhas de `correcao`: as correções, com o nome, e o que a validação guarda. */
 interface LoteMontado {
@@ -87,7 +87,7 @@ const respostasCorrigidas = (questoes: readonly QuestaoObjetiva[], respostas: Re
  */
 export class CorrecaoService {
   constructor(
-    private readonly banco: Banco,
+    private readonly banco: Database,
     private readonly leitura: LeituraDoLote,
   ) {}
 
@@ -101,7 +101,7 @@ export class CorrecaoService {
   async ler(atividadeAplicadaId: string): Promise<CorrecaoDoLoteResponse> {
     const correcoes = new CorrecaoRepository(this.banco)
     const lote = await correcoes.loteDaAplicacao(atividadeAplicadaId)
-    if (lote === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+    if (lote === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
     const montado = await this.#montar(correcoes, lote)
     const validacao = await correcoes.validacao(lote.entregaId)
     const destaques = montado.correcoes.filter((correcao) => correcao.destaques.length > 0)
@@ -126,18 +126,18 @@ export class CorrecaoService {
     const aberto = await this.banco.transaction(async (tx) => {
       const correcoes = new CorrecaoRepository(tx)
       const lote = await correcoes.loteDaAplicacao(atividadeAplicadaId, true)
-      if (lote === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+      if (lote === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
       let [destaque] = await correcoes.correcoesDoLote(lote.entregaId, alunoId)
       // O aluno sem correção neste lote e o que não é destaque respondem igual ao inexistente.
-      if (destaque === undefined || destaque.destaques.length === 0) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+      if (destaque === undefined || destaque.destaques.length === 0) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
       if (destaque.destaqueAbertoEm === null) {
         // Depois da decisão, nenhuma correção do lote muda: o que não foi aberto antes não se abre mais.
-        if (lote.estado !== 'pendente') throw new ErroDeDominio(ErrorCode.ENTREGA_JA_DECIDIDA)
+        if (lote.estado !== 'pendente') throw new DomainException(ErrorCode.ENTREGA_JA_DECIDIDA)
         if (await correcoes.abrirDestaque(lote.entregaId, alunoId)) {
           await registro.gravar(tx, 'correcao.destaque_aberto', { entidadeId: lote.entregaId, depois: { atividadeAplicadaId: lote.atividadeAplicadaId, alunoId, motivos: destaque.destaques } })
         }
         ;[destaque] = await correcoes.correcoesDoLote(lote.entregaId, alunoId)
-        if (destaque === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+        if (destaque === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
       }
       const { questoes } = conteudoDeAtividadeSchema.parse(lote.conteudo)
       const respostas = (await correcoes.respostasPorAluno(lote.atividadeAplicadaId, alunoId)).get(alunoId) ?? new Map<number, number>()
@@ -153,21 +153,21 @@ export class CorrecaoService {
     const aprovado = await this.banco.transaction(async (tx) => {
       const correcoes = new CorrecaoRepository(tx)
       const lote = await correcoes.travarLote(entregaId)
-      if (lote === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
-      if (lote.estado !== 'pendente') throw new ErroDeDominio(ErrorCode.ENTREGA_JA_DECIDIDA)
+      if (lote === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
+      if (lote.estado !== 'pendente') throw new DomainException(ErrorCode.ENTREGA_JA_DECIDIDA)
 
       const montado = await this.#montar(correcoes, lote)
       // Validação efetiva (D56): quem aprova leu a correção deste lote, e leu o que vai ficar registrado como apresentado.
-      if (marcaLida !== marcaDoApresentado(montado.apresentado)) throw new ErroDeDominio(ErrorCode.CONFLITO)
+      if (marcaLida !== marcaDoApresentado(montado.apresentado)) throw new DomainException(ErrorCode.CONFLITO)
 
       const destaques = montado.correcoes.filter((correcao) => correcao.destaques.length > 0)
       const aberto: DestaquesAbertos = destaques
         .flatMap((destaque) => (destaque.destaqueAbertoEm === null ? [] : [{ alunoId: destaque.alunoId, abertoEm: destaque.destaqueAbertoEm.toISOString() }]))
         .sort((a, b) => (a.alunoId < b.alunoId ? -1 : a.alunoId > b.alunoId ? 1 : 0))
-      if (aberto.length < destaques.length) throw new ErroDeDominio(ErrorCode.DESTAQUES_NAO_ABERTOS)
+      if (aberto.length < destaques.length) throw new DomainException(ErrorCode.DESTAQUES_NAO_ABERTOS)
 
       const validacaoId = await correcoes.gravarValidacao(lote, loteApresentadoSchema.parse(montado.apresentado), destaquesAbertosSchema.parse(aberto))
-      if (!(await correcoes.aprovar(entregaId))) throw new ErroDeDominio(ErrorCode.ENTREGA_JA_DECIDIDA)
+      if (!(await correcoes.aprovar(entregaId))) throw new DomainException(ErrorCode.ENTREGA_JA_DECIDIDA)
       await registro.gravar(tx, 'lote.aprovado', {
         entidadeId: entregaId,
         antes: { estado: 'pendente' },
@@ -182,7 +182,7 @@ export class CorrecaoService {
         },
       })
       const [aprovada, validacao] = [await correcoes.lote(entregaId), await correcoes.validacao(entregaId)]
-      if (aprovada === undefined || validacao === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+      if (aprovada === undefined || validacao === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
       return { aprovada, validacao }
     })
     return loteAprovadoResponseSchema.parse({ entrega: entregaParaATela(aprovado.aprovada), validacao: validacaoParaATela(aprovado.validacao) })

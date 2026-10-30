@@ -2,7 +2,7 @@ import { once } from 'node:events'
 import { createServer, type IncomingHttpHeaders } from 'node:http'
 import type { AddressInfo } from 'node:net'
 
-export interface PedidoRecebido {
+export interface ReceivedRequest {
   readonly caminho: string
   readonly cabecalhos: IncomingHttpHeaders
   readonly corpo: {
@@ -15,7 +15,7 @@ export interface PedidoRecebido {
   }
 }
 
-export interface RespostaRoteirizada {
+export interface ScriptedResponse {
   readonly status?: number
   /** Corpo em JSON. Sem ele, vai `textoCru`. */
   readonly corpo?: unknown
@@ -25,15 +25,15 @@ export interface RespostaRoteirizada {
   readonly atrasoMs?: number
 }
 
-export interface ServidorLlamaFalso {
+export interface FakeLlamaServer {
   /** A raiz que vai em `LLM_BASE_URL`, com o `/v1`. */
   readonly url: string
-  readonly pedidos: PedidoRecebido[]
+  readonly pedidos: ReceivedRequest[]
   fechar(): Promise<void>
 }
 
 /** A resposta de `chat/completions` como o `llama-server` devolve. */
-export function respostaDoChat(conteudo: string | null, extras: { raciocinio?: string; uso?: { prompt_tokens: number; completion_tokens: number }; modelo?: string } = {}): unknown {
+export function chatResponse(conteudo: string | null, extras: { raciocinio?: string; uso?: { prompt_tokens: number; completion_tokens: number }; modelo?: string } = {}): unknown {
   return {
     id: 'chatcmpl-sintetico',
     object: 'chat.completion',
@@ -47,17 +47,17 @@ export function respostaDoChat(conteudo: string | null, extras: { raciocinio?: s
  * Um `llama-server` de mentira, em `node:http`, numa porta livre de 127.0.0.1. O roteiro decide a resposta de cada
  * pedido, pela ordem de chegada. Nenhum teste fala com o servidor de verdade nem com provedor pago (regra 30, item 3).
  */
-export async function subirServidorLlamaFalso(roteiro: (pedido: PedidoRecebido, numero: number) => RespostaRoteirizada): Promise<ServidorLlamaFalso> {
-  const pedidos: PedidoRecebido[] = []
+export async function startFakeLlamaServer(roteiro: (pedido: ReceivedRequest, numero: number) => ScriptedResponse): Promise<FakeLlamaServer> {
+  const pedidos: ReceivedRequest[] = []
   const esperas = new Set<NodeJS.Timeout>()
   const servidor = createServer((requisicao, resposta) => {
     const partes: Buffer[] = []
     requisicao.on('data', (parte: Buffer) => partes.push(parte))
     requisicao.on('end', () => {
-      const pedido: PedidoRecebido = {
+      const pedido: ReceivedRequest = {
         caminho: requisicao.url ?? '',
         cabecalhos: requisicao.headers,
-        corpo: JSON.parse(Buffer.concat(partes).toString('utf8')) as PedidoRecebido['corpo'],
+        corpo: JSON.parse(Buffer.concat(partes).toString('utf8')) as ReceivedRequest['corpo'],
       }
       pedidos.push(pedido)
       const roteirizada = roteiro(pedido, pedidos.length)

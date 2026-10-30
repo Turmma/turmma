@@ -1,4 +1,4 @@
-import { exigirEscolaDoContexto, usuario, type TransacaoBanco } from '@educa/nucleo'
+import { requireEscolaId, usuario, type DatabaseTransaction } from '@educa/nucleo'
 import { and, eq, isNull } from 'drizzle-orm'
 
 /**
@@ -6,13 +6,13 @@ import { and, eq, isNull } from 'drizzle-orm'
  * acha nada. Devolve só a conta dele, nunca o nome.
  */
 export class RedefinicaoDeMfaRepository {
-  constructor(private readonly tx: TransacaoBanco) {}
+  constructor(private readonly tx: DatabaseTransaction) {}
 
   async contaDoUsuarioAtivo(usuarioId: string): Promise<string | undefined> {
     const [linha] = await this.tx
       .select({ contaId: usuario.contaId })
       .from(usuario)
-      .where(and(eq(usuario.escolaId, exigirEscolaDoContexto()), eq(usuario.id, usuarioId), isNull(usuario.desativadoEm)))
+      .where(and(eq(usuario.escolaId, requireEscolaId()), eq(usuario.id, usuarioId), isNull(usuario.desativadoEm)))
       .limit(1)
     return linha?.contaId ?? undefined
   }

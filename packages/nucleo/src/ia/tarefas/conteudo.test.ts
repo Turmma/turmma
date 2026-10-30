@@ -1,15 +1,15 @@
 import type { ConteudoDeAtividade, ConteudoDePlanoDeAula, TipoDeAdaptacao } from '@educa/shared'
 import { describe, expect, it } from 'vitest'
-import { comContextoDaEscolaDoPedido } from '../__fixtures__/contexto-da-escola.js'
-import { AdaptadorRoteirizado } from '../__fixtures__/adaptador-roteirizado.js'
+import { withEscolaContextOfRequest } from '../__fixtures__/contexto-da-escola.js'
+import { ScriptedAdapter } from '../__fixtures__/adaptador-roteirizado.js'
 import { atividadeDeEstequiometria, entradaDeAdaptacao, entradaDeAtividade, entradaDePlano, ESCOLA_A } from '../__fixtures__/entradas.js'
 import { CONTEXTO_DE_QUIMICA, HABILIDADES_DE_ESTEQUIOMETRIA, MATERIAL_DE_ESTEQUIOMETRIA, PAGINAS_DE_ESTEQUIOMETRIA, trechosDeEstequiometria } from '../__fixtures__/estequiometria.js'
-import { AdaptadorFalso } from '../adaptador-falso.js'
-import { ConsumoEmMemoria, OrcamentoEmMemoria } from '../consumo.js'
-import { ErroDeIa } from '../erros.js'
+import { FakeAdapter } from '../adaptador-falso.js'
+import { InMemoryConsumo, InMemoryOrcamento } from '../consumo.js'
+import { LLMError } from '../erros.js'
 import { extrairFatos } from '../material.js'
-import { ProvedorDeIa } from '../provedor.js'
-import { SuspensoesEmMemoria } from '../suspensao.js'
+import { LLMGateway } from '../provedor.js'
+import { InMemorySuspensoes } from '../suspensao.js'
 import { normalizar, semPontoFinal } from '../texto.js'
 import { adaptarAtividade } from './adaptar-atividade.js'
 import { gerarAtividadeObjetiva } from './gerar-atividade-objetiva.js'
@@ -19,17 +19,17 @@ const MATERIAL_INTEIRO = normalizar(PAGINAS_DE_ESTEQUIOMETRIA.join(' '))
 const textoDaPagina = (pagina: number): string => PAGINAS_DE_ESTEQUIOMETRIA[pagina - 1] ?? ''
 const doMaterial = (texto: string): boolean => MATERIAL_INTEIRO.includes(normalizar(semPontoFinal(texto)))
 
-function provedorCom(adaptador: AdaptadorFalso | AdaptadorRoteirizado): { ia: ProvedorDeIa; consumo: ConsumoEmMemoria } {
-  const consumo = new ConsumoEmMemoria()
-  return { ia: comContextoDaEscolaDoPedido(new ProvedorDeIa({ adaptador, registro: consumo, orcamento: new OrcamentoEmMemoria(consumo), suspensao: new SuspensoesEmMemoria() })), consumo }
+function provedorCom(adaptador: FakeAdapter | ScriptedAdapter): { ia: LLMGateway; consumo: InMemoryConsumo } {
+  const consumo = new InMemoryConsumo()
+  return { ia: withEscolaContextOfRequest(new LLMGateway({ adaptador, registro: consumo, orcamento: new InMemoryOrcamento(consumo), suspensao: new InMemorySuspensoes() })), consumo }
 }
 
-async function erroDe(promessa: Promise<unknown>): Promise<ErroDeIa> {
+async function erroDe(promessa: Promise<unknown>): Promise<LLMError> {
   const erro: unknown = await promessa.then(
     () => undefined,
     (motivo: unknown) => motivo,
   )
-  if (!(erro instanceof ErroDeIa)) throw new Error('a chamada deveria ter falhado com ErroDeIa')
+  if (!(erro instanceof LLMError)) throw new Error('a chamada deveria ter falhado com ErroDeIa')
   return erro
 }
 
@@ -103,7 +103,7 @@ describe('gerar_atividade_objetiva, versão determinística', () => {
   })
 
   it('material sem frase aproveitável não vira atividade inventada: falha com material insuficiente', async () => {
-    const { ia } = provedorCom(new AdaptadorFalso())
+    const { ia } = provedorCom(new FakeAdapter())
     const entrada = { ...entradaDeAtividade(), trechos: [{ materialId: MATERIAL_DE_ESTEQUIOMETRIA, pagina: 1, texto: 'Sumário. Capítulo 7.' }] }
     expect((await erroDe(ia.gerar({ tarefa: gerarAtividadeObjetiva, entrada, escolaId: ESCOLA_A }))).codigoDeIa).toBe('MATERIAL_INSUFICIENTE')
   })
@@ -112,7 +112,7 @@ describe('gerar_atividade_objetiva, versão determinística', () => {
 describe('gerar_atividade_objetiva, conferência da saída de qualquer modelo', () => {
   it('o "adaptacao" que o modelo acrescentar à atividade comum sai antes do schema, e a atividade vale', async () => {
     const comAdaptacao = { ...atividadeDeEstequiometria(), adaptacao: { tipos: ['fonte_ampliada'] } }
-    const adaptador = new AdaptadorRoteirizado([JSON.stringify(comAdaptacao)])
+    const adaptador = new ScriptedAdapter([JSON.stringify(comAdaptacao)])
     const { saida } = await provedorCom(adaptador).ia.gerar({ tarefa: gerarAtividadeObjetiva, entrada: entradaDeAtividade(), escolaId: ESCOLA_A })
     expect(adaptador.chamadas).toBe(1)
     expect(saida.adaptacao).toBeUndefined()
@@ -151,7 +151,7 @@ describe('gerar_atividade_objetiva, conferência da saída de qualquer modelo', 
   })
 
   it('o modelo que cita página inventada recebe o problema de volta e, corrigindo, a saída vale', async () => {
-    const adaptador = new AdaptadorRoteirizado([
+    const adaptador = new ScriptedAdapter([
       JSON.stringify(comPrimeira({ citacao: { materialId: MATERIAL_DE_ESTEQUIOMETRIA, pagina: 148, trecho: 'inventado' } })),
       JSON.stringify(boa),
     ])
@@ -218,7 +218,7 @@ describe('adaptar_atividade', () => {
     const tipos: TipoDeAdaptacao[] = ['fonte_ampliada', 'linguagem_direta']
     const entrada = { ...entradaDeAdaptacao(), adaptacao: { tipos } }
     const doModelo = { ...entrada.conteudo, adaptacao: { tipos: ['enunciado_simplificado'], tempoExtraPercentual: 0 } }
-    const adaptador = new AdaptadorRoteirizado([JSON.stringify(doModelo)])
+    const adaptador = new ScriptedAdapter([JSON.stringify(doModelo)])
     const { saida } = await provedorCom(adaptador).ia.gerar({ tarefa: adaptarAtividade, entrada, escolaId: ESCOLA_A })
     expect(adaptador.chamadas).toBe(1)
     expect(saida.adaptacao).toEqual({ tipos: ['fonte_ampliada', 'linguagem_direta'] })
@@ -298,7 +298,7 @@ describe('adaptar_atividade', () => {
     const entrada = entradaDeAdaptacao()
     const boa = adaptarAtividade.falso(entrada)
     const trocada = { ...boa, questoes: boa.questoes.map((questao) => ({ ...questao, gabarito: (questao.gabarito + 1) % 4 })) }
-    const { ia, consumo } = provedorCom(new AdaptadorRoteirizado([JSON.stringify(trocada), JSON.stringify(trocada)]))
+    const { ia, consumo } = provedorCom(new ScriptedAdapter([JSON.stringify(trocada), JSON.stringify(trocada)]))
     expect((await erroDe(ia.gerar({ tarefa: adaptarAtividade, entrada, escolaId: ESCOLA_A }))).codigoDeIa).toBe('IA_SAIDA_INVALIDA')
     expect(consumo.registros).toMatchObject([{ funcao: 'adaptacao', estado: 'falhou', codigoDeErro: 'IA_SAIDA_INVALIDA', tentativas: 2 }])
     expect(consumo.registros[0]?.saida).toBeUndefined()

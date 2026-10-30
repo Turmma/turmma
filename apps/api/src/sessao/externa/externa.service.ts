@@ -1,10 +1,10 @@
 import {
-  contextoAtual,
-  ErroDeDominio,
-  executarNoContexto,
-  METRICAS,
-  RegistroDeAuditoria,
-  type Banco,
+  currentContext,
+  DomainException,
+  runInContext,
+  METRICS,
+  AuditoriaRecorder,
+  type Database,
   type Meter,
   type ProvedorExterno,
 } from '@educa/nucleo'
@@ -28,7 +28,7 @@ export interface Redirecionamento {
 }
 
 export interface DependenciasDoLoginExterno {
-  readonly banco: Banco
+  readonly banco: Database
   readonly resolucao: ResolucaoDeTenantRepository
   readonly provedor: ProvedorExternoPort
   readonly cookie: CookieOidc
@@ -84,11 +84,11 @@ function entrarSeNaoSuspensa(ligacao: Pick<LigacaoDaContaExterna, 'usuarioId' | 
  *   claims nem saem do adaptador. Nada disso vai ao log, a uma exceção, à auditoria ou ao banco.
  */
 export class LoginExterno {
-  readonly #auditoria = new RegistroDeAuditoria()
+  readonly #auditoria = new AuditoriaRecorder()
   readonly #resultados: ReturnType<Meter['createCounter']>
 
   constructor(private readonly dependencias: DependenciasDoLoginExterno) {
-    this.#resultados = dependencias.medidor.createCounter(METRICAS.loginExterno, { description: 'Retornos do login pela conta da escola, por resultado' })
+    this.#resultados = dependencias.medidor.createCounter(METRICS.loginExterno, { description: 'Retornos do login pela conta da escola, por resultado' })
   }
 
   /** Os provedores que a configuração ligou (a lista de `GET /v1/escolas/:slug/acesso` se limita a eles). */
@@ -98,11 +98,11 @@ export class LoginExterno {
 
   /** O contrato exige o `provedor` e o `slug` já validados pelo `ZodValidationPipe` do controller: outro chamador tem de conferir o formato antes. */
   async iniciar(provedor: ProvedorExterno, slug: string): Promise<Redirecionamento> {
-    if (!this.ligados.includes(provedor)) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+    if (!this.ligados.includes(provedor)) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
     const escolaId = await this.dependencias.resolucao.escolaPorSlug(slug)
-    if (escolaId === undefined) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+    if (escolaId === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
     const liberado = await naEscolaSemUsuario({ escolaId }, () => new ContaExternaRepository(this.dependencias.banco).provedorLiberado(provedor))
-    if (!liberado) throw new ErroDeDominio(ErrorCode.NAO_ENCONTRADO)
+    if (!liberado) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
 
     try {
       const inicio = await this.dependencias.provedor.iniciar(provedor)
@@ -190,8 +190,8 @@ export class LoginExterno {
    * professor como autor: é ele quem provou a conta. `false` se um índice único recusou a ligação.
    */
   async #ligar(escolaId: string, usuarioId: string, chave: ChaveDaContaExterna): Promise<boolean> {
-    const requisicaoId = contextoAtual()?.requisicaoId ?? randomUUID()
-    return executarNoContexto({ requisicaoId, escolaId, usuarioId }, () =>
+    const requisicaoId = currentContext()?.requisicaoId ?? randomUUID()
+    return runInContext({ requisicaoId, escolaId, usuarioId }, () =>
       this.dependencias.banco.transaction(async (tx) => {
         const ligacaoId = await new ContaExternaRepository(tx).ligar(usuarioId, chave)
         if (ligacaoId === undefined) return false

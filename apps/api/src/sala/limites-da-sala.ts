@@ -1,4 +1,4 @@
-import { ErroDeDominio, limiteDoSeguro, METRICAS, segundosParaTentarDeNovo, type LoggerBase, type Meter } from '@educa/nucleo'
+import { DomainException, insuranceLimit, METRICS, retryAfterSeconds, type LoggerBase, type Meter } from '@educa/nucleo'
 import { ErrorCode } from '@educa/shared'
 import { Logger } from '@nestjs/common'
 import type { GuardaDoCodigo } from '../sessao/index.js'
@@ -76,7 +76,7 @@ const dormir = (ms: number) => new Promise<void>((resolver) => setTimeout(resolv
  * | hash sem pedido criado, pela turma | 150 | o hash vai rebaixado no balde da escola; nunca recusa |
  *
  * "Acima" é a partir do teto: o 1.001º código, a 6ª matrícula e o 151º hash já são segurados. Com o Redis de fila fora,
- * o seguro em memória conta, e o teto cai para o dividido pelas instâncias (`limiteDoSeguro`).
+ * o seguro em memória conta, e o teto cai para o dividido pelas instâncias (`insuranceLimit`).
  *
  * Cada vez que um limite segura um pedido soma em `sala.limite_atingido{tipo}`, sem escola, e a primeira de cada escola,
  * tipo e janela escreve a linha `sala.limite_atingido` com o `tipo` e o `escolaId` (a marca é mais uma chave do mesmo
@@ -89,7 +89,7 @@ export class LimitesDaSala implements GuardaDoCodigo {
 
   constructor(private readonly dependencias: DependenciasDosLimites) {
     this.#esperar = dependencias.esperar ?? dormir
-    this.#limitesAtingidos = dependencias.medidor.createCounter(METRICAS.limiteDaSala, { description: 'Pedidos da página da sala segurados por um limite, por tipo' })
+    this.#limitesAtingidos = dependencias.medidor.createCounter(METRICS.limiteDaSala, { description: 'Pedidos da página da sala segurados por um limite, por tipo' })
     // As séries nascem em 0 no boot: a taxa do alerta de código errado em massa (9.0) conta o primeiro.
     for (const tipo of TIPOS_DE_LIMITE_DA_SALA) this.#limitesAtingidos.add(0, { tipo })
   }
@@ -134,12 +134,12 @@ export class LimitesDaSala implements GuardaDoCodigo {
     const { janela, instancias } = this.dependencias
     const chaveDoNome = this.chaveDoNome(nome)
     const [doNome, daTurma] = await Promise.all([matriculaErrada ? janela.somar(chaveDoNome) : janela.ler(chaveDoNome), janela.ler(this.chaveDaTurma(turmaId))])
-    const efetivo = (teto: number, doSeguro: boolean) => (doSeguro ? limiteDoSeguro(teto, instancias) : teto)
+    const efetivo = (teto: number, doSeguro: boolean) => (doSeguro ? insuranceLimit(teto, instancias) : teto)
     // A soma já conta esta tentativa: ela passa enquanto não exceder o teto. A leitura conta só as anteriores.
     const anteriores = matriculaErrada ? doNome.valor - 1 : doNome.valor
     if (anteriores >= efetivo(TETO_DE_MATRICULAS_ERRADAS_POR_NOME, doNome.doSeguro)) {
       await this.#atingido('nome', escolaId)
-      throw new ErroDeDominio(ErrorCode.LIMITE_EXCEDIDO, undefined, segundosParaTentarDeNovo(await janela.restanteMs(chaveDoNome)))
+      throw new DomainException(ErrorCode.LIMITE_EXCEDIDO, undefined, retryAfterSeconds(await janela.restanteMs(chaveDoNome)))
     }
     const rebaixado = daTurma.valor >= efetivo(TETO_DE_HASHES_SEM_PEDIDO_POR_TURMA, daTurma.doSeguro)
     if (rebaixado) await this.#atingido('turma', escolaId)
@@ -161,7 +161,7 @@ export class LimitesDaSala implements GuardaDoCodigo {
 
   async #noTeto(chave: string, teto: number): Promise<boolean> {
     const { valor, doSeguro } = await this.dependencias.janela.ler(chave)
-    return valor >= (doSeguro ? limiteDoSeguro(teto, this.dependencias.instancias) : teto)
+    return valor >= (doSeguro ? insuranceLimit(teto, this.dependencias.instancias) : teto)
   }
 
   async #atingido(tipo: TipoDeLimiteDaSala, escolaId: string): Promise<void> {

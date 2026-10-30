@@ -1,27 +1,27 @@
 import {
-  ConfiguracaoOperacional,
-  ConfiguracaoOperacionalRepository,
-  criarBanco,
-  criarLogger,
-  criarPool,
-  DespachoRepository,
-  Enfileirador,
-  executarNoContexto,
-  JobRegistroRepository,
+  OperationalSettings,
+  OperationalSettingsRepository,
+  createDatabase,
+  createLogger,
+  createPool,
+  DispatchRepository,
+  JobOutbox,
+  runInContext,
+  JobOutboxRepository,
   lerJanelaPadrao,
-  nomeDaFilaBullMQ,
-  PRIORIDADE_DA_FILA,
+  bullmqQueueName,
+  QUEUE_PRIORITY,
   resolverVagas,
-  VagasPorEscola,
-  type Banco,
-  type ConfiguracaoBanco,
-  type DadosDoJobNaFila,
+  EscolaConcurrencyLimiter,
+  type Database,
+  type DatabaseConfig,
+  type QueuedJobData,
   type JanelaLetiva,
   type LoggerBase,
   type Meter,
-  type PoolBanco,
-  type VagasConfiguradas,
-  type VagasPorFila,
+  type DatabasePool,
+  type ConfiguredConcurrency,
+  type ConcurrencyByQueue,
 } from '@educa/nucleo'
 import { JOB_DEFINITIONS, QUEUE_NAMES, type JobState, type QueueName, type JobRegistry } from '@educa/shared'
 import { Queue } from 'bullmq'
@@ -49,12 +49,12 @@ interface ConsultaComPrazoDoCliente {
 /** Prazo da preparação de volume da bancada (`semear`), nos dois lados: servidor e cliente. */
 export const PRAZO_DA_PREPARACAO_MS = 60_000
 
-export function configuracaoDoBanco(maximoConexoes = 5): ConfiguracaoBanco {
+export function configuracaoDoBanco(maximoConexoes = 5): DatabaseConfig {
   return { url: urlDoBancoDeTeste(), maximoConexoes, timeoutConexaoMs: 2_000, timeoutConsultaMs: 2_000 }
 }
 
 /** As vagas por fila do padrão do ambiente, as mesmas de `.env.example` com que o despachante sobe. */
-export function vagasPadraoDoAmbiente(): VagasPorFila {
+export function vagasPadraoDoAmbiente(): ConcurrencyByQueue {
   return {
     interativa: Number(valorObrigatorio(ambiente, 'VAGAS_ESCOLA_INTERATIVA')),
     normal: Number(valorObrigatorio(ambiente, 'VAGAS_ESCOLA_NORMAL')),
@@ -77,7 +77,7 @@ export class LogEmMemoria {
   readonly logger: LoggerBase
 
   constructor(servico: string) {
-    this.logger = criarLogger({ servico, destino: { write: (linha: string) => this.linhas.push(linha) } })
+    this.logger = createLogger({ servico, destino: { write: (linha: string) => this.linhas.push(linha) } })
   }
 
   registros(): Array<Record<string, unknown>> {
@@ -163,16 +163,16 @@ export interface PedidoDaBancada<Registro extends JobRegistry = typeof JOB_DEFIN
 export class BancadaDeFila<Registro extends JobRegistry = typeof JOB_DEFINITIONS> {
   readonly definicoes: JobRegistry
   readonly prefixo = `teste-${randomUUID()}`
-  readonly pool: PoolBanco = criarPool(configuracaoDoBanco(), () => undefined)
-  readonly banco: Banco = criarBanco(this.pool)
-  readonly registro = new JobRegistroRepository(this.banco)
-  readonly despacho = new DespachoRepository(this.banco)
-  readonly enfileirador = new Enfileirador(this.registro)
+  readonly pool: DatabasePool = createPool(configuracaoDoBanco(), () => undefined)
+  readonly banco: Database = createDatabase(this.pool)
+  readonly registro = new JobOutboxRepository(this.banco)
+  readonly despacho = new DispatchRepository(this.banco)
+  readonly enfileirador = new JobOutbox(this.registro)
   readonly redis = new Redis(urlRedisDeFila(), { maxRetriesPerRequest: null })
-  readonly filas: Readonly<Record<QueueName, Queue<DadosDoJobNaFila>>> = Object.fromEntries(
-    QUEUE_NAMES.map((fila) => [fila, new Queue<DadosDoJobNaFila>(nomeDaFilaBullMQ(fila, 'worker'), { connection: this.redis, prefix: this.prefixo })]),
-  ) as Record<QueueName, Queue<DadosDoJobNaFila>>
-  readonly vagas = new VagasPorEscola(this.redis, this.prefixo)
+  readonly filas: Readonly<Record<QueueName, Queue<QueuedJobData>>> = Object.fromEntries(
+    QUEUE_NAMES.map((fila) => [fila, new Queue<QueuedJobData>(bullmqQueueName(fila, 'worker'), { connection: this.redis, prefix: this.prefixo })]),
+  ) as Record<QueueName, Queue<QueuedJobData>>
+  readonly vagas = new EscolaConcurrencyLimiter(this.redis, this.prefixo)
   readonly #montados: Array<DespachanteMontado | WorkerMontado> = []
 
   constructor(definicoes?: Registro) {
@@ -183,7 +183,7 @@ export class BancadaDeFila<Registro extends JobRegistry = typeof JOB_DEFINITIONS
   }
 
   /** A fila interativa, onde a maior parte dos testes publica. */
-  get fila(): Queue<DadosDoJobNaFila> {
+  get fila(): Queue<QueuedJobData> {
     return this.filas.interativa
   }
 
@@ -203,19 +203,19 @@ export class BancadaDeFila<Registro extends JobRegistry = typeof JOB_DEFINITIONS
   }
 
   /**
-   * Grava como o `Enfileirador` grava (na transação, com a escola e a requisição no contexto, pelo mesmo `inserir`), mas sem
+   * Grava como o `JobOutbox` grava (na transação, com a escola e a requisição no contexto, pelo mesmo `inserir`), mas sem
    * conferir a definição do tipo: o worker não confia na gravação, e o teste põe na linha o dado que o executor deve recusar
-   * (chave a mais, formato errado). A definição é provada pelo `Enfileirador` de verdade, em `execucao.int.test.ts ›
+   * (chave a mais, formato errado). A definição é provada pelo `JobOutbox` de verdade, em `execucao.int.test.ts ›
    * enfileirar`, e a do worker, em `execucao.int.test.ts › o worker valida pela definição`.
    */
   enfileirar(escolaId: string, pedido: PedidoDaBancada<Registro> = {}, requisicaoId = randomUUID()): Promise<string> {
     const fila = pedido.fila ?? 'interativa'
-    return executarNoContexto({ requisicaoId, escolaId }, () =>
+    return runInContext({ requisicaoId, escolaId }, () =>
       this.banco.transaction((tx) =>
         this.registro.inserir(tx, {
           tipo: pedido.tipo ?? 'sintetico',
           fila,
-          prioridade: PRIORIDADE_DA_FILA[fila],
+          prioridade: QUEUE_PRIORITY[fila],
           naoUrgente: pedido.naoUrgente ?? false,
           dados: pedido.dados ?? { cpuMs: 0, falhar: false },
         }),
@@ -233,24 +233,24 @@ export class BancadaDeFila<Registro extends JobRegistry = typeof JOB_DEFINITIONS
 
   /** Reserva como o despachante faz, na escola do contexto e na fila, sem tomar vaga. */
   reservar(escolaId: string, fila: QueueName = 'interativa', limite = 1_000) {
-    return executarNoContexto({ requisicaoId: randomUUID(), escolaId }, () => this.despacho.reservarDaEscola(fila, limite))
+    return runInContext({ requisicaoId: randomUUID(), escolaId }, () => this.despacho.reservarDaEscola(fila, limite))
   }
 
   /** Vagas no mesmo prefixo, sobre outro cliente: como outra instância as veria. */
-  vagasCom(cliente: Redis): VagasPorEscola {
-    return new VagasPorEscola(cliente, this.prefixo)
+  vagasCom(cliente: Redis): EscolaConcurrencyLimiter {
+    return new EscolaConcurrencyLimiter(cliente, this.prefixo)
   }
 
   /** As vagas por fila da escola do contexto, lidas como o despachante lê. */
-  vagasDaEscola(): ConfiguracaoOperacional<VagasPorFila> {
-    return new ConfiguracaoOperacional(new ConfiguracaoOperacionalRepository(this.banco), (linha) => resolverVagas(vagasPadraoDoAmbiente(), linha))
+  vagasDaEscola(): OperationalSettings<ConcurrencyByQueue> {
+    return new OperationalSettings(new OperationalSettingsRepository(this.banco), (linha) => resolverVagas(vagasPadraoDoAmbiente(), linha))
   }
 
   /** Grava a configuração operacional da escola, como a escola a teria. O que não vier fica nulo: vale o padrão. */
   async configurarEscola(
     escolaId: string,
     configuracao: {
-      vagas?: VagasConfiguradas | null
+      vagas?: ConfiguredConcurrency | null
       limiteReqUsuarioMin?: number
       limiteReqEscolaMin?: number
       fuso?: string

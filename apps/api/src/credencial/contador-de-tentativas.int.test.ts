@@ -1,4 +1,4 @@
-import { criarClienteRedisDaApi, criarClienteRedisDaFila, TIMEOUT_COMANDO_REDIS_API_MS } from '@educa/nucleo'
+import { createApiRedisClient, createQueueRedisClient, TIMEOUT_COMANDO_REDIS_API_MS } from '@educa/nucleo'
 import type { Redis } from 'ioredis'
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -37,7 +37,7 @@ describe('ContadorDeTentativas no Redis de fila', () => {
     // 100 ms e caiu no seguro (correção 2026-09-18-contador-testado-com-o-prazo-de-producao). O cliente da fila é o
     // mesmo, sem fila offline, com prazo de 2 s. A queda com o Redis fora é provada pelos testes que usam o cliente de
     // produção de propósito, e o Redis travado (conectado, sem responder) pelo teste de `CLIENT PAUSE` no fim do arquivo.
-    cliente = criarClienteRedisDaFila(URL_REDIS_FILA, 'teste-contador', () => undefined)
+    cliente = createQueueRedisClient(URL_REDIS_FILA, 'teste-contador', () => undefined)
     await pronto(cliente)
   })
 
@@ -130,7 +130,7 @@ describe('ContadorDeTentativas no Redis de fila', () => {
   })
 
   it('A0b: a espera que o Redis gravou e o seguro espelhou (15.3), desfeita, sai dos dois: com o Redis sumindo depois, o seguro não segura a conta', async () => {
-    const producao = criarClienteRedisDaApi(URL_REDIS_FILA, 'teste-contador-desfazer', () => undefined)
+    const producao = createApiRedisClient(URL_REDIS_FILA, 'teste-contador-desfazer', () => undefined)
     try {
       await pronto(producao)
       const contador = new ContadorDeTentativas(producao, CHAVE)
@@ -151,7 +151,7 @@ describe('ContadorDeTentativas no Redis de fila', () => {
 
   it('falha (15.5): Redis de fila travado, com a conexão aberta; cada reserva corta nos 100 ms do cliente de produção e cai no seguro, que conta e segura a conta na quinta; quando o Redis volta, as cinco também estão lá, para o lado de segurar', async () => {
     // O cliente de produção da API, de propósito: o que se prova é o corte dos 100 ms.
-    const producao = criarClienteRedisDaApi(URL_REDIS_FILA, 'teste-contador-travado', () => undefined)
+    const producao = createApiRedisClient(URL_REDIS_FILA, 'teste-contador-travado', () => undefined)
     try {
       await pronto(producao)
       const contador = new ContadorDeTentativas(producao, CHAVE)
@@ -180,7 +180,7 @@ describe('ContadorDeTentativas no Redis de fila', () => {
   })
 
   it('falha (15.3): a conta que o Redis segurou continua segurada no seguro desta instância quando o Redis some', async () => {
-    const producao = criarClienteRedisDaApi(URL_REDIS_FILA, 'teste-contador-espelho', () => undefined)
+    const producao = createApiRedisClient(URL_REDIS_FILA, 'teste-contador-espelho', () => undefined)
     try {
       await pronto(producao)
       const contador = new ContadorDeTentativas(producao, CHAVE)

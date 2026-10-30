@@ -1,6 +1,6 @@
-import type { PromptVersionado } from '../tarefa.js'
+import type { VersionedPrompt } from '../tarefa.js'
 
-export const PROMPT_GERAR_PLANO_DE_AULA: PromptVersionado = {
+export const PROMPT_GERAR_PLANO_DE_AULA: VersionedPrompt = {
   versao: '2026-10-04.2',
   sistema: [
     'Você é o Assistente de ensino do Turmma e monta um plano de aula para o professor, usando SÓ os trechos do material da escola que vêm nos dados.',

@@ -1,13 +1,13 @@
 import { desc, eq } from 'drizzle-orm'
 import type { NodePgQueryResultHKT } from 'drizzle-orm/node-postgres'
 import type { PgDatabase } from 'drizzle-orm/pg-core'
-import { contextoAtual } from '../contexto/contexto.js'
+import { currentContext } from '../contexto/contexto.js'
 import type { Schema } from '../db/banco.js'
 import { auditoria } from '../db/schema/auditoria.js'
-import { AuditoriaRecusada } from './auditoria-recusada.js'
+import { AuditoriaRejectedError } from './auditoria-recusada.js'
 
 /** O banco ou a transação de quem chama: a gravação vai junto com a ação auditada, e desfaz junto. */
-export type ExecutorDeAuditoria = PgDatabase<NodePgQueryResultHKT, Schema>
+export type DatabaseExecutor = PgDatabase<NodePgQueryResultHKT, Schema>
 
 export interface RegistroAuditado {
   id: string
@@ -29,16 +29,16 @@ export const LIMITE_MAXIMO_DA_LISTAGEM = 500
 
 /**
  * Leitura de `auditoria` no escopo da escola do contexto (regra 10, item 3). Só lê: a escrita tem uma
- * porta só, o `RegistroDeAuditoria`. Não tem rota: a listagem serve ao teste e ao F3, que acrescenta
+ * porta só, o `AuditoriaRecorder`. Não tem rota: a listagem serve ao teste e ao F3, que acrescenta
  * período, cursor e finalidade da consulta.
  */
 export class AuditoriaRepository {
-  constructor(private readonly banco: ExecutorDeAuditoria) {}
+  constructor(private readonly banco: DatabaseExecutor) {}
 
   /** Os registros mais recentes da escola do contexto, do mais novo ao mais antigo. Sem escola, recusa. */
   async listarDaEscola(limite: number = LIMITE_PADRAO_DA_LISTAGEM): Promise<RegistroAuditado[]> {
-    const escolaId = contextoAtual()?.escolaId
-    if (escolaId === undefined) throw new AuditoriaRecusada('sem_escola')
+    const escolaId = currentContext()?.escolaId
+    if (escolaId === undefined) throw new AuditoriaRejectedError('sem_escola')
     return this.banco
       .select()
       .from(auditoria)

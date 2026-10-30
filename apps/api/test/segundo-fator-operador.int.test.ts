@@ -1,5 +1,5 @@
 import 'reflect-metadata'
-import { type Banco } from '@educa/nucleo'
+import { type Database } from '@educa/nucleo'
 import {
   ErrorCode,
   aceitarConviteDeOperadorResponseSchema,
@@ -69,12 +69,12 @@ describe('segundo fator do operador: configurar e entrar com código (tarefa 7.0
   const segredosVistos = new Set<string>([SENHA])
   let app: INestApplication
   let url: string
-  let banco: Banco
+  let banco: Database
   let autor: string
 
   beforeAll(async () => {
     ;({ app, url } = await subir(undefined, linhasDeLog))
-    banco = app.get<Banco>(BANCO)
+    banco = app.get<Database>(BANCO)
     autor = (await operadores.operador()).apelido
   })
 
