@@ -54,7 +54,7 @@ arquivo que importa o nome, sem `alias`; o `de` se repete; falta `linhaDoAnexo`;
    do relatório. Ficam fora `docs/decisoes.md`, `docs/aia/ouro/`, `docs/aia/ouro-retido/`, `tasks/` e `mockups/`. As
    linhas não tocam documento.
 6. Lista as referências por texto (string, template, regex, JSON, YAML, `.mjs`, `.cjs`, `*.Dockerfile`) em `apps/`,
-   `packages/`, `e2e/`, `tools/`, `infra/`, `.github/` e em todo arquivo versionado da raiz. Busca o símbolo como identificador, e o caminho e o pacote como trecho inteiro, também sem a
+   `packages/`, `e2e/`, `tools/`, `infra/`, `.github/` e em todo arquivo versionado da raiz. Busca o símbolo como identificador, distinguindo maiúscula de minúscula, e o caminho e o pacote como trecho inteiro, também sem a
    extensão (`packages/nucleo`, `componentes/ui/`, `hash-de-senha`), nunca segmento solto. Em regex e `String.raw`,
    busca na forma sem escape, sem exigir borda depois de `\b`, e pega o prefixo da gramática em
    `startsWith`/`endsWith`. A palavra `comum` só é listada quando o literal inteiro é ela, quando vem seguida de `(`,

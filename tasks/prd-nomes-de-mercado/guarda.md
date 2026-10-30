@@ -21,7 +21,7 @@ mensagem. A regra lê **só a declaração de topo de arquivo**, exportada ou n�
 | prefixo `Adaptador`, `Guarda`, `Filtro`, `Interceptor`, `Erro`, `Falha`, `Emissor`, `Armazem`, `Medicao`, `Bancada` | classe | `<X>Adapter`, `<X>Guard`, `<X>Filter`, `<X>Interceptor`, `<X>Exception` ou `<X>Error`, `<X>Issuer`, `<X>FileStorage`, `<X>Gauge`, `<X>Fixtures` |
 | sufixo `EmMemoria` | classe, interface e tipo | `InMemory<X>` |
 | prefixo `Linha`, `Opcoes`, `Dependencias`, `Configuracao` | interface e tipo | `<X>Row`, `<X>Options`, `<X>Dependencies`, `<X>Config` |
-| prefixo `esquema`, `lerConfiguracao` | const e função | `<x>Schema`, `load<X>Config` |
+| prefixo `esquema`, `lerConfiguracao`, e o nome exato `lerConfiguracao` | const e função | `<x>Schema`, `load<X>Config` |
 | prefixo `consulta` | const e função em `apps/web/**` | `<x>QueryOptions` |
 | prefixo `EntradaDe`, `EntradaDo`, `SaidaDe`, `SaidaDo` | interface e tipo em `**/ia/tarefas/**` | `<X>Input`, `<X>Output` |
 | segmento de arquivo ou de pasta: `adaptador-*`, `guarda-*`, `*-em-memoria` | arquivo e pasta, em todo o escopo | o do anexo |
@@ -52,7 +52,7 @@ Com o inventário e as adendas 1 a 3 aplicados, a árvore inteira passa.
 - um por linha da tabela, no tipo de declaração em que a linha vale: `class AdaptadorX`, `class ErroX`,
   `interface LinhaX`, `type OpcoesX`, `class XEmMemoria`, `const esquemaX`, `function lerConfiguracaoX`,
   `const consultaX` em `apps/web`, `interface EntradaDoX` em `ia/tarefas/`;
-- o nome exato `Botao`;
+- o nome exato `Botao` e o nome exato `function lerConfiguracao`;
 - um arquivo `adaptador-x.ts`, um `guarda-x.ts` e um `x-em-memoria.ts` em `apps/`;
 - uma pasta `fila/` e uma `limite/` em `packages/`;
 - `const esquemaDeCor` fora de `e2e/aparencia.spec.ts`.

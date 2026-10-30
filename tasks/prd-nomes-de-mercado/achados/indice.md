@@ -31,3 +31,5 @@ Leia este índice antes de codar, e abra só os blocos que interessam à tarefa 
 | 2026-10-29 23:04:22 | `test-engineer` | 4ª | REPROVADO | `revisao-spec` | A base de busca do filtro vazio deixa a trava vermelha já na árvore sã da 2.0 (`casos.md:71`, junto com `techspec.md:83-86`). |
 | 2026-10-30 01:25:20 | `revisor-geral` | 5ª | REPROVADO | `revisao-spec` | `tasks/prd-nomes-de-mercado/inventario-back.md:306` e `:329`. O meu bloqueante da rodada 4 foi resolvido só em parte. A adenda 3 (`inventario.md:195`) diz que… |
 | 2026-10-30 01:26:34 | `test-engineer` | 5ª | REPROVADO | `revisao-spec` | A techspec, §5, passo 6 (linhas 60 e 61), tem três condições para listar a palavra comum que nenhum caso do `casos.md` prova: |
+| 2026-10-30 01:27:59 | `revisor-geral` | 6ª | REPROVADO | `revisao-spec` | `tasks/prd-nomes-de-mercado/casos.md:30`. O caso `'./fila/x'` (segmento de caminho) não prova a condição que diz provar, e contradiz o parêntese que esta mesma… |
+| 2026-10-30 01:28:13 | `test-engineer` | 6ª | REPROVADO | `revisao-spec` | `tasks/prd-nomes-de-mercado/casos.md:30` choca com `techspec.md:61-62`: o caso de "segmento de caminho" não chega à condição. |

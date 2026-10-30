@@ -141,6 +141,24 @@ Os bloqueantes da rodada 3 estão resolvidos. O B3 do `test-engineer` está reso
 - §5, passo 6: a regra da palavra comum vale para o símbolo de uma palavra; `arquivo` e `pasta` são sempre trecho inteiro. URL e e-mail ganham critério (`://`, `\S+@\S+\.\S+`). O `project` e o `ignore` do `knip.json` entram como fontes da trava contra filtro vazio (test-engineer e revisor-geral, recomendação)
 - `travas.md`: a forma de cada caminho de `porta-unica` e de `tools/ci` (test-engineer, recomendação)
 
+## Rodada 6 — 30/10/2026
+
+**Veredito: REPROVADA**
+
+Os bloqueantes da rodada 5 estão resolvidos. Os dois revisores apontam o mesmo defeito, aberto nesta rodada.
+
+| Revisor | Veredito | Bloqueantes |
+|---|---|---|
+| `test-engineer` | REPROVADO | 1: o caso `'./fila/x'` usa a pasta em minúscula, e não o símbolo `Fila`; contradiz o "pasta é trecho inteiro", e a §5 não diz se a busca distingue a caixa |
+| `revisor-geral` | REPROVADO | 1: o mesmo |
+
+### Correções exigidas na Tech Spec
+
+- `casos.md`: o segmento de caminho é provado por `'apps/x/Tela/y'`, e `'./fila/x'` passa a "Não listados" (test-engineer, revisor-geral)
+- §5, passo 6: a busca do símbolo distingue maiúscula de minúscula (test-engineer)
+- `guarda.md`: o nome exato `lerConfiguracao` é recusado (revisor-geral, recomendação)
+- `casos.md`: um glob de `project` do `knip.json` com o caminho antigo, vermelho (test-engineer, recomendação)
+
 ## Revisões
 
 Preenchida pelo hook `tools/processo/revisoes.ts` quando cada revisor termina. Não edite à mão:
@@ -172,3 +190,5 @@ atual, com APROVADO quando o revisor tem veto.
 | 2026-10-29 23:01:38 | 2026-10-29 23:04:22 | `test-engineer` | 4 | REPROVADO | af07f2537cee1a685 |
 | 2026-10-30 01:24:10 | 2026-10-30 01:25:20 | `revisor-geral` | 5 | REPROVADO | adfe8ce5ab6649734 |
 | 2026-10-30 01:24:07 | 2026-10-30 01:26:34 | `test-engineer` | 5 | REPROVADO | a4e64649176e93356 |
+| 2026-10-30 01:27:04 | 2026-10-30 01:27:59 | `revisor-geral` | 6 | REPROVADO | ac3b39ad5c6bddf48 |
+| 2026-10-30 01:27:01 | 2026-10-30 01:28:13 | `test-engineer` | 6 | REPROVADO | a07021e07ebc18682 |
