@@ -18,7 +18,7 @@ export interface TrocaAMao {
 /** Documento que o passo 5 não toca: o histórico (decisões, ouro, specs fechadas) e o protótipo. */
 const FORA_DO_PASSO_5 = ['docs/decisoes.md', 'docs/aia/ouro/', 'docs/aia/ouro-retido/', 'tasks/', `${PASTA_DO_PROTOTIPO}/`, 'tools/renomear/', '.claude/worktrees/']
 
-const foraDoPasso5 = (caminho: string): boolean => FORA_DO_PASSO_5.some((fora) => caminho === fora || (fora.endsWith('/') && caminho.startsWith(fora)))
+export const foraDoPasso5 = (caminho: string): boolean => FORA_DO_PASSO_5.some((fora) => caminho === fora || (fora.endsWith('/') && caminho.startsWith(fora)))
 
 export const ehDocumentoVivo = (caminho: string): boolean =>
   caminho.endsWith('.md') && !foraDoPasso5(caminho) && (caminho === 'CLAUDE.md' || caminho.startsWith('.claude/') || caminho.startsWith('docs/'))

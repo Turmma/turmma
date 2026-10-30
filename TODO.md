@@ -2339,3 +2339,24 @@ repetem aqui.
       (`tools/vitrine/foto.ts`) roda só a 1366 px; quando ele aceitar clique na largura do celular, tirar essa foto (conformidade-reviewer, rodada 1)
 - [ ] Da correção `2026-10-30-introducao-da-coordenacao-no-celular`: um caso curto em `apps/web/src/componentes/CascaDaEscola.test.tsx`, igual ao de "de A por ninguém e de
       ninguém para B" mas liberando A de novo, que fixe que a mesma pessoa voltando depois do `undefined` não fecha a gaveta (test-engineer, rodada 2)
+
+## Da X8 (nomes de mercado), tarefa 2.0, fora dela
+
+- [ ] Da tarefa 2.0 da X8: em `tools/renomear/conferir.test.ts`, o caso "o mapa que não existe lança" usa `/ENOENT.*mapas\/9\.json/`, que depende do texto do
+      erro do Node; exigir só o caminho do mapa na mensagem (test-engineer, rodada 2, 30/10/2026)
+- [ ] Da tarefa 2.0 da X8: `tools/renomear/restos.test.ts`, o caso da árvore real com `timeout: 180_000`, muito acima do tempo real (3,2 s); baixar para
+      cerca de 30 s na primeira onda que popular `tools/renomear/mapas/`, quando existir o tempo da varredura com mapas aplicados (infra-guardian, rodada 1)
+- [ ] Da tarefa 2.0 da X8: `tools/renomear/conferir.ts:45`, o `maxBuffer` de 1 GiB no `execFileSync('git', …)` é folgado; o limite certo depende do
+      tamanho da foto do repositório real (infra-guardian, rodada 1)
+- [ ] Da tarefa 2.0 da X8, para o Arquiteto antes da primeira onda: dizer no procedimento de onda do `tasks.md` que a tarefa que renomear `Nota`, `lancadaPor`,
+      `Correcao` ou teste citado em `Checagem:` da regra 70 atualiza no mesmo commit a regra 70 e `docs/regulacao.md` (conformidade-reviewer, rodada 1)
+- [ ] Da tarefa 2.0 da X8, para o Arquiteto: pôr no `casos.md` as duas fontes a mais que a lista do §5 (`ARQUIVOS_DE_TESTE` e os `workspaces` do
+      `package.json`) (revisor-geral, rodada 1)
+- [ ] Da tarefa 2.0 da X8: `PADRAO` de `tools/processo/guardioes-por-caminho.ts:37` não é exportado e a trava não o confere; fica para quando alguém mexer
+      nesse arquivo (revisor-geral, rodada 1)
+- [ ] Da tarefa 2.0 da X8: `tools/guardas/filtros-casam.test.ts` reimplementa `arquivosDoRepositorio()` de `guardas.test.ts`; mover a função para um módulo
+      comum (revisor-geral, rodada 1)
+- [ ] Da tarefa 2.0 da X8: sem mapa na pasta, o `restos` mostra "o reaplicar não tem o que aplicar" (vem de `lerTodosOsMapas`, `reaplicar.ts`); trocar por
+      mensagem neutra, com o teste do `reaplicar` junto (revisor-geral, rodada 1)
+- [ ] Da tarefa 2.0 da X8, na primeira onda que renomear um símbolo exportado por dois pacotes: `conferir.ts` troca o nome exportado só pelo `de` e ignora o
+      `arquivo` da entrada; dá vermelho falso se dois pacotes exportam o mesmo nome e só um é renomeado (revisor-geral, rodada 1)

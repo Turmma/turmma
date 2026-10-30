@@ -12,7 +12,7 @@
   - [x] 1.4 O `reaplicar`, e o passo do `/seguir` que o usa
   - [x] 1.5 Testes: os casos de `casos.md` para o `aplicar` e o `reaplicar`
 
-- [ ] **2.0 — O `conferir` prova "só nome", o `restos` prova que nada sobrou, e nenhum filtro casa vazio**
+- [x] **2.0 — O `conferir` prova "só nome", o `restos` prova que nada sobrou, e nenhum filtro casa vazio**
   - [ ] 2.1 O `conferir`: a foto, o mapa aplicado à foto de antes, as exceções
   - [ ] 2.2 O `restos`, com o caso sobre a árvore que as ondas citam na forma C
   - [ ] 2.3 A trava contra filtro vazio, com o mínimo de cada fonte

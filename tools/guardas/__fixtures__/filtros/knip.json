@@ -1,0 +1,96 @@
+{
+  "$schema": "./node_modules/knip/schema.json",
+  "ignore": [
+    "tools/guardas/__fixtures__/**",
+    "tools/ci/fixtures/**"
+  ],
+  "workspaces": {
+    ".": {
+      "entry": [
+        "tools/processo/*.ts",
+        "tools/vitrine/*.ts",
+        "tools/ci/*.ts",
+        "tools/guardas/*.{ts,mjs}",
+        "tools/demonstracao/*.ts",
+        "infra/scripts/*.ts",
+        "infra/k6/*.js",
+        "infra/test/**/*.ts",
+        "e2e/**/*.ts"
+      ],
+      "project": [
+        "tools/**/*.{ts,mjs}",
+        "infra/**/*.{ts,js}",
+        "e2e/**/*.ts"
+      ],
+      "ignoreDependencies": [
+        "k6"
+      ],
+      "ignoreBinaries": [
+        "flock",
+        "maestri",
+        "mkfifo"
+      ]
+    },
+    "apps/api": {
+      "entry": [
+        "src/main.ts",
+        "src/ops/*.ts"
+      ],
+      "project": [
+        "src/**/*.ts",
+        "test/**/*.ts"
+      ]
+    },
+    "apps/worker": {
+      "entry": [
+        "src/main.ts",
+        "src/**/*.sandbox.ts"
+      ],
+      "project": [
+        "src/**/*.ts",
+        "test/**/*.ts"
+      ]
+    },
+    "apps/realtime": {
+      "entry": [
+        "src/main.ts"
+      ],
+      "project": [
+        "src/**/*.ts",
+        "test/**/*.ts"
+      ]
+    },
+    "apps/despachante": {
+      "entry": [
+        "src/main.ts"
+      ],
+      "project": [
+        "src/**/*.ts",
+        "test/**/*.ts"
+      ]
+    },
+    "apps/web": {
+      "entry": [
+        "src/estilos.css"
+      ],
+      "project": [
+        "src/**/*.{ts,tsx,css}",
+        "*.ts"
+      ]
+    },
+    "packages/nucleo": {
+      "entry": [
+        "src/db/migrar.ts"
+      ],
+      "project": [
+        "src/**/*.ts"
+      ]
+    },
+    "packages/shared": {
+      "entry": [],
+      "project": [
+        "src/**/*.ts"
+      ]
+    }
+  }
+}

@@ -15,7 +15,7 @@ import { aplicarPasso5 } from './texto.ts'
  */
 
 export const PASTA_DOS_MAPAS = 'tools/renomear/mapas'
-const MAPA_DOS_DOCUMENTOS = `${PASTA_DOS_MAPAS}/13.json`
+export const MAPA_DOS_DOCUMENTOS = `${PASTA_DOS_MAPAS}/13.json`
 
 export interface OpcoesDoReaplicar {
   executar?: Executor
@@ -33,7 +33,7 @@ function ordemDaOnda(nome: string): number {
   return Number.isNaN(numero) ? Number.MAX_SAFE_INTEGER : numero
 }
 
-function lerTodosOsMapas(raiz: string): Mapa[] {
+export function lerTodosOsMapas(raiz: string): Mapa[] {
   let nomes: string[]
   try {
     nomes = readdirSync(join(raiz, PASTA_DOS_MAPAS)).filter((nome) => /^[^.]+\.json$/.test(nome))

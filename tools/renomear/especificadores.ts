@@ -40,7 +40,7 @@ function literalDaDeclaracao(no: ts.Node): ts.StringLiteralLike | undefined {
   return ts.isImportTypeNode(no) && ts.isLiteralTypeNode(no.argument) ? literalDeTexto(no.argument.literal) : undefined
 }
 
-function literalDoNo(no: ts.Node): { literal: ts.StringLiteralLike; ehMock: boolean } | undefined {
+export function literalDoNo(no: ts.Node): { literal: ts.StringLiteralLike; ehMock: boolean } | undefined {
   const daDeclaracao = literalDaDeclaracao(no)
   if (daDeclaracao !== undefined) return { literal: daDeclaracao, ehMock: false }
   if (!ts.isCallExpression(no)) return undefined
@@ -80,7 +80,7 @@ export function trocarEspecificadoresDoPacote(arvore: Arvore, de: string, para: 
 const semExtensao = (caminho: string): string => caminho.replace(EXTENSOES, '')
 
 /** Para onde o movimento leva o caminho (sem extensão), ou ele mesmo se o movimento não o alcança. */
-function destinoDoCaminho(alvo: string, movimento: Movimento): string {
+export function destinoDoCaminho(alvo: string, movimento: Movimento): string {
   if (movimento.pasta) {
     if (alvo === movimento.de) return movimento.para
     return alvo.startsWith(`${movimento.de}/`) ? movimento.para + alvo.slice(movimento.de.length) : alvo
