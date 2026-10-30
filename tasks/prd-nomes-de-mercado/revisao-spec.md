@@ -159,6 +159,21 @@ Os bloqueantes da rodada 5 estão resolvidos. Os dois revisores apontam o mesmo 
 - `guarda.md`: o nome exato `lerConfiguracao` é recusado (revisor-geral, recomendação)
 - `casos.md`: um glob de `project` do `knip.json` com o caminho antigo, vermelho (test-engineer, recomendação)
 
+## Rodada 7 — 30/10/2026
+
+**Veredito: REPROVADA**
+
+| Revisor | Veredito | Bloqueantes |
+|---|---|---|
+| `test-engineer` | APROVADO | — |
+| `revisor-geral` | REPROVADO | 2: `'apps/x/Tela/y'` é listado pela entrada `arquivo` de `Tela.tsx`, sem precisar da condição da palavra comum; a §5 não define o trecho de `arquivo` e de `pasta` (`componentes/ui/` traz a pasta-mãe, `hash-de-senha` não) |
+
+### Correções exigidas na Tech Spec
+
+- §5, passo 6: o trecho de `arquivo` e de `pasta` é pasta-mãe e nome, com e sem extensão; o nome solto é limite declarado; o import relativo é do passo 3 (revisor-geral)
+- `casos.md`: o segmento de caminho é provado por `'./Fila/x'`; entram a pasta-mãe e nome listados; `'./fila/x'` traz o mapa do caso (revisor-geral; test-engineer, recomendação)
+- `guarda.md`: `loadConfig` no nome exato (test-engineer e revisor-geral, recomendação)
+
 ## Revisões
 
 Preenchida pelo hook `tools/processo/revisoes.ts` quando cada revisor termina. Não edite à mão:
@@ -192,3 +207,5 @@ atual, com APROVADO quando o revisor tem veto.
 | 2026-10-30 01:24:07 | 2026-10-30 01:26:34 | `test-engineer` | 5 | REPROVADO | a4e64649176e93356 |
 | 2026-10-30 01:27:04 | 2026-10-30 01:27:59 | `revisor-geral` | 6 | REPROVADO | ac3b39ad5c6bddf48 |
 | 2026-10-30 01:27:01 | 2026-10-30 01:28:13 | `test-engineer` | 6 | REPROVADO | a07021e07ebc18682 |
+| 2026-10-30 01:28:35 | 2026-10-30 01:29:13 | `test-engineer` | 7 | APROVADO | aa95751ec9d49fbcf |
+| 2026-10-30 01:28:37 | 2026-10-30 01:30:03 | `revisor-geral` | 7 | REPROVADO | a970e62aa93afa919 |

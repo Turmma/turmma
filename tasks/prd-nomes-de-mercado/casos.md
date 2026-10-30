@@ -27,7 +27,8 @@ Cada cláusula da Tech Spec §5 tem ao menos um caso que a deixa vermelha, se fo
 - `'Banco'` num array (palavra comum como literal inteiro);
 - `/\bFila\b/` numa regex e `'migrar('` numa string (palavra comum colada);
 - `'@Banco'` num literal que não é e-mail (precedida de `@`);
-- `'apps/x/Tela/y'` numa string (segmento de caminho, com a caixa do símbolo);
+- `'./Fila/x'` numa string (segmento de caminho; `Fila` não tem arquivo nem pasta com o mesmo nome e a mesma caixa);
+- `'packages/nucleo/src/fila/x'` e `'dist/credencial/hash-de-senha.js'` (pasta-mãe e nome, com e sem extensão);
 - `'schema.Banco'` numa string e `/Banco\.x/` numa regex (acesso a membro);
 - `'@SemEscopo('` numa string (identificador);
 - um `-w` do `package.json` da raiz, um caminho antigo no `knip.json` e um caminho em `.github/`.
@@ -35,7 +36,8 @@ Cada cláusula da Tech Spec §5 tem ao menos um caso que a deixa vermelha, se fo
 **Não listados (passo 6):**
 - "com" numa string de tela, porque a palavra comum em prosa não é listada;
 - `'teste@exemplo.com'` e `'https://github.com/x'` (e-mail e URL);
-- `'./fila/x'`: a pasta `fila/` é trecho inteiro, e o segmento solto, em minúscula, não é o símbolo `Fila`;
+- `'./fila/x'`, com o símbolo `Fila` e a pasta `packages/nucleo/src/fila` no mapa: o nome solto da pasta é limite
+  declarado, e em minúscula não é o símbolo;
 - um arquivo não versionado da raiz.
 
 ## `reaplicar` (1.0)

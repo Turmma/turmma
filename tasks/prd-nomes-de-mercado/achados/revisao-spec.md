@@ -1474,3 +1474,80 @@ Arquivos:
 - /home/joaquimdp/Documents/git/.maestri/floors/educaia--specnomes-de-mercado/tasks/prd-nomes-de-mercado/casos.md
 - /home/joaquimdp/Documents/git/.maestri/floors/educaia--specnomes-de-mercado/tasks/prd-nomes-de-mercado/techspec.md
 - /home/joaquimdp/Documents/git/.maestri/floors/educaia--specnomes-de-mercado/tasks/prd-nomes-de-mercado/inventario.md
+
+## test-engineer · 7ª rodada · APROVADO · 2026-10-30 01:29:13 · `tasks/prd-nomes-de-mercado/revisao-spec.md`
+
+VEREDITO: APROVADO
+
+Cenários exigidos (rodada 7, só o diff `6c209276..a1329999`):
+- **Meu bloqueante da rodada 6.** O caso de segmento de caminho precisava chegar à condição da palavra comum no passo 6. Pedi três correções: trocar o exemplo por um símbolo com a caixa dele, provar "pasta é trecho inteiro, nunca segmento solto" com um caso em "Não listados", e dizer na §5 se a busca distingue maiúscula de minúscula.
+- **As correções desta rodada abriram lacuna nova?** O que conferi: a linha nova do `guarda.md` (nome exato `lerConfiguracao`) e o caso vermelho novo do `project` do `knip.json`.
+
+Cobertos:
+- **Ponto 1, resolvido.** `casos.md:30` agora usa `'apps/x/Tela/y'`.
+  - `Tela` é símbolo comum com maiúscula (`techspec.md:32`; `Tela` vira `Page` em `inventario.md:125`).
+  - O caso não tem `://` nem `@`, então não é URL nem e-mail.
+  - Ele não contém trecho inteiro de nenhuma entrada `arquivo` ou `pasta`.
+  - Só a condição de segmento de caminho o lista. Sem ela, o caso fica vermelho.
+- **Ponto 2, resolvido.** `casos.md:38` põe `'./fila/x'` em "Não listados". O caso deixa vermelhas duas mutações diferentes:
+  - buscar a pasta `fila` por segmento solto;
+  - buscar o símbolo sem distinguir a caixa.
+  - Com isso, o "nunca segmento solto" e o parêntese da linha 62 passam a ter caso próprio.
+- **Ponto 3, resolvido.** `techspec.md:57` agora diz que a busca do símbolo distingue maiúscula de minúscula. Os dois casos têm resultado determinado.
+  - Isso não contradiz `/\bFila\b/` (`casos.md:28`) nem `` `Fila` `` entre crases em `restos` (`casos.md:63`).
+- **Recomendação da rodada 6 atendida.** `casos.md:95` traz um glob de `project` com o caminho antigo, vermelho. A fonte `project` deixa de depender só do caso genérico de "fonte abaixo do mínimo".
+- **`guarda.md:24` e `:55`.** O nome exato `lerConfiguracao` entra na tabela e ganha caso próprio (`function lerConfiguracao`). Não abre lacuna de teste.
+
+Bloqueantes: nenhum.
+
+Recomendações:
+- **`casos.md:38`: dizer quais entradas o mapa de teste desse caso leva.** Para o caso pegar a busca sem caixa, o mapa precisa ter a entrada de símbolo `Fila` e a entrada de pasta com o caminho inteiro (`packages/nucleo/src/fila`). Sem a entrada `Fila`, o caso fica verde mesmo se a busca ignorar a caixa, e prova só metade do que diz.
+  - Sugestão de texto: "com o símbolo `Fila` e a pasta `packages/nucleo/src/fila` no mapa".
+- **`guarda.md:24`: dar o `para` do nome exato.** A coluna de destino tem só `load<X>Config`, e no nome exato o `<X>` fica vazio. Vale escrever `loadConfig` para o nome exato, como já diz a adenda 3. Isso é texto; a regra está clara.
+
+Arquivos:
+- /home/joaquimdp/Documents/git/.maestri/floors/educaia--specnomes-de-mercado/tasks/prd-nomes-de-mercado/casos.md
+- /home/joaquimdp/Documents/git/.maestri/floors/educaia--specnomes-de-mercado/tasks/prd-nomes-de-mercado/techspec.md
+- /home/joaquimdp/Documents/git/.maestri/floors/educaia--specnomes-de-mercado/tasks/prd-nomes-de-mercado/guarda.md
+- /home/joaquimdp/Documents/git/.maestri/floors/educaia--specnomes-de-mercado/tasks/prd-nomes-de-mercado/inventario.md
+
+## revisor-geral · 7ª rodada · REPROVADO · 2026-10-30 01:30:03 · `tasks/prd-nomes-de-mercado/revisao-spec.md`
+
+VEREDITO: REPROVADO
+Escopo: respeitado
+Aderência à Tech Spec: divergência em `casos.md:30` e `:38` contra `techspec.md` §5, passo 6 (linhas 57 a 62). A divergência entrou nesta rodada.
+Portão local: não se aplica, porque é revisão de spec e ainda não há código. O `conferir` responde "nunca passou nesta árvore", o que é esperado nesta fase e não bloqueia.
+
+**O meu bloqueante da rodada 6 foi resolvido só em parte.**
+- `'./fila/x'` saiu de "Listados".
+- A §5 agora diz que a busca do símbolo distingue maiúscula de minúscula.
+- O caso que entrou no lugar abriu o mesmo defeito por outro caminho (abaixo).
+
+**Bloqueantes:**
+- `/home/joaquimdp/Documents/git/.maestri/floors/educaia--specnomes-de-mercado/tasks/prd-nomes-de-mercado/casos.md:30`. O caso `'apps/x/Tela/y'` não prova a condição "segmento de caminho" da palavra comum.
+  - **Por que.** `Tela` tem arquivo com o mesmo nome. O arquivo `Tela.tsx` vira `Page.tsx` junto com o componente (`inventario-web-e2e.md:8`, `:17` e `:48`), então o mapa terá uma entrada `arquivo` para ele.
+  - **O que o passo 6 diz.** O caminho é buscado "como trecho inteiro, também sem a extensão", e dá `hash-de-senha` como exemplo, que é só o nome do arquivo (`techspec.md:57-58`). Por essa leitura, `Tela`, cercado de `/` em `'apps/x/Tela/y'`, é trecho inteiro da entrada `arquivo`.
+  - **Consequência.** O caso fica listado mesmo sem a condição da palavra comum. Tirar a condição não o deixa vermelho, o que contraria a frase de abertura do próprio `casos.md:6`.
+  - **Correção exigida.** Usar um símbolo comum sem arquivo nem pasta com o mesmo nome. `'./Fila/x'` serve: não há `Fila.tsx` nem `Fila.ts` no inventário, e a pasta é `fila/` em minúscula. A outra saída é declarar no caso que o mapa de teste não tem entrada `arquivo` para `Tela`.
+- `/home/joaquimdp/Documents/git/.maestri/floors/educaia--specnomes-de-mercado/tasks/prd-nomes-de-mercado/techspec.md:57-62`, junto com `casos.md:38`. A §5 não define qual é o "trecho inteiro" de uma entrada `arquivo` ou `pasta`, e o caso novo de "Não listados" depende disso.
+  - **A contradição.** Os exemplos se contradizem. `componentes/ui/` traz a pasta-mãe, mas `hash-de-senha` é só o nome do arquivo.
+  - **Se o trecho é só o nome.** Por analogia com `hash-de-senha`, o trecho da pasta seria `fila/`. Aí `'./fila/x'` contém o trecho inteiro e **é** listado, o contrário do que diz `casos.md:38`.
+  - **Se o trecho tem a pasta-mãe.** Se o trecho é `nucleo/src/fila` (a leitura do `test-engineer` na rodada 6), o caso está certo. Só que o `hash-de-senha` deixa de ser exemplo válido.
+  - **Consequência.** O Implementador da 1.0 escolhe uma das duas leituras sem que a spec diga qual.
+  - **Correção exigida.** Escrever no passo 6 a forma do trecho de `arquivo` e de `pasta`: o caminho inteiro, a partir da pasta-mãe, ou o nome solto, e se a forma relativa (`'../fila/x'`) conta. Depois, alinhar a esse critério os exemplos da linha 58 e o motivo do `casos.md:38`, na `techspec.md` e no `casos.md`.
+
+**As outras correções desta rodada estão coerentes e não abriram lacuna:**
+- `guarda.md:24` e `:55`: o nome exato `lerConfiguracao` ficou na forma e tem caso recusado. A minha recomendação foi atendida.
+- `casos.md:95`: o glob de `project` do `knip.json` com o caminho antigo entrou como caso vermelho.
+- `revisao-spec.md`: a seção "Rodada 6" registra as quatro correções.
+
+**Recomendações:**
+- `guarda.md:24`: o nome de mercado da linha é `load<X>Config`, e para o nome exato o certo é `loadConfig`, que é o da adenda 3. Vale escrever isso na própria linha.
+- `estado.md` continua modificado na árvore e sem commit. Fechar a pergunta do verbo lá é tarefa do Orquestrador; já recomendei isso nas rodadas 5 e 6.
+
+Arquivos:
+- /home/joaquimdp/Documents/git/.maestri/floors/educaia--specnomes-de-mercado/tasks/prd-nomes-de-mercado/casos.md
+- /home/joaquimdp/Documents/git/.maestri/floors/educaia--specnomes-de-mercado/tasks/prd-nomes-de-mercado/techspec.md
+- /home/joaquimdp/Documents/git/.maestri/floors/educaia--specnomes-de-mercado/tasks/prd-nomes-de-mercado/inventario-web-e2e.md
+- /home/joaquimdp/Documents/git/.maestri/floors/educaia--specnomes-de-mercado/tasks/prd-nomes-de-mercado/inventario-core-shared.md
+- /home/joaquimdp/Documents/git/.maestri/floors/educaia--specnomes-de-mercado/tasks/prd-nomes-de-mercado/guarda.md

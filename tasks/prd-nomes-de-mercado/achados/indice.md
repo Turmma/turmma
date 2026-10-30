@@ -33,3 +33,5 @@ Leia este índice antes de codar, e abra só os blocos que interessam à tarefa 
 | 2026-10-30 01:26:34 | `test-engineer` | 5ª | REPROVADO | `revisao-spec` | A techspec, §5, passo 6 (linhas 60 e 61), tem três condições para listar a palavra comum que nenhum caso do `casos.md` prova: |
 | 2026-10-30 01:27:59 | `revisor-geral` | 6ª | REPROVADO | `revisao-spec` | `tasks/prd-nomes-de-mercado/casos.md:30`. O caso `'./fila/x'` (segmento de caminho) não prova a condição que diz provar, e contradiz o parêntese que esta mesma… |
 | 2026-10-30 01:28:13 | `test-engineer` | 6ª | REPROVADO | `revisao-spec` | `tasks/prd-nomes-de-mercado/casos.md:30` choca com `techspec.md:61-62`: o caso de "segmento de caminho" não chega à condição. |
+| 2026-10-30 01:29:13 | `test-engineer` | 7ª | APROVADO | `revisao-spec` | `casos.md:38`: dizer quais entradas o mapa de teste desse caso leva. Para o caso pegar a busca sem caixa, o mapa precisa ter a entrada de símbolo `Fila` e a… |
+| 2026-10-30 01:30:03 | `revisor-geral` | 7ª | REPROVADO | `revisao-spec` | `tasks/prd-nomes-de-mercado/casos.md:30`. O caso `'apps/x/Tela/y'` não prova a condição "segmento de caminho" da palavra comum. |

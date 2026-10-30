@@ -54,14 +54,15 @@ arquivo que importa o nome, sem `alias`; o `de` se repete; falta `linhaDoAnexo`;
    do relatório. Ficam fora `docs/decisoes.md`, `docs/aia/ouro/`, `docs/aia/ouro-retido/`, `tasks/` e `mockups/`. As
    linhas não tocam documento.
 6. Lista as referências por texto (string, template, regex, JSON, YAML, `.mjs`, `.cjs`, `*.Dockerfile`) em `apps/`,
-   `packages/`, `e2e/`, `tools/`, `infra/`, `.github/` e em todo arquivo versionado da raiz. Busca o símbolo como identificador, distinguindo maiúscula de minúscula, e o caminho e o pacote como trecho inteiro, também sem a
-   extensão (`packages/nucleo`, `componentes/ui/`, `hash-de-senha`), nunca segmento solto. Em regex e `String.raw`,
-   busca na forma sem escape, sem exigir borda depois de `\b`, e pega o prefixo da gramática em
-   `startsWith`/`endsWith`. A palavra `comum` só é listada quando o literal inteiro é ela, quando vem seguida de `(`,
-   precedida de `@` ou `\b`, ou é segmento de caminho ou de acesso a membro (isso vale para o
-   símbolo de uma palavra; a entrada `arquivo` e a `pasta` são sempre trecho inteiro); em prosa, URL (o literal com `://`) e e-mail
-   (`\S+@\S+\.\S+`), não. A regex com alternância que parte o nome é limite declarado, coberto pelo
-   `travas.md`. Ocorrência não classificada deixa o relatório vermelho.
+   `packages/`, `e2e/`, `tools/`, `infra/`, `.github/` e em todo arquivo versionado da raiz. O pacote é buscado
+   inteiro (`@educa/nucleo`). O símbolo, como identificador, distinguindo maiúscula de minúscula. O `arquivo` e a
+   `pasta`, pelo trecho de pasta-mãe e nome, com e sem extensão (`packages/nucleo`, `componentes/ui`,
+   `credencial/hash-de-senha`); o nome solto (`'./fila/x'`, `'hash-de-senha.js'`) é limite declarado, e o import
+   relativo é do passo 3. Em regex e `String.raw`, busca na forma sem escape, sem exigir borda depois de `\b`, e pega o
+   prefixo da gramática em `startsWith`/`endsWith`. O símbolo `comum` só é listado quando o literal inteiro é ele,
+   quando vem seguido de `(`, precedido de `@` ou `\b`, ou é segmento de caminho ou de acesso a membro; em prosa, URL
+   (o literal com `://`) e e-mail (`\S+@\S+\.\S+`), não. A regex com alternância que parte o nome é limite
+   declarado, coberto pelo `travas.md`. Ocorrência não classificada deixa o relatório vermelho.
 7. Grava o `<N>.relatorio.md`.
 
 Só grava depois de calcular tudo; a onda se desfaz com `git reset --hard` e `git clean -fd`, ou `git revert` depois
