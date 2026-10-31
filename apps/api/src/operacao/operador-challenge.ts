@@ -14,18 +14,18 @@ import { z } from 'zod'
  *
  * Leva só o id do operador, a etapa, o `jti` e, no desafio `mfa` que o `configurar` devolve, a versão do segredo que
  * ele gravou (`ver`): a ativação só aceita o código com o segredo daquela versão. O `jti` vale uma vez: a rota da etapa
- * o consome antes de qualquer outra coisa (`ConsumoDeDesafioDeOperador`).
+ * o consome antes de qualquer outra coisa (`OperadorChallengeConsumer`).
  */
-export const AUDIENCIA_DESAFIO_DE_OPERADOR = 'operacao'
-export const VALIDADE_DESAFIO_DE_OPERADOR_SEGUNDOS = 5 * 60
+export const OPERADOR_CHALLENGE_AUDIENCE = 'operacao'
+export const OPERADOR_CHALLENGE_TTL_SECONDS = 5 * 60
 
 /** As etapas do desafio do operador: configurar o segundo fator, ou informar o código. Cada rota aceita só a sua. */
-export const ETAPAS_DO_DESAFIO_DE_OPERADOR = ['configurar_mfa', 'mfa'] as const
-export type EtapaDoDesafioDeOperador = (typeof ETAPAS_DO_DESAFIO_DE_OPERADOR)[number]
+export const OPERADOR_CHALLENGE_STEPS = ['configurar_mfa', 'mfa'] as const
+export type OperadorChallengeStep = (typeof OPERADOR_CHALLENGE_STEPS)[number]
 
-export interface PedidoDeDesafioDeOperador {
+export interface OperadorChallengeRequest {
   readonly operadorId: string
-  readonly etapa: EtapaDoDesafioDeOperador
+  readonly etapa: OperadorChallengeStep
   /**
    * Só no desafio `mfa` que o `configurar` devolve: o `mfa_versao` do segredo gravado. O `mfa` da entrada por e-mail
    * (segundo fator já ativo) não leva versão.
@@ -33,36 +33,36 @@ export interface PedidoDeDesafioDeOperador {
   readonly versao?: number
 }
 
-export interface DesafioDeOperadorVerificado extends PedidoDeDesafioDeOperador {
+export interface VerifiedOperadorChallenge extends OperadorChallengeRequest {
   readonly jti: string
   readonly expiraEm: Date
 }
 
-const esquemaClaims = z.object({
+const claimsSchema = z.object({
   jti: z.uuid(),
   exp: z.number().int(),
   sub: z.uuid(),
-  etapa: z.enum(ETAPAS_DO_DESAFIO_DE_OPERADOR),
+  etapa: z.enum(OPERADOR_CHALLENGE_STEPS),
   ver: z.number().int().positive().optional(),
 })
 
-export class EmissorDeDesafioDeOperador {
+export class OperadorChallengeIssuer {
   constructor(
     private readonly chaveAssinatura: Uint8Array,
     private readonly relogio: Clock = systemClock,
   ) {}
 
-  async emitir(pedido: PedidoDeDesafioDeOperador): Promise<string> {
+  async emitir(pedido: OperadorChallengeRequest): Promise<string> {
     const emitidoEm = Math.floor(this.relogio.agora().getTime() / 1_000)
     if (pedido.versao !== undefined && pedido.etapa !== 'mfa') throw new InvariantException('só o desafio mfa leva a versão do segredo')
     return new SignJWT({ etapa: pedido.etapa, ...(pedido.versao === undefined ? {} : { ver: pedido.versao }) })
       .setProtectedHeader({ alg: 'HS256', typ: TIPO_DESAFIO_DE_OPERADOR })
       .setIssuer(EMISSOR_TOKEN)
-      .setAudience(AUDIENCIA_DESAFIO_DE_OPERADOR)
+      .setAudience(OPERADOR_CHALLENGE_AUDIENCE)
       .setSubject(pedido.operadorId)
       .setJti(randomUUID())
       .setIssuedAt(emitidoEm)
-      .setExpirationTime(emitidoEm + VALIDADE_DESAFIO_DE_OPERADOR_SEGUNDOS)
+      .setExpirationTime(emitidoEm + OPERADOR_CHALLENGE_TTL_SECONDS)
       .sign(this.chaveAssinatura)
   }
 }
@@ -70,25 +70,25 @@ export class EmissorDeDesafioDeOperador {
 /**
  * Confere o desafio do operador para a etapa da rota. Toda recusa é `NAO_AUTENTICADO`, sem dizer o que falhou: outro
  * `typ` (o token de acesso, o desafio da escola), outra audiência, vencido, de outra etapa ou com assinatura que não
- * confere. Não consome o `jti`: quem conclui a etapa chama `ConsumoDeDesafioDeOperador.consumir`.
+ * confere. Não consome o `jti`: quem conclui a etapa chama `OperadorChallengeConsumer.consumir`.
  */
-export async function verificarDesafioDeOperador(desafio: string, chaveAssinatura: Uint8Array, etapa: EtapaDoDesafioDeOperador): Promise<DesafioDeOperadorVerificado> {
+export async function verifyOperadorChallenge(desafio: string, chaveAssinatura: Uint8Array, etapa: OperadorChallengeStep): Promise<VerifiedOperadorChallenge> {
   let claims: unknown
   try {
     const verificado = await jwtVerify(desafio, chaveAssinatura, {
       algorithms: ['HS256'],
       typ: TIPO_DESAFIO_DE_OPERADOR,
       issuer: EMISSOR_TOKEN,
-      audience: AUDIENCIA_DESAFIO_DE_OPERADOR,
+      audience: OPERADOR_CHALLENGE_AUDIENCE,
       requiredClaims: ['exp', 'jti', 'sub'],
-      maxTokenAge: VALIDADE_DESAFIO_DE_OPERADOR_SEGUNDOS,
+      maxTokenAge: OPERADOR_CHALLENGE_TTL_SECONDS,
     })
     claims = verificado.payload
   } catch (erro) {
     if (erro instanceof errors.JOSEError) throw new DomainException(ErrorCode.NAO_AUTENTICADO)
     throw erro
   }
-  const resultado = esquemaClaims.safeParse(claims)
+  const resultado = claimsSchema.safeParse(claims)
   if (!resultado.success || resultado.data.etapa !== etapa) throw new DomainException(ErrorCode.NAO_AUTENTICADO)
   const { jti, exp, sub, ver } = resultado.data
   // A versão só existe no desafio `mfa`: um `configurar_mfa` com versão não saiu do emissor.
@@ -97,7 +97,7 @@ export async function verificarDesafioDeOperador(desafio: string, chaveAssinatur
 }
 
 /** Prefixo da marca de desafio de operador já usado, no Redis de fila (que não expulsa chave); separado do da escola. */
-export const PREFIXO_DESAFIO_DE_OPERADOR_USADO = 'desafio-op:usado:'
+export const USED_OPERADOR_CHALLENGE_PREFIX = 'desafio-op:usado:'
 
 /**
  * Marca o desafio do operador como usado, uma vez só (Tech Spec da A0, seção 5, "Travas no banco", desafio): `SET NX`
@@ -112,7 +112,7 @@ export const PREFIXO_DESAFIO_DE_OPERADOR_USADO = 'desafio-op:usado:'
  * se o desafio já foi usado. O rastro vai ao log como `operacao.desafio_sem_redis`, no máximo uma linha a cada 30 s e
  * sem nada da pessoa, e o `docs/runbook.md` diz que, com o Redis fora, o caminho do operador é o `ops:*` (tarefa 9.0).
  */
-export class ConsumoDeDesafioDeOperador {
+export class OperadorChallengeConsumer {
   readonly #logger = new Logger('operacao')
   readonly #avisarSemRedis = throttledWarn(() => this.#logger.warn('operacao.desafio_sem_redis'))
 
@@ -121,12 +121,12 @@ export class ConsumoDeDesafioDeOperador {
     private readonly relogio: Clock = systemClock,
   ) {}
 
-  async consumir(desafio: Pick<DesafioDeOperadorVerificado, 'jti' | 'expiraEm'>): Promise<void> {
+  async consumir(desafio: Pick<VerifiedOperadorChallenge, 'jti' | 'expiraEm'>): Promise<void> {
     if (this.cliente.status !== 'ready') throw this.#semRedis()
     const prazoMs = Math.max(1, desafio.expiraEm.getTime() - this.relogio.agora().getTime())
     let marcado: string | null
     try {
-      marcado = await this.cliente.set(`${PREFIXO_DESAFIO_DE_OPERADOR_USADO}${desafio.jti}`, '1', 'PX', prazoMs, 'NX')
+      marcado = await this.cliente.set(`${USED_OPERADOR_CHALLENGE_PREFIX}${desafio.jti}`, '1', 'PX', prazoMs, 'NX')
     } catch {
       throw this.#semRedis()
     }

@@ -4,12 +4,12 @@ import type { INestApplication } from '@nestjs/common'
 import { NestFactory } from '@nestjs/core'
 import { createHash, randomBytes } from 'node:crypto'
 import type { AddressInfo } from 'node:net'
-import { AppModule, type OpcoesDeMontagem } from '../src/app.module.js'
-import { configurarAplicacao } from '../src/configure-app.js'
+import { AppModule, type AppModuleOptions } from '../src/app.module.js'
+import { configureApp } from '../src/configure-app.js'
 import { configuracaoDeTeste, MONTAGEM_DE_TESTE, type SobreposicaoDeTeste } from './test-config.js'
 import type { BancadaDeSessoes, SessaoDeTeste } from './sessao.fixture.js'
 
-/** A API de verdade, montada pelo mesmo `AppModule` e `configurarAplicacao` do boot, numa porta livre. */
+/** A API de verdade, montada pelo mesmo `AppModule` e `configureApp` do boot, numa porta livre. */
 export interface ApiDeTeste {
   readonly app: INestApplication
   readonly url: string
@@ -23,13 +23,13 @@ export interface ApiDeTeste {
  * (`password-attack.int.test.ts`, "falha (15.5)"). Com `linhasDeLog`, o logger escreve tudo, até `trace`, nessa
  * lista, para o teste procurar nela o que nunca pode ir a log; sem ela, o log fica mudo.
  */
-export async function subirApi(medidor: Meter, sobreposicao: SobreposicaoDeTeste = {}, linhasDeLog?: string[], montagem: OpcoesDeMontagem = MONTAGEM_DE_TESTE): Promise<ApiDeTeste> {
+export async function subirApi(medidor: Meter, sobreposicao: SobreposicaoDeTeste = {}, linhasDeLog?: string[], montagem: AppModuleOptions = MONTAGEM_DE_TESTE): Promise<ApiDeTeste> {
   const logger =
     linhasDeLog === undefined
       ? createLogger({ servico: 'api-teste', nivel: 'silent' })
       : createLogger({ servico: 'api-teste', nivel: 'trace', destino: { write: (linha: string) => linhasDeLog.push(linha) } })
-  const app = await NestFactory.create(AppModule.com(configuracaoDeTeste(sobreposicao), { ...montagem, medidor, logger }), { logger: false })
-  configurarAplicacao(app, logger, medidor)
+  const app = await NestFactory.create(AppModule.forRoot(configuracaoDeTeste(sobreposicao), { ...montagem, medidor, logger }), { logger: false })
+  configureApp(app, logger, medidor)
   await app.listen(0, '127.0.0.1')
   return { app, url: `http://127.0.0.1:${(app.getHttpServer().address() as AddressInfo).port}` }
 }

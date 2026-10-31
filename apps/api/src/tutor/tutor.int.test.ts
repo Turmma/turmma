@@ -43,14 +43,14 @@ import { variacaoDoPdf } from '../../test/material.fixture.js'
 import { BancadaDeSessoes, type SessaoDeTeste } from '../../test/sessao.fixture.js'
 import { TETO_DE_PEDIDOS_DE_IA_POR_USUARIO } from '../assistente/ai-request-rate-limit.js'
 import { EXECUTOR_DE_AGENTE } from '../ia/ia.module.js'
-import { CLIENTE_REDIS_CACHE } from '../rate-limit.module.js'
-import { BuscaDeTrechos } from '../material/trecho-search.js'
-import { CLIENTE_REDIS_LOGIN } from '../credencial/index.js'
+import { REDIS_CACHE_CLIENT } from '../rate-limit.module.js'
+import { TrechoSearch } from '../material/trecho-search.js'
+import { REDIS_LOGIN_CLIENT } from '../credencial/index.js'
 import { TROCAS_SEGUIDAS_PARA_TRAVOU } from './sinais-do-turno.js'
 import { SupervisaoDoTutorRepository } from './supervisao.repository.js'
 import { TutorDoAlunoRepository } from './tutor.repository.js'
 
-interface LinhaDeSinal {
+interface SinalRow {
   readonly tipo: string
   readonly atividade_aplicada_id: string | null
   readonly questao: number | null
@@ -93,8 +93,8 @@ describe('Tutor e sinais', () => {
   const memoriaDe = async (sessao: SessaoDeTeste) => memoriaDoTutorResponseSchema.parse((await get(sessao, '/v1/tutor/memoria')).corpo)
   const sinaisPara = async (sessao: SessaoDeTeste, turmaId: string, consulta = '') => sinaisResponseSchema.parse((await get(sessao, `/v1/sinais?turmaId=${turmaId}${consulta}`)).corpo)
   const usoPara = async (sessao: SessaoDeTeste, turmaId: string) => usoDoTutorResponseSchema.parse((await get(sessao, `/v1/tutor/uso?turmaId=${turmaId}`)).corpo)
-  const sinaisDe = async (aluno: SessaoDeTeste): Promise<LinhaDeSinal[]> =>
-    (await sql<LinhaDeSinal & Record<string, unknown>>('select tipo, atividade_aplicada_id, questao, material_id, pagina from sinal_tutor where escola_id = $1 and aluno_id = $2 order by id', [aluno.escolaId, aluno.usuarioId])).rows
+  const sinaisDe = async (aluno: SessaoDeTeste): Promise<SinalRow[]> =>
+    (await sql<SinalRow & Record<string, unknown>>('select tipo, atividade_aplicada_id, questao, material_id, pagina from sinal_tutor where escola_id = $1 and aluno_id = $2 order by id', [aluno.escolaId, aluno.usuarioId])).rows
   const mensagensDe = async (aluno: SessaoDeTeste) =>
     (await sql<{ autor: string; tipo: string; texto: string; questao: number | null; material_id: string | null; pagina: number | null; atividade_aplicada_id: string | null }>(
       'select autor, tipo, texto, questao, material_id, pagina, atividade_aplicada_id from mensagem_tutor where escola_id = $1 and aluno_id = $2 order by id',
@@ -151,7 +151,7 @@ describe('Tutor e sinais', () => {
       if (Number(rows[0]?.total) > 0) achados.push(tabela)
     }
     if (linhasDeLog.some((linha) => linha.toLowerCase().includes(marca.toLowerCase()))) achados.push('log')
-    for (const [nome, token] of [['redis de fila', CLIENTE_REDIS_LOGIN], ['redis de cache', CLIENTE_REDIS_CACHE]] as const) {
+    for (const [nome, token] of [['redis de fila', REDIS_LOGIN_CLIENT], ['redis de cache', REDIS_CACHE_CLIENT]] as const) {
       if (await estaNoRedis(api.app.get<Redis>(token), marca)) achados.push(nome)
     }
     return achados
@@ -527,7 +527,7 @@ describe('Tutor e sinais', () => {
       const texto = `não entendi o reagente limitante ${marca}`
       const chaveEnvio = randomUUID()
       const corpo = { texto, ...naQuestao(3), materialId: a.materialId, pagina: 4, chaveEnvio }
-      const buscar = vi.spyOn(api.app.get(BuscaDeTrechos), 'buscar')
+      const buscar = vi.spyOn(api.app.get(TrechoSearch), 'buscar')
       try {
         const [aceita] = await abrindoEntreO202EAExecucao([aluno], async () => [await enviar(aluno, corpo)], async () => void (await abrirProva()))
         const execucaoId = aceita?.corpo['execucaoId'] as string

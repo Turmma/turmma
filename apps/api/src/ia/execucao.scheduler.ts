@@ -17,7 +17,7 @@ import { copiarContextoDeQuemPede } from './execucao-context.js'
 import { ExecucaoDaSessaoRepository, ExecucaoRepository } from './execucao.repository.js'
 
 /** O que um pacote de domínio entrega para disparar uma tarefa de IA. Escola, ano letivo e pessoa vêm da sessão. */
-export interface PedidoDeExecucao<Entrada, Saida> {
+export interface ExecucaoRequest<Entrada, Saida> {
   readonly tarefa: TaskDefinition<Entrada, Saida>
   /** A chave que a tela sorteou para este envio (`chaveEnvio` do corpo): a mesma chave devolve a mesma execução. */
   readonly chaveEnvio: string
@@ -59,7 +59,7 @@ export interface PedidoDeExecucao<Entrada, Saida> {
  *   repositories de domínio que ele usa têm o mesmo escopo que teriam na requisição.
  * - **A falha** vira `falhou` com o código, pelo executor; nada do que `aoConcluir` gravou fica.
  */
-export class AgendadorDeExecucoes {
+export class ExecucaoScheduler {
   constructor(
     private readonly banco: Database,
     private readonly ia: LLMProvider,
@@ -67,7 +67,7 @@ export class AgendadorDeExecucoes {
     private readonly suspensao: SuspensaoDeFuncao,
   ) {}
 
-  async agendar<Entrada, Saida>(pedido: PedidoDeExecucao<Entrada, Saida>): Promise<ExecucaoAceitaResponse> {
+  async agendar<Entrada, Saida>(pedido: ExecucaoRequest<Entrada, Saida>): Promise<ExecucaoAceitaResponse> {
     const { tarefa } = pedido
     const escolaId = requireEscolaId()
     const contexto = copiarContextoDeQuemPede()

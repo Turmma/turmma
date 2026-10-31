@@ -5,8 +5,8 @@ import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { lerAmbienteDeTeste } from '../../../tools/ci/compose.ts'
 import { runInContext, METRICS } from '@educa/core'
 import { randomUUID } from 'node:crypto'
-import { HashDeSenha, lerConfiguracaoLoginExterno } from '../src/credencial/index.js'
-import { ContaExternaRepository, COOKIE_OIDC, CookieOidc } from '../src/sessao/index.js'
+import { PasswordHasher, loadExternalLoginConfig } from '../src/credencial/index.js'
+import { ContaExternalRepository, COOKIE_OIDC, CookieOidc } from '../src/sessao/index.js'
 import { chamar, renovar, subirApi, type ApiDeTeste } from './test-api.js'
 import { BancadaDeSessoes } from './sessao.fixture.js'
 import { adulterarPenultimo } from './tampered-text.js'
@@ -70,7 +70,7 @@ describe('login pela conta Google ou Microsoft da escola, contra o oidc-falso do
 
   beforeAll(async () => {
     api = await subirApi(medidor.medidor, {}, linhasDeLog)
-    hashDoAluno = await api.app.get(HashDeSenha).gerar(SENHA_SINTETICA_DO_ALUNO)
+    hashDoAluno = await api.app.get(PasswordHasher).gerar(SENHA_SINTETICA_DO_ALUNO)
   })
 
   afterAll(async () => {
@@ -166,7 +166,7 @@ describe('login pela conta Google ou Microsoft da escola, contra o oidc-falso do
     const matricula = `RA${randomUUID().slice(0, 8).toUpperCase()}`
     const [usuarioId] = await bancada.alunosComMatricula(escolaId, [{ matricula, senhaHash: hashDoAluno }])
     if (usuarioId === undefined) throw new Error('aluna não criada')
-    await naEscola(escolaId, () => new ContaExternaRepository(bancada.banco).ligar(usuarioId, { provedor: 'google', tenant: null, sujeito: 'google-sub-aluna-a' }))
+    await naEscola(escolaId, () => new ContaExternalRepository(bancada.banco).ligar(usuarioId, { provedor: 'google', tenant: null, sujeito: 'google-sub-aluna-a' }))
     return { usuarioId, matricula }
   }
 
@@ -496,7 +496,7 @@ describe('login pela conta Google ou Microsoft da escola, contra o oidc-falso do
     const valor = bom.cookie.slice(`${COOKIE_OIDC}=`.length)
     const alterado = adulterarPenultimo(valor)
     expect(alterado).not.toBe(valor)
-    const { chaveDoCookie } = lerConfiguracaoLoginExterno(lerAmbienteDeTeste())
+    const { chaveDoCookie } = loadExternalLoginConfig(lerAmbienteDeTeste())
     if (chaveDoCookie === undefined) throw new Error('ambiente de teste sem chave do cookie')
     const emAndamento = { escolaId, slug, provedor: 'google' as const, state: new URL(bom.location).searchParams.get('state') ?? '', nonce: 'nonce-sintetico-0123456789', verificador: 'verificador-sintetico-0123456789' }
     const vencido = new CookieOidc(chaveDoCookie, 'local', () => Date.now() - 301_000).gravar(emAndamento).split(';')[0]

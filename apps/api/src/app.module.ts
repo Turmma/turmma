@@ -25,13 +25,13 @@ import { APP_GUARD, APP_INTERCEPTOR, DiscoveryModule, DiscoveryService, Reflecto
 import { ArtefatoModule } from './artefato/artefato.module.js'
 import { AssistenteModule } from './assistente/assistente.module.js'
 import { AtividadeModule } from './atividade/atividade.module.js'
-import { BANCO, BancoModule } from './database.module.js'
-import type { ConfiguracaoApi } from './config.js'
+import { DB, DatabaseModule } from './database.module.js'
+import type { ApiConfig } from './config.js'
 import { EntregaModule } from './entrega/entrega.module.js'
 import { EstruturaModule } from './estrutura/estrutura.module.js'
 import { GovernancaModule } from './governanca/governanca.module.js'
 import { IaModule } from './ia/ia.module.js'
-import { LIMITES_DA_ESCOLA, LimiteModule } from './rate-limit.module.js'
+import { ESCOLA_RATE_LIMITS, RateLimitModule } from './rate-limit.module.js'
 import { MaterialModule } from './material/material.module.js'
 import { OperacaoModule } from './operacao/operacao.module.js'
 import { PrivacidadeModule } from './privacidade/privacidade.module.js'
@@ -39,15 +39,15 @@ import { ProfessoresModule } from './professores/professores.module.js'
 import type { SorteioDoCodigo } from './sala/codigo-da-sala.js'
 import { SalaModule } from './sala/sala.module.js'
 import { SessaoModule } from './sessao/index.js'
-import { ProntidaoController } from './system/readiness.controller.js'
-import { SistemaModule } from './system/system.module.js'
+import { ReadinessController } from './system/readiness.controller.js'
+import { SystemModule } from './system/system.module.js'
 import { TutorModule } from './tutor/tutor.module.js'
-import { UsoModule } from './usage.module.js'
+import { UsageModule } from './usage.module.js'
 
 /** O que a montagem passa ao `AppModule`: o `main.ts` passa só o `logger`; o resto, só o teste. */
-export interface OpcoesDeMontagem {
+export interface AppModuleOptions {
   /**
-   * O logger JSON do processo, o mesmo do `configurarAplicacao`, para a linha que precisa de campo além do evento
+   * O logger JSON do processo, o mesmo do `configureApp`, para a linha que precisa de campo além do evento
    * (`sala.limite_atingido`, com o tipo e a escola). Sem ele, um logger JSON próprio no stdout.
    */
   readonly logger?: LoggerBase
@@ -73,15 +73,15 @@ export class AppModule {
    * `config.login.prazoDoRedisMs`; `sortearCodigoDaSala`, o sorteio do código da turma que o teste da colisão repete (C6).
    * Nenhuma das opções vem do ambiente.
    */
-  static com(config: ConfiguracaoApi, opcoes: OpcoesDeMontagem = {}): DynamicModule {
+  static forRoot(config: ApiConfig, opcoes: AppModuleOptions = {}): DynamicModule {
     return {
       module: AppModule,
       imports: [
         DiscoveryModule,
-        BancoModule.com(config.banco),
-        LimiteModule.com(config.limite),
-        UsoModule.com(config.redisFilaUrl),
-        SessaoModule.com({
+        DatabaseModule.forRoot(config.banco),
+        RateLimitModule.forRoot(config.limite),
+        UsageModule.forRoot(config.redisFilaUrl),
+        SessaoModule.forRoot({
           identidade: config.identidade,
           login: config.login,
           loginExterno: config.loginExterno,
@@ -92,20 +92,20 @@ export class AppModule {
         }),
         EstruturaModule,
         ProfessoresModule,
-        MaterialModule.com(opcoes.logger ?? createLogger({ servico: 'api' })),
-        IaModule.com({ config: config.ia, ...(opcoes.logger === undefined ? {} : { logger: opcoes.logger }) }),
-        AssistenteModule.com({ chaveContador: config.login.chaveContador, instancias: config.limite.instancias, logger: opcoes.logger ?? createLogger({ servico: 'api' }) }),
+        MaterialModule.forRoot(opcoes.logger ?? createLogger({ servico: 'api' })),
+        IaModule.forRoot({ config: config.ia, ...(opcoes.logger === undefined ? {} : { logger: opcoes.logger }) }),
+        AssistenteModule.forRoot({ chaveContador: config.login.chaveContador, instancias: config.limite.instancias, logger: opcoes.logger ?? createLogger({ servico: 'api' }) }),
         ArtefatoModule,
         EntregaModule,
         AtividadeModule,
         TutorModule,
         GovernancaModule,
-        PrivacidadeModule.com({
+        PrivacidadeModule.forRoot({
           armazem: config.armazem,
           ...(opcoes.armazemDeArquivos === undefined ? {} : { armazemDeTeste: opcoes.armazemDeArquivos }),
           ...(opcoes.relogioDaPrivacidade === undefined ? {} : { relogio: opcoes.relogioDaPrivacidade }),
         }),
-        SalaModule.com({
+        SalaModule.forRoot({
           config: config.sala,
           chaveContador: config.login.chaveContador,
           instancias: config.limite.instancias,
@@ -113,8 +113,8 @@ export class AppModule {
           ...(opcoes.medidor === undefined ? {} : { medidor: opcoes.medidor }),
           ...(opcoes.sortearCodigoDaSala === undefined ? {} : { sortearCodigo: opcoes.sortearCodigoDaSala }),
         }),
-        OperacaoModule.com(config.identidade, { dispositivo: config.login.dispositivo, mfa: config.login.mfa, ...(opcoes.medidor === undefined ? {} : { medidor: opcoes.medidor }) }),
-        SistemaModule.com({
+        OperacaoModule.forRoot(config.identidade, { dispositivo: config.login.dispositivo, mfa: config.login.mfa, ...(opcoes.medidor === undefined ? {} : { medidor: opcoes.medidor }) }),
+        SystemModule.forRoot({
           rotasSinteticas: config.rotasSinteticas,
           versao: config.versao,
           ambiente: config.identidade.ambiente,
@@ -123,7 +123,7 @@ export class AppModule {
       ],
       // A prontidão é da instância, e a drenagem fica no módulo raiz: o Nest encerra o módulo raiz
       // por último, e o prazo da drenagem só é desarmado depois de o pool do banco fechar.
-      controllers: [ProntidaoController],
+      controllers: [ReadinessController],
       providers: [
         { provide: GracefulShutdown, useValue: new GracefulShutdown(config.drenagem) },
         {
@@ -133,7 +133,7 @@ export class AppModule {
           inject: [DiscoveryService],
         },
         // As guardas globais rodam na ordem de registro (Tech Spec, seção 1): JWT, limite, sessão, permissão. A rota
-        // `@RotaDeOperacao` passa pelas quatro como sem sessão de escola e só então pela `GuardaDeOperador`, que o
+        // `@OperacaoRoute` passa pelas quatro como sem sessão de escola e só então pela `OperadorGuard`, que o
         // marcador aplica no handler (Tech Spec da A0, seção 1).
         {
           // 1. Só o JWT, sem banco nem Redis: toda rota exige token, salvo as marcadas com `@Public()`.
@@ -143,13 +143,13 @@ export class AppModule {
         },
         {
           // 2. O limite pelo `sub` e pelo `esc` do token verificado, com os limites da escola: rajada acima do
-          // limite é recusada antes de chegar ao Postgres. Na rota `@RotaDeOperacao`, pelo `sub` do token de operador.
+          // limite é recusada antes de chegar ao Postgres. Na rota `@OperacaoRoute`, pelo `sub` do token de operador.
           provide: APP_GUARD,
           useFactory: (reflector: Reflector, limitador: RateLimiter, proxies: TrustedProxies, limites: OperationalSettings<RateLimits>) =>
             new RateLimitGuard(reflector, limitador, proxies, limites, config.identidade),
-          inject: [Reflector, RateLimiter, TrustedProxies, LIMITES_DA_ESCOLA],
+          inject: [Reflector, RateLimiter, TrustedProxies, ESCOLA_RATE_LIMITS],
         },
-        { provide: SessaoRepository, useFactory: (banco: Database) => new SessaoRepository(banco), inject: [BANCO] },
+        { provide: SessaoRepository, useFactory: (banco: Database) => new SessaoRepository(banco), inject: [DB] },
         {
           // 3. A sessão no Postgres, sem cache: grava escola, usuário, papel, sessão e ano letivo no contexto.
           provide: APP_GUARD,

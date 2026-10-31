@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import * as loginService from './login.service.js'
 
 /** Os sete nomes que moravam aqui e foram para `request-origin.ts`, `login-identifiers.ts` e `login-completion.ts`. */
-const NOMES_QUE_SAIRAM = ['OrigemDaRequisicao', 'ResultadoDoLogin', 'BYTES_DO_REFRESH', 'normalizarEmail', 'hashDoRefresh', 'etapaDoLogin', 'ipParaRegistro']
+const NOMES_QUE_SAIRAM = ['RequestOrigin', 'ResultadoDoLogin', 'BYTES_DO_REFRESH', 'normalizarEmail', 'hashDoRefresh', 'etapaDoLogin', 'ipParaRegistro']
 
 describe('o login.service não reexporta o que saiu dele', () => {
   it('o módulo só exporta o LoginService', () => {

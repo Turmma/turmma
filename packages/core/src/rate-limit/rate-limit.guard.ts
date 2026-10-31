@@ -37,12 +37,12 @@ export function isOverIpLimit(requisicao: IncomingMessage): boolean {
  * Excesso responde 429 `LIMITE_EXCEDIDO` com `Retry-After`, menos nas rotas de login por senha (`@DowngradeRateLimit()`):
  * nelas o excesso do IP só marca a requisição, que o login rebaixa, e o balde é próprio (identidade, 15.0).
  *
- * A rota `@RotaDeOperacao()` conta no limite do operador (`rl:op:{sub}`, Tech Spec da A0, seção 5), pelo token de
+ * A rota `@OperacaoRoute()` conta no limite do operador (`rl:op:{sub}`, Tech Spec da A0, seção 5), pelo token de
  * operador que esta guarda verifica. Sem token de operador que confira, não conta nada e deixa passar: quem responde é
- * a `GuardaDeOperador`, com o 404 de uma rota inexistente, sem banco nem Redis. Contar ali daria um 429 que a rota
+ * a `OperadorGuard`, com o 404 de uma rota inexistente, sem banco nem Redis. Contar ali daria um 429 que a rota
  * inexistente não dá, e diria que a rota existe. O token vencido conta: ele também chega ao Postgres.
  *
- * A rota `@EntradaDeOperacao()` conta por IP no balde próprio da operação (`rl:ip:op`, A0b, tarefa 9.0), nunca no
+ * A rota `@OperacaoLoginRoute()` conta por IP no balde próprio da operação (`rl:ip:op`, A0b, tarefa 9.0), nunca no
  * `rl:ip` nem no `rl:ip-login` da escola: acima dele, recusa com 429, ou só marca a requisição, se é `@DowngradeRateLimit`.
  */
 export class RateLimitGuard implements CanActivate {

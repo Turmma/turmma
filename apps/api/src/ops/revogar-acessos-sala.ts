@@ -6,8 +6,8 @@ import { parseArgs } from 'node:util'
 import { z } from 'zod'
 import { AcessoDaTurmaRepository } from '../sala/acesso-da-turma/acesso-da-turma.repository.js'
 import { AcessoDaEscolaRepository } from '../credencial/index.js'
-import { abrirBancoDeOperacao, ArgumentoInvalido, autorDoComando, lerOperador, OperadorRecusado, type BancoDoComando, type SaidaDoComando } from './command.js'
-import type { ConferenciaDoAutor } from '../sessao/index.js'
+import { abrirBancoDeOperacao, InvalidArgumentError, autorDoComando, lerOperador, OperadorRejectedError, type CommandDatabase, type CommandOutput } from './command.js'
+import type { AuthorCheck } from '../sessao/index.js'
 
 const registro = new AuditoriaRecorder()
 
@@ -22,7 +22,7 @@ const registro = new AuditoriaRecorder()
  *   escopo dela: nenhum `@Unscoped` novo.
  * - Revoga na hora todo link e código vigente da escola, de todas as turmas, e grava um `acesso_turma.revogado` por acesso
  *   na auditoria dela, com `autor_operador`, na mesma transação. Imprime só a contagem.
- * - A segunda execução revoga zero. Escola inexistente: `NAO_ENCONTRADO`. Id que não é UUID: `ArgumentoInvalido`, saída 2.
+ * - A segunda execução revoga zero. Escola inexistente: `NAO_ENCONTRADO`. Id que não é UUID: `InvalidArgumentError`, saída 2.
  */
 
 /** A opção do comando: é o nome do campo do log que o runbook manda copiar. */
@@ -34,10 +34,10 @@ export function lerEscolaARevogar(argumentos: string[]): string {
     valores = parseArgs({ args: argumentos, options: { [OPCAO_DA_ESCOLA]: { type: 'string' } }, strict: true, allowPositionals: false }).values
   } catch {
     // O erro do parseArgs repete o argumento recebido; a mensagem fica só com a opção aceita.
-    throw new ArgumentoInvalido(`--${OPCAO_DA_ESCOLA}`)
+    throw new InvalidArgumentError(`--${OPCAO_DA_ESCOLA}`)
   }
   const escola = z.uuid().safeParse(valores.escola)
-  if (!escola.success) throw new ArgumentoInvalido(`--${OPCAO_DA_ESCOLA}`)
+  if (!escola.success) throw new InvalidArgumentError(`--${OPCAO_DA_ESCOLA}`)
   return escola.data.toLowerCase()
 }
 
@@ -45,7 +45,7 @@ export function lerEscolaARevogar(argumentos: string[]): string {
  * Revoga os acessos vigentes da escola, numa transação que começa pela conferência do autor (Tech Spec da A0b, seção 7c,
  * "Autor ativo"): nada é lido nem gravado antes dela. Devolve quantos acessos caíram.
  */
-export function revogarAcessosDaEscola(banco: Database, autor: ConferenciaDoAutor, escolaId: string): Promise<number> {
+export function revogarAcessosDaEscola(banco: Database, autor: AuthorCheck, escolaId: string): Promise<number> {
   const requisicaoId = randomUUID()
   return runInContext({ requisicaoId }, () =>
     banco.transaction(async (tx) => {
@@ -68,8 +68,8 @@ export function revogarAcessosDaEscola(banco: Database, autor: ConferenciaDoAuto
 export async function executarOpsRevogarAcessosSala(
   argumentos: string[],
   ambiente: Record<string, string | undefined>,
-  terminal: SaidaDoComando,
-  abrirBanco: (ambiente: Record<string, string | undefined>) => BancoDoComando = abrirBancoDeOperacao,
+  terminal: CommandOutput,
+  abrirBanco: (ambiente: Record<string, string | undefined>) => CommandDatabase = abrirBancoDeOperacao,
 ): Promise<number> {
   try {
     const escolaId = lerEscolaARevogar(argumentos)
@@ -83,7 +83,7 @@ export async function executarOpsRevogarAcessosSala(
       await fechar()
     }
   } catch (erro) {
-    if (erro instanceof ArgumentoInvalido || erro instanceof InvalidConfigError || erro instanceof OperadorRecusado) {
+    if (erro instanceof InvalidArgumentError || erro instanceof InvalidConfigError || erro instanceof OperadorRejectedError) {
       terminal.erro(`${erro.message}\n`)
       return 2
     }

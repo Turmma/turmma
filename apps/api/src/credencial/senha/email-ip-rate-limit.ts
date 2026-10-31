@@ -1,6 +1,6 @@
 import { throttledWarn, IP_DESCONHECIDO, insuranceLimit, METRICS, systemClock, type Meter, type Clock } from '@educa/core'
 import { Logger } from '@nestjs/common'
-import { JANELA_DO_CONTADOR_POR_IP_MS, type ContadorEmJanela } from './window-counter.js'
+import { JANELA_DO_CONTADOR_POR_IP_MS, type WindowCounter } from './window-counter.js'
 
 /** O prefixo da chave do contador de tentativas por IP na rota de e-mail, no Redis de fila. */
 export const PREFIXO_EMAIL_POR_IP = 'login:email-ip'
@@ -9,8 +9,8 @@ export const VALIDADE_DA_REDE_DO_IP_MS = 60_000
 /** Teto do cache de rede por IP: passando dele, o cache recomeça. */
 const MAXIMO_DE_IPS_NO_CACHE = 10_000
 
-export interface DependenciasDoLimiteDoEmail {
-  readonly janela: Pick<ContadorEmJanela, 'chaveDe' | 'ler' | 'somar'>
+export interface EmailIpRateLimitDependencies {
+  readonly janela: Pick<WindowCounter, 'chaveDe' | 'ler' | 'somar'>
   /** `LIMITE_LOGIN_EMAIL_IP_MIN`: tentativas por minuto de um IP na rota de e-mail antes de rebaixar. */
   readonly limitePorMinuto: number
   /** Quantas escolas tem a rede cujo IP de saída (`rede.ips_saida`) é este; 0 quando nenhuma. */
@@ -34,7 +34,7 @@ export interface DependenciasDoLimiteDoEmail {
  * - **Seguro:** com a contagem em memória (Redis de fila fora), o limite é dividido pelas instâncias.
  * - **Banco com erro na leitura da rede:** vale o limite simples, com o aviso `login.rede_do_ip_sem_banco` espaçado.
  */
-export class LimiteDoEmailPorIp {
+export class EmailIpRateLimit {
   readonly #relogio: Clock
   readonly #rebaixadas: ReturnType<Meter['createCounter']>
   readonly #logger = new Logger('login')
@@ -43,7 +43,7 @@ export class LimiteDoEmailPorIp {
   readonly #redes = new Map<string, { readonly escolas: number; readonly venceEm: number }>()
   #varridoEm = Number.NEGATIVE_INFINITY
 
-  constructor(private readonly dependencias: DependenciasDoLimiteDoEmail) {
+  constructor(private readonly dependencias: EmailIpRateLimitDependencies) {
     this.#relogio = dependencias.relogio ?? systemClock
     this.#rebaixadas = dependencias.medidor.createCounter(METRICS.limiteEmailIp, { description: 'Tentativas de login por e-mail rebaixadas pelo limite por IP da rota' })
     // A série nasce em 0 no boot: a taxa do alerta `login-email-limite-ip` conta a primeira rebaixada.

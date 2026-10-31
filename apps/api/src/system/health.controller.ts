@@ -1,7 +1,7 @@
 import { Public } from '@educa/core'
 import type { HealthResponse } from '@educa/shared'
 import { Controller, Get, Header, HttpStatus, Res } from '@nestjs/common'
-import { SaudeService } from './health.service.js'
+import { HealthService } from './health.service.js'
 
 interface RespostaHttp {
   status(codigo: number): unknown
@@ -10,8 +10,8 @@ interface RespostaHttp {
 // A sonda do compose e do balanceador não tem token.
 @Public()
 @Controller('saude')
-export class SaudeController {
-  constructor(private readonly saude: SaudeService) {}
+export class HealthController {
+  constructor(private readonly saude: HealthService) {}
 
   /**
    * O corpo é sempre `{ ok }`, também no 503: é o contrato da sonda, e por isso não passa pelo

@@ -5,9 +5,9 @@ import { pathToFileURL } from 'node:url'
 import { parseArgs } from 'node:util'
 import { z } from 'zod'
 import { AcessoDaEscolaRepository } from '../credencial/index.js'
-import { abrirBancoDeOperacao, ArgumentoInvalido, autorDoComando, lerOperador, OperadorRecusado, type BancoDoComando, type SaidaDoComando } from './command.js'
+import { abrirBancoDeOperacao, InvalidArgumentError, autorDoComando, lerOperador, OperadorRejectedError, type CommandDatabase, type CommandOutput } from './command.js'
 import { ContagensDePrivacidadeRepository, type ContagensDoAtendimento } from './contagens-de-privacidade.repository.js'
-import type { ConferenciaDoAutor } from '../sessao/index.js'
+import type { AuthorCheck } from '../sessao/index.js'
 
 /**
  * A privacidade de uma escola vista pela operação (F3, RF17; Tech Spec do F3, seções 6 e 7; regra 20, item 10):
@@ -37,13 +37,13 @@ function lerOpcoes(argumentos: string[]) {
     return parseArgs({ args: argumentos, options: { escola: { type: 'string' } }, strict: true, allowPositionals: false }).values
   } catch {
     // O erro do parseArgs repete o argumento recebido; a mensagem fica só com a opção aceita.
-    throw new ArgumentoInvalido('--escola')
+    throw new InvalidArgumentError('--escola')
   }
 }
 
 export function lerPedidoDePrivacidade(argumentos: string[]): PedidoDePrivacidade {
   const escola = z.uuid().safeParse(lerOpcoes(argumentos).escola)
-  if (!escola.success) throw new ArgumentoInvalido('--escola')
+  if (!escola.success) throw new InvalidArgumentError('--escola')
   return { escolaId: escola.data.toLowerCase() }
 }
 
@@ -57,7 +57,7 @@ export interface RespostaDePrivacidade extends Omit<ContagensDoAtendimento, 'exp
 }
 
 /** As contagens da escola, lidas no contexto dela, numa transação curta que começa pela conferência do autor. */
-export function consultarPrivacidade(banco: Database, autor: ConferenciaDoAutor, pedido: PedidoDePrivacidade): Promise<RespostaDePrivacidade> {
+export function consultarPrivacidade(banco: Database, autor: AuthorCheck, pedido: PedidoDePrivacidade): Promise<RespostaDePrivacidade> {
   const requisicaoId = randomUUID()
   return runInContext({ requisicaoId }, () =>
     banco.transaction(async (tx) => {
@@ -87,8 +87,8 @@ export function consultarPrivacidade(banco: Database, autor: ConferenciaDoAutor,
 export async function executarOpsPrivacidade(
   argumentos: string[],
   ambiente: Record<string, string | undefined>,
-  terminal: SaidaDoComando,
-  abrirBanco: (ambiente: Record<string, string | undefined>) => BancoDoComando = abrirBancoDeOperacao,
+  terminal: CommandOutput,
+  abrirBanco: (ambiente: Record<string, string | undefined>) => CommandDatabase = abrirBancoDeOperacao,
 ): Promise<number> {
   try {
     const pedido = lerPedidoDePrivacidade(argumentos)
@@ -101,7 +101,7 @@ export async function executarOpsPrivacidade(
       await fechar()
     }
   } catch (erro) {
-    if (erro instanceof ArgumentoInvalido || erro instanceof InvalidConfigError || erro instanceof OperadorRecusado) {
+    if (erro instanceof InvalidArgumentError || erro instanceof InvalidConfigError || erro instanceof OperadorRejectedError) {
       // Só o nome da opção ou da variável: nunca o valor.
       terminal.erro(`${erro.message}\n`)
       return 2

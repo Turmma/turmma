@@ -5,7 +5,7 @@ import { lerAmbienteDeTeste } from '../../../tools/ci/compose.ts'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { AppModule } from '../src/app.module.js'
 import { executarOpsRetencao } from '../src/ops/retencao.js'
-import { EmissorDeDesafio } from '../src/credencial/index.js'
+import { ChallengeIssuer } from '../src/credencial/index.js'
 import { chamar, subirApi, type ApiDeTeste } from './test-api.js'
 import { configuracaoDeTeste } from './test-config.js'
 import { esperarNaTrava, GatilhoDeParada } from './write-block-trigger.js'
@@ -375,7 +375,7 @@ describe('retenção da escola: a operação ajusta por comando, e a coordenaç�
     // barrou: cada uma tem a permissão provada no teste do módulo dela (`incidente.int.test.ts` e `pedido-titular.int.test.ts`,
     // "permissão"; a do arquivo da escola, 13.0, também no segundo; a do cancelamento da eliminação, 14.0, em
     // `eliminacao-agendada.int.test.ts`, "só a coordenação cancela").
-    const todas = rotasDe(controladoresDoModulo(AppModule.com(configuracaoDeTeste()))).filter((rota) => rota.caminho.startsWith('/v1/privacidade/'))
+    const todas = rotasDe(controladoresDoModulo(AppModule.forRoot(configuracaoDeTeste()))).filter((rota) => rota.caminho.startsWith('/v1/privacidade/'))
     const rotas = todas.filter((rota) => rota.verbo === 'GET' && !rota.caminho.includes(':'))
     expect(todas.filter((rota) => rota.verbo === 'GET').map((rota) => rota.caminho)).toEqual(
       expect.arrayContaining([
@@ -401,7 +401,7 @@ describe('retenção da escola: a operação ajusta por comando, e a coordenaç�
     const professor = await bancada.sessao(escolaId, 'professor')
     const aluno = await bancada.sessao(escolaId, 'aluno')
     const { rows } = await bancada.pool.query<{ conta_id: string }>('select conta_id from usuario where id = $1', [coordenacao.usuarioId])
-    const desafio = await new EmissorDeDesafio(CHAVE).emitir({ contaId: rows[0]?.conta_id ?? randomUUID(), etapa: 'mfa', mfaCumprido: false })
+    const desafio = await new ChallengeIssuer(CHAVE).emitir({ contaId: rows[0]?.conta_id ?? randomUUID(), etapa: 'mfa', mfaCumprido: false })
 
     for (const rota of rotas) {
       const caminho = rota.caminho.replace(/:\w+/g, randomUUID())

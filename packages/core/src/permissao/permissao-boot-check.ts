@@ -30,7 +30,7 @@ export interface UndeclaredRoute {
 
 /**
  * As rotas dos controllers que não declaram quem pode chamá-las — nem `@RequirePermissao`, nem `@Public`, nem um dos dois
- * marcadores da área da operação (`@RotaDeOperacao`, `@EntradaDeOperacao`, Tech Spec da A0) —, no método ou na classe.
+ * marcadores da área da operação (`@OperacaoRoute`, `@OperacaoLoginRoute`, Tech Spec da A0) —, no método ou na classe.
  * Rota é o método com caminho registrado pelo `@Get`, `@Post` e afins.
  */
 function rotasSemDeclaracao(controladores: readonly Controlador[]): UndeclaredRoute[] {

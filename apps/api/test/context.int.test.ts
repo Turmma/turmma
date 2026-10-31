@@ -9,7 +9,7 @@ import request from 'supertest'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { lerAmbienteDeTeste } from '../../../tools/ci/compose.ts'
 import { AppModule } from '../src/app.module.js'
-import { configurarAplicacao } from '../src/configure-app.js'
+import { configureApp } from '../src/configure-app.js'
 import { configuracaoDeTeste } from './test-config.js'
 import { BancadaDeSessoes, type SessaoDeTeste } from './sessao.fixture.js'
 
@@ -43,11 +43,11 @@ class ControladorAnonimo {
 }
 
 async function subirApi(ambiente: Record<string, string> = {}): Promise<INestApplication> {
-  @Module({ imports: [AppModule.com(configuracaoDeTeste({ ambiente }))], controllers: [ControladorSemMarcacao, ControladorAnonimo] })
+  @Module({ imports: [AppModule.forRoot(configuracaoDeTeste({ ambiente }))], controllers: [ControladorSemMarcacao, ControladorAnonimo] })
   class ModuloDeTeste {}
 
   const app = await NestFactory.create(ModuloDeTeste, { logger: false })
-  configurarAplicacao(app, registrador)
+  configureApp(app, registrador)
   await app.listen(0, '127.0.0.1')
   return app
 }

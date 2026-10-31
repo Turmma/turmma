@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { FilaDeExtracao } from './extraction-queue.js'
+import { ExtractionQueue } from './extraction-queue.js'
 
 /** Um trabalho que o teste solta quando quer, e que anota quando começou e com que sinal. */
 function trabalhoControlado(nome: string, ordem: string[]) {
@@ -32,7 +32,7 @@ const voltas = async (quantas = 3): Promise<void> => {
 
 describe('fila de extração no processo', () => {
   it('uma escola que sobe vários arquivos não trava as outras: uma extração por escola, e a de trás passa', async () => {
-    const fila = new FilaDeExtracao({ aoMesmoTempo: 2, porEscola: 1 })
+    const fila = new ExtractionQueue({ aoMesmoTempo: 2, porEscola: 1 })
     const ordem: string[] = []
     const a1 = trabalhoControlado('a1', ordem)
     const a2 = trabalhoControlado('a2', ordem)
@@ -65,7 +65,7 @@ describe('fila de extração no processo', () => {
   })
 
   it('o teto no total vale entre escolas diferentes', async () => {
-    const fila = new FilaDeExtracao({ aoMesmoTempo: 2, porEscola: 1 })
+    const fila = new ExtractionQueue({ aoMesmoTempo: 2, porEscola: 1 })
     const ordem: string[] = []
     const trabalhos = ['a', 'b', 'c'].map((escola) => trabalhoControlado(escola, ordem))
     for (const [indice, { trabalho }] of trabalhos.entries()) fila.agendar(`escola-${String(indice)}`, trabalho)
@@ -79,7 +79,7 @@ describe('fila de extração no processo', () => {
   })
 
   it('passou do prazo, o sinal aborta a extração, e a vaga volta para a fila', async () => {
-    const fila = new FilaDeExtracao({ aoMesmoTempo: 1, porEscola: 1, prazoMs: 20 })
+    const fila = new ExtractionQueue({ aoMesmoTempo: 1, porEscola: 1, prazoMs: 20 })
     const ordem: string[] = []
     const lento = trabalhoControlado('lento', ordem)
     const seguinte = trabalhoControlado('seguinte', ordem)
@@ -94,7 +94,7 @@ describe('fila de extração no processo', () => {
   })
 
   it('o trabalho que rejeita não derruba a fila nem segura a vaga', async () => {
-    const fila = new FilaDeExtracao({ aoMesmoTempo: 1, porEscola: 1 })
+    const fila = new ExtractionQueue({ aoMesmoTempo: 1, porEscola: 1 })
     const ordem: string[] = []
     const depois = trabalhoControlado('depois', ordem)
     fila.agendar('escola-a', () => Promise.reject(new Error('defeito')))
@@ -106,7 +106,7 @@ describe('fila de extração no processo', () => {
   })
 
   it('no desligamento, o que roda é abortado e o que espera é chamado já abortado: todos gravam a própria falha', async () => {
-    const fila = new FilaDeExtracao({ aoMesmoTempo: 1, porEscola: 1 })
+    const fila = new ExtractionQueue({ aoMesmoTempo: 1, porEscola: 1 })
     const ordem: string[] = []
     const rodando = trabalhoControlado('rodando', ordem)
     const esperando = trabalhoControlado('esperando', ordem)

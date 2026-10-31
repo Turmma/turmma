@@ -2,7 +2,7 @@ import { DomainException, type Database, type ProvedorExterno } from '@educa/cor
 import { ErrorCode, PROVEDORES_DE_CONTA_DA_ESCOLA, type AcessoDaEscolaResponse } from '@educa/shared'
 import { AcessoDaEscolaRepository } from '../../credencial/acesso-publico.repository.js'
 import { naEscolaSemUsuario } from '../tenant/escola-sem-usuario.js'
-import type { ResolucaoDeTenantRepository } from '../tenant/tenant-resolution.repository.js'
+import type { TenantResolutionRepository } from '../tenant/tenant-resolution.repository.js'
 
 /**
  * `GET /v1/escolas/:slug/acesso` (tarefa 11.0): o nome da escola do endereço e os provedores de conta que ela liberou.
@@ -14,7 +14,7 @@ import type { ResolucaoDeTenantRepository } from '../tenant/tenant-resolution.re
 export class AcessoDaEscolaService {
   constructor(
     private readonly banco: Database,
-    private readonly resolucao: ResolucaoDeTenantRepository,
+    private readonly resolucao: TenantResolutionRepository,
     private readonly ligados: readonly ProvedorExterno[],
   ) {}
 

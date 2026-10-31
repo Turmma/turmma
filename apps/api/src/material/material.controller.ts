@@ -12,7 +12,7 @@ import {
 } from '@educa/shared'
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, Query, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common'
 import { MaterialService } from './material.service.js'
-import { GuardaDoEnvio, RecebimentoDoMaterial } from './material-upload.js'
+import { MaterialUploadGuard, MaterialUploadInterceptor } from './material-upload.js'
 
 /**
  * `/v1/materiais` (MVP, A2; `docs/mvp-contratos.md`, seção 3): a coordenação envia, lista, lê e exclui o material da
@@ -33,8 +33,8 @@ export class MaterialController {
    */
   @Post()
   @RequirePermissao('material', 'enviar')
-  @UseGuards(GuardaDoEnvio)
-  @UseInterceptors(RecebimentoDoMaterial)
+  @UseGuards(MaterialUploadGuard)
+  @UseInterceptors(MaterialUploadInterceptor)
   enviar(@Body(new ZodValidationPipe(enviarMaterialRequestSchema)) campos: EnviarMaterialRequest, @UploadedFile() arquivo: unknown): Promise<MaterialResponse> {
     return this.materiais.enviar(campos, arquivo)
   }

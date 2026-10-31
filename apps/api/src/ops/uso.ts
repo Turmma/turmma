@@ -15,10 +15,10 @@ import { randomUUID } from 'node:crypto'
 import { pathToFileURL } from 'node:url'
 import { parseArgs } from 'node:util'
 import { z } from 'zod'
-import { abrirBancoDeOperacao, ArgumentoInvalido, autorDoComando, lerOperador, OperadorRecusado, type BancoDoComando, type SaidaDoComando } from './command.js'
-import type { ConferenciaDoAutor } from '../sessao/index.js'
+import { abrirBancoDeOperacao, InvalidArgumentError, autorDoComando, lerOperador, OperadorRejectedError, type CommandDatabase, type CommandOutput } from './command.js'
+import type { AuthorCheck } from '../sessao/index.js'
 
-export { ArgumentoInvalido }
+export { InvalidArgumentError }
 
 // Mora em `command.ts` desde a A0; reexportado para quem já o importava daqui (`ops:sessao-sintetica`).
 export { urlDoBancoDeOperacao } from './command.js'
@@ -58,17 +58,17 @@ function lerOpcoes(argumentos: string[]) {
     }).values
   } catch {
     // O erro do parseArgs repete o argumento recebido; a mensagem fica só com as opções aceitas.
-    throw new ArgumentoInvalido('--escola, --dia ou --mes')
+    throw new InvalidArgumentError('--escola, --dia ou --mes')
   }
 }
 
 export function lerPedidoDeUso(argumentos: string[], relogio: Clock = systemClock): PedidoDeUso {
   const valores = lerOpcoes(argumentos)
-  if (valores.escola === undefined || !z.uuid().safeParse(valores.escola).success) throw new ArgumentoInvalido('--escola')
+  if (valores.escola === undefined || !z.uuid().safeParse(valores.escola).success) throw new InvalidArgumentError('--escola')
   const dia = valores.dia ?? diaAnterior(diaDeUso(relogio.agora()))
-  if (!diaValido(dia)) throw new ArgumentoInvalido('--dia')
+  if (!diaValido(dia)) throw new InvalidArgumentError('--dia')
   const mes = valores.mes ?? dia.slice(0, 7)
-  if (!FORMATO_MES.test(mes)) throw new ArgumentoInvalido('--mes')
+  if (!FORMATO_MES.test(mes)) throw new InvalidArgumentError('--mes')
   return { escolaId: valores.escola.toLowerCase(), dia, mes }
 }
 
@@ -76,7 +76,7 @@ export function lerPedidoDeUso(argumentos: string[], relogio: Clock = systemCloc
  * O uso da escola do pedido no dia e no mês, lido no contexto dela, numa transação curta que começa pela conferência do
  * autor (Tech Spec da A0b, seção 7c, "Autor ativo"): o comando só lê, e mesmo assim só um operador ativo lê.
  */
-export function consultarUso(banco: Database, autor: ConferenciaDoAutor, pedido: PedidoDeUso): Promise<RespostaDeUso> {
+export function consultarUso(banco: Database, autor: AuthorCheck, pedido: PedidoDeUso): Promise<RespostaDeUso> {
   const requisicaoId = randomUUID()
   return runInContext({ requisicaoId }, () =>
     banco.transaction(async (tx) => {
@@ -99,8 +99,8 @@ export function consultarUso(banco: Database, autor: ConferenciaDoAutor, pedido:
 export async function executarOpsUso(
   argumentos: string[],
   ambiente: Record<string, string | undefined>,
-  terminal: SaidaDoComando,
-  abrirBanco: (ambiente: Record<string, string | undefined>) => BancoDoComando = abrirBancoDeOperacao,
+  terminal: CommandOutput,
+  abrirBanco: (ambiente: Record<string, string | undefined>) => CommandDatabase = abrirBancoDeOperacao,
 ): Promise<number> {
   try {
     const pedido = lerPedidoDeUso(argumentos)
@@ -113,7 +113,7 @@ export async function executarOpsUso(
       await fechar()
     }
   } catch (erro) {
-    if (!(erro instanceof ArgumentoInvalido || erro instanceof InvalidConfigError || erro instanceof OperadorRecusado)) throw erro
+    if (!(erro instanceof InvalidArgumentError || erro instanceof InvalidConfigError || erro instanceof OperadorRejectedError)) throw erro
     // Só o nome da opção ou da variável: nunca o valor, que pode ser a senha do banco.
     terminal.erro(`${erro.message}\n`)
     return 2

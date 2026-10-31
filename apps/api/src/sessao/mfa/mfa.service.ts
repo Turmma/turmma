@@ -1,23 +1,23 @@
 import { DomainException, METRICS, systemClock, type Database, type Meter, type Clock } from '@educa/core'
 import { ErrorCode, type EtapaComDesafio, type MfaRequest, type AtivarMfaResponse, type ConfigurarMfaResponse } from '@educa/shared'
-import type { CifraDoSegredo } from '../../credencial/secret-cipher.js'
+import type { SecretCipher } from '../../credencial/secret-cipher.js'
 import type { ConclusaoDeLogin } from '../completion/login-completion.js'
-import type { ContadorDeTentativas } from '../../credencial/login-lockout.js'
+import type { LoginLockout } from '../../credencial/login-lockout.js'
 import type { AtivacaoPorConvite } from '../convite/convite.service.js'
-import type { CookieDeDispositivo } from '../../credencial/device-cookie.js'
-import { COOKIE_DISPOSITIVO, lerCookie } from '../../credencial/cookies.js'
-import { verificarDesafio, type ConsumoDeDesafio, type DesafioVerificado } from '../../credencial/challenge.js'
-import { ipParaRegistro, type OrigemDaRequisicao, type ResultadoDoLogin } from '../../credencial/request-origin.js'
-import { ResolucaoDeTenantRepository, type MfaDaConta, type UsuarioAtivoDaConta } from '../tenant/tenant-resolution.repository.js'
+import type { DeviceCookie } from '../../credencial/device-cookie.js'
+import { DEVICE_COOKIE, lerCookie } from '../../credencial/cookies.js'
+import { verifyChallenge, type ChallengeConsumer, type VerifiedChallenge } from '../../credencial/challenge.js'
+import { ipParaRegistro, type RequestOrigin, type ResultadoDoLogin } from '../../credencial/request-origin.js'
+import { TenantResolutionRepository, type MfaDaConta, type UsuarioAtivoDaConta } from '../tenant/tenant-resolution.repository.js'
 import { gerarCodigosDeRecuperacao, gerarSegredo, hmacDaRecuperacao, normalizarRecuperacao, passoDoCodigo } from '../../credencial/totp.js'
 
-export interface DependenciasDoMfa {
+export interface MfaDependencies {
   readonly banco: Database
-  readonly resolucao: ResolucaoDeTenantRepository
-  readonly contador: ContadorDeTentativas
-  readonly dispositivo: CookieDeDispositivo
-  readonly cifra: CifraDoSegredo
-  readonly consumo: ConsumoDeDesafio
+  readonly resolucao: TenantResolutionRepository
+  readonly contador: LoginLockout
+  readonly dispositivo: DeviceCookie
+  readonly cifra: SecretCipher
+  readonly consumo: ChallengeConsumer
   readonly conclusao: ConclusaoDeLogin
   readonly ativacao: AtivacaoPorConvite
   /** Chave de assinatura do desafio, a mesma do token de acesso. */
@@ -40,7 +40,7 @@ const naoAutenticado = () => new DomainException(ErrorCode.NAO_AUTENTICADO)
  *   código (o caminho feliz do `mfa.int.test.ts`).
  * - **Entrar** só com o desafio `mfa`. O código do app vale uma vez (`mfa_ultimo_passo`), e o de recuperação também
  *   (`usado_em`), as duas coisas decididas no banco.
- * - **Tentativas:** cada código conta no `ContadorDeTentativas`, com a chave `HMAC(conta_id)`, sem escola (a conta é
+ * - **Tentativas:** cada código conta no `LoginLockout`, com a chave `HMAC(conta_id)`, sem escola (a conta é
  *   global) e separada da chave do e-mail: o acerto da senha zera o contador da senha, não o do segundo fator. É o
  *   limite próprio do MFA: na quinta falha seguida, a resposta é `CONTA_SEGURADA` e o desafio é consumido, e daí nem
  *   o código certo passa com ele; a espera dobra de 30 s a 15 min, como a da senha. O sufixo `conhecido` vale para o
@@ -60,7 +60,7 @@ export class MfaService {
   readonly #relogio: Clock
   readonly #contaSegurada: ReturnType<Meter['createCounter']>
 
-  constructor(private readonly dependencias: DependenciasDoMfa) {
+  constructor(private readonly dependencias: MfaDependencies) {
     this.#relogio = dependencias.relogio ?? systemClock
     this.#contaSegurada = dependencias.medidor.createCounter(METRICS.contaSegurada, { description: 'Tentativas de login respondidas com CONTA_SEGURADA' })
   }
@@ -90,18 +90,18 @@ export class MfaService {
     const codigos = gerarCodigosDeRecuperacao()
     const hmacs = codigos.map((texto) => hmacDaRecuperacao(this.dependencias.chaveRecuperacao, texto))
     const segredoConferido = conta.segredoCifrado
-    const ativou = await this.dependencias.banco.transaction((tx) => new ResolucaoDeTenantRepository(tx).ativarMfa(conta.id, segredoConferido, passo, hmacs))
+    const ativou = await this.dependencias.banco.transaction((tx) => new TenantResolutionRepository(tx).ativarMfa(conta.id, segredoConferido, passo, hmacs))
     if (!ativou) throw naoAutenticado()
     return { codigosRecuperacao: codigos }
   }
 
-  async entrar(desafio: string, pedido: MfaRequest, origem: OrigemDaRequisicao): Promise<ResultadoDoLogin> {
+  async entrar(desafio: string, pedido: MfaRequest, origem: RequestOrigin): Promise<ResultadoDoLogin> {
     const { resolucao, contador, dispositivo } = this.dependencias
     const verificado = await this.#desafioLivre(desafio, 'mfa')
     const conta = await resolucao.mfaDaConta(verificado.contaId)
     if (conta === undefined || conta.ativadoEm === null) throw naoAutenticado()
 
-    const conhecido = dispositivo.conhece(lerCookie(origem.cabecalhoCookie, COOKIE_DISPOSITIVO), conta.email)
+    const conhecido = dispositivo.conhece(lerCookie(origem.cabecalhoCookie, DEVICE_COOKIE), conta.email)
     const chave = contador.chaveDe(conta.id, conhecido ? 'conhecido' : 'outro')
     const reserva = await contador.reservar(chave)
     if (!reserva.liberada) throw this.#segurada(reserva.esperaMs)
@@ -148,7 +148,7 @@ export class MfaService {
    * Assim ela repete com o código seguinte do app: o passo deste já foi gravado (`mfa_ultimo_passo`), e dois pedidos com
    * o mesmo desafio não passam os dois pelo código. A ativação já acontece uma vez só, pelo `update` condicional.
    */
-  async #depoisDoCodigoCerto(contaId: string, verificado: DesafioVerificado): Promise<UsuarioAtivoDaConta[]> {
+  async #depoisDoCodigoCerto(contaId: string, verificado: VerifiedChallenge): Promise<UsuarioAtivoDaConta[]> {
     const { consumo, ativacao, resolucao } = this.dependencias
     const pendente = verificado.conviteId === undefined ? undefined : await ativacao.pendenteDoConvite(contaId, verificado.conviteId)
     if (pendente !== undefined) await ativacao.ativar(pendente)
@@ -173,8 +173,8 @@ export class MfaService {
   }
 
   /** O desafio da etapa, com assinatura, prazo, `typ` e `aud` conferidos, e ainda não usado. */
-  async #desafioLivre(desafio: string, etapa: EtapaComDesafio): Promise<DesafioVerificado> {
-    const verificado = await verificarDesafio(desafio, this.dependencias.chaveAssinatura, [etapa])
+  async #desafioLivre(desafio: string, etapa: EtapaComDesafio): Promise<VerifiedChallenge> {
+    const verificado = await verifyChallenge(desafio, this.dependencias.chaveAssinatura, [etapa])
     await this.dependencias.consumo.conferirLivre(verificado)
     return verificado
   }

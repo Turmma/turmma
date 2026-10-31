@@ -1,7 +1,7 @@
 import { InvalidConfigError } from '@educa/core'
 import { describe, expect, it, vi } from 'vitest'
-import { ArgumentoInvalido as ArgumentoInvalidoDoComando } from './command.js'
-import { ArgumentoInvalido, executarOpsUso, lerPedidoDeUso, urlDoBancoDeOperacao } from './uso.js'
+import { InvalidArgumentError as ArgumentoInvalidoDoComando } from './command.js'
+import { InvalidArgumentError, executarOpsUso, lerPedidoDeUso, urlDoBancoDeOperacao } from './uso.js'
 
 const ESCOLA_A = '0190f5a0-0000-7000-8000-00000000000a'
 // 01h de 01/01/2027 em São Paulo; em UTC já são 04h.
@@ -27,17 +27,17 @@ describe('lerPedidoDeUso', () => {
     ['dia em outro formato', ['--escola', ESCOLA_A, '--dia', '15/09/2026'], '--dia'],
     ['mês inválido', ['--escola', ESCOLA_A, '--mes', '2026-13'], '--mes'],
   ])('%s: recusa citando só a opção', (_caso, argumentos, opcao) => {
-    expect(() => lerPedidoDeUso(argumentos, relogio)).toThrow(new ArgumentoInvalido(opcao))
+    expect(() => lerPedidoDeUso(argumentos, relogio)).toThrow(new InvalidArgumentError(opcao))
   })
 
   it('o ArgumentoInvalido do uso é o de comando.ts, uma classe só, com a mensagem de sempre no terminal', () => {
-    expect(ArgumentoInvalido).toBe(ArgumentoInvalidoDoComando)
+    expect(InvalidArgumentError).toBe(ArgumentoInvalidoDoComando)
     expect(() => lerPedidoDeUso([], relogio)).toThrow(ArgumentoInvalidoDoComando)
     expect(() => lerPedidoDeUso([], relogio)).toThrow('Opção inválida ou ausente: --escola')
   })
 
   it('opção desconhecida não repete o valor recebido na mensagem', () => {
-    expect(() => lerPedidoDeUso(['--escola', ESCOLA_A, '--senha', 'segredo_sintetico'], relogio)).toThrow(ArgumentoInvalido)
+    expect(() => lerPedidoDeUso(['--escola', ESCOLA_A, '--senha', 'segredo_sintetico'], relogio)).toThrow(InvalidArgumentError)
     expect(() => lerPedidoDeUso(['--escola', ESCOLA_A, '--senha', 'segredo_sintetico'], relogio)).toThrow('Opção inválida ou ausente: --escola, --dia ou --mes')
     expect(() => lerPedidoDeUso(['--escola', ESCOLA_A, '--senha', 'segredo_sintetico'], relogio)).not.toThrow(/segredo_sintetico/)
   })

@@ -12,7 +12,7 @@ import {
   type ListaDeAtividadesAplicadasResponse,
 } from '@educa/shared'
 import { paginar } from '../../http/pagination.js'
-import type { ConferenciaDeFuncao } from '../../ia/funcao-suspension-check.js'
+import type { FuncaoSuspensionCheck } from '../../ia/funcao-suspension-check.js'
 import { AtividadeAplicadaRepository, type AplicacaoLida, type AplicacaoTravada } from './atividade-aplicada.repository.js'
 import { acertosDoLote, corrigirTentativa, destaquesDaTentativa, type HistoricoAprovado } from '../correcao/correcao-de-objetiva.js'
 import { CorrecaoRepository, type NovaCorrecao } from '../correcao/correcao.repository.js'
@@ -55,7 +55,7 @@ function paraATela(lida: AplicacaoLida): unknown {
 export class AtividadeAplicadaService {
   constructor(
     private readonly banco: Database,
-    private readonly conferencia: ConferenciaDeFuncao,
+    private readonly conferencia: FuncaoSuspensionCheck,
   ) {}
 
   async aplicar(pedido: AplicarAtividadeRequest): Promise<AtividadeAplicadaResponse> {

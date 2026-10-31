@@ -7,7 +7,7 @@ import { randomUUID } from 'node:crypto'
 import type { AddressInfo } from 'node:net'
 import { expect } from 'vitest'
 import { AppModule } from '../src/app.module.js'
-import { configurarAplicacao } from '../src/configure-app.js'
+import { configureApp } from '../src/configure-app.js'
 import { configuracaoDeTeste, MONTAGEM_DE_TESTE } from './test-config.js'
 
 /**
@@ -58,8 +58,8 @@ export function esperarErro(resposta: Resposta, status: number, codigo: ErrorCod
  * (`prazoDasConsultasMs`) é para o teste que quer o `statement_timeout` estourando numa trava segura.
  */
 export async function subirApiDoPainel(linhasDeLog: string[], ambiente: Record<string, string> = {}, prazoDasConsultasMs = PRAZO_DAS_CONSULTAS_MS): Promise<{ app: INestApplication; url: string }> {
-  const app = await NestFactory.create(AppModule.com(configuracaoDeTeste({ banco: { timeoutConsultaMs: prazoDasConsultasMs }, ambiente }), MONTAGEM_DE_TESTE), { logger: false })
-  configurarAplicacao(app, createLogger({ servico: 'api-teste', nivel: 'info', destino: { write: (linha: string) => linhasDeLog.push(linha) } }))
+  const app = await NestFactory.create(AppModule.forRoot(configuracaoDeTeste({ banco: { timeoutConsultaMs: prazoDasConsultasMs }, ambiente }), MONTAGEM_DE_TESTE), { logger: false })
+  configureApp(app, createLogger({ servico: 'api-teste', nivel: 'info', destino: { write: (linha: string) => linhasDeLog.push(linha) } }))
   await app.listen(0, '127.0.0.1')
   return { app, url: `http://127.0.0.1:${(app.getHttpServer().address() as AddressInfo).port}` }
 }

@@ -8,32 +8,32 @@ import {
 } from '@educa/shared'
 import { Logger } from '@nestjs/common'
 import { randomBytes } from 'node:crypto'
-import { BYTES_DO_REFRESH, type CifraDoSegredo, type ContadorDeTentativas, type CookieDeDispositivo, gerarCodigosDeRecuperacao, gerarSegredo, hashDoRefresh, hmacDaRecuperacao, ipParaRegistro, lerCookie, normalizarEmail, normalizarRecuperacao, passoDoCodigo, ROTULO_TOTP_DA_OPERACAO, SegredoNaoDecifra } from '../../credencial/index.js'
+import { BYTES_DO_REFRESH, type SecretCipher, type LoginLockout, type DeviceCookie, gerarCodigosDeRecuperacao, gerarSegredo, hashDoRefresh, hmacDaRecuperacao, ipParaRegistro, lerCookie, normalizarEmail, normalizarRecuperacao, passoDoCodigo, ROTULO_TOTP_DA_OPERACAO, SecretDecryptionError } from '../../credencial/index.js'
 import { cookiesDaSessaoDeOperador } from '../cookie-de-operador.js'
-import { verificarDesafioDeOperador, type ConsumoDeDesafioDeOperador, type DesafioDeOperadorVerificado, type EmissorDeDesafioDeOperador } from '../operador-challenge.js'
-import { COOKIE_DISPOSITIVO_DE_OPERADOR } from '../operador-device-cookie.js'
+import { verifyOperadorChallenge, type OperadorChallengeConsumer, type VerifiedOperadorChallenge, type OperadorChallengeIssuer } from '../operador-challenge.js'
+import { OPERADOR_DEVICE_COOKIE } from '../operador-device-cookie.js'
 import { PREFIXO_DO_CONTADOR_DA_OPERACAO } from '../entrada/entrada.service.js'
-import type { FalhasDeEntradaDaOperacao } from '../login-failure-counter.js'
+import type { OperacaoLoginFailureCounter } from '../login-failure-counter.js'
 import { OperadorRepository, type OperadorParaSegundoFator } from '../operador/operador.repository.js'
 
-export interface DependenciasDoSegundoFator {
+export interface OperadorMfaDependencies {
   readonly banco: Database
   /** A cifra do segredo do F1, com as mesmas chaves; o dado autenticado (AAD) é o `operador.id`. */
-  readonly cifra: Pick<CifraDoSegredo, 'cifrar' | 'decifrar'>
+  readonly cifra: Pick<SecretCipher, 'cifrar' | 'decifrar'>
   /** A chave do HMAC dos códigos de recuperação (`IDENTIDADE_CHAVE_RECUPERACAO`), a do F1. */
   readonly chaveRecuperacao: Uint8Array
   /** Chave de assinatura do desafio, a mesma do token de acesso. */
   readonly chaveAssinatura: Uint8Array
-  readonly consumo: Pick<ConsumoDeDesafioDeOperador, 'consumir'>
+  readonly consumo: Pick<OperadorChallengeConsumer, 'consumir'>
   /** O contador do F1, com o prefixo `login-op` e a chave pelo `operador.id` (C34). */
-  readonly contador: Pick<ContadorDeTentativas, 'chaveDe' | 'reservar' | 'zerar'>
+  readonly contador: Pick<LoginLockout, 'chaveDe' | 'reservar' | 'zerar'>
   /** O cookie de dispositivo do operador, com a chave própria (`operador-device-cookie.ts`). */
-  readonly dispositivo: Pick<CookieDeDispositivo, 'conhece' | 'comEntrada'>
-  readonly emissorDeDesafio: Pick<EmissorDeDesafioDeOperador, 'emitir'>
+  readonly dispositivo: Pick<DeviceCookie, 'conhece' | 'comEntrada'>
+  readonly emissorDeDesafio: Pick<OperadorChallengeIssuer, 'emitir'>
   readonly emissorDeToken: Pick<OperadorTokenIssuer, 'emitir'>
   readonly ambiente: Environment
   /** A série `operacao.entrada_falha`, a mesma da entrada por e-mail. */
-  readonly falhas: Pick<FalhasDeEntradaDaOperacao, 'somar'>
+  readonly falhas: Pick<OperacaoLoginFailureCounter, 'somar'>
   readonly relogio?: Clock
 }
 
@@ -66,7 +66,7 @@ type Desfecho =
 /**
  * O segundo fator do operador Turmma (Tech Spec da A0, seções 4 e 5): configurar o app autenticador e entrar com o
  * código dele ou com um código de recuperação. O desafio vem **no corpo** e passa por três conferências, nesta ordem,
- * antes de qualquer outra coisa: assinatura, prazo e `typ` (`verificarDesafioDeOperador`), a etapa da rota, e o uso
+ * antes de qualquer outra coisa: assinatura, prazo e `typ` (`verifyOperadorChallenge`), a etapa da rota, e o uso
  * único do `jti` (`SET NX`, fora da transação; com o Redis fora, 503). Toda recusa do desafio é `NAO_AUTENTICADO`.
  *
  * - **Configurar** (`configurar_mfa`): numa transação, a trava "configurar" grava o segredo novo e sobe o `mfa_versao`
@@ -94,11 +94,11 @@ type Desfecho =
  *   `operacao.contador_nao_zerado`, com o `requisicaoId` e o `operadorId`, e nada da pessoa (tarefa 9.0 da A0b); o
  *   contador vence sozinho em 15 min.
  */
-export class SegundoFatorDoOperadorService {
+export class OperadorMfaService {
   readonly #logger = new Logger('operacao')
   readonly #relogio: Clock
 
-  constructor(private readonly dependencias: DependenciasDoSegundoFator) {
+  constructor(private readonly dependencias: OperadorMfaDependencies) {
     this.#relogio = dependencias.relogio ?? systemClock
   }
 
@@ -129,7 +129,7 @@ export class SegundoFatorDoOperadorService {
     if (requisicao === undefined) throw new DomainException(ErrorCode.ERRO_INTERNO)
     const verificado = await this.#desafioConsumido(pedido.desafio, 'mfa')
     const refresh = randomBytes(BYTES_DO_REFRESH).toString('base64url')
-    const cookieDeDispositivo = lerCookie(origem.cabecalhoCookie, COOKIE_DISPOSITIVO_DE_OPERADOR)
+    const cookieDeDispositivo = lerCookie(origem.cabecalhoCookie, OPERADOR_DEVICE_COOKIE)
 
     const desfecho = await banco.transaction(async (tx): Promise<Desfecho> => {
       const repositorio = new OperadorRepository(tx)
@@ -203,14 +203,14 @@ export class SegundoFatorDoOperadorService {
     try {
       return this.dependencias.cifra.decifrar({ cifrado: linha.segredoCifrado, versao: linha.chaveVersao }, linha.id)
     } catch (erro) {
-      if (erro instanceof SegredoNaoDecifra) return undefined
+      if (erro instanceof SecretDecryptionError) return undefined
       throw erro
     }
   }
 
   /** O desafio da etapa, conferido e consumido: o `jti` vale uma vez, e com o Redis fora a resposta é 503. */
-  async #desafioConsumido(desafio: string, etapa: DesafioDeOperadorVerificado['etapa']): Promise<DesafioDeOperadorVerificado> {
-    const verificado = await verificarDesafioDeOperador(desafio, this.dependencias.chaveAssinatura, etapa)
+  async #desafioConsumido(desafio: string, etapa: VerifiedOperadorChallenge['etapa']): Promise<VerifiedOperadorChallenge> {
+    const verificado = await verifyOperadorChallenge(desafio, this.dependencias.chaveAssinatura, etapa)
     await this.dependencias.consumo.consumir(verificado)
     return verificado
   }

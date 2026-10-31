@@ -6,7 +6,7 @@ import type { INestApplication } from '@nestjs/common'
  * erro tipado, duração por rota e servidor HTTP pronto para a drenagem. Os testes de integração montam a aplicação
  * por aqui, para provar a mesma ligação que sobe em produção.
  */
-export function configurarAplicacao(app: INestApplication, logger: LoggerBase, medidor: Meter = globalMeter()): void {
+export function configureApp(app: INestApplication, logger: LoggerBase, medidor: Meter = globalMeter()): void {
   // Primeiro middleware: o contexto precisa existir antes do body parser, cujo erro também
   // chega ao filtro com o `requisicaoId`.
   app.use(contextMiddleware)

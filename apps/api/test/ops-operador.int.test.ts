@@ -9,7 +9,7 @@ import { lerAmbienteDeTeste } from '../../../tools/ci/compose.ts'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { urlDoBancoDeTeste } from '../../../tools/testes/integracao.setup.ts'
 import { CHAVE_DA_TRAVA_DOS_OPERADORES } from '../src/operacao/operador/operador.repository.js'
-import type { BancoDoComando, SaidaDoComando } from '../src/ops/command.js'
+import type { CommandDatabase, CommandOutput } from '../src/ops/command.js'
 import { executarOpsConviteCoordenador } from '../src/ops/convite-coordenador.js'
 import { executarOpsEscola } from '../src/ops/escola.js'
 import { executarOpsIncidente } from '../src/ops/incidente.js'
@@ -25,7 +25,7 @@ import { subirApi, type ApiDeTeste } from './test-api.js'
 import { FerramentasDaSala, type SalaDeTeste } from './sala.fixture.js'
 import { BancadaDeSessoes } from './sessao.fixture.js'
 
-type Comando = (argumentos: string[], ambiente: Record<string, string | undefined>, terminal: SaidaDoComando, abrirBanco?: (ambiente: Record<string, string | undefined>) => BancoDoComando) => Promise<number>
+type Comando = (argumentos: string[], ambiente: Record<string, string | undefined>, terminal: CommandOutput, abrirBanco?: (ambiente: Record<string, string | undefined>) => CommandDatabase) => Promise<number>
 
 interface Execucao {
   codigo: number

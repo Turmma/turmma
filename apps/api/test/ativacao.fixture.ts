@@ -6,7 +6,7 @@ import { randomUUID } from 'node:crypto'
 import { Secret, TOTP } from 'otpauth'
 import { expect } from 'vitest'
 import { urlDoBancoDeTeste } from '../../../tools/testes/integracao.setup.ts'
-import { CifraDoSegredo, CLIENTE_REDIS_LOGIN, ContadorDeTentativas, gerarSegredo, HashDeSenha } from '../src/credencial/index.js'
+import { SecretCipher, REDIS_LOGIN_CLIENT, LoginLockout, gerarSegredo, PasswordHasher } from '../src/credencial/index.js'
 import { ConviteRepository, criarConviteDeCoordenador } from '../src/sessao/index.js'
 import { configuracaoDeTeste } from './test-config.js'
 import { pedir, PRAZO_DAS_CONSULTAS_MS, subirApiDoPainel, type Resposta } from './painel.fixture.js'
@@ -43,18 +43,18 @@ export interface ConviteDeTeste {
 export class CenarioDeAtivacao {
   readonly escolas = new BancadaDeSessoes()
   readonly linhasDeLog: string[] = []
-  readonly #cifra: CifraDoSegredo
+  readonly #cifra: SecretCipher
   pool!: DatabasePool
   banco!: Database
   app!: INestApplication
   url!: string
-  #hash!: HashDeSenha
-  #contador!: ContadorDeTentativas
+  #hash!: PasswordHasher
+  #contador!: LoginLockout
   #redis!: Redis
 
   constructor() {
     const configuracao = configuracaoDeTeste()
-    this.#cifra = new CifraDoSegredo(configuracao.login.mfa.versaoCifra, configuracao.login.mfa.chavesCifra)
+    this.#cifra = new SecretCipher(configuracao.login.mfa.versaoCifra, configuracao.login.mfa.chavesCifra)
   }
 
   async subir(): Promise<void> {
@@ -62,9 +62,9 @@ export class CenarioDeAtivacao {
     this.pool = createPool({ url: urlDoBancoDeTeste(), maximoConexoes: 8, timeoutConexaoMs: 5_000, timeoutConsultaMs: PRAZO_DAS_CONSULTAS_MS }, () => undefined)
     this.banco = createDatabase(this.pool)
     ;({ app: this.app, url: this.url } = await subirApiDoPainel(this.linhasDeLog))
-    this.#hash = this.app.get(HashDeSenha, { strict: false })
-    this.#contador = this.app.get(ContadorDeTentativas, { strict: false })
-    this.#redis = this.app.get<Redis>(CLIENTE_REDIS_LOGIN, { strict: false })
+    this.#hash = this.app.get(PasswordHasher, { strict: false })
+    this.#contador = this.app.get(LoginLockout, { strict: false })
+    this.#redis = this.app.get<Redis>(REDIS_LOGIN_CLIENT, { strict: false })
     const prazo = performance.now() + 15_000
     while (this.#redis.status !== 'ready') {
       if (performance.now() > prazo) throw new Error('o cliente do Redis de fila do login não conectou')

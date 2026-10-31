@@ -6,7 +6,7 @@ import pg from 'pg'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { urlDoBancoDeTeste } from '../../../../../tools/testes/integracao.setup.ts'
 import { BancadaDeSessoes } from '../../../test/sessao.fixture.js'
-import { ResolucaoDeTenantRepository } from './tenant-resolution.repository.js'
+import { TenantResolutionRepository } from './tenant-resolution.repository.js'
 
 interface NoDoPlano {
   'Index Name'?: string
@@ -20,10 +20,10 @@ function nosDoPlano(no: NoDoPlano | undefined): NoDoPlano[] {
 
 describe('ResolucaoDeTenantRepository: a resolução antes de haver escola devolve só o mínimo', () => {
   const bancada = new BancadaDeSessoes()
-  let repositorio: ResolucaoDeTenantRepository
+  let repositorio: TenantResolutionRepository
 
   beforeAll(() => {
-    repositorio = new ResolucaoDeTenantRepository(bancada.banco)
+    repositorio = new TenantResolutionRepository(bancada.banco)
   })
 
   afterAll(async () => {
@@ -79,14 +79,14 @@ describe('ResolucaoDeTenantRepository: a resolução antes de haver escola devol
     let liberar: () => void = () => undefined
     const travada = new Promise<void>((resolver) => (liberar = resolver))
     const primeira = bancada.banco.transaction(async (tx) => {
-      await new ResolucaoDeTenantRepository(tx).sessaoParaRenovar(atual)
+      await new TenantResolutionRepository(tx).sessaoParaRenovar(atual)
       ordem.push('primeira travou')
       await travada
       ordem.push('primeira terminou')
     })
     await expect.poll(() => ordem.length).toBe(1)
     const segunda = bancada.banco.transaction(async (tx) => {
-      await new ResolucaoDeTenantRepository(tx).sessaoParaRenovar(atual)
+      await new TenantResolutionRepository(tx).sessaoParaRenovar(atual)
       ordem.push('segunda leu')
     })
     await new Promise((resolver) => setTimeout(resolver, 300))
@@ -167,14 +167,14 @@ describe('ResolucaoDeTenantRepository: a resolução antes de haver escola devol
       await bancada.pool.query('update conta set mfa_segredo_cifrado = $1, mfa_chave_versao = 1 where id = $2', [gravado, contaId])
       const hmacs = Array.from({ length: 10 }, (_, indice) => `${String(indice).padStart(2, '0')}${'h'.repeat(41)}`)
       const conferidoAntes = Buffer.from('segredo-cifrado-sintetico-anterior')
-      expect(await bancada.banco.transaction((tx) => new ResolucaoDeTenantRepository(tx).ativarMfa(contaId, conferidoAntes, 100, hmacs))).toBe(false)
+      expect(await bancada.banco.transaction((tx) => new TenantResolutionRepository(tx).ativarMfa(contaId, conferidoAntes, 100, hmacs))).toBe(false)
       const { rows: depois } = await bancada.pool.query<{ ativo: boolean; codigos: string }>(
         'select mfa_ativado_em is not null as ativo, (select count(*) from codigo_recuperacao where conta_id = $1) as codigos from conta where id = $1',
         [contaId],
       )
       expect(depois).toEqual([{ ativo: false, codigos: '0' }])
       // Com o segredo gravado, ativa.
-      expect(await bancada.banco.transaction((tx) => new ResolucaoDeTenantRepository(tx).ativarMfa(contaId, gravado, 100, hmacs))).toBe(true)
+      expect(await bancada.banco.transaction((tx) => new TenantResolutionRepository(tx).ativarMfa(contaId, gravado, 100, hmacs))).toBe(true)
     } finally {
       await bancada.pool.query('delete from conta where id = $1', [contaId])
     }
@@ -253,7 +253,7 @@ describe('ResolucaoDeTenantRepository: a resolução antes de haver escola devol
       })
       const convite = runInContext({ requisicaoId: randomUUID(), escolaId }, () =>
         bancada.banco.transaction(async (tx) => {
-          const achada = await new ResolucaoDeTenantRepository(tx).contaParaConvite(email)
+          const achada = await new TenantResolutionRepository(tx).contaParaConvite(email)
           travou()
           await segura
           return achada
@@ -276,7 +276,7 @@ describe('ResolucaoDeTenantRepository: a resolução antes de haver escola devol
         await limpeza.query('begin')
         await limpeza.query('select id from conta where id = $1 for update', [contaId])
         await limpeza.query('update conta set email = null, senha_hash = null where id = $1', [contaId])
-        const convite = runInContext({ requisicaoId: randomUUID() }, () => bancada.banco.transaction((tx) => new ResolucaoDeTenantRepository(tx).contaParaConvite(email)))
+        const convite = runInContext({ requisicaoId: randomUUID() }, () => bancada.banco.transaction((tx) => new TenantResolutionRepository(tx).contaParaConvite(email)))
         const antesDoCommit = await Promise.race([convite.then(() => 'terminou'), new Promise<string>((resolver) => setTimeout(() => resolver('esperando'), 300))])
         expect(antesDoCommit).toBe('esperando')
         await limpeza.query('commit')

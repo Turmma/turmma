@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { lerAmbienteDeTeste, valorObrigatorio } from '../../../../tools/ci/compose.ts'
 import { travarRedis } from '../../../../tools/testes/redis-travado.ts'
-import { ContadorDeTentativas, ESPERA_INICIAL_MS, FALHAS_ANTES_DE_SEGURAR, VALIDADE_DO_CONTADOR_MS } from './login-lockout.js'
+import { LoginLockout, ESPERA_INICIAL_MS, FALHAS_ANTES_DE_SEGURAR, VALIDADE_DO_CONTADOR_MS } from './login-lockout.js'
 
 const URL_REDIS_FILA = `redis://127.0.0.1:${valorObrigatorio(lerAmbienteDeTeste(), 'REDIS_FILA_PORTA_HOST')}`
 /**
@@ -49,7 +49,7 @@ describe('ContadorDeTentativas no Redis de fila', () => {
 
   it('borda: a quinta falha segura 30 s; com o relógio 30 s adiante, a sexta segura 60 s; e o Redis nunca vê o e-mail', async () => {
     const relogio = relogioParado()
-    const contador = new ContadorDeTentativas(cliente, CHAVE, relogio)
+    const contador = new LoginLockout(cliente, CHAVE, relogio)
     const email = emailNovo()
     const chave = contador.chaveDe(email, 'outro')
     for (let tentativa = 1; tentativa < FALHAS_ANTES_DE_SEGURAR; tentativa++) expect(await contador.reservar(chave)).toEqual({ liberada: true, esperaSeFalharMs: 0 })
@@ -69,7 +69,7 @@ describe('ContadorDeTentativas no Redis de fila', () => {
 
   it('borda: a espera para em 15 min, por mais falhas que venham', async () => {
     const relogio = relogioParado()
-    const contador = new ContadorDeTentativas(cliente, CHAVE, relogio)
+    const contador = new LoginLockout(cliente, CHAVE, relogio)
     const chave = contador.chaveDe(emailNovo(), 'outro')
     let ultima = 0
     for (let tentativa = 1; tentativa <= 12; tentativa++) {
@@ -82,7 +82,7 @@ describe('ContadorDeTentativas no Redis de fila', () => {
   })
 
   it('concorrência: dez reservas ao mesmo tempo liberam exatamente cinco; as outras cinco já encontram a conta segurada', async () => {
-    const contador = new ContadorDeTentativas(cliente, CHAVE)
+    const contador = new LoginLockout(cliente, CHAVE)
     const chave = contador.chaveDe(emailNovo(), 'outro')
     const reservas = await Promise.all(Array.from({ length: 10 }, () => contador.reservar(chave)))
     expect(reservas.filter((reserva) => reserva.liberada)).toHaveLength(FALHAS_ANTES_DE_SEGURAR)
@@ -90,7 +90,7 @@ describe('ContadorDeTentativas no Redis de fila', () => {
   })
 
   it('o acerto zera só aquele contador: o `outro` segurado continua segurado quando o `conhecido` zera', async () => {
-    const contador = new ContadorDeTentativas(cliente, CHAVE)
+    const contador = new LoginLockout(cliente, CHAVE)
     const email = emailNovo()
     const outro = contador.chaveDe(email, 'outro')
     const conhecido = contador.chaveDe(email, 'conhecido')
@@ -103,7 +103,7 @@ describe('ContadorDeTentativas no Redis de fila', () => {
   })
 
   it('A0b: desfazer no Redis tira só a falha daquela reserva; a que segurou a conta solta a espera; a única apaga a chave', async () => {
-    const contador = new ContadorDeTentativas(cliente, CHAVE, relogioParado())
+    const contador = new LoginLockout(cliente, CHAVE, relogioParado())
     const chave = contador.chaveDe(emailNovo(), 'outro')
     for (let tentativa = 1; tentativa <= 2; tentativa++) await contador.reservar(chave)
     const terceira = await contador.reservar(chave)
@@ -133,7 +133,7 @@ describe('ContadorDeTentativas no Redis de fila', () => {
     const producao = createApiRedisClient(URL_REDIS_FILA, 'teste-contador-desfazer', () => undefined)
     try {
       await pronto(producao)
-      const contador = new ContadorDeTentativas(producao, CHAVE)
+      const contador = new LoginLockout(producao, CHAVE)
       const chave = contador.chaveDe(emailNovo(), 'outro')
       for (let tentativa = 1; tentativa < FALHAS_ANTES_DE_SEGURAR; tentativa++) await contador.reservar(chave)
       const quinta = await contador.reservar(chave)
@@ -154,7 +154,7 @@ describe('ContadorDeTentativas no Redis de fila', () => {
     const producao = createApiRedisClient(URL_REDIS_FILA, 'teste-contador-travado', () => undefined)
     try {
       await pronto(producao)
-      const contador = new ContadorDeTentativas(producao, CHAVE)
+      const contador = new LoginLockout(producao, CHAVE)
       const chave = contador.chaveDe(emailNovo(), 'outro')
       expect(TIMEOUT_COMANDO_REDIS_API_MS).toBe(100)
 
@@ -183,7 +183,7 @@ describe('ContadorDeTentativas no Redis de fila', () => {
     const producao = createApiRedisClient(URL_REDIS_FILA, 'teste-contador-espelho', () => undefined)
     try {
       await pronto(producao)
-      const contador = new ContadorDeTentativas(producao, CHAVE)
+      const contador = new LoginLockout(producao, CHAVE)
       const chave = contador.chaveDe(emailNovo(), 'outro')
       for (let tentativa = 1; tentativa <= FALHAS_ANTES_DE_SEGURAR; tentativa++) await contador.reservar(chave)
       expect(await contador.reservar(chave)).toMatchObject({ liberada: false })

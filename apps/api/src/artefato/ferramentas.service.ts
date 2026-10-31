@@ -14,10 +14,10 @@ import {
 import { contextoDaTarefa } from '../assistente/assistente.service.js'
 import { exigirCitacoesEntregues } from '../assistente/citacoes.js'
 import { ExecucaoDoPedidoRepository } from '../assistente/execucao-do-pedido.repository.js'
-import type { LimiteDePedidosDeIa } from '../assistente/ai-request-rate-limit.js'
+import type { IaRequestRateLimit } from '../assistente/ai-request-rate-limit.js'
 import { TurmaDoProfessorRepository } from '../assistente/turma-do-professor.repository.js'
-import type { AgendadorDeExecucoes } from '../ia/execucao.scheduler.js'
-import type { BuscaDeTrechos, TrechoDoMaterial } from '../material/trecho-search.js'
+import type { ExecucaoScheduler } from '../ia/execucao.scheduler.js'
+import type { TrechoSearch, TrechoDoMaterial } from '../material/trecho-search.js'
 import { ArtefatoRepository } from './artefato.repository.js'
 import { citacoesDoConteudo, habilidadesParaOTema } from './conferencia.js'
 
@@ -56,9 +56,9 @@ interface Preparado {
 export class FerramentasService {
   constructor(
     private readonly banco: Database,
-    private readonly agendador: AgendadorDeExecucoes,
-    private readonly limite: LimiteDePedidosDeIa,
-    private readonly trechos: BuscaDeTrechos,
+    private readonly agendador: ExecucaoScheduler,
+    private readonly limite: IaRequestRateLimit,
+    private readonly trechos: TrechoSearch,
   ) {}
 
   async gerar(ferramenta: FerramentaGeradora, pedido: GerarComFerramentaRequest): Promise<ExecucaoAceitaResponse> {

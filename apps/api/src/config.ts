@@ -16,9 +16,9 @@ import {
 } from '@educa/core'
 import { avisoSchema, MAXIMO_DE_AVISOS, type Aviso } from '@educa/shared'
 import { z } from 'zod'
-import { lerConfiguracaoDoArmazem, type ConfiguracaoDoArmazemDaApi } from './privacidade/file-storage-config.js'
-import { lerConfiguracaoSala, type ConfiguracaoSala } from './sala/sala-config.js'
-import { type ConfiguracaoLogin, type ConfiguracaoLoginExterno, lerConfiguracaoLogin, lerConfiguracaoLoginExterno } from './credencial/index.js'
+import { loadFileStorageConfig, type FileStorageApiConfig } from './privacidade/file-storage-config.js'
+import { loadSalaConfig, type SalaConfig } from './sala/sala-config.js'
+import { type LoginConfig, type ExternalLoginConfig, loadLoginConfig, loadExternalLoginConfig } from './credencial/index.js'
 
 export { InvalidConfigError }
 
@@ -50,7 +50,7 @@ export const MOTIVO_ROTAS_SINTETICAS_EM_PRODUCAO =
  * carga. Como a flag do token sintético, só aceita `true` ou `false` escrito assim, e não sobe ligada
  * em produção.
  */
-const esquemaAmbiente = z
+const envSchema = z
   .object({
     API_PORTA: inteiroPositivo,
     // Validado pela identidade; aqui só é lido para a trava de produção, sem apontar a falta duas vezes.
@@ -68,7 +68,7 @@ const esquemaAmbiente = z
     }
   })
 
-export interface ConfiguracaoApi {
+export interface ApiConfig {
   porta: number
   /** Liga as rotas que só existem para teste e carga. */
   rotasSinteticas: boolean
@@ -81,11 +81,11 @@ export interface ConfiguracaoApi {
   banco: DatabaseConfig
   identidade: AuthConfig
   /** Hash de senha, chave do contador de tentativas e chave do cookie de dispositivo do login por e-mail. */
-  login: ConfiguracaoLogin
+  login: LoginConfig
   /** O login pela conta Google ou Microsoft da escola: provedores ligados, retorno e chave do cookie `educa_oidc`. */
-  loginExterno: ConfiguracaoLoginExterno
+  loginExterno: ExternalLoginConfig
   /** A chave do HMAC do código da turma (A1, 4.0), separada das do login. */
-  sala: ConfiguracaoSala
+  sala: SalaConfig
   drenagem: GracefulShutdownConfig
   limite: RateLimitConfig
   /** Para onde e de quanto em quanto tempo as métricas vão. */
@@ -100,7 +100,7 @@ export interface ConfiguracaoApi {
    * O storage privado do arquivo do titular (F3, tarefa 13.0): a API confere que o objeto existe e assina a URL de
    * download de 5 minutos. O worker grava e apaga; a API só assina e confere.
    */
-  armazem: ConfiguracaoDoArmazemDaApi
+  armazem: FileStorageApiConfig
 }
 
 /** Executa a leitura e devolve o erro de configuração em vez de lançar, para somar os problemas. */
@@ -117,18 +117,18 @@ function tentar<T>(ler: () => T): { valor: T } | { erro: InvalidConfigError } {
  * Lê e valida o ambiente da API. Não sobe com variável faltando ou inválida, e não sobe com
  * token sintético ligado em produção. Todos os problemas saem de uma vez, só pelo nome.
  */
-export function lerConfiguracao(ambiente: Record<string, string | undefined>): ConfiguracaoApi {
-  const api = tentar(() => validateEnvironment(esquemaAmbiente, ambiente))
+export function loadConfig(ambiente: Record<string, string | undefined>): ApiConfig {
+  const api = tentar(() => validateEnvironment(envSchema, ambiente))
   const banco = tentar(() => loadDatabaseConfig(ambiente))
   const identidade = tentar(() => loadAuthConfig(ambiente))
-  const login = tentar(() => lerConfiguracaoLogin(ambiente))
-  const loginExterno = tentar(() => lerConfiguracaoLoginExterno(ambiente))
-  const sala = tentar(() => lerConfiguracaoSala(ambiente))
+  const login = tentar(() => loadLoginConfig(ambiente))
+  const loginExterno = tentar(() => loadExternalLoginConfig(ambiente))
+  const sala = tentar(() => loadSalaConfig(ambiente))
   const drenagem = tentar(() => loadGracefulShutdownConfig(ambiente))
   const limite = tentar(() => loadRateLimitConfig(ambiente))
   const telemetria = tentar(() => loadTelemetryConfig(ambiente))
   const ia = tentar(() => loadLLMConfig(ambiente))
-  const armazem = tentar(() => lerConfiguracaoDoArmazem(ambiente))
+  const armazem = tentar(() => loadFileStorageConfig(ambiente))
   if ('erro' in api || 'erro' in banco || 'erro' in identidade || 'erro' in login || 'erro' in loginExterno || 'erro' in sala || 'erro' in drenagem || 'erro' in limite || 'erro' in telemetria || 'erro' in ia || 'erro' in armazem) {
     const erros = [api, banco, identidade, login, loginExterno, sala, drenagem, limite, telemetria, ia, armazem].flatMap((leitura) => ('erro' in leitura ? [leitura.erro] : []))
     throw new InvalidConfigError(

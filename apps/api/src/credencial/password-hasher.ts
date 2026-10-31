@@ -1,6 +1,6 @@
 import { hash, verify, type Algorithm } from '@node-rs/argon2'
 import { randomBytes } from 'node:crypto'
-import type { ParametrosDoHash } from './login-config.js'
+import type { HashParams } from './login-config.js'
 
 /**
  * O hash de senha da equipe (Tech Spec, seção 5, "Hash"): argon2id, p=1, com memória e iterações da configuração,
@@ -12,15 +12,15 @@ import type { ParametrosDoHash } from './login-config.js'
  *
  * O hash guardado leva os próprios parâmetros: subir a calibração não invalida as senhas antigas.
  */
-export class HashDeSenha {
+export class PasswordHasher {
   private constructor(
-    private readonly parametros: ParametrosDoHash,
+    private readonly parametros: HashParams,
     private readonly hashFixo: string,
   ) {}
 
   /** Gera o hash fixo com uma senha sorteada que ninguém guarda. */
-  static async criar(parametros: ParametrosDoHash): Promise<HashDeSenha> {
-    return new HashDeSenha(parametros, await gerarHash(randomBytes(32).toString('base64url'), parametros))
+  static async criar(parametros: HashParams): Promise<PasswordHasher> {
+    return new PasswordHasher(parametros, await gerarHash(randomBytes(32).toString('base64url'), parametros))
   }
 
   /** O hash de uma senha nova, para gravar (convite, troca de senha). */
@@ -47,6 +47,6 @@ export class HashDeSenha {
 /** `Algorithm.Argon2id`. O enum do pacote é `const` e ambiente, e não se lê com `isolatedModules`; o hash gerado traz `$argon2id$`. */
 const ARGON2ID = 2 as Algorithm
 
-function gerarHash(senha: string, parametros: ParametrosDoHash): Promise<string> {
+function gerarHash(senha: string, parametros: HashParams): Promise<string> {
   return hash(senha, { algorithm: ARGON2ID, memoryCost: parametros.memoriaKib, timeCost: parametros.iteracoes, parallelism: 1 })
 }

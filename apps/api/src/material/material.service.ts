@@ -19,8 +19,8 @@ import {
 import { createHash } from 'node:crypto'
 import { DisciplinaRepository } from '../estrutura/disciplina/disciplina.repository.js'
 import { paginar } from '../http/pagination.js'
-import { temAssinaturaDePdf, type ExtratorDePdf } from './pdf-extraction.js'
-import { PRAZO_DA_EXTRACAO_MS, type FilaDeExtracao } from './extraction-queue.js'
+import { temAssinaturaDePdf, type PdfExtractor } from './pdf-extraction.js'
+import { PRAZO_DA_EXTRACAO_MS, type ExtractionQueue } from './extraction-queue.js'
 import { MaterialParadoRepository, MaterialRepository, type AlcanceDoMaterial, type MaterialLido } from './material.repository.js'
 import { trechoCitado } from './trecho-citado.js'
 
@@ -79,10 +79,10 @@ function paraResposta(lido: MaterialLido, alcance: AlcanceDoMaterial): MaterialR
   return materialResponseSchema.parse({ ...lido, licenciante: alcance === 'unidade' ? lido.licenciante : null, enviadoEm: lido.enviadoEm.toISOString() })
 }
 
-export interface DependenciasDoMaterial {
+export interface MaterialDependencies {
   readonly banco: Database
-  readonly extrator: ExtratorDePdf
-  readonly fila: FilaDeExtracao
+  readonly extrator: PdfExtractor
+  readonly fila: ExtractionQueue
   /** O logger JSON do processo: as linhas levam o id do material e medidas, que o `Logger` do Nest não carrega. */
   readonly logger: Pick<LoggerBase, 'info' | 'warn'>
 }
@@ -90,13 +90,13 @@ export interface DependenciasDoMaterial {
 /**
  * O material da escola (MVP, A2; D5, D22, D75): a coordenação envia o PDF com a titularidade e a licença declaradas, e
  * o professor lê e busca o das disciplinas dele. O aluno não alcança nenhuma rota (o Tutor lê por ele, no servidor,
- * por `BuscaDeTrechos`).
+ * por `TrechoSearch`).
  *
  * **Nada disto loga título, licenciante, nome de arquivo nem texto de trecho** (regra 20, item 9): as linhas levam o
  * id do material, o tamanho, as páginas, a duração e o código. A auditoria leva ids e o que foi declarado.
  */
 export class MaterialService {
-  constructor(private readonly dependencias: DependenciasDoMaterial) {}
+  constructor(private readonly dependencias: MaterialDependencies) {}
 
   /**
    * `POST /v1/materiais`. A ordem é a regra (D5, D75), e o teste a confere:
@@ -153,7 +153,7 @@ export class MaterialService {
   }
 
   /**
-   * Os tetos de envio antes de o corpo ser recebido (`GuardaDoEnvio`): quem já passou do teto não sobe 20 MB para
+   * Os tetos de envio antes de o corpo ser recebido (`MaterialUploadGuard`): quem já passou do teto não sobe 20 MB para
    * ouvir a recusa. É leitura sem trava; quem decide é a conferência dentro da transação do envio.
    */
   async exigirEnvioDentroDosTetos(): Promise<void> {

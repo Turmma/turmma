@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { ArgumentoInvalido } from './command.js'
+import { InvalidArgumentError } from './command.js'
 import { executarOpsRedefinirMfa, lerPedidoDeRedefinicao } from './redefinir-mfa.js'
 
 const USUARIO = '0190f5a0-0000-7000-8000-0000000000d1'
@@ -22,7 +22,7 @@ describe('lerPedidoDeRedefinicao', () => {
     ['posicional', ['redefinir', '--usuario', USUARIO, '--pedido', '12'], '--usuario ou --pedido'],
   ])('%s: recusa citando só a opção, sem o valor', (_caso, argumentos, opcao) => {
     const ler = () => lerPedidoDeRedefinicao(argumentos)
-    expect(ler).toThrow(new ArgumentoInvalido(opcao))
+    expect(ler).toThrow(new InvalidArgumentError(opcao))
     expect(ler).not.toThrow(/Renata|escola\.invalid/)
   })
 })

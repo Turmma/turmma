@@ -1,8 +1,8 @@
 import { DomainException, insuranceLimit, METRICS, retryAfterSeconds, type LoggerBase, type Meter } from '@educa/core'
 import { ErrorCode } from '@educa/shared'
 import { Logger } from '@nestjs/common'
-import type { GuardaDoCodigo } from '../sessao/index.js'
-import type { ContadorEmJanela } from '../credencial/index.js'
+import type { CodigoRateLimit } from '../sessao/index.js'
+import type { WindowCounter } from '../credencial/index.js'
 
 /** A janela dos três contadores da sala (Tech Spec da A1, 7c): 10 min desde a primeira soma de cada chave. */
 export const JANELA_DOS_LIMITES_DA_SALA_MS = 10 * 60_000
@@ -50,9 +50,9 @@ export interface AntesDoHash {
   readonly rebaixado: boolean
 }
 
-export interface DependenciasDosLimites {
+export interface SalaRateLimitsDependencies {
   /** O contador da sala, com a janela de 10 min, no Redis de fila (o mesmo cliente e a mesma chave de HMAC do login). */
-  readonly janela: Pick<ContadorEmJanela, 'chaveDe' | 'ler' | 'somar' | 'restanteMs' | 'proporcaoDoSeguro'>
+  readonly janela: Pick<WindowCounter, 'chaveDe' | 'ler' | 'somar' | 'restanteMs' | 'proporcaoDoSeguro'>
   /** Quantas instâncias da API dividem os tetos quando a contagem é do seguro em memória (`LIMITE_INSTANCIAS_API`). */
   readonly instancias: number
   readonly medidor: Meter
@@ -67,7 +67,7 @@ const dormir = (ms: number) => new Promise<void>((resolver) => setTimeout(resolv
 /**
  * Os limites da página pública da sala (A1, tarefa 7.0; Tech Spec da A1, seções 5 e 7c; regra 80, itens 1 e 3). Nenhum
  * é por IP nem por navegador: 35 alunos atrás do mesmo IP da escola nunca recebem 429 por aqui. Três contadores, numa
- * janela de 10 min, no `ContadorEmJanela` da sala, cada chave o HMAC do identificador:
+ * janela de 10 min, no `WindowCounter` da sala, cada chave o HMAC do identificador:
  *
  * | Conta | Teto | Acima dele |
  * |---|---|---|
@@ -82,12 +82,12 @@ const dormir = (ms: number) => new Promise<void>((resolver) => setTimeout(resolv
  * tipo e janela escreve a linha `sala.limite_atingido` com o `tipo` e o `escolaId` (a marca é mais uma chave do mesmo
  * contador, e vale para todas as instâncias). Nada de IP, código, matrícula nem nome: o runbook parte do `escolaId`.
  */
-export class LimitesDaSala implements GuardaDoCodigo {
+export class SalaRateLimits implements CodigoRateLimit {
   readonly #limitesAtingidos: ReturnType<Meter['createCounter']>
   readonly #esperar: (ms: number) => Promise<void>
   #esperandoOCodigo = 0
 
-  constructor(private readonly dependencias: DependenciasDosLimites) {
+  constructor(private readonly dependencias: SalaRateLimitsDependencies) {
     this.#esperar = dependencias.esperar ?? dormir
     this.#limitesAtingidos = dependencias.medidor.createCounter(METRICS.limiteDaSala, { description: 'Pedidos da página da sala segurados por um limite, por tipo' })
     // As séries nascem em 0 no boot: a taxa do alerta de código errado em massa (9.0) conta o primeiro.

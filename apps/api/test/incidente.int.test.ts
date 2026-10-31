@@ -9,7 +9,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { lerAmbienteDeTeste } from '../../../tools/ci/compose.ts'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { executarOpsIncidente } from '../src/ops/incidente.js'
-import { EmissorDeDesafio } from '../src/credencial/index.js'
+import { ChallengeIssuer } from '../src/credencial/index.js'
 import { chamar, subirApi, type ApiDeTeste } from './test-api.js'
 import { esperarNaTrava, GatilhoDeParada } from './write-block-trigger.js'
 import { BancadaDeSessoes, type SessaoDeTeste } from './sessao.fixture.js'
@@ -524,7 +524,7 @@ describe('incidente: a operação registra por comando, e cada coordenação lê
     const professor = await bancada.sessao(a.id, 'professor')
     const aluno = await bancada.sessao(a.id, 'aluno')
     const { rows } = await bancada.pool.query<{ conta_id: string }>('select conta_id from usuario where id = $1', [a.coordenacao.usuarioId])
-    const desafio = await new EmissorDeDesafio(CHAVE).emitir({ contaId: rows[0]?.conta_id ?? randomUUID(), etapa: 'mfa', mfaCumprido: false })
+    const desafio = await new ChallengeIssuer(CHAVE).emitir({ contaId: rows[0]?.conta_id ?? randomUUID(), etapa: 'mfa', mfaCumprido: false })
     const rotas: Array<[string, string]> = [
       ['GET', '/v1/privacidade/incidentes'],
       ['POST', `/v1/privacidade/incidentes/${daA?.id}/confirmar`],

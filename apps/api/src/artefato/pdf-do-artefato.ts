@@ -26,7 +26,7 @@ export const AVISO_DE_IA_NO_RASCUNHO = 'Conteúdo gerado por inteligência artif
 /** A marca de toda página da versão adaptada que ainda espera a decisão (regra 70, itens 3 e 6). */
 export const MARCA_DE_RASCUNHO = 'Rascunho — aguardando a aprovação da professora'
 
-export interface OpcoesDoPdf {
+export interface PdfOptions {
   /**
    * A versão adaptada com a entrega ainda `pendente`: sai com a marca de rascunho em toda página e sem a frase
    * "revisado". A professora precisa ver a fonte ampliada para decidir; o que ela não leva é um papel com cara de
@@ -251,7 +251,7 @@ function escreverPlano(folha: Folha, conteudo: ConteudoDePlanoDeAula, titulos: R
  * O PDF do artefato, em memória. `titulos` é o título de cada material citado, lido pela escola do contexto; material
  * que não está no mapa sai como "material da escola".
  */
-export function gerarPdfDoArtefato(conteudo: ConteudoDoArtefato, titulos: ReadonlyMap<string, string>, { rascunho = false }: OpcoesDoPdf = {}): Promise<Buffer> {
+export function gerarPdfDoArtefato(conteudo: ConteudoDoArtefato, titulos: ReadonlyMap<string, string>, { rascunho = false }: PdfOptions = {}): Promise<Buffer> {
   return new Promise((resolver, rejeitar) => {
     const documento = new PDFDocument({
       size: 'A4',

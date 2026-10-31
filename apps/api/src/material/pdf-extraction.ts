@@ -92,7 +92,7 @@ const proximaVolta = (): Promise<void> => new Promise((resolver) => setImmediate
  * O `sinal` é o prazo: abortado, a leitura para na página seguinte e sai `extracao_falhou`. Entre uma página e outra
  * a leitura devolve o laço de eventos, para a API continuar atendendo enquanto um capítulo longo é lido.
  */
-export class ExtratorDePdf {
+export class PdfExtractor {
   async extrair(bytes: Uint8Array, sinal?: AbortSignal): Promise<ResultadoDaExtracao> {
     // Lido por função: o prazo pode vencer no meio da leitura, entre uma conferência e outra.
     const abortado = (): boolean => sinal?.aborted === true

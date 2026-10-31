@@ -8,7 +8,7 @@ export type MetodoDoLogin = 'email' | 'matricula'
  * desfecho, inclusive o 503 do semáforo e a conta segurada. É o p95 dela que o alerta `login-lento` olha. Os limites
  * do histograma são os do HTTP, que têm 1 s, o limiar do alerta, como fronteira.
  */
-export class DuracaoDoLogin {
+export class LoginDurationHistogram {
   readonly #histograma: ReturnType<Meter['createHistogram']>
 
   constructor(

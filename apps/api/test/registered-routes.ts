@@ -4,7 +4,7 @@ import { RequestMethod, type DynamicModule, type Type } from '@nestjs/common'
 import { GUARDS_METADATA, METHOD_METADATA, MODULE_METADATA, PATH_METADATA } from '@nestjs/common/constants.js'
 import { Reflector } from '@nestjs/core'
 import { randomUUID } from 'node:crypto'
-import { GuardaDeOperador } from '../src/operacao/operador.guard.js'
+import { OperadorGuard } from '../src/operacao/operador.guard.js'
 
 /** O que o `Reflector` lê: o handler ou a classe do controller. */
 type Alvo = Type | ((...argumentos: never[]) => unknown)
@@ -73,7 +73,7 @@ function ehModuloDinamico(modulo: unknown): modulo is DynamicModule {
 
 /**
  * Os controllers de um módulo e de tudo que ele importa, pelos metadados do `@Module` e pelo que o módulo dinâmico
- * devolve (`AppModule.com(config)`). É a lista que o Nest registra, sem subir a aplicação: serve ao teste de arquitetura,
+ * devolve (`AppModule.forRoot(config)`). É a lista que o Nest registra, sem subir a aplicação: serve ao teste de arquitetura,
  * que não tem banco nem Redis.
  */
 export function controladoresDoModulo(raiz: DynamicModule | Type): Type[] {
@@ -96,9 +96,9 @@ export function daOperacao(rota: Pick<RotaRegistrada, 'caminho'>): boolean {
   return rota.caminho === '/v1/operacao' || rota.caminho.startsWith('/v1/operacao/')
 }
 
-/** C41: as rotas `@RotaDeOperacao` sem a `GuardaDeOperador` no handler resolvido, como `Controller.metodo`. */
+/** C41: as rotas `@OperacaoRoute` sem a `OperadorGuard` no handler resolvido, como `Controller.metodo`. */
 export function rotasDeOperacaoSemGuarda(rotas: readonly RotaRegistrada[]): string[] {
-  return rotas.filter((rota) => rota.marcador === 'rota' && !rota.guardas.includes(GuardaDeOperador)).map((rota) => `${rota.controlador.name}.${rota.metodo}`)
+  return rotas.filter((rota) => rota.marcador === 'rota' && !rota.guardas.includes(OperadorGuard)).map((rota) => `${rota.controlador.name}.${rota.metodo}`)
 }
 
 /** C42: os caminhos `/v1/operacao` sem marcador, e os marcadores fora de `/v1/operacao`, como `VERBO caminho`. */
@@ -113,7 +113,7 @@ export function caminhoConcreto(caminho: string): string {
 
 /**
  * As oito rotas do painel da operação (Tech Spec da A0b, seção 4). A I3 prova que as varreduras C36, C41 e C46 enxergam
- * exatamente estas, e que as rotas `@RotaDeOperacao` são elas mais o `GET /v1/operacao/eu` da A0: rota nova do painel é
+ * exatamente estas, e que as rotas `@OperacaoRoute` são elas mais o `GET /v1/operacao/eu` da A0: rota nova do painel é
  * mudança da spec, e entra aqui.
  */
 export const ROTAS_DO_PAINEL: readonly string[] = [
@@ -127,5 +127,5 @@ export const ROTAS_DO_PAINEL: readonly string[] = [
   'POST /v1/operacao/convites/:id/revogar',
 ]
 
-/** As rotas `@RotaDeOperacao` da API: o `/eu` da A0 e as oito do painel, em ordem, para comparar com a lista registrada. */
+/** As rotas `@OperacaoRoute` da API: o `/eu` da A0 e as oito do painel, em ordem, para comparar com a lista registrada. */
 export const ROTAS_COM_SESSAO_DE_OPERADOR: readonly string[] = ['GET /v1/operacao/eu', ...ROTAS_DO_PAINEL].toSorted()

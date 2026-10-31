@@ -14,7 +14,7 @@ class CicloDoWorker implements OnApplicationShutdown {
 
 @Module({})
 export class AppModule {
-  static com(config: ConfiguracaoWorker, logger: LoggerBase, medidor: Meter): DynamicModule {
+  static forRoot(config: ConfiguracaoWorker, logger: LoggerBase, medidor: Meter): DynamicModule {
     const montado = montarWorker(config, logger, { batimento: new Heartbeat(), medidor })
     return {
       module: AppModule,

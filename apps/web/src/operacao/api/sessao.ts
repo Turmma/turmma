@@ -328,7 +328,7 @@ async function renovarOuEncerrar(): Promise<void> {
 export type OpcoesComSessaoDeOperador = Omit<OpcoesDaChamada, 'token'>
 
 /**
- * Chamada a uma rota `@RotaDeOperacao`, com o token no `Authorization`. As três respostas que a guarda distingue
+ * Chamada a uma rota `@OperacaoRoute`, com o token no `Authorization`. As três respostas que a guarda distingue
  * (Tech Spec, seção 5, "Conferência da sessão") não se confundem aqui:
  *
  * - **401 `ACESSO_VENCIDO`**: o acesso de 10 min venceu com a sessão viva. Renova pelo cookie e repete a mesma chamada,

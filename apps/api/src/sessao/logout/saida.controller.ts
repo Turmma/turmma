@@ -1,13 +1,13 @@
 import { requestIp, RequirePermissao, TrustedProxies } from '@educa/core'
 import { Controller, Delete, HttpCode, HttpStatus, Req, Res } from '@nestjs/common'
 import type { IncomingMessage, ServerResponse } from 'node:http'
-import { SaidaService } from './saida.service.js'
+import { LogoutService } from './saida.service.js'
 
 /** `DELETE /v1/sessao`: "Sair" em toda tela. Encerra a sessão na hora e apaga o cookie de renovação. */
 @Controller('v1/sessao')
-export class SaidaController {
+export class LogoutController {
   constructor(
-    private readonly saida: SaidaService,
+    private readonly saida: LogoutService,
     private readonly proxies: TrustedProxies,
   ) {}
 

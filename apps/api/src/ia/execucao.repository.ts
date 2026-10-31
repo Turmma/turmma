@@ -15,7 +15,7 @@ import {
 } from '@educa/core'
 import { resultadoGravadoSchema, FUNCAO_DA_TAREFA_DE_IA, type ErrorCode, type ExecucaoInput, type EstadoDeExecucao, type ResultadoGravado, type TarefaDeIa } from '@educa/shared'
 import { and, eq, lt, or, sql } from 'drizzle-orm'
-import { exigirUsuarioDoContexto } from './execucao-context.js'
+import { requireUsuarioId } from './execucao-context.js'
 
 /**
  * A porta `ExecucaoRepository` do `AgenteExecutor`, sobre `execucao_agente`. O executor roda **fora de
@@ -105,7 +105,7 @@ export class ExecucaoDaSessaoRepository {
         anoLetivoId: requireAnoEmCurso(),
         funcao: FUNCAO_DA_TAREFA_DE_IA[tarefa],
         tarefa,
-        solicitadaPor: exigirUsuarioDoContexto(),
+        solicitadaPor: requireUsuarioId(),
         chaveEnvio,
         entrada,
       })
@@ -127,7 +127,7 @@ export class ExecucaoDaSessaoRepository {
           eq(execucaoAgente.escolaId, requireEscolaId()),
           eq(execucaoAgente.anoLetivoId, requireAnoEmCurso()),
           eq(execucaoAgente.chaveEnvio, chaveEnvio),
-          eq(execucaoAgente.solicitadaPor, exigirUsuarioDoContexto()),
+          eq(execucaoAgente.solicitadaPor, requireUsuarioId()),
         ),
       )
     return linha
@@ -141,7 +141,7 @@ export class ExecucaoDaSessaoRepository {
     const [linha] = await this.banco
       .select({ id: execucaoAgente.id, tarefa: execucaoAgente.tarefa, estado: execucaoAgente.estado, resultado: execucaoAgente.resultado, erro: execucaoAgente.erro })
       .from(execucaoAgente)
-      .where(and(eq(execucaoAgente.escolaId, requireEscolaId()), eq(execucaoAgente.anoLetivoId, requireAnoEmCurso()), eq(execucaoAgente.id, id), eq(execucaoAgente.solicitadaPor, exigirUsuarioDoContexto())))
+      .where(and(eq(execucaoAgente.escolaId, requireEscolaId()), eq(execucaoAgente.anoLetivoId, requireAnoEmCurso()), eq(execucaoAgente.id, id), eq(execucaoAgente.solicitadaPor, requireUsuarioId())))
     return linha
   }
 
@@ -152,7 +152,7 @@ export class ExecucaoDaSessaoRepository {
       .select({ id: mensagemAgente.id, criadaEm: mensagemAgente.criadaEm, conteudo: mensagemAgente.conteudo })
       .from(mensagemAgente)
       .innerJoin(threadAgente, and(eq(threadAgente.escolaId, mensagemAgente.escolaId), eq(threadAgente.anoLetivoId, mensagemAgente.anoLetivoId), eq(threadAgente.id, mensagemAgente.threadId)))
-      .where(and(eq(mensagemAgente.escolaId, escolaId), eq(mensagemAgente.id, id), eq(mensagemAgente.autor, 'agente'), eq(threadAgente.usuarioId, exigirUsuarioDoContexto())))
+      .where(and(eq(mensagemAgente.escolaId, escolaId), eq(mensagemAgente.id, id), eq(mensagemAgente.autor, 'agente'), eq(threadAgente.usuarioId, requireUsuarioId())))
     return linha
   }
 
@@ -161,7 +161,7 @@ export class ExecucaoDaSessaoRepository {
     const [linha] = await this.banco
       .select({ id: mensagemTutor.id, criadaEm: mensagemTutor.criadaEm, tipo: mensagemTutor.tipo, texto: mensagemTutor.texto, citacoes: mensagemTutor.citacoes })
       .from(mensagemTutor)
-      .where(and(eq(mensagemTutor.escolaId, requireEscolaId()), eq(mensagemTutor.id, id), eq(mensagemTutor.autor, 'tutor'), eq(mensagemTutor.alunoId, exigirUsuarioDoContexto())))
+      .where(and(eq(mensagemTutor.escolaId, requireEscolaId()), eq(mensagemTutor.id, id), eq(mensagemTutor.autor, 'tutor'), eq(mensagemTutor.alunoId, requireUsuarioId())))
     return linha
   }
 }

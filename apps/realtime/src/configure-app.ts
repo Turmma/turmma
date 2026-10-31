@@ -32,7 +32,7 @@ export async function criarAplicacaoRealtime(config: ConfiguracaoRealtime, logge
   )
   await cliente.connect()
   const pool = createPool(config.banco, () => logger.warn({ evento: 'realtime.conexao_ociosa_perdida' }))
-  const app = await NestFactory.create<NestExpressApplication>(AppModule.com(config, cliente, pool, logger), { bufferLogs: true })
+  const app = await NestFactory.create<NestExpressApplication>(AppModule.forRoot(config, cliente, pool, logger), { bufferLogs: true })
   app.use(contextMiddleware)
   app.use(httpMetricsMiddleware(medidor))
   app.useLogger(new NestLogger(logger))

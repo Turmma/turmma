@@ -7,16 +7,16 @@ const BYTES_DO_IV = 12
 const BYTES_DA_ETIQUETA = 16
 
 /** O segredo cifrado, como `conta.mfa_segredo_cifrado` e `conta.mfa_chave_versao` o guardam. */
-export interface SegredoCifrado {
+export interface CipheredSecret {
   readonly cifrado: Buffer
   readonly versao: number
 }
 
 /** O segredo não decifra: chave de outra versão, bytes alterados, ou segredo copiado de outra conta. */
-export class SegredoNaoDecifra extends Error {
+export class SecretDecryptionError extends Error {
   constructor() {
     super('segredo do MFA não decifra')
-    this.name = 'SegredoNaoDecifra'
+    this.name = 'SecretDecryptionError'
   }
 }
 
@@ -31,7 +31,7 @@ export class SegredoNaoDecifra extends Error {
  * - **Versão:** o segredo novo sai sempre com a versão atual; o antigo decifra com a chave da versão dele, enquanto ela
  *   estiver declarada no ambiente.
  */
-export class CifraDoSegredo {
+export class SecretCipher {
   constructor(
     private readonly versaoAtual: number,
     private readonly chaves: ReadonlyMap<number, Uint8Array>,
@@ -39,7 +39,7 @@ export class CifraDoSegredo {
     if (!chaves.has(versaoAtual)) throw new InvariantException('chave de cifra da versão atual ausente')
   }
 
-  cifrar(segredo: Uint8Array, contaId: string): SegredoCifrado {
+  cifrar(segredo: Uint8Array, contaId: string): CipheredSecret {
     const iv = randomBytes(BYTES_DO_IV)
     const cifra = createCipheriv('aes-256-gcm', this.#chave(this.versaoAtual), iv, { authTagLength: BYTES_DA_ETIQUETA })
     cifra.setAAD(dadoAutenticado(contaId))
@@ -47,10 +47,10 @@ export class CifraDoSegredo {
     return { cifrado: Buffer.concat([iv, cifra.getAuthTag(), texto]), versao: this.versaoAtual }
   }
 
-  /** Os bytes do segredo, ou `SegredoNaoDecifra`: nunca devolve um segredo que não seja o gravado para esta conta. */
-  decifrar(gravado: SegredoCifrado, contaId: string): Uint8Array {
+  /** Os bytes do segredo, ou `SecretDecryptionError`: nunca devolve um segredo que não seja o gravado para esta conta. */
+  decifrar(gravado: CipheredSecret, contaId: string): Uint8Array {
     const chave = this.chaves.get(gravado.versao)
-    if (chave === undefined || gravado.cifrado.length <= BYTES_DO_IV + BYTES_DA_ETIQUETA) throw new SegredoNaoDecifra()
+    if (chave === undefined || gravado.cifrado.length <= BYTES_DO_IV + BYTES_DA_ETIQUETA) throw new SecretDecryptionError()
     const iv = gravado.cifrado.subarray(0, BYTES_DO_IV)
     const etiqueta = gravado.cifrado.subarray(BYTES_DO_IV, BYTES_DO_IV + BYTES_DA_ETIQUETA)
     const texto = gravado.cifrado.subarray(BYTES_DO_IV + BYTES_DA_ETIQUETA)
@@ -60,7 +60,7 @@ export class CifraDoSegredo {
       decifra.setAuthTag(etiqueta)
       return new Uint8Array(Buffer.concat([decifra.update(texto), decifra.final()]))
     } catch {
-      throw new SegredoNaoDecifra()
+      throw new SecretDecryptionError()
     }
   }
 

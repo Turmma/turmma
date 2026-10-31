@@ -4,7 +4,7 @@ import type { Redis } from 'ioredis'
 import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
-import { CLIENTE_REDIS_LOGIN, HashDeSenha } from '../src/credencial/index.js'
+import { REDIS_LOGIN_CLIENT, PasswordHasher } from '../src/credencial/index.js'
 import { chamar, comoAWebNo503, subirApi, type ApiDeTeste } from './test-api.js'
 import { alunosNaTurma, montarEscolaComTurma } from './escola-turma.fixture.js'
 import { BancadaDeSessoes } from './sessao.fixture.js'
@@ -45,7 +45,7 @@ describe('POST /v1/sessao/matricula: o aluno entra pelo endereço da escola com 
   /** Matrículas raras e slugs digitados que passaram pelo login: nenhum pode aparecer no log. */
   const naoPodemIrAoLog = new Set<string>()
   let api: ApiDeTeste
-  let hash: HashDeSenha
+  let hash: PasswordHasher
   let verificacoes: ReturnType<typeof vi.spyOn>
   let hashDeA: string
   let hashDeB: string
@@ -54,9 +54,9 @@ describe('POST /v1/sessao/matricula: o aluno entra pelo endereço da escola com 
     // Quatro hashes ao mesmo tempo, as quatro threads do libuv que o processo do vitest tem: a rajada de 400 roda com a
     // vazão que tinha antes do semáforo (14.0). O semáforo com teto baixo tem prova própria (login-bulkhead.int.test.ts).
     api = await subirApi(medidor.medidor, { ambiente: { LOGIN_HASH_CONCORRENCIA: '4' } }, linhasDeLog)
-    hash = api.app.get(HashDeSenha)
+    hash = api.app.get(PasswordHasher)
     verificacoes = vi.spyOn(hash, 'verificar')
-    await clientePronto(api.app.get<Redis>(CLIENTE_REDIS_LOGIN, { strict: false }))
+    await clientePronto(api.app.get<Redis>(REDIS_LOGIN_CLIENT, { strict: false }))
     hashDeA = await hash.gerar(SENHA_DE_A)
     hashDeB = await hash.gerar(SENHA_DE_B)
   })

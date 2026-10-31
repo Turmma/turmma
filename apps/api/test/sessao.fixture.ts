@@ -4,8 +4,8 @@ import { randomUUID } from 'node:crypto'
 import { lerAmbienteDeTeste } from '../../../tools/ci/compose.ts'
 import { urlDoBancoDeTeste } from '../../../tools/testes/integracao.setup.ts'
 import { criarEscola, criarRede } from '../src/operacao/escola/escola.js'
-import { CriacaoDeSessaoRepository } from '../src/credencial/index.js'
-import { type AlunoComMatriculaSintetico, criarAlunosComMatricula, criarSessoesSinteticas, emissorDeTokenSintetico, NOME_SINTETICO } from '../src/sessao/index.js'
+import { SessaoCreateRepository } from '../src/credencial/index.js'
+import { type AlunoComMatriculaSintetico, criarAlunosComMatricula, createSyntheticSessions, syntheticTokenIssuer, NOME_SINTETICO } from '../src/sessao/index.js'
 
 /** O operador que os testes gravam na auditoria da rede e da escola que criam. */
 export const OPERADOR_DE_TESTE = 'teste-integracao'
@@ -106,14 +106,14 @@ export class BancadaDeSessoes {
 
   /** `quantidade` sessões na escola, cada uma de um usuário novo com o papel pedido (aluno, se nada for dito). */
   async sessoes(escolaId: string, { papel = 'aluno', quantidade = 1 }: OpcoesDeSessao = {}): Promise<SessaoDeTeste[]> {
-    const emissor = emissorDeTokenSintetico(this.#ambiente)
-    const criadas = await criarSessoesSinteticas(this.banco, this.#ambiente, { escolaId, papel, quantidade })
+    const emissor = syntheticTokenIssuer(this.#ambiente)
+    const criadas = await createSyntheticSessions(this.banco, this.#ambiente, { escolaId, papel, quantidade })
     return criadas.map((criada) => ({
       escolaId,
       ...criada,
       tokenNovo: async () => (await emissor.emitir({ escolaId, usuarioId: criada.usuarioId, sessaoId: criada.sessaoId })).token,
       tokenEm: async (agora: Date) =>
-        (await emissorDeTokenSintetico(this.#ambiente, { agora: () => agora }).emitir({ escolaId, usuarioId: criada.usuarioId, sessaoId: criada.sessaoId })).token,
+        (await syntheticTokenIssuer(this.#ambiente, { agora: () => agora }).emitir({ escolaId, usuarioId: criada.usuarioId, sessaoId: criada.sessaoId })).token,
     }))
   }
 
@@ -134,7 +134,7 @@ export class BancadaDeSessoes {
     const contaId = origem.conta_id
     const criada = await runInContext({ requisicaoId: randomUUID(), escolaId }, () =>
       this.banco.transaction(async (tx) => {
-        const criacao = new CriacaoDeSessaoRepository(tx)
+        const criacao = new SessaoCreateRepository(tx)
         const [usuario] = await criacao.criarUsuarios([{ contaId, papel: origem.papel, nome: NOME_SINTETICO }])
         if (usuario === undefined) throw new Error('usuário não criado')
         const [sessao] = await criacao.criarSessoes([{ usuarioId: usuario.id, contaId, metodo: 'email', refreshHash: randomUUID(), duracaoHoras: DURACAO_DA_SESSAO_HORAS }])
@@ -142,7 +142,7 @@ export class BancadaDeSessoes {
         return { usuarioId: usuario.id, sessaoId: sessao.id }
       }),
     )
-    return (await emissorDeTokenSintetico(this.#ambiente).emitir({ escolaId, ...criada })).token
+    return (await syntheticTokenIssuer(this.#ambiente).emitir({ escolaId, ...criada })).token
   }
 
   /** Alunos com credencial por matrícula na escola, pelo seed sintético da 11.0; os ids voltam na ordem pedida. */

@@ -15,9 +15,9 @@ import { pathToFileURL } from 'node:url'
 import { parseArgs } from 'node:util'
 import { z } from 'zod'
 import { AcessoDaEscolaRepository } from '../credencial/index.js'
-import { abrirBancoDeOperacao, ArgumentoInvalido, autorDoComando, lerOperador, OperadorRecusado, type BancoDoComando, type SaidaDoComando } from './command.js'
+import { abrirBancoDeOperacao, InvalidArgumentError, autorDoComando, lerOperador, OperadorRejectedError, type CommandDatabase, type CommandOutput } from './command.js'
 import { OperacaoPrivacidadeRepository, type SecaoDoIncidente } from './operacao-privacidade.repository.js'
-import type { ConferenciaDoAutor } from '../sessao/index.js'
+import type { AuthorCheck } from '../sessao/index.js'
 
 const registro = new AuditoriaRecorder()
 
@@ -61,19 +61,19 @@ export const TAMANHO_MAXIMO_DO_ARQUIVO_DE_INCIDENTE = 256 * 1024
 /** Texto de seção: sem caractere de controle, salvo a quebra de linha e a tabulação. */
 const SEM_CONTROLE = /^(?:[^\p{Cc}]|[\n\r\t])+$/u
 
-const esquemaTexto = z.string().trim().min(1).max(MAXIMO_DO_TEXTO_DO_INCIDENTE).regex(SEM_CONTROLE)
-const esquemaSecao = z.strictObject({
+const textoSchema = z.string().trim().min(1).max(MAXIMO_DO_TEXTO_DO_INCIDENTE).regex(SEM_CONTROLE)
+const secaoSchema = z.strictObject({
   escola: z.uuid(),
-  circunstancias: esquemaTexto,
+  circunstancias: textoSchema,
   categorias: z.array(z.enum(CHAVES_DE_CATEGORIA_DO_INCIDENTE)).min(1),
   titularesEstimados: z.number().int().min(0).max(MAXIMO_DE_TITULARES_ESTIMADOS),
   risco: z.enum(RISCOS_DO_INCIDENTE),
-  contencao: esquemaTexto,
-  correcao: esquemaTexto,
+  contencao: textoSchema,
+  correcao: textoSchema,
 })
-const esquemaArquivo = z.strictObject({
+const arquivoSchema = z.strictObject({
   conhecidoEm: z.iso.datetime({ offset: true }),
-  escolas: z.array(esquemaSecao).min(1).max(MAXIMO_DE_ESCOLAS_DO_INCIDENTE),
+  escolas: z.array(secaoSchema).min(1).max(MAXIMO_DE_ESCOLAS_DO_INCIDENTE),
 })
 
 function lerOpcoes(argumentos: string[]) {
@@ -81,18 +81,18 @@ function lerOpcoes(argumentos: string[]) {
     return parseArgs({ args: argumentos, options: { arquivo: { type: 'string' } }, strict: true, allowPositionals: true })
   } catch {
     // O erro do parseArgs repete o argumento recebido; a mensagem fica só com as opções aceitas.
-    throw new ArgumentoInvalido('--arquivo')
+    throw new InvalidArgumentError('--arquivo')
   }
 }
 
-/** O conteúdo do arquivo, ou `ArgumentoInvalido` sem o caminho nem o conteúdo: o motivo vai entre parênteses, em texto fixo. */
+/** O conteúdo do arquivo, ou `InvalidArgumentError` sem o caminho nem o conteúdo: o motivo vai entre parênteses, em texto fixo. */
 async function lerArquivo(caminho: string): Promise<string> {
   try {
-    if ((await stat(caminho)).size > TAMANHO_MAXIMO_DO_ARQUIVO_DE_INCIDENTE) throw new ArgumentoInvalido('--arquivo (maior que 256 KB)')
+    if ((await stat(caminho)).size > TAMANHO_MAXIMO_DO_ARQUIVO_DE_INCIDENTE) throw new InvalidArgumentError('--arquivo (maior que 256 KB)')
     return await readFile(caminho, 'utf8')
   } catch (erro) {
-    if (erro instanceof ArgumentoInvalido) throw erro
-    throw new ArgumentoInvalido('--arquivo (não foi possível ler o arquivo)')
+    if (erro instanceof InvalidArgumentError) throw erro
+    throw new InvalidArgumentError('--arquivo (não foi possível ler o arquivo)')
   }
 }
 
@@ -102,24 +102,24 @@ async function lerArquivo(caminho: string): Promise<string> {
  */
 export async function lerPedidoDeIncidente(argumentos: string[]): Promise<PedidoDeIncidente> {
   const { values: valores, positionals: posicionais } = lerOpcoes(argumentos)
-  if (posicionais.join(' ') !== 'registrar') throw new ArgumentoInvalido('comando (registrar)')
-  if (valores.arquivo === undefined || valores.arquivo === '') throw new ArgumentoInvalido('--arquivo')
+  if (posicionais.join(' ') !== 'registrar') throw new InvalidArgumentError('comando (registrar)')
+  if (valores.arquivo === undefined || valores.arquivo === '') throw new InvalidArgumentError('--arquivo')
   let bruto: unknown
   try {
     bruto = JSON.parse(await lerArquivo(valores.arquivo))
   } catch (erro) {
-    if (erro instanceof ArgumentoInvalido) throw erro
-    throw new ArgumentoInvalido('--arquivo (não é um JSON válido)')
+    if (erro instanceof InvalidArgumentError) throw erro
+    throw new InvalidArgumentError('--arquivo (não é um JSON válido)')
   }
-  const lido = esquemaArquivo.safeParse(bruto)
+  const lido = arquivoSchema.safeParse(bruto)
   if (!lido.success) {
     const campo = lido.error.issues[0]?.path.join('.') ?? ''
-    throw new ArgumentoInvalido(`--arquivo (campo inválido: ${campo === '' ? 'raiz' : campo})`)
+    throw new InvalidArgumentError(`--arquivo (campo inválido: ${campo === '' ? 'raiz' : campo})`)
   }
   const conhecidoEm = new Date(lido.data.conhecidoEm)
-  if (conhecidoEm.getTime() > Date.now()) throw new ArgumentoInvalido('--arquivo (campo inválido: conhecidoEm no futuro)')
+  if (conhecidoEm.getTime() > Date.now()) throw new InvalidArgumentError('--arquivo (campo inválido: conhecidoEm no futuro)')
   const secoes = lido.data.escolas.map(({ escola, ...resto }) => ({ ...resto, escolaId: escola.toLowerCase(), categorias: [...new Set(resto.categorias)] }))
-  if (new Set(secoes.map((secao) => secao.escolaId)).size !== secoes.length) throw new ArgumentoInvalido('--arquivo (escola repetida)')
+  if (new Set(secoes.map((secao) => secao.escolaId)).size !== secoes.length) throw new InvalidArgumentError('--arquivo (escola repetida)')
   return { comando: 'registrar', conhecidoEm, secoes }
 }
 
@@ -163,7 +163,7 @@ export function citaOutraEscola(texto: string, propria: EscolaDoIncidente, outra
  * Registra o incidente, escreve a seção de cada escola no contexto dela e grava `incidente.registrado` na auditoria da escola, numa
  * transação só, com o autor conferido como primeira instrução. Devolve o id do incidente e quantas escolas ele alcançou.
  */
-export function registrarIncidente(banco: Database, autor: ConferenciaDoAutor, pedido: PedidoDeIncidente): Promise<{ incidenteId: string; escolas: number }> {
+export function registrarIncidente(banco: Database, autor: AuthorCheck, pedido: PedidoDeIncidente): Promise<{ incidenteId: string; escolas: number }> {
   const requisicaoId = randomUUID()
   return runInContext({ requisicaoId }, () =>
     banco.transaction(async (tx) => {
@@ -179,7 +179,7 @@ export function registrarIncidente(banco: Database, autor: ConferenciaDoAutor, p
         if (propria === undefined) throw new InvariantException('escola sem nome lido')
         const outras = nomes.filter((_, outra) => outra !== posicao)
         if ([secao.circunstancias, secao.contencao, secao.correcao].some((texto) => citaOutraEscola(texto, propria, outras))) {
-          throw new ArgumentoInvalido(`--arquivo (a seção ${posicao + 1} cita o nome ou o id de outra escola afetada)`)
+          throw new InvalidArgumentError(`--arquivo (a seção ${posicao + 1} cita o nome ou o id de outra escola afetada)`)
         }
       })
       const repositorio = new OperacaoPrivacidadeRepository(tx)
@@ -213,8 +213,8 @@ const MENSAGEM_DO_OPERADOR: Partial<Record<ErrorCode, string>> = {
 export async function executarOpsIncidente(
   argumentos: string[],
   ambiente: Record<string, string | undefined>,
-  terminal: SaidaDoComando,
-  abrirBanco: (ambiente: Record<string, string | undefined>) => BancoDoComando = abrirBancoDeOperacao,
+  terminal: CommandOutput,
+  abrirBanco: (ambiente: Record<string, string | undefined>) => CommandDatabase = abrirBancoDeOperacao,
 ): Promise<number> {
   try {
     const pedido = await lerPedidoDeIncidente(argumentos)
@@ -228,7 +228,7 @@ export async function executarOpsIncidente(
       await fechar()
     }
   } catch (erro) {
-    if (erro instanceof ArgumentoInvalido || erro instanceof InvalidConfigError || erro instanceof OperadorRecusado) {
+    if (erro instanceof InvalidArgumentError || erro instanceof InvalidConfigError || erro instanceof OperadorRejectedError) {
       // Só o nome da opção ou da variável, e a posição da seção: nunca o valor.
       terminal.erro(`${erro.message}\n`)
       return 2

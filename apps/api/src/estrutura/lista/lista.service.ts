@@ -16,7 +16,7 @@ import {
   type PreviaDaListaResponse,
 } from '@educa/shared'
 import { paginar } from '../../http/pagination.js'
-import { errosDasLinhas, lerTextoDaLista, type LinhaLida } from './lista-reader.js'
+import { errosDasLinhas, lerTextoDaLista, type ParsedRow } from './lista-reader.js'
 import { ListaRepository } from './lista.repository.js'
 import { TurmaRepository } from '../turma/turma.repository.js'
 
@@ -35,7 +35,7 @@ const registro = new AuditoriaRecorder()
  * credencial num commit só, e o comando da lista, anterior a ele, ainda a acha na lista; o da credencial, posterior, já a
  * acha na credencial. A matrícula que está sendo aprovada nunca sai `entra` (C12).
  */
-async function classificar(lista: ListaRepository, turmaId: string, linhas: readonly LinhaLida[], errosDoTexto: ReadonlyArray<ErroDaLinhaDaLista | undefined>): Promise<PreviaRow[]> {
+async function classificar(lista: ListaRepository, turmaId: string, linhas: readonly ParsedRow[], errosDoTexto: ReadonlyArray<ErroDaLinhaDaLista | undefined>): Promise<PreviaRow[]> {
   const procuradas = linhas.map((linha) => linha.matricula)
   const turmaDaMatricula = new Map((await lista.naLista(procuradas)).map(({ matricula, turmaId: daLista }) => [matricula, daLista]))
   const deAluno = new Set(await lista.comCredencial(procuradas))

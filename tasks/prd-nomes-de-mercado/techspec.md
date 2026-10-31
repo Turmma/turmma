@@ -127,6 +127,12 @@ ela inteira, e os demais contra ela sem essas pastas e sem `dist/`. Saída não 
 
 As linhas da adenda 2 entram na onda do caminho delas.
 
+Na linha back, o rename de símbolo da api alcança quem o chama fora de `apps/api/` (o `main.ts` que chama
+`AppModule.forRoot`), o comentário que o cita em `packages/core/` ou na web, e o homônimo com o mesmo destino em outro
+app. Esses arquivos entram nomeados nos previstos da onda, desde que não estejam nos da tarefa da outra linha. O
+comentário de uma linha só, com duas linhas sem mudança até o que a outra tarefa renomeia, também entra. Fora disso, é
+divergência (triagem da 7.0, 31/10/2026).
+
 Os arquivos dos apps vêm antes das linhas porque o rename de arquivo mexe na configuração da raiz. As linhas só renomeiam símbolo, separadas pelo `--escopo` e pelo `linhas.ts`;
 trava de `tools/` nas duas é divergência.
 

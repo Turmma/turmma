@@ -16,7 +16,7 @@ import {
 } from '@educa/shared'
 import type { RespostasDaTentativa } from './correcao-de-objetiva.js'
 import { CorrecaoRepository, type CorrecaoLida, type LoteLido, type ValidacaoLida } from './correcao.repository.js'
-import type { LeituraDoLote } from './lote-read-marker.js'
+import type { LoteReadMarker } from './lote-read-marker.js'
 import { loteApresentado, marcaDoApresentado } from './lote.js'
 
 const registro = new AuditoriaRecorder()
@@ -77,7 +77,7 @@ const respostasCorrigidas = (questoes: readonly QuestaoObjetiva[], respostas: Re
  * - **O que a validação guarda é montado no servidor**, das linhas de `correcao`, pela mesma função que monta o que
  *   `GET …/correcao` mostra. O corpo da aprovação é vazio e estrito: nada do cliente entra no registro.
  * - **A aprovação exige a leitura**: a professora precisa ter recebido a correção deste lote, e o que ela recebeu
- *   precisa ser o que o servidor monta agora (`LeituraDoLote`). Sem isso, `CONFLITO`, e nada é gravado.
+ *   precisa ser o que o servidor monta agora (`LoteReadMarker`). Sem isso, `CONFLITO`, e nada é gravado.
  * - **A aprovação exige todos os destaques abertos**: sem isso, `DESTAQUES_NAO_ABERTOS`, sem validação gravada e com
  *   a entrega ainda pendente. O gatilho do banco é a segunda barreira.
  * - **Validação e aprovação na mesma transação**, com a entrega travada: dois cliques gravam uma validação, uma
@@ -88,7 +88,7 @@ const respostasCorrigidas = (questoes: readonly QuestaoObjetiva[], respostas: Re
 export class CorrecaoService {
   constructor(
     private readonly banco: Database,
-    private readonly leitura: LeituraDoLote,
+    private readonly leitura: LoteReadMarker,
   ) {}
 
   async #montar(correcoes: CorrecaoRepository, lote: LoteLido): Promise<LoteMontado> {

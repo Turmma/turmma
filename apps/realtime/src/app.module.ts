@@ -11,7 +11,7 @@ export const POOL_BANCO_REALTIME = Symbol('POOL_BANCO_REALTIME')
 
 @Module({})
 export class AppModule implements OnApplicationShutdown {
-  static com(config: ConfiguracaoRealtime, cliente: Redis, pool: DatabasePool, logger: LoggerBase): DynamicModule {
+  static forRoot(config: ConfiguracaoRealtime, cliente: Redis, pool: DatabasePool, logger: LoggerBase): DynamicModule {
     return {
       module: AppModule,
       controllers: [ProntidaoController],

@@ -5,7 +5,7 @@ import { METRICS, type Meter } from '@educa/core'
  * (`/sessao/email`) ou pelo código (`/sessao/mfa`), conta uma vez. Um contador só, criado uma vez no módulo e dividido
  * pelas duas rotas: a leitura por minuto do painel é a soma das duas etapas. Sem rótulo: nada da pessoa nem do operador.
  */
-export class FalhasDeEntradaDaOperacao {
+export class OperacaoLoginFailureCounter {
   readonly #contador: ReturnType<Meter['createCounter']>
 
   constructor(medidor: Meter) {

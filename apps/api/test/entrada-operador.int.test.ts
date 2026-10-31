@@ -9,14 +9,14 @@ import type { AddressInfo } from 'node:net'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { AppModule } from '../src/app.module.js'
-import { BANCO } from '../src/database.module.js'
-import type { ConfiguracaoApi } from '../src/config.js'
-import { configurarAplicacao } from '../src/configure-app.js'
-import { verificarDesafioDeOperador } from '../src/operacao/operador-challenge.js'
-import { COOKIE_DISPOSITIVO_DE_OPERADOR, cookieDeDispositivoDeOperador } from '../src/operacao/operador-device-cookie.js'
+import { DB } from '../src/database.module.js'
+import type { ApiConfig } from '../src/config.js'
+import { configureApp } from '../src/configure-app.js'
+import { verifyOperadorChallenge } from '../src/operacao/operador-challenge.js'
+import { OPERADOR_DEVICE_COOKIE, operadorDeviceCookie } from '../src/operacao/operador-device-cookie.js'
 import { PREFIXO_DO_CONTADOR_DA_OPERACAO } from '../src/operacao/entrada/entrada.service.js'
 import { gerarConviteDeOperador } from '../src/ops/operador.js'
-import { CLIENTE_REDIS_LOGIN, ContadorDeTentativas, COOKIE_DISPOSITIVO, CookieDeDispositivo, HashDeSenha, SemaforoDeHash } from '../src/credencial/index.js'
+import { REDIS_LOGIN_CLIENT, LoginLockout, DEVICE_COOKIE, DeviceCookie, PasswordHasher, HashBulkhead } from '../src/credencial/index.js'
 import { configuracaoDeTeste, MONTAGEM_DE_TESTE } from './test-config.js'
 import { BancadaDeOperadores } from './operador-session.fixture.js'
 import { BancadaDeSessoes } from './sessao.fixture.js'
@@ -79,12 +79,12 @@ function esperarSegurada(resposta: Resposta, retryAfter?: number): void {
  */
 const ipSorteado = () => `10.${[...randomBytes(3)].join('.')}`
 
-async function subir(config: ConfiguracaoApi, opcoes: { medidor?: MedidorDeTeste; linhasDeLog?: string[] } = {}): Promise<{ app: INestApplication; url: string }> {
+async function subir(config: ApiConfig, opcoes: { medidor?: MedidorDeTeste; linhasDeLog?: string[] } = {}): Promise<{ app: INestApplication; url: string }> {
   const medidor = opcoes.medidor?.medidor
-  const app = await NestFactory.create(AppModule.com(config, { ...MONTAGEM_DE_TESTE, ...(medidor === undefined ? {} : { medidor }) }), { logger: false })
+  const app = await NestFactory.create(AppModule.forRoot(config, { ...MONTAGEM_DE_TESTE, ...(medidor === undefined ? {} : { medidor }) }), { logger: false })
   const linhas = opcoes.linhasDeLog
   const logger = linhas === undefined ? createLogger({ servico: 'api-teste', nivel: 'silent' }) : createLogger({ servico: 'api-teste', nivel: 'trace', destino: { write: (linha: string) => linhas.push(linha) } })
-  configurarAplicacao(app, logger, medidor)
+  configureApp(app, logger, medidor)
   await app.listen(0, '127.0.0.1')
   return { app, url: `http://127.0.0.1:${(app.getHttpServer().address() as AddressInfo).port}` }
 }
@@ -116,14 +116,14 @@ describe('POST /v1/operacao/sessao/email: o operador entra por e-mail e senha (t
   let app: INestApplication
   let url: string
   let banco: Database
-  let hash: HashDeSenha
+  let hash: PasswordHasher
   let autor: string
   let verificacoes: ReturnType<typeof vi.spyOn>
 
   beforeAll(async () => {
     ;({ app, url } = await subir(config, { medidor, linhasDeLog }))
-    banco = app.get<Database>(BANCO)
-    hash = app.get(HashDeSenha)
+    banco = app.get<Database>(DB)
+    hash = app.get(PasswordHasher)
     autor = (await operadores.operador()).apelido
     verificacoes = vi.spyOn(hash, 'verificar')
   })
@@ -171,13 +171,13 @@ describe('POST /v1/operacao/sessao/email: o operador entra por e-mail e senha (t
       expect(resposta.setCookie).toEqual([])
       const corpo = entradaDeOperadorResponseSchema.parse(resposta.corpo)
       expect(corpo.etapa).toBe('configurar_mfa')
-      expect(await verificarDesafioDeOperador(corpo.desafio, config.identidade.chaveAssinatura, 'configurar_mfa')).toMatchObject({ operadorId: semSegundoFator.operadorId })
+      expect(await verifyOperadorChallenge(corpo.desafio, config.identidade.chaveAssinatura, 'configurar_mfa')).toMatchObject({ operadorId: semSegundoFator.operadorId })
 
       const comSegundoFator = await operadorComSenha()
       await ativarSegundoFator(comSegundoFator.operadorId)
       const comMfa = entradaDeOperadorResponseSchema.parse((await entrar(comSegundoFator.email, SENHA)).corpo)
       expect(comMfa.etapa).toBe('mfa')
-      expect(await verificarDesafioDeOperador(comMfa.desafio, config.identidade.chaveAssinatura, 'mfa')).toMatchObject({ operadorId: comSegundoFator.operadorId })
+      expect(await verifyOperadorChallenge(comMfa.desafio, config.identidade.chaveAssinatura, 'mfa')).toMatchObject({ operadorId: comSegundoFator.operadorId })
       // Nenhuma sessão nasce na entrada: ela só existe depois do segundo fator (7.0).
       const { rows } = await operadores.pool.query<{ total: number }>('select count(*)::int as total from sessao_operador where operador_id = any($1::uuid[])', [[semSegundoFator.operadorId, comSegundoFator.operadorId]])
       expect(rows[0]?.total).toBe(0)
@@ -320,14 +320,14 @@ describe('POST /v1/operacao/sessao/email: o operador entra por e-mail e senha (t
       for (let falha = 1; falha <= 4; falha++) esperarNaoAutenticado(await entrar(operador.email, SENHA_ERRADA, doIp(ip)))
       esperarSegurada(await entrar(operador.email, SENHA_ERRADA, doIp(ip)), 30)
 
-      const doOperador = cookieDeDispositivoDeOperador(config.login.dispositivo).comEntrada(undefined, operador.email)
-      const daEscola = new CookieDeDispositivo(config.login.dispositivo.versao, config.login.dispositivo.chave).comEntrada(undefined, operador.email)
+      const doOperador = operadorDeviceCookie(config.login.dispositivo).comEntrada(undefined, operador.email)
+      const daEscola = new DeviceCookie(config.login.dispositivo.versao, config.login.dispositivo.chave).comEntrada(undefined, operador.email)
       // A entrada da escola para o mesmo e-mail, com o nome do cookie do operador: a chave é outra, e vale como vazio.
-      esperarSegurada(await entrar(operador.email, SENHA, doIp(ip, `${COOKIE_DISPOSITIVO_DE_OPERADOR}=${daEscola}`)))
+      esperarSegurada(await entrar(operador.email, SENHA, doIp(ip, `${OPERADOR_DEVICE_COOKIE}=${daEscola}`)))
       // A entrada do operador, com o nome do cookie da escola: não é lida.
-      esperarSegurada(await entrar(operador.email, SENHA, doIp(ip, `${COOKIE_DISPOSITIVO}=${doOperador}`)))
+      esperarSegurada(await entrar(operador.email, SENHA, doIp(ip, `${DEVICE_COOKIE}=${doOperador}`)))
       // O aparelho de sempre entra, do mesmo IP.
-      const doAparelho = await entrar(operador.email, SENHA, doIp(ip, `${COOKIE_DISPOSITIVO_DE_OPERADOR}=${doOperador}`))
+      const doAparelho = await entrar(operador.email, SENHA, doIp(ip, `${OPERADOR_DEVICE_COOKIE}=${doOperador}`))
       expect(doAparelho.status).toBe(200)
       expect(entradaDeOperadorResponseSchema.parse(doAparelho.corpo).etapa).toBe('configurar_mfa')
     })
@@ -365,8 +365,8 @@ describe('POST /v1/operacao/sessao/email: o operador entra por e-mail e senha (t
       const operador = await operadorComSenha()
       const ip = ipSorteado()
       // O contador da conta, no Redis de fila (A0b, tarefa 9.0): a prova direta, além da resposta das tentativas seguintes.
-      const chave = app.get(ContadorDeTentativas).chaveDe(operador.email, 'outro', PREFIXO_DO_CONTADOR_DA_OPERACAO)
-      const falhasNoContador = () => app.get<Redis>(CLIENTE_REDIS_LOGIN, { strict: false }).hget(chave, 'falhas')
+      const chave = app.get(LoginLockout).chaveDe(operador.email, 'outro', PREFIXO_DO_CONTADOR_DA_OPERACAO)
+      const falhasNoContador = () => app.get<Redis>(REDIS_LOGIN_CLIENT, { strict: false }).hget(chave, 'falhas')
       for (let falha = 1; falha <= 4; falha++) esperarNaoAutenticado(await entrar(operador.email, SENHA_ERRADA, doIp(ip)))
       expect(await falhasNoContador()).toBe('4')
       expect((await entrar(operador.email, SENHA, doIp(ip))).status).toBe(200)
@@ -419,7 +419,7 @@ describe('POST /v1/operacao/sessao/email: o limite por IP rebaixa, e quem recusa
 
   beforeAll(async () => {
     ;({ app, url } = await subir(config))
-    banco = app.get<Database>(BANCO)
+    banco = app.get<Database>(DB)
     autor = (await operadores.operador()).apelido
   })
 
@@ -435,7 +435,7 @@ describe('POST /v1/operacao/sessao/email: o limite por IP rebaixa, e quem recusa
   it('acima do limite do IP nada recebe 429 LIMITE_EXCEDIDO: a tentativa vai para o fim do balde; a conta é segurada pelo contador (CONTA_SEGURADA); quem traz o cookie do operador e o outro IP mantêm a vez', async () => {
     const [ip, outro] = [ipSorteado(), ipSorteado()]
     const [segurada, certa, comAparelho, deFora] = [await operadorComSenha(), await operadorComSenha(), await operadorComSenha(), await operadorComSenha()]
-    const semaforo = app.get(SemaforoDeHash)
+    const semaforo = app.get(HashBulkhead)
     const vezes = vi.spyOn(semaforo, 'executar')
     try {
       // O dobro do limite, com e-mails que não existem, cada um o seu: nenhum 429, todos 401.
@@ -447,7 +447,7 @@ describe('POST /v1/operacao/sessao/email: o limite por IP rebaixa, e quem recusa
       esperarSegurada(await entrar(segurada.email, SENHA_ERRADA, doIp(ip)), 30)
 
       vezes.mockClear()
-      const cookie = `${COOKIE_DISPOSITIVO_DE_OPERADOR}=${cookieDeDispositivoDeOperador(config.login.dispositivo).comEntrada(undefined, comAparelho.email)}`
+      const cookie = `${OPERADOR_DEVICE_COOKIE}=${operadorDeviceCookie(config.login.dispositivo).comEntrada(undefined, comAparelho.email)}`
       expect((await entrar(certa.email, SENHA, doIp(ip))).status).toBe(200)
       expect((await entrar(comAparelho.email, SENHA, doIp(ip, cookie))).status).toBe(200)
       expect((await entrar(deFora.email, SENHA, doIp(outro))).status).toBe(200)

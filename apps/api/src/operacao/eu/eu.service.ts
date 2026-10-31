@@ -3,7 +3,7 @@ import { ErrorCode, euDoOperadorResponseSchema, type EuDoOperadorResponse } from
 import type { OperadorRepository } from '../operador/operador.repository.js'
 
 /** `GET /v1/operacao/eu`: o apelido e o nome do operador da sessão, pelo contrato estrito de `packages/shared`. */
-export class EuDoOperadorService {
+export class OperadorMeService {
   constructor(private readonly operadores: Pick<OperadorRepository, 'daSessao'>) {}
 
   async obter(): Promise<EuDoOperadorResponse> {

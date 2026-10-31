@@ -10,8 +10,8 @@ import { MedidorDeTeste, NOMES_NO_PROMETHEUS } from '../../tools/testes/metricas
 import { metricasDa } from '../../tools/testes/promql.ts'
 import { ITERACOES_MINIMAS_ARGON2, THREADS_DE_FOLGA_DO_LIBUV } from '../../apps/api/src/credencial/login-config.ts'
 import { lerEscolaARevogar, OPCAO_DA_ESCOLA } from '../../apps/api/src/ops/revogar-acessos-sala.ts'
-import { EVENTO_DO_LIMITE_DA_SALA, JANELA_DOS_LIMITES_DA_SALA_MS, LimitesDaSala, TETO_DE_CODIGOS_ERRADOS_POR_ESCOLA } from '../../apps/api/src/sala/sala-rate-limits.ts'
-import { ContadorEmJanela } from '../../apps/api/src/credencial/senha/window-counter.ts'
+import { EVENTO_DO_LIMITE_DA_SALA, JANELA_DOS_LIMITES_DA_SALA_MS, SalaRateLimits, TETO_DE_CODIGOS_ERRADOS_POR_ESCOLA } from '../../apps/api/src/sala/sala-rate-limits.ts'
+import { WindowCounter } from '../../apps/api/src/credencial/senha/window-counter.ts'
 import { LIMITES_DO_HISTOGRAMA_HTTP_S } from '../../packages/core/src/telemetry/metrics.ts'
 import { HORAS_EM_PREPARACAO_PARA_ALERTAR } from '../../packages/shared/src/privacidade/arquivo.ts'
 import { HORAS_AGENDADO_PARA_ALERTAR } from '../../packages/shared/src/privacidade/titular.ts'
@@ -170,11 +170,11 @@ describe('regras de alerta provisionadas', () => {
     const linhas: unknown[] = []
     // O cliente fora do ar: só o `status` é lido antes de ir ao seguro.
     const foraDoAr = { status: 'end' } as Pick<Redis, 'status'> as Redis
-    const janela = new ContadorEmJanela(foraDoAr, new TextEncoder().encode('chave-de-teste-do-contador-com-32-bytes'), {
+    const janela = new WindowCounter(foraDoAr, new TextEncoder().encode('chave-de-teste-do-contador-com-32-bytes'), {
       janelaMs: JANELA_DOS_LIMITES_DA_SALA_MS,
       avisarSeguro: () => undefined,
     })
-    const limites = new LimitesDaSala({ janela, instancias: 1, medidor: medidor.medidor, logger: { warn: (linha: unknown) => void linhas.push(linha) }, esperar: async () => undefined })
+    const limites = new SalaRateLimits({ janela, instancias: 1, medidor: medidor.medidor, logger: { warn: (linha: unknown) => void linhas.push(linha) }, esperar: async () => undefined })
     const escolaId = randomUUID()
     try {
       for (let vez = 0; vez < TETO_DE_CODIGOS_ERRADOS_POR_ESCOLA; vez++) await limites.codigoErrado(escolaId)

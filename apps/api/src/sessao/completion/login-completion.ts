@@ -1,24 +1,24 @@
 import { currentContext, DURACAO_DA_SESSAO_HORAS, DomainException, runInContext, type Environment, type Database, type TokenIssuer, type MetodoDeSessao } from '@educa/core'
 import { ErrorCode, InvariantException, type EtapaComDesafio, type LoginResponse } from '@educa/shared'
 import { randomBytes, randomUUID } from 'node:crypto'
-import { MAX_AGE_DO_COOKIE_DISPOSITIVO_SEGUNDOS, type CookieDeDispositivo } from '../../credencial/device-cookie.js'
-import { COOKIE_DISPOSITIVO, COOKIE_SESSAO, lerCookie, serializarCookie } from '../../credencial/cookies.js'
-import { CriacaoDeSessaoRepository } from '../../credencial/sessao-create.repository.js'
-import type { EmissorDeDesafio, SessaoDeOrigemDaTroca } from '../../credencial/challenge.js'
+import { MAX_AGE_DO_COOKIE_DISPOSITIVO_SEGUNDOS, type DeviceCookie } from '../../credencial/device-cookie.js'
+import { DEVICE_COOKIE, SESSAO_COOKIE, lerCookie, serializarCookie } from '../../credencial/cookies.js'
+import { SessaoCreateRepository } from '../../credencial/sessao-create.repository.js'
+import type { ChallengeIssuer, SessaoDeOrigemDaTroca } from '../../credencial/challenge.js'
 import { BYTES_DO_REFRESH, hashDoRefresh } from '../../credencial/login-identifiers.js'
-import { ipParaRegistro, type OrigemDaRequisicao, type ResultadoDoLogin } from '../../credencial/request-origin.js'
+import { ipParaRegistro, type RequestOrigin, type ResultadoDoLogin } from '../../credencial/request-origin.js'
 import { RegistroDeAcessoRepository } from '../../credencial/registro-de-acesso.repository.js'
-import type { ResolucaoDeTenantRepository, UsuarioAtivoDaConta } from '../tenant/tenant-resolution.repository.js'
+import type { TenantResolutionRepository, UsuarioAtivoDaConta } from '../tenant/tenant-resolution.repository.js'
 import { SessaoDeOrigemRepository } from '../../credencial/sessao-de-origem.repository.js'
 
-export interface DependenciasDaConclusao {
+export interface LoginCompletionDependencies {
   readonly banco: Database
-  readonly dispositivo: CookieDeDispositivo
+  readonly dispositivo: DeviceCookie
   readonly emissorDeToken: TokenIssuer
-  readonly emissorDeDesafio: EmissorDeDesafio
+  readonly emissorDeDesafio: ChallengeIssuer
   readonly ambiente: Environment
   /** Só para a etapa `escolher`: os acessos da conta que a tela lista (20.0). */
-  readonly resolucao: ResolucaoDeTenantRepository
+  readonly resolucao: TenantResolutionRepository
 }
 
 /** O que a etapa que acabou de passar sabe da pessoa: a conta, o e-mail dela (só para o HMAC do cookie) e os usuários ativos. */
@@ -41,9 +41,9 @@ export interface CredencialConferida {
  * - **`educa_dispositivo` em `pronta`:** a entrada da conta no topo, com a data de agora.
  */
 export class ConclusaoDeLogin {
-  constructor(private readonly dependencias: DependenciasDaConclusao) {}
+  constructor(private readonly dependencias: LoginCompletionDependencies) {}
 
-  async concluir(credencial: CredencialConferida, origem: OrigemDaRequisicao): Promise<ResultadoDoLogin> {
+  async concluir(credencial: CredencialConferida, origem: RequestOrigin): Promise<ResultadoDoLogin> {
     const etapa = etapaDoLogin(credencial.usuarios, credencial.mfaAtivo, credencial.mfaCumprido)
     if (etapa !== 'pronta') {
       const desafio = await this.dependencias.emissorDeDesafio.emitir({ contaId: credencial.contaId, etapa, mfaCumprido: credencial.mfaCumprido })
@@ -62,7 +62,7 @@ export class ConclusaoDeLogin {
    * O aluno que provou matrícula e senha (11.0): tem um usuário só, sem conta e sem segundo fator, e vai direto a
    * `pronta`, com sessão de método `matricula`. A entrada do `educa_dispositivo` é a de `escola_id|matricula`.
    */
-  entrarComoAluno(aluno: Pick<UsuarioAtivoDaConta, 'usuarioId' | 'escolaId'>, identificadorDoDispositivo: string, origem: OrigemDaRequisicao): Promise<ResultadoDoLogin> {
+  entrarComoAluno(aluno: Pick<UsuarioAtivoDaConta, 'usuarioId' | 'escolaId'>, identificadorDoDispositivo: string, origem: RequestOrigin): Promise<ResultadoDoLogin> {
     return this.#pronta(aluno, null, 'matricula', identificadorDoDispositivo, origem)
   }
 
@@ -78,7 +78,7 @@ export class ConclusaoDeLogin {
     contaId: string,
     email: string,
     troca: SessaoDeOrigemDaTroca | undefined,
-    origem: OrigemDaRequisicao,
+    origem: RequestOrigin,
   ): Promise<ResultadoDoLogin> {
     return this.#pronta(destino, contaId, 'email', email, origem, troca)
   }
@@ -88,7 +88,7 @@ export class ConclusaoDeLogin {
    * ligado, sem conta. Vai direto a `pronta`, com sessão de método `externo`, na escola da ligação: a troca de escola
    * não vale para ela (12.0). Sem `educa_dispositivo`: ele só dá prioridade ao login por senha, que esta entrada não usa.
    */
-  entrarPorContaExterna(usuario: Pick<UsuarioAtivoDaConta, 'usuarioId' | 'escolaId'>, contaId: string | null, origem: OrigemDaRequisicao): Promise<ResultadoDoLogin> {
+  entrarPorContaExterna(usuario: Pick<UsuarioAtivoDaConta, 'usuarioId' | 'escolaId'>, contaId: string | null, origem: RequestOrigin): Promise<ResultadoDoLogin> {
     return this.#pronta(usuario, contaId, 'externo', undefined, origem)
   }
 
@@ -101,7 +101,7 @@ export class ConclusaoDeLogin {
     contaId: string | null,
     metodo: MetodoDeSessao,
     identificadorDoDispositivo: string | undefined,
-    origem: OrigemDaRequisicao,
+    origem: RequestOrigin,
     troca?: SessaoDeOrigemDaTroca,
   ): Promise<ResultadoDoLogin> {
     const { token, expiraEm, refresh } = await this.#criarSessao(usuario, contaId, metodo, origem.ip, troca)
@@ -110,12 +110,12 @@ export class ConclusaoDeLogin {
       identificadorDoDispositivo === undefined
         ? []
         : [
-            serializarCookie(COOKIE_DISPOSITIVO, this.dependencias.dispositivo.comEntrada(lerCookie(origem.cabecalhoCookie, COOKIE_DISPOSITIVO), identificadorDoDispositivo), {
+            serializarCookie(DEVICE_COOKIE, this.dependencias.dispositivo.comEntrada(lerCookie(origem.cabecalhoCookie, DEVICE_COOKIE), identificadorDoDispositivo), {
               ambiente: this.dependencias.ambiente,
               maxAgeSegundos: MAX_AGE_DO_COOKIE_DISPOSITIVO_SEGUNDOS,
             }),
           ]
-    return { resposta, cookies: [...dispositivo, serializarCookie(COOKIE_SESSAO, refresh, { ambiente: this.dependencias.ambiente })] }
+    return { resposta, cookies: [...dispositivo, serializarCookie(SESSAO_COOKIE, refresh, { ambiente: this.dependencias.ambiente })] }
   }
 
   /**
@@ -160,7 +160,7 @@ export class ConclusaoDeLogin {
             }))
           if (!saiu) throw new DomainException(ErrorCode.NAO_AUTENTICADO)
         }
-        const [criada] = await new CriacaoDeSessaoRepository(tx).criarSessoes([
+        const [criada] = await new SessaoCreateRepository(tx).criarSessoes([
           { usuarioId: usuario.usuarioId, contaId, metodo, refreshHash: hashDoRefresh(refresh), duracaoHoras: DURACAO_DA_SESSAO_HORAS },
         ])
         if (criada === undefined) throw new InvariantException('sessão não criada')

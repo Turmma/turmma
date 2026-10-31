@@ -7,8 +7,8 @@ import { pathToFileURL } from 'node:url'
 import { Redis } from 'ioredis'
 import pg from 'pg'
 import type { criarEscola, criarRede } from '../../apps/api/src/operacao/escola/escola.ts'
-import type { HashDeSenha } from '../../apps/api/src/credencial/password-hasher.ts'
-import type { criarAlunosComMatricula, criarSessoesSinteticas } from '../../apps/api/src/sessao/tenant/synthetic-sessions.ts'
+import type { PasswordHasher } from '../../apps/api/src/credencial/password-hasher.ts'
+import type { criarAlunosComMatricula, createSyntheticSessions } from '../../apps/api/src/sessao/tenant/synthetic-sessions.ts'
 import type { createDatabase, createPool } from '@educa/core'
 import { raizRepositorio } from '../../tools/ci/executar.ts'
 import { argumentosDoCompose, CODIGO_THRESHOLD_CRUZADO, lerAmbienteDeCarga, rodar } from './carga.ts'
@@ -236,8 +236,8 @@ export function descreverFase(fase: FaseDaSala, resumo: ResumoDaFase): string[] 
 interface ModulosDaApi {
   nucleo: { createDatabase: typeof createDatabase; createPool: typeof createPool }
   escolas: { criarRede: typeof criarRede; criarEscola: typeof criarEscola }
-  sessoes: { criarAlunosComMatricula: typeof criarAlunosComMatricula; criarSessoesSinteticas: typeof criarSessoesSinteticas }
-  hash: { HashDeSenha: typeof HashDeSenha }
+  sessoes: { criarAlunosComMatricula: typeof criarAlunosComMatricula; createSyntheticSessions: typeof createSyntheticSessions }
+  hash: { PasswordHasher: typeof PasswordHasher }
 }
 
 /** Os módulos já compilados da API (o `npm run carga:sala` compila antes), como o `carga:login`. */
@@ -298,9 +298,9 @@ async function montarEscola(modulos: ModulosDaApi, banco: ReturnType<typeof crea
   const slug = `sala-${fase.replace(/_/g, '-')}-${randomUUID()}`
   const { id: escolaId } = await modulos.escolas.criarEscola(banco, autor, { id: randomUUID(), redeId, nome: `Escola sintética da sala ${fase}`, slug })
   const url = `http://127.0.0.1:${doArquivo['BORDA_PORTA_HOST'] ?? ''}`
-  const coordenacoes = await modulos.sessoes.criarSessoesSinteticas(banco, doArquivo, { escolaId, papel: 'coordenador', quantidade: COORDENACOES_DA_MONTAGEM })
+  const coordenacoes = await modulos.sessoes.createSyntheticSessions(banco, doArquivo, { escolaId, papel: 'coordenador', quantidade: COORDENACOES_DA_MONTAGEM })
   const turmasDeCada = turmasDosProfessores(ESCALA[fase].turmas)
-  const professores = await modulos.sessoes.criarSessoesSinteticas(banco, doArquivo, { escolaId, papel: 'professor', quantidade: turmasDeCada.length })
+  const professores = await modulos.sessoes.createSyntheticSessions(banco, doArquivo, { escolaId, papel: 'professor', quantidade: turmasDeCada.length })
   let vez = 0
   const coordenacao = (metodo: 'POST' | 'GET', caminho: string, corpo?: unknown) => chamarApi(url, coordenacoes[vez++ % coordenacoes.length]?.token ?? '', metodo, caminho, corpo)
 
@@ -392,7 +392,7 @@ async function executar(fases: readonly FaseDaSala[]): Promise<number> {
     try {
       escrever('\n▶ a outra escola e a senha sintética')
       const senha = randomBytes(18).toString('base64url')
-      const senhaHash = await (await modulos.hash.HashDeSenha.criar({ memoriaKib: Number(doArquivo['LOGIN_ARGON2_MEMORIA_KIB']), iteracoes: Number(doArquivo['LOGIN_ARGON2_ITERACOES']) })).gerar(senha)
+      const senhaHash = await (await modulos.hash.PasswordHasher.criar({ memoriaKib: Number(doArquivo['LOGIN_ARGON2_MEMORIA_KIB']), iteracoes: Number(doArquivo['LOGIN_ARGON2_ITERACOES']) })).gerar(senha)
       const autor = async () => OPERADOR_DA_CARGA_DA_SALA
       const { id: redeId } = await modulos.escolas.criarRede(banco, autor, { id: randomUUID(), nome: 'Rede sintética da sala', tipo: 'independente' })
       const slugOutra = `sala-outra-${randomUUID()}`

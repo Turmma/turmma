@@ -2,16 +2,16 @@ import type { Environment } from '@educa/core'
 import { InvariantException } from '@educa/shared'
 
 /** Cookie de renovação da sessão: o refresh aleatório, cujo SHA-256 é o `refresh_hash` da `sessao`. */
-export const COOKIE_SESSAO = 'educa_sessao'
+export const SESSAO_COOKIE = 'educa_sessao'
 /** Cookie de prioridade de login: HMACs das contas que já entraram neste navegador (`device-cookie.ts`). */
-export const COOKIE_DISPOSITIVO = 'educa_dispositivo'
+export const DEVICE_COOKIE = 'educa_dispositivo'
 /** Os dois só vão às rotas de sessão: nenhuma outra rota da API recebe o refresh nem o dispositivo. */
 export const CAMINHO_DOS_COOKIES = '/v1/sessao'
 
 // Nome de cookie e valor que nós mesmos escrevemos: sem espaço, aspas, vírgula, ponto e vírgula nem barra invertida.
 const VALOR_SEGURO = /^[\w.:~-]*$/
 
-export interface OpcoesDoCookie {
+export interface CookieOptions {
   readonly ambiente: Environment
   /** Sem ele, o cookie é de sessão do navegador: some quando o navegador fecha. */
   readonly maxAgeSegundos?: number
@@ -29,7 +29,7 @@ export interface OpcoesDoCookie {
  * caminho `/v1/sessao`, salvo o que as opções dizem; `Secure` em todo ambiente menos o local, que roda em
  * `http://127.0.0.1`.
  */
-export function serializarCookie(nome: string, valor: string, opcoes: OpcoesDoCookie): string {
+export function serializarCookie(nome: string, valor: string, opcoes: CookieOptions): string {
   if (!VALOR_SEGURO.test(nome) || !VALOR_SEGURO.test(valor)) throw new InvariantException('cookie com caractere fora do formato')
   const atributos = [`${nome}=${valor}`, `Path=${opcoes.caminho ?? CAMINHO_DOS_COOKIES}`, 'HttpOnly', `SameSite=${opcoes.sameSite ?? 'Strict'}`]
   if (opcoes.ambiente !== 'local') atributos.push('Secure')

@@ -3,11 +3,11 @@ import { ErrorCode, acessoGeradoResponseSchema, salaAbertaResponseSchema, MENSAG
 import { randomBytes, randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
-import { POOL_BANCO } from '../src/database.module.js'
+import { DB_POOL } from '../src/database.module.js'
 import { sortearCodigoDaTurma } from '../src/sala/codigo-da-sala.js'
 import { ListaLivreRepository } from '../src/sala/reivindicacao/lista-livre.repository.js'
 import { ReivindicacaoRepository } from '../src/sala/reivindicacao/reivindicacao.repository.js'
-import { ESPERA_MAXIMA_PELO_HASH_MS, HashDeSenha, RETRY_AFTER_MAXIMO_S, RETRY_AFTER_MINIMO_S, SemaforoDeHash } from '../src/credencial/index.js'
+import { ESPERA_MAXIMA_PELO_HASH_MS, PasswordHasher, RETRY_AFTER_MAXIMO_S, RETRY_AFTER_MINIMO_S, HashBulkhead } from '../src/credencial/index.js'
 import { aguardar, esperarNaTrava, GatilhoDeParada } from './write-block-trigger.js'
 import { chamar, subirApi, type ApiDeTeste } from './test-api.js'
 import { montarEscolaComTurma, type EscolaComTurma } from './escola-turma.fixture.js'
@@ -75,12 +75,12 @@ describe('salas/reivindicar (A1, tarefa 6.0): o aluno pede o próprio nome, e o 
   let apiDoLimite: ApiDeTeste
   /** Com um hash por vez: a saturação do semáforo é determinística, sem depender da CPU (C2 (b), L9). */
   let apiDoSemaforo: ApiDeTeste
-  let hashes: MockInstance<HashDeSenha['gerar']>
-  let gerarReal: HashDeSenha['gerar']
-  let hashesDoSemaforo: MockInstance<HashDeSenha['gerar']>
-  let gerarRealDoSemaforo: HashDeSenha['gerar']
-  let verificacoesDoSemaforo: MockInstance<HashDeSenha['verificar']>
-  let verificarRealDoSemaforo: HashDeSenha['verificar']
+  let hashes: MockInstance<PasswordHasher['gerar']>
+  let gerarReal: PasswordHasher['gerar']
+  let hashesDoSemaforo: MockInstance<PasswordHasher['gerar']>
+  let gerarRealDoSemaforo: PasswordHasher['gerar']
+  let verificacoesDoSemaforo: MockInstance<PasswordHasher['verificar']>
+  let verificarRealDoSemaforo: PasswordHasher['verificar']
   /** A leitura dos contadores da sala no Redis de fila (7.0). */
   let limites: FerramentasDaSala
 
@@ -89,10 +89,10 @@ describe('salas/reivindicar (A1, tarefa 6.0): o aluno pede o próprio nome, e o 
     limites = new FerramentasDaSala(api, bancada)
     apiDoLimite = await subirApi(medidor.medidor, { ambiente: { ...AMBIENTE, LIMITE_REQ_IP_ANONIMO_MIN: String(LIMITE_POR_IP) } })
     apiDoSemaforo = await subirApi(medidor.medidor, { ambiente: { ...AMBIENTE, LOGIN_HASH_CONCORRENCIA: '1' } })
-    const hash = api.app.get(HashDeSenha)
+    const hash = api.app.get(PasswordHasher)
     gerarReal = hash.gerar.bind(hash)
     hashes = vi.spyOn(hash, 'gerar')
-    const doSemaforo = apiDoSemaforo.app.get(HashDeSenha)
+    const doSemaforo = apiDoSemaforo.app.get(PasswordHasher)
     gerarRealDoSemaforo = doSemaforo.gerar.bind(doSemaforo)
     hashesDoSemaforo = vi.spyOn(doSemaforo, 'gerar')
     verificarRealDoSemaforo = doSemaforo.verificar.bind(doSemaforo)
@@ -228,7 +228,7 @@ describe('salas/reivindicar (A1, tarefa 6.0): o aluno pede o próprio nome, e o 
   }
 
   /** Um portão para o próximo hash de `gerar`: ele só termina quando o teste soltar. */
-  function segurarOProximoHash(espiao: MockInstance<HashDeSenha['gerar']>, real: HashDeSenha['gerar']): { soltar: () => void } {
+  function segurarOProximoHash(espiao: MockInstance<PasswordHasher['gerar']>, real: PasswordHasher['gerar']): { soltar: () => void } {
     let soltar: () => void = () => undefined
     const portao = new Promise<void>((resolver) => (soltar = resolver))
     espiao.mockImplementationOnce(async (senha) => {
@@ -265,7 +265,7 @@ describe('salas/reivindicar (A1, tarefa 6.0): o aluno pede o próprio nome, e o 
           decidida_como: null,
         })
         expect(gravado?.senha_hash).toMatch(/^\$argon2id\$/)
-        expect(await api.app.get(HashDeSenha).verificar(gravado?.senha_hash, SENHA)).toBe(true)
+        expect(await api.app.get(PasswordHasher).verificar(gravado?.senha_hash, SENHA)).toBe(true)
         expect(await estadoDoNome(nome.id)).toBe('reivindicado')
       }
       // O nome e a matrícula do reivindicado ficam na lista; ele só sai da página pública.
@@ -638,7 +638,7 @@ describe('salas/reivindicar (A1, tarefa 6.0): o aluno pede o próprio nome, e o 
       const sala = await montar()
       const nome = await umNome(sala)
       expect(semRequisicao(await reivindicar(pedido(sala, nome)))).toEqual(ENVIADO)
-      const pool = api.app.get<DatabasePool>(POOL_BANCO, { strict: false })
+      const pool = api.app.get<DatabasePool>(DB_POOL, { strict: false })
       const tomou = await runInContext({ requisicaoId: randomUUID(), escolaId: sala.escolaId, anoLetivoId: sala.anoLetivoId }, () =>
         new ListaLivreRepository(createDatabase(pool)).tomar({ turmaId: sala.turma, listaNomeId: nome.id, matricula: nome.matricula }),
       )
@@ -660,7 +660,7 @@ describe('salas/reivindicar (A1, tarefa 6.0): o aluno pede o próprio nome, e o 
       const sala = await montar()
       const [ocupante, nome] = await nomes(sala, sala.turma, 2)
       if (ocupante === undefined || nome === undefined) throw new Error('nomes não gravados')
-      const semaforo = apiDoSemaforo.app.get(SemaforoDeHash)
+      const semaforo = apiDoSemaforo.app.get(HashBulkhead)
       const segurado = segurarOProximoHash(hashesDoSemaforo, gerarRealDoSemaforo)
       const doOcupante = reivindicar(pedido(sala, ocupante), { url: apiDoSemaforo.url })
       await vi.waitFor(() => expect(hashesDoSemaforo).toHaveBeenCalledTimes(1))
@@ -800,8 +800,8 @@ describe('salas/reivindicar (A1, tarefa 6.0): o aluno pede o próprio nome, e o 
       await bancada.alunosComMatricula(escolaB, [{ matricula: matriculaDeB, senhaHash: await gerarRealDoSemaforo(SENHA) }])
       hashesDoSemaforo.mockClear()
       const ordem: string[] = []
-      const semaforo = apiDoSemaforo.app.get(SemaforoDeHash)
-      const pool = apiDoSemaforo.app.get<DatabasePool>(POOL_BANCO, { strict: false })
+      const semaforo = apiDoSemaforo.app.get(HashBulkhead)
+      const pool = apiDoSemaforo.app.get<DatabasePool>(DB_POOL, { strict: false })
 
       const segurado = segurarOProximoHash(hashesDoSemaforo, gerarRealDoSemaforo)
       hashesDoSemaforo.mockImplementation(async (senha) => {

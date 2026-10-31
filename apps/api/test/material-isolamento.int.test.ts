@@ -3,7 +3,7 @@ import { ErrorCode, buscaDeMaterialResponseSchema, listaDeMateriaisResponseSchem
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
-import { BuscaDeTrechos } from '../src/material/trecho-search.js'
+import { TrechoSearch } from '../src/material/trecho-search.js'
 import { chamar, subirApi, type ApiDeTeste, type RespostaHttp } from './test-api.js'
 import { montarEscolaComTurma as montarEscola, type EscolaComTurma } from './escola-turma.fixture.js'
 import { apagarMateriais, auditoriaDa, enviarMaterial, esperarExtracao, materiaisDa, trechosDa } from './material.fixture.js'
@@ -159,7 +159,7 @@ describe('material: isolamento entre escolas', () => {
   })
 
   it('`BuscaDeTrechos`, a porta do Assistente e do Tutor, só lê a escola do contexto', async () => {
-    const porta = api.app.get(BuscaDeTrechos)
+    const porta = api.app.get(TrechoSearch)
     const naEscolaA = <T>(funcao: () => Promise<T>): Promise<T> => runInContext({ requisicaoId: randomUUID(), escolaId: a.coordenacao.escolaId }, funcao)
 
     const achados = await naEscolaA(() => porta.buscar({ texto: 'reagente limitante', disciplinaId: a.quimica, limite: 20 }))

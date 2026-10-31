@@ -30,7 +30,7 @@ interface Entrada {
  * - Cookie de outra versão da chave, ou fora do formato, vale como vazio: trocar a chave invalida todos.
  * - A entrada vencida sai; com 50 vivas, sai a mais antiga.
  */
-export class CookieDeDispositivo {
+export class DeviceCookie {
   constructor(
     private readonly versao: number,
     private readonly chave: Uint8Array,

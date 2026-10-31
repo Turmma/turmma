@@ -5,7 +5,7 @@ import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { parseArgs } from 'node:util'
 import { criarConviteDeCoordenador, type PedidoDeConvite } from '../sessao/index.js'
-import { abrirBancoDeOperacao, ArgumentoInvalido, autorDoComando, criarArquivoDoToken, esquemaNome, lerOperador, OperadorRecusado, type BancoDoComando, type SaidaDoComando } from './command.js'
+import { abrirBancoDeOperacao, InvalidArgumentError, autorDoComando, criarArquivoDoToken, esquemaNome, lerOperador, OperadorRejectedError, type CommandDatabase, type CommandOutput } from './command.js'
 
 /**
  * O convite do primeiro coordenador, pelo operador, depois do contrato (RF1; Tech Spec, seção 5, "Operador"):
@@ -41,15 +41,15 @@ export function lerPedidoDoConvite(argumentos: string[]): PedidoDoConvite {
     }).values
   } catch {
     // O erro do parseArgs repete o argumento recebido; a mensagem fica só com as opções aceitas.
-    throw new ArgumentoInvalido('--escola, --email, --nome ou --saida')
+    throw new InvalidArgumentError('--escola, --email, --nome ou --saida')
   }
   const slug = valores.escola
-  if (slug === undefined || slug.length > TAMANHO_MAXIMO_SLUG || !FORMATO_SLUG.test(slug)) throw new ArgumentoInvalido('--escola')
+  if (slug === undefined || slug.length > TAMANHO_MAXIMO_SLUG || !FORMATO_SLUG.test(slug)) throw new InvalidArgumentError('--escola')
   const email = emailConvidadoSchema.safeParse(valores.email)
-  if (!email.success) throw new ArgumentoInvalido('--email')
+  if (!email.success) throw new InvalidArgumentError('--email')
   const nome = esquemaNome.safeParse(valores.nome)
-  if (!nome.success) throw new ArgumentoInvalido('--nome')
-  if (valores.saida === undefined || valores.saida.trim() === '') throw new ArgumentoInvalido('--saida')
+  if (!nome.success) throw new InvalidArgumentError('--nome')
+  if (valores.saida === undefined || valores.saida.trim() === '') throw new InvalidArgumentError('--saida')
   return { slug, email: email.data, nome: nome.data, saida: resolve(valores.saida) }
 }
 
@@ -66,13 +66,13 @@ const MENSAGEM_DO_OPERADOR: Partial<Record<ErrorCode, string>> = {
 export async function executarOpsConviteCoordenador(
   argumentos: string[],
   ambiente: Record<string, string | undefined>,
-  terminal: SaidaDoComando,
-  abrirBanco: (ambiente: Record<string, string | undefined>) => BancoDoComando = abrirBancoDeOperacao,
+  terminal: CommandOutput,
+  abrirBanco: (ambiente: Record<string, string | undefined>) => CommandDatabase = abrirBancoDeOperacao,
 ): Promise<number> {
   try {
     const pedido = lerPedidoDoConvite(argumentos)
     const operador = lerOperador(ambiente)
-    const arquivo = await criarArquivoDoToken(pedido.saida, () => new ArgumentoInvalido('--saida (o arquivo já existe ou a pasta não aceita escrita)'))
+    const arquivo = await criarArquivoDoToken(pedido.saida, () => new InvalidArgumentError('--saida (o arquivo já existe ou a pasta não aceita escrita)'))
     let gravado = false
     try {
       const { banco, fechar } = abrirBanco(ambiente)
@@ -90,7 +90,7 @@ export async function executarOpsConviteCoordenador(
       if (!gravado) await rm(pedido.saida, { force: true })
     }
   } catch (erro) {
-    if (erro instanceof ArgumentoInvalido || erro instanceof InvalidConfigError || erro instanceof OperadorRecusado) {
+    if (erro instanceof InvalidArgumentError || erro instanceof InvalidConfigError || erro instanceof OperadorRejectedError) {
       // Só o nome da opção ou da variável: nunca o valor.
       terminal.erro(`${erro.message}\n`)
       return 2

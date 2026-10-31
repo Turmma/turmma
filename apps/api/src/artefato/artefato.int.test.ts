@@ -23,10 +23,10 @@ import {
 } from '../../test/escola-assistente.fixture.js'
 import { variacaoDoPdf } from '../../test/material.fixture.js'
 import { BancadaDeSessoes, type SessaoDeTeste } from '../../test/sessao.fixture.js'
-import { LimiteDePedidosDeIa } from '../assistente/ai-request-rate-limit.js'
-import { AgendadorDeExecucoes } from '../ia/execucao.scheduler.js'
+import { IaRequestRateLimit } from '../assistente/ai-request-rate-limit.js'
+import { ExecucaoScheduler } from '../ia/execucao.scheduler.js'
 import { EXECUTOR_DE_AGENTE, LLM_PROVIDER, SUSPENSAO_DE_FUNCAO } from '../ia/ia.module.js'
-import { BuscaDeTrechos } from '../material/trecho-search.js'
+import { TrechoSearch } from '../material/trecho-search.js'
 import { ArtefatoRepository } from './artefato.repository.js'
 import { ArtefatoService } from './artefato.service.js'
 import { DURACAO_PADRAO_DO_PLANO_DE_AULA_MIN, FerramentasService } from './ferramentas.service.js'
@@ -82,9 +82,9 @@ describe('ferramentas e artefato', () => {
     const ia = { gerar: async (pedido: { entrada: unknown; execucaoId?: string }) => ({ saida: await gerarSaida(pedido), medicao: {} }) } as unknown as LLMProvider
     // `antesDeRodar` segura o trabalho da execução até o teste liberar: é o intervalo entre o `202` e a execução.
     const comEspera: AgenteExecutor = { agendar: (execucao, trabalho) => executor.agendar(execucao, async (sinal) => (await antesDeRodar, trabalho(sinal))) }
-    const agendador = new AgendadorDeExecucoes(bancada.banco, ia, comEspera, api.app.get<SuspensaoDeFuncao>(SUSPENSAO_DE_FUNCAO))
-    const limite = api.app.get(LimiteDePedidosDeIa)
-    return { ferramentas: new FerramentasService(bancada.banco, agendador, limite, api.app.get(BuscaDeTrechos)), artefatos: new ArtefatoService(bancada.banco, agendador, limite) }
+    const agendador = new ExecucaoScheduler(bancada.banco, ia, comEspera, api.app.get<SuspensaoDeFuncao>(SUSPENSAO_DE_FUNCAO))
+    const limite = api.app.get(IaRequestRateLimit)
+    return { ferramentas: new FerramentasService(bancada.banco, agendador, limite, api.app.get(TrechoSearch)), artefatos: new ArtefatoService(bancada.banco, agendador, limite) }
   }
   const falso = () => api.app.get<LLMProvider>(LLM_PROVIDER)
 

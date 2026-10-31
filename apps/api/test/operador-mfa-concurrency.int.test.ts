@@ -4,12 +4,12 @@ import { ErrorCode, segundoFatorDeOperadorResponseSchema, type ConfigurarSegundo
 import type { INestApplication } from '@nestjs/common'
 import type { Redis } from 'ioredis'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
-import { BANCO } from '../src/database.module.js'
-import { ConsumoDeDesafioDeOperador } from '../src/operacao/operador-challenge.js'
+import { DB } from '../src/database.module.js'
+import { OperadorChallengeConsumer } from '../src/operacao/operador-challenge.js'
 import { PREFIXO_DO_CONTADOR_DA_OPERACAO } from '../src/operacao/entrada/entrada.service.js'
 import { OperadorRepository } from '../src/operacao/operador/operador.repository.js'
 import { desativarOperador } from '../src/ops/operador.js'
-import { CLIENTE_REDIS_LOGIN, ContadorDeTentativas } from '../src/credencial/index.js'
+import { REDIS_LOGIN_CLIENT, LoginLockout } from '../src/credencial/index.js'
 import {
   ativarNoBanco,
   barreira,
@@ -51,7 +51,7 @@ describe('segundo fator do operador: as travas contra a corrida (tarefa 7.0)', (
 
   beforeAll(async () => {
     ;({ app, url } = await subir())
-    banco = app.get<Database>(BANCO)
+    banco = app.get<Database>(DB)
     // O autor dos `desativar`: com ele e o alvo, há sempre dois ativos, e ninguém desativa a si mesmo.
     autor = (await operadores.operador()).apelido
   })
@@ -82,7 +82,7 @@ describe('segundo fator do operador: as travas contra a corrida (tarefa 7.0)', (
 
   /** Segura a primeira `/sessao/mfa` ou o primeiro configurar **depois** de consumir o `jti` e antes da transação. */
   function segurarDepoisDoJti(): { chegou: Promise<void>; soltar: () => void } {
-    const consumo = app.get(ConsumoDeDesafioDeOperador)
+    const consumo = app.get(OperadorChallengeConsumer)
     const original = consumo.consumir.bind(consumo)
     const espera = barreira()
     let primeira = true
@@ -97,8 +97,8 @@ describe('segundo fator do operador: as travas contra a corrida (tarefa 7.0)', (
   }
 
   async function falhasNoContador(operadorId: string): Promise<string | null> {
-    const chave = app.get(ContadorDeTentativas).chaveDe(operadorId, 'outro', PREFIXO_DO_CONTADOR_DA_OPERACAO)
-    return app.get<Redis>(CLIENTE_REDIS_LOGIN, { strict: false }).hget(chave, 'falhas')
+    const chave = app.get(LoginLockout).chaveDe(operadorId, 'outro', PREFIXO_DO_CONTADOR_DA_OPERACAO)
+    return app.get<Redis>(REDIS_LOGIN_CLIENT, { strict: false }).hget(chave, 'falhas')
   }
 
   const comoDesafioInvalidoEmEntrar = async (operadorId: string) => forma(await entrar(url, { desafio: await desafioInvalido(operadorId, 'mfa'), codigo: '123456' }))

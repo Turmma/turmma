@@ -31,7 +31,7 @@ const esquemaFilas = z.object({
     .pipe(z.array(z.enum(QUEUE_NAMES)).min(1).refine((filas) => new Set(filas).size === filas.length, 'fila repetida')),
 })
 
-const esquemaAmbiente = z.object({
+const envSchema = z.object({
   REDIS_FILA_URL: z.string().regex(/^redis:\/\/[^/\s]+(\/\d+)?$/),
   WORKER_THREADS_MAXIMO: inteiroPositivo,
 })
@@ -104,7 +104,7 @@ export function lerConfiguracao(ambiente: Record<string, string | undefined>): C
     }
   }
   const banco = ler(() => loadDatabaseConfig(ambiente))
-  const proprio = ler(() => validateEnvironment(esquemaAmbiente, ambiente))
+  const proprio = ler(() => validateEnvironment(envSchema, ambiente))
   const filas = ler(() => validateEnvironment(esquemaFilas, ambiente))
   // O pool só é exigido para as filas que a réplica atende.
   const esquemaPools = z.object(Object.fromEntries((filas?.FILAS ?? []).map((fila) => [variavelDoPool(fila), inteiroPositivo])))

@@ -13,7 +13,7 @@ import { lerAmbienteDeTeste } from '../../../tools/ci/compose.ts'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { PrivacidadeService } from '../src/privacidade/privacidade.service.js'
 import { TitularesRepository } from '../src/privacidade/titulares.repository.js'
-import { EmissorDeDesafio } from '../src/credencial/index.js'
+import { ChallengeIssuer } from '../src/credencial/index.js'
 import { chamar, subirApi, type ApiDeTeste, type RespostaHttp } from './test-api.js'
 import { CapturaDeDadoPessoal } from './personal-data-capture.js'
 import { alunosNaTurma, montarEscolaComTurma, type EscolaComTurma } from './escola-turma.fixture.js'
@@ -599,7 +599,7 @@ describe('pedido do titular (F3, tarefa 11.0): busca, prévia, registro, lista, 
       const professor = await bancada.sessao(a.escolaId, 'professor')
       const alunoDeSessao = await bancada.sessao(a.escolaId, 'aluno')
       const { rows } = await bancada.pool.query<{ conta_id: string }>('select conta_id from usuario where id = $1', [a.coordenacao.usuarioId])
-      const desafio = await new EmissorDeDesafio(CHAVE).emitir({ contaId: rows[0]?.conta_id ?? randomUUID(), etapa: 'mfa', mfaCumprido: false })
+      const desafio = await new ChallengeIssuer(CHAVE).emitir({ contaId: rows[0]?.conta_id ?? randomUUID(), etapa: 'mfa', mfaCumprido: false })
       const titular = a.alunos[0]
       if (titular === undefined) throw new Error('aluno de teste não criado')
       // Um pedido real: as rotas com `:id` só provam a permissão com ele, porque o id de ninguém daria 404 a qualquer um.

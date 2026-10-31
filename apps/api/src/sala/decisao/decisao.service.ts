@@ -16,7 +16,7 @@ import {
 import { paginar } from '../../http/pagination.js'
 import { TurmaRepository } from '../../estrutura/turma/turma.repository.js'
 import { VinculoRepository } from '../../estrutura/vinculo/vinculo.repository.js'
-import { type ContadorDeTentativas, CredencialMatriculaRepository, CriacaoDeSessaoRepository, identificadorDoAluno } from '../../credencial/index.js'
+import { type LoginLockout, CredencialMatriculaRepository, SessaoCreateRepository, identificadorDoAluno } from '../../credencial/index.js'
 import { DecisaoRepository, type AlcanceDoPedido } from './decisao.repository.js'
 
 const registro = new AuditoriaRecorder()
@@ -50,7 +50,7 @@ export class DecisaoService {
   constructor(
     private readonly banco: Database,
     /** O contador de falhas do login por matrícula (F1), que a aprovação zera (E22). */
-    private readonly contador: Pick<ContadorDeTentativas, 'chaveDe' | 'zerar'>,
+    private readonly contador: Pick<LoginLockout, 'chaveDe' | 'zerar'>,
   ) {}
 
   /**
@@ -136,7 +136,7 @@ export class DecisaoService {
       if (decisao === 'aprovar') {
         const nome = await decisoes.nomeDoPedido(pedido.listaNomeId)
         if (nome === undefined) throw new InvariantException('nome do pedido pendente não encontrado')
-        const [aluno] = await new CriacaoDeSessaoRepository(tx).criarUsuarios([{ contaId: null, papel: 'aluno', nome: nome.nome }])
+        const [aluno] = await new SessaoCreateRepository(tx).criarUsuarios([{ contaId: null, papel: 'aluno', nome: nome.nome }])
         if (aluno === undefined) throw new InvariantException('aluno não criado')
         await new CredencialMatriculaRepository(tx).criar([{ usuarioId: aluno.id, matricula: nome.matricula, senhaHash: pedido.senhaHash }])
         await new VinculoRepository(tx).criarAlunoConfirmado(aluno.id, pedido.turmaId)

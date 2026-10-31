@@ -1,30 +1,30 @@
 import { createDatabase, createPool, type DatabaseConfig, type DatabasePool } from '@educa/core'
 import { Global, Inject, Logger, Module, type DynamicModule, type OnApplicationShutdown } from '@nestjs/common'
 
-export const POOL_BANCO = Symbol('POOL_BANCO')
+export const DB_POOL = Symbol('DB_POOL')
 /** Drizzle sobre o mesmo pool. Só repository o recebe (regra 00, item 3). */
-export const BANCO = Symbol('BANCO')
+export const DB = Symbol('DB')
 
 @Global()
 @Module({})
-export class BancoModule implements OnApplicationShutdown {
+export class DatabaseModule implements OnApplicationShutdown {
   private static readonly logger = new Logger('banco')
 
-  static com(config: DatabaseConfig): DynamicModule {
+  static forRoot(config: DatabaseConfig): DynamicModule {
     return {
-      module: BancoModule,
+      module: DatabaseModule,
       providers: [
         {
-          provide: POOL_BANCO,
-          useFactory: () => createPool(config, () => BancoModule.logger.warn('banco.conexao_ociosa_perdida')),
+          provide: DB_POOL,
+          useFactory: () => createPool(config, () => DatabaseModule.logger.warn('banco.conexao_ociosa_perdida')),
         },
-        { provide: BANCO, useFactory: createDatabase, inject: [POOL_BANCO] },
+        { provide: DB, useFactory: createDatabase, inject: [DB_POOL] },
       ],
-      exports: [POOL_BANCO, BANCO],
+      exports: [DB_POOL, DB],
     }
   }
 
-  constructor(@Inject(POOL_BANCO) private readonly pool: DatabasePool) {}
+  constructor(@Inject(DB_POOL) private readonly pool: DatabasePool) {}
 
   async onApplicationShutdown(): Promise<void> {
     await this.pool.end()

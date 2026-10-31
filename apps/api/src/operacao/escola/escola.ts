@@ -10,7 +10,7 @@ import {
 } from '@educa/core'
 import { ErrorCode } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
-import type { ConferenciaDoAutor } from '../../sessao/index.js'
+import type { AuthorCheck } from '../../sessao/index.js'
 import { RedeEEscolaRepository, type Criada } from './escola.repository.js'
 
 /**
@@ -23,10 +23,10 @@ const registro = new AuditoriaRecorder()
 
 /**
  * Cria a rede e grava `rede.criada`, com escola nula e o autor conferido, na mesma transação. O autor é a primeira
- * instrução dela (`ConferenciaDoAutor`): quem não passa não grava nada. O pedido repetido (mesmo id, mesmos dados)
+ * instrução dela (`AuthorCheck`): quem não passa não grava nada. O pedido repetido (mesmo id, mesmos dados)
  * devolve o mesmo id sem auditoria nova; o mesmo id com outros dados, `CONFLITO`.
  */
-export function criarRede(banco: Database, autor: ConferenciaDoAutor, pedido: { id: string; nome: string; tipo: TipoDeRede }): Promise<Criada> {
+export function criarRede(banco: Database, autor: AuthorCheck, pedido: { id: string; nome: string; tipo: TipoDeRede }): Promise<Criada> {
   return runInContext({ requisicaoId: currentContext()?.requisicaoId ?? randomUUID() }, () =>
     banco.transaction(async (tx) => {
       const autorOperador = await autor(tx)
@@ -42,7 +42,7 @@ export function criarRede(banco: Database, autor: ConferenciaDoAutor, pedido: { 
  * instrução. Slug de outra escola e o mesmo id com outros dados saem como `CONFLITO`, e rede inexistente como
  * `NAO_ENCONTRADO`, sem o valor recebido. O pedido repetido devolve o mesmo id sem auditoria nova.
  */
-export async function criarEscola(banco: Database, autor: ConferenciaDoAutor, pedido: { id: string; redeId: string; nome: string; slug: string }): Promise<Criada> {
+export async function criarEscola(banco: Database, autor: AuthorCheck, pedido: { id: string; redeId: string; nome: string; slug: string }): Promise<Criada> {
   const requisicaoId = currentContext()?.requisicaoId ?? randomUUID()
   try {
     return await runInContext({ requisicaoId }, () =>

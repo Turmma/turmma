@@ -1,19 +1,19 @@
 import { DomainException, type Database } from '@educa/core'
 import { ErrorCode, type AceitarConviteDeOperadorRequest, type AceitarConviteDeOperadorResponse, type ConsultarConviteDeOperadorResponse } from '@educa/shared'
-import { baldeDaEquipe, type HashDeSenha, type SemaforoDeHash } from '../../credencial/index.js'
-import type { EmissorDeDesafioDeOperador } from '../operador-challenge.js'
+import { equipeBucket, type PasswordHasher, type HashBulkhead } from '../../credencial/index.js'
+import type { OperadorChallengeIssuer } from '../operador-challenge.js'
 import { OperadorRepository } from '../operador/operador.repository.js'
 import { hashDoTokenDeConvite } from '../token-do-convite.js'
 
 /** Usado, vencido, revogado, de operador desativado e inexistente: a mesma resposta, que não diz qual (C9; regra 20, item 6). */
 const conviteInvalido = () => new DomainException(ErrorCode.NAO_ENCONTRADO)
 
-export interface DependenciasDoConviteDeOperador {
+export interface ConviteDeOperadorDependencies {
   readonly banco: Database
-  readonly hash: Pick<HashDeSenha, 'gerar'>
+  readonly hash: Pick<PasswordHasher, 'gerar'>
   /** O semáforo do hash do F1, o mesmo do login: o argon2 do aceite divide o teto de CPU da instância com ele. */
-  readonly semaforo: Pick<SemaforoDeHash, 'executar'>
-  readonly emissorDeDesafio: Pick<EmissorDeDesafioDeOperador, 'emitir'>
+  readonly semaforo: Pick<HashBulkhead, 'executar'>
+  readonly emissorDeDesafio: Pick<OperadorChallengeIssuer, 'emitir'>
 }
 
 /** O que o controller tira da requisição: o IP e se ele passou do limite por IP das rotas de senha. */
@@ -37,7 +37,7 @@ export interface OrigemDoAceite {
  *   o fim do balde. O convite que não vale sai antes do hash, sem gastar a vez.
  */
 export class ConviteDeOperadorService {
-  constructor(private readonly dependencias: DependenciasDoConviteDeOperador) {}
+  constructor(private readonly dependencias: ConviteDeOperadorDependencies) {}
 
   async consultar(token: string): Promise<ConsultarConviteDeOperadorResponse> {
     const valido = await new OperadorRepository(this.dependencias.banco).conviteValidoPorHash(hashDoTokenDeConvite(token))
@@ -49,7 +49,7 @@ export class ConviteDeOperadorService {
     const { banco, hash, semaforo, emissorDeDesafio } = this.dependencias
     const valido = await new OperadorRepository(banco).conviteValidoPorHash(hashDoTokenDeConvite(pedido.token))
     if (valido === undefined) throw conviteInvalido()
-    const senhaHash = await semaforo.executar(baldeDaEquipe(origem.ip, origem.acimaDoLimiteDoIp), () => hash.gerar(pedido.senha))
+    const senhaHash = await semaforo.executar(equipeBucket(origem.ip, origem.acimaDoLimiteDoIp), () => hash.gerar(pedido.senha))
     const aceito = await banco.transaction(async (tx) => {
       const repositorio = new OperadorRepository(tx)
       const apelido = await repositorio.aceitarConvite({ ...valido, senhaHash })

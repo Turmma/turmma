@@ -1,5 +1,5 @@
 import { insuranceLimit, METRICS, systemClock, ROTULO_ESCOLA, type Meter, type Clock } from '@educa/core'
-import { JANELA_DO_CONTADOR_POR_IP_MS, type ContadorEmJanela } from './window-counter.js'
+import { JANELA_DO_CONTADOR_POR_IP_MS, type WindowCounter } from './window-counter.js'
 
 /** O piso do limiar: uma escola pequena não é rebaixada por uma manhã de senhas esquecidas. */
 export const LIMIAR_MINIMO_DE_FALHAS_POR_IP = 100
@@ -19,8 +19,8 @@ export function limiarDeFalhas(alunosAtivos: number): number {
   return Math.max(LIMIAR_MINIMO_DE_FALHAS_POR_IP, Math.ceil(alunosAtivos * PROPORCAO_DE_ALUNOS_NO_LIMIAR))
 }
 
-export interface DependenciasDoRebaixamento {
-  readonly janela: Pick<ContadorEmJanela, 'chaveDe' | 'ler' | 'somar'>
+export interface EscolaIpThrottleDependencies {
+  readonly janela: Pick<WindowCounter, 'chaveDe' | 'ler' | 'somar'>
   /** Quantos alunos ativos a escola do contexto tem: quem chama já está no contexto da escola do endereço. */
   readonly alunosAtivos: () => Promise<number>
   /** Quantas instâncias da API dividem o limiar quando a contagem é do seguro em memória (`LIMITE_INSTANCIAS_API`). */
@@ -33,7 +33,7 @@ export interface DependenciasDoRebaixamento {
  * O rebaixamento por IP e escola no login por matrícula (tarefa 15.1; Tech Spec da identidade, seção 5, "Rajada de
  * falhas na matrícula"; regra 80, item 1). Nunca bloqueia: rebaixa.
  *
- * - **Contagem:** as falhas de cada IP em cada escola, por minuto, no `ContadorEmJanela` (Redis de fila, chave com o
+ * - **Contagem:** as falhas de cada IP em cada escola, por minuto, no `WindowCounter` (Redis de fila, chave com o
  *   HMAC da escola e do IP). A escola está na chave: o ataque na A não mexe na contagem da B pelo mesmo IP.
  * - **Limiar:** `max(100, 25% dos alunos ativos da escola)`, com o tamanho da escola lido com cache de 1 min. Abaixo de
  *   100 falhas nem se consulta o tamanho.
@@ -42,7 +42,7 @@ export interface DependenciasDoRebaixamento {
  * - **Passagem:** quem traz o `educa_dispositivo` válido para aquela matrícula não é rebaixado, nem consulta o contador.
  * - **Seguro:** com a contagem em memória (Redis de fila fora), o limiar é dividido pelas instâncias.
  */
-export class RebaixamentoPorEscola {
+export class EscolaIpThrottle {
   readonly #relogio: Clock
   /** Escola → quando esta instância rebaixou uma tentativa dela pela última vez. Só escola, nunca IP. */
   readonly #rebaixadaEm = new Map<string, number>()
@@ -50,7 +50,7 @@ export class RebaixamentoPorEscola {
   /** A leitura do tamanho em andamento, por escola: os pedidos que chegam durante ela esperam a mesma, e não vão ao banco. */
   readonly #lendo = new Map<string, Promise<number>>()
 
-  constructor(private readonly dependencias: DependenciasDoRebaixamento) {
+  constructor(private readonly dependencias: EscolaIpThrottleDependencies) {
     this.#relogio = dependencias.relogio ?? systemClock
     dependencias.medidor
       .createObservableGauge(METRICS.prioridadeRebaixada, { description: 'Se esta instância rebaixou, no último minuto, tentativas de login de um IP com falhas demais na escola' })

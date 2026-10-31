@@ -41,7 +41,7 @@ export interface PaginaLidaNoPainel<Item> {
 }
 
 /** O que o driver devolve de uma linha da lista: contagens em `int`, instantes em milissegundos desde a época (texto). */
-interface LinhaDaEscola extends Record<string, unknown> {
+interface EscolaRow extends Record<string, unknown> {
   id: string
   nome: string
   slug: string
@@ -60,7 +60,7 @@ interface LinhaDaEscola extends Record<string, unknown> {
 }
 
 /** O que o driver devolve de uma linha do uso: `bigint` e `sum` chegam como texto. */
-interface LinhaDoUso extends Record<string, unknown> {
+interface UsoRow extends Record<string, unknown> {
   id: string
   nome: string
   diaRequisicoes: string
@@ -133,7 +133,7 @@ export class PainelRepository {
   @Unscoped('painel do operador: a lista de escolas com o estado da coordenação e as contagens do ano em curso; só id, nome, endereço e número, sem pessoa')
   async escolas(pedido: PedidoDePaginaDoPainel): Promise<PaginaLidaNoPainel<EscolaLidaNoPainel>> {
     const [pagina, total] = await Promise.all([
-      this.banco.execute<LinhaDaEscola>(sql`
+      this.banco.execute<EscolaRow>(sql`
         with pagina as (${escolasDaPagina(pedido)})
         select e.id, e.nome, e.slug, r.id as "redeId", r.nome as "redeNome",
           (select count(*)::int from turma as t where t.escola_id = e.id and t.ano_letivo_id = ano.id) as turmas,
@@ -201,7 +201,7 @@ export class PainelRepository {
   async uso(pedido: PedidoDePaginaDoPainel): Promise<PaginaLidaNoPainel<UsoLidoNoPainel>> {
     const { dia, primeiroDoMes } = pedido.referencia
     const [pagina, total] = await Promise.all([
-      this.banco.execute<LinhaDoUso>(sql`
+      this.banco.execute<UsoRow>(sql`
         with pagina as (${escolasDaPagina(pedido)})
         select e.id, e.nome,
           coalesce(no_dia.requisicoes, 0) as "diaRequisicoes",

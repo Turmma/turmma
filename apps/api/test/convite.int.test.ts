@@ -14,10 +14,10 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { lerAmbienteDeTeste } from '../../../tools/ci/compose.ts'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { AppModule } from '../src/app.module.js'
-import { configurarAplicacao } from '../src/configure-app.js'
+import { configureApp } from '../src/configure-app.js'
 import { executarOpsConviteCoordenador } from '../src/ops/convite-coordenador.js'
 import { executarOpsRevogarConvite } from '../src/ops/revogar-convite.js'
-import { CifraDoSegredo, CLIENTE_REDIS_LOGIN, gerarSegredo, HashDeSenha } from '../src/credencial/index.js'
+import { SecretCipher, REDIS_LOGIN_CLIENT, gerarSegredo, PasswordHasher } from '../src/credencial/index.js'
 import { criarConviteDeCoordenador } from '../src/sessao/index.js'
 import { configuracaoDeTeste, MONTAGEM_DE_TESTE } from './test-config.js'
 import { BancadaDeSessoes } from './sessao.fixture.js'
@@ -66,21 +66,21 @@ describe('convite do primeiro coordenador: o operador gera, a pessoa consulta e 
   const bancada = new BancadaDeSessoes()
   const medidor = new MedidorDeTeste()
   const configuracao = configuracaoDeTeste()
-  const cifra = new CifraDoSegredo(configuracao.login.mfa.versaoCifra, configuracao.login.mfa.chavesCifra)
+  const cifra = new SecretCipher(configuracao.login.mfa.versaoCifra, configuracao.login.mfa.chavesCifra)
   const ambiente = { ...lerAmbienteDeTeste(), OPERADOR }
   const linhasDeLog: string[] = []
   let app: INestApplication
   let url: string
-  let hash: HashDeSenha
+  let hash: PasswordHasher
   let pasta: string
 
   beforeAll(async () => {
-    app = await NestFactory.create(AppModule.com(configuracao, { medidor: medidor.medidor, ...MONTAGEM_DE_TESTE }), { logger: false })
-    configurarAplicacao(app, createLogger({ servico: 'api-teste', nivel: 'trace', destino: { write: (linha: string) => linhasDeLog.push(linha) } }), medidor.medidor)
+    app = await NestFactory.create(AppModule.forRoot(configuracao, { medidor: medidor.medidor, ...MONTAGEM_DE_TESTE }), { logger: false })
+    configureApp(app, createLogger({ servico: 'api-teste', nivel: 'trace', destino: { write: (linha: string) => linhasDeLog.push(linha) } }), medidor.medidor)
     await app.listen(0, '127.0.0.1')
     url = `http://127.0.0.1:${(app.getHttpServer().address() as AddressInfo).port}`
-    hash = app.get(HashDeSenha)
-    await clientePronto(app.get<Redis>(CLIENTE_REDIS_LOGIN, { strict: false }))
+    hash = app.get(PasswordHasher)
+    await clientePronto(app.get<Redis>(REDIS_LOGIN_CLIENT, { strict: false }))
     pasta = await mkdtemp(join(tmpdir(), 'convite-'))
   })
 
@@ -557,7 +557,7 @@ describe('convite do primeiro coordenador: o operador gera, a pessoa consulta e 
       // A lista não pode sair vazia por mudança de versão do Express: aí o teste passaria sem olhar nada.
       expect(rotas).toContain('GET /saude')
       // As do convite do operador (A0, tarefa 5.0) também só consultam e aceitam: o convite dele nasce só pelo
-      // `ops:operador`. As do painel (A0b) geram, refazem e revogam o convite da coordenação, e são `@RotaDeOperacao` (C41, C46).
+      // `ops:operador`. As do painel (A0b) geram, refazem e revogam o convite da coordenação, e são `@OperacaoRoute` (C41, C46).
       // As dos professores (A1, 3.0) refazem e revogam só o convite de professor (I7, `professores.int.test.ts`), e o
       // `POST /v1/professores`, que cadastra, só gera convite de professor: nenhuma delas alcança o de coordenação.
       expect(rotas.filter((rota) => /convite/i.test(rota)).sort()).toEqual([

@@ -5,7 +5,7 @@ import { createHash, randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { criarConviteDeCoordenador } from '../src/sessao/index.js'
-import { CLIENTE_REDIS_LOGIN, HashDeSenha } from '../src/credencial/index.js'
+import { REDIS_LOGIN_CLIENT, PasswordHasher } from '../src/credencial/index.js'
 import { chamar, subirApi, type ApiDeTeste } from './test-api.js'
 import { autorDaBancada, BancadaDeSessoes, type SessaoDeTeste } from './sessao.fixture.js'
 import { emOrdemNaTrava } from './escola-lock.js'
@@ -50,12 +50,12 @@ describe('professores (A1, tarefa 3.0): a coordenação cadastra, o professor ac
   const bancada = new BancadaDeSessoes()
   const medidor = new MedidorDeTeste()
   let api: ApiDeTeste
-  let hash: HashDeSenha
+  let hash: PasswordHasher
 
   beforeAll(async () => {
     api = await subirApi(medidor.medidor, { banco: { timeoutConsultaMs: PRAZO_DAS_CONSULTAS_MS } })
-    hash = api.app.get(HashDeSenha)
-    const cliente = api.app.get<Redis>(CLIENTE_REDIS_LOGIN, { strict: false })
+    hash = api.app.get(PasswordHasher)
+    const cliente = api.app.get<Redis>(REDIS_LOGIN_CLIENT, { strict: false })
     const prazo = performance.now() + 15_000
     while (cliente.status !== 'ready') {
       if (performance.now() > prazo) throw new Error('o cliente do Redis de fila do login não conectou')

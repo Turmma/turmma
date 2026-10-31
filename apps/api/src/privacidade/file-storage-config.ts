@@ -1,7 +1,7 @@
 import { validateEnvironment } from '@educa/core'
 import { z } from 'zod'
 
-const esquemaDoArmazem = z.object({
+const fileStorageSchema = z.object({
   STORAGE_URL: z.url({ protocol: /^https?$/ }),
   // O endereço que o navegador abre: entra na assinatura. Sem ele vale `STORAGE_URL`, que no compose não resolve fora dele.
   STORAGE_URL_PUBLICA: z.url({ protocol: /^https?$/ }).optional(),
@@ -16,7 +16,7 @@ const esquemaDoArmazem = z.object({
  * storage (`url`), o endereço que vai na URL assinada (`urlPublica`) e a credencial. Mesmas variáveis do worker, mais
  * `STORAGE_URL_PUBLICA`. A mensagem de erro cita só o nome da variável, nunca o valor (a chave secreta).
  */
-export interface ConfiguracaoDoArmazemDaApi {
+export interface FileStorageApiConfig {
   readonly url: string
   readonly urlPublica?: string
   readonly regiao: string
@@ -32,8 +32,8 @@ export interface ConfiguracaoDoArmazemDaApi {
 export const TENTATIVAS_DO_ARMAZEM_NA_API = 1
 export const TIMEOUT_DO_ARMAZEM_NA_API_MS = 5_000
 
-export function lerConfiguracaoDoArmazem(ambiente: Record<string, string | undefined>): ConfiguracaoDoArmazemDaApi {
-  const lido = validateEnvironment(esquemaDoArmazem, ambiente)
+export function loadFileStorageConfig(ambiente: Record<string, string | undefined>): FileStorageApiConfig {
+  const lido = validateEnvironment(fileStorageSchema, ambiente)
   return {
     url: lido.STORAGE_URL,
     ...(lido.STORAGE_URL_PUBLICA === undefined ? {} : { urlPublica: lido.STORAGE_URL_PUBLICA }),

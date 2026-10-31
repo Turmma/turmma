@@ -2,32 +2,32 @@ import { DomainException, type Meter } from '@educa/core'
 import { ErrorCode, type LoginEmailRequest } from '@educa/shared'
 import type { ConclusaoDeLogin } from '../completion/login-completion.js'
 import type { AtivacaoPorConvite } from '../convite/convite.service.js'
-import type { ContadorDeTentativas } from '../../credencial/login-lockout.js'
-import type { CookieDeDispositivo } from '../../credencial/device-cookie.js'
-import { COOKIE_DISPOSITIVO, lerCookie } from '../../credencial/cookies.js'
+import type { LoginLockout } from '../../credencial/login-lockout.js'
+import type { DeviceCookie } from '../../credencial/device-cookie.js'
+import { DEVICE_COOKIE, lerCookie } from '../../credencial/cookies.js'
 import { normalizarEmail } from '../../credencial/login-identifiers.js'
-import { ipParaRegistro, type OrigemDaRequisicao, type ResultadoDoLogin } from '../../credencial/request-origin.js'
-import type { ResolucaoDeTenantRepository, UsuarioAtivoDaConta, UsuarioComConviteAceito } from '../tenant/tenant-resolution.repository.js'
-import { baldeDaEquipe, contadorDoRebaixamentoPorIp } from '../../credencial/senha/login-buckets.js'
-import type { ConferenciaNaVez, SenhaConferida, TentativaDeSenha } from '../../credencial/senha/password-verifier.js'
-import { DuracaoDoLogin } from '../../credencial/senha/login-duration.js'
-import type { LimiteDoEmailPorIp } from '../../credencial/senha/email-ip-rate-limit.js'
+import { ipParaRegistro, type RequestOrigin, type ResultadoDoLogin } from '../../credencial/request-origin.js'
+import type { TenantResolutionRepository, UsuarioAtivoDaConta, UsuarioComConviteAceito } from '../tenant/tenant-resolution.repository.js'
+import { equipeBucket, contadorDoRebaixamentoPorIp } from '../../credencial/senha/login-buckets.js'
+import type { PasswordVerifier, VerifiedPassword, PasswordAttempt } from '../../credencial/senha/password-verifier.js'
+import { LoginDurationHistogram } from '../../credencial/senha/login-duration.js'
+import type { EmailIpRateLimit } from '../../credencial/senha/email-ip-rate-limit.js'
 
-export interface DependenciasDoLogin {
-  readonly resolucao: ResolucaoDeTenantRepository
+export interface LoginDependencies {
+  readonly resolucao: TenantResolutionRepository
   /** A vez no semáforo do hash, o contador e o hash (14.0, 15.6): a vez é pedida antes de contar a tentativa. */
-  readonly conferencia: ConferenciaNaVez
-  readonly contador: ContadorDeTentativas
+  readonly conferencia: PasswordVerifier
+  readonly contador: LoginLockout
   /** O limite por IP da rota (15.2): acima dele, a tentativa vai para o fim do balde da equipe. */
-  readonly limitePorIp: LimiteDoEmailPorIp
-  readonly dispositivo: CookieDeDispositivo
+  readonly limitePorIp: EmailIpRateLimit
+  readonly dispositivo: DeviceCookie
   readonly conclusao: ConclusaoDeLogin
   readonly ativacao: AtivacaoPorConvite
   readonly medidor: Meter
 }
 
 /** A credencial da conta como a resolução a devolve, pelo e-mail. */
-type CredencialDaConta = Awaited<ReturnType<ResolucaoDeTenantRepository['contaPorEmail']>>
+type CredencialDaConta = Awaited<ReturnType<TenantResolutionRepository['contaPorEmail']>>
 
 /**
  * O login da equipe por e-mail e senha (RF6, RF11, RF14; Tech Spec, seção 5).
@@ -60,30 +60,30 @@ type CredencialDaConta = Awaited<ReturnType<ResolucaoDeTenantRepository['contaPo
  *   `educa_dispositivo` mantém a vez.
  */
 export class LoginService {
-  readonly #duracao: DuracaoDoLogin
+  readonly #duracao: LoginDurationHistogram
   readonly #rebaixadasPeloIp: { contar: () => void }
 
-  constructor(private readonly dependencias: DependenciasDoLogin) {
-    this.#duracao = new DuracaoDoLogin(dependencias.medidor, 'email')
+  constructor(private readonly dependencias: LoginDependencies) {
+    this.#duracao = new LoginDurationHistogram(dependencias.medidor, 'email')
     this.#rebaixadasPeloIp = contadorDoRebaixamentoPorIp(dependencias.medidor)
   }
 
-  entrarPorEmail(pedido: LoginEmailRequest, origem: OrigemDaRequisicao): Promise<ResultadoDoLogin> {
+  entrarPorEmail(pedido: LoginEmailRequest, origem: RequestOrigin): Promise<ResultadoDoLogin> {
     return this.#duracao.medir(() => this.#entrarPorEmail(pedido, origem))
   }
 
-  async #entrarPorEmail(pedido: LoginEmailRequest, origem: OrigemDaRequisicao): Promise<ResultadoDoLogin> {
+  async #entrarPorEmail(pedido: LoginEmailRequest, origem: RequestOrigin): Promise<ResultadoDoLogin> {
     const { resolucao, conferencia, contador, dispositivo, limitePorIp } = this.dependencias
     const email = normalizarEmail(pedido.email)
-    const conhecido = dispositivo.conhece(lerCookie(origem.cabecalhoCookie, COOKIE_DISPOSITIVO), email)
+    const conhecido = dispositivo.conhece(lerCookie(origem.cabecalhoCookie, DEVICE_COOKIE), email)
     const chave = contador.chaveDe(email, conhecido ? 'conhecido' : 'outro')
     // As duas contagens andam sempre: a do limite da rota de e-mail e, na guarda, a do limite por IP do login.
     const acimaDoLimiteDaRota = await limitePorIp.rebaixar(origem.ip, conhecido)
     const peloIp = !conhecido && origem.acimaDoLimiteDoIp === true
     if (peloIp) this.#rebaixadasPeloIp.contar()
     const rebaixado = acimaDoLimiteDaRota || peloIp
-    const tentativa: TentativaDeSenha<CredencialDaConta> = {
-      balde: baldeDaEquipe(origem.ip, rebaixado),
+    const tentativa: PasswordAttempt<CredencialDaConta> = {
+      balde: equipeBucket(origem.ip, rebaixado),
       chave,
       senha: pedido.senha,
       lerCredencial: () => resolucao.contaPorEmail(email),
@@ -142,7 +142,7 @@ export class LoginService {
   }
 
   /** Senha errada, e-mail que não existe e conta sem usuário ativo: `login_falho` e a resposta única (RF6). */
-  async #recusar(tentativa: TentativaDeSenha<CredencialDaConta>, reserva: SenhaConferida<unknown>['reserva'], origem: OrigemDaRequisicao): Promise<never> {
+  async #recusar(tentativa: PasswordAttempt<CredencialDaConta>, reserva: VerifiedPassword<unknown>['reserva'], origem: RequestOrigin): Promise<never> {
     await this.dependencias.resolucao.gravarFalhaDeLoginPorEmail(ipParaRegistro(origem.ip))
     return this.dependencias.conferencia.recusar(tentativa, reserva)
   }

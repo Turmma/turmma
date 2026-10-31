@@ -6,7 +6,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi, t
 import { composeOuFalha, aguardarSaudavel } from '../../../tools/testes/compose.ts'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { travarRedis } from '../../../tools/testes/redis-travado.ts'
-import { CLIENTE_REDIS_LOGIN, ConsumoDeDesafio, ContadorDeTentativas, ContadorEmJanela, EmissorDeDesafio, HashDeSenha, PREFIXO_FALHAS_POR_IP_NA_ESCOLA, SeguroDoLogin, SemaforoDeHash, verificarDesafio } from '../src/credencial/index.js'
+import { REDIS_LOGIN_CLIENT, ChallengeConsumer, LoginLockout, WindowCounter, ChallengeIssuer, PasswordHasher, PREFIXO_FALHAS_POR_IP_NA_ESCOLA, LoginFallbackTracker, HashBulkhead, verifyChallenge } from '../src/credencial/index.js'
 import { ESCOLA_DESCONHECIDA } from '../src/sessao/index.js'
 import { comoAWebNo503, subirApi, type ApiDeTeste } from './test-api.js'
 import { configuracaoDeTeste } from './test-config.js'
@@ -67,10 +67,10 @@ describe('ataque de senha nunca bloqueia a escola: rebaixa, por IP e escola, e q
   const medidor = new MedidorDeTeste()
   const linhasDeLog: string[] = []
   let api: ApiDeTeste
-  let semaforo: SemaforoDeHash
-  let hash: HashDeSenha
-  let verificacoes: MockInstance<HashDeSenha['verificar']>
-  let verificarReal: HashDeSenha['verificar']
+  let semaforo: HashBulkhead
+  let hash: PasswordHasher
+  let verificacoes: MockInstance<PasswordHasher['verificar']>
+  let verificarReal: PasswordHasher['verificar']
   let hashDaSenha: string
   /** Tudo que identifica pessoa, origem ou navegador e passou pelo login: nada disso vira rótulo, log ou linha no banco. */
   const naoPodemAparecer = new Set<string>()
@@ -78,11 +78,11 @@ describe('ataque de senha nunca bloqueia a escola: rebaixa, por IP e escola, e q
 
   beforeAll(async () => {
     api = await subirApi(medidor.medidor, { ambiente: AMBIENTE_DO_ATAQUE }, linhasDeLog)
-    semaforo = api.app.get(SemaforoDeHash)
-    hash = api.app.get(HashDeSenha)
+    semaforo = api.app.get(HashBulkhead)
+    hash = api.app.get(PasswordHasher)
     verificarReal = hash.verificar.bind(hash)
     verificacoes = vi.spyOn(hash, 'verificar')
-    await clientePronto(api.app.get<Redis>(CLIENTE_REDIS_LOGIN, { strict: false }))
+    await clientePronto(api.app.get<Redis>(REDIS_LOGIN_CLIENT, { strict: false }))
     hashDaSenha = await hash.gerar(SENHA)
   })
 
@@ -488,7 +488,7 @@ describe('ataque de senha nunca bloqueia a escola: rebaixa, por IP e escola, e q
       medidores.push(medidorDaInstancia)
       const instancia = await subirApi(medidorDaInstancia.medidor, { ambiente: { ...AMBIENTE_DO_ATAQUE, LIMITE_INSTANCIAS_API: '2' } })
       instancias.push(instancia)
-      observeInsuranceLimiter(medidorDaInstancia.medidor, instancia.app.get(RateLimiter), instancia.app.get(SeguroDoLogin))
+      observeInsuranceLimiter(medidorDaInstancia.medidor, instancia.app.get(RateLimiter), instancia.app.get(LoginFallbackTracker))
       return { instancia, medidor: medidorDaInstancia }
     }
     const pela = (instancia: ApiDeTeste) => async (matricula: string, senha: string, ip: string) => {
@@ -499,7 +499,7 @@ describe('ataque de senha nunca bloqueia a escola: rebaixa, por IP e escola, e q
 
     // A instância que viu o ataque com o Redis de pé: o script segura a conta do aluno.
     const antes = await subir()
-    const cliente = antes.instancia.app.get<Redis>(CLIENTE_REDIS_LOGIN, { strict: false })
+    const cliente = antes.instancia.app.get<Redis>(REDIS_LOGIN_CLIENT, { strict: false })
     await clientePronto(cliente)
     const doScript = ipSorteado()
     const antesDaQueda = []
@@ -525,7 +525,7 @@ describe('ataque de senha nunca bloqueia a escola: rebaixa, por IP e escola, e q
       expect(await serieRebaixadaDa(e.escolaId, depois.medidor)).toBe(1)
       expect(new Set(ataque)).toEqual(new Set([401]))
 
-      expect(depois.instancia.app.get(SeguroDoLogin).proporcaoDoSeguro).toBe(1)
+      expect(depois.instancia.app.get(LoginFallbackTracker).proporcaoDoSeguro).toBe(1)
       expect((await depois.medidor.pontos(METRICS.seguroAtivo)).map(({ valor }) => valor)).toEqual([1])
     } finally {
       composeOuFalha('start', 'redis-fila')
@@ -536,7 +536,7 @@ describe('ataque de senha nunca bloqueia a escola: rebaixa, por IP e escola, e q
   }, 120_000)
 
   it('falhas: o 503 do semáforo não conta como falha, nem para o IP na escola; a conta segurada (429) conta; e o endereço que não existe conta em `desconhecida` e não rebaixa ninguém', async () => {
-    const janela = api.app.get(ContadorEmJanela)
+    const janela = api.app.get(WindowCounter)
     const falhasDoIp = async (escolaId: string, ip: string) => (await janela.ler(janela.chaveDe(PREFIXO_FALHAS_POR_IP_NA_ESCOLA, `${escolaId}|${ip}`))).valor
     const f = await escola()
     const [aluno] = await alunos(f.escolaId, 1)
@@ -581,19 +581,19 @@ describe('ataque de senha nunca bloqueia a escola: rebaixa, por IP e escola, e q
     // diz que `staging` vale 100 ms é `config.test.ts`; aqui se prova que esse valor chega ao cliente.
     const instancia = await subirApi(medidorDoDesafio.medidor, { login: { prazoDoRedisMs: TIMEOUT_COMANDO_REDIS_API_MS } }, undefined, {})
     try {
-      await clientePronto(instancia.app.get<Redis>(CLIENTE_REDIS_LOGIN, { strict: false }))
-      observeInsuranceLimiter(medidorDoDesafio.medidor, instancia.app.get(RateLimiter), instancia.app.get(SeguroDoLogin))
+      await clientePronto(instancia.app.get<Redis>(REDIS_LOGIN_CLIENT, { strict: false }))
+      observeInsuranceLimiter(medidorDoDesafio.medidor, instancia.app.get(RateLimiter), instancia.app.get(LoginFallbackTracker))
       const chave = configuracaoDeTeste().identidade.chaveAssinatura
-      const desafio = await verificarDesafio(await new EmissorDeDesafio(chave).emitir({ contaId: randomUUID(), etapa: 'mfa', mfaCumprido: false }), chave, ['mfa'])
+      const desafio = await verifyChallenge(await new ChallengeIssuer(chave).emitir({ contaId: randomUUID(), etapa: 'mfa', mfaCumprido: false }), chave, ['mfa'])
       const travado = await travarRedis(configuracaoDeTeste().redisFilaUrl, 3_000)
       const comecou = performance.now()
-      await expect(instancia.app.get(ConsumoDeDesafio).consumir(desafio)).rejects.toMatchObject({ codigo: ErrorCode.NAO_AUTENTICADO })
+      await expect(instancia.app.get(ChallengeConsumer).consumir(desafio)).rejects.toMatchObject({ codigo: ErrorCode.NAO_AUTENTICADO })
       // O corte é curto, e é isso que separa esta montagem da do compose: com o prazo da fila chegando até aqui, a
       // recusa só viria depois de 2 s, e a asserção acima continuaria verde sem provar nada.
       expect(performance.now() - comecou).toBeLessThan(TIMEOUT_COMANDO_REDIS_FILA_MS / 2)
-      expect(instancia.app.get(ConsumoDeDesafio).proporcaoDoSeguro).toBe(1)
-      expect([instancia.app.get(ContadorDeTentativas).proporcaoDoSeguro, instancia.app.get(ContadorEmJanela).proporcaoDoSeguro]).toEqual([0, 0])
-      expect(instancia.app.get(SeguroDoLogin).proporcaoDoSeguro).toBe(1)
+      expect(instancia.app.get(ChallengeConsumer).proporcaoDoSeguro).toBe(1)
+      expect([instancia.app.get(LoginLockout).proporcaoDoSeguro, instancia.app.get(WindowCounter).proporcaoDoSeguro]).toEqual([0, 0])
+      expect(instancia.app.get(LoginFallbackTracker).proporcaoDoSeguro).toBe(1)
       expect((await medidorDoDesafio.pontos(METRICS.seguroAtivo)).map(({ valor }) => valor)).toEqual([1])
       await travado.fim
     } finally {

@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto'
 import { afterAll, describe, expect, it } from 'vitest'
 import { estadoDaSessao } from '../../test/test-api.js'
 import { BancadaDeSessoes } from '../../test/sessao.fixture.js'
-import { EscritaDeSessaoRepository } from './sessao-write.repository.js'
+import { SessaoWriteRepository } from './sessao-write.repository.js'
 
 describe('EscritaDeSessaoRepository: toda escrita na sessão fica na escola do contexto', () => {
   const bancada = new BancadaDeSessoes()
@@ -17,7 +17,7 @@ describe('EscritaDeSessaoRepository: toda escrita na sessão fica na escola do c
     const escolaB = await bancada.escola()
     await bancada.pool.query("update sessao set ultimo_uso_em = now() - interval '20 minutes' where escola_id = $1 and id = $2", [deA.escolaId, deA.sessaoId])
     const antes = await estadoDaSessao(bancada, deA)
-    const repositorio = new EscritaDeSessaoRepository(bancada.banco)
+    const repositorio = new SessaoWriteRepository(bancada.banco)
 
     const emB = await runInContext({ requisicaoId: randomUUID(), escolaId: escolaB }, async () => ({
       rotacionou: await repositorio.rotacionar(deA.sessaoId, randomUUID(), true),
@@ -38,7 +38,7 @@ describe('EscritaDeSessaoRepository: toda escrita na sessão fica na escola do c
   })
 
   it('sem escola no contexto, falha fechada antes de tocar o banco', async () => {
-    const repositorio = new EscritaDeSessaoRepository(bancada.banco)
+    const repositorio = new SessaoWriteRepository(bancada.banco)
     await runInContext({ requisicaoId: randomUUID() }, async () => {
       await expect(repositorio.registrarUso(randomUUID())).rejects.toThrow('consulta com escopo sem escola no contexto')
     })

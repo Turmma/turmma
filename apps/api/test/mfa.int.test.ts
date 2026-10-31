@@ -12,9 +12,9 @@ import { lerAmbienteDeTeste } from '../../../tools/ci/compose.ts'
 import { aguardarSaudavel, composeOuFalha } from '../../../tools/testes/compose.ts'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { AppModule } from '../src/app.module.js'
-import { configurarAplicacao } from '../src/configure-app.js'
+import { configureApp } from '../src/configure-app.js'
 import { executarOpsRedefinirMfa } from '../src/ops/redefinir-mfa.js'
-import { CifraDoSegredo, CLIENTE_REDIS_LOGIN, EmissorDeDesafio, gerarCodigosDeRecuperacao, gerarSegredo, HashDeSenha, hmacDaRecuperacao } from '../src/credencial/index.js'
+import { SecretCipher, REDIS_LOGIN_CLIENT, ChallengeIssuer, gerarCodigosDeRecuperacao, gerarSegredo, PasswordHasher, hmacDaRecuperacao } from '../src/credencial/index.js'
 import { configuracaoDeTeste, MONTAGEM_DE_TESTE } from './test-config.js'
 import { BancadaDeSessoes } from './sessao.fixture.js'
 
@@ -60,23 +60,23 @@ describe('MFA do coordenador: configurar, ativar, entrar com o código e redefin
   const bancada = new BancadaDeSessoes()
   const medidor = new MedidorDeTeste()
   const configuracao = configuracaoDeTeste()
-  const emissorDeDesafio = new EmissorDeDesafio(configuracao.identidade.chaveAssinatura)
-  const cifra = new CifraDoSegredo(configuracao.login.mfa.versaoCifra, configuracao.login.mfa.chavesCifra)
+  const emissorDeDesafio = new ChallengeIssuer(configuracao.identidade.chaveAssinatura)
+  const cifra = new SecretCipher(configuracao.login.mfa.versaoCifra, configuracao.login.mfa.chavesCifra)
   const linhasDeLog: string[] = []
   /** Tudo que foi mandado ou recebido e não pode aparecer no log: e-mails, segredos, URIs, códigos, desafios e cookies. */
   const segredosVistos = new Set<string>([SENHA])
   let app: INestApplication
   let url: string
-  let hash: HashDeSenha
+  let hash: PasswordHasher
   let cliente: Redis
 
   beforeAll(async () => {
-    app = await NestFactory.create(AppModule.com(configuracao, { medidor: medidor.medidor, ...MONTAGEM_DE_TESTE }), { logger: false })
-    configurarAplicacao(app, createLogger({ servico: 'api-teste', nivel: 'trace', destino: { write: (linha: string) => linhasDeLog.push(linha) } }), medidor.medidor)
+    app = await NestFactory.create(AppModule.forRoot(configuracao, { medidor: medidor.medidor, ...MONTAGEM_DE_TESTE }), { logger: false })
+    configureApp(app, createLogger({ servico: 'api-teste', nivel: 'trace', destino: { write: (linha: string) => linhasDeLog.push(linha) } }), medidor.medidor)
     await app.listen(0, '127.0.0.1')
     url = `http://127.0.0.1:${(app.getHttpServer().address() as AddressInfo).port}`
-    hash = app.get(HashDeSenha)
-    cliente = app.get<Redis>(CLIENTE_REDIS_LOGIN, { strict: false })
+    hash = app.get(PasswordHasher)
+    cliente = app.get<Redis>(REDIS_LOGIN_CLIENT, { strict: false })
     await clientePronto(cliente)
   })
 

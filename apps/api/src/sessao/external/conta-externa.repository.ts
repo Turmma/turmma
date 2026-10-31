@@ -30,7 +30,7 @@ export interface ProfessorPeloEmail {
  * contexto é o da escola do cookie `educa_oidc`, aberto antes de ler qualquer coisa: a mesma conta Google ligada em A
  * não existe para B, e o domínio que B cadastrou não abre a ligação de A (Tech Spec, seção 6).
  */
-export class ContaExternaRepository {
+export class ContaExternalRepository {
   constructor(private readonly banco: Database | DatabaseTransaction) {}
 
   /** Se o domínio (`hd`) ou o tenant (`tid`) está liberado para o provedor na escola do contexto. */

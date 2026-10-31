@@ -19,8 +19,8 @@ import { setTimeout as esperar } from 'node:timers/promises'
 import request from 'supertest'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { AppModule } from '../src/app.module.js'
-import { POOL_BANCO } from '../src/database.module.js'
-import { configurarAplicacao } from '../src/configure-app.js'
+import { DB_POOL } from '../src/database.module.js'
+import { configureApp } from '../src/configure-app.js'
 import { configuracaoDeTeste } from './test-config.js'
 import { BancadaDeSessoes } from './sessao.fixture.js'
 
@@ -40,7 +40,7 @@ const registros = () => linhasDeLog.map((linha) => JSON.parse(linha) as Record<s
 @Public()
 @Controller('teste')
 class ControladorDeTeste {
-  constructor(@Inject(POOL_BANCO) private readonly pool: DatabasePool) {}
+  constructor(@Inject(DB_POOL) private readonly pool: DatabasePool) {}
 
   @Get('excecao')
   lancar(): never {
@@ -88,7 +88,7 @@ class ControladorDeTeste {
 /** Sem `@Public()`: a escola de cada requisição vem da sessão do token, como em qualquer rota real. */
 @Controller('teste-autenticado')
 class ControladorDeEco {
-  constructor(@Inject(POOL_BANCO) private readonly pool: DatabasePool) {}
+  constructor(@Inject(DB_POOL) private readonly pool: DatabasePool) {}
 
   @Get('eco')
   @RequirePermissao('sistema_contexto', 'ler')
@@ -118,22 +118,22 @@ describe('erro tipado e log sem dado pessoal', () => {
 
   beforeAll(async () => {
     @Module({
-      imports: [AppModule.com(configuracaoDeTeste({ banco: { timeoutConexaoMs: 1_000, timeoutConsultaMs: 300 } }))],
+      imports: [AppModule.forRoot(configuracaoDeTeste({ banco: { timeoutConexaoMs: 1_000, timeoutConsultaMs: 300 } }))],
       controllers: [ControladorDeTeste, ControladorDeEco],
     })
     class ModuloDeTeste {}
 
     app = await NestFactory.create(ModuloDeTeste, { logger: false })
-    configurarAplicacao(app, registrador)
+    configureApp(app, registrador)
     // Um servidor só, já ouvindo: sem isso o supertest abre uma porta por requisição, e 50 em
     // paralelo esbarram no backlog do sistema (ECONNRESET) em vez de testar o contexto.
     await app.listen(0, '127.0.0.1')
-    const pool = app.get<DatabasePool>(POOL_BANCO)
+    const pool = app.get<DatabasePool>(DB_POOL)
     await pool.query(`create table ${TABELA} (id uuid primary key default gen_random_uuid(), nome text not null constraint ${TABELA}_nome_key unique)`)
   })
 
   afterAll(async () => {
-    await app.get<DatabasePool>(POOL_BANCO).query(`drop table if exists ${TABELA}`)
+    await app.get<DatabasePool>(DB_POOL).query(`drop table if exists ${TABELA}`)
     await app.close()
     await bancada.fechar()
   })

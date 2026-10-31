@@ -2,7 +2,7 @@ import { runInContext } from '@educa/core'
 import { randomUUID } from 'node:crypto'
 import { afterAll, describe, expect, it } from 'vitest'
 import { BancadaDeSessoes } from '../../../test/sessao.fixture.js'
-import { EuRepository } from './eu.repository.js'
+import { MeRepository } from './eu.repository.js'
 import { RegistroDeAcessoRepository } from '../../credencial/registro-de-acesso.repository.js'
 
 describe('repositories do login com escopo: a escola vem do contexto', () => {
@@ -15,7 +15,7 @@ describe('repositories do login com escopo: a escola vem do contexto', () => {
   it('isolamento: o /v1/eu lê o usuário só na escola do contexto; o usuário de A no contexto de B não é achado', async () => {
     const professorEmA = await bancada.escolaComSessao('professor')
     const escolaB = await bancada.escola()
-    const repositorio = new EuRepository(bancada.banco)
+    const repositorio = new MeRepository(bancada.banco)
     const naPropria = await runInContext({ requisicaoId: randomUUID(), escolaId: professorEmA.escolaId, usuarioId: professorEmA.usuarioId }, () => repositorio.doContexto())
     expect(naPropria).toMatchObject({ usuarioId: professorEmA.usuarioId, papel: 'professor', escola: { id: professorEmA.escolaId } })
     const naOutra = await runInContext({ requisicaoId: randomUUID(), escolaId: escolaB, usuarioId: professorEmA.usuarioId }, () => repositorio.doContexto())
@@ -26,7 +26,7 @@ describe('repositories do login com escopo: a escola vem do contexto', () => {
     const professorEmA = await bancada.escolaComSessao('professor')
     const escolaB = await bancada.escola()
     const colegaEmA = await bancada.sessao(professorEmA.escolaId, 'professor')
-    const repositorio = new EuRepository(bancada.banco)
+    const repositorio = new MeRepository(bancada.banco)
     const dataDe = async (usuarioId: string) => (await bancada.pool.query<{ d: Date | null }>('select introducao_vista_em as d from usuario where id = $1', [usuarioId])).rows[0]?.d ?? null
 
     const deOutraEscola = await runInContext({ requisicaoId: randomUUID(), escolaId: escolaB, usuarioId: professorEmA.usuarioId }, () => repositorio.marcarIntroducaoVista())

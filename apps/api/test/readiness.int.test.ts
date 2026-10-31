@@ -7,7 +7,7 @@ import { setTimeout as esperar } from 'node:timers/promises'
 import { afterAll, afterEach, beforeAll, describe, expect, it, onTestFinished } from 'vitest'
 import { aguardarSaudavel, compose } from '../../../tools/testes/compose.ts'
 import { AppModule } from '../src/app.module.js'
-import { configurarAplicacao } from '../src/configure-app.js'
+import { configureApp } from '../src/configure-app.js'
 import { configuracaoDeTeste } from './test-config.js'
 import { BancadaDeSessoes } from './sessao.fixture.js'
 
@@ -26,11 +26,11 @@ class ControladorLento {
 }
 
 async function subirApi(ambiente: Record<string, string> = {}): Promise<{ app: INestApplication; url: string }> {
-  @Module({ imports: [AppModule.com(configuracaoDeTeste({ ambiente, banco: { timeoutConexaoMs: 500, timeoutConsultaMs: 500 } }))], controllers: [ControladorLento] })
+  @Module({ imports: [AppModule.forRoot(configuracaoDeTeste({ ambiente, banco: { timeoutConexaoMs: 500, timeoutConsultaMs: 500 } }))], controllers: [ControladorLento] })
   class ModuloDeTeste {}
 
   const app = await NestFactory.create(ModuloDeTeste, { logger: false })
-  configurarAplicacao(app, createLogger({ servico: 'api-teste', nivel: 'silent' }))
+  configureApp(app, createLogger({ servico: 'api-teste', nivel: 'silent' }))
   await app.listen(0, '127.0.0.1')
   const { port } = app.getHttpServer().address() as AddressInfo
   return { app, url: `http://127.0.0.1:${port}` }

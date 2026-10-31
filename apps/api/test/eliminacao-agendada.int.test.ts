@@ -5,7 +5,7 @@ import { randomBytes, randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { PedidosRepository } from '../src/privacidade/pedidos.repository.js'
-import { HashDeSenha } from '../src/credencial/index.js'
+import { PasswordHasher } from '../src/credencial/index.js'
 import { chamar, renovar, subirApi, type ApiDeTeste } from './test-api.js'
 import { montarEscolaComTurma } from './escola-turma.fixture.js'
 import { BancadaDeSessoes, type SessaoDeTeste } from './sessao.fixture.js'
@@ -58,13 +58,13 @@ describe('eliminação agendada (F3, tarefa 14.0): suspende o acesso, não revel
   const medidor = new MedidorDeTeste()
   const linhasDeLog: string[] = []
   let api: ApiDeTeste
-  let hash: HashDeSenha
+  let hash: PasswordHasher
   let hashDaSenha: string
   let verificacoes: ReturnType<typeof vi.spyOn>
 
   beforeAll(async () => {
     api = await subirApi(medidor.medidor, { ambiente: { LIMITE_REQ_USUARIO_MIN: '1000', LIMITE_REQ_ESCOLA_MIN: '1000', LOGIN_HASH_CONCORRENCIA: '4' } }, linhasDeLog)
-    hash = api.app.get(HashDeSenha)
+    hash = api.app.get(PasswordHasher)
     verificacoes = vi.spyOn(hash, 'verificar')
     hashDaSenha = await hash.gerar(SENHA)
   })

@@ -43,7 +43,7 @@ export interface PedidoDeTrechos {
  *
  * Nada aqui loga o texto da busca nem o do trecho (regra 20, item 9).
  */
-export class BuscaDeTrechos {
+export class TrechoSearch {
   constructor(private readonly banco: Database) {}
 
   /**

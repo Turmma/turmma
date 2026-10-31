@@ -1,0 +1,2695 @@
+{
+  "linha": true,
+  "entradas": [
+    {
+      "tipo": "simbolo",
+      "de": "com",
+      "para": "forRoot",
+      "linhaDoAnexo": "inventario-back.md:39"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "BancoModule",
+      "para": "DatabaseModule",
+      "arquivo": "apps/api/src/database.module.ts",
+      "linhaDoAnexo": "inventario-back.md:22"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "POOL_BANCO",
+      "para": "DB_POOL",
+      "arquivo": "apps/api/src/database.module.ts",
+      "linhaDoAnexo": "inventario-back.md:24"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "BANCO",
+      "para": "DB",
+      "arquivo": "apps/api/src/database.module.ts",
+      "linhaDoAnexo": "inventario-back.md:25"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "LimiteModule",
+      "para": "RateLimitModule",
+      "arquivo": "apps/api/src/rate-limit.module.ts",
+      "linhaDoAnexo": "inventario-back.md:26"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "CLIENTE_REDIS_CACHE",
+      "para": "REDIS_CACHE_CLIENT",
+      "arquivo": "apps/api/src/rate-limit.module.ts",
+      "linhaDoAnexo": "inventario-back.md:28"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "LIMITES_DA_ESCOLA",
+      "para": "ESCOLA_RATE_LIMITS",
+      "arquivo": "apps/api/src/rate-limit.module.ts",
+      "linhaDoAnexo": "inventario-back.md:29"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "UsoModule",
+      "para": "UsageModule",
+      "arquivo": "apps/api/src/usage.module.ts",
+      "linhaDoAnexo": "inventario-back.md:30"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "CLIENTE_REDIS_USO",
+      "para": "REDIS_USAGE_CLIENT",
+      "arquivo": "apps/api/src/usage.module.ts",
+      "linhaDoAnexo": "inventario-back.md:32"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "CLIENTE_REDIS_LOGIN",
+      "para": "REDIS_LOGIN_CLIENT",
+      "arquivo": "apps/api/src/credencial/login-redis-client.ts",
+      "linhaDoAnexo": "inventario-back.md:33"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "configurarAplicacao",
+      "para": "configureApp",
+      "arquivo": "apps/api/src/configure-app.ts",
+      "linhaDoAnexo": "inventario-back.md:37"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "OpcoesDeMontagem",
+      "para": "AppModuleOptions",
+      "arquivo": "apps/api/src/app.module.ts",
+      "linhaDoAnexo": "inventario-back.md:38"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "SistemaModule",
+      "para": "SystemModule",
+      "arquivo": "apps/api/src/system/system.module.ts",
+      "linhaDoAnexo": "inventario-back.md:47"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "SaudeController",
+      "para": "HealthController",
+      "arquivo": "apps/api/src/system/health.controller.ts",
+      "linhaDoAnexo": "inventario-back.md:50"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "SaudeService",
+      "para": "HealthService",
+      "arquivo": "apps/api/src/system/health.service.ts",
+      "linhaDoAnexo": "inventario-back.md:51"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ProntidaoController",
+      "para": "ReadinessController",
+      "arquivo": "apps/api/src/system/readiness.controller.ts",
+      "linhaDoAnexo": "inventario-back.md:53"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "EstadoController",
+      "para": "StatusController",
+      "arquivo": "apps/api/src/system/status.controller.ts",
+      "linhaDoAnexo": "inventario-back.md:55"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "EstadoService",
+      "para": "StatusService",
+      "arquivo": "apps/api/src/system/status.service.ts",
+      "linhaDoAnexo": "inventario-back.md:56"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "VERSAO_DO_SISTEMA",
+      "para": "SYSTEM_VERSION",
+      "arquivo": "apps/api/src/system/status.service.ts",
+      "linhaDoAnexo": "inventario-back.md:58"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "AMBIENTE_DO_SISTEMA",
+      "para": "SYSTEM_ENVIRONMENT",
+      "arquivo": "apps/api/src/system/status.service.ts",
+      "linhaDoAnexo": "inventario-back.md:59"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RELOGIO_DO_ESTADO",
+      "para": "STATUS_CLOCK",
+      "arquivo": "apps/api/src/system/status.service.ts",
+      "linhaDoAnexo": "inventario-back.md:60"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ContextoController",
+      "para": "ContextController",
+      "arquivo": "apps/api/src/system/context.controller.ts",
+      "linhaDoAnexo": "inventario-back.md:61"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "AvisosController",
+      "para": "NoticesController",
+      "arquivo": "apps/api/src/system/notices.controller.ts",
+      "linhaDoAnexo": "inventario-back.md:63"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "AVISOS_DO_SISTEMA",
+      "para": "SYSTEM_NOTICES",
+      "arquivo": "apps/api/src/system/notices.controller.ts",
+      "linhaDoAnexo": "inventario-back.md:64"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "JobsSinteticosController",
+      "para": "SyntheticJobsController",
+      "arquivo": "apps/api/src/system/synthetic-jobs.controller.ts",
+      "linhaDoAnexo": "inventario-back.md:66"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "JobsSinteticosConsultaController",
+      "para": "SyntheticJobsQueryController",
+      "arquivo": "apps/api/src/system/synthetic-jobs.controller.ts",
+      "linhaDoAnexo": "inventario-back.md:67"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "JobsSinteticosService",
+      "para": "SyntheticJobsService",
+      "arquivo": "apps/api/src/system/synthetic-jobs.service.ts",
+      "linhaDoAnexo": "inventario-back.md:68"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "EuController",
+      "para": "MeController",
+      "arquivo": "apps/api/src/sessao/eu/eu.controller.ts",
+      "linhaDoAnexo": "inventario-back.md:77"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "EuService",
+      "para": "MeService",
+      "arquivo": "apps/api/src/sessao/eu/eu.service.ts",
+      "linhaDoAnexo": "inventario-back.md:78"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "EuRepository",
+      "para": "MeRepository",
+      "arquivo": "apps/api/src/sessao/eu/eu.repository.ts",
+      "linhaDoAnexo": "inventario-back.md:79"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "LinhaDoEu",
+      "para": "MeRow",
+      "arquivo": "apps/api/src/sessao/eu/eu.repository.ts",
+      "linhaDoAnexo": "inventario-back.md:80"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "EuDoOperadorController",
+      "para": "OperadorMeController",
+      "arquivo": "apps/api/src/operacao/eu/eu.controller.ts",
+      "linhaDoAnexo": "inventario-back.md:82"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "EuDoOperadorService",
+      "para": "OperadorMeService",
+      "arquivo": "apps/api/src/operacao/eu/eu.service.ts",
+      "linhaDoAnexo": "inventario-back.md:83"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "SaidaController",
+      "para": "LogoutController",
+      "arquivo": "apps/api/src/sessao/logout/saida.controller.ts",
+      "linhaDoAnexo": "inventario-back.md:85"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "SaidaService",
+      "para": "LogoutService",
+      "arquivo": "apps/api/src/sessao/logout/saida.service.ts",
+      "linhaDoAnexo": "inventario-back.md:86"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RenovacaoController",
+      "para": "RefreshController",
+      "arquivo": "apps/api/src/sessao/refresh/renovacao.controller.ts",
+      "linhaDoAnexo": "inventario-back.md:88"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RenovacaoService",
+      "para": "RefreshService",
+      "arquivo": "apps/api/src/sessao/refresh/renovacao.service.ts",
+      "linhaDoAnexo": "inventario-back.md:89"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "LoginExternoController",
+      "para": "ExternalLoginController",
+      "arquivo": "apps/api/src/sessao/external/external-login.controller.ts",
+      "linhaDoAnexo": "inventario-back.md:91"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "LoginExterno",
+      "para": "ExternalLoginService",
+      "arquivo": "apps/api/src/sessao/external/external-login.service.ts",
+      "linhaDoAnexo": "inventario-back.md:93"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ContaExternaRepository",
+      "para": "ContaExternalRepository",
+      "arquivo": "apps/api/src/sessao/external/conta-externa.repository.ts",
+      "linhaDoAnexo": "inventario-back.md:94"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ProvedorExternoPort",
+      "para": "ExternalProviderPort",
+      "arquivo": "apps/api/src/sessao/external/external-provider.port.ts",
+      "linhaDoAnexo": "inventario-back.md:96"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PROVEDOR_EXTERNO",
+      "para": "EXTERNAL_PROVIDER",
+      "arquivo": "apps/api/src/sessao/sessao.module.ts",
+      "linhaDoAnexo": "inventario-back.md:98"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "SegundoFatorDoOperadorController",
+      "para": "OperadorMfaController",
+      "arquivo": "apps/api/src/operacao/mfa/segundo-fator.controller.ts",
+      "linhaDoAnexo": "inventario-back.md:99"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "SegundoFatorDoOperadorService",
+      "para": "OperadorMfaService",
+      "arquivo": "apps/api/src/operacao/mfa/segundo-fator.service.ts",
+      "linhaDoAnexo": "inventario-back.md:100"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ResolucaoDeTenantRepository",
+      "para": "TenantResolutionRepository",
+      "arquivo": "apps/api/src/sessao/tenant/tenant-resolution.repository.ts",
+      "linhaDoAnexo": "inventario-back.md:102"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "EscritaDeSessaoRepository",
+      "para": "SessaoWriteRepository",
+      "arquivo": "apps/api/src/credencial/sessao-write.repository.ts",
+      "linhaDoAnexo": "inventario-back.md:104"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "CriacaoDeSessaoRepository",
+      "para": "SessaoCreateRepository",
+      "arquivo": "apps/api/src/credencial/sessao-create.repository.ts",
+      "linhaDoAnexo": "inventario-back.md:105"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RenovacaoDeOperador",
+      "para": "OperadorRefresh",
+      "arquivo": "apps/api/src/operacao/sessao/sessao.service.ts",
+      "linhaDoAnexo": "inventario-back.md:107"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ResultadoDaRenovacao",
+      "para": "RefreshResult",
+      "arquivo": "apps/api/src/sessao/refresh/renovacao.service.ts",
+      "linhaDoAnexo": "inventario-back.md:108"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ResultadoDaRenovacaoHttp",
+      "para": "RefreshHttpResult",
+      "arquivo": "apps/api/src/sessao/refresh/renovacao.service.ts",
+      "linhaDoAnexo": "inventario-back.md:108"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RESULTADOS_DA_RENOVACAO",
+      "para": "REFRESH_RESULTS",
+      "arquivo": "apps/api/src/sessao/refresh/renovacao.service.ts",
+      "linhaDoAnexo": "inventario-back.md:108"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "resultadoPeloCookie",
+      "para": "resultByCookie",
+      "arquivo": "apps/api/src/sessao/refresh/renovacao.service.ts",
+      "linhaDoAnexo": "inventario-back.md:108"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "JANELA_DE_JA_RENOVADO_SEGUNDOS",
+      "para": "ALREADY_REFRESHED_WINDOW_SECONDS",
+      "arquivo": "apps/api/src/sessao/refresh/renovacao.service.ts",
+      "linhaDoAnexo": "inventario-back.md:108"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "Redirecionamento",
+      "para": "Redirect",
+      "arquivo": "apps/api/src/sessao/external/external-login.service.ts",
+      "linhaDoAnexo": "inventario-back.md:109"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ExtratorDePdf",
+      "para": "PdfExtractor",
+      "arquivo": "apps/api/src/material/pdf-extraction.ts",
+      "linhaDoAnexo": "inventario-back.md:118"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "FilaDeExtracao",
+      "para": "ExtractionQueue",
+      "arquivo": "apps/api/src/material/extraction-queue.ts",
+      "linhaDoAnexo": "inventario-back.md:120"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "TrabalhoDeExtracao",
+      "para": "ExtractionTask",
+      "arquivo": "apps/api/src/material/extraction-queue.ts",
+      "linhaDoAnexo": "inventario-back.md:121"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "OpcoesDaFila",
+      "para": "ExtractionQueueOptions",
+      "arquivo": "apps/api/src/material/extraction-queue.ts",
+      "linhaDoAnexo": "inventario-back.md:122"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "CicloDaExtracao",
+      "para": "ExtractionLifecycle",
+      "arquivo": "apps/api/src/material/material.module.ts",
+      "linhaDoAnexo": "inventario-back.md:124"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "BuscaDeTrechos",
+      "para": "TrechoSearch",
+      "arquivo": "apps/api/src/material/trecho-search.ts",
+      "linhaDoAnexo": "inventario-back.md:125"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RecebimentoDoMaterial",
+      "para": "MaterialUploadInterceptor",
+      "arquivo": "apps/api/src/material/material-upload.ts",
+      "linhaDoAnexo": "inventario-back.md:127"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "LeituraDoLote",
+      "para": "LoteReadMarker",
+      "arquivo": "apps/api/src/atividade/correcao/lote-read-marker.ts",
+      "linhaDoAnexo": "inventario-back.md:129"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "GuardaDeOperador",
+      "para": "OperadorGuard",
+      "arquivo": "apps/api/src/operacao/operador.guard.ts",
+      "linhaDoAnexo": "inventario-back.md:138"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "IDENTIDADE_DA_OPERACAO",
+      "para": "OPERACAO_IDENTITY",
+      "arquivo": "apps/api/src/operacao/operador.guard.ts",
+      "linhaDoAnexo": "inventario-back.md:140"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "SESSOES_DE_OPERADOR",
+      "para": "OPERADOR_SESSIONS",
+      "arquivo": "apps/api/src/operacao/operador.guard.ts",
+      "linhaDoAnexo": "inventario-back.md:141"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "LeituraDaSessaoDeOperador",
+      "para": "OperadorSessionReader",
+      "arquivo": "apps/api/src/operacao/operador.guard.ts",
+      "linhaDoAnexo": "inventario-back.md:142"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "provedoresDaGuardaDeOperador",
+      "para": "operadorGuardProviders",
+      "arquivo": "apps/api/src/operacao/operador.guard.ts",
+      "linhaDoAnexo": "inventario-back.md:143"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RotaDeOperacao",
+      "para": "OperacaoRoute",
+      "arquivo": "apps/api/src/operacao/decorators.ts",
+      "linhaDoAnexo": "inventario-back.md:144"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "EntradaDeOperacao",
+      "para": "OperacaoLoginRoute",
+      "arquivo": "apps/api/src/operacao/decorators.ts",
+      "linhaDoAnexo": "inventario-back.md:145"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "GuardaDoEnvio",
+      "para": "MaterialUploadGuard",
+      "arquivo": "apps/api/src/material/material-upload.ts",
+      "linhaDoAnexo": "inventario-back.md:147"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "GuardaDoCodigo",
+      "para": "CodigoRateLimit",
+      "arquivo": "apps/api/src/sessao/tenant/acesso-da-sala.ts",
+      "linhaDoAnexo": "inventario-back.md:148"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ConferenciaDoAutor",
+      "para": "AuthorCheck",
+      "arquivo": "apps/api/src/sessao/author-check.ts",
+      "linhaDoAnexo": "inventario-back.md:149"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ConferenciaDeFuncao",
+      "para": "FuncaoSuspensionCheck",
+      "arquivo": "apps/api/src/ia/funcao-suspension-check.ts",
+      "linhaDoAnexo": "inventario-back.md:151"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ContadorDeTentativas",
+      "para": "LoginLockout",
+      "arquivo": "apps/api/src/credencial/login-lockout.ts",
+      "linhaDoAnexo": "inventario-back.md:161"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ContadorEmJanela",
+      "para": "WindowCounter",
+      "arquivo": "apps/api/src/credencial/senha/window-counter.ts",
+      "linhaDoAnexo": "inventario-back.md:163"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ContagemNaJanela",
+      "para": "WindowCount",
+      "arquivo": "apps/api/src/credencial/senha/window-counter.ts",
+      "linhaDoAnexo": "inventario-back.md:164"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "OpcoesDoContador",
+      "para": "WindowCounterOptions",
+      "arquivo": "apps/api/src/credencial/senha/window-counter.ts",
+      "linhaDoAnexo": "inventario-back.md:165"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "SemaforoDeHash",
+      "para": "HashBulkhead",
+      "arquivo": "apps/api/src/credencial/senha/hash-bulkhead.ts",
+      "linhaDoAnexo": "inventario-back.md:167"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "SemaforoSemProtecao",
+      "para": "UnprotectedHashBulkhead",
+      "arquivo": "apps/api/src/credencial/senha/hash-bulkhead.ts",
+      "linhaDoAnexo": "inventario-back.md:168"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ConferenciaNaVez",
+      "para": "PasswordVerifier",
+      "arquivo": "apps/api/src/credencial/senha/password-verifier.ts",
+      "linhaDoAnexo": "inventario-back.md:170"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "TentativaDeSenha",
+      "para": "PasswordAttempt",
+      "arquivo": "apps/api/src/credencial/senha/password-verifier.ts",
+      "linhaDoAnexo": "inventario-back.md:171"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "SenhaConferida",
+      "para": "VerifiedPassword",
+      "arquivo": "apps/api/src/credencial/senha/password-verifier.ts",
+      "linhaDoAnexo": "inventario-back.md:172"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RebaixamentoPorEscola",
+      "para": "EscolaIpThrottle",
+      "arquivo": "apps/api/src/credencial/senha/ip-throttle.ts",
+      "linhaDoAnexo": "inventario-back.md:174"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "LimiteDoEmailPorIp",
+      "para": "EmailIpRateLimit",
+      "arquivo": "apps/api/src/credencial/senha/email-ip-rate-limit.ts",
+      "linhaDoAnexo": "inventario-back.md:176"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "BaldeDeLogin",
+      "para": "LoginBucket",
+      "arquivo": "apps/api/src/credencial/senha/login-buckets.ts",
+      "linhaDoAnexo": "inventario-back.md:178"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "baldeDaEscola",
+      "para": "escolaBucket",
+      "arquivo": "apps/api/src/credencial/senha/login-buckets.ts",
+      "linhaDoAnexo": "inventario-back.md:179"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "baldeDaEscolaDesconhecida",
+      "para": "escolaDesconhecidaBucket",
+      "arquivo": "apps/api/src/credencial/senha/login-buckets.ts",
+      "linhaDoAnexo": "inventario-back.md:179"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "baldeDaEquipe",
+      "para": "equipeBucket",
+      "arquivo": "apps/api/src/credencial/senha/login-buckets.ts",
+      "linhaDoAnexo": "inventario-back.md:179"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "DuracaoDoLogin",
+      "para": "LoginDurationHistogram",
+      "arquivo": "apps/api/src/credencial/senha/login-duration.ts",
+      "linhaDoAnexo": "inventario-back.md:181"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "SeguroDoLogin",
+      "para": "LoginFallbackTracker",
+      "arquivo": "apps/api/src/credencial/login-fallback.ts",
+      "linhaDoAnexo": "inventario-back.md:183"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "FonteDoSeguro",
+      "para": "FallbackSource",
+      "arquivo": "apps/api/src/credencial/login-fallback.ts",
+      "linhaDoAnexo": "inventario-back.md:184"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "LimitesDaSala",
+      "para": "SalaRateLimits",
+      "arquivo": "apps/api/src/sala/sala-rate-limits.ts",
+      "linhaDoAnexo": "inventario-back.md:186"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "DependenciasDosLimites",
+      "para": "SalaRateLimitsDependencies",
+      "arquivo": "apps/api/src/sala/sala-rate-limits.ts",
+      "linhaDoAnexo": "inventario-back.md:187"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "LimiteDePedidosDeIa",
+      "para": "IaRequestRateLimit",
+      "arquivo": "apps/api/src/assistente/ai-request-rate-limit.ts",
+      "linhaDoAnexo": "inventario-back.md:189"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "FalhasDeEntradaDaOperacao",
+      "para": "OperacaoLoginFailureCounter",
+      "arquivo": "apps/api/src/operacao/login-failure-counter.ts",
+      "linhaDoAnexo": "inventario-back.md:191"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "EmissorDeDesafio",
+      "para": "ChallengeIssuer",
+      "arquivo": "apps/api/src/credencial/challenge.ts",
+      "linhaDoAnexo": "inventario-back.md:200"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ConsumoDeDesafio",
+      "para": "ChallengeConsumer",
+      "arquivo": "apps/api/src/credencial/challenge.ts",
+      "linhaDoAnexo": "inventario-back.md:201"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "verificarDesafio",
+      "para": "verifyChallenge",
+      "arquivo": "apps/api/src/credencial/challenge.ts",
+      "linhaDoAnexo": "inventario-back.md:202"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PedidoDeDesafio",
+      "para": "ChallengeRequest",
+      "arquivo": "apps/api/src/credencial/challenge.ts",
+      "linhaDoAnexo": "inventario-back.md:203"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "DesafioVerificado",
+      "para": "VerifiedChallenge",
+      "arquivo": "apps/api/src/credencial/challenge.ts",
+      "linhaDoAnexo": "inventario-back.md:203"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "AUDIENCIA_DESAFIO",
+      "para": "CHALLENGE_AUDIENCE",
+      "arquivo": "apps/api/src/credencial/challenge.ts",
+      "linhaDoAnexo": "inventario-back.md:204"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "VALIDADE_DESAFIO_SEGUNDOS",
+      "para": "CHALLENGE_TTL_SECONDS",
+      "arquivo": "apps/api/src/credencial/challenge.ts",
+      "linhaDoAnexo": "inventario-back.md:204"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PREFIXO_DESAFIO_USADO",
+      "para": "USED_CHALLENGE_PREFIX",
+      "arquivo": "apps/api/src/credencial/challenge.ts",
+      "linhaDoAnexo": "inventario-back.md:204"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "EmissorDeDesafioDeOperador",
+      "para": "OperadorChallengeIssuer",
+      "arquivo": "apps/api/src/operacao/operador-challenge.ts",
+      "linhaDoAnexo": "inventario-back.md:206"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ConsumoDeDesafioDeOperador",
+      "para": "OperadorChallengeConsumer",
+      "arquivo": "apps/api/src/operacao/operador-challenge.ts",
+      "linhaDoAnexo": "inventario-back.md:207"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "verificarDesafioDeOperador",
+      "para": "verifyOperadorChallenge",
+      "arquivo": "apps/api/src/operacao/operador-challenge.ts",
+      "linhaDoAnexo": "inventario-back.md:208"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PedidoDeDesafioDeOperador",
+      "para": "OperadorChallengeRequest",
+      "arquivo": "apps/api/src/operacao/operador-challenge.ts",
+      "linhaDoAnexo": "inventario-back.md:209"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "DesafioDeOperadorVerificado",
+      "para": "VerifiedOperadorChallenge",
+      "arquivo": "apps/api/src/operacao/operador-challenge.ts",
+      "linhaDoAnexo": "inventario-back.md:209"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "EtapaDoDesafioDeOperador",
+      "para": "OperadorChallengeStep",
+      "arquivo": "apps/api/src/operacao/operador-challenge.ts",
+      "linhaDoAnexo": "inventario-back.md:209"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "AUDIENCIA_DESAFIO_DE_OPERADOR",
+      "para": "OPERADOR_CHALLENGE_AUDIENCE",
+      "arquivo": "apps/api/src/operacao/operador-challenge.ts",
+      "linhaDoAnexo": "inventario-back.md:210"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "VALIDADE_DESAFIO_DE_OPERADOR_SEGUNDOS",
+      "para": "OPERADOR_CHALLENGE_TTL_SECONDS",
+      "arquivo": "apps/api/src/operacao/operador-challenge.ts",
+      "linhaDoAnexo": "inventario-back.md:210"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PREFIXO_DESAFIO_DE_OPERADOR_USADO",
+      "para": "USED_OPERADOR_CHALLENGE_PREFIX",
+      "arquivo": "apps/api/src/operacao/operador-challenge.ts",
+      "linhaDoAnexo": "inventario-back.md:210"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ETAPAS_DO_DESAFIO_DE_OPERADOR",
+      "para": "OPERADOR_CHALLENGE_STEPS",
+      "arquivo": "apps/api/src/operacao/operador-challenge.ts",
+      "linhaDoAnexo": "inventario-back.md:210"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "BilheteDeConvite",
+      "para": "ConviteTicket",
+      "arquivo": "apps/api/src/sessao/convite/convite-ticket.ts",
+      "linhaDoAnexo": "inventario-back.md:212"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "BilheteVerificado",
+      "para": "VerifiedConviteTicket",
+      "arquivo": "apps/api/src/sessao/convite/convite-ticket.ts",
+      "linhaDoAnexo": "inventario-back.md:213"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "TIPO_BILHETE",
+      "para": "TICKET_TYPE",
+      "arquivo": "apps/api/src/sessao/convite/convite-ticket.ts",
+      "linhaDoAnexo": "inventario-back.md:214"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "AUDIENCIA_BILHETE",
+      "para": "TICKET_AUDIENCE",
+      "arquivo": "apps/api/src/sessao/convite/convite-ticket.ts",
+      "linhaDoAnexo": "inventario-back.md:214"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "VALIDADE_BILHETE_SEGUNDOS",
+      "para": "TICKET_TTL_SECONDS",
+      "arquivo": "apps/api/src/sessao/convite/convite-ticket.ts",
+      "linhaDoAnexo": "inventario-back.md:214"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "CifraDoSegredo",
+      "para": "SecretCipher",
+      "arquivo": "apps/api/src/credencial/secret-cipher.ts",
+      "linhaDoAnexo": "inventario-back.md:216"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "SegredoCifrado",
+      "para": "CipheredSecret",
+      "arquivo": "apps/api/src/credencial/secret-cipher.ts",
+      "linhaDoAnexo": "inventario-back.md:217"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "HashDeSenha",
+      "para": "PasswordHasher",
+      "arquivo": "apps/api/src/credencial/password-hasher.ts",
+      "linhaDoAnexo": "inventario-back.md:219"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ParametrosDoHash",
+      "para": "HashParams",
+      "arquivo": "apps/api/src/credencial/login-config.ts",
+      "linhaDoAnexo": "inventario-back.md:221"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "CookieDeDispositivo",
+      "para": "DeviceCookie",
+      "arquivo": "apps/api/src/credencial/device-cookie.ts",
+      "linhaDoAnexo": "inventario-back.md:225"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "COOKIE_SESSAO",
+      "para": "SESSAO_COOKIE",
+      "arquivo": "apps/api/src/credencial/cookies.ts",
+      "linhaDoAnexo": "inventario-back.md:227"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "COOKIE_DISPOSITIVO",
+      "para": "DEVICE_COOKIE",
+      "arquivo": "apps/api/src/credencial/cookies.ts",
+      "linhaDoAnexo": "inventario-back.md:227"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "OpcoesDoCookie",
+      "para": "CookieOptions",
+      "arquivo": "apps/api/src/credencial/cookies.ts",
+      "linhaDoAnexo": "inventario-back.md:228"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "COOKIE_DISPOSITIVO_DE_OPERADOR",
+      "para": "OPERADOR_DEVICE_COOKIE",
+      "arquivo": "apps/api/src/operacao/operador-device-cookie.ts",
+      "linhaDoAnexo": "inventario-back.md:230"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "cookieDeDispositivoDeOperador",
+      "para": "operadorDeviceCookie",
+      "arquivo": "apps/api/src/operacao/operador-device-cookie.ts",
+      "linhaDoAnexo": "inventario-back.md:230"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "OrigemDaRequisicao",
+      "para": "RequestOrigin",
+      "arquivo": "apps/api/src/credencial/request-origin.ts",
+      "linhaDoAnexo": "inventario-back.md:232"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "SessaoDeOperadorParaGuarda",
+      "para": "SessaoDeOperadorForGuard",
+      "arquivo": "apps/api/src/operacao/sessao/sessao-timeouts.ts",
+      "linhaDoAnexo": "inventario-back.md:233"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "SessaoDeOperadorParaRenovar",
+      "para": "SessaoDeOperadorForRefresh",
+      "arquivo": "apps/api/src/operacao/sessao/sessao-timeouts.ts",
+      "linhaDoAnexo": "inventario-back.md:233"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ConfiguracaoLogin",
+      "para": "LoginConfig",
+      "arquivo": "apps/api/src/credencial/login-config.ts",
+      "linhaDoAnexo": "inventario-back.md:236"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ConfiguracaoMfa",
+      "para": "MfaConfig",
+      "arquivo": "apps/api/src/credencial/login-config.ts",
+      "linhaDoAnexo": "inventario-back.md:236"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "lerConfiguracaoLogin",
+      "para": "loadLoginConfig",
+      "arquivo": "apps/api/src/credencial/login-config.ts",
+      "linhaDoAnexo": "inventario-back.md:237"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ConfiguracaoLoginExterno",
+      "para": "ExternalLoginConfig",
+      "arquivo": "apps/api/src/credencial/external-login-config.ts",
+      "linhaDoAnexo": "inventario-back.md:239"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "lerConfiguracaoLoginExterno",
+      "para": "loadExternalLoginConfig",
+      "arquivo": "apps/api/src/credencial/external-login-config.ts",
+      "linhaDoAnexo": "inventario-back.md:239"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "SessaoSintetica",
+      "para": "SyntheticSession",
+      "arquivo": "apps/api/src/sessao/tenant/synthetic-sessions.ts",
+      "linhaDoAnexo": "inventario-back.md:243"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PedidoDeSessoesSinteticas",
+      "para": "SyntheticSessionsRequest",
+      "arquivo": "apps/api/src/sessao/tenant/synthetic-sessions.ts",
+      "linhaDoAnexo": "inventario-back.md:243"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "criarSessoesSinteticas",
+      "para": "createSyntheticSessions",
+      "arquivo": "apps/api/src/sessao/tenant/synthetic-sessions.ts",
+      "linhaDoAnexo": "inventario-back.md:243"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "emissorDeTokenSintetico",
+      "para": "syntheticTokenIssuer",
+      "arquivo": "apps/api/src/sessao/tenant/synthetic-sessions.ts",
+      "linhaDoAnexo": "inventario-back.md:243"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RenovacaoRecusada",
+      "para": "RefreshRejectedError",
+      "arquivo": "apps/api/src/sessao/refresh/renovacao.service.ts",
+      "linhaDoAnexo": "inventario-back.md:251"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RenovacaoDeOperadorRecusada",
+      "para": "OperadorRefreshRejectedError",
+      "arquivo": "apps/api/src/operacao/sessao/sessao.service.ts",
+      "linhaDoAnexo": "inventario-back.md:252"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "OperadorRecusado",
+      "para": "OperadorRejectedError",
+      "arquivo": "apps/api/src/ops/command.ts",
+      "linhaDoAnexo": "inventario-back.md:254"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "DesativacaoRecusada",
+      "para": "DesativacaoRejectedError",
+      "arquivo": "apps/api/src/ops/operador.ts",
+      "linhaDoAnexo": "inventario-back.md:255"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ArgumentoInvalido",
+      "para": "InvalidArgumentError",
+      "arquivo": "apps/api/src/ops/command.ts",
+      "linhaDoAnexo": "inventario-back.md:256"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ProvedorExternoFalhou",
+      "para": "ExternalProviderError",
+      "arquivo": "apps/api/src/sessao/external/external-provider.port.ts",
+      "linhaDoAnexo": "inventario-back.md:257"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "SegredoNaoDecifra",
+      "para": "SecretDecryptionError",
+      "arquivo": "apps/api/src/credencial/secret-cipher.ts",
+      "linhaDoAnexo": "inventario-back.md:258"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "NaoGravou",
+      "para": "NotWrittenError",
+      "arquivo": "apps/api/src/sala/reivindicacao/reivindicacao.service.ts",
+      "linhaDoAnexo": "inventario-back.md:259"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ConfiguracaoApi",
+      "para": "ApiConfig",
+      "arquivo": "apps/api/src/config.ts",
+      "linhaDoAnexo": "inventario-back.md:328"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "SaidaDoComando",
+      "para": "CommandOutput",
+      "linhaDoAnexo": "inventario-back.md:401"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "BancoDoComando",
+      "para": "CommandDatabase",
+      "linhaDoAnexo": "inventario-back.md:401"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PedidoDoComando",
+      "para": "CommandRequest",
+      "arquivo": "apps/api/src/ops/sessao-sintetica.ts",
+      "linhaDoAnexo": "inventario-back.md:401"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "DependenciasDaSessaoDoOperador",
+      "para": "SessaoDoOperadorDependencies",
+      "arquivo": "apps/api/src/operacao/sessao/sessao.service.ts",
+      "linhaDoAnexo": "inventario-back.md:411"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "DependenciasDaEntrada",
+      "para": "EntradaDependencies",
+      "arquivo": "apps/api/src/operacao/entrada/entrada.service.ts",
+      "linhaDoAnexo": "inventario-back.md:412"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "DependenciasDoSegundoFator",
+      "para": "OperadorMfaDependencies",
+      "arquivo": "apps/api/src/operacao/mfa/segundo-fator.service.ts",
+      "linhaDoAnexo": "inventario-back.md:413"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "DependenciasDoConviteDeOperador",
+      "para": "ConviteDeOperadorDependencies",
+      "arquivo": "apps/api/src/operacao/convite/convite-operador.service.ts",
+      "linhaDoAnexo": "inventario-back.md:414"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "DependenciasDaConclusao",
+      "para": "LoginCompletionDependencies",
+      "arquivo": "apps/api/src/sessao/completion/login-completion.ts",
+      "linhaDoAnexo": "inventario-back.md:415"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "DependenciasDaRenovacao",
+      "para": "RefreshDependencies",
+      "arquivo": "apps/api/src/sessao/refresh/renovacao.service.ts",
+      "linhaDoAnexo": "inventario-back.md:416"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "DependenciasDoLoginExterno",
+      "para": "ExternalLoginDependencies",
+      "arquivo": "apps/api/src/sessao/external/external-login.service.ts",
+      "linhaDoAnexo": "inventario-back.md:417"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "DependenciasDoConvite",
+      "para": "ConviteDependencies",
+      "arquivo": "apps/api/src/sessao/convite/convite.service.ts",
+      "linhaDoAnexo": "inventario-back.md:418"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "DependenciasDaTroca",
+      "para": "TrocaDeEscolaDependencies",
+      "arquivo": "apps/api/src/sessao/troca-de-escola/troca-de-escola.service.ts",
+      "linhaDoAnexo": "inventario-back.md:419"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "DependenciasDoMfa",
+      "para": "MfaDependencies",
+      "arquivo": "apps/api/src/sessao/mfa/mfa.service.ts",
+      "linhaDoAnexo": "inventario-back.md:420"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "DependenciasDoLoginPorMatricula",
+      "para": "LoginPorMatriculaDependencies",
+      "arquivo": "apps/api/src/sessao/login/matricula.service.ts",
+      "linhaDoAnexo": "inventario-back.md:421"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "DependenciasDoLogin",
+      "para": "LoginDependencies",
+      "arquivo": "apps/api/src/sessao/login/login.service.ts",
+      "linhaDoAnexo": "inventario-back.md:422"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "DependenciasDoMaterial",
+      "para": "MaterialDependencies",
+      "arquivo": "apps/api/src/material/material.service.ts",
+      "linhaDoAnexo": "inventario-back.md:423"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "DependenciasDaReivindicacao",
+      "para": "ReivindicacaoDependencies",
+      "arquivo": "apps/api/src/sala/reivindicacao/reivindicacao.service.ts",
+      "linhaDoAnexo": "inventario-back.md:424"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "DependenciasDoPrivacidadeService",
+      "para": "PrivacidadeServiceDependencies",
+      "arquivo": "apps/api/src/privacidade/privacidade.service.ts",
+      "linhaDoAnexo": "inventario-back.md:425"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "OpcoesDoModuloDaOperacao",
+      "para": "OperacaoModuleOptions",
+      "arquivo": "apps/api/src/operacao/operacao.module.ts",
+      "linhaDoAnexo": "inventario-back.md:433"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "OpcoesDoModuloDeSessao",
+      "para": "SessaoModuleOptions",
+      "arquivo": "apps/api/src/sessao/sessao.module.ts",
+      "linhaDoAnexo": "inventario-back.md:434"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "OpcoesDaSala",
+      "para": "SalaModuleOptions",
+      "arquivo": "apps/api/src/sala/sala.module.ts",
+      "linhaDoAnexo": "inventario-back.md:435"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "OpcoesDaPrivacidade",
+      "para": "PrivacidadeModuleOptions",
+      "arquivo": "apps/api/src/privacidade/privacidade.module.ts",
+      "linhaDoAnexo": "inventario-back.md:436"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "OpcoesDoAssistente",
+      "para": "AssistenteModuleOptions",
+      "arquivo": "apps/api/src/assistente/assistente.module.ts",
+      "linhaDoAnexo": "inventario-back.md:437"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "OpcoesDoModuloDeIa",
+      "para": "IaModuleOptions",
+      "arquivo": "apps/api/src/ia/ia.module.ts",
+      "linhaDoAnexo": "inventario-back.md:438"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "OpcoesDoPdf",
+      "para": "PdfOptions",
+      "arquivo": "apps/api/src/artefato/pdf-do-artefato.ts",
+      "linhaDoAnexo": "inventario-back.md:439"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ConfiguracaoSala",
+      "para": "SalaConfig",
+      "arquivo": "apps/api/src/sala/sala-config.ts",
+      "linhaDoAnexo": "inventario-back.md:440"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ConfiguracaoDoArmazemDaApi",
+      "para": "FileStorageApiConfig",
+      "arquivo": "apps/api/src/privacidade/file-storage-config.ts",
+      "linhaDoAnexo": "inventario-back.md:441"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "AgendadorDeExecucoes",
+      "para": "ExecucaoScheduler",
+      "arquivo": "apps/api/src/ia/execucao.scheduler.ts",
+      "linhaDoAnexo": "inventario-back.md:524"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PedidoDeExecucao",
+      "para": "ExecucaoRequest",
+      "arquivo": "apps/api/src/ia/execucao.scheduler.ts",
+      "linhaDoAnexo": "inventario-back.md:525"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "exigirUsuarioDoContexto",
+      "para": "requireUsuarioId",
+      "arquivo": "apps/api/src/ia/execucao-context.ts",
+      "linhaDoAnexo": "inventario-back.md:527"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "DependenciasDoLimiteDeIa",
+      "para": "IaRequestRateLimitDependencies",
+      "arquivo": "apps/api/src/assistente/ai-request-rate-limit.ts",
+      "linhaDoAnexo": "inventario-adenda-2.md:29"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaAmbiente",
+      "para": "envSchema",
+      "linhaDoAnexo": "inventario-adenda-2.md:30"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaAmbienteLogin",
+      "para": "loginEnvSchema",
+      "arquivo": "apps/api/src/credencial/login-config.ts",
+      "linhaDoAnexo": "inventario-adenda-2.md:31"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "EstadoEmMemoria",
+      "para": "InMemoryLockoutState",
+      "arquivo": "apps/api/src/credencial/login-lockout.ts",
+      "linhaDoAnexo": "inventario-adenda-2.md:32"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "SeguroEmMemoria",
+      "para": "InMemoryLockout",
+      "linhaDoAnexo": "inventario-adenda-2.md:33"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaClaims",
+      "para": "claimsSchema",
+      "linhaDoAnexo": "inventario-adenda-2.md:34"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "DependenciasDaConferencia",
+      "para": "PasswordVerifierDependencies",
+      "arquivo": "apps/api/src/credencial/senha/password-verifier.ts",
+      "linhaDoAnexo": "inventario-adenda-2.md:35"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "EntradaEmMemoria",
+      "para": "InMemoryWindowEntry",
+      "arquivo": "apps/api/src/credencial/senha/window-counter.ts",
+      "linhaDoAnexo": "inventario-adenda-2.md:36"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "DependenciasDoLimiteDoEmail",
+      "para": "EmailIpRateLimitDependencies",
+      "arquivo": "apps/api/src/credencial/senha/email-ip-rate-limit.ts",
+      "linhaDoAnexo": "inventario-adenda-2.md:37"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "DependenciasDoRebaixamento",
+      "para": "EscolaIpThrottleDependencies",
+      "arquivo": "apps/api/src/credencial/senha/ip-throttle.ts",
+      "linhaDoAnexo": "inventario-adenda-2.md:38"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "LinhaLida",
+      "para": "ParsedRow",
+      "arquivo": "apps/api/src/estrutura/lista/lista-reader.ts",
+      "linhaDoAnexo": "inventario-adenda-2.md:39"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaSemCorpo",
+      "para": "emptyBodySchema",
+      "linhaDoAnexo": "inventario-adenda-2.md:40"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "LinhaDaEscola",
+      "para": "EscolaRow",
+      "arquivo": "apps/api/src/operacao/painel/painel.repository.ts",
+      "linhaDoAnexo": "inventario-adenda-2.md:41"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "LinhaDoUso",
+      "para": "UsoRow",
+      "arquivo": "apps/api/src/operacao/painel/painel.repository.ts",
+      "linhaDoAnexo": "inventario-adenda-2.md:42"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaAmbienteDoBanco",
+      "para": "opsDatabaseEnvSchema",
+      "arquivo": "apps/api/src/ops/command.ts",
+      "linhaDoAnexo": "inventario-adenda-2.md:43"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaAmbienteOperador",
+      "para": "operadorEnvSchema",
+      "arquivo": "apps/api/src/ops/command.ts",
+      "linhaDoAnexo": "inventario-adenda-2.md:44"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaArquivo",
+      "para": "arquivoSchema",
+      "arquivo": "apps/api/src/ops/incidente.ts",
+      "linhaDoAnexo": "inventario-adenda-2.md:45"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaSecao",
+      "para": "secaoSchema",
+      "arquivo": "apps/api/src/ops/incidente.ts",
+      "linhaDoAnexo": "inventario-adenda-2.md:46"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaTexto",
+      "para": "textoSchema",
+      "arquivo": "apps/api/src/ops/incidente.ts",
+      "linhaDoAnexo": "inventario-adenda-2.md:47"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaEmail",
+      "para": "emailSchema",
+      "arquivo": "apps/api/src/ops/operador.ts",
+      "linhaDoAnexo": "inventario-adenda-2.md:48"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaCategorias",
+      "para": "categoriasSchema",
+      "arquivo": "apps/api/src/ops/suboperador.ts",
+      "linhaDoAnexo": "inventario-adenda-2.md:49"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaChave",
+      "para": "chaveSchema",
+      "arquivo": "apps/api/src/ops/suboperador.ts",
+      "linhaDoAnexo": "inventario-adenda-2.md:50"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaContrato",
+      "para": "contratoSchema",
+      "arquivo": "apps/api/src/ops/suboperador.ts",
+      "linhaDoAnexo": "inventario-adenda-2.md:51"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaEscolas",
+      "para": "escolasSchema",
+      "arquivo": "apps/api/src/ops/suboperador.ts",
+      "linhaDoAnexo": "inventario-adenda-2.md:52"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaFinalidade",
+      "para": "finalidadeSchema",
+      "arquivo": "apps/api/src/ops/suboperador.ts",
+      "linhaDoAnexo": "inventario-adenda-2.md:53"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaNomeDaEmpresa",
+      "para": "nomeDaEmpresaSchema",
+      "arquivo": "apps/api/src/ops/suboperador.ts",
+      "linhaDoAnexo": "inventario-adenda-2.md:54"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaPais",
+      "para": "paisSchema",
+      "arquivo": "apps/api/src/ops/suboperador.ts",
+      "linhaDoAnexo": "inventario-adenda-2.md:55"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaDoArmazem",
+      "para": "fileStorageSchema",
+      "arquivo": "apps/api/src/privacidade/file-storage-config.ts",
+      "linhaDoAnexo": "inventario-adenda-2.md:56"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "lerConfiguracaoDoArmazem",
+      "para": "loadFileStorageConfig",
+      "arquivo": "apps/api/src/privacidade/file-storage-config.ts",
+      "linhaDoAnexo": "inventario-adenda-2.md:57"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaAmbienteSala",
+      "para": "salaEnvSchema",
+      "arquivo": "apps/api/src/sala/sala-config.ts",
+      "linhaDoAnexo": "inventario-adenda-2.md:58"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "lerConfiguracaoSala",
+      "para": "loadSalaConfig",
+      "arquivo": "apps/api/src/sala/sala-config.ts",
+      "linhaDoAnexo": "inventario-adenda-2.md:59"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaDoConteudo",
+      "para": "conteudoSchema",
+      "arquivo": "apps/api/src/sessao/external/cookie-oidc.ts",
+      "linhaDoAnexo": "inventario-adenda-2.md:60"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaProvedor",
+      "para": "provedorSchema",
+      "arquivo": "apps/api/src/sessao/external/external-login.controller.ts",
+      "linhaDoAnexo": "inventario-adenda-2.md:61"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaSlugDigitado",
+      "para": "slugDigitadoSchema",
+      "arquivo": "apps/api/src/sessao/external/external-login.controller.ts",
+      "linhaDoAnexo": "inventario-adenda-2.md:62"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "LinhaDeSinal",
+      "para": "SinalRow",
+      "arquivo": "apps/api/src/tutor/tutor.int.test.ts",
+      "linhaDoAnexo": "inventario-adenda-2.md:63"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "lerConfiguracao",
+      "para": "loadConfig",
+      "linhaDoAnexo": "inventario-back.md:329",
+      "arquivo": "apps/api/src/config.ts"
+    }
+  ],
+  "ocorrencias": [
+    {
+      "arquivo": "apps/api/src/assistente/ai-request-rate-limit.test.ts",
+      "de": "LimiteDePedidosDeIa",
+      "classe": "fica",
+      "linha": "inventario-back.md:189",
+      "trecho": "LimiteDePedidosDeIa: por pessoa e por escola, nunca por IP"
+    },
+    {
+      "arquivo": "apps/api/src/config.test.ts",
+      "de": "lerConfiguracao",
+      "classe": "fica",
+      "linha": "inventario-back.md:329",
+      "trecho": "lerConfiguracao"
+    },
+    {
+      "arquivo": "apps/api/src/credencial/challenge.int.test.ts",
+      "de": "ConsumoDeDesafio",
+      "classe": "fica",
+      "linha": "inventario-back.md:201",
+      "trecho": "ConsumoDeDesafio: o jti vale uma vez só, no Redis de fila"
+    },
+    {
+      "arquivo": "apps/api/src/credencial/external-login-config.test.ts",
+      "de": "com",
+      "classe": "fica",
+      "linha": "inventario-back.md:39",
+      "trecho": "login.microsoftonline.com"
+    },
+    {
+      "arquivo": "apps/api/src/credencial/login-fallback.test.ts",
+      "de": "SeguroDoLogin",
+      "classe": "fica",
+      "linha": "inventario-back.md:183",
+      "trecho": "SeguroDoLogin: uma fonte só do limite.seguro_ativo para o login no Redis de fila"
+    },
+    {
+      "arquivo": "apps/api/src/credencial/login-lockout.int.test.ts",
+      "de": "ContadorDeTentativas",
+      "classe": "fica",
+      "linha": "inventario-back.md:161",
+      "trecho": "ContadorDeTentativas no Redis de fila"
+    },
+    {
+      "arquivo": "apps/api/src/credencial/login-lockout.test.ts",
+      "de": "ContadorDeTentativas",
+      "classe": "fica",
+      "linha": "inventario-back.md:161",
+      "trecho": "ContadorDeTentativas no seguro em memória (Redis de fila fora): a mesma regra"
+    },
+    {
+      "arquivo": "apps/api/src/credencial/login-redis-client.ts",
+      "de": "CLIENTE_REDIS_LOGIN",
+      "classe": "trava",
+      "linha": "travas.md:154",
+      "trecho": "CLIENTE_REDIS_LOGIN"
+    },
+    {
+      "arquivo": "apps/api/src/credencial/password-hasher.test.ts",
+      "de": "HashDeSenha",
+      "classe": "fica",
+      "linha": "inventario-back.md:219",
+      "trecho": "HashDeSenha"
+    },
+    {
+      "arquivo": "apps/api/src/credencial/secret-cipher.test.ts",
+      "de": "CifraDoSegredo",
+      "classe": "fica",
+      "linha": "inventario-back.md:216",
+      "trecho": "CifraDoSegredo: AES-256-GCM com o conta_id como AAD e a versão da chave ao lado"
+    },
+    {
+      "arquivo": "apps/api/src/credencial/secret-cipher.ts",
+      "de": "SegredoNaoDecifra",
+      "classe": "trava",
+      "linha": "travas.md:155",
+      "trecho": "SegredoNaoDecifra"
+    },
+    {
+      "arquivo": "apps/api/src/credencial/senha/hash-bulkhead.test.ts",
+      "de": "SemaforoDeHash",
+      "classe": "fica",
+      "linha": "inventario-back.md:167",
+      "trecho": "SemaforoDeHash: rodízio entre escolas e, na equipe, entre IPs"
+    },
+    {
+      "arquivo": "apps/api/src/credencial/senha/hash-bulkhead.test.ts",
+      "de": "SemaforoDeHash",
+      "classe": "fica",
+      "linha": "inventario-back.md:167",
+      "trecho": "SemaforoDeHash: rebaixamento (15.0), fim do balde e nunca recusa"
+    },
+    {
+      "arquivo": "apps/api/src/credencial/senha/hash-bulkhead.test.ts",
+      "de": "SemaforoDeHash",
+      "classe": "fica",
+      "linha": "inventario-back.md:167",
+      "trecho": "SemaforoDeHash: IP em memória com prazo (15.6)"
+    },
+    {
+      "arquivo": "apps/api/src/credencial/senha/hash-bulkhead.test.ts",
+      "de": "SemaforoDeHash",
+      "classe": "fica",
+      "linha": "inventario-back.md:167",
+      "trecho": "SemaforoDeHash: teto de concorrência"
+    },
+    {
+      "arquivo": "apps/api/src/credencial/senha/hash-bulkhead.test.ts",
+      "de": "SemaforoDeHash",
+      "classe": "fica",
+      "linha": "inventario-back.md:167",
+      "trecho": "SemaforoDeHash: prazo de 2 s"
+    },
+    {
+      "arquivo": "apps/api/src/credencial/senha/hash-bulkhead.test.ts",
+      "de": "SemaforoSemProtecao",
+      "classe": "fica",
+      "linha": "inventario-back.md:168",
+      "trecho": "SemaforoSemProtecao: o controle negativo do cenário de carga (16.0)"
+    },
+    {
+      "arquivo": "apps/api/src/credencial/senha/hash-bulkhead.test.ts",
+      "de": "SemaforoDeHash",
+      "classe": "fica",
+      "linha": "inventario-back.md:167",
+      "trecho": "SemaforoDeHash: métricas"
+    },
+    {
+      "arquivo": "apps/api/src/credencial/senha/ip-throttle.test.ts",
+      "de": "RebaixamentoPorEscola",
+      "classe": "fica",
+      "linha": "inventario-back.md:174",
+      "trecho": "RebaixamentoPorEscola"
+    },
+    {
+      "arquivo": "apps/api/src/credencial/senha/ip-throttle.test.ts",
+      "de": "LimiteDoEmailPorIp",
+      "classe": "fica",
+      "linha": "inventario-back.md:176",
+      "trecho": "LimiteDoEmailPorIp"
+    },
+    {
+      "arquivo": "apps/api/src/credencial/senha/window-counter.int.test.ts",
+      "de": "ContadorEmJanela",
+      "classe": "fica",
+      "linha": "inventario-back.md:163",
+      "trecho": "ContadorEmJanela: os contadores por IP do login (15.0), no Redis de fila, por minuto e sem o IP"
+    },
+    {
+      "arquivo": "apps/api/src/credencial/senha/window-counter.test.ts",
+      "de": "ContadorEmJanela",
+      "classe": "fica",
+      "linha": "inventario-back.md:163",
+      "trecho": "ContadorEmJanela: a janela por parâmetro (L8)"
+    },
+    {
+      "arquivo": "apps/api/src/credencial/sessao-create.repository.int.test.ts",
+      "de": "CriacaoDeSessaoRepository",
+      "classe": "fica",
+      "linha": "inventario-back.md:105",
+      "trecho": "CriacaoDeSessaoRepository: usuário e sessão são gravados na escola do contexto"
+    },
+    {
+      "arquivo": "apps/api/src/credencial/sessao-write.repository.int.test.ts",
+      "de": "EscritaDeSessaoRepository",
+      "classe": "fica",
+      "linha": "inventario-back.md:104",
+      "trecho": "EscritaDeSessaoRepository: toda escrita na sessão fica na escola do contexto"
+    },
+    {
+      "arquivo": "apps/api/src/database.module.ts",
+      "de": "POOL_BANCO",
+      "classe": "trava",
+      "linha": "travas.md:154",
+      "trecho": "POOL_BANCO"
+    },
+    {
+      "arquivo": "apps/api/src/database.module.ts",
+      "de": "BANCO",
+      "classe": "trava",
+      "linha": "travas.md:154",
+      "trecho": "BANCO"
+    },
+    {
+      "arquivo": "apps/api/src/ia/ia.int.test.ts",
+      "de": "AgendadorDeExecucoes",
+      "classe": "fica",
+      "linha": "inventario-back.md:524",
+      "trecho": "AgendadorDeExecucoes"
+    },
+    {
+      "arquivo": "apps/api/src/operacao/operador-challenge.test.ts",
+      "de": "ConsumoDeDesafioDeOperador",
+      "classe": "fica",
+      "linha": "inventario-back.md:207",
+      "trecho": "ConsumoDeDesafioDeOperador com o Redis fora (tarefa 7.0, recomendação levada à 8.0)"
+    },
+    {
+      "arquivo": "apps/api/src/operacao/operador.guard.ts",
+      "de": "IDENTIDADE_DA_OPERACAO",
+      "classe": "trava",
+      "linha": "travas.md:154",
+      "trecho": "IDENTIDADE_DA_OPERACAO"
+    },
+    {
+      "arquivo": "apps/api/src/operacao/operador.guard.ts",
+      "de": "SESSOES_DE_OPERADOR",
+      "classe": "trava",
+      "linha": "travas.md:154",
+      "trecho": "SESSOES_DE_OPERADOR"
+    },
+    {
+      "arquivo": "apps/api/src/ops/command.ts",
+      "de": "ArgumentoInvalido",
+      "classe": "trava",
+      "linha": "travas.md:155",
+      "trecho": "ArgumentoInvalido"
+    },
+    {
+      "arquivo": "apps/api/src/ops/command.ts",
+      "de": "OperadorRecusado",
+      "classe": "trava",
+      "linha": "travas.md:155",
+      "trecho": "OperadorRecusado"
+    },
+    {
+      "arquivo": "apps/api/src/ops/operador.ts",
+      "de": "DesativacaoRecusada",
+      "classe": "trava",
+      "linha": "travas.md:155",
+      "trecho": "DesativacaoRecusada"
+    },
+    {
+      "arquivo": "apps/api/src/ops/revogar-acessos-sala.test.ts",
+      "de": "ArgumentoInvalido",
+      "classe": "fica",
+      "linha": "inventario-back.md:256",
+      "trecho": "%s: ArgumentoInvalido citando só a opção"
+    },
+    {
+      "arquivo": "apps/api/src/ops/sessao-sintetica.test.ts",
+      "de": "ArgumentoInvalido",
+      "classe": "fica",
+      "linha": "inventario-back.md:256",
+      "trecho": "%s: recusa citando só a opção, com o ArgumentoInvalido de comando.ts"
+    },
+    {
+      "arquivo": "apps/api/src/ops/sessao-sintetica.test.ts",
+      "de": "ArgumentoInvalido",
+      "classe": "fica",
+      "linha": "inventario-back.md:256",
+      "trecho": "o ArgumentoInvalido reexportado é o de comando.ts: uma classe só"
+    },
+    {
+      "arquivo": "apps/api/src/ops/uso.test.ts",
+      "de": "ArgumentoInvalido",
+      "classe": "fica",
+      "linha": "inventario-back.md:256",
+      "trecho": "o ArgumentoInvalido do uso é o de comando.ts, uma classe só, com a mensagem de sempre no terminal"
+    },
+    {
+      "arquivo": "apps/api/src/rate-limit.module.ts",
+      "de": "CLIENTE_REDIS_CACHE",
+      "classe": "trava",
+      "linha": "travas.md:154",
+      "trecho": "CLIENTE_REDIS_CACHE"
+    },
+    {
+      "arquivo": "apps/api/src/rate-limit.module.ts",
+      "de": "LIMITES_DA_ESCOLA",
+      "classe": "trava",
+      "linha": "travas.md:154",
+      "trecho": "LIMITES_DA_ESCOLA"
+    },
+    {
+      "arquivo": "apps/api/src/sessao/eu/eu.service.test.ts",
+      "de": "EuService",
+      "classe": "fica",
+      "linha": "inventario-back.md:78",
+      "trecho": "EuService: qual data da introdução vale, e quando o GET grava"
+    },
+    {
+      "arquivo": "apps/api/src/sessao/external/conta-externa.repository.int.test.ts",
+      "de": "ContaExternaRepository",
+      "classe": "fica",
+      "linha": "inventario-back.md:94",
+      "trecho": "ContaExternaRepository: ligação, domínio e professor lidos só na escola do contexto"
+    },
+    {
+      "arquivo": "apps/api/src/sessao/external/external-provider.port.ts",
+      "de": "ProvedorExternoFalhou",
+      "classe": "trava",
+      "linha": "travas.md:155",
+      "trecho": "ProvedorExternoFalhou"
+    },
+    {
+      "arquivo": "apps/api/src/sessao/login/login.service.test.ts",
+      "de": "OrigemDaRequisicao",
+      "classe": "trava",
+      "linha": "travas.md:156",
+      "trecho": "OrigemDaRequisicao"
+    },
+    {
+      "arquivo": "apps/api/src/sessao/refresh/renovacao.service.test.ts",
+      "de": "resultadoPeloCookie",
+      "classe": "fica",
+      "linha": "inventario-back.md:108",
+      "trecho": "resultadoPeloCookie: o que a renovação faz com a sessão válida, pelo cookie que chegou"
+    },
+    {
+      "arquivo": "apps/api/src/sessao/sessao.module.ts",
+      "de": "PROVEDOR_EXTERNO",
+      "classe": "trava",
+      "linha": "travas.md:154",
+      "trecho": "PROVEDOR_EXTERNO"
+    },
+    {
+      "arquivo": "apps/api/src/sessao/tenant/tenant-resolution.repository.int.test.ts",
+      "de": "ResolucaoDeTenantRepository",
+      "classe": "fica",
+      "linha": "inventario-back.md:102",
+      "trecho": "ResolucaoDeTenantRepository: a resolução antes de haver escola devolve só o mínimo"
+    },
+    {
+      "arquivo": "apps/api/src/sessao/tenant/tenant-resolution.repository.test.ts",
+      "de": "ResolucaoDeTenantRepository",
+      "classe": "fica",
+      "linha": "inventario-back.md:102",
+      "trecho": "ResolucaoDeTenantRepository: toda operação sem escopo é marcada e justificada"
+    },
+    {
+      "arquivo": "apps/api/src/system/notices.controller.ts",
+      "de": "AVISOS_DO_SISTEMA",
+      "classe": "trava",
+      "linha": "travas.md:154",
+      "trecho": "AVISOS_DO_SISTEMA"
+    },
+    {
+      "arquivo": "apps/api/src/system/status.service.test.ts",
+      "de": "EstadoService",
+      "classe": "fica",
+      "linha": "inventario-back.md:56",
+      "trecho": "EstadoService"
+    },
+    {
+      "arquivo": "apps/api/src/system/status.service.ts",
+      "de": "VERSAO_DO_SISTEMA",
+      "classe": "trava",
+      "linha": "travas.md:154",
+      "trecho": "VERSAO_DO_SISTEMA"
+    },
+    {
+      "arquivo": "apps/api/src/system/status.service.ts",
+      "de": "AMBIENTE_DO_SISTEMA",
+      "classe": "trava",
+      "linha": "travas.md:154",
+      "trecho": "AMBIENTE_DO_SISTEMA"
+    },
+    {
+      "arquivo": "apps/api/src/system/status.service.ts",
+      "de": "RELOGIO_DO_ESTADO",
+      "classe": "trava",
+      "linha": "travas.md:154",
+      "trecho": "RELOGIO_DO_ESTADO"
+    },
+    {
+      "arquivo": "apps/api/src/usage.module.ts",
+      "de": "CLIENTE_REDIS_USO",
+      "classe": "trava",
+      "linha": "travas.md:154",
+      "trecho": "CLIENTE_REDIS_USO"
+    },
+    {
+      "arquivo": "apps/api/test/acesso-da-turma.int.test.ts",
+      "de": "com",
+      "classe": "fica",
+      "linha": "inventario-back.md:39",
+      "trecho": "com"
+    },
+    {
+      "arquivo": "apps/api/test/architecture.test.ts",
+      "de": "ResolucaoDeTenantRepository",
+      "classe": "trava",
+      "linha": "travas.md:43",
+      "trecho": "ResolucaoDeTenantRepository"
+    },
+    {
+      "arquivo": "apps/api/test/architecture.test.ts",
+      "de": "ResolucaoDeTenantRepository",
+      "classe": "fica",
+      "linha": "inventario-back.md:102",
+      "trecho": "nenhum código de produção fora da zona cita a ResolucaoDeTenantRepository, a ContaGlobalRepository n"
+    },
+    {
+      "arquivo": "apps/api/test/architecture.test.ts",
+      "de": "ResolucaoDeTenantRepository",
+      "classe": "trava",
+      "linha": "travas.md:43",
+      "trecho": "import { ResolucaoDeTenantRepository } from '../apps/api/src/sessao/login/ponte.js'"
+    },
+    {
+      "arquivo": "apps/api/test/architecture.test.ts",
+      "de": "ResolucaoDeTenantRepository",
+      "classe": "trava",
+      "linha": "travas.md:43",
+      "trecho": "export { ResolucaoDeTenantRepository } from '../tenant/tenant-resolution.repository.js'"
+    },
+    {
+      "arquivo": "apps/api/test/architecture.test.ts",
+      "de": "ResolucaoDeTenantRepository",
+      "classe": "trava",
+      "linha": "travas.md:43",
+      "trecho": "ResolucaoDeTenantRepository: tools/vaza.ts"
+    },
+    {
+      "arquivo": "apps/api/test/architecture.test.ts",
+      "de": "ResolucaoDeTenantRepository",
+      "classe": "fica",
+      "linha": "inventario-back.md:102",
+      "trecho": "nem o barrel de credencial/ exporta a ResolucaoDeTenantRepository nem a ContaGlobalRepository, com o"
+    },
+    {
+      "arquivo": "apps/api/test/architecture.test.ts",
+      "de": "HashDeSenha",
+      "classe": "trava",
+      "linha": "travas.md:157",
+      "trecho": "HashDeSenha"
+    },
+    {
+      "arquivo": "apps/api/test/architecture.test.ts",
+      "de": "ResolucaoDeTenantRepository",
+      "classe": "trava",
+      "linha": "travas.md:157",
+      "trecho": "ResolucaoDeTenantRepository"
+    },
+    {
+      "arquivo": "apps/api/test/architecture.test.ts",
+      "de": "ResolucaoDeTenantRepository",
+      "classe": "fica",
+      "linha": "inventario-back.md:102",
+      "trecho": "nem o barrel de sessao/ exporta a ResolucaoDeTenantRepository nem a ContaGlobalRepository, com o nom"
+    },
+    {
+      "arquivo": "apps/api/test/architecture.test.ts",
+      "de": "ResolucaoDeTenantRepository",
+      "classe": "trava",
+      "linha": "travas.md:157",
+      "trecho": "ResolucaoDeTenantRepository"
+    },
+    {
+      "arquivo": "apps/api/test/architecture.test.ts",
+      "de": "RotaDeOperacao",
+      "classe": "trava",
+      "linha": "travas.md:46",
+      "trecho": "/\u0001(?:RotaDeOperacao|EntradaDeOperacao)\u0001/"
+    },
+    {
+      "arquivo": "apps/api/test/architecture.test.ts",
+      "de": "EntradaDeOperacao",
+      "classe": "trava",
+      "linha": "travas.md:46",
+      "trecho": "/\u0001(?:RotaDeOperacao|EntradaDeOperacao)\u0001/"
+    },
+    {
+      "arquivo": "apps/api/test/architecture.test.ts",
+      "de": "RotaDeOperacao",
+      "classe": "trava",
+      "linha": "travas.md:46",
+      "trecho": "import { RotaDeOperacao } from '../operacao/decorators.js' @RotaDeOperacao() @Controller('v1/turmas'"
+    },
+    {
+      "arquivo": "apps/api/test/architecture.test.ts",
+      "de": "EntradaDeOperacao",
+      "classe": "trava",
+      "linha": "travas.md:46",
+      "trecho": "export class Atalho { @Get() @EntradaDeOperacao() obter() {} }"
+    },
+    {
+      "arquivo": "apps/api/test/architecture.test.ts",
+      "de": "RotaDeOperacao",
+      "classe": "trava",
+      "linha": "travas.md:46",
+      "trecho": "@RotaDeOperacao() export class PainelController {}"
+    },
+    {
+      "arquivo": "apps/api/test/architecture.test.ts",
+      "de": "RotaDeOperacao",
+      "classe": "trava",
+      "linha": "travas.md:46",
+      "trecho": "/** A rota `@RotaDeOperacao()` conta no rl:op. */ // e a @EntradaDeOperacao não const x = 1"
+    },
+    {
+      "arquivo": "apps/api/test/architecture.test.ts",
+      "de": "EntradaDeOperacao",
+      "classe": "trava",
+      "linha": "travas.md:46",
+      "trecho": "/** A rota `@RotaDeOperacao()` conta no rl:op. */ // e a @EntradaDeOperacao não const x = 1"
+    },
+    {
+      "arquivo": "apps/api/test/architecture.test.ts",
+      "de": "RotaDeOperacao",
+      "classe": "trava",
+      "linha": "travas.md:46",
+      "trecho": "@RotaDeOperacao() class X {}"
+    },
+    {
+      "arquivo": "apps/api/test/architecture.test.ts",
+      "de": "RotaDeOperacao",
+      "classe": "fica",
+      "linha": "inventario-back.md:144",
+      "trecho": "arquitetura: a rota @RotaDeOperacao tem a GuardaDeOperador no handler resolvido (C41)"
+    },
+    {
+      "arquivo": "apps/api/test/architecture.test.ts",
+      "de": "GuardaDeOperador",
+      "classe": "fica",
+      "linha": "inventario-back.md:138",
+      "trecho": "arquitetura: a rota @RotaDeOperacao tem a GuardaDeOperador no handler resolvido (C41)"
+    },
+    {
+      "arquivo": "apps/api/test/architecture.test.ts",
+      "de": "RotaDeOperacao",
+      "classe": "fica",
+      "linha": "inventario-back.md:144",
+      "trecho": "toda rota @RotaDeOperacao registrada tem a guarda"
+    },
+    {
+      "arquivo": "apps/api/test/architecture.test.ts",
+      "de": "RotaDeOperacao",
+      "classe": "fica",
+      "linha": "inventario-back.md:144",
+      "trecho": "arquitetura: toda rota @RotaDeOperacao conta pelo rl:op:{sub} (C36, parte)"
+    },
+    {
+      "arquivo": "apps/api/test/architecture.test.ts",
+      "de": "RotaDeOperacao",
+      "classe": "fica",
+      "linha": "inventario-back.md:144",
+      "trecho": "em cada rota @RotaDeOperacao registrada, o token de operador conta no rl:op do sub, e em nenhum outr"
+    },
+    {
+      "arquivo": "apps/api/test/architecture.test.ts",
+      "de": "GuardaDeOperador",
+      "classe": "fica",
+      "linha": "inventario-back.md:138",
+      "trecho": "acima do limite, 429 LIMITE_EXCEDIDO com a espera; sem token de operador que confira, não conta nada"
+    },
+    {
+      "arquivo": "apps/api/test/architecture.test.ts",
+      "de": "RotaDeOperacao",
+      "classe": "trava",
+      "linha": "travas.md:46",
+      "trecho": "nenhuma rota @RotaDeOperacao"
+    },
+    {
+      "arquivo": "apps/api/test/architecture.test.ts",
+      "de": "EntradaDeOperacao",
+      "classe": "fica",
+      "linha": "inventario-back.md:145",
+      "trecho": "arquitetura: as rotas @EntradaDeOperacao são exatamente as sete da seção 4 (C43)"
+    },
+    {
+      "arquivo": "apps/api/test/architecture.test.ts",
+      "de": "EntradaDeOperacao",
+      "classe": "fica",
+      "linha": "inventario-back.md:145",
+      "trecho": "arquitetura: toda rota @EntradaDeOperacao está num dos três grupos de limite (C36, parte)"
+    },
+    {
+      "arquivo": "apps/api/test/architecture.test.ts",
+      "de": "ConferenciaDoAutor",
+      "classe": "fica",
+      "linha": "inventario-back.md:149",
+      "trecho": "operador.repository.ts não declara nem reexporta ConferenciaDoAutor"
+    },
+    {
+      "arquivo": "apps/api/test/architecture.test.ts",
+      "de": "ConferenciaDoAutor",
+      "classe": "trava",
+      "linha": "travas.md:158",
+      "trecho": "/\u0001ConferenciaDoAutor\u0001/"
+    },
+    {
+      "arquivo": "apps/api/test/material-isolamento.int.test.ts",
+      "de": "BuscaDeTrechos",
+      "classe": "fica",
+      "linha": "inventario-back.md:125",
+      "trecho": "`BuscaDeTrechos`, a porta do Assistente e do Tutor, só lê a escola do contexto"
+    },
+    {
+      "arquivo": "apps/api/test/material.int.test.ts",
+      "de": "BuscaDeTrechos",
+      "classe": "fica",
+      "linha": "inventario-back.md:125",
+      "trecho": "`BuscaDeTrechos`, a porta do Assistente e do Tutor: a frase inteira de uma pessoa acha a página, com"
+    },
+    {
+      "arquivo": "apps/api/test/operacao-isolamento.int.test.ts",
+      "de": "RotaDeOperacao",
+      "classe": "fica",
+      "linha": "inventario-back.md:144",
+      "trecho": "sessão de coordenador, professor e aluno, desafio, cookie de escola e nenhuma credencial: toda rota"
+    },
+    {
+      "arquivo": "apps/api/test/ops-revogar-acessos-sala.int.test.ts",
+      "de": "ArgumentoInvalido",
+      "classe": "fica",
+      "linha": "inventario-back.md:256",
+      "trecho": "E29: escola inexistente é NAO_ENCONTRADO, com saída 1, sem gravar nada; o id que não é UUID é Argume"
+    },
+    {
+      "arquivo": "apps/api/test/provedores-da-escola.int.test.ts",
+      "de": "com",
+      "classe": "fica",
+      "linha": "inventario-back.md:39",
+      "trecho": "entrada inválida: tenant de conta pessoal, gmail.com, repetido e campo a mais dão 400, e nada muda"
+    },
+    {
+      "arquivo": "apps/api/test/provedores-da-escola.int.test.ts",
+      "de": "com",
+      "classe": "fica",
+      "linha": "inventario-back.md:39",
+      "trecho": "gmail.com"
+    },
+    {
+      "arquivo": "apps/despachante/src/config.test.ts",
+      "de": "lerConfiguracao",
+      "classe": "fica",
+      "linha": "inventario-back.md:329",
+      "trecho": "lerConfiguracao"
+    },
+    {
+      "arquivo": "apps/realtime/src/config.test.ts",
+      "de": "lerConfiguracao",
+      "classe": "fica",
+      "linha": "inventario-back.md:329",
+      "trecho": "lerConfiguracao"
+    },
+    {
+      "arquivo": "apps/worker/src/config.test.ts",
+      "de": "lerConfiguracao",
+      "classe": "fica",
+      "linha": "inventario-back.md:329",
+      "trecho": "lerConfiguracao"
+    },
+    {
+      "arquivo": "packages/core/src/ia/tasks/turno-do-tutor.ts",
+      "de": "com",
+      "classe": "fica",
+      "linha": "inventario-back.md:39",
+      "trecho": "/\u0001(resposta|alternativa|certa|correta)\u0001.{0,20}\u0001(comeca|termina) com\u0001/"
+    },
+    {
+      "arquivo": "packages/shared/src/estrutura/provedores.test.ts",
+      "de": "com",
+      "classe": "fica",
+      "linha": "inventario-back.md:39",
+      "trecho": "gmail.com"
+    },
+    {
+      "arquivo": "packages/shared/src/estrutura/provedores.ts",
+      "de": "com",
+      "classe": "fica",
+      "linha": "inventario-back.md:39",
+      "trecho": "gmail.com"
+    },
+    {
+      "arquivo": "tools/guardas/camadas.cjs",
+      "de": "ResolucaoDeTenantRepository",
+      "classe": "trava",
+      "linha": "travas.md:159",
+      "trecho": "A `ResolucaoDeTenantRepository` concentra os `@SemEscopo` da resolução de tenant e fica dentro de `s"
+    },
+    {
+      "arquivo": "tools/guardas/escopo-dos-repositories.ts",
+      "de": "Repository",
+      "classe": "fica",
+      "linha": "inventario-back.md:566",
+      "trecho": "'Repository'))) { violacoes.push({ arquivo: fonte.ca"
+    },
+    {
+      "arquivo": "tools/guardas/__fixtures__/camadas/",
+      "de": "ResolucaoDeTenantRepository",
+      "classe": "fica",
+      "linha": "inventario-back.md:102"
+    },
+    {
+      "arquivo": "apps/worker/src/main.ts",
+      "de": "lerConfiguracao",
+      "classe": "fica",
+      "linha": "inventario-back.md:329",
+      "trecho": "lerConfiguracao"
+    },
+    {
+      "arquivo": "apps/despachante/src/main.ts",
+      "de": "lerConfiguracao",
+      "classe": "fica",
+      "linha": "inventario-back.md:329",
+      "trecho": "lerConfiguracao"
+    },
+    {
+      "arquivo": "apps/realtime/src/main.ts",
+      "de": "lerConfiguracao",
+      "classe": "fica",
+      "linha": "inventario-back.md:329",
+      "trecho": "lerConfiguracao"
+    },
+    {
+      "arquivo": "apps/realtime/test/realtime.fixture.ts",
+      "de": "lerConfiguracao",
+      "classe": "fica",
+      "linha": "inventario-back.md:329",
+      "trecho": "lerConfiguracao"
+    },
+    {
+      "arquivo": "apps/api/src/sala/acesso-da-turma/acesso-da-turma.controller.ts",
+      "de": "PedidoSemCorpo",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:437",
+      "trecho": "PedidoSemCorpo"
+    },
+    {
+      "arquivo": "apps/api/test/external-login.int.test.ts",
+      "de": "Redirecionamento",
+      "classe": "fica",
+      "linha": "inventario-back.md:109",
+      "trecho": "Redirecionamento"
+    },
+    {
+      "arquivo": "apps/realtime/src/app.module.ts",
+      "de": "ProntidaoController",
+      "classe": "fica",
+      "linha": "inventario-back.md:378",
+      "trecho": "ProntidaoController"
+    },
+    {
+      "arquivo": "apps/web/src/operacao/api/sessao.ts",
+      "de": "EtapaDoDesafioDeOperador",
+      "classe": "fica",
+      "linha": "inventario-back.md:209",
+      "trecho": "EtapaDoDesafioDeOperador"
+    },
+    {
+      "arquivo": "packages/core/src/rate-limit/rate-limiter.ts",
+      "de": "com",
+      "classe": "fica",
+      "linha": "inventario-back.md:39",
+      "trecho": "com("
+    },
+    {
+      "arquivo": "apps/api/src/sala/acesso-da-turma/acesso-da-turma.controller.ts",
+      "de": "PedidoSemCorpo",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:437",
+      "trecho": "revogar(@Param('id', IdPipe) turmaId: string"
+    },
+    {
+      "arquivo": "apps/api/test/external-login.int.test.ts",
+      "de": "Redirecionamento",
+      "classe": "fica",
+      "linha": "inventario-back.md:109",
+      "trecho": "async function retorno(consulta: string"
+    },
+    {
+      "arquivo": "apps/web/src/operacao/api/sessao.ts",
+      "de": "EtapaDoDesafioDeOperador",
+      "classe": "fica",
+      "linha": "inventario-back.md:209",
+      "trecho": "export async function entrarComoOperador("
+    },
+    {
+      "arquivo": "apps/api/src/operacao/operador/operador.repository.ts",
+      "de": "com",
+      "classe": "fica",
+      "linha": "inventario-back.md:39",
+      "trecho": "O aceite do convite (Tech Spec da A0"
+    },
+    {
+      "arquivo": "apps/api/test/write-block-trigger.ts",
+      "de": "com",
+      "classe": "fica",
+      "linha": "inventario-back.md:39",
+      "trecho": "Espera até `quantos` backends deste banco"
+    },
+    {
+      "arquivo": "packages/core/src/config/llm-config.ts",
+      "de": "com",
+      "classe": "fica",
+      "linha": "inventario-back.md:39",
+      "trecho": "O endereço é desta máquina ou da nossa rede"
+    },
+    {
+      "arquivo": "packages/core/src/titular/suboperador-da-escola.repository.ts",
+      "de": "com",
+      "classe": "fica",
+      "linha": "inventario-back.md:39",
+      "trecho": "A leitura dos suboperadores da escola do contexto"
+    },
+    {
+      "arquivo": "packages/shared/src/permissao/matriz.ts",
+      "de": "com",
+      "classe": "fica",
+      "linha": "inventario-back.md:39",
+      "trecho": "Achar o titular antes de registrar o pedido"
+    },
+    {
+      "arquivo": "tools/guardas/__fixtures__/entrada-sem-esquema.ts",
+      "de": "com",
+      "classe": "fica",
+      "linha": "inventario-back.md:39",
+      "trecho": "O que não tem marca é o jeito certo"
+    },
+    {
+      "arquivo": "e2e/tokens.spec.ts",
+      "de": "apps/web/src/estilos.css",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:322",
+      "trecho": "A pele nos componentes compartilhados"
+    }
+  ],
+  "excecoesDoConferir": [
+    {
+      "arquivo": "tools/guardas/camadas.test.ts",
+      "texto": "cerca-resolucao-de-tenant",
+      "motivo": "a chave do objeto é o nome da cerca, que acompanha a classe (observação do Orquestrador, levada da 6.0)"
+    },
+    {
+      "arquivo": "tools/guardas/camadas.test.ts",
+      "texto": "cerca-tenant-resolution",
+      "motivo": "a chave do objeto é o nome da cerca, que acompanha a classe (observação do Orquestrador, levada da 6.0)"
+    },
+    {
+      "arquivo": "apps/api/test/architecture.test.ts",
+      "texto": "/\\bResolucaoDeTenantRepository\\b|tenant-resolution\\.repository/",
+      "motivo": "trava de arquitetura que lê o texto do código pelo nome: troca à mão para o nome novo, prova vermelha em travas.md:43"
+    },
+    {
+      "arquivo": "apps/api/test/architecture.test.ts",
+      "texto": "/\\b(?:RotaDeOperacao|EntradaDeOperacao)\\b/",
+      "motivo": "trava de arquitetura que lê o texto do código pelo nome: troca à mão para o nome novo, prova vermelha em travas.md:46"
+    },
+    {
+      "arquivo": "apps/api/test/architecture.test.ts",
+      "texto": "/\\bConferenciaDoAutor\\b/",
+      "motivo": "trava de arquitetura que lê o texto do código pelo nome: troca à mão para o nome novo, prova vermelha em travas.md:158"
+    },
+    {
+      "arquivo": "apps/api/test/architecture.test.ts",
+      "texto": "/\\bTenantResolutionRepository\\b|tenant-resolution\\.repository/",
+      "motivo": "trava de arquitetura que lê o texto do código pelo nome: troca à mão para o nome novo, prova vermelha em travas.md:43"
+    },
+    {
+      "arquivo": "apps/api/test/architecture.test.ts",
+      "texto": "/\\b(?:OperacaoRoute|OperacaoLoginRoute)\\b/",
+      "motivo": "trava de arquitetura que lê o texto do código pelo nome: troca à mão para o nome novo, prova vermelha em travas.md:46"
+    },
+    {
+      "arquivo": "apps/api/test/architecture.test.ts",
+      "texto": "/\\bAuthorCheck\\b/",
+      "motivo": "trava de arquitetura que lê o texto do código pelo nome: troca à mão para o nome novo, prova vermelha em travas.md:158"
+    },
+    {
+      "arquivo": "apps/api/src/credencial/login-redis-client.ts",
+      "texto": "CLIENTE_REDIS_LOGIN",
+      "motivo": "a descrição do Symbol(…) acompanha a constante do token de DI (inventario-back.md:565; travas.md:154)"
+    },
+    {
+      "arquivo": "apps/api/src/credencial/login-redis-client.ts",
+      "texto": "REDIS_LOGIN_CLIENT",
+      "motivo": "a descrição do Symbol(…) acompanha a constante do token de DI (inventario-back.md:565; travas.md:154)"
+    },
+    {
+      "arquivo": "apps/api/src/credencial/secret-cipher.ts",
+      "texto": "SegredoNaoDecifra",
+      "motivo": "this.name da classe de erro acompanha a classe (adenda 1 do inventário; travas.md:155)"
+    },
+    {
+      "arquivo": "apps/api/src/credencial/secret-cipher.ts",
+      "texto": "SecretDecryptionError",
+      "motivo": "this.name da classe de erro acompanha a classe (adenda 1 do inventário; travas.md:155)"
+    },
+    {
+      "arquivo": "apps/api/src/database.module.ts",
+      "texto": "POOL_BANCO",
+      "motivo": "a descrição do Symbol(…) acompanha a constante do token de DI (inventario-back.md:565; travas.md:154)"
+    },
+    {
+      "arquivo": "apps/api/src/database.module.ts",
+      "texto": "BANCO",
+      "motivo": "a descrição do Symbol(…) acompanha a constante do token de DI (inventario-back.md:565; travas.md:154)"
+    },
+    {
+      "arquivo": "apps/api/src/database.module.ts",
+      "texto": "DB_POOL",
+      "motivo": "a descrição do Symbol(…) acompanha a constante do token de DI (inventario-back.md:565; travas.md:154)"
+    },
+    {
+      "arquivo": "apps/api/src/database.module.ts",
+      "texto": "DB",
+      "motivo": "a descrição do Symbol(…) acompanha a constante do token de DI (inventario-back.md:565; travas.md:154)"
+    },
+    {
+      "arquivo": "apps/api/src/operacao/operador.guard.ts",
+      "texto": "IDENTIDADE_DA_OPERACAO",
+      "motivo": "a descrição do Symbol(…) acompanha a constante do token de DI (inventario-back.md:565; travas.md:154)"
+    },
+    {
+      "arquivo": "apps/api/src/operacao/operador.guard.ts",
+      "texto": "SESSOES_DE_OPERADOR",
+      "motivo": "a descrição do Symbol(…) acompanha a constante do token de DI (inventario-back.md:565; travas.md:154)"
+    },
+    {
+      "arquivo": "apps/api/src/operacao/operador.guard.ts",
+      "texto": "OPERACAO_IDENTITY",
+      "motivo": "a descrição do Symbol(…) acompanha a constante do token de DI (inventario-back.md:565; travas.md:154)"
+    },
+    {
+      "arquivo": "apps/api/src/operacao/operador.guard.ts",
+      "texto": "OPERADOR_SESSIONS",
+      "motivo": "a descrição do Symbol(…) acompanha a constante do token de DI (inventario-back.md:565; travas.md:154)"
+    },
+    {
+      "arquivo": "apps/api/src/ops/command.ts",
+      "texto": "ArgumentoInvalido",
+      "motivo": "this.name da classe de erro acompanha a classe (adenda 1 do inventário; travas.md:155)"
+    },
+    {
+      "arquivo": "apps/api/src/ops/command.ts",
+      "texto": "OperadorRecusado",
+      "motivo": "this.name da classe de erro acompanha a classe (adenda 1 do inventário; travas.md:155)"
+    },
+    {
+      "arquivo": "apps/api/src/ops/command.ts",
+      "texto": "InvalidArgumentError",
+      "motivo": "this.name da classe de erro acompanha a classe (adenda 1 do inventário; travas.md:155)"
+    },
+    {
+      "arquivo": "apps/api/src/ops/command.ts",
+      "texto": "OperadorRejectedError",
+      "motivo": "this.name da classe de erro acompanha a classe (adenda 1 do inventário; travas.md:155)"
+    },
+    {
+      "arquivo": "apps/api/src/ops/operador.ts",
+      "texto": "DesativacaoRecusada",
+      "motivo": "this.name da classe de erro acompanha a classe (adenda 1 do inventário; travas.md:155)"
+    },
+    {
+      "arquivo": "apps/api/src/ops/operador.ts",
+      "texto": "DesativacaoRejectedError",
+      "motivo": "this.name da classe de erro acompanha a classe (adenda 1 do inventário; travas.md:155)"
+    },
+    {
+      "arquivo": "apps/api/src/rate-limit.module.ts",
+      "texto": "CLIENTE_REDIS_CACHE",
+      "motivo": "a descrição do Symbol(…) acompanha a constante do token de DI (inventario-back.md:565; travas.md:154)"
+    },
+    {
+      "arquivo": "apps/api/src/rate-limit.module.ts",
+      "texto": "LIMITES_DA_ESCOLA",
+      "motivo": "a descrição do Symbol(…) acompanha a constante do token de DI (inventario-back.md:565; travas.md:154)"
+    },
+    {
+      "arquivo": "apps/api/src/rate-limit.module.ts",
+      "texto": "REDIS_CACHE_CLIENT",
+      "motivo": "a descrição do Symbol(…) acompanha a constante do token de DI (inventario-back.md:565; travas.md:154)"
+    },
+    {
+      "arquivo": "apps/api/src/rate-limit.module.ts",
+      "texto": "ESCOLA_RATE_LIMITS",
+      "motivo": "a descrição do Symbol(…) acompanha a constante do token de DI (inventario-back.md:565; travas.md:154)"
+    },
+    {
+      "arquivo": "apps/api/src/sessao/external/external-provider.port.ts",
+      "texto": "ProvedorExternoFalhou",
+      "motivo": "this.name da classe de erro acompanha a classe (adenda 1 do inventário; travas.md:155)"
+    },
+    {
+      "arquivo": "apps/api/src/sessao/external/external-provider.port.ts",
+      "texto": "ExternalProviderError",
+      "motivo": "this.name da classe de erro acompanha a classe (adenda 1 do inventário; travas.md:155)"
+    },
+    {
+      "arquivo": "apps/api/src/sessao/login/login.service.test.ts",
+      "texto": "OrigemDaRequisicao",
+      "motivo": "o nome que o login.service não pode voltar a exportar acompanha a classe"
+    },
+    {
+      "arquivo": "apps/api/src/sessao/login/login.service.test.ts",
+      "texto": "RequestOrigin",
+      "motivo": "o nome que o login.service não pode voltar a exportar acompanha a classe"
+    },
+    {
+      "arquivo": "apps/api/src/sessao/sessao.module.ts",
+      "texto": "PROVEDOR_EXTERNO",
+      "motivo": "a descrição do Symbol(…) acompanha a constante do token de DI (inventario-back.md:565; travas.md:154)"
+    },
+    {
+      "arquivo": "apps/api/src/sessao/sessao.module.ts",
+      "texto": "EXTERNAL_PROVIDER",
+      "motivo": "a descrição do Symbol(…) acompanha a constante do token de DI (inventario-back.md:565; travas.md:154)"
+    },
+    {
+      "arquivo": "apps/api/src/system/notices.controller.ts",
+      "texto": "AVISOS_DO_SISTEMA",
+      "motivo": "a descrição do Symbol(…) acompanha a constante do token de DI (inventario-back.md:565; travas.md:154)"
+    },
+    {
+      "arquivo": "apps/api/src/system/notices.controller.ts",
+      "texto": "SYSTEM_NOTICES",
+      "motivo": "a descrição do Symbol(…) acompanha a constante do token de DI (inventario-back.md:565; travas.md:154)"
+    },
+    {
+      "arquivo": "apps/api/src/system/status.service.ts",
+      "texto": "VERSAO_DO_SISTEMA",
+      "motivo": "a descrição do Symbol(…) acompanha a constante do token de DI (inventario-back.md:565; travas.md:154)"
+    },
+    {
+      "arquivo": "apps/api/src/system/status.service.ts",
+      "texto": "AMBIENTE_DO_SISTEMA",
+      "motivo": "a descrição do Symbol(…) acompanha a constante do token de DI (inventario-back.md:565; travas.md:154)"
+    },
+    {
+      "arquivo": "apps/api/src/system/status.service.ts",
+      "texto": "RELOGIO_DO_ESTADO",
+      "motivo": "a descrição do Symbol(…) acompanha a constante do token de DI (inventario-back.md:565; travas.md:154)"
+    },
+    {
+      "arquivo": "apps/api/src/system/status.service.ts",
+      "texto": "SYSTEM_VERSION",
+      "motivo": "a descrição do Symbol(…) acompanha a constante do token de DI (inventario-back.md:565; travas.md:154)"
+    },
+    {
+      "arquivo": "apps/api/src/system/status.service.ts",
+      "texto": "SYSTEM_ENVIRONMENT",
+      "motivo": "a descrição do Symbol(…) acompanha a constante do token de DI (inventario-back.md:565; travas.md:154)"
+    },
+    {
+      "arquivo": "apps/api/src/system/status.service.ts",
+      "texto": "STATUS_CLOCK",
+      "motivo": "a descrição do Symbol(…) acompanha a constante do token de DI (inventario-back.md:565; travas.md:154)"
+    },
+    {
+      "arquivo": "apps/api/src/usage.module.ts",
+      "texto": "CLIENTE_REDIS_USO",
+      "motivo": "a descrição do Symbol(…) acompanha a constante do token de DI (inventario-back.md:565; travas.md:154)"
+    },
+    {
+      "arquivo": "apps/api/src/usage.module.ts",
+      "texto": "REDIS_USAGE_CLIENT",
+      "motivo": "a descrição do Symbol(…) acompanha a constante do token de DI (inventario-back.md:565; travas.md:154)"
+    },
+    {
+      "arquivo": "apps/api/test/architecture.test.ts",
+      "texto": "ResolucaoDeTenantRepository",
+      "motivo": "trava de arquitetura que lê o texto do código pelo nome: troca à mão para o nome novo, prova vermelha em travas.md:157"
+    },
+    {
+      "arquivo": "apps/api/test/architecture.test.ts",
+      "texto": "import { ResolucaoDeTenantRepository } from '../apps/api/src/sessao/login/ponte.js'",
+      "motivo": "trava de arquitetura que lê o texto do código pelo nome: troca à mão para o nome novo, prova vermelha em travas.md:43"
+    },
+    {
+      "arquivo": "apps/api/test/architecture.test.ts",
+      "texto": "export { ResolucaoDeTenantRepository } from '../tenant/tenant-resolution.repository.js'",
+      "motivo": "trava de arquitetura que lê o texto do código pelo nome: troca à mão para o nome novo, prova vermelha em travas.md:43"
+    },
+    {
+      "arquivo": "apps/api/test/architecture.test.ts",
+      "texto": "ResolucaoDeTenantRepository: tools/vaza.ts",
+      "motivo": "trava de arquitetura que lê o texto do código pelo nome: troca à mão para o nome novo, prova vermelha em travas.md:43"
+    },
+    {
+      "arquivo": "apps/api/test/architecture.test.ts",
+      "texto": "HashDeSenha",
+      "motivo": "trava de arquitetura que lê o texto do código pelo nome: troca à mão para o nome novo, prova vermelha em travas.md:157"
+    },
+    {
+      "arquivo": "apps/api/test/architecture.test.ts",
+      "texto": "import { RotaDeOperacao } from '../operacao/decorators.js'\n@RotaDeOperacao()\n@Controller('v1/turmas')\nexport class TurmaController {}",
+      "motivo": "trava de arquitetura que lê o texto do código pelo nome: troca à mão para o nome novo, prova vermelha em travas.md:46"
+    },
+    {
+      "arquivo": "apps/api/test/architecture.test.ts",
+      "texto": "export class Atalho {\n  @Get()\n  @EntradaDeOperacao()\n  obter() {}\n}",
+      "motivo": "trava de arquitetura que lê o texto do código pelo nome: troca à mão para o nome novo, prova vermelha em travas.md:46"
+    },
+    {
+      "arquivo": "apps/api/test/architecture.test.ts",
+      "texto": "@RotaDeOperacao()\nexport class PainelController {}",
+      "motivo": "trava de arquitetura que lê o texto do código pelo nome: troca à mão para o nome novo, prova vermelha em travas.md:46"
+    },
+    {
+      "arquivo": "apps/api/test/architecture.test.ts",
+      "texto": "/** A rota `@RotaDeOperacao()` conta no rl:op. */\n// e a @EntradaDeOperacao não\nconst x = 1",
+      "motivo": "trava de arquitetura que lê o texto do código pelo nome: troca à mão para o nome novo, prova vermelha em travas.md:46"
+    },
+    {
+      "arquivo": "apps/api/test/architecture.test.ts",
+      "texto": "@RotaDeOperacao()\nclass X {}",
+      "motivo": "trava de arquitetura que lê o texto do código pelo nome: troca à mão para o nome novo, prova vermelha em travas.md:46"
+    },
+    {
+      "arquivo": "apps/api/test/architecture.test.ts",
+      "texto": "nenhuma rota @RotaDeOperacao",
+      "motivo": "trava de arquitetura que lê o texto do código pelo nome: troca à mão para o nome novo, prova vermelha em travas.md:46"
+    },
+    {
+      "arquivo": "apps/api/test/architecture.test.ts",
+      "texto": "TenantResolutionRepository",
+      "motivo": "trava de arquitetura que lê o texto do código pelo nome: troca à mão para o nome novo, prova vermelha em travas.md:157"
+    },
+    {
+      "arquivo": "apps/api/test/architecture.test.ts",
+      "texto": "import { TenantResolutionRepository } from '../apps/api/src/sessao/login/ponte.js'",
+      "motivo": "trava de arquitetura que lê o texto do código pelo nome: troca à mão para o nome novo, prova vermelha em travas.md:43"
+    },
+    {
+      "arquivo": "apps/api/test/architecture.test.ts",
+      "texto": "export { TenantResolutionRepository } from '../tenant/tenant-resolution.repository.js'",
+      "motivo": "trava de arquitetura que lê o texto do código pelo nome: troca à mão para o nome novo, prova vermelha em travas.md:43"
+    },
+    {
+      "arquivo": "apps/api/test/architecture.test.ts",
+      "texto": "TenantResolutionRepository: tools/vaza.ts",
+      "motivo": "trava de arquitetura que lê o texto do código pelo nome: troca à mão para o nome novo, prova vermelha em travas.md:43"
+    },
+    {
+      "arquivo": "apps/api/test/architecture.test.ts",
+      "texto": "PasswordHasher",
+      "motivo": "trava de arquitetura que lê o texto do código pelo nome: troca à mão para o nome novo, prova vermelha em travas.md:157"
+    },
+    {
+      "arquivo": "apps/api/test/architecture.test.ts",
+      "texto": "import { OperacaoRoute } from '../operacao/decorators.js'\n@OperacaoRoute()\n@Controller('v1/turmas')\nexport class TurmaController {}",
+      "motivo": "trava de arquitetura que lê o texto do código pelo nome: troca à mão para o nome novo, prova vermelha em travas.md:46"
+    },
+    {
+      "arquivo": "apps/api/test/architecture.test.ts",
+      "texto": "export class Atalho {\n  @Get()\n  @OperacaoLoginRoute()\n  obter() {}\n}",
+      "motivo": "trava de arquitetura que lê o texto do código pelo nome: troca à mão para o nome novo, prova vermelha em travas.md:46"
+    },
+    {
+      "arquivo": "apps/api/test/architecture.test.ts",
+      "texto": "@OperacaoRoute()\nexport class PainelController {}",
+      "motivo": "trava de arquitetura que lê o texto do código pelo nome: troca à mão para o nome novo, prova vermelha em travas.md:46"
+    },
+    {
+      "arquivo": "apps/api/test/architecture.test.ts",
+      "texto": "/** A rota `@OperacaoRoute()` conta no rl:op. */\n// e a @OperacaoLoginRoute não\nconst x = 1",
+      "motivo": "trava de arquitetura que lê o texto do código pelo nome: troca à mão para o nome novo, prova vermelha em travas.md:46"
+    },
+    {
+      "arquivo": "apps/api/test/architecture.test.ts",
+      "texto": "@OperacaoRoute()\nclass X {}",
+      "motivo": "trava de arquitetura que lê o texto do código pelo nome: troca à mão para o nome novo, prova vermelha em travas.md:46"
+    },
+    {
+      "arquivo": "apps/api/test/architecture.test.ts",
+      "texto": "nenhuma rota @OperacaoRoute",
+      "motivo": "trava de arquitetura que lê o texto do código pelo nome: troca à mão para o nome novo, prova vermelha em travas.md:46"
+    },
+    {
+      "arquivo": "tools/guardas/camadas.cjs",
+      "texto": "cerca-resolucao-de-tenant",
+      "motivo": "a descrição do Symbol(…) acompanha a constante do token de DI (inventario-back.md:565; travas.md:154)"
+    },
+    {
+      "arquivo": "tools/guardas/camadas.cjs",
+      "texto": "A `ResolucaoDeTenantRepository` concentra os `@SemEscopo` da resolução de tenant e fica dentro de `sessao/` (Tech Spec, seção 6).",
+      "motivo": "a descrição do Symbol(…) acompanha a constante do token de DI (inventario-back.md:565; travas.md:154)"
+    },
+    {
+      "arquivo": "tools/guardas/camadas.cjs",
+      "texto": "cerca-tenant-resolution",
+      "motivo": "a descrição do Symbol(…) acompanha a constante do token de DI (inventario-back.md:565; travas.md:154)"
+    },
+    {
+      "arquivo": "tools/guardas/camadas.cjs",
+      "texto": "A `TenantResolutionRepository` concentra os `@Unscoped` da resolução de tenant e fica dentro de `sessao/` (Tech Spec, seção 6).",
+      "motivo": "o comentário da cerca cita o decorador, que é `Unscoped` desde a 4.0 (triagem da 7.0, item 2)"
+    },
+    {
+      "arquivo": "tools/guardas/camadas.cjs",
+      "texto": "O `PainelRepository` lê entre escolas, com três `@SemEscopo`: só o `painel.service.ts` o usa (I1, A0b).",
+      "motivo": "o comentário da cerca cita o decorador, que é `Unscoped` desde a 4.0 (triagem da 7.0, item 2)"
+    },
+    {
+      "arquivo": "tools/guardas/camadas.cjs",
+      "texto": "O `PainelRepository` lê entre escolas, com três `@Unscoped`: só o `painel.service.ts` o usa (I1, A0b).",
+      "motivo": "o comentário da cerca cita o decorador, que é `Unscoped` desde a 4.0 (triagem da 7.0, item 2)"
+    }
+  ]
+}

@@ -9,7 +9,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { compose, PROCESSOS_DA_FILA } from '../../../tools/testes/compose.ts'
 import { BancadaDeFila, LogEmMemoria } from '../../worker/test/queue.fixture.js'
 import { AppModule } from '../src/app.module.js'
-import { configurarAplicacao } from '../src/configure-app.js'
+import { configureApp } from '../src/configure-app.js'
 import { configuracaoDeTeste } from './test-config.js'
 import { BancadaDeSessoes } from './sessao.fixture.js'
 
@@ -20,8 +20,8 @@ const ROTA = '/v1/sistema/jobs-sinteticos'
 
 
 async function subirApi(log: LogEmMemoria, ambiente: Record<string, string> = {}): Promise<INestApplication> {
-  const app = await NestFactory.create(AppModule.com(configuracaoDeTeste({ ambiente })), { logger: false })
-  configurarAplicacao(app, log.logger)
+  const app = await NestFactory.create(AppModule.forRoot(configuracaoDeTeste({ ambiente })), { logger: false })
+  configureApp(app, log.logger)
   await app.listen(0, '127.0.0.1')
   return app
 }

@@ -26,7 +26,7 @@ export interface RateLimitConfig {
   readonly porUsuarioMin: number
   readonly porEscolaMin: number
   readonly porIpAnonimoMin: number
-  /** Requisições por minuto de cada operador Turmma nas rotas `@RotaDeOperacao` (`rl:op`, Tech Spec da A0, seção 5). */
+  /** Requisições por minuto de cada operador Turmma nas rotas `@OperacaoRoute` (`rl:op`, Tech Spec da A0, seção 5). */
   readonly porOperadorMin: number
   /** Quantas instâncias da API dividem o limite. O seguro em memória de cada uma usa limite ÷ instâncias. */
   readonly instancias: number
@@ -227,7 +227,7 @@ export class RateLimiter {
   }
 
   /**
-   * O limite por IP das rotas de entrada da operação (`@EntradaDeOperacao`, `rl:ip:op`), com o mesmo teto do anônimo e
+   * O limite por IP das rotas de entrada da operação (`@OperacaoLoginRoute`, `rl:ip:op`), com o mesmo teto do anônimo e
    * balde próprio: nem a escola atrás do mesmo IP gasta o do operador, nem o contrário. Quem chama recusa acima dele, ou
    * só rebaixa, nas rotas `@DowngradeRateLimit`.
    */
@@ -236,7 +236,7 @@ export class RateLimiter {
   }
 
   /**
-   * O limite do operador Turmma nas rotas `@RotaDeOperacao` (`rl:op:{operadorId}`), pelo `sub` do token de operador
+   * O limite do operador Turmma nas rotas `@OperacaoRoute` (`rl:op:{operadorId}`), pelo `sub` do token de operador
    * verificado. Com o Redis fora, o mesmo seguro em memória dos outros limites.
    */
   async consumirDeOperador(operadorId: string): Promise<RateLimitResult> {

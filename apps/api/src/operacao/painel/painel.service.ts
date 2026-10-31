@@ -30,7 +30,7 @@ import {
 import { Logger } from '@nestjs/common'
 import { randomUUID } from 'node:crypto'
 import { criarEscola, criarRede } from '../escola/escola.js'
-import { type ConferenciaDoAutor, criarConviteDeCoordenador, refazerConviteDaCoordenacao, revogarConvitePeloOperador } from '../../sessao/index.js'
+import { type AuthorCheck, criarConviteDeCoordenador, refazerConviteDaCoordenacao, revogarConvitePeloOperador } from '../../sessao/index.js'
 import { OperadorRepository } from '../operador/operador.repository.js'
 import { PainelRepository, type ReferenciaDoUso } from './painel.repository.js'
 
@@ -39,7 +39,7 @@ import { PainelRepository, type ReferenciaDoUso } from './painel.repository.js'
  * seção 7c, "Autor ativo"). Desativado entre a guarda e aqui, ou enquanto a escrita esperava a linha dele: a sessão
  * acabou de terminar, e nada é gravado. O corpo do pedido nunca chega aqui.
  */
-function autorDaSessao(operadorId: string): ConferenciaDoAutor {
+function autorDaSessao(operadorId: string): AuthorCheck {
   return async (tx) => {
     const apelido = await OperadorRepository.autorAtivoNaTransacao(tx, { operadorId })
     if (apelido === undefined) throw new DomainException(ErrorCode.SESSAO_ENCERRADA)

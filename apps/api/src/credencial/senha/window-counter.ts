@@ -12,7 +12,7 @@ const loggerDoLogin = new Logger('login')
 const avisarSeguroDoLogin = () => loggerDoLogin.warn('login.limite_por_ip_no_seguro')
 
 /** O que muda de uma instância do contador para outra: a janela e o aviso do seguro (A1, tarefa 7.0). */
-export interface OpcoesDoContador {
+export interface WindowCounterOptions {
   /** Quanto cada chave vive desde a primeira soma: 1 min no login (o padrão), 10 min nos limites da sala. */
   readonly janelaMs?: number
   /** O aviso de contagem no seguro, um evento fixo, que o contador espaça; o padrão é o do login. */
@@ -24,7 +24,7 @@ export interface OpcoesDoContador {
 }
 
 /** O que o contador diz: o valor na janela e se quem contou foi o seguro em memória (o limite é dividido pelas instâncias). */
-export interface ContagemNaJanela {
+export interface WindowCount {
   readonly valor: number
   readonly doSeguro: boolean
 }
@@ -41,7 +41,7 @@ end
 return valor
 `
 
-interface EntradaEmMemoria {
+interface InMemoryWindowEntry {
   valor: number
   venceEm: number
 }
@@ -60,8 +60,8 @@ interface EntradaEmMemoria {
  * janela, e diz que a contagem é do seguro, para quem compara dividir o limite pelas instâncias (`insuranceLimit`). A
  * proporção do seguro alimenta `limite.seguro_ativo`. Nunca responde "zero" por não saber: conta sempre, em algum lugar.
  */
-export class ContadorEmJanela {
-  readonly #seguro = new Map<string, EntradaEmMemoria>()
+export class WindowCounter {
+  readonly #seguro = new Map<string, InMemoryWindowEntry>()
   readonly #proporcaoDoSeguro: SlidingWindowRatio
   readonly #avisarSeguro: () => void
   readonly #relogio: Clock
@@ -77,7 +77,7 @@ export class ContadorEmJanela {
   constructor(
     private readonly cliente: Redis,
     private readonly chave: Uint8Array,
-    { janelaMs = JANELA_DO_CONTADOR_POR_IP_MS, avisarSeguro = avisarSeguroDoLogin, relogio = systemClock, proporcaoDoSeguro = new SlidingWindowRatio() }: OpcoesDoContador = {},
+    { janelaMs = JANELA_DO_CONTADOR_POR_IP_MS, avisarSeguro = avisarSeguroDoLogin, relogio = systemClock, proporcaoDoSeguro = new SlidingWindowRatio() }: WindowCounterOptions = {},
   ) {
     if (!Number.isInteger(janelaMs) || janelaMs < 1) throw new RangeError('a janela do contador precisa ser um inteiro positivo de milissegundos')
     this.janelaMs = janelaMs
@@ -97,7 +97,7 @@ export class ContadorEmJanela {
   }
 
   /** Soma um e devolve o valor na janela. */
-  async somar(chave: string): Promise<ContagemNaJanela> {
+  async somar(chave: string): Promise<WindowCount> {
     if (this.cliente.status === 'ready') {
       try {
         const valor = Number(await this.cliente.eval(SCRIPT_SOMAR, 1, chave, this.janelaMs))
@@ -113,7 +113,7 @@ export class ContadorEmJanela {
   }
 
   /** O valor na janela, sem somar. */
-  async ler(chave: string): Promise<ContagemNaJanela> {
+  async ler(chave: string): Promise<WindowCount> {
     if (this.cliente.status === 'ready') {
       try {
         const valor = Number((await this.cliente.get(chave)) ?? 0)
@@ -158,7 +158,7 @@ export class ContadorEmJanela {
     return entrada.valor
   }
 
-  #vivo(chave: string, agora: number): EntradaEmMemoria | undefined {
+  #vivo(chave: string, agora: number): InMemoryWindowEntry | undefined {
     const entrada = this.#seguro.get(chave)
     return entrada !== undefined && entrada.venceEm > agora ? entrada : undefined
   }

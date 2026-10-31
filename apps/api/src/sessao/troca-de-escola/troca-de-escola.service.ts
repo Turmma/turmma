@@ -1,17 +1,17 @@
 import { DomainException, requestSessao, type Database } from '@educa/core'
 import { ErrorCode, type TrocaDeEscolaRequest } from '@educa/shared'
 import type { ConclusaoDeLogin } from '../completion/login-completion.js'
-import { verificarDesafio, type ConsumoDeDesafio, type EmissorDeDesafio, type SessaoDeOrigemDaTroca } from '../../credencial/challenge.js'
-import type { OrigemDaRequisicao, ResultadoDoLogin } from '../../credencial/request-origin.js'
-import type { ResolucaoDeTenantRepository, UsuarioAtivoDaConta } from '../tenant/tenant-resolution.repository.js'
+import { verifyChallenge, type ChallengeConsumer, type ChallengeIssuer, type SessaoDeOrigemDaTroca } from '../../credencial/challenge.js'
+import type { RequestOrigin, ResultadoDoLogin } from '../../credencial/request-origin.js'
+import type { TenantResolutionRepository, UsuarioAtivoDaConta } from '../tenant/tenant-resolution.repository.js'
 import { SessaoDeOrigemRepository } from '../../credencial/sessao-de-origem.repository.js'
 
-export interface DependenciasDaTroca {
+export interface TrocaDeEscolaDependencies {
   readonly banco: Database
-  readonly resolucao: ResolucaoDeTenantRepository
-  readonly consumo: ConsumoDeDesafio
+  readonly resolucao: TenantResolutionRepository
+  readonly consumo: ChallengeConsumer
   readonly conclusao: ConclusaoDeLogin
-  readonly emissorDeDesafio: EmissorDeDesafio
+  readonly emissorDeDesafio: ChallengeIssuer
   /** Chave de assinatura do desafio, a mesma do token de acesso. */
   readonly chaveAssinatura: Uint8Array
 }
@@ -36,18 +36,18 @@ const naoEncontrado = () => new DomainException(ErrorCode.NAO_ENCONTRADO)
  * - **Inatividade:** a da escola e do papel de destino, porque a guarda a lê da sessão nova.
  */
 export class TrocaDeEscolaService {
-  constructor(private readonly dependencias: DependenciasDaTroca) {}
+  constructor(private readonly dependencias: TrocaDeEscolaDependencies) {}
 
-  async escolher(desafio: string, pedido: TrocaDeEscolaRequest, origem: OrigemDaRequisicao): Promise<ResultadoDoLogin> {
+  async escolher(desafio: string, pedido: TrocaDeEscolaRequest, origem: RequestOrigin): Promise<ResultadoDoLogin> {
     const { consumo } = this.dependencias
-    const verificado = await verificarDesafio(desafio, this.dependencias.chaveAssinatura, ['escolher'])
+    const verificado = await verifyChallenge(desafio, this.dependencias.chaveAssinatura, ['escolher'])
     await consumo.conferirLivre(verificado)
     const destino = await this.#destinoDaConta(verificado.contaId, pedido.usuarioId)
     await consumo.consumir(verificado)
     return this.#entrar(verificado.contaId, destino, verificado.mfaCumprido, undefined, origem)
   }
 
-  async trocar(pedido: TrocaDeEscolaRequest, origem: OrigemDaRequisicao): Promise<ResultadoDoLogin> {
+  async trocar(pedido: TrocaDeEscolaRequest, origem: RequestOrigin): Promise<ResultadoDoLogin> {
     const { escolaId, sessaoId } = requestSessao()
     const daOrigem = await new SessaoDeOrigemRepository(this.dependencias.banco).metodoEConta(sessaoId)
     if (daOrigem?.metodo !== 'email' || daOrigem.contaId === null) throw naoEncontrado()
@@ -68,7 +68,7 @@ export class TrocaDeEscolaService {
     destino: UsuarioAtivoDaConta,
     mfaCumprido: boolean,
     troca: SessaoDeOrigemDaTroca | undefined,
-    origem: OrigemDaRequisicao,
+    origem: RequestOrigin,
   ): Promise<ResultadoDoLogin> {
     const conta = await this.dependencias.resolucao.mfaDaConta(contaId)
     if (conta === undefined) throw new DomainException(ErrorCode.NAO_AUTENTICADO)

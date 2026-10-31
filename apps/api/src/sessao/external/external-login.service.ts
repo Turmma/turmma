@@ -13,24 +13,24 @@ import { randomUUID } from 'node:crypto'
 import type { ConclusaoDeLogin } from '../completion/login-completion.js'
 import { lerCookie } from '../../credencial/cookies.js'
 import { naEscolaSemUsuario } from '../tenant/escola-sem-usuario.js'
-import { ipParaRegistro, type OrigemDaRequisicao } from '../../credencial/request-origin.js'
+import { ipParaRegistro, type RequestOrigin } from '../../credencial/request-origin.js'
 import { RegistroDeAcessoRepository } from '../../credencial/registro-de-acesso.repository.js'
-import type { ResolucaoDeTenantRepository } from '../tenant/tenant-resolution.repository.js'
+import type { TenantResolutionRepository } from '../tenant/tenant-resolution.repository.js'
 import { CAMINHO_DO_RETORNO } from '../../credencial/external-login-config.js'
-import { ContaExternaRepository, type ChaveDaContaExterna, type LigacaoDaContaExterna } from './conta-externa.repository.js'
+import { ContaExternalRepository, type ChaveDaContaExterna, type LigacaoDaContaExterna } from './conta-externa.repository.js'
 import { COOKIE_OIDC, type CookieOidc, type LoginExternoEmAndamento } from './cookie-oidc.js'
-import { ProvedorExternoFalhou, type ContaNoProvedor, type ProvedorExternoPort } from './external-provider.port.js'
+import { ExternalProviderError, type ContaNoProvedor, type ExternalProviderPort } from './external-provider.port.js'
 
 /** O redirecionamento que o controller devolve: o `Location` e os `Set-Cookie`. */
-export interface Redirecionamento {
+export interface Redirect {
   readonly endereco: string
   readonly cookies: readonly string[]
 }
 
-export interface DependenciasDoLoginExterno {
+export interface ExternalLoginDependencies {
   readonly banco: Database
-  readonly resolucao: ResolucaoDeTenantRepository
-  readonly provedor: ProvedorExternoPort
+  readonly resolucao: TenantResolutionRepository
+  readonly provedor: ExternalProviderPort
   readonly cookie: CookieOidc
   readonly conclusao: ConclusaoDeLogin
   /** O `redirect_uri` configurado: o retorno é remontado sobre ele, com a query que chegou. */
@@ -83,11 +83,11 @@ function entrarSeNaoSuspensa(ligacao: Pick<LigacaoDaContaExterna, 'usuarioId' | 
  * - **Nada de pessoa guardado:** o e-mail do provedor só é comparado, na memória desta requisição; nome, foto, tokens e
  *   claims nem saem do adaptador. Nada disso vai ao log, a uma exceção, à auditoria ou ao banco.
  */
-export class LoginExterno {
+export class ExternalLoginService {
   readonly #auditoria = new AuditoriaRecorder()
   readonly #resultados: ReturnType<Meter['createCounter']>
 
-  constructor(private readonly dependencias: DependenciasDoLoginExterno) {
+  constructor(private readonly dependencias: ExternalLoginDependencies) {
     this.#resultados = dependencias.medidor.createCounter(METRICS.loginExterno, { description: 'Retornos do login pela conta da escola, por resultado' })
   }
 
@@ -97,11 +97,11 @@ export class LoginExterno {
   }
 
   /** O contrato exige o `provedor` e o `slug` já validados pelo `ZodValidationPipe` do controller: outro chamador tem de conferir o formato antes. */
-  async iniciar(provedor: ProvedorExterno, slug: string): Promise<Redirecionamento> {
+  async iniciar(provedor: ProvedorExterno, slug: string): Promise<Redirect> {
     if (!this.ligados.includes(provedor)) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
     const escolaId = await this.dependencias.resolucao.escolaPorSlug(slug)
     if (escolaId === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
-    const liberado = await naEscolaSemUsuario({ escolaId }, () => new ContaExternaRepository(this.dependencias.banco).provedorLiberado(provedor))
+    const liberado = await naEscolaSemUsuario({ escolaId }, () => new ContaExternalRepository(this.dependencias.banco).provedorLiberado(provedor))
     if (!liberado) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
 
     try {
@@ -109,7 +109,7 @@ export class LoginExterno {
       const emAndamento: LoginExternoEmAndamento = { escolaId, slug, provedor, state: inicio.state, nonce: inicio.nonce, verificador: inicio.verificador }
       return { endereco: inicio.endereco.href, cookies: [this.dependencias.cookie.gravar(emAndamento)] }
     } catch (erro) {
-      if (!(erro instanceof ProvedorExternoFalhou)) throw erro
+      if (!(erro instanceof ExternalProviderError)) throw erro
       this.#resultados.add(1, { resultado: 'provedor' })
       return { endereco: enderecoDaFalha(slug, 'provedor'), cookies: [] }
     }
@@ -119,7 +119,7 @@ export class LoginExterno {
    * O navegador voltou do provedor. `consulta` é a query que chegou (`?code=...&state=...` ou `?error=...`); o
    * `slug`, se vier, é ignorado.
    */
-  async retorno(consulta: string, origem: OrigemDaRequisicao): Promise<Redirecionamento> {
+  async retorno(consulta: string, origem: RequestOrigin): Promise<Redirect> {
     const { cookie, retorno } = this.dependencias
     const apagar = cookie.apagar()
     const emAndamento = cookie.ler(lerCookie(origem.cabecalhoCookie, COOKIE_OIDC))
@@ -132,7 +132,7 @@ export class LoginExterno {
       try {
         contaNoProvedor = await this.dependencias.provedor.concluir(emAndamento.provedor, new URL(`${CAMINHO_DO_RETORNO}?${parametros.toString()}`, retorno), emAndamento)
       } catch (erro) {
-        if (!(erro instanceof ProvedorExternoFalhou)) throw erro
+        if (!(erro instanceof ExternalProviderError)) throw erro
         return this.#falhaDoProvedor(emAndamento.slug, apagar)
       }
       const decisao = await this.#decidir(emAndamento.escolaId, contaNoProvedor)
@@ -147,14 +147,14 @@ export class LoginExterno {
     })
   }
 
-  #falhaDoProvedor(slug: string | undefined, apagar: string): Redirecionamento {
+  #falhaDoProvedor(slug: string | undefined, apagar: string): Redirect {
     this.#resultados.add(1, { resultado: 'provedor' })
     return { endereco: enderecoDaFalha(slug, 'provedor'), cookies: [apagar] }
   }
 
   /** Entra ou recusa, na escola do contexto (a do cookie). */
   async #decidir(escolaId: string, conta: ContaNoProvedor): Promise<Decisao> {
-    const repositorio = new ContaExternaRepository(this.dependencias.banco)
+    const repositorio = new ContaExternalRepository(this.dependencias.banco)
     if (conta.dominio === undefined || (conta.provedor === 'microsoft' && conta.dominio === TENANT_DE_CONTA_PESSOAL_MICROSOFT)) return RECUSA
     if (!(await repositorio.dominioLiberado(conta.provedor, conta.dominio))) return RECUSA
 
@@ -193,7 +193,7 @@ export class LoginExterno {
     const requisicaoId = currentContext()?.requisicaoId ?? randomUUID()
     return runInContext({ requisicaoId, escolaId, usuarioId }, () =>
       this.dependencias.banco.transaction(async (tx) => {
-        const ligacaoId = await new ContaExternaRepository(tx).ligar(usuarioId, chave)
+        const ligacaoId = await new ContaExternalRepository(tx).ligar(usuarioId, chave)
         if (ligacaoId === undefined) return false
         await this.#auditoria.gravar(tx, 'conta_externa.ligada', { entidadeId: ligacaoId, depois: { usuarioId, provedor: chave.provedor } })
         return true

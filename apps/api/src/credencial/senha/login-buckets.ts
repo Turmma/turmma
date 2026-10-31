@@ -14,7 +14,7 @@ import { METRICS, type Meter } from '@educa/core'
  * por IP da rota de e-mail, ou acima do limite por IP das rotas de login, vai para o fim do balde: só é atendida quando não há ninguém não rebaixado esperando no
  * mesmo balde. Nunca é recusada por isso, e o rodízio entre baldes não muda: o rebaixamento na A não atrasa a B.
  */
-export interface BaldeDeLogin {
+export interface LoginBucket {
   /** A chave do balde no rodízio: o id da escola, `desconhecida` ou `equipe`. */
   readonly id: string
   /** A subfila dentro do balde: o IP na equipe; vazia nos baldes de escola, que têm uma fila só. */
@@ -31,17 +31,17 @@ export const BALDE_EQUIPE = 'equipe'
 export const BALDE_ESCOLA_DESCONHECIDA = 'desconhecida'
 
 /** O balde do login por matrícula numa escola que existe. */
-export function baldeDaEscola(escolaId: string, rebaixado = false): BaldeDeLogin {
+export function escolaBucket(escolaId: string, rebaixado = false): LoginBucket {
   return { id: escolaId, subfila: '', rotulo: escolaId, rebaixado }
 }
 
 /** O balde do login por matrícula num endereço que não existe: um só, para todos esses endereços. */
-export function baldeDaEscolaDesconhecida(rebaixado = false): BaldeDeLogin {
+export function escolaDesconhecidaBucket(rebaixado = false): LoginBucket {
   return { id: BALDE_ESCOLA_DESCONHECIDA, subfila: '', rotulo: BALDE_ESCOLA_DESCONHECIDA, rebaixado }
 }
 
 /** O balde do login por e-mail, com a vez rodando pelo IP de quem pede. O IP fica só na memória do semáforo. */
-export function baldeDaEquipe(ip: string, rebaixado = false): BaldeDeLogin {
+export function equipeBucket(ip: string, rebaixado = false): LoginBucket {
   return { id: BALDE_EQUIPE, subfila: ip, rotulo: BALDE_EQUIPE, rebaixado }
 }
 

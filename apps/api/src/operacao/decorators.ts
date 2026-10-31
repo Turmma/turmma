@@ -1,15 +1,15 @@
 import { OPERACAO_ENTRY_KEY, OPERACAO_ROUTE_KEY } from '@educa/core'
 import { applyDecorators, SetMetadata, UseGuards } from '@nestjs/common'
-import { GuardaDeOperador } from './operador.guard.js'
+import { OperadorGuard } from './operador.guard.js'
 
 /**
  * A rota da área da operação com sessão de operador (Tech Spec da A0, seção 1). Marca a rota, para as guardas da escola
- * a tratarem como sem sessão de escola e o limite contar `rl:op:{sub}`, e aplica a `GuardaDeOperador` no mesmo
+ * a tratarem como sem sessão de escola e o limite contar `rl:op:{sub}`, e aplica a `OperadorGuard` no mesmo
  * decorador: não existe rota de operação marcada sem a guarda (C41). Só se usa em `apps/api/src/operacao/` (C40), em
  * rota sob `/v1/operacao` (C42).
  */
-export function RotaDeOperacao(): MethodDecorator & ClassDecorator {
-  return applyDecorators(SetMetadata(OPERACAO_ROUTE_KEY, true), UseGuards(GuardaDeOperador))
+export function OperacaoRoute(): MethodDecorator & ClassDecorator {
+  return applyDecorators(SetMetadata(OPERACAO_ROUTE_KEY, true), UseGuards(OperadorGuard))
 }
 
 /**
@@ -17,6 +17,6 @@ export function RotaDeOperacao(): MethodDecorator & ClassDecorator {
  * (Tech Spec da A0, seção 4; C43, tarefa 8.0). Sem sessão: o service confere o convite, a senha ou o desafio que recebe.
  * Só se usa em `apps/api/src/operacao/` (C40), em rota sob `/v1/operacao` (C42).
  */
-export function EntradaDeOperacao(): MethodDecorator & ClassDecorator {
+export function OperacaoLoginRoute(): MethodDecorator & ClassDecorator {
   return applyDecorators(SetMetadata(OPERACAO_ENTRY_KEY, true))
 }

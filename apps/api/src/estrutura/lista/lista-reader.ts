@@ -10,7 +10,7 @@ import {
 } from '@educa/shared'
 
 /** Uma linha de aluno do texto: o número dela no texto (a partir de 1) e o nome e a matrícula, sem espaço nas pontas. */
-export interface LinhaLida {
+export interface ParsedRow {
   readonly linha: number
   readonly nome: string
   readonly matricula: string
@@ -90,7 +90,7 @@ function colunasDoCabecalho(campos: readonly string[]): { readonly nome: number;
  * - Nome e matrícula sem espaço nas pontas. Campo que falta vira vazio, e a conferência de cada linha
  *   (`errosDasLinhas`) aponta.
  */
-export function lerTextoDaLista(texto: string): LinhaLida[] {
+export function lerTextoDaLista(texto: string): ParsedRow[] {
   if (Buffer.byteLength(texto, 'utf8') > MAXIMO_DE_BYTES_DA_LISTA) throw new DomainException(ErrorCode.ENTRADA_INVALIDA)
   const fisicas = texto.split(/\r\n|\r|\n/)
   let separador: Separador | undefined
@@ -116,7 +116,7 @@ export function lerTextoDaLista(texto: string): LinhaLida[] {
  * texto (`matricula_repetida`, em cada linha da matrícula que aparece mais de uma vez; a linha que tem outro erro conta
  * na repetição, e mostra o erro dela). O nome e a matrícula seguem as regras do nome avulso (`nomeDigitadoSchema`, `matriculaDigitadaSchema`): as duas entradas gravam a mesma coisa.
  */
-export function errosDasLinhas(linhas: readonly LinhaLida[]): Array<ErroDaLinhaDaLista | undefined> {
+export function errosDasLinhas(linhas: readonly ParsedRow[]): Array<ErroDaLinhaDaLista | undefined> {
   // A maioria da coluna de CPF conta todas as matrículas preenchidas, também as de linha com outro erro: é a coluna do
   // texto que se julga, e a linha errada por outro motivo continua sendo uma linha daquela coluna.
   const parecemDocumento = matriculasQueParecemDocumento(linhas.map((linha) => linha.matricula))

@@ -26,7 +26,7 @@ export interface UsuarioDoCicloDeVida {
  *
  * Mora no `nucleo` desde o F3 (tarefa 1.0), para o worker alcançar a eliminação. A trava das turmas do professor, o
  * encerramento das sessões dele e a revogação do acesso que ele gerou vieram junto, da `TurmaRepository`, da
- * `EscritaDeSessaoRepository` e da `AcessoDaTurmaRepository` da API, sem mudar a instrução: o `nucleo` não importa
+ * `SessaoWriteRepository` e da `AcessoDaTurmaRepository` da API, sem mudar a instrução: o `nucleo` não importa
  * `apps/api`. O encerramento do vínculo pela coordenação (`VinculoService.encerrar`) usa a mesma revogação daqui.
  */
 export class CicloDeVidaRepository {

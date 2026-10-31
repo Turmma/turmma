@@ -11,7 +11,7 @@ import { join, relative, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it, vi } from 'vitest'
 import { AppModule } from '../src/app.module.js'
-import { EntradaDeOperacao, RotaDeOperacao } from '../src/operacao/decorators.js'
+import { OperacaoLoginRoute, OperacaoRoute } from '../src/operacao/decorators.js'
 import { OperacaoModule } from '../src/operacao/operacao.module.js'
 import { PainelController } from '../src/operacao/painel/painel.controller.js'
 import { PainelRepository } from '../src/operacao/painel/painel.repository.js'
@@ -46,7 +46,7 @@ function arquivosDoRepositorio(): Arquivo[] {
  * da zona não cita a classe, por qual arquivo quer que a tenha achado. Teste e fixture ficam de fora (mudança aceita da 12.0).
  */
 const ZONAS_DAS_CLASSES_CERCADAS: readonly { classe: string; uso: RegExp; zona: readonly string[] }[] = [
-  { classe: 'ResolucaoDeTenantRepository', uso: /\bResolucaoDeTenantRepository\b|tenant-resolution\.repository/, zona: ['apps/api/src/sessao/'] },
+  { classe: 'TenantResolutionRepository', uso: /\bTenantResolutionRepository\b|tenant-resolution\.repository/, zona: ['apps/api/src/sessao/'] },
   { classe: 'ContaGlobalRepository', uso: /\bContaGlobalRepository\b|conta-global\.repository|@educa\/core\/conta-global/, zona: ['apps/api/src/sessao/', 'packages/core/src/ciclo-de-vida/'] },
   // A zona do painel é o arquivo do service e o do repository, e não a pasta `operacao/painel/`.
   { classe: 'PainelRepository', uso: /\bPainelRepository\b|painel\.repository/, zona: ['apps/api/src/operacao/painel/painel.service.ts', 'apps/api/src/operacao/painel/painel.repository.ts'] },
@@ -82,13 +82,13 @@ describe('arquitetura: o nome das classes cercadas só aparece dentro da zona de
       // O reexport pelo service do painel, por uma ponte de `ciclo-de-vida/` e por uma de `sessao/`: o arquivo da classe não aparece no import.
       { caminho: 'apps/api/src/estrutura/turma/vaza.ts', texto: "import { PainelRepository } from '../../operacao/painel/painel.service.js'" },
       { caminho: 'packages/core/src/retencao/vaza.ts', texto: "import { ContaGlobalRepository } from '../ciclo-de-vida/ponte.js'" },
-      { caminho: 'tools/vaza.ts', texto: "import { ResolucaoDeTenantRepository } from '../apps/api/src/sessao/login/ponte.js'" },
+      { caminho: 'tools/vaza.ts', texto: "import { TenantResolutionRepository } from '../apps/api/src/sessao/login/ponte.js'" },
       { caminho: 'infra/vaza.ts', texto: "import { ContaGlobalRepository } from '../apps/api/src/sessao/login/ponte.js'" },
       // Outro arquivo da pasta do painel não é a zona.
       { caminho: 'apps/api/src/operacao/painel/relatorio.ts', texto: "import { PainelRepository } from './painel.repository.js'" },
     ]
     const dentro = [
-      { caminho: 'apps/api/src/sessao/login/ponte.ts', texto: "export { ResolucaoDeTenantRepository } from '../tenant/tenant-resolution.repository.js'" },
+      { caminho: 'apps/api/src/sessao/login/ponte.ts', texto: "export { TenantResolutionRepository } from '../tenant/tenant-resolution.repository.js'" },
       { caminho: 'packages/core/src/ciclo-de-vida/ponte.ts', texto: "export { ContaGlobalRepository } from './conta-global.repository.js'" },
       { caminho: 'apps/api/src/operacao/painel/painel.service.ts', texto: "import { PainelRepository } from './painel.repository.js'" },
     ]
@@ -99,7 +99,7 @@ describe('arquitetura: o nome das classes cercadas só aparece dentro da zona de
       { caminho: 'apps/api/src/telemetria/metricas.ts', texto: "const chave = 'metrica.conta-global.limpas'" },
     ]
     expect(usosForaDaZona([...fora, ...dentro, ...inocentes])).toEqual([
-      'ResolucaoDeTenantRepository: tools/vaza.ts',
+      'TenantResolutionRepository: tools/vaza.ts',
       'ContaGlobalRepository: packages/core/src/retencao/vaza.ts',
       'ContaGlobalRepository: infra/vaza.ts',
       'PainelRepository: apps/api/src/estrutura/turma/vaza.ts',
@@ -134,11 +134,11 @@ describe('arquitetura: a conta global só pelo módulo sessao e pelo ciclo de vi
   it('nem o barrel de credencial/ exporta a ResolucaoDeTenantRepository nem a ContaGlobalRepository, com o nome dela ou outro (33.0)', async () => {
     const credencial = await import('../src/credencial/index.js')
     const { ContaGlobalRepository } = await import('@educa/core/conta-global')
-    const { ResolucaoDeTenantRepository } = await import('../src/sessao/tenant/tenant-resolution.repository.js')
+    const { TenantResolutionRepository } = await import('../src/sessao/tenant/tenant-resolution.repository.js')
     // O barrel é lido de verdade: sem isto, um import que falhasse em silêncio deixaria as duas conferências abaixo verdes.
-    expect(Object.keys(credencial)).toContain('HashDeSenha')
+    expect(Object.keys(credencial)).toContain('PasswordHasher')
     for (const [nome, classe] of [
-      ['ResolucaoDeTenantRepository', ResolucaoDeTenantRepository],
+      ['TenantResolutionRepository', TenantResolutionRepository],
       ['ContaGlobalRepository', ContaGlobalRepository],
     ] as const) {
       expect(Object.keys(credencial), nome).not.toContain(nome)
@@ -149,7 +149,7 @@ describe('arquitetura: a conta global só pelo módulo sessao e pelo ciclo de vi
   it('nem o barrel de sessao/ exporta a ResolucaoDeTenantRepository nem a ContaGlobalRepository, com o nome dela ou outro, e a tenant/ só entra pelo AcessoDaSala e pelas sessões sintéticas (34.0)', async () => {
     const sessao = await import('../src/sessao/index.js')
     const { ContaGlobalRepository } = await import('@educa/core/conta-global')
-    const { ResolucaoDeTenantRepository } = await import('../src/sessao/tenant/tenant-resolution.repository.js')
+    const { TenantResolutionRepository } = await import('../src/sessao/tenant/tenant-resolution.repository.js')
     const { AcessoDaSala } = await import('../src/sessao/tenant/acesso-da-sala.js')
     // O barrel é lido de verdade: sem isto, um import que falhasse em silêncio deixaria as conferências abaixo verdes.
     expect(Object.keys(sessao)).toContain('SessaoModule')
@@ -160,7 +160,7 @@ describe('arquitetura: a conta global só pelo módulo sessao e pelo ciclo de vi
     expect([...new Set([...textoDoIndice.matchAll(/from ['"]\.\/tenant\/([^'"]+)['"]/g)].map((achado) => achado[1]))].sort()).toEqual(['acesso-da-sala.js', 'synthetic-sessions.js'])
     // O depcruise não vê o reexport em dois passos (`export * from './tenant/index.js'`): o que o módulo traz em execução é que vale.
     for (const [nome, classe] of [
-      ['ResolucaoDeTenantRepository', ResolucaoDeTenantRepository],
+      ['TenantResolutionRepository', TenantResolutionRepository],
       ['ContaGlobalRepository', ContaGlobalRepository],
     ] as const) {
       expect(Object.keys(sessao), nome).not.toContain(nome)
@@ -545,11 +545,11 @@ describe('arquitetura: o incidente só pelo OperacaoPrivacidadeRepository, pelo 
 /**
  * C40 a C42 e C36 (parte) (Tech Spec da A0, seção 6): as rotas `/v1/operacao/*` escapam das guardas de escola pelo
  * `isRouteWithoutSessao`, e o que impede que isso vire atalho é que os marcadores só existem na pasta da operação, que a rota
- * `@RotaDeOperacao` sempre leva a `GuardaDeOperador`, que marcador e caminho andam juntos, e que o limite conta o
+ * `@OperacaoRoute` sempre leva a `OperadorGuard`, que marcador e caminho andam juntos, e que o limite conta o
  * operador. A lista de rotas é a que o `AppModule` registra, lida dos metadados, sem subir a aplicação.
  */
 const PASTA_DA_OPERACAO = 'apps/api/src/operacao/'
-const NOMES_DOS_MARCADORES = /\b(?:RotaDeOperacao|EntradaDeOperacao)\b/
+const NOMES_DOS_MARCADORES = /\b(?:OperacaoRoute|OperacaoLoginRoute)\b/
 const CHAVES_DOS_MARCADORES = /\bOPERACAO_(?:ROUTE|ENTRY)_KEY\b/
 /** Quem pode citar as chaves: onde nascem, o barrel, a conferência do boot, e os decoradores. */
 const QUEM_PODE_CITAR_AS_CHAVES = [
@@ -577,7 +577,7 @@ function marcadoresForaDaOperacao(arquivos: readonly Arquivo[]): string[] {
     .map((arquivo) => arquivo.caminho)
 }
 
-const rotasDaApi = (): RotaRegistrada[] => rotasDe(controladoresDoModulo(AppModule.com(configuracaoDeTeste())))
+const rotasDaApi = (): RotaRegistrada[] => rotasDe(controladoresDoModulo(AppModule.forRoot(configuracaoDeTeste())))
 const nomeDaRota = (rota: RotaRegistrada) => `${rota.verbo} ${rota.caminho}`
 
 // Controllers de mentira, para provar que as conferências reprovam o que deveriam.
@@ -588,7 +588,7 @@ class SoMetadadoController {
   obter(): void {}
 }
 
-@RotaDeOperacao()
+@OperacaoRoute()
 @Controller('v1/operacao/na-classe')
 class NaClasseController {
   @Get()
@@ -598,11 +598,11 @@ class NaClasseController {
 @Controller('v1/operacao/no-metodo')
 class NoMetodoController {
   @Get()
-  @RotaDeOperacao()
+  @OperacaoRoute()
   obter(): void {}
 
   @Get('entrar')
-  @EntradaDeOperacao()
+  @OperacaoLoginRoute()
   entrar(): void {}
 }
 
@@ -615,14 +615,14 @@ class SemMarcadorController {
 @Controller('v1/escola/marcada')
 class EscolaMarcadaController {
   @Get()
-  @RotaDeOperacao()
+  @OperacaoRoute()
   obter(): void {}
 }
 
 @Controller('v1/operacaox')
 class PrefixoParecidoController {
   @Get()
-  @EntradaDeOperacao()
+  @OperacaoLoginRoute()
   obter(): void {}
 }
 
@@ -637,7 +637,7 @@ describe('arquitetura: os marcadores da operação só na pasta da operação (C
   })
 
   it('em método e em classe: todo controller registrado com marcador é um controller do OperacaoModule', () => {
-    const daOperacao = new Set(controladoresDoModulo(OperacaoModule.com(configuracaoDeTeste().identidade, { dispositivo: configuracaoDeTeste().login.dispositivo, mfa: configuracaoDeTeste().login.mfa })))
+    const daOperacao = new Set(controladoresDoModulo(OperacaoModule.forRoot(configuracaoDeTeste().identidade, { dispositivo: configuracaoDeTeste().login.dispositivo, mfa: configuracaoDeTeste().login.mfa })))
     const marcados = new Set(rotasDaApi().filter((rota) => rota.marcador !== undefined).map((rota) => rota.controlador))
     expect(marcados.size).toBeGreaterThan(0)
     expect([...marcados].filter((controlador) => !daOperacao.has(controlador)).map((controlador) => controlador.name)).toEqual([])
@@ -648,15 +648,15 @@ describe('arquitetura: os marcadores da operação só na pasta da operação (C
 
   it('a varredura reprova o marcador fora da pasta, na classe, no método ou pela chave, e não confunde comentário com uso', () => {
     const fora = [
-      { caminho: 'apps/api/src/estrutura/turma/turma.controller.ts', texto: "import { RotaDeOperacao } from '../operacao/decorators.js'\n@RotaDeOperacao()\n@Controller('v1/turmas')\nexport class TurmaController {}" },
-      { caminho: 'apps/api/src/sessao/atalho.controller.ts', texto: 'export class Atalho {\n  @Get()\n  @EntradaDeOperacao()\n  obter() {}\n}' },
+      { caminho: 'apps/api/src/estrutura/turma/turma.controller.ts', texto: "import { OperacaoRoute } from '../operacao/decorators.js'\n@OperacaoRoute()\n@Controller('v1/turmas')\nexport class TurmaController {}" },
+      { caminho: 'apps/api/src/sessao/atalho.controller.ts', texto: 'export class Atalho {\n  @Get()\n  @OperacaoLoginRoute()\n  obter() {}\n}' },
       { caminho: 'apps/api/src/sessao/chave.ts', texto: "import { OPERACAO_ROUTE_KEY } from '@educa/core'\nSetMetadata(OPERACAO_ROUTE_KEY, true)" },
       { caminho: 'packages/core/src/rate-limit/outro.ts', texto: 'reflector.get(OPERACAO_ENTRY_KEY, alvo)' },
     ]
     const inocentes = [
-      { caminho: 'apps/api/src/operacao/painel/painel.controller.ts', texto: '@RotaDeOperacao()\nexport class PainelController {}' },
-      { caminho: 'packages/core/src/rate-limit/rate-limit.guard.ts', texto: '/** A rota `@RotaDeOperacao()` conta no rl:op. */\n// e a @EntradaDeOperacao não\nconst x = 1' },
-      { caminho: 'apps/api/test/qualquer.int.test.ts', texto: '@RotaDeOperacao()\nclass X {}' },
+      { caminho: 'apps/api/src/operacao/painel/painel.controller.ts', texto: '@OperacaoRoute()\nexport class PainelController {}' },
+      { caminho: 'packages/core/src/rate-limit/rate-limit.guard.ts', texto: '/** A rota `@OperacaoRoute()` conta no rl:op. */\n// e a @OperacaoLoginRoute não\nconst x = 1' },
+      { caminho: 'apps/api/test/qualquer.int.test.ts', texto: '@OperacaoRoute()\nclass X {}' },
       { caminho: 'apps/api/test/registered-routes.ts', texto: "import { OPERACAO_ROUTE_KEY } from '@educa/core'" },
     ]
     expect(marcadoresForaDaOperacao([...fora, ...inocentes])).toEqual(fora.map((arquivo) => arquivo.caminho))
@@ -734,7 +734,7 @@ describe('arquitetura: toda rota @RotaDeOperacao conta pelo rl:op:{sub} (C36, pa
 
   it('acima do limite, 429 LIMITE_EXCEDIDO com a espera; sem token de operador que confira, não conta nada e deixa a GuardaDeOperador responder', async () => {
     const [rota] = rotasDaApi().filter((candidata) => candidata.marcador === 'rota')
-    if (rota === undefined) throw new Error('nenhuma rota @RotaDeOperacao')
+    if (rota === undefined) throw new Error('nenhuma rota @OperacaoRoute')
     const recusada = guardaComLimitador({ aceita: false, msAteLiberar: 1_500 })
     await expect(recusada.guarda.canActivate(execucao(rota, await tokenDeOperador()))).rejects.toMatchObject({ codigo: ErrorCode.LIMITE_EXCEDIDO, status: 429, tenteDeNovoEmSegundos: 2 })
 
@@ -748,7 +748,7 @@ describe('arquitetura: toda rota @RotaDeOperacao conta pelo rl:op:{sub} (C36, pa
 })
 
 /**
- * C43 (Tech Spec da A0, seções 4 e 6): as rotas `@EntradaDeOperacao` pulam as guardas de escola sem a `GuardaDeOperador`,
+ * C43 (Tech Spec da A0, seções 4 e 6): as rotas `@OperacaoLoginRoute` pulam as guardas de escola sem a `OperadorGuard`,
  * e por isso são uma lista fechada, escrita aqui. Rota de entrada nova é mudança da spec, não do código.
  */
 const AS_SETE_ENTRADAS = [
@@ -1395,7 +1395,7 @@ describe('arquitetura: o arquivo de prazos da sessão do operador não fecha cic
   })
 
   it('operador.repository.ts não declara nem reexporta ConferenciaDoAutor', () => {
-    expect(codigoDe('apps/api/src/operacao/operador/operador.repository.ts')).not.toMatch(/\bConferenciaDoAutor\b/)
+    expect(codigoDe('apps/api/src/operacao/operador/operador.repository.ts')).not.toMatch(/\bAuthorCheck\b/)
   })
 })
 

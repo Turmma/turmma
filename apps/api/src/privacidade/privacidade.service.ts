@@ -66,7 +66,7 @@ const registro = new AuditoriaRecorder()
 const PEDIDOS_EM_MEUS_DADOS = 50
 
 /** O que o serviço precisa de fora do banco: a fila de jobs, o armazém do arquivo e o relógio (injetado nos testes). */
-export interface DependenciasDoPrivacidadeService {
+export interface PrivacidadeServiceDependencies {
   readonly enfileirador: Pick<JobOutbox, 'enfileirar'>
   readonly armazem: Pick<FileStorage, 'existe' | 'urlDeDownload'>
   readonly relogio?: Clock
@@ -91,7 +91,7 @@ export class PrivacidadeService {
 
   constructor(
     private readonly banco: Database,
-    private readonly dependencias: DependenciasDoPrivacidadeService,
+    private readonly dependencias: PrivacidadeServiceDependencies,
   ) {
     this.#relogio = dependencias.relogio ?? systemClock
   }
