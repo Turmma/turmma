@@ -2359,3 +2359,15 @@ repetem aqui.
       1024 px depois não acena. Reabrir se a marca passar a acenar também no celular (revisor-geral, rodada 2)
 - [ ] Da correção `2026-10-30-onca-na-entrada`: acabamento. Juntar os dois blocos JSDoc seguidos de `movimento-da-onca.ts` (o primeiro ficou solto no tipo `DonoDoAceno`) e dar à
       mensagem `'a marca gasta já foi para o agente'` de `OncaDaMarca.test.tsx` o que ela confere; entra quando outra tarefa tocar os arquivos (revisor-geral e test-engineer, rodada 2)
+
+## Da correção 2026-10-30-cenario-da-onca (o canto de sala da onça na casca pública), fora dela
+
+- [ ] Da correção `2026-10-30-cenario-da-onca`: no celular a caixa do cenário está `hidden`, mas o `lazy` de `CascaPublica.tsx:71-75` ainda baixa o pedaço `CenaDaOnca`;
+      condicionar o `import()` a `matchMedia('(min-width: 1024px)')`, ajustando o contrato dos testes da casca (frontend-reviewer, rodada 2)
+- [ ] Da correção `2026-10-30-cenario-da-onca`: tirar o `160` de `TamanhoDaOncaDaMarca` e passar `OncaDaMarca.test.tsx:70` para 240 e 88 (os casos das linhas 27, 56, 83, 96 e 108
+      renderizam `tamanho={160}`); entra na tarefa que tocar `OncaDaMarca` (conformidade-reviewer e revisor-geral, rodada 1)
+- [ ] Da correção `2026-10-30-cenario-da-onca`: `docs/interface.md:1237` ainda diz "a de 160 px, escondida só pelo CSS"; texto do Arquiteto (revisor-geral, rodada 1)
+- [ ] Da correção `2026-10-30-cenario-da-onca`: as peças da casca estão em 35,01 kB de um teto de 40; olhar antes da próxima peça. O `Cache-Control` dos `pecas-*` é o item já
+      aberto na seção da `onca-na-entrada` (infra-guardian, rodada 1)
+- [ ] Da correção `2026-10-30-cenario-da-onca`: conferir, numa tarefa própria, que o fluxo do aluno não pede e-mail; o campo "E-mail" de `/entrar` é da casca de antes
+      (regra 20, item 2; D48) (privacy-guardian, rodada 2)
