@@ -57,6 +57,9 @@ métrica e de evento de log, e o texto dos casos, ficam como estão.
 - O apoio de teste é importado por `apps/worker/test/`, `apps/realtime/test/` e `infra/test/`: o `aplicar` os alcança
   pelo `tsconfig` de cada um, e eles estão nos previstos.
 - O nome da fila é string (`interativa`, `normal`, `lote`). Se a classe e a fila tiverem o mesmo texto, a fila é `fica`.
+- A 7.0 já trouxe, nos três apps: o `AppModule.forRoot(` do `main.ts` e do `configure-app.ts`, e o `esquemaAmbiente` →
+  `envSchema` do `config.ts` (triagem da 7.0). Eles não entram no `8.json`: o `aplicar` recusa `de` que não existe. O
+  `lerConfiguracao` → `loadConfig` desses três apps é desta onda (`inventario-back.md:329`); a 7.0 o deixou como `fica`.
 - Ao fechar, a linha não espera a esteira (Tech Spec §7c).
 
 ## Autoconferência
