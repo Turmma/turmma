@@ -13,6 +13,11 @@ export interface Projeto {
   /** O `tsconfig.json`, a partir da raiz do repositório. */
   config: string
   servico: ts.LanguageService
+  /**
+   * O mesmo `tsconfig` sem nenhum arquivo de código: o programa dele é só a biblioteca. Serve ao `getEditsForFileRename` que quer
+   * as edições do `files`/`include`/`exclude`, que saem da configuração e não do programa, sem pagar o programa inteiro.
+   */
+  servicoDaConfiguracao: ts.LanguageService
 }
 
 const PASTAS_FORA = new RegExp(`(^|/)(${PASTA_DO_PROTOTIPO}|node_modules|__fixtures__|fixtures)/`)
@@ -105,7 +110,11 @@ function criarHost(arvore: Arvore, config: string, opcoes: ts.CompilerOptions, n
 function abrirUm(arvore: Arvore, config: string): Projeto | undefined {
   const lido = ts.getParsedCommandLineOfConfigFile(paraAbsoluto(arvore, config), undefined, { ...ts.sys, onUnRecoverableConfigFileDiagnostic: () => undefined })
   if (lido === undefined) return undefined
-  return { config, servico: ts.createLanguageService(criarHost(arvore, config, lido.options, lido.fileNames), REGISTRO) }
+  return {
+    config,
+    servico: ts.createLanguageService(criarHost(arvore, config, lido.options, lido.fileNames), REGISTRO),
+    servicoDaConfiguracao: ts.createLanguageService(criarHost(arvore, config, lido.options, []), REGISTRO),
+  }
 }
 
 /** Todo `tsconfig.json` versionado, menos o do protótipo e o das fixtures. O serviço só monta o programa quando alguém pergunta. */

@@ -5,8 +5,8 @@
 
 ## 1. Resumo da abordagem
 
-O `tools/renomear/` tem quatro comandos: `aplicar` (o "rename symbol" e o "move file" do serviço de linguagem do
-TypeScript, um por `tsconfig`), `conferir` (o "só nome"), `restos` (nada sobrou) e
+O `tools/renomear/` tem quatro comandos: `aplicar` (o "rename symbol" do serviço de linguagem do TypeScript, um por
+`tsconfig`, e o move por conta de caminho, com o serviço só para o `tsconfig`), `conferir` (o "só nome"), `restos` (nada sobrou) e
 `reaplicar` (o merge). Cada onda escreve o mapa do anexo, roda os comandos e troca à mão as travas. Depois das ondas
 em fila, back e web correm em duas linhas (Joaquim, 29/10/2026).
 
@@ -48,7 +48,14 @@ arquivo que importa o nome, sem `alias`; o `de` se repete; falta `linhaDoAnexo`;
    `export { x } from` e o import: com a opção ligada o serviço pára no re-export e deixa `apps/api` e `apps/web` com o nome
    antigo, o que a 1.0 mediu), e a ferramenta refaz a forma curta: `{ esquemaTurma }` vira `{ esquemaTurma: turmaSchema }`,
    com a chave intacta, e o `import { x as y }` troca só o lado certo.
-3. Move o arquivo e a pasta (`getEditsForFileRename` e `git mv`). O rename só de caixa passa por um nome intermediário.
+3. Move o arquivo e a pasta (`git mv`). O especificador relativo de `import`, `export ... from`, `require`, `import()` e
+   `vi.mock` é conta de caminho (`reescreverRelativos`, a mesma do `reaplicar`), que não resolve módulo e conserva a extensão
+   que o import já tinha. O `getEditsForFileRename` fica só para o `tsconfig` (`files`, `include`, `exclude`, `paths`), num
+   serviço por projeto sem arquivo de código: com o programa dos 10 projetos, cada move custava ~105 s (mapa 5, 3h33
+   projetadas); pela conta, os 12 moves da amostra deram o mesmo texto nos 3.808 arquivos (correção
+   `2026-10-31-aplicar-lento-com-dependentes`, 30/10/2026). Limite: o import da pasta pelo `index` (`'./estado'`)
+   acompanha o move da pasta, não o do `index.ts` sozinho; o mapa move a pasta, e o typecheck do portão pega o que
+   escapar. O rename só de caixa passa por um nome intermediário.
 4. No pacote, troca o `name`, os `exports` e as dependências, e roda `npm install --package-lock-only`.
 5. Em comentário e em documento vivo (`CLAUDE.md`, `.claude/`, `docs/`), troca sozinho só o identificador composto
    (`AdaptadorFalso`, `exigirEscolaDoContexto`), o que está entre crases e o que está em `{@link}`, e o caminho. A

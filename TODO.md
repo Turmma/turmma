@@ -2388,11 +2388,25 @@ repetem aqui.
 
 ## Da correção 2026-10-30-aplicar-perde-simbolos-e-troca-js-por-ts, fora dela
 
-- [ ] Da correção `2026-10-30-aplicar-perde-simbolos-e-troca-js-por-ts`, **para a primeira onda da X8 que mover arquivo de `apps/web`**: `conservarExtensao`
-      (`tools/renomear/movimentos.ts`) só conserva o par `.ts`/`.js`. Falta um caso de move com o import sem extensão (`from './x'`, 1988 em `apps/web/src`) e
-      com o `.tsx` importado como `./C.js` (`jsx: react-jsx`), que hoje voltaria a sair `./C.tsx`; a condição `novo.endsWith('.ts')` pede o bloco de mutação
-      que a derrube sozinha. Nenhum `tsconfig*.json` do repositório tem entrada terminando em `.js`, então o move por `include`/`files` fica sem caso até lá
-      (revisor-geral e test-engineer, rodadas 1 e 2)
+- [ ] Da correção `2026-10-30-aplicar-perde-simbolos-e-troca-js-por-ts`, **para a primeira onda da X8 que mover arquivo de `apps/web`**: o import deixou de ser
+      do serviço de linguagem e passou à conta de caminho (`reescreverRelativos`, correção `2026-10-31-aplicar-lento-com-dependentes`), que conserva a extensão que
+      o import já tinha (`.js` continua `.js`, `.ts` continua `.ts`). Falta um caso de move com o import sem extensão (`from './x'`, 1988 em `apps/web/src`) e com o
+      `.tsx` importado como `./C.js` (`jsx: react-jsx`). Nenhum `tsconfig*.json` do repositório tem entrada terminando em `.js`, então o move por `include`/`files`
+      fica sem caso até lá (revisor-geral e test-engineer, rodadas 1 e 2 da correção de origem; revisor-geral, rodada 1 da `aplicar-lento-com-dependentes`)
 - [ ] Da correção `2026-10-30-aplicar-perde-simbolos-e-troca-js-por-ts`: recusa explícita em `aplicarSimbolosEMovimentos` (`tools/renomear/aplicar.ts`) quando
       `acharDeclaracoes` não acha nada na hora do rename ("a declaração de `de` sumiu depois dos renames anteriores"); hoje a conferência inicial
       (`existencias`) cobre o caso, mas a recusa tornaria o silêncio impossível (revisor-geral, rodada 1)
+
+## Da correção 2026-10-31-aplicar-lento-com-dependentes, fora dela
+
+- [ ] Da correção `2026-10-31-aplicar-lento-com-dependentes`: tirar o parâmetro `soMock` de `reescreverRelativos` (`tools/renomear/especificadores.ts`), o ramo dele e a
+      frase do docblock, e corrigir os comentários das linhas 8 e 9; o `moverEntrada` já o chama sempre com `false`, e o `reaplicar` também. Correção própria,
+      depois da 5.0, porque refaz a mutação 1 do documento (test-engineer e revisor-geral, rodada 1)
+- [ ] Da correção `2026-10-31-aplicar-lento-com-dependentes`: o move de `index.*` isolado (`estado/index.ts` → outro nome, com `from './estado'` apontando para a pasta)
+      não é acompanhado pela conta de caminho e o serviço de linguagem acompanhava; decidir com o Arquiteto entre o `aplicar` recusar esse move e registrar o limite
+      na §5 da Tech Spec da X8. Nenhum mapa faz esse move hoje (revisor-geral, rodada 1)
+      O limite já está na §5 da Tech Spec (Arquiteto); o que resta é decidir a recusa, e ajustar nesta linha e no documento da correção o texto que ainda
+      oferece o registro na §5 como alternativa (revisor-geral, rodada 2)
+- [ ] Da correção `2026-10-31-aplicar-lento-com-dependentes`, `tools/renomear/projetos.test.ts`, para a próxima correção que o tocar: repetir
+      `expect(projetos.length).toBeGreaterThan(0)` no caso da pasta e separar em dois `it` o caso do `include` por padrão, que faz dois moves
+      (test-engineer e revisor-geral, rodada 2)
