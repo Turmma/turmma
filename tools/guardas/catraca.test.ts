@@ -11,7 +11,7 @@ import { REGRAS_DE_TAMANHO } from './index.mjs'
 // uma função roda `eslint . --prune-suppressions` e baixa o número aqui, no mesmo commit. A comparação com o HEAD vale no
 // portão da tarefa, onde o HEAD é o commit anterior; na esteira o HEAD é o próprio commit e ela passa sempre, e quem segura
 // ali é a soma contra o `TETO`.
-const TETO = { complexity: 242, 'max-lines-per-function': 61, 'max-depth': 12, 'max-lines': 8 }
+const TETO = { complexity: 241, 'max-lines-per-function': 61, 'max-depth': 12, 'max-lines': 8 }
 
 const ARQUIVO = 'eslint-suppressions.json'
 const lerBase = (pasta: string): Supressoes => JSON.parse(readFileSync(join(pasta, ARQUIVO), 'utf8')) as Supressoes

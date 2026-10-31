@@ -272,6 +272,26 @@ describe('prazosDosCasos: o prazo que o corpo do caso declara', () => {
     expect(semComentarios('a /*/ b */ c')).toBe('a  c')
   })
 
+  it('semComentarios entende a expressão regular literal: a aspa, a crase e o `\\/` dentro dela não abrem texto nem comentário', () => {
+    // As três formas que `e2e/tokens.spec.ts` e `e2e/operacao-convite.spec.ts` têm: crase, aspa opcional e barras escapadas.
+    expect(semComentarios('x = /```css\\n([\\s\\S]*?)```/g // c\ny')).toBe('x = /```css\\n([\\s\\S]*?)```/g \ny')
+    expect(semComentarios('x = /[\\]]["\']?escuro["\']?\\s*/ // c\ny')).toBe('x = /[\\]]["\']?escuro["\']?\\s*/ \ny')
+    expect(semComentarios('x = /^otpauth:\\/\\/totp\\//.test(y) /* c */ z')).toBe('x = /^otpauth:\\/\\/totp\\//.test(y)  z')
+    expect(semComentarios('x = /`/ // c\ny')).toBe('x = /`/ \ny')
+    expect(semComentarios('x = a / b // c\ny = d / e')).toBe('x = a / b \ny = d / e')
+  })
+
+  it('semComentarios: o comentário JSDoc antes de uma declaração sai como os outros, com o tag dentro dele', () => {
+    expect(semComentarios('/** o caso\n * @param x // y\n */\nfunction f(x) {}')).toBe('\nfunction f(x) {}')
+    expect(semComentarios("/** a nota */\ntest('a', async () => {}) // b")).toBe("\ntest('a', async () => {}) ")
+  })
+
+  it('semComentarios: spec com erro de sintaxe ainda tira os comentários; o que fica dentro de um texto sem fecho continua como está', () => {
+    expect(semComentarios("test('a', () => {\n  const = // nota\n  x()\n})")).toBe("test('a', () => {\n  const = \n  x()\n})")
+    // O `// c` está dentro do texto que nunca fecha, e fica; o `// d`, depois dele, é comentário de verdade.
+    expect(semComentarios("x = 'abc // c\ny // d")).toBe("x = 'abc // c\ny ")
+  })
+
   it('comentário não é declaração: o test.slow() e o test.setTimeout() citados em comentário não valem, e o que está entre aspas fica', () => {
     const texto = [
       "test('citado em comentário', async () => {",
@@ -468,12 +488,18 @@ describe('no repositório: o diff do git decide qual caso é alterado', () => {
 
   const ESPEC = 'e2e/material.spec.ts'
 
+  /** O `replace` que acusa a troca que não casou: sem isso o teste roda sobre um spec que não é o que ele descreve e passa à toa. */
+  function trocarOuFalhar(texto: string, de: string, para: string): string {
+    if (!texto.includes(de)) throw new Error(`a troca não casa com o spec do teste: ${JSON.stringify(de)}`)
+    return texto.replace(de, para)
+  }
+
   /** O `repositorioComSpec` com uma nota de comentário no corpo do segundo caso (`// nota antiga`) já commitada, e `trocas` aplicadas antes do commit. */
   function repositorioComNotaNoSegundo(trocas: [string, string][] = []): string {
     const raiz = repositorioComSpec()
     const marca = "test('segundo', async () => {\n  await a()\n"
-    let texto = readFileSync(join(raiz, ESPEC), 'utf8').replace(marca, `${marca}  // nota antiga\n`)
-    for (const [de, para] of trocas) texto = texto.replace(de, para)
+    let texto = trocarOuFalhar(readFileSync(join(raiz, ESPEC), 'utf8'), marca, `${marca}  // nota antiga\n`)
+    for (const [de, para] of trocas) texto = trocarOuFalhar(texto, de, para)
     writeFileSync(join(raiz, ESPEC), texto)
     git(raiz, 'commit', '-q', '-am', 'nota')
     return raiz
@@ -481,8 +507,8 @@ describe('no repositório: o diff do git decide qual caso é alterado', () => {
 
   /** Troca o texto da nota na árvore, como a 9.0 troca `Campo` por `FormField` num comentário, mais as `trocas` de código ou de título. */
   function trocarANota(raiz: string, trocas: [string, string][] = []): void {
-    let texto = readFileSync(join(raiz, ESPEC), 'utf8').replace('// nota antiga', '// `Campo` virou `FormField`')
-    for (const [de, para] of trocas) texto = texto.replace(de, para)
+    let texto = trocarOuFalhar(readFileSync(join(raiz, ESPEC), 'utf8'), '// nota antiga', '// `Campo` virou `FormField`')
+    for (const [de, para] of trocas) texto = trocarOuFalhar(texto, de, para)
     writeFileSync(join(raiz, ESPEC), texto)
   }
 
@@ -490,6 +516,22 @@ describe('no repositório: o diff do git decide qual caso é alterado', () => {
     const raiz = repositorioComNotaNoSegundo()
     trocarANota(raiz)
     expect(git(raiz, 'diff', '--stat', 'HEAD')).toContain(ESPEC)
+    expect(motivoDaDuracaoDoE2e(raiz, relatorioComOSegundo(raiz, 'segundo'))).toBeNull()
+  })
+
+  it('expressão regular literal com aspa e crase no mesmo spec não desalinha o leitor: só o comentário do caso lento muda e a régua passa', () => {
+    // As linhas 61 e 80 de `e2e/tokens.spec.ts`: uma crase tripla e uma aspa opcional, que o leitor à mão tomava por abertura de texto.
+    // Cada uma entra no lugar de uma linha do primeiro caso, sem mudar o número de linhas do spec.
+    const comCrase = '  const blocos = [...secao.matchAll(/```css\\n([\\s\\S]*?)```/g)]'
+    const comAspa = '  const abertura = css.search(/\\[data-tema=["\']?escuro["\']?\\]\\s*\\{/)'
+    const raiz = repositorioComNotaNoSegundo([
+      ['  await b()', comCrase],
+      ['  await a()', comAspa],
+    ])
+    const commitado = readFileSync(join(raiz, ESPEC), 'utf8')
+    expect(commitado).toContain(comCrase)
+    expect(commitado).toContain(comAspa)
+    trocarANota(raiz)
     expect(motivoDaDuracaoDoE2e(raiz, relatorioComOSegundo(raiz, 'segundo'))).toBeNull()
   })
 

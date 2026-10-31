@@ -27,9 +27,9 @@
 // lida na coluna 0, fora de função, e terminada sem `;`; e `test.setTimeout( n )`, com espaço dentro dos parênteses, não é lido (o
 // prettier não o escreve): nos dois o caso conta 30 s.
 //
-// O leitor de comentários (`semComentarios`) não entende expressão regular literal: nem a que tem aspa dentro, nem a que tem `\/` antes
-// do fecho (`e2e/operacao-convite.spec.ts:152`, `/^otpauth:\/\/totp\//`, onde o `\//` final é lido como comentário e some só um `/)`,
-// sem dano). Trocá-lo pelo `ts.createScanner` acabaria com o limite e está no `TODO.md`.
+// O leitor de comentários (`semComentarios`) usa o parser do TypeScript, e por isso sabe o que é expressão regular literal, com aspa,
+// crase ou `\/` dentro. Com o leitor à mão que havia, a regex de `e2e/tokens.spec.ts:61` e `:80` desalinhava o spec e deixava o
+// comentário do corpo do caso no trecho (`2026-10-31-duracao-do-e2e-regex-literal`).
 //
 // "Alterado" é o caso cujas linhas o diff tocou, e não todo caso do arquivo: quem altera um caso do `material.spec.ts` não
 // herda os casos lentos que já estavam lá (cada um tem a sua correção). O caso vai da linha do `test(` até a linha antes
@@ -40,8 +40,10 @@
 // Título de modelo (`${}`), título repetido no spec e título novo continuam alterados.
 import { execFileSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import { join } from 'node:path'
 import type { ReporterDescription } from '@playwright/test'
+import type * as TS from 'typescript'
 
 /** O prazo de um caso que não declara nenhum: o `timeout` padrão do Playwright, que o `playwright.config.ts` não muda. */
 export const PRAZO_PADRAO_DO_CASO_DE_E2E_MS = 30_000
@@ -192,42 +194,77 @@ function tituloLiteral(corpo: string): string | null {
 }
 
 /**
- * O texto sem os comentários de linha e de bloco, deixando intacto o que está entre aspas (`'http://…'` não é comentário). Quem lê o
- * prazo não pode tomar por declaração um `test.slow()` citado num comentário (`e2e/lista-da-turma.spec.ts` tem um).
+ * O texto sem os comentários de linha e de bloco, deixando intacto o que não é comentário (`'http://…'`, uma crase ou uma aspa dentro de
+ * uma expressão regular literal). Quem lê o prazo não pode tomar por declaração um `test.slow()` citado num comentário
+ * (`e2e/lista-da-turma.spec.ts` tem um).
+ *
+ * Pelo parser do TypeScript, e não por um leitor à mão: só a árvore sabe se uma `/` abre expressão regular ou divide, e o leitor à mão
+ * lia a aspa e a crase de uma regex literal como abertura de texto, desalinhava o resto do spec e deixava comentário no corpo do caso
+ * (`e2e/tokens.spec.ts:61` e `:80`, correção `2026-10-31-duracao-do-e2e-regex-literal`). O texto entre dois tokens é só espaço e
+ * comentário, e é só nele que se tira o comentário (o espaço e a quebra de linha ficam). Texto que o parser deixa fora da árvore num erro
+ * de sintaxe fica como está, comentário e tudo: o que sobrar só faz o caso parecer alterado, que cobra mais.
  */
 export function semComentarios(texto: string): string {
-  let saida = ''
-  let aspa: string | null = null
-  let i = 0
-  while (i < texto.length) {
-    const c = texto.charAt(i)
-    const seguinte = texto.charAt(i + 1)
-    if (aspa !== null) {
-      saida += c
-      if (c === '\\') {
-        saida += seguinte
-        i += 2
-        continue
-      }
-      if (c === aspa) aspa = null
-      i++
-      continue
+  const ts = carregarTypescript()
+  const fonte = ts.createSourceFile(
+    'spec.ts',
+    texto,
+    { languageVersion: ts.ScriptTarget.Latest, jsDocParsingMode: ts.JSDocParsingMode.ParseNone },
+    true,
+    ts.ScriptKind.TS,
+  )
+  const comentarios: [number, number][] = []
+  const visitar = (no: TS.Node): void => {
+    const filhos = no.getChildren(fonte)
+    if (filhos.length > 0) {
+      filhos.forEach(visitar)
+      return
     }
-    if (c === '/' && seguinte === '/') {
-      const quebra = texto.indexOf('\n', i + 2)
-      i = quebra === -1 ? texto.length : quebra
-      continue
-    }
-    if (c === '/' && seguinte === '*') {
-      const fim = texto.indexOf('*/', i + 2)
-      i = fim === -1 ? texto.length : fim + 2
-      continue
-    }
-    if (c === "'" || c === '"' || c === '`') aspa = c
-    saida += c
-    i++
+    comentarios.push(...comentariosDaTrivia(texto, no.pos, no.getStart(fonte)))
   }
-  return saida
+  visitar(fonte)
+  let saida = ''
+  let desde = 0
+  for (const [inicio, fim] of comentarios) {
+    saida += texto.slice(desde, inicio)
+    desde = fim
+  }
+  return saida + texto.slice(desde)
+}
+
+/**
+ * O `typescript` só se carrega quando um spec é lido: o `playwright.config.ts` importa este módulo, e não precisa dele. Sem `import.meta`,
+ * que o Playwright não aceita neste arquivo (ele o lê como CommonJS); o portão e a esteira rodam na raiz do repositório.
+ */
+function carregarTypescript(): typeof TS {
+  typescript ??= createRequire(join(process.cwd(), 'package.json'))('typescript') as typeof TS
+  return typescript
+}
+let typescript: typeof TS | undefined
+
+/**
+ * Onde há comentário na trivia (o que fica entre dois tokens, de `de` a `ate`), como faixas `[início, fim)` do texto inteiro. Na trivia não
+ * há texto entre aspas, então `//` e `/*` são sempre comentário. O de linha acaba antes da quebra, que fica.
+ */
+function comentariosDaTrivia(texto: string, de: number, ate: number): [number, number][] {
+  const faixas: [number, number][] = []
+  let i = de
+  while (i < ate) {
+    if (texto.startsWith('//', i)) {
+      const quebra = texto.indexOf('\n', i + 2)
+      const fim = quebra === -1 ? ate : quebra
+      faixas.push([i, fim])
+      i = fim
+    } else if (texto.startsWith('/*', i)) {
+      const fechamento = texto.indexOf('*/', i + 2)
+      const fim = fechamento === -1 ? ate : fechamento + 2
+      faixas.push([i, fim])
+      i = fim
+    } else {
+      i++
+    }
+  }
+  return faixas
 }
 
 /** As constantes do spec que são só números e `*` (`const PRAZO_DO_ROTEIRO_MS = 8 * 60_000`), para o `test.setTimeout(PRAZO_DO_ROTEIRO_MS)`. */
@@ -248,7 +285,7 @@ const FIM_DE_CASO = /\btest\.(?:describe|beforeEach|afterEach|beforeAll|afterAll
  * O prazo que cada caso de um spec declara no corpo, na ordem em que o Playwright o aplica: `test.setTimeout(n)` troca o prazo
  * por `n` e `test.slow()` o triplica (`setTimeout(100_000)` e depois `slow()` dá 300 s; `slow()` e depois `setTimeout(100_000)`, 100 s).
  * O `n` é um número ou uma constante do mesmo arquivo feita só de números e `*`, escrita na coluna 0, fora de função, sem `;`. Comentário
- * não conta (mas a leitura dele não entende expressão regular literal: nem a que tem aspa dentro, nem a que tem `\/` antes do fecho).
+ * não conta (`semComentarios`).
  * Só estas duas formas: `test.slow(condição)`, `describe.configure({ timeout })` e `test.setTimeout( n )` com espaço dentro dos
  * parênteses não são lidos, e o caso conta 30 s, que erra para o lado de cobrar mais.
  */
