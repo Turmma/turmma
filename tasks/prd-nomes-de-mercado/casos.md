@@ -19,6 +19,8 @@ Cada cláusula da Tech Spec §5 tem ao menos um caso que a deixa vermelha, se fo
 
 **Recusas:**
 - cada um dos seis casos de recusa;
+- o `de` de símbolo repetido: vermelho com uma das entradas sem `arquivo`, e com os dois `arquivo` no mesmo pacote; verde
+  com os dois `arquivo` em pacotes diferentes, e cada declaração sai com o `para` da sua entrada, assim como quem a importa;
 - a ocorrência não classificada, que deixa o relatório vermelho.
 
 **Listados (passo 6):**
