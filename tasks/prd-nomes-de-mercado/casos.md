@@ -16,6 +16,8 @@ Cada cláusula da Tech Spec §5 tem ao menos um caso que a deixa vermelha, se fo
 
 **Comentário e documento:**
 - A palavra comum em prosa, num comentário e num `.md`, fica intacta e vai para a troca à mão. O caso usa `Fila` (`Fila de jobs`), a palavra comum de verdade do mapa; "com" e "Banco público" seguem a mesma regra.
+- O `de` de símbolo repetido (dois `arquivo` em pacotes diferentes), entre crases num comentário de cada pacote e num `.md`:
+  fica com o nome antigo nos três, e os três vão para a troca à mão; o símbolo de entrada única no mesmo comentário troca.
 
 **Recusas:**
 - cada um dos seis casos de recusa;

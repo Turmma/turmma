@@ -69,7 +69,11 @@ sozinho (triagem da divergência da 8.0, 31/10/2026).
    palavra comum (`com`, `Banco`, `Tela`, `Contador`, `Despachante`, `Fila`, `migrar`) vai para a lista de troca à mão
    do relatório. A palavra comum entre crases que nomeia outra coisa (o serviço `migrar` do compose, a `migrar` de
    `separar-achados.ts`) o passo 5 troca do mesmo jeito: a onda desfaz à mão e registra a ocorrência como `fica`, com o
-   motivo, e o arquivo entra nos "Arquivos previstos" mesmo sem diff no fim. Ficam fora `docs/decisoes.md`, `docs/aia/ouro/`, `docs/aia/ouro-retido/`, `tasks/` e `mockups/`. As
+   motivo, e o arquivo entra nos "Arquivos previstos" mesmo sem diff no fim. O `de` de símbolo com mais de uma entrada (os
+   homônimos de pacotes diferentes, acima) não tem um `para` só: o passo 5 não o troca em lugar nenhum, nem composto, nem
+   entre crases, nem em `{@link}`, e cada ocorrência vai para a troca à mão. Seguir o pacote do arquivo erraria calado,
+   porque o comentário de um pacote cita o homônimo do outro (o `queue.fixture.ts` do worker importa o do despachante); a
+   onda escolhe pelo sentido do trecho (triagem da divergência da correção `mapa-de-repetido-entre-pacotes`, 31/10/2026). Ficam fora `docs/decisoes.md`, `docs/aia/ouro/`, `docs/aia/ouro-retido/`, `tasks/` e `mockups/`. As
    linhas não tocam documento.
 6. Lista as referências por texto (string, template, regex, JSON, YAML, `.mjs`, `.cjs`, `*.Dockerfile`) em `apps/`,
    `packages/`, `e2e/`, `tools/`, `infra/`, `.github/` e em todo arquivo versionado da raiz. O pacote é buscado
