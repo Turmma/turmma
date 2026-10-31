@@ -1,10 +1,10 @@
 import { expect } from 'vitest'
-import { chamar, type ApiDeTeste, type RespostaHttp } from './test-api.js'
-import type { BancadaDeSessoes, SessaoDeTeste } from './sessao.fixture.js'
+import { chamar, type TestApi, type RespostaHttp } from './test-api.js'
+import type { SessaoFixtures, TestSessao } from './sessao.fixture.js'
 
 /** Uma escola pronta para vínculo: 2026 em curso, o 2º ano do EM, Química e Física, e as turmas 2ºB e 2ºC. */
 export interface EscolaComTurma {
-  readonly coordenacao: SessaoDeTeste
+  readonly coordenacao: TestSessao
   readonly anoLetivoId: string
   readonly serieId: string
   readonly quimica: string
@@ -20,7 +20,7 @@ async function criado(resposta: Promise<RespostaHttp>, status = 201): Promise<st
 }
 
 /** Monta a escola pela API, como a coordenação faria (8.0). */
-export async function montarEscolaComTurma(api: ApiDeTeste, bancada: BancadaDeSessoes): Promise<EscolaComTurma> {
+export async function montarEscolaComTurma(api: TestApi, bancada: SessaoFixtures): Promise<EscolaComTurma> {
   const coordenacao = await bancada.escolaComSessao('coordenador')
   const post = (caminho: string, corpo?: unknown) => chamar(api.url, 'POST', caminho, coordenacao.token, corpo)
   const anoLetivoId = await criado(post('/v1/anos-letivos', { ano: 2026, inicio: '2026-02-01', fim: '2026-12-15' }))
@@ -37,7 +37,7 @@ export async function montarEscolaComTurma(api: ApiDeTeste, bancada: BancadaDeSe
  * Alunos sintéticos com vínculo `confirmado` na turma, como o seed do F1 os deixa (Tech Spec, seção 3, "Aluno"): no F1
  * nenhuma rota cria vínculo de aluno. Cada um ganha um nome sintético distinto, e os ids voltam em ordem de criação.
  */
-export async function alunosNaTurma(bancada: BancadaDeSessoes, escola: EscolaComTurma, turmaId: string, quantidade: number): Promise<string[]> {
+export async function alunosNaTurma(bancada: SessaoFixtures, escola: EscolaComTurma, turmaId: string, quantidade: number): Promise<string[]> {
   const alunos = await bancada.sessoes(escola.coordenacao.escolaId, { papel: 'aluno', quantidade })
   const ids = alunos.map((aluno) => aluno.usuarioId)
   for (const [posicao, id] of ids.entries()) {

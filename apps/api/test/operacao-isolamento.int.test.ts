@@ -18,10 +18,10 @@ import { OperacaoRoute } from '../src/operacao/decorators.js'
 import { executarOpsOperador } from '../src/ops/operador.js'
 import { ChallengeIssuer } from '../src/credencial/index.js'
 import { cookieDeRenovacao } from './test-api.js'
-import { configuracaoDeTeste } from './test-config.js'
-import { caminhoConcreto, daOperacao, ROTAS_COM_SESSAO_DE_OPERADOR, rotasDe, rotasDeOperacaoSemGuarda, type RotaRegistrada } from './registered-routes.js'
-import { BancadaDeOperadores, type SessaoDeOperadorDeTeste } from './operador-session.fixture.js'
-import { BancadaDeSessoes } from './sessao.fixture.js'
+import { testConfig } from './test-config.js'
+import { caminhoConcreto, daOperacao, ROTAS_COM_SESSAO_DE_OPERADOR, rotasDe, rotasDeOperacaoSemGuarda, type RegisteredRoute } from './registered-routes.js'
+import { OperadorFixtures, type TestOperadorSessao } from './operador-session.fixture.js'
+import { SessaoFixtures } from './sessao.fixture.js'
 
 const ambienteDeTeste = lerAmbienteDeTeste()
 const CHAVE = new TextEncoder().encode(ambienteDeTeste['IDENTIDADE_CHAVE_ASSINATURA'])
@@ -62,7 +62,7 @@ function esperarErro(resposta: Resposta, status: number, codigo: ErrorCode): voi
  * Cada rota é comparada com uma inexistente do mesmo verbo, sob o mesmo prefixo, com a mesma credencial. Vazia é o
  * esperado; a inexistente precisa ser 404, senão a comparação não prova nada.
  */
-async function diferentesDaInexistente(url: string, rotas: readonly RotaRegistrada[], cabecalhos: Cabecalhos, prefixo: string): Promise<string[]> {
+async function diferentesDaInexistente(url: string, rotas: readonly RegisteredRoute[], cabecalhos: Cabecalhos, prefixo: string): Promise<string[]> {
   const diferentes: string[] = []
   for (const rota of rotas) {
     const [naRota, naInexistente] = await Promise.all([
@@ -83,7 +83,7 @@ async function subir(modulo: Type | DynamicModule): Promise<{ app: INestApplicat
 }
 
 /** As rotas que a aplicação montada registrou, pelo `DiscoveryService` dela: a lista não é escrita à mão. */
-function rotasRegistradas(app: INestApplication): RotaRegistrada[] {
+function rotasRegistradas(app: INestApplication): RegisteredRoute[] {
   const controladores = app
     .get(DiscoveryService)
     .getControllers()
@@ -122,14 +122,14 @@ class EscolaNaOperacaoController {
 }
 
 describe('área da operação: as cercas entre a operação e a escola (tarefa 4.0)', () => {
-  const escolas = new BancadaDeSessoes()
-  const operadores = new BancadaDeOperadores()
+  const escolas = new SessaoFixtures()
+  const operadores = new OperadorFixtures()
   let app: INestApplication
   let url: string
-  let rotas: RotaRegistrada[]
+  let rotas: RegisteredRoute[]
 
   beforeAll(async () => {
-    ;({ app, url } = await subir(AppModule.forRoot(configuracaoDeTeste())))
+    ;({ app, url } = await subir(AppModule.forRoot(testConfig())))
     rotas = rotasRegistradas(app)
   })
 
@@ -363,13 +363,13 @@ describe('área da operação: as cercas entre a operação e a escola (tarefa 4
 })
 
 describe('C48 e C49: a guarda no handler é o que segura a rota da operação', () => {
-  const escolas = new BancadaDeSessoes()
-  const operadores = new BancadaDeOperadores()
+  const escolas = new SessaoFixtures()
+  const operadores = new OperadorFixtures()
   let app: INestApplication
   let url: string
 
   beforeAll(async () => {
-    const config = configuracaoDeTeste()
+    const config = testConfig()
     @Module({ imports: [AppModule.forRoot(config)], controllers: [SemGuardaController, EscolaNaOperacaoController], providers: operadorGuardProviders(config.identidade) })
     class ModuloComRotasDeTeste {}
     ;({ app, url } = await subir(ModuloComRotasDeTeste))
@@ -391,7 +391,7 @@ describe('C48 e C49: a guarda no handler é o que segura a rota da operação', 
   })
 
   it('C49: repository de escola chamado numa rota de operador falha com erro, porque o contexto só leva o operadorId', async () => {
-    const sessao: SessaoDeOperadorDeTeste = await operadores.operadorComSessao()
+    const sessao: TestOperadorSessao = await operadores.operadorComSessao()
     const resposta = await pedir(url, 'GET', '/v1/operacao/teste-escola', bearer(sessao.token))
     expect(resposta.status).toBe(200)
     expect(resposta.corpo).toEqual({ camposDoContexto: ['operadorId', 'requisicaoId'], operadorId: sessao.operadorId, erro: 'consulta com escopo sem escola no contexto' })
@@ -400,12 +400,12 @@ describe('C48 e C49: a guarda no handler é o que segura a rota da operação', 
 
 describe('C35: o limite do operador é por operador, não por IP', () => {
   const LIMITE_DO_OPERADOR = 3
-  const operadores = new BancadaDeOperadores()
+  const operadores = new OperadorFixtures()
   let app: INestApplication
   let url: string
 
   beforeAll(async () => {
-    ;({ app, url } = await subir(AppModule.forRoot(configuracaoDeTeste({ ambiente: { LIMITE_REQ_OPERADOR_MIN: String(LIMITE_DO_OPERADOR) } }))))
+    ;({ app, url } = await subir(AppModule.forRoot(testConfig({ ambiente: { LIMITE_REQ_OPERADOR_MIN: String(LIMITE_DO_OPERADOR) } }))))
   })
 
   afterAll(async () => {
@@ -424,7 +424,7 @@ describe('C35: o limite do operador é por operador, não por IP', () => {
   })
 
   it('sem token de operador que confira, o limite não conta: a rajada de sessão de escola continua dando o 404 da rota inexistente', async () => {
-    const escolas = new BancadaDeSessoes()
+    const escolas = new SessaoFixtures()
     try {
       const professor = await escolas.escolaComSessao('professor')
       const respostas = await Promise.all(Array.from({ length: LIMITE_DO_OPERADOR * 3 }, () => pedir(url, 'GET', '/v1/operacao/eu', bearer(professor.token))))

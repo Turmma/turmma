@@ -6,9 +6,9 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { PedidosRepository } from '../src/privacidade/pedidos.repository.js'
 import { PasswordHasher } from '../src/credencial/index.js'
-import { chamar, renovar, subirApi, type ApiDeTeste } from './test-api.js'
+import { chamar, renovar, subirApi, type TestApi } from './test-api.js'
 import { montarEscolaComTurma } from './escola-turma.fixture.js'
-import { BancadaDeSessoes, type SessaoDeTeste } from './sessao.fixture.js'
+import { SessaoFixtures, type TestSessao } from './sessao.fixture.js'
 
 /**
  * A eliminação agendada por 7 dias, com o acesso suspenso e o cancelamento (F3, tarefa 14.0;
@@ -54,10 +54,10 @@ const ESTADO_INVALIDO = {
 }
 
 describe('eliminação agendada (F3, tarefa 14.0): suspende o acesso, não revela e o cancelamento devolve', () => {
-  const bancada = new BancadaDeSessoes()
+  const bancada = new SessaoFixtures()
   const medidor = new MedidorDeTeste()
   const linhasDeLog: string[] = []
-  let api: ApiDeTeste
+  let api: TestApi
   let hash: PasswordHasher
   let hashDaSenha: string
   let verificacoes: ReturnType<typeof vi.spyOn>
@@ -84,7 +84,7 @@ describe('eliminação agendada (F3, tarefa 14.0): suspende o acesso, não revel
   interface EscolaDeTeste {
     readonly escolaId: string
     readonly slug: string
-    readonly coordenacao: SessaoDeTeste
+    readonly coordenacao: TestSessao
   }
 
   interface AlunoDeTeste {
@@ -124,12 +124,12 @@ describe('eliminação agendada (F3, tarefa 14.0): suspende o acesso, não revel
   const tokenDe = (entrada: Entrada): string => String(entrada.corpo['token'])
   const eu = (token: string) => chamar(api.url, 'GET', '/v1/eu', token)
 
-  const registrarEliminacao = (coordenacao: SessaoDeTeste, titularId: string, extras: Record<string, unknown> = {}) =>
+  const registrarEliminacao = (coordenacao: TestSessao, titularId: string, extras: Record<string, unknown> = {}) =>
     chamar(api.url, 'POST', '/v1/privacidade/pedidos', coordenacao.token, { titularId, tipo: 'eliminacao', solicitante: 'titular', chegouEm: HOJE(), chaveEnvio: randomUUID(), ...extras })
-  const cancelar = (coordenacao: SessaoDeTeste, pedidoId: string) => chamar(api.url, 'POST', `/v1/privacidade/pedidos/${pedidoId}/cancelar`, coordenacao.token, {})
+  const cancelar = (coordenacao: TestSessao, pedidoId: string) => chamar(api.url, 'POST', `/v1/privacidade/pedidos/${pedidoId}/cancelar`, coordenacao.token, {})
 
   /** O pedido de eliminação registrado: confere o 201 e devolve o id. */
-  async function agendar(coordenacao: SessaoDeTeste, titularId: string): Promise<string> {
+  async function agendar(coordenacao: TestSessao, titularId: string): Promise<string> {
     const registrado = await registrarEliminacao(coordenacao, titularId)
     expect(registrado.status).toBe(201)
     return String(registrado.corpo['id'])

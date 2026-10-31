@@ -21,9 +21,9 @@ export function urlDoOidcFalso(ambiente: Record<string, string> = lerAmbienteDeT
  * (`password-attack.int.test.ts`, "falha (15.5)"); quem o prova pelo cliente monta o cliente direto com
  * `createApiRedisClient` (`rate-limit.int.test.ts`, e o "Redis fora" e o "Redis travado" do contador e do desafio).
  */
-export const MONTAGEM_DE_TESTE = { prazoDoRedisDeLoginMs: TIMEOUT_COMANDO_REDIS_FILA_MS } as const
+export const TEST_APP_OPTIONS = { prazoDoRedisDeLoginMs: TIMEOUT_COMANDO_REDIS_FILA_MS } as const
 
-export interface SobreposicaoDeTeste {
+export interface TestOverrides {
   banco?: Partial<DatabaseConfig>
   /**
    * O prazo do Redis do login que o teste quer, depois da leitura da configuração. O caso é o teste que prova o corte
@@ -43,7 +43,7 @@ export interface SobreposicaoDeTeste {
  * do ambiente de teste (`.env.example` e `infra/teste.env`), com o banco e o Redis de cache do
  * compose de teste. A porta não importa: o teste escuta numa porta livre.
  */
-export function configuracaoDeTeste(sobreposicao: SobreposicaoDeTeste = {}): ApiConfig {
+export function testConfig(sobreposicao: TestOverrides = {}): ApiConfig {
   // Espera curta da drenagem: no teste não há borda a avisar, e todo `app.close()` passa por ela.
   const ambiente = { ...lerAmbienteDeTeste(), DRENAGEM_ESPERA_BORDA_MS: '10', ...sobreposicao.ambiente }
   const usuario = valorObrigatorio(ambiente, 'POSTGRES_USUARIO')

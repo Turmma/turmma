@@ -1,7 +1,7 @@
 import { ErrorCode } from '@educa/shared'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { revogarConvitePeloOperador } from '../src/sessao/index.js'
-import { CenarioDeAtivacao, SENHA_DA_CONTA, SENHA_ERRADA, type ContaDeTeste, type ConviteDeTeste } from './ativacao.fixture.js'
+import { ActivationScenario, SENHA_DA_CONTA, SENHA_ERRADA, type TestConta, type TestConvite } from './ativacao.fixture.js'
 import { esperarErro, pedir, type Resposta } from './painel.fixture.js'
 import { autorDaBancada } from './sessao.fixture.js'
 
@@ -21,7 +21,7 @@ const COMO_DEIXA_DE_ATIVAR = ['revogado pelo operador', 'trocado por um gerar'] 
 type ComoDeixaDeAtivar = (typeof COMO_DEIXA_DE_ATIVAR)[number]
 
 describe('login com o bilhete de um convite que já não ativa (E16, E6 de login)', () => {
-  const cenario = new CenarioDeAtivacao()
+  const cenario = new ActivationScenario()
 
   beforeAll(async () => {
     await cenario.subir()
@@ -32,19 +32,19 @@ describe('login com o bilhete de um convite que já não ativa (E16, E6 de login
   })
 
   /** O convite aceito deixa de ativar: o operador revoga (em `aceito`), ou gera outro para outra pessoa. */
-  async function deixarDeAtivar(convite: ConviteDeTeste, como: ComoDeixaDeAtivar): Promise<void> {
+  async function deixarDeAtivar(convite: TestConvite, como: ComoDeixaDeAtivar): Promise<void> {
     if (como === 'revogado pelo operador') await revogarConvitePeloOperador(cenario.banco, autorDaBancada, convite.conviteId)
     else await cenario.convidar(convite.escolaId, `outra-pessoa-${convite.conviteId}@escola.invalid`)
     expect(await cenario.estado(convite.escolaId)).toBe(como === 'revogado pelo operador' ? 'revogado' : 'pendente')
   }
 
   /** Nada do que a senha certa com o convite perdido não pode trazer: o token de acesso, o desafio, a escola do convite. */
-  function semNadaDoConvite(resposta: Resposta, convite: ConviteDeTeste): void {
+  function semNadaDoConvite(resposta: Resposta, convite: TestConvite): void {
     for (const proibido of [convite.escolaId, convite.usuarioId, convite.conviteId]) expect(resposta.texto).not.toContain(proibido)
   }
 
   /** O log da API não leva nada de pessoa nem de credencial desta tentativa (regra 20, item 9). */
-  function logSemSegredos(conta: ContaDeTeste, ...segredos: string[]): void {
+  function logSemSegredos(conta: TestConta, ...segredos: string[]): void {
     const log = cenario.linhasDeLog.join('\n')
     for (const proibido of [conta.email, SENHA_DA_CONTA, SENHA_ERRADA, ...segredos]) expect(log.includes(proibido), 'segredo da tentativa no log').toBe(false)
   }

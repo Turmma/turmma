@@ -1,12 +1,12 @@
 import { runInContext } from '@educa/core'
 import { randomUUID } from 'node:crypto'
 import { afterAll, describe, expect, it } from 'vitest'
-import { BancadaDeSessoes } from '../../../test/sessao.fixture.js'
+import { SessaoFixtures } from '../../../test/sessao.fixture.js'
 import { MeRepository } from './eu.repository.js'
 import { RegistroDeAcessoRepository } from '../../credencial/registro-de-acesso.repository.js'
 
 describe('repositories do login com escopo: a escola vem do contexto', () => {
-  const bancada = new BancadaDeSessoes()
+  const bancada = new SessaoFixtures()
 
   afterAll(async () => {
     await bancada.fechar()

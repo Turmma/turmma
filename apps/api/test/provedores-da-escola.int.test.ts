@@ -4,15 +4,15 @@ import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { ProvedoresLiberadosRepository } from '../src/estrutura/provedores-da-escola/provedores-liberados.repository.js'
-import { chamar, subirApi, type ApiDeTeste } from './test-api.js'
-import { BancadaDeSessoes, type SessaoDeTeste } from './sessao.fixture.js'
+import { chamar, subirApi, type TestApi } from './test-api.js'
+import { SessaoFixtures, type TestSessao } from './sessao.fixture.js'
 
 const DOMINIO_A = 'escola-a.educa-sintetica.test'
 const SEGUNDO_DOMINIO_A = 'segundo-dominio-a.educa-sintetica.test'
 const TENANT_A = 'aaaaaaaa-0000-4000-8000-00000000000a'
 const DOMINIO_B = 'escola-b.educa-sintetica.test'
 
-interface LinhaDeProvedor {
+interface ProvedorRow {
   id: string
   provedor: string
   valor: string
@@ -27,9 +27,9 @@ interface AuditoriaDeProvedores {
 }
 
 describe('PUT /v1/escola/provedores: a coordenação libera os domínios Google e os tenants Microsoft da própria escola', () => {
-  const bancada = new BancadaDeSessoes()
+  const bancada = new SessaoFixtures()
   const medidor = new MedidorDeTeste()
-  let api: ApiDeTeste
+  let api: TestApi
 
   beforeAll(async () => {
     api = await subirApi(medidor.medidor)
@@ -41,10 +41,10 @@ describe('PUT /v1/escola/provedores: a coordenação libera os domínios Google 
     await medidor.encerrar()
   })
 
-  const alterar = (sessao: SessaoDeTeste, corpo: unknown) => chamar(api.url, 'PUT', '/v1/escola/provedores', sessao.token, corpo)
+  const alterar = (sessao: TestSessao, corpo: unknown) => chamar(api.url, 'PUT', '/v1/escola/provedores', sessao.token, corpo)
 
-  async function linhasDa(escolaId: string): Promise<LinhaDeProvedor[]> {
-    const { rows } = await bancada.pool.query<LinhaDeProvedor>('select id, provedor, valor, removido_em from provedor_escola where escola_id = $1 order by id', [escolaId])
+  async function linhasDa(escolaId: string): Promise<ProvedorRow[]> {
+    const { rows } = await bancada.pool.query<ProvedorRow>('select id, provedor, valor, removido_em from provedor_escola where escola_id = $1 order by id', [escolaId])
     return rows
   }
 

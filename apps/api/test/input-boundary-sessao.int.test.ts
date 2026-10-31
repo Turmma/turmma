@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { HashBulkhead } from '../src/credencial/index.js'
-import { subirApi, type ApiDeTeste } from './test-api.js'
+import { subirApi, type TestApi } from './test-api.js'
 
 /**
  * O limite por IP vem antes do pipe da entrada (reengenharia, 16.0, RF5; regra 80, item 1): o corpo fora do esquema
@@ -16,7 +16,7 @@ const LIMITE_POR_IP = 5
 
 describe('o corpo fora do esquema conta no balde do IP, como antes do pipe', () => {
   const medidor = new MedidorDeTeste()
-  let api: ApiDeTeste
+  let api: TestApi
 
   beforeAll(async () => {
     api = await subirApi(medidor.medidor, { ambiente: { LIMITE_REQ_IP_ANONIMO_MIN: String(LIMITE_POR_IP), LIMITE_PROXIES_CONFIAVEIS: '127.0.0.1' } })

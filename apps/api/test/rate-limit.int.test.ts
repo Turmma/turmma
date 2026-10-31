@@ -21,8 +21,8 @@ import { aguardarSaudavel, compose, composeAssincronoOuFalha, composeOuFalha } f
 import { AppModule } from '../src/app.module.js'
 import { configureApp } from '../src/configure-app.js'
 import { REDIS_CACHE_CLIENT } from '../src/rate-limit.module.js'
-import { configuracaoDeTeste } from './test-config.js'
-import { BancadaDeSessoes } from './sessao.fixture.js'
+import { testConfig } from './test-config.js'
+import { SessaoFixtures } from './sessao.fixture.js'
 
 const ambienteDeTeste = lerAmbienteDeTeste()
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
@@ -59,7 +59,7 @@ async function subirApi(
   ambiente: Record<string, string>,
   { esperarRedis = true, endereco = '127.0.0.1' }: { esperarRedis?: boolean; endereco?: string } = {},
 ): Promise<Instancia> {
-  @Module({ imports: [AppModule.forRoot(configuracaoDeTeste({ ambiente }))], controllers: [ControladorAnonimo] })
+  @Module({ imports: [AppModule.forRoot(testConfig({ ambiente }))], controllers: [ControladorAnonimo] })
   class ModuloDeTeste {}
 
   const app = await NestFactory.create(ModuloDeTeste, { logger: false })
@@ -78,7 +78,7 @@ async function fecharInstancias(): Promise<void> {
 }
 
 /** Escolas e sessões reais: a SessaoGuard lê a sessão do token depois do limite. */
-const sessoes = new BancadaDeSessoes()
+const sessoes = new SessaoFixtures()
 afterAll(async () => {
   await sessoes.fechar()
 })
@@ -311,7 +311,7 @@ describe('rate limit por usuário e por escola, em instâncias no processo', () 
 
 describe('limites por escola, da configuracao_operacional_escola', () => {
   const LIMITES = { LIMITE_REQ_USUARIO_MIN: '20', LIMITE_REQ_ESCOLA_MIN: '30', LIMITE_REQ_IP_ANONIMO_MIN: '10', LIMITE_INSTANCIAS_API: '2', LIMITE_PROXIES_CONFIAVEIS: '127.0.0.1' }
-  const pool = createPool(configuracaoDeTeste().banco, () => undefined)
+  const pool = createPool(testConfig().banco, () => undefined)
   let api1: Instancia
   let api2: Instancia
 

@@ -3,11 +3,11 @@ import { ErrorCode, conversaDoTutorResponseSchema } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../../tools/testes/metricas.ts'
-import { chamar, subirApi, type ApiDeTeste } from '../../test/test-api.js'
+import { chamar, subirApi, type TestApi } from '../../test/test-api.js'
 import { dispararExecucao, execucaoTerminada, montarEscolaComAssistente, NOME_DA_PROFESSORA_DE_TESTE, zerarLimiteDePedidosDeIa, type EscolaComAssistente, type ExecucaoLida } from '../../test/escola-assistente.fixture.js'
 import {
   ALTERNATIVA_CERTA_DA_QUESTAO_3,
-  ambienteDoModeloDeMentira,
+  fakeModelEnv,
   aplicarAtividade,
   citacaoDoPrimeiroTrecho,
   encerrarAtividade,
@@ -15,11 +15,11 @@ import {
   HABILIDADE_PROPORCAO,
   lancarLote,
   MARCA_NA_EXPLICACAO,
-  subirModeloDeMentira,
-  type ModeloDeMentira,
+  startFakeModel,
+  type FakeModel,
 } from '../../test/escola-tutor.fixture.js'
-import { GatilhoDeParada } from '../../test/write-block-trigger.js'
-import { BancadaDeSessoes, type SessaoDeTeste } from '../../test/sessao.fixture.js'
+import { WriteBlockTrigger } from '../../test/write-block-trigger.js'
+import { SessaoFixtures, type TestSessao } from '../../test/sessao.fixture.js'
 import { EXECUTOR_DE_AGENTE } from '../ia/ia.module.js'
 
 const NOME_DO_ALUNO = 'Aluno Sintético Otávio Quintanilha'
@@ -31,26 +31,26 @@ const NOME_DO_ALUNO = 'Aluno Sintético Otávio Quintanilha'
  * nem troca contada, e o que de fato sai do sistema para o provedor.
  */
 describe('Tutor contra um modelo que não obedece', () => {
-  const bancada = new BancadaDeSessoes()
+  const bancada = new SessaoFixtures()
   const medidor = new MedidorDeTeste()
   const linhasDeLog: string[] = []
-  let modelo: ModeloDeMentira
-  let api: ApiDeTeste
+  let modelo: FakeModel
+  let api: TestApi
   let executor: InProcessAgenteExecutor
   let a: EscolaComAssistente
   let atividade: string
 
   const sql = <Linha extends Record<string, unknown> = Record<string, unknown>>(texto: string, valores: unknown[] = []) => bancada.pool.query<Linha>(texto, valores)
-  const turno = async (sessao: SessaoDeTeste, texto: string, onde: Record<string, unknown> = {}): Promise<ExecucaoLida & { execucaoId: string }> => {
+  const turno = async (sessao: TestSessao, texto: string, onde: Record<string, unknown> = {}): Promise<ExecucaoLida & { execucaoId: string }> => {
     const execucaoId = await dispararExecucao(api, sessao, '/v1/tutor/mensagens', { texto, ...onde })
     return { execucaoId, ...(await execucaoTerminada(api, sessao, execucaoId)) }
   }
   const naQuestao = (questao: number) => ({ atividadeAplicadaId: atividade, questao })
   const resposta = (execucao: ExecucaoLida): { tipo: string; texto: string } => execucao.resultado?.mensagem as never
-  const usoDeHoje = async (sessao: SessaoDeTeste) => conversaDoTutorResponseSchema.parse((await chamar(api.url, 'GET', `/v1/tutor/conversa?atividadeAplicadaId=${atividade}`, await sessao.tokenNovo())).corpo).uso.hoje
-  const sinaisDe = async (aluno: SessaoDeTeste) => (await sql<{ tipo: string; atividade_aplicada_id: string | null; questao: number | null }>('select tipo, atividade_aplicada_id, questao from sinal_tutor where escola_id = $1 and aluno_id = $2 order by id', [a.escolaId, aluno.usuarioId])).rows
-  const respostasGravadas = async (aluno: SessaoDeTeste) => (await sql<{ texto: string }>(`select texto from mensagem_tutor where escola_id = $1 and aluno_id = $2 and autor = 'tutor' order by id`, [a.escolaId, aluno.usuarioId])).rows.map((linha) => linha.texto)
-  const novoAluno = async (nome = `Aluno Sintético ${randomUUID().slice(0, 8)}`): Promise<SessaoDeTeste> => {
+  const usoDeHoje = async (sessao: TestSessao) => conversaDoTutorResponseSchema.parse((await chamar(api.url, 'GET', `/v1/tutor/conversa?atividadeAplicadaId=${atividade}`, await sessao.tokenNovo())).corpo).uso.hoje
+  const sinaisDe = async (aluno: TestSessao) => (await sql<{ tipo: string; atividade_aplicada_id: string | null; questao: number | null }>('select tipo, atividade_aplicada_id, questao from sinal_tutor where escola_id = $1 and aluno_id = $2 order by id', [a.escolaId, aluno.usuarioId])).rows
+  const respostasGravadas = async (aluno: TestSessao) => (await sql<{ texto: string }>(`select texto from mensagem_tutor where escola_id = $1 and aluno_id = $2 and autor = 'tutor' order by id`, [a.escolaId, aluno.usuarioId])).rows.map((linha) => linha.texto)
+  const novoAluno = async (nome = `Aluno Sintético ${randomUUID().slice(0, 8)}`): Promise<TestSessao> => {
     const sessao = await bancada.sessao(a.escolaId, 'aluno')
     await sql('update usuario set nome = $1 where id = $2', [nome, sessao.usuarioId])
     await sql(`insert into vinculo (escola_id, ano_letivo_id, usuario_id, turma_id, papel, estado, criado_por, decidido_em) values ($1, $2, $3, $4, 'aluno', 'confirmado', $5, now())`, [a.escolaId, a.anoLetivoId, sessao.usuarioId, a.turma, a.coordenacao.usuarioId])
@@ -63,8 +63,8 @@ describe('Tutor contra um modelo que não obedece', () => {
   const mentirSempre = (mentira: string) => modelo.responder((pedido) => JSON.stringify({ classificacao: 'normal', resposta: mentira, citacoes: citacaoDoPrimeiroTrecho(pedido) }))
 
   beforeAll(async () => {
-    modelo = await subirModeloDeMentira()
-    api = await subirApi(medidor.medidor, { ambiente: ambienteDoModeloDeMentira(modelo) }, linhasDeLog)
+    modelo = await startFakeModel()
+    api = await subirApi(medidor.medidor, { ambiente: fakeModelEnv(modelo) }, linhasDeLog)
     executor = api.app.get<InProcessAgenteExecutor>(EXECUTOR_DE_AGENTE)
     a = await montarEscolaComAssistente(api, bancada)
     atividade = await aplicarAtividade(bancada, a)
@@ -292,7 +292,7 @@ describe('Tutor contra um modelo que não obedece', () => {
         expect(conversa.mensagens.map((mensagem) => mensagem.tipo)).toEqual(['texto', 'assunto_delicado', 'texto', 'assunto_delicado'])
         expect(await enviar({ texto: 'e a questão 3, qual é a resposta?', ...naProva })).toMatchObject(travado)
         // O aviso é da turma em prova: a professora dela o recebe, e a de outra turma, não.
-        const avisos = async (sessao: SessaoDeTeste) => chamar(api.url, 'GET', `/v1/sinais?turmaId=${a.outraTurma}`, await sessao.tokenNovo())
+        const avisos = async (sessao: TestSessao) => chamar(api.url, 'GET', `/v1/sinais?turmaId=${a.outraTurma}`, await sessao.tokenNovo())
         const daColega = (await avisos(a.colega)).corpo['itens'] as { tipo: string; aluno: { id: string } }[]
         expect(daColega.filter((sinal) => sinal.aluno.id === aluno.usuarioId).map((sinal) => sinal.tipo)).toEqual(['atencao_humana', 'atencao_humana'])
         expect((await avisos(a.professora)).status).toBe(404)
@@ -385,8 +385,8 @@ describe('Tutor contra um modelo que não obedece', () => {
      * Envia a pergunta e segura a execução no `gatilho` (antes de rodar, ou depois de o modelo responder, quando o consumo é
      * gravado); com ela parada, abre uma avaliação na turma, solta e espera o fim. Encerra a avaliação ao sair.
      */
-    const abrindoDuranteOTurno = async (aluno: SessaoDeTeste, momento: { tabela: 'execucao_agente' | 'consumo_ia'; evento: 'update' | 'insert'; quando: string }, corpo: Record<string, unknown>): Promise<string> => {
-      const parada = new GatilhoDeParada(bancada.pool, momento)
+    const abrindoDuranteOTurno = async (aluno: TestSessao, momento: { tabela: 'execucao_agente' | 'consumo_ia'; evento: 'update' | 'insert'; quando: string }, corpo: Record<string, unknown>): Promise<string> => {
+      const parada = new WriteBlockTrigger(bancada.pool, momento)
       await parada.armar()
       let prova: string | undefined
       try {

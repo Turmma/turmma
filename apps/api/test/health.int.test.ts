@@ -7,7 +7,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { aguardarSaudavel, compose, composeOuFalha } from '../../../tools/testes/compose.ts'
 import { AppModule } from '../src/app.module.js'
 import { configureApp } from '../src/configure-app.js'
-import { configuracaoDeTeste } from './test-config.js'
+import { testConfig } from './test-config.js'
 
 const TIMEOUT_CONSULTA_MS = 1_000
 
@@ -21,7 +21,7 @@ describe('GET /saude', () => {
   let app: INestApplication
 
   beforeAll(async () => {
-    const config = configuracaoDeTeste({
+    const config = testConfig({
       banco: { maximoConexoes: 2, timeoutConexaoMs: TIMEOUT_CONSULTA_MS, timeoutConsultaMs: TIMEOUT_CONSULTA_MS },
     })
     app = await NestFactory.create(AppModule.forRoot(config), { logger: false })

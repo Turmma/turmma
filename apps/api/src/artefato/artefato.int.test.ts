@@ -5,7 +5,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { normalizarTexto, textoDaPagina } from '../../../../tools/demonstracao/conteudo-estequiometria.ts'
 import { extrairTextoPorPagina } from '../../../../tools/demonstracao/extrair-texto.ts'
 import { MedidorDeTeste } from '../../../../tools/testes/metricas.ts'
-import { chamar, subirApi, type ApiDeTeste, type RespostaHttp } from '../../test/test-api.js'
+import { chamar, subirApi, type TestApi, type RespostaHttp } from '../../test/test-api.js'
 import {
   comoPessoa,
   contarNaEscola,
@@ -22,7 +22,7 @@ import {
   type EscolaComAssistente,
 } from '../../test/escola-assistente.fixture.js'
 import { variacaoDoPdf } from '../../test/material.fixture.js'
-import { BancadaDeSessoes, type SessaoDeTeste } from '../../test/sessao.fixture.js'
+import { SessaoFixtures, type TestSessao } from '../../test/sessao.fixture.js'
 import { IaRequestRateLimit } from '../assistente/ai-request-rate-limit.js'
 import { ExecucaoScheduler } from '../ia/execucao.scheduler.js'
 import { EXECUTOR_DE_AGENTE, LLM_PROVIDER, SUSPENSAO_DE_FUNCAO } from '../ia/ia.module.js'
@@ -42,10 +42,10 @@ import { AVISO_DE_IA_NO_PDF, AVISO_DE_IA_NO_RASCUNHO, MARCA_DE_RASCUNHO } from '
  * escopo do repository (regra 10, item 5).
  */
 describe('ferramentas e artefato', () => {
-  const bancada = new BancadaDeSessoes()
+  const bancada = new SessaoFixtures()
   const medidor = new MedidorDeTeste()
   const linhasDeLog: string[] = []
-  let api: ApiDeTeste
+  let api: TestApi
   let executor: InProcessAgenteExecutor
   let a: EscolaComAssistente
   let b: EscolaComAssistente
@@ -54,10 +54,10 @@ describe('ferramentas e artefato', () => {
   let atividadeDeB: string
 
   const sql = (texto: string, valores: unknown[] = []) => bancada.pool.query(texto, valores)
-  const pedir = async (sessao: SessaoDeTeste, metodo: string, caminho: string, corpo?: unknown): Promise<RespostaHttp> => chamar(api.url, metodo, caminho, await sessao.tokenNovo(), corpo)
-  const get = (sessao: SessaoDeTeste, caminho: string) => pedir(sessao, 'GET', caminho)
+  const pedir = async (sessao: TestSessao, metodo: string, caminho: string, corpo?: unknown): Promise<RespostaHttp> => chamar(api.url, metodo, caminho, await sessao.tokenNovo(), corpo)
+  const get = (sessao: TestSessao, caminho: string) => pedir(sessao, 'GET', caminho)
   const parametros = (escola: EscolaComAssistente, tema: string, extra: Record<string, unknown> = {}) => ({ turmaId: escola.turma, disciplinaId: escola.quimica, tema, ...extra })
-  const artefatoDe = async (sessao: SessaoDeTeste, id: string) => artefatoResponseSchema.parse((await get(sessao, `/v1/artefatos/${id}`)).corpo)
+  const artefatoDe = async (sessao: TestSessao, id: string) => artefatoResponseSchema.parse((await get(sessao, `/v1/artefatos/${id}`)).corpo)
   const suspender = (escola: EscolaComAssistente, funcao: ChaveDeFuncao) => sql('insert into suspensao_de_funcao (escola_id, funcao, suspensa_por) values ($1, $2, $3)', [escola.escolaId, funcao, escola.coordenacao.usuarioId])
   const retomar = (escola: EscolaComAssistente, funcao: ChaveDeFuncao) =>
     sql('update suspensao_de_funcao set retomada_em = now(), retomada_por = $3 where escola_id = $1 and funcao = $2 and retomada_em is null', [escola.escolaId, funcao, escola.coordenacao.usuarioId])
@@ -72,7 +72,7 @@ describe('ferramentas e artefato', () => {
   }
 
   /** O PDF como o navegador o recebe: os bytes e os cabeçalhos. */
-  async function baixarPdf(sessao: SessaoDeTeste, id: string): Promise<{ status: number; tipo: string | null; disposicao: string | null; cache: string | null; bytes: Uint8Array }> {
+  async function baixarPdf(sessao: TestSessao, id: string): Promise<{ status: number; tipo: string | null; disposicao: string | null; cache: string | null; bytes: Uint8Array }> {
     const resposta = await fetch(`${api.url}/v1/artefatos/${id}/pdf`, { headers: { Authorization: `Bearer ${await sessao.tokenNovo()}` } })
     return { status: resposta.status, tipo: resposta.headers.get('content-type'), disposicao: resposta.headers.get('content-disposition'), cache: resposta.headers.get('cache-control'), bytes: new Uint8Array(await resposta.arrayBuffer()) }
   }
@@ -256,7 +256,7 @@ describe('ferramentas e artefato', () => {
     })
 
     it('a listagem traz só os artefatos das turmas da professora, paginados, e o filtro de turma não abre a turma dos outros', async () => {
-      const listar = async (sessao: SessaoDeTeste, consulta = '') => listaDeArtefatosResponseSchema.parse((await get(sessao, `/v1/artefatos${consulta}`)).corpo)
+      const listar = async (sessao: TestSessao, consulta = '') => listaDeArtefatosResponseSchema.parse((await get(sessao, `/v1/artefatos${consulta}`)).corpo)
       const deA = await listar(a.professora)
       expect(deA.itens.map((item) => item.id)).toContain(atividadeDeA)
       expect(deA.itens.map((item) => item.id)).not.toContain(atividadeDeB)

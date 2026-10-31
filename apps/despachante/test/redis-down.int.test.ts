@@ -10,14 +10,14 @@ import { afterEach, beforeAll, describe, expect, it, onTestFinished } from 'vite
 import { aguardarSaudavel, compose, composeAssincronoOuFalha, PROCESSOS_DA_FILA } from '../../../tools/testes/compose.ts'
 import { AppModule } from '../../api/src/app.module.js'
 import { configureApp } from '../../api/src/configure-app.js'
-import { configuracaoDeTeste } from '../../api/test/test-config.js'
-import { BancadaDeSessoes } from '../../api/test/sessao.fixture.js'
-import { BancadaDeFila, LogEmMemoria } from '../../worker/test/queue.fixture.js'
+import { testConfig } from '../../api/test/test-config.js'
+import { SessaoFixtures } from '../../api/test/sessao.fixture.js'
+import { QueueFixtures, InMemoryLog } from '../../worker/test/queue.fixture.js'
 
 // API, despachantes e worker de verdade (a mesma montagem do main.ts), no processo do teste, contra o
 // Postgres e o Redis de fila do compose de teste, que este arquivo para, trava e religa.
 
-async function contarPorEstado(bancada: BancadaDeFila, ids: readonly string[]): Promise<Record<string, number>> {
+async function contarPorEstado(bancada: QueueFixtures, ids: readonly string[]): Promise<Record<string, number>> {
   const { rows } = await bancada.pool.query<{ estado: string; total: string }>(
     'select estado, count(*) as total from job_registro where id = any($1) group by estado',
     [ids],
@@ -26,7 +26,7 @@ async function contarPorEstado(bancada: BancadaDeFila, ids: readonly string[]): 
 }
 
 /** Quantas vezes cada job começou a executar, somando os workers. */
-function execucoesPorJob(...logs: LogEmMemoria[]): Map<string, number> {
+function execucoesPorJob(...logs: InMemoryLog[]): Map<string, number> {
   const execucoes = new Map<string, number>()
   for (const registro of logs.flatMap((log) => log.doEvento('job.iniciado'))) {
     const id = String(registro['jobId'])
@@ -41,7 +41,7 @@ beforeAll(() => {
 })
 
 describe('Redis de fila fora', () => {
-  let bancada: BancadaDeFila
+  let bancada: QueueFixtures
 
   afterEach(async () => {
     // Religa o Redis antes de fechar: a bancada limpa a fila dela no Redis.
@@ -53,19 +53,19 @@ describe('Redis de fila fora', () => {
   }, 120_000)
 
   it('parado: 50 POSTs dão 202 em menos de 1 s cada, a vaga não é consultável e nada é reservado, sem derrubar o laço, e ao religar cada job executa uma vez', async () => {
-    bancada = new BancadaDeFila()
+    bancada = new QueueFixtures()
     await bancada.limparRegistro()
-    const logApi = new LogEmMemoria('api')
-    const app: INestApplication = await NestFactory.create(AppModule.forRoot(configuracaoDeTeste({ ambiente: { ROTAS_SINTETICAS: 'true' } })), { logger: false })
+    const logApi = new InMemoryLog('api')
+    const app: INestApplication = await NestFactory.create(AppModule.forRoot(testConfig({ ambiente: { ROTAS_SINTETICAS: 'true' } })), { logger: false })
     configureApp(app, logApi.logger)
     await app.listen(0, '127.0.0.1')
     try {
       const { port } = app.getHttpServer().address() as AddressInfo
       // Sessão real numa escola nova: a SessaoGuard lê a sessão antes de o POST gravar o job.
-      const sessoes = new BancadaDeSessoes()
+      const sessoes = new SessaoFixtures()
       onTestFinished(() => sessoes.fechar())
       const { token } = await sessoes.escolaComSessao('coordenador')
-      const logs = { d1: new LogEmMemoria('despachante-1'), d2: new LogEmMemoria('despachante-2'), worker: new LogEmMemoria('worker') }
+      const logs = { d1: new InMemoryLog('despachante-1'), d2: new InMemoryLog('despachante-2'), worker: new InMemoryLog('worker') }
       bancada.worker(logs.worker, { concorrencia: 10 })
       for (const log of [logs.d1, logs.d2]) bancada.despachante(log).despachante.iniciar()
 
@@ -113,10 +113,10 @@ describe('Redis de fila fora', () => {
   }, 240_000)
 
   it('travado: a vaga desiste no prazo, a rodada termina sem tentar as outras escolas e o laço segue batendo; ao destravar cada job executa uma vez', async () => {
-    bancada = new BancadaDeFila()
+    bancada = new QueueFixtures()
     await bancada.limparRegistro()
-    const logDespachante = new LogEmMemoria('despachante')
-    const logWorker = new LogEmMemoria('worker')
+    const logDespachante = new InMemoryLog('despachante')
+    const logWorker = new InMemoryLog('worker')
     const arquivoDoBatimento = join(mkdtempSync(join(tmpdir(), 'educa-batimento-')), 'batimento')
     const idadeDoBatimento = () => (existsSync(arquivoDoBatimento) ? Date.now() - statSync(arquivoDoBatimento).mtimeMs : Number.POSITIVE_INFINITY)
     // O despachante sobe com o Redis de pé, e o cliente dele conecta: é o Redis que trava depois.

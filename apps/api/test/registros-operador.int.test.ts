@@ -9,7 +9,7 @@ import { DB } from '../src/database.module.js'
 import { COOKIE_SESSAO_DE_OPERADOR } from '../src/operacao/cookie-de-operador.js'
 import { criarOperador, desativarOperador, gerarConviteDeOperador } from '../src/ops/operador.js'
 import { codigoDoPasso, configurar, doIp, entrar, esperarErro, ipSorteado, passoAtual, pedir, subir, valorDoCookie } from './operador-mfa.fixture.js'
-import { BancadaDeOperadores } from './operador-session.fixture.js'
+import { OperadorFixtures } from './operador-session.fixture.js'
 
 const SENHA = 'senha-do-operador-dos-registros-1'
 
@@ -30,7 +30,7 @@ interface Auditoria {
  * o autor do comando no comando e o operador da sessão no segundo fator.
  */
 describe('registros da operação: acesso e auditoria (C37, tarefa 8.0)', () => {
-  const operadores = new BancadaDeOperadores()
+  const operadores = new OperadorFixtures()
   const medidor = new MedidorDeTeste()
   /** Os operadores que o `criar` deste arquivo fez, fora da bancada: apagados no fim, com o que aponta para eles. */
   const criadosAqui: string[] = []

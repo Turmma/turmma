@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import pg from 'pg'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { BancadaDeSessoes, type SessaoDeTeste } from '../../apps/api/test/sessao.fixture.js'
+import { SessaoFixtures, type TestSessao } from '../../apps/api/test/sessao.fixture.js'
 import { QUEUES_BY_PRIORITY, bullmqQueueName } from '../../packages/core/src/queue/queues.ts'
 import { METRICS, METRICS_WITH_ESCOLA } from '../../packages/core/src/telemetry/metrics.ts'
 import { lerAmbienteDeTeste, valorObrigatorio } from '../../tools/ci/compose.ts'
@@ -54,8 +54,8 @@ async function valoresDoRotulo(rotulo: string): Promise<string[]> {
 }
 
 describe('métricas na observabilidade local, por rota, fila e escola', () => {
-  const bancada = new BancadaDeSessoes()
-  const sessoesPorEscola = new Map<string, SessaoDeTeste>()
+  const bancada = new SessaoFixtures()
+  const sessoesPorEscola = new Map<string, TestSessao>()
   const jobs: string[] = []
 
   /** Um token novo da sessão da escola: o de acesso vale 10 min, e o arquivo passa disso. */

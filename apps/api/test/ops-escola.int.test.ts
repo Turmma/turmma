@@ -10,7 +10,7 @@ import { AppModule } from '../src/app.module.js'
 import { configureApp } from '../src/configure-app.js'
 import { criarEscola, criarRede } from '../src/operacao/escola/escola.js'
 import { abrirBancoDeOperacao, executarOpsEscola, type CommandDatabase } from '../src/ops/escola.js'
-import { configuracaoDeTeste } from './test-config.js'
+import { testConfig } from './test-config.js'
 
 /** O autor dos casos de uso chamados direto, sem o comando: fixo, sem conferir operador ativo. */
 const autorFixo = (apelido: string) => async (): Promise<string> => apelido
@@ -168,7 +168,7 @@ describe('npm run ops:escola: rede e escola nascem só por comando do operador',
   })
 })
 
-interface RotaRegistrada {
+interface RegisteredRoute {
   metodo: string
   caminho: string
 }
@@ -199,7 +199,7 @@ const ROTAS_PERMITIDAS: readonly string[] = [
 ]
 
 /** Rota que escreve e tem rede ou escola em algum segmento fixo: `POST /v1/escolas`, `POST /v1/escolas/criar`. */
-function criaRedeOuEscola(rota: RotaRegistrada): boolean {
+function criaRedeOuEscola(rota: RegisteredRoute): boolean {
   if (rota.metodo === 'GET' || rota.metodo === 'HEAD' || rota.metodo === 'OPTIONS') return false
   if (ROTAS_PERMITIDAS.includes(`${rota.metodo} ${rota.caminho}`)) return false
   const fixos = rota.caminho.split('/').filter((segmento) => segmento !== '' && !segmento.startsWith(':'))
@@ -212,7 +212,7 @@ describe('permissão: nenhuma rota da API cria rede nem escola, fora das duas do
 
   beforeAll(async () => {
     // Com as rotas sintéticas ligadas: a lista inclui toda rota que alguma configuração registra.
-    app = await NestFactory.create(AppModule.forRoot(configuracaoDeTeste({ ambiente: { ROTAS_SINTETICAS: 'true' } })), { logger: false })
+    app = await NestFactory.create(AppModule.forRoot(testConfig({ ambiente: { ROTAS_SINTETICAS: 'true' } })), { logger: false })
     configureApp(app, createLogger({ servico: 'api-teste', nivel: 'silent' }))
     await app.init()
   })
@@ -238,7 +238,7 @@ describe('permissão: nenhuma rota da API cria rede nem escola, fora das duas do
 
   it('lista as rotas registradas no Nest e nenhuma de escrita fala de rede ou escola, fora da lista conferida', () => {
     const express = app.getHttpAdapter().getInstance() as { router: { stack: { route?: { path: string; methods: Record<string, boolean> } }[] } }
-    const rotas: RotaRegistrada[] = express.router.stack.flatMap((camada) =>
+    const rotas: RegisteredRoute[] = express.router.stack.flatMap((camada) =>
       camada.route === undefined ? [] : Object.keys(camada.route.methods).map((metodo) => ({ metodo: metodo.toUpperCase(), caminho: camada.route?.path ?? '' })),
     )
     // A lista não pode sair vazia por mudança de versão do Express: aí o teste passaria sem olhar nada.

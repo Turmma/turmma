@@ -1,7 +1,7 @@
 import { parentPort } from 'node:worker_threads'
 
 /**
- * Thread do sandbox de CPU do job sintético (`SandboxDeCpu`, em `synthetic.ts`). Recebe `{ cpuMs }`, queima
+ * Thread do sandbox de CPU do job sintético (`CpuSandbox`, em `synthetic.ts`). Recebe `{ cpuMs }`, queima
  * esse tanto de CPU desta thread e responde `pronto`. O event loop do worker fica livre enquanto isso, e segue
  * renovando o lock e a vaga dos jobs em andamento.
  *

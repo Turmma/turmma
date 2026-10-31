@@ -10,9 +10,9 @@ import { lerAmbienteDeTeste } from '../../../tools/ci/compose.ts'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { executarOpsIncidente } from '../src/ops/incidente.js'
 import { ChallengeIssuer } from '../src/credencial/index.js'
-import { chamar, subirApi, type ApiDeTeste } from './test-api.js'
-import { esperarNaTrava, GatilhoDeParada } from './write-block-trigger.js'
-import { BancadaDeSessoes, type SessaoDeTeste } from './sessao.fixture.js'
+import { chamar, subirApi, type TestApi } from './test-api.js'
+import { esperarNaTrava, WriteBlockTrigger } from './write-block-trigger.js'
+import { SessaoFixtures, type TestSessao } from './sessao.fixture.js'
 
 /**
  * O incidente de segurança (F3, tarefa 9.0; `tasks/prd-lgpd-e-titular/cenarios.md`, RF8 e RF9): a operação o registra pelo
@@ -43,7 +43,7 @@ interface SecaoDoArquivo {
   correcao: string
 }
 
-interface LinhaDaSecao {
+interface SecaoRow {
   id: string
   incidente_id: string
   escola_id: string
@@ -73,16 +73,16 @@ interface AuditoriaDoIncidente {
 interface EscolaDoTeste {
   readonly id: string
   readonly nome: string
-  readonly coordenacao: SessaoDeTeste
+  readonly coordenacao: TestSessao
 }
 
 describe('incidente: a operação registra por comando, e cada coordenação lê e confirma só a seção da escola dela (F3, tarefa 9.0)', () => {
-  const bancada = new BancadaDeSessoes()
+  const bancada = new SessaoFixtures()
   const medidor = new MedidorDeTeste()
   const ambiente = { ...ambienteDeTeste, OPERADOR }
   const pasta = mkdtempSync(join(tmpdir(), 'incidente-int-'))
   let arquivos = 0
-  let api: ApiDeTeste
+  let api: TestApi
   /** Os incidentes que o teste registrou: a limpeza os apaga no fim, e as seções saem em cascata. */
   const incidentes: string[] = []
 
@@ -140,9 +140,9 @@ describe('incidente: a operação registra por comando, e cada coordenação lê
     return { ...execucao, incidenteId }
   }
 
-  const secoesDe = async (escolaId: string): Promise<LinhaDaSecao[]> =>
+  const secoesDe = async (escolaId: string): Promise<SecaoRow[]> =>
     (
-      await bancada.pool.query<LinhaDaSecao>(
+      await bancada.pool.query<SecaoRow>(
         `select id, incidente_id, escola_id, circunstancias, categorias, titulares_estimados, risco, contencao, correcao, confirmado_em, confirmado_por
            from incidente_escola where escola_id = $1 order by avisado_em, id`,
         [escolaId],
@@ -494,7 +494,7 @@ describe('incidente: a operação registra por comando, e cada coordenação lê
     const [daA] = await secoesDe(a.id)
     const id = daA?.id ?? ''
     // O primeiro `update` para depois de gravar, com a linha travada; o segundo espera na trava dela, antes de reler `confirmado_em`.
-    const gatilho = new GatilhoDeParada(bancada.pool, { tabela: 'incidente_escola', evento: 'update', quando: `new.id = '${id}'` })
+    const gatilho = new WriteBlockTrigger(bancada.pool, { tabela: 'incidente_escola', evento: 'update', quando: `new.id = '${id}'` })
     await gatilho.armar()
     let resposta: Awaited<ReturnType<typeof confirmar>> | undefined
     let primeira: Awaited<ReturnType<typeof confirmar>> | undefined

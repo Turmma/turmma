@@ -1,12 +1,12 @@
 import { currentContext, LOTE_DO_EXPURGO, type AlvoDoExpurgoDeAcesso, type ExpurgoDeAcessoRepository, type LoggerBase, type Clock } from '@educa/core'
 import { JobFailureCode, type TIPO_EXPURGAR_ACESSO } from '@educa/shared'
-import type { Processador } from '../job-executor.js'
-import { FalhaDeJob } from '../job-failure.error.js'
+import type { JobProcessor } from '../job-executor.js'
+import { JobFailureError } from '../job-failure.error.js'
 
 /** Quantas linhas saíram de cada alvo: um total por alvo, e o compilador recusa o objeto a que falte um. */
 export type TotaisDoExpurgoDeAcesso = Record<AlvoDoExpurgoDeAcesso, number>
 
-export interface DependenciasDoExpurgoDeAcesso {
+export interface ExpurgoDeAcessoDependencies {
   repositorio: Pick<ExpurgoDeAcessoRepository, 'apagarLoteVencido' | 'limparLoteDeContasSemUso'>
   relogio: Clock
   logger: LoggerBase
@@ -31,9 +31,9 @@ export interface DependenciasDoExpurgoDeAcesso {
  * pegam linhas diferentes; o lote de um worker que morreu no meio é desfeito pelo Postgres e sai na execução seguinte.
  * Loga só as contagens, nunca linha.
  */
-export function criarExpurgoDeAcesso({ repositorio, relogio, logger, lote = LOTE_DO_EXPURGO }: DependenciasDoExpurgoDeAcesso): Processador<typeof TIPO_EXPURGAR_ACESSO> {
+export function criarExpurgoDeAcesso({ repositorio, relogio, logger, lote = LOTE_DO_EXPURGO }: ExpurgoDeAcessoDependencies): JobProcessor<typeof TIPO_EXPURGAR_ACESSO> {
   return async () => {
-    if (currentContext()?.rotinaDoSistema !== true) throw new FalhaDeJob(JobFailureCode.DADOS_INVALIDOS, true)
+    if (currentContext()?.rotinaDoSistema !== true) throw new JobFailureError(JobFailureCode.DADOS_INVALIDOS, true)
     const agora = relogio.agora()
     const apagar = async (alvo: AlvoDoExpurgoDeAcesso): Promise<number> => {
       let total = 0

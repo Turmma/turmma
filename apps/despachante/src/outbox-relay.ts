@@ -18,7 +18,7 @@ import {
 } from '@educa/core'
 import type { QueueName } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
-import type { FilaDePublicacao } from './job-publisher.js'
+import type { JobPublisher } from './job-publisher.js'
 
 /** Sem aviso de job novo, o despachante procura de novo a cada 500 ms (Tech Spec, seção 5). */
 export const INTERVALO_SONDAGEM_MS = 500
@@ -30,16 +30,16 @@ export const LOTE_DE_RESERVA = 100
  */
 export const FILA_QUE_SEGURA_NAO_URGENTE: QueueName = 'lote'
 
-export interface DependenciasDaPublicacao {
+export interface PublishDependencies {
   repositorio: Pick<DispatchRepository, 'marcarPublicados' | 'devolverParaAguardando'>
-  fila: Pick<FilaDePublicacao, 'publicar'>
+  fila: Pick<JobPublisher, 'publicar'>
   vagas: Pick<EscolaConcurrencyLimiter, 'tomar' | 'liberar'>
   /** Vagas por fila da escola do contexto: as da configuração dela, ou o padrão do ambiente. */
   vagasDaEscola: Pick<OperationalSettings<ConcurrencyByQueue>, 'daEscola'>
   logger: LoggerBase
 }
 
-export interface DependenciasDoDespachante extends DependenciasDaPublicacao {
+export interface OutboxRelayDependencies extends PublishDependencies {
   repositorio: Pick<DispatchRepository, 'listarEscolasComPendentes' | 'publicadosEntre' | 'reservarDaEscola' | 'devolverParaAguardando' | 'marcarPublicados'>
   vagas: Pick<EscolaConcurrencyLimiter, 'membros' | 'manter' | 'livres' | 'tomar' | 'liberar'>
   /** Horário letivo da escola do contexto: o da configuração dela, ou o padrão do ambiente. */
@@ -51,7 +51,7 @@ export interface DependenciasDoDespachante extends DependenciasDaPublicacao {
   batimento?: Heartbeat
 }
 
-export interface OpcoesDoDespachante {
+export interface OutboxRelayOptions {
   intervaloMs?: number
   lote?: number
 }
@@ -80,7 +80,7 @@ export interface OpcoesDoDespachante {
  * Com o Redis de fila fora, a API segue aceitando (o job fica em `job_registro`), a estimativa de
  * vaga falha na hora, nada é reservado, e o laço segue. Nenhuma falha de dependência derruba o processo.
  */
-export class Despachante {
+export class OutboxRelay {
   readonly #intervaloMs: number
   readonly #lote: number
   readonly #proximaNoRodizio = new Map<QueueName, number>()
@@ -91,8 +91,8 @@ export class Despachante {
   #encerrarEspera: (() => void) | undefined
 
   constructor(
-    private readonly dependencias: DependenciasDoDespachante,
-    opcoes: OpcoesDoDespachante = {},
+    private readonly dependencias: OutboxRelayDependencies,
+    opcoes: OutboxRelayOptions = {},
   ) {
     this.#intervaloMs = opcoes.intervaloMs ?? INTERVALO_SONDAGEM_MS
     this.#lote = opcoes.lote ?? LOTE_DE_RESERVA
@@ -176,7 +176,7 @@ export class Despachante {
       }
       if (livres <= 0) return 0
       const reservados = await this.reservar(fila, Math.min(livres, maximo), segurarNaoUrgentes)
-      return (await publicarComVaga(this.dependencias, reservados, 'job.publicado')).length
+      return (await publishWithSlot(this.dependencias, reservados, 'job.publicado')).length
     })
   }
 
@@ -234,7 +234,7 @@ export class Despachante {
  *
  * Devolve os ids publicados.
  */
-export async function publicarComVaga(dependencias: DependenciasDaPublicacao, jobs: readonly ReservedJob[], evento: 'job.publicado' | 'job.republicado'): Promise<string[]> {
+export async function publishWithSlot(dependencias: PublishDependencies, jobs: readonly ReservedJob[], evento: 'job.publicado' | 'job.republicado'): Promise<string[]> {
   const publicados: string[] = []
   for (const grupo of agruparPorFilaEEscola(jobs)) {
     const doGrupo = await runInContext(contextoDaEscola(grupo.escolaId), () => publicarGrupoComVaga(dependencias, grupo, evento))
@@ -249,7 +249,7 @@ interface GrupoDeJobs {
   jobs: ReservedJob[]
 }
 
-async function publicarGrupoComVaga(dependencias: DependenciasDaPublicacao, { fila, escolaId, jobs }: GrupoDeJobs, evento: 'job.publicado' | 'job.republicado'): Promise<string[]> {
+async function publicarGrupoComVaga(dependencias: PublishDependencies, { fila, escolaId, jobs }: GrupoDeJobs, evento: 'job.publicado' | 'job.republicado'): Promise<string[]> {
   const { repositorio, vagas, vagasDaEscola, logger } = dependencias
   const ids = jobs.map((job) => job.id)
   let concedidos: ReadonlySet<string>
@@ -291,7 +291,7 @@ function agruparPorFilaEEscola(jobs: readonly ReservedJob[]): GrupoDeJobs[] {
  * voltam pela reserva vencida: a próxima publicação, com o mesmo `jobId`, não duplica.
  */
 async function publicarReservados(
-  { repositorio, fila, logger }: Pick<DependenciasDaPublicacao, 'repositorio' | 'fila' | 'logger'>,
+  { repositorio, fila, logger }: Pick<PublishDependencies, 'repositorio' | 'fila' | 'logger'>,
   jobs: readonly ReservedJob[],
   evento: 'job.publicado' | 'job.republicado',
 ): Promise<boolean> {

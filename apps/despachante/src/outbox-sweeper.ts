@@ -6,8 +6,8 @@ import {
   type JobToSweep,
 } from '@educa/core'
 import type { JobFailureCode } from '@educa/shared'
-import { contextoDoJob, publicarComVaga, type DependenciasDaPublicacao } from './outbox-relay.js'
-import type { FilaDePublicacao } from './job-publisher.js'
+import { contextoDoJob, publishWithSlot, type PublishDependencies } from './outbox-relay.js'
+import type { JobPublisher } from './job-publisher.js'
 
 /** A reconciliação roda a cada minuto (Tech Spec, seção 5, "Reconciliação"). */
 export const INTERVALO_RECONCILIACAO_MS = 60_000
@@ -20,17 +20,17 @@ export const LOTE_DE_RECONCILIACAO = 100
  */
 export const DURACAO_MAXIMA_RECONCILIACAO_MS = 30_000
 
-export interface DependenciasDaReconciliacao extends DependenciasDaPublicacao {
+export interface OutboxSweeperDependencies extends PublishDependencies {
   repositorio: DispatchRepository
-  fila: FilaDePublicacao
+  fila: JobPublisher
 }
 
-export interface OpcoesDaReconciliacao {
+export interface OutboxSweeperOptions {
   intervaloMs?: number
   lote?: number
 }
 
-export interface ResultadoDaReconciliacao {
+export interface SweepResult {
   conferidos: number
   republicados: string[]
   falhasRegistradas: string[]
@@ -53,7 +53,7 @@ export interface ResultadoDaReconciliacao {
  * num reinício só recomeça a volta. Duas instâncias reconciliando juntas não publicam o mesmo job
  * duas vezes: só uma consegue tomá-lo.
  */
-export class Reconciliacao {
+export class OutboxSweeper {
   readonly #intervaloMs: number
   readonly #lote: number
   #ativa = false
@@ -64,8 +64,8 @@ export class Reconciliacao {
   #parando = false
 
   constructor(
-    private readonly dependencias: DependenciasDaReconciliacao,
-    opcoes: OpcoesDaReconciliacao = {},
+    private readonly dependencias: OutboxSweeperDependencies,
+    opcoes: OutboxSweeperOptions = {},
   ) {
     this.#intervaloMs = opcoes.intervaloMs ?? INTERVALO_RECONCILIACAO_MS
     this.#lote = opcoes.lote ?? LOTE_DE_RECONCILIACAO
@@ -92,8 +92,8 @@ export class Reconciliacao {
    * sem resposta (um job que a fila não consegue ler), a varredura segue, e esses jobs voltam na
    * próxima volta: um job problemático não prende a varredura na mesma página.
    */
-  async reconciliar(): Promise<ResultadoDaReconciliacao> {
-    const resultado: ResultadoDaReconciliacao = { conferidos: 0, republicados: [], falhasRegistradas: [], semConfirmacao: 0 }
+  async reconciliar(): Promise<SweepResult> {
+    const resultado: SweepResult = { conferidos: 0, republicados: [], falhasRegistradas: [], semConfirmacao: 0 }
     const inicio = performance.now()
     do {
       const pagina = await this.dependencias.repositorio.listarParaReconciliar(this.#lote, this.#cursor)
@@ -106,7 +106,7 @@ export class Reconciliacao {
   }
 
   /** Confere uma página e soma ao resultado. Devolve quantas consultas ficaram sem resposta. */
-  private async reconciliarPagina(pagina: readonly JobToSweep[], resultado: ResultadoDaReconciliacao): Promise<number> {
+  private async reconciliarPagina(pagina: readonly JobToSweep[], resultado: SweepResult): Promise<number> {
     const { repositorio, fila, vagas, logger } = this.dependencias
     const consultas = await Promise.allSettled(pagina.map((job) => fila.consultar(job)))
 
@@ -136,7 +136,7 @@ export class Reconciliacao {
     }
 
     const tomados = await repositorio.reservarParaRepublicar(inexistentes)
-    resultado.republicados.push(...(await publicarComVaga(this.dependencias, tomados, 'job.republicado')))
+    resultado.republicados.push(...(await publishWithSlot(this.dependencias, tomados, 'job.republicado')))
     resultado.conferidos += pagina.length
     resultado.semConfirmacao += recusadas.length
     return recusadas.length

@@ -1,14 +1,14 @@
 import { runInContext } from '@educa/core'
 import { randomUUID } from 'node:crypto'
 import { afterAll, describe, expect, it } from 'vitest'
-import { BancadaDeSessoes } from '../../test/sessao.fixture.js'
+import { SessaoFixtures } from '../../test/sessao.fixture.js'
 import { CredencialMatriculaRepository } from './credencial-matricula.repository.js'
 
 /** Hash sintético: o repository não confere senha, só devolve o que está gravado. */
 const HASH_SINTETICO = '$argon2id$v=19$m=19456,t=2,p=1$c2ludGV0aWNv$c2ludGV0aWNvc2ludGV0aWNv'
 
 describe('CredencialMatriculaRepository: a matrícula é lida só na escola do contexto', () => {
-  const bancada = new BancadaDeSessoes()
+  const bancada = new SessaoFixtures()
 
   afterAll(async () => {
     await bancada.fechar()

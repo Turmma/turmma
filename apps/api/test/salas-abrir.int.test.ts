@@ -14,11 +14,11 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { ListaLivreRepository } from '../src/sala/reivindicacao/lista-livre.repository.js'
 import { sortearCodigoDaTurma } from '../src/sala/codigo-da-sala.js'
-import { chamar, subirApi, type ApiDeTeste } from './test-api.js'
-import { MONTAGEM_DE_TESTE } from './test-config.js'
+import { chamar, subirApi, type TestApi } from './test-api.js'
+import { TEST_APP_OPTIONS } from './test-config.js'
 import { montarEscolaComTurma, type EscolaComTurma } from './escola-turma.fixture.js'
 import { ipSorteado } from './operador-mfa.fixture.js'
-import { BancadaDeSessoes, type SessaoDeTeste } from './sessao.fixture.js'
+import { SessaoFixtures, type TestSessao } from './sessao.fixture.js'
 
 /**
  * A página pública da sala (A1, tarefa 5.0; `tasks/prd-apresentacao-escola/cenarios.md`): `POST /v1/salas/abrir`, sem
@@ -54,25 +54,25 @@ const NAO_ENCONTRADO = {
 interface Sala extends EscolaComTurma {
   readonly escolaId: string
   readonly slug: string
-  readonly professor: SessaoDeTeste
+  readonly professor: TestSessao
   readonly vinculos: readonly string[]
   readonly token: string
   readonly codigo: string
 }
 
 describe('salas/abrir (A1, tarefa 5.0): o aluno abre a turma pelo link ou pelo código', () => {
-  const bancada = new BancadaDeSessoes()
+  const bancada = new SessaoFixtures()
   const medidor = new MedidorDeTeste()
-  let api: ApiDeTeste
+  let api: TestApi
   /** Com o sorteio do código na mão do teste: o mesmo código vigente em duas escolas (I4). */
-  let apiDoSorteio: ApiDeTeste
+  let apiDoSorteio: TestApi
   const filaDeCodigos: string[] = []
   /** Com o limite anônimo por IP baixo (L10). */
-  let apiDoLimite: ApiDeTeste
+  let apiDoLimite: TestApi
 
   beforeAll(async () => {
     api = await subirApi(medidor.medidor, { ambiente: AMBIENTE })
-    apiDoSorteio = await subirApi(medidor.medidor, { ambiente: AMBIENTE }, undefined, { ...MONTAGEM_DE_TESTE, sortearCodigoDaSala: () => filaDeCodigos.shift() ?? sortearCodigoDaTurma() })
+    apiDoSorteio = await subirApi(medidor.medidor, { ambiente: AMBIENTE }, undefined, { ...TEST_APP_OPTIONS, sortearCodigoDaSala: () => filaDeCodigos.shift() ?? sortearCodigoDaTurma() })
     apiDoLimite = await subirApi(medidor.medidor, { ambiente: { ...AMBIENTE, LIMITE_REQ_IP_ANONIMO_MIN: String(LIMITE_POR_IP) } })
   })
 
@@ -105,7 +105,7 @@ describe('salas/abrir (A1, tarefa 5.0): o aluno abre a turma pelo link ou pelo c
     return salaAbertaResponseSchema.parse(JSON.parse(resposta.texto))
   }
 
-  const post = (sessao: SessaoDeTeste, caminho: string, corpo?: unknown) => chamar(api.url, 'POST', caminho, sessao.token, corpo)
+  const post = (sessao: TestSessao, caminho: string, corpo?: unknown) => chamar(api.url, 'POST', caminho, sessao.token, corpo)
 
   async function gerar(sala: Pick<Sala, 'professor'>, turmaId: string, url = api.url): Promise<{ token: string; codigo: string }> {
     const gerado = await chamar(url, 'POST', `/v1/turmas/${turmaId}/acesso`, sala.professor.token, { validadeDias: 7 })

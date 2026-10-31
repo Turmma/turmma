@@ -1,7 +1,7 @@
 import { conteudoDeAtividadeSchema, type ConteudoDeAtividade } from '@educa/shared'
-import { chamar, type ApiDeTeste, type RespostaHttp } from './test-api.js'
+import { chamar, type TestApi, type RespostaHttp } from './test-api.js'
 import type { EscolaComAssistente } from './escola-assistente.fixture.js'
-import type { BancadaDeSessoes, SessaoDeTeste } from './sessao.fixture.js'
+import type { SessaoFixtures, TestSessao } from './sessao.fixture.js'
 
 /**
  * A bancada da atividade aplicada e da correção (MVP, A3). O artefato é gravado direto, com gabarito e habilidades que
@@ -31,7 +31,7 @@ export function conteudoDeTeste(materialId: string, titulo = 'Estequiometria: li
   })
 }
 
-export interface OpcoesDoArtefatoDeTeste {
+export interface TestArtefatoOptions {
   readonly turmaId?: string
   readonly disciplinaId?: string
   readonly conteudo?: ConteudoDeAtividade
@@ -39,7 +39,7 @@ export interface OpcoesDoArtefatoDeTeste {
 }
 
 /** Um artefato de atividade objetiva da professora, gravado direto na turma e na disciplina dadas (o 2ºB e Química, se nada for dito). */
-export async function criarAtividade(bancada: BancadaDeSessoes, escola: EscolaComAssistente, opcoes: OpcoesDoArtefatoDeTeste = {}): Promise<string> {
+export async function criarAtividade(bancada: SessaoFixtures, escola: EscolaComAssistente, opcoes: TestArtefatoOptions = {}): Promise<string> {
   const conteudo = opcoes.conteudo ?? conteudoDeTeste(escola.materialId)
   const { rows } = await bancada.pool.query<{ id: string }>(
     `insert into artefato (escola_id, ano_letivo_id, turma_id, disciplina_id, tipo, titulo, conteudo, criado_por) values ($1, $2, $3, $4, 'atividade_objetiva', $5, $6, $7) returning id`,
@@ -51,7 +51,7 @@ export async function criarAtividade(bancada: BancadaDeSessoes, escola: EscolaCo
 }
 
 /** Um plano de aula da professora no 2ºB, gravado direto: o artefato que não se aplica. */
-export async function criarPlanoDeAula(bancada: BancadaDeSessoes, escola: EscolaComAssistente): Promise<string> {
+export async function criarPlanoDeAula(bancada: SessaoFixtures, escola: EscolaComAssistente): Promise<string> {
   const conteudo = {
     tipo: 'plano_de_aula',
     titulo: 'Plano sintético',
@@ -72,7 +72,7 @@ export async function criarPlanoDeAula(bancada: BancadaDeSessoes, escola: Escola
 }
 
 /** A versão adaptada de uma atividade do 2ºB, com a entrega dela no estado pedido, gravadas direto. */
-export async function criarVersaoAdaptada(bancada: BancadaDeSessoes, escola: EscolaComAssistente, origemId: string, estado: 'pendente' | 'aprovada' | 'rejeitada'): Promise<string> {
+export async function criarVersaoAdaptada(bancada: SessaoFixtures, escola: EscolaComAssistente, origemId: string, estado: 'pendente' | 'aprovada' | 'rejeitada'): Promise<string> {
   const conteudo = { ...conteudoDeTeste(escola.materialId, 'Estequiometria: versão adaptada sintética'), adaptacao: { tipos: ['fonte_ampliada'] } }
   const { rows } = await bancada.pool.query<{ id: string }>(
     `insert into artefato (escola_id, ano_letivo_id, turma_id, disciplina_id, tipo, titulo, conteudo, origem_id, criado_por) values ($1, $2, $3, $4, 'atividade_objetiva', $5, $6, $7, $8) returning id`,
@@ -89,7 +89,7 @@ export async function criarVersaoAdaptada(bancada: BancadaDeSessoes, escola: Esc
 }
 
 /** Alunos sintéticos com sessão e vínculo `confirmado` na turma, cada um com o nome dado. Voltam na ordem dos nomes. */
-export async function alunosComSessao(bancada: BancadaDeSessoes, escola: EscolaComAssistente, turmaId: string, nomes: readonly string[]): Promise<SessaoDeTeste[]> {
+export async function alunosComSessao(bancada: SessaoFixtures, escola: EscolaComAssistente, turmaId: string, nomes: readonly string[]): Promise<TestSessao[]> {
   const alunos = await bancada.sessoes(escola.escolaId, { papel: 'aluno', quantidade: nomes.length })
   for (const [posicao, aluno] of alunos.entries()) {
     await bancada.pool.query('update usuario set nome = $1 where id = $2', [nomes[posicao], aluno.usuarioId])
@@ -102,36 +102,36 @@ export async function alunosComSessao(bancada: BancadaDeSessoes, escola: EscolaC
 }
 
 /** As chamadas da atividade, como a tela as faz, cada uma com um token novo da sessão. */
-export function rotasDaAtividade(api: ApiDeTeste) {
-  const pedir = async (sessao: SessaoDeTeste, metodo: string, caminho: string, corpo?: unknown): Promise<RespostaHttp> => chamar(api.url, metodo, caminho, await sessao.tokenNovo(), corpo)
+export function rotasDaAtividade(api: TestApi) {
+  const pedir = async (sessao: TestSessao, metodo: string, caminho: string, corpo?: unknown): Promise<RespostaHttp> => chamar(api.url, metodo, caminho, await sessao.tokenNovo(), corpo)
   return {
     pedir,
-    aplicar: (sessao: SessaoDeTeste, corpo: unknown) => pedir(sessao, 'POST', '/v1/atividades-aplicadas', corpo),
-    listar: (sessao: SessaoDeTeste, consulta: string) => pedir(sessao, 'GET', `/v1/atividades-aplicadas${consulta}`),
-    encerrar: (sessao: SessaoDeTeste, id: string) => pedir(sessao, 'POST', `/v1/atividades-aplicadas/${id}/encerrar`, {}),
-    minhas: (sessao: SessaoDeTeste, consulta = '') => pedir(sessao, 'GET', `/v1/minhas-atividades${consulta}`),
-    prova: (sessao: SessaoDeTeste, id: string) => pedir(sessao, 'GET', `/v1/atividades-aplicadas/${id}/prova`),
-    responder: (sessao: SessaoDeTeste, id: string, questao: number | string, alternativa: number) => pedir(sessao, 'PUT', `/v1/atividades-aplicadas/${id}/respostas/${String(questao)}`, { alternativa }),
-    enviar: (sessao: SessaoDeTeste, id: string) => pedir(sessao, 'POST', `/v1/atividades-aplicadas/${id}/enviar`, {}),
-    diagnostico: (sessao: SessaoDeTeste, id: string) => pedir(sessao, 'GET', `/v1/atividades-aplicadas/${id}/meu-diagnostico`),
-    correcao: (sessao: SessaoDeTeste, id: string) => pedir(sessao, 'GET', `/v1/atividades-aplicadas/${id}/correcao`),
-    abrirDestaque: (sessao: SessaoDeTeste, id: string, alunoId: string) => pedir(sessao, 'POST', `/v1/atividades-aplicadas/${id}/correcao/destaques/${alunoId}/abrir`, {}),
-    aprovarLote: (sessao: SessaoDeTeste, entregaId: string, corpo: unknown = {}) => pedir(sessao, 'POST', `/v1/entregas/${entregaId}/aprovar-lote`, corpo),
-    rejeitar: (sessao: SessaoDeTeste, entregaId: string) => pedir(sessao, 'POST', `/v1/entregas/${entregaId}/decidir`, { decisao: 'rejeitar', justificativa: 'Justificativa sintética da rejeição' }),
-    desempenho: (sessao: SessaoDeTeste, turmaId: string, consulta = '') => pedir(sessao, 'GET', `/v1/turmas/${turmaId}/desempenho${consulta}`),
+    aplicar: (sessao: TestSessao, corpo: unknown) => pedir(sessao, 'POST', '/v1/atividades-aplicadas', corpo),
+    listar: (sessao: TestSessao, consulta: string) => pedir(sessao, 'GET', `/v1/atividades-aplicadas${consulta}`),
+    encerrar: (sessao: TestSessao, id: string) => pedir(sessao, 'POST', `/v1/atividades-aplicadas/${id}/encerrar`, {}),
+    minhas: (sessao: TestSessao, consulta = '') => pedir(sessao, 'GET', `/v1/minhas-atividades${consulta}`),
+    prova: (sessao: TestSessao, id: string) => pedir(sessao, 'GET', `/v1/atividades-aplicadas/${id}/prova`),
+    responder: (sessao: TestSessao, id: string, questao: number | string, alternativa: number) => pedir(sessao, 'PUT', `/v1/atividades-aplicadas/${id}/respostas/${String(questao)}`, { alternativa }),
+    enviar: (sessao: TestSessao, id: string) => pedir(sessao, 'POST', `/v1/atividades-aplicadas/${id}/enviar`, {}),
+    diagnostico: (sessao: TestSessao, id: string) => pedir(sessao, 'GET', `/v1/atividades-aplicadas/${id}/meu-diagnostico`),
+    correcao: (sessao: TestSessao, id: string) => pedir(sessao, 'GET', `/v1/atividades-aplicadas/${id}/correcao`),
+    abrirDestaque: (sessao: TestSessao, id: string, alunoId: string) => pedir(sessao, 'POST', `/v1/atividades-aplicadas/${id}/correcao/destaques/${alunoId}/abrir`, {}),
+    aprovarLote: (sessao: TestSessao, entregaId: string, corpo: unknown = {}) => pedir(sessao, 'POST', `/v1/entregas/${entregaId}/aprovar-lote`, corpo),
+    rejeitar: (sessao: TestSessao, entregaId: string) => pedir(sessao, 'POST', `/v1/entregas/${entregaId}/decidir`, { decisao: 'rejeitar', justificativa: 'Justificativa sintética da rejeição' }),
+    desempenho: (sessao: TestSessao, turmaId: string, consulta = '') => pedir(sessao, 'GET', `/v1/turmas/${turmaId}/desempenho${consulta}`),
   }
 }
 export type RotasDaAtividade = ReturnType<typeof rotasDaAtividade>
 
 /** Aplica a atividade pela rota e devolve o id da aplicação. */
-export async function aplicarAtividade(rotas: RotasDaAtividade, sessao: SessaoDeTeste, artefatoId: string, turmaId: string, avaliativa = false): Promise<string> {
+export async function aplicarAtividade(rotas: RotasDaAtividade, sessao: TestSessao, artefatoId: string, turmaId: string, avaliativa = false): Promise<string> {
   const resposta = await rotas.aplicar(sessao, { artefatoId, turmaId, avaliativa })
   if (resposta.status !== 201) throw new Error(`atividade não aplicada: ${String(resposta.status)} ${resposta.corpo.erro?.codigo ?? ''}`)
   return resposta.corpo['id'] as string
 }
 
 /** O aluno abre a prova e marca as alternativas dadas, na ordem das questões (`null` deixa em branco), pela rota. */
-export async function responderProva(rotas: RotasDaAtividade, aluno: SessaoDeTeste, atividadeAplicadaId: string, marcadas: readonly (number | null)[], enviar = true): Promise<void> {
+export async function responderProva(rotas: RotasDaAtividade, aluno: TestSessao, atividadeAplicadaId: string, marcadas: readonly (number | null)[], enviar = true): Promise<void> {
   const prova = await rotas.prova(aluno, atividadeAplicadaId)
   if (prova.status !== 200) throw new Error(`prova não aberta: ${String(prova.status)}`)
   for (const [indice, alternativa] of marcadas.entries()) {
@@ -146,7 +146,7 @@ export async function responderProva(rotas: RotasDaAtividade, aluno: SessaoDeTes
 }
 
 /** Encerra pela rota e devolve o id da entrega do lote (nulo quando a correção não rodou). */
-export async function encerrarAtividade(rotas: RotasDaAtividade, sessao: SessaoDeTeste, atividadeAplicadaId: string): Promise<string | null> {
+export async function encerrarAtividade(rotas: RotasDaAtividade, sessao: TestSessao, atividadeAplicadaId: string): Promise<string | null> {
   const resposta = await rotas.encerrar(sessao, atividadeAplicadaId)
   if (resposta.status !== 200) throw new Error(`atividade não encerrada: ${String(resposta.status)} ${resposta.corpo.erro?.codigo ?? ''}`)
   const atividade = resposta.corpo['atividade'] as { entrega: { id: string } | null }
@@ -154,7 +154,7 @@ export async function encerrarAtividade(rotas: RotasDaAtividade, sessao: SessaoD
 }
 
 /** A professora lê a correção, abre todos os destaques e aprova o lote, pelas rotas. Devolve o corpo da aprovação. */
-export async function aprovarOLote(rotas: RotasDaAtividade, sessao: SessaoDeTeste, atividadeAplicadaId: string): Promise<RespostaHttp> {
+export async function aprovarOLote(rotas: RotasDaAtividade, sessao: TestSessao, atividadeAplicadaId: string): Promise<RespostaHttp> {
   const correcao = await rotas.correcao(sessao, atividadeAplicadaId)
   if (correcao.status !== 200) throw new Error(`correção não lida: ${String(correcao.status)}`)
   for (const destaque of correcao.corpo['destaques'] as { alunoId: string }[]) await rotas.abrirDestaque(sessao, atividadeAplicadaId, destaque.alunoId)

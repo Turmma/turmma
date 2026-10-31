@@ -30,7 +30,7 @@ import {
   subir,
   type Resposta,
 } from './operador-mfa.fixture.js'
-import { BancadaDeOperadores } from './operador-session.fixture.js'
+import { OperadorFixtures } from './operador-session.fixture.js'
 
 /**
  * As consultas que ficam na fila da linha do operador, como o `pg_stat_activity` as mostra: o `update` do configurar,
@@ -43,7 +43,7 @@ const DESATIVAR_NA_FILA = 'select "id", "apelido" from "operador"%for update'
 type Metodo = 'trocarCodigosDeRecuperacao' | 'abrirSessao'
 
 describe('segundo fator do operador: as travas contra a corrida (tarefa 7.0)', () => {
-  const operadores = new BancadaDeOperadores()
+  const operadores = new OperadorFixtures()
   let app: INestApplication
   let url: string
   let banco: Database

@@ -2,8 +2,8 @@ import { ErrorCode, MENSAGENS_DE_ERRO, type PapelDeUsuario } from '@educa/shared
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
-import { chamar, subirApi, type ApiDeTeste, type RespostaHttp } from './test-api.js'
-import { BancadaDeSessoes, type SessaoDeTeste } from './sessao.fixture.js'
+import { chamar, subirApi, type TestApi, type RespostaHttp } from './test-api.js'
+import { SessaoFixtures, type TestSessao } from './sessao.fixture.js'
 
 /**
  * A borda de entrada de `estrutura/`, `sala/` e `governanca/` (reengenharia, 15.0, RF5; D81): cada rota diz o mesmo
@@ -215,11 +215,11 @@ const ROTAS: readonly Rota[] = [
 ]
 
 describe('a borda de entrada de estrutura, sala e governança: cada rota responde igual antes e depois do ZodValidationPipe e do IdPipe', () => {
-  const bancada = new BancadaDeSessoes()
+  const bancada = new SessaoFixtures()
   const medidor = new MedidorDeTeste()
-  let api: ApiDeTeste
+  let api: TestApi
   let escola: string
-  const sessoes = new Map<PapelDeUsuario, SessaoDeTeste>()
+  const sessoes = new Map<PapelDeUsuario, TestSessao>()
 
   beforeAll(async () => {
     api = await subirApi(medidor.medidor)
@@ -239,7 +239,7 @@ describe('a borda de entrada de estrutura, sala e governança: cada rota respond
     await medidor.encerrar()
   })
 
-  const sessaoDe = (papel: PapelDeUsuario | 'anonimo'): SessaoDeTeste | undefined => (papel === 'anonimo' ? undefined : sessoes.get(papel))
+  const sessaoDe = (papel: PapelDeUsuario | 'anonimo'): TestSessao | undefined => (papel === 'anonimo' ? undefined : sessoes.get(papel))
   const pedir = (rota: Rota, papel: PapelDeUsuario | 'anonimo', parametro: string, corpo?: unknown, consulta = '') =>
     chamar(api.url, rota.metodo, `${rota.caminho(parametro)}${consulta}`, sessaoDe(papel)?.token, corpo)
   /** O que a escola tem, para provar que nenhuma rota escreveu nada nela. */

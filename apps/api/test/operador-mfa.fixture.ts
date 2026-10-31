@@ -11,12 +11,12 @@ import type { ApiConfig } from '../src/config.js'
 import { configureApp } from '../src/configure-app.js'
 import { OperadorChallengeIssuer, type OperadorChallengeStep } from '../src/operacao/operador-challenge.js'
 import { SecretCipher, gerarCodigosDeRecuperacao, gerarSegredo, hmacDaRecuperacao, PERIODO_TOTP_SEGUNDOS } from '../src/credencial/index.js'
-import { configuracaoDeTeste, MONTAGEM_DE_TESTE } from './test-config.js'
+import { testConfig, TEST_APP_OPTIONS } from './test-config.js'
 
 /**
  * Apoio dos testes do segundo fator do operador (tarefa 7.0): requisição, comparação com a resposta de desafio
  * inválido, barreira, código TOTP de um passo, desafio emitido com a chave de produção e o estado da linha do operador.
- * Nada de pessoa: os operadores vêm da `BancadaDeOperadores`.
+ * Nada de pessoa: os operadores vêm das `OperadorFixtures`.
  */
 
 export interface Resposta {
@@ -69,11 +69,11 @@ export const ipSorteado = () => `10.${[...randomBytes(3)].join('.')}`
 export const doIp = (ip = ipSorteado()): Cabecalhos => ({ 'X-Forwarded-For': ip })
 
 export async function subir(
-  config: ApiConfig = configuracaoDeTeste({ ambiente: { LIMITE_PROXIES_CONFIAVEIS: '127.0.0.1' } }),
+  config: ApiConfig = testConfig({ ambiente: { LIMITE_PROXIES_CONFIAVEIS: '127.0.0.1' } }),
   linhasDeLog?: string[],
   medidor?: Meter,
 ): Promise<{ app: INestApplication; url: string }> {
-  const app = await NestFactory.create(AppModule.forRoot(config, { ...MONTAGEM_DE_TESTE, ...(medidor === undefined ? {} : { medidor }) }), { logger: false })
+  const app = await NestFactory.create(AppModule.forRoot(config, { ...TEST_APP_OPTIONS, ...(medidor === undefined ? {} : { medidor }) }), { logger: false })
   const logger =
     linhasDeLog === undefined
       ? createLogger({ servico: 'api-teste', nivel: 'silent' })
@@ -109,7 +109,7 @@ export function codigoDoPasso(base32: string, passo: number): string {
   return TOTP.generate({ secret: Secret.fromBase32(base32), algorithm: 'SHA1', digits: 6, period: PERIODO_TOTP_SEGUNDOS, timestamp: passo * PERIODO_MS })
 }
 
-const configuracao = configuracaoDeTeste()
+const configuracao = testConfig()
 const emissorDeDesafio = new OperadorChallengeIssuer(configuracao.identidade.chaveAssinatura)
 const cifra = new SecretCipher(configuracao.login.mfa.versaoCifra, configuracao.login.mfa.chavesCifra)
 

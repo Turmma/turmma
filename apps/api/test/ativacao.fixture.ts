@@ -8,9 +8,9 @@ import { expect } from 'vitest'
 import { urlDoBancoDeTeste } from '../../../tools/testes/integracao.setup.ts'
 import { SecretCipher, REDIS_LOGIN_CLIENT, LoginLockout, gerarSegredo, PasswordHasher } from '../src/credencial/index.js'
 import { ConviteRepository, criarConviteDeCoordenador } from '../src/sessao/index.js'
-import { configuracaoDeTeste } from './test-config.js'
+import { testConfig } from './test-config.js'
 import { pedir, PRAZO_DAS_CONSULTAS_MS, subirApiDoPainel, type Resposta } from './painel.fixture.js'
-import { autorDaBancada, BancadaDeSessoes } from './sessao.fixture.js'
+import { autorDaBancada, SessaoFixtures } from './sessao.fixture.js'
 
 /**
  * O que os testes da ativação por convite (A0b, tarefa 4.0: cenários E6 de login, E15 e E16) têm em comum: a API inteira
@@ -26,22 +26,22 @@ export const SENHA_NOVA = 'senha-nova-do-convite-1'
 export const SENHA_ERRADA = 'senha-sintetica-errada-9'
 const NOME = 'Coordenação Sintética Convidada'
 
-export interface ContaDeTeste {
+export interface TestConta {
   readonly email: string
   readonly contaId: string
   /** O segredo do app autenticador, quando a conta tem MFA ativo. */
   readonly base32: string | undefined
 }
 
-export interface ConviteDeTeste {
+export interface TestConvite {
   readonly escolaId: string
   readonly conviteId: string
   readonly token: string
   readonly usuarioId: string
 }
 
-export class CenarioDeAtivacao {
-  readonly escolas = new BancadaDeSessoes()
+export class ActivationScenario {
+  readonly escolas = new SessaoFixtures()
   readonly linhasDeLog: string[] = []
   readonly #cifra: SecretCipher
   pool!: DatabasePool
@@ -53,7 +53,7 @@ export class CenarioDeAtivacao {
   #redis!: Redis
 
   constructor() {
-    const configuracao = configuracaoDeTeste()
+    const configuracao = testConfig()
     this.#cifra = new SecretCipher(configuracao.login.mfa.versaoCifra, configuracao.login.mfa.chavesCifra)
   }
 
@@ -86,7 +86,7 @@ export class CenarioDeAtivacao {
   }
 
   /** A conta que já existe, com senha e, se pedido, com MFA ativo; sem usuário em escola nenhuma. */
-  async conta({ mfa }: { mfa: boolean }): Promise<ContaDeTeste> {
+  async conta({ mfa }: { mfa: boolean }): Promise<TestConta> {
     const email = `convidada-${randomUUID()}@escola.invalid`
     const { rows } = await this.pool.query<{ id: string }>('insert into conta (email, senha_hash) values ($1, $2) returning id', [email, await this.#hash.gerar(SENHA_DA_CONTA)])
     const contaId = rows[0]?.id ?? ''
@@ -105,7 +105,7 @@ export class CenarioDeAtivacao {
   }
 
   /** O gerar do operador, pelo caso de uso que o painel e o comando chamam. */
-  async convidar(escolaId: string, email: string): Promise<ConviteDeTeste> {
+  async convidar(escolaId: string, email: string): Promise<TestConvite> {
     const { conviteId, token } = await criarConviteDeCoordenador(this.banco, autorDaBancada, { escolaId, email, nome: NOME })
     const { rows } = await this.pool.query<{ usuario_id: string }>('select usuario_id from convite where id = $1', [conviteId])
     return { escolaId, conviteId, token, usuarioId: rows[0]?.usuario_id ?? '' }
@@ -123,7 +123,7 @@ export class CenarioDeAtivacao {
   }
 
   /** Uma escola nova em `aceito`: o convite da conta foi aceito, e o usuário espera o login com o bilhete. */
-  async aceito(conta: ContaDeTeste): Promise<ConviteDeTeste & { bilhete: string }> {
+  async aceito(conta: TestConta): Promise<TestConvite & { bilhete: string }> {
     const convite = await this.convidar(await this.escolas.escola(), conta.email)
     const bilhete = await this.bilheteDoAceite(convite.token)
     expect(await this.estado(convite.escolaId)).toBe('aceito')

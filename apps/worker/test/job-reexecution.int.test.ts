@@ -4,10 +4,10 @@ import { JobFailureCode, JOB_DEFINITIONS, TIPO_JOB_SINTETICO, type SyntheticJobD
 import { randomUUID } from 'node:crypto'
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { compose, PROCESSOS_DA_FILA } from '../../../tools/testes/compose.ts'
-import type { ExecucaoDoJob, Processador } from '../src/job-executor.js'
-import { FalhaDeJob } from '../src/job-failure.error.js'
-import { criarProcessadorSintetico } from '../src/processors/synthetic.js'
-import { BancadaDeFila, LogEmMemoria } from './queue.fixture.js'
+import type { JobExecution, JobProcessor } from '../src/job-executor.js'
+import { JobFailureError } from '../src/job-failure.error.js'
+import { createSyntheticProcessor } from '../src/processors/synthetic.js'
+import { QueueFixtures, InMemoryLog } from './queue.fixture.js'
 
 // A entrega é pelo menos uma vez (D49): cada caminho em que o mesmo job roda de novo, com despachantes e workers
 // de verdade no processo do teste, contra o Postgres e o Redis de fila do compose de teste. O efeito é o do
@@ -18,7 +18,7 @@ const COM_EFEITO: SyntheticJobData = { cpuMs: 0, falhar: false, efeito: true }
 /** O prazo que o executor entrega ao processador do sintético: o da definição do tipo. */
 const PRAZO_DO_SINTETICO_MS = JOB_DEFINITIONS[TIPO_JOB_SINTETICO].prazoMs
 
-interface LinhaDeEfeito {
+interface EfeitoRow {
   escolaId: string
   chaveIdempotencia: string
   tentativa: number
@@ -37,16 +37,16 @@ beforeAll(() => {
 })
 
 describe('reexecução do mesmo job: a chave de idempotência é a do job, e o efeito não duplica', () => {
-  let bancada: BancadaDeFila
+  let bancada: QueueFixtures
   // Escolas reais, criadas a cada caso: desde a tarefa 3.0 `job_registro` e
   // `configuracao_operacional_escola` têm FK para `escola`, e id inventado é recusado pelo banco.
   let ESCOLA_A: string
   let ESCOLA_B: string
   /** O processador sintético de verdade, com o repository de verdade: só a CPU é dispensada (os jobs pedem zero). */
-  let sintetico: Processador
+  let sintetico: JobProcessor
 
   beforeEach(async () => {
-    bancada = new BancadaDeFila()
+    bancada = new QueueFixtures()
     await bancada.limparRegistro()
     // O id da escola é sorteado e não cresce com a criação (o `ops:escola` e o painel mandam UUID v4). A ordem ruim fica
     // fixa: a A com o id maior, para que asserção que dependa da ordem dos ids falhe sempre, e não em metade das vezes.
@@ -61,7 +61,7 @@ describe('reexecução do mesmo job: a chave de idempotência é a do job, e o e
          primary key (escola_id, chave_idempotencia)
        )`,
     )
-    sintetico = criarProcessadorSintetico({ queimar: () => Promise.resolve() }, new SyntheticEffectRepository(bancada.banco))
+    sintetico = createSyntheticProcessor({ queimar: () => Promise.resolve() }, new SyntheticEffectRepository(bancada.banco))
   })
 
   afterEach(async () => {
@@ -72,8 +72,8 @@ describe('reexecução do mesmo job: a chave de idempotência é a do job, e o e
     }
   }, 60_000)
 
-  async function efeitos(): Promise<LinhaDeEfeito[]> {
-    const { rows } = await bancada.pool.query<LinhaDeEfeito>(
+  async function efeitos(): Promise<EfeitoRow[]> {
+    const { rows } = await bancada.pool.query<EfeitoRow>(
       `select escola_id as "escolaId", chave_idempotencia as "chaveIdempotencia", tentativa from ${SYNTHETIC_EFFECT_TABLE} order by escola_id`,
     )
     return rows
@@ -83,7 +83,7 @@ describe('reexecução do mesmo job: a chave de idempotência é a do job, e o e
     await expect.poll(async () => (await bancada.estado(id))?.estado, { timeout: limiteMs, interval: 100 }).toBe(estado)
   }
 
-  const iniciosNoLog = (log: LogEmMemoria, id: string) => log.doEvento('job.iniciado').filter((registro) => registro['jobId'] === id)
+  const iniciosNoLog = (log: InMemoryLog, id: string) => log.doEvento('job.iniciado').filter((registro) => registro['jobId'] === id)
 
   it('o repository grava uma vez por chave na escola do contexto, e recusa gravar sem escola', async () => {
     const repositorio = new SyntheticEffectRepository(bancada.banco)
@@ -122,9 +122,9 @@ describe('reexecução do mesmo job: a chave de idempotência é a do job, e o e
 
   it('worker morto depois de gravar o efeito e antes de concluir: o job volta pelo stalled, roda de novo com a mesma chave, e o efeito fica numa linha só', async () => {
     const id = await bancada.enfileirar(ESCOLA_A, { dados: COM_EFEITO })
-    const execucoes: ExecucaoDoJob[] = []
+    const execucoes: JobExecution[] = []
     const gravou = sinal()
-    const logMorto = new LogEmMemoria('worker-morto')
+    const logMorto = new InMemoryLog('worker-morto')
     const morto = bancada.worker(logMorto, {
       concorrencia: 1,
       graca: 500,
@@ -138,7 +138,7 @@ describe('reexecução do mesmo job: a chave de idempotência é a do job, e o e
         },
       },
     })
-    bancada.despachante(new LogEmMemoria('despachante')).despachante.iniciar()
+    bancada.despachante(new InMemoryLog('despachante')).despachante.iniciar()
     await gravou.chegou
     expect(await efeitos()).toHaveLength(1)
     expect((await bancada.estado(id))?.estado).toBe('ativo')
@@ -148,7 +148,7 @@ describe('reexecução do mesmo job: a chave de idempotência é a do job, e o e
     await morto.encerrar()
     expect(logMorto.doEvento('worker.desligamento_forcado')).toHaveLength(1)
 
-    const logSobrevivente = new LogEmMemoria('worker-sobrevivente')
+    const logSobrevivente = new InMemoryLog('worker-sobrevivente')
     bancada.worker(logSobrevivente, {
       processadores: {
         sintetico: async (dados, execucao) => {
@@ -172,13 +172,13 @@ describe('reexecução do mesmo job: a chave de idempotência é a do job, e o e
 
   it('a fila perde o job ativo e a reconciliação o republica enquanto a primeira execução ainda roda: a segunda recebe a mesma chave, e o efeito fica numa linha só', async () => {
     const id = await bancada.enfileirar(ESCOLA_A, { dados: COM_EFEITO })
-    const montado = bancada.despachante(new LogEmMemoria('despachante'))
+    const montado = bancada.despachante(new InMemoryLog('despachante'))
     expect(await montado.despachante.rodada()).toBe(1)
 
-    const execucoes: ExecucaoDoJob[] = []
+    const execucoes: JobExecution[] = []
     const gravouPrimeira = sinal()
     const soltarPrimeira = sinal()
-    const processador: Processador = async (dados, execucao) => {
+    const processador: JobProcessor = async (dados, execucao) => {
       const ordem = execucoes.push(execucao)
       await sintetico(dados, execucao)
       if (ordem > 1) return
@@ -186,10 +186,10 @@ describe('reexecução do mesmo job: a chave de idempotência é a do job, e o e
       await soltarPrimeira.chegou
     }
     // Uma vaga por fila em cada réplica: a primeira fica ocupada com a execução presa, e a republicação vai para a outra.
-    const logPrimeira = new LogEmMemoria('worker-1')
+    const logPrimeira = new InMemoryLog('worker-1')
     bancada.worker(logPrimeira, { concorrencia: 1, processadores: { sintetico: processador } })
     await gravouPrimeira.chegou
-    const logSegunda = new LogEmMemoria('worker-2')
+    const logSegunda = new InMemoryLog('worker-2')
     bancada.worker(logSegunda, { concorrencia: 1, processadores: { sintetico: processador } })
 
     try {
@@ -228,20 +228,20 @@ describe('reexecução do mesmo job: a chave de idempotência é a do job, e o e
 
   it('falha transitória depois de gravar o efeito, na 1ª e na 2ª tentativa, e sucesso na 3ª: a chave é a mesma nas três, a tentativa é 1, 2 e 3, e o efeito fica numa linha só', async () => {
     const id = await bancada.enfileirar(ESCOLA_A, { dados: COM_EFEITO })
-    const execucoes: ExecucaoDoJob[] = []
-    const logWorker = new LogEmMemoria('worker')
+    const execucoes: JobExecution[] = []
+    const logWorker = new InMemoryLog('worker')
     bancada.worker(logWorker, {
       processadores: {
         sintetico: async (dados, execucao) => {
           execucoes.push(execucao)
           await sintetico(dados, execucao)
           // O efeito já foi gravado quando a tentativa falha: é o que a retentativa precisa aguentar.
-          if (execucao.tentativa < 3) throw new FalhaDeJob(JobFailureCode.FALHA_SINTETICA)
+          if (execucao.tentativa < 3) throw new JobFailureError(JobFailureCode.FALHA_SINTETICA)
         },
       },
     })
     // Publicado pelo despachante, com as tentativas e o recuo de verdade.
-    bancada.despachante(new LogEmMemoria('despachante')).despachante.iniciar()
+    bancada.despachante(new InMemoryLog('despachante')).despachante.iniciar()
 
     await aguardarEstado(id, 'concluido', 40_000)
 
@@ -258,7 +258,7 @@ describe('reexecução do mesmo job: a chave de idempotência é a do job, e o e
       const daEscolaB = await bancada.enfileirar(ESCOLA_B, { dados: COM_EFEITO })
       const gravados = new Set<string>()
       const gravaramOsDois = sinal()
-      const morto = bancada.worker(new LogEmMemoria('worker-morto'), {
+      const morto = bancada.worker(new InMemoryLog('worker-morto'), {
         concorrencia: 2,
         graca: 500,
         processadores: {
@@ -270,13 +270,13 @@ describe('reexecução do mesmo job: a chave de idempotência é a do job, e o e
           },
         },
       })
-      bancada.despachante(new LogEmMemoria('despachante')).despachante.iniciar()
+      bancada.despachante(new InMemoryLog('despachante')).despachante.iniciar()
       await gravaramOsDois.chegou
       await morto.encerrar()
 
       // Uma execução por vez na réplica que retoma: a reexecução de um job vem logo depois da do job da outra escola.
       const escolaDaReexecucao = new Map<string, string | undefined>()
-      bancada.worker(new LogEmMemoria('worker-sobrevivente'), {
+      bancada.worker(new InMemoryLog('worker-sobrevivente'), {
         concorrencia: 1,
         processadores: {
           sintetico: async (dados, execucao) => {

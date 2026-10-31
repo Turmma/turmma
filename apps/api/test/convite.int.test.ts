@@ -19,8 +19,8 @@ import { executarOpsConviteCoordenador } from '../src/ops/convite-coordenador.js
 import { executarOpsRevogarConvite } from '../src/ops/revogar-convite.js'
 import { SecretCipher, REDIS_LOGIN_CLIENT, gerarSegredo, PasswordHasher } from '../src/credencial/index.js'
 import { criarConviteDeCoordenador } from '../src/sessao/index.js'
-import { configuracaoDeTeste, MONTAGEM_DE_TESTE } from './test-config.js'
-import { BancadaDeSessoes } from './sessao.fixture.js'
+import { testConfig, TEST_APP_OPTIONS } from './test-config.js'
+import { SessaoFixtures } from './sessao.fixture.js'
 
 const SENHA_NOVA = 'senha-nova-do-convite-1'
 const SENHA_DE_B = 'senha-que-a-conta-ja-tinha-1'
@@ -63,9 +63,9 @@ function semRequisicao(resposta: Resposta): unknown {
 }
 
 describe('convite do primeiro coordenador: o operador gera, a pessoa consulta e aceita', () => {
-  const bancada = new BancadaDeSessoes()
+  const bancada = new SessaoFixtures()
   const medidor = new MedidorDeTeste()
-  const configuracao = configuracaoDeTeste()
+  const configuracao = testConfig()
   const cifra = new SecretCipher(configuracao.login.mfa.versaoCifra, configuracao.login.mfa.chavesCifra)
   const ambiente = { ...lerAmbienteDeTeste(), OPERADOR }
   const linhasDeLog: string[] = []
@@ -75,7 +75,7 @@ describe('convite do primeiro coordenador: o operador gera, a pessoa consulta e 
   let pasta: string
 
   beforeAll(async () => {
-    app = await NestFactory.create(AppModule.forRoot(configuracao, { medidor: medidor.medidor, ...MONTAGEM_DE_TESTE }), { logger: false })
+    app = await NestFactory.create(AppModule.forRoot(configuracao, { medidor: medidor.medidor, ...TEST_APP_OPTIONS }), { logger: false })
     configureApp(app, createLogger({ servico: 'api-teste', nivel: 'trace', destino: { write: (linha: string) => linhasDeLog.push(linha) } }), medidor.medidor)
     await app.listen(0, '127.0.0.1')
     url = `http://127.0.0.1:${(app.getHttpServer().address() as AddressInfo).port}`

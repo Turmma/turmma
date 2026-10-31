@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto'
 import { createServer, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import type { EscolaComAssistente } from './escola-assistente.fixture.js'
-import type { BancadaDeSessoes } from './sessao.fixture.js'
+import type { SessaoFixtures } from './sessao.fixture.js'
 
 /**
  * O que os testes do Tutor (MVP, A4) precisam e que ainda não tem rota neste pacote: a atividade aplicada à turma, o
@@ -41,7 +41,7 @@ export function conteudoDaAtividade(materialId: string, titulo: string): Conteud
   }
 }
 
-export interface OpcoesDaAplicacao {
+export interface AplicacaoOptions {
   readonly avaliativa?: boolean
   readonly turmaId?: string
   readonly disciplinaId?: string
@@ -51,7 +51,7 @@ export interface OpcoesDaAplicacao {
 }
 
 /** Grava o artefato e a atividade aplicada à turma, como o pacote de atividade fará pela rota. Devolve o id da aplicação. */
-export async function aplicarAtividade(bancada: BancadaDeSessoes, escola: EscolaComAssistente, opcoes: OpcoesDaAplicacao = {}): Promise<string> {
+export async function aplicarAtividade(bancada: SessaoFixtures, escola: EscolaComAssistente, opcoes: AplicacaoOptions = {}): Promise<string> {
   const { avaliativa = false, turmaId = escola.turma, disciplinaId = escola.quimica, titulo = 'Lista sintética de estequiometria', aplicadaPor = escola.professora.usuarioId } = opcoes
   const { rows: artefatos } = await bancada.pool.query<{ id: string }>(
     `insert into artefato (escola_id, ano_letivo_id, turma_id, disciplina_id, tipo, titulo, conteudo, criado_por) values ($1, $2, $3, $4, 'atividade_objetiva', $5, $6, $7) returning id`,
@@ -66,7 +66,7 @@ export async function aplicarAtividade(bancada: BancadaDeSessoes, escola: Escola
   return id
 }
 
-export async function encerrarAtividade(bancada: BancadaDeSessoes, escola: EscolaComAssistente, atividadeAplicadaId: string): Promise<void> {
+export async function encerrarAtividade(bancada: SessaoFixtures, escola: EscolaComAssistente, atividadeAplicadaId: string): Promise<void> {
   await bancada.pool.query(`update atividade_aplicada set estado = 'encerrada', encerrada_em = now() where escola_id = $1 and id = $2`, [escola.escolaId, atividadeAplicadaId])
 }
 
@@ -83,7 +83,7 @@ const RESUMO_SINTETICO = { alunos: 1, enviadas: 1 }
  * A tentativa enviada do aluno e o lote de correção da aplicação, no estado pedido. `aprovada` grava a validação e a
  * aprovação na mesma transação, como o banco exige (D56); `rejeitada`, com a justificativa.
  */
-export async function lancarLote(bancada: BancadaDeSessoes, escola: EscolaComAssistente, atividadeAplicadaId: string, estado: 'pendente' | 'aprovada' | 'rejeitada', correcao: CorrecaoDeTeste, turmaId: string = escola.turma): Promise<string> {
+export async function lancarLote(bancada: SessaoFixtures, escola: EscolaComAssistente, atividadeAplicadaId: string, estado: 'pendente' | 'aprovada' | 'rejeitada', correcao: CorrecaoDeTeste, turmaId: string = escola.turma): Promise<string> {
   const { escolaId, anoLetivoId } = escola
   const professorId = escola.professora.usuarioId
   const cliente = await bancada.pool.connect()
@@ -127,7 +127,7 @@ export async function lancarLote(bancada: BancadaDeSessoes, escola: EscolaComAss
  * Trocas já feitas pelo aluno com o Tutor, gravadas direto: a execução concluída, a pergunta e a resposta. Serve ao
  * teste do freio, que precisa de sessenta trocas sem mandar sessenta pedidos. `haDias` as põe no passado.
  */
-export async function trocasJaFeitas(bancada: BancadaDeSessoes, escola: EscolaComAssistente, alunoId: string, quantidade: number, { turmaId = escola.turma, haDias = 0 }: { turmaId?: string; haDias?: number } = {}): Promise<void> {
+export async function trocasJaFeitas(bancada: SessaoFixtures, escola: EscolaComAssistente, alunoId: string, quantidade: number, { turmaId = escola.turma, haDias = 0 }: { turmaId?: string; haDias?: number } = {}): Promise<void> {
   for (let indice = 0; indice < quantidade; indice += 1) {
     const { rows } = await bancada.pool.query<{ id: string }>(
       `insert into execucao_agente (escola_id, ano_letivo_id, funcao, tarefa, solicitada_por, chave_envio, estado, entrada, iniciada_em)
@@ -153,7 +153,7 @@ export async function trocasJaFeitas(bancada: BancadaDeSessoes, escola: EscolaCo
 }
 
 /** Os limites do Tutor da escola (`configuracao_operacional_escola`); `null` volta ao padrão do contrato. */
-export async function configurarLimitesDoTutor(bancada: BancadaDeSessoes, escolaId: string, limites: { porDia?: number | null; porMes?: number | null }): Promise<void> {
+export async function configurarLimitesDoTutor(bancada: SessaoFixtures, escolaId: string, limites: { porDia?: number | null; porMes?: number | null }): Promise<void> {
   await bancada.pool.query(
     `insert into configuracao_operacional_escola (escola_id, tutor_trocas_por_dia, tutor_trocas_por_mes) values ($1, $2, $3)
      on conflict (escola_id) do update set tutor_trocas_por_dia = excluded.tutor_trocas_por_dia, tutor_trocas_por_mes = excluded.tutor_trocas_por_mes`,
@@ -167,7 +167,7 @@ export function citacaoDoPrimeiroTrecho(pedido: string): { materialId: string; p
   return achado?.[1] === undefined ? [] : [{ materialId: achado[1], pagina: Number(achado[2]), trecho: `Página ${String(achado[2])} do material` }]
 }
 
-export interface ModeloDeMentira {
+export interface FakeModel {
   /** O endereço para `LLM_BASE_URL`. */
   readonly url: string
   /** O corpo de cada pedido que chegou, como veio: é exatamente o que sairia do sistema para o provedor. */
@@ -185,7 +185,7 @@ export interface ModeloDeMentira {
  * verdade (`IA_ADAPTADOR=openai_compat`), então a rota, o provedor, a conferência da tarefa e o adaptador rodam como
  * em produção, e `pedidos` guarda o que chegaria ao provedor.
  */
-export async function subirModeloDeMentira(): Promise<ModeloDeMentira> {
+export async function startFakeModel(): Promise<FakeModel> {
   const pedidos: string[] = []
   let resposta: (pedido: string, chamada: number) => string = () => '{}'
   let caido: number | undefined
@@ -225,6 +225,6 @@ export async function subirModeloDeMentira(): Promise<ModeloDeMentira> {
 }
 
 /** As variáveis que apontam a API de teste para o modelo de mentira, como modelo local (o endereço é desta máquina). */
-export function ambienteDoModeloDeMentira(modelo: ModeloDeMentira): Record<string, string> {
+export function fakeModelEnv(modelo: FakeModel): Record<string, string> {
   return { IA_ADAPTADOR: 'openai_compat', LLM_BASE_URL: modelo.url, LLM_MODELO: 'modelo-de-mentira', LLM_PROCESSAMENTO_LOCAL: 'true', LLM_RECUO_MS: '0', LLM_TIMEOUT_MS: '5000', LLM_TIMEOUT_MS_RAPIDO: '5000', LLM_TIMEOUT_MS_PADRAO: '5000', IA_EXECUCAO_TIMEOUT_MS: '20000' }
 }

@@ -16,10 +16,10 @@ import { gerarConviteDeOperador } from '../src/ops/operador.js'
 import { criarConviteDeCoordenador } from '../src/sessao/index.js'
 import { PasswordHasher, HashBulkhead } from '../src/credencial/index.js'
 import { cookieDeRenovacao } from './test-api.js'
-import { configuracaoDeTeste, MONTAGEM_DE_TESTE } from './test-config.js'
+import { testConfig, TEST_APP_OPTIONS } from './test-config.js'
 import { caminhoConcreto, rotasDe } from './registered-routes.js'
-import { BancadaDeOperadores } from './operador-session.fixture.js'
-import { BancadaDeSessoes } from './sessao.fixture.js'
+import { OperadorFixtures } from './operador-session.fixture.js'
+import { SessaoFixtures } from './sessao.fixture.js'
 
 const SENHA = 'senha-nova-do-operador-1'
 const OUTRA_SENHA = 'outra-senha-do-operador-2'
@@ -73,8 +73,8 @@ const forma = (resposta: Resposta) => ({ status: resposta.status, corpo: semRequ
  */
 const ipSorteado = () => `10.${[...randomBytes(3)].join('.')}`
 
-async function subir(config = configuracaoDeTeste()): Promise<{ app: INestApplication; url: string }> {
-  const app = await NestFactory.create(AppModule.forRoot(config, MONTAGEM_DE_TESTE), { logger: false })
+async function subir(config = testConfig()): Promise<{ app: INestApplication; url: string }> {
+  const app = await NestFactory.create(AppModule.forRoot(config, TEST_APP_OPTIONS), { logger: false })
   configureApp(app, createLogger({ servico: 'api-teste', nivel: 'silent' }))
   await app.listen(0, '127.0.0.1')
   return { app, url: `http://127.0.0.1:${(app.getHttpServer().address() as AddressInfo).port}` }
@@ -99,8 +99,8 @@ function barreira(quantos = 1): { chegaram: Promise<void>; esperar: () => Promis
 }
 
 describe('convite do operador: consultar e aceitar (tarefa 5.0)', () => {
-  const operadores = new BancadaDeOperadores()
-  const escolas = new BancadaDeSessoes()
+  const operadores = new OperadorFixtures()
+  const escolas = new SessaoFixtures()
   let app: INestApplication
   let url: string
   let banco: Database
@@ -108,7 +108,7 @@ describe('convite do operador: consultar e aceitar (tarefa 5.0)', () => {
   let autor: string
 
   beforeAll(async () => {
-    ;({ app, url } = await subir(configuracaoDeTeste({ ambiente: { LIMITE_PROXIES_CONFIAVEIS: '127.0.0.1' } })))
+    ;({ app, url } = await subir(testConfig({ ambiente: { LIMITE_PROXIES_CONFIAVEIS: '127.0.0.1' } })))
     banco = app.get<Database>(DB)
     hash = app.get(PasswordHasher)
     // O autor dos `ops:operador convite` dos testes: com um operador ativo, o comando exige um deles.
@@ -222,7 +222,7 @@ describe('convite do operador: consultar e aceitar (tarefa 5.0)', () => {
       const corpo = aceitarConviteDeOperadorResponseSchema.parse(aceite.corpo)
       expect(Object.keys(aceite.corpo as object).sort()).toEqual(['desafio', 'etapa'])
       expect(corpo.etapa).toBe('configurar_mfa')
-      const configuracao = configuracaoDeTeste()
+      const configuracao = testConfig()
       await expect(verifyOperadorChallenge(corpo.desafio, configuracao.identidade.chaveAssinatura, 'configurar_mfa')).resolves.toMatchObject({ operadorId: convite.operadorId, etapa: 'configurar_mfa' })
 
       const linha = await linhaDoOperador(convite.operadorId)
@@ -547,14 +547,14 @@ describe('convite do operador: consultar e aceitar (tarefa 5.0)', () => {
 
 describe('convite do operador: o limite por IP (C32 e C33, parte)', () => {
   const LIMITE_POR_IP = 5
-  const operadores = new BancadaDeOperadores()
+  const operadores = new OperadorFixtures()
   let app: INestApplication
   let url: string
   let banco: Database
   let autor: string
 
   beforeAll(async () => {
-    ;({ app, url } = await subir(configuracaoDeTeste({ ambiente: { LIMITE_REQ_IP_ANONIMO_MIN: String(LIMITE_POR_IP), LIMITE_PROXIES_CONFIAVEIS: '127.0.0.1' } })))
+    ;({ app, url } = await subir(testConfig({ ambiente: { LIMITE_REQ_IP_ANONIMO_MIN: String(LIMITE_POR_IP), LIMITE_PROXIES_CONFIAVEIS: '127.0.0.1' } })))
     banco = app.get<Database>(DB)
     autor = (await operadores.operador()).apelido
   })

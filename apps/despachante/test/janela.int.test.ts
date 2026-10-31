@@ -4,8 +4,8 @@ import type { QueueName } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { compose, PROCESSOS_DA_FILA } from '../../../tools/testes/compose.ts'
-import type { Processador } from '../../worker/src/job-executor.js'
-import { BancadaDeFila, configuracaoDoBanco, LogEmMemoria } from '../../worker/test/queue.fixture.js'
+import type { JobProcessor } from '../../worker/src/job-executor.js'
+import { QueueFixtures, configuracaoDoBanco, InMemoryLog } from '../../worker/test/queue.fixture.js'
 
 // Despachante de verdade (a mesma montagem do main.ts) contra o Postgres e o Redis de fila do compose
 // de teste, com o horário letivo padrão de `.env.example` (São Paulo, segunda a sexta, 07:00 às
@@ -32,7 +32,7 @@ beforeAll(() => {
 })
 
 describe('lote não urgente segurado no horário letivo da escola', () => {
-  let bancada: BancadaDeFila
+  let bancada: QueueFixtures
   // Escolas reais, criadas a cada caso: desde a tarefa 3.0 `job_registro` e
   // `configuracao_operacional_escola` têm FK para `escola`, e id inventado é recusado pelo banco.
   let ESCOLA_A: string
@@ -42,7 +42,7 @@ describe('lote não urgente segurado no horário letivo da escola', () => {
   const soltar: Array<() => void> = []
 
   beforeEach(async () => {
-    bancada = new BancadaDeFila()
+    bancada = new QueueFixtures()
     await bancada.limparRegistro()
     ;[ESCOLA_A, ESCOLA_B] = await Promise.all([bancada.escola(), bancada.escola()])
     agora = TERCA_10H
@@ -64,7 +64,7 @@ describe('lote não urgente segurado no horário letivo da escola', () => {
 
   it('caminho feliz: não urgente criado numa terça às 10h fica aguardando, sem reserva nem vaga, até as 18h, e sai às 18h00', async () => {
     const id = await enfileirar(ESCOLA_A, 'lote', true)
-    const { despachante } = bancada.despachante(new LogEmMemoria('despachante'), { relogio })
+    const { despachante } = bancada.despachante(new InMemoryLog('despachante'), { relogio })
 
     for (const hora of [TERCA_10H, TERCA_17H59]) {
       agora = hora
@@ -84,7 +84,7 @@ describe('lote não urgente segurado no horário letivo da escola', () => {
   it('caminho feliz: não urgente criado num sábado sai na hora', async () => {
     agora = SABADO_10H
     const id = await enfileirar(ESCOLA_A, 'lote', true)
-    const { despachante } = bancada.despachante(new LogEmMemoria('despachante'), { relogio })
+    const { despachante } = bancada.despachante(new InMemoryLog('despachante'), { relogio })
     expect(await despachante.rodada()).toBe(1)
     expect((await linha(id))?.estado).toBe('publicado')
   })
@@ -94,9 +94,9 @@ describe('lote não urgente segurado no horário letivo da escola', () => {
     const naoUrgentes = []
     for (let indice = 0; indice < 5; indice++) naoUrgentes.push(await enfileirar(ESCOLA_A, 'lote', true))
     const urgentes = [await enfileirar(ESCOLA_A, 'lote', false), await enfileirar(ESCOLA_A, 'lote', false)]
-    const processador: Processador = () => new Promise<void>((resolver) => soltar.push(resolver))
-    bancada.worker(new LogEmMemoria('worker-lote'), { pools: { lote: 10 }, processadores: { sintetico: processador } })
-    bancada.despachante(new LogEmMemoria('despachante'), { relogio }).despachante.iniciar()
+    const processador: JobProcessor = () => new Promise<void>((resolver) => soltar.push(resolver))
+    bancada.worker(new InMemoryLog('worker-lote'), { pools: { lote: 10 }, processadores: { sintetico: processador } })
+    bancada.despachante(new InMemoryLog('despachante'), { relogio }).despachante.iniciar()
 
     for (const id of urgentes) await expect.poll(async () => (await linha(id))?.estado, { timeout: 5_000, interval: 50 }).toBe('ativo')
     // As duas vagas de lote da A são dos urgentes; nenhum segurado foi reservado nem publicado.
@@ -108,7 +108,7 @@ describe('lote não urgente segurado no horário letivo da escola', () => {
   it('borda: às 18h o acúmulo liberado não passa na frente do urgente que chega: ele fica com uma das vagas na primeira rodada', async () => {
     const naoUrgentes = []
     for (let indice = 0; indice < 5; indice++) naoUrgentes.push(await enfileirar(ESCOLA_A, 'lote', true))
-    const { despachante } = bancada.despachante(new LogEmMemoria('despachante'), { relogio })
+    const { despachante } = bancada.despachante(new InMemoryLog('despachante'), { relogio })
     expect(await despachante.rodada()).toBe(0)
 
     agora = TERCA_18H
@@ -124,7 +124,7 @@ describe('lote não urgente segurado no horário letivo da escola', () => {
   it('borda: interativa e normal com a marca de não urgente nunca são seguradas', async () => {
     const interativo = await enfileirar(ESCOLA_A, 'interativa', true)
     const normal = await enfileirar(ESCOLA_A, 'normal', true)
-    const log = new LogEmMemoria('despachante')
+    const log = new InMemoryLog('despachante')
     const { despachante } = bancada.despachante(log, { relogio })
     const publicados = await despachante.rodada()
     // Antes do número: o 0 desta rodada já veio do Redis ainda conectando, e não do despacho. A
@@ -140,7 +140,7 @@ describe('lote não urgente segurado no horário letivo da escola', () => {
     // devolve 0 — em produção o laço tenta de novo, e é por isso que a bancada espera o `pronto`
     // antes da rodada avulsa do teste.
     const id = await enfileirar(ESCOLA_A, 'interativa', false)
-    const log = new LogEmMemoria('despachante')
+    const log = new InMemoryLog('despachante')
     let conectando = true
     const { despachante } = bancada.despachante(log, {
       relogio,
@@ -170,7 +170,7 @@ describe('lote não urgente segurado no horário letivo da escola', () => {
     await bancada.configurarEscola(ESCOLA_A, { inicio: '13:00', fim: '22:30' })
     const id = await enfileirar(ESCOLA_A, 'lote', true)
     agora = new Date('2026-09-15T20:00:00-03:00')
-    const { despachante } = bancada.despachante(new LogEmMemoria('despachante'), { relogio })
+    const { despachante } = bancada.despachante(new InMemoryLog('despachante'), { relogio })
     expect(await despachante.rodada()).toBe(0)
     agora = TERCA_10H
     expect(await despachante.rodada()).toBe(1)
@@ -182,7 +182,7 @@ describe('lote não urgente segurado no horário letivo da escola', () => {
     agora = new Date('2026-09-15T18:30:00-03:00')
     const daEscolaA = await enfileirar(ESCOLA_A, 'lote', true)
     const daEscolaB = await enfileirar(ESCOLA_B, 'lote', true)
-    const { despachante } = bancada.despachante(new LogEmMemoria('despachante'), { relogio })
+    const { despachante } = bancada.despachante(new InMemoryLog('despachante'), { relogio })
 
     expect(await despachante.rodada()).toBe(1)
     expect(await linha(daEscolaA)).toEqual({ estado: 'aguardando', reservadoAte: null })
@@ -196,7 +196,7 @@ describe('lote não urgente segurado no horário letivo da escola', () => {
     await bancada.configurarEscola(ESCOLA_A, { fuso: 'Brasil/Joinville' })
     const segurado = await enfileirar(ESCOLA_A, 'lote', true)
     const urgente = await enfileirar(ESCOLA_A, 'lote', false)
-    const log = new LogEmMemoria('despachante')
+    const log = new InMemoryLog('despachante')
     const { despachante } = bancada.despachante(log, { relogio })
 
     expect(await despachante.rodada()).toBe(1)
@@ -212,7 +212,7 @@ describe('lote não urgente segurado no horário letivo da escola', () => {
       agora = SABADO_10H
       const daEscolaA = await enfileirar(ESCOLA_A, 'lote', true)
       const daEscolaB = await enfileirar(ESCOLA_B, 'lote', true)
-      const { despachante } = bancada.despachante(new LogEmMemoria('despachante'), { relogio })
+      const { despachante } = bancada.despachante(new InMemoryLog('despachante'), { relogio })
 
       expect(await despachante.rodada()).toBe(1)
       expect(await linha(daEscolaA)).toEqual({ estado: 'aguardando', reservadoAte: null })
@@ -224,7 +224,7 @@ describe('lote não urgente segurado no horário letivo da escola', () => {
       await bancada.configurarEscola(ESCOLA_B, { diasLetivos: [6] })
       const daEscolaA = await enfileirar(ESCOLA_A, 'lote', true)
       const daEscolaB = await enfileirar(ESCOLA_B, 'lote', true)
-      const { despachante } = bancada.despachante(new LogEmMemoria('despachante'), { relogio })
+      const { despachante } = bancada.despachante(new InMemoryLog('despachante'), { relogio })
 
       expect(await despachante.rodada()).toBe(1)
       expect(await linha(daEscolaA)).toEqual({ estado: 'aguardando', reservadoAte: null })

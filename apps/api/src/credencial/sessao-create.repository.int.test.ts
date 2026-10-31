@@ -1,11 +1,11 @@
 import { runInContext } from '@educa/core'
 import { randomUUID } from 'node:crypto'
 import { afterAll, describe, expect, it } from 'vitest'
-import { BancadaDeSessoes } from '../../test/sessao.fixture.js'
+import { SessaoFixtures } from '../../test/sessao.fixture.js'
 import { SessaoCreateRepository } from './sessao-create.repository.js'
 
 describe('CriacaoDeSessaoRepository: usuário e sessão são gravados na escola do contexto', () => {
-  const bancada = new BancadaDeSessoes()
+  const bancada = new SessaoFixtures()
 
   afterAll(async () => {
     await bancada.fechar()

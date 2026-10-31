@@ -10,7 +10,7 @@ import { OperadorGuard } from '../src/operacao/operador.guard.js'
 type Alvo = Type | ((...argumentos: never[]) => unknown)
 
 /** Uma rota registrada na API: o controller, o método, o verbo HTTP e o caminho completo, como o Nest os monta. */
-export interface RotaRegistrada {
+export interface RegisteredRoute {
   readonly controlador: Type
   readonly metodo: string
   readonly handler: Alvo
@@ -43,15 +43,15 @@ function metodosDaCadeia(prototipo: object): string[] {
 }
 
 /** As rotas dos controllers, lidas dos mesmos metadados que o Nest usa para registrá-las. */
-export function rotasDe(controladores: readonly Type[]): RotaRegistrada[] {
+export function rotasDe(controladores: readonly Type[]): RegisteredRoute[] {
   return controladores.flatMap((controlador) => {
     const prototipo = controlador.prototype as Record<string, unknown>
-    return metodosDaCadeia(prototipo).flatMap((metodo): RotaRegistrada[] => {
+    return metodosDaCadeia(prototipo).flatMap((metodo): RegisteredRoute[] => {
       const handler = prototipo[metodo]
       if (typeof handler !== 'function') return []
       const caminhoDoMetodo: unknown = Reflect.getMetadata(PATH_METADATA, handler)
       if (caminhoDoMetodo === undefined) return []
-      const verbo = RequestMethod[Reflect.getMetadata(METHOD_METADATA, handler) as RequestMethod] as RotaRegistrada['verbo']
+      const verbo = RequestMethod[Reflect.getMetadata(METHOD_METADATA, handler) as RequestMethod] as RegisteredRoute['verbo']
       const alvos: Alvo[] = [handler as (...argumentos: never[]) => unknown, controlador]
       const marcador = reflector.getAllAndOverride<boolean | undefined>(OPERACAO_ROUTE_KEY, alvos) === true
         ? 'rota'
@@ -92,17 +92,17 @@ export function controladoresDoModulo(raiz: DynamicModule | Type): Type[] {
 }
 
 /** Se a rota está sob `/v1/operacao`. */
-export function daOperacao(rota: Pick<RotaRegistrada, 'caminho'>): boolean {
+export function daOperacao(rota: Pick<RegisteredRoute, 'caminho'>): boolean {
   return rota.caminho === '/v1/operacao' || rota.caminho.startsWith('/v1/operacao/')
 }
 
 /** C41: as rotas `@OperacaoRoute` sem a `OperadorGuard` no handler resolvido, como `Controller.metodo`. */
-export function rotasDeOperacaoSemGuarda(rotas: readonly RotaRegistrada[]): string[] {
+export function rotasDeOperacaoSemGuarda(rotas: readonly RegisteredRoute[]): string[] {
   return rotas.filter((rota) => rota.marcador === 'rota' && !rota.guardas.includes(OperadorGuard)).map((rota) => `${rota.controlador.name}.${rota.metodo}`)
 }
 
 /** C42: os caminhos `/v1/operacao` sem marcador, e os marcadores fora de `/v1/operacao`, como `VERBO caminho`. */
-export function rotasForaDaCerca(rotas: readonly RotaRegistrada[]): string[] {
+export function rotasForaDaCerca(rotas: readonly RegisteredRoute[]): string[] {
   return rotas.filter((rota) => daOperacao(rota) !== (rota.marcador !== undefined)).map((rota) => `${rota.verbo} ${rota.caminho}`)
 }
 

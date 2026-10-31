@@ -16,12 +16,12 @@ import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { criarMontagemDoArquivo } from '../../worker/src/processors/montar-arquivo.js'
 import { PrivacidadeService } from '../src/privacidade/privacidade.service.js'
 import { instrucaoDoTextoDoModelo } from '../src/privacidade/titulares.repository.js'
-import { subirApi, type ApiDeTeste } from './test-api.js'
+import { subirApi, type TestApi } from './test-api.js'
 import { montarEscolaComTurma, type EscolaComTurma } from './escola-turma.fixture.js'
 import { esperarNaTrava } from './write-block-trigger.js'
-import { MONTAGEM_DE_TESTE } from './test-config.js'
-import { BancadaDeSessoes, type SessaoDeTeste } from './sessao.fixture.js'
-import { execucaoDoJob } from '../../worker/test/job-execution.fixture.js'
+import { TEST_APP_OPTIONS } from './test-config.js'
+import { SessaoFixtures, type TestSessao } from './sessao.fixture.js'
+import { jobExecution } from '../../worker/test/job-execution.fixture.js'
 
 /**
  * O arquivo do titular (F3, tarefa 13.0; `tasks/prd-lgpd-e-titular/cenarios.md`, RF11 a RF13 e RF17): o pedido de acesso gera o
@@ -53,7 +53,7 @@ interface RespostaComCabecalhos {
 }
 
 interface Pessoa {
-  readonly sessao: SessaoDeTeste
+  readonly sessao: TestSessao
   readonly id: string
   readonly nome: string
 }
@@ -65,19 +65,19 @@ interface Semeado {
 }
 
 describe('arquivo do titular (F3, tarefa 13.0): do pedido ao download', () => {
-  const bancada = new BancadaDeSessoes()
+  const bancada = new SessaoFixtures()
   const medidor = new MedidorDeTeste()
   const armazem = new InMemoryFileStorage()
   const relogio: Clock & { atual: Date } = { atual: new Date(), agora: () => relogio.atual }
   const linhasDeLog: string[] = []
-  let api: ApiDeTeste
+  let api: TestApi
 
   beforeAll(async () => {
     api = await subirApi(
       medidor.medidor,
       { ambiente: { LIMITE_REQ_USUARIO_MIN: '1000', LIMITE_REQ_ESCOLA_MIN: '1000' } },
       linhasDeLog,
-      { ...MONTAGEM_DE_TESTE, armazemDeArquivos: armazem, relogioDaPrivacidade: relogio },
+      { ...TEST_APP_OPTIONS, armazemDeArquivos: armazem, relogioDaPrivacidade: relogio },
     )
   })
 
@@ -93,7 +93,7 @@ describe('arquivo do titular (F3, tarefa 13.0): do pedido ao download', () => {
   })
 
   /** Uma chamada com os cabeçalhos da resposta, que o `chamar` do harness não devolve. */
-  async function pedir(sessao: SessaoDeTeste, metodo: string, caminho: string, corpo?: unknown): Promise<RespostaComCabecalhos> {
+  async function pedir(sessao: TestSessao, metodo: string, caminho: string, corpo?: unknown): Promise<RespostaComCabecalhos> {
     const resposta = await fetch(`${api.url}${caminho}`, {
       method: metodo,
       headers: { Authorization: `Bearer ${sessao.token}`, ...(corpo === undefined ? {} : { 'Content-Type': 'application/json' }) },
@@ -103,18 +103,18 @@ describe('arquivo do titular (F3, tarefa 13.0): do pedido ao download', () => {
     return { status: resposta.status, corpo: texto === '' ? {} : (JSON.parse(texto) as Record<string, unknown>), cabecalhos: resposta.headers }
   }
 
-  const registrar = (coordenacao: SessaoDeTeste, titularId: string, extras: Record<string, unknown> = {}) =>
+  const registrar = (coordenacao: TestSessao, titularId: string, extras: Record<string, unknown> = {}) =>
     pedir(coordenacao, 'POST', '/v1/privacidade/pedidos', { titularId, tipo: 'acesso', solicitante: 'titular', chegouEm: HOJE(), chaveEnvio: randomUUID(), ...extras })
-  const arquivoDaEscola = (coordenacao: SessaoDeTeste, pedidoId: string, finalidade = 'entregar_ao_titular') =>
+  const arquivoDaEscola = (coordenacao: TestSessao, pedidoId: string, finalidade = 'entregar_ao_titular') =>
     pedir(coordenacao, 'POST', `/v1/privacidade/pedidos/${pedidoId}/arquivo`, { finalidade })
-  const meusDados = (sessao: SessaoDeTeste) => pedir(sessao, 'GET', '/v1/meus-dados')
-  const baixar = (sessao: SessaoDeTeste, pedidoId: string) => pedir(sessao, 'POST', `/v1/meus-dados/${pedidoId}/baixar`, {})
+  const meusDados = (sessao: TestSessao) => pedir(sessao, 'GET', '/v1/meus-dados')
+  const baixar = (sessao: TestSessao, pedidoId: string) => pedir(sessao, 'POST', `/v1/meus-dados/${pedidoId}/baixar`, {})
 
   /** O job, como o worker o roda: no contexto da escola do pedido, com o armazém e o relógio do teste. */
   async function montar(escolaId: string, pedidoId: string): Promise<void> {
     const processador = criarMontagemDoArquivo({ banco: bancada.banco, armazem, relogio, logger: createLogger({ servico: 'teste', nivel: 'silent' }) })
     const jobId = randomUUID()
-    await runInContext({ requisicaoId: randomUUID(), escolaId }, () => processador({ pedidoId }, execucaoDoJob(jobId)))
+    await runInContext({ requisicaoId: randomUUID(), escolaId }, () => processador({ pedidoId }, jobExecution(jobId)))
   }
 
   /** O JSON que o job gravou para o pedido e a versão, já lido. */
@@ -136,7 +136,7 @@ describe('arquivo do titular (F3, tarefa 13.0): do pedido ao download', () => {
   interface Cenario {
     readonly escola: EscolaComTurma
     readonly escolaId: string
-    readonly coordenacao: SessaoDeTeste
+    readonly coordenacao: TestSessao
   }
 
   async function novaEscola(): Promise<Cenario> {

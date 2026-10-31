@@ -3,9 +3,9 @@ import type { CompartilhamentoRow, PedidoDoTitular, PreviaDoTitularResponse } fr
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it, onTestFinished } from 'vitest'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.js'
-import { chamar, subirApi, type ApiDeTeste } from './test-api.js'
+import { chamar, subirApi, type TestApi } from './test-api.js'
 import { montarEscolaComTurma, type EscolaComTurma } from './escola-turma.fixture.js'
-import { BancadaDeSessoes, type SessaoDeTeste } from './sessao.fixture.js'
+import { SessaoFixtures, type TestSessao } from './sessao.fixture.js'
 
 /**
  * A foto do compartilhamento do titular (F3, RF13; `tasks/prd-lgpd-e-titular/cenarios.md`, RF7 e RF13; Tech Spec do
@@ -30,10 +30,10 @@ const HOJE = (): string => diaDeUso(new Date())
 const ha = (milissegundos: number): Date => new Date(Date.now() - milissegundos)
 
 describe('compartilhamento do titular (F3, tarefa 12.0): o pedido guarda por quais empresas o dado passou', () => {
-  const bancada = new BancadaDeSessoes()
+  const bancada = new SessaoFixtures()
   const medidor = new MedidorDeTeste()
   const linhasDeLog: string[] = []
-  let api: ApiDeTeste
+  let api: TestApi
 
   beforeAll(async () => {
     api = await subirApi(medidor.medidor, { ambiente: { LIMITE_REQ_USUARIO_MIN: '1000', LIMITE_REQ_ESCOLA_MIN: '1000' } }, linhasDeLog)
@@ -141,10 +141,10 @@ describe('compartilhamento do titular (F3, tarefa 12.0): o pedido guarda por qua
     )
   }
 
-  const pedir = (sessao: SessaoDeTeste, metodo: string, caminho: string, corpo?: unknown) => chamar(api.url, metodo, caminho, sessao.token, corpo)
+  const pedir = (sessao: TestSessao, metodo: string, caminho: string, corpo?: unknown) => chamar(api.url, metodo, caminho, sessao.token, corpo)
 
   /** Registra o pedido pela API e devolve o detalhe: é no `POST` que a foto é calculada e gravada. */
-  async function registrarPedido(sessao: SessaoDeTeste, titularId: string): Promise<{ noPost: PedidoDoTitular; noDetalhe: PedidoDoTitular }> {
+  async function registrarPedido(sessao: TestSessao, titularId: string): Promise<{ noPost: PedidoDoTitular; noDetalhe: PedidoDoTitular }> {
     const post = await pedir(sessao, 'POST', '/v1/privacidade/pedidos', { titularId, tipo: 'acesso', solicitante: 'titular', chegouEm: HOJE(), chaveEnvio: randomUUID() })
     if (post.status !== 201) throw new Error(`POST pedidos: ${post.status} ${JSON.stringify(post.corpo)}\n${linhasDeLog.slice(-6).join('\n')}`)
     expect(post.status).toBe(201)
@@ -154,7 +154,7 @@ describe('compartilhamento do titular (F3, tarefa 12.0): o pedido guarda por qua
     return { noPost, noDetalhe: detalhe.corpo as unknown as PedidoDoTitular }
   }
 
-  const previa = async (sessao: SessaoDeTeste, titularId: string): Promise<PreviaDoTitularResponse> => {
+  const previa = async (sessao: TestSessao, titularId: string): Promise<PreviaDoTitularResponse> => {
     const resposta = await pedir(sessao, 'GET', `/v1/privacidade/titulares/${titularId}/previa`)
     expect(resposta.status).toBe(200)
     return resposta.corpo as unknown as PreviaDoTitularResponse

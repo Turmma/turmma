@@ -7,8 +7,8 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { compose, PROCESSOS_DA_FILA } from '../../../tools/testes/compose.ts'
 import { urlDoBancoDeTeste } from '../../../tools/testes/integracao.setup.ts'
 import { criarExpurgoDeJobs } from '../src/processors/expurgar-jobs.js'
-import { BancadaDeFila, LogEmMemoria } from './queue.fixture.js'
-import { execucaoDoJob } from './job-execution.fixture.js'
+import { QueueFixtures, InMemoryLog } from './queue.fixture.js'
+import { jobExecution } from './job-execution.fixture.js'
 
 // `job_registro` do Postgres do compose de teste, com 12.000 jobs vencidos de verdade.
 
@@ -30,12 +30,12 @@ beforeAll(() => {
 })
 
 describe('sistema.expurgar-jobs', () => {
-  let bancada: BancadaDeFila
+  let bancada: QueueFixtures
   // Escolas reais, criadas a cada caso: desde a tarefa 3.0 `job_registro` e
   // `configuracao_operacional_escola` têm FK para `escola`, e id inventado é recusado pelo banco.
   let ESCOLA_A: string
   let ESCOLA_B: string
-  const log = new LogEmMemoria('worker-teste')
+  const log = new InMemoryLog('worker-teste')
   let protegidos: Record<string, string>
 
   /** Roda como o worker roda um job `sistema.*`: no contexto da rotina do sistema. */
@@ -52,7 +52,7 @@ describe('sistema.expurgar-jobs', () => {
       logger: log.logger,
     })
     const jobId = randomUUID()
-    return runInContext({ requisicaoId: randomUUID(), rotinaDoSistema: true }, () => processador({}, execucaoDoJob(jobId)))
+    return runInContext({ requisicaoId: randomUUID(), rotinaDoSistema: true }, () => processador({}, jobExecution(jobId)))
   }
 
   const contar = async (condicao: string): Promise<number> =>
@@ -70,7 +70,7 @@ describe('sistema.expurgar-jobs', () => {
     (await bancada.pool.query<{ id: string }>('select id from job_registro where id = any($1::uuid[])', [Object.values(protegidos)])).rows.length
 
   beforeEach(async () => {
-    bancada = new BancadaDeFila()
+    bancada = new QueueFixtures()
     await bancada.limparRegistro()
     ;[ESCOLA_A, ESCOLA_B] = await Promise.all([bancada.escola(), bancada.escola()])
     log.linhas.length = 0
@@ -250,7 +250,7 @@ describe('sistema.expurgar-jobs', () => {
   it('só a rotina do sistema expurga: um job de escola com esse tipo falha sem apagar nada', async () => {
     const processador = criarExpurgoDeJobs({ repositorio: new ExpurgoDeJobsRepository(bancada.banco), logger: log.logger })
     const jobId = randomUUID()
-    await expect(runInContext({ requisicaoId: randomUUID(), escolaId: ESCOLA_A }, () => processador({}, execucaoDoJob(jobId)))).rejects.toThrow()
+    await expect(runInContext({ requisicaoId: randomUUID(), escolaId: ESCOLA_A }, () => processador({}, jobExecution(jobId)))).rejects.toThrow()
     expect(await vencidosRestantes()).toBe(VENCIDOS)
   })
 })

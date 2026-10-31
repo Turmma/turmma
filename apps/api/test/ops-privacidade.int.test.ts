@@ -2,14 +2,14 @@ import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { lerAmbienteDeTeste } from '../../../tools/ci/compose.ts'
 import { executarOpsPrivacidade } from '../src/ops/privacidade.js'
-import { BancadaDeSessoes } from './sessao.fixture.js'
+import { SessaoFixtures } from './sessao.fixture.js'
 
 /**
  * `ops:privacidade` (F3, tarefa 19.0; RF17, "a operação vê só contagens"): o comando roda de verdade, com o banco de
  * operação que ele mesmo abre, contra o Postgres do compose de teste. Cada escola do teste tem **números diferentes** em
  * cada tabela que o comando conta: sem a cláusula de escopo de uma delas, o número da A passa a ser o da A mais o da B.
  *
- * A montagem da escola e do comando é a de `ops-uso.int.test.ts` (`BancadaDeSessoes`). As sentinelas estão em cada tabela de
+ * A montagem da escola e do comando é a de `ops-uso.int.test.ts` (`SessaoFixtures`). As sentinelas estão em cada tabela de
  * pessoa e de texto que a escola tem (nome, e-mail, matrícula, o texto do incidente e a empresa), e o teste procura todas
  * na saída e no erro de cada caminho do comando, inclusive o que recusa.
  */
@@ -33,7 +33,7 @@ async function rodar(argumentos: string[], operador: string | null = OPERADOR): 
 }
 
 describe('npm run ops:privacidade: só contagens, por escola', () => {
-  const bancada = new BancadaDeSessoes()
+  const bancada = new SessaoFixtures()
   const marca = randomUUID().slice(0, 8)
   const sentinelas = {
     aluno: `Aluno Sentinela ${marca}`,

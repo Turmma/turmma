@@ -18,20 +18,20 @@ import type { Socket } from 'socket.io'
 import { z } from 'zod'
 
 /** O que o servidor guarda no socket. Só a identidade verificada, só ids (regra 20). */
-export interface DadosDoSocket {
+export interface SocketData {
   identidade?: Identity
 }
 
-export type SocketRealtime = Socket<Record<string, never>, Record<string, never>, Record<string, never>, DadosDoSocket>
+export type RealtimeSocket = Socket<Record<string, never>, Record<string, never>, Record<string, never>, SocketData>
 
-export interface ErroDeConexao extends Error {
+export interface ConnectionError extends Error {
   data: { codigo: ErrorCode; mensagem: string }
 }
 
 type CodigoDeRecusaDeConexao = typeof ErrorCode.NAO_AUTENTICADO | typeof ErrorCode.INDISPONIVEL_TENTE_DE_NOVO
 
-function erroDeConexao(codigo: CodigoDeRecusaDeConexao): ErroDeConexao {
-  const erro = new Error(codigo) as ErroDeConexao
+function erroDeConexao(codigo: CodigoDeRecusaDeConexao): ConnectionError {
+  const erro = new Error(codigo) as ConnectionError
   erro.data = { codigo, mensagem: MENSAGENS_DE_ERRO[codigo] }
   return erro
 }
@@ -41,7 +41,7 @@ function erroDeConexao(codigo: CodigoDeRecusaDeConexao): ErroDeConexao {
  * mensagem do catálogo, sem dizer se o token faltou, venceu, tinha assinatura errada ou não tinha
  * sessão gravada.
  */
-export function erroDeConexaoNaoAutenticada(): ErroDeConexao {
+export function unauthenticatedConnectionError(): ConnectionError {
   return erroDeConexao(ErrorCode.NAO_AUTENTICADO)
 }
 
@@ -50,12 +50,12 @@ export function erroDeConexaoNaoAutenticada(): ErroDeConexao {
  * virar "não autenticado", que na web deslogaria a escola inteira no meio da aula. O cliente
  * reconecta com o recuo espalhado de `REALTIME_RECONNECTION` e volta com o mesmo token.
  */
-export function erroDeConexaoIndisponivel(): ErroDeConexao {
+export function unavailableConnectionError(): ConnectionError {
   return erroDeConexao(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO)
 }
 
 // Três partes base64url, com teto de tamanho: nada além disso é lido do pacote de conexão.
-const esquemaAutenticacao = z.object({
+const autenticacaoSchema = z.object({
   token: z
     .string()
     .max(4_096)
@@ -75,7 +75,7 @@ const esquemaAutenticacao = z.object({
  *
  * Nada que o cliente manda além do token entra na identidade. A sala da escola sai daqui.
  */
-export function autenticacaoDoHandshake(config: AuthConfig, leitura: SessaoReader, logger: LoggerBase) {
+export function handshakeAuth(config: AuthConfig, leitura: SessaoReader, logger: LoggerBase) {
   // Com o Postgres fora, a escola inteira reconecta ao mesmo tempo e todo handshake falharia aqui: uma linha a
   // cada 30 s diz o mesmo que mil (regra 80). O erro que vale, o resumo, sai nessa linha.
   let ultimoErro: unknown
@@ -83,9 +83,9 @@ export function autenticacaoDoHandshake(config: AuthConfig, leitura: SessaoReade
     logger.warn({ evento: 'realtime.sessao_indisponivel', erro: summarizeError(ultimoErro) })
     ultimoErro = undefined
   })
-  return (socket: SocketRealtime, proximo: (erro?: Error) => void): void => {
+  return (socket: RealtimeSocket, proximo: (erro?: Error) => void): void => {
     void runInContext({ requisicaoId: randomUUID() }, async () => {
-      const autenticacao = esquemaAutenticacao.safeParse(socket.handshake.auth)
+      const autenticacao = autenticacaoSchema.safeParse(socket.handshake.auth)
       try {
         if (!autenticacao.success) throw new DomainException(ErrorCode.NAO_AUTENTICADO)
         const token = await verifyToken(autenticacao.data.token, config)
@@ -98,7 +98,7 @@ export function autenticacaoDoHandshake(config: AuthConfig, leitura: SessaoReade
           ultimoErro = erro
           avisarIndisponivel()
           socket.handshake.auth = {}
-          proximo(erroDeConexaoIndisponivel())
+          proximo(unavailableConnectionError())
           return
         }
         const sessao = avaliarSessao(token, linha)
@@ -118,7 +118,7 @@ export function autenticacaoDoHandshake(config: AuthConfig, leitura: SessaoReade
           logger.error({ evento: 'realtime.conexao_falhou', erro })
         }
         socket.handshake.auth = {}
-        proximo(erroDeConexaoNaoAutenticada())
+        proximo(unauthenticatedConnectionError())
         return
       }
       logger.info({ evento: 'realtime.conexao_aceita' })

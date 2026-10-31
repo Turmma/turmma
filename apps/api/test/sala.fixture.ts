@@ -4,10 +4,10 @@ import { randomUUID } from 'node:crypto'
 import { expect } from 'vitest'
 import { SalaRateLimits, type NomePeloAcesso } from '../src/sala/sala-rate-limits.js'
 import { REDIS_LOGIN_CLIENT } from '../src/credencial/index.js'
-import { chamar, type ApiDeTeste } from './test-api.js'
+import { chamar, type TestApi } from './test-api.js'
 import { montarEscolaComTurma, type EscolaComTurma } from './escola-turma.fixture.js'
 import { ipSorteado } from './operador-mfa.fixture.js'
-import type { BancadaDeSessoes, SessaoDeTeste } from './sessao.fixture.js'
+import type { SessaoFixtures, TestSessao } from './sessao.fixture.js'
 
 /**
  * A montagem da página pública da sala nos testes dos limites (A1, tarefa 7.0): a escola com o professor confirmado nas
@@ -27,10 +27,10 @@ export interface NomeDaLista {
 }
 
 /** Uma escola com o professor confirmado nas duas turmas e o acesso vigente da `turma`. */
-export interface SalaDeTeste extends EscolaComTurma {
+export interface TestSala extends EscolaComTurma {
   readonly escolaId: string
   readonly slug: string
-  readonly professor: SessaoDeTeste
+  readonly professor: TestSessao
   readonly token: string
   readonly codigo: string
 }
@@ -43,7 +43,7 @@ export interface RespostaDaSala {
   readonly setCookie: string[]
 }
 
-export interface OpcoesDoPedido {
+export interface SalaRequestOptions {
   readonly url?: string
   readonly ip?: string
   readonly cabecalhos?: Record<string, string>
@@ -61,12 +61,12 @@ export interface ContadoresDaSala {
 
 export class FerramentasDaSala {
   constructor(
-    private readonly api: ApiDeTeste,
-    private readonly bancada: BancadaDeSessoes,
+    private readonly api: TestApi,
+    private readonly bancada: SessaoFixtures,
   ) {}
 
   /** `POST /v1/salas/<rota>` sem token, como a página pública, de um IP sorteado (ou do dado). */
-  async chamarSala(rota: 'abrir' | 'reivindicar', corpo: unknown, { url = this.api.url, ip = ipSorteado(), cabecalhos = {} }: OpcoesDoPedido = {}): Promise<RespostaDaSala> {
+  async chamarSala(rota: 'abrir' | 'reivindicar', corpo: unknown, { url = this.api.url, ip = ipSorteado(), cabecalhos = {} }: SalaRequestOptions = {}): Promise<RespostaDaSala> {
     const resposta = await fetch(`${url}/v1/salas/${rota}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Forwarded-For': ip, ...cabecalhos },
@@ -75,23 +75,23 @@ export class FerramentasDaSala {
     return { status: resposta.status, texto: await resposta.text(), retryAfter: resposta.headers.get('retry-after'), setCookie: resposta.headers.getSetCookie() }
   }
 
-  reivindicar(corpo: unknown, opcoes: OpcoesDoPedido = {}): Promise<RespostaDaSala> {
+  reivindicar(corpo: unknown, opcoes: SalaRequestOptions = {}): Promise<RespostaDaSala> {
     return this.chamarSala('reivindicar', corpo, opcoes)
   }
 
-  abrir(corpo: unknown, opcoes: OpcoesDoPedido = {}): Promise<RespostaDaSala> {
+  abrir(corpo: unknown, opcoes: SalaRequestOptions = {}): Promise<RespostaDaSala> {
     return this.chamarSala('abrir', corpo, opcoes)
   }
 
   /** O professor gera o acesso da turma: o link e o código novos, e o anterior revogado ("Gerar novo"). */
-  async gerar(sala: Pick<SalaDeTeste, 'professor'>, turmaId: string): Promise<{ token: string; codigo: string }> {
+  async gerar(sala: Pick<TestSala, 'professor'>, turmaId: string): Promise<{ token: string; codigo: string }> {
     const gerado = await chamar(this.api.url, 'POST', `/v1/turmas/${turmaId}/acesso`, sala.professor.token, { validadeDias: 7 })
     expect(gerado.status).toBe(201)
     const { token, codigo } = acessoGeradoResponseSchema.parse(gerado.corpo)
     return { token, codigo }
   }
 
-  async montar(): Promise<SalaDeTeste> {
+  async montar(): Promise<TestSala> {
     const escola = await montarEscolaComTurma(this.api, this.bancada)
     const escolaId = escola.coordenacao.escolaId
     const professor = await this.bancada.sessao(escolaId, 'professor')
@@ -105,7 +105,7 @@ export class FerramentasDaSala {
   }
 
   /** Grava `quantos` nomes na lista da turma pela coordenação, com nomes e matrículas gerados, e os devolve. */
-  async nomes(sala: SalaDeTeste, turmaId: string, quantos: number): Promise<NomeDaLista[]> {
+  async nomes(sala: TestSala, turmaId: string, quantos: number): Promise<NomeDaLista[]> {
     const sufixo = randomUUID().slice(0, 8)
     const linhas = Array.from({ length: quantos }, (_, posicao) => ({ nome: `Aluno ${String(posicao + 1)} ${sufixo}`, matricula: `sala-${sufixo}-${String(posicao + 1)}` }))
     const gravada = await chamar(this.api.url, 'POST', `/v1/turmas/${turmaId}/lista`, sala.coordenacao.token, { texto: linhas.map((linha) => `${linha.nome};${linha.matricula}`).join('\n') })
@@ -118,7 +118,7 @@ export class FerramentasDaSala {
     })
   }
 
-  async umNome(sala: SalaDeTeste, turmaId = sala.turma): Promise<NomeDaLista> {
+  async umNome(sala: TestSala, turmaId = sala.turma): Promise<NomeDaLista> {
     const [nome] = await this.nomes(sala, turmaId, 1)
     if (nome === undefined) throw new Error('nome não gravado')
     return nome
@@ -133,7 +133,7 @@ export class FerramentasDaSala {
   }
 
   /** Os contadores da escola, da turma e do nome (pelo acesso vigente da turma), no Redis de fila; 0 quando a chave não existe. */
-  async contadores(sala: Pick<SalaDeTeste, 'escolaId'>, turmaId: string, nome?: NomePeloAcesso): Promise<ContadoresDaSala> {
+  async contadores(sala: Pick<TestSala, 'escolaId'>, turmaId: string, nome?: NomePeloAcesso): Promise<ContadoresDaSala> {
     const limites = this.api.app.get(SalaRateLimits)
     const ler = async (chave: string) => Number((await this.redis().get(chave)) ?? 0)
     return {
@@ -155,7 +155,7 @@ export class FerramentasDaSala {
 
 /** O corpo do pedido pelo código (ou pelo link) da sala, com o nome e a matrícula dele e uma chave nova. */
 export function pedidoDaSala(
-  sala: Pick<SalaDeTeste, 'slug' | 'codigo' | 'token'>,
+  sala: Pick<TestSala, 'slug' | 'codigo' | 'token'>,
   nome: Pick<NomeDaLista, 'id' | 'matricula'>,
   extra: Record<string, unknown> = {},
   caminho: 'codigo' | 'token' = 'codigo',

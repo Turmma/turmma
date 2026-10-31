@@ -4,8 +4,8 @@ import pg from 'pg'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { urlDoBancoDeTeste } from '../../../tools/testes/integracao.setup.ts'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
-import { chamar, subirApi, type ApiDeTeste, type RespostaHttp } from './test-api.js'
-import { BancadaDeSessoes, type SessaoDeTeste } from './sessao.fixture.js'
+import { chamar, subirApi, type TestApi, type RespostaHttp } from './test-api.js'
+import { SessaoFixtures, type TestSessao } from './sessao.fixture.js'
 
 /**
  * Isolamento da estrutura (regra 10, itens 3 a 6; Tech Spec, seção 6): a coordenação de A não lê, não escreve e não
@@ -13,12 +13,12 @@ import { BancadaDeSessoes, type SessaoDeTeste } from './sessao.fixture.js'
  * saísse do repository.
  */
 describe('estrutura: isolamento entre escolas', () => {
-  const bancada = new BancadaDeSessoes()
+  const bancada = new SessaoFixtures()
   const medidor = new MedidorDeTeste()
-  let api: ApiDeTeste
+  let api: TestApi
 
   interface EscolaMontada {
-    readonly coordenacao: SessaoDeTeste
+    readonly coordenacao: TestSessao
     readonly emCurso: string
     readonly planejado: string
     readonly serie: string
@@ -29,8 +29,8 @@ describe('estrutura: isolamento entre escolas', () => {
   let a: EscolaMontada
   let b: EscolaMontada
 
-  const post = (sessao: SessaoDeTeste, caminho: string, corpo?: unknown): Promise<RespostaHttp> => chamar(api.url, 'POST', caminho, sessao.token, corpo)
-  const get = (sessao: SessaoDeTeste, caminho: string): Promise<RespostaHttp> => chamar(api.url, 'GET', caminho, sessao.token)
+  const post = (sessao: TestSessao, caminho: string, corpo?: unknown): Promise<RespostaHttp> => chamar(api.url, 'POST', caminho, sessao.token, corpo)
+  const get = (sessao: TestSessao, caminho: string): Promise<RespostaHttp> => chamar(api.url, 'GET', caminho, sessao.token)
 
   async function criado(resposta: Promise<RespostaHttp>, status = 201): Promise<string> {
     const lida = await resposta

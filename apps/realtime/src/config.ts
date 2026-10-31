@@ -22,7 +22,7 @@ const envSchema = z.object({
   REALTIME_STREAM_TAMANHO_MAXIMO: inteiroPositivo,
 })
 
-export interface ConfiguracaoRealtime {
+export interface RealtimeConfig {
   porta: number
   redis: {
     url: string
@@ -53,7 +53,7 @@ function tentar<T>(ler: () => T): Leitura<T> {
  * gravada, e sem Postgres o realtime não autentica ninguém. Não sobe com variável faltando ou
  * inválida, e todos os problemas saem de uma vez, só pelo nome da variável.
  */
-export function lerConfiguracao(ambiente: Record<string, string | undefined>): ConfiguracaoRealtime {
+export function loadConfig(ambiente: Record<string, string | undefined>): RealtimeConfig {
   const realtime = tentar(() => validateEnvironment(envSchema, ambiente))
   const identidade = tentar(() => loadAuthConfig(ambiente))
   const banco = tentar(() => loadDatabaseConfig(ambiente))

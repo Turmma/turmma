@@ -2,7 +2,7 @@ import { createLogger, METRICS, type JanelaLetiva, type FailedJobsMeasurement, t
 import type { QueueName } from '@educa/shared'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
-import { esperaDoMaisAntigo, MedicaoDaFila, RETENCAO_DA_SERIE_ZERADA_MS } from './queue-gauge.js'
+import { esperaDoMaisAntigo, QueueGauge, RETENCAO_DA_SERIE_ZERADA_MS } from './queue-gauge.js'
 
 const JANELA: JanelaLetiva = { fuso: 'America/Sao_Paulo', diasLetivos: [1, 2, 3, 4, 5], inicio: '07:00', fim: '18:00' }
 const TERCA_10H = new Date('2026-09-15T10:00:00-03:00')
@@ -56,7 +56,7 @@ describe('MedicaoDaFila', () => {
   let vagas: Map<string, number> | Error
   let agoraMs: number
   let relogio: Date
-  let medicaoDaFila: MedicaoDaFila
+  let medicaoDaFila: QueueGauge
 
   beforeEach(() => {
     medidor = new MedidorDeTeste()
@@ -65,7 +65,7 @@ describe('MedicaoDaFila', () => {
     vagas = new Map()
     agoraMs = 0
     relogio = TERCA_10H
-    medicaoDaFila = new MedicaoDaFila(
+    medicaoDaFila = new QueueGauge(
       {
         repositorio: {
           medirPendentes: () => (medicoes instanceof Error ? Promise.reject(medicoes) : Promise.resolve(medicoes)),
@@ -191,7 +191,7 @@ describe('MedicaoDaFila', () => {
 
   it('falhos: a consulta dos falhos que falha deixa o aviso `despachante.medicao_indisponivel` no log, porque o alerta volta a normal sem a série', async () => {
     const linhas: string[] = []
-    const comLog = new MedicaoDaFila({
+    const comLog = new QueueGauge({
       repositorio: { medirPendentes: () => Promise.resolve([]), medirFalhos: () => Promise.reject(new Error('canceling statement due to statement timeout')) },
       vagas: { emUso: () => Promise.resolve(0) },
       janelaDaEscola: { daEscola: () => Promise.resolve(JANELA) },
@@ -230,7 +230,7 @@ describe('MedicaoDaFila', () => {
       // A escola B não tem aula às terças.
       [ESCOLA_B, { ...JANELA, diasLetivos: [1, 3, 5] }],
     ])
-    const outra = new MedicaoDaFila({
+    const outra = new QueueGauge({
       repositorio: { medirPendentes: () => Promise.resolve(medicoes as PendingJobsMeasurement[]), medirFalhos: () => Promise.resolve([]) },
       vagas: { emUso: () => Promise.resolve(0) },
       janelaDaEscola: {

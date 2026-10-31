@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { InvalidConfigError, lerConfiguracao } from './config.js'
+import { InvalidConfigError, loadConfig } from './config.js'
 
 const ambienteValido = {
   REALTIME_PORTA: '3000',
@@ -19,7 +19,7 @@ const ambienteValido = {
 
 function erroDe(ambiente: Record<string, string | undefined>): InvalidConfigError {
   try {
-    lerConfiguracao(ambiente)
+    loadConfig(ambiente)
   } catch (erro) {
     if (erro instanceof InvalidConfigError) return erro
     throw erro
@@ -29,7 +29,7 @@ function erroDe(ambiente: Record<string, string | undefined>): InvalidConfigErro
 
 describe('lerConfiguracao do realtime', () => {
   it('converte o ambiente em configuração tipada', () => {
-    expect(lerConfiguracao(ambienteValido)).toEqual({
+    expect(loadConfig(ambienteValido)).toEqual({
       porta: 3000,
       redis: { url: 'redis://redis-fila:6379', tamanhoMaximoDoStream: 10000 },
       identidade: {

@@ -28,7 +28,7 @@ export const INTERVALO_MEDICAO_DA_FILA_MS = 5_000
  */
 export const RETENCAO_DA_SERIE_ZERADA_MS = 10 * 60_000
 
-export interface DependenciasDaMedicao {
+export interface QueueGaugeDependencies {
   repositorio: Pick<DispatchRepository, 'medirPendentes' | 'medirFalhos'>
   vagas: Pick<EscolaConcurrencyLimiter, 'emUso'>
   /** Horário letivo da escola do contexto: o não urgente segurado nele não conta como espera (10.0). */
@@ -38,14 +38,14 @@ export interface DependenciasDaMedicao {
   medidor: Meter
 }
 
-export interface OpcoesDaMedicao {
+export interface QueueGaugeOptions {
   intervaloMs?: number
   /** Relógio monotônico da retenção da série zerada. Só o teste troca. */
   agoraMs?: () => number
 }
 
 /** O que a medição exporta de uma fila numa escola. */
-export interface SerieDaFila {
+export interface QueueSeries {
   fila: QueueName
   escolaId: string | null
   /** Segundos; `undefined` se nenhum job está esperando de fato (só ativos, ou só não urgentes segurados). */
@@ -93,10 +93,10 @@ export function esperaDoMaisAntigo(medicao: PendingJobsMeasurement, janela: { ja
  * Com o Postgres fora, a medição anterior sai da exportação: melhor sem dado que com uma espera parada no
  * tempo. Os dois despachantes exportam a mesma medição, cada um com a sua instância; o painel usa `max`.
  */
-export class MedicaoDaFila {
+export class QueueGauge {
   readonly #intervaloMs: number
   readonly #agoraMs: () => number
-  readonly #series = new Map<string, SerieDaFila & { vistaEmMs: number }>()
+  readonly #series = new Map<string, QueueSeries & { vistaEmMs: number }>()
   #falhos: FailedJobsMeasurement[] = []
   readonly #avisarFalha: (erro: unknown) => void
   readonly #observar: Parameters<Meter['addBatchObservableCallback']>[0]
@@ -106,8 +106,8 @@ export class MedicaoDaFila {
   #encerrarEspera: (() => void) | undefined
 
   constructor(
-    private readonly dependencias: DependenciasDaMedicao,
-    opcoes: OpcoesDaMedicao = {},
+    private readonly dependencias: QueueGaugeDependencies,
+    opcoes: QueueGaugeOptions = {},
   ) {
     this.#intervaloMs = opcoes.intervaloMs ?? INTERVALO_MEDICAO_DA_FILA_MS
     this.#agoraMs = opcoes.agoraMs ?? (() => performance.now())
@@ -136,7 +136,7 @@ export class MedicaoDaFila {
   }
 
   /** As séries da última medição, como a exportação as lê. */
-  series(): SerieDaFila[] {
+  series(): QueueSeries[] {
     return [...this.#series.values()].map(({ vistaEmMs: _vistaEmMs, ...serie }) => serie)
   }
 

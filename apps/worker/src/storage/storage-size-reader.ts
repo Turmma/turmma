@@ -1,7 +1,7 @@
 import { ListObjectsV2Command, S3Client } from '@aws-sdk/client-s3'
 import { currentContext, Unscoped } from '@educa/core'
 import { InvariantException } from '@educa/shared'
-import type { ConfiguracaoStorage } from '../config.js'
+import type { StorageConfig } from '../config.js'
 
 /** Onde todo arquivo de escola mora no storage: `escolas/{escolaId}/...`. */
 export const PREFIXO_DAS_ESCOLAS = 'escolas/'
@@ -24,7 +24,7 @@ export function prefixoDaEscola(escolaId: string): string {
  * Cliente S3 puro (regra 00, item 7): endereço por caminho, que qualquer storage compatível atende, e
  * prazos de conexão e de requisição.
  */
-export function criarClienteS3(config: ConfiguracaoStorage): S3Client {
+export function criarClienteS3(config: StorageConfig): S3Client {
   return new S3Client({
     endpoint: config.url,
     region: config.regiao,
@@ -39,7 +39,7 @@ export function criarClienteS3(config: ConfiguracaoStorage): S3Client {
  * Mede quanto cada escola guarda no storage, só listando: nenhum objeto é lido, e nenhum nome de
  * arquivo sai daqui, só a soma dos tamanhos.
  */
-export class MedidorDeStorage {
+export class StorageSizeReader {
   constructor(
     private readonly s3: Pick<S3Client, 'send'>,
     private readonly bucket: string,

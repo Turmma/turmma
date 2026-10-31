@@ -2,7 +2,7 @@ import { DomainException, runInContext } from '@educa/core'
 import { ErrorCode } from '@educa/shared'
 import { createHash, randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { BancadaDeSessoes } from '../../../test/sessao.fixture.js'
+import { SessaoFixtures } from '../../../test/sessao.fixture.js'
 import { ConviteRepository } from './convite.repository.js'
 
 interface EstadoDoConvite {
@@ -14,7 +14,7 @@ interface EstadoDoConvite {
 }
 
 describe('ConviteRepository: o convite e o usuário convidado só na escola do contexto', () => {
-  const bancada = new BancadaDeSessoes()
+  const bancada = new SessaoFixtures()
   let escolaA: string
   let escolaB: string
 

@@ -2,10 +2,10 @@ import { createDatabase, createPool, type Database, type DatabasePool } from '@e
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { urlDoBancoDeTeste } from '../../../tools/testes/integracao.setup.ts'
 import { consultarUso } from '../src/ops/uso.js'
-import { autorDaBancada, BancadaDeSessoes } from './sessao.fixture.js'
+import { autorDaBancada, SessaoFixtures } from './sessao.fixture.js'
 
 describe('npm run ops:uso: consulta de uso por escola no dia e no mês', () => {
-  const bancada = new BancadaDeSessoes()
+  const bancada = new SessaoFixtures()
   let pool: DatabasePool
   let banco: Database
   // Escolas reais: desde a tarefa 3.0 `uso_infra_diario` tem FK para `escola`.

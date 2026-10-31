@@ -17,9 +17,9 @@ import { OPERADOR_DEVICE_COOKIE, operadorDeviceCookie } from '../src/operacao/op
 import { PREFIXO_DO_CONTADOR_DA_OPERACAO } from '../src/operacao/entrada/entrada.service.js'
 import { gerarConviteDeOperador } from '../src/ops/operador.js'
 import { REDIS_LOGIN_CLIENT, LoginLockout, DEVICE_COOKIE, DeviceCookie, PasswordHasher, HashBulkhead } from '../src/credencial/index.js'
-import { configuracaoDeTeste, MONTAGEM_DE_TESTE } from './test-config.js'
-import { BancadaDeOperadores } from './operador-session.fixture.js'
-import { BancadaDeSessoes } from './sessao.fixture.js'
+import { testConfig, TEST_APP_OPTIONS } from './test-config.js'
+import { OperadorFixtures } from './operador-session.fixture.js'
+import { SessaoFixtures } from './sessao.fixture.js'
 
 const SENHA = 'senha-do-operador-sintetica-1'
 const SENHA_ERRADA = 'senha-do-operador-errada-9'
@@ -81,7 +81,7 @@ const ipSorteado = () => `10.${[...randomBytes(3)].join('.')}`
 
 async function subir(config: ApiConfig, opcoes: { medidor?: MedidorDeTeste; linhasDeLog?: string[] } = {}): Promise<{ app: INestApplication; url: string }> {
   const medidor = opcoes.medidor?.medidor
-  const app = await NestFactory.create(AppModule.forRoot(config, { ...MONTAGEM_DE_TESTE, ...(medidor === undefined ? {} : { medidor }) }), { logger: false })
+  const app = await NestFactory.create(AppModule.forRoot(config, { ...TEST_APP_OPTIONS, ...(medidor === undefined ? {} : { medidor }) }), { logger: false })
   const linhas = opcoes.linhasDeLog
   const logger = linhas === undefined ? createLogger({ servico: 'api-teste', nivel: 'silent' }) : createLogger({ servico: 'api-teste', nivel: 'trace', destino: { write: (linha: string) => linhas.push(linha) } })
   configureApp(app, logger, medidor)
@@ -96,7 +96,7 @@ interface OperadorComSenha {
 }
 
 /** O que os dois `describe` precisam para criar operador com senha: a API, o banco da app e o autor dos comandos. */
-function preparadorDeOperadores(operadores: BancadaDeOperadores, contexto: () => { url: string; banco: Database; autor: string }) {
+function preparadorDeOperadores(operadores: OperadorFixtures, contexto: () => { url: string; banco: Database; autor: string }) {
   return async function operadorComSenha(): Promise<OperadorComSenha> {
     const { url, banco, autor } = contexto()
     const { operadorId, apelido } = await operadores.operador()
@@ -108,11 +108,11 @@ function preparadorDeOperadores(operadores: BancadaDeOperadores, contexto: () =>
 }
 
 describe('POST /v1/operacao/sessao/email: o operador entra por e-mail e senha (tarefa 6.0)', () => {
-  const operadores = new BancadaDeOperadores()
-  const escolas = new BancadaDeSessoes()
+  const operadores = new OperadorFixtures()
+  const escolas = new SessaoFixtures()
   const medidor = new MedidorDeTeste()
   const linhasDeLog: string[] = []
-  const config = configuracaoDeTeste({ ambiente: { LIMITE_PROXIES_CONFIAVEIS: '127.0.0.1' } })
+  const config = testConfig({ ambiente: { LIMITE_PROXIES_CONFIAVEIS: '127.0.0.1' } })
   let app: INestApplication
   let url: string
   let banco: Database
@@ -410,8 +410,8 @@ describe('POST /v1/operacao/sessao/email: o operador entra por e-mail e senha (t
 
 describe('POST /v1/operacao/sessao/email: o limite por IP rebaixa, e quem recusa é o contador da conta (C33, parte)', () => {
   const LIMITE_POR_IP = 5
-  const operadores = new BancadaDeOperadores()
-  const config = configuracaoDeTeste({ ambiente: { LIMITE_REQ_IP_ANONIMO_MIN: String(LIMITE_POR_IP), LIMITE_PROXIES_CONFIAVEIS: '127.0.0.1' } })
+  const operadores = new OperadorFixtures()
+  const config = testConfig({ ambiente: { LIMITE_REQ_IP_ANONIMO_MIN: String(LIMITE_POR_IP), LIMITE_PROXIES_CONFIAVEIS: '127.0.0.1' } })
   let app: INestApplication
   let url: string
   let banco: Database

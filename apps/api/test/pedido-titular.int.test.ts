@@ -14,12 +14,12 @@ import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { PrivacidadeService } from '../src/privacidade/privacidade.service.js'
 import { TitularesRepository } from '../src/privacidade/titulares.repository.js'
 import { ChallengeIssuer } from '../src/credencial/index.js'
-import { chamar, subirApi, type ApiDeTeste, type RespostaHttp } from './test-api.js'
-import { CapturaDeDadoPessoal } from './personal-data-capture.js'
+import { chamar, subirApi, type TestApi, type RespostaHttp } from './test-api.js'
+import { PersonalDataCapture } from './personal-data-capture.js'
 import { alunosNaTurma, montarEscolaComTurma, type EscolaComTurma } from './escola-turma.fixture.js'
-import { esperarNaTrava, GatilhoDeParada } from './write-block-trigger.js'
-import { FerramentasDaSala, pedidoDaSala, type SalaDeTeste } from './sala.fixture.js'
-import { BancadaDeSessoes, type SessaoDeTeste } from './sessao.fixture.js'
+import { esperarNaTrava, WriteBlockTrigger } from './write-block-trigger.js'
+import { FerramentasDaSala, pedidoDaSala, type TestSala } from './sala.fixture.js'
+import { SessaoFixtures, type TestSessao } from './sessao.fixture.js'
 
 /**
  * O pedido do titular (F3, tarefa 11.0; `tasks/prd-lgpd-e-titular/cenarios.md`, RF10, RF13b, RF16, RF17 e as
@@ -72,10 +72,10 @@ interface Escola extends EscolaComTurma {
 }
 
 describe('pedido do titular (F3, tarefa 11.0): busca, prévia, registro, lista, detalhe, concluir e corrigir nome', () => {
-  const bancada = new BancadaDeSessoes()
+  const bancada = new SessaoFixtures()
   const medidor = new MedidorDeTeste()
   const linhasDeLog: string[] = []
-  let api: ApiDeTeste
+  let api: TestApi
   let ferramentas: FerramentasDaSala
 
   beforeAll(async () => {
@@ -89,15 +89,15 @@ describe('pedido do titular (F3, tarefa 11.0): busca, prévia, registro, lista, 
     await medidor.encerrar()
   })
 
-  const pedir = (sessao: SessaoDeTeste, metodo: string, caminho: string, corpo?: unknown) => chamar(api.url, metodo, caminho, sessao.token, corpo)
-  const buscar = (sessao: SessaoDeTeste, termo: string) => pedir(sessao, 'POST', '/v1/privacidade/titulares/busca', { termo })
-  const previa = (sessao: SessaoDeTeste, titularId: string) => pedir(sessao, 'GET', `/v1/privacidade/titulares/${titularId}/previa`)
-  const registrar = (sessao: SessaoDeTeste, titularId: string, extras: Record<string, unknown> = {}) =>
+  const pedir = (sessao: TestSessao, metodo: string, caminho: string, corpo?: unknown) => chamar(api.url, metodo, caminho, sessao.token, corpo)
+  const buscar = (sessao: TestSessao, termo: string) => pedir(sessao, 'POST', '/v1/privacidade/titulares/busca', { termo })
+  const previa = (sessao: TestSessao, titularId: string) => pedir(sessao, 'GET', `/v1/privacidade/titulares/${titularId}/previa`)
+  const registrar = (sessao: TestSessao, titularId: string, extras: Record<string, unknown> = {}) =>
     pedir(sessao, 'POST', '/v1/privacidade/pedidos', { titularId, tipo: 'acesso', solicitante: 'titular', chegouEm: HOJE(), chaveEnvio: randomUUID(), ...extras })
-  const listar = (sessao: SessaoDeTeste, consulta = '') => pedir(sessao, 'GET', `/v1/privacidade/pedidos${consulta}`)
-  const ler = (sessao: SessaoDeTeste, id: string) => pedir(sessao, 'GET', `/v1/privacidade/pedidos/${id}`)
-  const concluir = (sessao: SessaoDeTeste, id: string) => pedir(sessao, 'POST', `/v1/privacidade/pedidos/${id}/concluir`, {})
-  const corrigir = (sessao: SessaoDeTeste, id: string, novo: string) => pedir(sessao, 'POST', `/v1/privacidade/pedidos/${id}/corrigir-nome`, { nome: novo })
+  const listar = (sessao: TestSessao, consulta = '') => pedir(sessao, 'GET', `/v1/privacidade/pedidos${consulta}`)
+  const ler = (sessao: TestSessao, id: string) => pedir(sessao, 'GET', `/v1/privacidade/pedidos/${id}`)
+  const concluir = (sessao: TestSessao, id: string) => pedir(sessao, 'POST', `/v1/privacidade/pedidos/${id}/concluir`, {})
+  const corrigir = (sessao: TestSessao, id: string, novo: string) => pedir(sessao, 'POST', `/v1/privacidade/pedidos/${id}/corrigir-nome`, { nome: novo })
 
   /** Os usuários dos ids, com nome gerado e gravado (o seed sintético deixa o mesmo nome para todos). */
   async function comNome(usuarioIds: readonly string[], quem: string): Promise<Pessoa[]> {
@@ -410,7 +410,7 @@ describe('pedido do titular (F3, tarefa 11.0): busca, prévia, registro, lista, 
       expect(criado.status).toBe(201)
       const id = criado.corpo['id'] as string
       const sentinela = `sentinela-${randomUUID()}`
-      const captura = new CapturaDeDadoPessoal(linhasDeLog)
+      const captura = new PersonalDataCapture(linhasDeLog)
       const longo = `${sentinela} ${'x'.repeat(201)}`
       expect(resposta(await captura.capturar(corrigir(a.coordenacao, id, longo)))).toEqual(resposta(ENTRADA_INVALIDA))
       expect(resposta(await captura.capturar(pedir(a.coordenacao, 'POST', `/v1/privacidade/pedidos/${id}/corrigir-nome`, { nome: sentinela, titularId: aluno.id })))).toEqual(resposta(ENTRADA_INVALIDA))
@@ -583,7 +583,7 @@ describe('pedido do titular (F3, tarefa 11.0): busca, prévia, registro, lista, 
       expect(JSON.stringify(await auditoriasDa(a.escolaId, 'titular.buscado'))).not.toContain(termo)
 
       // O termo não vai ao log nem às outras respostas (RF17): ele só vai ao corpo do pedido de busca.
-      const captura = new CapturaDeDadoPessoal(linhasDeLog)
+      const captura = new PersonalDataCapture(linhasDeLog)
       expect((await buscar(a.coordenacao, termo)).status).toBe(200)
       await captura.capturar(ler(a.coordenacao, randomUUID()))
       captura.varrerTudo([termo])
@@ -638,7 +638,7 @@ describe('pedido do titular (F3, tarefa 11.0): busca, prévia, registro, lista, 
       const a = await escolaComPessoas()
       const aluno = a.alunos[0]
       if (aluno === undefined) throw new Error('aluno de teste não criado')
-      const captura = new CapturaDeDadoPessoal(linhasDeLog)
+      const captura = new PersonalDataCapture(linhasDeLog)
 
       // O nome aparece para quem tem o direito de vê-lo: é o que torna a varredura do log não vazia.
       const achados = await buscar(a.coordenacao, termoDe(aluno.nome))
@@ -972,7 +972,7 @@ describe('pedido do titular (F3, tarefa 11.0): busca, prévia, registro, lista, 
 
   describe('aluno só na lista de nomes: a busca não o acha, e ele é atendido pela lista da turma', () => {
     it('a busca não acha o nome livre nem o reivindicado, e o reivindicado passa por decidir e retirar com as duas auditorias', async () => {
-      const sala: SalaDeTeste = await ferramentas.montar()
+      const sala: TestSala = await ferramentas.montar()
       const [livre, reivindicado] = await ferramentas.nomes(sala, sala.turma, 2)
       if (livre === undefined || reivindicado === undefined) throw new Error('nome da lista não gravado')
 
@@ -1262,7 +1262,7 @@ describe('pedido do titular (F3, tarefa 11.0): busca, prévia, registro, lista, 
       const id = criado.corpo['id'] as string
 
       // A ordem é forçada: a primeira chamada para depois do `update`, dentro da transação, e a segunda espera na trava dela.
-      const gatilho = new GatilhoDeParada(bancada.pool, { tabela: 'pedido_titular', evento: 'update', quando: `new.id = '${id}'::uuid` })
+      const gatilho = new WriteBlockTrigger(bancada.pool, { tabela: 'pedido_titular', evento: 'update', quando: `new.id = '${id}'::uuid` })
       await gatilho.armar()
       let primeira: RespostaHttp | undefined
       let segunda: RespostaHttp | undefined
