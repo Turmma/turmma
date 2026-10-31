@@ -34,7 +34,10 @@
 // "Alterado" é o caso cujas linhas o diff tocou, e não todo caso do arquivo: quem altera um caso do `material.spec.ts` não
 // herda os casos lentos que já estavam lá (cada um tem a sua correção). O caso vai da linha do `test(` até a linha antes
 // do `test(` seguinte; linha alterada antes do primeiro caso (importação, ajudante do alto do arquivo) não é de caso
-// nenhum. Arquivo novo, ainda fora do git, tem todos os casos alterados.
+// nenhum. Arquivo novo, ainda fora do git, tem todos os casos alterados. A exceção é o caso cujo trecho sem comentário (do título
+// ao próximo `test(`, com o gancho que vier depois dele) é igual ao do HEAD, no mesmo arquivo e com o mesmo título: trocar só um
+// comentário não faz o caso crescer, e o `restos` da onda de nomes cobra a troca (`2026-10-31-duracao-do-e2e-so-comentario`).
+// Título de modelo (`${}`), título repetido no spec e título novo continuam alterados.
 import { execFileSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -258,6 +261,13 @@ export interface CasoDoSpec {
   titulo: string
   prazoMs: number
   corpo: string
+  /**
+   * Tudo do fim do título até o próximo `test(`, sem comentário e sem as pontas em branco: é o trecho que `casosAlterados` atribui ao caso,
+   * e por isso inclui o que o `corpo` corta em `FIM_DE_CASO` (um `test.beforeEach` ou um `test.use` depois do caso).
+   * No último caso, vai até o fim do arquivo, com o `})` do `describe` e o que vier depois: mexer ali põe o caso de volta na régua,
+   * o que só cobra mais.
+   */
+  trecho: string
 }
 
 /** Os casos de um spec, na ordem do arquivo, com o que `prazosDosCasos` documenta. O corpo vai sem comentário e sem as pontas em branco. */
@@ -283,7 +293,7 @@ export function casosDoSpec(textoBruto: string): CasoDoSpec[] {
       const declarado = /^\d/.test(declaracao[1]) ? Number(declaracao[1].replaceAll('_', '')) : constantes.get(declaracao[1])
       if (declarado !== undefined) prazoMs = declarado
     }
-    casos.push({ titulo, prazoMs, corpo: doCaso.trim() })
+    casos.push({ titulo, prazoMs, corpo: doCaso.trim(), trecho: corpo.trim() })
   }
   return casos
 }
@@ -386,6 +396,38 @@ export function avisoDosCasosLentos(lentos: readonly CasoMedido[], limiteDe: (ca
 }
 
 /**
+ * Dos casos que o diff tocou, os que só mudaram de comentário: o trecho sem comentário (`casosDoSpec`: do título ao próximo `test(`, o
+ * mesmo que `casosAlterados` atribui ao caso, com o `beforeEach` ou o `test.use` que vem depois dele) é igual ao do mesmo caso no HEAD,
+ * no mesmo arquivo. O par se acha pelo título, e só quando é único dos dois lados; sem par (arquivo novo, título novo, título de modelo
+ * que o `casosDoSpec` pula, título repetido) o caso fica de fora daqui e continua alterado: cobra mais, nunca menos.
+ */
+function casosSoComComentarioAlterado(raiz: string, casos: readonly CasoMedido[]): Set<CasoMedido> {
+  const textosDe = (arquivo: string): { arvore: CasoDoSpec[]; head: CasoDoSpec[] } => {
+    try {
+      const head = execFileSync('git', ['show', `HEAD:${arquivo}`], { cwd: raiz, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, stdio: ['ignore', 'pipe', 'ignore'] })
+      return { arvore: casosDoSpec(readFileSync(join(raiz, arquivo), 'utf8')), head: casosDoSpec(head) }
+    } catch {
+      // Arquivo sem `HEAD:<arquivo>` (novo, ou movido para cá) ou que a árvore não lê: sem par, e o caso fica na régua.
+      return { arvore: [], head: [] }
+    }
+  }
+  const iguais = new Set<CasoMedido>()
+  // Um arquivo por vez: o `git show` e a leitura rodam uma vez por spec, e não uma vez por caso tocado.
+  for (const arquivo of new Set(casos.map((medido) => medido.arquivo))) {
+    const textos = textosDe(arquivo)
+    for (const medido of casos.filter((outro) => outro.arquivo === arquivo)) {
+      // O título medido leva o do `describe` na frente (`suite › caso`); o do spec é o último pedaço, e pode ter ` › ` dentro dele.
+      const [daArvore, ...outrosDaArvore] = textos.arvore.filter((c) => medido.titulo === c.titulo || medido.titulo.endsWith(` › ${c.titulo}`))
+      if (daArvore === undefined || outrosDaArvore.length > 0) continue
+      const [doHead, ...outrosDoHead] = textos.head.filter((c) => c.titulo === daArvore.titulo)
+      if (doHead === undefined || outrosDoHead.length > 0) continue
+      if (doHead.trecho === daArvore.trecho) iguais.add(medido)
+    }
+  }
+  return iguais
+}
+
+/**
  * O motivo de o portão da tarefa reprovar a duração do e2e que rodou, ou `null` se coube. Relatório ausente também
  * reprova: com a corrida verde ele tem de existir, e sem ele o portão não mediu nada.
  */
@@ -399,7 +441,9 @@ export function motivoDaDuracaoDoE2e(raiz: string, caminhoDoRelatorio: string): 
   } catch {
     return `o relatório de duração ${caminhoDoRelatorio} não é um JSON legível: o portão não mediu os casos de e2e.`
   }
-  const alterados = casosAlterados(casosMedidos(relatorio), (arquivo) => alteracoesDoArquivo(raiz, arquivo))
+  const tocados = casosAlterados(casosMedidos(relatorio), (arquivo) => alteracoesDoArquivo(raiz, arquivo))
+  const soComentario = casosSoComComentarioAlterado(raiz, tocados)
+  const alterados = tocados.filter((caso) => !soComentario.has(caso))
   // O HEAD só se lê quando algum caso alterado tem prazo declarado: sem isso todos medem 15 s e não há o que procurar.
   const doHead = alterados.some((caso) => caso.prazoMs > PRAZO_PADRAO_DO_CASO_DE_E2E_MS) ? prazosDoHead(raiz) : new Map<string, number>()
   const limiteDe = (caso: CasoMedido) => limiteDoCaso(caso, doHead)

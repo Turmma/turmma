@@ -450,6 +450,133 @@ describe('no repositório: o diff do git decide qual caso é alterado', () => {
     expect(motivo).toContain('1 caso(s)')
   })
 
+  /**
+   * O relatório do `repositorioComNotaNoSegundo` com o título do segundo caso à escolha: o primeiro na linha 2, o segundo na 7 (a 19 s) e o
+   * terceiro na 14, ou na 17 quando o gancho de três linhas entra antes dele (`linhaDoTerceiro`): 14 `test.beforeEach`, 15 `await x()`,
+   * 16 `})`, 17 `test('terceiro'`.
+   */
+  function relatorioComOSegundo(raiz: string, tituloDoSegundo: string, linhaDoTerceiro = 14): string {
+    const relatorio = relatorioDe(
+      { linha: 2, titulo: 'primeiro', projeto: 'chromebook', duracoes: [2_000] },
+      { linha: 7, titulo: tituloDoSegundo, projeto: 'celular', duracoes: [19_000] },
+      { linha: linhaDoTerceiro, titulo: 'terceiro', projeto: 'chromebook', duracoes: [2_000] },
+    )
+    const caminho = join(raiz, 'segundo.json')
+    writeFileSync(caminho, JSON.stringify(relatorio))
+    return caminho
+  }
+
+  const ESPEC = 'e2e/material.spec.ts'
+
+  /** O `repositorioComSpec` com uma nota de comentário no corpo do segundo caso (`// nota antiga`) já commitada, e `trocas` aplicadas antes do commit. */
+  function repositorioComNotaNoSegundo(trocas: [string, string][] = []): string {
+    const raiz = repositorioComSpec()
+    const marca = "test('segundo', async () => {\n  await a()\n"
+    let texto = readFileSync(join(raiz, ESPEC), 'utf8').replace(marca, `${marca}  // nota antiga\n`)
+    for (const [de, para] of trocas) texto = texto.replace(de, para)
+    writeFileSync(join(raiz, ESPEC), texto)
+    git(raiz, 'commit', '-q', '-am', 'nota')
+    return raiz
+  }
+
+  /** Troca o texto da nota na árvore, como a 9.0 troca `Campo` por `FormField` num comentário, mais as `trocas` de código ou de título. */
+  function trocarANota(raiz: string, trocas: [string, string][] = []): void {
+    let texto = readFileSync(join(raiz, ESPEC), 'utf8').replace('// nota antiga', '// `Campo` virou `FormField`')
+    for (const [de, para] of trocas) texto = texto.replace(de, para)
+    writeFileSync(join(raiz, ESPEC), texto)
+  }
+
+  it('só o comentário do caso lento muda: o caso não conta como alterado e a régua passa', () => {
+    const raiz = repositorioComNotaNoSegundo()
+    trocarANota(raiz)
+    expect(git(raiz, 'diff', '--stat', 'HEAD')).toContain(ESPEC)
+    expect(motivoDaDuracaoDoE2e(raiz, relatorioComOSegundo(raiz, 'segundo'))).toBeNull()
+  })
+
+  it('o caso de primeiro nível, fora de qualquer describe, também sai da régua quando só o comentário muda', () => {
+    const raiz = repositorioComNotaNoSegundo()
+    trocarANota(raiz)
+    // Sem `describe`: o título medido é o do caso, sem o `suite › ` na frente, e só a igualdade exata o acha.
+    const relatorio: RelatorioDoPlaywright = {
+      suites: [
+        {
+          title: 'material.spec.ts',
+          specs: [{ title: 'segundo', file: 'material.spec.ts', line: 7, tests: [{ projectName: 'celular', status: 'expected', results: [{ duration: 19_000 }] }] }],
+        },
+      ],
+    }
+    const caminho = join(raiz, 'sem-describe.json')
+    writeFileSync(caminho, JSON.stringify(relatorio))
+    expect(casosMedidos(relatorio).map((c) => c.titulo)).toEqual(['segundo'])
+    expect(motivoDaDuracaoDoE2e(raiz, caminho)).toBeNull()
+  })
+
+  it('o comentário e uma linha de código do caso lento mudam: reprova', () => {
+    const raiz = repositorioComNotaNoSegundo()
+    trocarANota(raiz, [['  await c()\n})\n\ntest(\'terceiro\'', "  await d()\n})\n\ntest('terceiro'"]])
+    expect(motivoDaDuracaoDoE2e(raiz, relatorioComOSegundo(raiz, 'segundo'))).toContain('e2e/material.spec.ts:7 (celular) levou 19,0 s')
+  })
+
+  it('o comentário muda e o título também: o título novo não acha par no HEAD e reprova', () => {
+    const raiz = repositorioComNotaNoSegundo()
+    trocarANota(raiz, [["test('segundo'", "test('segundo renomeado'"]])
+    expect(motivoDaDuracaoDoE2e(raiz, relatorioComOSegundo(raiz, 'segundo renomeado'))).toContain('e2e/material.spec.ts:7 (celular) levou 19,0 s')
+  })
+
+  it('um gancho entre o caso lento e o seguinte muda: o trecho do caso mudou, e a régua o mede, com ou sem a troca da nota', () => {
+    const raiz = repositorioComNotaNoSegundo([["test('terceiro'", "test.beforeEach(async () => {\n  await x()\n})\ntest('terceiro'"]])
+    const caminho = join(raiz, ESPEC)
+    writeFileSync(caminho, readFileSync(caminho, 'utf8').replace('await x()', 'await y()'))
+    const soOGancho = motivoDaDuracaoDoE2e(raiz, relatorioComOSegundo(raiz, 'segundo', 17))
+    expect(soOGancho).toContain('e2e/material.spec.ts:7 (celular) levou 19,0 s')
+    trocarANota(raiz)
+    expect(motivoDaDuracaoDoE2e(raiz, relatorioComOSegundo(raiz, 'segundo', 17))).toContain('e2e/material.spec.ts:7 (celular) levou 19,0 s')
+  })
+
+  it('dois specs com o mesmo título: o comentário de um não tira da régua o caso do outro, que mudou código', () => {
+    const raiz = repositorioComNotaNoSegundo()
+    const outro = 'e2e/outro.spec.ts'
+    writeFileSync(join(raiz, outro), readFileSync(join(raiz, ESPEC), 'utf8'))
+    git(raiz, 'add', '.')
+    git(raiz, 'commit', '-q', '-m', 'outro')
+    // No `material.spec.ts` só código no `segundo`; no `outro.spec.ts` só o comentário dele.
+    const material = readFileSync(join(raiz, ESPEC), 'utf8')
+    writeFileSync(join(raiz, ESPEC), material.replace("  await c()\n})\n\ntest('terceiro'", "  await d()\n})\n\ntest('terceiro'"))
+    const doOutro = readFileSync(join(raiz, outro), 'utf8')
+    writeFileSync(join(raiz, outro), doOutro.replace('// nota antiga', '// `Campo` virou `FormField`'))
+    const duracaoNoSegundo = (file: string) => ({
+      title: file,
+      specs: [{ title: 'segundo', file, line: 7, tests: [{ projectName: 'celular', status: 'expected', results: [{ duration: 19_000 }] }] }],
+    })
+    const relatorio: RelatorioDoPlaywright = { suites: [duracaoNoSegundo('material.spec.ts'), duracaoNoSegundo('outro.spec.ts')] }
+    const caminho = join(raiz, 'dois-specs.json')
+    writeFileSync(caminho, JSON.stringify(relatorio))
+    const motivo = motivoDaDuracaoDoE2e(raiz, caminho)
+    expect(motivo).toContain('e2e/material.spec.ts:7 (celular) levou 19,0 s')
+    expect(motivo).not.toContain('e2e/outro.spec.ts')
+  })
+
+  it('título de modelo (${}): o HEAD não diz como o caso se chama, e o comentário sozinho não o tira da régua', () => {
+    const raiz = repositorioComNotaNoSegundo()
+    const texto = readFileSync(join(raiz, ESPEC), 'utf8')
+    writeFileSync(join(raiz, ESPEC), texto.replace("test('segundo'", 'test(`segundo ${nome}`'))
+    git(raiz, 'commit', '-q', '-am', 'modelo')
+    trocarANota(raiz)
+    expect(motivoDaDuracaoDoE2e(raiz, relatorioComOSegundo(raiz, 'segundo 1'))).toContain('e2e/material.spec.ts:7 (celular) levou 19,0 s')
+  })
+
+  it('título repetido só na árvore: não dá para dizer qual é o par do HEAD, e o comentário sozinho não tira o caso da régua', () => {
+    const raiz = repositorioComNotaNoSegundo()
+    trocarANota(raiz, [["test('terceiro'", "test('segundo'"]])
+    expect(motivoDaDuracaoDoE2e(raiz, relatorioComOSegundo(raiz, 'segundo'))).toContain('e2e/material.spec.ts:7 (celular) levou 19,0 s')
+  })
+
+  it('título repetido só no HEAD: idem, o caso fica na régua', () => {
+    const raiz = repositorioComNotaNoSegundo([["test('terceiro'", "test('segundo'"]])
+    trocarANota(raiz, [["test('segundo', async () => {\n  await a()\n})", "test('terceiro', async () => {\n  await a()\n})"]])
+    expect(motivoDaDuracaoDoE2e(raiz, relatorioComOSegundo(raiz, 'segundo'))).toContain('e2e/material.spec.ts:7 (celular) levou 19,0 s')
+  })
+
   it('caso alterado dentro dos 15 s passa, mesmo com o arquivo cheio de caso lento que ficou como estava', () => {
     const raiz = repositorioComSpec()
     const original = readFileSync(join(raiz, 'e2e/material.spec.ts'), 'utf8')

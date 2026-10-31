@@ -130,6 +130,12 @@ ela inteira, e os demais contra ela sem essas pastas e sem `dist/`. Saída não 
 
 As linhas da adenda 2 entram na onda do caminho delas.
 
+Na linha back, o rename de símbolo da api alcança quem o chama fora de `apps/api/` (o `main.ts` que chama
+`AppModule.forRoot`), o comentário que o cita em `packages/core/` ou na web, e o homônimo com o mesmo destino em outro
+app. Esses arquivos entram nomeados nos previstos da onda, desde que não estejam nos da tarefa da outra linha. O
+comentário de uma linha só, com duas linhas sem mudança até o que a outra tarefa renomeia, também entra. Fora disso, é
+divergência (triagem da 7.0, 31/10/2026).
+
 Os arquivos dos apps vêm antes das linhas porque o rename de arquivo mexe na configuração da raiz. As linhas só renomeiam símbolo, separadas pelo `--escopo` e pelo `linhas.ts`;
 trava de `tools/` nas duas é divergência.
 
@@ -205,6 +211,8 @@ ou a trava contra filtro vazio. Nenhum caso entra (RF7). A onda sem trava leva "
 - **A régua de duração do e2e** cobra caso só renomeado: a onda o marca "só rename"; corrige-se só o que cresceu.
   A onda não encurta nem divide caso de e2e: isso muda o caso, e o `conferir` cobra os mesmos casos (RF7). O caso
   em que a onda só trocou comentário não é alterado para a régua: a correção `duracao-do-e2e-so-comentario`
-  (`tools/ci/duracao-do-e2e.ts`, `motivoDaDuracaoDoE2e`) tira de `casosAlterados` o caso cujo corpo sem comentário
-  (`casosDoSpec`) é igual ao do HEAD, no mesmo arquivo e com o mesmo título. O caso com identificador renomeado no
-  código continua medido (divergência de portão da 9.0, `e2e/tokens.spec.ts:215`, 31/10/2026)
+  (`tools/ci/duracao-do-e2e.ts`, `motivoDaDuracaoDoE2e`) tira de `casosAlterados` o caso cujo trecho sem comentário
+  (`casosDoSpec`: do título ao próximo `test(`, o mesmo que `casosAlterados` atribui ao caso, com o gancho que vier
+  depois dele; no último caso, até o fim do arquivo) é igual ao do HEAD, no mesmo arquivo e com o mesmo título, único
+  dos dois lados. O caso com identificador renomeado no código, ou com um gancho mudado no trecho dele, continua
+  medido (divergência de portão da 9.0, `e2e/tokens.spec.ts:215`, 31/10/2026)
