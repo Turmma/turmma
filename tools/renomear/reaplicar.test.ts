@@ -194,4 +194,14 @@ describe('reaplicar', () => {
     const resultado = reaplicar(repo.raiz, { executar: repo.executar })
     expect(resultado.novas).toEqual(['apps/api/src/novo.ts:1 cita "AdaptadorFalso": AdaptadorFalso'])
   })
+
+  it('o fica de uma onda num arquivo que uma onda seguinte moveu não é referência nova, e o arquivo que chegou ao caminho antigo é', () => {
+    const quatro = JSON.stringify({ entradas: [{ linhaDoAnexo: ANEXO, ...BANCO }], ocorrencias: [{ arquivo: 'apps/api/src/a.ts', de: 'Banco', classe: 'fica', linha: ANEXO }] })
+    const cinco = mapa([{ tipo: 'arquivo', de: 'apps/api/src/a.ts', para: 'apps/api/src/b.ts' }])
+    const mapas = { '4': quatro, '5': cinco }
+    const movido = aposOMerge({ 'apps/api/src/b.ts': "export const nome = 'Banco'\n" }, mapas)
+    expect(reaplicar(movido.raiz, { executar: movido.executar }).novas).toEqual([])
+    const chegou = aposOMerge({ 'apps/api/src/a.ts': "export const nome = 'Banco'\n", 'apps/api/src/b.ts': "export const nome = 'Banco'\n" }, mapas)
+    expect(reaplicar(chegou.raiz, { executar: chegou.executar }).novas).toEqual(['apps/api/src/a.ts:1 cita "Banco": Banco'])
+  })
 })

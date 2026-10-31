@@ -2,7 +2,7 @@ import { readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { Arvore, type Executor, executarDeVerdade } from './arvore.ts'
 import { reescreverRelativos } from './especificadores.ts'
-import { type EntradaDoMapa, lerMapa, type Mapa, validarMapa } from './mapa.ts'
+import { type EntradaDoMapa, lerMapa, type Mapa, ocorrenciasNoLugarDeHoje, validarMapa } from './mapa.ts'
 import { atualizarAlvosDoPacote, renomearPacotes } from './pacotes.ts'
 import { acharReferencias, estaClassificada } from './referencias.ts'
 import { renomearPelaSintaxe } from './sintaxe.ts'
@@ -82,8 +82,9 @@ export function reaplicar(raiz: string, opcoes: OpcoesDoReaplicar = {}): Resulta
   const arvore = Arvore.carregar(raiz)
   const documentosDosMapasDeLinha = arvore.existe(MAPA_DOS_DOCUMENTOS)
   const mudouPacote = mapas.map((mapa) => reaplicarMapa(arvore, mapa, !mapa.linha || documentosDosMapasDeLinha)).some(Boolean)
+  const ocorrencias = ocorrenciasNoLugarDeHoje(mapas)
   const novas = acharReferencias(arvore, mapas.flatMap((mapa) => mapa.entradas))
-    .filter((referencia) => estaClassificada(referencia, mapas.flatMap((mapa) => mapa.ocorrencias)) === undefined)
+    .filter((referencia) => estaClassificada(referencia, ocorrencias) === undefined)
     .map((referencia) => `${referencia.arquivo}:${String(referencia.linha)} cita "${referencia.de}": ${referencia.trecho}`)
   const executar = opcoes.executar ?? executarDeVerdade
   arvore.gravar(executar)

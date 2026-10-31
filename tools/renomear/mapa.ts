@@ -158,6 +158,36 @@ export function lerMapa(caminho: string): Mapa {
   return lerMapaDoTexto(readFileSync(caminho, 'utf8'), caminho)
 }
 
+// ---- o arquivo depois das ondas seguintes -----------------------------------------------------------------------------
+
+/**
+ * O `arquivo` de uma ocorrência classificada, ou o da troca à mão de um relatório, é o da árvore logo depois da onda que o
+ * classificou. Uma onda posterior pode mover o arquivo ou a pasta dele, e então o caminho registrado já não existe: esta função o
+ * leva pelos movimentos `arquivo` e `pasta` das ondas seguintes, na ordem das ondas e, dentro de cada uma, na ordem das entradas.
+ * Os movimentos da própria onda não entram (ela classifica depois dos moves dela), e o mapa e o relatório de onda feita não se reescrevem.
+ *
+ * Arquivo: o `de` igual leva ao `para`. Pasta: o prefixo `de/` vira `para/`, e a classificação que é a própria pasta (termina em `/`) também.
+ * O arquivo que chegou ao caminho antigo depois do move não é levado a lugar nenhum: a classificação já saiu de lá.
+ *
+ * @param mapas Os mapas na ordem das ondas (`lerTodosOsMapas`).
+ * @param indiceDaOnda A posição, em `mapas`, da onda que classificou o arquivo.
+ */
+export function arquivoDepoisDasOndas(arquivo: string, mapas: readonly Mapa[], indiceDaOnda: number): string {
+  let atual = arquivo
+  for (const mapa of mapas.slice(indiceDaOnda + 1)) {
+    for (const entrada of mapa.entradas) {
+      if (entrada.tipo === 'arquivo' && atual === entrada.de) atual = entrada.para
+      else if (entrada.tipo === 'pasta' && atual.startsWith(`${entrada.de}/`)) atual = `${entrada.para}${atual.slice(entrada.de.length)}`
+    }
+  }
+  return atual
+}
+
+/** Todas as ocorrências classificadas de todas as ondas, cada uma com o `arquivo` levado pelos movimentos das ondas seguintes. */
+export function ocorrenciasNoLugarDeHoje(mapas: readonly Mapa[]): OcorrenciaClassificada[] {
+  return mapas.flatMap((mapa, indice) => mapa.ocorrencias.map((ocorrencia) => ({ ...ocorrencia, arquivo: arquivoDepoisDasOndas(ocorrencia.arquivo, mapas, indice) })))
+}
+
 /** As recusas que o mapa sozinho dá, antes de olhar a árvore: o `de` que se repete, e a linha do anexo que falta. */
 export function validarMapa(mapa: Mapa): Recusa[] {
   const recusas: Recusa[] = []

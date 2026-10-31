@@ -208,6 +208,92 @@ describe('restos: verde', () => {
   })
 })
 
+describe('restos: o arquivo que uma onda seguinte moveu', () => {
+  const mover = (de: string, para: string) => ({ tipo: 'arquivo', de, para })
+  const moverPasta = (de: string, para: string) => ({ tipo: 'pasta', de, para })
+  const trocaAMao = (arquivo: string, nome: string) => ['## Troca à mão', '', '| Arquivo | Nome | Linhas |', '|---|---|---|', `| ${arquivo} | ${nome} | 1 |`, ''].join('\n')
+  const STRING = "export const a = 'Banco'\n"
+
+  it('o fica de uma onda num arquivo que uma onda seguinte moveu', () => {
+    const repo = aposAOnda(
+      { 'apps/api/src/b.ts': STRING },
+      { '4': mapa([BANCO], { ocorrencias: [fica('apps/api/src/a.ts', 'Banco')] }), '5': mapa([mover('apps/api/src/a.ts', 'apps/api/src/b.ts')]) },
+    )
+    expect(sobras(repo)).toEqual([])
+  })
+
+  it('o fica de um arquivo dentro de uma pasta que uma onda seguinte moveu', () => {
+    const repo = aposAOnda(
+      { 'packages/core/src/a.ts': STRING },
+      { '4': mapa([BANCO], { ocorrencias: [fica('packages/nucleo/src/a.ts', 'Banco')] }), '5': mapa([moverPasta('packages/nucleo', 'packages/core')]) },
+    )
+    expect(sobras(repo)).toEqual([])
+  })
+
+  it('o fica que é a própria pasta que uma onda seguinte moveu', () => {
+    const repo = aposAOnda(
+      { 'apps/api/src/t/x/b.ts': STRING },
+      { '4': mapa([BANCO], { ocorrencias: [fica('apps/api/src/s/', 'Banco')] }), '5': mapa([moverPasta('apps/api/src/s', 'apps/api/src/t')]) },
+    )
+    expect(sobras(repo)).toEqual([])
+  })
+
+  it('o fica de uma pasta irmã de prefixo igual não é levado pelo move da pasta', () => {
+    const repo = aposAOnda(
+      { 'packages/nucleo-x/a.ts': STRING },
+      { '4': mapa([BANCO], { ocorrencias: [fica('packages/nucleo-x/a.ts', 'Banco')] }), '5': mapa([moverPasta('packages/nucleo', 'packages/core')]) },
+    )
+    expect(sobras(repo)).toEqual([])
+  })
+
+  it('duas ondas que movem o mesmo arquivo, na ordem das ondas', () => {
+    const mapas = {
+      '4': mapa([BANCO], { ocorrencias: [fica('apps/api/src/a.ts', 'Banco')] }),
+      '5': mapa([mover('apps/api/src/a.ts', 'apps/api/src/b.ts')]),
+      '6': mapa([mover('apps/api/src/b.ts', 'apps/api/src/c.ts')]),
+    }
+    expect(sobras(aposAOnda({ 'apps/api/src/c.ts': STRING }, mapas))).toEqual([])
+  })
+
+  it('a troca à mão registrada num arquivo que uma onda seguinte moveu', () => {
+    const repo = aposAOnda(
+      { 'docs/novo.md': 'A fila.\nUse a `Fila` do BullMQ.\n', [`${PASTA_DOS_MAPAS}/4.relatorio.md`]: trocaAMao('docs/guia.md', 'Fila') },
+      { '4': mapa([FILA]), '5': mapa([mover('docs/guia.md', 'docs/novo.md')]) },
+    )
+    expect(sobras(repo)).toEqual([])
+  })
+
+  it('o fica da onda N não libera o arquivo que chegou ao caminho antigo depois do move', () => {
+    const repo = aposAOnda(
+      { 'apps/api/src/a.ts': STRING, 'apps/api/src/b.ts': STRING },
+      { '4': mapa([BANCO], { ocorrencias: [fica('apps/api/src/a.ts', 'Banco')] }), '5': mapa([mover('apps/api/src/a.ts', 'apps/api/src/b.ts')]) },
+    )
+    expect(sobras(repo)).toEqual(['apps/api/src/a.ts:1 texto Banco'])
+  })
+
+  it('a troca à mão da onda N não libera o arquivo que chegou ao caminho antigo depois do move', () => {
+    const repo = aposAOnda(
+      { 'docs/guia.md': 'Use a `Fila` do BullMQ.\n', 'docs/novo.md': 'Use a `Fila` do BullMQ.\n', [`${PASTA_DOS_MAPAS}/4.relatorio.md`]: trocaAMao('docs/guia.md', 'Fila') },
+      { '4': mapa([FILA]), '5': mapa([mover('docs/guia.md', 'docs/novo.md')]) },
+    )
+    expect(sobras(repo)).toEqual(['docs/guia.md:1 documento Fila'])
+  })
+
+  it('o move da própria onda não leva o fica dela: o fica é do arquivo como a onda o deixa', () => {
+    const mapas = (arquivoDoFica: string) => ({ '4': mapa([BANCO, mover('apps/api/src/a.ts', 'apps/api/src/b.ts')], { ocorrencias: [fica(arquivoDoFica, 'Banco')] }) })
+    expect(sobras(aposAOnda({ 'apps/api/src/b.ts': STRING }, mapas('apps/api/src/b.ts')))).toEqual([])
+    expect(sobras(aposAOnda({ 'apps/api/src/b.ts': STRING }, mapas('apps/api/src/a.ts')))).toEqual(['apps/api/src/b.ts:1 texto Banco'])
+  })
+
+  it('o move de uma onda anterior não leva o fica de uma onda seguinte', () => {
+    const repo = aposAOnda(
+      { 'apps/api/src/b.ts': STRING },
+      { '4': mapa([mover('apps/api/src/a.ts', 'apps/api/src/b.ts')]), '5': mapa([BANCO], { ocorrencias: [fica('apps/api/src/a.ts', 'Banco')] }) },
+    )
+    expect(sobras(repo)).toEqual(['apps/api/src/b.ts:1 texto Banco'])
+  })
+})
+
 describe('restos: a tabela do relatório', () => {
   it('lê o arquivo e o nome de cada linha, e para na próxima seção', () => {
     const relatorio = ['## Troca à mão', '', '| Arquivo | Nome | Linhas |', '|---|---|---|', '| a.md | Fila | 1, 2 |', '| b.md | Banco | 3 |', '|solto|', '', '## Outra', '| c.md | Tela | 1 |'].join('\n')

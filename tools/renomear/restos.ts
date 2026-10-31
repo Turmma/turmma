@@ -2,7 +2,7 @@ import ts from 'typescript'
 import { Arvore } from './arvore.ts'
 import { analisar, ehCodigo, linhaDe, PASTA_DO_PROTOTIPO } from './ast.ts'
 import { casosDe } from './casos.ts'
-import type { EntradaDoMapa } from './mapa.ts'
+import { arquivoDepoisDasOndas, type EntradaDoMapa, type Mapa, ocorrenciasNoLugarDeHoje } from './mapa.ts'
 import { acharReferencias, estaClassificada } from './referencias.ts'
 import { MAPA_DOS_DOCUMENTOS, lerTodosOsMapas, PASTA_DOS_MAPAS } from './reaplicar.ts'
 import { TITULO_DA_TROCA_A_MAO } from './relatorio.ts'
@@ -15,7 +15,7 @@ import { comentariosDe, ehDocumentoVivo, foraDoPasso5, semExtensaoDoCaminho, tro
  * e documento vivo, onde a palavra comum solta não conta.
  *
  * **Liberado:** o que o mapa classifica `fica` (string de fora, ou o identificador que a onda decidiu manter); a chave que o passo 2 mantém (`{ esquemaTurma: turmaSchema }`);
- * o texto de `describe`, `it` e `test`; a palavra que o relatório da onda registra na troca à mão; e o que o passo 5 deixa fora
+ * o texto de `describe`, `it` e `test`; a palavra que o relatório da onda registra na troca à mão (o `arquivo` de um e de outro acompanha os moves das ondas seguintes: `arquivoDepoisDasOndas`, em `mapa.ts`); e o que o passo 5 deixa fora
  * (`docs/decisoes.md`, o ouro, `tasks/`, o protótipo). A ocorrência `trava` não libera: a onda a troca, e o nome antigo que sobra é resto.
  *
  * **Documento.** Os mapas de linha (`"linha": true`) não olham documento enquanto não existir `mapas/13.json`; com ele, todos os
@@ -63,6 +63,12 @@ export function trocaAMaoRegistrada(relatorio: string): Set<string> {
     if (celulas.length >= 4 && arquivo !== undefined && nome !== undefined && arquivo !== 'Arquivo' && !/^-+$/.test(arquivo)) registrada.add(`${arquivo}\u0000${nome}`)
   }
   return registrada
+}
+
+/** A chave `arquivo\0nome` da troca à mão, com o arquivo levado pelos movimentos das ondas seguintes. */
+function chaveDaTrocaAMaoNoLugarDeHoje(chave: string, mapas: readonly Mapa[], indiceDaOnda: number): string {
+  const [arquivo = '', nome = ''] = chave.split('\u0000')
+  return `${arquivoDepoisDasOndas(arquivo, mapas, indiceDaOnda)}\u0000${nome}`
 }
 
 // ---- a busca por texto (passo 6) --------------------------------------------------------------------------------------
@@ -171,9 +177,9 @@ export function restos(raiz: string): ResultadoDosRestos {
   const arvore = Arvore.carregar(raiz)
   const existe13 = arvore.existe(MAPA_DOS_DOCUMENTOS)
   const todas = mapas.flatMap((mapa) => mapa.entradas)
-  const fica = mapas.flatMap((mapa) => mapa.ocorrencias).filter((ocorrencia) => ocorrencia.classe === 'fica')
+  const fica = ocorrenciasNoLugarDeHoje(mapas).filter((ocorrencia) => ocorrencia.classe === 'fica')
   const dosDocumentos = mapas.filter((mapa) => !mapa.linha || existe13).flatMap((mapa) => mapa.entradas)
-  const registrada = new Set(mapas.flatMap((mapa) => [...trocaAMaoRegistrada(arvore.lerOuNada(`${PASTA_DOS_MAPAS}/${mapa.nome}.relatorio.md`) ?? '')]))
+  const registrada = new Set(mapas.flatMap((mapa, indice) => [...trocaAMaoRegistrada(arvore.lerOuNada(`${PASTA_DOS_MAPAS}/${mapa.nome}.relatorio.md`) ?? '')].map((chave) => chaveDaTrocaAMaoNoLugarDeHoje(chave, mapas, indice))))
   const achados = [
     ...restosDeTexto(arvore, todas),
     ...restosDeIdentificador(arvore, todas),

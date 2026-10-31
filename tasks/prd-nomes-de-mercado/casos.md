@@ -70,7 +70,9 @@ Cada cláusula da Tech Spec §5 tem ao menos um caso que a deixa vermelha, se fo
 - `Banco` como tipo no código;
 - `` `Fila` `` entre crases num documento;
 - um `.js` de `dist` com o nome antigo em `infra/`;
-- na 13.0, o caminho antigo num README do ouro.
+- na 13.0, o caminho antigo num README do ouro;
+- o `fica` (ou a troca à mão registrada) da onda N não libera o arquivo que **chegou** ao caminho antigo depois do move;
+- o move da própria onda N não leva o `fica` dela, e o move de uma onda anterior não leva o `fica` de uma onda seguinte.
 
 **Verde:**
 - "Fila de jobs" em prosa;
@@ -78,6 +80,9 @@ Cada cláusula da Tech Spec §5 tem ao menos um caso que a deixa vermelha, se fo
 - a chave mantida pelo passo 2;
 - o texto de `describe`;
 - o `fica`;
+- o `fica` de uma onda num arquivo que uma onda seguinte moveu (e o mesmo para a troca à mão registrada), dentro de pasta movida e quando é a própria pasta;
+- duas ondas que movem o mesmo arquivo (a→b→c): o `fica` acompanha as duas, na ordem das ondas;
+- o `fica` de uma pasta irmã de prefixo igual (`packages/nucleo-x`) que o move de `packages/nucleo` não leva;
 - `docs/decisoes.md`;
 - a troca à mão registrada no relatório;
 - um documento com o nome antigo numa onda de linha;

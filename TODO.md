@@ -2361,6 +2361,9 @@ repetem aqui.
 - [ ] Da tarefa 2.0 da X8, na primeira onda que renomear um símbolo exportado por dois pacotes: `conferir.ts` troca o nome exportado só pelo `de` e ignora o
       `arquivo` da entrada; dá vermelho falso se dois pacotes exportam o mesmo nome e só um é renomeado (revisor-geral, rodada 1)
 
+- [ ] Da correção `2026-10-31-restos-nao-segue-o-move` (X8), se a esteira passar a arquivar a saída do `restos`: o docblock de `tools/renomear/restos.ts` (linhas 24 e 25) é a
+      única barreira de dado pessoal nela; trocar a premissa escrita por uma guarda que rode (privacy-guardian, rodada 1)
+
 
 ## Da X8 (nomes de mercado), tarefa 4.0, fora dela
 
