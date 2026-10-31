@@ -84,7 +84,10 @@ objeto literal, os nomes exportados por pacote, os especificadores de módulo e 
 comparar, o `conferir` aplica o mapa à foto de antes: o especificador, o caminho dos casos e o nome exportado. O nome
 exportado segue a entrada `simbolo` só no pacote do `arquivo` dela e em quem o reexporta desse pacote (`export { X } from`);
 o homônimo exportado por outro pacote fica com o nome (a `migrar` de `tools/processo/separar-achados.ts` não é a do core), e
-a entrada sem `arquivo` vale em todo pacote. Depois
+a entrada sem `arquivo` vale em todo pacote. Dentro do pacote da entrada, o nome declarado ali mesmo (sem origem de
+reexportação) só segue a entrada no próprio `arquivo` dela: o homônimo declarado em outro arquivo do mesmo pacote fica com o
+nome, como o `aplicar` o deixa (o `Linha` de `areas/coordenacao/comum/pecas-da-lista.tsx` não é o do kit; triagem da 2ª
+divergência da 9.0, 31/10/2026). Depois
 disso, qualquer diferença fora de `excecoesDoConferir` deixa o `conferir` vermelho.
 
 **O `restos`** busca cada `de` de todos os mapas aplicados no escopo do passo 6 e nos documentos vivos, com a forma
@@ -205,4 +208,9 @@ ou a trava contra filtro vazio. Nenhum caso entra (RF7). A onda sem trava leva "
 
 ## 13. Riscos técnicos
 
-- **A régua de duração do e2e** cobra caso só renomeado: a onda o marca "só rename"; corrige-se só o que cresceu
+- **A régua de duração do e2e** cobra caso só renomeado: a onda o marca "só rename"; corrige-se só o que cresceu.
+  A onda não encurta nem divide caso de e2e: isso muda o caso, e o `conferir` cobra os mesmos casos (RF7). O caso
+  em que a onda só trocou comentário não é alterado para a régua: a correção `duracao-do-e2e-so-comentario`
+  (`tools/ci/duracao-do-e2e.ts`, `motivoDaDuracaoDoE2e`) tira de `casosAlterados` o caso cujo corpo sem comentário
+  (`casosDoSpec`) é igual ao do HEAD, no mesmo arquivo e com o mesmo título. O caso com identificador renomeado no
+  código continua medido (divergência de portão da 9.0, `e2e/tokens.spec.ts:215`, 31/10/2026)

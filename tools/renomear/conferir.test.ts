@@ -136,6 +136,14 @@ describe('conferir: vermelho quando', () => {
     expect(dos(resultado)).toEqual(['saiu exportado packages/outro Banco', 'entrou exportado packages/outro Database'].sort())
   })
 
+  it('o homônimo de outro arquivo do mesmo pacote sai com o nome novo da entrada', () => {
+    const repo = repositorio({ 'packages/shared/src/outro.ts': 'export class Banco {}\n' })
+    repo.escrever('packages/shared/src/db.ts', 'export class Database {}\n')
+    repo.escrever('packages/shared/src/outro.ts', 'export class Database {}\n')
+    const resultado = rodar(repo, [{ tipo: 'simbolo', de: 'Banco', para: 'Database', arquivo: 'packages/shared/src/db.ts' }])
+    expect(dos(resultado)).toEqual(['saiu exportado packages/shared Banco', 'entrou exportado packages/shared Database'].sort())
+  })
+
   it('aparece um especificador fora do mapa', () => {
     const repo = repositorio({ 'apps/api/src/b.ts': 'export const b = 1\n' })
     repo.escrever('apps/api/src/a.ts', "import { Banco } from '@educa/shared'\nimport { b } from './b.ts'\nexport const a = [new Banco(), b]\n")
@@ -323,6 +331,21 @@ describe('conferir: verde quando', () => {
       const repo = repositorio(OUTRO)
       repo.escrever('packages/shared/src/db.ts', 'export class Database {}\n')
       expect(rodar(repo, [ENTRADA]).divergencias).toEqual([])
+    })
+
+    it('o homônimo declarado em outro arquivo do mesmo pacote fica com o nome antigo', () => {
+      const repo = repositorio({ 'packages/shared/src/outro.ts': 'export class Banco {}\n' })
+      repo.escrever('packages/shared/src/db.ts', 'export class Database {}\n')
+      expect(rodar(repo, [ENTRADA]).divergencias).toEqual([])
+    })
+
+    it('a entrada vale para o arquivo que o `arquivo` dela nomeia no HEAD, mesmo quando a onda o move', () => {
+      const repo = repositorio({ 'packages/shared/src/outro.ts': 'export class Banco {}\n' })
+      repo.git('mv', 'packages/shared/src/db.ts', 'packages/shared/src/database.ts')
+      repo.escrever('packages/shared/src/database.ts', 'export class Database {}\n')
+      repo.escrever('packages/shared/src/index.ts', "export * from './database.ts'\n")
+      const resultado = rodar(repo, [ENTRADA, { tipo: 'arquivo', de: 'packages/shared/src/db.ts', para: 'packages/shared/src/database.ts' }])
+      expect(resultado.divergencias).toEqual([])
     })
 
     it('quem reexporta do pacote da entrada passa ao nome novo, e quem reexporta o homônimo fica', () => {

@@ -26,10 +26,11 @@ import { type EntradaDoMapa, type ExcecaoDoConferir, lerMapa, type Mapa, validar
  *
  * **Limites conhecidos** (todos para o lado do vermelho; nenhum deixa passar uma diferença): (1) a reexportação em cadeia (`apps/web`
  * reexporta de `apps/api`, que reexporta do core) não segue a entrada, porque só se olha o primeiro salto; (2) `tools/` conta como um pacote
- * só (`pacoteDoArquivo`), e uma entrada com `arquivo` em `tools/processo/` troca o homônimo de qualquer outro arquivo de `tools/`; (3) dois
- * exportados com o mesmo nome dentro do pacote da entrada, ou um nome que um arquivo desse pacote importa de outro pacote e repassa, são
- * trocados na foto de antes e o `aplicar` não os troca; (4) a entrada cujo pacote não tem `package.json` no `HEAD` só vale na pasta, e a
- * reexportação pelo nome do pacote não a segue. Quem lê um vermelho de nome exportado confere estes quatro antes de achar defeito na onda.
+ * só (`pacoteDoArquivo`), e uma entrada com `arquivo` em `tools/processo/` troca o nome que qualquer outro arquivo de `tools/` reexporta;
+ * (3) o homônimo do pacote da entrada que outro arquivo desse pacote reexporta, ou um nome que um arquivo desse pacote importa de outro
+ * pacote e repassa, são trocados na foto de antes e o `aplicar` não os troca (o homônimo declarado em outro arquivo do pacote, esse não:
+ * fica com o nome); (4) a entrada cujo pacote não tem `package.json` no `HEAD` só vale na pasta, e a reexportação pelo nome do pacote não a
+ * segue. Quem lê um vermelho de nome exportado confere estes quatro antes de achar defeito na onda.
  */
 
 export interface Divergencia {
@@ -148,13 +149,15 @@ function reexportaDoPacote(origem: string | undefined, pasta: string, nomes: Rea
 /**
  * O nome exportado segue a entrada `simbolo` só no pacote do `arquivo` dela e em quem o reexporta (`export { X } from` e o `export { X }` do que
  * o arquivo importou): o `aplicar` renomeia por símbolo, e o homônimo de outro pacote fica com o nome. A entrada sem `arquivo` vale em todo
- * pacote. O `item.arquivo` é o do `HEAD`.
+ * pacote. O `item.arquivo` é o do `HEAD`. No pacote da entrada, o nome declarado no próprio arquivo (sem `origem`) só segue a entrada se for o
+ * `arquivo` dela: o homônimo declarado em outro arquivo do mesmo pacote fica, como o `aplicar` o deixa.
  */
 function paraONomeExportado(item: ItemDaFoto, entradas: readonly EntradaDoMapa[], nomes: ReadonlyMap<string, string>): string {
   const entrada = entradas.find((candidata) => {
     if (candidata.tipo !== 'simbolo' || candidata.de !== item.valor) return false
     if (candidata.arquivo === undefined) return true
     const pasta = pacoteDoArquivo(candidata.arquivo)
+    if (item.origem === undefined) return item.arquivo === candidata.arquivo
     return pacoteDoArquivo(item.arquivo) === pasta || reexportaDoPacote(item.origem, pasta, nomes)
   })
   return entrada?.para ?? item.valor

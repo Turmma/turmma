@@ -33,8 +33,9 @@ chaves do TanStack Query ficam como estão.
 
 | Arquivo | Novo ou alterado |
 |---|---|
-| `apps/web/src/`, `apps/web/chunk-names.ts` (o `nome-dos-chunks.ts` de antes da 6.0), `apps/web/vite.config.ts` | alterado |
-| `e2e/operacao-escolas.spec.ts` | alterado |
+| `apps/web/src/`, `apps/web/chunk-names.ts` (o `nome-dos-chunks.ts` de antes da 6.0), `apps/web/chunk-names.test.ts`, `apps/web/vite.config.ts` | alterado |
+| `eslint-suppressions.json` | alterado (a chave de `LoginPorCima.tsx`, que acompanha o componente; triagem da 9.0) |
+| `e2e/operacao-escolas.spec.ts`, `e2e/operacao-uso.spec.ts` | alterado |
 | `tools/renomear/mapas/10.json`, `tools/renomear/mapas/10.relatorio.md` | novo |
 
 ## Testes que provam a regra
