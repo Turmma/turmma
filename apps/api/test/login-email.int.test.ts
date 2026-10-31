@@ -10,8 +10,8 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 import { aguardarSaudavel, composeOuFalha } from '../../../tools/testes/compose.ts'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { AppModule } from '../src/app.module.js'
-import { configurarAplicacao } from '../src/configure-app.js'
-import { CLIENTE_REDIS_LOGIN, ContadorDeTentativas, HashDeSenha } from '../src/credencial/index.js'
+import { configureApp } from '../src/configure-app.js'
+import { REDIS_LOGIN_CLIENT, LoginLockout, PasswordHasher } from '../src/credencial/index.js'
 import { comoAWebNo503 } from './test-api.js'
 import { configuracaoDeTeste, MONTAGEM_DE_TESTE } from './test-config.js'
 import { BancadaDeSessoes } from './sessao.fixture.js'
@@ -50,17 +50,17 @@ describe('POST /v1/sessao/email: a equipe entra por e-mail e senha', () => {
   const segredosVistos = new Set<string>([SENHA, SENHA_ERRADA])
   let app: INestApplication
   let url: string
-  let hash: HashDeSenha
+  let hash: PasswordHasher
   let verificacoes: ReturnType<typeof vi.spyOn>
 
   beforeAll(async () => {
-    app = await NestFactory.create(AppModule.com(configuracaoDeTeste(), { medidor: medidor.medidor, ...MONTAGEM_DE_TESTE }), { logger: false })
-    configurarAplicacao(app, createLogger({ servico: 'api-teste', nivel: 'trace', destino: { write: (linha: string) => linhasDeLog.push(linha) } }), medidor.medidor)
+    app = await NestFactory.create(AppModule.forRoot(configuracaoDeTeste(), { medidor: medidor.medidor, ...MONTAGEM_DE_TESTE }), { logger: false })
+    configureApp(app, createLogger({ servico: 'api-teste', nivel: 'trace', destino: { write: (linha: string) => linhasDeLog.push(linha) } }), medidor.medidor)
     await app.listen(0, '127.0.0.1')
     url = `http://127.0.0.1:${(app.getHttpServer().address() as AddressInfo).port}`
-    hash = app.get(HashDeSenha)
+    hash = app.get(PasswordHasher)
     verificacoes = vi.spyOn(hash, 'verificar')
-    await clientePronto(app.get<Redis>(CLIENTE_REDIS_LOGIN, { strict: false }))
+    await clientePronto(app.get<Redis>(REDIS_LOGIN_CLIENT, { strict: false }))
   })
 
   beforeEach(() => {
@@ -404,13 +404,13 @@ describe('POST /v1/sessao/email: a equipe entra por e-mail e senha', () => {
     // Uma instância só para este caso: a proporção do seguro é da janela de 30 s da instância, e nesta nenhuma
     // tentativa foi contada pelo Redis antes de ele cair.
     const medidorDaQueda = new MedidorDeTeste()
-    const instancia = await NestFactory.create(AppModule.com(configuracaoDeTeste(), { medidor: medidorDaQueda.medidor }), { logger: false })
-    configurarAplicacao(instancia, createLogger({ servico: 'api-teste', nivel: 'trace', destino: { write: (linha: string) => linhasDeLog.push(linha) } }), medidorDaQueda.medidor)
+    const instancia = await NestFactory.create(AppModule.forRoot(configuracaoDeTeste(), { medidor: medidorDaQueda.medidor }), { logger: false })
+    configureApp(instancia, createLogger({ servico: 'api-teste', nivel: 'trace', destino: { write: (linha: string) => linhasDeLog.push(linha) } }), medidorDaQueda.medidor)
     await instancia.listen(0, '127.0.0.1')
     const urlDaQueda = `http://127.0.0.1:${(instancia.getHttpServer().address() as AddressInfo).port}`
-    const cliente = instancia.get<Redis>(CLIENTE_REDIS_LOGIN, { strict: false })
+    const cliente = instancia.get<Redis>(REDIS_LOGIN_CLIENT, { strict: false })
     await clientePronto(cliente)
-    observeInsuranceLimiter(medidorDaQueda.medidor, instancia.get(RateLimiter), instancia.get(ContadorDeTentativas))
+    observeInsuranceLimiter(medidorDaQueda.medidor, instancia.get(RateLimiter), instancia.get(LoginLockout))
     const escolaId = await bancada.escola()
     const [professor, colega] = [await pessoa(escolaId), await pessoa(escolaId)]
     const naQueda = (email: string, senha = SENHA) => entrar({ email, senha }, undefined, urlDaQueda)
@@ -422,7 +422,7 @@ describe('POST /v1/sessao/email: a equipe entra por e-mail e senha', () => {
       for (let tentativa = 1; tentativa <= 4; tentativa++) esperarNaoAutenticado(await naQueda(professor.email, SENHA_ERRADA))
       esperarSegurada(await naQueda(professor.email, SENHA_ERRADA), 30)
       esperarSegurada(await naQueda(professor.email), 30)
-      expect(instancia.get(ContadorDeTentativas).proporcaoDoSeguro).toBe(1)
+      expect(instancia.get(LoginLockout).proporcaoDoSeguro).toBe(1)
       expect((await medidorDaQueda.pontos(METRICS.seguroAtivo)).map((ponto) => ponto.valor)).toEqual([1])
       expect((await naQueda(colega.email)).status).toBe(200)
     } finally {

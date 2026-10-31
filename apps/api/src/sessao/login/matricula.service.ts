@@ -1,19 +1,19 @@
 import { DomainException, FORMATO_SLUG, TAMANHO_MAXIMO_SLUG, type Database, type Meter } from '@educa/core'
 import { ErrorCode, type LoginMatriculaRequest } from '@educa/shared'
 import type { ConclusaoDeLogin } from '../completion/login-completion.js'
-import type { ContadorDeTentativas } from '../../credencial/login-lockout.js'
-import type { CookieDeDispositivo } from '../../credencial/device-cookie.js'
-import { COOKIE_DISPOSITIVO, lerCookie } from '../../credencial/cookies.js'
+import type { LoginLockout } from '../../credencial/login-lockout.js'
+import type { DeviceCookie } from '../../credencial/device-cookie.js'
+import { DEVICE_COOKIE, lerCookie } from '../../credencial/cookies.js'
 import { CredencialMatriculaRepository } from '../../credencial/credencial-matricula.repository.js'
 import { naEscolaSemUsuario } from '../tenant/escola-sem-usuario.js'
 import { identificadorDoAluno } from '../../credencial/identificador-do-aluno.js'
-import { ipParaRegistro, type OrigemDaRequisicao, type ResultadoDoLogin } from '../../credencial/request-origin.js'
+import { ipParaRegistro, type RequestOrigin, type ResultadoDoLogin } from '../../credencial/request-origin.js'
 import { RegistroDeAcessoRepository } from '../../credencial/registro-de-acesso.repository.js'
-import type { ResolucaoDeTenantRepository } from '../tenant/tenant-resolution.repository.js'
-import { baldeDaEscola, baldeDaEscolaDesconhecida, contadorDoRebaixamentoPorIp } from '../../credencial/senha/login-buckets.js'
-import type { ConferenciaNaVez, TentativaDeSenha } from '../../credencial/senha/password-verifier.js'
-import { DuracaoDoLogin } from '../../credencial/senha/login-duration.js'
-import type { RebaixamentoPorEscola } from '../../credencial/senha/ip-throttle.js'
+import type { TenantResolutionRepository } from '../tenant/tenant-resolution.repository.js'
+import { escolaBucket, escolaDesconhecidaBucket, contadorDoRebaixamentoPorIp } from '../../credencial/senha/login-buckets.js'
+import type { PasswordVerifier, PasswordAttempt } from '../../credencial/senha/password-verifier.js'
+import { LoginDurationHistogram } from '../../credencial/senha/login-duration.js'
+import type { EscolaIpThrottle } from '../../credencial/senha/ip-throttle.js'
 
 /**
  * A "escola desconhecida" do slug que não existe: entra no lugar do `escola_id` na chave do contador e na entrada do
@@ -22,15 +22,15 @@ import type { RebaixamentoPorEscola } from '../../credencial/senha/ip-throttle.j
  */
 export const ESCOLA_DESCONHECIDA = '00000000-0000-0000-0000-000000000000'
 
-export interface DependenciasDoLoginPorMatricula {
+export interface LoginPorMatriculaDependencies {
   readonly banco: Database
-  readonly resolucao: ResolucaoDeTenantRepository
+  readonly resolucao: TenantResolutionRepository
   /** A vez no semáforo do hash (14.0), no balde da escola do endereço ou no da escola desconhecida, o contador e o hash. */
-  readonly conferencia: ConferenciaNaVez
-  readonly contador: ContadorDeTentativas
+  readonly conferencia: PasswordVerifier
+  readonly contador: LoginLockout
   /** O rebaixamento por IP e escola (15.1): o IP com falhas demais na escola vai para o fim do balde dela. */
-  readonly rebaixamento: RebaixamentoPorEscola
-  readonly dispositivo: CookieDeDispositivo
+  readonly rebaixamento: EscolaIpThrottle
+  readonly dispositivo: DeviceCookie
   readonly conclusao: ConclusaoDeLogin
   readonly medidor: Meter
 }
@@ -47,7 +47,7 @@ interface ChaveDaTentativa {
 /**
  * O login do aluno pelo endereço da escola, com matrícula e senha (RF7, RF11, RF15; Tech Spec, seções 1, 5 e 6).
  *
- * - **A escola vem do slug:** a `ResolucaoDeTenantRepository` acha a escola pelo endereço, e a credencial é lida pelo
+ * - **A escola vem do slug:** a `TenantResolutionRepository` acha a escola pelo endereço, e a credencial é lida pelo
  *   repository com escopo, num contexto de escola sem usuário. A mesma matrícula em outra escola é outra conta, e a
  *   senha dela não abre esta.
  * - **Respostas iguais:** slug inexistente, matrícula inexistente, aluno desativado e senha errada levam um hash cada
@@ -72,19 +72,19 @@ interface ChaveDaTentativa {
  *   para o fim do balde, com a mesma passagem pelo cookie, e nunca recebe 429.
  */
 export class LoginPorMatricula {
-  readonly #duracao: DuracaoDoLogin
+  readonly #duracao: LoginDurationHistogram
   readonly #rebaixadasPeloIp: { contar: () => void }
 
-  constructor(private readonly dependencias: DependenciasDoLoginPorMatricula) {
-    this.#duracao = new DuracaoDoLogin(dependencias.medidor, 'matricula')
+  constructor(private readonly dependencias: LoginPorMatriculaDependencies) {
+    this.#duracao = new LoginDurationHistogram(dependencias.medidor, 'matricula')
     this.#rebaixadasPeloIp = contadorDoRebaixamentoPorIp(dependencias.medidor)
   }
 
-  entrar(pedido: LoginMatriculaRequest, origem: OrigemDaRequisicao): Promise<ResultadoDoLogin> {
+  entrar(pedido: LoginMatriculaRequest, origem: RequestOrigin): Promise<ResultadoDoLogin> {
     return this.#duracao.medir(() => this.#entrar(pedido, origem))
   }
 
-  async #entrar(pedido: LoginMatriculaRequest, origem: OrigemDaRequisicao): Promise<ResultadoDoLogin> {
+  async #entrar(pedido: LoginMatriculaRequest, origem: RequestOrigin): Promise<ResultadoDoLogin> {
     const escolaId = await this.#escolaDoSlug(pedido.slug)
     if (escolaId === undefined) return this.#recusar(ESCOLA_DESCONHECIDA, pedido, origem)
     return naEscolaSemUsuario({ escolaId }, async () => {
@@ -93,8 +93,8 @@ export class LoginPorMatricula {
       const peloIp = !conhecido && origem.acimaDoLimiteDoIp === true
       if (peloIp) this.#rebaixadasPeloIp.contar()
       const rebaixado = (await rebaixamento.rebaixar(origem.ip, escolaId, conhecido)) || peloIp
-      const tentativa: TentativaDeSenha<CredencialDoAluno> = {
-        balde: baldeDaEscola(escolaId, rebaixado),
+      const tentativa: PasswordAttempt<CredencialDoAluno> = {
+        balde: escolaBucket(escolaId, rebaixado),
         chave,
         senha: pedido.senha,
         lerCredencial: () => new CredencialMatriculaRepository(banco).doAlunoAtivo(pedido.matricula),
@@ -127,12 +127,12 @@ export class LoginPorMatricula {
    * O slug que não existe: espera a vez no balde da escola desconhecida, conta no contador dela e passa pelo hash fixo,
    * como a matrícula que não existe. Sem escola, não grava `registro_acesso`: não há de quem seja o registro.
    */
-  async #recusar(escolaId: string, pedido: LoginMatriculaRequest, origem: OrigemDaRequisicao): Promise<never> {
+  async #recusar(escolaId: string, pedido: LoginMatriculaRequest, origem: RequestOrigin): Promise<never> {
     const { conferencia } = this.dependencias
     if (origem.acimaDoLimiteDoIp === true) this.#rebaixadasPeloIp.contar()
-    const tentativa: TentativaDeSenha<undefined> = {
+    const tentativa: PasswordAttempt<undefined> = {
       // O IP acima do limite por IP do login também vai para o fim deste balde, que não tem conta de verdade.
-      balde: baldeDaEscolaDesconhecida(origem.acimaDoLimiteDoIp === true),
+      balde: escolaDesconhecidaBucket(origem.acimaDoLimiteDoIp === true),
       chave: this.#chave(escolaId, pedido.matricula, origem).chave,
       senha: pedido.senha,
       lerCredencial: () => Promise.resolve(undefined),
@@ -141,10 +141,10 @@ export class LoginPorMatricula {
     return conferencia.recusar(tentativa, reserva)
   }
 
-  #chave(escolaId: string, matricula: string, origem: OrigemDaRequisicao): ChaveDaTentativa {
+  #chave(escolaId: string, matricula: string, origem: RequestOrigin): ChaveDaTentativa {
     const { contador, dispositivo } = this.dependencias
     const identificador = identificadorDoAluno(escolaId, matricula)
-    const conhecido = dispositivo.conhece(lerCookie(origem.cabecalhoCookie, COOKIE_DISPOSITIVO), identificador)
+    const conhecido = dispositivo.conhece(lerCookie(origem.cabecalhoCookie, DEVICE_COOKIE), identificador)
     return { chave: contador.chaveDe(identificador, conhecido ? 'conhecido' : 'outro'), identificador, conhecido }
   }
 }

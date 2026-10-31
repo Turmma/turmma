@@ -20,7 +20,7 @@ export interface SessaoNova {
  * Grava usuário e sessão na escola do contexto, nunca na de um argumento. A FK composta `(escola_id, usuario_id)` da
  * sessão recusa usuário de outra escola, mesmo que o id chegue trocado.
  */
-export class CriacaoDeSessaoRepository {
+export class SessaoCreateRepository {
   constructor(private readonly tx: DatabaseTransaction) {}
 
   /** Os usuários criados, com a conta de cada um: quem chama casa pela conta, sem depender da ordem do `returning`. */

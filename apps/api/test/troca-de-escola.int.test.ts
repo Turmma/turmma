@@ -12,8 +12,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { travarRedis } from '../../../tools/testes/redis-travado.ts'
 import { AppModule } from '../src/app.module.js'
-import { configurarAplicacao } from '../src/configure-app.js'
-import { AUDIENCIA_DESAFIO, CifraDoSegredo, CLIENTE_REDIS_LOGIN, EmissorDeDesafio, gerarSegredo, HashDeSenha, TIPO_DESAFIO, VALIDADE_DESAFIO_SEGUNDOS } from '../src/credencial/index.js'
+import { configureApp } from '../src/configure-app.js'
+import { CHALLENGE_AUDIENCE, SecretCipher, REDIS_LOGIN_CLIENT, ChallengeIssuer, gerarSegredo, PasswordHasher, TIPO_DESAFIO, CHALLENGE_TTL_SECONDS } from '../src/credencial/index.js'
 import { configuracaoDeTeste, MONTAGEM_DE_TESTE } from './test-config.js'
 import { montarEscolaComTurma } from './escola-turma.fixture.js'
 import { BancadaDeSessoes } from './sessao.fixture.js'
@@ -77,21 +77,21 @@ describe('POST /v1/sessao/escola e /v1/eu.acessos: quem trabalha em mais de uma 
   const bancada = new BancadaDeSessoes()
   const medidor = new MedidorDeTeste()
   const configuracao = configuracaoDeTeste()
-  const cifra = new CifraDoSegredo(configuracao.login.mfa.versaoCifra, configuracao.login.mfa.chavesCifra)
+  const cifra = new SecretCipher(configuracao.login.mfa.versaoCifra, configuracao.login.mfa.chavesCifra)
   const linhasDeLog: string[] = []
   /** Tudo que foi mandado ou recebido e não pode aparecer no log: e-mails, desafios, tokens e cookies. */
   const segredosVistos = new Set<string>([SENHA_SINTETICA])
   let app: INestApplication
   let url: string
-  let hash: HashDeSenha
+  let hash: PasswordHasher
 
   beforeAll(async () => {
-    app = await NestFactory.create(AppModule.com(configuracao, { medidor: medidor.medidor, ...MONTAGEM_DE_TESTE }), { logger: false })
-    configurarAplicacao(app, createLogger({ servico: 'api-teste', nivel: 'trace', destino: { write: (linha: string) => linhasDeLog.push(linha) } }), medidor.medidor)
+    app = await NestFactory.create(AppModule.forRoot(configuracao, { medidor: medidor.medidor, ...MONTAGEM_DE_TESTE }), { logger: false })
+    configureApp(app, createLogger({ servico: 'api-teste', nivel: 'trace', destino: { write: (linha: string) => linhasDeLog.push(linha) } }), medidor.medidor)
     await app.listen(0, '127.0.0.1')
     url = `http://127.0.0.1:${(app.getHttpServer().address() as AddressInfo).port}`
-    hash = app.get(HashDeSenha)
-    await clientePronto(app.get<Redis>(CLIENTE_REDIS_LOGIN, { strict: false }))
+    hash = app.get(PasswordHasher)
+    await clientePronto(app.get<Redis>(REDIS_LOGIN_CLIENT, { strict: false }))
   })
 
   afterAll(async () => {
@@ -413,12 +413,12 @@ describe('POST /v1/sessao/escola e /v1/eu.acessos: quem trabalha em mais de uma 
     const { chaveAssinatura } = configuracao.identidade
     const pedido = { contaId: professora.contaId, etapa: 'escolher', mfaCumprido: true } as const
 
-    const deOutraChave = await new EmissorDeDesafio(new TextEncoder().encode('outra-chave-sintetica-de-assinatura-32b')).emitir(pedido)
-    const vencido = await new EmissorDeDesafio(chaveAssinatura, { agora: () => new Date(Date.now() - (VALIDADE_DESAFIO_SEGUNDOS + 5) * 1_000) }).emitir(pedido)
+    const deOutraChave = await new ChallengeIssuer(new TextEncoder().encode('outra-chave-sintetica-de-assinatura-32b')).emitir(pedido)
+    const vencido = await new ChallengeIssuer(chaveAssinatura, { agora: () => new Date(Date.now() - (CHALLENGE_TTL_SECONDS + 5) * 1_000) }).emitir(pedido)
     const deOutroAud = await new SignJWT({ conta_id: professora.contaId, etapa: 'escolher', mfa_cumprido: true })
       .setProtectedHeader({ alg: 'HS256', typ: TIPO_DESAFIO })
       .setIssuer('educa')
-      .setAudience(`${AUDIENCIA_DESAFIO}-outra`)
+      .setAudience(`${CHALLENGE_AUDIENCE}-outra`)
       .setJti(randomUUID())
       .setIssuedAt()
       .setExpirationTime('5m')
@@ -771,13 +771,13 @@ describe('POST /v1/sessao/escola e /v1/eu.acessos: quem trabalha em mais de uma 
     // ficado presa aos 100 ms de produção.
     const medidorDoCompose = new MedidorDeTeste()
     const logDoCompose: string[] = []
-    const instancia = await NestFactory.create(AppModule.com(configuracaoDeTeste(), { medidor: medidorDoCompose.medidor }), { logger: false })
-    configurarAplicacao(instancia, createLogger({ servico: 'api-teste', nivel: 'trace', destino: { write: (linha: string) => logDoCompose.push(linha) } }), medidorDoCompose.medidor)
+    const instancia = await NestFactory.create(AppModule.forRoot(configuracaoDeTeste(), { medidor: medidorDoCompose.medidor }), { logger: false })
+    configureApp(instancia, createLogger({ servico: 'api-teste', nivel: 'trace', destino: { write: (linha: string) => logDoCompose.push(linha) } }), medidorDoCompose.medidor)
     await instancia.listen(0, '127.0.0.1')
     const urlDoCompose = `http://127.0.0.1:${String((instancia.getHttpServer().address() as AddressInfo).port)}`
     let travado: Awaited<ReturnType<typeof travarRedis>> | undefined
     try {
-      const cliente = instancia.get<Redis>(CLIENTE_REDIS_LOGIN, { strict: false })
+      const cliente = instancia.get<Redis>(REDIS_LOGIN_CLIENT, { strict: false })
       await clientePronto(cliente)
       const a = await escola('Colégio')
       const b = await escola('Escola da rede')

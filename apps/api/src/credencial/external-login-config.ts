@@ -21,7 +21,7 @@ export interface ProvedorConfigurado {
  * O login pela conta da escola (13.0). É um adaptador opcional (regra 00, itens 7 e 8): sem as variáveis de um
  * provedor, ele fica desligado, a escola não o oferece, e o resto do login segue igual.
  */
-export interface ConfiguracaoLoginExterno {
+export interface ExternalLoginConfig {
   /** Os provedores ligados; vazio desliga o login pela conta da escola. */
   readonly provedores: ReadonlyMap<ProvedorExterno, ProvedorConfigurado>
   /** O `redirect_uri` cadastrado nos provedores: o endereço público de `CAMINHO_DO_RETORNO`. */
@@ -63,7 +63,7 @@ const OUTRAS_CHAVES = [
  * desligado com as três vazias; meio preenchido não sobe. Com algum ligado, o retorno e a chave do cookie são
  * obrigatórios. Fora do ambiente local, só `https`. As mensagens citam só o nome da variável.
  */
-export function lerConfiguracaoLoginExterno(ambiente: Record<string, string | undefined>): ConfiguracaoLoginExterno {
+export function loadExternalLoginConfig(ambiente: Record<string, string | undefined>): ExternalLoginConfig {
   const local = ambiente['AMBIENTE'] === 'local'
   const provedores = new Map<ProvedorExterno, ProvedorConfigurado>()
   const invalidas: string[] = []

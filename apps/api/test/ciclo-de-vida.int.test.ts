@@ -7,7 +7,7 @@ import { randomBytes, randomUUID } from 'node:crypto'
 import { Secret, TOTP } from 'otpauth'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
-import { CifraDoSegredo, CLIENTE_REDIS_LOGIN, gerarCodigosDeRecuperacao, gerarSegredo, HashDeSenha, hmacDaRecuperacao } from '../src/credencial/index.js'
+import { SecretCipher, REDIS_LOGIN_CLIENT, gerarCodigosDeRecuperacao, gerarSegredo, PasswordHasher, hmacDaRecuperacao } from '../src/credencial/index.js'
 import { chamar, subirApi, type ApiDeTeste } from './test-api.js'
 import { configuracaoDeTeste } from './test-config.js'
 import { montarEscolaComTurma, type EscolaComTurma } from './escola-turma.fixture.js'
@@ -52,15 +52,15 @@ describe('ciclo de vida da conta: desativação, limpeza da conta global e elimi
   const bancada = new BancadaDeSessoes()
   const medidor = new MedidorDeTeste()
   const configuracao = configuracaoDeTeste()
-  const cifra = new CifraDoSegredo(configuracao.login.mfa.versaoCifra, configuracao.login.mfa.chavesCifra)
+  const cifra = new SecretCipher(configuracao.login.mfa.versaoCifra, configuracao.login.mfa.chavesCifra)
   const servico = new CicloDeVidaService(bancada.banco)
   let api: ApiDeTeste
   let hashDaSenha: string
 
   beforeAll(async () => {
     api = await subirApi(medidor.medidor)
-    const hash = api.app.get(HashDeSenha)
-    await clientePronto(api.app.get<Redis>(CLIENTE_REDIS_LOGIN, { strict: false }))
+    const hash = api.app.get(PasswordHasher)
+    await clientePronto(api.app.get<Redis>(REDIS_LOGIN_CLIENT, { strict: false }))
     hashDaSenha = await hash.gerar(SENHA)
   })
 

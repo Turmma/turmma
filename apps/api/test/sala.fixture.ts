@@ -2,8 +2,8 @@ import { acessoGeradoResponseSchema } from '@educa/shared'
 import type { Redis } from 'ioredis'
 import { randomUUID } from 'node:crypto'
 import { expect } from 'vitest'
-import { LimitesDaSala, type NomePeloAcesso } from '../src/sala/sala-rate-limits.js'
-import { CLIENTE_REDIS_LOGIN } from '../src/credencial/index.js'
+import { SalaRateLimits, type NomePeloAcesso } from '../src/sala/sala-rate-limits.js'
+import { REDIS_LOGIN_CLIENT } from '../src/credencial/index.js'
 import { chamar, type ApiDeTeste } from './test-api.js'
 import { montarEscolaComTurma, type EscolaComTurma } from './escola-turma.fixture.js'
 import { ipSorteado } from './operador-mfa.fixture.js'
@@ -134,7 +134,7 @@ export class FerramentasDaSala {
 
   /** Os contadores da escola, da turma e do nome (pelo acesso vigente da turma), no Redis de fila; 0 quando a chave não existe. */
   async contadores(sala: Pick<SalaDeTeste, 'escolaId'>, turmaId: string, nome?: NomePeloAcesso): Promise<ContadoresDaSala> {
-    const limites = this.api.app.get(LimitesDaSala)
+    const limites = this.api.app.get(SalaRateLimits)
     const ler = async (chave: string) => Number((await this.redis().get(chave)) ?? 0)
     return {
       escola: await ler(limites.chaveDaEscola(sala.escolaId)),
@@ -145,11 +145,11 @@ export class FerramentasDaSala {
 
   /** Se a chave do contador do nome existe no Redis de fila. */
   async existeContadorDoNome(nome: NomePeloAcesso): Promise<boolean> {
-    return (await this.redis().exists(this.api.app.get(LimitesDaSala).chaveDoNome(nome))) === 1
+    return (await this.redis().exists(this.api.app.get(SalaRateLimits).chaveDoNome(nome))) === 1
   }
 
   redis(): Redis {
-    return this.api.app.get<Redis>(CLIENTE_REDIS_LOGIN, { strict: false })
+    return this.api.app.get<Redis>(REDIS_LOGIN_CLIENT, { strict: false })
   }
 }
 

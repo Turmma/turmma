@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { lerAmbienteDeTeste, valorObrigatorio } from '../../../../../tools/ci/compose.ts'
 import { travarRedis } from '../../../../../tools/testes/redis-travado.ts'
-import { ContadorEmJanela, JANELA_DO_CONTADOR_POR_IP_MS } from './window-counter.js'
+import { WindowCounter, JANELA_DO_CONTADOR_POR_IP_MS } from './window-counter.js'
 import { PREFIXO_EMAIL_POR_IP } from './email-ip-rate-limit.js'
 import { PREFIXO_FALHAS_POR_IP_NA_ESCOLA } from './ip-throttle.js'
 
@@ -43,7 +43,7 @@ describe('ContadorEmJanela: os contadores por IP do login (15.0), no Redis de fi
   })
 
   it('privacidade (regra 20) e janela: a chave tem o prefixo e o HMAC, nunca o IP nem a escola em texto; o primeiro somar dá o prazo de 1 min, e o seguinte não o empurra', async () => {
-    const contador = new ContadorEmJanela(cliente, CHAVE)
+    const contador = new WindowCounter(cliente, CHAVE)
     const ip = ipSorteado()
     const chave = contador.chaveDe(PREFIXO_FALHAS_POR_IP_NA_ESCOLA, `${ESCOLA}|${ip}`)
     expect(chave).toMatch(new RegExp(`^${PREFIXO_FALHAS_POR_IP_NA_ESCOLA}:[\\w-]{43}$`))
@@ -67,7 +67,7 @@ describe('ContadorEmJanela: os contadores por IP do login (15.0), no Redis de fi
 
   it('L8 (A1, 7.0): a instância com janela de 10 min dá à chave o prazo de 10 min no Redis, e o restante do Retry-After é o prazo dela; sem a chave, 0', async () => {
     const dezMinutos = 10 * 60_000
-    const contador = new ContadorEmJanela(cliente, CHAVE, { janelaMs: dezMinutos })
+    const contador = new WindowCounter(cliente, CHAVE, { janelaMs: dezMinutos })
     const chave = contador.chaveDe('sala:teste-janela', randomUUID())
     expect(await contador.somar(chave)).toEqual({ valor: 1, doSeguro: false })
     const prazo = await cliente.pttl(chave)
@@ -78,14 +78,14 @@ describe('ContadorEmJanela: os contadores por IP do login (15.0), no Redis de fi
     expect(restante).toBeLessThanOrEqual(prazo)
     expect(await contador.restanteMs(contador.chaveDe('sala:teste-janela', randomUUID()))).toBe(0)
     // A do login, sem a opção, continua com o minuto.
-    const doLogin = new ContadorEmJanela(cliente, CHAVE)
+    const doLogin = new WindowCounter(cliente, CHAVE)
     const chaveDoLogin = doLogin.chaveDe(PREFIXO_EMAIL_POR_IP, ipSorteado())
     await doLogin.somar(chaveDoLogin)
     expect(await cliente.pttl(chaveDoLogin)).toBeLessThanOrEqual(JANELA_DO_CONTADOR_POR_IP_MS)
   })
 
   it('concorrência (regra 80, item 7): vinte somas ao mesmo tempo, de duas instâncias, dão os valores de 1 a 20, cada um uma vez', async () => {
-    const [instancia1, instancia2] = [new ContadorEmJanela(cliente, CHAVE), new ContadorEmJanela(cliente, CHAVE)]
+    const [instancia1, instancia2] = [new WindowCounter(cliente, CHAVE), new WindowCounter(cliente, CHAVE)]
     const chave = instancia1.chaveDe(PREFIXO_EMAIL_POR_IP, ipSorteado())
     const somas = await Promise.all(Array.from({ length: 20 }, (_, posicao) => (posicao % 2 === 0 ? instancia1 : instancia2).somar(chave)))
     expect(somas.map(({ valor }) => valor).sort((a, b) => a - b)).toEqual(Array.from({ length: 20 }, (_, posicao) => posicao + 1))
@@ -95,7 +95,7 @@ describe('ContadorEmJanela: os contadores por IP do login (15.0), no Redis de fi
     const fora = createApiRedisClient('redis://127.0.0.1:9', 'teste-janela-fora', () => undefined)
     try {
       const relogio = relogioParado()
-      const contador = new ContadorEmJanela(fora, CHAVE, { relogio })
+      const contador = new WindowCounter(fora, CHAVE, { relogio })
       const chave = contador.chaveDe(PREFIXO_FALHAS_POR_IP_NA_ESCOLA, `${ESCOLA}|${ipSorteado()}`)
       for (let soma = 1; soma <= 3; soma++) expect(await contador.somar(chave)).toEqual({ valor: soma, doSeguro: true })
       expect(await contador.ler(chave)).toEqual({ valor: 3, doSeguro: true })
@@ -117,7 +117,7 @@ describe('ContadorEmJanela: os contadores por IP do login (15.0), no Redis de fi
     const producao = createApiRedisClient(URL_REDIS_FILA, 'teste-janela-travada', () => undefined)
     try {
       await pronto(producao)
-      const contador = new ContadorEmJanela(producao, CHAVE)
+      const contador = new WindowCounter(producao, CHAVE)
       const chave = contador.chaveDe(PREFIXO_EMAIL_POR_IP, ipSorteado())
       const travado = await travarRedis(URL_REDIS_FILA, 3_000)
       const somas = []

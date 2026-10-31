@@ -42,7 +42,7 @@ const SEM_CONSUMO: ConsumoSomado = { chamadas: 0, tokensDeEntrada: 0, tokensDeSa
  *   justificativa, e a lista só traz entrega de série com dois ou mais professores (D45).
  * - **As funções** são o catálogo `FUNCOES`, em código, com a suspensão vigente desta escola.
  * - **Suspender** grava a suspensão vigente e audita; a função passa a recusar execução nova **no servidor** (quem
- *   confere é o `AgendadorDeExecucoes`, o `LLMProvider` e a `ConferenciaDeFuncao`). Não apaga nada, e a entrega pendente
+ *   confere é o `ExecucaoScheduler`, o `LLMProvider` e a `FuncaoSuspensionCheck`). Não apaga nada, e a entrega pendente
  *   continua decidível pelo professor. Suspender a que já está suspensa devolve a vigente, sem segunda linha e sem
  *   segunda auditoria. **Retomar** fecha a vigente e audita; sem vigente, `NAO_ENCONTRADO`.
  * - **O consumo** é somado por função e por mês. Não abre por origem, por aluno nem por pessoa.

@@ -22,7 +22,7 @@
 - [x] **4.0 — Onda do core, símbolos**
 - [x] **5.0 — Onda do core, arquivos e pastas, e `@educa/nucleo` vira `@educa/core`**
 - [x] **6.0 — Onda dos arquivos e das pastas de todos os apps e do e2e**
-- [ ] **7.0 — Onda da api, símbolos (linha back)**
+- [x] **7.0 — Onda da api, símbolos (linha back)**
 - [ ] **8.0 — Onda do worker, do despachante, do realtime e do apoio de teste do back (linha back)**
 - [ ] **9.0 — Onda do kit visual, símbolos (linha web)**
 - [ ] **10.0 — Onda da web fora do kit (linha web)**

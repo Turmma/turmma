@@ -3,15 +3,15 @@ import { ErrorCode } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { afterEach, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../../../tools/testes/metricas.ts'
-import type { ResolucaoDeTenantRepository } from '../tenant/tenant-resolution.repository.js'
-import type { EuRepository, LinhaDoEu } from './eu.repository.js'
-import { EuService } from './eu.service.js'
+import type { TenantResolutionRepository } from '../tenant/tenant-resolution.repository.js'
+import type { MeRepository, MeRow } from './eu.repository.js'
+import { MeService } from './eu.service.js'
 
 const ANTIGA = new Date('2020-01-02T03:04:05.678Z')
 const MEIA = new Date('2022-06-07T08:09:10.111Z')
 const RECENTE = new Date('2026-10-01T10:00:00.000Z')
 
-const LINHA: LinhaDoEu = {
+const LINHA: MeRow = {
   usuarioId: randomUUID(),
   contaId: randomUUID(),
   papel: 'professor',
@@ -23,22 +23,22 @@ const LINHA: LinhaDoEu = {
 }
 
 interface Cenario {
-  readonly servico: EuService
+  readonly servico: MeService
   readonly gravacoes: () => number
   readonly consultasDeConta: () => number
 }
 
 /**
- * Um `EuService` sobre repositories de mão: só a regra de qual data vale e de quando o `GET` grava. O que o banco faz
+ * Um `MeService` sobre repositories de mão: só a regra de qual data vale e de quando o `GET` grava. O que o banco faz
  * (`coalesce`, o `id` do contexto, a corrida) é do teste de integração, que roda a API de verdade.
  */
 function montar(
   medidor: MedidorDeTeste,
-  opcoes: { linha?: Partial<LinhaDoEu> | null; emprestada?: Date | null; gravada?: Date | null; gravacaoFalha?: boolean },
+  opcoes: { linha?: Partial<MeRow> | null; emprestada?: Date | null; gravada?: Date | null; gravacaoFalha?: boolean },
 ): Cenario {
   let gravacoes = 0
   let consultas = 0
-  const linha: LinhaDoEu | undefined = opcoes.linha === null ? undefined : { ...LINHA, ...opcoes.linha }
+  const linha: MeRow | undefined = opcoes.linha === null ? undefined : { ...LINHA, ...opcoes.linha }
   const eu = {
     doContexto: async () => linha,
     marcarIntroducaoVista: async () => {
@@ -46,15 +46,15 @@ function montar(
       if (opcoes.gravacaoFalha === true) throw new Error('banco fora')
       return opcoes.gravada === null ? undefined : (opcoes.gravada ?? RECENTE)
     },
-  } as unknown as EuRepository
+  } as unknown as MeRepository
   const resolucao = {
     acessosDaConta: async () => [],
     introducaoMaisAntigaDaConta: async () => {
       consultas += 1
       return opcoes.emprestada ?? null
     },
-  } as unknown as ResolucaoDeTenantRepository
-  return { servico: new EuService(eu, resolucao, medidor.medidor), gravacoes: () => gravacoes, consultasDeConta: () => consultas }
+  } as unknown as TenantResolutionRepository
+  return { servico: new MeService(eu, resolucao, medidor.medidor), gravacoes: () => gravacoes, consultasDeConta: () => consultas }
 }
 
 describe('EuService: qual data da introdução vale, e quando o GET grava', () => {

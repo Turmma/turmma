@@ -9,7 +9,7 @@ import type { AddressInfo } from 'node:net'
 import { afterEach, beforeAll, describe, expect, it, onTestFinished } from 'vitest'
 import { aguardarSaudavel, compose, composeAssincronoOuFalha, PROCESSOS_DA_FILA } from '../../../tools/testes/compose.ts'
 import { AppModule } from '../../api/src/app.module.js'
-import { configurarAplicacao } from '../../api/src/configure-app.js'
+import { configureApp } from '../../api/src/configure-app.js'
 import { configuracaoDeTeste } from '../../api/test/test-config.js'
 import { BancadaDeSessoes } from '../../api/test/sessao.fixture.js'
 import { BancadaDeFila, LogEmMemoria } from '../../worker/test/queue.fixture.js'
@@ -56,8 +56,8 @@ describe('Redis de fila fora', () => {
     bancada = new BancadaDeFila()
     await bancada.limparRegistro()
     const logApi = new LogEmMemoria('api')
-    const app: INestApplication = await NestFactory.create(AppModule.com(configuracaoDeTeste({ ambiente: { ROTAS_SINTETICAS: 'true' } })), { logger: false })
-    configurarAplicacao(app, logApi.logger)
+    const app: INestApplication = await NestFactory.create(AppModule.forRoot(configuracaoDeTeste({ ambiente: { ROTAS_SINTETICAS: 'true' } })), { logger: false })
+    configureApp(app, logApi.logger)
     await app.listen(0, '127.0.0.1')
     try {
       const { port } = app.getHttpServer().address() as AddressInfo

@@ -20,13 +20,13 @@ import { OperadorRepository } from '../operacao/operador/operador.repository.js'
 import { hashDoTokenDeConvite, sortearTokenDeConvite } from '../operacao/token-do-convite.js'
 import {
   abrirBancoDeOperacao,
-  ArgumentoInvalido,
+  InvalidArgumentError,
   criarArquivoDoToken,
   esquemaNome,
   lerOperador,
-  OperadorRecusado,
-  type BancoDoComando,
-  type SaidaDoComando,
+  OperadorRejectedError,
+  type CommandDatabase,
+  type CommandOutput,
 } from './command.js'
 
 /**
@@ -57,14 +57,14 @@ export type PedidoDeOperador =
   | { readonly acao: 'convite'; readonly apelido: string; readonly saida: string }
 
 /** Por que o `desativar` foi recusado, sem nada do pedido. */
-export class DesativacaoRecusada extends Error {
+export class DesativacaoRejectedError extends Error {
   constructor(readonly motivo: 'ultimo_ativo' | 'a_si_mesmo') {
     super(motivo === 'ultimo_ativo' ? 'o último operador ativo não pode ser desativado' : 'ninguém desativa a si mesmo')
-    this.name = 'DesativacaoRecusada'
+    this.name = 'DesativacaoRejectedError'
   }
 }
 
-const esquemaEmail = z.email().max(TAMANHO_MAXIMO_EMAIL)
+const emailSchema = z.email().max(TAMANHO_MAXIMO_EMAIL)
 
 const OPCOES = { apelido: { type: 'string' }, nome: { type: 'string' }, email: { type: 'string' }, saida: { type: 'string' } } as const
 
@@ -80,12 +80,12 @@ const OPCOES_DA_ACAO: Record<PedidoDeOperador['acao'], readonly (keyof typeof OP
  * nem o da rotina (`rotina`, F3 tarefa 15.0), que assina a eliminação e o expurgo e que o banco só aceita em quatro ações.
  */
 function apelidoValido(valor: string | undefined): string {
-  if (valor === undefined || !FORMATO_OPERADOR.test(valor) || valor === AUTOR_BOOTSTRAP || valor === AUTOR_DA_ROTINA) throw new ArgumentoInvalido('--apelido')
+  if (valor === undefined || !FORMATO_OPERADOR.test(valor) || valor === AUTOR_BOOTSTRAP || valor === AUTOR_DA_ROTINA) throw new InvalidArgumentError('--apelido')
   return valor
 }
 
 function saidaValida(valor: string | undefined): string {
-  if (valor === undefined || valor.trim() === '') throw new ArgumentoInvalido('--saida')
+  if (valor === undefined || valor.trim() === '') throw new InvalidArgumentError('--saida')
   return resolve(valor)
 }
 
@@ -95,21 +95,21 @@ export function lerPedidoDeOperador(argumentos: string[]): PedidoDeOperador {
     lido = parseArgs({ args: argumentos, options: OPCOES, strict: true, allowPositionals: true })
   } catch {
     // O erro do parseArgs repete o argumento recebido; a mensagem fica só com as opções aceitas.
-    throw new ArgumentoInvalido('--apelido, --nome, --email ou --saida')
+    throw new InvalidArgumentError('--apelido, --nome, --email ou --saida')
   }
   const { values: valores, positionals: posicionais } = lido
   const acao = posicionais.length === 1 ? posicionais[0] : undefined
-  if (acao !== 'criar' && acao !== 'desativar' && acao !== 'convite') throw new ArgumentoInvalido('comando (criar | desativar | convite)')
+  if (acao !== 'criar' && acao !== 'desativar' && acao !== 'convite') throw new InvalidArgumentError('comando (criar | desativar | convite)')
   const aceitas = OPCOES_DA_ACAO[acao]
   const sobrando = (Object.keys(valores) as (keyof typeof OPCOES)[]).find((opcao) => !aceitas.includes(opcao))
-  if (sobrando !== undefined) throw new ArgumentoInvalido(`--${sobrando} não vale para ${acao}`)
+  if (sobrando !== undefined) throw new InvalidArgumentError(`--${sobrando} não vale para ${acao}`)
   const apelido = apelidoValido(valores.apelido)
   if (acao === 'desativar') return { acao, apelido }
   if (acao === 'convite') return { acao, apelido, saida: saidaValida(valores.saida) }
   const nome = esquemaNome.safeParse(valores.nome)
-  if (!nome.success) throw new ArgumentoInvalido('--nome')
-  const email = esquemaEmail.safeParse(valores.email?.trim().toLowerCase())
-  if (!email.success) throw new ArgumentoInvalido('--email')
+  if (!nome.success) throw new InvalidArgumentError('--nome')
+  const email = emailSchema.safeParse(valores.email?.trim().toLowerCase())
+  if (!email.success) throw new InvalidArgumentError('--email')
   return { acao, apelido, nome: nome.data, email: email.data, saida: saidaValida(valores.saida) }
 }
 
@@ -117,7 +117,7 @@ export function lerPedidoDeOperador(argumentos: string[]): PedidoDeOperador {
 async function autorSobATrava(repositorio: OperadorRepository, operadorDoAmbiente: string): Promise<string> {
   await repositorio.travarOperadores()
   const situacao = await repositorio.situacaoDoAutor(operadorDoAmbiente)
-  if (situacao === 'recusado') throw new OperadorRecusado()
+  if (situacao === 'recusado') throw new OperadorRejectedError()
   return situacao === 'bootstrap' ? AUTOR_BOOTSTRAP : operadorDoAmbiente
 }
 
@@ -162,7 +162,7 @@ export async function criarOperador(
 /**
  * Desativa o operador ativo do apelido: apaga o dado pessoal e os códigos, revoga o convite pendente, encerra as
  * sessões e grava `operador.desativado` (e `convite_operador.revogado`, se havia um pendente), numa transação sob a
- * trava. Apelido inexistente ou já desativado: `NAO_ENCONTRADO`. O último ativo e a si mesmo: `DesativacaoRecusada`.
+ * trava. Apelido inexistente ou já desativado: `NAO_ENCONTRADO`. O último ativo e a si mesmo: `DesativacaoRejectedError`.
  */
 export async function desativarOperador(banco: Database, operadorDoAmbiente: string, apelido: string): Promise<void> {
   await banco.transaction(async (tx) => {
@@ -170,8 +170,8 @@ export async function desativarOperador(banco: Database, operadorDoAmbiente: str
     const autor = await autorSobATrava(repositorio, operadorDoAmbiente)
     const alvo = await repositorio.ativoParaAtualizar(apelido)
     if (alvo === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
-    if ((await repositorio.contarAtivos()) <= 1) throw new DesativacaoRecusada('ultimo_ativo')
-    if (alvo.apelido === autor) throw new DesativacaoRecusada('a_si_mesmo')
+    if ((await repositorio.contarAtivos()) <= 1) throw new DesativacaoRejectedError('ultimo_ativo')
+    if (alvo.apelido === autor) throw new DesativacaoRejectedError('a_si_mesmo')
     await repositorio.desativar(alvo.id)
     await repositorio.apagarCodigosDeRecuperacao(alvo.id)
     const revogou = await repositorio.revogarConvitePendente(alvo.id)
@@ -227,14 +227,14 @@ async function executarComBanco(pedido: PedidoDeOperador, operadorDoAmbiente: st
 export async function executarOpsOperador(
   argumentos: string[],
   ambiente: Record<string, string | undefined>,
-  terminal: SaidaDoComando,
-  abrirBanco: (ambiente: Record<string, string | undefined>) => BancoDoComando = abrirBancoDeOperacao,
+  terminal: CommandOutput,
+  abrirBanco: (ambiente: Record<string, string | undefined>) => CommandDatabase = abrirBancoDeOperacao,
 ): Promise<number> {
   try {
     const pedido = lerPedidoDeOperador(argumentos)
     const operadorDoAmbiente = lerOperador(ambiente)
     const saida = pedido.acao === 'desativar' ? undefined : pedido.saida
-    const arquivo = saida === undefined ? undefined : await criarArquivoDoToken(saida, () => new ArgumentoInvalido('--saida (o arquivo já existe ou a pasta não aceita escrita)'))
+    const arquivo = saida === undefined ? undefined : await criarArquivoDoToken(saida, () => new InvalidArgumentError('--saida (o arquivo já existe ou a pasta não aceita escrita)'))
     let gravado = false
     try {
       const { banco, fechar } = abrirBanco(ambiente)
@@ -254,12 +254,12 @@ export async function executarOpsOperador(
       }
     }
   } catch (erro) {
-    if (erro instanceof ArgumentoInvalido || erro instanceof InvalidConfigError || erro instanceof OperadorRecusado) {
+    if (erro instanceof InvalidArgumentError || erro instanceof InvalidConfigError || erro instanceof OperadorRejectedError) {
       // Só o nome da opção ou da variável: nunca o valor.
       terminal.erro(`${erro.message}\n`)
       return 2
     }
-    if (erro instanceof DesativacaoRecusada) {
+    if (erro instanceof DesativacaoRejectedError) {
       terminal.erro(`${ErrorCode.CONFLITO}: ${erro.message}\n`)
       return 1
     }

@@ -1,5 +1,5 @@
 /** Uma fonte da proporção do seguro: quanto do que ela contou na janela recente foi atendido sem o Redis de fila. */
-export interface FonteDoSeguro {
+export interface FallbackSource {
   readonly proporcaoDoSeguro: number
 }
 
@@ -8,10 +8,10 @@ export interface FonteDoSeguro {
  * os contadores por IP (rebaixamento na matrícula e limite na rota de e-mail) e o desafio recusado sem Redis (15.5).
  * Vale a maior das proporções: basta uma delas estar sem o Redis para o alerta "Seguro de limite ativo" saber.
  */
-export class SeguroDoLogin implements FonteDoSeguro {
-  readonly #fontes: readonly FonteDoSeguro[]
+export class LoginFallbackTracker implements FallbackSource {
+  readonly #fontes: readonly FallbackSource[]
 
-  constructor(...fontes: readonly FonteDoSeguro[]) {
+  constructor(...fontes: readonly FallbackSource[]) {
     this.#fontes = fontes
   }
 

@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { TurmaRepository } from '../../estrutura/turma/turma.repository.js'
 import type { AcessoDaSala } from '../../sessao/index.js'
-import type { BaldeDeLogin } from '../../credencial/index.js'
+import type { LoginBucket } from '../../credencial/index.js'
 import { ListaLivreRepository } from './lista-livre.repository.js'
 import { ReivindicacaoRepository } from './reivindicacao.repository.js'
 import { ReivindicacaoService } from './reivindicacao.service.js'
@@ -42,7 +42,7 @@ describe('reivindicação: o hash sempre, pelo semáforo, antes da transação (
 
   function montar(caso: { readonly inserir: string; readonly tomar: boolean }, { rebaixado = false, livreComOutraMatricula = false, anoEmCurso = true } = {}) {
     const eventos: string[] = []
-    const baldes: BaldeDeLogin[] = []
+    const baldes: LoginBucket[] = []
     let dentroDoSemaforo = false
     const hash = {
       gerar: vi.fn(async () => {
@@ -51,7 +51,7 @@ describe('reivindicação: o hash sempre, pelo semáforo, antes da transação (
       }),
     }
     const semaforo = {
-      executar: async <T>(balde: BaldeDeLogin, tarefa: () => Promise<T>): Promise<T> => {
+      executar: async <T>(balde: LoginBucket, tarefa: () => Promise<T>): Promise<T> => {
         baldes.push(balde)
         dentroDoSemaforo = true
         try {

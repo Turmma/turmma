@@ -1,6 +1,6 @@
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { ArgumentoInvalido } from './command.js'
+import { InvalidArgumentError } from './command.js'
 import { executarOpsConviteCoordenador, lerPedidoDoConvite } from './convite-coordenador.js'
 import { executarOpsRevogarConvite, lerConviteARevogar } from './revogar-convite.js'
 
@@ -28,13 +28,13 @@ describe('ops:convite-coordenador: leitura do pedido', () => {
     ['sem saída', validos.slice(0, 6), '--saida'],
   ])('%s é recusado pelo nome da opção, sem o valor', (_caso, argumentos, opcao) => {
     const pedido = () => lerPedidoDoConvite(argumentos)
-    expect(pedido).toThrow(new ArgumentoInvalido(opcao))
+    expect(pedido).toThrow(new InvalidArgumentError(opcao))
     for (const valor of argumentos.filter((argumento) => !argumento.startsWith('--') && argumento.trim().length > 2)) expect(pedido).not.toThrow(valor)
   })
 
   it('opção desconhecida é recusada sem repetir o que veio', () => {
     const pedido = () => lerPedidoDoConvite([...validos, '--token', 'valor-secreto'])
-    expect(pedido).toThrow(ArgumentoInvalido)
+    expect(pedido).toThrow(InvalidArgumentError)
     expect(pedido).not.toThrow('valor-secreto')
   })
 

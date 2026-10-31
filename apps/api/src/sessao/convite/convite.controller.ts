@@ -16,7 +16,7 @@ import { ConviteService } from './convite.service.js'
  * `POST /v1/convites/consultar` e `/aceitar`: o coordenador convidado abre o link. Anônimas, e por isso limitadas pelo
  * IP da rota anônima; o token vem sempre no corpo, nunca na URL (regra 20, item 8), e as respostas saem com
  * `no-store`. Nenhuma rota de escola cria convite: ele nasce só pelo operador, no `ops:convite-coordenador` ou no painel
- * da operação (`@RotaDeOperacao`, A0b) (RF1).
+ * da operação (`@OperacaoRoute`, A0b) (RF1).
  */
 @Public()
 @Controller('v1/convites')

@@ -4,7 +4,7 @@ import { pathToFileURL } from 'node:url'
 import { parseArgs } from 'node:util'
 import { z } from 'zod'
 import { redefinirMfaPeloOperador } from '../sessao/index.js'
-import { abrirBancoDeOperacao, ArgumentoInvalido, autorDoComando, lerOperador, OperadorRecusado, type BancoDoComando, type SaidaDoComando } from './command.js'
+import { abrirBancoDeOperacao, InvalidArgumentError, autorDoComando, lerOperador, OperadorRejectedError, type CommandDatabase, type CommandOutput } from './command.js'
 
 /**
  * Redefinição do MFA pelo operador, a pedido formal da escola (PRD, caso de borda "Único coordenador perde o app
@@ -35,12 +35,12 @@ export function lerPedidoDeRedefinicao(argumentos: string[]): PedidoDeRedefinica
     valores = parseArgs({ args: argumentos, options: { usuario: { type: 'string' }, pedido: { type: 'string' } }, strict: true, allowPositionals: false }).values
   } catch {
     // O erro do parseArgs repete o argumento recebido; a mensagem fica só com as opções aceitas.
-    throw new ArgumentoInvalido('--usuario ou --pedido')
+    throw new InvalidArgumentError('--usuario ou --pedido')
   }
   const usuario = z.uuid().safeParse(valores.usuario)
-  if (!usuario.success) throw new ArgumentoInvalido('--usuario')
+  if (!usuario.success) throw new InvalidArgumentError('--usuario')
   const pedido = /^\d{1,10}$/.test(valores.pedido ?? '') ? esquemaPedido.safeParse(valores.pedido) : undefined
-  if (pedido?.success !== true) throw new ArgumentoInvalido('--pedido')
+  if (pedido?.success !== true) throw new InvalidArgumentError('--pedido')
   return { usuarioId: usuario.data.toLowerCase(), pedido: pedido.data }
 }
 
@@ -51,8 +51,8 @@ export function lerPedidoDeRedefinicao(argumentos: string[]): PedidoDeRedefinica
 export async function executarOpsRedefinirMfa(
   argumentos: string[],
   ambiente: Record<string, string | undefined>,
-  terminal: SaidaDoComando,
-  abrirBanco: (ambiente: Record<string, string | undefined>) => BancoDoComando = abrirBancoDeOperacao,
+  terminal: CommandOutput,
+  abrirBanco: (ambiente: Record<string, string | undefined>) => CommandDatabase = abrirBancoDeOperacao,
 ): Promise<number> {
   try {
     const pedido = lerPedidoDeRedefinicao(argumentos)
@@ -66,7 +66,7 @@ export async function executarOpsRedefinirMfa(
       await fechar()
     }
   } catch (erro) {
-    if (erro instanceof ArgumentoInvalido || erro instanceof InvalidConfigError || erro instanceof OperadorRecusado) {
+    if (erro instanceof InvalidArgumentError || erro instanceof InvalidConfigError || erro instanceof OperadorRejectedError) {
       // Só o nome da opção ou da variável: nunca o valor.
       terminal.erro(`${erro.message}\n`)
       return 2

@@ -1,7 +1,7 @@
 import { DomainException, LIMITES_DO_HISTOGRAMA_HTTP_S, METRICS, ROTULO_ESCOLA, type Meter } from '@educa/core'
 import { ErrorCode } from '@educa/shared'
 import { randomInt } from 'node:crypto'
-import type { BaldeDeLogin } from './login-buckets.js'
+import type { LoginBucket } from './login-buckets.js'
 
 /** Quanto um login espera a vez no semáforo antes de sair com 503 (Tech Spec da identidade, seção 5, "Hash"). */
 export const ESPERA_MAXIMA_PELO_HASH_MS = 2_000
@@ -24,12 +24,12 @@ const MAXIMO_NA_RODA = 10_000
 export const INTERVALO_PARA_ESQUECER_MS = 60_000
 
 /** A chave da subfila na roda: o balde e a subfila, separados por um caractere que não aparece em id nem em IP. */
-function chaveDaSubfila(balde: Pick<BaldeDeLogin, 'id' | 'subfila'>): string {
+function chaveDaSubfila(balde: Pick<LoginBucket, 'id' | 'subfila'>): string {
   return `${balde.id}\u0000${balde.subfila}`
 }
 
 interface Espera {
-  readonly balde: BaldeDeLogin
+  readonly balde: LoginBucket
   readonly inicio: number
   readonly entrar: () => void
   readonly sair: (erro: DomainException) => void
@@ -71,7 +71,7 @@ function filasDe(filas: FilasDoBalde, rebaixado: boolean): Map<string, Espera[]>
  * Estado só desta instância, e de propósito: o que ele protege é a CPU e as threads do processo, que não se somam
  * entre instâncias (regra 80, item 5, trata de estado que outra instância precise; este não é).
  */
-export class SemaforoDeHash {
+export class HashBulkhead {
   readonly #esperaPeloHash: ReturnType<Meter['createHistogram']>
   readonly #recusados: ReturnType<Meter['createCounter']>
   /**
@@ -137,7 +137,7 @@ export class SemaforoDeHash {
    * Roda `tarefa` quando o balde tiver a vez, e devolve o resultado dela. A vez é devolvida quando a tarefa termina,
    * com sucesso ou erro. Sem vez em 2 s, lança o 503, e a tarefa não roda.
    */
-  async executar<T>(balde: BaldeDeLogin, tarefa: () => Promise<T>): Promise<T> {
+  async executar<T>(balde: LoginBucket, tarefa: () => Promise<T>): Promise<T> {
     await this.#aguardarVez(balde)
     try {
       return await tarefa()
@@ -146,7 +146,7 @@ export class SemaforoDeHash {
     }
   }
 
-  #aguardarVez(balde: BaldeDeLogin): Promise<void> {
+  #aguardarVez(balde: LoginBucket): Promise<void> {
     const inicio = this.agora()
     if (this.#emUso < this.concorrencia && this.#esperando === 0) {
       this.#conceder(balde, inicio)
@@ -197,7 +197,7 @@ export class SemaforoDeHash {
     }
   }
 
-  #conceder(balde: BaldeDeLogin, inicio: number): void {
+  #conceder(balde: LoginBucket, inicio: number): void {
     // Sob ataque com muitos IPs, a roda não cresce sem limite, e nenhum IP fica nela sem prazo: esquece quem não está
     // esperando, antes de anotar a vez de quem acabou de recebê-la.
     const agora = this.agora()
@@ -314,7 +314,7 @@ export class SemaforoDeHash {
     return new DomainException(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO, undefined, randomInt(RETRY_AFTER_MINIMO_S, RETRY_AFTER_MAXIMO_S + 1))
   }
 
-  #medirEspera(balde: BaldeDeLogin, inicio: number): void {
+  #medirEspera(balde: LoginBucket, inicio: number): void {
     this.#esperaPeloHash.record((this.agora() - inicio) / 1_000, { [ROTULO_ESCOLA]: balde.rotulo })
   }
 }
@@ -328,8 +328,8 @@ const BALDE_UNICO = 'unico'
  * ordem de chegada. Existe para o cenário provar que reprova sem a proteção; a flag é recusada com `AMBIENTE=producao`.
  * A métrica de espera continua com o rótulo do balde de verdade.
  */
-export class SemaforoSemProtecao extends SemaforoDeHash {
-  override executar<T>(balde: BaldeDeLogin, tarefa: () => Promise<T>): Promise<T> {
+export class UnprotectedHashBulkhead extends HashBulkhead {
+  override executar<T>(balde: LoginBucket, tarefa: () => Promise<T>): Promise<T> {
     return super.executar({ id: BALDE_UNICO, subfila: '', rotulo: balde.rotulo, rebaixado: false }, tarefa)
   }
 }

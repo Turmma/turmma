@@ -40,6 +40,13 @@ O `aplicar` recusa o mapa inteiro, sem gravar, se: o `de` não existe no arquivo
 arquivo que importa o nome, sem `alias`; o `de` se repete; falta `linhaDoAnexo`; a edição cai fora do `--escopo` (os
 "Arquivos previstos"); ou sobra ocorrência sem classificação.
 
+No símbolo, o `de` repetido é o mesmo `de` no mesmo pacote (`apps/<x>`, `packages/<x>`; fora disso, a primeira pasta). Dois
+homônimos com destinos diferentes, cada um num pacote, entram com `arquivo` nas duas entradas (o `OpcoesDaMontagem` do worker
+e o do despachante, `inventario-back.md:316` e `:321`): o `aplicar` acha a declaração pelo `arquivo`, e o `conferir` segue
+cada entrada só no pacote dela. Repete, e recusa, se uma das entradas não tem `arquivo` (ela vale em todo pacote) ou se os
+dois `arquivo` caem no mesmo pacote, onde o `conferir` não separa o nome reexportado. Arquivo, pasta e pacote seguem pelo `de`
+sozinho (triagem da divergência da 8.0, 31/10/2026).
+
 **O `aplicar`, passo a passo:**
 
 1. Abre um serviço de linguagem por `tsconfig` (a raiz, `e2e/`, `infra/` e cada workspace) e junta os locais sem

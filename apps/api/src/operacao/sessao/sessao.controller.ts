@@ -2,11 +2,11 @@ import { requestIp, TrustedProxies, ZodValidationPipe } from '@educa/core'
 import { operadorEmptyBodyRequestSchema, renovacaoDeOperadorResponseSchema, type OperadorEmptyBodyRequest, type RenovacaoDeOperadorResponse } from '@educa/shared'
 import { Body, Controller, Header, HttpCode, HttpStatus, Inject, Post, Req, Res } from '@nestjs/common'
 import type { IncomingMessage, ServerResponse } from 'node:http'
-import { EntradaDeOperacao } from '../decorators.js'
-import { RenovacaoDeOperadorRecusada, SessaoDoOperadorService } from './sessao.service.js'
+import { OperacaoLoginRoute } from '../decorators.js'
+import { OperadorRefreshRejectedError, SessaoDoOperadorService } from './sessao.service.js'
 
 /** O corpo das duas rotas é vazio: sem corpo (o Express 5 deixa `req.body` indefinido), ou `{}`. Qualquer campo é `ENTRADA_INVALIDA`. */
-const esquemaSemCorpo = operadorEmptyBodyRequestSchema.default({})
+const emptyBodySchema = operadorEmptyBodyRequestSchema.default({})
 
 /**
  * `POST /v1/operacao/sessao/renovar` e `POST /v1/operacao/sessao/sair` (Tech Spec da A0, seção 4): as duas últimas das
@@ -25,11 +25,11 @@ export class SessaoDoOperadorController {
   ) {}
 
   @Post('renovar')
-  @EntradaDeOperacao()
+  @OperacaoLoginRoute()
   @HttpCode(HttpStatus.OK)
   @Header('Cache-Control', 'no-store')
   async renovar(
-    @Body(new ZodValidationPipe(esquemaSemCorpo)) _corpo: OperadorEmptyBodyRequest,
+    @Body(new ZodValidationPipe(emptyBodySchema)) _corpo: OperadorEmptyBodyRequest,
     @Req() requisicao: IncomingMessage,
     @Res({ passthrough: true }) resposta: ServerResponse,
   ): Promise<RenovacaoDeOperadorResponse> {
@@ -40,16 +40,16 @@ export class SessaoDoOperadorController {
       return corpoDaResposta
     } catch (erro) {
       // O cookie que não vale mais sai do navegador junto com o 401.
-      if (erro instanceof RenovacaoDeOperadorRecusada) resposta.setHeader('Set-Cookie', [...erro.cookies])
+      if (erro instanceof OperadorRefreshRejectedError) resposta.setHeader('Set-Cookie', [...erro.cookies])
       throw erro
     }
   }
 
   @Post('sair')
-  @EntradaDeOperacao()
+  @OperacaoLoginRoute()
   @HttpCode(HttpStatus.NO_CONTENT)
   @Header('Cache-Control', 'no-store')
-  async sair(@Body(new ZodValidationPipe(esquemaSemCorpo)) _corpo: OperadorEmptyBodyRequest, @Req() requisicao: IncomingMessage, @Res({ passthrough: true }) resposta: ServerResponse): Promise<void> {
+  async sair(@Body(new ZodValidationPipe(emptyBodySchema)) _corpo: OperadorEmptyBodyRequest, @Req() requisicao: IncomingMessage, @Res({ passthrough: true }) resposta: ServerResponse): Promise<void> {
     const cookies = await this.sessoes.sair({ cabecalhoCookie: requisicao.headers.cookie, ip: await requestIp(requisicao, this.proxies) })
     resposta.setHeader('Set-Cookie', [...cookies])
   }

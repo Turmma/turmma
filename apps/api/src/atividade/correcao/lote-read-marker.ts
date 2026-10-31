@@ -24,7 +24,7 @@ const logger = new Logger('atividade')
  * Redis fora: a leitura responde assim mesmo (só não marca), e a aprovação responde 503, para tentar de novo. Nunca
  * aprova sem conferir.
  */
-export class LeituraDoLote {
+export class LoteReadMarker {
   constructor(private readonly cliente: Pick<Redis, 'set' | 'get'>) {}
 
   /** A chave da leitura do lote pela pessoa da sessão. */

@@ -15,7 +15,7 @@ import { z } from 'zod'
 
 export { InvalidConfigError }
 
-const esquemaAmbiente = z.object({
+const envSchema = z.object({
   REDIS_FILA_URL: z.string().regex(/^redis:\/\/[^/\s]+(\/\d+)?$/),
 })
 
@@ -49,7 +49,7 @@ export function lerConfiguracao(ambiente: Record<string, string | undefined>): C
     }
   }
   const banco = ler(() => loadDatabaseConfig(ambiente))
-  const proprio = ler(() => validateEnvironment(esquemaAmbiente, ambiente))
+  const proprio = ler(() => validateEnvironment(envSchema, ambiente))
   const vagasPadrao = ler(() => lerVagasPadrao(ambiente))
   const janelaPadrao = ler(() => lerJanelaPadrao(ambiente))
   const vagasDesligadas = ler(() => isEscolaConcurrencyLimitDisabled(ambiente))

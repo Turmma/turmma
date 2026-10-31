@@ -2,7 +2,7 @@ import { runInContext } from '@educa/core'
 import { randomUUID } from 'node:crypto'
 import { afterAll, describe, expect, it } from 'vitest'
 import { BancadaDeSessoes } from '../../../test/sessao.fixture.js'
-import { ContaExternaRepository, type ChaveDaContaExterna } from './conta-externa.repository.js'
+import { ContaExternalRepository, type ChaveDaContaExterna } from './conta-externa.repository.js'
 
 /** E-mail sintético novo a cada execução: a conta é global, e o teste não quer achar a de outra execução. */
 const emailSintetico = () => `professor.${randomUUID()}@repositorio.educa-sintetica.test`
@@ -10,7 +10,7 @@ const chaveGoogle = (): ChaveDaContaExterna => ({ provedor: 'google', tenant: nu
 
 describe('ContaExternaRepository: ligação, domínio e professor lidos só na escola do contexto', () => {
   const bancada = new BancadaDeSessoes()
-  const repositorio = new ContaExternaRepository(bancada.banco)
+  const repositorio = new ContaExternalRepository(bancada.banco)
 
   afterAll(async () => {
     await bancada.fechar()

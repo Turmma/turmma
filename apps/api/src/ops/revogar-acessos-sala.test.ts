@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ArgumentoInvalido } from './command.js'
+import { InvalidArgumentError } from './command.js'
 import { executarOpsRevogarAcessosSala, lerEscolaARevogar } from './revogar-acessos-sala.js'
 
 /**
@@ -34,11 +34,11 @@ describe('lerEscolaARevogar', () => {
     ['o slug no lugar do id', ['--escola', 'colegio-sintetico']],
     ['argumento solto', [ESCOLA]],
   ])('%s: ArgumentoInvalido citando só a opção', (_caso, argumentos) => {
-    expect(() => lerEscolaARevogar(argumentos)).toThrow(new ArgumentoInvalido('--escola'))
+    expect(() => lerEscolaARevogar(argumentos)).toThrow(new InvalidArgumentError('--escola'))
   })
 
   it('opção desconhecida não repete o valor recebido na mensagem', () => {
-    expect(() => lerEscolaARevogar(['--escola', ESCOLA, '--codigo', 'K7M2XQ9P'])).toThrow(ArgumentoInvalido)
+    expect(() => lerEscolaARevogar(['--escola', ESCOLA, '--codigo', 'K7M2XQ9P'])).toThrow(InvalidArgumentError)
     expect(() => lerEscolaARevogar(['--escola', ESCOLA, '--codigo', 'K7M2XQ9P'])).not.toThrow(/K7M2XQ9P/)
   })
 })

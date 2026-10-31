@@ -1,6 +1,6 @@
 import { throttledWarn, METRICS, requestSessao, type Database, type Meter } from '@educa/core'
 import { Logger } from '@nestjs/common'
-import { EscritaDeSessaoRepository } from '../../credencial/sessao-write.repository.js'
+import { SessaoWriteRepository } from '../../credencial/sessao-write.repository.js'
 
 /**
  * A atividade da pessoa na sessão da requisição: move `ultimo_uso_em`, que é o que a inatividade confere (Tech Spec,
@@ -29,7 +29,7 @@ export class RegistroDeAtividade {
    */
   registrarAtividade(): Promise<void> {
     const { sessaoId } = requestSessao()
-    return new EscritaDeSessaoRepository(this.banco)
+    return new SessaoWriteRepository(this.banco)
       .registrarUso(sessaoId)
       .then(() => undefined)
       .catch(() => {

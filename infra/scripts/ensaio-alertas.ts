@@ -5,7 +5,7 @@ import { setTimeout as esperar } from 'node:timers/promises'
 import { pathToFileURL } from 'node:url'
 import pg from 'pg'
 import type { criarEscola, criarRede } from '../../apps/api/src/operacao/escola/escola.ts'
-import type { criarSessoesSinteticas, emissorDeTokenSintetico } from '../../apps/api/src/sessao/tenant/synthetic-sessions.ts'
+import type { createSyntheticSessions, syntheticTokenIssuer } from '../../apps/api/src/sessao/tenant/synthetic-sessions.ts'
 import type { createDatabase, createPool } from '@educa/core'
 import { raizRepositorio } from '../../tools/ci/executar.ts'
 
@@ -676,7 +676,7 @@ async function executarPelaLinhaDeComando(): Promise<void> {
   const importar = <T>(caminho: string) => import(pathToFileURL(join(raizRepositorio, caminho)).href) as Promise<T>
   const nucleo = await importar<{ createDatabase: typeof createDatabase; createPool: typeof createPool }>('packages/core/dist/index.js')
   const escolas = await importar<{ criarRede: typeof criarRede; criarEscola: typeof criarEscola }>('apps/api/dist/operacao/escola/escola.js')
-  const sessoes = await importar<{ criarSessoesSinteticas: typeof criarSessoesSinteticas; emissorDeTokenSintetico: typeof emissorDeTokenSintetico }>('apps/api/dist/sessao/tenant/synthetic-sessions.js')
+  const sessoes = await importar<{ createSyntheticSessions: typeof createSyntheticSessions; syntheticTokenIssuer: typeof syntheticTokenIssuer }>('apps/api/dist/sessao/tenant/synthetic-sessions.js')
   const inicio = Date.now()
   const escrever = (linha: string) => process.stdout.write(`[${Math.round((Date.now() - inicio) / 1_000)} s] ${linha}\n`)
   const bancoUrl = `postgres://${obrigatoria(ambiente, 'POSTGRES_USUARIO')}:${obrigatoria(ambiente, 'POSTGRES_SENHA')}@127.0.0.1:${obrigatoria(ambiente, 'POSTGRES_PORTA_HOST')}/${obrigatoria(ambiente, 'POSTGRES_BANCO')}`
@@ -690,8 +690,8 @@ async function executarPelaLinhaDeComando(): Promise<void> {
     const { id: redeId } = await escolas.criarRede(banco, autor, { id: randomUUID(), nome: 'Rede sintética do ensaio', tipo: 'independente' })
     const slug = `ensaio-${randomUUID()}`
     const { id: escolaId } = await escolas.criarEscola(banco, autor, { id: randomUUID(), redeId, nome: 'Escola sintética do ensaio', slug })
-    const emissor = sessoes.emissorDeTokenSintetico(ambiente)
-    const criadas = await sessoes.criarSessoesSinteticas(banco, ambiente, { escolaId, papel: 'coordenador', quantidade })
+    const emissor = sessoes.syntheticTokenIssuer(ambiente)
+    const criadas = await sessoes.createSyntheticSessions(banco, ambiente, { escolaId, papel: 'coordenador', quantidade })
     return { escolaId, slug, tokens: criadas.map((criada) => async () => (await emissor.emitir({ escolaId, usuarioId: criada.usuarioId, sessaoId: criada.sessaoId })).token) }
   }
   try {

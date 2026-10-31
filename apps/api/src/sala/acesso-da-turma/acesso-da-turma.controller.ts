@@ -5,8 +5,8 @@ import type { z } from 'zod'
 import { AcessoDaTurmaService } from './acesso-da-turma.service.js'
 
 /** Revogar não tem campo: nenhum corpo vale como `{}` (o Express 5 deixa `req.body` indefinido), e qualquer campo é `ENTRADA_INVALIDA`. */
-const esquemaSemCorpo = revogarAcessoRequestSchema.default({})
-type PedidoSemCorpo = z.output<typeof esquemaSemCorpo>
+const emptyBodySchema = revogarAcessoRequestSchema.default({})
+type PedidoSemCorpo = z.output<typeof emptyBodySchema>
 
 /**
  * O acesso da turma (A1, tarefa 4.0, RF9), só do professor com vínculo confirmado na turma do ano em curso: gerar o link
@@ -35,7 +35,7 @@ export class AcessoDaTurmaController {
   @Post('revogar')
   @RequirePermissao('acesso_turma', 'revogar')
   @HttpCode(HttpStatus.NO_CONTENT)
-  revogar(@Param('id', IdPipe) turmaId: string, @Body(new ZodValidationPipe(esquemaSemCorpo)) _corpo: PedidoSemCorpo): Promise<void> {
+  revogar(@Param('id', IdPipe) turmaId: string, @Body(new ZodValidationPipe(emptyBodySchema)) _corpo: PedidoSemCorpo): Promise<void> {
     return this.acessos.revogar(turmaId)
   }
 }

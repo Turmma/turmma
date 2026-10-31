@@ -10,12 +10,12 @@ import {
   type ConversaDoAssistenteResponse,
   type ExecucaoAceitaResponse,
 } from '@educa/shared'
-import type { AgendadorDeExecucoes } from '../ia/execucao.scheduler.js'
-import type { BuscaDeTrechos, TrechoDoMaterial } from '../material/trecho-search.js'
+import type { ExecucaoScheduler } from '../ia/execucao.scheduler.js'
+import type { TrechoSearch, TrechoDoMaterial } from '../material/trecho-search.js'
 import { exigirCitacoesEntregues } from './citacoes.js'
 import { ConversaRepository, type MensagemGravada, type PerguntaDaExecucao } from './conversa.repository.js'
 import { ExecucaoDoPedidoRepository } from './execucao-do-pedido.repository.js'
-import type { LimiteDePedidosDeIa } from './ai-request-rate-limit.js'
+import type { IaRequestRateLimit } from './ai-request-rate-limit.js'
 import { TurmaDoProfessorRepository } from './turma-do-professor.repository.js'
 
 /** Quantos trechos do material acompanham a mensagem do professor (o teto de `assistenteInputSchema`). */
@@ -65,9 +65,9 @@ function turnoAnterior(mensagem: MensagemGravada): AssistenteInput['turnosAnteri
 export class AssistenteService {
   constructor(
     private readonly banco: Database,
-    private readonly agendador: AgendadorDeExecucoes,
-    private readonly limite: LimiteDePedidosDeIa,
-    private readonly trechos: BuscaDeTrechos,
+    private readonly agendador: ExecucaoScheduler,
+    private readonly limite: IaRequestRateLimit,
+    private readonly trechos: TrechoSearch,
   ) {}
 
   /** `GET /v1/assistente/conversa`: uma página da thread do professor, da mais antiga para a mais nova, e o `anterior` quando há mais para trás. */

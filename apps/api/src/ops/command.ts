@@ -3,7 +3,7 @@ import { nomeDigitadoSchema, FORMATO_OPERADOR } from '@educa/shared'
 import { open, type FileHandle } from 'node:fs/promises'
 import { z } from 'zod'
 import { OperadorRepository } from '../operacao/operador/operador.repository.js'
-import type { ConferenciaDoAutor } from '../sessao/index.js'
+import type { AuthorCheck } from '../sessao/index.js'
 
 /**
  * O que os comandos do operador (`ops:escola`, `ops:redefinir-mfa`, `ops:convite-coordenador`, `ops:revogar-convite`,
@@ -12,10 +12,10 @@ import type { ConferenciaDoAutor } from '../sessao/index.js'
  * saída do terminal; o arquivo 0600 do token; e o banco de operação, com uma conexão só.
  */
 
-export class ArgumentoInvalido extends Error {
+export class InvalidArgumentError extends Error {
   constructor(readonly opcao: string) {
     super(`Opção inválida ou ausente: ${opcao}`)
-    this.name = 'ArgumentoInvalido'
+    this.name = 'InvalidArgumentError'
   }
 }
 
@@ -25,18 +25,18 @@ export class ArgumentoInvalido extends Error {
  */
 export const esquemaNome = nomeDigitadoSchema
 
-const esquemaAmbienteOperador = z.object({ OPERADOR: z.string().regex(FORMATO_OPERADOR) })
+const operadorEnvSchema = z.object({ OPERADOR: z.string().regex(FORMATO_OPERADOR) })
 
 /** Quem da equipe roda o comando. Ausente ou fora do formato, recusa pelo nome da variável, sem o valor. */
 export function lerOperador(ambiente: Record<string, string | undefined>): string {
-  return validateEnvironment(esquemaAmbienteOperador, ambiente).OPERADOR
+  return validateEnvironment(operadorEnvSchema, ambiente).OPERADOR
 }
 
 /** O `OPERADOR` não é um operador ativo, e há operador ativo. A mensagem é fixa: nunca repete o valor da variável. */
-export class OperadorRecusado extends Error {
+export class OperadorRejectedError extends Error {
   constructor() {
     super('OPERADOR não é um operador ativo da equipe')
-    this.name = 'OperadorRecusado'
+    this.name = 'OperadorRejectedError'
   }
 }
 
@@ -49,16 +49,16 @@ export class OperadorRecusado extends Error {
  *   chegue depois espera a escrita confirmar; o que chegou antes faz a escrita não o achar;
  * - não há operador ativo nenhum: qualquer `OPERADOR` no formato passa, e é ele o autor (o nascimento, Tech Spec da A0,
  *   seção 5). O `desativar` nunca deixa zero ativos, então isso só vale antes do primeiro `ops:operador criar`;
- * - senão, `OperadorRecusado`, e a transação desfaz tudo: nada é lido nem gravado antes desta conferência.
+ * - senão, `OperadorRejectedError`, e a transação desfaz tudo: nada é lido nem gravado antes desta conferência.
  *
  * O `ops:operador` tem a própria conferência, sob a trava dos operadores (`autorSobATrava`).
  */
-export function autorDoComando(apelido: string): ConferenciaDoAutor {
+export function autorDoComando(apelido: string): AuthorCheck {
   return async (tx) => {
     const ativo = await OperadorRepository.autorAtivoNaTransacao(tx, { apelido })
     if (ativo !== undefined) return ativo
     if ((await new OperadorRepository(tx).contarAtivos()) === 0) return apelido
-    throw new OperadorRecusado()
+    throw new OperadorRejectedError()
   }
 }
 
@@ -71,24 +71,24 @@ export async function criarArquivoDoToken(caminho: string, invalido: () => Error
   }
 }
 
-export interface SaidaDoComando {
+export interface CommandOutput {
   saida: (texto: string) => void
   erro: (texto: string) => void
 }
 
-export interface BancoDoComando {
+export interface CommandDatabase {
   banco: Database
   fechar: () => Promise<void>
 }
 
-export function abrirBancoDeOperacao(ambiente: Record<string, string | undefined>): BancoDoComando {
+export function abrirBancoDeOperacao(ambiente: Record<string, string | undefined>): CommandDatabase {
   const pool = createPool({ ...urlDoBancoDeOperacao(ambiente), maximoConexoes: 1 }, () => undefined)
   return { banco: createDatabase(pool), fechar: () => pool.end() }
 }
 
 const inteiroPositivo = z.coerce.number().int().positive()
 
-const esquemaAmbienteDoBanco = z.object({
+const opsDatabaseEnvSchema = z.object({
   BANCO_TIMEOUT_CONEXAO_MS: inteiroPositivo,
   BANCO_TIMEOUT_CONSULTA_MS: inteiroPositivo,
   // No container, o BANCO_URL do serviço; na máquina, com `.env.example`, o Postgres do compose local.
@@ -100,7 +100,7 @@ const esquemaAmbienteDoBanco = z.object({
 })
 
 export function urlDoBancoDeOperacao(ambiente: Record<string, string | undefined>): { url: string; timeoutConexaoMs: number; timeoutConsultaMs: number } {
-  const valores = validateEnvironment(esquemaAmbienteDoBanco, ambiente)
+  const valores = validateEnvironment(opsDatabaseEnvSchema, ambiente)
   const { POSTGRES_USUARIO: usuario, POSTGRES_SENHA: senha, POSTGRES_BANCO: nome, POSTGRES_PORTA_HOST: porta } = valores
   const url =
     valores.BANCO_URL ??

@@ -7,7 +7,7 @@ import { CAMINHO_DOS_COOKIES_DE_OPERADOR, COOKIE_SESSAO_DE_OPERADOR, cookieDeSes
 import { OperadorRepository } from '../operador/operador.repository.js'
 import { JANELA_DO_REFRESH_ANTERIOR_SEGUNDOS, sessaoDeOperadorVale } from './sessao-timeouts.js'
 
-export interface DependenciasDaSessaoDoOperador {
+export interface SessaoDoOperadorDependencies {
   readonly banco: Database
   readonly emissorDeToken: Pick<OperadorTokenIssuer, 'emitir'>
   readonly ambiente: Environment
@@ -20,13 +20,13 @@ export interface OrigemDaSessaoDoOperador {
 }
 
 /** A renovação aceita: o corpo e, quando rotacionou, o `Set-Cookie` com o refresh novo. */
-export interface RenovacaoDeOperador {
+export interface OperadorRefresh {
   readonly resposta: RenovacaoDeOperadorResponse
   readonly cookies: readonly string[]
 }
 
 /** A renovação recusada: 401 `SESSAO_ENCERRADA`, com o `Set-Cookie` que apaga o cookie que não vale mais. */
-export class RenovacaoDeOperadorRecusada extends DomainException {
+export class OperadorRefreshRejectedError extends DomainException {
   constructor(readonly cookies: readonly string[]) {
     super(ErrorCode.SESSAO_ENCERRADA)
   }
@@ -67,9 +67,9 @@ export class SessaoDoOperadorService {
   readonly #logger = new Logger('operacao')
   readonly #avisarIndisponivel = throttledWarn(() => this.#logger.warn('operacao.sessao_indisponivel'))
 
-  constructor(private readonly dependencias: DependenciasDaSessaoDoOperador) {}
+  constructor(private readonly dependencias: SessaoDoOperadorDependencies) {}
 
-  async renovar(origem: Pick<OrigemDaSessaoDoOperador, 'cabecalhoCookie'>): Promise<RenovacaoDeOperador> {
+  async renovar(origem: Pick<OrigemDaSessaoDoOperador, 'cabecalhoCookie'>): Promise<OperadorRefresh> {
     const refresh = lerCookie(origem.cabecalhoCookie, COOKIE_SESSAO_DE_OPERADOR)
     if (refresh === undefined || !FORMATO_DO_REFRESH.test(refresh)) throw this.#recusada()
     const novoRefresh = randomBytes(BYTES_DO_REFRESH).toString('base64url')
@@ -136,8 +136,8 @@ export class SessaoDoOperadorService {
     }
   }
 
-  #recusada(): RenovacaoDeOperadorRecusada {
-    return new RenovacaoDeOperadorRecusada([this.#cookieApagado()])
+  #recusada(): OperadorRefreshRejectedError {
+    return new OperadorRefreshRejectedError([this.#cookieApagado()])
   }
 
   #cookieApagado(): string {

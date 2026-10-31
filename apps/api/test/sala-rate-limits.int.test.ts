@@ -3,18 +3,18 @@ import { ErrorCode, salaAbertaResponseSchema, MENSAGENS_DE_ERRO } from '@educa/s
 import { randomBytes, randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
-import { POOL_BANCO } from '../src/database.module.js'
+import { DB_POOL } from '../src/database.module.js'
 import { sortearCodigoDaTurma } from '../src/sala/codigo-da-sala.js'
 import {
   ESPERA_ACIMA_DO_TETO_DA_ESCOLA_MS,
   JANELA_DOS_LIMITES_DA_SALA_MS,
-  LimitesDaSala,
+  SalaRateLimits,
   PREFIXO_MATRICULA_ERRADA_POR_NOME,
   TETO_DE_CODIGOS_ERRADOS_POR_ESCOLA,
   TETO_DE_HASHES_SEM_PEDIDO_POR_TURMA,
   TETO_DE_MATRICULAS_ERRADAS_POR_NOME,
 } from '../src/sala/sala-rate-limits.js'
-import { type BaldeDeLogin, ContadorEmJanela, HashDeSenha, JANELA_DO_CONTADOR_POR_IP_MS, SemaforoDeHash } from '../src/credencial/index.js'
+import { type LoginBucket, WindowCounter, PasswordHasher, JANELA_DO_CONTADOR_POR_IP_MS, HashBulkhead } from '../src/credencial/index.js'
 import { subirApi, type ApiDeTeste } from './test-api.js'
 import { aguardar } from './write-block-trigger.js'
 import { FerramentasDaSala, pedidoDaSala, semRequisicao, SENHA_DA_SALA, type NomeDaLista, type RespostaDaSala, type SalaDeTeste } from './sala.fixture.js'
@@ -64,14 +64,14 @@ describe('limites da sala (A1, tarefa 7.0): por escola, por nome e por turma, nu
   /** Com o pool do banco no tamanho mínimo (L3). */
   let apiDoPool: ApiDeTeste
   let sala: FerramentasDaSala
-  let hashes: MockInstance<HashDeSenha['gerar']>
-  let gerarReal: HashDeSenha['gerar']
+  let hashes: MockInstance<PasswordHasher['gerar']>
+  let gerarReal: PasswordHasher['gerar']
 
   beforeAll(async () => {
     api = await subirApi(medidor.medidor, { ambiente: AMBIENTE }, linhasDeLog)
     apiDoPool = await subirApi(medidor.medidor, { ambiente: AMBIENTE, banco: { maximoConexoes: 1 } })
     sala = new FerramentasDaSala(api, bancada)
-    const hash = api.app.get(HashDeSenha)
+    const hash = api.app.get(PasswordHasher)
     gerarReal = hash.gerar.bind(hash)
     hashes = vi.spyOn(hash, 'gerar')
   })
@@ -121,8 +121,8 @@ describe('limites da sala (A1, tarefa 7.0): por escola, por nome e por turma, nu
       const aleatorio = { id: randomUUID(), nome: '-', matricula: 'sem-lista' }
       // Toda chave nasce de um `somar`, no Redis ou no seguro em memória: o espião vê as duas.
       const somadas: string[] = []
-      const somarReal = ContadorEmJanela.prototype.somar
-      const espiao = vi.spyOn(ContadorEmJanela.prototype, 'somar').mockImplementation(async function (this: ContadorEmJanela, chave) {
+      const somarReal = WindowCounter.prototype.somar
+      const espiao = vi.spyOn(WindowCounter.prototype, 'somar').mockImplementation(async function (this: WindowCounter, chave) {
         somadas.push(chave)
         return somarReal.call(this, chave)
       })
@@ -137,7 +137,7 @@ describe('limites da sala (A1, tarefa 7.0): por escola, por nome e por turma, nu
       for (const nome of [deT2, deB, aleatorio]) expect(await sala.existeContadorDoNome({ acessoId, listaNomeId: nome.id }), nome.id).toBe(false)
       // Só a turma contou: 21 hashes sem pedido, e nenhuma soma com o prefixo do nome.
       expect(somadas.filter((chave) => chave.startsWith(`${PREFIXO_MATRICULA_ERRADA_POR_NOME}:`))).toEqual([])
-      expect(somadas.filter((chave) => chave === api.app.get(LimitesDaSala).chaveDaTurma(a.turma))).toHaveLength(21)
+      expect(somadas.filter((chave) => chave === api.app.get(SalaRateLimits).chaveDaTurma(a.turma))).toHaveLength(21)
 
       const deT1Respostas: Array<ReturnType<typeof semRequisicao>> = []
       for (let vez = 0; vez < 7; vez++) deT1Respostas.push(semRequisicao(await errar(a, deT1)))
@@ -335,8 +335,8 @@ describe('limites da sala (A1, tarefa 7.0): por escola, por nome e por turma, nu
       const [a, b] = [await sala.montar(), await sala.montar()]
       await emLotes(TETO_DE_CODIGOS_ERRADOS_POR_ESCOLA, 50, () => sala.abrir({ slug: a.slug, codigo: sortearCodigoDaTurma() }))
       expect((await sala.contadores(a, a.turma)).escola).toBe(TETO_DE_CODIGOS_ERRADOS_POR_ESCOLA)
-      const limites = apiDoPool.app.get(LimitesDaSala)
-      const pool = apiDoPool.app.get<DatabasePool>(POOL_BANCO, { strict: false })
+      const limites = apiDoPool.app.get(SalaRateLimits)
+      const pool = apiDoPool.app.get<DatabasePool>(DB_POOL, { strict: false })
       expect(pool.options.max).toBe(1)
 
       const esperando = Array.from({ length: 50 }, () => sala.abrir({ slug: a.slug, codigo: a.codigo }, { url: apiDoPool.url }))
@@ -353,8 +353,8 @@ describe('limites da sala (A1, tarefa 7.0): por escola, por nome e por turma, nu
     it('L5: 151 matrículas erradas espalhadas por 38 nomes (nenhum passa de 4): ninguém recebe 429, e o espião do semáforo vê o 151º em diante rebaixado', async () => {
       const a = await sala.montar()
       const nomes = await sala.nomes(a, a.turma, 38)
-      const semaforo = api.app.get(SemaforoDeHash)
-      const baldes: BaldeDeLogin[] = []
+      const semaforo = api.app.get(HashBulkhead)
+      const baldes: LoginBucket[] = []
       const executarReal = semaforo.executar.bind(semaforo)
       const espiao = vi.spyOn(semaforo, 'executar').mockImplementation(async (balde, tarefa) => {
         baldes.push(balde)
@@ -433,10 +433,10 @@ describe('limites da sala (A1, tarefa 7.0): por escola, por nome e por turma, nu
       expect(await efeito(() => sala.abrir({ slug: `nao-existe-${randomUUID().slice(0, 8)}`, codigo: a.codigo }))).toEqual({ escola: 0, turma: 0, nome: 0 })
 
       // L8, pela aplicação montada: a chave da sala vale 10 min, e o contador do login continua com o minuto.
-      const prazo = await sala.redis().pttl(api.app.get(LimitesDaSala).chaveDaTurma(a.turma))
+      const prazo = await sala.redis().pttl(api.app.get(SalaRateLimits).chaveDaTurma(a.turma))
       expect(prazo).toBeGreaterThan(JANELA_DO_CONTADOR_POR_IP_MS)
       expect(prazo).toBeLessThanOrEqual(JANELA_DOS_LIMITES_DA_SALA_MS)
-      expect(api.app.get(ContadorEmJanela).janelaMs).toBe(JANELA_DO_CONTADOR_POR_IP_MS)
+      expect(api.app.get(WindowCounter).janelaMs).toBe(JANELA_DO_CONTADOR_POR_IP_MS)
     })
 
     it('sala.reivindicacao{resultado}: um ponto por pedido, só com o resultado', async () => {
@@ -462,8 +462,8 @@ describe('limites da sala (A1, tarefa 7.0): por escola, por nome e por turma, nu
       const [tomado, outro] = await sala.nomes(a, a.turma, 2)
       if (tomado === undefined || outro === undefined) throw new Error('nomes não gravados')
       expect(semRequisicao(await sala.reivindicar(pedidoDaSala(a, tomado)))).toEqual(ENVIADO)
-      const semaforo = api.app.get(SemaforoDeHash)
-      const baldes: BaldeDeLogin[] = []
+      const semaforo = api.app.get(HashBulkhead)
+      const baldes: LoginBucket[] = []
       const executarReal = semaforo.executar.bind(semaforo)
       const espiao = vi.spyOn(semaforo, 'executar').mockImplementation(async (balde, tarefa) => {
         baldes.push(balde)

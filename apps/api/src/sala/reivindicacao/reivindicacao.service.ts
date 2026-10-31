@@ -2,21 +2,21 @@ import { DomainException, postgresErrorIn, METRICS, type Database, type Meter } 
 import { ErrorCode, reivindicacaoResponseSchema, type ReivindicarSalaRequest, type ReivindicacaoResponse } from '@educa/shared'
 import { TurmaRepository } from '../../estrutura/turma/turma.repository.js'
 import type { AcessoDaSala } from '../../sessao/index.js'
-import { baldeDaEscola, type HashDeSenha, type SemaforoDeHash } from '../../credencial/index.js'
-import type { LimitesDaSala } from '../sala-rate-limits.js'
+import { escolaBucket, type PasswordHasher, type HashBulkhead } from '../../credencial/index.js'
+import type { SalaRateLimits } from '../sala-rate-limits.js'
 import { ListaLivreRepository } from './lista-livre.repository.js'
 import { ReivindicacaoRepository } from './reivindicacao.repository.js'
 import { entradaDaSala } from '../entrada-da-sala.js'
 
-export interface DependenciasDaReivindicacao {
+export interface ReivindicacaoDependencies {
   readonly banco: Database
   readonly acessoDaSala: Pick<AcessoDaSala, 'naSala'>
   /** O semáforo do hash do login, um só por instância: o teto que ele guarda é o das threads do processo. */
-  readonly semaforo: Pick<SemaforoDeHash, 'executar'>
-  readonly hash: Pick<HashDeSenha, 'gerar'>
+  readonly semaforo: Pick<HashBulkhead, 'executar'>
+  readonly hash: Pick<PasswordHasher, 'gerar'>
   readonly chaveCodigo: Uint8Array
   /** Os três contadores da sala (7.0): o do código errado vai ao `AcessoDaSala`, o do nome e o da turma rodam aqui. */
-  readonly limites: Pick<LimitesDaSala, 'antesDaBusca' | 'codigoErrado' | 'antesDoHash' | 'teveMatriculaErrada' | 'hashSemPedido'>
+  readonly limites: Pick<SalaRateLimits, 'antesDaBusca' | 'codigoErrado' | 'antesDoHash' | 'teveMatriculaErrada' | 'hashSemPedido'>
   readonly medidor: Meter
 }
 
@@ -41,7 +41,7 @@ const VOLTA_E_RELE = new Set(['23503', '23505'])
  * A transação volta atrás sem gravar, como no 23505: o `update` da `lista_nome` não achou o nome, ou o ano deixou de
  * estar em curso enquanto o pedido esperava a trava dele (10.0, C10).
  */
-class NaoGravou extends Error {}
+class NotWrittenError extends Error {}
 
 const ENVIADO: ReivindicacaoResponse = reivindicacaoResponseSchema.parse({ resultado: 'enviado' })
 
@@ -56,13 +56,13 @@ type Desfecho = 'enviado' | 'reenvio'
  *
  * 1. **A chave já gravada** num pedido da escola, do ano e da turma do acesso: é o reenvio, e responde `enviado`, sem hash,
  *    sem pedido novo e sem contar em limite nenhum (E21).
- * 2. **Os limites** (7.0, `LimitesDaSala`): uma leitura, com a escola e o ano do contexto e a turma do acesso, diz se é
+ * 2. **Os limites** (7.0, `SalaRateLimits`): uma leitura, com a escola e o ano do contexto e a turma do acesso, diz se é
  *    matrícula errada num nome livre; se é, ela soma no contador do nome **antes** do hash, de forma atômica, e as
  *    tentativas ao mesmo tempo no mesmo nome não passam do teto juntas. O nome travado pelo mesmo acesso sai com
  *    `LIMITE_EXCEDIDO` e `Retry-After`, sem hash; a turma no teto de hashes sem pedido manda o hash rebaixado. O código
  *    errado já contou antes, no `AcessoDaSala`. Depois do hash, o contador do nome dá o `teve_matricula_errada` do pedido,
  *    com as erradas que chegaram junto.
- * 3. **O hash, sempre**: argon2id no `SemaforoDeHash`, no balde da escola, fora da transação e sem conexão presa (L9), em
+ * 3. **O hash, sempre**: argon2id no `HashBulkhead`, no balde da escola, fora da transação e sem conexão presa (L9), em
  *    todo pedido que passou da chave, com a matrícula certa ou não, com o nome tomado ou inexistente (R3): rodar o hash
  *    só quando a matrícula bate diria, pelo tempo, qual dos dois errou. O 503 do prazo do semáforo sai daqui, sem gravar.
  * 4. **A transação**: o ano em curso travado em `FOR SHARE` (10.0, C10), o `insert` do pedido e, **depois**, o `update`
@@ -81,7 +81,7 @@ type Desfecho = 'enviado' | 'reenvio'
 export class ReivindicacaoService {
   readonly #pedidos: ReturnType<Meter['createCounter']>
 
-  constructor(private readonly dependencias: DependenciasDaReivindicacao) {
+  constructor(private readonly dependencias: ReivindicacaoDependencies) {
     this.#pedidos = dependencias.medidor.createCounter(METRICS.reivindicacaoNaSala, { description: 'Pedidos de reivindicação de nome na página da sala, por resultado' })
   }
 
@@ -110,16 +110,16 @@ export class ReivindicacaoService {
         const nome = { acessoId, listaNomeId }
         const matriculaErrada = await new ListaLivreRepository(banco).livreComOutraMatricula({ turmaId, listaNomeId, matricula })
         const { rebaixado } = await limites.antesDoHash(nome, turmaId, escolaId, matriculaErrada)
-        const senhaHash = await semaforo.executar(baldeDaEscola(escolaId, rebaixado), () => hash.gerar(senha))
+        const senhaHash = await semaforo.executar(escolaBucket(escolaId, rebaixado), () => hash.gerar(senha))
         const teveMatriculaErrada = await limites.teveMatriculaErrada(nome)
         try {
           await banco.transaction(async (tx) => {
-            if (!(await new TurmaRepository(tx).travarAnoEmCurso())) throw new NaoGravou()
+            if (!(await new TurmaRepository(tx).travarAnoEmCurso())) throw new NotWrittenError()
             await new ReivindicacaoRepository(tx).inserirPendente({ turmaId, listaNomeId, chaveEnvio, senhaHash, teveMatriculaErrada })
-            if (!(await new ListaLivreRepository(tx).tomar({ turmaId, listaNomeId, matricula }))) throw new NaoGravou()
+            if (!(await new ListaLivreRepository(tx).tomar({ turmaId, listaNomeId, matricula }))) throw new NotWrittenError()
           })
         } catch (erro) {
-          if (!(erro instanceof NaoGravou) && !VOLTA_E_RELE.has(postgresErrorIn(erro)?.code ?? '')) throw erro
+          if (!(erro instanceof NotWrittenError) && !VOLTA_E_RELE.has(postgresErrorIn(erro)?.code ?? '')) throw erro
           if (await pedidos.chaveGravada(turmaId, chaveEnvio)) return 'reenvio'
           await limites.hashSemPedido(turmaId)
           throw new DomainException(ErrorCode.REIVINDICACAO_RECUSADA)

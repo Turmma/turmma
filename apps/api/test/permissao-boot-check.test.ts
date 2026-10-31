@@ -19,7 +19,7 @@ class AnonimoController {
   obter(): void {}
 }
 
-/** Os marcadores da operação, pelas chaves que `@RotaDeOperacao()` e `@EntradaDeOperacao()` gravam, no método e na classe. */
+/** Os marcadores da operação, pelas chaves que `@OperacaoRoute()` e `@OperacaoLoginRoute()` gravam, no método e na classe. */
 @Controller('v1/operacao/metodo')
 class OperacaoNoMetodoController {
   @Get('eu')

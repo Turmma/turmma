@@ -28,8 +28,8 @@ import { MedidorDeTeste } from '../../../../tools/testes/metricas.ts'
 import { chamar, subirApi, type ApiDeTeste, type RespostaHttp } from '../../test/test-api.js'
 import { montarEscolaComTurma, type EscolaComTurma } from '../../test/escola-turma.fixture.js'
 import { BancadaDeSessoes, type SessaoDeTeste } from '../../test/sessao.fixture.js'
-import { AgendadorDeExecucoes, type PedidoDeExecucao } from './execucao.scheduler.js'
-import { ConferenciaDeFuncao } from './funcao-suspension-check.js'
+import { ExecucaoScheduler, type ExecucaoRequest } from './execucao.scheduler.js'
+import { FuncaoSuspensionCheck } from './funcao-suspension-check.js'
 import { ConsumoRepository } from './consumo.repository.js'
 import { ExecucaoDaSessaoRepository, ExecucaoRepository } from './execucao.repository.js'
 import { EXECUTOR_DE_AGENTE, LLM_PROVIDER, ORCAMENTO_DE_IA, SUSPENSAO_DE_FUNCAO } from './ia.module.js'
@@ -38,7 +38,7 @@ import { SuspensaoRepository } from './suspensao.repository.js'
 
 /**
  * A camada de IA ligada ao banco e à API (MVP, fase 1): as quatro portas em Postgres, o `GET /v1/execucoes/:id` e o
- * `AgendadorDeExecucoes`, com a API montada pelo `AppModule` e o adaptador falso, que é o padrão.
+ * `ExecucaoScheduler`, com a API montada pelo `AppModule` e o adaptador falso, que é o padrão.
  *
  * Cada caso de isolamento tem, na escola B, a linha que a consulta da escola A alcançaria se a cláusula de escola
  * saísse do repository (regra 10, item 5).
@@ -47,7 +47,7 @@ describe('camada de IA na API', () => {
   const bancada = new BancadaDeSessoes()
   const medidor = new MedidorDeTeste()
   let api: ApiDeTeste
-  let agendador: AgendadorDeExecucoes
+  let agendador: ExecucaoScheduler
   let executor: InProcessAgenteExecutor
 
   interface Escola extends EscolaComTurma {
@@ -173,7 +173,7 @@ describe('camada de IA na API', () => {
       return { tipo: 'mensagem', mensagemId: mensagem?.id ?? '' }
     })
     const contextoVisto: (RequestContext | undefined)[] = []
-    const pedido: PedidoDeExecucao<Parameters<typeof proporFerramenta.falso>[0], Awaited<ReturnType<typeof proporFerramenta.falso>>> = {
+    const pedido: ExecucaoRequest<Parameters<typeof proporFerramenta.falso>[0], Awaited<ReturnType<typeof proporFerramenta.falso>>> = {
       tarefa: proporFerramenta,
       chaveEnvio: opcoes.chaveEnvio ?? randomUUID(),
       entradaDaExecucao: { tarefa: 'propor_ferramenta' },
@@ -206,7 +206,7 @@ describe('camada de IA na API', () => {
         .returning({ id: mensagemTutor.id })
       return { tipo: 'mensagem_do_tutor', mensagemId: mensagem?.id ?? '' }
     })
-    const pedido: PedidoDeExecucao<Parameters<typeof turnoDoTutor.falso>[0], Awaited<ReturnType<typeof turnoDoTutor.falso>>> = {
+    const pedido: ExecucaoRequest<Parameters<typeof turnoDoTutor.falso>[0], Awaited<ReturnType<typeof turnoDoTutor.falso>>> = {
       tarefa: turnoDoTutor,
       chaveEnvio: randomUUID(),
       entradaDaExecucao: { tarefa: 'turno_do_tutor' },
@@ -232,7 +232,7 @@ describe('camada de IA na API', () => {
 
   beforeAll(async () => {
     api = await subirApi(medidor.medidor)
-    agendador = api.app.get(AgendadorDeExecucoes)
+    agendador = api.app.get(ExecucaoScheduler)
     executor = api.app.get<InProcessAgenteExecutor>(EXECUTOR_DE_AGENTE)
     a = await montarEscola()
     b = await montarEscola()
@@ -389,8 +389,8 @@ describe('camada de IA na API', () => {
         await como(b, b.professor, 'professor', () => agendador.agendar(naB.pedido))
         await executor.ociosa()
         expect(naB.aoConcluir).toHaveBeenCalledTimes(1)
-        await expect(como(a, a.coordenacao, 'coordenador', () => api.app.get(ConferenciaDeFuncao).exigirAtiva('correcao_de_objetiva'))).resolves.toBeUndefined()
-        expect((await erroDe(como(a, a.coordenacao, 'coordenador', () => api.app.get(ConferenciaDeFuncao).exigirAtiva('conversa_e_ferramentas')))).codigo).toBe(ErrorCode.FUNCAO_SUSPENSA)
+        await expect(como(a, a.coordenacao, 'coordenador', () => api.app.get(FuncaoSuspensionCheck).exigirAtiva('correcao_de_objetiva'))).resolves.toBeUndefined()
+        expect((await erroDe(como(a, a.coordenacao, 'coordenador', () => api.app.get(FuncaoSuspensionCheck).exigirAtiva('conversa_e_ferramentas')))).codigo).toBe(ErrorCode.FUNCAO_SUSPENSA)
       } finally {
         await retomar(a, 'conversa_e_ferramentas')
       }

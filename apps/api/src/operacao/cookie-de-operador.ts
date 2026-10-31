@@ -1,6 +1,6 @@
 import { COOKIE_SESSAO_DE_OPERADOR, type Environment } from '@educa/core'
-import { type CookieDeDispositivo, lerCookie, MAX_AGE_DO_COOKIE_DISPOSITIVO_SEGUNDOS, serializarCookie } from '../credencial/index.js'
-import { COOKIE_DISPOSITIVO_DE_OPERADOR } from './operador-device-cookie.js'
+import { type DeviceCookie, lerCookie, MAX_AGE_DO_COOKIE_DISPOSITIVO_SEGUNDOS, serializarCookie } from '../credencial/index.js'
+import { OPERADOR_DEVICE_COOKIE } from './operador-device-cookie.js'
 import { DURACAO_DA_SESSAO_DE_OPERADOR_HORAS } from './sessao/sessao-timeouts.js'
 
 /**
@@ -39,13 +39,13 @@ export function cookiesDaSessaoDeOperador(dados: {
   /** O e-mail do operador, já normalizado: é o identificador da entrada no cookie de dispositivo. */
   readonly email: string
   readonly cabecalhoCookie: string | undefined
-  readonly dispositivo: Pick<CookieDeDispositivo, 'comEntrada'>
+  readonly dispositivo: Pick<DeviceCookie, 'comEntrada'>
   readonly ambiente: Environment
 }): string[] {
   const caminho = CAMINHO_DOS_COOKIES_DE_OPERADOR
-  const dispositivo = dados.dispositivo.comEntrada(lerCookie(dados.cabecalhoCookie, COOKIE_DISPOSITIVO_DE_OPERADOR), dados.email)
+  const dispositivo = dados.dispositivo.comEntrada(lerCookie(dados.cabecalhoCookie, OPERADOR_DEVICE_COOKIE), dados.email)
   return [
-    serializarCookie(COOKIE_DISPOSITIVO_DE_OPERADOR, dispositivo, { ambiente: dados.ambiente, caminho, maxAgeSegundos: MAX_AGE_DO_COOKIE_DISPOSITIVO_SEGUNDOS }),
+    serializarCookie(OPERADOR_DEVICE_COOKIE, dispositivo, { ambiente: dados.ambiente, caminho, maxAgeSegundos: MAX_AGE_DO_COOKIE_DISPOSITIVO_SEGUNDOS }),
     cookieDeSessaoDeOperador(dados.refresh, dados.ambiente),
   ]
 }

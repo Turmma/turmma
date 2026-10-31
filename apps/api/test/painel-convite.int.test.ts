@@ -10,7 +10,7 @@ import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { lerAmbienteDeTeste } from '../../../tools/ci/compose.ts'
 import { urlDoBancoDeTeste } from '../../../tools/testes/integracao.setup.ts'
-import type { SaidaDoComando } from '../src/ops/command.js'
+import type { CommandOutput } from '../src/ops/command.js'
 import { executarOpsConviteCoordenador } from '../src/ops/convite-coordenador.js'
 import { desativarOperador } from '../src/ops/operador.js'
 import { executarOpsRevogarConvite } from '../src/ops/revogar-convite.js'
@@ -556,7 +556,7 @@ describe('painel da operação: o convite da coordenação, gerar e revogar (tar
     const rodar = async (comando: typeof executarOpsConviteCoordenador, argumentos: string[], operador: string) => {
       let saida = ''
       let erro = ''
-      const terminal: SaidaDoComando = { saida: (texto) => (saida += texto), erro: (texto) => (erro += texto) }
+      const terminal: CommandOutput = { saida: (texto) => (saida += texto), erro: (texto) => (erro += texto) }
       const codigo = await comando(argumentos, { ...lerAmbienteDeTeste(), OPERADOR: operador, BANCO_TIMEOUT_CONSULTA_MS: String(PRAZO_DAS_CONSULTAS_MS) }, terminal)
       return { codigo, saida, erro }
     }

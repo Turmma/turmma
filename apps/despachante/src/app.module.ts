@@ -18,7 +18,7 @@ class CicloDoDespachante implements OnApplicationBootstrap, OnApplicationShutdow
 
 @Module({})
 export class AppModule {
-  static com(config: ConfiguracaoDespachante, logger: LoggerBase, medidor: Meter): DynamicModule {
+  static forRoot(config: ConfiguracaoDespachante, logger: LoggerBase, medidor: Meter): DynamicModule {
     return {
       module: AppModule,
       providers: [{ provide: CicloDoDespachante, useValue: new CicloDoDespachante(montarDespachante(config, logger, { batimento: new Heartbeat(), medidor })) }],

@@ -21,7 +21,7 @@ export interface SessaoDeOperadorDeTeste {
 /**
  * Operadores e sessões de operador para os testes da área da operação, no Postgres do compose de teste, **antes** de
  * existir o login do operador (tarefa 7.0). O token sai do `OperadorTokenIssuer` de produção, com a chave e o
- * `typ` que a API confere: a `GuardaDeOperador` recusaria qualquer outro. A 7.0 repete o C47 com o cookie de verdade.
+ * `typ` que a API confere: a `OperadorGuard` recusaria qualquer outro. A 7.0 repete o C47 com o cookie de verdade.
  *
  * Nada de pessoa: apelido sorteado, nome fixo e e-mail em `.invalid`. `fechar` apaga tudo o que a bancada criou, com a
  * auditoria dos comandos que rodaram sobre esses operadores: sem isso, o operador ativo que ficasse faria todo `ops:*`

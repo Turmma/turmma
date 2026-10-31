@@ -3,8 +3,8 @@ import { ContaGlobalRepository } from '@educa/core/conta-global'
 import { ErrorCode, FINALIDADE_DA_REDEFINICAO_PELO_OPERADOR, type FinalidadeDaRedefinicaoDeMfa } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { RedefinicaoDeMfaRepository } from './redefinicao-de-mfa.repository.js'
-import { ResolucaoDeTenantRepository } from '../tenant/tenant-resolution.repository.js'
-import type { ConferenciaDoAutor } from '../author-check.js'
+import { TenantResolutionRepository } from '../tenant/tenant-resolution.repository.js'
+import type { AuthorCheck } from '../author-check.js'
 
 const registro = new AuditoriaRecorder()
 
@@ -33,7 +33,7 @@ export class RedefinicaoDeMfa {
     await this.banco.transaction(async (tx) => {
       const contaId = await new RedefinicaoDeMfaRepository(tx).contaDoUsuarioAtivo(alvoId)
       if (contaId === undefined) return
-      const resolucao = new ResolucaoDeTenantRepository(tx)
+      const resolucao = new TenantResolutionRepository(tx)
       const conta = await resolucao.travarContaParaRedefinir(contaId)
       if (conta === undefined) return
       if (conta.escolasAtivas.some((outra) => outra !== escolaId)) {
@@ -51,7 +51,7 @@ export class RedefinicaoDeMfa {
  * **Pelo operador** (`ops:redefinir-mfa`), a pedido formal da escola, quando ninguém mais da coordenação pode fazê-lo,
  * ou quando a conta também está em outra escola. O comando recebe só o id do usuário e o número do pedido.
  *
- * - O autor é conferido como primeira instrução da transação (`ConferenciaDoAutor`), antes de ler o usuário.
+ * - O autor é conferido como primeira instrução da transação (`AuthorCheck`), antes de ler o usuário.
  * - A escola vem do usuário, nunca do argumento, e cada registro é gravado no contexto da escola dele, com
  *   `autor_operador` e a finalidade `pedido_formal_da_escola`.
  * - As sessões abertas da conta, em todas as escolas, são encerradas na mesma transação (17.4), como na redefinição
@@ -62,12 +62,12 @@ export class RedefinicaoDeMfa {
  * - Usuário inexistente, desativado ou sem conta: `NAO_ENCONTRADO`, sem nada gravado.
  * - Devolve nada: o comando imprime só "ok" ou o código do erro.
  */
-export async function redefinirMfaPeloOperador(banco: Database, autor: ConferenciaDoAutor, usuarioId: string, pedido: number): Promise<void> {
+export async function redefinirMfaPeloOperador(banco: Database, autor: AuthorCheck, usuarioId: string, pedido: number): Promise<void> {
   const requisicaoId = currentContext()?.requisicaoId ?? randomUUID()
   await runInContext({ requisicaoId }, () =>
     banco.transaction(async (tx) => {
       const autorOperador = await autor(tx)
-      const resolucao = new ResolucaoDeTenantRepository(tx)
+      const resolucao = new TenantResolutionRepository(tx)
       const alvo = await resolucao.escolaDoUsuarioParaOperador(usuarioId)
       if (alvo?.contaId === null || alvo === undefined || !alvo.ativo) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
       const { contaId } = alvo

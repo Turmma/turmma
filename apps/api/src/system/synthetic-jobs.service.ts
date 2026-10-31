@@ -8,14 +8,14 @@ import {
   type JobAcceptedResponse,
 } from '@educa/shared'
 import { Inject, Injectable, Logger } from '@nestjs/common'
-import { BANCO } from '../database.module.js'
+import { DB } from '../database.module.js'
 
 @Injectable()
-export class JobsSinteticosService {
+export class SyntheticJobsService {
   private readonly logger = new Logger('jobs')
 
   constructor(
-    @Inject(BANCO) private readonly banco: Database,
+    @Inject(DB) private readonly banco: Database,
     private readonly enfileirador: JobOutbox,
     private readonly repositorio: JobOutboxRepository,
   ) {}

@@ -183,7 +183,7 @@ export class TutorDoAlunoRepository {
 
   /**
    * O material que a turma dada pode usar: da escola do contexto, `pronto`, não excluído, e de disciplina que a turma
-   * tem (há professor com vínculo confirmado nela, na turma). A `BuscaDeTrechos` não confere quem pede: é aqui que o
+   * tem (há professor com vínculo confirmado nela, na turma). A `TrechoSearch` não confere quem pede: é aqui que o
    * aluno é impedido de ler material de disciplina que a turma dele não tem.
    */
   async materialDaTurma(turmaId: string, materialId: string): Promise<MaterialDaTurma | undefined> {

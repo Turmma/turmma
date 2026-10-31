@@ -1,7 +1,7 @@
 import { randomBytes, randomUUID } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { CAMINHO_DO_MATERIAL } from '../../../tools/demonstracao/gerar-material.ts'
-import { FilaDeExtracao } from '../src/material/extraction-queue.js'
+import { ExtractionQueue } from '../src/material/extraction-queue.js'
 import type { ApiDeTeste, RespostaHttp } from './test-api.js'
 import type { BancadaDeSessoes, SessaoDeTeste } from './sessao.fixture.js'
 
@@ -94,7 +94,7 @@ export async function enviarMaterial(api: ApiDeTeste, sessao: Pick<SessaoDeTeste
 
 /** Espera a fila de extração desta instância esvaziar: o material já saiu de `processando`. */
 export function esperarExtracao(api: ApiDeTeste): Promise<void> {
-  return api.app.get(FilaDeExtracao).ociosa()
+  return api.app.get(ExtractionQueue).ociosa()
 }
 
 export interface LinhaDoMaterial {

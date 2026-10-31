@@ -32,10 +32,10 @@ export interface ContaNoProvedor {
 }
 
 /** O provedor não respondeu a tempo, respondeu com erro, ou a resposta não conferiu. Sem detalhe: nada do provedor sai daqui. */
-export class ProvedorExternoFalhou extends Error {
+export class ExternalProviderError extends Error {
   constructor() {
     super('login externo: o provedor falhou ou a resposta não conferiu')
-    this.name = 'ProvedorExternoFalhou'
+    this.name = 'ExternalProviderError'
   }
 }
 
@@ -43,14 +43,14 @@ export class ProvedorExternoFalhou extends Error {
  * A porta do login pela conta da escola (regra 00, item 7): o serviço de login não conhece a biblioteca de OAuth nem o
  * provedor. O adaptador de produção é o `openid-client`, contra o Google, a Microsoft ou o `oidc-falso` do compose.
  */
-export interface ProvedorExternoPort {
+export interface ExternalProviderPort {
   /** Os provedores ligados na configuração. */
   readonly ligados: readonly ProvedorExterno[]
-  /** Gera `state`, `nonce` e o verificador do PKCE e monta o endereço do provedor. Falha com `ProvedorExternoFalhou`. */
+  /** Gera `state`, `nonce` e o verificador do PKCE e monta o endereço do provedor. Falha com `ExternalProviderError`. */
   iniciar(provedor: ProvedorExterno): Promise<InicioNoProvedor>
   /**
    * Troca o código do retorno pelos tokens, confere a assinatura, o emissor, o público, o `state`, o `nonce` e o PKCE, e
-   * devolve só o que o login usa. Falha com `ProvedorExternoFalhou`.
+   * devolve só o que o login usa. Falha com `ExternalProviderError`.
    */
   concluir(provedor: ProvedorExterno, retorno: URL, conferencias: ConferenciasDoRetorno): Promise<ContaNoProvedor>
 }

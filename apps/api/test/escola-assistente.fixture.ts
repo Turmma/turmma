@@ -4,8 +4,8 @@ import type { Redis } from 'ioredis'
 import { randomUUID } from 'node:crypto'
 import { MATERIAL_DE_DEMONSTRACAO } from '../../../tools/demonstracao/conteudo-estequiometria.ts'
 import { EXECUTOR_DE_AGENTE } from '../src/ia/ia.module.js'
-import { CLIENTE_REDIS_CACHE } from '../src/rate-limit.module.js'
-import { CLIENTE_REDIS_LOGIN } from '../src/credencial/index.js'
+import { REDIS_CACHE_CLIENT } from '../src/rate-limit.module.js'
+import { REDIS_LOGIN_CLIENT } from '../src/credencial/index.js'
 import { chamar, type ApiDeTeste, type RespostaHttp } from './test-api.js'
 import { montarEscolaComTurma, type EscolaComTurma } from './escola-turma.fixture.js'
 import { enviarMaterial, esperarExtracao, PDF_DE_DEMONSTRACAO } from './material.fixture.js'
@@ -155,7 +155,7 @@ export async function dispararExecucao(api: ApiDeTeste, sessao: SessaoDeTeste, c
  * outro: um arquivo destes faz, pela mesma professora, mais requisições por minuto do que uma pessoa faria.
  */
 export async function zerarLimiteDePedidosDeIa(api: ApiDeTeste): Promise<void> {
-  for (const [redis, padrao] of [[api.app.get<Redis>(CLIENTE_REDIS_LOGIN), 'ia:pedidos-*'], [api.app.get<Redis>(CLIENTE_REDIS_CACHE), `${PREFIXO_LIMITE_USUARIO}:*`]] as const) {
+  for (const [redis, padrao] of [[api.app.get<Redis>(REDIS_LOGIN_CLIENT), 'ia:pedidos-*'], [api.app.get<Redis>(REDIS_CACHE_CLIENT), `${PREFIXO_LIMITE_USUARIO}:*`]] as const) {
     const chaves = await redis.keys(padrao)
     if (chaves.length > 0) await redis.del(...chaves)
   }

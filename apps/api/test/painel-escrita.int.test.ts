@@ -8,7 +8,7 @@ import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { lerAmbienteDeTeste } from '../../../tools/ci/compose.ts'
 import { urlDoBancoDeTeste } from '../../../tools/testes/integracao.setup.ts'
-import type { BancoDoComando, SaidaDoComando } from '../src/ops/command.js'
+import type { CommandDatabase, CommandOutput } from '../src/ops/command.js'
 import { executarOpsConviteCoordenador } from '../src/ops/convite-coordenador.js'
 import { executarOpsEscola } from '../src/ops/escola.js'
 import { desativarOperador } from '../src/ops/operador.js'
@@ -349,7 +349,7 @@ describe('painel da operação: rede e escola, com o autor conferido na transaç
     })
 
     describe('pelos cinco ops:* de escola: cada um espera o for share do OPERADOR e, com o desativar confirmado, sai com 2 sem gravar', () => {
-      type Comando = (argumentos: string[], ambiente: Record<string, string | undefined>, terminal: SaidaDoComando, abrirBanco?: (ambiente: Record<string, string | undefined>) => BancoDoComando) => Promise<number>
+      type Comando = (argumentos: string[], ambiente: Record<string, string | undefined>, terminal: CommandOutput, abrirBanco?: (ambiente: Record<string, string | undefined>) => CommandDatabase) => Promise<number>
       interface Caso {
         readonly nome: string
         readonly comando: Comando
@@ -436,7 +436,7 @@ describe('painel da operação: rede e escola, com o autor conferido na transaç
         const { argumentos, nadaGravado } = await preparar()
         let saida = ''
         let erro = ''
-        const terminal: SaidaDoComando = { saida: (texto) => (saida += texto), erro: (texto) => (erro += texto) }
+        const terminal: CommandOutput = { saida: (texto) => (saida += texto), erro: (texto) => (erro += texto) }
         const ambiente = { ...lerAmbienteDeTeste(), OPERADOR: quemRoda.apelido, BANCO_TIMEOUT_CONSULTA_MS: String(PRAZO_DAS_CONSULTAS_MS) }
         const desativar = await segurarODesativar(quemRoda.operadorId)
         try {

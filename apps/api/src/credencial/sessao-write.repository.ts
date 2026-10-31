@@ -6,7 +6,7 @@ import { and, eq, isNull, sql } from 'drizzle-orm'
  * escrita leva a escola do contexto na cláusula, nunca a de um argumento: uma sessão de outra escola, com o id que
  * for, não é alcançada.
  */
-export class EscritaDeSessaoRepository {
+export class SessaoWriteRepository {
   constructor(private readonly banco: Database | DatabaseTransaction) {}
 
   /**

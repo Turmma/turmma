@@ -96,7 +96,7 @@ end
 return falhas
 `
 
-interface EstadoEmMemoria {
+interface InMemoryLockoutState {
   falhas: number
   ate: number
   venceEm: number
@@ -110,8 +110,8 @@ interface EstadoEmMemoria {
  * Com o Redis de pé, guarda também a espera de toda conta que ele segurou (15.3): se o Redis cair no meio do ataque, a
  * conta segurada continua segurada nesta instância, em vez de recomeçar do zero em memória.
  */
-class SeguroEmMemoria {
-  readonly #estados = new Map<string, EstadoEmMemoria>()
+class InMemoryLockout {
+  readonly #estados = new Map<string, InMemoryLockoutState>()
   #ultimaVarredura = Number.NEGATIVE_INFINITY
 
   /** A conta que o Redis segurou até `ate`: a quinta falha já foi, e a próxima, depois da espera, dobra. */
@@ -169,9 +169,9 @@ class SeguroEmMemoria {
  *   `limite.seguro_ativo`, como no rate limit do F0. A conta que o Redis já tinha segurado continua segurada nesta
  *   instância (15.3).
  */
-export class ContadorDeTentativas {
+export class LoginLockout {
   readonly #logger = new Logger('login')
-  readonly #seguro = new SeguroEmMemoria()
+  readonly #seguro = new InMemoryLockout()
   readonly #proporcaoDoSeguro: SlidingWindowRatio
   readonly #avisarSeguro = throttledWarn(() => this.#logger.warn('login.contador_no_seguro'))
 

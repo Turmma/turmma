@@ -22,14 +22,14 @@ import {
   type ConsultarConviteResponse,
 } from '@educa/shared'
 import { randomBytes, randomUUID } from 'node:crypto'
-import type { BilheteDeConvite } from './convite-ticket.js'
+import type { ConviteTicket } from './convite-ticket.js'
 import { ConviteRepository } from './convite.repository.js'
-import type { EmissorDeDesafio } from '../../credencial/challenge.js'
+import type { ChallengeIssuer } from '../../credencial/challenge.js'
 import { BYTES_DO_TOKEN_DE_CONVITE, hashDoToken } from '../../credencial/token-hash.js'
-import type { HashDeSenha } from '../../credencial/password-hasher.js'
+import type { PasswordHasher } from '../../credencial/password-hasher.js'
 import { normalizarEmail } from '../../credencial/login-identifiers.js'
-import { ResolucaoDeTenantRepository, type UsuarioComConviteAceito } from '../tenant/tenant-resolution.repository.js'
-import type { ConferenciaDoAutor } from '../author-check.js'
+import { TenantResolutionRepository, type UsuarioComConviteAceito } from '../tenant/tenant-resolution.repository.js'
+import type { AuthorCheck } from '../author-check.js'
 
 const registro = new AuditoriaRecorder()
 
@@ -42,12 +42,12 @@ export const tokenNovo = (): string => randomBytes(BYTES_DO_TOKEN_DE_CONVITE).to
 /** Até quando vale o convite do tipo gerado agora: 72 h o do coordenador, 7 dias o do professor (`@educa/shared`). */
 export const expiraEmDo = (tipo: TipoDeConvite, relogio: Clock): Date => new Date(relogio.agora().getTime() + VALIDADE_DO_CONVITE_HORAS_POR_TIPO[tipo] * 60 * 60 * 1_000)
 
-export interface DependenciasDoConvite {
+export interface ConviteDependencies {
   readonly banco: Database
-  readonly resolucao: ResolucaoDeTenantRepository
-  readonly hash: HashDeSenha
-  readonly emissorDeDesafio: EmissorDeDesafio
-  readonly bilhetes: BilheteDeConvite
+  readonly resolucao: TenantResolutionRepository
+  readonly hash: PasswordHasher
+  readonly emissorDeDesafio: ChallengeIssuer
+  readonly bilhetes: ConviteTicket
 }
 
 /**
@@ -75,7 +75,7 @@ export interface DependenciasDoConvite {
  *   trava além do `statement_timeout` é o 503 `TEMPO_ESGOTADO`, sem nada gravado.
  */
 export class ConviteService {
-  constructor(private readonly dependencias: DependenciasDoConvite) {}
+  constructor(private readonly dependencias: ConviteDependencies) {}
 
   async consultar(token: string): Promise<ConsultarConviteResponse> {
     const valido = await this.dependencias.resolucao.conviteValidoPorHash(hashDoToken(token))
@@ -101,7 +101,7 @@ export class ConviteService {
       banco.transaction(async (tx) => {
         // A trava da escola primeiro, antes de prender a linha do convite: ver o docblock.
         await new ConviteRepository(tx).travarEscola()
-        const resolucaoNaTransacao = new ResolucaoDeTenantRepository(tx)
+        const resolucaoNaTransacao = new TenantResolutionRepository(tx)
         const usado = await resolucaoNaTransacao.usarConvitePorHash(tokenHash)
         if (usado === undefined) return undefined
         // Se outro convite da mesma conta definiu a senha entre a leitura e aqui, esta não é gravada: vale o caminho da
@@ -140,7 +140,7 @@ export class ConviteService {
 export class AtivacaoPorConvite {
   constructor(
     private readonly banco: Database,
-    private readonly bilhetes: BilheteDeConvite,
+    private readonly bilhetes: ConviteTicket,
   ) {}
 
   /**
@@ -155,7 +155,7 @@ export class AtivacaoPorConvite {
 
   /** O usuário da conta que espera este convite, pelo id que veio no desafio `mfa` assinado por nós. Sem aluno. */
   async pendenteDoConvite(contaId: string, conviteId: string): Promise<UsuarioComConviteAceito | undefined> {
-    const pendente = await new ResolucaoDeTenantRepository(this.banco).usuarioComConviteAceito(contaId, conviteId)
+    const pendente = await new TenantResolutionRepository(this.banco).usuarioComConviteAceito(contaId, conviteId)
     return pendente?.papel === 'aluno' ? undefined : pendente
   }
 
@@ -205,7 +205,7 @@ export async function convidar(
   token: string,
   expiraEm: Date,
 ): Promise<{ conviteId: string; usuarioId: string; contaNova: boolean }> {
-  const conta = await new ResolucaoDeTenantRepository(tx).contaParaConvite(normalizarEmail(pessoa.email))
+  const conta = await new TenantResolutionRepository(tx).contaParaConvite(normalizarEmail(pessoa.email))
   const usuarioId = await convites.usuarioConvidado(conta.id, pessoa.nome, tipo)
   if (usuarioId === undefined) throw new DomainException(ErrorCode.CONFLITO)
   const conviteId = await convites.criarConvite({ tipo, tokenHash: hashDoToken(token), usuarioId, expiraEm })
@@ -238,7 +238,7 @@ export async function refazerSobATrava(
 /**
  * O convite da primeira coordenação, pelo operador: pelo painel (`POST /v1/operacao/escolas/:id/convite-coordenacao`) e
  * pelo `ops:convite-coordenador`, o mesmo caso de uso (RF2; Tech Spec da A0b, seção 5). Numa transação:
- * - o autor é conferido como primeira instrução (`ConferenciaDoAutor`), antes de ler a escola do endereço;
+ * - o autor é conferido como primeira instrução (`AuthorCheck`), antes de ler a escola do endereço;
  * - no contexto da escola, pega a trava dela e lê o estado da coordenação; a matriz (`GERAR_CONVITE_POR_ESTADO`, de
  *   `@educa/shared`, a mesma pela qual a lista do painel mostra as ações) decide:
  *   - `sem_convite`, `revogado`: cria;
@@ -254,7 +254,7 @@ export async function refazerSobATrava(
  * Escola inexistente: `NAO_ENCONTRADO`, antes de criar conta ou usuário. Devolve o id do convite e o token: o painel o
  * devolve uma vez na resposta, e o comando o grava num arquivo 0600. Nunca o token, o nome ou o e-mail em log.
  */
-export async function criarConviteDeCoordenador(banco: Database, autor: ConferenciaDoAutor, pedido: PedidoDeConvite, relogio: Clock = systemClock): Promise<{ conviteId: string; token: string }> {
+export async function criarConviteDeCoordenador(banco: Database, autor: AuthorCheck, pedido: PedidoDeConvite, relogio: Clock = systemClock): Promise<{ conviteId: string; token: string }> {
   const requisicaoId = currentContext()?.requisicaoId ?? randomUUID()
   const token = tokenNovo()
   const expiraEm = expiraEmDo('coordenador', relogio)
@@ -262,7 +262,7 @@ export async function criarConviteDeCoordenador(banco: Database, autor: Conferen
     banco.transaction(async (tx) => {
       // O autor primeiro: quem não passa não lê nem grava nada, nem a escola do endereço.
       const autorOperador = await autor(tx)
-      const escolaId = 'slug' in pedido ? await new ResolucaoDeTenantRepository(tx).escolaPorSlug(pedido.slug) : pedido.escolaId
+      const escolaId = 'slug' in pedido ? await new TenantResolutionRepository(tx).escolaPorSlug(pedido.slug) : pedido.escolaId
       if (escolaId === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
       return runInContext({ requisicaoId, escolaId }, async () => {
         const convites = new ConviteRepository(tx)
@@ -300,7 +300,7 @@ export async function criarConviteDeCoordenador(banco: Database, autor: Conferen
  */
 export async function refazerConviteDaCoordenacao(
   banco: Database,
-  autor: ConferenciaDoAutor,
+  autor: AuthorCheck,
   conviteId: string,
   relogio: Clock = systemClock,
 ): Promise<{ conviteId: string; token: string; escolaId: string }> {
@@ -310,7 +310,7 @@ export async function refazerConviteDaCoordenacao(
   return runInContext({ requisicaoId }, () =>
     banco.transaction(async (tx) => {
       const autorOperador = await autor(tx)
-      const escolaId = await new ResolucaoDeTenantRepository(tx).escolaDoConviteParaOperador(conviteId)
+      const escolaId = await new TenantResolutionRepository(tx).escolaDoConviteParaOperador(conviteId)
       if (escolaId === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
       const novo = await runInContext({ requisicaoId, escolaId }, async () => {
         const convites = new ConviteRepository(tx)
@@ -336,12 +336,12 @@ export async function refazerConviteDaCoordenacao(
  *
  * Devolve a escola do convite, para o log de quem chamou.
  */
-export async function revogarConvitePeloOperador(banco: Database, autor: ConferenciaDoAutor, conviteId: string): Promise<{ escolaId: string }> {
+export async function revogarConvitePeloOperador(banco: Database, autor: AuthorCheck, conviteId: string): Promise<{ escolaId: string }> {
   const requisicaoId = currentContext()?.requisicaoId ?? randomUUID()
   return runInContext({ requisicaoId }, () =>
     banco.transaction(async (tx) => {
       const autorOperador = await autor(tx)
-      const escolaId = await new ResolucaoDeTenantRepository(tx).escolaDoConviteParaOperador(conviteId)
+      const escolaId = await new TenantResolutionRepository(tx).escolaDoConviteParaOperador(conviteId)
       if (escolaId === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
       await runInContext({ requisicaoId, escolaId }, async () => {
         const convites = new ConviteRepository(tx)

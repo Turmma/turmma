@@ -17,12 +17,12 @@ export function isChallengeBearer(cabecalho: string | string[] | undefined): boo
 
 /**
  * Se as guardas de autenticação, limite, sessão e permissão tratam a requisição como sem sessão de escola: a rota
- * `@Public`, a rota da área da operação (`@RotaDeOperacao` ou `@EntradaDeOperacao`, Tech Spec da A0, seção 1), ou
+ * `@Public`, a rota da área da operação (`@OperacaoRoute` ou `@OperacaoLoginRoute`, Tech Spec da A0, seção 1), ou
  * a rota `@AcceptsChallenge` chamada com um desafio de login no `Authorization`. Toda outra rota exige token de acesso e
  * sessão de escola, e a rota `@AcceptsChallenge` chamada com o token de acesso também.
  *
  * Tratar como sem sessão não autentica ninguém: não há escola, usuário nem sessão no contexto. O service da rota
- * verifica o desafio antes de qualquer coisa, e a rota `@RotaDeOperacao` só roda depois da `GuardaDeOperador`.
+ * verifica o desafio antes de qualquer coisa, e a rota `@OperacaoRoute` só roda depois da `OperadorGuard`.
  */
 export function isRouteWithoutSessao(reflector: Reflector, execucao: ExecutionContext): boolean {
   const alvos = [execucao.getHandler(), execucao.getClass()]

@@ -1,11 +1,11 @@
 import type { Environment } from '@educa/core'
 import { systemStatusResponseSchema, type SystemStatusResponse } from '@educa/shared'
 import { Inject, Injectable } from '@nestjs/common'
-import { SaudeService } from './health.service.js'
+import { HealthService } from './health.service.js'
 
-export const VERSAO_DO_SISTEMA = Symbol('VERSAO_DO_SISTEMA')
-export const AMBIENTE_DO_SISTEMA = Symbol('AMBIENTE_DO_SISTEMA')
-export const RELOGIO_DO_ESTADO = Symbol('RELOGIO_DO_ESTADO')
+export const SYSTEM_VERSION = Symbol('SYSTEM_VERSION')
+export const SYSTEM_ENVIRONMENT = Symbol('SYSTEM_ENVIRONMENT')
+export const STATUS_CLOCK = Symbol('STATUS_CLOCK')
 
 /**
  * Por quanto tempo uma verificação do banco vale para a próxima requisição. A rota é anônima: sem
@@ -20,15 +20,15 @@ interface Verificacao {
 }
 
 @Injectable()
-export class EstadoService {
+export class StatusService {
   private ultima: Verificacao | undefined
   private emAndamento: Promise<Verificacao> | undefined
 
   constructor(
-    private readonly saude: SaudeService,
-    @Inject(VERSAO_DO_SISTEMA) private readonly versao: string,
-    @Inject(AMBIENTE_DO_SISTEMA) private readonly ambiente: Environment,
-    @Inject(RELOGIO_DO_ESTADO) private readonly agora: () => Date,
+    private readonly saude: HealthService,
+    @Inject(SYSTEM_VERSION) private readonly versao: string,
+    @Inject(SYSTEM_ENVIRONMENT) private readonly ambiente: Environment,
+    @Inject(STATUS_CLOCK) private readonly agora: () => Date,
   ) {}
 
   /** Versão, ambiente e situação de cada componente. A API está disponível por estar respondendo. */

@@ -45,7 +45,7 @@ export const TIPO_DESAFIO = 'desafio+jwt'
  */
 export const VALIDADE_MAXIMA_TOKEN_SEGUNDOS = 24 * 60 * 60
 
-const esquemaClaims = z.object({
+const claimsSchema = z.object({
   sub: z.uuid(),
   esc: z.uuid(),
   sid: z.uuid(),
@@ -84,7 +84,7 @@ export async function verifyToken(token: string, config: AuthConfig): Promise<Ve
     if (erro instanceof errors.JOSEError) throw naoAutenticado()
     throw erro
   }
-  const resultado = esquemaClaims.safeParse(claims)
+  const resultado = claimsSchema.safeParse(claims)
   if (!resultado.success) throw naoAutenticado()
   if (resultado.data.exp - Date.now() / 1000 > VALIDADE_MAXIMA_TOKEN_SEGUNDOS) throw naoAutenticado()
   const ids = {
@@ -128,7 +128,7 @@ declare const MARCA_DO_TOKEN_DE_OPERADOR: unique symbol
  * O que um token de operador com assinatura, emissor, `typ` e claims conferidos diz: o operador e a sessão dele, e se
  * o prazo de 10 min já passou. Só o `verifyOperadorToken` produz este tipo.
  *
- * Vencido não quer dizer recusado: a `GuardaDeOperador` lê a sessão e responde `ACESSO_VENCIDO` quando ela está viva
+ * Vencido não quer dizer recusado: a `OperadorGuard` lê a sessão e responde `ACESSO_VENCIDO` quando ela está viva
  * (a web renova) e `SESSAO_ENCERRADA` quando não está. O limite `rl:op` também conta o vencido, porque ele também
  * chega ao Postgres.
  */

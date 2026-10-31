@@ -15,8 +15,8 @@ import { pathToFileURL } from 'node:url'
 import { parseArgs } from 'node:util'
 import { z } from 'zod'
 import { AcessoDaEscolaRepository } from '../credencial/index.js'
-import { abrirBancoDeOperacao, ArgumentoInvalido, autorDoComando, lerOperador, OperadorRecusado, type BancoDoComando, type SaidaDoComando } from './command.js'
-import type { ConferenciaDoAutor } from '../sessao/index.js'
+import { abrirBancoDeOperacao, InvalidArgumentError, autorDoComando, lerOperador, OperadorRejectedError, type CommandDatabase, type CommandOutput } from './command.js'
+import type { AuthorCheck } from '../sessao/index.js'
 
 const registro = new AuditoriaRecorder()
 
@@ -58,24 +58,24 @@ function lerOpcoes(argumentos: string[]) {
     })
   } catch {
     // O erro do parseArgs repete o argumento recebido; a mensagem fica só com as opções aceitas.
-    throw new ArgumentoInvalido('--escola, --categoria, --meses ou --contrato')
+    throw new InvalidArgumentError('--escola, --categoria, --meses ou --contrato')
   }
 }
 
 export function lerPedidoDeRetencao(argumentos: string[]): PedidoDeRetencao {
   const { values: valores, positionals: posicionais } = lerOpcoes(argumentos)
   const comando = posicionais.join(' ')
-  if (comando !== 'listar' && comando !== 'ajustar') throw new ArgumentoInvalido('comando (ajustar | listar)')
+  if (comando !== 'listar' && comando !== 'ajustar') throw new InvalidArgumentError('comando (ajustar | listar)')
   const escola = z.uuid().safeParse(valores.escola)
-  if (!escola.success) throw new ArgumentoInvalido('--escola')
+  if (!escola.success) throw new InvalidArgumentError('--escola')
   const escolaId = escola.data.toLowerCase()
   if (comando === 'listar') {
-    if (valores.categoria !== undefined || valores.meses !== undefined || valores.contrato !== undefined) throw new ArgumentoInvalido('--categoria, --meses e --contrato não valem para listar')
+    if (valores.categoria !== undefined || valores.meses !== undefined || valores.contrato !== undefined) throw new InvalidArgumentError('--categoria, --meses e --contrato não valem para listar')
     return { comando, escolaId }
   }
-  if (valores.categoria === undefined || !CATEGORIAS_ACEITAS.includes(valores.categoria)) throw new ArgumentoInvalido('--categoria')
-  if (valores.meses === undefined || !MESES.test(valores.meses)) throw new ArgumentoInvalido('--meses')
-  if (valores.contrato === undefined || !CONTRATO.test(valores.contrato)) throw new ArgumentoInvalido('--contrato')
+  if (valores.categoria === undefined || !CATEGORIAS_ACEITAS.includes(valores.categoria)) throw new InvalidArgumentError('--categoria')
+  if (valores.meses === undefined || !MESES.test(valores.meses)) throw new InvalidArgumentError('--meses')
+  if (valores.contrato === undefined || !CONTRATO.test(valores.contrato)) throw new InvalidArgumentError('--contrato')
   return { comando, escolaId, categoria: valores.categoria, meses: Number(valores.meses), referenciaContrato: Number(valores.contrato) }
 }
 
@@ -83,7 +83,7 @@ export function lerPedidoDeRetencao(argumentos: string[]): PedidoDeRetencao {
  * Ajusta o prazo de uma categoria da escola e grava `retencao.ajustada`, na mesma transação, com o autor conferido como
  * primeira instrução. Devolve o prazo efetivo da categoria depois do ajuste.
  */
-export function ajustarRetencao(banco: Database, autor: ConferenciaDoAutor, pedido: Extract<PedidoDeRetencao, { comando: 'ajustar' }>): Promise<RetencaoDaCategoria> {
+export function ajustarRetencao(banco: Database, autor: AuthorCheck, pedido: Extract<PedidoDeRetencao, { comando: 'ajustar' }>): Promise<RetencaoDaCategoria> {
   const requisicaoId = randomUUID()
   return runInContext({ requisicaoId }, () =>
     banco.transaction(async (tx) => {
@@ -112,7 +112,7 @@ export function ajustarRetencao(banco: Database, autor: ConferenciaDoAutor, pedi
 }
 
 /** O prazo efetivo de cada categoria da escola, lido no contexto dela, numa transação que começa pelo autor. */
-export function listarRetencao(banco: Database, autor: ConferenciaDoAutor, escolaId: string): Promise<RetencaoDaCategoria[]> {
+export function listarRetencao(banco: Database, autor: AuthorCheck, escolaId: string): Promise<RetencaoDaCategoria[]> {
   const requisicaoId = randomUUID()
   return runInContext({ requisicaoId }, () =>
     banco.transaction(async (tx) => {
@@ -139,8 +139,8 @@ const MENSAGEM_DO_OPERADOR: Partial<Record<ErrorCode, string>> = {
 export async function executarOpsRetencao(
   argumentos: string[],
   ambiente: Record<string, string | undefined>,
-  terminal: SaidaDoComando,
-  abrirBanco: (ambiente: Record<string, string | undefined>) => BancoDoComando = abrirBancoDeOperacao,
+  terminal: CommandOutput,
+  abrirBanco: (ambiente: Record<string, string | undefined>) => CommandDatabase = abrirBancoDeOperacao,
 ): Promise<number> {
   try {
     const pedido = lerPedidoDeRetencao(argumentos)
@@ -155,7 +155,7 @@ export async function executarOpsRetencao(
       await fechar()
     }
   } catch (erro) {
-    if (erro instanceof ArgumentoInvalido || erro instanceof InvalidConfigError || erro instanceof OperadorRecusado) {
+    if (erro instanceof InvalidArgumentError || erro instanceof InvalidConfigError || erro instanceof OperadorRejectedError) {
       // Só o nome da opção ou da variável: nunca o valor.
       terminal.erro(`${erro.message}\n`)
       return 2

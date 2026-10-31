@@ -6,8 +6,8 @@ import { setTimeout as esperar } from 'node:timers/promises'
 import { pathToFileURL } from 'node:url'
 import pg from 'pg'
 import type { criarEscola, criarRede } from '../../apps/api/src/operacao/escola/escola.ts'
-import type { HashDeSenha } from '../../apps/api/src/credencial/password-hasher.ts'
-import type { criarAlunosComMatricula, criarSessoesSinteticas } from '../../apps/api/src/sessao/tenant/synthetic-sessions.ts'
+import type { PasswordHasher } from '../../apps/api/src/credencial/password-hasher.ts'
+import type { criarAlunosComMatricula, createSyntheticSessions } from '../../apps/api/src/sessao/tenant/synthetic-sessions.ts'
 import type { createDatabase, createPool } from '@educa/core'
 import { raizRepositorio } from '../../tools/ci/executar.ts'
 import { argumentosDoCompose, CODIGO_THRESHOLD_CRUZADO, lerAmbienteDeCarga, NOMES_DAS_ESCOLAS, rodar, type NomeDeEscola } from './carga.ts'
@@ -325,8 +325,8 @@ function escrever(linha: string): void {
 interface ModulosDaApi {
   nucleo: { createDatabase: typeof createDatabase; createPool: typeof createPool }
   escolas: { criarRede: typeof criarRede; criarEscola: typeof criarEscola }
-  sessoes: { criarAlunosComMatricula: typeof criarAlunosComMatricula; criarSessoesSinteticas: typeof criarSessoesSinteticas }
-  hash: { HashDeSenha: typeof HashDeSenha }
+  sessoes: { criarAlunosComMatricula: typeof criarAlunosComMatricula; createSyntheticSessions: typeof createSyntheticSessions }
+  hash: { PasswordHasher: typeof PasswordHasher }
 }
 
 /** Os módulos já compilados da API (o `npm run carga:login` compila antes), como o `ensaio:alertas`. */
@@ -422,7 +422,7 @@ async function semearContas(doArquivo: Record<string, string>): Promise<ContasDo
   try {
     const senha = randomBytes(18).toString('base64url')
     const senhaErrada = randomBytes(18).toString('base64url')
-    const senhaHash = await (await hash.HashDeSenha.criar({ memoriaKib: Number(doArquivo['LOGIN_ARGON2_MEMORIA_KIB']), iteracoes: Number(doArquivo['LOGIN_ARGON2_ITERACOES']) })).gerar(senha)
+    const senhaHash = await (await hash.PasswordHasher.criar({ memoriaKib: Number(doArquivo['LOGIN_ARGON2_MEMORIA_KIB']), iteracoes: Number(doArquivo['LOGIN_ARGON2_ITERACOES']) })).gerar(senha)
     // A carga não é o comando nem o painel: o autor é fixo, sem conferir operador ativo.
     const autor = async () => OPERADOR_DA_CARGA_DE_LOGIN
     const { id: redeId } = await ops.criarRede(banco, autor, { id: randomUUID(), nome: 'Rede sintética do login', tipo: 'independente' })
@@ -433,7 +433,7 @@ async function semearContas(doArquivo: Record<string, string>): Promise<ContasDo
       const { id: escolaId } = await ops.criarEscola(banco, autor, { id: randomUUID(), redeId, nome: `Escola sintética ${nome}`, slug })
       slugs[nome] = slug
       const alunoIds = await sessoes.criarAlunosComMatricula(banco, doArquivo, escolaId, Array.from({ length: ALUNOS_POR_ESCOLA }, (_, posicao) => ({ matricula: matriculaSintetica(posicao), senhaHash })))
-      const equipe = await sessoes.criarSessoesSinteticas(banco, doArquivo, { escolaId, papel: 'professor', quantidade: EQUIPE_POR_ESCOLA })
+      const equipe = await sessoes.createSyntheticSessions(banco, doArquivo, { escolaId, papel: 'professor', quantidade: EQUIPE_POR_ESCOLA })
       const [professor] = equipe
       if (professor === undefined) throw new Error('a escola da carga precisa de professor')
       await semearTurmasEAtividades(pool, { escolaId, alunoIds, professorId: professor.usuarioId })

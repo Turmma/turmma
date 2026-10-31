@@ -139,7 +139,7 @@ const ESPERADAS: Readonly<Record<string, readonly string[]>> = {
   ],
   'credencial-so-pelo-index': ['apps/api/src/operacao/outro-token.ts -> apps/api/src/credencial/token-hash.ts'],
   // Cada cerca: o import, o `export *`, o `import()` e o `tools/x.ts` de fora. O teste (`infra/test/`, `e2e/`) passa.
-  'cerca-resolucao-de-tenant': [
+  'cerca-tenant-resolution': [
     'infra/resolucao-dinamico.ts -> apps/api/src/sessao/tenant/tenant-resolution.repository.ts',
     'infra/resolucao-import.ts -> apps/api/src/sessao/tenant/tenant-resolution.repository.ts',
     'infra/resolucao-reexporta.ts -> apps/api/src/sessao/tenant/tenant-resolution.repository.ts',

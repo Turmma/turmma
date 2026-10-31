@@ -12,8 +12,8 @@ import { raizRepositorio } from '../../../tools/ci/executar.ts'
 import { aguardarSaudavel, compose, composeOuFalha } from '../../../tools/testes/compose.ts'
 import { urlDoBancoDeTeste } from '../../../tools/testes/integracao.setup.ts'
 import { AppModule } from '../src/app.module.js'
-import { configurarAplicacao } from '../src/configure-app.js'
-import { executarOpsSessaoSintetica, type BancoDoComando } from '../src/ops/sessao-sintetica.js'
+import { configureApp } from '../src/configure-app.js'
+import { executarOpsSessaoSintetica, type CommandDatabase } from '../src/ops/sessao-sintetica.js'
 import { MOTIVO_SESSAO_SINTETICA_FORA_DO_LOCAL } from '../src/sessao/index.js'
 import { configuracaoDeTeste } from './test-config.js'
 import { BancadaDeSessoes, type SessaoDeTeste } from './sessao.fixture.js'
@@ -61,10 +61,10 @@ describe('GuardaDeSessao: toda requisição autenticada é conferida contra a se
   const tokenCom = async (claims: { escolaId: string; usuarioId: string; sessaoId: string }) => (await emissor.emitir(claims)).token
 
   beforeAll(async () => {
-    @Module({ imports: [AppModule.com(configuracaoDeTeste({ ambiente: { LIMITE_REQ_USUARIO_MIN: String(LIMITE_DO_USUARIO) } }))], controllers: [ControladorDoAno] })
+    @Module({ imports: [AppModule.forRoot(configuracaoDeTeste({ ambiente: { LIMITE_REQ_USUARIO_MIN: String(LIMITE_DO_USUARIO) } }))], controllers: [ControladorDoAno] })
     class ModuloDeTeste {}
     app = await NestFactory.create(ModuloDeTeste, { logger: false })
-    configurarAplicacao(app, createLogger({ servico: 'api-teste', nivel: 'silent' }))
+    configureApp(app, createLogger({ servico: 'api-teste', nivel: 'silent' }))
     await app.listen(0, '127.0.0.1')
     url = `http://127.0.0.1:${(app.getHttpServer().address() as AddressInfo).port}`
     leituras = vi.spyOn(app.get(SessaoRepository), 'lerParaGuarda')
@@ -281,14 +281,14 @@ describe('ops:sessao-sintetica', () => {
     await bancada.fechar()
   })
 
-  async function rodar(argumentos: string[], ambiente: Record<string, string | undefined>, abrirBanco?: (ambiente: Record<string, string | undefined>) => BancoDoComando) {
+  async function rodar(argumentos: string[], ambiente: Record<string, string | undefined>, abrirBanco?: (ambiente: Record<string, string | undefined>) => CommandDatabase) {
     let saida = ''
     let erro = ''
     const codigo = await executarOpsSessaoSintetica(argumentos, ambiente, { saida: (texto) => (saida += texto), erro: (texto) => (erro += texto) }, abrirBanco)
     return { codigo, saida, erro }
   }
 
-  const bancoDaBancada = (): BancoDoComando => ({ banco: bancada.banco, fechar: async () => undefined })
+  const bancoDaBancada = (): CommandDatabase => ({ banco: bancada.banco, fechar: async () => undefined })
 
   it.each([
     ['AMBIENTE=staging', { ...ambienteDeTeste, AMBIENTE: 'staging' }],

@@ -34,12 +34,12 @@ import {
 } from '@educa/shared'
 import { z } from 'zod'
 import { exigirCitacoesEntregues } from '../assistente/citacoes.js'
-import type { LimiteDePedidosDeIa } from '../assistente/ai-request-rate-limit.js'
-import type { AgendadorDeExecucoes } from '../ia/execucao.scheduler.js'
+import type { IaRequestRateLimit } from '../assistente/ai-request-rate-limit.js'
+import type { ExecucaoScheduler } from '../ia/execucao.scheduler.js'
 import { ConsumoRepository } from '../ia/consumo.repository.js'
 import { ExecucaoDaSessaoRepository, ExecucaoRepository } from '../ia/execucao.repository.js'
 import { OrcamentoRepository } from '../ia/orcamento.repository.js'
-import type { BuscaDeTrechos, TrechoDoMaterial } from '../material/trecho-search.js'
+import type { TrechoSearch, TrechoDoMaterial } from '../material/trecho-search.js'
 import { sinaisDeTrabalhoDoTurno, TURNOS_QUE_A_REGRA_OLHA } from './sinais-do-turno.js'
 import { TutorDoAlunoRepository, type AtividadeDaTurma, type MaterialDaTurma, type MensagemDaConversa, type PerguntaGravada, type ReferenciaDaPergunta, type TrabalhoDoAluno, type TurmaDoAluno } from './tutor.repository.js'
 
@@ -145,9 +145,9 @@ function paraATela(mensagem: MensagemDaConversa): unknown {
 export class TutorService {
   constructor(
     private readonly banco: Database,
-    private readonly agendador: AgendadorDeExecucoes,
-    private readonly limite: LimiteDePedidosDeIa,
-    private readonly trechos: BuscaDeTrechos,
+    private readonly agendador: ExecucaoScheduler,
+    private readonly limite: IaRequestRateLimit,
+    private readonly trechos: TrechoSearch,
     private readonly orcamento: OrcamentoDeIa,
     private readonly suspensao: SuspensaoDeFuncao,
     private readonly relogio: Clock = systemClock,
@@ -268,7 +268,7 @@ export class TutorService {
 
   /**
    * Os trechos do material para a dúvida: da disciplina da atividade ou do material, que o `#alcance` já conferiu que a
-   * turma do aluno tem (a `BuscaDeTrechos` não confere quem pede). A busca leva a dúvida e o enunciado da questão, porque
+   * turma do aluno tem (a `TrechoSearch` não confere quem pede). A busca leva a dúvida e o enunciado da questão, porque
    * "é a B, né?" sozinho não acha página nenhuma. Com a página que o aluno tem aberta, ela vem na frente. Sem atividade
    * e sem material não há disciplina, e não há trecho.
    */

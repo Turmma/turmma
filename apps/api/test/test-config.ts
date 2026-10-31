@@ -1,7 +1,7 @@
 import { TIMEOUT_COMANDO_REDIS_FILA_MS, type DatabaseConfig } from '@educa/core'
-import type { ConfiguracaoLogin } from '../src/credencial/index.js'
+import type { LoginConfig } from '../src/credencial/index.js'
 import { lerAmbienteDeTeste, valorObrigatorio } from '../../../tools/ci/compose.ts'
-import { lerConfiguracao, type ConfiguracaoApi } from '../src/config.js'
+import { loadConfig, type ApiConfig } from '../src/config.js'
 
 /** O `oidc-falso` do compose de teste, visto da máquina. */
 export function urlDoOidcFalso(ambiente: Record<string, string> = lerAmbienteDeTeste()): string {
@@ -30,27 +30,27 @@ export interface SobreposicaoDeTeste {
    * de 100 ms **pela aplicação montada**: ele precisa do valor de produção sem trocar o `AMBIENTE` para `staging`, que
    * exigiria https no emissor do login pela conta da escola (o `oidc-falso` é http). Assim o prazo entra pelo mesmo
    * caminho do contêiner — `config.login.prazoDoRedisMs`, que o `SessaoModule` lê —, e trocar essa leitura por um
-   * valor fixo deixa o teste vermelho. Só este campo: `Partial<ConfiguracaoLogin>` alcançaria `protecaoDesligada`, que
+   * valor fixo deixa o teste vermelho. Só este campo: `Partial<LoginConfig>` alcançaria `protecaoDesligada`, que
    * a configuração recusa em produção de propósito.
    */
-  login?: Pick<ConfiguracaoLogin, 'prazoDoRedisMs'>
+  login?: Pick<LoginConfig, 'prazoDoRedisMs'>
   /** Variáveis que trocam as de `.env.example` e as URLs do compose de teste, como `ROTAS_SINTETICAS` ou `REDIS_FILA_URL`. */
   ambiente?: Record<string, string>
 }
 
 /**
- * Configuração da API nos testes de integração, lida pelo mesmo `lerConfiguracao` do boot a partir
+ * Configuração da API nos testes de integração, lida pelo mesmo `loadConfig` do boot a partir
  * do ambiente de teste (`.env.example` e `infra/teste.env`), com o banco e o Redis de cache do
  * compose de teste. A porta não importa: o teste escuta numa porta livre.
  */
-export function configuracaoDeTeste(sobreposicao: SobreposicaoDeTeste = {}): ConfiguracaoApi {
+export function configuracaoDeTeste(sobreposicao: SobreposicaoDeTeste = {}): ApiConfig {
   // Espera curta da drenagem: no teste não há borda a avisar, e todo `app.close()` passa por ela.
   const ambiente = { ...lerAmbienteDeTeste(), DRENAGEM_ESPERA_BORDA_MS: '10', ...sobreposicao.ambiente }
   const usuario = valorObrigatorio(ambiente, 'POSTGRES_USUARIO')
   const senha = valorObrigatorio(ambiente, 'POSTGRES_SENHA')
   const banco = valorObrigatorio(ambiente, 'POSTGRES_BANCO')
   const porta = valorObrigatorio(ambiente, 'POSTGRES_PORTA_HOST')
-  const config = lerConfiguracao({
+  const config = loadConfig({
     ...ambiente,
     API_PORTA: '3000',
     BANCO_URL: `postgres://${usuario}:${senha}@127.0.0.1:${porta}/${banco}`,

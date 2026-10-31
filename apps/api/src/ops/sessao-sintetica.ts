@@ -3,11 +3,11 @@ import { ErrorCode, PAPEIS_DE_USUARIO, type PapelDeUsuario } from '@educa/shared
 import { pathToFileURL } from 'node:url'
 import { parseArgs } from 'node:util'
 import { z } from 'zod'
-import { criarSessoesSinteticas, emissorDeTokenSintetico, QUANTIDADE_MAXIMA_DE_SESSOES_SINTETICAS } from '../sessao/index.js'
-import { ArgumentoInvalido } from './command.js'
+import { createSyntheticSessions, syntheticTokenIssuer, QUANTIDADE_MAXIMA_DE_SESSOES_SINTETICAS } from '../sessao/index.js'
+import { InvalidArgumentError } from './command.js'
 import { urlDoBancoDeOperacao } from './uso.js'
 
-export { ArgumentoInvalido }
+export { InvalidArgumentError }
 
 /**
  * Sessão real para teste local, esteira e cenário de carga, na escola informada:
@@ -19,29 +19,29 @@ export { ArgumentoInvalido }
  * antes de abrir o banco. Nenhum dado de pessoa entra ou sai: o nome é fixo e sintético.
  */
 
-export interface SaidaDoComando {
+export interface CommandOutput {
   saida: (texto: string) => void
   erro: (texto: string) => void
 }
 
-export interface BancoDoComando {
+export interface CommandDatabase {
   banco: Database
   fechar: () => Promise<void>
 }
 
 /** Pool de uma conexão para o comando, com o banco do ambiente (`BANCO_URL` ou o Postgres da máquina). */
-function abrirBancoDoAmbiente(ambiente: Record<string, string | undefined>): BancoDoComando {
+function abrirBancoDoAmbiente(ambiente: Record<string, string | undefined>): CommandDatabase {
   const pool = createPool({ ...urlDoBancoDeOperacao(ambiente), maximoConexoes: 1 }, () => undefined)
   return { banco: createDatabase(pool), fechar: () => pool.end() }
 }
 
-export interface PedidoDoComando {
+export interface CommandRequest {
   escolaId: string
   papel: PapelDeUsuario
   quantidade: number
 }
 
-export function lerPedidoDeSessao(argumentos: string[]): PedidoDoComando {
+export function lerPedidoDeSessao(argumentos: string[]): CommandRequest {
   let valores: { escola?: string; papel?: string; quantidade?: string }
   try {
     valores = parseArgs({
@@ -52,13 +52,13 @@ export function lerPedidoDeSessao(argumentos: string[]): PedidoDoComando {
     }).values
   } catch {
     // O erro do parseArgs repete o argumento recebido; a mensagem fica só com as opções aceitas.
-    throw new ArgumentoInvalido('--escola, --papel ou --quantidade')
+    throw new InvalidArgumentError('--escola, --papel ou --quantidade')
   }
-  if (valores.escola === undefined || !z.uuid().safeParse(valores.escola).success) throw new ArgumentoInvalido('--escola')
+  if (valores.escola === undefined || !z.uuid().safeParse(valores.escola).success) throw new InvalidArgumentError('--escola')
   const papel = PAPEIS_DE_USUARIO.find((aceito) => aceito === valores.papel)
-  if (papel === undefined) throw new ArgumentoInvalido('--papel')
+  if (papel === undefined) throw new InvalidArgumentError('--papel')
   const texto = valores.quantidade ?? '1'
-  if (!/^[1-9][0-9]{0,3}$/.test(texto) || Number(texto) > QUANTIDADE_MAXIMA_DE_SESSOES_SINTETICAS) throw new ArgumentoInvalido('--quantidade')
+  if (!/^[1-9][0-9]{0,3}$/.test(texto) || Number(texto) > QUANTIDADE_MAXIMA_DE_SESSOES_SINTETICAS) throw new InvalidArgumentError('--quantidade')
   return { escolaId: valores.escola.toLowerCase(), papel, quantidade: Number(texto) }
 }
 
@@ -69,23 +69,23 @@ export function lerPedidoDeSessao(argumentos: string[]): PedidoDoComando {
 export async function executarOpsSessaoSintetica(
   argumentos: string[],
   ambiente: Record<string, string | undefined>,
-  terminal: SaidaDoComando,
-  abrirBanco: (ambiente: Record<string, string | undefined>) => BancoDoComando = abrirBancoDoAmbiente,
+  terminal: CommandOutput,
+  abrirBanco: (ambiente: Record<string, string | undefined>) => CommandDatabase = abrirBancoDoAmbiente,
 ): Promise<number> {
   try {
     const pedido = lerPedidoDeSessao(argumentos)
     // Antes de abrir o banco: fora do local, nem a conexão é aberta.
-    emissorDeTokenSintetico(ambiente)
+    syntheticTokenIssuer(ambiente)
     const { banco, fechar } = abrirBanco(ambiente)
     try {
-      const sessoes = await criarSessoesSinteticas(banco, ambiente, pedido)
+      const sessoes = await createSyntheticSessions(banco, ambiente, pedido)
       terminal.saida(`${sessoes.map((sessao) => sessao.token).join('\n')}\n`)
       return 0
     } finally {
       await fechar()
     }
   } catch (erro) {
-    if (erro instanceof ArgumentoInvalido || erro instanceof InvalidConfigError) {
+    if (erro instanceof InvalidArgumentError || erro instanceof InvalidConfigError) {
       // Só o nome da opção ou da variável, e o motivo fixo nosso: nunca o valor, que pode ser a chave.
       terminal.erro(`${erro.message}\n`)
       return 2

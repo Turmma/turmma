@@ -92,7 +92,7 @@ export interface AcessoDaSalaAchado {
  * `apps/api/src/sessao` importam esta classe (`apps/api/test/architecture.test.ts`). As tarefas seguintes
  * acrescentam os outros métodos da mesma tabela.
  */
-export class ResolucaoDeTenantRepository {
+export class TenantResolutionRepository {
   constructor(private readonly banco: Database | DatabaseTransaction) {}
 
   /**

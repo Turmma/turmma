@@ -2,9 +2,9 @@ import { ALFABETO_DO_CODIGO_DA_TURMA, codigoDaTurmaValido } from '@educa/shared'
 import { createHash, createHmac } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
 import { lerAmbienteExemplo } from '../../../../tools/ci/compose.ts'
-import { hashDoToken, lerConfiguracaoLogin } from '../credencial/index.js'
+import { hashDoToken, loadLoginConfig } from '../credencial/index.js'
 import { hmacDoCodigoDaTurma, sortearCodigoDaTurma, sortearTokenDaSala } from './codigo-da-sala.js'
-import { lerConfiguracaoSala } from './sala-config.js'
+import { loadSalaConfig } from './sala-config.js'
 
 describe('código da turma e token do link (A1, 4.0, E15)', () => {
   it('o sorteio dá 8 caracteres do alfabeto de 31, e em mil sorteios aparecem todos os 31 e nenhum repete', () => {
@@ -23,8 +23,8 @@ describe('código da turma e token do link (A1, 4.0, E15)', () => {
 
   it('com as chaves do .env.example, o HMAC do código difere do HMAC da mesma entrada com a chave dos contadores', () => {
     const ambiente = lerAmbienteExemplo()
-    const sala = lerConfiguracaoSala(ambiente)
-    const { chaveContador } = lerConfiguracaoLogin(ambiente)
+    const sala = loadSalaConfig(ambiente)
+    const { chaveContador } = loadLoginConfig(ambiente)
     expect(sala.chaveCodigo).not.toEqual(chaveContador)
     const comAChaveDosContadores = createHmac('sha256', chaveContador).update('ABCD2345').digest('base64url')
     expect(hmacDoCodigoDaTurma(sala.chaveCodigo, 'ABCD2345')).not.toBe(comAChaveDosContadores)

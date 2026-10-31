@@ -1,7 +1,7 @@
 import { DomainException, inatividadeDoPapel, METRICS, type Meter } from '@educa/core'
 import { ErrorCode, euResponseSchema, introducaoResponseSchema, type EuResponse, type IntroducaoResponse } from '@educa/shared'
-import type { EuRepository, LinhaDoEu } from './eu.repository.js'
-import type { ResolucaoDeTenantRepository } from '../tenant/tenant-resolution.repository.js'
+import type { MeRepository, MeRow } from './eu.repository.js'
+import type { TenantResolutionRepository } from '../tenant/tenant-resolution.repository.js'
 
 /**
  * Quem está na sessão, no contrato de `GET /v1/eu`: a inatividade é a do papel na escola da sessão, e `acessos`, os
@@ -13,12 +13,12 @@ import type { ResolucaoDeTenantRepository } from '../tenant/tenant-resolution.re
  * nessa linha o `now()` da própria escrita, e nunca o valor de lá: assim, quando o vínculo da outra escola terminar, a
  * introdução não reabre aqui. Se essa gravação falhar, o `GET` devolve a data lida, sem gravar, e a falha é contada.
  */
-export class EuService {
+export class MeService {
   readonly #naoGravadas: ReturnType<Meter['createCounter']>
 
   constructor(
-    private readonly eu: EuRepository,
-    private readonly resolucao: ResolucaoDeTenantRepository,
+    private readonly eu: MeRepository,
+    private readonly resolucao: TenantResolutionRepository,
     medidor: Meter,
   ) {
     this.#naoGravadas = medidor.createCounter(METRICS.introducaoFalha, { description: 'Gravações da linha da sessão, disparadas por data de outra escola da mesma conta, que falharam (grava now(), nunca a data emprestada)' })
@@ -55,7 +55,7 @@ export class EuService {
   }
 
   /** A data de outra escola da conta, com o mesmo papel; o aluno não tem conta e não empresta. */
-  async #emprestada(linha: LinhaDoEu): Promise<Date | null> {
+  async #emprestada(linha: MeRow): Promise<Date | null> {
     return linha.contaId === null ? null : this.resolucao.introducaoMaisAntigaDaConta(linha.contaId, linha.papel)
   }
 

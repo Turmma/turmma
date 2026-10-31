@@ -1,7 +1,7 @@
 import { systemStatusResponseSchema } from '@educa/shared'
 import { describe, expect, it } from 'vitest'
-import { EstadoService, VALIDADE_DA_VERIFICACAO_MS } from './status.service.js'
-import type { SaudeService } from './health.service.js'
+import { StatusService, VALIDADE_DA_VERIFICACAO_MS } from './status.service.js'
+import type { HealthService } from './health.service.js'
 
 class SaudeFalsa {
   chamadas = 0
@@ -23,7 +23,7 @@ class SaudeFalsa {
 function montar() {
   const saude = new SaudeFalsa()
   let instante = new Date('2026-09-14T10:00:00.000Z')
-  const servico = new EstadoService(saude as unknown as SaudeService, '3d4099c', 'local', () => instante)
+  const servico = new StatusService(saude as unknown as HealthService, '3d4099c', 'local', () => instante)
   return {
     saude,
     servico,

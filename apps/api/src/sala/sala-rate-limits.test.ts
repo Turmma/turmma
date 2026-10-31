@@ -4,11 +4,11 @@ import type { Redis } from 'ioredis'
 import { randomUUID } from 'node:crypto'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../../tools/testes/metricas.ts'
-import { ContadorEmJanela } from '../credencial/index.js'
+import { WindowCounter } from '../credencial/index.js'
 import {
   ESPERA_ACIMA_DO_TETO_DA_ESCOLA_MS,
   JANELA_DOS_LIMITES_DA_SALA_MS,
-  LimitesDaSala,
+  SalaRateLimits,
   TETO_DE_CODIGOS_ERRADOS_POR_ESCOLA,
   TETO_DE_HASHES_SEM_PEDIDO_POR_TURMA,
   TETO_DE_MATRICULAS_ERRADAS_POR_NOME,
@@ -44,8 +44,8 @@ function montar({ instancias = INSTANCIAS } = {}) {
   const relogio = relogioParado()
   const linhas: unknown[] = []
   const esperas: number[] = []
-  const janela = new ContadorEmJanela(FORA, CHAVE, { janelaMs: JANELA_DOS_LIMITES_DA_SALA_MS, relogio, avisarSeguro: () => undefined })
-  const limites = new LimitesDaSala({
+  const janela = new WindowCounter(FORA, CHAVE, { janelaMs: JANELA_DOS_LIMITES_DA_SALA_MS, relogio, avisarSeguro: () => undefined })
+  const limites = new SalaRateLimits({
     janela,
     instancias,
     medidor: medidor.medidor,

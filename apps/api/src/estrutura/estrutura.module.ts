@@ -1,6 +1,6 @@
 import type { Database } from '@educa/core'
 import { Module } from '@nestjs/common'
-import { BANCO } from '../database.module.js'
+import { DB } from '../database.module.js'
 import { AnoLetivoController } from './ano-letivo/ano-letivo.controller.js'
 import { AnoLetivoService } from './ano-letivo/ano-letivo.service.js'
 import { DisciplinaController } from './disciplina/disciplina.controller.js'
@@ -27,14 +27,14 @@ import { VinculoService } from './vinculo/vinculo.service.js'
 @Module({
   controllers: [EscolaSessaoController, ProvedoresDaEscolaController, AnoLetivoController, SerieController, DisciplinaController, TurmaController, ListaController, VinculoController, MeusVinculosController],
   providers: [
-    { provide: EscolaSessaoService, useFactory: (banco: Database) => new EscolaSessaoService(banco), inject: [BANCO] },
-    { provide: ProvedoresDaEscolaService, useFactory: (banco: Database) => new ProvedoresDaEscolaService(banco), inject: [BANCO] },
-    { provide: AnoLetivoService, useFactory: (banco: Database) => new AnoLetivoService(banco), inject: [BANCO] },
-    { provide: SerieService, useFactory: (banco: Database) => new SerieService(banco), inject: [BANCO] },
-    { provide: DisciplinaService, useFactory: (banco: Database) => new DisciplinaService(banco), inject: [BANCO] },
-    { provide: TurmaService, useFactory: (banco: Database) => new TurmaService(banco), inject: [BANCO] },
-    { provide: ListaService, useFactory: (banco: Database) => new ListaService(banco), inject: [BANCO] },
-    { provide: VinculoService, useFactory: (banco: Database) => new VinculoService(banco), inject: [BANCO] },
+    { provide: EscolaSessaoService, useFactory: (banco: Database) => new EscolaSessaoService(banco), inject: [DB] },
+    { provide: ProvedoresDaEscolaService, useFactory: (banco: Database) => new ProvedoresDaEscolaService(banco), inject: [DB] },
+    { provide: AnoLetivoService, useFactory: (banco: Database) => new AnoLetivoService(banco), inject: [DB] },
+    { provide: SerieService, useFactory: (banco: Database) => new SerieService(banco), inject: [DB] },
+    { provide: DisciplinaService, useFactory: (banco: Database) => new DisciplinaService(banco), inject: [DB] },
+    { provide: TurmaService, useFactory: (banco: Database) => new TurmaService(banco), inject: [DB] },
+    { provide: ListaService, useFactory: (banco: Database) => new ListaService(banco), inject: [DB] },
+    { provide: VinculoService, useFactory: (banco: Database) => new VinculoService(banco), inject: [DB] },
   ],
 })
 export class EstruturaModule {}

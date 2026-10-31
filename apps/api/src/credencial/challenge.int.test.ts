@@ -5,7 +5,7 @@ import type { Redis } from 'ioredis'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { lerAmbienteDeTeste, valorObrigatorio } from '../../../../tools/ci/compose.ts'
 import { travarRedis } from '../../../../tools/testes/redis-travado.ts'
-import { ConsumoDeDesafio, EmissorDeDesafio, PREFIXO_DESAFIO_USADO, verificarDesafio } from './challenge.js'
+import { ChallengeConsumer, ChallengeIssuer, USED_CHALLENGE_PREFIX, verifyChallenge } from './challenge.js'
 
 const CHAVE = new TextEncoder().encode('chave-de-teste-da-assinatura-com-32-bytes')
 const CONTA = '0190f5a0-0000-7000-8000-0000000000c1'
@@ -37,15 +37,15 @@ describe('ConsumoDeDesafio: o jti vale uma vez só, no Redis de fila', () => {
   })
 
   it('concorrência: duas conclusões da mesma etapa ao mesmo tempo, com o mesmo desafio, passam uma vez só', async () => {
-    const desafio = await verificarDesafio(await new EmissorDeDesafio(CHAVE).emitir({ contaId: CONTA, etapa: 'mfa', mfaCumprido: false }), CHAVE, ['mfa'])
-    const consumo = new ConsumoDeDesafio(cliente)
+    const desafio = await verifyChallenge(await new ChallengeIssuer(CHAVE).emitir({ contaId: CONTA, etapa: 'mfa', mfaCumprido: false }), CHAVE, ['mfa'])
+    const consumo = new ChallengeConsumer(cliente)
     const resultados = await Promise.allSettled([consumo.consumir(desafio), consumo.consumir(desafio)])
     expect(resultados.filter((resultado) => resultado.status === 'fulfilled')).toHaveLength(1)
     const [recusa] = resultados.flatMap((resultado) => (resultado.status === 'rejected' ? [resultado.reason as unknown] : []))
     expect(recusa).toBeInstanceOf(DomainException)
     expect(recusa).toMatchObject({ codigo: ErrorCode.NAO_AUTENTICADO })
     // A marca vence com o desafio: não fica no Redis depois de 5 min.
-    const vida = await cliente.pttl(`${PREFIXO_DESAFIO_USADO}${desafio.jti}`)
+    const vida = await cliente.pttl(`${USED_CHALLENGE_PREFIX}${desafio.jti}`)
     expect(vida).toBeGreaterThan(0)
     expect(vida).toBeLessThanOrEqual(5 * 60_000)
   })
@@ -53,8 +53,8 @@ describe('ConsumoDeDesafio: o jti vale uma vez só, no Redis de fila', () => {
   it('falha: com o Redis de fila fora, o desafio é recusado, e não aceito sem marca', async () => {
     const fora = createApiRedisClient('redis://127.0.0.1:9', 'teste-desafio-fora', () => undefined)
     try {
-      const desafio = await verificarDesafio(await new EmissorDeDesafio(CHAVE).emitir({ contaId: CONTA, etapa: 'escolher', mfaCumprido: false }), CHAVE, ['escolher'])
-      const consumo = new ConsumoDeDesafio(fora)
+      const desafio = await verifyChallenge(await new ChallengeIssuer(CHAVE).emitir({ contaId: CONTA, etapa: 'escolher', mfaCumprido: false }), CHAVE, ['escolher'])
+      const consumo = new ChallengeConsumer(fora)
       await expect(consumo.consumir(desafio)).rejects.toMatchObject({ codigo: ErrorCode.NAO_AUTENTICADO })
       await expect(consumo.conferirLivre(desafio)).rejects.toMatchObject({ codigo: ErrorCode.NAO_AUTENTICADO })
       // A recusa pelo Redis entra no sinal do seguro (15.5).
@@ -70,8 +70,8 @@ describe('ConsumoDeDesafio: o jti vale uma vez só, no Redis de fila', () => {
     const avisos = vi.spyOn(Logger.prototype, 'warn')
     try {
       await pronto(producao)
-      const consumo = new ConsumoDeDesafio(producao)
-      const emitir = async () => verificarDesafio(await new EmissorDeDesafio(CHAVE).emitir({ contaId: CONTA, etapa: 'mfa', mfaCumprido: false }), CHAVE, ['mfa'])
+      const consumo = new ChallengeConsumer(producao)
+      const emitir = async () => verifyChallenge(await new ChallengeIssuer(CHAVE).emitir({ contaId: CONTA, etapa: 'mfa', mfaCumprido: false }), CHAVE, ['mfa'])
       const noTravamento = await emitir()
       avisos.mockClear()
 

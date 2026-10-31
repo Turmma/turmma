@@ -19,8 +19,8 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { lerAmbienteDeTeste, valorObrigatorio } from '../../../tools/ci/compose.ts'
 import { aguardarSaudavel, compose, composeAssincronoOuFalha, composeOuFalha } from '../../../tools/testes/compose.ts'
 import { AppModule } from '../src/app.module.js'
-import { configurarAplicacao } from '../src/configure-app.js'
-import { CLIENTE_REDIS_CACHE } from '../src/rate-limit.module.js'
+import { configureApp } from '../src/configure-app.js'
+import { REDIS_CACHE_CLIENT } from '../src/rate-limit.module.js'
 import { configuracaoDeTeste } from './test-config.js'
 import { BancadaDeSessoes } from './sessao.fixture.js'
 
@@ -59,15 +59,15 @@ async function subirApi(
   ambiente: Record<string, string>,
   { esperarRedis = true, endereco = '127.0.0.1' }: { esperarRedis?: boolean; endereco?: string } = {},
 ): Promise<Instancia> {
-  @Module({ imports: [AppModule.com(configuracaoDeTeste({ ambiente }))], controllers: [ControladorAnonimo] })
+  @Module({ imports: [AppModule.forRoot(configuracaoDeTeste({ ambiente }))], controllers: [ControladorAnonimo] })
   class ModuloDeTeste {}
 
   const app = await NestFactory.create(ModuloDeTeste, { logger: false })
-  configurarAplicacao(app, createLogger({ servico: 'api-teste', nivel: 'silent' }))
+  configureApp(app, createLogger({ servico: 'api-teste', nivel: 'silent' }))
   await app.listen(0, endereco)
   const { port } = app.getHttpServer().address() as AddressInfo
   // Até o cliente conectar, a instância conta no seguro, como no boot real (antes de a borda mandar tráfego).
-  if (esperarRedis) await clientePronto(app.get<Redis>(CLIENTE_REDIS_CACHE, { strict: false }))
+  if (esperarRedis) await clientePronto(app.get<Redis>(REDIS_CACHE_CLIENT, { strict: false }))
   const instancia = { app, url: `http://${endereco.includes(':') ? `[${endereco}]` : endereco}:${port}`, limitador: app.get(RateLimiter) }
   instancias.push(instancia)
   return instancia

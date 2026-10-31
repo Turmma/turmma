@@ -2,9 +2,9 @@ import { hkdfSync } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
 import { lerAmbienteDeCarga, lerAmbienteDeTeste, lerAmbienteExemplo } from '../../../tools/ci/compose.ts'
 import { MOTIVO_ADAPTADOR_FALSO_EM_PRODUCAO, TIMEOUT_COMANDO_REDIS_API_MS, TIMEOUT_COMANDO_REDIS_FILA_MS } from '@educa/core'
-import { InvalidConfigError, lerConfiguracao, MOTIVO_AVISOS_SEM_JSON, MOTIVO_ROTAS_SINTETICAS_EM_PRODUCAO } from './config.js'
+import { InvalidConfigError, loadConfig, MOTIVO_AVISOS_SEM_JSON, MOTIVO_ROTAS_SINTETICAS_EM_PRODUCAO } from './config.js'
 import { MOTIVO_CHAVE_DA_SALA_REPETIDA } from './sala/sala-config.js'
-import { lerConfiguracaoLogin, MOTIVO_PRAZO_DO_REDIS_DO_LOGIN, PRAZO_MINIMO_DO_REDIS_DO_LOGIN_MS } from './credencial/index.js'
+import { loadLoginConfig, MOTIVO_PRAZO_DO_REDIS_DO_LOGIN, PRAZO_MINIMO_DO_REDIS_DO_LOGIN_MS } from './credencial/index.js'
 
 const ambienteValido = {
   API_PORTA: '3000',
@@ -61,10 +61,10 @@ function chaveDerivada(texto: string): Uint8Array {
   return new Uint8Array(hkdfSync('sha256', texto, new Uint8Array(0), 'educa.mfa.segredo.aes-256-gcm', 32))
 }
 
-/** O erro de `lerConfiguracaoLogin` chamada direto, para o que `lerConfiguracao` não alcança. */
+/** O erro de `loadLoginConfig` chamada direto, para o que `loadConfig` não alcança. */
 function erroDeLogin(ambiente: Record<string, string | undefined>): InvalidConfigError {
   try {
-    lerConfiguracaoLogin(ambiente)
+    loadLoginConfig(ambiente)
   } catch (erro) {
     if (erro instanceof InvalidConfigError) return erro
     throw erro
@@ -74,7 +74,7 @@ function erroDeLogin(ambiente: Record<string, string | undefined>): InvalidConfi
 
 function erroDe(ambiente: Record<string, string | undefined>): InvalidConfigError {
   try {
-    lerConfiguracao(ambiente)
+    loadConfig(ambiente)
   } catch (erro) {
     if (erro instanceof InvalidConfigError) return erro
     throw erro
@@ -84,7 +84,7 @@ function erroDe(ambiente: Record<string, string | undefined>): InvalidConfigErro
 
 describe('lerConfiguracao', () => {
   it('converte o ambiente em configuração tipada', () => {
-    expect(lerConfiguracao(ambienteValido)).toEqual({
+    expect(loadConfig(ambienteValido)).toEqual({
       porta: 3000,
       rotasSinteticas: false,
       versao: 'local',
@@ -145,7 +145,7 @@ describe('lerConfiguracao', () => {
   })
 
   it('o armazém do arquivo do titular (F3, tarefa 13.0): o endereço público entra na configuração, e a falta ou o valor inválido são apontados pelo nome, sem o segredo', () => {
-    expect(lerConfiguracao({ ...ambienteValido, STORAGE_URL_PUBLICA: 'http://127.0.0.1:58333' }).armazem).toMatchObject({ url: 'http://storage:8333', urlPublica: 'http://127.0.0.1:58333' })
+    expect(loadConfig({ ...ambienteValido, STORAGE_URL_PUBLICA: 'http://127.0.0.1:58333' }).armazem).toMatchObject({ url: 'http://storage:8333', urlPublica: 'http://127.0.0.1:58333' })
     expect(erroDe({ ...ambienteValido, STORAGE_URL: undefined }).variaveis).toEqual(['STORAGE_URL'])
     expect(erroDe({ ...ambienteValido, STORAGE_BUCKET: undefined, STORAGE_CHAVE_SECRETA: '' }).variaveis).toEqual(['STORAGE_BUCKET', 'STORAGE_CHAVE_SECRETA'])
     const recusada = erroDe({ ...ambienteValido, STORAGE_URL_PUBLICA: 'armazem:8333', STORAGE_CHAVE_SECRETA: '' })
@@ -155,13 +155,13 @@ describe('lerConfiguracao', () => {
 
   it('a camada de IA é lida aqui, com as outras: nenhuma variável é obrigatória, a inválida é apontada pelo nome, e o adaptador falso não sobe em produção', () => {
     expect(Object.keys(ambienteValido).filter((variavel) => variavel.startsWith('IA_') || variavel.startsWith('LLM_'))).toEqual([])
-    expect(lerConfiguracao({ ...ambienteValido, ...IA_DE_PRODUCAO, IA_EXECUCOES_POR_ESCOLA: '3' }).ia).toMatchObject({
+    expect(loadConfig({ ...ambienteValido, ...IA_DE_PRODUCAO, IA_EXECUCOES_POR_ESCOLA: '3' }).ia).toMatchObject({
       adaptador: 'openai_compat',
       modelo: { baseUrl: IA_DE_PRODUCAO.LLM_BASE_URL, processamentoLocal: false, provedorId: 'provedor-sintetico' },
       executor: { vagasPorEscola: 3 },
     })
     // O compose entrega a variável sem valor como texto vazio: vale como ausente.
-    expect(lerConfiguracao({ ...ambienteValido, IA_ADAPTADOR: '', LLM_BASE_URL: '' }).ia.adaptador).toBe('falso')
+    expect(loadConfig({ ...ambienteValido, IA_ADAPTADOR: '', LLM_BASE_URL: '' }).ia.adaptador).toBe('falso')
     expect(erroDe({ ...ambienteValido, IA_ADAPTADOR: 'outro' }).variaveis).toEqual(['IA_ADAPTADOR'])
     expect(erroDe({ ...ambienteValido, IA_ADAPTADOR: 'openai_compat' }).variaveis).toEqual(['IA_PROVEDOR_ID', 'LLM_BASE_URL', 'LLM_MODELO'])
     // Somada às outras leituras, e sem repetir o AMBIENTE, que a identidade já aponta.
@@ -202,8 +202,8 @@ describe('lerConfiguracao', () => {
   })
 
   it('limite por IP do login por e-mail (15.2): LIMITE_LOGIN_EMAIL_IP_MIN é obrigatória, inteira e positiva, sem padrão no código', () => {
-    expect(lerConfiguracao(ambienteValido).login.limiteEmailPorIpMin).toBe(60)
-    expect(lerConfiguracao({ ...ambienteValido, LIMITE_LOGIN_EMAIL_IP_MIN: '180' }).login.limiteEmailPorIpMin).toBe(180)
+    expect(loadConfig(ambienteValido).login.limiteEmailPorIpMin).toBe(60)
+    expect(loadConfig({ ...ambienteValido, LIMITE_LOGIN_EMAIL_IP_MIN: '180' }).login.limiteEmailPorIpMin).toBe(180)
     for (const valor of [undefined, '', '0', '-1', '1.5', 'sessenta']) {
       expect(erroDe({ ...ambienteValido, LIMITE_LOGIN_EMAIL_IP_MIN: valor }).variaveis, String(valor)).toEqual(['LIMITE_LOGIN_EMAIL_IP_MIN'])
     }
@@ -211,7 +211,7 @@ describe('lerConfiguracao', () => {
 
   it('semáforo do hash: a concorrência vai até UV_THREADPOOL_SIZE − 8, e um acima derruba o boot apontando só LOGIN_HASH_CONCORRENCIA, sem o valor', () => {
     // No limite, sobe: 16 threads, 8 de folga para nome e arquivo, 8 para o hash.
-    expect(lerConfiguracao({ ...ambienteValido, UV_THREADPOOL_SIZE: '16', LOGIN_HASH_CONCORRENCIA: '8' }).login.concorrenciaDoHash).toBe(8)
+    expect(loadConfig({ ...ambienteValido, UV_THREADPOOL_SIZE: '16', LOGIN_HASH_CONCORRENCIA: '8' }).login.concorrenciaDoHash).toBe(8)
     const acima = erroDe({ ...ambienteValido, UV_THREADPOOL_SIZE: '16', LOGIN_HASH_CONCORRENCIA: '9' })
     expect(acima.variaveis).toEqual(['LOGIN_HASH_CONCORRENCIA'])
     expect(acima.message).not.toMatch(/\b9\b/)
@@ -220,7 +220,7 @@ describe('lerConfiguracao', () => {
   })
 
   it('permissão (16.0): LOGIN_PROTECAO_DESLIGADA=true liga o controle negativo fora de produção, e a API não sobe com ela em produção', () => {
-    expect(lerConfiguracao({ ...ambienteValido, LOGIN_PROTECAO_DESLIGADA: 'true' }).login.protecaoDesligada).toBe(true)
+    expect(loadConfig({ ...ambienteValido, LOGIN_PROTECAO_DESLIGADA: 'true' }).login.protecaoDesligada).toBe(true)
     expect(erroDe({ ...ambienteValido, ...IA_DE_PRODUCAO, AMBIENTE: 'producao', ROTAS_SINTETICAS: 'false', LOGIN_PROTECAO_DESLIGADA: 'true' }).variaveis).toEqual(['LOGIN_PROTECAO_DESLIGADA'])
     expect(erroDe({ ...ambienteValido, LOGIN_PROTECAO_DESLIGADA: undefined }).variaveis).toEqual(['LOGIN_PROTECAO_DESLIGADA'])
   })
@@ -234,10 +234,10 @@ describe('lerConfiguracao', () => {
     const acimaDoCorte = String(TIMEOUT_COMANDO_REDIS_FILA_MS)
     // Até o corte, passa em todo ambiente: é o valor de `ambienteValido`, e é o que o cenário de carga fixa.
     for (const ambiente of ['local', 'staging', 'producao'] as const) {
-      expect(lerConfiguracao({ ...ambienteValido, ...IA_DE_PRODUCAO, AMBIENTE: ambiente }).login.prazoDoRedisMs).toBe(TIMEOUT_COMANDO_REDIS_API_MS)
+      expect(loadConfig({ ...ambienteValido, ...IA_DE_PRODUCAO, AMBIENTE: ambiente }).login.prazoDoRedisMs).toBe(TIMEOUT_COMANDO_REDIS_API_MS)
     }
     // Acima dele, só em `local`.
-    expect(lerConfiguracao({ ...ambienteValido, LOGIN_REDIS_PRAZO_MS: acimaDoCorte }).login.prazoDoRedisMs).toBe(TIMEOUT_COMANDO_REDIS_FILA_MS)
+    expect(loadConfig({ ...ambienteValido, LOGIN_REDIS_PRAZO_MS: acimaDoCorte }).login.prazoDoRedisMs).toBe(TIMEOUT_COMANDO_REDIS_FILA_MS)
     const emProducao = erroDe({ ...ambienteValido, ...IA_DE_PRODUCAO, AMBIENTE: 'producao', LOGIN_REDIS_PRAZO_MS: acimaDoCorte })
     expect(emProducao.variaveis).toEqual(['LOGIN_REDIS_PRAZO_MS'])
     expect(emProducao.message).toContain(MOTIVO_PRAZO_DO_REDIS_DO_LOGIN)
@@ -255,12 +255,12 @@ describe('lerConfiguracao', () => {
     // O piso é inteiro: ele alimenta um `.int()`, e fracionário faria o caso acima passar pelo motivo errado.
     expect(Number.isInteger(PRAZO_MINIMO_DO_REDIS_DO_LOGIN_MS)).toBe(true)
     // No piso, passa: é apertar, não sumir.
-    expect(lerConfiguracao({ ...ambienteValido, LOGIN_REDIS_PRAZO_MS: String(PRAZO_MINIMO_DO_REDIS_DO_LOGIN_MS) }).login.prazoDoRedisMs).toBe(PRAZO_MINIMO_DO_REDIS_DO_LOGIN_MS)
+    expect(loadConfig({ ...ambienteValido, LOGIN_REDIS_PRAZO_MS: String(PRAZO_MINIMO_DO_REDIS_DO_LOGIN_MS) }).login.prazoDoRedisMs).toBe(PRAZO_MINIMO_DO_REDIS_DO_LOGIN_MS)
     // O que o contêiner do compose de teste vê é `.env.example` mais `infra/teste.env`, e não só o exemplo; o do
     // cenário de carga é `.env.example` mais `infra/carga.env`, que fixa o corte de produção.
     expect(lerAmbienteDeTeste()['AMBIENTE']).toBe('local')
     const comoNoProjeto = (doProjeto: Record<string, string>) =>
-      lerConfiguracao({ ...ambienteValido, ...doProjeto, BANCO_URL: ambienteValido.BANCO_URL, REDIS_CACHE_URL: ambienteValido.REDIS_CACHE_URL, REDIS_FILA_URL: ambienteValido.REDIS_FILA_URL })
+      loadConfig({ ...ambienteValido, ...doProjeto, BANCO_URL: ambienteValido.BANCO_URL, REDIS_CACHE_URL: ambienteValido.REDIS_CACHE_URL, REDIS_FILA_URL: ambienteValido.REDIS_FILA_URL })
         .login.prazoDoRedisMs
     expect(comoNoProjeto(lerAmbienteDeTeste())).toBe(TIMEOUT_COMANDO_REDIS_FILA_MS)
     expect(comoNoProjeto(lerAmbienteDeCarga())).toBe(TIMEOUT_COMANDO_REDIS_API_MS)
@@ -269,13 +269,13 @@ describe('lerConfiguracao', () => {
   it('o .env.example não sobe em produção, e aponta exatamente as variáveis que o staging e a produção precisam trocar', () => {
     // O item do TODO.md "valores que o staging e a produção não herdam do .env.example" mora aqui, executável: quem
     // copiar o exemplo para lá recebe esta lista no primeiro boot, antes de qualquer escola. Uma variável nova na
-    // mesma classe entra aqui **se estiver em outro leitor**, porque `lerConfiguracao` soma os oito e ordena;
-    // `lerConfiguracaoLogin` lança no primeiro `if`, então uma segunda recusa dentro dela não apareceria na lista
+    // mesma classe entra aqui **se estiver em outro leitor**, porque `loadConfig` soma os oito e ordena;
+    // `loadLoginConfig` lança no primeiro `if`, então uma segunda recusa dentro dela não apareceria na lista
     // (`test-engineer`). E a lista é do que o boot **recusa**: chave sintética do exemplo sobe em produção sem
     // reclamar, e é por isso que o item do TODO.md separa as duas coisas.
     // `API_PORTA` e `TELEMETRIA_OTLP_URL` vêm do `environment:` do compose, não do arquivo; as URLs, do serviço.
     const exemplo = { ...ambienteValido, ...lerAmbienteExemplo(), API_PORTA: '3000', BANCO_URL: ambienteValido.BANCO_URL, REDIS_CACHE_URL: ambienteValido.REDIS_CACHE_URL, REDIS_FILA_URL: ambienteValido.REDIS_FILA_URL, TELEMETRIA_OTLP_URL: ambienteValido.TELEMETRIA_OTLP_URL }
-    expect(lerConfiguracao(exemplo).identidade.ambiente).toBe('local')
+    expect(loadConfig(exemplo).identidade.ambiente).toBe('local')
     // O prazo do Redis do login, que aqui é o de desenvolvimento, e os dois emissores do login pela conta da escola,
     // que apontam para o `oidc-falso` em http. Em produção somam a rota sintética, que o exemplo deixa ligada, e o
     // adaptador falso de IA, que o exemplo usa e a produção recusa.
@@ -285,10 +285,10 @@ describe('lerConfiguracao', () => {
   })
 
   it('AMBIENTE ausente ou inválido vale como produção na leitura do login, e o prazo acima do corte cai junto', () => {
-    // `lerConfiguracao` nunca chega aqui: `authEnvSchema` exige o enum e derruba o boot antes. A leitura
-    // restrita é defesa em profundidade de `lerConfiguracaoLogin`, e só se prova chamando-a direto.
+    // `loadConfig` nunca chega aqui: `authEnvSchema` exige o enum e derruba o boot antes. A leitura
+    // restrita é defesa em profundidade de `loadLoginConfig`, e só se prova chamando-a direto.
     const acimaDoCorte = { ...ambienteValido, LOGIN_REDIS_PRAZO_MS: String(TIMEOUT_COMANDO_REDIS_FILA_MS) }
-    expect(lerConfiguracaoLogin(acimaDoCorte).prazoDoRedisMs).toBe(TIMEOUT_COMANDO_REDIS_FILA_MS)
+    expect(loadLoginConfig(acimaDoCorte).prazoDoRedisMs).toBe(TIMEOUT_COMANDO_REDIS_FILA_MS)
     for (const ambiente of [undefined, 'homologacao']) {
       const erro = erroDeLogin({ ...acimaDoCorte, AMBIENTE: ambiente })
       expect(erro.variaveis, String(ambiente)).toEqual(['LOGIN_REDIS_PRAZO_MS'])
@@ -298,7 +298,7 @@ describe('lerConfiguracao', () => {
 
   it('a chave de dispositivo lida é a da versão declarada, e a versão sem chave não sobe', () => {
     const chaveV2 = 'chave_sintetica_do_dispositivo_v2_com_32_caracteres'
-    const config = lerConfiguracao({ ...ambienteValido, LOGIN_CHAVE_DISPOSITIVO_VERSAO: '2', LOGIN_CHAVE_DISPOSITIVO_V2: chaveV2 })
+    const config = loadConfig({ ...ambienteValido, LOGIN_CHAVE_DISPOSITIVO_VERSAO: '2', LOGIN_CHAVE_DISPOSITIVO_V2: chaveV2 })
     expect(config.login.dispositivo).toEqual({ versao: 2, chave: new TextEncoder().encode(chaveV2) })
     expect(erroDe({ ...ambienteValido, LOGIN_CHAVE_DISPOSITIVO_VERSAO: '2' }).variaveis).toEqual(['LOGIN_CHAVE_DISPOSITIVO_V2'])
   })
@@ -311,14 +311,14 @@ describe('lerConfiguracao', () => {
 
   it('MFA: a chave de cifra da versão atual é obrigatória; a anterior, se declarada, continua decifrando; e a de recuperação não repete nenhuma outra', () => {
     const chaveV2 = 'chave_sintetica_da_cifra_v2_com_32_caracteres'
-    const config = lerConfiguracao({ ...ambienteValido, IDENTIDADE_CHAVE_CIFRA_VERSAO: '2', IDENTIDADE_CHAVE_CIFRA_V2: chaveV2 })
+    const config = loadConfig({ ...ambienteValido, IDENTIDADE_CHAVE_CIFRA_VERSAO: '2', IDENTIDADE_CHAVE_CIFRA_V2: chaveV2 })
     expect(config.login.mfa.versaoCifra).toBe(2)
     expect([...config.login.mfa.chavesCifra.entries()]).toEqual([
       [1, chaveDerivada(ambienteValido.IDENTIDADE_CHAVE_CIFRA_V1)],
       [2, chaveDerivada(chaveV2)],
     ])
     // A versão 1 aposentada pode sair do ambiente; a atual, nunca.
-    expect([...lerConfiguracao({ ...ambienteValido, IDENTIDADE_CHAVE_CIFRA_VERSAO: '2', IDENTIDADE_CHAVE_CIFRA_V1: undefined, IDENTIDADE_CHAVE_CIFRA_V2: chaveV2 }).login.mfa.chavesCifra.keys()]).toEqual([2])
+    expect([...loadConfig({ ...ambienteValido, IDENTIDADE_CHAVE_CIFRA_VERSAO: '2', IDENTIDADE_CHAVE_CIFRA_V1: undefined, IDENTIDADE_CHAVE_CIFRA_V2: chaveV2 }).login.mfa.chavesCifra.keys()]).toEqual([2])
     expect(erroDe({ ...ambienteValido, IDENTIDADE_CHAVE_CIFRA_VERSAO: '2' }).variaveis).toEqual(['IDENTIDADE_CHAVE_CIFRA_V2'])
     // A chave derivada tem 256 bits e não é o texto da variável.
     expect(config.login.mfa.chavesCifra.get(2)?.length).toBe(32)
@@ -346,14 +346,14 @@ describe('lerConfiguracao', () => {
     }
     // O piso é 256 bits: 31 caracteres não sobem, 32 sobem.
     expect(erroDe({ ...ambienteValido, SALA_CHAVE_CODIGO: 's'.repeat(31) }).variaveis).toEqual(['SALA_CHAVE_CODIGO'])
-    expect(lerConfiguracao({ ...ambienteValido, SALA_CHAVE_CODIGO: 's'.repeat(32) }).sala.chaveCodigo).toHaveLength(32)
+    expect(loadConfig({ ...ambienteValido, SALA_CHAVE_CODIGO: 's'.repeat(32) }).sala.chaveCodigo).toHaveLength(32)
     // Com uma chave própria, sobe, e a chave lida é a da variável.
-    expect(lerConfiguracao(ambienteValido).sala.chaveCodigo).toEqual(new TextEncoder().encode(ambienteValido.SALA_CHAVE_CODIGO))
+    expect(loadConfig(ambienteValido).sala.chaveCodigo).toEqual(new TextEncoder().encode(ambienteValido.SALA_CHAVE_CODIGO))
   })
 
   it('.env.example sobe com o argon2 no mínimo da OWASP (m=19456, t=2)', () => {
     const exemplo = lerAmbienteExemplo()
-    const { login } = lerConfiguracao({ ...ambienteValido, ...exemplo, API_PORTA: '3000', BANCO_URL: ambienteValido.BANCO_URL, REDIS_CACHE_URL: ambienteValido.REDIS_CACHE_URL, REDIS_FILA_URL: ambienteValido.REDIS_FILA_URL })
+    const { login } = loadConfig({ ...ambienteValido, ...exemplo, API_PORTA: '3000', BANCO_URL: ambienteValido.BANCO_URL, REDIS_CACHE_URL: ambienteValido.REDIS_CACHE_URL, REDIS_FILA_URL: ambienteValido.REDIS_FILA_URL })
     expect(login.hash).toEqual({ memoriaKib: 19_456, iteracoes: 2 })
   })
 
@@ -395,22 +395,22 @@ describe('lerConfiguracao', () => {
 
   it('.env.example traz os padrões da Tech Spec: 120/min por usuário, 30.000/min por escola, 3.000/min por IP anônimo, duas instâncias e a borda', () => {
     const exemplo = lerAmbienteExemplo()
-    const { limite } = lerConfiguracao({ ...ambienteValido, ...exemplo, API_PORTA: '3000', BANCO_URL: ambienteValido.BANCO_URL, REDIS_CACHE_URL: ambienteValido.REDIS_CACHE_URL, REDIS_FILA_URL: ambienteValido.REDIS_FILA_URL })
+    const { limite } = loadConfig({ ...ambienteValido, ...exemplo, API_PORTA: '3000', BANCO_URL: ambienteValido.BANCO_URL, REDIS_CACHE_URL: ambienteValido.REDIS_CACHE_URL, REDIS_FILA_URL: ambienteValido.REDIS_FILA_URL })
     expect(limite).toMatchObject({ porUsuarioMin: 120, porEscolaMin: 30_000, porIpAnonimoMin: 3_000, porOperadorMin: 120, instancias: 2, proxiesConfiaveis: ['borda'] })
   })
 
   it('aceita mais de um proxy confiável, por nome ou IP, separados por vírgula', () => {
-    const config = lerConfiguracao({ ...ambienteValido, LIMITE_PROXIES_CONFIAVEIS: 'borda, 10.0.0.2,fd00::1' })
+    const config = loadConfig({ ...ambienteValido, LIMITE_PROXIES_CONFIAVEIS: 'borda, 10.0.0.2,fd00::1' })
     expect(config.limite.proxiesConfiaveis).toEqual(['borda', '10.0.0.2', 'fd00::1'])
   })
 
   it('sobe em produção sem nenhuma variável a mais: a flag do token sintético do F0 não existe mais', () => {
-    const config = lerConfiguracao({ ...ambienteValido, ...IA_DE_PRODUCAO, AMBIENTE: 'producao' })
+    const config = loadConfig({ ...ambienteValido, ...IA_DE_PRODUCAO, AMBIENTE: 'producao' })
     expect(config.identidade.ambiente).toBe('producao')
   })
 
   it('ROTAS_SINTETICAS liga a rota de teste só quando é exatamente true, e não sobe ligada em produção', () => {
-    expect(lerConfiguracao({ ...ambienteValido, ROTAS_SINTETICAS: 'true' }).rotasSinteticas).toBe(true)
+    expect(loadConfig({ ...ambienteValido, ROTAS_SINTETICAS: 'true' }).rotasSinteticas).toBe(true)
     for (const valor of ['1', 'TRUE', '', 'sim']) {
       expect(erroDe({ ...ambienteValido, ROTAS_SINTETICAS: valor }).variaveis).toEqual(['ROTAS_SINTETICAS'])
     }
@@ -421,7 +421,7 @@ describe('lerConfiguracao', () => {
 
   it('AVISOS_SISTEMA vira a lista de avisos, e JSON quebrado ou aviso fora do formato não sobe', () => {
     const aviso = { id: 'manutencao-sabado', texto: 'Manutenção programada no sábado, das 8h às 10h.', publicadoEm: '2026-09-13' }
-    expect(lerConfiguracao({ ...ambienteValido, AVISOS_SISTEMA: JSON.stringify([aviso]) }).avisos).toEqual([aviso])
+    expect(loadConfig({ ...ambienteValido, AVISOS_SISTEMA: JSON.stringify([aviso]) }).avisos).toEqual([aviso])
 
     const semJson = erroDe({ ...ambienteValido, AVISOS_SISTEMA: '[{"id":' })
     expect(semJson.variaveis).toEqual(['AVISOS_SISTEMA'])
@@ -438,7 +438,7 @@ describe('lerConfiguracao', () => {
   })
 
   it('VERSAO só aceita um identificador curto, sem espaço nem barra', () => {
-    expect(lerConfiguracao({ ...ambienteValido, VERSAO: '3d4099c' }).versao).toBe('3d4099c')
+    expect(loadConfig({ ...ambienteValido, VERSAO: '3d4099c' }).versao).toBe('3d4099c')
     for (const valor of ['', 'v 1', '../etc', 'x'.repeat(65)]) {
       expect(erroDe({ ...ambienteValido, VERSAO: valor }).variaveis).toEqual(['VERSAO'])
     }

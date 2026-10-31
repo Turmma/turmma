@@ -4,8 +4,8 @@ import { randomUUID } from 'node:crypto'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { linhasDoBloco, normalizarTexto, paginaDoMaterial, PAGINAS_DO_MATERIAL } from '../../../tools/demonstracao/conteudo-estequiometria.ts'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
-import { BuscaDeTrechos } from '../src/material/trecho-search.js'
-import { ExtratorDePdf, type ResultadoDaExtracao } from '../src/material/pdf-extraction.js'
+import { TrechoSearch } from '../src/material/trecho-search.js'
+import { PdfExtractor, type ResultadoDaExtracao } from '../src/material/pdf-extraction.js'
 import { ENVIOS_POR_ESCOLA_NA_JANELA, ENVIOS_POR_USUARIO_NA_JANELA, IDADE_DO_MATERIAL_PARADO_MS, MATERIAIS_EM_PROCESSAMENTO_POR_ESCOLA, MaterialService } from '../src/material/material.service.js'
 import { chamar, subirApi, type ApiDeTeste, type RespostaHttp } from './test-api.js'
 import { montarEscolaComTurma as montarEscola, type EscolaComTurma } from './escola-turma.fixture.js'
@@ -145,7 +145,7 @@ describe('material da escola', () => {
 
     it('os campos ao lado do arquivo passam pelo ZodValidationPipe: o PDF válido com campo fora do contrato é `ENTRADA_INVALIDA`, e o arquivo nem chega à leitura nem vira material (17.0)', async () => {
       const escola = await montarEscolaComTurma(api, bancada)
-      const extrair = vi.spyOn(api.app.get(ExtratorDePdf), 'extrair')
+      const extrair = vi.spyOn(api.app.get(PdfExtractor), 'extrair')
       const foraDoContrato = [
         { disciplinaId: escola.quimica, extra: { escolaId: escola.coordenacao.escolaId } },
         { disciplinaId: escola.quimica, extra: { titularidade: 'ninguem' } },
@@ -189,7 +189,7 @@ describe('material da escola', () => {
       { caso: 'sem a declaração', campos: { licenca: 'autoria_da_escola', declaracao: 'false' }, motivo: 'sem_declaracao', declaracao: false },
     ])('$caso: `MATERIAL_SEM_LICENCA`, a extração não é chamada, nenhuma linha em `material`, e a auditoria fica', async ({ campos, motivo, declaracao }) => {
       const escola = await montarEscolaComTurma(api, bancada)
-      const extrair = vi.spyOn(api.app.get(ExtratorDePdf), 'extrair')
+      const extrair = vi.spyOn(api.app.get(PdfExtractor), 'extrair')
 
       // O arquivo é lixo de propósito: se alguém o abrisse antes da licença, a resposta seria a do arquivo inválido.
       const lixo = Buffer.from('isto não é um PDF')
@@ -236,7 +236,7 @@ describe('material da escola', () => {
   describe('o arquivo', () => {
     it('o que não é PDF no conteúdo é `ENTRADA_INVALIDA`, mesmo com nome e tipo de PDF, e não vira material', async () => {
       const escola = await montarEscolaComTurma(api, bancada)
-      const extrair = vi.spyOn(api.app.get(ExtratorDePdf), 'extrair')
+      const extrair = vi.spyOn(api.app.get(PdfExtractor), 'extrair')
       const planilha = Buffer.from('nome;turma\nAluno sintético;2B\n')
       const comNomeDePdf = await enviarMaterial(api, escola.coordenacao, { disciplinaId: escola.quimica }, { arquivo: planilha, nomeDoArquivo: 'apostila.pdf', tipo: 'application/pdf' })
       const vazio = await enviarMaterial(api, escola.coordenacao, { disciplinaId: escola.quimica }, { arquivo: Buffer.alloc(0) })
@@ -278,7 +278,7 @@ describe('material da escola', () => {
 
     it('acima do tamanho máximo o envio é recusado no recebimento, e nada é gravado nem lido', async () => {
       const escola = await montarEscolaComTurma(api, bancada)
-      const extrair = vi.spyOn(api.app.get(ExtratorDePdf), 'extrair')
+      const extrair = vi.spyOn(api.app.get(PdfExtractor), 'extrair')
       const grande = Buffer.concat([PDF_DE_DEMONSTRACAO, Buffer.alloc(MAXIMO_DE_BYTES_DO_MATERIAL + 1 - PDF_DE_DEMONSTRACAO.byteLength, 0x20)])
       expect(grande.byteLength).toBe(MAXIMO_DE_BYTES_DO_MATERIAL + 1)
 
@@ -314,7 +314,7 @@ describe('material da escola', () => {
       { caso: 'um campo de texto acima de 2 KiB e o arquivo acima do teto (para no campo, antes do arquivo)', campos: { titulo: 'a'.repeat(2 * 1024 + 1) }, opcoes: { arquivo: PDF_ACIMA_DO_TETO } },
     ])('$caso: `ENTRADA_INVALIDA` no recebimento, e nada é gravado nem lido', async ({ campos, opcoes }) => {
       const escola = await montarEscolaComTurma(api, bancada)
-      const extrair = vi.spyOn(api.app.get(ExtratorDePdf), 'extrair')
+      const extrair = vi.spyOn(api.app.get(PdfExtractor), 'extrair')
 
       const recusado = await enviarMaterial(api, escola.coordenacao, { disciplinaId: escola.quimica, ...campos }, opcoes)
       await esperarExtracao(api)
@@ -423,7 +423,7 @@ describe('material da escola', () => {
       // Pela rota, que exige todas as palavras, a frase inteira não acha nada.
       expect(itensDe(await buscar(escola.coordenacao, pergunta))).toEqual([])
 
-      const trechos = api.app.get(BuscaDeTrechos)
+      const trechos = api.app.get(TrechoSearch)
       const noContexto = <T>(funcao: () => Promise<T>): Promise<T> => runInContext({ requisicaoId: randomUUID(), escolaId: escola.coordenacao.escolaId }, funcao)
       const achados = await noContexto(() => trechos.buscar({ texto: pergunta, disciplinaId: escola.quimica, limite: 3 }))
       expect(achados).toHaveLength(3)
@@ -452,7 +452,7 @@ describe('material da escola', () => {
   describe('enquanto processa, e depois de excluído', () => {
     it('material em `processando` não aparece na busca; pronto, aparece', async () => {
       const escola = await montarEscolaComTurma(api, bancada)
-      const extrator = api.app.get(ExtratorDePdf)
+      const extrator = api.app.get(PdfExtractor)
       const original = extrator.extrair.bind(extrator)
       let liberar: () => void = () => undefined
       const liberado = new Promise<void>((resolver) => {
@@ -491,7 +491,7 @@ describe('material da escola', () => {
       expect(erroDe(await get(escola.coordenacao, `/v1/materiais/${id}`))).toEqual({ status: 404, codigo: ErrorCode.NAO_ENCONTRADO })
       expect(listaDeMateriaisResponseSchema.parse((await get(escola.coordenacao, '/v1/materiais')).corpo).itens).toEqual([])
       expect(itensDe(await buscar(escola.coordenacao, 'reagente limitante'))).toEqual([])
-      const porta = api.app.get(BuscaDeTrechos)
+      const porta = api.app.get(TrechoSearch)
       expect(await runInContext({ requisicaoId: randomUUID(), escolaId: escola.coordenacao.escolaId }, () => porta.doMaterial(id, escola.quimica))).toEqual([])
 
       // Excluir de novo é como excluir o que não existe, e não grava segunda auditoria.
@@ -506,7 +506,7 @@ describe('material da escola', () => {
 
     it('excluído enquanto era lido, o material não ganha trecho quando a leitura termina', async () => {
       const escola = await montarEscolaComTurma(api, bancada)
-      const extrator = api.app.get(ExtratorDePdf)
+      const extrator = api.app.get(PdfExtractor)
       const original = extrator.extrair.bind(extrator)
       let liberar: () => void = () => undefined
       const liberado = new Promise<void>((resolver) => {
@@ -603,7 +603,7 @@ describe('material da escola', () => {
       const id = await materialPronto(escola)
       const professor = await professorCom(escola, escola.quimica, true)
       const aluno = await bancada.sessao(escola.coordenacao.escolaId, 'aluno')
-      const extrair = vi.spyOn(api.app.get(ExtratorDePdf), 'extrair')
+      const extrair = vi.spyOn(api.app.get(PdfExtractor), 'extrair')
       const rotaInexistente = await get(aluno, '/v1/rota-que-nao-existe')
       const igualAoInexistente = (resposta: RespostaHttp): void => {
         expect(erroDe(resposta)).toEqual({ status: 404, codigo: ErrorCode.NAO_ENCONTRADO })
@@ -720,7 +720,7 @@ describe('material da escola', () => {
       const escola = await montarEscolaComTurma(api, bancada)
       const outra = await subirApi(new MedidorDeTeste().medidor)
       // Uma leitura que só termina quando o prazo, ou o desligamento, a aborta; aí devolve uma falha que só ela devolve.
-      vi.spyOn(outra.app.get(ExtratorDePdf), 'extrair').mockImplementation(
+      vi.spyOn(outra.app.get(PdfExtractor), 'extrair').mockImplementation(
         (_bytes, sinal) => new Promise<ResultadoDaExtracao>((resolver) => sinal?.addEventListener('abort', () => resolver({ falha: 'sem_texto' }), { once: true })),
       )
       const emLeitura = await enviarMaterial(outra, escola.coordenacao, { disciplinaId: escola.quimica })

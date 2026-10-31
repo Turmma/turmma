@@ -55,13 +55,13 @@ function prazoDoRedisDoLoginVale(prazoMs: number, ambiente: Environment): boolea
 export const TAMANHO_MINIMO_CHAVE_DE_LOGIN = 32
 
 /** Os parâmetros do argon2id. O paralelismo é sempre 1 (Tech Spec, seção 5, "Hash"). */
-export interface ParametrosDoHash {
+export interface HashParams {
   readonly memoriaKib: number
   readonly iteracoes: number
 }
 
-export interface ConfiguracaoLogin {
-  readonly hash: ParametrosDoHash
+export interface LoginConfig {
+  readonly hash: HashParams
   /** Quantos hashes de senha rodam ao mesmo tempo nesta instância (o semáforo do hash, tarefa 14.0). */
   readonly concorrenciaDoHash: number
   /**
@@ -81,10 +81,10 @@ export interface ConfiguracaoLogin {
   /** A chave do HMAC das entradas do cookie `educa_dispositivo`, com a versão que vai no próprio cookie. */
   readonly dispositivo: { readonly versao: number; readonly chave: Uint8Array }
   /** As chaves do segundo fator (tarefa 6.0). */
-  readonly mfa: ConfiguracaoMfa
+  readonly mfa: MfaConfig
 }
 
-export interface ConfiguracaoMfa {
+export interface MfaConfig {
   /** A versão da chave que cifra todo segredo novo; vai para `conta.mfa_chave_versao`. */
   readonly versaoCifra: number
   /**
@@ -111,7 +111,7 @@ export const MOTIVO_CHAVE_DE_CIFRA = 'a chave de cifra do MFA da versão atual �
 const ROTULO_DA_CHAVE_DE_CIFRA = 'educa.mfa.segredo.aes-256-gcm'
 export const MOTIVO_CHAVE_DE_RECUPERACAO_REPETIDA = 'IDENTIDADE_CHAVE_RECUPERACAO precisa ser diferente das outras chaves: cada HMAC e cada cifra têm a própria chave'
 
-const esquemaAmbienteLogin = z.object({
+const loginEnvSchema = z.object({
   LOGIN_ARGON2_MEMORIA_KIB: z.coerce.number().int().min(MEMORIA_MINIMA_ARGON2_KIB),
   LOGIN_ARGON2_ITERACOES: z.coerce.number().int().min(ITERACOES_MINIMAS_ARGON2),
   // Obrigatórias e sem padrão no código: o teto do semáforo é conferido contra as threads que o processo tem de fato.
@@ -169,11 +169,11 @@ export function variavelDaChaveDeDispositivo(versao: number): string {
  * chave curta, sem a chave da versão de dispositivo declarada, sem a chave de cifra da versão atual do MFA, nem com a
  * chave dos códigos de recuperação repetindo outra. As mensagens citam só o nome da variável.
  */
-export function lerConfiguracaoLogin(ambiente: Record<string, string | undefined>): ConfiguracaoLogin {
-  const valores = validateEnvironment(esquemaAmbienteLogin, ambiente)
+export function loadLoginConfig(ambiente: Record<string, string | undefined>): LoginConfig {
+  const valores = validateEnvironment(loginEnvSchema, ambiente)
   // O AMBIENTE é validado pela identidade: aqui, ausente ou inválido vale como produção, a leitura mais restrita, sem
   // apontar a falta duas vezes. É defesa em profundidade, e não a garantia: `authEnvSchema` exige o enum e
-  // derruba o boot antes de este ramo ser alcançado por `lerConfiguracao`.
+  // derruba o boot antes de este ramo ser alcançado por `loadConfig`.
   const doAmbiente = AMBIENTES.find((valor) => valor === ambiente['AMBIENTE']) ?? 'producao'
   const protecaoDesligada = isLoginProtectionDisabled({ ...ambiente, AMBIENTE: doAmbiente })
   if (!prazoDoRedisDoLoginVale(valores.LOGIN_REDIS_PRAZO_MS, doAmbiente)) {

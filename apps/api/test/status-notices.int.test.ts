@@ -6,14 +6,14 @@ import { NestFactory } from '@nestjs/core'
 import request from 'supertest'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { AppModule } from '../src/app.module.js'
-import { configurarAplicacao } from '../src/configure-app.js'
+import { configureApp } from '../src/configure-app.js'
 import { configuracaoDeTeste } from './test-config.js'
 
 const AVISO = { id: 'manutencao-sabado', texto: 'Manutenção programada no sábado, das 8h às 10h.', publicadoEm: '2026-09-13' }
 
 async function subirApi(ambiente: Record<string, string>): Promise<INestApplication> {
-  const app = await NestFactory.create(AppModule.com(configuracaoDeTeste({ ambiente })), { logger: false })
-  configurarAplicacao(app, createLogger({ servico: 'api-teste', nivel: 'silent' }))
+  const app = await NestFactory.create(AppModule.forRoot(configuracaoDeTeste({ ambiente })), { logger: false })
+  configureApp(app, createLogger({ servico: 'api-teste', nivel: 'silent' }))
   await app.init()
   return app
 }

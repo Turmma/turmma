@@ -1,19 +1,19 @@
 import { unscopedJustification, TAMANHO_MINIMO_JUSTIFICATIVA_SEM_ESCOPO } from '@educa/core'
 import { describe, expect, it } from 'vitest'
 import { ConviteRepository } from '../convite/convite.repository.js'
-import { CriacaoDeSessaoRepository } from '../../credencial/sessao-create.repository.js'
-import { EuRepository } from '../eu/eu.repository.js'
+import { SessaoCreateRepository } from '../../credencial/sessao-create.repository.js'
+import { MeRepository } from '../eu/eu.repository.js'
 import { RegistroDeAcessoRepository } from '../../credencial/registro-de-acesso.repository.js'
-import { EscritaDeSessaoRepository } from '../../credencial/sessao-write.repository.js'
+import { SessaoWriteRepository } from '../../credencial/sessao-write.repository.js'
 import { RedefinicaoDeMfaRepository } from '../mfa/redefinicao-de-mfa.repository.js'
 import { SessaoDeOrigemRepository } from '../../credencial/sessao-de-origem.repository.js'
-import { ResolucaoDeTenantRepository } from './tenant-resolution.repository.js'
+import { TenantResolutionRepository } from './tenant-resolution.repository.js'
 
 const metodosDe = (classe: { prototype: object }) => Object.getOwnPropertyNames(classe.prototype).filter((nome) => nome !== 'constructor').sort()
 
 describe('ResolucaoDeTenantRepository: toda operação sem escopo é marcada e justificada', () => {
   it('nasce só com os métodos da tabela da seção 6 que a tarefa usa, cada um com @SemEscopo e a justificativa dele', () => {
-    expect(metodosDe(ResolucaoDeTenantRepository)).toEqual([
+    expect(metodosDe(TenantResolutionRepository)).toEqual([
       'acessoDaSalaPorCodigo',
       'acessoDaSalaPorToken',
       'acessosDaConta',
@@ -41,7 +41,7 @@ describe('ResolucaoDeTenantRepository: toda operação sem escopo é marcada e j
       'usuarioComConviteAceito',
       'usuariosAtivosDaConta',
     ])
-    const justificativas = Object.fromEntries(metodosDe(ResolucaoDeTenantRepository).map((metodo) => [metodo, unscopedJustification(ResolucaoDeTenantRepository, metodo)]))
+    const justificativas = Object.fromEntries(metodosDe(TenantResolutionRepository).map((metodo) => [metodo, unscopedJustification(TenantResolutionRepository, metodo)]))
     for (const [metodo, justificativa] of Object.entries(justificativas)) {
       expect(justificativa?.length ?? 0, metodo).toBeGreaterThanOrEqual(TAMANHO_MINIMO_JUSTIFICATIVA_SEM_ESCOPO)
     }
@@ -78,10 +78,10 @@ describe('ResolucaoDeTenantRepository: toda operação sem escopo é marcada e j
 
   it('a criação de usuário e sessão, o registro de acesso, o /v1/eu, as escritas da renovação, da atividade e da saída, o alvo da redefinição do MFA, o convite na escola e a sessão de origem da troca não saem sem escopo: usam a escola do contexto', () => {
     for (const classe of [
-      CriacaoDeSessaoRepository,
+      SessaoCreateRepository,
       RegistroDeAcessoRepository,
-      EuRepository,
-      EscritaDeSessaoRepository,
+      MeRepository,
+      SessaoWriteRepository,
       RedefinicaoDeMfaRepository,
       ConviteRepository,
       SessaoDeOrigemRepository,

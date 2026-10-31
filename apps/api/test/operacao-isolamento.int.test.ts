@@ -10,13 +10,13 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { lerAmbienteDeTeste } from '../../../tools/ci/compose.ts'
 import { aguardarSaudavel, compose, composeOuFalha } from '../../../tools/testes/compose.ts'
 import { AppModule } from '../src/app.module.js'
-import { BANCO } from '../src/database.module.js'
-import { configurarAplicacao } from '../src/configure-app.js'
+import { DB } from '../src/database.module.js'
+import { configureApp } from '../src/configure-app.js'
 import { DisciplinaRepository } from '../src/estrutura/disciplina/disciplina.repository.js'
-import { provedoresDaGuardaDeOperador, SESSOES_DE_OPERADOR, type LeituraDaSessaoDeOperador } from '../src/operacao/operador.guard.js'
-import { RotaDeOperacao } from '../src/operacao/decorators.js'
+import { operadorGuardProviders, OPERADOR_SESSIONS, type OperadorSessionReader } from '../src/operacao/operador.guard.js'
+import { OperacaoRoute } from '../src/operacao/decorators.js'
 import { executarOpsOperador } from '../src/ops/operador.js'
-import { EmissorDeDesafio } from '../src/credencial/index.js'
+import { ChallengeIssuer } from '../src/credencial/index.js'
 import { cookieDeRenovacao } from './test-api.js'
 import { configuracaoDeTeste } from './test-config.js'
 import { caminhoConcreto, daOperacao, ROTAS_COM_SESSAO_DE_OPERADOR, rotasDe, rotasDeOperacaoSemGuarda, type RotaRegistrada } from './registered-routes.js'
@@ -77,7 +77,7 @@ async function diferentesDaInexistente(url: string, rotas: readonly RotaRegistra
 
 async function subir(modulo: Type | DynamicModule): Promise<{ app: INestApplication; url: string }> {
   const app = await NestFactory.create(modulo, { logger: false })
-  configurarAplicacao(app, createLogger({ servico: 'api-teste', nivel: 'silent' }))
+  configureApp(app, createLogger({ servico: 'api-teste', nivel: 'silent' }))
   await app.listen(0, '127.0.0.1')
   return { app, url: `http://127.0.0.1:${(app.getHttpServer().address() as AddressInfo).port}` }
 }
@@ -105,10 +105,10 @@ class SemGuardaController {
 /** Uma rota de operador que chama, por engano, um repository de escola (C49). Devolve o que o contexto tinha e o erro. */
 @Controller('v1/operacao/teste-escola')
 class EscolaNaOperacaoController {
-  constructor(@Inject(BANCO) private readonly banco: Database) {}
+  constructor(@Inject(DB) private readonly banco: Database) {}
 
   @Get()
-  @RotaDeOperacao()
+  @OperacaoRoute()
   async obter(): Promise<{ camposDoContexto: string[]; operadorId: string | undefined; erro: string | undefined }> {
     const contexto = currentContext()
     const camposDoContexto = Object.keys(contexto ?? {}).sort()
@@ -129,7 +129,7 @@ describe('área da operação: as cercas entre a operação e a escola (tarefa 4
   let rotas: RotaRegistrada[]
 
   beforeAll(async () => {
-    ;({ app, url } = await subir(AppModule.com(configuracaoDeTeste())))
+    ;({ app, url } = await subir(AppModule.forRoot(configuracaoDeTeste())))
     rotas = rotasRegistradas(app)
   })
 
@@ -169,7 +169,7 @@ describe('área da operação: as cercas entre a operação e a escola (tarefa 4
       const aluno = await escolas.sessao(escolaId, 'aluno')
       // Os três são sessões válidas: sem isso, o 404 poderia ser só de token recusado.
       for (const sessao of [coordenador, professor, aluno]) expect((await pedir(url, 'GET', '/v1/eu', bearer(sessao.token))).status).toBe(200)
-      const desafio = await new EmissorDeDesafio(CHAVE).emitir({ contaId: randomUUID(), etapa: 'mfa', mfaCumprido: false })
+      const desafio = await new ChallengeIssuer(CHAVE).emitir({ contaId: randomUUID(), etapa: 'mfa', mfaCumprido: false })
       const cookie = await cookieDeRenovacao(escolas, coordenador)
 
       const credenciais: Record<string, Cabecalhos> = {
@@ -222,7 +222,7 @@ describe('área da operação: as cercas entre a operação e a escola (tarefa 4
       const escolaId = await escolas.escola()
       const [coordenador, professor, aluno] = await Promise.all([escolas.sessao(escolaId, 'coordenador'), escolas.sessao(escolaId, 'professor'), escolas.sessao(escolaId, 'aluno')])
       if (coordenador === undefined || professor === undefined || aluno === undefined) throw new Error('sessões não criadas')
-      const desafio = await new EmissorDeDesafio(CHAVE).emitir({ contaId: randomUUID(), etapa: 'mfa', mfaCumprido: false })
+      const desafio = await new ChallengeIssuer(CHAVE).emitir({ contaId: randomUUID(), etapa: 'mfa', mfaCumprido: false })
       const cookie = await cookieDeRenovacao(escolas, coordenador)
       const valorDoCookieDeEscola = cookie.slice(cookie.indexOf('=') + 1)
       const credenciais: Array<{ nome: string; valor: string; cabecalhos: Cabecalhos }> = [
@@ -315,7 +315,7 @@ describe('área da operação: as cercas entre a operação e a escola (tarefa 4
 
     it('concorrência: 20 requisições juntas na mesma sessão gravam `ultimoUsoEm` uma vez só no minuto, e o minuto seguinte grava de novo', async () => {
       const sessao = await operadores.operadorComSessao()
-      const leitura = app.get<LeituraDaSessaoDeOperador>(SESSOES_DE_OPERADOR)
+      const leitura = app.get<OperadorSessionReader>(OPERADOR_SESSIONS)
       const marcacoes = vi.spyOn(leitura, 'marcarUsoDaSessao')
       try {
         const gravadas = async (): Promise<boolean[]> => Promise.all(marcacoes.mock.results.map((resultado) => resultado.value as Promise<boolean>))
@@ -370,7 +370,7 @@ describe('C48 e C49: a guarda no handler é o que segura a rota da operação', 
 
   beforeAll(async () => {
     const config = configuracaoDeTeste()
-    @Module({ imports: [AppModule.com(config)], controllers: [SemGuardaController, EscolaNaOperacaoController], providers: provedoresDaGuardaDeOperador(config.identidade) })
+    @Module({ imports: [AppModule.forRoot(config)], controllers: [SemGuardaController, EscolaNaOperacaoController], providers: operadorGuardProviders(config.identidade) })
     class ModuloComRotasDeTeste {}
     ;({ app, url } = await subir(ModuloComRotasDeTeste))
   })
@@ -405,7 +405,7 @@ describe('C35: o limite do operador é por operador, não por IP', () => {
   let url: string
 
   beforeAll(async () => {
-    ;({ app, url } = await subir(AppModule.com(configuracaoDeTeste({ ambiente: { LIMITE_REQ_OPERADOR_MIN: String(LIMITE_DO_OPERADOR) } }))))
+    ;({ app, url } = await subir(AppModule.forRoot(configuracaoDeTeste({ ambiente: { LIMITE_REQ_OPERADOR_MIN: String(LIMITE_DO_OPERADOR) } }))))
   })
 
   afterAll(async () => {

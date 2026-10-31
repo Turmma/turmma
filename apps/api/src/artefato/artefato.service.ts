@@ -15,10 +15,10 @@ import {
   type ListaDeArtefatosResponse,
 } from '@educa/shared'
 import { ExecucaoDoPedidoRepository } from '../assistente/execucao-do-pedido.repository.js'
-import type { LimiteDePedidosDeIa } from '../assistente/ai-request-rate-limit.js'
+import type { IaRequestRateLimit } from '../assistente/ai-request-rate-limit.js'
 import { EntregaRepository } from '../entrega/entrega.repository.js'
 import { paginar } from '../http/pagination.js'
-import type { AgendadorDeExecucoes } from '../ia/execucao.scheduler.js'
+import type { ExecucaoScheduler } from '../ia/execucao.scheduler.js'
 import { ArtefatoRepository, type ArtefatoLido } from './artefato.repository.js'
 import { citacoesDoConteudo, exigirAdaptacaoFiel } from './conferencia.js'
 import { gerarPdfDoArtefato, nomeDoArquivoDoPdf } from './pdf-do-artefato.js'
@@ -70,8 +70,8 @@ function atividadeOriginal(lido: ArtefatoLido): ConteudoDeAtividade {
 export class ArtefatoService {
   constructor(
     private readonly banco: Database,
-    private readonly agendador: AgendadorDeExecucoes,
-    private readonly limite: LimiteDePedidosDeIa,
+    private readonly agendador: ExecucaoScheduler,
+    private readonly limite: IaRequestRateLimit,
   ) {}
 
   async listar(consulta: ArtefatosQuery): Promise<ListaDeArtefatosResponse> {

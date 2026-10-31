@@ -1,6 +1,6 @@
 import { DomainException, type Database } from '@educa/core'
 import { ErrorCode, salaAbertaResponseSchema, type AbrirSalaRequest, type SalaAbertaResponse } from '@educa/shared'
-import type { AcessoDaSala, GuardaDoCodigo } from '../../sessao/index.js'
+import type { AcessoDaSala, CodigoRateLimit } from '../../sessao/index.js'
 import { entradaDaSala } from '../entrada-da-sala.js'
 import { ListaLivreRepository } from '../reivindicacao/lista-livre.repository.js'
 
@@ -21,7 +21,7 @@ export class SalasService {
     private readonly banco: Database,
     private readonly acessoDaSala: AcessoDaSala,
     private readonly chaveCodigo: Uint8Array,
-    private readonly guarda: GuardaDoCodigo,
+    private readonly guarda: CodigoRateLimit,
   ) {}
 
   /** `POST /v1/salas/abrir`: o nome da turma e os nomes livres, lidos a cada abertura. */

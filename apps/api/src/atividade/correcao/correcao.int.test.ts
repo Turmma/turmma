@@ -33,7 +33,7 @@ import {
 import { montarEscolaComAssistente, NOME_DA_PROFESSORA_DE_TESTE, NOME_DO_ALUNO_DE_TESTE, vincularProfessor, type EscolaComAssistente } from '../../../test/escola-assistente.fixture.js'
 import { BancadaDeSessoes, type SessaoDeTeste } from '../../../test/sessao.fixture.js'
 import { CorrecaoService } from './correcao.service.js'
-import { LeituraDoLote } from './lote-read-marker.js'
+import { LoteReadMarker } from './lote-read-marker.js'
 
 const NOME_REPETIDO = 'Aluna Sintética Ana Lima'
 
@@ -357,7 +357,7 @@ describe('correção de objetiva e validação do lote', () => {
       await lerCorrecao(turma.escola.professora, id)
 
       // Chamado direto, como um job ou uma rotina faria, sem o contexto que a guarda de sessão grava.
-      const servico = new CorrecaoService(bancada.banco, api.app.get(LeituraDoLote))
+      const servico = new CorrecaoService(bancada.banco, api.app.get(LoteReadMarker))
       await expect(servico.aprovarLote(entregaId)).rejects.toBeInstanceOf(DomainException)
       await rotas.encerrar(turma.escola.professora, id)
       expect(await entregaNoBanco(entregaId)).toEqual({ estado: 'pendente', decidida_por: null, decidida_em: null })

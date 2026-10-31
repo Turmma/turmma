@@ -5,7 +5,7 @@ import { InvariantException } from '@educa/shared'
  * A pessoa da sessão, gravada no contexto pela `SessaoGuard`. É quem pede a execução e quem pode lê-la. Sem pessoa
  * no contexto, falha fechada, como a escola: é erro de programação (rota sem guarda), nunca consulta sem a cláusula.
  */
-export function exigirUsuarioDoContexto(): string {
+export function requireUsuarioId(): string {
   const usuarioId = currentContext()?.usuarioId
   if (usuarioId === undefined) throw new InvariantException('consulta da própria pessoa sem usuário no contexto')
   return usuarioId
@@ -18,6 +18,6 @@ export function exigirUsuarioDoContexto(): string {
  */
 export function copiarContextoDeQuemPede(): RequestContext {
   requireEscolaId()
-  exigirUsuarioDoContexto()
+  requireUsuarioId()
   return { ...(currentContext() as RequestContext) }
 }

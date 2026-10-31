@@ -20,12 +20,12 @@ import {
   type EscolaComAssistente,
 } from '../../test/escola-assistente.fixture.js'
 import { BancadaDeSessoes, type SessaoDeTeste } from '../../test/sessao.fixture.js'
-import { AgendadorDeExecucoes } from '../ia/execucao.scheduler.js'
+import { ExecucaoScheduler } from '../ia/execucao.scheduler.js'
 import { EXECUTOR_DE_AGENTE, SUSPENSAO_DE_FUNCAO } from '../ia/ia.module.js'
-import { BuscaDeTrechos } from '../material/trecho-search.js'
+import { TrechoSearch } from '../material/trecho-search.js'
 import { AssistenteService } from './assistente.service.js'
 import { ConversaRepository } from './conversa.repository.js'
-import { LimiteDePedidosDeIa, TETO_DE_PEDIDOS_DE_IA_POR_USUARIO } from './ai-request-rate-limit.js'
+import { IaRequestRateLimit, TETO_DE_PEDIDOS_DE_IA_POR_USUARIO } from './ai-request-rate-limit.js'
 import { TurmaDoProfessorRepository } from './turma-do-professor.repository.js'
 
 /**
@@ -324,7 +324,7 @@ describe('Assistente de ensino', () => {
       } as unknown as LLMProvider
       // O trabalho da execução espera o teste liberar: é o intervalo entre o `202` e a execução.
       const comEspera: AgenteExecutor = { agendar: (execucao, trabalho) => executor.agendar(execucao, async (sinal) => (await antesDeRodar, trabalho(sinal))) }
-      const servico = new AssistenteService(bancada.banco, new AgendadorDeExecucoes(bancada.banco, ia, comEspera, api.app.get<SuspensaoDeFuncao>(SUSPENSAO_DE_FUNCAO)), api.app.get(LimiteDePedidosDeIa), api.app.get(BuscaDeTrechos))
+      const servico = new AssistenteService(bancada.banco, new ExecucaoScheduler(bancada.banco, ia, comEspera, api.app.get<SuspensaoDeFuncao>(SUSPENSAO_DE_FUNCAO)), api.app.get(IaRequestRateLimit), api.app.get(TrechoSearch))
 
       await vincularProfessor(bancada, b, b.colega.usuarioId, b.turma, b.quimica)
       const { execucaoId } = await comoPessoa(b, b.colega, 'professor', () => servico.enviar({ texto: 'o que é o reagente limitante?', turmaId: b.turma, disciplinaId: b.quimica, chaveEnvio: randomUUID() }))

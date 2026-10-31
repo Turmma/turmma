@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { INATIVIDADE_DO_OPERADOR_MIN, sessaoDeOperadorVale, type SessaoDeOperadorParaGuarda } from './sessao-timeouts.js'
+import { INATIVIDADE_DO_OPERADOR_MIN, sessaoDeOperadorVale, type SessaoDeOperadorForGuard } from './sessao-timeouts.js'
 
 const AGORA = new Date('2026-09-23T13:00:00Z')
 const minutosAntes = (minutos: number) => new Date(AGORA.getTime() - minutos * 60_000)
 
 /** Uma sessão viva: aberta há 1 h, usada há 1 min, com 7 h pela frente, operador ativo. */
-const viva: SessaoDeOperadorParaGuarda = {
+const viva: SessaoDeOperadorForGuard = {
   encerradaEm: null,
   expiraEm: new Date(AGORA.getTime() + 7 * 3_600_000),
   ultimoUsoEm: minutosAntes(1),

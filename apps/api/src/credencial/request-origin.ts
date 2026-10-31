@@ -2,7 +2,7 @@ import { IP_DESCONHECIDO } from '@educa/core'
 import type { LoginResponse } from '@educa/shared'
 
 /** O que o controller tira da requisição HTTP: o IP (o da borda, quando vem dela) e o cabeçalho `Cookie`. */
-export interface OrigemDaRequisicao {
+export interface RequestOrigin {
   readonly ip: string
   readonly cabecalhoCookie: string | undefined
   /**

@@ -11,8 +11,8 @@ import {
   type ExecucaoAceitaResponse,
   type ResumoDoAnalistaResponse,
 } from '@educa/shared'
-import type { LimiteDePedidosDeIa } from '../assistente/ai-request-rate-limit.js'
-import type { AgendadorDeExecucoes } from '../ia/execucao.scheduler.js'
+import type { IaRequestRateLimit } from '../assistente/ai-request-rate-limit.js'
+import type { ExecucaoScheduler } from '../ia/execucao.scheduler.js'
 import { AnalistaRepository } from './analista.repository.js'
 
 const registro = new AuditoriaRecorder()
@@ -49,8 +49,8 @@ const percentual = (acertos: number, total: number): number => (total === 0 ? 0 
 export class AnalistaService {
   constructor(
     private readonly banco: Database,
-    private readonly agendador: AgendadorDeExecucoes,
-    private readonly limite: LimiteDePedidosDeIa,
+    private readonly agendador: ExecucaoScheduler,
+    private readonly limite: IaRequestRateLimit,
     private readonly relogio: Clock = systemClock,
   ) {}
 

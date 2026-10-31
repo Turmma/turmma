@@ -7,7 +7,7 @@ import { createHash, randomBytes } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { lerAmbienteDeTeste } from '../../../tools/ci/compose.ts'
 import { aguardarSaudavel, compose, composeOuFalha } from '../../../tools/testes/compose.ts'
-import { CLIENTE_REDIS_CACHE } from '../src/rate-limit.module.js'
+import { REDIS_CACHE_CLIENT } from '../src/rate-limit.module.js'
 import { COOKIE_SESSAO_DE_OPERADOR } from '../src/operacao/cookie-de-operador.js'
 import { EntradaDoOperadorService } from '../src/operacao/entrada/entrada.service.js'
 import { OperadorRepository } from '../src/operacao/operador/operador.repository.js'
@@ -438,7 +438,7 @@ describe('sessão do operador: o limite de renovar e sair (C32) e o Redis de cac
       return original.call(this, pedido, origem)
     })
     // A contagem de cada balde, no Redis de cache: `{prefixo}:{ip}`.
-    const cache = app.get<Redis>(CLIENTE_REDIS_CACHE)
+    const cache = app.get<Redis>(REDIS_CACHE_CLIENT)
     const contagem = async (prefixo: string, ip: string) => Number((await cache.get(`${prefixo}:${ip}`)) ?? 0)
     try {
       // A escola passa do `rl:ip` e do `rl:ip-login` do IP X; o operador, pelo mesmo X, renova e entra sem rebaixar.
@@ -469,7 +469,7 @@ describe('sessão do operador: o limite de renovar e sair (C32) e o Redis de cac
 
   it('C36b: com o Redis de cache fora, `rl:ip:op` (renovar) e `rl:op` (/eu) seguem no seguro em memória (limite ÷ instâncias), sem 5xx', async () => {
     const sessao = await operadores.operadorComSessao()
-    const cliente = app.get<Redis>(CLIENTE_REDIS_CACHE)
+    const cliente = app.get<Redis>(REDIS_CACHE_CLIENT)
     const limitador = app.get(RateLimiter)
     cliente.disconnect()
     const ip = ipSorteado()

@@ -12,7 +12,7 @@ import { Body, Controller, Get, Header, HttpCode, HttpStatus, Param, Post, Query
 import { ProfessoresService } from './professores.service.js'
 
 /** Refazer e revogar não têm corpo: nenhum corpo vale como `{}` (o Express 5 deixa `req.body` indefinido), e qualquer campo é `ENTRADA_INVALIDA`. */
-const esquemaSemCorpo = conviteDeProfessorEmptyBodyRequestSchema.default({})
+const emptyBodySchema = conviteDeProfessorEmptyBodyRequestSchema.default({})
 
 /**
  * `/v1/professores` (A1, tarefa 3.0, RF6), só da coordenação, na escola da sessão: cadastrar o professor (o link do
@@ -40,14 +40,14 @@ export class ProfessoresController {
   @Post(':usuarioId/convite/refazer')
   @RequirePermissao('professor', 'refazer_convite')
   @Header('Cache-Control', 'no-store')
-  refazerConvite(@Param('usuarioId', IdPipe) usuarioId: string, @Body(new ZodValidationPipe(esquemaSemCorpo)) _corpo: Record<string, never>): Promise<ConviteDeProfessorResponse> {
+  refazerConvite(@Param('usuarioId', IdPipe) usuarioId: string, @Body(new ZodValidationPipe(emptyBodySchema)) _corpo: Record<string, never>): Promise<ConviteDeProfessorResponse> {
     return this.professores.refazerConvite(usuarioId)
   }
 
   @Post(':usuarioId/convite/revogar')
   @RequirePermissao('professor', 'revogar_convite')
   @HttpCode(HttpStatus.NO_CONTENT)
-  revogarConvite(@Param('usuarioId', IdPipe) usuarioId: string, @Body(new ZodValidationPipe(esquemaSemCorpo)) _corpo: Record<string, never>): Promise<void> {
+  revogarConvite(@Param('usuarioId', IdPipe) usuarioId: string, @Body(new ZodValidationPipe(emptyBodySchema)) _corpo: Record<string, never>): Promise<void> {
     return this.professores.revogarConvite(usuarioId)
   }
 }

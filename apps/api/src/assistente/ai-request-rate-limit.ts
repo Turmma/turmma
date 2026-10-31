@@ -1,7 +1,7 @@
 import { DomainException, insuranceLimit, retryAfterSeconds, requestSessao, type LoggerBase } from '@educa/core'
 import { ErrorCode } from '@educa/shared'
 import { Logger } from '@nestjs/common'
-import type { ContadorEmJanela } from '../credencial/index.js'
+import type { WindowCounter } from '../credencial/index.js'
 
 /** A janela dos dois contadores: "por minuto". */
 export const JANELA_DOS_PEDIDOS_DE_IA_MS = 60_000
@@ -18,9 +18,9 @@ const loggerDeIa = new Logger('ia')
 /** O aviso espaçado do contador contando no seguro em memória (Redis de fila fora). */
 export const avisarSeguroDosPedidosDeIa = (): void => loggerDeIa.warn('ia.limite_de_pedidos_no_seguro')
 
-export interface DependenciasDoLimiteDeIa {
+export interface IaRequestRateLimitDependencies {
   /** O contador em janela de um minuto, no Redis de fila, com a chave de HMAC dos contadores do login. */
-  readonly janela: Pick<ContadorEmJanela, 'chaveDe' | 'somar' | 'restanteMs'>
+  readonly janela: Pick<WindowCounter, 'chaveDe' | 'somar' | 'restanteMs'>
   /** Quantas instâncias da API dividem os tetos quando a contagem cai no seguro em memória (`LIMITE_INSTANCIAS_API`). */
   readonly instancias: number
   /** O logger JSON do processo: a linha leva o tipo e os ids, que o `Logger` do Nest não carrega. */
@@ -46,8 +46,8 @@ export type TipoDeLimiteDeIa = 'usuario' | 'escola'
  * item 10), com o tipo, a escola e a pessoa **por id**: nada do pedido, do tema nem da mensagem. Os seguintes da mesma
  * janela não repetem a linha: um script em laço não enche o log.
  */
-export class LimiteDePedidosDeIa {
-  constructor(private readonly dependencias: DependenciasDoLimiteDeIa) {}
+export class IaRequestRateLimit {
+  constructor(private readonly dependencias: IaRequestRateLimitDependencies) {}
 
   /** Conta o pedido da pessoa e da escola da sessão, e recusa o que passa do teto. */
   async contar(): Promise<void> {

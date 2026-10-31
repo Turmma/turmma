@@ -16,7 +16,7 @@ export { InvalidConfigError }
 
 const inteiroPositivo = z.coerce.number().int().positive()
 
-const esquemaAmbiente = z.object({
+const envSchema = z.object({
   REALTIME_PORTA: inteiroPositivo,
   REDIS_FILA_URL: z.string().regex(/^redis:\/\/[^/\s]+(\/\d+)?$/),
   REALTIME_STREAM_TAMANHO_MAXIMO: inteiroPositivo,
@@ -54,7 +54,7 @@ function tentar<T>(ler: () => T): Leitura<T> {
  * inválida, e todos os problemas saem de uma vez, só pelo nome da variável.
  */
 export function lerConfiguracao(ambiente: Record<string, string | undefined>): ConfiguracaoRealtime {
-  const realtime = tentar(() => validateEnvironment(esquemaAmbiente, ambiente))
+  const realtime = tentar(() => validateEnvironment(envSchema, ambiente))
   const identidade = tentar(() => loadAuthConfig(ambiente))
   const banco = tentar(() => loadDatabaseConfig(ambiente))
   const drenagem = tentar(() => loadGracefulShutdownConfig(ambiente))

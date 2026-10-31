@@ -2,7 +2,7 @@ import { escola, requestIdentity, usuario, type Database } from '@educa/core'
 import type { PapelDeUsuario } from '@educa/shared'
 import { and, eq, sql } from 'drizzle-orm'
 
-export interface LinhaDoEu {
+export interface MeRow {
   readonly usuarioId: string
   /** A conta da equipe, só para listar os acessos dela; nula no aluno. Não sai na resposta. */
   readonly contaId: string | null
@@ -19,10 +19,10 @@ export interface LinhaDoEu {
  * Quem está na sessão: o usuário e a escola do contexto que a `SessaoGuard` gravou, e só eles. Não recebe id:
  * não há como pedir outro usuário nem outra escola (regra 10, item 3).
  */
-export class EuRepository {
+export class MeRepository {
   constructor(private readonly banco: Database) {}
 
-  async doContexto(): Promise<LinhaDoEu | undefined> {
+  async doContexto(): Promise<MeRow | undefined> {
     const { escolaId, usuarioId } = requestIdentity()
     const [linha] = await this.banco
       .select({

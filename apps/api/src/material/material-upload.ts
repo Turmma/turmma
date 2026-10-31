@@ -28,7 +28,7 @@ export function seraRecusadoPorLicenca(campos: unknown): boolean {
  * arquivo não é guardado (`docs/mvp-rapido.md`, seção 4, item 3). O nome do arquivo e o tipo que o navegador declara
  * não são usados em regra nenhuma: PDF é o que tem a assinatura de PDF no conteúdo.
  */
-export const RecebimentoDoMaterial = FileInterceptor(CAMPO_DO_ARQUIVO, {
+export const MaterialUploadInterceptor = FileInterceptor(CAMPO_DO_ARQUIVO, {
   limits: { fileSize: MAXIMO_DE_BYTES_DO_MATERIAL, files: 1, fields: MAXIMO_DE_CAMPOS, fieldSize: MAXIMO_DE_BYTES_POR_CAMPO, parts: MAXIMO_DE_CAMPOS + 1 },
   fileFilter: (requisicao: { body?: unknown }, _arquivo, decidir) => {
     decidir(null, !seraRecusadoPorLicenca(requisicao.body))
@@ -41,7 +41,7 @@ export const RecebimentoDoMaterial = FileInterceptor(CAMPO_DO_ARQUIVO, {
  * com `Retry-After`, sem receber nada.
  */
 @Injectable()
-export class GuardaDoEnvio implements CanActivate {
+export class MaterialUploadGuard implements CanActivate {
   constructor(private readonly materiais: MaterialService) {}
 
   async canActivate(): Promise<boolean> {

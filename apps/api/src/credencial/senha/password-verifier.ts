@@ -1,21 +1,21 @@
 import { DomainException, METRICS, ROTULO_ESCOLA, type Meter } from '@educa/core'
 import { ErrorCode } from '@educa/shared'
-import type { ContadorDeTentativas, Reserva } from '../login-lockout.js'
-import type { HashDeSenha } from '../password-hasher.js'
-import type { BaldeDeLogin } from './login-buckets.js'
-import type { SemaforoDeHash } from './hash-bulkhead.js'
+import type { LoginLockout, Reserva } from '../login-lockout.js'
+import type { PasswordHasher } from '../password-hasher.js'
+import type { LoginBucket } from './login-buckets.js'
+import type { HashBulkhead } from './hash-bulkhead.js'
 
-export interface DependenciasDaConferencia {
-  readonly semaforo: SemaforoDeHash
-  readonly contador: ContadorDeTentativas
-  readonly hash: HashDeSenha
+export interface PasswordVerifierDependencies {
+  readonly semaforo: HashBulkhead
+  readonly contador: LoginLockout
+  readonly hash: PasswordHasher
   readonly medidor: Meter
 }
 
 /** Uma tentativa de login por senha: onde ela espera a vez, que contador ela gasta e como a credencial é lida. */
-export interface TentativaDeSenha<Credencial extends { readonly senhaHash: string | null } | undefined> {
+export interface PasswordAttempt<Credencial extends { readonly senhaHash: string | null } | undefined> {
   /** O balde do semáforo, resolvido antes e sem olhar se a credencial existe (e, na 15.0, se ela foi rebaixada). */
-  readonly balde: BaldeDeLogin
+  readonly balde: LoginBucket
   /** A chave do contador de tentativas da conta, com a origem (`conhecido` ou `outro`). */
   readonly chave: string
   readonly senha: string
@@ -26,10 +26,10 @@ export interface TentativaDeSenha<Credencial extends { readonly senhaHash: strin
 }
 
 /** O que a resposta de falha precisa da tentativa: o balde (o rótulo de `login.falhas`) e o que mais contar. */
-type FalhaDaTentativa = Pick<TentativaDeSenha<undefined>, 'balde' | 'aoFalhar'>
+type FalhaDaTentativa = Pick<PasswordAttempt<undefined>, 'balde' | 'aoFalhar'>
 
 /** A tentativa que passou pelo contador e pelo hash: a reserva liberada, a credencial lida e se a senha confere. */
-export interface SenhaConferida<Credencial> {
+export interface VerifiedPassword<Credencial> {
   readonly reserva: Extract<Reserva, { liberada: true }>
   readonly credencial: Credencial
   readonly confere: boolean
@@ -45,19 +45,19 @@ export interface SenhaConferida<Credencial> {
  * - **Falha:** senha errada, identificador que não existe e conta segurada são falhas iguais. Cada uma soma em
  *   `login.falhas{escola_id}` (o rótulo do balde: a escola, `equipe` ou `desconhecida`) e chama `aoFalhar`.
  */
-export class ConferenciaNaVez {
+export class PasswordVerifier {
   readonly #contaSegurada: ReturnType<Meter['createCounter']>
   readonly #falhas: ReturnType<Meter['createCounter']>
 
-  constructor(private readonly dependencias: DependenciasDaConferencia) {
+  constructor(private readonly dependencias: PasswordVerifierDependencies) {
     this.#contaSegurada = dependencias.medidor.createCounter(METRICS.contaSegurada, { description: 'Tentativas de login respondidas com CONTA_SEGURADA' })
     this.#falhas = dependencias.medidor.createCounter(METRICS.falhasDeLogin, { description: 'Logins por e-mail ou matrícula que falharam, por escola do endereço, equipe ou desconhecida' })
   }
 
   /** Espera a vez, reserva a tentativa, lê a credencial e confere a senha. Conta segurada sai daqui com o 429. */
-  async conferir<Credencial extends { readonly senhaHash: string | null } | undefined>(tentativa: TentativaDeSenha<Credencial>): Promise<SenhaConferida<Credencial>> {
+  async conferir<Credencial extends { readonly senhaHash: string | null } | undefined>(tentativa: PasswordAttempt<Credencial>): Promise<VerifiedPassword<Credencial>> {
     const { semaforo, contador, hash } = this.dependencias
-    const resultado = await semaforo.executar(tentativa.balde, async (): Promise<SenhaConferida<Credencial> | { readonly seguradaPorMs: number }> => {
+    const resultado = await semaforo.executar(tentativa.balde, async (): Promise<VerifiedPassword<Credencial> | { readonly seguradaPorMs: number }> => {
       const reserva = await contador.reservar(tentativa.chave)
       if (!reserva.liberada) return { seguradaPorMs: reserva.esperaMs }
       const credencial = await tentativa.lerCredencial()
@@ -68,7 +68,7 @@ export class ConferenciaNaVez {
   }
 
   /** A resposta da tentativa que não entrou: `CONTA_SEGURADA`, se esta falha segurou a conta, ou `NAO_AUTENTICADO`. */
-  recusar(tentativa: FalhaDaTentativa, reserva: SenhaConferida<unknown>['reserva']): Promise<never> {
+  recusar(tentativa: FalhaDaTentativa, reserva: VerifiedPassword<unknown>['reserva']): Promise<never> {
     return this.#falhar(tentativa, reserva.esperaSeFalharMs)
   }
 

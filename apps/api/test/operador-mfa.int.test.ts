@@ -13,14 +13,14 @@ import type { Redis } from 'ioredis'
 import { createHash, randomUUID } from 'node:crypto'
 import { isDeepStrictEqual } from 'node:util'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
-import { BANCO } from '../src/database.module.js'
+import { DB } from '../src/database.module.js'
 import { COOKIE_SESSAO_DE_OPERADOR } from '../src/operacao/cookie-de-operador.js'
-import { verificarDesafioDeOperador } from '../src/operacao/operador-challenge.js'
-import { COOKIE_DISPOSITIVO_DE_OPERADOR, cookieDeDispositivoDeOperador } from '../src/operacao/operador-device-cookie.js'
+import { verifyOperadorChallenge } from '../src/operacao/operador-challenge.js'
+import { OPERADOR_DEVICE_COOKIE, operadorDeviceCookie } from '../src/operacao/operador-device-cookie.js'
 import { PREFIXO_DO_CONTADOR_DA_OPERACAO } from '../src/operacao/entrada/entrada.service.js'
-import { SegundoFatorDoOperadorService } from '../src/operacao/mfa/segundo-fator.service.js'
+import { OperadorMfaService } from '../src/operacao/mfa/segundo-fator.service.js'
 import { gerarConviteDeOperador } from '../src/ops/operador.js'
-import { CLIENTE_REDIS_LOGIN, ContadorDeTentativas, COOKIE_SESSAO, type OrigemDaTentativa } from '../src/credencial/index.js'
+import { REDIS_LOGIN_CLIENT, LoginLockout, SESSAO_COOKIE, type OrigemDaTentativa } from '../src/credencial/index.js'
 import { configuracaoDeTeste } from './test-config.js'
 import { caminhoConcreto, rotasDe } from './registered-routes.js'
 import {
@@ -74,7 +74,7 @@ describe('segundo fator do operador: configurar e entrar com código (tarefa 7.0
 
   beforeAll(async () => {
     ;({ app, url } = await subir(undefined, linhasDeLog))
-    banco = app.get<Database>(BANCO)
+    banco = app.get<Database>(DB)
     autor = (await operadores.operador()).apelido
   })
 
@@ -131,7 +131,7 @@ describe('segundo fator do operador: configurar e entrar com código (tarefa 7.0
       expect(base32DoGravado(operadorId, configurada.segredoCifrado ?? Buffer.alloc(0), configurada.chaveVersao ?? 0)).toBe(corpo.segredo)
       expect(configurada.hmacs).toEqual(corpo.codigosRecuperacao.map(hmacDoCodigo).sort())
       expect(configurada.ativadoEm).toBeNull()
-      expect(await verificarDesafioDeOperador(corpo.desafio, configuracao.identidade.chaveAssinatura, 'mfa')).toMatchObject({ operadorId, etapa: 'mfa', versao: configurada.mfaVersao })
+      expect(await verifyOperadorChallenge(corpo.desafio, configuracao.identidade.chaveAssinatura, 'mfa')).toMatchObject({ operadorId, etapa: 'mfa', versao: configurada.mfaVersao })
 
       const passo = passoAtual()
       const entrada = guardar(await entrar(url, { desafio: corpo.desafio, codigo: codigoDoPasso(corpo.segredo, passo) }))
@@ -141,7 +141,7 @@ describe('segundo fator do operador: configurar e entrar com código (tarefa 7.0
       const { token } = segundoFatorDeOperadorResponseSchema.parse(entrada.corpo)
       // Os dois cookies, só em `/v1/operacao/sessao`, `HttpOnly` e `SameSite=Strict`.
       const cookies = Object.fromEntries(entrada.setCookie.map((linha) => [linha.split('=')[0], linha]))
-      expect(Object.keys(cookies).sort()).toEqual([COOKIE_SESSAO_DE_OPERADOR, COOKIE_DISPOSITIVO_DE_OPERADOR].sort())
+      expect(Object.keys(cookies).sort()).toEqual([COOKIE_SESSAO_DE_OPERADOR, OPERADOR_DEVICE_COOKIE].sort())
       for (const linha of Object.values(cookies)) {
         expect(linha).toContain('Path=/v1/operacao/sessao')
         expect(linha).toContain('HttpOnly')
@@ -158,14 +158,14 @@ describe('segundo fator do operador: configurar e entrar com código (tarefa 7.0
       expect(ativa.ativadoEm).toBeInstanceOf(Date)
       expect(Number(ativa.ultimoPasso)).toBeGreaterThanOrEqual(passo - 1)
       // O cookie de dispositivo gravado aqui é o que a entrada por e-mail lê: ele conhece este e-mail.
-      const dispositivo = valorDoCookie(entrada.setCookie, COOKIE_DISPOSITIVO_DE_OPERADOR)
-      expect(cookieDeDispositivoDeOperador(configuracao.login.dispositivo).conhece(dispositivo, `${apelido}@turmma.invalid`)).toBe(true)
+      const dispositivo = valorDoCookie(entrada.setCookie, OPERADOR_DEVICE_COOKIE)
+      expect(operadorDeviceCookie(configuracao.login.dispositivo).conhece(dispositivo, `${apelido}@turmma.invalid`)).toBe(true)
       expect((await eu(token)).corpo).toEqual({ apelido, nome: 'Pessoa Sintética da Operação' })
 
       // De novo, pela entrada por e-mail: `mfa` sem versão, e o código do passo seguinte.
       const deNovo = entradaDeOperadorResponseSchema.parse(guardar(await pedir(url, 'POST', '/v1/operacao/sessao/email', { email: `${apelido}@turmma.invalid`, senha: SENHA }, doIp())).corpo)
       expect(deNovo.etapa).toBe('mfa')
-      const segunda = guardar(await entrar(url, { desafio: deNovo.desafio, codigo: codigoDoPasso(corpo.segredo, passoAtual() + 1) }, { ...doIp(), Cookie: `${COOKIE_DISPOSITIVO_DE_OPERADOR}=${dispositivo ?? ''}` }))
+      const segunda = guardar(await entrar(url, { desafio: deNovo.desafio, codigo: codigoDoPasso(corpo.segredo, passoAtual() + 1) }, { ...doIp(), Cookie: `${OPERADOR_DEVICE_COOKIE}=${dispositivo ?? ''}` }))
       expect(segunda.status).toBe(200)
       // A ativação é a do primeiro código: a segunda entrada não a regrava.
       expect((await estadoDoOperador(operadores.pool, operadorId)).ativadoEm).toEqual(ativa.ativadoEm)
@@ -329,8 +329,8 @@ describe('segundo fator do operador: configurar e entrar com código (tarefa 7.0
   })
 
   async function falhasNoContador(operadorId: string, origem: OrigemDaTentativa): Promise<string | null> {
-    const chave = app.get(ContadorDeTentativas).chaveDe(operadorId, origem, PREFIXO_DO_CONTADOR_DA_OPERACAO)
-    return app.get<Redis>(CLIENTE_REDIS_LOGIN, { strict: false }).hget(chave, 'falhas')
+    const chave = app.get(LoginLockout).chaveDe(operadorId, origem, PREFIXO_DO_CONTADOR_DA_OPERACAO)
+    return app.get<Redis>(REDIS_LOGIN_CLIENT, { strict: false }).hget(chave, 'falhas')
   }
 
   describe('o contador que o Redis não zera depois do commit da sessão (A0b, tarefa 9.0)', () => {
@@ -342,7 +342,7 @@ describe('segundo fator do operador: configurar e entrar com código (tarefa 7.0
       expect(await falhasNoContador(operadorId, 'outro')).toBe('1')
 
       // O Redis de fila recusa o `del` do contador, e só ele: a reserva e a marca do desafio passam.
-      const cliente = app.get<Redis>(CLIENTE_REDIS_LOGIN, { strict: false })
+      const cliente = app.get<Redis>(REDIS_LOGIN_CLIENT, { strict: false })
       const recusa = vi.spyOn(cliente, 'del').mockRejectedValue(new Error('recusado pelo teste'))
       const antes = linhasDeLog.length
       let resposta: Resposta
@@ -354,7 +354,7 @@ describe('segundo fator do operador: configurar e entrar com código (tarefa 7.0
       }
       expect(resposta.status).toBe(200)
       expect(segundoFatorDeOperadorResponseSchema.safeParse(resposta.corpo).success).toBe(true)
-      expect(resposta.setCookie.map((linha) => linha.split('=')[0]).sort()).toEqual([COOKIE_SESSAO_DE_OPERADOR, COOKIE_DISPOSITIVO_DE_OPERADOR].sort())
+      expect(resposta.setCookie.map((linha) => linha.split('=')[0]).sort()).toEqual([COOKIE_SESSAO_DE_OPERADOR, OPERADOR_DEVICE_COOKIE].sort())
       expect((await estadoDoOperador(operadores.pool, operadorId)).sessoesAbertas).toBe(1)
       // O contador não foi zerado: ficou com a falha de antes e a reserva desta entrada, e quem o zera agora é o
       // vencimento de 15 min.
@@ -365,7 +365,7 @@ describe('segundo fator do operador: configurar e entrar com código (tarefa 7.0
         .map((linha) => JSON.parse(linha) as Record<string, unknown>)
         .filter((linha) => linha['msg'] === 'operacao.contador_nao_zerado')
       expect(linhas).toEqual([expect.objectContaining({ level: 'warn', origem: 'operacao', operadorId, requisicaoId: expect.stringMatching(UUID) })])
-      const chave = app.get(ContadorDeTentativas).chaveDe(operadorId, 'outro', PREFIXO_DO_CONTADOR_DA_OPERACAO)
+      const chave = app.get(LoginLockout).chaveDe(operadorId, 'outro', PREFIXO_DO_CONTADOR_DA_OPERACAO)
       const texto = JSON.stringify(linhas[0])
       for (const daPessoa of [apelido, nome, `${apelido}@turmma.invalid`, chave, chave.split(':')[1] ?? chave]) expect(texto).not.toContain(daPessoa)
       expect(Object.keys(linhas[0] ?? {}).sort()).toEqual(['level', 'msg', 'operadorId', 'origem', 'requisicaoId', 'servico', 'time'])
@@ -376,7 +376,7 @@ describe('segundo fator do operador: configurar e entrar com código (tarefa 7.0
       const { base32 } = await ativarNoBanco(operadores.pool, operadorId)
       const pedido = { desafio: await desafio(operadorId, 'mfa'), codigo: codigoDoPasso(base32, passoAtual()) }
       // O middleware abre o contexto em toda requisição HTTP; chamado direto, sem ele, o serviço não inventa um.
-      const servico = app.get(SegundoFatorDoOperadorService)
+      const servico = app.get(OperadorMfaService)
       await expect(servico.entrar(pedido, { cabecalhoCookie: undefined, ip: '203.0.113.9' })).rejects.toMatchObject({ codigo: ErrorCode.ERRO_INTERNO })
       expect((await estadoDoOperador(operadores.pool, operadorId)).sessoesAbertas).toBe(0)
       // O desafio não foi gasto: a mesma entrada, pela rota, abre a sessão.
@@ -461,12 +461,12 @@ describe('segundo fator do operador: configurar e entrar com código (tarefa 7.0
         expect(diferentes).toEqual([])
       }
       // O de dispositivo sozinho não é credencial de nada: a rota de escola responde como a qualquer um sem credencial.
-      const soDispositivo = `${COOKIE_DISPOSITIVO_DE_OPERADOR}=${valorDoCookie(ativo.setCookie, COOKIE_DISPOSITIVO_DE_OPERADOR) ?? ''}`
+      const soDispositivo = `${OPERADOR_DEVICE_COOKIE}=${valorDoCookie(ativo.setCookie, OPERADOR_DEVICE_COOKIE) ?? ''}`
       expect(forma(await pedir(url, 'GET', '/v1/eu', undefined, { Cookie: soDispositivo }))).toEqual(forma(await pedir(url, 'GET', '/v1/eu')))
       // A renovação da escola procura o `educa_sessao`: com o do operador, não renova nada nem grava sessão de escola.
       const renovacao = await pedir(url, 'POST', '/v1/sessao/renovar', undefined, { Cookie: cookieDoOperador })
       esperarErro(renovacao, 401, ErrorCode.NAO_AUTENTICADO)
-      expect(renovacao.setCookie.filter((linha) => linha.startsWith(`${COOKIE_SESSAO}=`) && !linha.startsWith(`${COOKIE_SESSAO}=;`))).toEqual([])
+      expect(renovacao.setCookie.filter((linha) => linha.startsWith(`${SESSAO_COOKIE}=`) && !linha.startsWith(`${SESSAO_COOKIE}=;`))).toEqual([])
       // E o operador continua com a sessão dele.
       expect((await eu(ativo.token)).status).toBe(200)
     })
@@ -489,7 +489,7 @@ describe('segundo fator do operador com o Redis de fila fora (C13)', () => {
 
   beforeAll(async () => {
     ;({ app, url } = await subir())
-    cliente = app.get<Redis>(CLIENTE_REDIS_LOGIN, { strict: false })
+    cliente = app.get<Redis>(REDIS_LOGIN_CLIENT, { strict: false })
     const prazo = performance.now() + 10_000
     while (cliente.status !== 'ready' && performance.now() < prazo) await new Promise((resolver) => setTimeout(resolver, 20))
   })
@@ -567,7 +567,7 @@ describe('segundo fator do operador: o limite (C32 e C34)', () => {
       if (corpo === undefined) throw new Error('configurar recusado')
       const resposta = await entrar(url, { desafio: corpo.desafio, codigo: codigoDoPasso(corpo.segredo, passoAtual()) })
       expect(resposta.status).toBe(200)
-      return { operadorId, base32: corpo.segredo, dispositivo: valorDoCookie(resposta.setCookie, COOKIE_DISPOSITIVO_DE_OPERADOR) ?? '' }
+      return { operadorId, base32: corpo.segredo, dispositivo: valorDoCookie(resposta.setCookie, OPERADOR_DEVICE_COOKIE) ?? '' }
     }
     const [x, y] = [await ativar(), await ativar()]
     const errado = codigoDoPasso(x.base32, passoAtual() - 10)
@@ -589,7 +589,7 @@ describe('segundo fator do operador: o limite (C32 e C34)', () => {
     // Y, do mesmo IP, entra: o contador é o do operador, não o do IP.
     expect((await entrar(url, { desafio: await desafio(y.operadorId, 'mfa'), codigo: codigoDoPasso(y.base32, passoAtual() + 1) }, doIp(ip))).status).toBe(200)
     // X, do navegador que já entrou (o cookie de dispositivo que o `/sessao/mfa` gravou), conta na origem `conhecido`, que o script não segurou.
-    const conhecido = await entrar(url, { desafio: await desafio(x.operadorId, 'mfa'), codigo: codigoDoPasso(x.base32, passoAtual() + 1) }, { ...doIp(ip), Cookie: `${COOKIE_DISPOSITIVO_DE_OPERADOR}=${x.dispositivo}` })
+    const conhecido = await entrar(url, { desafio: await desafio(x.operadorId, 'mfa'), codigo: codigoDoPasso(x.base32, passoAtual() + 1) }, { ...doIp(ip), Cookie: `${OPERADOR_DEVICE_COOKIE}=${x.dispositivo}` })
     expect(conhecido.status).toBe(200)
   })
 })

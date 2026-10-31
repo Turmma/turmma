@@ -2,7 +2,7 @@ import { runInContext } from '@educa/core'
 import { randomUUID } from 'node:crypto'
 import { afterAll, describe, expect, it } from 'vitest'
 import { BancadaDeSessoes } from '../../test/sessao.fixture.js'
-import { CriacaoDeSessaoRepository } from './sessao-create.repository.js'
+import { SessaoCreateRepository } from './sessao-create.repository.js'
 
 describe('CriacaoDeSessaoRepository: usuário e sessão são gravados na escola do contexto', () => {
   const bancada = new BancadaDeSessoes()
@@ -16,8 +16,8 @@ describe('CriacaoDeSessaoRepository: usuário e sessão são gravados na escola 
     return Number(rows[0]?.total ?? 0)
   }
 
-  const naEscola = <T>(escolaId: string, funcao: (repositorio: CriacaoDeSessaoRepository) => Promise<T>) =>
-    runInContext({ requisicaoId: randomUUID(), escolaId }, () => bancada.banco.transaction((tx) => funcao(new CriacaoDeSessaoRepository(tx))))
+  const naEscola = <T>(escolaId: string, funcao: (repositorio: SessaoCreateRepository) => Promise<T>) =>
+    runInContext({ requisicaoId: randomUUID(), escolaId }, () => bancada.banco.transaction((tx) => funcao(new SessaoCreateRepository(tx))))
 
   it('isolamento: no contexto de A grava o usuário e a sessão com o escola_id de A, mesmo com a escola de B no argumento, e B não ganha linha', async () => {
     const escolaA = await bancada.escola()
@@ -41,8 +41,8 @@ describe('CriacaoDeSessaoRepository: usuário e sessão são gravados na escola 
 
   it('sem escola no contexto, as duas gravações falham fechadas e nada é gravado; lista vazia não grava nem exige escola', async () => {
     const escolaId = await bancada.escola()
-    const semEscola = <T>(funcao: (repositorio: CriacaoDeSessaoRepository) => Promise<T>) =>
-      runInContext({ requisicaoId: randomUUID() }, () => bancada.banco.transaction((tx) => funcao(new CriacaoDeSessaoRepository(tx))))
+    const semEscola = <T>(funcao: (repositorio: SessaoCreateRepository) => Promise<T>) =>
+      runInContext({ requisicaoId: randomUUID() }, () => bancada.banco.transaction((tx) => funcao(new SessaoCreateRepository(tx))))
 
     await expect(semEscola((repositorio) => repositorio.criarUsuarios([{ contaId: null, papel: 'aluno', nome: 'Pessoa sintética' }]))).rejects.toThrow('consulta com escopo sem escola no contexto')
     await expect(

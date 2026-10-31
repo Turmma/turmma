@@ -2,7 +2,7 @@ import { requestIp, TrustedProxies, Public } from '@educa/core'
 import { renovacaoResponseSchema, type RenovacaoResponse } from '@educa/shared'
 import { Controller, Header, HttpCode, HttpStatus, Post, Req, Res } from '@nestjs/common'
 import type { IncomingMessage, ServerResponse } from 'node:http'
-import { RenovacaoRecusada, RenovacaoService } from './renovacao.service.js'
+import { RefreshRejectedError, RefreshService } from './renovacao.service.js'
 
 /**
  * `POST /v1/sessao/renovar`: troca o cookie `educa_sessao` por um novo e devolve o token de acesso de 10 min. Anônima
@@ -10,9 +10,9 @@ import { RenovacaoRecusada, RenovacaoService } from './renovacao.service.js'
  */
 @Public()
 @Controller('v1/sessao')
-export class RenovacaoController {
+export class RefreshController {
   constructor(
-    private readonly renovacao: RenovacaoService,
+    private readonly renovacao: RefreshService,
     private readonly proxies: TrustedProxies,
   ) {}
 
@@ -29,7 +29,7 @@ export class RenovacaoController {
       return renovacaoResponseSchema.parse(corpo)
     } catch (erro) {
       // O cookie que não vale mais sai do navegador junto com o 401.
-      if (erro instanceof RenovacaoRecusada) resposta.setHeader('Set-Cookie', [...erro.cookies])
+      if (erro instanceof RefreshRejectedError) resposta.setHeader('Set-Cookie', [...erro.cookies])
       throw erro
     }
   }

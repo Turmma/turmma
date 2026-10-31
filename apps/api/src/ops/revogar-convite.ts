@@ -4,7 +4,7 @@ import { pathToFileURL } from 'node:url'
 import { parseArgs } from 'node:util'
 import { z } from 'zod'
 import { revogarConvitePeloOperador } from '../sessao/index.js'
-import { abrirBancoDeOperacao, ArgumentoInvalido, autorDoComando, lerOperador, OperadorRecusado, type BancoDoComando, type SaidaDoComando } from './command.js'
+import { abrirBancoDeOperacao, InvalidArgumentError, autorDoComando, lerOperador, OperadorRejectedError, type CommandDatabase, type CommandOutput } from './command.js'
 
 /**
  * A revogação do convite pelo operador (regra 20, item 8; RF19):
@@ -24,10 +24,10 @@ export function lerConviteARevogar(argumentos: string[]): string {
     valores = parseArgs({ args: argumentos, options: { convite: { type: 'string' } }, strict: true, allowPositionals: false }).values
   } catch {
     // O erro do parseArgs repete o argumento recebido; a mensagem fica só com a opção aceita.
-    throw new ArgumentoInvalido('--convite')
+    throw new InvalidArgumentError('--convite')
   }
   const convite = z.uuid().safeParse(valores.convite)
-  if (!convite.success) throw new ArgumentoInvalido('--convite')
+  if (!convite.success) throw new InvalidArgumentError('--convite')
   return convite.data.toLowerCase()
 }
 
@@ -35,8 +35,8 @@ export function lerConviteARevogar(argumentos: string[]): string {
 export async function executarOpsRevogarConvite(
   argumentos: string[],
   ambiente: Record<string, string | undefined>,
-  terminal: SaidaDoComando,
-  abrirBanco: (ambiente: Record<string, string | undefined>) => BancoDoComando = abrirBancoDeOperacao,
+  terminal: CommandOutput,
+  abrirBanco: (ambiente: Record<string, string | undefined>) => CommandDatabase = abrirBancoDeOperacao,
 ): Promise<number> {
   try {
     const conviteId = lerConviteARevogar(argumentos)
@@ -50,7 +50,7 @@ export async function executarOpsRevogarConvite(
       await fechar()
     }
   } catch (erro) {
-    if (erro instanceof ArgumentoInvalido || erro instanceof InvalidConfigError || erro instanceof OperadorRecusado) {
+    if (erro instanceof InvalidArgumentError || erro instanceof InvalidConfigError || erro instanceof OperadorRejectedError) {
       terminal.erro(`${erro.message}\n`)
       return 2
     }

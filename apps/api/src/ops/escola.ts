@@ -4,11 +4,11 @@ import { randomUUID } from 'node:crypto'
 import { pathToFileURL } from 'node:url'
 import { parseArgs } from 'node:util'
 import { z } from 'zod'
-import { abrirBancoDeOperacao, ArgumentoInvalido, autorDoComando, esquemaNome, lerOperador, OperadorRecusado, type BancoDoComando, type SaidaDoComando } from './command.js'
+import { abrirBancoDeOperacao, InvalidArgumentError, autorDoComando, esquemaNome, lerOperador, OperadorRejectedError, type CommandDatabase, type CommandOutput } from './command.js'
 import { criarEscola, criarRede } from '../operacao/escola/escola.js'
 
 // O que é comum aos comandos do operador mora em `command.ts`; reexportado aqui para quem já o importava daqui.
-export { abrirBancoDeOperacao, ArgumentoInvalido, lerOperador, type BancoDoComando, type SaidaDoComando }
+export { abrirBancoDeOperacao, InvalidArgumentError, lerOperador, type CommandDatabase, type CommandOutput }
 
 /**
  * Criação de rede e de escola pelo operador Turmma (RF1, D2): por este comando, ou pelo painel da operação
@@ -40,13 +40,13 @@ function lerOpcoes(argumentos: string[]) {
     })
   } catch {
     // O erro do parseArgs repete o argumento recebido; a mensagem fica só com as opções aceitas.
-    throw new ArgumentoInvalido('--nome, --tipo, --rede ou --slug')
+    throw new InvalidArgumentError('--nome, --tipo, --rede ou --slug')
   }
 }
 
 function nomeValido(valor: string | undefined): string {
   const resultado = esquemaNome.safeParse(valor)
-  if (!resultado.success) throw new ArgumentoInvalido('--nome')
+  if (!resultado.success) throw new InvalidArgumentError('--nome')
   return resultado.data
 }
 
@@ -54,19 +54,19 @@ export function lerPedidoDoOperador(argumentos: string[]): PedidoDoOperador {
   const { values: valores, positionals: posicionais } = lerOpcoes(argumentos)
   const comando = posicionais.join(' ')
   if (comando === 'rede criar') {
-    if (valores.rede !== undefined || valores.slug !== undefined) throw new ArgumentoInvalido('--rede e --slug não valem para rede')
+    if (valores.rede !== undefined || valores.slug !== undefined) throw new InvalidArgumentError('--rede e --slug não valem para rede')
     const tipo = TIPOS_DE_REDE.find((aceito) => aceito === valores.tipo)
-    if (tipo === undefined) throw new ArgumentoInvalido('--tipo')
+    if (tipo === undefined) throw new InvalidArgumentError('--tipo')
     return { entidade: 'rede', nome: nomeValido(valores.nome), tipo }
   }
   if (comando === 'escola criar') {
-    if (valores.tipo !== undefined) throw new ArgumentoInvalido('--tipo não vale para escola')
-    if (valores.rede === undefined || !z.uuid().safeParse(valores.rede).success) throw new ArgumentoInvalido('--rede')
+    if (valores.tipo !== undefined) throw new InvalidArgumentError('--tipo não vale para escola')
+    if (valores.rede === undefined || !z.uuid().safeParse(valores.rede).success) throw new InvalidArgumentError('--rede')
     const slug = valores.slug
-    if (slug === undefined || slug.length > TAMANHO_MAXIMO_SLUG || !FORMATO_SLUG.test(slug)) throw new ArgumentoInvalido('--slug')
+    if (slug === undefined || slug.length > TAMANHO_MAXIMO_SLUG || !FORMATO_SLUG.test(slug)) throw new InvalidArgumentError('--slug')
     return { entidade: 'escola', redeId: valores.rede.toLowerCase(), nome: nomeValido(valores.nome), slug }
   }
-  throw new ArgumentoInvalido('comando (rede criar | escola criar)')
+  throw new InvalidArgumentError('comando (rede criar | escola criar)')
 }
 
 /** Texto fixo por código, sem nada do pedido: o slug e o nome nunca voltam na mensagem. */
@@ -83,8 +83,8 @@ const MENSAGEM_DO_OPERADOR: Partial<Record<ErrorCode, string>> = {
 export async function executarOpsEscola(
   argumentos: string[],
   ambiente: Record<string, string | undefined>,
-  terminal: SaidaDoComando,
-  abrirBanco: (ambiente: Record<string, string | undefined>) => BancoDoComando = abrirBancoDeOperacao,
+  terminal: CommandOutput,
+  abrirBanco: (ambiente: Record<string, string | undefined>) => CommandDatabase = abrirBancoDeOperacao,
 ): Promise<number> {
   try {
     const pedido = lerPedidoDoOperador(argumentos)
@@ -102,7 +102,7 @@ export async function executarOpsEscola(
       await fechar()
     }
   } catch (erro) {
-    if (erro instanceof ArgumentoInvalido || erro instanceof InvalidConfigError || erro instanceof OperadorRecusado) {
+    if (erro instanceof InvalidArgumentError || erro instanceof InvalidConfigError || erro instanceof OperadorRejectedError) {
       // Só o nome da opção ou da variável: nunca o valor.
       terminal.erro(`${erro.message}\n`)
       return 2

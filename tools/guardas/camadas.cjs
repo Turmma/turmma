@@ -144,8 +144,8 @@ module.exports = {
 
     // As três cercas de tenant (regra 10, item 9), por import direto (R63).
     {
-      name: 'cerca-resolucao-de-tenant',
-      comment: 'A `ResolucaoDeTenantRepository` concentra os `@SemEscopo` da resolução de tenant e fica dentro de `sessao/` (Tech Spec, seção 6).',
+      name: 'cerca-tenant-resolution',
+      comment: 'A `TenantResolutionRepository` concentra os `@Unscoped` da resolução de tenant e fica dentro de `sessao/` (Tech Spec, seção 6).',
       severity: 'error',
       from: { path: TODO_O_CODIGO, pathNot: [SESSAO, TESTE] },
       to: { path: `${SESSAO}tenant/tenant-resolution\\.repository\\.ts$` },
@@ -159,7 +159,7 @@ module.exports = {
     },
     {
       name: 'cerca-painel-repository',
-      comment: 'O `PainelRepository` lê entre escolas, com três `@SemEscopo`: só o `painel.service.ts` o usa (I1, A0b).',
+      comment: 'O `PainelRepository` lê entre escolas, com três `@Unscoped`: só o `painel.service.ts` o usa (I1, A0b).',
       severity: 'error',
       from: { path: TODO_O_CODIGO, pathNot: ['^apps/api/src/operacao/painel/painel\\.service\\.ts$', TESTE] },
       to: { path: '^apps/api/src/operacao/painel/painel\\.repository\\.ts$' },

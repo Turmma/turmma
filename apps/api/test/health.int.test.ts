@@ -6,7 +6,7 @@ import request from 'supertest'
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { aguardarSaudavel, compose, composeOuFalha } from '../../../tools/testes/compose.ts'
 import { AppModule } from '../src/app.module.js'
-import { configurarAplicacao } from '../src/configure-app.js'
+import { configureApp } from '../src/configure-app.js'
 import { configuracaoDeTeste } from './test-config.js'
 
 const TIMEOUT_CONSULTA_MS = 1_000
@@ -24,9 +24,9 @@ describe('GET /saude', () => {
     const config = configuracaoDeTeste({
       banco: { maximoConexoes: 2, timeoutConexaoMs: TIMEOUT_CONSULTA_MS, timeoutConsultaMs: TIMEOUT_CONSULTA_MS },
     })
-    app = await NestFactory.create(AppModule.com(config), { logger: false })
+    app = await NestFactory.create(AppModule.forRoot(config), { logger: false })
     // Com o filtro global ligado, como em produção: o 503 da sonda mantém o corpo `{ ok }`.
-    configurarAplicacao(app, createLogger({ servico: 'api-teste', nivel: 'silent' }))
+    configureApp(app, createLogger({ servico: 'api-teste', nivel: 'silent' }))
     await app.init()
   })
 

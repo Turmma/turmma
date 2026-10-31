@@ -5,7 +5,7 @@ import type { INestApplication } from '@nestjs/common'
 import { randomBytes } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
-import { BANCO } from '../src/database.module.js'
+import { DB } from '../src/database.module.js'
 import { COOKIE_SESSAO_DE_OPERADOR } from '../src/operacao/cookie-de-operador.js'
 import { criarOperador, desativarOperador, gerarConviteDeOperador } from '../src/ops/operador.js'
 import { codigoDoPasso, configurar, doIp, entrar, esperarErro, ipSorteado, passoAtual, pedir, subir, valorDoCookie } from './operador-mfa.fixture.js'
@@ -41,7 +41,7 @@ describe('registros da operação: acesso e auditoria (C37, tarefa 8.0)', () => 
 
   beforeAll(async () => {
     ;({ app, url } = await subir(undefined, undefined, medidor.medidor))
-    banco = app.get<Database>(BANCO)
+    banco = app.get<Database>(DB)
     autor = (await operadores.operador()).apelido
   })
 

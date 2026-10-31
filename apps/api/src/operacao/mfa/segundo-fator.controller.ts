@@ -11,8 +11,8 @@ import {
 } from '@educa/shared'
 import { Body, Controller, Header, HttpCode, HttpStatus, Inject, Post, Req, Res } from '@nestjs/common'
 import type { IncomingMessage, ServerResponse } from 'node:http'
-import { EntradaDeOperacao } from '../decorators.js'
-import { SegundoFatorDoOperadorService } from './segundo-fator.service.js'
+import { OperacaoLoginRoute } from '../decorators.js'
+import { OperadorMfaService } from './segundo-fator.service.js'
 
 /**
  * `POST /v1/operacao/sessao/mfa/configurar` e `POST /v1/operacao/sessao/mfa` (Tech Spec da A0, seção 4): o operador que
@@ -28,14 +28,14 @@ import { SegundoFatorDoOperadorService } from './segundo-fator.service.js'
  *   rebaixamento não tem efeito, e cada tentativa já exige um desafio novo, que só a senha dá.
  */
 @Controller('v1/operacao/sessao')
-export class SegundoFatorDoOperadorController {
+export class OperadorMfaController {
   constructor(
-    @Inject(SegundoFatorDoOperadorService) private readonly segundoFator: SegundoFatorDoOperadorService,
+    @Inject(OperadorMfaService) private readonly segundoFator: OperadorMfaService,
     @Inject(TrustedProxies) private readonly proxies: TrustedProxies,
   ) {}
 
   @Post('mfa/configurar')
-  @EntradaDeOperacao()
+  @OperacaoLoginRoute()
   @HttpCode(HttpStatus.OK)
   @Header('Cache-Control', 'no-store')
   async configurar(@Body(new ZodValidationPipe(configurarSegundoFatorDeOperadorRequestSchema)) pedido: ConfigurarSegundoFatorDeOperadorRequest): Promise<ConfigurarSegundoFatorDeOperadorResponse> {
@@ -43,7 +43,7 @@ export class SegundoFatorDoOperadorController {
   }
 
   @Post('mfa')
-  @EntradaDeOperacao()
+  @OperacaoLoginRoute()
   @DowngradeRateLimit()
   @HttpCode(HttpStatus.OK)
   @Header('Cache-Control', 'no-store')

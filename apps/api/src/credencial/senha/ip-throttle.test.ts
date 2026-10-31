@@ -1,9 +1,9 @@
 import { METRICS } from '@educa/core'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { MedidorDeTeste } from '../../../../../tools/testes/metricas.ts'
-import type { ContagemNaJanela } from './window-counter.js'
-import { LimiteDoEmailPorIp } from './email-ip-rate-limit.js'
-import { LIMIAR_MINIMO_DE_FALHAS_POR_IP, limiarDeFalhas, RebaixamentoPorEscola, SERIE_REBAIXADA_ESQUECIDA_APOS_MS, VALIDADE_DO_TAMANHO_DA_ESCOLA_MS } from './ip-throttle.js'
+import type { WindowCount } from './window-counter.js'
+import { EmailIpRateLimit } from './email-ip-rate-limit.js'
+import { LIMIAR_MINIMO_DE_FALHAS_POR_IP, limiarDeFalhas, EscolaIpThrottle, SERIE_REBAIXADA_ESQUECIDA_APOS_MS, VALIDADE_DO_TAMANHO_DA_ESCOLA_MS } from './ip-throttle.js'
 
 const ESCOLA_A = '0190f5a0-0000-7000-8000-00000000000a'
 const ESCOLA_B = '0190f5a0-0000-7000-8000-00000000000b'
@@ -18,11 +18,11 @@ class JanelaDeTeste {
     return `${prefixo}:${identificador}`
   }
 
-  ler(chave: string): Promise<ContagemNaJanela> {
+  ler(chave: string): Promise<WindowCount> {
     return Promise.resolve({ valor: this.valores.get(chave) ?? 0, doSeguro: this.doSeguro })
   }
 
-  somar(chave: string): Promise<ContagemNaJanela> {
+  somar(chave: string): Promise<WindowCount> {
     const valor = (this.valores.get(chave) ?? 0) + 1
     this.valores.set(chave, valor)
     return Promise.resolve({ valor, doSeguro: this.doSeguro })
@@ -57,7 +57,7 @@ describe('RebaixamentoPorEscola', () => {
     const relogio = relogioParado()
     let escolaDoContexto = ESCOLA_A
     const alunosAtivos = vi.fn(() => Promise.resolve(alunos[escolaDoContexto] ?? 0))
-    const rebaixamento = new RebaixamentoPorEscola({ janela, alunosAtivos, instancias, medidor: medidor.medidor, relogio })
+    const rebaixamento = new EscolaIpThrottle({ janela, alunosAtivos, instancias, medidor: medidor.medidor, relogio })
     const falhas = async (ip: string, escolaId: string, quantidade: number) => {
       escolaDoContexto = escolaId
       for (let falha = 0; falha < quantidade; falha++) await rebaixamento.contarFalha(ip, escolaId)
@@ -154,7 +154,7 @@ describe('LimiteDoEmailPorIp', () => {
   function montar(escolasDaRede: Record<string, number>, limitePorMinuto = 60, instancias = 2) {
     const janela = new JanelaDeTeste()
     const consultaRede = vi.fn((ip: string) => Promise.resolve(escolasDaRede[ip] ?? 0))
-    const limite = new LimiteDoEmailPorIp({ janela, limitePorMinuto, escolasDaRede: consultaRede, instancias, medidor: medidor.medidor, relogio: relogioParado() })
+    const limite = new EmailIpRateLimit({ janela, limitePorMinuto, escolasDaRede: consultaRede, instancias, medidor: medidor.medidor, relogio: relogioParado() })
     const tentativas = async (ip: string, quantidade: number, conhecido = false) => {
       const resultados: boolean[] = []
       for (let tentativa = 0; tentativa < quantidade; tentativa++) resultados.push(await limite.rebaixar(ip, conhecido))
@@ -201,7 +201,7 @@ describe('LimiteDoEmailPorIp', () => {
   it('falha: com o banco com erro na leitura da rede, o IP vale como de rede nenhuma (limite simples), sem 500 e sem guardar o erro', async () => {
     const janela = new JanelaDeTeste()
     const consultaRede = vi.fn(() => Promise.reject(new Error('banco fora')))
-    const limite = new LimiteDoEmailPorIp({ janela, limitePorMinuto: 60, escolasDaRede: consultaRede, instancias: 2, medidor: medidor.medidor, relogio: relogioParado() })
+    const limite = new EmailIpRateLimit({ janela, limitePorMinuto: 60, escolasDaRede: consultaRede, instancias: 2, medidor: medidor.medidor, relogio: relogioParado() })
     for (let tentativa = 0; tentativa < 60; tentativa++) expect(await limite.rebaixar(IP_DA_ESCOLA, false)).toBe(false)
     expect(await limite.rebaixar(IP_DA_ESCOLA, false)).toBe(true)
     expect(await limite.rebaixar(IP_DA_ESCOLA, false)).toBe(true)

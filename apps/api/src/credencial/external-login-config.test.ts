@@ -1,7 +1,7 @@
 import { InvalidConfigError, PROVEDORES_EXTERNOS } from '@educa/core'
 import { PROVEDORES_DE_CONTA_DA_ESCOLA } from '@educa/shared'
 import { describe, expect, it } from 'vitest'
-import { lerConfiguracaoLoginExterno, MOTIVO_CHAVE_DO_COOKIE, MOTIVO_EMISSOR_SEM_TLS, MOTIVO_PROVEDOR_INCOMPLETO, MOTIVO_RETORNO } from './external-login-config.js'
+import { loadExternalLoginConfig, MOTIVO_CHAVE_DO_COOKIE, MOTIVO_EMISSOR_SEM_TLS, MOTIVO_PROVEDOR_INCOMPLETO, MOTIVO_RETORNO } from './external-login-config.js'
 
 const CHAVE_DO_COOKIE_SINTETICA = 'chave-sintetica-do-cookie-do-login-externo-de-teste'
 
@@ -19,7 +19,7 @@ const BASE = {
 
 function erroDe(ambiente: Record<string, string>): InvalidConfigError {
   try {
-    lerConfiguracaoLoginExterno(ambiente)
+    loadExternalLoginConfig(ambiente)
   } catch (erro) {
     if (erro instanceof InvalidConfigError) return erro
     throw erro
@@ -33,14 +33,14 @@ describe('configuração do login pela conta da escola', () => {
   })
 
   it('sem variável de provedor, fica desligado, e nem retorno nem chave são exigidos (o compose sobe sem conta externa)', () => {
-    const configuracao = lerConfiguracaoLoginExterno({ AMBIENTE: 'producao' })
+    const configuracao = loadExternalLoginConfig({ AMBIENTE: 'producao' })
     expect(configuracao.provedores.size).toBe(0)
     expect(configuracao.retorno).toBeUndefined()
     expect(configuracao.chaveDoCookie).toBeUndefined()
   })
 
   it('com as três variáveis de um provedor, liga só ele, com a chave do cookie de 256 bits', () => {
-    const configuracao = lerConfiguracaoLoginExterno({ ...BASE, ...GOOGLE_LOCAL })
+    const configuracao = loadExternalLoginConfig({ ...BASE, ...GOOGLE_LOCAL })
     expect([...configuracao.provedores.keys()]).toEqual(['google'])
     expect(configuracao.provedores.get('google')?.emissor.href).toBe('http://oidc-falso:8080/google')
     expect(configuracao.chaveDoCookie?.length).toBe(32)

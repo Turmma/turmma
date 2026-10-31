@@ -4,7 +4,7 @@ import type { Redis } from 'ioredis'
 import { randomBytes, randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest'
 import { MedidorDeTeste, type PontoLido } from '../../../tools/testes/metricas.ts'
-import { CLIENTE_REDIS_LOGIN, ESPERA_MAXIMA_PELO_HASH_MS, HashDeSenha, RETRY_AFTER_MAXIMO_S, RETRY_AFTER_MINIMO_S } from '../src/credencial/index.js'
+import { REDIS_LOGIN_CLIENT, ESPERA_MAXIMA_PELO_HASH_MS, PasswordHasher, RETRY_AFTER_MAXIMO_S, RETRY_AFTER_MINIMO_S } from '../src/credencial/index.js'
 import { comoAWebNo503, PRAZO_DA_WEB_NO_503_MS, subirApi, type ApiDeTeste } from './test-api.js'
 import { BancadaDeSessoes } from './sessao.fixture.js'
 
@@ -47,19 +47,19 @@ describe('semáforo do hash no login: fila justa com prazo, sem revelar quem exi
   const bancada = new BancadaDeSessoes()
   const medidor = new MedidorDeTeste()
   let api: ApiDeTeste
-  let hash: HashDeSenha
-  let verificacoes: MockInstance<HashDeSenha['verificar']>
-  let verificarReal: HashDeSenha['verificar']
+  let hash: PasswordHasher
+  let verificacoes: MockInstance<PasswordHasher['verificar']>
+  let verificarReal: PasswordHasher['verificar']
   let hashDaSenha: string
   /** Tudo que identifica pessoa ou origem e passou pelo login: nada disso pode virar rótulo de métrica. */
   const naoPodemSerRotulo = new Set<string>(['127.0.0.1'])
 
   beforeAll(async () => {
     api = await subirApi(medidor.medidor, { ambiente: { LOGIN_HASH_CONCORRENCIA: CONCORRENCIA_DE_TESTE } })
-    hash = api.app.get(HashDeSenha)
+    hash = api.app.get(PasswordHasher)
     verificarReal = hash.verificar.bind(hash)
     verificacoes = vi.spyOn(hash, 'verificar')
-    await clientePronto(api.app.get<Redis>(CLIENTE_REDIS_LOGIN, { strict: false }))
+    await clientePronto(api.app.get<Redis>(REDIS_LOGIN_CLIENT, { strict: false }))
     hashDaSenha = await hash.gerar(SENHA)
   })
 

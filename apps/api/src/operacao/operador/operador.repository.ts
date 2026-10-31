@@ -14,7 +14,7 @@ import {
 } from '@educa/core'
 import { ErrorCode } from '@educa/shared'
 import { and, count, eq, exists, isNull, lt, or, sql } from 'drizzle-orm'
-import { DURACAO_DA_SESSAO_DE_OPERADOR_HORAS, type SessaoDeOperadorParaGuarda, type SessaoDeOperadorParaRenovar } from '../sessao/sessao-timeouts.js'
+import { DURACAO_DA_SESSAO_DE_OPERADOR_HORAS, type SessaoDeOperadorForGuard, type SessaoDeOperadorForRefresh } from '../sessao/sessao-timeouts.js'
 
 /**
  * Chave do `pg_advisory_xact_lock` que põe em fila o `criar` e o `desativar` do `ops:operador` (Tech Spec da A0, seção
@@ -206,10 +206,10 @@ export class OperadorRepository {
   }
 
   /**
-   * A sessão do token de operador, com o operador dela, para a `GuardaDeOperador`. Só casa a sessão **deste** operador:
+   * A sessão do token de operador, com o operador dela, para a `OperadorGuard`. Só casa a sessão **deste** operador:
    * um `sid` de outro operador no token não lê nada.
    */
-  async lerSessaoParaGuarda(sessaoId: string, operadorId: string): Promise<SessaoDeOperadorParaGuarda | undefined> {
+  async lerSessaoParaGuarda(sessaoId: string, operadorId: string): Promise<SessaoDeOperadorForGuard | undefined> {
     const [linha] = await this.banco
       .select({
         encerradaEm: sessaoOperador.encerradaEm,
@@ -250,7 +250,7 @@ export class OperadorRepository {
    * A sessão do cookie de renovação, pelo hash do refresh atual **ou** do anterior, com o operador dela e a hora do
    * banco. Sem trava: quem decide a corrida é a condição do `rotacionarSessao`.
    */
-  async sessaoParaRenovar(refreshHash: string): Promise<SessaoDeOperadorParaRenovar | undefined> {
+  async sessaoParaRenovar(refreshHash: string): Promise<SessaoDeOperadorForRefresh | undefined> {
     const [linha] = await this.banco
       .select({
         id: sessaoOperador.id,

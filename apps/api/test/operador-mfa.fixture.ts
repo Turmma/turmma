@@ -7,10 +7,10 @@ import type { AddressInfo } from 'node:net'
 import { Secret, TOTP } from 'otpauth'
 import { expect } from 'vitest'
 import { AppModule } from '../src/app.module.js'
-import type { ConfiguracaoApi } from '../src/config.js'
-import { configurarAplicacao } from '../src/configure-app.js'
-import { EmissorDeDesafioDeOperador, type EtapaDoDesafioDeOperador } from '../src/operacao/operador-challenge.js'
-import { CifraDoSegredo, gerarCodigosDeRecuperacao, gerarSegredo, hmacDaRecuperacao, PERIODO_TOTP_SEGUNDOS } from '../src/credencial/index.js'
+import type { ApiConfig } from '../src/config.js'
+import { configureApp } from '../src/configure-app.js'
+import { OperadorChallengeIssuer, type OperadorChallengeStep } from '../src/operacao/operador-challenge.js'
+import { SecretCipher, gerarCodigosDeRecuperacao, gerarSegredo, hmacDaRecuperacao, PERIODO_TOTP_SEGUNDOS } from '../src/credencial/index.js'
 import { configuracaoDeTeste, MONTAGEM_DE_TESTE } from './test-config.js'
 
 /**
@@ -69,16 +69,16 @@ export const ipSorteado = () => `10.${[...randomBytes(3)].join('.')}`
 export const doIp = (ip = ipSorteado()): Cabecalhos => ({ 'X-Forwarded-For': ip })
 
 export async function subir(
-  config: ConfiguracaoApi = configuracaoDeTeste({ ambiente: { LIMITE_PROXIES_CONFIAVEIS: '127.0.0.1' } }),
+  config: ApiConfig = configuracaoDeTeste({ ambiente: { LIMITE_PROXIES_CONFIAVEIS: '127.0.0.1' } }),
   linhasDeLog?: string[],
   medidor?: Meter,
 ): Promise<{ app: INestApplication; url: string }> {
-  const app = await NestFactory.create(AppModule.com(config, { ...MONTAGEM_DE_TESTE, ...(medidor === undefined ? {} : { medidor }) }), { logger: false })
+  const app = await NestFactory.create(AppModule.forRoot(config, { ...MONTAGEM_DE_TESTE, ...(medidor === undefined ? {} : { medidor }) }), { logger: false })
   const logger =
     linhasDeLog === undefined
       ? createLogger({ servico: 'api-teste', nivel: 'silent' })
       : createLogger({ servico: 'api-teste', nivel: 'trace', destino: { write: (linha: string) => linhasDeLog.push(linha) } })
-  configurarAplicacao(app, logger, medidor)
+  configureApp(app, logger, medidor)
   await app.listen(0, '127.0.0.1')
   return { app, url: `http://127.0.0.1:${(app.getHttpServer().address() as AddressInfo).port}` }
 }
@@ -110,17 +110,17 @@ export function codigoDoPasso(base32: string, passo: number): string {
 }
 
 const configuracao = configuracaoDeTeste()
-const emissorDeDesafio = new EmissorDeDesafioDeOperador(configuracao.identidade.chaveAssinatura)
-const cifra = new CifraDoSegredo(configuracao.login.mfa.versaoCifra, configuracao.login.mfa.chavesCifra)
+const emissorDeDesafio = new OperadorChallengeIssuer(configuracao.identidade.chaveAssinatura)
+const cifra = new SecretCipher(configuracao.login.mfa.versaoCifra, configuracao.login.mfa.chavesCifra)
 
 /** Um desafio de operador emitido com a chave de produção: o que o aceite, a entrada ou o configurar devolveriam. */
-export function desafio(operadorId: string, etapa: EtapaDoDesafioDeOperador, versao?: number): Promise<string> {
+export function desafio(operadorId: string, etapa: OperadorChallengeStep, versao?: number): Promise<string> {
   return emissorDeDesafio.emitir({ operadorId, etapa, ...(versao === undefined ? {} : { versao }) })
 }
 
 /** Um desafio assinado com outra chave: a referência da resposta de "desafio inválido". */
-export function desafioInvalido(operadorId: string, etapa: EtapaDoDesafioDeOperador): Promise<string> {
-  return new EmissorDeDesafioDeOperador(new TextEncoder().encode('outra_chave_sintetica_com_32_caracteres')).emitir({ operadorId, etapa })
+export function desafioInvalido(operadorId: string, etapa: OperadorChallengeStep): Promise<string> {
+  return new OperadorChallengeIssuer(new TextEncoder().encode('outra_chave_sintetica_com_32_caracteres')).emitir({ operadorId, etapa })
 }
 
 export const hmacDoCodigo = (codigo: string) => hmacDaRecuperacao(configuracao.login.mfa.chaveRecuperacao, codigo)

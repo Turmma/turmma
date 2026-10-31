@@ -12,12 +12,12 @@ import { z } from 'zod'
  * de etapa só aceitam `typ: desafio+jwt` com `aud: sessao` e recusam o token de acesso.
  */
 export { TIPO_DESAFIO }
-export const AUDIENCIA_DESAFIO = 'sessao'
-export const VALIDADE_DESAFIO_SEGUNDOS = 5 * 60
+export const CHALLENGE_AUDIENCE = 'sessao'
+export const CHALLENGE_TTL_SECONDS = 5 * 60
 /** Prefixo da marca de desafio já usado, no Redis de fila (que não expulsa chave). */
-export const PREFIXO_DESAFIO_USADO = 'desafio:usado:'
+export const USED_CHALLENGE_PREFIX = 'desafio:usado:'
 
-export interface PedidoDeDesafio {
+export interface ChallengeRequest {
   readonly contaId: string
   readonly etapa: EtapaComDesafio
   /** Se o segundo fator já foi cumprido nesta entrada: a troca para uma escola em que a pessoa é coordenadora o exige. */
@@ -45,12 +45,12 @@ export interface SessaoDeOrigemDaTroca {
   readonly sessaoId: string
 }
 
-export interface DesafioVerificado extends PedidoDeDesafio {
+export interface VerifiedChallenge extends ChallengeRequest {
   readonly jti: string
   readonly expiraEm: Date
 }
 
-const esquemaClaims = z.object({
+const claimsSchema = z.object({
   jti: z.uuid(),
   exp: z.number().int(),
   conta_id: z.uuid(),
@@ -66,13 +66,13 @@ const esquemaClaims = z.object({
  * Emite o desafio de 5 min. Leva só ids, a etapa, o MFA e, no `mfa`, o convite ou o destino e a origem da troca de
  * escola: nada da pessoa (regra 20).
  */
-export class EmissorDeDesafio {
+export class ChallengeIssuer {
   constructor(
     private readonly chaveAssinatura: Uint8Array,
     private readonly relogio: Clock = systemClock,
   ) {}
 
-  async emitir(pedido: PedidoDeDesafio): Promise<string> {
+  async emitir(pedido: ChallengeRequest): Promise<string> {
     const emitidoEm = Math.floor(this.relogio.agora().getTime() / 1_000)
     const convite = pedido.conviteId === undefined ? {} : { convite_id: pedido.conviteId }
     const destino = pedido.destinoUsuarioId === undefined ? {} : { usuario_id: pedido.destinoUsuarioId }
@@ -80,10 +80,10 @@ export class EmissorDeDesafio {
     return new SignJWT({ conta_id: pedido.contaId, etapa: pedido.etapa, mfa_cumprido: pedido.mfaCumprido, ...convite, ...destino, ...origem })
       .setProtectedHeader({ alg: 'HS256', typ: TIPO_DESAFIO })
       .setIssuer(EMISSOR_TOKEN)
-      .setAudience(AUDIENCIA_DESAFIO)
+      .setAudience(CHALLENGE_AUDIENCE)
       .setJti(randomUUID())
       .setIssuedAt(emitidoEm)
-      .setExpirationTime(emitidoEm + VALIDADE_DESAFIO_SEGUNDOS)
+      .setExpirationTime(emitidoEm + CHALLENGE_TTL_SECONDS)
       .sign(this.chaveAssinatura)
   }
 }
@@ -91,25 +91,25 @@ export class EmissorDeDesafio {
 /**
  * Confere o desafio para as etapas que a rota aceita. Toda recusa é `NAO_AUTENTICADO`, sem dizer qual parte falhou:
  * token de acesso (`typ: JWT`, sem `aud`), desafio vencido, de outra etapa ou com assinatura que não confere.
- * Não consome o `jti`: quem conclui a etapa chama `ConsumoDeDesafio.consumir`.
+ * Não consome o `jti`: quem conclui a etapa chama `ChallengeConsumer.consumir`.
  */
-export async function verificarDesafio(desafio: string, chaveAssinatura: Uint8Array, etapas: readonly EtapaComDesafio[]): Promise<DesafioVerificado> {
+export async function verifyChallenge(desafio: string, chaveAssinatura: Uint8Array, etapas: readonly EtapaComDesafio[]): Promise<VerifiedChallenge> {
   let claims: unknown
   try {
     const verificado = await jwtVerify(desafio, chaveAssinatura, {
       algorithms: ['HS256'],
       typ: TIPO_DESAFIO,
       issuer: EMISSOR_TOKEN,
-      audience: AUDIENCIA_DESAFIO,
+      audience: CHALLENGE_AUDIENCE,
       requiredClaims: ['exp', 'jti'],
-      maxTokenAge: VALIDADE_DESAFIO_SEGUNDOS,
+      maxTokenAge: CHALLENGE_TTL_SECONDS,
     })
     claims = verificado.payload
   } catch (erro) {
     if (erro instanceof errors.JOSEError) throw new DomainException(ErrorCode.NAO_AUTENTICADO)
     throw erro
   }
-  const resultado = esquemaClaims.safeParse(claims)
+  const resultado = claimsSchema.safeParse(claims)
   if (!resultado.success || !etapas.includes(resultado.data.etapa)) throw new DomainException(ErrorCode.NAO_AUTENTICADO)
   const { jti, exp, conta_id: contaId, etapa, mfa_cumprido: mfaCumprido, convite_id: conviteId, usuario_id: destinoUsuarioId, origem_esc: origemEsc, origem_sid: origemSid } = resultado.data
   // A origem vem inteira ou não vem: metade dela não encerra sessão nenhuma.
@@ -134,7 +134,7 @@ export async function verificarDesafio(desafio: string, chaveAssinatura: Uint8Ar
  * e entra em `proporcaoDoSeguro`, que soma no `limite.seguro_ativo`: o coordenador que cai de volta ao login deixa a
  * causa à vista, e o alerta "Seguro de limite ativo" avisa.
  */
-export class ConsumoDeDesafio {
+export class ChallengeConsumer {
   readonly #logger = new Logger('login')
   readonly #proporcaoDoSeguro: SlidingWindowRatio
   readonly #avisarSemRedis = throttledWarn(() => this.#logger.warn('login.desafio_sem_redis'))
@@ -157,11 +157,11 @@ export class ConsumoDeDesafio {
    * Antes de conferir o fator: recusa o desafio já usado (concluído, ou consumido pelo quinto erro), e recusa também
    * com o Redis fora ou sem resposta, sem esperar: sem a marca, não dá para saber se ele ainda vale. Não consome.
    */
-  async conferirLivre(desafio: Pick<DesafioVerificado, 'jti'>): Promise<void> {
+  async conferirLivre(desafio: Pick<VerifiedChallenge, 'jti'>): Promise<void> {
     if (this.cliente.status !== 'ready') throw this.#semRedis()
     let usado: number
     try {
-      usado = await this.cliente.exists(`${PREFIXO_DESAFIO_USADO}${desafio.jti}`)
+      usado = await this.cliente.exists(`${USED_CHALLENGE_PREFIX}${desafio.jti}`)
     } catch {
       throw this.#semRedis()
     }
@@ -169,11 +169,11 @@ export class ConsumoDeDesafio {
     if (usado !== 0) throw new DomainException(ErrorCode.NAO_AUTENTICADO)
   }
 
-  async consumir(desafio: Pick<DesafioVerificado, 'jti' | 'expiraEm'>): Promise<void> {
+  async consumir(desafio: Pick<VerifiedChallenge, 'jti' | 'expiraEm'>): Promise<void> {
     const prazoMs = Math.max(1, desafio.expiraEm.getTime() - this.relogio.agora().getTime())
     let marcado: string | null
     try {
-      marcado = await this.cliente.set(`${PREFIXO_DESAFIO_USADO}${desafio.jti}`, '1', 'PX', prazoMs, 'NX')
+      marcado = await this.cliente.set(`${USED_CHALLENGE_PREFIX}${desafio.jti}`, '1', 'PX', prazoMs, 'NX')
     } catch {
       throw this.#semRedis()
     }

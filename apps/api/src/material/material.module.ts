@@ -1,12 +1,12 @@
 import type { Database, LoggerBase } from '@educa/core'
 import { Global, Module, type BeforeApplicationShutdown, type DynamicModule, type OnApplicationBootstrap } from '@nestjs/common'
-import { BANCO } from '../database.module.js'
-import { BuscaDeTrechos } from './trecho-search.js'
-import { ExtratorDePdf } from './pdf-extraction.js'
-import { FilaDeExtracao } from './extraction-queue.js'
+import { DB } from '../database.module.js'
+import { TrechoSearch } from './trecho-search.js'
+import { PdfExtractor } from './pdf-extraction.js'
+import { ExtractionQueue } from './extraction-queue.js'
 import { MaterialController } from './material.controller.js'
 import { INTERVALO_DA_VARREDURA_MS, MaterialService } from './material.service.js'
-import { GuardaDoEnvio } from './material-upload.js'
+import { MaterialUploadGuard } from './material-upload.js'
 
 /**
  * O que o módulo faz na subida e na descida do processo, para nenhum material ficar `processando` sem ninguém lendo:
@@ -16,12 +16,12 @@ import { GuardaDoEnvio } from './material-upload.js'
  * - **na descida** (deploy, SIGTERM), antes de o pool do banco fechar, a fila aborta o que está lendo e cada material
  *   grava a própria falha na hora, sem esperar a varredura.
  */
-export class CicloDaExtracao implements OnApplicationBootstrap, BeforeApplicationShutdown {
+export class ExtractionLifecycle implements OnApplicationBootstrap, BeforeApplicationShutdown {
   #varredura: NodeJS.Timeout | undefined
 
   constructor(
     private readonly materiais: MaterialService,
-    private readonly fila: FilaDeExtracao,
+    private readonly fila: ExtractionQueue,
   ) {}
 
   async onApplicationBootstrap(): Promise<void> {
@@ -39,29 +39,29 @@ export class CicloDaExtracao implements OnApplicationBootstrap, BeforeApplicatio
 
 /**
  * O material da escola (MVP, A2; D5, D22, D75): as cinco rotas de `/v1/materiais`, a extração do PDF em segundo plano e
- * a busca de trechos. É global para o Assistente e o Tutor injetarem `BuscaDeTrechos` sem importar o módulo.
+ * a busca de trechos. É global para o Assistente e o Tutor injetarem `TrechoSearch` sem importar o módulo.
  */
 @Global()
 @Module({})
 export class MaterialModule {
-  /** @param logger o logger JSON do processo, o mesmo do `configurarAplicacao`: as linhas levam o id do material e medidas. */
-  static com(logger: LoggerBase): DynamicModule {
+  /** @param logger o logger JSON do processo, o mesmo do `configureApp`: as linhas levam o id do material e medidas. */
+  static forRoot(logger: LoggerBase): DynamicModule {
     return {
       module: MaterialModule,
       controllers: [MaterialController],
       providers: [
-        { provide: ExtratorDePdf, useValue: new ExtratorDePdf() },
-        { provide: FilaDeExtracao, useValue: new FilaDeExtracao() },
+        { provide: PdfExtractor, useValue: new PdfExtractor() },
+        { provide: ExtractionQueue, useValue: new ExtractionQueue() },
         {
           provide: MaterialService,
-          useFactory: (banco: Database, extrator: ExtratorDePdf, fila: FilaDeExtracao) => new MaterialService({ banco, extrator, fila, logger }),
-          inject: [BANCO, ExtratorDePdf, FilaDeExtracao],
+          useFactory: (banco: Database, extrator: PdfExtractor, fila: ExtractionQueue) => new MaterialService({ banco, extrator, fila, logger }),
+          inject: [DB, PdfExtractor, ExtractionQueue],
         },
-        { provide: BuscaDeTrechos, useFactory: (banco: Database) => new BuscaDeTrechos(banco), inject: [BANCO] },
-        { provide: CicloDaExtracao, useFactory: (materiais: MaterialService, fila: FilaDeExtracao) => new CicloDaExtracao(materiais, fila), inject: [MaterialService, FilaDeExtracao] },
-        GuardaDoEnvio,
+        { provide: TrechoSearch, useFactory: (banco: Database) => new TrechoSearch(banco), inject: [DB] },
+        { provide: ExtractionLifecycle, useFactory: (materiais: MaterialService, fila: ExtractionQueue) => new ExtractionLifecycle(materiais, fila), inject: [MaterialService, ExtractionQueue] },
+        MaterialUploadGuard,
       ],
-      exports: [BuscaDeTrechos],
+      exports: [TrechoSearch],
     }
   }
 }

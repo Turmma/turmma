@@ -1,9 +1,9 @@
 import type { Database } from '@educa/core'
 import { Module } from '@nestjs/common'
-import { LimiteDePedidosDeIa } from '../assistente/ai-request-rate-limit.js'
-import { BANCO } from '../database.module.js'
-import { AgendadorDeExecucoes } from '../ia/execucao.scheduler.js'
-import { BuscaDeTrechos } from '../material/trecho-search.js'
+import { IaRequestRateLimit } from '../assistente/ai-request-rate-limit.js'
+import { DB } from '../database.module.js'
+import { ExecucaoScheduler } from '../ia/execucao.scheduler.js'
+import { TrechoSearch } from '../material/trecho-search.js'
 import { ArtefatoController } from './artefato.controller.js'
 import { ArtefatoService } from './artefato.service.js'
 import { FerramentasController } from './ferramentas.controller.js'
@@ -19,13 +19,13 @@ import { FerramentasService } from './ferramentas.service.js'
   providers: [
     {
       provide: FerramentasService,
-      useFactory: (banco: Database, agendador: AgendadorDeExecucoes, limite: LimiteDePedidosDeIa, trechos: BuscaDeTrechos) => new FerramentasService(banco, agendador, limite, trechos),
-      inject: [BANCO, AgendadorDeExecucoes, LimiteDePedidosDeIa, BuscaDeTrechos],
+      useFactory: (banco: Database, agendador: ExecucaoScheduler, limite: IaRequestRateLimit, trechos: TrechoSearch) => new FerramentasService(banco, agendador, limite, trechos),
+      inject: [DB, ExecucaoScheduler, IaRequestRateLimit, TrechoSearch],
     },
     {
       provide: ArtefatoService,
-      useFactory: (banco: Database, agendador: AgendadorDeExecucoes, limite: LimiteDePedidosDeIa) => new ArtefatoService(banco, agendador, limite),
-      inject: [BANCO, AgendadorDeExecucoes, LimiteDePedidosDeIa],
+      useFactory: (banco: Database, agendador: ExecucaoScheduler, limite: IaRequestRateLimit) => new ArtefatoService(banco, agendador, limite),
+      inject: [DB, ExecucaoScheduler, IaRequestRateLimit],
     },
   ],
 })

@@ -1,15 +1,15 @@
 import type { Database } from '@educa/core'
 import { Module } from '@nestjs/common'
 import type { Redis } from 'ioredis'
-import { BANCO } from '../database.module.js'
-import { ConferenciaDeFuncao } from '../ia/funcao-suspension-check.js'
-import { CLIENTE_REDIS_LOGIN } from '../credencial/index.js'
+import { DB } from '../database.module.js'
+import { FuncaoSuspensionCheck } from '../ia/funcao-suspension-check.js'
+import { REDIS_LOGIN_CLIENT } from '../credencial/index.js'
 import { AtividadeAplicadaController } from './atividade-aplicada/atividade-aplicada.controller.js'
 import { AtividadeAplicadaService } from './atividade-aplicada/atividade-aplicada.service.js'
 import { CorrecaoService } from './correcao/correcao.service.js'
 import { DesempenhoController } from './desempenho/desempenho.controller.js'
 import { DesempenhoService } from './desempenho/desempenho.service.js'
-import { LeituraDoLote } from './correcao/lote-read-marker.js'
+import { LoteReadMarker } from './correcao/lote-read-marker.js'
 import { LoteController } from './correcao/lote.controller.js'
 import { MinhaAtividadeController } from './minha-atividade/minha-atividade.controller.js'
 import { MinhaAtividadeService } from './minha-atividade/minha-atividade.service.js'
@@ -24,11 +24,11 @@ import { MinhaAtividadeService } from './minha-atividade/minha-atividade.service
 @Module({
   controllers: [AtividadeAplicadaController, MinhaAtividadeController, LoteController, DesempenhoController],
   providers: [
-    { provide: LeituraDoLote, useFactory: (cliente: Redis) => new LeituraDoLote(cliente), inject: [CLIENTE_REDIS_LOGIN] },
-    { provide: AtividadeAplicadaService, useFactory: (banco: Database, conferencia: ConferenciaDeFuncao) => new AtividadeAplicadaService(banco, conferencia), inject: [BANCO, ConferenciaDeFuncao] },
-    { provide: CorrecaoService, useFactory: (banco: Database, leitura: LeituraDoLote) => new CorrecaoService(banco, leitura), inject: [BANCO, LeituraDoLote] },
-    { provide: MinhaAtividadeService, useFactory: (banco: Database) => new MinhaAtividadeService(banco), inject: [BANCO] },
-    { provide: DesempenhoService, useFactory: (banco: Database) => new DesempenhoService(banco), inject: [BANCO] },
+    { provide: LoteReadMarker, useFactory: (cliente: Redis) => new LoteReadMarker(cliente), inject: [REDIS_LOGIN_CLIENT] },
+    { provide: AtividadeAplicadaService, useFactory: (banco: Database, conferencia: FuncaoSuspensionCheck) => new AtividadeAplicadaService(banco, conferencia), inject: [DB, FuncaoSuspensionCheck] },
+    { provide: CorrecaoService, useFactory: (banco: Database, leitura: LoteReadMarker) => new CorrecaoService(banco, leitura), inject: [DB, LoteReadMarker] },
+    { provide: MinhaAtividadeService, useFactory: (banco: Database) => new MinhaAtividadeService(banco), inject: [DB] },
+    { provide: DesempenhoService, useFactory: (banco: Database) => new DesempenhoService(banco), inject: [DB] },
   ],
 })
 export class AtividadeModule {}

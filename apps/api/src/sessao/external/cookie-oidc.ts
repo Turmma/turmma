@@ -33,7 +33,7 @@ export interface LoginExternoEmAndamento {
 
 const aleatorio = z.string().regex(/^[\w-]{16,128}$/)
 
-const esquemaDoConteudo = z
+const conteudoSchema = z
   .object({
     escolaId: z.uuid(),
     slug: z.string().min(1).max(64),
@@ -95,7 +95,7 @@ export class CookieOidc {
     } catch {
       return undefined
     }
-    const lido = esquemaDoConteudo.safeParse(conteudo)
+    const lido = conteudoSchema.safeParse(conteudo)
     if (!lido.success) return undefined
     const { emitidoEm, ...emAndamento } = lido.data
     const idade = this.agora() - emitidoEm

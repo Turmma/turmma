@@ -27,7 +27,7 @@ export interface RequestContext {
    */
   readonly rotinaDoSistema?: true
   /**
-   * O operador Turmma da sessão de operador que a `GuardaDeOperador` conferiu (Tech Spec da A0, seção 5). É a única
+   * O operador Turmma da sessão de operador que a `OperadorGuard` conferiu (Tech Spec da A0, seção 5). É a única
    * identidade da área da operação: nunca vem junto de escola, usuário, papel, sessão de escola nem ano letivo, e por
    * isso todo repository de escola chamado numa rota de operador falha com erro (`requireEscolaId`).
    */
@@ -109,7 +109,7 @@ export function setContextSessao(sessao: RequestSessao): void {
 
 
 /**
- * Grava no contexto o operador da sessão de operador que a `GuardaDeOperador` conferiu, e só ele: sem escola, usuário,
+ * Grava no contexto o operador da sessão de operador que a `OperadorGuard` conferiu, e só ele: sem escola, usuário,
  * papel, sessão nem ano letivo. Vale uma vez, como a sessão de escola, e nunca depois dela: sem contexto, ou com
  * qualquer identidade já gravada, falha fechada.
  */
@@ -119,7 +119,7 @@ export function setContextOperador(operadorId: string): void {
 }
 
 /**
- * O operador da requisição em andamento, gravado pela `GuardaDeOperador`. Sem ele, falha fechada: é erro de programação
+ * O operador da requisição em andamento, gravado pela `OperadorGuard`. Sem ele, falha fechada: é erro de programação
  * (rota da operação sem a guarda), e nunca vira consulta sem operador.
  */
 export function requireContextOperador(): string {

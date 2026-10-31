@@ -16,9 +16,9 @@ import { pathToFileURL } from 'node:url'
 import { parseArgs } from 'node:util'
 import { z } from 'zod'
 import { AcessoDaEscolaRepository } from '../credencial/index.js'
-import { abrirBancoDeOperacao, ArgumentoInvalido, autorDoComando, lerOperador, OperadorRecusado, type BancoDoComando, type SaidaDoComando } from './command.js'
+import { abrirBancoDeOperacao, InvalidArgumentError, autorDoComando, lerOperador, OperadorRejectedError, type CommandDatabase, type CommandOutput } from './command.js'
 import { OperacaoPrivacidadeRepository } from './operacao-privacidade.repository.js'
-import type { ConferenciaDoAutor } from '../sessao/index.js'
+import type { AuthorCheck } from '../sessao/index.js'
 
 const registro = new AuditoriaRecorder()
 
@@ -61,13 +61,13 @@ export type PedidoDeSuboperador =
 const SEM_CONTROLE = /^[^\p{Cc}]+$/u
 const MAXIMO_DE_ESCOLAS = 200
 
-const esquemaChave = z.string().regex(FORMATO_DA_CHAVE_DO_SUBOPERADOR)
-const esquemaNomeDaEmpresa = z.string().trim().min(1).max(MAXIMO_DO_NOME_DO_SUBOPERADOR).regex(SEM_CONTROLE)
-const esquemaFinalidade = z.string().trim().min(1).max(MAXIMO_DA_FINALIDADE_DO_SUBOPERADOR).regex(SEM_CONTROLE)
-const esquemaPais = z.string().regex(FORMATO_DO_PAIS_DO_SUBOPERADOR)
-const esquemaContrato = z.string().regex(FORMATO_DO_CONTRATO_DO_SUBOPERADOR)
-const esquemaCategorias = z.array(z.enum(CHAVES_DE_CATEGORIA_DO_SUBOPERADOR)).min(1)
-const esquemaEscolas = z.array(z.uuid()).min(1).max(MAXIMO_DE_ESCOLAS)
+const chaveSchema = z.string().regex(FORMATO_DA_CHAVE_DO_SUBOPERADOR)
+const nomeDaEmpresaSchema = z.string().trim().min(1).max(MAXIMO_DO_NOME_DO_SUBOPERADOR).regex(SEM_CONTROLE)
+const finalidadeSchema = z.string().trim().min(1).max(MAXIMO_DA_FINALIDADE_DO_SUBOPERADOR).regex(SEM_CONTROLE)
+const paisSchema = z.string().regex(FORMATO_DO_PAIS_DO_SUBOPERADOR)
+const contratoSchema = z.string().regex(FORMATO_DO_CONTRATO_DO_SUBOPERADOR)
+const categoriasSchema = z.array(z.enum(CHAVES_DE_CATEGORIA_DO_SUBOPERADOR)).min(1)
+const escolasSchema = z.array(z.uuid()).min(1).max(MAXIMO_DE_ESCOLAS)
 
 function lerOpcoes(argumentos: string[]) {
   try {
@@ -89,20 +89,20 @@ function lerOpcoes(argumentos: string[]) {
     })
   } catch {
     // O erro do parseArgs repete o argumento recebido; a mensagem fica só com as opções aceitas.
-    throw new ArgumentoInvalido('--chave, --nome, --finalidade, --pais, --categorias, --contrato, --veda-treinamento, --todas ou --escolas')
+    throw new InvalidArgumentError('--chave, --nome, --finalidade, --pais, --categorias, --contrato, --veda-treinamento, --todas ou --escolas')
   }
 }
 
-/** O valor conferido contra o esquema, ou `ArgumentoInvalido` com o nome da opção e nunca o valor. */
+/** O valor conferido contra o esquema, ou `InvalidArgumentError` com o nome da opção e nunca o valor. */
 function conferido<Valor>(esquema: z.ZodType<Valor>, valor: unknown, opcao: string): Valor {
   const lido = esquema.safeParse(valor)
-  if (!lido.success) throw new ArgumentoInvalido(opcao)
+  if (!lido.success) throw new InvalidArgumentError(opcao)
   return lido.data
 }
 
 /** A lista separada por vírgula, sem repetição; cada item passa por `normalizar` depois do `trim`. */
 function listaDe(texto: string | undefined, opcao: string, normalizar: (item: string) => string): string[] {
-  if (texto === undefined) throw new ArgumentoInvalido(opcao)
+  if (texto === undefined) throw new InvalidArgumentError(opcao)
   const itens = texto.split(',').map((item) => normalizar(item.trim()))
   return [...new Set(itens)]
 }
@@ -110,22 +110,22 @@ function listaDe(texto: string | undefined, opcao: string, normalizar: (item: st
 export function lerPedidoDeSuboperador(argumentos: string[]): PedidoDeSuboperador {
   const { values: valores, positionals: posicionais } = lerOpcoes(argumentos)
   const comando = posicionais.join(' ')
-  if (comando !== 'cadastrar' && comando !== 'encerrar') throw new ArgumentoInvalido('comando (cadastrar | encerrar)')
-  const chave = conferido(esquemaChave, valores.chave, '--chave')
+  if (comando !== 'cadastrar' && comando !== 'encerrar') throw new InvalidArgumentError('comando (cadastrar | encerrar)')
+  const chave = conferido(chaveSchema, valores.chave, '--chave')
   if (comando === 'encerrar') {
     const sobra = ['nome', 'finalidade', 'pais', 'categorias', 'contrato', 'veda-treinamento', 'todas', 'escolas'].some((opcao) => valores[opcao as keyof typeof valores] !== undefined)
-    if (sobra) throw new ArgumentoInvalido('só --chave vale para encerrar')
+    if (sobra) throw new InvalidArgumentError('só --chave vale para encerrar')
     return { comando, chave }
   }
-  const nome = conferido(esquemaNomeDaEmpresa, valores.nome, '--nome')
-  const finalidade = conferido(esquemaFinalidade, valores.finalidade, '--finalidade')
-  const pais = conferido(esquemaPais, valores.pais, '--pais')
-  const categorias = conferido(esquemaCategorias, listaDe(valores.categorias, '--categorias', (item) => item), '--categorias')
-  const contrato = conferido(esquemaContrato, valores.contrato, '--contrato')
+  const nome = conferido(nomeDaEmpresaSchema, valores.nome, '--nome')
+  const finalidade = conferido(finalidadeSchema, valores.finalidade, '--finalidade')
+  const pais = conferido(paisSchema, valores.pais, '--pais')
+  const categorias = conferido(categoriasSchema, listaDe(valores.categorias, '--categorias', (item) => item), '--categorias')
+  const contrato = conferido(contratoSchema, valores.contrato, '--contrato')
   const veda = conferido(z.enum(['sim', 'nao']), valores['veda-treinamento'], '--veda-treinamento')
   const todas = valores.todas === true
-  if (todas === (valores.escolas !== undefined)) throw new ArgumentoInvalido('--todas ou --escolas, um dos dois')
-  const escolas = todas ? [] : conferido(esquemaEscolas, listaDe(valores.escolas, '--escolas', (item) => item.toLowerCase()), '--escolas')
+  if (todas === (valores.escolas !== undefined)) throw new InvalidArgumentError('--todas ou --escolas, um dos dois')
+  const escolas = todas ? [] : conferido(escolasSchema, listaDe(valores.escolas, '--escolas', (item) => item.toLowerCase()), '--escolas')
   return { comando, chave, nome, finalidade, pais, categorias, contrato, vedaTreinamento: veda === 'sim', alcance: todas ? 'todas' : 'lista', escolas }
 }
 
@@ -133,7 +133,7 @@ export function lerPedidoDeSuboperador(argumentos: string[]): PedidoDeSuboperado
  * Cadastra o suboperador, liga cada escola da lista no contexto dela e grava `suboperador.cadastrado`, na mesma transação,
  * com o autor conferido como primeira instrução. Devolve o id.
  */
-export function cadastrarSuboperador(banco: Database, autor: ConferenciaDoAutor, pedido: Extract<PedidoDeSuboperador, { comando: 'cadastrar' }>): Promise<{ suboperadorId: string; escolas: number }> {
+export function cadastrarSuboperador(banco: Database, autor: AuthorCheck, pedido: Extract<PedidoDeSuboperador, { comando: 'cadastrar' }>): Promise<{ suboperadorId: string; escolas: number }> {
   const requisicaoId = randomUUID()
   return runInContext({ requisicaoId }, () =>
     banco.transaction(async (tx) => {
@@ -159,7 +159,7 @@ export function cadastrarSuboperador(banco: Database, autor: ConferenciaDoAutor,
 }
 
 /** Encerra o suboperador vigente da chave e as ligações abertas dele, e grava `suboperador.encerrado`, numa transação só. */
-export function encerrarSuboperador(banco: Database, autor: ConferenciaDoAutor, pedido: Extract<PedidoDeSuboperador, { comando: 'encerrar' }>): Promise<{ suboperadorId: string; ligacoesEncerradas: number }> {
+export function encerrarSuboperador(banco: Database, autor: AuthorCheck, pedido: Extract<PedidoDeSuboperador, { comando: 'encerrar' }>): Promise<{ suboperadorId: string; ligacoesEncerradas: number }> {
   const requisicaoId = randomUUID()
   return runInContext({ requisicaoId }, () =>
     banco.transaction(async (tx) => {
@@ -195,8 +195,8 @@ const MENSAGEM_DO_OPERADOR: Partial<Record<ErrorCode, string>> = {
 export async function executarOpsSuboperador(
   argumentos: string[],
   ambiente: Record<string, string | undefined>,
-  terminal: SaidaDoComando,
-  abrirBanco: (ambiente: Record<string, string | undefined>) => BancoDoComando = abrirBancoDeOperacao,
+  terminal: CommandOutput,
+  abrirBanco: (ambiente: Record<string, string | undefined>) => CommandDatabase = abrirBancoDeOperacao,
 ): Promise<number> {
   try {
     const pedido = lerPedidoDeSuboperador(argumentos)
@@ -211,7 +211,7 @@ export async function executarOpsSuboperador(
       await fechar()
     }
   } catch (erro) {
-    if (erro instanceof ArgumentoInvalido || erro instanceof InvalidConfigError || erro instanceof OperadorRecusado) {
+    if (erro instanceof InvalidArgumentError || erro instanceof InvalidConfigError || erro instanceof OperadorRejectedError) {
       // Só o nome da opção ou da variável: nunca o valor.
       terminal.erro(`${erro.message}\n`)
       return 2

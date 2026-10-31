@@ -9,14 +9,14 @@ export const PRAZO_DA_EXTRACAO_MS = 45_000
  * O trabalho de uma extração. Recebe o sinal do prazo e **nunca rejeita**: quem o escreve grava a falha no material
  * (promessa rejeitada sem tratamento derruba o processo). Chamado com o sinal já abortado, só grava a falha.
  */
-export type TrabalhoDeExtracao = (sinal: AbortSignal) => Promise<void>
+export type ExtractionTask = (sinal: AbortSignal) => Promise<void>
 
 interface NaFila {
   readonly escolaId: string
-  readonly trabalho: TrabalhoDeExtracao
+  readonly trabalho: ExtractionTask
 }
 
-export interface OpcoesDaFila {
+export interface ExtractionQueueOptions {
   readonly aoMesmoTempo?: number
   readonly porEscola?: number
   readonly prazoMs?: number
@@ -45,7 +45,7 @@ const proximaVolta = (): Promise<void> => new Promise((resolver) => setImmediate
  * memória, as vagas deste processo (a vaga por escola é do despachante) e a varredura dos parados, que vira a
  * reconciliação da fila. O serviço, o repository e o contrato da API não mudam.
  */
-export class FilaDeExtracao {
+export class ExtractionQueue {
   readonly #fila: NaFila[] = []
   readonly #rodandoPorEscola = new Map<string, number>()
   readonly #controles = new Set<AbortController>()
@@ -56,14 +56,14 @@ export class FilaDeExtracao {
   #rodando = 0
   #encerrada = false
 
-  constructor(opcoes: OpcoesDaFila = {}) {
+  constructor(opcoes: ExtractionQueueOptions = {}) {
     this.#aoMesmoTempo = opcoes.aoMesmoTempo ?? EXTRACOES_AO_MESMO_TEMPO
     this.#porEscola = opcoes.porEscola ?? EXTRACOES_POR_ESCOLA
     this.#prazoMs = opcoes.prazoMs ?? PRAZO_DA_EXTRACAO_MS
   }
 
   /** Devolve na hora. Depois de `encerrar`, o trabalho é chamado já abortado: grava a falha e não lê nada. */
-  agendar(escolaId: string, trabalho: TrabalhoDeExtracao): void {
+  agendar(escolaId: string, trabalho: ExtractionTask): void {
     if (this.#encerrada) {
       this.#acompanhar(trabalho(AbortSignal.abort()))
       return
@@ -115,7 +115,7 @@ export class FilaDeExtracao {
     }
   }
 
-  async #comPrazo(trabalho: TrabalhoDeExtracao): Promise<void> {
+  async #comPrazo(trabalho: ExtractionTask): Promise<void> {
     const controle = new AbortController()
     this.#controles.add(controle)
     const prazo = setTimeout(() => controle.abort(), this.#prazoMs)

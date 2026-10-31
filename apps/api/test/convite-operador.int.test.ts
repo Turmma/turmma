@@ -8,13 +8,13 @@ import type { AddressInfo } from 'node:net'
 import { isDeepStrictEqual } from 'node:util'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { AppModule } from '../src/app.module.js'
-import { BANCO } from '../src/database.module.js'
-import { configurarAplicacao } from '../src/configure-app.js'
-import { verificarDesafioDeOperador } from '../src/operacao/operador-challenge.js'
+import { DB } from '../src/database.module.js'
+import { configureApp } from '../src/configure-app.js'
+import { verifyOperadorChallenge } from '../src/operacao/operador-challenge.js'
 import { hashDoTokenDeConvite } from '../src/operacao/token-do-convite.js'
 import { gerarConviteDeOperador } from '../src/ops/operador.js'
 import { criarConviteDeCoordenador } from '../src/sessao/index.js'
-import { HashDeSenha, SemaforoDeHash } from '../src/credencial/index.js'
+import { PasswordHasher, HashBulkhead } from '../src/credencial/index.js'
 import { cookieDeRenovacao } from './test-api.js'
 import { configuracaoDeTeste, MONTAGEM_DE_TESTE } from './test-config.js'
 import { caminhoConcreto, rotasDe } from './registered-routes.js'
@@ -74,8 +74,8 @@ const forma = (resposta: Resposta) => ({ status: resposta.status, corpo: semRequ
 const ipSorteado = () => `10.${[...randomBytes(3)].join('.')}`
 
 async function subir(config = configuracaoDeTeste()): Promise<{ app: INestApplication; url: string }> {
-  const app = await NestFactory.create(AppModule.com(config, MONTAGEM_DE_TESTE), { logger: false })
-  configurarAplicacao(app, createLogger({ servico: 'api-teste', nivel: 'silent' }))
+  const app = await NestFactory.create(AppModule.forRoot(config, MONTAGEM_DE_TESTE), { logger: false })
+  configureApp(app, createLogger({ servico: 'api-teste', nivel: 'silent' }))
   await app.listen(0, '127.0.0.1')
   return { app, url: `http://127.0.0.1:${(app.getHttpServer().address() as AddressInfo).port}` }
 }
@@ -104,13 +104,13 @@ describe('convite do operador: consultar e aceitar (tarefa 5.0)', () => {
   let app: INestApplication
   let url: string
   let banco: Database
-  let hash: HashDeSenha
+  let hash: PasswordHasher
   let autor: string
 
   beforeAll(async () => {
     ;({ app, url } = await subir(configuracaoDeTeste({ ambiente: { LIMITE_PROXIES_CONFIAVEIS: '127.0.0.1' } })))
-    banco = app.get<Database>(BANCO)
-    hash = app.get(HashDeSenha)
+    banco = app.get<Database>(DB)
+    hash = app.get(PasswordHasher)
     // O autor dos `ops:operador convite` dos testes: com um operador ativo, o comando exige um deles.
     autor = (await operadores.operador()).apelido
   })
@@ -223,7 +223,7 @@ describe('convite do operador: consultar e aceitar (tarefa 5.0)', () => {
       expect(Object.keys(aceite.corpo as object).sort()).toEqual(['desafio', 'etapa'])
       expect(corpo.etapa).toBe('configurar_mfa')
       const configuracao = configuracaoDeTeste()
-      await expect(verificarDesafioDeOperador(corpo.desafio, configuracao.identidade.chaveAssinatura, 'configurar_mfa')).resolves.toMatchObject({ operadorId: convite.operadorId, etapa: 'configurar_mfa' })
+      await expect(verifyOperadorChallenge(corpo.desafio, configuracao.identidade.chaveAssinatura, 'configurar_mfa')).resolves.toMatchObject({ operadorId: convite.operadorId, etapa: 'configurar_mfa' })
 
       const linha = await linhaDoOperador(convite.operadorId)
       expect(await hash.verificar(linha.senha_hash, SENHA)).toBe(true)
@@ -555,7 +555,7 @@ describe('convite do operador: o limite por IP (C32 e C33, parte)', () => {
 
   beforeAll(async () => {
     ;({ app, url } = await subir(configuracaoDeTeste({ ambiente: { LIMITE_REQ_IP_ANONIMO_MIN: String(LIMITE_POR_IP), LIMITE_PROXIES_CONFIAVEIS: '127.0.0.1' } })))
-    banco = app.get<Database>(BANCO)
+    banco = app.get<Database>(DB)
     autor = (await operadores.operador()).apelido
   })
 
@@ -578,7 +578,7 @@ describe('convite do operador: o limite por IP (C32 e C33, parte)', () => {
 
   it('C33: `convite/aceitar` acima do limite do IP não responde 429: o aceite vai para o fim do balde no semáforo do hash, e o de outro IP não', async () => {
     const [ip, outro] = [ipSorteado(), ipSorteado()]
-    const semaforo = app.get(SemaforoDeHash)
+    const semaforo = app.get(HashBulkhead)
     const vezes = vi.spyOn(semaforo, 'executar')
     try {
       // O dobro do limite, com tokens que não existem: nenhum 429.

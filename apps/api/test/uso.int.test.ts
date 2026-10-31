@@ -8,7 +8,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { lerAmbienteDeTeste, valorObrigatorio } from '../../../tools/ci/compose.ts'
 import { aguardarSaudavel, compose, composeOuFalha, PROCESSOS_DA_FILA } from '../../../tools/testes/compose.ts'
 import { AppModule } from '../src/app.module.js'
-import { configurarAplicacao } from '../src/configure-app.js'
+import { configureApp } from '../src/configure-app.js'
 import { configuracaoDeTeste, MONTAGEM_DE_TESTE } from './test-config.js'
 import { BancadaDeSessoes } from './sessao.fixture.js'
 
@@ -21,8 +21,8 @@ const redis = new Redis(URL_REDIS_FILA, { maxRetriesPerRequest: null })
 redis.on('error', () => undefined)
 
 async function subirApi(ambiente: Record<string, string> = {}): Promise<string> {
-  const app = await NestFactory.create(AppModule.com(configuracaoDeTeste({ ambiente }), MONTAGEM_DE_TESTE), { logger: false })
-  configurarAplicacao(app, createLogger({ servico: 'api-teste', nivel: 'silent' }))
+  const app = await NestFactory.create(AppModule.forRoot(configuracaoDeTeste({ ambiente }), MONTAGEM_DE_TESTE), { logger: false })
+  configureApp(app, createLogger({ servico: 'api-teste', nivel: 'silent' }))
   await app.listen(0, '127.0.0.1')
   apps.push(app)
   return `http://127.0.0.1:${(app.getHttpServer().address() as AddressInfo).port}`

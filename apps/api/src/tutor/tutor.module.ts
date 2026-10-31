@@ -1,10 +1,10 @@
 import type { Database, OrcamentoDeIa, SuspensaoDeFuncao } from '@educa/core'
 import { Module } from '@nestjs/common'
-import { LimiteDePedidosDeIa } from '../assistente/ai-request-rate-limit.js'
-import { BANCO } from '../database.module.js'
-import { AgendadorDeExecucoes } from '../ia/execucao.scheduler.js'
+import { IaRequestRateLimit } from '../assistente/ai-request-rate-limit.js'
+import { DB } from '../database.module.js'
+import { ExecucaoScheduler } from '../ia/execucao.scheduler.js'
 import { ORCAMENTO_DE_IA, SUSPENSAO_DE_FUNCAO } from '../ia/ia.module.js'
-import { BuscaDeTrechos } from '../material/trecho-search.js'
+import { TrechoSearch } from '../material/trecho-search.js'
 import { SinaisController } from './sinais.controller.js'
 import { SupervisaoDoTutorService } from './supervisao.service.js'
 import { TutorController } from './tutor.controller.js'
@@ -20,11 +20,11 @@ import { TutorService } from './tutor.service.js'
   providers: [
     {
       provide: TutorService,
-      useFactory: (banco: Database, agendador: AgendadorDeExecucoes, limite: LimiteDePedidosDeIa, trechos: BuscaDeTrechos, orcamento: OrcamentoDeIa, suspensao: SuspensaoDeFuncao) =>
+      useFactory: (banco: Database, agendador: ExecucaoScheduler, limite: IaRequestRateLimit, trechos: TrechoSearch, orcamento: OrcamentoDeIa, suspensao: SuspensaoDeFuncao) =>
         new TutorService(banco, agendador, limite, trechos, orcamento, suspensao),
-      inject: [BANCO, AgendadorDeExecucoes, LimiteDePedidosDeIa, BuscaDeTrechos, ORCAMENTO_DE_IA, SUSPENSAO_DE_FUNCAO],
+      inject: [DB, ExecucaoScheduler, IaRequestRateLimit, TrechoSearch, ORCAMENTO_DE_IA, SUSPENSAO_DE_FUNCAO],
     },
-    { provide: SupervisaoDoTutorService, useFactory: (banco: Database) => new SupervisaoDoTutorService(banco), inject: [BANCO] },
+    { provide: SupervisaoDoTutorService, useFactory: (banco: Database) => new SupervisaoDoTutorService(banco), inject: [DB] },
   ],
 })
 export class TutorModule {}

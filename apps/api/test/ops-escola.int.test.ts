@@ -7,9 +7,9 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { lerAmbienteDeTeste } from '../../../tools/ci/compose.ts'
 import { urlDoBancoDeTeste } from '../../../tools/testes/integracao.setup.ts'
 import { AppModule } from '../src/app.module.js'
-import { configurarAplicacao } from '../src/configure-app.js'
+import { configureApp } from '../src/configure-app.js'
 import { criarEscola, criarRede } from '../src/operacao/escola/escola.js'
-import { abrirBancoDeOperacao, executarOpsEscola, type BancoDoComando } from '../src/ops/escola.js'
+import { abrirBancoDeOperacao, executarOpsEscola, type CommandDatabase } from '../src/ops/escola.js'
 import { configuracaoDeTeste } from './test-config.js'
 
 /** O autor dos casos de uso chamados direto, sem o comando: fixo, sem conferir operador ativo. */
@@ -24,7 +24,7 @@ interface Execucao {
   erro: string
 }
 
-async function rodar(argumentos: string[], ambiente: Record<string, string | undefined>, abrirBanco?: (ambiente: Record<string, string | undefined>) => BancoDoComando): Promise<Execucao> {
+async function rodar(argumentos: string[], ambiente: Record<string, string | undefined>, abrirBanco?: (ambiente: Record<string, string | undefined>) => CommandDatabase): Promise<Execucao> {
   let saida = ''
   let erro = ''
   const terminal = { saida: (texto: string) => (saida += texto), erro: (texto: string) => (erro += texto) }
@@ -177,12 +177,12 @@ interface RotaRegistrada {
  * Rotas de escrita com `rede(s)` ou `escola(s)` em qualquer segmento fixo que já foram conferidas. Quem acrescentar uma
  * rota dessas a declara aqui, e a revisão confere:
  * - `POST /v1/operacao/redes` e `POST /v1/operacao/escolas` (A0b, tarefa 1.0): as únicas que criam rede e escola, pelo
- *   painel da operação. São `@RotaDeOperacao`: só a sessão de operador Turmma as alcança, e credencial de escola
+ *   painel da operação. São `@OperacaoRoute`: só a sessão de operador Turmma as alcança, e credencial de escola
  *   responde como rota inexistente (C41 e C46). Não é cadastro público (D2).
  *
  * As outras não criam rede nem escola:
  * - `POST /v1/operacao/escolas/:id/convite-coordenacao` (A0b, tarefa 2.0): gera o convite da primeira coordenação de uma
- *   escola que já existe (escola inexistente é `NAO_ENCONTRADO`, sem gravar nada); `@RotaDeOperacao`, como as duas acima.
+ *   escola que já existe (escola inexistente é `NAO_ENCONTRADO`, sem gravar nada); `@OperacaoRoute`, como as duas acima.
  * - `PUT /v1/escola/sessao` (5.0): muda a inatividade da escola da sessão, que já existe; não recebe escola nenhuma.
  * - `POST /v1/sessao/escola` (12.0): escolhe ou troca a escola da sessão entre os usuários ativos da conta; recebe só o
  *   `usuarioId`, e a escola vem do banco. Não cria escola nem rede.
@@ -212,8 +212,8 @@ describe('permissão: nenhuma rota da API cria rede nem escola, fora das duas do
 
   beforeAll(async () => {
     // Com as rotas sintéticas ligadas: a lista inclui toda rota que alguma configuração registra.
-    app = await NestFactory.create(AppModule.com(configuracaoDeTeste({ ambiente: { ROTAS_SINTETICAS: 'true' } })), { logger: false })
-    configurarAplicacao(app, createLogger({ servico: 'api-teste', nivel: 'silent' }))
+    app = await NestFactory.create(AppModule.forRoot(configuracaoDeTeste({ ambiente: { ROTAS_SINTETICAS: 'true' } })), { logger: false })
+    configureApp(app, createLogger({ servico: 'api-teste', nivel: 'silent' }))
     await app.init()
   })
 

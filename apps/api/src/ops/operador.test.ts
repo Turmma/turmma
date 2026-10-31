@@ -3,7 +3,7 @@ import { existsSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { afterAll, describe, expect, it, vi } from 'vitest'
-import { ArgumentoInvalido } from './command.js'
+import { InvalidArgumentError } from './command.js'
 import { executarOpsOperador, lerPedidoDeOperador } from './operador.js'
 
 const NOME = 'Pessoa Sintética da Equipe'
@@ -32,7 +32,7 @@ describe('ops:operador: leitura do pedido (U1: o apelido segue o FORMATO_OPERADO
     ['vazio', ''],
   ])('apelido fora do FORMATO_OPERADOR (%s) é recusado citando só a opção', (_caso, apelido) => {
     const ler = () => lerPedidoDeOperador(['desativar', '--apelido', apelido])
-    expect(ler).toThrow(new ArgumentoInvalido('--apelido'))
+    expect(ler).toThrow(new InvalidArgumentError('--apelido'))
     if (apelido !== '') expect(ler).not.toThrow(apelido)
   })
 
@@ -44,12 +44,12 @@ describe('ops:operador: leitura do pedido (U1: o apelido segue o FORMATO_OPERADO
   it('"rotina" está no formato, mas é o autor reservado da eliminação e do expurgo e não vira apelido', () => {
     for (const acao of ['criar', 'desativar', 'convite']) {
       const resto = acao === 'criar' ? ['--nome', NOME, '--email', EMAIL, '--saida', 'x.txt'] : acao === 'convite' ? ['--saida', 'x.txt'] : []
-      expect(() => lerPedidoDeOperador([acao, '--apelido', 'rotina', ...resto]), acao).toThrow(new ArgumentoInvalido('--apelido'))
+      expect(() => lerPedidoDeOperador([acao, '--apelido', 'rotina', ...resto]), acao).toThrow(new InvalidArgumentError('--apelido'))
     }
   })
 
   it('"bootstrap" está no formato, mas é o autor reservado do nascimento e não vira apelido', () => {
-    expect(() => lerPedidoDeOperador(['criar', '--apelido', 'bootstrap', '--nome', NOME, '--email', EMAIL, '--saida', 'x.txt'])).toThrow(new ArgumentoInvalido('--apelido'))
+    expect(() => lerPedidoDeOperador(['criar', '--apelido', 'bootstrap', '--nome', NOME, '--email', EMAIL, '--saida', 'x.txt'])).toThrow(new InvalidArgumentError('--apelido'))
   })
 
   it.each([
@@ -63,12 +63,12 @@ describe('ops:operador: leitura do pedido (U1: o apelido segue o FORMATO_OPERADO
     ['criar com e-mail inválido', ['criar', '--apelido', 'joaquim', '--nome', NOME, '--email', 'sem-arroba', '--saida', 'x.txt'], '--email'],
     ['convite sem --saida', ['convite', '--apelido', 'joaquim'], '--saida'],
   ])('%s: recusado pela opção', (_caso, argumentos, opcao) => {
-    expect(() => lerPedidoDeOperador(argumentos)).toThrow(new ArgumentoInvalido(opcao))
+    expect(() => lerPedidoDeOperador(argumentos)).toThrow(new InvalidArgumentError(opcao))
   })
 
   it('opção desconhecida não repete o valor recebido', () => {
     const ler = () => lerPedidoDeOperador(['desativar', '--apelido', 'joaquim', '--senha', 'segredo_sintetico'])
-    expect(ler).toThrow(ArgumentoInvalido)
+    expect(ler).toThrow(InvalidArgumentError)
     expect(ler).not.toThrow(/segredo_sintetico/)
   })
 })

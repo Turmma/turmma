@@ -1,7 +1,7 @@
 import type { ProvedorExterno } from '@educa/core'
 import * as oidc from 'openid-client'
-import type { ConfiguracaoLoginExterno, ProvedorConfigurado } from '../../credencial/external-login-config.js'
-import { ProvedorExternoFalhou, type ContaNoProvedor, type ConferenciasDoRetorno, type InicioNoProvedor, type ProvedorExternoPort } from './external-provider.port.js'
+import type { ExternalLoginConfig, ProvedorConfigurado } from '../../credencial/external-login-config.js'
+import { ExternalProviderError, type ContaNoProvedor, type ConferenciasDoRetorno, type InicioNoProvedor, type ExternalProviderPort } from './external-provider.port.js'
 
 /** Prazo de cada operação com o provedor, somando discovery, token e chaves: o login não fica pendurado nele (regra 80). */
 export const PRAZO_DO_PROVEDOR_MS = 5_000
@@ -23,7 +23,7 @@ function texto(valor: unknown): string | undefined {
 async function comPrazo<T>(operacao: Promise<T>, prazoMs: number): Promise<T> {
   let temporizador: NodeJS.Timeout | undefined
   const prazo = new Promise<never>((_, rejeitar) => {
-    temporizador = setTimeout(() => rejeitar(new ProvedorExternoFalhou()), prazoMs)
+    temporizador = setTimeout(() => rejeitar(new ExternalProviderError()), prazoMs)
   })
   try {
     return await Promise.race([operacao, prazo])
@@ -44,14 +44,14 @@ async function comPrazo<T>(operacao: Promise<T>, prazoMs: number): Promise<T> {
  *   Na Microsoft, a biblioteca aceita o emissor de qualquer tenant (`{tenantid}`); a lista de tenants aceitos é da escola,
  *   conferida no serviço.
  * - **Nada sai daqui:** tokens e claims ficam neste método. O erro da biblioteca, que pode trazer o corpo da resposta,
- *   vira `ProvedorExternoFalhou`, sem causa e sem mensagem do provedor.
+ *   vira `ExternalProviderError`, sem causa e sem mensagem do provedor.
  */
-export class OpenIdClientAdapter implements ProvedorExternoPort {
+export class OpenIdClientAdapter implements ExternalProviderPort {
   readonly ligados: readonly ProvedorExterno[]
   readonly #configuracoes = new Map<ProvedorExterno, Promise<oidc.Configuration>>()
 
   constructor(
-    private readonly configuracao: ConfiguracaoLoginExterno,
+    private readonly configuracao: ExternalLoginConfig,
     private readonly prazoMs: number = PRAZO_DO_PROVEDOR_MS,
   ) {
     this.ligados = [...configuracao.provedores.keys()]
@@ -59,7 +59,7 @@ export class OpenIdClientAdapter implements ProvedorExternoPort {
 
   async iniciar(provedor: ProvedorExterno): Promise<InicioNoProvedor> {
     const { retorno } = this.configuracao
-    if (retorno === undefined) throw new ProvedorExternoFalhou()
+    if (retorno === undefined) throw new ExternalProviderError()
     return comPrazo(
       (async () => {
         const configuracao = await this.#configuracaoDe(provedor)
@@ -77,7 +77,7 @@ export class OpenIdClientAdapter implements ProvedorExternoPort {
         })
         return { endereco, state, nonce, verificador }
       })().catch(() => {
-        throw new ProvedorExternoFalhou()
+        throw new ExternalProviderError()
       }),
       this.prazoMs,
     )
@@ -95,7 +95,7 @@ export class OpenIdClientAdapter implements ProvedorExternoPort {
         })
         return this.#conta(provedor, tokens.claims())
       })().catch(() => {
-        throw new ProvedorExternoFalhou()
+        throw new ExternalProviderError()
       }),
       this.prazoMs,
     )
@@ -103,16 +103,16 @@ export class OpenIdClientAdapter implements ProvedorExternoPort {
 
   /** Só o que o login usa. Sem identificador estável, a conta não serve, e é falha. */
   #conta(provedor: ProvedorExterno, claims: oidc.IDToken | undefined): ContaNoProvedor {
-    if (claims === undefined) throw new ProvedorExternoFalhou()
+    if (claims === undefined) throw new ExternalProviderError()
     const email = texto(claims['email'])
     if (provedor === 'google') {
       const sujeito = texto(claims.sub)
-      if (sujeito === undefined) throw new ProvedorExternoFalhou()
+      if (sujeito === undefined) throw new ExternalProviderError()
       return { provedor, sujeito, tenant: null, dominio: texto(claims['hd'])?.toLowerCase(), email, emailVerificado: claims['email_verified'] === true }
     }
     const sujeito = texto(claims['oid'])?.toLowerCase()
     const tenant = texto(claims['tid'])?.toLowerCase()
-    if (sujeito === undefined || tenant === undefined) throw new ProvedorExternoFalhou()
+    if (sujeito === undefined || tenant === undefined) throw new ExternalProviderError()
     // Na Microsoft não há `email_verified`: o que valida o e-mail é o tenant conferido contra a lista da escola.
     return { provedor, sujeito, tenant, dominio: tenant, email, emailVerificado: false }
   }
@@ -121,7 +121,7 @@ export class OpenIdClientAdapter implements ProvedorExternoPort {
     const guardada = this.#configuracoes.get(provedor)
     if (guardada !== undefined) return guardada
     const dados = this.configuracao.provedores.get(provedor)
-    if (dados === undefined) return Promise.reject(new ProvedorExternoFalhou())
+    if (dados === undefined) return Promise.reject(new ExternalProviderError())
     const busca = this.#descobrir(dados)
     this.#configuracoes.set(provedor, busca)
     // Falha não fica em cache: a promessa sai, e a próxima chamada busca de novo.
