@@ -188,13 +188,29 @@ export function ocorrenciasNoLugarDeHoje(mapas: readonly Mapa[]): OcorrenciaClas
   return mapas.flatMap((mapa, indice) => mapa.ocorrencias.map((ocorrencia) => ({ ...ocorrencia, arquivo: arquivoDepoisDasOndas(ocorrencia.arquivo, mapas, indice) })))
 }
 
+/** O pacote de um arquivo: `apps/api`, `packages/shared`; fora disso, a primeira pasta. */
+export function pacoteDoArquivo(arquivo: string): string {
+  const partes = arquivo.split('/')
+  return partes.slice(0, partes[0] === 'apps' || partes[0] === 'packages' ? 2 : 1).join('/')
+}
+
+/**
+ * Duas entradas de mesmo `de` se repetem, salvo se as duas forem de símbolo, cada uma com `arquivo`, em pacotes diferentes: o
+ * `aplicar` acha cada declaração pelo `arquivo`, e o `conferir` segue cada entrada só no pacote dela (Tech Spec §5).
+ */
+function seRepetem(a: EntradaDoMapa, b: EntradaDoMapa): boolean {
+  if (a.tipo !== 'simbolo' || b.tipo !== 'simbolo' || a.arquivo === undefined || b.arquivo === undefined) return true
+  return pacoteDoArquivo(a.arquivo) === pacoteDoArquivo(b.arquivo)
+}
+
 /** As recusas que o mapa sozinho dá, antes de olhar a árvore: o `de` que se repete, e a linha do anexo que falta. */
 export function validarMapa(mapa: Mapa): Recusa[] {
   const recusas: Recusa[] = []
-  const vistos = new Set<string>()
+  const vistos = new Map<string, EntradaDoMapa[]>()
   for (const entrada of mapa.entradas) {
-    if (vistos.has(entrada.de)) recusas.push({ codigo: 'de-repetido', detalhe: `o "${entrada.de}" aparece mais de uma vez no mapa` })
-    vistos.add(entrada.de)
+    const doMesmoDe = vistos.get(entrada.de) ?? []
+    if (doMesmoDe.some((vista) => seRepetem(vista, entrada))) recusas.push({ codigo: 'de-repetido', detalhe: `o "${entrada.de}" aparece mais de uma vez no mapa` })
+    vistos.set(entrada.de, [...doMesmoDe, entrada])
     if (!FORMATO_DA_LINHA_DO_ANEXO.test(entrada.linhaDoAnexo)) {
       recusas.push({ codigo: 'sem-linha-do-anexo', detalhe: `"${entrada.de}" não tem linhaDoAnexo no formato inventario-<x>.md:<linha>` })
     }

@@ -390,6 +390,25 @@ describe('conferir: verde quando', () => {
       expect(rodar(repo, [{ ...ENTRADA, arquivo: 'tools/lib.ts' }]).divergencias).toEqual([])
     })
 
+    it('as duas entradas de mesmo de, uma por pacote (o mapa da 8.0): cada declaração é esperada com o para da sua entrada, nas duas ordens', () => {
+      const doOutro = { ...ENTRADA, para: 'Other', arquivo: 'packages/outro/src/o.ts' }
+      const feito = (): RepositorioDeTeste => {
+        const repo = repositorio(OUTRO)
+        repo.escrever('packages/shared/src/db.ts', 'export class Database {}\n')
+        repo.escrever('packages/outro/src/o.ts', 'export class Other {}\n')
+        return repo
+      }
+      expect(rodar(feito(), [ENTRADA, doOutro]).divergencias).toEqual([])
+      expect(rodar(feito(), [doOutro, ENTRADA]).divergencias).toEqual([])
+      // o para de uma entrada no pacote da outra não passa: cada pacote tem o seu
+      const trocado = repositorio(OUTRO)
+      trocado.escrever('packages/shared/src/db.ts', 'export class Other {}\n')
+      trocado.escrever('packages/outro/src/o.ts', 'export class Database {}\n')
+      const esperadas = ['entrou exportado packages/outro Database', 'entrou exportado packages/shared Other', 'saiu exportado packages/outro Other', 'saiu exportado packages/shared Database']
+      expect(dos(rodar(trocado, [ENTRADA, doOutro]))).toEqual(esperadas)
+      expect(dos(rodar(trocado, [doOutro, ENTRADA]))).toEqual(esperadas)
+    })
+
     it('a entrada sem arquivo vale em todo pacote', () => {
       const repo = repositorio(OUTRO)
       repo.escrever('packages/shared/src/db.ts', 'export class Database {}\n')

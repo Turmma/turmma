@@ -6,7 +6,8 @@ import type { EntradaDoMapa } from './mapa.ts'
 /**
  * Passo 5 do `aplicar`: o nome em comentário e em documento vivo. Troca sozinho só o que não tem outro sentido: o identificador
  * composto (`AdaptadorFalso`), o que está entre crases, o que está em `{@link}`, e o caminho. A palavra comum (`com`, `Banco`,
- * `Fila`) solta fica, e vai para a lista de troca à mão do relatório.
+ * `Fila`) solta fica, e vai para a lista de troca à mão do relatório. O `de` de símbolo com mais de uma entrada (os homônimos de
+ * pacotes diferentes) não tem um `para` só: não se troca em lugar nenhum, e cada ocorrência vai para a troca à mão (Tech Spec §5).
  */
 
 export interface TrocaAMao {
@@ -63,7 +64,17 @@ export interface ResultadoDaTroca {
   aMao: Array<{ de: string; indice: number }>
 }
 
-export function trocarTrecho(trecho: string, entradas: readonly EntradaDoMapa[], simbolos: ReadonlyMap<string, EntradaDoMapa>): ResultadoDaTroca {
+/**
+ * @param repetidos Os `de` de símbolo com mais de uma entrada (os homônimos de pacotes diferentes): não têm um `para` só, então não
+ *   se trocam em lugar nenhum, nem entre crases nem em `{@link}`, e cada ocorrência vai para a troca à mão. O `restos` não os passa:
+ *   ele ainda cobra o nome antigo, e a troca à mão registrada no relatório o libera.
+ */
+export function trocarTrecho(
+  trecho: string,
+  entradas: readonly EntradaDoMapa[],
+  simbolos: ReadonlyMap<string, EntradaDoMapa>,
+  repetidos: ReadonlySet<string> = new Set(),
+): ResultadoDaTroca {
   const texto = trocarCaminhos(
     trecho,
     entradas.filter((entrada) => entrada.tipo !== 'simbolo'),
@@ -74,6 +85,10 @@ export function trocarTrecho(trecho: string, entradas: readonly EntradaDoMapa[],
   for (const achado of texto.matchAll(TOKEN)) {
     const entrada = simbolos.get(achado[0])
     if (entrada === undefined) continue
+    if (repetidos.has(entrada.de)) {
+      aMao.push({ de: entrada.de, indice: achado.index })
+      continue
+    }
     const dentro = protegidas.some(([inicio, fim]) => achado.index >= inicio && achado.index < fim)
     if (!entrada.comum || dentro) trocas.push({ inicio: achado.index, comprimento: achado[0].length, novo: entrada.para })
     else aMao.push({ de: entrada.de, indice: achado.index })
@@ -102,19 +117,33 @@ export function comentariosDe(fonte: ts.SourceFile): Array<[number, number]> {
 
 const linhaNoTexto = (texto: string, indice: number): number => texto.slice(0, indice).split('\n').length - 1
 
-function trocarNosComentarios(caminho: string, texto: string, entradas: readonly EntradaDoMapa[], simbolos: ReadonlyMap<string, EntradaDoMapa>, aMao: TrocaAMao[]): string {
+function trocarNosComentarios(
+  caminho: string,
+  texto: string,
+  entradas: readonly EntradaDoMapa[],
+  simbolos: ReadonlyMap<string, EntradaDoMapa>,
+  repetidos: ReadonlySet<string>,
+  aMao: TrocaAMao[],
+): string {
   const fonte = analisar(caminho, texto)
   const trocas: Array<{ inicio: number; comprimento: number; novo: string }> = []
   for (const [inicio, fim] of comentariosDe(fonte)) {
-    const resultado = trocarTrecho(texto.slice(inicio, fim), entradas, simbolos)
+    const resultado = trocarTrecho(texto.slice(inicio, fim), entradas, simbolos, repetidos)
     if (resultado.texto !== texto.slice(inicio, fim)) trocas.push({ inicio, comprimento: fim - inicio, novo: resultado.texto })
     for (const { de, indice } of resultado.aMao) aMao.push({ arquivo: caminho, linha: linhaDe(fonte, inicio) + linhaNoTexto(resultado.texto, indice), de })
   }
   return aplicarTrocas(texto, trocas)
 }
 
-function trocarNoDocumento(caminho: string, texto: string, entradas: readonly EntradaDoMapa[], simbolos: ReadonlyMap<string, EntradaDoMapa>, aMao: TrocaAMao[]): string {
-  const resultado = trocarTrecho(texto, entradas, simbolos)
+function trocarNoDocumento(
+  caminho: string,
+  texto: string,
+  entradas: readonly EntradaDoMapa[],
+  simbolos: ReadonlyMap<string, EntradaDoMapa>,
+  repetidos: ReadonlySet<string>,
+  aMao: TrocaAMao[],
+): string {
+  const resultado = trocarTrecho(texto, entradas, simbolos, repetidos)
   for (const { de, indice } of resultado.aMao) aMao.push({ arquivo: caminho, linha: linhaNoTexto(resultado.texto, indice) + 1, de })
   return resultado.texto
 }
@@ -126,14 +155,16 @@ export interface OpcoesDoPasso5 {
 
 /** Aplica o passo 5 na árvore e devolve a lista de troca à mão. */
 export function aplicarPasso5(arvore: Arvore, entradas: readonly EntradaDoMapa[], opcoes: OpcoesDoPasso5): TrocaAMao[] {
-  const simbolos = new Map(entradas.filter((entrada) => entrada.tipo === 'simbolo').map((entrada) => [entrada.de, entrada]))
+  const doSimbolo = entradas.filter((entrada) => entrada.tipo === 'simbolo')
+  const simbolos = new Map(doSimbolo.map((entrada) => [entrada.de, entrada]))
+  const repetidos = new Set(doSimbolo.filter((entrada) => doSimbolo.filter((outra) => outra.de === entrada.de).length > 1).map((entrada) => entrada.de))
   const aMao: TrocaAMao[] = []
   const nomes = [...entradas.map((entrada) => entrada.de), ...entradas.flatMap((entrada) => semExtensaoDoCaminho(entrada.de) ?? [])]
   for (const caminho of arvore.caminhos()) {
     const texto = arvore.lerOuNada(caminho)
     if (texto === undefined || foraDoPasso5(caminho) || !nomes.some((nome) => texto.includes(nome))) continue
-    if (ehCodigo(caminho)) arvore.escrever(caminho, trocarNosComentarios(caminho, texto, entradas, simbolos, aMao))
-    else if (opcoes.documentos && ehDocumentoVivo(caminho)) arvore.escrever(caminho, trocarNoDocumento(caminho, texto, entradas, simbolos, aMao))
+    if (ehCodigo(caminho)) arvore.escrever(caminho, trocarNosComentarios(caminho, texto, entradas, simbolos, repetidos, aMao))
+    else if (opcoes.documentos && ehDocumentoVivo(caminho)) arvore.escrever(caminho, trocarNoDocumento(caminho, texto, entradas, simbolos, repetidos, aMao))
   }
   return aMao
 }

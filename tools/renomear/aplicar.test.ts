@@ -481,6 +481,93 @@ describe('as seis recusas, e a árvore sai igual', () => {
     expect(recusado(mundo(base, [banco, { ...banco, para: 'Outro' }]))).toEqual(['de-repetido'])
   })
 
+  describe('o de de símbolo repetido', () => {
+    const doApi = { tipo: 'simbolo' as const, de: 'Opcoes', para: 'ApiOptions', arquivo: 'apps/api/src/opcoes.ts' }
+    const doWeb = { tipo: 'simbolo' as const, de: 'Opcoes', para: 'WebOptions', arquivo: 'apps/web/src/opcoes.ts' }
+    const homonimos = {
+      'apps/api/src/opcoes.ts': 'export interface Opcoes {\n  a: number\n}\n',
+      'apps/api/src/uso.ts': "import type { Opcoes } from './opcoes.ts'\nexport const o: Opcoes = { a: 1 }\n",
+      'apps/api/src/outro.ts': 'export interface Opcoes {\n  b: number\n}\n',
+      'apps/web/src/opcoes.ts': 'export interface Opcoes {\n  w: number\n}\n',
+      'apps/web/src/uso.ts': "import type { Opcoes } from './opcoes.ts'\nexport const o: Opcoes = { w: 1 }\n",
+      // o caso real da 8.0: um pacote importa o homônimo do outro, com alias (`queue.fixture.ts` do worker)
+      'apps/web/src/de-fora.ts': "import type { Opcoes as OpcoesDoApi } from '../../api/src/opcoes.ts'\nexport const f: OpcoesDoApi = { a: 1 }\n",
+    }
+
+    it('os dois arquivo em pacotes diferentes: cada declaração sai com o para da sua entrada, e quem a importa também', { timeout: PRAZO }, () => {
+      const repo = mundo(homonimos, [doApi, doWeb])
+      expect(rodar(repo).recusas).toEqual([])
+      expect(repo.ler('apps/api/src/opcoes.ts')).toBe('export interface ApiOptions {\n  a: number\n}\n')
+      expect(repo.ler('apps/api/src/uso.ts')).toBe("import type { ApiOptions } from './opcoes.ts'\nexport const o: ApiOptions = { a: 1 }\n")
+      expect(repo.ler('apps/web/src/opcoes.ts')).toBe('export interface WebOptions {\n  w: number\n}\n')
+      expect(repo.ler('apps/web/src/uso.ts')).toBe("import type { WebOptions } from './opcoes.ts'\nexport const o: WebOptions = { w: 1 }\n")
+      expect(repo.ler('apps/api/src/outro.ts')).toBe(homonimos['apps/api/src/outro.ts'])
+      // quem importa o homônimo do outro pacote segue a declaração certa: o do api sai ApiOptions, mesmo dentro do web
+      expect(repo.ler('apps/web/src/de-fora.ts')).toBe("import type { ApiOptions as OpcoesDoApi } from '../../api/src/opcoes.ts'\nexport const f: OpcoesDoApi = { a: 1 }\n")
+    })
+
+    it('o de repetido em comentário e em documento: nenhum para é escolhido, os três vão para a troca à mão, e o símbolo de entrada única troca', { timeout: PRAZO }, () => {
+      const unico = { tipo: 'simbolo' as const, de: 'UnicoDoMapa', para: 'SingleOfMap', arquivo: 'apps/api/src/unico.ts' }
+      const comentarioDoApi = '// a `Opcoes` do api e a `UnicoDoMapa`\n'
+      const comentarioDoWeb = '// a {@link Opcoes} do web e a `UnicoDoMapa`\n'
+      const documento = 'A `Opcoes` e a `UnicoDoMapa`.\n'
+      const repo = mundo(
+        {
+          ...homonimos,
+          'apps/api/src/opcoes.ts': `${homonimos['apps/api/src/opcoes.ts']}${comentarioDoApi}`,
+          'apps/web/src/uso.ts': `${homonimos['apps/web/src/uso.ts']}${comentarioDoWeb}`,
+          'apps/api/src/unico.ts': 'export const UnicoDoMapa = 1\n',
+          'docs/x.md': documento,
+        },
+        [doApi, doWeb, unico],
+      )
+      const resultado = rodar(repo)
+      expect(resultado.recusas).toEqual([])
+      expect(repo.ler('apps/api/src/opcoes.ts')).toBe(`export interface ApiOptions {\n  a: number\n}\n// a \`Opcoes\` do api e a \`SingleOfMap\`\n`)
+      expect(repo.ler('apps/web/src/uso.ts')).toBe(`import type { WebOptions } from './opcoes.ts'\nexport const o: WebOptions = { w: 1 }\n// a {@link Opcoes} do web e a \`SingleOfMap\`\n`)
+      expect(repo.ler('docs/x.md')).toBe('A `Opcoes` e a `SingleOfMap`.\n')
+      const aMao = (resultado.relatorio ?? '').split('\n').filter((linha) => linha.includes('| Opcoes |'))
+      expect(aMao).toEqual(['| apps/api/src/opcoes.ts | Opcoes | 4 |', '| apps/web/src/uso.ts | Opcoes | 3 |', '| docs/x.md | Opcoes | 1 |'])
+    })
+
+    it('o de repetido composto (o OpcoesDaMontagem da 8.0), solto na prosa de um comentário e de um documento: fica, e vai para a troca à mão', { timeout: PRAZO }, () => {
+      const composto = (para: string, arquivo: string) => ({ tipo: 'simbolo' as const, de: 'OpcoesDaMontagem', para, arquivo })
+      const unico = { tipo: 'simbolo' as const, de: 'UnicoDoMapa', para: 'SingleOfMap', arquivo: 'apps/api/src/unico.ts' }
+      const repo = mundo(
+        {
+          'apps/api/src/montagem.ts': 'export interface OpcoesDaMontagem {\n  a: number\n}\n// a OpcoesDaMontagem do api\n',
+          'apps/web/src/montagem.ts': 'export interface OpcoesDaMontagem {\n  w: number\n}\n// a OpcoesDaMontagem do web e o UnicoDoMapa\n',
+          'apps/api/src/unico.ts': 'export const UnicoDoMapa = 1\n',
+          'docs/y.md': 'A OpcoesDaMontagem solta e o UnicoDoMapa.\n',
+        },
+        [composto('ApiAssemblyOptions', 'apps/api/src/montagem.ts'), composto('WebAssemblyOptions', 'apps/web/src/montagem.ts'), unico],
+      )
+      const resultado = rodar(repo)
+      expect(resultado.recusas).toEqual([])
+      expect(repo.ler('apps/api/src/montagem.ts')).toBe('export interface ApiAssemblyOptions {\n  a: number\n}\n// a OpcoesDaMontagem do api\n')
+      expect(repo.ler('apps/web/src/montagem.ts')).toBe('export interface WebAssemblyOptions {\n  w: number\n}\n// a OpcoesDaMontagem do web e o SingleOfMap\n')
+      expect(repo.ler('docs/y.md')).toBe('A OpcoesDaMontagem solta e o SingleOfMap.\n')
+      const aMao = (resultado.relatorio ?? '').split('\n').filter((linha) => linha.includes('| OpcoesDaMontagem |'))
+      expect(aMao).toEqual(['| apps/api/src/montagem.ts | OpcoesDaMontagem | 4 |', '| apps/web/src/montagem.ts | OpcoesDaMontagem | 4 |', '| docs/y.md | OpcoesDaMontagem | 1 |'])
+    })
+
+    it('uma das entradas sem arquivo (vale em todo pacote): recusa, nas duas ordens', { timeout: PRAZO }, () => {
+      const { arquivo: _arquivo, ...semArquivo } = doWeb
+      expect(recusado(mundo(homonimos, [doApi, semArquivo]))).toEqual(['de-repetido'])
+      expect(recusado(mundo(homonimos, [semArquivo, doApi]))).toEqual(['de-repetido'])
+    })
+
+    it('os dois arquivo no mesmo pacote: recusa, mesmo com destinos diferentes', { timeout: PRAZO }, () => {
+      expect(recusado(mundo(homonimos, [doApi, { ...doWeb, arquivo: 'apps/api/src/outro.ts' }]))).toEqual(['de-repetido'])
+    })
+
+    // O `arquivo` numa entrada de tipo `arquivo` não existe num mapa real: está aqui para o caso alcançar a cláusula do tipo. Sem o campo,
+    // a checagem de `arquivo` ausente já recusaria e a do tipo nunca seria exercida.
+    it('o mesmo de em tipos diferentes (símbolo e arquivo): recusa', { timeout: PRAZO }, () => {
+      expect(recusado(mundo(homonimos, [doApi, { tipo: 'arquivo', de: 'Opcoes', para: 'Outra', arquivo: 'apps/web/src/opcoes.ts' }]))).toEqual(['de-repetido'])
+    })
+  })
+
   it('falta a linha do anexo', { timeout: PRAZO }, () => {
     expect(recusado(mundo(base, [{ ...banco, linhaDoAnexo: '' }]))).toEqual(['sem-linha-do-anexo'])
     expect(recusado(mundo(base, [{ ...banco, linhaDoAnexo: 'qualquer coisa' }]))).toEqual(['sem-linha-do-anexo'])

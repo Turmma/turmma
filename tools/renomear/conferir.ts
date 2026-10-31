@@ -5,7 +5,7 @@ import { parseArgs } from 'node:util'
 import type { Movimento } from './arvore.ts'
 import { destinoDoArquivo, destinoDoCaminho } from './especificadores.ts'
 import { type Categoria, fotografar, type ItemDaFoto, naFoto, RAIZES_DA_FOTO } from './foto.ts'
-import { type EntradaDoMapa, type ExcecaoDoConferir, lerMapa, type Mapa, validarMapa } from './mapa.ts'
+import { type EntradaDoMapa, type ExcecaoDoConferir, lerMapa, type Mapa, pacoteDoArquivo, validarMapa } from './mapa.ts'
 
 /**
  * `conferir`: prova que a onda só mudou nome (Tech Spec da X8, §5). Tira uma foto de `apps/`, `packages/`, `e2e/`, `infra/test/`,
@@ -176,12 +176,6 @@ function aplicarMapaAFoto(itens: readonly ItemDaFoto[], mapa: Mapa, nomesDosPaco
 }
 
 // ---- a comparação ----------------------------------------------------------------------------------------------------
-
-/** O pacote de um arquivo: `apps/api`, `packages/shared`; fora disso, a primeira pasta. */
-function pacoteDoArquivo(arquivo: string): string {
-  const partes = arquivo.split('/')
-  return partes.slice(0, partes[0] === 'apps' || partes[0] === 'packages' ? 2 : 1).join('/')
-}
 
 /** Onde o item é contado: por arquivo, e por pacote nos nomes exportados (o nome pode mudar de arquivo dentro dele). */
 const grupoDe = (item: ItemDaFoto): string => `${item.categoria}\u0000${item.categoria === 'exportado' ? pacoteDoArquivo(item.arquivo) : item.arquivo}`
