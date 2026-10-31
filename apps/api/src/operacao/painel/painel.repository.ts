@@ -1,4 +1,4 @@
-import { rede, Unscoped, type Database, type DadosDaCoordenacao, type UsagePeriod } from '@educa/nucleo'
+import { rede, Unscoped, type Database, type DadosDaCoordenacao, type UsagePeriod } from '@educa/core'
 import { ESCOLAS_POR_PAGINA, MAXIMO_DE_REDES_DO_PAINEL, type OrdemDoPainel, type RedeDoPainel } from '@educa/shared'
 import { asc, sql, type SQL } from 'drizzle-orm'
 

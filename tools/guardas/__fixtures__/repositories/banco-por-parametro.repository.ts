@@ -1,4 +1,4 @@
-import { requireEscolaId, type DatabaseTransaction } from '@educa/nucleo'
+import { requireEscolaId, type DatabaseTransaction } from '@educa/core'
 import { aluno } from './tabelas.js'
 
 // O banco também chega por parâmetro (`tx: DatabaseTransaction`).

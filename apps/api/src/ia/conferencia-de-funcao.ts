@@ -1,4 +1,4 @@
-import { exigirFuncaoAtiva, type SuspensaoDeFuncao } from '@educa/nucleo'
+import { exigirFuncaoAtiva, type SuspensaoDeFuncao } from '@educa/core'
 import type { ChaveDeFuncao } from '@educa/shared'
 
 /**

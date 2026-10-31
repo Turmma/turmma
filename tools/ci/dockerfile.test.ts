@@ -108,14 +108,14 @@ describe('um Dockerfile só, com um alvo por serviço', () => {
       const expostas = instrucoesDoAlvo(dockerfile, alvo).filter((instrucao) => instrucao.startsWith('EXPOSE'))
       expect(expostas, alvo).toEqual(portas[alvo])
     }
-    expect(instrucoesDoAlvo(dockerfile, 'api')).toContain('COPY packages/nucleo/drizzle packages/nucleo/drizzle')
+    expect(instrucoesDoAlvo(dockerfile, 'api')).toContain('COPY packages/core/drizzle packages/core/drizzle')
     expect(instrucoesDoAlvo(dockerfile, 'web')).toContain('ARG VITE_COM_GALERIA=')
   })
 
   it('a web não parte do `base`: não constrói o nucleo', () => {
     const web = dockerfile.find((estagio) => estagio.nome === 'web')
     expect(web?.de).toBe(IMAGEM_DO_NODE)
-    expect(instrucoesDoAlvo(dockerfile, 'web').join('\n')).not.toContain('@educa/nucleo')
+    expect(instrucoesDoAlvo(dockerfile, 'web').join('\n')).not.toContain('@educa/core')
   })
 
   it('todo estágio que não herda de outro parte da mesma imagem do node, na versão de antes', () => {

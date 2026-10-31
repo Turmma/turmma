@@ -21,7 +21,7 @@ import {
   type Meter,
   type Clock,
   type ConcurrencyByQueue,
-} from '@educa/nucleo'
+} from '@educa/core'
 import type { JobRegistry } from '@educa/shared'
 import { Queue } from 'bullmq'
 import type { ConfiguracaoDespachante } from './config.js'

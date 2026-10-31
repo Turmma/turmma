@@ -1,4 +1,4 @@
-import { createDatabase, postgresErrorIn, runInContext, type DatabasePool } from '@educa/nucleo'
+import { createDatabase, postgresErrorIn, runInContext, type DatabasePool } from '@educa/core'
 import { ErrorCode, acessoGeradoResponseSchema, salaAbertaResponseSchema, MENSAGENS_DE_ERRO } from '@educa/shared'
 import { randomBytes, randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest'

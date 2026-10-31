@@ -1,4 +1,4 @@
-import { GracefulShutdown, Public, SkipRateLimit } from '@educa/nucleo'
+import { GracefulShutdown, Public, SkipRateLimit } from '@educa/core'
 import type { ReadinessResponse } from '@educa/shared'
 import { Controller, Get, Header, Res } from '@nestjs/common'
 

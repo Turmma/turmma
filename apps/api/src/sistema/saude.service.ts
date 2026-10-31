@@ -1,4 +1,4 @@
-import { pingDatabase, type DatabasePool } from '@educa/nucleo'
+import { pingDatabase, type DatabasePool } from '@educa/core'
 import type { HealthResponse } from '@educa/shared'
 import { Inject, Injectable } from '@nestjs/common'
 import { POOL_BANCO } from '../banco.module.js'

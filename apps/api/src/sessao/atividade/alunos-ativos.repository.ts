@@ -1,4 +1,4 @@
-import { requireEscolaId, usuario, type Database, type DatabaseTransaction } from '@educa/nucleo'
+import { requireEscolaId, usuario, type Database, type DatabaseTransaction } from '@educa/core'
 import { and, count, eq, isNull } from 'drizzle-orm'
 
 /**

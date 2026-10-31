@@ -1,2 +1,2 @@
-import { x } from '@educa/nucleo'
+import { x } from '@educa/core'
 export const y = x

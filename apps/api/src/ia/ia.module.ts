@@ -9,7 +9,7 @@ import {
   type LoggerBase,
   type OrcamentoDeIa,
   type SuspensaoDeFuncao,
-} from '@educa/nucleo'
+} from '@educa/core'
 import { Global, Inject, Module, type DynamicModule, type OnApplicationBootstrap, type OnApplicationShutdown } from '@nestjs/common'
 import { BANCO } from '../banco.module.js'
 import { AgendadorDeExecucoes } from './agendador-de-execucoes.js'

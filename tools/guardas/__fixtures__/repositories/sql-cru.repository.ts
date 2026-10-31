@@ -1,4 +1,4 @@
-import { type DatabaseTransaction } from '@educa/nucleo'
+import { type DatabaseTransaction } from '@educa/core'
 import { sql } from 'drizzle-orm'
 
 // SQL cru pela transação também toca o banco.

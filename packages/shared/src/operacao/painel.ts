@@ -75,7 +75,7 @@ export type RedesDoPainelResponse = z.infer<typeof redesDoPainelResponseSchema>
 
 /**
  * O estado da primeira coordenação de uma escola (Tech Spec da A0b, seção 5), que decide o que gerar, refazer e revogar
- * fazem, e que a lista mostra. Calculado só por `estadoDaCoordenacao`, em `@educa/nucleo`: a escrita e a lista usam a
+ * fazem, e que a lista mostra. Calculado só por `estadoDaCoordenacao`, em `@educa/core`: a escrita e a lista usam a
  * mesma função.
  */
 export const ESTADOS_DA_COORDENACAO = ['sem_convite', 'pendente', 'vencido', 'revogado', 'aceito', 'sem_coordenacao', 'ativa'] as const

@@ -6,9 +6,9 @@ import { TABELAS_DO_NUCLEO } from './tabelas-do-nucleo.mjs'
 // A guarda `tabela-so-no-repository` lê esta lista porque o ESLint não carrega o núcleo. O que a mantém verdadeira é este teste,
 // que a confere contra as exportações do pacote nos dois sentidos.
 
-/** O que o `@educa/nucleo` exporta. Import por variável: o tsconfig de tools não compila o código do núcleo, só o Vitest o carrega. */
+/** O que o `@educa/core` exporta. Import por variável: o tsconfig de tools não compila o código do núcleo, só o Vitest o carrega. */
 async function exportacoesDoNucleo(): Promise<Record<string, unknown>> {
-  const nucleo = '@educa/nucleo'
+  const nucleo = '@educa/core'
   return (await import(nucleo)) as Record<string, unknown>
 }
 

@@ -1,4 +1,4 @@
-import { type Database } from '@educa/nucleo'
+import { type Database } from '@educa/core'
 import { aluno } from './tabelas.js'
 
 // A classe sem nome também é lida, e o método dela reprova.

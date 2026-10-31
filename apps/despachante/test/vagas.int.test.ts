@@ -12,7 +12,7 @@ import {
   QUEUE_PRIORITY,
   VALIDADE_DA_VAGA_MS,
   type EscolaConcurrencyLimiter,
-} from '@educa/nucleo'
+} from '@educa/core'
 import { JobFailureCode, defineJob, JOB_DEFINITIONS, TIPO_EXPURGAR_JOBS, TIPO_JOB_SINTETICO, type QueueName } from '@educa/shared'
 import { Queue } from 'bullmq'
 import { randomUUID } from 'node:crypto'

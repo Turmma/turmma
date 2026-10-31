@@ -1,4 +1,4 @@
-import { DomainException, AuditoriaRecorder, type Database, type DatabaseTransaction } from '@educa/nucleo'
+import { DomainException, AuditoriaRecorder, type Database, type DatabaseTransaction } from '@educa/core'
 import {
   ErrorCode,
   anoLetivoResponseSchema,

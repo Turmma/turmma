@@ -76,7 +76,7 @@ function fixture(): Execucao {
   cpSync(join(raizRepositorio, 'tools/guardas/__fixtures__/camadas'), pasta, { recursive: true })
   // O que o `npm install` monta num workspace: os pacotes por link e uma dependência de terceiros com a pasta `node_modules`.
   mkdirSync(join(pasta, 'node_modules/@educa'), { recursive: true })
-  symlinkSync('../../packages/nucleo', join(pasta, 'node_modules/@educa/nucleo'))
+  symlinkSync('../../packages/core', join(pasta, 'node_modules/@educa/core'))
   symlinkSync('../../packages/shared', join(pasta, 'node_modules/@educa/shared'))
   // Os `exports` do `drizzle-orm` de verdade são por condição (`import`, `default`): o cruiser as segue pelos `conditionNames`.
   escrever(pasta, 'node_modules/drizzle-orm/package.json', JSON.stringify({ name: 'drizzle-orm', exports: { '.': { import: './index.js' }, './pg-core': { default: './pg-core.js' } } }))
@@ -87,7 +87,7 @@ function fixture(): Execucao {
   escrever(pasta, 'apps/api/node_modules/ciclico/index.js', "import './dentro.js'\n")
   escrever(pasta, 'apps/api/node_modules/ciclico/dentro.js', "import './index.js'\n")
   // `dist/` é o que o build gera e o `.gitignore` não deixa versionar: nasce aqui, com um import que a regra do pacote reprovaria.
-  escrever(pasta, 'packages/shared/dist/importa-nucleo.js', "import { x } from '../../nucleo/src/x.js'\nexport const y = x\n")
+  escrever(pasta, 'packages/shared/dist/importa-nucleo.js', "import { x } from '../../core/src/x.js'\nexport const y = x\n")
   execucaoDaFixture = rodar(pasta)
   return execucaoDaFixture
 }
@@ -109,15 +109,15 @@ const ESPERADAS: Readonly<Record<string, readonly string[]>> = {
   'sem-ciclo': ['packages/shared/src/ciclo/a.ts -> packages/shared/src/ciclo/b.ts'],
   'shared-nao-importa-nucleo-nem-app': [
     'packages/shared/src/pacotes/para-app.ts -> apps/api/src/y.ts',
-    'packages/shared/src/pacotes/para-nucleo.ts -> packages/nucleo/src/x.ts',
+    'packages/shared/src/pacotes/para-nucleo.ts -> packages/core/src/x.ts',
   ],
-  'nucleo-nao-importa-app': ['packages/nucleo/src/pacotes/para-app.ts -> apps/api/src/y.ts'],
+  'nucleo-nao-importa-app': ['packages/core/src/pacotes/para-app.ts -> apps/api/src/y.ts'],
   'app-nao-importa-app': ['apps/web/src/usa-api.ts -> apps/api/src/y.ts', 'apps/worker/src/usa-api.ts -> apps/api/src/y.ts'],
-  'web-nao-importa-nucleo-nem-backend': ['apps/web/src/usa-api.ts -> apps/api/src/y.ts', 'apps/web/src/usa-nucleo.ts -> packages/nucleo/src/x.ts'],
+  'web-nao-importa-nucleo-nem-backend': ['apps/web/src/usa-api.ts -> apps/api/src/y.ts', 'apps/web/src/usa-nucleo.ts -> packages/core/src/x.ts'],
   'producao-nao-importa-teste': [
     'apps/api/src/producao-usa-e2e.ts -> e2e/ajudante.ts',
     'apps/api/src/producao-usa-teste.ts -> apps/api/test/helper.ts',
-    'packages/nucleo/src/producao-usa-teste.ts -> packages/nucleo/test/helper.ts',
+    'packages/core/src/producao-usa-teste.ts -> packages/core/test/helper.ts',
   ],
   'controller-nao-importa-repository': ['apps/api/src/camadas/a.controller.ts -> apps/api/src/camadas/a.repository.ts'],
   'controller-nao-importa-drizzle': ['apps/api/src/camadas/b.controller.ts -> node_modules/drizzle-orm/index.js'],
@@ -125,7 +125,7 @@ const ESPERADAS: Readonly<Record<string, readonly string[]>> = {
   'repository-nao-importa-service-nem-controller': [
     'apps/api/src/camadas/d.repository.ts -> apps/api/src/camadas/c.service.ts',
     'apps/api/src/camadas/e.repository.ts -> apps/api/src/camadas/a.controller.ts',
-    'packages/nucleo/src/retencao/outro.repository.ts -> packages/nucleo/src/ciclo-de-vida/ciclo-de-vida.service.ts',
+    'packages/core/src/retencao/outro.repository.ts -> packages/core/src/ciclo-de-vida/ciclo-de-vida.service.ts',
   ],
   'sessao-nao-importa-operacao': ['apps/api/src/sessao/login/x.ts -> apps/api/src/operacao/eu/y.ts'],
   'api-nao-importa-ops': [
@@ -146,13 +146,13 @@ const ESPERADAS: Readonly<Record<string, readonly string[]>> = {
     'tools/resolucao.ts -> apps/api/src/sessao/tenant/resolucao-de-tenant.repository.ts',
   ],
   'cerca-conta-global': [
-    'apps/worker/src/eliminar.ts -> packages/nucleo/src/ciclo-de-vida/conta-global.repository.ts',
-    'infra/conta-global-dinamico.ts -> packages/nucleo/src/ciclo-de-vida/conta-global.repository.ts',
-    'infra/conta-global-import.ts -> packages/nucleo/src/ciclo-de-vida/conta-global.repository.ts',
-    'infra/conta-global-reexporta.ts -> packages/nucleo/src/ciclo-de-vida/conta-global.repository.ts',
-    'infra/subcaminho.ts -> packages/nucleo/src/ciclo-de-vida/conta-global.repository.ts',
-    'packages/nucleo/src/retencao/atalho.ts -> packages/nucleo/src/ciclo-de-vida/conta-global.repository.ts',
-    'tools/conta-global.ts -> packages/nucleo/src/ciclo-de-vida/conta-global.repository.ts',
+    'apps/worker/src/eliminar.ts -> packages/core/src/ciclo-de-vida/conta-global.repository.ts',
+    'infra/conta-global-dinamico.ts -> packages/core/src/ciclo-de-vida/conta-global.repository.ts',
+    'infra/conta-global-import.ts -> packages/core/src/ciclo-de-vida/conta-global.repository.ts',
+    'infra/conta-global-reexporta.ts -> packages/core/src/ciclo-de-vida/conta-global.repository.ts',
+    'infra/subcaminho.ts -> packages/core/src/ciclo-de-vida/conta-global.repository.ts',
+    'packages/core/src/retencao/atalho.ts -> packages/core/src/ciclo-de-vida/conta-global.repository.ts',
+    'tools/conta-global.ts -> packages/core/src/ciclo-de-vida/conta-global.repository.ts',
   ],
   'cerca-painel-repository': [
     'apps/api/src/operacao/eu/eu.service.ts -> apps/api/src/operacao/painel/painel.repository.ts',
@@ -219,12 +219,12 @@ describe('a guarda de camadas no repositório de hoje', () => {
       modules.some((modulo) => origem.test(modulo.source) && modulo.dependencies.some((dependencia) => dependencia.resolved === alvo))
     expect(importa(/^apps\/api\/src\/operacao\/painel\/painel\.service\.ts$/, 'apps/api/src/operacao/painel/painel.repository.ts')).toBe(true)
     expect(importa(/^apps\/api\/src\/sessao\//, 'apps/api/src/sessao/tenant/resolucao-de-tenant.repository.ts')).toBe(true)
-    expect(importa(/^apps\/api\/src\/sessao\//, 'packages/nucleo/src/ciclo-de-vida/conta-global.repository.ts')).toBe(true)
+    expect(importa(/^apps\/api\/src\/sessao\//, 'packages/core/src/ciclo-de-vida/conta-global.repository.ts')).toBe(true)
   }, 120_000)
 
   it('real: a aresta da redefinição de MFA até a conta global está no relatório', () => {
     const modulo = repositorio().relatorio.modules.find((candidato) => candidato.source === 'apps/api/src/sessao/mfa/redefinicao-de-mfa.ts')
-    expect(modulo?.dependencies.map((dependencia) => dependencia.resolved)).toContain('packages/nucleo/src/ciclo-de-vida/conta-global.repository.ts')
+    expect(modulo?.dependencies.map((dependencia) => dependencia.resolved)).toContain('packages/core/src/ciclo-de-vida/conta-global.repository.ts')
   }, 120_000)
 })
 

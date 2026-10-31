@@ -22,7 +22,7 @@ import {
   type JanelaLetiva,
   type PrazoDoLote,
   type Clock,
-} from '@educa/nucleo'
+} from '@educa/core'
 import { AUTOR_DA_ROTINA, CATEGORIAS_DE_RETENCAO, CHAVES_DE_RETENCAO, JobFailureCode, TIPO_EXPURGAR_ESCOLA } from '@educa/shared'
 import { PgDialect } from 'drizzle-orm/pg-core'
 import { randomUUID } from 'node:crypto'

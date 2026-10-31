@@ -1,4 +1,4 @@
-import { acessoTurma, requireAnoEmCurso, requireEscolaId, requestSessao, type Database, type DatabaseTransaction } from '@educa/nucleo'
+import { acessoTurma, requireAnoEmCurso, requireEscolaId, requestSessao, type Database, type DatabaseTransaction } from '@educa/core'
 import type { ValidadeDoAcessoDias } from '@educa/shared'
 import { and, eq, gt, isNull, sql } from 'drizzle-orm'
 import { InvariantException } from '@educa/shared'

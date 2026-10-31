@@ -1,4 +1,4 @@
-import { IdPipe, RequirePermissao, ZodValidationPipe } from '@educa/nucleo'
+import { IdPipe, RequirePermissao, ZodValidationPipe } from '@educa/core'
 import { gerarAcessoRequestSchema, revogarAcessoRequestSchema, type GerarAcessoRequest, type AcessoDaTurmaResponse, type AcessoGeradoResponse } from '@educa/shared'
 import { Body, Controller, Get, Header, HttpCode, HttpStatus, Param, Post } from '@nestjs/common'
 import type { z } from 'zod'

@@ -9,7 +9,7 @@ import {
   type Database,
   type RateLimitConfig,
   type RateLimits,
-} from '@educa/nucleo'
+} from '@educa/core'
 import { Global, Inject, Logger, Module, type DynamicModule, type OnApplicationShutdown } from '@nestjs/common'
 import type { Redis } from 'ioredis'
 import { BANCO } from './banco.module.js'

@@ -1,4 +1,4 @@
-import { systemClock, type Clock } from '@educa/nucleo'
+import { systemClock, type Clock } from '@educa/core'
 import { createHmac, timingSafeEqual } from 'node:crypto'
 
 /** Contas lembradas por navegador: no Chromebook do carrinho, uma turma inteira passa pelo mesmo. */

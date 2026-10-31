@@ -1,4 +1,4 @@
-import { DomainException, type DatabasePool } from '@educa/nucleo'
+import { DomainException, type DatabasePool } from '@educa/core'
 import { ErrorCode } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'

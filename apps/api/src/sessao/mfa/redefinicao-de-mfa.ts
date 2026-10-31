@@ -1,5 +1,5 @@
-import { currentContext, DomainException, runInContext, AuditoriaRecorder, requestSessao, type Database } from '@educa/nucleo'
-import { ContaGlobalRepository } from '@educa/nucleo/conta-global'
+import { currentContext, DomainException, runInContext, AuditoriaRecorder, requestSessao, type Database } from '@educa/core'
+import { ContaGlobalRepository } from '@educa/core/conta-global'
 import { ErrorCode, FINALIDADE_DA_REDEFINICAO_PELO_OPERADOR, type FinalidadeDaRedefinicaoDeMfa } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { RedefinicaoDeMfaRepository } from './redefinicao-de-mfa.repository.js'

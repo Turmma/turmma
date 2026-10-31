@@ -1,5 +1,5 @@
 import 'reflect-metadata'
-import { AuditoriaRejectedError, AuditoriaRepository, createDatabase, createLogger, createPool, runInContext, type Database, type DatabasePool } from '@educa/nucleo'
+import { AuditoriaRejectedError, AuditoriaRepository, createDatabase, createLogger, createPool, runInContext, type Database, type DatabasePool } from '@educa/core'
 import type { INestApplication } from '@nestjs/common'
 import { NestFactory } from '@nestjs/core'
 import { randomUUID } from 'node:crypto'

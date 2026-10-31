@@ -1,4 +1,4 @@
-import { type Database } from '@educa/nucleo'
+import { type Database } from '@educa/core'
 
 // `*Repository` só mora em `*.repository.ts`: o analisador só lê esses, e uma classe dessas fora deles escaparia da trava.
 export class XRepository { // reprova: repository-fora-do-arquivo

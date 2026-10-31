@@ -117,7 +117,7 @@ rodada nova; o caso que originou cada pergunta está em `docs/processo-licoes.md
    a decisão, com a palavra do código; se a decisão muda algo que mais de um documento descreve, procure o termo antigo em
    todos de uma vez, com `grep`. Subtarefa de busca ou de commit à parte só fica `[x]` com a prova no documento: a saída do
    `grep` (vazia, ou cada linha justificada) e o hash do commit de caracterização.
-9. **Qual peça que já existe faz isto?** Procure em `apps/api/src/sessao/` e em `packages/nucleo/` antes de escrever.
+9. **Qual peça que já existe faz isto?** Procure em `apps/api/src/sessao/` e em `packages/core/` antes de escrever.
    Reaproveite importando; se a peça está no lugar errado para dois módulos, mova-a para arquivo próprio ou para o
    `nucleo`, nesta tarefa, e não copie.
 10. **A operação que pode acontecer duas vezes ao mesmo tempo tem teste com as duas chamadas em paralelo (`Promise.all`), e

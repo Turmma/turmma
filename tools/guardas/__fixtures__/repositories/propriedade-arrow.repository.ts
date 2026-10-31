@@ -1,4 +1,4 @@
-import { requireEscolaId, type Database } from '@educa/nucleo'
+import { requireEscolaId, type Database } from '@educa/core'
 import { aluno } from './tabelas.js'
 
 // A propriedade-função pública é método público do mesmo jeito.

@@ -1,4 +1,4 @@
-import type { Database, LoggerBase } from '@educa/nucleo'
+import type { Database, LoggerBase } from '@educa/core'
 import { Global, Module, type BeforeApplicationShutdown, type DynamicModule, type OnApplicationBootstrap } from '@nestjs/common'
 import { BANCO } from '../banco.module.js'
 import { BuscaDeTrechos } from './busca-de-trechos.js'

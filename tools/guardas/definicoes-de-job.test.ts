@@ -4,7 +4,7 @@ import { getTableConfig, PgDialect } from 'drizzle-orm/pg-core'
 import { JOB_DEFINITIONS, QUEUE_NAMES, type JobDataSchema } from '@educa/shared'
 import { describe, expect, it } from 'vitest'
 import { z } from 'zod'
-import { jobRegistro } from '../../packages/nucleo/src/db/schema/job-registro.ts'
+import { jobRegistro } from '../../packages/core/src/db/schema/job-registro.ts'
 import { raizRepositorio } from '../ci/executar.ts'
 import { ehNomePessoal } from './regras-log.mjs'
 

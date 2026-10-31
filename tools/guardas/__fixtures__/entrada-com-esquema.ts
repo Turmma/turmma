@@ -4,7 +4,7 @@
 import { ErrorCode } from '@educa/shared'
 import { Body, Controller, Get, Param, Post, Query, Res, UploadedFile } from '@nestjs/common'
 import { z } from 'zod'
-import { IdPipe, ZodValidationPipe } from '@educa/nucleo'
+import { IdPipe, ZodValidationPipe } from '@educa/core'
 
 const esquemaCorpo = z.strictObject({ nome: z.string() })
 const esquemaConsulta = z.strictObject({ limite: z.coerce.number().default(20) })

@@ -1,5 +1,5 @@
 import 'reflect-metadata'
-import { createLogger, type Meter } from '@educa/nucleo'
+import { createLogger, type Meter } from '@educa/core'
 import type { INestApplication } from '@nestjs/common'
 import { NestFactory } from '@nestjs/core'
 import { createHash, randomBytes } from 'node:crypto'

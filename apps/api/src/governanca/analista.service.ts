@@ -1,4 +1,4 @@
-import { diaDeUso, DomainException, AuditoriaRecorder, systemClock, resumoDoAnalista, type Database, type AnalistaInput, type Clock } from '@educa/nucleo'
+import { diaDeUso, DomainException, AuditoriaRecorder, systemClock, resumoDoAnalista, type Database, type AnalistaInput, type Clock } from '@educa/core'
 import {
   ErrorCode,
   conteudoDoResumoDoAnalistaSchema,

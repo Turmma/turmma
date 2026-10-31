@@ -1,4 +1,4 @@
-import { LLMError } from '@educa/nucleo'
+import { LLMError } from '@educa/core'
 import { habilidadesDaDisciplina, type AdaptacaoAplicada, type Citacao, type ConteudoDeAtividade, type ConteudoDoArtefato, type Etapa, type Habilidade } from '@educa/shared'
 
 /** Quantas habilidades uma tarefa aceita (`habilidadesSchema`, na camada de IA). */

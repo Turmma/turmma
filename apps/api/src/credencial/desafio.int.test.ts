@@ -1,4 +1,4 @@
-import { createApiRedisClient, createQueueRedisClient, DomainException } from '@educa/nucleo'
+import { createApiRedisClient, createQueueRedisClient, DomainException } from '@educa/core'
 import { ErrorCode } from '@educa/shared'
 import { Logger } from '@nestjs/common'
 import type { Redis } from 'ioredis'

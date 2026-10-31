@@ -1,2 +1,2 @@
-import { ContaGlobalRepository } from '@educa/nucleo/conta-global'
+import { ContaGlobalRepository } from '@educa/core/conta-global'
 export const e = ContaGlobalRepository

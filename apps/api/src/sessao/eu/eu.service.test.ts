@@ -1,4 +1,4 @@
-import { runInContext, METRICS } from '@educa/nucleo'
+import { runInContext, METRICS } from '@educa/core'
 import { ErrorCode } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { afterEach, describe, expect, it } from 'vitest'

@@ -1,4 +1,4 @@
-import { InvalidConfigError, DomainException, FORMATO_SLUG, summarizeError, TAMANHO_MAXIMO_SLUG, TIPOS_DE_REDE, type TipoDeRede } from '@educa/nucleo'
+import { InvalidConfigError, DomainException, FORMATO_SLUG, summarizeError, TAMANHO_MAXIMO_SLUG, TIPOS_DE_REDE, type TipoDeRede } from '@educa/core'
 import { ErrorCode } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { pathToFileURL } from 'node:url'

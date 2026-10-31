@@ -1,4 +1,4 @@
-import type { Database } from '@educa/nucleo'
+import type { Database } from '@educa/core'
 import { Module } from '@nestjs/common'
 import { LimiteDePedidosDeIa } from '../assistente/limite-de-pedidos-de-ia.js'
 import { BANCO } from '../banco.module.js'

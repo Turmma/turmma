@@ -1,4 +1,4 @@
-import { DomainException, postgresErrorIn, AuditoriaRecorder, DEFAULT_RETRY_AFTER_SECONDS, type Database } from '@educa/nucleo'
+import { DomainException, postgresErrorIn, AuditoriaRecorder, DEFAULT_RETRY_AFTER_SECONDS, type Database } from '@educa/core'
 import { ErrorCode, acessoDaTurmaResponseSchema, acessoGeradoResponseSchema, type GerarAcessoRequest, type AcessoDaTurmaResponse, type AcessoGeradoResponse } from '@educa/shared'
 import { TurmaRepository } from '../../estrutura/turma/turma.repository.js'
 import { AcessoDaTurmaRepository } from './acesso-da-turma.repository.js'

@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync } from 'node:fs'
 import { join, relative, sep } from 'node:path'
 import ts from 'typescript'
-import { TAMANHO_MINIMO_JUSTIFICATIVA_SEM_ESCOPO } from '../../packages/nucleo/src/db/sem-escopo.decorator.ts'
+import { TAMANHO_MINIMO_JUSTIFICATIVA_SEM_ESCOPO } from '../../packages/core/src/db/unscoped.decorator.ts'
 
 /**
  * Trava de tenant (regra 10, itens 3, 5 e 9; RF9 da X5): todo método público de `*.repository.ts` que toca o banco prova o
@@ -81,27 +81,27 @@ export const REPOSITORIES_SEM_ESCOPO: readonly EntradaSemEscopo[] = [
     metodos: ['homonimo'],
   },
   {
-    arquivo: 'packages/nucleo/src/auditoria/auditoria.repository.ts',
+    arquivo: 'packages/core/src/auditoria/auditoria.repository.ts',
     motivo: 'lê contextoAtual()?.escolaId no próprio método e recusa sem escola, com AuditoriaRecusada: é a cópia local, com erro próprio',
     metodos: ['listarDaEscola'],
   },
   {
-    arquivo: 'packages/nucleo/src/auditoria/insercao-de-auditoria.repository.ts',
+    arquivo: 'packages/core/src/auditoria/auditoria-insert.repository.ts',
     motivo: 'grava a escola do contexto, e escola nula nas ações da operação global (check auditoria_escola_ou_operacao_global); a escola nula é legítima aqui',
     metodos: ['insertAuditoria'],
   },
   {
-    arquivo: 'packages/nucleo/src/fila/job-registro.repository.ts',
+    arquivo: 'packages/core/src/queue/job-outbox.repository.ts',
     motivo: 'a escola, ou a falta dela nos jobs sistema.*, vem de contextoAtual() e do escopoDoJobNoContexto definido neste arquivo, que a guarda só conta quando importado',
     metodos: ['inserir', 'inserirUmaVez', 'buscarDaEscola', 'localizarParaExecucao', 'iniciarExecucao', 'concluir', 'avisarVagaLivre', 'registrarFalha'],
   },
   {
-    arquivo: 'packages/nucleo/src/identidade/sessao.repository.ts',
+    arquivo: 'packages/core/src/identidade/sessao.repository.ts',
     motivo: 'é a leitura que cria o contexto da requisição: o escopo é a escola e a sessão do TokenVerificado, e não há contexto para ler',
     metodos: ['lerParaGuarda', 'marcarAtualApresentado'],
   },
   {
-    arquivo: 'packages/nucleo/src/titular/compartilhamento.repository.ts',
+    arquivo: 'packages/core/src/titular/compartilhamento.repository.ts',
     motivo: 'só calcula duas datas pela aritmética do banco, sem ler tabela nenhuma: não há escola a aplicar',
     metodos: ['datasDeReferencia'],
   },

@@ -1,4 +1,4 @@
-import { Public, ZodValidationPipe } from '@educa/nucleo'
+import { Public, ZodValidationPipe } from '@educa/core'
 import {
   abrirSalaRequestSchema,
   reivindicarSalaRequestSchema,

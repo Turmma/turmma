@@ -1,4 +1,4 @@
-import { extractBearerToken, requestIp, TrustedProxies, Public, ZodValidationPipe } from '@educa/nucleo'
+import { extractBearerToken, requestIp, TrustedProxies, Public, ZodValidationPipe } from '@educa/core'
 import {
   ativarMfaRequestSchema,
   mfaRequestSchema,

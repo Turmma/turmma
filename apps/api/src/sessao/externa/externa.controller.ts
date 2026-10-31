@@ -1,4 +1,4 @@
-import { requestIp, PROVEDORES_EXTERNOS, TrustedProxies, Public, ZodValidationPipe, type ProvedorExterno } from '@educa/nucleo'
+import { requestIp, PROVEDORES_EXTERNOS, TrustedProxies, Public, ZodValidationPipe, type ProvedorExterno } from '@educa/core'
 import { ErrorCode, slugDaEscolaSchema } from '@educa/shared'
 import { Controller, Get, Param, Query, Req, Res } from '@nestjs/common'
 import type { IncomingMessage, ServerResponse } from 'node:http'

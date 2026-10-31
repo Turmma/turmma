@@ -116,7 +116,7 @@ describe('os caminhos que papel, regra e guarda citam (RF24)', () => {
   })
 
   it('a guarda de SDK de IA, a regra 30 e o llm-integrator citam a mesma pasta dos adaptadores, e ela existe', () => {
-    const pasta = 'packages/nucleo/src/ia/adaptador-*.ts'
+    const pasta = 'packages/core/src/ia/*-adapter.ts'
     expect(readFileSync(join(RAIZ, 'tools/guardas/regras-ia.mjs'), 'utf8')).toContain(`PASTA_DOS_ADAPTADORES = '${pasta}'`)
     expect(readFileSync(join(RAIZ, '.claude/rules/30-camada-ia.md'), 'utf8')).toContain(`\`${pasta}\``)
     expect(readFileSync(join(RAIZ, '.claude/agents/llm-integrator.md'), 'utf8')).toContain(`\`${pasta}\``)
@@ -195,8 +195,8 @@ describe('os caminhos que papel, regra e guarda citam (RF24)', () => {
       '.claude/rules/10-a.md cita apps/api/src/inexistente/<modulo>/x.ts: a pasta apps/api/src/inexistente/ não existe',
     ])
     expect(conferir(amostra(aCitar('`apps/api/src/existe.ts/x-<y>`'))).problemas).toEqual(['.claude/rules/10-a.md cita apps/api/src/existe.ts/x-<y>: a pasta apps/api/src/existe.ts não existe'])
-    expect(conferir(amostra(aCitar('`packages/nucleo/src/ia/adaptador-<x>.ts`'))).problemas).toEqual([
-      '.claude/rules/10-a.md cita packages/nucleo/src/ia/adaptador-<x>.ts: a pasta packages/nucleo/src/ia não existe',
+    expect(conferir(amostra(aCitar('`packages/core/src/ia/adaptador-<x>.ts`'))).problemas).toEqual([
+      '.claude/rules/10-a.md cita packages/core/src/ia/adaptador-<x>.ts: a pasta packages/core/src/ia não existe',
     ])
   })
 

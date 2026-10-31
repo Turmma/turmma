@@ -1,5 +1,5 @@
 import { ListObjectsV2Command, S3Client } from '@aws-sdk/client-s3'
-import { currentContext, Unscoped } from '@educa/nucleo'
+import { currentContext, Unscoped } from '@educa/core'
 import { InvariantException } from '@educa/shared'
 import type { ConfiguracaoStorage } from '../config.js'
 

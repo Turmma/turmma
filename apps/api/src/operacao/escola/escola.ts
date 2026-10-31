@@ -7,7 +7,7 @@ import {
   AuditoriaRecorder,
   type Database,
   type TipoDeRede,
-} from '@educa/nucleo'
+} from '@educa/core'
 import { ErrorCode } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import type { ConferenciaDoAutor } from '../../sessao/index.js'

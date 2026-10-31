@@ -1,4 +1,4 @@
-import { Unscoped, type Database } from '@educa/nucleo'
+import { Unscoped, type Database } from '@educa/core'
 import { MOTIVO_DE_FORA } from './motivos.js'
 import { aluno } from './tabelas.js'
 

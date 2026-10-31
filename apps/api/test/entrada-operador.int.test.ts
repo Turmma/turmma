@@ -1,5 +1,5 @@
 import 'reflect-metadata'
-import { createLogger, METRICS, systemClock, type Database } from '@educa/nucleo'
+import { createLogger, METRICS, systemClock, type Database } from '@educa/core'
 import { ErrorCode, entradaDeOperadorResponseSchema, MENSAGENS_DE_ERRO } from '@educa/shared'
 import type { INestApplication } from '@nestjs/common'
 import { NestFactory } from '@nestjs/core'

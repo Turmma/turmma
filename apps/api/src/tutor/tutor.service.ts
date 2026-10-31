@@ -14,7 +14,7 @@ import {
   type TutorOutput,
   type SuspensaoDeFuncao,
   type DatabaseTransaction,
-} from '@educa/nucleo'
+} from '@educa/core'
 import {
   ErrorCode,
   citacaoSchema,

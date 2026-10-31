@@ -1,4 +1,4 @@
-import { DomainException, LLMError, proporFerramenta, type Database, type AssistenteInput } from '@educa/nucleo'
+import { DomainException, LLMError, proporFerramenta, type Database, type AssistenteInput } from '@educa/core'
 import {
   ErrorCode,
   conteudoDaMensagemDoAgenteSchema,

@@ -1,4 +1,4 @@
-import { DomainException, DEFAULT_RETRY_AFTER_SECONDS, throttledWarn, type Environment, type Database, type OperadorTokenIssuer } from '@educa/nucleo'
+import { DomainException, DEFAULT_RETRY_AFTER_SECONDS, throttledWarn, type Environment, type Database, type OperadorTokenIssuer } from '@educa/core'
 import { ErrorCode, type RenovacaoDeOperadorResponse } from '@educa/shared'
 import { Logger } from '@nestjs/common'
 import { randomBytes } from 'node:crypto'

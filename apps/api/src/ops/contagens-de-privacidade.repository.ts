@@ -1,4 +1,4 @@
-import { arquivoTitular, requireEscolaId, expurgoExecucao, pedidoTitular, type Database, type DatabaseTransaction } from '@educa/nucleo'
+import { arquivoTitular, requireEscolaId, expurgoExecucao, pedidoTitular, type Database, type DatabaseTransaction } from '@educa/core'
 import { ESTADOS_DO_PEDIDO, type EstadoDoPedido } from '@educa/shared'
 import { asc, desc, eq, sql } from 'drizzle-orm'
 

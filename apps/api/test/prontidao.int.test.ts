@@ -1,5 +1,5 @@
 import 'reflect-metadata'
-import { createLogger, Public } from '@educa/nucleo'
+import { createLogger, Public } from '@educa/core'
 import { Controller, Get, Module, type INestApplication } from '@nestjs/common'
 import { NestFactory } from '@nestjs/core'
 import type { AddressInfo } from 'node:net'

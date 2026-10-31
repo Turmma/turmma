@@ -1,4 +1,4 @@
-import { DomainException, runInContext } from '@educa/nucleo'
+import { DomainException, runInContext } from '@educa/core'
 import { ErrorCode } from '@educa/shared'
 import { createHash, randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'

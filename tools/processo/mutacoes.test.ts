@@ -386,10 +386,10 @@ describe('produção alterada sem mutação não recebe carimbo (RF17)', () => {
 
   it.each([
     { nome: 'de apps', arquivo: 'apps/api/src/pedidos.repository.ts', producao: true },
-    { nome: 'de packages', arquivo: 'packages/nucleo/src/ia/porta.ts', producao: true },
+    { nome: 'de packages', arquivo: 'packages/core/src/ia/port.ts', producao: true },
     { nome: 'de tela', arquivo: 'apps/web/src/areas/Tela.tsx', producao: true },
     { nome: 'teste de unidade em src', arquivo: 'apps/api/src/pedidos.test.ts', producao: false },
-    { nome: 'teste de integração em src', arquivo: 'packages/nucleo/src/retencao/retencao.int.test.ts', producao: false },
+    { nome: 'teste de integração em src', arquivo: 'packages/core/src/retencao/retencao.int.test.ts', producao: false },
     { nome: 'teste de tela em src', arquivo: 'apps/web/src/Tela.test.tsx', producao: false },
     { nome: 'spec em src', arquivo: 'apps/web/src/Tela.spec.ts', producao: false },
     { nome: 'fixture em src', arquivo: 'apps/web/src/__fixtures__/tela.tsx', producao: false },
@@ -614,7 +614,7 @@ index 0000000..4444444
 
   it.each([
     { nome: 'produção de apps', arquivo: 'apps/api/src/pedidos.repository.ts', lido: true },
-    { nome: 'produção de packages', arquivo: 'packages/nucleo/src/ia/provedor.ts', lido: true },
+    { nome: 'produção de packages', arquivo: 'packages/core/src/ia/llm-gateway.ts', lido: true },
     { nome: 'script do processo', arquivo: 'tools/processo/mutacoes.ts', lido: true },
     { nome: 'guarda', arquivo: 'tools/guardas/catraca.ts', lido: true },
     { nome: 'ferramenta de ci em módulo', arquivo: 'tools/ci/duracao-do-e2e.mjs', lido: true },

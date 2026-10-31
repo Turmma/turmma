@@ -89,7 +89,7 @@ tudo vira, e um sistema que trata turma como permanente quebra inteiro na virada
 8. **A camada de rede lê apenas agregado.** Uma secretaria municipal não alcança nota
    individual nem conversa de tutor. Existe teste que prova isso, porque é a primeira coisa
    que um jurídico de prefeitura pergunta.
-   Checagem: `packages/shared/src/permissao/matriz.test.ts`, `packages/nucleo/src/identidade/tabelas-de-identidade.int.test.ts`, `tenancy-guardian`.
+   Checagem: `packages/shared/src/permissao/matriz.test.ts`, `packages/core/src/identidade/tabelas-de-identidade.int.test.ts`, `tenancy-guardian`.
 
 9. **Query sem escopo só em rotina administrativa nossa**, marcada com `@Unscoped()` e com
    uma linha de justificativa. Se aparecer uma terceira dessas no mesmo módulo, tem algo

@@ -1,4 +1,4 @@
-import { JobOutbox, DomainException, JobOutboxRepository, type Database } from '@educa/nucleo'
+import { JobOutbox, DomainException, JobOutboxRepository, type Database } from '@educa/core'
 import {
   ErrorCode,
   jobStateResponseSchema,

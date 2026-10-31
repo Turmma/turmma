@@ -1,6 +1,6 @@
 import 'reflect-metadata'
-import { InMemoryFileStorage, runInContext, type Clock } from '@educa/nucleo'
-import { S3FileStorage } from '@educa/nucleo/armazem-s3'
+import { InMemoryFileStorage, runInContext, type Clock } from '@educa/core'
+import { S3FileStorage } from '@educa/core/s3-file-storage'
 import { TIPO_MONTAR_ARQUIVO } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it, onTestFinished } from 'vitest'

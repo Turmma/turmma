@@ -10,7 +10,7 @@ import {
   vinculo,
   type Database,
   type DatabaseTransaction,
-} from '@educa/nucleo'
+} from '@educa/core'
 import {
   InvariantException,
   ESTADOS_DO_PROFESSOR_ALOCAVEIS,

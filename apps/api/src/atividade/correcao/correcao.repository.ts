@@ -12,7 +12,7 @@ import {
   validacaoDoLote,
   type Database,
   type DatabaseTransaction,
-} from '@educa/nucleo'
+} from '@educa/core'
 import type { DestaquesAbertos, DiagnosticoGravado, EstadoDeEntrega, LoteApresentado, MotivoDeDestaque } from '@educa/shared'
 import { and, asc, desc, eq, inArray, isNull, lt, lte, ne, sql, type SQL } from 'drizzle-orm'
 import { InvariantException } from '@educa/shared'

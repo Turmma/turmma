@@ -1,4 +1,4 @@
-import { type Database } from '@educa/nucleo'
+import { type Database } from '@educa/core'
 import { escopoDaConsulta } from './escopo.js'
 import { aluno } from './tabelas.js'
 

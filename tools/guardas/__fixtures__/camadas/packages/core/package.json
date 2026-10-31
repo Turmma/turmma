@@ -1,0 +1,13 @@
+{
+  "name": "@educa/core",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "source": "./src/x.ts"
+    },
+    "./conta-global": {
+      "source": "./src/ciclo-de-vida/conta-global.repository.ts"
+    }
+  }
+}

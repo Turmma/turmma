@@ -1,4 +1,4 @@
-import { DomainException } from '@educa/nucleo'
+import { DomainException } from '@educa/core'
 import { ErrorCode } from '@educa/shared'
 import { naEscolaSemUsuario } from './escola-sem-usuario.js'
 import type { AcessoDaSalaAchado, ResolucaoDeTenantRepository } from './resolucao-de-tenant.repository.js'

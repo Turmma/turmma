@@ -1,4 +1,4 @@
-import { currentContext, requireEscolaId, type RequestContext } from '@educa/nucleo'
+import { currentContext, requireEscolaId, type RequestContext } from '@educa/core'
 import { InvariantException } from '@educa/shared'
 
 /**

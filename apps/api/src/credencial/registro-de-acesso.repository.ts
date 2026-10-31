@@ -1,4 +1,4 @@
-import { requireEscolaId, registroAcesso, type Database, type EventoDeAcesso, type DatabaseTransaction } from '@educa/nucleo'
+import { requireEscolaId, registroAcesso, type Database, type EventoDeAcesso, type DatabaseTransaction } from '@educa/core'
 
 /**
  * O registro de acesso (Marco Civil, art. 15) de quem já tem escola: login, renovação e saída, gravados na escola do

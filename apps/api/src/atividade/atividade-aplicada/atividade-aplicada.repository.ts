@@ -1,4 +1,4 @@
-import { artefato, atividadeAplicada, entrega, requireAnoEmCurso, requireEscolaId, requestSessao, tentativaAtividade, turma, usuario, vinculo, type Database, type DatabaseTransaction } from '@educa/nucleo'
+import { artefato, atividadeAplicada, entrega, requireAnoEmCurso, requireEscolaId, requestSessao, tentativaAtividade, turma, usuario, vinculo, type Database, type DatabaseTransaction } from '@educa/core'
 import type { AtividadesAplicadasQuery, EstadoDeAtividadeAplicada, EstadoDeEntrega, TipoDeArtefato } from '@educa/shared'
 import { and, desc, eq, lt, sql, type AnyColumn, type SQL } from 'drizzle-orm'
 import { InvariantException } from '@educa/shared'

@@ -1,4 +1,4 @@
-import { type Database } from '@educa/nucleo'
+import { type Database } from '@educa/core'
 import { aluno } from './tabelas.js'
 
 // A cópia local de `requireEscolaId` não é a função que lê o contexto: só a importada vale.

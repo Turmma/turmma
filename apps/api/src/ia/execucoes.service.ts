@@ -1,4 +1,4 @@
-import { DomainException, type Database } from '@educa/nucleo'
+import { DomainException, type Database } from '@educa/core'
 import { ErrorCode, execucaoResponseSchema, type ExecucaoResponse, type ResultadoDaExecucao, type ResultadoGravado } from '@educa/shared'
 import { ExecucaoDaSessaoRepository } from './execucao.repository.js'
 

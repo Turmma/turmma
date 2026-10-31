@@ -1,10 +1,10 @@
 import { readFileSync } from 'node:fs'
 import { beforeAll, describe, expect, it } from 'vitest'
-import { extrairFatos, type Trecho } from '../../packages/nucleo/src/ia/material.ts'
-import type { TaskDefinition } from '../../packages/nucleo/src/ia/tarefa.ts'
-import { gerarAtividadeObjetiva } from '../../packages/nucleo/src/ia/tarefas/gerar-atividade-objetiva.ts'
-import { gerarPlanoDeAula } from '../../packages/nucleo/src/ia/tarefas/gerar-plano-de-aula.ts'
-import { turnoDoTutor } from '../../packages/nucleo/src/ia/tarefas/turno-do-tutor.ts'
+import { extrairFatos, type Trecho } from '../../packages/core/src/ia/material.ts'
+import type { TaskDefinition } from '../../packages/core/src/ia/task.ts'
+import { gerarAtividadeObjetiva } from '../../packages/core/src/ia/tasks/gerar-atividade-objetiva.ts'
+import { gerarPlanoDeAula } from '../../packages/core/src/ia/tasks/gerar-plano-de-aula.ts'
+import { turnoDoTutor } from '../../packages/core/src/ia/tasks/turno-do-tutor.ts'
 import { MATERIAL_DE_DEMONSTRACAO, PAGINAS_DO_MATERIAL, normalizarTexto, textoDaPagina } from './conteudo-estequiometria.ts'
 import { extrairTextoPorPagina } from './extrair-texto.ts'
 import { CAMINHO_DO_MATERIAL } from './gerar-material.ts'
@@ -36,7 +36,7 @@ function expectFraseSoDaPagina(frase: string, pagina: number): void {
 
 /**
  * O caminho que o provedor faz com o adaptador falso: a entrada passa pelo schema, a versão determinística da tarefa
- * gera, e a saída passa pelo schema e pela conferência da tarefa. O provedor em si é testado em `packages/nucleo`;
+ * gera, e a saída passa pelo schema e pela conferência da tarefa. O provedor em si é testado em `packages/core`;
  * aqui só entram as tarefas, que são dado (este teste é conferido pelo `tsconfig` da raiz, que não aceita a sintaxe
  * das classes do provedor).
  */

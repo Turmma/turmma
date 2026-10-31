@@ -1,4 +1,4 @@
-import type { DatabasePool } from '@educa/nucleo'
+import type { DatabasePool } from '@educa/core'
 import { randomBytes } from 'node:crypto'
 
 /** A primeira metade da chave da trava consultiva dos gatilhos de parada: longe das 7_000_00x do código. */

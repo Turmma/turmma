@@ -1,4 +1,4 @@
-import type { AuthConfig, SessaoReader, LoggerBase } from '@educa/nucleo'
+import type { AuthConfig, SessaoReader, LoggerBase } from '@educa/core'
 import { SYSTEM_REALTIME_NAMESPACE } from '@educa/shared'
 import { Inject } from '@nestjs/common'
 import { WebSocketGateway, type OnGatewayConnection, type OnGatewayInit } from '@nestjs/websockets'

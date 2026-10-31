@@ -1,4 +1,4 @@
-import { DomainException } from '@educa/nucleo'
+import { DomainException } from '@educa/core'
 import {
   ErrorCode,
   matriculaDigitadaSchema,

@@ -1,4 +1,4 @@
-import { Public } from '@educa/nucleo'
+import { Public } from '@educa/core'
 import { avisosResponseSchema, type Aviso, type AvisosResponse } from '@educa/shared'
 import { Controller, Get, Header, Inject } from '@nestjs/common'
 

@@ -1,4 +1,4 @@
-import { requireEscolaId, suspensaoDeFuncao, type Database, type SuspensaoDeFuncao, type DatabaseTransaction } from '@educa/nucleo'
+import { requireEscolaId, suspensaoDeFuncao, type Database, type SuspensaoDeFuncao, type DatabaseTransaction } from '@educa/core'
 import type { ChaveDeFuncao } from '@educa/shared'
 import { and, eq, isNull } from 'drizzle-orm'
 

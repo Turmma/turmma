@@ -1,4 +1,4 @@
-// Violações de propósito fora de packages/nucleo/src/ia/adaptador-*.ts. Toda linha marcada com "reprova:"
+// Violações de propósito fora de packages/core/src/ia/*-adapter.ts. Toda linha marcada com "reprova:"
 // precisa sair com a regra citada; linha sem marca não pode sair com nenhuma guarda.
 import OpenAI from 'openai' // reprova: @typescript-eslint/no-restricted-imports
 import { OpenAI as ClienteDeModelo } from 'openai' // reprova: @typescript-eslint/no-restricted-imports

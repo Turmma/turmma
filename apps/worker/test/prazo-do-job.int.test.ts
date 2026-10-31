@@ -1,4 +1,4 @@
-import { runInContext, jobOptions } from '@educa/nucleo'
+import { runInContext, jobOptions } from '@educa/core'
 import { JobFailureCode, JOB_DEFINITIONS, TIPO_JOB_SINTETICO, type JobRegistry } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'

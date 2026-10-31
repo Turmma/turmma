@@ -1,5 +1,5 @@
 import 'reflect-metadata'
-import { type Database } from '@educa/nucleo'
+import { type Database } from '@educa/core'
 import { ErrorCode, segundoFatorDeOperadorResponseSchema, type ConfigurarSegundoFatorDeOperadorResponse } from '@educa/shared'
 import type { INestApplication } from '@nestjs/common'
 import type { Redis } from 'ioredis'

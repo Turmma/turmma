@@ -1,5 +1,5 @@
 import 'reflect-metadata'
-import { createLogger, RateLimiter, METRICS, observeInsuranceLimiter } from '@educa/nucleo'
+import { createLogger, RateLimiter, METRICS, observeInsuranceLimiter } from '@educa/core'
 import { ErrorCode, MENSAGENS_DE_ERRO, type PapelDeUsuario } from '@educa/shared'
 import type { INestApplication } from '@nestjs/common'
 import { NestFactory } from '@nestjs/core'

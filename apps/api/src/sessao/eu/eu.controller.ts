@@ -1,4 +1,4 @@
-import { RequirePermissao, ZodValidationPipe } from '@educa/nucleo'
+import { RequirePermissao, ZodValidationPipe } from '@educa/core'
 import { emptyOrMissingBodyRequestSchema, type EmptyBodyRequest, type EuResponse, type IntroducaoResponse } from '@educa/shared'
 import { Body, Controller, Get, Header, HttpCode, HttpStatus, Post } from '@nestjs/common'
 import { EuService } from './eu.service.js'

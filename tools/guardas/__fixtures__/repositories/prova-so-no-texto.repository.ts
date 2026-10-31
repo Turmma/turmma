@@ -1,5 +1,5 @@
-import { requireEscolaId } from '@educa/nucleo'
-import { type Database } from '@educa/nucleo'
+import { requireEscolaId } from '@educa/core'
+import { type Database } from '@educa/core'
 import { aluno } from './tabelas.js'
 
 // A função está importada, mas a chamada só aparece em comentário e em texto: não é prova.

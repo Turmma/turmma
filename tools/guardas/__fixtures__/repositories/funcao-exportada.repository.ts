@@ -1,4 +1,4 @@
-import { requireEscolaId, type Database, type DatabaseTransaction } from '@educa/nucleo'
+import { requireEscolaId, type Database, type DatabaseTransaction } from '@educa/core'
 import { aluno } from './tabelas.js'
 
 // A função exportada do módulo é ponto de entrada público, como o método da classe.

@@ -1,4 +1,4 @@
-import { Marcador, Outro, type Database } from '@educa/nucleo'
+import { Marcador, Outro, type Database } from '@educa/core'
 import { aluno } from './tabelas.js'
 
 // Decorator que não é o `@Unscoped` importado (com ou sem chamada) não prova nada.

@@ -1,4 +1,4 @@
-import { createDatabase, createPool, type Database, type DatabasePool } from '@educa/nucleo'
+import { createDatabase, createPool, type Database, type DatabasePool } from '@educa/core'
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { urlDoBancoDeTeste } from '../../../tools/testes/integracao.setup.ts'
 import { consultarUso } from '../src/ops/uso.js'

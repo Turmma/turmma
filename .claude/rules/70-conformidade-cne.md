@@ -58,7 +58,7 @@ O detalhamento está em `docs/regulacao.md` (o que a lei exige) e em
    }
    ```
 
-   Checagem: `packages/nucleo/src/db/schema/mvp/tabelas-do-mvp.int.test.ts`, `conformidade-reviewer`.
+   Checagem: `packages/core/src/db/schema/mvp/mvp-tables.int.test.ts`, `conformidade-reviewer`.
 
 2. **Nenhuma funcionalidade decide aprovação, reprovação ou encaminhamento de aluno.** Nem
    como recomendação automática aplicada sem alguém confirmar. Se aparecer um pedido desse
@@ -71,7 +71,7 @@ O detalhamento está em `docs/regulacao.md` (o que a lei exige) e em
    critérios antes da aplicação, organização do lote e apoio à correção cega. Se aparecer um
    pedido de "só um rascunho para o professor ver", ele é recusado: é exatamente o que a
    diretriz chama de pré-correção.
-    Checagem: `packages/nucleo/src/db/schema/mvp/tabelas-do-mvp.int.test.ts`, `apps/api/src/assistente/assistente.int.test.ts`, `conformidade-reviewer`.
+    Checagem: `packages/core/src/db/schema/mvp/mvp-tables.int.test.ts`, `apps/api/src/assistente/assistente.int.test.ts`, `conformidade-reviewer`.
 
 3. **Toda saída de IA que chega ao aluno passa por aprovação registrada**, com autor, data,
    e possibilidade de rejeitar com justificativa. A entrega do agente nasce pendente. Vale
@@ -90,7 +90,7 @@ O detalhamento está em `docs/regulacao.md` (o que a lei exige) e em
    que é proibido é afirmar ser humano quando o aluno pergunta, usar nome que sugira uma pessoa
    real, e simular vínculo afetivo ou dependência. A transparência exigida pela norma vem do
    produto inteiro se apresentar como IA e de toda saída de IA ser rotulada como tal.
-    Checagem: `packages/nucleo/src/ia/tarefas/turno-do-tutor.test.ts`, `apps/web/src/componentes/ui/ia/avatar-com-funcao-e-selo.test.tsx`.
+    Checagem: `packages/core/src/ia/tasks/turno-do-tutor.test.ts`, `apps/web/src/componentes/ui/ia/avatar-com-funcao-e-selo.test.tsx`.
 
 4b. **Nada induz uso excessivo, e sair nunca é mais difícil que entrar** (D59; Decreto 12.880,
    arts. 9º e 10). Proibido: recompensa por tempo de uso, sequência de dias, conteúdo que
@@ -110,7 +110,7 @@ O detalhamento está em `docs/regulacao.md` (o que a lei exige) e em
    e o tipo de adaptação registrada. Nenhum campo guarda texto, escrito por modelo ou por
    pessoa, sobre o jeito, o humor, a atenção ou o comportamento de um aluno. O aluno vê
    o que o Tutor sabe do desempenho dele e pode contestar.
-    Checagem: só a revisão garante (`conformidade-reviewer`) que o aluno vê o que o Tutor sabe e pode contestar; o que há de teste: `packages/nucleo/src/db/schema/mvp/tabelas-do-mvp.int.test.ts`, `apps/api/src/tutor/tutor.int.test.ts`.
+    Checagem: só a revisão garante (`conformidade-reviewer`) que o aluno vê o que o Tutor sabe e pode contestar; o que há de teste: `packages/core/src/db/schema/mvp/mvp-tables.int.test.ts`, `apps/api/src/tutor/tutor.int.test.ts`.
 
 5. **A autonomia de cada agente é declarada em código e visível ao coordenador**, em
    português comum, não em jargão. A escola precisa poder responder "o que essa IA faz
@@ -120,7 +120,7 @@ O detalhamento está em `docs/regulacao.md` (o que a lei exige) e em
 6. **A auditoria responde "o que a IA gerou, quem aprovou e quando"** para qualquer item,
    a qualquer momento. É essa consulta que ganha a reunião com a coordenação, e é ela que o
    dossiê de conformidade exporta (D61, `docs/conformidade-mec.md` seção 5).
-   Checagem: `packages/nucleo/src/auditoria/auditoria.int.test.ts`, `apps/api/src/entrega/entrega.int.test.ts`, `apps/api/src/governanca/governanca.int.test.ts`, `conformidade-reviewer`.
+   Checagem: `packages/core/src/auditoria/auditoria.int.test.ts`, `apps/api/src/entrega/entrega.int.test.ts`, `apps/api/src/governanca/governanca.int.test.ts`, `conformidade-reviewer`.
 
 6a. **Funcionalidade de alto risco não entra sem Avaliação de Impacto Algorítmico escrita**
    (D60): Tutor, correção de objetiva, diagnóstico por habilidade, sinais e alertas,
@@ -137,7 +137,7 @@ O detalhamento está em `docs/regulacao.md` (o que a lei exige) e em
    sem consequência automática, presa àquela avaliação e nunca somada por aluno. Pedido de
    ligar isso fora de avaliação, ou de "avisar quando o aluno usa outra IA", é recusado e sobe
    para produto com parecer.
-   Checagem: só a revisão garante (`conformidade-reviewer`); o que há de teste: `apps/api/src/tutor/tutor.int.test.ts`, `packages/nucleo/src/ia/tarefas/turno-do-tutor.test.ts`, `packages/nucleo/src/db/schema/mvp/tabelas-do-mvp.int.test.ts`.
+   Checagem: só a revisão garante (`conformidade-reviewer`); o que há de teste: `apps/api/src/tutor/tutor.int.test.ts`, `packages/core/src/ia/tasks/turno-do-tutor.test.ts`, `packages/core/src/db/schema/mvp/mvp-tables.int.test.ts`.
 
 8. **Medir o professor também não é vigiar** (D45). O professor vê o próprio painel; a
    coordenação vê por série e disciplina, só quando há dois ou mais professores no recorte

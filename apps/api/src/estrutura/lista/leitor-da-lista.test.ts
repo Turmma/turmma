@@ -1,4 +1,4 @@
-import { DomainException } from '@educa/nucleo'
+import { DomainException } from '@educa/core'
 import { ErrorCode, MAXIMO_DE_BYTES_DA_LISTA, MAXIMO_DE_LINHAS_DA_LISTA } from '@educa/shared'
 import { describe, expect, it } from 'vitest'
 import { errosDasLinhas, lerTextoDaLista } from './leitor-da-lista.js'

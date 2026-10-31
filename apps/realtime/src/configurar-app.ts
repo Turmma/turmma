@@ -13,7 +13,7 @@ import {
   summarizeError,
   type LoggerBase,
   type Meter,
-} from '@educa/nucleo'
+} from '@educa/core'
 import { NestFactory } from '@nestjs/core'
 import type { NestExpressApplication } from '@nestjs/platform-express'
 import { AdaptadorSocketIoComRedis, criarClienteRedisDoRealtime } from './adaptador-redis.js'

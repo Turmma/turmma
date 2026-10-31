@@ -95,9 +95,9 @@ inteiro na regra 10: toda tabela de domínio tem `escolaId`, e quem resolve a fr
 `ResolucaoDeTenantRepository`, com `@Unscoped` e teste de arquitetura que prova que só `sessao`
 a importa. Ela não é mais a única a alcançar a `Conta` sem escopo: as três operações sobre a
 `Conta` global que o ciclo de vida faz (travar, limpar a conta sem uso e encerrar as sessões dela) moram
-na `ContaGlobalRepository`, em `packages/nucleo/src/ciclo-de-vida`, desde que o ciclo de vida foi
+na `ContaGlobalRepository`, em `packages/core/src/ciclo-de-vida`, desde que o ciclo de vida foi
 para o `nucleo` (F3, tarefa 1.0): ela não sai pelo barrel do pacote, só pelo subcaminho
-`@educa/nucleo/conta-global`, e o teste de arquitetura lista quem a importa — o
+`@educa/core/conta-global`, e o teste de arquitetura lista quem a importa — o
 `CicloDeVidaService` e o `sessao` (a redefinição do MFA), e os testes deles. As três são exceções antigas que mudaram
 de lugar, mas já estão no ponto que a regra 10, item 9 aponta como sinal de desenho errado (a
 terceira no mesmo módulo): qualquer outra ali é mudança de spec, discutida antes, e não acréscimo
@@ -466,7 +466,7 @@ um por pessoa da escola, a autonomia deixa de caber num campo do `Agente`: ela �
 `docs/pendencias-dos-mockups.md` pede `FuncaoAgente → agente*, chave*, nome*, autonomia*,
 altoRisco*, ativo`; `funcao*` em `Entrega` e em `ExecucaoAgente`, que também filtra a thread do
 Assistente; e a suspensão como registro próprio, `escola*, funcao*, suspensaPor*, em*, motivo`,
-com auditoria. **Entregue na migration 0022** (`packages/nucleo/drizzle/0022_mvp_apresentacao.sql`)
+com auditoria. **Entregue na migration 0022** (`packages/core/drizzle/0022_mvp_apresentacao.sql`)
 e em `docs/mvp-contratos.md`, com uma diferença do P01: a função não virou tabela. O catálogo é
 código, `FUNCOES` em `packages/shared/src/time/funcoes.ts`, e `funcao` é texto com restrição de
 valor em `entrega`, `execucao_agente` e `consumo_ia`. A suspensão é a tabela `suspensao_de_funcao`
@@ -677,7 +677,7 @@ lê pelo `ContagensDePrivacidadeRepository` (`pedido_titular`, `arquivo_titular`
 com dono único no teste de arquitetura. Escola que não existe responde `NAO_ENCONTRADO`, igual a qualquer outra.
 
 **O expurgo noturno da escola (F3, tarefa 3.0).** À 1h, a rotina do sistema `sistema.expurgar-dado-pessoal` lista as
-escolas pela `CronEscolasRepository` (em `packages/nucleo/src/rotina`), a **única consulta sem escopo do expurgo**:
+escolas pela `CronEscolasRepository` (em `packages/core/src/cron`), a **única consulta sem escopo do expurgo**:
 `listarIds`, `@Unscoped` com a justificativa da rotina, devolve só os ids. Ela não é de retenção: é a infraestrutura de
 que a rotina, sem escola, precisa para abrir o contexto de cada escola, e o teste de arquitetura confere que só o
 worker-lote a usa (a rotina e a medição do alerta). No contexto de cada escola, a rotina grava um

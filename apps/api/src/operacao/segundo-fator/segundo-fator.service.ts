@@ -1,4 +1,4 @@
-import { currentContext, DomainException, runInContext, systemClock, type Environment, type Database, type OperadorTokenIssuer, type Clock } from '@educa/nucleo'
+import { currentContext, DomainException, runInContext, systemClock, type Environment, type Database, type OperadorTokenIssuer, type Clock } from '@educa/core'
 import {
   ErrorCode,
   type ConfigurarSegundoFatorDeOperadorRequest,

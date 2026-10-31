@@ -1,4 +1,4 @@
-import { RequirePermissao } from '@educa/nucleo'
+import { RequirePermissao } from '@educa/core'
 import type { MinhaTurmaResponse } from '@educa/shared'
 import { Controller, Get } from '@nestjs/common'
 import { MinhaTurmaService } from './minha-turma.service.js'

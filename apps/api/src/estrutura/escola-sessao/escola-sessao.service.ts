@@ -1,4 +1,4 @@
-import { currentContext, DomainException, AuditoriaRecorder, type Database } from '@educa/nucleo'
+import { currentContext, DomainException, AuditoriaRecorder, type Database } from '@educa/core'
 import { ErrorCode, escolaSessaoResponseSchema, type EscolaSessaoRequest, type EscolaSessaoResponse } from '@educa/shared'
 import { EscolaSessaoRepository } from './escola-sessao.repository.js'
 

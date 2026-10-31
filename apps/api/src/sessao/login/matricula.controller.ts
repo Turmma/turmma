@@ -1,4 +1,4 @@
-import { isOverIpLimit, requestIp, DowngradeRateLimit, TrustedProxies, Public, ZodValidationPipe } from '@educa/nucleo'
+import { isOverIpLimit, requestIp, DowngradeRateLimit, TrustedProxies, Public, ZodValidationPipe } from '@educa/core'
 import { loginMatriculaRequestSchema, loginResponseSchema, type LoginMatriculaRequest, type LoginResponse } from '@educa/shared'
 import { Body, Controller, Header, HttpCode, HttpStatus, Post, Req, Res } from '@nestjs/common'
 import type { IncomingMessage, ServerResponse } from 'node:http'

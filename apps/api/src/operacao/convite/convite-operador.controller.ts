@@ -1,4 +1,4 @@
-import { isOverIpLimit, requestIp, DowngradeRateLimit, TrustedProxies, ZodValidationPipe } from '@educa/nucleo'
+import { isOverIpLimit, requestIp, DowngradeRateLimit, TrustedProxies, ZodValidationPipe } from '@educa/core'
 import {
   aceitarConviteDeOperadorRequestSchema,
   consultarConviteDeOperadorRequestSchema,

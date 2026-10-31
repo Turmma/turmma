@@ -1,4 +1,4 @@
-import { unscopedJustification } from '@educa/nucleo'
+import { unscopedJustification } from '@educa/core'
 import { describe, expect, it } from 'vitest'
 import { MedidorDeStorage, prefixoDaEscola } from './medidor-de-storage.js'
 

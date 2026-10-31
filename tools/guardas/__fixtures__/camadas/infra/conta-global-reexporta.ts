@@ -1,1 +1,1 @@
-export * from '../packages/nucleo/src/ciclo-de-vida/conta-global.repository.js'
+export * from '../packages/core/src/ciclo-de-vida/conta-global.repository.js'

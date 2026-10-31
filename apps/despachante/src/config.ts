@@ -10,7 +10,7 @@ import {
   type TelemetryConfig,
   type JanelaLetiva,
   type ConcurrencyByQueue,
-} from '@educa/nucleo'
+} from '@educa/core'
 import { z } from 'zod'
 
 export { InvalidConfigError }

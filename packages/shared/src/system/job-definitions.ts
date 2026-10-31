@@ -5,7 +5,7 @@ import type { QueueName } from './jobs.js'
 /**
  * O registro de jobs (reengenharia, RF8). Todo tipo de job que existe declara aqui a fila, o escopo, quem executa, o
  * esquema dos dados, a retentativa, o prazo e se é urgente. O `JobOutbox` lê esta tabela para recusar, antes de gravar,
- * o payload que ela não descreve (`packages/nucleo/src/fila/enfileirador.ts`), e tipo que não está aqui não compila.
+ * o payload que ela não descreve (`packages/core/src/queue/job-outbox.ts`), e tipo que não está aqui não compila.
  *
  * O nome do tipo é um só nos dois lados: a API e o worker importam a constante `TIPO_*` daqui, e nenhum processador declara a
  * dele.

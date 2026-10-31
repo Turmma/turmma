@@ -1,4 +1,4 @@
-import type { Database } from '@educa/nucleo'
+import type { Database } from '@educa/core'
 import { Module } from '@nestjs/common'
 import type { Redis } from 'ioredis'
 import { BANCO } from '../banco.module.js'

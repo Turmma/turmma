@@ -4,7 +4,7 @@
 
 export const CODIGO_PARA_A_ESTEIRA: readonly string[] = [
   'apps/api/src/x.ts',
-  'packages/nucleo/src/x.ts',
+  'packages/core/src/x.ts',
   'infra/Caddyfile',
   'e2e/x.spec.ts',
   'tools/ci/x.ts',

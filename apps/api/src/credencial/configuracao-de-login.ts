@@ -1,4 +1,4 @@
-import { AMBIENTES, InvalidConfigError, isLoginProtectionDisabled, TIMEOUT_COMANDO_REDIS_API_MS, validateEnvironment, type Environment } from '@educa/nucleo'
+import { AMBIENTES, InvalidConfigError, isLoginProtectionDisabled, TIMEOUT_COMANDO_REDIS_API_MS, validateEnvironment, type Environment } from '@educa/core'
 import { hkdfSync } from 'node:crypto'
 import { z } from 'zod'
 

@@ -17,8 +17,8 @@ import {
   type Database,
   type JobOutbox,
   type Clock,
-} from '@educa/nucleo'
-import { CicloDeVidaService } from '@educa/nucleo/ciclo-de-vida'
+} from '@educa/core'
+import { CicloDeVidaService } from '@educa/core/ciclo-de-vida'
 import {
   CATEGORIAS_DE_RETENCAO,
   CHAVES_DE_PRAZO_FIXO,

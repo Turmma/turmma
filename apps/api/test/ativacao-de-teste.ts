@@ -1,4 +1,4 @@
-import { createDatabase, createPool, estadoDaCoordenacao, runInContext, type Database, type DatabasePool } from '@educa/nucleo'
+import { createDatabase, createPool, estadoDaCoordenacao, runInContext, type Database, type DatabasePool } from '@educa/core'
 import type { EstadoDaCoordenacao, PapelDeUsuario } from '@educa/shared'
 import type { INestApplication } from '@nestjs/common'
 import type { Redis } from 'ioredis'

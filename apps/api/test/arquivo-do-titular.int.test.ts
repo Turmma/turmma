@@ -1,4 +1,4 @@
-import { InMemoryFileStorage, ArquivoDoTitularRepository, createLogger, type Database, diaDeUso, runInContext, alunoTrailStatement, LEITURAS_DO_ARQUIVO, type Clock } from '@educa/nucleo'
+import { InMemoryFileStorage, ArquivoDoTitularRepository, createLogger, type Database, diaDeUso, runInContext, alunoTrailStatement, LEITURAS_DO_ARQUIVO, type Clock } from '@educa/core'
 import {
   ErrorCode,
   COLUNAS_FORA_DO_ARQUIVO,
@@ -27,7 +27,7 @@ import { execucaoDoJob } from '../../worker/test/execucao-do-job.js'
  * O arquivo do titular (F3, tarefa 13.0; `tasks/prd-lgpd-e-titular/cenarios.md`, RF11 a RF13 e RF17): o pedido de acesso gera o
  * JSON fora da requisição, e "Meus dados" e a versão da escola entregam a URL de 5 minutos. Os armazéns são o falso
  * (`InMemoryFileStorage`), que o teste entrega à API e ao processador do job, e o relógio é injetado nos dois: a validade de 7 dias se
- * prova sem esperar. A prova do S3 de verdade (a assinatura aceita pelo SeaweedFS) está em `armazem-s3.int.test.ts`.
+ * prova sem esperar. A prova do S3 de verdade (a assinatura aceita pelo SeaweedFS) está em `s3-file-storage.int.test.ts`.
  *
  * Cada pessoa leva **uma sentinela por tabela** que o arquivo lê: o `id` da linha, e o texto onde houver. O que nunca pode
  * aparecer leva uma sentinela própria, e a varredura procura todas no JSON gravado.

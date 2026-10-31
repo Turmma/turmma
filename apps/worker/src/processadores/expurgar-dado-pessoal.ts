@@ -9,7 +9,7 @@ import {
   type JanelaLetiva,
   type LoggerBase,
   type Clock,
-} from '@educa/nucleo'
+} from '@educa/core'
 import { JobFailureCode, InvariantException, TIPO_EXPURGAR_ESCOLA, type TIPO_EXPURGAR_DADO_PESSOAL } from '@educa/shared'
 import type { Processador } from '../executor.js'
 import { FalhaDeJob } from '../falha-de-job.js'

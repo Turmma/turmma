@@ -1,4 +1,4 @@
-import { runInContext, type RequestContext } from '@educa/nucleo'
+import { runInContext, type RequestContext } from '@educa/core'
 import { randomUUID } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
 import { LeituraDoLote } from './leitura-do-lote.js'

@@ -1,4 +1,4 @@
-import { DomainException, type Meter } from '@educa/nucleo'
+import { DomainException, type Meter } from '@educa/core'
 import { ErrorCode, type LoginEmailRequest } from '@educa/shared'
 import type { ConclusaoDeLogin } from '../conclusao/conclusao-de-login.js'
 import type { AtivacaoPorConvite } from '../convite/convite.service.js'

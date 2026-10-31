@@ -1,4 +1,4 @@
-import { requireEscolaId as escolaDaVez, requestIdentity as quemPede, type Database } from '@educa/nucleo'
+import { requireEscolaId as escolaDaVez, requestIdentity as quemPede, type Database } from '@educa/core'
 import { aluno } from './tabelas.js'
 
 // O alias conta: o que vale é o nome exportado.

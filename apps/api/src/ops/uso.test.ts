@@ -1,4 +1,4 @@
-import { InvalidConfigError } from '@educa/nucleo'
+import { InvalidConfigError } from '@educa/core'
 import { describe, expect, it, vi } from 'vitest'
 import { ArgumentoInvalido as ArgumentoInvalidoDoComando } from './comando.js'
 import { ArgumentoInvalido, executarOpsUso, lerPedidoDeUso, urlDoBancoDeOperacao } from './uso.js'

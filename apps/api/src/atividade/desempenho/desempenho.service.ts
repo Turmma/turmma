@@ -1,4 +1,4 @@
-import { DomainException, AuditoriaRecorder, requestSessao, type Database } from '@educa/nucleo'
+import { DomainException, AuditoriaRecorder, requestSessao, type Database } from '@educa/core'
 import { alcanceDe, ErrorCode, desempenhoDaTurmaResponseSchema, MAXIMO_DE_HABILIDADES_NO_DESEMPENHO, type DesempenhoDaTurmaQuery, type DesempenhoDaTurmaResponse } from '@educa/shared'
 import { DesempenhoRepository, type DisciplinasDaLeitura } from './desempenho.repository.js'
 

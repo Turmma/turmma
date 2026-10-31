@@ -10,7 +10,7 @@ import {
   type Database,
   type Clock,
   type UsagePeriod,
-} from '@educa/nucleo'
+} from '@educa/core'
 import { randomUUID } from 'node:crypto'
 import { pathToFileURL } from 'node:url'
 import { parseArgs } from 'node:util'

@@ -1,4 +1,4 @@
-import type { ProvedorExterno } from '@educa/nucleo'
+import type { ProvedorExterno } from '@educa/core'
 
 /** Os valores aleatórios do início, que o retorno confere: o `state`, o `nonce` e o verificador do PKCE. */
 export interface ConferenciasDoRetorno {

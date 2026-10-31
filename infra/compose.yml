@@ -113,7 +113,7 @@ services:
       start_period: 5s
 
   # Aplica as migrations e sai. Roda antes de toda instância que usa o banco, só expande, e desiste do
-  # lock em 5 s, com 3 tentativas (packages/nucleo/src/db/migrar.ts). Mesma imagem da API.
+  # lock em 5 s, com 3 tentativas (packages/core/src/db/migrate.ts). Mesma imagem da API.
   migrar:
     image: educa-api:local
     build:
@@ -330,7 +330,7 @@ services:
       redis-fila:
         condition: service_healthy
     healthcheck:
-      # Sem HTTP: o laço grava o batimento a cada rodada (packages/nucleo/src/instancia/batimento.ts).
+      # Sem HTTP: o laço grava o batimento a cada rodada (packages/core/src/runtime/heartbeat.ts).
       test: [CMD, node, -e, "const fs=require('fs');try{process.exit(Date.now()-fs.statSync('/tmp/educa-batimento').mtimeMs<10000?0:1)}catch{process.exit(1)}"]
       interval: 2s
       timeout: 3s

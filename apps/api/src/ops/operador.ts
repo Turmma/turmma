@@ -9,7 +9,7 @@ import {
   VALIDADE_DO_CONVITE_DE_OPERADOR_HORAS,
   type Database,
   type Clock,
-} from '@educa/nucleo'
+} from '@educa/core'
 import { AUTOR_DA_ROTINA, ErrorCode, TAMANHO_MAXIMO_EMAIL } from '@educa/shared'
 import { rm } from 'node:fs/promises'
 import { resolve } from 'node:path'

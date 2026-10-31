@@ -1,4 +1,4 @@
-import { runInContext, SessaoRepository, type VerifiedToken } from '@educa/nucleo'
+import { runInContext, SessaoRepository, type VerifiedToken } from '@educa/core'
 import { randomUUID } from 'node:crypto'
 import { afterAll, describe, expect, it } from 'vitest'
 import { estadoDaSessao } from '../../test/api-com-sessao.js'

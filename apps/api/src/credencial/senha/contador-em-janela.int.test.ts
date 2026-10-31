@@ -1,4 +1,4 @@
-import { createApiRedisClient, createQueueRedisClient } from '@educa/nucleo'
+import { createApiRedisClient, createQueueRedisClient } from '@educa/core'
 import type { Redis } from 'ioredis'
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'

@@ -1,4 +1,4 @@
-import { runInContext, PREFIXO_LIMITE_USUARIO, type RequestContext, type InProcessAgenteExecutor } from '@educa/nucleo'
+import { runInContext, PREFIXO_LIMITE_USUARIO, type RequestContext, type InProcessAgenteExecutor } from '@educa/core'
 import type { PapelDeUsuario } from '@educa/shared'
 import type { Redis } from 'ioredis'
 import { randomUUID } from 'node:crypto'

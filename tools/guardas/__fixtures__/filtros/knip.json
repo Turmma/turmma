@@ -78,9 +78,9 @@
         "*.ts"
       ]
     },
-    "packages/nucleo": {
+    "packages/core": {
       "entry": [
-        "src/db/migrar.ts"
+        "src/db/migrate.ts"
       ],
       "project": [
         "src/**/*.ts"

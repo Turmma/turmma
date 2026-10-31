@@ -1,4 +1,4 @@
-import { requestIp, RequirePermissao, TrustedProxies } from '@educa/nucleo'
+import { requestIp, RequirePermissao, TrustedProxies } from '@educa/core'
 import { Controller, Delete, HttpCode, HttpStatus, Req, Res } from '@nestjs/common'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { SaidaService } from './saida.service.js'

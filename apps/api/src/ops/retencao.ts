@@ -1,4 +1,4 @@
-import { InvalidConfigError, DomainException, runInContext, AuditoriaRecorder, summarizeError, RetencaoDaEscolaRepository, type Database } from '@educa/nucleo'
+import { InvalidConfigError, DomainException, runInContext, AuditoriaRecorder, summarizeError, RetencaoDaEscolaRepository, type Database } from '@educa/core'
 import {
   ajusteDeRetencaoCabe,
   CATEGORIAS_DE_RETENCAO,

@@ -1,4 +1,4 @@
-import { TokenIssuer, DomainException, verifyToken } from '@educa/nucleo'
+import { TokenIssuer, DomainException, verifyToken } from '@educa/core'
 import { ErrorCode } from '@educa/shared'
 import { decodeJwt, decodeProtectedHeader, SignJWT } from 'jose'
 import { randomUUID } from 'node:crypto'

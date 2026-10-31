@@ -1,1 +1,1 @@
-export * from '@educa/nucleo/conta-global'
+export * from '@educa/core/conta-global'

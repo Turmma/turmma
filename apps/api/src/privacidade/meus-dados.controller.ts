@@ -1,4 +1,4 @@
-import { IdPipe, RequirePermissao, ZodValidationPipe } from '@educa/nucleo'
+import { IdPipe, RequirePermissao, ZodValidationPipe } from '@educa/core'
 import { emptyBodyRequestSchema, type EmptyBodyRequest, type ArquivoResponse, type MeusDadosResponse } from '@educa/shared'
 import { Body, Controller, Get, Header, HttpCode, HttpStatus, Param, Post } from '@nestjs/common'
 import { PrivacidadeService } from './privacidade.service.js'

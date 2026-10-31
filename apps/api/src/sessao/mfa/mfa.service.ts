@@ -1,4 +1,4 @@
-import { DomainException, METRICS, systemClock, type Database, type Meter, type Clock } from '@educa/nucleo'
+import { DomainException, METRICS, systemClock, type Database, type Meter, type Clock } from '@educa/core'
 import { ErrorCode, type EtapaComDesafio, type MfaRequest, type AtivarMfaResponse, type ConfigurarMfaResponse } from '@educa/shared'
 import type { CifraDoSegredo } from '../../credencial/cifra-do-segredo.js'
 import type { ConclusaoDeLogin } from '../conclusao/conclusao-de-login.js'

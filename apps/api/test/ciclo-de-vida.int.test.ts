@@ -1,5 +1,5 @@
-import { DomainException, runInContext, type DatabaseTransaction } from '@educa/nucleo'
-import { CicloDeVidaRepository, CicloDeVidaService } from '@educa/nucleo/ciclo-de-vida'
+import { DomainException, runInContext, type DatabaseTransaction } from '@educa/core'
+import { CicloDeVidaRepository, CicloDeVidaService } from '@educa/core/ciclo-de-vida'
 import { ErrorCode, decisaoResponseSchema, type PapelDeUsuario } from '@educa/shared'
 import { sql } from 'drizzle-orm'
 import type { Redis } from 'ioredis'

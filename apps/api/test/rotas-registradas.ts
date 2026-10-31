@@ -1,5 +1,5 @@
 import 'reflect-metadata'
-import { OPERACAO_ENTRY_KEY, IS_PUBLIC_KEY, OPERACAO_ROUTE_KEY } from '@educa/nucleo'
+import { OPERACAO_ENTRY_KEY, IS_PUBLIC_KEY, OPERACAO_ROUTE_KEY } from '@educa/core'
 import { RequestMethod, type DynamicModule, type Type } from '@nestjs/common'
 import { GUARDS_METADATA, METHOD_METADATA, MODULE_METADATA, PATH_METADATA } from '@nestjs/common/constants.js'
 import { Reflector } from '@nestjs/core'

@@ -21,7 +21,7 @@ apps/despachante  Node + TS           lê o outbox (job_registro) e publica no B
 apps/worker       BullMQ              executa os jobs: expurgo, retenção, pedidos do titular, rotinas
 apps/realtime     socket.io           hoje só o canal /sistema; a sala ao vivo por turma é do F10
 packages/shared   zod                 contrato de pedido e resposta, códigos de erro, matriz de permissão
-packages/nucleo   TS                  contexto, guardas, erro, schema e migrations, fila, IA, limite, log
+packages/core   TS                  contexto, guardas, erro, schema e migrations, fila, IA, limite, log
 
 Postgres 18 · Redis (fila e cache) · S3-compatível · LLMProvider (falso | OpenAI-compatível)
 ```
@@ -57,7 +57,7 @@ e `ops/` tem só os comandos de terminal e os repositories deles. Nenhuma pasta 
 arquivos direto nela (`tools/guardas/tamanho-das-pastas.test.ts`). O mapa completo está no guia, seção 4.
 
 **A entrada.** O controller valida pelo `ZodValidationPipe` do NestJS, com o esquema de `shared`
-(`packages/nucleo/src/entrada/`), e o `IdPipe` lê o id do caminho. Todo controller de `apps/api/src` valida assim: o ESLint
+(`packages/core/src/pipes/`), e o `IdPipe` lê o id do caminho. Todo controller de `apps/api/src` valida assim: o ESLint
 reprova `@Body()`, `@Query()` e `@Param()` sem pipe, e `@Req()` cru fora de `sessao/` e `operacao/`. A resposta passa pelo
 esquema de resposta no service, e o mesmo esquema valida a leitura na web (D81).
 
@@ -170,7 +170,7 @@ Serviço de domínio → AgendadorDeExecucoes → LLMGateway (gateway: orçament
 ```
 
 Não há adaptador Ollama próprio: o modelo local fala o protocolo OpenAI-compatível e usa o mesmo adaptador. As tarefas
-ficam em `packages/nucleo/src/ia/tarefas/`, com os prompts versionados em `ia/prompts/`.
+ficam em `packages/core/src/ia/tasks/`, com os prompts versionados em `ia/prompts/`.
 
 Roteamento por perfil: `rapido`, `padrao`, `complexo`, `visao`. O perfil é declarado pelo
 caso de uso; o modelo concreto é configuração.

@@ -1,5 +1,5 @@
-import { JobOutbox, JobOutboxRepository, type FileStorage, type Database, type Clock } from '@educa/nucleo'
-import { S3FileStorage } from '@educa/nucleo/armazem-s3'
+import { JobOutbox, JobOutboxRepository, type FileStorage, type Database, type Clock } from '@educa/core'
+import { S3FileStorage } from '@educa/core/s3-file-storage'
 import { Module, type BeforeApplicationShutdown, type DynamicModule } from '@nestjs/common'
 import { BANCO } from '../banco.module.js'
 import type { ConfiguracaoDoArmazemDaApi } from './configuracao-do-armazem.js'

@@ -1,4 +1,4 @@
-import { Public } from '@educa/nucleo'
+import { Public } from '@educa/core'
 import type { SystemStatusResponse } from '@educa/shared'
 import { Controller, Get, Header } from '@nestjs/common'
 import { EstadoService } from './estado.service.js'

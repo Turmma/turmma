@@ -1,4 +1,4 @@
-import { METRICS } from '@educa/nucleo'
+import { METRICS } from '@educa/core'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { MedidorDeTeste } from '../../../../../tools/testes/metricas.ts'
 import type { ContagemNaJanela } from './contador-em-janela.js'

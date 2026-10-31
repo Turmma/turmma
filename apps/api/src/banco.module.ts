@@ -1,4 +1,4 @@
-import { createDatabase, createPool, type DatabaseConfig, type DatabasePool } from '@educa/nucleo'
+import { createDatabase, createPool, type DatabaseConfig, type DatabasePool } from '@educa/core'
 import { Global, Inject, Logger, Module, type DynamicModule, type OnApplicationShutdown } from '@nestjs/common'
 
 export const POOL_BANCO = Symbol('POOL_BANCO')

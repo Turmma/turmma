@@ -1,4 +1,4 @@
-import { DomainException, systemClock, type Database, type Clock } from '@educa/nucleo'
+import { DomainException, systemClock, type Database, type Clock } from '@educa/core'
 import { ErrorCode, sinaisResponseSchema, usoDoTutorResponseSchema, MAXIMO_DE_ALUNOS_NO_USO, MAXIMO_DE_GRUPOS_DE_SINAL, type SinaisQuery, type UsoDoTutorQuery, type SinaisResponse, type UsoDoTutorResponse } from '@educa/shared'
 import { SupervisaoDoTutorRepository, type SinalDaTurma } from './supervisao.repository.js'
 

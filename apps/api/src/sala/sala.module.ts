@@ -1,4 +1,4 @@
-import { globalMeter, type Database, type LoggerBase, type Meter } from '@educa/nucleo'
+import { globalMeter, type Database, type LoggerBase, type Meter } from '@educa/core'
 import { Module, type DynamicModule } from '@nestjs/common'
 import type { Redis } from 'ioredis'
 import { BANCO } from '../banco.module.js'

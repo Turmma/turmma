@@ -1,5 +1,5 @@
 import 'reflect-metadata'
-import { METRICS, type Database } from '@educa/nucleo'
+import { METRICS, type Database } from '@educa/core'
 import { ErrorCode, aceitarConviteDeOperadorResponseSchema, entradaDeOperadorResponseSchema } from '@educa/shared'
 import type { INestApplication } from '@nestjs/common'
 import { randomBytes } from 'node:crypto'

@@ -6,7 +6,7 @@ import {
   type JanelaLetiva,
   type LoggerBase,
   type Clock,
-} from '@educa/nucleo'
+} from '@educa/core'
 import type { TIPO_ELIMINAR_TITULAR } from '@educa/shared'
 import type { Processador } from '../executor.js'
 

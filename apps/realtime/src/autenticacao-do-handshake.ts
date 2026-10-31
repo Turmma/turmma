@@ -11,7 +11,7 @@ import {
   type SessaoReader,
   type SessaoRow,
   type LoggerBase,
-} from '@educa/nucleo'
+} from '@educa/core'
 import { ErrorCode, MENSAGENS_DE_ERRO } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import type { Socket } from 'socket.io'

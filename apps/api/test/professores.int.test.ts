@@ -1,4 +1,4 @@
-import { VALIDADE_DO_CONVITE_HORAS_POR_TIPO } from '@educa/nucleo'
+import { VALIDADE_DO_CONVITE_HORAS_POR_TIPO } from '@educa/core'
 import { ErrorCode, conviteDeProfessorResponseSchema, listaDeProfessoresResponseSchema, MENSAGENS_DE_ERRO, type ConviteDeProfessorResponse } from '@educa/shared'
 import type { Redis } from 'ioredis'
 import { createHash, randomUUID } from 'node:crypto'

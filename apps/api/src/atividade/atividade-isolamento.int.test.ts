@@ -1,4 +1,4 @@
-import { runInContext, type RequestContext } from '@educa/nucleo'
+import { runInContext, type RequestContext } from '@educa/core'
 import { desempenhoDaTurmaResponseSchema, minhasAtividadesResponseSchema, provaResponseSchema, type PapelDeUsuario } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'

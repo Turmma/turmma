@@ -1,4 +1,4 @@
-import type { Database, OrcamentoDeIa, SuspensaoDeFuncao } from '@educa/nucleo'
+import type { Database, OrcamentoDeIa, SuspensaoDeFuncao } from '@educa/core'
 import { Module } from '@nestjs/common'
 import { LimiteDePedidosDeIa } from '../assistente/limite-de-pedidos-de-ia.js'
 import { BANCO } from '../banco.module.js'

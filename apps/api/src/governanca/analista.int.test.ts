@@ -1,4 +1,4 @@
-import type { InProcessAgenteExecutor } from '@educa/nucleo'
+import type { InProcessAgenteExecutor } from '@educa/core'
 import { analistaNominalResponseSchema, resumoDoAnalistaResponseSchema, type ConteudoDoResumoDoAnalista } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'

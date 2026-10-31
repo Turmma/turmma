@@ -35,7 +35,7 @@ export const REGRAS_EM_TODO_ARQUIVO = [...REGRAS_DE_LOG, ...REGRAS_DE_SDK_DE_IA,
  * ficam de fora (`EXCECOES_DAS_GUARDAS`).
  */
 export const REGRAS_DE_ERRO = ['guardas/erro-tipado']
-export const ESCOPO_DO_ERRO_TIPADO = ['apps/*/src/**/*.{ts,tsx}', 'packages/nucleo/src/**/*.{ts,tsx}']
+export const ESCOPO_DO_ERRO_TIPADO = ['apps/*/src/**/*.{ts,tsx}', 'packages/core/src/**/*.{ts,tsx}']
 export const REGRAS_DE_TESTE = ['guardas/esperar-servico-do-compose', 'guardas/teste-sem-desligar']
 /**
  * O `no-restricted-syntax` do ESLint, com os seletores em `eslint.config.mjs`, serve a dois blocos: a entrada do
@@ -95,11 +95,11 @@ export const EXCECOES_DAS_GUARDAS = [
   },
   {
     // O schema e a camada do banco do núcleo são onde a tabela nasce.
-    files: ['packages/nucleo/src/db/**'],
+    files: ['packages/core/src/db/**'],
     regras: REGRAS_DE_TENANT,
   },
   {
-    // A guarda de tabela nomeia o pacote que procura: o texto `@educa/nucleo` dela não carrega nada.
+    // A guarda de tabela nomeia o pacote que procura: o texto `@educa/core` dela não carrega nada.
     files: ['tools/guardas/regras-tenant.mjs'],
     regras: REGRAS_DE_TENANT,
   },
@@ -115,13 +115,13 @@ export const EXCECOES_DAS_GUARDAS = [
   },
   {
     // O teste do redact precisa entregar chave pessoal ao logger para provar que ela sai removida.
-    files: ['packages/nucleo/src/log/logger.test.ts'],
+    files: ['packages/core/src/log/logger.test.ts'],
     regras: REGRAS_DE_LOG,
   },
   {
     // O NestLogger repassa ao logger a mensagem do Nest, depois de conferir que é evento fixo ou
     // do boot. Só a guarda de conteúdo montado sai; a de dado pessoal continua valendo aqui.
-    files: ['packages/nucleo/src/log/logger-do-nest.ts'],
+    files: ['packages/core/src/log/nest-logger.ts'],
     regras: ['guardas/log-sem-conteudo-montado'],
   },
 ]

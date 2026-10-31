@@ -1,4 +1,4 @@
-import { requireEscolaId, type Database } from '@educa/nucleo'
+import { requireEscolaId, type Database } from '@educa/core'
 import { aluno } from './tabelas.js'
 
 // O limite declarado do analisador: ele vê a chamada, e não o uso do resultado. Passa. O `where` quem prova é o teste de

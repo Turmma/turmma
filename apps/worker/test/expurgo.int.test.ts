@@ -1,5 +1,5 @@
 import 'reflect-metadata'
-import { runInContext, ExpurgoDeJobsRepository, expurgoExpiredBatchStatement, LOTE_DO_EXPURGO } from '@educa/nucleo'
+import { runInContext, ExpurgoDeJobsRepository, expurgoExpiredBatchStatement, LOTE_DO_EXPURGO } from '@educa/core'
 import { PgDialect } from 'drizzle-orm/pg-core'
 import pg from 'pg'
 import { randomUUID } from 'node:crypto'

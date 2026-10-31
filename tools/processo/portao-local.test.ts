@@ -122,7 +122,7 @@ describe('RF7: o portão derruba os workers também antes das mutações de inte
   it('só o teste de integração conta: unidade, e2e e infra não pedem o `stop`', () => {
     expect(mutacaoDeIntegracao([{ teste: 'apps/api/test/a.int.test.ts' }])).toBe(true)
     expect(mutacaoDeIntegracao([{ teste: 'tools/x.test.ts' }, { teste: 'e2e/a.spec.ts' }, { teste: 'infra/test/a.int.test.ts' }])).toBe(false)
-    expect(mutacaoDeIntegracao([{ teste: 'tools/x.test.ts' }, { teste: 'packages/nucleo/test/a.int.test.ts' }])).toBe(true)
+    expect(mutacaoDeIntegracao([{ teste: 'tools/x.test.ts' }, { teste: 'packages/core/test/a.int.test.ts' }])).toBe(true)
     expect(mutacaoDeIntegracao([])).toBe(false)
   })
 })

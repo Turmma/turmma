@@ -1,5 +1,5 @@
 import 'reflect-metadata'
-import { RateLimiter, PREFIXO_LIMITE_IP, PREFIXO_LIMITE_IP_LOGIN, PREFIXO_LIMITE_IP_OPERACAO } from '@educa/nucleo'
+import { RateLimiter, PREFIXO_LIMITE_IP, PREFIXO_LIMITE_IP_LOGIN, PREFIXO_LIMITE_IP_OPERACAO } from '@educa/core'
 import { ErrorCode, renovacaoDeOperadorResponseSchema } from '@educa/shared'
 import type { INestApplication } from '@nestjs/common'
 import type { Redis } from 'ioredis'

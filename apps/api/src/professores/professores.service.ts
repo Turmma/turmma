@@ -1,4 +1,4 @@
-import { estadoDoProfessor, type Database } from '@educa/nucleo'
+import { estadoDoProfessor, type Database } from '@educa/core'
 import {
   conviteDeProfessorResponseSchema,
   listaDeProfessoresResponseSchema,

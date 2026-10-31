@@ -8,7 +8,7 @@ import {
   RateLimiter,
   Public,
   TIMEOUT_COMANDO_REDIS_API_MS,
-} from '@educa/nucleo'
+} from '@educa/core'
 import { ErrorCode, MENSAGENS_DE_ERRO } from '@educa/shared'
 import { Controller, Get, Module, type INestApplication } from '@nestjs/common'
 import { NestFactory } from '@nestjs/core'

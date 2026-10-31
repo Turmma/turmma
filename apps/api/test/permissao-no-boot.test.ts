@@ -1,5 +1,5 @@
 import 'reflect-metadata'
-import { PermissaoBootCheck, OPERACAO_ENTRY_KEY, OPERACAO_ROUTE_KEY, RequirePermissao, Public, RoutesWithoutPermissaoError } from '@educa/nucleo'
+import { PermissaoBootCheck, OPERACAO_ENTRY_KEY, OPERACAO_ROUTE_KEY, RequirePermissao, Public, RoutesWithoutPermissaoError } from '@educa/core'
 import { InvariantException } from '@educa/shared'
 import { Controller, Get, Module, SetMetadata } from '@nestjs/common'
 import { DiscoveryModule, DiscoveryService, NestFactory } from '@nestjs/core'

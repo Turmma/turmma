@@ -10,7 +10,7 @@ import {
   vinculo,
   type Database,
   type DatabaseTransaction,
-} from '@educa/nucleo'
+} from '@educa/core'
 import {
   CATEGORIAS_DE_CADASTRO_E_VINCULO,
   CHAVES_DE_RETENCAO,

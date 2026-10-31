@@ -1,6 +1,6 @@
 import 'reflect-metadata'
 import { DeleteObjectCommand, DeleteObjectsCommand, PutObjectCommand, type S3Client } from '@aws-sdk/client-s3'
-import { UsageMeter, currentContext, runInContext, UsageRepository, VALIDADE_DO_CONTADOR_SEGUNDOS, type UsagePeriod } from '@educa/nucleo'
+import { UsageMeter, currentContext, runInContext, UsageRepository, VALIDADE_DO_CONTADOR_SEGUNDOS, type UsagePeriod } from '@educa/core'
 import { JobFailureCode, TIPO_CONSOLIDAR_USO, TIPO_EXPURGAR_ACESSO, TIPO_EXPURGAR_DADO_PESSOAL, TIPO_EXPURGAR_JOBS } from '@educa/shared'
 import { Queue } from 'bullmq'
 import { randomUUID } from 'node:crypto'

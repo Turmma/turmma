@@ -19,7 +19,7 @@ import {
   type LoggerBase,
   type Meter,
   type Clock,
-} from '@educa/nucleo'
+} from '@educa/core'
 import { Module, type DynamicModule } from '@nestjs/common'
 import { APP_GUARD, APP_INTERCEPTOR, DiscoveryModule, DiscoveryService, Reflector } from '@nestjs/core'
 import { ArtefatoModule } from './artefato/artefato.module.js'

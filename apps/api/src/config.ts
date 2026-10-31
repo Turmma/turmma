@@ -13,7 +13,7 @@ import {
   type AuthConfig,
   type RateLimitConfig,
   type TelemetryConfig,
-} from '@educa/nucleo'
+} from '@educa/core'
 import { avisoSchema, MAXIMO_DE_AVISOS, type Aviso } from '@educa/shared'
 import { z } from 'zod'
 import { lerConfiguracaoDoArmazem, type ConfiguracaoDoArmazemDaApi } from './privacidade/configuracao-do-armazem.js'

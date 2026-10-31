@@ -1,5 +1,5 @@
 import 'reflect-metadata'
-import { currentContext, createLogger, DomainException, RequirePermissao, Public, DEFAULT_RETRY_AFTER_SECONDS, type DatabasePool } from '@educa/nucleo'
+import { currentContext, createLogger, DomainException, RequirePermissao, Public, DEFAULT_RETRY_AFTER_SECONDS, type DatabasePool } from '@educa/core'
 import { ErrorCode, InvariantException, MENSAGENS_DE_ERRO } from '@educa/shared'
 import {
   Body,

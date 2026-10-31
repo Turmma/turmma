@@ -9,7 +9,7 @@ import {
   type Database,
   type TokenIssuer,
   type Meter,
-} from '@educa/nucleo'
+} from '@educa/core'
 import { ErrorCode, InvariantException, JANELA_DE_RENOVACAO_SIMULTANEA_MS, type RenovacaoResponse } from '@educa/shared'
 import { randomBytes, randomUUID } from 'node:crypto'
 import { COOKIE_SESSAO, lerCookie, serializarCookie } from '../../credencial/cookies.js'

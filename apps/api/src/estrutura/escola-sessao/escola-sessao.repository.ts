@@ -1,4 +1,4 @@
-import { escola, requireEscolaId, type DatabaseTransaction } from '@educa/nucleo'
+import { escola, requireEscolaId, type DatabaseTransaction } from '@educa/core'
 import { eq } from 'drizzle-orm'
 
 export interface InatividadeDaEscola {

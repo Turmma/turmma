@@ -1,5 +1,5 @@
 import 'reflect-metadata'
-import { createPool, runInContext, type DatabasePool } from '@educa/nucleo'
+import { createPool, runInContext, type DatabasePool } from '@educa/core'
 import { ErrorCode, JobFailureCode, MENSAGENS_DE_ERRO, TIPO_JOB_SINTETICO } from '@educa/shared'
 import type { INestApplication } from '@nestjs/common'
 import { NestFactory } from '@nestjs/core'

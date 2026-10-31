@@ -1,4 +1,4 @@
-import { adaptarAtividade, DomainException, LLMError, type Database } from '@educa/nucleo'
+import { adaptarAtividade, DomainException, LLMError, type Database } from '@educa/core'
 import {
   ErrorCode,
   conteudoDeAtividadeSchema,

@@ -1,4 +1,4 @@
-import { MENSAGEM_DE_ASSUNTO_DELICADO, MENSAGEM_DE_RISCO_A_VIDA, type InProcessAgenteExecutor } from '@educa/nucleo'
+import { MENSAGEM_DE_ASSUNTO_DELICADO, MENSAGEM_DE_RISCO_A_VIDA, type InProcessAgenteExecutor } from '@educa/core'
 import {
   conversaDoTutorResponseSchema,
   memoriaDoTutorResponseSchema,

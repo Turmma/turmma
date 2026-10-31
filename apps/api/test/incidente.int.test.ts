@@ -1,5 +1,5 @@
-import { runInContext, ExpurgoDeAcessoRepository } from '@educa/nucleo'
-import { CicloDeVidaService } from '@educa/nucleo/ciclo-de-vida'
+import { runInContext, ExpurgoDeAcessoRepository } from '@educa/core'
+import { CicloDeVidaService } from '@educa/core/ciclo-de-vida'
 import { CHAVES_DE_CATEGORIA_DO_INCIDENTE, ErrorCode, incidentesResponseSchema, FINALIDADE_DO_REGISTRO_DE_INCIDENTE, MAXIMO_DE_TITULARES_ESTIMADOS, TEXTO_DO_PRAZO_LEGAL_DO_INCIDENTE, type IncidentesResponse } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'

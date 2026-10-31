@@ -31,7 +31,7 @@ const condicoes = ['source', ...defaultServerConditions.filter((condicao) => con
 
 // O `globalSetup` da integração e da infra roda no runner do Vitest, que resolve pelo environment `__vitest__`, e o Vitest 5
 // dá a ele as condições padrão, sem herdar `resolve` nem `ssr.resolve` do topo. Sem a condição `source` ali, o `globalSetup`
-// que carrega `packages/nucleo` resolve `@educa/shared` para o `dist`, que só existe onde alguém construiu (a esteira não
+// que carrega `packages/core` resolve `@educa/shared` para o `dist`, que só existe onde alguém construiu (a esteira não
 // constrói). `tools/ci/resolucao-do-shared.test.ts` prova a resolução.
 export default defineConfig({
   resolve: { conditions: condicoes },

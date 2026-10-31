@@ -1,4 +1,4 @@
-import { Unscoped, type Database } from '@educa/nucleo'
+import { Unscoped, type Database } from '@educa/core'
 import { aluno } from './tabelas.js'
 
 export const COLUNAS = { id: 1, nome: 2 } satisfies Record<string, number>

@@ -1,5 +1,5 @@
 import 'reflect-metadata'
-import { currentContext, createLogger, OperadorTokenIssuer, OPERACAO_ROUTE_KEY, type Database } from '@educa/nucleo'
+import { currentContext, createLogger, OperadorTokenIssuer, OPERACAO_ROUTE_KEY, type Database } from '@educa/core'
 import { ErrorCode, euDoOperadorResponseSchema, MENSAGENS_DE_ERRO } from '@educa/shared'
 import { Controller, Get, Inject, Module, SetMetadata, type DynamicModule, type INestApplication, type Type } from '@nestjs/common'
 import { DiscoveryService, NestFactory } from '@nestjs/core'

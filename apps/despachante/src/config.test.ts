@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { MOTIVO_VAGAS_DESLIGADAS_EM_PRODUCAO } from '@educa/nucleo'
+import { MOTIVO_VAGAS_DESLIGADAS_EM_PRODUCAO } from '@educa/core'
 import { InvalidConfigError, lerConfiguracao } from './config.js'
 
 const ambienteValido = {

@@ -1,4 +1,4 @@
-import type { DatabasePool } from '@educa/nucleo'
+import type { DatabasePool } from '@educa/core'
 import { CHAVE_DA_TRAVA_DO_CONVITE_DA_ESCOLA } from '../src/sessao/index.js'
 import { aguardar } from './gatilho-de-parada.js'
 

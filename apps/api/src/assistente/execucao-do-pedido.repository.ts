@@ -1,4 +1,4 @@
-import { DomainException, execucaoAgente, requireAnoEmCurso, requireEscolaId, requestSessao, type Database, type DatabaseTransaction } from '@educa/nucleo'
+import { DomainException, execucaoAgente, requireAnoEmCurso, requireEscolaId, requestSessao, type Database, type DatabaseTransaction } from '@educa/core'
 import { ErrorCode, execucaoInputSchema, type ExecucaoInput, type TarefaDeIa } from '@educa/shared'
 import { and, eq } from 'drizzle-orm'
 

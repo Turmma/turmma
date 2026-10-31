@@ -1,17 +1,17 @@
 import { describe, expect, it } from 'vitest'
-import type { Amostra } from '../../packages/nucleo/src/ia/__fixtures__/ouro.ts'
+import type { Amostra } from '../../packages/core/src/ia/__fixtures__/golden.ts'
 import { descreverMedida, EXECUCOES_DA_MEDIDA, exigirModeloDaMedida, loteDosArgumentos, MedidaRecusada, medirComProvedor, medirRiscoAVida, piorDe, type ConfiguracaoLida, type PecasDoNucleo, type ProvedorDeTurnos, type ResultadoDaMedida } from './medir-risco-a-vida.ts'
 
 // O tsconfig de `tools/` não compila o código do núcleo (o provedor usa parâmetro na assinatura do construtor, que o
 // `erasableSyntaxOnly` recusa): só o Vitest o carrega, por caminho em variável, como em `tools/guardas/guardas.test.ts`.
-const pasta = '../../packages/nucleo/src/ia/'
+const pasta = '../../packages/core/src/ia/'
 const caminhos = {
-  provedor: `${pasta}provedor.ts`,
-  roteirizado: `${pasta}__fixtures__/adaptador-roteirizado.ts`,
+  provedor: `${pasta}llm-gateway.ts`,
+  roteirizado: `${pasta}__fixtures__/scripted-adapter.ts`,
   consumo: `${pasta}consumo.ts`,
   suspensao: `${pasta}suspensao.ts`,
-  tarefa: `${pasta}tarefas/turno-do-tutor.ts`,
-  contexto: '../../packages/nucleo/src/contexto/contexto.ts',
+  tarefa: `${pasta}tasks/turno-do-tutor.ts`,
+  contexto: '../../packages/core/src/context/context.ts',
 }
 
 interface Modulos {

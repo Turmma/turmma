@@ -1,4 +1,4 @@
-import { runInContext } from '@educa/nucleo'
+import { runInContext } from '@educa/core'
 import {
   ErrorCode,
   alunosDaTurmaResponseSchema,

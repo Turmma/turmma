@@ -1,5 +1,5 @@
 import { atividadeAplicadaResponseSchema, atividadeEncerradaResponseSchema, listaDeAtividadesAplicadasResponseSchema, minhasAtividadesResponseSchema, provaResponseSchema, questaoSalvaResponseSchema } from '@educa/shared'
-import { PASTA_MIGRACOES } from '@educa/nucleo'
+import { PASTA_MIGRACOES } from '@educa/core'
 import { randomUUID } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'

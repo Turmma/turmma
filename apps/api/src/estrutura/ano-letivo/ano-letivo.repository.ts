@@ -1,4 +1,4 @@
-import { acessoTurma, anoLetivo, requireEscolaId, listaNome, reivindicacao, type Database, type DatabaseTransaction } from '@educa/nucleo'
+import { acessoTurma, anoLetivo, requireEscolaId, listaNome, reivindicacao, type Database, type DatabaseTransaction } from '@educa/core'
 import type { AnoLetivo, PaginationQuery, CriarAnoLetivoRequest, SituacaoDoAnoLetivo } from '@educa/shared'
 import { and, asc, eq, gt, inArray, isNull, sql } from 'drizzle-orm'
 import { InvariantException } from '@educa/shared'

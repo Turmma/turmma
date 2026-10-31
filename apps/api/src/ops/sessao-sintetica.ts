@@ -1,4 +1,4 @@
-import { InvalidConfigError, createDatabase, createPool, DomainException, summarizeError, type Database } from '@educa/nucleo'
+import { InvalidConfigError, createDatabase, createPool, DomainException, summarizeError, type Database } from '@educa/core'
 import { ErrorCode, PAPEIS_DE_USUARIO, type PapelDeUsuario } from '@educa/shared'
 import { pathToFileURL } from 'node:url'
 import { parseArgs } from 'node:util'

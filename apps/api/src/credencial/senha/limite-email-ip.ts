@@ -1,4 +1,4 @@
-import { throttledWarn, IP_DESCONHECIDO, insuranceLimit, METRICS, systemClock, type Meter, type Clock } from '@educa/nucleo'
+import { throttledWarn, IP_DESCONHECIDO, insuranceLimit, METRICS, systemClock, type Meter, type Clock } from '@educa/core'
 import { Logger } from '@nestjs/common'
 import { JANELA_DO_CONTADOR_POR_IP_MS, type ContadorEmJanela } from './contador-em-janela.js'
 

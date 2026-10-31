@@ -1,4 +1,4 @@
-import { createDatabase, createPool, DomainException, estadoDaCoordenacao, runInContext, type Database, type DatabasePool, type DatabaseTransaction } from '@educa/nucleo'
+import { createDatabase, createPool, DomainException, estadoDaCoordenacao, runInContext, type Database, type DatabasePool, type DatabaseTransaction } from '@educa/core'
 import { ErrorCode, conviteDaCoordenacaoResponseSchema, escolasDoPainelResponseSchema, ESTADOS_DA_COORDENACAO, type EstadoDaCoordenacao, type ConviteDaCoordenacaoResponse } from '@educa/shared'
 import type { INestApplication } from '@nestjs/common'
 import { is, SQL } from 'drizzle-orm'

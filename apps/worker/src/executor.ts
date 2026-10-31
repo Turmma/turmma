@@ -10,7 +10,7 @@ import {
   type LoggerBase,
   type EscolaConcurrencyLimiter,
   type ConcurrencyByQueue,
-} from '@educa/nucleo'
+} from '@educa/core'
 import { ErrorCode, JobFailureCode, JOB_DEFINITIONS, InvariantException, type ParsedJobData, type QueueName, type JobRegistry, type JobType } from '@educa/shared'
 import { DelayedError, UnrecoverableError, type Job } from 'bullmq'
 import { randomUUID } from 'node:crypto'

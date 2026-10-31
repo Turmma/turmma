@@ -1,4 +1,4 @@
-import { DomainException, requireAnoEmCurso, AuditoriaRecorder, requestSessao, type Database } from '@educa/nucleo'
+import { DomainException, requireAnoEmCurso, AuditoriaRecorder, requestSessao, type Database } from '@educa/core'
 import {
   alcanceDe,
   ErrorCode,

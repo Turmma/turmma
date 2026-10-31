@@ -1,4 +1,4 @@
-import { LLMError } from '@educa/nucleo'
+import { LLMError } from '@educa/core'
 import type { Citacao } from '@educa/shared'
 
 /** O que identifica um trecho entregue a uma tarefa: o material e a página. */

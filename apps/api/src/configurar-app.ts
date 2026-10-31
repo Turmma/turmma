@@ -1,4 +1,4 @@
-import { GracefulShutdown, AllExceptionsFilter, NestLogger, globalMeter, contextMiddleware, httpMetricsMiddleware, type LoggerBase, type Meter } from '@educa/nucleo'
+import { GracefulShutdown, AllExceptionsFilter, NestLogger, globalMeter, contextMiddleware, httpMetricsMiddleware, type LoggerBase, type Meter } from '@educa/core'
 import type { INestApplication } from '@nestjs/common'
 
 /**

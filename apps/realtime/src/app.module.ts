@@ -1,4 +1,4 @@
-import { createDatabase, GracefulShutdown, AuthGuard, SessaoRepository, type LoggerBase, type DatabasePool } from '@educa/nucleo'
+import { createDatabase, GracefulShutdown, AuthGuard, SessaoRepository, type LoggerBase, type DatabasePool } from '@educa/core'
 import { Inject, Module, type DynamicModule, type OnApplicationShutdown } from '@nestjs/common'
 import { APP_GUARD, Reflector } from '@nestjs/core'
 import type { Redis } from 'ioredis'

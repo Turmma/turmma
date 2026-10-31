@@ -1,4 +1,4 @@
-import { IdPipe, TitularSearchRateLimit, RequirePermissao, ZodValidationPipe } from '@educa/nucleo'
+import { IdPipe, TitularSearchRateLimit, RequirePermissao, ZodValidationPipe } from '@educa/core'
 import {
   baixarArquivoDaEscolaSchema,
   buscaDeTitularesSchema,

@@ -1,4 +1,4 @@
-import { type Database } from '@educa/nucleo'
+import { type Database } from '@educa/core'
 import { timeResponseSchema, montarTime, type TimeResponse } from '@educa/shared'
 import { SuspensoesDaEscolaRepository } from './suspensoes-da-escola.repository.js'
 

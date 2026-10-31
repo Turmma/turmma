@@ -1,4 +1,4 @@
-import { RequirePermissao, ZodValidationPipe } from '@educa/nucleo'
+import { RequirePermissao, ZodValidationPipe } from '@educa/core'
 import { escolaSessaoRequestSchema, type EscolaSessaoRequest, type EscolaSessaoResponse } from '@educa/shared'
 import { Body, Controller, Put } from '@nestjs/common'
 import { EscolaSessaoService } from './escola-sessao.service.js'

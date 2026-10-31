@@ -16,7 +16,7 @@ import {
   type Meter,
   type Clock,
   type EscolaConcurrencyLimiter,
-} from '@educa/nucleo'
+} from '@educa/core'
 import type { QueueName } from '@educa/shared'
 import { contextoDaEscola, FILA_QUE_SEGURA_NAO_URGENTE } from './despachante.js'
 

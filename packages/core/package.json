@@ -1,0 +1,61 @@
+{
+  "name": "@educa/core",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./ciclo-de-vida": {
+      "source": "./src/ciclo-de-vida/index.ts",
+      "types": "./dist/ciclo-de-vida/index.d.ts",
+      "default": "./dist/ciclo-de-vida/index.js"
+    },
+    "./conta-global": {
+      "source": "./src/ciclo-de-vida/conta-global.repository.ts",
+      "types": "./dist/ciclo-de-vida/conta-global.repository.d.ts",
+      "default": "./dist/ciclo-de-vida/conta-global.repository.js"
+    },
+    "./s3-file-storage": {
+      "source": "./src/titular/s3-file-storage.ts",
+      "types": "./dist/titular/s3-file-storage.d.ts",
+      "default": "./dist/titular/s3-file-storage.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json && cp src/queue/concurrency-slot.lua dist/queue/concurrency-slot.lua",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "3.1131.0",
+    "@aws-sdk/s3-request-presigner": "3.1131.0",
+    "@educa/shared": "0.0.0",
+    "@opentelemetry/api": "1.9.1",
+    "@opentelemetry/exporter-metrics-otlp-http": "0.222.0",
+    "@opentelemetry/resources": "2.11.0",
+    "@opentelemetry/sdk-metrics": "2.11.0",
+    "cockatiel": "4.0.0",
+    "drizzle-orm": "0.45.2",
+    "ioredis": "6.0.0",
+    "jose": "6.2.12",
+    "pg": "8.23.0",
+    "pino": "10.3.1",
+    "rate-limiter-flexible": "11.2.0",
+    "zod": "4.6.7"
+  },
+  "peerDependencies": {
+    "@nestjs/common": "12.0.1",
+    "@nestjs/core": "12.0.1"
+  },
+  "devDependencies": {
+    "@nestjs/common": "12.0.1",
+    "@nestjs/core": "12.0.1",
+    "@types/pg": "8.23.1"
+  }
+}

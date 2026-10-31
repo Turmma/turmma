@@ -1,5 +1,5 @@
 import 'reflect-metadata'
-import { createLogger, startTelemetry, RateLimiter, observeDatabasePool, observeRedis, observeInsuranceLimiter, registerProcessErrorHandlers } from '@educa/nucleo'
+import { createLogger, startTelemetry, RateLimiter, observeDatabasePool, observeRedis, observeInsuranceLimiter, registerProcessErrorHandlers } from '@educa/core'
 import { NestFactory } from '@nestjs/core'
 import type { NestExpressApplication } from '@nestjs/platform-express'
 import { AppModule } from './app.module.js'
@@ -25,7 +25,7 @@ observeRedis(medidor, { cache: [app.get(CLIENTE_REDIS_CACHE)], fila: [app.get(CL
 // estiver no seguro.
 observeInsuranceLimiter(medidor, app.get(RateLimiter), app.get(SeguroDoLogin), app.get(LimitesDaSala))
 app.disable('x-powered-by')
-// SIGTERM drena antes de sair (GracefulShutdown, em @educa/nucleo). `useProcessExit`: o Node é o PID 1 do
+// SIGTERM drena antes de sair (GracefulShutdown, em @educa/core). `useProcessExit`: o Node é o PID 1 do
 // container e ignoraria o sinal que o Nest reenvia a si mesmo no fim.
 app.enableShutdownHooks(['SIGTERM', 'SIGINT'], { useProcessExit: true })
 await app.listen(config.porta, '0.0.0.0')

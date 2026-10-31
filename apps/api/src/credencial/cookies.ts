@@ -1,4 +1,4 @@
-import type { Environment } from '@educa/nucleo'
+import type { Environment } from '@educa/core'
 import { InvariantException } from '@educa/shared'
 
 /** Cookie de renovação da sessão: o refresh aleatório, cujo SHA-256 é o `refresh_hash` da `sessao`. */

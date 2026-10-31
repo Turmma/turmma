@@ -10,7 +10,7 @@ import {
   type Clock,
   type TipoDeConvite,
   type DatabaseTransaction,
-} from '@educa/nucleo'
+} from '@educa/core'
 import {
   ErrorCode,
   GERAR_CONVITE_POR_ESTADO,

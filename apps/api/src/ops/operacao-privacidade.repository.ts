@@ -1,4 +1,4 @@
-import { requireEscolaId, incidente, incidenteEscola, Unscoped, suboperador, suboperadorEscola, type Database, type DatabaseTransaction } from '@educa/nucleo'
+import { requireEscolaId, incidente, incidenteEscola, Unscoped, suboperador, suboperadorEscola, type Database, type DatabaseTransaction } from '@educa/core'
 import { InvariantException, type AlcanceDoSuboperador, type CategoriaDeDadoDoIncidente, type CategoriaDeDadoDoSuboperador, type RiscoDoIncidente } from '@educa/shared'
 import { and, eq, isNull, sql } from 'drizzle-orm'
 

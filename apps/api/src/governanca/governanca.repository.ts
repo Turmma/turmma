@@ -15,7 +15,7 @@ import {
   vinculo,
   type Database,
   type DatabaseTransaction,
-} from '@educa/nucleo'
+} from '@educa/core'
 import { GRUPO_MINIMO_DE_PROFESSORES, type ChaveDeFuncao, type ResumoDaGovernancaQuery, type EstadoDeEntrega, type Etapa, type MotivoDeSuspensao, type TipoDeEntrega } from '@educa/shared'
 import { and, count, desc, eq, gte, isNull, lt, notExists, sql, type SQL } from 'drizzle-orm'
 

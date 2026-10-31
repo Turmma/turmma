@@ -1,4 +1,4 @@
-import { DomainException, globalMeter, type Database } from '@educa/nucleo'
+import { DomainException, globalMeter, type Database } from '@educa/core'
 import { ErrorCode } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { afterEach, describe, expect, it, vi } from 'vitest'

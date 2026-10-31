@@ -1,4 +1,4 @@
-import { requestIp, TrustedProxies, Public } from '@educa/nucleo'
+import { requestIp, TrustedProxies, Public } from '@educa/core'
 import { renovacaoResponseSchema, type RenovacaoResponse } from '@educa/shared'
 import { Controller, Header, HttpCode, HttpStatus, Post, Req, Res } from '@nestjs/common'
 import type { IncomingMessage, ServerResponse } from 'node:http'

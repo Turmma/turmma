@@ -1,4 +1,4 @@
-import { DomainException, type DatabaseTransaction } from '@educa/nucleo'
+import { DomainException, type DatabaseTransaction } from '@educa/core'
 import { ErrorCode } from '@educa/shared'
 import { describe, expect, it } from 'vitest'
 import { OperadorRepository } from './operador.repository.js'

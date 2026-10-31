@@ -1,4 +1,4 @@
-import { conta, contaExterna, requireEscolaId, provedorEscola, usuario, type Database, type ProvedorExterno, type DatabaseTransaction } from '@educa/nucleo'
+import { conta, contaExterna, requireEscolaId, provedorEscola, usuario, type Database, type ProvedorExterno, type DatabaseTransaction } from '@educa/core'
 import { and, eq, isNull, sql } from 'drizzle-orm'
 
 /** A chave da conta externa: o provedor, o tenant (só na Microsoft) e o identificador estável. */

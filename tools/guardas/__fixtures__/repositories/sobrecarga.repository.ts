@@ -1,4 +1,4 @@
-import { requireEscolaId, type Database } from '@educa/nucleo'
+import { requireEscolaId, type Database } from '@educa/core'
 import { aluno } from './tabelas.js'
 
 // A assinatura de sobrecarga não tem corpo e não é um método à parte: só a implementação conta.

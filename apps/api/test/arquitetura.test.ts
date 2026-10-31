@@ -1,5 +1,5 @@
 import 'reflect-metadata'
-import * as nucleo from '@educa/nucleo'
+import * as nucleo from '@educa/core'
 import { CHAVES_DE_RETENCAO, CLASSIFICACAO_DAS_TABELAS, ErrorCode, COLUNAS_FORA_DO_ARQUIVO } from '@educa/shared'
 import { Controller, Get, SetMetadata, type ExecutionContext, type Type } from '@nestjs/common'
 import { Reflector } from '@nestjs/core'
@@ -47,7 +47,7 @@ function arquivosDoRepositorio(): Arquivo[] {
  */
 const ZONAS_DAS_CLASSES_CERCADAS: readonly { classe: string; uso: RegExp; zona: readonly string[] }[] = [
   { classe: 'ResolucaoDeTenantRepository', uso: /\bResolucaoDeTenantRepository\b|resolucao-de-tenant\.repository/, zona: ['apps/api/src/sessao/'] },
-  { classe: 'ContaGlobalRepository', uso: /\bContaGlobalRepository\b|conta-global\.repository|@educa\/nucleo\/conta-global/, zona: ['apps/api/src/sessao/', 'packages/nucleo/src/ciclo-de-vida/'] },
+  { classe: 'ContaGlobalRepository', uso: /\bContaGlobalRepository\b|conta-global\.repository|@educa\/core\/conta-global/, zona: ['apps/api/src/sessao/', 'packages/core/src/ciclo-de-vida/'] },
   // A zona do painel é o arquivo do service e o do repository, e não a pasta `operacao/painel/`.
   { classe: 'PainelRepository', uso: /\bPainelRepository\b|painel\.repository/, zona: ['apps/api/src/operacao/painel/painel.service.ts', 'apps/api/src/operacao/painel/painel.repository.ts'] },
 ]
@@ -81,7 +81,7 @@ describe('arquitetura: o nome das classes cercadas só aparece dentro da zona de
     const fora = [
       // O reexport pelo service do painel, por uma ponte de `ciclo-de-vida/` e por uma de `sessao/`: o arquivo da classe não aparece no import.
       { caminho: 'apps/api/src/estrutura/turma/vaza.ts', texto: "import { PainelRepository } from '../../operacao/painel/painel.service.js'" },
-      { caminho: 'packages/nucleo/src/retencao/vaza.ts', texto: "import { ContaGlobalRepository } from '../ciclo-de-vida/ponte.js'" },
+      { caminho: 'packages/core/src/retencao/vaza.ts', texto: "import { ContaGlobalRepository } from '../ciclo-de-vida/ponte.js'" },
       { caminho: 'tools/vaza.ts', texto: "import { ResolucaoDeTenantRepository } from '../apps/api/src/sessao/login/ponte.js'" },
       { caminho: 'infra/vaza.ts', texto: "import { ContaGlobalRepository } from '../apps/api/src/sessao/login/ponte.js'" },
       // Outro arquivo da pasta do painel não é a zona.
@@ -89,18 +89,18 @@ describe('arquitetura: o nome das classes cercadas só aparece dentro da zona de
     ]
     const dentro = [
       { caminho: 'apps/api/src/sessao/login/ponte.ts', texto: "export { ResolucaoDeTenantRepository } from '../tenant/resolucao-de-tenant.repository.js'" },
-      { caminho: 'packages/nucleo/src/ciclo-de-vida/ponte.ts', texto: "export { ContaGlobalRepository } from './conta-global.repository.js'" },
+      { caminho: 'packages/core/src/ciclo-de-vida/ponte.ts', texto: "export { ContaGlobalRepository } from './conta-global.repository.js'" },
       { caminho: 'apps/api/src/operacao/painel/painel.service.ts', texto: "import { PainelRepository } from './painel.repository.js'" },
     ]
     const inocentes = [
       { caminho: 'apps/api/test/painel-leitura.int.test.ts', texto: "import { PainelRepository } from '../src/operacao/painel/painel.repository.js'" },
       { caminho: 'tools/guardas/__fixtures__/camadas/infra/painel-import.ts', texto: "import { PainelRepository } from '../apps/api/src/operacao/painel/painel.repository.js'" },
-      { caminho: 'apps/api/src/estrutura/turma/turma.service.ts', texto: "/** Antes vinha da `ContaGlobalRepository`. */\n// e do @educa/nucleo/conta-global" },
+      { caminho: 'apps/api/src/estrutura/turma/turma.service.ts', texto: "/** Antes vinha da `ContaGlobalRepository`. */\n// e do @educa/core/conta-global" },
       { caminho: 'apps/api/src/telemetria/metricas.ts', texto: "const chave = 'metrica.conta-global.limpas'" },
     ]
     expect(usosForaDaZona([...fora, ...dentro, ...inocentes])).toEqual([
       'ResolucaoDeTenantRepository: tools/vaza.ts',
-      'ContaGlobalRepository: packages/nucleo/src/retencao/vaza.ts',
+      'ContaGlobalRepository: packages/core/src/retencao/vaza.ts',
       'ContaGlobalRepository: infra/vaza.ts',
       'PainelRepository: apps/api/src/estrutura/turma/vaza.ts',
       'PainelRepository: apps/api/src/operacao/painel/relatorio.ts',
@@ -110,19 +110,19 @@ describe('arquitetura: o nome das classes cercadas só aparece dentro da zona de
 
 /**
  * F3, tarefa 1.0 (Tech Spec do F3, seção 6; regra 10, item 9): as escritas na conta global que o ciclo de vida faz saíram
- * da resolução de tenant para a `ContaGlobalRepository`, em `packages/nucleo/src/ciclo-de-vida`, quando o ciclo de vida
+ * da resolução de tenant para a `ContaGlobalRepository`, em `packages/core/src/ciclo-de-vida`, quando o ciclo de vida
  * foi para o `nucleo`. A exceção da `Conta` (`docs/modelo-de-dados.md`, regras transversais, item 1) passa a aceitar dois
  * caminhos: o módulo `sessao` da API e a pasta do ciclo de vida. A classe não sai pelo barrel do pacote nem pelo
- * subcaminho do ciclo de vida, só pelo `@educa/nucleo/conta-global`. Quem a importa é a regra `cerca-conta-global` do
+ * subcaminho do ciclo de vida, só pelo `@educa/core/conta-global`. Quem a importa é a regra `cerca-conta-global` do
  * `guarda:camadas` (X5, 12.0), por import direto; o que os barris trazem em execução, o reexport que ela não vê, é conferido aqui.
  */
 describe('arquitetura: a conta global só pelo módulo sessao e pelo ciclo de vida (F3, tarefa 1.0)', () => {
   it('nem o barrel do @educa/nucleo nem o subcaminho do ciclo de vida exportam a ContaGlobalRepository, com o nome dela ou outro', async () => {
-    const { ContaGlobalRepository } = await import('@educa/nucleo/conta-global')
-    const cicloDeVida = await import('@educa/nucleo/ciclo-de-vida')
+    const { ContaGlobalRepository } = await import('@educa/core/conta-global')
+    const cicloDeVida = await import('@educa/core/ciclo-de-vida')
     for (const [nome, modulo] of [
-      ['@educa/nucleo', nucleo],
-      ['@educa/nucleo/ciclo-de-vida', cicloDeVida],
+      ['@educa/core', nucleo],
+      ['@educa/core/ciclo-de-vida', cicloDeVida],
     ] as const) {
       expect(Object.keys(modulo), nome).not.toContain('ContaGlobalRepository')
       expect(Object.values(modulo), nome).not.toContain(ContaGlobalRepository)
@@ -133,7 +133,7 @@ describe('arquitetura: a conta global só pelo módulo sessao e pelo ciclo de vi
 
   it('nem o barrel de credencial/ exporta a ResolucaoDeTenantRepository nem a ContaGlobalRepository, com o nome dela ou outro (33.0)', async () => {
     const credencial = await import('../src/credencial/index.js')
-    const { ContaGlobalRepository } = await import('@educa/nucleo/conta-global')
+    const { ContaGlobalRepository } = await import('@educa/core/conta-global')
     const { ResolucaoDeTenantRepository } = await import('../src/sessao/tenant/resolucao-de-tenant.repository.js')
     // O barrel é lido de verdade: sem isto, um import que falhasse em silêncio deixaria as duas conferências abaixo verdes.
     expect(Object.keys(credencial)).toContain('HashDeSenha')
@@ -148,7 +148,7 @@ describe('arquitetura: a conta global só pelo módulo sessao e pelo ciclo de vi
 
   it('nem o barrel de sessao/ exporta a ResolucaoDeTenantRepository nem a ContaGlobalRepository, com o nome dela ou outro, e a tenant/ só entra pelo AcessoDaSala e pelas sessões sintéticas (34.0)', async () => {
     const sessao = await import('../src/sessao/index.js')
-    const { ContaGlobalRepository } = await import('@educa/nucleo/conta-global')
+    const { ContaGlobalRepository } = await import('@educa/core/conta-global')
     const { ResolucaoDeTenantRepository } = await import('../src/sessao/tenant/resolucao-de-tenant.repository.js')
     const { AcessoDaSala } = await import('../src/sessao/tenant/acesso-da-sala.js')
     // O barrel é lido de verdade: sem isto, um import que falhasse em silêncio deixaria as conferências abaixo verdes.
@@ -190,14 +190,14 @@ describe('arquitetura: a leitura entre escolas mora só no PainelRepository, com
  * (`.sql`, que não são varridas) e os testes.
  */
 const REPOSITORY_DA_OPERACAO = 'apps/api/src/operacao/operador/operador.repository.ts'
-const EXPURGO_DA_OPERACAO = 'packages/nucleo/src/retencao/expurgo-de-acesso.repository.ts'
+const EXPURGO_DA_OPERACAO = 'packages/core/src/retencao/expurgo-de-acesso.repository.ts'
 const QUEM_PODE_TOCAR_A_OPERACAO = [REPOSITORY_DA_OPERACAO, EXPURGO_DA_OPERACAO]
 /** O que o expurgo pode tocar da operação: nunca `operador`, `codigo_recuperacao_operador` nem `auditoria_operacao`. */
 const EXPURGAVEIS_DA_OPERACAO = ['acesso_operacao', 'convite_operador', 'sessao_operador']
-const FORA_DA_VARREDURA = ['packages/nucleo/src/db/schema/operador.ts', 'packages/nucleo/src/db/schema/suboperador.ts', 'packages/nucleo/src/db/schema/incidente.ts', 'packages/nucleo/src/index.ts']
+const FORA_DA_VARREDURA = ['packages/core/src/db/schema/operador.ts', 'packages/core/src/db/schema/suboperador.ts', 'packages/core/src/db/schema/incidente.ts', 'packages/core/src/index.ts']
 const TABELAS_DA_OPERACAO = [nucleo.operador, nucleo.codigoRecuperacaoOperador, nucleo.conviteOperador, nucleo.sessaoOperador, nucleo.acessoOperacao, nucleo.auditoriaOperacao]
 
-/** Nome exportado pelo `@educa/nucleo` → nome físico, de toda tabela que o pacote exporta. */
+/** Nome exportado pelo `@educa/core` → nome físico, de toda tabela que o pacote exporta. */
 const TABELAS_EXPORTADAS = new Map<string, string>(
   Object.entries(nucleo as Record<string, unknown>).flatMap(([nome, valor]): [string, string][] => (is(valor, PgTable) ? [[nome, getTableName(valor)]] : [])),
 )
@@ -211,7 +211,7 @@ const GRUPO_DO_OPERADOR: GrupoDeTabelas = { exports: EXPORTS_DA_OPERACAO, fisico
  * `OperacaoPrivacidadeRepository` escreve nas duas, e só o `SuboperadorDaEscolaRepository` as lê, sem escrever.
  */
 const ESCRITOR_DO_SUBOPERADOR = 'apps/api/src/ops/operacao-privacidade.repository.ts'
-const LEITOR_DO_SUBOPERADOR = 'packages/nucleo/src/titular/suboperador-da-escola.repository.ts'
+const LEITOR_DO_SUBOPERADOR = 'packages/core/src/titular/suboperador-da-escola.repository.ts'
 const QUEM_PODE_TOCAR_O_SUBOPERADOR = [ESCRITOR_DO_SUBOPERADOR, LEITOR_DO_SUBOPERADOR]
 const TABELAS_DO_SUBOPERADOR = [nucleo.suboperador, nucleo.suboperadorEscola]
 const FISICOS_DO_SUBOPERADOR = new Set<string>(TABELAS_DO_SUBOPERADOR.map((tabela) => getTableName(tabela)))
@@ -224,7 +224,7 @@ const GRUPO_DO_SUBOPERADOR: GrupoDeTabelas = { exports: EXPORTS_DO_SUBOPERADOR, 
  * `IncidenteDaEscolaRepository` lê as duas pela escola do contexto e só escreve na seção da escola (a confirmação), e o expurgo de
  * acesso apaga o `incidente`, que leva as seções em cascata.
  */
-const LEITOR_DO_INCIDENTE = 'packages/nucleo/src/titular/incidente-da-escola.repository.ts'
+const LEITOR_DO_INCIDENTE = 'packages/core/src/titular/incidente-da-escola.repository.ts'
 const QUEM_PODE_TOCAR_O_INCIDENTE = [ESCRITOR_DO_SUBOPERADOR, LEITOR_DO_INCIDENTE, EXPURGO_DA_OPERACAO]
 const TABELAS_DO_INCIDENTE = [nucleo.incidente, nucleo.incidenteEscola]
 const FISICOS_DO_INCIDENTE = new Set<string>(TABELAS_DO_INCIDENTE.map((tabela) => getTableName(tabela)))
@@ -238,9 +238,9 @@ const GRUPO_DO_ESCRITOR_DA_PRIVACIDADE: GrupoDeTabelas = {
 }
 
 /** Toda tabela criada nas migrations, inclusive as que o pacote não exporta (`auditoria`). */
-const TABELAS_FISICAS: readonly string[] = readdirSync(join(RAIZ, 'packages/nucleo/drizzle'))
+const TABELAS_FISICAS: readonly string[] = readdirSync(join(RAIZ, 'packages/core/drizzle'))
   .filter((arquivo) => arquivo.endsWith('.sql'))
-  .flatMap((arquivo) => [...readFileSync(join(RAIZ, 'packages/nucleo/drizzle', arquivo), 'utf8').matchAll(/CREATE TABLE "(\w+)"/g)].map((criacao) => criacao[1] ?? ''))
+  .flatMap((arquivo) => [...readFileSync(join(RAIZ, 'packages/core/drizzle', arquivo), 'utf8').matchAll(/CREATE TABLE "(\w+)"/g)].map((criacao) => criacao[1] ?? ''))
 
 /** As tabelas que o texto cita em SQL: depois de `from`, `into`, `update`, `join`, `table` ou `truncate`. */
 function tabelasEmSql(texto: string): string[] {
@@ -255,9 +255,9 @@ interface GrupoDeTabelas {
   readonly schema: string
 }
 
-/** Os nomes que o texto importa (ou reexporta) do `@educa/nucleo` ou do schema da operação, sem o `as` e o `type`. */
+/** Os nomes que o texto importa (ou reexporta) do `@educa/core` ou do schema da operação, sem o `as` e o `type`. */
 function nomesImportados(texto: string): string[] {
-  return [...texto.matchAll(/(?:import|export)\s+(?:type\s+)?\{([^}]*)\}\s*from\s*['"](@educa\/nucleo|[^'"]*schema\/(?:operador|suboperador|incidente)(?:\.js|\.ts)?)['"]/g)].flatMap((importacao) =>
+  return [...texto.matchAll(/(?:import|export)\s+(?:type\s+)?\{([^}]*)\}\s*from\s*['"](@educa\/core|[^'"]*schema\/(?:operador|suboperador|incidente)(?:\.js|\.ts)?)['"]/g)].flatMap((importacao) =>
     (importacao[1] ?? '')
       .split(',')
       .map((nome) => nome.trim().replace(/^type\s+/, '').split(/\s+as\s+/)[0] ?? '')
@@ -268,7 +268,7 @@ function nomesImportados(texto: string): string[] {
 /** As tabelas do grupo que o arquivo alcança: por nome importado, por namespace do pacote, pelo arquivo do schema ou em SQL. */
 function usosDoGrupo(texto: string, grupo: GrupoDeTabelas): string[] {
   const porImport = nomesImportados(texto).filter((nome) => grupo.exports.has(nome))
-  const namespaces = [...texto.matchAll(/import\s+\*\s+as\s+(\w+)\s+from\s+['"]@educa\/nucleo['"]/g)].map((uso) => uso[1] ?? '')
+  const namespaces = [...texto.matchAll(/import\s+\*\s+as\s+(\w+)\s+from\s+['"]@educa\/core['"]/g)].map((uso) => uso[1] ?? '')
   const porNamespace = namespaces.flatMap((ns) => [...texto.matchAll(new RegExp(`\\b${ns}\\.(\\w+)`, 'g'))].map((uso) => uso[1] ?? '').filter((nome) => grupo.exports.has(nome)))
   const peloArquivo = new RegExp(`['"][^'"]*db\\/schema\\/${grupo.schema}(?:\\.js|\\.ts)?['"]`).test(texto) ? [`schema/${grupo.schema}`] : []
   const porSql = tabelasEmSql(texto).filter((nome) => grupo.fisicos.has(nome))
@@ -342,27 +342,27 @@ describe('arquitetura: as seis tabelas da operação só pelo OperadorRepository
 
   it('a varredura pega o uso em qualquer forma, e não confunde variável ou comentário com tabela', () => {
     const fora = [
-      { caminho: 'apps/api/src/painel/painel.repository.ts', texto: "import { and, operador, sql } from '@educa/nucleo'" },
-      { caminho: 'apps/api/src/painel/alias.ts', texto: "import { type Banco, sessaoOperador as sessoes } from '@educa/nucleo'" },
-      { caminho: 'apps/api/src/painel/ns.ts', texto: "import * as n from '@educa/nucleo'\nn.conviteOperador" },
-      { caminho: 'apps/api/src/painel/reexporta.ts', texto: "export { auditoriaOperacao } from '@educa/nucleo'" },
-      { caminho: 'apps/api/src/painel/schema.ts', texto: "import { operador as o } from '../../../../packages/nucleo/src/db/schema/operador.js'" },
+      { caminho: 'apps/api/src/painel/painel.repository.ts', texto: "import { and, operador, sql } from '@educa/core'" },
+      { caminho: 'apps/api/src/painel/alias.ts', texto: "import { type Banco, sessaoOperador as sessoes } from '@educa/core'" },
+      { caminho: 'apps/api/src/painel/ns.ts', texto: "import * as n from '@educa/core'\nn.conviteOperador" },
+      { caminho: 'apps/api/src/painel/reexporta.ts', texto: "export { auditoriaOperacao } from '@educa/core'" },
+      { caminho: 'apps/api/src/painel/schema.ts', texto: "import { operador as o } from '../../../../packages/core/src/db/schema/operador.js'" },
       { caminho: 'apps/worker/src/sql.ts', texto: "pool.query('delete from acesso_operacao where em < now()')" },
       { caminho: 'apps/worker/src/sql-aspas.ts', texto: 'sql`update "public"."codigo_recuperacao_operador" set x = 1`' },
       { caminho: 'apps/worker/src/sql-maiuscula.ts', texto: "pool.query('SELECT 1 FROM operador')" },
     ]
     const inocentes = [
-      { caminho: 'apps/api/src/ops/escola.ts', texto: "const operador = lerOperador(ambiente)\nimport { FORMATO_OPERADOR } from '@educa/nucleo'\n// o operador da equipe" },
+      { caminho: 'apps/api/src/ops/escola.ts', texto: "const operador = lerOperador(ambiente)\nimport { FORMATO_OPERADOR } from '@educa/core'\n// o operador da equipe" },
       { caminho: 'apps/api/src/sessao/x.repository.ts', texto: "pool.query('select 1 from sessao where escola_id = $1')" },
       { caminho: 'apps/api/src/ops/operador.test.ts', texto: "pool.query('delete from operador')" },
       { caminho: 'apps/api/test/sessao-de-operador.ts', texto: "pool.query('insert into sessao_operador (operador_id) values ($1)')" },
-      { caminho: 'packages/nucleo/src/index.ts', texto: "export { operador } from './db/schema/operador.js'" },
+      { caminho: 'packages/core/src/index.ts', texto: "export { operador } from './db/schema/operador.js'" },
     ]
     expect(quemTocaAOperacao([...fora, ...inocentes])).toEqual(fora.map((arquivo) => arquivo.caminho))
   })
 
   it('reprova o repository que importa outra tabela do pacote ou cita outra tabela em SQL', () => {
-    expect(tabelasDeForaNoRepository("import { conta, operador } from '@educa/nucleo'")).toEqual(['conta'])
+    expect(tabelasDeForaNoRepository("import { conta, operador } from '@educa/core'")).toEqual(['conta'])
     expect(tabelasDeForaNoRepository("sql`select 1 from escola`; sql`insert into auditoria (x)`; sql`update operador set x = 1`")).toEqual(['escola', 'auditoria'])
   })
 })
@@ -401,7 +401,7 @@ describe('arquitetura: o suboperador só pelo OperacaoPrivacidadeRepository, que
     expect(leitor && tabelasDeForaNoRepository(leitor.texto, GRUPO_DO_SUBOPERADOR)).toEqual([])
     // Correção da 8.0: o leitor também lê a `escola` do contexto (a vigência nunca é anterior a ela). O detector acima não enxerga
     // import por caminho relativo, então a lista dos schemas importados é conferida aqui: uma tabela nova passaria sem ninguém ver.
-    // Limite: a regex só enxerga import relativo `…/db/schema/<tabela>`; import por `@educa/nucleo` ou por barrel passaria. Se o repositório
+    // Limite: a regex só enxerga import relativo `…/db/schema/<tabela>`; import por `@educa/core` ou por barrel passaria. Se o repositório
     // passar a importar assim, amplie a regex.
     const schemasImportados = [...semComentarios(leitor?.texto ?? '').matchAll(/from\s+['"](?:\.\.?\/)+db\/schema\/(\w+)(?:\.js|\.ts)?['"]/g)].map((importacao) => importacao[1])
     expect(schemasImportados.toSorted()).toEqual(['escola', 'suboperador'])
@@ -424,19 +424,19 @@ describe('arquitetura: o suboperador só pelo OperacaoPrivacidadeRepository, que
 
   it('a varredura pega o uso em qualquer forma, e não confunde variável, comentário nem teste com tabela', () => {
     const fora = [
-      { caminho: 'apps/api/src/privacidade/privacidade.service.ts', texto: "import { and, suboperador } from '@educa/nucleo'" },
-      { caminho: 'apps/api/src/privacidade/alias.ts', texto: "import { type Banco, suboperadorEscola as ligacao } from '@educa/nucleo'" },
-      { caminho: 'apps/api/src/privacidade/ns.ts', texto: "import * as n from '@educa/nucleo'\nn.suboperador" },
-      { caminho: 'apps/api/src/privacidade/reexporta.ts', texto: "export { suboperadorEscola } from '@educa/nucleo'" },
-      { caminho: 'apps/api/src/privacidade/schema.ts', texto: "import { suboperador as s } from '../../../../packages/nucleo/src/db/schema/suboperador.js'" },
+      { caminho: 'apps/api/src/privacidade/privacidade.service.ts', texto: "import { and, suboperador } from '@educa/core'" },
+      { caminho: 'apps/api/src/privacidade/alias.ts', texto: "import { type Banco, suboperadorEscola as ligacao } from '@educa/core'" },
+      { caminho: 'apps/api/src/privacidade/ns.ts', texto: "import * as n from '@educa/core'\nn.suboperador" },
+      { caminho: 'apps/api/src/privacidade/reexporta.ts', texto: "export { suboperadorEscola } from '@educa/core'" },
+      { caminho: 'apps/api/src/privacidade/schema.ts', texto: "import { suboperador as s } from '../../../../packages/core/src/db/schema/suboperador.js'" },
       { caminho: 'apps/worker/src/sql.ts', texto: "pool.query('delete from suboperador_escola where fim < now()')" },
       { caminho: 'apps/worker/src/sql-aspas.ts', texto: 'sql`update "public"."suboperador" set fim = now()`' },
     ]
     const inocentes = [
       { caminho: 'apps/api/src/ops/suboperador.ts', texto: "import { OperacaoPrivacidadeRepository } from './operacao-privacidade.repository.js'\nconst suboperador = lerPedido()\n// a tabela suboperador" },
       { caminho: 'apps/api/test/suboperador.int.test.ts', texto: "pool.query('select 1 from suboperador')" },
-      { caminho: 'packages/nucleo/src/index.ts', texto: "export { suboperador } from './db/schema/suboperador.js'" },
-      { caminho: 'packages/nucleo/src/db/schema/suboperador.ts', texto: 'export const suboperador = pgTable()' },
+      { caminho: 'packages/core/src/index.ts', texto: "export { suboperador } from './db/schema/suboperador.js'" },
+      { caminho: 'packages/core/src/db/schema/suboperador.ts', texto: 'export const suboperador = pgTable()' },
     ]
     expect(quemTocaOSuboperador([...fora, ...inocentes])).toEqual(fora.map((arquivo) => arquivo.caminho))
   })
@@ -446,16 +446,16 @@ describe('arquitetura: o suboperador só pelo OperacaoPrivacidadeRepository, que
       expect(ESCREVE_NO_BANCO.test(semComentarios(escrita)), escrita).toBe(true)
     }
     expect(ESCREVE_NO_BANCO.test(semComentarios('/** não faz insert nem update */\nawait this.banco.select().from(suboperador)'))).toBe(false)
-    expect(tabelasDeForaNoRepository("import { suboperador, conta } from '@educa/nucleo'", GRUPO_DO_SUBOPERADOR)).toEqual(['conta'])
+    expect(tabelasDeForaNoRepository("import { suboperador, conta } from '@educa/core'", GRUPO_DO_SUBOPERADOR)).toEqual(['conta'])
     expect(tabelasDeForaNoRepository("sql`select 1 from sessao`; sql`select 1 from suboperador`", GRUPO_DO_SUBOPERADOR)).toEqual(['sessao'])
     // O OperadorRepository, que não é do grupo, também não pode tocar o suboperador.
-    expect(tabelasDeForaNoRepository("import { operador, suboperador } from '@educa/nucleo'")).toEqual(['suboperador'])
+    expect(tabelasDeForaNoRepository("import { operador, suboperador } from '@educa/core'")).toEqual(['suboperador'])
   })
 })
 
 describe('arquitetura: o Compartilhamento é só regra, e o banco é do CompartilhamentoRepository (F3, tarefa 12.0)', () => {
   it('compartilhamento.ts não consulta o banco', () => {
-    const regra = arquivosDoRepositorio().find((arquivo) => arquivo.caminho === 'packages/nucleo/src/titular/compartilhamento.ts')
+    const regra = arquivosDoRepositorio().find((arquivo) => arquivo.caminho === 'packages/core/src/titular/compartilhamento.ts')
     expect(regra).toBeDefined()
     const texto = semComentarios(regra?.texto ?? '')
     expect(texto).not.toMatch(/\.(execute|select|insert|update|delete)\(/)
@@ -464,7 +464,7 @@ describe('arquitetura: o Compartilhamento é só regra, e o banco é do Comparti
   })
 
   it('o repository lê a escola do contexto e nenhum método a recebe', () => {
-    const leitor = arquivosDoRepositorio().find((arquivo) => arquivo.caminho === 'packages/nucleo/src/titular/compartilhamento.repository.ts')
+    const leitor = arquivosDoRepositorio().find((arquivo) => arquivo.caminho === 'packages/core/src/titular/compartilhamento.repository.ts')
     expect(leitor).toBeDefined()
     const texto = semComentarios(leitor?.texto ?? '')
     expect(texto).toContain('requireEscolaId()')
@@ -523,19 +523,19 @@ describe('arquitetura: o incidente só pelo OperacaoPrivacidadeRepository, pelo 
 
   it('a varredura pega o uso em qualquer forma, e não confunde variável, comentário nem teste com tabela', () => {
     const fora = [
-      { caminho: 'apps/api/src/privacidade/privacidade.service.ts', texto: "import { and, incidente } from '@educa/nucleo'" },
-      { caminho: 'apps/api/src/privacidade/alias.ts', texto: "import { type Banco, incidenteEscola as secao } from '@educa/nucleo'" },
-      { caminho: 'apps/api/src/privacidade/ns.ts', texto: "import * as n from '@educa/nucleo'\nn.incidenteEscola" },
-      { caminho: 'apps/api/src/privacidade/reexporta.ts', texto: "export { incidente } from '@educa/nucleo'" },
-      { caminho: 'apps/api/src/privacidade/schema.ts', texto: "import { incidente as i } from '../../../../packages/nucleo/src/db/schema/incidente.js'" },
+      { caminho: 'apps/api/src/privacidade/privacidade.service.ts', texto: "import { and, incidente } from '@educa/core'" },
+      { caminho: 'apps/api/src/privacidade/alias.ts', texto: "import { type Banco, incidenteEscola as secao } from '@educa/core'" },
+      { caminho: 'apps/api/src/privacidade/ns.ts', texto: "import * as n from '@educa/core'\nn.incidenteEscola" },
+      { caminho: 'apps/api/src/privacidade/reexporta.ts', texto: "export { incidente } from '@educa/core'" },
+      { caminho: 'apps/api/src/privacidade/schema.ts', texto: "import { incidente as i } from '../../../../packages/core/src/db/schema/incidente.js'" },
       { caminho: 'apps/worker/src/sql.ts', texto: "pool.query('delete from incidente_escola where confirmado_em is null')" },
       { caminho: 'apps/worker/src/sql-aspas.ts', texto: 'sql`update "public"."incidente" set conhecido_em = now()`' },
     ]
     const inocentes = [
       { caminho: 'apps/api/src/ops/incidente.ts', texto: "import { OperacaoPrivacidadeRepository } from './operacao-privacidade.repository.js'\nconst incidente = lerPedido()\n// a tabela incidente" },
       { caminho: 'apps/api/test/incidente.int.test.ts', texto: "pool.query('select 1 from incidente')" },
-      { caminho: 'packages/nucleo/src/index.ts', texto: "export { incidente } from './db/schema/incidente.js'" },
-      { caminho: 'packages/nucleo/src/db/schema/incidente.ts', texto: 'export const incidente = pgTable()' },
+      { caminho: 'packages/core/src/index.ts', texto: "export { incidente } from './db/schema/incidente.js'" },
+      { caminho: 'packages/core/src/db/schema/incidente.ts', texto: 'export const incidente = pgTable()' },
     ]
     expect(quemTocaOIncidente([...fora, ...inocentes])).toEqual(fora.map((arquivo) => arquivo.caminho))
     expect(escritasDoCodigo('await this.banco.update(incidente).set(x)\n// .delete(incidente)\nawait this.banco.insert( incidenteEscola ).values(y)')).toEqual(['.update(incidente)', '.insert(incidenteEscola)'])
@@ -553,9 +553,9 @@ const NOMES_DOS_MARCADORES = /\b(?:RotaDeOperacao|EntradaDeOperacao)\b/
 const CHAVES_DOS_MARCADORES = /\bOPERACAO_(?:ROUTE|ENTRY)_KEY\b/
 /** Quem pode citar as chaves: onde nascem, o barrel, a conferência do boot, e os decoradores. */
 const QUEM_PODE_CITAR_AS_CHAVES = [
-  'packages/nucleo/src/identidade/marcadores-de-operacao.ts',
-  'packages/nucleo/src/index.ts',
-  'packages/nucleo/src/permissao/conferencia-das-permissoes.ts',
+  'packages/core/src/identidade/operacao-markers.ts',
+  'packages/core/src/index.ts',
+  'packages/core/src/permissao/permissao-boot-check.ts',
   'apps/api/src/operacao/marcadores.ts',
 ]
 
@@ -650,14 +650,14 @@ describe('arquitetura: os marcadores da operação só na pasta da operação (C
     const fora = [
       { caminho: 'apps/api/src/estrutura/turma/turma.controller.ts', texto: "import { RotaDeOperacao } from '../operacao/marcadores.js'\n@RotaDeOperacao()\n@Controller('v1/turmas')\nexport class TurmaController {}" },
       { caminho: 'apps/api/src/sessao/atalho.controller.ts', texto: 'export class Atalho {\n  @Get()\n  @EntradaDeOperacao()\n  obter() {}\n}' },
-      { caminho: 'apps/api/src/sessao/chave.ts', texto: "import { OPERACAO_ROUTE_KEY } from '@educa/nucleo'\nSetMetadata(OPERACAO_ROUTE_KEY, true)" },
-      { caminho: 'packages/nucleo/src/limite/outro.ts', texto: 'reflector.get(OPERACAO_ENTRY_KEY, alvo)' },
+      { caminho: 'apps/api/src/sessao/chave.ts', texto: "import { OPERACAO_ROUTE_KEY } from '@educa/core'\nSetMetadata(OPERACAO_ROUTE_KEY, true)" },
+      { caminho: 'packages/core/src/rate-limit/outro.ts', texto: 'reflector.get(OPERACAO_ENTRY_KEY, alvo)' },
     ]
     const inocentes = [
       { caminho: 'apps/api/src/operacao/painel/painel.controller.ts', texto: '@RotaDeOperacao()\nexport class PainelController {}' },
-      { caminho: 'packages/nucleo/src/limite/guarda-limite.ts', texto: '/** A rota `@RotaDeOperacao()` conta no rl:op. */\n// e a @EntradaDeOperacao não\nconst x = 1' },
+      { caminho: 'packages/core/src/rate-limit/rate-limit.guard.ts', texto: '/** A rota `@RotaDeOperacao()` conta no rl:op. */\n// e a @EntradaDeOperacao não\nconst x = 1' },
       { caminho: 'apps/api/test/qualquer.int.test.ts', texto: '@RotaDeOperacao()\nclass X {}' },
-      { caminho: 'apps/api/test/rotas-registradas.ts', texto: "import { OPERACAO_ROUTE_KEY } from '@educa/nucleo'" },
+      { caminho: 'apps/api/test/rotas-registradas.ts', texto: "import { OPERACAO_ROUTE_KEY } from '@educa/core'" },
     ]
     expect(marcadoresForaDaOperacao([...fora, ...inocentes])).toEqual(fora.map((arquivo) => arquivo.caminho))
   })
@@ -974,10 +974,10 @@ function excecoesNaoDeclaradas(tabelas: readonly string[], doc: string): string[
 }
 
 describe('arquitetura: toda tabela sem escola_id está nas exceções do modelo de dados (regra 10, item 1)', () => {
-  const sqls = readdirSync(join(RAIZ, 'packages/nucleo/drizzle'))
+  const sqls = readdirSync(join(RAIZ, 'packages/core/drizzle'))
     .filter((arquivo) => arquivo.endsWith('.sql'))
     .sort()
-    .map((arquivo) => readFileSync(join(RAIZ, 'packages/nucleo/drizzle', arquivo), 'utf8'))
+    .map((arquivo) => readFileSync(join(RAIZ, 'packages/core/drizzle', arquivo), 'utf8'))
   const doc = readFileSync(join(RAIZ, DOC_MODELO), 'utf8')
 
   it('a varredura enxerga as migrations: acha a identidade de login e as seis da operação, e não acha tabela com escola', () => {
@@ -1168,10 +1168,10 @@ function problemasDaClassificacao(classificacao: Readonly<Record<string, unknown
 }
 
 describe('arquitetura: toda tabela das migrations está classificada para a retenção e o arquivo do titular (F3, RF1)', () => {
-  const sqls = readdirSync(join(RAIZ, 'packages/nucleo/drizzle'))
+  const sqls = readdirSync(join(RAIZ, 'packages/core/drizzle'))
     .filter((arquivo) => arquivo.endsWith('.sql'))
     .sort()
-    .map((arquivo) => readFileSync(join(RAIZ, 'packages/nucleo/drizzle', arquivo), 'utf8'))
+    .map((arquivo) => readFileSync(join(RAIZ, 'packages/core/drizzle', arquivo), 'utf8'))
   const colunas = colunasDasTabelas(sqls)
 
   it('a leitura das colunas enxerga as migrations: a criação, o ADD COLUMN do MVP e a tabela da retenção', () => {
@@ -1280,10 +1280,10 @@ function problemasDaLeitura(
 }
 
 describe('arquitetura: o arquivo do titular lê as tabelas da classificação, e toda coluna delas tem destino (F3, tarefa 13.0)', () => {
-  const sqls = readdirSync(join(RAIZ, 'packages/nucleo/drizzle'))
+  const sqls = readdirSync(join(RAIZ, 'packages/core/drizzle'))
     .filter((arquivo) => arquivo.endsWith('.sql'))
     .sort()
-    .map((arquivo) => readFileSync(join(RAIZ, 'packages/nucleo/drizzle', arquivo), 'utf8'))
+    .map((arquivo) => readFileSync(join(RAIZ, 'packages/core/drizzle', arquivo), 'utf8'))
   const colunas = colunasDasTabelas(sqls)
 
   it('as tabelas lidas são exatamente as que a classificação põe no arquivo, e nenhuma coluna fica sem destino', () => {
@@ -1318,7 +1318,7 @@ describe('arquitetura: o arquivo do titular lê as tabelas da classificação, e
 })
 
 /** Cita a classe da rotina noturna ou o arquivo dela (F3, tarefa 3.0). */
-const USO_DA_ROTINA = /\bCronEscolasRepository\b|escolas-da-rotina\.repository/
+const USO_DA_ROTINA = /\bCronEscolasRepository\b|cron-escolas\.repository/
 
 /**
  * Fora dos testes, quem pode usar a lista de escolas da rotina: ela mesma, o barrel, e o worker-lote, que a usa na rotina
@@ -1334,8 +1334,8 @@ const QUEM_USA_A_ROTINA = [
   'apps/worker/src/medicao-por-escola.ts',
   'apps/worker/src/montagem.ts',
   'apps/worker/src/processadores/expurgar-dado-pessoal.ts',
-  'packages/nucleo/src/index.ts',
-  'packages/nucleo/src/rotina/escolas-da-rotina.repository.ts',
+  'packages/core/src/index.ts',
+  'packages/core/src/cron/cron-escolas.repository.ts',
 ]
 
 describe('arquitetura: a rotina noturna é a única consulta sem escopo do expurgo da escola (F3, tarefa 3.0; Tech Spec do F3, seção 6)', () => {

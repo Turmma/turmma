@@ -1,4 +1,4 @@
-import { OPERACAO_ENTRY_KEY, OPERACAO_ROUTE_KEY } from '@educa/nucleo'
+import { OPERACAO_ENTRY_KEY, OPERACAO_ROUTE_KEY } from '@educa/core'
 import { applyDecorators, SetMetadata, UseGuards } from '@nestjs/common'
 import { GuardaDeOperador } from './guarda-de-operador.js'
 

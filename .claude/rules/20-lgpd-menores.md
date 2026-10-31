@@ -50,7 +50,7 @@ acontece se isso vazar?"**.
 3. **Necessidade específica é dado sensível** (art. 11). A ferramenta de adaptação precisa
    saber *que adaptação fazer*, não *qual é o diagnóstico*. Guarde "prova com fonte ampliada
    e tempo adicional", não o laudo.
-   Checagem: só a revisão garante (`privacy-guardian`); o que há de teste: `packages/nucleo/src/db/schema/mvp/tabelas-do-mvp.int.test.ts`.
+   Checagem: só a revisão garante (`privacy-guardian`); o que há de teste: `packages/core/src/db/schema/mvp/mvp-tables.int.test.ts`.
 
 ## Exposição — onde o vazamento realmente acontece
 
@@ -76,7 +76,7 @@ acontece se isso vazar?"**.
 
 7. **Arquivo em bucket privado, com URL assinada de validade curta.** Nunca URL permanente,
    nunca bucket público "porque é só uma imagem de prova".
-   Checagem: `packages/nucleo/src/titular/armazem-s3.test.ts`, `privacy-guardian`.
+   Checagem: `packages/core/src/titular/s3-file-storage.test.ts`, `privacy-guardian`.
 
 8. **Convite é token único, com expiração, uso único e revogação.** Link de sala sem
    validade circula em grupo de WhatsApp e vira porta aberta meses depois.
@@ -102,7 +102,7 @@ acontece se isso vazar?"**.
     de nota, alteração de permissão, aprovação de saída de IA. Auditoria não é log: é
     registro consultável, com autor, data e finalidade. O registro de acesso exigido pelo
     Marco Civil (art. 15, 6 meses) é outra coisa e tem retenção própria.
-    Checagem: `packages/nucleo/src/auditoria/porta-unica.test.ts`, `packages/nucleo/src/auditoria/acoes.test.ts`, `privacy-guardian`.
+    Checagem: `packages/core/src/auditoria/porta-unica.test.ts`, `packages/core/src/auditoria/acoes.test.ts`, `privacy-guardian`.
 
 10a. **Indicador de professor é dado pessoal do professor.** Entra no mapa de dados de
      `docs/lgpd.md` com finalidade de apoio pedagógico, nunca de decisão sobre o professor,
@@ -117,14 +117,14 @@ acontece se isso vazar?"**.
 
 12. **Envio externo leva o mínimo, com identificador em vez de nome.** O modelo não precisa
     saber que é a Maria; precisa da dúvida e do trecho do material.
-    Checagem: `apps/api/src/tutor/tutor-modelo.int.test.ts`, `packages/nucleo/src/ia/provedor.test.ts`, `privacy-guardian`, `llm-integrator`.
+    Checagem: `apps/api/src/tutor/tutor-modelo.int.test.ts`, `packages/core/src/ia/llm-gateway.test.ts`, `privacy-guardian`, `llm-integrator`.
 
 13. **Sem contrato vedando treinamento com nosso dado, use o provedor local.** Não existe
     exceção "só para testar com dado real". O contrato também precisa permitir serviço
     usado por menor de idade e dizer onde o dado é processado: os termos da Gemini API
     (AI Studio) vedam serviço "provável de ser acessado" por menor de 18, e o DPA da
     Maritaca lista processamento no Brasil, nos EUA e na UE.
-    Checagem: `packages/nucleo/src/ia/provedor.test.ts`, `privacy-guardian`.
+    Checagem: `packages/core/src/ia/llm-gateway.test.ts`, `privacy-guardian`.
 
 14. **Conversa de tutor tem retenção curta e acesso restrito ao professor da turma.** A
     camada de rede nunca alcança conteúdo de conversa, só agregado.

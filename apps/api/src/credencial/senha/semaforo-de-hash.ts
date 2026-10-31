@@ -1,4 +1,4 @@
-import { DomainException, LIMITES_DO_HISTOGRAMA_HTTP_S, METRICS, ROTULO_ESCOLA, type Meter } from '@educa/nucleo'
+import { DomainException, LIMITES_DO_HISTOGRAMA_HTTP_S, METRICS, ROTULO_ESCOLA, type Meter } from '@educa/core'
 import { ErrorCode } from '@educa/shared'
 import { randomInt } from 'node:crypto'
 import type { BaldeDeLogin } from './baldes-de-login.js'

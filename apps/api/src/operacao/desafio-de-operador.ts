@@ -1,4 +1,4 @@
-import { throttledWarn, EMISSOR_TOKEN, DomainException, systemClock, DEFAULT_RETRY_AFTER_SECONDS, TIPO_DESAFIO_DE_OPERADOR, type Clock } from '@educa/nucleo'
+import { throttledWarn, EMISSOR_TOKEN, DomainException, systemClock, DEFAULT_RETRY_AFTER_SECONDS, TIPO_DESAFIO_DE_OPERADOR, type Clock } from '@educa/core'
 import { ErrorCode, InvariantException } from '@educa/shared'
 import { Logger } from '@nestjs/common'
 import type { Redis } from 'ioredis'

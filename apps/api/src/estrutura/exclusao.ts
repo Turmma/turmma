@@ -1,4 +1,4 @@
-import { DomainException, postgresErrorIn } from '@educa/nucleo'
+import { DomainException, postgresErrorIn } from '@educa/core'
 import { ErrorCode } from '@educa/shared'
 
 /** SQLSTATE `foreign_key_violation`: uma linha de outra tabela ainda aponta para a que se quer apagar. */

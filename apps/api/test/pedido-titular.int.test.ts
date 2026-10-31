@@ -1,5 +1,5 @@
-import { InMemoryFileStorage, diaDeUso, JobOutbox, runInContext, JobOutboxRepository, JobRequestRejectedError } from '@educa/nucleo'
-import { CicloDeVidaService } from '@educa/nucleo/ciclo-de-vida'
+import { InMemoryFileStorage, diaDeUso, JobOutbox, runInContext, JobOutboxRepository, JobRequestRejectedError } from '@educa/core'
+import { CicloDeVidaService } from '@educa/core/ciclo-de-vida'
 import {
   ErrorCode,
   FINALIDADE_DO_ATENDIMENTO_DO_TITULAR,

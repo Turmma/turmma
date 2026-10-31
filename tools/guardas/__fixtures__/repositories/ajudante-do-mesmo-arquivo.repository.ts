@@ -1,4 +1,4 @@
-import { requireEscolaId, type Database } from '@educa/nucleo'
+import { requireEscolaId, type Database } from '@educa/core'
 import { aluno } from './tabelas.js'
 
 function escopoDoArquivo(): string {

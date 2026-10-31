@@ -1,4 +1,4 @@
-import { Public } from '@educa/nucleo'
+import { Public } from '@educa/core'
 import type { HealthResponse } from '@educa/shared'
 import { Controller, Get, Header, HttpStatus, Res } from '@nestjs/common'
 import { SaudeService } from './saude.service.js'

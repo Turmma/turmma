@@ -1,4 +1,4 @@
-import { InvalidConfigError, validateEnvironment } from '@educa/nucleo'
+import { InvalidConfigError, validateEnvironment } from '@educa/core'
 import { z } from 'zod'
 
 export interface ConfiguracaoSala {

@@ -1,4 +1,4 @@
-import { DomainException, estadoDoProfessor, AuditoriaRecorder, systemClock, type Database, type Clock } from '@educa/nucleo'
+import { DomainException, estadoDoProfessor, AuditoriaRecorder, systemClock, type Database, type Clock } from '@educa/core'
 import { ErrorCode, REFAZER_CONVITE_DE_PROFESSOR_POR_ESTADO, REVOGAR_CONVITE_DE_PROFESSOR_POR_ESTADO, type CadastrarProfessorRequest } from '@educa/shared'
 import { ConviteRepository } from './convite.repository.js'
 import { convidar, expiraEmDo, refazerSobATrava, tokenNovo } from './convite.service.js'

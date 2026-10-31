@@ -46,7 +46,7 @@ Serviço de domínio → LLMProvider (porta)
 ## As regras
 
 1. **Nenhum módulo de domínio importa SDK de provedor.** Um `import OpenAI` fora de
-   `packages/nucleo/src/ia/adaptador-*.ts` é erro de revisão, sem discussão.
+   `packages/core/src/ia/*-adapter.ts` é erro de revisão, sem discussão.
    Checagem: `guardas/sdk-de-ia-so-no-adaptador`, `tools/guardas/guardas.test.ts`, `llm-integrator`.
 
 2. **Toda chamada declara um perfil**, e o perfil é o mais barato que resolve. Classificar
@@ -71,7 +71,7 @@ Serviço de domínio → LLMProvider (porta)
 4. **Toda execução registra** entrada, saída, modelo, tokens, custo, duração e se houve
    envio externo. É o que sustenta cobrança, depuração e a resposta à escola quando ela
    perguntar por que a IA disse algo.
-   Checagem: `apps/api/src/ia/ia.int.test.ts`, `packages/nucleo/src/ia/provedor.test.ts`, `llm-integrator`.
+   Checagem: `apps/api/src/ia/ia.int.test.ts`, `packages/core/src/ia/llm-gateway.test.ts`, `llm-integrator`.
 
 5. **Saída de IA nunca vira registro oficial sozinha.** Nota, mensagem à família e alteração
    de dado exigem aprovação humana com autor e data. Ver regra 70.
@@ -91,10 +91,10 @@ Serviço de domínio → LLMProvider (porta)
    escola e por rede, nunca constante no código, D41), com corte
    suave e aviso ao coordenador antes do limite. Medir não é otimização aqui, é requisito
    de produto: é o número que valida ou destrói a precificação.
-   Checagem: `packages/nucleo/src/ia/adaptador-resiliente.test.ts`, `llm-integrator`.
+   Checagem: `packages/core/src/ia/resilient-adapter.test.ts`, `llm-integrator`.
 
 9. **Sem contrato vedando treinamento, use o provedor local.**
-   Checagem: `packages/nucleo/src/ia/provedor.test.ts`, `privacy-guardian`.
+   Checagem: `packages/core/src/ia/llm-gateway.test.ts`, `privacy-guardian`.
 
 10. **O tutor respeita a política da turma no servidor**, nunca no cliente. Durante
     avaliação em andamento ele fica travado, independentemente da política.

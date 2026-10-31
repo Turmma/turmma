@@ -6,7 +6,7 @@ import {
   type Database,
   type AuthConfig,
   type Meter,
-} from '@educa/nucleo'
+} from '@educa/core'
 import { Inject, Logger, Module, type DynamicModule, type OnApplicationShutdown } from '@nestjs/common'
 import type { Redis } from 'ioredis'
 import { randomBytes } from 'node:crypto'

@@ -1,4 +1,4 @@
-import { IdPipe, RequirePermissao, ZodValidationPipe } from '@educa/nucleo'
+import { IdPipe, RequirePermissao, ZodValidationPipe } from '@educa/core'
 import {
   buscaDeMaterialQuerySchema,
   materiaisQuerySchema,

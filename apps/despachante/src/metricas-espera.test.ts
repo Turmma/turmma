@@ -1,4 +1,4 @@
-import { createLogger, METRICS, type JanelaLetiva, type FailedJobsMeasurement, type PendingJobsMeasurement } from '@educa/nucleo'
+import { createLogger, METRICS, type JanelaLetiva, type FailedJobsMeasurement, type PendingJobsMeasurement } from '@educa/core'
 import type { QueueName } from '@educa/shared'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
@@ -224,7 +224,7 @@ describe('MedicaoDaFila', () => {
 
   it('isolamento: a janela lida é a da escola de cada série, no contexto dela, e a escola em aula não segura o lote da outra', async () => {
     const lidasNoContexto: Array<string | undefined> = []
-    const { currentContext } = await import('@educa/nucleo')
+    const { currentContext } = await import('@educa/core')
     const janelaPorEscola = new Map<string, JanelaLetiva>([
       [ESCOLA_A, JANELA],
       // A escola B não tem aula às terças.

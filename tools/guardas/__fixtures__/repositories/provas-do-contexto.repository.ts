@@ -1,4 +1,4 @@
-import { jobScopeInContext, requestIdentity, type Database } from '@educa/nucleo'
+import { jobScopeInContext, requestIdentity, type Database } from '@educa/core'
 import { job } from './tabelas.js'
 
 // Cada uma das outras duas provas vale sozinha.

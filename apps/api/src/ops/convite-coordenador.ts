@@ -1,4 +1,4 @@
-import { InvalidConfigError, DomainException, FORMATO_SLUG, summarizeError, TAMANHO_MAXIMO_SLUG } from '@educa/nucleo'
+import { InvalidConfigError, DomainException, FORMATO_SLUG, summarizeError, TAMANHO_MAXIMO_SLUG } from '@educa/core'
 import { ErrorCode, emailConvidadoSchema } from '@educa/shared'
 import { rm } from 'node:fs/promises'
 import { resolve } from 'node:path'

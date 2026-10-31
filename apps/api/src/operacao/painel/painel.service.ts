@@ -9,7 +9,7 @@ import {
   systemClock,
   type Database,
   type Clock,
-} from '@educa/nucleo'
+} from '@educa/core'
 import {
   ErrorCode,
   conviteDaCoordenacaoResponseSchema,

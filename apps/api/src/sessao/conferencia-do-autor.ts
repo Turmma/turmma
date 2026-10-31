@@ -1,4 +1,4 @@
-import type { DatabaseTransaction } from '@educa/nucleo'
+import type { DatabaseTransaction } from '@educa/core'
 
 /**
  * A conferência do autor de uma escrita do operador (Tech Spec da A0b, seção 5, "Autor"), que o caso de uso chama como

@@ -1,4 +1,4 @@
-import { escola, requireAnoEmCurso, requireEscolaId, serie, requestSessao, turma, vinculo, type Database, type DatabaseTransaction } from '@educa/nucleo'
+import { escola, requireAnoEmCurso, requireEscolaId, serie, requestSessao, turma, vinculo, type Database, type DatabaseTransaction } from '@educa/core'
 import type { MinhaTurmaResponse } from '@educa/shared'
 import { and, desc, eq } from 'drizzle-orm'
 

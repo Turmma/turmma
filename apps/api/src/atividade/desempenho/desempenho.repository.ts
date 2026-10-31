@@ -1,4 +1,4 @@
-import { artefato, atividadeAplicada, correcao, entrega, requireAnoEmCurso, requireEscolaId, requestSessao, turma, usuario, vinculo, type Database, type DatabaseTransaction } from '@educa/nucleo'
+import { artefato, atividadeAplicada, correcao, entrega, requireAnoEmCurso, requireEscolaId, requestSessao, turma, usuario, vinculo, type Database, type DatabaseTransaction } from '@educa/core'
 import { MAXIMO_DE_ALUNOS_NO_DESEMPENHO } from '@educa/shared'
 import { and, asc, eq, inArray, isNull, sql, type SQL } from 'drizzle-orm'
 

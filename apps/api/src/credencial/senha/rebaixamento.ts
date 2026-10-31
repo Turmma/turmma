@@ -1,4 +1,4 @@
-import { insuranceLimit, METRICS, systemClock, ROTULO_ESCOLA, type Meter, type Clock } from '@educa/nucleo'
+import { insuranceLimit, METRICS, systemClock, ROTULO_ESCOLA, type Meter, type Clock } from '@educa/core'
 import { JANELA_DO_CONTADOR_POR_IP_MS, type ContadorEmJanela } from './contador-em-janela.js'
 
 /** O piso do limiar: uma escola pequena não é rebaixada por uma manhã de senhas esquecidas. */

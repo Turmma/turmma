@@ -1,4 +1,4 @@
-import { EMISSOR_TOKEN, DomainException, TIPO_DESAFIO_DE_OPERADOR, verifyToken, verifyOperadorToken } from '@educa/nucleo'
+import { EMISSOR_TOKEN, DomainException, TIPO_DESAFIO_DE_OPERADOR, verifyToken, verifyOperadorToken } from '@educa/core'
 import { ErrorCode } from '@educa/shared'
 import { decodeJwt, decodeProtectedHeader, SignJWT, type JWTPayload } from 'jose'
 import { randomUUID } from 'node:crypto'

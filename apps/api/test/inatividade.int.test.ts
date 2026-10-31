@@ -1,4 +1,4 @@
-import { METRICS } from '@educa/nucleo'
+import { METRICS } from '@educa/core'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { chamar, cookieDaResposta, cookieDeRenovacao, estadoDaSessao, registrosDeAcesso, renovar, subirApi, type ApiDeTeste } from './api-com-sessao.js'

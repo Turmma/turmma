@@ -1,7 +1,7 @@
 import './efeito.js'
 import * as todas from './tabelas.js'
 import padrao from './padrao.js'
-import { type Database, type DatabaseTransaction } from '@educa/nucleo'
+import { type Database, type DatabaseTransaction } from '@educa/core'
 
 let contador: number
 void todas

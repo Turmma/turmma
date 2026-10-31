@@ -1,4 +1,4 @@
-import { requestSessao, type Environment, type Database } from '@educa/nucleo'
+import { requestSessao, type Environment, type Database } from '@educa/core'
 import { COOKIE_SESSAO, serializarCookie } from '../../credencial/cookies.js'
 import { ipParaRegistro } from '../../credencial/origem-da-requisicao.js'
 import { RegistroDeAcessoRepository } from '../../credencial/registro-de-acesso.repository.js'

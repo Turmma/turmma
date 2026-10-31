@@ -1,4 +1,4 @@
-import { unscopedJustification } from '@educa/nucleo'
+import { unscopedJustification } from '@educa/core'
 import { readdirSync, readFileSync } from 'node:fs'
 import { dirname, join, relative, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'

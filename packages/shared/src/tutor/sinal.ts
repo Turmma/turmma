@@ -25,7 +25,7 @@ export const NOME_DO_SINAL: Readonly<Record<TipoDeSinal, string>> = {
 /**
  * O que o aluno ouve sobre o sinal `atencao_humana` (D36), **uma formulação só**: é a frase do aviso de privacidade da
  * introdução (`apps/web`, em linguagem de 11 anos: até 15 palavras) e a última linha das duas mensagens fixas do Tutor
- * (`packages/nucleo`, `MENSAGEM_DE_ASSUNTO_DELICADO` e `MENSAGEM_DE_RISCO_A_VIDA`). Diz as duas coisas que o sinal faz: o
+ * (`packages/core`, `MENSAGEM_DE_ASSUNTO_DELICADO` e `MENSAGEM_DE_RISCO_A_VIDA`). Diz as duas coisas que o sinal faz: o
  * professor da turma é avisado, e não vê o que o aluno escreveu (o sinal é estrito, sem conteúdo). Sem tempo hipotético ("Se
  * você contar…"), porque vale antes de o aluno escrever (introdução) e depois de ele ter escrito (mensagem fixa).
  *

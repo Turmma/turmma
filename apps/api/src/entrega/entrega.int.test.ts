@@ -1,4 +1,4 @@
-import { DomainException, runInContext, type InProcessAgenteExecutor } from '@educa/nucleo'
+import { DomainException, runInContext, type InProcessAgenteExecutor } from '@educa/core'
 import { entregaResponseSchema, listaDeEntregasResponseSchema, timeResponseSchema } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { readdirSync, readFileSync } from 'node:fs'
@@ -339,7 +339,7 @@ describe('entregas', () => {
 
     it('fora de teste, só a rota de decidir chega ao repository que decide: nenhum job, agendador ou execução o chama', () => {
       const raiz = fileURLToPath(new URL('../../../../', import.meta.url))
-      const arquivos = ['apps/api/src', 'apps/worker/src', 'apps/despachante/src', 'packages/nucleo/src'].flatMap((pasta) =>
+      const arquivos = ['apps/api/src', 'apps/worker/src', 'apps/despachante/src', 'packages/core/src'].flatMap((pasta) =>
         (readdirSync(join(raiz, pasta), { recursive: true }) as string[])
           .filter((arquivo) => arquivo.endsWith('.ts') && !arquivo.endsWith('.test.ts'))
           .map((arquivo) => ({ caminho: relative(raiz, join(raiz, pasta, arquivo)).split(sep).join('/'), texto: readFileSync(join(raiz, pasta, arquivo), 'utf8').replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '') })),

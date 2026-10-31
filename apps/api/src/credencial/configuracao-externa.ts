@@ -1,4 +1,4 @@
-import { InvalidConfigError, PROVEDORES_EXTERNOS, type ProvedorExterno } from '@educa/nucleo'
+import { InvalidConfigError, PROVEDORES_EXTERNOS, type ProvedorExterno } from '@educa/core'
 import { hkdfSync } from 'node:crypto'
 import { TAMANHO_MINIMO_CHAVE_DE_LOGIN } from './configuracao-de-login.js'
 

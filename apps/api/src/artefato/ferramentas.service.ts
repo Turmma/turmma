@@ -1,4 +1,4 @@
-import { DomainException, LLMError, gerarAtividadeObjetiva, gerarPlanoDeAula, type Database, type DatabaseTransaction } from '@educa/nucleo'
+import { DomainException, LLMError, gerarAtividadeObjetiva, gerarPlanoDeAula, type Database, type DatabaseTransaction } from '@educa/core'
 import {
   ErrorCode,
   conteudoDoArtefatoSchema,

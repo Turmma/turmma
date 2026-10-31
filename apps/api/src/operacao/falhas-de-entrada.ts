@@ -1,4 +1,4 @@
-import { METRICS, type Meter } from '@educa/nucleo'
+import { METRICS, type Meter } from '@educa/core'
 
 /**
  * A série `operacao.entrada_falha` (Tech Spec da A0, seção 7c): toda entrada do operador que falhou, pela senha

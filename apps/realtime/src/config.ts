@@ -9,7 +9,7 @@ import {
   type GracefulShutdownConfig,
   type AuthConfig,
   type TelemetryConfig,
-} from '@educa/nucleo'
+} from '@educa/core'
 import { z } from 'zod'
 
 export { InvalidConfigError }

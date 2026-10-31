@@ -1,4 +1,4 @@
-import { currentContext, DURACAO_DA_SESSAO_HORAS, DomainException, runInContext, type Environment, type Database, type TokenIssuer, type MetodoDeSessao } from '@educa/nucleo'
+import { currentContext, DURACAO_DA_SESSAO_HORAS, DomainException, runInContext, type Environment, type Database, type TokenIssuer, type MetodoDeSessao } from '@educa/core'
 import { ErrorCode, InvariantException, type EtapaComDesafio, type LoginResponse } from '@educa/shared'
 import { randomBytes, randomUUID } from 'node:crypto'
 import { MAX_AGE_DO_COOKIE_DISPOSITIVO_SEGUNDOS, type CookieDeDispositivo } from '../../credencial/cookie-dispositivo.js'

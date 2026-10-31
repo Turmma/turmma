@@ -75,7 +75,7 @@ describe('borda (infra/Caddyfile) e drenagem das instâncias', () => {
   })
 
   it('a borda fecha a conexão ociosa antes da instância: keepalive da borda < OCIOSIDADE_HTTP_MS', () => {
-    const ociosidade = /export const OCIOSIDADE_HTTP_MS = ([\d_]+)/.exec(lerArquivo('packages/nucleo/src/instancia/drenagem.ts'))
+    const ociosidade = /export const OCIOSIDADE_HTTP_MS = ([\d_]+)/.exec(lerArquivo('packages/core/src/runtime/graceful-shutdown.ts'))
     expect(ociosidade?.[1]).toBeDefined()
     expect(segundos(diretiva('keepalive'))).toBeLessThan(Number(ociosidade?.[1]?.replaceAll('_', '')) / 1000)
   })
@@ -92,7 +92,7 @@ describe('borda (infra/Caddyfile) e drenagem das instâncias', () => {
       },
     })
     // O cliente espera o mesmo tempo, venha o 503 da borda ou da API.
-    const daApi = /export const DEFAULT_RETRY_AFTER_SECONDS = (\d+)/.exec(lerArquivo('packages/nucleo/src/erro/erro-de-dominio.ts'))?.[1]
+    const daApi = /export const DEFAULT_RETRY_AFTER_SECONDS = (\d+)/.exec(lerArquivo('packages/core/src/error/domain.exception.ts'))?.[1]
     expect(daApi).toBeDefined()
     expect(/header Retry-After (\d+)/.exec(caddyfile)?.[1]).toBe(daApi)
   })

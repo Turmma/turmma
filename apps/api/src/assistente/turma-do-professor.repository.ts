@@ -1,4 +1,4 @@
-import { artefato, atividadeAplicada, disciplina, requireAnoEmCurso, requireEscolaId, serie, requestSessao, turma, vinculo, type Database, type DatabaseTransaction } from '@educa/nucleo'
+import { artefato, atividadeAplicada, disciplina, requireAnoEmCurso, requireEscolaId, serie, requestSessao, turma, vinculo, type Database, type DatabaseTransaction } from '@educa/core'
 import type { Etapa } from '@educa/shared'
 import { and, eq, exists, sql, type AnyColumn, type SQL } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/pg-core'

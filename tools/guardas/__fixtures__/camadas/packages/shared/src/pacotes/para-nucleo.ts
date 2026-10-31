@@ -1,2 +1,2 @@
-import { x } from '../../../nucleo/src/x.js'
+import { x } from '../../../core/src/x.js'
 export const y = x

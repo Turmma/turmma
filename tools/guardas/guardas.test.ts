@@ -239,17 +239,17 @@ describe('guarda do teste desligado', () => {
 describe('guarda de log com dado pessoal', () => {
   it.each([
     'apps/api/src/sistema/correcao.service.ts',
-    'packages/nucleo/src/ia/adaptador-openai-compat.ts',
+    'packages/core/src/ia/openai-compat-adapter.ts',
     'apps/api/test/correcao.int.test.ts',
     'apps/web/src/logica.ts',
-    'packages/nucleo/src/fila/worker.ts',
+    'packages/core/src/queue/worker.ts',
     'tools/ci/etapa.ts',
   ])('reprova dado pessoal em qualquer nível e forma de expressão, objeto inteiro e toda forma de chamar o logger, em %s', async (caminho) => {
     expect(await lintar(eslint, 'log-dado-pessoal.ts', caminho)).toEqual(marcasDeViolacao('log-dado-pessoal.ts'))
   })
 
   it('reprova spread, template, concatenação, interpolação, JSON.stringify, função, mensagem variável e logger desestruturado', async () => {
-    const obtidas = await lintar(eslint, 'log-conteudo-montado.ts', 'packages/nucleo/src/fila/despachante.ts')
+    const obtidas = await lintar(eslint, 'log-conteudo-montado.ts', 'packages/core/src/queue/despachante.ts')
     expect(obtidas).toEqual(marcasDeViolacao('log-conteudo-montado.ts'))
   })
 
@@ -299,7 +299,7 @@ describe('guarda de log com dado pessoal', () => {
     // Import por variável: o tsconfig de tools não compila o código do núcleo, só o Vitest o carrega.
     // O prazo de 60 s é deste import: o índice do núcleo puxa o banco, a fila e o storage, e a primeira transformação,
     // com a máquina cheia de outros arquivos da unidade, passa dos 5 s do Vitest.
-    const nucleo = '@educa/nucleo'
+    const nucleo = '@educa/core'
     const { CHAVES_PESSOAIS: chavesDoRedact } = (await import(nucleo)) as { CHAVES_PESSOAIS: readonly string[] }
     expect([...CHAVES_PESSOAIS].sort()).toEqual([...chavesDoRedact].sort())
   }, 60_000)
@@ -312,14 +312,14 @@ describe('guarda de SDK de provedor de IA', () => {
     'apps/api/src/ia/adapters.ts',
     'apps/api/src/ia/adapters/x.ts',
     'apps/web/src/modelo.ts',
-    'packages/nucleo/src/modelo.ts',
-    'packages/nucleo/src/ia/porta.ts',
-    'packages/nucleo/src/ia/adaptador.ts',
+    'packages/core/src/modelo.ts',
+    'packages/core/src/ia/port.ts',
+    'packages/core/src/ia/adapter.ts',
   ])('reprova import, alias, subcaminho, export, require, import() e typeof import() em %s', async (caminho) => {
     expect(await lintar(eslint, 'sdk-de-ia.ts', caminho)).toEqual(marcasDeViolacao('sdk-de-ia.ts'))
   })
 
-  it.each(['packages/nucleo/src/ia/adaptador-openai-compat.ts', 'packages/nucleo/src/ia/adaptador-falso.ts'])(
+  it.each(['packages/core/src/ia/openai-compat-adapter.ts', 'packages/core/src/ia/fake-adapter.ts'])(
     'deixa o mesmo código passar dentro dos adaptadores: %s',
     async (caminho) => {
       expect(await lintar(eslint, 'sdk-de-ia.ts', caminho)).toEqual([])
@@ -336,7 +336,7 @@ describe('guarda de tabela fora do repository (regra 00, item 3; regra 10, item 
     'apps/api/src/x/x.service.ts',
     'apps/api/src/x/x.controller.ts',
     'apps/worker/src/x.ts',
-    'packages/nucleo/src/x/x.service.ts',
+    'packages/core/src/x/x.service.ts',
     'infra/scripts/x.ts',
     'tools/x.ts',
   ])('reprova trazer do núcleo a tabela, o schema, o módulo inteiro e o texto do pacote em %s', async (caminho) => {
@@ -345,19 +345,19 @@ describe('guarda de tabela fora do repository (regra 00, item 3; regra 10, item 
 
   it.each([
     'apps/api/src/x/x.repository.ts',
-    'packages/nucleo/src/titular/x.repository.ts',
+    'packages/core/src/titular/x.repository.ts',
     'apps/api/src/x/x.int.test.ts',
     'apps/web/src/x.test.ts',
     'e2e/x.spec.ts',
-    'packages/nucleo/src/db/schema/x.ts',
-    'packages/nucleo/src/db/banco.ts',
+    'packages/core/src/db/schema/x.ts',
+    'packages/core/src/db/database.ts',
   ])('deixa a mesma fixture passar onde a tabela mora: %s', async (caminho) => {
     expect(await lintar(eslint, FIXTURE, caminho, regras)).toEqual([])
   })
 
   // A fixture tem a afirmação `<string>x`, que um .tsx não compila: o teste de .tsx confere a exceção com código próprio.
   it('deixa passar a tabela num teste .tsx, onde a fixture não compila, e reprova no componente .tsx', async () => {
-    const codigo = "import { escola } from '@educa/nucleo'\nexport const x = escola\n"
+    const codigo = "import { escola } from '@educa/core'\nexport const x = escola\n"
     const de = async (caminho: string) => {
       const [resultado] = await eslint.lintText(codigo, { filePath: join(raizRepositorio, caminho) })
       return (resultado?.messages ?? []).filter((mensagem) => mensagem.ruleId === REGRA).map((mensagem) => mensagem.line)
@@ -380,7 +380,7 @@ describe('guarda de tabela fora do repository (regra 00, item 3; regra 10, item 
   it('o eslint-disable-next-line de um import só o esconde do ESLint comum, e a passada sem comentários o reprova', async () => {
     const caminho = join(raizRepositorio, 'apps/api/src/x/x.service.ts')
     const linhas = lerFixture(FIXTURE).split('\n')
-    const escondida = linhas.findIndex((linha) => linha.startsWith("import { escola } from '@educa/nucleo'"))
+    const escondida = linhas.findIndex((linha) => linha.startsWith("import { escola } from '@educa/core'"))
     expect(escondida, 'a fixture perdeu a linha do import de escola').toBeGreaterThan(0)
     const texto = [...linhas.slice(0, escondida), `// eslint-disable-next-line ${REGRA}`, ...linhas.slice(escondida)].join('\n')
     const doRegra = (resultado: ESLint.LintResult | undefined) =>
@@ -395,7 +395,7 @@ describe('guarda de tabela fora do repository (regra 00, item 3; regra 10, item 
   it('o repositório de hoje não tem violação: nenhum arquivo fora de *.repository.ts, de teste e de db/ importa tabela do núcleo', async () => {
     const importam = arquivosDoRepositorio()
       .filter((arquivo) => /\.(?:[cm]?[jt]s|[jt]sx)$/.test(arquivo) && !arquivo.startsWith('tools/guardas/__fixtures__/') && !arquivo.startsWith('mockups/'))
-      .filter((arquivo) => readFileSync(join(raizRepositorio, arquivo), 'utf8').includes('@educa/nucleo'))
+      .filter((arquivo) => readFileSync(join(raizRepositorio, arquivo), 'utf8').includes('@educa/core'))
     expect(importam.length, 'a varredura não achou os arquivos que importam o núcleo').toBeGreaterThan(50)
     const resultados = await eslintDasGuardas.lintFiles(importam.map((arquivo) => join(raizRepositorio, arquivo)))
     const violacoes = violacoesDasGuardas(resultados).flatMap((resultado) =>
@@ -415,7 +415,7 @@ describe('guarda de erro tipado (RF13; regra 00, item 9; regra 20, item 11)', ()
     'apps/realtime/src/x.ts',
     'apps/despachante/src/x.ts',
     'apps/web/src/x.ts',
-    'packages/nucleo/src/x/x.ts',
+    'packages/core/src/x/x.ts',
   ])('reprova Error genérico, texto e literal lançados e o motivo do ErroDeInvariante que não é texto fixo, em %s', async (caminho) => {
     expect(await lintar(eslint, FIXTURE, caminho, regras)).toEqual(marcasDeViolacao(FIXTURE))
   })
@@ -429,7 +429,7 @@ describe('guarda de erro tipado (RF13; regra 00, item 9; regra 20, item 11)', ()
 
   it('o jeito certo passa: ErroDeInvariante com texto fixo, ErroDeDominio, classe do módulo, relançamento e subclasse com campo', async () => {
     expect(marcas(lerFixture('erro-tipado-permitido.ts'))).toEqual([])
-    for (const caminho of ['apps/api/src/x.ts', 'packages/nucleo/src/x.ts']) {
+    for (const caminho of ['apps/api/src/x.ts', 'packages/core/src/x.ts']) {
       expect(await lintar(eslint, 'erro-tipado-permitido.ts', caminho, regras), caminho).toEqual([])
     }
   })
@@ -438,9 +438,9 @@ describe('guarda de erro tipado (RF13; regra 00, item 9; regra 20, item 11)', ()
     'apps/api/src/x/x.test.ts',
     'apps/api/src/x/x.int.test.ts',
     'apps/web/src/x.test.tsx',
-    'packages/nucleo/src/x/x.test.ts',
+    'packages/core/src/x/x.test.ts',
     'apps/web/src/__fixtures__/tela.ts',
-    'packages/nucleo/src/ia/__fixtures__/entradas.ts',
+    'packages/core/src/ia/__fixtures__/inputs.ts',
   ])('em teste e em __fixtures__ a mesma fixture passa: %s', async (caminho) => {
     expect(await lintar(eslint, FIXTURE, caminho, regras)).toEqual([])
   })
@@ -466,7 +466,7 @@ describe('guarda de erro tipado (RF13; regra 00, item 9; regra 20, item 11)', ()
 
   it('o repositório de hoje não tem violação: nenhum arquivo de produção lança Error genérico ou literal', async () => {
     const eslintDoRepositorio = criarEslintDasGuardas()
-    const resultados = await eslintDoRepositorio.lintFiles(['apps/*/src/**/*.{ts,tsx}', 'packages/nucleo/src/**/*.{ts,tsx}'])
+    const resultados = await eslintDoRepositorio.lintFiles(['apps/*/src/**/*.{ts,tsx}', 'packages/core/src/**/*.{ts,tsx}'])
     const violacoes = resultados.flatMap((resultado) => resultado.messages.filter((mensagem) => mensagem.ruleId === 'guardas/erro-tipado').map((mensagem) => `${resultado.filePath}:${mensagem.line}`))
     expect(violacoes).toEqual([])
   }, 120_000)
@@ -532,7 +532,7 @@ describe('guarda desligada por comentário', () => {
 describe('tamanho com catraca (RF11, R37)', () => {
   const regras = new Set<string>(REGRAS_DE_TAMANHO)
   const PRODUCAO = 'apps/api/src/x/x.service.ts'
-  const EM_PRODUCAO = [PRODUCAO, 'apps/web/src/x.tsx', 'apps/worker/src/x.ts', 'packages/nucleo/src/x.ts', 'infra/scripts/x.ts', 'tools/x.ts']
+  const EM_PRODUCAO = [PRODUCAO, 'apps/web/src/x.tsx', 'apps/worker/src/x.ts', 'packages/core/src/x.ts', 'infra/scripts/x.ts', 'tools/x.ts']
   const EM_TESTE = ['apps/api/src/x.test.ts', 'apps/api/src/x.int.test.ts', 'apps/web/src/x.test.tsx', 'apps/api/test/x.ts', 'e2e/x.spec.ts', 'e2e/__fixtures__/x.ts']
   const FIXTURES = ['tamanho/complexidade.ts', 'tamanho/linhas.ts', 'tamanho/aninhamento.ts']
   const umaPorLinha = (quantidade: number): string => Array.from({ length: quantidade }, (_, i) => `export const v${i} = ${i}`).join('\n')
@@ -648,15 +648,15 @@ describe('tamanho com catraca (RF11, R37)', () => {
 describe('configuração das guardas', () => {
   it('as únicas exceções são o SDK nos adaptadores, a tabela no repository, no teste e no db/ do núcleo, a própria guarda de tabela, o erro tipado em teste, em __fixtures__ e no main.tsx da web, o teste do redact e a mensagem repassada pelo LoggerDoNest', () => {
     expect(EXCECOES_DAS_GUARDAS).toEqual([
-      { files: ['packages/nucleo/src/ia/adaptador-*.ts'], regras: REGRAS_DE_SDK_DE_IA },
+      { files: ['packages/core/src/ia/*-adapter.ts'], regras: REGRAS_DE_SDK_DE_IA },
       { files: ['**/*.repository.ts'], regras: REGRAS_DE_TENANT },
       { files: ARQUIVOS_DE_TESTE, regras: REGRAS_DE_TENANT },
-      { files: ['packages/nucleo/src/db/**'], regras: REGRAS_DE_TENANT },
+      { files: ['packages/core/src/db/**'], regras: REGRAS_DE_TENANT },
       { files: ['tools/guardas/regras-tenant.mjs'], regras: REGRAS_DE_TENANT },
       { files: [...ARQUIVOS_DE_TESTE, '**/__fixtures__/**'], regras: REGRAS_DE_ERRO },
       { files: ['apps/web/src/main.tsx'], regras: REGRAS_DE_ERRO },
-      { files: ['packages/nucleo/src/log/logger.test.ts'], regras: REGRAS_DE_LOG },
-      { files: ['packages/nucleo/src/log/logger-do-nest.ts'], regras: ['guardas/log-sem-conteudo-montado'] },
+      { files: ['packages/core/src/log/logger.test.ts'], regras: REGRAS_DE_LOG },
+      { files: ['packages/core/src/log/nest-logger.ts'], regras: ['guardas/log-sem-conteudo-montado'] },
     ])
   })
 
@@ -674,7 +674,7 @@ describe('configuração das guardas', () => {
     const nivelEm = async (caminho: string) =>
       ((await eslint.calculateConfigForFile(join(raizRepositorio, caminho))) as { rules: Record<string, [number, ...unknown[]]> }).rules['guardas/erro-tipado']?.[0] ?? 0
     expect(await nivelEm('apps/api/src/x/x.service.ts')).toBe(2)
-    expect(await nivelEm('packages/nucleo/src/x/x.ts')).toBe(2)
+    expect(await nivelEm('packages/core/src/x/x.ts')).toBe(2)
     expect(await nivelEm('apps/web/src/rotas.tsx')).toBe(2)
     expect(await nivelEm('apps/api/src/x/x.test.ts')).toBe(0)
     expect(await nivelEm('apps/web/src/__fixtures__/tela.tsx')).toBe(0)
@@ -734,7 +734,7 @@ describe('configuração das guardas', () => {
     'apps/api/src/main.ts',
     'apps/api/src/sistema/saude.controller.ts',
     'apps/web/src/paginas/Casca.tsx',
-    'packages/nucleo/src/log/logger.ts',
+    'packages/core/src/log/logger.ts',
     'packages/shared/src/index.ts',
     'tools/ci/verificar.ts',
     'eslint.config.mjs',

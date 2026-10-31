@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
 import { raizRepositorio } from '../ci/executar.ts'
-import { TAMANHO_MINIMO_JUSTIFICATIVA_SEM_ESCOPO } from '../../packages/nucleo/src/db/sem-escopo.decorator.ts'
+import { TAMANHO_MINIMO_JUSTIFICATIVA_SEM_ESCOPO } from '../../packages/core/src/db/unscoped.decorator.ts'
 import {
   analisarFonte,
   lerFontesDeProducao,
@@ -63,7 +63,7 @@ describe('o analisador enxerga o código real', () => {
   it('acha os repositories de sessao/ e de fila/, e são dezenas', () => {
     const caminhos = repositories.map((fonte) => fonte.caminho)
     expect(caminhos).toContain('apps/api/src/sessao/atividade/alunos-ativos.repository.ts')
-    expect(caminhos).toContain('packages/nucleo/src/fila/job-registro.repository.ts')
+    expect(caminhos).toContain('packages/core/src/queue/job-outbox.repository.ts')
     expect(repositories.length).toBeGreaterThan(60)
   })
 
@@ -138,11 +138,11 @@ describe('a lista real só encolhe', () => {
       ['apps/api/src/operacao/operador/operador.repository.ts', ['autorAtivoNaTransacao', 'travarOperadores', 'situacaoDoAutor', 'ativoParaAtualizar', 'contarAtivos', 'criar', 'criarConvite', 'revogarConvitePendente', 'desativar', 'apagarCodigosDeRecuperacao', 'encerrarSessoes', 'lerSessaoParaGuarda', 'marcarUsoDaSessao', 'sessaoParaRenovar', 'rotacionarSessao', 'encerrarSessao', 'encerrarSessaoPelaSaida', 'daSessao', 'conviteValidoPorHash', 'aceitarConvite', 'gravarSegredoParaConfigurar', 'trocarCodigosDeRecuperacao', 'ativoParaSegundoFator', 'avancarPassoDoSegundoFator', 'usarCodigoDeRecuperacao', 'ativarSegundoFator', 'abrirSessao', 'credencialDeEntrada', 'registrarFalhaDeEntrada', 'registrarAcesso', 'auditar']],
       ['apps/api/src/ops/operacao-privacidade.repository.ts', ['cadastrar', 'travarVigente', 'encerrar', 'registrarIncidente']],
       ['apps/api/src/privacidade/titulares.repository.ts', ['homonimo']],
-      ['packages/nucleo/src/auditoria/auditoria.repository.ts', ['listarDaEscola']],
-      ['packages/nucleo/src/auditoria/insercao-de-auditoria.repository.ts', ['insertAuditoria']],
-      ['packages/nucleo/src/fila/job-registro.repository.ts', ['inserir', 'inserirUmaVez', 'buscarDaEscola', 'localizarParaExecucao', 'iniciarExecucao', 'concluir', 'avisarVagaLivre', 'registrarFalha']],
-      ['packages/nucleo/src/identidade/sessao.repository.ts', ['lerParaGuarda', 'marcarAtualApresentado']],
-      ['packages/nucleo/src/titular/compartilhamento.repository.ts', ['datasDeReferencia']],
+      ['packages/core/src/auditoria/auditoria.repository.ts', ['listarDaEscola']],
+      ['packages/core/src/auditoria/auditoria-insert.repository.ts', ['insertAuditoria']],
+      ['packages/core/src/queue/job-outbox.repository.ts', ['inserir', 'inserirUmaVez', 'buscarDaEscola', 'localizarParaExecucao', 'iniciarExecucao', 'concluir', 'avisarVagaLivre', 'registrarFalha']],
+      ['packages/core/src/identidade/sessao.repository.ts', ['lerParaGuarda', 'marcarAtualApresentado']],
+      ['packages/core/src/titular/compartilhamento.repository.ts', ['datasDeReferencia']],
     ])
   })
 

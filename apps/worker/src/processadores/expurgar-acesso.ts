@@ -1,4 +1,4 @@
-import { currentContext, LOTE_DO_EXPURGO, type AlvoDoExpurgoDeAcesso, type ExpurgoDeAcessoRepository, type LoggerBase, type Clock } from '@educa/nucleo'
+import { currentContext, LOTE_DO_EXPURGO, type AlvoDoExpurgoDeAcesso, type ExpurgoDeAcessoRepository, type LoggerBase, type Clock } from '@educa/core'
 import { JobFailureCode, type TIPO_EXPURGAR_ACESSO } from '@educa/shared'
 import type { Processador } from '../executor.js'
 import { FalhaDeJob } from '../falha-de-job.js'

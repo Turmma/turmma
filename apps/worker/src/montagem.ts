@@ -37,7 +37,7 @@ import {
   type LoggerBase,
   type Meter,
   type Clock,
-} from '@educa/nucleo'
+} from '@educa/core'
 import {
   TIPO_CONSOLIDAR_USO,
   TIPO_ELIMINAR_TITULAR,
@@ -50,7 +50,7 @@ import {
   type QueueName,
   type JobRegistry,
 } from '@educa/shared'
-import { S3FileStorage } from '@educa/nucleo/armazem-s3'
+import { S3FileStorage } from '@educa/core/s3-file-storage'
 import { Queue, Worker } from 'bullmq'
 import { Redis } from 'ioredis'
 import { AGENDAMENTOS, criarDisparoDeAgendamento, FILA_DOS_AGENDAMENTOS, registrarAgendamentos, type Agendamento } from './agendamentos.js'

@@ -1,4 +1,4 @@
-import { InvalidConfigError, createDatabase, createPool, validateEnvironment, type Database } from '@educa/nucleo'
+import { InvalidConfigError, createDatabase, createPool, validateEnvironment, type Database } from '@educa/core'
 import { nomeDigitadoSchema, FORMATO_OPERADOR } from '@educa/shared'
 import { open, type FileHandle } from 'node:fs/promises'
 import { z } from 'zod'

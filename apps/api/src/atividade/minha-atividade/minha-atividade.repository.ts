@@ -13,7 +13,7 @@ import {
   vinculo,
   type Database,
   type DatabaseTransaction,
-} from '@educa/nucleo'
+} from '@educa/core'
 import type { PaginationQuery, DiagnosticoGravado, EstadoDeAtividadeAplicada } from '@educa/shared'
 import { and, asc, desc, eq, exists, isNull, lt, sql, type SQL } from 'drizzle-orm'
 import { InvariantException } from '@educa/shared'

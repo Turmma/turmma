@@ -1,4 +1,4 @@
-import { IdPipe, RequirePermissao, ZodValidationPipe } from '@educa/nucleo'
+import { IdPipe, RequirePermissao, ZodValidationPipe } from '@educa/core'
 import { redefinirMfaRequestSchema, type RedefinirMfaRequest } from '@educa/shared'
 import { Body, Controller, HttpCode, HttpStatus, Param, Post } from '@nestjs/common'
 import { RedefinicaoDeMfa } from './redefinicao-de-mfa.js'

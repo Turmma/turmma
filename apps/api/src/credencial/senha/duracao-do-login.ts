@@ -1,4 +1,4 @@
-import { LIMITES_DO_HISTOGRAMA_HTTP_S, METRICS, type Meter } from '@educa/nucleo'
+import { LIMITES_DO_HISTOGRAMA_HTTP_S, METRICS, type Meter } from '@educa/core'
 
 /** O rótulo `metodo` de `login.duracao`: só os dois logins que conferem senha. */
 export type MetodoDoLogin = 'email' | 'matricula'

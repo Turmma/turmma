@@ -27,7 +27,7 @@ leia a regra de `.claude/rules/` da área em que você vai mexer.
 
 ```
 packages/shared      contrato: esquemas zod de pedido e resposta, ErrorCode, matriz de permissão, filas
-packages/nucleo      infraestrutura do backend: contexto, guardas, erro, schema e migrations, fila, IA, log
+packages/core      infraestrutura do backend: contexto, guardas, erro, schema e migrations, fila, IA, log
 apps/api             API REST (NestJS): controllers, services, repositories, por módulo de domínio
 apps/despachante     lê o outbox (job_registro) e publica no BullMQ, respeitando as vagas de cada escola
 apps/worker          executa os jobs do BullMQ, por fila (interativa, normal, lote)
@@ -66,8 +66,8 @@ realtime, despachante, worker, web.
 | `@RestController` + `@RequestMapping("/v1/x")` | `@Controller('v1/x')` | `apps/api/src/estrutura/disciplina/disciplina.controller.ts` |
 | `@Service` | classe de service, criada pelo módulo com `useFactory` | `estrutura/disciplina/disciplina.service.ts` |
 | `@Repository` + filtro de tenant do Hibernate | repository do Drizzle que lê a escola por `requireEscolaId()` | `estrutura/disciplina/disciplina.repository.ts` |
-| Entidade JPA | tabela do Drizzle, sem lazy loading e sem entidade gerenciada | `packages/nucleo/src/db/schema/disciplina.ts` |
-| Flyway | migrations do `drizzle-kit`, aplicadas pelo serviço `migrar` do compose | `packages/nucleo/drizzle/` |
+| Entidade JPA | tabela do Drizzle, sem lazy loading e sem entidade gerenciada | `packages/core/src/db/schema/disciplina.ts` |
+| Flyway | migrations do `drizzle-kit`, aplicadas pelo serviço `migrar` do compose | `packages/core/drizzle/` |
 | Bean Validation (`@Valid` no `@RequestBody`) | esquema zod de `shared` com o `ZodValidationPipe` do NestJS | §5.1 |
 | DTO de resposta (record) | esquema de resposta zod, aplicado com `.parse` no service | `disciplinaResponseSchema` |
 | Spring Security filter chain | quatro guardas globais, nesta ordem: autenticação, limite, sessão, permissão | `app.module.ts`, `APP_GUARD` |
@@ -156,7 +156,7 @@ apps/api/test/                 testes de integração: entre outros, os que cruz
                                HTTP de vários módulos; muitos módulos também têm *.int.test.ts ao lado do código
 
 packages/shared/src/<modulo>/  esquemas zod de pedido e resposta do módulo
-packages/nucleo/src/
+packages/core/src/
   db/schema/                   uma tabela por arquivo
   contexto/ identidade/ permissao/ erro/ fila/ ia/ limite/ log/ auditoria/ titular/ ...
 
@@ -245,7 +245,7 @@ Exemplo: a disciplina (`apps/api/src/estrutura/`, `packages/shared/src/estrutura
 
 ### 5.2 Uma tabela nova
 
-Exemplo: `packages/nucleo/src/db/schema/disciplina.ts` e `turma.ts`.
+Exemplo: `packages/core/src/db/schema/disciplina.ts` e `turma.ts`.
 
 1. **Dado pessoal primeiro.** Se a tabela guarda dado de pessoa, a linha vai antes para a tabela de
    `docs/lgpd.md`, com finalidade e retenção (regra 20.1). Sem isso o campo não entra.
@@ -255,7 +255,7 @@ Exemplo: `packages/nucleo/src/db/schema/disciplina.ts` e `turma.ts`.
    - `unique(escola_id, id)` para servir de alvo;
    - **FK composta com a escola**, para que uma linha não aponte para outra escola;
    - índice que começa por `escola_id` (regra 80.8).
-3. **A migration:** rode `npm run db:gerar`, leia o SQL gerado em `packages/nucleo/drizzle/` e faça o commit dele.
+3. **A migration:** rode `npm run db:gerar`, leia o SQL gerado em `packages/core/drizzle/` e faça o commit dele.
    Ela é aplicada pelo serviço `migrar` do compose e pela integração. A migration precisa ser compatível com a versão
    anterior do código: expandir, migrar, contrair.
 4. **As classificações que o teste cobra:** o `apps/api/test/arquitetura.test.ts` reprova tabela sem `escola_id`
@@ -295,7 +295,7 @@ Qual fila usar:
 
 Exemplo: `apps/api/src/artefato/ferramentas.service.ts`.
 
-1. **A tarefa** fica em `packages/nucleo/src/ia/tarefas/<tarefa>.ts`, com `defineTask`, o perfil (`rapido`,
+1. **A tarefa** fica em `packages/core/src/ia/tasks/<tarefa>.ts`, com `defineTask`, o perfil (`rapido`,
    `padrao`, `complexo`, `visao`) e os esquemas de entrada e saída. O prompt é versionado em `ia/prompts/`. Registre
    em `TASK_CATALOG`.
 2. **O módulo chama** o `AgendadorDeExecucoes.agendar({ tarefa, chaveEnvio, ... })`. A resposta é 202 com

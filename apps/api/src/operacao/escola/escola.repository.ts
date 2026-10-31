@@ -1,4 +1,4 @@
-import { DomainException, escola, rede, Unscoped, type DatabaseExecutor, type TipoDeRede } from '@educa/nucleo'
+import { DomainException, escola, rede, Unscoped, type DatabaseExecutor, type TipoDeRede } from '@educa/core'
 import { ErrorCode } from '@educa/shared'
 import { eq } from 'drizzle-orm'
 

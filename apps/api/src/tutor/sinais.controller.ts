@@ -1,4 +1,4 @@
-import { RequirePermissao, ZodValidationPipe } from '@educa/nucleo'
+import { RequirePermissao, ZodValidationPipe } from '@educa/core'
 import { sinaisQuerySchema, type SinaisQuery, type SinaisResponse } from '@educa/shared'
 import { Controller, Get, Header, Query } from '@nestjs/common'
 import { SupervisaoDoTutorService } from './supervisao.service.js'

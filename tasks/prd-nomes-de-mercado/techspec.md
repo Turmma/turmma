@@ -90,7 +90,9 @@ disso, qualquer diferença fora de `excecoesDoConferir` deixa o `conferir` verme
 **O `restos`** busca cada `de` de todos os mapas aplicados no escopo do passo 6 e nos documentos vivos, com a forma
 de busca do passo 6 no código e a do passo 5 em comentário e documento (a palavra comum solta não conta). Liberados:
 o `fica`, a chave mantida pelo passo 2, o `describe`/`it`/`test`, a troca à mão registrada e o que o passo 5 deixa
-fora. O mapa de linha (`"linha": true`) não olha documento até a 13.0 criar o `mapas/13.json`, que tira também a
+fora. O `arquivo` de um `fica` e o da troca à mão registrada são os da árvore logo depois da onda que os
+classificou: antes de comparar, o `restos` (e a lista de não classificadas do `reaplicar`) leva cada um pelos movimentos
+`arquivo` e `pasta` das ondas seguintes, na ordem das ondas. O mapa e o relatório de onda feita não se reescrevem. O mapa de linha (`"linha": true`) não olha documento até a 13.0 criar o `mapas/13.json`, que tira também a
 isenção do ouro; o `reaplicar` leva então os mapas de linha aos documentos (RF3, RF6, RF9, RF10).
 
 **O `reaplicar`.** O merge da `develop` que traz nome antigo vira uma correção (`/corrigir`), com revisão. A correção
@@ -187,7 +189,7 @@ ou a trava contra filtro vazio. Nenhum caso entra (RF7). A onda sem trava leva "
 |---|---|---|---|
 | 10, 20, 30, 70, 80 | `travas.md`, a trava contra filtro vazio e o `conferir` | nenhum | — |
 | 40 | o `conferir` prova os mesmos casos; ferramenta e guarda têm teste que quebra sem a regra | nenhum | — |
-| RF7 ("só nome") | — | **Os três scripts de `infra/scripts/` passam a tirar os tipos de `typeof import(<fonte>)`.** Único diff de não-nome: o typecheck pega a chave que ficar para trás | aqui e em `travas.md` |
+| RF7 ("só nome") | Os três scripts de `infra/scripts/` mantêm o `import type` da fonte e o tipo literal, com o nome trocado: o nome exportado que ficar para trás deixa o `tsc -p infra/tsconfig.json` vermelho; a chave do tipo literal e o caminho do `dist` são texto, e o `restos` os pega (`travas.md`, regra 80) | nenhum. O `typeof import(<fonte>)` previsto antes saiu na 5.0 (divergência de 31/10/2026): o lint o proíbe (`consistent-type-imports`, `eslint.config.mjs:54`) e a guarda `tabela-so-no-repository` reprova `import('@educa/core')` em `infra/scripts/`; a exceção nas duas guardas custaria mais que a checagem da chave, que o `restos` já faz | aqui e em `travas.md` |
 | `criar-tasks` ("até três guardiões") | — | **As ondas 3.0 a 11.0 marcam os quatro guardiões** (X7, RF15), e a 2.0 e a 12.0 pelo caminho `tools/guardas/`; o revisor confere mapa, relatório, `conferir`, `restos` e travas | aqui e em cada `N_task.md` |
 
 ## 12. Premissas não verificadas

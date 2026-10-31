@@ -1,4 +1,4 @@
-import { requireEscolaId, requestIdentity, pedidoTitular, usuario, type Database, type DatabaseTransaction } from '@educa/nucleo'
+import { requireEscolaId, requestIdentity, pedidoTitular, usuario, type Database, type DatabaseTransaction } from '@educa/core'
 import type { Compartilhamento, EstadoDoPedido, SolicitanteDoPedido, TipoDePedidoDoTitular } from '@educa/shared'
 import { PRAZO_DA_ELIMINACAO_DIAS } from '@educa/shared'
 import { and, asc, desc, eq, gt, isNull, lt, ne, or, sql, type SQL } from 'drizzle-orm'

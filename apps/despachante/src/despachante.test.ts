@@ -1,4 +1,4 @@
-import { currentContext, createLogger, type EscolaWithPendingJobs, type JanelaLetiva, type ReservedJob } from '@educa/nucleo'
+import { currentContext, createLogger, type EscolaWithPendingJobs, type JanelaLetiva, type ReservedJob } from '@educa/core'
 import type { QueueName } from '@educa/shared'
 import { describe, expect, it } from 'vitest'
 import { Despachante, type DependenciasDoDespachante } from './despachante.js'

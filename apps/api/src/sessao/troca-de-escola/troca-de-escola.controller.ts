@@ -1,4 +1,4 @@
-import { AcceptsChallenge, isChallengeBearer, extractBearerToken, requestIp, RequirePermissao, TrustedProxies, ZodValidationPipe } from '@educa/nucleo'
+import { AcceptsChallenge, isChallengeBearer, extractBearerToken, requestIp, RequirePermissao, TrustedProxies, ZodValidationPipe } from '@educa/core'
 import { trocaDeEscolaRequestSchema, loginResponseSchema, type TrocaDeEscolaRequest, type LoginResponse } from '@educa/shared'
 import { Body, Controller, Header, HttpCode, HttpStatus, Post, Req, Res } from '@nestjs/common'
 import type { IncomingMessage, ServerResponse } from 'node:http'

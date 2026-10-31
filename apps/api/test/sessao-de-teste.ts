@@ -1,4 +1,4 @@
-import { createDatabase, createPool, DURACAO_DA_SESSAO_HORAS, runInContext, type Database, type DatabasePool } from '@educa/nucleo'
+import { createDatabase, createPool, DURACAO_DA_SESSAO_HORAS, runInContext, type Database, type DatabasePool } from '@educa/core'
 import type { PapelDeUsuario } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { lerAmbienteDeTeste } from '../../../tools/ci/compose.ts'

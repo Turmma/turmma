@@ -13,7 +13,7 @@ import {
   type OrcamentoDeIa,
   type Clock,
   type DatabaseTransaction,
-} from '@educa/nucleo'
+} from '@educa/core'
 import { TROCAS_POR_DIA_PADRAO_DO_TUTOR, TROCAS_POR_MES_PADRAO_DO_TUTOR } from '@educa/shared'
 import { and, count, eq, gte, ne, notExists, sql, type SQL } from 'drizzle-orm'
 

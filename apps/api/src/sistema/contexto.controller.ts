@@ -1,4 +1,4 @@
-import { RequirePermissao, requestSessao } from '@educa/nucleo'
+import { RequirePermissao, requestSessao } from '@educa/core'
 import { contextResponseSchema, type ContextResponse } from '@educa/shared'
 import { Controller, Get, Header } from '@nestjs/common'
 

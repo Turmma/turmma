@@ -1,4 +1,4 @@
-import { Unscoped, type Database } from '@educa/nucleo'
+import { Unscoped, type Database } from '@educa/core'
 import { aluno } from './tabelas.js'
 
 // A fronteira é 30 caracteres, e o texto é medido sem o espaço das pontas, como o próprio decorator faz.

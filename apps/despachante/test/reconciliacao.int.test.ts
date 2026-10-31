@@ -6,7 +6,7 @@ import {
   bullmqQueueName,
   TIMEOUT_COMANDO_REDIS_FILA_MS,
   type QueuedJobData,
-} from '@educa/nucleo'
+} from '@educa/core'
 import { JobFailureCode } from '@educa/shared'
 import { Queue, UnrecoverableError, Worker } from 'bullmq'
 import { Redis } from 'ioredis'

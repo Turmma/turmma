@@ -1,4 +1,4 @@
-import { type Database } from '@educa/nucleo'
+import { type Database } from '@educa/core'
 import { aluno } from './tabelas.js'
 
 // O nome do método pode ser texto ou calculado, e o método continua público.

@@ -1,4 +1,4 @@
-import { InMemoryFileStorage, UsageMeter, createDatabase, createLogger, createPool, type JanelaLetiva } from '@educa/nucleo'
+import { InMemoryFileStorage, UsageMeter, createDatabase, createLogger, createPool, type JanelaLetiva } from '@educa/core'
 import { JOB_DEFINITIONS, QUEUE_NAMES, type QueueName, type JobRegistry } from '@educa/shared'
 import { Redis } from 'ioredis'
 import { afterAll, describe, expect, it } from 'vitest'

@@ -1,17 +1,17 @@
 # MVP de apresentação: contratos e dados (pacote S)
 
 > A referência dos pacotes M, P, W, A, T e G. Vale o que está no código: `packages/shared/src/` (schemas zod, todos
-> `strictObject`), `packages/nucleo/src/db/schema/` (o docblock de cada tabela explica cada restrição) e a migration
-> `packages/nucleo/drizzle/0022_mvp_apresentacao.sql`. Este arquivo é o índice. **Nenhum pacote muda tabela, schema nem
+> `strictObject`), `packages/core/src/db/schema/` (o docblock de cada tabela explica cada restrição) e a migration
+> `packages/core/drizzle/0022_mvp_apresentacao.sql`. Este arquivo é o índice. **Nenhum pacote muda tabela, schema nem
 > `MATRIZ`**: o que faltar volta para o pacote S. A migration `0023_mvp_restricoes.sql` traz o que a revisão da fase 1
 > pediu de banco (seção 4).
 
 ## 1. Antes de usar
 
-- As tabelas saem de `@educa/nucleo` (`packages/nucleo/src/db/schema/mvp/tabelas.ts`, ligado ao `index.ts` e ao `schema`
+- As tabelas saem de `@educa/core` (`packages/core/src/db/schema/mvp/tables.ts`, ligado ao `index.ts` e ao `schema`
   do drizzle na integração da fase 1), e os contratos, de `@educa/shared`.
 - `npm run db:gerar` lê `@educa/shared` pelo `dist`: rode `npm run build -w @educa/shared` antes. Só o pacote S gera migration.
-- Os testes das restrições estão em `packages/nucleo/src/db/schema/mvp/tabelas-do-mvp.int.test.ts`, e os dos schemas, ao
+- Os testes das restrições estão em `packages/core/src/db/schema/mvp/mvp-tables.int.test.ts`, e os dos schemas, ao
   lado de cada um em `packages/shared/src/`.
 
 ## 2. Convenções que valem em toda rota
@@ -30,7 +30,7 @@
 | Erro | `ErrorCode` com mensagem em `MENSAGENS_DE_ERRO`. O erro da execução também é um `ErrorCode` |
 | Listagem | Paginada: `?pagina=<id>&limite=` (`paginationQuerySchema`); as conversas, `?antes=<id>&limite=` |
 
-Códigos de erro novos (`packages/shared/src/errors/`, com status em `packages/nucleo/src/erro/erro-de-dominio.ts`):
+Códigos de erro novos (`packages/shared/src/errors/`, com status em `packages/core/src/error/domain.exception.ts`):
 `MATERIAL_SEM_LICENCA` 422 · `FUNCAO_SUSPENSA` 409 · `LIMITE_DIARIO_DO_TUTOR` 429 · `PACOTE_DO_TUTOR_ESGOTADO` 429 ·
 `TUTOR_PAUSADO_EM_AVALIACAO` 409 · `DESTAQUES_NAO_ABERTOS` 409 · `ENTREGA_JA_DECIDIDA` 409 ·
 `VERSAO_ADAPTADA_NAO_APROVADA` 409 · `ATIVIDADE_ENCERRADA` 409 · `MATERIAL_INSUFICIENTE` 422 · `IA_INDISPONIVEL` 503 ·

@@ -1,4 +1,4 @@
-import { credencialMatricula, requireAnoEmCurso, requireEscolaId, listaNome, requestSessao, type Database, type DatabaseTransaction } from '@educa/nucleo'
+import { credencialMatricula, requireAnoEmCurso, requireEscolaId, listaNome, requestSessao, type Database, type DatabaseTransaction } from '@educa/core'
 import type { PaginationQuery, NomeDaLista } from '@educa/shared'
 import { and, asc, eq, gt, inArray, sql } from 'drizzle-orm'
 import { InvariantException } from '@educa/shared'

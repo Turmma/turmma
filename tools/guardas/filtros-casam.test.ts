@@ -74,7 +74,7 @@ function globCasa(glob: string, arquivo: string): boolean {
 /** O `$1` do `camadas.cjs` é o grupo que a regra captura; aqui vale qualquer nome de pasta. */
 const regexDoItem = (valor: string): RegExp => new RegExp(valor.replaceAll('$1', '[^/]+'))
 
-/** `packages/nucleo/dist/ia/x.js` → `packages/nucleo/src/ia/x.ts`: a fonte que o build produz o `dist`. */
+/** `packages/core/dist/ia/x.js` → `packages/core/src/ia/x.ts`: a fonte que o build produz o `dist`. */
 export function fonteDoDist(caminho: string): string[] {
   const sem = caminho.replace(/\/dist\//, '/src/').replace(/\.js$/, '')
   return [`${sem}.ts`, `${sem}.tsx`]
@@ -193,7 +193,7 @@ export function pathsDoCamadas(camadas: Camadas): Item[] {
   return unicos(filtros.flatMap((filtro) => [...listaDe(filtro?.path), ...listaDe(filtro?.pathNot)]).map((valor) => ({ valor, tipo: 'regex' as const })))
 }
 
-/** Os caminhos de `dist` que um script importa em execução: `apps/api/dist/x.js`, `packages/nucleo/dist/index.js`. */
+/** Os caminhos de `dist` que um script importa em execução: `apps/api/dist/x.js`, `packages/core/dist/index.js`. */
 export function caminhosDeDist(texto: string): Item[] {
   return unicos([...texto.matchAll(/'((?:apps|packages)\/[^'\s]+\/dist\/[^'\s]+\.js)'/g)].map((achado) => ({ valor: achado[1] ?? '', tipo: 'dist' as const })))
 }
@@ -243,8 +243,8 @@ const ARQUIVOS = [
   'tools/guardas/__fixtures__/so-na-fixture.ts',
   `${PASTA_DO_PROTOTIPO}/app/p.tsx`,
   '.claude/rules/10-a.md',
-  'packages/nucleo/src/index.ts',
-  'packages/nucleo/dist/index.js',
+  'packages/core/src/index.ts',
+  'packages/core/dist/index.js',
   'apps/api/src/z.test.ts',
 ]
 const BASE = baseDe(ARQUIVOS)
@@ -257,7 +257,7 @@ describe('nenhum filtro casa vazio (X8)', () => {
       const fonte: Fonte = {
         nome: 'f',
         minimo: 5,
-        itens: [glob('apps/*/src/**/*.ts'), { valor: 'packages/', tipo: 'prefixo' }, { valor: '^apps/api/src/', tipo: 'regex' }, { valor: 'apps/api', tipo: 'pasta' }, { valor: 'packages/nucleo/dist/index.js', tipo: 'dist' }],
+        itens: [glob('apps/*/src/**/*.ts'), { valor: 'packages/', tipo: 'prefixo' }, { valor: '^apps/api/src/', tipo: 'regex' }, { valor: 'apps/api', tipo: 'pasta' }, { valor: 'packages/core/dist/index.js', tipo: 'dist' }],
       }
       expect(problemasDaFonte(fonte, BASE)).toEqual([])
     })
@@ -300,9 +300,9 @@ describe('nenhum filtro casa vazio (X8)', () => {
 
     it('um path em regex do camadas.cjs', () => {
       const camadas = requerer(join(RAIZ, 'tools/guardas/camadas.cjs')) as Camadas
-      const obsoleta = { forbidden: [{ to: { path: '^packages/nucleo/src/sessao/tenant/resolucao-de-tenant\\.repository\\.ts$' } }] }
+      const obsoleta = { forbidden: [{ to: { path: '^packages/core/src/sessao/tenant/resolucao-de-tenant\\.repository\\.ts$' } }] }
       expect(pathsDoCamadas(camadas).length).toBeGreaterThan(20)
-      expect(problemasDaFonte({ nome: 'camadas', minimo: 1, itens: pathsDoCamadas(obsoleta) }, BASE)).toEqual(['camadas: "^packages/nucleo/src/sessao/tenant/resolucao-de-tenant\\.repository\\.ts$" não casa com nenhum arquivo'])
+      expect(problemasDaFonte({ nome: 'camadas', minimo: 1, itens: pathsDoCamadas(obsoleta) }, BASE)).toEqual(['camadas: "^packages/core/src/sessao/tenant/resolucao-de-tenant\\.repository\\.ts$" não casa com nenhum arquivo'])
     })
 
     it('um files e um ignores do eslint.config.mjs', () => {
@@ -343,12 +343,12 @@ describe('nenhum filtro casa vazio (X8)', () => {
     it('o glob que só casa no protótipo, ou dentro de dist/, sem nomear a pasta', () => {
       expect(problemaDoItem(glob('**/p.tsx'), BASE)).toBe('não casa com nenhum arquivo')
       expect(problemaDoItem(glob('packages/*/dist/*.js'), BASE)).toBe('não casa com nenhum arquivo')
-      expect(problemaDoItem({ valor: '^packages/nucleo/dist/', tipo: 'regex' }, BASE)).toBe('não casa com nenhum arquivo')
+      expect(problemaDoItem({ valor: '^packages/core/dist/', tipo: 'regex' }, BASE)).toBe('não casa com nenhum arquivo')
     })
 
     it('um caminho de dist cuja fonte em src/ não existe', () => {
-      expect(problemaDoItem({ valor: 'packages/nucleo/dist/index.js', tipo: 'dist' }, BASE)).toBeUndefined()
-      expect(problemaDoItem({ valor: 'packages/nucleo/dist/sumiu.js', tipo: 'dist' }, BASE)).toBe('a fonte em src/ não existe')
+      expect(problemaDoItem({ valor: 'packages/core/dist/index.js', tipo: 'dist' }, BASE)).toBeUndefined()
+      expect(problemaDoItem({ valor: 'packages/core/dist/sumiu.js', tipo: 'dist' }, BASE)).toBe('a fonte em src/ não existe')
       expect(caminhosDeDist("await importar('apps/api/dist/credencial/hash-de-senha.js')").map((item) => item.valor)).toEqual(['apps/api/dist/credencial/hash-de-senha.js'])
     })
   })

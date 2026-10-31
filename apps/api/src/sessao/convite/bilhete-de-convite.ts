@@ -1,4 +1,4 @@
-import { EMISSOR_TOKEN, systemClock, type Clock } from '@educa/nucleo'
+import { EMISSOR_TOKEN, systemClock, type Clock } from '@educa/core'
 import { errors, jwtVerify, SignJWT } from 'jose'
 import { z } from 'zod'
 

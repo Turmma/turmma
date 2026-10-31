@@ -1,4 +1,4 @@
-import { type DatabaseExecutor } from '@educa/nucleo'
+import { type DatabaseExecutor } from '@educa/core'
 import { aluno } from './tabelas.js'
 
 // O banco ou a transação de quem chama, pelo tipo do executor de auditoria.

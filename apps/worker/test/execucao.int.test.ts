@@ -12,7 +12,7 @@ import {
   type RequestContext,
   type IdempotencyKeyResult,
   type DatabaseTransaction,
-} from '@educa/nucleo'
+} from '@educa/core'
 import {
   ErrorCode,
   JobFailureCode,

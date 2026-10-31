@@ -1,5 +1,5 @@
 import 'reflect-metadata'
-import { ALGORITMO_TOKEN, EMISSOR_TOKEN, TIPO_TOKEN } from '@educa/nucleo'
+import { ALGORITMO_TOKEN, EMISSOR_TOKEN, TIPO_TOKEN } from '@educa/core'
 import { ErrorCode, MENSAGENS_DE_ERRO, SYSTEM_REALTIME_NAMESPACE, REALTIME_RECONNECTION } from '@educa/shared'
 import { Redis } from 'ioredis'
 import { SignJWT } from 'jose'

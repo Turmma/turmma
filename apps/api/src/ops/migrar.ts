@@ -1,4 +1,4 @@
-import { InvalidConfigError, createLogger, migrate, validateEnvironment } from '@educa/nucleo'
+import { InvalidConfigError, createLogger, migrate, validateEnvironment } from '@educa/core'
 import { pathToFileURL } from 'node:url'
 import { z } from 'zod'
 

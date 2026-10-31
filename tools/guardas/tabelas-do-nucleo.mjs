@@ -1,5 +1,5 @@
 /**
- * Os nomes de tabela do schema que o `@educa/nucleo` exporta (regra 00, item 3; regra 10, item 3): quem os importa fora de um
+ * Os nomes de tabela do schema que o `@educa/core` exporta (regra 00, item 3; regra 10, item 3): quem os importa fora de um
  * `*.repository.ts` toca o banco sem passar pelo lugar onde o escopo de tenant é aplicado. A guarda
  * `guardas/tabela-so-no-repository` (`regras-tenant.mjs`) lê esta lista.
  *

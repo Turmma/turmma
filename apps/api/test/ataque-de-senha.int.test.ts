@@ -1,4 +1,4 @@
-import { RateLimiter, METRICS, observeInsuranceLimiter, TIMEOUT_COMANDO_REDIS_API_MS, TIMEOUT_COMANDO_REDIS_FILA_MS } from '@educa/nucleo'
+import { RateLimiter, METRICS, observeInsuranceLimiter, TIMEOUT_COMANDO_REDIS_API_MS, TIMEOUT_COMANDO_REDIS_FILA_MS } from '@educa/core'
 import { ErrorCode } from '@educa/shared'
 import type { Redis } from 'ioredis'
 import { randomBytes, randomUUID } from 'node:crypto'

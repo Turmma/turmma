@@ -1,5 +1,5 @@
 import 'reflect-metadata'
-import { createLogger, TokenIssuer } from '@educa/nucleo'
+import { createLogger, TokenIssuer } from '@educa/core'
 import { ErrorCode, type PapelDeUsuario } from '@educa/shared'
 import type { INestApplication } from '@nestjs/common'
 import { NestFactory } from '@nestjs/core'

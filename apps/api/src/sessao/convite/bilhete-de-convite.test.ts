@@ -1,4 +1,4 @@
-import { TokenIssuer, verifyToken } from '@educa/nucleo'
+import { TokenIssuer, verifyToken } from '@educa/core'
 import { decodeJwt, decodeProtectedHeader } from 'jose'
 import { randomUUID } from 'node:crypto'
 import { describe, expect, it } from 'vitest'

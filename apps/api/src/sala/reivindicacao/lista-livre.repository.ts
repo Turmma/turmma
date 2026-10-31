@@ -1,4 +1,4 @@
-import { requireAnoEmCurso, requireEscolaId, listaNome, turma, type Database, type DatabaseTransaction } from '@educa/nucleo'
+import { requireAnoEmCurso, requireEscolaId, listaNome, turma, type Database, type DatabaseTransaction } from '@educa/core'
 import { MAXIMO_DE_NOMES_NA_SALA } from '@educa/shared'
 import { and, asc, eq, ne } from 'drizzle-orm'
 

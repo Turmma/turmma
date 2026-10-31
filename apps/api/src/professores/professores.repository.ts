@@ -1,4 +1,4 @@
-import { convite, requireEscolaId, usuario, type Database, type DadosDoProfessor, type DatabaseTransaction, type UltimoConviteDoProfessor } from '@educa/nucleo'
+import { convite, requireEscolaId, usuario, type Database, type DadosDoProfessor, type DatabaseTransaction, type UltimoConviteDoProfessor } from '@educa/core'
 import type { PaginationQuery } from '@educa/shared'
 import { and, asc, desc, eq, gt, inArray, sql } from 'drizzle-orm'
 

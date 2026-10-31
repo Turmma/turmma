@@ -1,4 +1,4 @@
-import { IP_DESCONHECIDO } from '@educa/nucleo'
+import { IP_DESCONHECIDO } from '@educa/core'
 import { describe, expect, it } from 'vitest'
 import { ipParaRegistro } from './origem-da-requisicao.js'
 

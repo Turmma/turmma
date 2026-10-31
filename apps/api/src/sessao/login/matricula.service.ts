@@ -1,4 +1,4 @@
-import { DomainException, FORMATO_SLUG, TAMANHO_MAXIMO_SLUG, type Database, type Meter } from '@educa/nucleo'
+import { DomainException, FORMATO_SLUG, TAMANHO_MAXIMO_SLUG, type Database, type Meter } from '@educa/core'
 import { ErrorCode, type LoginMatriculaRequest } from '@educa/shared'
 import type { ConclusaoDeLogin } from '../conclusao/conclusao-de-login.js'
 import type { ContadorDeTentativas } from '../../credencial/contador-de-tentativas.js'

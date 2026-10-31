@@ -1,5 +1,5 @@
-import { createDatabase, createPool, runInContext } from '@educa/nucleo'
-import { CicloDeVidaRepository, CicloDeVidaService } from '@educa/nucleo/ciclo-de-vida'
+import { createDatabase, createPool, runInContext } from '@educa/core'
+import { CicloDeVidaRepository, CicloDeVidaService } from '@educa/core/ciclo-de-vida'
 import { ErrorCode, MENSAGENS_DE_ERRO } from '@educa/shared'
 import { randomBytes, randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'

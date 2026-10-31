@@ -1,4 +1,4 @@
-import { Compartilhamento, diaDeUso, runInContext } from '@educa/nucleo'
+import { Compartilhamento, diaDeUso, runInContext } from '@educa/core'
 import type { CompartilhamentoRow, PedidoDoTitular, PreviaDoTitularResponse } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it, onTestFinished } from 'vitest'

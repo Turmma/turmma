@@ -1,4 +1,4 @@
-import { unscopedJustification, TAMANHO_MINIMO_JUSTIFICATIVA_SEM_ESCOPO } from '@educa/nucleo'
+import { unscopedJustification, TAMANHO_MINIMO_JUSTIFICATIVA_SEM_ESCOPO } from '@educa/core'
 import { describe, expect, it } from 'vitest'
 import { ConviteRepository } from '../convite/convite.repository.js'
 import { CriacaoDeSessaoRepository } from '../../credencial/criacao-de-sessao.repository.js'

@@ -1,4 +1,4 @@
-import { throttledWarn, runInContext, summarizeError, ROTULO_ESCOLA, type CronEscolasRepository, type LoggerBase, type Meter, type Clock } from '@educa/nucleo'
+import { throttledWarn, runInContext, summarizeError, ROTULO_ESCOLA, type CronEscolasRepository, type LoggerBase, type Meter, type Clock } from '@educa/core'
 import { randomUUID } from 'node:crypto'
 
 /** De quanto em quanto tempo o worker-lote mede uma série por escola. Os valores mudam devagar (uma vez por noite, ou por hora): 5 min sobram. */

@@ -1,4 +1,4 @@
-import { requestIp, DowngradeRateLimit, TrustedProxies, ZodValidationPipe } from '@educa/nucleo'
+import { requestIp, DowngradeRateLimit, TrustedProxies, ZodValidationPipe } from '@educa/core'
 import {
   configurarSegundoFatorDeOperadorRequestSchema,
   segundoFatorDeOperadorRequestSchema,

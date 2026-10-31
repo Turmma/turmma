@@ -23,8 +23,8 @@ const TODO_O_CODIGO = '^(?:apps|packages|tools|infra)/'
 const PRODUCAO = { path: '^(?:apps|packages)/[^/]+/src/', pathNot: TESTE }
 const DRIZZLE = String.raw`(?:^|/)node_modules/drizzle-orm(?:/|$)`
 
-/** O subcaminho `@educa/nucleo/conta-global` resolve para este arquivo pela condição `source` (`conditionNames`, abaixo). */
-const CONTA_GLOBAL = String.raw`^packages/nucleo/src/ciclo-de-vida/conta-global\.repository\.ts$`
+/** O subcaminho `@educa/core/conta-global` resolve para este arquivo pela condição `source` (`conditionNames`, abaixo). */
+const CONTA_GLOBAL = String.raw`^packages/core/src/ciclo-de-vida/conta-global\.repository\.ts$`
 
 /**
  * Fora de `credencial/` e de `sessao/` (a primeira é a base da segunda), só se importa uma e outra pelo `index.ts`, em
@@ -56,13 +56,13 @@ module.exports = {
       comment: 'O contrato compartilhado é a base: nem o nucleo nem uma app podem entrar nele.',
       severity: 'error',
       from: { path: '^packages/shared/' },
-      to: { path: '^(?:packages/nucleo|apps)/' },
+      to: { path: '^(?:packages/core|apps)/' },
     },
     {
       name: 'nucleo-nao-importa-app',
       comment: 'O nucleo serve as apps; a app não volta para dentro dele.',
       severity: 'error',
-      from: { path: '^packages/nucleo/' },
+      from: { path: '^packages/core/' },
       to: { path: '^apps/' },
     },
     {
@@ -77,7 +77,7 @@ module.exports = {
       comment: 'A web fala com a API por HTTP e pelo contrato de `@educa/shared` (regra 00, itens 1 e 6).',
       severity: 'error',
       from: { path: '^apps/web/' },
-      to: { path: '^(?:packages/nucleo/|apps/(?!web/))' },
+      to: { path: '^(?:packages/core/|apps/(?!web/))' },
     },
     {
       name: 'producao-nao-importa-teste',
@@ -114,8 +114,8 @@ module.exports = {
       comment: 'A camada de baixo não conhece a de cima. A exceção é um arquivo, e não a pasta: o expurgo da escola enfileira a eliminação pelo `CicloDeVidaService`.',
       severity: 'error',
       from: {
-        path: '^(?:apps/api/src|packages/nucleo/src)/.*\\.repository\\.ts$',
-        pathNot: '^packages/nucleo/src/retencao/expurgo-da-escola\\.repository\\.ts$',
+        path: '^(?:apps/api/src|packages/core/src)/.*\\.repository\\.ts$',
+        pathNot: '^packages/core/src/retencao/expurgo-da-escola\\.repository\\.ts$',
       },
       to: { path: '\\.(?:service|controller)\\.ts$' },
     },
@@ -154,7 +154,7 @@ module.exports = {
       name: 'cerca-conta-global',
       comment: 'A `ContaGlobalRepository` escreve na `Conta`, que não tem escola: só `sessao/` e o ciclo de vida do nucleo a importam (F3, 1.0).',
       severity: 'error',
-      from: { path: TODO_O_CODIGO, pathNot: [SESSAO, '^packages/nucleo/src/ciclo-de-vida/', TESTE] },
+      from: { path: TODO_O_CODIGO, pathNot: [SESSAO, '^packages/core/src/ciclo-de-vida/', TESTE] },
       to: { path: CONTA_GLOBAL },
     },
     {

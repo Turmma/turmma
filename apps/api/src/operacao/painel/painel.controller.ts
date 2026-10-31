@@ -1,4 +1,4 @@
-import { IdPipe, ZodValidationPipe } from '@educa/nucleo'
+import { IdPipe, ZodValidationPipe } from '@educa/core'
 import {
   painelQuerySchema,
   conviteDaCoordenacaoRequestSchema,

@@ -1,4 +1,4 @@
-import { RequirePermissao, ZodValidationPipe } from '@educa/nucleo'
+import { RequirePermissao, ZodValidationPipe } from '@educa/core'
 import { paginationQuerySchema, criarSerieRequestSchema, type PaginationQuery, type CriarSerieRequest, type ListaDeSeriesResponse, type SerieResponse } from '@educa/shared'
 import { Body, Controller, Get, Post, Query } from '@nestjs/common'
 import { SerieService } from './serie.service.js'

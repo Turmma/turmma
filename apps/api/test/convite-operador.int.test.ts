@@ -1,5 +1,5 @@
 import 'reflect-metadata'
-import { createLogger, type Database } from '@educa/nucleo'
+import { createLogger, type Database } from '@educa/core'
 import { ErrorCode, aceitarConviteDeOperadorResponseSchema, consultarConviteDeOperadorResponseSchema, MENSAGENS_DE_ERRO } from '@educa/shared'
 import type { INestApplication, Type } from '@nestjs/common'
 import { DiscoveryService, NestFactory } from '@nestjs/core'

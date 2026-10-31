@@ -30,7 +30,7 @@ Contexto completo do domínio: `docs/visao-produto.md` e `docs/fluxos.md`. Vocab
 
 2. **Nota só existe com autor humano.** Ver regra 70. É a invariante mais importante do
    sistema e deve ser impossível de violar por construção, não por convenção.
-   Checagem: `packages/nucleo/src/db/schema/mvp/tabelas-do-mvp.int.test.ts`, `conformidade-reviewer`.
+   Checagem: `packages/core/src/db/schema/mvp/mvp-tables.int.test.ts`, `conformidade-reviewer`.
 
 3. **Avaliação tem modo**, e o modo define a trilha de aplicação e correção: online
    objetiva, online discursiva, papel com foto, trabalho de entrega, presencial. O núcleo é

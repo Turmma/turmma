@@ -1,4 +1,4 @@
-import { METRICS } from '@educa/nucleo'
+import { METRICS } from '@educa/core'
 import { ErrorCode, MENSAGENS_DE_ERRO } from '@educa/shared'
 import type { Redis } from 'ioredis'
 import { createHash, randomBytes, randomUUID } from 'node:crypto'

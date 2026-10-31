@@ -1,4 +1,4 @@
-import { credencialMatricula, requireEscolaId, usuario, type Database, type DatabaseTransaction } from '@educa/nucleo'
+import { credencialMatricula, requireEscolaId, usuario, type Database, type DatabaseTransaction } from '@educa/core'
 import { and, eq, isNull } from 'drizzle-orm'
 
 /** A credencial achada pela matrícula: o usuário e o hash, nunca a matrícula nem o nome. */

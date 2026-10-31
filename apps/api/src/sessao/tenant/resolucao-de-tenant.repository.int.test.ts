@@ -1,5 +1,5 @@
-import { runInContext, ExpurgoDeAcessoRepository, sessao } from '@educa/nucleo'
-import { ContaGlobalRepository } from '@educa/nucleo/conta-global'
+import { runInContext, ExpurgoDeAcessoRepository, sessao } from '@educa/core'
+import { ContaGlobalRepository } from '@educa/core/conta-global'
 import { and, eq, isNull, sql } from 'drizzle-orm'
 import { randomUUID } from 'node:crypto'
 import pg from 'pg'

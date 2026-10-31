@@ -1,4 +1,4 @@
-import { DomainException, type Database } from '@educa/nucleo'
+import { DomainException, type Database } from '@educa/core'
 import {
   ErrorCode,
   disciplinaResponseSchema,

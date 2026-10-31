@@ -295,8 +295,8 @@ describe('portão do commit', () => {
     const alterados = [
       'apps/worker/src/processadores/expurgar-escola.ts',
       'apps/worker/test/expurgo-da-escola.int.test.ts',
-      'packages/nucleo/src/retencao/expurgo-da-escola.test.ts',
-      'packages/nucleo/src/retencao/retencao.int.test.ts',
+      'packages/core/src/retencao/expurgo-da-escola.test.ts',
+      'packages/core/src/retencao/retencao.int.test.ts',
       'e2e/privacidade.spec.ts',
       'e2e/__fixtures__/sessao.ts',
       'infra/alertas/expurgo.int.test.ts',
@@ -307,7 +307,7 @@ describe('portão do commit', () => {
       'e2e/privacidade.spec.ts',
     ]
     expect(alvosDoPortao(alterados)).toEqual({
-      integracao: ['apps/worker/test/expurgo-da-escola.int.test.ts', 'packages/nucleo/src/retencao/retencao.int.test.ts'],
+      integracao: ['apps/worker/test/expurgo-da-escola.int.test.ts', 'packages/core/src/retencao/retencao.int.test.ts'],
       e2e: ['e2e/privacidade.spec.ts'],
       infra: ['infra/alertas/expurgo.int.test.ts'],
       processo: [],

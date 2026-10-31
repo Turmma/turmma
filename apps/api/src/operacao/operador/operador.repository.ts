@@ -11,7 +11,7 @@ import {
   type EventoDeAcessoDaOperacao,
   type MotivoDeEncerramentoDeOperador,
   type DatabaseTransaction,
-} from '@educa/nucleo'
+} from '@educa/core'
 import { ErrorCode } from '@educa/shared'
 import { and, count, eq, exists, isNull, lt, or, sql } from 'drizzle-orm'
 import { DURACAO_DA_SESSAO_DE_OPERADOR_HORAS, type SessaoDeOperadorParaGuarda, type SessaoDeOperadorParaRenovar } from '../sessao/prazos-da-sessao.js'

@@ -1,4 +1,4 @@
-import { diaDeUso, DomainException, limitesDoMes, AuditoriaRecorder, systemClock, type Database, type Clock } from '@educa/nucleo'
+import { diaDeUso, DomainException, limitesDoMes, AuditoriaRecorder, systemClock, type Database, type Clock } from '@educa/core'
 import {
   CHAVES_DE_FUNCAO,
   ErrorCode,

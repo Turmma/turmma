@@ -1,4 +1,4 @@
-import { DomainException, insuranceLimit, METRICS, retryAfterSeconds, type LoggerBase, type Meter } from '@educa/nucleo'
+import { DomainException, insuranceLimit, METRICS, retryAfterSeconds, type LoggerBase, type Meter } from '@educa/core'
 import { ErrorCode } from '@educa/shared'
 import { Logger } from '@nestjs/common'
 import type { GuardaDoCodigo } from '../sessao/index.js'

@@ -15,7 +15,7 @@ import {
   type Clock,
   type EscolaConcurrencyLimiter,
   type ConcurrencyByQueue,
-} from '@educa/nucleo'
+} from '@educa/core'
 import type { QueueName } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import type { FilaDePublicacao } from './fila-de-publicacao.js'

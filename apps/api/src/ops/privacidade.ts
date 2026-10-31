@@ -1,4 +1,4 @@
-import { InvalidConfigError, DomainException, runInContext, IncidenteDaEscolaRepository, summarizeError, SuboperadorDaEscolaRepository, type Database } from '@educa/nucleo'
+import { InvalidConfigError, DomainException, runInContext, IncidenteDaEscolaRepository, summarizeError, SuboperadorDaEscolaRepository, type Database } from '@educa/core'
 import { ErrorCode } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { pathToFileURL } from 'node:url'

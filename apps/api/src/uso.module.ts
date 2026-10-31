@@ -1,4 +1,4 @@
-import { throttledWarn, UsageMeter, createApiRedisClient } from '@educa/nucleo'
+import { throttledWarn, UsageMeter, createApiRedisClient } from '@educa/core'
 import { Global, Inject, Logger, Module, type DynamicModule, type OnApplicationShutdown } from '@nestjs/common'
 import type { Redis } from 'ioredis'
 

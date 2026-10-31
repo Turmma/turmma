@@ -1,4 +1,4 @@
-import { IdPipe, RequirePermissao, ZodValidationPipe } from '@educa/nucleo'
+import { IdPipe, RequirePermissao, ZodValidationPipe } from '@educa/core'
 import { emptyOrMissingBodyRequestSchema, type EmptyBodyRequest, type LoteAprovadoResponse } from '@educa/shared'
 import { Body, Controller, Header, HttpCode, HttpStatus, Param, Post } from '@nestjs/common'
 import { CorrecaoService } from './correcao.service.js'

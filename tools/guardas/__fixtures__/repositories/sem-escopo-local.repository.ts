@@ -1,4 +1,4 @@
-import { type Database } from '@educa/nucleo'
+import { type Database } from '@educa/core'
 import { aluno } from './tabelas.js'
 
 // O decorator tem de ser o importado: um `Unscoped` escrito aqui não registra nada.

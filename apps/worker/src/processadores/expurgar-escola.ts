@@ -14,7 +14,7 @@ import {
   type LoggerBase,
   type Clock,
   type RetencaoDaEscolaRepository,
-} from '@educa/nucleo'
+} from '@educa/core'
 import { JobFailureCode, InvariantException, retencaoDaEscola, type TIPO_EXPURGAR_ESCOLA } from '@educa/shared'
 import type { Processador } from '../executor.js'
 import { FalhaDeJob } from '../falha-de-job.js'

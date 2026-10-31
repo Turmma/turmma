@@ -1,4 +1,4 @@
-import { InvalidConfigError, DomainException, runInContext, AuditoriaRecorder, summarizeError, type Database } from '@educa/nucleo'
+import { InvalidConfigError, DomainException, runInContext, AuditoriaRecorder, summarizeError, type Database } from '@educa/core'
 import {
   CHAVES_DE_CATEGORIA_DO_SUBOPERADOR,
   ErrorCode,

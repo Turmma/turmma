@@ -3,10 +3,10 @@ import { TABELAS_DO_NUCLEO } from './tabelas-do-nucleo.mjs'
 
 /**
  * Guarda de tenant (regra 00, item 3; regra 10, item 3): tabela do schema só no repository, que é onde o escopo da escola é
- * aplicado a partir do token. Service, controller, worker ou script que importa a tabela do `@educa/nucleo` monta a query
+ * aplicado a partir do token. Service, controller, worker ou script que importa a tabela do `@educa/core` monta a query
  * solta, e é assim que o isolamento acaba furado.
  *
- * A guarda não segue valor. Fora das exceções de `index.mjs` (`*.repository.ts`, teste, `packages/nucleo/src/db/**` e este
+ * A guarda não segue valor. Fora das exceções de `index.mjs` (`*.repository.ts`, teste, `packages/core/src/db/**` e este
  * arquivo, que nomeia o pacote que procura), do núcleo só se importa pelo nome o que não leva tabela. Reprova:
  * - importar ou reexportar pelo nome, com ou sem apelido e também como `type`, uma tabela de `tabelas-do-nucleo.mjs`, o
  *   objeto `schema` e o tipo `Schema` (todas as tabelas) ou o `default` (o módulo inteiro, onde houver interop);
@@ -19,7 +19,7 @@ import { TABELAS_DO_NUCLEO } from './tabelas-do-nucleo.mjs'
  *
  * Limites declarados, o que uma guarda que lê um arquivo por vez não vê:
  * - o pacote que não está escrito como um texto só: guardado em variável (`import(nome)`), montado
- *   (`'@educa/' + 'nucleo'`, `` `@educa/${x}` ``) ou só num comentário (o `import()` de um JSDoc, que é tipo e não
+ *   (`'@educa/' + 'core'`, `` `@educa/${x}` ``) ou só num comentário (o `import()` de um JSDoc, que é tipo e não
  *   carrega o módulo); e o caminho relativo ou absoluto até o arquivo da tabela (`../db/schema/escola`). Os caminhos
  *   estáticos são das camadas (12.0, depcruise);
  * - a tabela que sai por um arquivo de exceção (o repository ou o `db/**` que a reexporta) e o arquivo que a importa
@@ -28,12 +28,12 @@ import { TABELAS_DO_NUCLEO } from './tabelas-do-nucleo.mjs'
  *   (`banco.query.turma.findMany()`) ou por SQL cru: impedir que o `Database` chegue lá é das camadas (12.0).
  */
 
-const PACOTE = '@educa/nucleo'
+const PACOTE = '@educa/core'
 
 /** O que, importado pelo nome, leva tabela. */
 const NOMES_QUE_LEVAM_TABELA = new Set([
   ...TABELAS_DO_NUCLEO,
-  // o objeto com todas as tabelas (`packages/nucleo/src/db/banco.ts`)
+  // o objeto com todas as tabelas (`packages/core/src/db/database.ts`)
   'schema',
   // o módulo inteiro, onde houver interop com CommonJS
   'default',
@@ -42,9 +42,9 @@ const NOMES_QUE_LEVAM_TABELA = new Set([
 ])
 
 export const MENSAGEM_TABELA_FORA_DO_REPOSITORY =
-  'Do @educa/nucleo, fora de *.repository.ts, de teste e de packages/nucleo/src/db, só se importa pelo nome o que não é tabela: a tabela, o schema e o módulo inteiro (import * as, export *, import(), require, o nome do pacote como texto) ficam no repository, onde o escopo de tenant é aplicado (regra 00, item 3; regra 10, item 3).'
+  'Do @educa/core, fora de *.repository.ts, de teste e de packages/core/src/db, só se importa pelo nome o que não é tabela: a tabela, o schema e o módulo inteiro (import * as, export *, import(), require, o nome do pacote como texto) ficam no repository, onde o escopo de tenant é aplicado (regra 00, item 3; regra 10, item 3).'
 
-/** O pacote ou um subcaminho dele (`@educa/nucleo/ciclo-de-vida`), escrito como texto; `@educa/nucleo-legado` é outro pacote. */
+/** O pacote ou um subcaminho dele (`@educa/core/ciclo-de-vida`), escrito como texto; `@educa/nucleo-legado` é outro pacote. */
 const ehDoNucleo = (fonte) => {
   const modulo = especificador(fonte)
   return modulo === PACOTE || (modulo?.startsWith(`${PACOTE}/`) ?? false)
@@ -61,7 +61,7 @@ export const tabelaSoNoRepository = {
     type: 'problem',
     docs: {
       description:
-        'Proíbe trazer de @educa/nucleo, fora de *.repository.ts, uma tabela do schema, o schema ou o módulo inteiro, e o nome do pacote como texto (regra 00, item 3).',
+        'Proíbe trazer de @educa/core, fora de *.repository.ts, uma tabela do schema, o schema ou o módulo inteiro, e o nome do pacote como texto (regra 00, item 3).',
     },
     schema: [],
     messages: { tabela: MENSAGEM_TABELA_FORA_DO_REPOSITORY },

@@ -4,7 +4,7 @@ import {
   type SweepCursor,
   type DispatchRepository,
   type JobToSweep,
-} from '@educa/nucleo'
+} from '@educa/core'
 import type { JobFailureCode } from '@educa/shared'
 import { contextoDoJob, publicarComVaga, type DependenciasDaPublicacao } from './despachante.js'
 import type { FilaDePublicacao } from './fila-de-publicacao.js'

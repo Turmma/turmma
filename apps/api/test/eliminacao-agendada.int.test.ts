@@ -1,5 +1,5 @@
-import { diaDeUso, runInContext } from '@educa/nucleo'
-import { CicloDeVidaRepository, CicloDeVidaService } from '@educa/nucleo/ciclo-de-vida'
+import { diaDeUso, runInContext } from '@educa/core'
+import { CicloDeVidaRepository, CicloDeVidaService } from '@educa/core/ciclo-de-vida'
 import { ErrorCode, MENSAGENS_DE_ERRO, PRAZO_DA_ELIMINACAO_DIAS } from '@educa/shared'
 import { randomBytes, randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'

@@ -1,4 +1,4 @@
-import { InvalidConfigError, PROVEDORES_EXTERNOS } from '@educa/nucleo'
+import { InvalidConfigError, PROVEDORES_EXTERNOS } from '@educa/core'
 import { PROVEDORES_DE_CONTA_DA_ESCOLA } from '@educa/shared'
 import { describe, expect, it } from 'vitest'
 import { lerConfiguracaoLoginExterno, MOTIVO_CHAVE_DO_COOKIE, MOTIVO_EMISSOR_SEM_TLS, MOTIVO_PROVEDOR_INCOMPLETO, MOTIVO_RETORNO } from './configuracao-externa.js'

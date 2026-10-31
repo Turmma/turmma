@@ -3,7 +3,7 @@ import { createVitest } from 'vitest/node'
 import { describe, expect, it } from 'vitest'
 import { raizRepositorio } from './executar.ts'
 
-// O `globalSetup` da integração e da infra (`tools/testes/integracao.setup.ts`) carrega `packages/nucleo` pelo runner do
+// O `globalSetup` da integração e da infra (`tools/testes/integracao.setup.ts`) carrega `packages/core` pelo runner do
 // Vitest, que resolve pelo environment `__vitest__` e não pelo `ssr`. Se a condição `source` do `vitest.config.ts` não
 // chega a ele, `@educa/shared` cai no `default` (`./dist/index.js`): na máquina de quem já construiu o `dist` passa, e na
 // esteira, que não o constrói, a subida da integração e da infra morre com `ERR_RESOLVE_PACKAGE_ENTRY_FAIL` (a esteira
@@ -20,7 +20,7 @@ describe('resolução dos pacotes do monorepo no runner do globalSetup', () => {
     try {
       const projeto = vitest.projects.find((candidato) => candidato.name === nome)
       expect(projeto, `o projeto ${nome} não está em vitest.config.ts`).toBeDefined()
-      const origem = join(raizRepositorio, 'packages/nucleo/src/contexto/contexto.ts')
+      const origem = join(raizRepositorio, 'packages/core/src/context/context.ts')
       const resolvido = await projeto?.vite.environments.__vitest__?.pluginContainer.resolveId('@educa/shared', origem)
       expect(resolvido?.id).toBe(join(raizRepositorio, 'packages/shared/src/index.ts'))
     } finally {

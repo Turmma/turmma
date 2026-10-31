@@ -1,4 +1,4 @@
-import { validateEnvironment } from '@educa/nucleo'
+import { validateEnvironment } from '@educa/core'
 import { z } from 'zod'
 
 const esquemaDoArmazem = z.object({

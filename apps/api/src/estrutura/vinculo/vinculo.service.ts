@@ -1,5 +1,5 @@
-import { DomainException, AuditoriaRecorder, type Database } from '@educa/nucleo'
-import { CicloDeVidaRepository } from '@educa/nucleo/ciclo-de-vida'
+import { DomainException, AuditoriaRecorder, type Database } from '@educa/core'
+import { CicloDeVidaRepository } from '@educa/core/ciclo-de-vida'
 import { Logger } from '@nestjs/common'
 import {
   ErrorCode,

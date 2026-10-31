@@ -1,4 +1,4 @@
-import { InvalidConfigError } from '@educa/nucleo'
+import { InvalidConfigError } from '@educa/core'
 import { describe, expect, it } from 'vitest'
 import { ArgumentoInvalido, lerOperador, lerPedidoDoOperador } from './escola.js'
 

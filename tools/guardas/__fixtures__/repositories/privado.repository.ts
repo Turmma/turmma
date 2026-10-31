@@ -1,4 +1,4 @@
-import { type Database } from '@educa/nucleo'
+import { type Database } from '@educa/core'
 import { aluno } from './tabelas.js'
 
 // Só o método público exige a prova: o privado e o protegido são alcançados por quem já a deu.

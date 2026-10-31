@@ -1,4 +1,4 @@
-import { currentContext, runInContext } from '@educa/nucleo'
+import { currentContext, runInContext } from '@educa/core'
 import { randomUUID } from 'node:crypto'
 
 /**

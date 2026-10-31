@@ -1,4 +1,4 @@
-import { CAMPOS_PROIBIDOS_NA_AUDITORIA } from '@educa/nucleo'
+import { CAMPOS_PROIBIDOS_NA_AUDITORIA } from '@educa/core'
 import {
   ErrorCode,
   nomeDaListaSchema,

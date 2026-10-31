@@ -1,4 +1,4 @@
-import { consumoIa, requireEscolaId, type Database, type ConsumoDeIa, type RegistroDeConsumo, type DatabaseTransaction } from '@educa/nucleo'
+import { consumoIa, requireEscolaId, type Database, type ConsumoDeIa, type RegistroDeConsumo, type DatabaseTransaction } from '@educa/core'
 
 /**
  * A porta `RegistroDeConsumo` sobre `consumo_ia` (regra 30, item 4). A escola é a do contexto de quem gastou

@@ -22,7 +22,7 @@ import {
   type DatabasePool,
   type ConfiguredConcurrency,
   type ConcurrencyByQueue,
-} from '@educa/nucleo'
+} from '@educa/core'
 import { JOB_DEFINITIONS, QUEUE_NAMES, type JobState, type QueueName, type JobRegistry } from '@educa/shared'
 import { Queue } from 'bullmq'
 import { Redis } from 'ioredis'

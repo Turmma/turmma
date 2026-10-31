@@ -8,7 +8,7 @@ import {
   validateEnvironment,
   type Database,
   type Clock,
-} from '@educa/nucleo'
+} from '@educa/core'
 import { ErrorCode, InvariantException, type PapelDeUsuario } from '@educa/shared'
 import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import { z } from 'zod'

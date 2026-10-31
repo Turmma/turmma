@@ -1,5 +1,5 @@
 import 'reflect-metadata'
-import { currentContext, SyntheticEffectRepository, runInContext, IDADE_PARA_RECONCILIAR_SEGUNDOS, bullmqQueueName, SYNTHETIC_EFFECT_TABLE } from '@educa/nucleo'
+import { currentContext, SyntheticEffectRepository, runInContext, IDADE_PARA_RECONCILIAR_SEGUNDOS, bullmqQueueName, SYNTHETIC_EFFECT_TABLE } from '@educa/core'
 import { JobFailureCode, JOB_DEFINITIONS, TIPO_JOB_SINTETICO, type SyntheticJobData } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'

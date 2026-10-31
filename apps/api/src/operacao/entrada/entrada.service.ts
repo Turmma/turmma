@@ -1,4 +1,4 @@
-import { DomainException, type Database } from '@educa/nucleo'
+import { DomainException, type Database } from '@educa/core'
 import { ErrorCode, type EntradaDeOperadorRequest, type EntradaDeOperadorResponse } from '@educa/shared'
 import { baldeDaEquipe, type ContadorDeTentativas, type CookieDeDispositivo, type HashDeSenha, ipParaRegistro, lerCookie, normalizarEmail, type PrefixoDoContador, type SemaforoDeHash } from '../../credencial/index.js'
 import type { EmissorDeDesafioDeOperador, EtapaDoDesafioDeOperador } from '../desafio-de-operador.js'

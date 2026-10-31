@@ -1,4 +1,4 @@
-import { convite, DomainException, postgresErrorIn, escola, requireEscolaId, usuario, type Database, type DadosDaCoordenacao, type DadosDoProfessor, type TipoDeConvite, type DatabaseTransaction } from '@educa/nucleo'
+import { convite, DomainException, postgresErrorIn, escola, requireEscolaId, usuario, type Database, type DadosDaCoordenacao, type DadosDoProfessor, type TipoDeConvite, type DatabaseTransaction } from '@educa/core'
 import { ErrorCode, InvariantException } from '@educa/shared'
 import { and, desc, eq, exists, gte, isNotNull, isNull, sql } from 'drizzle-orm'
 

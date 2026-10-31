@@ -1,5 +1,5 @@
 import 'reflect-metadata'
-import { ALVOS_DO_EXPURGO_DE_ACESSO, runInContext, ExpurgoDeAcessoRepository, expurgoAccessBatchStatement, LOTE_DO_EXPURGO, type AlvoDoExpurgoDeAcesso } from '@educa/nucleo'
+import { ALVOS_DO_EXPURGO_DE_ACESSO, runInContext, ExpurgoDeAcessoRepository, expurgoAccessBatchStatement, LOTE_DO_EXPURGO, type AlvoDoExpurgoDeAcesso } from '@educa/core'
 import { JobFailureCode, TIPO_EXPURGAR_ACESSO } from '@educa/shared'
 import { Queue } from 'bullmq'
 import { PgDialect } from 'drizzle-orm/pg-core'

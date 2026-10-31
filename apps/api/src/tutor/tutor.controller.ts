@@ -1,4 +1,4 @@
-import { RequirePermissao, ZodValidationPipe } from '@educa/nucleo'
+import { RequirePermissao, ZodValidationPipe } from '@educa/core'
 import {
   conversaDoTutorQuerySchema,
   usoDoTutorQuerySchema,

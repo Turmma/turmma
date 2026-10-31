@@ -1,4 +1,4 @@
-import { InvalidConfigError, DomainException, summarizeError } from '@educa/nucleo'
+import { InvalidConfigError, DomainException, summarizeError } from '@educa/core'
 import { ErrorCode } from '@educa/shared'
 import { pathToFileURL } from 'node:url'
 import { parseArgs } from 'node:util'

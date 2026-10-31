@@ -1,4 +1,4 @@
-import { createDatabase, createPool, type Database, type DatabasePool } from '@educa/nucleo'
+import { createDatabase, createPool, type Database, type DatabasePool } from '@educa/core'
 import { ErrorCode, criadoNoPainelResponseSchema, redesDoPainelResponseSchema, MAXIMO_DE_REDES_DO_PAINEL } from '@educa/shared'
 import type { INestApplication } from '@nestjs/common'
 import { randomUUID } from 'node:crypto'

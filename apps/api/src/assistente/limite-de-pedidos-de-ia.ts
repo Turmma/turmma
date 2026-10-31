@@ -1,4 +1,4 @@
-import { DomainException, insuranceLimit, retryAfterSeconds, requestSessao, type LoggerBase } from '@educa/nucleo'
+import { DomainException, insuranceLimit, retryAfterSeconds, requestSessao, type LoggerBase } from '@educa/core'
 import { ErrorCode } from '@educa/shared'
 import { Logger } from '@nestjs/common'
 import type { ContadorEmJanela } from '../credencial/index.js'

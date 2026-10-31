@@ -1,5 +1,5 @@
 import 'reflect-metadata'
-import { createLogger, startTelemetry, NestLogger, registerProcessErrorHandlers } from '@educa/nucleo'
+import { createLogger, startTelemetry, NestLogger, registerProcessErrorHandlers } from '@educa/core'
 import { NestFactory } from '@nestjs/core'
 import { AppModule } from './app.module.js'
 import { lerConfiguracao } from './config.js'

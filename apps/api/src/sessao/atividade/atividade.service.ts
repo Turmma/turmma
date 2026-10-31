@@ -1,4 +1,4 @@
-import { throttledWarn, METRICS, requestSessao, type Database, type Meter } from '@educa/nucleo'
+import { throttledWarn, METRICS, requestSessao, type Database, type Meter } from '@educa/core'
 import { Logger } from '@nestjs/common'
 import { EscritaDeSessaoRepository } from '../../credencial/escrita-de-sessao.repository.js'
 

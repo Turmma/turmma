@@ -1,4 +1,4 @@
-import { jobExecutor, bullmqQueueName, jobOptions, TIMEOUT_COMANDO_REDIS_FILA_MS, type QueuedJobData, type ReservedJob, type PublishedJobOptions } from '@educa/nucleo'
+import { jobExecutor, bullmqQueueName, jobOptions, TIMEOUT_COMANDO_REDIS_FILA_MS, type QueuedJobData, type ReservedJob, type PublishedJobOptions } from '@educa/core'
 import { JOB_FAILURE_CODES, JobFailureCode, JOB_DEFINITIONS, QUEUE_NAMES, type JobExecutor, type QueueName, type JobRegistry } from '@educa/shared'
 
 /** O que a consulta à fila diz de um job. Só `inexistente` autoriza publicar de novo. */

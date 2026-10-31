@@ -1,4 +1,4 @@
-import { currentContext, DomainException, runInContext, AuditoriaRecorder, summarizeError, requestSessao, type Database, type LoggerBase } from '@educa/nucleo'
+import { currentContext, DomainException, runInContext, AuditoriaRecorder, summarizeError, requestSessao, type Database, type LoggerBase } from '@educa/core'
 import {
   alcanceDe,
   ErrorCode,

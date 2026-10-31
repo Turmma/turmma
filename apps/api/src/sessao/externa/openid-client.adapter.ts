@@ -1,4 +1,4 @@
-import type { ProvedorExterno } from '@educa/nucleo'
+import type { ProvedorExterno } from '@educa/core'
 import * as oidc from 'openid-client'
 import type { ConfiguracaoLoginExterno, ProvedorConfigurado } from '../../credencial/configuracao-externa.js'
 import { ProvedorExternoFalhou, type ContaNoProvedor, type ConferenciasDoRetorno, type InicioNoProvedor, type ProvedorExternoPort } from './provedor-externo.port.js'

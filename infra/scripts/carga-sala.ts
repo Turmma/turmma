@@ -9,7 +9,7 @@ import pg from 'pg'
 import type { criarEscola, criarRede } from '../../apps/api/src/operacao/escola/escola.ts'
 import type { HashDeSenha } from '../../apps/api/src/credencial/hash-de-senha.ts'
 import type { criarAlunosComMatricula, criarSessoesSinteticas } from '../../apps/api/src/sessao/tenant/sessoes-sinteticas.ts'
-import type { createDatabase, createPool } from '@educa/nucleo'
+import type { createDatabase, createPool } from '@educa/core'
 import { raizRepositorio } from '../../tools/ci/executar.ts'
 import { argumentosDoCompose, CODIGO_THRESHOLD_CRUZADO, lerAmbienteDeCarga, rodar } from './carga.ts'
 import { lerResumoDaFase, matriculaSintetica, type ResumoDaFase } from './carga-login.ts'
@@ -244,7 +244,7 @@ interface ModulosDaApi {
 async function importarDaApi(): Promise<ModulosDaApi> {
   const importar = <T>(caminho: string) => import(pathToFileURL(join(raizRepositorio, caminho)).href) as Promise<T>
   return {
-    nucleo: await importar('packages/nucleo/dist/index.js'),
+    nucleo: await importar('packages/core/dist/index.js'),
     escolas: await importar('apps/api/dist/operacao/escola/escola.js'),
     sessoes: await importar('apps/api/dist/sessao/tenant/sessoes-sinteticas.js'),
     hash: await importar('apps/api/dist/credencial/hash-de-senha.js'),

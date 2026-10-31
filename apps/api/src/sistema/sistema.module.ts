@@ -1,4 +1,4 @@
-import { JobOutbox, JobOutboxRepository, type Environment, type Database } from '@educa/nucleo'
+import { JobOutbox, JobOutboxRepository, type Environment, type Database } from '@educa/core'
 import type { Aviso } from '@educa/shared'
 import { Module, type DynamicModule } from '@nestjs/common'
 import { BANCO } from '../banco.module.js'

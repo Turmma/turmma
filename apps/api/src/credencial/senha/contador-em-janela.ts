@@ -1,4 +1,4 @@
-import { throttledWarn, SlidingWindowRatio, systemClock, type Clock } from '@educa/nucleo'
+import { throttledWarn, SlidingWindowRatio, systemClock, type Clock } from '@educa/core'
 import { Logger } from '@nestjs/common'
 import type { Redis } from 'ioredis'
 import { createHmac } from 'node:crypto'

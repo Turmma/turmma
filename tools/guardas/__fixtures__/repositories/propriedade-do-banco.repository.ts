@@ -1,4 +1,4 @@
-import { type Database } from '@educa/nucleo'
+import { type Database } from '@educa/core'
 import { aluno } from './tabelas.js'
 
 // O banco guardado numa propriedade tipada (e não recebido pelo construtor) também é o banco.

@@ -76,7 +76,7 @@ frontmatter do `SKILL.md` o repete (`tools/processo/harness/metadados.test.ts` c
 | `playwright-best-practices` | Escrever e depurar teste de Playwright | `e2e/` | Geolocalização, PWA e app nativo não se aplicam (regra 50); toque e celular se aplicam (D51) | Parcial com a `accessibility` (axe-core) | `@playwright/test` 1.63 no repositório; a skill é 1.2 | Fica, com o conflito na primeira linha |
 | `lgpd-brasil` | Resume a LGPD | Dado pessoal | A regra 20 e `docs/lgpd.md` são mais restritivos | Parcial com `docs/lgpd.md` | Resume a lei de 2018; o ECA Digital (2026) não está nela, e está em `docs/regulacao.md` | Fica, com o conflito na primeira linha |
 | `nestjs-best-practices` | Boas práticas de NestJS | `apps/api` | A estrutura de `docs/arquitetura.md` prevalece | Nenhuma | Nest 12 no repositório; a skill é 1.2.0 | Fica, com o conflito na primeira linha |
-| `drizzle-orm-patterns` | Schema, consulta e migration com Drizzle | `packages/nucleo` | Nenhum | Parcial com a `supabase-postgres-best-practices` | Drizzle 0.45 no repositório; a skill não diz a versão | Fica |
+| `drizzle-orm-patterns` | Schema, consulta e migration com Drizzle | `packages/core` | Nenhum | Parcial com a `supabase-postgres-best-practices` | Drizzle 0.45 no repositório; a skill não diz a versão | Fica |
 | `bullmq-specialist` | Fila com BullMQ | Worker | Nenhum | Nenhuma | BullMQ 6.3 no repositório; a skill não diz a versão | Fica |
 | `tanstack-query-best-practices` | Cache e mutação no React Query | `apps/web` | Nenhum | Nenhuma | TanStack Query 5 no repositório; a skill não diz a versão | Fica |
 | `tailwind-design-system` | Sistema de design em Tailwind | `apps/web` | Nenhum | Nenhuma | Fala de Tailwind 4, que é o do repositório | Fica |

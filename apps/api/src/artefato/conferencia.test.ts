@@ -1,4 +1,4 @@
-import { LLMError } from '@educa/nucleo'
+import { LLMError } from '@educa/core'
 import type { AdaptacaoAplicada, ConteudoDeAtividade, QuestaoObjetiva } from '@educa/shared'
 import { describe, expect, it } from 'vitest'
 import { exigirCitacoesEntregues } from '../assistente/citacoes.js'

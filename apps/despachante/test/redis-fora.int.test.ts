@@ -1,5 +1,5 @@
 import 'reflect-metadata'
-import { Heartbeat, TIMEOUT_COMANDO_REDIS_FILA_MS } from '@educa/nucleo'
+import { Heartbeat, TIMEOUT_COMANDO_REDIS_FILA_MS } from '@educa/core'
 import type { INestApplication } from '@nestjs/common'
 import { NestFactory } from '@nestjs/core'
 import { existsSync, mkdtempSync, statSync } from 'node:fs'

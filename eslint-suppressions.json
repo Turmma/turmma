@@ -978,87 +978,87 @@
       "count": 1
     }
   },
-  "packages/nucleo/src/auditoria/acoes.ts": {
+  "packages/core/src/auditoria/acoes.ts": {
     "complexity": {
       "count": 1
     }
   },
-  "packages/nucleo/src/auditoria/registro-de-auditoria.ts": {
+  "packages/core/src/auditoria/auditoria-recorder.ts": {
     "complexity": {
       "count": 1
     }
   },
-  "packages/nucleo/src/config/config-ia.ts": {
+  "packages/core/src/config/llm-config.ts": {
     "complexity": {
       "count": 1
     }
   },
-  "packages/nucleo/src/configuracao/configuracao-operacional.ts": {
+  "packages/core/src/settings/operational-settings.ts": {
     "complexity": {
       "count": 1
     }
   },
-  "packages/nucleo/src/db/schema/mvp/tabelas-do-mvp.int.test.ts": {
+  "packages/core/src/db/schema/mvp/mvp-tables.int.test.ts": {
     "complexity": {
       "count": 1
     }
   },
-  "packages/nucleo/src/erro/filtro-global.ts": {
+  "packages/core/src/error/all-exceptions.filter.ts": {
     "complexity": {
       "count": 1
     }
   },
-  "packages/nucleo/src/fila/job-registro.repository.ts": {
+  "packages/core/src/queue/job-outbox.repository.ts": {
     "complexity": {
       "count": 1
     }
   },
-  "packages/nucleo/src/ia/adaptador-openai-compat.ts": {
+  "packages/core/src/ia/openai-compat-adapter.ts": {
     "complexity": {
       "count": 1
     }
   },
-  "packages/nucleo/src/ia/material.ts": {
+  "packages/core/src/ia/material.ts": {
     "complexity": {
       "count": 1
     }
   },
-  "packages/nucleo/src/ia/provedor.ts": {
+  "packages/core/src/ia/llm-gateway.ts": {
     "complexity": {
       "count": 1
     }
   },
-  "packages/nucleo/src/ia/tarefas/gerar-atividade-objetiva.ts": {
+  "packages/core/src/ia/tasks/gerar-atividade-objetiva.ts": {
     "complexity": {
       "count": 1
     }
   },
-  "packages/nucleo/src/ia/tarefas/propor-ferramenta.ts": {
+  "packages/core/src/ia/tasks/propor-ferramenta.ts": {
     "complexity": {
       "count": 2
     }
   },
-  "packages/nucleo/src/ia/tarefas/resumo-do-analista.ts": {
+  "packages/core/src/ia/tasks/resumo-do-analista.ts": {
     "complexity": {
       "count": 1
     }
   },
-  "packages/nucleo/src/ia/tarefas/turno-do-tutor.ts": {
+  "packages/core/src/ia/tasks/turno-do-tutor.ts": {
     "complexity": {
       "count": 1
     }
   },
-  "packages/nucleo/src/identidade/guarda-sessao.ts": {
+  "packages/core/src/identidade/sessao.guard.ts": {
     "complexity": {
       "count": 1
     }
   },
-  "packages/nucleo/src/limite/guarda-limite.ts": {
+  "packages/core/src/rate-limit/rate-limit.guard.ts": {
     "complexity": {
       "count": 1
     }
   },
-  "packages/nucleo/src/log/logger.ts": {
+  "packages/core/src/log/logger.ts": {
     "complexity": {
       "count": 1
     }

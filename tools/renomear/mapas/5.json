@@ -1,0 +1,4526 @@
+{
+  "entradas": [
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/erro/erro-de-dominio.ts",
+      "para": "packages/nucleo/src/erro/domain.exception.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:949"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/erro/erro-de-dominio.test.ts",
+      "para": "packages/nucleo/src/erro/domain.exception.test.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:950"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/erro/filtro-global.ts",
+      "para": "packages/nucleo/src/erro/all-exceptions.filter.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:951"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/erro/mapear-erro-postgres.ts",
+      "para": "packages/nucleo/src/erro/map-postgres-error.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:952"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/erro/mapear-erro-postgres.test.ts",
+      "para": "packages/nucleo/src/erro/map-postgres-error.test.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:953"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/erro/resumir-erro.ts",
+      "para": "packages/nucleo/src/erro/summarize-error.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:954"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/fila/despacho.repository.ts",
+      "para": "packages/nucleo/src/fila/dispatch.repository.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:955"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/fila/efeito-sintetico.repository.ts",
+      "para": "packages/nucleo/src/fila/synthetic-effect.repository.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:956"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/fila/enfileirador.ts",
+      "para": "packages/nucleo/src/fila/job-outbox.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:957"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/fila/filas.ts",
+      "para": "packages/nucleo/src/fila/queues.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:958"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/fila/job-registro.repository.ts",
+      "para": "packages/nucleo/src/fila/job-outbox.repository.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:959"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/fila/ouvinte-de-jobs.ts",
+      "para": "packages/nucleo/src/fila/job-notification-listener.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:960"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/fila/pedido-de-job-recusado.ts",
+      "para": "packages/nucleo/src/fila/job-request-rejected.error.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:961"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/fila/publicacao.ts",
+      "para": "packages/nucleo/src/fila/publishing.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:962"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/fila/publicacao.test.ts",
+      "para": "packages/nucleo/src/fila/publishing.test.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:963"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/fila/vagas-por-escola.ts",
+      "para": "packages/nucleo/src/fila/escola-concurrency-limiter.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:964"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/fila/vaga.lua",
+      "para": "packages/nucleo/src/fila/concurrency-slot.lua",
+      "linhaDoAnexo": "inventario-core-shared.md:965"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/fila/nome-da-fila.test.ts",
+      "para": "packages/nucleo/src/fila/queue-name.test.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:966"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/ia/adaptador.ts",
+      "para": "packages/nucleo/src/ia/adapter.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:967"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/ia/adaptador-falso.ts",
+      "para": "packages/nucleo/src/ia/fake-adapter.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:968"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/ia/adaptador-openai-compat.ts",
+      "para": "packages/nucleo/src/ia/openai-compat-adapter.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:969"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/ia/adaptador-openai-compat.test.ts",
+      "para": "packages/nucleo/src/ia/openai-compat-adapter.test.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:970"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/ia/adaptador-resiliente.ts",
+      "para": "packages/nucleo/src/ia/resilient-adapter.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:971"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/ia/adaptador-resiliente.test.ts",
+      "para": "packages/nucleo/src/ia/resilient-adapter.test.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:972"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/ia/porta.ts",
+      "para": "packages/nucleo/src/ia/port.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:973"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/ia/provedor.ts",
+      "para": "packages/nucleo/src/ia/llm-gateway.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:974"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/ia/provedor.test.ts",
+      "para": "packages/nucleo/src/ia/llm-gateway.test.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:975"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/ia/erros.ts",
+      "para": "packages/nucleo/src/ia/errors.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:976"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/ia/tarefa.ts",
+      "para": "packages/nucleo/src/ia/task.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:977"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/ia/texto.ts",
+      "para": "packages/nucleo/src/ia/text.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:978"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/ia/limpar-saida.ts",
+      "para": "packages/nucleo/src/ia/clean-output.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:979"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/ia/limpar-saida.test.ts",
+      "para": "packages/nucleo/src/ia/clean-output.test.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:980"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/ia/ouro.test.ts",
+      "para": "packages/nucleo/src/ia/golden.test.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:981"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/ia/selo-do-ouro.test.ts",
+      "para": "packages/nucleo/src/ia/golden-seal.test.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:982"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/ia/__fixtures__/adaptador-roteirizado.ts",
+      "para": "packages/nucleo/src/ia/__fixtures__/scripted-adapter.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:983"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/ia/__fixtures__/amostras-do-assistente.ts",
+      "para": "packages/nucleo/src/ia/__fixtures__/assistente-samples.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:984"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/ia/__fixtures__/amostras-do-assistente-revisao.ts",
+      "para": "packages/nucleo/src/ia/__fixtures__/assistente-review-samples.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:985"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/ia/__fixtures__/amostras-do-tutor.ts",
+      "para": "packages/nucleo/src/ia/__fixtures__/tutor-samples.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:986"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/ia/__fixtures__/contexto-da-escola.ts",
+      "para": "packages/nucleo/src/ia/__fixtures__/escola-context.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:987"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/ia/__fixtures__/entradas.ts",
+      "para": "packages/nucleo/src/ia/__fixtures__/inputs.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:988"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/ia/__fixtures__/ouro.ts",
+      "para": "packages/nucleo/src/ia/__fixtures__/golden.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:989"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/ia/__fixtures__/servidor-llama-falso.ts",
+      "para": "packages/nucleo/src/ia/__fixtures__/fake-llama-server.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:990"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/contexto/contexto.ts",
+      "para": "packages/nucleo/src/contexto/context.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:991"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/contexto/contexto.test.ts",
+      "para": "packages/nucleo/src/contexto/context.test.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:992"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/contexto/escola-do-contexto.ts",
+      "para": "packages/nucleo/src/contexto/context-escola.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:993"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/limite/chaves.ts",
+      "para": "packages/nucleo/src/limite/keys.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:994"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/limite/chaves.test.ts",
+      "para": "packages/nucleo/src/limite/keys.test.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:995"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/limite/guarda-limite.ts",
+      "para": "packages/nucleo/src/limite/rate-limit.guard.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:996"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/limite/limitador.ts",
+      "para": "packages/nucleo/src/limite/rate-limiter.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:997"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/limite/limite-da-busca-de-titulares.decorator.ts",
+      "para": "packages/nucleo/src/limite/titular-search-rate-limit.decorator.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:998"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/limite/proporcao-em-janela.ts",
+      "para": "packages/nucleo/src/limite/sliding-window-ratio.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:999"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/limite/proporcao-em-janela.test.ts",
+      "para": "packages/nucleo/src/limite/sliding-window-ratio.test.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:1000"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/limite/proxies-confiaveis.ts",
+      "para": "packages/nucleo/src/limite/trusted-proxies.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:1001"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/limite/proxies-confiaveis.test.ts",
+      "para": "packages/nucleo/src/limite/trusted-proxies.test.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:1002"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/limite/rota-anonima.decorator.ts",
+      "para": "packages/nucleo/src/limite/route-markers.decorator.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:1003"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/identidade/emissor-de-token.ts",
+      "para": "packages/nucleo/src/identidade/token-issuer.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:1004"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/identidade/emissor-de-token.test.ts",
+      "para": "packages/nucleo/src/identidade/token-issuer.test.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:1005"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/identidade/guarda-autenticacao.ts",
+      "para": "packages/nucleo/src/identidade/auth.guard.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:1006"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/identidade/guarda-sessao.ts",
+      "para": "packages/nucleo/src/identidade/sessao.guard.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:1007"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/identidade/guarda-sessao.test.ts",
+      "para": "packages/nucleo/src/identidade/sessao.guard.test.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:1008"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/identidade/marcadores-de-operacao.ts",
+      "para": "packages/nucleo/src/identidade/operacao-markers.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:1009"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/identidade/rota-sem-sessao.ts",
+      "para": "packages/nucleo/src/identidade/route-without-sessao.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:1010"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/identidade/rota-sem-sessao.test.ts",
+      "para": "packages/nucleo/src/identidade/route-without-sessao.test.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:1011"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/identidade/token-da-requisicao.ts",
+      "para": "packages/nucleo/src/identidade/request-token.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:1012"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/identidade/verificar-token.ts",
+      "para": "packages/nucleo/src/identidade/verify-token.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:1013"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/identidade/verificar-token.test.ts",
+      "para": "packages/nucleo/src/identidade/verify-token.test.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:1014"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/permissao/conferencia-das-permissoes.ts",
+      "para": "packages/nucleo/src/permissao/permissao-boot-check.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:1015"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/permissao/guarda-permissao.ts",
+      "para": "packages/nucleo/src/permissao/permissao.guard.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:1016"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/permissao/permite.decorator.ts",
+      "para": "packages/nucleo/src/permissao/require-permissao.decorator.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:1017"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/instancia/batimento.ts",
+      "para": "packages/nucleo/src/instancia/heartbeat.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:1018"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/instancia/drenagem.ts",
+      "para": "packages/nucleo/src/instancia/graceful-shutdown.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:1019"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/instancia/drenagem.test.ts",
+      "para": "packages/nucleo/src/instancia/graceful-shutdown.test.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:1020"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/uso/contador-uso.ts",
+      "para": "packages/nucleo/src/uso/usage-meter.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:1021"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/uso/dia-de-uso.ts",
+      "para": "packages/nucleo/src/uso/usage-day.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:1022"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/uso/dia-de-uso.test.ts",
+      "para": "packages/nucleo/src/uso/usage-day.test.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:1023"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/uso/interceptor-de-uso.ts",
+      "para": "packages/nucleo/src/uso/usage.interceptor.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:1024"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/uso/uso.repository.ts",
+      "para": "packages/nucleo/src/uso/usage.repository.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:1025"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/log/aviso-espacado.ts",
+      "para": "packages/nucleo/src/log/throttled-warn.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:1026"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/log/logger-do-nest.ts",
+      "para": "packages/nucleo/src/log/nest-logger.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:1027"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/redis/clientes.ts",
+      "para": "packages/nucleo/src/redis/clients.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:1028"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/redis/clientes.test.ts",
+      "para": "packages/nucleo/src/redis/clients.test.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:1029"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/telemetria/iniciar.ts",
+      "para": "packages/nucleo/src/telemetria/start.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:1030"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/telemetria/metricas.ts",
+      "para": "packages/nucleo/src/telemetria/metrics.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:1031"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/telemetria/metricas.test.ts",
+      "para": "packages/nucleo/src/telemetria/metrics.test.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:1032"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/telemetria/temporalidade.ts",
+      "para": "packages/nucleo/src/telemetria/temporality.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:1033"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/titular/armazem-de-arquivos.ts",
+      "para": "packages/nucleo/src/titular/file-storage.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:1034"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/titular/armazem-s3.ts",
+      "para": "packages/nucleo/src/titular/s3-file-storage.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:1035"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/titular/armazem-s3.int.test.ts",
+      "para": "packages/nucleo/src/titular/s3-file-storage.int.test.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:1036"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/titular/armazem-s3.test.ts",
+      "para": "packages/nucleo/src/titular/s3-file-storage.test.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:1037"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/entrada/entrada.test.ts",
+      "para": "packages/nucleo/src/entrada/pipes.test.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:1038"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/db/banco.ts",
+      "para": "packages/nucleo/src/db/database.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:1039"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/db/migrar.ts",
+      "para": "packages/nucleo/src/db/migrate.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:1040"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/db/migrar.int.test.ts",
+      "para": "packages/nucleo/src/db/migrate.int.test.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:1041"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/db/sem-escopo.decorator.ts",
+      "para": "packages/nucleo/src/db/unscoped.decorator.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:1042"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/db/sem-escopo.decorator.test.ts",
+      "para": "packages/nucleo/src/db/unscoped.decorator.test.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:1043"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/db/schema/mvp/tabelas.ts",
+      "para": "packages/nucleo/src/db/schema/mvp/tables.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:1044"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/config/config-ia.ts",
+      "para": "packages/nucleo/src/config/llm-config.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:1045"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/config/config-ia.test.ts",
+      "para": "packages/nucleo/src/config/llm-config.test.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:1046"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/config/validar-config.ts",
+      "para": "packages/nucleo/src/config/validate-config.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:1047"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/config/validar-config.test.ts",
+      "para": "packages/nucleo/src/config/validate-config.test.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:1048"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/auditoria/insercao-de-auditoria.repository.ts",
+      "para": "packages/nucleo/src/auditoria/auditoria-insert.repository.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:1049"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/auditoria/registro-de-auditoria.ts",
+      "para": "packages/nucleo/src/auditoria/auditoria-recorder.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:1050"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/auditoria/registro-de-auditoria.test.ts",
+      "para": "packages/nucleo/src/auditoria/auditoria-recorder.test.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:1051"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/auditoria/auditoria-recusada.ts",
+      "para": "packages/nucleo/src/auditoria/auditoria-rejected.error.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:1052"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/relogio.ts",
+      "para": "packages/nucleo/src/clock.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:1053"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/rotina/escolas-da-rotina.repository.ts",
+      "para": "packages/nucleo/src/rotina/cron-escolas.repository.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:1054"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/configuracao/configuracao-operacional.ts",
+      "para": "packages/nucleo/src/configuracao/operational-settings.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:1055"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/configuracao/configuracao-operacional.test.ts",
+      "para": "packages/nucleo/src/configuracao/operational-settings.test.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:1056"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/configuracao/configuracao-operacional.repository.ts",
+      "para": "packages/nucleo/src/configuracao/operational-settings.repository.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:1057"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "packages/nucleo/src/db/schema/mvp/tabelas-do-mvp.int.test.ts",
+      "para": "packages/nucleo/src/db/schema/mvp/mvp-tables.int.test.ts",
+      "linhaDoAnexo": "inventario-core-shared.md:1076"
+    },
+    {
+      "tipo": "pasta",
+      "de": "packages/nucleo/src/erro",
+      "para": "packages/nucleo/src/error",
+      "linhaDoAnexo": "inventario-core-shared.md:929"
+    },
+    {
+      "tipo": "pasta",
+      "de": "packages/nucleo/src/entrada",
+      "para": "packages/nucleo/src/pipes",
+      "linhaDoAnexo": "inventario-core-shared.md:930"
+    },
+    {
+      "tipo": "pasta",
+      "de": "packages/nucleo/src/fila",
+      "para": "packages/nucleo/src/queue",
+      "linhaDoAnexo": "inventario-core-shared.md:931"
+    },
+    {
+      "tipo": "pasta",
+      "de": "packages/nucleo/src/limite",
+      "para": "packages/nucleo/src/rate-limit",
+      "linhaDoAnexo": "inventario-core-shared.md:932"
+    },
+    {
+      "tipo": "pasta",
+      "de": "packages/nucleo/src/contexto",
+      "para": "packages/nucleo/src/context",
+      "linhaDoAnexo": "inventario-core-shared.md:933"
+    },
+    {
+      "tipo": "pasta",
+      "de": "packages/nucleo/src/telemetria",
+      "para": "packages/nucleo/src/telemetry",
+      "linhaDoAnexo": "inventario-core-shared.md:934"
+    },
+    {
+      "tipo": "pasta",
+      "de": "packages/nucleo/src/instancia",
+      "para": "packages/nucleo/src/runtime",
+      "linhaDoAnexo": "inventario-core-shared.md:935"
+    },
+    {
+      "tipo": "pasta",
+      "de": "packages/nucleo/src/uso",
+      "para": "packages/nucleo/src/usage",
+      "linhaDoAnexo": "inventario-core-shared.md:936"
+    },
+    {
+      "tipo": "pasta",
+      "de": "packages/nucleo/src/rotina",
+      "para": "packages/nucleo/src/cron",
+      "linhaDoAnexo": "inventario-core-shared.md:937"
+    },
+    {
+      "tipo": "pasta",
+      "de": "packages/nucleo/src/configuracao",
+      "para": "packages/nucleo/src/settings",
+      "linhaDoAnexo": "inventario-core-shared.md:938"
+    },
+    {
+      "tipo": "pasta",
+      "de": "packages/nucleo/src/ia/tarefas",
+      "para": "packages/nucleo/src/ia/tasks",
+      "linhaDoAnexo": "inventario-core-shared.md:939"
+    },
+    {
+      "tipo": "pasta",
+      "de": "tools/guardas/__fixtures__/camadas/packages/nucleo",
+      "para": "tools/guardas/__fixtures__/camadas/packages/core",
+      "linhaDoAnexo": "inventario-core-shared.md:1115"
+    },
+    {
+      "tipo": "pasta",
+      "de": "packages/nucleo",
+      "para": "packages/core",
+      "linhaDoAnexo": "inventario-core-shared.md:13"
+    },
+    {
+      "tipo": "pacote",
+      "de": "@educa/nucleo/armazem-s3",
+      "para": "@educa/core/s3-file-storage",
+      "linhaDoAnexo": "inventario-core-shared.md:14"
+    },
+    {
+      "tipo": "pacote",
+      "de": "@educa/nucleo",
+      "para": "@educa/core",
+      "linhaDoAnexo": "inventario-core-shared.md:13"
+    }
+  ],
+  "ocorrencias": [
+    {
+      "arquivo": "apps/api/src/entrega/entrega.int.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:70",
+      "trecho": "packages/nucleo/src"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "de": "@educa/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:42",
+      "trecho": "/\u0001ContaGlobalRepository\u0001|conta-global.repository|@educa/nucleo/conta-global/"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:42",
+      "trecho": "packages/nucleo/src/ciclo-de-vida/"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:42",
+      "trecho": "packages/nucleo/src/retencao/vaza.ts"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:42",
+      "trecho": "packages/nucleo/src/ciclo-de-vida/ponte.ts"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "de": "@educa/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:42",
+      "trecho": "/** Antes vinha da `ContaGlobalRepository`. */ // e do @educa/nucleo/conta-global"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "de": "packages/nucleo/src/telemetria/metricas.ts",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:1031",
+      "trecho": "apps/api/src/telemetria/metricas.ts"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "de": "packages/nucleo/src/telemetria",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:934",
+      "trecho": "apps/api/src/telemetria/metricas.ts"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:42",
+      "trecho": "ContaGlobalRepository: packages/nucleo/src/retencao/vaza.ts"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "de": "@educa/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:42",
+      "trecho": "nem o barrel do @educa/nucleo nem o subcaminho do ciclo de vida exportam a ContaGlobalRepository, co"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "de": "@educa/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:42",
+      "trecho": "@educa/nucleo"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "de": "@educa/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:42",
+      "trecho": "@educa/nucleo/ciclo-de-vida"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:42",
+      "trecho": "packages/nucleo/src/retencao/expurgo-de-acesso.repository.ts"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:42",
+      "trecho": "packages/nucleo/src/db/schema/operador.ts"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:42",
+      "trecho": "packages/nucleo/src/titular/suboperador-da-escola.repository.ts"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:42",
+      "trecho": "packages/nucleo/src/titular/incidente-da-escola.repository.ts"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:42",
+      "trecho": "packages/nucleo/drizzle"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "de": "@educa/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:42",
+      "trecho": "/(?:import|export)\\s+(?:type\\s+)?{([^}]*)}\\s*from\\s*['\"](@educa/nucleo|[^'\"]*schema/(?:operador|subo"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "de": "@educa/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:42",
+      "trecho": "/import\\s+*\\s+as\\s+(\\w+)\\s+from\\s+['\"]@educa/nucleo['\"]/g"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "de": "@educa/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:42",
+      "trecho": "import { and, operador, sql } from '@educa/nucleo'"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "de": "@educa/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:42",
+      "trecho": "import { type Banco, sessaoOperador as sessoes } from '@educa/nucleo'"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "de": "@educa/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:42",
+      "trecho": "import * as n from '@educa/nucleo' n.conviteOperador"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "de": "@educa/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:42",
+      "trecho": "export { auditoriaOperacao } from '@educa/nucleo'"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:42",
+      "trecho": "import { operador as o } from '../../../../packages/nucleo/src/db/schema/operador.js'"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "de": "@educa/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:42",
+      "trecho": "const operador = lerOperador(ambiente) import { FORMATO_OPERADOR } from '@educa/nucleo' // o operado"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:42",
+      "trecho": "packages/nucleo/src/index.ts"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "de": "@educa/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:42",
+      "trecho": "import { conta, operador } from '@educa/nucleo'"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "de": "@educa/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:42",
+      "trecho": "import { and, suboperador } from '@educa/nucleo'"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "de": "@educa/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:42",
+      "trecho": "import { type Banco, suboperadorEscola as ligacao } from '@educa/nucleo'"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "de": "@educa/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:42",
+      "trecho": "import * as n from '@educa/nucleo' n.suboperador"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "de": "@educa/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:42",
+      "trecho": "export { suboperadorEscola } from '@educa/nucleo'"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:42",
+      "trecho": "import { suboperador as s } from '../../../../packages/nucleo/src/db/schema/suboperador.js'"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:42",
+      "trecho": "packages/nucleo/src/db/schema/suboperador.ts"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "de": "@educa/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:42",
+      "trecho": "import { suboperador, conta } from '@educa/nucleo'"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "de": "@educa/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:42",
+      "trecho": "import { operador, suboperador } from '@educa/nucleo'"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:42",
+      "trecho": "packages/nucleo/src/titular/compartilhamento.ts"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:42",
+      "trecho": "packages/nucleo/src/titular/compartilhamento.repository.ts"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "de": "@educa/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:42",
+      "trecho": "import { and, incidente } from '@educa/nucleo'"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "de": "@educa/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:42",
+      "trecho": "import { type Banco, incidenteEscola as secao } from '@educa/nucleo'"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "de": "@educa/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:42",
+      "trecho": "import * as n from '@educa/nucleo' n.incidenteEscola"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "de": "@educa/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:42",
+      "trecho": "export { incidente } from '@educa/nucleo'"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:42",
+      "trecho": "import { incidente as i } from '../../../../packages/nucleo/src/db/schema/incidente.js'"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:42",
+      "trecho": "packages/nucleo/src/db/schema/incidente.ts"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "de": "packages/nucleo/src/identidade/marcadores-de-operacao.ts",
+      "classe": "trava",
+      "linha": "travas.md:42",
+      "trecho": "packages/nucleo/src/identidade/marcadores-de-operacao.ts"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:42",
+      "trecho": "packages/nucleo/src/identidade/marcadores-de-operacao.ts"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "de": "packages/nucleo/src/permissao/conferencia-das-permissoes.ts",
+      "classe": "trava",
+      "linha": "travas.md:42",
+      "trecho": "packages/nucleo/src/permissao/conferencia-das-permissoes.ts"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:42",
+      "trecho": "packages/nucleo/src/permissao/conferencia-das-permissoes.ts"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "de": "@educa/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:42",
+      "trecho": "import { OPERACAO_ROUTE_KEY } from '@educa/nucleo' SetMetadata(OPERACAO_ROUTE_KEY, true)"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "de": "packages/nucleo/src/limite",
+      "classe": "trava",
+      "linha": "travas.md:42",
+      "trecho": "packages/nucleo/src/limite/outro.ts"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:42",
+      "trecho": "packages/nucleo/src/limite/outro.ts"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "de": "packages/nucleo/src/limite/guarda-limite.ts",
+      "classe": "trava",
+      "linha": "travas.md:42",
+      "trecho": "packages/nucleo/src/limite/guarda-limite.ts"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "de": "packages/nucleo/src/limite",
+      "classe": "trava",
+      "linha": "travas.md:42",
+      "trecho": "packages/nucleo/src/limite/guarda-limite.ts"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:42",
+      "trecho": "packages/nucleo/src/limite/guarda-limite.ts"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "de": "@educa/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:42",
+      "trecho": "import { OPERACAO_ROUTE_KEY } from '@educa/nucleo'"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "de": "packages/nucleo/src/rotina/escolas-da-rotina.repository.ts",
+      "classe": "trava",
+      "linha": "travas.md:110",
+      "trecho": "packages/nucleo/src/rotina/escolas-da-rotina.repository.ts"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "de": "packages/nucleo/src/rotina",
+      "classe": "trava",
+      "linha": "travas.md:110",
+      "trecho": "packages/nucleo/src/rotina/escolas-da-rotina.repository.ts"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:110",
+      "trecho": "packages/nucleo/src/rotina/escolas-da-rotina.repository.ts"
+    },
+    {
+      "arquivo": "apps/api/test/escola-com-assistente.ts",
+      "de": "packages/nucleo/src/limite",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:932",
+      "trecho": "../src/limite.module.js"
+    },
+    {
+      "arquivo": "apps/api/test/limite.int.test.ts",
+      "de": "packages/nucleo/src/limite",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:932",
+      "trecho": "../src/limite.module.js"
+    },
+    {
+      "arquivo": "apps/api/test/sessao-operador.int.test.ts",
+      "de": "packages/nucleo/src/limite",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:932",
+      "trecho": "../src/limite.module.js"
+    },
+    {
+      "arquivo": "eslint-suppressions.json",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:95",
+      "trecho": "\"packages/nucleo/src/auditoria/acoes.ts\": {"
+    },
+    {
+      "arquivo": "eslint-suppressions.json",
+      "de": "packages/nucleo/src/auditoria/registro-de-auditoria.ts",
+      "classe": "trava",
+      "linha": "travas.md:95",
+      "trecho": "\"packages/nucleo/src/auditoria/registro-de-auditoria.ts\": {"
+    },
+    {
+      "arquivo": "eslint-suppressions.json",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:95",
+      "trecho": "\"packages/nucleo/src/auditoria/registro-de-auditoria.ts\": {"
+    },
+    {
+      "arquivo": "eslint-suppressions.json",
+      "de": "packages/nucleo/src/config/config-ia.ts",
+      "classe": "trava",
+      "linha": "travas.md:95",
+      "trecho": "\"packages/nucleo/src/config/config-ia.ts\": {"
+    },
+    {
+      "arquivo": "eslint-suppressions.json",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:95",
+      "trecho": "\"packages/nucleo/src/config/config-ia.ts\": {"
+    },
+    {
+      "arquivo": "eslint-suppressions.json",
+      "de": "packages/nucleo/src/configuracao/configuracao-operacional.ts",
+      "classe": "trava",
+      "linha": "travas.md:95",
+      "trecho": "\"packages/nucleo/src/configuracao/configuracao-operacional.ts\": {"
+    },
+    {
+      "arquivo": "eslint-suppressions.json",
+      "de": "packages/nucleo/src/configuracao",
+      "classe": "trava",
+      "linha": "travas.md:95",
+      "trecho": "\"packages/nucleo/src/configuracao/configuracao-operacional.ts\": {"
+    },
+    {
+      "arquivo": "eslint-suppressions.json",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:95",
+      "trecho": "\"packages/nucleo/src/configuracao/configuracao-operacional.ts\": {"
+    },
+    {
+      "arquivo": "eslint-suppressions.json",
+      "de": "packages/nucleo/src/db/schema/mvp/tabelas-do-mvp.int.test.ts",
+      "classe": "trava",
+      "linha": "travas.md:95",
+      "trecho": "\"packages/nucleo/src/db/schema/mvp/tabelas-do-mvp.int.test.ts\": {"
+    },
+    {
+      "arquivo": "eslint-suppressions.json",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:95",
+      "trecho": "\"packages/nucleo/src/db/schema/mvp/tabelas-do-mvp.int.test.ts\": {"
+    },
+    {
+      "arquivo": "eslint-suppressions.json",
+      "de": "packages/nucleo/src/erro/filtro-global.ts",
+      "classe": "trava",
+      "linha": "travas.md:95",
+      "trecho": "\"packages/nucleo/src/erro/filtro-global.ts\": {"
+    },
+    {
+      "arquivo": "eslint-suppressions.json",
+      "de": "packages/nucleo/src/erro",
+      "classe": "trava",
+      "linha": "travas.md:95",
+      "trecho": "\"packages/nucleo/src/erro/filtro-global.ts\": {"
+    },
+    {
+      "arquivo": "eslint-suppressions.json",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:95",
+      "trecho": "\"packages/nucleo/src/erro/filtro-global.ts\": {"
+    },
+    {
+      "arquivo": "eslint-suppressions.json",
+      "de": "packages/nucleo/src/fila/job-registro.repository.ts",
+      "classe": "trava",
+      "linha": "travas.md:95",
+      "trecho": "\"packages/nucleo/src/fila/job-registro.repository.ts\": {"
+    },
+    {
+      "arquivo": "eslint-suppressions.json",
+      "de": "packages/nucleo/src/fila",
+      "classe": "trava",
+      "linha": "travas.md:95",
+      "trecho": "\"packages/nucleo/src/fila/job-registro.repository.ts\": {"
+    },
+    {
+      "arquivo": "eslint-suppressions.json",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:95",
+      "trecho": "\"packages/nucleo/src/fila/job-registro.repository.ts\": {"
+    },
+    {
+      "arquivo": "eslint-suppressions.json",
+      "de": "packages/nucleo/src/ia/adaptador-openai-compat.ts",
+      "classe": "trava",
+      "linha": "travas.md:95",
+      "trecho": "\"packages/nucleo/src/ia/adaptador-openai-compat.ts\": {"
+    },
+    {
+      "arquivo": "eslint-suppressions.json",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:95",
+      "trecho": "\"packages/nucleo/src/ia/adaptador-openai-compat.ts\": {"
+    },
+    {
+      "arquivo": "eslint-suppressions.json",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:95",
+      "trecho": "\"packages/nucleo/src/ia/material.ts\": {"
+    },
+    {
+      "arquivo": "eslint-suppressions.json",
+      "de": "packages/nucleo/src/ia/provedor.ts",
+      "classe": "trava",
+      "linha": "travas.md:95",
+      "trecho": "\"packages/nucleo/src/ia/provedor.ts\": {"
+    },
+    {
+      "arquivo": "eslint-suppressions.json",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:95",
+      "trecho": "\"packages/nucleo/src/ia/provedor.ts\": {"
+    },
+    {
+      "arquivo": "eslint-suppressions.json",
+      "de": "packages/nucleo/src/ia/tarefas",
+      "classe": "trava",
+      "linha": "travas.md:95",
+      "trecho": "\"packages/nucleo/src/ia/tarefas/gerar-atividade-objetiva.ts\": {"
+    },
+    {
+      "arquivo": "eslint-suppressions.json",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:95",
+      "trecho": "\"packages/nucleo/src/ia/tarefas/gerar-atividade-objetiva.ts\": {"
+    },
+    {
+      "arquivo": "eslint-suppressions.json",
+      "de": "packages/nucleo/src/ia/tarefas",
+      "classe": "trava",
+      "linha": "travas.md:95",
+      "trecho": "\"packages/nucleo/src/ia/tarefas/propor-ferramenta.ts\": {"
+    },
+    {
+      "arquivo": "eslint-suppressions.json",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:95",
+      "trecho": "\"packages/nucleo/src/ia/tarefas/propor-ferramenta.ts\": {"
+    },
+    {
+      "arquivo": "eslint-suppressions.json",
+      "de": "packages/nucleo/src/ia/tarefas",
+      "classe": "trava",
+      "linha": "travas.md:95",
+      "trecho": "\"packages/nucleo/src/ia/tarefas/resumo-do-analista.ts\": {"
+    },
+    {
+      "arquivo": "eslint-suppressions.json",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:95",
+      "trecho": "\"packages/nucleo/src/ia/tarefas/resumo-do-analista.ts\": {"
+    },
+    {
+      "arquivo": "eslint-suppressions.json",
+      "de": "packages/nucleo/src/ia/tarefas",
+      "classe": "trava",
+      "linha": "travas.md:95",
+      "trecho": "\"packages/nucleo/src/ia/tarefas/turno-do-tutor.ts\": {"
+    },
+    {
+      "arquivo": "eslint-suppressions.json",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:95",
+      "trecho": "\"packages/nucleo/src/ia/tarefas/turno-do-tutor.ts\": {"
+    },
+    {
+      "arquivo": "eslint-suppressions.json",
+      "de": "packages/nucleo/src/identidade/guarda-sessao.ts",
+      "classe": "trava",
+      "linha": "travas.md:95",
+      "trecho": "\"packages/nucleo/src/identidade/guarda-sessao.ts\": {"
+    },
+    {
+      "arquivo": "eslint-suppressions.json",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:95",
+      "trecho": "\"packages/nucleo/src/identidade/guarda-sessao.ts\": {"
+    },
+    {
+      "arquivo": "eslint-suppressions.json",
+      "de": "packages/nucleo/src/limite/guarda-limite.ts",
+      "classe": "trava",
+      "linha": "travas.md:95",
+      "trecho": "\"packages/nucleo/src/limite/guarda-limite.ts\": {"
+    },
+    {
+      "arquivo": "eslint-suppressions.json",
+      "de": "packages/nucleo/src/limite",
+      "classe": "trava",
+      "linha": "travas.md:95",
+      "trecho": "\"packages/nucleo/src/limite/guarda-limite.ts\": {"
+    },
+    {
+      "arquivo": "eslint-suppressions.json",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:95",
+      "trecho": "\"packages/nucleo/src/limite/guarda-limite.ts\": {"
+    },
+    {
+      "arquivo": "eslint-suppressions.json",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:95",
+      "trecho": "\"packages/nucleo/src/log/logger.ts\": {"
+    },
+    {
+      "arquivo": "infra/compose.yml",
+      "de": "packages/nucleo/src/db/migrar.ts",
+      "classe": "trava",
+      "linha": "travas.md:121",
+      "trecho": "# lock em 5 s, com 3 tentativas (packages/nucleo/src/db/migrar.ts). Mesma imagem da API."
+    },
+    {
+      "arquivo": "infra/compose.yml",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:121",
+      "trecho": "# lock em 5 s, com 3 tentativas (packages/nucleo/src/db/migrar.ts). Mesma imagem da API."
+    },
+    {
+      "arquivo": "infra/compose.yml",
+      "de": "packages/nucleo/src/instancia/batimento.ts",
+      "classe": "trava",
+      "linha": "travas.md:121",
+      "trecho": "# Sem HTTP: o laço grava o batimento a cada rodada (packages/nucleo/src/instancia/batimento.ts)."
+    },
+    {
+      "arquivo": "infra/compose.yml",
+      "de": "packages/nucleo/src/instancia",
+      "classe": "trava",
+      "linha": "travas.md:121",
+      "trecho": "# Sem HTTP: o laço grava o batimento a cada rodada (packages/nucleo/src/instancia/batimento.ts)."
+    },
+    {
+      "arquivo": "infra/compose.yml",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:121",
+      "trecho": "# Sem HTTP: o laço grava o batimento a cada rodada (packages/nucleo/src/instancia/batimento.ts)."
+    },
+    {
+      "arquivo": "infra/docker/servico.Dockerfile",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:120",
+      "trecho": "COPY packages/nucleo/package.json packages/nucleo/"
+    },
+    {
+      "arquivo": "infra/docker/servico.Dockerfile",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:120",
+      "trecho": "COPY packages/nucleo packages/nucleo"
+    },
+    {
+      "arquivo": "infra/docker/servico.Dockerfile",
+      "de": "@educa/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:120",
+      "trecho": "RUN npm run build -w @educa/shared && npm run build -w @educa/nucleo"
+    },
+    {
+      "arquivo": "infra/docker/servico.Dockerfile",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:120",
+      "trecho": "COPY --from=construcao-api /repo/packages/nucleo/dist packages/nucleo/dist"
+    },
+    {
+      "arquivo": "infra/docker/servico.Dockerfile",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:120",
+      "trecho": "COPY packages/nucleo/drizzle packages/nucleo/drizzle"
+    },
+    {
+      "arquivo": "infra/docker/servico.Dockerfile",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:120",
+      "trecho": "COPY --from=construcao-despachante /repo/packages/nucleo/dist packages/nucleo/dist"
+    },
+    {
+      "arquivo": "infra/docker/servico.Dockerfile",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:120",
+      "trecho": "COPY --from=construcao-realtime /repo/packages/nucleo/dist packages/nucleo/dist"
+    },
+    {
+      "arquivo": "infra/docker/servico.Dockerfile",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:120",
+      "trecho": "COPY --from=construcao-worker /repo/packages/nucleo/dist packages/nucleo/dist"
+    },
+    {
+      "arquivo": "infra/docker/servico.Dockerfile",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:120",
+      "trecho": "COPY --chown=node:node packages/nucleo/package.json packages/nucleo/"
+    },
+    {
+      "arquivo": "infra/scripts/carga-login.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:85",
+      "trecho": "packages/nucleo/dist/index.js"
+    },
+    {
+      "arquivo": "infra/scripts/carga-sala.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:85",
+      "trecho": "packages/nucleo/dist/index.js"
+    },
+    {
+      "arquivo": "infra/scripts/ensaio-alertas.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:85",
+      "trecho": "packages/nucleo/dist/index.js"
+    },
+    {
+      "arquivo": "knip.json",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:98",
+      "trecho": "\"packages/nucleo\": {"
+    },
+    {
+      "arquivo": "knip.json",
+      "de": "packages/nucleo/src/db/migrar.ts",
+      "classe": "trava",
+      "linha": "travas.md:98",
+      "trecho": "\"src/db/migrar.ts\""
+    },
+    {
+      "arquivo": "package.json",
+      "de": "@educa/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:97",
+      "trecho": "\"build\": \"npm run build -w @educa/shared && npm run build -w @educa/nucleo && npm run build -w @educ"
+    },
+    {
+      "arquivo": "package.json",
+      "de": "@educa/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:97",
+      "trecho": "\"ops:sessao-sintetica\": \"npm run -s build -w @educa/shared && npm run -s build -w @educa/nucleo && n"
+    },
+    {
+      "arquivo": "package.json",
+      "de": "@educa/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:97",
+      "trecho": "\"ops:escola\": \"npm run -s build -w @educa/shared && npm run -s build -w @educa/nucleo && npm run -s "
+    },
+    {
+      "arquivo": "package.json",
+      "de": "@educa/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:97",
+      "trecho": "\"ops:convite-coordenador\": \"npm run -s build -w @educa/shared && npm run -s build -w @educa/nucleo &"
+    },
+    {
+      "arquivo": "package.json",
+      "de": "@educa/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:97",
+      "trecho": "\"ops:revogar-convite\": \"npm run -s build -w @educa/shared && npm run -s build -w @educa/nucleo && np"
+    },
+    {
+      "arquivo": "package.json",
+      "de": "@educa/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:97",
+      "trecho": "\"ops:redefinir-mfa\": \"npm run -s build -w @educa/shared && npm run -s build -w @educa/nucleo && npm "
+    },
+    {
+      "arquivo": "package.json",
+      "de": "@educa/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:97",
+      "trecho": "\"ops:operador\": \"npm run -s build -w @educa/shared && npm run -s build -w @educa/nucleo && npm run -"
+    },
+    {
+      "arquivo": "package.json",
+      "de": "@educa/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:97",
+      "trecho": "\"ops:revogar-acessos-sala\": \"npm run -s build -w @educa/shared && npm run -s build -w @educa/nucleo "
+    },
+    {
+      "arquivo": "package.json",
+      "de": "@educa/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:97",
+      "trecho": "\"ops:retencao\": \"npm run -s build -w @educa/shared && npm run -s build -w @educa/nucleo && npm run -"
+    },
+    {
+      "arquivo": "package.json",
+      "de": "@educa/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:97",
+      "trecho": "\"ops:suboperador\": \"npm run -s build -w @educa/shared && npm run -s build -w @educa/nucleo && npm ru"
+    },
+    {
+      "arquivo": "package.json",
+      "de": "@educa/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:97",
+      "trecho": "\"ops:incidente\": \"npm run -s build -w @educa/shared && npm run -s build -w @educa/nucleo && npm run "
+    },
+    {
+      "arquivo": "package.json",
+      "de": "@educa/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:97",
+      "trecho": "\"ops:privacidade\": \"npm run -s build -w @educa/shared && npm run -s build -w @educa/nucleo && npm ru"
+    },
+    {
+      "arquivo": "package.json",
+      "de": "@educa/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:97",
+      "trecho": "\"ops:uso\": \"npm run -s build -w @educa/shared && npm run -s build -w @educa/nucleo && npm run -s bui"
+    },
+    {
+      "arquivo": "package.json",
+      "de": "@educa/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:97",
+      "trecho": "\"ensaio:alertas\": \"npm run -s build -w @educa/shared && npm run -s build -w @educa/nucleo && npm run"
+    },
+    {
+      "arquivo": "package.json",
+      "de": "@educa/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:97",
+      "trecho": "\"carga:login\": \"npm run -s build -w @educa/shared && npm run -s build -w @educa/nucleo && npm run -s"
+    },
+    {
+      "arquivo": "package.json",
+      "de": "@educa/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:97",
+      "trecho": "\"carga:login:controle-negativo\": \"npm run -s build -w @educa/shared && npm run -s build -w @educa/nu"
+    },
+    {
+      "arquivo": "package.json",
+      "de": "@educa/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:97",
+      "trecho": "\"carga:sala\": \"npm run -s build -w @educa/shared && npm run -s build -w @educa/nucleo && npm run -s "
+    },
+    {
+      "arquivo": "package.json",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:97",
+      "trecho": "\"db:gerar\": \"drizzle-kit generate --config packages/nucleo/drizzle.config.ts\","
+    },
+    {
+      "arquivo": "packages/core/drizzle.config.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:122",
+      "trecho": "./packages/nucleo/src/db/schema/*.ts"
+    },
+    {
+      "arquivo": "packages/core/drizzle.config.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:122",
+      "trecho": "./packages/nucleo/drizzle"
+    },
+    {
+      "arquivo": "packages/core/package.json",
+      "de": "packages/nucleo/src/fila/vaga.lua",
+      "classe": "trava",
+      "linha": "travas.md:87",
+      "trecho": "\"build\": \"tsc -p tsconfig.build.json && cp src/fila/vaga.lua dist/fila/vaga.lua\","
+    },
+    {
+      "arquivo": "packages/core/package.json",
+      "de": "packages/nucleo/src/fila",
+      "classe": "trava",
+      "linha": "travas.md:87",
+      "trecho": "\"build\": \"tsc -p tsconfig.build.json && cp src/fila/vaga.lua dist/fila/vaga.lua\","
+    },
+    {
+      "arquivo": "packages/core/src/auditoria/porta-unica.test.ts",
+      "de": "packages/nucleo/src/auditoria/insercao-de-auditoria.repository.ts",
+      "classe": "trava",
+      "linha": "travas.md:57",
+      "trecho": "packages/nucleo/src/auditoria/insercao-de-auditoria.repository.ts"
+    },
+    {
+      "arquivo": "packages/core/src/auditoria/porta-unica.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:57",
+      "trecho": "packages/nucleo/src/auditoria/insercao-de-auditoria.repository.ts"
+    },
+    {
+      "arquivo": "packages/core/src/auditoria/porta-unica.test.ts",
+      "de": "packages/nucleo/src/auditoria/registro-de-auditoria.ts",
+      "classe": "trava",
+      "linha": "travas.md:57",
+      "trecho": "packages/nucleo/src/auditoria/registro-de-auditoria.ts"
+    },
+    {
+      "arquivo": "packages/core/src/auditoria/porta-unica.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:57",
+      "trecho": "packages/nucleo/src/auditoria/registro-de-auditoria.ts"
+    },
+    {
+      "arquivo": "packages/core/src/auditoria/porta-unica.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:57",
+      "trecho": "packages/nucleo/src/auditoria/auditoria.repository.ts"
+    },
+    {
+      "arquivo": "packages/core/src/auditoria/porta-unica.test.ts",
+      "de": "packages/nucleo/src/auditoria/insercao-de-auditoria.repository.ts",
+      "classe": "trava",
+      "linha": "travas.md:57",
+      "trecho": "import { insertAuditoria, } from \"../auditoria/insercao-de-auditoria.repository\""
+    },
+    {
+      "arquivo": "packages/core/src/auditoria/porta-unica.test.ts",
+      "de": "packages/nucleo/src/auditoria/insercao-de-auditoria.repository.ts",
+      "classe": "trava",
+      "linha": "travas.md:57",
+      "trecho": "arquivo: 'packages/nucleo/src/auditoria/insercao-de-auditoria.repository.ts',"
+    },
+    {
+      "arquivo": "packages/core/src/auditoria/porta-unica.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:57",
+      "trecho": "arquivo: 'packages/nucleo/src/auditoria/insercao-de-auditoria.repository.ts',"
+    },
+    {
+      "arquivo": "packages/core/src/auditoria/porta-unica.test.ts",
+      "de": "packages/nucleo/src/auditoria/insercao-de-auditoria.repository.ts",
+      "classe": "trava",
+      "linha": "travas.md:57",
+      "trecho": "const MODULO = 'packages/nucleo/src/auditoria/insercao-de-auditoria.repository.ts'"
+    },
+    {
+      "arquivo": "packages/core/src/auditoria/porta-unica.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:57",
+      "trecho": "const MODULO = 'packages/nucleo/src/auditoria/insercao-de-auditoria.repository.ts'"
+    },
+    {
+      "arquivo": "packages/core/src/ia/golden.test.ts",
+      "de": "packages/nucleo/src/ia/__fixtures__/ouro.ts",
+      "classe": "trava",
+      "linha": "travas.md:125",
+      "trecho": "file:///fabricada/packages/nucleo/src/ia/__fixtures__/ouro.ts"
+    },
+    {
+      "arquivo": "packages/core/src/ia/golden.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:125",
+      "trecho": "file:///fabricada/packages/nucleo/src/ia/__fixtures__/ouro.ts"
+    },
+    {
+      "arquivo": "tools/ci/borda.test.ts",
+      "de": "packages/nucleo/src/instancia/drenagem.ts",
+      "classe": "trava",
+      "linha": "travas.md:99",
+      "trecho": "packages/nucleo/src/instancia/drenagem.ts"
+    },
+    {
+      "arquivo": "tools/ci/borda.test.ts",
+      "de": "packages/nucleo/src/instancia",
+      "classe": "trava",
+      "linha": "travas.md:99",
+      "trecho": "packages/nucleo/src/instancia/drenagem.ts"
+    },
+    {
+      "arquivo": "tools/ci/borda.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:99",
+      "trecho": "packages/nucleo/src/instancia/drenagem.ts"
+    },
+    {
+      "arquivo": "tools/ci/borda.test.ts",
+      "de": "packages/nucleo/src/erro/erro-de-dominio.ts",
+      "classe": "trava",
+      "linha": "travas.md:99",
+      "trecho": "packages/nucleo/src/erro/erro-de-dominio.ts"
+    },
+    {
+      "arquivo": "tools/ci/borda.test.ts",
+      "de": "packages/nucleo/src/erro",
+      "classe": "trava",
+      "linha": "travas.md:99",
+      "trecho": "packages/nucleo/src/erro/erro-de-dominio.ts"
+    },
+    {
+      "arquivo": "tools/ci/borda.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:99",
+      "trecho": "packages/nucleo/src/erro/erro-de-dominio.ts"
+    },
+    {
+      "arquivo": "tools/ci/caminhos-da-esteira.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:99",
+      "trecho": "packages/nucleo/src/x.ts"
+    },
+    {
+      "arquivo": "tools/ci/dockerfile.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:99",
+      "trecho": "COPY packages/nucleo/drizzle packages/nucleo/drizzle"
+    },
+    {
+      "arquivo": "tools/ci/dockerfile.test.ts",
+      "de": "@educa/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:99",
+      "trecho": "@educa/nucleo"
+    },
+    {
+      "arquivo": "tools/ci/resolucao-do-shared.test.ts",
+      "de": "packages/nucleo/src/contexto/contexto.ts",
+      "classe": "trava",
+      "linha": "travas.md:99",
+      "trecho": "packages/nucleo/src/contexto/contexto.ts"
+    },
+    {
+      "arquivo": "tools/ci/resolucao-do-shared.test.ts",
+      "de": "packages/nucleo/src/contexto",
+      "classe": "trava",
+      "linha": "travas.md:99",
+      "trecho": "packages/nucleo/src/contexto/contexto.ts"
+    },
+    {
+      "arquivo": "tools/ci/resolucao-do-shared.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:99",
+      "trecho": "packages/nucleo/src/contexto/contexto.ts"
+    },
+    {
+      "arquivo": "tools/guardas/__fixtures__/camadas/e2e/usa-conta-global.spec.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:37",
+      "trecho": "../packages/nucleo/src/ciclo-de-vida/conta-global.repository.js"
+    },
+    {
+      "arquivo": "tools/guardas/__fixtures__/camadas/infra/conta-global-dinamico.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:37",
+      "trecho": "../packages/nucleo/src/ciclo-de-vida/conta-global.repository.js"
+    },
+    {
+      "arquivo": "tools/guardas/__fixtures__/camadas/infra/conta-global-import.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:37",
+      "trecho": "../packages/nucleo/src/ciclo-de-vida/conta-global.repository.js"
+    },
+    {
+      "arquivo": "tools/guardas/__fixtures__/camadas/infra/conta-global-reexporta.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:37",
+      "trecho": "../packages/nucleo/src/ciclo-de-vida/conta-global.repository.js"
+    },
+    {
+      "arquivo": "tools/guardas/__fixtures__/camadas/infra/test/usa-conta-global.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:37",
+      "trecho": "../../packages/nucleo/src/ciclo-de-vida/conta-global.repository.js"
+    },
+    {
+      "arquivo": "tools/guardas/__fixtures__/camadas/tools/conta-global.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:37",
+      "trecho": "../packages/nucleo/src/ciclo-de-vida/conta-global.repository.js"
+    },
+    {
+      "arquivo": "tools/guardas/__fixtures__/filtros/knip.json",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:126",
+      "trecho": "\"packages/nucleo\": {"
+    },
+    {
+      "arquivo": "tools/guardas/__fixtures__/filtros/knip.json",
+      "de": "packages/nucleo/src/db/migrar.ts",
+      "classe": "trava",
+      "linha": "travas.md:126",
+      "trecho": "\"src/db/migrar.ts\""
+    },
+    {
+      "arquivo": "tools/guardas/__fixtures__/tabela-fora-do-repository.ts",
+      "de": "@educa/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:35",
+      "trecho": "@educa/nucleo"
+    },
+    {
+      "arquivo": "tools/guardas/__fixtures__/tabela-fora-do-repository.ts",
+      "de": "@educa/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:35",
+      "trecho": "@educa/nucleo/ciclo-de-vida"
+    },
+    {
+      "arquivo": "tools/guardas/camadas.cjs",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:37",
+      "trecho": "^packages/nucleo/src/ciclo-de-vida/conta-global.repository.ts$"
+    },
+    {
+      "arquivo": "tools/guardas/camadas.cjs",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:37",
+      "trecho": "^(?:packages/nucleo|apps)/"
+    },
+    {
+      "arquivo": "tools/guardas/camadas.cjs",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:37",
+      "trecho": "^packages/nucleo/"
+    },
+    {
+      "arquivo": "tools/guardas/camadas.cjs",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:37",
+      "trecho": "^(?:packages/nucleo/|apps/(?!web/))"
+    },
+    {
+      "arquivo": "tools/guardas/camadas.cjs",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:37",
+      "trecho": "^(?:apps/api/src|packages/nucleo/src)/.*\\.repository\\.ts$"
+    },
+    {
+      "arquivo": "tools/guardas/camadas.cjs",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:37",
+      "trecho": "^packages/nucleo/src/retencao/expurgo-da-escola\\.repository\\.ts$"
+    },
+    {
+      "arquivo": "tools/guardas/camadas.cjs",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:37",
+      "trecho": "^packages/nucleo/src/ciclo-de-vida/"
+    },
+    {
+      "arquivo": "tools/guardas/camadas.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:37",
+      "trecho": "../../packages/nucleo"
+    },
+    {
+      "arquivo": "tools/guardas/camadas.test.ts",
+      "de": "@educa/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:37",
+      "trecho": "node_modules/@educa/nucleo"
+    },
+    {
+      "arquivo": "tools/guardas/camadas.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:37",
+      "trecho": "packages/shared/src/pacotes/para-nucleo.ts -> packages/nucleo/src/x.ts"
+    },
+    {
+      "arquivo": "tools/guardas/camadas.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:37",
+      "trecho": "packages/nucleo/src/pacotes/para-app.ts -> apps/api/src/y.ts"
+    },
+    {
+      "arquivo": "tools/guardas/camadas.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:37",
+      "trecho": "apps/web/src/usa-nucleo.ts -> packages/nucleo/src/x.ts"
+    },
+    {
+      "arquivo": "tools/guardas/camadas.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:37",
+      "trecho": "packages/nucleo/src/producao-usa-teste.ts -> packages/nucleo/test/helper.ts"
+    },
+    {
+      "arquivo": "tools/guardas/camadas.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:37",
+      "trecho": "packages/nucleo/src/retencao/outro.repository.ts -> packages/nucleo/src/ciclo-de-vida/ciclo-de-vida."
+    },
+    {
+      "arquivo": "tools/guardas/camadas.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:37",
+      "trecho": "apps/worker/src/eliminar.ts -> packages/nucleo/src/ciclo-de-vida/conta-global.repository.ts"
+    },
+    {
+      "arquivo": "tools/guardas/camadas.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:37",
+      "trecho": "infra/conta-global-dinamico.ts -> packages/nucleo/src/ciclo-de-vida/conta-global.repository.ts"
+    },
+    {
+      "arquivo": "tools/guardas/camadas.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:37",
+      "trecho": "infra/conta-global-import.ts -> packages/nucleo/src/ciclo-de-vida/conta-global.repository.ts"
+    },
+    {
+      "arquivo": "tools/guardas/camadas.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:37",
+      "trecho": "infra/conta-global-reexporta.ts -> packages/nucleo/src/ciclo-de-vida/conta-global.repository.ts"
+    },
+    {
+      "arquivo": "tools/guardas/camadas.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:37",
+      "trecho": "infra/subcaminho.ts -> packages/nucleo/src/ciclo-de-vida/conta-global.repository.ts"
+    },
+    {
+      "arquivo": "tools/guardas/camadas.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:37",
+      "trecho": "packages/nucleo/src/retencao/atalho.ts -> packages/nucleo/src/ciclo-de-vida/conta-global.repository."
+    },
+    {
+      "arquivo": "tools/guardas/camadas.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:37",
+      "trecho": "tools/conta-global.ts -> packages/nucleo/src/ciclo-de-vida/conta-global.repository.ts"
+    },
+    {
+      "arquivo": "tools/guardas/camadas.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:37",
+      "trecho": "packages/nucleo/src/ciclo-de-vida/conta-global.repository.ts"
+    },
+    {
+      "arquivo": "tools/guardas/escopo-dos-repositories.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:34",
+      "trecho": "packages/nucleo/src/auditoria/auditoria.repository.ts"
+    },
+    {
+      "arquivo": "tools/guardas/escopo-dos-repositories.ts",
+      "de": "packages/nucleo/src/auditoria/insercao-de-auditoria.repository.ts",
+      "classe": "trava",
+      "linha": "travas.md:34",
+      "trecho": "packages/nucleo/src/auditoria/insercao-de-auditoria.repository.ts"
+    },
+    {
+      "arquivo": "tools/guardas/escopo-dos-repositories.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:34",
+      "trecho": "packages/nucleo/src/auditoria/insercao-de-auditoria.repository.ts"
+    },
+    {
+      "arquivo": "tools/guardas/escopo-dos-repositories.ts",
+      "de": "packages/nucleo/src/fila/job-registro.repository.ts",
+      "classe": "trava",
+      "linha": "travas.md:34",
+      "trecho": "packages/nucleo/src/fila/job-registro.repository.ts"
+    },
+    {
+      "arquivo": "tools/guardas/escopo-dos-repositories.ts",
+      "de": "packages/nucleo/src/fila",
+      "classe": "trava",
+      "linha": "travas.md:34",
+      "trecho": "packages/nucleo/src/fila/job-registro.repository.ts"
+    },
+    {
+      "arquivo": "tools/guardas/escopo-dos-repositories.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:34",
+      "trecho": "packages/nucleo/src/fila/job-registro.repository.ts"
+    },
+    {
+      "arquivo": "tools/guardas/escopo-dos-repositories.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:34",
+      "trecho": "packages/nucleo/src/identidade/sessao.repository.ts"
+    },
+    {
+      "arquivo": "tools/guardas/escopo-dos-repositories.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:34",
+      "trecho": "packages/nucleo/src/titular/compartilhamento.repository.ts"
+    },
+    {
+      "arquivo": "tools/guardas/filtros-casam.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:123",
+      "trecho": "packages/nucleo/src/index.ts"
+    },
+    {
+      "arquivo": "tools/guardas/filtros-casam.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:123",
+      "trecho": "packages/nucleo/dist/index.js"
+    },
+    {
+      "arquivo": "tools/guardas/filtros-casam.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:123",
+      "trecho": "^packages/nucleo/src/sessao/tenant/resolucao-de-tenant\\.repository\\.ts$"
+    },
+    {
+      "arquivo": "tools/guardas/filtros-casam.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:123",
+      "trecho": "camadas: \"^packages/nucleo/src/sessao/tenant/resolucao-de-tenant\\.repository\\.ts$\" não casa com nenh"
+    },
+    {
+      "arquivo": "tools/guardas/filtros-casam.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:123",
+      "trecho": "^packages/nucleo/dist/"
+    },
+    {
+      "arquivo": "tools/guardas/filtros-casam.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:123",
+      "trecho": "packages/nucleo/dist/sumiu.js"
+    },
+    {
+      "arquivo": "tools/guardas/guardas.test.ts",
+      "de": "packages/nucleo/src/fila",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:931",
+      "trecho": "apps/api/src/fila/paginacao.ts"
+    },
+    {
+      "arquivo": "tools/guardas/guardas.test.ts",
+      "de": "packages/nucleo/src/ia/adaptador-openai-compat.ts",
+      "classe": "trava",
+      "linha": "travas.md:63",
+      "trecho": "packages/nucleo/src/ia/adaptador-openai-compat.ts"
+    },
+    {
+      "arquivo": "tools/guardas/guardas.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:63",
+      "trecho": "packages/nucleo/src/ia/adaptador-openai-compat.ts"
+    },
+    {
+      "arquivo": "tools/guardas/guardas.test.ts",
+      "de": "packages/nucleo/src/fila",
+      "classe": "trava",
+      "linha": "travas.md:123",
+      "trecho": "packages/nucleo/src/fila/worker.ts"
+    },
+    {
+      "arquivo": "tools/guardas/guardas.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:123",
+      "trecho": "packages/nucleo/src/fila/worker.ts"
+    },
+    {
+      "arquivo": "tools/guardas/guardas.test.ts",
+      "de": "packages/nucleo/src/fila",
+      "classe": "trava",
+      "linha": "travas.md:123",
+      "trecho": "packages/nucleo/src/fila/despachante.ts"
+    },
+    {
+      "arquivo": "tools/guardas/guardas.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:123",
+      "trecho": "packages/nucleo/src/fila/despachante.ts"
+    },
+    {
+      "arquivo": "tools/guardas/guardas.test.ts",
+      "de": "@educa/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:35",
+      "trecho": "@educa/nucleo"
+    },
+    {
+      "arquivo": "tools/guardas/guardas.test.ts",
+      "de": "packages/nucleo/src/ia/porta.ts",
+      "classe": "fica",
+      "linha": "inventario-core-shared.md:973",
+      "trecho": "apps/api/src/ia/porta.ts"
+    },
+    {
+      "arquivo": "tools/guardas/guardas.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:123",
+      "trecho": "packages/nucleo/src/modelo.ts"
+    },
+    {
+      "arquivo": "tools/guardas/guardas.test.ts",
+      "de": "packages/nucleo/src/ia/porta.ts",
+      "classe": "trava",
+      "linha": "travas.md:63",
+      "trecho": "packages/nucleo/src/ia/porta.ts"
+    },
+    {
+      "arquivo": "tools/guardas/guardas.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:63",
+      "trecho": "packages/nucleo/src/ia/porta.ts"
+    },
+    {
+      "arquivo": "tools/guardas/guardas.test.ts",
+      "de": "packages/nucleo/src/ia/adaptador.ts",
+      "classe": "trava",
+      "linha": "travas.md:63",
+      "trecho": "packages/nucleo/src/ia/adaptador.ts"
+    },
+    {
+      "arquivo": "tools/guardas/guardas.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:63",
+      "trecho": "packages/nucleo/src/ia/adaptador.ts"
+    },
+    {
+      "arquivo": "tools/guardas/guardas.test.ts",
+      "de": "packages/nucleo/src/ia/adaptador-falso.ts",
+      "classe": "trava",
+      "linha": "travas.md:63",
+      "trecho": "packages/nucleo/src/ia/adaptador-falso.ts"
+    },
+    {
+      "arquivo": "tools/guardas/guardas.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:123",
+      "trecho": "packages/nucleo/src/x/x.service.ts"
+    },
+    {
+      "arquivo": "tools/guardas/guardas.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:123",
+      "trecho": "packages/nucleo/src/titular/x.repository.ts"
+    },
+    {
+      "arquivo": "tools/guardas/guardas.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:123",
+      "trecho": "packages/nucleo/src/db/schema/x.ts"
+    },
+    {
+      "arquivo": "tools/guardas/guardas.test.ts",
+      "de": "packages/nucleo/src/db/banco.ts",
+      "classe": "trava",
+      "linha": "travas.md:123",
+      "trecho": "packages/nucleo/src/db/banco.ts"
+    },
+    {
+      "arquivo": "tools/guardas/guardas.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:123",
+      "trecho": "packages/nucleo/src/db/banco.ts"
+    },
+    {
+      "arquivo": "tools/guardas/guardas.test.ts",
+      "de": "@educa/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:35",
+      "trecho": "import { escola } from '@educa/nucleo' export const x = escola"
+    },
+    {
+      "arquivo": "tools/guardas/guardas.test.ts",
+      "de": "@educa/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:35",
+      "trecho": "import { escola } from '@educa/nucleo'"
+    },
+    {
+      "arquivo": "tools/guardas/guardas.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:123",
+      "trecho": "packages/nucleo/src/x/x.ts"
+    },
+    {
+      "arquivo": "tools/guardas/guardas.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:123",
+      "trecho": "packages/nucleo/src/x.ts"
+    },
+    {
+      "arquivo": "tools/guardas/guardas.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:123",
+      "trecho": "packages/nucleo/src/x/x.test.ts"
+    },
+    {
+      "arquivo": "tools/guardas/guardas.test.ts",
+      "de": "packages/nucleo/src/ia/__fixtures__/entradas.ts",
+      "classe": "trava",
+      "linha": "travas.md:63",
+      "trecho": "packages/nucleo/src/ia/__fixtures__/entradas.ts"
+    },
+    {
+      "arquivo": "tools/guardas/guardas.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:63",
+      "trecho": "packages/nucleo/src/ia/__fixtures__/entradas.ts"
+    },
+    {
+      "arquivo": "tools/guardas/guardas.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:123",
+      "trecho": "fora de apps/*/src e de packages/nucleo/src a regra não vale: %s"
+    },
+    {
+      "arquivo": "tools/guardas/guardas.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:53",
+      "trecho": "packages/nucleo/src/**/*.{ts,tsx}"
+    },
+    {
+      "arquivo": "tools/guardas/guardas.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:63",
+      "trecho": "packages/nucleo/src/ia/adaptador-*.ts"
+    },
+    {
+      "arquivo": "tools/guardas/guardas.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:36",
+      "trecho": "packages/nucleo/src/db/**"
+    },
+    {
+      "arquivo": "tools/guardas/guardas.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:123",
+      "trecho": "packages/nucleo/src/log/logger.test.ts"
+    },
+    {
+      "arquivo": "tools/guardas/guardas.test.ts",
+      "de": "packages/nucleo/src/log/logger-do-nest.ts",
+      "classe": "trava",
+      "linha": "travas.md:123",
+      "trecho": "packages/nucleo/src/log/logger-do-nest.ts"
+    },
+    {
+      "arquivo": "tools/guardas/guardas.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:123",
+      "trecho": "packages/nucleo/src/log/logger-do-nest.ts"
+    },
+    {
+      "arquivo": "tools/guardas/guardas.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:123",
+      "trecho": "packages/nucleo/src/log/logger.ts"
+    },
+    {
+      "arquivo": "tools/guardas/index.mjs",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:53",
+      "trecho": "packages/nucleo/src/**/*.{ts,tsx}"
+    },
+    {
+      "arquivo": "tools/guardas/index.mjs",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:36",
+      "trecho": "packages/nucleo/src/db/**"
+    },
+    {
+      "arquivo": "tools/guardas/index.mjs",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:123",
+      "trecho": "packages/nucleo/src/log/logger.test.ts"
+    },
+    {
+      "arquivo": "tools/guardas/index.mjs",
+      "de": "packages/nucleo/src/log/logger-do-nest.ts",
+      "classe": "trava",
+      "linha": "travas.md:123",
+      "trecho": "packages/nucleo/src/log/logger-do-nest.ts"
+    },
+    {
+      "arquivo": "tools/guardas/index.mjs",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:123",
+      "trecho": "packages/nucleo/src/log/logger-do-nest.ts"
+    },
+    {
+      "arquivo": "tools/guardas/regras-ia.mjs",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:63",
+      "trecho": "packages/nucleo/src/ia/adaptador-*.ts"
+    },
+    {
+      "arquivo": "tools/guardas/regras-ia.mjs",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:63",
+      "trecho": "SDK de provedor de IA só entra em packages/nucleo/src/ia/adaptador-*.ts. O domínio pede a tarefa ao "
+    },
+    {
+      "arquivo": "tools/guardas/regras-tenant.mjs",
+      "de": "@educa/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:35",
+      "trecho": "@educa/nucleo"
+    },
+    {
+      "arquivo": "tools/guardas/regras-tenant.mjs",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:35",
+      "trecho": "Do @educa/nucleo, fora de *.repository.ts, de teste e de packages/nucleo/src/db, só se importa pelo "
+    },
+    {
+      "arquivo": "tools/guardas/regras-tenant.mjs",
+      "de": "@educa/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:35",
+      "trecho": "Do @educa/nucleo, fora de *.repository.ts, de teste e de packages/nucleo/src/db, só se importa pelo "
+    },
+    {
+      "arquivo": "tools/guardas/regras-tenant.mjs",
+      "de": "@educa/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:35",
+      "trecho": "Proíbe trazer de @educa/nucleo, fora de *.repository.ts, uma tabela do schema, o schema ou o módulo "
+    },
+    {
+      "arquivo": "tools/guardas/repositories-com-escopo.test.ts",
+      "de": "packages/nucleo/src/fila/job-registro.repository.ts",
+      "classe": "trava",
+      "linha": "travas.md:34",
+      "trecho": "packages/nucleo/src/fila/job-registro.repository.ts"
+    },
+    {
+      "arquivo": "tools/guardas/repositories-com-escopo.test.ts",
+      "de": "packages/nucleo/src/fila",
+      "classe": "trava",
+      "linha": "travas.md:34",
+      "trecho": "packages/nucleo/src/fila/job-registro.repository.ts"
+    },
+    {
+      "arquivo": "tools/guardas/repositories-com-escopo.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:34",
+      "trecho": "packages/nucleo/src/fila/job-registro.repository.ts"
+    },
+    {
+      "arquivo": "tools/guardas/repositories-com-escopo.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:34",
+      "trecho": "packages/nucleo/src/auditoria/auditoria.repository.ts"
+    },
+    {
+      "arquivo": "tools/guardas/repositories-com-escopo.test.ts",
+      "de": "packages/nucleo/src/auditoria/insercao-de-auditoria.repository.ts",
+      "classe": "trava",
+      "linha": "travas.md:34",
+      "trecho": "packages/nucleo/src/auditoria/insercao-de-auditoria.repository.ts"
+    },
+    {
+      "arquivo": "tools/guardas/repositories-com-escopo.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:34",
+      "trecho": "packages/nucleo/src/auditoria/insercao-de-auditoria.repository.ts"
+    },
+    {
+      "arquivo": "tools/guardas/repositories-com-escopo.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:34",
+      "trecho": "packages/nucleo/src/identidade/sessao.repository.ts"
+    },
+    {
+      "arquivo": "tools/guardas/repositories-com-escopo.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:34",
+      "trecho": "packages/nucleo/src/titular/compartilhamento.repository.ts"
+    },
+    {
+      "arquivo": "tools/guardas/tabelas-do-nucleo.test.ts",
+      "de": "@educa/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:44",
+      "trecho": "@educa/nucleo"
+    },
+    {
+      "arquivo": "tools/ia/medir-risco-a-vida.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:125",
+      "trecho": "../../packages/nucleo/src/ia/"
+    },
+    {
+      "arquivo": "tools/ia/medir-risco-a-vida.test.ts",
+      "de": "packages/nucleo/src/ia/__fixtures__/adaptador-roteirizado.ts",
+      "classe": "trava",
+      "linha": "travas.md:125",
+      "trecho": "__fixtures__/adaptador-roteirizado.ts"
+    },
+    {
+      "arquivo": "tools/ia/medir-risco-a-vida.test.ts",
+      "de": "packages/nucleo/src/contexto/contexto.ts",
+      "classe": "trava",
+      "linha": "travas.md:125",
+      "trecho": "../../packages/nucleo/src/contexto/contexto.ts"
+    },
+    {
+      "arquivo": "tools/ia/medir-risco-a-vida.test.ts",
+      "de": "packages/nucleo/src/contexto",
+      "classe": "trava",
+      "linha": "travas.md:125",
+      "trecho": "../../packages/nucleo/src/contexto/contexto.ts"
+    },
+    {
+      "arquivo": "tools/ia/medir-risco-a-vida.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:125",
+      "trecho": "../../packages/nucleo/src/contexto/contexto.ts"
+    },
+    {
+      "arquivo": "tools/ia/medir-risco-a-vida.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:86",
+      "trecho": "packages/nucleo/dist/index.js"
+    },
+    {
+      "arquivo": "tools/ia/medir-risco-a-vida.ts",
+      "de": "packages/nucleo/src/ia/tarefas",
+      "classe": "trava",
+      "linha": "travas.md:86",
+      "trecho": "packages/nucleo/dist/ia/tarefas/turno-do-tutor.js"
+    },
+    {
+      "arquivo": "tools/ia/medir-risco-a-vida.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:86",
+      "trecho": "packages/nucleo/dist/ia/tarefas/turno-do-tutor.js"
+    },
+    {
+      "arquivo": "tools/processo/harness/caminhos.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:64",
+      "trecho": "packages/nucleo/src/ia/adaptador-*.ts"
+    },
+    {
+      "arquivo": "tools/processo/harness/caminhos.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:64",
+      "trecho": "`packages/nucleo/src/ia/adaptador-<x>.ts`"
+    },
+    {
+      "arquivo": "tools/processo/harness/caminhos.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:64",
+      "trecho": ".claude/rules/10-a.md cita packages/nucleo/src/ia/adaptador-<x>.ts: a pasta packages/nucleo/src/ia n"
+    },
+    {
+      "arquivo": "tools/processo/harness/guardioes.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:124",
+      "trecho": "packages/nucleo/src/x.ts"
+    },
+    {
+      "arquivo": "tools/processo/harness/guardioes.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:124",
+      "trecho": "packages/nucleo/src/titular/leitura-do-titular.ts"
+    },
+    {
+      "arquivo": "tools/processo/linhas.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:124",
+      "trecho": "packages/nucleo/drizzle/0037_x.sql"
+    },
+    {
+      "arquivo": "tools/processo/linhas.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:124",
+      "trecho": "packages/nucleo/drizzle/0037_a.sql"
+    },
+    {
+      "arquivo": "tools/processo/mutacoes.test.ts",
+      "de": "packages/nucleo/src/ia/porta.ts",
+      "classe": "trava",
+      "linha": "travas.md:124",
+      "trecho": "packages/nucleo/src/ia/porta.ts"
+    },
+    {
+      "arquivo": "tools/processo/mutacoes.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:124",
+      "trecho": "packages/nucleo/src/ia/porta.ts"
+    },
+    {
+      "arquivo": "tools/processo/mutacoes.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:124",
+      "trecho": "packages/nucleo/src/retencao/retencao.int.test.ts"
+    },
+    {
+      "arquivo": "tools/processo/mutacoes.test.ts",
+      "de": "packages/nucleo/src/ia/provedor.ts",
+      "classe": "trava",
+      "linha": "travas.md:124",
+      "trecho": "packages/nucleo/src/ia/provedor.ts"
+    },
+    {
+      "arquivo": "tools/processo/mutacoes.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:124",
+      "trecho": "packages/nucleo/src/ia/provedor.ts"
+    },
+    {
+      "arquivo": "tools/processo/portao-local.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:124",
+      "trecho": "packages/nucleo/test/a.int.test.ts"
+    },
+    {
+      "arquivo": "tools/processo/revisoes.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:124",
+      "trecho": "packages/nucleo/src/retencao/expurgo-da-escola.test.ts"
+    },
+    {
+      "arquivo": "tools/processo/revisoes.test.ts",
+      "de": "packages/nucleo",
+      "classe": "trava",
+      "linha": "travas.md:124",
+      "trecho": "packages/nucleo/src/retencao/retencao.int.test.ts"
+    }
+  ],
+  "excecoesDoConferir": [
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "/\\bContaGlobalRepository\\b|conta-global\\.repository|@educa\\/nucleo\\/conta-global/",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "/(?:import|export)\\s+(?:type\\s+)?\\{([^}]*)\\}\\s*from\\s*['\"](@educa\\/nucleo|[^'\"]*schema\\/(?:operador|suboperador|incidente)(?:\\.js|\\.ts)?)['\"]/g",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "/import\\s+\\*\\s+as\\s+(\\w+)\\s+from\\s+['\"]@educa\\/nucleo['\"]/g",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "/\\bCronEscolasRepository\\b|escolas-da-rotina\\.repository/",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "/\\bContaGlobalRepository\\b|conta-global\\.repository|@educa\\/core\\/conta-global/",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "/(?:import|export)\\s+(?:type\\s+)?\\{([^}]*)\\}\\s*from\\s*['\"](@educa\\/core|[^'\"]*schema\\/(?:operador|suboperador|incidente)(?:\\.js|\\.ts)?)['\"]/g",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "/import\\s+\\*\\s+as\\s+(\\w+)\\s+from\\s+['\"]@educa\\/core['\"]/g",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "/\\bCronEscolasRepository\\b|cron-escolas\\.repository/",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "packages/core/src/auditoria/porta-unica.test.ts",
+      "texto": "/(?:\\bfrom\\s*|\\bimport\\s*\\(\\s*|\\brequire\\s*\\(\\s*|\\bimport\\s+)(['\"`])[^'\"`\\n]*insercao-de-auditoria[^'\"`\\n]*\\1/",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:57"
+    },
+    {
+      "arquivo": "packages/core/src/auditoria/porta-unica.test.ts",
+      "texto": "/(?:\\bfrom\\s*|\\bimport\\s*\\(\\s*|\\brequire\\s*\\(\\s*|\\bimport\\s+)(['\"`])[^'\"`\\n]*auditoria-insert[^'\"`\\n]*\\1/",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:57"
+    },
+    {
+      "arquivo": "apps/api/src/entrega/entrega.int.test.ts",
+      "texto": "packages/nucleo/src",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:70"
+    },
+    {
+      "arquivo": "apps/api/src/entrega/entrega.int.test.ts",
+      "texto": "packages/core/src",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:70"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "packages/nucleo/src/ciclo-de-vida/",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "packages/nucleo/src/retencao/vaza.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "packages/nucleo/src/ciclo-de-vida/ponte.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "/** Antes vinha da `ContaGlobalRepository`. */\n// e do @educa/nucleo/conta-global",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "ContaGlobalRepository: packages/nucleo/src/retencao/vaza.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "@educa/nucleo",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "@educa/nucleo/ciclo-de-vida",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "packages/nucleo/src/retencao/expurgo-de-acesso.repository.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "packages/nucleo/src/db/schema/operador.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "packages/nucleo/src/db/schema/suboperador.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "packages/nucleo/src/db/schema/incidente.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "packages/nucleo/src/index.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "packages/nucleo/src/titular/suboperador-da-escola.repository.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "packages/nucleo/src/titular/incidente-da-escola.repository.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "packages/nucleo/drizzle",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "import { and, operador, sql } from '@educa/nucleo'",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "import { type Banco, sessaoOperador as sessoes } from '@educa/nucleo'",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "import * as n from '@educa/nucleo'\nn.conviteOperador",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "export { auditoriaOperacao } from '@educa/nucleo'",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "import { operador as o } from '../../../../packages/nucleo/src/db/schema/operador.js'",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "const operador = lerOperador(ambiente)\nimport { FORMATO_OPERADOR } from '@educa/nucleo'\n// o operador da equipe",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "import { conta, operador } from '@educa/nucleo'",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "import { and, suboperador } from '@educa/nucleo'",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "import { type Banco, suboperadorEscola as ligacao } from '@educa/nucleo'",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "import * as n from '@educa/nucleo'\nn.suboperador",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "export { suboperadorEscola } from '@educa/nucleo'",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "import { suboperador as s } from '../../../../packages/nucleo/src/db/schema/suboperador.js'",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "import { suboperador, conta } from '@educa/nucleo'",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "import { operador, suboperador } from '@educa/nucleo'",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "packages/nucleo/src/titular/compartilhamento.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "packages/nucleo/src/titular/compartilhamento.repository.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "import { and, incidente } from '@educa/nucleo'",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "import { type Banco, incidenteEscola as secao } from '@educa/nucleo'",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "import * as n from '@educa/nucleo'\nn.incidenteEscola",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "export { incidente } from '@educa/nucleo'",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "import { incidente as i } from '../../../../packages/nucleo/src/db/schema/incidente.js'",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "packages/nucleo/src/identidade/marcadores-de-operacao.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "packages/nucleo/src/permissao/conferencia-das-permissoes.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "import { OPERACAO_ROUTE_KEY } from '@educa/nucleo'\nSetMetadata(OPERACAO_ROUTE_KEY, true)",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "packages/nucleo/src/limite/outro.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "packages/nucleo/src/limite/guarda-limite.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "import { OPERACAO_ROUTE_KEY } from '@educa/nucleo'",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "packages/nucleo/src/rotina/escolas-da-rotina.repository.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "packages/core/src/ciclo-de-vida/",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "packages/core/src/retencao/vaza.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "packages/core/src/ciclo-de-vida/ponte.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "/** Antes vinha da `ContaGlobalRepository`. */\n// e do @educa/core/conta-global",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "ContaGlobalRepository: packages/core/src/retencao/vaza.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "@educa/core",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "@educa/core/ciclo-de-vida",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "packages/core/src/retencao/expurgo-de-acesso.repository.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "packages/core/src/db/schema/operador.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "packages/core/src/db/schema/suboperador.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "packages/core/src/db/schema/incidente.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "packages/core/src/index.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "packages/core/src/titular/suboperador-da-escola.repository.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "packages/core/src/titular/incidente-da-escola.repository.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "packages/core/drizzle",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "import { and, operador, sql } from '@educa/core'",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "import { type Banco, sessaoOperador as sessoes } from '@educa/core'",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "import * as n from '@educa/core'\nn.conviteOperador",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "export { auditoriaOperacao } from '@educa/core'",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "import { operador as o } from '../../../../packages/core/src/db/schema/operador.js'",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "const operador = lerOperador(ambiente)\nimport { FORMATO_OPERADOR } from '@educa/core'\n// o operador da equipe",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "import { conta, operador } from '@educa/core'",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "import { and, suboperador } from '@educa/core'",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "import { type Banco, suboperadorEscola as ligacao } from '@educa/core'",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "import * as n from '@educa/core'\nn.suboperador",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "export { suboperadorEscola } from '@educa/core'",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "import { suboperador as s } from '../../../../packages/core/src/db/schema/suboperador.js'",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "import { suboperador, conta } from '@educa/core'",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "import { operador, suboperador } from '@educa/core'",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "packages/core/src/titular/compartilhamento.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "packages/core/src/titular/compartilhamento.repository.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "import { and, incidente } from '@educa/core'",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "import { type Banco, incidenteEscola as secao } from '@educa/core'",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "import * as n from '@educa/core'\nn.incidenteEscola",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "export { incidente } from '@educa/core'",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "import { incidente as i } from '../../../../packages/core/src/db/schema/incidente.js'",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "packages/core/src/identidade/operacao-markers.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "packages/core/src/permissao/permissao-boot-check.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "import { OPERACAO_ROUTE_KEY } from '@educa/core'\nSetMetadata(OPERACAO_ROUTE_KEY, true)",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "packages/core/src/rate-limit/outro.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "packages/core/src/rate-limit/rate-limit.guard.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "import { OPERACAO_ROUTE_KEY } from '@educa/core'",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "apps/api/test/arquitetura.test.ts",
+      "texto": "packages/core/src/cron/cron-escolas.repository.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:42"
+    },
+    {
+      "arquivo": "infra/scripts/carga-login.ts",
+      "texto": "packages/nucleo/dist/index.js",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:85"
+    },
+    {
+      "arquivo": "infra/scripts/carga-login.ts",
+      "texto": "packages/core/dist/index.js",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:85"
+    },
+    {
+      "arquivo": "infra/scripts/carga-sala.ts",
+      "texto": "packages/nucleo/dist/index.js",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:85"
+    },
+    {
+      "arquivo": "infra/scripts/carga-sala.ts",
+      "texto": "packages/core/dist/index.js",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:85"
+    },
+    {
+      "arquivo": "infra/scripts/ensaio-alertas.ts",
+      "texto": "packages/nucleo/dist/index.js",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:85"
+    },
+    {
+      "arquivo": "infra/scripts/ensaio-alertas.ts",
+      "texto": "packages/core/dist/index.js",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:85"
+    },
+    {
+      "arquivo": "packages/core/drizzle.config.ts",
+      "texto": "./packages/nucleo/src/db/schema/*.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:122"
+    },
+    {
+      "arquivo": "packages/core/drizzle.config.ts",
+      "texto": "./packages/nucleo/drizzle",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:122"
+    },
+    {
+      "arquivo": "packages/core/drizzle.config.ts",
+      "texto": "./packages/core/src/db/schema/*.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:122"
+    },
+    {
+      "arquivo": "packages/core/drizzle.config.ts",
+      "texto": "./packages/core/drizzle",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:122"
+    },
+    {
+      "arquivo": "packages/core/src/auditoria/porta-unica.test.ts",
+      "texto": "packages/nucleo/src/auditoria/insercao-de-auditoria.repository.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:57"
+    },
+    {
+      "arquivo": "packages/core/src/auditoria/porta-unica.test.ts",
+      "texto": "packages/nucleo/src/auditoria/registro-de-auditoria.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:57"
+    },
+    {
+      "arquivo": "packages/core/src/auditoria/porta-unica.test.ts",
+      "texto": "packages/nucleo/src/auditoria/auditoria.repository.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:57"
+    },
+    {
+      "arquivo": "packages/core/src/auditoria/porta-unica.test.ts",
+      "texto": "import { insertAuditoria } from './insercao-de-auditoria.repository.js'",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:57"
+    },
+    {
+      "arquivo": "packages/core/src/auditoria/porta-unica.test.ts",
+      "texto": "import type { Linha } from './insercao-de-auditoria.repository.js'",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:57"
+    },
+    {
+      "arquivo": "packages/core/src/auditoria/porta-unica.test.ts",
+      "texto": "import {\n  insertAuditoria,\n} from \"../auditoria/insercao-de-auditoria.repository\"",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:57"
+    },
+    {
+      "arquivo": "packages/core/src/auditoria/porta-unica.test.ts",
+      "texto": "export { insertAuditoria } from './insercao-de-auditoria.repository.js'",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:57"
+    },
+    {
+      "arquivo": "packages/core/src/auditoria/porta-unica.test.ts",
+      "texto": "export * from './insercao-de-auditoria.repository.js'",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:57"
+    },
+    {
+      "arquivo": "packages/core/src/auditoria/porta-unica.test.ts",
+      "texto": "const modulo = await import('./insercao-de-auditoria.repository.js')",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:57"
+    },
+    {
+      "arquivo": "packages/core/src/auditoria/porta-unica.test.ts",
+      "texto": "const modulo = require('./insercao-de-auditoria.repository')",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:57"
+    },
+    {
+      "arquivo": "packages/core/src/auditoria/porta-unica.test.ts",
+      "texto": "import './insercao-de-auditoria.repository.js'",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:57"
+    },
+    {
+      "arquivo": "packages/core/src/auditoria/porta-unica.test.ts",
+      "texto": "    arquivo: 'packages/nucleo/src/auditoria/insercao-de-auditoria.repository.ts',",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:57"
+    },
+    {
+      "arquivo": "packages/core/src/auditoria/porta-unica.test.ts",
+      "texto": "const MODULO = 'packages/nucleo/src/auditoria/insercao-de-auditoria.repository.ts'",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:57"
+    },
+    {
+      "arquivo": "packages/core/src/auditoria/porta-unica.test.ts",
+      "texto": "import { outra } from './auditoria.repository.js' // não é o insercao-de-auditoria",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:57"
+    },
+    {
+      "arquivo": "packages/core/src/auditoria/porta-unica.test.ts",
+      "texto": "// a porta é o insercao-de-auditoria.repository, e só o registro a importa",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:57"
+    },
+    {
+      "arquivo": "packages/core/src/auditoria/porta-unica.test.ts",
+      "texto": "const texto = 'veio from ' + 'outra/insercao-de-auditoria'",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:57"
+    },
+    {
+      "arquivo": "packages/core/src/auditoria/porta-unica.test.ts",
+      "texto": "const modulo = import(base + 'insercao-de-auditoria')",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:57"
+    },
+    {
+      "arquivo": "packages/core/src/auditoria/porta-unica.test.ts",
+      "texto": "const texto = \"veio from 'outra/insercao-de-auditoria'\"",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:57"
+    },
+    {
+      "arquivo": "packages/core/src/auditoria/porta-unica.test.ts",
+      "texto": "packages/core/src/auditoria/auditoria-insert.repository.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:57"
+    },
+    {
+      "arquivo": "packages/core/src/auditoria/porta-unica.test.ts",
+      "texto": "packages/core/src/auditoria/auditoria-recorder.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:57"
+    },
+    {
+      "arquivo": "packages/core/src/auditoria/porta-unica.test.ts",
+      "texto": "packages/core/src/auditoria/auditoria.repository.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:57"
+    },
+    {
+      "arquivo": "packages/core/src/auditoria/porta-unica.test.ts",
+      "texto": "import { insertAuditoria } from './auditoria-insert.repository.js'",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:57"
+    },
+    {
+      "arquivo": "packages/core/src/auditoria/porta-unica.test.ts",
+      "texto": "import type { Linha } from './auditoria-insert.repository.js'",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:57"
+    },
+    {
+      "arquivo": "packages/core/src/auditoria/porta-unica.test.ts",
+      "texto": "import {\n  insertAuditoria,\n} from \"../auditoria/auditoria-insert.repository\"",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:57"
+    },
+    {
+      "arquivo": "packages/core/src/auditoria/porta-unica.test.ts",
+      "texto": "export { insertAuditoria } from './auditoria-insert.repository.js'",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:57"
+    },
+    {
+      "arquivo": "packages/core/src/auditoria/porta-unica.test.ts",
+      "texto": "export * from './auditoria-insert.repository.js'",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:57"
+    },
+    {
+      "arquivo": "packages/core/src/auditoria/porta-unica.test.ts",
+      "texto": "const modulo = await import('./auditoria-insert.repository.js')",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:57"
+    },
+    {
+      "arquivo": "packages/core/src/auditoria/porta-unica.test.ts",
+      "texto": "const modulo = require('./auditoria-insert.repository')",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:57"
+    },
+    {
+      "arquivo": "packages/core/src/auditoria/porta-unica.test.ts",
+      "texto": "import './auditoria-insert.repository.js'",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:57"
+    },
+    {
+      "arquivo": "packages/core/src/auditoria/porta-unica.test.ts",
+      "texto": "    arquivo: 'packages/core/src/auditoria/auditoria-insert.repository.ts',",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:57"
+    },
+    {
+      "arquivo": "packages/core/src/auditoria/porta-unica.test.ts",
+      "texto": "const MODULO = 'packages/core/src/auditoria/auditoria-insert.repository.ts'",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:57"
+    },
+    {
+      "arquivo": "packages/core/src/auditoria/porta-unica.test.ts",
+      "texto": "import { outra } from './auditoria.repository.js' // não é o auditoria-insert",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:57"
+    },
+    {
+      "arquivo": "packages/core/src/auditoria/porta-unica.test.ts",
+      "texto": "// a porta é o auditoria-insert.repository, e só o registro a importa",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:57"
+    },
+    {
+      "arquivo": "packages/core/src/auditoria/porta-unica.test.ts",
+      "texto": "const texto = 'veio from ' + 'outra/auditoria-insert'",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:57"
+    },
+    {
+      "arquivo": "packages/core/src/auditoria/porta-unica.test.ts",
+      "texto": "const modulo = import(base + 'auditoria-insert')",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:57"
+    },
+    {
+      "arquivo": "packages/core/src/auditoria/porta-unica.test.ts",
+      "texto": "const texto = \"veio from 'outra/auditoria-insert'\"",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:57"
+    },
+    {
+      "arquivo": "packages/core/src/ia/golden.test.ts",
+      "texto": "file:///fabricada/packages/nucleo/src/ia/__fixtures__/ouro.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:125"
+    },
+    {
+      "arquivo": "packages/core/src/ia/golden.test.ts",
+      "texto": "file:///fabricada/packages/core/src/ia/__fixtures__/golden.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:125"
+    },
+    {
+      "arquivo": "packages/core/src/queue/escola-concurrency-limiter.ts",
+      "texto": "./vaga.lua",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:87"
+    },
+    {
+      "arquivo": "packages/core/src/queue/escola-concurrency-limiter.ts",
+      "texto": "vaga.lua devolveu resposta inesperada ao tomar",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:87"
+    },
+    {
+      "arquivo": "packages/core/src/queue/escola-concurrency-limiter.ts",
+      "texto": "./concurrency-slot.lua",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:87"
+    },
+    {
+      "arquivo": "packages/core/src/queue/escola-concurrency-limiter.ts",
+      "texto": "concurrency-slot.lua devolveu resposta inesperada ao tomar",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:87"
+    },
+    {
+      "arquivo": "tools/ci/borda.test.ts",
+      "texto": "packages/nucleo/src/instancia/drenagem.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:99"
+    },
+    {
+      "arquivo": "tools/ci/borda.test.ts",
+      "texto": "packages/nucleo/src/erro/erro-de-dominio.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:99"
+    },
+    {
+      "arquivo": "tools/ci/borda.test.ts",
+      "texto": "packages/core/src/runtime/graceful-shutdown.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:99"
+    },
+    {
+      "arquivo": "tools/ci/borda.test.ts",
+      "texto": "packages/core/src/error/domain.exception.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:99"
+    },
+    {
+      "arquivo": "tools/ci/caminhos-da-esteira.ts",
+      "texto": "packages/nucleo/src/x.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:99"
+    },
+    {
+      "arquivo": "tools/ci/caminhos-da-esteira.ts",
+      "texto": "packages/core/src/x.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:99"
+    },
+    {
+      "arquivo": "tools/ci/dockerfile.test.ts",
+      "texto": "COPY packages/nucleo/drizzle packages/nucleo/drizzle",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:99"
+    },
+    {
+      "arquivo": "tools/ci/dockerfile.test.ts",
+      "texto": "@educa/nucleo",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:99"
+    },
+    {
+      "arquivo": "tools/ci/dockerfile.test.ts",
+      "texto": "COPY packages/core/drizzle packages/core/drizzle",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:99"
+    },
+    {
+      "arquivo": "tools/ci/dockerfile.test.ts",
+      "texto": "@educa/core",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:99"
+    },
+    {
+      "arquivo": "tools/ci/resolucao-do-shared.test.ts",
+      "texto": "packages/nucleo/src/contexto/contexto.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:99"
+    },
+    {
+      "arquivo": "tools/ci/resolucao-do-shared.test.ts",
+      "texto": "packages/core/src/context/context.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:99"
+    },
+    {
+      "arquivo": "tools/guardas/__fixtures__/tabela-fora-do-repository.ts",
+      "texto": "@educa/nucleo",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:35"
+    },
+    {
+      "arquivo": "tools/guardas/__fixtures__/tabela-fora-do-repository.ts",
+      "texto": "@educa/nucleo/ciclo-de-vida",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:35"
+    },
+    {
+      "arquivo": "tools/guardas/__fixtures__/tabela-fora-do-repository.ts",
+      "texto": "nucleo",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:35"
+    },
+    {
+      "arquivo": "tools/guardas/__fixtures__/tabela-fora-do-repository.ts",
+      "texto": "@educa/core",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:35"
+    },
+    {
+      "arquivo": "tools/guardas/__fixtures__/tabela-fora-do-repository.ts",
+      "texto": "@educa/core/ciclo-de-vida",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:35"
+    },
+    {
+      "arquivo": "tools/guardas/__fixtures__/tabela-fora-do-repository.ts",
+      "texto": "core",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:35"
+    },
+    {
+      "arquivo": "tools/guardas/camadas.cjs",
+      "texto": "^packages/nucleo/src/ciclo-de-vida/conta-global.repository.ts$",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:37"
+    },
+    {
+      "arquivo": "tools/guardas/camadas.cjs",
+      "texto": "^(?:packages/nucleo|apps)/",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:37"
+    },
+    {
+      "arquivo": "tools/guardas/camadas.cjs",
+      "texto": "^packages/nucleo/",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:37"
+    },
+    {
+      "arquivo": "tools/guardas/camadas.cjs",
+      "texto": "^(?:packages/nucleo/|apps/(?!web/))",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:37"
+    },
+    {
+      "arquivo": "tools/guardas/camadas.cjs",
+      "texto": "^(?:apps/api/src|packages/nucleo/src)/.*\\.repository\\.ts$",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:37"
+    },
+    {
+      "arquivo": "tools/guardas/camadas.cjs",
+      "texto": "^packages/nucleo/src/retencao/expurgo-da-escola\\.repository\\.ts$",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:37"
+    },
+    {
+      "arquivo": "tools/guardas/camadas.cjs",
+      "texto": "^packages/nucleo/src/ciclo-de-vida/",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:37"
+    },
+    {
+      "arquivo": "tools/guardas/camadas.cjs",
+      "texto": "^packages/core/src/ciclo-de-vida/conta-global.repository.ts$",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:37"
+    },
+    {
+      "arquivo": "tools/guardas/camadas.cjs",
+      "texto": "^(?:packages/core|apps)/",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:37"
+    },
+    {
+      "arquivo": "tools/guardas/camadas.cjs",
+      "texto": "^packages/core/",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:37"
+    },
+    {
+      "arquivo": "tools/guardas/camadas.cjs",
+      "texto": "^(?:packages/core/|apps/(?!web/))",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:37"
+    },
+    {
+      "arquivo": "tools/guardas/camadas.cjs",
+      "texto": "^(?:apps/api/src|packages/core/src)/.*\\.repository\\.ts$",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:37"
+    },
+    {
+      "arquivo": "tools/guardas/camadas.cjs",
+      "texto": "^packages/core/src/retencao/expurgo-da-escola\\.repository\\.ts$",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:37"
+    },
+    {
+      "arquivo": "tools/guardas/camadas.cjs",
+      "texto": "^packages/core/src/ciclo-de-vida/",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:37"
+    },
+    {
+      "arquivo": "tools/guardas/camadas.test.ts",
+      "texto": "../../packages/nucleo",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:37"
+    },
+    {
+      "arquivo": "tools/guardas/camadas.test.ts",
+      "texto": "node_modules/@educa/nucleo",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:37"
+    },
+    {
+      "arquivo": "tools/guardas/camadas.test.ts",
+      "texto": "import { x } from '../../nucleo/src/x.js'\nexport const y = x\n",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:37"
+    },
+    {
+      "arquivo": "tools/guardas/camadas.test.ts",
+      "texto": "packages/shared/src/pacotes/para-nucleo.ts -> packages/nucleo/src/x.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:37"
+    },
+    {
+      "arquivo": "tools/guardas/camadas.test.ts",
+      "texto": "packages/nucleo/src/pacotes/para-app.ts -> apps/api/src/y.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:37"
+    },
+    {
+      "arquivo": "tools/guardas/camadas.test.ts",
+      "texto": "apps/web/src/usa-nucleo.ts -> packages/nucleo/src/x.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:37"
+    },
+    {
+      "arquivo": "tools/guardas/camadas.test.ts",
+      "texto": "packages/nucleo/src/producao-usa-teste.ts -> packages/nucleo/test/helper.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:37"
+    },
+    {
+      "arquivo": "tools/guardas/camadas.test.ts",
+      "texto": "packages/nucleo/src/retencao/outro.repository.ts -> packages/nucleo/src/ciclo-de-vida/ciclo-de-vida.service.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:37"
+    },
+    {
+      "arquivo": "tools/guardas/camadas.test.ts",
+      "texto": "apps/worker/src/eliminar.ts -> packages/nucleo/src/ciclo-de-vida/conta-global.repository.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:37"
+    },
+    {
+      "arquivo": "tools/guardas/camadas.test.ts",
+      "texto": "infra/conta-global-dinamico.ts -> packages/nucleo/src/ciclo-de-vida/conta-global.repository.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:37"
+    },
+    {
+      "arquivo": "tools/guardas/camadas.test.ts",
+      "texto": "infra/conta-global-import.ts -> packages/nucleo/src/ciclo-de-vida/conta-global.repository.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:37"
+    },
+    {
+      "arquivo": "tools/guardas/camadas.test.ts",
+      "texto": "infra/conta-global-reexporta.ts -> packages/nucleo/src/ciclo-de-vida/conta-global.repository.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:37"
+    },
+    {
+      "arquivo": "tools/guardas/camadas.test.ts",
+      "texto": "infra/subcaminho.ts -> packages/nucleo/src/ciclo-de-vida/conta-global.repository.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:37"
+    },
+    {
+      "arquivo": "tools/guardas/camadas.test.ts",
+      "texto": "packages/nucleo/src/retencao/atalho.ts -> packages/nucleo/src/ciclo-de-vida/conta-global.repository.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:37"
+    },
+    {
+      "arquivo": "tools/guardas/camadas.test.ts",
+      "texto": "tools/conta-global.ts -> packages/nucleo/src/ciclo-de-vida/conta-global.repository.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:37"
+    },
+    {
+      "arquivo": "tools/guardas/camadas.test.ts",
+      "texto": "packages/nucleo/src/ciclo-de-vida/conta-global.repository.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:37"
+    },
+    {
+      "arquivo": "tools/guardas/camadas.test.ts",
+      "texto": "../../packages/core",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:37"
+    },
+    {
+      "arquivo": "tools/guardas/camadas.test.ts",
+      "texto": "node_modules/@educa/core",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:37"
+    },
+    {
+      "arquivo": "tools/guardas/camadas.test.ts",
+      "texto": "import { x } from '../../core/src/x.js'\nexport const y = x\n",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:37"
+    },
+    {
+      "arquivo": "tools/guardas/camadas.test.ts",
+      "texto": "packages/shared/src/pacotes/para-nucleo.ts -> packages/core/src/x.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:37"
+    },
+    {
+      "arquivo": "tools/guardas/camadas.test.ts",
+      "texto": "packages/core/src/pacotes/para-app.ts -> apps/api/src/y.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:37"
+    },
+    {
+      "arquivo": "tools/guardas/camadas.test.ts",
+      "texto": "apps/web/src/usa-nucleo.ts -> packages/core/src/x.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:37"
+    },
+    {
+      "arquivo": "tools/guardas/camadas.test.ts",
+      "texto": "packages/core/src/producao-usa-teste.ts -> packages/core/test/helper.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:37"
+    },
+    {
+      "arquivo": "tools/guardas/camadas.test.ts",
+      "texto": "packages/core/src/retencao/outro.repository.ts -> packages/core/src/ciclo-de-vida/ciclo-de-vida.service.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:37"
+    },
+    {
+      "arquivo": "tools/guardas/camadas.test.ts",
+      "texto": "apps/worker/src/eliminar.ts -> packages/core/src/ciclo-de-vida/conta-global.repository.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:37"
+    },
+    {
+      "arquivo": "tools/guardas/camadas.test.ts",
+      "texto": "infra/conta-global-dinamico.ts -> packages/core/src/ciclo-de-vida/conta-global.repository.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:37"
+    },
+    {
+      "arquivo": "tools/guardas/camadas.test.ts",
+      "texto": "infra/conta-global-import.ts -> packages/core/src/ciclo-de-vida/conta-global.repository.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:37"
+    },
+    {
+      "arquivo": "tools/guardas/camadas.test.ts",
+      "texto": "infra/conta-global-reexporta.ts -> packages/core/src/ciclo-de-vida/conta-global.repository.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:37"
+    },
+    {
+      "arquivo": "tools/guardas/camadas.test.ts",
+      "texto": "infra/subcaminho.ts -> packages/core/src/ciclo-de-vida/conta-global.repository.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:37"
+    },
+    {
+      "arquivo": "tools/guardas/camadas.test.ts",
+      "texto": "packages/core/src/retencao/atalho.ts -> packages/core/src/ciclo-de-vida/conta-global.repository.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:37"
+    },
+    {
+      "arquivo": "tools/guardas/camadas.test.ts",
+      "texto": "tools/conta-global.ts -> packages/core/src/ciclo-de-vida/conta-global.repository.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:37"
+    },
+    {
+      "arquivo": "tools/guardas/camadas.test.ts",
+      "texto": "packages/core/src/ciclo-de-vida/conta-global.repository.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:37"
+    },
+    {
+      "arquivo": "tools/guardas/escopo-dos-repositories.ts",
+      "texto": "packages/nucleo/src/auditoria/auditoria.repository.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:34"
+    },
+    {
+      "arquivo": "tools/guardas/escopo-dos-repositories.ts",
+      "texto": "packages/nucleo/src/auditoria/insercao-de-auditoria.repository.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:34"
+    },
+    {
+      "arquivo": "tools/guardas/escopo-dos-repositories.ts",
+      "texto": "packages/nucleo/src/fila/job-registro.repository.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:34"
+    },
+    {
+      "arquivo": "tools/guardas/escopo-dos-repositories.ts",
+      "texto": "packages/nucleo/src/identidade/sessao.repository.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:34"
+    },
+    {
+      "arquivo": "tools/guardas/escopo-dos-repositories.ts",
+      "texto": "packages/nucleo/src/titular/compartilhamento.repository.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:34"
+    },
+    {
+      "arquivo": "tools/guardas/escopo-dos-repositories.ts",
+      "texto": "packages/core/src/auditoria/auditoria.repository.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:34"
+    },
+    {
+      "arquivo": "tools/guardas/escopo-dos-repositories.ts",
+      "texto": "packages/core/src/auditoria/auditoria-insert.repository.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:34"
+    },
+    {
+      "arquivo": "tools/guardas/escopo-dos-repositories.ts",
+      "texto": "packages/core/src/queue/job-outbox.repository.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:34"
+    },
+    {
+      "arquivo": "tools/guardas/escopo-dos-repositories.ts",
+      "texto": "packages/core/src/identidade/sessao.repository.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:34"
+    },
+    {
+      "arquivo": "tools/guardas/escopo-dos-repositories.ts",
+      "texto": "packages/core/src/titular/compartilhamento.repository.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:34"
+    },
+    {
+      "arquivo": "tools/guardas/filtros-casam.test.ts",
+      "texto": "packages/nucleo/src/index.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:123"
+    },
+    {
+      "arquivo": "tools/guardas/filtros-casam.test.ts",
+      "texto": "packages/nucleo/dist/index.js",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:123"
+    },
+    {
+      "arquivo": "tools/guardas/filtros-casam.test.ts",
+      "texto": "^packages/nucleo/src/sessao/tenant/resolucao-de-tenant\\.repository\\.ts$",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:123"
+    },
+    {
+      "arquivo": "tools/guardas/filtros-casam.test.ts",
+      "texto": "camadas: \"^packages/nucleo/src/sessao/tenant/resolucao-de-tenant\\.repository\\.ts$\" não casa com nenhum arquivo",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:123"
+    },
+    {
+      "arquivo": "tools/guardas/filtros-casam.test.ts",
+      "texto": "^packages/nucleo/dist/",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:123"
+    },
+    {
+      "arquivo": "tools/guardas/filtros-casam.test.ts",
+      "texto": "packages/nucleo/dist/sumiu.js",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:123"
+    },
+    {
+      "arquivo": "tools/guardas/filtros-casam.test.ts",
+      "texto": "packages/core/src/index.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:123"
+    },
+    {
+      "arquivo": "tools/guardas/filtros-casam.test.ts",
+      "texto": "packages/core/dist/index.js",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:123"
+    },
+    {
+      "arquivo": "tools/guardas/filtros-casam.test.ts",
+      "texto": "^packages/core/src/sessao/tenant/resolucao-de-tenant\\.repository\\.ts$",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:123"
+    },
+    {
+      "arquivo": "tools/guardas/filtros-casam.test.ts",
+      "texto": "camadas: \"^packages/core/src/sessao/tenant/resolucao-de-tenant\\.repository\\.ts$\" não casa com nenhum arquivo",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:123"
+    },
+    {
+      "arquivo": "tools/guardas/filtros-casam.test.ts",
+      "texto": "^packages/core/dist/",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:123"
+    },
+    {
+      "arquivo": "tools/guardas/filtros-casam.test.ts",
+      "texto": "packages/core/dist/sumiu.js",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:123"
+    },
+    {
+      "arquivo": "tools/guardas/guardas.test.ts",
+      "texto": "packages/nucleo/src/ia/adaptador-openai-compat.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:63"
+    },
+    {
+      "arquivo": "tools/guardas/guardas.test.ts",
+      "texto": "packages/nucleo/src/fila/worker.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:63"
+    },
+    {
+      "arquivo": "tools/guardas/guardas.test.ts",
+      "texto": "packages/nucleo/src/fila/despachante.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:63"
+    },
+    {
+      "arquivo": "tools/guardas/guardas.test.ts",
+      "texto": "@educa/nucleo",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:63"
+    },
+    {
+      "arquivo": "tools/guardas/guardas.test.ts",
+      "texto": "packages/nucleo/src/modelo.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:63"
+    },
+    {
+      "arquivo": "tools/guardas/guardas.test.ts",
+      "texto": "packages/nucleo/src/ia/porta.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:63"
+    },
+    {
+      "arquivo": "tools/guardas/guardas.test.ts",
+      "texto": "packages/nucleo/src/ia/adaptador.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:63"
+    },
+    {
+      "arquivo": "tools/guardas/guardas.test.ts",
+      "texto": "packages/nucleo/src/ia/adaptador-falso.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:63"
+    },
+    {
+      "arquivo": "tools/guardas/guardas.test.ts",
+      "texto": "packages/nucleo/src/x/x.service.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:63"
+    },
+    {
+      "arquivo": "tools/guardas/guardas.test.ts",
+      "texto": "packages/nucleo/src/titular/x.repository.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:63"
+    },
+    {
+      "arquivo": "tools/guardas/guardas.test.ts",
+      "texto": "packages/nucleo/src/db/schema/x.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:63"
+    },
+    {
+      "arquivo": "tools/guardas/guardas.test.ts",
+      "texto": "packages/nucleo/src/db/banco.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:63"
+    },
+    {
+      "arquivo": "tools/guardas/guardas.test.ts",
+      "texto": "import { escola } from '@educa/nucleo'\nexport const x = escola\n",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:63"
+    },
+    {
+      "arquivo": "tools/guardas/guardas.test.ts",
+      "texto": "import { escola } from '@educa/nucleo'",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:63"
+    },
+    {
+      "arquivo": "tools/guardas/guardas.test.ts",
+      "texto": "packages/nucleo/src/x/x.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:63"
+    },
+    {
+      "arquivo": "tools/guardas/guardas.test.ts",
+      "texto": "packages/nucleo/src/x.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:63"
+    },
+    {
+      "arquivo": "tools/guardas/guardas.test.ts",
+      "texto": "packages/nucleo/src/x/x.test.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:63"
+    },
+    {
+      "arquivo": "tools/guardas/guardas.test.ts",
+      "texto": "packages/nucleo/src/ia/__fixtures__/entradas.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:63"
+    },
+    {
+      "arquivo": "tools/guardas/guardas.test.ts",
+      "texto": "packages/nucleo/src/**/*.{ts,tsx}",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:63"
+    },
+    {
+      "arquivo": "tools/guardas/guardas.test.ts",
+      "texto": "packages/nucleo/src/ia/adaptador-*.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:63"
+    },
+    {
+      "arquivo": "tools/guardas/guardas.test.ts",
+      "texto": "packages/nucleo/src/db/**",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:63"
+    },
+    {
+      "arquivo": "tools/guardas/guardas.test.ts",
+      "texto": "packages/nucleo/src/log/logger.test.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:63"
+    },
+    {
+      "arquivo": "tools/guardas/guardas.test.ts",
+      "texto": "packages/nucleo/src/log/logger-do-nest.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:63"
+    },
+    {
+      "arquivo": "tools/guardas/guardas.test.ts",
+      "texto": "packages/nucleo/src/log/logger.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:63"
+    },
+    {
+      "arquivo": "tools/guardas/guardas.test.ts",
+      "texto": "packages/core/src/ia/openai-compat-adapter.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:63"
+    },
+    {
+      "arquivo": "tools/guardas/guardas.test.ts",
+      "texto": "packages/core/src/queue/worker.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:63"
+    },
+    {
+      "arquivo": "tools/guardas/guardas.test.ts",
+      "texto": "packages/core/src/queue/despachante.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:63"
+    },
+    {
+      "arquivo": "tools/guardas/guardas.test.ts",
+      "texto": "@educa/core",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:63"
+    },
+    {
+      "arquivo": "tools/guardas/guardas.test.ts",
+      "texto": "packages/core/src/modelo.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:63"
+    },
+    {
+      "arquivo": "tools/guardas/guardas.test.ts",
+      "texto": "packages/core/src/ia/port.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:63"
+    },
+    {
+      "arquivo": "tools/guardas/guardas.test.ts",
+      "texto": "packages/core/src/ia/adapter.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:63"
+    },
+    {
+      "arquivo": "tools/guardas/guardas.test.ts",
+      "texto": "packages/core/src/ia/fake-adapter.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:63"
+    },
+    {
+      "arquivo": "tools/guardas/guardas.test.ts",
+      "texto": "packages/core/src/x/x.service.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:63"
+    },
+    {
+      "arquivo": "tools/guardas/guardas.test.ts",
+      "texto": "packages/core/src/titular/x.repository.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:63"
+    },
+    {
+      "arquivo": "tools/guardas/guardas.test.ts",
+      "texto": "packages/core/src/db/schema/x.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:63"
+    },
+    {
+      "arquivo": "tools/guardas/guardas.test.ts",
+      "texto": "packages/core/src/db/database.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:63"
+    },
+    {
+      "arquivo": "tools/guardas/guardas.test.ts",
+      "texto": "import { escola } from '@educa/core'\nexport const x = escola\n",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:63"
+    },
+    {
+      "arquivo": "tools/guardas/guardas.test.ts",
+      "texto": "import { escola } from '@educa/core'",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:63"
+    },
+    {
+      "arquivo": "tools/guardas/guardas.test.ts",
+      "texto": "packages/core/src/x/x.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:63"
+    },
+    {
+      "arquivo": "tools/guardas/guardas.test.ts",
+      "texto": "packages/core/src/x.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:63"
+    },
+    {
+      "arquivo": "tools/guardas/guardas.test.ts",
+      "texto": "packages/core/src/x/x.test.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:63"
+    },
+    {
+      "arquivo": "tools/guardas/guardas.test.ts",
+      "texto": "packages/core/src/ia/__fixtures__/inputs.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:63"
+    },
+    {
+      "arquivo": "tools/guardas/guardas.test.ts",
+      "texto": "packages/core/src/**/*.{ts,tsx}",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:63"
+    },
+    {
+      "arquivo": "tools/guardas/guardas.test.ts",
+      "texto": "packages/core/src/ia/*-adapter.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:63"
+    },
+    {
+      "arquivo": "tools/guardas/guardas.test.ts",
+      "texto": "packages/core/src/db/**",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:63"
+    },
+    {
+      "arquivo": "tools/guardas/guardas.test.ts",
+      "texto": "packages/core/src/log/logger.test.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:63"
+    },
+    {
+      "arquivo": "tools/guardas/guardas.test.ts",
+      "texto": "packages/core/src/log/nest-logger.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:63"
+    },
+    {
+      "arquivo": "tools/guardas/guardas.test.ts",
+      "texto": "packages/core/src/log/logger.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:63"
+    },
+    {
+      "arquivo": "tools/guardas/index.mjs",
+      "texto": "packages/nucleo/src/**/*.{ts,tsx}",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:53"
+    },
+    {
+      "arquivo": "tools/guardas/index.mjs",
+      "texto": "packages/nucleo/src/db/**",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:53"
+    },
+    {
+      "arquivo": "tools/guardas/index.mjs",
+      "texto": "packages/nucleo/src/log/logger.test.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:53"
+    },
+    {
+      "arquivo": "tools/guardas/index.mjs",
+      "texto": "packages/nucleo/src/log/logger-do-nest.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:53"
+    },
+    {
+      "arquivo": "tools/guardas/index.mjs",
+      "texto": "packages/core/src/**/*.{ts,tsx}",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:53"
+    },
+    {
+      "arquivo": "tools/guardas/index.mjs",
+      "texto": "packages/core/src/db/**",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:53"
+    },
+    {
+      "arquivo": "tools/guardas/index.mjs",
+      "texto": "packages/core/src/log/logger.test.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:53"
+    },
+    {
+      "arquivo": "tools/guardas/index.mjs",
+      "texto": "packages/core/src/log/nest-logger.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:53"
+    },
+    {
+      "arquivo": "tools/guardas/regras-ia.mjs",
+      "texto": "packages/nucleo/src/ia/adaptador-*.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:63"
+    },
+    {
+      "arquivo": "tools/guardas/regras-ia.mjs",
+      "texto": "SDK de provedor de IA só entra em packages/nucleo/src/ia/adaptador-*.ts. O domínio pede a tarefa ao LLMProvider, com perfil (regra 30, item 1).",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:63"
+    },
+    {
+      "arquivo": "tools/guardas/regras-ia.mjs",
+      "texto": "packages/core/src/ia/*-adapter.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:63"
+    },
+    {
+      "arquivo": "tools/guardas/regras-ia.mjs",
+      "texto": "SDK de provedor de IA só entra em packages/core/src/ia/*-adapter.ts. O domínio pede a tarefa ao LLMProvider, com perfil (regra 30, item 1).",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:63"
+    },
+    {
+      "arquivo": "tools/guardas/regras-tenant.mjs",
+      "texto": "@educa/nucleo",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:35"
+    },
+    {
+      "arquivo": "tools/guardas/regras-tenant.mjs",
+      "texto": "Do @educa/nucleo, fora de *.repository.ts, de teste e de packages/nucleo/src/db, só se importa pelo nome o que não é tabela: a tabela, o schema e o módulo inteiro (import * as, export *, import(), require, o nome do pacote como texto) ficam no repository, onde o escopo de tenant é aplicado (regra 00, item 3; regra 10, item 3).",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:35"
+    },
+    {
+      "arquivo": "tools/guardas/regras-tenant.mjs",
+      "texto": "Proíbe trazer de @educa/nucleo, fora de *.repository.ts, uma tabela do schema, o schema ou o módulo inteiro, e o nome do pacote como texto (regra 00, item 3).",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:35"
+    },
+    {
+      "arquivo": "tools/guardas/regras-tenant.mjs",
+      "texto": "@educa/core",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:35"
+    },
+    {
+      "arquivo": "tools/guardas/regras-tenant.mjs",
+      "texto": "Do @educa/core, fora de *.repository.ts, de teste e de packages/core/src/db, só se importa pelo nome o que não é tabela: a tabela, o schema e o módulo inteiro (import * as, export *, import(), require, o nome do pacote como texto) ficam no repository, onde o escopo de tenant é aplicado (regra 00, item 3; regra 10, item 3).",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:35"
+    },
+    {
+      "arquivo": "tools/guardas/regras-tenant.mjs",
+      "texto": "Proíbe trazer de @educa/core, fora de *.repository.ts, uma tabela do schema, o schema ou o módulo inteiro, e o nome do pacote como texto (regra 00, item 3).",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:35"
+    },
+    {
+      "arquivo": "tools/guardas/repositories-com-escopo.test.ts",
+      "texto": "packages/nucleo/src/fila/job-registro.repository.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:34"
+    },
+    {
+      "arquivo": "tools/guardas/repositories-com-escopo.test.ts",
+      "texto": "packages/nucleo/src/auditoria/auditoria.repository.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:34"
+    },
+    {
+      "arquivo": "tools/guardas/repositories-com-escopo.test.ts",
+      "texto": "packages/nucleo/src/auditoria/insercao-de-auditoria.repository.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:34"
+    },
+    {
+      "arquivo": "tools/guardas/repositories-com-escopo.test.ts",
+      "texto": "packages/nucleo/src/identidade/sessao.repository.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:34"
+    },
+    {
+      "arquivo": "tools/guardas/repositories-com-escopo.test.ts",
+      "texto": "packages/nucleo/src/titular/compartilhamento.repository.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:34"
+    },
+    {
+      "arquivo": "tools/guardas/repositories-com-escopo.test.ts",
+      "texto": "packages/core/src/queue/job-outbox.repository.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:34"
+    },
+    {
+      "arquivo": "tools/guardas/repositories-com-escopo.test.ts",
+      "texto": "packages/core/src/auditoria/auditoria.repository.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:34"
+    },
+    {
+      "arquivo": "tools/guardas/repositories-com-escopo.test.ts",
+      "texto": "packages/core/src/auditoria/auditoria-insert.repository.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:34"
+    },
+    {
+      "arquivo": "tools/guardas/repositories-com-escopo.test.ts",
+      "texto": "packages/core/src/identidade/sessao.repository.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:34"
+    },
+    {
+      "arquivo": "tools/guardas/repositories-com-escopo.test.ts",
+      "texto": "packages/core/src/titular/compartilhamento.repository.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:34"
+    },
+    {
+      "arquivo": "tools/guardas/tabelas-do-nucleo.test.ts",
+      "texto": "@educa/nucleo",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:44"
+    },
+    {
+      "arquivo": "tools/guardas/tabelas-do-nucleo.test.ts",
+      "texto": "@educa/core",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:44"
+    },
+    {
+      "arquivo": "tools/ia/medir-risco-a-vida.test.ts",
+      "texto": "../../packages/nucleo/src/ia/",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:125"
+    },
+    {
+      "arquivo": "tools/ia/medir-risco-a-vida.test.ts",
+      "texto": "../../packages/nucleo/src/contexto/contexto.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:125"
+    },
+    {
+      "arquivo": "tools/ia/medir-risco-a-vida.test.ts",
+      "texto": "../../packages/core/src/ia/",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:125"
+    },
+    {
+      "arquivo": "tools/ia/medir-risco-a-vida.test.ts",
+      "texto": "../../packages/core/src/context/context.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:125"
+    },
+    {
+      "arquivo": "tools/ia/medir-risco-a-vida.ts",
+      "texto": "packages/nucleo/dist/index.js",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:86"
+    },
+    {
+      "arquivo": "tools/ia/medir-risco-a-vida.ts",
+      "texto": "packages/nucleo/dist/ia/tarefas/turno-do-tutor.js",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:86"
+    },
+    {
+      "arquivo": "tools/ia/medir-risco-a-vida.ts",
+      "texto": "packages/core/dist/index.js",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:86"
+    },
+    {
+      "arquivo": "tools/ia/medir-risco-a-vida.ts",
+      "texto": "packages/core/dist/ia/tasks/turno-do-tutor.js",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:86"
+    },
+    {
+      "arquivo": "tools/processo/harness/caminhos.test.ts",
+      "texto": "packages/nucleo/src/ia/adaptador-*.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:64"
+    },
+    {
+      "arquivo": "tools/processo/harness/caminhos.test.ts",
+      "texto": "`packages/nucleo/src/ia/adaptador-<x>.ts`",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:64"
+    },
+    {
+      "arquivo": "tools/processo/harness/caminhos.test.ts",
+      "texto": ".claude/rules/10-a.md cita packages/nucleo/src/ia/adaptador-<x>.ts: a pasta packages/nucleo/src/ia não existe",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:64"
+    },
+    {
+      "arquivo": "tools/processo/harness/caminhos.test.ts",
+      "texto": "packages/core/src/ia/*-adapter.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:64"
+    },
+    {
+      "arquivo": "tools/processo/harness/caminhos.test.ts",
+      "texto": "`packages/core/src/ia/adaptador-<x>.ts`",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:64"
+    },
+    {
+      "arquivo": "tools/processo/harness/caminhos.test.ts",
+      "texto": ".claude/rules/10-a.md cita packages/core/src/ia/adaptador-<x>.ts: a pasta packages/core/src/ia não existe",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:64"
+    },
+    {
+      "arquivo": "tools/processo/harness/guardioes.test.ts",
+      "texto": "packages/nucleo/src/x.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:124"
+    },
+    {
+      "arquivo": "tools/processo/harness/guardioes.test.ts",
+      "texto": "packages/nucleo/src/titular/leitura-do-titular.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:124"
+    },
+    {
+      "arquivo": "tools/processo/harness/guardioes.test.ts",
+      "texto": "packages/core/src/x.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:124"
+    },
+    {
+      "arquivo": "tools/processo/harness/guardioes.test.ts",
+      "texto": "packages/core/src/titular/leitura-do-titular.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:124"
+    },
+    {
+      "arquivo": "tools/processo/linhas.test.ts",
+      "texto": "packages/nucleo/drizzle/0037_x.sql",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:124"
+    },
+    {
+      "arquivo": "tools/processo/linhas.test.ts",
+      "texto": "packages/nucleo/src/db/schema/pedidos.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:124"
+    },
+    {
+      "arquivo": "tools/processo/linhas.test.ts",
+      "texto": "packages/nucleo/drizzle/0037_a.sql",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:124"
+    },
+    {
+      "arquivo": "tools/processo/linhas.test.ts",
+      "texto": "packages/core/drizzle/0037_x.sql",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:124"
+    },
+    {
+      "arquivo": "tools/processo/linhas.test.ts",
+      "texto": "packages/core/src/db/schema/pedidos.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:124"
+    },
+    {
+      "arquivo": "tools/processo/linhas.test.ts",
+      "texto": "packages/core/drizzle/0037_a.sql",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:124"
+    },
+    {
+      "arquivo": "tools/processo/mutacoes.test.ts",
+      "texto": "packages/nucleo/src/ia/porta.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:124"
+    },
+    {
+      "arquivo": "tools/processo/mutacoes.test.ts",
+      "texto": "packages/nucleo/src/retencao/retencao.int.test.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:124"
+    },
+    {
+      "arquivo": "tools/processo/mutacoes.test.ts",
+      "texto": "packages/nucleo/src/ia/provedor.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:124"
+    },
+    {
+      "arquivo": "tools/processo/mutacoes.test.ts",
+      "texto": "packages/core/src/ia/port.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:124"
+    },
+    {
+      "arquivo": "tools/processo/mutacoes.test.ts",
+      "texto": "packages/core/src/retencao/retencao.int.test.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:124"
+    },
+    {
+      "arquivo": "tools/processo/mutacoes.test.ts",
+      "texto": "packages/core/src/ia/llm-gateway.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:124"
+    },
+    {
+      "arquivo": "tools/processo/portao-local.test.ts",
+      "texto": "packages/nucleo/test/a.int.test.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:124"
+    },
+    {
+      "arquivo": "tools/processo/portao-local.test.ts",
+      "texto": "packages/core/test/a.int.test.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:124"
+    },
+    {
+      "arquivo": "tools/processo/revisoes.test.ts",
+      "texto": "packages/nucleo/src/retencao/expurgo-da-escola.test.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:124"
+    },
+    {
+      "arquivo": "tools/processo/revisoes.test.ts",
+      "texto": "packages/nucleo/src/retencao/retencao.int.test.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:124"
+    },
+    {
+      "arquivo": "tools/processo/revisoes.test.ts",
+      "texto": "packages/core/src/retencao/expurgo-da-escola.test.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:124"
+    },
+    {
+      "arquivo": "tools/processo/revisoes.test.ts",
+      "texto": "packages/core/src/retencao/retencao.int.test.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:124"
+    },
+    {
+      "arquivo": "tools/ia/medir-risco-a-vida.test.ts",
+      "texto": "__fixtures__/adaptador-roteirizado.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:125"
+    },
+    {
+      "arquivo": "tools/ia/medir-risco-a-vida.test.ts",
+      "texto": "__fixtures__/scripted-adapter.ts",
+      "motivo": "trava que lê o caminho ou o pacote do core pelo texto: troca à mão para o nome novo, prova em travas.md:125"
+    },
+    {
+      "arquivo": "tools/ia/medir-risco-a-vida.test.ts",
+      "texto": "provedor.ts",
+      "motivo": "trava que lê o caminho do core pelo texto, montado com a pasta: o nome do arquivo que a 5.0 moveu passa ao novo (`provedor.ts` → `llm-gateway.ts`, `tarefas/` → `tasks/`); a prova é o caso que carrega os módulos, em travas.md:125"
+    },
+    {
+      "arquivo": "tools/ia/medir-risco-a-vida.test.ts",
+      "texto": "llm-gateway.ts",
+      "motivo": "trava que lê o caminho do core pelo texto, montado com a pasta: o nome do arquivo que a 5.0 moveu passa ao novo (`provedor.ts` → `llm-gateway.ts`, `tarefas/` → `tasks/`); a prova é o caso que carrega os módulos, em travas.md:125"
+    },
+    {
+      "arquivo": "tools/ia/medir-risco-a-vida.test.ts",
+      "texto": "tarefas/turno-do-tutor.ts",
+      "motivo": "trava que lê o caminho do core pelo texto, montado com a pasta: o nome do arquivo que a 5.0 moveu passa ao novo (`provedor.ts` → `llm-gateway.ts`, `tarefas/` → `tasks/`); a prova é o caso que carrega os módulos, em travas.md:125"
+    },
+    {
+      "arquivo": "tools/ia/medir-risco-a-vida.test.ts",
+      "texto": "tasks/turno-do-tutor.ts",
+      "motivo": "trava que lê o caminho do core pelo texto, montado com a pasta: o nome do arquivo que a 5.0 moveu passa ao novo (`provedor.ts` → `llm-gateway.ts`, `tarefas/` → `tasks/`); a prova é o caso que carrega os módulos, em travas.md:125"
+    }
+  ]
+}

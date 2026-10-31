@@ -1,4 +1,4 @@
-import { DomainException, inatividadeDoPapel, METRICS, type Meter } from '@educa/nucleo'
+import { DomainException, inatividadeDoPapel, METRICS, type Meter } from '@educa/core'
 import { ErrorCode, euResponseSchema, introducaoResponseSchema, type EuResponse, type IntroducaoResponse } from '@educa/shared'
 import type { EuRepository, LinhaDoEu } from './eu.repository.js'
 import type { ResolucaoDeTenantRepository } from '../tenant/resolucao-de-tenant.repository.js'

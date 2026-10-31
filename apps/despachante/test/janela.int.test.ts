@@ -1,5 +1,5 @@
 import 'reflect-metadata'
-import { createDatabase, createPool, DispatchRepository, runInContext, QUEUE_PRIORITY } from '@educa/nucleo'
+import { createDatabase, createPool, DispatchRepository, runInContext, QUEUE_PRIORITY } from '@educa/core'
 import type { QueueName } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'

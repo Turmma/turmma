@@ -1,4 +1,4 @@
-import type { Environment } from '@educa/nucleo'
+import type { Environment } from '@educa/core'
 import { systemStatusResponseSchema, type SystemStatusResponse } from '@educa/shared'
 import { Inject, Injectable } from '@nestjs/common'
 import { SaudeService } from './saude.service.js'

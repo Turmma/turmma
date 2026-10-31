@@ -1,4 +1,4 @@
-import type { SyntheticEffectRepository } from '@educa/nucleo'
+import type { SyntheticEffectRepository } from '@educa/core'
 import { JobFailureCode, InvariantException, type TIPO_JOB_SINTETICO } from '@educa/shared'
 import { Worker } from 'node:worker_threads'
 import type { Processador } from '../executor.js'

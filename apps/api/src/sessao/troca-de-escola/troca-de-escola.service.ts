@@ -1,4 +1,4 @@
-import { DomainException, requestSessao, type Database } from '@educa/nucleo'
+import { DomainException, requestSessao, type Database } from '@educa/core'
 import { ErrorCode, type TrocaDeEscolaRequest } from '@educa/shared'
 import type { ConclusaoDeLogin } from '../conclusao/conclusao-de-login.js'
 import { verificarDesafio, type ConsumoDeDesafio, type EmissorDeDesafio, type SessaoDeOrigemDaTroca } from '../../credencial/desafio.js'

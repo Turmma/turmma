@@ -1,4 +1,4 @@
-import { acessoTurma, anoLetivo, codigoRecuperacao, conta, convite, DomainException, escola, rede, registroAcesso, Unscoped, sessao, usuario, type Database, type EstadoDaSessao, type MotivoDeEncerramento, type TipoDeConvite, type DatabaseTransaction } from '@educa/nucleo'
+import { acessoTurma, anoLetivo, codigoRecuperacao, conta, convite, DomainException, escola, rede, registroAcesso, Unscoped, sessao, usuario, type Database, type EstadoDaSessao, type MotivoDeEncerramento, type TipoDeConvite, type DatabaseTransaction } from '@educa/core'
 import { ErrorCode, type PapelDeUsuario } from '@educa/shared'
 import { and, eq, gt, gte, isNotNull, isNull, lt, ne, or, sql, type SQL } from 'drizzle-orm'
 

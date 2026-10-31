@@ -275,7 +275,7 @@ resolveu com um limitador próprio, sem licença (regra 00). O desenho completo 
 - **Dois despachantes** reservam a linha com `FOR UPDATE SKIP LOCKED`, em rodízio de escolas,
   e só então tomam a vaga
 - **A vaga é um ZSET por fila e escola** (`vaga:{fila}:{escola}`), tomada em Lua
-  (`packages/nucleo/src/fila/vaga.lua`), com validade de 60 s renovada pelo worker a cada
+  (`packages/core/src/queue/concurrency-slot.lua`), com validade de 60 s renovada pelo worker a cada
   15 s. Vaga de worker morto vence sozinha. Liberar a vaga acorda o despachante na hora
 - **Padrões por escola:** interativa 5, normal 5, lote 2, com pools de 50, 30 e 10. É
   configuração por escola em `configuracao_operacional_escola`, nunca constante (D41)

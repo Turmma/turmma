@@ -1,4 +1,4 @@
-import { METRICS } from '@educa/nucleo'
+import { METRICS } from '@educa/core'
 import { ErrorCode, type PapelDeUsuario } from '@educa/shared'
 import { randomBytes } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'

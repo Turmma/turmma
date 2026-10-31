@@ -1,4 +1,4 @@
-import { requireEscolaId, sessao, type Database, type MetodoDeSessao, type DatabaseTransaction } from '@educa/nucleo'
+import { requireEscolaId, sessao, type Database, type MetodoDeSessao, type DatabaseTransaction } from '@educa/core'
 import { and, eq, isNull, sql } from 'drizzle-orm'
 
 /** O que a troca de escola precisa saber da sessão de onde parte: o método de entrada e a conta. Nada da pessoa. */

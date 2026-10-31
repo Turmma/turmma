@@ -37,7 +37,7 @@ export type ConviteDeProfessorResponse = z.infer<typeof conviteDeProfessorRespon
 
 /**
  * O estado do professor na escola, pelo convite dele (A1, tarefa 3.0). Calculado só por `estadoDoProfessor`, em
- * `@educa/nucleo`: a lista e a escrita (refazer, revogar) usam a mesma função.
+ * `@educa/core`: a lista e a escrita (refazer, revogar) usam a mesma função.
  *
  * - `pendente`, `vencido`: o último convite está em aberto (não usado, não revogado), dentro ou fora do prazo;
  * - `revogado`: o último convite foi revogado, e o professor não entrou;

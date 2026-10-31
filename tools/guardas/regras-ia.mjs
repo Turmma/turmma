@@ -1,6 +1,6 @@
 /**
  * Guarda da camada de IA (regra 30, item 1): SDK de provedor só dentro dos adaptadores,
- * `packages/nucleo/src/ia/adaptador-*.ts`. O import estático fica com `no-restricted-imports`; esta regra
+ * `packages/core/src/ia/*-adapter.ts`. O import estático fica com `no-restricted-imports`; esta regra
  * cobre o que ele não vê: `import('openai')`, `require('openai')`, `createRequire(...)('openai')`
  * e `typeof import('openai')`.
  */
@@ -26,10 +26,10 @@ const ESCOPOS_DE_SDK = ['@anthropic-ai', '@mistralai', '@ai-sdk', '@langchain']
 const escapar = (texto) => texto.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&')
 export const REGEX_SDK_DE_IA = `^(?:(?:${PACOTES_DE_SDK.map(escapar).join('|')})(?:/.*)?|(?:${ESCOPOS_DE_SDK.map(escapar).join('|')})/.+)$`
 
-export const PASTA_DOS_ADAPTADORES = 'packages/nucleo/src/ia/adaptador-*.ts'
+export const PASTA_DOS_ADAPTADORES = 'packages/core/src/ia/*-adapter.ts'
 
 export const MENSAGEM_SDK_DE_IA =
-  'SDK de provedor de IA só entra em packages/nucleo/src/ia/adaptador-*.ts. O domínio pede a tarefa ao LLMProvider, com perfil (regra 30, item 1).'
+  'SDK de provedor de IA só entra em packages/core/src/ia/*-adapter.ts. O domínio pede a tarefa ao LLMProvider, com perfil (regra 30, item 1).'
 
 const sdkDeIa = new RegExp(REGEX_SDK_DE_IA)
 

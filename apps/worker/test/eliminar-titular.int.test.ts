@@ -16,7 +16,7 @@ import {
   type JanelaLetiva,
   type Clock,
   type DatabaseTransaction,
-} from '@educa/nucleo'
+} from '@educa/core'
 import { AUTOR_DA_ROTINA, TIPO_ELIMINAR_TITULAR } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it, onTestFinished } from 'vitest'

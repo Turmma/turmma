@@ -1,4 +1,4 @@
-import { DomainException, METRICS, ROTULO_ESCOLA, type Meter } from '@educa/nucleo'
+import { DomainException, METRICS, ROTULO_ESCOLA, type Meter } from '@educa/core'
 import { ErrorCode } from '@educa/shared'
 import type { ContadorDeTentativas, Reserva } from '../contador-de-tentativas.js'
 import type { HashDeSenha } from '../hash-de-senha.js'

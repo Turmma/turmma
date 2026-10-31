@@ -1,4 +1,4 @@
-import { requireAnoEmCurso, requireEscolaId, listaNome, reivindicacao, requestSessao, vinculo, type Database, type DatabaseTransaction } from '@educa/nucleo'
+import { requireAnoEmCurso, requireEscolaId, listaNome, reivindicacao, requestSessao, vinculo, type Database, type DatabaseTransaction } from '@educa/core'
 import type { PaginationQuery, DecisorDaReivindicacao } from '@educa/shared'
 import { and, asc, eq, exists, gt, sql, type SQL } from 'drizzle-orm'
 import { InvariantException } from '@educa/shared'

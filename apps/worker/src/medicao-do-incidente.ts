@@ -1,4 +1,4 @@
-import { METRICS, type CronEscolasRepository, type IncidenteDaEscolaRepository, type LoggerBase, type Meter, type Clock } from '@educa/nucleo'
+import { METRICS, type CronEscolasRepository, type IncidenteDaEscolaRepository, type LoggerBase, type Meter, type Clock } from '@educa/core'
 import { MedicaoPorEscola } from './medicao-por-escola.js'
 
 const MS_POR_HORA = 3_600_000

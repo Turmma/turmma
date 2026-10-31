@@ -1,4 +1,4 @@
-import { artefato, atividadeAplicada, entrega, requireAnoEmCurso, requireEscolaId, material, requestSessao, type Database, type DatabaseTransaction } from '@educa/nucleo'
+import { artefato, atividadeAplicada, entrega, requireAnoEmCurso, requireEscolaId, material, requestSessao, type Database, type DatabaseTransaction } from '@educa/core'
 import { InvariantException, MAXIMO_DE_VERSOES_NO_ARTEFATO, type ArtefatosQuery, type ConteudoDoArtefato, type EstadoDeAtividadeAplicada, type EstadoDeEntrega, type TipoDeArtefato } from '@educa/shared'
 import { and, desc, eq, exists, inArray, lt, ne, not, sql, type SQL } from 'drizzle-orm'
 import { comVinculoConfirmadoDoProfessor, disciplinaDoArtefato } from '../assistente/turma-do-professor.repository.js'

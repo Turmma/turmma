@@ -58,7 +58,7 @@ describe('o padrão: os quatro guardiões', () => {
   })
 
   it('as cinco pastas pedem os quatro, uma a uma, e o documento não é código aqui', () => {
-    for (const arquivo of ['apps/api/src/x.ts', 'packages/nucleo/src/x.ts', 'e2e/x.spec.ts', 'tools/guardas/x.mjs', 'tools/testes/x.ts']) {
+    for (const arquivo of ['apps/api/src/x.ts', 'packages/core/src/x.ts', 'e2e/x.spec.ts', 'tools/guardas/x.mjs', 'tools/testes/x.ts']) {
       expect(pede(arquivo)).toEqual(OS_QUATRO)
     }
     // Documento não é código: nem citando a regra pede guardião. O código de processo (RF16) é o último bloco deste arquivo.
@@ -70,7 +70,7 @@ describe('o padrão: os quatro guardiões', () => {
 
   it('pasta inventada dentro de uma das cinco pede os quatro; os quatro nomes que a tabela cita também', () => {
     expect(pede('apps/api/src/pasta-nova-que-ninguem-previu/x.ts')).toEqual(OS_QUATRO)
-    expect(pede('packages/nucleo/src/titular/leitura-do-titular.ts')).toEqual(OS_QUATRO)
+    expect(pede('packages/core/src/titular/leitura-do-titular.ts')).toEqual(OS_QUATRO)
     expect(pede('apps/api/test/estrutura-isolamento.int.test.ts')).toEqual(OS_QUATRO)
     expect(pede('e2e/aluno-tutor.spec.ts')).toEqual(OS_QUATRO)
   })

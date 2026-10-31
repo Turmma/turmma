@@ -1,4 +1,4 @@
-import { createPool, type DatabasePool } from '@educa/nucleo'
+import { createPool, type DatabasePool } from '@educa/core'
 import { CHAVES_DE_RETENCAO } from '@educa/shared'
 import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import { existsSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'

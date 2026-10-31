@@ -1,4 +1,4 @@
-import { PROVEDORES_EXTERNOS, type Environment, type ProvedorExterno } from '@educa/nucleo'
+import { PROVEDORES_EXTERNOS, type Environment, type ProvedorExterno } from '@educa/core'
 import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto'
 import { z } from 'zod'
 import { InvariantException } from '@educa/shared'

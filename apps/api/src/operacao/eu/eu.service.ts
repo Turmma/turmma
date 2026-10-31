@@ -1,4 +1,4 @@
-import { DomainException, requireContextOperador } from '@educa/nucleo'
+import { DomainException, requireContextOperador } from '@educa/core'
 import { ErrorCode, euDoOperadorResponseSchema, type EuDoOperadorResponse } from '@educa/shared'
 import type { OperadorRepository } from '../operador/operador.repository.js'
 

@@ -1,4 +1,4 @@
-import { createLogger, type LoggerBase, type Meter } from '@educa/nucleo'
+import { createLogger, type LoggerBase, type Meter } from '@educa/core'
 import { SYSTEM_REALTIME_NAMESPACE, realtimeClientOptions } from '@educa/shared'
 import type { INestApplication } from '@nestjs/common'
 import { createServer } from 'node:http'

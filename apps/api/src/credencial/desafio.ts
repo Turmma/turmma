@@ -1,4 +1,4 @@
-import { throttledWarn, EMISSOR_TOKEN, DomainException, SlidingWindowRatio, systemClock, TIPO_DESAFIO, type Clock } from '@educa/nucleo'
+import { throttledWarn, EMISSOR_TOKEN, DomainException, SlidingWindowRatio, systemClock, TIPO_DESAFIO, type Clock } from '@educa/core'
 import { ErrorCode, ETAPAS_COM_DESAFIO, type EtapaComDesafio } from '@educa/shared'
 import { Logger } from '@nestjs/common'
 import type { Redis } from 'ioredis'

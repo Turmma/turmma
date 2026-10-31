@@ -1,4 +1,4 @@
-import { DomainException, runInContext } from '@educa/nucleo'
+import { DomainException, runInContext } from '@educa/core'
 import { describe, expect, it } from 'vitest'
 import { LimiteDePedidosDeIa, TETO_DE_PEDIDOS_DE_IA_POR_ESCOLA, TETO_DE_PEDIDOS_DE_IA_POR_USUARIO } from './limite-de-pedidos-de-ia.js'
 

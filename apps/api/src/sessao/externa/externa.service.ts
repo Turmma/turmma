@@ -7,7 +7,7 @@ import {
   type Database,
   type Meter,
   type ProvedorExterno,
-} from '@educa/nucleo'
+} from '@educa/core'
 import { ErrorCode, PARAMETRO_DA_FALHA_DO_LOGIN_EXTERNO, TENANT_DE_CONTA_PESSOAL_MICROSOFT, type FalhaDoLoginExterno } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import type { ConclusaoDeLogin } from '../conclusao/conclusao-de-login.js'

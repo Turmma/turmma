@@ -1,4 +1,4 @@
-import { DomainException, postgresErrorIn, METRICS, type Database, type Meter } from '@educa/nucleo'
+import { DomainException, postgresErrorIn, METRICS, type Database, type Meter } from '@educa/core'
 import { ErrorCode, reivindicacaoResponseSchema, type ReivindicarSalaRequest, type ReivindicacaoResponse } from '@educa/shared'
 import { TurmaRepository } from '../../estrutura/turma/turma.repository.js'
 import type { AcessoDaSala } from '../../sessao/index.js'

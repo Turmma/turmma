@@ -1,4 +1,4 @@
-import { type Database } from '@educa/nucleo'
+import { type Database } from '@educa/core'
 import { eq } from 'drizzle-orm'
 import { aluno } from './tabelas.js'
 

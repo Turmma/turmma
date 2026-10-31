@@ -616,7 +616,7 @@ export interface ProfessorDeTeste {
   readonly email: string
 }
 
-/** Os estados do professor na escola, como `estadoDoProfessor` os calcula (`packages/nucleo`, A1, 3.0): os do contrato. */
+/** Os estados do professor na escola, como `estadoDoProfessor` os calcula (`packages/core`, A1, 3.0): os do contrato. */
 export type EstadoDoProfessorDeTeste = EstadoDoProfessor
 
 const NOME_DO_ESTADO_NO_TESTE: Readonly<Record<EstadoDoProfessorDeTeste, string>> = {

@@ -1,4 +1,4 @@
-import { IdPipe, RequirePermissao, ZodValidationPipe } from '@educa/nucleo'
+import { IdPipe, RequirePermissao, ZodValidationPipe } from '@educa/core'
 import { desempenhoDaTurmaQuerySchema, type DesempenhoDaTurmaQuery, type DesempenhoDaTurmaResponse } from '@educa/shared'
 import { Controller, Get, Header, Param, Query } from '@nestjs/common'
 import { DesempenhoService } from './desempenho.service.js'

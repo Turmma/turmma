@@ -1,4 +1,4 @@
-import { DomainException, AuditoriaRecorder, type Database } from '@educa/nucleo'
+import { DomainException, AuditoriaRecorder, type Database } from '@educa/core'
 import {
   ErrorCode,
   nomeDaListaSchema,

@@ -1,5 +1,5 @@
 import 'reflect-metadata'
-import { createLogger, type DatabasePool } from '@educa/nucleo'
+import { createLogger, type DatabasePool } from '@educa/core'
 import { ESCOLAS_POR_PAGINA, MENSAGENS_DE_ERRO, type ErrorCode } from '@educa/shared'
 import type { INestApplication } from '@nestjs/common'
 import { NestFactory } from '@nestjs/core'

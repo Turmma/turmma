@@ -1,4 +1,4 @@
-import { escola, requireEscolaId, provedorEscola, type ProvedorExterno, type DatabaseTransaction } from '@educa/nucleo'
+import { escola, requireEscolaId, provedorEscola, type ProvedorExterno, type DatabaseTransaction } from '@educa/core'
 import { and, eq, inArray, isNull } from 'drizzle-orm'
 
 /** Uma linha liberada: o id (o que a auditoria guarda), o provedor e o domínio ou tenant. */

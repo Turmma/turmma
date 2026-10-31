@@ -1,4 +1,4 @@
-import { runInContext, type Database, type JobOutbox, type LoggerBase } from '@educa/nucleo'
+import { runInContext, type Database, type JobOutbox, type LoggerBase } from '@educa/core'
 import { TIPO_CONSOLIDAR_USO, TIPO_EXPURGAR_ACESSO, TIPO_EXPURGAR_DADO_PESSOAL, TIPO_EXPURGAR_JOBS, type JobType } from '@educa/shared'
 import { UnrecoverableError, type Job, type Queue } from 'bullmq'
 import { randomUUID } from 'node:crypto'

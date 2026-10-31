@@ -1,4 +1,4 @@
-import { RequirePermissao } from '@educa/nucleo'
+import { RequirePermissao } from '@educa/core'
 import { Controller, HttpCode, HttpStatus, Post } from '@nestjs/common'
 import { RegistroDeAtividade } from './atividade.service.js'
 

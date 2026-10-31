@@ -12,7 +12,7 @@ import {
   type Clock,
   type UsagePeriod,
   type UsageRepository,
-} from '@educa/nucleo'
+} from '@educa/core'
 import { JobFailureCode, type TIPO_CONSOLIDAR_USO } from '@educa/shared'
 import type { Processador } from '../executor.js'
 import { FalhaDeJob } from '../falha-de-job.js'

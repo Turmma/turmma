@@ -20,7 +20,7 @@ export const ESTADOS_FINAIS_DE_EXECUCAO = ['concluida', 'falhou'] as const satis
 export const INTERVALO_DA_CONSULTA_DE_EXECUCAO_MS = 1000
 
 /**
- * As tarefas de IA da fatia: os mesmos nomes do catálogo `TAREFAS_DE_IA` da camada de IA (`packages/nucleo/src/ia`), que
+ * As tarefas de IA da fatia: os mesmos nomes do catálogo `TAREFAS_DE_IA` da camada de IA (`packages/core/src/ia`), que
  * é quem tem o prompt e o schema de cada uma. É o que `execucao_agente.tarefa` e `consumo_ia.tarefa` guardam.
  */
 export const TAREFAS_DE_IA = [

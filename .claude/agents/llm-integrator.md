@@ -9,7 +9,7 @@ Você cuida da camada de IA e do runtime de agentes, conforme a regra 30.
 
 ## O que verificar e orientar
 
-1. Nenhum SDK de provedor fora dos adaptadores, `packages/nucleo/src/ia/adaptador-*.ts`.
+1. Nenhum SDK de provedor fora dos adaptadores, `packages/core/src/ia/*-adapter.ts`.
 2. A chamada declara perfil, e o perfil escolhido é o mais barato que resolve. Classificar
    texto com perfil `complexo` é desperdício e vai aparecer na conta.
 3. Prompt em arquivo versionado, com variáveis explícitas.

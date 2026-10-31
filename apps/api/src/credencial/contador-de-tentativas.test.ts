@@ -1,4 +1,4 @@
-import { SlidingWindowRatio } from '@educa/nucleo'
+import { SlidingWindowRatio } from '@educa/core'
 import type { Redis } from 'ioredis'
 import { createHmac } from 'node:crypto'
 import { describe, expect, it } from 'vitest'

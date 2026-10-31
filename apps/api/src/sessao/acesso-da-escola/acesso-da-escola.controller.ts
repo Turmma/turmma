@@ -1,4 +1,4 @@
-import { Public, ZodValidationPipe } from '@educa/nucleo'
+import { Public, ZodValidationPipe } from '@educa/core'
 import { ErrorCode, acessoDaEscolaResponseSchema, slugDaEscolaSchema, type AcessoDaEscolaResponse } from '@educa/shared'
 import { Controller, Get, Param } from '@nestjs/common'
 import { AcessoDaEscolaService } from './acesso-da-escola.service.js'

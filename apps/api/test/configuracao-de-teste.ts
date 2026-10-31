@@ -1,4 +1,4 @@
-import { TIMEOUT_COMANDO_REDIS_FILA_MS, type DatabaseConfig } from '@educa/nucleo'
+import { TIMEOUT_COMANDO_REDIS_FILA_MS, type DatabaseConfig } from '@educa/core'
 import type { ConfiguracaoLogin } from '../src/credencial/index.js'
 import { lerAmbienteDeTeste, valorObrigatorio } from '../../../tools/ci/compose.ts'
 import { lerConfiguracao, type ConfiguracaoApi } from '../src/config.js'

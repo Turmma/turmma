@@ -1,4 +1,4 @@
-import { RequirePermissao } from '@educa/nucleo'
+import { RequirePermissao } from '@educa/core'
 import type { TimeResponse } from '@educa/shared'
 import { Controller, Get, Header } from '@nestjs/common'
 import { TimeService } from './time.service.js'

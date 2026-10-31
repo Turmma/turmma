@@ -1,4 +1,4 @@
-import { createDatabase, createPool, type Database, type DatabasePool } from '@educa/nucleo'
+import { createDatabase, createPool, type Database, type DatabasePool } from '@educa/core'
 import {
   ErrorCode,
   ESCOLAS_POR_PAGINA,

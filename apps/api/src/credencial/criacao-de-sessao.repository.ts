@@ -1,4 +1,4 @@
-import { requireEscolaId, sessao, usuario, type MetodoDeSessao, type DatabaseTransaction } from '@educa/nucleo'
+import { requireEscolaId, sessao, usuario, type MetodoDeSessao, type DatabaseTransaction } from '@educa/core'
 import type { PapelDeUsuario } from '@educa/shared'
 import { sql } from 'drizzle-orm'
 

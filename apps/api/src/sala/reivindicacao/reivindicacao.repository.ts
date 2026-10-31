@@ -1,4 +1,4 @@
-import { requireAnoEmCurso, requireEscolaId, reivindicacao, type Database, type DatabaseTransaction } from '@educa/nucleo'
+import { requireAnoEmCurso, requireEscolaId, reivindicacao, type Database, type DatabaseTransaction } from '@educa/core'
 import { and, eq } from 'drizzle-orm'
 
 /** O pedido novo: a turma do acesso, o nome escolhido, a chave do envio e o hash da senha, já calculado fora da transação. */

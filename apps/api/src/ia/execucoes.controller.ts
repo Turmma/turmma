@@ -1,4 +1,4 @@
-import { IdPipe, RequirePermissao } from '@educa/nucleo'
+import { IdPipe, RequirePermissao } from '@educa/core'
 import type { ExecucaoResponse } from '@educa/shared'
 import { Controller, Get, Header, Param } from '@nestjs/common'
 import { ExecucoesService } from './execucoes.service.js'

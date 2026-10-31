@@ -1,4 +1,4 @@
-import { escola, requireEscolaId, provedorEscola, type Database, type ProvedorExterno, type DatabaseTransaction } from '@educa/nucleo'
+import { escola, requireEscolaId, provedorEscola, type Database, type ProvedorExterno, type DatabaseTransaction } from '@educa/core'
 import { and, eq, isNull } from 'drizzle-orm'
 
 /**

@@ -8,7 +8,7 @@ import {
   type Database,
   type AuthConfig,
   type VerifiedOperadorToken,
-} from '@educa/nucleo'
+} from '@educa/core'
 import { ErrorCode } from '@educa/shared'
 import { Inject, Injectable, Logger, type CanActivate, type ExecutionContext, type Provider } from '@nestjs/common'
 import type { IncomingMessage } from 'node:http'

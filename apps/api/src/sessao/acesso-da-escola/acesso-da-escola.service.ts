@@ -1,4 +1,4 @@
-import { DomainException, type Database, type ProvedorExterno } from '@educa/nucleo'
+import { DomainException, type Database, type ProvedorExterno } from '@educa/core'
 import { ErrorCode, PROVEDORES_DE_CONTA_DA_ESCOLA, type AcessoDaEscolaResponse } from '@educa/shared'
 import { AcessoDaEscolaRepository } from '../../credencial/acesso-publico.repository.js'
 import { naEscolaSemUsuario } from '../tenant/escola-sem-usuario.js'

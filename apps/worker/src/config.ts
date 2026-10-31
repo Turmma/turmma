@@ -10,7 +10,7 @@ import {
   type TelemetryConfig,
   type JanelaLetiva,
   type ConcurrencyByQueue,
-} from '@educa/nucleo'
+} from '@educa/core'
 import { QUEUE_NAMES, type QueueName } from '@educa/shared'
 import { z } from 'zod'
 

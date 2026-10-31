@@ -119,7 +119,7 @@ describe('arquivos previstos', () => {
   })
 
   it('migration, schema e contrato compartilhado são do tronco', async () => {
-    expect(['packages/nucleo/drizzle/0037_x.sql', 'packages/nucleo/src/db/schema/pedidos.ts', 'packages/shared/src/pedidos.ts'].every(ehDoTronco)).toBe(true)
+    expect(['packages/core/drizzle/0037_x.sql', 'packages/core/src/db/schema/pedidos.ts', 'packages/shared/src/pedidos.ts'].every(ehDoTronco)).toBe(true)
     expect(['apps/api/src/pedidos/pedidos.service.ts', 'apps/web/src/areas/x/Tela.tsx', 'e2e/pedidos.spec.ts'].some(ehDoTronco)).toBe(false)
   })
 })
@@ -133,10 +133,10 @@ describe('o que corre junto', () => {
     expect(porQueNaoJuntas({ ...a, arquivos: ['apps/web/src/rotas.tsx', 'apps/web/src/areas/a1/'] }, { ...b, arquivos: ['apps/web/src/rotas.tsx'] })).toMatch(/preveem apps\/web\/src\/rotas\.tsx/)
     expect(porQueNaoJuntas({ ...a, arquivos: ['apps/web/src/areas/a1/'] }, { ...b, arquivos: ['apps/web/src/areas/a1/Tela.tsx'] })).toMatch(/preveem apps\/web\/src\/areas\/a1\//)
     expect(
-      porQueNaoJuntas({ ...a, arquivos: ['packages/nucleo/drizzle/0037_a.sql'] }, { ...b, arquivos: ['packages/shared/src/b.ts'] }),
+      porQueNaoJuntas({ ...a, arquivos: ['packages/core/drizzle/0037_a.sql'] }, { ...b, arquivos: ['packages/shared/src/b.ts'] }),
     ).toMatch(/migration, schema ou contrato compartilhado/)
     // Uma do tronco com uma folha corre.
-    expect(porQueNaoJuntas({ ...a, arquivos: ['packages/nucleo/drizzle/0037_a.sql'] }, b)).toBeNull()
+    expect(porQueNaoJuntas({ ...a, arquivos: ['packages/core/drizzle/0037_a.sql'] }, b)).toBeNull()
   })
 
   it('pendente só é livre com as dependências concluídas e correndo junto com tudo o que está em curso', async () => {

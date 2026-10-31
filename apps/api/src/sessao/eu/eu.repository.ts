@@ -1,4 +1,4 @@
-import { escola, requestIdentity, usuario, type Database } from '@educa/nucleo'
+import { escola, requestIdentity, usuario, type Database } from '@educa/core'
 import type { PapelDeUsuario } from '@educa/shared'
 import { and, eq, sql } from 'drizzle-orm'
 

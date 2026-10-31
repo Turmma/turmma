@@ -10,7 +10,7 @@ import {
   TETO_DA_CONTAGEM_DE_PENDENTES,
   type FailedJobsMeasurement,
   type PendingJobsMeasurement,
-} from '@educa/nucleo'
+} from '@educa/core'
 import type { QueueName } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'

@@ -1,4 +1,4 @@
-import { RequirePermissao, ZodValidationPipe } from '@educa/nucleo'
+import { RequirePermissao, ZodValidationPipe } from '@educa/core'
 import { provedoresDaEscolaRequestSchema, type ProvedoresDaEscolaRequest, type ProvedoresDaEscolaResponse } from '@educa/shared'
 import { Body, Controller, Put } from '@nestjs/common'
 import { ProvedoresDaEscolaService } from './provedores-da-escola.service.js'

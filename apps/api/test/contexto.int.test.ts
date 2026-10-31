@@ -1,5 +1,5 @@
 import 'reflect-metadata'
-import { currentContext, createLogger, EMISSOR_TOKEN, TokenIssuer, RequirePermissao, Public } from '@educa/nucleo'
+import { currentContext, createLogger, EMISSOR_TOKEN, TokenIssuer, RequirePermissao, Public } from '@educa/core'
 import { ErrorCode, MENSAGENS_DE_ERRO } from '@educa/shared'
 import { Controller, Get, Module, type INestApplication } from '@nestjs/common'
 import { NestFactory } from '@nestjs/core'

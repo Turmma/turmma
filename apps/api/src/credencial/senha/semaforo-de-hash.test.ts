@@ -1,4 +1,4 @@
-import { DomainException, METRICS } from '@educa/nucleo'
+import { DomainException, METRICS } from '@educa/core'
 import { ErrorCode } from '@educa/shared'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { MedidorDeTeste } from '../../../../../tools/testes/metricas.ts'

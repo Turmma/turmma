@@ -1,4 +1,4 @@
-import { execucaoAgente, requireAnoEmCurso, requireEscolaId, mensagemAgente, requestSessao, threadAgente, type Database, type DatabaseTransaction } from '@educa/nucleo'
+import { execucaoAgente, requireAnoEmCurso, requireEscolaId, mensagemAgente, requestSessao, threadAgente, type Database, type DatabaseTransaction } from '@educa/core'
 import type { AutorDeMensagemDeAgente, ConteudoDaMensagemDoAgente } from '@educa/shared'
 import { and, desc, eq, lt } from 'drizzle-orm'
 import { InvariantException } from '@educa/shared'

@@ -1,4 +1,4 @@
-import { bullmqQueueName, type ReservedJob } from '@educa/nucleo'
+import { bullmqQueueName, type ReservedJob } from '@educa/core'
 import { JobFailureCode, defineJob, JOB_DEFINITIONS, TIPO_JOB_SINTETICO, type JobExecutor, type QueueName, type JobRegistry } from '@educa/shared'
 import { describe, expect, it, vi } from 'vitest'
 import { PrazoDaFilaEsgotado, PublicacaoBullMQ, type FilaBullMQ } from './fila-de-publicacao.js'

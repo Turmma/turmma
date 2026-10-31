@@ -1,4 +1,4 @@
-import type { Database } from '@educa/nucleo'
+import type { Database } from '@educa/core'
 import {
   listaDeSeriesResponseSchema,
   serieResponseSchema,

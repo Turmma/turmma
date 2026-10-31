@@ -19,7 +19,7 @@ import {
   type OrcamentoDeIa,
   type SuspensaoDeFuncao,
   type DatabaseTransaction,
-} from '@educa/nucleo'
+} from '@educa/core'
 import { ErrorCode, execucaoResponseSchema, TROCAS_POR_DIA_PADRAO_DO_TUTOR, type ChaveDeFuncao, type PapelDeUsuario, type ResultadoGravado } from '@educa/shared'
 import { and, eq } from 'drizzle-orm'
 import { randomUUID } from 'node:crypto'

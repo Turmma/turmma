@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
-import { interpretarCorpus, medir, type Amostra, type Contagem, type Medida } from '../../packages/nucleo/src/ia/__fixtures__/ouro.ts'
+import { interpretarCorpus, medir, type Amostra, type Contagem, type Medida } from '../../packages/core/src/ia/__fixtures__/golden.ts'
 
 /**
  * Mede o risco à vida do Tutor com o que a tarefa 94.0 acrescentou: o padrão (`mencionaRiscoAVida`) e o modelo, que só soma
@@ -208,9 +208,9 @@ export function exigirModeloDaMedida(config: ConfiguracaoLida, argumentos: reado
 async function principal(argumentos: readonly string[]): Promise<void> {
   const lote = loteDosArgumentos(argumentos)
   const amostras = interpretarCorpus('riscoAVida', JSON.parse(readFileSync(lote, 'utf8'))).amostras
-  // O núcleo vem do `dist` (`npm run -s build -w @educa/shared && npm run -s build -w @educa/nucleo`), como nos scripts de `infra/scripts/`.
-  const nucleo = await importar<NucleoEmDist>('packages/nucleo/dist/index.js')
-  const tarefa = await importar<TarefaEmDist>('packages/nucleo/dist/ia/tarefas/turno-do-tutor.js')
+  // O núcleo vem do `dist` (`npm run -s build -w @educa/shared && npm run -s build -w @educa/core`), como nos scripts de `infra/scripts/`.
+  const nucleo = await importar<NucleoEmDist>('packages/core/dist/index.js')
+  const tarefa = await importar<TarefaEmDist>('packages/core/dist/ia/tasks/turno-do-tutor.js')
   const config = nucleo.loadLLMConfig(process.env)
   exigirModeloDaMedida(config, argumentos)
   const consumo = new nucleo.InMemoryConsumo()

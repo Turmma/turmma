@@ -312,8 +312,8 @@ quebra. Depois API e web correm lado a lado em cima do contrato.
 
 | Pacote | Dono | Arquivos |
 |---|---|---|
-| S — contratos e dados | agente S | `packages/nucleo/src/db/schema/*` (novos), `packages/nucleo/drizzle/*`, `packages/shared/src/{material,assistente,atividade,tutor,governanca,time}/*`, `matriz.ts` |
-| L — camada de IA | agente L | `packages/nucleo/src/ia/*` |
+| S — contratos e dados | agente S | `packages/core/src/db/schema/*` (novos), `packages/core/drizzle/*`, `packages/shared/src/{material,assistente,atividade,tutor,governanca,time}/*`, `matriz.ts` |
+| L — camada de IA | agente L | `packages/core/src/ia/*` |
 | M — material (API + web) | agente M | `apps/api/src/material/*`, `apps/web/src/areas/coordenacao/Material*` |
 | P — Assistente (API) | agente P | `apps/api/src/assistente/*`, `apps/api/src/artefato/*`, `apps/api/src/entrega/*` |
 | W — web do professor | agente W | `apps/web/src/areas/professor/*` (Home, Ferramentas, Seu time, artefato, Turmas com desempenho) |
@@ -353,7 +353,7 @@ fase seguinte começa sem esperar por ela. O fechamento (seção 8) só acontece
 ## 4. Decisões de atalho (para o MVP, anotadas para voltar depois)
 
 1. **A execução de IA roda no processo da API, em segundo plano**, atrás de uma interface `AgenteExecutor`
-   (`packages/nucleo/src/ia`). O `POST` grava a `execucao_agente` como `pendente` e responde na hora; a execução roda
+   (`packages/core/src/ia`). O `POST` grava a `execucao_agente` como `pendente` e responde na hora; a execução roda
    depois, grava `concluida` ou `falhou`, e a tela consulta `GET /v1/execucoes/:id` a cada segundo. Idempotente por
    chave. Trocar por job do worker depois é mudar a implementação da interface (D49, regra 00 item 4: **dívida
    declarada**, `TODO(fila)`).

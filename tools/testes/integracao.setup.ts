@@ -1,6 +1,6 @@
 import { spawnSync } from 'node:child_process'
-import { createLogger } from '../../packages/nucleo/src/log/logger.ts'
-import { migrate } from '../../packages/nucleo/src/db/migrar.ts'
+import { createLogger } from '../../packages/core/src/log/logger.ts'
+import { migrate } from '../../packages/core/src/db/migrate.ts'
 import { ARGUMENTOS_COMPOSE, comandosDaSubidaDeTeste, urlDoBancoDeTeste } from '../ci/compose.ts'
 import { raizRepositorio } from '../ci/executar.ts'
 

@@ -1,4 +1,4 @@
-import { createPool, OperadorTokenIssuer, type DatabasePool } from '@educa/nucleo'
+import { createPool, OperadorTokenIssuer, type DatabasePool } from '@educa/core'
 import { createHash, randomBytes } from 'node:crypto'
 import { lerAmbienteDeTeste } from '../../../tools/ci/compose.ts'
 import { urlDoBancoDeTeste } from '../../../tools/testes/integracao.setup.ts'

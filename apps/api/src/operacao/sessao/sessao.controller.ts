@@ -1,4 +1,4 @@
-import { requestIp, TrustedProxies, ZodValidationPipe } from '@educa/nucleo'
+import { requestIp, TrustedProxies, ZodValidationPipe } from '@educa/core'
 import { operadorEmptyBodyRequestSchema, renovacaoDeOperadorResponseSchema, type OperadorEmptyBodyRequest, type RenovacaoDeOperadorResponse } from '@educa/shared'
 import { Body, Controller, Header, HttpCode, HttpStatus, Inject, Post, Req, Res } from '@nestjs/common'
 import type { IncomingMessage, ServerResponse } from 'node:http'

@@ -1,4 +1,4 @@
-import { OperadorTokenIssuer, globalMeter, type Database, type AuthConfig, type Meter } from '@educa/nucleo'
+import { OperadorTokenIssuer, globalMeter, type Database, type AuthConfig, type Meter } from '@educa/core'
 import { Module, type DynamicModule } from '@nestjs/common'
 import type { Redis } from 'ioredis'
 import { BANCO } from '../banco.module.js'

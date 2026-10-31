@@ -1,4 +1,4 @@
-import { DomainException, type Database } from '@educa/nucleo'
+import { DomainException, type Database } from '@educa/core'
 import { ErrorCode, minhaTurmaResponseSchema, type MinhaTurmaResponse } from '@educa/shared'
 import { MinhaTurmaRepository } from './minha-turma.repository.js'
 

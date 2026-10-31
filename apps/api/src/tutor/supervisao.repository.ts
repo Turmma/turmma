@@ -18,7 +18,7 @@ import {
   type Database,
   type Clock,
   type DatabaseTransaction,
-} from '@educa/nucleo'
+} from '@educa/core'
 import { TIPOS_DE_SINAL_DE_TRABALHO, TROCAS_POR_DIA_PADRAO_DO_TUTOR, TROCAS_POR_MES_PADRAO_DO_TUTOR, type TipoDeSinal, type TipoDeSinalDeTrabalho } from '@educa/shared'
 import { and, asc, count, countDistinct, desc, eq, exists, gte, inArray, isNull, lt, notExists, or, sql, type AnyColumn, type SQL } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/pg-core'

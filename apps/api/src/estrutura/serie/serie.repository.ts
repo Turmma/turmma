@@ -1,4 +1,4 @@
-import { requireEscolaId, serie, type Database, type DatabaseTransaction } from '@educa/nucleo'
+import { requireEscolaId, serie, type Database, type DatabaseTransaction } from '@educa/core'
 import type { PaginationQuery, CriarSerieRequest, Serie } from '@educa/shared'
 import { and, asc, eq, gt } from 'drizzle-orm'
 import { InvariantException } from '@educa/shared'

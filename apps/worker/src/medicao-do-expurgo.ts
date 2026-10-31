@@ -9,7 +9,7 @@ import {
   type LoggerBase,
   type Meter,
   type Clock,
-} from '@educa/nucleo'
+} from '@educa/core'
 import { MedicaoPorEscola } from './medicao-por-escola.js'
 
 export interface DependenciasDaMedicaoDoExpurgo {

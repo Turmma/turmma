@@ -1,5 +1,5 @@
 import 'reflect-metadata'
-import { createLogger, diaDeUso } from '@educa/nucleo'
+import { createLogger, diaDeUso } from '@educa/core'
 import type { INestApplication } from '@nestjs/common'
 import { NestFactory } from '@nestjs/core'
 import { Redis } from 'ioredis'

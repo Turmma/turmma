@@ -1,4 +1,4 @@
-import { CHAVES_DE_CREDENCIAL } from '@educa/nucleo'
+import { CHAVES_DE_CREDENCIAL } from '@educa/core'
 import * as shared from '@educa/shared'
 import { describe, expect, it } from 'vitest'
 import { z } from 'zod'

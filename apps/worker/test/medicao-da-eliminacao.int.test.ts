@@ -1,5 +1,5 @@
 import 'reflect-metadata'
-import { currentContext, ExpurgoDaEscolaRepository } from '@educa/nucleo'
+import { currentContext, ExpurgoDaEscolaRepository } from '@educa/core'
 import { randomUUID } from 'node:crypto'
 import { afterAll, describe, expect, it, onTestFinished } from 'vitest'
 import { lerAmbienteDeTeste, valorObrigatorio } from '../../../tools/ci/compose.ts'

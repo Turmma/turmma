@@ -1,7 +1,7 @@
 /**
  * Guardas de log (regra 20, item 9): log leva id, nunca dado pessoal.
  *
- * O redact do logger (packages/nucleo/src/log/logger.ts) é a rede de segurança em execução, e
+ * O redact do logger (packages/core/src/log/logger.ts) é a rede de segurança em execução, e
  * só alcança chave com o nome exato até dois níveis. Estas regras pegam antes, no lint, e falham
  * fechadas: o que elas não conseguem provar que é seguro, reprovam.
  *

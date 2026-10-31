@@ -41,7 +41,7 @@ export const PRAZO_DA_ENTRADA_NO_503_MS = 30_000
 
 /**
  * O piso da espera entre duas tentativas no 503, qualquer que seja o `Retry-After` recebido. A nossa API nunca manda
- * menos de 1 s (`packages/nucleo/src/limite/chaves.ts`), mas quem obedece a um cabeçalho sem conferi-lo repete sem
+ * menos de 1 s (`packages/core/src/rate-limit/keys.ts`), mas quem obedece a um cabeçalho sem conferi-lo repete sem
  * intervalo se ele vier zerado — e aí a escola inteira, atrás do mesmo IP, martela justamente a rota que o semáforo
  * está protegendo às 7h30 (regra 80, itens 1 e 4).
  */

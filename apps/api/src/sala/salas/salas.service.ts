@@ -1,4 +1,4 @@
-import { DomainException, type Database } from '@educa/nucleo'
+import { DomainException, type Database } from '@educa/core'
 import { ErrorCode, salaAbertaResponseSchema, type AbrirSalaRequest, type SalaAbertaResponse } from '@educa/shared'
 import type { AcessoDaSala, GuardaDoCodigo } from '../../sessao/index.js'
 import { entradaDaSala } from '../entrada-da-sala.js'

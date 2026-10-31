@@ -1,4 +1,4 @@
-import { createLogger, type Meter, type DatabasePool } from '@educa/nucleo'
+import { createLogger, type Meter, type DatabasePool } from '@educa/core'
 import { ErrorCode, configurarSegundoFatorDeOperadorResponseSchema, MENSAGENS_DE_ERRO, type ConfigurarSegundoFatorDeOperadorResponse } from '@educa/shared'
 import type { INestApplication } from '@nestjs/common'
 import { NestFactory } from '@nestjs/core'

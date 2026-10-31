@@ -6,7 +6,7 @@ FROM node:22.23.2-alpine3.23 AS base
 WORKDIR /repo
 COPY package.json package-lock.json ./
 COPY packages/shared/package.json packages/shared/
-COPY packages/nucleo/package.json packages/nucleo/
+COPY packages/core/package.json packages/core/
 COPY apps/api/package.json apps/api/
 COPY apps/despachante/package.json apps/despachante/
 COPY apps/realtime/package.json apps/realtime/
@@ -15,8 +15,8 @@ COPY apps/worker/package.json apps/worker/
 RUN npm ci --ignore-scripts
 COPY tsconfig.base.json ./
 COPY packages/shared packages/shared
-COPY packages/nucleo packages/nucleo
-RUN npm run build -w @educa/shared && npm run build -w @educa/nucleo
+COPY packages/core packages/core
+RUN npm run build -w @educa/shared && npm run build -w @educa/core
 
 FROM base AS construcao-api
 COPY apps/api apps/api
@@ -40,7 +40,7 @@ ENV NODE_ENV=production
 WORKDIR /repo
 COPY package.json package-lock.json ./
 COPY packages/shared/package.json packages/shared/
-COPY packages/nucleo/package.json packages/nucleo/
+COPY packages/core/package.json packages/core/
 COPY apps/api/package.json apps/api/
 COPY apps/despachante/package.json apps/despachante/
 COPY apps/realtime/package.json apps/realtime/
@@ -50,9 +50,9 @@ COPY apps/worker/package.json apps/worker/
 FROM producao AS api
 RUN npm ci --omit=dev --ignore-scripts --workspace @educa/api && npm cache clean --force
 COPY --from=construcao-api /repo/packages/shared/dist packages/shared/dist
-COPY --from=construcao-api /repo/packages/nucleo/dist packages/nucleo/dist
+COPY --from=construcao-api /repo/packages/core/dist packages/core/dist
 # As migrations, para o serviço `migrar` (mesma imagem, outro comando).
-COPY packages/nucleo/drizzle packages/nucleo/drizzle
+COPY packages/core/drizzle packages/core/drizzle
 COPY --from=construcao-api /repo/apps/api/dist apps/api/dist
 USER node
 WORKDIR /repo/apps/api
@@ -62,7 +62,7 @@ CMD ["node", "dist/main.js"]
 FROM producao AS despachante
 RUN npm ci --omit=dev --ignore-scripts --workspace @educa/despachante && npm cache clean --force
 COPY --from=construcao-despachante /repo/packages/shared/dist packages/shared/dist
-COPY --from=construcao-despachante /repo/packages/nucleo/dist packages/nucleo/dist
+COPY --from=construcao-despachante /repo/packages/core/dist packages/core/dist
 COPY --from=construcao-despachante /repo/apps/despachante/dist apps/despachante/dist
 USER node
 WORKDIR /repo/apps/despachante
@@ -71,7 +71,7 @@ CMD ["node", "dist/main.js"]
 FROM producao AS realtime
 RUN npm ci --omit=dev --ignore-scripts --workspace @educa/realtime && npm cache clean --force
 COPY --from=construcao-realtime /repo/packages/shared/dist packages/shared/dist
-COPY --from=construcao-realtime /repo/packages/nucleo/dist packages/nucleo/dist
+COPY --from=construcao-realtime /repo/packages/core/dist packages/core/dist
 COPY --from=construcao-realtime /repo/apps/realtime/dist apps/realtime/dist
 USER node
 WORKDIR /repo/apps/realtime
@@ -81,7 +81,7 @@ CMD ["node", "dist/main.js"]
 FROM producao AS worker
 RUN npm ci --omit=dev --ignore-scripts --workspace @educa/worker && npm cache clean --force
 COPY --from=construcao-worker /repo/packages/shared/dist packages/shared/dist
-COPY --from=construcao-worker /repo/packages/nucleo/dist packages/nucleo/dist
+COPY --from=construcao-worker /repo/packages/core/dist packages/core/dist
 COPY --from=construcao-worker /repo/apps/worker/dist apps/worker/dist
 USER node
 WORKDIR /repo/apps/worker
@@ -95,7 +95,7 @@ RUN chown node:node /repo
 USER node
 COPY --chown=node:node package.json package-lock.json ./
 COPY --chown=node:node packages/shared/package.json packages/shared/
-COPY --chown=node:node packages/nucleo/package.json packages/nucleo/
+COPY --chown=node:node packages/core/package.json packages/core/
 COPY --chown=node:node apps/api/package.json apps/api/
 COPY --chown=node:node apps/despachante/package.json apps/despachante/
 COPY --chown=node:node apps/realtime/package.json apps/realtime/

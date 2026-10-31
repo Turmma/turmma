@@ -1,4 +1,4 @@
-import { runInContext, RECUSA_DE_CORRECAO_DE_TEXTO_DE_ALUNO, type AgenteExecutor, type InProcessAgenteExecutor, type LLMProvider, type SuspensaoDeFuncao } from '@educa/nucleo'
+import { runInContext, RECUSA_DE_CORRECAO_DE_TEXTO_DE_ALUNO, type AgenteExecutor, type InProcessAgenteExecutor, type LLMProvider, type SuspensaoDeFuncao } from '@educa/core'
 import { conversaDoAssistenteResponseSchema, timeResponseSchema, FUNCOES, MENSAGENS_DE_ERRO, type ChaveDeFuncao } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { readdirSync, readFileSync } from 'node:fs'

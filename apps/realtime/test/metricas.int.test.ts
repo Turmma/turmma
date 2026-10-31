@@ -1,5 +1,5 @@
 import 'reflect-metadata'
-import { METRICS } from '@educa/nucleo'
+import { METRICS } from '@educa/core'
 import type { Socket as SocketCliente } from 'socket.io-client'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'

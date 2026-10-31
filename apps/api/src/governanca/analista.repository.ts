@@ -17,7 +17,7 @@ import {
   vinculo,
   type Database,
   type DatabaseTransaction,
-} from '@educa/nucleo'
+} from '@educa/core'
 import type { ConteudoDoResumoDoAnalista, Etapa, TipoDeSinal } from '@educa/shared'
 import { and, asc, count, desc, eq, isNull, ne, notExists, sql, type SQL } from 'drizzle-orm'
 import { InvariantException } from '@educa/shared'
@@ -72,7 +72,7 @@ export interface ProfessorDaTurma {
 }
 
 /**
- * A tabela `resumo_do_analista`. No índice do `@educa/nucleo` o nome `resumoDoAnalista` é o da tarefa de IA (a exportação
+ * A tabela `resumo_do_analista`. No índice do `@educa/core` o nome `resumoDoAnalista` é o da tarefa de IA (a exportação
  * explícita vence o `export *` das tabelas), então a tabela sai de `mvpTables`.
  */
 const resumoDoAnalista = mvpTables.resumoDoAnalista

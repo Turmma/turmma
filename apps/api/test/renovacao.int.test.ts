@@ -1,4 +1,4 @@
-import { METRICS } from '@educa/nucleo'
+import { METRICS } from '@educa/core'
 import { ErrorCode, JANELA_DE_RENOVACAO_SIMULTANEA_MS } from '@educa/shared'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'

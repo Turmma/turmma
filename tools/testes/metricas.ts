@@ -1,7 +1,7 @@
 import type { Attributes } from '@opentelemetry/api'
 import { MeterProvider, MetricReader, type DataPoint } from '@opentelemetry/sdk-metrics'
-import { metricsTemporality } from '../../packages/nucleo/src/telemetria/temporalidade.ts'
-import type { METRICS } from '../../packages/nucleo/src/telemetria/metricas.ts'
+import { metricsTemporality } from '../../packages/core/src/telemetry/temporality.ts'
+import type { METRICS } from '../../packages/core/src/telemetry/metrics.ts'
 
 /** Leitor que só coleta quando o teste pede: nada é exportado, e o teste lê o que o processo exportaria. */
 class LeitorManual extends MetricReader {

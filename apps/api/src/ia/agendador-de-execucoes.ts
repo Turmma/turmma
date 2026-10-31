@@ -11,7 +11,7 @@ import {
   type LLMProvider,
   type SuspensaoDeFuncao,
   type DatabaseTransaction,
-} from '@educa/nucleo'
+} from '@educa/core'
 import { ErrorCode, execucaoInputSchema, resultadoGravadoSchema, type ExecucaoInput, type ExecucaoAceitaResponse, type ResultadoGravado } from '@educa/shared'
 import { copiarContextoDeQuemPede } from './contexto-da-execucao.js'
 import { ExecucaoDaSessaoRepository, ExecucaoRepository } from './execucao.repository.js'
