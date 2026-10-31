@@ -1,14 +1,14 @@
 import { randomUUID } from 'node:crypto'
 import type { BrowserContextOptions, Browser, Locator, Page } from '@playwright/test'
-import { abrirAbaAlunos, abrirNavegacao, entrarComoCoordenacaoNaMesmaAba, entrarPorEmail, escolherNoSeletor, esperarNovaConversa, esperarPainel, lateral, nomeNoSeletor, PRAZO_DA_ENTRADA_MS } from './__fixtures__/casca.ts'
-import { mensagemDela } from './__fixtures__/assistente.ts'
-import { cacheDeConsultas, semAcessosDaConta } from './__fixtures__/consultas.ts'
-import { caixa as caixaDoPedido } from './__fixtures__/fluxo-do-professor.ts'
-import { expect, test } from './__fixtures__/perfis.ts'
-import { irPara } from './__fixtures__/professor/cena.ts'
-import { entrarNaCena, esperarSino, listaDoSino, peDoSino, portao, prepararCena, semAnimacao, sinoDe, TITULO_DA_CORRECAO, TITULO_DA_VERSAO } from './__fixtures__/professor/sino.ts'
-import { confirmarVinculosNoBanco, criarAlocacaoDoProfessor, criarCoordenadoraNaEscola, criarProfessoraNaEscola, criarUsuarioEmOutraEscola, matricularAlunosNaTurmaNoBanco } from './__fixtures__/sessao.ts'
-import { ALVO_DE_TOQUE_PRINCIPAL_PX, larguraExcedente, larguraExcedenteDoDialogo, violacoesGraves } from './__fixtures__/verificacoes.ts'
+import { abrirAbaAlunos, abrirNavegacao, entrarComoCoordenacaoNaMesmaAba, entrarPorEmail, escolherNoSeletor, esperarNovaConversa, esperarPainel, lateral, nomeNoSeletor, PRAZO_DA_ENTRADA_MS } from './support/casca.ts'
+import { mensagemDela } from './support/assistente.ts'
+import { cacheDeConsultas, semAcessosDaConta } from './support/query-cache.ts'
+import { caixa as caixaDoPedido } from './support/professor-flow.ts'
+import { expect, test } from './support/profiles.ts'
+import { irPara } from './support/professor/scenario.ts'
+import { entrarNaCena, esperarSino, listaDoSino, peDoSino, portao, prepararCena, semAnimacao, sinoDe, TITULO_DA_CORRECAO, TITULO_DA_VERSAO } from './support/professor/sino.ts'
+import { confirmarVinculosNoBanco, criarAlocacaoDoProfessor, criarCoordenadoraNaEscola, criarProfessoraNaEscola, criarUsuarioEmOutraEscola, matricularAlunosNaTurmaNoBanco } from './support/seed.ts'
+import { ALVO_DE_TOQUE_PRINCIPAL_PX, larguraExcedente, larguraExcedenteDoDialogo, violacoesGraves } from './support/checks.ts'
 
 /**
  * O sino "Esperando você" da professora (telas do professor, 1.0; RF3 a RF5), pela tela, nos projetos `chromebook` e

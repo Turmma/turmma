@@ -1,9 +1,9 @@
 import type { Locator, Page, Route } from '@playwright/test'
-import { abrirNavegacao, entrarComoAluno, esperarInicioDoAluno, irPelaNavegacao, lateral, PRAZO_DA_ENTRADA_MS } from './__fixtures__/casca.ts'
-import { memoriaDoAluno, resultadoAprovado, trabalhoNaMemoria } from './__fixtures__/memoria-do-aluno.ts'
-import { expect, test } from './__fixtures__/perfis.ts'
-import { colocarAlunoNaTurma, criarAlunoComMatricula } from './__fixtures__/sessao.ts'
-import { ALVO_DE_TOQUE_PRINCIPAL_PX, larguraExcedente, violacoesGraves } from './__fixtures__/verificacoes.ts'
+import { abrirNavegacao, entrarComoAluno, esperarInicioDoAluno, irPelaNavegacao, lateral, PRAZO_DA_ENTRADA_MS } from './support/casca.ts'
+import { memoriaDoAluno, resultadoAprovado, trabalhoNaMemoria } from './support/tutor-memory.ts'
+import { expect, test } from './support/profiles.ts'
+import { colocarAlunoNaTurma, criarAlunoComMatricula } from './support/seed.ts'
+import { ALVO_DE_TOQUE_PRINCIPAL_PX, larguraExcedente, violacoesGraves } from './support/checks.ts'
 
 /**
  * "Como estou indo" em Eu (telas do aluno e primeiro acesso, 7.0; RF9, RF10, RF20): as tarefas de correção aprovada com

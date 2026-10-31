@@ -8,14 +8,14 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, onTestFinished 
 import { lerAmbienteDeTeste, valorObrigatorio } from '../../../tools/ci/compose.ts'
 import { compose, PROCESSOS_DA_FILA } from '../../../tools/testes/compose.ts'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
-import { AGENDAMENTOS, criarDisparoDeAgendamento, FILA_DOS_AGENDAMENTOS, FUSO_DOS_AGENDAMENTOS, registrarAgendamentos } from '../src/agendamentos.js'
+import { AGENDAMENTOS, criarDisparoDeAgendamento, FILA_DOS_AGENDAMENTOS, FUSO_DOS_AGENDAMENTOS, registrarAgendamentos } from '../src/job-schedules.js'
 import type { ConfiguracaoStorage } from '../src/config.js'
-import { FalhaDeJob } from '../src/falha-de-job.js'
-import { montarWorker, type WorkerMontado } from '../src/montagem.js'
-import { criarConsolidacaoDeUso, FALHAS_DE_STORAGE_SEGUIDAS_ATE_DESISTIR } from '../src/processadores/consolidar-uso.js'
-import { criarClienteS3, MedidorDeStorage } from '../src/storage/medidor-de-storage.js'
-import { BancadaDeFila, configuracaoDoBanco, janelaPadraoDoAmbiente, LogEmMemoria, urlRedisDeFila, vagasPadraoDoAmbiente } from './fila-de-teste.js'
-import { execucaoDoJob } from './execucao-do-job.js'
+import { FalhaDeJob } from '../src/job-failure.error.js'
+import { montarWorker, type WorkerMontado } from '../src/composition.js'
+import { criarConsolidacaoDeUso, FALHAS_DE_STORAGE_SEGUIDAS_ATE_DESISTIR } from '../src/processors/consolidar-uso.js'
+import { criarClienteS3, MedidorDeStorage } from '../src/storage/storage-size-reader.js'
+import { BancadaDeFila, configuracaoDoBanco, janelaPadraoDoAmbiente, LogEmMemoria, urlRedisDeFila, vagasPadraoDoAmbiente } from './queue.fixture.js'
+import { execucaoDoJob } from './job-execution.fixture.js'
 
 // Contadores no Redis de fila, `uso_infra_diario` no Postgres e bytes no storage, todos do compose de
 // teste. Só o relógio é falso: é ele que marca às 23h59 de 31/12 e consolida às 2h do dia seguinte.

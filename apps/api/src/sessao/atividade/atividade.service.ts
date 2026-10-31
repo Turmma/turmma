@@ -1,6 +1,6 @@
 import { throttledWarn, METRICS, requestSessao, type Database, type Meter } from '@educa/core'
 import { Logger } from '@nestjs/common'
-import { EscritaDeSessaoRepository } from '../../credencial/escrita-de-sessao.repository.js'
+import { EscritaDeSessaoRepository } from '../../credencial/sessao-write.repository.js'
 
 /**
  * A atividade da pessoa na sessão da requisição: move `ultimo_uso_em`, que é o que a inatividade confere (Tech Spec,

@@ -14,10 +14,10 @@ import {
 import { contextoDaTarefa } from '../assistente/assistente.service.js'
 import { exigirCitacoesEntregues } from '../assistente/citacoes.js'
 import { ExecucaoDoPedidoRepository } from '../assistente/execucao-do-pedido.repository.js'
-import type { LimiteDePedidosDeIa } from '../assistente/limite-de-pedidos-de-ia.js'
+import type { LimiteDePedidosDeIa } from '../assistente/ai-request-rate-limit.js'
 import { TurmaDoProfessorRepository } from '../assistente/turma-do-professor.repository.js'
-import type { AgendadorDeExecucoes } from '../ia/agendador-de-execucoes.js'
-import type { BuscaDeTrechos, TrechoDoMaterial } from '../material/busca-de-trechos.js'
+import type { AgendadorDeExecucoes } from '../ia/execucao.scheduler.js'
+import type { BuscaDeTrechos, TrechoDoMaterial } from '../material/trecho-search.js'
 import { ArtefatoRepository } from './artefato.repository.js'
 import { citacoesDoConteudo, habilidadesParaOTema } from './conferencia.js'
 

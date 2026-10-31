@@ -1,5 +1,5 @@
 import type { EstadoDoPedido } from '@educa/shared'
-import { agendarRelitura, type AbaDoNavegador } from '../../../componentes/pedidos/atualizacao-dos-pedidos'
+import { agendarRelitura, type AbaDoNavegador } from '../../../components/pedidos/atualizacao-dos-pedidos'
 
 /**
  * O detalhe do pedido que se atualiza enquanto o arquivo é montado (F3, 17.0; RF16; Tech Spec do F3, seção 9): o pedido de

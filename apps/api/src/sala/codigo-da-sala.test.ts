@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { lerAmbienteExemplo } from '../../../../tools/ci/compose.ts'
 import { hashDoToken, lerConfiguracaoLogin } from '../credencial/index.js'
 import { hmacDoCodigoDaTurma, sortearCodigoDaTurma, sortearTokenDaSala } from './codigo-da-sala.js'
-import { lerConfiguracaoSala } from './configuracao-da-sala.js'
+import { lerConfiguracaoSala } from './sala-config.js'
 
 describe('código da turma e token do link (A1, 4.0, E15)', () => {
   it('o sorteio dá 8 caracteres do alfabeto de 31, e em mil sorteios aparecem todos os 31 e nenhum repete', () => {

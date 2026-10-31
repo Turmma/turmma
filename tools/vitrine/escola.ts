@@ -4,8 +4,8 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { Secret, TOTP } from 'otpauth'
 import { Client } from 'pg'
-import { montarEscolaComEntregas } from '../../e2e/__fixtures__/governanca.ts'
-import { criarEquipeComSenha, porNaListaDaTurma, type EquipeDeTeste } from '../../e2e/__fixtures__/sessao.ts'
+import { montarEscolaComEntregas } from '../../e2e/support/governanca.ts'
+import { criarEquipeComSenha, porNaListaDaTurma, type EquipeDeTeste } from '../../e2e/support/seed.ts'
 import { lerAmbienteDeTeste, urlDoBancoDeTeste, valorObrigatorio } from '../ci/compose.ts'
 import { raizRepositorio } from '../ci/executar.ts'
 
@@ -15,18 +15,18 @@ import { raizRepositorio } from '../ci/executar.ts'
 //
 // Os comandos estão em `tools/vitrine/vitrine.ts`.
 //
-// As escolas nascem das peças de semente do e2e (`e2e/__fixtures__/`): a escola com a coordenadora, de `sessao.ts`, e o
+// As escolas nascem das peças de semente do e2e (`e2e/support/`): a escola com a coordenadora, de `seed.ts`, e o
 // miolo, de `governanca.ts`. O que elas gravam é o que os testes de tela já provam que a tela sabe mostrar. Aqui só entram
 // os logins que as peças não dão. **Nenhum código daqui cria rede nem escola:** fora do repository do operador, isso é
 // só da semente de teste, e a guarda da criação de rede e escola, em `apps/api/src/ops/`, varre esta pasta.
 //
-// `sessao.ts` importa `packages/shared` pelo fonte, com o `.js` que o `tsc` pede: no `node` puro este arquivo só
+// `seed.ts` importa `packages/shared` pelo fonte, com o `.js` que o `tsc` pede: no `node` puro este arquivo só
 // carrega depois de `./resolver.ts` registrado, que é o que `vitrine.ts` faz antes de importá-lo. No Vitest carrega direto.
 // Tudo sintético, com e-mail no domínio reservado `.invalid` (regra 20, item 17).
 
 export const ARQUIVO_DA_VITRINE = '.processo/vitrine.json'
 
-/** O período do TOTP da API (`apps/api/src/credencial/segundo-fator.ts`): 30 s, com um passo de janela para cada lado. */
+/** O período do TOTP da API (`apps/api/src/credencial/totp.ts`): 30 s, com um passo de janela para cada lado. */
 const PERIODO_TOTP_MS = 30_000
 const JANELA_TOTP = 1
 

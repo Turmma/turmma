@@ -3,9 +3,9 @@ import { ErrorCode, type PapelDeUsuario } from '@educa/shared'
 import { randomBytes } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
-import { chamar, subirApi, type ApiDeTeste } from './api-com-sessao.js'
-import { esperarNaTrava } from './gatilho-de-parada.js'
-import { BancadaDeSessoes, type SessaoDeTeste } from './sessao-de-teste.js'
+import { chamar, subirApi, type ApiDeTeste } from './test-api.js'
+import { esperarNaTrava } from './write-block-trigger.js'
+import { BancadaDeSessoes, type SessaoDeTeste } from './sessao.fixture.js'
 
 /** Datas antigas e conhecidas, alinhadas ao milissegundo: o que o JavaScript lê do banco é o que o banco guardou. */
 const DATA_ANTIGA = '2020-01-02T03:04:05.678Z'

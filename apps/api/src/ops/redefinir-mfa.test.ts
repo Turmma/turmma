@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { ArgumentoInvalido } from './comando.js'
+import { ArgumentoInvalido } from './command.js'
 import { executarOpsRedefinirMfa, lerPedidoDeRedefinicao } from './redefinir-mfa.js'
 
 const USUARIO = '0190f5a0-0000-7000-8000-0000000000d1'

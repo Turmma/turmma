@@ -51,7 +51,7 @@ node tools/vitrine/vitrine.ts foto <coordenacao|professora|aluno> <endereço>…
 ```
 
 O endereço é o da área mais o da tela (`/coordenacao/…`, `/professor/…`, `/aluno/…`), com as rotas de
-`apps/web/src/caminhos.ts`. O comando faz a entrada sozinho, imprime cada arquivo de
+`apps/web/src/paths.ts`. O comando faz a entrada sozinho, imprime cada arquivo de
 `.processo/vitrine/` e avisa quando a web redirecionou (`a página parou em …`). `--clicar` leva seletor
 do Playwright (`text=Alunos`, `role=tab[name="Alunos"]`), e o que foi clicado entra no nome do arquivo.
 

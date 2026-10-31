@@ -1,6 +1,6 @@
 import { avisosResponseSchema, systemStatusResponseSchema } from '@educa/shared'
 import { queryOptions } from '@tanstack/react-query'
-import { buscarDaApi } from './cliente'
+import { buscarDaApi } from './client'
 
 export const consultaEstado = queryOptions({
   queryKey: ['sistema', 'estado'],

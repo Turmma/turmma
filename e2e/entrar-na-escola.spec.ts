@@ -1,16 +1,16 @@
 import type { Page, Route } from '@playwright/test'
 import { MENSAGENS_DE_ERRO, mensagemDaEntradaPorMatricula, mensagemDaFalhaExterna, mensagemDoAcessoDaEscola } from '../packages/shared/src/errors/messages.ts'
-import { criarAlunoComMatricula, criarEscolaSintetica, liberarProvedorDaEscola, ligarContaExterna, type AlunoDeTeste } from './__fixtures__/sessao.ts'
-import { esperarInicioDoAluno } from './__fixtures__/casca.ts'
-import { expect, test } from './__fixtures__/perfis.ts'
-import { ALVO_DE_TOQUE_PRINCIPAL_PX, codigoCru, focoVisivel, larguraExcedente, violacoesGraves } from './__fixtures__/verificacoes.ts'
+import { criarAlunoComMatricula, criarEscolaSintetica, liberarProvedorDaEscola, ligarContaExterna, type AlunoDeTeste } from './support/seed.ts'
+import { esperarInicioDoAluno } from './support/casca.ts'
+import { expect, test } from './support/profiles.ts'
+import { ALVO_DE_TOQUE_PRINCIPAL_PX, codigoCru, focoVisivel, larguraExcedente, violacoesGraves } from './support/checks.ts'
 
 const ROTA_MATRICULA = '**/v1/sessao/matricula'
 /** O Chromebook com CPU ×4 e rede Fast 3G carrega a página e ainda faz o hash da senha no servidor. */
 const PRAZO_DA_ENTRADA_MS = 20_000
 /** O login pela conta da escola passa por três navegações e o discovery do provedor. */
 const PRAZO_DO_LOGIN_EXTERNO_MS = 40_000
-/** Quantas senhas erradas seguidas seguram a conta (`FALHAS_ANTES_DE_SEGURAR`, apps/api/src/credencial/contador-de-tentativas.ts). */
+/** Quantas senhas erradas seguidas seguram a conta (`FALHAS_ANTES_DE_SEGURAR`, apps/api/src/credencial/login-lockout.ts). */
 const FALHAS_ATE_SEGURAR = 5
 
 /** Os usuários sintéticos do `oidc-falso` (infra/oidc-falso/config.json), escolhidos pelo nome digitado no login dele. */

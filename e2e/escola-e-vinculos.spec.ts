@@ -10,10 +10,10 @@ import {
   liberarProvedorDaEscola,
   ligarContaExterna,
   type EquipeDeTeste,
-} from './__fixtures__/sessao.ts'
-import { abrirNavegacao, abrirSeletorDeEscola, botaoDoSeletor, entrarPelaApi, esperarPainel, irPelaNavegacao, lateral, linhaDoSeletor, nomeNoSeletor, esperarNovaConversa, esperarInicioDoAluno, secoes } from './__fixtures__/casca.ts'
-import { carregarSemRedeLenta, expect, test } from './__fixtures__/perfis.ts'
-import { ALVO_DE_TOQUE_PRINCIPAL_PX, codigoCru, focoVisivel, larguraExcedente, violacoesGraves } from './__fixtures__/verificacoes.ts'
+} from './support/seed.ts'
+import { abrirNavegacao, abrirSeletorDeEscola, botaoDoSeletor, entrarPelaApi, esperarPainel, irPelaNavegacao, lateral, linhaDoSeletor, nomeNoSeletor, esperarNovaConversa, esperarInicioDoAluno, secoes } from './support/casca.ts'
+import { carregarSemRedeLenta, expect, test } from './support/profiles.ts'
+import { ALVO_DE_TOQUE_PRINCIPAL_PX, codigoCru, focoVisivel, larguraExcedente, violacoesGraves } from './support/checks.ts'
 
 const ROTA_MEUS_VINCULOS = '**/v1/meus-vinculos*'
 const ROTA_CONFIRMAR = '**/v1/vinculos/*/confirmar'

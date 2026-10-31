@@ -1,15 +1,15 @@
 import type { Locator, Page } from '@playwright/test'
-import { ALTERNATIVA_CERTA_DA_QUESTAO_3, criarAtividadeNoBanco, HABILIDADES_DO_FLUXO, ProfessoraPelaApi, respostasNoBanco } from './__fixtures__/a3.ts'
-import { entrarComoAluno, irPelaNavegacao, PRAZO_DA_ENTRADA_MS } from './__fixtures__/casca.ts'
-import { expect, test } from './__fixtures__/perfis.ts'
-import { colocarAlunoNaTurma, confirmarVinculosNoBanco, criarAlocacaoDoProfessor, criarAlunoComMatricula, criarEquipeComSenha, type AlunoDeTeste, type EquipeDeTeste } from './__fixtures__/sessao.ts'
-import { larguraExcedente, violacoesGraves } from './__fixtures__/verificacoes.ts'
+import { ALTERNATIVA_CERTA_DA_QUESTAO_3, criarAtividadeNoBanco, HABILIDADES_DO_FLUXO, ProfessoraPelaApi, respostasNoBanco } from './support/atividade-db.ts'
+import { entrarComoAluno, irPelaNavegacao, PRAZO_DA_ENTRADA_MS } from './support/casca.ts'
+import { expect, test } from './support/profiles.ts'
+import { colocarAlunoNaTurma, confirmarVinculosNoBanco, criarAlocacaoDoProfessor, criarAlunoComMatricula, criarEquipeComSenha, type AlunoDeTeste, type EquipeDeTeste } from './support/seed.ts'
+import { larguraExcedente, violacoesGraves } from './support/checks.ts'
 
 /**
  * **O fluxo do aluno de verdade** (`docs/mvp-rapido.md`, seção 1, passos 3 e 4), contra a API real e o adaptador falso,
  * que é o do ambiente de teste: o aluno responde a atividade que a professora aplicou, uma questão por vez; pede a
  * resposta ao Tutor, que recusa, conduz por pergunta e cita a página; envia; e só vê o diagnóstico depois de a
- * professora aprovar a correção. O que é da professora é feito pela API (`__fixtures__/a3.ts`).
+ * professora aprovar a correção. O que é da professora é feito pela API (`support/atividade-db.ts`).
  *
  * Nada aqui é simulado na página: os estados de cada tela estão em `aluno-atividade.spec.ts` e `aluno-tutor.spec.ts`.
  */

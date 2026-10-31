@@ -1,6 +1,6 @@
 import { InvalidConfigError } from '@educa/core'
 import { describe, expect, it, vi } from 'vitest'
-import { ArgumentoInvalido as ArgumentoInvalidoDoComando } from './comando.js'
+import { ArgumentoInvalido as ArgumentoInvalidoDoComando } from './command.js'
 import { ArgumentoInvalido, executarOpsUso, lerPedidoDeUso, urlDoBancoDeOperacao } from './uso.js'
 
 const ESCOLA_A = '0190f5a0-0000-7000-8000-00000000000a'

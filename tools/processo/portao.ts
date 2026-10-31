@@ -163,7 +163,7 @@ export function avaliarCarimbo(carimbo: Carimbo | null, exigidas: string[], alte
   const depois = alteracoes
     .filter((alteracao) => alteracao.quando >= inicio)
     // Sem a exceção de comentário, de propósito: comentário muda lint (`no-irregular-whitespace`) e teste que varre o
-    // texto do fonte (`guardas.test.ts`, `arquitetura.test.ts`, `porta-unica.test.ts`). O carimbo só vale para o que as
+    // texto do fonte (`guardas.test.ts`, `architecture.test.ts`, `porta-unica.test.ts`). O carimbo só vale para o que as
     // suítes viram (`test-engineer`, retrospectiva da A0b).
     .filter((alteracao) => mudouDeVerdade(alteracao, instantaneo))
     .sort((a, b) => b.quando - a.quando)[0]

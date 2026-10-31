@@ -5,7 +5,7 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useQuery } from '@tanstack/react-query'
 import { consultaAtividadesAplicadas } from './api/atividades'
-import { prepararTela, redeFalsa, renderizarTela, type RespostaFalsa } from '../../../__fixtures__/tela'
+import { prepararTela, redeFalsa, renderizarTela, type RespostaFalsa } from '../../../__fixtures__/render-screen'
 import { EFEITO_DE_ENCERRAR } from './aprovar'
 import { EncerramentoDaAtividade } from './EncerramentoDaAtividade'
 

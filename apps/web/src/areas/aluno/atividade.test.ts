@@ -1,6 +1,6 @@
 import { ErrorCode, type MeuDiagnosticoResponse, type ProvaResponse } from '@educa/shared'
 import { describe, expect, it } from 'vitest'
-import { ErroDaApi } from '../../api/cliente'
+import { ErroDaApi } from '../../api/client'
 import {
   alternativaMarcada,
   avisoDeEscolhasPerdidas,

@@ -17,12 +17,12 @@ import {
   esperarNovaConversa,
   esperarInicioDoAluno,
   entrarPelaApi,
-} from './__fixtures__/casca.ts'
-import { cacheDeConsultas, semAcessosDaConta } from './__fixtures__/consultas.ts'
-import { expect, test } from './__fixtures__/perfis.ts'
-import { abrirEntregasDoAssistente } from './__fixtures__/professor/entregas.ts'
-import { criarAlocacaoDoProfessor, criarAlunoComMatricula, criarEquipeComSenha, criarUsuarioEmOutraEscola, type EquipeDeTeste } from './__fixtures__/sessao.ts'
-import { ALVO_DE_TOQUE_PRINCIPAL_PX, focoVisivel, larguraExcedente, violacoesGraves } from './__fixtures__/verificacoes.ts'
+} from './support/casca.ts'
+import { cacheDeConsultas, semAcessosDaConta } from './support/query-cache.ts'
+import { expect, test } from './support/profiles.ts'
+import { abrirEntregasDoAssistente } from './support/professor/entregas.ts'
+import { criarAlocacaoDoProfessor, criarAlunoComMatricula, criarEquipeComSenha, criarUsuarioEmOutraEscola, type EquipeDeTeste } from './support/seed.ts'
+import { ALVO_DE_TOQUE_PRINCIPAL_PX, focoVisivel, larguraExcedente, violacoesGraves } from './support/checks.ts'
 
 /**
  * O seletor de escola (P30; A1, tarefa 12.0): a troca que não deixa nada da escola anterior no cliente (W3), o formato de

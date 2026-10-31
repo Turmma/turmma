@@ -1,7 +1,7 @@
 import { Heartbeat, type LoggerBase, type Meter } from '@educa/core'
 import { Module, type DynamicModule, type OnApplicationShutdown } from '@nestjs/common'
 import type { ConfiguracaoWorker } from './config.js'
-import { montarWorker, type WorkerMontado } from './montagem.js'
+import { montarWorker, type WorkerMontado } from './composition.js'
 
 /** No SIGTERM, fecha o worker com graça antes de o processo sair. */
 class CicloDoWorker implements OnApplicationShutdown {

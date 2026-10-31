@@ -3,13 +3,13 @@ import { createLogger, startTelemetry, RateLimiter, observeDatabasePool, observe
 import { NestFactory } from '@nestjs/core'
 import type { NestExpressApplication } from '@nestjs/platform-express'
 import { AppModule } from './app.module.js'
-import { POOL_BANCO } from './banco.module.js'
+import { POOL_BANCO } from './database.module.js'
 import { lerConfiguracao } from './config.js'
-import { configurarAplicacao } from './configurar-app.js'
-import { CLIENTE_REDIS_CACHE } from './limite.module.js'
+import { configurarAplicacao } from './configure-app.js'
+import { CLIENTE_REDIS_CACHE } from './rate-limit.module.js'
 import { CLIENTE_REDIS_LOGIN, SeguroDoLogin } from './credencial/index.js'
-import { LimitesDaSala } from './sala/limites-da-sala.js'
-import { CLIENTE_REDIS_USO } from './uso.module.js'
+import { LimitesDaSala } from './sala/sala-rate-limits.js'
+import { CLIENTE_REDIS_USO } from './usage.module.js'
 
 const config = lerConfiguracao(process.env)
 const logger = createLogger({ servico: 'api' })

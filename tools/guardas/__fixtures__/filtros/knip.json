@@ -71,7 +71,7 @@
     },
     "apps/web": {
       "entry": [
-        "src/estilos.css"
+        "src/index.css"
       ],
       "project": [
         "src/**/*.{ts,tsx,css}",

@@ -5,9 +5,9 @@ import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Router } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
-import { criarClienteDeConsultas } from './api/cliente-de-consultas'
-import { prepararTela, redeFalsa, type RedeFalsa } from './__fixtures__/tela'
-import { Rotas } from './rotas'
+import { criarClienteDeConsultas } from './api/query-client'
+import { prepararTela, redeFalsa, type RedeFalsa } from './__fixtures__/render-screen'
+import { Rotas } from './routes'
 
 /**
  * Cada área monta o sino dela, e só ele (telas da coordenação, 1.0, e telas do professor, 1.0): a coordenação lê a fila

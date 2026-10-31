@@ -1,11 +1,11 @@
 import { MENSAGENS_DE_ERRO } from '../packages/shared/src/errors/messages.ts'
 import { FUNCOES } from '../packages/shared/src/time/funcoes.ts'
-import { atividadeSintetica, erroDaApi, portao, QUEM_DECIDE, versaoAdaptada } from './__fixtures__/assistente.ts'
-import { paginaNaoRola } from './__fixtures__/coordenacao.ts'
-import { acionar, comLote, entrar, irPara, PRAZO_DA_TELA_MS, selosDeIA } from './__fixtures__/professor/cena.ts'
-import { listaDoSino, sinoDe } from './__fixtures__/professor/sino.ts'
-import { larguraExcedente, larguraExcedenteDoDialogo, violacoesGraves } from './__fixtures__/verificacoes.ts'
-import { expect, test } from './__fixtures__/perfis.ts'
+import { atividadeSintetica, erroDaApi, portao, QUEM_DECIDE, versaoAdaptada } from './support/assistente.ts'
+import { paginaNaoRola } from './support/coordenacao.ts'
+import { acionar, comLote, entrar, irPara, PRAZO_DA_TELA_MS, selosDeIA } from './support/professor/scenario.ts'
+import { listaDoSino, sinoDe } from './support/professor/sino.ts'
+import { larguraExcedente, larguraExcedenteDoDialogo, violacoesGraves } from './support/checks.ts'
+import { expect, test } from './support/profiles.ts'
 
 /**
  * As entregas do Assistente de ensino (11.4, A2 e A3, pacote W), na tela que o pé do sino abre. Separado de `professor-assistente.spec.ts` e

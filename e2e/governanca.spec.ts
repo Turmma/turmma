@@ -1,11 +1,11 @@
 import type { APIRequestContext, Locator, Page, Request, Route } from '@playwright/test'
-import { entrarPelaTelaComSegundoFator, esperarPainel, PRAZO_DA_ENTRADA_MS } from './__fixtures__/casca.ts'
-import { abrirPelaApiSemMedirAPrimeiraCarga, configurarSegundoFatorPelaApi } from './__fixtures__/segundo-fator.ts'
-import { irPelaCoordenacao, linhasDaTabela, paginaNaoRola } from './__fixtures__/coordenacao.ts'
-import { acrescentarSerieDeUmProfessorSo, montarEscolaComEntregas, type EscolaComEntregas } from './__fixtures__/governanca.ts'
-import { expect, test } from './__fixtures__/perfis.ts'
-import { criarEquipeComSenha, type EquipeDeTeste } from './__fixtures__/sessao.ts'
-import { larguraExcedente, violacoesGraves } from './__fixtures__/verificacoes.ts'
+import { entrarPelaTelaComSegundoFator, esperarPainel, PRAZO_DA_ENTRADA_MS } from './support/casca.ts'
+import { abrirPelaApiSemMedirAPrimeiraCarga, configurarSegundoFatorPelaApi } from './support/mfa.ts'
+import { irPelaCoordenacao, linhasDaTabela, paginaNaoRola } from './support/coordenacao.ts'
+import { acrescentarSerieDeUmProfessorSo, montarEscolaComEntregas, type EscolaComEntregas } from './support/governanca.ts'
+import { expect, test } from './support/profiles.ts'
+import { criarEquipeComSenha, type EquipeDeTeste } from './support/seed.ts'
+import { larguraExcedente, violacoesGraves } from './support/checks.ts'
 
 /**
  * A governança de IA da coordenação, na aba IA de Registros (MVP, A5; telas da coordenação, 10.0; `docs/interface.md` 11.7; D9, D45, D60, D64;

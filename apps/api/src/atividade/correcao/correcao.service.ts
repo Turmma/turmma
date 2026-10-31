@@ -16,7 +16,7 @@ import {
 } from '@educa/shared'
 import type { RespostasDaTentativa } from './correcao-de-objetiva.js'
 import { CorrecaoRepository, type CorrecaoLida, type LoteLido, type ValidacaoLida } from './correcao.repository.js'
-import type { LeituraDoLote } from './leitura-do-lote.js'
+import type { LeituraDoLote } from './lote-read-marker.js'
 import { loteApresentado, marcaDoApresentado } from './lote.js'
 
 const registro = new AuditoriaRecorder()

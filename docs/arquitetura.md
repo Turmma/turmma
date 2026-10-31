@@ -49,10 +49,10 @@ motivo em texto fixo (lint `guardas/erro-tipado`, regra 00, item 9).
 
 **As pastas.** Uma por módulo de domínio. Nos módulos com vários recursos (`estrutura`, `operacao`, `sala` e
 `atividade`), cada recurso tem a sua subpasta, com o controller, o service, o repository e os testes dele
-(`estrutura/turma/`); a `sessao/` se parte por fluxo (`login/`, `convite/`, `renovacao/`...), com a `tenant/`, que
+(`estrutura/turma/`); a `sessao/` se parte por fluxo (`login/`, `convite/`, `refresh/`...), com a `tenant/`, que
 resolve a escola antes de haver sessão. As primitivas da entrada (senha, hash, cookie, desafio, os contadores e o
 semáforo do hash) ficam em `credencial/`, sem módulo Nest; de fora, `sessao/` e `credencial/` só se importam pelo
-`index.ts` de cada uma. A paginação fica em `http/paginacao.ts`, os casos de uso de rede e escola em `operacao/escola/`,
+`index.ts` de cada uma. A paginação fica em `http/pagination.ts`, os casos de uso de rede e escola em `operacao/escola/`,
 e `ops/` tem só os comandos de terminal e os repositories deles. Nenhuma pasta de produção da API ou da web passa de 25
 arquivos direto nela (`tools/guardas/tamanho-das-pastas.test.ts`). O mapa completo está no guia, seção 4.
 
@@ -195,7 +195,7 @@ esquemas vêm de `packages/shared`, e a resposta da API é validada na leitura. 
 a sessão volta pelo cookie. Alvo de desempenho: o computador de escola, que é fraco, com o Chromebook de entrada como
 referência, e o celular em rede móvel. Toda tela é responsiva desde a primeira versão (D51).
 
-Lista longa é paginada na API, por cursor. A virtualização ainda não existe (`componentes/ui/Tabela.tsx` não pagina nem
+Lista longa é paginada na API, por cursor. A virtualização ainda não existe (`components/ui/Tabela.tsx` não pagina nem
 virtualiza) e entra quando uma tela precisar mostrar centenas de linhas. O bundle tem teto no `.size-limit.json`, e
 nada assume máquina boa.
 

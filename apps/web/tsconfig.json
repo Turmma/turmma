@@ -8,5 +8,5 @@
     "types": ["vite/client"],
     "noEmit": true
   },
-  "include": ["src", "vite.config.ts", "rebaixar-cor.ts", "rebaixar-cor.test.ts", "nome-dos-chunks.ts", "nome-dos-chunks.test.ts"]
+  "include": ["src", "vite.config.ts", "downlevel-color.ts", "downlevel-color.test.ts", "chunk-names.ts", "chunk-names.test.ts"]
 }

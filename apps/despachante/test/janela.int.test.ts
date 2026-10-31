@@ -4,8 +4,8 @@ import type { QueueName } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { compose, PROCESSOS_DA_FILA } from '../../../tools/testes/compose.ts'
-import type { Processador } from '../../worker/src/executor.js'
-import { BancadaDeFila, configuracaoDoBanco, LogEmMemoria } from '../../worker/test/fila-de-teste.js'
+import type { Processador } from '../../worker/src/job-executor.js'
+import { BancadaDeFila, configuracaoDoBanco, LogEmMemoria } from '../../worker/test/queue.fixture.js'
 
 // Despachante de verdade (a mesma montagem do main.ts) contra o Postgres e o Redis de fila do compose
 // de teste, com o horário letivo padrão de `.env.example` (São Paulo, segunda a sexta, 07:00 às

@@ -1,7 +1,7 @@
 import { DomainException } from '@educa/core'
 import { ErrorCode } from '@educa/shared'
 import { naEscolaSemUsuario } from './escola-sem-usuario.js'
-import type { AcessoDaSalaAchado, ResolucaoDeTenantRepository } from './resolucao-de-tenant.repository.js'
+import type { AcessoDaSalaAchado, ResolucaoDeTenantRepository } from './tenant-resolution.repository.js'
 
 /**
  * Como a página pública chegou: o slug do endereço e o SHA-256 do token do link, ou o HMAC do código digitado. Quem

@@ -2,7 +2,7 @@ import type { CategoriaDeRetencao, ChaveDePrazoFixo } from './retencao.js'
 
 /**
  * Toda tabela das migrations, com o que a faz sair e se ela entra no arquivo do titular (F3, RF1 e RF11; Tech Spec do
- * F3, seção 3, "Classificação de toda tabela"). O teste de arquitetura (`apps/api/test/arquitetura.test.ts`) confere esta
+ * F3, seção 3, "Classificação de toda tabela"). O teste de arquitetura (`apps/api/test/architecture.test.ts`) confere esta
  * lista contra as migrations, nos dois sentidos: tabela criada sem classificação, ou classificação de tabela que não
  * existe, deixa o teste vermelho. Cada tarefa que cria tabela a classifica aqui na mesma tarefa: as do pedido do
  * titular entram com a migration dela (tarefa 11.0); as do incidente entraram na 9.0 e as do suboperador, na 8.0; a do expurgo entrou na 3.0.

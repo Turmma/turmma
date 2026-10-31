@@ -5,7 +5,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { normalizarTexto, textoDaPagina } from '../../../../tools/demonstracao/conteudo-estequiometria.ts'
 import { extrairTextoPorPagina } from '../../../../tools/demonstracao/extrair-texto.ts'
 import { MedidorDeTeste } from '../../../../tools/testes/metricas.ts'
-import { chamar, subirApi, type ApiDeTeste, type RespostaHttp } from '../../test/api-com-sessao.js'
+import { chamar, subirApi, type ApiDeTeste, type RespostaHttp } from '../../test/test-api.js'
 import {
   comoPessoa,
   contarNaEscola,
@@ -20,13 +20,13 @@ import {
   vincularProfessor,
   zerarLimiteDePedidosDeIa,
   type EscolaComAssistente,
-} from '../../test/escola-com-assistente.js'
-import { variacaoDoPdf } from '../../test/material-de-teste.js'
-import { BancadaDeSessoes, type SessaoDeTeste } from '../../test/sessao-de-teste.js'
-import { LimiteDePedidosDeIa } from '../assistente/limite-de-pedidos-de-ia.js'
-import { AgendadorDeExecucoes } from '../ia/agendador-de-execucoes.js'
+} from '../../test/escola-assistente.fixture.js'
+import { variacaoDoPdf } from '../../test/material.fixture.js'
+import { BancadaDeSessoes, type SessaoDeTeste } from '../../test/sessao.fixture.js'
+import { LimiteDePedidosDeIa } from '../assistente/ai-request-rate-limit.js'
+import { AgendadorDeExecucoes } from '../ia/execucao.scheduler.js'
 import { EXECUTOR_DE_AGENTE, LLM_PROVIDER, SUSPENSAO_DE_FUNCAO } from '../ia/ia.module.js'
-import { BuscaDeTrechos } from '../material/busca-de-trechos.js'
+import { BuscaDeTrechos } from '../material/trecho-search.js'
 import { ArtefatoRepository } from './artefato.repository.js'
 import { ArtefatoService } from './artefato.service.js'
 import { DURACAO_PADRAO_DO_PLANO_DE_AULA_MIN, FerramentasService } from './ferramentas.service.js'

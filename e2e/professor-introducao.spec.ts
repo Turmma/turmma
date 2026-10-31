@@ -11,11 +11,11 @@ import {
   linhaDoSeletor,
   nomeNoSeletor,
   PRAZO_DA_ENTRADA_MS,
-} from './__fixtures__/casca.ts'
-import { paginaNaoRola } from './__fixtures__/coordenacao.ts'
-import { expect, test } from './__fixtures__/perfis.ts'
-import { criarConviteDeProfessor, criarEquipeComSenha, criarUsuarioEmOutraEscola, introducaoVistaEmDoUsuario } from './__fixtures__/sessao.ts'
-import { ALVO_DE_TOQUE_PRINCIPAL_PX, larguraExcedente, violacoesGraves } from './__fixtures__/verificacoes.ts'
+} from './support/casca.ts'
+import { paginaNaoRola } from './support/coordenacao.ts'
+import { expect, test } from './support/profiles.ts'
+import { criarConviteDeProfessor, criarEquipeComSenha, criarUsuarioEmOutraEscola, introducaoVistaEmDoUsuario } from './support/seed.ts'
+import { ALVO_DE_TOQUE_PRINCIPAL_PX, larguraExcedente, violacoesGraves } from './support/checks.ts'
 
 /**
  * A introdução do professor (telas do aluno e primeiro acesso, 10.0; RF12, RF15 a RF18, RF20; mockup 14): na primeira entrada,

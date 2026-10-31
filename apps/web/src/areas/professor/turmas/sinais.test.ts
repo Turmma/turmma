@@ -1,7 +1,7 @@
 import type { Sinal } from '@educa/shared'
 import { describe, expect, it } from 'vitest'
 import * as textos from './sinais'
-import { formatarDiaEHora } from '../../../formatar'
+import { formatarDiaEHora } from '../../../format'
 import { emQueEstava, falaDoGrupo, horaDoUltimoAviso, ondeFoi, porNome, separarSinais, textoDaAtencaoHumana, textoDaHoraDoAviso, textoDoSinal, tituloDaAtencaoHumana, trocasDeHoje } from './sinais'
 
 const id = (final: string) => `0190f5a0-0000-7000-8000-0000000000${final}`

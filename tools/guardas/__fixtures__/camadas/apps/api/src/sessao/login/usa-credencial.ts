@@ -1,2 +1,2 @@
-import { hashDoToken } from '../../credencial/hash-do-token.js'
+import { hashDoToken } from '../../credencial/token-hash.js'
 export const h = hashDoToken

@@ -1,5 +1,5 @@
 import { NOME_DO_SINAL, type GrupoDeSinais, type Sinal, type UsoDoAluno } from '@educa/shared'
-import { formatarDiaEHora } from '../../../formatar'
+import { formatarDiaEHora } from '../../../format'
 
 /**
  * O que a conversa do Tutor diz à professora da turma (`docs/interface.md` 11.4; D8, D36, D47; regra 50, item 10; regra

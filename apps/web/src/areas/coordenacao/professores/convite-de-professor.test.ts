@@ -1,7 +1,7 @@
 import { ErrorCode, ESTADOS_DO_PROFESSOR, MENSAGENS_DE_ERRO, type EstadoDoProfessor } from '@educa/shared'
 import { describe, expect, it } from 'vitest'
-import { ErroDaApi } from '../../../api/cliente'
-import { TEXTO_DO_EMAIL_INVALIDO, TEXTO_DO_NOME_INVALIDO } from '../../../componentes/pedido-de-convite'
+import { ErroDaApi } from '../../../api/client'
+import { TEXTO_DO_EMAIL_INVALIDO, TEXTO_DO_NOME_INVALIDO } from '../../../components/pedido-de-convite'
 import {
   acoesDoConviteDeProfessor,
   falhaDoCadastroDeProfessor,

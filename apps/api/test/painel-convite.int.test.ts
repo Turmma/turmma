@@ -10,16 +10,16 @@ import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { lerAmbienteDeTeste } from '../../../tools/ci/compose.ts'
 import { urlDoBancoDeTeste } from '../../../tools/testes/integracao.setup.ts'
-import type { SaidaDoComando } from '../src/ops/comando.js'
+import type { SaidaDoComando } from '../src/ops/command.js'
 import { executarOpsConviteCoordenador } from '../src/ops/convite-coordenador.js'
 import { desativarOperador } from '../src/ops/operador.js'
 import { executarOpsRevogarConvite } from '../src/ops/revogar-convite.js'
 import { ConviteRepository, criarConviteDeCoordenador, refazerConviteDaCoordenacao } from '../src/sessao/index.js'
-import { esperarNaTrava, GatilhoDeParada } from './gatilho-de-parada.js'
-import { ESPERA_DO_AUTOR, esperarErro, nomeQueVemPrimeiro, pedir, PRAZO_DAS_CONSULTAS_MS, segurarODesativar, subirApiDoPainel, type Resposta } from './painel-de-teste.js'
-import { BancadaDeOperadores } from './sessao-de-operador.js'
-import { autorDaBancada, BancadaDeSessoes } from './sessao-de-teste.js'
-import { emOrdemNaTrava as emOrdem, esperarNaTravaDaEscola as esperarNaFilaDaEscola, segurarTravaDaEscola as segurarTrava } from './trava-da-escola.js'
+import { esperarNaTrava, GatilhoDeParada } from './write-block-trigger.js'
+import { ESPERA_DO_AUTOR, esperarErro, nomeQueVemPrimeiro, pedir, PRAZO_DAS_CONSULTAS_MS, segurarODesativar, subirApiDoPainel, type Resposta } from './painel.fixture.js'
+import { BancadaDeOperadores } from './operador-session.fixture.js'
+import { autorDaBancada, BancadaDeSessoes } from './sessao.fixture.js'
+import { emOrdemNaTrava as emOrdem, esperarNaTravaDaEscola as esperarNaFilaDaEscola, segurarTravaDaEscola as segurarTrava } from './escola-lock.js'
 
 /**
  * O convite da primeira coordenação pelo painel da operação (A0b, tarefas 2.0 e 3.0): `POST /v1/operacao/escolas/:id/
@@ -180,7 +180,7 @@ describe('painel da operação: o convite da coordenação, gerar e revogar (tar
     return { escolaId, quem, conviteId, link }
   }
 
-  // A trava do convite da escola vista pelo teste (`trava-da-escola.ts`), com o pool deste arquivo.
+  // A trava do convite da escola vista pelo teste (`escola-lock.ts`), com o pool deste arquivo.
   const segurarTravaDaEscola = (escolaId: string) => segurarTrava(pool, escolaId)
   const esperarNaTravaDaEscola = (escolaId: string, quantas: number) => esperarNaFilaDaEscola(pool, escolaId, quantas)
   const emOrdemNaTrava = (escolaId: string, primeira: () => Promise<Resposta>, segunda: () => Promise<Resposta>) => emOrdem(pool, escolaId, primeira, segunda)

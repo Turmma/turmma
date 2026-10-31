@@ -23,7 +23,7 @@ import {
   type VinculoDaCoordenacao,
 } from '@educa/shared'
 import { queryOptions } from '@tanstack/react-query'
-import { SEM_CORPO, type EsquemaDeResposta } from './cliente'
+import { SEM_CORPO, type EsquemaDeResposta } from './client'
 import { buscarComSessao, chamarComSessao } from './sessao'
 
 /**

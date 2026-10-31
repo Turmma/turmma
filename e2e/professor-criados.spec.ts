@@ -1,13 +1,13 @@
 import { randomUUID } from 'node:crypto'
 import type { Page } from '@playwright/test'
 import { MENSAGENS_DE_ERRO } from '../packages/shared/src/errors/messages.ts'
-import { atividadeSintetica, erroDaApi, portao, versaoAdaptada } from './__fixtures__/assistente.ts'
-import { abrirNavegacao, entrarPelaApi, entrarPorEmail, escolherNoSeletor, irPelaNavegacao, nomeNoSeletor, PRAZO_DA_ENTRADA_MS, secoes } from './__fixtures__/casca.ts'
-import { criarArtefatoDoVinculo, entrarEmCriados } from './__fixtures__/professor/criados.ts'
-import { acionar, irPara, PRAZO_DA_TELA_MS } from './__fixtures__/professor/cena.ts'
-import { carregarSemRedeLenta, expect, test } from './__fixtures__/perfis.ts'
-import { confirmarVinculosNoBanco, criarAlocacaoDoProfessor, criarEquipeComSenha, criarUsuarioEmOutraEscola } from './__fixtures__/sessao.ts'
-import { larguraExcedente, violacoesGraves } from './__fixtures__/verificacoes.ts'
+import { atividadeSintetica, erroDaApi, portao, versaoAdaptada } from './support/assistente.ts'
+import { abrirNavegacao, entrarPelaApi, entrarPorEmail, escolherNoSeletor, irPelaNavegacao, nomeNoSeletor, PRAZO_DA_ENTRADA_MS, secoes } from './support/casca.ts'
+import { criarArtefatoDoVinculo, entrarEmCriados } from './support/professor/criados.ts'
+import { acionar, irPara, PRAZO_DA_TELA_MS } from './support/professor/scenario.ts'
+import { carregarSemRedeLenta, expect, test } from './support/profiles.ts'
+import { confirmarVinculosNoBanco, criarAlocacaoDoProfessor, criarEquipeComSenha, criarUsuarioEmOutraEscola } from './support/seed.ts'
+import { larguraExcedente, violacoesGraves } from './support/checks.ts'
 
 /**
  * "Criados" (telas do professor, 5.0; D74, D80; `docs/interface.md` 11.2): o que a professora já gerou, por turma, com os

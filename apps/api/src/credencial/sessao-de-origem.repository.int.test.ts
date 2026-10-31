@@ -1,7 +1,7 @@
 import { runInContext } from '@educa/core'
 import { randomUUID } from 'node:crypto'
 import { afterAll, describe, expect, it } from 'vitest'
-import { BancadaDeSessoes } from '../../test/sessao-de-teste.js'
+import { BancadaDeSessoes } from '../../test/sessao.fixture.js'
 import { SessaoDeOrigemRepository } from './sessao-de-origem.repository.js'
 
 describe('SessaoDeOrigemRepository: a sessão de onde a troca parte, só na escola do contexto', () => {

@@ -15,10 +15,10 @@ import {
   type ListaDeArtefatosResponse,
 } from '@educa/shared'
 import { ExecucaoDoPedidoRepository } from '../assistente/execucao-do-pedido.repository.js'
-import type { LimiteDePedidosDeIa } from '../assistente/limite-de-pedidos-de-ia.js'
+import type { LimiteDePedidosDeIa } from '../assistente/ai-request-rate-limit.js'
 import { EntregaRepository } from '../entrega/entrega.repository.js'
-import { paginar } from '../http/paginacao.js'
-import type { AgendadorDeExecucoes } from '../ia/agendador-de-execucoes.js'
+import { paginar } from '../http/pagination.js'
+import type { AgendadorDeExecucoes } from '../ia/execucao.scheduler.js'
 import { ArtefatoRepository, type ArtefatoLido } from './artefato.repository.js'
 import { citacoesDoConteudo, exigirAdaptacaoFiel } from './conferencia.js'
 import { gerarPdfDoArtefato, nomeDoArquivoDoPdf } from './pdf-do-artefato.js'

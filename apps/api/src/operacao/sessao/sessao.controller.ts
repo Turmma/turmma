@@ -2,7 +2,7 @@ import { requestIp, TrustedProxies, ZodValidationPipe } from '@educa/core'
 import { operadorEmptyBodyRequestSchema, renovacaoDeOperadorResponseSchema, type OperadorEmptyBodyRequest, type RenovacaoDeOperadorResponse } from '@educa/shared'
 import { Body, Controller, Header, HttpCode, HttpStatus, Inject, Post, Req, Res } from '@nestjs/common'
 import type { IncomingMessage, ServerResponse } from 'node:http'
-import { EntradaDeOperacao } from '../marcadores.js'
+import { EntradaDeOperacao } from '../decorators.js'
 import { RenovacaoDeOperadorRecusada, SessaoDoOperadorService } from './sessao.service.js'
 
 /** O corpo das duas rotas é vazio: sem corpo (o Express 5 deixa `req.body` indefinido), ou `{}`. Qualquer campo é `ENTRADA_INVALIDA`. */

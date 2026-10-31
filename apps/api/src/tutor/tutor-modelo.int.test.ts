@@ -3,8 +3,8 @@ import { ErrorCode, conversaDoTutorResponseSchema } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../../tools/testes/metricas.ts'
-import { chamar, subirApi, type ApiDeTeste } from '../../test/api-com-sessao.js'
-import { dispararExecucao, execucaoTerminada, montarEscolaComAssistente, NOME_DA_PROFESSORA_DE_TESTE, zerarLimiteDePedidosDeIa, type EscolaComAssistente, type ExecucaoLida } from '../../test/escola-com-assistente.js'
+import { chamar, subirApi, type ApiDeTeste } from '../../test/test-api.js'
+import { dispararExecucao, execucaoTerminada, montarEscolaComAssistente, NOME_DA_PROFESSORA_DE_TESTE, zerarLimiteDePedidosDeIa, type EscolaComAssistente, type ExecucaoLida } from '../../test/escola-assistente.fixture.js'
 import {
   ALTERNATIVA_CERTA_DA_QUESTAO_3,
   ambienteDoModeloDeMentira,
@@ -17,9 +17,9 @@ import {
   MARCA_NA_EXPLICACAO,
   subirModeloDeMentira,
   type ModeloDeMentira,
-} from '../../test/escola-com-tutor.js'
-import { GatilhoDeParada } from '../../test/gatilho-de-parada.js'
-import { BancadaDeSessoes, type SessaoDeTeste } from '../../test/sessao-de-teste.js'
+} from '../../test/escola-tutor.fixture.js'
+import { GatilhoDeParada } from '../../test/write-block-trigger.js'
+import { BancadaDeSessoes, type SessaoDeTeste } from '../../test/sessao.fixture.js'
 import { EXECUTOR_DE_AGENTE } from '../ia/ia.module.js'
 
 const NOME_DO_ALUNO = 'Aluno Sintético Otávio Quintanilha'

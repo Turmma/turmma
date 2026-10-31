@@ -5,7 +5,7 @@ import { setTimeout as esperar } from 'node:timers/promises'
 import { pathToFileURL } from 'node:url'
 import pg from 'pg'
 import type { criarEscola, criarRede } from '../../apps/api/src/operacao/escola/escola.ts'
-import type { criarSessoesSinteticas, emissorDeTokenSintetico } from '../../apps/api/src/sessao/tenant/sessoes-sinteticas.ts'
+import type { criarSessoesSinteticas, emissorDeTokenSintetico } from '../../apps/api/src/sessao/tenant/synthetic-sessions.ts'
 import type { createDatabase, createPool } from '@educa/core'
 import { raizRepositorio } from '../../tools/ci/executar.ts'
 
@@ -676,7 +676,7 @@ async function executarPelaLinhaDeComando(): Promise<void> {
   const importar = <T>(caminho: string) => import(pathToFileURL(join(raizRepositorio, caminho)).href) as Promise<T>
   const nucleo = await importar<{ createDatabase: typeof createDatabase; createPool: typeof createPool }>('packages/core/dist/index.js')
   const escolas = await importar<{ criarRede: typeof criarRede; criarEscola: typeof criarEscola }>('apps/api/dist/operacao/escola/escola.js')
-  const sessoes = await importar<{ criarSessoesSinteticas: typeof criarSessoesSinteticas; emissorDeTokenSintetico: typeof emissorDeTokenSintetico }>('apps/api/dist/sessao/tenant/sessoes-sinteticas.js')
+  const sessoes = await importar<{ criarSessoesSinteticas: typeof criarSessoesSinteticas; emissorDeTokenSintetico: typeof emissorDeTokenSintetico }>('apps/api/dist/sessao/tenant/synthetic-sessions.js')
   const inicio = Date.now()
   const escrever = (linha: string) => process.stdout.write(`[${Math.round((Date.now() - inicio) / 1_000)} s] ${linha}\n`)
   const bancoUrl = `postgres://${obrigatoria(ambiente, 'POSTGRES_USUARIO')}:${obrigatoria(ambiente, 'POSTGRES_SENHA')}@127.0.0.1:${obrigatoria(ambiente, 'POSTGRES_PORTA_HOST')}/${obrigatoria(ambiente, 'POSTGRES_BANCO')}`

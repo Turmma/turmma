@@ -45,7 +45,7 @@ acontece se isso vazar?"**.
    um vazamento nosso ser muito menos grave que o de um concorrente. No login ou na
    importação pela conta Google ou Microsoft da escola (D48), guardamos só o identificador
    opaco da conta; e-mail e foto que o provedor devolve são descartados antes de gravar.
-   Checagem: `apps/api/test/contratos.test.ts` (e-mail na saída), `packages/shared/src/estrutura/documento-na-matricula.test.ts` (CPF na importação); só a revisão garante o resto, telefone, foto, endereço e nascimento (`privacy-guardian`).
+   Checagem: `apps/api/test/contracts.test.ts` (e-mail na saída), `packages/shared/src/estrutura/documento-na-matricula.test.ts` (CPF na importação); só a revisão garante o resto, telefone, foto, endereço e nascimento (`privacy-guardian`).
 
 3. **Necessidade específica é dado sensível** (art. 11). A ferramenta de adaptação precisa
    saber *que adaptação fazer*, não *qual é o diagnóstico*. Guarde "prova com fonte ampliada
@@ -64,7 +64,7 @@ acontece se isso vazar?"**.
    return { id: aluno.id, nome: aluno.nome, turmaId: aluno.turmaId }
    ```
 
-   Checagem: `apps/api/test/contratos.test.ts`, `privacy-guardian`.
+   Checagem: `apps/api/test/contracts.test.ts`, `privacy-guardian`.
 
 5. **Autorização por objeto, não só por rota.** Papel de professor não basta; aquele aluno
    precisa ser de uma turma dele. Faça sempre o teste de trocar o id na URL.
@@ -72,7 +72,7 @@ acontece se isso vazar?"**.
 
 6. **"Não encontrado" e "sem permissão" respondem igual.** Respostas diferentes confirmam a
    existência do registro.
-   Checagem: só a revisão garante (`privacy-guardian`); o que há de teste: `apps/api/test/borda-de-entrada-ultimos-modulos.int.test.ts`.
+   Checagem: só a revisão garante (`privacy-guardian`); o que há de teste: `apps/api/test/input-boundary-late-modules.int.test.ts`.
 
 7. **Arquivo em bucket privado, com URL assinada de validade curta.** Nunca URL permanente,
    nunca bucket público "porque é só uma imagem de prova".
@@ -111,7 +111,7 @@ acontece se isso vazar?"**.
      Checagem: só a revisão garante (`privacy-guardian`, `conformidade-reviewer`).
 
 11. **Erro para o cliente é curto e tipado.** Stack trace nunca sai da API.
-    Checagem: `guardas/erro-tipado`, `apps/api/test/erro.int.test.ts`.
+    Checagem: `guardas/erro-tipado`, `apps/api/test/error.int.test.ts`.
 
 ## IA
 

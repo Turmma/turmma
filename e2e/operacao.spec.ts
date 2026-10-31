@@ -1,11 +1,11 @@
 import type { Locator, Page, Request, Route } from '@playwright/test'
 import { MENSAGENS_DE_ERRO } from '../packages/shared/src/errors/messages.ts'
-import { codigoDoOperador, criarOperadorComSegundoFator as criarOperador, encerrarSessoesDoOperador, removerOperador, type OperadorDeTeste } from './__fixtures__/operacao.ts'
-import { criarEquipeComSenha } from './__fixtures__/sessao.ts'
-import { esperarNovaConversa } from './__fixtures__/casca.ts'
-import { expect, test } from './__fixtures__/perfis.ts'
-import { acionar, entrarNaOperacao, esperarCasca, PRAZO_DA_ENTRADA_MS } from './__fixtures__/tela-da-operacao.ts'
-import { ALVO_DE_TOQUE_PRINCIPAL_PX, corDoToken, larguraExcedente, violacoesGraves } from './__fixtures__/verificacoes.ts'
+import { codigoDoOperador, criarOperadorComSegundoFator as criarOperador, encerrarSessoesDoOperador, removerOperador, type OperadorDeTeste } from './support/operacao.ts'
+import { criarEquipeComSenha } from './support/seed.ts'
+import { esperarNovaConversa } from './support/casca.ts'
+import { expect, test } from './support/profiles.ts'
+import { acionar, entrarNaOperacao, esperarCasca, PRAZO_DA_ENTRADA_MS } from './support/operacao-screen.ts'
+import { ALVO_DE_TOQUE_PRINCIPAL_PX, corDoToken, larguraExcedente, violacoesGraves } from './support/checks.ts'
 
 const ROTA_EU_DO_OPERADOR = '**/v1/operacao/eu'
 const CHUNK_DA_OPERACAO = /\/assets\/operacao-[^/]+\.js$/

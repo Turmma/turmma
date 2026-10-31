@@ -13,15 +13,15 @@ import { PgDialect } from 'drizzle-orm/pg-core'
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
-import { criarMontagemDoArquivo } from '../../worker/src/processadores/montar-arquivo.js'
+import { criarMontagemDoArquivo } from '../../worker/src/processors/montar-arquivo.js'
 import { PrivacidadeService } from '../src/privacidade/privacidade.service.js'
 import { instrucaoDoTextoDoModelo } from '../src/privacidade/titulares.repository.js'
-import { subirApi, type ApiDeTeste } from './api-com-sessao.js'
-import { montarEscolaComTurma, type EscolaComTurma } from './escola-com-turma.js'
-import { esperarNaTrava } from './gatilho-de-parada.js'
-import { MONTAGEM_DE_TESTE } from './configuracao-de-teste.js'
-import { BancadaDeSessoes, type SessaoDeTeste } from './sessao-de-teste.js'
-import { execucaoDoJob } from '../../worker/test/execucao-do-job.js'
+import { subirApi, type ApiDeTeste } from './test-api.js'
+import { montarEscolaComTurma, type EscolaComTurma } from './escola-turma.fixture.js'
+import { esperarNaTrava } from './write-block-trigger.js'
+import { MONTAGEM_DE_TESTE } from './test-config.js'
+import { BancadaDeSessoes, type SessaoDeTeste } from './sessao.fixture.js'
+import { execucaoDoJob } from '../../worker/test/job-execution.fixture.js'
 
 /**
  * O arquivo do titular (F3, tarefa 13.0; `tasks/prd-lgpd-e-titular/cenarios.md`, RF11 a RF13 e RF17): o pedido de acesso gera o
@@ -688,7 +688,7 @@ describe('arquivo do titular (F3, tarefa 13.0): do pedido ao download', () => {
     })
 
     it('toda coluna das tabelas lidas que a classificação manda ficar de fora está em `fora` da leitura', () => {
-      // A conferência por coluna contra as migrations está em `arquitetura.test.ts`; aqui, o que a leitura declara.
+      // A conferência por coluna contra as migrations está em `architecture.test.ts`; aqui, o que a leitura declara.
       for (const proibida of COLUNAS_FORA_DO_ARQUIVO) {
         const [tabela = '', coluna = ''] = proibida.split('.')
         if (CLASSIFICACAO_DAS_TABELAS[tabela]?.arquivo.entra !== true) continue

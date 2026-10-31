@@ -27,7 +27,7 @@ tudo vira, e um sistema que trata turma como permanente quebra inteiro na virada
 1. **Toda tabela de domínio tem `escolaId`.** Sem exceção, inclusive em tabela auxiliar
    que "só guarda configuração". A exceção real é curta e fixa: tabela pública sem dono,
    como habilidades da BNCC e banco de questões público.
-   Checagem: `apps/api/test/arquitetura.test.ts`, `tenancy-guardian`.
+   Checagem: `apps/api/test/architecture.test.ts`, `tenancy-guardian`.
 
 2. **Tabela que varia por período tem também `anoLetivoId`.**
    Checagem: só a revisão garante (`tenancy-guardian`).
@@ -80,7 +80,7 @@ tudo vira, e um sistema que trata turma como permanente quebra inteiro na virada
 6. **"Não encontrado" e "sem permissão" respondem a mesma coisa.** Se a API devolve 404
    para id inexistente e 403 para id de outra escola, ela acabou de confirmar que aquele id
    existe. Isso é vazamento, mesmo sem devolver dado nenhum.
-   Checagem: só a revisão garante (`tenancy-guardian`); o que há de teste: `apps/api/test/borda-de-entrada-ultimos-modulos.int.test.ts`.
+   Checagem: só a revisão garante (`tenancy-guardian`); o que há de teste: `apps/api/test/input-boundary-late-modules.int.test.ts`.
 
 7. **Id é UUID.** Id sequencial entrega volume de dados a quem olha a URL e facilita
    varredura. `aluno/1837` diz quantos alunos existem.
@@ -94,7 +94,7 @@ tudo vira, e um sistema que trata turma como permanente quebra inteiro na virada
 9. **Query sem escopo só em rotina administrativa nossa**, marcada com `@Unscoped()` e com
    uma linha de justificativa. Se aparecer uma terceira dessas no mesmo módulo, tem algo
    errado no desenho.
-   Checagem: `tools/guardas/repositories-com-escopo.test.ts`, `apps/api/test/arquitetura.test.ts`.
+   Checagem: `tools/guardas/repositories-com-escopo.test.ts`, `apps/api/test/architecture.test.ts`.
 
 ## Como isso é checado
 

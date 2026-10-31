@@ -1,9 +1,9 @@
 import { randomUUID } from 'node:crypto'
 import type { Locator, Page, Request } from '@playwright/test'
-import { abrirNavegacao, entrarComoCoordenacaoPeloConvite, entrarPelaTelaComSegundoFator, esperarIntroducaoDaCoordenacao, esperarPainel, falaDoPassoDaCoordenacao, falasDaIntroducaoDaCoordenacao, lateral, PRAZO_DA_ENTRADA_MS } from './__fixtures__/casca.ts'
-import { paginaNaoRola } from './__fixtures__/coordenacao.ts'
-import { expect, test } from './__fixtures__/perfis.ts'
-import { abrirPelaApiSemMedirAPrimeiraCarga, configurarSegundoFatorPelaApi } from './__fixtures__/segundo-fator.ts'
+import { abrirNavegacao, entrarComoCoordenacaoPeloConvite, entrarPelaTelaComSegundoFator, esperarIntroducaoDaCoordenacao, esperarPainel, falaDoPassoDaCoordenacao, falasDaIntroducaoDaCoordenacao, lateral, PRAZO_DA_ENTRADA_MS } from './support/casca.ts'
+import { paginaNaoRola } from './support/coordenacao.ts'
+import { expect, test } from './support/profiles.ts'
+import { abrirPelaApiSemMedirAPrimeiraCarga, configurarSegundoFatorPelaApi } from './support/mfa.ts'
 import {
   confirmacaoDoIncidenteNoBanco,
   criarConviteDeCoordenador,
@@ -11,8 +11,8 @@ import {
   criarIncidenteNoBanco,
   criarProfessoraNaEscola,
   introducaoVistaEmDoUsuario,
-} from './__fixtures__/sessao.ts'
-import { ALVO_DE_TOQUE_PRINCIPAL_PX, larguraExcedente, violacoesGraves } from './__fixtures__/verificacoes.ts'
+} from './support/seed.ts'
+import { ALVO_DE_TOQUE_PRINCIPAL_PX, larguraExcedente, violacoesGraves } from './support/checks.ts'
 
 /**
  * A introdução da coordenação (telas do aluno e primeiro acesso, 11.0; RF12, RF15 a RF18, RF20; mockup 7): na primeira entrada, depois do

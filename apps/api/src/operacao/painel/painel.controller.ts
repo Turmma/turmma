@@ -17,7 +17,7 @@ import {
   type UsoDoPainelResponse,
 } from '@educa/shared'
 import { Body, Controller, Get, Header, HttpCode, HttpStatus, Inject, Param, Post, Query } from '@nestjs/common'
-import { RotaDeOperacao } from '../marcadores.js'
+import { RotaDeOperacao } from '../decorators.js'
 import { PainelService } from './painel.service.js'
 
 /** Refazer e revogar não têm campo: sem corpo (o Express 5 deixa `req.body` indefinido), ou `{}`. Qualquer campo é `ENTRADA_INVALIDA`. */

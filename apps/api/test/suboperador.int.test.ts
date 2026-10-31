@@ -4,9 +4,9 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { lerAmbienteDeTeste } from '../../../tools/ci/compose.ts'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { executarOpsSuboperador } from '../src/ops/suboperador.js'
-import { chamar, subirApi, type ApiDeTeste } from './api-com-sessao.js'
-import { GatilhoDeParada, esperarNaTrava } from './gatilho-de-parada.js'
-import { BancadaDeSessoes, type SessaoDeTeste } from './sessao-de-teste.js'
+import { chamar, subirApi, type ApiDeTeste } from './test-api.js'
+import { GatilhoDeParada, esperarNaTrava } from './write-block-trigger.js'
+import { BancadaDeSessoes, type SessaoDeTeste } from './sessao.fixture.js'
 
 /**
  * Os suboperadores (F3, tarefa 8.0; `tasks/prd-lgpd-e-titular/cenarios.md`, RF6 e RF7): a operação cadastra e encerra pelo

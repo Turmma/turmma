@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../../tools/testes/metricas.ts'
-import { subirApi, type ApiDeTeste, type RespostaHttp } from '../../test/api-com-sessao.js'
+import { subirApi, type ApiDeTeste, type RespostaHttp } from '../../test/test-api.js'
 import {
   alunosComSessao,
   aplicarAtividade,
@@ -19,9 +19,9 @@ import {
   responderProva,
   rotasDaAtividade,
   type RotasDaAtividade,
-} from '../../test/atividade-de-teste.js'
-import { montarEscolaComAssistente, NOME_DO_ALUNO_DE_TESTE, type EscolaComAssistente } from '../../test/escola-com-assistente.js'
-import { BancadaDeSessoes, type SessaoDeTeste } from '../../test/sessao-de-teste.js'
+} from '../../test/atividade.fixture.js'
+import { montarEscolaComAssistente, NOME_DO_ALUNO_DE_TESTE, type EscolaComAssistente } from '../../test/escola-assistente.fixture.js'
+import { BancadaDeSessoes, type SessaoDeTeste } from '../../test/sessao.fixture.js'
 
 /**
  * A atividade aplicada, do aplicar ao encerrar, e o lado do aluno (MVP, A3), com a API montada pelo `AppModule` e o

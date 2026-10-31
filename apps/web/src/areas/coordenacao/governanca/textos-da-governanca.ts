@@ -17,9 +17,9 @@ import {
   type TipoDeEntrega,
 } from '@educa/shared'
 import { aparenciaDaFalha } from '../../../api/ciclo-de-execucao'
-import type { Aprovacao } from '../../../componentes/ui/ia/aprovacao'
-import type { OpcoesDoSegmentado } from '../../../componentes/ui/campos/Segmentado'
-import { formatarNumero, formatarQuantidade } from '../../../formatar'
+import type { Aprovacao } from '../../../components/ui/ai/approval'
+import type { OpcoesDoSegmentado } from '../../../components/ui/fields/Segmentado'
+import { formatarNumero, formatarQuantidade } from '../../../format'
 
 /**
  * Os textos da Governança, dos Agentes e do Analista, sem tela: o que cada código vira em português, num lugar só e com

@@ -1,8 +1,8 @@
 import type { Locator, Page, Request, Route } from '@playwright/test'
 import { MENSAGENS_DE_ERRO } from '../packages/shared/src/errors/messages.ts'
 import type { AcessoGeradoResponse } from '../packages/shared/src/sala/acesso.ts'
-import { abrirNavegacao, entrarPorEmail, irPelaNavegacao, lateral, PRAZO_DA_ENTRADA_MS, esperarNovaConversa, abrirAbaAlunos, secoes } from './__fixtures__/casca.ts'
-import { expect, test } from './__fixtures__/perfis.ts'
+import { abrirNavegacao, entrarPorEmail, irPelaNavegacao, lateral, PRAZO_DA_ENTRADA_MS, esperarNovaConversa, abrirAbaAlunos, secoes } from './support/casca.ts'
+import { expect, test } from './support/profiles.ts'
 import {
   acessosVigentesDaTurma,
   confirmarVinculosNoBanco,
@@ -16,8 +16,8 @@ import {
   revogarAcessoNoBanco,
   type AlocacaoDeTeste,
   type EquipeDeTeste,
-} from './__fixtures__/sessao.ts'
-import { ALVO_DE_TOQUE_PRINCIPAL_PX, codigoCru, larguraExcedente, larguraExcedenteDoDialogo, violacoesGraves } from './__fixtures__/verificacoes.ts'
+} from './support/seed.ts'
+import { ALVO_DE_TOQUE_PRINCIPAL_PX, codigoCru, larguraExcedente, larguraExcedenteDoDialogo, violacoesGraves } from './support/checks.ts'
 
 /**
  * O acesso da turma do professor (A1, tarefa 15.0; `tasks/prd-apresentacao-escola/cenarios.md`): W7, W4 e W12 de
@@ -167,7 +167,7 @@ async function tabAte(page: Page, alvo: Locator): Promise<void> {
 
 const focoDentroDoDialogo = (page: Page) => page.evaluate(() => document.activeElement !== null && document.activeElement.closest('dialog[open]') !== null)
 
-/** A data e a hora como a tela as escreve (`formatar.ts`), no fuso do navegador do teste. */
+/** A data e a hora como a tela as escreve (`format.ts`), no fuso do navegador do teste. */
 function dataNaTela(page: Page, iso: string): Promise<string> {
   return page.evaluate((valor) => new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(valor)), iso)
 }

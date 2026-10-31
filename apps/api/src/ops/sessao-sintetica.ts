@@ -4,7 +4,7 @@ import { pathToFileURL } from 'node:url'
 import { parseArgs } from 'node:util'
 import { z } from 'zod'
 import { criarSessoesSinteticas, emissorDeTokenSintetico, QUANTIDADE_MAXIMA_DE_SESSOES_SINTETICAS } from '../sessao/index.js'
-import { ArgumentoInvalido } from './comando.js'
+import { ArgumentoInvalido } from './command.js'
 import { urlDoBancoDeOperacao } from './uso.js'
 
 export { ArgumentoInvalido }

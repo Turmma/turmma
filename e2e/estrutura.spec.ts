@@ -2,9 +2,9 @@ import { readFileSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'
 import type { Locator, Page, Request, Route } from '@playwright/test'
 import { MENSAGENS_DE_ERRO } from '../packages/shared/src/errors/messages.ts'
-import { abrirNavegacao, entrarComoCoordenacaoNaMesmaAba, abrirEstrutura, esperarPainel, lateral, PRAZO_DA_ENTRADA_MS, secoes as secoesDaNavegacao } from './__fixtures__/casca.ts'
-import { abrirAnoEDisciplinas, comOQueFalta, fecharPainel, irPelaCoordenacao, linhasDaTabela, paginaNaoRola, painelDoAno } from './__fixtures__/coordenacao.ts'
-import { expect, test } from './__fixtures__/perfis.ts'
+import { abrirNavegacao, entrarComoCoordenacaoNaMesmaAba, abrirEstrutura, esperarPainel, lateral, PRAZO_DA_ENTRADA_MS, secoes as secoesDaNavegacao } from './support/casca.ts'
+import { abrirAnoEDisciplinas, comOQueFalta, fecharPainel, irPelaCoordenacao, linhasDaTabela, paginaNaoRola, painelDoAno } from './support/coordenacao.ts'
+import { expect, test } from './support/profiles.ts'
 import {
   apagarDisciplinaNoBanco,
   apagarSerieNoBanco,
@@ -17,8 +17,8 @@ import {
   criarTodasAsSeriesNoBanco,
   montarEstruturaNoBanco,
   porNaListaDaTurma,
-} from './__fixtures__/sessao.ts'
-import { ALVO_DE_TOQUE_PRINCIPAL_PX, codigoCru, larguraExcedente, larguraExcedenteDoDialogo, violacoesGraves } from './__fixtures__/verificacoes.ts'
+} from './support/seed.ts'
+import { ALVO_DE_TOQUE_PRINCIPAL_PX, codigoCru, larguraExcedente, larguraExcedenteDoDialogo, violacoesGraves } from './support/checks.ts'
 
 /**
  * A Estrutura da coordenação (A1, tarefa 13.0; `tasks/prd-apresentacao-escola/cenarios.md`): W4 de Estrutura; W12 (360 px,
@@ -33,7 +33,7 @@ const ROTAS_DAS_SECOES = ['**/v1/series?*', '**/v1/disciplinas?*', '**/v1/turmas
 const INDISPONIVEL = JSON.stringify({ erro: { codigo: 'INDISPONIVEL_TENTE_DE_NOVO', mensagem: 'texto que a tela não usa', requisicaoId: '0190f5a0-0000-7000-8000-000000000001' } })
 
 /** Os nomes que o arquivo do Excel traz, com acento: é por eles que se vê que o windows-1252 foi lido certo. */
-const ARQUIVO_DO_EXCEL = 'e2e/__fixtures__/lista-excel.csv'
+const ARQUIVO_DO_EXCEL = 'e2e/support/lista-excel.csv'
 
 async function acionar(alvo: Locator, hasTouch: boolean): Promise<void> {
   if (hasTouch) await alvo.tap()

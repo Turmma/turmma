@@ -6,7 +6,7 @@ import { join, relative, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../../tools/testes/metricas.ts'
-import { chamar, subirApi, type ApiDeTeste, type RespostaHttp } from '../../test/api-com-sessao.js'
+import { chamar, subirApi, type ApiDeTeste, type RespostaHttp } from '../../test/test-api.js'
 import {
   comoPessoa,
   copiarArtefatoParaOAnoAnterior,
@@ -18,8 +18,8 @@ import {
   vincularProfessor,
   zerarLimiteDePedidosDeIa,
   type EscolaComAssistente,
-} from '../../test/escola-com-assistente.js'
-import { BancadaDeSessoes, type SessaoDeTeste } from '../../test/sessao-de-teste.js'
+} from '../../test/escola-assistente.fixture.js'
+import { BancadaDeSessoes, type SessaoDeTeste } from '../../test/sessao.fixture.js'
 import { EXECUTOR_DE_AGENTE } from '../ia/ia.module.js'
 import { EntregaRepository } from './entrega.repository.js'
 import { EntregaService } from './entrega.service.js'

@@ -14,7 +14,7 @@ import { Unscoped } from '../db/unscoped.decorator.js'
  *
  * O desvio da regra 10, item 9 fica contido por teste: a classe não sai pelo barrel do `@educa/core` (só pelo
  * subcaminho `@educa/core/conta-global`), e só o módulo `sessao` da API e esta pasta a importam
- * (`apps/api/test/arquitetura.test.ts`). As três exceções são antigas e mudaram de lugar, mas já estão no ponto que a
+ * (`apps/api/test/architecture.test.ts`). As três exceções são antigas e mudaram de lugar, mas já estão no ponto que a
  * regra 10, item 9 aponta como sinal de desenho errado (a terceira no mesmo módulo): qualquer outra aqui é mudança de
  * spec, discutida antes.
  */

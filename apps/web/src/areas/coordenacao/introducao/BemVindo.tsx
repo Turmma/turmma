@@ -1,11 +1,11 @@
 import type { ReactNode } from 'react'
-import { ROTAS } from '../../../caminhos'
-import { IntroducaoDoPapel } from '../../../componentes/introducao/IntroducaoDoPapel'
-import type { PassoDaIntroducao } from '../../../componentes/introducao/Introducao'
-import { Linhas } from '../../../componentes/introducao/Linhas'
-import { OndeFicaCadaCoisa } from '../../../componentes/introducao/OndeFicaCadaCoisa'
-import { RegiaoQueRola } from '../../../componentes/introducao/RegiaoQueRola'
-import { NAVEGACAO } from '../../navegacao'
+import { ROTAS } from '../../../paths'
+import { IntroducaoDoPapel } from '../../../components/introducao/IntroducaoDoPapel'
+import type { PassoDaIntroducao } from '../../../components/introducao/Introducao'
+import { Linhas } from '../../../components/introducao/Linhas'
+import { OndeFicaCadaCoisa } from '../../../components/introducao/OndeFicaCadaCoisa'
+import { RegiaoQueRola } from '../../../components/introducao/RegiaoQueRola'
+import { NAVEGACAO } from '../../navigation'
 import {
   AGENTE_DA_INTRODUCAO,
   DESCRICAO_DO_LUGAR,

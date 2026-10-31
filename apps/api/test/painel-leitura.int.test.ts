@@ -15,9 +15,9 @@ import { randomBytes, randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { urlDoBancoDeTeste } from '../../../tools/testes/integracao.setup.ts'
 import { PainelService } from '../src/operacao/painel/painel.service.js'
-import { esperarErro, pedir, PRAZO_DAS_CONSULTAS_MS, subirApiDoPainel, todasAsPaginas, type Resposta } from './painel-de-teste.js'
-import { BancadaDeOperadores, type SessaoDeOperadorDeTeste } from './sessao-de-operador.js'
-import { segurarTravaDaEscola } from './trava-da-escola.js'
+import { esperarErro, pedir, PRAZO_DAS_CONSULTAS_MS, subirApiDoPainel, todasAsPaginas, type Resposta } from './painel.fixture.js'
+import { BancadaDeOperadores, type SessaoDeOperadorDeTeste } from './operador-session.fixture.js'
+import { segurarTravaDaEscola } from './escola-lock.js'
 
 /**
  * A leitura entre escolas do painel da operação (A0b, tarefa 5.0): `GET /v1/operacao/escolas` e `GET /v1/operacao/uso`,

@@ -5,12 +5,12 @@ import { consultaAnosLetivos, consultaTurmas, consultaVinculos, type ListaDaEstr
 import { consultaMateriais } from '../material/api/material'
 import { consultaIncidentes } from '../privacidade/api/privacidade'
 import { consultaProfessores } from '../professores/api/professores'
-import { caminhoDoProfessor } from '../../../caminhos'
-import { LEITURA_DA_FILA, SEM_LEITURA_SOZINHA, type LeituraDaFila } from '../../../componentes/sino/leitura-do-sino'
-import type { ItemDoSino, SituacaoDoSino } from '../../../componentes/sino/Sino'
-import { formatarDiaDoInstante } from '../../../formatar'
+import { caminhoDoProfessor } from '../../../paths'
+import { LEITURA_DA_FILA, SEM_LEITURA_SOZINHA, type LeituraDaFila } from '../../../components/sino/leitura-do-sino'
+import type { ItemDoSino, SituacaoDoSino } from '../../../components/sino/Sino'
+import { formatarDiaDoInstante } from '../../../format'
 
-// As opções de leitura e o tipo da leitura são dos dois sinos (o do professor é da X3) e moram em `componentes/sino/leitura-do-sino.ts`;
+// As opções de leitura e o tipo da leitura são dos dois sinos (o do professor é da X3) e moram em `components/sino/leitura-do-sino.ts`;
 // quem já os importava daqui continua importando.
 export { SEM_LEITURA_SOZINHA }
 export type { LeituraDaFila }

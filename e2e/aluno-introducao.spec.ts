@@ -9,10 +9,10 @@ import {
   lateral,
   PRAZO_DA_ENTRADA_MS,
   seguirAteOFimDaIntroducao,
-} from './__fixtures__/casca.ts'
-import { expect, test } from './__fixtures__/perfis.ts'
-import { criarAlunoComMatricula, criarEscolaSintetica } from './__fixtures__/sessao.ts'
-import { ALVO_DE_TOQUE_PRINCIPAL_PX, larguraExcedente, violacoesGraves } from './__fixtures__/verificacoes.ts'
+} from './support/casca.ts'
+import { expect, test } from './support/profiles.ts'
+import { criarAlunoComMatricula, criarEscolaSintetica } from './support/seed.ts'
+import { ALVO_DE_TOQUE_PRINCIPAL_PX, larguraExcedente, violacoesGraves } from './support/checks.ts'
 
 /**
  * A introdução do aluno (telas do aluno e primeiro acesso, 9.0; RF11 a RF14, RF16 a RF18, RF20; mockup 2.8): na primeira entrada

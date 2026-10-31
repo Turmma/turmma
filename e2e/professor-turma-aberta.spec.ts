@@ -1,11 +1,11 @@
 import { randomUUID } from 'node:crypto'
 import type { Page } from '@playwright/test'
-import { desempenhoSintetico, simularAssistente } from './__fixtures__/assistente.ts'
-import { PRAZO_DA_ENTRADA_MS } from './__fixtures__/casca.ts'
-import { principal } from './__fixtures__/fluxo-do-professor.ts'
-import { acionar, comLote, entrar, irPara, PRAZO_DA_TELA_MS, soOPainelDaAbaRola, VOCABULARIO_DE_NOTA } from './__fixtures__/professor/cena.ts'
-import { confirmarVinculosNoBanco, criarAlocacaoDoProfessor, criarEquipeComSenha, encerrarVinculosNoBanco } from './__fixtures__/sessao.ts'
-import { expect, test } from './__fixtures__/perfis.ts'
+import { desempenhoSintetico, simularAssistente } from './support/assistente.ts'
+import { PRAZO_DA_ENTRADA_MS } from './support/casca.ts'
+import { principal } from './support/professor-flow.ts'
+import { acionar, comLote, entrar, irPara, PRAZO_DA_TELA_MS, soOPainelDaAbaRola, VOCABULARIO_DE_NOTA } from './support/professor/scenario.ts'
+import { confirmarVinculosNoBanco, criarAlocacaoDoProfessor, criarEquipeComSenha, encerrarVinculosNoBanco } from './support/seed.ts'
+import { expect, test } from './support/profiles.ts'
 
 /**
  * A turma aberta em três abas, Hoje, Atividades e Alunos, no endereço (D69, X3 telas do professor, 10.0). Separado de

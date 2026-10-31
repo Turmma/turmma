@@ -1,8 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
 import { consultaMemoriaDoTutor } from '../../api/memoria-do-tutor'
-import { EstadoCarregando, EstadoErro, EstadoVazio } from '../../componentes/estado'
-import { BarraRotulada } from '../../componentes/ui/BarraRotulada'
-import { CabecalhoDeSecao } from '../../componentes/ui/Tela'
+import { EstadoCarregando, EstadoErro, EstadoVazio } from '../../components/states'
+import { BarraRotulada } from '../../components/ui/BarraRotulada'
+import { CabecalhoDeSecao } from '../../components/ui/Tela'
 import {
   DESCRICAO_DO_VAZIO,
   ROTULO_DAS_HABILIDADES,

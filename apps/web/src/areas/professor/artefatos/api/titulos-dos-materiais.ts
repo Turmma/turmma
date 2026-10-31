@@ -6,7 +6,7 @@ import { lerPaginas } from '../../../../api/estrutura'
  * O título de cada material que a professora alcança (`GET /v1/materiais`: os das disciplinas em que ela tem vínculo
  * confirmado), pelo id. A citação de uma questão traz só o `materialId` e a página; é daqui que o chip e a lista de
  * fontes tiram o nome do material. Sem esta leitura a citação continua valendo, com "Material da escola" no lugar do
- * título (`componentes/ui/ia/textos-das-fontes.ts`): a falha dela não derruba a tela.
+ * título (`components/ui/ai/source-labels.ts`): a falha dela não derruba a tela.
  */
 export const consultaTitulosDosMateriais = queryOptions({
   queryKey: ['materiais', 'titulos'],

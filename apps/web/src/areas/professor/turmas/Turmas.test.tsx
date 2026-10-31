@@ -4,9 +4,9 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testi
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { AVISO_DO_COMPLEMENTO, EFEITO_DA_CONTESTACAO, NOME_DA_CONTESTACAO, NOME_DO_ESTADO_DE_VINCULO } from '@educa/shared'
-import { criarClienteDeConsultas } from '../../../api/cliente-de-consultas'
+import { criarClienteDeConsultas } from '../../../api/query-client'
 import { consultaMeusVinculos } from '../comum/api/vinculos'
-import { prepararTela, redeFalsa, type RedeFalsa, type RespostaFalsa } from '../../../__fixtures__/tela'
+import { prepararTela, redeFalsa, type RedeFalsa, type RespostaFalsa } from '../../../__fixtures__/render-screen'
 import Turmas from './Turmas'
 
 /**

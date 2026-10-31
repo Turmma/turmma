@@ -4,10 +4,10 @@ import { randomUUID } from 'node:crypto'
 import { pathToFileURL } from 'node:url'
 import { parseArgs } from 'node:util'
 import { z } from 'zod'
-import { abrirBancoDeOperacao, ArgumentoInvalido, autorDoComando, esquemaNome, lerOperador, OperadorRecusado, type BancoDoComando, type SaidaDoComando } from './comando.js'
+import { abrirBancoDeOperacao, ArgumentoInvalido, autorDoComando, esquemaNome, lerOperador, OperadorRecusado, type BancoDoComando, type SaidaDoComando } from './command.js'
 import { criarEscola, criarRede } from '../operacao/escola/escola.js'
 
-// O que é comum aos comandos do operador mora em `comando.ts`; reexportado aqui para quem já o importava daqui.
+// O que é comum aos comandos do operador mora em `command.ts`; reexportado aqui para quem já o importava daqui.
 export { abrirBancoDeOperacao, ArgumentoInvalido, lerOperador, type BancoDoComando, type SaidaDoComando }
 
 /**

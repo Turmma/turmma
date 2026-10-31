@@ -12,9 +12,9 @@ import {
   nomeNoSeletor,
   PRAZO_DA_ENTRADA_MS,
   secoes,
-} from './__fixtures__/casca.ts'
-import { expect, test } from './__fixtures__/perfis.ts'
-import { doisCliquesNoMesmoInstante, entrarNosPedidos, hoje, registrarPeloFluxo } from './__fixtures__/pedidos-do-titular.ts'
+} from './support/casca.ts'
+import { expect, test } from './support/profiles.ts'
+import { doisCliquesNoMesmoInstante, entrarNosPedidos, hoje, registrarPeloFluxo } from './support/pedidos-do-titular.ts'
 import {
   apagarArquivoDoTitularNoBanco,
   auditoriaDoPedidoNoBanco,
@@ -29,8 +29,8 @@ import {
   pedidosDoTitularNoBanco,
   type AlunoDeTeste,
   type EquipeDeTeste,
-} from './__fixtures__/sessao.ts'
-import { ALVO_DE_TOQUE_PRINCIPAL_PX, larguraExcedente, larguraExcedenteDoDialogo, violacoesGraves } from './__fixtures__/verificacoes.ts'
+} from './support/seed.ts'
+import { ALVO_DE_TOQUE_PRINCIPAL_PX, larguraExcedente, larguraExcedenteDoDialogo, violacoesGraves } from './support/checks.ts'
 
 /**
  * "Meus dados" do aluno e do professor (F3, 18.0; RF12 e RF20; `docs/interface.md` 11.1): o aluno acha "Meus dados" em

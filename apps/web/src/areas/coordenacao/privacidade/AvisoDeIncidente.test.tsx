@@ -2,7 +2,7 @@
 import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { prepararTela, redeFalsa, renderizarTela } from '../../../__fixtures__/tela'
+import { prepararTela, redeFalsa, renderizarTela } from '../../../__fixtures__/render-screen'
 import AvisoDeIncidente from './AvisoDeIncidente'
 
 /**

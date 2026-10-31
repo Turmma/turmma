@@ -3,7 +3,7 @@ import type { Reflector } from '@nestjs/core'
 
 /**
  * As chaves dos dois marcadores da área da operação (Tech Spec da A0, seção 1). Os decoradores que as gravam,
- * `@RotaDeOperacao()` e `@EntradaDeOperacao()`, vivem só em `apps/api/src/operacao/marcadores.ts`; aqui ficam as chaves,
+ * `@RotaDeOperacao()` e `@EntradaDeOperacao()`, vivem só em `apps/api/src/operacao/decorators.ts`; aqui ficam as chaves,
  * para as guardas globais da escola (autenticação, limite, sessão, permissão) e a conferência do boot as reconhecerem
  * sem depender da API.
  *

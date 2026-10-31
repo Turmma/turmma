@@ -14,7 +14,7 @@ import {
 } from '@educa/core'
 import { ErrorCode } from '@educa/shared'
 import { and, count, eq, exists, isNull, lt, or, sql } from 'drizzle-orm'
-import { DURACAO_DA_SESSAO_DE_OPERADOR_HORAS, type SessaoDeOperadorParaGuarda, type SessaoDeOperadorParaRenovar } from '../sessao/prazos-da-sessao.js'
+import { DURACAO_DA_SESSAO_DE_OPERADOR_HORAS, type SessaoDeOperadorParaGuarda, type SessaoDeOperadorParaRenovar } from '../sessao/sessao-timeouts.js'
 
 /**
  * Chave do `pg_advisory_xact_lock` que põe em fila o `criar` e o `desativar` do `ops:operador` (Tech Spec da A0, seção
@@ -91,7 +91,7 @@ export interface OperadorDaSessao {
  * O único código que toca as seis tabelas da operação (Tech Spec da A0, seção 6; o expurgo entra na tarefa 9.0). As
  * tabelas são da nossa equipe e não têm `escola_id`, então nenhum método leva escopo de escola nem `@Unscoped`; o
  * contrapeso é que este repository não toca nenhuma outra tabela, e nenhuma outra classe toca estas (C45, em
- * `apps/api/test/arquitetura.test.ts`).
+ * `apps/api/test/architecture.test.ts`).
  *
  * Recebe o banco ou a transação de quem chama: o `ops:operador` grava tudo de uma operação numa transação só.
  * Devolve id e apelido, e o nome só ao `eu` do próprio operador (`daSessao`): e-mail, hash e segredo nunca saem daqui.

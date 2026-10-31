@@ -1,11 +1,11 @@
 import type { Locator, Page, Request, Route } from '@playwright/test'
-import { abrirNavegacao, entrarComoCoordenacaoNaMesmaAba, esperarPainel, lateral, PRAZO_DA_ENTRADA_MS } from './__fixtures__/casca.ts'
-import { irPelaCoordenacao, paginaNaoRola } from './__fixtures__/coordenacao.ts'
-import { conferirAssinaturas, conferirQueAOncaNaoTemNome, conferirTamanhoDoAvatar } from './__fixtures__/avatar.ts'
-import { auditoriasNoBanco, montarEscolaComEntregas, suspensoesNoBanco, suspenderFuncaoPorOutraPessoa, type EscolaComEntregas } from './__fixtures__/governanca.ts'
-import { expect, test } from './__fixtures__/perfis.ts'
-import { criarEquipeComSenha, type EquipeDeTeste } from './__fixtures__/sessao.ts'
-import { ALVO_DE_TOQUE_PRINCIPAL_PX, larguraExcedente, larguraExcedenteDoDialogo, violacoesGraves } from './__fixtures__/verificacoes.ts'
+import { abrirNavegacao, entrarComoCoordenacaoNaMesmaAba, esperarPainel, lateral, PRAZO_DA_ENTRADA_MS } from './support/casca.ts'
+import { irPelaCoordenacao, paginaNaoRola } from './support/coordenacao.ts'
+import { conferirAssinaturas, conferirQueAOncaNaoTemNome, conferirTamanhoDoAvatar } from './support/avatar.ts'
+import { auditoriasNoBanco, montarEscolaComEntregas, suspensoesNoBanco, suspenderFuncaoPorOutraPessoa, type EscolaComEntregas } from './support/governanca.ts'
+import { expect, test } from './support/profiles.ts'
+import { criarEquipeComSenha, type EquipeDeTeste } from './support/seed.ts'
+import { ALVO_DE_TOQUE_PRINCIPAL_PX, larguraExcedente, larguraExcedenteDoDialogo, violacoesGraves } from './support/checks.ts'
 
 /**
  * "Como cada IA trabalha" (X2, 11.0; RF19): a página dos agentes da coordenação, dentro de Registros, no link "Como cada IA trabalha" da

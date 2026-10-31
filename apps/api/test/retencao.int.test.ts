@@ -6,11 +6,11 @@ import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { AppModule } from '../src/app.module.js'
 import { executarOpsRetencao } from '../src/ops/retencao.js'
 import { EmissorDeDesafio } from '../src/credencial/index.js'
-import { chamar, subirApi, type ApiDeTeste } from './api-com-sessao.js'
-import { configuracaoDeTeste } from './configuracao-de-teste.js'
-import { esperarNaTrava, GatilhoDeParada } from './gatilho-de-parada.js'
-import { controladoresDoModulo, rotasDe } from './rotas-registradas.js'
-import { BancadaDeSessoes, type SessaoDeTeste } from './sessao-de-teste.js'
+import { chamar, subirApi, type ApiDeTeste } from './test-api.js'
+import { configuracaoDeTeste } from './test-config.js'
+import { esperarNaTrava, GatilhoDeParada } from './write-block-trigger.js'
+import { controladoresDoModulo, rotasDe } from './registered-routes.js'
+import { BancadaDeSessoes, type SessaoDeTeste } from './sessao.fixture.js'
 
 /**
  * A retenção da escola (F3, tarefa 2.0; `tasks/prd-lgpd-e-titular/cenarios.md`, RF1, RF2 e Permissão): a operação

@@ -6,9 +6,9 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { criarConviteDeCoordenador } from '../src/sessao/index.js'
 import { CLIENTE_REDIS_LOGIN, HashDeSenha } from '../src/credencial/index.js'
-import { chamar, subirApi, type ApiDeTeste } from './api-com-sessao.js'
-import { autorDaBancada, BancadaDeSessoes, type SessaoDeTeste } from './sessao-de-teste.js'
-import { emOrdemNaTrava } from './trava-da-escola.js'
+import { chamar, subirApi, type ApiDeTeste } from './test-api.js'
+import { autorDaBancada, BancadaDeSessoes, type SessaoDeTeste } from './sessao.fixture.js'
+import { emOrdemNaTrava } from './escola-lock.js'
 
 /**
  * O professor cadastrado pela coordenação (A1, tarefa 3.0; `tasks/prd-apresentacao-escola/cenarios.md`): E8, E9, E10,

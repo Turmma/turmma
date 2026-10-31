@@ -12,7 +12,7 @@ import {
   type LoginResponse,
   type RenovacaoResponse,
 } from '@educa/shared'
-import { chamarApi, ErroDaApi, SEM_CORPO, type EsquemaDeResposta, type OpcoesDaChamada } from './cliente'
+import { chamarApi, ErroDaApi, SEM_CORPO, type EsquemaDeResposta, type OpcoesDaChamada } from './client'
 
 export const CAMINHO_DA_SESSAO = '/v1/sessao'
 export const CAMINHO_DA_RENOVACAO = `${CAMINHO_DA_SESSAO}/renovar`
@@ -694,7 +694,7 @@ export function trocarDeEscola(usuarioId: string): Promise<LoginResponse> {
 
 /**
  * `POST /v1/sessao/atividade`: houve ponteiro ou teclado nesta aba. Quem decide quando chamar é o relógio de
- * inatividade (`sessao/inatividade.ts`), no máximo uma vez a cada 5 min — nenhuma tela fica batendo na API sozinha.
+ * inatividade (`sessao/idle-timeout.ts`), no máximo uma vez a cada 5 min — nenhuma tela fica batendo na API sozinha.
  */
 export function registrarAtividade(): Promise<void> {
   return chamarComSessao(CAMINHO_DA_ATIVIDADE, SEM_CORPO, { metodo: 'POST' })

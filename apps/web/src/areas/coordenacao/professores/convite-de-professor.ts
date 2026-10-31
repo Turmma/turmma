@@ -7,11 +7,11 @@ import {
   type EstadoDoProfessor,
   type CadastrarProfessorRequest,
 } from '@educa/shared'
-import type { FalhaDoConvite } from '../../../componentes/DialogoDoConvite'
-import { pedidoDeConvitePelo, type ValidacaoDoConvite } from '../../../componentes/pedido-de-convite'
-import type { FamiliaDeEstado } from '../../../componentes/ui/SeloDeEstado'
-import { listaMudou, textoDaFalha } from '../../../componentes/texto-da-falha'
-import { TEXTO_DO_CONVITE_QUE_MUDOU, TEXTO_DO_CONVITE_QUE_NAO_VALE } from '../../../componentes/textos-do-convite'
+import type { FalhaDoConvite } from '../../../components/DialogoDoConvite'
+import { pedidoDeConvitePelo, type ValidacaoDoConvite } from '../../../components/pedido-de-convite'
+import type { FamiliaDeEstado } from '../../../components/ui/SeloDeEstado'
+import { listaMudou, textoDaFalha } from '../../../components/error-text'
+import { TEXTO_DO_CONVITE_QUE_MUDOU, TEXTO_DO_CONVITE_QUE_NAO_VALE } from '../../../components/textos-do-convite'
 
 /**
  * O convite do professor na tela Professores (A1, 14.0; RF6): o que a lista diz de cada estado, as ações que cada estado
@@ -111,7 +111,7 @@ export function falhaDoCadastroDeProfessor(erro: unknown): FalhaDoConvite {
 
 /**
  * O texto do `CONFLITO` e do `NAO_ENCONTRADO` do refazer e do revogar, que dizem que o convite daquela linha mudou: os
- * mesmos do convite da coordenação, na operação (`componentes/textos-do-convite.ts`).
+ * mesmos do convite da coordenação, na operação (`components/textos-do-convite.ts`).
  */
 export const TEXTOS_DO_CONVITE_QUE_MUDOU: Readonly<Partial<Record<ErrorCode, string>>> = {
   [ErrorCode.CONFLITO]: TEXTO_DO_CONVITE_QUE_MUDOU,

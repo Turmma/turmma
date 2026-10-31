@@ -8,9 +8,9 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { lerAmbienteDeTeste, valorObrigatorio } from '../../../tools/ci/compose.ts'
 import { aguardarSaudavel, compose, composeOuFalha, PROCESSOS_DA_FILA } from '../../../tools/testes/compose.ts'
 import { AppModule } from '../src/app.module.js'
-import { configurarAplicacao } from '../src/configurar-app.js'
-import { configuracaoDeTeste, MONTAGEM_DE_TESTE } from './configuracao-de-teste.js'
-import { BancadaDeSessoes } from './sessao-de-teste.js'
+import { configurarAplicacao } from '../src/configure-app.js'
+import { configuracaoDeTeste, MONTAGEM_DE_TESTE } from './test-config.js'
+import { BancadaDeSessoes } from './sessao.fixture.js'
 
 const ambienteDeTeste = lerAmbienteDeTeste()
 const URL_REDIS_FILA = `redis://127.0.0.1:${valorObrigatorio(ambienteDeTeste, 'REDIS_FILA_PORTA_HOST')}`

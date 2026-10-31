@@ -16,7 +16,7 @@ import {
   type TitularidadeDeMaterial,
 } from '@educa/shared'
 import type { CamposDoEnvioDeMaterial } from './api/material'
-import { formatarQuantidade } from '../../../formatar'
+import { formatarQuantidade } from '../../../format'
 
 /**
  * As regras da tela Material que não dependem do React (MVP, A2; D5, D75): o que falta no formulário, o que há de errado

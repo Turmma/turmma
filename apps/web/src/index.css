@@ -1,0 +1,554 @@
+@import 'tailwindcss';
+
+/*
+ * O Tailwind gera classe de tudo que parece classe nos arquivos que ele varre. Os testes trazem de propósito as classes
+ * que a guarda reprova (`bg-tinta/40`, `bg-amber-50`), e elas não podem virar CSS servido: ficam fora da varredura.
+ */
+@source not './**/*.test.ts';
+@source not './**/*.test.tsx';
+
+/*
+ * A pele é a da D80 (`docs/interface.md` 9.1 e 9.10): branco no chão, dez famílias de cor, e um segundo bloco, mais
+ * abaixo, com os mesmos nomes no escuro. Nenhuma tela escreve cor por tema: quem usa token muda sozinho.
+ *
+ * A paleta padrão do Tailwind 4 é em oklch(), que só existe a partir do Chrome 111 e do Safari 16.4: num
+ * Chrome 109 de laboratório com Windows 7 ou num Chromebook sem atualização, o botão ficaria branco sobre
+ * branco e sem foco visível. Por isso a paleta é zerada e só voltam, em hex, os tokens da 9.10, e mais nenhum: classe
+ * com cor fora desta lista não gera CSS nenhum, e `estilos.test.ts` reprova o nome que não está aqui. O modificador de
+ * opacidade (`bg-tinta/40`) também não entra: vira `color-mix()`, que só existe a partir do Chrome 111, e o e2e
+ * reprova `oklch(` e `color-mix(` no CSS servido. O `veu` é hex de oito dígitos, que o Chrome entende desde o 62.
+ *
+ * Os 33 nomes da pele anterior (D72) ficam, com o valor de agora: as telas que ainda não foram recompostas mudam de
+ * pele sem trocar uma classe. `white` e `black` não mudam com o tema; texto sobre face colorida usa `sobre-cor`, e
+ * sobre a face da decisão oficial, `sobre-grafite`.
+ *
+ * `static` faz o Tailwind emitir todas as variáveis, e não só as que alguma classe usa: o CSS servido carrega a paleta
+ * inteira, e o e2e confere nele que cada token existe de fato, e não só no fonte.
+ */
+@theme static {
+  --color-*: initial;
+  --color-white: #ffffff;
+  --color-black: #000000;
+
+  /* chão e estrutura */
+  --color-fundo: #ffffff;
+  --color-superficie: #ffffff;
+  --color-lateral: #ffffff;
+  --color-fundo-suave: #f7f7f7;
+  --color-realce: #ececec;
+  --color-realce-suave: #f4f4f4;
+  --color-campo: #ffffff;
+  --color-mesa: #f7f7f7;
+  --color-linha: #e5e5e5;
+  --color-borda: #e5e5e5;
+  --color-borda-forte: #d7d7d7;
+  --color-borda-campo: #8f8f8f;
+  --color-apagado: #afafaf;
+  /* texto */
+  --color-tinta: #0d0d0d;
+  --color-apoio: #424242;
+  --color-sutil: #5d5d5d;
+  --color-inativo: #8f8f8f;
+  --color-sobre-cor: #0d0d0d;
+  --color-sobre-grafite: #ffffff;
+  /* o laranja da pinta, com os nomes da pele anterior */
+  --color-caramelo: #e8732e;
+  --color-caramelo-claro: #ee8747;
+  --color-caramelo-fundo: #d4651f;
+  --color-caramelo-texto: #b4520f;
+  --color-caramelo-noite: #f2a25b;
+  /* a decisão oficial */
+  --color-noite: #0d0d0d;
+  --color-noite-alto: #2f2f2f;
+  --color-noite-baixo: #000000;
+  --color-grafite: #333333;
+  --color-grafite-degrau: #0d0d0d;
+  --color-creme: #f4f4f4;
+  --color-papel: #f4f3f0;
+  /* estado: fundo e texto */
+  --color-pendente-cx: #fdf0e8;
+  --color-pendente: #8a3e0c;
+  --color-ok-cx: #e9f5ee;
+  --color-ok: #0b6b47;
+  --color-erro-cx: #fdecec;
+  --color-erro: #b42318;
+  --color-info-cx: #f4f4f4;
+  --color-info: #0d0d0d;
+  --color-ia-cx: #f0f0f0;
+  --color-ia: #424242;
+  /* as dez famílias: face, degrau, claro, borda e texto */
+  --color-laranja: #e8732e;
+  --color-laranja-degrau: #ba5c25;
+  --color-laranja-claro: #fdebdd;
+  --color-laranja-borda: #f5c0a1;
+  --color-laranja-texto: #a85220;
+  --color-azul: #1c9bef;
+  --color-azul-degrau: #167cbf;
+  --color-azul-claro: #dff1fd;
+  --color-azul-borda: #99d2f8;
+  --color-azul-texto: #146eaa;
+  --color-verde: #2fbf5b;
+  --color-verde-degrau: #269949;
+  --color-verde-claro: #e2f6e8;
+  --color-verde-borda: #a1e2b5;
+  --color-verde-texto: #1f7c3b;
+  --color-amarelo: #ffc31f;
+  --color-amarelo-degrau: #e0a000;
+  --color-amarelo-claro: #fff7e0;
+  --color-amarelo-borda: #ffe49a;
+  --color-amarelo-texto: #8c6b11;
+  --color-vermelho: #f2545b;
+  --color-vermelho-degrau: #c24349;
+  --color-vermelho-claro: #fde7e8;
+  --color-vermelho-borda: #f9b2b5;
+  --color-vermelho-texto: #b84045;
+  --color-roxo: #a56ef5;
+  --color-roxo-degrau: #8458c4;
+  --color-roxo-claro: #f2ebfe;
+  --color-roxo-borda: #d6befa;
+  --color-roxo-texto: #7d54ba;
+  --color-turquesa: #1dbfae;
+  --color-turquesa-degrau: #17998b;
+  --color-turquesa-claro: #dff6f4;
+  --color-turquesa-borda: #99e2db;
+  --color-turquesa-texto: #137a6f;
+  --color-anil: #6a85f7;
+  --color-anil-degrau: #556ac6;
+  --color-anil-claro: #eaeefe;
+  --color-anil-borda: #bcc8fb;
+  --color-anil-texto: #5165bc;
+  --color-lima: #9acd2e;
+  --color-lima-degrau: #7fb01c;
+  --color-lima-claro: #f1f8e2;
+  --color-lima-borda: #d2e8a1;
+  --color-lima-texto: #59771b;
+  --color-rosa: #f57cb5;
+  --color-rosa-degrau: #c46391;
+  --color-rosa-claro: #feedf5;
+  --color-rosa-borda: #fac4de;
+  --color-rosa-texto: #a25277;
+  /* o papel dos ícones ilustrados, o anel de foco e o véu do que abre por cima */
+  --color-icone-papel: #efefef;
+  --color-icone-linha: #d7d7d7;
+  --color-foco: #146eaa;
+  --color-veu: #00000059;
+  --color-onca-chao: #afafaf4d;
+
+  --font-corpo: ui-sans-serif, -apple-system, system-ui, 'Segoe UI', Helvetica, Arial, sans-serif;
+  --font-titulo: ui-sans-serif, -apple-system, system-ui, 'Segoe UI', Helvetica, Arial, sans-serif;
+
+  --radius-selo: 8px;
+  --radius-linha: 10px;
+  --radius-controle: 12px;
+  --radius-botao: 12px;
+  --radius-cartao: 16px;
+  --radius-caixa: 16px;
+
+  /* Nenhuma sombra borrada (9.3): o que flutua tem borda de 2 px e degrau sólido de 4 px, na cor da borda. */
+  --shadow-caixa: 0 0 0 2px var(--color-borda);
+  --shadow-flutua: 0 0 0 2px var(--color-borda), 0 4px 0 0 var(--color-borda);
+
+  --t-toque: 100ms;
+  --t-estado: 150ms;
+  --t-gesto: 260ms;
+  --t-entrada: 420ms;
+  --curva-estado: cubic-bezier(0.2, 0, 0, 1);
+  --curva-entrada: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/*
+ * O escuro (D80, item 2): os mesmos nomes, com outro valor. Fica FORA de camada, para vencer o `@layer theme` em que
+ * o Tailwind põe o bloco de cima. Quem liga é o atributo `data-tema` do `<html>`; a variante `dark:` não é usada em
+ * tela nenhuma, e a guarda de `estilos.test.ts` a reprova. Os dois blocos têm o mesmo conjunto de nomes, conferido
+ * pelo mesmo teste contra a 9.10 do `docs/interface.md`.
+ *
+ * Três valores não são os do mockup, de propósito (9.1): `borda-campo`, que precisa de 3:1 contra o chão e contra o
+ * campo para a borda ser a pista do controle; `caramelo-fundo`, que continua sendo face com texto em cima; e `white` e
+ * `black`, que aqui não viram com o tema.
+ */
+:root[data-tema='escuro'] {
+  color-scheme: dark;
+  --color-white: #ffffff;
+  --color-black: #000000;
+
+  --color-fundo: #131f24;
+  --color-superficie: #131f24;
+  --color-lateral: #131f24;
+  --color-fundo-suave: #202f36;
+  --color-realce: #202f36;
+  --color-realce-suave: #202f36;
+  --color-campo: #202f36;
+  --color-mesa: #0e181c;
+  --color-linha: #37464f;
+  --color-borda: #37464f;
+  --color-borda-forte: #52656d;
+  --color-borda-campo: #6b7f88;
+  --color-apagado: #52656d;
+
+  --color-tinta: #f1f7fb;
+  --color-apoio: #dce6ec;
+  --color-sutil: #8fa3ad;
+  --color-inativo: #52656d;
+  --color-sobre-cor: #131f24;
+  --color-sobre-grafite: #131f24;
+
+  --color-caramelo: #eb8447;
+  --color-caramelo-claro: #ef9d6d;
+  --color-caramelo-fundo: #d4651f;
+  --color-caramelo-texto: #ef9d6d;
+  --color-caramelo-noite: #f2a25b;
+
+  --color-noite: #f1f7fb;
+  --color-noite-alto: #dce6ec;
+  --color-noite-baixo: #ffffff;
+  --color-grafite: #f1f7fb;
+  --color-grafite-degrau: #8fa3ad;
+  --color-creme: #202f36;
+  --color-papel: #202f36;
+
+  --color-pendente-cx: #352c26;
+  --color-pendente: #ef9d6d;
+  --color-ok-cx: #17392d;
+  --color-ok: #6dd28c;
+  --color-erro-cx: #37272d;
+  --color-erro: #f6878c;
+  --color-info-cx: #202f36;
+  --color-info: #f1f7fb;
+  --color-ia-cx: #202f36;
+  --color-ia: #dce6ec;
+
+  --color-laranja: #eb8447;
+  --color-laranja-degrau: #ba5c25;
+  --color-laranja-claro: #352c26;
+  --color-laranja-borda: #734528;
+  --color-laranja-texto: #ef9d6d;
+  --color-azul: #37a7f1;
+  --color-azul-degrau: #167cbf;
+  --color-azul-claro: #143344;
+  --color-azul-borda: #17577f;
+  --color-azul-texto: #60b9f4;
+  --color-verde: #48c76f;
+  --color-verde-degrau: #269949;
+  --color-verde-claro: #17392d;
+  --color-verde-borda: #20673d;
+  --color-verde-texto: #6dd28c;
+  --color-amarelo: #ffc31f;
+  --color-amarelo-degrau: #e0a000;
+  --color-amarelo-claro: #393923;
+  --color-amarelo-borda: #7d6922;
+  --color-amarelo-texto: #ffd562;
+  --color-vermelho: #f4696f;
+  --color-vermelho-degrau: #c24349;
+  --color-vermelho-claro: #37272d;
+  --color-vermelho-borda: #77373d;
+  --color-vermelho-texto: #f6878c;
+  --color-roxo: #b07ff6;
+  --color-roxo-degrau: #8458c4;
+  --color-roxo-claro: #2a2c45;
+  --color-roxo-borda: #554382;
+  --color-roxo-texto: #c09af8;
+  --color-turquesa: #38c7b8;
+  --color-turquesa-degrau: #17998b;
+  --color-turquesa-claro: #15393a;
+  --color-turquesa-borda: #186762;
+  --color-turquesa-texto: #61d2c6;
+  --color-anil: #7c94f8;
+  --color-anil-degrau: #556ac6;
+  --color-anil-claro: #212f46;
+  --color-anil-borda: #3a4d83;
+  --color-anil-texto: #97aaf9;
+  --color-lima: #9acd2e;
+  --color-lima-degrau: #7fb01c;
+  --color-lima-claro: #293b26;
+  --color-lima-borda: #506d28;
+  --color-lima-texto: #b8dc6d;
+  --color-rosa: #f68cbe;
+  --color-rosa-degrau: #c46391;
+  --color-rosa-claro: #372e3b;
+  --color-rosa-borda: #794965;
+  --color-rosa-texto: #f8a3cb;
+
+  --color-icone-papel: #37464f;
+  --color-icone-linha: #52656d;
+  --color-foco: #60b9f4;
+  --color-veu: #00000099;
+  --color-onca-chao: #00000059;
+}
+
+/*
+ * O claro escolhido num aparelho escuro: o `color-scheme` do documento acompanha o tema da pessoa, e não o do sistema.
+ * Sem esta regra, quem escolheu Claro com o sistema no escuro teria a barra de rolagem e os controles nativos escuros
+ * sobre uma página clara. O `<meta name="color-scheme">` do `index.html` cobre só o intervalo sem CSS. Fora de camada,
+ * como o bloco do escuro, e sem cor nenhuma: as cores do claro continuam sendo as do `@theme static`.
+ */
+:root[data-tema='claro'] {
+  color-scheme: light;
+}
+
+@layer base {
+  /*
+   * O chão e o texto da página, antes de qualquer tela desenhar: cada casca pinta o próprio fundo, mas até o React
+   * montar (e em "Abrindo a sua sessão…") o que aparece é o `html`. Sem isto, no escuro o primeiro quadro seria o cinza
+   * do navegador, e não o chão do tema.
+   */
+  html {
+    background-color: var(--color-fundo);
+    color: var(--color-tinta);
+  }
+
+  /*
+   * O tamanho da letra do aluno (telas do aluno e primeiro acesso, 8.0; RF11): Padrão é a ausência do atributo e fica nos
+   * 16 px do navegador. Grande e Maior mudam o `font-size` do `<html>`, e tudo que a pele mede em `rem` (texto, altura,
+   * espaço) acompanha: 18 px e 20 px. Quem escreve `data-letra` é o script do `index.html` (antes do primeiro quadro) e
+   * `useTamanhoDaLetra()`, só enquanto o endereço é o da área do aluno. Os pontos de quebra do Tailwind são em `rem` de media query, que o navegador
+   * lê contra os 16 px de fábrica: o celular continua celular com a letra Maior.
+   */
+  :root[data-letra='grande'] {
+    font-size: 112.5%;
+  }
+
+  :root[data-letra='maior'] {
+    font-size: 125%;
+  }
+
+  /*
+   * O lugar que a barra de baixo do celular toma da janela (RF14, RF23): 68 px mais a área segura, e zero onde ela não
+   * existe. Quem a desenha (`BarraDeBaixo`) põe `data-barra-de-baixo` no `<html>` enquanto está na página, e é só por
+   * isso que a variável vale: a coordenação, que no celular tem os itens na gaveta, e toda largura de 768 px para cima
+   * ficam com zero. O `<main>` da casca guarda esta altura embaixo, e a `BarraPresa` sobe por ela. O `env()` só vale com
+   * `viewport-fit=cover`, que o produto não pede: sem ele a área segura é zero, e a medida é a de 68 px.
+   */
+  :root {
+    --barra-baixo: 0px;
+  }
+
+  :root[data-barra-de-baixo] {
+    --barra-baixo: calc(68px + env(safe-area-inset-bottom, 0px));
+    /*
+     * O foco do teclado também não fica atrás dela (WCAG 2.4.11): a barra é `fixed` e cobre o pé da janela, e só o
+     * `padding` do `<main>` reserva o lugar, que vale no fim da página. No meio de uma tela comprida, o navegador pararia
+     * o controle focado no pé da janela, atrás da barra. A `BarraPresa` grava o dela em linha, que sobrepõe este valor.
+     */
+    scroll-padding-bottom: var(--barra-baixo);
+  }
+
+  /*
+   * Foco sempre visível, em tudo que recebe foco pelo teclado (regra 50, item 11): contorno sólido de 3 px em `foco`,
+   * com 2 px de afastamento (9.1 e 10.1). É um anel só, nos dois temas: o campo, a linha de tabela e o item de menu
+   * mudam o afastamento, e nenhuma peça apaga o contorno.
+   */
+  :focus-visible {
+    outline: 3px solid var(--color-foco);
+    outline-offset: 2px;
+  }
+
+  /*
+   * A única exceção é o anel sobre a face `noite` no escuro, onde ela é clara (`#f1f7fb`) e o `foco` dá 1,99:1: ali o
+   * anel é o `sobre-grafite`, que é o texto da própria face (15:1 nos dois temas). No claro o `foco` sobre a `noite` dá
+   * 3,55:1 e a regra não existe. Peça com chão próprio dentro da face (o grupo da `Aparencia` na faixa da operação) volta
+   * ao `foco`, porque o anel é desenhado sobre o chão dela e não sobre a face.
+   */
+  :root[data-tema='escuro'] .bg-noite :focus-visible {
+    outline-color: var(--color-sobre-grafite);
+  }
+
+  :root[data-tema='escuro'] .bg-noite .bg-fundo :focus-visible,
+  :root[data-tema='escuro'] .bg-noite .bg-superficie :focus-visible {
+    outline-color: var(--color-foco);
+  }
+
+  /*
+   * O texto de exemplo do campo é `sutil`, o piso de texto da 9.1 (6,6:1). O preflight o pinta com `color-mix()`, que o
+   * build tira (`downlevel-color.ts`); sem esta regra ele ficaria na cor do texto digitado, e o exemplo pareceria resposta.
+   */
+  ::placeholder {
+    color: var(--color-sutil);
+  }
+
+  /* O texto selecionado: a borda da família laranja com a tinta, por token, e por isso uma regra só para os dois temas. */
+  ::selection {
+    background-color: var(--color-laranja-borda);
+    color: var(--color-tinta);
+  }
+
+  /*
+   * O véu atrás de todo `dialog` modal é o `veu` da D80 (`docs/interface.md` 9.1): preto a 35% no claro e a 60% no escuro.
+   * O valor vai escrito por extenso, em `rgba()`, e não por `var(--color-veu)`: no Chrome anterior ao 122 o `::backdrop`
+   * não herda variável do `:root`, e o fundo sairia transparente. `estilos.test.ts` confere que cada valor é o `veu` do
+   * bloco do tema dele. O `data-tema` do `<html>` é sempre `claro` ou `escuro` (`index.html`), e por isso a regra do
+   * escuro não precisa de `@media`.
+   */
+  dialog::backdrop {
+    background-color: rgba(0, 0, 0, 0.35);
+  }
+
+  :root[data-tema='escuro'] dialog::backdrop {
+    background-color: rgba(0, 0, 0, 0.6);
+  }
+
+  /*
+   * O login por cima da tela (sessão vencida) é um `dialog` modal: o navegador prende o foco nele e deixa o resto
+   * inerte. O véu dele continua o forte de antes, porque atrás dele fica a tela de quem estava antes. A cor é a `tinta`
+   * com transparência em `rgba()` literal, e não em `color-mix()` nem em `oklch()`, pelo mesmo motivo da paleta acima, e
+   * literal, e não `var()`, pelo motivo do véu de cima. O `:root` na frente dá a esta regra a especificidade da do
+   * escuro, e ela vem depois: vence nos dois temas.
+   */
+  :root dialog[data-sessao-vencida]::backdrop {
+    background-color: rgba(13, 13, 13, 0.75);
+  }
+
+  /* A centralização é explícita porque o `margin` do `dialog` é zerado pelo reset. */
+  dialog[open] {
+    margin: auto;
+  }
+}
+
+/*
+ * A tipografia da 9.2 do `docs/interface.md`, uma classe por papel: tamanho, altura de linha, peso e caixa. A fonte é a
+ * do sistema (o `--font-corpo` do `@theme`), dois pesos, 500 e 700. A caixa-alta é do CSS: o texto vai escrito normal
+ * para o leitor de tela. O piso é 14 px; 13 px só no `t-selo`. Tamanho e altura de linha são em `rem` (a tabela do documento
+ * é em px, que é o que o `rem` vale nos 16 px de fábrica): é o que faz o texto acompanhar o tamanho da letra do aluno
+ * (`data-letra`, mais acima). Entram em `components`, abaixo das utilidades, para a tela
+ * que pede `text-sm` num botão ganhar do tamanho da classe sem brigar com ela.
+ */
+@layer components {
+  .t-titulo {
+    font-size: 1.5rem;
+    line-height: 1.875rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+
+  .t-secao {
+    font-size: 1.25rem;
+    line-height: 1.625rem;
+    font-weight: 700;
+  }
+
+  .t-balao {
+    font-size: 1.25rem;
+    line-height: 1.625rem;
+    font-weight: 500;
+  }
+
+  .t-cartao {
+    font-size: 1.0625rem;
+    line-height: 1.375rem;
+    font-weight: 700;
+  }
+
+  .t-corpo {
+    font-size: 1.0625rem;
+    line-height: 1.5625rem;
+    font-weight: 500;
+  }
+
+  .t-apoio {
+    font-size: 0.9375rem;
+    line-height: 1.25rem;
+    font-weight: 500;
+  }
+
+  .t-rotulo {
+    font-size: 0.9375rem;
+    line-height: 1.125rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .t-selo {
+    font-size: 0.8125rem;
+    line-height: 1rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .t-numero {
+    font-size: 1.75rem;
+    line-height: 2rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .t-numero-g {
+    font-size: 2.25rem;
+    line-height: 2.5rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /*
+   * O degrau (9.3): a faixa sólida embaixo da peça que se aperta. Um elemento só, que serve a `<button>` e a `<a>`: a
+   * sombra sólida de `--altura-degrau` na cor `--lado`, e a mesma altura de margem embaixo, para que apertar não mexa em
+   * nada em volta. Apertado, a peça desce `--afunda` (o degrau inteiro, se a peça não disser outro) e a sombra encolhe
+   * o que ela desceu. Peça desligada perde a sombra e guarda a margem: a altura total não muda.
+   *
+   * Só o `transform` anima, em `--t-toque` e sem curva (9.5): a sombra e a cor do hover trocam na hora, porque cor, borda
+   * e sombra repintam a página a cada quadro no Chromebook.
+   */
+  .degrau {
+    box-shadow: 0 var(--altura-degrau, 4px) 0 0 var(--lado, var(--color-borda));
+    margin-bottom: var(--altura-degrau, 4px);
+    transition: transform var(--t-toque) linear;
+  }
+
+  .degrau:active:not(:disabled):not([aria-disabled='true']) {
+    transform: translateY(var(--afunda, var(--altura-degrau, 4px)));
+    box-shadow: 0 calc(var(--altura-degrau, 4px) - var(--afunda, var(--altura-degrau, 4px))) 0 0 var(--lado, var(--color-borda));
+  }
+
+  .degrau:disabled,
+  .degrau[aria-disabled='true'] {
+    box-shadow: none;
+  }
+
+  /*
+   * A cor do degrau vem destas classes fixas, e não de um valor escrito na peça: o teste resolve cada uma por tema. A
+   * `degrau-borda` é a do secundário e dos cartões; `degrau-vermelho-borda`, a do `perigo`, que tem a borda da família
+   * vermelha; `degrau-vermelho` é a do `perigo` cheio, e `degrau-azul`, a da peça selecionada.
+   */
+  .degrau-laranja {
+    --lado: var(--color-laranja-degrau);
+  }
+
+  .degrau-grafite {
+    --lado: var(--color-grafite-degrau);
+  }
+
+  .degrau-borda {
+    --lado: var(--color-borda);
+  }
+
+  .degrau-vermelho {
+    --lado: var(--color-vermelho-degrau);
+  }
+
+  .degrau-vermelho-borda {
+    --lado: var(--color-vermelho-borda);
+  }
+
+  .degrau-azul {
+    --lado: var(--color-azul-degrau);
+  }
+}
+
+/*
+ * Movimento reduzido (9.5, item 6; RF8): nada desloca e nada anima. A regra é global, e não peça por peça, para a peça
+ * nova nascer já obedecendo. O apertado continua visível pela sombra que encolhe, sem a peça descer.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .degrau:active:not(:disabled):not([aria-disabled='true']) {
+    transform: none;
+  }
+}

@@ -12,7 +12,7 @@ import type { Redis } from 'ioredis'
 import { randomUUID } from 'node:crypto'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { MedidorDeTeste } from '../../../../tools/testes/metricas.ts'
-import { chamar, subirApi, type ApiDeTeste, type RespostaHttp } from '../../test/api-com-sessao.js'
+import { chamar, subirApi, type ApiDeTeste, type RespostaHttp } from '../../test/test-api.js'
 import {
   comoPessoa,
   dispararExecucao,
@@ -25,7 +25,7 @@ import {
   type AnoAnterior,
   type EscolaComAssistente,
   type ExecucaoLida,
-} from '../../test/escola-com-assistente.js'
+} from '../../test/escola-assistente.fixture.js'
 import {
   ALTERNATIVA_CERTA_DA_QUESTAO_3,
   aplicarAtividade,
@@ -36,15 +36,15 @@ import {
   HABILIDADE_PROPORCAO,
   lancarLote,
   trocasJaFeitas,
-} from '../../test/escola-com-tutor.js'
-import * as pelaRota from '../../test/atividade-de-teste.js'
-import { GatilhoDeParada } from '../../test/gatilho-de-parada.js'
-import { variacaoDoPdf } from '../../test/material-de-teste.js'
-import { BancadaDeSessoes, type SessaoDeTeste } from '../../test/sessao-de-teste.js'
-import { TETO_DE_PEDIDOS_DE_IA_POR_USUARIO } from '../assistente/limite-de-pedidos-de-ia.js'
+} from '../../test/escola-tutor.fixture.js'
+import * as pelaRota from '../../test/atividade.fixture.js'
+import { GatilhoDeParada } from '../../test/write-block-trigger.js'
+import { variacaoDoPdf } from '../../test/material.fixture.js'
+import { BancadaDeSessoes, type SessaoDeTeste } from '../../test/sessao.fixture.js'
+import { TETO_DE_PEDIDOS_DE_IA_POR_USUARIO } from '../assistente/ai-request-rate-limit.js'
 import { EXECUTOR_DE_AGENTE } from '../ia/ia.module.js'
-import { CLIENTE_REDIS_CACHE } from '../limite.module.js'
-import { BuscaDeTrechos } from '../material/busca-de-trechos.js'
+import { CLIENTE_REDIS_CACHE } from '../rate-limit.module.js'
+import { BuscaDeTrechos } from '../material/trecho-search.js'
 import { CLIENTE_REDIS_LOGIN } from '../credencial/index.js'
 import { TROCAS_SEGUIDAS_PARA_TRAVOU } from './sinais-do-turno.js'
 import { SupervisaoDoTutorRepository } from './supervisao.repository.js'

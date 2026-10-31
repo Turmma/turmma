@@ -4,8 +4,8 @@ import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { AcessoDaEscolaRepository } from '../src/credencial/index.js'
-import { subirApi, type ApiDeTeste } from './api-com-sessao.js'
-import { BancadaDeSessoes } from './sessao-de-teste.js'
+import { subirApi, type ApiDeTeste } from './test-api.js'
+import { BancadaDeSessoes } from './sessao.fixture.js'
 
 describe('GET /v1/escolas/:slug/acesso: o que a tela /e/:slug mostra antes do login', () => {
   const bancada = new BancadaDeSessoes()

@@ -3,7 +3,7 @@ import { InvariantException } from '@educa/shared'
 
 /** Cookie de renovação da sessão: o refresh aleatório, cujo SHA-256 é o `refresh_hash` da `sessao`. */
 export const COOKIE_SESSAO = 'educa_sessao'
-/** Cookie de prioridade de login: HMACs das contas que já entraram neste navegador (`cookie-dispositivo.ts`). */
+/** Cookie de prioridade de login: HMACs das contas que já entraram neste navegador (`device-cookie.ts`). */
 export const COOKIE_DISPOSITIVO = 'educa_dispositivo'
 /** Os dois só vão às rotas de sessão: nenhuma outra rota da API recebe o refresh nem o dispositivo. */
 export const CAMINHO_DOS_COOKIES = '/v1/sessao'

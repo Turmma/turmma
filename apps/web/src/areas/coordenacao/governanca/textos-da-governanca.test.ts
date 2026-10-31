@@ -1,7 +1,7 @@
 import { CHAVES_DE_FUNCAO, ErrorCode, montarTime, TIPOS_DE_ALERTA_DO_ANALISTA, type AlertaDoAnalista, type FuncaoDaGovernanca, type FuncoesDaGovernancaResponse } from '@educa/shared'
 import { describe, expect, it } from 'vitest'
 import { trocarFuncao } from './api/governanca'
-import { textoDaAprovacao } from '../../../componentes/ui/ia/aprovacao'
+import { textoDaAprovacao } from '../../../components/ui/ai/approval'
 import { O_QUE_A_IA_NUNCA_FAZ } from './nunca-faz'
 import {
   agenteDoEndereco,

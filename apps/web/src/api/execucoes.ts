@@ -15,7 +15,7 @@ import {
   tentarDeNovo,
   type CicloDeExecucao,
 } from './ciclo-de-execucao'
-import { useLugarNaAba, type LugarNaAba } from './memoria-da-aba'
+import { useLugarNaAba, type LugarNaAba } from './tab-store'
 import { buscarComSessao } from './sessao'
 
 /**
@@ -53,7 +53,7 @@ export interface CicloNaTela<Pedido> {
  * a execução até `concluida` ou `falhou`, e invalidar o que ela mudou. A regra é de `ciclo-de-execucao.ts`; aqui ela só
  * é ligada à rede e à tela.
  *
- * O estado mora num lugar da memória da aba (`memoria-da-aba.ts`), e não na tela: o pedido que sai da Home continua
+ * O estado mora num lugar da memória da aba (`tab-store.ts`), e não na tela: o pedido que sai da Home continua
  * sendo acompanhado quando a Conversa abre, e o `POST` que volta depois de a tela sair ainda acha onde escrever.
  * **A mudança de estado é síncrona**: `iniciar` grava `enviando` antes de devolver, e o segundo toque encontra o pedido
  * no ar sem depender de nenhum `isPending` que só chega no render seguinte.

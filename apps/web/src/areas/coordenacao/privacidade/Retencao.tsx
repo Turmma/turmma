@@ -1,9 +1,9 @@
 import type { RetencaoResponse } from '@educa/shared'
 import { useQuery } from '@tanstack/react-query'
 import { consultaRetencao } from './api/privacidade'
-import { EstadoCarregando, EstadoErro } from '../../../componentes/estado'
-import { Tabela, type ColunaDaTabela } from '../../../componentes/ui/Tabela'
-import { CabecalhoDeSecao } from '../../../componentes/ui/Tela'
+import { EstadoCarregando, EstadoErro } from '../../../components/states'
+import { Tabela, type ColunaDaTabela } from '../../../components/ui/Tabela'
+import { CabecalhoDeSecao } from '../../../components/ui/Tela'
 import { textoDaOrigem, textoDoPrazo } from './textos-da-retencao'
 
 type LinhaDaCategoria = RetencaoResponse['categorias'][number]

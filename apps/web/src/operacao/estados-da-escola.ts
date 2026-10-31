@@ -16,7 +16,7 @@ export const TEXTO_DO_ESTADO: Readonly<Record<EstadoDaCoordenacao, string>> = {
 
 /**
  * A família do estado (`docs/interface.md` 9.1), **só de reforço**: o texto acima já diz tudo, e quem não distingue cor
- * não perde nada (regra 50, item 11). O `Estado` do produto (`componentes/ui/SeloDeEstado.tsx`) desenha o selo com o ícone da
+ * não perde nada (regra 50, item 11). O `Estado` do produto (`components/ui/SeloDeEstado.tsx`) desenha o selo com o ícone da
  * família e o texto. Verde é a escola que já tem quem a use; laranja, o que espera alguém abrir o convite; vermelho, o que
  * precisa de uma ação do operador; cinza, o que ainda não começou.
  *

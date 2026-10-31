@@ -2,16 +2,16 @@ import { ErrorCode, listaDaTurmaResponseSchema, previaDaListaResponseSchema, MEN
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
-import { chamar, subirApi, type ApiDeTeste, type RespostaHttp } from './api-com-sessao.js'
-import { esperarNaTrava, GatilhoDeParada } from './gatilho-de-parada.js'
-import { BancadaDeSessoes, type SessaoDeTeste } from './sessao-de-teste.js'
+import { chamar, subirApi, type ApiDeTeste, type RespostaHttp } from './test-api.js'
+import { esperarNaTrava, GatilhoDeParada } from './write-block-trigger.js'
+import { BancadaDeSessoes, type SessaoDeTeste } from './sessao.fixture.js'
 
 /**
  * A lista de nomes da turma (A1, tarefa 2.0; `tasks/prd-apresentacao-escola/cenarios.md`): E4, E5, E6 e E7 (sem o
  * aprovado nem o reivindicado de verdade, que chegam na 6.0 e na 8.0), a parte da lista do E2, o check da `lista_nome`,
  * o conteúdo de A1 e A2, C8, C9, a gravação ao mesmo tempo em duas turmas, a matrícula com forma de documento (G2), e
  * o log. As varreduras I3, P1, A1, A3 e A4 das
- * cinco rotas moram em `escola-montada.int.test.ts`, e o E3 (a leitura do texto) em `leitor-da-lista.test.ts`.
+ * cinco rotas moram em `escola-montada.int.test.ts`, e o E3 (a leitura do texto) em `lista-reader.test.ts`.
  * Postgres real do compose de teste; nomes e matrículas gerados.
  */
 

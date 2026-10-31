@@ -1,7 +1,7 @@
 import { createPortal } from 'react-dom'
-import { ROTAS_DO_PROFESSOR } from '../../../caminhos'
-import { useAncoraDoSino } from '../../../componentes/ancora-do-sino'
-import { Sino, type PeDoSino } from '../../../componentes/sino/Sino'
+import { ROTAS_DO_PROFESSOR } from '../../../paths'
+import { useAncoraDoSino } from '../../../components/sino-anchor-context'
+import { Sino, type PeDoSino } from '../../../components/sino/Sino'
 import { useFilaDoProfessor } from './fila-do-professor'
 
 const AVISO_SEM_ANO_LETIVO = 'Não há ano letivo em curso nesta escola. O que espera você aparece aqui quando a coordenação abrir o ano.'

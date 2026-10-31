@@ -10,11 +10,11 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 import { aguardarSaudavel, composeOuFalha } from '../../../tools/testes/compose.ts'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { AppModule } from '../src/app.module.js'
-import { configurarAplicacao } from '../src/configurar-app.js'
+import { configurarAplicacao } from '../src/configure-app.js'
 import { CLIENTE_REDIS_LOGIN, ContadorDeTentativas, HashDeSenha } from '../src/credencial/index.js'
-import { comoAWebNo503 } from './api-com-sessao.js'
-import { configuracaoDeTeste, MONTAGEM_DE_TESTE } from './configuracao-de-teste.js'
-import { BancadaDeSessoes } from './sessao-de-teste.js'
+import { comoAWebNo503 } from './test-api.js'
+import { configuracaoDeTeste, MONTAGEM_DE_TESTE } from './test-config.js'
+import { BancadaDeSessoes } from './sessao.fixture.js'
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 const SENHA = 'senha-sintetica-correta-1'

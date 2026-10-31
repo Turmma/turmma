@@ -4,9 +4,9 @@ import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { MinhaTurmaRepository } from '../src/sala/minha-turma/minha-turma.repository.js'
-import { chamar, subirApi, type ApiDeTeste, type RespostaHttp } from './api-com-sessao.js'
-import { FerramentasDaSala, pedidoDaSala, SENHA_DA_SALA, type SalaDeTeste } from './sala-de-teste.js'
-import { BancadaDeSessoes } from './sessao-de-teste.js'
+import { chamar, subirApi, type ApiDeTeste, type RespostaHttp } from './test-api.js'
+import { FerramentasDaSala, pedidoDaSala, SENHA_DA_SALA, type SalaDeTeste } from './sala.fixture.js'
+import { BancadaDeSessoes } from './sessao.fixture.js'
 
 /**
  * A turma do aluno aprovado (A1, tarefa 8.0; `tasks/prd-apresentacao-escola/cenarios.md`): `GET /v1/minha-turma`, só do

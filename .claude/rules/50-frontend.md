@@ -89,7 +89,7 @@ publicada destrói a confiança do professor no sistema inteiro.
 
 12. **Português do Brasil**, data e número no formato local. Erro diz o que fazer, não o
     código: "não foi possível salvar, tente de novo em instantes", não "erro 500".
-    Checagem: `apps/web/src/formatar.test.ts`, `frontend-reviewer`.
+    Checagem: `apps/web/src/format.test.ts`, `frontend-reviewer`.
 
 13. **Seletor de escola no topo da área do professor**, filtrando tudo abaixo. Professor de
     rede pública dá aula em duas ou três escolas, e assumir escola única quebra o produto

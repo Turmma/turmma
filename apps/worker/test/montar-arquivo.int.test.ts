@@ -7,10 +7,10 @@ import { afterAll, beforeAll, describe, expect, it, onTestFinished } from 'vites
 import { lerAmbienteDeTeste, valorObrigatorio } from '../../../tools/ci/compose.ts'
 import { compose, PROCESSOS_DA_FILA } from '../../../tools/testes/compose.ts'
 import type { ConfiguracaoStorage } from '../src/config.js'
-import { montarWorker } from '../src/montagem.js'
-import { criarMontagemDoArquivo } from '../src/processadores/montar-arquivo.js'
-import { BancadaDeFila, configuracaoDoBanco, LogEmMemoria, urlRedisDeFila, vagasPadraoDoAmbiente } from './fila-de-teste.js'
-import { execucaoDoJob } from './execucao-do-job.js'
+import { montarWorker } from '../src/composition.js'
+import { criarMontagemDoArquivo } from '../src/processors/montar-arquivo.js'
+import { BancadaDeFila, configuracaoDoBanco, LogEmMemoria, urlRedisDeFila, vagasPadraoDoAmbiente } from './queue.fixture.js'
+import { execucaoDoJob } from './job-execution.fixture.js'
 
 const ambiente = lerAmbienteDeTeste()
 const STORAGE: ConfiguracaoStorage = {

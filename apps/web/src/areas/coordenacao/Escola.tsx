@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { ROTAS_DA_COORDENACAO } from '../../caminhos'
+import { ROTAS_DA_COORDENACAO } from '../../paths'
 import { Moldura, type AbaDaMoldura } from './comum/moldura'
 
 /**

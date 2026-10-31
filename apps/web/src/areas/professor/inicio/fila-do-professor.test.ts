@@ -1,8 +1,8 @@
 import { ErrorCode, type Entrega, type Vinculo } from '@educa/shared'
 import { describe, expect, it } from 'vitest'
-import { ErroDaApi } from '../../../api/cliente'
-import { caminhoDaCorrecaoDoProfessor, ROTAS_DO_PROFESSOR } from '../../../caminhos'
-import type { LeituraDaFila } from '../../../componentes/sino/leitura-do-sino'
+import { ErroDaApi } from '../../../api/client'
+import { caminhoDaCorrecaoDoProfessor, ROTAS_DO_PROFESSOR } from '../../../paths'
+import type { LeituraDaFila } from '../../../components/sino/leitura-do-sino'
 import { esperandoVoce, esperaNaTurma, filaDoProfessor, GRUPO_DA_TURMA_SEM_NOME, TETO_DE_TURMAS_LIDAS, turmasConfirmadas, type EntradaDaFilaDoProfessor, type LeituraDaContagem } from './fila-do-professor'
 
 const TURMA_B = '0190f5a0-0000-7000-8000-00000000002b'

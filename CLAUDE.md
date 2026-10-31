@@ -193,7 +193,7 @@ no Brasil, se um contrato exigir.
 branch `mockups/interface`, commit `a95568d`, trazida em 16/10/2026; D80). A versão de setembro, anterior
 à pele nova, está no histórico do git e em `mockups/.antes-da-remodelagem/`. **Nada de mockup é copiado
 para o `apps/web`** nem para os `packages/`, com uma exceção: o traço da onça, copiado para
-`apps/web/src/componentes/ui/onca/` e guardado por teste contra o original (D80, revista em 28/10/2026)
+`apps/web/src/components/ui/onca/` e guardado por teste contra o original (D80, revista em 28/10/2026)
 **Para saber o que a revisão dos mockups mudou e ainda não virou decisão:**
 `docs/pendencias-dos-mockups.md` (31 itens, com o que cada um pede de tela, API, dado, regra e teste)
 **Para entender o negócio:** `docs/negocio.md` (mercado, preço, concorrência). Não é leitura

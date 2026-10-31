@@ -5,7 +5,7 @@ import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { parseArgs } from 'node:util'
 import { criarConviteDeCoordenador, type PedidoDeConvite } from '../sessao/index.js'
-import { abrirBancoDeOperacao, ArgumentoInvalido, autorDoComando, criarArquivoDoToken, esquemaNome, lerOperador, OperadorRecusado, type BancoDoComando, type SaidaDoComando } from './comando.js'
+import { abrirBancoDeOperacao, ArgumentoInvalido, autorDoComando, criarArquivoDoToken, esquemaNome, lerOperador, OperadorRecusado, type BancoDoComando, type SaidaDoComando } from './command.js'
 
 /**
  * O convite do primeiro coordenador, pelo operador, depois do contrato (RF1; Tech Spec, seção 5, "Operador"):

@@ -1,6 +1,6 @@
 import { ErrorCode, type QuestaoSalvaResponse } from '@educa/shared'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { ErroDaApi } from '../../api/cliente'
+import { ErroDaApi } from '../../api/client'
 import { criarFilaDeRespostas, provaComRespostaSalva } from './fila-de-respostas'
 import { adotarLeitura, alteradaEmOutraJanela, comecarEnvio, confirmarEnvio, escolher, esperaAntesDeTentar, falharEnvio, FILA_VAZIA, hidratarDoEspelho, MAIOR_ESPERA_DA_FILA_MS, proximoEnvio, tipoDaFalha, type EstadoDaFila } from './respostas'
 

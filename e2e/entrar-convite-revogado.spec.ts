@@ -1,8 +1,8 @@
 import { AVISO_DO_CONVITE_PARA_CONTA_EXISTENTE, mensagemDaEntrada, mensagemDoConvite, mensagemDoSegundoFator } from '../packages/shared/src/errors/messages.ts'
-import { expect, test } from './__fixtures__/perfis.ts'
-import { campoCodigo, configurarSegundoFator } from './__fixtures__/segundo-fator.ts'
-import { codigoDoAutenticador, criarConviteDeCoordenador, criarEquipeComSenha, desativarUsuario, revogarConvite } from './__fixtures__/sessao.ts'
-import { codigoCru, larguraExcedente, violacoesGraves } from './__fixtures__/verificacoes.ts'
+import { expect, test } from './support/profiles.ts'
+import { campoCodigo, configurarSegundoFator } from './support/mfa.ts'
+import { codigoDoAutenticador, criarConviteDeCoordenador, criarEquipeComSenha, desativarUsuario, revogarConvite } from './support/seed.ts'
+import { codigoCru, larguraExcedente, violacoesGraves } from './support/checks.ts'
 
 const PRAZO_DA_TELA_MS = 20_000
 

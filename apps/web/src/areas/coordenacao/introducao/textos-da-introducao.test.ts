@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import { GRUPO_MINIMO_DE_PROFESSORES, NOMES_DOS_AGENTES } from '@educa/shared'
 import { describe, expect, it } from 'vitest'
 import { O_QUE_A_IA_NUNCA_FAZ } from '../governanca/nunca-faz'
-import { NAVEGACAO } from '../../navegacao'
+import { NAVEGACAO } from '../../navigation'
 import {
   AGENTE_DA_INTRODUCAO,
   DESCRICAO_DO_LUGAR,
@@ -154,19 +154,19 @@ describe('onde fica cada coisa', () => {
 })
 
 describe('as falas que o e2e espera', () => {
-  const fonte = readFileSync(join(import.meta.dirname, '..', '..', '..', '..', '..', '..', 'e2e', '__fixtures__', 'casca.ts'), 'utf8')
+  const fonte = readFileSync(join(import.meta.dirname, '..', '..', '..', '..', '..', '..', 'e2e', 'support', 'casca.ts'), 'utf8')
 
   it('a lista `FALAS_DOS_PASSOS_2_A_4_DA_COORDENACAO` do e2e é a das falas dos passos 2 a 4, na ordem: mudar o texto num lugar e não no outro reprova aqui', () => {
     // O `e2e/` não importa a web, e por isso guarda uma cópia das falas: este caso a confere contra os passos de verdade.
     const bloco = /FALAS_DOS_PASSOS_2_A_4_DA_COORDENACAO = \[([^\]]*)\] as const/.exec(fonte)
-    expect(bloco, 'a lista saiu de `e2e/__fixtures__/casca.ts`: atualize este caso').not.toBeNull()
+    expect(bloco, 'a lista saiu de `e2e/support/casca.ts`: atualize este caso').not.toBeNull()
     const copiadas = [...(bloco?.[1] ?? '').matchAll(/'([^']*)'/g)].map((achado) => achado[1])
     expect(copiadas).toEqual(falasDosPassos(ESCOLA).slice(1))
   })
 
   it('a fala do passo 1 do e2e é a do código, com o nome da escola no lugar', () => {
     const molde = /falaDoPasso1DaCoordenacao = \(escolaNome: string\): string => `([^`]*)`/.exec(fonte)
-    expect(molde, 'a função saiu de `e2e/__fixtures__/casca.ts`: atualize este caso').not.toBeNull()
+    expect(molde, 'a função saiu de `e2e/support/casca.ts`: atualize este caso').not.toBeNull()
     expect((molde?.[1] ?? '').replace('${escolaNome}', ESCOLA)).toBe(falaDoPasso1(ESCOLA))
   })
 })

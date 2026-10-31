@@ -22,14 +22,14 @@ import {
   type ConsultarConviteResponse,
 } from '@educa/shared'
 import { randomBytes, randomUUID } from 'node:crypto'
-import type { BilheteDeConvite } from './bilhete-de-convite.js'
+import type { BilheteDeConvite } from './convite-ticket.js'
 import { ConviteRepository } from './convite.repository.js'
-import type { EmissorDeDesafio } from '../../credencial/desafio.js'
-import { BYTES_DO_TOKEN_DE_CONVITE, hashDoToken } from '../../credencial/hash-do-token.js'
-import type { HashDeSenha } from '../../credencial/hash-de-senha.js'
-import { normalizarEmail } from '../../credencial/identificadores-do-login.js'
-import { ResolucaoDeTenantRepository, type UsuarioComConviteAceito } from '../tenant/resolucao-de-tenant.repository.js'
-import type { ConferenciaDoAutor } from '../conferencia-do-autor.js'
+import type { EmissorDeDesafio } from '../../credencial/challenge.js'
+import { BYTES_DO_TOKEN_DE_CONVITE, hashDoToken } from '../../credencial/token-hash.js'
+import type { HashDeSenha } from '../../credencial/password-hasher.js'
+import { normalizarEmail } from '../../credencial/login-identifiers.js'
+import { ResolucaoDeTenantRepository, type UsuarioComConviteAceito } from '../tenant/tenant-resolution.repository.js'
+import type { ConferenciaDoAutor } from '../author-check.js'
 
 const registro = new AuditoriaRecorder()
 

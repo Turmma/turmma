@@ -1,6 +1,6 @@
 import type { Vinculo } from '@educa/shared'
 import { BookOpen } from 'lucide-react'
-import { Ladrilho } from '../../../componentes/ui/Ladrilho'
+import { Ladrilho } from '../../../components/ui/Ladrilho'
 import { familiaDaDisciplina } from './familia-da-disciplina'
 
 /** "7ºA · Matemática", ou só a turma quando o vínculo não tem disciplina. */

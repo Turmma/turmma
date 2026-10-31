@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useRef } from 'react'
 import { confirmarIncidente, relerIncidentes } from './api/privacidade'
-import { textoDaFalha } from '../../../componentes/texto-da-falha'
+import { textoDaFalha } from '../../../components/error-text'
 
 /**
  * A confirmação do recebimento do aviso de incidente (F3, 10.0; RF9), a mesma no diálogo da coordenação e na aba. O pedido só

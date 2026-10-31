@@ -1,12 +1,12 @@
 import { randomUUID } from 'node:crypto'
 import { MENSAGENS_DE_ERRO } from '../packages/shared/src/errors/messages.ts'
-import { ALUNOS_DO_LOTE, erroDaApi, type ApiDoAssistente } from './__fixtures__/assistente.ts'
-import { PRAZO_DA_ENTRADA_MS } from './__fixtures__/casca.ts'
-import { principal } from './__fixtures__/fluxo-do-professor.ts'
-import { abrirOSino, acionar, entrar, irPara, PRAZO_DA_TELA_MS } from './__fixtures__/professor/cena.ts'
-import { peDoSino } from './__fixtures__/professor/sino.ts'
-import { abrirOPainelDoTutor, ENDERECO_DE_HOJE, painelDoTutor } from './__fixtures__/professor/tutor.ts'
-import { expect, test } from './__fixtures__/perfis.ts'
+import { ALUNOS_DO_LOTE, erroDaApi, type ApiDoAssistente } from './support/assistente.ts'
+import { PRAZO_DA_ENTRADA_MS } from './support/casca.ts'
+import { principal } from './support/professor-flow.ts'
+import { abrirOSino, acionar, entrar, irPara, PRAZO_DA_TELA_MS } from './support/professor/scenario.ts'
+import { peDoSino } from './support/professor/sino.ts'
+import { abrirOPainelDoTutor, ENDERECO_DE_HOJE, painelDoTutor } from './support/professor/tutor.ts'
+import { expect, test } from './support/profiles.ts'
 
 /**
  * O Tutor visto pela professora (11.4, A4, pacote W; X3 telas do professor, 10.0): os sinais, a atenção humana e as funções do

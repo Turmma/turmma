@@ -1,9 +1,9 @@
 import { createContext, Suspense, useCallback, useContext, useRef, type ReactNode } from 'react'
 import { useLocation } from 'wouter'
-import { Abas, type Aba } from '../../../componentes/ui/Abas'
-import { EstadoCarregando } from '../../../componentes/estado/index'
-import { Tela } from '../../../componentes/ui/Tela'
-import { useTituloDaTela } from '../../../titulo'
+import { Abas, type Aba } from '../../../components/ui/Abas'
+import { EstadoCarregando } from '../../../components/states/index'
+import { Tela } from '../../../components/ui/Tela'
+import { useTituloDaTela } from '../../../document-title'
 import { O_MIOLO_QUE_ROLA } from './miolo-que-rola'
 
 /** Uma aba de moldura: o que o `Abas` pede, mais o endereço **de hoje** dela, relativo à área. */
@@ -41,7 +41,7 @@ interface Props {
 /**
  * A moldura de um lugar que tem abas (D80; Tech Spec da X2, seção 9, "Molduras"): o `Tela` com o título do lugar, as `Abas` com
  * a do endereço e, dentro, a tela que já existia, sem a `Tela` dela. **A aba é o endereço**: trocar de aba navega para o
- * endereço de hoje daquela tela, e o `rotas.tsx` é quem diz qual aba é a de cada endereço. A moldura não lê consulta nenhuma e
+ * endereço de hoje daquela tela, e o `routes.tsx` é quem diz qual aba é a de cada endereço. A moldura não lê consulta nenhuma e
  * não sabe o que há dentro.
  *
  * - **Um `h1` só**, o da moldura, que recebe o foco (`tabIndex={-1}`) quando a tela de dentro pede (`useFocarOTituloDaMoldura`).

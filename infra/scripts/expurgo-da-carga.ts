@@ -353,7 +353,7 @@ export async function lerEsperaDaBNoTrabalho(banco: Consultavel, escolaB: string
  * A estrutura mínima para os alunos da B usarem o Tutor pela rota: o ano em curso, uma série, uma turma e o vínculo de
  * aluno confirmado de **cada aluno da B que ainda não tem vínculo** (`TurmaDoAluno` exige o vínculo; sem atividade nem
  * material não há mais nada a montar: o Tutor recebe as disciplinas da turma, ou "estudo"). É o que
- * `apps/api/test/escola-com-assistente.ts` monta para os testes do Tutor, reduzido ao que o turno lê, e roda de novo a
+ * `apps/api/test/escola-assistente.fixture.ts` monta para os testes do Tutor, reduzido ao que o turno lê, e roda de novo a
  * cada fase, porque as sessões sintéticas de cada fase são alunos novos. Devolve quantos vínculos criou.
  */
 export async function semearTutorDaB(banco: Consultavel, escolaId: string): Promise<number> {

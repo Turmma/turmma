@@ -2,9 +2,9 @@ import type { AtividadeAplicada } from '@educa/shared'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
 import { consultaAtividadesAplicadas, encerrarAtividade, recarregarAtividades } from './api/atividades'
-import { Botao } from '../../../componentes/ui/Botao'
-import { DialogoDeConfirmacao } from '../../../componentes/ui/sobrepostos/DialogoDeConfirmacao'
-import { textoDaFalha } from '../../../componentes/texto-da-falha'
+import { Botao } from '../../../components/ui/Botao'
+import { DialogoDeConfirmacao } from '../../../components/ui/overlays/DialogoDeConfirmacao'
+import { textoDaFalha } from '../../../components/error-text'
 import { EFEITO_DE_ENCERRAR, textoDeAlunos } from './aprovar'
 
 interface PropsDoEncerramento {

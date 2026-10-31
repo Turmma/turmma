@@ -1,1 +1,1 @@
-export * from '../tenant/resolucao-de-tenant.repository.js'
+export * from '../tenant/tenant-resolution.repository.js'

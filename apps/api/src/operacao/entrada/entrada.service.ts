@@ -1,9 +1,9 @@
 import { DomainException, type Database } from '@educa/core'
 import { ErrorCode, type EntradaDeOperadorRequest, type EntradaDeOperadorResponse } from '@educa/shared'
 import { baldeDaEquipe, type ContadorDeTentativas, type CookieDeDispositivo, type HashDeSenha, ipParaRegistro, lerCookie, normalizarEmail, type PrefixoDoContador, type SemaforoDeHash } from '../../credencial/index.js'
-import type { EmissorDeDesafioDeOperador, EtapaDoDesafioDeOperador } from '../desafio-de-operador.js'
-import { COOKIE_DISPOSITIVO_DE_OPERADOR } from '../dispositivo-de-operador.js'
-import type { FalhasDeEntradaDaOperacao } from '../falhas-de-entrada.js'
+import type { EmissorDeDesafioDeOperador, EtapaDoDesafioDeOperador } from '../operador-challenge.js'
+import { COOKIE_DISPOSITIVO_DE_OPERADOR } from '../operador-device-cookie.js'
+import type { FalhasDeEntradaDaOperacao } from '../login-failure-counter.js'
 import { OperadorRepository, type CredencialDeEntrada } from '../operador/operador.repository.js'
 
 /** O prefixo do contador de tentativas do operador: separado do `login` da escola (C24). */
@@ -16,7 +16,7 @@ export interface DependenciasDaEntrada {
   /** O contador do F1, com o prefixo `login-op`: uma instância só, e o seguro em memória dela vale para os dois. */
   readonly contador: Pick<ContadorDeTentativas, 'chaveDe' | 'reservar' | 'zerar'>
   readonly hash: Pick<HashDeSenha, 'verificar'>
-  /** O cookie de dispositivo do operador, com a chave própria (`dispositivo-de-operador.ts`). */
+  /** O cookie de dispositivo do operador, com a chave própria (`operador-device-cookie.ts`). */
   readonly dispositivo: Pick<CookieDeDispositivo, 'conhece'>
   readonly emissorDeDesafio: Pick<EmissorDeDesafioDeOperador, 'emitir'>
   /** A série `operacao.entrada_falha`, a mesma do `/sessao/mfa`. */

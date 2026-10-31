@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto'
-import { BYTES_DO_TOKEN_DE_CONVITE, hashDoToken } from '../credencial/hash-do-token.js'
+import { BYTES_DO_TOKEN_DE_CONVITE, hashDoToken } from '../credencial/token-hash.js'
 
-// O token do convite de operador é a mesma peça do convite do coordenador (F1), de `../credencial/hash-do-token.ts`: 256 bits
+// O token do convite de operador é a mesma peça do convite do coordenador (F1), de `../credencial/token-hash.ts`: 256 bits
 // sorteados, em base64url, e o banco guarda só o SHA-256 em hex. Uma implementação só, para o comando que gera e o aceite
 // que procura não divergirem.
 

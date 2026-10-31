@@ -1,9 +1,9 @@
 import type { Browser, BrowserContextOptions, Locator, Page, Route } from '@playwright/test'
 import { AVISO_DO_CONVITE_COM_SENHA_NOVA, MENSAGENS_DE_ERRO, mensagemDoConvite } from '../packages/shared/src/errors/messages.ts'
 import type { ConviteDeProfessorResponse } from '../packages/shared/src/professores/professores.ts'
-import { abrirNavegacao, entrarComoCoordenacaoNaMesmaAba, abrirEstrutura, irPelaNavegacao, lateral, PRAZO_DA_ENTRADA_MS, passarPelaIntroducaoDoProfessor, secoes } from './__fixtures__/casca.ts'
-import { abrirOQueFalta, irPelaCoordenacao, linhasDaTabela, paginaNaoRola } from './__fixtures__/coordenacao.ts'
-import { expect, test } from './__fixtures__/perfis.ts'
+import { abrirNavegacao, entrarComoCoordenacaoNaMesmaAba, abrirEstrutura, irPelaNavegacao, lateral, PRAZO_DA_ENTRADA_MS, passarPelaIntroducaoDoProfessor, secoes } from './support/casca.ts'
+import { abrirOQueFalta, irPelaCoordenacao, linhasDaTabela, paginaNaoRola } from './support/coordenacao.ts'
+import { expect, test } from './support/profiles.ts'
 import {
   convidarProfessorNoBanco,
   convitesDeProfessorEmAberto,
@@ -14,9 +14,9 @@ import {
   type EquipeDeTeste,
   type EstadoDoProfessorDeTeste,
   type ProfessorDeTeste,
-} from './__fixtures__/sessao.ts'
-import { desenho } from './__fixtures__/galeria.ts'
-import { ALVO_DE_TOQUE_PRINCIPAL_PX, corDoToken, larguraExcedente, larguraExcedenteDoDialogo, violacoesGraves } from './__fixtures__/verificacoes.ts'
+} from './support/seed.ts'
+import { desenho } from './support/gallery.ts'
+import { ALVO_DE_TOQUE_PRINCIPAL_PX, corDoToken, larguraExcedente, larguraExcedenteDoDialogo, violacoesGraves } from './support/checks.ts'
 
 /**
  * A tela Professores da coordenação (A1, tarefa 14.0; `tasks/prd-apresentacao-escola/cenarios.md`): W4 e W12 de

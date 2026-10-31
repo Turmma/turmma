@@ -1,5 +1,5 @@
 import type { MinhaAtividade, SituacaoDaMinhaAtividade } from '@educa/shared'
-import { formatarQuantidade } from '../../formatar'
+import { formatarQuantidade } from '../../format'
 
 /**
  * O que a lista de atividades do aluno diz (MVP, A3; `docs/interface.md` 2 e 11.6): o estado de cada atividade **em

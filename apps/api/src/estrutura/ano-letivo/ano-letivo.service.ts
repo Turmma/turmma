@@ -11,7 +11,7 @@ import {
   type SituacaoDoAnoLetivo,
 } from '@educa/shared'
 import { AnoLetivoRepository } from './ano-letivo.repository.js'
-import { paginar } from '../../http/paginacao.js'
+import { paginar } from '../../http/pagination.js'
 import { VinculoRepository } from '../vinculo/vinculo.repository.js'
 
 const registro = new AuditoriaRecorder()

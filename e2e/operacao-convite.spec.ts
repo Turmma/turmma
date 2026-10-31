@@ -1,10 +1,10 @@
 import type { Page, Response, Route } from '@playwright/test'
 import { QUANTIDADE_DE_CODIGOS_DE_RECUPERACAO } from '../packages/shared/src/sessao/mfa.ts'
-import { criarOperadorConvidado as criarConvidado, removerOperador, type EstadoDoConviteDeTeste, type OperadorConvidado } from './__fixtures__/operacao.ts'
-import { codigoDoAutenticador } from './__fixtures__/sessao.ts'
-import { expect, test } from './__fixtures__/perfis.ts'
-import { esperarCasca as esperarCascaDaOperacao } from './__fixtures__/tela-da-operacao.ts'
-import { ALVO_DE_TOQUE_PRINCIPAL_PX, focoVisivel, larguraExcedente, violacoesGraves } from './__fixtures__/verificacoes.ts'
+import { criarOperadorConvidado as criarConvidado, removerOperador, type EstadoDoConviteDeTeste, type OperadorConvidado } from './support/operacao.ts'
+import { codigoDoAutenticador } from './support/seed.ts'
+import { expect, test } from './support/profiles.ts'
+import { esperarCasca as esperarCascaDaOperacao } from './support/operacao-screen.ts'
+import { ALVO_DE_TOQUE_PRINCIPAL_PX, focoVisivel, larguraExcedente, violacoesGraves } from './support/checks.ts'
 
 /** O Chromebook com CPU ×4 e Fast 3G carrega o chunk da operação, e o servidor ainda faz o hash da senha. */
 const PRAZO_DA_TELA_MS = 20_000

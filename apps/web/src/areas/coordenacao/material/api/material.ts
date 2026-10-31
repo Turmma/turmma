@@ -7,7 +7,7 @@ import {
   type TitularidadeDeMaterial,
 } from '@educa/shared'
 import { queryOptions } from '@tanstack/react-query'
-import { ErroDaApi, SEM_CORPO } from '../../../../api/cliente'
+import { ErroDaApi, SEM_CORPO } from '../../../../api/client'
 import { lerPaginas, type ListaDaEstrutura } from '../../../../api/estrutura'
 import { buscarComSessao, chamarComSessao, tokenDeAcesso } from '../../../../api/sessao'
 

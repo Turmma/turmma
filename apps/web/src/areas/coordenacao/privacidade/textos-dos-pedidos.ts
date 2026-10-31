@@ -14,7 +14,7 @@ import {
   type TipoDePedidoDoTitular,
   type TitularAchado,
 } from '@educa/shared'
-import type { FamiliaDeEstado } from '../../../componentes/ui/SeloDeEstado'
+import type { FamiliaDeEstado } from '../../../components/ui/SeloDeEstado'
 
 /**
  * Os textos e as regras sem React da aba Pedidos da Privacidade (F3, 16.0; RF10 e RF16): o que cada tipo, quem pediu e

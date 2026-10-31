@@ -16,10 +16,10 @@ import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { DecisaoRepository } from '../src/sala/decisao/decisao.repository.js'
 import { ListaLivreRepository } from '../src/sala/reivindicacao/lista-livre.repository.js'
 import { ReivindicacaoRepository } from '../src/sala/reivindicacao/reivindicacao.repository.js'
-import { chamar, subirApi, type ApiDeTeste, type RespostaHttp } from './api-com-sessao.js'
-import { esperarNaTrava, GatilhoDeParada } from './gatilho-de-parada.js'
-import { FerramentasDaSala, pedidoDaSala, semRequisicao, SENHA_DA_SALA, type NomeDaLista, type SalaDeTeste } from './sala-de-teste.js'
-import { BancadaDeSessoes, type SessaoDeTeste } from './sessao-de-teste.js'
+import { chamar, subirApi, type ApiDeTeste, type RespostaHttp } from './test-api.js'
+import { esperarNaTrava, GatilhoDeParada } from './write-block-trigger.js'
+import { FerramentasDaSala, pedidoDaSala, semRequisicao, SENHA_DA_SALA, type NomeDaLista, type SalaDeTeste } from './sala.fixture.js'
+import { BancadaDeSessoes, type SessaoDeTeste } from './sessao.fixture.js'
 
 /**
  * Os pedidos da turma e a decisão (A1, tarefa 8.0; `tasks/prd-apresentacao-escola/cenarios.md`): `GET

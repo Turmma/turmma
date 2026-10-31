@@ -3,9 +3,9 @@ import { join } from 'node:path'
 import { FERRAMENTAS } from '@educa/shared'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
-import { corDoToken, TEMAS } from '../../../__fixtures__/cor-das-classes'
-import { semComentarios } from '../../../__fixtures__/importadores'
-import { FAMILIAS_DE_COR } from '../../../componentes/ui/Contador'
+import { corDoToken, TEMAS } from '../../../__fixtures__/class-colors'
+import { semComentarios } from '../../../__fixtures__/importers'
+import { FAMILIAS_DE_COR } from '../../../components/ui/Contador'
 import { DESENHO_DA_FERRAMENTA, IconeDeFerramenta } from './icones-de-ferramenta'
 
 /**

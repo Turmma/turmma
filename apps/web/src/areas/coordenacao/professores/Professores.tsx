@@ -6,16 +6,16 @@ import { useLocation, useSearch } from 'wouter'
 import { CHAVE_DA_ESTRUTURA, consultaAnosLetivos, consultaVinculos } from '../../../api/estrutura'
 import { consultaProfessores, mutacaoDoCadastroDeProfessor, mutacaoDoRefazerConviteDoProfessor, revogarConviteDoProfessor } from './api/professores'
 import { aoTrocarDeSessao } from '../../../api/sessao'
-import { PARAMETRO_DO_PROFESSOR } from '../../../caminhos'
-import { Aviso } from '../../../componentes/ui/Aviso'
-import { Botao } from '../../../componentes/ui/Botao'
-import { Dialogo } from '../../../componentes/ui/sobrepostos/Dialogo'
-import { useDialogoDaTela } from '../../../componentes/ui/sobrepostos/dialogo-aberto'
-import { DialogoDeConviteNovo, DialogoDeConviteRefeito } from '../../../componentes/DialogoDoConvite'
-import { ConfirmacaoDePerigo } from '../../../componentes/dialogos'
-import { EstadoCarregando, EstadoErro, EstadoVazio } from '../../../componentes/estado/index'
-import { Estado } from '../../../componentes/ui/SeloDeEstado'
-import { Tabela, type ColunaDaTabela } from '../../../componentes/ui/Tabela'
+import { PARAMETRO_DO_PROFESSOR } from '../../../paths'
+import { Aviso } from '../../../components/ui/Aviso'
+import { Botao } from '../../../components/ui/Botao'
+import { Dialogo } from '../../../components/ui/overlays/Dialogo'
+import { useDialogoDaTela } from '../../../components/ui/overlays/dialog-state'
+import { DialogoDeConviteNovo, DialogoDeConviteRefeito } from '../../../components/DialogoDoConvite'
+import { ConfirmacaoDePerigo } from '../../../components/dialogs'
+import { EstadoCarregando, EstadoErro, EstadoVazio } from '../../../components/states/index'
+import { Estado } from '../../../components/ui/SeloDeEstado'
+import { Tabela, type ColunaDaTabela } from '../../../components/ui/Tabela'
 import {
   falhaDoCadastroDeProfessor,
   falhaDoRefazerConviteDeProfessor,
@@ -99,7 +99,7 @@ function colunasDosProfessores(aoAbrir: (usuarioId: string) => void): readonly [
  *   estado de cada convite em texto. A lista não traz e-mail nem diz se a conta do e-mail já existia (E11). As turmas e as
  *   disciplinas vêm dos vínculos do ano em curso, lidos à parte: se não vieram, a célula diz "—" e um aviso diz por quê, e a tabela
  *   continua em pé.
- * - **O diálogo do convite** é o de `componentes/DialogoDoConvite.tsx`, o mesmo da operação, aberto da tela (Cadastrar) ou do painel
+ * - **O diálogo do convite** é o de `components/DialogoDoConvite.tsx`, o mesmo da operação, aberto da tela (Cadastrar) ou do painel
  *   (refazer e revogar): o link vive só na mutação da abertura que o pediu, sai do cache ao fechar (`gcTime: 0` e `reset()`), e
  *   fechar sem copiar pergunta antes. Quando a sessão desta aba deixa de ser a mesma — venceu, ou outra pessoa entrou —, o
  *   diálogo aberto sai com o link: ele é credencial do professor, e não fica na tela atrás do login por cima (regra 20, item 8).

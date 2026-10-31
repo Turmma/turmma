@@ -123,7 +123,7 @@ export const JOB_DEFINITIONS = {
     executor: 'worker',
     dados: semDados,
     retentativa: RETENTATIVA_DE_HOJE,
-    // O trabalho da escola tem as seis horas entre a rotina das 1h e a janela letiva (`agendamentos.ts`).
+    // O trabalho da escola tem as seis horas entre a rotina das 1h e a janela letiva (`job-schedules.ts`).
     prazoMs: 21_600_000,
     naoUrgente: true,
   }),
@@ -187,7 +187,7 @@ export type ParsedJobData<Tipo extends JobType> = z.output<DefinicaoDe<Tipo>['da
 
 /**
  * Um registro de definições por nome de tipo. `JOB_DEFINITIONS` é o de produção; o teste injeta o seu no despachante e no
- * worker (`fila-de-teste.ts`) para ter um tipo de dados próprios ou uma retentativa curta, sem tocar o registro real.
+ * worker (`queue.fixture.ts`) para ter um tipo de dados próprios ou uma retentativa curta, sem tocar o registro real.
  */
 export type JobRegistry = Readonly<Record<string, JobDefinition>>
 

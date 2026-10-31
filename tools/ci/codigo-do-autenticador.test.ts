@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { codigoDoAutenticador, codigoDoPassoAnterior, esperaPelaViradaDoPasso } from '../../e2e/__fixtures__/sessao.ts'
-import { gerarSegredo, passoDoCodigo, PERIODO_TOTP_SEGUNDOS } from '../../apps/api/src/credencial/segundo-fator.ts'
+import { codigoDoAutenticador, codigoDoPassoAnterior, esperaPelaViradaDoPasso } from '../../e2e/support/seed.ts'
+import { gerarSegredo, passoDoCodigo, PERIODO_TOTP_SEGUNDOS } from '../../apps/api/src/credencial/totp.ts'
 
 /**
- * O código que o e2e digita no lugar do aplicativo autenticador (`e2e/__fixtures__/sessao.ts`). O caso que ativa o segundo
+ * O código que o e2e digita no lugar do aplicativo autenticador (`e2e/support/seed.ts`). O caso que ativa o segundo
  * fator com o código do passo anterior caiu na esteira (run 39062201162) porque a virada do passo de 30 s veio entre a geração
  * do código e a conferência da API, que aceita só um passo para cada lado. Aqui o relógio é falso: a virada cai onde o teste
  * a põe, e a conferência é a `passoDoCodigo` da própria API.

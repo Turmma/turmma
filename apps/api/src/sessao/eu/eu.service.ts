@@ -1,7 +1,7 @@
 import { DomainException, inatividadeDoPapel, METRICS, type Meter } from '@educa/core'
 import { ErrorCode, euResponseSchema, introducaoResponseSchema, type EuResponse, type IntroducaoResponse } from '@educa/shared'
 import type { EuRepository, LinhaDoEu } from './eu.repository.js'
-import type { ResolucaoDeTenantRepository } from '../tenant/resolucao-de-tenant.repository.js'
+import type { ResolucaoDeTenantRepository } from '../tenant/tenant-resolution.repository.js'
 
 /**
  * Quem está na sessão, no contrato de `GET /v1/eu`: a inatividade é a do papel na escola da sessão, e `acessos`, os

@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { lerAmbienteDeTeste } from '../../../tools/ci/compose.ts'
 import { executarOpsPrivacidade } from '../src/ops/privacidade.js'
-import { BancadaDeSessoes } from './sessao-de-teste.js'
+import { BancadaDeSessoes } from './sessao.fixture.js'
 
 /**
  * `ops:privacidade` (F3, tarefa 19.0; RF17, "a operação vê só contagens"): o comando roda de verdade, com o banco de

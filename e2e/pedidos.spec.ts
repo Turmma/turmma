@@ -1,9 +1,9 @@
 import type { Locator, Page, Request, Route } from '@playwright/test'
 import { MENSAGENS_DE_ERRO } from '../packages/shared/src/errors/messages.ts'
 import type { PedidosDaTurmaResponse } from '../packages/shared/src/sala/pedidos.ts'
-import { abrirNavegacao, entrarComoCoordenacaoNaMesmaAba, entrarPorEmail, abrirEstrutura, irPelaNavegacao, lateral, PRAZO_DA_ENTRADA_MS, esperarNovaConversa, abrirAbaAlunos } from './__fixtures__/casca.ts'
-import { linhasDaTabela } from './__fixtures__/coordenacao.ts'
-import { expect, test } from './__fixtures__/perfis.ts'
+import { abrirNavegacao, entrarComoCoordenacaoNaMesmaAba, entrarPorEmail, abrirEstrutura, irPelaNavegacao, lateral, PRAZO_DA_ENTRADA_MS, esperarNovaConversa, abrirAbaAlunos } from './support/casca.ts'
+import { linhasDaTabela } from './support/coordenacao.ts'
+import { expect, test } from './support/profiles.ts'
 import {
   alunosDaTurmaNoBanco,
   apagarPedidoNoBanco,
@@ -23,8 +23,8 @@ import {
   type AlocacaoDeTeste,
   type EquipeDeTeste,
   type PedidoDeTeste,
-} from './__fixtures__/sessao.ts'
-import { ALVO_DE_TOQUE_PRINCIPAL_PX, larguraExcedente, larguraExcedenteDoDialogo, violacoesGraves } from './__fixtures__/verificacoes.ts'
+} from './support/seed.ts'
+import { ALVO_DE_TOQUE_PRINCIPAL_PX, larguraExcedente, larguraExcedenteDoDialogo, violacoesGraves } from './support/checks.ts'
 
 /**
  * Os pedidos de nome, com os diálogos de decisão, do professor e da coordenação (A1, tarefa 16.0;
@@ -145,7 +145,7 @@ async function tabAte(page: Page, alvo: Locator): Promise<void> {
 
 const focoDentroDoDialogo = (page: Page) => page.evaluate(() => document.activeElement !== null && document.activeElement.closest('dialog[open]') !== null)
 
-/** A data e a hora como a tela as escreve (`formatar.ts`), no fuso do navegador do teste. */
+/** A data e a hora como a tela as escreve (`format.ts`), no fuso do navegador do teste. */
 function dataNaTela(page: Page, iso: string): Promise<string> {
   return page.evaluate((valor) => new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(valor)), iso)
 }

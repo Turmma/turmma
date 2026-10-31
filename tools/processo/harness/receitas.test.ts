@@ -449,7 +449,7 @@ describe('caminho citado que não existe (RF32)', () => {
   })
 
   it.each(LADOS)('fora da conferência no $lado: fragmento relativo, regra de lint e rota', ({ com }) => {
-    expect(falhasDe(com('`componentes/dialogos.tsx`, `guardas/log-sem-dado-pessoal` e `/v1/disciplinas`'))).toEqual([])
+    expect(falhasDe(com('`components/dialogs.tsx`, `guardas/log-sem-dado-pessoal` e `/v1/disciplinas`'))).toEqual([])
   })
 })
 

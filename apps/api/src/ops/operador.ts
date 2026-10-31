@@ -27,7 +27,7 @@ import {
   OperadorRecusado,
   type BancoDoComando,
   type SaidaDoComando,
-} from './comando.js'
+} from './command.js'
 
 /**
  * A conta do operador Turmma nasce e termina só por aqui (A0, RF1; Tech Spec da A0, seção 5, "Nascimento"). Nenhuma

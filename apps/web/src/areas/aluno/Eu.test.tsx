@@ -6,10 +6,10 @@ import type { ComponentProps } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Router } from 'wouter'
 import { CHAVE_DA_MEMORIA_DO_TUTOR } from '../../api/chaves-do-aluno'
-import { criarClienteDeConsultas } from '../../api/cliente-de-consultas'
-import { prepararTela, redeFalsa, renderizarTela } from '../../__fixtures__/tela'
-import { ContextoDaSaida } from '../../componentes/saida-da-casca'
-import { escolherLetra } from '../../letra'
+import { criarClienteDeConsultas } from '../../api/query-client'
+import { prepararTela, redeFalsa, renderizarTela } from '../../__fixtures__/render-screen'
+import { ContextoDaSaida } from '../../components/sign-out-context'
+import { escolherLetra } from '../../text-size'
 import type { MemoriaDoTutorResponse } from '@educa/shared'
 import { DESCRICAO_DO_VAZIO, ROTULO_DAS_HABILIDADES, ROTULO_DO_CARREGANDO, TEXTO_DA_CONTESTACAO, TITULO_DO_VAZIO } from './como-estou-indo'
 import Eu from './Eu'
@@ -41,7 +41,7 @@ type TrabalhoNaMemoria = MemoriaDoTutorResponse['trabalhos'][number]
 let contador = 0
 /**
  * O trabalho da memória, sem correção aprovada (`resultado: null`) a menos que o caso diga. O mesmo contrato que
- * `e2e/__fixtures__/memoria-do-aluno.ts` monta para o e2e: o `tsc` da web não alcança `e2e/` (extensão `.ts` e `node:crypto`).
+ * `e2e/support/tutor-memory.ts` monta para o e2e: o `tsc` da web não alcança `e2e/` (extensão `.ts` e `node:crypto`).
  */
 function trabalhoNaMemoria(campos: Partial<TrabalhoNaMemoria> = {}): TrabalhoNaMemoria {
   contador += 1

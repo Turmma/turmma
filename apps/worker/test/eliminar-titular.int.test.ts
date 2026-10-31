@@ -23,11 +23,11 @@ import { afterAll, beforeAll, describe, expect, it, onTestFinished } from 'vites
 import { lerAmbienteDeTeste, valorObrigatorio } from '../../../tools/ci/compose.ts'
 import { compose, PROCESSOS_DA_FILA } from '../../../tools/testes/compose.ts'
 import type { ConfiguracaoStorage } from '../src/config.js'
-import { montarWorker } from '../src/montagem.js'
-import { criarEliminacaoDoTitular } from '../src/processadores/eliminar-titular.js'
-import { criarExpurgoDaEscola } from '../src/processadores/expurgar-escola.js'
-import { BancadaDeFila, configuracaoDoBanco, janelaPadraoDoAmbiente, LogEmMemoria, urlRedisDeFila, vagasPadraoDoAmbiente } from './fila-de-teste.js'
-import { execucaoDoJob } from './execucao-do-job.js'
+import { montarWorker } from '../src/composition.js'
+import { criarEliminacaoDoTitular } from '../src/processors/eliminar-titular.js'
+import { criarExpurgoDaEscola } from '../src/processors/expurgar-escola.js'
+import { BancadaDeFila, configuracaoDoBanco, janelaPadraoDoAmbiente, LogEmMemoria, urlRedisDeFila, vagasPadraoDoAmbiente } from './queue.fixture.js'
+import { execucaoDoJob } from './job-execution.fixture.js'
 
 // O job `titular.eliminar` (F3, tarefa 15.0; Tech Spec do F3, seção 5, "Eliminação") contra o Postgres do compose de teste:
 // o prazo, a troca do nome completo em faixas (cada coluna, a caixa, a fronteira de palavra, o JSON válido), o homônimo, o

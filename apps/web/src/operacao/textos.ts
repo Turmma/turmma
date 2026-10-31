@@ -1,8 +1,8 @@
 import { ErrorCode, formatarEspera, MENSAGENS_DE_ERRO, mensagemDaEntrada, mensagemDoSegundoFator, type TipoDeRede } from '@educa/shared'
-import { ErroDaApi } from '../api/cliente'
-import type { FalhaDoConvite } from '../componentes/DialogoDoConvite'
-import { textoDaFalha as textoDaFalhaPeloCodigo } from '../componentes/texto-da-falha'
-import { TEXTO_DO_CONVITE_QUE_MUDOU, TEXTO_DO_CONVITE_QUE_NAO_VALE } from '../componentes/textos-do-convite'
+import { ErroDaApi } from '../api/client'
+import type { FalhaDoConvite } from '../components/DialogoDoConvite'
+import { textoDaFalha as textoDaFalhaPeloCodigo } from '../components/error-text'
+import { TEXTO_DO_CONVITE_QUE_MUDOU, TEXTO_DO_CONVITE_QUE_NAO_VALE } from '../components/textos-do-convite'
 
 /**
  * Os textos da área do operador (Tech Spec da A0, seção 9). Ficam aqui, no chunk da operação, e não no catálogo de
@@ -50,7 +50,7 @@ export function textoDoLimite(esperaSegundos: number | undefined): string {
 
 /**
  * O texto de uma falha numa tela com sessão: o 503 da operação, o 503 `TEMPO_ESGOTADO` e o 429 têm o texto deles; o
- * resto, o do catálogo, pela mesma função das telas da escola (`componentes/texto-da-falha.ts`). O 401 `SESSAO_ENCERRADA` não chega a aparecer aqui: `chamarComSessaoDeOperador` já levou a aba à
+ * resto, o do catálogo, pela mesma função das telas da escola (`components/error-text.ts`). O 401 `SESSAO_ENCERRADA` não chega a aparecer aqui: `chamarComSessaoDeOperador` já levou a aba à
  * entrada, com a mensagem de sessão encerrada.
  */
 export function textoDaFalha(erro: unknown): string {
@@ -100,7 +100,7 @@ export const TEXTO_DA_ESCOLA_QUE_NAO_EXISTE = 'Essa escola não foi encontrada. 
 
 /**
  * O texto de uma falha de gerar, refazer ou revogar (cenário W10): `CONFLITO` e `NAO_ENCONTRADO` têm o texto de cada
- * ação (os do refazer e do revogar, em `componentes/textos-do-convite.ts`, com a escola) e mandam recarregar a lista; o
+ * ação (os do refazer e do revogar, em `components/textos-do-convite.ts`, com a escola) e mandam recarregar a lista; o
  * resto (429, 503, 503 `TEMPO_ESGOTADO`) é o de `textoDaFalha`, e o mesmo botão tenta de novo. Nenhum texto diz o código.
  */
 export function falhaDoConvite(acao: 'gerar' | 'refazer' | 'revogar', erro: unknown): FalhaDoConvite {

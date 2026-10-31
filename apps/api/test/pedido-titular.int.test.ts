@@ -14,12 +14,12 @@ import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { PrivacidadeService } from '../src/privacidade/privacidade.service.js'
 import { TitularesRepository } from '../src/privacidade/titulares.repository.js'
 import { EmissorDeDesafio } from '../src/credencial/index.js'
-import { chamar, subirApi, type ApiDeTeste, type RespostaHttp } from './api-com-sessao.js'
-import { CapturaDeDadoPessoal } from './captura-de-dado-pessoal.js'
-import { alunosNaTurma, montarEscolaComTurma, type EscolaComTurma } from './escola-com-turma.js'
-import { esperarNaTrava, GatilhoDeParada } from './gatilho-de-parada.js'
-import { FerramentasDaSala, pedidoDaSala, type SalaDeTeste } from './sala-de-teste.js'
-import { BancadaDeSessoes, type SessaoDeTeste } from './sessao-de-teste.js'
+import { chamar, subirApi, type ApiDeTeste, type RespostaHttp } from './test-api.js'
+import { CapturaDeDadoPessoal } from './personal-data-capture.js'
+import { alunosNaTurma, montarEscolaComTurma, type EscolaComTurma } from './escola-turma.fixture.js'
+import { esperarNaTrava, GatilhoDeParada } from './write-block-trigger.js'
+import { FerramentasDaSala, pedidoDaSala, type SalaDeTeste } from './sala.fixture.js'
+import { BancadaDeSessoes, type SessaoDeTeste } from './sessao.fixture.js'
 
 /**
  * O pedido do titular (F3, tarefa 11.0; `tasks/prd-lgpd-e-titular/cenarios.md`, RF10, RF13b, RF16, RF17 e as
@@ -28,7 +28,7 @@ import { BancadaDeSessoes, type SessaoDeTeste } from './sessao-de-teste.js'
  * gerados; o nome do titular é dado pessoal e nunca vai a log (regra 20, item 9).
  *
  * Os limites por usuário e por escola do F0 vêm altos, para o teste provar o `rl:busca-titular` sozinho: o rate limit
- * do F0 em si continua provado em `limite.int.test.ts`.
+ * do F0 em si continua provado em `rate-limit.int.test.ts`.
  */
 
 const HOJE = (): string => diaDeUso(new Date())

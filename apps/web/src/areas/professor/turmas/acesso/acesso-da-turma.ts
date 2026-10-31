@@ -1,8 +1,8 @@
 import { ErrorCode, exibirCodigoDaTurma, type ValidadeDoAcessoDias } from '@educa/shared'
-import { ErroDaApi } from '../../../../api/cliente'
-import type { DitosDaCopia } from '../../../../componentes/copia-unica'
-import { listaMudou, textoDaFalha } from '../../../../componentes/texto-da-falha'
-import { formatarQuantidade } from '../../../../formatar'
+import { ErroDaApi } from '../../../../api/client'
+import type { DitosDaCopia } from '../../../../components/copy-once'
+import { listaMudou, textoDaFalha } from '../../../../components/error-text'
+import { formatarQuantidade } from '../../../../format'
 import { enderecoDaAba } from '../endereco-da-turma'
 
 /**

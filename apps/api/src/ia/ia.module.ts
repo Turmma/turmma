@@ -11,9 +11,9 @@ import {
   type SuspensaoDeFuncao,
 } from '@educa/core'
 import { Global, Inject, Module, type DynamicModule, type OnApplicationBootstrap, type OnApplicationShutdown } from '@nestjs/common'
-import { BANCO } from '../banco.module.js'
-import { AgendadorDeExecucoes } from './agendador-de-execucoes.js'
-import { ConferenciaDeFuncao } from './conferencia-de-funcao.js'
+import { BANCO } from '../database.module.js'
+import { AgendadorDeExecucoes } from './execucao.scheduler.js'
+import { ConferenciaDeFuncao } from './funcao-suspension-check.js'
 import { ConsumoRepository } from './consumo.repository.js'
 import { ExecucaoRepository } from './execucao.repository.js'
 import { ExecucoesController } from './execucoes.controller.js'

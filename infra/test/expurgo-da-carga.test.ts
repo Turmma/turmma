@@ -231,7 +231,7 @@ describe('os números da fase batem com o resto do repositório', () => {
   it('o teto da medida fica abaixo do corte do banco, e o turno mínimo cabe no teto de pedidos de IA da escola', () => {
     expect(TETO_DA_MEDIDA_MS).toBeLessThan(LIMITE_DO_STATEMENT_MS)
     // 1,5 turno por segundo = 90 por minuto, abaixo dos 120 por minuto por escola (`TETO_DE_PEDIDOS_DE_IA_POR_ESCOLA`).
-    const teto = /export const TETO_DE_PEDIDOS_DE_IA_POR_ESCOLA = (\d+)/.exec(lerArquivo('apps/api/src/assistente/limite-de-pedidos-de-ia.ts'))?.[1]
+    const teto = /export const TETO_DE_PEDIDOS_DE_IA_POR_ESCOLA = (\d+)/.exec(lerArquivo('apps/api/src/assistente/ai-request-rate-limit.ts'))?.[1]
     const turnosPor2s = /const TURNOS_DA_B_POR_2S = (\d+)/.exec(lerArquivo('infra/k6/justica-entre-escolas.js'))?.[1]
     expect((Number(turnosPor2s) / 2) * 60).toBeLessThan(Number(teto))
   })

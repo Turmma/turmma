@@ -69,7 +69,7 @@ export default tseslint.config(
     // literal com o tipo declarado: `{} as Record<…>` esconderia do compilador a chave que faltasse, e um
     // `Partial<…>` preenchido no laço e afirmado no fim (`t as Record<…>`) também. Por isso nenhuma afirmação de tipo
     // (`as const` continua valendo).
-    files: ['apps/worker/src/processadores/**/*.ts'],
+    files: ['apps/worker/src/processors/**/*.ts'],
     ignores: ['**/*.test.ts'],
     rules: {
       '@typescript-eslint/consistent-type-assertions': ['error', { assertionStyle: 'never' }],
@@ -106,14 +106,14 @@ export default tseslint.config(
     rules: reactHooks.configs.recommended.rules,
   },
   {
-    // O kit visual (`componentes/ui/`) não conhece a API, as telas nem a sessão (D81, R56; `onda-2.md`, "Onde moram"): o
+    // O kit visual (`components/ui/`) não conhece a API, as telas nem a sessão (D81, R56; `onda-2.md`, "Onde moram"): o
     // que ele recebe vem por prop, e quem fala com o servidor é a tela. O `no-restricted-imports` do ESLint core vale para
     // `import`, `import type` e `export … from`; o `import()` é o seletor, porque o core não o vê. As duas regras estão em
     // `REGRAS_DO_KIT` e `REGRAS_DE_ENTRADA` (`tools/guardas/index.mjs`, uma para cada): o `eslint-disable` delas não fura a
     // segunda passada do `npm run lint`.
     // É o `no-restricted-imports` do core, e não o `@typescript-eslint/no-restricted-imports` do bloco das guardas, que é
     // o último e seria sobrescrito por este.
-    files: ['apps/web/src/componentes/ui/**/*.{ts,tsx}'],
+    files: ['apps/web/src/components/ui/**/*.{ts,tsx}'],
     rules: {
       'no-restricted-imports': [
         'error',

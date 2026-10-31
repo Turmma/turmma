@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 
 /**
- * `estilos.css` zera a paleta do Tailwind (`--color-*: initial`) e devolve em hex só as cores usadas, porque a paleta
+ * `index.css` zera a paleta do Tailwind (`--color-*: initial`) e devolve em hex só as cores usadas, porque a paleta
  * padrão da versão 4 é em `oklch()`, que o Chrome anterior ao 111 não entende — e laboratório de escola tem navegador
  * velho (regra 50, item 1).
  *
@@ -79,21 +79,21 @@ function tokensDoDocumento(): Record<Tema, Paleta> {
 }
 
 function cssDoProduto(): string {
-  return readFileSync(join(raizDaWeb, 'estilos.css'), 'utf8')
+  return readFileSync(join(raizDaWeb, 'index.css'), 'utf8')
 }
 
 /** Os nomes de cor da 9.10: os únicos que uma classe de cor pode pedir. */
 const NOMES_DE_COR = new Set(blocosDe(cssDoProduto()).claro.keys())
 
 /** `white` e `black` não mudam com o tema: classe com eles fica errada no escuro. Só o QR, que precisa ficar claro, pode. */
-const ARQUIVOS_COM_BRANCO_FIXO = ['componentes/CodigoQr.tsx']
+const ARQUIVOS_COM_BRANCO_FIXO = ['components/CodigoQr.tsx']
 
 /**
  * Os arquivos que podem escrever cor à mão: o QR, que precisa de preto e branco, e a cabeça da onça, cujas nove cores são
  * fixas nos dois temas (`docs/interface.md` 9.7). A lista é **esses dois, e só eles**: o ícone ilustrado lê token e não
  * entra, e a onça de corpo inteiro, quando vier, ou lê as cores da cabeça ou entra aqui com parecer.
  */
-const ARQUIVOS_COM_COR_EM_LINHA = ['componentes/CodigoQr.tsx', 'componentes/ui/onca/CabecaOnca.tsx']
+const ARQUIVOS_COM_COR_EM_LINHA = ['components/CodigoQr.tsx', 'components/ui/onca/CabecaOnca.tsx']
 
 /** As sombras do `@theme` (`shadow-caixa`, `shadow-flutua`): `shadow-<nome>` com elas é sombra, não cor. */
 function sombrasDeclaradas(): Set<string> {
@@ -277,7 +277,7 @@ interface UsoDaFaceDoOficial {
  * botão "Enviar a atividade" têm a mesma face (achado da 1ª rodada da 3.0, `conformidade-reviewer`).
  */
 const FACE_DO_OFICIAL: Readonly<Record<string, UsoDaFaceDoOficial>> = {
-  'componentes/ui/botao-secundario.ts': {
+  'components/ui/button-variants.ts': {
     classes: ['bg-grafite', 'enabled:hover:bg-noite-alto'],
     justificativa: 'é o oficial: a face das constantes e da tabela do Botao; o hover `noite-alto` só vale nas duas linhas dele',
     sai: 'não sai: é o oficial. O hover passa a token próprio de grafite quando a `noite` sair, na 15.0',
@@ -287,7 +287,7 @@ const FACE_DO_OFICIAL: Readonly<Record<string, UsoDaFaceDoOficial>> = {
     justificativa: 'a questão aberta do mapa da atividade; no escuro tem a mesma face do botão oficial da mesma tela',
     sai: 'X4 (telas-do-aluno-e-primeiro-acesso), que reveste o mapa de questões',
   },
-  'operacao/componentes/NavegacaoDaLista.tsx': {
+  'operacao/components/NavegacaoDaLista.tsx': {
     classes: ['bg-noite'],
     justificativa: 'a opção de ordenação marcada, na lista das escolas da operação',
     sai: 'X2 (a operação recomposta em página de painel; a 15.0 só trocou a barra de topo)',
@@ -324,7 +324,7 @@ function arquivosDeCodigo(pasta: string): string[] {
 /** O que diverge entre duas paletas, nos dois sentidos, como `nome: um lado diz X, o outro diz Y`. */
 function divergencias(documento: Paleta, codigo: Paleta): string[] {
   const nomes = [...new Set([...documento.keys(), ...codigo.keys()])].sort()
-  return nomes.filter((nome) => documento.get(nome) !== codigo.get(nome)).map((nome) => `${nome}: a 9.10 diz ${documento.get(nome) ?? 'nada'}, estilos.css diz ${codigo.get(nome) ?? 'nada'}`)
+  return nomes.filter((nome) => documento.get(nome) !== codigo.get(nome)).map((nome) => `${nome}: a 9.10 diz ${documento.get(nome) ?? 'nada'}, index.css diz ${codigo.get(nome) ?? 'nada'}`)
 }
 
 describe('paleta de estilos.css', () => {
@@ -371,17 +371,17 @@ describe('guarda de cor em apps/web/src (U3)', () => {
     const conteudos = arquivos.map((arquivo) => ({ nome: arquivo.slice(raizDaWeb.length + 1), conteudo: readFileSync(arquivo, 'utf8') }))
     // Sem estas âncoras o caso passaria vazio no dia em que a varredura deixasse de achar arquivo — uma mudança na
     // pasta ou no filtro de extensão —, e `[].flatMap(...)` é `[]`. O botão primário é a cor da marca (9.1), e as
-    // telas de `paginas/` são as que a tarefa 2.0 da A0 migrou; a de vínculos foi para `areas/professor/` na 11.0 da A1.
+    // telas de `pages/` são as que a tarefa 2.0 da A0 migrou; a de vínculos foi para `areas/professor/` na 11.0 da A1.
     const nomes = conteudos.map(({ nome }) => nome)
-    expect(nomes, 'a varredura não está achando os arquivos da web').toContain('componentes/ui/Botao.tsx')
-    expect(nomes.filter((nome) => nome.startsWith('paginas/') || nome.startsWith('areas/')).length).toBeGreaterThanOrEqual(10)
+    expect(nomes, 'a varredura não está achando os arquivos da web').toContain('components/ui/Botao.tsx')
+    expect(nomes.filter((nome) => nome.startsWith('pages/') || nome.startsWith('areas/')).length).toBeGreaterThanOrEqual(10)
     // As classes do botão moraram em `Botao.tsx` até o MVP de apresentação; com as variantes da 10.2, a tabela que o
-    // `Botao` lê fica em `botao-secundario.ts`, e é lá que a face laranja da ação primária precisa estar.
-    expect(conteudos.find(({ nome }) => nome === 'componentes/ui/botao-secundario.ts')?.conteudo).toMatch(/\bbg-laranja\b/)
+    // `Botao` lê fica em `button-variants.ts`, e é lá que a face laranja da ação primária precisa estar.
+    expect(conteudos.find(({ nome }) => nome === 'components/ui/button-variants.ts')?.conteudo).toMatch(/\bbg-laranja\b/)
     // As peças do MVP de apresentação (`docs/mvp-rapido.md`, 9.3) também são varridas: o selo "IA" pinta com a família
     // `ia`, e a pasta inteira das peças de IA entra na conta.
-    expect(conteudos.find(({ nome }) => nome === 'componentes/ui/ia/AssinaturaIA.tsx')?.conteudo).toMatch(/\bbg-ia-cx\b/)
-    expect(nomes.filter((nome) => nome.startsWith('componentes/ui/ia/') && nome.endsWith('.tsx')).length).toBeGreaterThanOrEqual(10)
+    expect(conteudos.find(({ nome }) => nome === 'components/ui/ai/AssinaturaIA.tsx')?.conteudo).toMatch(/\bbg-ia-cx\b/)
+    expect(nomes.filter((nome) => nome.startsWith('components/ui/ai/') && nome.endsWith('.tsx')).length).toBeGreaterThanOrEqual(10)
     // As duas listas fechadas apontam arquivo que existe: lista com nome velho deixaria a exceção valendo para ninguém.
     for (const arquivo of [...ARQUIVOS_COM_BRANCO_FIXO, ...ARQUIVOS_COM_COR_EM_LINHA]) expect(nomes, `${arquivo} saiu do lugar`).toContain(arquivo)
     const reprovadas = conteudos.flatMap(({ nome, conteudo }) => classesReprovadas(nome, conteudo))
@@ -546,7 +546,7 @@ describe('guarda de cor em apps/web/src (U3)', () => {
       expect(uso.sai, `${arquivo} sem a tarefa ou a spec que o tira`).toMatch(/^(?:não sai\b|\d+\.0 |X[2-4] )/)
     }
     // O oficial é o único que fica: nenhum uso de antes diz "não sai".
-    expect(Object.entries(FACE_DO_OFICIAL).filter(([, { sai }]) => sai.startsWith('não sai')).map(([arquivo]) => arquivo)).toEqual(['componentes/ui/botao-secundario.ts'])
+    expect(Object.entries(FACE_DO_OFICIAL).filter(([, { sai }]) => sai.startsWith('não sai')).map(([arquivo]) => arquivo)).toEqual(['components/ui/button-variants.ts'])
     expect(listaDoOficialCresceu(FACE_DO_OFICIAL), 'a lista fechada do oficial só encolhe').toBe(false)
     // O teto é o tamanho de hoje: quem tira um uso (a 8.0 tirou o avatar, a 12.0 a dica e o avatar da lateral) baixa o teto
     // junto, e a lista não ganha folga.
@@ -554,7 +554,7 @@ describe('guarda de cor em apps/web/src (U3)', () => {
   })
 
   it('a cor escrita à mão é de duas peças só: o QR e a cabeça da onça', () => {
-    expect([...ARQUIVOS_COM_COR_EM_LINHA].sort()).toEqual(['componentes/CodigoQr.tsx', 'componentes/ui/onca/CabecaOnca.tsx'])
+    expect([...ARQUIVOS_COM_COR_EM_LINHA].sort()).toEqual(['components/CodigoQr.tsx', 'components/ui/onca/CabecaOnca.tsx'])
   })
 
   it('a guarda da face do oficial reprova o arquivo novo e a classe que a entrada não cita, e aceita só o que a lista diz', () => {
@@ -571,9 +571,9 @@ describe('guarda de cor em apps/web/src (U3)', () => {
       'paginas/Nova.tsx: enabled:active:bg-noite-baixo (face do oficial fora da lista)',
     ])
     // O arquivo do oficial aceita a face e o hover dele, e não a `noite`: a entrada diz as classes, e não o arquivo.
-    expect(facesDoOficialForaDaLista('componentes/ui/botao-secundario.ts', fixture)).toEqual([
-      'componentes/ui/botao-secundario.ts: bg-noite (face do oficial fora da lista)',
-      'componentes/ui/botao-secundario.ts: enabled:active:bg-noite-baixo (face do oficial fora da lista)',
+    expect(facesDoOficialForaDaLista('components/ui/button-variants.ts', fixture)).toEqual([
+      'components/ui/button-variants.ts: bg-noite (face do oficial fora da lista)',
+      'components/ui/button-variants.ts: enabled:active:bg-noite-baixo (face do oficial fora da lista)',
     ])
     // O uso de antes aceita a `noite` e não a `grafite`: sair do oficial para outro arquivo não vale.
     expect(facesDoOficialForaDaLista('areas/aluno/Atividade.tsx', fixture)).toEqual([
@@ -618,12 +618,12 @@ describe('guarda de cor em apps/web/src (U3)', () => {
 
   it('o QR é a única exceção, e só nele: branco fixo e cor em linha passam no arquivo da lista', () => {
     const qr = '<svg className="bg-white"><path fill="#0d0d0d" /></svg>'
-    expect(classesReprovadas('componentes/CodigoQr.tsx', qr)).toEqual([])
-    expect(classesReprovadas('componentes/Outro.tsx', qr)).toEqual(['componentes/Outro.tsx: bg-white (não muda com o tema)', 'componentes/Outro.tsx: fill #0d0d0d (cor em linha)'])
+    expect(classesReprovadas('components/CodigoQr.tsx', qr)).toEqual([])
+    expect(classesReprovadas('components/Outro.tsx', qr)).toEqual(['components/Outro.tsx: bg-white (não muda com o tema)', 'components/Outro.tsx: fill #0d0d0d (cor em linha)'])
   })
 })
 
-/** `#rrggbbaa` como o `rgba(r, g, b, a)` que `estilos.css` escreve no `::backdrop`, com a transparência em duas casas. */
+/** `#rrggbbaa` como o `rgba(r, g, b, a)` que `index.css` escreve no `::backdrop`, com a transparência em duas casas. */
 function rgbaDoHexDeOito(hex: string): string {
   if (!/^#[0-9a-f]{8}$/.test(hex)) throw new Error(`o véu não é hex de oito dígitos: ${hex}`)
   const canais = [1, 3, 5].map((posicao) => Number.parseInt(hex.slice(posicao, posicao + 2), 16))

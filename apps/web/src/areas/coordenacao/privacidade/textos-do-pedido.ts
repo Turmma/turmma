@@ -11,8 +11,8 @@ import {
   type PedidoDoTitular,
   type SuboperadorDaEscola,
 } from '@educa/shared'
-import type { FamiliaDeEstado } from '../../../componentes/ui/SeloDeEstado'
-import { formatarDiaDoInstante } from '../../../formatar'
+import type { FamiliaDeEstado } from '../../../components/ui/SeloDeEstado'
+import { formatarDiaDoInstante } from '../../../format'
 import { TEXTO_DO_HOMONIMO } from './textos-dos-pedidos'
 
 /**

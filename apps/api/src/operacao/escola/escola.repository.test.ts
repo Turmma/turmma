@@ -35,8 +35,8 @@ const CRIACAO_DE_REDE_OU_ESCOLA = /\binsert\s*\(\s*(?:schema\.)?(?:rede|escola)\
 const IMPORTADORES_PERMITIDOS_DO_CASO_DE_USO: readonly string[] = [
   'apps/api/src/operacao/painel/painel.service.ts',
   'apps/api/src/ops/escola.ts',
-  'apps/api/test/sessao-de-teste.ts',
-  'apps/worker/test/fila-de-teste.ts',
+  'apps/api/test/sessao.fixture.ts',
+  'apps/worker/test/queue.fixture.ts',
   'infra/scripts/carga-login.ts',
   'infra/scripts/carga-sala.ts',
   'infra/scripts/ensaio-alertas.ts',

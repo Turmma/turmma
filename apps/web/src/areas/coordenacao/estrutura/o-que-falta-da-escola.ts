@@ -1,4 +1,4 @@
-import { ROTAS_DA_COORDENACAO } from '../../../caminhos'
+import { ROTAS_DA_COORDENACAO } from '../../../paths'
 
 /**
  * O roteiro da escola até a alocação (`docs/interface.md` 3; W4, "Estrutura"; telas da coordenação, 2.0), sem tela: a

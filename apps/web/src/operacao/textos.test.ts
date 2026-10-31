@@ -1,6 +1,6 @@
 import { ErrorCode, MENSAGENS_DE_ERRO } from '@educa/shared'
 import { describe, expect, it } from 'vitest'
-import { ErroDaApi } from '../api/cliente'
+import { ErroDaApi } from '../api/client'
 import { ehEnderecoRepetido, ehResultadoIncerto, falhaDoConvite, TEXTO_DA_OPERACAO_INDISPONIVEL, TEXTO_DA_SESSAO_ENCERRADA, TEXTO_DO_ENDERECO_REPETIDO, textoDaFalha, textoDoLimite } from './textos'
 
 /**

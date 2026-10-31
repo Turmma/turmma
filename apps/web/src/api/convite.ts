@@ -5,7 +5,7 @@ import {
   type AceitarConviteResponse,
   type ConsultarConviteResponse,
 } from '@educa/shared'
-import { chamarApi } from './cliente'
+import { chamarApi } from './client'
 import { guardarBilheteDeConvite, guardarDesafio } from './sessao'
 
 export const CAMINHO_DA_CONSULTA_DE_CONVITE = '/v1/convites/consultar'

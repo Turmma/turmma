@@ -2,11 +2,11 @@ import type { Locator, Page, Request, Route } from '@playwright/test'
 import { MENSAGENS_DE_ERRO } from '../packages/shared/src/errors/messages.ts'
 import type { EscolasDoPainelResponse } from '../packages/shared/src/operacao/painel.ts'
 import { TEXTO_DO_ESTADO } from '../apps/web/src/operacao/estados-da-escola.ts'
-import { codigoDoOperador, criarOperadorComSegundoFator as criarOperador, encerrarSessoesDoOperador, removerOperador, type OperadorDeTeste } from './__fixtures__/operacao.ts'
-import { criarRedeDoPainel, escolasComOEndereco, nomeDeRedeQueVemPrimeiro, redesComONome, removerPainel, semearPainel, type PainelSemeado, type UsoDoPainel } from './__fixtures__/painel.ts'
-import { expect, test } from './__fixtures__/perfis.ts'
-import { acionar, conferirAListaQueRola, conferirQueCadaNumeroFicaEmUmaLinha, entrarNaOperacao, PRAZO_DA_ENTRADA_MS, trocarAPrimeiraDaResposta } from './__fixtures__/tela-da-operacao.ts'
-import { ALVO_DE_TOQUE_PRINCIPAL_PX, codigoCru, larguraExcedente, larguraExcedenteDoDialogo, violacoesGraves } from './__fixtures__/verificacoes.ts'
+import { codigoDoOperador, criarOperadorComSegundoFator as criarOperador, encerrarSessoesDoOperador, removerOperador, type OperadorDeTeste } from './support/operacao.ts'
+import { criarRedeDoPainel, escolasComOEndereco, nomeDeRedeQueVemPrimeiro, redesComONome, removerPainel, semearPainel, type PainelSemeado, type UsoDoPainel } from './support/painel.ts'
+import { expect, test } from './support/profiles.ts'
+import { acionar, conferirAListaQueRola, conferirQueCadaNumeroFicaEmUmaLinha, entrarNaOperacao, PRAZO_DA_ENTRADA_MS, trocarAPrimeiraDaResposta } from './support/operacao-screen.ts'
+import { ALVO_DE_TOQUE_PRINCIPAL_PX, codigoCru, larguraExcedente, larguraExcedenteDoDialogo, violacoesGraves } from './support/checks.ts'
 
 /**
  * Escolas, Nova rede e Nova escola (A0b, tarefa 6.0; cenários W6, W7, W8 e W10), nos projetos `chromebook` e `celular`.
@@ -667,7 +667,7 @@ test.describe('Escolas, Nova rede e Nova escola (A0b, tarefa 6.0)', () => {
     await expect(page.getByRole('region', { name: 'Aviso de inatividade' })).toHaveCount(1)
     expect(await violacoesGraves(page)).toEqual([])
 
-    // "Continuar na sessão" recebe o foco pelo Tab. A tecla já conta como uso (`inatividade.ts`), e o `/eu` dela fica seguro
+    // "Continuar na sessão" recebe o foco pelo Tab. A tecla já conta como uso (`idle-timeout.ts`), e o `/eu` dela fica seguro
     // no teste, para o aviso não sumir antes de o foco chegar ao botão em rede rápida.
     const continuar = aviso.getByRole('button', { name: 'Continuar na sessão' })
     const ehEu = (url: URL) => url.pathname === '/v1/operacao/eu'

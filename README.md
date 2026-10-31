@@ -35,7 +35,7 @@ A web fica em http://127.0.0.1:58080, em pt-BR e responsiva até 360 px: `/entra
 equipe por e-mail e senha, `/` é a área de quem entrou (o token fica só em memória, e a sessão volta
 pelo cookie `HttpOnly` da renovação), e `/sistema` é a casca do estado do sistema, pública, que busca
 `GET /v1/sistema/estado` e `/v1/sistema/avisos` (rotas anônimas; os avisos vêm de `AVISOS_SISTEMA`) e
-mostra carregando, vazio, erro e com dado com os componentes de `apps/web/src/componentes/estado/`; a API responde pela borda
+mostra carregando, vazio, erro e com dado com os componentes de `apps/web/src/components/states/`; a API responde pela borda
 (Caddy, `infra/Caddyfile`) em http://127.0.0.1:53000/saude, e o realtime em
 http://127.0.0.1:53000/socket.io/, que autentica o handshake pela mesma sessão gravada da API. A borda balanceia duas instâncias de cada, e
 `docker compose restart api-1` troca uma instância sem derrubar requisição. Antes das

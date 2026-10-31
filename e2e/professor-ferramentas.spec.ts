@@ -1,14 +1,14 @@
 import type { Locator, Page } from '@playwright/test'
 import { ROTULOS_DA_ADAPTACAO, TIPOS_DE_ADAPTACAO } from '../packages/shared/src/assistente/conteudo.ts'
-import { atividadeSintetica, erroDaApi, simularAssistente, versaoAdaptada } from './__fixtures__/assistente.ts'
-import { paginaNaoRola } from './__fixtures__/coordenacao.ts'
-import { caixa } from './__fixtures__/fluxo-do-professor.ts'
-import { entrarPelaApi, entrarPorEmail, PRAZO_DA_ENTRADA_MS } from './__fixtures__/casca.ts'
-import { entrarEmCriados } from './__fixtures__/professor/criados.ts'
-import { acionar, entrar, irPara, PRAZO_DA_TELA_MS, recarregar, selosDeIA } from './__fixtures__/professor/cena.ts'
-import { carregarSemRedeLenta, expect, test } from './__fixtures__/perfis.ts'
-import { confirmarVinculosNoBanco, criarAlocacaoDoProfessor, criarEquipeComSenha } from './__fixtures__/sessao.ts'
-import { ALVO_DE_TOQUE_PRINCIPAL_PX, larguraExcedente, violacoesGraves } from './__fixtures__/verificacoes.ts'
+import { atividadeSintetica, erroDaApi, simularAssistente, versaoAdaptada } from './support/assistente.ts'
+import { paginaNaoRola } from './support/coordenacao.ts'
+import { caixa } from './support/professor-flow.ts'
+import { entrarPelaApi, entrarPorEmail, PRAZO_DA_ENTRADA_MS } from './support/casca.ts'
+import { entrarEmCriados } from './support/professor/criados.ts'
+import { acionar, entrar, irPara, PRAZO_DA_TELA_MS, recarregar, selosDeIA } from './support/professor/scenario.ts'
+import { carregarSemRedeLenta, expect, test } from './support/profiles.ts'
+import { confirmarVinculosNoBanco, criarAlocacaoDoProfessor, criarEquipeComSenha } from './support/seed.ts'
+import { ALVO_DE_TOQUE_PRINCIPAL_PX, larguraExcedente, violacoesGraves } from './support/checks.ts'
 
 /**
  * "Como vai sair" como a tela o escreve (`COMO_VAI_SAIR`, em `ferramentas.ts`). Copiado aqui de propósito: o e2e não importa o

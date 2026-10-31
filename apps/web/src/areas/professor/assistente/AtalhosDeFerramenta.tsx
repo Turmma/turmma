@@ -1,9 +1,9 @@
 import type { ChaveDeFuncao, Ferramenta } from '@educa/shared'
 import { ArrowRight } from 'lucide-react'
 import { Link } from 'wouter'
-import { ROTAS_DO_PROFESSOR } from '../../../caminhos'
-import { Botao } from '../../../componentes/ui/Botao'
-import { CLASSES_DO_LINK_SECUNDARIO } from '../../../componentes/ui/botao-secundario'
+import { ROTAS_DO_PROFESSOR } from '../../../paths'
+import { Botao } from '../../../components/ui/Botao'
+import { CLASSES_DO_LINK_SECUNDARIO } from '../../../components/ui/button-variants'
 import { CATALOGO_DE_FERRAMENTAS } from '../ferramentas/ferramentas'
 import { IconeDeFerramenta } from '../ferramentas/icones-de-ferramenta'
 

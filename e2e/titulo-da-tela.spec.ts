@@ -8,10 +8,10 @@ import {
   esperarPainel,
   irPelaNavegacao,
   PRAZO_DA_ENTRADA_MS,
-} from './__fixtures__/casca.ts'
-import { expect, test } from './__fixtures__/perfis.ts'
-import { colocarAlunoNaTurma, criarAlunoComMatricula, criarEquipeComSenha } from './__fixtures__/sessao.ts'
-import { larguraExcedente } from './__fixtures__/verificacoes.ts'
+} from './support/casca.ts'
+import { expect, test } from './support/profiles.ts'
+import { colocarAlunoNaTurma, criarAlunoComMatricula, criarEquipeComSenha } from './support/seed.ts'
+import { larguraExcedente } from './support/checks.ts'
 
 /**
  * O título de toda tela aberta pela lateral (X1, tarefa 11.0; RF12 e RF23; `docs/interface.md` 11.2): o `h1` aparece, com

@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest'
 /**
  * O contraste de cada par de texto e fundo que a pele usa, **nos dois temas** (RF2 da X1; regra 50, item 11).
  *
- * A lista de pares mora no `docs/interface.md` 9.1, na tabela "Pares de contraste", e os valores, no `estilos.css`: o
+ * A lista de pares mora no `docs/interface.md` 9.1, na tabela "Pares de contraste", e os valores, no `index.css`: o
  * teste lê os dois e faz a conta da WCAG 2.1. Par usado e não declarado passaria calado, e por isso a tabela tem número
  * fixo de linhas: quem acrescenta um par acrescenta a linha, e o número aqui, na mesma tarefa.
  *
@@ -54,9 +54,9 @@ function miolo(texto: string, inicio: number): string {
   throw new Error('bloco de CSS sem fechamento')
 }
 
-/** As cores de `estilos.css` em cada tema, do bloco `@theme static` e do bloco `:root[data-tema='escuro']`. */
+/** As cores de `index.css` em cada tema, do bloco `@theme static` e do bloco `:root[data-tema='escuro']`. */
 function coresDoProduto(): Record<Tema, Map<string, string>> {
-  const css = readFileSync(join(raizDaWeb, 'estilos.css'), 'utf8')
+  const css = readFileSync(join(raizDaWeb, 'index.css'), 'utf8')
   const ler = (bloco: string) => new Map([...bloco.matchAll(/--color-([a-z]+(?:-[a-z0-9]+)*)\s*:\s*(#[0-9a-fA-F]{6})\b/g)].map(([, nome, hex]) => [nome ?? '', (hex ?? '').toLowerCase()]))
   return { claro: ler(miolo(css, css.indexOf('@theme static'))), escuro: ler(miolo(css, css.search(/:root\[data-tema='escuro'\]\s*\{/))) }
 }
@@ -81,7 +81,7 @@ function reprovados(pares: readonly Par[], cores: Map<string, string>, tema: Tem
   return pares.flatMap(({ nome, texto, fundo, minimo }) => {
     const corDoTexto = cores.get(texto)
     const corDoFundo = cores.get(fundo)
-    if (corDoTexto === undefined || corDoFundo === undefined) return [`${tema} · ${nome}: ${corDoTexto === undefined ? texto : fundo} não existe em estilos.css`]
+    if (corDoTexto === undefined || corDoFundo === undefined) return [`${tema} · ${nome}: ${corDoTexto === undefined ? texto : fundo} não existe em index.css`]
     const razao = contraste(corDoTexto, corDoFundo)
     return razao >= minimo ? [] : [`${tema} · ${nome}: ${texto} (${corDoTexto}) sobre ${fundo} (${corDoFundo}) dá ${razao.toFixed(2)}, e o mínimo é ${String(minimo)}`]
   })
@@ -130,7 +130,7 @@ describe('contraste dos pares da pele (docs/interface.md 9.1)', () => {
     ).toEqual([
       'claro · Texto apagado no chão: sutil (#afafaf) sobre fundo (#ffffff) dá 2.19, e o mínimo é 4.5',
       'claro · Borda apagada no chão: sutil (#afafaf) sobre fundo (#ffffff) dá 2.19, e o mínimo é 3',
-      'claro · Par com token que saiu: sumiu não existe em estilos.css',
+      'claro · Par com token que saiu: sumiu não existe em index.css',
     ])
   })
 })

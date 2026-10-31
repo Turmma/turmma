@@ -1,6 +1,6 @@
 import { ErrorCode, MENSAGENS_DE_ERRO, VALIDADES_DO_ACESSO_DIAS } from '@educa/shared'
 import { describe, expect, it } from 'vitest'
-import { ErroDaApi } from '../../../../api/cliente'
+import { ErroDaApi } from '../../../../api/client'
 import {
   codigoEmDoisGrupos,
   convitePedido,

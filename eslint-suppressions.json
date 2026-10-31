@@ -32,12 +32,12 @@
       "count": 1
     }
   },
-  "apps/api/src/credencial/configuracao-externa.ts": {
+  "apps/api/src/credencial/external-login-config.ts": {
     "complexity": {
       "count": 1
     }
   },
-  "apps/api/src/credencial/senha/semaforo-de-hash.ts": {
+  "apps/api/src/credencial/senha/hash-bulkhead.ts": {
     "complexity": {
       "count": 2
     }
@@ -57,12 +57,12 @@
       "count": 1
     }
   },
-  "apps/api/src/material/extracao-de-pdf.ts": {
+  "apps/api/src/material/pdf-extraction.ts": {
     "complexity": {
       "count": 1
     }
   },
-  "apps/api/src/operacao/segundo-fator/segundo-fator.service.ts": {
+  "apps/api/src/operacao/mfa/segundo-fator.service.ts": {
     "complexity": {
       "count": 1
     }
@@ -107,7 +107,7 @@
       "count": 1
     }
   },
-  "apps/api/src/sessao/externa/externa.service.ts": {
+  "apps/api/src/sessao/external/external-login.service.ts": {
     "complexity": {
       "count": 1
     }
@@ -142,7 +142,7 @@
       "count": 1
     }
   },
-  "apps/api/test/arquitetura.test.ts": {
+  "apps/api/test/architecture.test.ts": {
     "complexity": {
       "count": 4
     },
@@ -155,7 +155,7 @@
       "count": 1
     }
   },
-  "apps/api/test/contratos.test.ts": {
+  "apps/api/test/contracts.test.ts": {
     "complexity": {
       "count": 1
     }
@@ -175,7 +175,7 @@
       "count": 2
     }
   },
-  "apps/api/test/material-de-teste.ts": {
+  "apps/api/test/material.fixture.ts": {
     "complexity": {
       "count": 1
     }
@@ -200,7 +200,7 @@
       "count": 1
     }
   },
-  "apps/api/test/rotas-registradas.ts": {
+  "apps/api/test/registered-routes.ts": {
     "complexity": {
       "count": 1
     }
@@ -215,12 +215,12 @@
       "count": 1
     }
   },
-  "apps/despachante/src/despachante.test.ts": {
+  "apps/despachante/src/outbox-relay.test.ts": {
     "complexity": {
       "count": 1
     }
   },
-  "apps/despachante/src/montagem.ts": {
+  "apps/despachante/src/composition.ts": {
     "complexity": {
       "count": 1
     },
@@ -228,12 +228,12 @@
       "count": 1
     }
   },
-  "apps/web/nome-dos-chunks.test.ts": {
+  "apps/web/chunk-names.test.ts": {
     "complexity": {
       "count": 1
     }
   },
-  "apps/web/src/api/cliente.ts": {
+  "apps/web/src/api/client.ts": {
     "complexity": {
       "count": 2
     }
@@ -542,7 +542,7 @@
       "count": 2
     }
   },
-  "apps/web/src/componentes/CascaDaEscola.tsx": {
+  "apps/web/src/components/CascaDaEscola.tsx": {
     "complexity": {
       "count": 1
     },
@@ -550,7 +550,7 @@
       "count": 1
     }
   },
-  "apps/web/src/componentes/DialogoDoConvite.tsx": {
+  "apps/web/src/components/DialogoDoConvite.tsx": {
     "complexity": {
       "count": 2
     },
@@ -558,7 +558,7 @@
       "count": 2
     }
   },
-  "apps/web/src/componentes/LoginPorCima.tsx": {
+  "apps/web/src/components/LoginPorCima.tsx": {
     "complexity": {
       "count": 1
     },
@@ -566,17 +566,17 @@
       "count": 1
     }
   },
-  "apps/web/src/componentes/SeletorDeEscola.tsx": {
+  "apps/web/src/components/SeletorDeEscola.tsx": {
     "max-lines-per-function": {
       "count": 1
     }
   },
-  "apps/web/src/componentes/meus-dados/MeusDados.tsx": {
+  "apps/web/src/components/meus-dados/MeusDados.tsx": {
     "complexity": {
       "count": 1
     }
   },
-  "apps/web/src/componentes/pedidos/DialogoDeDecisao.tsx": {
+  "apps/web/src/components/pedidos/DialogoDeDecisao.tsx": {
     "complexity": {
       "count": 1
     },
@@ -584,7 +584,7 @@
       "count": 1
     }
   },
-  "apps/web/src/componentes/pedidos/ListaDePedidos.tsx": {
+  "apps/web/src/components/pedidos/ListaDePedidos.tsx": {
     "complexity": {
       "count": 2
     },
@@ -592,27 +592,27 @@
       "count": 1
     }
   },
-  "apps/web/src/componentes/sino/Sino.tsx": {
+  "apps/web/src/components/sino/Sino.tsx": {
     "complexity": {
       "count": 1
     }
   },
-  "apps/web/src/componentes/ui/campos/Campo.tsx": {
+  "apps/web/src/components/ui/fields/Campo.tsx": {
     "complexity": {
       "count": 1
     }
   },
-  "apps/web/src/componentes/ui/campos/CampoLongo.tsx": {
+  "apps/web/src/components/ui/fields/CampoLongo.tsx": {
     "complexity": {
       "count": 1
     }
   },
-  "apps/web/src/componentes/ui/campos/Selecao.tsx": {
+  "apps/web/src/components/ui/fields/Selecao.tsx": {
     "complexity": {
       "count": 1
     }
   },
-  "apps/web/src/componentes/ui/ia/CaixaPedido.tsx": {
+  "apps/web/src/components/ui/ai/CaixaPedido.tsx": {
     "complexity": {
       "count": 1
     },
@@ -620,7 +620,7 @@
       "count": 1
     }
   },
-  "apps/web/src/componentes/ui/ia/MotorFormulario.tsx": {
+  "apps/web/src/components/ui/ai/MotorFormulario.tsx": {
     "complexity": {
       "count": 2
     },
@@ -628,22 +628,22 @@
       "count": 1
     }
   },
-  "apps/web/src/componentes/ui/ia/motor-formulario.ts": {
+  "apps/web/src/components/ui/ai/schema-form.ts": {
     "complexity": {
       "count": 3
     }
   },
-  "apps/web/src/componentes/ui/icones/lugares.test.tsx": {
+  "apps/web/src/components/ui/icons/places.test.tsx": {
     "complexity": {
       "count": 1
     }
   },
-  "apps/web/src/componentes/ui/sobrepostos/DialogoDeConfirmacao.tsx": {
+  "apps/web/src/components/ui/overlays/DialogoDeConfirmacao.tsx": {
     "complexity": {
       "count": 1
     }
   },
-  "apps/web/src/componentes/ui/sobrepostos/Menu.tsx": {
+  "apps/web/src/components/ui/overlays/Menu.tsx": {
     "complexity": {
       "count": 2
     },
@@ -651,12 +651,12 @@
       "count": 1
     }
   },
-  "apps/web/src/componentes/ui/sobrepostos/flutuante.ts": {
+  "apps/web/src/components/ui/overlays/floating.ts": {
     "complexity": {
       "count": 1
     }
   },
-  "apps/web/src/componentes/ui/sobrepostos/teclado-do-menu.ts": {
+  "apps/web/src/components/ui/overlays/menu-keyboard.ts": {
     "complexity": {
       "count": 1
     }
@@ -666,12 +666,12 @@
       "count": 1
     }
   },
-  "apps/web/src/galeria/secoes/estado.tsx": {
+  "apps/web/src/gallery/sections/states.tsx": {
     "max-lines-per-function": {
       "count": 1
     }
   },
-  "apps/web/src/galeria/secoes/ia.tsx": {
+  "apps/web/src/gallery/sections/ai.tsx": {
     "max-lines-per-function": {
       "count": 1
     }
@@ -686,17 +686,17 @@
       "count": 1
     }
   },
-  "apps/web/src/operacao/paginas/ConfigurarMfa.tsx": {
+  "apps/web/src/operacao/pages/ConfigurarMfa.tsx": {
     "max-lines-per-function": {
       "count": 2
     }
   },
-  "apps/web/src/operacao/paginas/Convite.tsx": {
+  "apps/web/src/operacao/pages/Convite.tsx": {
     "max-lines-per-function": {
       "count": 1
     }
   },
-  "apps/web/src/operacao/paginas/Escolas.tsx": {
+  "apps/web/src/operacao/pages/Escolas.tsx": {
     "complexity": {
       "count": 1
     },
@@ -704,12 +704,12 @@
       "count": 1
     }
   },
-  "apps/web/src/operacao/paginas/Mfa.tsx": {
+  "apps/web/src/operacao/pages/Mfa.tsx": {
     "max-lines-per-function": {
       "count": 1
     }
   },
-  "apps/web/src/operacao/paginas/NovaEscola.tsx": {
+  "apps/web/src/operacao/pages/NovaEscola.tsx": {
     "complexity": {
       "count": 1
     },
@@ -717,12 +717,12 @@
       "count": 1
     }
   },
-  "apps/web/src/operacao/paginas/Uso.tsx": {
+  "apps/web/src/operacao/pages/Uso.tsx": {
     "complexity": {
       "count": 1
     }
   },
-  "apps/web/src/paginas/Convite.tsx": {
+  "apps/web/src/pages/Convite.tsx": {
     "complexity": {
       "count": 2
     },
@@ -730,12 +730,12 @@
       "count": 1
     }
   },
-  "apps/web/src/paginas/Mfa.tsx": {
+  "apps/web/src/pages/Mfa.tsx": {
     "max-lines-per-function": {
       "count": 1
     }
   },
-  "apps/web/src/paginas/TurmaPublica.tsx": {
+  "apps/web/src/pages/TurmaPublica.tsx": {
     "complexity": {
       "count": 2
     },
@@ -748,12 +748,12 @@
       "count": 1
     }
   },
-  "apps/worker/src/executor.test.ts": {
+  "apps/worker/src/job-executor.test.ts": {
     "complexity": {
       "count": 1
     }
   },
-  "apps/worker/src/montagem.ts": {
+  "apps/worker/src/composition.ts": {
     "complexity": {
       "count": 1
     },
@@ -761,12 +761,12 @@
       "count": 1
     }
   },
-  "apps/worker/src/processadores/consolidar-uso.ts": {
+  "apps/worker/src/processors/consolidar-uso.ts": {
     "complexity": {
       "count": 1
     }
   },
-  "apps/worker/src/processadores/expurgar-escola.ts": {
+  "apps/worker/src/processors/expurgar-escola.ts": {
     "complexity": {
       "count": 1
     },
@@ -779,27 +779,27 @@
       "count": 1
     }
   },
-  "e2e/__fixtures__/aluno.ts": {
+  "e2e/support/aluno.ts": {
     "complexity": {
       "count": 1
     }
   },
-  "e2e/__fixtures__/assistente.ts": {
+  "e2e/support/assistente.ts": {
     "complexity": {
       "count": 1
     }
   },
-  "e2e/__fixtures__/avatar.ts": {
+  "e2e/support/avatar.ts": {
     "complexity": {
       "count": 1
     }
   },
-  "e2e/__fixtures__/painel.ts": {
+  "e2e/support/painel.ts": {
     "complexity": {
       "count": 1
     }
   },
-  "e2e/__fixtures__/professor/cena.ts": {
+  "e2e/support/professor/scenario.ts": {
     "complexity": {
       "count": 2
     }

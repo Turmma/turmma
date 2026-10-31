@@ -1,11 +1,11 @@
 import type { ExecucaoAceitaResponse } from '@educa/shared'
 import type { CicloDeExecucao } from '../../api/ciclo-de-execucao'
-import { criarLugarNaAba } from '../../api/memoria-da-aba'
+import { criarLugarNaAba } from '../../api/tab-store'
 import { enviarMensagemAoTutor } from '../../api/tutor'
 import type { PedidoAoTutor } from './tutor'
 
 /**
- * O que a tela do Tutor lembra entre uma rota e outra (`api/memoria-da-aba.ts`): **só em memória**, e esvaziado com a
+ * O que a tela do Tutor lembra entre uma rota e outra (`api/tab-store.ts`): **só em memória**, e esvaziado com a
  * sessão. A conversa não mora aqui: ela é da API (`api/tutor.ts`). Aqui fica só a pergunta que saiu e ainda está sendo
  * respondida — uma por vez, em qualquer atividade.
  */

@@ -14,11 +14,11 @@ import { raizRepositorio } from './executar.ts'
 // sozinha (`index-*.js`, o chunk que o Vite gera para o `index.html`); 60 kB no chunk da área do operador (`operacao-*.js`); e
 // um teto próprio para a área de cada papel (`coordenacao-*.js`, `professor-*.js`, `aluno-*.js`). A operação e as áreas
 // só se baixam por `import()` e não pesam no primeiro carregamento do Chromebook. Os nomes são garantidos por
-// `apps/web/nome-dos-chunks.ts`, com o teste dele sobre o build de verdade.
+// `apps/web/chunk-names.ts`, com o teste dele sobre o build de verdade.
 //
 // O **primeiro carregamento inteiro** (a entrada e os pedaços que ela importa estaticamente) não está aqui: um glob não
 // sabe quem importa quem, e o grupo `index-*` + `parte-*` passou a somar o `parte-*` que só as áreas dividem. O teto de
-// 150 kB dele está no teste do build de verdade (`apps/web/nome-dos-chunks.test.ts`), que segue os `import`.
+// 150 kB dele está no teste do build de verdade (`apps/web/chunk-names.test.ts`), que segue os `import`.
 //
 // No MVP de apresentação entram mais dois nomes. As peças (`pecas-*.js`) têm teto próprio aqui; a galeria (`galeria-*.js`)
 // não entra nele. A tela que uma área carrega por `import()` (`tela-<area>-*.js`) não tem: o glob soma os arquivos, e o

@@ -4,8 +4,8 @@ import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { EscolaSessaoRepository } from '../src/estrutura/escola-sessao/escola-sessao.repository.js'
-import { chamar, subirApi, type ApiDeTeste } from './api-com-sessao.js'
-import { BancadaDeSessoes, type SessaoDeTeste } from './sessao-de-teste.js'
+import { chamar, subirApi, type ApiDeTeste } from './test-api.js'
+import { BancadaDeSessoes, type SessaoDeTeste } from './sessao.fixture.js'
 
 describe('PUT /v1/escola/sessao: a coordenação configura a inatividade da própria escola', () => {
   const bancada = new BancadaDeSessoes()

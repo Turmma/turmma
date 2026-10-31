@@ -3,7 +3,7 @@ import { ErrorCode, reivindicacaoResponseSchema, type ReivindicarSalaRequest, ty
 import { TurmaRepository } from '../../estrutura/turma/turma.repository.js'
 import type { AcessoDaSala } from '../../sessao/index.js'
 import { baldeDaEscola, type HashDeSenha, type SemaforoDeHash } from '../../credencial/index.js'
-import type { LimitesDaSala } from '../limites-da-sala.js'
+import type { LimitesDaSala } from '../sala-rate-limits.js'
 import { ListaLivreRepository } from './lista-livre.repository.js'
 import { ReivindicacaoRepository } from './reivindicacao.repository.js'
 import { entradaDaSala } from '../entrada-da-sala.js'

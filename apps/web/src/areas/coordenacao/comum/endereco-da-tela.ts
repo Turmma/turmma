@@ -1,4 +1,4 @@
-import type { PARAMETRO_DO_MATERIAL, PARAMETRO_DO_PROFESSOR } from '../../../caminhos'
+import type { PARAMETRO_DO_MATERIAL, PARAMETRO_DO_PROFESSOR } from '../../../paths'
 
 /**
  * Os parâmetros que as telas da coordenação põem no endereço para abrir algo por cima delas ou filtrar (Tech Spec da X2, seção 5):

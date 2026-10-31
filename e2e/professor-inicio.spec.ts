@@ -1,11 +1,11 @@
 import { randomUUID } from 'node:crypto'
-import { atividadeSintetica, versaoAdaptada } from './__fixtures__/assistente.ts'
-import { conferirAssinaturas } from './__fixtures__/avatar.ts'
-import { caixa } from './__fixtures__/fluxo-do-professor.ts'
-import { acionar, entrar, irPara, PRAZO_DA_TELA_MS } from './__fixtures__/professor/cena.ts'
-import { esperarSino, listaDoSino } from './__fixtures__/professor/sino.ts'
-import { larguraExcedente, violacoesGraves } from './__fixtures__/verificacoes.ts'
-import { expect, test } from './__fixtures__/perfis.ts'
+import { atividadeSintetica, versaoAdaptada } from './support/assistente.ts'
+import { conferirAssinaturas } from './support/avatar.ts'
+import { caixa } from './support/professor-flow.ts'
+import { acionar, entrar, irPara, PRAZO_DA_TELA_MS } from './support/professor/scenario.ts'
+import { esperarSino, listaDoSino } from './support/professor/sino.ts'
+import { larguraExcedente, violacoesGraves } from './support/checks.ts'
+import { expect, test } from './support/profiles.ts'
 
 /**
  * A Home do professor, "Início" (A2 e telas do professor, 3.0; `docs/interface.md` 11.5): o fluxo. Os estados (carregando,

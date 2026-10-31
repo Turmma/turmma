@@ -1,11 +1,11 @@
 import type { Locator, Page } from '@playwright/test'
-import { entregasNoBanco } from './__fixtures__/a2.ts'
-import { conferirAssinaturas } from './__fixtures__/avatar.ts'
-import { acionar, caixa, conversa, DISCIPLINA, gerarAtividade, montarEscolaEEntrar, PRAZO_DA_IA_MS, principal, TITULO_DO_MATERIAL } from './__fixtures__/fluxo-do-professor.ts'
-import { irPelaNavegacao, PRAZO_DA_ENTRADA_MS } from './__fixtures__/casca.ts'
-import { sinoDe } from './__fixtures__/professor/sino.ts'
-import { expect, test } from './__fixtures__/perfis.ts'
-import { larguraExcedente, larguraExcedenteDoDialogo, violacoesGraves } from './__fixtures__/verificacoes.ts'
+import { entregasNoBanco } from './support/db-assertions.ts'
+import { conferirAssinaturas } from './support/avatar.ts'
+import { acionar, caixa, conversa, DISCIPLINA, gerarAtividade, montarEscolaEEntrar, PRAZO_DA_IA_MS, principal, TITULO_DO_MATERIAL } from './support/professor-flow.ts'
+import { irPelaNavegacao, PRAZO_DA_ENTRADA_MS } from './support/casca.ts'
+import { sinoDe } from './support/professor/sino.ts'
+import { expect, test } from './support/profiles.ts'
+import { larguraExcedente, larguraExcedenteDoDialogo, violacoesGraves } from './support/checks.ts'
 
 /**
  * **O fluxo da A2 de verdade** (`docs/mvp-rapido.md`, seção 1, passos 1 e 2), contra a API real e o adaptador falso, que

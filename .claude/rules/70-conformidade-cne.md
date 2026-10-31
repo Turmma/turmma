@@ -90,13 +90,13 @@ O detalhamento está em `docs/regulacao.md` (o que a lei exige) e em
    que é proibido é afirmar ser humano quando o aluno pergunta, usar nome que sugira uma pessoa
    real, e simular vínculo afetivo ou dependência. A transparência exigida pela norma vem do
    produto inteiro se apresentar como IA e de toda saída de IA ser rotulada como tal.
-    Checagem: `packages/core/src/ia/tasks/turno-do-tutor.test.ts`, `apps/web/src/componentes/ui/ia/avatar-com-funcao-e-selo.test.tsx`.
+    Checagem: `packages/core/src/ia/tasks/turno-do-tutor.test.ts`, `apps/web/src/components/ui/ai/avatar-com-funcao-e-selo.test.tsx`.
 
 4b. **Nada induz uso excessivo, e sair nunca é mais difícil que entrar** (D59; Decreto 12.880,
    arts. 9º e 10). Proibido: recompensa por tempo de uso, sequência de dias, conteúdo que
    começa sozinho, rolagem infinita, notificação fora do horário útil da escola, esconder o
    ponto de parada, e caminho de recusar, sair ou revogar mais longo que o de aceitar.
-    Checagem: `apps/web/src/areas/aluno/tutor.test.ts`, `e2e/aluno-tutor.spec.ts`, `apps/web/src/componentes/MenuDaPessoa.test.tsx`, `conformidade-reviewer`.
+    Checagem: `apps/web/src/areas/aluno/tutor.test.ts`, `e2e/aluno-tutor.spec.ts`, `apps/web/src/components/MenuDaPessoa.test.tsx`, `conformidade-reviewer`.
 
 4c. **O Tutor só pesquisa fora do material em fontes aprovadas, e só quando a escola liberou e
    o professor ligou** (D68). Desligada por padrão, só no modo sala, sempre desligada em

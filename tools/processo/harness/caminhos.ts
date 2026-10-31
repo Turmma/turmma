@@ -3,7 +3,7 @@
 // A extração devolve o token cru (com `<...>`, `*` e a `/` final, sem repetir), e cada teste filtra o seu: a 16.0 confere papel,
 // regra e guarda; a 21.0 confere a skill de receitas e o guia. Limites declarados: caminho escrito com espaço, ou partido em duas
 // crases, não é extraído; o `./` solto no fim de uma frase leva o ponto junto (`./apps/x.ts.`) e vira falso vermelho (a saída é pôr o
-// caminho entre crases); e o que o texto cita sem pasta da raiz (`componentes/dialogos.tsx`, `guardas/log-sem-dado-pessoal`, uma
+// caminho entre crases); e o que o texto cita sem pasta da raiz (`components/dialogs.tsx`, `guardas/log-sem-dado-pessoal`, uma
 // rota) não é conferido.
 import { existsSync, globSync, statSync } from 'node:fs'
 import { dirname, join } from 'node:path'

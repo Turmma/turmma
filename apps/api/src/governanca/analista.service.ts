@@ -11,8 +11,8 @@ import {
   type ExecucaoAceitaResponse,
   type ResumoDoAnalistaResponse,
 } from '@educa/shared'
-import type { LimiteDePedidosDeIa } from '../assistente/limite-de-pedidos-de-ia.js'
-import type { AgendadorDeExecucoes } from '../ia/agendador-de-execucoes.js'
+import type { LimiteDePedidosDeIa } from '../assistente/ai-request-rate-limit.js'
+import type { AgendadorDeExecucoes } from '../ia/execucao.scheduler.js'
 import { AnalistaRepository } from './analista.repository.js'
 
 const registro = new AuditoriaRecorder()

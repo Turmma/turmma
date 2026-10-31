@@ -104,7 +104,7 @@ describe('trava: pasta com mais de 25 arquivos de produção', () => {
   it('no repositório, nenhuma pasta das raízes da trava, web e API, passa de 25 arquivos de produção, e a conta enxerga as áreas e os recursos partidos', () => {
     const todos = arquivosDasRaizes(RAIZES_DA_TRAVA)
     // A conta não ficou vazia, e cada raiz da lista conta: sem a da API, os pontos de conferência dela somem e o caso reprova.
-    expect(todos).toContain('apps/web/src/areas/professor/rotas.tsx')
+    expect(todos).toContain('apps/web/src/areas/professor/routes.tsx')
     expect(todos).toContain('apps/web/src/areas/professor/turmas/Turmas.tsx')
     expect(todos).toContain('apps/web/src/areas/coordenacao/estrutura/Estrutura.tsx')
     expect(todos).toContain('apps/api/src/estrutura/turma/turma.controller.ts')

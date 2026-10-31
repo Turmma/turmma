@@ -1,12 +1,12 @@
 import type { APIRequestContext, Locator, Page } from '@playwright/test'
-import { entrarPelaTelaComSegundoFator, esperarPainel, PRAZO_DA_ENTRADA_MS } from './__fixtures__/casca.ts'
-import { abrirPelaApiSemMedirAPrimeiraCarga, configurarSegundoFatorPelaApi } from './__fixtures__/segundo-fator.ts'
-import { irPelaCoordenacao } from './__fixtures__/coordenacao.ts'
-import { conferirAssinaturas, conferirTamanhoDoAvatar } from './__fixtures__/avatar.ts'
-import { auditoriasNoBanco, montarEscolaComEntregas, type EscolaComEntregas } from './__fixtures__/governanca.ts'
-import { expect, test } from './__fixtures__/perfis.ts'
-import { criarEquipeComSenha, type EquipeDeTeste } from './__fixtures__/sessao.ts'
-import { larguraExcedente, larguraExcedenteDoDialogo, violacoesGraves } from './__fixtures__/verificacoes.ts'
+import { entrarPelaTelaComSegundoFator, esperarPainel, PRAZO_DA_ENTRADA_MS } from './support/casca.ts'
+import { abrirPelaApiSemMedirAPrimeiraCarga, configurarSegundoFatorPelaApi } from './support/mfa.ts'
+import { irPelaCoordenacao } from './support/coordenacao.ts'
+import { conferirAssinaturas, conferirTamanhoDoAvatar } from './support/avatar.ts'
+import { auditoriasNoBanco, montarEscolaComEntregas, type EscolaComEntregas } from './support/governanca.ts'
+import { expect, test } from './support/profiles.ts'
+import { criarEquipeComSenha, type EquipeDeTeste } from './support/seed.ts'
+import { larguraExcedente, larguraExcedenteDoDialogo, violacoesGraves } from './support/checks.ts'
 
 /**
  * O Analista e o pedido de dado nominal da coordenação (X2, 3.0 e 4.0; vieram de `governanca.spec.ts`): o resumo, o alerta como

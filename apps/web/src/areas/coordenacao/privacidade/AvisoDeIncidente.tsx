@@ -2,9 +2,9 @@ import { useQuery } from '@tanstack/react-query'
 import { TriangleAlert } from 'lucide-react'
 import { useEffect, useId, useRef, useState, type RefObject } from 'react'
 import { consultaIncidentes } from './api/privacidade'
-import { Botao } from '../../../componentes/ui/Botao'
-import { Dialogo } from '../../../componentes/ui/sobrepostos/Dialogo'
-import { useDialogoPrioritario } from '../../../componentes/ui/sobrepostos/dialogo-prioritario'
+import { Botao } from '../../../components/ui/Botao'
+import { Dialogo } from '../../../components/ui/overlays/Dialogo'
+import { useDialogoPrioritario } from '../../../components/ui/overlays/priority-dialog'
 import { useConfirmarIncidente } from './confirmar-o-incidente'
 import { DetalhesDoIncidente } from './DetalhesDoIncidente'
 import { TEXTO_DO_QUE_CONFIRMAR_FAZ, textoDaFaixa, textoDaFila } from './textos-dos-incidentes'
@@ -44,7 +44,7 @@ function FaixaDoIncidente({ pendentes, botao, aoVer }: { readonly pendentes: num
 
 /**
  * Marca o diálogo do aviso como prioritário enquanto ele está na tela: o painel que abre pelo endereço espera por ele em vez de
- * abrir por cima (`componentes/ui/sobrepostos/dialogo-prioritario.ts`). É um filho do `Dialogo`: o efeito dos filhos roda antes do que abre o `dialog`.
+ * abrir por cima (`components/ui/overlays/priority-dialog.ts`). É um filho do `Dialogo`: o efeito dos filhos roda antes do que abre o `dialog`.
  */
 function PrioridadeDoAviso() {
   useDialogoPrioritario()

@@ -16,7 +16,7 @@ import { pathToFileURL } from 'node:url'
 import { parseArgs } from 'node:util'
 import { z } from 'zod'
 import { AcessoDaEscolaRepository } from '../credencial/index.js'
-import { abrirBancoDeOperacao, ArgumentoInvalido, autorDoComando, lerOperador, OperadorRecusado, type BancoDoComando, type SaidaDoComando } from './comando.js'
+import { abrirBancoDeOperacao, ArgumentoInvalido, autorDoComando, lerOperador, OperadorRecusado, type BancoDoComando, type SaidaDoComando } from './command.js'
 import { OperacaoPrivacidadeRepository } from './operacao-privacidade.repository.js'
 import type { ConferenciaDoAutor } from '../sessao/index.js'
 

@@ -1,15 +1,15 @@
 import type { Database, LoggerBase } from '@educa/core'
 import { Global, Module, type DynamicModule } from '@nestjs/common'
 import type { Redis } from 'ioredis'
-import { BANCO } from '../banco.module.js'
-import { AgendadorDeExecucoes } from '../ia/agendador-de-execucoes.js'
+import { BANCO } from '../database.module.js'
+import { AgendadorDeExecucoes } from '../ia/execucao.scheduler.js'
 import { CLIENTE_REDIS_LOGIN, ContadorEmJanela } from '../credencial/index.js'
 import { AssistenteController } from './assistente.controller.js'
 import { AssistenteService } from './assistente.service.js'
-import { avisarSeguroDosPedidosDeIa, JANELA_DOS_PEDIDOS_DE_IA_MS, LimiteDePedidosDeIa } from './limite-de-pedidos-de-ia.js'
+import { avisarSeguroDosPedidosDeIa, JANELA_DOS_PEDIDOS_DE_IA_MS, LimiteDePedidosDeIa } from './ai-request-rate-limit.js'
 import { TimeController } from './time.controller.js'
 import { TimeService } from './time.service.js'
-import { BuscaDeTrechos } from '../material/busca-de-trechos.js'
+import { BuscaDeTrechos } from '../material/trecho-search.js'
 
 export interface OpcoesDoAssistente {
   /** A chave de HMAC dos contadores (`LOGIN_CHAVE_CONTADOR`): a chave do contador nunca é o id em texto. */

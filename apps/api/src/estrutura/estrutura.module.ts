@@ -1,6 +1,6 @@
 import type { Database } from '@educa/core'
 import { Module } from '@nestjs/common'
-import { BANCO } from '../banco.module.js'
+import { BANCO } from '../database.module.js'
 import { AnoLetivoController } from './ano-letivo/ano-letivo.controller.js'
 import { AnoLetivoService } from './ano-letivo/ano-letivo.service.js'
 import { DisciplinaController } from './disciplina/disciplina.controller.js'

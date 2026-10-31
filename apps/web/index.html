@@ -13,7 +13,7 @@
       pintar e sem esperar o pacote do React. Lê a escolha da pessoa (`claro` ou `escuro`), cai no que o aparelho diz e
       escreve `data-tema` no <html>: só `claro` ou `escuro`, nunca o texto que leu. No fim, a letra do aluno (`educa.letra`)
       vira `data-letra`, só em `/aluno`. Nunca lança: armazenamento que recusa e
-      navegador sem `matchMedia` caem no claro. `src/tema.ts` repete esta conta em `resolverTema`, e `tema.test.ts` roda
+      navegador sem `matchMedia` caem no claro. `src/theme.ts` repete esta conta em `resolverTema`, e `theme.test.ts` roda
       este script contra ela. Entra por hash quando a borda servir política de segurança de conteúdo (`TODO.md`, F16).
     -->
     <script>
@@ -29,7 +29,7 @@
         var tema = escolha === 'claro' || escolha === 'escuro' ? escolha : escuro ? 'escuro' : 'claro'
         document.documentElement.setAttribute('data-tema', tema)
         // A letra do aluno (telas do aluno e primeiro acesso, 8.0): só `grande` ou `maior`, só em `/aluno`. Padrão não deixa
-        // atributo. `src/letra.ts` repete esta conta em `resolverLetra`, e `letra.test.ts` roda este script contra ela.
+        // atributo. `src/text-size.ts` repete esta conta em `resolverLetra`, e `text-size.test.ts` roda este script contra ela.
         try {
           var letra = window.localStorage.getItem('educa.letra')
           var caminho = window.location.pathname

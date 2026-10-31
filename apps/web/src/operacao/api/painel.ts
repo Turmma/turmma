@@ -16,7 +16,7 @@ import {
   type CriadoNoPainelResponse,
 } from '@educa/shared'
 import { keepPreviousData, mutationOptions, queryOptions } from '@tanstack/react-query'
-import { SEM_CORPO } from '../../api/cliente'
+import { SEM_CORPO } from '../../api/client'
 import { chamarComSessaoDeOperador } from './sessao'
 
 /**

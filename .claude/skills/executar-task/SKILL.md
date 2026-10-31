@@ -128,7 +128,7 @@ que você não o tenha alterado; o portão escreve `▶ e2e/<arquivo> entra nos 
 portão e **atualize o texto no e2e**: o spec entra para rodar, e o caso lento que já estava lá não é cobrado de você (a duração só vale
 para o caso que o diff tocou). Limites: o portão não acha (i) o spec que cita só um **pedaço** do texto removido (tirar "Governança da
 escola" não puxa o spec que procura `/governança/i`), (ii) o texto de JSX que continua na linha de baixo começando em minúscula, nem o
-template que atravessa linhas, e (iii) o texto citado só num ajudante de `e2e/__fixtures__/`, que não puxa os specs que o importam. Ao
+template que atravessa linhas, e (iii) o texto citado só num ajudante de `e2e/support/`, que não puxa os specs que o importam. Ao
 contrário, o texto só conta como tirado quando **nenhum** `apps/web/src/**/*.{ts,tsx}` (menos os `.test`) ainda o tem: o que sai de um arquivo e
 continua em outro não puxa spec; o
 spec que o procurava justamente na tela trocada cai na esteira. Troca de texto da tela: procure você mesmo, com `grep -rn` em `e2e/`, o pedaço que o e2e usa.
@@ -170,7 +170,7 @@ fotografar. A vitrine usa o banco de teste: não fotografe com teste rodando. Se
 diga o erro na linha "Telas vistas" do relatório; não é motivo de `STATUS: FALHA`.
 
 **Duas tentativas seguidas no mesmo teste sem entender a causa: pare de tentar.** Leia o erro
-inteiro, um teste vizinho que já passa e o helper que ele usa (`e2e/__fixtures__/`,
+inteiro, um teste vizinho que já passa e o helper que ele usa (`e2e/support/`,
 `apps/api/test/`). Se a terceira também falhar, não insista: envie o relatório do passo 7 com
 `STATUS: FALHA`, dizendo o teste, o erro e o que você já tentou. Quem retoma recebe isso como contexto
 e, na segunda falha, um diagnóstico do Arquiteto com o ponto exato.
@@ -207,7 +207,7 @@ grep -rln "<um vizinho que já existia: a rota irmã, a métrica irmã, o arquiv
 
 Se entrar na lista parece contrariar a regra que o teste cita, não atualize: é `DIVERGÊNCIA`, com
 `Motivo: desenho`. Os que costumam ficar vermelhos: `apps/api/test/retencao.int.test.ts`,
-`apps/api/src/assistente/assistente.int.test.ts` e `infra/test/metricas.int.test.ts`.
+`apps/api/src/assistente/assistente.int.test.ts` e `infra/test/metrics.int.test.ts`.
 
 O e2e inteiro e a suíte de infra inteira **não** rodam no portão da tarefa. Rodam na esteira do
 GitHub, que o push do seu commit dispara e ninguém espera (D79): o que a tarefa quebrar fora dos alvos

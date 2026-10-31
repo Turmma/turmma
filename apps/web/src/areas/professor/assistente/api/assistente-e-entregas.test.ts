@@ -12,7 +12,7 @@ const importar = async () => ({
   ferramentas: await import('../../ferramentas/api/ferramentas'),
   artefatos: await import('../../artefatos/api/artefatos'),
   entregas: await import('../../artefatos/api/entregas'),
-  memoria: await import('../../../../api/memoria-da-aba'),
+  memoria: await import('../../../../api/tab-store'),
 })
 type Modulos = Awaited<ReturnType<typeof importar>>
 

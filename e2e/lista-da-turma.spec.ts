@@ -1,9 +1,9 @@
 import { randomUUID } from 'node:crypto'
 import type { Locator, Page, Request, Route } from '@playwright/test'
 import { MENSAGENS_DE_ERRO } from '../packages/shared/src/errors/messages.ts'
-import { entrarComoCoordenacaoNaMesmaAba, abrirEstrutura, esperarEstrutura, esperarPainel, PRAZO_DA_ENTRADA_MS } from './__fixtures__/casca.ts'
-import { linhasDaTabela, paginaNaoRola } from './__fixtures__/coordenacao.ts'
-import { expect, test } from './__fixtures__/perfis.ts'
+import { entrarComoCoordenacaoNaMesmaAba, abrirEstrutura, esperarEstrutura, esperarPainel, PRAZO_DA_ENTRADA_MS } from './support/casca.ts'
+import { linhasDaTabela, paginaNaoRola } from './support/coordenacao.ts'
+import { expect, test } from './support/profiles.ts'
 import {
   apagarTurmaNoBanco,
   confirmarVinculosNoBanco,
@@ -12,8 +12,8 @@ import {
   criarEquipeComSenha,
   montarEstruturaNoBanco,
   porNaListaDaTurma,
-} from './__fixtures__/sessao.ts'
-import { larguraExcedente, violacoesGraves } from './__fixtures__/verificacoes.ts'
+} from './support/seed.ts'
+import { larguraExcedente, violacoesGraves } from './support/checks.ts'
 
 /**
  * A lista de nomes da turma (X2, 3.0; movida de `estrutura.spec.ts` sem editar o corpo): W10 e W4 (Lista), o arquivo do Excel e o
@@ -27,7 +27,7 @@ import { larguraExcedente, violacoesGraves } from './__fixtures__/verificacoes.t
 const INDISPONIVEL = JSON.stringify({ erro: { codigo: 'INDISPONIVEL_TENTE_DE_NOVO', mensagem: 'texto que a tela não usa', requisicaoId: '0190f5a0-0000-7000-8000-000000000001' } })
 
 /** Os nomes que o arquivo do Excel traz, com acento: é por eles que se vê que o windows-1252 foi lido certo. */
-const ARQUIVO_DO_EXCEL = 'e2e/__fixtures__/lista-excel.csv'
+const ARQUIVO_DO_EXCEL = 'e2e/support/lista-excel.csv'
 
 async function acionar(alvo: Locator, hasTouch: boolean): Promise<void> {
   if (hasTouch) await alvo.tap()

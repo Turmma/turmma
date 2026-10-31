@@ -1,6 +1,6 @@
 import { createPortal } from 'react-dom'
-import { useAncoraDoSino } from '../../../componentes/ancora-do-sino'
-import { Sino } from '../../../componentes/sino/Sino'
+import { useAncoraDoSino } from '../../../components/sino-anchor-context'
+import { Sino } from '../../../components/sino/Sino'
 import { useFilaDaCoordenacao } from './fila-da-coordenacao'
 
 /**

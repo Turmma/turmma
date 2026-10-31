@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ArgumentoInvalido } from './comando.js'
+import { ArgumentoInvalido } from './command.js'
 import { executarOpsRevogarAcessosSala, lerEscolaARevogar } from './revogar-acessos-sala.js'
 
 /**

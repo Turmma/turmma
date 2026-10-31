@@ -1,9 +1,9 @@
 import { randomUUID } from 'node:crypto'
 import type { Locator, Page, Request, Route } from '@playwright/test'
 import { MENSAGENS_DE_ERRO } from '../packages/shared/src/errors/messages.ts'
-import { entrarComoCoordenacaoNaMesmaAba, abrirEstrutura, PRAZO_DA_ENTRADA_MS } from './__fixtures__/casca.ts'
-import { comOQueFalta, irPelaCoordenacao } from './__fixtures__/coordenacao.ts'
-import { expect, test } from './__fixtures__/perfis.ts'
+import { entrarComoCoordenacaoNaMesmaAba, abrirEstrutura, PRAZO_DA_ENTRADA_MS } from './support/casca.ts'
+import { comOQueFalta, irPelaCoordenacao } from './support/coordenacao.ts'
+import { expect, test } from './support/profiles.ts'
 import {
   apagarDisciplinaNoBanco,
   apagarTurmaNoBanco,
@@ -15,8 +15,8 @@ import {
   criarEquipeComSenha,
   montarEstruturaNoBanco,
   vencerConviteNoBanco,
-} from './__fixtures__/sessao.ts'
-import { ALVO_DE_TOQUE_PRINCIPAL_PX, violacoesGraves } from './__fixtures__/verificacoes.ts'
+} from './support/seed.ts'
+import { ALVO_DE_TOQUE_PRINCIPAL_PX, violacoesGraves } from './support/checks.ts'
 
 /**
  * A alocação no painel do professor (X2, 7.0; antes a seção "Alocação" da Estrutura): W4. A coordenação abre o professor em Professores e

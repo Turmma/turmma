@@ -7,7 +7,7 @@ import {
   type ListaDeSeriesResponse,
   type SerieResponse,
 } from '@educa/shared'
-import { paginar } from '../../http/paginacao.js'
+import { paginar } from '../../http/pagination.js'
 import { SerieRepository } from './serie.repository.js'
 
 /**

@@ -1,12 +1,12 @@
 import type { APIRequestContext, Locator, Page, Request, Route } from '@playwright/test'
 import { readFileSync } from 'node:fs'
-import { abrirNavegacao, entrarPelaTelaComSegundoFator, lateral, PRAZO_DA_ENTRADA_MS } from './__fixtures__/casca.ts'
-import { irPelaCoordenacao, linhasDaTabela } from './__fixtures__/coordenacao.ts'
-import { CAMINHO_DO_PDF_DE_DEMONSTRACAO, criarMaterialNoBanco, materiaisNoBanco, recusasNaAuditoria } from './__fixtures__/material.ts'
-import { expect, test } from './__fixtures__/perfis.ts'
-import { abrirPelaApiSemMedirAPrimeiraCarga, configurarSegundoFatorPelaApi } from './__fixtures__/segundo-fator.ts'
-import { criarEquipeComSenha, montarEstruturaNoBanco, type EquipeDeTeste, type EstruturaDeTeste } from './__fixtures__/sessao.ts'
-import { ALVO_DE_TOQUE_PRINCIPAL_PX, larguraExcedente, larguraExcedenteDoDialogo, violacoesGraves } from './__fixtures__/verificacoes.ts'
+import { abrirNavegacao, entrarPelaTelaComSegundoFator, lateral, PRAZO_DA_ENTRADA_MS } from './support/casca.ts'
+import { irPelaCoordenacao, linhasDaTabela } from './support/coordenacao.ts'
+import { CAMINHO_DO_PDF_DE_DEMONSTRACAO, criarMaterialNoBanco, materiaisNoBanco, recusasNaAuditoria } from './support/material.ts'
+import { expect, test } from './support/profiles.ts'
+import { abrirPelaApiSemMedirAPrimeiraCarga, configurarSegundoFatorPelaApi } from './support/mfa.ts'
+import { criarEquipeComSenha, montarEstruturaNoBanco, type EquipeDeTeste, type EstruturaDeTeste } from './support/seed.ts'
+import { ALVO_DE_TOQUE_PRINCIPAL_PX, larguraExcedente, larguraExcedenteDoDialogo, violacoesGraves } from './support/checks.ts'
 
 /**
  * A tela Material da coordenação (MVP de apresentação, A2; telas da coordenação, 8.0; `docs/mvp-rapido.md`, seções 1 e 9.2; D5, D22,

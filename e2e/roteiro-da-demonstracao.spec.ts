@@ -2,19 +2,19 @@ import { randomUUID } from 'node:crypto'
 import type { Browser, BrowserContextOptions, Locator, Page } from '@playwright/test'
 import { exibirCodigoDaTurma } from '../packages/shared/src/sala/acesso.ts'
 import type { AcessoGeradoResponse } from '../packages/shared/src/sala/acesso.ts'
-import { entregasNoBanco, validacoesNoBanco } from './__fixtures__/a2.ts'
-import { respostasNoBanco } from './__fixtures__/a3.ts'
-import { entrarComoAlunoPelaApi, responderPelaApi } from './__fixtures__/aluno-pela-api.ts'
-import { abrirAbaAlunos, passarPelaIntroducaoDaCoordenacao, passarPelaIntroducaoDoAluno, passarPelaIntroducaoDoProfessor, irPelaNavegacao, PRAZO_DA_ENTRADA_MS } from './__fixtures__/casca.ts'
-import { irPelaCoordenacao, linhasDaTabela, painelDoAno } from './__fixtures__/coordenacao.ts'
-import { caixa, conversa, DISCIPLINA, gerarAtividade, PRAZO_DA_IA_MS, TITULO_DO_MATERIAL } from './__fixtures__/fluxo-do-professor.ts'
-import { auditoriasNoBanco, suspensoesNoBanco } from './__fixtures__/governanca.ts'
-import { CAMINHO_DO_PDF_DE_DEMONSTRACAO, materiaisNoBanco, recusasNaAuditoria } from './__fixtures__/material.ts'
-import { criarOperadorComSegundoFator, removerOperador } from './__fixtures__/operacao.ts'
-import { idDaEscolaComOEndereco, nomeQueVemPrimeiro } from './__fixtures__/painel.ts'
-import { expect, test } from './__fixtures__/perfis.ts'
-import { abrirODestaque, fecharOPainel } from './__fixtures__/professor/aprovar.ts'
-import { abrirOPainelDoTutor, abrirSinaisDoTutor, painelDoTutor } from './__fixtures__/professor/tutor.ts'
+import { entregasNoBanco, validacoesNoBanco } from './support/db-assertions.ts'
+import { respostasNoBanco } from './support/atividade-db.ts'
+import { entrarComoAlunoPelaApi, responderPelaApi } from './support/aluno-api.ts'
+import { abrirAbaAlunos, passarPelaIntroducaoDaCoordenacao, passarPelaIntroducaoDoAluno, passarPelaIntroducaoDoProfessor, irPelaNavegacao, PRAZO_DA_ENTRADA_MS } from './support/casca.ts'
+import { irPelaCoordenacao, linhasDaTabela, painelDoAno } from './support/coordenacao.ts'
+import { caixa, conversa, DISCIPLINA, gerarAtividade, PRAZO_DA_IA_MS, TITULO_DO_MATERIAL } from './support/professor-flow.ts'
+import { auditoriasNoBanco, suspensoesNoBanco } from './support/governanca.ts'
+import { CAMINHO_DO_PDF_DE_DEMONSTRACAO, materiaisNoBanco, recusasNaAuditoria } from './support/material.ts'
+import { criarOperadorComSegundoFator, removerOperador } from './support/operacao.ts'
+import { idDaEscolaComOEndereco, nomeQueVemPrimeiro } from './support/painel.ts'
+import { expect, test } from './support/profiles.ts'
+import { abrirODestaque, fecharOPainel } from './support/professor/aprovar.ts'
+import { abrirOPainelDoTutor, abrirSinaisDoTutor, painelDoTutor } from './support/professor/tutor.ts'
 import {
   alunoDaMatricula,
   alunoReivindicaPelaApi,
@@ -28,10 +28,10 @@ import {
   tokenDaEquipe,
   turmaDoNome,
   usuarioDaEquipe,
-} from './__fixtures__/roteiro.ts'
-import { campoCodigo } from './__fixtures__/segundo-fator.ts'
-import { alunosDaTurmaNoBanco, codigoDoAutenticador } from './__fixtures__/sessao.ts'
-import { entrarNaOperacao } from './__fixtures__/tela-da-operacao.ts'
+} from './support/roteiro.ts'
+import { campoCodigo } from './support/mfa.ts'
+import { alunosDaTurmaNoBanco, codigoDoAutenticador } from './support/seed.ts'
+import { entrarNaOperacao } from './support/operacao-screen.ts'
 
 /**
  * **O roteiro da demonstração inteiro, numa sequência só** (`docs/roteiro-da-demonstracao.md`; `docs/mvp-rapido.md`,

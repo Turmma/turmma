@@ -1,7 +1,7 @@
 import type { Route } from '@playwright/test'
-import { abrirNavegacao, entrarComoCoordenacaoNaMesmaAba, esperarPainel, lateral, PRAZO_DA_ENTRADA_MS } from './__fixtures__/casca.ts'
-import { irPelaCoordenacao } from './__fixtures__/coordenacao.ts'
-import { expect, test } from './__fixtures__/perfis.ts'
+import { abrirNavegacao, entrarComoCoordenacaoNaMesmaAba, esperarPainel, lateral, PRAZO_DA_ENTRADA_MS } from './support/casca.ts'
+import { irPelaCoordenacao } from './support/coordenacao.ts'
+import { expect, test } from './support/profiles.ts'
 import {
   abrirABusca,
   acionar,
@@ -31,7 +31,7 @@ import {
   principal,
   registrarPeloFluxo,
   somarDiasAHoje,
-} from './__fixtures__/pedidos-do-titular.ts'
+} from './support/pedidos-do-titular.ts'
 import {
   colocarAlunoNaTurma,
   convidarProfessorNoBanco,
@@ -42,8 +42,8 @@ import {
   criarPedidoDoTitularNoBanco,
   criarPedidosDoTitularNoBanco,
   pedidosDoTitularNoBanco,
-} from './__fixtures__/sessao.ts'
-import { codigoCru, larguraExcedente, larguraExcedenteDoDialogo, violacoesGraves } from './__fixtures__/verificacoes.ts'
+} from './support/seed.ts'
+import { codigoCru, larguraExcedente, larguraExcedenteDoDialogo, violacoesGraves } from './support/checks.ts'
 
 /**
  * A aba "Pedidos" da Privacidade da coordenação (F3, 16.0; RF10, RF14, RF16 e RF20; `docs/interface.md` 3): a lista dos

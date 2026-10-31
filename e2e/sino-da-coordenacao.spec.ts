@@ -1,9 +1,9 @@
 import type { Locator, Page } from '@playwright/test'
-import { abrirSeletorDeEscola, entrarComoCoordenacaoNaMesmaAba, entrarPorEmail, esperarPainel, linhaDoSeletor, nomeNoSeletor, PRAZO_DA_ENTRADA_MS } from './__fixtures__/casca.ts'
-import { expect, test } from './__fixtures__/perfis.ts'
-import { campoCodigo } from './__fixtures__/segundo-fator.ts'
-import { codigoDoAutenticador, codigoDoPassoAnterior, convidarProfessorNoBanco, criarEquipeComSenha, criarUsuarioEmOutraEscola } from './__fixtures__/sessao.ts'
-import { ALVO_DE_TOQUE_PRINCIPAL_PX, larguraExcedente, larguraExcedenteDoDialogo, violacoesGraves } from './__fixtures__/verificacoes.ts'
+import { abrirSeletorDeEscola, entrarComoCoordenacaoNaMesmaAba, entrarPorEmail, esperarPainel, linhaDoSeletor, nomeNoSeletor, PRAZO_DA_ENTRADA_MS } from './support/casca.ts'
+import { expect, test } from './support/profiles.ts'
+import { campoCodigo } from './support/mfa.ts'
+import { codigoDoAutenticador, codigoDoPassoAnterior, convidarProfessorNoBanco, criarEquipeComSenha, criarUsuarioEmOutraEscola } from './support/seed.ts'
+import { ALVO_DE_TOQUE_PRINCIPAL_PX, larguraExcedente, larguraExcedenteDoDialogo, violacoesGraves } from './support/checks.ts'
 
 /**
  * O sino "Esperando você" da coordenação (telas da coordenação, 1.0; RF4 e RF5), pela tela, nos projetos `chromebook` e

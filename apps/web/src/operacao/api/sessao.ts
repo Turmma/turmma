@@ -7,7 +7,7 @@ import {
   type EntradaDeOperadorResponse,
   type RenovacaoDeOperadorResponse,
 } from '@educa/shared'
-import { chamarApi, ErroDaApi, SEM_CORPO, type EsquemaDeResposta, type OpcoesDaChamada } from '../../api/cliente'
+import { chamarApi, ErroDaApi, SEM_CORPO, type EsquemaDeResposta, type OpcoesDaChamada } from '../../api/client'
 import { TEXTO_DA_SAIDA_NAO_CONFIRMADA, TEXTO_DA_SESSAO_ENCERRADA } from '../textos'
 
 /**
@@ -78,7 +78,7 @@ let desafio: { readonly etapa: EtapaDoDesafioDeOperador; readonly valor: string 
 let aviso: string | undefined
 /**
  * Quando esta aba (ou outra da operação) mandou por último uma requisição que a API aceitou com a sessão: é o que move
- * o `ultimoUsoEm` no servidor, e é daqui que o relógio de inatividade conta (`operacao/inatividade.ts`).
+ * o `ultimoUsoEm` no servidor, e é daqui que o relógio de inatividade conta (`operacao/idle-timeout.ts`).
  */
 let ultimoUso: number | undefined
 

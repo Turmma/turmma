@@ -132,9 +132,9 @@ describe('os passos da introdução do aluno', () => {
 describe('as falas que o e2e espera', () => {
   it('a lista `FALAS_DA_INTRODUCAO_DO_ALUNO` do e2e é a das falas dos passos, na ordem: mudar o texto num lugar e não no outro reprova aqui', () => {
     // O `e2e/` não importa a web, e por isso guarda uma cópia das falas: este caso a confere contra os passos de verdade.
-    const fonte = readFileSync(join(import.meta.dirname, '..', '..', '..', '..', '..', '..', 'e2e', '__fixtures__', 'casca.ts'), 'utf8')
+    const fonte = readFileSync(join(import.meta.dirname, '..', '..', '..', '..', '..', '..', 'e2e', 'support', 'casca.ts'), 'utf8')
     const bloco = /FALAS_DA_INTRODUCAO_DO_ALUNO = \[([^\]]*)\] as const/.exec(fonte)
-    expect(bloco, 'a lista saiu de `e2e/__fixtures__/casca.ts`: atualize este caso').not.toBeNull()
+    expect(bloco, 'a lista saiu de `e2e/support/casca.ts`: atualize este caso').not.toBeNull()
     const copiadas = [...(bloco?.[1] ?? '').matchAll(/'([^']*)'/g)].map((achado) => achado[1])
     expect(copiadas).toEqual(PASSOS_DO_ALUNO.map((passo) => passo.fala))
   })

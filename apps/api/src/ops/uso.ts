@@ -15,13 +15,13 @@ import { randomUUID } from 'node:crypto'
 import { pathToFileURL } from 'node:url'
 import { parseArgs } from 'node:util'
 import { z } from 'zod'
-import { abrirBancoDeOperacao, ArgumentoInvalido, autorDoComando, lerOperador, OperadorRecusado, type BancoDoComando, type SaidaDoComando } from './comando.js'
+import { abrirBancoDeOperacao, ArgumentoInvalido, autorDoComando, lerOperador, OperadorRecusado, type BancoDoComando, type SaidaDoComando } from './command.js'
 import type { ConferenciaDoAutor } from '../sessao/index.js'
 
 export { ArgumentoInvalido }
 
-// Mora em `comando.ts` desde a A0; reexportado para quem já o importava daqui (`ops:sessao-sintetica`).
-export { urlDoBancoDeOperacao } from './comando.js'
+// Mora em `command.ts` desde a A0; reexportado para quem já o importava daqui (`ops:sessao-sintetica`).
+export { urlDoBancoDeOperacao } from './command.js'
 
 /**
  * Consulta de operação do uso de infra de uma escola (D30, RF17), lida de `uso_infra_diario`:

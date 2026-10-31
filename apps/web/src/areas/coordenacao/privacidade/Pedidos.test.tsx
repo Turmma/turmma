@@ -5,9 +5,9 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Router } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
-import { prepararTela, redeFalsa, renderizarTela, type RespostaFalsa } from '../../../__fixtures__/tela'
-import { classesDoBotao } from '../../../componentes/ui/botao-secundario'
-import { ROTAS_DA_COORDENACAO } from '../../../caminhos'
+import { prepararTela, redeFalsa, renderizarTela, type RespostaFalsa } from '../../../__fixtures__/render-screen'
+import { classesDoBotao } from '../../../components/ui/button-variants'
+import { ROTAS_DA_COORDENACAO } from '../../../paths'
 import Pedidos from './Pedidos'
 
 /**

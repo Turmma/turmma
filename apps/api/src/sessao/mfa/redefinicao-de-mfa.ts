@@ -3,8 +3,8 @@ import { ContaGlobalRepository } from '@educa/core/conta-global'
 import { ErrorCode, FINALIDADE_DA_REDEFINICAO_PELO_OPERADOR, type FinalidadeDaRedefinicaoDeMfa } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { RedefinicaoDeMfaRepository } from './redefinicao-de-mfa.repository.js'
-import { ResolucaoDeTenantRepository } from '../tenant/resolucao-de-tenant.repository.js'
-import type { ConferenciaDoAutor } from '../conferencia-do-autor.js'
+import { ResolucaoDeTenantRepository } from '../tenant/tenant-resolution.repository.js'
+import type { ConferenciaDoAutor } from '../author-check.js'
 
 const registro = new AuditoriaRecorder()
 

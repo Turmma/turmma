@@ -14,7 +14,7 @@ import {
   type ArquivoResponse,
 } from '@educa/shared'
 import { infiniteQueryOptions, queryOptions, type QueryClient } from '@tanstack/react-query'
-import { SEM_CORPO } from '../../../../api/cliente'
+import { SEM_CORPO } from '../../../../api/client'
 import { buscarComSessao, chamarComSessao } from '../../../../api/sessao'
 
 /**

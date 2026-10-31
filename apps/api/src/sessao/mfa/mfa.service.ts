@@ -1,15 +1,15 @@
 import { DomainException, METRICS, systemClock, type Database, type Meter, type Clock } from '@educa/core'
 import { ErrorCode, type EtapaComDesafio, type MfaRequest, type AtivarMfaResponse, type ConfigurarMfaResponse } from '@educa/shared'
-import type { CifraDoSegredo } from '../../credencial/cifra-do-segredo.js'
-import type { ConclusaoDeLogin } from '../conclusao/conclusao-de-login.js'
-import type { ContadorDeTentativas } from '../../credencial/contador-de-tentativas.js'
+import type { CifraDoSegredo } from '../../credencial/secret-cipher.js'
+import type { ConclusaoDeLogin } from '../completion/login-completion.js'
+import type { ContadorDeTentativas } from '../../credencial/login-lockout.js'
 import type { AtivacaoPorConvite } from '../convite/convite.service.js'
-import type { CookieDeDispositivo } from '../../credencial/cookie-dispositivo.js'
+import type { CookieDeDispositivo } from '../../credencial/device-cookie.js'
 import { COOKIE_DISPOSITIVO, lerCookie } from '../../credencial/cookies.js'
-import { verificarDesafio, type ConsumoDeDesafio, type DesafioVerificado } from '../../credencial/desafio.js'
-import { ipParaRegistro, type OrigemDaRequisicao, type ResultadoDoLogin } from '../../credencial/origem-da-requisicao.js'
-import { ResolucaoDeTenantRepository, type MfaDaConta, type UsuarioAtivoDaConta } from '../tenant/resolucao-de-tenant.repository.js'
-import { gerarCodigosDeRecuperacao, gerarSegredo, hmacDaRecuperacao, normalizarRecuperacao, passoDoCodigo } from '../../credencial/segundo-fator.js'
+import { verificarDesafio, type ConsumoDeDesafio, type DesafioVerificado } from '../../credencial/challenge.js'
+import { ipParaRegistro, type OrigemDaRequisicao, type ResultadoDoLogin } from '../../credencial/request-origin.js'
+import { ResolucaoDeTenantRepository, type MfaDaConta, type UsuarioAtivoDaConta } from '../tenant/tenant-resolution.repository.js'
+import { gerarCodigosDeRecuperacao, gerarSegredo, hmacDaRecuperacao, normalizarRecuperacao, passoDoCodigo } from '../../credencial/totp.js'
 
 export interface DependenciasDoMfa {
   readonly banco: Database

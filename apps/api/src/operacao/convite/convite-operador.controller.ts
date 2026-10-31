@@ -12,7 +12,7 @@ import {
 import { Body, Controller, Header, HttpCode, HttpStatus, Inject, Post, Req } from '@nestjs/common'
 import type { IncomingMessage } from 'node:http'
 import { ConviteDeOperadorService } from './convite-operador.service.js'
-import { EntradaDeOperacao } from '../marcadores.js'
+import { EntradaDeOperacao } from '../decorators.js'
 
 /**
  * `POST /v1/operacao/convite/consultar` e `/aceitar` (Tech Spec da A0, seção 4): quem recebeu o convite do

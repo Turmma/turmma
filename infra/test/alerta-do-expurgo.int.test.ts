@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { CATEGORIAS_DO_EXPURGO } from '../../packages/core/src/retencao/expurgo-da-escola.repository.ts'
-import { BancadaDeSessoes } from '../../apps/api/test/sessao-de-teste.js'
+import { BancadaDeSessoes } from '../../apps/api/test/sessao.fixture.js'
 import { lerAmbienteDeTeste, valorObrigatorio } from '../../tools/ci/compose.ts'
 import { compose, composeAssincronoOuFalha, PROCESSOS_DA_FILA, recriarDoZero } from '../../tools/testes/compose.ts'
 import { alertaCom, lerRegrasNoGrafana, REGRAS_PROVISIONADAS, type EstadoDoAlerta } from '../scripts/ensaio-alertas.ts'

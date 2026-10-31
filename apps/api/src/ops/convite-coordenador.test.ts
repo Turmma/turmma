@@ -1,6 +1,6 @@
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { ArgumentoInvalido } from './comando.js'
+import { ArgumentoInvalido } from './command.js'
 import { executarOpsConviteCoordenador, lerPedidoDoConvite } from './convite-coordenador.js'
 import { executarOpsRevogarConvite, lerConviteARevogar } from './revogar-convite.js'
 

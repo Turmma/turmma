@@ -1,4 +1,4 @@
-import { expect, test } from './__fixtures__/perfis.ts'
+import { expect, test } from './support/profiles.ts'
 import {
   PAGINA_BOTOES_DE_16_PX,
   PAGINA_BOTOES_DE_44_PX,
@@ -9,8 +9,8 @@ import {
   PAGINA_DENTRO_DA_LARGURA,
   PAGINA_MAIS_LARGA,
   PAGINA_SEM_CONTRASTE,
-} from './__fixtures__/paginas.ts'
-import { codigoCru, larguraExcedente, violacoesGraves } from './__fixtures__/verificacoes.ts'
+} from './support/html-pages.ts'
+import { codigoCru, larguraExcedente, violacoesGraves } from './support/checks.ts'
 
 // As verificações que a casca usa, aplicadas a páginas com a violação de propósito. Se uma delas deixar
 // de pegar, este spec fica vermelho, e não a casca verde por engano.

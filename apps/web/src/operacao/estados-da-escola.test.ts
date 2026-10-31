@@ -1,6 +1,6 @@
 import { ESTADOS_DA_COORDENACAO } from '@educa/shared'
 import { describe, expect, it } from 'vitest'
-import { CORES_DO_ESTADO, FAMILIAS_DE_ESTADO } from '../componentes/ui/SeloDeEstado'
+import { CORES_DO_ESTADO, FAMILIAS_DE_ESTADO } from '../components/ui/SeloDeEstado'
 import { TEXTO_DO_ESTADO, TOM_DO_ESTADO } from './estados-da-escola'
 
 /**

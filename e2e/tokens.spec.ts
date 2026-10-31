@@ -1,9 +1,9 @@
 import type { Locator, Page, Request } from '@playwright/test'
 import { readFileSync } from 'node:fs'
-import { botaoDoSeletor, gaveta, lateral, naGaveta, esperarNovaConversa, secoes } from './__fixtures__/casca.ts'
-import { expect, test } from './__fixtures__/perfis.ts'
-import { criarEquipeComSenha, criarUsuarioEmOutraEscola } from './__fixtures__/sessao.ts'
-import { larguraExcedente, violacoesGraves } from './__fixtures__/verificacoes.ts'
+import { botaoDoSeletor, gaveta, lateral, naGaveta, esperarNovaConversa, secoes } from './support/casca.ts'
+import { expect, test } from './support/profiles.ts'
+import { criarEquipeComSenha, criarUsuarioEmOutraEscola } from './support/seed.ts'
+import { larguraExcedente, violacoesGraves } from './support/checks.ts'
 
 /**
  * A pele nos componentes compartilhados (tarefa 1.0 da A0; os tokens são os da D80 desde a 1.0 da X1): os dois blocos

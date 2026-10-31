@@ -9,7 +9,7 @@ import {
 } from '@educa/shared'
 import { infiniteQueryOptions, queryOptions } from '@tanstack/react-query'
 import { CHAVE_DOS_ARTEFATOS } from '../../../../api/chaves-do-professor'
-import { ErroDaApi } from '../../../../api/cliente'
+import { ErroDaApi } from '../../../../api/client'
 import { buscarComSessao, chamarComSessao, renovarSessao, tokenDeAcesso } from '../../../../api/sessao'
 
 const CAMINHO_DOS_ARTEFATOS = '/v1/artefatos'

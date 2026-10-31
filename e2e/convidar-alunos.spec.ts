@@ -1,9 +1,9 @@
 import type { Locator, Page } from '@playwright/test'
 import type { AcessoGeradoResponse } from '../packages/shared/src/sala/acesso.ts'
-import { PRAZO_DA_ENTRADA_MS } from './__fixtures__/casca.ts'
-import { expect, test } from './__fixtures__/perfis.ts'
-import { confirmarVinculosNoBanco, criarAlocacaoDoProfessor, criarEquipeComSenha, porNaListaDaTurma, type EquipeDeTeste } from './__fixtures__/sessao.ts'
-import { larguraExcedente, violacoesGraves } from './__fixtures__/verificacoes.ts'
+import { PRAZO_DA_ENTRADA_MS } from './support/casca.ts'
+import { expect, test } from './support/profiles.ts'
+import { confirmarVinculosNoBanco, criarAlocacaoDoProfessor, criarEquipeComSenha, porNaListaDaTurma, type EquipeDeTeste } from './support/seed.ts'
+import { larguraExcedente, violacoesGraves } from './support/checks.ts'
 
 /**
  * O diálogo "Convidar alunos" pelo endereço e pela confirmação da turma (telas do professor, 13.0; RF19): `?convidar=1` abre o
@@ -14,7 +14,7 @@ import { larguraExcedente, violacoesGraves } from './__fixtures__/verificacoes.t
  * leva uns 7 s, e o portão da tarefa reprova caso novo de e2e acima de 15 s.
  */
 
-/** O fundo da janela inteira é o token `fundo` (`estilos.css`): branco no claro, o azul-noite do escuro. Escrito por extenso. */
+/** O fundo da janela inteira é o token `fundo` (`index.css`): branco no claro, o azul-noite do escuro. Escrito por extenso. */
 const FUNDO_NO_CLARO = 'rgb(255, 255, 255)'
 const FUNDO_NO_ESCURO = 'rgb(19, 31, 36)'
 

@@ -157,7 +157,7 @@ describe('o comando que roda o teste de uma mutação', () => {
     expect(tipoDoTeste('apps/api/src/x.test.ts')).toBe('unidade')
     expect(tipoDoTeste('apps/web/src/Tela.test.tsx')).toBe('unidade')
     expect(tipoDoTeste('apps/api/test/x.int.test.ts')).toBe('integracao')
-    expect(tipoDoTeste('infra/test/metricas.int.test.ts')).toBe('infra')
+    expect(tipoDoTeste('infra/test/metrics.int.test.ts')).toBe('infra')
     // O teste do git hook roda contra um git de verdade, sem compose: projeto próprio, e o resto de `tools/` fica na integração.
     expect(tipoDoTeste('tools/processo/hook-git.int.test.ts')).toBe('processo')
     expect(tipoDoTeste('tools/guardas/gitleaks.int.test.ts')).toBe('integracao')
@@ -176,7 +176,7 @@ describe('o comando que roda o teste de uma mutação', () => {
     const deTela = mutacao({ arquivo: 'apps/web/src/Tela.tsx', teste: 'e2e/areas.spec.ts', caso: 'o aluno acha' })
     expect(pedeReconstrucao(deTela)).toBe(true)
     expect(comandoDoTeste(deTela)).toEqual(['node', 'tools/ci/e2e.ts', '--manter-ambiente', 'e2e/areas.spec.ts', '--grep=o aluno acha', '--project=chromebook'])
-    const deFixture = mutacao({ arquivo: 'e2e/__fixtures__/sessao.ts', teste: 'e2e/areas.spec.ts' })
+    const deFixture = mutacao({ arquivo: 'e2e/support/seed.ts', teste: 'e2e/areas.spec.ts' })
     expect(pedeReconstrucao(deFixture)).toBe(false)
     expect(comandoDoTeste(deFixture)).toEqual(['npx', 'playwright', 'test', 'e2e/areas.spec.ts', '--project=chromebook'])
   })
@@ -192,7 +192,7 @@ describe('o comando que roda o teste de uma mutação', () => {
     expect(semLinha.mutacoes[0]).not.toHaveProperty('projeto')
     expect(comandoDoTeste(semLinha.mutacoes[0] as Mutacao)).toContain('--project=chromebook')
     // Sem reconstrução (fixture do próprio e2e), o projeto também é o do bloco.
-    expect(comandoDoTeste(mutacao({ arquivo: 'e2e/__fixtures__/sessao.ts', teste: 'e2e/areas.spec.ts', projeto: 'celular' }))).toEqual(['npx', 'playwright', 'test', 'e2e/areas.spec.ts', '--project=celular'])
+    expect(comandoDoTeste(mutacao({ arquivo: 'e2e/support/seed.ts', teste: 'e2e/areas.spec.ts', projeto: 'celular' }))).toEqual(['npx', 'playwright', 'test', 'e2e/areas.spec.ts', '--project=celular'])
   })
 
   it('a linha "projeto:" só vale em e2e e só com um projeto que o Playwright tem; o resto é erro do bloco', () => {
@@ -217,11 +217,11 @@ describe('o comando que roda o teste de uma mutação', () => {
 
   it('a mesma mutação em dois projetos tem cada uma a sua corrida limpa e a sua corrida mutada', () => {
     const raiz = mkdtempSync(join(tmpdir(), 'mutacoes-projeto-'))
-    for (const [arquivo, conteudo] of Object.entries({ 'e2e/__fixtures__/sessao.ts': 'const menu = 1\n', 'e2e/areas.spec.ts': '// teste\n' })) {
+    for (const [arquivo, conteudo] of Object.entries({ 'e2e/support/seed.ts': 'const menu = 1\n', 'e2e/areas.spec.ts': '// teste\n' })) {
       mkdirSync(dirname(join(raiz, arquivo)), { recursive: true })
       writeFileSync(join(raiz, arquivo), conteudo)
     }
-    const base = { arquivo: 'e2e/__fixtures__/sessao.ts', teste: 'e2e/areas.spec.ts', antes: ['const menu = 1'], depois: ['const menu = 0'] }
+    const base = { arquivo: 'e2e/support/seed.ts', teste: 'e2e/areas.spec.ts', antes: ['const menu = 1'], depois: ['const menu = 0'] }
     const corridas: string[] = []
     const avisos: string[] = []
     const resultados = conferirMutacoes(raiz, [mutacao({ ...base, projeto: 'celular' }), mutacao({ ...base, projeto: 'chromebook' })], (comando) => {
@@ -392,7 +392,7 @@ describe('produção alterada sem mutação não recebe carimbo (RF17)', () => {
     { nome: 'teste de integração em src', arquivo: 'packages/core/src/retencao/retencao.int.test.ts', producao: false },
     { nome: 'teste de tela em src', arquivo: 'apps/web/src/Tela.test.tsx', producao: false },
     { nome: 'spec em src', arquivo: 'apps/web/src/Tela.spec.ts', producao: false },
-    { nome: 'fixture em src', arquivo: 'apps/web/src/__fixtures__/tela.tsx', producao: false },
+    { nome: 'fixture em src', arquivo: 'apps/web/src/__fixtures__/render-screen.tsx', producao: false },
     { nome: 'pasta test de src', arquivo: 'apps/api/src/test/ajuda.ts', producao: false },
     { nome: 'declaração de tipos', arquivo: 'apps/web/src/vite-env.d.ts', producao: false },
     { nome: 'configuração fora de src', arquivo: 'apps/web/vite.config.ts', producao: false },
@@ -1600,7 +1600,7 @@ describe('o relatório da corrida: só o caso que rodou e falhou prova a cláusu
       const casos: Mutacao[] = [
         mutacao({ teste: 'a/b.test.ts', caso: 'um caso' }),
         mutacao({ teste: 'a/b.int.test.ts' }),
-        mutacao({ teste: 'e2e/a.spec.ts', arquivo: 'e2e/__fixtures__/f.ts' }),
+        mutacao({ teste: 'e2e/a.spec.ts', arquivo: 'e2e/support/f.ts' }),
         mutacao({ teste: 'e2e/a.spec.ts', arquivo: 'apps/web/src/T.tsx', projeto: 'celular' }),
       ]
       for (const alvo of casos) expect(prepararRelatorio(comandoDoTeste(alvo) ?? [], '/tmp/r.json')).not.toBeNull()

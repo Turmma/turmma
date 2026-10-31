@@ -3,7 +3,7 @@ import { entradaDeOperadorRequestSchema, entradaDeOperadorResponseSchema, type E
 import { Body, Controller, Header, HttpCode, HttpStatus, Inject, Post, Req } from '@nestjs/common'
 import type { IncomingMessage } from 'node:http'
 import { EntradaDoOperadorService } from './entrada.service.js'
-import { EntradaDeOperacao } from '../marcadores.js'
+import { EntradaDeOperacao } from '../decorators.js'
 
 /**
  * `POST /v1/operacao/sessao/email` (Tech Spec da A0, seção 4): o operador entra com e-mail e senha e recebe o desafio

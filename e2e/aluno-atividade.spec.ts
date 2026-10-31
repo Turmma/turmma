@@ -1,15 +1,15 @@
 import type { Locator, Page, Route } from '@playwright/test'
 import { MENSAGENS_DE_ERRO } from '../packages/shared/src/errors/messages.ts'
 import type { ProvaResponse } from '../packages/shared/src/index.ts'
-import { diagnosticoDa, erroDaApi, minhaAtividade, portao, provaDa, QUEM_APROVA, QUESTOES_SINTETICAS, simularAluno, type ApiDoAluno } from './__fixtures__/aluno.ts'
-import { abrirNavegacao, entrarComoAluno, esperarInicioDoAluno, irPelaNavegacao, lateral, PRAZO_DA_ENTRADA_MS } from './__fixtures__/casca.ts'
-import { expect, test } from './__fixtures__/perfis.ts'
-import { colocarAlunoNaTurma, criarAlunoComMatricula, type AlunoDeTeste } from './__fixtures__/sessao.ts'
-import { ALVO_DE_TOQUE_PRINCIPAL_PX, codigoCru, larguraExcedente, larguraExcedenteDoDialogo, violacoesGraves } from './__fixtures__/verificacoes.ts'
+import { diagnosticoDa, erroDaApi, minhaAtividade, portao, provaDa, QUEM_APROVA, QUESTOES_SINTETICAS, simularAluno, type ApiDoAluno } from './support/aluno.ts'
+import { abrirNavegacao, entrarComoAluno, esperarInicioDoAluno, irPelaNavegacao, lateral, PRAZO_DA_ENTRADA_MS } from './support/casca.ts'
+import { expect, test } from './support/profiles.ts'
+import { colocarAlunoNaTurma, criarAlunoComMatricula, type AlunoDeTeste } from './support/seed.ts'
+import { ALVO_DE_TOQUE_PRINCIPAL_PX, codigoCru, larguraExcedente, larguraExcedenteDoDialogo, violacoesGraves } from './support/checks.ts'
 
 /**
  * As telas da atividade do aluno (MVP, A3, pacote X): "Atividades" e a atividade aberta. **Os estados de cada tela**, com
- * a API destas telas simulada na página (`__fixtures__/aluno.ts`). A sessão, o `/v1/eu` e a turma são os de verdade. O
+ * a API destas telas simulada na página (`support/aluno.ts`). A sessão, o `/v1/eu` e a turma são os de verdade. O
  * fluxo inteiro contra a API real está em `aluno-fluxo.spec.ts`.
  */
 

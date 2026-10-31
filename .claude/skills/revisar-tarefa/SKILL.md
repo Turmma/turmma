@@ -89,7 +89,7 @@ tela pela regra dele. A vitrine usa o banco de teste, e por isso vem antes de al
    `node tools/ci/e2e.ts --manter-ambiente e2e/<arquivo>.spec.ts`. É uma tentativa só.
 2. **As telas da tarefa.** A lista está na linha "Telas" do "Como testar" do documento. Se o documento
    não a tem, tire-a do spec de e2e que a tarefa alterou (com que papel ele entra, que endereço abre,
-   em que aba ou botão clica) e de `apps/web/src/caminhos.ts`.
+   em que aba ou botão clica) e de `apps/web/src/paths.ts`.
 3. **As fotos**, de cada tela, na escola cheia e na vazia:
 
    ```bash

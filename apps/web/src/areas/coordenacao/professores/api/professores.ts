@@ -1,6 +1,6 @@
 import { conviteDeProfessorResponseSchema, listaDeProfessoresResponseSchema, type CadastrarProfessorRequest, type ProfessorDaEscola, type ConviteDeProfessorResponse } from '@educa/shared'
 import { mutationOptions, queryOptions } from '@tanstack/react-query'
-import { SEM_CORPO } from '../../../../api/cliente'
+import { SEM_CORPO } from '../../../../api/client'
 import { CHAVE_DA_ESTRUTURA, lerPaginas } from '../../../../api/estrutura'
 import { chamarComSessao } from '../../../../api/sessao'
 

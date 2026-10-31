@@ -14,7 +14,7 @@ import { useLayoutEffect, useRef, type RefObject } from 'react'
  * (`areas/coordenacao/comum/miolo-que-rola.ts`), é o que serve a este: o cabeçalho do documento muda de altura com o que a versão adaptada
  * diz (a adaptação, a situação, o "Ver e decidir", o motivo de quem rejeitou) e com o título que quebra. Enquanto a variável não
  * existe (o primeiro quadro, o teste de componente) vale o `24,5rem` de uma atividade sem versão a 1366 × 768. Quem prova a conta é
- * `paginaNaoRola`, em `e2e/__fixtures__/coordenacao.ts`: a string não prova nada. `md:relative` prende o que for posicionado dentro
+ * `paginaNaoRola`, em `e2e/support/coordenacao.ts`: a string não prova nada. `md:relative` prende o que for posicionado dentro
  * do painel, para não aumentar a página por fora dele.
  */
 export const O_MIOLO_DO_DOCUMENTO = 'md:relative md:max-h-[calc(100dvh-var(--topo-do-painel,24.5rem)-2.5rem)] md:overflow-y-auto'

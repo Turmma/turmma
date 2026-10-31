@@ -183,7 +183,7 @@ describe('execução do cenário', () => {
 
   it('os alunos do Tutor da B são da B e bastam para o teto de pedidos de IA por usuário: 1,5 turno por segundo, 12 por minuto cada', () => {
     const turnosPor2s = Number(/const TURNOS_DA_B_POR_2S = (\d+)/.exec(lerArquivo('infra/k6/justica-entre-escolas.js'))?.[1])
-    const tetoPorUsuario = Number(/export const TETO_DE_PEDIDOS_DE_IA_POR_USUARIO = (\d+)/.exec(lerArquivo('apps/api/src/assistente/limite-de-pedidos-de-ia.ts'))?.[1])
+    const tetoPorUsuario = Number(/export const TETO_DE_PEDIDOS_DE_IA_POR_USUARIO = (\d+)/.exec(lerArquivo('apps/api/src/assistente/ai-request-rate-limit.ts'))?.[1])
     expect(TOKENS_POR_GRUPO.b_tutor).toMatchObject({ escola: 'B', papel: 'aluno' })
     expect((turnosPor2s / 2) * 60 / TOKENS_POR_GRUPO.b_tutor.quantidade).toBeLessThan(tetoPorUsuario)
   })

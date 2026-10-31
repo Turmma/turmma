@@ -4,7 +4,7 @@ import type { ReactElement } from 'react'
 /**
  * Os ícones ilustrados das ferramentas do Assistente (`docs/interface.md` 9.4; D80, item 4): um desenho para cada
  * ferramenta que existe (`FERRAMENTAS`, em `@educa/shared`), na mesma grade de 48 por 48 e com as mesmas regras dos
- * ícones dos lugares (`componentes/ui/icones/lugares.tsx`):
+ * ícones dos lugares (`components/ui/icons/places.tsx`):
  *
  * - **Só token.** A cor dominante é a face de uma família (`fill-verde`, `fill-roxo`, `fill-turquesa`) e o papel e as linhas
  *   são `fill-icone-papel` e `fill-icone-linha`. Nenhuma cor escrita, nenhum `style`: o desenho acompanha o tema, e a guarda

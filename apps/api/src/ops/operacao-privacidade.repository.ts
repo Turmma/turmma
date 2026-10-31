@@ -35,7 +35,7 @@ export interface SecaoDoIncidente {
  * O que os comandos da operação do F3 escrevem (Tech Spec do F3, seções 2 e 6): o suboperador e a ligação dele com as
  * escolas (`ops:suboperador`, tarefa 8.0) e o incidente e a seção de cada escola afetada (`ops:incidente`, tarefa 9.0). É o
  * único arquivo de produção que escreve em `suboperador`, `suboperador_escola` e `incidente`, e o `SuboperadorDaEscolaRepository`
- * (nucleo) o único que lê as duas primeiras: um teste de arquitetura procura outro uso (`arquitetura.test.ts`, "as tabelas do
+ * (nucleo) o único que lê as duas primeiras: um teste de arquitetura procura outro uso (`architecture.test.ts`, "as tabelas do
  * suboperador" e "o incidente"). A seção da escola (`incidente_escola`) também é escrita pelo `IncidenteDaEscolaRepository`, mas só
  * para confirmar o recebimento, no escopo da escola.
  *

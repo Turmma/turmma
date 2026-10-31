@@ -1,6 +1,6 @@
 import { ESTADOS_DO_PEDIDO } from '@educa/shared'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { AbaDoNavegador } from '../../../componentes/pedidos/atualizacao-dos-pedidos'
+import type { AbaDoNavegador } from '../../../components/pedidos/atualizacao-dos-pedidos'
 import { agendarPreparacao, INTERVALO_DA_PREPARACAO_MS, relerEnquantoPrepara } from './preparacao-do-arquivo'
 
 /**

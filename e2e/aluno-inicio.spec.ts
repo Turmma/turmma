@@ -1,14 +1,14 @@
 import type { Locator, Page, Route } from '@playwright/test'
-import { minhaAtividade, simularAluno } from './__fixtures__/aluno.ts'
-import { abrirNavegacao, entrarComoAluno, esperarInicioDoAluno, lateral, naGaveta, PRAZO_DA_ENTRADA_MS, secoes } from './__fixtures__/casca.ts'
-import { expect, test } from './__fixtures__/perfis.ts'
-import { colocarAlunoNaTurma, criarAlunoComMatricula } from './__fixtures__/sessao.ts'
-import { ALVO_DE_TOQUE_PRINCIPAL_PX, larguraExcedente, violacoesGraves } from './__fixtures__/verificacoes.ts'
+import { minhaAtividade, simularAluno } from './support/aluno.ts'
+import { abrirNavegacao, entrarComoAluno, esperarInicioDoAluno, lateral, naGaveta, PRAZO_DA_ENTRADA_MS, secoes } from './support/casca.ts'
+import { expect, test } from './support/profiles.ts'
+import { colocarAlunoNaTurma, criarAlunoComMatricula } from './support/seed.ts'
+import { ALVO_DE_TOQUE_PRINCIPAL_PX, larguraExcedente, violacoesGraves } from './support/checks.ts'
 
 /**
  * O Início do aluno (telas do aluno e primeiro acesso, 3.0; RF3, RF4, RF5): a faixa de supervisão presa, o aviso da avaliação
  * aberta com o caminho até o Tutor, o "Sair" do tamanho dos vizinhos e o recomeço da tela para o aluno seguinte no mesmo
- * computador. A API das tarefas é simulada na página (`__fixtures__/aluno.ts`); a sessão, o `/v1/eu` e a turma são os de
+ * computador. A API das tarefas é simulada na página (`support/aluno.ts`); a sessão, o `/v1/eu` e a turma são os de
  * verdade. Os quatro estados e o que o Início nunca lê estão no teste de componente (`Inicio.test.tsx`).
  */
 

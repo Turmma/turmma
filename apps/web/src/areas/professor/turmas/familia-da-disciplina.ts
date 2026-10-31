@@ -1,4 +1,4 @@
-import type { FamiliaDeCor } from '../../../componentes/ui/Contador'
+import type { FamiliaDeCor } from '../../../components/ui/Contador'
 
 /**
  * As famílias que o ladrilho da disciplina pode ter. O amarelo é da faixa "Confirme sua turma" e o vermelho é de erro e de perigo:

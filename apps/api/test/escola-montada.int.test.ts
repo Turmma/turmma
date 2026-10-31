@@ -24,9 +24,9 @@ import type { z } from 'zod'
 import { hmacDoCodigoDaTurma, sortearCodigoDaTurma } from '../src/sala/codigo-da-sala.js'
 import { hashDoToken } from '../src/credencial/index.js'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
-import { chamar, subirApi, type ApiDeTeste, type RespostaHttp } from './api-com-sessao.js'
-import { configuracaoDeTeste } from './configuracao-de-teste.js'
-import { BancadaDeSessoes, type SessaoDeTeste } from './sessao-de-teste.js'
+import { chamar, subirApi, type ApiDeTeste, type RespostaHttp } from './test-api.js'
+import { configuracaoDeTeste } from './test-config.js'
+import { BancadaDeSessoes, type SessaoDeTeste } from './sessao.fixture.js'
 
 /**
  * Os cenários transversais da A1 (`tasks/prd-apresentacao-escola/cenarios.md`): I3, P1, A1, A3 e A4, cada um uma

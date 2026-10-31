@@ -182,7 +182,7 @@ No código, **a ferramenta é dado**: um contrato por ferramenta em `packages/sh
 formulário derivado dele, em vez de uma tela escrita à mão por ferramenta (P23). Entregue no MVP:
 a descrição de campos de cada ferramenta sai de `descricaoDaFerramenta`
 (`apps/web/src/areas/professor/ferramentas/ferramentas.ts`), e um motor só a desenha
-(`apps/web/src/componentes/ui/ia/motor-formulario.ts` e `MotorFormulario.tsx`).
+(`apps/web/src/components/ui/ai/schema-form.ts` e `MotorFormulario.tsx`).
 
 **A página de Ferramentas** (X3, tarefa 7.0) tem uma seção por categoria que tem ferramenta (hoje Planejar, Preparar a aula e
 Avaliar; "Corrigir" não aparece, porque nenhuma ferramenta dela existe) e um cartão por ferramenta: uma `Linha` de 108 px no
@@ -636,7 +636,7 @@ para ninguém confundir com a tela de uma escola. As medidas estão na seção 1
   `a95568d`, D80). A fonte de valores continua sendo esta Parte B e o inventário em
   `tasks/prd-pele-e-casca/mockup.md`; o mockup é para ver. Nada de lá é copiado para o `apps/web`, **com uma exceção**: a onça
   (o traço, as poses e o movimento que ficaram, 9.7), que o Joaquim mandou trazer fiel ao mockup (correção
-  `2026-10-28-onca-do-mockup`). O desenho foi copiado para `componentes/ui/onca/`, o mockup continua sem ser importado, e um teste
+  `2026-10-28-onca-do-mockup`). O desenho foi copiado para `components/ui/onca/`, o mockup continua sem ser importado, e um teste
   guarda os valores do original
 - **A comemoração na entrega e a onça "acolhendo"** dependiam do parecer do `conformidade-reviewer`,
   na X4: a primeira por encostar em recompensa (D59), a segunda por pôr expressão de preocupação no
@@ -1142,7 +1142,7 @@ dois temas: pelagem `#E8732E`, sombra `#D75F18`, realce `#ED935D`, creme `#FDEBD
 cabeça numa forma só, as orelhas com miolo, a máscara clara de dois círculos, os olhos com pupila recortada e brilho, o
 focinho com o nariz arredondado, as cinco rosetas (a pinta da marca girada, declarada uma vez por desenho), o rabo com anéis e a
 pata com o punho. Um teste guarda as impressões do original e reprova a cópia que se afastar dele
-(`componentes/ui/onca/fidelidade-ao-mockup.test.tsx`).
+(`components/ui/onca/fidelidade-ao-mockup.test.tsx`).
 
 **O rosto da onça de corpo inteiro muda com a pose, e só com ela**: acenando (olhos de frente, boca aberta), apontando (olhar de
 lado, sorriso), comemorando (olhos felizes, boca bem aberta) e pensando (olhar para cima e de lado, boca de lado). O rosto da
@@ -1225,7 +1225,7 @@ declarado uma vez, e não copiado em cada avatar.
 
 ### 9.9 Os tokens, como entram no código
 
-Os tokens moram na **9.10**: os dois blocos de lá são o `estilos.css`, e os testes de token leem aquela
+Os tokens moram na **9.10**: os dois blocos de lá são o `index.css`, e os testes de token leem aquela
 seção. Aqui fica a regra que vale para toda classe de cor.
 
 **Modificador de opacidade em cor não entra** (`bg-tinta/80`, `text-apoio/50`). Conferido no
@@ -1235,11 +1235,11 @@ descartada: o hover não muda, e o fundo escurecido do diálogo simplesmente nã
 
 No lugar dele, troca-se por token em hex (os hovers já têm o deles) ou pelo `veu`, em hex de oito
 dígitos, no fundo de diálogo. `estilos.test.ts` reprova a classe com modificador, o build para quando sobra
-`color-mix(` ou `oklch(` no CSS (`rebaixar-cor.ts`), e o e2e reprova as duas no CSS servido.
+`color-mix(` ou `oklch(` no CSS (`downlevel-color.ts`), e o e2e reprova as duas no CSS servido.
 
 ### 9.10 Os tokens da D80
 
-Os dois blocos abaixo são o `estilos.css` da X1. A tarefa 1.0 os copia para o código, e a partir
+Os dois blocos abaixo são o `index.css` da X1. A tarefa 1.0 os copia para o código, e a partir
 dela `estilos.test.ts` e `e2e/tokens.spec.ts` leem **esta** seção: nome ou valor diferente entre o
 documento e o CSS reprova.
 
@@ -1522,7 +1522,7 @@ teclado.
    mostrá-lo. A única exceção é a face `noite` no escuro, onde ela é clara e o `foco` dá 1,99:1: ali o
    anel é o `sobre-grafite`, o texto da própria face (e volta ao `foco` dentro de peça com chão próprio)
 3. **Os quatro estados** (regra 50, item 5). O mockup não fala com servidor e não desenha
-   carregando nem erro: valem os três de `componentes/estado/`, e botão que dispara pedido não
+   carregando nem erro: valem os três de `components/states/`, e botão que dispara pedido não
    aceita o segundo clique
 4. **Teste de componente por peça** (jsdom e testing-library): estados, nome acessível e teclado.
    E a **galeria** (`/galeria`) mostra cada peça com todos os estados, nos dois temas, e passa pelo
@@ -1544,7 +1544,7 @@ teste de componente. As medidas vêm do inventário do mockup; "(produto)" marca
 |---|---|---|
 | `Botao` (R) | Canto 12, rótulo em `t-rotulo` numa linha, glifo de 20 px à esquerda. `principal`: face de 44 px. `compacto`: face de 36 px (44 abaixo de 768), letra de 14 | Hover troca a face; apertado desce o degrau, também no toque; desligado sem degrau, face `borda`, texto `apoio` |
 | `Toque` (N) | Pílula com face de 40 px (44 abaixo de 768), borda 2, 15 px em 700. Escolhido em `azul-claro`, `azul-borda`, `azul-texto` | `aria-pressed`. É filtro e sugestão, não aba |
-| `Menu` (R) | Caixa flutuante de canto 16, borda 2 e degrau 4 (a `shadow-flutua`), com a largura do `flutuante.ts`: 320 px, ou a janela menos as duas margens (produto: o mínimo de 224 px do mockup não entra, o menu de ferramenta e o de turma precisam dos 320). Item de 44 px, canto 10, 15 px em 500, glifo de 18 em `sutil` | Realçado em `fundo-suave`, perigoso em `vermelho-texto`. Desligado em `sutil`, sem realce, com `aria-disabled` (produto: a cor sozinha não o diria). Teclado de `teclado-do-menu.ts`; o Esc fecha só o menu, também dentro de um `Dialogo` ou do `PainelLado` |
+| `Menu` (R) | Caixa flutuante de canto 16, borda 2 e degrau 4 (a `shadow-flutua`), com a largura do `floating.ts`: 320 px, ou a janela menos as duas margens (produto: o mínimo de 224 px do mockup não entra, o menu de ferramenta e o de turma precisam dos 320). Item de 44 px, canto 10, 15 px em 500, glifo de 18 em `sutil` | Realçado em `fundo-suave`, perigoso em `vermelho-texto`. Desligado em `sutil`, sem realce, com `aria-disabled` (produto: a cor sozinha não o diria). Teclado de `menu-keyboard.ts`; o Esc fecha só o menu, também dentro de um `Dialogo` ou do `PainelLado` |
 
 Os seis desenhos do botão, e nenhum outro (RF5 da X1):
 
@@ -1567,9 +1567,9 @@ prova isso (RF6 da X1).
 | `Cartao` (R) | Canto 16, borda 2, face `fundo`, 16 px por dentro (20 a partir de 768). De leitura, sem degrau. A cor de família vai no ladrilho e no selo de dentro, nunca no fundo inteiro | Clicável: degrau, hover `fundo-suave`. Selecionado: `azul-claro` com `azul-borda` |
 | `Linha` (N) | A linha inteira clicável: mínimo de 64 px. Título em `t-cartao`, numa linha com reticências (o `title` guarda o texto inteiro; o título fixo e curto, que não pode sair cortado a 360 px, pede `tituloEmDuasLinhas` e quebra em até duas); embaixo, `t-apoio`; no fim, chevron de 20 em `apagado`, decoração. O fio de 2 px entre uma linha e a de cima é de quem junta as linhas, com `divide-y-2 divide-borda` na moldura (produto): a linha sozinha não sabe se é a primeira | Link, botão ou só leitura (sem foco e sem chevron). Hover `fundo-suave`; o anel de foco por dentro (−3 px) |
 | `Tabela` (R) | Moldura de canto 16. Cabeçalho de 44 px em `t-selo`; linha de 64 px, 15 px em 500. Abaixo de 768 px cada linha vira um cartão | Linha ativa em `azul-claro`. Linha que abre: inteira, por Enter e espaço. Não ordena |
-| `Abas` (R) | Linha de 44 px (produto: as abas de página do mockup, que levam o número; a de 48 px é a do mockup solta) sobre um fio de 2 px. Rótulo em `t-rotulo`, `sutil`; a ativa em `azul-texto`, com sublinhado de 3 px em `azul`. **Até três** | Teclado de `teclado-das-abas.ts`; `aria-selected` e `aria-controls` |
+| `Abas` (R) | Linha de 44 px (produto: as abas de página do mockup, que levam o número; a de 48 px é a do mockup solta) sobre um fio de 2 px. Rótulo em `t-rotulo`, `sutil`; a ativa em `azul-texto`, com sublinhado de 3 px em `azul`. **Até três** | Teclado de `tabs-keyboard.ts`; `aria-selected` e `aria-controls` |
 | `Tela` (R) | A moldura de toda tela, com o título e as larguras (11.2) | — |
-| Os três de `estado/` (R) | Caixa de 2 px, título em `t-secao` e uma ação. O vazio tracejado (`borda-campo`) centraliza; o vazio de lista continua à esquerda (produto: ele mora dentro de lista e de cartão, e a tela é que recompõe). A onça só entra quando a tela a passa em `ilustracao` (9.7); a peça não a importa | Carregando é texto parado em `status`, sem pulso; o erro tem `alert` só na mensagem, e o botão e o "Tentando de novo…" ficam fora dele |
+| Os três de `states/` (R) | Caixa de 2 px, título em `t-secao` e uma ação. O vazio tracejado (`borda-campo`) centraliza; o vazio de lista continua à esquerda (produto: ele mora dentro de lista e de cartão, e a tela é que recompõe). A onça só entra quando a tela a passa em `ilustracao` (9.7); a peça não a importa | Carregando é texto parado em `status`, sem pulso; o erro tem `alert` só na mensagem, e o botão e o "Tentando de novo…" ficam fora dele |
 
 **Marcar e informar**
 
@@ -1582,7 +1582,7 @@ prova isso (RF6 da X1).
 | `Faixa` (R) | O aviso permanente, que não fecha (D8), na família `info` | `role="note"`. Não tem botão |
 | `BarraRotulada` (R) | Trilho em `ia-cx` (produto), de 12 px e ponta redonda, com o enchimento em `sutil`: a mesma cor nos dois, vazia ou cheia. O texto ("2 de 8") vai fora. Só mede o que tem fim | Só desenho, `aria-hidden` (produto): o valor está escrito ao lado, e `role="progressbar"` o diria duas vezes. Barra de acerto é neutra |
 | `NumeroPainel` (R) | O valor em `t-numero`, o rótulo em `t-selo`, `sutil` | Sem variação "boa" ou "ruim" em cor |
-| As de `componentes/ui/ia/` (R) | O avatar da 9.7; o nome da função em 15 px e 700; o selo "IA" neutro; o chip de página, pílula de 28 px com borda de 2 px e sem degrau (corre dentro da linha de texto); o chip "da web", com a borda tracejada, que **nasce com a busca na web (F9, D68)**: hoje nenhuma citação vem da web, e a peça não desenha o que não tem dado; a linha de quem aprovou, em `ok`. As duas opções da `Escolha` são uma constante só: borda de 2 px e degrau `borda`, nenhuma na face do primário nem na do oficial. A `CaixaPedido` mede o texto de exemplo, quando vazia, num espelho fora do campo (o campo em uso nunca é escrito, e o desfazer do navegador fica inteiro), para ele aparecer inteiro a 360 px. O "Tentar de novo" do `AvisoFila` é `secundario`: é uma tentativa dentro da conversa, que não decide nada e convive com o primário da caixa de pedido; o `EstadoErro` de página, que é a única ação da tela, usa o primário laranja | O chip abre por clique e por teclado |
+| As de `components/ui/ai/` (R) | O avatar da 9.7; o nome da função em 15 px e 700; o selo "IA" neutro; o chip de página, pílula de 28 px com borda de 2 px e sem degrau (corre dentro da linha de texto); o chip "da web", com a borda tracejada, que **nasce com a busca na web (F9, D68)**: hoje nenhuma citação vem da web, e a peça não desenha o que não tem dado; a linha de quem aprovou, em `ok`. As duas opções da `Escolha` são uma constante só: borda de 2 px e degrau `borda`, nenhuma na face do primário nem na do oficial. A `CaixaPedido` mede o texto de exemplo, quando vazia, num espelho fora do campo (o campo em uso nunca é escrito, e o desfazer do navegador fica inteiro), para ele aparecer inteiro a 360 px. O "Tentar de novo" do `AvisoFila` é `secundario`: é uma tentativa dentro da conversa, que não decide nada e convive com o primário da caixa de pedido; o `EstadoErro` de página, que é a única ação da tela, usa o primário laranja | O chip abre por clique e por teclado |
 
 **Formulário**
 
@@ -1594,14 +1594,14 @@ prova isso (RF6 da X1).
 | `Interruptor` (N) | Trilho de 52 × 32 px, com alvo de toque de 44 px de altura abaixo de 768. Desligado: `borda`, com borda `borda-campo` (produto). Ligado: `azul`, com borda `azul-degrau`. Bolinha de 24 em `fundo` (produto). Fora de uso: `fundo-suave` com borda `borda` e bolinha `borda-campo`, sem opacidade (produto); a posição da bolinha continua dizendo o estado | `role="switch"`. Muda na hora |
 | `Segmentado` (N) | Grupo de 44 px, borda 2, canto 12. A opção ativa em `azul-claro`, `azul-borda`, `azul-texto`. Até quatro; com quatro rótulos longos, `emDuasColunasNoCelular` põe as opções duas por linha abaixo de 768 px (o filtro "Estado" de Registros › IA). Troca o jeito de ver; não é aba | `radiogroup`, com as setas, Home e End |
 | `Aparencia` (N) | O `Segmentado` Sistema · Claro · Escuro, em "Sua conta" | Só a escolha explícita grava; voltar a Sistema apaga a chave. Sem armazenamento, vale o sistema, calado |
-| `TamanhoDaLetra` (N) | `componentes/ajustes/TamanhoDaLetra` (numa pasta própria: `componentes/` já está no teto de 25 arquivos de produção). Três `Opcao` de rádio (Padrão · Grande · Maior) num `fieldset` "Tamanho da letra", e a prévia "Assim fica a minha letra." no tamanho de agora. Em Eu › Ajustes, com a `Aparencia` | Setas trocam a escolha, uma parada de Tab. Só a escolha grava; Padrão apaga a chave. Sem armazenamento, vale na sessão, calado |
+| `TamanhoDaLetra` (N) | `components/settings/TamanhoDaLetra` (numa pasta própria: `components/` já está no teto de 25 arquivos de produção). Três `Opcao` de rádio (Padrão · Grande · Maior) num `fieldset` "Tamanho da letra", e a prévia "Assim fica a minha letra." no tamanho de agora. Em Eu › Ajustes, com a `Aparencia` | Setas trocam a escolha, uma parada de Tab. Só a escolha grava; Padrão apaga a chave. Sem armazenamento, vale na sessão, calado |
 
 **Sobrepor**
 
 | Peça | Desenho | Estados e teclado |
 |---|---|---|
 | `Dialogo` (R) | Sobre o `veu`. Caixa centrada de até 520 px, canto 16, borda 2 e degrau 4 (o anel e o degrau são a `shadow-flutua`). Título em `t-secao`, **sem altura mínima de 64 px** (produto: o diálogo de um campo e dois botões precisa caber nos 640 px de um celular baixo, A72). Miolo com 24 px (20 abaixo de 640), e a caixa rola por dentro; rodapé com os botões à direita. **Sem "X" no cabeçalho** (produto: ele seria o primeiro controle do Tab, e todo diálogo já tem "Cancelar" ou "Fechar") | O `veu` vale para todo `<dialog>` modal, e por isso a gaveta da casca (13.0) já o herda a partir da 7.0: não é decisão dela. Ao abrir, o foco vai ao primeiro campo ou ao primeiro botão do rodapé; na confirmação, ao texto. O Tab e o Shift+Tab não saem da caixa; o Esc fecha; ao fechar, o foco volta a quem abriu, ou ao `focoDeReserva` quando esse saiu da página |
-| `DialogoDeConfirmacao`, `dialogos.tsx` (R) | A caixa do `Dialogo` (produto: 520 px, e não os 460 do mockup: uma largura só para todo diálogo). **Dois botões do mesmo tamanho**, em duas colunas iguais a partir de 640 px e empilhados abaixo, com o `secundario` primeiro (à esquerda, ou em cima) e o que confirma depois, em `oficial` ou em `perigo` cheio. O `perigo` cheio só vive dentro de uma confirmação, e a lista é fechada: a `DialogoDeConfirmacao`, a `ConfirmacaoDePerigo` de `dialogos.tsx` e o `DialogoDeDecisao` dos pedidos de nome, mais a definição do botão e a galeria, que mostra o desenho. `componentes/perigo-cheio.test.ts` a guarda: um uso novo reprova. A `ConfirmacaoDePerigo` mantém os botões à direita, com a largura do rótulo e a mesma altura (produto) | O que vai acontecer está escrito antes dos botões (regra 50, item 8). O foco começa no texto, e nenhum botão o recebe ao abrir |
+| `DialogoDeConfirmacao`, `dialogs.tsx` (R) | A caixa do `Dialogo` (produto: 520 px, e não os 460 do mockup: uma largura só para todo diálogo). **Dois botões do mesmo tamanho**, em duas colunas iguais a partir de 640 px e empilhados abaixo, com o `secundario` primeiro (à esquerda, ou em cima) e o que confirma depois, em `oficial` ou em `perigo` cheio. O `perigo` cheio só vive dentro de uma confirmação, e a lista é fechada: a `DialogoDeConfirmacao`, a `ConfirmacaoDePerigo` de `dialogs.tsx` e o `DialogoDeDecisao` dos pedidos de nome, mais a definição do botão e a galeria, que mostra o desenho. `components/perigo-cheio.test.ts` a guarda: um uso novo reprova. A `ConfirmacaoDePerigo` mantém os botões à direita, com a largura do rótulo e a mesma altura (produto) | O que vai acontecer está escrito antes dos botões (regra 50, item 8). O foco começa no texto, e nenhum botão o recebe ao abrir |
 | `LoginPorCima` (R) | O diálogo da sessão vencida, na mesma caixa e com os campos da pele (borda 2 em `borda-campo`, fundo `campo`). O véu dele é o forte, preto a 75% nos dois temas, e não o `veu` (produto: a tela de quem saiu tem de sumir) | Funciona com outro diálogo aberto por baixo |
 | `PainelLado` (N) | A partir de 768 px, entra pela direita com 480 px e a altura da janela. Abaixo, folha de baixo de até 88% da altura, com canto de 20 em cima e a área segura do aparelho no pé. Cabeçalho de 64 px, com o título em `t-secao` e o "Fechar" de 44 px; rodapé opcional com os botões à direita. Não anima largura nem altura | Diálogo modal: o Tab não sai, e o foco entra no miolo, e não no "Fechar" (produto: quem abre quer ler). Fecha com o "Fechar" e com o Esc, e só com eles: o toque fora não fecha (produto: apagaria o que foi digitado). Ao fechar, o foco volta a quem abriu, ou ao `focoDeReserva` |
 
@@ -1627,18 +1627,18 @@ mockup desenhou e para o que qualquer catálogo oferecer.
 ### 10.4 Orçamento
 
 O limite é **150 kB de JS (brotli) no primeiro carregamento**: a entrada e os pedaços que ela
-importa estaticamente, medidos no build de verdade (`apps/web/nome-dos-chunks.test.ts`). Hoje são
+importa estaticamente, medidos no build de verdade (`apps/web/chunk-names.test.ts`). Hoje são
 perto de 127 kB, e o teto **não sobe** com a pele (RF22 da X1).
 
 | Pedaço | O que carrega | Quando |
 |---|---|---|
 | Entrada | React, TanStack Query, roteador, as páginas públicas, a casca, o tema e os ícones de lugar (até 4 kB em brotli, somados) | Sempre |
 | Área do papel | As rotas da área e as telas dela, cada tela num pedaço de até 30 kB | Depois da guarda de papel |
-| Peças | As peças novas, as de `componentes/ui/ia/` e a onça (o teto do pedaço sobe de 26 para até 40 kB) | Na primeira tela que usa |
+| Peças | As peças novas, as de `components/ui/ai/` e a onça (o teto do pedaço sobe de 26 para até 40 kB) | Na primeira tela que usa |
 | Galeria | Todas as peças, nos dois temas | Só com a variável do build ligada |
 
 - **A casca mora na entrada**, e por isso não importa peça de fora dela: nem a onça, nem peça de
-  `componentes/ui/ia/`
+  `components/ui/ai/`
 - **A área de um papel não baixa ícone nem peça de outro**
 - **Nenhuma fonte.** Nenhuma imagem decorativa acima de 30 KB; ilustração é SVG
 

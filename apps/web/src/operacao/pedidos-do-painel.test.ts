@@ -1,6 +1,6 @@
 import { idDoPedidoSchema, TAMANHO_MAXIMO_SLUG } from '@educa/shared'
 import { describe, expect, it } from 'vitest'
-import { TEXTO_DO_EMAIL_INVALIDO, TEXTO_DO_NOME_INVALIDO } from '../componentes/pedido-de-convite'
+import { TEXTO_DO_EMAIL_INVALIDO, TEXTO_DO_NOME_INVALIDO } from '../components/pedido-de-convite'
 import { pedidoDeConvite, pedidoDeEscola, pedidoDeRede, sortearIdDoPedido } from './pedidos-do-painel'
 import { REGRA_DO_ENDERECO } from './textos'
 

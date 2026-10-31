@@ -6,9 +6,9 @@ import { randomUUID } from 'node:crypto'
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { compose, PROCESSOS_DA_FILA } from '../../../tools/testes/compose.ts'
 import { urlDoBancoDeTeste } from '../../../tools/testes/integracao.setup.ts'
-import { criarExpurgoDeJobs } from '../src/processadores/expurgar-jobs.js'
-import { BancadaDeFila, LogEmMemoria } from './fila-de-teste.js'
-import { execucaoDoJob } from './execucao-do-job.js'
+import { criarExpurgoDeJobs } from '../src/processors/expurgar-jobs.js'
+import { BancadaDeFila, LogEmMemoria } from './queue.fixture.js'
+import { execucaoDoJob } from './job-execution.fixture.js'
 
 // `job_registro` do Postgres do compose de teste, com 12.000 jobs vencidos de verdade.
 

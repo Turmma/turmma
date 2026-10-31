@@ -18,9 +18,9 @@ import {
 } from '@educa/shared'
 import { createHash } from 'node:crypto'
 import { DisciplinaRepository } from '../estrutura/disciplina/disciplina.repository.js'
-import { paginar } from '../http/paginacao.js'
-import { temAssinaturaDePdf, type ExtratorDePdf } from './extracao-de-pdf.js'
-import { PRAZO_DA_EXTRACAO_MS, type FilaDeExtracao } from './fila-de-extracao.js'
+import { paginar } from '../http/pagination.js'
+import { temAssinaturaDePdf, type ExtratorDePdf } from './pdf-extraction.js'
+import { PRAZO_DA_EXTRACAO_MS, type FilaDeExtracao } from './extraction-queue.js'
 import { MaterialParadoRepository, MaterialRepository, type AlcanceDoMaterial, type MaterialLido } from './material.repository.js'
 import { trechoCitado } from './trecho-citado.js'
 

@@ -1,7 +1,7 @@
 import 'reflect-metadata'
 import { createLogger, startTelemetry, registerProcessErrorHandlers } from '@educa/core'
 import { lerConfiguracao } from './config.js'
-import { criarAplicacaoRealtime } from './configurar-app.js'
+import { criarAplicacaoRealtime } from './configure-app.js'
 
 const config = lerConfiguracao(process.env)
 const logger = createLogger({ servico: 'realtime' })

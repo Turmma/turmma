@@ -2,7 +2,7 @@ import { requireEscolaId, material, Unscoped, requestSessao, trecho, vinculo, ty
 import type { MateriaisQuery, EstadoDeMaterial, FalhaDeMaterial, LicencaDeMaterial, TitularidadeDeMaterial } from '@educa/shared'
 import { and, asc, desc, eq, exists, gt, gte, isNull, lt, sql, type SQL } from 'drizzle-orm'
 import { InvariantException } from '@educa/shared'
-import type { PaginaExtraida } from './extracao-de-pdf.js'
+import type { PaginaExtraida } from './pdf-extraction.js'
 
 /**
  * Como o material é alcançado, pela célula da `MATRIZ`: a coordenação alcança todo material da escola (`unidade`); o

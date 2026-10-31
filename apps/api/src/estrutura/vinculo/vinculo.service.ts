@@ -23,7 +23,7 @@ import {
   type VinculoDaCoordenacao,
 } from '@educa/shared'
 import { DisciplinaRepository } from '../disciplina/disciplina.repository.js'
-import { paginar } from '../../http/paginacao.js'
+import { paginar } from '../../http/pagination.js'
 import { TurmaRepository } from '../turma/turma.repository.js'
 import { VinculoRepository, type Decisao, type VinculoLido } from './vinculo.repository.js'
 

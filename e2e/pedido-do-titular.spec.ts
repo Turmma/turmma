@@ -1,8 +1,8 @@
 import { readFile } from 'node:fs/promises'
 import type { Page, Request, Route } from '@playwright/test'
-import { PRAZO_DA_ENTRADA_MS } from './__fixtures__/casca.ts'
-import { paginaNaoRola } from './__fixtures__/coordenacao.ts'
-import { expect, test } from './__fixtures__/perfis.ts'
+import { PRAZO_DA_ENTRADA_MS } from './support/casca.ts'
+import { paginaNaoRola } from './support/coordenacao.ts'
+import { expect, test } from './support/profiles.ts'
 import {
   acionar,
   confirmacao,
@@ -21,7 +21,7 @@ import {
   registrarPeloFluxo,
   somarDiasAHoje,
   diaCurto,
-} from './__fixtures__/pedidos-do-titular.ts'
+} from './support/pedidos-do-titular.ts'
 import {
   auditoriaDoPedidoNoBanco,
   cadastrarSuboperadorDeTeste,
@@ -38,8 +38,8 @@ import {
   type AlunoDeTeste,
   type EquipeDeTeste,
   type PedidoDoTitularSemeado,
-} from './__fixtures__/sessao.ts'
-import { larguraExcedente, larguraExcedenteDoDialogo, violacoesGraves } from './__fixtures__/verificacoes.ts'
+} from './support/seed.ts'
+import { larguraExcedente, larguraExcedenteDoDialogo, violacoesGraves } from './support/checks.ts'
 
 /**
  * O detalhe do pedido de titular da coordenação (F3, 17.0; RF12, RF13, RF13b, RF14, RF16 e RF20; `docs/interface.md` 3): o

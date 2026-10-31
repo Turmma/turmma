@@ -17,7 +17,7 @@ import {
 } from '@educa/shared'
 import { infiniteQueryOptions, queryOptions, type QueryClient } from '@tanstack/react-query'
 import type { CicloDeExecucao } from '../../../../api/ciclo-de-execucao'
-import { criarLugarNaAba } from '../../../../api/memoria-da-aba'
+import { criarLugarNaAba } from '../../../../api/tab-store'
 import { buscarComSessao, chamarComSessao } from '../../../../api/sessao'
 
 /**

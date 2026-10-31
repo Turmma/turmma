@@ -3,11 +3,11 @@ import { createHash, createHmac, randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { hmacDoCodigoDaTurma, sortearCodigoDaTurma } from '../src/sala/codigo-da-sala.js'
-import { chamar, subirApi, type ApiDeTeste, type RespostaHttp } from './api-com-sessao.js'
-import { configuracaoDeTeste, MONTAGEM_DE_TESTE } from './configuracao-de-teste.js'
-import { montarEscolaComTurma, type EscolaComTurma } from './escola-com-turma.js'
-import { esperarNaTrava, GatilhoDeParada } from './gatilho-de-parada.js'
-import { BancadaDeSessoes, type SessaoDeTeste } from './sessao-de-teste.js'
+import { chamar, subirApi, type ApiDeTeste, type RespostaHttp } from './test-api.js'
+import { configuracaoDeTeste, MONTAGEM_DE_TESTE } from './test-config.js'
+import { montarEscolaComTurma, type EscolaComTurma } from './escola-turma.fixture.js'
+import { esperarNaTrava, GatilhoDeParada } from './write-block-trigger.js'
+import { BancadaDeSessoes, type SessaoDeTeste } from './sessao.fixture.js'
 
 /**
  * O acesso da turma (A1, tarefa 4.0; `tasks/prd-apresentacao-escola/cenarios.md`): E13, E14, P2 com o E12, a parte do

@@ -45,7 +45,7 @@ de um request HTTP, a experiência quebra no primeiro cliente com novecentos alu
 
 5. **DTO de saída explícito.** Nunca serialize a entidade inteira e confie no frontend para
    esconder o que não deve aparecer. Campo escondido no CSS continua na resposta da API.
-   Checagem: `apps/api/test/contratos.test.ts`, `privacy-guardian`.
+   Checagem: `apps/api/test/contracts.test.ts`, `privacy-guardian`.
 
 6. **Contrato compartilhado** vive em `packages/shared`. Tipo de API redigitado no frontend
    é onde back e front começam a divergir sem ninguém perceber.

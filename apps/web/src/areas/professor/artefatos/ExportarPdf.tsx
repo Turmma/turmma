@@ -1,9 +1,9 @@
 import { useMutation } from '@tanstack/react-query'
 import { FileDown } from 'lucide-react'
 import { baixarPdfDoArtefato, salvarArquivo } from './api/artefatos'
-import { mensagemDoErro } from '../../../api/cliente'
-import { Botao } from '../../../componentes/ui/Botao'
-import type { VarianteDeBotao } from '../../../componentes/ui/botao-secundario'
+import { mensagemDoErro } from '../../../api/client'
+import { Botao } from '../../../components/ui/Botao'
+import type { VarianteDeBotao } from '../../../components/ui/button-variants'
 
 interface PropsDoExportar {
   readonly artefatoId: string

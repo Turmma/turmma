@@ -1,9 +1,9 @@
 import type { Citacao, ConteudoDoArtefato as Conteudo, ConteudoDeAtividade, ConteudoDePlanoDeAula } from '@educa/shared'
 import { Check } from 'lucide-react'
-import { ChipFonte } from '../../../componentes/ui/ia/ChipFonte'
-import { Fontes } from '../../../componentes/ui/ia/Fontes'
-import { PaginaMini } from '../../../componentes/ui/ia/PaginaMini'
-import type { TitulosDosMateriais } from '../../../componentes/ui/ia/textos-das-fontes'
+import { ChipFonte } from '../../../components/ui/ai/ChipFonte'
+import { Fontes } from '../../../components/ui/ai/Fontes'
+import { PaginaMini } from '../../../components/ui/ai/PaginaMini'
+import type { TitulosDosMateriais } from '../../../components/ui/ai/source-labels'
 
 /** A letra de cada alternativa, pelo índice que o contrato usa (0 a 3). */
 const LETRAS = ['a', 'b', 'c', 'd'] as const

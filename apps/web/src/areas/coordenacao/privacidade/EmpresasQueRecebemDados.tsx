@@ -1,10 +1,10 @@
 import type { SuboperadorDaEscola } from '@educa/shared'
 import { useQuery } from '@tanstack/react-query'
 import { consultaSuboperadores } from './api/privacidade'
-import { EstadoCarregando, EstadoErro, EstadoVazio } from '../../../componentes/estado'
-import { Estado } from '../../../componentes/ui/SeloDeEstado'
-import { Tabela, type ColunaDaTabela } from '../../../componentes/ui/Tabela'
-import { CabecalhoDeSecao } from '../../../componentes/ui/Tela'
+import { EstadoCarregando, EstadoErro, EstadoVazio } from '../../../components/states'
+import { Estado } from '../../../components/ui/SeloDeEstado'
+import { Tabela, type ColunaDaTabela } from '../../../components/ui/Tabela'
+import { CabecalhoDeSecao } from '../../../components/ui/Tela'
 import { textoDaVigencia, textoDasCategorias, textoDoPais, textoDoTreinamento } from './textos-dos-suboperadores'
 
 const COLUNAS: readonly [ColunaDaTabela<SuboperadorDaEscola>, ...ColunaDaTabela<SuboperadorDaEscola>[]] = [

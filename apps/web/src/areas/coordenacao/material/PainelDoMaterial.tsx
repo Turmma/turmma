@@ -1,8 +1,8 @@
 import { MENSAGEM_DA_FALHA_DE_MATERIAL, NOME_DA_LICENCA, NOME_DA_TITULARIDADE, type Material } from '@educa/shared'
 import type { ReactNode } from 'react'
-import { Botao } from '../../../componentes/ui/Botao'
-import { PainelLado } from '../../../componentes/ui/sobrepostos/PainelLado'
-import { Estado } from '../../../componentes/ui/SeloDeEstado'
+import { Botao } from '../../../components/ui/Botao'
+import { PainelLado } from '../../../components/ui/overlays/PainelLado'
+import { Estado } from '../../../components/ui/SeloDeEstado'
 import { FAMILIA_DA_SITUACAO_DO_MATERIAL, textoDaSituacaoDoMaterial } from './materiais-da-escola'
 
 interface Props {

@@ -3,7 +3,7 @@ import { analistaNominalResponseSchema, resumoDoAnalistaResponseSchema, type Con
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../../tools/testes/metricas.ts'
-import { chamar, subirApi, type ApiDeTeste, type RespostaHttp } from '../../test/api-com-sessao.js'
+import { chamar, subirApi, type ApiDeTeste, type RespostaHttp } from '../../test/test-api.js'
 import {
   alunosComSessao,
   aplicarAtividade,
@@ -15,7 +15,7 @@ import {
   responderProva,
   rotasDaAtividade,
   type RotasDaAtividade,
-} from '../../test/atividade-de-teste.js'
+} from '../../test/atividade.fixture.js'
 import {
   contarNaEscola,
   dispararExecucao,
@@ -28,10 +28,10 @@ import {
   zerarLimiteDePedidosDeIa,
   type AnoAnterior,
   type EscolaComAssistente,
-} from '../../test/escola-com-assistente.js'
-import { aplicarAtividade as gravarAplicacao, lancarLote, trocasJaFeitas } from '../../test/escola-com-tutor.js'
-import { BancadaDeSessoes, type SessaoDeTeste } from '../../test/sessao-de-teste.js'
-import { TETO_DE_PEDIDOS_DE_IA_POR_USUARIO } from '../assistente/limite-de-pedidos-de-ia.js'
+} from '../../test/escola-assistente.fixture.js'
+import { aplicarAtividade as gravarAplicacao, lancarLote, trocasJaFeitas } from '../../test/escola-tutor.fixture.js'
+import { BancadaDeSessoes, type SessaoDeTeste } from '../../test/sessao.fixture.js'
+import { TETO_DE_PEDIDOS_DE_IA_POR_USUARIO } from '../assistente/ai-request-rate-limit.js'
 import { EXECUTOR_DE_AGENTE } from '../ia/ia.module.js'
 import { LIMIAR_DE_ACERTO_BAIXO_PERCENTUAL } from './analista.service.js'
 

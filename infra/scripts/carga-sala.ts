@@ -7,8 +7,8 @@ import { pathToFileURL } from 'node:url'
 import { Redis } from 'ioredis'
 import pg from 'pg'
 import type { criarEscola, criarRede } from '../../apps/api/src/operacao/escola/escola.ts'
-import type { HashDeSenha } from '../../apps/api/src/credencial/hash-de-senha.ts'
-import type { criarAlunosComMatricula, criarSessoesSinteticas } from '../../apps/api/src/sessao/tenant/sessoes-sinteticas.ts'
+import type { HashDeSenha } from '../../apps/api/src/credencial/password-hasher.ts'
+import type { criarAlunosComMatricula, criarSessoesSinteticas } from '../../apps/api/src/sessao/tenant/synthetic-sessions.ts'
 import type { createDatabase, createPool } from '@educa/core'
 import { raizRepositorio } from '../../tools/ci/executar.ts'
 import { argumentosDoCompose, CODIGO_THRESHOLD_CRUZADO, lerAmbienteDeCarga, rodar } from './carga.ts'
@@ -246,8 +246,8 @@ async function importarDaApi(): Promise<ModulosDaApi> {
   return {
     nucleo: await importar('packages/core/dist/index.js'),
     escolas: await importar('apps/api/dist/operacao/escola/escola.js'),
-    sessoes: await importar('apps/api/dist/sessao/tenant/sessoes-sinteticas.js'),
-    hash: await importar('apps/api/dist/credencial/hash-de-senha.js'),
+    sessoes: await importar('apps/api/dist/sessao/tenant/synthetic-sessions.js'),
+    hash: await importar('apps/api/dist/credencial/password-hasher.js'),
   }
 }
 

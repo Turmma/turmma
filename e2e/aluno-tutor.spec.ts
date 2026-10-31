@@ -1,15 +1,15 @@
 import type { Locator, Page } from '@playwright/test'
 import { MENSAGENS_DE_ERRO } from '../packages/shared/src/errors/messages.ts'
-import { conferirAssinaturas, conferirQueAOncaNaoTemNome } from './__fixtures__/avatar.ts'
-import { encaminhamento, erroDaApi, minhaAtividade, perguntaDoAluno, portao, provaDa, respostaDoTutor, simularAluno, type ApiDoAluno } from './__fixtures__/aluno.ts'
-import { entrarComoAluno, irPelaNavegacao, PRAZO_DA_ENTRADA_MS } from './__fixtures__/casca.ts'
-import { expect, test } from './__fixtures__/perfis.ts'
-import { colocarAlunoNaTurma, criarAlunoComMatricula, type AlunoDeTeste } from './__fixtures__/sessao.ts'
-import { codigoCru, larguraExcedente, violacoesGraves } from './__fixtures__/verificacoes.ts'
+import { conferirAssinaturas, conferirQueAOncaNaoTemNome } from './support/avatar.ts'
+import { encaminhamento, erroDaApi, minhaAtividade, perguntaDoAluno, portao, provaDa, respostaDoTutor, simularAluno, type ApiDoAluno } from './support/aluno.ts'
+import { entrarComoAluno, irPelaNavegacao, PRAZO_DA_ENTRADA_MS } from './support/casca.ts'
+import { expect, test } from './support/profiles.ts'
+import { colocarAlunoNaTurma, criarAlunoComMatricula, type AlunoDeTeste } from './support/seed.ts'
+import { codigoCru, larguraExcedente, violacoesGraves } from './support/checks.ts'
 
 /**
  * O Tutor do aluno (MVP, A4, pacote X; `docs/interface.md` 11.6): a escolha da atividade e a conversa por atividade.
- * **Os estados da tela**, com a API simulada na página (`__fixtures__/aluno.ts`). A sessão, o `/v1/eu` e a turma são os
+ * **Os estados da tela**, com a API simulada na página (`support/aluno.ts`). A sessão, o `/v1/eu` e a turma são os
  * de verdade. O fluxo inteiro contra a API real está em `aluno-fluxo.spec.ts`.
  */
 

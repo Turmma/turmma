@@ -1,6 +1,6 @@
 import type { Locator, Page } from '@playwright/test'
-import { expect, test } from './__fixtures__/perfis.ts'
-import { corDoToken, larguraExcedente, violacoesGraves } from './__fixtures__/verificacoes.ts'
+import { expect, test } from './support/profiles.ts'
+import { corDoToken, larguraExcedente, violacoesGraves } from './support/checks.ts'
 
 /**
  * A moldura das páginas de fora da sessão (X1, tarefa 14.0; `docs/interface.md` 11.3, 9.6): a partir de 1024 px a tela

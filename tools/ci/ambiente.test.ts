@@ -121,7 +121,7 @@ describe('.env.example e compose', () => {
       expect(ESCOLAS_DO_PRIMEIRO_ANO * vagas, fila).toBeLessThanOrEqual(REPLICAS * pool)
       // Com uma réplica fora, ou somando a vaga da rotina do sistema (que usa o mesmo padrão), a soma
       // pode passar do pool: aí o job espera a vez na fila, e o teto de cada escola segue valendo,
-      // porque o worker confere a vaga ao começar (vagas.int.test.ts, "publicação ambígua"). O que não
+      // porque o worker confere a vaga ao começar (slots.int.test.ts, "publicação ambígua"). O que não
       // pode é uma escola sozinha não caber no pool de uma réplica.
       expect(vagas, fila).toBeLessThanOrEqual(pool)
     }

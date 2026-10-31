@@ -10,7 +10,7 @@ import {
   type PreviaDaListaResponse,
 } from '@educa/shared'
 import { infiniteQueryOptions } from '@tanstack/react-query'
-import { SEM_CORPO } from '../../../../api/cliente'
+import { SEM_CORPO } from '../../../../api/client'
 import { CHAVE_DA_ESTRUTURA } from '../../../../api/estrutura'
 import { buscarComSessao, chamarComSessao } from '../../../../api/sessao'
 

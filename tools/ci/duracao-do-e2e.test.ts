@@ -501,8 +501,8 @@ describe('no repositório: o diff do git decide qual caso é alterado', () => {
     // O mesmo título em dois specs: vale o menor prazo, e não o do último arquivo lido (`a-repetido` vem antes de `antigo`).
     writeFileSync(join(raiz, 'e2e/a-repetido.spec.ts'), ["test('lento', async () => {", '  await a()', '})', ''].join('\n'))
     // Só o `*.spec.ts` é caso: o ajudante em `__fixtures__` pode escrever `test(` sem ser um.
-    mkdirSync(join(raiz, 'e2e/__fixtures__'))
-    writeFileSync(join(raiz, 'e2e/__fixtures__/ajudante.ts'), ["test('só no ajudante', async () => {", '  test.slow()', '})', ''].join('\n'))
+    mkdirSync(join(raiz, 'e2e/support'))
+    writeFileSync(join(raiz, 'e2e/support/ajudante.ts'), ["test('só no ajudante', async () => {", '  test.slow()', '})', ''].join('\n'))
     // Só o que está em `e2e/`: um `*.spec.ts` de outra pasta não é caso do Playwright.
     mkdirSync(join(raiz, 'fora'))
     writeFileSync(join(raiz, 'fora/outro.spec.ts'), ["test('fora do e2e', async () => {", '  test.slow()', '})', ''].join('\n'))
@@ -554,8 +554,8 @@ describe('no repositório: o diff do git decide qual caso é alterado', () => {
       rmSync(join(raiz, 'e2e/apagado.spec.ts'))
       // Os dois com o corpo do caso lento: se algum fosse lido como caso da árvore, o corpo teria duas cópias.
       const corpo = ["test('só no ajudante', async () => {", '  test.slow()', '  await a()', '})', ''].join('\n')
-      mkdirSync(join(raiz, 'e2e/__fixtures__'))
-      writeFileSync(join(raiz, 'e2e/__fixtures__/ajudante.ts'), corpo)
+      mkdirSync(join(raiz, 'e2e/support'))
+      writeFileSync(join(raiz, 'e2e/support/ajudante.ts'), corpo)
       writeFileSync(join(raiz, '.gitignore'), 'e2e/ignorado.spec.ts\n')
       writeFileSync(join(raiz, 'e2e/ignorado.spec.ts'), corpo.replace('só no ajudante', 'ignorado'))
       // O caso muda de nome e de arquivo, e o arquivo novo ainda está fora do git.

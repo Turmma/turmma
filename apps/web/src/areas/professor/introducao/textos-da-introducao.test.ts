@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { NOMES_DOS_AGENTES } from '@educa/shared'
 import { describe, expect, it } from 'vitest'
-import { NAVEGACAO } from '../../navegacao'
+import { NAVEGACAO } from '../../navigation'
 import {
   AGENTE_DA_INTRODUCAO,
   DESCRICAO_DO_LUGAR,
@@ -123,9 +123,9 @@ describe('onde fica cada coisa', () => {
 describe('as falas que o e2e espera', () => {
   it('a lista `FALAS_DA_INTRODUCAO_DO_PROFESSOR` do e2e é a das falas dos passos, na ordem: mudar o texto num lugar e não no outro reprova aqui', () => {
     // O `e2e/` não importa a web, e por isso guarda uma cópia das falas: este caso a confere contra os passos de verdade.
-    const fonte = readFileSync(join(import.meta.dirname, '..', '..', '..', '..', '..', '..', 'e2e', '__fixtures__', 'casca.ts'), 'utf8')
+    const fonte = readFileSync(join(import.meta.dirname, '..', '..', '..', '..', '..', '..', 'e2e', 'support', 'casca.ts'), 'utf8')
     const bloco = /FALAS_DA_INTRODUCAO_DO_PROFESSOR = \[([^\]]*)\] as const/.exec(fonte)
-    expect(bloco, 'a lista saiu de `e2e/__fixtures__/casca.ts`: atualize este caso').not.toBeNull()
+    expect(bloco, 'a lista saiu de `e2e/support/casca.ts`: atualize este caso').not.toBeNull()
     const copiadas = [...(bloco?.[1] ?? '').matchAll(/'([^']*)'/g)].map((achado) => achado[1])
     expect(copiadas).toEqual(PASSOS_DO_PROFESSOR.map((passo) => passo.fala))
   })

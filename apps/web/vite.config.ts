@@ -1,8 +1,8 @@
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 import { defaultClientConditions, defineConfig } from 'vite'
-import { nomeDoChunk } from './nome-dos-chunks'
-import { pluginRebaixarCor } from './rebaixar-cor'
+import { nomeDoChunk } from './chunk-names'
+import { pluginRebaixarCor } from './downlevel-color'
 
 // Dentro do compose a API fica atrás da borda, `http://borda:8080`. A web chama caminho relativo e o proxy
 // encaminha, então o navegador nunca precisa conhecer o endereço da API nem de CORS.
@@ -22,7 +22,7 @@ export default defineConfig({
   build: {
     target: NAVEGADORES_MINIMOS,
     // A entrada fica `index-*.js`; o chunk da área do operador, `operacao-*.js`; o resto, `parte-*.js` (Tech Spec da
-    // A0, seção 9, "Orçamento"). O porquê de ser pelo nome, e não por `manualChunks`, está em `nome-dos-chunks.ts`.
+    // A0, seção 9, "Orçamento"). O porquê de ser pelo nome, e não por `manualChunks`, está em `chunk-names.ts`.
     rolldownOptions: { output: { chunkFileNames: nomeDoChunk } },
   },
   server: { proxy },

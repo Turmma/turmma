@@ -15,7 +15,7 @@ import {
 } from '@educa/core'
 import { resultadoGravadoSchema, FUNCAO_DA_TAREFA_DE_IA, type ErrorCode, type ExecucaoInput, type EstadoDeExecucao, type ResultadoGravado, type TarefaDeIa } from '@educa/shared'
 import { and, eq, lt, or, sql } from 'drizzle-orm'
-import { exigirUsuarioDoContexto } from './contexto-da-execucao.js'
+import { exigirUsuarioDoContexto } from './execucao-context.js'
 
 /**
  * A porta `ExecucaoRepository` do `AgenteExecutor`, sobre `execucao_agente`. O executor roda **fora de

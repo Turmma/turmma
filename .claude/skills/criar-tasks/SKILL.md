@@ -133,8 +133,8 @@ infere o porte pela contagem de guardiões e avisa que inferiu.
   célula com outros, ninguém escreveu o teste, e três dos oito achados da validação foram eles
 - **O RF que vale para toda tela vira linha na tabela de testes de cada tarefa que cria ou altera
   tela**: cabe a 1366 × 768 sem a página rolar, uma ação cheia por tela, o vocabulário proibido. Com a
-  peça que mede: `paginaNaoRola` (`e2e/__fixtures__/coordenacao.ts`), `soOPainelDaAbaRola` e
-  `VOCABULARIO_DE_NOTA` (`e2e/__fixtures__/professor/cena.ts`). Na X3 o RF22 estava no "Contexto" de
+  peça que mede: `paginaNaoRola` (`e2e/support/coordenacao.ts`), `soOPainelDaAbaRola` e
+  `VOCABULARIO_DE_NOTA` (`e2e/support/professor/scenario.ts`). Na X3 o RF22 estava no "Contexto" de
   oito tarefas e na tabela de nenhuma, que só diziam "sem rolar de lado" a 360 px; quatro telas rolavam
   a página, e só a validação mediu
 - O leitor é um desenvolvedor júnior que não participou das conversas. Seja explícito sobre

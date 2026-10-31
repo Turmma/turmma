@@ -1,6 +1,6 @@
 import { useId } from 'react'
 import { Link } from 'wouter'
-import { PainelLado } from '../../../componentes/ui/sobrepostos/PainelLado'
+import { PainelLado } from '../../../components/ui/overlays/PainelLado'
 import type { PassoDoRoteiro } from './o-que-falta-da-escola'
 
 /**

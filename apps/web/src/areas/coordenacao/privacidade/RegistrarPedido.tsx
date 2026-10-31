@@ -2,17 +2,17 @@ import { MAXIMO_DO_NOME_DO_TITULAR, SOLICITANTES_DO_PEDIDO, TIPOS_DE_PEDIDO_DO_T
 import { useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query'
 import { useRef, useState, type FormEvent } from 'react'
 import { buscarTitulares, consultaPreviaDoTitular, registrarPedidoDoTitular, relerPedidosDoTitular } from './api/privacidade'
-import { Botao } from '../../../componentes/ui/Botao'
-import { Campo } from '../../../componentes/ui/campos/Campo'
-import { Dialogo } from '../../../componentes/ui/sobrepostos/Dialogo'
-import { useDialogoDaTela } from '../../../componentes/ui/sobrepostos/dialogo-aberto'
-import { DialogoDeConfirmacao } from '../../../componentes/ui/sobrepostos/DialogoDeConfirmacao'
-import { AlertaDaFalha, useEnvioUnico } from '../../../componentes/dialogos'
-import { sortearIdDoPedido } from '../../../componentes/id-do-pedido'
-import { Selecao } from '../../../componentes/ui/campos/Selecao'
-import { mensagemDoErro } from '../../../api/cliente'
-import { textoDaFalha } from '../../../componentes/texto-da-falha'
-import { formatarData, formatarNumero } from '../../../formatar'
+import { Botao } from '../../../components/ui/Botao'
+import { Campo } from '../../../components/ui/fields/Campo'
+import { Dialogo } from '../../../components/ui/overlays/Dialogo'
+import { useDialogoDaTela } from '../../../components/ui/overlays/dialog-state'
+import { DialogoDeConfirmacao } from '../../../components/ui/overlays/DialogoDeConfirmacao'
+import { AlertaDaFalha, useEnvioUnico } from '../../../components/dialogs'
+import { sortearIdDoPedido } from '../../../components/request-id'
+import { Selecao } from '../../../components/ui/fields/Selecao'
+import { mensagemDoErro } from '../../../api/client'
+import { textoDaFalha } from '../../../components/error-text'
+import { formatarData, formatarNumero } from '../../../format'
 import {
   anuncioDaBusca,
   AVISO_DA_ELIMINACAO,
@@ -112,7 +112,7 @@ interface PropsDoDialogoDeBusca {
  * `aria-live`, e a pessoa se escolhe pela turma e pela matrícula, que separam dois homônimos.
  *
  * O que foi achado mora **só neste diálogo**: nada vai ao cache de consultas nem sobrevive ao fechar. O que garante o
- * "não sobrevive" é o `gcTime: 0` do `useEnvioUnico` (`componentes/dialogos.tsx`): quem tirar dele abre o cache de
+ * "não sobrevive" é o `gcTime: 0` do `useEnvioUnico` (`components/dialogs.tsx`): quem tirar dele abre o cache de
  * mutações para os nomes achados. A resposta que chega depois de uma busca nova não a substitui (o `useMutation`
  * acompanha só a última), e a que chega com o diálogo fechado não tem onde escrever.
  */

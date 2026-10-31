@@ -1,8 +1,8 @@
 import { ErrorCode, MAXIMO_DE_BYTES_DO_MATERIAL, motivoDaRecusaDoMaterial } from '@educa/shared'
 import { describe, expect, it } from 'vitest'
-import { ErroDaApi } from '../../../api/cliente'
+import { ErroDaApi } from '../../../api/client'
 import { intervaloDaLista, INTERVALO_DA_LEITURA_DO_MATERIAL_MS } from './api/material'
-import { textoDaFalha } from '../../../componentes/texto-da-falha'
+import { textoDaFalha } from '../../../components/error-text'
 import {
   camposDoEnvio,
   doMaisNovoAoMaisAntigo,

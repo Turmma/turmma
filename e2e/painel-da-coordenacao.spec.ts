@@ -1,10 +1,10 @@
 import type { Locator, Page } from '@playwright/test'
-import { montarEscolaComEntregas } from './__fixtures__/governanca.ts'
-import { abrirSeletorDeEscola, entrarComoCoordenacaoNaMesmaAba, entrarPorEmail, esperarPainel, linhaDoSeletor, nomeNoSeletor, PRAZO_DA_ENTRADA_MS } from './__fixtures__/casca.ts'
-import { expect, test } from './__fixtures__/perfis.ts'
-import { campoCodigo } from './__fixtures__/segundo-fator.ts'
-import { codigoDoAutenticador, codigoDoPassoAnterior, convidarProfessorNoBanco, criarEquipeComSenha, criarUsuarioEmOutraEscola } from './__fixtures__/sessao.ts'
-import { larguraExcedente, violacoesGraves } from './__fixtures__/verificacoes.ts'
+import { montarEscolaComEntregas } from './support/governanca.ts'
+import { abrirSeletorDeEscola, entrarComoCoordenacaoNaMesmaAba, entrarPorEmail, esperarPainel, linhaDoSeletor, nomeNoSeletor, PRAZO_DA_ENTRADA_MS } from './support/casca.ts'
+import { expect, test } from './support/profiles.ts'
+import { campoCodigo } from './support/mfa.ts'
+import { codigoDoAutenticador, codigoDoPassoAnterior, convidarProfessorNoBanco, criarEquipeComSenha, criarUsuarioEmOutraEscola } from './support/seed.ts'
+import { larguraExcedente, violacoesGraves } from './support/checks.ts'
 
 /**
  * O Painel da coordenação (telas da coordenação, 2.0; RF6, RF7 e RF22), pela tela, nos projetos `chromebook` e `celular`: os

@@ -1,5 +1,5 @@
 import { defineConfig, devices } from '@playwright/test'
-import { PERFIL_CELULAR, PERFIL_CHROMEBOOK, type OpcoesDoPerfil } from './e2e/__fixtures__/perfis.ts'
+import { PERFIL_CELULAR, PERFIL_CHROMEBOOK, type OpcoesDoPerfil } from './e2e/support/profiles.ts'
 import { lerAmbienteDeTeste, valorObrigatorio } from './tools/ci/compose.ts'
 import { relatoriosDoPlaywright, VARIAVEL_DO_RELATORIO_DO_E2E } from './tools/ci/duracao-do-e2e.ts'
 

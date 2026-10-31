@@ -25,7 +25,7 @@ let fila: RespostaFalsa[] = []
 const importarSessao = () => import('./sessao')
 const importarConvite = () => import('./convite')
 const importarMfa = () => import('./mfa')
-const importarCliente = () => import('./cliente')
+const importarCliente = () => import('./client')
 
 let sessao: Awaited<ReturnType<typeof importarSessao>>
 let convite: Awaited<ReturnType<typeof importarConvite>>

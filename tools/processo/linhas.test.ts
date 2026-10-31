@@ -113,9 +113,9 @@ describe('arquivos previstos', () => {
   it('pasta cobre o que está dentro dela, e arquivo de nome parecido não', async () => {
     expect(seSobrepoem('apps/web/src/areas/x/', 'apps/web/src/areas/x/Tela.tsx')).toBe(true)
     expect(seSobrepoem('apps/web/src/areas/x/**', 'apps/web/src/areas/x/Tela.tsx')).toBe(true)
-    expect(seSobrepoem('apps/web/src/rotas.tsx', 'apps/web/src/rotas.tsx')).toBe(true)
+    expect(seSobrepoem('apps/web/src/routes.tsx', 'apps/web/src/routes.tsx')).toBe(true)
     expect(seSobrepoem('apps/web/src/areas/x/', 'apps/web/src/areas/xis/Tela.tsx')).toBe(false)
-    expect(seSobrepoem('apps/web/src/rotas.ts', 'apps/web/src/rotas.tsx')).toBe(false)
+    expect(seSobrepoem('apps/web/src/routes.ts', 'apps/web/src/routes.tsx')).toBe(false)
   })
 
   it('migration, schema e contrato compartilhado são do tronco', async () => {
@@ -130,7 +130,7 @@ describe('o que corre junto', () => {
     expect(porQueNaoJuntas(a, b)).toBeNull()
     expect(porQueNaoJuntas(tarefa(1), tarefa(2))).toMatch(/não autoriza a 1\.0 em paralelo com a 2\.0/)
     expect(porQueNaoJuntas(a, { ...b, arquivos: [] })).toMatch(/a 2\.0 não declara caminho/)
-    expect(porQueNaoJuntas({ ...a, arquivos: ['apps/web/src/rotas.tsx', 'apps/web/src/areas/a1/'] }, { ...b, arquivos: ['apps/web/src/rotas.tsx'] })).toMatch(/preveem apps\/web\/src\/rotas\.tsx/)
+    expect(porQueNaoJuntas({ ...a, arquivos: ['apps/web/src/routes.tsx', 'apps/web/src/areas/a1/'] }, { ...b, arquivos: ['apps/web/src/routes.tsx'] })).toMatch(/preveem apps\/web\/src\/routes\.tsx/)
     expect(porQueNaoJuntas({ ...a, arquivos: ['apps/web/src/areas/a1/'] }, { ...b, arquivos: ['apps/web/src/areas/a1/Tela.tsx'] })).toMatch(/preveem apps\/web\/src\/areas\/a1\//)
     expect(
       porQueNaoJuntas({ ...a, arquivos: ['packages/core/drizzle/0037_a.sql'] }, { ...b, arquivos: ['packages/shared/src/b.ts'] }),

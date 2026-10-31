@@ -3,7 +3,7 @@ import { existsSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { afterAll, describe, expect, it, vi } from 'vitest'
-import { ArgumentoInvalido } from './comando.js'
+import { ArgumentoInvalido } from './command.js'
 import { executarOpsOperador, lerPedidoDeOperador } from './operador.js'
 
 const NOME = 'Pessoa Sintética da Equipe'

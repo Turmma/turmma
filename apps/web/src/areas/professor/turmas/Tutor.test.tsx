@@ -5,8 +5,8 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import { Router } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
-import { criarClienteDeConsultas } from '../../../api/cliente-de-consultas'
-import { prepararTela, redeFalsa, type RespostaFalsa } from '../../../__fixtures__/tela'
+import { criarClienteDeConsultas } from '../../../api/query-client'
+import { prepararTela, redeFalsa, type RespostaFalsa } from '../../../__fixtures__/render-screen'
 import Tutor from './Tutor'
 
 /**

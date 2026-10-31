@@ -22,12 +22,12 @@ import {
   secoes,
   TITULO_DA_NOVA_CONVERSA,
   esperarInicioDoAluno,
-} from './__fixtures__/casca.ts'
-import { cliquesAte, irPelaCoordenacao, paginaNaoRola, type TelaDaCoordenacao } from './__fixtures__/coordenacao.ts'
-import { carregarSemRedeLenta, expect, test } from './__fixtures__/perfis.ts'
-import { configurarSegundoFatorPelaApi } from './__fixtures__/segundo-fator.ts'
-import { colocarAlunoNaTurma, criarAlocacaoDoProfessor, criarAlunoComMatricula, criarEquipeComSenha, criarUsuarioEmOutraEscola, type EquipeDeTeste } from './__fixtures__/sessao.ts'
-import { codigoCru, larguraExcedente, violacoesGraves } from './__fixtures__/verificacoes.ts'
+} from './support/casca.ts'
+import { cliquesAte, irPelaCoordenacao, paginaNaoRola, type TelaDaCoordenacao } from './support/coordenacao.ts'
+import { carregarSemRedeLenta, expect, test } from './support/profiles.ts'
+import { configurarSegundoFatorPelaApi } from './support/mfa.ts'
+import { colocarAlunoNaTurma, criarAlocacaoDoProfessor, criarAlunoComMatricula, criarEquipeComSenha, criarUsuarioEmOutraEscola, type EquipeDeTeste } from './support/seed.ts'
+import { codigoCru, larguraExcedente, violacoesGraves } from './support/checks.ts'
 
 /**
  * As áreas de cada papel na casca da escola (A1, tarefa 11.0): a navegação por papel e a guarda (W2), a fronteira do
@@ -43,7 +43,7 @@ const ROTA_MEUS_VINCULOS = '**/v1/meus-vinculos*'
 const TITULO_DA_FALHA = 'Não foi possível carregar esta parte do Turmma'
 
 /**
- * Os itens do professor, como a tabela `apps/web/src/areas/navegacao.ts` os declara. O e2e não importa o fonte da web
+ * Os itens do professor, como a tabela `apps/web/src/areas/navigation.ts` os declara. O e2e não importa o fonte da web
  * (outra resolução de módulos); a tarefa que acrescenta a linha lá acrescenta aqui, e o W2 percorre todos. "Nova
  * conversa" e "Ferramentas" chegaram com a A2 (D73); a ordem é a da D80 (telas do professor, 2.0), e "Seu time" saiu da lista; "Criados" chegou como o quarto (telas do professor, 5.0).
  */

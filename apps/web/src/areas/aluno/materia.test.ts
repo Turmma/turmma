@@ -1,6 +1,6 @@
 import { Atom, BookOpen, Calculator, Landmark } from 'lucide-react'
 import { describe, expect, it } from 'vitest'
-import { FAMILIAS_DE_COR } from '../../componentes/ui/Contador'
+import { FAMILIAS_DE_COR } from '../../components/ui/Contador'
 import { caraDaMateria } from './materia'
 
 describe('a cara da matéria na lista de tarefas', () => {

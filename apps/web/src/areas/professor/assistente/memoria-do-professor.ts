@@ -3,11 +3,11 @@ import { adaptarArtefato } from '../artefatos/api/artefatos'
 import { enviarMensagemAoAssistente } from './api/assistente'
 import { emCurso, type CicloDeExecucao } from '../../../api/ciclo-de-execucao'
 import { gerarComFerramenta } from '../ferramentas/api/ferramentas'
-import { criarLugarNaAba, type LugarNaAba } from '../../../api/memoria-da-aba'
+import { criarLugarNaAba, type LugarNaAba } from '../../../api/tab-store'
 import type { IniciaisDaFerramenta, PedidoDeFerramenta } from '../ferramentas/ferramentas'
 
 /**
- * O que as telas do Assistente lembram entre uma rota e outra (`api/memoria-da-aba.ts`): só em memória, e esvaziado com
+ * O que as telas do Assistente lembram entre uma rota e outra (`api/tab-store.ts`): só em memória, e esvaziado com
  * a sessão. **A conversa não mora aqui**: ela é da API (`api/assistente.ts`). Aqui fica o que ainda não chegou lá — o
  * pedido que saiu e está sendo respondido — e o que é só da tela.
  */

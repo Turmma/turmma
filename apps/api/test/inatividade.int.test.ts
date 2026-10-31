@@ -1,8 +1,8 @@
 import { METRICS } from '@educa/core'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
-import { chamar, cookieDaResposta, cookieDeRenovacao, estadoDaSessao, registrosDeAcesso, renovar, subirApi, type ApiDeTeste } from './api-com-sessao.js'
-import { BancadaDeSessoes, type SessaoDeTeste } from './sessao-de-teste.js'
+import { chamar, cookieDaResposta, cookieDeRenovacao, estadoDaSessao, registrosDeAcesso, renovar, subirApi, type ApiDeTeste } from './test-api.js'
+import { BancadaDeSessoes, type SessaoDeTeste } from './sessao.fixture.js'
 
 /** Prazo da consulta na API da falha: a atividade presa atrás de uma trava desiste nele. */
 const PRAZO_DA_CONSULTA_MS = 1_500

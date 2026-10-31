@@ -124,3 +124,23 @@ O relatório do `aplicar` da 5.0 achou estas, que a revisão da spec não listou
 | `tools/processo/{linhas,mutacoes,portao-local,revisoes}.test.ts` e `harness/guardioes.test.ts` | caminhos de exemplo de `packages/nucleo/...` nos casos | 5.0 | C | O `restos` dá zero. Nenhum caso depende do nome da pasta: o exemplo só precisa de um caminho de `packages/*/src` |
 | `tools/ia/medir-risco-a-vida.test.ts` e `packages/core/src/ia/golden.test.ts` (437) | o caminho do módulo de IA importado por caminho relativo, e o URL fabricado de `ouro.ts` | 5.0 | C | O `restos` dá zero e o teste da medida continua verde |
 | `tools/guardas/__fixtures__/filtros/knip.json` | o workspace `"packages/nucleo"` e a entrada `src/db/migrar.ts` | 5.0 | C | A trava contra filtro vazio lê a fixture com o caminho novo |
+
+## Achadas na 6.0
+
+O relatório do `aplicar` da 6.0 achou estas, que a revisão da spec não listou (Tech Spec §5, passo 6). As linhas acima não mudam de número. Toda ocorrência delas é caminho de arquivo ou de pasta que a onda move, e o que a onda faz é trocá-lo à mão pelo caminho novo da entrada do mapa.
+
+| Trava | O que lê pelo nome | Onda | Forma | Prova |
+|---|---|---|---|---|
+| `tools/processo/guardioes-por-caminho.ts` e `harness/guardioes.test.ts` | os caminhos de `apps/web` que a regra nomeia: `estilos.css`, `tema.ts`, `nome-dos-chunks.ts`, `rebaixar-cor.ts` e os testes deles (a linha 41 cobre só `componentes/ui/` e `galeria/`) | 6.0 | A | `guardioes.test.ts` com o caminho novo: o `tema.ts` e o `estilos.css` continuam pedindo o `frontend-reviewer`, os mesmos conferidos |
+| `tools/processo/{revisoes,mutacoes,linhas,instalacao,receitas}.test.ts` e `harness/caminhos.test.ts` | caminhos de exemplo de `apps/`, `e2e/` e `tools/`, em strings e em regex de mensagem | 6.0 | C | O `restos` dá zero. Nenhum caso depende do nome: o exemplo só precisa de um caminho que a regra reconhece |
+| `tools/ci/playwright.test.ts`, `duracao-do-e2e.test.ts`, `e2e-que-cita-literal.test.ts`, `codigo-do-autenticador.test.ts` | `e2e/__fixtures__/perfis.ts`, `ajudante.ts`, `casca.ts`, `sessao.ts` e a pasta `e2e/__fixtures__` | 6.0 | A (`playwright.test.ts`, o import de `perfis`) e C | O caso do `playwright.test.ts` que exige o `test` de `perfis` (agora `profiles`) fica vermelho com o nome antigo; o `restos` dá zero nos outros |
+| `tools/guardas/camadas.test.ts`, `camadas.cjs` (linha 139) e a fixture `camadas/apps/api/src/credencial/hash-do-token.ts` | `hash-do-token.ts`, `arquitetura.test.ts`, as mensagens com o caminho | 6.0 | A | `camadas.test.ts`: as violações de `credencial` e do teste de arquitetura, vermelhas com o caminho novo |
+| `tools/guardas/{guardas,tamanho-das-pastas,filtros-casam}.test.ts` | caminhos de exemplo (`apps/api/src/sistema/x.ts`, `apps/web/src/paginas/Casca.tsx`, `e2e/__fixtures__/x.ts`) e o `dist` de `hash-de-senha` | 6.0 | C | O `restos` dá zero; o `filtros-casam.test.ts` ("dist de infra/scripts…") casa o caminho novo com a fonte |
+| `apps/api/test/architecture.test.ts` (linhas 22, 358, 559, 634, 660, 1330 a 1335, 1393, 1394, 1423, 1439 e 1473) | caminhos de arquivo em listas de varredura e em mensagens | 6.0 | C | O `restos` dá zero; o teste continua com os mesmos casos |
+| `apps/web/src/components/{casca-sem-import,perigo-cheio}.test.ts`, `estilos.test.ts` | caminhos do kit lidos como texto (`ui/campos/Segmentado.tsx`, `ui/botao-secundario.ts`, `ui/ia/`) | 6.0 | C | O `restos` dá zero e os testes leem o arquivo (arquivo que não existe falha alto) |
+| `apps/web/src/areas/*/introducao/textos-da-introducao.test.ts` | a mensagem de falha que cita `e2e/__fixtures__/casca.ts` | 6.0 | C | O `restos` dá zero; a string entra em `excecoesDoConferir` |
+| `e2e/estrutura.spec.ts` e `e2e/lista-da-turma.spec.ts` | `e2e/__fixtures__/lista-excel.csv`, que a pasta carrega para `e2e/support/` | 6.0 | C | O e2e abre o arquivo: caminho esquecido falha alto |
+| `apps/api/src/operacao/escola/escola.repository.test.ts` | a lista `IMPORTADORES_PERMITIDOS_DO_CASO_DE_USO` (`sessao-de-teste.ts`, `fila-de-teste.ts`) | 6.0 | A | O caso da varredura de importadores: um importador fora da lista, vermelho |
+| `infra/test/{carga,expurgo-da-carga}.test.ts` e `infra/compose.yml` (381) | `apps/api/src/assistente/limite-de-pedidos-de-ia.ts` e `apps/worker/src/desligamento.test.ts` em string e em comentário | 6.0 | C | O `restos` dá zero; `docker compose config` igual |
+| `knip.json` e `tools/guardas/__fixtures__/filtros/knip.json` | `src/estilos.css` | 6.0 | C | A trava contra filtro vazio (entries do `knip.json`) |
+| `.size-limit.json` | o nome do arquivo e da pasta nos rótulos | 6.0 | C | O `restos` dá zero; o chunk que a regra mede não muda de nome |

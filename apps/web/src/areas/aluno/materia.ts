@@ -1,6 +1,6 @@
 import { BookOpen, BookOpenText, Calculator, Dna, Dumbbell, FlaskConical, Globe, Landmark, Languages, Leaf, Lightbulb, Palette, Atom, Users, type LucideIcon } from 'lucide-react'
 // Só o tipo, que o compilador apaga: o `Contador` é peça fora da entrada.
-import type { FamiliaDeCor } from '../../componentes/ui/Contador'
+import type { FamiliaDeCor } from '../../components/ui/Contador'
 
 /** A cara de uma matéria na lista: a família do ladrilho e o ícone do `lucide` que ele leva. */
 export interface CaraDaMateria {

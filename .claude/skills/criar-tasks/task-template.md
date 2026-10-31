@@ -122,7 +122,7 @@ rodada nova; o caso que originou cada pergunta está em `docs/processo-licoes.md
    `nucleo`, nesta tarefa, e não copie.
 10. **A operação que pode acontecer duas vezes ao mesmo tempo tem teste com as duas chamadas em paralelo (`Promise.all`), e
     a corrida entre duas operações diferentes, ou a resposta que chega fora de ordem, tem a ordem forçada?** No banco,
-    `GatilhoDeParada` e `esperarNaTrava` (`apps/api/test/gatilho-de-parada.ts`); na tela, a resposta segurada com
+    `GatilhoDeParada` e `esperarNaTrava` (`apps/api/test/write-block-trigger.ts`); na tela, a resposta segurada com
     `page.route` ou o relógio parado com `page.clock.pauseAt`, como a correção `2026-10-03-decididos-continuam-marcados`.
     `Promise.all` solto prova a ordem que sair, e vira intermitente no banco carregado da esteira.
 11. **O teste de isolamento quebraria sem a cláusula de escopo do repository, e cada linha da tabela de testes tem o caso na

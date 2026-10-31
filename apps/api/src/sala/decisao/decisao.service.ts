@@ -13,7 +13,7 @@ import {
   type PedidosDaTurmaResponse,
   type ResultadoDaDecisao,
 } from '@educa/shared'
-import { paginar } from '../../http/paginacao.js'
+import { paginar } from '../../http/pagination.js'
 import { TurmaRepository } from '../../estrutura/turma/turma.repository.js'
 import { VinculoRepository } from '../../estrutura/vinculo/vinculo.repository.js'
 import { type ContadorDeTentativas, CredencialMatriculaRepository, CriacaoDeSessaoRepository, identificadorDoAluno } from '../../credencial/index.js'

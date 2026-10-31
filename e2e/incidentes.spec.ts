@@ -1,12 +1,12 @@
 import { randomUUID } from 'node:crypto'
 import type { Browser, BrowserContext, BrowserContextOptions, Locator, Page, Route } from '@playwright/test'
 import { TEXTO_DO_PRAZO_LEGAL_DO_INCIDENTE } from '../packages/shared/src/privacidade/incidente.ts'
-import { abrirNavegacao, entrarComoCoordenacaoNaMesmaAba, entrarPorEmail, esperarPainel, lateral, PRAZO_DA_ENTRADA_MS } from './__fixtures__/casca.ts'
-import { irPelaCoordenacao, paginaNaoRola, painelDoAno } from './__fixtures__/coordenacao.ts'
-import { criarMaterialNoBanco } from './__fixtures__/material.ts'
-import { linhaDa, linkDoPedido } from './__fixtures__/pedidos-do-titular.ts'
-import { expect, test } from './__fixtures__/perfis.ts'
-import { campoCodigo } from './__fixtures__/segundo-fator.ts'
+import { abrirNavegacao, entrarComoCoordenacaoNaMesmaAba, entrarPorEmail, esperarPainel, lateral, PRAZO_DA_ENTRADA_MS } from './support/casca.ts'
+import { irPelaCoordenacao, paginaNaoRola, painelDoAno } from './support/coordenacao.ts'
+import { criarMaterialNoBanco } from './support/material.ts'
+import { linhaDa, linkDoPedido } from './support/pedidos-do-titular.ts'
+import { expect, test } from './support/profiles.ts'
+import { campoCodigo } from './support/mfa.ts'
 import {
   codigoDoAutenticador,
   colocarAlunoNaTurma,
@@ -18,8 +18,8 @@ import {
   criarIncidenteNoBanco,
   criarPedidoDoTitularNoBanco,
   montarEstruturaNoBanco,
-} from './__fixtures__/sessao.ts'
-import { focoVisivel, larguraExcedente, larguraExcedenteDoDialogo, violacoesGraves } from './__fixtures__/verificacoes.ts'
+} from './support/seed.ts'
+import { focoVisivel, larguraExcedente, larguraExcedenteDoDialogo, violacoesGraves } from './support/checks.ts'
 
 /**
  * O aviso de incidente da coordenação e a aba Incidentes (F3, 10.0; RF9 e RF20; `tasks/prd-lgpd-e-titular/cenarios.md`):

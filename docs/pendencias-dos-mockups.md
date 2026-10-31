@@ -6,10 +6,10 @@
 >
 > - **Entregues:** P14 e P29 (Seu time em conversa, com filtro por função:
 >   `apps/web/src/areas/professor/assistente/Time.tsx`), P15 (Home com "Esperando você" só com pendência:
->   `Home.tsx`), P16 (`apps/web/src/componentes/ui/ia/Escolha.tsx`), P17 (o menu Ferramenta da caixa
+>   `Home.tsx`), P16 (`apps/web/src/components/ui/ai/Escolha.tsx`), P17 (o menu Ferramenta da caixa
 >   de pedido, só com o que existe: `CaixaDoAssistente.tsx`), P19
 >   (`apps/web/src/areas/coordenacao/governanca/Agentes.tsx`, com a suspensão por função), P23
->   (`componentes/ui/ia/motor-formulario.ts`) e P24 ("só conversar", `resposta: 'so_conversar'`). Na
+>   (`components/ui/ai/schema-form.ts`) e P24 ("só conversar", `resposta: 'so_conversar'`). Na
 >   A1, antes: P18, P27 e P30.
 > - **Em parte:** P13 (a lista do que a professora gerou, em Ferramentas, sem a grade de
 >   miniaturas), P28 (a turma aberta com Visão Geral e Alunos: `professor/Turma.tsx`) e P10 (o

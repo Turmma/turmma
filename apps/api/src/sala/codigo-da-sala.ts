@@ -3,7 +3,7 @@ import { createHmac, randomBytes, randomInt } from 'node:crypto'
 import { BYTES_DO_TOKEN_DE_CONVITE } from '../credencial/index.js'
 
 // O link da sala e o código da turma (A1, tarefa 4.0; Tech Spec da A1, seção 3). O token do link é a mesma peça do
-// convite (`../credencial/hash-do-token.ts`): 256 bits sorteados, em base64url, e o banco guarda só o SHA-256 em hex. O
+// convite (`../credencial/token-hash.ts`): 256 bits sorteados, em base64url, e o banco guarda só o SHA-256 em hex. O
 // código tem 8 caracteres do alfabeto de 31, e o banco guarda só o HMAC dele com `SALA_CHAVE_CODIGO`.
 
 /** Quem sorteia o código: o de verdade em produção; o teste da colisão (C6) passa um que repete. */

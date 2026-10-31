@@ -1,12 +1,12 @@
 import type { Database, LoggerBase } from '@educa/core'
 import { Global, Module, type BeforeApplicationShutdown, type DynamicModule, type OnApplicationBootstrap } from '@nestjs/common'
-import { BANCO } from '../banco.module.js'
-import { BuscaDeTrechos } from './busca-de-trechos.js'
-import { ExtratorDePdf } from './extracao-de-pdf.js'
-import { FilaDeExtracao } from './fila-de-extracao.js'
+import { BANCO } from '../database.module.js'
+import { BuscaDeTrechos } from './trecho-search.js'
+import { ExtratorDePdf } from './pdf-extraction.js'
+import { FilaDeExtracao } from './extraction-queue.js'
 import { MaterialController } from './material.controller.js'
 import { INTERVALO_DA_VARREDURA_MS, MaterialService } from './material.service.js'
-import { GuardaDoEnvio } from './recebimento.js'
+import { GuardaDoEnvio } from './material-upload.js'
 
 /**
  * O que o módulo faz na subida e na descida do processo, para nenhum material ficar `processando` sem ninguém lendo:

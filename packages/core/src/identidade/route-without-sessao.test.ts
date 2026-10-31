@@ -19,7 +19,7 @@ class Rotas {
   @Public()
   anonima(): void {}
 
-  // Os marcadores da operação, pelas chaves que os decoradores de `apps/api/src/operacao/marcadores.ts` gravam.
+  // Os marcadores da operação, pelas chaves que os decoradores de `apps/api/src/operacao/decorators.ts` gravam.
   @SetMetadata(OPERACAO_ROUTE_KEY, true)
   daOperacao(): void {}
 

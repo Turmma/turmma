@@ -1,13 +1,13 @@
 import { ErrorCode, FUNCOES, NOME_DO_TIPO_DE_ENTREGA, type ChaveDeFuncao, type Entrega, type ListaDeEntregasResponse, type MeusVinculosResponse, type Vinculo } from '@educa/shared'
 import { useInfiniteQuery, useQueries, useQuery, useQueryClient, type InfiniteData, type UseInfiniteQueryResult, type UseQueryResult } from '@tanstack/react-query'
 import { useState } from 'react'
-import { ErroDaApi } from '../../../api/cliente'
+import { ErroDaApi } from '../../../api/client'
 import { consultaEntregasPendentes } from '../artefatos/api/entregas'
 import { consultaContagemDePedidos, type ContagemDePedidos } from '../../../api/pedidos'
 import { consultaMeusVinculos } from '../comum/api/vinculos'
-import { caminhoDaCorrecaoDoProfessor, caminhoDaTurmaDoProfessor, ROTAS_DO_PROFESSOR } from '../../../caminhos'
-import { LEITURA_DA_FILA, type LeituraDaFila } from '../../../componentes/sino/leitura-do-sino'
-import type { ItemDoSino, SituacaoDoSino } from '../../../componentes/sino/Sino'
+import { caminhoDaCorrecaoDoProfessor, caminhoDaTurmaDoProfessor, ROTAS_DO_PROFESSOR } from '../../../paths'
+import { LEITURA_DA_FILA, type LeituraDaFila } from '../../../components/sino/leitura-do-sino'
+import type { ItemDoSino, SituacaoDoSino } from '../../../components/sino/Sino'
 import { nomesDasTurmas } from '../comum/turmas-da-professora'
 
 /**

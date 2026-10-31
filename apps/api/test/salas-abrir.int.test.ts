@@ -14,16 +14,16 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { ListaLivreRepository } from '../src/sala/reivindicacao/lista-livre.repository.js'
 import { sortearCodigoDaTurma } from '../src/sala/codigo-da-sala.js'
-import { chamar, subirApi, type ApiDeTeste } from './api-com-sessao.js'
-import { MONTAGEM_DE_TESTE } from './configuracao-de-teste.js'
-import { montarEscolaComTurma, type EscolaComTurma } from './escola-com-turma.js'
-import { ipSorteado } from './segundo-fator-de-operador.js'
-import { BancadaDeSessoes, type SessaoDeTeste } from './sessao-de-teste.js'
+import { chamar, subirApi, type ApiDeTeste } from './test-api.js'
+import { MONTAGEM_DE_TESTE } from './test-config.js'
+import { montarEscolaComTurma, type EscolaComTurma } from './escola-turma.fixture.js'
+import { ipSorteado } from './operador-mfa.fixture.js'
+import { BancadaDeSessoes, type SessaoDeTeste } from './sessao.fixture.js'
 
 /**
  * A página pública da sala (A1, tarefa 5.0; `tasks/prd-apresentacao-escola/cenarios.md`): `POST /v1/salas/abrir`, sem
  * login, pelo slug e pelo token do link ou pelo código. Cobre I4, R1, E17, E26, E28, V2, P5, L10, A6 e A7 (a parte de
- * `salas/abrir`). O A3 e o A4 da rota moram na varredura de `escola-montada.int.test.ts`; o I1, em `arquitetura.test.ts`;
+ * `salas/abrir`). O A3 e o A4 da rota moram na varredura de `escola-montada.int.test.ts`; o I1, em `architecture.test.ts`;
  * o I2, no teste de unidade da lista fechada de `@Unscoped` do `sessao`. Postgres e Redis reais do compose de teste.
  *
  * Cada pedido sai de um IP sorteado (`X-Forwarded-For`, com a API confiando no 127.0.0.1): o `rl:ip` anônimo fica no

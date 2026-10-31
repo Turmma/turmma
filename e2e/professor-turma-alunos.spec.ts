@@ -1,12 +1,12 @@
 import { randomUUID } from 'node:crypto'
 import type { Locator, Page, Request, Route } from '@playwright/test'
 import type { DesempenhoDaTurmaResponse } from '../packages/shared/src/atividade/desempenho.ts'
-import { desempenhoSintetico, simularAssistente, type ApiDoAssistente } from './__fixtures__/assistente.ts'
-import { PRAZO_DA_ENTRADA_MS } from './__fixtures__/casca.ts'
-import { cacheDeConsultas } from './__fixtures__/consultas.ts'
-import { principal } from './__fixtures__/fluxo-do-professor.ts'
-import { expect, test } from './__fixtures__/perfis.ts'
-import { irPara, soOPainelDaAbaRola, VOCABULARIO_DE_NOTA } from './__fixtures__/professor/cena.ts'
+import { desempenhoSintetico, simularAssistente, type ApiDoAssistente } from './support/assistente.ts'
+import { PRAZO_DA_ENTRADA_MS } from './support/casca.ts'
+import { cacheDeConsultas } from './support/query-cache.ts'
+import { principal } from './support/professor-flow.ts'
+import { expect, test } from './support/profiles.ts'
+import { irPara, soOPainelDaAbaRola, VOCABULARIO_DE_NOTA } from './support/professor/scenario.ts'
 import {
   confirmarVinculosNoBanco,
   criarAlocacaoDoProfessor,
@@ -16,8 +16,8 @@ import {
   type AlocacaoDeTeste,
   type AlunoNaTurmaDeTeste,
   type EquipeDeTeste,
-} from './__fixtures__/sessao.ts'
-import { larguraExcedente, violacoesGraves } from './__fixtures__/verificacoes.ts'
+} from './support/seed.ts'
+import { larguraExcedente, violacoesGraves } from './support/checks.ts'
 
 /**
  * A aba Alunos da turma aberta (telas do professor, 12.0; RF18, RF21), pela tela, nos projetos `chromebook` e `celular`: a lista

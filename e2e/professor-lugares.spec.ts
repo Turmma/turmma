@@ -1,11 +1,11 @@
-import { atividadeSintetica, versaoAdaptada } from './__fixtures__/assistente.ts'
-import { abrirNavegacao, gaveta, irPelaNavegacao, lateral, naGaveta, PRAZO_DA_ENTRADA_MS, secoes } from './__fixtures__/casca.ts'
-import { entrar, irPara, PRAZO_DA_TELA_MS, recarregar } from './__fixtures__/professor/cena.ts'
-import { abrirEntregasDoAssistente } from './__fixtures__/professor/entregas.ts'
-import { sinoDe } from './__fixtures__/professor/sino.ts'
-import { abrirSinaisDoTutor } from './__fixtures__/professor/tutor.ts'
-import { violacoesGraves } from './__fixtures__/verificacoes.ts'
-import { expect, test } from './__fixtures__/perfis.ts'
+import { atividadeSintetica, versaoAdaptada } from './support/assistente.ts'
+import { abrirNavegacao, gaveta, irPelaNavegacao, lateral, naGaveta, PRAZO_DA_ENTRADA_MS, secoes } from './support/casca.ts'
+import { entrar, irPara, PRAZO_DA_TELA_MS, recarregar } from './support/professor/scenario.ts'
+import { abrirEntregasDoAssistente } from './support/professor/entregas.ts'
+import { sinoDe } from './support/professor/sino.ts'
+import { abrirSinaisDoTutor } from './support/professor/tutor.ts'
+import { violacoesGraves } from './support/checks.ts'
+import { expect, test } from './support/profiles.ts'
 
 /**
  * A navegação do professor (A2, pacote W; telas do professor, 2.0): os três lugares na ordem da D80, nenhum grupo "Seu time", o
@@ -66,7 +66,7 @@ test.describe('a navegação do professor na A2 (D73)', () => {
       await expect(secoes(page).getByRole('link', { name: rotulo })).toHaveAttribute('aria-current', 'page')
       await expect(page.getByText(/Seu time/)).toHaveCount(0)
     }
-    // Dentro da conversa, "Início" continua selecionado (o documento aberto acende "Criados": `areas/navegacao.test.ts`).
+    // Dentro da conversa, "Início" continua selecionado (o documento aberto acende "Criados": `areas/navigation.test.ts`).
     await irPara(page, '/professor/conversa')
     await expect(secoes(page).getByRole('link', { name: 'Início' })).toHaveAttribute('aria-current', 'page')
     await expect(page.getByText(/Seu time/)).toHaveCount(0)

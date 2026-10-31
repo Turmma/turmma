@@ -1,7 +1,7 @@
 import { DomainException, type Database } from '@educa/core'
 import { ErrorCode, type AceitarConviteDeOperadorRequest, type AceitarConviteDeOperadorResponse, type ConsultarConviteDeOperadorResponse } from '@educa/shared'
 import { baldeDaEquipe, type HashDeSenha, type SemaforoDeHash } from '../../credencial/index.js'
-import type { EmissorDeDesafioDeOperador } from '../desafio-de-operador.js'
+import type { EmissorDeDesafioDeOperador } from '../operador-challenge.js'
 import { OperadorRepository } from '../operador/operador.repository.js'
 import { hashDoTokenDeConvite } from '../token-do-convite.js'
 

@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { dirname, extname, join, relative, resolve } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import configuracao from '../../playwright.config.ts'
-import { REDE_FAST_3G, type PerfilDeMaquina } from '../../e2e/__fixtures__/perfis.ts'
+import { REDE_FAST_3G, type PerfilDeMaquina } from '../../e2e/support/profiles.ts'
 import { raizRepositorio } from './executar.ts'
 
 // A configuração do Playwright é portão da D51: se um projeto sumir, perder a limitação ou filtrar spec, o e2e
@@ -58,7 +58,7 @@ describe('projetos do Playwright (playwright.config.ts)', () => {
     expect(specs.length).toBeGreaterThan(0)
     for (const spec of specs) {
       const texto = readFileSync(join(raizRepositorio, 'e2e', spec), 'utf8')
-      expect(texto, spec).toMatch(/import \{[^}]*\btest\b[^}]*\} from '\.\/__fixtures__\/perfis\.ts'/)
+      expect(texto, spec).toMatch(/import \{[^}]*\btest\b[^}]*\} from '\.\/support\/profiles\.ts'/)
       // De @playwright/test, só import de tipo.
       for (const importacao of texto.matchAll(/import (type )?[^;\n]*from '@playwright\/test'/g)) {
         expect(importacao[1], `${spec}: ${importacao[0]}`).toBe('type ')
@@ -73,7 +73,7 @@ describe('projetos do Playwright (playwright.config.ts)', () => {
   it('nada que o e2e carrega importa um pacote @educa/* pelo nome: o Playwright o resolveria para o dist, que a esteira não constrói', () => {
     const varredura = varrerImports(arquivosDeCodigoEm(join(raizRepositorio, 'e2e')))
     // A travessia sai de e2e/: sem isto, uma varredura que parasse no primeiro salto passaria sem olhar a API.
-    expect(varredura.vistos).toContain(join(raizRepositorio, 'apps/api/src/credencial/hash-do-token.ts'))
+    expect(varredura.vistos).toContain(join(raizRepositorio, 'apps/api/src/credencial/token-hash.ts'))
     expect(varredura.naoResolvidos.map((item) => relativoARaiz(item))).toEqual([])
     expect(varredura.peloNome.map((item) => relativoARaiz(item))).toEqual([])
   })

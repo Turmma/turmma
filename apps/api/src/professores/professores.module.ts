@@ -1,6 +1,6 @@
 import type { Database } from '@educa/core'
 import { Module } from '@nestjs/common'
-import { BANCO } from '../banco.module.js'
+import { BANCO } from '../database.module.js'
 import { ProfessoresController } from './professores.controller.js'
 import { ProfessoresService } from './professores.service.js'
 

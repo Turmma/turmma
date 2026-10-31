@@ -1,6 +1,6 @@
 import { acessoDaTurmaResponseSchema, acessoGeradoResponseSchema, type GerarAcessoRequest, type AcessoGeradoResponse } from '@educa/shared'
 import { mutationOptions, queryOptions } from '@tanstack/react-query'
-import { SEM_CORPO } from '../../../../api/cliente'
+import { SEM_CORPO } from '../../../../api/client'
 import { buscarComSessao, chamarComSessao } from '../../../../api/sessao'
 
 /**

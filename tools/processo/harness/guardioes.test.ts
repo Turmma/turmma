@@ -29,19 +29,19 @@ const versionados = (...pastas: string[]): string[] =>
 
 /** As exceções do código, com o conjunto exato que cada uma pede. O arquivo é um que existe no repositório. */
 const EXCECOES: { prefixo: string; arquivo: string; guardioes: Guardiao[] }[] = [
-  { prefixo: 'apps/web/src/componentes/ui/', arquivo: 'apps/web/src/componentes/ui/Abas.tsx', guardioes: [C, I] },
-  { prefixo: 'apps/web/src/componentes/ui/ia/', arquivo: 'apps/web/src/componentes/ui/ia/AssinaturaIA.tsx', guardioes: [P, C, I] },
-  { prefixo: 'apps/web/src/estilos.css', arquivo: 'apps/web/src/estilos.css', guardioes: [C] },
-  { prefixo: 'apps/web/src/tema.ts', arquivo: 'apps/web/src/tema.ts', guardioes: [] },
+  { prefixo: 'apps/web/src/components/ui/', arquivo: 'apps/web/src/components/ui/Abas.tsx', guardioes: [C, I] },
+  { prefixo: 'apps/web/src/components/ui/ai/', arquivo: 'apps/web/src/components/ui/ai/AssinaturaIA.tsx', guardioes: [P, C, I] },
+  { prefixo: 'apps/web/src/index.css', arquivo: 'apps/web/src/index.css', guardioes: [C] },
+  { prefixo: 'apps/web/src/theme.ts', arquivo: 'apps/web/src/theme.ts', guardioes: [] },
   { prefixo: 'apps/web/src/estilos.test.ts', arquivo: 'apps/web/src/estilos.test.ts', guardioes: [] },
-  { prefixo: 'apps/web/src/tema.test.ts', arquivo: 'apps/web/src/tema.test.ts', guardioes: [] },
+  { prefixo: 'apps/web/src/theme.test.ts', arquivo: 'apps/web/src/theme.test.ts', guardioes: [] },
   { prefixo: 'apps/web/src/contraste.test.ts', arquivo: 'apps/web/src/contraste.test.ts', guardioes: [] },
-  { prefixo: 'apps/web/src/galeria/', arquivo: 'apps/web/src/galeria/Secao.tsx', guardioes: [P, C] },
+  { prefixo: 'apps/web/src/gallery/', arquivo: 'apps/web/src/gallery/GallerySection.tsx', guardioes: [P, C] },
   { prefixo: 'apps/web/vite.config.ts', arquivo: 'apps/web/vite.config.ts', guardioes: [I] },
-  { prefixo: 'apps/web/nome-dos-chunks.ts', arquivo: 'apps/web/nome-dos-chunks.ts', guardioes: [I] },
-  { prefixo: 'apps/web/nome-dos-chunks.test.ts', arquivo: 'apps/web/nome-dos-chunks.test.ts', guardioes: [I] },
-  { prefixo: 'apps/web/rebaixar-cor.ts', arquivo: 'apps/web/rebaixar-cor.ts', guardioes: [I] },
-  { prefixo: 'apps/web/rebaixar-cor.test.ts', arquivo: 'apps/web/rebaixar-cor.test.ts', guardioes: [I] },
+  { prefixo: 'apps/web/chunk-names.ts', arquivo: 'apps/web/chunk-names.ts', guardioes: [I] },
+  { prefixo: 'apps/web/chunk-names.test.ts', arquivo: 'apps/web/chunk-names.test.ts', guardioes: [I] },
+  { prefixo: 'apps/web/downlevel-color.ts', arquivo: 'apps/web/downlevel-color.ts', guardioes: [I] },
+  { prefixo: 'apps/web/downlevel-color.test.ts', arquivo: 'apps/web/downlevel-color.test.ts', guardioes: [I] },
   { prefixo: 'apps/despachante/', arquivo: 'apps/despachante/src/app.module.ts', guardioes: [T, P, I] },
   { prefixo: 'infra/', arquivo: 'infra/Caddyfile', guardioes: [P, I] },
 ]
@@ -81,8 +81,8 @@ describe('o padrão: os quatro guardiões', () => {
     expect(pede('apps/api/src/x.ts', espia)).toEqual(OS_QUATRO)
     expect(lidos).toEqual([])
     // A exceção lê, nos dois lados.
-    pede('apps/web/src/tema.ts', espia)
-    expect(lidos).toEqual(['apps/web/src/tema.ts', 'apps/web/src/tema.ts'])
+    pede('apps/web/src/theme.ts', espia)
+    expect(lidos).toEqual(['apps/web/src/theme.ts', 'apps/web/src/theme.ts'])
   })
 })
 
@@ -101,32 +101,32 @@ describe('as exceções do código', () => {
   })
 
   it('vale o prefixo mais longo: ui/ia/ pede P C I e o resto de ui/ pede C I', () => {
-    expect(pede('apps/web/src/componentes/ui/ia/AvisoFila.tsx')).toEqual([P, C, I])
-    expect(pede('apps/web/src/componentes/ui/sobrepostos/DialogoDeConfirmacao.tsx')).toEqual([C, I])
+    expect(pede('apps/web/src/components/ui/ai/AvisoFila.tsx')).toEqual([P, C, I])
+    expect(pede('apps/web/src/components/ui/overlays/DialogoDeConfirmacao.tsx')).toEqual([C, I])
     // O mais longo vence também quando a exceção é mais curta que o padrão: a exceção está dentro de apps/.
-    expect(pede('apps/web/src/galeria/Galeria.tsx')).toEqual([P, C])
+    expect(pede('apps/web/src/gallery/Gallery.tsx')).toEqual([P, C])
   })
 
   it('um prefixo que é arquivo não casa o vizinho de nome parecido: tema.ts não é tema-novo.ts', () => {
-    expect(pede('apps/web/src/tema.ts')).toEqual([])
+    expect(pede('apps/web/src/theme.ts')).toEqual([])
     expect(pede('apps/web/src/tema-novo.ts')).toEqual(OS_QUATRO)
     expect(pede('apps/web/vite.config.test.ts')).toEqual(OS_QUATRO)
   })
 
   it.each(['x.repository.ts', 'x.controller.ts', 'x.gateway.ts', 'x.service.ts'])('%s nunca cai em exceção: pede os quatro em ui/, galeria/, despachante/ e infra/', (nome) => {
-    for (const pasta of ['apps/web/src/componentes/ui/', 'apps/web/src/galeria/', 'apps/despachante/src/', 'infra/']) {
+    for (const pasta of ['apps/web/src/components/ui/', 'apps/web/src/gallery/', 'apps/despachante/src/', 'infra/']) {
       expect(pede(`${pasta}${nome}`)).toEqual(OS_QUATRO)
     }
   })
 
   it('o sufixo é o do fim do nome: x.service.test.ts, x.servico.ts e x.service.ts.orig ficam na exceção', () => {
-    expect(pede('apps/web/src/componentes/ui/x.service.test.ts')).toEqual([C, I])
-    expect(pede('apps/web/src/componentes/ui/x.servico.ts')).toEqual([C, I])
-    expect(pede('apps/web/src/componentes/ui/x.service.ts.orig')).toEqual([C, I])
+    expect(pede('apps/web/src/components/ui/x.service.test.ts')).toEqual([C, I])
+    expect(pede('apps/web/src/components/ui/x.servico.ts')).toEqual([C, I])
+    expect(pede('apps/web/src/components/ui/x.service.ts.orig')).toEqual([C, I])
   })
 
   it('@SemEscopo( no índice, só no HEAD ou em nenhum: quatro, quatro, e C I (componentes/ui/)', () => {
-    const arquivo = 'apps/web/src/componentes/ui/Aviso.tsx'
+    const arquivo = 'apps/web/src/components/ui/Aviso.tsx'
     const marca = '@Unscoped() // rotina administrativa nossa\n'
     expect(pede(arquivo, textos(marca, 'export const a = 1\n'))).toEqual(OS_QUATRO)
     expect(pede(arquivo, textos('export const a = 1\n', marca))).toEqual(OS_QUATRO)
@@ -139,30 +139,30 @@ describe('as exceções do código', () => {
 
 describe('a citação soma o guardião da regra', () => {
   it.each([
-    ['apps/web/src/galeria/x.tsx', 'regra 70', [P, C]],
-    ['apps/web/src/galeria/x.tsx', 'regra 10', [T, P, C]],
-    ['apps/web/src/galeria/x.tsx', 'LGPD', [P, C]],
-    ['apps/web/src/galeria/x.tsx', 'regra 80', [P, C, I]],
+    ['apps/web/src/gallery/x.tsx', 'regra 70', [P, C]],
+    ['apps/web/src/gallery/x.tsx', 'regra 10', [T, P, C]],
+    ['apps/web/src/gallery/x.tsx', 'LGPD', [P, C]],
+    ['apps/web/src/gallery/x.tsx', 'regra 80', [P, C, I]],
     ['apps/web/vite.config.ts', 'regra 20', [P, I]],
     ['apps/web/vite.config.ts', 'regra 80', [I]],
     ['apps/web/vite.config.ts', 'regra 10', [T, I]],
     ['apps/web/vite.config.ts', 'regra 70', [C, I]],
-    ['apps/web/src/tema.ts', 'regra 70', [C]],
-    ['apps/web/src/tema.ts', 'LGPD', [P]],
-    ['apps/web/src/tema.ts', 'Regra 80', [I]],
-    ['apps/web/src/tema.ts', 'regra 10', [T]],
-    ['apps/web/src/tema.ts', 'regra 20', [P]],
+    ['apps/web/src/theme.ts', 'regra 70', [C]],
+    ['apps/web/src/theme.ts', 'LGPD', [P]],
+    ['apps/web/src/theme.ts', 'Regra 80', [I]],
+    ['apps/web/src/theme.ts', 'regra 10', [T]],
+    ['apps/web/src/theme.ts', 'regra 20', [P]],
   ] as [string, string, Guardiao[]][])('%s citando "%s" pede %j', (arquivo, termo, esperado) => {
     expect(pede(arquivo, textos(`// ${termo}\nexport const a = 1\n`))).toEqual(esperado)
   })
 
   it('sem citação, não soma', () => {
-    expect(pede('apps/web/src/tema.ts', textos('export const a = 1\n'))).toEqual([])
+    expect(pede('apps/web/src/theme.ts', textos('export const a = 1\n'))).toEqual([])
     expect(pede('apps/web/vite.config.ts', textos('export const a = 1\n'))).toEqual([I])
   })
 
   it('sem diferença de maiúscula, com espaço duplo, e o número não pode ser prefixo de outro', () => {
-    const tema = 'apps/web/src/tema.ts'
+    const tema = 'apps/web/src/theme.ts'
     expect(pede(tema, textos('// REGRA 10'))).toEqual([T])
     expect(pede(tema, textos('// Regra 20'))).toEqual([P])
     expect(pede(tema, textos('// lgpd'))).toEqual([P])
@@ -177,7 +177,7 @@ describe('a citação soma o guardião da regra', () => {
   })
 
   it.each(['D45', 'D47', 'D55', 'D56', 'D57', 'D58', 'D59', 'D64'])('a decisão %s soma o conformidade-reviewer, como a regra 70', (decisao) => {
-    expect(pede('apps/web/src/tema.ts', textos(`// ${decisao}\nexport const a = 1\n`))).toEqual([C])
+    expect(pede('apps/web/src/theme.ts', textos(`// ${decisao}\nexport const a = 1\n`))).toEqual([C])
     expect(pede('apps/web/vite.config.ts', textos(`// ${decisao}\n`))).toEqual([C, I])
     expect(pede('tools/processo/x.ts', textos(`// ${decisao}\n`))).toEqual([C])
     expect(pede('package.json', textos(`// ${decisao}\n`))).toEqual([C])
@@ -186,7 +186,7 @@ describe('a citação soma o guardião da regra', () => {
   })
 
   it('a decisão citada no meio de uma frase, de uma lista ou de uma faixa soma o conformidade-reviewer', () => {
-    const tema = 'apps/web/src/tema.ts'
+    const tema = 'apps/web/src/theme.ts'
     expect(pede(tema, textos('// pela D58, D59 e D8'))).toEqual([C])
     expect(pede(tema, textos('// (D45 revista)'))).toEqual([C])
     expect(pede(tema, textos('// D55 a D59'))).toEqual([C])
@@ -195,7 +195,7 @@ describe('a citação soma o guardião da regra', () => {
   })
 
   it('a decisão que a regra 70 não cita, e o número que é prefixo, sufixo ou parte de outro, não soma', () => {
-    const tema = 'apps/web/src/tema.ts'
+    const tema = 'apps/web/src/theme.ts'
     for (const fora of ['D4', 'D5', 'D6', 'D8', 'D44', 'D46', 'D48', 'D54', 'D60', 'D63', 'D65', 'D80', 'D450', 'D455', 'D470', 'D559', 'D640', 'D645']) {
       expect(pede(tema, textos(`// ${fora}`))).toEqual([])
     }
@@ -206,35 +206,35 @@ describe('a citação soma o guardião da regra', () => {
   })
 
   it('a decisão citada só no HEAD, ou só no índice, soma o conformidade-reviewer', () => {
-    expect(pede('apps/web/src/tema.ts', textos('export const a = 1\n', '// D55\n'))).toEqual([C])
-    expect(pede('apps/web/src/tema.ts', textos('// D55\n', 'export const a = 1\n'))).toEqual([C])
-    expect(pede('apps/web/src/tema.ts', textos(null, '// D57\n'))).toEqual([C])
+    expect(pede('apps/web/src/theme.ts', textos('export const a = 1\n', '// D55\n'))).toEqual([C])
+    expect(pede('apps/web/src/theme.ts', textos('// D55\n', 'export const a = 1\n'))).toEqual([C])
+    expect(pede('apps/web/src/theme.ts', textos(null, '// D57\n'))).toEqual([C])
   })
 
   it('a decisão soma junto com as outras citações, na ordem dos quatro', () => {
-    expect(pede('apps/web/src/tema.ts', textos('// D55\n// regra 80\n// regra 20\n// regra 10\n'))).toEqual(OS_QUATRO)
+    expect(pede('apps/web/src/theme.ts', textos('// D55\n// regra 80\n// regra 20\n// regra 10\n'))).toEqual(OS_QUATRO)
     expect(pede('apps/web/vite.config.ts', textos('// D64 e regra 20\n'))).toEqual([P, C, I])
   })
 
   it('citava "regra 20" no HEAD e não cita no índice: soma P; citando só no índice, também', () => {
-    expect(pede('apps/web/src/tema.ts', textos('export const a = 1\n', '// regra 20\n'))).toEqual([P])
-    expect(pede('apps/web/src/tema.ts', textos('// regra 20\n', 'export const a = 1\n'))).toEqual([P])
+    expect(pede('apps/web/src/theme.ts', textos('export const a = 1\n', '// regra 20\n'))).toEqual([P])
+    expect(pede('apps/web/src/theme.ts', textos('// regra 20\n', 'export const a = 1\n'))).toEqual([P])
     // Arquivo apagado do índice: o HEAD ainda diz o que ele citava.
-    expect(pede('apps/web/src/tema.ts', textos(null, '// regra 70\n'))).toEqual([C])
-    expect(pede('apps/web/src/tema.ts', textos(null, null))).toEqual([])
+    expect(pede('apps/web/src/theme.ts', textos(null, '// regra 70\n'))).toEqual([C])
+    expect(pede('apps/web/src/theme.ts', textos(null, null))).toEqual([])
   })
 
   it('várias citações somam todas, na ordem dos quatro', () => {
-    expect(pede('apps/web/src/tema.ts', textos('// regra 80\n// regra 70\n// regra 20\n// regra 10\n'))).toEqual(OS_QUATRO)
+    expect(pede('apps/web/src/theme.ts', textos('// regra 80\n// regra 70\n// regra 20\n// regra 10\n'))).toEqual(OS_QUATRO)
   })
 })
 
 describe('a união de vários arquivos', () => {
   it('soma o que cada um pede, sem repetir, na ordem dos quatro', () => {
-    expect(guardioesDoCaminho(['infra/Caddyfile', 'apps/web/src/estilos.css'], SEM_TEXTO)).toEqual([P, C, I])
-    expect(guardioesDoCaminho(['apps/web/src/tema.ts', 'apps/web/src/estilos.css', 'apps/web/src/estilos.css'], SEM_TEXTO)).toEqual([C])
+    expect(guardioesDoCaminho(['infra/Caddyfile', 'apps/web/src/index.css'], SEM_TEXTO)).toEqual([P, C, I])
+    expect(guardioesDoCaminho(['apps/web/src/theme.ts', 'apps/web/src/index.css', 'apps/web/src/index.css'], SEM_TEXTO)).toEqual([C])
     expect(guardioesDoCaminho(['apps/despachante/src/x.ts', 'apps/web/vite.config.ts'], SEM_TEXTO)).toEqual([T, P, I])
-    expect(guardioesDoCaminho(['apps/web/src/tema.ts', 'apps/api/src/x.ts'], SEM_TEXTO)).toEqual(OS_QUATRO)
+    expect(guardioesDoCaminho(['apps/web/src/theme.ts', 'apps/api/src/x.ts'], SEM_TEXTO)).toEqual(OS_QUATRO)
   })
 
   it('sem arquivo, ou só com arquivo que não é código, não pede ninguém', () => {

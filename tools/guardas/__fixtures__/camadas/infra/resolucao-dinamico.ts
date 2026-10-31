@@ -1,1 +1,1 @@
-export const carregar = () => import('../apps/api/src/sessao/tenant/resolucao-de-tenant.repository.js')
+export const carregar = () => import('../apps/api/src/sessao/tenant/tenant-resolution.repository.js')

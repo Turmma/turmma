@@ -6,7 +6,7 @@ import { parseArgs } from 'node:util'
 import { z } from 'zod'
 import { AcessoDaTurmaRepository } from '../sala/acesso-da-turma/acesso-da-turma.repository.js'
 import { AcessoDaEscolaRepository } from '../credencial/index.js'
-import { abrirBancoDeOperacao, ArgumentoInvalido, autorDoComando, lerOperador, OperadorRecusado, type BancoDoComando, type SaidaDoComando } from './comando.js'
+import { abrirBancoDeOperacao, ArgumentoInvalido, autorDoComando, lerOperador, OperadorRecusado, type BancoDoComando, type SaidaDoComando } from './command.js'
 import type { ConferenciaDoAutor } from '../sessao/index.js'
 
 const registro = new AuditoriaRecorder()

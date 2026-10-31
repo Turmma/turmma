@@ -1,13 +1,13 @@
 // A guarda de camadas e de ciclos (X5, 12.0; RF10). Roda no `npm run lint` pelo `guarda:camadas`:
 //   depcruise --config tools/guardas/camadas.cjs apps packages tools infra e2e
-// As cinco pastas são as da varredura que o `apps/api/test/arquitetura.test.ts` fazia à mão. Toda regra é `error`:
+// As cinco pastas são as da varredura que o `apps/api/test/architecture.test.ts` fazia à mão. Toda regra é `error`:
 // uma em `warn` sairia com código 0 e o lint passaria calado (`camadas.test.ts` confere).
 //
 // As cercas do tenant são por import direto (R63), sem `reaches`: a regra olha quem importa o **arquivo** da classe. Dois
 // reexports ela não vê, e cada um tem o seu teste. O do barril que a zona permite (`sessao/index.ts`, `credencial/index.ts`)
-// é conferido em execução pelos `it` dos barris do `arquitetura.test.ts`. O feito de dentro da zona (uma ponte em `sessao/`,
+// é conferido em execução pelos `it` dos barris do `architecture.test.ts`. O feito de dentro da zona (uma ponte em `sessao/`,
 // em `ciclo-de-vida/` ou o `export` do `painel.service.ts`) deixa qualquer arquivo usar a classe por outro caminho, e é o
-// teste `arquitetura.test.ts › o nome das classes cercadas…` que o pega, pelo nome da classe, em apps, packages, tools e infra.
+// teste `architecture.test.ts › o nome das classes cercadas…` que o pega, pelo nome da classe, em apps, packages, tools e infra.
 // Teste fica de fora das três cercas, como mudança aceita.
 
 /** Teste e apoio de teste: `*.test.ts(x)`, `*.spec.ts`, pasta `test/`, `__fixtures__/` e o e2e. */
@@ -136,7 +136,7 @@ module.exports = {
       to: { path: `${API}ops/` },
     },
     soPeloIndex('sessao', 'apps/api/src/sessao/', 'Fora de `sessao/`, só se importa pelo `index.ts`: ele escolhe o que a API usa (34.0).', [
-      'apps/api/test/arquitetura.test.ts',
+      'apps/api/test/architecture.test.ts',
     ]),
     soPeloIndex('credencial', 'apps/api/src/credencial/', 'Fora de `credencial/`, só se importa pelo `index.ts` (33.0). O arquivo da exceção é carregado pelo e2e, que roda o `.ts` sem compilar, e o `index.ts` arrasta a `credencial/` inteira.', [
       'apps/api/src/operacao/token-do-convite.ts',
@@ -148,7 +148,7 @@ module.exports = {
       comment: 'A `ResolucaoDeTenantRepository` concentra os `@SemEscopo` da resolução de tenant e fica dentro de `sessao/` (Tech Spec, seção 6).',
       severity: 'error',
       from: { path: TODO_O_CODIGO, pathNot: [SESSAO, TESTE] },
-      to: { path: `${SESSAO}tenant/resolucao-de-tenant\\.repository\\.ts$` },
+      to: { path: `${SESSAO}tenant/tenant-resolution\\.repository\\.ts$` },
     },
     {
       name: 'cerca-conta-global',

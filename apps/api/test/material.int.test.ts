@@ -4,11 +4,11 @@ import { randomUUID } from 'node:crypto'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { linhasDoBloco, normalizarTexto, paginaDoMaterial, PAGINAS_DO_MATERIAL } from '../../../tools/demonstracao/conteudo-estequiometria.ts'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
-import { BuscaDeTrechos } from '../src/material/busca-de-trechos.js'
-import { ExtratorDePdf, type ResultadoDaExtracao } from '../src/material/extracao-de-pdf.js'
+import { BuscaDeTrechos } from '../src/material/trecho-search.js'
+import { ExtratorDePdf, type ResultadoDaExtracao } from '../src/material/pdf-extraction.js'
 import { ENVIOS_POR_ESCOLA_NA_JANELA, ENVIOS_POR_USUARIO_NA_JANELA, IDADE_DO_MATERIAL_PARADO_MS, MATERIAIS_EM_PROCESSAMENTO_POR_ESCOLA, MaterialService } from '../src/material/material.service.js'
-import { chamar, subirApi, type ApiDeTeste, type RespostaHttp } from './api-com-sessao.js'
-import { montarEscolaComTurma as montarEscola, type EscolaComTurma } from './escola-com-turma.js'
+import { chamar, subirApi, type ApiDeTeste, type RespostaHttp } from './test-api.js'
+import { montarEscolaComTurma as montarEscola, type EscolaComTurma } from './escola-turma.fixture.js'
 import {
   apagarMateriais,
   auditoriaDa,
@@ -21,8 +21,8 @@ import {
   pdfSemTexto,
   trechosDa,
   variacaoDoPdf,
-} from './material-de-teste.js'
-import { BancadaDeSessoes, type SessaoDeTeste } from './sessao-de-teste.js'
+} from './material.fixture.js'
+import { BancadaDeSessoes, type SessaoDeTeste } from './sessao.fixture.js'
 
 /** `quantidade` campos de texto que o contrato não tem, para encher o multipart. */
 function camposAMais(quantidade: number): Record<string, string> {
@@ -290,7 +290,7 @@ describe('material da escola', () => {
     })
 
     /**
-     * Os tetos de quantidade do recebimento (`recebimento.ts`), na rota de verdade. Fixados quando o `multer` foi para a
+     * Os tetos de quantidade do recebimento (`material-upload.ts`), na rota de verdade. Fixados quando o `multer` foi para a
      * 2.4.0 (correção 2026-10-06-audit-proxy-addr-e-multer), que mudou a contagem de `parts`, o `maxCount` diante do
      * `fileFilter` e a mensagem do arquivo em campo inesperado. O que cada caso prova:
      * - outro campo: o erro do `multer` traduzido pelo código (com o `@nestjs/platform-express` 12.0.1, que traduzia pela

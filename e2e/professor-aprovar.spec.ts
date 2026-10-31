@@ -1,13 +1,13 @@
 import { MENSAGENS_DE_ERRO } from '../packages/shared/src/errors/messages.ts'
-import { ALUNOS_DO_LOTE, erroDaApi, portao, QUEM_DECIDE } from './__fixtures__/assistente.ts'
-import { abrirNavegacao, entrarPorEmail, esperarNovaConversa, lateral, PRAZO_DA_ENTRADA_MS, secoes } from './__fixtures__/casca.ts'
-import { cacheDeConsultas, semAcessosDaConta } from './__fixtures__/consultas.ts'
-import { principal } from './__fixtures__/fluxo-do-professor.ts'
-import { expect, test } from './__fixtures__/perfis.ts'
-import { abrirODestaque, fecharOPainel, painelDoDestaque } from './__fixtures__/professor/aprovar.ts'
-import { acionar, comLote, entrar, irPara, PRAZO_DA_TELA_MS, recarregar } from './__fixtures__/professor/cena.ts'
-import { confirmarVinculosNoBanco, criarAlocacaoDoProfessor, criarProfessoraNaEscola, encerrarSessoesDoUsuario } from './__fixtures__/sessao.ts'
-import { larguraExcedente, larguraExcedenteDoDialogo, violacoesGraves } from './__fixtures__/verificacoes.ts'
+import { ALUNOS_DO_LOTE, erroDaApi, portao, QUEM_DECIDE } from './support/assistente.ts'
+import { abrirNavegacao, entrarPorEmail, esperarNovaConversa, lateral, PRAZO_DA_ENTRADA_MS, secoes } from './support/casca.ts'
+import { cacheDeConsultas, semAcessosDaConta } from './support/query-cache.ts'
+import { principal } from './support/professor-flow.ts'
+import { expect, test } from './support/profiles.ts'
+import { abrirODestaque, fecharOPainel, painelDoDestaque } from './support/professor/aprovar.ts'
+import { acionar, comLote, entrar, irPara, PRAZO_DA_TELA_MS, recarregar } from './support/professor/scenario.ts'
+import { confirmarVinculosNoBanco, criarAlocacaoDoProfessor, criarProfessoraNaEscola, encerrarSessoesDoUsuario } from './support/seed.ts'
+import { larguraExcedente, larguraExcedenteDoDialogo, violacoesGraves } from './support/checks.ts'
 
 /**
  * Aprovar a correção (11.5, A3, pacote W; telas do professor, 14.0). Separado de `professor-turma.spec.ts` pela 2.5. Nos dois

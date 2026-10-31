@@ -6,8 +6,8 @@ import { join, relative, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../../tools/testes/metricas.ts'
-import { CapturaDeDadoPessoal } from '../../test/captura-de-dado-pessoal.js'
-import { chamar, subirApi, type ApiDeTeste, type RespostaHttp } from '../../test/api-com-sessao.js'
+import { CapturaDeDadoPessoal } from '../../test/personal-data-capture.js'
+import { chamar, subirApi, type ApiDeTeste, type RespostaHttp } from '../../test/test-api.js'
 import {
   comoPessoa,
   contarNaEscola,
@@ -18,14 +18,14 @@ import {
   vincularProfessor,
   zerarLimiteDePedidosDeIa,
   type EscolaComAssistente,
-} from '../../test/escola-com-assistente.js'
-import { BancadaDeSessoes, type SessaoDeTeste } from '../../test/sessao-de-teste.js'
-import { AgendadorDeExecucoes } from '../ia/agendador-de-execucoes.js'
+} from '../../test/escola-assistente.fixture.js'
+import { BancadaDeSessoes, type SessaoDeTeste } from '../../test/sessao.fixture.js'
+import { AgendadorDeExecucoes } from '../ia/execucao.scheduler.js'
 import { EXECUTOR_DE_AGENTE, SUSPENSAO_DE_FUNCAO } from '../ia/ia.module.js'
-import { BuscaDeTrechos } from '../material/busca-de-trechos.js'
+import { BuscaDeTrechos } from '../material/trecho-search.js'
 import { AssistenteService } from './assistente.service.js'
 import { ConversaRepository } from './conversa.repository.js'
-import { LimiteDePedidosDeIa, TETO_DE_PEDIDOS_DE_IA_POR_USUARIO } from './limite-de-pedidos-de-ia.js'
+import { LimiteDePedidosDeIa, TETO_DE_PEDIDOS_DE_IA_POR_USUARIO } from './ai-request-rate-limit.js'
 import { TurmaDoProfessorRepository } from './turma-do-professor.repository.js'
 
 /**

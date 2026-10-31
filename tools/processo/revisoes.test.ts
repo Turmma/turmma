@@ -92,7 +92,7 @@ const portaoDe = (
   conteudo: string,
   alteradoEm: string | null,
   mensagem = 'Implementa x (tarefa 9.0)\n\nRevisões: ...',
-  arquivo = 'apps/worker/src/executor.ts',
+  arquivo = 'apps/worker/src/job-executor.ts',
   carimbo: Carimbo | null = carimboVerde,
 ) =>
   avaliarPortao({
@@ -241,7 +241,7 @@ describe('portão do commit', () => {
   })
 
   it('correção só em teste caduca test-engineer e revisor-geral, e não os guardiões', () => {
-    const { bloqueios } = portaoDe(tudoAprovadoAs10, '2026-09-13 10:30:00', undefined, 'apps/api/test/sessao-guarda.int.test.ts')
+    const { bloqueios } = portaoDe(tudoAprovadoAs10, '2026-09-13 10:30:00', undefined, 'apps/api/test/sessao-guard.int.test.ts')
     expect(bloqueios.map((bloqueio) => bloqueio.split(':')[0])).toEqual(['test-engineer', 'revisor-geral', 'portão local'])
   })
 
@@ -251,7 +251,7 @@ describe('portão do commit', () => {
     ])
     const velho = { ...carimboVerde, inicio: new Date(lerHora('2026-09-13 09:58:00')).toISOString() }
     expect(portaoDe(tudoAprovadoAs10, '2026-09-13 09:59:00', undefined, undefined, velho).bloqueios).toEqual([
-      expect.stringMatching(/^portão local: apps\/worker\/src\/executor.ts mudou/),
+      expect.stringMatching(/^portão local: apps\/worker\/src\/job-executor.ts mudou/),
     ])
     const semTeste = { ...carimboVerde, suites: ['typecheck', 'lint', 'segredo', 'dependencias'] }
     expect(portaoDe(tudoAprovadoAs10, '2026-09-13 09:59:00', undefined, undefined, semTeste).bloqueios).toEqual([
@@ -279,7 +279,7 @@ describe('portão do commit', () => {
     // Mudou depois do portão da tarefa, ele caduca como o completo.
     const velho = { ...daTarefa, inicio: new Date(lerHora('2026-09-13 09:58:00')).toISOString() }
     expect(portaoDe(tudoAprovadoAs10, '2026-09-13 09:59:00', undefined, undefined, velho).bloqueios).toEqual([
-      expect.stringMatching(/^portão local: apps\/worker\/src\/executor.ts mudou.*--tarefa/),
+      expect.stringMatching(/^portão local: apps\/worker\/src\/job-executor.ts mudou.*--tarefa/),
     ])
   })
 
@@ -293,12 +293,12 @@ describe('portão do commit', () => {
 
   it('os alvos do portão da tarefa são os testes alterados, cada um na sua suíte, sem repetir', () => {
     const alterados = [
-      'apps/worker/src/processadores/expurgar-escola.ts',
+      'apps/worker/src/processors/expurgar-escola.ts',
       'apps/worker/test/expurgo-da-escola.int.test.ts',
       'packages/core/src/retencao/expurgo-da-escola.test.ts',
       'packages/core/src/retencao/retencao.int.test.ts',
       'e2e/privacidade.spec.ts',
-      'e2e/__fixtures__/sessao.ts',
+      'e2e/support/seed.ts',
       'infra/alertas/expurgo.int.test.ts',
       'apps/api/dist/x.int.test.ts',
       'node_modules/pacote/y.int.test.ts',
@@ -873,9 +873,9 @@ describe('o que conta como alteração depois do portão e da rodada', () => {
   it('arquivo salvo no mesmo segundo, mas antes do início do portão, não invalida o carimbo', () => {
     // O caso real das tarefas 7.0 e 16.0: 39 ms antes do início, recusado porque a comparação
     // truncava para segundo inteiro. Duas rodadas de revisão gastas por arredondamento.
-    const antes = [{ arquivo: 'apps/api/src/ops/comando.ts', quando: Date.parse('2026-09-20T10:00:00.000Z') - 39, hash: 'a' }]
+    const antes = [{ arquivo: 'apps/api/src/ops/command.ts', quando: Date.parse('2026-09-20T10:00:00.000Z') - 39, hash: 'a' }]
     expect(avaliarCarimbo(carimbo, exigidas, antes)).toBeNull()
-    const depois = [{ arquivo: 'apps/api/src/ops/comando.ts', quando: Date.parse('2026-09-20T10:00:00.000Z') + 1, hash: 'a' }]
+    const depois = [{ arquivo: 'apps/api/src/ops/command.ts', quando: Date.parse('2026-09-20T10:00:00.000Z') + 1, hash: 'a' }]
     expect(avaliarCarimbo(carimbo, exigidas, depois)).toContain('mudou em')
   })
 
@@ -920,7 +920,7 @@ describe('o que conta como alteração depois do portão e da rodada', () => {
     // hook do commit chama: os dois revisores desta casa provam a guarda mutando o arquivo e restaurando, e sem o
     // instantâneo o `mtime` sozinho bloqueava o commit para sempre, empurrando para a revisão sem mutação.
     const documento = 'tasks/correcoes/2026-09-22-exemplo.md'
-    const arquivo = 'apps/worker/src/executor.ts'
+    const arquivo = 'apps/worker/src/job-executor.ts'
     const depoisDaRodada = { arquivo, quando: lerHora('2026-09-13 10:30:00'), hash: 'mesmo-conteudo' }
     const aprovada = tarefaCom(rodada('infra-guardian', 'APROVADO', '2026-09-13 10:00:00', '2026-09-13 10:05:00'), rodada('test-engineer', 'APROVADO', '2026-09-13 10:00:00', '2026-09-13 10:06:00'))
     const comum = {
@@ -2070,25 +2070,25 @@ describe('RF15: o commit exige o guardião que o caminho pede', () => {
 
   it('marcado e não pedido pelo caminho continua obrigatório', () => {
     // O commit leva só o documento e uma exceção sem guardião (`tema.ts`): o caminho não pede ninguém, e o Arquiteto marcou `infra-guardian`.
-    const arquivos = { 'apps/web/src/tema.ts': 'export const a = 1\n' }
+    const arquivos = { 'apps/web/src/theme.ts': 'export const a = 1\n' }
     const semRodada = arvore(['infra-guardian'], SEMPRE, arquivos)
-    expect(decidir(semRodada, [DOCUMENTO, 'apps/web/src/tema.ts'])).toMatch(/- infra-guardian: nenhuma rodada registrada/)
+    expect(decidir(semRodada, [DOCUMENTO, 'apps/web/src/theme.ts'])).toMatch(/- infra-guardian: nenhuma rodada registrada/)
     expect(decidir(semRodada, [DOCUMENTO])).toMatch(/- infra-guardian: nenhuma rodada registrada/)
     const comRodada = arvore(['infra-guardian'], [...SEMPRE, 'infra-guardian'], arquivos)
-    expect(decidir(comRodada, [DOCUMENTO, 'apps/web/src/tema.ts'])).toBeNull()
+    expect(decidir(comRodada, [DOCUMENTO, 'apps/web/src/theme.ts'])).toBeNull()
   })
 
   it('a exceção não pede guardião, e a citação da regra no índice ou no HEAD o pede', () => {
-    const raiz = arvore([], SEMPRE, { 'apps/web/src/tema.ts': 'export const a = 1\n' })
-    expect(decidir(raiz, ['apps/web/src/tema.ts'])).toBeNull()
+    const raiz = arvore([], SEMPRE, { 'apps/web/src/theme.ts': 'export const a = 1\n' })
+    expect(decidir(raiz, ['apps/web/src/theme.ts'])).toBeNull()
     // Citando "regra 70" no disco (o índice do `PreToolUse`).
-    writeFileSync(join(raiz, 'apps/web/src/tema.ts'), '// regra 70\nexport const a = 1\n')
-    utimesSync(join(raiz, 'apps/web/src/tema.ts'), new Date('2026-09-13T09:00:00'), new Date('2026-09-13T09:00:00'))
-    expect(decidir(raiz, ['apps/web/src/tema.ts'])).toMatch(/- conformidade-reviewer: nenhuma rodada registrada/)
+    writeFileSync(join(raiz, 'apps/web/src/theme.ts'), '// regra 70\nexport const a = 1\n')
+    utimesSync(join(raiz, 'apps/web/src/theme.ts'), new Date('2026-09-13T09:00:00'), new Date('2026-09-13T09:00:00'))
+    expect(decidir(raiz, ['apps/web/src/theme.ts'])).toMatch(/- conformidade-reviewer: nenhuma rodada registrada/)
     // Citava "regra 20" no HEAD e não cita mais: o guardião continua pedido.
-    writeFileSync(join(raiz, 'apps/web/src/tema.ts'), 'export const a = 1\n')
-    utimesSync(join(raiz, 'apps/web/src/tema.ts'), new Date('2026-09-13T09:00:00'), new Date('2026-09-13T09:00:00'))
-    expect(decidir(raiz, ['apps/web/src/tema.ts'], () => '// regra 20\n')).toMatch(/- privacy-guardian: nenhuma rodada registrada/)
+    writeFileSync(join(raiz, 'apps/web/src/theme.ts'), 'export const a = 1\n')
+    utimesSync(join(raiz, 'apps/web/src/theme.ts'), new Date('2026-09-13T09:00:00'), new Date('2026-09-13T09:00:00'))
+    expect(decidir(raiz, ['apps/web/src/theme.ts'], () => '// regra 20\n')).toMatch(/- privacy-guardian: nenhuma rodada registrada/)
   })
 
   it('o commit que não leva código não pede guardião, ainda que a árvore tenha', () => {
@@ -2104,9 +2104,9 @@ describe('RF15: o commit exige o guardião que o caminho pede', () => {
     const git = (...args: string[]) => execFileSync('git', ['-c', 'user.email=t@t', '-c', 'user.name=t', ...args], { cwd: raiz, stdio: 'pipe' })
     git('add', 'apps')
     git('commit', '-q', '-m', 'base')
-    mkdirSync(join(raiz, 'apps/web/src/galeria'), { recursive: true })
-    git('mv', 'apps/api/src/x.repository.ts', 'apps/web/src/galeria/x.tsx')
-    expect(arquivosPreparados(raiz).sort()).toEqual(['apps/api/src/x.repository.ts', 'apps/web/src/galeria/x.tsx'])
+    mkdirSync(join(raiz, 'apps/web/src/gallery'), { recursive: true })
+    git('mv', 'apps/api/src/x.repository.ts', 'apps/web/src/gallery/x.tsx')
+    expect(arquivosPreparados(raiz).sort()).toEqual(['apps/api/src/x.repository.ts', 'apps/web/src/gallery/x.tsx'])
   })
 
   it('o conteúdo do HEAD, lido do git de verdade, e o do disco são lidos de onde o nome diz', () => {

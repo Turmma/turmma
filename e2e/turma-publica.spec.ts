@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import type { Browser, BrowserContext, BrowserContextOptions, Locator, Page, Route } from '@playwright/test'
-import { PRAZO_DA_ENTRADA_MS } from './__fixtures__/casca.ts'
-import { expect, test } from './__fixtures__/perfis.ts'
+import { PRAZO_DA_ENTRADA_MS } from './support/casca.ts'
+import { expect, test } from './support/profiles.ts'
 import {
   criarEscolaSintetica,
   gerarAcessoDaSalaNoBanco,
@@ -11,8 +11,8 @@ import {
   tomarNomeNoBanco,
   type AcessoDaSalaDeTeste,
   type EscolaDeTeste,
-} from './__fixtures__/sessao.ts'
-import { ALVO_DE_TOQUE_PRINCIPAL_PX, codigoCru, focoVisivel, larguraExcedente, violacoesGraves } from './__fixtures__/verificacoes.ts'
+} from './support/seed.ts'
+import { ALVO_DE_TOQUE_PRINCIPAL_PX, codigoCru, focoVisivel, larguraExcedente, violacoesGraves } from './support/checks.ts'
 
 /**
  * A página pública da turma, `/e/<slug>/turma` (A1, tarefa 17.0; `tasks/prd-apresentacao-escola/cenarios.md`): W8, W11,

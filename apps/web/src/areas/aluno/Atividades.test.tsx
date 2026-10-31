@@ -3,7 +3,7 @@ import { minhaAtividadeSchema } from '@educa/shared'
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { Router } from 'wouter'
-import { prepararTela, redeFalsa, renderizarTela } from '../../__fixtures__/tela'
+import { prepararTela, redeFalsa, renderizarTela } from '../../__fixtures__/render-screen'
 import Atividades from './Atividades'
 import { AVISO_DA_AVALIACAO, TEXTO_DA_ESPERA_PELA_CORRECAO, VAZIO_DE_CADA_GRUPO } from './atividades'
 

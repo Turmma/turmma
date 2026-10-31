@@ -1,10 +1,10 @@
 import { AVISO_DO_SEGUNDO_FATOR_CONSUMIDO, mensagemDoSegundoFator } from '../packages/shared/src/errors/messages.ts'
 import { QUANTIDADE_DE_CODIGOS_DE_RECUPERACAO } from '../packages/shared/src/sessao/mfa.ts'
-import { entrarComoCoordenacaoNaMesmaAba, esperarPainel } from './__fixtures__/casca.ts'
-import { expect, test } from './__fixtures__/perfis.ts'
-import { campoCodigo, configurarSegundoFator, configurarSegundoFatorPelaApi, entrarComSenha, gastarCodigoDeRecuperacaoPelaApi } from './__fixtures__/segundo-fator.ts'
-import { codigoDoAutenticador, criarEquipeComSenha } from './__fixtures__/sessao.ts'
-import { ALVO_DE_TOQUE_PRINCIPAL_PX, larguraExcedente, violacoesGraves } from './__fixtures__/verificacoes.ts'
+import { entrarComoCoordenacaoNaMesmaAba, esperarPainel } from './support/casca.ts'
+import { expect, test } from './support/profiles.ts'
+import { campoCodigo, configurarSegundoFator, configurarSegundoFatorPelaApi, entrarComSenha, gastarCodigoDeRecuperacaoPelaApi } from './support/mfa.ts'
+import { codigoDoAutenticador, criarEquipeComSenha } from './support/seed.ts'
+import { ALVO_DE_TOQUE_PRINCIPAL_PX, larguraExcedente, violacoesGraves } from './support/checks.ts'
 
 const PRAZO_DA_ENTRADA_MS = 20_000
 /** Um passo do TOTP à frente: a ativação grava o passo usado, e só um passo maior entra depois (6.0). */

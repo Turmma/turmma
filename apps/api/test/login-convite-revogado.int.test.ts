@@ -1,14 +1,14 @@
 import { ErrorCode } from '@educa/shared'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { revogarConvitePeloOperador } from '../src/sessao/index.js'
-import { CenarioDeAtivacao, SENHA_DA_CONTA, SENHA_ERRADA, type ContaDeTeste, type ConviteDeTeste } from './ativacao-de-teste.js'
-import { esperarErro, pedir, type Resposta } from './painel-de-teste.js'
-import { autorDaBancada } from './sessao-de-teste.js'
+import { CenarioDeAtivacao, SENHA_DA_CONTA, SENHA_ERRADA, type ContaDeTeste, type ConviteDeTeste } from './ativacao.fixture.js'
+import { esperarErro, pedir, type Resposta } from './painel.fixture.js'
+import { autorDaBancada } from './sessao.fixture.js'
 
 /**
  * O login com o bilhete de um convite que já não ativa (A0b, tarefa 4.0; Tech Spec, seção 5, a **Decisão**), fora de
  * corrida: cenários E16 e as partes de login da E6, de `tasks/prd-apresentacao-painel/cenarios.md`. A corrida com o
- * gerar do operador é a E15, em `ativacao-sob-trava.int.test.ts`. Postgres e Redis reais do compose de teste.
+ * gerar do operador é a E15, em `ativacao-under-lock.int.test.ts`. Postgres e Redis reais do compose de teste.
  *
  * A regra: com a senha (e o código, no MFA) certos e o bilhete desta conta, cujo convite foi revogado (pelo operador, ou
  * trocado por um gerar), entra no outro usuário ativo da conta, ou vai a `escolher` sem a escola do convite; sem outro,

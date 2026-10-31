@@ -1,9 +1,9 @@
 import { DomainException, requestSessao, type Database } from '@educa/core'
 import { ErrorCode, type TrocaDeEscolaRequest } from '@educa/shared'
-import type { ConclusaoDeLogin } from '../conclusao/conclusao-de-login.js'
-import { verificarDesafio, type ConsumoDeDesafio, type EmissorDeDesafio, type SessaoDeOrigemDaTroca } from '../../credencial/desafio.js'
-import type { OrigemDaRequisicao, ResultadoDoLogin } from '../../credencial/origem-da-requisicao.js'
-import type { ResolucaoDeTenantRepository, UsuarioAtivoDaConta } from '../tenant/resolucao-de-tenant.repository.js'
+import type { ConclusaoDeLogin } from '../completion/login-completion.js'
+import { verificarDesafio, type ConsumoDeDesafio, type EmissorDeDesafio, type SessaoDeOrigemDaTroca } from '../../credencial/challenge.js'
+import type { OrigemDaRequisicao, ResultadoDoLogin } from '../../credencial/request-origin.js'
+import type { ResolucaoDeTenantRepository, UsuarioAtivoDaConta } from '../tenant/tenant-resolution.repository.js'
 import { SessaoDeOrigemRepository } from '../../credencial/sessao-de-origem.repository.js'
 
 export interface DependenciasDaTroca {

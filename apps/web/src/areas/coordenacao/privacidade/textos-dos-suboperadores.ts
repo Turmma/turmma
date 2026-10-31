@@ -1,5 +1,5 @@
 import { CATEGORIAS_DE_DADO_DO_SUBOPERADOR, type SuboperadorDaEscola } from '@educa/shared'
-import { formatarDiaDoInstante } from '../../../formatar'
+import { formatarDiaDoInstante } from '../../../format'
 
 /**
  * Os textos da aba "Empresas que recebem dados" (F3, 8.0; `docs/interface.md` 3). Funções puras: a tela só as chama, e o

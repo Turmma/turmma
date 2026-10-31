@@ -1,6 +1,6 @@
 import { ErrorCode, memoriaDoTutorResponseSchema, type MemoriaDoTutorResponse } from '@educa/shared'
 import { queryOptions } from '@tanstack/react-query'
-import { ErroDaApi } from './cliente'
+import { ErroDaApi } from './client'
 import { CHAVE_DA_MEMORIA_DO_TUTOR } from './chaves-do-aluno'
 import { buscarComSessao } from './sessao'
 

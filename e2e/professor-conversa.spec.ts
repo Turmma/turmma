@@ -1,11 +1,11 @@
 import type { Locator, Page } from '@playwright/test'
 import { MENSAGENS_DE_ERRO } from '../packages/shared/src/errors/messages.ts'
-import { atividadeSintetica, erroDaApi, mensagemDela, portao, propostaDeAtividade, respostaComPagina, TITULO_DO_MATERIAL } from './__fixtures__/assistente.ts'
-import { PRAZO_DA_ENTRADA_MS } from './__fixtures__/casca.ts'
-import { caixa } from './__fixtures__/fluxo-do-professor.ts'
-import { acionar, entrar, irPara, PRAZO_DA_TELA_MS, recarregar, selosDeIA, UUID } from './__fixtures__/professor/cena.ts'
-import { larguraExcedente, violacoesGraves } from './__fixtures__/verificacoes.ts'
-import { expect, test } from './__fixtures__/perfis.ts'
+import { atividadeSintetica, erroDaApi, mensagemDela, portao, propostaDeAtividade, respostaComPagina, TITULO_DO_MATERIAL } from './support/assistente.ts'
+import { PRAZO_DA_ENTRADA_MS } from './support/casca.ts'
+import { caixa } from './support/professor-flow.ts'
+import { acionar, entrar, irPara, PRAZO_DA_TELA_MS, recarregar, selosDeIA, UUID } from './support/professor/scenario.ts'
+import { larguraExcedente, violacoesGraves } from './support/checks.ts'
+import { expect, test } from './support/profiles.ts'
 
 /**
  * A conversa com o Assistente (11.3, A2, pacote W), com a pergunta da D18. Separado de `professor-assistente.spec.ts` pela 2.5.

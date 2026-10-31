@@ -1,5 +1,5 @@
 import { ESTADOS_DE_ENTREGA, NOME_DA_FERRAMENTA, TIPOS_DE_ARTEFATO, type ArtefatoResumido, type EstadoDeEntrega, type TipoDeArtefato } from '@educa/shared'
-import type { FamiliaDeEstado } from '../../../componentes/ui/SeloDeEstado'
+import type { FamiliaDeEstado } from '../../../components/ui/SeloDeEstado'
 
 /**
  * O que a tela de Criados decide sem tocar a rede (telas do professor, 5.0; `docs/interface.md` 11.2): os filtros que moram

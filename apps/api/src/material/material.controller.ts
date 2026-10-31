@@ -12,7 +12,7 @@ import {
 } from '@educa/shared'
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, Query, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common'
 import { MaterialService } from './material.service.js'
-import { GuardaDoEnvio, RecebimentoDoMaterial } from './recebimento.js'
+import { GuardaDoEnvio, RecebimentoDoMaterial } from './material-upload.js'
 
 /**
  * `/v1/materiais` (MVP, A2; `docs/mvp-contratos.md`, seção 3): a coordenação envia, lista, lê e exclui o material da

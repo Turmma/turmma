@@ -10,9 +10,9 @@ import { lerAmbienteDeTeste } from '../../../tools/ci/compose.ts'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { executarOpsIncidente } from '../src/ops/incidente.js'
 import { EmissorDeDesafio } from '../src/credencial/index.js'
-import { chamar, subirApi, type ApiDeTeste } from './api-com-sessao.js'
-import { esperarNaTrava, GatilhoDeParada } from './gatilho-de-parada.js'
-import { BancadaDeSessoes, type SessaoDeTeste } from './sessao-de-teste.js'
+import { chamar, subirApi, type ApiDeTeste } from './test-api.js'
+import { esperarNaTrava, GatilhoDeParada } from './write-block-trigger.js'
+import { BancadaDeSessoes, type SessaoDeTeste } from './sessao.fixture.js'
 
 /**
  * O incidente de segurança (F3, tarefa 9.0; `tasks/prd-lgpd-e-titular/cenarios.md`, RF8 e RF9): a operação o registra pelo

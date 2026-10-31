@@ -14,7 +14,7 @@
 // ser cobrado: os casos lentos que já estavam lá não são de quem trocou o texto (`tools/ci/duracao-do-e2e.ts` só cobra o caso que o
 // diff tocou).
 //
-// Limites: o literal citado só num ajudante de `e2e/__fixtures__/` não puxa os specs que o importam; literal montado em tempo de
+// Limites: o literal citado só num ajudante de `e2e/support/` não puxa os specs que o importam; literal montado em tempo de
 // execução vale pelas partes fixas; e o spec que procura o texto justamente na tela trocada, quando outro arquivo da web ainda o tem,
 // só cai na esteira do push (o preço que a regra 40 já aceita).
 import { execFileSync } from 'node:child_process'

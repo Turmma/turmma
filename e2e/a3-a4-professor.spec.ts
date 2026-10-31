@@ -1,13 +1,13 @@
-import { atividadesAplicadasNoBanco, entregasNoBanco, validacoesNoBanco } from './__fixtures__/a2.ts'
-import { entrarComoAlunoPelaApi, perguntarAoTutorPelaApi, responderPelaApi } from './__fixtures__/aluno-pela-api.ts'
-import { irPelaNavegacao, PRAZO_DA_ENTRADA_MS } from './__fixtures__/casca.ts'
-import { acionar, gerarAtividade, montarEscolaEEntrar, PRAZO_DA_IA_MS, principal } from './__fixtures__/fluxo-do-professor.ts'
-import { expect, test } from './__fixtures__/perfis.ts'
-import { abrirODestaque, fecharOPainel } from './__fixtures__/professor/aprovar.ts'
-import { abrirEntregasDoAssistente } from './__fixtures__/professor/entregas.ts'
-import { abrirOPainelDoTutor, abrirSinaisDoTutor, painelDoTutor } from './__fixtures__/professor/tutor.ts'
-import { colocarAlunoNaTurma, criarAlunoComMatricula } from './__fixtures__/sessao.ts'
-import { larguraExcedente, larguraExcedenteDoDialogo, violacoesGraves } from './__fixtures__/verificacoes.ts'
+import { atividadesAplicadasNoBanco, entregasNoBanco, validacoesNoBanco } from './support/db-assertions.ts'
+import { entrarComoAlunoPelaApi, perguntarAoTutorPelaApi, responderPelaApi } from './support/aluno-api.ts'
+import { irPelaNavegacao, PRAZO_DA_ENTRADA_MS } from './support/casca.ts'
+import { acionar, gerarAtividade, montarEscolaEEntrar, PRAZO_DA_IA_MS, principal } from './support/professor-flow.ts'
+import { expect, test } from './support/profiles.ts'
+import { abrirODestaque, fecharOPainel } from './support/professor/aprovar.ts'
+import { abrirEntregasDoAssistente } from './support/professor/entregas.ts'
+import { abrirOPainelDoTutor, abrirSinaisDoTutor, painelDoTutor } from './support/professor/tutor.ts'
+import { colocarAlunoNaTurma, criarAlunoComMatricula } from './support/seed.ts'
+import { larguraExcedente, larguraExcedenteDoDialogo, violacoesGraves } from './support/checks.ts'
 
 /**
  * **O fluxo da A3 e da A4 de verdade, do lado da professora** (`docs/mvp-rapido.md`, seção 1, passos 3 e 4), contra a API

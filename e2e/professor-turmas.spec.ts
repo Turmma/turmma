@@ -1,9 +1,9 @@
 import type { Locator, Page, Request } from '@playwright/test'
 import { AVISO_DO_COMPLEMENTO, EFEITO_DA_CONTESTACAO, NOME_DA_CONTESTACAO } from '../packages/shared/src/estrutura/vinculo.ts'
-import { confirmarVinculosNoBanco, criarAlocacaoDoProfessor, criarEquipeComSenha, criarPedidosNoBanco, type EquipeDeTeste } from './__fixtures__/sessao.ts'
-import { PRAZO_DA_ENTRADA_MS } from './__fixtures__/casca.ts'
-import { expect, test } from './__fixtures__/perfis.ts'
-import { ALVO_DE_TOQUE_PRINCIPAL_PX, larguraExcedente, violacoesGraves } from './__fixtures__/verificacoes.ts'
+import { confirmarVinculosNoBanco, criarAlocacaoDoProfessor, criarEquipeComSenha, criarPedidosNoBanco, type EquipeDeTeste } from './support/seed.ts'
+import { PRAZO_DA_ENTRADA_MS } from './support/casca.ts'
+import { expect, test } from './support/profiles.ts'
+import { ALVO_DE_TOQUE_PRINCIPAL_PX, larguraExcedente, violacoesGraves } from './support/checks.ts'
 
 /**
  * Turmas do professor, na pele nova (telas do professor, 9.0; RF14, RF22): os cartões com o que espera em cada turma e a

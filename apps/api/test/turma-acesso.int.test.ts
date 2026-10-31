@@ -8,9 +8,9 @@ import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { DisciplinaRepository } from '../src/estrutura/disciplina/disciplina.repository.js'
 import { TurmaRepository } from '../src/estrutura/turma/turma.repository.js'
 import { VinculoRepository } from '../src/estrutura/vinculo/vinculo.repository.js'
-import { chamar, subirApi, type ApiDeTeste, type RespostaHttp } from './api-com-sessao.js'
-import { alunosNaTurma, montarEscolaComTurma, type EscolaComTurma } from './escola-com-turma.js'
-import { BancadaDeSessoes, type SessaoDeTeste } from './sessao-de-teste.js'
+import { chamar, subirApi, type ApiDeTeste, type RespostaHttp } from './test-api.js'
+import { alunosNaTurma, montarEscolaComTurma, type EscolaComTurma } from './escola-turma.fixture.js'
+import { BancadaDeSessoes, type SessaoDeTeste } from './sessao.fixture.js'
 
 /** O status e o código do erro: o `requisicaoId` muda a cada chamada, e o resto precisa ser idêntico. */
 const semRequisicao = (resposta: RespostaHttp) => ({ status: resposta.status, codigo: resposta.corpo.erro?.codigo, mensagem: (resposta.corpo.erro as { mensagem?: string } | undefined)?.mensagem })

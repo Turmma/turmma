@@ -1,13 +1,13 @@
 import { randomUUID } from 'node:crypto'
 import type { Page } from '@playwright/test'
 import type { AtividadeAplicada } from '../packages/shared/src/index.ts'
-import { loteSintetico, portao, simularAssistente } from './__fixtures__/assistente.ts'
-import { PRAZO_DA_ENTRADA_MS } from './__fixtures__/casca.ts'
-import { acionar, irPara, PRAZO_DA_TELA_MS, VOCABULARIO_DE_NOTA } from './__fixtures__/professor/cena.ts'
-import { principal } from './__fixtures__/fluxo-do-professor.ts'
-import { expect, test } from './__fixtures__/perfis.ts'
-import { confirmarVinculosNoBanco, criarAlocacaoDoProfessor, criarEquipeComSenha, type EquipeDeTeste } from './__fixtures__/sessao.ts'
-import { larguraExcedente, larguraExcedenteDoDialogo, violacoesGraves } from './__fixtures__/verificacoes.ts'
+import { loteSintetico, portao, simularAssistente } from './support/assistente.ts'
+import { PRAZO_DA_ENTRADA_MS } from './support/casca.ts'
+import { acionar, irPara, PRAZO_DA_TELA_MS, VOCABULARIO_DE_NOTA } from './support/professor/scenario.ts'
+import { principal } from './support/professor-flow.ts'
+import { expect, test } from './support/profiles.ts'
+import { confirmarVinculosNoBanco, criarAlocacaoDoProfessor, criarEquipeComSenha, type EquipeDeTeste } from './support/seed.ts'
+import { larguraExcedente, larguraExcedenteDoDialogo, violacoesGraves } from './support/checks.ts'
 
 /**
  * A aba Atividades da turma aberta (telas do professor, 11.0; RF17, RF22): a linha de cada atividade, o painel ao lado no

@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { BancadaDeSessoes, type SessaoDeTeste } from '../../apps/api/test/sessao-de-teste.js'
+import { BancadaDeSessoes, type SessaoDeTeste } from '../../apps/api/test/sessao.fixture.js'
 import { lerAmbienteDeTeste, valorObrigatorio } from '../../tools/ci/compose.ts'
 import { aguardarSaudavel, compose, composeAssincronoOuFalha, composeOuFalha, PROCESSOS_DA_FILA } from '../../tools/testes/compose.ts'
 

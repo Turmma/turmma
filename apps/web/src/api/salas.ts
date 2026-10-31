@@ -1,5 +1,5 @@
 import { reivindicacaoResponseSchema, salaAbertaResponseSchema, type AbrirSalaRequest, type ReivindicarSalaRequest, type ReivindicacaoResponse, type SalaAbertaResponse } from '@educa/shared'
-import { chamarApi } from './cliente'
+import { chamarApi } from './client'
 
 /**
  * A página pública da turma (A1, 17.0; as rotas são da 5.0 e da 6.0): sem sessão e sem token de acesso. O slug, o token

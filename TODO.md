@@ -44,7 +44,7 @@ O que trava o projeto e não se resolve programando. Vários têm prazo externo.
 - [ ] Nenhum caso abre `/coordenacao/bem-vindo` como professor ou aluno: cobrir na tarefa que tocar a guarda da área
 - [ ] `textos-da-introducao.test.ts` (11.0): o caso `"dois ou mais" é o grupo mínimo que o código aplica` repete o `toContain` do caso do passo 2; juntar os dois ou apagar o segundo
 - [ ] `e2e/coordenacao-introducao.spec.ts` (11.0): no caso dos quatro passos o `expect(gravacoes).toHaveLength(1)` final não espera nada depois do `poll`, e o comentário "nenhuma tardia" promete mais do que prova (a prova é a do caso do "Pular"): ajustar o comentário
-- [ ] Guarda de arquitetura que impeça importar `e2e/__fixtures__` fora de `e2e/` (o `introducaoVistaEmDoUsuario` lê sem `escola_id`)
+- [ ] Guarda de arquitetura que impeça importar `e2e/support` fora de `e2e/` (o `introducaoVistaEmDoUsuario` lê sem `escola_id`)
 - [ ] Ao rever a fala do passo 4 da introdução do professor (linha acima), manter que o número é só do professor e nunca alimenta decisão sobre ele
       (regra 20, item 10a; regra 70, item 8), e lembrar que a promessa "a conversa não aparece para a coordenação" vale por
       `apps/api/src/assistente/assistente.int.test.ts`: se a camada de rede ou um painel da coordenação ganhar leitura do Assistente, a frase muda junto
@@ -82,7 +82,7 @@ O que trava o projeto e não se resolve programando. Vários têm prazo externo.
       está feita na correção `2026-10-26-mensagem-fixa-avisa-o-professor`: a mensagem fixa que o aluno recebe ao
       contar algo pessoal difícil (`packages/nucleo/src/ia/tarefas/turno-do-tutor.ts`) e o aviso de privacidade dizem a
       mesma frase, `FRASE_DO_AVISO_AO_PROFESSOR` (`packages/shared/src/tutor/sinal.ts`), uma constante só; mudar o texto
-      na revisão é mudar ela. **Falta** a fixture de e2e `MENSAGEM_FIXA` (`e2e/__fixtures__/aluno.ts`, ~250-255) terminar
+      na revisão é mudar ela. **Falta** a fixture de e2e `MENSAGEM_FIXA` (`e2e/support/aluno.ts`, ~250-255) terminar
       nessa frase, e `e2e/aluno-tutor.spec.ts` e `e2e/aluno-fluxo.spec.ts` conferirem a frase no cartão (só roda na
       esteira; fora da correção `2026-10-26-mensagem-fixa-avisa-o-professor`). Entram na mesma revisão de
       texto: o registro de acesso (Marco Civil), que o aviso não cobre, e `FRASE_DO_QUE_NAO_TEMOS`
@@ -96,7 +96,7 @@ O que trava o projeto e não se resolve programando. Vários têm prazo externo.
       Hoje não acontece (17 frases passam de `28dvh` em qualquer tela real); medir
       `scrollHeight > clientHeight` ao montar e no redimensionamento, com um teste de
       `scrollHeight` igual a `clientHeight` sem evento de rolagem (X4, 9.0)
-- [ ] `textos-da-introducao.test.ts` lê `e2e/__fixtures__/casca.ts` por expressão regular, que
+- [ ] `textos-da-introducao.test.ts` lê `e2e/support/casca.ts` por expressão regular, que
       quebra com apóstrofo ou template string; o `e2e/` importar o `.ts` puro dos textos resolveria
       na origem, mas muda como o e2e importa módulo da web (X4, 9.0, revisor-geral)
 - [ ] Quem revê a introdução (Eu → "Rever a introdução") fica com Eu duas vezes no histórico, porque
@@ -174,7 +174,7 @@ O que trava o projeto e não se resolve programando. Vários têm prazo externo.
       Considere um rótulo por papel na tela: o aluno nunca decide um pedido, e "…ou decididos por você" só vale para o
       professor (`frontend-reviewer`, 3ª rodada) (diagnóstico do Arquiteto, 18.0)
       - Sobrou da correção, para a **validação do F3** (`test-engineer` e `privacy-guardian`, 1ª rodada): (a) o mesmo texto da
-        `descricao` vive em `leitura-do-titular.ts` e em `apps/web/src/componentes/meus-dados/regras.ts`, cada um com seu teste, e
+        `descricao` vive em `leitura-do-titular.ts` e em `apps/web/src/components/meus-dados/regras.ts`, cada um com seu teste, e
         nada confere que os dois são iguais: fonte única em `packages/shared` ou teste que confronte os dois, junto da decisão
         de desenho da forma de `LeituraDaTabela`; (b) teste de integração em que o aluno aprovado depois de uma recusa no mesmo
         nome recebe os dois pedidos no arquivo, sem `decidida_por` nem `teve_matricula_errada` (o seed de
@@ -199,7 +199,7 @@ O que trava o projeto e não se resolve programando. Vários têm prazo externo.
       validação da X4 (dono: Orquestrador)
 - [ ] **(Telas do aluno, correção `2026-10-25-enunciado-nao-acompanha-a-letra`) Mais `text-[Npx]` na área do aluno** (`test-engineer`, 1ª):
       o mesmo defeito do enunciado, o tamanho em `px` que não acompanha a letra Grande ou Maior, está em `Toque.tsx:39`, `Aviso.tsx:54`,
-      `ui/ia/AssinaturaIA.tsx:34`, `ui/onca/Onca.tsx:124`, `meus-dados/MeusDados.tsx:217` e `MenuDaPessoa.tsx:64`. Corrigir em
+      `ui/ai/AssinaturaIA.tsx:34`, `ui/onca/Onca.tsx:124`, `meus-dados/MeusDados.tsx:217` e `MenuDaPessoa.tsx:64`. Corrigir em
       correção própria, medindo cada um com a letra Maior, e acrescentar a guarda que recuse `text-[Npx]` nas telas do aluno
 - [ ] **(Telas do aluno, 3.0) O recomeço do Início está duplicado** em `e2e/aluno-inicio.spec.ts` e `e2e/minha-turma.spec.ts`
       (`test-engineer`, 1ª): apagar um dos dois numa passada de e2e (dono: quem tocar `minha-turma.spec.ts`)
@@ -292,13 +292,13 @@ O que trava o projeto e não se resolve programando. Vários têm prazo externo.
       isso, antes do piloto, e não depois (`infra-guardian` da 3.0, 2ª rodada e da 5.0, 3ª rodada, e `revisor-geral` da 5.0)
 - [ ] **Ordem das travas entre convidar e eliminar (F3, 5.0):** o `convidar` (`apps/api/src/sessao/convite/convite.service.ts`) trava a conta antes do usuário, e o `CicloDeVidaService` trava o usuário antes da conta. Se a coordenação convida de volta, pelo mesmo e-mail, quem o expurgo está eliminando no mesmo instante, sai deadlock (40P01): nada se corrompe, o expurgo grava `false` e tenta de novo, e o convite é refeito. Alinhar a ordem, ou responder `INDISPONIVEL_TENTE_DE_NOVO` no 40P01 (`infra-guardian` e `test-engineer` da 5.0)
 - [ ] **Tempo do lote de 100 pessoas (F3, 5.0):** o «tempo do lote» da 5.0 mediu só a cascata do `trabalho_do_aluno`. Medir o lote de `pessoa_desativada` inteiro (a escolha mais as 100 eliminações, uma transação cada) contra a janela letiva e o `statement_timeout`, com volume de Tutor na escola, antes do piloto (`infra-guardian` da 5.0)
-- [ ] **Medição do expurgo depois de o catálogo crescer (F3, 5.0):** `apps/worker/src/medicao-do-expurgo.ts` conta as noites contra o `CATEGORIAS_DO_EXPURGO` atual, que passou de 7 para 12. Num ambiente com noites gravadas com 7, as duas noites anteriores ao deploy contam como incompletas e `expurgo.noites_incompletas` fica em 2 por cerca de um dia e meio. Sem efeito hoje (não há staging); pôr um parágrafo no runbook quando houver (`revisor-geral` da 5.0)
+- [ ] **Medição do expurgo depois de o catálogo crescer (F3, 5.0):** `apps/worker/src/expurgo-gauge.ts` conta as noites contra o `CATEGORIAS_DO_EXPURGO` atual, que passou de 7 para 12. Num ambiente com noites gravadas com 7, as duas noites anteriores ao deploy contam como incompletas e `expurgo.noites_incompletas` fica em 2 por cerca de um dia e meio. Sem efeito hoje (não há staging); pôr um parágrafo no runbook quando houver (`revisor-geral` da 5.0)
 - [ ] **`NAO_ENCONTRADO` do `ops:incidente` sem a posição da seção (F3, 9.0):** o comando responde `NAO_ENCONTRADO: escola não encontrada`
       e não diz qual das escolas do arquivo falhou; num incidente de dezenas de escolas, o operador procura à mão. Citar a posição
       (`a seção N`) muda a saída fixa que `apps/api/test/incidente.int.test.ts` afirma (contrato do comando); fazer quando houver
       operador reclamando.
 - [ ] **Encerramento da medição do incidente sem teste (F3, 9.0):** `await medicaoDoIncidente?.encerrar()` em
-      `apps/worker/src/montagem.ts` não tem teste próprio (a classe tem; a montagem não): o intervalo de 5 min não é injetável por
+      `apps/worker/src/composition.ts` não tem teste próprio (a classe tem; a montagem não): o intervalo de 5 min não é injetável por
       `montarWorker`. Provar exige tornar o intervalo opção da montagem, que é mudança de contrato do worker.
 - [x] **Troca de nome da eliminação e o incidente (F3, 15.0):** *resolvido na 15.0: `incidente` e `incidente_escola` ficam fora, com o motivo em `COLUNAS_DA_TROCA_DE_NOME` e em `docs/lgpd.md`.* conferir que `incidente` e `incidente_escola` não precisam entrar
       na troca de nome da eliminação do 8º dia: o registro não guarda texto sobre pessoa, e a regra "nenhum dado de titular" é
@@ -558,7 +558,7 @@ para o staging".
 
 - [x] **A página pública da sala só com a 7.0 junto** (A1, tarefa 5.0; `infra-guardian` e `privacy-guardian`). Feito na
       7.0: o contador de código errado por escola com a espera de 1 s, o de matrícula errada por nome e o de hash sem pedido
-      por turma (`apps/api/src/sala/limites-da-sala.ts`). O alerta e o comando de revogar ficam na 9.0. Até a
+      por turma (`apps/api/src/sala/sala-rate-limits.ts`). O alerta e o comando de revogar ficam na 9.0. Até a
       7.0, a busca pelo código em `salas/abrir` só tem o `rl:ip` anônimo, e quem sabe o slug de uma escola pode tentar
       códigos de vários IPs para listar os nomes livres. Nenhum staging exposto nem dado real sem o contador de código
       errado por escola e a espera de 1 s da 7.0 (dono: Joaquim, no portão do staging). O mesmo vale para
@@ -570,7 +570,7 @@ para o staging".
       com várias escolas atrás do mesmo IP de saída, ou o F2, o que vier antes (dono: Joaquim)
 - [ ] **Prender o `AcessoDaSala` ao `sala` no teste de arquitetura** (`privacy-guardian` na 5.0): ele sai do
       `SessaoModule` global, e só o `SalaModule` deve injetá-lo, porque abre contexto de escola sem usuário. A 5.0
-      exigia o `arquitetura.test.ts` sem mudar; a asserção entra na próxima tarefa que tocar o teste, e prende também o
+      exigia o `architecture.test.ts` sem mudar; a asserção entra na próxima tarefa que tocar o teste, e prende também o
       `anoLetivoId` de `naEscolaSemUsuario` a `sessao/tenant/acesso-da-sala.ts`, o único caminho que põe o ano no contexto sem
       usuário (`privacy-guardian`, 2ª rodada) (dono: Joaquim)
 - [ ] **Alinhar os pacotes `@nestjs/*` na mesma versão** (`infra-guardian` na correção
@@ -584,10 +584,10 @@ para o staging".
       usos, pela regra 80 (dono: Joaquim)
 - [ ] **(F3, 20.0) `INTERVALO_DA_ATIVIDADE_MIN` copiado em dois specs de e2e** (`test-engineer` e `revisor-geral`, 1ª rodada):
       `e2e/acesso-suspenso.spec.ts` e `e2e/inatividade.spec.ts` repetem o 5 min do relógio de inatividade, que vive em
-      `apps/web/src/sessao/inatividade.ts` (importa React e `api/sessao`, e não carrega no Node do Playwright). Vale quando a
+      `apps/web/src/sessao/idle-timeout.ts` (importa React e `api/sessao`, e não carrega no Node do Playwright). Vale quando a
       constante for para `packages/shared` (dono: Joaquim)
 - [ ] **(F3, 20.0) Teste de `deveTentarDeNovo` com `ACESSO_SUSPENSO`** (`infra-guardian`, 1ª rodada): a garantia de "nenhuma nova
-      tentativa" depende só da lista fechada de códigos de `apps/web/src/api/cliente-de-consultas.ts`; um teste dela, com
+      tentativa" depende só da lista fechada de códigos de `apps/web/src/api/query-client.ts`; um teste dela, com
       `ACESSO_SUSPENSO`, a prende. O arquivo não é da 20.0: a tarefa que o tocar cobre (dono: Joaquim)
 - [ ] **(F3, 20.0) Componente comum para `SemDesafio` e `AcessoSuspenso`** (`revisor-geral` e `frontend-reviewer`, 1ª rodada): o
       link "Ir para a entrada" e o aviso com o token `pendente` se repetem nas duas telas; um componente comum, ou um
@@ -617,7 +617,7 @@ para o staging".
       "Recebido"; (m4) o DTO do pedido não leva `eliminarEm` (`packages/shared/src/privacidade/titular.ts`), e o detalhe diz
       "7 dias depois do registro" sem dizer o dia; (m5) "Baixar a versão da escola" aparece também com o titular de conta
       ativa, e aí sempre falha, com o texto certo (`AcoesDoPedido.tsx:279`); (m6) na área do professor, "Meus dados" não tem
-      título à vista (`apps/web/src/componentes/meus-dados/MeusDados.tsx:189-191`). Fotos e detalhe em
+      título à vista (`apps/web/src/components/meus-dados/MeusDados.tsx:189-191`). Fotos e detalhe em
       `tasks/prd-lgpd-e-titular/validacao.md`, seção 4 das duas rodadas (dono: Joaquim)
 - [ ] **(X2, 12.0) A lista de pedidos mistura dois formatos de data na mesma linha:** "Chegou em" diz "14 de outubro de 2026" e o
       prazo diz "até 29/10/2026" (`textoDoPrazo`, em `apps/web/src/areas/coordenacao/privacidade/textos-do-pedido.ts`). O
@@ -644,7 +644,7 @@ para o staging".
       comentário de uma linha ou o tipo corrigido (`revisor-geral`, 1ª rodada; mexe na lista da turma e refaz os blocos
       de mutação do selo); (c) o selo "ATIVO." sai com ponto final, vindo de `convite-de-professor.ts` na 6.0
       (`frontend-reviewer`, 1ª rodada); (d) o e2e do contestado não confere o complemento que o professor escreveu: estender
-      `contestarVinculosNoBanco` para gravá-lo (`test-engineer`, 1ª rodada); (e) `dialogo-modal.ts:26` e `dialogo-modal.test.ts:31` ainda dizem que o miolo do painel é `tabIndex={-1}`, fora da ordem do Tab (hoje é `tabIndex={0}`): tirar "o miolo do painel" dos dois comentários (`revisor-geral` e `test-engineer`, 2ª rodada); (f) o caso "abrir de novo com o diálogo ainda aberto é uma abertura nova" de `PainelDoProfessor.test.tsx` só funciona no jsdom, onde o fundo não fica inerte: o nome deveria dizer que prova a garantia defensiva da `key`; e o bloco de mutação `if (falhou !== undefined)` poderia trocar por `if (false)`, para o vermelho vir só da regra (`test-engineer`, 2ª rodada)
+      `contestarVinculosNoBanco` para gravá-lo (`test-engineer`, 1ª rodada); (e) `modal-dialog.ts:26` e `modal-dialog.test.ts:31` ainda dizem que o miolo do painel é `tabIndex={-1}`, fora da ordem do Tab (hoje é `tabIndex={0}`): tirar "o miolo do painel" dos dois comentários (`revisor-geral` e `test-engineer`, 2ª rodada); (f) o caso "abrir de novo com o diálogo ainda aberto é uma abertura nova" de `PainelDoProfessor.test.tsx` só funciona no jsdom, onde o fundo não fica inerte: o nome deveria dizer que prova a garantia defensiva da `key`; e o bloco de mutação `if (falhou !== undefined)` poderia trocar por `if (false)`, para o vermelho vir só da regra (`test-engineer`, 2ª rodada)
 - [ ] **(X2, 8.0) Recomendações que a tarefa deixou para depois:** (a) a tabela de Material não tem o teto de linhas com
       "Mostrar mais" que a Tech Spec §7 prevê (`frontend-reviewer`, 1ª rodada); (b) a barra de abas da Escola quebra em duas
       linhas no celular, nas três abas: é da moldura (`frontend-reviewer`); (c) o texto de "sem disciplina na escola" cita
@@ -675,8 +675,8 @@ para o staging".
 - [x] ~~(F3, fechamento) "Critério de conclusão" com as caixas em branco em documentos de tarefa~~ — resolvido na
       retrospectiva do F3 (11/10/2026): eram oito documentos, não três, e a seção saiu do modelo de tarefa
       (`tasks/prd-lgpd-e-titular/retro.md`, proposta 5). Os documentos antigos ficam como estão
-- [ ] **(F3, fechamento) Comentários que falam em "grupo Conformidade":** `apps/web/src/areas/navegacao.ts:38` e
-      `apps/web/src/caminhos.ts:80` descrevem um grupo que a lateral não tem (a decisão dos grupos está em "Marca e
+- [ ] **(F3, fechamento) Comentários que falam em "grupo Conformidade":** `apps/web/src/areas/navigation.ts:38` e
+      `apps/web/src/paths.ts:80` descrevem um grupo que a lateral não tem (a decisão dos grupos está em "Marca e
       interface", abaixo, até o PRD do F12). Acertar o comentário na próxima tarefa ou correção que abrir esses arquivos
       (dono: Joaquim)
 
@@ -701,13 +701,13 @@ para o staging".
       (`tasks/correcoes/2026-10-12-teste-de-componente.md`). `jsdom` e `testing-library` entram como dependência de
       desenvolvimento do `@educa/web`, e o projeto `unidade` passa a incluir `*.test.tsx`: o portão da tarefa, a esteira
       e as mutações já o alcançam. O arquivo pede o ambiente na primeira linha (`// @vitest-environment jsdom`), e a
-      unidade da API e dos pacotes continua no Node. O auxiliar `apps/web/src/__fixtures__/tela.tsx` dá a rede falsa, a
+      unidade da API e dos pacotes continua no Node. O auxiliar `apps/web/src/__fixtures__/render-screen.tsx` dá a rede falsa, a
       sessão aberta e o cliente de consultas da aba; o primeiro caso é o de `ListaDePedidos.test.tsx` (estados, rótulo e
       o que cada papel vê, em 1 s). **Falta, por outra mão:** a linha "estados da tela" do modelo de tarefa
       (`.claude/skills/criar-tasks/`) passar a pedir teste de componente para a condição e e2e para o fluxo; e o `jsdom`
       não faz layout, então "texto cortado" e "celular espremido" continuam sendo da vitrine e do e2e. Da revisão da
       correção, **para quem pegar o resto**:
-      - quando a linha "estados da tela" mudar, ela deve citar `apps/web/src/__fixtures__/tela.tsx`, para não nascer um
+      - quando a linha "estados da tela" mudar, ela deve citar `apps/web/src/__fixtures__/render-screen.tsx`, para não nascer um
         segundo auxiliar, e conferir se o `jsdom` 30 já cobre o `showModal` do `DialogoDeDecisao` (hoje o diálogo fica
         no e2e);
       - a primeira tarefa que alterar a `ListaDePedidos` ou o `DialogoDeDecisao` leva os casos que a correção deixou:
@@ -717,7 +717,7 @@ para o staging".
         22.22.2 junto de quem tocar o `package.json` da raiz; esteira e `.nvmrc` (22.23.2) passam (dono: Joaquim)
 - [ ] **(correção 2026-10-12-codigo-cru-no-nome-sintetico) Fechar a guarda do código cru de erro no e2e** (`revisor-geral`,
       `test-engineer` e `frontend-reviewer`, 1ª e 2ª rodadas; `tasks/correcoes/2026-10-12-codigo-cru-no-nome-sintetico.md`):
-      `codigoCru` (`e2e/__fixtures__/verificacoes.ts`) trata como nome sintético qualquer `503` com vizinho hexadecimal, e
+      `codigoCru` (`e2e/support/checks.ts`) trata como nome sintético qualquer `503` com vizinho hexadecimal, e
       por isso não vê o código cru colado a minúscula de `a` a `f` ou a dígito. Duas pontas soltas, na mesma mão:
       - **a trava contra a substring:** um teste de unidade ou regra de lint que reprove `not.toContainText('<três
         dígitos>')` em `e2e/`, com exceção de `guardas.spec.ts`, para o próximo spec não voltar a procurar o código como
@@ -748,7 +748,7 @@ para o staging".
       `maestri routine`), provar com alguém trabalhando que a saída vazia não acorda o modelo, e só então religar e
       acertar os dois textos. Até lá, toda vigia acorda o Orquestrador: no F3, 96 de 100 foram "nada a fazer"
       (dono: Joaquim)
-- [ ] **(F3, retro) 26 `@SemEscopo` em `resolucao-de-tenant.repository.ts`:** o `tenancy-guardian` apontou na 14.0
+- [ ] **(F3, retro) 26 `@SemEscopo` em `tenant-resolution.repository.ts`:** o `tenancy-guardian` apontou na 14.0
       que o número passa do sinal da regra 10, item 9. Declarar a exceção na regra ou partir o módulo é decisão de
       desenho sobre a regra 10, e não se resolve por retrospectiva: entra na Tech Spec da próxima spec que tocar sessão
       (dono: Joaquim)
@@ -816,17 +816,17 @@ das rodadas 1 e 2). Os itens que valem para funcionalidade futura ficam lá e s�
       repetir o cenário com o `UV_THREADPOOL_SIZE` de antes, para confirmar ou descartar essa
       causa; só depois decidir se o que muda é o cenário, o limiar ou a CPU de
       `infra/compose.carga.yml`. Enquanto isso, o controle negativo não está controlando nada.
-      A regra 80, item 3, continua provada por `apps/despachante/test/vagas.int.test.ts`
+      A regra 80, item 3, continua provada por `apps/despachante/test/slots.int.test.ts`
       (controle negativo da vaga e "A sem vaga não atrasa B"), que roda no portão (dono: Joaquim)
 - [x] ~~Teste intermitente da borda ("API não depende do resto")~~ — não era o teste: nome de
       serviço parado esgotava as 4 threads do libuv e a conexão ao Postgres esperava 15 s. Corrigido
       com `UV_THREADPOOL_SIZE=16` e resolvedor de 1 s (`docs/infra.md`, "Threads e DNS")
 - [ ] Guarda de `npm audit` provada com fixture real de dependência vulnerável, e não só com
       o `npm` imitado (`tools/ci/scripts.test.ts:75`)
-- [x] ~~`redis-fora.int.test.ts:97` com `start` sem `aguardarSaudavel`~~ — corrigido em 21/09/2026
+- [x] ~~`redis-down.int.test.ts:97` com `start` sem `aguardarSaudavel`~~ — corrigido em 21/09/2026
       (`tasks/correcoes/2026-09-21-redis-fora-mede-a-subida-do-container.md`), e a guarda de lint
       `guardas/esperar-servico-do-compose` impede a próxima ocorrência da classe
-- [ ] Medir uma vez a recuperação do despachante depois do `healthy` em `redis-fora.int.test.ts` e
+- [ ] Medir uma vez a recuperação do despachante depois do `healthy` em `redis-down.int.test.ts` e
       registrar o número, para o poll de 60 s passar a ser dimensionado em vez de herdado
       (`test-engineer`, três rodadas da correção de 21/09)
 - [ ] **Esteira instável: tratar como desenho, não como três bugs soltos.** Em 20/09/2026, depois de
@@ -847,7 +847,7 @@ das rodadas 1 e 2). Os itens que valem para funcionalidade futura ficam lá e s�
       fecha o item — a contenção do runner continua —, mas tira um caso da lista e mostra o padrão:
       prazo de produção medido num runner que não é produção
 - [ ] **Intermitente com causa fechada, pronto para `/corrigir`: o "cookie alterado" de
-      `apps/api/test/sessao-externa.int.test.ts:433` às vezes não altera nada.** A linha é
+      `apps/api/test/external-login.int.test.ts:433` às vezes não altera nada.** A linha é
       `` `${valor.slice(0, -2)}${valor.endsWith('A') ? 'B' : 'A'}${valor.slice(-1)}` ``: a condição
       olha o **último** caractere e a troca escreve no **penúltimo**. Com o penúltimo já `A` e o
       último diferente de `A`, o cookie "alterado" sai idêntico ao original, o retorno é aceito e a
@@ -931,7 +931,7 @@ Pendências de código da A0b que a retrospectiva deixou (`tasks/prd-apresentaca
 código"), com o destino de cada uma. As pequenas foram fechadas na correção `2026-09-25-acabamento-da-a0b`.
 
 - [ ] **Defeito, `/corrigir` próprio: o `desfazer` do contador de tentativas pode descontar do lugar errado**
-      (`apps/api/src/credencial/contador-de-tentativas.ts`, `ContadorDeTentativas.desfazer`; `infra-guardian` da 4.0 da A0b).
+      (`apps/api/src/credencial/login-lockout.ts`, `ContadorDeTentativas.desfazer`; `infra-guardian` da 4.0 da A0b).
       Ele desfaz no seguro em memória e, com o Redis `ready`, também no Redis, sem saber onde a tentativa foi contada. Se a
       reserva caiu no seguro (Redis fora naquela hora) e o Redis voltou antes do `desfazer`, o `SCRIPT_DESFAZER` tira do
       Redis uma falha que ele nunca contou, e libera uma falha real: é o lado que a regra do contador proíbe (errar só para
@@ -946,23 +946,23 @@ código"), com o destino de cada uma. As pequenas foram fechadas na correção `
       as duas deixa o total fora da página (`apps/api/src/operacao/painel/painel.repository.ts`, `TOTAL_DE_ESCOLAS` e
       `escolasDaPagina`; 5.0 da A0b). Ler o total na própria consulta da página, com `count(*) over ()` antes do `limit`,
       também tira uma conexão. Destino: próxima tarefa que tocar `painel.repository.ts`
-- [ ] `apps/web/src/operacao/paginas/Uso.tsx`: o `VazioDoUso` (`:114`) repete o `EstadoVazio`; e o número longo com
+- [ ] `apps/web/src/operacao/pages/Uso.tsx`: o `VazioDoUso` (`:114`) repete o `EstadoVazio`; e o número longo com
       `wrap-anywhere` (`:75`, `:101`) pode quebrar no meio entre 640 e ~760 px (`revisor-geral` e `frontend-reviewer` da
       8.0). Destino: próxima tarefa em `Uso.tsx` (a A2 deveria trazer o consumo de IA para esta tela e não trouxe: ver
       "Consumo de IA no painel da operação", no fim)
-- [x] ~~`apps/web/src/rotas.tsx:53`: o `componentWillUnmount` da fronteira de erro não tem teste (`test-engineer` da
-      10.0)~~ — feito na 11.0 da A1: a fronteira saiu para `apps/web/src/componentes/FronteiraDaArea.tsx`, o título da
+- [x] ~~`apps/web/src/routes.tsx:53`: o `componentWillUnmount` da fronteira de erro não tem teste (`test-engineer` da
+      10.0)~~ — feito na 11.0 da A1: a fronteira saiu para `apps/web/src/components/FronteiraDaArea.tsx`, o título da
       falha passou para o gancho `useTituloDaAba` da tela da falha, e o W5 de `e2e/areas.spec.ts` prova que sair dela pelo
       "Sair" devolve a aba ao título de antes
-- [ ] `apps/web/src/operacao/paginas/Convite.tsx`: o `hashchange` não zera `aceitando`, e o botão do link novo fica
+- [ ] `apps/web/src/operacao/pages/Convite.tsx`: o `hashchange` não zera `aceitando`, e o botão do link novo fica
       desligado ("Salvando…") enquanto o aceite do link anterior está no ar, sem dizer por quê; o descarte do desafio só é
       seguro por isso, e a dependência precisa de um comentário junto ao `aoMudarOFragmento` (`revisor-geral` e
       `test-engineer` da 10.0). Destino: próxima tarefa em `Convite.tsx`
-- [ ] `apps/api/test/arquitetura.test.ts`, `comandosDaMigration`: tira o comentário `--` antes do texto entre aspas, e um
+- [ ] `apps/api/test/architecture.test.ts`, `comandosDaMigration`: tira o comentário `--` antes do texto entre aspas, e um
       literal como `DEFAULT '--'` corta a linha e faz `tabelasSemEscola` ler errado o resto da migration. Hoje não existe
       esse caso (`revisor-geral` da 10.0). Destino: próxima tarefa que tocar esse teste, ou a primeira migration com `--`
       dentro de texto
-- [ ] O anúncio atrasado "Escola X criada." (`role="status"` de `apps/web/src/operacao/paginas/Escolas.tsx:228`) fica fora
+- [ ] O anúncio atrasado "Escola X criada." (`role="status"` de `apps/web/src/operacao/pages/Escolas.tsx:228`) fica fora
       do `<dialog>` modal reaberto, inerte para o leitor de tela: quem o usa pode não saber que o pedido cancelado criou a
       escola e repetir. No Nova rede nada segura o duplicado (`frontend-reviewer` da correção `7d495d0`). Destino: próxima
       tarefa que tocar `Escolas.tsx`
@@ -989,16 +989,16 @@ código"), com o destino de cada uma. As pequenas foram fechadas na correção `
       novo, com linha própria no `docs/lgpd.md`); e o E11 passar a provar que o e-mail aparece igual nos dois casos.
       Destino: junto da prova de posse do e-mail do "Portão da primeira escola real" (`ROADMAP.md`)
 - [ ] A trava do pedido no ar e o alerta com foco existem duas vezes na web: `useEnvioUnico` e `AlertaDaFalha`, em
-      `apps/web/src/componentes/dialogos.tsx` (A1, 13.0; vieram para `componentes/` na 15.0, e o `useEnvioUnico` passou a
+      `apps/web/src/components/dialogs.tsx` (A1, 13.0; vieram para `components/` na 15.0, e o `useEnvioUnico` passou a
       receber as opções da mutação, com que o acesso da turma já o usa), e o `noAr` de
-      `apps/web/src/componentes/DialogoDoConvite.tsx` com o `Falha` de `componentes/copia-unica.tsx` (da A0b). O diálogo
+      `apps/web/src/components/DialogoDoConvite.tsx` com o `Falha` de `components/copy-once.tsx` (da A0b). O diálogo
       do convite passar a usar o `useEnvioUnico`, e o `Falha` e o `AlertaDaFalha` virarem um só, deixa um jeito só
       (`revisor-geral` da 14.0).
       Não é troca de nome: o `Falha` leva o foco de novo a cada erro, e o `AlertaDaFalha`, só quando o texto muda, e a
       trava do diálogo está sob o e2e da A0b e as mutações da 14.0. Na mesma correção: o mapa
       `TEXTOS_DO_CONVITE_QUE_MUDOU` de `areas/coordenacao/professores/convite-de-professor.ts` difere por uma letra do texto
       `TEXTO_DO_CONVITE_QUE_MUDOU` que o arquivo importa; dar ao mapa um nome que diga o que ele é (`revisor-geral` da
-      14.0, 2ª rodada). E `linkDoConvite` e `copiarLink` (`componentes/link-do-convite.ts`) já montam também o link da
+      14.0, 2ª rodada). E `linkDoConvite` e `copiarLink` (`components/link-do-convite.ts`) já montam também o link da
       sala e copiam o convite inteiro do WhatsApp: `linkComToken` e `copiarTexto`, ou equivalente (`revisor-geral` da
       15.0); e `codigoEmDoisGrupos` (`areas/professor/turmas/acesso/acesso-da-turma.ts`) é só outro nome de `exibirCodigoDaTurma`. Destino: correção própria
 - [ ] Acesso da turma (A1, 15.0): o gerar espera a releitura da seção antes de mostrar o link e o código
@@ -1031,14 +1031,14 @@ código"), com o destino de cada uma. As pequenas foram fechadas na correção `
       segurança da borda, com o `infra-guardian`
 - [ ] O formato do token opaco de 43 caracteres base64url está em dois lugares: `esquemaTokenDeLink`
       (`packages/shared/src/sessao/token.ts`: convite da coordenação, link da sala e, desde a 14.0 da A1, o convite de
-      professor) e o `FORMATO_DO_REFRESH` (`apps/api/src/sessao/renovacao/renovacao.service.ts` e
+      professor) e o `FORMATO_DO_REFRESH` (`apps/api/src/sessao/refresh/renovacao.service.ts` e
       `apps/api/src/operacao/sessao/sessao.service.ts`). Unificar os dois da API no mesmo formato (`revisor-geral` da 4.0 da A1).
       A 14.0 fez a parte do convite de professor; o refresh é da API de sessão, fora de uma tarefa de tela. Destino:
       correção própria
 - [ ] **(X1, retrospectiva) Código de processo que a X1 pediu** (`tasks/prd-pele-e-casca/retro.md`, M1 a M3). Correção
       própria, com teste e revisão; mexe em `tools/processo/` e `tools/ci/`:
       (a) **o portão da tarefa mede a duração do e2e que roda** (**feito** em 18/10/2026 na correção `2026-10-18-duracao-do-e2e-no-portao`,
-      `tools/ci/duracao-do-e2e.ts`: repórter `json` ligado pelo portão, caso alterado pelo diff do git; o portão completo não mede; **limites conhecidos**: o caso vai do `test(` até a linha antes do `test(` seguinte, então um `beforeEach` ou ajudante entre dois `describe` é cobrado do último caso de cima e os de baixo passam sem cobrança, e o que fica fora de todo caso (importação, ajudante ou `beforeEach` acima do primeiro caso, `e2e/__fixtures__/`) que ficar mais lento não é cobrado de caso nenhum; caso pulado some das fronteiras, e `.skip` é proibido pela regra 40; **a rever** se aparecer na esteira caso lento por esses caminhos: tratar mudança fora de qualquer caso como mudança no arquivo inteiro, o que muda o contrato do portão; **a rever na correção `2026-10-18-duracao-do-e2e-le-o-prazo-declarado`**, que fez a régua ler o prazo declarado no HEAD: (1) `INICIO_DE_CASO` casa com o `.test('literal')` de um `RegExp`, e um `(?<![.\w])` antes de `test` fecharia, com teste e bloco próprios (hoje só aperta a régua); (2) `semComentarios` é um leitor feito à mão que não entende expressão regular literal, e trocá-lo pelo `ts.createScanner`, como `impressaoSemComentarios` em `tools/processo/revisoes.ts`, acabaria com o limite e com a lista de termos a provar): caso alterado que passa de 15 s na máquina fica vermelho,
+      `tools/ci/duracao-do-e2e.ts`: repórter `json` ligado pelo portão, caso alterado pelo diff do git; o portão completo não mede; **limites conhecidos**: o caso vai do `test(` até a linha antes do `test(` seguinte, então um `beforeEach` ou ajudante entre dois `describe` é cobrado do último caso de cima e os de baixo passam sem cobrança, e o que fica fora de todo caso (importação, ajudante ou `beforeEach` acima do primeiro caso, `e2e/support/`) que ficar mais lento não é cobrado de caso nenhum; caso pulado some das fronteiras, e `.skip` é proibido pela regra 40; **a rever** se aparecer na esteira caso lento por esses caminhos: tratar mudança fora de qualquer caso como mudança no arquivo inteiro, o que muda o contrato do portão; **a rever na correção `2026-10-18-duracao-do-e2e-le-o-prazo-declarado`**, que fez a régua ler o prazo declarado no HEAD: (1) `INICIO_DE_CASO` casa com o `.test('literal')` de um `RegExp`, e um `(?<![.\w])` antes de `test` fecharia, com teste e bloco próprios (hoje só aperta a régua); (2) `semComentarios` é um leitor feito à mão que não entende expressão regular literal, e trocá-lo pelo `ts.createScanner`, como `impressaoSemComentarios` em `tools/processo/revisoes.ts`, acabaria com o limite e com a lista de termos a provar): caso alterado que passa de 15 s na máquina fica vermelho,
       porque o runner leva perto do dobro e o prazo é 30 s. Na X1, os casos que caíram na esteira levavam de 19 a 29 s aqui,
       e custaram duas correções e duas rodadas de validação depois da validação aprovada;
       (b) **o hook conta as rodadas pelo `achados/`**, e não pelas linhas da seção "Revisões" (`tools/processo/revisoes.ts`,
@@ -1070,14 +1070,14 @@ código"), com o destino de cada uma. As pequenas foram fechadas na correção `
       `git diff -U0 HEAD -- apps/web/src` saem os literais removidos que o diff não recolocou, e o `e2e/*.spec.ts` que cita algum,
       sem diferenciar maiúscula, entra nos alvos do portão da tarefa; **limites conhecidos**: o spec que cita só um pedaço do texto removido não entra (tirar "Governança da escola" não puxa
       `/governança/i`); o texto de JSX que continua em linha de baixo começando em minúscula, e o template que atravessa linhas, não
-      viram literal; e o literal citado só num ajudante de `e2e/__fixtures__/` não puxa os specs que o importam. O limite "o literal curto e comum
+      viram literal; e o literal citado só num ajudante de `e2e/support/` não puxa os specs que o importam. O limite "o literal curto e comum
       ("Professor", "Estrutura") puxa todo spec que o cita" (24 dos 59 specs num diff de 40 commits, `3be23c9`) **foi corrigido** em
       19/10/2026 na correção `2026-10-19-detector-de-literal-compara-com-a-web`: o literal só conta como tirado quando nenhum
       `apps/web/src/**/*.{ts,tsx}` (menos o `.test`) ainda o tem, e não mais quando sai de um arquivo; o preço é que o spec que o procura
       justamente na tela trocada, com outro arquivo da web ainda o tendo, só cai na esteira. **Correção seguinte desta letra** (recomendações sem aplicar da `2026-10-18-e2e-que-cita-literal-removido`): (1) descartar o
       literal que vem de `className=`/`class=` (classe do Tailwind, "sr-only", conta como texto de tela e no `290b7cb` puxou quatro specs
       sem relação); (2) teste da linha de log `▶ <spec> entra nos alvos: cita "<texto>"` do portão, que roda o portão; (3) excluir
-      `apps/web/src/__fixtures__/` como o `.test.tsx`, e também `apps/web/src/galeria/` (repete rótulos reais das telas: "Tentar de novo", "Esperando você", "Turmas") e os dois `__fixtures__/` (`literaisDaWeb` hoje os lê; muda o que o detector aceita e pede teste e mutação próprios); (4) o comentário de cabeçalho de `tools/ci/e2e-que-cita-literal.ts` ainda diz "o que só custa minutos" e cita só os limites antigos (copiar os quatro de `executar-task`); e talvez um aviso do portão quando o número de specs puxados passar de um teto);
+      `apps/web/src/__fixtures__/` como o `.test.tsx`, e também `apps/web/src/gallery/` (repete rótulos reais das telas: "Tentar de novo", "Esperando você", "Turmas") e os dois `__fixtures__/` (`literaisDaWeb` hoje os lê; muda o que o detector aceita e pede teste e mutação próprios); (4) o comentário de cabeçalho de `tools/ci/e2e-que-cita-literal.ts` ainda diz "o que só custa minutos" e cita só os limites antigos (copiar os quatro de `executar-task`); e talvez um aviso do portão quando o número de specs puxados passar de um teto);
       (e) **a vitrine lista as telas cuja página rola a 1366 × 768** (a altura medida em `tools/vitrine/foto.ts` passa da
       janela), no relatório que a Mesa e o Validador leem: na X2 o "só o miolo rola" (RF23) só foi visto pela altura das
       fotos, contada à mão, e escapou em duas telas até a validação (C1, C2)
@@ -1152,7 +1152,7 @@ código"), com o destino de cada uma. As pequenas foram fechadas na correção `
       projeto, plano de recuperação, mapa mental, roteiro de experimento, avaliação diagnóstica,
       proposta de redação, importar prova), uma a uma, antes de entrarem no F7. A ferramenta como
       dado (P23) entrou no MVP: um motor de formulário só, em
-      `apps/web/src/componentes/ui/ia/motor-formulario.ts` e `MotorFormulario.tsx`
+      `apps/web/src/components/ui/ai/schema-form.ts` e `MotorFormulario.tsx`
 - [ ] **Sétima e oitava rodadas dos mockups (P26 a P31).** A pele ficou uma só (D72), e como a do
       produto não copia a Teachy, a consulta ao advogado sobre cópia fiel (P31) só volta se alguém
       propuser copiar de novo. O seletor de escola que troca o token (P30) e o convite por link,
@@ -1242,10 +1242,10 @@ código"), com o destino de cada uma. As pequenas foram fechadas na correção `
       critério continua sendo esse, sem ranking nem média de turma por professor (D45, D64)
 - [ ] **O script do tema em linha entra por hash quando o F16 servir política de segurança de conteúdo** (X1,
       tarefa 2.0): o `apps/web/index.html` tem um `<script>` em linha, sem `type="module"`, que escreve o `data-tema`
-      no `<html>` antes do primeiro quadro (`educa.aparencia`; `src/tema.ts` repete a conta). Hoje o `Caddyfile`
+      no `<html>` antes do primeiro quadro (`educa.aparencia`; `src/theme.ts` repete a conta). Hoje o `Caddyfile`
       não serve nenhuma política (`Content-Security-Policy`), e o script roda. Com uma política de `script-src` sem
       `'unsafe-inline'`, o script precisa do hash `sha256` dele em `script-src`, calculado no build, e o teste de
-      `tema.test.ts` (que extrai o script do arquivo) é o que garante que o hash e o arquivo continuam o mesmo. Sem
+      `theme.test.ts` (que extrai o script do arquivo) é o que garante que o hash e o arquivo continuam o mesmo. Sem
       o hash o tema volta a ser aplicado só depois do React, e a página pisca no escuro (RF3). Ao servir a política,
       conferir que o hash em `script-src` não abre caminho para `'unsafe-inline'`. E, junto, pôr no `docs/lgpd.md` uma
       linha que diga que o navegador guarda só preferência de aparelho (`educa.aparencia` e `educa.lateral-recolhida`),
@@ -1287,35 +1287,35 @@ código"), com o destino de cada uma. As pequenas foram fechadas na correção `
       (`docs/interface.md` 10.2)
 - [ ] **Texto de exemplo do `Campo` de linha única truncado a 360 px** (`frontend-reviewer`, 10.0 da X1): o placeholder
       "Tema" do `MotorFormulario` é cortado no `celular`; o `Campo` não mede o exemplo como a `CaixaPedido` faz. Peça
-      de `componentes/ui/campos/`, fora da 10.0. Destino (retrospectiva da X1): a tarefa da X3 que usar o `Campo`
+      de `components/ui/fields/`, fora da 10.0. Destino (retrospectiva da X1): a tarefa da X3 que usar o `Campo`
 - [ ] **A demonstração `data-tabela-estreita` da galeria mostra a tabela em modo largo** (`frontend-reviewer`, 10.0 da
-      X1): a 280 px (`apps/web/src/galeria/secoes/superficies.tsx`) corta "AGENTE E FUNÇÃO". Peça de outra tarefa
-- [ ] **`violacoesDasSecoes` repete o `violacoesGraves`** (`test-engineer`, 10.0 da X1): `e2e/pecas-ia.spec.ts` tem um
-      axe por seções que repete a lógica do helper de `e2e/__fixtures__/verificacoes.ts`; o helper passaria a aceitar a
+      X1): a 280 px (`apps/web/src/gallery/sections/surfaces.tsx`) corta "AGENTE E FUNÇÃO". Peça de outra tarefa
+- [ ] **`violacoesDasSecoes` repete o `violacoesGraves`** (`test-engineer`, 10.0 da X1): `e2e/components-ai.spec.ts` tem um
+      axe por seções que repete a lógica do helper de `e2e/support/checks.ts`; o helper passaria a aceitar a
       lista de seções. O helper é de outros specs e ficou fora da 10.0
 - [ ] **`CLASSES_DA_OPCAO` da `Escolha` repete a cor do secundário** (`revisor-geral`, 10.0 da X1): a face, a borda e o
-      desligado são os de `botao-secundario.ts` (`COR_DO_SECUNDARIO`, `DESLIGADO`). Exportar de lá e compor evita a
+      desligado são os de `button-variants.ts` (`COR_DO_SECUNDARIO`, `DESLIGADO`). Exportar de lá e compor evita a
       cópia que diverge; o arquivo é de todo `Botao` e ficou fora da 10.0
 - [ ] **A caixa desligada do Tutor, quando entrar numa tela** (`conformidade-reviewer`, 10.0 da X1): conferir que o
       texto do campo desligado não pede ao aluno que espere ou volte (regra 70, item 4b). Hoje só existe na galeria
 - [ ] **A caixa desligada no tema escuro não se distingue pelo fundo** (`frontend-reviewer`, 10.0 da X1): `fundo-suave`
-      e `campo` têm o mesmo valor no escuro (`apps/web/src/estilos.css`), e o campo desligado da `CaixaPedido` só se
+      e `campo` têm o mesmo valor no escuro (`apps/web/src/index.css`), e o campo desligado da `CaixaPedido` só se
       diferencia pelo texto `apoio`. Dar um sinal que não dependa do fundo; o `Campo` desligado tem o mesmo par de tokens
       (`docs/interface.md` 10.2). Muda peça que a 6.0 revestiu. Destino (retrospectiva da X1): correção própria, com o
       `frontend-reviewer`, antes da X4, que é onde a caixa desligada entra numa tela (o Tutor do aluno)
 - [ ] **Teste do desfazer da `CaixaPedido`** (`test-engineer` e `revisor-geral`, 10.0 da X1): em
       `CaixaPedido.test.tsx › apagar o pedido não escreve no campo`, o teste redefine `value` por cima do rastreador do
-      React, então a regra de verdade é a do Ctrl+Z do e2e (`e2e/pecas-ia.spec.ts`); dizer isso num comentário, e trocar
+      React, então a regra de verdade é a do Ctrl+Z do e2e (`e2e/components-ai.spec.ts`); dizer isso num comentário, e trocar
       o `toBeLessThanOrEqual(1)` por `escritas` igual a `['']`
 - [ ] **Classes do campo e do espelho da `CaixaPedido` escritas duas vezes** (`revisor-geral`, 10.0 da X1): letra e
       respiro do `textarea` e do espelho repetem as mesmas classes; uma constante única. Hoje o teste "o espelho é só para
       medir" segura a igualdade
 - [ ] **`TITULO_DA_NOVA_CONVERSA` guarda `'Início · Turmma'`** (`privacy-guardian`, 12.0 da X1): o nome da constante
-      (`e2e/__fixtures__/casca.ts`) é o do rótulo antigo. Renomear (para `TITULO_DO_INICIO`) quando os specs que a usam
+      (`e2e/support/casca.ts`) é o do rótulo antigo. Renomear (para `TITULO_DO_INICIO`) quando os specs que a usam
       forem mexidos de novo; ela é lida por specs fora da 12.0
 - [ ] **Comentários "Nova conversa" em specs fora da 12.0** (`test-engineer`, 12.0 da X1): `e2e/inatividade.spec.ts:50`,
       `convite.spec.ts:187`, `entrar.spec.ts:44`, `escola-e-vinculos.spec.ts:57` e `:146`, `operacao.spec.ts:327`,
-      `professores.spec.ts:507`, `professor-assistente.spec.ts:68` e `__fixtures__/fluxo-do-professor.ts:34`. Trocar por
+      `professores.spec.ts:507`, `professor-assistente.spec.ts:68` e `support/professor-flow.ts:34`. Trocar por
       "Início" quando cada arquivo for mexido (mexer só no comentário caduca a revisão de spec que não é da 12.0)
 - [ ] **O trilho da coordenação não tem folga a 600 px** (`frontend-reviewer`, 12.0 da X1): a 1366 × 600 o "Sair" passa em
       `toBeInViewport({ ratio: 1 })` por pouco, e o trilho não rola (a dica `absolute` seria cortada). Um oitavo lugar na
@@ -1339,12 +1339,12 @@ código"), com o destino de cada uma. As pequenas foram fechadas na correção `
       `ConfirmacaoDePerigo` põem a ação primeiro; o `DialogoDeConfirmacao` e o painel, "Cancelar" primeiro. Tarefa
       própria: mexer na ordem mexe no Tab de seis telas de área ("Divergências resolvidas" do `7_task.md`)
 - [ ] **Texto técnico na galeria** (`frontend-reviewer`, 7.0 da X1): "O Esc de dentro do menu fecha só o menu". Página
-      interna sem link do produto (`caminhos.ts`); reescrever só se a galeria virar referência para o Gabriel
+      interna sem link do produto (`paths.ts`); reescrever só se a galeria virar referência para o Gabriel
 - [ ] **O botão oficial da confirmação é provado só como "não vermelho"** (`test-engineer`, 7.0 da X1):
-      `e2e/pecas-sobrepor.spec.ts:601-604`; comparar com o token do `oficial` prova a cor certa
+      `e2e/components-overlays.spec.ts:601-604`; comparar com o token do `oficial` prova a cor certa
 - [ ] **O Tab preso do login por cima não passa do fim da ordem** (`test-engineer`, 7.0 da X1):
       `e2e/inatividade.spec.ts:112-114`; repetir o Shift+Tab a partir do foco inicial, como na confirmação. Anterior à X1
-- [ ] **`QUEM_IMPORTA_O_AVATAR` ainda deixa a `Mensagem.tsx` importar o avatar** (`revisor-geral`, 8.0 da X1): fechar só
+- [ ] **`QUEM_IMPORTA_O_AVATAR` ainda deixa a `Message.tsx` importar o avatar** (`revisor-geral`, 8.0 da X1): fechar só
       na `AssinaturaIA`, com o aperto escrito na `techspec.md` 7b da X1 e na lista do teste. Muda contrato escrito: é do
       Arquiteto. Destino (retrospectiva da X1): correção própria, com o `conformidade-reviewer`; aperta a guarda e não
       muda desenho, e o aperto se escreve no `docs/interface.md`, porque a Tech Spec da X1 está fechada
@@ -1352,7 +1352,7 @@ código"), com o destino de cada uma. As pequenas foram fechadas na correção `
       selo é feito duas vezes (`{' '}` e o `ml-1`; ficar com um), e o `align-middle` não tem asserção. Acabamento; a
       tarefa que tocar a `AssinaturaIA` fecha as duas
 - [ ] **O filtro de `has-` da caixa do motor só olha o rótulo desmarcado** (`test-engineer`, correção
-      `2026-10-15-anel-do-motor-sem-has` da X1): `apps/web/src/componentes/ui/ia/pecas-revestidas.test.tsx:150`; repetir a
+      `2026-10-15-anel-do-motor-sem-has` da X1): `apps/web/src/components/ui/ai/pecas-revestidas.test.tsx:150`; repetir a
       asserção depois do clique que marca a caixa. O E5 do `casca.spec.ts` cobre o CSS inteiro na esteira; vale na
       próxima tarefa que tocar este teste
 - [ ] **O que a 11.0 da X1 deixou para as telas de cada área** (`revisor-geral` e `frontend-reviewer`, `11_task.md`):
@@ -1368,7 +1368,7 @@ código"), com o destino de cada uma. As pequenas foram fechadas na correção `
       botões. E o botão "Abrir dado nominal de uma turma" quebrando em duas linhas a 360 px (X2, tarefa 4.4). Cada um
       entra na tarefa que mexer na peça
 - [ ] **O que o `test-engineer` deixou da correção da galeria da onça** (`tasks/correcoes/2026-10-16-galeria-da-onca-estoura-o-prazo.md`,
-      "Recomendações"; validação da X1, rodada 3, "Menores"): (a) `medirBlocosDaGaleria` (`e2e/__fixtures__/galeria.ts`)
+      "Recomendações"; validação da X1, rodada 3, "Menores"): (a) `medirBlocosDaGaleria` (`e2e/support/gallery.ts`)
       deixa passar bloco com `display:none`, que o `caixa()` antigo reprovava: acrescentar a lista `semCaixa`, o que muda
       o contrato de `MedidaDosBlocos` e os `toEqual` dos testes; (b) o teste de `desenhos` monta borda e canto com
       atalhos (`border:`, `border-radius:`) que pintam os quatro lados iguais, e `desenhos` lendo `borderBottom*` no lugar
@@ -1477,7 +1477,7 @@ qualquer dado real:
 - [ ] **(F3, 13.0) Índices que faltam por turma:** `entrega (decidida_por)`, `atividade_aplicada (aplicada_por)` e `validacao_do_lote (confirmada_por)` são lidos pelo arquivo do professor e não têm índice; crescem por turma, não por aluno. Avaliar com volume real, junto dos três da migration 0034 (`infra-guardian`, 1ª rodada da 13.0).
 - [ ] **(F3, 13.0) `apagarArquivosDoTitular` repete o mesmo objeto que falhou em cada lote e soma `naoApagados` mais de uma vez para ele:** guardar os ids que falharam e tirá-los da leitura seguinte do lote (`infra-guardian`).
 - [ ] **(F3, 13.0) Um cliente S3 só entre o núcleo e o worker:** `criarClienteS3` (worker) e `criarClienteDoArmazem` (núcleo) são duas fábricas; o `worker-lote` abre dois clientes. Juntar na do núcleo, com os prazos por configuração (`revisor-geral`).
-- [ ] **(F3, 13.0) O prazo de requisição do medidor de storage só avisa:** `criarClienteS3` (`apps/worker/src/storage/medidor-de-storage.ts`) passa `requestTimeout` ao handler do SDK sem `throwOnRequestTimeout: true`, e nessa versão do handler (`@smithy/node-http-handler` 4.x) o prazo estourado vira só um aviso: o storage que aceita a conexão e não responde segura a medição sem limite. `criarClienteDoArmazem` foi corrigido na 13.0; este fecha junto do item acima, quando as duas fábricas virarem uma (diagnóstico do Arquiteto, 2ª rodada da 13.0).
+- [ ] **(F3, 13.0) O prazo de requisição do medidor de storage só avisa:** `criarClienteS3` (`apps/worker/src/storage/storage-size-reader.ts`) passa `requestTimeout` ao handler do SDK sem `throwOnRequestTimeout: true`, e nessa versão do handler (`@smithy/node-http-handler` 4.x) o prazo estourado vira só um aviso: o storage que aceita a conexão e não responde segura a medição sem limite. `criarClienteDoArmazem` foi corrigido na 13.0; este fecha junto do item acima, quando as duas fábricas virarem uma (diagnóstico do Arquiteto, 2ª rodada da 13.0).
 - [ ] **(F3, 13.0) Índice redundante em `pedido_titular`:** `pedido_titular_da_escola_unico (escola_id, id)` repete o `pedido_titular_escola_id_idx`; contrair o segundo numa migration futura (`revisor-geral`).
 - [ ] **(F3, 13.0) Testes do arquivo que prometem mais do que afirmam, e três provas que faltam (`test-engineer`):** (i) o teste de conteúdo não prende o SQL à declaração (as chaves de cada linha do JSON contidas em `LEITURAS_DO_ARQUIVO[t].colunas`); (ii) "B não lista A" usa outra pessoa em B, e não o mesmo professor logado em B (`sessaoDaMesmaConta`); (iii) virada de ano letivo: um registro de ano anterior tem de aparecer no arquivo, e hoje um filtro por `ano_letivo_id` nas leituras passaria; (iv-bis) o `POST pedidos/:id/arquivo` no pedido sobre a própria pessoa da coordenação (usuário desativado com a mesma `conta_id` de quem chama) cai no `#pedidoAlvo`, e nenhum teste prova isso nesta rota; (iv) os títulos "com ou sem segundo fator" (token só) e "cada arquivo uma vez" (não conta as chamadas de `apagar`) prometem mais do que afirmam.
 - [ ] **(F3, 13.0) Duas perguntas de alcance do arquivo para a Tech Spec antes da 18.0 (`privacy-guardian`, `conformidade-reviewer`):** (i) a versão completa do professor com conta ativa traz `consumo_ia.entrada/saida` e `mensagem_agente.conteudo` também de turmas cujo vínculo já terminou (regra 20, item 18): é texto que ele escreveu, mas o prompt do Analista pode levar ids e desempenho de alunos que ele já não alcança; (ii) `artefato.titulo` entra na versão da escola do professor sem conta ativa: se o título vier do tema que ele escreveu ao Assistente, é um pedaço da conversa dele chegando à coordenação (regra 70, item 8); hoje está coberto pela exceção "registro de uso (execuções, consumo sem texto e artefatos)" do PRD, seção 6.
@@ -1555,7 +1555,7 @@ qualquer dado real:
 - [ ] **Alocação nova demora até 30 s para aparecer em "Turmas"** (`test-engineer` da correção
   `2026-10-05-segunda-pessoa-cache-dos-vinculos`). Não é requisito hoje, mas o vazio da Nova conversa manda a professora
   a "Turmas" ("Ir para Turmas", `apps/web/src/areas/professor/inicio/Home.tsx`), que monta com a lista que a Nova conversa já
-  leu (`staleTime` de 30 s em `apps/web/src/api/cliente-de-consultas.ts`) e mostra "A coordenação ainda não alocou você";
+  leu (`staleTime` de 30 s em `apps/web/src/api/query-client.ts`) e mostra "A coordenação ainda não alocou você";
   e esse vazio não tem como reler (`Turmas.tsx`), só trocando de aba ou abrindo a tela de novo. Se mudar (por exemplo,
   `refetchOnMount: 'always'` só na consulta de "Turmas"), o e2e que prova é "alocação feita com a Nova conversa aberta
   aparece em Turmas sem recarregar". Decisão de produto: Joaquim.
@@ -1566,7 +1566,7 @@ Achados ao conferir o código depois do merge (`13eab64`). Não estão resolvido
 
 - [ ] **Consumo de IA no painel da operação.** A D76 e o "Pronto quando" da A2 no `ROADMAP.md` dizem que, com a A2, o
   painel da operação mostra o consumo de IA por escola, em tokens e em reais contra o teto por aluno. Não entrou: a API da
-  operação (`apps/api/src/operacao/`) não lê `consumo_ia`, e `apps/web/src/operacao/paginas/Uso.tsx` ainda diz que o
+  operação (`apps/api/src/operacao/`) não lê `consumo_ia`, e `apps/web/src/operacao/pages/Uso.tsx` ainda diz que o
   consumo "entra com a A2". A coordenação vê o consumo na Governança; a operação, não. Falta decidir em que fase entra.
 - [ ] **Tutor sem política por turma (D19).** A D19 manda o Tutor fora da sala ser configuração da escola por turma,
   **desligada por padrão**. No MVP o Tutor fica ligado para todo aluno com turma, a qualquer hora: o estado `fora` existe
@@ -1604,18 +1604,18 @@ Achados ao conferir o código depois do merge (`13eab64`). Não estão resolvido
 - [ ] **Registros › IA a 1366 px: a coluna "Decisão" fica estreita e "ESPERANDO O PROFESSOR" quebra em três linhas (telas da coordenação, 10.0; frontend-reviewer, 1ª rodada).** Com o consumo ao lado a partir de 1024 px, a tabela de `Governanca.tsx` divide a largura com os 18 rem do consumo. Duas saídas do revisor: largura mínima para a coluna "Decisão" (`COLUNAS`), ou o consumo ao lado só a partir de 1280 px (`lg:` para `xl:`). Mexe numa largura que o e2e de 1366 × 768 mede, e o revisor disse que fica legível: o `/validar` decide.
 - [ ] **A espera da resposta atrasada, em `e2e/governanca.spec.ts` e em `Governanca.test.tsx` (telas da coordenação, 10.0; revisor-geral e test-engineer, 2ª rodada).** No e2e `a resposta do filtro antigo, que chega depois…`: tirar os ouvintes de `requestfinished` e `requestfailed` com `page.off(...)` dentro de `aoTerminar`, depois do `resolver()`; e, como `requestfinished` chega antes de a página processar a resposta, esperar um quadro (`requestAnimationFrame`) ou voltar a "Aprovados" e ver as linhas antigas no cache antes de conferir "Esperando o professor" (hoje o risco é falso verde, nunca falso vermelho, e a chave por estado está provada no componente). Em `Governanca.test.tsx`, no caso da resposta atrasada, sobrou um `setTimeout(resolver, 50)` com a mesma corrida: esperar a chamada da rede falsa ser resolvida. Na próxima tarefa que tocar esses arquivos; mexer agora caduca `test-engineer` e `revisor-geral`.
 - [ ] **Painel: as duas listas rolam por dentro do miolo, e o teclado para duas vezes (correção 2026-10-17-painel-e-pedido-rolam-a-pagina; frontend-reviewer, 1ª e 2ª rodada).** Dentro do miolo do Painel (`O_MIOLO_SEM_ABAS_QUE_ROLA`), `Lista` ainda tem `tabIndex 0` e `max-h` com rolagem própria (`Painel.tsx`), então com a janela baixa há rolagem dentro de rolagem. Reavaliar no `/retro` da X2 se as listas deixam de limitar a própria altura. Muda desenho e comportamento da tela.
-- [ ] **Detalhe do pedido de titular: só o estado mais curto é medido (correção 2026-10-17-painel-e-pedido-rolam-a-pagina; test-engineer, 1ª e 2ª rodada).** `paginaNaoRola` mede o pedido "recebido", sem arquivo e sem compartilhamento. Falta uma fixture de pedido no estado longo (arquivo pronto e compartilhamento preenchido) e um caso que prove que o miolo segura a tela no pior caso. Fixture nova em `e2e/__fixtures__/`.
+- [ ] **Detalhe do pedido de titular: só o estado mais curto é medido (correção 2026-10-17-painel-e-pedido-rolam-a-pagina; test-engineer, 1ª e 2ª rodada).** `paginaNaoRola` mede o pedido "recebido", sem arquivo e sem compartilhamento. Falta uma fixture de pedido no estado longo (arquivo pronto e compartilhamento preenchido) e um caso que prove que o miolo segura a tela no pior caso. Fixture nova em `e2e/support/`.
 - [ ] **A vitrine não tem pedido de titular, e a Mesa não vê a foto do detalhe do pedido (correção 2026-10-17-painel-e-pedido-rolam-a-pagina; frontend-reviewer, 2ª rodada).** Pôr um pedido registrado na escola cheia da vitrine (`tools/vitrine/`) para as próximas rodadas fotografarem `/coordenacao/privacidade/pedidos/<id>`, com e sem a faixa de incidente. Tarefa própria.
 - [ ] **Painel: o texto "O Painel não lê, porque cada leitura fica na auditoria" é denso (correção 2026-10-17-painel-e-pedido-rolam-a-pagina; frontend-reviewer, 2ª rodada).** Está correto, mas pesado para a coordenadora; encurtar na próxima tarefa que tocar o Painel ou os `textos-*.ts`. Texto de tela, fora da correção de altura.
 - [ ] **`Professores.tsx:183`: o ramo `professores.isError ?` com a lista ainda vazia não tem teste (correção 2026-10-17-vazio-durante-a-leitura; test-engineer, 1ª rodada).** A releitura que falha logo depois do primeiro cadastro mostra o erro e não "Nenhum professor ainda". Pede caso novo em `Professores.test.tsx` com a mutação do ramo; é anterior ao C4 da validação da X2.
-- [ ] **O título do cartão "Incidente de segurança…" corta com reticências a 360 px (`componentes/ui/Linha.tsx:58`; correção 2026-10-17-vazio-durante-a-leitura; frontend-reviewer, 1ª rodada).** O `truncate` deixa o título inteiro só no `title`. A correção dos achados C1 a C3 da validação da X2 não o tratou, e a validação (rodada 2) viu o mesmo corte a 1366 px, no sino e na fila do Painel ("Professora Sintética Marta 3f5476e2 cont…", "O material \"Apostila de validação que fal…"): o que o item pede some com nome longo. Saída: deixar o título do item quebrar em duas linhas no sino e no Painel. Destino: a próxima tarefa que tocar `componentes/ui/Linha.tsx` ou o Painel, ou a X3, que reusa o sino.
-- [ ] **Menores da validação da X2 (`tasks/prd-telas-da-coordenacao/validacao.md`, rodadas 1 e 2, 17/10/2026), sem tela nem regra mudando.** Testes: (a) `SinoDaCoordenacao.test.tsx:152-156` lê `antes` depois do clique e a asserção passa sempre (ler antes do clique; a regra está provada por `Sino.test.tsx:75`); (b) `fila-da-coordenacao.test.ts:111` é tautológico (fixar `TIPOS_DA_FILA` com `toEqual` dos cinco); (c) nenhum teste exclui busca ou filtro por pessoa em Registros › IA (D45, D64): no `Governanca.test.tsx`, zero `searchbox` e `textbox`, como o `Analista.test.tsx:221`; (d) `e2e/__fixtures__/verificacoes.ts:98`: `larguraExcedenteDoDialogo` mede só o `dialog[open]` de cima, e o painel de baixo deixa de ser medido com diálogo por cima. Documentos: (e) RF19 e Tech Spec §9 dão a entender que retomar um agente pede confirmação, e o código retoma direto (`Agentes.tsx:142-145`; o PRD só exige confirmar a suspensão); (f) Tech Spec §9 "Chromebook e celular" (`techspec.md:127`) ainda fala em teto de linhas com "Mostrar mais" em Material, Pedidos e IA; (g) Tech Spec §7c não registra o `retryOnMount: false` (`fila-da-coordenacao.ts:190`) da correção `2026-10-16-tentar-de-novo-da-estrutura-no-celular`; (h) Tech Spec §10 diz que o e2e `governanca` prova "no servidor" os números com o filtro, e ele prova a tela; (i) Prazos de guarda não têm vazio (`privacidade/Retencao.tsx:28`): registrar na Tech Spec que não se aplica; (j) `7_task.md` não registra que as asserções da antiga seção Alocação foram para a unidade (`o-que-falta-para-alocar.test.ts:15`, `o-que-falta-da-escola.test.ts:40`); (k) mutações antigas de `1_task.md` (`...SEM_LEITURA_SOZINHA`) e `3_task.md` (`O_MIOLO_QUE_ROLA` em `moldura.tsx`) não aplicam mais: para o `/retro`. (dono: Joaquim)
+- [ ] **O título do cartão "Incidente de segurança…" corta com reticências a 360 px (`components/ui/Linha.tsx:58`; correção 2026-10-17-vazio-durante-a-leitura; frontend-reviewer, 1ª rodada).** O `truncate` deixa o título inteiro só no `title`. A correção dos achados C1 a C3 da validação da X2 não o tratou, e a validação (rodada 2) viu o mesmo corte a 1366 px, no sino e na fila do Painel ("Professora Sintética Marta 3f5476e2 cont…", "O material \"Apostila de validação que fal…"): o que o item pede some com nome longo. Saída: deixar o título do item quebrar em duas linhas no sino e no Painel. Destino: a próxima tarefa que tocar `components/ui/Linha.tsx` ou o Painel, ou a X3, que reusa o sino.
+- [ ] **Menores da validação da X2 (`tasks/prd-telas-da-coordenacao/validacao.md`, rodadas 1 e 2, 17/10/2026), sem tela nem regra mudando.** Testes: (a) `SinoDaCoordenacao.test.tsx:152-156` lê `antes` depois do clique e a asserção passa sempre (ler antes do clique; a regra está provada por `Sino.test.tsx:75`); (b) `fila-da-coordenacao.test.ts:111` é tautológico (fixar `TIPOS_DA_FILA` com `toEqual` dos cinco); (c) nenhum teste exclui busca ou filtro por pessoa em Registros › IA (D45, D64): no `Governanca.test.tsx`, zero `searchbox` e `textbox`, como o `Analista.test.tsx:221`; (d) `e2e/support/checks.ts:98`: `larguraExcedenteDoDialogo` mede só o `dialog[open]` de cima, e o painel de baixo deixa de ser medido com diálogo por cima. Documentos: (e) RF19 e Tech Spec §9 dão a entender que retomar um agente pede confirmação, e o código retoma direto (`Agentes.tsx:142-145`; o PRD só exige confirmar a suspensão); (f) Tech Spec §9 "Chromebook e celular" (`techspec.md:127`) ainda fala em teto de linhas com "Mostrar mais" em Material, Pedidos e IA; (g) Tech Spec §7c não registra o `retryOnMount: false` (`fila-da-coordenacao.ts:190`) da correção `2026-10-16-tentar-de-novo-da-estrutura-no-celular`; (h) Tech Spec §10 diz que o e2e `governanca` prova "no servidor" os números com o filtro, e ele prova a tela; (i) Prazos de guarda não têm vazio (`privacidade/Retencao.tsx:28`): registrar na Tech Spec que não se aplica; (j) `7_task.md` não registra que as asserções da antiga seção Alocação foram para a unidade (`o-que-falta-para-alocar.test.ts:15`, `o-que-falta-da-escola.test.ts:40`); (k) mutações antigas de `1_task.md` (`...SEM_LEITURA_SOZINHA`) e `3_task.md` (`O_MIOLO_QUE_ROLA` em `moldura.tsx`) não aplicam mais: para o `/retro`. (dono: Joaquim)
 - [ ] **(X2, validação) Para o Joaquim saber, sem correção pedida:** (a) o detalhe de um pedido do titular passou de 2 cliques (Privacidade › linha) para 3 (Registros › Pedidos › linha), porque Registros abre em IA; do Painel, pela porta "Pedidos dos titulares", continua a 2; (b) a 360 px as abas de Escola quebram em duas linhas (Turmas e Professores numa, Material na outra): legível, sem esconder aba, mas difere do mockup; (c) a 1366 × 768 com a faixa de incidente, "Esperando você" no Painel fica com 144 px e mostra dois itens e meio (ver também a linha "Painel: as duas listas rolam por dentro do miolo"). (dono: Joaquim)
 - [ ] **(X2, recomendações sem destino) Três que as correções deixaram para depois:** (a) uma linha de texto "O painel abre depois do aviso" quando o aviso de incidente segura o painel aberto pelo endereço (`frontend-reviewer`, correção `2026-10-17-painel-pelo-endereco-cobre-o-aviso`; muda texto de tela, decisão de produto); (b) o texto do incidente da vitrine e da fixture ("Segunda linha do texto.") pouco realista para demonstração (`frontend-reviewer`, correção `2026-10-17-troca-de-escola-sem-ir-para-a-entrada`); (c) o sino da coordenação faz seis leituras a cada recarga de página (1.0; `techspec.md:96` tem a conta da manhã de segunda): medir com a escola do piloto e, se pesar, juntar numa leitura só. (dono: Joaquim)
 - [ ] **A vitrine não entra como operador (validação da X2, rodada 2).** As fotos de `/operacao` e `/operacao/uso` vieram de um Playwright fora do repositório, com as fixtures `criarOperadorComSegundoFator` e `semearPainel`. Levar à ferramenta da vitrine (`tools/vitrine/`) um modo operador, junto do que a 14.0 já registrou. (dono: Joaquim)
-- [ ] **`PRAZO_DA_ENTRADA_MS = 20_000` está escrito em quatro arquivos de e2e (correção 2026-10-19-mfa-codigo-de-recuperacao-estoura-o-prazo; revisor-geral, 1ª rodada).** Em `e2e/mfa.spec.ts`, `e2e/__fixtures__/segundo-fator.ts`, `e2e/__fixtures__/casca.ts` e `e2e/__fixtures__/tela-da-operacao.ts`. Exportar de uma fixture só e importar nos outros evita que os valores se separem. É limpeza que toca arquivos fora da correção; fazer numa tarefa que já altere esses e2e. (dono: Joaquim)
+- [ ] **`PRAZO_DA_ENTRADA_MS = 20_000` está escrito em quatro arquivos de e2e (correção 2026-10-19-mfa-codigo-de-recuperacao-estoura-o-prazo; revisor-geral, 1ª rodada).** Em `e2e/mfa.spec.ts`, `e2e/support/mfa.ts`, `e2e/support/casca.ts` e `e2e/support/operacao-screen.ts`. Exportar de uma fixture só e importar nos outros evita que os valores se separem. É limpeza que toca arquivos fora da correção; fazer numa tarefa que já altere esses e2e. (dono: Joaquim)
 - [ ] **Em "Turmas", o painel de contestação fecha sozinho e o texto some quando o vínculo sai da lista por fora** (`revisor-geral`, 9.0 da X3, 1ª rodada). Se o vínculo é decidido em outra aba ou pela coordenação enquanto a professora escreve, `doPainel` fica `undefined` e o painel desmonta sem avisar. Vale limpar o estado e dizer que o vínculo mudou, e garantir que o rascunho do complemento não fique no estado do cliente nem seja reenviado ao reabrir o painel de outro vínculo (`privacy-guardian`, 2ª rodada); muda comportamento da tela (`apps/web/src/areas/professor/turmas/Turmas.tsx` e `PainelDaContestacao.tsx`): correção própria
-- [ ] **O ajudante que entra pela API e abre o endereço está copiado em cinco specs** (`revisor-geral`, 9.0 da X3, 1ª rodada): `abrirJaEntrando` em `escola-e-vinculos`, `inatividade`, `professor-turmas` e `acesso-da-turma`, e `entrarPelaApi` em `areas`. Mover para `e2e/__fixtures__/` é refatoração de cinco specs, com risco para os casos que ela não altera
+- [ ] **O ajudante que entra pela API e abre o endereço está copiado em cinco specs** (`revisor-geral`, 9.0 da X3, 1ª rodada): `abrirJaEntrando` em `escola-e-vinculos`, `inatividade`, `professor-turmas` e `acesso-da-turma`, e `entrarPelaApi` em `areas`. Mover para `e2e/support/` é refatoração de cinco specs, com risco para os casos que ela não altera
 - [ ] **Turmas 9.0: recomendações de forma** (`test-engineer` 2ª, `revisor-geral` 2ª, `frontend-reviewer` 2ª): bloco de mutação de `contestar.reset()`; axe da variante com e-mail do login por cima (ver se `acesso-suspenso.spec.ts` ou `professores.spec.ts` a cobrem); ids UUID v7 no teste da cor (`familia-da-disciplina.test.ts`); `?? 0` no teste de quebra da faixa (`professor-turmas.spec.ts`); comentário duplicado antes de `decidindo` (`Turmas.tsx`); respiro no fim do miolo do painel a 360 px
 - [ ] **A vitrine fotografa a aba da turma antes de ela carregar** (`frontend-reviewer`, correção encontro-10, 1ª rodada). A foto de Atividades e Alunos no computador pode sair em "Carregando a aba…": esperar o fim do carregamento em `tools/vitrine/` antes de fotografar. (dono: Joaquim)
 - [x] **"1 de 1 aluno enviaram" concorda mal no singular** (`frontend-reviewer`, correção encontro-10, 1ª rodada; `apps/web/src/areas/professor/aprovar.ts:131`). Texto de tela: para a tarefa que tocar `aprovar.ts`. (dono: Joaquim) **Feito na 11.0**: "1 de 1 aluno enviou".
@@ -1627,7 +1627,7 @@ Achados ao conferir o código depois do merge (`13eab64`). Não estão resolvido
 - [x] *feito em 19/10/2026, na retrospectiva da X3: o parágrafo diz as três telas e os hooks de cada uma.* **Tech Spec de telas-do-professor: a seção "(8) A página não rola, rola a mesa" (`techspec.md:211-213`) só fala do documento** (`revisor-geral`, 1ª rodada, mesma correção). Hoje o miolo é também o do formulário de ferramenta e o de "O que o Assistente fez". É do Arquiteto: o Orquestrador repassa no fechamento da spec.
 - [ ] **Menores da mesma correção (`frontend-reviewer` e `test-engineer`, 2ª rodada), sem comportamento mudando.** (a) `Ferramenta.test.tsx:177-179`: o `Reflect.deleteProperty(globalThis, 'ResizeObserver')` do `finally` sobra, porque o `vi.unstubAllGlobals()` de `prepararTela` já desfaz o `vi.stubGlobal`; tirar na próxima tarefa que tocar o arquivo. (b) Adaptação a 1366 × 768: a borda de baixo do cartão fica cortada em y≈727 com o miolo no topo, e o `md:pb-1` dá só 4 px de respiro; um respiro maior ou uma sombra de rolagem é decisão de desenho. (c) A 360 px o placeholder do campo "Tema" da atividade objetiva sai truncado ("…reagente limitar"): um exemplo mais curto, para quem tocar o formulário da atividade objetiva.
 - [ ] **A turma que sai do alcance deixa os nomes no cache de consultas** (`privacy-guardian`, correção hoje-vinculo-encerrado, 1ª rodada; `Turma.tsx`, `perderATurma`): a página some com o aviso, mas as leituras da turma (sinais, uso do Tutor, lista de alunos) ficam no cache até a sessão acabar. Vale também para a aba Alunos: `removeQueries` das leituras da turma ao perdê-la. Antes, conferir se a rota remonta `Turma` ao trocar de `turmaId`, porque `perdida` é estado que só zera na remontagem (`frontend-reviewer`, mesma rodada). O teste que ler o cache (`tudoDoCache`) entra com a tarefa que fizer o `removeQueries` (`test-engineer`, 2ª rodada). Duas menores de teste, para quem tocar `TurmaHoje.test.tsx` e `Turma.test.tsx` (`test-engineer`, 2ª rodada): (a) provar o "uma vez só" esperando `errorUpdateCount === 2` da consulta dos sinais, e não só a 3ª chamada ao `fetch`; (b) com o painel fechado, `not.toContain('Caio Sintético')` é vazio: tirar "sem o nome de aluno nenhum" do título desse ramo, ou comentar que só as abas e o aviso o provam. (dono: Joaquim)
-- [ ] **(X3, validação) A vitrine não abre Aprovar: a semente de validação grava um resumo que o esquema recusa (`e2e/__fixtures__/governanca.ts:147`; validação da X3, rodadas 1 e 2, M1 e N5).** O registro sintético grava `resumo: { alunos: 1, enviadas: 1 }`, que o `esquemaLoteApresentado` estrito (`packages/shared/src/atividade/correcao.ts:75`) recusa: `GET /v1/atividades-aplicadas/:id/correcao` responde 500 (`ZodError` em `correcao.service.ts`) e Revisar a correção fica em "Carregando a correção…" na vitrine (`tools/vitrine/escola.ts:7` usa a fixture). Por isso a medida de rolagem de Aprovar não conta nas duas rodadas. Anterior à spec. Correção própria: o resumo no formato do esquema. (dono: Joaquim)
+- [ ] **(X3, validação) A vitrine não abre Aprovar: a semente de validação grava um resumo que o esquema recusa (`e2e/support/governanca.ts:147`; validação da X3, rodadas 1 e 2, M1 e N5).** O registro sintético grava `resumo: { alunos: 1, enviadas: 1 }`, que o `esquemaLoteApresentado` estrito (`packages/shared/src/atividade/correcao.ts:75`) recusa: `GET /v1/atividades-aplicadas/:id/correcao` responde 500 (`ZodError` em `correcao.service.ts`) e Revisar a correção fica em "Carregando a correção…" na vitrine (`tools/vitrine/escola.ts:7` usa a fixture). Por isso a medida de rolagem de Aprovar não conta nas duas rodadas. Anterior à spec. Correção própria: o resumo no formato do esquema. (dono: Joaquim)
 - [ ] **(X3, validação e 10.0) Hoje: o nome do aluno chega ao navegador antes do "Ver quem", e o "sem nome" é provado só no texto (validação da X3, rodada 1, M4 e M2; `privacy-guardian`, `frontend-reviewer` e `conformidade-reviewer`, 10.0, 1ª e 2ª rodadas).** (a) Hoje lê `GET /v1/turmas/:id/desempenho`, que traz `alunos[].nome`, com o painel fechado (`gcTime: 0`, nada na tela), e os sinais trazem o aluno de cada sinal: separar na API o agregado do nominal (dívida para o F6; a Tech Spec §7 aceita os nomes em memória com `gcTime: 0`). (b) A atenção humana é contada só na primeira página de sinais (`TurmaHoje.tsx:75-77`): a API devolveria a contagem à parte (muda contrato em `packages/shared`). (c) Os testes de "sem nome" (`TurmaHoje.test.tsx:226`, `e2e/professor-tutor.spec.ts:86`) leem só o texto: um nome num `aria-label` passaria; conferir também os atributos. (dono: Joaquim)
 - [ ] **(X3, 10.0) O aviso de atenção humana da aba Hoje, que se projeta em sala, mostra a hora exata e "precisa de um adulto", e um aviso antigo fica no alto sem limite de data (`conformidade-reviewer`, `privacy-guardian` e `revisor-geral`, 1ª rodada; `frontend-reviewer` e `privacy-guardian`, 2ª).** Versão discreta na aba projetada, ou aviso que se recolhe. Pergunta ao Arquiteto na próxima revisão da Tech Spec (§7b) e ao Joaquim antes do piloto; é desenho da Tech Spec, e o dado é sintético (D71). (dono: Joaquim)
 - [ ] **(X3, 10.0) Piso de agrupamento na aba projetada (`frontend-reviewer` e `privacy-guardian`, 1ª rodada).** "1 aluno pediu a resposta pronta…" nos sinais e a contagem pequena do acerto por habilidade identificam o aluno na tela projetada. Entra na decisão dos indicadores e dos limiares, antes do PRD do F6 (`CLAUDE.md`, decisões em aberto). (dono: Joaquim e Gabriel)
@@ -1637,7 +1637,7 @@ Achados ao conferir o código depois do merge (`13eab64`). Não estão resolvido
 - [ ] **(X3, 6.0) O documento aberto (`Artefato.tsx`): o que a 6.0 deixou para quem recompor a tela (`frontend-reviewer`, 1ª e 2ª rodadas; validação da X3, rodada 1, M8 e RF13).** (a) "Artefato" na tela: título e vazio (`Artefato.tsx:107`, `:130-134`) e "Abrir o artefato" (`ResultadoDaFerramenta.tsx:47`); o glossário diz "documento", e e2e citam o texto. (b) "Voltar para Criados" volta sem os filtros que estavam (mockup 10.2). (c) A 360 px, três ações empilhadas: agrupar as raras no "⋯" (X3 ou F7). (d) De 768 a 1023 px: respiros menores e a miniatura abaixo do enunciado até `lg`; a faixa nunca foi fotografada. (e) Na versão adaptada pendente a 1366 × 768 a mesa começa em ~575 px e sobra ~150 px de folha: juntar as duas frases do cabeçalho, levar "Abrir a atividade de origem" à linha do "Voltar", e altura mínima do painel no e2e. (f) Na aba "Na turma", "Pedir versão adaptada" (laranja) e "Aplicar à turma" (grafite) são duas ações cheias à vista: decidir se a R4 de `docs/interface.md` admite um laranja e um grafite na mesma tela. (dono: Joaquim e Gabriel)
 - [ ] **(X3, 2.0 e 1.0) "O que o Assistente fez" e o sino: nomes e marca (`frontend-reviewer`, 1ª rodada das duas).** (a) Os nomes do pé do sino ("O que o Assistente fez", "O que o Tutor viu") não batem com o `h1` e o título da aba ("Assistente de ensino", `Time.tsx:181`; "Tutor"): muda título de tela e de aba, que a Tech Spec §9 fixa. (b) Os itens "Correção para revisar" e "Versão adaptada para decidir" (`fila-do-professor.ts:107`, `:113`) não dizem que vieram do Assistente: uma marca curta no `detalhe` ou no rótulo do grupo (regra 70, item 4a). Muda texto de tela e a forma do item: decisão do Arquiteto. (dono: Joaquim e Gabriel)
 - [ ] **(X3, 1.0) O teste de carga não conta as leituras do sino do professor (`infra-guardian`, 1ª rodada).** Incluir no cenário as até 14 leituras por professora que abre a casca: a conta de cerca de 28 por minuto contra o limite de 120 só existe no papel. Mudança no teste de carga de infra. Ver também a letra (c) da linha "(D80, revisão das specs X2 a X4)". (dono: Joaquim)
-- [ ] **(X3, 14.0 e validação) Vocabulário (RF21): a lista proibida está em dois lugares, e sete telas não têm teste (`privacy-guardian` e `revisor-geral`, 14.0, 1ª rodada; validação da X3, rodada 1, M3).** (a) Juntar `VOCABULARIO_PROIBIDO` (`e2e/professor-aprovar.spec.ts:19` e `aprovar.test.ts`) com `VOCABULARIO_DE_NOTA` (`e2e/__fixtures__/professor/cena.ts:17`, repetido em `e2e/a3-a4-professor.spec.ts:19` e `e2e/roteiro-da-demonstracao.spec.ts:63`) num lugar só, na tarefa que alterar `cena.ts` (mais três specs a importam). (b) Criados, Turmas, Início, Conversa, o documento, Convidar e o sino não têm teste de vocabulário. (c) O regex `\bmédia\b` não pega "Acerto médio" (`aprovar.ts:236`): ver "Para o Joaquim saber" abaixo. (dono: Joaquim)
+- [ ] **(X3, 14.0 e validação) Vocabulário (RF21): a lista proibida está em dois lugares, e sete telas não têm teste (`privacy-guardian` e `revisor-geral`, 14.0, 1ª rodada; validação da X3, rodada 1, M3).** (a) Juntar `VOCABULARIO_PROIBIDO` (`e2e/professor-aprovar.spec.ts:19` e `aprovar.test.ts`) com `VOCABULARIO_DE_NOTA` (`e2e/support/professor/scenario.ts:17`, repetido em `e2e/a3-a4-professor.spec.ts:19` e `e2e/roteiro-da-demonstracao.spec.ts:63`) num lugar só, na tarefa que alterar `cena.ts` (mais três specs a importam). (b) Criados, Turmas, Início, Conversa, o documento, Convidar e o sino não têm teste de vocabulário. (c) O regex `\bmédia\b` não pega "Acerto médio" (`aprovar.ts:236`): ver "Para o Joaquim saber" abaixo. (dono: Joaquim)
 - [ ] **(X3, `tools/ci/duracao-do-e2e.ts`) Retitular um caso de e2e o faz parecer novo para o HEAD (diário do Orquestrador; vizinha da letra (a) do item "(X1, retrospectiva) Código de processo").** A régua acha o prazo declarado no HEAD pelo título do caso; com o título trocado, não acha e cobra 15 s. Hoje isso trava renomear casos lentos: o `a3-a4` leva 64 s e o `lugares` 28–31 s, e é por isso que os títulos com "Seu time" ficaram (validação da X3, N4, na linha dos menores abaixo). Correção própria em `tools/ci/duracao-do-e2e.ts`, com teste e bloco de mutação. (dono: Joaquim) **Entra no código de processo da retrospectiva da X3, logo abaixo (M3).**
 - [ ] **(X3, retrospectiva) Código de processo que a X3 pediu** (`tasks/prd-telas-do-professor/retro.md`, M1 a M3). **Destino que o
       Joaquim deu em 19/10/2026: antes da primeira tarefa da X4**; **em 23/10/2026, a X7 (`harness`)**, que vem antes da X4, junto
@@ -1652,8 +1652,8 @@ Achados ao conferir o código depois do merge (`13eab64`). Não estão resolvido
 - [ ] **(X3, a vigiar) Casos de e2e acima de 15 s na máquina, que esta spec não tocou (correção `2026-10-19-acesso-suspenso-passa-do-prazo`, "Fora desta correção"; diário do Orquestrador).** `e2e/areas.spec.ts:231` (19–21 s; 23,8 s na esteira), `acesso-suspenso.spec.ts:78` (18,4 s), `escola-e-vinculos.spec.ts:212` (22,4 s) e `:272` (18,9 s). Se a esteira estourar, correção como a do `acesso-suspenso:165` e a do `areas:204` (correções `2026-10-19-acesso-suspenso-passa-do-prazo` e `2026-10-18-professor-em-area-alheia-estoura-o-prazo`): entrada pela API e primeira carga sem a rede lenta. (dono: Joaquim)
 - [ ] **(X3) A vitrine não semeia nem fotografa o que as telas do professor pedem (`conformidade-reviewer` e `frontend-reviewer`, 10.0, 1ª e 2ª rodadas; `frontend-reviewer`, 12.0, 1ª; `frontend-reviewer`, correção `2026-10-19-sino-cem-ou-mais`; `privacy-guardian`, `infra-guardian` e `revisor-geral`, 1.0, 1ª e 2ª).** Em `tools/vitrine/`: (a) a escola cheia sem sinal de atenção humana, sem dois sinais por aluno e sem sinal de trabalho antigo: o aviso, a ordem de nome, a linha nominal e o texto novo de Hoje nunca foram vistos em foto; (b) a aba Alunos com a lista vazia e com "Saiu da turma"; (c) mais de 100 entregas, para fotografar a pílula "100+" a 360 px; (d) a vitrine clica na largura do computador e só depois encolhe a tela, então a foto do celular sai com a lista do sino fechada: clicar já na largura da foto (a lista fecha quando a largura cruza 768 px, ver "Sino da coordenação, três pontos", item 3). (dono: Joaquim)
 - [ ] **(X3, testes) Menores de teste das tarefas e correções da X3, sem tela nem regra mudando.** Cada um na próxima tarefa que tocar o arquivo: (a) `pedidos.test.ts:302`: o nome diz "uma releitura só", mas a asserção `toHaveLength(2)` conta também a leitura inicial; e um comentário dizendo que o caso protege a deduplicação do TanStack Query, que nenhuma linha nossa deixa vermelha (1.0, `revisor-geral` e `test-engineer`, 3ª); (b) `Criados.test.tsx:285` e `:328`: a espera fixa de 50 ms pode deixar o caso verde com a mutação em máquina carregada; esperar um sinal de que a resposta chegou (5.0, `test-engineer`, 2ª); (c) caso de componente com dois cliques em "Aplicar à turma" no mesmo `act`, como o do encerrar (6.0, `test-engineer`, 1ª); (d) Hoje: segunda pessoa na mesma aba sem nenhum nome da primeira no cache nem na tela; o mesmo aluno repetido com o painel aberto, com o mesmo número no aviso e no painel; e a asserção do e2e da turma de outra escola estendida ao `/desempenho` (10.0, `test-engineer` 1ª e 2ª, `tenancy-guardian` 2ª); (e) aba Alunos: a passagem do `signal` (`api/alunos-da-turma.ts:28-31`) sem teste que dependa dela, e o nome e o comentário do caso "resposta atrasada" (`e2e/professor-turma-alunos.spec.ts:176`, `:200-201`) prometem o que o caso não prova; `if (porNome !== 0) return porNome` sem bloco; aluno com vínculo encerrado ou `desativadoEm` sumindo da aba; professor de duas disciplinas na mesma turma com uma lista só; trocar de escola com a aba Alunos aberta (`e2e/troca-de-escola.spec.ts`) (12.0, `test-engineer`, `tenancy-guardian` e `revisor-geral`, 1ª e 2ª); (f) `e2e/convidar-alunos.spec.ts:101-103`: `expect(gravacoes).toEqual([])` passa por construção (o POST só sai com clique): contar qualquer pedido a `/v1/turmas/<id>/acesso`, ou tirar a asserção e o "nem pede o acesso" do título; e o caso da turma inexistente saiu do arquivo (regra 10, item 6) (13.0, `test-engineer`, 2ª); (g) `SinoDoProfessor.test.tsx`: cenário com pedidos de nome e turma a confirmar junto das 100 entregas, mostrando o piso somado ("102 ou mais") (correção `2026-10-19-sino-cem-ou-mais`, `test-engineer`, 1ª); (h) `aprovar.test.ts` só resolve `@educa/shared` rodando da raiz: é do ambiente de teste (2.0, `test-engineer`, 1ª). (dono: Joaquim)
-- [ ] **(X3, comentários e documentos) Menores de texto da X3, sem comportamento mudando.** Comentários: (a) `fila-do-professor.ts:306-307` diz que "Atualizar" relê cada leitura por `refetchQueries`; as contagens são relidas por `fetchQuery`, em série (1.0, `revisor-geral`, 2ª); (b) o `enabled` decidido por `cliente.getQueryState` na renderização (`fila-do-professor.ts:333`) depende de o `useQueries` renderizar de novo: uma linha dizendo isso, e um comentário em `main.tsx` apontando que o `resetQueries` depende dele (1.0, `revisor-geral` e `tenancy-guardian`, 2ª); (c) `pedidos.ts`, `invalidarAContagem` (`:128-140`): a releitura depois de uma decisão sai fora da série e da parada por limite; dizer isso no comentário (1.0, `privacy-guardian`, 2ª); (d) `Painel.tsx:20` importa `SEM_LEITURA_SOZINHA` pela reexportação de `fila-da-coordenacao.ts:15`: importar direto de `componentes/sino/leitura-do-sino.ts` e tirar a reexportação (1.0, `revisor-geral`, 1ª); (e) `AcessoDaTurma.tsx:17` e `AlunosDaTurma.tsx:31-32` ainda dizem "abre sozinho, uma vez por pedido": o comportamento é abrir na montagem da aba enquanto o endereço pedir (13.0, `revisor-geral`, 2ª); (f) `Criados.test.tsx` e o e2e do recomeço: comentário de que quem prova o `resetQueries` de `main.tsx` é o e2e, e de que o caso depende do `staleTime` de 30 s (`cliente-de-consultas.ts:25`) (5.0, `test-engineer`, 2ª). Documentos: (g) Tech Spec da X3 §5: a exceção das duas chaves da navegação sem `gcTime: 0` (`estrutura/turma/<id>`, `acesso-da-turma/<id>`) está no teste do sino e não na Tech Spec (12.0, `revisor-geral`, 1ª e 2ª; Arquiteto); (h) Tech Spec da X3 §9, item 5: completar a lista de testes fora dos previstos com `AlunosDaTurma.test.tsx`, `Turmas.test.tsx` e `dialogo-aberto.test.ts` (13.0, `revisor-geral`, 2ª); (i) `tasks.md:52-53`: as subtarefas 7.1 e 7.2 estão `[ ]` com a 7.0 `[x]` (validação, M6); (j) títulos de e2e que ainda dizem "Seu time" como lugar: `e2e/professor-lugares.spec.ts:19` (de propósito, comentário em `:16`), `e2e/a3-a4-professor.spec.ts:22`, os `describe` de `e2e/professor-entregas.spec.ts:15` e `:231`, e `e2e/pecas-marca-onca.spec.ts:92`; as asserções provam que nenhuma tela diz "Seu time", e renomear espera a linha do `duracao-do-e2e.ts` acima (validação, M5 e N4); (k) `docs/roteiro-da-demonstracao.md:229` escreve o título entre aspas curvas (“Atividade — Reagente limitante”) e a tela usa aspas retas (`sinais.ts:28`; o resto do documento usa retas) (correção `2026-10-19-docs-sem-seu-time`, `revisor-geral` e `conformidade-reviewer`, 2ª); (l) `docs/aia/sinais-e-alertas.md:387`: "lido uma vez, ao abrir" não é exato, porque a consulta relê quando a janela volta ao foco (`staleTime` de 30 s e `refetchOnWindowFocus` padrão, `cliente-de-consultas.ts:22-26`): "lido ao abrir o painel, sem releitura periódica" (mesma correção e rodada). (dono: Joaquim)
-- [ ] **(X3, recomendações de tela sem destino) Acabamentos que as tarefas e correções deixaram, cada um para a tarefa que tocar a peça.** (a) Barra de baixo a 360 px corta "FERRAMEN…" (`componentes/BarraDeBaixo.tsx`): reduzir o `tracking` ou a caixa-alta do rótulo (5.0, `frontend-reviewer`, 1ª e 2ª; a validação, rodada 1, o dá como já escrito, e não está); (b) o botão de enviar vazio (cinza) da `CaixaPedido` tem pouco contraste com o fundo (3.0, `frontend-reviewer`, 1ª); (c) `Artefato.tsx:269-270`: o `<span>Gabarito</span>` visível e o `rotulo="Gabarito"` do `Interruptor` repetem o texto no mesmo `<label>`, e o leitor de tela pode anunciar o nome duas vezes; conferir se o `Interruptor` já esconde um dos dois (correção `2026-10-19-a2-assistente-conta-um-gabarito-a-mais`, `frontend-reviewer`, 1ª; validação, M2); (d) o sino: os pedidos de nome dizem "ou mais" no texto (`oQueConta`, `fila-do-professor.ts`) e a pílula do item não leva o `ouMais`; passar `item.haMais` ao `Contador` muda a pílula de "100" para "100+" (correção `2026-10-19-sino-cem-ou-mais`, `revisor-geral`, 1ª); (e) "Convidar alunos" (`ConvidarAlunos.tsx`): o título "Gerar acesso" acima do subtítulo "Acesso gerado" repete a ideia; a 1366 × 768, na tela inteira, o bloco fica colado ao topo; `TEXTO_DE_QUEM_VE_A_LISTA` é longo no celular; e a linha "Vale até …" do passo "Vigente" sai com a moldura azul de foco e parece campo (`useFocoDaEtapa`, `copia-unica.tsx`): rever junto do mockup 6 (13.0, `frontend-reviewer`, 1ª e 2ª); (f) a `Tabela` da aba Alunos não virtualiza e acumula até 100 por página com "Ver mais": medir com CPU limitada quando houver turma de 100 ou mais (12.0, `frontend-reviewer`, 1ª); (g) com a letra Maior a barra de baixo (68 px fixos, `componentes/BarraDeBaixo.tsx:79,88` e `estilos.css:324`) fica apertada; nada é cortado e o e2e a 360 px com Maior passa, mas rever a altura junto do item (a) (telas do aluno, 8.0, `frontend-reviewer`, 1ª); (h) no diálogo "Ajustes" do aluno, o título "Aparência" (rótulo do `Segmentado` da `Aparencia`, da X1) e o "Tamanho da letra" (`legend` do `fieldset`) não se alinham: alinhar quando a `Aparencia` for tocada (8.0, `frontend-reviewer`, 1ª). (dono: Joaquim e Gabriel)
+- [ ] **(X3, comentários e documentos) Menores de texto da X3, sem comportamento mudando.** Comentários: (a) `fila-do-professor.ts:306-307` diz que "Atualizar" relê cada leitura por `refetchQueries`; as contagens são relidas por `fetchQuery`, em série (1.0, `revisor-geral`, 2ª); (b) o `enabled` decidido por `cliente.getQueryState` na renderização (`fila-do-professor.ts:333`) depende de o `useQueries` renderizar de novo: uma linha dizendo isso, e um comentário em `main.tsx` apontando que o `resetQueries` depende dele (1.0, `revisor-geral` e `tenancy-guardian`, 2ª); (c) `pedidos.ts`, `invalidarAContagem` (`:128-140`): a releitura depois de uma decisão sai fora da série e da parada por limite; dizer isso no comentário (1.0, `privacy-guardian`, 2ª); (d) `Painel.tsx:20` importa `SEM_LEITURA_SOZINHA` pela reexportação de `fila-da-coordenacao.ts:15`: importar direto de `components/sino/leitura-do-sino.ts` e tirar a reexportação (1.0, `revisor-geral`, 1ª); (e) `AcessoDaTurma.tsx:17` e `AlunosDaTurma.tsx:31-32` ainda dizem "abre sozinho, uma vez por pedido": o comportamento é abrir na montagem da aba enquanto o endereço pedir (13.0, `revisor-geral`, 2ª); (f) `Criados.test.tsx` e o e2e do recomeço: comentário de que quem prova o `resetQueries` de `main.tsx` é o e2e, e de que o caso depende do `staleTime` de 30 s (`query-client.ts:25`) (5.0, `test-engineer`, 2ª). Documentos: (g) Tech Spec da X3 §5: a exceção das duas chaves da navegação sem `gcTime: 0` (`estrutura/turma/<id>`, `acesso-da-turma/<id>`) está no teste do sino e não na Tech Spec (12.0, `revisor-geral`, 1ª e 2ª; Arquiteto); (h) Tech Spec da X3 §9, item 5: completar a lista de testes fora dos previstos com `AlunosDaTurma.test.tsx`, `Turmas.test.tsx` e `dialog-state.test.ts` (13.0, `revisor-geral`, 2ª); (i) `tasks.md:52-53`: as subtarefas 7.1 e 7.2 estão `[ ]` com a 7.0 `[x]` (validação, M6); (j) títulos de e2e que ainda dizem "Seu time" como lugar: `e2e/professor-lugares.spec.ts:19` (de propósito, comentário em `:16`), `e2e/a3-a4-professor.spec.ts:22`, os `describe` de `e2e/professor-entregas.spec.ts:15` e `:231`, e `e2e/components-brand-onca.spec.ts:92`; as asserções provam que nenhuma tela diz "Seu time", e renomear espera a linha do `duracao-do-e2e.ts` acima (validação, M5 e N4); (k) `docs/roteiro-da-demonstracao.md:229` escreve o título entre aspas curvas (“Atividade — Reagente limitante”) e a tela usa aspas retas (`sinais.ts:28`; o resto do documento usa retas) (correção `2026-10-19-docs-sem-seu-time`, `revisor-geral` e `conformidade-reviewer`, 2ª); (l) `docs/aia/sinais-e-alertas.md:387`: "lido uma vez, ao abrir" não é exato, porque a consulta relê quando a janela volta ao foco (`staleTime` de 30 s e `refetchOnWindowFocus` padrão, `query-client.ts:22-26`): "lido ao abrir o painel, sem releitura periódica" (mesma correção e rodada). (dono: Joaquim)
+- [ ] **(X3, recomendações de tela sem destino) Acabamentos que as tarefas e correções deixaram, cada um para a tarefa que tocar a peça.** (a) Barra de baixo a 360 px corta "FERRAMEN…" (`components/BarraDeBaixo.tsx`): reduzir o `tracking` ou a caixa-alta do rótulo (5.0, `frontend-reviewer`, 1ª e 2ª; a validação, rodada 1, o dá como já escrito, e não está); (b) o botão de enviar vazio (cinza) da `CaixaPedido` tem pouco contraste com o fundo (3.0, `frontend-reviewer`, 1ª); (c) `Artefato.tsx:269-270`: o `<span>Gabarito</span>` visível e o `rotulo="Gabarito"` do `Interruptor` repetem o texto no mesmo `<label>`, e o leitor de tela pode anunciar o nome duas vezes; conferir se o `Interruptor` já esconde um dos dois (correção `2026-10-19-a2-assistente-conta-um-gabarito-a-mais`, `frontend-reviewer`, 1ª; validação, M2); (d) o sino: os pedidos de nome dizem "ou mais" no texto (`oQueConta`, `fila-do-professor.ts`) e a pílula do item não leva o `ouMais`; passar `item.haMais` ao `Contador` muda a pílula de "100" para "100+" (correção `2026-10-19-sino-cem-ou-mais`, `revisor-geral`, 1ª); (e) "Convidar alunos" (`ConvidarAlunos.tsx`): o título "Gerar acesso" acima do subtítulo "Acesso gerado" repete a ideia; a 1366 × 768, na tela inteira, o bloco fica colado ao topo; `TEXTO_DE_QUEM_VE_A_LISTA` é longo no celular; e a linha "Vale até …" do passo "Vigente" sai com a moldura azul de foco e parece campo (`useFocoDaEtapa`, `copy-once.tsx`): rever junto do mockup 6 (13.0, `frontend-reviewer`, 1ª e 2ª); (f) a `Tabela` da aba Alunos não virtualiza e acumula até 100 por página com "Ver mais": medir com CPU limitada quando houver turma de 100 ou mais (12.0, `frontend-reviewer`, 1ª); (g) com a letra Maior a barra de baixo (68 px fixos, `components/BarraDeBaixo.tsx:79,88` e `index.css:324`) fica apertada; nada é cortado e o e2e a 360 px com Maior passa, mas rever a altura junto do item (a) (telas do aluno, 8.0, `frontend-reviewer`, 1ª); (h) no diálogo "Ajustes" do aluno, o título "Aparência" (rótulo do `Segmentado` da `Aparencia`, da X1) e o "Tamanho da letra" (`legend` do `fieldset`) não se alinham: alinhar quando a `Aparencia` for tocada (8.0, `frontend-reviewer`, 1ª). (dono: Joaquim e Gabriel)
 - [ ] **(X3, validação) Para o Joaquim saber, sem correção pedida:** (a) "Acerto médio" (`aprovar.ts:236`) é média de acertos com outra palavra; está registrado na Tech Spec §9 (RF21) e fica para o Joaquim confirmar se é vocabulário aceito (validação, rodadas 1 e 2, M3; 10.0, divergência 2); (b) o "e2e por tipo" do RF3 está em 2 de 4: pedidos e versão adaptada por e2e, correção aprovada e turma confirmada por componente com a tela que decide ao lado, provados por mutação (rodada 2, RF3); (c) a 360 px a página das telas do professor rola inteira, sem rolagem lateral: é o "funciona a 360 px" do RF22, e só a 1366 × 768 o miolo rola por dentro (rodada 2, RF22); (d) o lado a lado de cada foto com a seção do `mockup.md` é a métrica do PRD §9, que o Gabriel aprova ou aponta (rodada 2, seção 2); (e) com oito fatias de e2e (X4, 26/10/2026) o teto é de cerca de 1576 casos, com uns 190 de margem; antes eram sete fatias e cerca de 1379 (`tools/ci/prazo-do-e2e.ts`; correção `2026-10-19-setima-fatia-do-e2e`; diário do Orquestrador). (dono: Joaquim)
 
 ## Da X5 (reengenharia), fora dela
@@ -1663,7 +1663,7 @@ Achados ao conferir o código depois do merge (`13eab64`). Não estão resolvido
   `packages/nucleo/src/ia/__fixtures__`, e um arquivo de produção posto numa pasta com esse nome passa pelas três cercas. Restringir o
   padrão de `tools/guardas/camadas.cjs` a `*.test.ts`, `*.spec.ts`, `apps/*/test/`, `e2e/` e `__fixtures__/` fora de `src/`, ou deixar
   escrito por que não; a varredura por nome (linha abaixo) tem o mesmo furo. Muda o que o lint acusa no código de hoje (as `__fixtures__` de `src/` precisam de nome de teste)
-- **A varredura por nome das classes cercadas** (X5, 12.0, `arquitetura.test.ts › o nome das classes cercadas…`, recomendações da 2ª rodada):
+- **A varredura por nome das classes cercadas** (X5, 12.0, `architecture.test.ts › o nome das classes cercadas…`, recomendações da 2ª rodada):
   (a) não vê alias, `export { PainelRepository as Leitor }` numa ponte de dentro da zona: reprovar `export` do nome da classe, e
   `export *` do arquivo dela, em arquivo da zona que não seja o da classe nem um barril permitido; (b) o primeiro `it` não exige
   arquivo lido em `tools/` nem em `infra/`: exigir ao menos um em cada pasta, com mutação que tire `tools` da lista; (c) não lê
@@ -1710,7 +1710,7 @@ Achados ao conferir o código depois do merge (`13eab64`). Não estão resolvido
   como `falhou`; quando a 47.0 e a 49.0 criarem `job.falhos{tipo}` e o alerta "Provedor de IA fora", essa falha não pode
   contar como falha do provedor
 - **`execucaoLida`, `pausada` e `consumoDaExecucao` repetidos** em `tutor.int.test.ts` e `tutor-modelo.int.test.ts` (X5,
-  4.0): levar para `apps/api/test/escola-com-tutor.ts` na próxima tarefa que mexer nesse arquivo, porque mexer nele caduca
+  4.0): levar para `apps/api/test/escola-tutor.fixture.ts` na próxima tarefa que mexer nesse arquivo, porque mexer nele caduca
   todos os testes de Tutor que o usam
 - **As limitações conhecidas do `riscoAVida`, para `docs/aia/tutor.md`** (X5, 2.0): ao fechar a onda 0, junto com a medida
   do lote retido (`onda-0.md` §2.1 e §4). (a) O sinal `atencao_humana` sai com o nome do aluno que escreveu, também quando o
@@ -1768,9 +1768,9 @@ Achados ao conferir o código depois do merge (`13eab64`). Não estão resolvido
 - [ ] **(X5, 51.0) Contrato na janela do deploy:** web nova com API antiga (o `strictObject` da API antiga recusa a chave `sequencia` com `ENTRADA_INVALIDA`) e aba antiga com API nova (o `PUT` sem `sequencia` é o cliente antigo e continua valendo). Escrever em `docs/runbook.md` a ordem de deploy (API primeiro, depois a web) na primeira tarefa que mexer nele (`infra-guardian`, 51.0, 1ª rodada).
 - [ ] **(X5, 51.0) `.max()` em `esquemaSequencia`:** a `sequencia` aceita qualquer inteiro não negativo até o limite do `bigint`; declarar um teto muda o contrato do `shared` e o corpo recusado. Decisão do Arquiteto (`infra-guardian`, 51.0, 1ª rodada).
 - [ ] **(X5, 51.0) Cenário de carga da prova em `infra/k6/`:** o `PUT` de resposta com `sequencia` (escola inteira respondendo ao mesmo tempo, com reenvio) cabe junto da 52.0 e da 53.0, com o adaptador falso e sem provedor pago (`infra-guardian`, 51.0, 1ª rodada).
-- [ ] **(X5, 51.0) Dizer nos fixtures que o `PUT` sem `sequencia` é o cliente antigo:** `apps/api/test/atividade-de-teste.ts` e `e2e/__fixtures__/aluno-pela-api.ts` mandam a resposta sem `sequencia`, e quem lê não sabe que isso é o caminho do cliente antigo (`infra-guardian`, 51.0, 1ª rodada).
+- [ ] **(X5, 51.0) Dizer nos fixtures que o `PUT` sem `sequencia` é o cliente antigo:** `apps/api/test/atividade.fixture.ts` e `e2e/support/aluno-api.ts` mandam a resposta sem `sequencia`, e quem lê não sabe que isso é o caminho do cliente antigo (`infra-guardian`, 51.0, 1ª rodada).
 - [ ] **(X5, 51.0) `arquivo-do-titular.int.test.ts` com data fixa:** três a quatro casos de data e de validade vencem desde 19/10/2026 e deixam a esteira vermelha, com e sem a 51.0 (verificado revertendo `leitura-do-titular.ts`). Corrigir (data relativa ao relógio do teste) **antes do pouso**, fora da 51.0 (`revisor-geral`, 51.0, 1ª rodada).
-- [ ] **(X5, 7.0) `rotinaDoSistema` sem escola, em unidade:** falta um caso de unidade com `rotinaDoSistema: true` e sem escola em `packages/nucleo/src/contexto/contexto.test.ts`; hoje só `apps/despachante/test/vagas.int.test.ts` (a `daEscola`) segura a regra de que a rotina não ganha leitura sem escopo (`test-engineer`, 7.0, 1ª rodada).
+- [ ] **(X5, 7.0) `rotinaDoSistema` sem escola, em unidade:** falta um caso de unidade com `rotinaDoSistema: true` e sem escola em `packages/nucleo/src/contexto/contexto.test.ts`; hoje só `apps/despachante/test/slots.int.test.ts` (a `daEscola`) segura a regra de que a rotina não ganha leitura sem escopo (`test-engineer`, 7.0, 1ª rodada).
 - [ ] **(X5, 7.0) Mutação por método do `ConviteRepository`:** `usuarioConvidado`, `criarConvite`, `travarEscola`, `dadosDaCoordenacao` e `dadosDoProfessor` só trocaram a cópia por `exigirEscolaDoContexto`, e a presença da chamada é provada pela guarda; falta um caso de teste e uma mutação por método (`revisor-geral` e `test-engineer`, 7.0, 1ª rodada).
 - [ ] **(X5, 7.0) Cópia local fora de repository:** `packages/nucleo/src/configuracao/configuracao-operacional.ts:165` ainda checa a escola do contexto com a mensagem própria `'configuração operacional sem escola no contexto'`; trocar por `exigirEscolaDoContexto` quando alguma tarefa tocar o arquivo (`revisor-geral`, 7.0, 1ª rodada).
 - [ ] **(X5, 53.0) Dado sintético com atividade "para responder" na vitrine:** `tools/vitrine/` não tem atividade aberta com respostas ainda não salvas, e o estado "não salva" e o "Tentar de novo" não são fotografados a 360 px (`frontend-reviewer`, 53.0, 1ª rodada).
@@ -1791,12 +1791,12 @@ Achados ao conferir o código depois do merge (`13eab64`). Não estão resolvido
   `areas/professor/turmas/api/acesso.ts`) e `e2e/professores.spec.ts:309` (`api/professores.ts`, hoje
   `areas/coordenacao/professores/api/professores.ts`). Tocar os dois faria o portão rodar os e2e deles por uma citação de
   comentário: fica para a tarefa que mexer neles (`revisor-geral`, 97.0, 1ª rodada)
-- [ ] **(X5, 97.0) Os dois testes do build de `apps/web/nome-dos-chunks.test.ts` (`describe` "o build de verdade da web", dos
+- [ ] **(X5, 97.0) Os dois testes do build de `apps/web/chunk-names.test.ts` (`describe` "o build de verdade da web", dos
   casos B2 e "as áreas da escola") usam o prazo padrão de 5000 ms** e estouraram com a máquina cheia, antes e depois da
   tarefa: prazo explícito no `it` na próxima tarefa que tocar o arquivo (`test-engineer`, 97.0, 1ª rodada)
 - [ ] **(X5, 9.0) Helper de teste que não termina em `.test.ts` e importa tabela do núcleo:** a guarda `tabela-so-no-repository`
   usa `ARQUIVOS_DE_TESTE` (`**/*.test.{ts,tsx}`, `e2e/**/*.spec.ts`) como exceção, então um helper em `apps/api/test/` ou
-  `e2e/__fixtures__/` que importe tabela seria reprovado. Hoje nenhum importa. Fixar o lado, com um caso para cada um, muda o
+  `e2e/support/` que importe tabela seria reprovado. Hoje nenhum importa. Fixar o lado, com um caso para cada um, muda o
   que as outras guardas de teste enxergam: decidir quando o primeiro helper precisar (`test-engineer`, 9.0, 1ª rodada)
 - [ ] **(X5, 48.0) O meio-aberto fecha o disjuntor com o provedor ainda fora:** no `AdaptadorResiliente`, a chamada de teste que sai como `ChamadaCancelada`, 429 ou outro 4xx conta como sucesso e fecha o disjuntor, mesmo sem prova de que o provedor voltou. Muda comportamento: pede teste e linha em "Divergências"; a dona do disjuntor é a 49.0 (`infra-guardian`, 48.0, 1ª rodada).
 - [ ] **(X5, 48.0) Cenário de carga « provedor recusando por limite no meio da aula »:** falta em `infra/test/carga.test.ts` o caso com o adaptador falso devolvendo 429 enquanto a escola usa o Tutor; cabe na 47.0 ou na 49.0 (`infra-guardian`, 48.0, 1ª rodada).
@@ -1807,18 +1807,18 @@ Achados ao conferir o código depois do merge (`13eab64`). Não estão resolvido
 - [ ] **(X5, 44.0) Duração do lote do expurgo com muitos `falhou` que ficam:** cada lote relê e descarta no começo do índice os `falhou`
   de `titular.*` e os de 7 a 30 dias; medir o lote depois de uma pane em massa, ou ter caso de carga com milhares deles
   (`infra-guardian`, `revisor-geral` e `test-engineer`, 44.0, 1ª rodada)
-- [ ] **(X5, 44.0) Nenhum teste liga a linha `falhou` do executor à medição e ao expurgo:** `execucao.int.test.ts › falha permanente…`
+- [ ] **(X5, 44.0) Nenhum teste liga a linha `falhou` do executor à medição e ao expurgo:** `job-execution.int.test.ts › falha permanente…`
   e os testes da 44.0 semeiam por SQL; um executor que gravasse `falhou` sem `concluido_em` passaria. Teste novo entre `apps/worker` e o
   expurgo (`test-engineer`, 44.0, 1ª rodada)
 - [ ] **(X5, 44.0) Helper comum para capturar a instrução e rodar o `EXPLAIN`:** o caso de carga de `job.falhos` troca o `pool.query` à
-  mão, como o dos pendentes em `apps/despachante/test/metricas-espera.int.test.ts` (`revisor-geral`, 44.0, 1ª rodada)
+  mão, como o dos pendentes em `apps/despachante/test/queue-gauge.int.test.ts` (`revisor-geral`, 44.0, 1ª rodada)
 - [ ] **(X5, 44.0) Teto para o `falhou` de `titular.*`:** a linha fica até a ação do operador; registrar um teto que siga o
   `pedido_titular` (contrato mais 5 anos), para ela não durar mais que o pedido (`privacy-guardian`, 44.0, 1ª rodada)
 - [ ] **(X5, 46.0) O descarte de linha `titular.*` precisa de auditoria com autor e finalidade:** ainda não existe `46_task.md` para
   receber a nota (`privacy-guardian`, 44.0, 1ª rodada)
 - [ ] **(X5, 43.0) Retenção do tipo de job de IA em lote:** conferir, ao fazer o prazo por tipo, se a retenção é coerente com o limite
   de passos e de custo (`llm-integrator`, 44.0, 1ª rodada)
-- [ ] **(X5, 43.0) Prazo próprio para o `interromper()` no desligamento:** `montagem.ts` espera `await executor.interromper()` sem corrida de uns
+- [ ] **(X5, 43.0) Prazo próprio para o `interromper()` no desligamento:** `composition.ts` espera `await executor.interromper()` sem corrida de uns
   3 s como a do `close()`; com banco ou Redis de vagas lentos, a gravação e a liberação consomem a folga entre os 20 s da graça e os
   25 s do `stop_grace_period`. Muda o comportamento do desligamento (`infra-guardian`, 43.0, 1ª rodada)
 - [ ] **(X5, 43.0) Processador real que escuta o `sinal`:** `montar-arquivo`, `expurgar-*` e `eliminar-titular` não conferem
@@ -1832,14 +1832,14 @@ Achados ao conferir o código depois do merge (`13eab64`). Não estão resolvido
 - [ ] **(X5, 43.0) Conferir o retorno de `concluir` no log:** no caminho de sucesso do `executor.ts`, `job.concluido` sai mesmo quando `concluir`
   devolve `false` (a linha já terminou, por exemplo `falhou/EXECUCAO_INTERROMPIDA` de um processador que ignora o `sinal`); escrever só
   quando devolver `true` (`infra-guardian` e `revisor-geral`, 43.0, 2ª rodada)
-- [ ] **(X5, 43.0) Limite de 4 s do caso com `attempts: 3`:** `prazo-do-job.int.test.ts › o estouro com tentativa sobrando também libera a
+- [ ] **(X5, 43.0) Limite de 4 s do caso com `attempts: 3`:** `job-timeout.int.test.ts › o estouro com tentativa sobrando também libera a
   vaga da escola` tem uns 0,8 s de folga no pior caminho; a asserção que prova a regra é a da ordem. Se ficar instável na esteira, a
   correção abre com a medição (`test-engineer`, 43.0, 2ª rodada)
 - [ ] **(X5, 12.0) A regra do depcruise cobre o que os `it` provisórios da 10.0 olham:** o `it` de `ConferenciaDoAutor` trata de nome de
   tipo e não de caminho de import, e `IMPORTA_A_OPERACAO` não pega import só de efeito (`import '../operacao/x.js'`) nem aspas duplas;
   a 12.0 substitui esses `it` e decide o que fica (`revisor-geral` e `test-engineer`, 10.0, 2ª rodada)
 - [ ] **(X5, 12.0) A regra do depcruise cobre o que os `it` provisórios da 11.0 olham:** a regex `/\blogin\.service\.js['"]/` de
-  `arquitetura.test.ts` casaria `outro-login.service.js` e não pega import sem extensão, e a varredura de `login.service.test.ts` não
+  `architecture.test.ts` casaria `outro-login.service.js` e não pega import sem extensão, e a varredura de `login.service.test.ts` não
   pega `export default <nome>` nem `export = <nome>`; a 12.0 substitui esses `it` e decide o que fica (`test-engineer`, 11.0, 1ª e 2ª rodadas)
 - [ ] **(X5, 17.0) Alinhar o `.trim()` do `slug`:** só o da query do login externo é cortado, o do caminho de `/v1/escolas/:slug/acesso` não; mudar o segundo muda a rota `/e/:slug`, para quando a tela for revista (`tenancy-guardian`, 16.0, 1ª rodada)
 - [ ] **(X5, 17.0) Um `esquemaSemCorpo` só:** exportar `esquemaPedidoSemCorpoDeOperador.default({})` de `packages/shared` no lugar das três cópias (`painel.controller.ts`, `operacao/sessao/sessao.controller.ts` e o `revogar` de `sala/acesso-da-turma/acesso-da-turma.controller.ts`, da 15.0) (`revisor-geral`, 16.0, 1ª rodada)
@@ -1851,7 +1851,7 @@ Achados ao conferir o código depois do merge (`13eab64`). Não estão resolvido
   e o `esquemaPedidoSemCorpoOuAusente` de `packages/shared` (atividade). Unificar na próxima tarefa que mexa nesses controllers;
   quatro arquivos de outros módulos não cabiam na 17.0
 - [ ] **(X5, 34.0) O `sessao/index.ts` exporta o que só os testes de `apps/api/test` usam** (`tenancy-guardian`): `ConviteRepository`, `ContaExternaRepository`, `CookieOidc`, `CHAVE_DA_TRAVA_DO_CONVITE_DA_ESCOLA` e `ESCOLA_DESCONHECIDA`. A 34.3 manda o índice trazer o que `apps/api/{src,test}` usam, e é assim que está. A regra do `dependency-cruiser` da 12.0 pode barrar o uso desses fora de `apps/api/test`, ou os testes passam a importar pelo arquivo
-- [ ] **(X5, 34.0) Três restos de texto e de reexport depois da `sessao/index.ts`** (`test-engineer` e `revisor-geral`, 2ª rodada): (1) o comentário de `apps/api/test/arquitetura.test.ts` (conferência do índice) ainda cita `export * from './tenant/index.js'`, arquivo que não existe; (2) `renovacao/renovacao.service.ts` reexporta `JANELA_DE_RENOVACAO_SIMULTANEA_MS` só para `renovacao.service.test.ts`: importar de `@educa/shared` no teste e apagar o reexport, na tarefa que mexer em `renovacao.service.ts`; (3) `tasks/prd-reengenharia/34_task.md`, tabela de testes, diz "as mutações 1 a 5", e com o bloco de aspas duplas são seis
+- [ ] **(X5, 34.0) Três restos de texto e de reexport depois da `sessao/index.ts`** (`test-engineer` e `revisor-geral`, 2ª rodada): (1) o comentário de `apps/api/test/architecture.test.ts` (conferência do índice) ainda cita `export * from './tenant/index.js'`, arquivo que não existe; (2) `refresh/renovacao.service.ts` reexporta `JANELA_DE_RENOVACAO_SIMULTANEA_MS` só para `renovacao.service.test.ts`: importar de `@educa/shared` no teste e apagar o reexport, na tarefa que mexer em `renovacao.service.ts`; (3) `tasks/prd-reengenharia/34_task.md`, tabela de testes, diz "as mutações 1 a 5", e com o bloco de aspas duplas são seis
 - [ ] **(X5, 96.0) A mensagem do teste do repositório em `tools/guardas/tamanho-das-pastas.test.ts` fala só da web** ("telas, hooks e cliente de API dele"): trocar por uma que sirva às duas raízes ("divida por assunto ou por recurso (D81)"). Na próxima tarefa que tocar o arquivo (`test-engineer`, 96.0, 2ª rodada)
 - [ ] **(X5, fora dela pelo diagnóstico) O que a Etapa 5 deixou fora da X5** (`tasks/prd-reengenharia/DIAGNOSTICO.md` §6,
   com o achado de cada um em `tasks/prd-reengenharia/diagnostico/`). Cada um destrava com a decisão ou a fase que está ao lado:
@@ -1986,7 +1986,7 @@ pede. (dono: Orquestrador)
 - [ ] **(X7, correção M5) Três testes com prazo apertado na esteira** `40128021627` (24/10/2026, tentativa 1 vermelha, tentativa 2
       verde, sem mudança de código entre as duas; a M5 não toca nenhum deles): (1) `infra/test/jobs.int.test.ts` › "SIGTERM no worker
       no meio do job: ele termina o job antes de sair, com código 0" (`expected 'running 0' to be 'exited 0'`); (2)
-      `e2e/pecas-galeria.spec.ts:16` [celular] e (3) `e2e/pecas-ia.spec.ts:443` [celular], os dois com o axe, no prazo de 30 s. Ver se
+      `e2e/components-gallery.spec.ts:16` [celular] e (3) `e2e/components-ai.spec.ts:443` [celular], os dois com o axe, no prazo de 30 s. Ver se
       reaparecem; se sim, correção com a causa (dono: Orquestrador, que vigia a esteira). **Reapareceu** (X4, 24/10/2026 ~23:45): a
       esteira da `develop` `40144205508` caiu no e2e 2/7 (`e2e/operacao-convite-coordenacao.spec.ts`, W1, W6, W10 e W3 no
       `chromebook`, elemento que não apareceu) e ficou verde na 2ª tentativa, sem mudança de código
@@ -2061,7 +2061,7 @@ Ficam, de antes da retro:
       Decidir o texto (por exemplo, "Nenhuma corrigida nas que já abriram") ou esconder o vazio enquanto houver página
       seguinte (dono: Validador; origem: `4_task.md`, `infra-guardian` 1ª)
 - [ ] **(X4, 4.0) Em 360 px o título da tarefa é cortado em uma linha** ("Cinemática: lista sinté…"). É o desenho da `Linha` da X1
-      (`componentes/ui/Linha.tsx`: título numa linha, com reticências e o `title` com o texto inteiro). Reavaliar se o aluno
+      (`components/ui/Linha.tsx`: título numa linha, com reticências e o `title` com o texto inteiro). Reavaliar se o aluno
       precisa ler o título inteiro no celular, e então deixar a `Linha` quebrar em até duas linhas (dono: Arquiteto, na
       próxima spec que toque a `Linha`; origem: `4_task.md`, `frontend-reviewer` 1ª)
 - [ ] **(X4, 4.0) A reserva de matéria é `anil` com livro aberto e parece Física pela cor.** O `Ladrilho` só tem as dez
@@ -2072,8 +2072,8 @@ Ficam, de antes da retro:
       passar uma atividade para a turma…" ficaram, porque o rótulo do carregando é o mesmo que `e2e/minha-turma.spec.ts` e
       `Inicio.test.tsx` citam, e mudar um sem o outro deixa dois lugares diferentes. Trocar os dois textos e os specs que os
       citam na mesma correção (dono: Orquestrador; origem: `4_task.md`, `revisor-geral` 1ª)
-- [ ] **(X4, 4.0) `FamiliaDeCor` é importado de `componentes/ui/Contador`.** `materia.ts` busca o tipo no arquivo do `Contador`,
-      que não é de quem desenha o `Ladrilho`; o `Ladrilho` podia reexportar o tipo. É da X1 (`componentes/ui/`), com o teste
+- [ ] **(X4, 4.0) `FamiliaDeCor` é importado de `components/ui/Contador`.** `materia.ts` busca o tipo no arquivo do `Contador`,
+      que não é de quem desenha o `Ladrilho`; o `Ladrilho` podia reexportar o tipo. É da X1 (`components/ui/`), com o teste
       `casca-sem-import.test.ts` que descreve a cadeia (dono: Arquiteto, com a X1; origem: `4_task.md`, `revisor-geral` 1ª)
 - [ ] **(X4, 4.0) O e2e de 360 px de Tarefas acha o nome da linha pelo `[title]`**, detalhe interno da `Linha`. Um `data-*` na
       `Linha` seria mais robusto, e o e2e passaria a usá-lo (`e2e/aluno-atividade.spec.ts`, "Tarefas a 360 px"). A mudança é na
@@ -2112,7 +2112,7 @@ Ficam, de antes da retro:
       projeto "passa as oito dele na frente", mas o painel `topo` tem 2 escolas com uso. Trocar "as oito" por "as duas" na próxima
       correção que tocar o arquivo; é uma palavra de comentário, sem efeito no teste (dono: quem mexer no spec; origem: correção
       `2026-10-25-uso-da-operacao-sem-escola-no-e2e`, `test-engineer` 2ª)
-- [ ] **(e2e do Uso, 25/10/2026) A conta do pior caso de `UsoDoPainel` (`e2e/__fixtures__/painel.ts`) não vale com `--repeat-each`:**
+- [ ] **(e2e do Uso, 25/10/2026) A conta do pior caso de `UsoDoPainel` (`e2e/support/painel.ts`) não vale com `--repeat-each`:**
       ela conta uma instância de cada caso por projeto. Com `--repeat-each=3` e 6 trabalhadores podem ficar vivos até 6 painéis
       `comum` (até 40 escolas na frente, mais que as 25 da página). A esteira e o portão rodam sem repetição; acrescentar a
       ressalva ao comentário do tipo na próxima mexida no fixture (dono: quem mexer no fixture; origem: mesma correção,
@@ -2148,13 +2148,13 @@ repetem aqui.
 - [ ] **(X4, validação, MN5) `docs/mvp-rapido.md:245-246` ainda diz que a mensagem fixa diz "seu professor" e espera o Joaquim**:
       a decisão foi tomada (26/10/2026, A). Basta uma nota apontando a correção `2026-10-26-mensagem-fixa-avisa-o-professor`
       (dono: quem tocar `docs/mvp-rapido.md`)
-- [ ] **(X4, validação, M1) A região do aviso de privacidade fica baixa no computador** (`componentes/introducao/RegiaoQueRola.tsx`,
+- [ ] **(X4, validação, M1) A região do aviso de privacidade fica baixa no computador** (`components/introducao/RegiaoQueRola.tsx`,
       passo 3 do aluno): mostra três das 17 frases e deixa uns 110 px vazios antes do "Continuar". Deixar a região ocupar a altura
       livre (dono: frontend, na próxima tarefa que mexer na introdução)
-- [ ] **(X4, validação, M2) A 360 px o título da tarefa sai cortado com reticências** na lista do aluno (`componentes/ui/Linha.tsx`,
+- [ ] **(X4, validação, M2) A 360 px o título da tarefa sai cortado com reticências** na lista do aluno (`components/ui/Linha.tsx`,
       `areas/aluno/Atividades.tsx`): usar `tituloEmDuasLinhas`, como em "Rever a introdução" (dono: frontend)
 - [ ] **(X4, validação, M3) O papel aparece em minúsculo ("aluno") no rodapé da lateral** da casca da X1
-      (`componentes/CascaDaEscola.tsx`) (dono: frontend, na casca)
+      (`components/CascaDaEscola.tsx`) (dono: frontend, na casca)
 - [ ] **(X4, validação, M6) `apps/web/src/areas/aluno/Eu.test.tsx:21`, `:317` e `:329` ainda falam do "cartão da turma"**, que saiu
       na correção do Eu: trocar por "a turma no cabeçalho" (dono: quem tocar `Eu.test.tsx`)
 - [ ] **(X4, validação, M7 e M11) As leituras do "cabe em 1366 × 768" (RF20) fora da Tech Spec §12b**: a do Eu ("duas tarefas
@@ -2215,10 +2215,10 @@ repetem aqui.
       `package-lock.json` (dono: Arquiteto; origem: `privacy-guardian`, 1ª rodada)
 - [ ] **(X4, correção `2026-10-26-areas-entrar-estoura-o-prazo`) Os outros 104 `page.goto('/entrar')` do e2e seguem expostos à trava
       da primeira carga sob a rede emulada** (2ª ocorrência; a 1ª foi `2026-10-17-casca-carregando-estoura-o-goto`). Na 3ª, o
-      conserto sobe ao harness (`perfis.ts`), em vez de caso a caso (dono: Orquestrador, que vigia a esteira; Arquiteto, na retro).
+      conserto sobe ao harness (`profiles.ts`), em vez de caso a caso (dono: Orquestrador, que vigia a esteira; Arquiteto, na retro).
       **Retro da X4 (M4):** sem esperar a 3ª; entra na correção em lote "primeira carga do e2e", parte (a), no item do censo abaixo
 - [ ] **(X4, validação, MN10) A vitrine cheia mostra uma lista de Física com habilidades de Química** no Eu do aluno ("Cinemática:
-      lista sintética" com QUI.EM.05 e QUI.EM.06): `e2e/__fixtures__/governanca.ts:179-182` semeia o lote de `fisica` com
+      lista sintética" com QUI.EM.05 e QUI.EM.06): `e2e/support/governanca.ts:179-182` semeia o lote de `fisica` com
       `HABILIDADE_MASSA` e `HABILIDADE_LIMITANTE`. Pôr uma habilidade de Física no lote de Cinemática (dono: quem tocar a fixture da
       governança)
 - [x] **(X4, validação, MN11) Revisores de correção só de teste registraram de 13 a 38 s cada um** nas duas últimas correções da X4,
@@ -2226,7 +2226,7 @@ repetem aqui.
       retro da X4). **Retro da X4:** sem mudança; o diff vai no prompt, a correção de um arquivo só de teste não pede abrir nada,
       e os achados citam linha e nome (mediana de 26 s por rodada nas correções de 25 e 26/10, 47 s nas tarefas)
 - [ ] **(X4, retro, M2) O portão puxa os specs de jornada** (aceita em 26/10/2026; código de processo, correção própria):
-      `tools/processo/portao.ts` (`alvosDoPortao`), diff em `apps/web/src/areas/<papel>/` ou `apps/web/src/componentes/` põe nos
+      `tools/processo/portao.ts` (`alvosDoPortao`), diff em `apps/web/src/areas/<papel>/` ou `apps/web/src/components/` põe nos
       alvos `e2e/casca.spec.ts`, `e2e/escola-montada.spec.ts` e o de jornada do papel (`aluno-fluxo.spec.ts` para o aluno), com a linha
       `▶ e2e/<arquivo> entra nos alvos: jornada`, sem cobrança de duração; teste e bloco de mutação. Na X4, o W12, o Tutor pausado e
       o W1 caíram só na esteira; até lá vale o parágrafo novo do `executar-task` (P4). Custo: 3 a 5 min de portão por tarefa de tela
@@ -2250,22 +2250,22 @@ repetem aqui.
       (`40356513591`); o Joaquim escolheu pousar e levá-lo para cá (26/10/2026, opção A).
       **Retro da X4 (M4, aceita em 26/10/2026): uma correção só, "primeira carga do e2e", antes da X8** (que toca muitos e2e no
       rename), em três partes: (a) a investigação da trava do `goto('/entrar')` (item acima): laço de contextos novos que só fazem
-      `goto` sob o perfil, com e sem `Network.emulateNetworkConditions`, em `e2e/__fixtures__/perfis.ts`; (b) a receita das três
+      `goto` sob o perfil, com e sem `Network.emulateNetworkConditions`, em `e2e/support/profiles.ts`; (b) a receita das três
       correções da X4 (`tres-casos`, `areas-entrar`, `material-sem-licenca`: entrada pela API e a primeira tela esperada dentro de
-      `carregarSemRedeLenta`) num ajudante de `e2e/__fixtures__/`, com o nome dizendo o que ele não mede; (c) os casos deste item, por
+      `carregarSemRedeLenta`) num ajudante de `e2e/support/`, com o nome dizendo o que ele não mede; (c) os casos deste item, por
       grupo, o `privacidade:253` primeiro, mais os seis do `celular` que passaram de 30 s no push do pouso da X4 (`40365404286`, no
       mesmo `83f1c6d8` que ficou verde na `develop`): `pecas-sobrepor:180`, `pecas-galeria:16`, `pecas-ia:173`, `pecas-ia:443` (claro
       e escuro) e `coordenacao-introducao:201`, este da X4 (dono: Orquestrador)
       **Feito em 29/10/2026** (correção `2026-10-29-primeira-carga-do-e2e`): (a) a trava do `goto('/entrar')` **não se reproduz**: 1.200
-      cargas novas, 0 travadas, e a rede emulada custa 2,8 a 3,5 s fixos por primeira carga; não entra nova tentativa no `perfis.ts`
-      (esconderia a trava); (b) `abrirPelaApiSemMedirAPrimeiraCarga` (`segundo-fator.ts`) e `entrarPelaApiSemMedirAPrimeiraCarga`
+      cargas novas, 0 travadas, e a rede emulada custa 2,8 a 3,5 s fixos por primeira carga; não entra nova tentativa no `profiles.ts`
+      (esconderia a trava); (b) `abrirPelaApiSemMedirAPrimeiraCarga` (`mfa.ts`) e `entrarPelaApiSemMedirAPrimeiraCarga`
       (`casca.ts`), usados por `material`, `privacidade`, `coordenacao-introducao`, `analista`, `governanca` e cinco casos do professor;
       (c) `privacidade:253` e `:430`, os seis da galeria (`pecas-galeria:16`, `pecas-sobrepor:180`, `:39`, `pecas-ia:173`, `:443`,
       `pecas-botoes:95`, `pecas-superficies:26`, divididos ou medidos numa ida só ao navegador) e o `coordenacao-introducao:201`. **Sobra, do
       censo da esteira `40880199949`** (a lista está na correção, "Recomendações sem aplicar"): o grupo "entrada e sessão" em que a própria entrada
       é o assunto (`convite:154`, `mfa:14` e `:151`, `escola-e-vinculos:211` e `:271`, `troca-de-escola:211`, `casca:386`,
       `pedidos-do-titular:338`, `tokens:215`, `operacao:45`, `areas:275` e `:479`), os seis de 90 s (`alocacao:85`, `professores:249`, `operacao:125`, `estrutura:314`,
-      `lista-da-turma:214` e `:519`) `pecas-sobrepor:504` e `pecas-ia:261`. O ajudante `entrarPelaApiComSegundoFator` de dentro de `privacidade.spec.ts` é cópia do de `segundo-fator.ts` e serve ao caso que prova só o endereço (dono: quem tocar `privacidade.spec.ts`). O runner leva uns **três** vezes a máquina nos casos de CPU ×4 (galeria), e não o
+      `lista-da-turma:214` e `:519`) `pecas-sobrepor:504` e `pecas-ia:261`. O ajudante `entrarPelaApiComSegundoFator` de dentro de `privacidade.spec.ts` é cópia do de `mfa.ts` e serve ao caso que prova só o endereço (dono: quem tocar `privacidade.spec.ts`). O runner leva uns **três** vezes a máquina nos casos de CPU ×4 (galeria), e não o
       dobro que `tools/ci/duracao-do-e2e.ts` supõe (dono: Orquestrador, uma correção por linha ociosa)
 
 ## Da correção 2026-10-28-onca-do-mockup (a onça do mockup), fora dela
@@ -2284,7 +2284,7 @@ repetem aqui.
       comemoração entrou na correção
 - [ ] Da rodada 2 da onça: `docs/interface.md` (tabela da 9.5) ainda diz que a comemoração usa o `t-salto` (600 ms, `curva-quique`), e o
       salto que ficou é o `onca-comemorar` (500 ms, `ease-out`); nenhum CSS de `apps/web/src` usa o token: alinhar a linha ou tirar
-      `--t-salto` do `estilos.css`. E a linha da 9.7 que ainda fala em "movimento próprio do conformidade-reviewer" na `Comemoracao`
+      `--t-salto` do `index.css`. E a linha da 9.7 que ainda fala em "movimento próprio do conformidade-reviewer" na `Comemoracao`
 - [ ] Da rodada 2 da onça, só de arrumação: `estilos.test.ts` (caso "nenhum CSS de `apps/web/src`… tem laço") faz uma segunda busca
       recursiva de pasta, e o arquivo já tem uma; `Introducao.test.tsx` ("a onça não se mexe: nenhum temporizador entre um passo e
       outro") pede nome revisto; o comentário da prop `animada` em `Onca.tsx` virou uma linha só, longa; os 30 s do caso "nenhuma
@@ -2317,7 +2317,7 @@ repetem aqui.
 - [ ] Da correção `2026-10-29-contorno-do-campo-de-conversa`: uma asserção em `apps/web/src/estilos.test.ts` (ou o `outline-style` calculado do
       `textarea` focado, no e2e) de que o `:focus-visible` global fica em `@layer base`; se sair da camada, o `outline-none` da `CaixaPedido` perde e o
       anel duplo volta com o teste de classes verde (test-engineer, rodada 1)
-- [ ] Da correção `2026-10-29-contorno-do-campo-de-conversa`: ajustar o comentário de `apps/web/src/estilos.css:337-338` ("nenhuma peça apaga o contorno")
+- [ ] Da correção `2026-10-29-contorno-do-campo-de-conversa`: ajustar o comentário de `apps/web/src/index.css:337-338` ("nenhuma peça apaga o contorno")
       para "nenhuma peça apaga o contorno sem dar o anel a quem a contém"; e acrescentar a `CaixaPedido` às peças com anel por `focus-within` em
       `docs/interface.md` (test-engineer e frontend-reviewer, rodada 1)
 - [ ] Da correção `2026-10-29-contorno-do-campo-de-conversa`: na variante `completa`, ao focar por Tab o seletor de turma ou o enviar, aparecem dois
@@ -2337,7 +2337,7 @@ repetem aqui.
 
 - [ ] Da correção `2026-10-30-introducao-da-coordenacao-no-celular`: não há foto da gaveta aberta no celular, porque o clique da vitrine
       (`tools/vitrine/foto.ts`) roda só a 1366 px; quando ele aceitar clique na largura do celular, tirar essa foto (conformidade-reviewer, rodada 1)
-- [ ] Da correção `2026-10-30-introducao-da-coordenacao-no-celular`: um caso curto em `apps/web/src/componentes/CascaDaEscola.test.tsx`, igual ao de "de A por ninguém e de
+- [ ] Da correção `2026-10-30-introducao-da-coordenacao-no-celular`: um caso curto em `apps/web/src/components/CascaDaEscola.test.tsx`, igual ao de "de A por ninguém e de
       ninguém para B" mas liberando A de novo, que fixe que a mesma pessoa voltando depois do `undefined` não fecha a gaveta (test-engineer, rodada 2)
 
 ## Da X8 (nomes de mercado), tarefa 2.0, fora dela
@@ -2370,11 +2370,11 @@ repetem aqui.
 - [ ] Da tarefa 4.0 da X8, para o Arquiteto antes da 5.0: o mapa aponta para a linha do `travas.md` (`travas.md:N`), e a linha anda a cada edição do anexo (a 4.0
       levou +1 em todas); e nas `ocorrencias` com `fica` o campo `linha` aponta para o símbolo no inventário e não para o motivo, e as de `migrar` não levam o
       motivo, porque o formato só tem `trecho` (revisor-geral, rodada 1; conformidade-reviewer, rodada 2)
-- [ ] Da tarefa 4.0 da X8: títulos de `it` e `describe` com `@SemEscopo`, `RegistroDeAuditoria` e `type Banco` (`arquitetura.test.ts` 178, 179, 316, 415, 512, 1342,
+- [ ] Da tarefa 4.0 da X8: títulos de `it` e `describe` com `@SemEscopo`, `RegistroDeAuditoria` e `type Banco` (`architecture.test.ts` 178, 179, 316, 415, 512, 1342,
       1348, 346, 428, 527; `porta-unica.test.ts` 69 e 129; `logger.test.ts` e `guardas.test.ts`) e `camadas.cjs:148` e `:162`: o `conferir` compara pelo título, e o RF7 pede os
       mesmos casos; trocar na onda que libera os títulos (conformidade-reviewer, rodada 1; revisor-geral, rodada 2)
 - [ ] Da tarefa 4.0 da X8: a mensagem `@SemEscopo exige justificativa escrita` (`sem-escopo.decorator.ts:18`) e o `toThrow` de `sem-escopo.decorator.test.ts:17-18`; a mensagem
-      `rota sem @Permite, @RotaAnonima nem marcador da operação` (`conferencia-das-permissoes.ts:67`) com os títulos de `permissao-no-boot.test.ts` (67, 75, 82); e os
+      `rota sem @Permite, @RotaAnonima nem marcador da operação` (`conferencia-das-permissoes.ts:67`) com os títulos de `permissao-boot-check.test.ts` (67, 75, 82); e os
       motivos de `REPOSITORIES_SEM_ESCOPO` (`escopo-dos-repositories.ts`, 80 a 100), que ainda citam `exigirEscolaDoContexto`, `contextoAtual()` e `escopoDoJobNoContexto`.
       Mudam texto que um teste lê: trocar a mensagem e o teste juntos (tenancy-guardian e privacy-guardian, rodada 1; llm-integrator, rodada 2)
 - [ ] Da tarefa 4.0 da X8: `carga-login.ts`, `carga-sala.ts` e `ensaio-alertas.ts` carregam o `dist` do core: rodar `npm run build` antes do próximo ensaio de carga e de
@@ -2385,8 +2385,8 @@ repetem aqui.
 
 ## Da correção 2026-10-30-gaveta-aberta-na-alocacao, fora dela
 
-- [ ] Da correção `2026-10-30-gaveta-aberta-na-alocacao`: `esperarASessaoNaBarraDoTopo` (`e2e/__fixtures__/casca.ts`) acha o nome da escola por
-      `getByRole('banner').locator('p').first()`, posicional; dar ao nome da escola em `apps/web/src/componentes/CascaDaEscola.tsx` um alvo próprio (`data-testid` ou
+- [ ] Da correção `2026-10-30-gaveta-aberta-na-alocacao`: `esperarASessaoNaBarraDoTopo` (`e2e/support/casca.ts`) acha o nome da escola por
+      `getByRole('banner').locator('p').first()`, posicional; dar ao nome da escola em `apps/web/src/components/CascaDaEscola.tsx` um alvo próprio (`data-testid` ou
       nome acessível) e trocar o seletor (infra-guardian, privacy-guardian, frontend-reviewer e test-engineer, rodada 1)
 
 ## Da correção 2026-10-30-aplicar-perde-simbolos-e-troca-js-por-ts, fora dela
@@ -2405,7 +2405,7 @@ repetem aqui.
 - [ ] Da correção `2026-10-31-aplicar-lento-com-dependentes`: tirar o parâmetro `soMock` de `reescreverRelativos` (`tools/renomear/especificadores.ts`), o ramo dele e a
       frase do docblock, e corrigir os comentários das linhas 8 e 9; o `moverEntrada` já o chama sempre com `false`, e o `reaplicar` também. Correção própria,
       depois da 5.0, porque refaz a mutação 1 do documento (test-engineer e revisor-geral, rodada 1)
-- [ ] Da correção `2026-10-31-aplicar-lento-com-dependentes`: o move de `index.*` isolado (`estado/index.ts` → outro nome, com `from './estado'` apontando para a pasta)
+- [ ] Da correção `2026-10-31-aplicar-lento-com-dependentes`: o move de `index.*` isolado (`states/index.ts` → outro nome, com `from './estado'` apontando para a pasta)
       não é acompanhado pela conta de caminho e o serviço de linguagem acompanhava; decidir com o Arquiteto entre o `aplicar` recusar esse move e registrar o limite
       na §5 da Tech Spec da X8. Nenhum mapa faz esse move hoje (revisor-geral, rodada 1)
       O limite já está na §5 da Tech Spec (Arquiteto); o que resta é decidir a recusa, e ajustar nesta linha e no documento da correção o texto que ainda

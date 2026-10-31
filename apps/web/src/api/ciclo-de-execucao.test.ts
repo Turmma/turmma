@@ -16,7 +16,7 @@ import {
   tentarDeNovo,
   type CicloDeExecucao,
 } from './ciclo-de-execucao'
-import { ErroDaApi } from './cliente'
+import { ErroDaApi } from './client'
 
 const EXECUCAO = '0190f5a0-0000-7000-8000-0000000000e1'
 const OUTRA_EXECUCAO = '0190f5a0-0000-7000-8000-0000000000e2'

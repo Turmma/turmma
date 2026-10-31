@@ -3,11 +3,11 @@ import { ErrorCode, buscaDeMaterialResponseSchema, listaDeMateriaisResponseSchem
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
-import { BuscaDeTrechos } from '../src/material/busca-de-trechos.js'
-import { chamar, subirApi, type ApiDeTeste, type RespostaHttp } from './api-com-sessao.js'
-import { montarEscolaComTurma as montarEscola, type EscolaComTurma } from './escola-com-turma.js'
-import { apagarMateriais, auditoriaDa, enviarMaterial, esperarExtracao, materiaisDa, trechosDa } from './material-de-teste.js'
-import { BancadaDeSessoes, type SessaoDeTeste } from './sessao-de-teste.js'
+import { BuscaDeTrechos } from '../src/material/trecho-search.js'
+import { chamar, subirApi, type ApiDeTeste, type RespostaHttp } from './test-api.js'
+import { montarEscolaComTurma as montarEscola, type EscolaComTurma } from './escola-turma.fixture.js'
+import { apagarMateriais, auditoriaDa, enviarMaterial, esperarExtracao, materiaisDa, trechosDa } from './material.fixture.js'
+import { BancadaDeSessoes, type SessaoDeTeste } from './sessao.fixture.js'
 
 /**
  * Isolamento do material entre escolas (regra 10, itens 3 a 6; regra 60, item 10): a escola A não lista, não lê, não

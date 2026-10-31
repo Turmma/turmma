@@ -2,7 +2,7 @@ import { createDatabase, createPool, type Database, type DatabasePool } from '@e
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { urlDoBancoDeTeste } from '../../../tools/testes/integracao.setup.ts'
 import { consultarUso } from '../src/ops/uso.js'
-import { autorDaBancada, BancadaDeSessoes } from './sessao-de-teste.js'
+import { autorDaBancada, BancadaDeSessoes } from './sessao.fixture.js'
 
 describe('npm run ops:uso: consulta de uso por escola no dia e no mês', () => {
   const bancada = new BancadaDeSessoes()

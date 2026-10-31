@@ -137,13 +137,13 @@ const ESPERADAS: Readonly<Record<string, readonly string[]>> = {
     'apps/api/src/estrutura/turma/turma.service.ts -> apps/api/src/sessao/login/reexporta-resolucao.ts',
     'apps/api/test/direto-na-sessao.ts -> apps/api/src/sessao/login/x.ts',
   ],
-  'credencial-so-pelo-index': ['apps/api/src/operacao/outro-token.ts -> apps/api/src/credencial/hash-do-token.ts'],
+  'credencial-so-pelo-index': ['apps/api/src/operacao/outro-token.ts -> apps/api/src/credencial/token-hash.ts'],
   // Cada cerca: o import, o `export *`, o `import()` e o `tools/x.ts` de fora. O teste (`infra/test/`, `e2e/`) passa.
   'cerca-resolucao-de-tenant': [
-    'infra/resolucao-dinamico.ts -> apps/api/src/sessao/tenant/resolucao-de-tenant.repository.ts',
-    'infra/resolucao-import.ts -> apps/api/src/sessao/tenant/resolucao-de-tenant.repository.ts',
-    'infra/resolucao-reexporta.ts -> apps/api/src/sessao/tenant/resolucao-de-tenant.repository.ts',
-    'tools/resolucao.ts -> apps/api/src/sessao/tenant/resolucao-de-tenant.repository.ts',
+    'infra/resolucao-dinamico.ts -> apps/api/src/sessao/tenant/tenant-resolution.repository.ts',
+    'infra/resolucao-import.ts -> apps/api/src/sessao/tenant/tenant-resolution.repository.ts',
+    'infra/resolucao-reexporta.ts -> apps/api/src/sessao/tenant/tenant-resolution.repository.ts',
+    'tools/resolucao.ts -> apps/api/src/sessao/tenant/tenant-resolution.repository.ts',
   ],
   'cerca-conta-global': [
     'apps/worker/src/eliminar.ts -> packages/core/src/ciclo-de-vida/conta-global.repository.ts',
@@ -218,7 +218,7 @@ describe('a guarda de camadas no repositório de hoje', () => {
     const importa = (origem: RegExp, alvo: string): boolean =>
       modules.some((modulo) => origem.test(modulo.source) && modulo.dependencies.some((dependencia) => dependencia.resolved === alvo))
     expect(importa(/^apps\/api\/src\/operacao\/painel\/painel\.service\.ts$/, 'apps/api/src/operacao/painel/painel.repository.ts')).toBe(true)
-    expect(importa(/^apps\/api\/src\/sessao\//, 'apps/api/src/sessao/tenant/resolucao-de-tenant.repository.ts')).toBe(true)
+    expect(importa(/^apps\/api\/src\/sessao\//, 'apps/api/src/sessao/tenant/tenant-resolution.repository.ts')).toBe(true)
     expect(importa(/^apps\/api\/src\/sessao\//, 'packages/core/src/ciclo-de-vida/conta-global.repository.ts')).toBe(true)
   }, 120_000)
 
@@ -247,13 +247,13 @@ describe('a guarda de camadas na esteira', () => {
   })
 
   it('o vitest não coleta a árvore das fixtures, que tem um arquivo chamado arquitetura.test.ts', () => {
-    const arquivo = 'tools/guardas/__fixtures__/camadas/apps/api/test/arquitetura.test.ts'
+    const arquivo = 'tools/guardas/__fixtures__/camadas/apps/api/test/architecture.test.ts'
     const projetos = (configuracaoDoVitest.test?.projects ?? []) as { test?: { name?: string; include?: string[]; exclude?: string[] } }[]
     expect(projetos.length).toBeGreaterThan(2)
     // O arquivo de verdade, no lugar de sempre, é coletado: sem isto o `include` mudado de lugar passaria o caso calado.
     const coletado = (caminho: string): string[] =>
       projetos.filter((projeto) => (projeto.test?.include ?? []).some((padrao) => matchesGlob(caminho, padrao)) && !(projeto.test?.exclude ?? []).some((padrao) => matchesGlob(caminho, padrao))).map((projeto) => projeto.test?.name ?? '')
-    expect(coletado('apps/api/test/arquitetura.test.ts')).toEqual(['unidade'])
+    expect(coletado('apps/api/test/architecture.test.ts')).toEqual(['unidade'])
     expect(coletado(arquivo)).toEqual([])
   })
 })

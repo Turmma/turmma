@@ -1,5 +1,5 @@
 import { FUNCOES, NOME_DO_TIPO_DE_ENTREGA, ROTULOS_DA_ADAPTACAO, TAMANHO_MAXIMO_DA_JUSTIFICATIVA, TAMANHO_MINIMO_DA_JUSTIFICATIVA, type AdaptacaoAplicada, type Entrega } from '@educa/shared'
-import type { Aprovacao } from '../../../componentes/ui/ia/aprovacao'
+import type { Aprovacao } from '../../../components/ui/ai/approval'
 
 /**
  * O que a tela diz de uma entrega (glossário, "Entrega"; regra 70, item 3): a situação dela diante da aprovação, o que

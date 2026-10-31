@@ -1,10 +1,10 @@
 import type { Page, Route } from '@playwright/test'
 import { MENSAGENS_DE_ERRO } from '../packages/shared/src/errors/messages.ts'
-import { abrirNavegacao, irPelaNavegacao, lateral, PRAZO_DA_ENTRADA_MS, esperarInicioDoAluno, secoes } from './__fixtures__/casca.ts'
-import { minhaAtividade } from './__fixtures__/aluno.ts'
-import { expect, test } from './__fixtures__/perfis.ts'
-import { colocarAlunoNaTurma, criarAlunoComMatricula, type AlunoDeTeste } from './__fixtures__/sessao.ts'
-import { ALVO_DE_TOQUE_PRINCIPAL_PX, codigoCru, larguraExcedente, violacoesGraves } from './__fixtures__/verificacoes.ts'
+import { abrirNavegacao, irPelaNavegacao, lateral, PRAZO_DA_ENTRADA_MS, esperarInicioDoAluno, secoes } from './support/casca.ts'
+import { minhaAtividade } from './support/aluno.ts'
+import { expect, test } from './support/profiles.ts'
+import { colocarAlunoNaTurma, criarAlunoComMatricula, type AlunoDeTeste } from './support/seed.ts'
+import { ALVO_DE_TOQUE_PRINCIPAL_PX, codigoCru, larguraExcedente, violacoesGraves } from './support/checks.ts'
 
 /**
  * "Eu" do aluno (X4, tarefa 2.0; antes "Minha turma", A1, 12.0; RF13): a escola, a turma e a série dele, sem colegas, e as

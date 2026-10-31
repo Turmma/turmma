@@ -1,15 +1,15 @@
 import type { BrowserContext, Locator, Page, Request, Route } from '@playwright/test'
 import { MENSAGENS_DE_ERRO } from '../packages/shared/src/errors/messages.ts'
-import { entrarComoAluno, entrarPelaApi, entrarPorEmail, esperarInicioDoAluno, esperarNovaConversa, irPelaNavegacao, PRAZO_DA_ENTRADA_MS } from './__fixtures__/casca.ts'
-import { carregarSemRedeLenta, expect, test } from './__fixtures__/perfis.ts'
+import { entrarComoAluno, entrarPelaApi, entrarPorEmail, esperarInicioDoAluno, esperarNovaConversa, irPelaNavegacao, PRAZO_DA_ENTRADA_MS } from './support/casca.ts'
+import { carregarSemRedeLenta, expect, test } from './support/profiles.ts'
 import {
   agendarEliminacaoNoBanco,
   cancelarEliminacaoNoBanco,
   criarAlunoComMatricula,
   criarEquipeComSenha,
   criarUsuarioEmOutraEscola,
-} from './__fixtures__/sessao.ts'
-import { larguraExcedente, violacoesGraves } from './__fixtures__/verificacoes.ts'
+} from './support/seed.ts'
+import { larguraExcedente, violacoesGraves } from './support/checks.ts'
 
 /**
  * A tela "Acesso suspenso" (F3, 20.0; Tech Spec, seção 9, "Login suspenso"): a renovação da sessão responde

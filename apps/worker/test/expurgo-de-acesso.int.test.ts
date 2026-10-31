@@ -7,12 +7,12 @@ import { randomBytes, randomUUID } from 'node:crypto'
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { lerAmbienteDeTeste, valorObrigatorio } from '../../../tools/ci/compose.ts'
 import { compose, PROCESSOS_DA_FILA } from '../../../tools/testes/compose.ts'
-import { AGENDAMENTOS, FILA_DOS_AGENDAMENTOS } from '../src/agendamentos.js'
+import { AGENDAMENTOS, FILA_DOS_AGENDAMENTOS } from '../src/job-schedules.js'
 import type { ConfiguracaoStorage } from '../src/config.js'
-import { montarWorker, type WorkerMontado } from '../src/montagem.js'
-import { criarExpurgoDeAcesso, type TotaisDoExpurgoDeAcesso } from '../src/processadores/expurgar-acesso.js'
-import { BancadaDeFila, configuracaoDoBanco, janelaPadraoDoAmbiente, LogEmMemoria, urlRedisDeFila, vagasPadraoDoAmbiente } from './fila-de-teste.js'
-import { execucaoDoJob } from './execucao-do-job.js'
+import { montarWorker, type WorkerMontado } from '../src/composition.js'
+import { criarExpurgoDeAcesso, type TotaisDoExpurgoDeAcesso } from '../src/processors/expurgar-acesso.js'
+import { BancadaDeFila, configuracaoDoBanco, janelaPadraoDoAmbiente, LogEmMemoria, urlRedisDeFila, vagasPadraoDoAmbiente } from './queue.fixture.js'
+import { execucaoDoJob } from './job-execution.fixture.js'
 
 // `registro_acesso`, `sessao` e `convite` do Postgres do compose de teste, com linhas de duas escolas (e a falha de
 // login sem escola) dos dois lados de cada prazo, e `acesso_operacao`, `sessao_operador` e `convite_operador` da

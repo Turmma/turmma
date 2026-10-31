@@ -1,10 +1,10 @@
 import { randomUUID } from 'node:crypto'
 import { MENSAGENS_DE_ERRO } from '../packages/shared/src/errors/messages.ts'
-import { atividadeSintetica, erroDaApi, loteSintetico, portao, versaoAdaptada } from './__fixtures__/assistente.ts'
-import { principal } from './__fixtures__/fluxo-do-professor.ts'
-import { acionar, entrar, irPara, PRAZO_DA_TELA_MS } from './__fixtures__/professor/cena.ts'
-import { larguraExcedente, larguraExcedenteDoDialogo, violacoesGraves } from './__fixtures__/verificacoes.ts'
-import { expect, test } from './__fixtures__/perfis.ts'
+import { atividadeSintetica, erroDaApi, loteSintetico, portao, versaoAdaptada } from './support/assistente.ts'
+import { principal } from './support/professor-flow.ts'
+import { acionar, entrar, irPara, PRAZO_DA_TELA_MS } from './support/professor/scenario.ts'
+import { larguraExcedente, larguraExcedenteDoDialogo, violacoesGraves } from './support/checks.ts'
+import { expect, test } from './support/profiles.ts'
 
 /**
  * Aplicar à turma e encerrar, no artefato (A3, pacote W). Separado de `professor-turma.spec.ts` pela 2.5.

@@ -3,9 +3,9 @@ import type { CompartilhamentoRow, PedidoDoTitular, PreviaDoTitularResponse } fr
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it, onTestFinished } from 'vitest'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.js'
-import { chamar, subirApi, type ApiDeTeste } from './api-com-sessao.js'
-import { montarEscolaComTurma, type EscolaComTurma } from './escola-com-turma.js'
-import { BancadaDeSessoes, type SessaoDeTeste } from './sessao-de-teste.js'
+import { chamar, subirApi, type ApiDeTeste } from './test-api.js'
+import { montarEscolaComTurma, type EscolaComTurma } from './escola-turma.fixture.js'
+import { BancadaDeSessoes, type SessaoDeTeste } from './sessao.fixture.js'
 
 /**
  * A foto do compartilhamento do titular (F3, RF13; `tasks/prd-lgpd-e-titular/cenarios.md`, RF7 e RF13; Tech Spec do

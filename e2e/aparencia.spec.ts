@@ -1,11 +1,11 @@
 import type { Locator, Page } from '@playwright/test'
-import { abrirGaleria, acionar, caixa } from './__fixtures__/galeria.ts'
-import { abrirNavegacao, entrarComoAluno, entrarComoCoordenacaoNaMesmaAba, entrarComoProfessora, entrarPorEmail, lateral, naGaveta, PRAZO_DA_ENTRADA_MS } from './__fixtures__/casca.ts'
-import { criarOperadorComSegundoFator, removerOperador, type OperadorDeTeste } from './__fixtures__/operacao.ts'
-import { expect, test } from './__fixtures__/perfis.ts'
-import { colocarAlunoNaTurma, criarAlunoComMatricula, criarEquipeComSenha } from './__fixtures__/sessao.ts'
-import { entrarNaOperacao } from './__fixtures__/tela-da-operacao.ts'
-import { larguraExcedente, violacoesGraves } from './__fixtures__/verificacoes.ts'
+import { abrirGaleria, acionar, caixa } from './support/gallery.ts'
+import { abrirNavegacao, entrarComoAluno, entrarComoCoordenacaoNaMesmaAba, entrarComoProfessora, entrarPorEmail, lateral, naGaveta, PRAZO_DA_ENTRADA_MS } from './support/casca.ts'
+import { criarOperadorComSegundoFator, removerOperador, type OperadorDeTeste } from './support/operacao.ts'
+import { expect, test } from './support/profiles.ts'
+import { colocarAlunoNaTurma, criarAlunoComMatricula, criarEquipeComSenha } from './support/seed.ts'
+import { entrarNaOperacao } from './support/operacao-screen.ts'
+import { larguraExcedente, violacoesGraves } from './support/checks.ts'
 
 /**
  * A aparência da pessoa (X1, tarefa 2.0; RF3, RF4 e RF24; Tech Spec, seções 5 e 7): Sistema, Claro ou Escuro, no menu da

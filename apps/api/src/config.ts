@@ -16,8 +16,8 @@ import {
 } from '@educa/core'
 import { avisoSchema, MAXIMO_DE_AVISOS, type Aviso } from '@educa/shared'
 import { z } from 'zod'
-import { lerConfiguracaoDoArmazem, type ConfiguracaoDoArmazemDaApi } from './privacidade/configuracao-do-armazem.js'
-import { lerConfiguracaoSala, type ConfiguracaoSala } from './sala/configuracao-da-sala.js'
+import { lerConfiguracaoDoArmazem, type ConfiguracaoDoArmazemDaApi } from './privacidade/file-storage-config.js'
+import { lerConfiguracaoSala, type ConfiguracaoSala } from './sala/sala-config.js'
 import { type ConfiguracaoLogin, type ConfiguracaoLoginExterno, lerConfiguracaoLogin, lerConfiguracaoLoginExterno } from './credencial/index.js'
 
 export { InvalidConfigError }

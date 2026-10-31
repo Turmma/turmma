@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { caminhoDaSala } from '../../../../caminhos'
-import { linkDoConvite } from '../../../../componentes/link-do-convite'
+import { caminhoDaSala } from '../../../../paths'
+import { linkDoConvite } from '../../../../components/link-do-convite'
 import { abrirWhatsApp, enderecoDoWhatsApp, textoDoWhatsApp, type ConviteDaTurma, type JanelaQueAbre } from './texto-do-whatsapp'
 
 const TOKEN = 'AbCdEfGhIjKlMnOpQrStUvWxYz0123456789-_abcde'

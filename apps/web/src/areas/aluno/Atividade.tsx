@@ -5,26 +5,26 @@ import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { Link } from 'wouter'
 import { consultaMeuDiagnostico, consultaProva, enviarAtividade } from '../../api/atividades-do-aluno'
 import { CHAVE_DAS_MINHAS_ATIVIDADES } from '../../api/chaves-do-aluno'
-import { ErroDaApi, mensagemDoErro } from '../../api/cliente'
+import { ErroDaApi, mensagemDoErro } from '../../api/client'
 import { consultaEu } from '../../api/eu'
-import { caminhoDoTutorNaAtividade, ROTAS_DO_ALUNO } from '../../caminhos'
-import { BarraPresa } from '../../componentes/ui/BarraPresa'
-import { BarraRotulada } from '../../componentes/ui/BarraRotulada'
-import { Botao } from '../../componentes/ui/Botao'
-import { CLASSES_DO_LINK_SECUNDARIO } from '../../componentes/ui/botao-secundario'
-import { Cartao } from '../../componentes/ui/Cartao'
-import { Comemoracao } from '../../componentes/ui/Comemoracao'
-import { DialogoDeConfirmacao } from '../../componentes/ui/sobrepostos/DialogoDeConfirmacao'
-import { EstadoCarregando, EstadoErro, EstadoVazio } from '../../componentes/estado'
-import { Faixa } from '../../componentes/ui/Faixa'
-import { AssinaturaIA } from '../../componentes/ui/ia/AssinaturaIA'
-import { ChipFonte } from '../../componentes/ui/ia/ChipFonte'
-import { LinhaAprovacao } from '../../componentes/ui/ia/LinhaAprovacao'
-import { A_PARTIR_DE_1024, useMidia } from '../../componentes/ui/midia'
-import { Estado } from '../../componentes/ui/SeloDeEstado'
-import { Tela } from '../../componentes/ui/Tela'
-import { formatarDiaEHora } from '../../formatar'
-import { useTituloDaTela } from '../../titulo'
+import { caminhoDoTutorNaAtividade, ROTAS_DO_ALUNO } from '../../paths'
+import { BarraPresa } from '../../components/ui/BarraPresa'
+import { BarraRotulada } from '../../components/ui/BarraRotulada'
+import { Botao } from '../../components/ui/Botao'
+import { CLASSES_DO_LINK_SECUNDARIO } from '../../components/ui/button-variants'
+import { Cartao } from '../../components/ui/Cartao'
+import { Comemoracao } from '../../components/ui/Comemoracao'
+import { DialogoDeConfirmacao } from '../../components/ui/overlays/DialogoDeConfirmacao'
+import { EstadoCarregando, EstadoErro, EstadoVazio } from '../../components/states'
+import { Faixa } from '../../components/ui/Faixa'
+import { AssinaturaIA } from '../../components/ui/ai/AssinaturaIA'
+import { ChipFonte } from '../../components/ui/ai/ChipFonte'
+import { LinhaAprovacao } from '../../components/ui/ai/LinhaAprovacao'
+import { A_PARTIR_DE_1024, useMidia } from '../../components/ui/media-query'
+import { Estado } from '../../components/ui/SeloDeEstado'
+import { Tela } from '../../components/ui/Tela'
+import { formatarDiaEHora } from '../../format'
+import { useTituloDaTela } from '../../document-title'
 import {
   alternativaMarcada,
   AVISO_DE_OUTRA_JANELA,
@@ -431,7 +431,7 @@ export default function Atividade({ atividadeAplicadaId }: { atividadeAplicadaId
     fila.hidratar()
   }, [alunoDaSessao, fila])
   const topo = useRef<HTMLDivElement>(null)
-  // O envio confirmado nesta tela, e só nela: estado de tela, sem `localStorage`, URL nem cache. A `key` da rota (`rotas.tsx`) a zera ao trocar de tarefa.
+  // O envio confirmado nesta tela, e só nela: estado de tela, sem `localStorage`, URL nem cache. A `key` da rota (`routes.tsx`) a zera ao trocar de tarefa.
   const [entregueAgora, definirEntregueAgora] = useState(false)
   useTituloDaTela(prova.data?.titulo ?? 'Atividade')
 

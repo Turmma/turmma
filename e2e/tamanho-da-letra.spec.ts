@@ -1,17 +1,17 @@
 import type { Locator, Page, Request } from '@playwright/test'
-import { minhaAtividade, provaDa, simularAluno } from './__fixtures__/aluno.ts'
-import { abrirGaleria, secao } from './__fixtures__/galeria.ts'
-import { entrarComoAluno, entrarComoCoordenacaoNaMesmaAba, entrarComoProfessora, irPelaNavegacao, PRAZO_DA_ENTRADA_MS } from './__fixtures__/casca.ts'
-import { expect, test } from './__fixtures__/perfis.ts'
-import { colocarAlunoNaTurma, criarAlunoComMatricula, criarEquipeComSenha } from './__fixtures__/sessao.ts'
-import { larguraExcedente, larguraExcedenteDoDialogo } from './__fixtures__/verificacoes.ts'
+import { minhaAtividade, provaDa, simularAluno } from './support/aluno.ts'
+import { abrirGaleria, secao } from './support/gallery.ts'
+import { entrarComoAluno, entrarComoCoordenacaoNaMesmaAba, entrarComoProfessora, irPelaNavegacao, PRAZO_DA_ENTRADA_MS } from './support/casca.ts'
+import { expect, test } from './support/profiles.ts'
+import { colocarAlunoNaTurma, criarAlunoComMatricula, criarEquipeComSenha } from './support/seed.ts'
+import { larguraExcedente, larguraExcedenteDoDialogo } from './support/checks.ts'
 
 /**
  * O tamanho da letra do aluno (telas do aluno e primeiro acesso, 8.0; RF11, RF20; Tech Spec, seção 5): Padrão, Grande ou
  * Maior, em Eu › Ajustes. Aqui está o que a escolha **faz** no navegador: o `data-letra` e os px do `<html>` antes do
  * primeiro quadro, o que o navegador guarda e quando, o que nunca sai para a API, a área em que vale, o aluno seguinte no
  * mesmo computador e o 360 px com a letra Maior. O que a peça faz com o teclado e com um armazenamento que recusa está em
- * `TamanhoDaLetra.test.tsx` e `letra.test.ts`.
+ * `TamanhoDaLetra.test.tsx` e `text-size.test.ts`.
  *
  * `playwright.config.ts` não semeia `educa.letra`: o armazenamento começa vazio, e os casos que precisam de uma escolha
  * anterior a escrevem antes de a página carregar (`addInitScript`).
@@ -68,7 +68,7 @@ test.describe('o tamanho da letra do aluno', () => {
     await guardarAntesDeCarregar(page, 'maior')
     // O que a página tinha no `DOMContentLoaded`. Esse evento só dispara depois dos scripts de módulo, então aqui o `LetraDoAluno` do
     // React também já escreveria `maior`: quem prova que o script em linha sozinho o escreve antes de qualquer módulo é o
-    // `letra.test.ts › o <script> do index.html`. Este caso prova o que a pessoa vê: a letra já é 20 px quando a página termina de carregar.
+    // `text-size.test.ts › o <script> do index.html`. Este caso prova o que a pessoa vê: a letra já é 20 px quando a página termina de carregar.
     await page.addInitScript(() => {
       document.addEventListener('DOMContentLoaded', () => {
         Object.assign(window, { __letraNoPrimeiroQuadro: { atributo: document.documentElement.getAttribute('data-letra'), fonte: getComputedStyle(document.documentElement).fontSize } })

@@ -6,9 +6,9 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { PedidosRepository } from '../src/privacidade/pedidos.repository.js'
 import { HashDeSenha } from '../src/credencial/index.js'
-import { chamar, renovar, subirApi, type ApiDeTeste } from './api-com-sessao.js'
-import { montarEscolaComTurma } from './escola-com-turma.js'
-import { BancadaDeSessoes, type SessaoDeTeste } from './sessao-de-teste.js'
+import { chamar, renovar, subirApi, type ApiDeTeste } from './test-api.js'
+import { montarEscolaComTurma } from './escola-turma.fixture.js'
+import { BancadaDeSessoes, type SessaoDeTeste } from './sessao.fixture.js'
 
 /**
  * A eliminação agendada por 7 dias, com o acesso suspenso e o cancelamento (F3, tarefa 14.0;

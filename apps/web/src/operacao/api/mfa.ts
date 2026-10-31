@@ -1,5 +1,5 @@
 import { ErrorCode, configurarSegundoFatorDeOperadorResponseSchema, type ConfigurarSegundoFatorDeOperadorResponse } from '@educa/shared'
-import { chamarApi, ErroDaApi } from '../../api/cliente'
+import { chamarApi, ErroDaApi } from '../../api/client'
 import { desafioDeOperador, esquecerDesafioDeOperador, guardarDesafioDeOperador } from './sessao'
 
 export const CAMINHO_DA_CONFIGURACAO_DO_SEGUNDO_FATOR_DE_OPERADOR = '/v1/operacao/sessao/mfa/configurar'

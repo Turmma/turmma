@@ -1,9 +1,9 @@
 import type { Page, Route } from '@playwright/test'
 import { AVISO_DO_CONVITE_COM_SENHA_NOVA, AVISO_DO_CONVITE_PARA_CONTA_EXISTENTE, MENSAGENS_DE_ERRO, mensagemDoConvite } from '../packages/shared/src/errors/messages.ts'
-import { criarConviteDeCoordenador, criarConviteDeProfessor, criarEquipeComSenha, revogarConvite } from './__fixtures__/sessao.ts'
-import { esperarNovaConversa } from './__fixtures__/casca.ts'
-import { expect, test } from './__fixtures__/perfis.ts'
-import { ALVO_DE_TOQUE_PRINCIPAL_PX, larguraExcedente, violacoesGraves } from './__fixtures__/verificacoes.ts'
+import { criarConviteDeCoordenador, criarConviteDeProfessor, criarEquipeComSenha, revogarConvite } from './support/seed.ts'
+import { esperarNovaConversa } from './support/casca.ts'
+import { expect, test } from './support/profiles.ts'
+import { ALVO_DE_TOQUE_PRINCIPAL_PX, larguraExcedente, violacoesGraves } from './support/checks.ts'
 
 const ROTA_CONSULTAR = '**/v1/convites/consultar'
 const ROTA_ACEITAR = '**/v1/convites/aceitar'

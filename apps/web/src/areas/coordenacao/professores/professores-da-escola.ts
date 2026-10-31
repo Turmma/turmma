@@ -1,6 +1,6 @@
 import { ESTADOS_DO_PROFESSOR_ALOCAVEIS, type EstadoDoProfessor, type MotivoDeEncerramentoDeVinculo, type ProfessorDaEscola, type VinculoDaCoordenacao } from '@educa/shared'
 import type { ListaDaEstrutura } from '../../../api/estrutura'
-import { PARAMETRO_DO_PROFESSOR } from '../../../caminhos'
+import { PARAMETRO_DO_PROFESSOR } from '../../../paths'
 import { ordenarPeloNome, ordenarVinculos } from '../comum/ordem'
 
 /**

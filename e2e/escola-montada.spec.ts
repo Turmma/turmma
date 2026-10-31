@@ -2,11 +2,11 @@ import { randomUUID } from 'node:crypto'
 import type { Browser, BrowserContext, BrowserContextOptions, Locator, Page } from '@playwright/test'
 import { exibirCodigoDaTurma } from '../packages/shared/src/sala/acesso.ts'
 import type { AcessoGeradoResponse } from '../packages/shared/src/sala/acesso.ts'
-import { entrarComoCoordenacaoNaMesmaAba, entrarPorEmail, abrirEstrutura, irPelaNavegacao, PRAZO_DA_ENTRADA_MS, passarPelaIntroducaoDoAluno, passarPelaIntroducaoDoProfessor, abrirAbaAlunos } from './__fixtures__/casca.ts'
-import { irPelaCoordenacao, painelDoAno } from './__fixtures__/coordenacao.ts'
-import { expect, test } from './__fixtures__/perfis.ts'
-import { alunosDaTurmaNoBanco, criarEquipeComSenha, montarEstruturaNoBanco, porNaListaDaTurma } from './__fixtures__/sessao.ts'
-import { larguraExcedente, violacoesGraves } from './__fixtures__/verificacoes.ts'
+import { entrarComoCoordenacaoNaMesmaAba, entrarPorEmail, abrirEstrutura, irPelaNavegacao, PRAZO_DA_ENTRADA_MS, passarPelaIntroducaoDoAluno, passarPelaIntroducaoDoProfessor, abrirAbaAlunos } from './support/casca.ts'
+import { irPelaCoordenacao, painelDoAno } from './support/coordenacao.ts'
+import { expect, test } from './support/profiles.ts'
+import { alunosDaTurmaNoBanco, criarEquipeComSenha, montarEstruturaNoBanco, porNaListaDaTurma } from './support/seed.ts'
+import { larguraExcedente, violacoesGraves } from './support/checks.ts'
 
 /**
  * W1 (A1, tarefa 17.0; `tasks/prd-apresentacao-escola/cenarios.md`; RF1 e RF18): o fluxo inteiro, da escola vazia ao

@@ -1,6 +1,6 @@
 import { DomainException, AuditoriaRecorder, type Database } from '@educa/core'
 import { ErrorCode, entregaResponseSchema, listaDeEntregasResponseSchema, type EntregasQuery, type DecidirEntregaRequest, type EntregaResponse, type ListaDeEntregasResponse } from '@educa/shared'
-import { paginar } from '../http/paginacao.js'
+import { paginar } from '../http/pagination.js'
 import { EntregaRepository, type EntregaLida } from './entrega.repository.js'
 
 const registro = new AuditoriaRecorder()

@@ -1,15 +1,15 @@
 import { ErrorCode, TAMANHO_MAXIMO_DO_LICENCIANTE, TAMANHO_MAXIMO_TITULO_DO_MATERIAL, type Disciplina, type Material, type MotivoDaRecusaDoMaterial } from '@educa/shared'
 import { FileText, Upload } from 'lucide-react'
 import { useEffect, useId, useRef, useState, type DragEvent, type FormEvent } from 'react'
-import { ErroDaApi } from '../../../api/cliente'
+import { ErroDaApi } from '../../../api/client'
 import { enviarMaterial, excluirMaterial, type CamposDoEnvioDeMaterial } from './api/material'
-import { Botao } from '../../../componentes/ui/Botao'
-import { CLASSES_DO_BOTAO_SECUNDARIO } from '../../../componentes/ui/botao-secundario'
-import { Campo } from '../../../componentes/ui/campos/Campo'
-import { Dialogo } from '../../../componentes/ui/sobrepostos/Dialogo'
-import { useEnvioUnico } from '../../../componentes/dialogos'
-import { Selecao } from '../../../componentes/ui/campos/Selecao'
-import { listaMudou, textoDaFalha } from '../../../componentes/texto-da-falha'
+import { Botao } from '../../../components/ui/Botao'
+import { CLASSES_DO_BOTAO_SECUNDARIO } from '../../../components/ui/button-variants'
+import { Campo } from '../../../components/ui/fields/Campo'
+import { Dialogo } from '../../../components/ui/overlays/Dialogo'
+import { useEnvioUnico } from '../../../components/dialogs'
+import { Selecao } from '../../../components/ui/fields/Selecao'
+import { listaMudou, textoDaFalha } from '../../../components/error-text'
 import {
   AVISO_DE_SEM_LICENCA,
   BYTES_DA_ASSINATURA,

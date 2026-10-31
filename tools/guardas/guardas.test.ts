@@ -64,12 +64,12 @@ describe('processadores do worker: nenhuma afirmação de tipo (totais do expurg
   it('reprova `{} as T` e o `Partial<T>` afirmado no fim; o objeto literal tipado e o `as const` passam', async () => {
     const fixture = 'afirmacao-de-tipo-no-processador.ts'
     const regras = new Set(['@typescript-eslint/consistent-type-assertions'])
-    expect(await lintar(eslint, fixture, 'apps/worker/src/processadores/x.ts', regras)).toEqual(marcasDeViolacao(fixture))
+    expect(await lintar(eslint, fixture, 'apps/worker/src/processors/x.ts', regras)).toEqual(marcasDeViolacao(fixture))
   })
 
   it('vale só nos processadores: fora deles, a mesma fixture passa (a regra não subiu para o repositório inteiro)', async () => {
     const regras = new Set(['@typescript-eslint/consistent-type-assertions'])
-    for (const caminho of ['apps/api/src/sistema/x.ts', 'apps/worker/src/x.ts']) {
+    for (const caminho of ['apps/api/src/system/x.ts', 'apps/worker/src/x.ts']) {
       expect(await lintar(eslint, 'afirmacao-de-tipo-no-processador.ts', caminho, regras), caminho).toEqual([])
     }
   })
@@ -156,7 +156,7 @@ describe('a entrada do controller passa pelo pipe (no-restricted-syntax, D81)', 
 
 describe('o kit visual não importa api, áreas nem sessão (no-restricted-imports, D81, R56)', () => {
   const regras = new Set(['no-restricted-imports', 'no-restricted-syntax'])
-  const NO_KIT = 'apps/web/src/componentes/ui/x.tsx'
+  const NO_KIT = 'apps/web/src/components/ui/x.tsx'
 
   it('reprova import, import type, export … from e export *, e o import() também; o irmão, o formatar e o pacote passam', async () => {
     const fixture = 'kit-importa-api.ts'
@@ -165,9 +165,9 @@ describe('o kit visual não importa api, áreas nem sessão (no-restricted-impor
 
   it('vale em toda pasta do kit, e só nele: a mesma fixture em estado/, na tela e nos pacotes passa', async () => {
     const fixture = 'kit-importa-api.ts'
-    for (const caminho of ['apps/web/src/componentes/ui/campos/x.tsx', 'apps/web/src/componentes/ui/ia/x.ts'])
+    for (const caminho of ['apps/web/src/components/ui/fields/x.tsx', 'apps/web/src/components/ui/ai/x.ts'])
       expect(await lintar(eslint, fixture, caminho, regras), caminho).toEqual(marcasDeViolacao(fixture))
-    for (const caminho of ['apps/web/src/componentes/estado/x.tsx', 'apps/web/src/componentes/x.tsx', 'apps/web/src/areas/professor/x.tsx', 'apps/web/src/api/x.ts'])
+    for (const caminho of ['apps/web/src/components/states/x.tsx', 'apps/web/src/components/x.tsx', 'apps/web/src/areas/professor/x.tsx', 'apps/web/src/api/x.ts'])
       expect(await lintar(eslint, fixture, caminho, regras), caminho).toEqual([])
   })
 
@@ -224,7 +224,7 @@ describe('guarda de espera do serviço do compose', () => {
 })
 
 describe('guarda do teste desligado', () => {
-  it.each(['apps/api/test/correcao.int.test.ts', 'apps/web/src/componentes/tela.test.tsx', 'e2e/entrar.spec.ts'])(
+  it.each(['apps/api/test/correcao.int.test.ts', 'apps/web/src/components/tela.test.tsx', 'e2e/entrar.spec.ts'])(
     'reprova .skip, .only, .fixme, .todo, .skipIf e .runIf em %s, em qualquer ponto da cadeia, e deixa passar o teste que roda',
     async (caminho) => {
       expect(await lintar(eslint, 'teste-desligado.ts', caminho)).toEqual(marcasDeViolacao('teste-desligado.ts'))
@@ -238,7 +238,7 @@ describe('guarda do teste desligado', () => {
 
 describe('guarda de log com dado pessoal', () => {
   it.each([
-    'apps/api/src/sistema/correcao.service.ts',
+    'apps/api/src/system/correcao.service.ts',
     'packages/core/src/ia/openai-compat-adapter.ts',
     'apps/api/test/correcao.int.test.ts',
     'apps/web/src/logica.ts',
@@ -255,7 +255,7 @@ describe('guarda de log com dado pessoal', () => {
 
   it('deixa passar o log com evento fixo, ids, durações, contagem de tokens e erro', async () => {
     expect(marcas(lerFixture('log-permitido.ts'))).toEqual([])
-    expect(await lintar(eslint, 'log-permitido.ts', 'apps/api/src/sistema/correcao.service.ts')).toEqual([])
+    expect(await lintar(eslint, 'log-permitido.ts', 'apps/api/src/system/correcao.service.ts')).toEqual([])
   })
 
   it.each([
@@ -307,7 +307,7 @@ describe('guarda de log com dado pessoal', () => {
 
 describe('guarda de SDK de provedor de IA', () => {
   it.each([
-    'apps/api/src/sistema/modelo.ts',
+    'apps/api/src/system/modelo.ts',
     'apps/api/src/ia/porta.ts',
     'apps/api/src/ia/adapters.ts',
     'apps/api/src/ia/adapters/x.ts',
@@ -439,7 +439,7 @@ describe('guarda de erro tipado (RF13; regra 00, item 9; regra 20, item 11)', ()
     'apps/api/src/x/x.int.test.ts',
     'apps/web/src/x.test.tsx',
     'packages/core/src/x/x.test.ts',
-    'apps/web/src/__fixtures__/tela.ts',
+    'apps/web/src/__fixtures__/render-screen.ts',
     'packages/core/src/ia/__fixtures__/inputs.ts',
   ])('em teste e em __fixtures__ a mesma fixture passa: %s', async (caminho) => {
     expect(await lintar(eslint, FIXTURE, caminho, regras)).toEqual([])
@@ -447,7 +447,7 @@ describe('guarda de erro tipado (RF13; regra 00, item 9; regra 20, item 11)', ()
 
   it('a exceção única é o main.tsx da web: nele passa, e em qualquer outro arquivo da web reprova', async () => {
     expect(await lintar(eslint, FIXTURE, 'apps/web/src/main.tsx', regras)).toEqual([])
-    expect(await lintar(eslint, FIXTURE, 'apps/web/src/rotas.tsx', regras)).toEqual(marcasDeViolacao(FIXTURE))
+    expect(await lintar(eslint, FIXTURE, 'apps/web/src/routes.tsx', regras)).toEqual(marcasDeViolacao(FIXTURE))
   })
 
   it.each(['apps/api/test/x.ts', 'e2e/x.spec.ts', 'tools/ci/x.ts', 'infra/scripts/x.ts', 'packages/shared/src/x.ts'])(
@@ -476,7 +476,7 @@ describe('guarda desligada por comentário', () => {
   it.each(['desabilitar-na-linha.ts', 'desabilitar-tudo.ts'])(
     'o ESLint reprova a diretiva que desliga uma guarda: %s',
     async (fixture) => {
-      expect(await lintar(eslint, fixture, 'apps/api/src/sistema/x.ts')).toEqual(marcasDeViolacao(fixture))
+      expect(await lintar(eslint, fixture, 'apps/api/src/system/x.ts')).toEqual(marcasDeViolacao(fixture))
     },
   )
 
@@ -486,7 +486,7 @@ describe('guarda desligada por comentário', () => {
     ['desabilitar-a-propria-vigia.ts', ['7 guardas/log-sem-dado-pessoal']],
     ['configurar-por-comentario.ts', ['7 guardas/log-sem-dado-pessoal']],
   ])('a passada sem comentários do npm run lint ainda pega a violação: %s', async (fixture, esperadas) => {
-    expect(await lintar(eslintDasGuardas, fixture, 'apps/api/src/sistema/x.ts')).toEqual([...esperadas].sort())
+    expect(await lintar(eslintDasGuardas, fixture, 'apps/api/src/system/x.ts')).toEqual([...esperadas].sort())
   })
 
   it.each([
@@ -494,7 +494,7 @@ describe('guarda desligada por comentário', () => {
     ['configurar-por-comentario.ts', 1],
     ['log-permitido.ts', 0],
   ])('o script da passada sem comentários sai com código de falha quando há violação: %s', (fixture, codigoEsperado) => {
-    const resultado = spawnSync(process.execPath, ['tools/guardas/lint.ts', '--texto', 'apps/api/src/sistema/x.ts'], {
+    const resultado = spawnSync(process.execPath, ['tools/guardas/lint.ts', '--texto', 'apps/api/src/system/x.ts'], {
       cwd: raizRepositorio,
       input: lerFixture(fixture),
       encoding: 'utf8',
@@ -533,7 +533,7 @@ describe('tamanho com catraca (RF11, R37)', () => {
   const regras = new Set<string>(REGRAS_DE_TAMANHO)
   const PRODUCAO = 'apps/api/src/x/x.service.ts'
   const EM_PRODUCAO = [PRODUCAO, 'apps/web/src/x.tsx', 'apps/worker/src/x.ts', 'packages/core/src/x.ts', 'infra/scripts/x.ts', 'tools/x.ts']
-  const EM_TESTE = ['apps/api/src/x.test.ts', 'apps/api/src/x.int.test.ts', 'apps/web/src/x.test.tsx', 'apps/api/test/x.ts', 'e2e/x.spec.ts', 'e2e/__fixtures__/x.ts']
+  const EM_TESTE = ['apps/api/src/x.test.ts', 'apps/api/src/x.int.test.ts', 'apps/web/src/x.test.tsx', 'apps/api/test/x.ts', 'e2e/x.spec.ts', 'e2e/support/x.ts']
   const FIXTURES = ['tamanho/complexidade.ts', 'tamanho/linhas.ts', 'tamanho/aninhamento.ts']
   const umaPorLinha = (quantidade: number): string => Array.from({ length: quantidade }, (_, i) => `export const v${i} = ${i}`).join('\n')
   const dasRegras = (resultado: ESLint.LintResult | undefined, regra: string): string[] =>
@@ -569,12 +569,12 @@ describe('tamanho com catraca (RF11, R37)', () => {
     const maxLines = async (texto: string, caminho: string) => dasRegras((await eslint.lintText(texto, { filePath: join(raizRepositorio, caminho) }))[0], 'max-lines')
     expect(await maxLines(umaPorLinha(800), 'e2e/x.spec.ts')).toEqual([])
     expect(await maxLines(umaPorLinha(801), 'e2e/x.spec.ts')).toEqual(['801 max-lines'])
-    for (const caminho of ['e2e/__fixtures__/x.ts', 'apps/api/src/x.ts', 'apps/api/src/x.test.ts']) expect(await maxLines(umaPorLinha(801), caminho), caminho).toEqual([])
+    for (const caminho of ['e2e/support/x.ts', 'apps/api/src/x.ts', 'apps/api/src/x.test.ts']) expect(await maxLines(umaPorLinha(801), caminho), caminho).toEqual([])
   })
 
   /** O nível de cada regra por caminho: 2 é `error`, 0 é desligada. */
   const NIVEIS: [string, string, number][] = [
-    ...['apps/api/src/main.ts', 'apps/web/src/paginas/Casca.tsx', 'tools/ci/verificar.ts'].flatMap((caminho): [string, string, number][] => [
+    ...['apps/api/src/main.ts', 'apps/web/src/pages/Casca.tsx', 'tools/ci/verificar.ts'].flatMap((caminho): [string, string, number][] => [
       [caminho, 'complexity', 2],
       [caminho, 'max-depth', 2],
       [caminho, 'max-lines-per-function', 2],
@@ -675,9 +675,9 @@ describe('configuração das guardas', () => {
       ((await eslint.calculateConfigForFile(join(raizRepositorio, caminho))) as { rules: Record<string, [number, ...unknown[]]> }).rules['guardas/erro-tipado']?.[0] ?? 0
     expect(await nivelEm('apps/api/src/x/x.service.ts')).toBe(2)
     expect(await nivelEm('packages/core/src/x/x.ts')).toBe(2)
-    expect(await nivelEm('apps/web/src/rotas.tsx')).toBe(2)
+    expect(await nivelEm('apps/web/src/routes.tsx')).toBe(2)
     expect(await nivelEm('apps/api/src/x/x.test.ts')).toBe(0)
-    expect(await nivelEm('apps/web/src/__fixtures__/tela.tsx')).toBe(0)
+    expect(await nivelEm('apps/web/src/__fixtures__/render-screen.tsx')).toBe(0)
     expect(await nivelEm('apps/web/src/main.tsx')).toBe(0)
   })
 
@@ -732,8 +732,8 @@ describe('configuração das guardas', () => {
 
   it.each([
     'apps/api/src/main.ts',
-    'apps/api/src/sistema/saude.controller.ts',
-    'apps/web/src/paginas/Casca.tsx',
+    'apps/api/src/system/health.controller.ts',
+    'apps/web/src/pages/Casca.tsx',
     'packages/core/src/log/logger.ts',
     'packages/shared/src/index.ts',
     'tools/ci/verificar.ts',

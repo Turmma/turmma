@@ -1,5 +1,5 @@
 import { ErrorCode, ativarMfaResponseSchema, configurarMfaResponseSchema, type AtivarMfaResponse, type ConfigurarMfaResponse } from '@educa/shared'
-import { chamarApi, ErroDaApi } from './cliente'
+import { chamarApi, ErroDaApi } from './client'
 import { desafioDaEtapa, esquecerDesafio } from './sessao'
 
 export const CAMINHO_DA_CONFIGURACAO_DE_MFA = '/v1/conta/mfa/configurar'

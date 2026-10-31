@@ -8,11 +8,11 @@ import {
   definirInatividadeDaEscola,
   encerrarSessoesDoUsuario,
   type EquipeDeTeste,
-} from './__fixtures__/sessao.ts'
-import { irPelaNavegacao, esperarNovaConversa, esperarInicioDoAluno, entrarPelaApiSemMedirAPrimeiraCarga } from './__fixtures__/casca.ts'
-import { expect, test } from './__fixtures__/perfis.ts'
-import { desenho } from './__fixtures__/galeria.ts'
-import { corDoToken, larguraExcedente, violacoesGraves } from './__fixtures__/verificacoes.ts'
+} from './support/seed.ts'
+import { irPelaNavegacao, esperarNovaConversa, esperarInicioDoAluno, entrarPelaApiSemMedirAPrimeiraCarga } from './support/casca.ts'
+import { expect, test } from './support/profiles.ts'
+import { desenho } from './support/gallery.ts'
+import { corDoToken, larguraExcedente, violacoesGraves } from './support/checks.ts'
 
 const ROTA_ATIVIDADE = '**/v1/sessao/atividade'
 const ROTA_EU = '**/v1/eu'
@@ -27,7 +27,7 @@ const PRAZO_DA_ENTRADA_MS = 20_000
  */
 const INATIVIDADE_CONFIGURADA_MIN = 30
 const INTERVALO_DA_ATIVIDADE_MIN = 5
-/** O canal por onde as abas contam umas às outras que há gente mexendo (`apps/web/src/sessao/inatividade.ts`). */
+/** O canal por onde as abas contam umas às outras que há gente mexendo (`apps/web/src/sessao/idle-timeout.ts`). */
 const CANAL_DE_ATIVIDADE = 'educa-atividade'
 
 const campoEmail = (page: Page) => page.getByLabel('E-mail')
@@ -215,7 +215,7 @@ test.describe('inatividade e login por cima da tela', () => {
     await abaEmUso.goto('/')
     await esperarAreaAutenticada(abaEmUso, professora.nome)
 
-    // O aviso entre abas é um `BroadcastChannel` (`apps/web/src/sessao/inatividade.ts`). O teste escuta o mesmo canal
+    // O aviso entre abas é um `BroadcastChannel` (`apps/web/src/sessao/idle-timeout.ts`). O teste escuta o mesmo canal
     // dentro da aba esquecida para saber quando a mensagem chegou ao navegador dela: sem essa espera, o relógio dela
     // poderia avançar antes da entrega, e o teste mediria a corrida, não a regra.
     await abaEsquecida.evaluate((canal) => {

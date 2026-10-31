@@ -188,7 +188,7 @@ describe('os caminhos que papel, regra e guarda citam (RF24)', () => {
   })
 
   it('placeholder: confere a pasta antes dele, para <...>, … e ${...}', () => {
-    const ok = amostra({ ...aCitar('`apps/api/src/<modulo>/x.int.test.ts`', '`e2e/__fixtures__/…`', '`apps/<x>/y.ts`', '`apps/api/src/${nome}.ts`', '`apps/api/src/adaptador-<x>.ts`'), 'e2e/__fixtures__/': '' })
+    const ok = amostra({ ...aCitar('`apps/api/src/<modulo>/x.int.test.ts`', '`e2e/support/…`', '`apps/<x>/y.ts`', '`apps/api/src/${nome}.ts`', '`apps/api/src/adaptador-<x>.ts`'), 'e2e/support/': '' })
     expect(conferir(ok).problemas).toEqual([])
     expect(conferir(amostra(aCitar('`e2e/inexistente/…`'))).problemas).toEqual(['.claude/rules/10-a.md cita e2e/inexistente/…: a pasta e2e/inexistente/ não existe'])
     expect(conferir(amostra(aCitar('`apps/api/src/inexistente/<modulo>/x.ts`'))).problemas).toEqual([
@@ -210,7 +210,7 @@ describe('os caminhos que papel, regra e guarda citam (RF24)', () => {
     const { problemas, conferidos } = conferir(
       amostra(
         aCitar(
-          '`componentes/dialogos.tsx` e `turma.ts`',
+          '`components/dialogs.tsx` e `turma.ts`',
           '`guardas/log-sem-dado-pessoal`',
           '`/v1/disciplinas`',
           '`*.controller.ts`',

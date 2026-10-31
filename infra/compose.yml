@@ -378,7 +378,7 @@ services:
       TELEMETRIA_OTLP_URL: http://observabilidade:4318
       TELEMETRIA_INTERVALO_MS: ${TELEMETRIA_INTERVALO_MS:?defina TELEMETRIA_INTERVALO_MS}
     # Acima dos 20 s de graça do worker.close() (`GRACA_DO_DESLIGAMENTO_MS`, com a folga de `interromper()` e do fim do processo): o
-    # Docker só manda SIGKILL depois dela. Um teste liga os dois (`apps/worker/src/desligamento.test.ts`).
+    # Docker só manda SIGKILL depois dela. Um teste liga os dois (`apps/worker/src/shutdown.test.ts`).
     stop_grace_period: 25s
     depends_on:
       migrar:

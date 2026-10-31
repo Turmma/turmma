@@ -1,7 +1,7 @@
 import { runInContext } from '@educa/core'
 import { randomUUID } from 'node:crypto'
 import { afterAll, describe, expect, it } from 'vitest'
-import { BancadaDeSessoes } from '../../test/sessao-de-teste.js'
+import { BancadaDeSessoes } from '../../test/sessao.fixture.js'
 import { CredencialMatriculaRepository } from './credencial-matricula.repository.js'
 
 /** Hash sintético: o repository não confere senha, só devolve o que está gravado. */

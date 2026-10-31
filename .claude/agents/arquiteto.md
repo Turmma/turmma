@@ -95,13 +95,13 @@ critério de conclusão**, acrescente:
 2. a seção `## Como testar`, logo depois de "Testes que provam a regra", com até 150 palavras:
    - para cada cenário da tabela que tem precedente no repositório: o teste a copiar, como
      `arquivo › nome do caso`, e o que muda nele;
-   - a peça de apoio certa: fixture, helper, fábrica de dados (`e2e/__fixtures__/…`, `apps/api/test/…`,
+   - a peça de apoio certa: fixture, helper, fábrica de dados (`e2e/support/…`, `apps/api/test/…`,
      `GatilhoDeParada`), com o nome da função;
    - o comando para rodar esse teste isolado (passo 4 de `executar-task`);
    - as armadilhas que já apareceram nesta funcionalidade e valem para a tarefa: leia o
      `achados/indice.md` e a seção "O que falhou" do `estado.md`, e cite só as que se aplicam;
    - em tarefa com tela, a linha **Telas**: para cada tela que a tarefa cria ou altera, o papel
-     (`coordenacao`, `professora` ou `aluno`), o endereço (`apps/web/src/caminhos.ts`), o clique que
+     (`coordenacao`, `professora` ou `aluno`), o endereço (`apps/web/src/paths.ts`), o clique que
      leva ao estado e o mockup de referência, se houver. É o que o Implementador e a Mesa fotografam.
 
 Abra o código para achar o precedente: não cite arquivo nem caso que você não abriu. Cenário sem

@@ -4,9 +4,9 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { lerAmbienteDeTeste } from '../../../tools/ci/compose.ts'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { executarOpsRevogarAcessosSala } from '../src/ops/revogar-acessos-sala.js'
-import { chamar, subirApi, type ApiDeTeste } from './api-com-sessao.js'
-import { FerramentasDaSala, type SalaDeTeste } from './sala-de-teste.js'
-import { BancadaDeSessoes } from './sessao-de-teste.js'
+import { chamar, subirApi, type ApiDeTeste } from './test-api.js'
+import { FerramentasDaSala, type SalaDeTeste } from './sala.fixture.js'
+import { BancadaDeSessoes } from './sessao.fixture.js'
 
 /**
  * `ops:revogar-acessos-sala` (A1, tarefa 9.0; `tasks/prd-apresentacao-escola/cenarios.md`, E29 e a concorrência): o

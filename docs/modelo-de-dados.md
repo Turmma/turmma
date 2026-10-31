@@ -740,7 +740,7 @@ liga a decisão sobre o professor (D45, regra 70 item 8). Os dois estão no mapa
 
 1. Toda tabela de domínio tem `escolaId`. As que variam por período têm `anoLetivoId`. As
    exceções são curtas e fixas, e esta lista é conferida contra as migrations por teste de
-   arquitetura (`apps/api/test/arquitetura.test.ts`):
+   arquitetura (`apps/api/test/architecture.test.ts`):
    - o próprio tenant: `Escola` e a `Rede` acima dela — ver "Estrutura institucional";
    - tabela pública sem dono (habilidades da BNCC, banco de questões público);
    - a identidade de login (`Conta`, `CodigoRecuperacao`), que é global por desenho e só é

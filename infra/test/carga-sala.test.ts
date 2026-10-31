@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { errosDasLinhas, lerTextoDaLista } from '../../apps/api/src/estrutura/lista/leitor-da-lista.ts'
+import { errosDasLinhas, lerTextoDaLista } from '../../apps/api/src/estrutura/lista/lista-reader.ts'
 import { raizRepositorio } from '../../tools/ci/executar.ts'
 import { CODIGO_THRESHOLD_CRUZADO } from '../scripts/carga.ts'
 import type { ResumoDaFase } from '../scripts/carga-login.ts'

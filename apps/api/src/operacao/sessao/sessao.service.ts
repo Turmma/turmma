@@ -5,7 +5,7 @@ import { randomBytes } from 'node:crypto'
 import { BYTES_DO_REFRESH, hashDoRefresh, ipParaRegistro, lerCookie, serializarCookie } from '../../credencial/index.js'
 import { CAMINHO_DOS_COOKIES_DE_OPERADOR, COOKIE_SESSAO_DE_OPERADOR, cookieDeSessaoDeOperador } from '../cookie-de-operador.js'
 import { OperadorRepository } from '../operador/operador.repository.js'
-import { JANELA_DO_REFRESH_ANTERIOR_SEGUNDOS, sessaoDeOperadorVale } from './prazos-da-sessao.js'
+import { JANELA_DO_REFRESH_ANTERIOR_SEGUNDOS, sessaoDeOperadorVale } from './sessao-timeouts.js'
 
 export interface DependenciasDaSessaoDoOperador {
   readonly banco: Database

@@ -1,7 +1,7 @@
 import { Heartbeat, type LoggerBase, type Meter } from '@educa/core'
 import { Module, type DynamicModule, type OnApplicationBootstrap, type OnApplicationShutdown } from '@nestjs/common'
 import type { ConfiguracaoDespachante } from './config.js'
-import { montarDespachante, type DespachanteMontado } from './montagem.js'
+import { montarDespachante, type DespachanteMontado } from './composition.js'
 
 /** Liga os laços ao ciclo do Nest: começam depois do boot, e no SIGTERM terminam a rodada antes de sair. */
 class CicloDoDespachante implements OnApplicationBootstrap, OnApplicationShutdown {

@@ -15,7 +15,7 @@ import {
   type TipoDeAdaptacao,
 } from '@educa/shared'
 import { ListChecks, NotebookPen, SlidersHorizontal, type LucideIcon } from 'lucide-react'
-import type { CampoDeMultipla, CampoDeNumero, CampoDeSelecao, CampoDeTexto, DescricaoDeFerramenta, OpcaoDoCampo, ValoresValidados } from '../../../componentes/ui/ia/motor-formulario'
+import type { CampoDeMultipla, CampoDeNumero, CampoDeSelecao, CampoDeTexto, DescricaoDeFerramenta, OpcaoDoCampo, ValoresValidados } from '../../../components/ui/ai/schema-form'
 import { lerContexto } from '../comum/turmas-da-professora'
 
 /**

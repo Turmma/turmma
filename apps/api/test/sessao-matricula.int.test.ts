@@ -5,9 +5,9 @@ import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { CLIENTE_REDIS_LOGIN, HashDeSenha } from '../src/credencial/index.js'
-import { chamar, comoAWebNo503, subirApi, type ApiDeTeste } from './api-com-sessao.js'
-import { alunosNaTurma, montarEscolaComTurma } from './escola-com-turma.js'
-import { BancadaDeSessoes } from './sessao-de-teste.js'
+import { chamar, comoAWebNo503, subirApi, type ApiDeTeste } from './test-api.js'
+import { alunosNaTurma, montarEscolaComTurma } from './escola-turma.fixture.js'
+import { BancadaDeSessoes } from './sessao.fixture.js'
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 const SENHA_DE_A = 'senha-sintetica-da-escola-a'
@@ -52,7 +52,7 @@ describe('POST /v1/sessao/matricula: o aluno entra pelo endereço da escola com 
 
   beforeAll(async () => {
     // Quatro hashes ao mesmo tempo, as quatro threads do libuv que o processo do vitest tem: a rajada de 400 roda com a
-    // vazão que tinha antes do semáforo (14.0). O semáforo com teto baixo tem prova própria (semaforo-de-login.int.test.ts).
+    // vazão que tinha antes do semáforo (14.0). O semáforo com teto baixo tem prova própria (login-bulkhead.int.test.ts).
     api = await subirApi(medidor.medidor, { ambiente: { LOGIN_HASH_CONCORRENCIA: '4' } }, linhasDeLog)
     hash = api.app.get(HashDeSenha)
     verificacoes = vi.spyOn(hash, 'verificar')

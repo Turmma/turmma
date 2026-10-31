@@ -7,10 +7,10 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { lerAmbienteDeTeste } from '../../../tools/ci/compose.ts'
 import { urlDoBancoDeTeste } from '../../../tools/testes/integracao.setup.ts'
 import { AppModule } from '../src/app.module.js'
-import { configurarAplicacao } from '../src/configurar-app.js'
+import { configurarAplicacao } from '../src/configure-app.js'
 import { criarEscola, criarRede } from '../src/operacao/escola/escola.js'
 import { abrirBancoDeOperacao, executarOpsEscola, type BancoDoComando } from '../src/ops/escola.js'
-import { configuracaoDeTeste } from './configuracao-de-teste.js'
+import { configuracaoDeTeste } from './test-config.js'
 
 /** O autor dos casos de uso chamados direto, sem o comando: fixo, sem conferir operador ativo. */
 const autorFixo = (apelido: string) => async (): Promise<string> => apelido

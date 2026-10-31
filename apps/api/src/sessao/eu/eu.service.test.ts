@@ -3,7 +3,7 @@ import { ErrorCode } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { afterEach, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../../../tools/testes/metricas.ts'
-import type { ResolucaoDeTenantRepository } from '../tenant/resolucao-de-tenant.repository.js'
+import type { ResolucaoDeTenantRepository } from '../tenant/tenant-resolution.repository.js'
 import type { EuRepository, LinhaDoEu } from './eu.repository.js'
 import { EuService } from './eu.service.js'
 

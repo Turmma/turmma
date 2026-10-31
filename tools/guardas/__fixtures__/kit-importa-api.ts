@@ -1,4 +1,4 @@
-// Fixture da regra do kit visual (eslint.config.mjs, D81, R56): o que mora em `componentes/ui/` não importa `api/`,
+// Fixture da regra do kit visual (eslint.config.mjs, D81, R56): o que mora em `components/ui/` não importa `api/`,
 // `areas/` nem `sessao/`. Cada linha marcada é um import que liga o kit a quem fala com a API, a uma tela ou à sessão. O
 // que não tem marca (um irmão, o `formatar`, um pacote) é o que o kit pode importar, e não pode ser acusado.
 

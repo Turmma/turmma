@@ -65,7 +65,7 @@ export interface ConfiguracaoWorker {
   /** Vagas por fila da escola sem vagas próprias: o worker confere a vaga do job ao começar (D41). */
   vagasPadrao: ConcurrencyByQueue
   /**
-   * Quantas threads do sandbox de CPU a réplica usa ao mesmo tempo (`processadores/sintetico.sandbox.ts`).
+   * Quantas threads do sandbox de CPU a réplica usa ao mesmo tempo (`processors/synthetic.sandbox.ts`).
    * Coerente com a CPU do container: com uma thread por núcleo, e meio núcleo livre para o event loop, o
    * trabalho de CPU não atrasa a renovação de lock nem a troca de estado dos outros jobs.
    */

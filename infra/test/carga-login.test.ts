@@ -4,7 +4,7 @@ import { parseEnv } from 'node:util'
 import { TAMANHO_PADRAO_DA_PAGINA } from '@educa/shared'
 import { describe, expect, it } from 'vitest'
 import { parse } from 'yaml'
-import { ITERACOES_MINIMAS_ARGON2, MEMORIA_MINIMA_ARGON2_KIB, THREADS_DE_FOLGA_DO_LIBUV } from '../../apps/api/src/credencial/configuracao-de-login.ts'
+import { ITERACOES_MINIMAS_ARGON2, MEMORIA_MINIMA_ARGON2_KIB, THREADS_DE_FOLGA_DO_LIBUV } from '../../apps/api/src/credencial/login-config.ts'
 import { raizRepositorio } from '../../tools/ci/executar.ts'
 import { CODIGO_THRESHOLD_CRUZADO } from '../scripts/carga.ts'
 import {

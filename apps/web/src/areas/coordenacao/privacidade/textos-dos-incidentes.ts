@@ -1,5 +1,5 @@
 import type { IncidenteDaEscola, RiscoDoIncidente } from '@educa/shared'
-import { formatarDataHora, formatarNumero, formatarQuantidade } from '../../../formatar'
+import { formatarDataHora, formatarNumero, formatarQuantidade } from '../../../format'
 
 /**
  * Os textos do aviso de incidente e da aba Incidentes (F3, 10.0; RF9 e RF20; `docs/interface.md` 3). Funções puras: as telas só

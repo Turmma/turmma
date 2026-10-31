@@ -5,9 +5,9 @@ import userEvent from '@testing-library/user-event'
 import { Router } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { criarClienteDeConsultas } from '../../../api/cliente-de-consultas'
-import { formatarDataHora } from '../../../formatar'
-import { prepararTela, redeFalsa, type RedeFalsa, type RespostaFalsa } from '../../../__fixtures__/tela'
+import { criarClienteDeConsultas } from '../../../api/query-client'
+import { formatarDataHora } from '../../../format'
+import { prepararTela, redeFalsa, type RedeFalsa, type RespostaFalsa } from '../../../__fixtures__/render-screen'
 import Criados from './Criados'
 
 /**

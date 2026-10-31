@@ -1,6 +1,6 @@
 import type { Page, Route } from '@playwright/test'
 import type { OrdemDoPainel, UsoDoPainelResponse } from '../packages/shared/src/operacao/painel.ts'
-import { criarOperadorComSegundoFator as criarOperador, removerOperador, type OperadorDeTeste } from './__fixtures__/operacao.ts'
+import { criarOperadorComSegundoFator as criarOperador, removerOperador, type OperadorDeTeste } from './support/operacao.ts'
 import {
   criarRedeDoPainel,
   definirUsoDaEscolaSemeada,
@@ -13,10 +13,10 @@ import {
   type EscolaDoConvite,
   type PainelSemeado,
   type UsoDoPainel,
-} from './__fixtures__/painel.ts'
-import { expect, test } from './__fixtures__/perfis.ts'
-import { acionar, conferirAListaQueRola, conferirQueCadaNumeroFicaEmUmaLinha, entrarNaOperacao, PRAZO_DA_ENTRADA_MS, trocarAPrimeiraDaResposta } from './__fixtures__/tela-da-operacao.ts'
-import { ALVO_DE_TOQUE_PRINCIPAL_PX, codigoCru, larguraExcedente, violacoesGraves } from './__fixtures__/verificacoes.ts'
+} from './support/painel.ts'
+import { expect, test } from './support/profiles.ts'
+import { acionar, conferirAListaQueRola, conferirQueCadaNumeroFicaEmUmaLinha, entrarNaOperacao, PRAZO_DA_ENTRADA_MS, trocarAPrimeiraDaResposta } from './support/operacao-screen.ts'
+import { ALVO_DE_TOQUE_PRINCIPAL_PX, codigoCru, larguraExcedente, violacoesGraves } from './support/checks.ts'
 
 /**
  * Uso (A0b, tarefa 8.0; cenários W6, W7 e a data de referência), nos projetos `chromebook` e `celular`. A lista é de todas

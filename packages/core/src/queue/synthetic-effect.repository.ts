@@ -4,7 +4,7 @@ import type { Database } from '../db/database.js'
 
 /**
  * A tabela do efeito do job sintético. Não tem migration nem schema do Drizzle: só o teste de integração a
- * cria (`apps/worker/test/reexecucao.int.test.ts`), com esta forma:
+ * cria (`apps/worker/test/job-reexecution.int.test.ts`), com esta forma:
  *
  * ```sql
  * create table efeito_sintetico (

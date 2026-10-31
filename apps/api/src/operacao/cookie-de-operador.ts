@@ -1,7 +1,7 @@
 import { COOKIE_SESSAO_DE_OPERADOR, type Environment } from '@educa/core'
 import { type CookieDeDispositivo, lerCookie, MAX_AGE_DO_COOKIE_DISPOSITIVO_SEGUNDOS, serializarCookie } from '../credencial/index.js'
-import { COOKIE_DISPOSITIVO_DE_OPERADOR } from './dispositivo-de-operador.js'
-import { DURACAO_DA_SESSAO_DE_OPERADOR_HORAS } from './sessao/prazos-da-sessao.js'
+import { COOKIE_DISPOSITIVO_DE_OPERADOR } from './operador-device-cookie.js'
+import { DURACAO_DA_SESSAO_DE_OPERADOR_HORAS } from './sessao/sessao-timeouts.js'
 
 /**
  * O cookie de renovação da sessão do operador (Tech Spec da A0, seção 4): o refresh aleatório, cujo SHA-256 é o

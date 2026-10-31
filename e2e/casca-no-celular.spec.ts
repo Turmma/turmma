@@ -1,11 +1,11 @@
 import { randomUUID } from 'node:crypto'
 import type { Locator, Page } from '@playwright/test'
-import { atividadeSintetica, entregaDoLote, loteSintetico, simularAssistente, type ApiDoAssistente } from './__fixtures__/assistente.ts'
-import { minhaAtividade, provaDa, simularAluno } from './__fixtures__/aluno.ts'
-import { entrarComoAluno, entrarComoCoordenacaoNaMesmaAba, entrarPorEmail, esperarNovaConversa, gaveta, irPelaNavegacao, PRAZO_DA_ENTRADA_MS, reservaDaBarraDeBaixo, secoes } from './__fixtures__/casca.ts'
-import { expect, test } from './__fixtures__/perfis.ts'
-import { colocarAlunoNaTurma, confirmarVinculosNoBanco, criarAlocacaoDoProfessor, criarAlunoComMatricula, criarEquipeComSenha, renomearEscolaNoBanco } from './__fixtures__/sessao.ts'
-import { ALVO_DE_TOQUE_PRINCIPAL_PX, larguraExcedente, violacoesGraves } from './__fixtures__/verificacoes.ts'
+import { atividadeSintetica, entregaDoLote, loteSintetico, simularAssistente, type ApiDoAssistente } from './support/assistente.ts'
+import { minhaAtividade, provaDa, simularAluno } from './support/aluno.ts'
+import { entrarComoAluno, entrarComoCoordenacaoNaMesmaAba, entrarPorEmail, esperarNovaConversa, gaveta, irPelaNavegacao, PRAZO_DA_ENTRADA_MS, reservaDaBarraDeBaixo, secoes } from './support/casca.ts'
+import { expect, test } from './support/profiles.ts'
+import { colocarAlunoNaTurma, confirmarVinculosNoBanco, criarAlocacaoDoProfessor, criarAlunoComMatricula, criarEquipeComSenha, renomearEscolaNoBanco } from './support/seed.ts'
+import { ALVO_DE_TOQUE_PRINCIPAL_PX, larguraExcedente, violacoesGraves } from './support/checks.ts'
 
 /**
  * A casca da escola no celular (X1, 13.0; `docs/interface.md` 11.1; D80; RF14, RF15): a barra de topo de 56 px, a barra de

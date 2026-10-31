@@ -1,6 +1,6 @@
 import { ErrorCode, ESTADOS_FINAIS_DE_EXECUCAO, INTERVALO_DA_CONSULTA_DE_EXECUCAO_MS, type EstadoDeExecucao, type ExecucaoResponse, type ResultadoDaExecucao } from '@educa/shared'
 import { CHAVE_DA_CONVERSA, CHAVE_DAS_ENTREGAS, CHAVE_DOS_ARTEFATOS } from './chaves-do-professor'
-import { ErroDaApi } from './cliente'
+import { ErroDaApi } from './client'
 
 /**
  * O ciclo de todo pedido que dispara IA (`docs/mvp-contratos.md`, seção 2): a tela sorteia a `chaveEnvio`, manda o

@@ -6,10 +6,10 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { urlDoBancoDeTeste } from '../../../tools/testes/integracao.setup.ts'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { sortearCodigoDaTurma } from '../src/sala/codigo-da-sala.js'
-import { chamar, subirApi, type ApiDeTeste } from './api-com-sessao.js'
-import { esperarNaTrava, GatilhoDeParada } from './gatilho-de-parada.js'
-import { FerramentasDaSala, semRequisicao, type SalaDeTeste } from './sala-de-teste.js'
-import { BancadaDeSessoes, type SessaoDeTeste } from './sessao-de-teste.js'
+import { chamar, subirApi, type ApiDeTeste } from './test-api.js'
+import { esperarNaTrava, GatilhoDeParada } from './write-block-trigger.js'
+import { FerramentasDaSala, semRequisicao, type SalaDeTeste } from './sala.fixture.js'
+import { BancadaDeSessoes, type SessaoDeTeste } from './sessao.fixture.js'
 
 /**
  * O acesso da turma depois do fim do vínculo de quem o gerou (correção `2026-10-03-acesso-sobrevive-ao-vinculo`, G1 da

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ArgumentoInvalido } from './comando.js'
+import { ArgumentoInvalido } from './command.js'
 import { ArgumentoInvalido as ArgumentoInvalidoReexportado, lerPedidoDeSessao } from './sessao-sintetica.js'
 
 const ESCOLA_A = '0190f5a0-0000-7000-8000-00000000000a'

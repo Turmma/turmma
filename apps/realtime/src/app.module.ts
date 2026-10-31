@@ -3,8 +3,8 @@ import { Inject, Module, type DynamicModule, type OnApplicationShutdown } from '
 import { APP_GUARD, Reflector } from '@nestjs/core'
 import type { Redis } from 'ioredis'
 import type { ConfiguracaoRealtime } from './config.js'
-import { ProntidaoController } from './prontidao.controller.js'
-import { CONFIGURACAO_IDENTIDADE, LEITURA_DE_SESSAO, LOGGER_REALTIME, SistemaGateway } from './sistema.gateway.js'
+import { ProntidaoController } from './readiness.controller.js'
+import { CONFIGURACAO_IDENTIDADE, LEITURA_DE_SESSAO, LOGGER_REALTIME, SistemaGateway } from './system.gateway.js'
 
 export const CLIENTE_REDIS_REALTIME = Symbol('CLIENTE_REDIS_REALTIME')
 export const POOL_BANCO_REALTIME = Symbol('POOL_BANCO_REALTIME')

@@ -197,7 +197,7 @@ o critério foi a seção 6 de `docs/mvp-rapido.md`, e o estado está na seção
 Da direção abaixo não entraram: o consumo de IA no painel da operação, em tokens e em reais (D76; o `custo_micros` fica
 em zero, `TODO.md`); um adaptador Ollama separado (o OpenAI-compatível atende o Ollama pelo `/v1`); e o processador na
 fila do worker (a execução roda no processo da API, `TODO(fila)`, D77). Os avatares são o círculo com o ícone da
-função (`apps/web/src/componentes/ui/ia/AvatarAgente.tsx`).
+função (`apps/web/src/components/ui/ai/AvatarAgente.tsx`).
 **Depende de:** A1
 
 Camada de IA mínima: porta `LLMProvider`, adaptadores Ollama, OpenAI-compatível e falso,

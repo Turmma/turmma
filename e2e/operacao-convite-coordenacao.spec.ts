@@ -1,11 +1,11 @@
 import type { Browser, BrowserContextOptions, Locator, Page, Route } from '@playwright/test'
 import { mensagemDoConvite } from '../packages/shared/src/errors/messages.ts'
 import type { ConviteDaCoordenacaoResponse, EscolasDoPainelResponse } from '../packages/shared/src/operacao/painel.ts'
-import { codigoDoOperador, criarOperadorComSegundoFator as criarOperador, removerOperador, type OperadorDeTeste } from './__fixtures__/operacao.ts'
-import { convitesEmAberto, idDaEscolaComOEndereco, nomeQueVemPrimeiro, semearEscolaDoConvite, ultimoConviteDaEscola } from './__fixtures__/painel.ts'
-import { expect, test } from './__fixtures__/perfis.ts'
-import { acionar, entrarNaOperacao, esperarCasca, PRAZO_DA_ENTRADA_MS } from './__fixtures__/tela-da-operacao.ts'
-import { ALVO_DE_TOQUE_PRINCIPAL_PX, larguraExcedente, larguraExcedenteDoDialogo, violacoesGraves } from './__fixtures__/verificacoes.ts'
+import { codigoDoOperador, criarOperadorComSegundoFator as criarOperador, removerOperador, type OperadorDeTeste } from './support/operacao.ts'
+import { convitesEmAberto, idDaEscolaComOEndereco, nomeQueVemPrimeiro, semearEscolaDoConvite, ultimoConviteDaEscola } from './support/painel.ts'
+import { expect, test } from './support/profiles.ts'
+import { acionar, entrarNaOperacao, esperarCasca, PRAZO_DA_ENTRADA_MS } from './support/operacao-screen.ts'
+import { ALVO_DE_TOQUE_PRINCIPAL_PX, larguraExcedente, larguraExcedenteDoDialogo, violacoesGraves } from './support/checks.ts'
 
 /**
  * O convite da coordenação pelo painel (A0b, tarefa 7.0; cenários W1, W2, W3, W4, W6, W8, W9 e W10), nos projetos

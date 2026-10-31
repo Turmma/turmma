@@ -1,7 +1,7 @@
-import { Aparencia } from '../../componentes/Aparencia'
-import { TamanhoDaLetra } from '../../componentes/ajustes/TamanhoDaLetra'
-import { Botao } from '../../componentes/ui/Botao'
-import { Dialogo } from '../../componentes/ui/sobrepostos/Dialogo'
+import { Aparencia } from '../../components/Aparencia'
+import { TamanhoDaLetra } from '../../components/settings/TamanhoDaLetra'
+import { Botao } from '../../components/ui/Botao'
+import { Dialogo } from '../../components/ui/overlays/Dialogo'
 
 /**
  * "Ajustes" do aluno, em Eu (telas do aluno e primeiro acesso, 8.0; RF11; mockup 2.5): a `Aparencia` da X1 e o

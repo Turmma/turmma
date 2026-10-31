@@ -1,1 +1,1 @@
-export { hashDoToken } from './hash-do-token.js'
+export { hashDoToken } from './token-hash.js'

@@ -1,6 +1,6 @@
 import type { EstadoDeMaterial, LicencaDeclarada, Material, MotivoDaRecusaDoMaterial } from '@educa/shared'
-import { PARAMETRO_DO_MATERIAL } from '../../../caminhos'
-import type { FamiliaDeEstado } from '../../../componentes/ui/SeloDeEstado'
+import { PARAMETRO_DO_MATERIAL } from '../../../paths'
+import type { FamiliaDeEstado } from '../../../components/ui/SeloDeEstado'
 import { doMaisNovoAoMaisAntigo, OPCOES_DE_LICENCA, textoDoEstado, type RascunhoDoEnvio } from './material-envio'
 
 /**

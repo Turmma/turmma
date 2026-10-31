@@ -1,6 +1,6 @@
 import { ErrorCode, type MeuDiagnosticoResponse, type ProvaResponse } from '@educa/shared'
-import { ErroDaApi } from '../../api/cliente'
-import { formatarQuantidade } from '../../formatar'
+import { ErroDaApi } from '../../api/client'
+import { formatarQuantidade } from '../../format'
 import { pendenteDaQuestao, type EstadoDaFila } from './respostas'
 
 /**

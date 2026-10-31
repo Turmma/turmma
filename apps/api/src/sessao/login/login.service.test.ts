@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import * as loginService from './login.service.js'
 
-/** Os sete nomes que moravam aqui e foram para `origem-da-requisicao.ts`, `identificadores-do-login.ts` e `conclusao-de-login.ts`. */
+/** Os sete nomes que moravam aqui e foram para `request-origin.ts`, `login-identifiers.ts` e `login-completion.ts`. */
 const NOMES_QUE_SAIRAM = ['OrigemDaRequisicao', 'ResultadoDoLogin', 'BYTES_DO_REFRESH', 'normalizarEmail', 'hashDoRefresh', 'etapaDoLogin', 'ipParaRegistro']
 
 describe('o login.service não reexporta o que saiu dele', () => {

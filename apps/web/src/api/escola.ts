@@ -1,6 +1,6 @@
 import { acessoDaEscolaResponseSchema, type ProvedorDeContaDaEscola } from '@educa/shared'
 import { queryOptions } from '@tanstack/react-query'
-import { buscarDaApi } from './cliente'
+import { buscarDaApi } from './client'
 
 /** `GET /v1/escolas/:slug/acesso`, anônima: o nome da escola do endereço e os provedores que ela liberou (11.0, 13.0). */
 export function caminhoDoAcessoDaEscola(slug: string): string {

@@ -1,10 +1,10 @@
 import type { APIRequestContext, Locator, Page, Route } from '@playwright/test'
-import { abrirNavegacao, entrarPelaTelaComSegundoFator, escolherNoSeletor, esperarPainel, lateral, nomeNoSeletor, PRAZO_DA_ENTRADA_MS } from './__fixtures__/casca.ts'
-import { irPelaCoordenacao, paginaNaoRola } from './__fixtures__/coordenacao.ts'
-import { carregarSemRedeLenta, expect, test } from './__fixtures__/perfis.ts'
-import { abrirPelaApiSemMedirAPrimeiraCarga, configurarSegundoFatorPelaApi } from './__fixtures__/segundo-fator.ts'
-import { ajustarRetencaoDaEscola, cadastrarSuboperadorDeTeste, codigoDoAutenticador, criarEquipeComSenha, criarEscolaSintetica, criarUsuarioEmOutraEscola, type EquipeDeTeste } from './__fixtures__/sessao.ts'
-import { violacoesGraves } from './__fixtures__/verificacoes.ts'
+import { abrirNavegacao, entrarPelaTelaComSegundoFator, escolherNoSeletor, esperarPainel, lateral, nomeNoSeletor, PRAZO_DA_ENTRADA_MS } from './support/casca.ts'
+import { irPelaCoordenacao, paginaNaoRola } from './support/coordenacao.ts'
+import { carregarSemRedeLenta, expect, test } from './support/profiles.ts'
+import { abrirPelaApiSemMedirAPrimeiraCarga, configurarSegundoFatorPelaApi } from './support/mfa.ts'
+import { ajustarRetencaoDaEscola, cadastrarSuboperadorDeTeste, codigoDoAutenticador, criarEquipeComSenha, criarEscolaSintetica, criarUsuarioEmOutraEscola, type EquipeDeTeste } from './support/seed.ts'
+import { violacoesGraves } from './support/checks.ts'
 
 /**
  * A Privacidade da coordenação, na tela "Prazos de guarda" do seletor da aba Privacidade de Registros (F3, 6.0; X2, 3.0; RF20; `docs/interface.md` 3): o prazo que

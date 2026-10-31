@@ -5,7 +5,7 @@ import {
   type AceitarConviteDeOperadorRequest,
   type ConsultarConviteDeOperadorResponse,
 } from '@educa/shared'
-import { chamarApi, ErroDaApi } from '../../api/cliente'
+import { chamarApi, ErroDaApi } from '../../api/client'
 import { esquecerDesafioDeOperador, guardarDesafioDeOperador } from './sessao'
 
 export const CAMINHO_DA_CONSULTA_DE_CONVITE_DE_OPERADOR = '/v1/operacao/convite/consultar'

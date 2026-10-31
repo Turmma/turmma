@@ -1,5 +1,5 @@
 import { Eye } from 'lucide-react'
-import { Faixa } from '../../componentes/ui/Faixa'
+import { Faixa } from '../../components/ui/Faixa'
 import { TEXTO_DA_SUPERVISAO } from './tutor'
 
 /**

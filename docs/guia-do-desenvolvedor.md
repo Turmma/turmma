@@ -77,10 +77,10 @@ realtime, despachante, worker, web.
 | Exceção de negócio + `@ControllerAdvice` | `DomainException(ErrorCode.X)` + `AllExceptionsFilter` | `nucleo/src/erro/` |
 | `@ConfigurationProperties` + `@Validated` | `config.ts` com zod, que lista todos os erros de uma vez | `apps/api/src/config.ts` |
 | `ApplicationEventPublisher` transacional / outbox | `JobOutbox` (transactional outbox) + despachante | `nucleo/src/fila/enfileirador.ts`, `apps/despachante/` |
-| `@RabbitListener` / `@KafkaListener` | processador do worker, registrado por tipo de job | `apps/worker/src/montagem.ts` |
-| `@Scheduled` | `AGENDAMENTOS` (job scheduler do BullMQ) | `apps/worker/src/agendamentos.ts` |
+| `@RabbitListener` / `@KafkaListener` | processador do worker, registrado por tipo de job | `apps/worker/src/composition.ts` |
+| `@Scheduled` | `AGENDAMENTOS` (job scheduler do BullMQ) | `apps/worker/src/job-schedules.ts` |
 | Spring AI `ChatClient` atrás de uma interface | porta `LLMProvider` e gateway `LLMGateway` | `nucleo/src/ia/porta.ts`, `provedor.ts` |
-| Actuator `/health`, graceful shutdown | `/saude` e `ProntidaoController`; `GracefulShutdown` | `apps/api/src/sistema/prontidao.controller.ts`, `nucleo/src/instancia/drenagem.ts` |
+| Actuator `/health`, graceful shutdown | `/saude` e `ProntidaoController`; `GracefulShutdown` | `apps/api/src/system/readiness.controller.ts`, `nucleo/src/instancia/drenagem.ts` |
 | JUnit + Mockito | Vitest, projeto `unidade` (`x.test.ts`) | `vitest.config.ts` |
 | `@SpringBootTest` + Testcontainers | Vitest, projeto `integracao` (`x.int.test.ts`), com Postgres e Redis reais no compose de teste | `tools/testes/integracao.setup.ts` |
 | ArchUnit / Checkstyle | regras de ESLint em `tools/guardas/`, `dependency-cruiser` e testes de arquitetura | §7 |
@@ -143,12 +143,12 @@ apps/api/src/
       turma.service.ts
       turma.repository.ts
     *.test.ts                  unidade, ao lado do código
-  sessao/                      uma subpasta por fluxo (login/, convite/, renovacao/, externa/...) e tenant/, a
+  sessao/                      uma subpasta por fluxo (login/, convite/, refresh/, external/...) e tenant/, a
                                resolução da escola antes de haver sessão; de fora, só pelo sessao/index.ts
   credencial/                  as primitivas da entrada, sem módulo Nest: senha, hash, cookie, desafio,
                                ContadorDeTentativas e, em senha/, ContadorEmJanela e SemaforoDeHash; de fora de
                                sessao/, só pelo credencial/index.ts
-  http/paginacao.ts            paginar e paginarPor, o corte da página de uma listagem
+  http/pagination.ts            paginar e paginarPor, o corte da página de uma listagem
   operacao/escola/             criarRede e criarEscola, que o painel e o comando ops:escola chamam
   ops/                         só os comandos de terminal (npm run ops:*) e os repositories deles; nada de
                                apps/api/src importa daqui
@@ -161,10 +161,10 @@ packages/core/src/
   contexto/ identidade/ permissao/ erro/ fila/ ia/ limite/ log/ auditoria/ titular/ ...
 
 apps/web/src/
-  rotas.tsx                    as rotas de topo; cada área carrega as dela com lazy
+  routes.tsx                    as rotas de topo; cada área carrega as dela com lazy
   api/                         cliente HTTP (chamarApi), sessão, consultas comuns
-  componentes/ui/              o kit visual: Botao, Campo, Dialogo, Abas, Tabela...
-  componentes/                 peças de domínio usadas por mais de uma área
+  components/ui/              o kit visual: Botao, Campo, Dialogo, Abas, Tabela...
+  components/                 peças de domínio usadas por mais de uma área
   areas/<papel>/<assunto>/     ex.: areas/professor/turmas/ — telas, hooks e consultas do assunto
   operacao/                    o painel da operação Turmma
 ```
@@ -221,7 +221,7 @@ Exemplo: a disciplina (`apps/api/src/estrutura/`, `packages/shared/src/estrutura
    .where(and(eq(disciplina.escolaId, requireEscolaId()), eq(disciplina.id, id)))
    ```
    Tabela que varia por ano usa também `requireAnoEmCurso()`. Listagem é paginada por cursor (`paginar`, de
-   `apps/api/src/http/paginacao.ts`).
+   `apps/api/src/http/pagination.ts`).
    **O alcance do objeto também é do repository**, e cada alcance tem o seu jeito:
    - **`turma_vinculada`:** um `exists` sobre o vínculo `confirmado` do usuário do contexto na turma da linha.
      - **Linha com disciplina** (artefato, atividade aplicada, entrega): o vínculo precisa ser também naquela
@@ -258,14 +258,14 @@ Exemplo: `packages/core/src/db/schema/disciplina.ts` e `turma.ts`.
 3. **A migration:** rode `npm run db:gerar`, leia o SQL gerado em `packages/core/drizzle/` e faça o commit dele.
    Ela é aplicada pelo serviço `migrar` do compose e pela integração. A migration precisa ser compatível com a versão
    anterior do código: expandir, migrar, contrair.
-4. **As classificações que o teste cobra:** o `apps/api/test/arquitetura.test.ts` reprova tabela sem `escola_id`
+4. **As classificações que o teste cobra:** o `apps/api/test/architecture.test.ts` reprova tabela sem `escola_id`
    fora das exceções de `docs/modelo-de-dados.md`, e tabela sem classificação de retenção e de arquivo do titular. A
    classificação fica em `packages/shared/src/privacidade/classificacao.ts`. Atualize também o
    `docs/modelo-de-dados.md`.
 
 ### 5.3 Um job novo
 
-Exemplo: a montagem do arquivo do titular (`privacidade.service.ts`, `apps/worker/src/processadores/`).
+Exemplo: a montagem do arquivo do titular (`privacidade.service.ts`, `apps/worker/src/processors/`).
 
 1. **Declare o tipo em `JOB_DEFINITIONS`** (`packages/shared/src/system/job-definitions.ts`), com `defineJob`:
    as filas em que ele pode nascer (a primeira é a padrão), o escopo (`escola` ou `sistema`), quem executa, o esquema
@@ -276,11 +276,11 @@ Exemplo: a montagem do arquivo do titular (`privacidade.service.ts`, `apps/worke
    `dados` passam pelo esquema do tipo antes de gravar, e o pedido que a definição recusa lança `JobRequestRejectedError`.
    Se o mesmo pedido pode chegar duas vezes (dois cliques, reenvio do cliente), use
    `enfileirarUmaVez(tx, tipo, dados, chave)`: o id do job não deduplica dois jobs do mesmo pedido, e a chave sim.
-3. **Escreva o processador** em `apps/worker/src/processadores/<nome>.ts`. Ele **precisa ser idempotente**: a entrega
+3. **Escreva o processador** em `apps/worker/src/processors/<nome>.ts`. Ele **precisa ser idempotente**: a entrega
    é pelo menos uma vez (D49), e a mesma execução pode rodar de novo com o mesmo id de job, que é a chave que o
    processador recebe.
-4. **Registre o processador** em `apps/worker/src/montagem.ts`, na réplica que atende a fila. Se for periódico,
-   acrescente em `agendamentos.ts`.
+4. **Registre o processador** em `apps/worker/src/composition.ts`, na réplica que atende a fila. Se for periódico,
+   acrescente em `job-schedules.ts`.
 5. **Teste** em `apps/worker/test/*.int.test.ts`, com a reexecução: rodar duas vezes não pode duplicar efeito.
 
 Qual fila usar:
@@ -328,13 +328,13 @@ Exemplo: as disciplinas da coordenação (`apps/web/src/api/estrutura.ts` e a te
    - vazio, com `EstadoVazio`;
    - com dado.
    
-   Os três primeiros ficam em `componentes/estado/`.
-3. **A mutação** usa `useEnvioUnico` (`componentes/dialogos.tsx`), que trava o duplo clique, com `onSuccess`
+   Os três primeiros ficam em `components/states/`.
+3. **A mutação** usa `useEnvioUnico` (`components/dialogs.tsx`), que trava o duplo clique, com `onSuccess`
    invalidando a chave do assunto.
-4. **A rota** entra no `rotas.tsx` da área.
+4. **A rota** entra no `routes.tsx` da área.
 5. **O visual:**
-   - só os tokens de `estilos.css`, porque o teste reprova cor fora da lista;
-   - os componentes de `componentes/ui/`;
+   - só os tokens de `index.css`, porque o teste reprova cor fora da lista;
+   - os componentes de `components/ui/`;
    - nada que pese no Chromebook (regra 50);
    - a tela funciona em 360 px de largura, com alvo de toque de pelo menos 24 px, e de 44 px na ação principal.
 6. **Teste:**
@@ -382,7 +382,7 @@ vínculo, do repository, ele quebra?** Se não quebra, ele não testa nada.
 - **Ao lado do módulo** (`apps/api/src/<modulo>/x.int.test.ts`): o do service e do repository, e muitas vezes também
   o HTTP. Por exemplo, `atividade/atividade-isolamento.int.test.ts` e `tutor/tutor.int.test.ts` sobem a API, e
   `sessao/convite/convite.repository.int.test.ts` testa o repository sem HTTP.
-- **`apps/api/test/`:** o que cruza mais de um módulo (`virada-do-ano`, `ciclo-de-vida`), o `arquitetura.test.ts`, e os
+- **`apps/api/test/`:** o que cruza mais de um módulo (`virada-do-ano`, `ciclo-de-vida`), o `architecture.test.ts`, e os
   HTTP de módulos que já os guardavam lá (`sessao-matricula`, `estrutura`). A sessão usa os dois lugares.
 
 Teste novo vai para onde o módulo já guarda os seus.
@@ -393,9 +393,9 @@ Teste novo vai para onde o módulo já guarda os seus.
 - O banco de teste acumula escolas de outras execuções, então o teste filtra pelo que ele mesmo criou.
 
 **Onde estão os apoios:**
-- `apps/api/test/api-com-sessao.ts`: `subirApi` e `chamar`;
-- `apps/api/test/sessao-de-teste.ts`: `BancadaDeSessoes`;
-- `e2e/__fixtures__/`.
+- `apps/api/test/test-api.ts`: `subirApi` e `chamar`;
+- `apps/api/test/sessao.fixture.ts`: `BancadaDeSessoes`;
+- `e2e/support/`.
 
 **O que é proibido:** `.skip`, `.only`, teste comentado, `any` para calar o compilador e asserção que sempre passa. O
 lint barra parte disso. A pergunta da regra 40 vale para todo teste: **se eu apagar a regra de negócio, este teste
@@ -412,14 +412,14 @@ falha?**
 | Lint `guardas/sdk-de-ia-so-no-adaptador` | import de SDK de IA fora do adaptador (não a chamada ao adaptador: essa é da revisão) | `tools/guardas/regras-ia.mjs` |
 | Lint `guardas/teste-sem-desligar` | `.skip`, `.only`, `.todo` | `tools/guardas/regras-teste.mjs` |
 | Lint de entrada | `@Body()`, `@Query()` ou `@Param()` sem pipe em todo controller da API, e `@Req()` cru fora de `sessao/` e `operacao/` | `eslint.config.mjs` |
-| Lint do kit | `componentes/ui/` importando `api/`, `areas/` ou `sessao/` | `eslint.config.mjs` |
+| Lint do kit | `components/ui/` importando `api/`, `areas/` ou `sessao/` | `eslint.config.mjs` |
 | Lint de tabela | importar tabela do núcleo fora de um repository | `tools/guardas/tabelas-do-nucleo.mjs` |
 | Lint `guardas/erro-tipado` | `throw new Error(...)` ou literal lançado em produção, e `InvariantException` com motivo que não é texto fixo | `tools/guardas/regras-erro.mjs` |
 | `dependency-cruiser` | import contra a direção `shared ← nucleo ← apps`, app importando app, produção importando teste, controller importando repository ou Drizzle, service importando Drizzle, repository importando service, `sessao/` e `credencial/` por fora do `index.ts`, e ciclo | `tools/guardas/camadas.cjs`, `npm run guarda:camadas` (dentro do `npm run lint`) |
 | ESLint `complexity`, `max-lines-per-function`, `max-depth` | função acima de 10 de complexidade, 80 linhas de código ou 4 níveis de aninhamento. O que já passava disso em 22/10/2026 está em `eslint-suppressions.json`, que só encolhe: supressão nova reprova | `eslint.config.mjs`, `tools/guardas/catraca.test.ts` |
 | Teste dos repositories | repository sem prova de escopo nem motivo escrito | `tools/guardas/repositories-com-escopo.test.ts`, sobre `escopo-dos-repositories.ts` |
 | Teste do tamanho de pasta | pasta de produção da API ou da web com mais de 25 arquivos direto nela | `tools/guardas/tamanho-das-pastas.test.ts` |
-| `arquitetura.test.ts` | tabela sem `escola_id` fora das exceções, tabela sem classificação de retenção, leitura entre escolas fora do lugar certo, classe cercada (`PainelRepository`, `ContaGlobalRepository`, `ResolucaoDeTenantRepository`) citada fora da zona dela | `apps/api/test/arquitetura.test.ts` |
+| `architecture.test.ts` | tabela sem `escola_id` fora das exceções, tabela sem classificação de retenção, leitura entre escolas fora do lugar certo, classe cercada (`PainelRepository`, `ContaGlobalRepository`, `ResolucaoDeTenantRepository`) citada fora da zona dela | `apps/api/test/architecture.test.ts` |
 | Teste de tokens | cor fora da paleta | `apps/web/src/estilos.test.ts` |
 | `size-limit` | bundle da web acima do teto | `.size-limit.json` |
 | `gitleaks`, `npm audit` e `knip` | segredo no código, dependência vulnerável, dependência usada sem estar declarada ou declarada sem uso | `npm run guarda:segredo`, `guarda:dependencias` |

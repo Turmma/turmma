@@ -9,7 +9,7 @@ type ModuloDeSessao = Awaited<ReturnType<typeof importarSessao>>
 type ModuloDoCliente = Awaited<ReturnType<typeof importarCliente>>
 
 const importarSessao = () => import('./sessao')
-const importarCliente = () => import('./cliente')
+const importarCliente = () => import('./client')
 
 let sessao: ModuloDeSessao
 let cliente: ModuloDoCliente

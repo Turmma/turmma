@@ -1,2 +1,2 @@
-import { ResolucaoDeTenantRepository } from '../tenant/resolucao-de-tenant.repository.js'
+import { ResolucaoDeTenantRepository } from '../tenant/tenant-resolution.repository.js'
 export const r = ResolucaoDeTenantRepository

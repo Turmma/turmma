@@ -320,10 +320,10 @@ quebra. Depois API e web correm lado a lado em cima do contrato.
 | A — atividade e correção | agente A | `apps/api/src/atividade/*`, `apps/web/src/areas/aluno/*` (atividades) |
 | T — Tutor e sinais | agente T | `apps/api/src/tutor/*`, web do aluno (Tutor) |
 | G — governança e Analista | agente G | `apps/api/src/governanca/*`, `apps/web/src/areas/coordenacao/Governanca*` |
-| C — peças da web | agente C | `apps/web/src/componentes/ui/*`, com `ui/ia/*` (as peças da seção 9.3; moravam em `componentes/*` e `componentes/ia/*` até a X5, 36.0), a galeria e o spec dela |
+| C — peças da web | agente C | `apps/web/src/components/ui/*`, com `ui/ai/*` (as peças da seção 9.3; moravam em `componentes/*` e `componentes/ia/*` até a X5, 36.0), a galeria e o spec dela |
 | D — material de demonstração | agente D | `tools/demonstracao/*` (o conteúdo, o script e o PDF da seção 9.5) |
 
-Cada agente mexe só no que é dele. Arquivo compartilhado (`app.module.ts`, `navegacao.ts`, `caminhos.ts`, `index.ts` do
+Cada agente mexe só no que é dele. Arquivo compartilhado (`app.module.ts`, `navigation.ts`, `paths.ts`, `index.ts` do
 shared) leva só uma linha por módulo, e o conflito se resolve no merge.
 
 ### As quatro fases
@@ -403,10 +403,10 @@ como portão é o do merge (seção "Estado", decisão 4).
 2. Lê `docs/mvp-contratos.md` antes de tudo: tabela, schema de API, célula da `MATRIZ`, código de erro e ação de
    auditoria já existem. **Pacote de fase 2 em diante não cria tabela, migration nem schema de `packages/shared`.** Se
    o contrato não atende, para e avisa o orquestrador, em vez de contornar.
-3. Mexe só nos arquivos do pacote. Arquivo compartilhado (`app.module.ts`, `rotas.tsx`, `navegacao.ts`, `caminhos.ts`)
+3. Mexe só nos arquivos do pacote. Arquivo compartilhado (`app.module.ts`, `routes.tsx`, `navigation.ts`, `paths.ts`)
    leva o mínimo, uma linha por módulo ou por tela.
-4. Tela nova entra por import de rota (um pedaço por tela), monta-se com as peças de `apps/web/src/componentes/ui/` (com
-   `ui/ia/`), tem os quatro estados e funciona a 360 px. Estado de servidor é do TanStack Query.
+4. Tela nova entra por import de rota (um pedaço por tela), monta-se com as peças de `apps/web/src/components/ui/` (com
+   `ui/ai/`), tem os quatro estados e funciona a 360 px. Estado de servidor é do TanStack Query.
 5. Todo módulo novo da API entrega o **teste de isolamento** (escola A não alcança objeto da escola B, e a resposta é
    igual à do inexistente) e os testes das regras do módulo. Se apagar a regra, o teste falha.
 6. Verifica com `npm run typecheck`, `npm run lint`, a unidade do que tocou e, atrás da trava, a integração e o e2e
@@ -490,7 +490,7 @@ Alunos na turma aberta.
 
 ### 9.1 O visual já está no `apps/web`
 
-`apps/web/src/estilos.css` já carrega os tokens do mockup (paleta, raios 10/12/16/28, sombras `caixa` e `flutua`, tempos,
+`apps/web/src/index.css` já carrega os tokens do mockup (paleta, raios 10/12/16/28, sombras `caixa` e `flutua`, tempos,
 foco). Tailwind 4, Vite, React 19 e lucide estão nas mesmas versões. A casca da escola (lateral de 260 px, trilho de 56,
 gaveta no celular), o `Botao` em pílula, o `Dialogo`, o `Campo` e os estados vazio, carregando e erro já existem. **O que
 falta são as composições das telas e as peças de IA.** Não se copia arquivo de `mockups/` (README do mockup, P21): a tela
@@ -540,7 +540,7 @@ Família, as 14 ferramentas que não existem, PPTX e XLSX.
 `CaixaPedido`, `MensagemIA` e `MensagemPessoa`, `Escolha` (a pergunta da D18), `ChipFonte`, `Fontes`, `AvisoFila`,
 `AssinaturaIA` e `SeloIA`, `Estado` (selo pendente, ok, erro), `LinhaAprovacao`, `MotorFormulario`, `PaginaMini`,
 `NumeroPainel`, `BarraRotulada`, `Cartao` e `Tela` com o padrão de espaço (16 px no celular, 24 a partir de 768; larguras
-1480, 1040 e 760). Em `apps/web` entram em `componentes/ui/` (com `ui/ia/`), com teste de regra e os quatro estados.
+1480, 1040 e 760). Em `apps/web` entram em `components/ui/` (com `ui/ai/`), com teste de regra e os quatro estados.
 
 ### 9.4 Textos e estados que o mockup já escreveu (orientam o tom, não se copiam)
 

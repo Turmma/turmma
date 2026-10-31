@@ -5,11 +5,11 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { AnoLetivoRepository } from '../src/estrutura/ano-letivo/ano-letivo.repository.js'
 import { VinculoRepository } from '../src/estrutura/vinculo/vinculo.repository.js'
-import { chamar, subirApi, type ApiDeTeste, type RespostaHttp } from './api-com-sessao.js'
-import { alunosNaTurma, montarEscolaComTurma, type EscolaComTurma } from './escola-com-turma.js'
-import { aguardar, GatilhoDeParada } from './gatilho-de-parada.js'
-import { FerramentasDaSala, pedidoDaSala, semRequisicao as semRequisicaoDaSala, type NomeDaLista, type SalaDeTeste } from './sala-de-teste.js'
-import { BancadaDeSessoes, type SessaoDeTeste } from './sessao-de-teste.js'
+import { chamar, subirApi, type ApiDeTeste, type RespostaHttp } from './test-api.js'
+import { alunosNaTurma, montarEscolaComTurma, type EscolaComTurma } from './escola-turma.fixture.js'
+import { aguardar, GatilhoDeParada } from './write-block-trigger.js'
+import { FerramentasDaSala, pedidoDaSala, semRequisicao as semRequisicaoDaSala, type NomeDaLista, type SalaDeTeste } from './sala.fixture.js'
+import { BancadaDeSessoes, type SessaoDeTeste } from './sessao.fixture.js'
 
 /** Cada pedido pela sala sai de um IP sorteado (`X-Forwarded-For`), com a API confiando no 127.0.0.1. */
 const AMBIENTE = { LIMITE_PROXIES_CONFIAVEIS: '127.0.0.1' }

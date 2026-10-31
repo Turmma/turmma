@@ -349,7 +349,7 @@ describe('nenhum filtro casa vazio (X8)', () => {
     it('um caminho de dist cuja fonte em src/ não existe', () => {
       expect(problemaDoItem({ valor: 'packages/core/dist/index.js', tipo: 'dist' }, BASE)).toBeUndefined()
       expect(problemaDoItem({ valor: 'packages/core/dist/sumiu.js', tipo: 'dist' }, BASE)).toBe('a fonte em src/ não existe')
-      expect(caminhosDeDist("await importar('apps/api/dist/credencial/hash-de-senha.js')").map((item) => item.valor)).toEqual(['apps/api/dist/credencial/hash-de-senha.js'])
+      expect(caminhosDeDist("await importar('apps/api/dist/credencial/password-hasher.js')").map((item) => item.valor)).toEqual(['apps/api/dist/credencial/password-hasher.js'])
     })
   })
 

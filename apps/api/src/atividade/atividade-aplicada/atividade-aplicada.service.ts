@@ -11,8 +11,8 @@ import {
   type AtividadeEncerradaResponse,
   type ListaDeAtividadesAplicadasResponse,
 } from '@educa/shared'
-import { paginar } from '../../http/paginacao.js'
-import type { ConferenciaDeFuncao } from '../../ia/conferencia-de-funcao.js'
+import { paginar } from '../../http/pagination.js'
+import type { ConferenciaDeFuncao } from '../../ia/funcao-suspension-check.js'
 import { AtividadeAplicadaRepository, type AplicacaoLida, type AplicacaoTravada } from './atividade-aplicada.repository.js'
 import { acertosDoLote, corrigirTentativa, destaquesDaTentativa, type HistoricoAprovado } from '../correcao/correcao-de-objetiva.js'
 import { CorrecaoRepository, type NovaCorrecao } from '../correcao/correcao.repository.js'
