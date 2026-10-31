@@ -33,7 +33,7 @@ chaves do TanStack Query ficam como estão.
 
 | Arquivo | Novo ou alterado |
 |---|---|
-| `apps/web/src/`, `apps/web/nome-dos-chunks.ts`, `apps/web/vite.config.ts` | alterado |
+| `apps/web/src/`, `apps/web/chunk-names.ts` (o `nome-dos-chunks.ts` de antes da 6.0), `apps/web/vite.config.ts` | alterado |
 | `e2e/operacao-escolas.spec.ts` | alterado |
 | `tools/renomear/mapas/10.json`, `tools/renomear/mapas/10.relatorio.md` | novo |
 

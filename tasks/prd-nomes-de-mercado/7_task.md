@@ -41,7 +41,7 @@ recusando o que recusavam. Corre em linha com a web.
 | `apps/worker/test/`, `apps/realtime/test/`, `apps/despachante/test/` | alterado |
 | `apps/worker/src/app.module.ts`, `apps/despachante/src/app.module.ts`, `apps/realtime/src/app.module.ts` | alterado |
 | `infra/test/`, `infra/scripts/` | alterado |
-| `e2e/__fixtures__/sessao.ts`, `e2e/__fixtures__/operacao.ts` | alterado |
+| `e2e/support/seed.ts`, `e2e/support/operacao.ts` (os `e2e/__fixtures__/sessao.ts` e `operacao.ts` de antes da 6.0) | alterado |
 | `e2e/entrar-na-escola.spec.ts`, `e2e/pedido-do-titular.spec.ts` | alterado |
 | `tools/ci/codigo-do-autenticador.test.ts` | alterado |
 | `tools/renomear/mapas/7.json`, `tools/renomear/mapas/7.relatorio.md` | novo |
