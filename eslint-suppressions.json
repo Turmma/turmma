@@ -1065,7 +1065,7 @@
   },
   "tools/ci/duracao-do-e2e.ts": {
     "complexity": {
-      "count": 3
+      "count": 2
     }
   },
   "tools/ci/e2e-que-cita-literal.ts": {
