@@ -56,11 +56,13 @@ Cada cláusula da Tech Spec §5 tem ao menos um caso que a deixa vermelha, se fo
 - some um caso de teste;
 - aparece um especificador ou um nome exportado fora do mapa;
 - o homônimo exportado por outro pacote sai com o nome novo da entrada (a entrada tem `arquivo` em `packages/nucleo`);
+- o homônimo declarado em outro arquivo do pacote da entrada sai com o nome novo (dois `Linha` em `apps/web`, a entrada no do kit);
 - muda uma string em `infra/scripts/`.
 
 **Verde quando:**
 - o especificador e o nome exportado são os renomeados;
 - o homônimo exportado por outro pacote fica com o nome antigo, e quem reexporta do pacote da entrada passa ao novo;
+- o homônimo declarado em outro arquivo do pacote da entrada fica com o nome antigo, e o do `arquivo` da entrada passa ao novo;
 - a string mudada está declarada como exceção;
 - um arquivo de teste foi movido e tem os mesmos casos.
 
