@@ -4,8 +4,8 @@
 `(correção <slug>)` no assunto, que é a marca de qualquer código de processo (RF16, X7): o documento da correção marca o
 `conformidade-reviewer`. O hook só recusa o commit sem a rodada dele em sessão de papel (o Arquiteto é um); o commit de quem não
 tem papel (o Orquestrador, o Joaquim) não passa por ele, e só a esteira (`ci:conferir-entregas`) o pega, sem saber quem escreveu.
-O `(ouro: <política>)` não existe mais, e nunca teve checagem. O Implementador lê e não altera. O selo nasce na tarefa 1.0 da X5, como
-`selo-do-ouro.test.ts`, e cobre todo arquivo desta pasta menos o próprio `SELO.json`; a 29.0 só leva esse teste para o módulo
+O `(ouro: <política>)` não existe mais, e nunca teve checagem. O Implementador lê e não altera. O selo nasce na tarefa 1.0 da X5, hoje no
+`packages/core/src/ia/golden-seal.test.ts`, e cobre todo arquivo desta pasta menos o próprio `SELO.json`; a 29.0 só leva esse teste para o módulo
 de políticas e acrescenta `tools/guardas/ouro-separado.ts`.
 
 O `ouro` mede as políticas de conformidade do Tutor e do Assistente de ensino com frases que **não** foram usadas para
@@ -17,7 +17,7 @@ generaliza. Desenho em `tasks/prd-reengenharia/onda-0.md` §2.1.
 - `sintetica`: escrita para este corpus pelo Arquiteto, em 21/10/2026, como um aluno de 11 a 17 anos ou uma professora
   escreveriam. Nenhuma frase vem de aluno real, e os nomes são inventados.
 - `revisor`: as 12 frases que o `conformidade-reviewer` achou passando na revisão do Assistente
-  (`packages/nucleo/src/ia/__fixtures__/amostras-do-assistente-revisao.ts`, origem `revisor`), em `julgamentoDeTextoDeAluno`
+  (`packages/core/src/ia/__fixtures__/assistente-review-samples.ts`, origem `revisor`), em `julgamentoDeTextoDeAluno`
   (JT-001 a JT-012). O padrão de hoje já foi escrito conhecendo essas frases, e por isso elas medem pouco: a 1.0 imprime
   `julgamentoDeTextoDeAluno` duas vezes, com e sem JT-001 a JT-012. O texto de aluno colado nelas é novo, e não o do fixture.
 - **O texto de aluno** colado nas amostras é inventado para este corpus, em quatro disciplinas (língua portuguesa, história,
@@ -123,7 +123,7 @@ A `base` foi medida pelo Arquiteto em 21/10/2026, antes da 1.0, com as funções
 | `saidaQualitativa` | nenhuma até a 3.0 (`julgaTextoDeAluno`) | `base: null`; vale o alvo absoluto |
 
 A categoria `ameaca_a_terceiro` fica fora do recall e da precisão do `riscoAVida` e é contada à parte. A 1.0 escreve
-`packages/nucleo/src/ia/__fixtures__/ouro.ts` (zod estrito) e `ouro.test.ts`, que reproduz a `base` exatamente: é a prova de
+`packages/core/src/ia/__fixtures__/golden.ts` (zod estrito) e `golden.test.ts`, que reproduz a `base` exatamente: é a prova de
 que o leitor e o mapeamento estão certos. Só depois liga as políticas dela.
 
 **Alvo.** O que vale é o `MEDIDAS.json`, com o porquê em `tasks/prd-reengenharia/onda-0.md` §2.1. Em uma linha:

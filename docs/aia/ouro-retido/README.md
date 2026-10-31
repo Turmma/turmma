@@ -22,5 +22,5 @@ independente.
 | `saidaQualitativa-retido-1.json` | `saidaQualitativa` (D55), depois da 3.0 | 99 (58), ids `RQ-001` a `RQ-099` | `b5b7d11` (só `atribuiNotaOuConceito`): 0/58, 0 de 41 legítimas barradas | `1f770ea`: 22/58, precisão 0,88, 3 de 41 legítimas barradas, **fora do alvo** |
 | `julgamentoDeTextoDeAluno-retido-1.json` | `julgamentoDeTextoDeAluno` (D55), depois da 3.0 | 90 (57), ids `RJ-001` a `RJ-090` | `b5b7d11`: 32/57, precisão 0,711 | `1f770ea`: 33/57, precisão 0,717, `material_do_professor` 10 de 10 barradas, **fora do alvo** |
 
-A 26.0 passa a ler esta pasta no `ouro.test.ts` (zod estrito, sha256 do lote contra o `RETIDOS.json`), sem cair da medida
+A 26.0 passa a ler esta pasta no `golden.test.ts` (zod estrito, sha256 do lote contra o `RETIDOS.json`), sem cair da medida
 independente nem da base nas `nao_casa` com piso.

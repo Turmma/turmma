@@ -418,7 +418,7 @@
       "medidaIndependente": {
         "commit": "1f770ea",
         "medidaEm": "2026-10-22",
-        "como": "julgaTextoDeAluno(texto, conversaTrazTextoDeAluno(contexto.mensagemDoProfessor ?? '', turnosDoProfessor(a))), como na BARRAS do ouro.test.ts; a 3.0 entrou em 1566521, sem mudança da função até 1f770ea",
+        "como": "julgaTextoDeAluno(texto, conversaTrazTextoDeAluno(contexto.mensagemDoProfessor ?? '', turnosDoProfessor(a))), como na BARRAS do golden.test.ts; a 3.0 entrou em 1566521, sem mudança da função até 1f770ea",
         "recall": 0.379,
         "precisao": 0.88,
         "barradasDasPositivas": 22,

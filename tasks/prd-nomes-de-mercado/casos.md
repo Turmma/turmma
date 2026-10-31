@@ -64,6 +64,16 @@ Cada cláusula da Tech Spec §5 tem ao menos um caso que a deixa vermelha, se fo
 - a string mudada está declarada como exceção;
 - um arquivo de teste foi movido e tem os mesmos casos.
 
+**Limites conhecidos**, além dos quatro do comentário do topo de `tools/renomear/conferir.ts` (todos erram para o
+vermelho, nunca para o verde):
+- `export * as X from '<pacote da entrada>'` (ou de caminho relativo que entra nele), com `X` igual ao `de` de uma entrada:
+  a foto de antes troca o namespace para o nome novo, e o `aplicar`, que renomeia por símbolo, não o toca; o `conferir` fica
+  vermelho até a troca à mão;
+- import por padrão ou de namespace repassado (`import Banco from '@educa/shared'` ou `import * as Banco from '…'`, e depois
+  `export { Banco }`): o nome local, que é livre, coincide com o `de` de uma entrada; a foto de antes o troca, e o `aplicar` não.
+
+Os dois vêm da 2ª rodada da correção `2026-10-30-conferir-homonimo-de-outro-pacote` (revisor-geral e test-engineer).
+
 ## `restos` (2.0)
 
 **Vermelho:**
