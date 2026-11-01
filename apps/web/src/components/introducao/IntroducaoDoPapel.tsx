@@ -1,8 +1,8 @@
 import type { Agente, EuResponse } from '@educa/shared'
 import { useId } from 'react'
 import { Link } from 'wouter'
-import { useTituloDaTela } from '../../document-title'
-import { EstadoErro } from '../states'
+import { usePageTitle } from '../../document-title'
+import { ErrorState } from '../states'
 import { SECONDARY_LINK_CLASSES } from '../ui/button-variants'
 import { Onca } from '../ui/onca/Onca'
 import { Balao } from './Balao'
@@ -31,7 +31,7 @@ interface PropsDaIntroducaoDoPapel {
  * que era copiado de uma introdução para a outra, mora aqui (e a gravação da data, em `useIntroducao`).
  *
  * - **Carregando:** a fala do passo 1 e o "Sair", sem "Fechar" nem "Pular" (o modo ainda não se sabe).
- * - **Erro:** `EstadoErro` com "Tentar de novo", "Voltar para a abertura" e o "Sair" da moldura. O erro só vale para quem ainda não tem dado:
+ * - **Erro:** `ErrorState` com "Tentar de novo", "Voltar para a abertura" e o "Sair" da moldura. O erro só vale para quem ainda não tem dado:
  *   uma releitura que falha com os passos já na tela não os tira.
  * - **Data desconhecida** vale a primeira vez. **Com dado,** os passos.
  *
@@ -39,7 +39,7 @@ interface PropsDaIntroducaoDoPapel {
  * a do aluno, a do professor e a da coordenação.
  */
 export function IntroducaoDoPapel({ agente, totalDePassos, falaDoCarregando, passosDe, aoTerminar, aoRever }: PropsDaIntroducaoDoPapel) {
-  useTituloDaTela('Bem-vindo')
+  usePageTitle('Bem-vindo')
   const idDoPasso = useId()
   const { eu, revendo, terminar } = useIntroducao({ aoTerminar, aoRever })
 
@@ -56,7 +56,7 @@ export function IntroducaoDoPapel({ agente, totalDePassos, falaDoCarregando, pas
         }
       >
         <h1 className="sr-only">Introdução</h1>
-        <EstadoErro erro={eu.error} tentando={eu.isFetching} aoTentarDeNovo={() => void eu.refetch({ cancelRefetch: false })} />
+        <ErrorState erro={eu.error} tentando={eu.isFetching} aoTentarDeNovo={() => void eu.refetch({ cancelRefetch: false })} />
       </TelaDeFoco>
     )
   }

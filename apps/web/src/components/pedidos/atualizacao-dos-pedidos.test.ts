@@ -9,7 +9,7 @@ import {
   podeMarcarMais,
   quantosNovos,
   semOsDecididos,
-  type AbaDoNavegador,
+  type BrowserTab,
 } from './atualizacao-dos-pedidos'
 
 /**
@@ -25,7 +25,7 @@ function abaDeMentira(inicio: 'visible' | 'hidden' = 'visible') {
     visibilityState: inicio,
     addEventListener: (_tipo: 'visibilitychange', ouvinte: () => void) => void ouvintes.add(ouvinte),
     removeEventListener: (_tipo: 'visibilitychange', ouvinte: () => void) => void ouvintes.delete(ouvinte),
-  } satisfies AbaDoNavegador as { visibilityState: 'visible' | 'hidden' } & AbaDoNavegador
+  } satisfies BrowserTab as { visibilityState: 'visible' | 'hidden' } & BrowserTab
   return {
     aba,
     ouvintes,

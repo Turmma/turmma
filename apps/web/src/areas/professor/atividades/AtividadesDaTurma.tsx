@@ -2,19 +2,19 @@ import type { AtividadeAplicada } from '@educa/shared'
 import { useQuery } from '@tanstack/react-query'
 import { useEffect, useId, useRef, useState } from 'react'
 import { Link, useLocation, useSearch } from 'wouter'
-import { consultaAtividadesAplicadas } from './api/atividades'
-import { consultaTurmaAberta } from '../../../api/estrutura'
-import { caminhoDaCorrecaoDoProfessor, caminhoDoArtefatoDoProfessor, ROTAS_DO_PROFESSOR } from '../../../paths'
+import { atividadesAplicadasQueryOptions } from './api/atividades'
+import { turmaAbertaQueryOptions } from '../../../api/estrutura'
+import { caminhoDaCorrecaoDoProfessor, caminhoDoArtefatoDoProfessor, PROFESSOR_ROUTES } from '../../../paths'
 import { Button } from '../../../components/ui/Button'
 import { SECONDARY_LINK_CLASSES } from '../../../components/ui/button-variants'
-import { EstadoCarregando, EstadoErro, EstadoVazio } from '../../../components/states/index'
+import { LoadingState, ErrorState, EmptyState } from '../../../components/states/index'
 import { ListItem } from '../../../components/ui/ListItem'
 import { Sheet } from '../../../components/ui/overlays/Sheet'
 import { SegmentedControl } from '../../../components/ui/fields/SegmentedControl'
 import { StatusBadge, type StatusFamily } from '../../../components/ui/StatusBadge'
-import { textoDaFalha } from '../../../components/error-text'
+import { errorText } from '../../../components/error-text'
 import { SectionHeader } from '../../../components/ui/Page'
-import { formatarDataHora } from '../../../format'
+import { formatDateTime } from '../../../format'
 import { AVISO_DA_AVALIATIVA_ABERTA, semCorrecao, situacaoDaAplicacao, TEXTO_SEM_CORRECAO } from './aprovar'
 import { useCorrigirDeNovo } from './corrigir-de-novo'
 import { enderecoComFiltros } from '../artefatos/criados'
@@ -78,25 +78,25 @@ export function maisNovaPrimeiro<A extends Pick<AtividadeAplicada, 'id' | 'aplic
 }
 
 /** O painel da atividade mora no endereço, como o resto da turma aberta: recarregar e o Voltar do navegador devolvem o mesmo painel. */
-export const PARAMETRO_DA_ATIVIDADE = 'atividade'
+export const ATIVIDADE_PARAM = 'atividade'
 
 /** A atividade que o endereço pede para abrir ao lado. Só o id: nunca o título nem nome de aluno (regra 20, item 9). */
 export function atividadeDoEndereco(busca: string): string | null {
-  return new URLSearchParams(busca).get(PARAMETRO_DA_ATIVIDADE)
+  return new URLSearchParams(busca).get(ATIVIDADE_PARAM)
 }
 
 /** O endereço da aba com o painel posto (`id`) ou tirado (`null`), sem mexer nos outros parâmetros. */
 export function enderecoComAAtividade(caminho: string, busca: string, id: string | null): string {
   const parametros = new URLSearchParams(busca)
   parametros.set('aba', 'atividades')
-  if (id === null) parametros.delete(PARAMETRO_DA_ATIVIDADE)
-  else parametros.set(PARAMETRO_DA_ATIVIDADE, id)
+  if (id === null) parametros.delete(ATIVIDADE_PARAM)
+  else parametros.set(ATIVIDADE_PARAM, id)
   return `${caminho}?${parametros.toString()}`
 }
 
 /** "Aplicar uma atividade" leva a Criados já filtrado pela turma e pelo tipo, só com ids e valor de lista fechada no endereço. */
 export function enderecoParaAplicar(turmaId: string): string {
-  return enderecoComFiltros(ROTAS_DO_PROFESSOR.criados, '', { turma: turmaId, tipo: 'atividade_objetiva' })
+  return enderecoComFiltros(PROFESSOR_ROUTES.criados, '', { turma: turmaId, tipo: 'atividade_objetiva' })
 }
 
 /**
@@ -121,9 +121,9 @@ export default function AtividadesDaTurma({ turmaId }: { turmaId: string }) {
 function AbaDeAtividades({ turmaId }: { turmaId: string }) {
   const [caminho, navegar] = useLocation()
   const busca = useSearch()
-  const atividades = useQuery(consultaAtividadesAplicadas(turmaId))
+  const atividades = useQuery(atividadesAplicadasQueryOptions(turmaId))
   // A turma já foi lida pela moldura da página (a aba só existe com ela); aqui é leitura do cache, para o nome na confirmação.
-  const turma = useQuery(consultaTurmaAberta(turmaId))
+  const turma = useQuery(turmaAbertaQueryOptions(turmaId))
   const [filtro, definirFiltro] = useState<FiltroDasAtividades>('todas')
   const [pedidoDeFoco, definirPedidoDeFoco] = useState(0)
   const idDasAtividades = useId()
@@ -178,10 +178,10 @@ function AbaDeAtividades({ turmaId }: { turmaId: string }) {
             }
           : {})}
       />
-      {atividades.isPending && <EstadoCarregando rotulo="Carregando as atividades da turma…" />}
-      {atividades.isError && !lida && <EstadoErro erro={atividades.error} tentando={atividades.isFetching} aoTentarDeNovo={() => void atividades.refetch({ cancelRefetch: false })} />}
+      {atividades.isPending && <LoadingState rotulo="Carregando as atividades da turma…" />}
+      {atividades.isError && !lida && <ErrorState erro={atividades.error} tentando={atividades.isFetching} aoTentarDeNovo={() => void atividades.refetch({ cancelRefetch: false })} />}
       {lida && todas.length === 0 && (
-        <EstadoVazio
+        <EmptyState
           titulo="Nenhuma atividade aplicada a esta turma"
           descricao="Abra uma atividade objetiva em Criados e use “Aplicar à turma”, na aba “Na turma”. Ela aparece aqui, com quantos alunos já enviaram."
           acao={{ rotulo: 'Aplicar uma atividade', aoAcionar: () => navegar(enderecoParaAplicar(turmaId)) }}
@@ -193,7 +193,7 @@ function AbaDeAtividades({ turmaId }: { turmaId: string }) {
         </div>
       )}
       {todas.length > 0 && visiveis.length === 0 && (
-        <EstadoVazio titulo="Nada com este filtro" descricao="Nenhuma atividade desta turma está nesta situação." acao={{ rotulo: 'Limpar filtro', aoAcionar: limparOFiltro }} />
+        <EmptyState titulo="Nada com este filtro" descricao="Nenhuma atividade desta turma está nesta situação." acao={{ rotulo: 'Limpar filtro', aoAcionar: limparOFiltro }} />
       )}
       {visiveis.length > 0 && (
         <ul className="divide-y-2 divide-borda overflow-hidden rounded-cartao border-2 border-borda bg-superficie">
@@ -293,8 +293,8 @@ function PainelDaAtividade({ aplicada, nomeDaTurma, turmaId, aoFechar }: PropsDo
         </div>
         <p className="min-w-0 font-medium break-words text-tinta">{situacaoDaAplicacao(aplicada)}</p>
         <p className="min-w-0 text-sm break-words text-sutil">
-          {nomeDaTurma} · aplicada em {formatarDataHora(aplicada.aplicadaEm)}
-          {aplicada.encerradaEm !== null && ` · encerrada em ${formatarDataHora(aplicada.encerradaEm)}`}
+          {nomeDaTurma} · aplicada em {formatDateTime(aplicada.aplicadaEm)}
+          {aplicada.encerradaEm !== null && ` · encerrada em ${formatDateTime(aplicada.encerradaEm)}`}
         </p>
         {aplicada.avaliativa && aplicada.estado === 'aberta' && <p className="min-w-0 rounded-controle bg-info-cx p-3 break-words text-info">{AVISO_DA_AVALIATIVA_ABERTA}</p>}
         <section ref={reserva} tabIndex={-1} aria-label="O que fazer" className="flex min-w-0 flex-col gap-3 rounded-cartao outline-offset-4">
@@ -306,7 +306,7 @@ function PainelDaAtividade({ aplicada, nomeDaTurma, turmaId, aoFechar }: PropsDo
           </p>
           {falha !== undefined && (
             <p role="alert" className="min-w-0 rounded-controle bg-erro-cx p-3 break-words text-erro">
-              {textoDaFalha(falha)}
+              {errorText(falha)}
             </p>
           )}
         </section>

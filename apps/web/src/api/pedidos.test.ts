@@ -64,8 +64,8 @@ describe('a leitura dos pedidos, por quem decide (A1, 16.0)', () => {
   it('o professor lê sem finalidade; a coordenação manda a finalidade de conferência de cadastro; os dois pedem a página inteira, com a sessão', async () => {
     fila.push({ status: 200, corpo: { itens: [ANA] } }, { status: 200, corpo: { itens: [ANA, BRUNO] } })
     const cliente = clienteDeTeste()
-    expect(await cliente.fetchQuery(m.pedidos.consultaPedidosDaTurma(TURMA, 'professor'))).toEqual({ itens: [ANA] })
-    expect(await cliente.fetchQuery(m.pedidos.consultaPedidosDaTurma(TURMA, 'coordenacao'))).toEqual({ itens: [ANA, BRUNO] })
+    expect(await cliente.fetchQuery(m.pedidos.pedidosDaTurmaQueryOptions(TURMA, 'professor'))).toEqual({ itens: [ANA] })
+    expect(await cliente.fetchQuery(m.pedidos.pedidosDaTurmaQueryOptions(TURMA, 'coordenacao'))).toEqual({ itens: [ANA, BRUNO] })
     expect(chamadas).toEqual([
       { caminho: `/v1/turmas/${TURMA}/reivindicacoes?limite=100`, metodo: 'GET', corpo: undefined, autorizacao: 'Bearer token-de-acesso' },
       { caminho: `/v1/turmas/${TURMA}/reivindicacoes?limite=100&finalidade=conferencia_de_cadastro`, metodo: 'GET', corpo: undefined, autorizacao: 'Bearer token-de-acesso' },
@@ -73,27 +73,27 @@ describe('a leitura dos pedidos, por quem decide (A1, 16.0)', () => {
   })
 
   it('a lista que o professor leu não é a da coordenação: cada papel e cada turma têm a chave deles no cache', () => {
-    const { consultaPedidosDaTurma } = m.pedidos
-    expect(consultaPedidosDaTurma(TURMA, 'professor').queryKey).toEqual(['pedidos-da-turma', TURMA, 'professor'])
-    expect(consultaPedidosDaTurma(TURMA, 'coordenacao').queryKey).not.toEqual(consultaPedidosDaTurma(TURMA, 'professor').queryKey)
-    expect(consultaPedidosDaTurma('outra', 'professor').queryKey).not.toEqual(consultaPedidosDaTurma(TURMA, 'professor').queryKey)
+    const { pedidosDaTurmaQueryOptions } = m.pedidos
+    expect(pedidosDaTurmaQueryOptions(TURMA, 'professor').queryKey).toEqual(['pedidos-da-turma', TURMA, 'professor'])
+    expect(pedidosDaTurmaQueryOptions(TURMA, 'coordenacao').queryKey).not.toEqual(pedidosDaTurmaQueryOptions(TURMA, 'professor').queryKey)
+    expect(pedidosDaTurmaQueryOptions('outra', 'professor').queryKey).not.toEqual(pedidosDaTurmaQueryOptions(TURMA, 'professor').queryKey)
   })
 
   it('a tela do professor lê ao abrir; a da coordenação não lê nada sozinha, nem quando a sessão volta a valer, e só lê quando ela pede', async () => {
     const cliente = clienteDeTeste()
     cliente.mount()
     fila.push({ status: 200, corpo: { itens: [ANA] } })
-    const doProfessor = new QueryObserver(cliente, m.pedidos.consultaPedidosDaTurma(TURMA, 'professor'))
+    const doProfessor = new QueryObserver(cliente, m.pedidos.pedidosDaTurmaQueryOptions(TURMA, 'professor'))
     const largarProfessor = doProfessor.subscribe(() => undefined)
     await vi.waitFor(() => expect(doProfessor.getCurrentResult().data).toEqual({ itens: [ANA] }))
     largarProfessor()
     chamadas.length = 0
 
-    const daCoordenacao = new QueryObserver(cliente, m.pedidos.consultaPedidosDaTurma(TURMA, 'coordenacao'))
+    const daCoordenacao = new QueryObserver(cliente, m.pedidos.pedidosDaTurmaQueryOptions(TURMA, 'coordenacao'))
     const largarCoordenacao = daCoordenacao.subscribe(() => undefined)
     // O que o `main.tsx` faz quando a sessão volta a valer e quando ela troca: nenhum dos dois lê pela coordenação.
     await cliente.invalidateQueries()
-    await cliente.resetQueries({ queryKey: m.pedidos.consultaPedidosDaTurma(TURMA, 'coordenacao').queryKey })
+    await cliente.resetQueries({ queryKey: m.pedidos.pedidosDaTurmaQueryOptions(TURMA, 'coordenacao').queryKey })
     expect(chamadas).toEqual([])
     expect(daCoordenacao.getCurrentResult().data).toBeUndefined()
 
@@ -109,21 +109,21 @@ describe('a leitura dos pedidos, por quem decide (A1, 16.0)', () => {
     const cliente = clienteDeTeste()
     fila.push({ status: 200, corpo: { itens: [ANA] } }, { status: 200, corpo: { itens: [ANA] } })
     for (const quem of ['professor', 'coordenacao'] as const) {
-      const observador = new QueryObserver(cliente, { ...m.pedidos.consultaPedidosDaTurma(TURMA, quem), enabled: false })
+      const observador = new QueryObserver(cliente, { ...m.pedidos.pedidosDaTurmaQueryOptions(TURMA, quem), enabled: false })
       const largar = observador.subscribe(() => undefined)
       await observador.refetch()
       largar()
     }
     // O coletor do cache roda num `setTimeout` de `gcTime`; com 0, na próxima volta do laço.
     await new Promise((resolver) => setTimeout(resolver, 5))
-    expect(cliente.getQueryData(m.pedidos.consultaPedidosDaTurma(TURMA, 'coordenacao').queryKey)).toBeUndefined()
-    expect(cliente.getQueryData(m.pedidos.consultaPedidosDaTurma(TURMA, 'professor').queryKey)).toBeUndefined()
+    expect(cliente.getQueryData(m.pedidos.pedidosDaTurmaQueryOptions(TURMA, 'coordenacao').queryKey)).toBeUndefined()
+    expect(cliente.getQueryData(m.pedidos.pedidosDaTurmaQueryOptions(TURMA, 'professor').queryKey)).toBeUndefined()
   })
 
   it('a resposta fora do contrato não chega à tela: o pedido com matrícula, ou com campo a mais', async () => {
     const cliente = clienteDeTeste()
     fila.push({ status: 200, corpo: { itens: [{ ...ANA, matricula: '2026001' }] } })
-    await expect(cliente.fetchQuery(m.pedidos.consultaPedidosDaTurma(TURMA, 'professor'))).rejects.toMatchObject({ codigo: 'ERRO_INTERNO' })
+    await expect(cliente.fetchQuery(m.pedidos.pedidosDaTurmaQueryOptions(TURMA, 'professor'))).rejects.toMatchObject({ codigo: 'ERRO_INTERNO' })
   })
 })
 
@@ -138,9 +138,9 @@ describe('a decisão e a lista depois dela (A1, 16.0)', () => {
   it('todo id da resposta sai da lista na hora, qualquer que seja o resultado, sem leitura nova da coordenação', async () => {
     const cliente = clienteDeTeste()
     cliente.mount()
-    const { queryKey } = m.pedidos.consultaPedidosDaTurma(TURMA, 'coordenacao')
+    const { queryKey } = m.pedidos.pedidosDaTurmaQueryOptions(TURMA, 'coordenacao')
     // A tela da coordenação montada, com a lista que ela pediu no "Atualizar".
-    const daCoordenacao = new QueryObserver(cliente, m.pedidos.consultaPedidosDaTurma(TURMA, 'coordenacao'))
+    const daCoordenacao = new QueryObserver(cliente, m.pedidos.pedidosDaTurmaQueryOptions(TURMA, 'coordenacao'))
     const largar = daCoordenacao.subscribe(() => undefined)
     fila.push({ status: 200, corpo: { itens: [ANA, BRUNO, CAIO, pedido('04', 'Dani sintética')] } })
     await daCoordenacao.refetch()
@@ -163,7 +163,7 @@ describe('a decisão e a lista depois dela (A1, 16.0)', () => {
 
   it('resposta atrasada: a leitura que estava no ar antes da decisão não traz de volta o pedido decidido', async () => {
     const cliente = clienteDeTeste()
-    const { queryKey } = m.pedidos.consultaPedidosDaTurma(TURMA, 'coordenacao')
+    const { queryKey } = m.pedidos.pedidosDaTurmaQueryOptions(TURMA, 'coordenacao')
     cliente.setQueryData(queryKey, { itens: [ANA, BRUNO] })
     // A leitura sai antes da decisão e fica no ar: o servidor a respondeu com os dois pedidos ainda pendentes.
     let responder: (resposta: Response) => void = () => undefined
@@ -173,7 +173,7 @@ describe('a decisão e a lista depois dela (A1, 16.0)', () => {
         return new Promise<Response>((resolver) => (responder = resolver))
       })
     })
-    const noAr = cliente.fetchQuery({ ...m.pedidos.consultaPedidosDaTurma(TURMA, 'coordenacao'), staleTime: 0 }).catch(() => undefined)
+    const noAr = cliente.fetchQuery({ ...m.pedidos.pedidosDaTurmaQueryOptions(TURMA, 'coordenacao'), staleTime: 0 }).catch(() => undefined)
     await leituraSaiu
 
     await m.pedidos.aplicarDecisao(cliente, TURMA, 'coordenacao', { resultados: [{ id: ANA.id, resultado: 'decidida' }] })
@@ -185,9 +185,9 @@ describe('a decisão e a lista depois dela (A1, 16.0)', () => {
   it('para o professor a lista ainda é relida depois da decisão; se a releitura cai, o pedido decidido continua fora dela', async () => {
     const cliente = clienteDeTeste()
     cliente.mount()
-    const { queryKey } = m.pedidos.consultaPedidosDaTurma(TURMA, 'professor')
+    const { queryKey } = m.pedidos.pedidosDaTurmaQueryOptions(TURMA, 'professor')
     fila.push({ status: 200, corpo: { itens: [ANA, BRUNO] } })
-    const observador = new QueryObserver(cliente, m.pedidos.consultaPedidosDaTurma(TURMA, 'professor'))
+    const observador = new QueryObserver(cliente, m.pedidos.pedidosDaTurmaQueryOptions(TURMA, 'professor'))
     const largar = observador.subscribe(() => undefined)
     await vi.waitFor(() => expect(observador.getCurrentResult().data).toEqual({ itens: [ANA, BRUNO] }))
     chamadas.length = 0
@@ -205,7 +205,7 @@ describe('a decisão e a lista depois dela (A1, 16.0)', () => {
     const cliente = clienteDeTeste()
     cliente.mount()
     fila.push({ status: 200, corpo: { itens: [ANA, BRUNO] } })
-    const doProfessor = new QueryObserver(cliente, m.pedidos.consultaPedidosDaTurma(TURMA, 'professor'))
+    const doProfessor = new QueryObserver(cliente, m.pedidos.pedidosDaTurmaQueryOptions(TURMA, 'professor'))
     const largarProfessor = doProfessor.subscribe(() => undefined)
     await vi.waitFor(() => expect(doProfessor.getCurrentResult().data).toEqual({ itens: [ANA, BRUNO] }))
     // Um erro no meio do lote: o primeiro pedido já foi decidido no servidor, e a releitura mostra só o que continua.
@@ -226,7 +226,7 @@ describe('a decisão e a lista depois dela (A1, 16.0)', () => {
     largarProfessor()
     chamadas.length = 0
 
-    const daCoordenacao = new QueryObserver(cliente, m.pedidos.consultaPedidosDaTurma(TURMA, 'coordenacao'))
+    const daCoordenacao = new QueryObserver(cliente, m.pedidos.pedidosDaTurmaQueryOptions(TURMA, 'coordenacao'))
     const largarCoordenacao = daCoordenacao.subscribe(() => undefined)
     fila.push({ status: 200, corpo: { itens: [ANA, BRUNO] } })
     await daCoordenacao.refetch()
@@ -247,27 +247,27 @@ describe('a contagem de pedidos do sino do professor (telas do professor, 1.0)',
   it('lê a mesma rota da lista e guarda só { quantidade, haMais }: a lista com os nomes não chega ao cache', async () => {
     const cliente = clienteDeTeste()
     fila.push({ status: 200, corpo: { itens: [ANA, BRUNO] } })
-    const lida = await cliente.fetchQuery(m.pedidos.consultaContagemDePedidos(TURMA))
+    const lida = await cliente.fetchQuery(m.pedidos.contagemDePedidosQueryOptions(TURMA))
     expect(lida).toEqual(CONTADA)
     expect(chamadas.map(({ caminho, metodo, autorizacao }) => ({ caminho, metodo, comSessao: autorizacao !== undefined }))).toEqual([{ caminho: `/v1/turmas/${TURMA}/reivindicacoes?limite=100`, metodo: 'GET', comSessao: true }])
-    expect(JSON.stringify(cliente.getQueryData(m.pedidos.consultaContagemDePedidos(TURMA).queryKey))).not.toContain('sintética')
+    expect(JSON.stringify(cliente.getQueryData(m.pedidos.contagemDePedidosQueryOptions(TURMA).queryKey))).not.toContain('sintética')
     expect(cliente.getQueryCache().getAll().map((consulta) => JSON.stringify(consulta.state.data)).join('')).not.toContain('sintética')
   })
 
   it('página com outra depois diz que há mais, e a chave é a da contagem, distinta da lista nominal', async () => {
     const cliente = clienteDeTeste()
     fila.push({ status: 200, corpo: { itens: [ANA], proxima: ANA.id } })
-    expect(await cliente.fetchQuery(m.pedidos.consultaContagemDePedidos(TURMA))).toEqual({ quantidade: 1, haMais: true })
-    const contagem = m.pedidos.consultaContagemDePedidos(TURMA).queryKey
+    expect(await cliente.fetchQuery(m.pedidos.contagemDePedidosQueryOptions(TURMA))).toEqual({ quantidade: 1, haMais: true })
+    const contagem = m.pedidos.contagemDePedidosQueryOptions(TURMA).queryKey
     expect(contagem).toEqual(['pedidos-da-turma', 'contagem', TURMA])
-    expect(contagem).not.toEqual(m.pedidos.consultaPedidosDaTurma(TURMA, 'professor').queryKey)
+    expect(contagem).not.toEqual(m.pedidos.pedidosDaTurmaQueryOptions(TURMA, 'professor').queryKey)
   })
 
   it('sem ninguém olhando, a contagem sai do cache: a chave leva o id da turma, e ele não fica na aba da pessoa seguinte', async () => {
     const cliente = clienteDeTeste()
     cliente.mount()
     fila.push({ status: 200, corpo: { itens: [ANA] } })
-    const observador = new QueryObserver(cliente, m.pedidos.consultaContagemDePedidos(TURMA))
+    const observador = new QueryObserver(cliente, m.pedidos.contagemDePedidosQueryOptions(TURMA))
     const largar = observador.subscribe(() => undefined)
     await vi.waitFor(() => expect(observador.getCurrentResult().data).toEqual({ quantidade: 1, haMais: false }))
     expect(cliente.getQueryCache().findAll({ queryKey: ['pedidos-da-turma'] })).toHaveLength(1)
@@ -278,35 +278,35 @@ describe('a contagem de pedidos do sino do professor (telas do professor, 1.0)',
 
   it('decidir como professor invalida a contagem da turma por chave exata: a de outra turma e a lista nominal não são tocadas por ela', async () => {
     const cliente = clienteDeTeste()
-    cliente.setQueryData(m.pedidos.consultaContagemDePedidos(TURMA).queryKey, CONTADA)
-    cliente.setQueryData(m.pedidos.consultaContagemDePedidos(OUTRA).queryKey, CONTADA)
-    cliente.setQueryData(m.pedidos.consultaPedidosDaTurma(OUTRA, 'professor').queryKey, { itens: [BRUNO] })
+    cliente.setQueryData(m.pedidos.contagemDePedidosQueryOptions(TURMA).queryKey, CONTADA)
+    cliente.setQueryData(m.pedidos.contagemDePedidosQueryOptions(OUTRA).queryKey, CONTADA)
+    cliente.setQueryData(m.pedidos.pedidosDaTurmaQueryOptions(OUTRA, 'professor').queryKey, { itens: [BRUNO] })
     await m.pedidos.aplicarDecisao(cliente, TURMA, 'professor', { resultados: [{ id: ANA.id, resultado: 'decidida' }] })
-    expect(cliente.getQueryState(m.pedidos.consultaContagemDePedidos(TURMA).queryKey)?.isInvalidated).toBe(true)
-    expect(cliente.getQueryState(m.pedidos.consultaContagemDePedidos(OUTRA).queryKey)?.isInvalidated).toBe(false)
+    expect(cliente.getQueryState(m.pedidos.contagemDePedidosQueryOptions(TURMA).queryKey)?.isInvalidated).toBe(true)
+    expect(cliente.getQueryState(m.pedidos.contagemDePedidosQueryOptions(OUTRA).queryKey)?.isInvalidated).toBe(false)
     // A lista nominal da outra turma, com o nome do aluno, também não é tocada pela invalidação da contagem.
-    expect(cliente.getQueryState(m.pedidos.consultaPedidosDaTurma(OUTRA, 'professor').queryKey)?.isInvalidated).toBe(false)
+    expect(cliente.getQueryState(m.pedidos.pedidosDaTurmaQueryOptions(OUTRA, 'professor').queryKey)?.isInvalidated).toBe(false)
   })
 
   it('decidir sem o sino olhando não lê a contagem: nem a guardada sem observador, nem a da turma que nunca foi lida', async () => {
     const cliente = clienteDeTeste()
     // TURMA: contagem no cache sem observador (a turma saiu da tela). OUTRA: nenhuma consulta, como a 13ª turma.
-    cliente.setQueryData(m.pedidos.consultaContagemDePedidos(TURMA).queryKey, CONTADA)
+    cliente.setQueryData(m.pedidos.contagemDePedidosQueryOptions(TURMA).queryKey, CONTADA)
     await m.pedidos.aplicarDecisao(cliente, TURMA, 'professor', { resultados: [{ id: ANA.id, resultado: 'decidida' }] })
     await m.pedidos.aplicarDecisao(cliente, OUTRA, 'professor', { resultados: [{ id: BRUNO.id, resultado: 'decidida' }] })
     await vi.waitFor(() => expect(cliente.isFetching()).toBe(0))
     expect(chamadas.filter((chamada) => chamada.caminho.includes('/reivindicacoes'))).toEqual([])
-    expect(cliente.getQueryState(m.pedidos.consultaContagemDePedidos(TURMA).queryKey)?.isInvalidated).toBe(true)
+    expect(cliente.getQueryState(m.pedidos.contagemDePedidosQueryOptions(TURMA).queryKey)?.isInvalidated).toBe(true)
   })
 
   it('dois cliques em decidir, com o sino olhando: uma releitura só da contagem', async () => {
     const cliente = clienteDeTeste()
     cliente.mount()
     fila.push({ status: 200, corpo: { itens: [ANA] } })
-    const observador = new QueryObserver(cliente, m.pedidos.consultaContagemDePedidos(TURMA))
+    const observador = new QueryObserver(cliente, m.pedidos.contagemDePedidosQueryOptions(TURMA))
     const largar = observador.subscribe(() => undefined)
     await vi.waitFor(() => expect(observador.getCurrentResult().data).toEqual({ quantidade: 1, haMais: false }))
-    observador.setOptions({ ...m.pedidos.consultaContagemDePedidos(TURMA), enabled: false })
+    observador.setOptions({ ...m.pedidos.contagemDePedidosQueryOptions(TURMA), enabled: false })
     fila.push({ status: 200, corpo: { itens: [] } })
     const decisao = { resultados: [{ id: ANA.id, resultado: 'decidida' as const }] }
     await Promise.all([m.pedidos.aplicarDecisao(cliente, TURMA, 'professor', decisao), m.pedidos.aplicarDecisao(cliente, TURMA, 'professor', decisao)])
@@ -318,19 +318,19 @@ describe('a contagem de pedidos do sino do professor (telas do professor, 1.0)',
 
   it('a coordenação não tem contagem: a decisão dela não invalida a do sino', async () => {
     const cliente = clienteDeTeste()
-    cliente.setQueryData(m.pedidos.consultaContagemDePedidos(TURMA).queryKey, CONTADA)
+    cliente.setQueryData(m.pedidos.contagemDePedidosQueryOptions(TURMA).queryKey, CONTADA)
     await m.pedidos.aplicarDecisao(cliente, TURMA, 'coordenacao', { resultados: [{ id: ANA.id, resultado: 'decidida' }] })
-    expect(cliente.getQueryState(m.pedidos.consultaContagemDePedidos(TURMA).queryKey)?.isInvalidated).toBe(false)
+    expect(cliente.getQueryState(m.pedidos.contagemDePedidosQueryOptions(TURMA).queryKey)?.isInvalidated).toBe(false)
   })
 
   it('a decisão que falha no meio do lote também invalida a contagem da turma (e só a dela), mas só para o professor', async () => {
     const cliente = clienteDeTeste()
-    for (const turma of [TURMA, OUTRA]) cliente.setQueryData(m.pedidos.consultaContagemDePedidos(turma).queryKey, CONTADA)
+    for (const turma of [TURMA, OUTRA]) cliente.setQueryData(m.pedidos.contagemDePedidosQueryOptions(turma).queryKey, CONTADA)
     await m.pedidos.descartarListaDepoisDaFalha(cliente, TURMA, 'coordenacao')
-    expect(cliente.getQueryState(m.pedidos.consultaContagemDePedidos(TURMA).queryKey)?.isInvalidated).toBe(false)
+    expect(cliente.getQueryState(m.pedidos.contagemDePedidosQueryOptions(TURMA).queryKey)?.isInvalidated).toBe(false)
     await m.pedidos.descartarListaDepoisDaFalha(cliente, TURMA, 'professor')
-    expect(cliente.getQueryState(m.pedidos.consultaContagemDePedidos(TURMA).queryKey)?.isInvalidated).toBe(true)
-    expect(cliente.getQueryState(m.pedidos.consultaContagemDePedidos(OUTRA).queryKey)?.isInvalidated).toBe(false)
+    expect(cliente.getQueryState(m.pedidos.contagemDePedidosQueryOptions(TURMA).queryKey)?.isInvalidated).toBe(true)
+    expect(cliente.getQueryState(m.pedidos.contagemDePedidosQueryOptions(OUTRA).queryKey)?.isInvalidated).toBe(false)
   })
 })
 
@@ -340,18 +340,18 @@ describe('a lista de nomes da turma depois da decisão (telas do professor, 12.0
 
   it('aprovar um pedido marca como velha a lista de nomes da turma, e só a dela: a de outra turma não é tocada', async () => {
     const cliente = clienteDeTeste()
-    cliente.setQueryData(m.alunos.consultaAlunosDaTurma(TURMA).queryKey, PAGINA)
-    cliente.setQueryData(m.alunos.consultaAlunosDaTurma(OUTRA).queryKey, PAGINA)
+    cliente.setQueryData(m.alunos.alunosDaTurmaQueryOptions(TURMA).queryKey, PAGINA)
+    cliente.setQueryData(m.alunos.alunosDaTurmaQueryOptions(OUTRA).queryKey, PAGINA)
     await m.pedidos.aplicarDecisao(cliente, TURMA, 'professor', { resultados: [{ id: ANA.id, resultado: 'decidida' }] })
-    expect(cliente.getQueryState(m.alunos.consultaAlunosDaTurma(TURMA).queryKey)?.isInvalidated).toBe(true)
-    expect(cliente.getQueryState(m.alunos.consultaAlunosDaTurma(OUTRA).queryKey)?.isInvalidated).toBe(false)
+    expect(cliente.getQueryState(m.alunos.alunosDaTurmaQueryOptions(TURMA).queryKey)?.isInvalidated).toBe(true)
+    expect(cliente.getQueryState(m.alunos.alunosDaTurmaQueryOptions(OUTRA).queryKey)?.isInvalidated).toBe(false)
   })
 
   it('com a aba olhando, a decisão faz a lista de nomes ser lida de novo, e o aluno aprovado entra nela', async () => {
     const cliente = clienteDeTeste()
     cliente.mount()
     fila.push({ status: 200, corpo: { itens: [] } })
-    const observador = new InfiniteQueryObserver(cliente, m.alunos.consultaAlunosDaTurma(TURMA))
+    const observador = new InfiniteQueryObserver(cliente, m.alunos.alunosDaTurmaQueryOptions(TURMA))
     const largar = observador.subscribe(() => undefined)
     await vi.waitFor(() => expect(observador.getCurrentResult().data?.pages).toEqual([{ itens: [] }]))
     chamadas.length = 0
@@ -366,10 +366,10 @@ describe('a lista de nomes da turma depois da decisão (telas do professor, 12.0
 
   it('a decisão que falha no meio do lote também marca a lista de nomes da turma como velha', async () => {
     const cliente = clienteDeTeste()
-    cliente.setQueryData(m.alunos.consultaAlunosDaTurma(TURMA).queryKey, PAGINA)
-    cliente.setQueryData(m.alunos.consultaAlunosDaTurma(OUTRA).queryKey, PAGINA)
+    cliente.setQueryData(m.alunos.alunosDaTurmaQueryOptions(TURMA).queryKey, PAGINA)
+    cliente.setQueryData(m.alunos.alunosDaTurmaQueryOptions(OUTRA).queryKey, PAGINA)
     await m.pedidos.descartarListaDepoisDaFalha(cliente, TURMA, 'professor')
-    expect(cliente.getQueryState(m.alunos.consultaAlunosDaTurma(TURMA).queryKey)?.isInvalidated).toBe(true)
-    expect(cliente.getQueryState(m.alunos.consultaAlunosDaTurma(OUTRA).queryKey)?.isInvalidated).toBe(false)
+    expect(cliente.getQueryState(m.alunos.alunosDaTurmaQueryOptions(TURMA).queryKey)?.isInvalidated).toBe(true)
+    expect(cliente.getQueryState(m.alunos.alunosDaTurmaQueryOptions(OUTRA).queryKey)?.isInvalidated).toBe(false)
   })
 })

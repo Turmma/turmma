@@ -1,4 +1,4 @@
-import { useAparencia, type Aparencia as TipoDaAparencia } from '../theme'
+import { useThemePreference, type ThemePreference as TipoDaAparencia } from '../theme'
 import { SegmentedControl, type SegmentedOptions } from './ui/fields/SegmentedControl'
 
 const OPCOES: SegmentedOptions<TipoDaAparencia> = [
@@ -20,6 +20,6 @@ interface Props {
  * Mora na casca, que é da entrada: não importa peça que esteja fora dela (`PECAS_FORA_DA_ENTRADA`).
  */
 export function Aparencia({ rotuloVisivel = true }: Props) {
-  const { aparencia, escolher } = useAparencia()
+  const { aparencia, escolher } = useThemePreference()
   return <SegmentedControl rotulo="Aparência" rotuloVisivel={rotuloVisivel} opcoes={OPCOES} valor={aparencia} aoMudar={escolher} />
 }

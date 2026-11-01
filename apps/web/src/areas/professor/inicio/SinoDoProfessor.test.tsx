@@ -6,10 +6,10 @@ import type { ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Router } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
-import { criarClienteDeConsultas } from '../../../api/query-client'
-import { aplicarDecisao, consultaContagemDePedidos, consultaPedidosDaTurma } from '../../../api/pedidos'
-import { prepararTela, redeFalsa, type RedeFalsa, type RespostaFalsa } from '../../../__fixtures__/render-screen'
-import { ContextoDaAncoraDoSino } from '../../../components/sino-anchor-context'
+import { createQueryClient } from '../../../api/query-client'
+import { aplicarDecisao, contagemDePedidosQueryOptions, pedidosDaTurmaQueryOptions } from '../../../api/pedidos'
+import { setupScreen, fakeNetwork, type FakeNetwork, type FakeResponse } from '../../../__fixtures__/render-screen'
+import { SinoAnchorContext } from '../../../components/sino-anchor-context'
 import { ListaDePedidos } from '../../../components/pedidos/ListaDePedidos'
 import Aprovar from '../atividades/Aprovar'
 import SinoDoProfessor from './SinoDoProfessor'
@@ -20,7 +20,7 @@ import Turmas from '../turmas/Turmas'
  * relê e o que diz quando não leu tudo. A rede é falsa e responde **por caminho**; a fila, o cliente de consultas, a peça e
  * a `ListaDePedidos` são os da aba. O `jsdom` não implementa o `dialog` modal: o teste instala o `showModal` e o `close`.
  */
-prepararTela()
+setupScreen()
 
 const id = (n: number) => `0197a1c0-0000-7000-8000-${String(n).padStart(12, '0')}`
 const TURMA_A = { id: id(101), nome: '1º A' }
@@ -46,23 +46,23 @@ const lote = (n: number, turmaId: string) => ({
   justificativa: null,
 })
 
-const ok = (itens: readonly unknown[], extra: Record<string, unknown> = {}): RespostaFalsa => ({ status: 200, corpo: { itens, ...extra } })
-const erro = (status: number, codigo: string): RespostaFalsa => ({ status, corpo: { erro: { codigo, mensagem: 'x', requisicaoId: '0190f5a0-0000-7000-8000-000000000001' } } })
+const ok = (itens: readonly unknown[], extra: Record<string, unknown> = {}): FakeResponse => ({ status: 200, corpo: { itens, ...extra } })
+const erro = (status: number, codigo: string): FakeResponse => ({ status, corpo: { erro: { codigo, mensagem: 'x', requisicaoId: '0190f5a0-0000-7000-8000-000000000001' } } })
 const FORA = erro(404, 'NAO_ENCONTRADO')
 const LIMITE = erro(429, 'LIMITE_EXCEDIDO')
 
-type Resposta = RespostaFalsa | (() => RespostaFalsa | Promise<RespostaFalsa>)
+type Resposta = FakeResponse | (() => FakeResponse | Promise<FakeResponse>)
 const reivindicacoes = (turmaId: string) => `/v1/turmas/${turmaId}/reivindicacoes`
 
-function instalar(rede: RedeFalsa, quem: { entregas?: Resposta; vinculos?: Resposta; pedidos?: Readonly<Record<string, Resposta>> }): void {
+function instalar(rede: FakeNetwork, quem: { entregas?: Resposta; vinculos?: Resposta; pedidos?: Readonly<Record<string, Resposta>> }): void {
   rede.responderPor('/v1/entregas', quem.entregas ?? ok([]))
   rede.responderPor('/v1/meus-vinculos', quem.vinculos ?? ok([]))
   for (const [turmaId, resposta] of Object.entries(quem.pedidos ?? {})) rede.responderPor(reivindicacoes(turmaId), resposta)
 }
 
 const semConsulta = (caminho: string) => caminho.split('?')[0] ?? caminho
-const caminhosDe = (rede: RedeFalsa) => rede.chamadas.map((chamada) => semConsulta(chamada.caminho))
-const vezesQue = (rede: RedeFalsa, caminho: string) => caminhosDe(rede).filter((chamado) => chamado === caminho).length
+const caminhosDe = (rede: FakeNetwork) => rede.chamadas.map((chamada) => semConsulta(chamada.caminho))
+const vezesQue = (rede: FakeNetwork, caminho: string) => caminhosDe(rede).filter((chamado) => chamado === caminho).length
 
 beforeEach(() => {
   HTMLDialogElement.prototype.showModal = function showModal(this: HTMLDialogElement) {
@@ -83,20 +83,20 @@ afterEach(() => {
 })
 
 function montar(opcoes: { cliente?: QueryClient; comLista?: { turmaId: string; nome: string }; aoLado?: ReactNode } = {}) {
-  const cliente = opcoes.cliente ?? criarClienteDeConsultas()
+  const cliente = opcoes.cliente ?? createQueryClient()
   const ancora = document.createElement('div')
   document.body.append(ancora)
   const localizacao = memoryLocation({ path: '/professor/nova-conversa' })
   const { unmount } = render(
     <QueryClientProvider client={cliente}>
       <Router hook={localizacao.hook}>
-        <ContextoDaAncoraDoSino value={{ elemento: ancora }}>
+        <SinoAnchorContext value={{ elemento: ancora }}>
           {opcoes.comLista !== undefined && (
             <ListaDePedidos turma={{ id: opcoes.comLista.turmaId, nome: opcoes.comLista.nome }} quem="professor" vazio={{ titulo: 'Nenhum pedido', descricao: 'x' }} aoPerderATurma={() => undefined} />
           )}
           {opcoes.aoLado}
           <SinoDoProfessor />
-        </ContextoDaAncoraDoSino>
+        </SinoAnchorContext>
       </Router>
     </QueryClientProvider>,
   )
@@ -112,7 +112,7 @@ const pausa = (ms: number) =>
 
 describe('o sino da professora lê a fila', () => {
   it('desenha o sino na âncora da casca e lê as entregas, os vínculos e a contagem de pedidos de cada turma, e só isso', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { entregas: ok([lote(1, TURMA_A.id)]), vinculos: ok([vinculo(1, TURMA_A)]), pedidos: { [TURMA_A.id]: ok([ANA]) } })
     const { ancora } = montar()
     const sino = await botao('Esperando você, 2')
@@ -122,7 +122,7 @@ describe('o sino da professora lê a fila', () => {
 
   it('abrir a lista não lê nada, e cada item leva à tela dele, agrupado por turma', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { entregas: ok([lote(1, TURMA_A.id)]), vinculos: ok([vinculo(1, TURMA_A), vinculo(2, TURMA_B, { estado: 'pendente' })]), pedidos: { [TURMA_A.id]: ok([ANA, BRUNO]) } })
     montar()
     await usuario.click(await botao('Esperando você, 3'))
@@ -138,7 +138,7 @@ describe('o sino da professora lê a fila', () => {
 
   it('o pé leva às duas telas do time, em qualquer estado da fila, e o número do sino é só o dos itens (2.0)', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { entregas: ok([]), vinculos: ok([]) })
     montar()
     await usuario.click(await botao('Esperando você, nada'))
@@ -151,7 +151,7 @@ describe('o sino da professora lê a fila', () => {
   })
 
   it('decidir um pedido relê a contagem da turma, uma vez, e o item sai do sino sem outra ação', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     let leituras = 0
     instalar(rede, { vinculos: ok([vinculo(1, TURMA_A)]), pedidos: { [TURMA_A.id]: () => ((leituras += 1) === 1 ? ok([ANA]) : ok([])) } })
     const { cliente } = montar()
@@ -164,7 +164,7 @@ describe('o sino da professora lê a fila', () => {
   })
 
   it('duas disciplinas na mesma turma: uma leitura de pedidos só', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { vinculos: ok([vinculo(1, TURMA_A), vinculo(2, TURMA_A, { disciplina: FISICA })]), pedidos: { [TURMA_A.id]: ok([ANA]) } })
     montar()
     await botao('Esperando você, 1')
@@ -174,24 +174,24 @@ describe('o sino da professora lê a fila', () => {
 
 describe('o sino não guarda nome de aluno (regra 20; D34)', () => {
   it('(a) só o sino montado: nada do cache contém o nome do aluno, e a contagem é só { quantidade, haMais }', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { vinculos: ok([vinculo(1, TURMA_A)]), pedidos: { [TURMA_A.id]: ok([ANA, BRUNO]) } })
     const { cliente } = montar()
     await botao('Esperando você, 1')
     const tudo = JSON.stringify(cliente.getQueryCache().getAll().map((consulta) => ({ chave: consulta.queryKey, dado: consulta.state.data })))
     expect(tudo).not.toContain('Ana Sintética')
     expect(tudo).not.toContain('Bruno Sintético')
-    expect(cliente.getQueryData(consultaContagemDePedidos(TURMA_A.id).queryKey)).toEqual({ quantidade: 2, haMais: false })
+    expect(cliente.getQueryData(contagemDePedidosQueryOptions(TURMA_A.id).queryKey)).toEqual({ quantidade: 2, haMais: false })
   })
 
   it('(b) sino e ListaDePedidos juntos: a contagem é outra consulta que a lista, com a chave dela, e o dado é só o número', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { vinculos: ok([vinculo(1, TURMA_A)]), pedidos: { [TURMA_A.id]: ok([ANA, BRUNO]) } })
     const { cliente } = montar({ comLista: { turmaId: TURMA_A.id, nome: TURMA_A.nome } })
     await botao('Esperando você, 1')
     await screen.findByText('2 pedidos esperando a decisão')
-    const chaveDaContagem = consultaContagemDePedidos(TURMA_A.id).queryKey
-    const chaveDaLista = consultaPedidosDaTurma(TURMA_A.id, 'professor').queryKey
+    const chaveDaContagem = contagemDePedidosQueryOptions(TURMA_A.id).queryKey
+    const chaveDaLista = pedidosDaTurmaQueryOptions(TURMA_A.id, 'professor').queryKey
     expect(chaveDaContagem).toEqual(['pedidos-da-turma', 'contagem', TURMA_A.id])
     expect(chaveDaContagem).not.toEqual(chaveDaLista)
     expect(cliente.getQueryData(chaveDaContagem)).toEqual({ quantidade: 2, haMais: false })
@@ -204,9 +204,9 @@ describe('o sino não guarda nome de aluno (regra 20; D34)', () => {
 describe('os estados do sino', () => {
   it('carregando enquanto alguma leitura não respondeu; "Tudo em dia" só com tudo lido e nada esperando', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
-    let liberar: (resposta: RespostaFalsa) => void = () => undefined
-    const lenta = new Promise<RespostaFalsa>((resolver) => (liberar = resolver))
+    const rede = fakeNetwork()
+    let liberar: (resposta: FakeResponse) => void = () => undefined
+    const lenta = new Promise<FakeResponse>((resolver) => (liberar = resolver))
     instalar(rede, { vinculos: () => lenta })
     montar()
     await botao('Esperando você, carregando')
@@ -219,7 +219,7 @@ describe('os estados do sino', () => {
 
   it('as entregas e os vínculos que falham juntos: erro, com o "Tentar de novo", e nunca "Tudo em dia"', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { entregas: erro(400, 'ENTRADA_INVALIDA'), vinculos: erro(400, 'ENTRADA_INVALIDA') })
     montar()
     await usuario.click(await botao('Esperando você, não carregou'))
@@ -229,7 +229,7 @@ describe('os estados do sino', () => {
 
   it('"Tentar de novo" a partir do erro: as entregas e os vínculos são relidos uma vez cada, e a fila lê as turmas e sai do erro', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     let falhando = true
     instalar(rede, {
       entregas: () => (falhando ? erro(400, 'ENTRADA_INVALIDA') : ok([])),
@@ -251,7 +251,7 @@ describe('os estados do sino', () => {
 
   it('uma leitura que falha: a fila é parcial, com os itens das outras e o que não foi lido dito em palavras', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { entregas: erro(400, 'ENTRADA_INVALIDA'), vinculos: ok([vinculo(1, TURMA_A)]), pedidos: { [TURMA_A.id]: ok([ANA]) } })
     montar()
     await usuario.click(await botao('Esperando você, 1'))
@@ -263,7 +263,7 @@ describe('os estados do sino', () => {
   const CEM_ENTREGAS = Array.from({ length: 100 }, (_, i) => lote(i + 1, TURMA_A.id))
 
   it('com a página de entregas cheia e outra depois, o sino diz "100 ou mais", com o aviso de que parte não carregou', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { entregas: ok(CEM_ENTREGAS, { proxima: id(999) }), vinculos: ok([vinculo(1, TURMA_A)]), pedidos: { [TURMA_A.id]: ok([]) } })
     montar()
     const sino = await botao('Esperando você, 100 ou mais')
@@ -274,7 +274,7 @@ describe('os estados do sino', () => {
   })
 
   it('o controle: as mesmas 100 entregas, sem outra página depois, são exatamente 100', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { entregas: ok(CEM_ENTREGAS), vinculos: ok([vinculo(1, TURMA_A)]), pedidos: { [TURMA_A.id]: ok([]) } })
     montar()
     const sino = await botao('Esperando você, 100')
@@ -283,7 +283,7 @@ describe('os estados do sino', () => {
 
   it('Esc fecha a lista e devolve o foco ao sino', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, {})
     montar()
     const sino = await botao('Esperando você, nada')
@@ -297,7 +297,7 @@ describe('os estados do sino', () => {
 
   it('sem ano letivo em curso: nenhuma turma é chamada, o sino diz que não há ano em curso e nunca "Tudo em dia"', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { entregas: FORA, vinculos: FORA })
     montar()
     await usuario.click(await botao('Esperando você, parte não carregou'))
@@ -312,14 +312,14 @@ describe('o sino lê as turmas em série, até o teto, e para na recusa por limi
 
   it('14 turmas dão 12 leituras, uma de cada vez, em ordem de nome; a fila é parcial e diz o que não leu, sem "Tudo em dia"', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     let emVoo = 0
     let maximo = 0
     const lida: string[] = []
     const pedidos = Object.fromEntries(
       turmas.map((turma) => [
         turma.id,
-        async (): Promise<RespostaFalsa> => {
+        async (): Promise<FakeResponse> => {
           emVoo += 1
           maximo = Math.max(maximo, emVoo)
           lida.push(turma.id)
@@ -340,7 +340,7 @@ describe('o sino lê as turmas em série, até o teto, e para na recusa por limi
   })
 
   it('decidir na 13ª turma, além do teto, não lê a contagem dela; decidir na 1ª relê a dela uma vez', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { vinculos: ok(turmas.map((turma, i) => vinculo(i, turma))), pedidos: Object.fromEntries(turmas.map((turma) => [turma.id, ok([])])) })
     const { cliente } = montar()
     await botao('Esperando você, parte não carregou', 10_000)
@@ -358,9 +358,9 @@ describe('o sino lê as turmas em série, até o teto, e para na recusa por limi
 
   it('a 3ª leitura recusada por limite: nada sai da 4ª em diante, os itens já lidos aparecem, e o sino diz que não leu tudo; a primeira resposta segurada prova a série', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
-    let liberarPrimeira: (resposta: RespostaFalsa) => void = () => undefined
-    const primeira = new Promise<RespostaFalsa>((resolver) => (liberarPrimeira = resolver))
+    const rede = fakeNetwork()
+    let liberarPrimeira: (resposta: FakeResponse) => void = () => undefined
+    const primeira = new Promise<FakeResponse>((resolver) => (liberarPrimeira = resolver))
     const pedidos: Record<string, Resposta> = Object.fromEntries(turmas.map((turma) => [turma.id, ok([])]))
     pedidos[turmas[0]?.id ?? ''] = () => primeira
     pedidos[turmas[1]?.id ?? ''] = ok([ANA])
@@ -387,7 +387,7 @@ describe('o sino lê as turmas em série, até o teto, e para na recusa por limi
 describe('"Atualizar" também lê em série e para na recusa por limite', () => {
   it('a segunda turma recusada por limite na releitura: a terceira não é relida, e a fila diz que não leu tudo', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     const turmas = [TURMA_A, TURMA_B, { id: id(103), nome: '3º C' }]
     let leiturasDaSegunda = 0
     instalar(rede, {
@@ -437,7 +437,7 @@ describe('o sino não relê sozinho (RF5)', () => {
   }
 
   const cena = () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { entregas: ok([lote(1, TURMA_A.id)]), vinculos: ok([vinculo(1, TURMA_A)]), pedidos: { [TURMA_A.id]: ok([ANA]) } })
     return rede
   }
@@ -478,9 +478,9 @@ describe('o sino não relê sozinho (RF5)', () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
     for (const tipo of ['foco', 'rede'] as const) {
       const rede = cena()
-      const cliente = criarClienteDeConsultas()
+      const cliente = createQueryClient()
       cliente.mount()
-      const observador = new QueryObserver(cliente, { ...consultaContagemDePedidos(TURMA_A.id), staleTime: 5 * 60 * MIL, refetchInterval: false, refetchOnWindowFocus: tipo === 'foco', refetchOnReconnect: tipo === 'rede' })
+      const observador = new QueryObserver(cliente, { ...contagemDePedidosQueryOptions(TURMA_A.id), staleTime: 5 * 60 * MIL, refetchInterval: false, refetchOnWindowFocus: tipo === 'foco', refetchOnReconnect: tipo === 'rede' })
       const parar = observador.subscribe(() => undefined)
       await waitFor(() => expect(observador.getCurrentResult().isSuccess).toBe(true))
       const antes = rede.chamadas.length
@@ -496,12 +496,12 @@ describe('o sino não relê sozinho (RF5)', () => {
 describe('"Atualizar" e "Tentar de novo" releem só por chave exata, nunca a lista de nomes', () => {
   it('"Atualizar": uma leitura a mais de cada chave do sino, e nenhuma da lista nominal (o dado dela não muda)', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { vinculos: ok([vinculo(1, TURMA_A), vinculo(2, TURMA_B)]), pedidos: { [TURMA_A.id]: ok([ANA]), [TURMA_B.id]: ok([BRUNO]) } })
     const { cliente } = montar({ comLista: { turmaId: TURMA_B.id, nome: TURMA_B.nome } })
     await usuario.click(await botao('Esperando você, 2'))
     await screen.findByRole('checkbox', { name: /Bruno/ })
-    const chaveDaLista = consultaPedidosDaTurma(TURMA_B.id, 'professor').queryKey
+    const chaveDaLista = pedidosDaTurmaQueryOptions(TURMA_B.id, 'professor').queryKey
     const listaAntes = cliente.getQueryState(chaveDaLista)?.dataUpdatedAt
     // A lista nominal e a contagem da turma B leram a mesma rota uma vez cada.
     expect(vezesQue(rede, reivindicacoes(TURMA_B.id))).toBe(2)
@@ -515,7 +515,7 @@ describe('"Atualizar" e "Tentar de novo" releem só por chave exata, nunca a lis
 
   it('"Tentar de novo": relê só o que falhou, e a lista nominal de outra turma não é tocada', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     let falhando = true
     instalar(rede, {
       vinculos: ok([vinculo(1, TURMA_A), vinculo(2, TURMA_B)]),
@@ -524,7 +524,7 @@ describe('"Atualizar" e "Tentar de novo" releem só por chave exata, nunca a lis
     const { cliente } = montar({ comLista: { turmaId: TURMA_B.id, nome: TURMA_B.nome } })
     await usuario.click(await botao('Esperando você, 1'))
     await screen.findByRole('checkbox', { name: /Bruno/ })
-    const chaveDaLista = consultaPedidosDaTurma(TURMA_B.id, 'professor').queryKey
+    const chaveDaLista = pedidosDaTurmaQueryOptions(TURMA_B.id, 'professor').queryKey
     const listaAntes = cliente.getQueryState(chaveDaLista)?.dataUpdatedAt
     const entregasAntes = vezesQue(rede, '/v1/entregas')
     const vinculosAntes = vezesQue(rede, '/v1/meus-vinculos')
@@ -541,12 +541,12 @@ describe('"Atualizar" e "Tentar de novo" releem só por chave exata, nunca a lis
 })
 
 /** As leituras de pedidos de várias turmas, com o que estava no ar ao mesmo tempo, o máximo disso e a ordem em que saíram. */
-function rastrear(turmaIds: readonly string[], resposta: (turmaId: string) => RespostaFalsa = () => ok([])) {
+function rastrear(turmaIds: readonly string[], resposta: (turmaId: string) => FakeResponse = () => ok([])) {
   const estado = { emVoo: 0, maximo: 0, lidas: [] as string[] }
   const pedidos: Record<string, Resposta> = Object.fromEntries(
     turmaIds.map((turmaId) => [
       turmaId,
-      async (): Promise<RespostaFalsa> => {
+      async (): Promise<FakeResponse> => {
         estado.emVoo += 1
         estado.maximo = Math.max(estado.maximo, estado.emVoo)
         estado.lidas.push(turmaId)
@@ -563,7 +563,7 @@ const conjuntoDe = (prefixo: string, base: number) => Array.from({ length: 12 },
 
 describe('a série e a parada no limite valem também quando a leitura não vem de um clique (regra 80)', () => {
   it('troca de escola com o sino montado: depois do reset, as 12 turmas da escola nova saem uma de cada vez, e nenhuma da anterior é relida', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     const turmasA = conjuntoDe('Escola A', 2000)
     const turmasB = conjuntoDe('Escola B', 3000)
     const rastro = rastrear([...turmasA, ...turmasB].map((turma) => turma.id))
@@ -588,7 +588,7 @@ describe('a série e a parada no limite valem também quando a leitura não vem 
   })
 
   it('invalidação global (a API volta): as contagens já lidas não saem juntas, nem uma delas é relida', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     const turmas = conjuntoDe('Escola', 2000).slice(0, 3)
     const rastro = rastrear(turmas.map((turma) => turma.id))
     instalar(rede, { vinculos: ok(turmas.map((turma, i) => vinculo(i, turma))), pedidos: rastro.pedidos })
@@ -605,7 +605,7 @@ describe('a série e a parada no limite valem também quando a leitura não vem 
   })
 
   it('invalidação global com turmas novas: a série recomeça, e a 2ª recusada por limite impede a 3ª', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     const antigas = conjuntoDe('Antiga', 2000).slice(0, 3)
     const novas = conjuntoDe('Nova', 3000).slice(0, 3)
     const rastro = rastrear([...antigas, ...novas].map((turma) => turma.id), (turmaId) => (turmaId === novas[1]?.id ? LIMITE : ok([])))
@@ -630,16 +630,16 @@ describe('a série e a parada no limite valem também quando a leitura não vem 
 describe('a hora da leitura anterior não fica na tela quando a fila recomeça (regra 20, itens 4 e 5)', () => {
   it('depois do reset, enquanto a fila carrega não há "Atualizado às"; quando volta, é a hora da leitura nova', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true, now: new Date(2026, 9, 17, 9, 30) })
-    const rede = redeFalsa()
-    let segurada: Promise<RespostaFalsa> | null = null
+    const rede = fakeNetwork()
+    let segurada: Promise<FakeResponse> | null = null
     instalar(rede, { vinculos: () => segurada ?? ok([]) })
     const { cliente } = montar()
     fireEvent.click(await botao('Esperando você, nada'))
     expect(await within(painel()).findByText('Atualizado às 09:30')).toBeTruthy()
 
     vi.setSystemTime(new Date(2026, 9, 17, 11, 45))
-    let liberar: (resposta: RespostaFalsa) => void = () => undefined
-    segurada = new Promise<RespostaFalsa>((resolver) => (liberar = resolver))
+    let liberar: (resposta: FakeResponse) => void = () => undefined
+    segurada = new Promise<FakeResponse>((resolver) => (liberar = resolver))
     await act(async () => {
       void cliente.resetQueries()
     })
@@ -698,7 +698,7 @@ describe('o que a professora decide em outra tela tira o item do sino, na mesma 
 
   it('aprovar o lote tira a correção do sino, sem outra ação: as entregas são relidas e o item some da lista', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     let aprovado = false
     instalar(rede, { entregas: () => ok(aprovado ? [] : [lote(1, TURMA_A.id)]), vinculos: ok([vinculo(1, TURMA_A)]), pedidos: { [TURMA_A.id]: ok([]) } })
     rede.responderPor(`/v1/atividades-aplicadas/${id(701)}/correcao`, () => ({ status: 200, corpo: correcaoDoLote(aprovado ? 'aprovada' : 'pendente') }))
@@ -734,7 +734,7 @@ describe('o que a professora decide em outra tela tira o item do sino, na mesma 
 
   it('confirmar a turma tira "Confirme sua turma" do sino, sem outra ação, e a turma passa a ter os pedidos lidos', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     let confirmado = false
     const pendente = vinculo(1, TURMA_A, { estado: 'pendente' })
     instalar(rede, { vinculos: () => ok([confirmado ? { ...pendente, estado: 'confirmado' } : pendente]), pedidos: { [TURMA_A.id]: ok([]) } })

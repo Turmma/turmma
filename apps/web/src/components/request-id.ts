@@ -7,7 +7,7 @@
  * Pelo `crypto.getRandomValues`, e não pelo `crypto.randomUUID`: o segundo só existe em contexto seguro, e o sorteio não
  * pode depender de como o endereço foi aberto.
  */
-export function sortearIdDoPedido(): string {
+export function newRequestId(): string {
   const bytes = crypto.getRandomValues(new Uint8Array(16))
   // Versão 4 no nibble alto do byte 6, e a variante RFC 4122 (`10xx`) no byte 8.
   bytes[6] = ((bytes[6] ?? 0) & 0x0f) | 0x40

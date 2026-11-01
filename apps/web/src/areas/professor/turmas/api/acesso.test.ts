@@ -61,7 +61,7 @@ describe('o acesso da turma (A1, 15.0)', () => {
   it('ler, gerar e revogar vão às rotas da turma com a sessão; no pedido vai só a validade, e nada do link nem do código vai na URL', async () => {
     fila.push({ status: 200, corpo: { expiraEm: EXPIRA_EM } }, { status: 201, corpo: gerado }, { status: 204 })
     const cliente = new QueryClient()
-    expect(await cliente.fetchQuery(m.acesso.consultaAcessoDaTurma(TURMA))).toEqual({ expiraEm: EXPIRA_EM })
+    expect(await cliente.fetchQuery(m.acesso.acessoDaTurmaQueryOptions(TURMA))).toEqual({ expiraEm: EXPIRA_EM })
     expect(await m.acesso.gerarAcesso(TURMA, { validadeDias: 30 })).toEqual(gerado)
     expect(await m.acesso.revogarAcesso(TURMA)).toBeUndefined()
     expect(chamadas).toEqual([
@@ -74,16 +74,16 @@ describe('o acesso da turma (A1, 15.0)', () => {
   it('a leitura sem acesso vigente traz null, e cada turma tem a chave dela no cache', async () => {
     fila.push({ status: 200, corpo: { expiraEm: null } })
     const cliente = new QueryClient()
-    expect(await cliente.fetchQuery(m.acesso.consultaAcessoDaTurma(TURMA))).toEqual({ expiraEm: null })
-    expect(m.acesso.consultaAcessoDaTurma(TURMA).queryKey).toEqual(['acesso-da-turma', TURMA])
-    expect(m.acesso.consultaAcessoDaTurma('outra').queryKey).not.toEqual(m.acesso.consultaAcessoDaTurma(TURMA).queryKey)
+    expect(await cliente.fetchQuery(m.acesso.acessoDaTurmaQueryOptions(TURMA))).toEqual({ expiraEm: null })
+    expect(m.acesso.acessoDaTurmaQueryOptions(TURMA).queryKey).toEqual(['acesso-da-turma', TURMA])
+    expect(m.acesso.acessoDaTurmaQueryOptions('outra').queryKey).not.toEqual(m.acesso.acessoDaTurmaQueryOptions(TURMA).queryKey)
   })
 
   it('a resposta fora do contrato não chega à tela: a leitura com o link ou o código, o gerar com campo a mais ou com o código fora do alfabeto', async () => {
     const cliente = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     // A leitura nunca traz o link nem o código: se um dia trouxer, a tela não os guarda no cache de consultas.
     fila.push({ status: 200, corpo: { expiraEm: EXPIRA_EM, codigo: CODIGO } })
-    await expect(cliente.fetchQuery(m.acesso.consultaAcessoDaTurma(TURMA))).rejects.toMatchObject({ codigo: 'ERRO_INTERNO' })
+    await expect(cliente.fetchQuery(m.acesso.acessoDaTurmaQueryOptions(TURMA))).rejects.toMatchObject({ codigo: 'ERRO_INTERNO' })
     fila.push({ status: 201, corpo: { ...gerado, alunos: ['Nome de aluno'] } })
     await expect(m.acesso.gerarAcesso(TURMA, { validadeDias: 7 })).rejects.toMatchObject({ codigo: 'ERRO_INTERNO' })
     // O `0` e o `O` não estão no alfabeto do código.

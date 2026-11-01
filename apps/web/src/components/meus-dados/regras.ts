@@ -10,7 +10,7 @@ import {
   type TipoDePedidoDoTitular,
 } from '@educa/shared'
 import type { StatusFamily } from '../ui/StatusBadge'
-import { agendarRelitura, type AbaDoNavegador } from '../pedidos/atualizacao-dos-pedidos'
+import { agendarRelitura, type BrowserTab } from '../pedidos/atualizacao-dos-pedidos'
 
 /**
  * Os textos e as regras sem React de "Meus dados" (F3, 18.0; RF12 e RF20; Tech Spec do F3, seção 9): o que cada pedido e cada
@@ -137,7 +137,7 @@ export const ROTULO_DA_CATEGORIA_PARA_O_TITULAR: Readonly<Record<CategoriaDeRete
 }
 
 /** Uma linha do resumo: o que a escola guarda e quantos registros. */
-export interface LinhaDoResumo {
+export interface ResumoRow {
   readonly categoria: CategoriaDeRetencao
   readonly descricao: string
   readonly quantidade: number
@@ -147,7 +147,7 @@ export interface LinhaDoResumo {
  * O resumo por categoria, na ordem do catálogo (a mesma que a coordenação lê) e só com o que tem registro. O rótulo é o do
  * titular (`ROTULO_DA_CATEGORIA_PARA_O_TITULAR`): a ordem é a do catálogo de retenção, e o texto é o que existe da pessoa.
  */
-export function linhasDoResumo(categorias: MeusDadosResponse['categorias']): LinhaDoResumo[] {
+export function linhasDoResumo(categorias: MeusDadosResponse['categorias']): ResumoRow[] {
   const quantidades = new Map(categorias.map((linha) => [linha.categoria, linha.quantidade]))
   return CHAVES_DE_RETENCAO.flatMap((categoria) => {
     const quantidade = quantidades.get(categoria)
@@ -165,7 +165,7 @@ export function relerEnquantoPrepara(pedidos: readonly PedidoDeMeusDados[]): boo
  * esquecida atrás de outra não fica batendo na API, regra 80); quando a aba volta, relê na hora. Fora de preparação não
  * agenda nada. Devolve como parar, para quando o estado muda ou a tela sai.
  */
-export function agendarPreparacao(pedidos: readonly PedidoDeMeusDados[], atualizar: () => void, aba: AbaDoNavegador): () => void {
+export function agendarPreparacao(pedidos: readonly PedidoDeMeusDados[], atualizar: () => void, aba: BrowserTab): () => void {
   if (!relerEnquantoPrepara(pedidos)) return () => undefined
   return agendarRelitura(atualizar, aba, INTERVALO_DA_PREPARACAO_MS)
 }

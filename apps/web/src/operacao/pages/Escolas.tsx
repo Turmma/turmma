@@ -3,23 +3,23 @@ import { useQuery } from '@tanstack/react-query'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useLocation, useSearch } from 'wouter'
 import { Button } from '../../components/ui/Button'
-import { EstadoCarregando, EstadoVazio } from '../../components/states'
+import { LoadingState, EmptyState } from '../../components/states'
 import { StatusBadge } from '../../components/ui/StatusBadge'
 import { Table } from '../../components/ui/Table'
-import { formatarQuantidade } from '../../format'
+import { formatQuantity } from '../../format'
 import { acoesDoConvite, ROTULO_DA_ACAO, type AcaoDoConvite } from '../acoes-do-convite'
-import { buscaDaConsulta, consultaDasEscolas, lerConsultaDaTela, paginasDoTotal } from '../api/painel'
+import { buscaDaConsulta, dasEscolasQueryOptions, lerConsultaDaTela, paginasDoTotal } from '../api/painel'
 import { INICIO_DA_OPERACAO } from '../paths'
 import { SECONDARY_BUTTON_CLASSES } from '../../components/ui/button-variants'
 import { ErroDaOperacao } from '../components/CascaDaOperacao'
 import { ConfirmarConvite } from '../components/ConfirmarConvite'
 import { GerarConvite, RefazerConvite } from '../components/DialogoDoConvite'
-import { PaginasDaLista, SeletorDeOrdem, VazioAlemDaUltima } from '../components/NavegacaoDaLista'
-import { RegiaoDaLista } from '../components/RegiaoDaLista'
+import { Pagination, SortSelect, VazioAlemDaUltima } from '../components/NavegacaoDaLista'
+import { ScrollableList } from '../components/ScrollableList'
 import { useDialogState } from '../../components/ui/overlays/dialog-state'
 import { TEXTO_DO_ESTADO, TOM_DO_ESTADO } from '../estados-da-escola'
 import { TEXTO_DA_LISTA_VAZIA } from '../textos'
-import { useTituloDaPagina } from '../document-title'
+import { useOperacaoPageTitle } from '../document-title'
 import { NovaEscola } from './NovaEscola'
 import { NovaRede } from './NovaRede'
 
@@ -93,11 +93,11 @@ function UsoDaEscola({ escola }: { escola: EscolaDoPainel }) {
   if (escola.turmas === 0) return <span className="text-sutil">Sem turma ainda</span>
   return (
     <span className="tabular-nums">
-      <span className="whitespace-nowrap">{formatarQuantidade(escola.turmas, 'turma', 'turmas')}</span>
+      <span className="whitespace-nowrap">{formatQuantity(escola.turmas, 'turma', 'turmas')}</span>
       {' · '}
-      <span className="whitespace-nowrap">{formatarQuantidade(escola.professores, 'professor', 'professores')}</span>
+      <span className="whitespace-nowrap">{formatQuantity(escola.professores, 'professor', 'professores')}</span>
       {' · '}
-      <span className="whitespace-nowrap">{formatarQuantidade(escola.alunos, 'aluno', 'alunos')}</span>
+      <span className="whitespace-nowrap">{formatQuantity(escola.alunos, 'aluno', 'alunos')}</span>
     </span>
   )
 }
@@ -136,11 +136,11 @@ function IdentidadeDaEscola({ escola }: { escola: EscolaDoPainel }) {
  * de volta à primeira.
  */
 export function Escolas() {
-  useTituloDaPagina('Escolas')
+  useOperacaoPageTitle('Escolas')
   const busca = useSearch()
   const [, navegar] = useLocation()
   const consulta = lerConsultaDaTela(busca)
-  const escolas = useQuery(consultaDasEscolas(consulta))
+  const escolas = useQuery(dasEscolasQueryOptions(consulta))
   // O diálogo aberto: um de cada vez, e só enquanto está aberto ele existe; cada abertura é uma instância própria. Os do
   // convite levam a escola da linha, fotografada na abertura.
   const dialogo = useDialogState<'rede' | 'escola' | AcaoDoConvite, EscolaDoPainel>()
@@ -179,28 +179,28 @@ export function Escolas() {
             Nova rede
           </button>
         </div>
-        <SeletorDeOrdem ordem={consulta.ordem} aoEscolher={(ordem) => irPara({ pagina: 1, ordem })} />
+        <SortSelect ordem={consulta.ordem} aoEscolher={(ordem) => irPara({ pagina: 1, ordem })} />
       </div>
 
       <div ref={regiaoDoAnuncio} tabIndex={-1} role="status">{anuncio !== '' && <p className="rounded-controle border border-ok bg-ok-cx p-3 text-ok wrap-anywhere">{anuncio}</p>}</div>
 
       {escolas.isPending ? (
-        <EstadoCarregando rotulo="Carregando as escolas…" />
+        <LoadingState rotulo="Carregando as escolas…" />
       ) : escolas.isError && dados === undefined ? (
         <ErroDaOperacao erro={escolas.error} aoTentarDeNovo={() => void escolas.refetch()} tentando={escolas.isFetching} />
       ) : dados === undefined || dados.total === 0 ? (
         // Sem ação no vazio: o "Nova rede" do topo é o convite, e a tela fica com um só deles e um só botão cheio.
-        <EstadoVazio titulo={TEXTO_DA_LISTA_VAZIA.titulo} descricao={TEXTO_DA_LISTA_VAZIA.descricao} />
+        <EmptyState titulo={TEXTO_DA_LISTA_VAZIA.titulo} descricao={TEXTO_DA_LISTA_VAZIA.descricao} />
       ) : dados.itens.length === 0 ? (
         <VazioAlemDaUltima paginas={paginas} aoIrParaAPrimeira={() => irPara({ pagina: 1, ordem: consulta.ordem })} />
       ) : (
-        <RegiaoDaLista
+        <ScrollableList
           rotulo="Lista de escolas"
           ocupada={trocando}
-          pe={<PaginasDaLista rotulo="Páginas da lista" pagina={consulta.pagina} paginas={paginas} trocando={trocando} aoIr={(pagina) => irPara({ pagina, ordem: consulta.ordem })} />}
+          pe={<Pagination rotulo="Páginas da lista" pagina={consulta.pagina} paginas={paginas} trocando={trocando} aoIr={(pagina) => irPara({ pagina, ordem: consulta.ordem })} />}
         >
           {escolas.isError && <ErroDaOperacao erro={escolas.error} aoTentarDeNovo={() => void escolas.refetch()} tentando={escolas.isFetching} />}
-          <p className="text-sm text-sutil">{formatarQuantidade(dados.total, 'escola', 'escolas')}</p>
+          <p className="text-sm text-sutil">{formatQuantity(dados.total, 'escola', 'escolas')}</p>
           {/* As quatro colunas (RF21; mockup 12.1): a coordenação aparece pelo estado, nunca por nome ou e-mail (D76). */}
           <Table
             rotulo="Escolas, com a rede, o estado da coordenação e as contagens do ano letivo em curso"
@@ -213,7 +213,7 @@ export function Escolas() {
             linhas={dados.itens}
             chaveDaLinha={(escola) => escola.id}
           />
-        </RegiaoDaLista>
+        </ScrollableList>
       )}
 
       {aberta?.tipo === 'rede' && (

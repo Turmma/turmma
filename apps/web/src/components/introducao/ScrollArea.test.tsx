@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { RegiaoQueRola } from './RegiaoQueRola'
+import { ScrollArea } from './ScrollArea'
 
 /**
  * A região que rola das introduções (telas do aluno e primeiro acesso, 9.0 e 10.0; RF20): o nome, o Tab e a faixa "Role para ler
@@ -16,9 +16,9 @@ const FAIXA = 'Role para ler mais'
 
 function abrir() {
   render(
-    <RegiaoQueRola nome="Leia até o fim" alturaMaxima="max-h-[28dvh]">
+    <ScrollArea nome="Leia até o fim" alturaMaxima="max-h-[28dvh]">
       <p>Conteúdo longo</p>
-    </RegiaoQueRola>,
+    </ScrollArea>,
   )
   return screen.getByRole('region', { name: 'Leia até o fim' })
 }

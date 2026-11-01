@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import { GRUPO_MINIMO_DE_PROFESSORES, NOMES_DOS_AGENTES } from '@educa/shared'
 import { describe, expect, it } from 'vitest'
 import { O_QUE_A_IA_NUNCA_FAZ } from '../governanca/nunca-faz'
-import { NAVEGACAO } from '../../navigation'
+import { NAVIGATION } from '../../navigation'
 import {
   AGENTE_DA_INTRODUCAO,
   DESCRICAO_DO_LUGAR,
@@ -140,7 +140,7 @@ describe('onde fica cada coisa', () => {
   })
 
   it('todo lugar da navegação da coordenação tem a frase dele, e nenhuma frase é de lugar que a navegação não tem', () => {
-    const rotulos = NAVEGACAO.coordenador.map((lugar) => lugar.rotulo)
+    const rotulos = NAVIGATION.coordenador.map((lugar) => lugar.rotulo)
     for (const rotulo of rotulos) expect(DESCRICAO_DO_LUGAR[rotulo], rotulo).toBeTruthy()
     expect(Object.keys(DESCRICAO_DO_LUGAR).sort()).toEqual([...rotulos].sort())
   })

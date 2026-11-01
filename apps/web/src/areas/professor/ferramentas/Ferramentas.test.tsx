@@ -5,8 +5,8 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import { Router } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
-import { prepararTela, redeFalsa, renderizarTela, type RedeFalsa, type RespostaFalsa } from '../../../__fixtures__/render-screen'
-import { caminhoDaFerramentaDoProfessor, ROTAS_DO_PROFESSOR } from '../../../paths'
+import { setupScreen, fakeNetwork, renderScreen, type FakeNetwork, type FakeResponse } from '../../../__fixtures__/render-screen'
+import { caminhoDaFerramentaDoProfessor, PROFESSOR_ROUTES } from '../../../paths'
 import { TEXTO_DA_SUSPENSAO } from '../comum/avisos'
 import Ferramentas from './Ferramentas'
 import { ferramentaDoCatalogo } from './ferramentas'
@@ -18,31 +18,31 @@ import { ferramentaDoCatalogo } from './ferramentas'
  * consultas e o roteador são de verdade. As colunas da grade, o tamanho do cartão e do toque, o axe e o recomeço pela pessoa
  * seguinte precisam de navegador e são do e2e (`e2e/professor-ferramentas.spec.ts`).
  */
-prepararTela()
+setupScreen()
 
 const id = (n: number) => `0197a1c0-0000-7000-8000-${String(n).padStart(12, '0')}`
 const TURMA = { id: id(101), nome: '1º A' }
 const QUIMICA = { id: id(500), nome: 'Química' }
 const vinculo = (estado: string) => ({ id: id(401), turma: TURMA, disciplina: QUIMICA, estado })
-const COM_TURMA: RespostaFalsa = { status: 200, corpo: { itens: [vinculo('confirmado')] } }
-const SEM_VINCULO: RespostaFalsa = { status: 200, corpo: { itens: [] } }
-const erro = (status: number, codigo: string): RespostaFalsa => ({ status, corpo: { erro: { codigo, mensagem: 'x', requisicaoId: '0190f5a0-0000-7000-8000-000000000001' } } })
-const timeSem = (...suspensas: ChaveDeFuncao[]): RespostaFalsa => ({ status: 200, corpo: montarTime(new Set(suspensas)) })
+const COM_TURMA: FakeResponse = { status: 200, corpo: { itens: [vinculo('confirmado')] } }
+const SEM_VINCULO: FakeResponse = { status: 200, corpo: { itens: [] } }
+const erro = (status: number, codigo: string): FakeResponse => ({ status, corpo: { erro: { codigo, mensagem: 'x', requisicaoId: '0190f5a0-0000-7000-8000-000000000001' } } })
+const timeSem = (...suspensas: ChaveDeFuncao[]): FakeResponse => ({ status: 200, corpo: montarTime(new Set(suspensas)) })
 const NAO_ENCONTRADO = erro(404, 'NAO_ENCONTRADO')
-const nuncaResponde = () => new Promise<RespostaFalsa>(() => undefined)
+const nuncaResponde = () => new Promise<FakeResponse>(() => undefined)
 /** Confirma que o texto **não** aparece numa janela de 300 ms: a leitura já saiu e a resposta teve tempo de ser desenhada. */
 const naoApareceDepoisDaLeitura = (texto: string) => expect(screen.findByText(texto, undefined, { timeout: 300 })).rejects.toThrow()
 
-type Resposta = RespostaFalsa | (() => RespostaFalsa | Promise<RespostaFalsa>)
+type Resposta = FakeResponse | (() => FakeResponse | Promise<FakeResponse>)
 
-function instalar(rede: RedeFalsa, quem: { time?: Resposta; vinculos?: Resposta } = {}): void {
+function instalar(rede: FakeNetwork, quem: { time?: Resposta; vinculos?: Resposta } = {}): void {
   rede.responderPor('/v1/time', quem.time ?? timeSem())
   rede.responderPor('/v1/meus-vinculos', quem.vinculos ?? COM_TURMA)
 }
 
 function montar() {
-  const localizacao = memoryLocation({ path: ROTAS_DO_PROFESSOR.ferramentas, record: true })
-  renderizarTela(
+  const localizacao = memoryLocation({ path: PROFESSOR_ROUTES.ferramentas, record: true })
+  renderScreen(
     <Router hook={localizacao.hook}>
       <Ferramentas />
     </Router>,
@@ -57,11 +57,11 @@ const cartao = (ferramenta: string) => {
 }
 const seloDe = (ferramenta: string) => within(cartao(ferramenta)).queryByText('Suspensa pela coordenação')
 const avisoDeSuspensao = (funcao: ChaveDeFuncao) => document.querySelector(`[data-funcao-suspensa="${funcao}"]`)
-const chamadasA = (rede: RedeFalsa, caminho: string) => rede.chamadas.filter((chamada) => chamada.caminho.split('?')[0] === caminho)
+const chamadasA = (rede: FakeNetwork, caminho: string) => rede.chamadas.filter((chamada) => chamada.caminho.split('?')[0] === caminho)
 
 describe('o catálogo (D74)', () => {
   it('uma seção por categoria que tem ferramenta, na ordem da D74, e "Corrigir" não aparece; só as três ferramentas, sem cartão desligado nem "em breve"', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede)
     montar()
     await screen.findByRole('heading', { level: 2, name: 'Planejar' })
@@ -81,7 +81,7 @@ describe('o catálogo (D74)', () => {
   })
 
   it('cada cartão leva ao formulário da ferramenta, tem o ícone dela como decoração e diz o que ela entrega', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede)
     montar()
     await screen.findByRole('heading', { level: 2, name: 'Planejar' })
@@ -103,7 +103,7 @@ describe('o catálogo (D74)', () => {
   })
 
   it('a lista do que foi gerado não é lida aqui: a tela só chama o time e os vínculos', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede)
     montar()
     await screen.findByRole('heading', { level: 2, name: 'Planejar' })
@@ -115,7 +115,7 @@ describe('o catálogo (D74)', () => {
 
 describe('a função suspensa pela escola', () => {
   it('sem nenhuma suspensa: nenhum selo e nenhuma frase de suspensão', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede)
     montar()
     await screen.findByRole('heading', { level: 2, name: 'Avaliar' })
@@ -125,7 +125,7 @@ describe('a função suspensa pela escola', () => {
   })
 
   it('só a Adaptação suspensa: o selo e a frase são dela, os outros dois cartões seguem sem selo, e os três continuam abertos', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { time: timeSem('adaptacao') })
     montar()
     await waitFor(() => expect(avisoDeSuspensao('adaptacao')).not.toBeNull())
@@ -139,7 +139,7 @@ describe('a função suspensa pela escola', () => {
   })
 
   it('a conversa e as ferramentas suspensas: o selo está no plano de aula e na atividade, não na Adaptação, e a frase é a da função', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { time: timeSem('conversa_e_ferramentas') })
     montar()
     await waitFor(() => expect(avisoDeSuspensao('conversa_e_ferramentas')).not.toBeNull())
@@ -157,7 +157,7 @@ describe('a função suspensa pela escola', () => {
   })
 
   it('o time ainda não respondeu: os cartões estão na tela, sem selo e sem aviso', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { time: nuncaResponde })
     montar()
     await screen.findByRole('heading', { level: 2, name: 'Planejar' })
@@ -169,14 +169,14 @@ describe('a função suspensa pela escola', () => {
   })
 
   it('a leitura do time falha: os cartões ficam, um aviso diz que não foi possível conferir, e "Tentar de novo" lê outra vez e, com a resposta, o aviso sai e o selo entra', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     const usuario = userEvent.setup()
     let leituras = 0
-    let segunda: (resposta: RespostaFalsa) => void = () => undefined
+    let segunda: (resposta: FakeResponse) => void = () => undefined
     instalar(rede, {
       time: () => {
         leituras += 1
-        return leituras === 1 ? NAO_ENCONTRADO : new Promise<RespostaFalsa>((resolver) => (segunda = resolver))
+        return leituras === 1 ? NAO_ENCONTRADO : new Promise<FakeResponse>((resolver) => (segunda = resolver))
       },
     })
     montar()
@@ -204,7 +204,7 @@ describe('a função suspensa pela escola', () => {
 
 describe('a professora sem turma confirmada', () => {
   it('sem vínculo nenhum: um aviso diz o que falta e leva a Turmas, e os três cartões ficam', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     const usuario = userEvent.setup()
     instalar(rede, { vinculos: SEM_VINCULO })
     const localizacao = montar()
@@ -213,11 +213,11 @@ describe('a professora sem turma confirmada', () => {
     expect(aviso.closest('[data-aviso]')?.getAttribute('data-aviso')).toBe('info')
     expect(screen.getAllByRole('link')).toHaveLength(3)
     await usuario.click(screen.getByRole('button', { name: 'Ir para Turmas' }))
-    expect(localizacao.history?.at(-1)).toBe(ROTAS_DO_PROFESSOR.turmas)
+    expect(localizacao.history?.at(-1)).toBe(PROFESSOR_ROUTES.turmas)
   })
 
   it('só com vínculo ainda por confirmar: continua sem turma confirmada, e o aviso aparece', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { vinculos: { status: 200, corpo: { itens: [vinculo('pendente')] } } })
     montar()
     expect(await screen.findByText('Falta uma turma confirmada')).toBeTruthy()
@@ -225,7 +225,7 @@ describe('a professora sem turma confirmada', () => {
   })
 
   it('com uma turma confirmada não há aviso', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { vinculos: COM_TURMA })
     montar()
     await screen.findByRole('heading', { level: 2, name: 'Planejar' })
@@ -235,7 +235,7 @@ describe('a professora sem turma confirmada', () => {
   })
 
   it('a leitura dos vínculos que falha: silêncio de propósito, sem aviso de turma e sem "Tentar de novo", e os três cartões ficam', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { vinculos: NAO_ENCONTRADO })
     montar()
     await screen.findByRole('heading', { level: 2, name: 'Planejar' })
@@ -248,7 +248,7 @@ describe('a professora sem turma confirmada', () => {
   })
 
   it('enquanto os vínculos não chegam, o aviso não pisca: os cartões estão lá e nada diz que falta turma', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { vinculos: nuncaResponde })
     montar()
     await screen.findByRole('heading', { level: 2, name: 'Planejar' })

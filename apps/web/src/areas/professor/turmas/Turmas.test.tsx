@@ -4,9 +4,9 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testi
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { AVISO_DO_COMPLEMENTO, EFEITO_DA_CONTESTACAO, NOME_DA_CONTESTACAO, NOME_DO_ESTADO_DE_VINCULO } from '@educa/shared'
-import { criarClienteDeConsultas } from '../../../api/query-client'
-import { consultaMeusVinculos } from '../comum/api/vinculos'
-import { prepararTela, redeFalsa, type RedeFalsa, type RespostaFalsa } from '../../../__fixtures__/render-screen'
+import { createQueryClient } from '../../../api/query-client'
+import { meusVinculosQueryOptions } from '../comum/api/vinculos'
+import { setupScreen, fakeNetwork, type FakeNetwork, type FakeResponse } from '../../../__fixtures__/render-screen'
 import Turmas from './Turmas'
 
 /**
@@ -15,7 +15,7 @@ import Turmas from './Turmas'
  * a tela, a fila e o cliente de consultas são os da aba. O `jsdom` não implementa o `dialog` modal: o teste instala o
  * `showModal` e o `close`, e o Esc é o evento `cancel` que o navegador dispararia.
  */
-prepararTela()
+setupScreen()
 
 const id = (n: number) => `0197a1c0-0000-7000-8000-${String(n).padStart(12, '0')}`
 const TURMA_A = { id: id(101), nome: '1º A' }
@@ -47,24 +47,24 @@ const entrega = (n: number, turmaId: string, tipo: 'lote_de_correcao' | 'versao_
   justificativa: null,
 })
 
-const ok = (itens: readonly unknown[], extra: Record<string, unknown> = {}): RespostaFalsa => ({ status: 200, corpo: { itens, ...extra } })
-const erro = (status: number, codigo: string): RespostaFalsa => ({ status, corpo: { erro: { codigo, mensagem: 'x', requisicaoId: '0190f5a0-0000-7000-8000-000000000001' } } })
+const ok = (itens: readonly unknown[], extra: Record<string, unknown> = {}): FakeResponse => ({ status: 200, corpo: { itens, ...extra } })
+const erro = (status: number, codigo: string): FakeResponse => ({ status, corpo: { erro: { codigo, mensagem: 'x', requisicaoId: '0190f5a0-0000-7000-8000-000000000001' } } })
 
-type Resposta = RespostaFalsa | (() => RespostaFalsa | Promise<RespostaFalsa>)
+type Resposta = FakeResponse | (() => FakeResponse | Promise<FakeResponse>)
 const reivindicacoes = (turmaId: string) => `/v1/turmas/${turmaId}/reivindicacoes`
 
-function instalar(rede: RedeFalsa, quem: { entregas?: Resposta; vinculos?: Resposta; pedidos?: Readonly<Record<string, Resposta>> }): void {
+function instalar(rede: FakeNetwork, quem: { entregas?: Resposta; vinculos?: Resposta; pedidos?: Readonly<Record<string, Resposta>> }): void {
   rede.responderPor('/v1/entregas', quem.entregas ?? ok([]))
   rede.responderPor('/v1/meus-vinculos', quem.vinculos ?? ok([]))
   for (const [turmaId, resposta] of Object.entries(quem.pedidos ?? {})) rede.responderPor(reivindicacoes(turmaId), resposta)
 }
 
 const semConsulta = (caminho: string) => caminho.split('?')[0] ?? caminho
-const caminhosDe = (rede: RedeFalsa, metodo = 'GET') => rede.chamadas.filter((chamada) => chamada.metodo === metodo).map((chamada) => semConsulta(chamada.caminho))
-const decisoes = (rede: RedeFalsa) => rede.chamadas.filter((chamada) => chamada.metodo === 'POST')
+const caminhosDe = (rede: FakeNetwork, metodo = 'GET') => rede.chamadas.filter((chamada) => chamada.metodo === metodo).map((chamada) => semConsulta(chamada.caminho))
+const decisoes = (rede: FakeNetwork) => rede.chamadas.filter((chamada) => chamada.metodo === 'POST')
 
 function montar() {
-  const cliente = criarClienteDeConsultas()
+  const cliente = createQueryClient()
   const tela = render(
     <QueryClientProvider client={cliente}>
       <Turmas />
@@ -93,7 +93,7 @@ afterEach(() => cleanup())
 
 describe('Turmas: os estados', () => {
   it('carregando, com o título visível', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     const leitura = rede.segurar()
     instalar(rede, {})
     montar()
@@ -104,7 +104,7 @@ describe('Turmas: os estados', () => {
 
   it('erro: a mensagem do catálogo e "Tentar de novo", que lê de novo', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     let falha = true
     instalar(rede, { vinculos: () => (falha ? erro(503, 'INDISPONIVEL_TENTE_DE_NOVO') : ok([vinculo(1, TURMA_A, MATEMATICA, 'confirmado')])), pedidos: { [TURMA_A.id]: ok([]) } })
     montar()
@@ -117,7 +117,7 @@ describe('Turmas: os estados', () => {
   })
 
   it('vazio: diz que quem aloca é a coordenação', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { vinculos: ok([]) })
     montar()
     expect(await screen.findByText('A coordenação ainda não alocou você')).toBeTruthy()
@@ -126,7 +126,7 @@ describe('Turmas: os estados', () => {
   })
 
   it('só pendente: a faixa de cada vínculo, "Confirme sua turma · 1º A · Matemática", e nenhum cartão', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { vinculos: ok([vinculo(1, TURMA_A, MATEMATICA, 'pendente'), vinculo(2, TURMA_B, HISTORIA, 'pendente')]) })
     montar()
     const regiao = await screen.findByRole('region', { name: 'Confirme suas turmas' })
@@ -140,7 +140,7 @@ describe('Turmas: os estados', () => {
   })
 
   it('com as confirmadas: um cartão por turma e disciplina, com o nome, o estado em texto e o selo; o contestado e o encerrado ficam sem "Abrir a turma"', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, {
       vinculos: ok([
         vinculo(1, TURMA_A, MATEMATICA, 'confirmado'),
@@ -181,7 +181,7 @@ describe('Turmas: os estados', () => {
 describe('Turmas: confirmar', () => {
   it('a faixa some e o cartão aparece em "Suas turmas", com o foco no título dele; dois cliques mandam uma decisão só', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     let confirmado = false
     const resposta = vinculo(1, TURMA_A, MATEMATICA, 'confirmado')
     instalar(rede, { vinculos: () => ok([confirmado ? resposta : vinculo(1, TURMA_A, MATEMATICA, 'pendente')]), pedidos: { [TURMA_A.id]: ok([]) } })
@@ -208,7 +208,7 @@ describe('Turmas: confirmar', () => {
 
   it('duas disciplinas na mesma turma: dois cartões, cada um com o seu estado, e confirmar um não muda o outro', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     const matematica = vinculo(1, TURMA_A, MATEMATICA, 'confirmado')
     let confirmou = false
     instalar(rede, {
@@ -234,7 +234,7 @@ describe('Turmas: confirmar', () => {
 describe('Turmas: depois de confirmar, o convite dos alunos', () => {
   it('o aviso "Turma 2º B confirmada" leva "Gerar o acesso" à aba Alunos da turma confirmada, com o diálogo pedido; antes de confirmar não há aviso, e o endereço só leva a aba e o pedido', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     const confirmadaB = vinculo(2, TURMA_B, HISTORIA, 'confirmado')
     let confirmou = false
     instalar(rede, {
@@ -263,7 +263,7 @@ describe('Turmas: depois de confirmar, o convite dos alunos', () => {
 
   it('o aviso fica na página: sair de Turmas e voltar não o traz de volta, e contestar não gera aviso', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     const confirmadaA = vinculo(1, TURMA_A, MATEMATICA, 'confirmado')
     let confirmou = false
     instalar(rede, { vinculos: () => ok([confirmou ? confirmadaA : { ...confirmadaA, estado: 'pendente' }]), pedidos: { [TURMA_A.id]: ok([]) } })
@@ -283,7 +283,7 @@ describe('Turmas: depois de confirmar, o convite dos alunos', () => {
 
   it('a confirmação que falha não mostra o aviso nem o "Gerar o acesso": a faixa fica, com o erro, e o aviso só vem depois de uma confirmação que deu certo', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     const confirmadaA = vinculo(1, TURMA_A, MATEMATICA, 'confirmado')
     let confirmou = false
     instalar(rede, { vinculos: () => ok([confirmou ? confirmadaA : { ...confirmadaA, estado: 'pendente' }]), pedidos: { [TURMA_A.id]: ok([]) } })
@@ -307,7 +307,7 @@ describe('Turmas: depois de confirmar, o convite dos alunos', () => {
 describe('Turmas: contestar no painel ao lado', () => {
   async function comUmaPendente() {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     // A lista que a API devolve muda com a decisão: a contestação a relê, e o vínculo já vem contestado.
     let lista: unknown[] = [vinculo(1, TURMA_A, MATEMATICA, 'pendente')]
     instalar(rede, { vinculos: () => ok(lista) })
@@ -359,12 +359,12 @@ describe('Turmas: contestar no painel ao lado', () => {
 
   it('o painel só fecha com a lista já relida: enquanto a releitura não chega, o painel e a faixa ficam', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     const contestado = vinculo(1, TURMA_A, MATEMATICA, 'contestado', { contestacao: 'nao_leciono' })
     let relendo = false
     let soltar: () => void = () => undefined
     instalar(rede, {
-      vinculos: () => (relendo ? new Promise<RespostaFalsa>((resolver) => (soltar = () => resolver(ok([contestado])))) : ok([vinculo(1, TURMA_A, MATEMATICA, 'pendente')])),
+      vinculos: () => (relendo ? new Promise<FakeResponse>((resolver) => (soltar = () => resolver(ok([contestado])))) : ok([vinculo(1, TURMA_A, MATEMATICA, 'pendente')])),
     })
     montar()
     await screen.findByRole('region', { name: 'Confirme suas turmas' })
@@ -391,7 +391,7 @@ describe('Turmas: contestar no painel ao lado', () => {
     await usuario.type(dentro.getByRole('textbox'), 'dou aula no 2º B')
 
     await act(async () => {
-      await cliente.invalidateQueries({ queryKey: consultaMeusVinculos.queryKey })
+      await cliente.invalidateQueries({ queryKey: meusVinculosQueryOptions.queryKey })
     })
     expect((dentro.getByRole('radio', { name: NOME_DA_CONTESTACAO.turma_errada }) as HTMLInputElement).checked).toBe(true)
     expect((dentro.getByRole('textbox') as HTMLTextAreaElement).value).toBe('dou aula no 2º B')
@@ -411,7 +411,7 @@ describe('Turmas: contestar no painel ao lado', () => {
 
   it('a falha de uma contestação não vai junto para o painel do outro vínculo: o alerta da tentativa anterior sai', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { vinculos: ok([vinculo(1, TURMA_A, MATEMATICA, 'pendente'), vinculo(2, TURMA_A, HISTORIA, 'pendente')]) })
     montar()
     await screen.findByRole('region', { name: 'Confirme suas turmas' })
@@ -445,7 +445,7 @@ describe('Turmas: contestar no painel ao lado', () => {
 
 describe('Turmas: o que espera em cada turma', () => {
   it('o selo soma a correção, a versão adaptada e os pedidos de nome da turma, só da turma dela; e as chamadas são as do sino, nenhuma a mais', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, {
       entregas: ok([entrega(1, TURMA_A.id, 'lote_de_correcao'), entrega(2, TURMA_A.id, 'versao_adaptada'), entrega(3, TURMA_B.id, 'lote_de_correcao')]),
       vinculos: ok([vinculo(1, TURMA_A, MATEMATICA, 'confirmado'), vinculo(2, TURMA_B, MATEMATICA, 'confirmado')]),
@@ -464,7 +464,7 @@ describe('Turmas: o que espera em cada turma', () => {
   })
 
   it('turma sem nada esperando e lida inteira diz "Em dia"', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { vinculos: ok([vinculo(1, TURMA_A, MATEMATICA, 'confirmado')]), pedidos: { [TURMA_A.id]: ok([]) } })
     montar()
     await screen.findByRole('region', { name: 'Suas turmas' })
@@ -472,7 +472,7 @@ describe('Turmas: o que espera em cada turma', () => {
   })
 
   it('a turma que o sino não leu diz "Não lida", nunca "Em dia": a leitura dos pedidos falhou, ou as entregas vieram truncadas', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { vinculos: ok([vinculo(1, TURMA_A, MATEMATICA, 'confirmado'), vinculo(2, TURMA_B, HISTORIA, 'confirmado')]), pedidos: { [TURMA_A.id]: ok([]), [TURMA_B.id]: erro(404, 'NAO_ENCONTRADO') } })
     montar()
     await screen.findByRole('region', { name: 'Suas turmas' })
@@ -481,7 +481,7 @@ describe('Turmas: o que espera em cada turma', () => {
     expect(cartaoDe('2º B').textContent).not.toContain('Em dia')
     cleanup()
 
-    const outra = redeFalsa()
+    const outra = fakeNetwork()
     instalar(outra, { entregas: ok([], { proxima: 'mais' }), vinculos: ok([vinculo(1, TURMA_A, MATEMATICA, 'confirmado')]), pedidos: { [TURMA_A.id]: ok([]) } })
     montar()
     await screen.findByRole('region', { name: 'Suas turmas' })
@@ -490,7 +490,7 @@ describe('Turmas: o que espera em cada turma', () => {
   })
 
   it('a turma além das 12 e a que ficou sem ler depois da recusa por limite dizem "Não lida"; o número de uma turma lida pela metade é um piso', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     const treze = Array.from({ length: 13 }, (_, n) => ({ id: id(1000 + n), nome: `Turma ${String(n + 10)}` }))
     const pedidos: Record<string, Resposta> = {}
     for (const turma of treze) pedidos[turma.id] = ok([])
@@ -504,7 +504,7 @@ describe('Turmas: o que espera em cada turma', () => {
     expect(caminhosDe(rede)).not.toContain(reivindicacoes(treze[12]?.id ?? ''))
     cleanup()
 
-    const limite = redeFalsa()
+    const limite = fakeNetwork()
     instalar(limite, { vinculos: ok([vinculo(1, TURMA_A, MATEMATICA, 'confirmado'), vinculo(2, TURMA_B, HISTORIA, 'confirmado')]), pedidos: { [TURMA_A.id]: erro(429, 'LIMITE_EXCEDIDO'), [TURMA_B.id]: ok([ANA]) } })
     montar()
     await screen.findByRole('region', { name: 'Suas turmas' })
@@ -515,7 +515,7 @@ describe('Turmas: o que espera em cada turma', () => {
   })
 
   it('o número de uma turma que o sino leu pela metade é um piso ("ou mais"): a correção veio, os pedidos não', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { entregas: ok([entrega(1, TURMA_A.id, 'lote_de_correcao')]), vinculos: ok([vinculo(1, TURMA_A, MATEMATICA, 'confirmado')]), pedidos: { [TURMA_A.id]: erro(404, 'NAO_ENCONTRADO') } })
     montar()
     await screen.findByRole('region', { name: 'Suas turmas' })
@@ -523,7 +523,7 @@ describe('Turmas: o que espera em cada turma', () => {
   })
 
   it('os dois cartões da mesma turma abrem a mesma turma, e mostram a mesma espera', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, {
       entregas: ok([entrega(1, TURMA_A.id, 'lote_de_correcao')]),
       vinculos: ok([vinculo(1, TURMA_A, MATEMATICA, 'confirmado'), vinculo(2, TURMA_A, HISTORIA, 'confirmado')]),
@@ -540,7 +540,7 @@ describe('Turmas: o que espera em cada turma', () => {
   })
 
   it('a faixa a confirmar não entra na soma do cartão da mesma turma', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, {
       vinculos: ok([vinculo(1, TURMA_A, MATEMATICA, 'confirmado'), vinculo(2, TURMA_A, HISTORIA, 'pendente')]),
       pedidos: { [TURMA_A.id]: ok([]) },

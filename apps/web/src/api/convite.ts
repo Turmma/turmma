@@ -5,7 +5,7 @@ import {
   type AceitarConviteResponse,
   type ConsultarConviteResponse,
 } from '@educa/shared'
-import { chamarApi } from './client'
+import { apiRequest } from './client'
 import { guardarBilheteDeConvite, guardarDesafio } from './sessao'
 
 export const CAMINHO_DA_CONSULTA_DE_CONVITE = '/v1/convites/consultar'
@@ -20,7 +20,7 @@ export const CAMINHO_DO_ACEITE_DE_CONVITE = '/v1/convites/aceitar'
  * que não pode existir.
  */
 export function consultarConvite(token: string): Promise<ConsultarConviteResponse> {
-  return chamarApi(CAMINHO_DA_CONSULTA_DE_CONVITE, consultarConviteResponseSchema, { metodo: 'POST', corpo: { token } })
+  return apiRequest(CAMINHO_DA_CONSULTA_DE_CONVITE, consultarConviteResponseSchema, { metodo: 'POST', corpo: { token } })
 }
 
 /** O que a tela do convite faz com a resposta do aceite. */
@@ -53,7 +53,7 @@ export async function aceitarConviteNaVez(pedido: AceitarConviteRequest, vezDoLi
   const vez = vezDoLink()
   let resposta: AceitarConviteResponse
   try {
-    resposta = await chamarApi(CAMINHO_DO_ACEITE_DE_CONVITE, aceitarConviteResponseSchema, { metodo: 'POST', corpo: pedido })
+    resposta = await apiRequest(CAMINHO_DO_ACEITE_DE_CONVITE, aceitarConviteResponseSchema, { metodo: 'POST', corpo: pedido })
   } catch (erro) {
     return vezDoLink() === vez ? { tipo: 'falhou', erro } : { tipo: 'descartado' }
   }

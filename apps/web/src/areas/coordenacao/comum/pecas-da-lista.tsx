@@ -6,7 +6,7 @@ import type { ReactNode } from 'react'
  */
 
 /** Um item da lista: o cartão, em uma coluna no celular e em linha a partir de 768 px (W12). */
-export function Linha({ titulo, detalhe, children }: { titulo: string; detalhe?: string; children: ReactNode }) {
+export function ListRow({ titulo, detalhe, children }: { titulo: string; detalhe?: string; children: ReactNode }) {
   return (
     <li className="flex min-w-0 flex-col gap-3 rounded-cartao border border-linha bg-superficie p-4 md:flex-row md:items-center md:justify-between">
       <div className="min-w-0">

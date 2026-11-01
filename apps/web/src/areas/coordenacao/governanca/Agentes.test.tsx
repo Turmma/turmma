@@ -5,7 +5,7 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { Router } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
-import { prepararTela, redeFalsa, renderizarTela, type RedeFalsa, type RespostaFalsa } from '../../../__fixtures__/render-screen'
+import { setupScreen, fakeNetwork, renderScreen, type FakeNetwork, type FakeResponse } from '../../../__fixtures__/render-screen'
 import Agentes from './Agentes'
 import { NOME_DA_AUTONOMIA } from './textos-da-governanca'
 
@@ -15,7 +15,7 @@ import { NOME_DA_AUTONOMIA } from './textos-da-governanca'
  * A rede é falsa; o cliente de consultas, o roteador e a tela são os de verdade. O servidor que grava a suspensão, o recomeço pela pessoa
  * seguinte, o clique duplo e o tamanho nas duas larguras são do e2e (`e2e/agentes.spec.ts`).
  */
-prepararTela()
+setupScreen()
 
 /** A largura da janela, para a consulta `(min-width: 768px)` que o miolo lê; o `jsdom` não tem `matchMedia`. */
 function janelaDe(largura: number): void {
@@ -39,7 +39,7 @@ beforeEach(() => {
   }
 })
 
-const FORA: RespostaFalsa = { status: 404, corpo: { erro: { codigo: 'NAO_ENCONTRADO', mensagem: 'x', requisicaoId: '0190f5a0-0000-7000-8000-000000000001' } } }
+const FORA: FakeResponse = { status: 404, corpo: { erro: { codigo: 'NAO_ENCONTRADO', mensagem: 'x', requisicaoId: '0190f5a0-0000-7000-8000-000000000001' } } }
 
 type Chave = 'conversa_e_ferramentas' | 'correcao_de_objetiva' | 'adaptacao' | 'tutor_com_o_aluno' | 'sinais_para_o_professor' | 'resumo_e_alerta'
 type Autonomia = 1 | 2 | 3 | 4
@@ -72,7 +72,7 @@ function funcao(chave: Chave, nome: string, autonomia: Autonomia, altoRisco = fa
 const SUSPENSAO = { suspensaEm: '2026-10-05T13:00:00.000Z', motivo: 'revisao_pedagogica' }
 
 /** As funções como a API as devolve: três agentes, na ordem do catálogo. A correção de objetiva é a de alto risco. */
-function lista(ajuste: (funcoes: FuncaoFalsa[]) => FuncaoFalsa[] = (funcoes) => funcoes): RespostaFalsa {
+function lista(ajuste: (funcoes: FuncaoFalsa[]) => FuncaoFalsa[] = (funcoes) => funcoes): FakeResponse {
   const todas = ajuste([
     funcao('conversa_e_ferramentas', 'Conversa e ferramentas', 1),
     funcao('correcao_de_objetiva', 'Correção de objetiva', 2, true),
@@ -100,7 +100,7 @@ const comSuspensa = (chave: Chave) => lista((funcoes) => funcoes.map((item) => (
 function montar(endereco = '/agentes') {
   const [caminho = '/agentes', busca = ''] = endereco.split('?')
   const localizacao = memoryLocation({ path: caminho, searchPath: busca, record: true })
-  const { unmount } = renderizarTela(
+  const { unmount } = renderScreen(
     <Router hook={localizacao.hook} searchHook={localizacao.searchHook}>
       <Agentes />
     </Router>,
@@ -116,11 +116,11 @@ const itemDa = (chave: Chave): HTMLElement => {
   return item
 }
 const seletor = () => screen.getByRole('radiogroup', { name: 'Qual IA' })
-const chamadasDe = (rede: RedeFalsa, metodo: string) => rede.chamadas.filter((chamada) => chamada.metodo === metodo).map((chamada) => chamada.caminho)
+const chamadasDe = (rede: FakeNetwork, metodo: string) => rede.chamadas.filter((chamada) => chamada.metodo === metodo).map((chamada) => chamada.caminho)
 
 describe('Como cada IA trabalha: os estados da tela', () => {
   it('carregando: o seletor já está à mão, e nenhum cartão aparece até a leitura terminar', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     const lida = rede.segurar()
     montar()
     expect(await screen.findByText('Carregando os agentes…')).toBeTruthy()
@@ -137,7 +137,7 @@ describe('Como cada IA trabalha: os estados da tela', () => {
 
   it('erro: diz o que fazer, o seletor continua, e "Tentar de novo" lê outra vez', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     let leituras = 0
     rede.responderPor('/v1/governanca/funcoes', () => (++leituras === 1 ? FORA : lista()))
     montar()
@@ -150,7 +150,7 @@ describe('Como cada IA trabalha: os estados da tela', () => {
   })
 
   it('com dado, para cada uma das três IAs: o cartão dela, com o nome de função como título, o selo "IA" e as funções dela — e o "nunca faz" igual', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor('/v1/governanca/funcoes', lista())
     const esperado = [
       { endereco: '/agentes', agente: 'assistente_de_ensino', funcoes: ['conversa_e_ferramentas', 'correcao_de_objetiva', 'adaptacao'] },
@@ -174,7 +174,7 @@ describe('Como cada IA trabalha: os estados da tela', () => {
 
 describe('Como cada IA trabalha: o seletor "Qual IA" e o endereço', () => {
   it('abre no Assistente de ensino; um valor que não é de nenhuma IA também abre nele', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor('/v1/governanca/funcoes', lista())
     for (const endereco of ['/agentes', '/agentes?ia=qualquer-coisa', '/agentes?ia=TUTOR']) {
       const { unmount } = montar(endereco)
@@ -187,7 +187,7 @@ describe('Como cada IA trabalha: o seletor "Qual IA" e o endereço', () => {
 
   it('escolher uma IA põe `?ia=` no endereço, sem empilhar histórico, e troca o cartão; a leitura das funções é uma só', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor('/v1/governanca/funcoes', lista())
     const { localizacao } = montar()
     await screen.findByRole('region', { name: 'Assistente de ensino' })
@@ -211,7 +211,7 @@ describe('Como cada IA trabalha: o seletor "Qual IA" e o endereço', () => {
 
   it('escolher a IA guarda os outros parâmetros do endereço', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor('/v1/governanca/funcoes', lista())
     const { localizacao } = montar('/agentes?estado=aprovada')
     await screen.findByRole('region', { name: 'Assistente de ensino' })
@@ -222,9 +222,9 @@ describe('Como cada IA trabalha: o seletor "Qual IA" e o endereço', () => {
 
   it('com uma retomada no ar, trocar de IA não prende as retomadas seguintes, e a resposta que chega depois não anuncia na IA errada', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
-    let liberar: (resposta: RespostaFalsa) => void = () => undefined
-    const lenta = new Promise<RespostaFalsa>((resolver) => (liberar = resolver))
+    const rede = fakeNetwork()
+    let liberar: (resposta: FakeResponse) => void = () => undefined
+    const lenta = new Promise<FakeResponse>((resolver) => (liberar = resolver))
     rede.responderPor('/v1/governanca/funcoes/correcao_de_objetiva/retomar', () => lenta)
     rede.responderPor('/v1/governanca/funcoes/tutor_com_o_aluno/retomar', { status: 200, corpo: { ...funcao('tutor_com_o_aluno', 'Tutor com o aluno', 2), suspensao: null } })
     const suspensas = (chaves: readonly Chave[]) => lista((funcoes) => funcoes.map((item) => (chaves.includes(item.chave) ? { ...item, suspensa: true, suspensao: SUSPENSAO } : item)))
@@ -253,7 +253,7 @@ describe('Como cada IA trabalha: o seletor "Qual IA" e o endereço', () => {
 
   it('trocar de IA, com a retomada já terminada, tira o aviso da que falhou e o anúncio da última ação, que eram de outra IA (a resposta ainda no ar é o caso de cima)', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor('/v1/governanca/funcoes/correcao_de_objetiva/retomar', FORA)
     rede.responderPor('/v1/governanca/funcoes/adaptacao/retomar', { status: 200, corpo: { ...funcao('adaptacao', 'Adaptação', 3), suspensao: null } })
     rede.responderPor('/v1/governanca/funcoes', lista((funcoes) => funcoes.map((item) => (item.chave === 'correcao_de_objetiva' || item.chave === 'adaptacao' ? { ...item, suspensa: true, suspensao: SUSPENSAO } : item))))
@@ -275,7 +275,7 @@ describe('Como cada IA trabalha: o seletor "Qual IA" e o endereço', () => {
   })
 
   it('o miolo que rola recebe foco a partir de 768 px, e abaixo disso a página é que rola', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor('/v1/governanca/funcoes', lista())
     for (const [largura, foco] of [
       [1366, true],
@@ -292,7 +292,7 @@ describe('Como cada IA trabalha: o seletor "Qual IA" e o endereço', () => {
 
 describe('Como cada IA trabalha: o que cada função diz', () => {
   it('"faz sozinha" e "espera aprovação" são os da resposta, sem texto da tela no lugar, e nenhuma frase diz que o agente é uma pessoa', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor('/v1/governanca/funcoes', lista())
     montar()
     const cartao = await screen.findByRole('region', { name: 'Assistente de ensino' })
@@ -308,7 +308,7 @@ describe('Como cada IA trabalha: o que cada função diz', () => {
   })
 
   it('cada função mostra a autonomia da API, e só a de alto risco mostra o selo "Alto risco"', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor('/v1/governanca/funcoes', lista())
     montar()
     await screen.findByRole('region', { name: 'Assistente de ensino' })
@@ -325,7 +325,7 @@ describe('Como cada IA trabalha: o que cada função diz', () => {
   })
 
   it('a função suspensa diz desde quando e o motivo, e só oferece retomar; a que funciona só oferece suspender', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor('/v1/governanca/funcoes', comSuspensa('correcao_de_objetiva'))
     montar()
     await screen.findByRole('region', { name: 'Assistente de ensino' })
@@ -347,7 +347,7 @@ describe('Como cada IA trabalha: o que cada função diz', () => {
 describe('Como cada IA trabalha: suspender e retomar', () => {
   it('suspender pede confirmação, grava o motivo escolhido, anuncia, e o foco vai ao botão "Retomar" da mesma função — e não ao body', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     let suspensa = false
     rede.responderPor('/v1/governanca/funcoes/correcao_de_objetiva/suspender', () => {
       suspensa = true
@@ -379,7 +379,7 @@ describe('Como cada IA trabalha: suspender e retomar', () => {
 
   it('retomar anuncia, e o foco vai ao botão "Suspender" da mesma função — e não ao body', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     let retomada = false
     rede.responderPor('/v1/governanca/funcoes/correcao_de_objetiva/retomar', () => {
       retomada = true
@@ -398,7 +398,7 @@ describe('Como cada IA trabalha: suspender e retomar', () => {
 
   it('a função que já tinha sido retomada em outra aba: diz o que houve, e a lista é lida de novo', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     let leituras = 0
     rede.responderPor('/v1/governanca/funcoes/correcao_de_objetiva/retomar', FORA)
     rede.responderPor('/v1/governanca/funcoes', () => (++leituras === 1 ? comSuspensa('correcao_de_objetiva') : lista()))
@@ -412,7 +412,7 @@ describe('Como cada IA trabalha: suspender e retomar', () => {
 
   it('suspender: a falha fica no diálogo, que continua aberto; ao fechar e reabrir, o aviso da tentativa anterior não volta', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor('/v1/governanca/funcoes/adaptacao/suspender', { status: 503, corpo: { erro: { codigo: 'INDISPONIVEL', mensagem: 'x', requisicaoId: '0190f5a0-0000-7000-8000-000000000001' } } })
     rede.responderPor('/v1/governanca/funcoes', lista())
     montar()

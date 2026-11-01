@@ -1,11 +1,11 @@
 import { euResponseSchema, introducaoResponseSchema, type IntroducaoResponse } from '@educa/shared'
 import { queryOptions } from '@tanstack/react-query'
-import { buscarComSessao, chamarComSessao } from './sessao'
+import { authedGet, authedRequest } from './sessao'
 
 /** Quem está na sessão, na escola dela (`GET /v1/eu`). É a consulta que prova que o token da sessão vale. */
-export const consultaEu = queryOptions({
+export const euQueryOptions = queryOptions({
   queryKey: ['eu'],
-  queryFn: ({ signal }) => buscarComSessao('/v1/eu', euResponseSchema, signal),
+  queryFn: ({ signal }) => authedGet('/v1/eu', euResponseSchema, signal),
 })
 
 /**
@@ -13,5 +13,5 @@ export const consultaEu = queryOptions({
  * ficou gravada, a mesma que o `GET /v1/eu` devolve. Repetir não muda nada.
  */
 export function concluirIntroducao(): Promise<IntroducaoResponse> {
-  return chamarComSessao('/v1/eu/introducao', introducaoResponseSchema, { metodo: 'POST', corpo: {} })
+  return authedRequest('/v1/eu/introducao', introducaoResponseSchema, { metodo: 'POST', corpo: {} })
 }

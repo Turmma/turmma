@@ -3,10 +3,10 @@ import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tansta
 import { ArrowLeft } from 'lucide-react'
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useSearch } from 'wouter'
-import { abrirDestaque, aprovarLote, consultaCorrecaoDoLote, recarregarDepoisDoLote } from './api/atividades'
-import { ErroDaApi, mensagemDoErro } from '../../../api/client'
-import { consultaEntregas, decidirEntrega } from '../artefatos/api/entregas'
-import { consultaMeusVinculos } from '../comum/api/vinculos'
+import { abrirDestaque, aprovarLote, correcaoDoLoteQueryOptions, recarregarDepoisDoLote } from './api/atividades'
+import { ApiError, errorMessage } from '../../../api/client'
+import { entregasQueryOptions, decidirEntrega } from '../artefatos/api/entregas'
+import { meusVinculosQueryOptions } from '../comum/api/vinculos'
 import { Tabs } from '../../../components/ui/Tabs'
 import { Alert } from '../../../components/ui/Alert'
 import { StickyFooter } from '../../../components/ui/StickyFooter'
@@ -14,7 +14,7 @@ import { ProgressBar } from '../../../components/ui/ProgressBar'
 import { Button } from '../../../components/ui/Button'
 import { Textarea } from '../../../components/ui/fields/Textarea'
 import { ConfirmDialog } from '../../../components/ui/overlays/ConfirmDialog'
-import { EstadoCarregando, EstadoErro, EstadoVazio } from '../../../components/states/index'
+import { LoadingState, ErrorState, EmptyState } from '../../../components/states/index'
 import { AgentSignature } from '../../../components/ui/ai/AgentSignature'
 import { ApprovalLine } from '../../../components/ui/ai/ApprovalLine'
 import { ListItem } from '../../../components/ui/ListItem'
@@ -24,7 +24,7 @@ import { StatusBadge } from '../../../components/ui/StatusBadge'
 import { Table } from '../../../components/ui/Table'
 import { SectionHeader, Page } from '../../../components/ui/Page'
 import { problemaDoTexto } from '../../../components/ui/fields/text-limits'
-import { useTituloDaTela } from '../../../document-title'
+import { usePageTitle } from '../../../document-title'
 import {
   ABAS_DA_CORRECAO,
   abaDoEndereco,
@@ -133,13 +133,13 @@ function DestaqueAberto({ aberto }: { aberto: DestaqueAbertoResponse }) {
  * A tela não manda o que mostrou: o "apresentado" do registro é montado pelo servidor.
  */
 export default function Aprovar({ atividadeAplicadaId }: { atividadeAplicadaId: string }) {
-  useTituloDaTela('Revisar a correção')
+  usePageTitle('Revisar a correção')
   const cliente = useQueryClient()
   const [caminho, navegar] = useLocation()
   const busca = useSearch()
-  const correcao = useQuery(consultaCorrecaoDoLote(atividadeAplicadaId))
-  const entregas = useInfiniteQuery(consultaEntregas)
-  const vinculos = useInfiniteQuery(consultaMeusVinculos)
+  const correcao = useQuery(correcaoDoLoteQueryOptions(atividadeAplicadaId))
+  const entregas = useInfiniteQuery(entregasQueryOptions)
+  const vinculos = useInfiniteQuery(meusVinculosQueryOptions)
   const [abertos, definirAbertos] = useState<Readonly<Record<string, DestaqueAbertoResponse>>>({})
   const [decisao, definirDecisao] = useState<'aprovar' | 'rejeitar' | undefined>(undefined)
   const [justificativa, definirJustificativa] = useState('')
@@ -164,7 +164,7 @@ export default function Aprovar({ atividadeAplicadaId }: { atividadeAplicadaId: 
     onSuccess: (aberto) => {
       definirAbertos((atuais) => ({ ...atuais, [aberto.destaque.alunoId]: aberto }))
       // A abertura ficou registrada: a tela relê o lote, que traz a hora e libera o botão quando for a última. O painel não espera por isso.
-      void cliente.invalidateQueries({ queryKey: consultaCorrecaoDoLote(atividadeAplicadaId).queryKey })
+      void cliente.invalidateQueries({ queryKey: correcaoDoLoteQueryOptions(atividadeAplicadaId).queryKey })
     },
     onSettled: (_resposta, _erro, alunoId) => {
       emAbertura.current.delete(alunoId)
@@ -199,7 +199,7 @@ export default function Aprovar({ atividadeAplicadaId }: { atividadeAplicadaId: 
   const fechar = () => definirDecisao(undefined)
   const decidir = useMutation({
     mutationFn: async (escolha: 'aprovar' | 'rejeitar') => {
-      if (dados === undefined) throw new ErroDaApi(ErrorCode.ERRO_INTERNO)
+      if (dados === undefined) throw new ApiError(ErrorCode.ERRO_INTERNO)
       if (escolha === 'aprovar') await aprovarLote(dados.entrega.id)
       else await decidirEntrega(dados.entrega.id, { decisao: 'rejeitar', justificativa: justificativa.trim() })
     },
@@ -210,7 +210,7 @@ export default function Aprovar({ atividadeAplicadaId }: { atividadeAplicadaId: 
       fechar()
     },
     onError: async (erro) => {
-      if (!(erro instanceof ErroDaApi)) return
+      if (!(erro instanceof ApiError)) return
       // Outra aba já decidiu, um destaque deixou de estar aberto, o lote mudou desde que a tela o leu, ou o registro não
       // pôde ser gravado agora: a tela se atualiza e diz o que houve, com calma, sem erro cru. Nada foi aprovado.
       const texto = AVISO_DA_DECISAO[erro.codigo]
@@ -235,15 +235,15 @@ export default function Aprovar({ atividadeAplicadaId }: { atividadeAplicadaId: 
   )
 
   if (dados === undefined) {
-    const naoEncontrada = correcao.error instanceof ErroDaApi && correcao.error.codigo === ErrorCode.NAO_ENCONTRADO
+    const naoEncontrada = correcao.error instanceof ApiError && correcao.error.codigo === ErrorCode.NAO_ENCONTRADO
     return (
       <Page titulo="Revisar a correção" largura="leitura" antes={voltar}>
         {correcao.isPending ? (
-          <EstadoCarregando rotulo="Carregando a correção…" />
+          <LoadingState rotulo="Carregando a correção…" />
         ) : naoEncontrada ? (
-          <EstadoVazio titulo="Esta correção não está disponível" descricao="A atividade pode ainda estar aberta, ser de uma turma que não é mais sua, ou o endereço está errado. A correção nasce quando você encerra a atividade, e aparece em “Esperando você”, no sino." />
+          <EmptyState titulo="Esta correção não está disponível" descricao="A atividade pode ainda estar aberta, ser de uma turma que não é mais sua, ou o endereço está errado. A correção nasce quando você encerra a atividade, e aparece em “Esperando você”, no sino." />
         ) : (
-          <EstadoErro erro={correcao.error} tentando={correcao.isFetching} aoTentarDeNovo={() => void correcao.refetch({ cancelRefetch: false })} />
+          <ErrorState erro={correcao.error} tentando={correcao.isFetching} aoTentarDeNovo={() => void correcao.refetch({ cancelRefetch: false })} />
         )}
       </Page>
     )
@@ -254,7 +254,7 @@ export default function Aprovar({ atividadeAplicadaId }: { atividadeAplicadaId: 
   const contador = contadorDosDestaques(dados)
   const turma = entregaInteira === undefined ? undefined : nomesDasTurmas(vinculos.data?.pages.flatMap((pagina) => pagina.itens) ?? [])[entregaInteira.turmaId]
   const problemaDaJustificativa = problemaDoTexto(justificativa, LIMITES_DA_JUSTIFICATIVA)
-  const falha = decidir.isError && !(decidir.error instanceof ErroDaApi && AVISO_DA_DECISAO[decidir.error.codigo] !== undefined) ? mensagemDoErro(decidir.error) : undefined
+  const falha = decidir.isError && !(decidir.error instanceof ApiError && AVISO_DA_DECISAO[decidir.error.codigo] !== undefined) ? errorMessage(decidir.error) : undefined
 
   function abrirDecisao(escolha: 'aprovar' | 'rejeitar'): void {
     decidir.reset()
@@ -290,7 +290,7 @@ export default function Aprovar({ atividadeAplicadaId }: { atividadeAplicadaId: 
         />
         {abrir.isError && abrir.variables === destaque.alunoId && doPainel?.alunoId !== destaque.alunoId && (
           <p role="alert" className="mx-4 mb-3 rounded-controle bg-erro-cx p-3 break-words text-erro">
-            {mensagemDoErro(abrir.error)}
+            {errorMessage(abrir.error)}
           </p>
         )}
       </li>
@@ -427,14 +427,14 @@ export default function Aprovar({ atividadeAplicadaId }: { atividadeAplicadaId: 
           ) : abrir.isError && abrir.variables === doPainel.alunoId ? (
             <div className="flex min-w-0 flex-col items-start gap-3">
               <p role="alert" className="rounded-controle bg-erro-cx p-3 break-words text-erro">
-                {mensagemDoErro(abrir.error)}
+                {errorMessage(abrir.error)}
               </p>
               <Button variante="secundario" onClick={() => abrirOuMostrar(doPainel.alunoId)}>
                 Tentar de novo
               </Button>
             </div>
           ) : (
-            <EstadoCarregando rotulo="Abrindo a correção…" />
+            <LoadingState rotulo="Abrindo a correção…" />
           )}
         </Sheet>
       )}

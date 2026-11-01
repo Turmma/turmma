@@ -1,14 +1,14 @@
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { useEffect, useId, useRef, useState } from 'react'
 import { useLocation, useSearch } from 'wouter'
-import { consultaAlunosDaTurma } from '../../../api/alunos-da-turma'
-import { consultaDesempenhoDaTurma } from '../atividades/api/atividades'
+import { alunosDaTurmaQueryOptions } from '../../../api/alunos-da-turma'
+import { desempenhoDaTurmaQueryOptions } from '../atividades/api/atividades'
 import { Button } from '../../../components/ui/Button'
-import { EstadoCarregando, EstadoErro, EstadoVazio } from '../../../components/states/index'
+import { LoadingState, ErrorState, EmptyState } from '../../../components/states/index'
 import { ListaDePedidos } from '../../../components/pedidos/ListaDePedidos'
 import { Table } from '../../../components/ui/Table'
 import { SectionHeader } from '../../../components/ui/Page'
-import { formatarQuantidade } from '../../../format'
+import { formatQuantity } from '../../../format'
 import { convitePedido, enderecoSemOConvite, turmaIndisponivel } from './acesso/acesso-da-turma'
 import { AcessoDaTurma } from './acesso/AcessoDaTurma'
 import { montarLinhas, textoDosAcertos, textoPorHabilidade, type LeituraDosAcertos } from './alunos-da-turma'
@@ -46,8 +46,8 @@ export default function AlunosDaTurma({ turmaId, turmaNome, escola, aoPerderATur
   const tituloDoAcesso = useRef<HTMLHeadingElement>(null)
   const [caminho, navegar] = useLocation()
   const busca = useSearch()
-  const alunos = useInfiniteQuery(consultaAlunosDaTurma(turmaId))
-  const desempenho = useQuery(consultaDesempenhoDaTurma(turmaId))
+  const alunos = useInfiniteQuery(alunosDaTurmaQueryOptions(turmaId))
+  const desempenho = useQuery(desempenhoDaTurmaQueryOptions(turmaId))
   const idDosAlunos = useId()
   const botaoDeVerMais = useRef<HTMLButtonElement>(null)
   const fimDaLista = useRef<HTMLParagraphElement>(null)
@@ -111,10 +111,10 @@ export default function AlunosDaTurma({ turmaId, turmaNome, escola, aoPerderATur
         aoPerderATurma={aoPerderATurma}
       />
 
-      {alunos.isPending && <EstadoCarregando rotulo="Carregando os alunos da turma…" />}
-      {alunos.isError && !listaLida && <EstadoErro erro={alunos.error} tentando={alunos.isFetching} aoTentarDeNovo={() => void alunos.refetch({ cancelRefetch: false })} />}
+      {alunos.isPending && <LoadingState rotulo="Carregando os alunos da turma…" />}
+      {alunos.isError && !listaLida && <ErrorState erro={alunos.error} tentando={alunos.isFetching} aoTentarDeNovo={() => void alunos.refetch({ cancelRefetch: false })} />}
       {vazio && (
-        <EstadoVazio
+        <EmptyState
           titulo="A lista ainda não chegou"
           descricao="Os alunos aparecem aqui quando entram na turma e você aprova o nome deles. Se a coordenação ainda não montou a lista da turma, peça a ela."
         />
@@ -125,10 +125,10 @@ export default function AlunosDaTurma({ turmaId, turmaNome, escola, aoPerderATur
           <SectionHeader
             id={idDosAlunos}
             titulo="Por aluno"
-            apoio={`${formatarQuantidade(linhas.length, 'aluno', 'alunos')}${listaCompleta ? '' : ' até aqui'}, em ordem de nome. Os acertos são os das correções aprovadas.`}
+            apoio={`${formatQuantity(linhas.length, 'aluno', 'alunos')}${listaCompleta ? '' : ' até aqui'}, em ordem de nome. Os acertos são os das correções aprovadas.`}
           />
           {desempenho.isError && desempenho.data === undefined && (
-            <EstadoErro erro={desempenho.error} tentando={desempenho.isFetching} aoTentarDeNovo={() => void desempenho.refetch({ cancelRefetch: false })} />
+            <ErrorState erro={desempenho.error} tentando={desempenho.isFetching} aoTentarDeNovo={() => void desempenho.refetch({ cancelRefetch: false })} />
           )}
           <Table
             rotulo="Acertos por aluno"
@@ -151,7 +151,7 @@ export default function AlunosDaTurma({ turmaId, turmaNome, escola, aoPerderATur
               Todos os alunos da turma estão na lista.
             </p>
           )}
-          {alunos.isFetchNextPageError && <EstadoErro erro={alunos.error} tentando={alunos.isFetchingNextPage} aoTentarDeNovo={() => void verMais()} />}
+          {alunos.isFetchNextPageError && <ErrorState erro={alunos.error} tentando={alunos.isFetchingNextPage} aoTentarDeNovo={() => void verMais()} />}
         </section>
       )}
     </div>

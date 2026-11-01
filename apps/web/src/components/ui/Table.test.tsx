@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { classesDo } from '../../__fixtures__/class-colors'
+import { classesOf } from '../../__fixtures__/class-colors'
 import { Table, type TableColumn } from './Table'
 
 /**
@@ -130,7 +130,7 @@ describe('Tabela', () => {
     expect(regiao.getAttribute('tabindex')).toBe('0')
     expect(regiao.getAttribute('data-tabela')).toBe('tabela')
     // Rola por dentro: a moldura corta no eixo horizontal.
-    expect(classesDo(regiao).has('overflow-x-auto')).toBe(true)
+    expect(classesOf(regiao).has('overflow-x-auto')).toBe(true)
   })
 
   it('tem a pele da D80: moldura de 2 px em borda e canto de 16, cabeçalho de 44 px em `t-selo` e linha de 64 px com fio de 2 px', () => {
@@ -138,17 +138,17 @@ describe('Tabela', () => {
     larguraDaTabela(600, 800)
     desenhar()
     const moldura = document.querySelector('[data-tabela="tabela"]') as HTMLElement
-    for (const classe of ['rounded-cartao', 'border-2', 'border-borda']) expect(classesDo(moldura).has(classe), `moldura: ${classe}`).toBe(true)
+    for (const classe of ['rounded-cartao', 'border-2', 'border-borda']) expect(classesOf(moldura).has(classe), `moldura: ${classe}`).toBe(true)
 
     const [cabecalho, ...corpo] = [...moldura.querySelectorAll('tr')]
     expect(corpo).toHaveLength(2)
-    for (const classe of ['h-11', 'border-b-2', 'border-borda']) expect(classesDo(cabecalho as Element).has(classe), `cabeçalho: ${classe}`).toBe(true)
-    for (const th of moldura.querySelectorAll('thead th')) expect(classesDo(th).has('t-selo'), 'cabeçalho em t-selo').toBe(true)
-    for (const linha of corpo) for (const classe of ['h-16', 'border-b-2', 'border-borda']) expect(classesDo(linha).has(classe), `linha: ${classe}`).toBe(true)
+    for (const classe of ['h-11', 'border-b-2', 'border-borda']) expect(classesOf(cabecalho as Element).has(classe), `cabeçalho: ${classe}`).toBe(true)
+    for (const th of moldura.querySelectorAll('thead th')) expect(classesOf(th).has('t-selo'), 'cabeçalho em t-selo').toBe(true)
+    for (const linha of corpo) for (const classe of ['h-16', 'border-b-2', 'border-borda']) expect(classesOf(linha).has(classe), `linha: ${classe}`).toBe(true)
     // A última linha não leva fio embaixo: a moldura já fecha.
-    expect(classesDo(corpo[1] as Element).has('last:border-b-0')).toBe(true)
+    expect(classesOf(corpo[1] as Element).has('last:border-b-0')).toBe(true)
     // O texto da linha é `t-apoio` (15 px, 500): a célula de linha e as de valor.
-    for (const celula of moldura.querySelectorAll('tbody th, tbody td')) expect(classesDo(celula).has('t-apoio'), 'célula em t-apoio').toBe(true)
+    for (const celula of moldura.querySelectorAll('tbody th, tbody td')) expect(classesOf(celula).has('t-apoio'), 'célula em t-apoio').toBe(true)
     // Sem degrau nem sombra: peça de leitura.
     expect(moldura.outerHTML).not.toMatch(/degrau|shadow/)
   })
@@ -157,10 +157,10 @@ describe('Tabela', () => {
     janelaDe(360)
     desenhar()
     const item = screen.getAllByRole('listitem')[0] as HTMLElement
-    for (const classe of ['rounded-cartao', 'border-2', 'border-borda']) expect(classesDo(item).has(classe), classe).toBe(true)
-    expect(classesDo(item.firstElementChild as Element).has('t-cartao')).toBe(true)
-    for (const dt of item.querySelectorAll('dt')) expect(classesDo(dt).has('t-selo')).toBe(true)
-    for (const dd of item.querySelectorAll('dd')) expect(classesDo(dd).has('t-apoio')).toBe(true)
+    for (const classe of ['rounded-cartao', 'border-2', 'border-borda']) expect(classesOf(item).has(classe), classe).toBe(true)
+    expect(classesOf(item.firstElementChild as Element).has('t-cartao')).toBe(true)
+    for (const dt of item.querySelectorAll('dt')) expect(classesOf(dt).has('t-selo')).toBe(true)
+    for (const dd of item.querySelectorAll('dd')) expect(classesOf(dd).has('t-apoio')).toBe(true)
     expect(item.outerHTML).not.toMatch(/degrau|shadow/)
   })
 
@@ -170,8 +170,8 @@ describe('Tabela', () => {
     desenhar()
     const celula = screen.getAllByRole('cell')[1] as HTMLElement
     expect(celula.textContent).toBe('19/09')
-    expect(classesDo(celula).has('text-right')).toBe(true)
-    expect(classesDo(celula).has('tabular-nums')).toBe(true)
-    expect(classesDo(screen.getAllByRole('columnheader')[2] as Element).has('text-right')).toBe(true)
+    expect(classesOf(celula).has('text-right')).toBe(true)
+    expect(classesOf(celula).has('tabular-nums')).toBe(true)
+    expect(classesOf(screen.getAllByRole('columnheader')[2] as Element).has('text-right')).toBe(true)
   })
 })

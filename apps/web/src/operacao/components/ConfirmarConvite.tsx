@@ -2,7 +2,7 @@ import type { EscolaDoPainel } from '@educa/shared'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef } from 'react'
 import { Button } from '../../components/ui/Button'
-import { CHAVE_DAS_ESCOLAS, revogarConviteNoPainel } from '../api/painel'
+import { ESCOLAS_QUERY_KEY, revogarConviteNoPainel } from '../api/painel'
 import { falhaDoConvite } from '../textos'
 import { SECONDARY_BUTTON_CLASSES } from '../../components/ui/button-variants'
 import { DialogoDaOperacao } from './DialogoDaOperacao'
@@ -38,7 +38,7 @@ export function ConfirmarConvite({ escola, conviteId, aoFechar, aoRevogar, focoD
   const revogar = useMutation({
     mutationFn: () => revogarConviteNoPainel(conviteId),
     onSuccess: aoRevogar,
-    onSettled: () => clienteDeConsultas.invalidateQueries({ queryKey: CHAVE_DAS_ESCOLAS }),
+    onSettled: () => clienteDeConsultas.invalidateQueries({ queryKey: ESCOLAS_QUERY_KEY }),
   })
   const falha = revogar.isError ? falhaDoConvite('revogar', revogar.error) : undefined
 

@@ -2,7 +2,7 @@
 import { cleanup, render, screen } from '@testing-library/react'
 import { createRef } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { classesDo } from '../../__fixtures__/class-colors'
+import { classesOf } from '../../__fixtures__/class-colors'
 import { StickyFooter } from './StickyFooter'
 import { ProgressBar } from './ProgressBar'
 import { Card } from './Card'
@@ -37,7 +37,7 @@ afterEach(() => {
 
 /** Borda de 2 px na cor `borda`, canto de 16, e nenhuma sombra nem degrau: peça de leitura. */
 function conferirCaixaDeLeitura(elemento: Element, nome: string): void {
-  const classes = classesDo(elemento)
+  const classes = classesOf(elemento)
   for (const classe of ['border-2', 'border-borda', 'rounded-cartao']) expect(classes.has(classe), `${nome}: ${classe}`).toBe(true)
   // A borda de 1 px em `linha` é a de antes da D80: não pode sobrar nenhuma das duas.
   expect(classes.has('border'), `${nome}: borda de 1 px`).toBe(false)
@@ -62,7 +62,7 @@ describe('Cartao', () => {
     const regiao = screen.getByRole('region', { name: 'Atividades da semana' })
     conferirCaixaDeLeitura(regiao, 'cartão com título')
     const titulo = screen.getByRole('heading', { level: 3, name: 'Atividades da semana' })
-    expect(classesDo(titulo).has('t-cartao')).toBe(true)
+    expect(classesOf(titulo).has('t-cartao')).toBe(true)
     // A ação fica ao lado do título, dentro do cartão.
     expect(regiao.contains(screen.getByRole('button', { name: 'Ver todas' }))).toBe(true)
   })
@@ -91,7 +91,7 @@ describe('Cartao', () => {
   it('o `className` de quem usa se soma à caixa, sem trocar a borda', () => {
     const { container } = render(<Card className="mt-4">conteúdo</Card>)
     const caixa = container.firstElementChild as Element
-    expect(classesDo(caixa).has('mt-4')).toBe(true)
+    expect(classesOf(caixa).has('mt-4')).toBe(true)
     conferirCaixaDeLeitura(caixa, 'cartão com className')
   })
 })
@@ -101,11 +101,11 @@ describe('NumeroPainel', () => {
     const { container } = render(<StatCard rotulo="Gerado por IA" valor={1284} apoio="Atividades, planos e correções" />)
     conferirCaixaDeLeitura(container.firstElementChild as Element, 'número de painel')
     const rotulo = screen.getByText('Gerado por IA')
-    expect(classesDo(rotulo).has('t-selo')).toBe(true)
-    expect(classesDo(rotulo).has('text-sutil')).toBe(true)
+    expect(classesOf(rotulo).has('t-selo')).toBe(true)
+    expect(classesOf(rotulo).has('text-sutil')).toBe(true)
     const numero = screen.getByText('1.284')
-    expect(classesDo(numero).has('t-numero')).toBe(true)
-    expect(classesDo(numero).has('text-tinta')).toBe(true)
+    expect(classesOf(numero).has('t-numero')).toBe(true)
+    expect(classesOf(numero).has('text-tinta')).toBe(true)
     // O rótulo vem antes do número no documento: quem ouve "1.284" já ouviu de quê.
     expect(rotulo.compareDocumentPosition(numero) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
@@ -124,8 +124,8 @@ describe('BarraRotulada', () => {
       const { container, unmount } = render(<ProgressBar rotulo="Hoje" valor={valor} texto={`${String(valor)}%`} />)
       const [trilho, enchimento] = retangulosDe(container)
       expect(retangulosDe(container), `valor ${String(valor)}`).toHaveLength(2)
-      expect([...classesDo(trilho as Element)], `trilho com ${String(valor)}`).toEqual(['fill-ia-cx'])
-      expect([...classesDo(enchimento as Element)], `enchimento com ${String(valor)}`).toEqual(['fill-sutil'])
+      expect([...classesOf(trilho as Element)], `trilho com ${String(valor)}`).toEqual(['fill-ia-cx'])
+      expect([...classesOf(enchimento as Element)], `enchimento com ${String(valor)}`).toEqual(['fill-sutil'])
       unmount()
     }
   })
@@ -133,7 +133,7 @@ describe('BarraRotulada', () => {
   it('a forma é de 12 px de altura com a ponta redonda, e o enchimento acompanha o valor', () => {
     const { container } = render(<ProgressBar rotulo="Consumo do mês" valor={188} maximo={300} texto="188 de 300 trocas" />)
     const svg = container.querySelector('svg') as SVGElement
-    expect(classesDo(svg).has('h-3')).toBe(true)
+    expect(classesOf(svg).has('h-3')).toBe(true)
     expect(svg.getAttribute('aria-hidden')).toBe('true')
     const [trilho, enchimento] = retangulosDe(container)
     expect(trilho?.getAttribute('rx')).toBe('6')
@@ -158,7 +158,7 @@ describe('BarraPresa', () => {
       </StickyFooter>,
     )
     const barra = screen.getByRole('group', { name: 'Aprovação do lote' })
-    const classes = classesDo(barra)
+    const classes = classesOf(barra)
     // Presa no pé da janela, ou acima da barra de baixo do celular (`--barra-baixo`, zero onde não há barra: 13.0).
     for (const classe of ['border-t-2', 'border-borda', 'bg-fundo', 'sticky', 'bottom-[var(--barra-baixo,0px)]']) expect(classes.has(classe), classe).toBe(true)
     expect(classes.has('bottom-0'), 'presa no pé da janela, atrás da barra de baixo').toBe(false)
@@ -172,7 +172,7 @@ describe('BarraPresa', () => {
         <button type="button">Enviar</button>
       </StickyFooter>,
     )
-    const classes = classesDo(screen.getByRole('group', { name: 'Novo pedido' }))
+    const classes = classesOf(screen.getByRole('group', { name: 'Novo pedido' }))
     expect(classes.has('border-t-2')).toBe(false)
     expect(classes.has('border-borda')).toBe(false)
   })

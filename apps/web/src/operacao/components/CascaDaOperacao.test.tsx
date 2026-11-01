@@ -4,7 +4,7 @@ import type { ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Router } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
-import { escolherAparencia } from '../../theme'
+import { setThemePreference } from '../../theme'
 import { TEXTO_DA_OPERACAO_SEM_DADO_DE_PESSOA } from '../textos'
 import { CascaDaOperacao, CascaPublicaDaOperacao } from './CascaDaOperacao'
 
@@ -22,7 +22,7 @@ beforeEach(() => {
 afterEach(() => {
   cleanup()
   vi.unstubAllGlobals()
-  escolherAparencia('sistema')
+  setThemePreference('sistema')
   window.localStorage.clear()
 })
 

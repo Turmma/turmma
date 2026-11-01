@@ -105,7 +105,7 @@ describe('o que cada pedido de IA manda', () => {
     const antiga = { mensagens: [mensagem('01', 'primeira'), mensagem('02', 'segunda'), mensagem('03', 'terceira')] }
     fila.push({ status: 200, corpo: recente }, { status: 200, corpo: antiga })
     const cliente = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-    const lido = await cliente.fetchInfiniteQuery({ ...m.assistente.consultaConversaDoAssistente, pages: 2 })
+    const lido = await cliente.fetchInfiniteQuery({ ...m.assistente.conversaDoAssistenteQueryOptions, pages: 2 })
     expect(chamadas.map((chamada) => chamada.caminho)).toEqual(['/v1/assistente/conversa', `/v1/assistente/conversa?antes=${id('03')}`])
     expect(m.assistente.mensagensEmOrdem(lido.pages).map((item) => item.texto)).toEqual(['primeira', 'segunda', 'terceira', 'quarta'])
   })
@@ -164,21 +164,21 @@ describe('as entregas e a decisão', () => {
 
   it('depois da decisão, a entrega sai de "Esperando você" na hora e aparece decidida na conversa de "O que o Assistente fez"', async () => {
     const cliente = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-    cliente.setQueryData(m.entregas.consultaEntregasPendentes.queryKey, { itens: [entrega('01'), entrega('02')] })
-    cliente.setQueryData(m.entregas.consultaEntregas.queryKey, { pages: [{ itens: [entrega('02'), entrega('01')] }], pageParams: [undefined] })
+    cliente.setQueryData(m.entregas.entregasPendentesQueryOptions.queryKey, { itens: [entrega('01'), entrega('02')] })
+    cliente.setQueryData(m.entregas.entregasQueryOptions.queryKey, { pages: [{ itens: [entrega('02'), entrega('01')] }], pageParams: [undefined] })
     await m.entregas.aplicarEntregaDecidida(cliente, entrega('01', 'aprovada'))
-    expect(cliente.getQueryData(m.entregas.consultaEntregasPendentes.queryKey)?.itens.map((item) => item.id)).toEqual([id('02')])
-    expect(cliente.getQueryData(m.entregas.consultaEntregas.queryKey)?.pages[0]?.itens.map((item) => [item.id, item.estado, item.decididaPor?.nome])).toEqual([
+    expect(cliente.getQueryData(m.entregas.entregasPendentesQueryOptions.queryKey)?.itens.map((item) => item.id)).toEqual([id('02')])
+    expect(cliente.getQueryData(m.entregas.entregasQueryOptions.queryKey)?.pages[0]?.itens.map((item) => [item.id, item.estado, item.decididaPor?.nome])).toEqual([
       [id('02'), 'pendente', undefined],
       [id('01'), 'aprovada', 'Camila Souza'],
     ])
-    expect(cliente.getQueryState(m.entregas.consultaEntregasPendentes.queryKey)?.isInvalidated).toBe(true)
+    expect(cliente.getQueryState(m.entregas.entregasPendentesQueryOptions.queryKey)?.isInvalidated).toBe(true)
   })
 })
 
 describe('a memória da aba', () => {
   it('guarda o pedido em curso entre duas telas e avisa quem assina', () => {
-    const lugar = m.memoria.criarLugarNaAba<{ texto: string }>()
+    const lugar = m.memoria.createTabStore<{ texto: string }>()
     const avisos: (string | undefined)[] = []
     const cancelar = lugar.assinar(() => avisos.push(lugar.ler()?.texto))
     lugar.guardar({ texto: 'uma atividade de estequiometria' })
@@ -189,7 +189,7 @@ describe('a memória da aba', () => {
   })
 
   it('o "Sair" esvazia tudo: a pessoa seguinte no mesmo computador não encontra o pedido da anterior', async () => {
-    const lugar = m.memoria.criarLugarNaAba<{ texto: string }>()
+    const lugar = m.memoria.createTabStore<{ texto: string }>()
     lugar.guardar({ texto: 'conversa da professora anterior' })
     fila.push({ status: 204 })
     await m.sessao.sair()

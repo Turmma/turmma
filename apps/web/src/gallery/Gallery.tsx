@@ -1,7 +1,7 @@
 import type { ComponentType } from 'react'
 import { Aparencia } from '../components/Aparencia'
 import { Page } from '../components/ui/Page'
-import { useTituloDaTela } from '../document-title'
+import { usePageTitle } from '../document-title'
 
 /**
  * A galeria das peças (`docs/mvp-rapido.md` 9.3; `docs/interface.md` 10): uma tela só, fora da navegação, onde cada peça de
@@ -27,7 +27,7 @@ const SECOES = Object.entries(ARQUIVOS_DAS_SECOES)
   .map(([caminho, modulo]) => ({ caminho, Secoes: modulo.default }))
 
 export default function Galeria() {
-  useTituloDaTela('Galeria de peças')
+  usePageTitle('Galeria de peças')
   return (
     <main className="min-h-screen bg-fundo text-tinta">
       <Page comMargem titulo="Galeria de peças" objeto descricao="As peças do MVP de apresentação, com dado inventado. Não é uma tela do produto." largura="formulario">

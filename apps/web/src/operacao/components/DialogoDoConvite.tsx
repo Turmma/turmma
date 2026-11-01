@@ -1,7 +1,7 @@
 import { VALIDADE_DO_CONVITE_HORAS, type EscolaDoPainel } from '@educa/shared'
 import { useQueryClient } from '@tanstack/react-query'
 import { DialogoDeConviteNovo, DialogoDeConviteRefeito } from '../../components/DialogoDoConvite'
-import { CHAVE_DAS_ESCOLAS, mutacaoDoGerarConvite, mutacaoDoRefazerConvite } from '../api/painel'
+import { ESCOLAS_QUERY_KEY, mutacaoDoGerarConvite, mutacaoDoRefazerConvite } from '../api/painel'
 import { pedidoDeConvite } from '../pedidos-do-painel'
 import { falhaDoConvite } from '../textos'
 import { DialogoDaOperacao } from './DialogoDaOperacao'
@@ -63,7 +63,7 @@ export function GerarConvite({ escola, aoFechar, focoDeReserva }: Props) {
       acao={{ confirmar: 'Gerar convite', confirmando: 'Gerando…', anuncio: 'Gerando o convite…' }}
       // A lista muda (o estado, ou o que outra pessoa fez): recarrega, dê certo ou não. As opções são as de `api/painel.ts`,
       // sem nada por cima: é lá que o `gcTime: 0` tira o token do cache.
-      mutacao={mutacaoDoGerarConvite(escola.id, () => clienteDeConsultas.invalidateQueries({ queryKey: CHAVE_DAS_ESCOLAS }))}
+      mutacao={mutacaoDoGerarConvite(escola.id, () => clienteDeConsultas.invalidateQueries({ queryKey: ESCOLAS_QUERY_KEY }))}
       falha={(erro) => falhaDoConvite('gerar', erro)}
       mandePara={() => mandeACoordenadora(escola.nome)}
       link={TEXTOS_DO_LINK}
@@ -97,7 +97,7 @@ export function RefazerConvite({ escola, conviteId, aoFechar, focoDeReserva }: P
       }
       avisos={[TEXTO_DA_VALIDADE, TEXTO_DO_LINK_UMA_VEZ]}
       acao={{ confirmar: 'Refazer convite', confirmando: 'Refazendo…', anuncio: 'Refazendo o convite…' }}
-      mutacao={mutacaoDoRefazerConvite(conviteId, () => clienteDeConsultas.invalidateQueries({ queryKey: CHAVE_DAS_ESCOLAS }))}
+      mutacao={mutacaoDoRefazerConvite(conviteId, () => clienteDeConsultas.invalidateQueries({ queryKey: ESCOLAS_QUERY_KEY }))}
       falha={(erro) => falhaDoConvite('refazer', erro)}
       mandePara={mandeACoordenadora(escola.nome)}
       link={TEXTOS_DO_LINK}

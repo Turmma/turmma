@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useRef } from 'react'
 import { confirmarIncidente, relerIncidentes } from './api/privacidade'
-import { textoDaFalha } from '../../../components/error-text'
+import { errorText } from '../../../components/error-text'
 
 /**
  * A confirmação do recebimento do aviso de incidente (F3, 10.0; RF9), a mesma no diálogo da coordenação e na aba. O pedido só
@@ -36,6 +36,6 @@ export function useConfirmarIncidente() {
     /** O pedido está no ar: o id que está sendo confirmado, ou nada. */
     confirmando: confirmacao.isPending ? confirmacao.variables : undefined,
     /** O que deu errado e em qual aviso, já em português e dizendo o que fazer. Nunca o erro cru. Some quando um novo pedido sai. */
-    falha: confirmacao.isError ? { id: confirmacao.variables, texto: textoDaFalha(confirmacao.error) } : undefined,
+    falha: confirmacao.isError ? { id: confirmacao.variables, texto: errorText(confirmacao.error) } : undefined,
   }
 }

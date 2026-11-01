@@ -1,10 +1,10 @@
 import type { IncidenteDaEscola } from '@educa/shared'
 import { useQuery } from '@tanstack/react-query'
 import { useRef } from 'react'
-import { consultaIncidentes } from './api/privacidade'
+import { incidentesQueryOptions } from './api/privacidade'
 import { Button } from '../../../components/ui/Button'
 import { Card } from '../../../components/ui/Card'
-import { EstadoCarregando, EstadoErro, EstadoVazio } from '../../../components/states'
+import { LoadingState, ErrorState, EmptyState } from '../../../components/states'
 import { Banner } from '../../../components/ui/Banner'
 import { StatusBadge } from '../../../components/ui/StatusBadge'
 import { useConfirmarIncidente } from './confirmar-o-incidente'
@@ -77,11 +77,11 @@ function CartaoDoIncidente({ incidente, confirmando, falha, aoConfirmar }: Props
  * coordenação pode ter confirmado desde então. A consulta é a mesma, e a faixa e o diálogo acompanham o que esta aba leu.
  */
 export function Incidentes() {
-  const consulta = useQuery({ ...consultaIncidentes, refetchOnMount: 'always' })
+  const consulta = useQuery({ ...incidentesQueryOptions, refetchOnMount: 'always' })
   const { confirmar, confirmando, falha } = useConfirmarIncidente()
-  if (consulta.isPending) return <EstadoCarregando rotulo="Carregando os incidentes…" />
+  if (consulta.isPending) return <LoadingState rotulo="Carregando os incidentes…" />
   if (consulta.isError && consulta.data === undefined) {
-    return <EstadoErro erro={consulta.error} tentando={consulta.isFetching} aoTentarDeNovo={() => void consulta.refetch({ cancelRefetch: false })} />
+    return <ErrorState erro={consulta.error} tentando={consulta.isFetching} aoTentarDeNovo={() => void consulta.refetch({ cancelRefetch: false })} />
   }
 
   const { incidentes, prazoLegal } = consulta.data
@@ -89,7 +89,7 @@ export function Incidentes() {
     <div className="flex min-w-0 flex-col gap-3">
       <Banner>{prazoLegal}</Banner>
       {incidentes.length === 0 ? (
-        <EstadoVazio titulo="Nenhum incidente afetou esta escola" descricao="Se a Turmma registrar um incidente de segurança que alcance dados da escola, o aviso aparece aqui e ao entrar." />
+        <EmptyState titulo="Nenhum incidente afetou esta escola" descricao="Se a Turmma registrar um incidente de segurança que alcance dados da escola, o aviso aparece aqui e ao entrar." />
       ) : (
         <ul className="flex min-w-0 flex-col gap-4">
           {incidentes.map((incidente) => (

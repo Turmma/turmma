@@ -4,7 +4,7 @@ import { useEffect, useRef, type FormEvent, type ReactNode, type Ref, type RefOb
 import { Button } from './ui/Button'
 import { DANGER_SOLID_BUTTON_CLASSES, SECONDARY_BUTTON_CLASSES } from './ui/button-variants'
 import { Dialog } from './ui/overlays/Dialog'
-import { listaMudou, textoDaFalha } from './error-text'
+import { listChanged, errorText } from './error-text'
 
 /**
  * As peças dos diálogos das telas da escola: o envio único, o anúncio da ação que terminou, o alerta de falha dentro do
@@ -23,7 +23,7 @@ import { listaMudou, textoDaFalha } from './error-text'
  * vindas de `api/` (as do acesso da turma, que têm teste de unidade); o `gcTime: 0` vale sempre: a resposta não fica no
  * cache depois de o diálogo sair.
  */
-export function useEnvioUnico<Entrada, Saida>(opcoes: UseMutationOptions<Saida, Error, Entrada>) {
+export function useSingleSubmit<Entrada, Saida>(opcoes: UseMutationOptions<Saida, Error, Entrada>) {
   const noAr = useRef(false)
   const mutacao = useMutation({ ...opcoes, gcTime: 0 })
   function enviar(entrada: Entrada): void {
@@ -43,7 +43,7 @@ export function useEnvioUnico<Entrada, Saida>(opcoes: UseMutationOptions<Saida, 
  * O anúncio da ação que terminou, na seção onde ela aconteceu: quem enxerga o vê ao lado do que mudou, e não no topo de
  * uma página já rolada, e o leitor de tela o ouve, porque a região existe antes do texto.
  */
-export function Anuncio({ texto }: { texto: string }) {
+export function StatusAnnouncement({ texto }: { texto: string }) {
   return (
     <div role="status" className="empty:hidden">
       {texto !== '' && <p className="rounded-controle border border-ok bg-ok-cx p-3 break-words text-ok">{texto}</p>}
@@ -54,7 +54,7 @@ export function Anuncio({ texto }: { texto: string }) {
 const CLASSES_DO_ALERTA = 'rounded-controle border border-erro bg-erro-cx p-3 break-words text-erro'
 
 /** O alerta da falha, dentro do diálogo modal, onde o leitor de tela o alcança; o foco vai para ele quando aparece. */
-export function AlertaDaFalha({ texto }: { texto: string }) {
+export function ErrorAlert({ texto }: { texto: string }) {
   const alerta = useRef<HTMLParagraphElement>(null)
   useEffect(() => {
     alerta.current?.focus()
@@ -71,7 +71,7 @@ export function AlertaDaFalha({ texto }: { texto: string }) {
  * pode voltar à tela sem falha nova — o da lista colada, que reaparece quando o texto volta a ser o que foi recusado —,
  * e aí levar o foco tiraria a pessoa do campo no meio da digitação.
  */
-export function AlertaSemFoco({ texto, alvo }: { texto: string; alvo: RefObject<HTMLParagraphElement | null> }) {
+export function ErrorAlertNoAutofocus({ texto, alvo }: { texto: string; alvo: RefObject<HTMLParagraphElement | null> }) {
   return (
     <p ref={alvo} tabIndex={-1} role="alert" className={CLASSES_DO_ALERTA}>
       {texto}
@@ -98,7 +98,7 @@ interface PropsDoFormulario {
  * O diálogo de formulário: os campos, a falha, o envio e o "Cancelar" do mesmo tamanho (D59). O `noValidate` deixa a
  * tela dizer o erro de cada campo em português, em vez do balão do navegador.
  */
-export function DialogoDeFormulario({ titulo, aoFechar, aoEnviar, enviando, rotuloDoEnvio, rotuloEnviando, falha, semNovaTentativa = false, focoDeReserva, children }: PropsDoFormulario) {
+export function FormDialog({ titulo, aoFechar, aoEnviar, enviando, rotuloDoEnvio, rotuloEnviando, falha, semNovaTentativa = false, focoDeReserva, children }: PropsDoFormulario) {
   function enviar(evento: FormEvent<HTMLFormElement>): void {
     evento.preventDefault()
     if (!semNovaTentativa) aoEnviar()
@@ -107,7 +107,7 @@ export function DialogoDeFormulario({ titulo, aoFechar, aoEnviar, enviando, rotu
     <Dialog titulo={titulo} aoFechar={aoFechar} {...(focoDeReserva === undefined ? {} : { focoDeReserva })}>
       <form className="mt-4 flex min-w-0 flex-col gap-4" onSubmit={enviar} noValidate>
         {children}
-        {falha !== undefined && <AlertaDaFalha texto={falha} />}
+        {falha !== undefined && <ErrorAlert texto={falha} />}
         <div className="flex flex-wrap justify-end gap-3">
           {!semNovaTentativa && (
             <Button type="submit" disabled={enviando}>
@@ -156,9 +156,9 @@ interface PropsDoCorpoDaConfirmacao extends Omit<PropsDaConfirmacao, 'titulo' | 
  * para o passo "Revogar o acesso" do "Convidar alunos" viver dentro do diálogo que já está aberto, sem diálogo dentro de diálogo
  * (telas do professor, 13.0).
  */
-export function CorpoDaConfirmacaoDePerigo({ texto, rotuloDaAcao, rotuloEmAndamento, acao, aoFechar, aoConcluir, aoTerminar, textosDaFalha, inicio }: PropsDoCorpoDaConfirmacao) {
+export function DangerConfirmBody({ texto, rotuloDaAcao, rotuloEmAndamento, acao, aoFechar, aoConcluir, aoTerminar, textosDaFalha, inicio }: PropsDoCorpoDaConfirmacao) {
   // Fecha com a lista já recarregada: o botão que abriu saiu com o item, e o foco vai para o `focoDeReserva`.
-  const { enviar, mutacao } = useEnvioUnico({
+  const { enviar, mutacao } = useSingleSubmit({
     mutationFn: acao,
     onSuccess: async () => {
       await aoTerminar()
@@ -166,14 +166,14 @@ export function CorpoDaConfirmacaoDePerigo({ texto, rotuloDaAcao, rotuloEmAndame
     },
     onError: aoTerminar,
   })
-  const falha = mutacao.isError ? textoDaFalha(mutacao.error, textosDaFalha) : undefined
-  const mudou = mutacao.isError && listaMudou(mutacao.error, [ErrorCode.CONFLITO, ErrorCode.NAO_ENCONTRADO])
+  const falha = mutacao.isError ? errorText(mutacao.error, textosDaFalha) : undefined
+  const mudou = mutacao.isError && listChanged(mutacao.error, [ErrorCode.CONFLITO, ErrorCode.NAO_ENCONTRADO])
   return (
     <div className="mt-4 flex min-w-0 flex-col gap-4">
       <p ref={inicio} tabIndex={-1} className="break-words text-apoio">
         {texto}
       </p>
-      {falha !== undefined && <AlertaDaFalha texto={falha} />}
+      {falha !== undefined && <ErrorAlert texto={falha} />}
       <div className="flex flex-wrap justify-end gap-3">
         {!mudou && (
           <button type="button" onClick={() => enviar(undefined)} disabled={mutacao.isPending} className={DANGER_SOLID_BUTTON_CLASSES}>
@@ -196,11 +196,11 @@ export function CorpoDaConfirmacaoDePerigo({ texto, rotuloDaAcao, rotuloEmAndame
  * foco começa nele e não no botão que exclui, e "Excluir" e "Cancelar" têm o mesmo tamanho (D59). A falha aparece aqui
  * dentro, com o foco nela; o `CONFLITO` e o `NAO_ENCONTRADO` recarregam a lista, e sobra só "Fechar".
  */
-export function ConfirmacaoDePerigo({ titulo, focoDeReserva, ...corpo }: PropsDaConfirmacao) {
+export function DangerConfirmDialog({ titulo, focoDeReserva, ...corpo }: PropsDaConfirmacao) {
   const inicio = useRef<HTMLParagraphElement>(null)
   return (
     <Dialog titulo={titulo} aoFechar={corpo.aoFechar} focoInicial={inicio} focoDeReserva={focoDeReserva}>
-      <CorpoDaConfirmacaoDePerigo {...corpo} inicio={inicio} />
+      <DangerConfirmBody {...corpo} inicio={inicio} />
     </Dialog>
   )
 }

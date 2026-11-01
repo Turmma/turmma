@@ -1,16 +1,16 @@
 import { ErrorCode, mensagemDaEntrada, TAMANHO_MAXIMO_EMAIL, TAMANHO_MAXIMO_SENHA } from '@educa/shared'
 import { useState, type FormEvent } from 'react'
 import { useLocation } from 'wouter'
-import { ErroDaApi } from '../api/client'
+import { ApiError } from '../api/client'
 import { avisoDaEntrada, definirAvisoDaEntrada, entrarPorEmail, saidaPendente } from '../api/sessao'
 import { Button } from '../components/ui/Button'
 import { FormField } from '../components/ui/fields/FormField'
 import { CascaPublica } from '../components/CascaPublica'
-import { ROTA_DA_ETAPA } from '../paths'
+import { LOGIN_STEP_ROUTE } from '../paths'
 
 /** A mensagem que a tela mostra para uma falha da entrada, sempre pelo código e nunca pelo status (regra 50, item 12). */
 function mensagemDaFalha(erro: unknown): string {
-  return erro instanceof ErroDaApi ? mensagemDaEntrada(erro.codigo, erro.esperaSegundos) : mensagemDaEntrada(ErrorCode.ERRO_INTERNO)
+  return erro instanceof ApiError ? mensagemDaEntrada(erro.codigo, erro.esperaSegundos) : mensagemDaEntrada(ErrorCode.ERRO_INTERNO)
 }
 
 /**
@@ -38,11 +38,11 @@ export function Entrar() {
       // A senha sai da memória da tela assim que a resposta chega, em qualquer etapa.
       definirSenha('')
       // Sem `replace`: o Voltar do navegador leva à entrada, que com sessão aberta devolve à área autenticada.
-      navegar(ROTA_DA_ETAPA[resposta.etapa])
+      navegar(LOGIN_STEP_ROUTE[resposta.etapa])
     } catch (erro) {
       // O convite que já não vale (A0b, E16): o aviso de "entre com a sua senha para concluir o convite" deixou de ser
       // verdade, e a tela não pode dizer as duas coisas ao mesmo tempo.
-      if (erro instanceof ErroDaApi && erro.codigo === ErrorCode.NAO_ENCONTRADO) definirAvisoDaEntrada(undefined)
+      if (erro instanceof ApiError && erro.codigo === ErrorCode.NAO_ENCONTRADO) definirAvisoDaEntrada(undefined)
       definirFalha(erro)
     } finally {
       definirEntrando(false)

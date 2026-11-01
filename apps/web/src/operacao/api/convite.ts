@@ -5,7 +5,7 @@ import {
   type AceitarConviteDeOperadorRequest,
   type ConsultarConviteDeOperadorResponse,
 } from '@educa/shared'
-import { chamarApi, ErroDaApi } from '../../api/client'
+import { apiRequest, ApiError } from '../../api/client'
 import { esquecerDesafioDeOperador, guardarDesafioDeOperador } from './sessao'
 
 export const CAMINHO_DA_CONSULTA_DE_CONVITE_DE_OPERADOR = '/v1/operacao/convite/consultar'
@@ -19,7 +19,7 @@ export const CAMINHO_DO_ACEITE_DE_CONVITE_DE_OPERADOR = '/v1/operacao/convite/ac
  * Não passa pelo TanStack Query: o token é o argumento, e uma chave de cache com ele dentro é o que não pode existir.
  */
 export function consultarConviteDeOperador(token: string): Promise<ConsultarConviteDeOperadorResponse> {
-  return chamarApi(CAMINHO_DA_CONSULTA_DE_CONVITE_DE_OPERADOR, consultarConviteDeOperadorResponseSchema, { metodo: 'POST', corpo: { token } })
+  return apiRequest(CAMINHO_DA_CONSULTA_DE_CONVITE_DE_OPERADOR, consultarConviteDeOperadorResponseSchema, { metodo: 'POST', corpo: { token } })
 }
 
 /**
@@ -29,13 +29,13 @@ export function consultarConviteDeOperador(token: string): Promise<ConsultarConv
  */
 export async function aceitarConviteDeOperador(pedido: AceitarConviteDeOperadorRequest): Promise<void> {
   esquecerDesafioDeOperador()
-  const resposta = await chamarApi(CAMINHO_DO_ACEITE_DE_CONVITE_DE_OPERADOR, aceitarConviteDeOperadorResponseSchema, { metodo: 'POST', corpo: pedido })
+  const resposta = await apiRequest(CAMINHO_DO_ACEITE_DE_CONVITE_DE_OPERADOR, aceitarConviteDeOperadorResponseSchema, { metodo: 'POST', corpo: pedido })
   guardarDesafioDeOperador(resposta.etapa, resposta.desafio)
 }
 
 /** O convite que não vale chega como `NAO_ENCONTRADO`, igual nos cinco casos (C9). */
 export function ehConviteInvalido(erro: unknown): boolean {
-  return erro instanceof ErroDaApi && erro.codigo === ErrorCode.NAO_ENCONTRADO
+  return erro instanceof ApiError && erro.codigo === ErrorCode.NAO_ENCONTRADO
 }
 
 /** O que a tela do convite faz com a resposta do aceite. */

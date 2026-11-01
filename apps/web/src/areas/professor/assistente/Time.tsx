@@ -3,25 +3,25 @@ import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tansta
 import { ChevronRight } from 'lucide-react'
 import { useEffect, useId, useRef, useState } from 'react'
 import { Link, useLocation } from 'wouter'
-import { ErroDaApi, mensagemDoErro } from '../../../api/client'
-import { aplicarEntregaDecidida, consultaEntregas, decidirEntrega, recarregarEntregas } from '../artefatos/api/entregas'
-import { agenteDoTime, consultaTime, funcaoSuspensa } from './api/time'
-import { consultaMeusVinculos } from '../comum/api/vinculos'
-import { caminhoDaCorrecaoDoProfessor, caminhoDoArtefatoDoProfessor, ROTAS_DO_PROFESSOR } from '../../../paths'
+import { ApiError, errorMessage } from '../../../api/client'
+import { aplicarEntregaDecidida, entregasQueryOptions, decidirEntrega, recarregarEntregas } from '../artefatos/api/entregas'
+import { agenteDoTime, timeQueryOptions, funcaoSuspensa } from './api/time'
+import { meusVinculosQueryOptions } from '../comum/api/vinculos'
+import { caminhoDaCorrecaoDoProfessor, caminhoDoArtefatoDoProfessor, PROFESSOR_ROUTES } from '../../../paths'
 import { Tabs } from '../../../components/ui/Tabs'
 import { Button } from '../../../components/ui/Button'
 import { buttonVariants } from '../../../components/ui/button-variants'
 import { Textarea } from '../../../components/ui/fields/Textarea'
 import { Card } from '../../../components/ui/Card'
 import { ConfirmDialog } from '../../../components/ui/overlays/ConfirmDialog'
-import { EstadoCarregando, EstadoErro, EstadoVazio } from '../../../components/states/index'
+import { LoadingState, ErrorState, EmptyState } from '../../../components/states/index'
 import { AgentSignature } from '../../../components/ui/ai/AgentSignature'
 import { Conversation, AIMessage } from '../../../components/ui/ai/Message'
 import { StatusBadge } from '../../../components/ui/StatusBadge'
 import { problemaDoTexto } from '../../../components/ui/fields/text-limits'
 import { Page } from '../../../components/ui/Page'
-import { formatarDataHora } from '../../../format'
-import { useTituloDaTela } from '../../../document-title'
+import { formatDateTime } from '../../../format'
+import { usePageTitle } from '../../../document-title'
 import { AvisoNaEntregaDeFuncaoSuspensa } from '../comum/avisos'
 import {
   aprovacaoDaEntrega,
@@ -70,12 +70,12 @@ const idDoCartao = (entregaId: string) => `entrega-${entregaId}`
  * (`GET /v1/time`), o que cada função faz sozinha e o que espera aprovação (regra 70, item 5).
  */
 export default function Time() {
-  useTituloDaTela('Assistente de ensino')
+  usePageTitle('Assistente de ensino')
   const cliente = useQueryClient()
   const [, navegar] = useLocation()
-  const time = useQuery(consultaTime)
-  const entregas = useInfiniteQuery({ ...consultaEntregas, refetchInterval: INTERVALO_DAS_ENTREGAS_MS })
-  const vinculos = useInfiniteQuery(consultaMeusVinculos)
+  const time = useQuery(timeQueryOptions)
+  const entregas = useInfiniteQuery({ ...entregasQueryOptions, refetchInterval: INTERVALO_DAS_ENTREGAS_MS })
+  const vinculos = useInfiniteQuery(meusVinculosQueryOptions)
   const [filtro, definirFiltro] = useState<FiltroDoTime>('tudo')
   const [aberta, definirAberta] = useState<DecisaoAberta | undefined>(undefined)
   const [justificativa, definirJustificativa] = useState('')
@@ -98,7 +98,7 @@ export default function Time() {
     },
     onError: async (erro) => {
       // Outra aba, ou o primeiro clique, já decidiu: a tela se atualiza e mostra como ficou.
-      if (!(erro instanceof ErroDaApi) || erro.codigo !== ErrorCode.ENTREGA_JA_DECIDIDA) return
+      if (!(erro instanceof ApiError) || erro.codigo !== ErrorCode.ENTREGA_JA_DECIDIDA) return
       definirAviso('Esta entrega já tinha sido decidida. A tela foi atualizada com a decisão.')
       // Pela mesma razão, o diálogo só fecha depois da releitura.
       await recarregarEntregas(cliente)
@@ -147,7 +147,7 @@ export default function Time() {
   }
 
   const turmaDaAberta = aberta === undefined ? undefined : nomes[aberta.entrega.turmaId]
-  const falhaDaDecisao = decidir.isError && !(decidir.error instanceof ErroDaApi && decidir.error.codigo === ErrorCode.ENTREGA_JA_DECIDIDA) ? mensagemDoErro(decidir.error) : undefined
+  const falhaDaDecisao = decidir.isError && !(decidir.error instanceof ApiError && decidir.error.codigo === ErrorCode.ENTREGA_JA_DECIDIDA) ? errorMessage(decidir.error) : undefined
   const problemaDaJustificativa = problemaDoTexto(justificativa, LIMITES_DA_JUSTIFICATIVA)
   const focoDeReserva = aberta === undefined ? undefined : () => document.getElementById(idDoCartao(aberta.entrega.id))?.focus()
 
@@ -195,7 +195,7 @@ export default function Time() {
             {time.isError && (
               <div className="flex min-w-0 flex-wrap items-center gap-3 text-erro">
                 <p role="alert" className="min-w-0 break-words">
-                  {mensagemDoErro(time.error)}
+                  {errorMessage(time.error)}
                 </p>
                 <Button variante="secundario" onClick={() => void time.refetch({ cancelRefetch: false })}>
                   Tentar de novo
@@ -230,14 +230,14 @@ export default function Time() {
         {aviso}
       </p>
 
-      {entregas.isPending && <EstadoCarregando rotulo="Carregando o que o Assistente fez…" />}
-      {entregas.isError && entregas.data === undefined && <EstadoErro erro={entregas.error} tentando={entregas.isFetching} aoTentarDeNovo={() => void entregas.refetch({ cancelRefetch: false })} />}
+      {entregas.isPending && <LoadingState rotulo="Carregando o que o Assistente fez…" />}
+      {entregas.isError && entregas.data === undefined && <ErrorState erro={entregas.error} tentando={entregas.isFetching} aoTentarDeNovo={() => void entregas.refetch({ cancelRefetch: false })} />}
 
       {entregas.data !== undefined && todas.length === 0 && vinculos.data !== undefined && !temTurma && (
-        <EstadoVazio
+        <EmptyState
           titulo="Falta uma turma confirmada"
           descricao="O Assistente trabalha para as suas turmas. Confirme as suas turmas em Turmas; se nenhuma aparece lá, quem aloca é a coordenação."
-          acao={{ rotulo: 'Ir para Turmas', aoAcionar: () => navegar(ROTAS_DO_PROFESSOR.turmas) }}
+          acao={{ rotulo: 'Ir para Turmas', aoAcionar: () => navegar(PROFESSOR_ROUTES.turmas) }}
         />
       )}
 
@@ -259,8 +259,8 @@ export default function Time() {
               </ul>
             )}
             <div className="flex flex-wrap gap-3">
-              <Button onClick={() => navegar(ROTAS_DO_PROFESSOR.novaConversa)}>Pedir ao Assistente</Button>
-              <Button variante="secundario" onClick={() => navegar(ROTAS_DO_PROFESSOR.ferramentas)}>
+              <Button onClick={() => navegar(PROFESSOR_ROUTES.novaConversa)}>Pedir ao Assistente</Button>
+              <Button variante="secundario" onClick={() => navegar(PROFESSOR_ROUTES.ferramentas)}>
                 Ver as ferramentas
               </Button>
             </div>
@@ -317,7 +317,7 @@ export default function Time() {
                     const suspensao = avisoDaFuncaoSuspensa(entrega, funcaoSuspensa(time.data, entrega.funcao))
                     return (
                     <div key={entrega.id} id={idDoCartao(entrega.id)} tabIndex={-1} data-entrega={entrega.estado} className="flex min-w-0 scroll-mt-48 flex-col gap-1 rounded-cartao">
-                      <p className="text-[13px] text-sutil">{formatarDataHora(entrega.criadaEm)}</p>
+                      <p className="text-[13px] text-sutil">{formatDateTime(entrega.criadaEm)}</p>
                       <AIMessage
                         variante="balao"
                         funcao={entrega.funcao}

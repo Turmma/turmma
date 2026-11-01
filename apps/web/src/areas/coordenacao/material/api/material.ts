@@ -7,9 +7,9 @@ import {
   type TitularidadeDeMaterial,
 } from '@educa/shared'
 import { queryOptions } from '@tanstack/react-query'
-import { ErroDaApi, SEM_CORPO } from '../../../../api/client'
+import { ApiError, EMPTY_BODY } from '../../../../api/client'
 import { lerPaginas, type ListaDaEstrutura } from '../../../../api/estrutura'
-import { buscarComSessao, chamarComSessao, tokenDeAcesso } from '../../../../api/sessao'
+import { authedGet, authedRequest, tokenDeAcesso } from '../../../../api/sessao'
 
 /**
  * O material da escola pela coordenação (MVP, A2; D5, D75): a lista, o envio e a exclusão. A escola vem do token, nunca
@@ -17,7 +17,7 @@ import { buscarComSessao, chamarComSessao, tokenDeAcesso } from '../../../../api
  */
 
 /** O começo de toda chave desta tela: a troca de escola e a pessoa seguinte esvaziam tudo junto (`main.tsx`). */
-export const CHAVE_DO_MATERIAL = ['material'] as const
+export const MATERIAL_QUERY_KEY = ['material'] as const
 
 /** De quanto em quanto tempo a lista é lida de novo enquanto houver material sendo lido. */
 export const INTERVALO_DA_LEITURA_DO_MATERIAL_MS = 1_500
@@ -33,8 +33,8 @@ export function intervaloDaLista(lista: ListaDaEstrutura<Pick<Material, 'estado'
  * Os materiais da escola, em ordem de envio. Enquanto algum está `processando`, a consulta se repete a cada 1,5 s, sem
  * a pessoa recarregar a página; quando todos saíram de `processando`, para (regra 80: nada de consulta em laço à toa).
  */
-export const consultaMateriais = queryOptions({
-  queryKey: [...CHAVE_DO_MATERIAL, 'lista'],
+export const materiaisQueryOptions = queryOptions({
+  queryKey: [...MATERIAL_QUERY_KEY, 'lista'],
   queryFn: ({ signal }) => lerPaginas<Material>(CAMINHO, listaDeMateriaisResponseSchema, signal),
   refetchInterval: (consulta) => intervaloDaLista(consulta.state.data),
 })
@@ -71,14 +71,14 @@ function codigoDaResposta(corpo: unknown, status: number): ErrorCode {
  * bytes. Sem `arquivo`, vai só o pedido: é o envio que a tela já sabe que será recusado (sem licença, ou sem a
  * declaração), e que precisa chegar à API para a recusa ficar na auditoria da escola — o arquivo nem sai do computador.
  *
- * O cliente da sessão (`chamarComSessao`) só manda JSON. Antes de subir até 20 MB, uma leitura pequena passa por ele: é
+ * O cliente da sessão (`authedRequest`) só manda JSON. Antes de subir até 20 MB, uma leitura pequena passa por ele: é
  * ela que renova o token vencido e encerra a sessão que acabou, pelo mesmo caminho de toda outra tela. O token usado no
  * envio é o que ficou em memória depois dela, no cabeçalho, nunca na URL (regra 50, item 7).
  */
 export async function enviarMaterial(campos: CamposDoEnvioDeMaterial, arquivo: File | undefined): Promise<Material> {
-  await buscarComSessao(`${CAMINHO}?limite=1`, listaDeMateriaisResponseSchema)
+  await authedGet(`${CAMINHO}?limite=1`, listaDeMateriaisResponseSchema)
   const token = tokenDeAcesso()
-  if (token === undefined) throw new ErroDaApi(ErrorCode.NAO_AUTENTICADO)
+  if (token === undefined) throw new ApiError(ErrorCode.NAO_AUTENTICADO)
   const formulario = new FormData()
   formulario.append('titulo', campos.titulo)
   formulario.append('disciplinaId', campos.disciplinaId)
@@ -92,7 +92,7 @@ export async function enviarMaterial(campos: CamposDoEnvioDeMaterial, arquivo: F
   try {
     resposta = await fetch(CAMINHO, { method: 'POST', cache: 'no-store', headers: { Accept: 'application/json', Authorization: `Bearer ${token}` }, body: formulario })
   } catch {
-    throw new ErroDaApi(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO)
+    throw new ApiError(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO)
   }
   let corpo: unknown
   try {
@@ -102,14 +102,14 @@ export async function enviarMaterial(campos: CamposDoEnvioDeMaterial, arquivo: F
   }
   if (!resposta.ok) {
     const espera = Number(resposta.headers.get('Retry-After'))
-    throw new ErroDaApi(codigoDaResposta(corpo, resposta.status), Number.isFinite(espera) && espera > 0 ? espera : undefined)
+    throw new ApiError(codigoDaResposta(corpo, resposta.status), Number.isFinite(espera) && espera > 0 ? espera : undefined)
   }
   const lido = materialResponseSchema.safeParse(corpo)
-  if (!lido.success) throw new ErroDaApi(ErrorCode.ERRO_INTERNO)
+  if (!lido.success) throw new ApiError(ErrorCode.ERRO_INTERNO)
   return lido.data
 }
 
 /** `DELETE /v1/materiais/:id`: exclusão lógica; os trechos saem da busca na mesma hora. */
 export function excluirMaterial(id: string): Promise<void> {
-  return chamarComSessao(`${CAMINHO}/${encodeURIComponent(id)}`, SEM_CORPO, { metodo: 'DELETE' })
+  return authedRequest(`${CAMINHO}/${encodeURIComponent(id)}`, EMPTY_BODY, { metodo: 'DELETE' })
 }

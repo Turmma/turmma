@@ -1,6 +1,6 @@
 import { ESTADOS_DO_PEDIDO } from '@educa/shared'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { AbaDoNavegador } from '../../../components/pedidos/atualizacao-dos-pedidos'
+import type { BrowserTab } from '../../../components/pedidos/atualizacao-dos-pedidos'
 import { agendarPreparacao, INTERVALO_DA_PREPARACAO_MS, relerEnquantoPrepara } from './preparacao-do-arquivo'
 
 /**
@@ -13,9 +13,9 @@ function abaDeMentira(inicio: 'visible' | 'hidden' = 'visible') {
     visibilityState: inicio,
     addEventListener: (_tipo: 'visibilitychange', ouvinte: () => void) => void ouvintes.add(ouvinte),
     removeEventListener: (_tipo: 'visibilitychange', ouvinte: () => void) => void ouvintes.delete(ouvinte),
-  } satisfies AbaDoNavegador as {
+  } satisfies BrowserTab as {
     visibilityState: 'visible' | 'hidden'
-  } & AbaDoNavegador
+  } & BrowserTab
   return {
     aba,
     ouvintes,

@@ -1,15 +1,15 @@
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { useId } from 'react'
 import { useLocation } from 'wouter'
-import { consultaTime, funcaoSuspensa } from '../assistente/api/time'
-import { consultaMeusVinculos } from '../comum/api/vinculos'
-import { caminhoDaFerramentaDoProfessor, ROTAS_DO_PROFESSOR } from '../../../paths'
+import { timeQueryOptions, funcaoSuspensa } from '../assistente/api/time'
+import { meusVinculosQueryOptions } from '../comum/api/vinculos'
+import { caminhoDaFerramentaDoProfessor, PROFESSOR_ROUTES } from '../../../paths'
 import { Alert } from '../../../components/ui/Alert'
 import { Button } from '../../../components/ui/Button'
 import { ListItem } from '../../../components/ui/ListItem'
 import { StatusBadge } from '../../../components/ui/StatusBadge'
 import { SectionHeader, Page } from '../../../components/ui/Page'
-import { useTituloDaTela } from '../../../document-title'
+import { usePageTitle } from '../../../document-title'
 import { AvisoDeSuspensao } from '../comum/avisos'
 import { CATALOGO_DE_FERRAMENTAS, catalogoPorCategoria } from './ferramentas'
 import { IconeDeFerramenta } from './icones-de-ferramenta'
@@ -34,11 +34,11 @@ const FUNCOES_DO_CATALOGO = [...new Set(CATALOGO_DE_FERRAMENTAS.map((item) => it
  *   ficam. Ela só serve para avisar, e dizer "falta turma" sem saber seria afirmar o que a tela não leu (o teste prova).
  */
 export default function Ferramentas() {
-  useTituloDaTela('Ferramentas')
+  usePageTitle('Ferramentas')
   const [, navegar] = useLocation()
   const idDoCatalogo = useId()
-  const time = useQuery(consultaTime)
-  const vinculos = useInfiniteQuery(consultaMeusVinculos)
+  const time = useQuery(timeQueryOptions)
+  const vinculos = useInfiniteQuery(meusVinculosQueryOptions)
 
   const turmas = turmasDaProfessora(vinculos.data?.pages.flatMap((pagina) => pagina.itens) ?? [])
   // Falhou e ainda não há resposta. Não é `time.isError`: "Tentar de novo" põe a consulta de volta em `pending` enquanto lê, e o
@@ -75,7 +75,7 @@ export default function Ferramentas() {
             tom="info"
             titulo="Falta uma turma confirmada"
             acao={
-              <Button variante="secundario" tamanho="compacto" onClick={() => navegar(ROTAS_DO_PROFESSOR.turmas)}>
+              <Button variante="secundario" tamanho="compacto" onClick={() => navegar(PROFESSOR_ROUTES.turmas)}>
                 Ir para Turmas
               </Button>
             }

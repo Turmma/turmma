@@ -1,6 +1,6 @@
 import { ESTADOS_DO_PROFESSOR_ALOCAVEIS, type EstadoDoProfessor, type MotivoDeEncerramentoDeVinculo, type ProfessorDaEscola, type VinculoDaCoordenacao } from '@educa/shared'
 import type { ListaDaEstrutura } from '../../../api/estrutura'
-import { PARAMETRO_DO_PROFESSOR } from '../../../paths'
+import { PROFESSOR_PARAM } from '../../../paths'
 import { ordenarPeloNome, ordenarVinculos } from '../comum/ordem'
 
 /**
@@ -64,7 +64,7 @@ export function professoresDaTabela(professores: readonly ProfessorDaEscola[], v
  * escola, apagado, inventado, ou vazio — não abre nada, e não diz que existe (regra 10, item 6). Só o id vai ao endereço.
  */
 export function professorDoEndereco(busca: string, professores: readonly ProfessorDaEscola[]): ProfessorDaEscola | undefined {
-  const usuarioId = new URLSearchParams(busca).get(PARAMETRO_DO_PROFESSOR)
+  const usuarioId = new URLSearchParams(busca).get(PROFESSOR_PARAM)
   return professores.find((professor) => professor.usuarioId === usuarioId)
 }
 

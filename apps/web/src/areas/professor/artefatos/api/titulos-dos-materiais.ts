@@ -8,7 +8,7 @@ import { lerPaginas } from '../../../../api/estrutura'
  * fontes tiram o nome do material. Sem esta leitura a citação continua valendo, com "Material da escola" no lugar do
  * título (`components/ui/ai/source-labels.ts`): a falha dela não derruba a tela.
  */
-export const consultaTitulosDosMateriais = queryOptions({
+export const titulosDosMateriaisQueryOptions = queryOptions({
   queryKey: ['materiais', 'titulos'],
   queryFn: async ({ signal }): Promise<Readonly<Record<string, string>>> => {
     const { itens } = await lerPaginas<Material>('/v1/materiais', listaDeMateriaisResponseSchema, signal, 3)

@@ -54,7 +54,7 @@ interface ConfirmDialogProps {
  *   recusar nunca é mais difícil que aceitar (D59), e o Tab chega nele primeiro. A coluna igual vale também para o rótulo
  *   comprido: os dois botões crescem juntos, e nenhum fica menor que o outro.
  * - **O botão que confirma não se parece com nenhum outro**: grafite na decisão oficial, `vermelho` cheio no perigo. O
- *   cheio só existe aqui, na `ConfirmacaoDePerigo` e na decisão dos pedidos de nome (`perigo-cheio.test.ts`).
+ *   cheio só existe aqui, na `DangerConfirmDialog` e na decisão dos pedidos de nome (`perigo-cheio.test.ts`).
  */
 export function ConfirmDialog({
   titulo,

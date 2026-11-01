@@ -8,13 +8,13 @@ import { createContext, useContext } from 'react'
  * `null` é a casca ainda sem o elemento (o primeiro quadro) e quem não está dentro dela (a operação, a página pública): o
  * sino não desenha nada.
  */
-export interface AncoraDoSino {
+export interface SinoAnchorContextValue {
   readonly elemento: HTMLElement | null
 }
 
-export const ContextoDaAncoraDoSino = createContext<AncoraDoSino>({ elemento: null })
+export const SinoAnchorContext = createContext<SinoAnchorContextValue>({ elemento: null })
 
 /** O elemento onde o sino se desenha, ou `null` enquanto não existe. */
-export function useAncoraDoSino(): HTMLElement | null {
-  return useContext(ContextoDaAncoraDoSino).elemento
+export function useSinoAnchor(): HTMLElement | null {
+  return useContext(SinoAnchorContext).elemento
 }

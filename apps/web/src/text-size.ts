@@ -13,18 +13,18 @@ import { useLocation } from 'wouter'
  * Quem pinta o primeiro quadro é o `<script>` em linha do `index.html`, que lê a chave e escreve `data-letra` no `<html>`
  * quando o caminho começa por `/aluno`. O `src/text-size.test.ts` extrai aquele script do arquivo e o confere contra `resolverLetra`.
  */
-export type TamanhoDaLetra = 'padrao' | 'grande' | 'maior'
+export type TextSize = 'padrao' | 'grande' | 'maior'
 
-export const CHAVE_DA_LETRA = 'educa.letra'
+export const TEXT_SIZE_STORAGE_KEY = 'educa.letra'
 
 /** O atributo do `<html>` que o CSS lê (`:root[data-letra]`). Padrão é a ausência dele. */
-export const ATRIBUTO_DA_LETRA = 'data-letra'
+export const TEXT_SIZE_ATTRIBUTE = 'data-letra'
 
 /**
  * O valor lido do navegador nunca é confiado: só `grande` e `maior` valem, e qualquer outra coisa (inclusive `padrao`, vazio
  * e maiúscula) é Padrão. O que o script e esta função escrevem no `<html>` é `grande` ou `maior`, e mais nada.
  */
-export function resolverLetra(valor: string | null | undefined): TamanhoDaLetra {
+export function resolverLetra(valor: string | null | undefined): TextSize {
   return valor === 'grande' || valor === 'maior' ? valor : 'padrao'
 }
 
@@ -33,11 +33,11 @@ export function resolverLetra(valor: string | null | undefined): TamanhoDaLetra 
  * anônima), a escolha vale até a aba fechar, e é daqui que ela é lida. Fica vazia enquanto o armazenamento funciona, e a
  * chave dele é a única fonte da escolha.
  */
-let escolhaQueOArmazenamentoRecusou: TamanhoDaLetra | undefined
+let escolhaQueOArmazenamentoRecusou: TextSize | undefined
 
-function escolhaGuardada(): TamanhoDaLetra {
+function escolhaGuardada(): TextSize {
   try {
-    return resolverLetra(window.localStorage.getItem(CHAVE_DA_LETRA))
+    return resolverLetra(window.localStorage.getItem(TEXT_SIZE_STORAGE_KEY))
   } catch {
     // Sem acesso ao armazenamento: a letra é a Padrão, calada.
     return 'padrao'
@@ -45,7 +45,7 @@ function escolhaGuardada(): TamanhoDaLetra {
 }
 
 /** O que o aluno escolheu, ou Padrão quando ele não escolheu (ou quando o armazenamento não responde). */
-export function lerLetra(): TamanhoDaLetra {
+export function lerLetra(): TextSize {
   return escolhaQueOArmazenamentoRecusou ?? escolhaGuardada()
 }
 
@@ -59,10 +59,10 @@ function avisarOsOuvintes(): void {
  * Guarda a escolha e avisa quem a mostra. Só `grande` e `maior` gravam; Padrão apaga a chave. Gravação que lança não quebra
  * nada: a escolha vale até a aba fechar.
  */
-export function escolherLetra(letra: TamanhoDaLetra): void {
+export function escolherLetra(letra: TextSize): void {
   try {
-    if (letra === 'padrao') window.localStorage.removeItem(CHAVE_DA_LETRA)
-    else window.localStorage.setItem(CHAVE_DA_LETRA, letra)
+    if (letra === 'padrao') window.localStorage.removeItem(TEXT_SIZE_STORAGE_KEY)
+    else window.localStorage.setItem(TEXT_SIZE_STORAGE_KEY, letra)
     escolhaQueOArmazenamentoRecusou = undefined
   } catch {
     escolhaQueOArmazenamentoRecusou = letra
@@ -72,14 +72,14 @@ export function escolherLetra(letra: TamanhoDaLetra): void {
 
 /** Outra aba mexeu na chave (ou limpou o armazenamento inteiro, `key` nulo): o que ela gravou vale mais que a memória daqui. */
 function aoMudarOArmazenamento(evento: StorageEvent): void {
-  if (evento.key !== null && evento.key !== CHAVE_DA_LETRA) return
+  if (evento.key !== null && evento.key !== TEXT_SIZE_STORAGE_KEY) return
   escolhaQueOArmazenamentoRecusou = undefined
   avisarOsOuvintes()
 }
 
 /**
  * Passa a acompanhar as outras abas (o evento `storage`): a escolha feita numa chega à outra, e a última vence. Chamado uma
- * vez por `main.tsx`, como o `iniciarTema`, e por isso este módulo mora na entrada e não vira pedaço dividido entre a área do
+ * vez por `main.tsx`, como o `initTheme`, e por isso este módulo mora na entrada e não vira pedaço dividido entre a área do
  * aluno e a galeria. Não lê nem escreve nada no armazenamento. Devolve a função que desliga, para o teste.
  */
 export function iniciarLetra(): () => void {
@@ -95,8 +95,8 @@ function assinar(aoMudar: () => void): () => void {
 }
 
 /** A letra de agora e como mudá-la, para a peça `TamanhoDaLetra`. Acompanha a mudança que vem de outra aba. */
-export function useLetra(): { readonly letra: TamanhoDaLetra; readonly escolher: (letra: TamanhoDaLetra) => void } {
-  const letra = useSyncExternalStore(assinar, lerLetra, (): TamanhoDaLetra => 'padrao')
+export function useTextSize(): { readonly letra: TextSize; readonly escolher: (letra: TextSize) => void } {
+  const letra = useSyncExternalStore(assinar, lerLetra, (): TextSize => 'padrao')
   return { letra, escolher: escolherLetra }
 }
 
@@ -106,9 +106,9 @@ export function noCaminhoDoAluno(caminho: string): boolean {
 }
 
 /** Escreve (ou tira) o `data-letra` do `<html>`. Padrão não deixa atributo. */
-function aplicarLetra(letra: TamanhoDaLetra): void {
-  if (letra === 'padrao') document.documentElement.removeAttribute(ATRIBUTO_DA_LETRA)
-  else document.documentElement.setAttribute(ATRIBUTO_DA_LETRA, letra)
+function aplicarLetra(letra: TextSize): void {
+  if (letra === 'padrao') document.documentElement.removeAttribute(TEXT_SIZE_ATTRIBUTE)
+  else document.documentElement.setAttribute(TEXT_SIZE_ATTRIBUTE, letra)
 }
 
 /**
@@ -118,12 +118,12 @@ function aplicarLetra(letra: TamanhoDaLetra): void {
  * em linha escreveu ficaria para a pessoa seguinte, que pode ser um professor. Só escreve no `<html>`; nunca no
  * armazenamento.
  */
-export function useTamanhoDaLetra(): void {
+export function useApplyTextSize(): void {
   const [caminho] = useLocation()
-  const { letra } = useLetra()
+  const { letra } = useTextSize()
   const valeAqui = noCaminhoDoAluno(caminho)
   useEffect(() => {
     aplicarLetra(valeAqui ? letra : 'padrao')
-    return () => document.documentElement.removeAttribute(ATRIBUTO_DA_LETRA)
+    return () => document.documentElement.removeAttribute(TEXT_SIZE_ATTRIBUTE)
   }, [valeAqui, letra])
 }

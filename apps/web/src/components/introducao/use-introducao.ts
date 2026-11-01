@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRef } from 'react'
 import { useLocation } from 'wouter'
-import { concluirIntroducao, consultaEu } from '../../api/eu'
+import { concluirIntroducao, euQueryOptions } from '../../api/eu'
 
 /** O `['eu']` envelhece em 60 s e não se relê ao voltar para a aba (Tech Spec, seção 9): o desvio da entrada já o leu. Vale para as introduções do aluno, do professor e da coordenação: mudar um dos dois valores muda as três. */
 const LEITURA_DA_INTRODUCAO = { staleTime: 60_000, refetchOnWindowFocus: false } as const
@@ -26,7 +26,7 @@ interface DestinosDaIntroducao {
  * com o prefixo `~`.
  */
 export function useIntroducao(destinos: DestinosDaIntroducao) {
-  const eu = useQuery({ ...consultaEu, ...LEITURA_DA_INTRODUCAO })
+  const eu = useQuery({ ...euQueryOptions, ...LEITURA_DA_INTRODUCAO })
   const cliente = useQueryClient()
   const [, ir] = useLocation()
   /** O POST já saiu: o segundo clique, no mesmo quadro, não faz outro. */
@@ -35,7 +35,7 @@ export function useIntroducao(destinos: DestinosDaIntroducao) {
   // O que o `onSuccess` guarda é a primeira data, a mesma que o `GET /v1/eu` devolveria; sem `['eu']` no cache não há o que atualizar.
   const gravar = useMutation({
     mutationFn: concluirIntroducao,
-    onSuccess: ({ introducaoVistaEm }) => cliente.setQueryData(consultaEu.queryKey, (antes) => (antes === undefined ? antes : { ...antes, introducaoVistaEm })),
+    onSuccess: ({ introducaoVistaEm }) => cliente.setQueryData(euQueryOptions.queryKey, (antes) => (antes === undefined ? antes : { ...antes, introducaoVistaEm })),
   })
 
   const revendo = eu.data !== undefined && eu.data.introducaoVistaEm !== null

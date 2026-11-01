@@ -1,6 +1,6 @@
 import { ErrorCode, ESTADOS_FINAIS_DE_EXECUCAO, INTERVALO_DA_CONSULTA_DE_EXECUCAO_MS, type EstadoDeExecucao, type ExecucaoResponse, type ResultadoDaExecucao } from '@educa/shared'
-import { CHAVE_DA_CONVERSA, CHAVE_DAS_ENTREGAS, CHAVE_DOS_ARTEFATOS } from './chaves-do-professor'
-import { ErroDaApi } from './client'
+import { CONVERSA_QUERY_KEY, ENTREGAS_QUERY_KEY, ARTEFATOS_QUERY_KEY } from './chaves-do-professor'
+import { ApiError } from './client'
 
 /**
  * O ciclo de todo pedido que dispara IA (`docs/mvp-contratos.md`, seção 2): a tela sorteia a `chaveEnvio`, manda o
@@ -70,7 +70,7 @@ export function desistirDaConsulta<Pedido>(atual: CicloDeExecucao<Pedido> | unde
 
 /** O código de qualquer falha: o da API quando ela respondeu, erro interno para o resto. */
 export function codigoDoErro(erro: unknown): ErrorCode {
-  return erro instanceof ErroDaApi ? erro.codigo : ErrorCode.ERRO_INTERNO
+  return erro instanceof ApiError ? erro.codigo : ErrorCode.ERRO_INTERNO
 }
 
 /**
@@ -99,9 +99,9 @@ export function estaDemorando(desde: number, agora: number): boolean {
  * ele entra em "Esperando você", na Home e no sino.
  */
 export function chavesParaInvalidar(resultado: ResultadoDaExecucao): readonly (readonly string[])[] {
-  if (resultado.tipo === 'mensagem') return [CHAVE_DA_CONVERSA]
-  if (resultado.tipo === 'artefato') return resultado.entregaId === null ? [CHAVE_DOS_ARTEFATOS] : [CHAVE_DOS_ARTEFATOS, CHAVE_DAS_ENTREGAS]
-  if (resultado.tipo === 'lote_de_correcao') return [CHAVE_DAS_ENTREGAS]
+  if (resultado.tipo === 'mensagem') return [CONVERSA_QUERY_KEY]
+  if (resultado.tipo === 'artefato') return resultado.entregaId === null ? [ARTEFATOS_QUERY_KEY] : [ARTEFATOS_QUERY_KEY, ENTREGAS_QUERY_KEY]
+  if (resultado.tipo === 'lote_de_correcao') return [ENTREGAS_QUERY_KEY]
   return []
 }
 

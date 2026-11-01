@@ -2,13 +2,13 @@ import type { Ferramenta } from '@educa/shared'
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { useLocation } from 'wouter'
-import { consultaArtefato, consultaArtefatos } from '../artefatos/api/artefatos'
+import { artefatoQueryOptions, artefatosQueryOptions } from '../artefatos/api/artefatos'
 import { emCurso } from '../../../api/ciclo-de-execucao'
-import { useCicloDeExecucao } from '../../../api/execucoes'
-import { consultaTime, funcaoSuspensa } from '../assistente/api/time'
-import { consultaMeusVinculos } from '../comum/api/vinculos'
-import { caminhoDaFerramentaDoProfessor, ROTAS_DO_PROFESSOR } from '../../../paths'
-import { EstadoCarregando, EstadoErro, EstadoVazio } from '../../../components/states/index'
+import { useExecutionLifecycle } from '../../../api/execucoes'
+import { timeQueryOptions, funcaoSuspensa } from '../assistente/api/time'
+import { meusVinculosQueryOptions } from '../comum/api/vinculos'
+import { caminhoDaFerramentaDoProfessor, PROFESSOR_ROUTES } from '../../../paths'
+import { LoadingState, ErrorState, EmptyState } from '../../../components/states/index'
 import { QueueAlert } from '../../../components/ui/ai/QueueAlert'
 import type { OpcaoDoCampo, ValoresValidados } from '../../../components/ui/ai/schema-form'
 import { SchemaForm } from '../../../components/ui/ai/SchemaForm'
@@ -45,19 +45,19 @@ export function CartaoDeFerramenta({ ferramenta, iniciais, aoCancelar, nivel = 3
   const item = ferramentaDoCatalogo(ferramenta)
   const adaptacao = ferramenta === 'adaptacao'
   const [, navegar] = useLocation()
-  const vinculos = useInfiniteQuery(consultaMeusVinculos)
-  const artefatos = useInfiniteQuery({ ...consultaArtefatos(), enabled: adaptacao })
+  const vinculos = useInfiniteQuery(meusVinculosQueryOptions)
+  const artefatos = useInfiniteQuery({ ...artefatosQueryOptions(), enabled: adaptacao })
   // A atividade de onde se veio ("Pedir versão adaptada") pode não estar na primeira página do que já foi gerado.
-  const origem = useQuery({ ...consultaArtefato(iniciais?.origem ?? ''), enabled: adaptacao && iniciais?.origem !== undefined })
-  const time = useQuery(consultaTime)
-  const { ciclo, demorando, iniciar, repetir, limpar } = useCicloDeExecucao(CICLO_DA_FERRAMENTA[ferramenta], enviarPedidoDeFerramenta)
+  const origem = useQuery({ ...artefatoQueryOptions(iniciais?.origem ?? ''), enabled: adaptacao && iniciais?.origem !== undefined })
+  const time = useQuery(timeQueryOptions)
+  const { ciclo, demorando, iniciar, repetir, limpar } = useExecutionLifecycle(CICLO_DA_FERRAMENTA[ferramenta], enviarPedidoDeFerramenta)
   const [problema, definirProblema] = useState<string | undefined>(undefined)
 
   if (funcaoSuspensa(time.data, item.funcao)) return <AvisoDeSuspensao funcao={item.funcao} />
 
   const falha = vinculos.isError ? vinculos : adaptacao && artefatos.isError ? artefatos : undefined
-  if (falha !== undefined) return <EstadoErro erro={falha.error} tentando={falha.isFetching} aoTentarDeNovo={() => void falha.refetch({ cancelRefetch: false })} />
-  if (vinculos.data === undefined || (adaptacao && (artefatos.isPending || (iniciais?.origem !== undefined && origem.isPending)))) return <EstadoCarregando rotulo="Carregando a ferramenta…" />
+  if (falha !== undefined) return <ErrorState erro={falha.error} tentando={falha.isFetching} aoTentarDeNovo={() => void falha.refetch({ cancelRefetch: false })} />
+  if (vinculos.data === undefined || (adaptacao && (artefatos.isPending || (iniciais?.origem !== undefined && origem.isPending)))) return <LoadingState rotulo="Carregando a ferramenta…" />
 
   const itensDosVinculos = vinculos.data.pages.flatMap((pagina) => pagina.itens)
   const turmas = turmasDaProfessora(itensDosVinculos)
@@ -73,15 +73,15 @@ export function CartaoDeFerramenta({ ferramenta, iniciais, aoCancelar, nivel = 3
 
   if (!adaptacao && turmas.length === 0)
     return (
-      <EstadoVazio
+      <EmptyState
         titulo="Falta uma turma confirmada"
         descricao="A ferramenta gera a partir do material de uma turma e de uma disciplina suas. Confirme as suas turmas em Turmas; se nenhuma aparece lá, quem aloca é a coordenação."
-        acao={{ rotulo: 'Ir para Turmas', aoAcionar: () => navegar(ROTAS_DO_PROFESSOR.turmas) }}
+        acao={{ rotulo: 'Ir para Turmas', aoAcionar: () => navegar(PROFESSOR_ROUTES.turmas) }}
       />
     )
   if (adaptacao && atividades.length === 0)
     return (
-      <EstadoVazio
+      <EmptyState
         titulo="Ainda não há atividade para adaptar"
         descricao="A Adaptação parte de uma atividade objetiva que você já gerou. Gere a atividade primeiro; depois escolha aqui o tipo de adaptação."
         acao={{ rotulo: 'Gerar uma atividade', aoAcionar: () => navegar(caminhoDaFerramentaDoProfessor('atividade_objetiva')) }}

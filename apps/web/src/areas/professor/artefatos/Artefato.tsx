@@ -3,23 +3,23 @@ import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tansta
 import { ArrowLeft, Pencil } from 'lucide-react'
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { Link, useLocation, useSearch } from 'wouter'
-import { consultaArtefato, renomearArtefato } from './api/artefatos'
-import { CHAVE_DOS_ARTEFATOS } from '../../../api/chaves-do-professor'
-import { ErroDaApi, mensagemDoErro } from '../../../api/client'
-import { consultaEntregasDaTurma } from './api/entregas'
-import { consultaTitulosDosMateriais } from './api/titulos-dos-materiais'
-import { consultaMeusVinculos } from '../comum/api/vinculos'
-import { caminhoDaAdaptacaoDoArtefato, caminhoDoArtefatoDoProfessor, ROTAS_DO_PROFESSOR } from '../../../paths'
+import { artefatoQueryOptions, renomearArtefato } from './api/artefatos'
+import { ARTEFATOS_QUERY_KEY } from '../../../api/chaves-do-professor'
+import { ApiError, errorMessage } from '../../../api/client'
+import { entregasDaTurmaQueryOptions } from './api/entregas'
+import { titulosDosMateriaisQueryOptions } from './api/titulos-dos-materiais'
+import { meusVinculosQueryOptions } from '../comum/api/vinculos'
+import { caminhoDaAdaptacaoDoArtefato, caminhoDoArtefatoDoProfessor, PROFESSOR_ROUTES } from '../../../paths'
 import { Tabs, type TabItem } from '../../../components/ui/Tabs'
 import { Button } from '../../../components/ui/Button'
 import { FormField } from '../../../components/ui/fields/FormField'
-import { EstadoCarregando, EstadoErro, EstadoVazio } from '../../../components/states/index'
+import { LoadingState, ErrorState, EmptyState } from '../../../components/states/index'
 import { AgentSignature } from '../../../components/ui/ai/AgentSignature'
 import { ApprovalLine } from '../../../components/ui/ai/ApprovalLine'
 import { Switch } from '../../../components/ui/fields/Switch'
 import { SectionHeader, Page } from '../../../components/ui/Page'
-import { formatarDataHora } from '../../../format'
-import { useTituloDaTela } from '../../../document-title'
+import { formatDateTime } from '../../../format'
+import { usePageTitle } from '../../../document-title'
 import { AplicacaoDoArtefato } from '../atividades/AplicacaoDoArtefato'
 import { ConteudoDoArtefato } from './ConteudoDoArtefato'
 import { aprovacaoDaEntrega, AVISO_DE_TEXTO_SEM_ALUNO, podeRenomear, saidaEmPdf, TEXTO_DA_REJEITADA_SEM_PDF, TEXTO_DO_RASCUNHO_EM_PDF, textoDaAdaptacao, VERBO_DA_ENTREGA } from './entregas'
@@ -81,12 +81,12 @@ export default function Artefato({ artefatoId }: { artefatoId: string }) {
   const cliente = useQueryClient()
   const [caminho, navegar] = useLocation()
   const busca = useSearch()
-  const artefato = useQuery(consultaArtefato(artefatoId))
+  const artefato = useQuery(artefatoQueryOptions(artefatoId))
   const dados = artefato.data
-  const materiais = useQuery(consultaTitulosDosMateriais)
-  const vinculos = useInfiniteQuery(consultaMeusVinculos)
+  const materiais = useQuery(titulosDosMateriaisQueryOptions)
+  const vinculos = useInfiniteQuery(meusVinculosQueryOptions)
   const temVersao = dados !== undefined && (dados.entrega !== null || dados.versoesAdaptadas.length > 0)
-  const entregas = useQuery({ ...consultaEntregasDaTurma(dados?.turmaId ?? ''), enabled: temVersao })
+  const entregas = useQuery({ ...entregasDaTurmaQueryOptions(dados?.turmaId ?? ''), enabled: temVersao })
   const [novoTitulo, definirNovoTitulo] = useState<string | undefined>(undefined)
   // O gabarito é um modo de ver: começa ligado, como o artefato sempre foi, e é de quem está olhando (não vai ao endereço).
   const [comGabarito, definirComGabarito] = useState(true)
@@ -104,13 +104,13 @@ export default function Artefato({ artefatoId }: { artefatoId: string }) {
   }, [novoTitulo])
   const topoDoPainel = useTopoDoPainel(dados !== undefined)
   const idDasVersoes = useId()
-  useTituloDaTela(dados?.titulo ?? 'Artefato')
+  usePageTitle(dados?.titulo ?? 'Artefato')
 
   const renomear = useMutation({
     mutationFn: (titulo: string) => renomearArtefato(artefatoId, titulo),
     onSuccess: (renomeado) => {
-      cliente.setQueryData(consultaArtefato(artefatoId).queryKey, renomeado)
-      void cliente.invalidateQueries({ queryKey: CHAVE_DOS_ARTEFATOS })
+      cliente.setQueryData(artefatoQueryOptions(artefatoId).queryKey, renomeado)
+      void cliente.invalidateQueries({ queryKey: ARTEFATOS_QUERY_KEY })
       definirNovoTitulo(undefined)
       devolverOFoco()
     },
@@ -118,22 +118,22 @@ export default function Artefato({ artefatoId }: { artefatoId: string }) {
 
   const voltar = (
     // Relativo à área: o `Route` aninhado em `/professor` resolve o `to` a partir da base dela.
-    <Link to={ROTAS_DO_PROFESSOR.criados} className="inline-flex min-h-11 items-center gap-2 self-start text-caramelo-texto underline">
+    <Link to={PROFESSOR_ROUTES.criados} className="inline-flex min-h-11 items-center gap-2 self-start text-caramelo-texto underline">
       <ArrowLeft aria-hidden="true" size={18} />
       Voltar para Criados
     </Link>
   )
 
   if (dados === undefined) {
-    const naoEncontrado = artefato.error instanceof ErroDaApi && artefato.error.codigo === ErrorCode.NAO_ENCONTRADO
+    const naoEncontrado = artefato.error instanceof ApiError && artefato.error.codigo === ErrorCode.NAO_ENCONTRADO
     return (
       <Page titulo="Artefato" antes={voltar} largura="formulario">
         {artefato.isPending ? (
-          <EstadoCarregando rotulo="Carregando o artefato…" />
+          <LoadingState rotulo="Carregando o artefato…" />
         ) : naoEncontrado ? (
-          <EstadoVazio titulo="Este artefato não está disponível" descricao="Ele pode ter sido gerado para uma turma que não é mais sua, ou o endereço está errado. O que você gerou está em Criados." />
+          <EmptyState titulo="Este artefato não está disponível" descricao="Ele pode ter sido gerado para uma turma que não é mais sua, ou o endereço está errado. O que você gerou está em Criados." />
         ) : (
-          <EstadoErro erro={artefato.error} tentando={artefato.isFetching} aoTentarDeNovo={() => void artefato.refetch({ cancelRefetch: false })} />
+          <ErrorState erro={artefato.error} tentando={artefato.isFetching} aoTentarDeNovo={() => void artefato.refetch({ cancelRefetch: false })} />
         )}
       </Page>
     )
@@ -144,7 +144,7 @@ export default function Artefato({ artefatoId }: { artefatoId: string }) {
   const disciplina = nomesDasDisciplinas(itensDosVinculos)[dados.disciplinaId]
   const adaptada = dados.origemId !== null
   const tipo = adaptada ? 'Versão adaptada' : NOME_DA_FERRAMENTA[dados.tipo]
-  const descricao = [tipo, turma, disciplina, `gerado em ${formatarDataHora(dados.criadoEm)}`].filter((parte) => parte !== undefined).join(' · ')
+  const descricao = [tipo, turma, disciplina, `gerado em ${formatDateTime(dados.criadoEm)}`].filter((parte) => parte !== undefined).join(' · ')
   // Só a atividade objetiva que não é versão adaptada se adapta (o contrato recusa as outras).
   const podeAdaptar = dados.tipo === 'atividade_objetiva' && !adaptada
   const funcao = adaptada ? 'adaptacao' : ferramentaDoCatalogo(dados.tipo).funcao
@@ -184,7 +184,7 @@ export default function Artefato({ artefatoId }: { artefatoId: string }) {
             autoFocus
           />
           <p role="alert" className="rounded-controle bg-erro-cx p-3 break-words text-erro empty:hidden">
-            {renomear.isError ? mensagemDoErro(renomear.error) : ''}
+            {renomear.isError ? errorMessage(renomear.error) : ''}
           </p>
           <div className="flex flex-wrap gap-3">
             <Button type="submit" variante="secundario" disabled={renomear.isPending || !tituloConferido.success}>
@@ -238,7 +238,7 @@ export default function Artefato({ artefatoId }: { artefatoId: string }) {
             {dados.entrega?.estado === 'pendente' && (
               <p className="min-w-0 text-sm break-words text-sutil">
                 Esta versão só pode ir aos alunos depois que você aprovar.{' '}
-                <Link to={ROTAS_DO_PROFESSOR.timeDoAssistente} className="text-caramelo-texto underline">
+                <Link to={PROFESSOR_ROUTES.timeDoAssistente} className="text-caramelo-texto underline">
                   Ver e decidir
                 </Link>
               </p>

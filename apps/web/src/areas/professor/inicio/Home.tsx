@@ -2,16 +2,16 @@ import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Link, useLocation } from 'wouter'
 import { emCurso } from '../../../api/ciclo-de-execucao'
-import { consultaEu } from '../../../api/eu'
-import { useCicloDeExecucao } from '../../../api/execucoes'
-import { useLugarNaAba } from '../../../api/tab-store'
-import { consultaTime, funcaoSuspensa } from '../assistente/api/time'
-import { consultaMeusVinculos } from '../comum/api/vinculos'
-import { ROTAS_DO_PROFESSOR } from '../../../paths'
-import { EstadoCarregando, EstadoErro, EstadoVazio } from '../../../components/states/index'
+import { euQueryOptions } from '../../../api/eu'
+import { useExecutionLifecycle } from '../../../api/execucoes'
+import { useTabStore } from '../../../api/tab-store'
+import { timeQueryOptions, funcaoSuspensa } from '../assistente/api/time'
+import { meusVinculosQueryOptions } from '../comum/api/vinculos'
+import { PROFESSOR_ROUTES } from '../../../paths'
+import { LoadingState, ErrorState, EmptyState } from '../../../components/states/index'
 import { AgentSignature } from '../../../components/ui/ai/AgentSignature'
 import { Page } from '../../../components/ui/Page'
-import { useTituloDaTela } from '../../../document-title'
+import { usePageTitle } from '../../../document-title'
 import { AvisoDeIA, AvisoDeSuspensao } from '../comum/avisos'
 import { CaixaDoAssistente } from '../assistente/CaixaDoAssistente'
 import { CICLO_DA_CONVERSA, CONTEXTO_ESCOLHIDO, enviarPedidoDaConversa } from '../assistente/memoria-do-professor'
@@ -37,13 +37,13 @@ import { turmaEscolhida, turmasDaProfessora } from '../comum/turmas-da-professor
  * Os quatro estados são os das turmas dela: carregando, erro, vazio (o que falta, e onde resolver) e com dado.
  */
 export default function Home() {
-  useTituloDaTela('Início')
+  usePageTitle('Início')
   const [, navegar] = useLocation()
-  const eu = useQuery(consultaEu)
-  const vinculos = useInfiniteQuery(consultaMeusVinculos)
-  const time = useQuery(consultaTime)
-  const contexto = useLugarNaAba(CONTEXTO_ESCOLHIDO)
-  const { ciclo, iniciar } = useCicloDeExecucao(CICLO_DA_CONVERSA, enviarPedidoDaConversa)
+  const eu = useQuery(euQueryOptions)
+  const vinculos = useInfiniteQuery(meusVinculosQueryOptions)
+  const time = useQuery(timeQueryOptions)
+  const contexto = useTabStore(CONTEXTO_ESCOLHIDO)
+  const { ciclo, iniciar } = useExecutionLifecycle(CICLO_DA_CONVERSA, enviarPedidoDaConversa)
   // A hora de quando a tela abriu: a saudação não muda com a professora olhando para ela.
   const [agora] = useState(() => new Date())
 
@@ -67,13 +67,13 @@ export default function Home() {
             </div>
           </div>
 
-          {vinculos.isPending && <EstadoCarregando rotulo="Carregando as suas turmas…" />}
-          {vinculos.isError && <EstadoErro erro={vinculos.error} tentando={vinculos.isFetching} aoTentarDeNovo={() => void vinculos.refetch({ cancelRefetch: false })} />}
+          {vinculos.isPending && <LoadingState rotulo="Carregando as suas turmas…" />}
+          {vinculos.isError && <ErrorState erro={vinculos.error} tentando={vinculos.isFetching} aoTentarDeNovo={() => void vinculos.refetch({ cancelRefetch: false })} />}
           {vinculos.data !== undefined && turma === undefined && (
-            <EstadoVazio
+            <EmptyState
               titulo="Falta uma turma confirmada"
               descricao="O Assistente trabalha a partir do material de uma turma e de uma disciplina suas. Confirme as suas turmas em Turmas; se nenhuma aparece lá, quem aloca é a coordenação."
-              acao={{ rotulo: 'Ir para Turmas', aoAcionar: () => navegar(ROTAS_DO_PROFESSOR.turmas) }}
+              acao={{ rotulo: 'Ir para Turmas', aoAcionar: () => navegar(PROFESSOR_ROUTES.turmas) }}
             />
           )}
 
@@ -87,7 +87,7 @@ export default function Home() {
                 iniciar={iniciar}
                 respondendo={respondendo}
                 desligada={suspensa}
-                depois={() => navegar(ROTAS_DO_PROFESSOR.conversa)}
+                depois={() => navegar(PROFESSOR_ROUTES.conversa)}
                 semMenu
                 funcaoSuspensa={(funcao) => funcaoSuspensa(time.data, funcao)}
               />
@@ -97,7 +97,7 @@ export default function Home() {
                   {respondendo ? 'O Assistente ainda está respondendo ao seu último pedido.' : ''}
                 </span>
                 {/* Relativo à área: o `Route` aninhado em `/professor` resolve o `to` a partir da base dela. */}
-                <Link to={ROTAS_DO_PROFESSOR.conversa} className="inline-flex min-h-11 items-center gap-1 text-caramelo-texto underline md:min-h-9">
+                <Link to={PROFESSOR_ROUTES.conversa} className="inline-flex min-h-11 items-center gap-1 text-caramelo-texto underline md:min-h-9">
                   Abrir a conversa com o Assistente
                 </Link>
               </p>

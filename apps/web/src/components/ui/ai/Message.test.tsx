@@ -3,7 +3,7 @@ import { cleanup, render, screen } from '@testing-library/react'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { classesDo, tokenDe } from '../../../__fixtures__/class-colors'
+import { classesOf, tokenOf } from '../../../__fixtures__/class-colors'
 import { Conversation, AIMessage, UserMessage, ThinkingIndicator } from './Message'
 
 /**
@@ -22,10 +22,10 @@ describe('MensagemPessoa', () => {
   it('é a bolha da pessoa, à direita, com a borda de 2 px, e as quebras de linha que ela escreveu ficam', () => {
     const { container } = render(<UserMessage>{'monta uma atividade\nde estequiometria'}</UserMessage>)
     const bolha = container.querySelector('p') as HTMLElement
-    const classes = classesDo(bolha)
-    expect(tokenDe(bolha, 'bg')).toBe('fundo-suave')
+    const classes = classesOf(bolha)
+    expect(tokenOf(bolha, 'bg')).toBe('fundo-suave')
     expect(classes.has('border-2')).toBe(true)
-    expect(tokenDe(bolha, 'border')).toBe('borda')
+    expect(tokenOf(bolha, 'border')).toBe('borda')
     expect(classes.has('rounded-cartao')).toBe(true)
     // Até 85% da coluna, e o texto como foi escrito.
     expect(classes.has('max-w-[85%]')).toBe(true)
@@ -34,7 +34,7 @@ describe('MensagemPessoa', () => {
     expect(bolha.textContent).toBe('Você: monta uma atividade\nde estequiometria')
     expect(container.querySelector('.sr-only')?.textContent).toBe('Você: ')
     // A bolha é a única face com fundo da conversa: ela se alinha à direita do artigo.
-    expect(classesDo(bolha.parentElement as HTMLElement).has('justify-end')).toBe(true)
+    expect(classesOf(bolha.parentElement as HTMLElement).has('justify-end')).toBe(true)
   })
 })
 
@@ -42,8 +42,8 @@ describe('MensagemIA', () => {
   it('na coluna, a IA não tem bolha: sem fundo e sem borda, com a assinatura em cima do texto', () => {
     const { container } = render(<AIMessage agente="assistente_de_ensino">Aqui está a lista.</AIMessage>)
     const texto = screen.getByText('Aqui está a lista.')
-    expect(classesDo(texto).has('border-2')).toBe(false)
-    expect([...classesDo(texto)].filter((classe) => classe.startsWith('bg-') || classe.startsWith('border'))).toEqual([])
+    expect(classesOf(texto).has('border-2')).toBe(false)
+    expect([...classesOf(texto)].filter((classe) => classe.startsWith('bg-') || classe.startsWith('border'))).toEqual([])
     const assinatura = container.querySelector('[data-assinatura]') as HTMLElement
     expect(container.querySelectorAll('[data-assinatura]')).toHaveLength(1)
     expect(vemAntes(assinatura, texto)).toBe(true)
@@ -60,9 +60,9 @@ describe('MensagemIA', () => {
     expect(vemAntes(assinatura, balao)).toBe(true)
     // A assinatura não está dentro do balão: é o cabeçalho, e o balão só leva a fala.
     expect(balao.contains(assinatura)).toBe(false)
-    expect(classesDo(balao).has('border-2')).toBe(true)
-    expect(tokenDe(balao, 'border')).toBe('borda')
-    expect(classesDo(balao).has('rounded-cartao')).toBe(true)
+    expect(classesOf(balao).has('border-2')).toBe(true)
+    expect(tokenOf(balao, 'border')).toBe('borda')
+    expect(classesOf(balao).has('rounded-cartao')).toBe(true)
     // Avatar, nome e selo no mesmo bloco, e nenhum avatar ao lado do balão (RF10).
     expect(container.querySelectorAll('[data-agente]')).toHaveLength(1)
     expect(assinatura.querySelectorAll('[data-agente]')).toHaveLength(1)
@@ -100,7 +100,7 @@ describe('Pensando', () => {
     expect(texto.getAttribute('aria-live')).toBe('polite')
     // Sem três pontos, sem brilho, sem pulso: o elemento e tudo dentro dele sem classe de animação nem de transição.
     for (const no of [raiz, ...raiz.querySelectorAll('*')]) {
-      const movimento = [...classesDo(no)].filter((classe) => /(^|:)(animate-|transition|duration-|motion-)/.test(classe))
+      const movimento = [...classesOf(no)].filter((classe) => /(^|:)(animate-|transition|duration-|motion-)/.test(classe))
       expect(movimento, no.tagName).toEqual([])
     }
     expect(raiz.querySelectorAll('[data-assinatura]')).toHaveLength(1)

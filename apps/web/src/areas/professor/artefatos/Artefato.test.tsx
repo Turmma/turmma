@@ -6,8 +6,8 @@ import userEvent from '@testing-library/user-event'
 import { Router } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
 import { describe, expect, it } from 'vitest'
-import { criarClienteDeConsultas } from '../../../api/query-client'
-import { prepararTela, redeFalsa, type RedeFalsa, type RespostaFalsa } from '../../../__fixtures__/render-screen'
+import { createQueryClient } from '../../../api/query-client'
+import { setupScreen, fakeNetwork, type FakeNetwork, type FakeResponse } from '../../../__fixtures__/render-screen'
 import Artefato from './Artefato'
 import { ConteudoDoArtefato } from './ConteudoDoArtefato'
 import { TEXTO_DA_REJEITADA_SEM_PDF, TEXTO_DO_RASCUNHO_EM_PDF } from './entregas'
@@ -18,7 +18,7 @@ import { TEXTO_DA_REJEITADA_SEM_PDF, TEXTO_DO_RASCUNHO_EM_PDF } from './entregas
  * **por caminho**; a tela, as abas, o cliente de consultas e o endereço (`memoryLocation`) são os de verdade. O que só o
  * navegador mostra — a largura da folha, a barra de baixo, o foco depois de renomear, a segunda pessoa na mesma aba — é do e2e.
  */
-prepararTela()
+setupScreen()
 
 const id = (n: number) => `0197a1c0-0000-7000-8000-${String(n).padStart(12, '0')}`
 const TURMA = id(100)
@@ -28,8 +28,8 @@ const QUEM_DECIDE = { id: id(400), nome: 'Camila Souza sintética' }
 const ENUNCIADO = 'Qual a massa de CO₂ formada na queima completa de 24 g de carbono?'
 const EXPLICACAO = '24 g de carbono são 2 mol, que formam 2 mol de CO₂, ou 88 g.'
 
-const ok = (corpo: unknown): RespostaFalsa => ({ status: 200, corpo })
-const erro = (status: number, codigo: string): RespostaFalsa => ({ status, corpo: { erro: { codigo, mensagem: 'x', requisicaoId: '0190f5a0-0000-7000-8000-000000000001' } } })
+const ok = (corpo: unknown): FakeResponse => ({ status: 200, corpo })
+const erro = (status: number, codigo: string): FakeResponse => ({ status, corpo: { erro: { codigo, mensagem: 'x', requisicaoId: '0190f5a0-0000-7000-8000-000000000001' } } })
 
 const questao = {
   enunciado: ENUNCIADO,
@@ -103,7 +103,7 @@ interface Mundo {
 }
 
 /** O que a tela lê: o artefato pelo id (404 para o que o mundo não tem), os materiais, os vínculos, as entregas e as aplicações. */
-function instalar(rede: RedeFalsa, { artefatos, entregas = [], aplicadas = [] }: Mundo): void {
+function instalar(rede: FakeNetwork, { artefatos, entregas = [], aplicadas = [] }: Mundo): void {
   rede.responderPor(/^\/v1\/artefatos\/[^/?]+(\?|$)/, (caminho) => {
     const pedido = caminho.split('?')[0]?.split('/').at(-1)
     const achado = artefatos.find((artefato) => artefato.id === pedido)
@@ -118,7 +118,7 @@ function instalar(rede: RedeFalsa, { artefatos, entregas = [], aplicadas = [] }:
 function montar(artefatoId: string, busca = '') {
   const localizacao = memoryLocation({ path: `/artefatos/${artefatoId}`, searchPath: busca, record: true })
   const tela = render(
-    <QueryClientProvider client={criarClienteDeConsultas()}>
+    <QueryClientProvider client={createQueryClient()}>
       <Router hook={localizacao.hook} searchHook={localizacao.searchHook}>
         <Artefato artefatoId={artefatoId} />
       </Router>
@@ -129,11 +129,11 @@ function montar(artefatoId: string, busca = '') {
 
 const abaSelecionada = () => screen.getByRole('tab', { selected: true }).textContent
 const nomesDasAbas = () => screen.getAllByRole('tab').map((aba) => aba.textContent)
-const nuncaResponde = () => new Promise<RespostaFalsa>(() => undefined)
+const nuncaResponde = () => new Promise<FakeResponse>(() => undefined)
 
 describe('o documento: os quatro estados', () => {
   it('carregando: o voltar para Criados e o texto de espera, sem o vazio nem o erro', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { artefatos: [] })
     rede.responderPor(`/v1/artefatos/${id(1)}`, nuncaResponde)
     montar(id(1))
@@ -145,7 +145,7 @@ describe('o documento: os quatro estados', () => {
 
   it('erro: a mensagem do catálogo, sem código, e "Tentar de novo" lê de novo e abre o documento', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     let falhar = true
     // Limite excedido não é repetido sozinho: o erro chega na hora, sem esperar a nova tentativa.
     rede.responderPor(`/v1/artefatos/${id(1)}`, () => (falhar ? erro(429, 'LIMITE_EXCEDIDO') : ok(atividade(1))))
@@ -166,7 +166,7 @@ describe('o documento: os quatro estados', () => {
     // pela colega de outra turma… igual ao inexistente"); este só prova o que a tela faz com a resposta.
     const telas: string[] = []
     for (const outro of [id(11), id(12), id(13)]) {
-      const rede = redeFalsa()
+      const rede = fakeNetwork()
       instalar(rede, { artefatos: [atividade(1)] })
       const { container, unmount } = montar(outro)
       await screen.findByText('Este artefato não está disponível')
@@ -181,7 +181,7 @@ describe('o documento: os quatro estados', () => {
   })
 
   it('com dado: o título, a linha de dados, a assinatura da IA e a folha com a questão, a página de origem e o gabarito', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { artefatos: [atividade(1)] })
     montar(id(1))
     expect(await screen.findByRole('heading', { level: 1, name: 'Atividade 1' })).toBeTruthy()
@@ -204,7 +204,7 @@ describe('o documento: a aba pelo endereço', () => {
 
   it('o documento com versão tem as três abas, Conteúdo, Versões adaptadas e Na turma, nessa ordem, e abre em Conteúdo', async () => {
     const { origem, pendente } = comVersao()
-    instalar(redeFalsa(), { artefatos: [origem, pendente] })
+    instalar(fakeNetwork(), { artefatos: [origem, pendente] })
     montar(origem.id)
     await screen.findByRole('tab', { name: 'Conteúdo' })
     expect(nomesDasAbas()).toEqual(['Conteúdo', 'Versões adaptadas', 'Na turma'])
@@ -212,7 +212,7 @@ describe('o documento: a aba pelo endereço', () => {
   })
 
   it('sem versão, a aba das versões não existe: são Conteúdo e Na turma, e `?aba=versoes` cai em Conteúdo', async () => {
-    instalar(redeFalsa(), { artefatos: [atividade(1)] })
+    instalar(fakeNetwork(), { artefatos: [atividade(1)] })
     montar(id(1), 'aba=versoes')
     await screen.findByRole('tab', { name: 'Conteúdo' })
     expect(nomesDasAbas()).toEqual(['Conteúdo', 'Na turma'])
@@ -221,7 +221,7 @@ describe('o documento: a aba pelo endereço', () => {
   })
 
   it('o plano de aula não tem o que aplicar: só Conteúdo, e `?aba=turma` cai nela', async () => {
-    instalar(redeFalsa(), { artefatos: [PLANO] })
+    instalar(fakeNetwork(), { artefatos: [PLANO] })
     montar(PLANO.id, 'aba=turma')
     await screen.findByRole('tab', { name: 'Conteúdo' })
     expect(nomesDasAbas()).toEqual(['Conteúdo'])
@@ -234,7 +234,7 @@ describe('o documento: a aba pelo endereço', () => {
     const { origem, pendente } = comVersao()
     const mundo = { artefatos: [origem, pendente], entregas: [entregaCompleta(pendente, entregaDe(2, 'pendente'))] }
 
-    instalar(redeFalsa(), mundo)
+    instalar(fakeNetwork(), mundo)
     const turma = montar(origem.id, 'aba=turma')
     expect(await screen.findByText('Esta atividade ainda não foi aplicada.')).toBeTruthy()
     expect(abaSelecionada()).toBe('Na turma')
@@ -242,7 +242,7 @@ describe('o documento: a aba pelo endereço', () => {
     expect(screen.queryByRole('region', { name: 'Versões adaptadas' })).toBeNull()
     turma.unmount()
 
-    instalar(redeFalsa(), mundo)
+    instalar(fakeNetwork(), mundo)
     const versoes = montar(origem.id, 'aba=versoes')
     expect(await screen.findByRole('region', { name: 'Versões adaptadas' })).toBeTruthy()
     expect(abaSelecionada()).toBe('Versões adaptadas')
@@ -253,7 +253,7 @@ describe('o documento: a aba pelo endereço', () => {
     versoes.unmount()
 
     for (const busca of ['', 'aba=xyz', 'aba=', 'aba=Turma']) {
-      instalar(redeFalsa(), mundo)
+      instalar(fakeNetwork(), mundo)
       const { unmount } = montar(origem.id, busca)
       await screen.findByRole('article', { name: origem.titulo })
       expect(abaSelecionada(), busca).toBe('Conteúdo')
@@ -265,7 +265,7 @@ describe('o documento: a aba pelo endereço', () => {
   it('trocar de aba troca o endereço com `replace`: a aba nova no endereço e o histórico com o mesmo tamanho', async () => {
     const usuario = userEvent.setup()
     const { origem, pendente } = comVersao()
-    instalar(redeFalsa(), { artefatos: [origem, pendente] })
+    instalar(fakeNetwork(), { artefatos: [origem, pendente] })
     const { localizacao } = montar(origem.id)
     await screen.findByRole('article', { name: origem.titulo })
     const antes = localizacao.history.length
@@ -285,7 +285,7 @@ describe('o documento: a versão adaptada e o que cada situação deixa fazer', 
   it('a rejeitada não exporta: sem "Exportar em PDF", com o texto de hoje, e quem rejeitou e por quê; ela também não muda de nome', async () => {
     const origem = atividade(1)
     const rejeitada = versao(2, origem, entregaDe(2, 'rejeitada'))
-    instalar(redeFalsa(), { artefatos: [origem, rejeitada], entregas: [entregaCompleta(rejeitada, entregaDe(2, 'rejeitada'))] })
+    instalar(fakeNetwork(), { artefatos: [origem, rejeitada], entregas: [entregaCompleta(rejeitada, entregaDe(2, 'rejeitada'))] })
     montar(rejeitada.id)
     await screen.findByRole('heading', { level: 1, name: 'Versão 2' })
     expect(screen.queryByRole('button', { name: /Exportar/ })).toBeNull()
@@ -298,7 +298,7 @@ describe('o documento: a versão adaptada e o que cada situação deixa fazer', 
   it('a pendente exporta como rascunho, diz isso antes do clique e leva a decidir; a aprovada exporta limpa e diz quem aprovou', async () => {
     const origem = atividade(1)
     const pendente = versao(2, origem, entregaDe(2, 'pendente'))
-    instalar(redeFalsa(), { artefatos: [origem, pendente], entregas: [entregaCompleta(pendente, entregaDe(2, 'pendente'))] })
+    instalar(fakeNetwork(), { artefatos: [origem, pendente], entregas: [entregaCompleta(pendente, entregaDe(2, 'pendente'))] })
     const primeira = montar(pendente.id)
     await screen.findByRole('heading', { level: 1, name: 'Versão 2' })
     expect(screen.getByRole('button', { name: 'Exportar rascunho em PDF' })).toBeTruthy()
@@ -308,7 +308,7 @@ describe('o documento: a versão adaptada e o que cada situação deixa fazer', 
     primeira.unmount()
 
     const aprovada = versao(3, origem, entregaDe(3, 'aprovada'))
-    instalar(redeFalsa(), { artefatos: [origem, aprovada], entregas: [entregaCompleta(aprovada, entregaDe(3, 'aprovada'))] })
+    instalar(fakeNetwork(), { artefatos: [origem, aprovada], entregas: [entregaCompleta(aprovada, entregaDe(3, 'aprovada'))] })
     montar(aprovada.id)
     await screen.findByRole('heading', { level: 1, name: 'Versão 3' })
     expect(screen.getByRole('button', { name: 'Exportar em PDF' })).toBeTruthy()
@@ -321,14 +321,14 @@ describe('o documento: a versão adaptada e o que cada situação deixa fazer', 
     const pendente = versao(2, origem, entregaDe(2, 'pendente'))
     const mundo = { artefatos: [{ ...origem, versoesAdaptadas: [resumo(pendente)] }, pendente], entregas: [entregaCompleta(pendente, entregaDe(2, 'pendente'))] }
 
-    instalar(redeFalsa(), mundo)
+    instalar(fakeNetwork(), mundo)
     const daVersao = montar(pendente.id, 'aba=turma')
     expect(await screen.findByText('Esta versão adaptada só pode ser aplicada à turma depois que você aprovar.')).toBeTruthy()
     expect(document.querySelector('[data-aprovacao="pendente"]')?.textContent).toBe('Esperando você')
     expect(screen.queryByRole('button', { name: 'Aplicar à turma' })).toBeNull()
     daVersao.unmount()
 
-    instalar(redeFalsa(), mundo)
+    instalar(fakeNetwork(), mundo)
     montar(origem.id, 'aba=turma')
     expect(await screen.findByRole('button', { name: 'Aplicar à turma' })).toBeTruthy()
     expect(screen.queryByText('Esta versão adaptada só pode ser aplicada à turma depois que você aprovar.')).toBeNull()
@@ -339,7 +339,7 @@ describe('o documento: a versão adaptada e o que cada situação deixa fazer', 
     const pendente = versao(2, origem, entregaDe(2, 'pendente'))
     const aprovada = versao(3, origem, entregaDe(3, 'aprovada'))
     const entregas = [entregaCompleta(pendente, entregaDe(2, 'pendente')), entregaCompleta(aprovada, entregaDe(3, 'aprovada'))]
-    instalar(redeFalsa(), { artefatos: [{ ...origem, versoesAdaptadas: [resumo(pendente), resumo(aprovada)] }, pendente, aprovada], entregas })
+    instalar(fakeNetwork(), { artefatos: [{ ...origem, versoesAdaptadas: [resumo(pendente), resumo(aprovada)] }, pendente, aprovada], entregas })
     montar(origem.id, 'aba=versoes')
     const regiao = await screen.findByRole('region', { name: 'Versões adaptadas' })
     expect(within(regiao).getAllByRole('link')).toHaveLength(2)
@@ -351,7 +351,7 @@ describe('o documento: a versão adaptada e o que cada situação deixa fazer', 
 describe('o documento: o interruptor "Gabarito"', () => {
   it('começa ligado, como o artefato sempre foi; desligado, a alternativa certa deixa de ser marcada e a explicação some, e a página de origem fica', async () => {
     const usuario = userEvent.setup()
-    instalar(redeFalsa(), { artefatos: [atividade(1)] })
+    instalar(fakeNetwork(), { artefatos: [atividade(1)] })
     montar(id(1))
     const folha = await screen.findByRole('article', { name: 'Atividade 1' })
     const interruptor = screen.getByRole('switch', { name: 'Gabarito' })
@@ -383,7 +383,7 @@ describe('ConteudoDoArtefato: o gabarito sem a prop', () => {
 describe('o documento: renomear', () => {
   it('o foco volta ao botão "Renomear" ao salvar e ao cancelar, e não se perde no `body` (regra 50, item 11)', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     const origem = atividade(1)
     // Registrada antes de `instalar`: a primeira que casa responde. O PATCH devolve o artefato renomeado, e o resto, o de antes.
     rede.responderPor(/^\/v1\/artefatos\/[^/?]+(\?|$)/, () => ok(rede.chamadas.at(-1)?.metodo === 'PATCH' ? { ...origem, titulo: 'Lista 3 revisada' } : origem))

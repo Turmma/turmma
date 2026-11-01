@@ -3,8 +3,8 @@ import { join } from 'node:path'
 import { brotliCompressSync } from 'node:zlib'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
-import { corDoToken, TEMAS } from '../../../__fixtures__/class-colors'
-import { semComentarios } from '../../../__fixtures__/importers'
+import { tokenColor, TEMAS } from '../../../__fixtures__/class-colors'
+import { stripComments } from '../../../__fixtures__/importers'
 import { COLOR_FAMILIES } from '../CountBadge'
 import { Icon } from '../Icon'
 import { PLACE_DRAWINGS, PLACE_NAMES, type PlaceName } from './places'
@@ -59,16 +59,16 @@ describe('os ícones dos lugares', () => {
         expect(classe, `${nome}: a forma não tem uma classe só`).toMatch(/^fill-[a-z-]+$/)
         const token = tokenDa(classe)
         expect(permitidos.has(token as never), `${nome}: ${classe} não é família nem neutro do ícone`).toBe(true)
-        for (const tema of TEMAS) expect(corDoToken(tema, token), `${nome}: ${token} no tema ${tema}`).toMatch(/^#[0-9a-f]{6}$/)
+        for (const tema of TEMAS) expect(tokenColor(tema, token), `${nome}: ${token} no tema ${tema}`).toMatch(/^#[0-9a-f]{6}$/)
       }
     }
   })
 
   it('o papel e a linha mudam com o tema: valores diferentes no claro e no escuro, e a linha não é o papel', () => {
-    expect(corDoToken('claro', 'icone-papel')).toBe('#efefef')
-    expect(corDoToken('escuro', 'icone-papel')).toBe('#37464f')
-    expect(corDoToken('claro', 'icone-linha')).toBe('#d7d7d7')
-    expect(corDoToken('escuro', 'icone-linha')).toBe('#52656d')
+    expect(tokenColor('claro', 'icone-papel')).toBe('#efefef')
+    expect(tokenColor('escuro', 'icone-papel')).toBe('#37464f')
+    expect(tokenColor('claro', 'icone-linha')).toBe('#d7d7d7')
+    expect(tokenColor('escuro', 'icone-linha')).toBe('#52656d')
   })
 
   it('cada um tem de 3 a 10 formas, e de duas a três cores (a exceção é a das ferramentas, com quatro)', () => {
@@ -116,7 +116,7 @@ describe('os ícones dos lugares', () => {
       expect(html, nome).not.toMatch(/stroke|gradient|filter|<text|<title|<desc|<image|<animate|<set\b|<style|<defs|opacity/i)
     }
     // E o fonte, sem os comentários: o que o desenho diz de si não conta, o que ele escreve sim.
-    expect(semComentarios(FONTE)).not.toMatch(/stroke|gradient|<animate|<text|<title|<desc|opacity/i)
+    expect(stripComments(FONTE)).not.toMatch(/stroke|gradient|<animate|<text|<title|<desc|opacity/i)
   })
 
   it('cada um é um desenho diferente dos outros três', () => {

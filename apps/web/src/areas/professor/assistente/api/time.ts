@@ -1,16 +1,16 @@
 import { timeResponseSchema, type Agente, type AgenteDoTime, type ChaveDeFuncao, type FuncaoDoTime, type TimeResponse } from '@educa/shared'
 import { queryOptions } from '@tanstack/react-query'
-import { CHAVE_DO_TIME } from '../../../../api/chaves-do-professor'
-import { buscarComSessao } from '../../../../api/sessao'
+import { TIME_QUERY_KEY } from '../../../../api/chaves-do-professor'
+import { authedGet } from '../../../../api/sessao'
 
 /**
  * `GET /v1/time`: os três agentes, as funções de cada um, o que cada função faz sozinha e o que espera aprovação, em
  * português comum, e se a coordenação suspendeu a função na escola (D9, D32, D60). É a mesma resposta para o professor e
  * para a coordenação: a tela não escreve a autonomia de outro jeito (regra 70, item 5).
  */
-export const consultaTime = queryOptions({
-  queryKey: CHAVE_DO_TIME,
-  queryFn: ({ signal }) => buscarComSessao('/v1/time', timeResponseSchema, signal),
+export const timeQueryOptions = queryOptions({
+  queryKey: TIME_QUERY_KEY,
+  queryFn: ({ signal }) => authedGet('/v1/time', timeResponseSchema, signal),
 })
 
 /** Um agente do time, com as funções dele. */

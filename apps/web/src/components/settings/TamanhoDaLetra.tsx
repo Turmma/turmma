@@ -1,4 +1,4 @@
-import { useLetra, type TamanhoDaLetra as TipoDaLetra } from '../../text-size'
+import { useTextSize, type TextSize as TipoDaLetra } from '../../text-size'
 import { OptionCard } from '../ui/fields/OptionCard'
 
 const OPCOES: readonly { readonly valor: TipoDaLetra; readonly rotulo: string }[] = [
@@ -22,7 +22,7 @@ export const TEXTO_DA_PREVIA = 'Assim fica a minha letra.'
  * Fora da entrada (`PECAS_FORA_DA_ENTRADA`): só a área do aluno e a galeria a baixam.
  */
 export function TamanhoDaLetra() {
-  const { letra, escolher } = useLetra()
+  const { letra, escolher } = useTextSize()
   return (
     <fieldset className="flex min-w-0 flex-col gap-3 border-0 p-0">
       <legend className="t-cartao mb-3">Tamanho da letra</legend>

@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { TriangleAlert } from 'lucide-react'
 import { useEffect, useId, useRef, useState, type RefObject } from 'react'
-import { consultaIncidentes } from './api/privacidade'
+import { incidentesQueryOptions } from './api/privacidade'
 import { Button } from '../../../components/ui/Button'
 import { Dialog } from '../../../components/ui/overlays/Dialog'
 import { usePriorityDialog } from '../../../components/ui/overlays/priority-dialog'
@@ -72,7 +72,7 @@ function PrioridadeDoAviso() {
  * demais papéis (regra 10).
  */
 export default function AvisoDeIncidente() {
-  const consulta = useQuery({ ...consultaIncidentes, staleTime: Infinity })
+  const consulta = useQuery({ ...incidentesQueryOptions, staleTime: Infinity })
   const [adiado, definirAdiado] = useState(false)
   const botaoDaFaixa = useRef<HTMLButtonElement>(null)
   const inicio = useRef<HTMLDivElement>(null)

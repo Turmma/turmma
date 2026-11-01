@@ -1,18 +1,18 @@
 import { MAXIMO_DO_NOME_DO_TITULAR, SOLICITANTES_DO_PEDIDO, TIPOS_DE_PEDIDO_DO_TITULAR, type RegistroDePedido, type PreviaDoTitularResponse, type TitularAchado } from '@educa/shared'
 import { useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query'
 import { useRef, useState, type FormEvent } from 'react'
-import { buscarTitulares, consultaPreviaDoTitular, registrarPedidoDoTitular, relerPedidosDoTitular } from './api/privacidade'
+import { buscarTitulares, previaDoTitularQueryOptions, registrarPedidoDoTitular, relerPedidosDoTitular } from './api/privacidade'
 import { Button } from '../../../components/ui/Button'
 import { FormField } from '../../../components/ui/fields/FormField'
 import { Dialog } from '../../../components/ui/overlays/Dialog'
 import { useDialogState } from '../../../components/ui/overlays/dialog-state'
 import { ConfirmDialog } from '../../../components/ui/overlays/ConfirmDialog'
-import { AlertaDaFalha, useEnvioUnico } from '../../../components/dialogs'
-import { sortearIdDoPedido } from '../../../components/request-id'
+import { ErrorAlert, useSingleSubmit } from '../../../components/dialogs'
+import { newRequestId } from '../../../components/request-id'
 import { Select } from '../../../components/ui/fields/Select'
-import { mensagemDoErro } from '../../../api/client'
-import { textoDaFalha } from '../../../components/error-text'
-import { formatarData, formatarNumero } from '../../../format'
+import { errorMessage } from '../../../api/client'
+import { errorText } from '../../../components/error-text'
+import { formatDate, formatNumber } from '../../../format'
 import {
   anuncioDaBusca,
   AVISO_DA_ELIMINACAO,
@@ -70,7 +70,7 @@ function PedidoDaPessoa({ titular, aoFechar, aoContinuar }: PropsDoPedidoDaPesso
       return
     }
     definirErros({})
-    aoContinuar({ titular, registro: validacao.registro, chaveEnvio: sortearIdDoPedido() })
+    aoContinuar({ titular, registro: validacao.registro, chaveEnvio: newRequestId() })
   }
 
   return (
@@ -112,7 +112,7 @@ interface PropsDoDialogoDeBusca {
  * `aria-live`, e a pessoa se escolhe pela turma e pela matrícula, que separam dois homônimos.
  *
  * O que foi achado mora **só neste diálogo**: nada vai ao cache de consultas nem sobrevive ao fechar. O que garante o
- * "não sobrevive" é o `gcTime: 0` do `useEnvioUnico` (`components/dialogs.tsx`): quem tirar dele abre o cache de
+ * "não sobrevive" é o `gcTime: 0` do `useSingleSubmit` (`components/dialogs.tsx`): quem tirar dele abre o cache de
  * mutações para os nomes achados. A resposta que chega depois de uma busca nova não a substitui (o `useMutation`
  * acompanha só a última), e a que chega com o diálogo fechado não tem onde escrever.
  */
@@ -121,7 +121,7 @@ function DialogoDeBusca({ aoFechar, aoContinuar }: PropsDoDialogoDeBusca) {
   const [termo, definirTermo] = useState('')
   const [erroDoTermo, definirErroDoTermo] = useState<string | undefined>(undefined)
   const [escolhido, definirEscolhido] = useState<string | undefined>(undefined)
-  const { enviar, mutacao } = useEnvioUnico({ mutationFn: buscarTitulares })
+  const { enviar, mutacao } = useSingleSubmit({ mutationFn: buscarTitulares })
 
   const achados = mutacao.data?.titulares
   const titular = achados?.find((achado) => achado.id === escolhido)
@@ -164,7 +164,7 @@ function DialogoDeBusca({ aoFechar, aoContinuar }: PropsDoDialogoDeBusca) {
         <div role="status" aria-live="polite" className="text-apoio empty:hidden">
           {anuncio}
         </div>
-        {mutacao.isError && <AlertaDaFalha texto={textoDaFalha(mutacao.error, TEXTOS_DA_FALHA_DA_BUSCA)} />}
+        {mutacao.isError && <ErrorAlert texto={errorText(mutacao.error, TEXTOS_DA_FALHA_DA_BUSCA)} />}
         {achados?.length === 0 && <p className="text-apoio">{TEXTO_DE_NINGUEM_ACHADO}</p>}
         {achados !== undefined && achados.length > 0 && (
           <fieldset className="flex min-w-0 flex-col gap-2">
@@ -207,7 +207,7 @@ function Previa({ consulta }: { readonly consulta: UseQueryResult<PreviaDoTitula
     return (
       <div className="flex min-w-0 flex-col gap-3">
         <p role="alert" className="rounded-controle border border-erro bg-erro-cx p-3 break-words text-erro">
-          {mensagemDoErro(consulta.error)}
+          {errorMessage(consulta.error)}
         </p>
         <div>
           <Button variante="secundario" onClick={() => void consulta.refetch({ cancelRefetch: false })}>
@@ -225,7 +225,7 @@ function Previa({ consulta }: { readonly consulta: UseQueryResult<PreviaDoTitula
         {previa.papel === 'aluno'
           ? previa.categorias.map(({ categoria, quantidade }) => (
               <li key={categoria} className="break-words">
-                {ROTULO_DA_CATEGORIA_NA_PREVIA[categoria]}: {formatarNumero(quantidade)}
+                {ROTULO_DA_CATEGORIA_NA_PREVIA[categoria]}: {formatNumber(quantidade)}
               </li>
             ))
           : previa.categorias.map((categoria) => (
@@ -256,8 +256,8 @@ interface PropsDoDialogoDoRegistro {
 function DialogoDoRegistro({ alvo, aoFechar, aoRegistrado }: PropsDoDialogoDoRegistro) {
   const cliente = useQueryClient()
   const { titular, registro, chaveEnvio } = alvo
-  const previa = useQuery(consultaPreviaDoTitular(titular.id))
-  const { enviar, mutacao } = useEnvioUnico({
+  const previa = useQuery(previaDoTitularQueryOptions(titular.id))
+  const { enviar, mutacao } = useSingleSubmit({
     mutationFn: async () => {
       const pedido = await registrarPedidoDoTitular({ titularId: titular.id, ...registro, chaveEnvio })
       // A lista só termina de mudar com a leitura nova: o pedido que aparece é o do servidor, e a resposta atrasada de antes é descartada.
@@ -278,7 +278,7 @@ function DialogoDoRegistro({ alvo, aoFechar, aoRegistrado }: PropsDoDialogoDoReg
         { rotulo: titular.papel === 'aluno' ? 'Turma' : 'Turmas', valor: textoDasTurmas(titular.turmas.map(({ nome }) => nome)) },
         { rotulo: 'Pedido', valor: ROTULO_DO_TIPO[registro.tipo] },
         { rotulo: 'Quem pediu', valor: ROTULO_DE_QUEM_PEDIU[registro.solicitante] },
-        { rotulo: 'Chegou à escola em', valor: formatarData(registro.chegouEm) },
+        { rotulo: 'Chegou à escola em', valor: formatDate(registro.chegouEm) },
       ]}
       efeito={EFEITO_DO_PEDIDO[registro.tipo]}
       {...(aviso === '' ? {} : { aviso })}
@@ -288,7 +288,7 @@ function DialogoDoRegistro({ alvo, aoFechar, aoRegistrado }: PropsDoDialogoDoReg
       aoFechar={aoFechar}
       confirmando={mutacao.isPending}
       impedido={previa.data === undefined}
-      {...(mutacao.isError ? { falha: textoDaFalha(mutacao.error, TEXTOS_DA_FALHA_DO_REGISTRO) } : {})}
+      {...(mutacao.isError ? { falha: errorText(mutacao.error, TEXTOS_DA_FALHA_DO_REGISTRO) } : {})}
     >
       <Previa consulta={previa} />
     </ConfirmDialog>

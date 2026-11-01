@@ -18,7 +18,7 @@ export function atualizaSozinha(quem: DecisorDaReivindicacao): boolean {
 }
 
 /** O que a atualização precisa saber da aba: se ela está à vista, e quando isso muda. É o `document` do navegador. */
-export interface AbaDoNavegador {
+export interface BrowserTab {
   readonly visibilityState: 'visible' | 'hidden'
   addEventListener(tipo: 'visibilitychange', ouvinte: () => void): void
   removeEventListener(tipo: 'visibilitychange', ouvinte: () => void): void
@@ -30,7 +30,7 @@ export interface AbaDoNavegador {
  * quando a tela sai da página. É a regra de quem se atualiza sozinho: a lista do professor (15 s, abaixo) e o detalhe do
  * pedido do titular em preparação (10 s, `areas/coordenacao/privacidade/preparacao-do-arquivo.ts`).
  */
-export function agendarRelitura(atualizar: () => void, aba: AbaDoNavegador, intervaloMs: number): () => void {
+export function agendarRelitura(atualizar: () => void, aba: BrowserTab, intervaloMs: number): () => void {
   let relogio: ReturnType<typeof setInterval> | undefined
   function parar(): void {
     if (relogio !== undefined) clearInterval(relogio)
@@ -56,7 +56,7 @@ export function agendarRelitura(atualizar: () => void, aba: AbaDoNavegador, inte
  * Relê a lista a cada 15 s enquanto a aba está à vista, e para com ela escondida (`agendarRelitura`). Para a coordenação
  * não agenda nada. Devolve como parar, para quando a lista sai da tela.
  */
-export function agendarAtualizacao(quem: DecisorDaReivindicacao, atualizar: () => void, aba: AbaDoNavegador): () => void {
+export function agendarAtualizacao(quem: DecisorDaReivindicacao, atualizar: () => void, aba: BrowserTab): () => void {
   if (!atualizaSozinha(quem)) return () => undefined
   return agendarRelitura(atualizar, aba, INTERVALO_DA_ATUALIZACAO_MS)
 }

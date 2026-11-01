@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
-import { consultaMemoriaDoTutor } from '../../api/memoria-do-tutor'
-import { EstadoCarregando, EstadoErro, EstadoVazio } from '../../components/states'
+import { memoriaDoTutorQueryOptions } from '../../api/memoria-do-tutor'
+import { LoadingState, ErrorState, EmptyState } from '../../components/states'
 import { ProgressBar } from '../../components/ui/ProgressBar'
 import { SectionHeader } from '../../components/ui/Page'
 import {
@@ -21,12 +21,12 @@ import {
  * desta leitura. Só o aluno da sessão, sem colega, média, posição nem sinal do Tutor (D66).
  */
 export function ComoEstouIndo() {
-  const memoria = useQuery(consultaMemoriaDoTutor)
+  const memoria = useQuery(memoriaDoTutorQueryOptions)
 
   function conteudo() {
-    if (memoria.isPending) return <EstadoCarregando rotulo={ROTULO_DO_CARREGANDO} />
-    if (memoria.isError) return <EstadoErro erro={memoria.error} tentando={memoria.isFetching} aoTentarDeNovo={() => void memoria.refetch({ cancelRefetch: false })} />
-    if (memoria.data.length === 0) return <EstadoVazio titulo={TITULO_DO_VAZIO} descricao={DESCRICAO_DO_VAZIO} />
+    if (memoria.isPending) return <LoadingState rotulo={ROTULO_DO_CARREGANDO} />
+    if (memoria.isError) return <ErrorState erro={memoria.error} tentando={memoria.isFetching} aoTentarDeNovo={() => void memoria.refetch({ cancelRefetch: false })} />
+    if (memoria.data.length === 0) return <EmptyState titulo={TITULO_DO_VAZIO} descricao={DESCRICAO_DO_VAZIO} />
     return (
       <>
         <ul className="grid gap-3 lg:grid-cols-2">

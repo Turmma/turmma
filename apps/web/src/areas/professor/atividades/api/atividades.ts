@@ -14,8 +14,8 @@ import {
   type LoteAprovadoResponse,
 } from '@educa/shared'
 import { queryOptions, type QueryClient } from '@tanstack/react-query'
-import { CHAVE_DA_CORRECAO, CHAVE_DAS_ATIVIDADES, CHAVE_DAS_ENTREGAS, CHAVE_DO_DESEMPENHO, CHAVE_DOS_ARTEFATOS } from '../../../../api/chaves-do-professor'
-import { buscarComSessao, chamarComSessao } from '../../../../api/sessao'
+import { CORRECAO_QUERY_KEY, ATIVIDADES_QUERY_KEY, ENTREGAS_QUERY_KEY, DESEMPENHO_QUERY_KEY, ARTEFATOS_QUERY_KEY } from '../../../../api/chaves-do-professor'
+import { authedGet, authedRequest } from '../../../../api/sessao'
 
 /**
  * A atividade aplicada à turma, a correção de objetiva e o desempenho por habilidade (A3; D33, D46, D56), pelo professor
@@ -30,27 +30,27 @@ const CAMINHO = '/v1/atividades-aplicadas'
  * (`VERSAO_ADAPTADA_NAO_APROVADA`), e a que já está aberta para a turma responde `CONFLITO`.
  */
 export function aplicarAtividade(pedido: AplicarAtividadeRequest): Promise<AtividadeAplicadaResponse> {
-  return chamarComSessao(CAMINHO, atividadeAplicadaResponseSchema, { metodo: 'POST', corpo: pedido })
+  return authedRequest(CAMINHO, atividadeAplicadaResponseSchema, { metodo: 'POST', corpo: pedido })
 }
 
 /** As atividades aplicadas à turma, com quantos alunos começaram e enviaram, e a entrega do lote quando já foi corrigida. */
-export function consultaAtividadesAplicadas(turmaId: string) {
+export function atividadesAplicadasQueryOptions(turmaId: string) {
   return queryOptions({
-    queryKey: [...CHAVE_DAS_ATIVIDADES, turmaId],
-    queryFn: ({ signal }) => buscarComSessao(`${CAMINHO}?turmaId=${encodeURIComponent(turmaId)}&limite=${String(TAMANHO_MAXIMO_DA_PAGINA)}`, listaDeAtividadesAplicadasResponseSchema, signal),
+    queryKey: [...ATIVIDADES_QUERY_KEY, turmaId],
+    queryFn: ({ signal }) => authedGet(`${CAMINHO}?turmaId=${encodeURIComponent(turmaId)}&limite=${String(TAMANHO_MAXIMO_DA_PAGINA)}`, listaDeAtividadesAplicadasResponseSchema, signal),
   })
 }
 
 /** `POST /v1/atividades-aplicadas/:id/encerrar`: as respostas param, a correção é feita e a entrega do lote nasce pendente. */
 export function encerrarAtividade(id: string): Promise<AtividadeEncerradaResponse> {
-  return chamarComSessao(`${CAMINHO}/${encodeURIComponent(id)}/encerrar`, atividadeEncerradaResponseSchema, { metodo: 'POST', corpo: {} })
+  return authedRequest(`${CAMINHO}/${encodeURIComponent(id)}/encerrar`, atividadeEncerradaResponseSchema, { metodo: 'POST', corpo: {} })
 }
 
 /** O que muda na tela quando uma atividade é aplicada ou encerrada: as atividades da turma, o artefato e as entregas. */
 export function recarregarAtividades(cliente: QueryClient): void {
-  void cliente.invalidateQueries({ queryKey: CHAVE_DAS_ATIVIDADES })
-  void cliente.invalidateQueries({ queryKey: CHAVE_DOS_ARTEFATOS })
-  void cliente.invalidateQueries({ queryKey: CHAVE_DAS_ENTREGAS })
+  void cliente.invalidateQueries({ queryKey: ATIVIDADES_QUERY_KEY })
+  void cliente.invalidateQueries({ queryKey: ARTEFATOS_QUERY_KEY })
+  void cliente.invalidateQueries({ queryKey: ENTREGAS_QUERY_KEY })
 }
 
 /**
@@ -58,10 +58,10 @@ export function recarregarAtividades(cliente: QueryClient): void {
  * correções e, depois de aprovado, o registro da validação. O nome do aluno só chega ao professor da turma (D34), e não
  * fica guardado depois de a tela sair (`gcTime: 0`).
  */
-export function consultaCorrecaoDoLote(atividadeAplicadaId: string) {
+export function correcaoDoLoteQueryOptions(atividadeAplicadaId: string) {
   return queryOptions({
-    queryKey: [...CHAVE_DA_CORRECAO, atividadeAplicadaId],
-    queryFn: ({ signal }) => buscarComSessao(`${CAMINHO}/${encodeURIComponent(atividadeAplicadaId)}/correcao`, correcaoDoLoteResponseSchema, signal),
+    queryKey: [...CORRECAO_QUERY_KEY, atividadeAplicadaId],
+    queryFn: ({ signal }) => authedGet(`${CAMINHO}/${encodeURIComponent(atividadeAplicadaId)}/correcao`, correcaoDoLoteResponseSchema, signal),
     gcTime: 0,
   })
 }
@@ -72,7 +72,7 @@ export function consultaCorrecaoDoLote(atividadeAplicadaId: string) {
  * "apresentado" é o servidor.
  */
 export function abrirDestaque(atividadeAplicadaId: string, alunoId: string): Promise<DestaqueAbertoResponse> {
-  return chamarComSessao(`${CAMINHO}/${encodeURIComponent(atividadeAplicadaId)}/correcao/destaques/${encodeURIComponent(alunoId)}/abrir`, destaqueAbertoResponseSchema, { metodo: 'POST', corpo: {} })
+  return authedRequest(`${CAMINHO}/${encodeURIComponent(atividadeAplicadaId)}/correcao/destaques/${encodeURIComponent(alunoId)}/abrir`, destaqueAbertoResponseSchema, { metodo: 'POST', corpo: {} })
 }
 
 /**
@@ -80,22 +80,22 @@ export function abrirDestaque(atividadeAplicadaId: string, alunoId: string): Pro
  * responde `DESTAQUES_NAO_ABERTOS`; já decidida, `ENTREGA_JA_DECIDIDA`. Rejeitar o lote é `decidirEntrega`.
  */
 export function aprovarLote(entregaId: string): Promise<LoteAprovadoResponse> {
-  return chamarComSessao(`/v1/entregas/${encodeURIComponent(entregaId)}/aprovar-lote`, loteAprovadoResponseSchema, { metodo: 'POST', corpo: {} })
+  return authedRequest(`/v1/entregas/${encodeURIComponent(entregaId)}/aprovar-lote`, loteAprovadoResponseSchema, { metodo: 'POST', corpo: {} })
 }
 
 /** O que muda na tela quando o lote é decidido: a correção, as entregas, as atividades e o desempenho da turma. */
 export async function recarregarDepoisDoLote(cliente: QueryClient): Promise<void> {
-  void cliente.invalidateQueries({ queryKey: CHAVE_DAS_ENTREGAS })
-  void cliente.invalidateQueries({ queryKey: CHAVE_DAS_ATIVIDADES })
-  void cliente.invalidateQueries({ queryKey: CHAVE_DO_DESEMPENHO })
-  await cliente.invalidateQueries({ queryKey: CHAVE_DA_CORRECAO })
+  void cliente.invalidateQueries({ queryKey: ENTREGAS_QUERY_KEY })
+  void cliente.invalidateQueries({ queryKey: ATIVIDADES_QUERY_KEY })
+  void cliente.invalidateQueries({ queryKey: DESEMPENHO_QUERY_KEY })
+  await cliente.invalidateQueries({ queryKey: CORRECAO_QUERY_KEY })
 }
 
 /** O acerto por habilidade da turma e de cada aluno, **só de lotes aprovados** (`GET /v1/turmas/:id/desempenho`). */
-export function consultaDesempenhoDaTurma(turmaId: string) {
+export function desempenhoDaTurmaQueryOptions(turmaId: string) {
   return queryOptions({
-    queryKey: [...CHAVE_DO_DESEMPENHO, turmaId],
-    queryFn: ({ signal }) => buscarComSessao(`/v1/turmas/${encodeURIComponent(turmaId)}/desempenho`, desempenhoDaTurmaResponseSchema, signal),
+    queryKey: [...DESEMPENHO_QUERY_KEY, turmaId],
+    queryFn: ({ signal }) => authedGet(`/v1/turmas/${encodeURIComponent(turmaId)}/desempenho`, desempenhoDaTurmaResponseSchema, signal),
     gcTime: 0,
   })
 }

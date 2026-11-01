@@ -3,12 +3,12 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { Button } from '../../components/ui/Button'
 import { FormField } from '../../components/ui/fields/FormField'
-import { EstadoCarregando } from '../../components/states'
-import { CHAVE_DAS_ESCOLAS, CHAVE_DO_USO, consultaDasRedes, criarEscolaNoPainel } from '../api/painel'
+import { LoadingState } from '../../components/states'
+import { ESCOLAS_QUERY_KEY, USO_QUERY_KEY, dasRedesQueryOptions, criarEscolaNoPainel } from '../api/painel'
 import { ErroDaOperacao } from '../components/CascaDaOperacao'
 import { SECONDARY_BUTTON_CLASSES } from '../../components/ui/button-variants'
 import { DialogoDaOperacao } from '../components/DialogoDaOperacao'
-import { pedidoDeEscola, sortearIdDoPedido, type CampoDaEscola } from '../pedidos-do-painel'
+import { pedidoDeEscola, newRequestId, type CampoDaEscola } from '../pedidos-do-painel'
 import { ehEnderecoRepetido, ehResultadoIncerto, REGRA_DO_ENDERECO, TEXTO_DA_TENTATIVA_INCERTA, TEXTO_DO_ENDERECO_REPETIDO, TEXTO_SEM_REDE, textoDaFalha } from '../textos'
 
 interface Props {
@@ -43,8 +43,8 @@ function enderecoCompleto(slug: string): string {
  * passo de revisão, e "Criar escola" tenta de novo com o mesmo id.
  */
 export function NovaEscola({ aoFechar, aoCriar, aoPedirNovaRede, redeSugeridaId }: Props) {
-  const [id] = useState(sortearIdDoPedido)
-  const redes = useQuery(consultaDasRedes)
+  const [id] = useState(newRequestId)
+  const redes = useQuery(dasRedesQueryOptions)
   const [redeId, definirRedeId] = useState(redeSugeridaId ?? '')
   const [nome, definirNome] = useState('')
   const [endereco, definirEndereco] = useState('')
@@ -65,7 +65,7 @@ export function NovaEscola({ aoFechar, aoCriar, aoPedirNovaRede, redeSugeridaId 
     mutationFn: criarEscolaNoPainel,
     onSuccess: async (_resposta, pedido) => {
       // A escola nova entra na lista e no Uso (com zero): as duas deixam de valer, e a próxima visita ao Uso a traz.
-      await Promise.all([clienteDeConsultas.invalidateQueries({ queryKey: CHAVE_DAS_ESCOLAS }), clienteDeConsultas.invalidateQueries({ queryKey: CHAVE_DO_USO })])
+      await Promise.all([clienteDeConsultas.invalidateQueries({ queryKey: ESCOLAS_QUERY_KEY }), clienteDeConsultas.invalidateQueries({ queryKey: USO_QUERY_KEY })])
       aoCriar({ id: pedido.id, nome: pedido.nome })
     },
     onError: (erro, pedido) => {
@@ -109,7 +109,7 @@ export function NovaEscola({ aoFechar, aoCriar, aoPedirNovaRede, redeSugeridaId 
     return (
       <DialogoDaOperacao titulo="Nova escola" aoFechar={aoFechar}>
         <div className="mt-4 flex flex-col gap-4">
-          <EstadoCarregando rotulo="Carregando as redes…" />
+          <LoadingState rotulo="Carregando as redes…" />
           <button type="button" onClick={aoFechar} className={`${SECONDARY_BUTTON_CLASSES} self-start`}>
             Cancelar
           </button>

@@ -2,9 +2,9 @@ import type { MinhaAtividade } from '@educa/shared'
 import { useInfiniteQuery } from '@tanstack/react-query'
 import { ChevronRight } from 'lucide-react'
 import { Link } from 'wouter'
-import { consultaMinhasAtividades } from '../../api/atividades-do-aluno'
+import { minhasAtividadesInfiniteQueryOptions } from '../../api/atividades-do-aluno'
 import { caminhoDoTutorNaAtividade } from '../../paths'
-import { EstadoCarregando, EstadoErro, EstadoVazio } from '../../components/states'
+import { LoadingState, ErrorState, EmptyState } from '../../components/states'
 import { Button } from '../../components/ui/Button'
 import { SectionHeader } from '../../components/ui/Page'
 import { AVISO_DA_AVALIACAO, estaParaResponder, resumoDaAtividade } from './atividades'
@@ -41,16 +41,16 @@ function VerMais({ carregando, aoPedir }: { carregando: boolean; aoPedir: () => 
  * se mexe. É o corpo do Início (telas do aluno e primeiro acesso, 2.0) e continua sendo o de `/aluno/tutor`.
  */
 export function EscolhaDaAtividade() {
-  const atividades = useInfiniteQuery(consultaMinhasAtividades)
+  const atividades = useInfiniteQuery(minhasAtividadesInfiniteQueryOptions)
   const itens = atividades.data?.pages.flatMap((pagina) => pagina.itens) ?? []
   return (
     <>
-      {atividades.isPending && <EstadoCarregando rotulo="Carregando as suas atividades…" />}
+      {atividades.isPending && <LoadingState rotulo="Carregando as suas atividades…" />}
       {atividades.isError && atividades.data === undefined && (
-        <EstadoErro erro={atividades.error} tentando={atividades.isFetching} aoTentarDeNovo={() => void atividades.refetch({ cancelRefetch: false })} />
+        <ErrorState erro={atividades.error} tentando={atividades.isFetching} aoTentarDeNovo={() => void atividades.refetch({ cancelRefetch: false })} />
       )}
       {atividades.data !== undefined && itens.length === 0 && (
-        <EstadoVazio titulo="Nenhuma atividade para pedir ajuda agora" descricao="O Tutor ajuda nas atividades que quem dá a aula passa para a turma. Quando houver uma, ela aparece aqui." />
+        <EmptyState titulo="Nenhuma atividade para pedir ajuda agora" descricao="O Tutor ajuda nas atividades que quem dá a aula passa para a turma. Quando houver uma, ela aparece aqui." />
       )}
       {itens.length > 0 && (
         <section aria-labelledby="titulo-escolha" className="flex min-w-0 flex-col gap-3">

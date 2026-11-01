@@ -2,10 +2,10 @@ import { AVISO_DA_TROCA_RECUSADA, ErrorCode, type AcessoDaConta } from '@educa/s
 import { Check, ChevronsUpDown } from 'lucide-react'
 import { useId, useRef, useState, type KeyboardEvent } from 'react'
 import { useLocation } from 'wouter'
-import { ErroDaApi, mensagemDoErro } from '../api/client'
+import { ApiError, errorMessage } from '../api/client'
 import { trocarDeEscola } from '../api/sessao'
-import { ROTA_DA_ETAPA } from '../paths'
-import { NOME_DO_PAPEL } from '../roles'
+import { LOGIN_STEP_ROUTE } from '../paths'
+import { ROLE_LABELS } from '../roles'
 
 /**
  * O que a troca recusada diz. A API responde `NAO_ENCONTRADO` para a sessão que não troca (matrícula, conta da
@@ -13,7 +13,7 @@ import { NOME_DO_PAPEL } from '../roles'
  * (regra 10, item 6). Qualquer outra falha é a mensagem do catálogo, que já diz o que fazer.
  */
 function mensagemDaTroca(erro: unknown): string {
-  return erro instanceof ErroDaApi && erro.codigo === ErrorCode.NAO_ENCONTRADO ? AVISO_DA_TROCA_RECUSADA : mensagemDoErro(erro)
+  return erro instanceof ApiError && erro.codigo === ErrorCode.NAO_ENCONTRADO ? AVISO_DA_TROCA_RECUSADA : errorMessage(erro)
 }
 
 /**
@@ -22,7 +22,7 @@ function mensagemDaTroca(erro: unknown): string {
  * pelo conteúdo colaria a escola na rede.
  */
 function nomeDaEscola(acesso: AcessoDaConta): string {
-  return `${acesso.escolaNome}, ${acesso.redeNome} · ${NOME_DO_PAPEL[acesso.papel]}`
+  return `${acesso.escolaNome}, ${acesso.redeNome} · ${ROLE_LABELS[acesso.papel]}`
 }
 
 /** O conteúdo de uma escola, no botão que abre o seletor e em cada linha dele: o nome em cima e, embaixo, a rede e o papel (P30). */
@@ -31,7 +31,7 @@ function DadosDaEscola({ acesso }: { acesso: AcessoDaConta }) {
     <span className="flex min-w-0 flex-1 flex-col">
       <span className="t-apoio font-bold break-words text-tinta">{acesso.escolaNome}</span>
       <span className="text-sm break-words text-sutil">
-        {acesso.redeNome} · {NOME_DO_PAPEL[acesso.papel]}
+        {acesso.redeNome} · {ROLE_LABELS[acesso.papel]}
       </span>
     </span>
   )
@@ -114,7 +114,7 @@ export function SeletorDeEscola({ escolaAtual, acessos, usuarioAtual }: Props) {
     try {
       const resposta = await trocarDeEscola(acesso.usuarioId)
       // `pronta` volta à página inicial, já da escola de destino; a coordenação passa antes pelo segundo fator.
-      navegar(ROTA_DA_ETAPA[resposta.etapa], { replace: true })
+      navegar(LOGIN_STEP_ROUTE[resposta.etapa], { replace: true })
     } catch (erro) {
       definirFalha(erro)
     } finally {

@@ -1,6 +1,6 @@
 import { CATEGORIAS_DE_RETENCAO, CHAVES_DE_RETENCAO, ErrorCode, ESTADOS_DO_PEDIDO, TIPOS_DE_PEDIDO_DO_TITULAR, type PedidoDeMeusDados } from '@educa/shared'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { AbaDoNavegador } from '../pedidos/atualizacao-dos-pedidos'
+import type { BrowserTab } from '../pedidos/atualizacao-dos-pedidos'
 import {
   agendarPreparacao,
   anuncioDoArquivoBaixado,
@@ -181,7 +181,7 @@ function abaDeMentira(inicio: 'visible' | 'hidden' = 'visible') {
     visibilityState: inicio,
     addEventListener: (_tipo: 'visibilitychange', ouvinte: () => void) => void ouvintes.add(ouvinte),
     removeEventListener: (_tipo: 'visibilitychange', ouvinte: () => void) => void ouvintes.delete(ouvinte),
-  } satisfies AbaDoNavegador as { visibilityState: 'visible' | 'hidden' } & AbaDoNavegador
+  } satisfies BrowserTab as { visibilityState: 'visible' | 'hidden' } & BrowserTab
   return {
     aba,
     ouvintes,

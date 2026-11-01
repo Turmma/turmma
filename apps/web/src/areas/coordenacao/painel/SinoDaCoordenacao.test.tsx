@@ -5,15 +5,15 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Router } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
-import { criarClienteDeConsultas } from '../../../api/query-client'
-import { consultaAnosLetivos, consultaTurmas, consultaVinculos } from '../../../api/estrutura'
-import { consultaListaDaTurma } from '../estrutura/api/lista'
-import { consultaMateriais } from '../material/api/material'
-import { consultaPedidosDaTurma } from '../../../api/pedidos'
-import { consultaIncidentes, consultaPedidosDoTitular } from '../privacidade/api/privacidade'
-import { consultaProfessores } from '../professores/api/professores'
-import { prepararTela, redeFalsa, type RedeFalsa, type RespostaFalsa } from '../../../__fixtures__/render-screen'
-import { ContextoDaAncoraDoSino } from '../../../components/sino-anchor-context'
+import { createQueryClient } from '../../../api/query-client'
+import { anosLetivosQueryOptions, turmasQueryOptions, vinculosQueryOptions } from '../../../api/estrutura'
+import { listaDaTurmaQueryOptions } from '../estrutura/api/lista'
+import { materiaisQueryOptions } from '../material/api/material'
+import { pedidosDaTurmaQueryOptions } from '../../../api/pedidos'
+import { incidentesQueryOptions, pedidosDoTitularQueryOptions } from '../privacidade/api/privacidade'
+import { professoresQueryOptions } from '../professores/api/professores'
+import { setupScreen, fakeNetwork, type FakeNetwork, type FakeResponse } from '../../../__fixtures__/render-screen'
+import { SinoAnchorContext } from '../../../components/sino-anchor-context'
 import SinoDaCoordenacao from './SinoDaCoordenacao'
 
 /**
@@ -21,7 +21,7 @@ import SinoDaCoordenacao from './SinoDaCoordenacao'
  * quando relê. A rede é falsa e responde **por caminho**, porque a fila lê em paralelo; a fila, o cliente de consultas e a
  * peça são os da aba. O `jsdom` não implementa o `dialog` modal: o teste instala o `showModal` e o `close`.
  */
-prepararTela()
+setupScreen()
 
 const id = (n: number) => `0197a1c0-0000-7000-8000-${String(n).padStart(12, '0')}`
 const ANO = { id: id(1), ano: 2026, inicio: '2026-02-02', fim: '2026-12-18', situacao: 'em_curso' }
@@ -43,12 +43,12 @@ const MATERIAL = (estado: 'processando' | 'falhou' | 'pronto') => ({
   enviadoEm: '2026-10-01T12:00:00.000Z',
 })
 
-const ok = (itens: readonly unknown[], extra: Record<string, unknown> = {}): RespostaFalsa => ({ status: 200, corpo: { itens, ...extra } })
-const INDISPONIVEL: RespostaFalsa = { status: 503, corpo: { erro: { codigo: 'INDISPONIVEL_TENTE_DE_NOVO', mensagem: 'x', requisicaoId: '0190f5a0-0000-7000-8000-000000000001' } } }
+const ok = (itens: readonly unknown[], extra: Record<string, unknown> = {}): FakeResponse => ({ status: 200, corpo: { itens, ...extra } })
+const INDISPONIVEL: FakeResponse = { status: 503, corpo: { erro: { codigo: 'INDISPONIVEL_TENTE_DE_NOVO', mensagem: 'x', requisicaoId: '0190f5a0-0000-7000-8000-000000000001' } } }
 const FORA = { status: 404, corpo: { erro: { codigo: 'NAO_ENCONTRADO', mensagem: 'x', requisicaoId: '0190f5a0-0000-7000-8000-000000000001' } } }
 
 /** O que cada leitura da fila responde. Cada caso muda só o que importa para ele. */
-type Resposta = RespostaFalsa | (() => RespostaFalsa | Promise<RespostaFalsa>)
+type Resposta = FakeResponse | (() => FakeResponse | Promise<FakeResponse>)
 interface Respostas {
   anos: Resposta
   incidentes: Resposta
@@ -68,7 +68,7 @@ const TUDO_EM_DIA: Respostas = {
 /** Um item só: o convite vencido de Paulo. */
 const COM_UM_ITEM: Respostas = { ...TUDO_EM_DIA, professores: ok([CAMILA, PAULO]) }
 
-function instalar(rede: RedeFalsa, respostas: Respostas): void {
+function instalar(rede: FakeNetwork, respostas: Respostas): void {
   rede.responderPor('/v1/anos-letivos', respostas.anos)
   rede.responderPor('/v1/privacidade/incidentes', respostas.incidentes)
   rede.responderPor('/v1/professores', respostas.professores)
@@ -79,7 +79,7 @@ function instalar(rede: RedeFalsa, respostas: Respostas): void {
 
 const LEITURAS_DA_FILA = ['/v1/anos-letivos', '/v1/privacidade/incidentes', '/v1/professores', '/v1/materiais', '/v1/turmas', '/v1/vinculos']
 const semConsulta = (caminho: string) => caminho.split('?')[0] ?? caminho
-const caminhosDe = (rede: RedeFalsa) => rede.chamadas.map((chamada) => semConsulta(chamada.caminho))
+const caminhosDe = (rede: FakeNetwork) => rede.chamadas.map((chamada) => semConsulta(chamada.caminho))
 
 beforeEach(() => {
   HTMLDialogElement.prototype.showModal = function showModal(this: HTMLDialogElement) {
@@ -101,24 +101,24 @@ afterEach(() => {
 
 /** As leituras auditadas que a Estrutura e a Privacidade têm abertas, para o sino provar que não as toca. */
 function LeiturasAuditadasAbertas() {
-  useInfiniteQuery(consultaListaDaTurma(TURMA.id))
-  useQuery({ ...consultaPedidosDaTurma(TURMA.id, 'coordenacao'), enabled: true })
-  useInfiniteQuery(consultaPedidosDoTitular)
+  useInfiniteQuery(listaDaTurmaQueryOptions(TURMA.id))
+  useQuery({ ...pedidosDaTurmaQueryOptions(TURMA.id, 'coordenacao'), enabled: true })
+  useInfiniteQuery(pedidosDoTitularQueryOptions)
   return null
 }
 
 function montar(opcoes: { auditadas?: boolean; cliente?: QueryClient } = {}) {
-  const cliente = opcoes.cliente ?? criarClienteDeConsultas()
+  const cliente = opcoes.cliente ?? createQueryClient()
   const ancora = document.createElement('div')
   document.body.append(ancora)
   const localizacao = memoryLocation({ path: '/painel' })
   const { unmount } = render(
     <QueryClientProvider client={cliente}>
       <Router hook={localizacao.hook}>
-        <ContextoDaAncoraDoSino value={{ elemento: ancora }}>
+        <SinoAnchorContext value={{ elemento: ancora }}>
           {opcoes.auditadas === true && <LeiturasAuditadasAbertas />}
           <SinoDaCoordenacao />
-        </ContextoDaAncoraDoSino>
+        </SinoAnchorContext>
       </Router>
     </QueryClientProvider>,
   )
@@ -129,7 +129,7 @@ const botao = (nome: string | RegExp) => screen.findByRole('button', { name: nom
 
 describe('o sino da coordenação lê a fila', () => {
   it('desenha o sino na âncora da casca, e não onde a área o monta', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, COM_UM_ITEM)
     const { ancora } = montar()
     const sino = await botao('Esperando você, 1')
@@ -137,7 +137,7 @@ describe('o sino da coordenação lê a fila', () => {
   })
 
   it('lê as seis leituras da fila, e só elas', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, COM_UM_ITEM)
     montar()
     await botao('Esperando você, 1')
@@ -146,7 +146,7 @@ describe('o sino da coordenação lê a fila', () => {
 
   it('o que a fila não lê: nem a lista de nomes, nem os pedidos de nome, nem os pedidos de titular; e abrir a lista não faz chamada', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, COM_UM_ITEM)
     montar()
     await usuario.click(await botao('Esperando você, 1'))
@@ -159,7 +159,7 @@ describe('o sino da coordenação lê a fila', () => {
   it('sem ano em curso (nenhum, só planejado ou só encerrado): turmas e vínculos nem são chamados, e a fila está pronta: "Tudo em dia"', async () => {
     const usuario = userEvent.setup()
     for (const anos of [[], [{ ...ANO, situacao: 'planejado' }], [{ ...ANO, situacao: 'encerrado' }]]) {
-      const rede = redeFalsa()
+      const rede = fakeNetwork()
       instalar(rede, { ...TUDO_EM_DIA, anos: ok(anos), turmas: FORA, vinculos: FORA })
       montar()
       await usuario.click(await botao('Esperando você, nada'))
@@ -171,7 +171,7 @@ describe('o sino da coordenação lê a fila', () => {
 
   it('a leitura dos incidentes que falha: a fila é parcial, com os itens das outras cinco', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { ...COM_UM_ITEM, incidentes: FORA })
     montar()
     await usuario.click(await botao('Esperando você, 1'))
@@ -184,9 +184,9 @@ describe('o sino da coordenação lê a fila', () => {
   it('o "Atualizado às" é a hora em que a fila terminou de ler, e não a de quando o sino montou', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true, now: new Date(2026, 9, 16, 9, 0, 0) })
     const usuario = userEvent.setup({ advanceTimers: (ms) => void vi.advanceTimersByTime(ms) })
-    const rede = redeFalsa()
-    let liberar: (resposta: RespostaFalsa) => void = () => undefined
-    const lenta = new Promise<RespostaFalsa>((resolver) => (liberar = resolver))
+    const rede = fakeNetwork()
+    let liberar: (resposta: FakeResponse) => void = () => undefined
+    const lenta = new Promise<FakeResponse>((resolver) => (liberar = resolver))
     instalar(rede, { ...TUDO_EM_DIA, professores: () => lenta })
     montar()
     await botao('Esperando você, carregando')
@@ -200,7 +200,7 @@ describe('o sino da coordenação lê a fila', () => {
 
   it('com ano em curso e tudo lido, sem nada esperando: "Tudo em dia", e a lista diz a hora da leitura', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, TUDO_EM_DIA)
     montar()
     await usuario.click(await botao('Esperando você, nada'))
@@ -236,7 +236,7 @@ describe('o sino não relê sozinho (RF5)', () => {
 
   it('com um material processando, 10 s ou mais depois: nenhuma leitura nova (o material se relê a cada 1,5 s na tela dele, e o sino não)', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { ...COM_UM_ITEM, materiais: ok([MATERIAL('processando')]) })
     montar()
     await botao('Esperando você, 1')
@@ -247,7 +247,7 @@ describe('o sino não relê sozinho (RF5)', () => {
 
   it('com o dado velho (mais de 5 min), o foco sai e volta: nenhuma leitura, de nenhuma consulta, anos inclusive', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, COM_UM_ITEM)
     montar()
     await botao('Esperando você, 1')
@@ -259,7 +259,7 @@ describe('o sino não relê sozinho (RF5)', () => {
 
   it('com o dado velho, a rede sai e volta: nenhuma leitura, de nenhuma consulta, anos inclusive', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, COM_UM_ITEM)
     montar()
     await botao('Esperando você, 1')
@@ -271,13 +271,13 @@ describe('o sino não relê sozinho (RF5)', () => {
 
   it('o sino que monta depois de a tela já ter a leitura dos anos em erro não a relê: o "Tentar de novo" da tela continua de pé até o toque', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     let indisponivel = true
     instalar(rede, { ...TUDO_EM_DIA, anos: () => (indisponivel ? INDISPONIVEL : ok([ANO])) })
-    const cliente = criarClienteDeConsultas()
+    const cliente = createQueryClient()
     cliente.mount()
     // A tela da Estrutura, que já leu os anos e falhou (uma tentativa automática, um segundo depois).
-    const tela = new QueryObserver(cliente, consultaAnosLetivos)
+    const tela = new QueryObserver(cliente, anosLetivosQueryOptions)
     const largar = tela.subscribe(() => undefined)
     await avancar(2 * MIL)
     expect(tela.getCurrentResult().isError).toBe(true)
@@ -297,27 +297,27 @@ describe('o sino não relê sozinho (RF5)', () => {
 
   it('o sino que monta depois de a tela já ter em erro as outras cinco leituras (incidentes, professores, materiais, turmas e vínculos) não relê nenhuma', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     let indisponivel = true
-    const quando = (resposta: RespostaFalsa) => (): RespostaFalsa => (indisponivel ? INDISPONIVEL : resposta)
+    const quando = (resposta: FakeResponse) => (): FakeResponse => (indisponivel ? INDISPONIVEL : resposta)
     instalar(rede, {
       anos: ok([ANO]),
-      incidentes: quando(TUDO_EM_DIA.incidentes as RespostaFalsa),
+      incidentes: quando(TUDO_EM_DIA.incidentes as FakeResponse),
       professores: quando(ok([CAMILA])),
       materiais: quando(ok([MATERIAL('pronto')])),
       turmas: quando(ok([TURMA])),
       vinculos: quando(ok([VINCULO])),
     })
-    const cliente = criarClienteDeConsultas()
+    const cliente = createQueryClient()
     cliente.mount()
     // As telas da área leem os anos (com dado, para turmas e vínculos terem ano em curso) e as outras cinco, que falham.
     const telas = [
-      new QueryObserver(cliente, consultaAnosLetivos),
-      new QueryObserver(cliente, consultaIncidentes),
-      new QueryObserver(cliente, consultaProfessores),
-      new QueryObserver(cliente, consultaMateriais),
-      new QueryObserver(cliente, consultaTurmas),
-      new QueryObserver(cliente, consultaVinculos),
+      new QueryObserver(cliente, anosLetivosQueryOptions),
+      new QueryObserver(cliente, incidentesQueryOptions),
+      new QueryObserver(cliente, professoresQueryOptions),
+      new QueryObserver(cliente, materiaisQueryOptions),
+      new QueryObserver(cliente, turmasQueryOptions),
+      new QueryObserver(cliente, vinculosQueryOptions),
     ]
     const largar = telas.map((tela) => tela.subscribe(() => undefined))
     await avancar(2 * MIL)
@@ -337,12 +337,12 @@ describe('o sino não relê sozinho (RF5)', () => {
   it('controle: a mesma consulta de anos, com a opção ligada, relê na volta do foco e na volta da rede (o teste enxerga a leitura que o sino evita)', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
     for (const tipo of ['foco', 'rede'] as const) {
-      const rede = redeFalsa()
+      const rede = fakeNetwork()
       instalar(rede, TUDO_EM_DIA)
-      const cliente = criarClienteDeConsultas()
+      const cliente = createQueryClient()
       cliente.mount()
       const observador = new QueryObserver(cliente, {
-        ...consultaAnosLetivos,
+        ...anosLetivosQueryOptions,
         staleTime: 5 * 60 * MIL,
         refetchInterval: false,
         refetchOnWindowFocus: tipo === 'foco',
@@ -363,9 +363,9 @@ describe('o sino não relê sozinho (RF5)', () => {
 describe('o que o sino lê ao voltar à área', () => {
   it('voltar à área dentro dos 5 minutos não relê nada: o dado ainda vale', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, COM_UM_ITEM)
-    const cliente = criarClienteDeConsultas()
+    const cliente = createQueryClient()
     const { desmontar } = montar({ cliente })
     await botao('Esperando você, 1')
     desmontar()
@@ -383,11 +383,11 @@ describe('o que o sino lê ao voltar à área', () => {
 
   it('voltar à área com o dado de incidentes velho não o relê: é uma leitura por sessão, como a do aviso que fica montado na área', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, COM_UM_ITEM)
-    const cliente = criarClienteDeConsultas()
+    const cliente = createQueryClient()
     // O aviso de incidente da área é quem mantém a consulta viva (`gcTime`) enquanto o sino sai e volta; o dele é `Infinity`.
-    const aviso = new QueryObserver(cliente, { ...consultaIncidentes, staleTime: Infinity })
+    const aviso = new QueryObserver(cliente, { ...incidentesQueryOptions, staleTime: Infinity })
     const largar = aviso.subscribe(() => undefined)
     const { desmontar } = montar({ cliente })
     await botao('Esperando você, 1')
@@ -408,10 +408,10 @@ describe('recomeço: a pessoa seguinte e a troca de escola', () => {
   it('a sessão que troca esvazia a fila: o item da escola A não aparece enquanto a B carrega, nem depois; e a hora da leitura de A sai', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true, now: new Date(2026, 9, 16, 9, 0, 0) })
     const usuario = userEvent.setup({ advanceTimers: (ms) => void vi.advanceTimersByTime(ms) })
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     let escola: 'A' | 'B' = 'A'
-    let liberarB: (resposta: RespostaFalsa) => void = () => undefined
-    const daB = new Promise<RespostaFalsa>((resolver) => (liberarB = resolver))
+    let liberarB: (resposta: FakeResponse) => void = () => undefined
+    const daB = new Promise<FakeResponse>((resolver) => (liberarB = resolver))
     instalar(rede, { ...TUDO_EM_DIA, professores: () => (escola === 'A' ? ok([CAMILA, PAULO]) : daB) })
     const { cliente } = montar()
     await botao('Esperando você, 1')
@@ -435,7 +435,7 @@ describe('recomeço: a pessoa seguinte e a troca de escola', () => {
 describe('"Tentar de novo" e "Atualizar" releem pela chave exata', () => {
   it('com a fila parcial, "Tentar de novo" relê só o que falhou; nada de auditado é lido', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     let professoresFora = true
     instalar(rede, { ...TUDO_EM_DIA, materiais: ok([MATERIAL('falhou')]), professores: () => (professoresFora ? FORA : ok([CAMILA])) })
     // As leituras auditadas abertas (a lista da turma e os pedidos de titular) leram uma vez, ao abrir a tela delas.
@@ -459,7 +459,7 @@ describe('"Tentar de novo" e "Atualizar" releem pela chave exata', () => {
   it('"Atualizar" relê as cinco leituras da lista, uma vez cada, e não toca na lista de nomes nem nos pedidos; o "Atualizado às" só muda depois do clique', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true, now: new Date(2026, 9, 16, 9, 0, 0) })
     const usuario = userEvent.setup({ advanceTimers: (ms) => void vi.advanceTimersByTime(ms) })
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, COM_UM_ITEM)
     rede.responderPor(/\/v1\/turmas\/[^/]+\/lista/, ok([]))
     rede.responderPor(/\/v1\/turmas\/[^/]+\/reivindicacoes/, ok([]))
@@ -484,7 +484,7 @@ describe('"Tentar de novo" e "Atualizar" releem pela chave exata', () => {
 
   it('"Tentar de novo" com turmas que vieram truncadas: relê só as turmas', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     let truncada = true
     // Uma página com "há mais" depois da outra, até o teto de páginas da estrutura; depois, a lista inteira.
     instalar(rede, { ...TUDO_EM_DIA, turmas: () => (truncada ? ok([TURMA], { proxima: id(999) }) : ok([TURMA])) })
@@ -501,7 +501,7 @@ describe('"Tentar de novo" e "Atualizar" releem pela chave exata', () => {
 
   it('clique duplo em "Tentar de novo" e em "Atualizar": uma leitura por consulta, e não duas (o botão fica desligado enquanto a leitura corre)', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     let truncada = true
     let seguraTurmas = false
     let seguraAnos = false
@@ -509,11 +509,11 @@ describe('"Tentar de novo" e "Atualizar" releem pela chave exata', () => {
     let liberarAnos: () => void = () => undefined
     // A lista de turmas veio truncada: com o dado já na tela, a releitura não tira o aviso nem o botão (uma consulta que falhou, sim,
     // volta a "carregando" e o botão some), e é aí que o segundo clique chegaria.
-    const turmas = async (): Promise<RespostaFalsa> => {
+    const turmas = async (): Promise<FakeResponse> => {
       if (seguraTurmas) await new Promise<void>((resolver) => (liberarTurmas = resolver))
       return truncada ? ok([TURMA], { proxima: id(999) }) : ok([TURMA])
     }
-    const anos = async (): Promise<RespostaFalsa> => {
+    const anos = async (): Promise<FakeResponse> => {
       if (seguraAnos) await new Promise<void>((resolver) => (liberarAnos = resolver))
       return ok([ANO])
     }
@@ -545,7 +545,7 @@ describe('"Tentar de novo" e "Atualizar" releem pela chave exata', () => {
 
   it('"Atualizar" sem ano em curso relê só anos, professores e materiais: turmas e vínculos continuam sem ser chamados', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { ...TUDO_EM_DIA, anos: ok([{ ...ANO, situacao: 'planejado' }]), turmas: FORA, vinculos: FORA })
     montar()
     await usuario.click(await botao('Esperando você, nada'))
@@ -559,12 +559,12 @@ describe('"Tentar de novo" e "Atualizar" releem pela chave exata', () => {
 
   it('"Tentar de novo" com a fila inteira em erro: o botão relê o que falhou, e a fila volta', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     let fora = true
-    const respostas = (resposta: RespostaFalsa) => () => (fora ? FORA : resposta)
+    const respostas = (resposta: FakeResponse) => () => (fora ? FORA : resposta)
     instalar(rede, {
       anos: respostas(ok([ANO])),
-      incidentes: respostas(TUDO_EM_DIA.incidentes as RespostaFalsa),
+      incidentes: respostas(TUDO_EM_DIA.incidentes as FakeResponse),
       professores: respostas(ok([CAMILA, PAULO])),
       materiais: respostas(ok([])),
       turmas: respostas(ok([TURMA])),

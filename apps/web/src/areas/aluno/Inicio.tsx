@@ -1,14 +1,14 @@
 import type { MinhaAtividade } from '@educa/shared'
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { Link } from 'wouter'
-import { consultaEu } from '../../api/eu'
-import { consultaMinhasAtividades } from '../../api/atividades-do-aluno'
-import { caminhoDaAtividadeDoAluno, caminhoDoTutorNaAtividade, ROTAS_DO_ALUNO } from '../../paths'
-import { EstadoCarregando, EstadoErro, EstadoVazio } from '../../components/states'
+import { euQueryOptions } from '../../api/eu'
+import { minhasAtividadesInfiniteQueryOptions } from '../../api/atividades-do-aluno'
+import { caminhoDaAtividadeDoAluno, caminhoDoTutorNaAtividade, ALUNO_ROUTES } from '../../paths'
+import { LoadingState, ErrorState, EmptyState } from '../../components/states'
 import { AgentSignature } from '../../components/ui/ai/AgentSignature'
 import { SECONDARY_LINK_CLASSES } from '../../components/ui/button-variants'
 import { SectionHeader, Page } from '../../components/ui/Page'
-import { useTituloDaTela } from '../../document-title'
+import { usePageTitle } from '../../document-title'
 import { AVISO_DA_AVALIACAO, resumoDaAtividade } from './atividades'
 import { FaixaDeSupervisao } from './FaixaDeSupervisao'
 import { saudacaoDoAluno, tarefasParaFazer, TEXTO_DO_VAZIO, TITULO_DO_VAZIO } from './inicio'
@@ -50,7 +50,7 @@ function ListaParaFazer({ tarefas, lida }: { tarefas: readonly MinhaAtividade[];
         </ul>
       )}
       {lida && (
-        <Link to={ROTAS_DO_ALUNO.atividades} className={`${SECONDARY_LINK_CLASSES} self-start`}>
+        <Link to={ALUNO_ROUTES.atividades} className={`${SECONDARY_LINK_CLASSES} self-start`}>
           Ver todas as tarefas
         </Link>
       )}
@@ -59,17 +59,17 @@ function ListaParaFazer({ tarefas, lida }: { tarefas: readonly MinhaAtividade[];
 }
 
 function ParaFazer() {
-  const atividades = useInfiniteQuery({ ...consultaMinhasAtividades, ...LEITURA_DO_INICIO })
+  const atividades = useInfiniteQuery({ ...minhasAtividadesInfiniteQueryOptions, ...LEITURA_DO_INICIO })
   const paraFazer = tarefasParaFazer(atividades.data?.pages[0]?.itens ?? [])
   const lida = atividades.data !== undefined
   return (
     <section aria-labelledby="titulo-para-fazer" className="flex min-w-0 flex-col gap-3">
       <SectionHeader id="titulo-para-fazer" titulo="Para fazer" />
-      {atividades.isPending && <EstadoCarregando rotulo="Carregando as suas tarefas…" />}
+      {atividades.isPending && <LoadingState rotulo="Carregando as suas tarefas…" />}
       {atividades.isError && !lida && (
-        <EstadoErro erro={atividades.error} tentando={atividades.isFetching} aoTentarDeNovo={() => void atividades.refetch({ cancelRefetch: false })} />
+        <ErrorState erro={atividades.error} tentando={atividades.isFetching} aoTentarDeNovo={() => void atividades.refetch({ cancelRefetch: false })} />
       )}
-      {lida && paraFazer.length === 0 && <EstadoVazio titulo={TITULO_DO_VAZIO} descricao={TEXTO_DO_VAZIO} />}
+      {lida && paraFazer.length === 0 && <EmptyState titulo={TITULO_DO_VAZIO} descricao={TEXTO_DO_VAZIO} />}
       <ListaParaFazer tarefas={paraFazer} lida={lida} />
     </section>
   )
@@ -87,8 +87,8 @@ function ParaFazer() {
  * recompensa (regra 50, item 9; D59). É aba de navegação: o `<h1>` existe só para o leitor de tela.
  */
 export default function Inicio() {
-  useTituloDaTela('Início')
-  const eu = useQuery({ ...consultaEu, ...LEITURA_DO_INICIO })
+  usePageTitle('Início')
+  const eu = useQuery({ ...euQueryOptions, ...LEITURA_DO_INICIO })
   return (
     <Page titulo="Início" largura="conversa" tituloSoParaLeitor>
       <div className="pt-2">

@@ -1,10 +1,10 @@
 import type { AtividadeAplicada } from '@educa/shared'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
-import { consultaAtividadesAplicadas, encerrarAtividade, recarregarAtividades } from './api/atividades'
+import { atividadesAplicadasQueryOptions, encerrarAtividade, recarregarAtividades } from './api/atividades'
 import { Button } from '../../../components/ui/Button'
 import { ConfirmDialog } from '../../../components/ui/overlays/ConfirmDialog'
-import { textoDaFalha } from '../../../components/error-text'
+import { errorText } from '../../../components/error-text'
 import { EFEITO_DE_ENCERRAR, textoDeAlunos } from './aprovar'
 
 interface PropsDoEncerramento {
@@ -39,7 +39,7 @@ export function EncerramentoDaAtividade({ aplicada, nomeDaTurma, focoDeReserva }
     mutationFn: () => encerrarAtividade(aplicada.id),
     onSuccess: async () => {
       recarregarAtividades(cliente)
-      await cliente.invalidateQueries({ queryKey: consultaAtividadesAplicadas(aplicada.turmaId).queryKey })
+      await cliente.invalidateQueries({ queryKey: atividadesAplicadasQueryOptions(aplicada.turmaId).queryKey })
       definirAberto(undefined)
     },
     onSettled: () => (decidindo.current = false),
@@ -66,7 +66,7 @@ export function EncerramentoDaAtividade({ aplicada, nomeDaTurma, focoDeReserva }
       )}
       {encerrar.isError && aberto === undefined && (
         <p role="alert" className="w-full rounded-controle bg-erro-cx p-3 break-words text-erro">
-          {textoDaFalha(encerrar.error)}
+          {errorText(encerrar.error)}
         </p>
       )}
       {aberto !== undefined && (
@@ -85,7 +85,7 @@ export function EncerramentoDaAtividade({ aplicada, nomeDaTurma, focoDeReserva }
           aoFechar={() => definirAberto(undefined)}
           confirmando={encerrar.isPending}
           focoDeReserva={focoDeReserva}
-          {...(encerrar.isError ? { falha: textoDaFalha(encerrar.error) } : {})}
+          {...(encerrar.isError ? { falha: errorText(encerrar.error) } : {})}
         />
       )}
     </>

@@ -1,7 +1,7 @@
 import { LogOut } from 'lucide-react'
-import { NOME_DO_MENU_DA_PESSOA, type ItemDaNavegacao } from '../areas/navigation'
+import { NOME_DO_MENU_DA_PESSOA, type NavItem } from '../areas/navigation'
 import { Aparencia } from './Aparencia'
-import { classeDoBotaoDeLugar, Dica, ListaDeItens } from './itens-da-lateral'
+import { classeDoBotaoDeLugar, Tooltip, ListaDeItens } from './itens-da-lateral'
 
 interface Props {
   /** O nome e o papel de quem está na sessão; sem eles ainda (o `/v1/eu` não chegou), fica só o "Sair". */
@@ -9,8 +9,8 @@ interface Props {
   readonly papel?: string | undefined
   readonly aoSair: () => void
   readonly saindo: boolean
-  /** Os links da pessoa, antes do "Sair" (`MENU_DA_PESSOA`): o professor tem "Meus dados". Sem eles, só o "Sair". */
-  readonly itens?: readonly ItemDaNavegacao[]
+  /** Os links da pessoa, antes do "Sair" (`PERSON_MENU`): o professor tem "Meus dados". Sem eles, só o "Sair". */
+  readonly itens?: readonly NavItem[]
   /** No trilho de 88 px sobram só os ícones, com o nome de cada um para o leitor de tela e a dica. */
   readonly trilho?: boolean
 }
@@ -51,7 +51,7 @@ export function MenuDaPessoa({ nome, papel, aoSair, saindo, itens = [], trilho =
             <LogOut size={22} strokeWidth={2.5} />
           </span>
           <span className="sr-only">{rotulo}</span>
-          <Dica>{rotulo}</Dica>
+          <Tooltip>{rotulo}</Tooltip>
         </button>
       </div>
     )

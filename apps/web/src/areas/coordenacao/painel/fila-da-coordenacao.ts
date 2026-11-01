@@ -1,18 +1,18 @@
 import type { AnoLetivo, IncidenteDaEscola, Material, ProfessorDaEscola, Turma, VinculoDaCoordenacao } from '@educa/shared'
 import { useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query'
 import { useState } from 'react'
-import { consultaAnosLetivos, consultaTurmas, consultaVinculos, type ListaDaEstrutura } from '../../../api/estrutura'
-import { consultaMateriais } from '../material/api/material'
-import { consultaIncidentes } from '../privacidade/api/privacidade'
-import { consultaProfessores } from '../professores/api/professores'
+import { anosLetivosQueryOptions, turmasQueryOptions, vinculosQueryOptions, type ListaDaEstrutura } from '../../../api/estrutura'
+import { materiaisQueryOptions } from '../material/api/material'
+import { incidentesQueryOptions } from '../privacidade/api/privacidade'
+import { professoresQueryOptions } from '../professores/api/professores'
 import { caminhoDoProfessor } from '../../../paths'
-import { LEITURA_DA_FILA, SEM_LEITURA_SOZINHA, type LeituraDaFila } from '../../../components/sino/leitura-do-sino'
+import { QUEUE_QUERY_OPTIONS, NO_AUTO_REFETCH, type LeituraDaFila } from '../../../components/sino/leitura-do-sino'
 import type { ItemDoSino, SituacaoDoSino } from '../../../components/sino/Sino'
-import { formatarDiaDoInstante } from '../../../format'
+import { formatDayOfInstant } from '../../../format'
 
 // As opções de leitura e o tipo da leitura são dos dois sinos (o do professor é da X3) e moram em `components/sino/leitura-do-sino.ts`;
 // quem já os importava daqui continua importando.
-export { SEM_LEITURA_SOZINHA }
+export { NO_AUTO_REFETCH }
 export type { LeituraDaFila }
 
 /**
@@ -75,7 +75,7 @@ function itensDeIncidente(incidentes: readonly IncidenteDaEscola[]): ItemDaFila[
       id: `incidente-${incidente.id}`,
       tipo: 'incidente',
       titulo: 'Incidente de segurança sem confirmação',
-      detalhe: `Avisado em ${formatarDiaDoInstante(incidente.avisadoEm)}. Confirme que recebeu.`,
+      detalhe: `Avisado em ${formatDayOfInstant(incidente.avisadoEm)}. Confirme que recebeu.`,
       urgente: true,
       para: '/privacidade/incidentes',
     }))
@@ -202,14 +202,14 @@ export interface FilaLida extends FilaDaCoordenacao {
  * que alcançaria também a lista de nomes e os pedidos de titular, cuja leitura é auditada (regra 20, item 10).
  */
 export function useFilaDaCoordenacao(): FilaLida {
-  const anos = useQuery({ ...consultaAnosLetivos, ...LEITURA_DA_FILA })
-  const incidentes = useQuery({ ...consultaIncidentes, ...LEITURA_DA_FILA, staleTime: Infinity })
-  const professores = useQuery({ ...consultaProfessores, ...LEITURA_DA_FILA })
-  const materiais = useQuery({ ...consultaMateriais, ...LEITURA_DA_FILA })
+  const anos = useQuery({ ...anosLetivosQueryOptions, ...QUEUE_QUERY_OPTIONS })
+  const incidentes = useQuery({ ...incidentesQueryOptions, ...QUEUE_QUERY_OPTIONS, staleTime: Infinity })
+  const professores = useQuery({ ...professoresQueryOptions, ...QUEUE_QUERY_OPTIONS })
+  const materiais = useQuery({ ...materiaisQueryOptions, ...QUEUE_QUERY_OPTIONS })
   const leituraDosAnos = leituraDe(anos)
   const aplicaAoAno = anoEmCurso(leituraDosAnos) !== undefined
-  const turmas = useQuery({ ...consultaTurmas, ...LEITURA_DA_FILA, enabled: aplicaAoAno })
-  const vinculos = useQuery({ ...consultaVinculos, ...LEITURA_DA_FILA, enabled: aplicaAoAno })
+  const turmas = useQuery({ ...turmasQueryOptions, ...QUEUE_QUERY_OPTIONS, enabled: aplicaAoAno })
+  const vinculos = useQuery({ ...vinculosQueryOptions, ...QUEUE_QUERY_OPTIONS, enabled: aplicaAoAno })
 
   // Os incidentes são uma leitura à parte (`staleTime: Infinity`) e entram na fila como as outras: lidos, em erro ou carregando.
   const leituraDeIncidentes: LeituraDaFila<readonly IncidenteDaEscola[]> = incidentes.isError
@@ -243,12 +243,12 @@ export function useFilaDaCoordenacao(): FilaLida {
   // As seis leituras. "Atualizar" relê as cinco da lista (os incidentes são uma leitura por sessão). Turmas e vínculos sem ano em
   // curso estão desligadas (`enabled`), e `refetchQueries` não relê consulta desligada: sem ano, nenhuma chamada a elas.
   const leiturasDaFila = [
-    { resultado: anos, consulta: consultaAnosLetivos, atualiza: true },
-    { resultado: incidentes, consulta: consultaIncidentes, atualiza: false },
-    { resultado: professores, consulta: consultaProfessores, atualiza: true },
-    { resultado: materiais, consulta: consultaMateriais, atualiza: true },
-    { resultado: turmas, consulta: consultaTurmas, atualiza: true },
-    { resultado: vinculos, consulta: consultaVinculos, atualiza: true },
+    { resultado: anos, consulta: anosLetivosQueryOptions, atualiza: true },
+    { resultado: incidentes, consulta: incidentesQueryOptions, atualiza: false },
+    { resultado: professores, consulta: professoresQueryOptions, atualiza: true },
+    { resultado: materiais, consulta: materiaisQueryOptions, atualiza: true },
+    { resultado: turmas, consulta: turmasQueryOptions, atualiza: true },
+    { resultado: vinculos, consulta: vinculosQueryOptions, atualiza: true },
   ] as const
 
   /** Só o que falhou ou veio truncado: reler o que já está inteiro seria leitura à toa. */

@@ -2,11 +2,11 @@ import { QueryClientProvider } from '@tanstack/react-query'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { aoAbrirSessao, aoTrocarDeSessao } from './api/sessao'
-import { criarClienteDeConsultas } from './api/query-client'
+import { createQueryClient } from './api/query-client'
 import './index.css'
-import { iniciarLetra, useTamanhoDaLetra } from './text-size'
-import { Rotas } from './routes'
-import { iniciarTema } from './theme'
+import { iniciarLetra, useApplyTextSize } from './text-size'
+import { AppRoutes } from './routes'
+import { initTheme } from './theme'
 
 const elementoRaiz = document.getElementById('raiz')
 if (!elementoRaiz) {
@@ -15,12 +15,12 @@ if (!elementoRaiz) {
 
 // O tema já foi escrito no `<html>` pelo script do `index.html`, antes do primeiro quadro. Aqui a página passa a acompanhar
 // o aparelho (em Sistema) e as outras abas, em toda tela, também nas públicas, que não têm controle (`theme.ts`).
-iniciarTema()
+initTheme()
 // A letra do aluno (8.0): o `index.html` já escreveu o `data-letra` no primeiro quadro, e quem o mantém é o `LetraDoAluno`, mais abaixo. Aqui
 // a página só passa a acompanhar as outras abas. Não lê nem grava nada: a chave só é escrita quando o aluno escolhe.
 iniciarLetra()
 
-const clienteConsultas = criarClienteDeConsultas()
+const clienteConsultas = createQueryClient()
 
 // Toda sessão que acaba, e toda sessão nova que entra no lugar dela, esvaziam o cache de consultas. O Chromebook do
 // carrinho passa por quatro turmas por dia, e a navegação depois do "Sair" não recarrega a página: sem isto, a pessoa
@@ -48,7 +48,7 @@ aoAbrirSessao(() => {
  * sessão vai à entrada sem montar a área, e o atributo do primeiro quadro precisa sair junto.
  */
 function LetraDoAluno() {
-  useTamanhoDaLetra()
+  useApplyTextSize()
   return null
 }
 
@@ -56,7 +56,7 @@ createRoot(elementoRaiz).render(
   <StrictMode>
     <QueryClientProvider client={clienteConsultas}>
       <LetraDoAluno />
-      <Rotas />
+      <AppRoutes />
     </QueryClientProvider>
   </StrictMode>,
 )

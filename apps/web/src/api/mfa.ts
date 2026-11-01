@@ -1,5 +1,5 @@
 import { ErrorCode, ativarMfaResponseSchema, configurarMfaResponseSchema, type AtivarMfaResponse, type ConfigurarMfaResponse } from '@educa/shared'
-import { chamarApi, ErroDaApi } from './client'
+import { apiRequest, ApiError } from './client'
 import { desafioDaEtapa, esquecerDesafio } from './sessao'
 
 export const CAMINHO_DA_CONFIGURACAO_DE_MFA = '/v1/conta/mfa/configurar'
@@ -8,7 +8,7 @@ export const CAMINHO_DA_ATIVACAO_DE_MFA = '/v1/conta/mfa/ativar'
 /** O desafio `configurar_mfa` desta aba, ou a recusa que manda a pessoa entrar de novo. */
 function desafioDaConfiguracao(): string {
   const desafio = desafioDaEtapa('configurar_mfa')
-  if (desafio === undefined) throw new ErroDaApi(ErrorCode.NAO_AUTENTICADO)
+  if (desafio === undefined) throw new ApiError(ErrorCode.NAO_AUTENTICADO)
   return desafio
 }
 
@@ -21,7 +21,7 @@ function desafioDaConfiguracao(): string {
  */
 export async function configurarMfa(): Promise<ConfigurarMfaResponse> {
   // `async` para a falta do desafio virar promessa recusada, e não uma exceção no meio do efeito que chamou.
-  return chamarApi(CAMINHO_DA_CONFIGURACAO_DE_MFA, configurarMfaResponseSchema, { metodo: 'POST', token: desafioDaConfiguracao() })
+  return apiRequest(CAMINHO_DA_CONFIGURACAO_DE_MFA, configurarMfaResponseSchema, { metodo: 'POST', token: desafioDaConfiguracao() })
 }
 
 /**
@@ -30,7 +30,7 @@ export async function configurarMfa(): Promise<ConfigurarMfaResponse> {
  * "TOTP"): esta aba o esquece junto, e a pessoa entra de novo com a senha e o código.
  */
 export async function ativarMfa(codigo: string): Promise<AtivarMfaResponse> {
-  const resposta = await chamarApi(CAMINHO_DA_ATIVACAO_DE_MFA, ativarMfaResponseSchema, { metodo: 'POST', corpo: { codigo }, token: desafioDaConfiguracao() })
+  const resposta = await apiRequest(CAMINHO_DA_ATIVACAO_DE_MFA, ativarMfaResponseSchema, { metodo: 'POST', corpo: { codigo }, token: desafioDaConfiguracao() })
   esquecerDesafio()
   return resposta
 }

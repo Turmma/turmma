@@ -6,7 +6,7 @@
  *
  * Quem usa a chamada que deu o endereço (`pedirArquivoDaEscola`) é que guarda o registro do download: aqui só se entrega.
  */
-export function baixarPorUrl(url: string, nome: string, documento: Document = document): void {
+export function downloadFromUrl(url: string, nome: string, documento: Document = document): void {
   const ancora = documento.createElement('a')
   ancora.href = url
   ancora.download = nome

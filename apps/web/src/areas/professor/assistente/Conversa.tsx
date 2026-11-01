@@ -3,22 +3,22 @@ import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { LayoutGrid, MessageCircle } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 import { useLocation } from 'wouter'
-import { consultaConversaDoAssistente, mensagensEmOrdem } from './api/assistente'
+import { conversaDoAssistenteQueryOptions, mensagensEmOrdem } from './api/assistente'
 import { emCurso } from '../../../api/ciclo-de-execucao'
-import { useCicloDeExecucao } from '../../../api/execucoes'
-import { useLugarNaAba } from '../../../api/tab-store'
-import { consultaTime, funcaoSuspensa } from './api/time'
-import { consultaTitulosDosMateriais } from '../artefatos/api/titulos-dos-materiais'
-import { consultaMeusVinculos } from '../comum/api/vinculos'
-import { ROTAS_DO_PROFESSOR } from '../../../paths'
+import { useExecutionLifecycle } from '../../../api/execucoes'
+import { useTabStore } from '../../../api/tab-store'
+import { timeQueryOptions, funcaoSuspensa } from './api/time'
+import { titulosDosMateriaisQueryOptions } from '../artefatos/api/titulos-dos-materiais'
+import { meusVinculosQueryOptions } from '../comum/api/vinculos'
+import { PROFESSOR_ROUTES } from '../../../paths'
 import { StickyFooter } from '../../../components/ui/StickyFooter'
 import { Button } from '../../../components/ui/Button'
-import { EstadoCarregando, EstadoErro, EstadoVazio } from '../../../components/states/index'
+import { LoadingState, ErrorState, EmptyState } from '../../../components/states/index'
 import { ChoicePrompt, type ChoiceOption } from '../../../components/ui/ai/ChoicePrompt'
 import { Conversation as ListaDeMensagens, AIMessage, UserMessage, ThinkingIndicator } from '../../../components/ui/ai/Message'
 import { AIText } from '../../../components/ui/ai/AIText'
 import { Page } from '../../../components/ui/Page'
-import { useTituloDaTela } from '../../../document-title'
+import { usePageTitle } from '../../../document-title'
 import { AvisoDeIA, AvisoDeSuspensao, FalhaDoPedido } from '../comum/avisos'
 import { CaixaDoAssistente } from './CaixaDoAssistente'
 import { CartaoDeFerramenta } from '../ferramentas/CartaoDeFerramenta'
@@ -49,19 +49,19 @@ function opcoesDaProposta(mensagem: Extract<MensagemDoAgente, { tipo: 'proposta_
  * que ainda não chegou à API (o pedido no ar, o cartão aberto) mora na memória da aba (`memoria-do-professor.ts`).
  */
 export default function Conversa() {
-  useTituloDaTela('Conversa com o Assistente')
+  usePageTitle('Conversa com o Assistente')
   const [, navegar] = useLocation()
-  const conversa = useInfiniteQuery(consultaConversaDoAssistente)
-  const vinculos = useInfiniteQuery(consultaMeusVinculos)
-  const time = useQuery(consultaTime)
-  const materiais = useQuery(consultaTitulosDosMateriais)
-  const contexto = useLugarNaAba(CONTEXTO_ESCOLHIDO)
-  const cartao = useLugarNaAba(CARTAO_DA_CONVERSA)
-  const escolhas = useLugarNaAba(ESCOLHAS_DAS_PROPOSTAS) ?? {}
-  const { ciclo, demorando, iniciar, repetir } = useCicloDeExecucao(CICLO_DA_CONVERSA, enviarPedidoDaConversa)
+  const conversa = useInfiniteQuery(conversaDoAssistenteQueryOptions)
+  const vinculos = useInfiniteQuery(meusVinculosQueryOptions)
+  const time = useQuery(timeQueryOptions)
+  const materiais = useQuery(titulosDosMateriaisQueryOptions)
+  const contexto = useTabStore(CONTEXTO_ESCOLHIDO)
+  const cartao = useTabStore(CARTAO_DA_CONVERSA)
+  const escolhas = useTabStore(ESCOLHAS_DAS_PROPOSTAS) ?? {}
+  const { ciclo, demorando, iniciar, repetir } = useExecutionLifecycle(CICLO_DA_CONVERSA, enviarPedidoDaConversa)
   const fim = useRef<HTMLDivElement>(null)
   // A geração do cartão aberto, só para saber se ele ainda ocupa a tela: quem a conduz é o próprio cartão.
-  const geracaoDoCartao = useLugarNaAba(CICLO_DA_FERRAMENTA[cartao?.ferramenta ?? 'atividade_objetiva'])
+  const geracaoDoCartao = useTabStore(CICLO_DA_FERRAMENTA[cartao?.ferramenta ?? 'atividade_objetiva'])
   // Com o cartão no formulário ou gerando, a ação da tela é a dele ("Gerar"): a caixa espera, e "Cancelar" a devolve.
   // Com o resultado pronto, a conversa segue: o pedido seguinte fecha o cartão.
   const cartaoOcupaATela = cartao !== undefined && geracaoDoCartao?.etapa !== 'concluida'
@@ -125,9 +125,9 @@ export default function Conversa() {
 
   return (
     <Page titulo="Conversa com o Assistente de ensino" largura="conversa" tituloSoParaLeitor>
-      {conversa.isPending && <EstadoCarregando rotulo="Carregando a conversa…" />}
-      {conversa.isError && conversa.data === undefined && <EstadoErro erro={conversa.error} tentando={conversa.isFetching} aoTentarDeNovo={() => void conversa.refetch({ cancelRefetch: false })} />}
-      {semNada && <EstadoVazio titulo="Nenhuma conversa ainda" descricao="Escreva um pedido na caixa abaixo: uma atividade, um plano de aula, uma dúvida sobre o material da turma. O Assistente responde com a página de onde tirou." />}
+      {conversa.isPending && <LoadingState rotulo="Carregando a conversa…" />}
+      {conversa.isError && conversa.data === undefined && <ErrorState erro={conversa.error} tentando={conversa.isFetching} aoTentarDeNovo={() => void conversa.refetch({ cancelRefetch: false })} />}
+      {semNada && <EmptyState titulo="Nenhuma conversa ainda" descricao="Escreva um pedido na caixa abaixo: uma atividade, um plano de aula, uma dúvida sobre o material da turma. O Assistente responde com a página de onde tirou." />}
 
       {conversa.hasNextPage && (
         <Button variante="secundario" onClick={() => void conversa.fetchNextPage()} disabled={conversa.isFetchingNextPage} className="self-center">
@@ -178,12 +178,12 @@ export default function Conversa() {
 
       <div ref={fim} aria-hidden="true" />
 
-      {vinculos.isError && <EstadoErro erro={vinculos.error} tentando={vinculos.isFetching} aoTentarDeNovo={() => void vinculos.refetch({ cancelRefetch: false })} />}
+      {vinculos.isError && <ErrorState erro={vinculos.error} tentando={vinculos.isFetching} aoTentarDeNovo={() => void vinculos.refetch({ cancelRefetch: false })} />}
       {vinculos.data !== undefined && turma === undefined && (
-        <EstadoVazio
+        <EmptyState
           titulo="Falta uma turma confirmada"
           descricao="O Assistente trabalha a partir do material de uma turma e de uma disciplina suas. Confirme as suas turmas em Turmas; se nenhuma aparece lá, quem aloca é a coordenação."
-          acao={{ rotulo: 'Ir para Turmas', aoAcionar: () => navegar(ROTAS_DO_PROFESSOR.turmas) }}
+          acao={{ rotulo: 'Ir para Turmas', aoAcionar: () => navegar(PROFESSOR_ROUTES.turmas) }}
         />
       )}
       {suspensa && <AvisoDeSuspensao funcao="conversa_e_ferramentas" />}

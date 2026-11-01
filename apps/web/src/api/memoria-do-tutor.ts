@@ -1,8 +1,8 @@
 import { ErrorCode, memoriaDoTutorResponseSchema, type MemoriaDoTutorResponse } from '@educa/shared'
 import { queryOptions } from '@tanstack/react-query'
-import { ErroDaApi } from './client'
-import { CHAVE_DA_MEMORIA_DO_TUTOR } from './chaves-do-aluno'
-import { buscarComSessao } from './sessao'
+import { ApiError } from './client'
+import { MEMORIA_DO_TUTOR_QUERY_KEY } from './chaves-do-aluno'
+import { authedGet } from './sessao'
 
 /** Um trabalho que o professor já aprovou: o `resultado` deixa de ser opcional, e é o que "Como estou indo" mostra. */
 export type TrabalhoCorrigido = Omit<MemoriaDoTutorResponse['trabalhos'][number], 'resultado'> & {
@@ -30,13 +30,13 @@ export function trabalhosCorrigidos(memoria: MemoriaDoTutorResponse): TrabalhoCo
  * Aluno sem turma no ano (`NAO_ENCONTRADO`) não é erro: é "nada corrigido", e a lista vem vazia. Dura 5 minutos e não relê
  * ao voltar para a aba: a correção só muda quando o professor aprova, e o aluno não está esperando por ela diante da tela.
  */
-export const consultaMemoriaDoTutor = queryOptions({
-  queryKey: CHAVE_DA_MEMORIA_DO_TUTOR,
+export const memoriaDoTutorQueryOptions = queryOptions({
+  queryKey: MEMORIA_DO_TUTOR_QUERY_KEY,
   queryFn: async ({ signal }): Promise<TrabalhoCorrigido[]> => {
     try {
-      return trabalhosCorrigidos(await buscarComSessao('/v1/tutor/memoria', memoriaDoTutorResponseSchema, signal))
+      return trabalhosCorrigidos(await authedGet('/v1/tutor/memoria', memoriaDoTutorResponseSchema, signal))
     } catch (erro) {
-      if (erro instanceof ErroDaApi && erro.codigo === ErrorCode.NAO_ENCONTRADO) return []
+      if (erro instanceof ApiError && erro.codigo === ErrorCode.NAO_ENCONTRADO) return []
       throw erro
     }
   },

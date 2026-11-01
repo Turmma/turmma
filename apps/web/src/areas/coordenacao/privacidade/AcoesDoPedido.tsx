@@ -2,14 +2,14 @@ import { FINALIDADES_DO_ARQUIVO_DA_ESCOLA, MAXIMO_DO_NOME_DO_TITULAR, type Pedid
 import { useQueryClient } from '@tanstack/react-query'
 import { useState, type FormEvent } from 'react'
 import { cancelarPedidoDoTitular, concluirPedidoDoTitular, corrigirNomeDoTitular, pedirArquivoDaEscola, relerPedidoDoTitular } from './api/privacidade'
-import { baixarPorUrl } from '../../../components/download-from-url'
+import { downloadFromUrl } from '../../../components/download-from-url'
 import { Button } from '../../../components/ui/Button'
 import { FormField } from '../../../components/ui/fields/FormField'
 import { useDialogState } from '../../../components/ui/overlays/dialog-state'
 import { ConfirmDialog } from '../../../components/ui/overlays/ConfirmDialog'
-import { useEnvioUnico } from '../../../components/dialogs'
-import { listaMudou, textoDaFalha } from '../../../components/error-text'
-import { formatarData } from '../../../format'
+import { useSingleSubmit } from '../../../components/dialogs'
+import { listChanged, errorText } from '../../../components/error-text'
+import { formatDate } from '../../../format'
 import { ROTULO_DE_QUEM_PEDIU, ROTULO_DO_TIPO, SITUACAO_DO_PEDIDO, TEXTO_DO_TITULAR_ELIMINADO } from './textos-dos-pedidos'
 import {
   acoesDoPedido,
@@ -53,7 +53,7 @@ function resumoDoPedido(pedido: PedidoDoTitular) {
     },
     { rotulo: 'Pedido', valor: ROTULO_DO_TIPO[pedido.tipo] },
     { rotulo: 'Quem pediu', valor: ROTULO_DE_QUEM_PEDIU[pedido.solicitante] },
-    { rotulo: 'Chegou à escola em', valor: formatarData(pedido.chegouEm) },
+    { rotulo: 'Chegou à escola em', valor: formatDate(pedido.chegouEm) },
     { rotulo: 'Situação', valor: SITUACAO_DO_PEDIDO[pedido.estado].texto },
   ] as const
 }
@@ -65,7 +65,7 @@ function resumoDoPedido(pedido: PedidoDoTitular) {
  */
 function useAcaoDoPedido(pedido: PedidoDoTitular, chamar: (id: string) => Promise<void>, anuncio: string, props: PropsDosDialogos, fechar: () => void) {
   const cliente = useQueryClient()
-  return useEnvioUnico({
+  return useSingleSubmit({
     mutationFn: async () => {
       await chamar(pedido.id)
       await relerPedidoDoTitular(cliente, pedido.id)
@@ -75,7 +75,7 @@ function useAcaoDoPedido(pedido: PedidoDoTitular, chamar: (id: string) => Promis
       props.aoAnunciar(anuncio)
     },
     onError: (erro) => {
-      if (listaMudou(erro, CODIGOS_QUE_MUDAM_O_PEDIDO)) void relerPedidoDoTitular(cliente, pedido.id)
+      if (listChanged(erro, CODIGOS_QUE_MUDAM_O_PEDIDO)) void relerPedidoDoTitular(cliente, pedido.id)
     },
   })
 }
@@ -83,7 +83,7 @@ function useAcaoDoPedido(pedido: PedidoDoTitular, chamar: (id: string) => Promis
 function DialogoDeConcluir({ props, aoFechar, aoConcluido }: { readonly props: PropsDosDialogos; readonly aoFechar: () => void; readonly aoConcluido: () => void }) {
   const { pedido } = props
   const { enviar, mutacao } = useAcaoDoPedido(pedido, concluirPedidoDoTitular, ANUNCIO_DE_PEDIDO_CONCLUIDO, props, aoConcluido)
-  const mudou = mutacao.isError && listaMudou(mutacao.error, CODIGOS_QUE_MUDAM_O_PEDIDO)
+  const mudou = mutacao.isError && listChanged(mutacao.error, CODIGOS_QUE_MUDAM_O_PEDIDO)
   return (
     <ConfirmDialog
       titulo={`Concluir o pedido: ${ROTULO_DO_TIPO[pedido.tipo]}`}
@@ -99,7 +99,7 @@ function DialogoDeConcluir({ props, aoFechar, aoConcluido }: { readonly props: P
       confirmando={mutacao.isPending}
       impedido={mudou}
       focoDeReserva={props.focoDeReserva}
-      {...(mutacao.isError ? { falha: textoDaFalha(mutacao.error, TEXTOS_DA_FALHA_DE_CONCLUIR) } : {})}
+      {...(mutacao.isError ? { falha: errorText(mutacao.error, TEXTOS_DA_FALHA_DE_CONCLUIR) } : {})}
     />
   )
 }
@@ -107,7 +107,7 @@ function DialogoDeConcluir({ props, aoFechar, aoConcluido }: { readonly props: P
 function DialogoDeCancelar({ props, aoFechar, aoConcluido }: { readonly props: PropsDosDialogos; readonly aoFechar: () => void; readonly aoConcluido: () => void }) {
   const { pedido } = props
   const { enviar, mutacao } = useAcaoDoPedido(pedido, cancelarPedidoDoTitular, ANUNCIO_DE_ELIMINACAO_CANCELADA, props, aoConcluido)
-  const mudou = mutacao.isError && listaMudou(mutacao.error, CODIGOS_QUE_MUDAM_O_PEDIDO)
+  const mudou = mutacao.isError && listChanged(mutacao.error, CODIGOS_QUE_MUDAM_O_PEDIDO)
   return (
     <ConfirmDialog
       titulo="Cancelar a eliminação"
@@ -124,7 +124,7 @@ function DialogoDeCancelar({ props, aoFechar, aoConcluido }: { readonly props: P
       confirmando={mutacao.isPending}
       impedido={mudou}
       focoDeReserva={props.focoDeReserva}
-      {...(mutacao.isError ? { falha: textoDaFalha(mutacao.error, TEXTOS_DA_FALHA_DE_CANCELAR) } : {})}
+      {...(mutacao.isError ? { falha: errorText(mutacao.error, TEXTOS_DA_FALHA_DE_CANCELAR) } : {})}
     />
   )
 }
@@ -135,7 +135,7 @@ function DialogoDeCorrigirNome({ props, aoFechar, aoConcluido }: { readonly prop
   const atual = pedido.titular?.nome ?? ''
   const [digitado, definirDigitado] = useState('')
   const nome = nomeNovoDoTitular(digitado, atual)
-  const { enviar, mutacao } = useEnvioUnico({
+  const { enviar, mutacao } = useSingleSubmit({
     mutationFn: async (novo: string) => {
       await corrigirNomeDoTitular(pedido.id, novo)
       await relerPedidoDoTitular(cliente, pedido.id)
@@ -145,10 +145,10 @@ function DialogoDeCorrigirNome({ props, aoFechar, aoConcluido }: { readonly prop
       props.aoAnunciar(ANUNCIO_DE_NOME_CORRIGIDO)
     },
     onError: (erro) => {
-      if (listaMudou(erro, CODIGOS_QUE_MUDAM_O_PEDIDO)) void relerPedidoDoTitular(cliente, pedido.id)
+      if (listChanged(erro, CODIGOS_QUE_MUDAM_O_PEDIDO)) void relerPedidoDoTitular(cliente, pedido.id)
     },
   })
-  const mudou = mutacao.isError && listaMudou(mutacao.error, CODIGOS_QUE_MUDAM_O_PEDIDO)
+  const mudou = mutacao.isError && listChanged(mutacao.error, CODIGOS_QUE_MUDAM_O_PEDIDO)
 
   function confirmar(): void {
     if (nome.ok) enviar(nome.nome)
@@ -179,7 +179,7 @@ function DialogoDeCorrigirNome({ props, aoFechar, aoConcluido }: { readonly prop
       focoDeReserva={props.focoDeReserva}
       {...(mutacao.isError
         ? {
-            falha: textoDaFalha(mutacao.error, TEXTOS_DA_FALHA_DE_CORRIGIR_NOME),
+            falha: errorText(mutacao.error, TEXTOS_DA_FALHA_DE_CORRIGIR_NOME),
           }
         : {})}
     >
@@ -203,11 +203,11 @@ function DialogoDeCorrigirNome({ props, aoFechar, aoConcluido }: { readonly prop
 function DialogoDeBaixar({ props, aoFechar, aoConcluido }: { readonly props: PropsDosDialogos; readonly aoFechar: () => void; readonly aoConcluido: () => void }) {
   const { pedido } = props
   const [finalidade, definirFinalidade] = useState<(typeof FINALIDADES_DO_ARQUIVO_DA_ESCOLA)[number] | undefined>(undefined)
-  const { enviar, mutacao } = useEnvioUnico({
+  const { enviar, mutacao } = useSingleSubmit({
     mutationFn: (escolhida: (typeof FINALIDADES_DO_ARQUIVO_DA_ESCOLA)[number]) => pedirArquivoDaEscola(pedido.id, escolhida),
     onSuccess: (arquivo) => {
       // O endereço assinado vale 5 minutos e sai daqui direto para o navegador: não vai a texto da tela nem a log, e só fica na resposta da mutação (`gcTime: 0`) enquanto o diálogo está montado.
-      baixarPorUrl(arquivo.url, arquivo.nome)
+      downloadFromUrl(arquivo.url, arquivo.nome)
       aoConcluido()
       props.aoAnunciar(anuncioDoArquivoBaixado(arquivo.nome))
     },
@@ -228,7 +228,7 @@ function DialogoDeBaixar({ props, aoFechar, aoConcluido }: { readonly props: Pro
       confirmando={mutacao.isPending}
       impedido={finalidade === undefined}
       focoDeReserva={props.focoDeReserva}
-      {...(mutacao.isError ? { falha: textoDaFalha(mutacao.error, TEXTOS_DA_FALHA_DE_BAIXAR) } : {})}
+      {...(mutacao.isError ? { falha: errorText(mutacao.error, TEXTOS_DA_FALHA_DE_BAIXAR) } : {})}
     >
       <fieldset className="flex min-w-0 flex-col gap-2">
         <legend className="font-medium">Para que é o arquivo</legend>

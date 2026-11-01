@@ -3,7 +3,7 @@ import { minhaAtividadeSchema } from '@educa/shared'
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { Router } from 'wouter'
-import { prepararTela, redeFalsa, renderizarTela } from '../../__fixtures__/render-screen'
+import { setupScreen, fakeNetwork, renderScreen } from '../../__fixtures__/render-screen'
 import Atividades from './Atividades'
 import { AVISO_DA_AVALIACAO, TEXTO_DA_ESPERA_PELA_CORRECAO, VAZIO_DE_CADA_GRUPO } from './atividades'
 
@@ -12,7 +12,7 @@ import { AVISO_DA_AVALIACAO, TEXTO_DA_ESPERA_PELA_CORRECAO, VAZIO_DE_CADA_GRUPO 
  * carregando, erro, vazio total e com dado, com o vazio de cada grupo sozinho. A rede é falsa; a tela, o cliente de
  * consultas e a sessão são os da aba.
  */
-prepararTela()
+setupScreen()
 
 const REQUISICAO = '0190f5a0-0000-7000-8000-000000000001'
 const PAGINA_SEGUINTE = '0192a4c0-5b1e-7c3d-8e4f-0000000000aa'
@@ -32,7 +32,7 @@ const atividade = (final: string, campos: Record<string, unknown> = {}) => ({
 })
 
 function montar() {
-  return renderizarTela(
+  return renderScreen(
     <Router base="/aluno">
       <Atividades />
     </Router>,
@@ -44,7 +44,7 @@ const grupo = (nome: string) => screen.getByRole('region', { name: nome })
 
 describe('Tarefas do aluno', () => {
   it('carregando: o rótulo na tela e nenhum grupo, nenhum vazio', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.segurar()
     montar()
 
@@ -56,7 +56,7 @@ describe('Tarefas do aluno', () => {
   })
 
   it('com erro: o alerta com "Tentar de novo", e nem grupo nem vazio', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor('/v1/minhas-atividades', FALHA)
     montar()
 
@@ -68,7 +68,7 @@ describe('Tarefas do aluno', () => {
   })
 
   it('vazio total, com a leitura terminada: diz que não há tarefa e não desenha grupo', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor('/v1/minhas-atividades', { status: 200, corpo: { itens: [] } })
     montar()
 
@@ -79,7 +79,7 @@ describe('Tarefas do aluno', () => {
   })
 
   it('com dado: três grupos, cada tarefa no seu, na ordem da API, com o estado em texto e a linha inteira como link', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     const itens = [
       atividade('01', { situacao: 'com_diagnostico', respondidas: 3 }),
       atividade('02', { disciplina: MATEMATICA }),
@@ -119,7 +119,7 @@ describe('Tarefas do aluno', () => {
   })
 
   it('"Corrigida" só com a correção aprovada: enviada e encerrada ficam em "Entregues", com o texto de espera, e nunca dizem acerto', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor('/v1/minhas-atividades', {
       status: 200,
       corpo: { itens: [atividade('01', { situacao: 'enviada', respondidas: 3 }), atividade('02', { situacao: 'encerrada', respondidas: 1 })] },
@@ -137,7 +137,7 @@ describe('Tarefas do aluno', () => {
   })
 
   it('o vazio de cada grupo aparece sozinho, no grupo certo, e os outros grupos seguem com as suas linhas', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor('/v1/minhas-atividades', { status: 200, corpo: { itens: [atividade('01', { situacao: 'com_diagnostico', respondidas: 3 })] } })
     montar()
 
@@ -149,7 +149,7 @@ describe('Tarefas do aluno', () => {
   })
 
   it('nada de colega (RF10): a varredura do texto da tela não acha ranking, média, posição, pontos nem sequência', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     const itens = [
       atividade('01'),
       atividade('02', { situacao: 'em_andamento', respondidas: 1, avaliativa: true }),
@@ -170,7 +170,7 @@ describe('Tarefas do aluno', () => {
   })
 
   it('só o que o contrato traz chega à tela: com um campo a mais (o professor) a lista não é desenhada, e o nome dele não aparece', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     const comProfessor = atividade('01', { nomeDoProfessor: 'Camila Souza sintética' })
     // O contrato é estrito: o campo a mais não é ignorado em silêncio, e portanto não chega a ser desenhado.
     expect(minhaAtividadeSchema.safeParse(comProfessor).success).toBe(false)
@@ -188,7 +188,7 @@ describe('Tarefas do aluno', () => {
   })
 
   it('"Ver mais tarefas" só aparece quando a API aponta a página seguinte, e nada rola sem o aluno pedir', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor('/v1/minhas-atividades', { status: 200, corpo: { itens: [atividade('01')], proxima: PAGINA_SEGUINTE } })
     montar()
 
@@ -198,7 +198,7 @@ describe('Tarefas do aluno', () => {
   })
 
   it('sem página seguinte, não há botão de ver mais', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor('/v1/minhas-atividades', { status: 200, corpo: { itens: [atividade('01')] } })
     montar()
 
@@ -207,7 +207,7 @@ describe('Tarefas do aluno', () => {
   })
 
   it('"Ver mais tarefas" pede a segunda página só ao clicar, mostra "Carregando…" sem aceitar outro clique, e põe a tarefa nova no grupo dela', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     let liberar: (resposta: { status: number; corpo: unknown }) => void = () => undefined
     let chamadas = 0
     rede.responderPor('/v1/minhas-atividades', () => {

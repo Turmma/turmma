@@ -6,10 +6,10 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { Router } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
-import { consultaAtividadesAplicadas } from './api/atividades'
-import { criarClienteDeConsultas } from '../../../api/query-client'
+import { atividadesAplicadasQueryOptions } from './api/atividades'
+import { createQueryClient } from '../../../api/query-client'
 import { caminhoDaCorrecaoDoProfessor, caminhoDoArtefatoDoProfessor } from '../../../paths'
-import { prepararTela, redeFalsa, type RedeFalsa, type RespostaFalsa } from '../../../__fixtures__/render-screen'
+import { setupScreen, fakeNetwork, type FakeNetwork, type FakeResponse } from '../../../__fixtures__/render-screen'
 import * as textosDaTela from './aprovar'
 import { AVISO_DA_AVALIATIVA_ABERTA, TEXTO_SEM_CORRECAO } from './aprovar'
 import AtividadesDaTurma, {
@@ -32,7 +32,7 @@ import AtividadesDaTurma, {
  * encerrar, o cliente de consultas e a rota são os de verdade. Encerrar com clique duplo, a troca de turma com a resposta
  * atrasada e a segunda pessoa na mesma aba ficam no e2e (`professor-turma-atividades.spec.ts`).
  */
-prepararTela()
+setupScreen()
 
 const id = (n: number) => `0197a1c0-0000-7000-8000-${String(n).padStart(12, '0')}`
 const TURMA = id(100)
@@ -71,9 +71,9 @@ const NINGUEM_RESPONDEU = aplicada(6, { entrega: null, participacao: { alunos: 3
 const FUNCAO_SUSPENSA = aplicada(7, { entrega: null, participacao: { alunos: 30, iniciaram: 12, enviaram: 10 } })
 const DAS_SITUACOES = [ABERTA, AVALIATIVA, PARA_REVISAR, CORRIGIDA, LOTE_REJEITADO, NINGUEM_RESPONDEU, FUNCAO_SUSPENSA]
 
-const ok = (corpo: unknown): RespostaFalsa => ({ status: 200, corpo })
+const ok = (corpo: unknown): FakeResponse => ({ status: 200, corpo })
 // Limite excedido não é repetido sozinho: o erro chega na hora, sem esperar a nova tentativa.
-const FALHA: RespostaFalsa = { status: 429, corpo: { erro: { codigo: 'LIMITE_EXCEDIDO', mensagem: 'x', requisicaoId: '0190f5a0-0000-7000-8000-000000000001' } } }
+const FALHA: FakeResponse = { status: 429, corpo: { erro: { codigo: 'LIMITE_EXCEDIDO', mensagem: 'x', requisicaoId: '0190f5a0-0000-7000-8000-000000000001' } } }
 const VOCABULARIO_PROIBIDO = /\bnotas?\b|\bconceitos?\b|pontua|\bmédia\b|ranking|pódio/i
 
 beforeEach(() => {
@@ -99,19 +99,19 @@ beforeEach(() => {
 
 interface Quem {
   /** O que a API devolve para a lista: a lista de itens, ou a resposta pronta (a falha, a leitura segurada). */
-  readonly lista?: readonly AtividadeAplicada[] | ((caminho: string) => RespostaFalsa | Promise<RespostaFalsa>)
+  readonly lista?: readonly AtividadeAplicada[] | ((caminho: string) => FakeResponse | Promise<FakeResponse>)
 }
 
-function instalar(rede: RedeFalsa, turma: string, { lista = [] }: Quem = {}): void {
+function instalar(rede: FakeNetwork, turma: string, { lista = [] }: Quem = {}): void {
   rede.responderPor('/v1/atividades-aplicadas', typeof lista === 'function' ? lista : () => ok({ itens: lista }))
   rede.responderPor(`/v1/turmas/${turma}`, ok({ id: turma, nome: turma === TURMA ? '7º A' : '8º B', serie: SERIE }))
 }
 
 function montar(quem: Quem = {}, busca = 'aba=atividades') {
-  const rede = redeFalsa()
+  const rede = fakeNetwork()
   instalar(rede, TURMA, quem)
   const localizacao = memoryLocation({ path: `/turmas/${TURMA}`, searchPath: busca, record: true })
-  const cliente = criarClienteDeConsultas()
+  const cliente = createQueryClient()
   const arvore = (turmaId: string) => (
     <QueryClientProvider client={cliente}>
       <Router hook={localizacao.hook} searchHook={localizacao.searchHook}>
@@ -126,7 +126,7 @@ function montar(quem: Quem = {}, busca = 'aba=atividades') {
 const lista = () => screen.getByRole('region', { name: 'Atividades da turma' })
 const linhaDe = (titulo: string) => within(lista()).getByRole('button', { name: new RegExp(titulo) })
 const titulosDaLista = () => within(lista()).getAllByRole('listitem').map((item) => within(item).getByRole('button').querySelector('[title]')?.getAttribute('title'))
-const chamadasA = (rede: RedeFalsa, caminho: string) => rede.chamadas.filter((chamada) => chamada.caminho.split('?')[0] === caminho)
+const chamadasA = (rede: FakeNetwork, caminho: string) => rede.chamadas.filter((chamada) => chamada.caminho.split('?')[0] === caminho)
 
 describe('o estado de cada linha (D46, D55)', () => {
   it.each<[string, AtividadeAplicada, EstadoDaAtividade, string]>([
@@ -286,7 +286,7 @@ describe('o filtro das listas longas', () => {
 
     // A releitura traz oito: o filtro some, e as oito aparecem, mesmo com "Abertas" ainda guardado.
     itens = nove.slice(0, LIMITE_PARA_FILTRAR)
-    await act(() => cliente.invalidateQueries({ queryKey: consultaAtividadesAplicadas(TURMA).queryKey }))
+    await act(() => cliente.invalidateQueries({ queryKey: atividadesAplicadasQueryOptions(TURMA).queryKey }))
     await waitFor(() => expect(within(lista()).getAllByRole('listitem')).toHaveLength(LIMITE_PARA_FILTRAR))
     expect(screen.queryByRole('radiogroup')).toBeNull()
     expect(screen.queryByText('Nada com este filtro')).toBeNull()
@@ -483,8 +483,8 @@ describe('as ações do painel', () => {
   it('"Corrigir de novo" com dois cliques no mesmo instante manda um pedido só, o botão diz "Corrigindo…" enquanto o pedido está no ar, e a função ainda suspensa é dita no painel', async () => {
     const { rede } = montar({ lista: [FUNCAO_SUSPENSA] }, `aba=atividades&atividade=${FUNCAO_SUSPENSA.id}`)
     const aberto = await screen.findByRole('dialog', { name: FUNCAO_SUSPENSA.titulo })
-    let liberar: (resposta: RespostaFalsa) => void = () => undefined
-    rede.responderPor(`/v1/atividades-aplicadas/${FUNCAO_SUSPENSA.id}/encerrar`, () => new Promise<RespostaFalsa>((resolver) => (liberar = resolver)))
+    let liberar: (resposta: FakeResponse) => void = () => undefined
+    rede.responderPor(`/v1/atividades-aplicadas/${FUNCAO_SUSPENSA.id}/encerrar`, () => new Promise<FakeResponse>((resolver) => (liberar = resolver)))
     const botao = within(aberto).getByRole('button', { name: 'Corrigir de novo' })
     // Os dois cliques no mesmo lote de atualizações: o botão ainda não desligou quando o segundo chega.
     act(() => {

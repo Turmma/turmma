@@ -20,7 +20,7 @@ interface PropsDaRegiaoQueRola {
  * não desenha) vale "há mais", o lado de quem avisa a mais. (A guarda de cor da web não aceita degradê com transparência nem
  * modificador de opacidade: a faixa é de cor cheia.)
  */
-export function RegiaoQueRola({ nome, alturaMaxima, children }: PropsDaRegiaoQueRola) {
+export function ScrollArea({ nome, alturaMaxima, children }: PropsDaRegiaoQueRola) {
   const regiao = useRef<HTMLDivElement>(null)
   const [haMais, definirHaMais] = useState(true)
 

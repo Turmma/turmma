@@ -1,7 +1,7 @@
 import { Component, useContext, useEffect, useRef, type ReactNode } from 'react'
-import { useTituloDaAba } from '../document-title'
+import { useTabTitle } from '../document-title'
 import { Button } from './ui/Button'
-import { ContextoDaGaveta } from './drawer-context'
+import { DrawerContext } from './drawer-context'
 
 interface PropsDaFalha {
   /** O título da aba enquanto a falha está na tela: sem ele, a aba ficaria com o da página anterior. */
@@ -20,7 +20,7 @@ interface PropsDaFalha {
 /**
  * A tela da falha. Ao aparecer:
  *
- * - põe o título da falha na aba pelo mesmo gancho das rotas (`useTituloDaAba`), e o devolve ao sair — quem sai da falha
+ * - põe o título da falha na aba pelo mesmo gancho das rotas (`useTabTitle`), e o devolve ao sair — quem sai da falha
  *   pelo "Sair" ou por outra rota não fica com uma aba dizendo que algo não carregou. Pelo gancho, e não no
  *   `componentDidCatch`: a rota de antes devolve o título dela no efeito de desmontagem, que roda depois do
  *   `componentDidCatch` e apagaria o da falha quando a área já tinha falhado antes e cai na fronteira de uma vez;
@@ -28,8 +28,8 @@ interface PropsDaFalha {
  *   devolve o foco a quem o abriu, e quem usa teclado ou leitor de tela ficaria sem saber que a tela atrás mudou.
  */
 function Falha({ tituloDaAba, titulo, texto, paginaInteira = false }: PropsDaFalha) {
-  useTituloDaAba(tituloDaAba)
-  const { fechar } = useContext(ContextoDaGaveta)
+  useTabTitle(tituloDaAba)
+  const { fechar } = useContext(DrawerContext)
   const tituloDaFalha = useRef<HTMLHeadingElement>(null)
   useEffect(() => {
     fechar()
@@ -60,7 +60,7 @@ function Falha({ tituloDaAba, titulo, texto, paginaInteira = false }: PropsDaFal
  * "Tentar de novo" recarrega a página, porque o navegador e o `lazy` do React guardam a falha do módulo, e um segundo
  * `import()` do mesmo endereço devolveria a mesma falha. A tela que não carregou não tem o que perder na recarga.
  */
-export class FronteiraDaArea extends Component<PropsDaFalha & { readonly children: ReactNode }, { falhou: boolean }> {
+export class AreaErrorBoundary extends Component<PropsDaFalha & { readonly children: ReactNode }, { falhou: boolean }> {
   override state = { falhou: false }
 
   static getDerivedStateFromError(): { falhou: boolean } {

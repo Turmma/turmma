@@ -11,14 +11,14 @@ import {
 import { useQuery } from '@tanstack/react-query'
 import { useEffect, useState, type FormEvent } from 'react'
 import { useLocation } from 'wouter'
-import { ErroDaApi } from '../api/client'
-import { consultaAcessoDaEscola, enderecoDoLoginExterno, NOME_DO_PROVEDOR } from '../api/escola'
+import { ApiError } from '../api/client'
+import { acessoDaEscolaQueryOptions, enderecoDoLoginExterno, NOME_DO_PROVEDOR } from '../api/escola'
 import { entrarPorMatricula } from '../api/sessao'
-import { ROTA_DA_ETAPA } from '../paths'
+import { LOGIN_STEP_ROUTE } from '../paths'
 import { Button } from '../components/ui/Button'
 import { FormField } from '../components/ui/fields/FormField'
 import { CascaPublica } from '../components/CascaPublica'
-import { EstadoCarregando } from '../components/states'
+import { LoadingState } from '../components/states'
 
 /**
  * O aviso fixo dos botões da conta da escola (PRD, casos de borda "Admin da escola não liberou o app" e "Escola revoga
@@ -38,12 +38,12 @@ const AVISO_DA_TI = 'A equipe de tecnologia da escola precisa liberar este aplic
  * A linguagem é a do aluno de 11 anos (`docs/interface.md`, seção 2): frases curtas, sem jargão e sem código de erro.
  */
 export function EntrarNaEscola({ slug }: { slug: string }) {
-  const acesso = useQuery(consultaAcessoDaEscola(slug))
+  const acesso = useQuery(acessoDaEscolaQueryOptions(slug))
   const falha = useFalhaDaContaDaEscola()
 
   return (
     <CascaPublica titulo={acesso.data?.nome ?? 'Entrar na escola'}>
-      {acesso.isPending && <EstadoCarregando rotulo="Abrindo o endereço da escola…" />}
+      {acesso.isPending && <LoadingState rotulo="Abrindo o endereço da escola…" />}
       {acesso.isError && <ErroDoEndereco erro={acesso.error} aoTentarDeNovo={() => void acesso.refetch({ cancelRefetch: false })} tentando={acesso.isFetching} />}
       {falha !== undefined && (
         <p role="alert" className="rounded-controle border border-pendente bg-pendente-cx p-4 text-pendente">
@@ -76,7 +76,7 @@ function useFalhaDaContaDaEscola(): string | undefined {
 
 /** O endereço que não abre. `NAO_ENCONTRADO` não oferece "tentar de novo": insistir não faz o endereço existir. */
 function ErroDoEndereco({ erro, aoTentarDeNovo, tentando }: { erro: unknown; aoTentarDeNovo: () => void; tentando: boolean }) {
-  const codigo = erro instanceof ErroDaApi ? erro.codigo : ErrorCode.ERRO_INTERNO
+  const codigo = erro instanceof ApiError ? erro.codigo : ErrorCode.ERRO_INTERNO
   return (
     <div className="rounded-controle border border-erro bg-erro-cx p-4">
       <p role="alert" className="text-erro">
@@ -110,7 +110,7 @@ function FormularioDaMatricula({ slug }: { slug: string }) {
       // O endereço vai no corpo: é ele que diz a escola, e a mesma matrícula em outra escola é outra conta (RF7).
       const resposta = await entrarPorMatricula({ slug, matricula, senha })
       definirSenha('')
-      navegar(ROTA_DA_ETAPA[resposta.etapa])
+      navegar(LOGIN_STEP_ROUTE[resposta.etapa])
     } catch (erro) {
       definirFalha(erro)
     } finally {
@@ -146,7 +146,7 @@ function FormularioDaMatricula({ slug }: { slug: string }) {
       />
       {falha !== undefined && (
         <p role="alert" className="rounded-controle border border-erro bg-erro-cx p-4 text-erro">
-          {falha instanceof ErroDaApi ? mensagemDaEntradaPorMatricula(falha.codigo, falha.esperaSegundos) : mensagemDaEntradaPorMatricula(ErrorCode.ERRO_INTERNO)}
+          {falha instanceof ApiError ? mensagemDaEntradaPorMatricula(falha.codigo, falha.esperaSegundos) : mensagemDaEntradaPorMatricula(ErrorCode.ERRO_INTERNO)}
         </p>
       )}
       <Button type="submit" disabled={entrando} className="w-full">

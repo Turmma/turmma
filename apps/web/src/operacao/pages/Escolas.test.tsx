@@ -5,14 +5,14 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { TEXTO_DO_ESTADO } from '../estados-da-escola'
 import {
-  AUTORIZACAO_DE_OPERADOR_DE_TESTE,
+  OPERATOR_TEST_AUTHORIZATION,
   CONVITE_DE_TESTE,
   escolaDoPainel,
   janelaDe,
-  prepararTelaDaOperacao,
-  redeFalsa,
-  renderizarTelaDaOperacao,
-  type RespostaFalsa,
+  setupOperacaoScreen,
+  fakeNetwork,
+  renderOperacaoScreen,
+  type FakeResponse,
 } from '../__fixtures__/render-operacao-screen'
 import { Escolas } from './Escolas'
 
@@ -21,15 +21,15 @@ import { Escolas } from './Escolas'
  * texto nos sete casos, e nenhum dado de pessoa. A rede é falsa e tudo o mais é o código de verdade. A medida e a cor de
  * verdade são do e2e (`e2e/operacao-escolas.spec.ts`).
  */
-prepararTelaDaOperacao()
+setupOperacaoScreen()
 
 beforeEach(() => janelaDe(1366))
 
-const lista = (itens: readonly EscolaDoPainel[], extra: { total?: number; pagina?: number } = {}): RespostaFalsa => ({
+const lista = (itens: readonly EscolaDoPainel[], extra: { total?: number; pagina?: number } = {}): FakeResponse => ({
   status: 200,
   corpo: { itens, pagina: extra.pagina ?? 1, total: extra.total ?? itens.length },
 })
-const FALHA_503: RespostaFalsa = { status: 503, corpo: { erro: { codigo: 'INDISPONIVEL_TENTE_DE_NOVO', mensagem: 'x', requisicaoId: '0190f5a0-0000-7000-8000-000000000001' } } }
+const FALHA_503: FakeResponse = { status: 503, corpo: { erro: { codigo: 'INDISPONIVEL_TENTE_DE_NOVO', mensagem: 'x', requisicaoId: '0190f5a0-0000-7000-8000-000000000001' } } }
 
 /** A linha da tabela daquela escola, pelo cabeçalho de linha dela. */
 function linhaDa(nome: string): HTMLElement {
@@ -40,9 +40,9 @@ function linhaDa(nome: string): HTMLElement {
 
 describe('Escolas: os estados da tela (RF22)', () => {
   it('carrega, mostra a lista, e a página é a que a API deu, pela sessão do operador', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     const solta = rede.segurar()
-    renderizarTelaDaOperacao(<Escolas />)
+    renderOperacaoScreen(<Escolas />)
     expect(await screen.findByText('Carregando as escolas…')).toBeTruthy()
     expect(screen.queryByRole('table')).toBeNull()
     // O vazio só vem com a leitura terminada e sem erro (RF22).
@@ -52,16 +52,16 @@ describe('Escolas: os estados da tela (RF22)', () => {
     expect(await screen.findByRole('table')).toBeTruthy()
     expect(screen.queryByText('Carregando as escolas…')).toBeNull()
     expect(rede.chamadas.map(({ caminho, autorizacao }) => ({ caminho, autorizacao }))).toEqual([
-      { caminho: '/v1/operacao/escolas?pagina=1&ordem=nome', autorizacao: AUTORIZACAO_DE_OPERADOR_DE_TESTE },
+      { caminho: '/v1/operacao/escolas?pagina=1&ordem=nome', autorizacao: OPERATOR_TEST_AUTHORIZATION },
     ])
   })
 
   it('o 503 mostra a mensagem e a tela fica; "Tentar de novo" lê outra vez e some com o erro', async () => {
-    const rede = redeFalsa()
-    // O 503 é repetido sozinho uma vez (`deveTentarDeNovo`); só depois a tela mostra o erro.
+    const rede = fakeNetwork()
+    // O 503 é repetido sozinho uma vez (`shouldRetry`); só depois a tela mostra o erro.
     rede.responder(FALHA_503)
     rede.responder(FALHA_503)
-    renderizarTelaDaOperacao(<Escolas />)
+    renderOperacaoScreen(<Escolas />)
     expect((await screen.findByRole('alert', {}, { timeout: 4000 })).textContent).toBe('O Turmma está indisponível agora. Tente de novo em instantes.')
     expect(screen.queryByRole('table')).toBeNull()
     expect(screen.queryByText('Nenhuma escola ainda.')).toBeNull()
@@ -75,8 +75,8 @@ describe('Escolas: os estados da tela (RF22)', () => {
   })
 
   it('sem escola nenhuma, o vazio convida a criar a rede; não há tabela nem páginas', async () => {
-    redeFalsa().responder(lista([]))
-    renderizarTelaDaOperacao(<Escolas />)
+    fakeNetwork().responder(lista([]))
+    renderOperacaoScreen(<Escolas />)
     expect(await screen.findByText('Nenhuma escola ainda.')).toBeTruthy()
     expect(screen.getByText('Comece criando a rede.')).toBeTruthy()
     // Um só "Nova rede" (o do topo) e um só botão cheio: o vazio não repete o convite como um segundo primário.
@@ -88,8 +88,8 @@ describe('Escolas: os estados da tela (RF22)', () => {
   })
 
   it('a página além da última tem o vazio dela, com o caminho de volta à primeira', async () => {
-    redeFalsa().responder(lista([], { total: 30, pagina: 9 }))
-    const tela = renderizarTelaDaOperacao(<Escolas />, { busca: 'pagina=9&ordem=uso' })
+    fakeNetwork().responder(lista([], { total: 30, pagina: 9 }))
+    const tela = renderOperacaoScreen(<Escolas />, { busca: 'pagina=9&ordem=uso' })
     expect(await screen.findByText('Não há escolas nesta página.')).toBeTruthy()
     expect(screen.getByText('A lista tem 2 páginas.')).toBeTruthy()
     await userEvent.click(screen.getByRole('button', { name: 'Ir para a primeira página' }))
@@ -97,9 +97,9 @@ describe('Escolas: os estados da tela (RF22)', () => {
   })
 
   it('na troca de página, a anterior fica na tela, ocupada, em vez de piscar o vazio; ao chegar, a nova entra', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responder(lista([escolaDoPainel(1)], { total: 30 }))
-    const tela = renderizarTelaDaOperacao(<Escolas />)
+    const tela = renderOperacaoScreen(<Escolas />)
     await screen.findByRole('table')
     const regiao = screen.getByRole('region', { name: 'Lista de escolas' })
     expect(regiao.getAttribute('aria-busy')).toBe('false')
@@ -143,8 +143,8 @@ const UMA_ESCOLA_POR_ESTADO = ESTADOS_DA_COORDENACAO.map((estado, posicao) => es
 
 describe('Escolas: o estado da coordenação em texto, nos sete estados (RF21)', () => {
   it('no computador, cada estado diz o texto dele, e só mostra a ação que ele permite', async () => {
-    redeFalsa().responder(lista(UMA_ESCOLA_POR_ESTADO))
-    renderizarTelaDaOperacao(<Escolas />)
+    fakeNetwork().responder(lista(UMA_ESCOLA_POR_ESTADO))
+    renderOperacaoScreen(<Escolas />)
     await screen.findByRole('table')
 
     for (const escola of UMA_ESCOLA_POR_ESTADO) {
@@ -159,8 +159,8 @@ describe('Escolas: o estado da coordenação em texto, nos sete estados (RF21)',
 
   it('no celular, a lista de cartões diz o mesmo texto e oferece as mesmas ações, sem tabela', async () => {
     janelaDe(360)
-    redeFalsa().responder(lista(UMA_ESCOLA_POR_ESTADO))
-    renderizarTelaDaOperacao(<Escolas />)
+    fakeNetwork().responder(lista(UMA_ESCOLA_POR_ESTADO))
+    renderOperacaoScreen(<Escolas />)
     const itens = await screen.findAllByRole('listitem')
     expect(screen.queryByRole('table')).toBeNull()
     expect(itens).toHaveLength(UMA_ESCOLA_POR_ESTADO.length)
@@ -174,14 +174,14 @@ describe('Escolas: o estado da coordenação em texto, nos sete estados (RF21)',
   })
 
   it('o uso de cada escola é a contagem dela por extenso, e a escola sem turma diz "Sem turma ainda"', async () => {
-    redeFalsa().responder(
+    fakeNetwork().responder(
       lista([
         escolaDoPainel(1, { turmas: 4, professores: 6, alunos: 112 }),
         escolaDoPainel(2, { turmas: 1, professores: 1, alunos: 1 }),
         escolaDoPainel(3, { turmas: 0, professores: 0, alunos: 0 }),
       ]),
     )
-    renderizarTelaDaOperacao(<Escolas />)
+    renderOperacaoScreen(<Escolas />)
     await screen.findByRole('table')
     expect(within(linhaDa('Escola Sintética 1')).getByText(/4 turmas/).closest('td')?.textContent).toBe('4 turmas · 6 professores · 112 alunos')
     expect(within(linhaDa('Escola Sintética 2')).getByText(/1 turma/).closest('td')?.textContent).toBe('1 turma · 1 professor · 1 aluno')
@@ -195,8 +195,8 @@ describe('Escolas: o estado da coordenação em texto, nos sete estados (RF21)',
 // pessoa é recusada). Procurar `@` ou "matrícula" no texto da tela não provaria nada: os dados daqui não têm nenhum dos dois.
 describe('Escolas: nenhum dado de pessoa (D76)', () => {
   it('a tabela tem só escola, rede, coordenação (pelo estado) e uso: quatro colunas, nenhuma de pessoa', async () => {
-    redeFalsa().responder(lista(UMA_ESCOLA_POR_ESTADO))
-    renderizarTelaDaOperacao(<Escolas />)
+    fakeNetwork().responder(lista(UMA_ESCOLA_POR_ESTADO))
+    renderOperacaoScreen(<Escolas />)
     await screen.findByRole('table')
     const colunas = within(screen.getByRole('table'))
       .getAllByRole('columnheader')
@@ -206,8 +206,8 @@ describe('Escolas: nenhum dado de pessoa (D76)', () => {
 
   it('uma resposta com o nome ou o e-mail da coordenação é recusada pelo contrato: a tela mostra o erro, e a pessoa não aparece', async () => {
     const comPessoa = { ...escolaDoPainel(1), coordenacao: { nome: 'Maria da Silva', email: 'maria@escola.example' } }
-    redeFalsa().responderPor('/v1/operacao/escolas', { status: 200, corpo: { itens: [comPessoa], pagina: 1, total: 1 } })
-    renderizarTelaDaOperacao(<Escolas />)
+    fakeNetwork().responderPor('/v1/operacao/escolas', { status: 200, corpo: { itens: [comPessoa], pagina: 1, total: 1 } })
+    renderOperacaoScreen(<Escolas />)
     await screen.findByRole('alert', {}, { timeout: 4000 })
     expect(screen.queryByRole('table')).toBeNull()
     expect(document.body.textContent).not.toContain('Maria da Silva')
@@ -217,8 +217,8 @@ describe('Escolas: nenhum dado de pessoa (D76)', () => {
 
 describe('Escolas: as ações da página (RF21)', () => {
   it('"Nova escola" é o único botão cheio da tela; "Nova rede" e as ações da linha são secundários', async () => {
-    redeFalsa().responder(lista(UMA_ESCOLA_POR_ESTADO))
-    renderizarTelaDaOperacao(<Escolas />)
+    fakeNetwork().responder(lista(UMA_ESCOLA_POR_ESTADO))
+    renderOperacaoScreen(<Escolas />)
     await screen.findByRole('table')
     // A face laranja é só do `primario` (`button-variants.ts`): é o que o `Button` sem variante desenha.
     const cheios = screen.getAllByRole('button').filter((botao) => botao.classList.contains('bg-laranja'))

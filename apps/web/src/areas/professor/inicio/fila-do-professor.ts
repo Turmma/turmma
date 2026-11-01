@@ -1,12 +1,12 @@
 import { ErrorCode, FUNCOES, NOME_DO_TIPO_DE_ENTREGA, type ChaveDeFuncao, type Entrega, type ListaDeEntregasResponse, type MeusVinculosResponse, type Vinculo } from '@educa/shared'
 import { useInfiniteQuery, useQueries, useQuery, useQueryClient, type InfiniteData, type UseInfiniteQueryResult, type UseQueryResult } from '@tanstack/react-query'
 import { useState } from 'react'
-import { ErroDaApi } from '../../../api/client'
-import { consultaEntregasPendentes } from '../artefatos/api/entregas'
-import { consultaContagemDePedidos, type ContagemDePedidos } from '../../../api/pedidos'
-import { consultaMeusVinculos } from '../comum/api/vinculos'
-import { caminhoDaCorrecaoDoProfessor, caminhoDaTurmaDoProfessor, ROTAS_DO_PROFESSOR } from '../../../paths'
-import { LEITURA_DA_FILA, type LeituraDaFila } from '../../../components/sino/leitura-do-sino'
+import { ApiError } from '../../../api/client'
+import { entregasPendentesQueryOptions } from '../artefatos/api/entregas'
+import { contagemDePedidosQueryOptions, type ContagemDePedidos } from '../../../api/pedidos'
+import { meusVinculosQueryOptions } from '../comum/api/vinculos'
+import { caminhoDaCorrecaoDoProfessor, caminhoDaTurmaDoProfessor, PROFESSOR_ROUTES } from '../../../paths'
+import { QUEUE_QUERY_OPTIONS, type LeituraDaFila } from '../../../components/sino/leitura-do-sino'
 import type { ItemDoSino, SituacaoDoSino } from '../../../components/sino/Sino'
 import { nomesDasTurmas } from '../comum/turmas-da-professora'
 
@@ -18,7 +18,7 @@ import { nomesDasTurmas } from '../comum/turmas-da-professora'
  * **Os tipos são quatro e só esses**, e todos são decisão que é dela: a correção para revisar, a versão adaptada para
  * decidir, os pedidos de nome (um item por turma, com a quantidade) e a turma para confirmar. O vínculo contestado espera a
  * coordenação e não conta. **Nenhum item leva nome de aluno** (regra 20; D34): os pedidos entram só como número (`api/pedidos.ts`,
- * `consultaContagemDePedidos`), e os itens falam do trabalho e da turma. O sino de hoje não tem sinal do Tutor (F10).
+ * `contagemDePedidosQueryOptions`), e os itens falam do trabalho e da turma. O sino de hoje não tem sinal do Tutor (F10).
  */
 export const TIPOS_DA_FILA_DO_PROFESSOR = ['correcao', 'versao-adaptada', 'pedidos-de-nome', 'confirme-sua-turma'] as const
 export type TipoDeItemDoProfessor = (typeof TIPOS_DA_FILA_DO_PROFESSOR)[number]
@@ -77,7 +77,7 @@ function lida<Dado>(leitura: LeituraDaFila<Dado>): Dado | undefined {
 
 /** Sem ano letivo em curso, `meus-vinculos` e `entregas` respondem `NAO_ENCONTRADO` (`requireAnoEmCurso`), e a professora não tem como ler o ano. */
 function semAnoLetivoPelaResposta(leitura: LeituraDaFila<unknown>): boolean {
-  return leitura.estado === 'erro' && leitura.erro instanceof ErroDaApi && leitura.erro.codigo === ErrorCode.NAO_ENCONTRADO
+  return leitura.estado === 'erro' && leitura.erro instanceof ApiError && leitura.erro.codigo === ErrorCode.NAO_ENCONTRADO
 }
 
 const porNome = (a: string, b: string) => a.localeCompare(b, 'pt-BR', { numeric: true })
@@ -108,9 +108,9 @@ function itensDeEntrega(entregas: readonly Entrega[], nomes: Readonly<Record<str
           detalhe: entrega.titulo,
           urgente: false,
           // O lote sem atividade aplicada (o contrato admite `null`) não tem tela de correção: a decisão fica no Assistente.
-          para: entrega.atividadeAplicadaId === null ? ROTAS_DO_PROFESSOR.timeDoAssistente : caminhoDaCorrecaoDoProfessor(entrega.atividadeAplicadaId),
+          para: entrega.atividadeAplicadaId === null ? PROFESSOR_ROUTES.timeDoAssistente : caminhoDaCorrecaoDoProfessor(entrega.atividadeAplicadaId),
         }
-      return { id: `entrega-${entrega.id}`, tipo: 'versao-adaptada', grupo, turmaId: entrega.turmaId, titulo: 'Versão adaptada para decidir', detalhe: entrega.titulo, urgente: false, para: ROTAS_DO_PROFESSOR.timeDoAssistente }
+      return { id: `entrega-${entrega.id}`, tipo: 'versao-adaptada', grupo, turmaId: entrega.turmaId, titulo: 'Versão adaptada para decidir', detalhe: entrega.titulo, urgente: false, para: PROFESSOR_ROUTES.timeDoAssistente }
     })
 }
 
@@ -133,7 +133,7 @@ function itensDeConfirmacao(vinculos: readonly Vinculo[]): ItemDaFilaDoProfessor
       titulo: 'Confirme sua turma',
       detalhe: vinculo.disciplina?.nome ?? 'A coordenação alocou você nesta turma',
       urgente: false,
-      para: ROTAS_DO_PROFESSOR.turmas,
+      para: PROFESSOR_ROUTES.turmas,
     }))
 }
 
@@ -295,21 +295,21 @@ function leituraDosVinculos(consulta: UseInfiniteQueryResult<InfiniteData<MeusVi
 
 /** A recusa por limite (`LIMITE_EXCEDIDO`): repetir é o que ela pede para não fazer, e o sino para de ler as turmas. */
 function foiRecusadaPorLimite(erro: unknown): boolean {
-  return erro instanceof ErroDaApi && erro.codigo === ErrorCode.LIMITE_EXCEDIDO
+  return erro instanceof ApiError && erro.codigo === ErrorCode.LIMITE_EXCEDIDO
 }
 
 /**
  * Lê a fila: as entregas pendentes, os vínculos e, **uma turma por vez**, a contagem de pedidos das turmas confirmadas (as 12
  * primeiras por nome). A leitura seguinte só sai quando a anterior respondeu, e **para na primeira recusa por limite**: as que
- * ficaram sem ler aparecem como não lidas. Todas com `LEITURA_DA_FILA`: nenhuma leitura por tempo, foco ou rede, e abrir a lista
+ * ficaram sem ler aparecem como não lidas. Todas com `QUEUE_QUERY_OPTIONS`: nenhuma leitura por tempo, foco ou rede, e abrir a lista
  * não lê. Sem ano letivo em curso (`meus-vinculos` responde como inexistente) nenhuma turma é lida.
  *
  * "Tentar de novo" relê só o que falhou ou veio truncado, e "Atualizar" relê as leituras do sino, cada uma por `refetchQueries`
  * com a chave **exata** da consulta: nunca por prefixo, que alcançaria a lista nominal de pedidos, com o nome dos alunos.
  */
 export function useFilaDoProfessor(): FilaLidaDoProfessor {
-  const consultaDeEntregas = useQuery({ ...consultaEntregasPendentes, ...LEITURA_DA_FILA })
-  const consultaDeVinculos = useInfiniteQuery({ ...consultaMeusVinculos, ...LEITURA_DA_FILA })
+  const consultaDeEntregas = useQuery({ ...entregasPendentesQueryOptions, ...QUEUE_QUERY_OPTIONS })
+  const consultaDeVinculos = useInfiniteQuery({ ...meusVinculosQueryOptions, ...QUEUE_QUERY_OPTIONS })
   const entregas = leituraDasEntregas(consultaDeEntregas)
   const vinculos = leituraDosVinculos(consultaDeVinculos)
 
@@ -329,9 +329,9 @@ export function useFilaDoProfessor(): FilaLidaDoProfessor {
   // no limite. Quem relê uma contagem lida é o clique ("Atualizar", "Tentar de novo") e a decisão de um pedido, uma de cada vez.
   const leiturasDasTurmas = useQueries({
     queries: emLeitura.map((turma) => {
-      const consulta = consultaContagemDePedidos(turma.turmaId)
+      const consulta = contagemDePedidosQueryOptions(turma.turmaId)
       const estado = cliente.getQueryState(consulta.queryKey)
-      return { ...consulta, ...LEITURA_DA_FILA, enabled: estado === undefined || estado.status === 'pending' }
+      return { ...consulta, ...QUEUE_QUERY_OPTIONS, enabled: estado === undefined || estado.status === 'pending' }
     }),
   })
   const recusada = leiturasDasTurmas.some((leitura) => leitura.isError && foiRecusadaPorLimite(leitura.error))
@@ -363,7 +363,7 @@ export function useFilaDoProfessor(): FilaLidaDoProfessor {
   /** As turmas, uma por vez, parando na primeira recusa por limite: a série da primeira leitura vale também para a releitura. */
   async function relerEmSerie(turmaIds: readonly string[]): Promise<void> {
     for (const turmaId of turmaIds) {
-      const consulta = consultaContagemDePedidos(turmaId)
+      const consulta = contagemDePedidosQueryOptions(turmaId)
       // A contagem lida está desligada (ver acima), e `refetchQueries` não relê consulta desligada: a leitura é pedida direto.
       await cliente.fetchQuery({ ...consulta, staleTime: 0 }).catch(() => undefined)
       const estado = cliente.getQueryState(consulta.queryKey)
@@ -378,7 +378,7 @@ export function useFilaDoProfessor(): FilaLidaDoProfessor {
     const turmasComFalha = emLeitura.filter((_, indice) => leiturasDasTurmas[indice]?.isError === true).map((turma) => turma.turmaId)
     definirTentando(true)
     void (async () => {
-      await Promise.allSettled([...(entregasAReler ? [reler(consultaEntregasPendentes)] : []), ...(vinculosAReler ? [reler(consultaMeusVinculos)] : [])])
+      await Promise.allSettled([...(entregasAReler ? [reler(entregasPendentesQueryOptions)] : []), ...(vinculosAReler ? [reler(meusVinculosQueryOptions)] : [])])
       await relerEmSerie(turmasComFalha)
     })().finally(() => definirTentando(false))
   }
@@ -386,7 +386,7 @@ export function useFilaDoProfessor(): FilaLidaDoProfessor {
   function atualizar(): void {
     definirAtualizando(true)
     void (async () => {
-      await Promise.allSettled([reler(consultaEntregasPendentes), reler(consultaMeusVinculos)])
+      await Promise.allSettled([reler(entregasPendentesQueryOptions), reler(meusVinculosQueryOptions)])
       await relerEmSerie(emLeitura.map((turma) => turma.turmaId))
     })().finally(() => {
       definirAtualizando(false)

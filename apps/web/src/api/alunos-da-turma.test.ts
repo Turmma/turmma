@@ -53,15 +53,15 @@ afterEach(() => {
 
 describe('a consulta da lista de nomes da turma', () => {
   it('a chave começa por `alunos-da-turma` e leva a turma: é por ela que a troca de sessão e a decisão de um pedido alcançam a lista', () => {
-    expect(m.alunos.consultaAlunosDaTurma(TURMA).queryKey).toEqual(['alunos-da-turma', TURMA])
-    expect(m.alunos.consultaAlunosDaTurma('outra-turma').queryKey).not.toEqual(m.alunos.consultaAlunosDaTurma(TURMA).queryKey)
+    expect(m.alunos.alunosDaTurmaQueryOptions(TURMA).queryKey).toEqual(['alunos-da-turma', TURMA])
+    expect(m.alunos.alunosDaTurmaQueryOptions('outra-turma').queryKey).not.toEqual(m.alunos.alunosDaTurmaQueryOptions(TURMA).queryKey)
   })
 
   it('lê a turma do professor de cem em cem, sem `anoLetivoId` nem finalidade, com a credencial da sessão; a página seguinte leva a `pagina` que a anterior mandou', async () => {
     const cliente = clienteDeTeste()
     cliente.mount()
     fila.push({ status: 200, corpo: { itens: [BRUNO, ANA], proxima: ANA.usuarioId } })
-    const observador = new InfiniteQueryObserver(cliente, m.alunos.consultaAlunosDaTurma(TURMA))
+    const observador = new InfiniteQueryObserver(cliente, m.alunos.alunosDaTurmaQueryOptions(TURMA))
     const largar = observador.subscribe(() => undefined)
     await vi.waitFor(() => expect(observador.getCurrentResult().data?.pages).toHaveLength(1))
     expect(observador.getCurrentResult().hasNextPage).toBe(true)
@@ -86,7 +86,7 @@ describe('a consulta da lista de nomes da turma', () => {
     const cliente = clienteDeTeste()
     cliente.mount()
     fila.push({ status: 200, corpo: { itens: [ANA] } })
-    const observador = new InfiniteQueryObserver(cliente, m.alunos.consultaAlunosDaTurma(TURMA))
+    const observador = new InfiniteQueryObserver(cliente, m.alunos.alunosDaTurmaQueryOptions(TURMA))
     const largar = observador.subscribe(() => undefined)
     await vi.waitFor(() => expect(observador.getCurrentResult().data?.pages).toHaveLength(1))
     expect(JSON.stringify(cliente.getQueryCache().getAll().map((consulta) => consulta.state.data))).toContain('Ana sintética')
@@ -101,7 +101,7 @@ describe('a consulta da lista de nomes da turma', () => {
     const cliente = clienteDeTeste()
     cliente.mount()
     fila.push({ status: 200, corpo: { itens: [{ ...ANA, matricula: '123' }] } })
-    const observador = new InfiniteQueryObserver(cliente, m.alunos.consultaAlunosDaTurma('a/b'))
+    const observador = new InfiniteQueryObserver(cliente, m.alunos.alunosDaTurmaQueryOptions('a/b'))
     const largar = observador.subscribe(() => undefined)
     await vi.waitFor(() => expect(observador.getCurrentResult().isError).toBe(true))
     expect(chamadas[0]?.caminho).toBe('/v1/turmas/a%2Fb/alunos?limite=100')

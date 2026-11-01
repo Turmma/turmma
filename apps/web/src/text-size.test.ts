@@ -6,7 +6,7 @@ import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Router } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
-import { CHAVE_DA_LETRA, escolherLetra, iniciarLetra, lerLetra, noCaminhoDoAluno, resolverLetra, useTamanhoDaLetra } from './text-size'
+import { TEXT_SIZE_STORAGE_KEY, escolherLetra, iniciarLetra, lerLetra, noCaminhoDoAluno, resolverLetra, useApplyTextSize } from './text-size'
 
 /**
  * O tamanho da letra do aluno (telas do aluno e primeiro acesso, 8.0; RF11; Tech Spec, seção 5): a conta que lê o valor, o
@@ -128,11 +128,11 @@ describe('guardar a escolha', () => {
 
   it('Grande e Maior gravam só o valor, na chave da letra; Padrão apaga a chave e o armazenamento volta a nada', () => {
     escolherLetra('grande')
-    expect(guardado()).toEqual([[CHAVE_DA_LETRA, 'grande']])
+    expect(guardado()).toEqual([[TEXT_SIZE_STORAGE_KEY, 'grande']])
     expect(lerLetra()).toBe('grande')
 
     escolherLetra('maior')
-    expect(guardado()).toEqual([[CHAVE_DA_LETRA, 'maior']])
+    expect(guardado()).toEqual([[TEXT_SIZE_STORAGE_KEY, 'maior']])
     expect(lerLetra()).toBe('maior')
 
     escolherLetra('padrao')
@@ -141,7 +141,7 @@ describe('guardar a escolha', () => {
   })
 
   it('valor inválido na chave vale Padrão', () => {
-    window.localStorage.setItem(CHAVE_DA_LETRA, 'xyz')
+    window.localStorage.setItem(TEXT_SIZE_STORAGE_KEY, 'xyz')
     expect(lerLetra()).toBe('padrao')
   })
 
@@ -156,7 +156,7 @@ describe('guardar a escolha', () => {
     escolherLetra('maior')
     expect(lerLetra()).toBe('maior')
     // A memória foi esvaziada: apagar a chave volta a Padrão, e não à escolha de antes.
-    window.localStorage.removeItem(CHAVE_DA_LETRA)
+    window.localStorage.removeItem(TEXT_SIZE_STORAGE_KEY)
     expect(lerLetra()).toBe('padrao')
   })
 
@@ -194,14 +194,14 @@ describe('as outras abas', () => {
       expect(lerLetra()).toBe('grande')
       vi.restoreAllMocks()
 
-      window.localStorage.setItem(CHAVE_DA_LETRA, 'maior')
-      window.dispatchEvent(new StorageEvent('storage', { key: CHAVE_DA_LETRA, newValue: 'maior' }))
+      window.localStorage.setItem(TEXT_SIZE_STORAGE_KEY, 'maior')
+      window.dispatchEvent(new StorageEvent('storage', { key: TEXT_SIZE_STORAGE_KEY, newValue: 'maior' }))
       expect(lerLetra()).toBe('maior')
 
       recusarAGravacao()
       escolherLetra('grande')
       vi.restoreAllMocks()
-      window.localStorage.removeItem(CHAVE_DA_LETRA)
+      window.localStorage.removeItem(TEXT_SIZE_STORAGE_KEY)
       window.dispatchEvent(new StorageEvent('storage', { key: null }))
       expect(lerLetra()).toBe('padrao')
     } finally {
@@ -225,14 +225,14 @@ describe('as outras abas', () => {
     iniciarLetra()()
     recusarAGravacao()
     escolherLetra('grande')
-    window.dispatchEvent(new StorageEvent('storage', { key: CHAVE_DA_LETRA, newValue: null }))
+    window.dispatchEvent(new StorageEvent('storage', { key: TEXT_SIZE_STORAGE_KEY, newValue: null }))
     expect(lerLetra()).toBe('grande')
   })
 })
 
 describe('useTamanhoDaLetra: o data-letra segue o endereço', () => {
   function Prova() {
-    useTamanhoDaLetra()
+    useApplyTextSize()
     return null
   }
 
@@ -243,7 +243,7 @@ describe('useTamanhoDaLetra: o data-letra segue o endereço', () => {
   }
 
   it('em /aluno com Maior guardado o atributo vale; ao sair do /aluno ele some, e ao voltar ele volta', () => {
-    window.localStorage.setItem(CHAVE_DA_LETRA, 'maior')
+    window.localStorage.setItem(TEXT_SIZE_STORAGE_KEY, 'maior')
     const { navigate } = montar('/aluno/inicio')
     expect(html().getAttribute('data-letra')).toBe('maior')
 
@@ -255,7 +255,7 @@ describe('useTamanhoDaLetra: o data-letra segue o endereço', () => {
   })
 
   it('fora do /aluno a chave não muda nada, e o atributo que o script do primeiro quadro deixou sai (a entrada, depois de /aluno sem sessão)', () => {
-    window.localStorage.setItem(CHAVE_DA_LETRA, 'grande')
+    window.localStorage.setItem(TEXT_SIZE_STORAGE_KEY, 'grande')
     html().setAttribute('data-letra', 'grande')
     montar('/entrar')
     expect(html().hasAttribute('data-letra')).toBe(false)
@@ -283,15 +283,15 @@ describe('useTamanhoDaLetra: o data-letra segue o endereço', () => {
       montar('/aluno/eu')
       expect(html().hasAttribute('data-letra')).toBe(false)
 
-      window.localStorage.setItem(CHAVE_DA_LETRA, 'maior')
+      window.localStorage.setItem(TEXT_SIZE_STORAGE_KEY, 'maior')
       act(() => {
-        window.dispatchEvent(new StorageEvent('storage', { key: CHAVE_DA_LETRA, newValue: 'maior' }))
+        window.dispatchEvent(new StorageEvent('storage', { key: TEXT_SIZE_STORAGE_KEY, newValue: 'maior' }))
       })
       expect(html().getAttribute('data-letra')).toBe('maior')
 
-      window.localStorage.removeItem(CHAVE_DA_LETRA)
+      window.localStorage.removeItem(TEXT_SIZE_STORAGE_KEY)
       act(() => {
-        window.dispatchEvent(new StorageEvent('storage', { key: CHAVE_DA_LETRA, newValue: null }))
+        window.dispatchEvent(new StorageEvent('storage', { key: TEXT_SIZE_STORAGE_KEY, newValue: null }))
       })
       expect(html().hasAttribute('data-letra')).toBe(false)
     } finally {

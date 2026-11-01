@@ -5,9 +5,9 @@ import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Router } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
-import { criarClienteDeConsultas } from './api/query-client'
-import { prepararTela, redeFalsa, type RedeFalsa } from './__fixtures__/render-screen'
-import { Rotas } from './routes'
+import { createQueryClient } from './api/query-client'
+import { setupScreen, fakeNetwork, type FakeNetwork } from './__fixtures__/render-screen'
+import { AppRoutes } from './routes'
 
 /**
  * Cada área monta o sino dela, e só ele (telas da coordenação, 1.0, e telas do professor, 1.0): a coordenação lê a fila
@@ -16,7 +16,7 @@ import { Rotas } from './routes'
  * por `import()`), com a rede falsa. A coordenação, no mesmo cenário, é o controle: sem ele, "não há sino" passaria também
  * com o sino quebrado em todo lugar.
  */
-prepararTela()
+setupScreen()
 
 const ESCOLA = { id: '0197a1c0-0000-7000-8000-0000000000e1', nome: 'Colégio Vista Alegre', slug: 'vista-alegre' }
 const LEITURAS_DA_FILA = ['/v1/vinculos', '/v1/professores', '/v1/privacidade/incidentes']
@@ -34,8 +34,8 @@ beforeEach(() => {
 })
 afterEach(cleanup)
 
-function abrir(papel: PapelDeUsuario, caminho: string): RedeFalsa {
-  const rede = redeFalsa()
+function abrir(papel: PapelDeUsuario, caminho: string): FakeNetwork {
+  const rede = fakeNetwork()
   rede.responderPor('/v1/eu', { status: 200, corpo: { usuarioId: '0197a1c0-0000-7000-8000-0000000000a1', papel, nome: 'Camila Souza', escola: ESCOLA, inatividadeMin: 30, introducaoVistaEm: '2026-02-01T10:00:00.000Z', acessos: [] } })
   rede.responderPor('/v1/privacidade/incidentes', { status: 200, corpo: { incidentes: [], prazoLegal: 'O prazo é da escola.' } })
   rede.responderPor('/v1/anos-letivos', { status: 200, corpo: { itens: [{ id: '0197a1c0-0000-7000-8000-000000000001', ano: 2026, inicio: '2026-02-02', fim: '2026-12-18', situacao: 'em_curso' }] } })
@@ -43,16 +43,16 @@ function abrir(papel: PapelDeUsuario, caminho: string): RedeFalsa {
   rede.responderPor(/^\/v1\//, { status: 200, corpo: { itens: [] } })
   const localizacao = memoryLocation({ path: caminho })
   render(
-    <QueryClientProvider client={criarClienteDeConsultas()}>
+    <QueryClientProvider client={createQueryClient()}>
       <Router hook={localizacao.hook}>
-        <Rotas />
+        <AppRoutes />
       </Router>
     </QueryClientProvider>,
   )
   return rede
 }
 
-const caminhosDe = (rede: RedeFalsa) => rede.chamadas.map((chamada) => chamada.caminho.split('?')[0])
+const caminhosDe = (rede: FakeNetwork) => rede.chamadas.map((chamada) => chamada.caminho.split('?')[0])
 
 describe('o sino só existe na área da coordenação', () => {
   it('controle: na coordenação, o sino está na casca e a fila é lida', async () => {

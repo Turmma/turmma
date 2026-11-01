@@ -5,9 +5,9 @@ import userEvent from '@testing-library/user-event'
 import { Router } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { criarClienteDeConsultas } from '../../../api/query-client'
-import { formatarDataHora } from '../../../format'
-import { prepararTela, redeFalsa, type RedeFalsa, type RespostaFalsa } from '../../../__fixtures__/render-screen'
+import { createQueryClient } from '../../../api/query-client'
+import { formatDateTime } from '../../../format'
+import { setupScreen, fakeNetwork, type FakeNetwork, type FakeResponse } from '../../../__fixtures__/render-screen'
 import Criados from './Criados'
 
 /**
@@ -17,7 +17,7 @@ import Criados from './Criados'
  * `jsdom` não tem `matchMedia`, `ResizeObserver` nem o `dialog` modal: o teste os põe, e são API do navegador, e não peça
  * nossa. A lista com o navegador de verdade — o voltar do histórico, a troca de escola, a segunda pessoa — é do e2e.
  */
-prepararTela()
+setupScreen()
 
 const id = (n: number) => `0197a1c0-0000-7000-8000-${String(n).padStart(12, '0')}`
 const TURMA_A = { id: id(101), nome: '7ºA' }
@@ -51,23 +51,23 @@ const PLANO = artefato(3, 'Plano de ondas', TURMA_B, QUIMICA, { tipo: 'plano_de_
 const DE_FISICA = artefato(4, 'Lista de cinemática', TURMA_A, FISICA)
 const TODOS = [VERSAO, PLANO, DE_FISICA, ATIVIDADE]
 
-const ok = (itens: readonly unknown[], extra: Record<string, unknown> = {}): RespostaFalsa => ({ status: 200, corpo: { itens, ...extra } })
-const erro = (status: number, codigo: string): RespostaFalsa => ({ status, corpo: { erro: { codigo, mensagem: 'x', requisicaoId: '0190f5a0-0000-7000-8000-000000000001' } } })
+const ok = (itens: readonly unknown[], extra: Record<string, unknown> = {}): FakeResponse => ({ status: 200, corpo: { itens, ...extra } })
+const erro = (status: number, codigo: string): FakeResponse => ({ status, corpo: { erro: { codigo, mensagem: 'x', requisicaoId: '0190f5a0-0000-7000-8000-000000000001' } } })
 
-type Resposta = RespostaFalsa | (() => RespostaFalsa | Promise<RespostaFalsa>)
+type Resposta = FakeResponse | (() => FakeResponse | Promise<FakeResponse>)
 /** A lista de artefatos: com `turmaId` na consulta, só os dessa turma, como o servidor faz; sem, todos. */
-function instalar(rede: RedeFalsa, quem: { artefatos?: Resposta | readonly unknown[]; vinculos?: Resposta } = {}): void {
+function instalar(rede: FakeNetwork, quem: { artefatos?: Resposta | readonly unknown[]; vinculos?: Resposta } = {}): void {
   const lista = quem.artefatos ?? TODOS
   rede.responderPor(/^\/v1\/artefatos(\?|$)/, (caminho) => {
-    if (!Array.isArray(lista)) return typeof lista === 'function' ? (lista as () => RespostaFalsa | Promise<RespostaFalsa>)() : (lista as RespostaFalsa)
+    if (!Array.isArray(lista)) return typeof lista === 'function' ? (lista as () => FakeResponse | Promise<FakeResponse>)() : (lista as FakeResponse)
     const turma = new URL(caminho, 'http://x').searchParams.get('turmaId')
     return ok((lista as readonly { turmaId: string }[]).filter((item) => turma === null || item.turmaId === turma))
   })
   rede.responderPor('/v1/meus-vinculos', quem.vinculos ?? ok(VINCULOS))
 }
 
-const consultasDeArtefatos = (rede: RedeFalsa) => rede.chamadas.filter((chamada) => chamada.caminho.startsWith('/v1/artefatos')).map((chamada) => chamada.caminho)
-const nuncaResponde = () => new Promise<RespostaFalsa>(() => undefined)
+const consultasDeArtefatos = (rede: FakeNetwork) => rede.chamadas.filter((chamada) => chamada.caminho.startsWith('/v1/artefatos')).map((chamada) => chamada.caminho)
+const nuncaResponde = () => new Promise<FakeResponse>(() => undefined)
 
 /** A largura da janela, para a consulta `(min-width: 768px)` que decide entre os três menus e o botão "Filtrar". */
 function janelaDe(largura: number): void {
@@ -101,7 +101,7 @@ beforeEach(() => {
 function montar(endereco = '/criados') {
   const [caminho = '/criados', busca = ''] = endereco.split('?')
   const localizacao = memoryLocation({ path: caminho, searchPath: busca, record: true })
-  const cliente = criarClienteDeConsultas()
+  const cliente = createQueryClient()
   render(
     <QueryClientProvider client={cliente}>
       <Router hook={localizacao.hook} searchHook={localizacao.searchHook}>
@@ -117,7 +117,7 @@ const titulosDasLinhas = () => screen.queryAllByRole('link').map((link) => link.
 
 describe('Criados: os quatro estados', () => {
   it('carregando: o título visível, o texto de espera e nem o vazio nem o erro', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { artefatos: nuncaResponde })
     montar()
     expect(screen.getByRole('heading', { level: 1, name: 'Criados' })).toBeTruthy()
@@ -128,7 +128,7 @@ describe('Criados: os quatro estados', () => {
 
   it('erro: a mensagem do catálogo, sem código nem vazio, e "Tentar de novo" lê de novo e mostra a lista', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     let falhar = true
     // Limite excedido não é repetido sozinho: o erro chega na hora, sem esperar a nova tentativa.
     instalar(rede, { artefatos: () => (falhar ? erro(429, 'LIMITE_EXCEDIDO') : ok([ATIVIDADE])) })
@@ -144,7 +144,7 @@ describe('Criados: os quatro estados', () => {
 
   it('vazio: "Nada gerado ainda" com o caminho para Ferramentas, e nenhum "Limpar filtros", que só existe com filtro', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { artefatos: [] })
     const localizacao = montar()
     expect(await screen.findByText('Nada gerado ainda')).toBeTruthy()
@@ -161,7 +161,7 @@ describe('Criados: os quatro estados', () => {
   })
 
   it('com dado: um grupo por turma e disciplina, com o número, e em cada linha o tipo, a turma para o leitor de tela e o estado só na versão adaptada', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede)
     montar()
     await screen.findByText('Plano de ondas')
@@ -186,7 +186,7 @@ describe('Criados: os quatro estados', () => {
   })
 
   it('cada linha mostra a data e a hora de quando o documento foi criado, a do próprio documento e não a de outro', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     // Um mês de distância: a data é outra em qualquer fuso do computador que roda o teste.
     const DO_NOVO = '2026-10-07T15:00:00.000Z'
     const DO_ANTIGO = '2026-09-03T15:00:00.000Z'
@@ -197,16 +197,16 @@ describe('Criados: os quatro estados', () => {
     await screen.findByText('Lista de óptica')
     const linhaDoNovo = screen.getByRole('link', { name: /Lista de óptica/ })
     const linhaDoAntigo = screen.getByRole('link', { name: /Plano de ondas antigo/ })
-    expect(linhaDoNovo.textContent).toContain(formatarDataHora(DO_NOVO))
-    expect(linhaDoNovo.textContent).not.toContain(formatarDataHora(DO_ANTIGO))
-    expect(linhaDoAntigo.textContent).toContain(formatarDataHora(DO_ANTIGO))
-    expect(linhaDoAntigo.textContent).not.toContain(formatarDataHora(DO_NOVO))
+    expect(linhaDoNovo.textContent).toContain(formatDateTime(DO_NOVO))
+    expect(linhaDoNovo.textContent).not.toContain(formatDateTime(DO_ANTIGO))
+    expect(linhaDoAntigo.textContent).toContain(formatDateTime(DO_ANTIGO))
+    expect(linhaDoAntigo.textContent).not.toContain(formatDateTime(DO_NOVO))
   })
 })
 
 describe('Criados: filtros no endereço', () => {
   it('valor desconhecido no endereço cai em "todos": a lista inteira, e nenhum `turmaId` na leitura', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede)
     montar('/criados?tipo=prova&estado=para_aprovar&turma=7a')
     await screen.findByText('Plano de ondas')
@@ -215,7 +215,7 @@ describe('Criados: filtros no endereço', () => {
   })
 
   it('o tipo e o estado do endereço filtram o que já foi lido, sem nova leitura; o estado é o da versão adaptada, e o original não passa com ele ligado', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede)
     montar('/criados?estado=pendente')
     await screen.findByText(/versão adaptada/)
@@ -227,7 +227,7 @@ describe('Criados: filtros no endereço', () => {
 
   it('trocar o tipo no menu muda a lista e o endereço com `replace`, e não faz leitura nenhuma', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede)
     const localizacao = montar()
     await screen.findByText('Plano de ondas')
@@ -247,7 +247,7 @@ describe('Criados: filtros no endereço', () => {
 
   it('trocar a turma faz uma leitura com `turmaId`, e só com os documentos dela; voltar a "todas" não relê o que já tem', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede)
     const localizacao = montar()
     await screen.findByText('Plano de ondas')
@@ -269,7 +269,7 @@ describe('Criados: filtros no endereço', () => {
   })
 
   it('a turma do endereço que a professora não tem vai ao servidor do mesmo jeito, e o botão não a chama pelo id', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede)
     montar(`/criados?turma=${id(777)}`)
     expect(await screen.findByText('Nada com estes filtros')).toBeTruthy()
@@ -283,7 +283,7 @@ describe('Criados: filtros no endereço', () => {
 
 describe('Criados: a lista espera os vínculos', () => {
   it('com a lista já lida e os vínculos sem resposta, continua carregando: nenhum grupo "Outra turma" aparece antes de o nome da turma chegar', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { vinculos: nuncaResponde })
     montar()
     await waitFor(() => expect(consultasDeArtefatos(rede)).toEqual(['/v1/artefatos']))
@@ -295,7 +295,7 @@ describe('Criados: a lista espera os vínculos', () => {
   })
 
   it('com a lista com erro e os vínculos sem resposta, mostra só o erro: o texto de espera não fica junto dele', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { artefatos: () => erro(429, 'LIMITE_EXCEDIDO'), vinculos: nuncaResponde })
     montar()
     expect(await screen.findByRole('alert')).toBeTruthy()
@@ -303,7 +303,7 @@ describe('Criados: a lista espera os vínculos', () => {
   })
 
   it('a turma do endereço, enquanto os vínculos carregam, aparece como "Turma", e não como "Outra turma"', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { vinculos: nuncaResponde })
     montar(`/criados?turma=${TURMA_A.id}`)
     expect(await screen.findByRole('button', { name: /^Turma:\s*Turma$/ })).toBeTruthy()
@@ -313,9 +313,9 @@ describe('Criados: a lista espera os vínculos', () => {
 
 describe('Criados: o recomeço da sessão', () => {
   it('a sessão que troca esvazia a lista: a leitura da pessoa anterior, que chega depois, não entra na tela', async () => {
-    const rede = redeFalsa()
-    let liberarPrimeira: (resposta: RespostaFalsa) => void = () => undefined
-    const primeira = new Promise<RespostaFalsa>((resolver) => (liberarPrimeira = resolver))
+    const rede = fakeNetwork()
+    let liberarPrimeira: (resposta: FakeResponse) => void = () => undefined
+    const primeira = new Promise<FakeResponse>((resolver) => (liberarPrimeira = resolver))
     let leituras = 0
     // A primeira leitura (da pessoa anterior) fica no ar; a seguinte, depois do recomeço, é da pessoa nova e não tem documento nenhum.
     instalar(rede, {
@@ -341,7 +341,7 @@ describe('Criados: o recomeço da sessão', () => {
 describe('Criados: filtro sem resultado', () => {
   it('com mais páginas por ler, diz "até aqui" e mantém "Ver mais"; a página seguinte entra e o foco vai ao primeiro documento novo', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     let pagina = 0
     instalar(rede, {
       artefatos: () => {
@@ -364,7 +364,7 @@ describe('Criados: filtro sem resultado', () => {
 
   it('"Ver mais" que não traz documento visível leva o foco ao título, porque o botão saiu da tela', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     let pagina = 0
     instalar(rede, {
       artefatos: () => {
@@ -381,7 +381,7 @@ describe('Criados: filtro sem resultado', () => {
 
   it('"Ver mais" com a turma filtrada pede a página seguinte da mesma turma', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     let pagina = 0
     instalar(rede, {
       artefatos: () => {
@@ -397,7 +397,7 @@ describe('Criados: filtro sem resultado', () => {
 
   it('sem mais páginas, diz "Nada com estes filtros" com "Limpar filtros", que tira os três e leva o foco ao título', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede)
     const localizacao = montar('/criados?tipo=plano_de_aula&estado=aprovada')
     expect(await screen.findByText('Nada com estes filtros')).toBeTruthy()
@@ -414,7 +414,7 @@ describe('Criados: filtro sem resultado', () => {
   })
 
   it('a lista com mais páginas e filtro que passa o que já veio mostra o que passou, e mantém "Ver mais"', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { artefatos: ok([ATIVIDADE, VERSAO], { proxima: VERSAO.id }) })
     montar('/criados?estado=pendente')
     expect(await screen.findByText(/versão adaptada/)).toBeTruthy()
@@ -427,7 +427,7 @@ describe('Criados: no celular', () => {
   beforeEach(() => janelaDe(360))
 
   it('os três menus viram o botão "Filtrar", que diz quantos filtros estão ligados', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede)
     montar('/criados?tipo=atividade_objetiva&estado=pendente')
     await screen.findByText(/versão adaptada/)
@@ -438,7 +438,7 @@ describe('Criados: no celular', () => {
 
   it('o diálogo "Filtrar" tem os três grupos em toques; escolher um troca o filtro com `replace`, escolher de novo o tira, e "Ver N documentos" fecha', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede)
     const localizacao = montar()
     await screen.findByText('Plano de ondas')
@@ -468,7 +468,7 @@ describe('Criados: no celular', () => {
 
   it('"Limpar filtros" do diálogo fica desligado sem filtro, e com filtro tira todos', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede)
     const localizacao = montar('/criados?tipo=plano_de_aula&estado=aprovada')
     await screen.findByText('Nada com estes filtros')

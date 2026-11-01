@@ -1,6 +1,6 @@
 import { alunosDaTurmaResponseSchema, TAMANHO_MAXIMO_DA_PAGINA } from '@educa/shared'
 import { infiniteQueryOptions } from '@tanstack/react-query'
-import { buscarComSessao } from './sessao'
+import { authedGet } from './sessao'
 
 /**
  * A lista de nomes da turma como a professora a lê (telas do professor, 12.0; RF18): `GET /v1/turmas/:id/alunos`, uma página por
@@ -17,18 +17,18 @@ import { buscarComSessao } from './sessao'
  */
 
 /** O começo da chave da lista de nomes: a troca de escola e a pessoa seguinte esvaziam tudo junto (`main.tsx`), e a decisão de um pedido a marca como velha. */
-export const CHAVE_DOS_ALUNOS_DA_TURMA = ['alunos-da-turma'] as const
+export const ALUNOS_DA_TURMA_QUERY_KEY = ['alunos-da-turma'] as const
 
 /** Uma leitura traz até uma página, a maior que a API entrega. */
 export const ALUNOS_POR_LEITURA = TAMANHO_MAXIMO_DA_PAGINA
 
-export function consultaAlunosDaTurma(turmaId: string) {
+export function alunosDaTurmaQueryOptions(turmaId: string) {
   return infiniteQueryOptions({
-    queryKey: [...CHAVE_DOS_ALUNOS_DA_TURMA, turmaId],
+    queryKey: [...ALUNOS_DA_TURMA_QUERY_KEY, turmaId],
     queryFn: ({ pageParam, signal }) => {
       const consulta = new URLSearchParams({ limite: String(ALUNOS_POR_LEITURA) })
       if (pageParam !== undefined) consulta.set('pagina', pageParam)
-      return buscarComSessao(`/v1/turmas/${encodeURIComponent(turmaId)}/alunos?${consulta.toString()}`, alunosDaTurmaResponseSchema, signal)
+      return authedGet(`/v1/turmas/${encodeURIComponent(turmaId)}/alunos?${consulta.toString()}`, alunosDaTurmaResponseSchema, signal)
     },
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (ultima) => ultima.proxima,

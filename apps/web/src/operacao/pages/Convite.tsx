@@ -3,16 +3,16 @@ import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link, useLocation } from 'wouter'
 import { Button } from '../../components/ui/Button'
 import { FormField } from '../../components/ui/fields/FormField'
-import { EstadoCarregando } from '../../components/states'
+import { LoadingState } from '../../components/states'
 import { aceitarConviteDeOperadorNaVez, consultarConviteDeOperador, ehConviteInvalido } from '../api/convite'
-import { ROTAS_DA_OPERACAO } from '../paths'
+import { OPERACAO_ROUTES } from '../paths'
 import { CascaPublicaDaOperacao, ErroDaOperacao } from '../components/CascaDaOperacao'
 import { TEXTO_DO_CONVITE_INVALIDO, textoDaFalha } from '../textos'
-import { useTituloDaPagina } from '../document-title'
+import { useOperacaoPageTitle } from '../document-title'
 
 /**
  * O token do convite, lido do fragmento `#`. O navegador nunca manda o fragmento ao servidor, e por isso é onde o
- * token do link vive; mas ele ficaria no histórico e na barra, e é isso que `apagarFragmentoDaBarra` resolve antes de
+ * token do link vive; mas ele ficaria no histórico e na barra, e é isso que `clearFragment` resolve antes de
  * qualquer chamada sair (regra 20, item 8).
  */
 function tokenDoFragmento(): string | undefined {
@@ -51,7 +51,7 @@ type Etapa =
  * operador, nunca na URL; o de um aceite feito com o link anterior nem fica.
  */
 export function Convite() {
-  useTituloDaPagina('Convite')
+  useOperacaoPageTitle('Convite')
   const [, navegar] = useLocation()
   // Lido na primeira renderização; o efeito abaixo tira o fragmento da barra antes de a consulta sair.
   const [token, definirToken] = useState(tokenDoFragmento)
@@ -110,7 +110,7 @@ export function Convite() {
       // Outro link chegou enquanto o aceite estava no ar: a tela já é a dele, e nada daqui muda.
       if (desfecho.tipo === 'descartado') return
       definirSenha('')
-      if (desfecho.tipo === 'aceito') navegar(ROTAS_DA_OPERACAO.configurarMfa, { replace: true })
+      if (desfecho.tipo === 'aceito') navegar(OPERACAO_ROUTES.configurarMfa, { replace: true })
       // Usado entre a consulta e o aceite (outra aba, o link aberto duas vezes): a mesma tela do convite que não vale.
       else if (desfecho.tipo === 'invalido') definirEtapa({ nome: 'invalido' })
       else definirFalha(desfecho.erro)
@@ -121,7 +121,7 @@ export function Convite() {
 
   return (
     <CascaPublicaDaOperacao titulo="Convite para a operação">
-      {etapa.nome === 'consultando' && <EstadoCarregando rotulo="Conferindo o convite…" />}
+      {etapa.nome === 'consultando' && <LoadingState rotulo="Conferindo o convite…" />}
       {etapa.nome === 'falhou' && (
         <ErroDaOperacao
           erro={etapa.erro}
@@ -139,7 +139,7 @@ export function Convite() {
           {/* Quem abriu de novo um convite que já usou só precisa entrar; o link não diz qual dos casos aconteceu. */}
           <p className="text-apoio">
             Já criou a sua senha?{' '}
-            <Link className="text-caramelo-texto underline" to={ROTAS_DA_OPERACAO.entrar}>
+            <Link className="text-caramelo-texto underline" to={OPERACAO_ROUTES.entrar}>
               Entrar na operação
             </Link>
           </p>

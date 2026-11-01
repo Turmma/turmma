@@ -5,9 +5,9 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Router } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
-import { prepararTela, redeFalsa, renderizarTela, type RespostaFalsa } from '../../../__fixtures__/render-screen'
+import { setupScreen, fakeNetwork, renderScreen, type FakeResponse } from '../../../__fixtures__/render-screen'
 import { buttonVariants } from '../../../components/ui/button-variants'
-import { ROTAS_DA_COORDENACAO } from '../../../paths'
+import { COORDENACAO_ROUTES } from '../../../paths'
 import Pedidos from './Pedidos'
 
 /**
@@ -16,14 +16,14 @@ import Pedidos from './Pedidos'
  * consultas e a tela são os da aba. Os caminhos de ponta a ponta (a escola de verdade, o clique que abre o detalhe, os
  * 360 px) são do e2e (`e2e/pedidos-do-titular.spec.ts`).
  */
-prepararTela()
+setupScreen()
 
 const id = (n: number) => `0197a1c0-0000-7000-8000-${String(n).padStart(12, '0')}`
 /** O dia de hoje do teste, em São Paulo: só o `Date` é falso, e o resto do tempo corre de verdade (a consulta espera por ele). */
 const AGORA = new Date('2026-10-16T15:00:00Z')
 
 const FORA = { status: 404, corpo: { erro: { codigo: 'NAO_ENCONTRADO', mensagem: 'x', requisicaoId: '0190f5a0-0000-7000-8000-000000000001' } } }
-const pagina = (itens: readonly unknown[], proxima?: string): RespostaFalsa => ({ status: 200, corpo: proxima === undefined ? { itens } : { itens, proxima } })
+const pagina = (itens: readonly unknown[], proxima?: string): FakeResponse => ({ status: 200, corpo: proxima === undefined ? { itens } : { itens, proxima } })
 
 function pedido(n: number, parcial: Record<string, unknown> = {}) {
   return { id: id(n), tipo: 'acesso', solicitante: 'titular', chegouEm: '2026-10-14', estado: 'recebido', titular: { nome: `Pessoa ${String(n)}`, turmas: ['7º A'] }, ...parcial }
@@ -68,7 +68,7 @@ afterEach(() => {
 
 function montar() {
   const localizacao = memoryLocation({ path: '/privacidade/pedidos', record: true })
-  return renderizarTela(
+  return renderScreen(
     <Router hook={localizacao.hook}>
       <Pedidos />
     </Router>,
@@ -85,7 +85,7 @@ const linhaDe = (nome: string) => {
 
 describe('Pedidos: os quatro estados', () => {
   it('carregando: diz o que espera, e a tabela ainda não existe', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     const lida = rede.segurar()
     montar()
     expect(await screen.findByText('Carregando os pedidos…')).toBeTruthy()
@@ -98,7 +98,7 @@ describe('Pedidos: os quatro estados', () => {
 
   it('erro: diz o que fazer, e "Tentar de novo" lê outra vez e mostra a lista', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     let respostas = 0
     rede.responderPor('/v1/privacidade/pedidos', () => (++respostas === 1 ? FORA : pagina(DOS_CINCO)))
     montar()
@@ -111,7 +111,7 @@ describe('Pedidos: os quatro estados', () => {
   })
 
   it('vazio: "Nenhum pedido registrado" é o convite, e o aviso do aluno e "Registrar pedido" continuam', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor('/v1/privacidade/pedidos', pagina([]))
     montar()
     expect(await screen.findByText('Nenhum pedido registrado')).toBeTruthy()
@@ -122,7 +122,7 @@ describe('Pedidos: os quatro estados', () => {
 
   it('com dado: um vencido na lista, e a falha de "Ver mais pedidos" não apaga o que já foi lido', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor(/pagina=/, FORA)
     rede.responderPor('/v1/privacidade/pedidos', pagina(DOS_CINCO, id(900)))
     montar()
@@ -137,7 +137,7 @@ describe('Pedidos: os quatro estados', () => {
 
 describe('Pedidos: o prazo de cada pedido na linha', () => {
   it('o aberto diz quantos dias faltam e até quando; o do dia diz que vence hoje; ambos pendentes', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor('/v1/privacidade/pedidos', pagina(DOS_CINCO))
     montar()
     await screen.findByRole('table')
@@ -148,7 +148,7 @@ describe('Pedidos: o prazo de cada pedido na linha', () => {
   })
 
   it('o vencido diz "vencido há N dias" em texto, na família do erro, com o ícone; o aberto de ontem não é vencido', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor('/v1/privacidade/pedidos', pagina([...DOS_CINCO, pedido(6, { chegouEm: '2026-10-15' })]))
     montar()
     await screen.findByRole('table')
@@ -164,7 +164,7 @@ describe('Pedidos: o prazo de cada pedido na linha', () => {
   it('às 22h de São Paulo, já dia seguinte em UTC, o pedido que vence hoje diz "vence hoje", e não "vencido há 1 dia"', async () => {
     // 2026-10-17T01:00Z são 22h de 16/10 em São Paulo: o dia da lista é o de São Paulo, como o da API.
     vi.setSystemTime(new Date('2026-10-17T01:00:00Z'))
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor('/v1/privacidade/pedidos', pagina([VENCE_HOJE]))
     montar()
     await screen.findByRole('table')
@@ -174,7 +174,7 @@ describe('Pedidos: o prazo de cada pedido na linha', () => {
   })
 
   it('o concluído e o cancelado não têm prazo a cumprir, por mais antigos que sejam', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor('/v1/privacidade/pedidos', pagina(DOS_CINCO))
     montar()
     await screen.findByRole('table')
@@ -185,7 +185,7 @@ describe('Pedidos: o prazo de cada pedido na linha', () => {
   })
 
   it('a coluna "Prazo" vem antes de "Situação", e a ordem das linhas continua a da chegada', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     // A tela ordena pela chegada, mais recente primeiro: o prazo não muda a ordem, e o vencido não sobe.
     rede.responderPor('/v1/privacidade/pedidos', pagina([CANCELADO, VENCIDO, ABERTO, CONCLUIDO, VENCE_HOJE]))
     montar()
@@ -197,7 +197,7 @@ describe('Pedidos: o prazo de cada pedido na linha', () => {
 
   it('no celular a lista diz "Prazo" ao lado do valor de cada item', async () => {
     janelaDe(360)
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor('/v1/privacidade/pedidos', pagina([VENCIDO]))
     montar()
     const lista = await screen.findByRole('list', { name: 'Pedidos dos titulares' })
@@ -211,7 +211,7 @@ describe('Pedidos: o prazo de cada pedido na linha', () => {
 
 describe('Pedidos: a linha inteira é o link do detalhe', () => {
   it('há um link só por linha, com o nome da pessoa e o tipo do pedido, para o endereço do pedido', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor('/v1/privacidade/pedidos', pagina(DOS_CINCO))
     montar()
     await screen.findByRole('table')
@@ -223,7 +223,7 @@ describe('Pedidos: a linha inteira é o link do detalhe', () => {
   })
 
   it('o link se estende pela linha (`after:inset-0`) e a linha é o ancestral posicionado', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor('/v1/privacidade/pedidos', pagina([VENCIDO]))
     montar()
     await screen.findByRole('table')
@@ -235,7 +235,7 @@ describe('Pedidos: a linha inteira é o link do detalhe', () => {
   })
 
   it('uma pessoa com dois pedidos, e dois homônimos, têm cada um o nome acessível e o endereço do próprio pedido', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     const ana = { nome: 'Ana Souza', turmas: ['7º A'] }
     rede.responderPor(
       '/v1/privacidade/pedidos',
@@ -256,7 +256,7 @@ describe('Pedidos: a linha inteira é o link do detalhe', () => {
   })
 
   it('o titular eliminado também é uma linha com link, e o tipo do pedido está no nome', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor('/v1/privacidade/pedidos', pagina([pedido(7, { tipo: 'eliminacao', estado: 'concluido', titular: null })]))
     montar()
     await screen.findByRole('table')
@@ -266,7 +266,7 @@ describe('Pedidos: a linha inteira é o link do detalhe', () => {
 
   it('no celular o item também é o ancestral posicionado do link', async () => {
     janelaDe(360)
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor('/v1/privacidade/pedidos', pagina([VENCIDO]))
     montar()
     const lista = await screen.findByRole('list', { name: 'Pedidos dos titulares' })
@@ -275,7 +275,7 @@ describe('Pedidos: a linha inteira é o link do detalhe', () => {
   })
 
   it('"Registrar pedido" é o único botão primário da aba, com a lista cheia e "Ver mais" à mostra', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor('/v1/privacidade/pedidos', pagina(DOS_CINCO, id(900)))
     montar()
     await screen.findByRole('table')
@@ -288,7 +288,7 @@ describe('Pedidos: a linha inteira é o link do detalhe', () => {
 
 describe('Pedidos: o aviso do aluno e o caminho até as turmas', () => {
   it('o aviso do aluno fica, diz "Escola › Turmas", e o link diz "Ir para as turmas" no mesmo endereço', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor('/v1/privacidade/pedidos', pagina(DOS_CINCO))
     montar()
     await screen.findByRole('table')
@@ -296,12 +296,12 @@ describe('Pedidos: o aviso do aluno e o caminho até as turmas', () => {
     expect(aviso.textContent).toContain('abra a turma em Escola › Turmas.')
     expect(aviso.textContent).not.toContain('Estrutura')
     const link = screen.getByRole('link', { name: 'Ir para as turmas' })
-    expect(link.getAttribute('href')).toBe(ROTAS_DA_COORDENACAO.estrutura)
+    expect(link.getAttribute('href')).toBe(COORDENACAO_ROUTES.estrutura)
     expect(screen.queryByRole('link', { name: /Estrutura/ })).toBeNull()
   })
 
   it('o cabeçalho não promete o prazo no detalhe: ele já está na lista', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor('/v1/privacidade/pedidos', pagina(DOS_CINCO))
     montar()
     await screen.findByRole('table')
@@ -311,7 +311,7 @@ describe('Pedidos: o aviso do aluno e o caminho até as turmas', () => {
 
 describe('Pedidos: uma leitura por abertura', () => {
   it('lê ao abrir e não relê no foco nem com a rede que volta; o prazo sai de "Chegou em", sem chamada a mais', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor('/v1/privacidade/pedidos', pagina(DOS_CINCO))
     montar()
     await screen.findByRole('table')

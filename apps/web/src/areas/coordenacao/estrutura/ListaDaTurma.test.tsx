@@ -5,7 +5,7 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { Router } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
-import { prepararTela, redeFalsa, renderizarTela, type RedeFalsa, type RespostaFalsa } from '../../../__fixtures__/render-screen'
+import { setupScreen, fakeNetwork, renderScreen, type FakeNetwork, type FakeResponse } from '../../../__fixtures__/render-screen'
 import ListaDaTurma from './ListaDaTurma'
 
 /**
@@ -16,7 +16,7 @@ import ListaDaTurma from './ListaDaTurma'
  * celular de 360 px, a prévia e o arquivo) é do e2e `lista-da-turma`. O `jsdom` não tem `matchMedia`, `ResizeObserver` nem o
  * `dialog` modal: o teste os põe, e são API do navegador, e não peça nossa.
  */
-prepararTela()
+setupScreen()
 
 const id = (n: number) => `0197a1c0-0000-7000-8000-${String(n).padStart(12, '0')}`
 const SERIE = { id: id(200), etapa: 'ef_anos_finais', ano: 7 } as const
@@ -41,14 +41,14 @@ const NOME = (n: number, estado: 'livre' | 'reivindicado' | 'aprovado', nome: st
   nome: estado === 'aprovado' ? null : nome,
   matricula: estado === 'aprovado' ? null : matricula,
 })
-const ERRO = (codigo: string, status: number): RespostaFalsa => ({ status, corpo: { erro: { codigo, mensagem: 'texto que a tela não usa', requisicaoId: '0190f5a0-0000-7000-8000-000000000001' } } })
+const ERRO = (codigo: string, status: number): FakeResponse => ({ status, corpo: { erro: { codigo, mensagem: 'texto que a tela não usa', requisicaoId: '0190f5a0-0000-7000-8000-000000000001' } } })
 /** Um erro que a leitura não repete sozinha: a tela mostra o erro na hora, e não depois da nova tentativa de um segundo. */
 const FALHA = ERRO('LIMITE_EXCEDIDO', 429)
 const FORA = ERRO('NAO_ENCONTRADO', 404)
-const ok = (itens: readonly unknown[], extra: Record<string, unknown> = {}): RespostaFalsa => ({ status: 200, corpo: { itens, ...extra } })
-const nuncaResponde = () => new Promise<RespostaFalsa>(() => undefined)
+const ok = (itens: readonly unknown[], extra: Record<string, unknown> = {}): FakeResponse => ({ status: 200, corpo: { itens, ...extra } })
+const nuncaResponde = () => new Promise<FakeResponse>(() => undefined)
 
-type Resposta = RespostaFalsa | (() => RespostaFalsa | Promise<RespostaFalsa>)
+type Resposta = FakeResponse | (() => FakeResponse | Promise<FakeResponse>)
 interface Respostas {
   turma: Resposta
   turmas: Resposta
@@ -65,7 +65,7 @@ const PADRAO: Respostas = {
   professores: ok([CAMILA, PAULO]),
 }
 
-function instalar(rede: RedeFalsa, parcial: Partial<Respostas> = {}): void {
+function instalar(rede: FakeNetwork, parcial: Partial<Respostas> = {}): void {
   const respostas = { ...PADRAO, ...parcial }
   // Só a leitura (com a consulta): a gravação é `POST` no mesmo caminho, sem consulta, e cada caso responde a ela.
   rede.responderPor(new RegExp(`^/v1/turmas/${TURMA.id}/lista\\?`), respostas.lista)
@@ -76,7 +76,7 @@ function instalar(rede: RedeFalsa, parcial: Partial<Respostas> = {}): void {
 }
 
 /** Os caminhos pedidos, sem a consulta, na ordem. */
-const caminhosDe = (rede: RedeFalsa) => rede.chamadas.map((chamada) => chamada.caminho.split('?')[0])
+const caminhosDe = (rede: FakeNetwork) => rede.chamadas.map((chamada) => chamada.caminho.split('?')[0])
 
 /** A largura da janela, para a consulta `(min-width: 768px)` que a `Table` e o miolo leem. */
 function janelaDe(largura: number): void {
@@ -109,7 +109,7 @@ beforeEach(() => {
 
 function montar() {
   const localizacao = memoryLocation({ path: `/estrutura/turmas/${TURMA.id}`, record: true })
-  renderizarTela(
+  renderScreen(
     <Router hook={localizacao.hook}>
       <ListaDaTurma turmaId={TURMA.id} />
     </Router>,
@@ -131,7 +131,7 @@ const linhasDosNomes = () => within(nomes().getByRole('table')).getAllByRole('ro
 
 describe('o cabeçalho da turma', () => {
   it('diz a série e o turno de complemento, o link para Escola, e nenhuma ação de exportar', async () => {
-    instalar(redeFalsa())
+    instalar(fakeNetwork())
     montar()
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Turma 7º A' })).toBeTruthy()
@@ -141,7 +141,7 @@ describe('o cabeçalho da turma', () => {
   })
 
   it('sem o turno (a lista de turmas não o trouxe ou falhou), só a série, e a tela inteira continua', async () => {
-    instalar(redeFalsa(), { turmas: FALHA })
+    instalar(fakeNetwork(), { turmas: FALHA })
     await montarEEsperar()
 
     expect(await screen.findByText(nomeDaSerie(SERIE))).toBeTruthy()
@@ -150,7 +150,7 @@ describe('o cabeçalho da turma', () => {
   })
 
   it('a turma está na lista de turmas, mas sem turno (o dado é opcional): só a série, sem "undefined" nem separador', async () => {
-    instalar(redeFalsa(), { turmas: ok([OUTRA_TURMA, { ...TURMA, turno: null }]) })
+    instalar(fakeNetwork(), { turmas: ok([OUTRA_TURMA, { ...TURMA, turno: null }]) })
     await montarEEsperar()
 
     const descricao = await screen.findByText(nomeDaSerie(SERIE))
@@ -161,13 +161,13 @@ describe('o cabeçalho da turma', () => {
 
 describe('o miolo da tela', () => {
   it('a partir de 768 px o miolo que rola recebe foco, para rolar pelo teclado; abaixo disso rola a página, e não há o que focar', async () => {
-    instalar(redeFalsa())
+    instalar(fakeNetwork())
     await montarEEsperar()
     expect(screen.getByRole('region', { name: 'Turma 7º A' }).getAttribute('tabindex')).toBe('0')
     cleanup()
 
     janelaDe(360)
-    instalar(redeFalsa())
+    instalar(fakeNetwork())
     await montarEEsperar()
     expect(screen.getByRole('region', { name: 'Turma 7º A' }).hasAttribute('tabindex')).toBe(false)
   })
@@ -175,9 +175,9 @@ describe('o miolo da tela', () => {
 
 describe('os estados da turma', () => {
   it('carregando, e depois a tela com a turma', async () => {
-    const rede = redeFalsa()
-    let liberar: (resposta: RespostaFalsa) => void = () => undefined
-    instalar(rede, { turma: () => new Promise<RespostaFalsa>((resolver) => (liberar = resolver)) })
+    const rede = fakeNetwork()
+    let liberar: (resposta: FakeResponse) => void = () => undefined
+    instalar(rede, { turma: () => new Promise<FakeResponse>((resolver) => (liberar = resolver)) })
     montar()
 
     expect(await screen.findByText('Carregando a turma…')).toBeTruthy()
@@ -194,7 +194,7 @@ describe('os estados da turma', () => {
   it('o erro da leitura da turma diz o que fazer, com "Tentar de novo", e a nova tentativa traz a tela', async () => {
     const usuario = userEvent.setup()
     let falhar = true
-    instalar(redeFalsa(), { turma: () => (falhar ? FALHA : { status: 200, corpo: TURMA_ABERTA }) })
+    instalar(fakeNetwork(), { turma: () => (falhar ? FALHA : { status: 200, corpo: TURMA_ABERTA }) })
     montar()
 
     expect(await screen.findByRole('alert')).toBeTruthy()
@@ -211,7 +211,7 @@ describe('os estados da turma', () => {
   })
 
   it('a turma que a API não acha (saiu do ano, ou foi excluída): o texto de hoje, sem a lista nem os professores', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { turma: FORA })
     montar()
 
@@ -225,8 +225,8 @@ describe('os estados da turma', () => {
 
 describe('os estados da lista de nomes', () => {
   it('carregando, e depois os nomes; a lista de nomes tem o seu estado, e não o da turma', async () => {
-    let liberar: (resposta: RespostaFalsa) => void = () => undefined
-    instalar(redeFalsa(), { lista: () => new Promise<RespostaFalsa>((resolver) => (liberar = resolver)) })
+    let liberar: (resposta: FakeResponse) => void = () => undefined
+    instalar(fakeNetwork(), { lista: () => new Promise<FakeResponse>((resolver) => (liberar = resolver)) })
     await montarEEsperar()
 
     expect(await screen.findByText('Carregando a lista de nomes…')).toBeTruthy()
@@ -239,7 +239,7 @@ describe('os estados da lista de nomes', () => {
   it('o erro da leitura da lista tem "Tentar de novo" na seção dela, e a nova tentativa traz os nomes', async () => {
     const usuario = userEvent.setup()
     let falhar = true
-    instalar(redeFalsa(), { lista: () => (falhar ? FALHA : ok([NOME(1, 'livre')])) })
+    instalar(fakeNetwork(), { lista: () => (falhar ? FALHA : ok([NOME(1, 'livre')])) })
     await montarEEsperar()
 
     expect(await nomes().findByRole('alert')).toBeTruthy()
@@ -250,7 +250,7 @@ describe('os estados da lista de nomes', () => {
   })
 
   it('turma sem nenhum nome: "Nenhum nome nesta turma ainda", e só depois de a leitura terminar sem erro', async () => {
-    instalar(redeFalsa(), { lista: ok([]) })
+    instalar(fakeNetwork(), { lista: ok([]) })
     await montarEEsperar()
 
     expect(await nomes().findByText('Nenhum nome nesta turma ainda')).toBeTruthy()
@@ -258,7 +258,7 @@ describe('os estados da lista de nomes', () => {
   })
 
   it('com dado: cada nome é uma linha com a matrícula e a situação em texto, e só o nome livre tem "Retirar", com a matrícula no nome do botão', async () => {
-    instalar(redeFalsa(), { lista: ok([NOME(1, 'livre', 'Ana Souza', '2026001'), NOME(2, 'reivindicado', 'Bruno Lima', '2026002'), NOME(3, 'aprovado')]) })
+    instalar(fakeNetwork(), { lista: ok([NOME(1, 'livre', 'Ana Souza', '2026001'), NOME(2, 'reivindicado', 'Bruno Lima', '2026002'), NOME(3, 'aprovado')]) })
     await montarEEsperar()
 
     expect(await nomes().findByText('Ana Souza')).toBeTruthy()
@@ -277,7 +277,7 @@ describe('os estados da lista de nomes', () => {
   })
 
   it('só aprovados: a contagem diz tudo, e a tabela não aparece só com o cabeçalho', async () => {
-    instalar(redeFalsa(), { lista: ok([NOME(1, 'aprovado'), NOME(2, 'aprovado')]) })
+    instalar(fakeNetwork(), { lista: ok([NOME(1, 'aprovado'), NOME(2, 'aprovado')]) })
     await montarEEsperar()
 
     expect(await nomes().findByText(/Aprovados nesta turma: 2\./)).toBeTruthy()
@@ -286,7 +286,7 @@ describe('os estados da lista de nomes', () => {
 
   it('no celular a tabela vira lista, com o nome de cada valor dito em texto', async () => {
     janelaDe(360)
-    instalar(redeFalsa(), { lista: ok([NOME(1, 'livre', 'Ana Souza', '2026001')]) })
+    instalar(fakeNetwork(), { lista: ok([NOME(1, 'livre', 'Ana Souza', '2026001')]) })
     await montarEEsperar()
 
     const lista = await nomes().findByRole('list', { name: 'Cada nome com a matrícula e a situação' })
@@ -301,7 +301,7 @@ describe('os estados da lista de nomes', () => {
 
 describe('as leituras da tela', () => {
   it('a lista de nomes é lida uma vez ao abrir, com a finalidade; os pedidos não são lidos sem o clique; os professores da turma não fazem leitura auditada', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede)
     rede.responderPor(`/v1/turmas/${TURMA.id}/reivindicacoes`, ok([]))
     await montarEEsperar()
@@ -321,7 +321,7 @@ describe('as leituras da tela', () => {
 
   it('os pedidos só são lidos no "Atualizar", com a finalidade', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede)
     rede.responderPor(`/v1/turmas/${TURMA.id}/reivindicacoes`, ok([]))
     await montarEEsperar()
@@ -336,7 +336,7 @@ describe('as leituras da tela', () => {
 
 describe('os professores da turma', () => {
   it('um item por vínculo: o professor com duas disciplinas na turma aparece duas vezes, cada uma com o estado em texto e o link para o painel dele', async () => {
-    instalar(redeFalsa(), {
+    instalar(fakeNetwork(), {
       vinculos: ok([
         VINCULO(1, CAMILA.usuarioId, TURMA, MATEMATICA, 'confirmado'),
         VINCULO(2, CAMILA.usuarioId, TURMA, CIENCIAS, 'pendente'),
@@ -366,7 +366,7 @@ describe('os professores da turma', () => {
   })
 
   it('o vínculo encerrado aparece como encerrado, e o contestado não mostra o complemento do professor', async () => {
-    instalar(redeFalsa(), {
+    instalar(fakeNetwork(), {
       vinculos: ok([
         VINCULO(1, CAMILA.usuarioId, TURMA, MATEMATICA, 'encerrado'),
         { ...VINCULO(2, PAULO.usuarioId, TURMA, CIENCIAS, 'contestado'), contestacao: 'outro', complemento: 'Texto livre do professor' },
@@ -379,7 +379,7 @@ describe('os professores da turma', () => {
   })
 
   it('o professor que a lista de professores não traz aparece como "Nome não carregado", e o vínculo continua com o estado dele', async () => {
-    instalar(redeFalsa(), { professores: ok([PAULO]), vinculos: ok([VINCULO(1, CAMILA.usuarioId, TURMA, MATEMATICA, 'confirmado')]) })
+    instalar(fakeNetwork(), { professores: ok([PAULO]), vinculos: ok([VINCULO(1, CAMILA.usuarioId, TURMA, MATEMATICA, 'confirmado')]) })
     await montarEEsperar()
 
     const link = await professores().findByRole('link')
@@ -390,7 +390,7 @@ describe('os professores da turma', () => {
 
   it('turma sem professor: "Nenhum professor nesta turma", com o caminho para Professores', async () => {
     const usuario = userEvent.setup()
-    instalar(redeFalsa(), { vinculos: ok([VINCULO(1, PAULO.usuarioId, OUTRA_TURMA, MATEMATICA, 'confirmado')]) })
+    instalar(fakeNetwork(), { vinculos: ok([VINCULO(1, PAULO.usuarioId, OUTRA_TURMA, MATEMATICA, 'confirmado')]) })
     const localizacao = await montarEEsperar()
 
     expect(await professores().findByText('Nenhum professor nesta turma')).toBeTruthy()
@@ -399,7 +399,7 @@ describe('os professores da turma', () => {
   })
 
   it('a lista de vínculos que bateu no teto de páginas: o aviso, e nunca "Nenhum professor nesta turma"', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     // Toda página diz que há outra: a leitura para no teto e volta incompleta.
     instalar(rede, { vinculos: ok([VINCULO(1, PAULO.usuarioId, OUTRA_TURMA, MATEMATICA, 'confirmado')], { proxima: id(999) }) })
     await montarEEsperar()
@@ -410,7 +410,7 @@ describe('os professores da turma', () => {
 
   it('carregando e erro são da seção, e "Tentar de novo" relê só a leitura que falhou', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     let falhar = true
     instalar(rede, { professores: () => (falhar ? FALHA : ok([CAMILA])) })
     await montarEEsperar()
@@ -428,12 +428,12 @@ describe('os professores da turma', () => {
   it('"Tentar de novo" troca o erro por "Carregando…" enquanto a releitura não volta, e a tela traz o professor quando ela volta', async () => {
     const usuario = userEvent.setup()
     let falhar = true
-    let liberar: (resposta: RespostaFalsa) => void = () => undefined
-    instalar(redeFalsa(), {
+    let liberar: (resposta: FakeResponse) => void = () => undefined
+    instalar(fakeNetwork(), {
       professores: () =>
         falhar
           ? FALHA
-          : new Promise<RespostaFalsa>((resolver) => {
+          : new Promise<FakeResponse>((resolver) => {
               liberar = resolver
             }),
     })
@@ -452,7 +452,7 @@ describe('os professores da turma', () => {
   })
 
   it('enquanto os professores carregam, a seção diz que carrega, e a lista de nomes aparece sem esperar', async () => {
-    instalar(redeFalsa(), { professores: nuncaResponde })
+    instalar(fakeNetwork(), { professores: nuncaResponde })
     await montarEEsperar()
 
     expect(await professores().findByText('Carregando os professores da turma…')).toBeTruthy()
@@ -462,7 +462,7 @@ describe('os professores da turma', () => {
 
 describe('o foco depois de cada ação', () => {
   /** O que está na lista no momento em que a tela a lê: o teste muda entre uma leitura e outra. */
-  function listaQueMuda(rede: RedeFalsa, inicial: readonly unknown[]) {
+  function listaQueMuda(rede: FakeNetwork, inicial: readonly unknown[]) {
     const estado = { itens: inicial }
     instalar(rede, { lista: () => ok(estado.itens) })
     return estado
@@ -470,7 +470,7 @@ describe('o foco depois de cada ação', () => {
 
   it('gravar a lista leva o foco ao título dos nomes, com o anúncio, e os nomes gravados já na tabela', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     const estado = listaQueMuda(rede, [])
     rede.responderPor(`/v1/turmas/${TURMA.id}/lista/previa`, {
       status: 200,
@@ -496,7 +496,7 @@ describe('o foco depois de cada ação', () => {
 
   it('acrescentar um nome fecha o diálogo, anuncia na seção dos nomes e devolve o foco ao botão que o abriu', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     const estado = listaQueMuda(rede, [NOME(1, 'livre', 'Ana Souza', '2026001')])
     rede.responderPor(`/v1/turmas/${TURMA.id}/lista/nome`, () => {
       estado.itens = [...estado.itens, NOME(2, 'livre', 'Bruno Lima', '2026002')]
@@ -520,7 +520,7 @@ describe('o foco depois de cada ação', () => {
 
   it('retirar um nome livre tira a linha, anuncia, e leva o foco ao título dos nomes (a linha que abriu o diálogo saiu da tela)', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     const estado = listaQueMuda(rede, [NOME(1, 'livre', 'Ana Souza', '2026001'), NOME(2, 'livre', 'Bruno Lima', '2026002')])
     rede.responderPor(`/v1/lista-nomes/${NOME(1, 'livre').id}`, () => {
       estado.itens = estado.itens.filter((item) => (item as { id: string }).id !== NOME(1, 'livre').id)

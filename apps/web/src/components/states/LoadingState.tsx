@@ -10,7 +10,7 @@ interface Props {
  *
  * Esta peça mora na entrada (Tech Spec da X1, seção 7c): não importa nenhuma das peças que ficam fora dela.
  */
-export function EstadoCarregando({ rotulo }: Props) {
+export function LoadingState({ rotulo }: Props) {
   return (
     <p role="status" className="t-apoio rounded-cartao border-2 border-borda bg-superficie p-4 text-apoio">
       {rotulo}

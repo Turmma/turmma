@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { ContextoDaSaida } from '../sign-out-context'
+import { SignOutContext } from '../sign-out-context'
 import { Introducao, type PassoDaIntroducao } from './Introducao'
 
 /**
@@ -23,7 +23,7 @@ function abrir(opcoes: { revendo?: boolean; passos?: readonly PassoDaIntroducao[
   const aoPular = vi.fn()
   const sair = opcoes.sair ?? vi.fn()
   const peca = (
-    <ContextoDaSaida value={{ sair, saindo: opcoes.saindo ?? false }}>
+    <SignOutContext value={{ sair, saindo: opcoes.saindo ?? false }}>
       <Introducao
         passos={opcoes.passos ?? PASSOS}
         agente="tutor"
@@ -32,7 +32,7 @@ function abrir(opcoes: { revendo?: boolean; passos?: readonly PassoDaIntroducao[
         aoConcluir={aoConcluir}
         aoPular={aoPular}
       />
-    </ContextoDaSaida>
+    </SignOutContext>
   )
   return { aoConcluir, aoPular, sair, ...render(peca) }
 }
@@ -220,9 +220,9 @@ describe('Introducao: o passo obrigatório e o rever', () => {
     const aoConcluir = vi.fn()
     const aoPular = vi.fn()
     const desenho = (revendo: boolean) => (
-      <ContextoDaSaida value={{ sair: vi.fn(), saindo: false }}>
+      <SignOutContext value={{ sair: vi.fn(), saindo: false }}>
         <Introducao passos={PASSOS} agente="tutor" revendo={revendo} aoConcluir={aoConcluir} aoPular={aoPular} />
-      </ContextoDaSaida>
+      </SignOutContext>
     )
     const { rerender } = render(desenho(false))
     expect(fala().textContent).toBe('Primeira fala de exemplo.')

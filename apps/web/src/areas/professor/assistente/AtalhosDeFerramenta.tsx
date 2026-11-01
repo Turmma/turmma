@@ -1,7 +1,7 @@
 import type { ChaveDeFuncao, Ferramenta } from '@educa/shared'
 import { ArrowRight } from 'lucide-react'
 import { Link } from 'wouter'
-import { ROTAS_DO_PROFESSOR } from '../../../paths'
+import { PROFESSOR_ROUTES } from '../../../paths'
 import { Button } from '../../../components/ui/Button'
 import { SECONDARY_LINK_CLASSES } from '../../../components/ui/button-variants'
 import { CATALOGO_DE_FERRAMENTAS } from '../ferramentas/ferramentas'
@@ -38,7 +38,7 @@ export function AtalhosDeFerramenta({ aoAbrir, desligado }: PropsDosAtalhos) {
         </Button>
       ))}
       {/* Relativo à área: o `Route` aninhado em `/professor` resolve o `to` a partir da base dela. */}
-      <Link to={ROTAS_DO_PROFESSOR.ferramentas} className={`${SECONDARY_LINK_CLASSES} gap-2`}>
+      <Link to={PROFESSOR_ROUTES.ferramentas} className={`${SECONDARY_LINK_CLASSES} gap-2`}>
         Ferramentas
         <ArrowRight aria-hidden="true" size={18} strokeWidth={2} />
       </Link>

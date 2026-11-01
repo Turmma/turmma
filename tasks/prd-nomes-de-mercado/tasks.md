@@ -25,7 +25,7 @@
 - [x] **7.0 — Onda da api, símbolos (linha back)**
 - [x] **8.0 — Onda do worker, do despachante, do realtime e do apoio de teste do back (linha back)**
 - [x] **9.0 — Onda do kit visual, símbolos (linha web)**
-- [ ] **10.0 — Onda da web fora do kit (linha web)**
+- [x] **10.0 — Onda da web fora do kit (linha web)**
 - [ ] **11.0 — Onda do e2e, símbolos (linha web)**
 - [ ] **12.0 — A guarda `guardas/nome-de-mercado` recusa nome técnico em português em código novo**
 - [ ] **13.0 — Onda dos documentos: o guia com a §9 reescrita, a arquitetura, a interface, os README e `.claude/`**

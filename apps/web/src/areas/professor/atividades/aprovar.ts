@@ -1,7 +1,7 @@
 import { NOME_DO_MOTIVO_DE_DESTAQUE, type AtividadeAplicada, type Destaque, type MotivoDeDestaque, type CorrecaoDoLoteResponse, type ResumoDoLote } from '@educa/shared'
-import { caminhoDaTurmaDoProfessor, ROTAS_DO_PROFESSOR } from '../../../paths'
+import { caminhoDaTurmaDoProfessor, PROFESSOR_ROUTES } from '../../../paths'
 import type { LinhaDoResumo } from '../../../components/ui/overlays/ConfirmDialog'
-import { formatarDiaEHora } from '../../../format'
+import { formatDayAndTime } from '../../../format'
 
 /**
  * O que a tela de aprovar a correção diz (`docs/interface.md` 11.5; D33, D46, D56). **É diagnóstico, não nota**: tudo
@@ -16,7 +16,7 @@ const numero = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 1 })
  * lista de turmas enquanto ela não chegou ou a leitura falhou. A correção em si não diz a turma.
  */
 export function caminhoDeVoltaDaCorrecao(turmaId: string | undefined): string {
-  return turmaId === undefined ? ROTAS_DO_PROFESSOR.turmas : caminhoDaTurmaDoProfessor(turmaId)
+  return turmaId === undefined ? PROFESSOR_ROUTES.turmas : caminhoDaTurmaDoProfessor(turmaId)
 }
 
 /** "3,4 de 5 questões": a média de acertos da turma, em questões. */
@@ -73,7 +73,7 @@ export function acertosDoAluno(correcao: { readonly acertos: number; readonly to
 /** O estado do destaque: fechado, falta abrir; aberto, a hora em que foi aberto (é o que o registro da validação guarda). */
 export function estadoDoDestaque(destaque: Pick<Destaque, 'abertoEm'>, opcoes: { fuso?: string; agora?: Date } = {}): { readonly aberto: boolean; readonly texto: string } {
   if (destaque.abertoEm === null) return { aberto: false, texto: 'Falta abrir' }
-  return { aberto: true, texto: `Aberto · ${formatarDiaEHora(destaque.abertoEm, opcoes)}` }
+  return { aberto: true, texto: `Aberto · ${formatDayAndTime(destaque.abertoEm, opcoes)}` }
 }
 
 export interface ContadorDosDestaques {
@@ -178,12 +178,12 @@ export const ABAS_DA_CORRECAO = [
 export type AbaDaCorrecao = (typeof ABAS_DA_CORRECAO)[number]['id']
 
 /** Os dois parâmetros do endereço: a aba aberta e o destaque aberto ao lado. Só id e valor de lista fechada, nunca nome (regra 20, item 9). */
-export const PARAMETRO_DA_ABA = 'aba'
-export const PARAMETRO_DO_DESTAQUE = 'ver'
+export const ABA_PARAM = 'aba'
+export const DESTAQUE_PARAM = 'ver'
 
 /** A aba do endereço (`?aba=`). Valor que não é de nenhuma aba cai em Destaques, sem erro. */
 export function abaDoEndereco(busca: string): AbaDaCorrecao {
-  const valor = new URLSearchParams(busca).get(PARAMETRO_DA_ABA)
+  const valor = new URLSearchParams(busca).get(ABA_PARAM)
   return ABAS_DA_CORRECAO.find((aba) => aba.id === valor)?.id ?? 'destaques'
 }
 
@@ -194,7 +194,7 @@ export function abaDoEndereco(busca: string): AbaDaCorrecao {
  * abertura nenhuma. `abertosAgora` são os que a tela acabou de abrir e que a leitura do lote ainda não trouxe.
  */
 export function destaqueDoEndereco<D extends Pick<Destaque, 'alunoId' | 'abertoEm'>>(busca: string, destaques: readonly D[], abertosAgora: ReadonlySet<string>): D | undefined {
-  const alunoId = new URLSearchParams(busca).get(PARAMETRO_DO_DESTAQUE)
+  const alunoId = new URLSearchParams(busca).get(DESTAQUE_PARAM)
   const destaque = destaques.find((candidato) => candidato.alunoId === alunoId)
   if (destaque === undefined) return undefined
   return destaque.abertoEm !== null || abertosAgora.has(destaque.alunoId) ? destaque : undefined
@@ -206,9 +206,9 @@ export function destaqueDoEndereco<D extends Pick<Destaque, 'alunoId' | 'abertoE
  */
 export function enderecoDaCorrecao(caminho: string, busca: string, mudanca: { readonly aba?: AbaDaCorrecao; readonly ver?: string | null }): string {
   const parametros = new URLSearchParams(busca)
-  if (mudanca.aba !== undefined) parametros.set(PARAMETRO_DA_ABA, mudanca.aba)
-  if (mudanca.ver === null) parametros.delete(PARAMETRO_DO_DESTAQUE)
-  else if (mudanca.ver !== undefined) parametros.set(PARAMETRO_DO_DESTAQUE, mudanca.ver)
+  if (mudanca.aba !== undefined) parametros.set(ABA_PARAM, mudanca.aba)
+  if (mudanca.ver === null) parametros.delete(DESTAQUE_PARAM)
+  else if (mudanca.ver !== undefined) parametros.set(DESTAQUE_PARAM, mudanca.ver)
   const resto = parametros.toString()
   return resto === '' ? caminho : `${caminho}?${resto}`
 }

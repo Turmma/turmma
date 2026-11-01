@@ -2,20 +2,20 @@ import { NOME_DO_ALERTA_DO_ANALISTA, TEXTO_DA_HIPOTESE, type ConteudoDoResumoDoA
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useRef, type RefObject } from 'react'
 import { emCurso } from '../../../api/ciclo-de-execucao'
-import { useCicloDeExecucao } from '../../../api/execucoes'
-import { consultaResumoDoAnalista, gerarResumoDoAnalista, lugarDoResumoDoAnalista } from './api/governanca'
+import { useExecutionLifecycle } from '../../../api/execucoes'
+import { resumoDoAnalistaQueryOptions, gerarResumoDoAnalista, lugarDoResumoDoAnalista } from './api/governanca'
 import { ProgressBar } from '../../../components/ui/ProgressBar'
 import { Button } from '../../../components/ui/Button'
 import { Card } from '../../../components/ui/Card'
-import { EstadoCarregando, EstadoErro, EstadoVazio } from '../../../components/states/index'
+import { LoadingState, ErrorState, EmptyState } from '../../../components/states/index'
 import { AgentSignature } from '../../../components/ui/ai/AgentSignature'
 import { QueueAlert } from '../../../components/ui/ai/QueueAlert'
 import { MEDIA_MD, useMediaQuery } from '../../../components/ui/media-query'
 import { StatCard } from '../../../components/ui/StatCard'
 import { StatusBadge } from '../../../components/ui/StatusBadge'
 import { SectionHeader, Page } from '../../../components/ui/Page'
-import { formatarData, formatarDataHora, formatarQuantidade } from '../../../format'
-import { useTituloDaTela } from '../../../document-title'
+import { formatDate, formatDateTime, formatQuantity } from '../../../format'
+import { usePageTitle } from '../../../document-title'
 import { DadoNominal } from './DadoNominal'
 import { O_MIOLO_SEM_ABAS_QUE_ROLA } from '../comum/miolo-que-rola'
 import { acertoPercentual, AVISO_DE_HIPOTESE, falhaDoResumo, formatarPercentual, fraseDoAlerta, nomeDoRecorte } from './textos-da-governanca'
@@ -35,12 +35,12 @@ const enviarPedido = (_pedido: null, chaveEnvio: string) => gerarResumoDoAnalist
  * - **Não é conversa** (RF8): sem campo de texto, anexo, pergunta pronta nem relatório. O Analista em conversa é do F12.
  */
 export default function Analista() {
-  useTituloDaTela('Analista')
+  usePageTitle('Analista')
   // O miolo que rola recebe foco, para rolar pelo teclado, a partir de 768 px: abaixo disso rola a página, e não há o que focar.
   const comMiolo = useMediaQuery(MEDIA_MD)
   const cliente = useQueryClient()
-  const resumo = useQuery(consultaResumoDoAnalista)
-  const { ciclo, demorando, iniciar, repetir, limpar } = useCicloDeExecucao(lugarDoResumoDoAnalista, enviarPedido)
+  const resumo = useQuery(resumoDoAnalistaQueryOptions)
+  const { ciclo, demorando, iniciar, repetir, limpar } = useExecutionLifecycle(lugarDoResumoDoAnalista, enviarPedido)
   const gerando = emCurso(ciclo)
   const concluiu = ciclo?.etapa === 'concluida'
   // Quando o resumo novo chega, o foco vai para ele: o botão volta a dizer "Gerar resumo", e quem usa teclado não fica perdido.
@@ -51,7 +51,7 @@ export default function Analista() {
   useEffect(() => {
     if (!concluiu) return
     focarResumo.current = true
-    void cliente.invalidateQueries({ queryKey: consultaResumoDoAnalista.queryKey })
+    void cliente.invalidateQueries({ queryKey: resumoDoAnalistaQueryOptions.queryKey })
     limpar()
   }, [concluiu, cliente, limpar])
 
@@ -98,11 +98,11 @@ export default function Analista() {
           {falha !== undefined && (falha.repetivel ? <QueueAlert situacao="falha" aoTentarDeNovo={repetir} /> : <p role="alert" className="rounded-controle border border-pendente bg-pendente-cx p-3 break-words text-pendente">{falha.texto}</p>)}
         </div>
 
-        {resumo.isPending && <EstadoCarregando rotulo="Carregando o resumo…" />}
-        {resumo.isError && <EstadoErro erro={resumo.error} tentando={resumo.isFetching} aoTentarDeNovo={() => void resumo.refetch({ cancelRefetch: false })} />}
+        {resumo.isPending && <LoadingState rotulo="Carregando o resumo…" />}
+        {resumo.isError && <ErrorState erro={resumo.error} tentando={resumo.isFetching} aoTentarDeNovo={() => void resumo.refetch({ cancelRefetch: false })} />}
         {resumo.data !== undefined &&
           (resumo.data.resumo === null ? (
-            <EstadoVazio
+            <EmptyState
               variante="tracejado"
               titulo="Nenhum resumo gerado ainda"
               descricao="O Analista monta o acerto por habilidade de cada série e disciplina, com os alertas. Só entra o que os professores já aprovaram, e nenhum nome de aluno ou de professor."
@@ -129,19 +129,19 @@ function Resumo({ geradoEm, conteudo, foco }: { readonly geradoEm: string; reado
   return (
     <div data-resumo-do-analista className="flex min-w-0 flex-col gap-4">
       <p ref={foco} tabIndex={-1} className="text-sm text-sutil">
-        Resumo gerado em {formatarDataHora(geradoEm)} · de {formatarData(periodo.inicio)} a {formatarData(periodo.fim)}
+        Resumo gerado em {formatDateTime(geradoEm)} · de {formatDate(periodo.inicio)} a {formatDate(periodo.fim)}
       </p>
       <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard rotulo="Atividades aplicadas" valor={escola.atividadesAplicadas} />
-        <StatCard rotulo="Correções aprovadas" valor={escola.lotesAprovados} apoio={`${formatarQuantidade(escola.lotesEsperando, 'esperando', 'esperando')} o professor`} />
-        <StatCard rotulo="Trocas com o Tutor" valor={escola.trocasComOTutor} apoio={`${formatarQuantidade(sinais, 'aviso', 'avisos')} aos professores`} />
+        <StatCard rotulo="Correções aprovadas" valor={escola.lotesAprovados} apoio={`${formatQuantity(escola.lotesEsperando, 'esperando', 'esperando')} o professor`} />
+        <StatCard rotulo="Trocas com o Tutor" valor={escola.trocasComOTutor} apoio={`${formatQuantity(sinais, 'aviso', 'avisos')} aos professores`} />
         <StatCard rotulo="Versões adaptadas aprovadas" valor={escola.versoesAdaptadasAprovadas} />
       </div>
 
       <section className="flex min-w-0 flex-col gap-3" aria-labelledby="titulo-alertas">
         <SectionHeader id="titulo-alertas" titulo="Alertas" apoio={AVISO_DE_HIPOTESE} />
         {alertas.length === 0 ? (
-          <EstadoVazio titulo="Nenhum alerta neste resumo" descricao="O Analista avisa quando o acerto de uma habilidade, numa série e disciplina com correção aprovada de dois ou mais professores, fica abaixo do limite provisório desta versão." />
+          <EmptyState titulo="Nenhum alerta neste resumo" descricao="O Analista avisa quando o acerto de uma habilidade, numa série e disciplina com correção aprovada de dois ou mais professores, fica abaixo do limite provisório desta versão." />
         ) : (
           <ul className="flex min-w-0 flex-col gap-3">
             {alertas.map(({ alerta, frase }) => (
@@ -171,12 +171,12 @@ function Resumo({ geradoEm, conteudo, foco }: { readonly geradoEm: string; reado
       <section className="flex min-w-0 flex-col gap-3" aria-labelledby="titulo-recortes">
         <SectionHeader id="titulo-recortes" titulo="Acerto por série e disciplina" apoio="Só das correções que os professores aprovaram. Um recorte só tem número quando dois ou mais professores aprovaram correção nele." />
         {recortes.length === 0 && recortesNominais.length === 0 && (
-          <EstadoVazio titulo="Ainda não há correção aprovada" descricao="Quando um professor aprovar a correção de uma atividade objetiva, o acerto por habilidade da série e da disciplina aparece aqui no próximo resumo." />
+          <EmptyState titulo="Ainda não há correção aprovada" descricao="Quando um professor aprovar a correção de uma atividade objetiva, o acerto por habilidade da série e da disciplina aparece aqui no próximo resumo." />
         )}
         {recortes.map((recorte) => (
           <Card key={`${recorte.serie.id}:${recorte.disciplina.id}`} titulo={nomeDoRecorte(recorte)} nivel={3}>
             <p className="text-sm break-words text-sutil">
-              {formatarQuantidade(recorte.alunos, 'aluno', 'alunos')} · {formatarQuantidade(recorte.lotesAprovados, 'correção aprovada', 'correções aprovadas')} · acerto de{' '}
+              {formatQuantity(recorte.alunos, 'aluno', 'alunos')} · {formatQuantity(recorte.lotesAprovados, 'correção aprovada', 'correções aprovadas')} · acerto de{' '}
               {formatarPercentual(recorte.acertoPercentual)}
             </p>
             <div className="mt-3 flex min-w-0 flex-col gap-3">

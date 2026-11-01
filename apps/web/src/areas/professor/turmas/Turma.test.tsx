@@ -6,8 +6,8 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Router } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
-import { criarClienteDeConsultas } from '../../../api/query-client'
-import { prepararTela, redeFalsa, type RedeFalsa, type RespostaFalsa } from '../../../__fixtures__/render-screen'
+import { createQueryClient } from '../../../api/query-client'
+import { setupScreen, fakeNetwork, type FakeNetwork, type FakeResponse } from '../../../__fixtures__/render-screen'
 import Turma from './Turma'
 
 /**
@@ -15,15 +15,15 @@ import Turma from './Turma'
  * no histórico, o que o parâmetro do painel faz fora de Hoje e quais leituras cada aba faz. A rede é falsa e responde por
  * caminho; a `Turma`, as abas, o cliente de consultas e a rota são os de verdade.
  */
-prepararTela()
+setupScreen()
 
 const id = (n: number) => `0197a1c0-0000-7000-8000-${String(n).padStart(12, '0')}`
 const TURMA = id(100)
 const SERIE = { id: id(110), etapa: 'ef_anos_finais', ano: 7 }
-const ok = (corpo: unknown): RespostaFalsa => ({ status: 200, corpo })
-const erro = (status: number, codigo: string): RespostaFalsa => ({ status, corpo: { erro: { codigo, mensagem: 'x', requisicaoId: '0190f5a0-0000-7000-8000-000000000001' } } })
+const ok = (corpo: unknown): FakeResponse => ({ status: 200, corpo })
+const erro = (status: number, codigo: string): FakeResponse => ({ status, corpo: { erro: { codigo, mensagem: 'x', requisicaoId: '0190f5a0-0000-7000-8000-000000000001' } } })
 
-function instalar(rede: RedeFalsa, sinais?: () => RespostaFalsa): void {
+function instalar(rede: FakeNetwork, sinais?: () => FakeResponse): void {
   rede.responderPor(`/v1/turmas/${TURMA}`, ok({ id: TURMA, nome: '7º A', serie: SERIE }))
   rede.responderPor('/v1/eu', ok({ usuarioId: id(1), papel: 'professor', nome: 'Professora sintética', escola: { id: id(2), nome: 'Escola sintética', slug: 'escola-sintetica' }, inatividadeMin: 30, introducaoVistaEm: '2026-02-01T10:00:00.000Z', acessos: [] }))
   rede.responderPor('/v1/sinais', sinais ?? (() => ok({ itens: [{ id: id(300), tipo: 'atencao_humana', aluno: { id: id(901), nome: 'Caio Sintético' }, criadoEm: '2026-10-05T13:40:00.000Z' }], grupos: [] })))
@@ -40,7 +40,7 @@ function instalar(rede: RedeFalsa, sinais?: () => RespostaFalsa): void {
 function montar(busca = '') {
   const localizacao = memoryLocation({ path: `/turmas/${TURMA}`, searchPath: busca, record: true })
   const tela = render(
-    <QueryClientProvider client={criarClienteDeConsultas()}>
+    <QueryClientProvider client={createQueryClient()}>
       <Router hook={localizacao.hook} searchHook={localizacao.searchHook}>
         <Turma turmaId={TURMA} />
       </Router>
@@ -50,8 +50,8 @@ function montar(busca = '') {
 }
 
 const semConsulta = (caminho: string) => caminho.split('?')[0] ?? caminho
-const caminhosDe = (rede: RedeFalsa) => rede.chamadas.map((chamada) => semConsulta(chamada.caminho))
-const vezesQue = (rede: RedeFalsa, caminho: string) => caminhosDe(rede).filter((chamado) => chamado === caminho).length
+const caminhosDe = (rede: FakeNetwork) => rede.chamadas.map((chamada) => semConsulta(chamada.caminho))
+const vezesQue = (rede: FakeNetwork, caminho: string) => caminhosDe(rede).filter((chamado) => chamado === caminho).length
 const abaSelecionada = () => screen.getByRole('tab', { selected: true }).textContent
 
 beforeEach(() => {
@@ -81,7 +81,7 @@ afterEach(() => {
 
 describe('a turma aberta: a aba pelo endereço', () => {
   it('são três abas, Hoje, Atividades e Alunos, nessa ordem; o `h1` e o "Voltar para Turmas" ficam', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede)
     montar()
     await screen.findByRole('tab', { name: 'Hoje' })
@@ -92,7 +92,7 @@ describe('a turma aberta: a aba pelo endereço', () => {
 
   it('sem aba, a turma abre em Hoje; `?aba=visao-geral`, o endereço de antes, e um valor que não existe, também', async () => {
     for (const busca of ['', 'aba=visao-geral', 'aba=qualquer-coisa', 'aba=']) {
-      const rede = redeFalsa()
+      const rede = fakeNetwork()
       instalar(rede)
       const { unmount } = montar(busca)
       await screen.findByRole('region', { name: 'Sinais da turma' })
@@ -102,7 +102,7 @@ describe('a turma aberta: a aba pelo endereço', () => {
   })
 
   it('`?aba=alunos` abre Alunos, e `?aba=atividades`, Atividades: cada uma com o conteúdo dela e só as leituras dela', async () => {
-    const redeAlunos = redeFalsa()
+    const redeAlunos = fakeNetwork()
     instalar(redeAlunos)
     const { unmount } = montar('aba=alunos')
     expect(await screen.findByRole('heading', { name: 'Acesso dos alunos' })).toBeTruthy()
@@ -110,7 +110,7 @@ describe('a turma aberta: a aba pelo endereço', () => {
     expect(caminhosDe(redeAlunos)).not.toContain('/v1/sinais')
     unmount()
 
-    const redeAtividades = redeFalsa()
+    const redeAtividades = fakeNetwork()
     instalar(redeAtividades)
     montar('aba=atividades')
     expect(await screen.findByText('Nenhuma atividade aplicada a esta turma')).toBeTruthy()
@@ -121,7 +121,7 @@ describe('a turma aberta: a aba pelo endereço', () => {
 
   it('trocar de aba troca o endereço com `replace`: a aba nova no endereço, o histórico com o mesmo tamanho, e o Voltar não passa por ela', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede)
     const { localizacao } = montar()
     await screen.findByRole('region', { name: 'Sinais da turma' })
@@ -139,7 +139,7 @@ describe('a turma aberta: a aba pelo endereço', () => {
 
   it('o painel do Tutor pedido no endereço só abre em Hoje: em Alunos o parâmetro não abre nada, e voltar a Hoje não o reabre', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede)
     const { localizacao } = montar('aba=alunos&ver=tutor')
     await screen.findByRole('heading', { name: 'Acesso dos alunos' })
@@ -154,7 +154,7 @@ describe('a turma aberta: a aba pelo endereço', () => {
   })
 
   it('o painel do Tutor pedido em Hoje abre, com Hoje por baixo', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede)
     montar('aba=hoje&ver=tutor')
     expect(await screen.findByRole('dialog', { name: 'O que o Tutor viu' })).toBeTruthy()
@@ -173,7 +173,7 @@ describe('Hoje só lê os sinais com Hoje à vista', () => {
   it('com Atividades ou Alunos aberta, nenhuma leitura de sinais aos 15 s; o controle: com Hoje aberta, a leitura sai', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
     const usuario = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede)
     montar()
     await screen.findByRole('region', { name: 'Sinais da turma' })
@@ -203,7 +203,7 @@ describe('o vínculo encerrado com a turma aberta em Hoje', () => {
   ])('o 404 da releitura dos sinais tira a página inteira, %s, sem o nome de aluno nenhum, e deixa só o aviso e o caminho de volta', async (_quando, busca) => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
     let leituras = 0
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     const sinaisComNome = ok({ itens: [{ id: id(300), tipo: 'atencao_humana', aluno: { id: id(901), nome: 'Caio Sintético' }, criadoEm: '2026-10-05T13:40:00.000Z' }], grupos: [] })
     // A primeira leitura traz o aluno; a releitura dos 15 s já não acha a turma.
     instalar(rede, () => ((leituras += 1) === 1 ? sinaisComNome : erro(404, 'NAO_ENCONTRADO')))

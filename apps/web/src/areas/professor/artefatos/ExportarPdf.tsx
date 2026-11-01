@@ -1,7 +1,7 @@
 import { useMutation } from '@tanstack/react-query'
 import { FileDown } from 'lucide-react'
 import { baixarPdfDoArtefato, salvarArquivo } from './api/artefatos'
-import { mensagemDoErro } from '../../../api/client'
+import { errorMessage } from '../../../api/client'
 import { Button } from '../../../components/ui/Button'
 import type { ButtonVariant } from '../../../components/ui/button-variants'
 
@@ -32,7 +32,7 @@ export function ExportarPdf({ artefatoId, titulo, variante = 'discreto', rascunh
         {exportar.isPending ? 'Exportando…' : rascunho ? 'Exportar rascunho em PDF' : 'Exportar em PDF'}
       </Button>
       <span role="alert" className="min-w-0 text-sm break-words text-erro empty:hidden">
-        {exportar.isError ? mensagemDoErro(exportar.error) : ''}
+        {exportar.isError ? errorMessage(exportar.error) : ''}
       </span>
     </>
   )

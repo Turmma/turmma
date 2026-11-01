@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { Router } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
-import { prepararTela, redeFalsa, renderizarTela, type RedeFalsa, type RespostaFalsa } from '../../../__fixtures__/render-screen'
+import { setupScreen, fakeNetwork, renderScreen, type FakeNetwork, type FakeResponse } from '../../../__fixtures__/render-screen'
 import { TEXTO_DO_ESTADO_DO_PROFESSOR } from './convite-de-professor'
 import Professores from './Professores'
 
@@ -16,7 +16,7 @@ import Professores from './Professores'
  * de 360 px, o link que aparece uma vez e o diálogo sobre o painel, com dois `<dialog>` empilhados) é do e2e `professores`. O `jsdom` não
  * tem `matchMedia`, `ResizeObserver` nem o `dialog` modal: o teste os põe, e são API do navegador, e não peça nossa.
  */
-prepararTela()
+setupScreen()
 
 const id = (n: number) => `0197a1c0-0000-7000-8000-${String(n).padStart(12, '0')}`
 const ANO = { id: id(1), ano: 2026, inicio: '2026-02-02', fim: '2026-12-18', situacao: 'em_curso' }
@@ -49,16 +49,16 @@ const VINCULOS = [
   vinculo(4, CAIO, T8A, FISICA, 'encerrado'),
 ]
 
-const ERRO = (codigo: string, status: number): RespostaFalsa => ({
+const ERRO = (codigo: string, status: number): FakeResponse => ({
   status,
   corpo: { erro: { codigo, mensagem: 'texto que a tela não usa', requisicaoId: '0190f5a0-0000-7000-8000-000000000001' } },
 })
 /** Um erro que a leitura não repete sozinha: a tela mostra o erro na hora, e não depois da nova tentativa de um segundo. */
 const FALHA = ERRO('LIMITE_EXCEDIDO', 429)
-const ok = (itens: readonly unknown[], extra: Record<string, unknown> = {}): RespostaFalsa => ({ status: 200, corpo: { itens, ...extra } })
-const nuncaResponde = () => new Promise<RespostaFalsa>(() => undefined)
+const ok = (itens: readonly unknown[], extra: Record<string, unknown> = {}): FakeResponse => ({ status: 200, corpo: { itens, ...extra } })
+const nuncaResponde = () => new Promise<FakeResponse>(() => undefined)
 
-type Resposta = RespostaFalsa | (() => RespostaFalsa | Promise<RespostaFalsa>)
+type Resposta = FakeResponse | (() => FakeResponse | Promise<FakeResponse>)
 interface Respostas {
   anos: Resposta
   professores: Resposta
@@ -78,7 +78,7 @@ const PADRAO: Respostas = {
   disciplinas: ok([MATEMATICA, FISICA].map((disciplina) => ({ ...disciplina, area: null }))),
 }
 
-function instalar(rede: RedeFalsa, parcial: Partial<Respostas> = {}): void {
+function instalar(rede: FakeNetwork, parcial: Partial<Respostas> = {}): void {
   const respostas = { ...PADRAO, ...parcial }
   rede.responderPor(/^\/v1\/anos-letivos\?/, respostas.anos)
   rede.responderPor('/v1/professores', respostas.professores)
@@ -88,8 +88,8 @@ function instalar(rede: RedeFalsa, parcial: Partial<Respostas> = {}): void {
 }
 
 /** Os caminhos pedidos, sem a consulta, na ordem. */
-const caminhosDe = (rede: RedeFalsa) => rede.chamadas.map((chamada) => chamada.caminho.split('?')[0])
-const vezes = (rede: RedeFalsa, caminho: string) => caminhosDe(rede).filter((pedido) => pedido === caminho).length
+const caminhosDe = (rede: FakeNetwork) => rede.chamadas.map((chamada) => chamada.caminho.split('?')[0])
+const vezes = (rede: FakeNetwork, caminho: string) => caminhosDe(rede).filter((pedido) => pedido === caminho).length
 
 /** A largura da janela, para a consulta `(min-width: 768px)` que a `Table` lê. */
 function janelaDe(largura: number): void {
@@ -123,7 +123,7 @@ beforeEach(() => {
 function montar(endereco = '/professores') {
   const [caminho = '/professores', busca = ''] = endereco.split('?')
   const localizacao = memoryLocation({ path: caminho, searchPath: busca, record: true })
-  renderizarTela(
+  renderScreen(
     <Router hook={localizacao.hook} searchHook={localizacao.searchHook}>
       <Professores />
     </Router>,
@@ -152,7 +152,7 @@ const painelDe = (nome: string) => screen.findByRole('dialog', { name: nome })
 
 describe('os quatro estados da tela', () => {
   it('carregando: a leitura da lista no ar', async () => {
-    instalar(redeFalsa(), { professores: nuncaResponde })
+    instalar(fakeNetwork(), { professores: nuncaResponde })
     montar()
     expect(await screen.findByText('Carregando os professores…')).toBeTruthy()
     expect(screen.queryByRole('table')).toBeNull()
@@ -162,7 +162,7 @@ describe('os quatro estados da tela', () => {
 
   it('erro: a mensagem curta e "Tentar de novo", que lê só a lista de novo', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     let falhar = true
     instalar(rede, { professores: () => (falhar ? FALHA : ok([ANA])) })
     montar()
@@ -175,7 +175,7 @@ describe('os quatro estados da tela', () => {
   })
 
   it('vazio: "Nenhum professor ainda", com "Cadastrar professor" e nenhuma tabela', async () => {
-    instalar(redeFalsa(), { professores: ok([]), vinculos: ok([]) })
+    instalar(fakeNetwork(), { professores: ok([]), vinculos: ok([]) })
     montar()
     expect(await screen.findByText('Nenhum professor ainda')).toBeTruthy()
     expect(screen.getAllByRole('button', { name: 'Cadastrar professor' })).toHaveLength(1)
@@ -183,7 +183,7 @@ describe('os quatro estados da tela', () => {
   })
 
   it('com dado: a tabela pelo nome, em português, e a contagem ao lado do título', async () => {
-    instalar(redeFalsa())
+    instalar(fakeNetwork())
     await montarEEsperar()
     expect(tabela().getAllByRole('columnheader').map((coluna) => coluna.textContent)).toEqual(['Nome', 'Disciplinas', 'Turmas', 'Situação'])
     expect(linhas().map((linha) => linha.children[0]?.textContent)).toEqual([ANA.nome, BRUNO.nome, CAIO.nome, DAVI.nome, ELIS.nome, FABIO.nome])
@@ -192,14 +192,14 @@ describe('os quatro estados da tela', () => {
   })
 
   it('a contagem no singular, com um professor só', async () => {
-    instalar(redeFalsa(), { professores: ok([ANA]) })
+    instalar(fakeNetwork(), { professores: ok([ANA]) })
     await montarEEsperar()
     expect(screen.getByText('1 professor')).toBeTruthy()
   })
 
   it('a lista que passou do teto de páginas avisa que mostra só os primeiros', async () => {
     // Toda página diz que há outra: a tela lê até o teto e para.
-    instalar(redeFalsa(), { professores: () => ok([ANA], { proxima: id(999) }) })
+    instalar(fakeNetwork(), { professores: () => ok([ANA], { proxima: id(999) }) })
     montar()
     expect(await screen.findByText('A lista é maior do que esta tela mostra: aparecem só os primeiros.')).toBeTruthy()
   })
@@ -207,7 +207,7 @@ describe('os quatro estados da tela', () => {
 
 describe('a tabela', () => {
   it('cada estado do convite em texto, no selo da família dele', async () => {
-    instalar(redeFalsa())
+    instalar(fakeNetwork())
     await montarEEsperar()
     const esperado = [
       [ANA, 'ok'],
@@ -226,7 +226,7 @@ describe('a tabela', () => {
   })
 
   it('as turmas e as disciplinas dos vínculos: duas disciplinas na mesma turma dão a turma uma vez; o contestado conta; o encerrado e a falta de vínculo dão o traço', async () => {
-    instalar(redeFalsa())
+    instalar(fakeNetwork())
     await montarEEsperar()
     await waitFor(() => expect(celulasDe(ANA.nome)[2]).toBe('7ºA'))
     expect(celulasDe(ANA.nome).slice(0, 3)).toEqual([`${ANA.nome}`, 'Física, Matemática', '7ºA'])
@@ -237,7 +237,7 @@ describe('a tabela', () => {
 
   it('sem e-mail: a tabela e o painel não o pedem à API, e a tela só lê anos, professores e vínculos — e, no painel de quem recebe turma, as turmas e as disciplinas', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede)
     await montarEEsperar()
     await usuario.click(botaoDe(BRUNO.nome))
@@ -251,7 +251,7 @@ describe('a tabela', () => {
 
   it('"Cadastrar professor" é o único botão cheio da tela, com a tabela e com o painel aberto', async () => {
     const usuario = userEvent.setup()
-    instalar(redeFalsa())
+    instalar(fakeNetwork())
     await montarEEsperar()
     const cheios = () =>
       screen
@@ -267,7 +267,7 @@ describe('a tabela', () => {
   it('a 360 px a tabela vira lista, e o nome da pessoa continua sendo o botão que abre o painel', async () => {
     const usuario = userEvent.setup()
     janelaDe(360)
-    instalar(redeFalsa())
+    instalar(fakeNetwork())
     montar()
     const lista = await screen.findByRole('list', { name: 'Professores da escola' })
     expect(screen.queryByRole('table')).toBeNull()
@@ -283,7 +283,7 @@ describe('a tabela', () => {
 
 describe('as turmas dos professores, lidas à parte', () => {
   it('sem ano em curso: os vínculos nem são pedidos, o traço fica nas células, e não há aviso', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { anos: ok([ANO_PLANEJADO]) })
     await montarEEsperar()
     await waitFor(() => expect(vezes(rede, '/v1/anos-letivos')).toBe(1))
@@ -294,7 +294,7 @@ describe('as turmas dos professores, lidas à parte', () => {
 
   it('os vínculos que falham: a tabela continua, o aviso diz por quê, e "Tentar de novo" lê só os vínculos', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     let falhar = true
     instalar(rede, { vinculos: () => (falhar ? FALHA : ok(VINCULOS)) })
     await montarEEsperar()
@@ -310,7 +310,7 @@ describe('as turmas dos professores, lidas à parte', () => {
 
   it('os anos que falham: o mesmo aviso, e "Tentar de novo" lê os anos, que liberam os vínculos', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     let falhar = true
     instalar(rede, { anos: () => (falhar ? FALHA : ok([ANO])) })
     await montarEEsperar()
@@ -324,7 +324,7 @@ describe('as turmas dos professores, lidas à parte', () => {
   })
 
   it('a lista de professores que falha não leva o aviso das turmas: ele é de outra leitura', async () => {
-    instalar(redeFalsa(), { professores: FALHA })
+    instalar(fakeNetwork(), { professores: FALHA })
     montar()
     await screen.findByRole('alert')
     expect(screen.queryByText(/As turmas e as disciplinas/)).toBeNull()
@@ -334,7 +334,7 @@ describe('as turmas dos professores, lidas à parte', () => {
 describe('o painel do professor', () => {
   it('a linha abre o painel no endereço, com o nome no título e a situação em texto; "Fechar" tira o parâmetro sem passo novo no histórico', async () => {
     const usuario = userEvent.setup()
-    instalar(redeFalsa())
+    instalar(fakeNetwork())
     const localizacao = await montarEEsperar()
     await usuario.click(botaoDe(BRUNO.nome))
     expect(localizacao.history?.at(-1)).toBe(`/professores?professor=${BRUNO.usuarioId}`)
@@ -350,7 +350,7 @@ describe('o painel do professor', () => {
 
   it('só as ações que o estado permite: o convite em aberto, pendente ou vencido, refaz e revoga; quem recebe turma tem "Acrescentar turma"; o revogado e o desativado não têm rodapé', async () => {
     const usuario = userEvent.setup()
-    instalar(redeFalsa())
+    instalar(fakeNetwork())
     await montarEEsperar()
     const acoesDo = async (dono: { nome: string }, recebeTurma: boolean) => {
       await usuario.click(botaoDe(dono.nome))
@@ -374,12 +374,12 @@ describe('o painel do professor', () => {
   })
 
   it('pelo endereço, abre já com o painel; o id que a lista não tem, ou outro parâmetro, não abre nada', async () => {
-    instalar(redeFalsa())
+    instalar(fakeNetwork())
     await montarEEsperar(`/professores?professor=${ELIS.usuarioId}`)
     expect(await painelDe(ELIS.nome)).toBeTruthy()
     cleanup()
     for (const busca of [`professor=${id(999)}`, 'professor=', 'professor=nao-e-um-id', `painel=${ELIS.usuarioId}`]) {
-      instalar(redeFalsa())
+      instalar(fakeNetwork())
       await montarEEsperar(`/professores?${busca}`)
       expect(screen.queryByRole('dialog'), busca).toBeNull()
       cleanup()
@@ -390,7 +390,7 @@ describe('o painel do professor', () => {
     const usuario = userEvent.setup()
     const aberto = professor(7, 'Gil Sintético', 'pendente')
     const dono = professor(8, 'Gil Sintético', 'ativo')
-    instalar(redeFalsa(), { professores: ok([aberto, dono]) })
+    instalar(fakeNetwork(), { professores: ok([aberto, dono]) })
     const localizacao = await montarEEsperar()
     const botoes = tabela().getAllByRole('button', { name: 'Gil Sintético' })
     expect(botoes).toHaveLength(2)
@@ -413,7 +413,7 @@ describe('o painel do professor', () => {
 
     // Pelo endereço, é o id que escolhe, e não o nome: o painel de quem tem o mesmo nome.
     cleanup()
-    instalar(redeFalsa(), { professores: ok([aberto, dono]) })
+    instalar(fakeNetwork(), { professores: ok([aberto, dono]) })
     await montarEEsperar(`/professores?professor=${dono.usuarioId}`)
     const doEndereco = await painelDe('Gil Sintético')
     expect(within(doEndereco).getByText(TEXTO_DO_ESTADO_DO_PROFESSOR.ativo)).toBeTruthy()
@@ -421,14 +421,14 @@ describe('o painel do professor', () => {
   })
 
   it('o painel pelo endereço só desenha depois da lista: com a leitura no ar, nada dele aparece', async () => {
-    instalar(redeFalsa(), { professores: nuncaResponde })
+    instalar(fakeNetwork(), { professores: nuncaResponde })
     montar(`/professores?professor=${ANA.usuarioId}`)
     await screen.findByText('Carregando os professores…')
     expect(screen.queryByRole('dialog')).toBeNull()
   })
 
   it('o professor de outra escola no endereço (a lista desta escola não o tem) não abre painel nem diz que ele existe', async () => {
-    instalar(redeFalsa(), { professores: ok([ANA]) })
+    instalar(fakeNetwork(), { professores: ok([ANA]) })
     await montarEEsperar(`/professores?professor=${BRUNO.usuarioId}`)
     expect(screen.queryByRole('dialog')).toBeNull()
     expect(document.body.textContent).not.toContain(BRUNO.nome)
@@ -438,7 +438,7 @@ describe('o painel do professor', () => {
 describe('o foco depois de fechar o painel', () => {
   it('aberto pela linha, o foco volta ao botão da linha', async () => {
     const usuario = userEvent.setup()
-    instalar(redeFalsa())
+    instalar(fakeNetwork())
     await montarEEsperar()
     const botao = botaoDe(BRUNO.nome)
     await usuario.click(botao)
@@ -450,7 +450,7 @@ describe('o foco depois de fechar o painel', () => {
 
   it('aberto já pelo endereço, sem botão que o tenha aberto, o painel fecha com o foco no título da lista', async () => {
     const usuario = userEvent.setup()
-    instalar(redeFalsa())
+    instalar(fakeNetwork())
     await montarEEsperar(`/professores?professor=${BRUNO.usuarioId}`)
     const painel = await painelDe(BRUNO.nome)
     const titulo = screen.getByRole('heading', { name: 'Professores da escola' })
@@ -461,7 +461,7 @@ describe('o foco depois de fechar o painel', () => {
   })
 
   it('a tela montada sem painel não tira o foco de ninguém', async () => {
-    instalar(redeFalsa())
+    instalar(fakeNetwork())
     await montarEEsperar()
     expect(document.activeElement).toBe(document.body)
   })
@@ -478,7 +478,7 @@ describe('revogar e refazer, pelo painel', () => {
 
   it('revogar: o diálogo de confirmação abre sobre o painel; confirmado, o painel fica, diz o que aconteceu, perde o rodapé, e o foco vai à situação', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     const estados: Record<string, string> = {}
     instalar(rede, { professores: comEstado(estados) })
     rede.responderPor(REVOGAR, () => {
@@ -507,7 +507,7 @@ describe('revogar e refazer, pelo painel', () => {
 
   it('o anúncio é do professor que foi revogado: o painel de outro não o repete', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     const estados: Record<string, string> = {}
     instalar(rede, { professores: comEstado(estados) })
     rede.responderPor(REVOGAR, () => {
@@ -531,7 +531,7 @@ describe('revogar e refazer, pelo painel', () => {
 
   it('abrir outro diálogo apaga o anúncio da ação anterior', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     const estados: Record<string, string> = {}
     instalar(rede, { professores: comEstado(estados) })
     rede.responderPor(REVOGAR, () => {
@@ -559,7 +559,7 @@ describe('revogar e refazer, pelo painel', () => {
 
   it('refazer cai em CONFLITO porque outra pessoa revogou: o diálogo avisa, a lista recarrega, e fechado o foco vai à situação no painel', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     const estados: Record<string, string> = {}
     instalar(rede, { professores: comEstado(estados) })
     rede.responderPor(REFAZER, () => {
@@ -583,7 +583,7 @@ describe('revogar e refazer, pelo painel', () => {
 
   it('"Cadastrar professor" abre o diálogo da tela, sem o painel', async () => {
     const usuario = userEvent.setup()
-    instalar(redeFalsa())
+    instalar(fakeNetwork())
     await montarEEsperar()
     await usuario.click(screen.getByRole('button', { name: 'Cadastrar professor' }))
     expect(await screen.findByRole('dialog', { name: 'Cadastrar professor' })).toBeTruthy()

@@ -1,7 +1,7 @@
 import { conversaDoAssistenteResponseSchema, execucaoAceitaResponseSchema, type MensagemDaConversa, type MensagemAoAssistenteRequest, type ConversaDoAssistenteResponse, type ExecucaoAceitaResponse } from '@educa/shared'
 import { infiniteQueryOptions } from '@tanstack/react-query'
-import { CHAVE_DA_CONVERSA } from '../../../../api/chaves-do-professor'
-import { buscarComSessao, chamarComSessao } from '../../../../api/sessao'
+import { CONVERSA_QUERY_KEY } from '../../../../api/chaves-do-professor'
+import { authedGet, authedRequest } from '../../../../api/sessao'
 
 const CAMINHO_DA_CONVERSA = '/v1/assistente/conversa'
 
@@ -13,10 +13,10 @@ const CAMINHO_DA_CONVERSA = '/v1/assistente/conversa'
  *
  * A primeira página são as mensagens mais recentes; cada página seguinte, as anteriores (`?antes=<id>`).
  */
-export const consultaConversaDoAssistente = infiniteQueryOptions({
-  queryKey: CHAVE_DA_CONVERSA,
+export const conversaDoAssistenteQueryOptions = infiniteQueryOptions({
+  queryKey: CONVERSA_QUERY_KEY,
   queryFn: ({ pageParam, signal }) =>
-    buscarComSessao(pageParam === undefined ? CAMINHO_DA_CONVERSA : `${CAMINHO_DA_CONVERSA}?antes=${encodeURIComponent(pageParam)}`, conversaDoAssistenteResponseSchema, signal),
+    authedGet(pageParam === undefined ? CAMINHO_DA_CONVERSA : `${CAMINHO_DA_CONVERSA}?antes=${encodeURIComponent(pageParam)}`, conversaDoAssistenteResponseSchema, signal),
   initialPageParam: undefined as string | undefined,
   getNextPageParam: (ultima) => ultima.anterior,
 })
@@ -40,5 +40,5 @@ export function mensagensEmOrdem(paginas: readonly ConversaDoAssistenteResponse[
 
 /** `POST /v1/assistente/mensagens`: responde 202 com a execução. A resposta do Assistente chega pela execução. */
 export function enviarMensagemAoAssistente(pedido: MensagemAoAssistenteRequest): Promise<ExecucaoAceitaResponse> {
-  return chamarComSessao('/v1/assistente/mensagens', execucaoAceitaResponseSchema, { metodo: 'POST', corpo: pedido })
+  return authedRequest('/v1/assistente/mensagens', execucaoAceitaResponseSchema, { metodo: 'POST', corpo: pedido })
 }

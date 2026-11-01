@@ -1,7 +1,7 @@
 import { ErrorCode, type Entrega, type Vinculo } from '@educa/shared'
 import { describe, expect, it } from 'vitest'
-import { ErroDaApi } from '../../../api/client'
-import { caminhoDaCorrecaoDoProfessor, ROTAS_DO_PROFESSOR } from '../../../paths'
+import { ApiError } from '../../../api/client'
+import { caminhoDaCorrecaoDoProfessor, PROFESSOR_ROUTES } from '../../../paths'
 import type { LeituraDaFila } from '../../../components/sino/leitura-do-sino'
 import { esperandoVoce, esperaNaTurma, filaDoProfessor, GRUPO_DA_TURMA_SEM_NOME, TETO_DE_TURMAS_LIDAS, turmasConfirmadas, type EntradaDaFilaDoProfessor, type LeituraDaContagem } from './fila-do-professor'
 
@@ -52,7 +52,7 @@ describe('a fila da professora, tipo a tipo (RF3)', () => {
     const fila = filaDoProfessor(entrada({ entregas: lida([lote('01'), lote('02', { atividadeAplicadaId: null })]), vinculos: lida([vinculo('01', B)]), contagens: new Map([[TURMA_B, contagem(0)]]) }))
     expect(fila.itens.map((item) => [item.tipo, item.titulo, item.para])).toEqual([
       ['correcao', 'Correção para revisar', caminhoDaCorrecaoDoProfessor(ATIVIDADE)],
-      ['correcao', 'Correção para revisar', ROTAS_DO_PROFESSOR.timeDoAssistente],
+      ['correcao', 'Correção para revisar', PROFESSOR_ROUTES.timeDoAssistente],
     ])
     expect(fila.itens[0]?.detalhe).toBe('Atividade de estequiometria')
   })
@@ -192,13 +192,13 @@ describe('a situação da fila: nunca "Tudo em dia" sem ter lido tudo', () => {
   })
 
   it('sem ano letivo em curso a fila é parcial, não lê turma e não diz "em dia"', () => {
-    const semAno = new ErroDaApi(ErrorCode.NAO_ENCONTRADO)
+    const semAno = new ApiError(ErrorCode.NAO_ENCONTRADO)
     const fila = filaDoProfessor(entrada({ vinculos: { estado: 'erro', erro: semAno }, entregas: { estado: 'erro', erro: semAno } }))
     expect(fila).toMatchObject({ situacao: 'parcial', semAnoLetivo: true, itens: [] })
   })
 
   it('a falha que não é "não encontrado" não vira "sem ano letivo"', () => {
-    const fila = filaDoProfessor(entrada({ vinculos: { estado: 'erro', erro: new ErroDaApi(ErrorCode.ERRO_INTERNO) } }))
+    const fila = filaDoProfessor(entrada({ vinculos: { estado: 'erro', erro: new ApiError(ErrorCode.ERRO_INTERNO) } }))
     expect(fila.semAnoLetivo).toBe(false)
   })
 })

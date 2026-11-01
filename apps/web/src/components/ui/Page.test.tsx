@@ -2,7 +2,7 @@
 import { cleanup, render, screen } from '@testing-library/react'
 import { createRef } from 'react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { classesDo } from '../../__fixtures__/class-colors'
+import { classesOf } from '../../__fixtures__/class-colors'
 import { Page, type PageWidth } from './Page'
 
 /**
@@ -24,12 +24,12 @@ describe('Tela: o título', () => {
 
     const h1 = titulo()
     expect(h1.textContent).toBe('Estrutura')
-    expect(classesDo(h1).has('sr-only')).toBe(false)
-    expect(classesDo(h1).has('t-titulo')).toBe(true)
+    expect(classesOf(h1).has('sr-only')).toBe(false)
+    expect(classesOf(h1).has('t-titulo')).toBe(true)
     const cabecalho = h1.closest('header') as HTMLElement
     expect(cabecalho).not.toBeNull()
     // No mínimo 64 px: a classe que o diz.
-    expect(classesDo(cabecalho).has('min-h-16')).toBe(true)
+    expect(classesOf(cabecalho).has('min-h-16')).toBe(true)
     expect(cabecalho.textContent).toContain('A escola, montada')
     expect(cabecalho.querySelector('button')?.textContent).toBe('Nova turma')
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
@@ -44,8 +44,8 @@ describe('Tela: o título', () => {
 
     const h1 = titulo()
     expect(h1.textContent).toBe('Nova conversa')
-    expect(classesDo(h1).has('sr-only')).toBe(true)
-    expect(classesDo(h1).has('t-titulo')).toBe(false)
+    expect(classesOf(h1).has('sr-only')).toBe(true)
+    expect(classesOf(h1).has('t-titulo')).toBe(false)
     expect(container.querySelector('header')).toBeNull()
     expect(screen.getByRole('button', { name: 'Filtrar' })).toBeTruthy()
     // A descrição mora no cabeçalho, que a conversa não tem: ela some com o título, e não fica solta na tela.
@@ -115,7 +115,7 @@ describe('Tela: a coluna', () => {
     )
     const coluna = container.querySelector('[data-tela]') as HTMLElement
     expect(coluna.getAttribute('data-tela')).toBe(largura)
-    const teto = [...classesDo(coluna)].filter((classe) => classe.startsWith('max-w-'))
+    const teto = [...classesOf(coluna)].filter((classe) => classe.startsWith('max-w-'))
     expect(teto).toEqual([classe])
   })
 
@@ -130,7 +130,7 @@ describe('Tela: a coluna', () => {
         miolo
       </Page>,
     )
-    const colunaComMargem = classesDo(com.container.querySelector('[data-tela]') as HTMLElement)
+    const colunaComMargem = classesOf(com.container.querySelector('[data-tela]') as HTMLElement)
     expect(colunaComMargem.has('px-4')).toBe(true)
     expect(colunaComMargem.has('md:px-8')).toBe(true)
     // Do topo ao cabeçalho, 24 px, e 32 px no fim do corpo (9.3).
@@ -141,7 +141,7 @@ describe('Tela: a coluna', () => {
     com.unmount()
 
     const sem = render(<Page titulo="Tela">miolo</Page>)
-    const colunaSemMargem = [...classesDo(sem.container.querySelector('[data-tela]') as HTMLElement)]
+    const colunaSemMargem = [...classesOf(sem.container.querySelector('[data-tela]') as HTMLElement)]
     expect(colunaSemMargem.filter((classe) => /^(md:)?p[xtb]?-\d/.test(classe))).toEqual([])
   })
 })

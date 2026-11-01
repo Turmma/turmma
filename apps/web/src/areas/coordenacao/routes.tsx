@@ -1,7 +1,7 @@
 import { lazy, Suspense } from 'react'
 import { Redirect, Route, Switch } from 'wouter'
-import { ROTAS_DA_COORDENACAO } from '../../paths'
-import { ConteudoNaoEncontrado } from '../../components/NotFound'
+import { COORDENACAO_ROUTES } from '../../paths'
+import { NotFoundContent } from '../../components/NotFound'
 
 /**
  * Cada tela é um pedaço próprio (`tela-coordenacao-<Tela>-*.js`), baixado só por quem a abre: a fachada da área (`coordenacao-*.js`,
@@ -57,11 +57,11 @@ export default function RotasDaCoordenacao() {
         <SinoDaCoordenacao />
       </Suspense>
       <Switch>
-        <Route path={ROTAS_DA_COORDENACAO.painel} component={Painel} />
-        <Route path={ROTAS_DA_COORDENACAO.bemVindo} component={BemVindo} />
-        <Route path={ROTAS_DA_COORDENACAO.analista} component={Analista} />
+        <Route path={COORDENACAO_ROUTES.painel} component={Painel} />
+        <Route path={COORDENACAO_ROUTES.bemVindo} component={BemVindo} />
+        <Route path={COORDENACAO_ROUTES.analista} component={Analista} />
         {/* Escola: as três abas. */}
-        <Route path={ROTAS_DA_COORDENACAO.estrutura}>
+        <Route path={COORDENACAO_ROUTES.estrutura}>
           <Escola aba="turmas">
             <Estrutura />
           </Escola>
@@ -70,37 +70,37 @@ export default function RotasDaCoordenacao() {
           A `key` pela turma: outra turma é outra tela. Sem ela, ir de uma turma já aberta para outra pelo histórico
           manteria o texto colado e a prévia da anterior, e "Gravar lista" os mandaria para a turma nova.
         */}
-        <Route path={ROTAS_DA_COORDENACAO.turma}>{(parametros) => <ListaDaTurma key={parametros.turmaId} turmaId={parametros.turmaId} />}</Route>
-        <Route path={ROTAS_DA_COORDENACAO.professores}>
+        <Route path={COORDENACAO_ROUTES.turma}>{(parametros) => <ListaDaTurma key={parametros.turmaId} turmaId={parametros.turmaId} />}</Route>
+        <Route path={COORDENACAO_ROUTES.professores}>
           <Escola aba="professores">
             <Professores />
           </Escola>
         </Route>
-        <Route path={ROTAS_DA_COORDENACAO.material}>
+        <Route path={COORDENACAO_ROUTES.material}>
           <Escola aba="material">
             <Material />
           </Escola>
         </Route>
         {/* Registros › IA, e os Agentes, que ficam abaixo dele. */}
-        <Route path={ROTAS_DA_COORDENACAO.governanca}>
+        <Route path={COORDENACAO_ROUTES.governanca}>
           <Registros aba="ia">
             <Governanca />
           </Registros>
         </Route>
-        <Route path={ROTAS_DA_COORDENACAO.agentes} component={Agentes} />
+        <Route path={COORDENACAO_ROUTES.agentes} component={Agentes} />
         {/* A Privacidade sem aba no endereço abre a dos pedidos, a primeira de Registros depois da IA. */}
-        <Route path={ROTAS_DA_COORDENACAO.privacidade}>
-          <Redirect to={ROTAS_DA_COORDENACAO.pedidos} replace />
+        <Route path={COORDENACAO_ROUTES.privacidade}>
+          <Redirect to={COORDENACAO_ROUTES.pedidos} replace />
         </Route>
         {/* Antes da aba: `/privacidade/pedidos/<id>` tem um trecho a mais que `/privacidade/<aba>`, e o `Switch` fica com a primeira que casa. */}
-        <Route path={ROTAS_DA_COORDENACAO.pedidoDoTitular}>{(parametros) => <DetalheDoPedido key={parametros.pedidoId} pedidoId={parametros.pedidoId} />}</Route>
-        <Route path={ROTAS_DA_COORDENACAO.pedidos}>
+        <Route path={COORDENACAO_ROUTES.pedidoDoTitular}>{(parametros) => <DetalheDoPedido key={parametros.pedidoId} pedidoId={parametros.pedidoId} />}</Route>
+        <Route path={COORDENACAO_ROUTES.pedidos}>
           <Registros aba="pedidos">
             <Pedidos />
           </Registros>
         </Route>
         {/* Registros › Privacidade: os prazos de guarda, as empresas e os incidentes. Uma tela que não existe abre os pedidos, pela troca: quem a faz é a `Privacidade`. */}
-        <Route path={ROTAS_DA_COORDENACAO.privacidadeDaAba}>
+        <Route path={COORDENACAO_ROUTES.privacidadeDaAba}>
           {(parametros) => (
             <Registros aba="privacidade">
               <Privacidade aba={parametros.aba} />
@@ -108,7 +108,7 @@ export default function RotasDaCoordenacao() {
           )}
         </Route>
         <Route>
-          <ConteudoNaoEncontrado />
+          <NotFoundContent />
         </Route>
       </Switch>
     </>

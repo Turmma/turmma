@@ -2,7 +2,7 @@
 import { cleanup, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { classesDo, tokenDe } from '../../../__fixtures__/class-colors'
+import { classesOf, tokenOf } from '../../../__fixtures__/class-colors'
 import { QueueAlert } from './QueueAlert'
 
 /**
@@ -25,8 +25,8 @@ describe('AvisoFila', () => {
     expect(alerta.contains(botao)).toBe(false)
     expect(container.querySelector('[data-aviso-fila="falha"]')?.contains(botao)).toBe(true)
     // `secundario`: borda de 2 px e o degrau da borda, e não a face do primário nem a do oficial.
-    expect(classesDo(botao).has('degrau-borda')).toBe(true)
-    expect(tokenDe(botao, 'bg')).not.toBe('laranja')
+    expect(classesOf(botao).has('degrau-borda')).toBe(true)
+    expect(tokenOf(botao, 'bg')).not.toBe('laranja')
     await userEvent.setup().click(botao)
     expect(aoTentarDeNovo).toHaveBeenCalledTimes(1)
   })
@@ -51,19 +51,19 @@ describe('AvisoFila', () => {
 
   it('as duas situações têm a borda de 2 px; a falha na família do erro e a demora, na borda comum', () => {
     const { container, rerender } = render(<QueueAlert situacao="falha" />)
-    const falha = new Set(classesDo(container.querySelector('[data-aviso-fila="falha"]') as HTMLElement))
+    const falha = new Set(classesOf(container.querySelector('[data-aviso-fila="falha"]') as HTMLElement))
     expect(falha.has('border-2')).toBe(true)
     expect(container.querySelector('[data-aviso-fila="falha"]')).not.toBeNull()
     const noDaFalha = container.querySelector('[data-aviso-fila="falha"]') as HTMLElement
-    expect(tokenDe(noDaFalha, 'border')).toBe('vermelho-borda')
-    expect(tokenDe(noDaFalha, 'bg')).toBe('erro-cx')
+    expect(tokenOf(noDaFalha, 'border')).toBe('vermelho-borda')
+    expect(tokenOf(noDaFalha, 'bg')).toBe('erro-cx')
 
     rerender(<QueueAlert situacao="demora" />)
     const noDaDemora = container.querySelector('[data-aviso-fila="demora"]') as HTMLElement
-    expect(classesDo(noDaDemora).has('border-2')).toBe(true)
-    expect(tokenDe(noDaDemora, 'border')).toBe('borda')
-    expect(tokenDe(noDaDemora, 'bg')).toBe('info-cx')
+    expect(classesOf(noDaDemora).has('border-2')).toBe(true)
+    expect(tokenOf(noDaDemora, 'border')).toBe('borda')
+    expect(tokenOf(noDaDemora, 'bg')).toBe('info-cx')
     // Aviso não é alarme: nenhuma classe de movimento, nem na demora nem na falha.
-    for (const classes of [falha, classesDo(noDaDemora)]) expect([...classes].filter((classe) => /^(animate-|transition|duration-)/.test(classe))).toEqual([])
+    for (const classes of [falha, classesOf(noDaDemora)]) expect([...classes].filter((classe) => /^(animate-|transition|duration-)/.test(classe))).toEqual([])
   })
 })

@@ -11,7 +11,7 @@ import { TAMANHO_MAXIMO_TOKEN_DE_CONVITE } from '@educa/shared'
  * `undefined` quando não há token: fragmento vazio, maior que o teto do contrato, ou com `%` solto (o link colado pela
  * metade), que não é token nenhum.
  */
-export function tokenDoFragmento(): string | undefined {
+export function readFragmentToken(): string | undefined {
   const bruto = window.location.hash.replace(/^#/, '')
   let token: string
   try {
@@ -23,6 +23,6 @@ export function tokenDoFragmento(): string | undefined {
 }
 
 /** Tira o fragmento da barra, sem recarregar e sem entrada nova no histórico. */
-export function apagarFragmentoDaBarra(): void {
+export function clearFragment(): void {
   if (window.location.hash !== '') window.history.replaceState(null, '', window.location.pathname + window.location.search)
 }

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { classesDo, contraste, corDoToken, TEMAS, tokenDe, tokenOuFalha } from '../../../__fixtures__/class-colors'
+import { classesOf, contraste, tokenColor, TEMAS, tokenOf, tokenOrThrow } from '../../../__fixtures__/class-colors'
 import { FormField } from './FormField'
 import { PasswordInput } from './PasswordInput'
 import { Textarea } from './Textarea'
@@ -143,26 +143,26 @@ const CAIXAS: readonly [string, () => HTMLElement][] = [
 describe.each(CAIXAS)('a caixa de %s, nos dois temas', (_nome, montar) => {
   it('tem a borda de 2 px que se vê: borda-campo com 3:1 contra o chão e contra o fundo do campo', () => {
     const caixa = montar()
-    expect(classesDo(caixa).has('border-2')).toBe(true)
-    const borda = tokenOuFalha(caixa, 'border')
+    expect(classesOf(caixa).has('border-2')).toBe(true)
+    const borda = tokenOrThrow(caixa, 'border')
     expect(borda).toBe('borda-campo')
-    const fundo = tokenOuFalha(caixa, 'bg')
+    const fundo = tokenOrThrow(caixa, 'bg')
     expect(fundo).toBe('campo')
     for (const tema of TEMAS) {
-      expect(contraste(corDoToken(tema, borda), corDoToken(tema, 'fundo')), `${tema}: borda contra o chão`).toBeGreaterThanOrEqual(3)
-      expect(contraste(corDoToken(tema, borda), corDoToken(tema, fundo)), `${tema}: borda contra o campo`).toBeGreaterThanOrEqual(3)
+      expect(contraste(tokenColor(tema, borda), tokenColor(tema, 'fundo')), `${tema}: borda contra o chão`).toBeGreaterThanOrEqual(3)
+      expect(contraste(tokenColor(tema, borda), tokenColor(tema, fundo)), `${tema}: borda contra o campo`).toBeGreaterThanOrEqual(3)
     }
   })
 
   it('o texto digitado é legível sobre o campo (4,5:1)', () => {
     const caixa = montar()
     for (const tema of TEMAS) {
-      expect(contraste(corDoToken(tema, tokenOuFalha(caixa, 'text')), corDoToken(tema, tokenOuFalha(caixa, 'bg'))), tema).toBeGreaterThanOrEqual(4.5)
+      expect(contraste(tokenColor(tema, tokenOrThrow(caixa, 'text')), tokenColor(tema, tokenOrThrow(caixa, 'bg'))), tema).toBeGreaterThanOrEqual(4.5)
     }
   })
 
   it('em foco o anel de 3 px fica colado na borda: o afastamento é zero, e a borda continua', () => {
-    const classes = classesDo(montar())
+    const classes = classesOf(montar())
     expect(classes.has('focus-visible:outline-offset-0')).toBe(true)
     // O anel vem a mais da borda: nenhuma classe de foco troca a cor da borda.
     expect([...classes].filter((classe) => classe.startsWith('focus-visible:border') || classe.startsWith('focus:border'))).toEqual([])
@@ -170,20 +170,20 @@ describe.each(CAIXAS)('a caixa de %s, nos dois temas', (_nome, montar) => {
 
   it('inválido, a borda é vermelho-texto e se vê contra o chão e contra o campo (3:1)', () => {
     const caixa = montar()
-    const borda = tokenOuFalha(caixa, 'border', 'aria-invalid:')
+    const borda = tokenOrThrow(caixa, 'border', 'aria-invalid:')
     expect(borda).toBe('vermelho-texto')
     for (const tema of TEMAS) {
-      expect(contraste(corDoToken(tema, borda), corDoToken(tema, 'fundo')), `${tema}: contra o chão`).toBeGreaterThanOrEqual(3)
-      expect(contraste(corDoToken(tema, borda), corDoToken(tema, 'campo')), `${tema}: contra o campo`).toBeGreaterThanOrEqual(3)
+      expect(contraste(tokenColor(tema, borda), tokenColor(tema, 'fundo')), `${tema}: contra o chão`).toBeGreaterThanOrEqual(3)
+      expect(contraste(tokenColor(tema, borda), tokenColor(tema, 'campo')), `${tema}: contra o campo`).toBeGreaterThanOrEqual(3)
     }
   })
 
   it('desligado, o fundo é fundo-suave e o texto é apoio, com 4,5:1 (o inativo de antes não chega)', () => {
     const caixa = montar()
-    const fundo = tokenOuFalha(caixa, 'bg', 'disabled:')
-    const texto = tokenOuFalha(caixa, 'text', 'disabled:')
+    const fundo = tokenOrThrow(caixa, 'bg', 'disabled:')
+    const texto = tokenOrThrow(caixa, 'text', 'disabled:')
     expect([fundo, texto]).toEqual(['fundo-suave', 'apoio'])
-    for (const tema of TEMAS) expect(contraste(corDoToken(tema, texto), corDoToken(tema, fundo)), tema).toBeGreaterThanOrEqual(4.5)
+    for (const tema of TEMAS) expect(contraste(tokenColor(tema, texto), tokenColor(tema, fundo)), tema).toBeGreaterThanOrEqual(4.5)
   })
 })
 
@@ -191,9 +191,9 @@ describe('a seleção em pílula da caixa de pedido', () => {
   it('é redonda e tem a mesma face do campo: a borda de 2 px em borda-campo e o fundo campo', () => {
     render(<Select rotulo="Turma" variante="pilula" opcoes={[{ valor: 'a', rotulo: '2ºB' }]} valor="a" aoMudar={() => undefined} />)
     const pilula = screen.getByRole('combobox', { name: 'Turma' })
-    expect(classesDo(pilula).has('rounded-full')).toBe(true)
-    expect(classesDo(pilula).has('border-2')).toBe(true)
-    expect(tokenDe(pilula, 'border')).toBe('borda-campo')
-    expect(tokenDe(pilula, 'bg')).toBe('campo')
+    expect(classesOf(pilula).has('rounded-full')).toBe(true)
+    expect(classesOf(pilula).has('border-2')).toBe(true)
+    expect(tokenOf(pilula, 'border')).toBe('borda-campo')
+    expect(tokenOf(pilula, 'bg')).toBe('campo')
   })
 })

@@ -3,17 +3,17 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ChevronRight } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useLocation, useSearch } from 'wouter'
-import { CHAVE_DA_ESTRUTURA, consultaAnosLetivos, consultaVinculos } from '../../../api/estrutura'
-import { consultaProfessores, mutacaoDoCadastroDeProfessor, mutacaoDoRefazerConviteDoProfessor, revogarConviteDoProfessor } from './api/professores'
+import { ESTRUTURA_QUERY_KEY, anosLetivosQueryOptions, vinculosQueryOptions } from '../../../api/estrutura'
+import { professoresQueryOptions, mutacaoDoCadastroDeProfessor, mutacaoDoRefazerConviteDoProfessor, revogarConviteDoProfessor } from './api/professores'
 import { aoTrocarDeSessao } from '../../../api/sessao'
-import { PARAMETRO_DO_PROFESSOR } from '../../../paths'
+import { PROFESSOR_PARAM } from '../../../paths'
 import { Alert } from '../../../components/ui/Alert'
 import { Button } from '../../../components/ui/Button'
 import { Dialog } from '../../../components/ui/overlays/Dialog'
 import { useDialogState } from '../../../components/ui/overlays/dialog-state'
 import { DialogoDeConviteNovo, DialogoDeConviteRefeito } from '../../../components/DialogoDoConvite'
-import { ConfirmacaoDePerigo } from '../../../components/dialogs'
-import { EstadoCarregando, EstadoErro, EstadoVazio } from '../../../components/states/index'
+import { DangerConfirmDialog } from '../../../components/dialogs'
+import { LoadingState, ErrorState, EmptyState } from '../../../components/states/index'
 import { StatusBadge } from '../../../components/ui/StatusBadge'
 import { Table, type TableColumn } from '../../../components/ui/Table'
 import {
@@ -31,7 +31,7 @@ import {
 import { DialogoDeAlocacao } from '../estrutura/Alocacao'
 import { enderecoComParametro } from '../comum/endereco-da-tela'
 import { textoDaListaCurta } from '../estrutura/lista-curta'
-import { useFocarOTituloDaMoldura } from '../comum/moldura'
+import { useFocusPageHeading } from '../comum/moldura'
 import { AvisoDeListaIncompleta, CLASSES_DO_BOTAO_DA_LINHA } from '../comum/pecas-da-lista'
 import { PainelDoProfessor } from './PainelDoProfessor'
 import { contagemDeProfessores, professorAlocavel, professorDoEndereco, professoresDaTabela, type ProfessorDaTabela } from './professores-da-escola'
@@ -110,10 +110,10 @@ export default function Professores() {
   const cliente = useQueryClient()
   const [caminho, navegar] = useLocation()
   const busca = useSearch()
-  const professores = useQuery(consultaProfessores)
+  const professores = useQuery(professoresQueryOptions)
   // Turmas e disciplinas são dos vínculos do ano em curso: sem ele a API responde como inexistente, e a tela nem pergunta.
-  const anos = useQuery(consultaAnosLetivos)
-  const vinculos = useQuery({ ...consultaVinculos, enabled: anos.data?.itens.some((ano) => ano.situacao === 'em_curso') === true })
+  const anos = useQuery(anosLetivosQueryOptions)
+  const vinculos = useQuery({ ...vinculosQueryOptions, enabled: anos.data?.itens.some((ano) => ano.situacao === 'em_curso') === true })
   const dialogo = useDialogState<TipoDeDialogo, ProfessorDaLinha>()
   const aberta = dialogo.aberta
   const fechar = dialogo.fechar
@@ -121,7 +121,7 @@ export default function Professores() {
   const alvo = aberta?.alvo
   // O anúncio é de um professor só: o painel de outro não repete o que a coordenação fez com este.
   const [anuncio, definirAnuncio] = useState<{ usuarioId: string; texto: string } | undefined>(undefined)
-  const focarOTituloDaMoldura = useFocarOTituloDaMoldura()
+  const focarOTituloDaMoldura = useFocusPageHeading()
   const tituloDaLista = useRef<HTMLHeadingElement>(null)
   const tituloDaSituacao = useRef<HTMLHeadingElement>(null)
   const tituloDasTurmas = useRef<HTMLHeadingElement>(null)
@@ -130,9 +130,9 @@ export default function Professores() {
   const doPainel = dados === undefined ? undefined : professorDoEndereco(busca, dados.itens)
   const painelAberto = doPainel !== undefined
 
-  const recarregar = useCallback(() => cliente.invalidateQueries({ queryKey: consultaProfessores.queryKey }), [cliente])
+  const recarregar = useCallback(() => cliente.invalidateQueries({ queryKey: professoresQueryOptions.queryKey }), [cliente])
   // Acrescentar uma turma muda os vínculos, e a falha dela diz que a turma, a disciplina ou o convite mudou: a estrutura toda relê.
-  const recarregarAEstrutura = useCallback(() => cliente.invalidateQueries({ queryKey: CHAVE_DA_ESTRUTURA }), [cliente])
+  const recarregarAEstrutura = useCallback(() => cliente.invalidateQueries({ queryKey: ESTRUTURA_QUERY_KEY }), [cliente])
   // O foco quando o botão que abriu o diálogo saiu da tela: o "Cadastrar" do vazio, ou a ação que o estado novo não tem.
   // Sem a lista na tela (a releitura caiu com ela ainda vazia), vai para o título da tela, e não para o `body`.
   const focarNaLista = useCallback(() => (tituloDaLista.current === null ? focarOTituloDaMoldura() : tituloDaLista.current.focus()), [focarOTituloDaMoldura])
@@ -158,10 +158,10 @@ export default function Professores() {
     dialogo.abrir(tipo, professor)
   }
 
-  const abrirPainel = (usuarioId: string): void => navegar(enderecoComParametro(caminho, busca, PARAMETRO_DO_PROFESSOR, usuarioId))
-  const fecharPainel = (): void => navegar(enderecoComParametro(caminho, busca, PARAMETRO_DO_PROFESSOR, undefined), { replace: true })
+  const abrirPainel = (usuarioId: string): void => navegar(enderecoComParametro(caminho, busca, PROFESSOR_PARAM, usuarioId))
+  const fecharPainel = (): void => navegar(enderecoComParametro(caminho, busca, PROFESSOR_PARAM, undefined), { replace: true })
 
-  const erroDaLeitura = <EstadoErro erro={professores.error} tentando={professores.isFetching} aoTentarDeNovo={() => void professores.refetch({ cancelRefetch: false })} />
+  const erroDaLeitura = <ErrorState erro={professores.error} tentando={professores.isFetching} aoTentarDeNovo={() => void professores.refetch({ cancelRefetch: false })} />
   // Os anos ou os vínculos que não vieram: a tabela continua com o que tem, e o aviso diz por que as células de turma e disciplina estão em "—".
   const turmasComFalha = anos.isError || vinculos.isError
   const lerTurmasDeNovo = () => void (anos.isError ? anos : vinculos).refetch({ cancelRefetch: false })
@@ -174,7 +174,7 @@ export default function Professores() {
   return (
     <section className="flex min-w-0 flex-col gap-6" aria-label="Professores">
       {professores.isPending ? (
-        <EstadoCarregando rotulo="Carregando os professores…" />
+        <LoadingState rotulo="Carregando os professores…" />
       ) : dados === undefined ? (
         erroDaLeitura
       ) : dados.itens.length === 0 ? (
@@ -183,7 +183,7 @@ export default function Professores() {
         professores.isError ? (
           erroDaLeitura
         ) : (
-          <EstadoVazio
+          <EmptyState
             titulo="Nenhum professor ainda"
             descricao="Cadastre cada professor com o nome e o e-mail dele. O link do convite aparece uma vez, para você copiar e mandar; a pessoa abre o link e cria a senha."
             acao={{ rotulo: 'Cadastrar professor', aoAcionar: () => abrir('cadastrar') }}
@@ -281,7 +281,7 @@ export default function Professores() {
         />
       )}
       {aberta?.tipo === 'revogar' && alvo !== undefined && (
-        <ConfirmacaoDePerigo
+        <DangerConfirmDialog
           key={aberta.numero}
           titulo="Revogar o convite"
           texto={

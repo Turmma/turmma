@@ -4,7 +4,7 @@ import { Link, useRoute } from 'wouter'
 import { Aparencia } from '../../components/Aparencia'
 import { Button } from '../../components/ui/Button'
 import { SECONDARY_BUTTON_CLASSES } from '../../components/ui/button-variants'
-import { INICIO_DA_OPERACAO, ROTAS_DA_OPERACAO, USO_DA_OPERACAO } from '../paths'
+import { INICIO_DA_OPERACAO, OPERACAO_ROUTES, USO_DA_OPERACAO } from '../paths'
 import { TEXTO_DA_OPERACAO_SEM_DADO_DE_PESSOA, textoDaFalha } from '../textos'
 
 /**
@@ -12,8 +12,8 @@ import { TEXTO_DA_OPERACAO_SEM_DADO_DE_PESSOA, textoDaFalha } from '../textos'
  * 11.1): Escolas chegou na tarefa 6.0, e Uso na 8.0.
  */
 const ITENS_DA_NAVEGACAO: readonly PropsDoItem[] = [
-  { rotulo: 'Escolas', rota: ROTAS_DA_OPERACAO.inicio, endereco: INICIO_DA_OPERACAO },
-  { rotulo: 'Uso', rota: ROTAS_DA_OPERACAO.uso, endereco: USO_DA_OPERACAO },
+  { rotulo: 'Escolas', rota: OPERACAO_ROUTES.inicio, endereco: INICIO_DA_OPERACAO },
+  { rotulo: 'Uso', rota: OPERACAO_ROUTES.uso, endereco: USO_DA_OPERACAO },
 ]
 
 interface PropsDoItem {
@@ -91,7 +91,7 @@ interface PropsDaCasca {
  * A casca da operação com a sessão aberta: a barra com o nome de quem entrou e o **Sair** a um clique, em toda tela,
  * do mesmo tamanho de qualquer outra ação (D59; PRD da A0, seção 6), e embaixo dela a página (X2, 14.0): o título
  * "Operação" à vista, a linha fixa de que a operação não vê dado de pessoa (D76) e a navegação, desenhada como abas.
- * Escolas e Uso são as duas telas dentro dela; o título da aba do navegador diz qual (`useTituloDaPagina`).
+ * Escolas e Uso são as duas telas dentro dela; o título da aba do navegador diz qual (`useOperacaoPageTitle`).
  *
  * A **Aparência** (RF3) fica na barra, ao lado do nome e do "Sair", com o nome só para o leitor de tela: a operação não
  * tem lateral, e a barra é o menu da conta do operador. Quando a largura não dá, a conta desce para uma segunda linha, e nada passa
@@ -99,7 +99,7 @@ interface PropsDaCasca {
  * controle: ninguém escolheu nada ainda.
  *
  * A partir de 768 px a janela é da página: a barra, o cabeçalho e as abas ficam onde estão e **a lista rola por dentro**
- * (`RegiaoDaLista`), em vez de a página inteira rolar (RF23).
+ * (`ScrollableList`), em vez de a página inteira rolar (RF23).
  */
 export function CascaDaOperacao({ nome, aoSair, saindo, children }: PropsDaCasca) {
   return (

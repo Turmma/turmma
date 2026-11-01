@@ -1,16 +1,16 @@
 import { ErrorCode, DIGITOS_DO_CODIGO_MFA, mensagemDoSegundoFator, type ConfigurarMfaResponse } from '@educa/shared'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link } from 'wouter'
-import { ErroDaApi, mensagemDoErro } from '../api/client'
+import { ApiError, errorMessage } from '../api/client'
 import { ativarMfa, configurarMfa } from '../api/mfa'
 import { desafioDaEtapa } from '../api/sessao'
-import { ROTAS } from '../paths'
+import { ROUTES } from '../paths'
 import { Button } from '../components/ui/Button'
 import { CopyButton } from '../components/ui/CopyButton'
 import { FormField } from '../components/ui/fields/FormField'
 import { CascaPublica } from '../components/CascaPublica'
-import { CodigoQr } from '../components/CodigoQr'
-import { EstadoCarregando } from '../components/states'
+import { QrCode } from '../components/QrCode'
+import { LoadingState } from '../components/states'
 import { SemDesafio } from './SemDesafio'
 
 /**
@@ -64,11 +64,11 @@ export function ConfigurarMfa() {
             A coordenação entra com senha e com um código que muda a cada 30 segundos. Use um aplicativo autenticador no
             computador — KeePassXC, Bitwarden ou 1Password, por exemplo. Nenhum passo pede celular.
           </p>
-          {segredo === undefined && falhaDoPreparo === undefined && <EstadoCarregando rotulo="Preparando o segundo fator…" />}
+          {segredo === undefined && falhaDoPreparo === undefined && <LoadingState rotulo="Preparando o segundo fator…" />}
           {falhaDoPreparo !== undefined && (
             <div className="rounded-controle border border-erro bg-erro-cx p-4">
               <p role="alert" className="text-erro">
-                {mensagemDoErro(falhaDoPreparo)} Se continuar assim, entre de novo com a sua senha.
+                {errorMessage(falhaDoPreparo)} Se continuar assim, entre de novo com a sua senha.
               </p>
               <div className="mt-3">
                 <Button
@@ -121,7 +121,7 @@ function Segredo({ segredo, aoAtivar }: { segredo: ConfigurarMfaResponse; aoAtiv
         <p className="break-all font-mono text-base text-tinta">{segredo.segredo}</p>
         <CopyButton texto={segredo.segredo} rotulo="Copiar o segredo" avisoDeCopiado="Segredo copiado." />
         <div className="flex flex-wrap items-center gap-3">
-          <CodigoQr conteudo={segredo.uri} descricao="Código QR com o segredo do segundo fator" />
+          <QrCode conteudo={segredo.uri} descricao="Código QR com o segredo do segundo fator" />
           <p className="min-w-0 flex-1 text-apoio">Se você usa um aplicativo de celular, leia o código ao lado. No computador, cole o segredo.</p>
         </div>
       </section>
@@ -141,7 +141,7 @@ function Segredo({ segredo, aoAtivar }: { segredo: ConfigurarMfaResponse; aoAtiv
         />
         {falha !== undefined && (
           <p role="alert" className="rounded-controle border border-erro bg-erro-cx p-4 text-erro">
-            {falha instanceof ErroDaApi ? mensagemDoSegundoFator(falha.codigo, falha.esperaSegundos) : mensagemDoSegundoFator(ErrorCode.ERRO_INTERNO)}
+            {falha instanceof ApiError ? mensagemDoSegundoFator(falha.codigo, falha.esperaSegundos) : mensagemDoSegundoFator(ErrorCode.ERRO_INTERNO)}
           </p>
         )}
         <Button type="submit" disabled={ativando} className="w-full">
@@ -174,7 +174,7 @@ function CodigosDeRecuperacao({ codigos }: { codigos: readonly string[] }) {
       <CopyButton texto={codigos.join('\n')} rotulo="Copiar os códigos" avisoDeCopiado="Códigos copiados." />
       <p className="text-apoio">O segundo fator está ativo. Entre de novo com a sua senha e com o código do aplicativo.</p>
       <Link
-        to={ROTAS.entrar}
+        to={ROUTES.entrar}
         className="inline-flex min-h-11 items-center justify-center self-start rounded-full bg-caramelo px-4 py-2 text-base font-medium text-sobre-cor hover:bg-caramelo-claro active:bg-caramelo-fundo"
       >
         Ir para a entrada

@@ -2,14 +2,14 @@ import { ErrorCode, type AtividadeAplicada, type ArtefatoResponse } from '@educa
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useId, useRef, useState } from 'react'
 import { Link } from 'wouter'
-import { aplicarAtividade, consultaAtividadesAplicadas, recarregarAtividades } from './api/atividades'
-import { textoDaFalha } from '../../../components/error-text'
+import { aplicarAtividade, atividadesAplicadasQueryOptions, recarregarAtividades } from './api/atividades'
+import { errorText } from '../../../components/error-text'
 import { caminhoDaCorrecaoDoProfessor } from '../../../paths'
 import { Button } from '../../../components/ui/Button'
 import { ConfirmDialog } from '../../../components/ui/overlays/ConfirmDialog'
-import { EstadoCarregando } from '../../../components/states/index'
+import { LoadingState } from '../../../components/states/index'
 import { SectionHeader } from '../../../components/ui/Page'
-import { formatarDataHora } from '../../../format'
+import { formatDateTime } from '../../../format'
 import { AVISO_DA_AVALIATIVA_ABERTA, EFEITO_DE_APLICAR, ESCOLHA_DE_AVALIATIVA, semCorrecao, situacaoDaAplicacao, TEXTO_SEM_CORRECAO } from './aprovar'
 import { useCorrigirDeNovo } from './corrigir-de-novo'
 import { EncerramentoDaAtividade } from './EncerramentoDaAtividade'
@@ -51,7 +51,7 @@ interface PropsDaAplicacao {
  */
 export function AplicacaoDoArtefato({ artefato, nomeDaTurma }: PropsDaAplicacao) {
   const cliente = useQueryClient()
-  const atividades = useQuery(consultaAtividadesAplicadas(artefato.turmaId))
+  const atividades = useQuery(atividadesAplicadasQueryOptions(artefato.turmaId))
   const [aplicando, definirAplicando] = useState(false)
   const [escolha, definirEscolha] = useState<Escolha | undefined>(undefined)
   const [tentou, definirTentou] = useState(false)
@@ -66,7 +66,7 @@ export function AplicacaoDoArtefato({ artefato, nomeDaTurma }: PropsDaAplicacao)
     mutationFn: (avaliativa: boolean) => aplicarAtividade({ artefatoId: artefato.id, turmaId: artefato.turmaId, avaliativa }),
     onSuccess: async () => {
       recarregarAtividades(cliente)
-      await cliente.invalidateQueries({ queryKey: consultaAtividadesAplicadas(artefato.turmaId).queryKey })
+      await cliente.invalidateQueries({ queryKey: atividadesAplicadasQueryOptions(artefato.turmaId).queryKey })
       fechar()
     },
     onSettled: () => (decidindo.current = false),
@@ -110,12 +110,12 @@ export function AplicacaoDoArtefato({ artefato, nomeDaTurma }: PropsDaAplicacao)
           ) : undefined
         }
       />
-      {atividades.isPending && <EstadoCarregando rotulo="Carregando as aplicações desta atividade…" />}
+      {atividades.isPending && <LoadingState rotulo="Carregando as aplicações desta atividade…" />}
       {atividades.isError && (
         // O erro fica na seção, com "Tentar de novo" secundário: a ação principal do artefato continua sendo uma só.
         <div className="flex min-w-0 flex-wrap items-center gap-3">
           <p role="alert" className="min-w-0 flex-1 basis-56 rounded-controle bg-erro-cx p-3 break-words text-erro">
-            {textoDaFalha(atividades.error)}
+            {errorText(atividades.error)}
           </p>
           <Button variante="secundario" disabled={atividades.isFetching} onClick={() => void atividades.refetch({ cancelRefetch: false })}>
             {atividades.isFetching ? 'Tentando…' : 'Tentar de novo'}
@@ -127,7 +127,7 @@ export function AplicacaoDoArtefato({ artefato, nomeDaTurma }: PropsDaAplicacao)
       </p>
       {falhaDaCorrecao !== undefined && (
         <p role="alert" className="rounded-controle bg-erro-cx p-3 break-words text-erro">
-          {textoDaFalha(falhaDaCorrecao)}
+          {errorText(falhaDaCorrecao)}
         </p>
       )}
       {esperaAprovacao && <p className="min-w-0 text-sm break-words text-sutil">Esta versão adaptada só pode ser aplicada à turma depois que você aprovar.</p>}
@@ -140,8 +140,8 @@ export function AplicacaoDoArtefato({ artefato, nomeDaTurma }: PropsDaAplicacao)
               <div className="flex min-w-0 flex-1 basis-56 flex-col gap-1">
                 <p className="font-medium break-words text-tinta">{situacaoDaAplicacao(aplicada)}</p>
                 <p className="text-sm break-words text-sutil">
-                  {turma} · aplicada em {formatarDataHora(aplicada.aplicadaEm)}
-                  {aplicada.encerradaEm !== null && ` · encerrada em ${formatarDataHora(aplicada.encerradaEm)}`}
+                  {turma} · aplicada em {formatDateTime(aplicada.aplicadaEm)}
+                  {aplicada.encerradaEm !== null && ` · encerrada em ${formatDateTime(aplicada.encerradaEm)}`}
                 </p>
                 {aplicada.avaliativa && aplicada.estado === 'aberta' && <p className="text-sm break-words text-sutil">{AVISO_DA_AVALIATIVA_ABERTA}</p>}
                 {motivo !== undefined && (
@@ -185,7 +185,7 @@ export function AplicacaoDoArtefato({ artefato, nomeDaTurma }: PropsDaAplicacao)
           aoFechar={fechar}
           confirmando={aplicar.isPending}
           focoDeReserva={() => secao.current?.focus()}
-          {...(aplicar.isError ? { falha: textoDaFalha(aplicar.error, TEXTOS_DA_APLICACAO) } : {})}
+          {...(aplicar.isError ? { falha: errorText(aplicar.error, TEXTOS_DA_APLICACAO) } : {})}
         >
           <fieldset aria-describedby={idDaEscolha} className="flex min-w-0 flex-col gap-2">
             <legend className="font-medium">Esta atividade é avaliativa?</legend>

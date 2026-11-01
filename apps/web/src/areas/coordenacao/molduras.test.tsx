@@ -6,9 +6,9 @@ import { lazy, useEffect, type ReactElement, type ReactNode } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Router } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
-import { criarClienteDeConsultas } from '../../api/query-client'
+import { createQueryClient } from '../../api/query-client'
 import Escola, { ABAS_DE_ESCOLA, type AbaDeEscola } from './Escola'
-import { useFocarOTituloDaMoldura } from './comum/moldura'
+import { useFocusPageHeading } from './comum/moldura'
 import Privacidade from './privacidade/Privacidade'
 import Registros, { ABAS_DE_REGISTROS, type AbaDeRegistros } from './Registros'
 
@@ -27,7 +27,7 @@ function noEndereco(endereco: string, tela: ReactElement): { tela: ReactElement;
   return {
     local,
     tela: (
-      <QueryClientProvider client={criarClienteDeConsultas()}>
+      <QueryClientProvider client={createQueryClient()}>
         <Router hook={local.hook}>{tela}</Router>
       </QueryClientProvider>
     ),
@@ -105,7 +105,7 @@ describe('Escola', () => {
     }
     const Carregando = lazy(() => new Promise<{ default: () => ReactElement }>(() => undefined))
     const local = memoryLocation({ path: '/', record: true })
-    const cliente = criarClienteDeConsultas()
+    const cliente = createQueryClient()
     const montar = (aba: AbaDeEscola, filho: ReactNode) => (
       <QueryClientProvider client={cliente}>
         <Router hook={local.hook}>
@@ -125,7 +125,7 @@ describe('Escola', () => {
 
   it('a tela de dentro leva o foco ao título da moldura, que tem `tabindex` -1', async () => {
     function ComFoco() {
-      const focar = useFocarOTituloDaMoldura()
+      const focar = useFocusPageHeading()
       return (
         <button type="button" onClick={focar}>
           Focar o título

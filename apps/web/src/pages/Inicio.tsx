@@ -1,26 +1,26 @@
 import type { PapelDeUsuario } from '@educa/shared'
 import { useQuery } from '@tanstack/react-query'
-import { consultaEu } from '../api/eu'
+import { euQueryOptions } from '../api/eu'
 import { Redirect } from 'wouter'
-import { ROTAS } from '../paths'
-import { EstadoCarregando, EstadoErro } from '../components/states'
-import { useTituloDaTela } from '../document-title'
+import { ROUTES } from '../paths'
+import { LoadingState, ErrorState } from '../components/states'
+import { usePageTitle } from '../document-title'
 
 /**
  * A introdução de cada papel, que a primeira entrada abre antes da tela de abertura (telas do aluno e primeiro acesso, 9.0 e 10.0). O
  * aluno, o professor e a coordenação têm a deles nesta tabela.
  */
 const INTRODUCAO_POR_PAPEL: Readonly<Partial<Record<PapelDeUsuario, string>>> = {
-  aluno: ROTAS.bemVindoDoAluno,
-  professor: ROTAS.bemVindoDoProfessor,
-  coordenador: ROTAS.bemVindoDaCoordenacao,
+  aluno: ROUTES.bemVindoDoAluno,
+  professor: ROUTES.bemVindoDoProfessor,
+  coordenador: ROUTES.bemVindoDaCoordenacao,
 }
 
 /** A tela em que cada papel abre (o texto de `Inicio`, abaixo, diz por quê). */
 const ABERTURA_POR_PAPEL: Readonly<Partial<Record<PapelDeUsuario, string>>> = {
-  coordenador: ROTAS.painel,
-  professor: ROTAS.novaConversa,
-  aluno: ROTAS.inicioDoAluno,
+  coordenador: ROUTES.painel,
+  professor: ROUTES.novaConversa,
+  aluno: ROUTES.inicioDoAluno,
 }
 
 function doPapel(tabela: Readonly<Partial<Record<PapelDeUsuario, string>>>, papel: PapelDeUsuario | undefined): string | undefined {
@@ -37,10 +37,10 @@ function doPapel(tabela: Readonly<Partial<Record<PapelDeUsuario, string>>>, pape
  * mantém a tela em pé com "Tentar de novo" — queda de rede não é logout (regra 80, item 6).
  */
 export function Inicio() {
-  useTituloDaTela('Início')
-  const eu = useQuery(consultaEu)
+  usePageTitle('Início')
+  const eu = useQuery(euQueryOptions)
 
-  if (eu.isPending) return <EstadoCarregando rotulo="Carregando a sua escola…" />
+  if (eu.isPending) return <LoadingState rotulo="Carregando a sua escola…" />
   const papel = eu.data?.papel
   // Data nula: a pessoa ainda não viu a introdução do papel dela. Só a raiz desvia; o endereço aberto direto não (Tech Spec, seção 5).
   const introducao = doPapel(INTRODUCAO_POR_PAPEL, papel)
@@ -52,7 +52,7 @@ export function Inicio() {
       <h1 id="titulo-inicio" className="text-xl font-semibold sm:text-2xl">
         Início
       </h1>
-      {eu.isError && <EstadoErro erro={eu.error} tentando={eu.isFetching} aoTentarDeNovo={() => void eu.refetch({ cancelRefetch: false })} />}
+      {eu.isError && <ErrorState erro={eu.error} tentando={eu.isFetching} aoTentarDeNovo={() => void eu.refetch({ cancelRefetch: false })} />}
     </section>
   )
 }

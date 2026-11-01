@@ -1,13 +1,13 @@
 import { euDoOperadorResponseSchema, type EuDoOperadorResponse } from '@educa/shared'
 import { queryOptions } from '@tanstack/react-query'
-import { chamarComSessaoDeOperador } from './sessao'
+import { operadorAuthedRequest } from './sessao'
 
 export const CAMINHO_DO_EU_DO_OPERADOR = '/v1/operacao/eu'
 
 /** Quem está na sessão da operação (`GET /v1/operacao/eu`): apelido e nome, e nada mais (Tech Spec da A0, seção 7). */
-export const consultaEuDoOperador = queryOptions({
+export const euDoOperadorQueryOptions = queryOptions({
   queryKey: ['operacao', 'eu'],
-  queryFn: ({ signal }) => chamarComSessaoDeOperador(CAMINHO_DO_EU_DO_OPERADOR, euDoOperadorResponseSchema, { sinal: signal }),
+  queryFn: ({ signal }) => operadorAuthedRequest(CAMINHO_DO_EU_DO_OPERADOR, euDoOperadorResponseSchema, { sinal: signal }),
 })
 
 /**
@@ -16,5 +16,5 @@ export const consultaEuDoOperador = queryOptions({
  * relógio de inatividade, e só quando houve ponteiro ou teclado.
  */
 export function registrarUsoDaOperacao(): Promise<EuDoOperadorResponse> {
-  return chamarComSessaoDeOperador(CAMINHO_DO_EU_DO_OPERADOR, euDoOperadorResponseSchema)
+  return operadorAuthedRequest(CAMINHO_DO_EU_DO_OPERADOR, euDoOperadorResponseSchema)
 }

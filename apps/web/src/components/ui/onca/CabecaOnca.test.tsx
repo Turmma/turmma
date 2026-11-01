@@ -3,8 +3,8 @@ import { cleanup, render } from '@testing-library/react'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { semIdsDoDesenho } from '../../../__fixtures__/svg-ids'
-import { arquivosDeCodigoDaWeb, codigoSemComentarioNemTexto } from '../../../__fixtures__/danger-solid'
+import { stripSvgIds } from '../../../__fixtures__/svg-ids'
+import { webSourceFiles, codeWithoutCommentsOrText } from '../../../__fixtures__/danger-solid'
 import { CabecaOnca, type TamanhoDaCabeca } from './CabecaOnca'
 
 /**
@@ -60,7 +60,7 @@ describe('CabecaOnca', () => {
       expect(svg.getAttribute('height')).toBe(String(tamanho))
       // O recorte do mockup: as orelhas inteiras, e a máscara a 9 unidades das bordas.
       expect(svg.getAttribute('viewBox')).toBe('44 32 152 152')
-      formas.set(tamanho, semIdsDoDesenho(svg.innerHTML))
+      formas.set(tamanho, stripSvgIds(svg.innerHTML))
       unmount()
     }
     expect(formas.get(24)).toBe(formas.get(32))
@@ -90,10 +90,10 @@ describe('CabecaOnca', () => {
   it('dois renders do mesmo tamanho dão o mesmo HTML: nada muda com o tempo, com a ordem nem com quem usa', () => {
     for (const tamanho of TAMANHOS) {
       const primeiro = desenhar(tamanho)
-      const html = semIdsDoDesenho(primeiro.container.innerHTML)
+      const html = stripSvgIds(primeiro.container.innerHTML)
       primeiro.unmount()
       const segundo = desenhar(tamanho)
-      expect(semIdsDoDesenho(segundo.container.innerHTML), String(tamanho)).toBe(html)
+      expect(stripSvgIds(segundo.container.innerHTML), String(tamanho)).toBe(html)
       segundo.unmount()
     }
   })
@@ -176,7 +176,7 @@ describe('CabecaOnca', () => {
 })
 
 describe('a pasta da onça', () => {
-  const daPasta = arquivosDeCodigoDaWeb(RAIZ_DA_WEB).filter((nome) => nome.startsWith('components/ui/onca/'))
+  const daPasta = webSourceFiles(RAIZ_DA_WEB).filter((nome) => nome.startsWith('components/ui/onca/'))
 
   // O `useId` fica de fora de propósito: ele só dá um `id` único a cada desenho (a pinta, o recorte), e não guarda estado. Quem
   // pode ter temporizador, efeito e estado é um arquivo só, `movimento-da-onca.ts`, que o acenar da onça de corpo
@@ -186,7 +186,7 @@ describe('a pasta da onça', () => {
     expect(daPasta).toContain('components/ui/onca/CabecaOnca.tsx')
     expect(daPasta).toContain('components/ui/onca/movimento-da-onca.ts')
     for (const nome of daPasta.filter((arquivo) => arquivo !== 'components/ui/onca/movimento-da-onca.ts')) {
-      const codigo = codigoSemComentarioNemTexto(readFileSync(join(RAIZ_DA_WEB, nome), 'utf8'))
+      const codigo = codeWithoutCommentsOrText(readFileSync(join(RAIZ_DA_WEB, nome), 'utf8'))
       expect(codigo, nome).not.toMatch(/\b(?:setTimeout|setInterval|requestAnimationFrame|useEffect|useLayoutEffect|useState|useReducer|useRef)\b/)
     }
   })

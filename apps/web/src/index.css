@@ -300,7 +300,7 @@
    * O tamanho da letra do aluno (telas do aluno e primeiro acesso, 8.0; RF11): Padrão é a ausência do atributo e fica nos
    * 16 px do navegador. Grande e Maior mudam o `font-size` do `<html>`, e tudo que a pele mede em `rem` (texto, altura,
    * espaço) acompanha: 18 px e 20 px. Quem escreve `data-letra` é o script do `index.html` (antes do primeiro quadro) e
-   * `useTamanhoDaLetra()`, só enquanto o endereço é o da área do aluno. Os pontos de quebra do Tailwind são em `rem` de media query, que o navegador
+   * `useApplyTextSize()`, só enquanto o endereço é o da área do aluno. Os pontos de quebra do Tailwind são em `rem` de media query, que o navegador
    * lê contra os 16 px de fábrica: o celular continua celular com a letra Maior.
    */
   :root[data-letra='grande'] {

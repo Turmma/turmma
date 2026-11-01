@@ -5,8 +5,8 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Router } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
-import { prepararTela, redeFalsa, renderizarTela, type RespostaFalsa } from '../../../__fixtures__/render-screen'
-import { ROTAS_DA_COORDENACAO } from '../../../paths'
+import { setupScreen, fakeNetwork, renderScreen, type FakeResponse } from '../../../__fixtures__/render-screen'
+import { COORDENACAO_ROUTES } from '../../../paths'
 import Privacidade from './Privacidade'
 
 /**
@@ -15,7 +15,7 @@ import Privacidade from './Privacidade'
  * cliente de consultas são os da aba. Os caminhos de ponta a ponta (a escola de verdade, a troca de escola, duas coordenadoras,
  * os 360 px e o teclado) são do e2e (`e2e/privacidade.spec.ts` e `e2e/incidentes.spec.ts`).
  */
-prepararTela()
+setupScreen()
 
 const RETENCAO = '/v1/privacidade/retencao'
 const SUBOPERADORES = '/v1/privacidade/suboperadores'
@@ -23,7 +23,7 @@ const INCIDENTES = '/v1/privacidade/incidentes'
 const CONFIRMAR = /^\/v1\/privacidade\/incidentes\/[^/]+\/confirmar$/
 
 /** Uma resposta que a tela não repete sozinha (o 503 o cliente de consultas tenta de novo antes de dar erro): a falha chega de uma vez. */
-const FORA: RespostaFalsa = { status: 404, corpo: { erro: { codigo: 'NAO_ENCONTRADO', mensagem: 'x', requisicaoId: '0190f5a0-0000-7000-8000-000000000001' } } }
+const FORA: FakeResponse = { status: 404, corpo: { erro: { codigo: 'NAO_ENCONTRADO', mensagem: 'x', requisicaoId: '0190f5a0-0000-7000-8000-000000000001' } } }
 
 const DA_RETENCAO = {
   categorias: [
@@ -76,7 +76,7 @@ afterEach(() => {
 
 function montar(aba: string) {
   const localizacao = memoryLocation({ path: `/privacidade/${aba}`, record: true })
-  const tela = renderizarTela(
+  const tela = renderScreen(
     <Router hook={localizacao.hook}>
       <Privacidade aba={aba} />
     </Router>,
@@ -86,7 +86,7 @@ function montar(aba: string) {
 
 /** As três leituras com dado, para o caso que só olha o título e a escolha. */
 function lerTudo(): void {
-  const rede = redeFalsa()
+  const rede = fakeNetwork()
   rede.responderPor(RETENCAO, { status: 200, corpo: DA_RETENCAO })
   rede.responderPor(SUBOPERADORES, { status: 200, corpo: { suboperadores: [empresa('alfa')] } })
   rede.responderPor(INCIDENTES, dosIncidentes([incidente(1)]))
@@ -120,7 +120,7 @@ describe('Privacidade: o título por extenso e a escolha no endereço', () => {
   it('um endereço com uma tela que não existe abre a aba dos pedidos, pela troca, e não mostra o seletor', () => {
     lerTudo()
     const { localizacao } = montar('nao-existe')
-    expect(localizacao.history?.at(-1)).toBe(ROTAS_DA_COORDENACAO.pedidos)
+    expect(localizacao.history?.at(-1)).toBe(COORDENACAO_ROUTES.pedidos)
     expect(localizacao.history).toHaveLength(1)
     expect(screen.queryByRole('radiogroup')).toBeNull()
   })
@@ -138,7 +138,7 @@ describe('Privacidade: o título por extenso e a escolha no endereço', () => {
 
 describe('Prazos de guarda: os estados', () => {
   it('carregando: o título já está à vista, a leitura ainda não chegou e a tabela não existe', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     const lida = rede.segurar()
     montar('retencao')
     expect(await screen.findByText('Carregando os prazos de guarda…')).toBeTruthy()
@@ -150,7 +150,7 @@ describe('Prazos de guarda: os estados', () => {
 
   it('erro: diz o que fazer, e "Tentar de novo" lê outra vez e mostra as tabelas', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     let respostas = 0
     rede.responderPor(RETENCAO, () => (++respostas === 1 ? FORA : { status: 200, corpo: DA_RETENCAO }))
     montar('retencao')
@@ -162,7 +162,7 @@ describe('Prazos de guarda: os estados', () => {
   })
 
   it('com dado: o prazo que vale, de onde ele vem e os prazos fixos, cada seção um `h3` abaixo do título da tela', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor(RETENCAO, { status: 200, corpo: DA_RETENCAO })
     montar('retencao')
     const categorias = await screen.findByRole('table', { name: 'O que a escola guarda, e por quanto tempo' })
@@ -183,7 +183,7 @@ describe('Prazos de guarda: os estados', () => {
 
 describe('Empresas: os estados', () => {
   it('carregando: o título já está à vista, e a leitura ainda não chegou', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     const lida = rede.segurar()
     montar('suboperadores')
     expect(await screen.findByText('Carregando as empresas que recebem dados…')).toBeTruthy()
@@ -195,7 +195,7 @@ describe('Empresas: os estados', () => {
 
   it('erro: "Tentar de novo" lê outra vez', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     let respostas = 0
     rede.responderPor(SUBOPERADORES, () => (++respostas === 1 ? FORA : { status: 200, corpo: { suboperadores: [empresa('alfa')] } }))
     montar('suboperadores')
@@ -206,7 +206,7 @@ describe('Empresas: os estados', () => {
   })
 
   it('vazio: só com a leitura terminada, sem a seção das passadas', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor(SUBOPERADORES, { status: 200, corpo: { suboperadores: [] } })
     montar('suboperadores')
     expect(screen.queryByText('Nenhuma empresa recebe dado desta escola')).toBeNull()
@@ -216,7 +216,7 @@ describe('Empresas: os estados', () => {
   })
 
   it('com dado: as vigentes e as passadas em tabelas separadas, cada seção um `h3`, com o que cada empresa faz, recebe e onde processa', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor(SUBOPERADORES, {
       status: 200,
       corpo: { suboperadores: [empresa('vigente', { pais: 'US' }), empresa('antiga', { fim: '2026-06-01T15:00:00.000Z', vedaTreinamento: false })] },
@@ -235,7 +235,7 @@ describe('Empresas: os estados', () => {
   })
 
   it('só passadas: as vigentes dizem que nenhuma empresa recebe dado hoje, e as passadas continuam à vista', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor(SUBOPERADORES, { status: 200, corpo: { suboperadores: [empresa('antiga', { fim: '2026-06-01T15:00:00.000Z' })] } })
     montar('suboperadores')
     await screen.findByText('Nenhuma empresa recebe dado desta escola')
@@ -254,7 +254,7 @@ function cartaoDo(n: number): HTMLElement {
 
 describe('Incidentes: os estados', () => {
   it('carregando: o título já está à vista, e o vazio só aparece com a leitura terminada', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     const lida = rede.segurar()
     montar('incidentes')
     expect(await screen.findByText('Carregando os incidentes…')).toBeTruthy()
@@ -266,7 +266,7 @@ describe('Incidentes: os estados', () => {
 
   it('erro: "Tentar de novo" lê outra vez', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     let respostas = 0
     rede.responderPor(INCIDENTES, () => (++respostas === 1 ? FORA : dosIncidentes([incidente(1)])))
     montar('incidentes')
@@ -277,7 +277,7 @@ describe('Incidentes: os estados', () => {
   })
 
   it('vazio: o prazo legal continua à vista e não há cartão', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor(INCIDENTES, dosIncidentes([]))
     montar('incidentes')
     await screen.findByText('Nenhum incidente afetou esta escola')
@@ -286,7 +286,7 @@ describe('Incidentes: os estados', () => {
   })
 
   it('com dado: cada aviso é um cartão com todos os campos, o que espera vem com o botão oficial e o confirmado não tem botão', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor(
       INCIDENTES,
       dosIncidentes([incidente(2, { contencao: 'Primeira linha\nSegunda linha' }), incidente(1, { confirmadoEm: '2026-10-02T18:00:00.000Z' })]),
@@ -313,7 +313,7 @@ describe('Incidentes: os estados', () => {
 
   it('confirmar: o botão desliga os dos outros, o cartão passa a confirmado e o foco vai para o título dele', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     let confirmados: readonly number[] = []
     // O pedido fica no ar até o teste soltá-lo: é o que mostra os botões esperando.
     let soltar: () => void = () => undefined
@@ -342,7 +342,7 @@ describe('Incidentes: os estados', () => {
 
   it('a falha da confirmação aparece só no cartão que falhou, e o botão dele volta', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor(INCIDENTES, dosIncidentes([incidente(2), incidente(1)]))
     rede.responderPor(CONFIRMAR, FORA)
     montar('incidentes')

@@ -7,25 +7,25 @@ import { ErrorCode, MENSAGENS_DE_ERRO } from '@educa/shared'
  * `esperaSegundos` é o `Retry-After` da resposta, quando ela pede para esperar: o 503 do semáforo do login, que a
  * web repete sozinha, e o 429 da conta segurada, cuja espera a tela diz por extenso (Tech Spec, seção 5).
  */
-export class ErroDaApi extends Error {
+export class ApiError extends Error {
   constructor(
     readonly codigo: ErrorCode,
     readonly esperaSegundos?: number,
   ) {
     super(codigo)
-    this.name = 'ErroDaApi'
+    this.name = 'ApiError'
   }
 }
 
 /** O mínimo de um esquema zod de `packages/shared` que o cliente usa, sem a web depender do zod. */
-export interface EsquemaDeResposta<T> {
+export interface ResponseSchema<T> {
   safeParse(valor: unknown): { success: true; data: T } | { success: false }
 }
 
 /** Resposta sem corpo, como o 204 de `DELETE /v1/sessao`: nada a validar, e o corpo vazio não é erro de contrato. */
-export const SEM_CORPO: EsquemaDeResposta<void> = { safeParse: () => ({ success: true, data: undefined }) }
+export const EMPTY_BODY: ResponseSchema<void> = { safeParse: () => ({ success: true, data: undefined }) }
 
-export interface OpcoesDaChamada {
+export interface RequestOptions {
   /** `GET` quando não dito. */
   readonly metodo?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
   /** Corpo JSON do pedido. */
@@ -69,7 +69,7 @@ async function lerJson(resposta: Response): Promise<unknown> {
 
 /**
  * Chamada à API por caminho relativo, com a resposta validada pelo contrato de `packages/shared`.
- * Toda falha sai como `ErroDaApi`: sem rede, erro da API e resposta fora do contrato.
+ * Toda falha sai como `ApiError`: sem rede, erro da API e resposta fora do contrato.
  *
  * O cookie de renovação vai junto por ser mesma origem (o navegador nunca o lê; é `HttpOnly`), e o token de acesso,
  * quando existe, vai no cabeçalho `Authorization`.
@@ -78,7 +78,7 @@ async function lerJson(resposta: Response): Promise<unknown> {
  * escola. Várias trazem nome e matrícula de aluno (a lista da turma, 13.0), e o Chromebook do carrinho passa de mão em
  * mão (regra 20).
  */
-export async function chamarApi<T>(caminho: string, esquema: EsquemaDeResposta<T>, opcoes: OpcoesDaChamada = {}): Promise<T> {
+export async function apiRequest<T>(caminho: string, esquema: ResponseSchema<T>, opcoes: RequestOptions = {}): Promise<T> {
   const { metodo = 'GET', corpo, token, sinal } = opcoes
   let resposta: Response
   try {
@@ -95,21 +95,21 @@ export async function chamarApi<T>(caminho: string, esquema: EsquemaDeResposta<T
     })
   } catch (erro) {
     if (sinal?.aborted) throw erro
-    throw new ErroDaApi(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO)
+    throw new ApiError(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO)
   }
   const corpoDaResposta = await lerJson(resposta)
-  if (!resposta.ok) throw new ErroDaApi(codigoDaResposta(corpoDaResposta, resposta.status), esperaDaResposta(resposta))
+  if (!resposta.ok) throw new ApiError(codigoDaResposta(corpoDaResposta, resposta.status), esperaDaResposta(resposta))
   const lido = esquema.safeParse(corpoDaResposta)
-  if (!lido.success) throw new ErroDaApi(ErrorCode.ERRO_INTERNO)
+  if (!lido.success) throw new ApiError(ErrorCode.ERRO_INTERNO)
   return lido.data
 }
 
-/** `GET` numa rota anônima da API (estado do sistema, avisos). Rota com sessão passa por `buscarComSessao`. */
-export function buscarDaApi<T>(caminho: string, esquema: EsquemaDeResposta<T>, sinal?: AbortSignal): Promise<T> {
-  return chamarApi(caminho, esquema, { sinal })
+/** `GET` numa rota anônima da API (estado do sistema, avisos). Rota com sessão passa por `authedGet`. */
+export function apiGet<T>(caminho: string, esquema: ResponseSchema<T>, sinal?: AbortSignal): Promise<T> {
+  return apiRequest(caminho, esquema, { sinal })
 }
 
-/** A mensagem do catálogo pt-BR para qualquer erro; o que não é `ErroDaApi` vira erro interno. */
-export function mensagemDoErro(erro: unknown): string {
-  return MENSAGENS_DE_ERRO[erro instanceof ErroDaApi ? erro.codigo : ErrorCode.ERRO_INTERNO]
+/** A mensagem do catálogo pt-BR para qualquer erro; o que não é `ApiError` vira erro interno. */
+export function errorMessage(erro: unknown): string {
+  return MENSAGENS_DE_ERRO[erro instanceof ApiError ? erro.codigo : ErrorCode.ERRO_INTERNO]
 }

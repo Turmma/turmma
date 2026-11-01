@@ -3,8 +3,8 @@ import { screen } from '@testing-library/react'
 import type { ComponentProps } from 'react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
-import { formatarDataHora } from '../../format'
-import { AUTORIZACAO_DE_TESTE, prepararTela, redeFalsa, renderizarTela } from '../../__fixtures__/render-screen'
+import { formatDateTime } from '../../format'
+import { TEST_AUTHORIZATION, setupScreen, fakeNetwork, renderScreen } from '../../__fixtures__/render-screen'
 import { ListaDePedidos } from './ListaDePedidos'
 import { TEXTO_ANTES_DA_LEITURA, TEXTO_DA_ATUALIZACAO_SOZINHA, TEXTO_DA_AUDITORIA_DA_LEITURA, TEXTO_DA_MATRICULA_ERRADA, TEXTO_DE_COMO_DECIDIR } from './textos'
 
@@ -14,7 +14,7 @@ import { TEXTO_ANTES_DA_LEITURA, TEXTO_DA_ATUALIZACAO_SOZINHA, TEXTO_DA_AUDITORI
  * e a sessão são os da aba. O diálogo da decisão e a gravação dela ficam para o e2e (`e2e/`): este arquivo prova a
  * condição da tela, e o fluxo inteiro não precisa subir o compose para isso.
  */
-prepararTela()
+setupScreen()
 
 const TURMA = { id: '0192a4c0-5b1e-7c3d-8e4f-a0b1c2d3e4f5', nome: '7º A' }
 const pedido = (final: string, nome: string, teveMatriculaErrada = false) => ({
@@ -32,30 +32,30 @@ const VAZIO = { titulo: 'Nenhum pedido esperando', descricao: 'Quando um aluno p
 const cartaoDe = (nome: string) => screen.getByRole('checkbox', { name: new RegExp(nome) }).closest('label')?.textContent ?? ''
 
 function tela(quem: 'professor' | 'coordenacao', vazio: ComponentProps<typeof ListaDePedidos>['vazio'] = VAZIO) {
-  return renderizarTela(<ListaDePedidos turma={TURMA} quem={quem} vazio={vazio} aoPerderATurma={() => undefined} />)
+  return renderScreen(<ListaDePedidos turma={TURMA} quem={quem} vazio={vazio} aoPerderATurma={() => undefined} />)
 }
 
 describe('ListaDePedidos', () => {
   it('professor: a lista é lida ao abrir, sem clique, carregando e depois com os pedidos; ele não tem "Atualizar", porque a lista se atualiza sozinha', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     const leitura = rede.segurar()
     tela('professor')
 
     expect(await screen.findByText('Carregando os pedidos…')).toBeTruthy()
-    expect(rede.chamadas).toEqual([{ caminho: `/v1/turmas/${TURMA.id}/reivindicacoes?limite=100`, metodo: 'GET', autorizacao: AUTORIZACAO_DE_TESTE }])
+    expect(rede.chamadas).toEqual([{ caminho: `/v1/turmas/${TURMA.id}/reivindicacoes?limite=100`, metodo: 'GET', autorizacao: TEST_AUTHORIZATION }])
     expect(screen.queryByText(TEXTO_ANTES_DA_LEITURA)).toBeNull()
 
     leitura.liberar({ status: 200, corpo: { itens: [ANA, BRUNO] } })
     expect(await screen.findByText('2 pedidos esperando a decisão')).toBeTruthy()
     expect(screen.queryByText('Carregando os pedidos…')).toBeNull()
-    expect(cartaoDe('Ana')).toContain(`Pediu em ${formatarDataHora(ANA.solicitadaEm)}`)
+    expect(cartaoDe('Ana')).toContain(`Pediu em ${formatDateTime(ANA.solicitadaEm)}`)
     expect(screen.getByText(TEXTO_DA_ATUALIZACAO_SOZINHA)).toBeTruthy()
     expect(screen.queryByText(TEXTO_DA_AUDITORIA_DA_LEITURA)).toBeNull()
     expect(screen.queryByRole('button', { name: /Atualizar/ })).toBeNull()
   })
 
   it('coordenação: nada é lido ao abrir; a tela diz que falta o clique e que cada leitura fica na auditoria, e só o "Atualizar" lê, com a finalidade', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     const usuario = userEvent.setup()
     tela('coordenacao')
 
@@ -74,13 +74,13 @@ describe('ListaDePedidos', () => {
 
     expect(await screen.findByText('1 pedido esperando a decisão')).toBeTruthy()
     expect(rede.chamadas).toEqual([
-      { caminho: `/v1/turmas/${TURMA.id}/reivindicacoes?limite=100&finalidade=conferencia_de_cadastro`, metodo: 'GET', autorizacao: AUTORIZACAO_DE_TESTE },
+      { caminho: `/v1/turmas/${TURMA.id}/reivindicacoes?limite=100&finalidade=conferencia_de_cadastro`, metodo: 'GET', autorizacao: TEST_AUTHORIZATION },
     ])
     expect(screen.queryByText(TEXTO_ANTES_DA_LEITURA)).toBeNull()
   })
 
   it('o rótulo da decisão diz quantos pedidos ela alcança, nenhum botão sai antes de marcar, e a marca da matrícula errada fica só no pedido que a teve', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responder({ status: 200, corpo: { itens: [ANA, BRUNO, CAIO] } })
     const usuario = userEvent.setup()
     tela('professor')
@@ -107,7 +107,7 @@ describe('ListaDePedidos', () => {
   })
 
   it('lista lida e vazia: mostra o vazio que a tela deu, com o próximo passo, e nenhuma decisão', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responder({ status: 200, corpo: { itens: [] } })
     const usuario = userEvent.setup()
     const aoAcionar = vi.fn()
@@ -123,8 +123,8 @@ describe('ListaDePedidos', () => {
   })
 
   it('leitura que falha antes de haver lista mostra o erro e o "Tentar de novo", e não afirma que não há pedidos; o novo clique lê e mostra a lista', async () => {
-    const rede = redeFalsa()
-    // Limite excedido não é repetido sozinho (`deveTentarDeNovo`): o erro chega na hora, sem esperar a nova tentativa.
+    const rede = fakeNetwork()
+    // Limite excedido não é repetido sozinho (`shouldRetry`): o erro chega na hora, sem esperar a nova tentativa.
     rede.responder({ status: 429, corpo: { erro: { codigo: 'LIMITE_EXCEDIDO', mensagem: 'x', requisicaoId: '0190f5a0-0000-7000-8000-000000000001' } } })
     const usuario = userEvent.setup()
     tela('professor')

@@ -3,20 +3,20 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Link } from 'wouter'
-import { ErroDaApi } from '../../../api/client'
-import { consultaPedidoDoTitular, consultaSuboperadores, relerPedidoDoTitular } from './api/privacidade'
-import { caminhoDaAbaDaPrivacidade, ROTAS_DA_COORDENACAO } from '../../../paths'
+import { ApiError } from '../../../api/client'
+import { pedidoDoTitularQueryOptions, suboperadoresQueryOptions, relerPedidoDoTitular } from './api/privacidade'
+import { caminhoDaAbaDaPrivacidade, COORDENACAO_ROUTES } from '../../../paths'
 import { Button } from '../../../components/ui/Button'
 import { SECONDARY_LINK_CLASSES } from '../../../components/ui/button-variants'
 import { Card } from '../../../components/ui/Card'
-import { Anuncio } from '../../../components/dialogs'
-import { EstadoCarregando, EstadoErro } from '../../../components/states'
+import { StatusAnnouncement } from '../../../components/dialogs'
+import { LoadingState, ErrorState } from '../../../components/states'
 import { MEDIA_MD, useMediaQuery } from '../../../components/ui/media-query'
 import { StatusBadge } from '../../../components/ui/StatusBadge'
 import { Table, type TableColumn } from '../../../components/ui/Table'
 import { Page } from '../../../components/ui/Page'
-import { formatarData, formatarDataHora } from '../../../format'
-import { useTituloDaTela } from '../../../document-title'
+import { formatDate, formatDateTime } from '../../../format'
+import { usePageTitle } from '../../../document-title'
 import { O_MIOLO_QUE_ROLA } from '../comum/miolo-que-rola'
 import { AcoesDoPedido } from './AcoesDoPedido'
 import { agendarPreparacao } from './preparacao-do-arquivo'
@@ -69,9 +69,9 @@ function Linha({ rotulo, children }: { readonly rotulo: string; readonly childre
  *   respondem igual, regra 10, item 6) e o dado.
  */
 export default function DetalheDoPedido({ pedidoId }: { readonly pedidoId: string }) {
-  useTituloDaTela('Pedido de titular')
+  usePageTitle('Pedido de titular')
   const cliente = useQueryClient()
-  const consulta = useQuery(consultaPedidoDoTitular(pedidoId))
+  const consulta = useQuery(pedidoDoTitularQueryOptions(pedidoId))
   const pedido = consulta.data
   const estado = pedido?.estado
   const [anuncio, definirAnuncio] = useState('')
@@ -97,7 +97,7 @@ export default function DetalheDoPedido({ pedidoId }: { readonly pedidoId: strin
 
   const temEmpresas = (pedido?.compartilhamento.length ?? 0) > 0
   const suboperadores = useQuery({
-    ...consultaSuboperadores,
+    ...suboperadoresQueryOptions,
     enabled: temEmpresas,
   })
   const linhas = useMemo(() => ordenarOCompartilhamento(pedido?.compartilhamento ?? []), [pedido?.compartilhamento])
@@ -133,12 +133,12 @@ export default function DetalheDoPedido({ pedidoId }: { readonly pedidoId: strin
   if (consulta.isPending) {
     return (
       <Page titulo="Pedido de titular" largura="leitura" antes={voltar}>
-        <EstadoCarregando rotulo="Carregando o pedido…" />
+        <LoadingState rotulo="Carregando o pedido…" />
       </Page>
     )
   }
   if (pedido === undefined) {
-    const naoAchado = consulta.error instanceof ErroDaApi && consulta.error.codigo === ErrorCode.NAO_ENCONTRADO
+    const naoAchado = consulta.error instanceof ApiError && consulta.error.codigo === ErrorCode.NAO_ENCONTRADO
     return (
       <Page titulo="Pedido de titular" largura="leitura" antes={voltar}>
         {naoAchado ? (
@@ -146,7 +146,7 @@ export default function DetalheDoPedido({ pedidoId }: { readonly pedidoId: strin
             {TEXTO_DO_PEDIDO_AUSENTE}
           </p>
         ) : (
-          <EstadoErro erro={consulta.error} tentando={consulta.isFetching} aoTentarDeNovo={() => void consulta.refetch({ cancelRefetch: false })} />
+          <ErrorState erro={consulta.error} tentando={consulta.isFetching} aoTentarDeNovo={() => void consulta.refetch({ cancelRefetch: false })} />
         )}
       </Page>
     )
@@ -187,23 +187,23 @@ export default function DetalheDoPedido({ pedidoId }: { readonly pedidoId: strin
               <Linha rotulo="Pessoa">{textoDaPessoa(pedido)}</Linha>
               <Linha rotulo="Pedido">{ROTULO_DO_TIPO[pedido.tipo]}</Linha>
               <Linha rotulo="Quem pediu">{ROTULO_DE_QUEM_PEDIU[pedido.solicitante]}</Linha>
-              <Linha rotulo="Chegou à escola em">{formatarData(pedido.chegouEm)}</Linha>
+              <Linha rotulo="Chegou à escola em">{formatDate(pedido.chegouEm)}</Linha>
               <Linha rotulo="Situação">
                 <StatusBadge familia={situacao.familia}>{situacao.texto}</StatusBadge>
               </Linha>
-              {pedido.concluidoEm !== null && <Linha rotulo="Concluído em">{formatarDataHora(pedido.concluidoEm)}</Linha>}
+              {pedido.concluidoEm !== null && <Linha rotulo="Concluído em">{formatDateTime(pedido.concluidoEm)}</Linha>}
             </dl>
             {orientacao !== undefined && <p className="break-words text-apoio">{orientacao}</p>}
             {/* A correção de turma ou de vínculo não é deste pedido: o caminho é a turma, em Escola › Turmas (A1). */}
             {acoesDoPedido(pedido).corrigirNome && (
               <div>
-                <Link to={ROTAS_DA_COORDENACAO.estrutura} className={SECONDARY_LINK_CLASSES}>
+                <Link to={COORDENACAO_ROUTES.estrutura} className={SECONDARY_LINK_CLASSES}>
                   Ir para as turmas
                 </Link>
               </div>
             )}
             {troca !== undefined && <p className="rounded-controle border border-linha bg-info-cx p-3 break-words text-info">{troca}</p>}
-            <Anuncio texto={anuncio} />
+            <StatusAnnouncement texto={anuncio} />
             <AcoesDoPedido pedido={pedido} aoAnunciar={definirAnuncio} focoDeReserva={() => inicio.current?.focus()} />
           </div>
         </Card>

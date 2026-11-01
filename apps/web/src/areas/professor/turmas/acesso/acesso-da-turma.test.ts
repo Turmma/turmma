@@ -1,12 +1,12 @@
 import { ErrorCode, MENSAGENS_DE_ERRO, VALIDADES_DO_ACESSO_DIAS } from '@educa/shared'
 import { describe, expect, it } from 'vitest'
-import { ErroDaApi } from '../../../../api/client'
+import { ApiError } from '../../../../api/client'
 import {
   codigoEmDoisGrupos,
   convitePedido,
   enderecoDoConvite,
   enderecoSemOConvite,
-  PARAMETRO_DO_CONVITE,
+  CONVITE_PARAM,
   TEXTO_DO_ACESSO_QUE_JA_APARECEU,
   codigoSoletrado,
   DITOS_DO_CONVITE_SEM_WHATSAPP,
@@ -47,31 +47,31 @@ describe('o acesso da turma na tela do professor (A1, 15.0)', () => {
   })
 
   it('o CONFLITO do gerar diz que outro acesso passou a valer, e o NAO_ENCONTRADO, que a turma saiu do alcance: os dois mudam a seção', () => {
-    const conflito = falhaDoGerarAcesso(new ErroDaApi(ErrorCode.CONFLITO))
+    const conflito = falhaDoGerarAcesso(new ApiError(ErrorCode.CONFLITO))
     expect(conflito.texto).toBe(
       'Outro acesso para esta turma acabou de ser gerado, por outra pessoa ou em outra aba, e é ele que vale. A tela foi atualizada: se o link e o código não estão com você, gere um novo.',
     )
     expect(conflito.secaoMudou).toBe(true)
-    expect(falhaDoGerarAcesso(new ErroDaApi(ErrorCode.NAO_ENCONTRADO))).toEqual({ texto: TEXTO_DA_TURMA_INDISPONIVEL, secaoMudou: true })
+    expect(falhaDoGerarAcesso(new ApiError(ErrorCode.NAO_ENCONTRADO))).toEqual({ texto: TEXTO_DA_TURMA_INDISPONIVEL, secaoMudou: true })
   })
 
   it('o resto das falhas do gerar fica com o texto do catálogo, e o mesmo botão tenta de novo; nenhum texto diz o código do erro', () => {
     for (const codigo of [ErrorCode.INDISPONIVEL_TENTE_DE_NOVO, ErrorCode.LIMITE_EXCEDIDO, ErrorCode.ERRO_INTERNO, ErrorCode.TEMPO_ESGOTADO]) {
-      expect(falhaDoGerarAcesso(new ErroDaApi(codigo)), codigo).toEqual({ texto: MENSAGENS_DE_ERRO[codigo], secaoMudou: false })
+      expect(falhaDoGerarAcesso(new ApiError(codigo)), codigo).toEqual({ texto: MENSAGENS_DE_ERRO[codigo], secaoMudou: false })
     }
     // O que não veio da API (a tela quebrou no meio) também tem texto, e não muda a seção.
     expect(falhaDoGerarAcesso(new Error('qualquer'))).toEqual({ texto: MENSAGENS_DE_ERRO[ErrorCode.ERRO_INTERNO], secaoMudou: false })
     for (const codigo of Object.values(ErrorCode)) {
-      const { texto } = falhaDoGerarAcesso(new ErroDaApi(codigo))
+      const { texto } = falhaDoGerarAcesso(new ApiError(codigo))
       expect(texto, codigo).not.toContain(codigo)
       expect(texto, codigo).not.toMatch(/\b[45]\d\d\b/)
     }
   })
 
   it('só o NAO_ENCONTRADO é a turma que saiu do alcance; a queda de rede não é', () => {
-    expect(turmaIndisponivel(new ErroDaApi(ErrorCode.NAO_ENCONTRADO))).toBe(true)
-    expect(turmaIndisponivel(new ErroDaApi(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO))).toBe(false)
-    expect(turmaIndisponivel(new ErroDaApi(ErrorCode.CONFLITO))).toBe(false)
+    expect(turmaIndisponivel(new ApiError(ErrorCode.NAO_ENCONTRADO))).toBe(true)
+    expect(turmaIndisponivel(new ApiError(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO))).toBe(false)
+    expect(turmaIndisponivel(new ApiError(ErrorCode.CONFLITO))).toBe(false)
     expect(turmaIndisponivel(null)).toBe(false)
   })
 
@@ -94,7 +94,7 @@ describe('o acesso da turma na tela do professor (A1, 15.0)', () => {
 
 describe('o endereço do "Convidar alunos" (telas do professor, 13.0)', () => {
   it('só `convidar=1` pede o diálogo, com a aba ou sem ela; qualquer outro valor, ou nenhum, não abre nada', () => {
-    expect(PARAMETRO_DO_CONVITE).toBe('convidar')
+    expect(CONVITE_PARAM).toBe('convidar')
     expect(convitePedido('convidar=1')).toBe(true)
     expect(convitePedido('aba=alunos&convidar=1')).toBe(true)
     expect(convitePedido('convidar=1&aba=alunos')).toBe(true)

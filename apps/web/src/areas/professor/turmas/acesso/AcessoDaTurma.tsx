@@ -1,12 +1,12 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useId, useRef, useState, type ReactNode, type RefObject } from 'react'
-import { consultaAcessoDaTurma } from '../api/acesso'
+import { acessoDaTurmaQueryOptions } from '../api/acesso'
 import { Button } from '../../../../components/ui/Button'
 import { useDialogState } from '../../../../components/ui/overlays/dialog-state'
-import { Anuncio } from '../../../../components/dialogs'
-import { EstadoCarregando, EstadoErro, EstadoVazio } from '../../../../components/states/index'
+import { StatusAnnouncement } from '../../../../components/dialogs'
+import { LoadingState, ErrorState, EmptyState } from '../../../../components/states/index'
 import { TurmaIndisponivel } from '../../../../components/TurmaIndisponivel'
-import { formatarDataHora } from '../../../../format'
+import { formatDateTime } from '../../../../format'
 import { TEXTO_DA_TURMA_INDISPONIVEL, TEXTO_DO_ACESSO_QUE_JA_APARECEU, turmaIndisponivel } from './acesso-da-turma'
 import { ConvidarAlunos, type EscolaDaSessao } from './ConvidarAlunos'
 
@@ -40,7 +40,7 @@ interface PropsDoAcesso {
  */
 export function AcessoDaTurma({ turmaId, escola, titulo, convidarPeloEndereco = false, aoFecharOConvite }: PropsDoAcesso) {
   const cliente = useQueryClient()
-  const acesso = useQuery(consultaAcessoDaTurma(turmaId))
+  const acesso = useQuery(acessoDaTurmaQueryOptions(turmaId))
   // O endereço pede o diálogo: ele abre na montagem da aba, uma vez. Fechar tira o pedido do endereço, e a aba que monta de novo
   // (a turma aberta outra vez) o abre só se o endereço ainda o pede.
   const { aberta, abrir: abrirDialogo, fechar: fecharDialogo, fecharSeAinda } = useDialogState<'convidar'>(convidarPeloEndereco ? 'convidar' : undefined)
@@ -48,7 +48,7 @@ export function AcessoDaTurma({ turmaId, escola, titulo, convidarPeloEndereco = 
   const idDoTitulo = useId()
   const botaoConvidar = useRef<HTMLButtonElement>(null)
 
-  const recarregar = useCallback(() => cliente.invalidateQueries({ queryKey: consultaAcessoDaTurma(turmaId).queryKey }), [cliente, turmaId])
+  const recarregar = useCallback(() => cliente.invalidateQueries({ queryKey: acessoDaTurmaQueryOptions(turmaId).queryKey }), [cliente, turmaId])
   // O foco quando ninguém abriu o diálogo (o endereço o pediu) ou o botão que o abriu saiu da seção (a leitura em erro tira o
   // "Convidar alunos"): vai para o botão, se ele está na tela, e senão para o título. O título é de quem desenha a página.
   const focarNaSecao = useCallback(() => (botaoConvidar.current ?? titulo.current)?.focus(), [titulo])
@@ -65,15 +65,15 @@ export function AcessoDaTurma({ turmaId, escola, titulo, convidarPeloEndereco = 
   }
 
   function conteudo(): ReactNode {
-    if (acesso.isPending) return <EstadoCarregando rotulo="Carregando o acesso da turma…" />
+    if (acesso.isPending) return <LoadingState rotulo="Carregando o acesso da turma…" />
     if (acesso.isError) {
       if (turmaIndisponivel(acesso.error)) return <TurmaIndisponivel texto={TEXTO_DA_TURMA_INDISPONIVEL} />
-      return <EstadoErro erro={acesso.error} tentando={acesso.isFetching} aoTentarDeNovo={() => void acesso.refetch({ cancelRefetch: false })} />
+      return <ErrorState erro={acesso.error} tentando={acesso.isFetching} aoTentarDeNovo={() => void acesso.refetch({ cancelRefetch: false })} />
     }
     const { expiraEm } = acesso.data
     if (expiraEm === null)
       return (
-        <EstadoVazio
+        <EmptyState
           titulo="Sem acesso ativo"
           descricao="Gere o link da sala e o código da turma para os alunos entrarem e pedirem o nome. Você escolhe por quanto tempo os dois valem."
         />
@@ -81,7 +81,7 @@ export function AcessoDaTurma({ turmaId, escola, titulo, convidarPeloEndereco = 
     return (
       <div className="flex min-w-0 flex-col gap-1 rounded-cartao border border-linha bg-superficie p-4">
         <p className="font-medium text-tinta">Acesso ativo</p>
-        <p className="break-words text-apoio">Vale até {formatarDataHora(expiraEm)}.</p>
+        <p className="break-words text-apoio">Vale até {formatDateTime(expiraEm)}.</p>
         <p className="mt-1 text-sm break-words text-apoio">{TEXTO_DO_ACESSO_QUE_JA_APARECEU}</p>
       </div>
     )
@@ -95,7 +95,7 @@ export function AcessoDaTurma({ turmaId, escola, titulo, convidarPeloEndereco = 
         </h2>
         {acesso.isSuccess && <Button ref={botaoConvidar} onClick={abrir}>Convidar alunos</Button>}
       </div>
-      <Anuncio texto={anuncio} />
+      <StatusAnnouncement texto={anuncio} />
       {conteudo()}
 
       {aberta?.tipo === 'convidar' && (

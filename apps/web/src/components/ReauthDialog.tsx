@@ -1,9 +1,9 @@
 import { ErrorCode, mensagemDaEntrada, mensagemDaEntradaPorMatricula, TAMANHO_MAXIMO_EMAIL, TAMANHO_MAXIMO_MATRICULA, TAMANHO_MAXIMO_SENHA } from '@educa/shared'
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { useLocation } from 'wouter'
-import { ErroDaApi } from '../api/client'
+import { ApiError } from '../api/client'
 import { descartarSessaoVencida, entrarPorEmail, entrarPorMatricula, quemEstaNaSessao } from '../api/sessao'
-import { ROTA_DA_ETAPA, ROTAS } from '../paths'
+import { LOGIN_STEP_ROUTE, ROUTES } from '../paths'
 import { Button } from './ui/Button'
 import { FIELD_BOX } from './ui/fields/field-styles'
 
@@ -21,7 +21,7 @@ const CLASSES_DO_CAMPO_DO_LOGIN = `min-h-12 px-3.5 py-2 t-corpo ${FIELD_BOX}`
  * 4 px (`shadow-flutua`). O véu é outro, de propósito: `data-sessao-vencida` o pede forte em `index.css`, e o `Dialog`
  * usa o `veu`.
  */
-export function LoginPorCima() {
+export function ReauthDialog() {
   const [, navegar] = useLocation()
   const dialogo = useRef<HTMLDialogElement>(null)
   // Quem estava aqui. A entrada bem-sucedida desmonta este diálogo, então este valor não muda embaixo do formulário.
@@ -59,7 +59,7 @@ export function LoginPorCima() {
       definirSenha('')
       // `pronta` fecha o diálogo sozinho, porque a sessão volta a estar aberta e a tela de trás continua onde estava.
       // As outras etapas (segundo fator, escolher escola) são telas próprias, e aí esta sai de cena.
-      if (resposta.etapa !== 'pronta') navegar(ROTA_DA_ETAPA[resposta.etapa], { replace: true })
+      if (resposta.etapa !== 'pronta') navegar(LOGIN_STEP_ROUTE[resposta.etapa], { replace: true })
     } catch (erro) {
       definirFalha(erro)
     } finally {
@@ -70,12 +70,12 @@ export function LoginPorCima() {
   function irParaAEntrada(): void {
     const escolaSlug = anterior?.escolaSlug
     descartarSessaoVencida()
-    navegar(porMatricula && escolaSlug !== undefined ? `/e/${escolaSlug}` : ROTAS.entrar, { replace: true })
+    navegar(porMatricula && escolaSlug !== undefined ? `/e/${escolaSlug}` : ROUTES.entrar, { replace: true })
   }
 
   const mensagem = (erro: unknown): string => {
-    const codigo = erro instanceof ErroDaApi ? erro.codigo : ErrorCode.ERRO_INTERNO
-    const espera = erro instanceof ErroDaApi ? erro.esperaSegundos : undefined
+    const codigo = erro instanceof ApiError ? erro.codigo : ErrorCode.ERRO_INTERNO
+    const espera = erro instanceof ApiError ? erro.esperaSegundos : undefined
     return porMatricula ? mensagemDaEntradaPorMatricula(codigo, espera) : mensagemDaEntrada(codigo, espera)
   }
 

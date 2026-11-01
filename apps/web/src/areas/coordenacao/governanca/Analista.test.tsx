@@ -2,7 +2,7 @@
 import { cleanup, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { prepararTela, redeFalsa, renderizarTela, type RespostaFalsa } from '../../../__fixtures__/render-screen'
+import { setupScreen, fakeNetwork, renderScreen, type FakeResponse } from '../../../__fixtures__/render-screen'
 import Analista from './Analista'
 
 /**
@@ -10,7 +10,7 @@ import Analista from './Analista'
  * pedido. A rede é falsa; o ciclo de execução, o cliente de consultas e a tela são os da aba. O pedido e o recomeço pela
  * pessoa seguinte são do e2e (`e2e/analista.spec.ts`).
  */
-prepararTela()
+setupScreen()
 
 /** A largura da janela, para a consulta `(min-width: 768px)` que o miolo lê; o `jsdom` não tem `matchMedia`. */
 function janelaDe(largura: number): void {
@@ -38,16 +38,16 @@ const CONTEUDO = {
   alertas: [{ tipo: 'habilidade_com_acerto_baixo', serie: SERIE, disciplina: MATEMATICA, habilidade: HABILIDADE, valor: 50, referencia: 60, hipoteses: ['conteudo_recente'] }],
 }
 const SEM_NADA = { ...CONTEUDO, recortes: [], recortesNominais: [], alertas: [] }
-const resumoComConteudo = (conteudo: unknown, resumoId = id(900)): RespostaFalsa => ({ status: 200, corpo: { resumo: { id: resumoId, geradoEm: '2026-10-16T12:00:00.000Z', conteudo } } })
-const SEM_RESUMO: RespostaFalsa = { status: 200, corpo: { resumo: null } }
+const resumoComConteudo = (conteudo: unknown, resumoId = id(900)): FakeResponse => ({ status: 200, corpo: { resumo: { id: resumoId, geradoEm: '2026-10-16T12:00:00.000Z', conteudo } } })
+const SEM_RESUMO: FakeResponse = { status: 200, corpo: { resumo: null } }
 
 const botoes = (nome: string) => screen.queryAllByRole('button', { name: nome })
 
 describe('o Analista: os estados', () => {
   it('carregando: só o aviso de leitura, e nenhum dos três vazios de dentro enquanto a leitura não terminou', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     const lida = rede.segurar()
-    renderizarTela(<Analista />)
+    renderScreen(<Analista />)
     expect(await screen.findByText('Carregando o resumo…')).toBeTruthy()
     for (const vazio of ['Nenhum resumo gerado ainda', 'Nenhum alerta neste resumo', 'Ainda não há correção aprovada']) expect(screen.queryByText(vazio), vazio).toBeNull()
     lida.liberar(SEM_RESUMO)
@@ -56,10 +56,10 @@ describe('o Analista: os estados', () => {
 
   it('erro: diz o que fazer, "Tentar de novo" lê outra vez, e nenhum vazio aparece com a leitura falha', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     let respostas = 0
     rede.responderPor('/v1/analista/resumo', () => (++respostas === 1 ? FORA : resumoComConteudo(CONTEUDO)))
-    renderizarTela(<Analista />)
+    renderScreen(<Analista />)
     await screen.findByRole('alert')
     for (const vazio of ['Nenhum resumo gerado ainda', 'Nenhum alerta neste resumo', 'Ainda não há correção aprovada']) expect(screen.queryByText(vazio), vazio).toBeNull()
     // O "Gerar resumo" do alto continua, mas já não é o primário: o "Tentar de novo" é.
@@ -70,9 +70,9 @@ describe('o Analista: os estados', () => {
   })
 
   it('vazio: "Nenhum resumo gerado ainda" com a ação de gerar, que é o único "Gerar resumo" da tela', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor('/v1/analista/resumo', SEM_RESUMO)
-    renderizarTela(<Analista />)
+    renderScreen(<Analista />)
     const titulo = await screen.findByText('Nenhum resumo gerado ainda')
     expect(botoes('Gerar resumo')).toHaveLength(1)
     expect(titulo.parentElement?.contains(botoes('Gerar resumo')[0] ?? null)).toBe(true)
@@ -83,9 +83,9 @@ describe('o Analista: os estados', () => {
   })
 
   it('com dado: assinatura do Analista com o selo "IA", o período numa linha, quatro números, o alerta com o selo "Hipótese", o acerto e o recorte sem número', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor('/v1/analista/resumo', resumoComConteudo(CONTEUDO))
-    renderizarTela(<Analista />)
+    renderScreen(<Analista />)
     const resumo = await waitFor(() => {
       const achado = document.querySelector<HTMLElement>('[data-resumo-do-analista]')
       expect(achado).not.toBeNull()
@@ -114,9 +114,9 @@ describe('o Analista: os estados', () => {
   })
 
   it('o resumo sem nada dentro mostra os dois vazios de dentro, só depois da leitura', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor('/v1/analista/resumo', resumoComConteudo(SEM_NADA))
-    renderizarTela(<Analista />)
+    renderScreen(<Analista />)
     expect(await screen.findByText('Nenhum alerta neste resumo')).toBeTruthy()
     expect(screen.getByText('Ainda não há correção aprovada')).toBeTruthy()
     expect(screen.queryByText('Nenhum resumo gerado ainda')).toBeNull()
@@ -124,7 +124,7 @@ describe('o Analista: os estados', () => {
 
   it('gerar: o pedido sai uma vez, o botão fica desligado e diz o que acontece enquanto ele está no ar, e o foco vai para o resumo que chegou', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     let resumoLido = 0
     rede.responderPor('/v1/analista/resumo', () => (++resumoLido === 1 ? SEM_RESUMO : resumoComConteudo(CONTEUDO)))
     const execucao = id(800)
@@ -140,7 +140,7 @@ describe('o Analista: os estados', () => {
       await solta
       return { status: 200, corpo: { id: execucao, tarefa: 'resumo_do_analista', estado: 'concluida', resultado: { tipo: 'resumo_do_analista', resumoId: id(900) }, erro: null } }
     })
-    renderizarTela(<Analista />)
+    renderScreen(<Analista />)
     // O botão do alto vale enquanto lê; o do vazio, depois: o clique é no que fica.
     await screen.findByText('Nenhum resumo gerado ainda')
     await usuario.click(screen.getByRole('button', { name: 'Gerar resumo' }))
@@ -175,9 +175,9 @@ function conferirQueNaoEConversa(): void {
 
 describe('o miolo da tela', () => {
   it('só o miolo rola a partir de 768 px, com o título de fora; ele recebe foco a 1366 px, e a 360 px rola a página e não há o que focar', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor('/v1/analista/resumo', resumoComConteudo(CONTEUDO))
-    renderizarTela(<Analista />)
+    renderScreen(<Analista />)
     await waitFor(() => expect(document.querySelector('[data-resumo-do-analista]')).not.toBeNull())
 
     const miolo = screen.getByRole('region', { name: 'Resumo do Analista' })
@@ -197,7 +197,7 @@ describe('o miolo da tela', () => {
     cleanup()
 
     janelaDe(360)
-    renderizarTela(<Analista />)
+    renderScreen(<Analista />)
     await waitFor(() => expect(document.querySelector('[data-resumo-do-analista]')).not.toBeNull())
     expect(screen.getByRole('region', { name: 'Resumo do Analista' }).hasAttribute('tabindex')).toBe(false)
   })
@@ -205,9 +205,9 @@ describe('o miolo da tela', () => {
 
 describe('o miolo da tela, sem resumo', () => {
   it('o estado vazio também fica dentro do miolo que rola, e o título da tela fora dele', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor('/v1/analista/resumo', SEM_RESUMO)
-    renderizarTela(<Analista />)
+    renderScreen(<Analista />)
     await screen.findByText('Nenhum resumo gerado ainda')
 
     const miolo = screen.getByRole('region', { name: 'Resumo do Analista' })
@@ -220,17 +220,17 @@ describe('o miolo da tela, sem resumo', () => {
 
 describe('o Analista não é conversa (RF8)', () => {
   it('sem resumo: sem campo de texto, de arquivo, pergunta pronta, relatório nem link de baixar', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor('/v1/analista/resumo', SEM_RESUMO)
-    renderizarTela(<Analista />)
+    renderScreen(<Analista />)
     await screen.findByText('Nenhum resumo gerado ainda')
     conferirQueNaoEConversa()
   })
 
   it('com resumo: o mesmo', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor('/v1/analista/resumo', resumoComConteudo(CONTEUDO))
-    renderizarTela(<Analista />)
+    renderScreen(<Analista />)
     await waitFor(() => expect(document.querySelector('[data-resumo-do-analista]')).not.toBeNull())
     conferirQueNaoEConversa()
   })

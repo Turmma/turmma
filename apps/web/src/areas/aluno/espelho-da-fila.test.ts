@@ -5,7 +5,7 @@ import type * as ModuloDaSessao from '../../api/sessao'
 import type * as ModuloDasAtividades from '../../api/atividades-do-aluno'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { esquecerEspelhosDeOutroDono, esquecerTodosOsEspelhos, gravarEspelho, lerEspelho } from '../../api/espelho-da-fila'
-import { consultaEu } from '../../api/eu'
+import { euQueryOptions } from '../../api/eu'
 import { criarFilaDeRespostas, filaDaAtividade } from './fila-de-respostas'
 
 /**
@@ -57,7 +57,7 @@ function abaDe(usuarioId: string | undefined): QueryClient {
   const cliente = new QueryClient()
   if (usuarioId !== undefined) {
     const eu: EuResponse = { usuarioId, papel: 'aluno', nome: 'Aluna Sintética', escola: { id: '0197a1c0-0000-7000-8000-00000000c001', nome: 'Escola Sintética', slug: 'escola-sintetica' }, inatividadeMin: 30, introducaoVistaEm: '2026-02-01T10:00:00.000Z', acessos: [] }
-    cliente.setQueryData(consultaEu.queryKey, eu)
+    cliente.setQueryData(euQueryOptions.queryKey, eu)
   }
   return cliente
 }
@@ -167,7 +167,7 @@ describe('a fila acompanha o espelho', () => {
     const fila = filaDaAtividade(cliente, ATIVIDADE)
     fila.escolher(1, 2)
     expect(guardado(ATIVIDADE)).toBeNull()
-    cliente.setQueryData(consultaEu.queryKey, { usuarioId: ALUNA, papel: 'aluno', nome: 'Aluna Sintética', escola: { id: '0197a1c0-0000-7000-8000-00000000c001', nome: 'Escola Sintética', slug: 'escola-sintetica' }, inatividadeMin: 30, introducaoVistaEm: '2026-02-01T10:00:00.000Z', acessos: [] })
+    cliente.setQueryData(euQueryOptions.queryKey, { usuarioId: ALUNA, papel: 'aluno', nome: 'Aluna Sintética', escola: { id: '0197a1c0-0000-7000-8000-00000000c001', nome: 'Escola Sintética', slug: 'escola-sintetica' }, inatividadeMin: 30, introducaoVistaEm: '2026-02-01T10:00:00.000Z', acessos: [] })
     fila.hidratar()
     expect(lerEspelho(ALUNA, ATIVIDADE)).toEqual([{ questao: 1, alternativa: 2, sequencia: 1 }])
   })

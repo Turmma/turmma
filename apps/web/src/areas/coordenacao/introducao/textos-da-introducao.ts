@@ -83,7 +83,7 @@ export const TOTAL_DE_PASSOS = PASSOS_DA_COORDENACAO.length
 export const TITULO_DE_ONDE_FICA_CADA_COISA = 'Onde fica cada coisa'
 
 /**
- * O que cada lugar da lateral da coordenação é, numa frase, pelo **rótulo** que `NAVEGACAO.coordenador` dá a ele. A lista da tela sai
+ * O que cada lugar da lateral da coordenação é, numa frase, pelo **rótulo** que `NAVIGATION.coordenador` dá a ele. A lista da tela sai
  * da navegação, e não daqui: lugar que a fase não tem não aparece, e lugar novo ganha a linha dele aqui (o teste dos textos reprova o
  * que ficar sem descrição).
  */

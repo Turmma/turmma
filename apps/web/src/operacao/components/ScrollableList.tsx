@@ -10,7 +10,7 @@ function passaDoQueMostra(alvo: HTMLElement, eixo: 'x' | 'y'): boolean {
  * quando ele ou um filho dele muda de tamanho (a janela, a fonte). Só o elemento que rola ganha foco: o que cabe não vira
  * uma parada a mais no Tab (a mesma regra da `Table`).
  */
-export function useSobra(elemento: RefObject<HTMLElement | null>, eixo: 'x' | 'y'): boolean {
+export function useOverflow(elemento: RefObject<HTMLElement | null>, eixo: 'x' | 'y'): boolean {
   const [sobra, definirSobra] = useState(false)
   // Medida a cada renderização: o que há dentro mudou (um erro que entrou na região), sem que ela mudasse de tamanho.
   useEffect(() => {
@@ -47,9 +47,9 @@ interface PropsDaRegiao {
  * dentro**, com as páginas coladas no pé, e a página inteira não rola a 1366 × 768. Abaixo disso, rola a página, como
  * qualquer outra. A região recebe o foco quando rola, para rolar pelo teclado, e só então.
  */
-export function RegiaoDaLista({ rotulo, ocupada, pe, children }: PropsDaRegiao) {
+export function ScrollableList({ rotulo, ocupada, pe, children }: PropsDaRegiao) {
   const regiao = useRef<HTMLElement>(null)
-  const sobra = useSobra(regiao, 'y')
+  const sobra = useOverflow(regiao, 'y')
   return (
     <section
       ref={regiao}

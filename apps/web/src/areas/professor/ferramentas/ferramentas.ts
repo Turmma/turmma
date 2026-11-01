@@ -138,7 +138,7 @@ export interface IniciaisDaFerramenta {
   readonly origem?: string
 }
 
-export interface OpcoesDaDescricao {
+export interface DescricaoOptions {
   /** As turmas e disciplinas com vínculo confirmado da professora. */
   readonly turmas: readonly OpcaoDoCampo[]
   /** As atividades objetivas que ela já gerou e que não são versão adaptada: o que a Adaptação pode adaptar. */
@@ -146,7 +146,7 @@ export interface OpcoesDaDescricao {
   readonly iniciais?: IniciaisDaFerramenta
 }
 
-function campoDaTurma({ turmas, iniciais }: OpcoesDaDescricao): CampoDeSelecao {
+function campoDaTurma({ turmas, iniciais }: DescricaoOptions): CampoDeSelecao {
   // Com uma turma só, ela já vem escolhida: a professora de uma turma não escolhe entre uma opção.
   const padrao = iniciais?.turma ?? (turmas.length === 1 ? turmas[0]?.valor : undefined)
   return { tipo: 'selecao', chave: 'turma', rotulo: 'Turma e disciplina', opcoes: turmas, obrigatorio: true, ...(padrao === undefined ? {} : { padrao }) }
@@ -171,7 +171,7 @@ function campoDoTema(iniciais: IniciaisDaFerramenta | undefined, exemplo: string
  * se sabe do pedido. **A Adaptação não tem campo de texto**: a atividade de origem, os tipos de adaptação e o tempo
  * extra são listas fechadas, e o tipo `DescricaoDeFerramenta` não compila com um campo `texto` nela (D35, D67).
  */
-export function descricaoDaFerramenta(ferramenta: Ferramenta, opcoes: OpcoesDaDescricao): DescricaoDeFerramenta {
+export function descricaoDaFerramenta(ferramenta: Ferramenta, opcoes: DescricaoOptions): DescricaoDeFerramenta {
   const { iniciais } = opcoes
   if (ferramenta === 'atividade_objetiva') {
     const quantidade: CampoDeNumero = {

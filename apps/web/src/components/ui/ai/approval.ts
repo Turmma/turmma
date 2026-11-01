@@ -1,4 +1,4 @@
-import { formatarDiaEHora } from '../../../format'
+import { formatDayAndTime } from '../../../format'
 
 /**
  * A situação de uma saída de IA diante da aprovação humana (regra 70, itens 3 e 6): esperando, aprovada ou rejeitada.
@@ -31,7 +31,7 @@ export const TEXTO_DA_ESPERA = 'Esperando você'
  */
 export function textoDaAprovacao(aprovacao: Aprovacao, { verbo = VERBO_DA_APROVACAO, espera = TEXTO_DA_ESPERA, fuso, agora }: TextoOptions = {}): string {
   if (aprovacao.estado === 'pendente') return espera
-  const quando = formatarDiaEHora(aprovacao.quando, { ...(fuso === undefined ? {} : { fuso }), ...(agora === undefined ? {} : { agora }) })
+  const quando = formatDayAndTime(aprovacao.quando, { ...(fuso === undefined ? {} : { fuso }), ...(agora === undefined ? {} : { agora }) })
   return aprovacao.estado === 'aprovada' ? `${verbo} ${aprovacao.por} · ${quando}` : `${aprovacao.por} rejeitou · ${quando}`
 }
 

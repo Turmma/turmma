@@ -19,14 +19,14 @@ import { useId, useRef, useState, type ReactNode, type RefObject } from 'react'
 import { abrirAnoLetivo, criarAnoLetivo, criarDisciplina, criarSerie, type ListaDaEstrutura } from '../../../api/estrutura'
 import { DANGER_BUTTON_CLASSES, SECONDARY_BUTTON_CLASSES } from '../../../components/ui/button-variants'
 import { FormField } from '../../../components/ui/fields/FormField'
-import { AlertaDaFalha, Anuncio, DialogoDeFormulario, useEnvioUnico } from '../../../components/dialogs'
-import { EstadoCarregando, EstadoErro } from '../../../components/states/index'
+import { ErrorAlert, StatusAnnouncement, FormDialog, useSingleSubmit } from '../../../components/dialogs'
+import { LoadingState, ErrorState } from '../../../components/states/index'
 import { Sheet } from '../../../components/ui/overlays/Sheet'
 import { SELECT_CLASSES } from '../../../components/ui/fields/field-styles'
-import { textoDaFalha } from '../../../components/error-text'
-import { formatarData } from '../../../format'
+import { errorText } from '../../../components/error-text'
+import { formatDate } from '../../../format'
 import { ordenarPeloNome, ordenarSeries } from '../comum/ordem'
-import { AvisoDeListaIncompleta, Linha } from '../comum/pecas-da-lista'
+import { AvisoDeListaIncompleta, ListRow } from '../comum/pecas-da-lista'
 
 /**
  * O que a Estrutura abre por cima da tela com o ano letivo, as séries e as disciplinas (telas da coordenação, 5.0; RF12):
@@ -63,7 +63,7 @@ export function Secao({ titulo, tituloRef, anuncio, acao, children }: PropsDaSec
         </h2>
         {acao}
       </div>
-      <Anuncio texto={anuncio} />
+      <StatusAnnouncement texto={anuncio} />
       {children}
     </section>
   )
@@ -115,7 +115,7 @@ function AnosLetivos({
 }) {
   const temEmCurso = anos.some((ano) => ano.situacao === 'em_curso')
   // O "Abrir" sai da linha com o ano aberto: depois de recarregar, o foco vai para o título da seção.
-  const { enviar, mutacao } = useEnvioUnico({
+  const { enviar, mutacao } = useSingleSubmit({
     mutationFn: abrirAnoLetivo,
     onSuccess: async (ano) => {
       await recarregar()
@@ -137,8 +137,8 @@ function AnosLetivos({
       }
     >
       {mutacao.isError && (
-        <AlertaDaFalha
-          texto={textoDaFalha(mutacao.error, {
+        <ErrorAlert
+          texto={errorText(mutacao.error, {
             [ErrorCode.CONFLITO]: 'Já há um ano letivo em curso na escola. Só um fica em curso por vez.',
             [ErrorCode.NAO_ENCONTRADO]: 'Este ano letivo já não existe. A lista foi atualizada.',
           })}
@@ -146,13 +146,13 @@ function AnosLetivos({
       )}
       <ul className="flex flex-col gap-3">
         {ordenados.map((ano) => (
-          <Linha key={ano.id} titulo={String(ano.ano)} detalhe={`${SITUACAO_DO_ANO[ano.situacao]} · de ${formatarData(ano.inicio)} a ${formatarData(ano.fim)}`}>
+          <ListRow key={ano.id} titulo={String(ano.ano)} detalhe={`${SITUACAO_DO_ANO[ano.situacao]} · de ${formatDate(ano.inicio)} a ${formatDate(ano.fim)}`}>
             {ano.situacao === 'planejado' && !temEmCurso && (
               <button type="button" onClick={() => enviar(ano.id)} disabled={mutacao.isPending} className={SECONDARY_BUTTON_CLASSES}>
                 {mutacao.isPending && mutacao.variables === ano.id ? 'Abrindo…' : `Abrir o ano letivo ${String(ano.ano)}`}
               </button>
             )}
-          </Linha>
+          </ListRow>
         ))}
       </ul>
     </Secao>
@@ -202,7 +202,7 @@ export function NovoAnoLetivo({ aoFechar, aoCriar, recarregar, focoDeReserva }: 
   const campoDoAno = useRef<HTMLInputElement>(null)
   const campoDoInicio = useRef<HTMLInputElement>(null)
   const campoDoFim = useRef<HTMLInputElement>(null)
-  const { enviar, mutacao } = useEnvioUnico({
+  const { enviar, mutacao } = useSingleSubmit({
     mutationFn: criarAnoLetivo,
     ...depoisDeCriar(aoCriar, recarregar),
   })
@@ -240,7 +240,7 @@ export function NovoAnoLetivo({ aoFechar, aoCriar, recarregar, focoDeReserva }: 
   }
 
   return (
-    <DialogoDeFormulario
+    <FormDialog
       titulo="Novo ano letivo"
       aoFechar={aoFechar}
       focoDeReserva={focoDeReserva}
@@ -250,7 +250,7 @@ export function NovoAnoLetivo({ aoFechar, aoCriar, recarregar, focoDeReserva }: 
       rotuloEnviando="Criando…"
       falha={
         mutacao.isError
-          ? textoDaFalha(mutacao.error, {
+          ? errorText(mutacao.error, {
               [ErrorCode.CONFLITO]: 'Este ano letivo já existe na escola.',
             })
           : undefined
@@ -278,7 +278,7 @@ export function NovoAnoLetivo({ aoFechar, aoCriar, recarregar, focoDeReserva }: 
       <p className="text-sm text-apoio">
         O ano nasce planejado, e o ano e o período não se alteram depois: confira antes de criar. Depois de criado, abra o ano para criar as turmas nele.
       </p>
-    </DialogoDeFormulario>
+    </FormDialog>
   )
 }
 
@@ -291,7 +291,7 @@ export function NovaSerie({ existentes, aoFechar, aoCriar, recarregar }: PropsDe
   const disponiveis = SERIES_DO_RECORTE.filter((serie) => !existentes.some((existente) => existente.etapa === serie.etapa && existente.ano === serie.ano))
   const [escolhida, definirEscolhida] = useState(() => (disponiveis[0] === undefined ? '' : `${disponiveis[0].etapa}:${String(disponiveis[0].ano)}`))
   const campo = useId()
-  const { enviar, mutacao } = useEnvioUnico({
+  const { enviar, mutacao } = useSingleSubmit({
     mutationFn: criarSerie,
     ...depoisDeCriar(aoCriar, recarregar),
   })
@@ -302,7 +302,7 @@ export function NovaSerie({ existentes, aoFechar, aoCriar, recarregar }: PropsDe
   }
 
   return (
-    <DialogoDeFormulario
+    <FormDialog
       titulo="Nova série"
       aoFechar={aoFechar}
       aoEnviar={aoEnviar}
@@ -312,7 +312,7 @@ export function NovaSerie({ existentes, aoFechar, aoCriar, recarregar }: PropsDe
       semNovaTentativa={disponiveis.length === 0}
       falha={
         mutacao.isError
-          ? textoDaFalha(mutacao.error, {
+          ? errorText(mutacao.error, {
               [ErrorCode.CONFLITO]: 'Esta série já existe na escola.',
             })
           : undefined
@@ -334,7 +334,7 @@ export function NovaSerie({ existentes, aoFechar, aoCriar, recarregar }: PropsDe
           </select>
         </div>
       )}
-    </DialogoDeFormulario>
+    </FormDialog>
   )
 }
 
@@ -342,7 +342,7 @@ export function NovaDisciplina({ aoFechar, aoCriar, recarregar }: PropsDeCriar<D
   const [nome, definirNome] = useState('')
   const [erroDoNome, definirErroDoNome] = useState<string | undefined>(undefined)
   const campo = useRef<HTMLInputElement>(null)
-  const { enviar, mutacao } = useEnvioUnico({
+  const { enviar, mutacao } = useSingleSubmit({
     mutationFn: criarDisciplina,
     ...depoisDeCriar(aoCriar, recarregar),
   })
@@ -355,7 +355,7 @@ export function NovaDisciplina({ aoFechar, aoCriar, recarregar }: PropsDeCriar<D
   }
 
   return (
-    <DialogoDeFormulario
+    <FormDialog
       titulo="Nova disciplina"
       aoFechar={aoFechar}
       aoEnviar={aoEnviar}
@@ -364,7 +364,7 @@ export function NovaDisciplina({ aoFechar, aoCriar, recarregar }: PropsDeCriar<D
       rotuloEnviando="Criando…"
       falha={
         mutacao.isError
-          ? textoDaFalha(mutacao.error, {
+          ? errorText(mutacao.error, {
               [ErrorCode.CONFLITO]: 'Já existe uma disciplina com este nome na escola.',
             })
           : undefined
@@ -381,7 +381,7 @@ export function NovaDisciplina({ aoFechar, aoCriar, recarregar }: PropsDeCriar<D
         onChange={(evento) => definirNome(evento.target.value)}
         erro={erroDoNome}
       />
-    </DialogoDeFormulario>
+    </FormDialog>
   )
 }
 
@@ -444,9 +444,9 @@ export function PainelDoAnoEDisciplinas({
           }
         >
           {series.isPending ? (
-            <EstadoCarregando rotulo="Carregando as séries…" />
+            <LoadingState rotulo="Carregando as séries…" />
           ) : series.isError ? (
-            <EstadoErro erro={series.error} tentando={series.isFetching} aoTentarDeNovo={() => void series.refetch({ cancelRefetch: false })} />
+            <ErrorState erro={series.error} tentando={series.isFetching} aoTentarDeNovo={() => void series.refetch({ cancelRefetch: false })} />
           ) : series.data.itens.length === 0 ? (
             <p className="text-apoio">Nenhuma série ainda. Crie as séries que a escola tem, do 6º ano ao 3º do Ensino Médio.</p>
           ) : (
@@ -471,23 +471,23 @@ export function PainelDoAnoEDisciplinas({
           }
         >
           {disciplinas.isPending ? (
-            <EstadoCarregando rotulo="Carregando as disciplinas…" />
+            <LoadingState rotulo="Carregando as disciplinas…" />
           ) : disciplinas.isError ? (
-            <EstadoErro erro={disciplinas.error} tentando={disciplinas.isFetching} aoTentarDeNovo={() => void disciplinas.refetch({ cancelRefetch: false })} />
+            <ErrorState erro={disciplinas.error} tentando={disciplinas.isFetching} aoTentarDeNovo={() => void disciplinas.refetch({ cancelRefetch: false })} />
           ) : disciplinas.data.itens.length === 0 ? (
             <p className="text-apoio">Nenhuma disciplina ainda. Crie as que os professores dão, como Matemática e Língua Portuguesa.</p>
           ) : (
             <>
               <ul className="flex flex-col gap-3">
                 {ordenarPeloNome(disciplinas.data.itens).map((disciplina) => (
-                  <Linha key={disciplina.id} titulo={disciplina.nome}>
+                  <ListRow key={disciplina.id} titulo={disciplina.nome}>
                     <AcoesDaLinha
                       nome={disciplina.nome}
                       tipo="a disciplina"
                       aoRenomear={() => aoAbrir('renomear_disciplina', disciplina)}
                       aoExcluir={() => aoAbrir('excluir_disciplina', disciplina)}
                     />
-                  </Linha>
+                  </ListRow>
                 ))}
               </ul>
               <AvisoDeListaIncompleta completa={disciplinas.data.completa} />

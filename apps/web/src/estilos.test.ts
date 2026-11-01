@@ -86,14 +86,14 @@ function cssDoProduto(): string {
 const NOMES_DE_COR = new Set(blocosDe(cssDoProduto()).claro.keys())
 
 /** `white` e `black` não mudam com o tema: classe com eles fica errada no escuro. Só o QR, que precisa ficar claro, pode. */
-const ARQUIVOS_COM_BRANCO_FIXO = ['components/CodigoQr.tsx']
+const ARQUIVOS_COM_BRANCO_FIXO = ['components/QrCode.tsx']
 
 /**
  * Os arquivos que podem escrever cor à mão: o QR, que precisa de preto e branco, e a cabeça da onça, cujas nove cores são
  * fixas nos dois temas (`docs/interface.md` 9.7). A lista é **esses dois, e só eles**: o ícone ilustrado lê token e não
  * entra, e a onça de corpo inteiro, quando vier, ou lê as cores da cabeça ou entra aqui com parecer.
  */
-const ARQUIVOS_COM_COR_EM_LINHA = ['components/CodigoQr.tsx', 'components/ui/onca/CabecaOnca.tsx']
+const ARQUIVOS_COM_COR_EM_LINHA = ['components/QrCode.tsx', 'components/ui/onca/CabecaOnca.tsx']
 
 /** As sombras do `@theme` (`shadow-caixa`, `shadow-flutua`): `shadow-<nome>` com elas é sombra, não cor. */
 function sombrasDeclaradas(): Set<string> {
@@ -554,7 +554,7 @@ describe('guarda de cor em apps/web/src (U3)', () => {
   })
 
   it('a cor escrita à mão é de duas peças só: o QR e a cabeça da onça', () => {
-    expect([...ARQUIVOS_COM_COR_EM_LINHA].sort()).toEqual(['components/CodigoQr.tsx', 'components/ui/onca/CabecaOnca.tsx'])
+    expect([...ARQUIVOS_COM_COR_EM_LINHA].sort()).toEqual(['components/QrCode.tsx', 'components/ui/onca/CabecaOnca.tsx'])
   })
 
   it('a guarda da face do oficial reprova o arquivo novo e a classe que a entrada não cita, e aceita só o que a lista diz', () => {
@@ -618,7 +618,7 @@ describe('guarda de cor em apps/web/src (U3)', () => {
 
   it('o QR é a única exceção, e só nele: branco fixo e cor em linha passam no arquivo da lista', () => {
     const qr = '<svg className="bg-white"><path fill="#0d0d0d" /></svg>'
-    expect(classesReprovadas('components/CodigoQr.tsx', qr)).toEqual([])
+    expect(classesReprovadas('components/QrCode.tsx', qr)).toEqual([])
     expect(classesReprovadas('components/Outro.tsx', qr)).toEqual(['components/Outro.tsx: bg-white (não muda com o tema)', 'components/Outro.tsx: fill #0d0d0d (cor em linha)'])
   })
 })
@@ -661,7 +661,7 @@ function declaracoesDe(seletor: string, css = cssSemComentario()): Map<string, s
   return new Map([...(regra?.[1] ?? '').matchAll(/([a-z-]+)\s*:\s*([^;]+);/g)].map(([, propriedade = '', valor = '']) => [propriedade, valor.trim()]))
 }
 
-interface LinhaDaTipografia {
+interface TipografiaRow {
   readonly classe: string
   readonly tamanho: number
   readonly altura: number
@@ -670,7 +670,7 @@ interface LinhaDaTipografia {
 }
 
 /** As linhas da tabela da 9.2 do `docs/interface.md`: o documento é a fonte, e o CSS é conferido contra ele. */
-function tipografiaDoDocumento(): LinhaDaTipografia[] {
+function tipografiaDoDocumento(): TipografiaRow[] {
   const documento = readFileSync(join(raizDoRepositorio, 'docs', 'interface.md'), 'utf8')
   const inicio = documento.indexOf('### 9.2 Tipografia')
   if (inicio === -1) throw new Error('docs/interface.md sem a seção 9.2')

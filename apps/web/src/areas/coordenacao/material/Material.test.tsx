@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
 import { Router } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
-import { prepararTela, redeFalsa, renderizarTela, type RedeFalsa, type RespostaFalsa } from '../../../__fixtures__/render-screen'
+import { setupScreen, fakeNetwork, renderScreen, type FakeNetwork, type FakeResponse } from '../../../__fixtures__/render-screen'
 import type * as Sessao from '../../../api/sessao'
 import { buttonVariants } from '../../../components/ui/button-variants'
 import Escola from '../Escola'
@@ -18,7 +18,7 @@ import Material from './Material'
  * o arrastar do arquivo, a lista que se relê sozinha enquanto há `processando`, o PDF de verdade, o banco e a auditoria) é do e2e
  * `material`. O `jsdom` não tem `matchMedia`, `ResizeObserver` nem o `dialog` modal: o teste os põe, e são API do navegador.
  */
-prepararTela()
+setupScreen()
 
 // Os ouvintes de troca de sessão que a tela registra, para o teste disparar a troca sem passar pelo login.
 const ouvintesDeTroca = vi.hoisted(() => new Set<() => void>())
@@ -69,16 +69,16 @@ const SEM_TEXTO = material(2, {
 const LENDO = material(3, { titulo: 'Capítulo em leitura', estado: 'processando', paginas: null, trechos: 0 })
 const MAIS_NOVO = material(4, { titulo: 'Capítulo mais novo', paginas: 3, trechos: 3 })
 
-const ERRO = (codigo: string, status: number): RespostaFalsa => ({
+const ERRO = (codigo: string, status: number): FakeResponse => ({
   status,
   corpo: { erro: { codigo, mensagem: 'texto que a tela não usa', requisicaoId: '0190f5a0-0000-7000-8000-000000000001' } },
 })
 /** Um erro que a leitura não repete sozinha: a tela mostra o erro na hora, e não depois da nova tentativa de um segundo. */
 const FALHA = ERRO('LIMITE_EXCEDIDO', 429)
-const ok = (itens: readonly unknown[], extra: Record<string, unknown> = {}): RespostaFalsa => ({ status: 200, corpo: { itens, ...extra } })
-const nuncaResponde = () => new Promise<RespostaFalsa>(() => undefined)
+const ok = (itens: readonly unknown[], extra: Record<string, unknown> = {}): FakeResponse => ({ status: 200, corpo: { itens, ...extra } })
+const nuncaResponde = () => new Promise<FakeResponse>(() => undefined)
 
-type Resposta = RespostaFalsa | (() => RespostaFalsa | Promise<RespostaFalsa>)
+type Resposta = FakeResponse | (() => FakeResponse | Promise<FakeResponse>)
 interface Respostas {
   materiais: Resposta
   disciplinas: Resposta
@@ -89,15 +89,15 @@ const PADRAO: Respostas = {
   disciplinas: ok([QUIMICA, FISICA]),
 }
 
-function instalar(rede: RedeFalsa, parcial: Partial<Respostas> = {}): void {
+function instalar(rede: FakeNetwork, parcial: Partial<Respostas> = {}): void {
   const respostas = { ...PADRAO, ...parcial }
   rede.responderPor('/v1/materiais', respostas.materiais)
   rede.responderPor('/v1/disciplinas', respostas.disciplinas)
 }
 
 /** Os pedidos que a tela fez, sem a consulta: `GET /v1/materiais`, `POST /v1/materiais`, `DELETE /v1/materiais/<id>`. */
-const pedidosDe = (rede: RedeFalsa) => rede.chamadas.map((chamada) => `${chamada.metodo} ${chamada.caminho.split('?')[0] ?? ''}`)
-const quantos = (rede: RedeFalsa, pedido: string) => pedidosDe(rede).filter((feito) => feito === pedido).length
+const pedidosDe = (rede: FakeNetwork) => rede.chamadas.map((chamada) => `${chamada.metodo} ${chamada.caminho.split('?')[0] ?? ''}`)
+const quantos = (rede: FakeNetwork, pedido: string) => pedidosDe(rede).filter((feito) => feito === pedido).length
 
 /** A largura da janela, para a consulta `(min-width: 768px)` que a `Table` lê. */
 function janelaDe(largura: number): void {
@@ -131,7 +131,7 @@ beforeEach(() => {
 function montar(endereco = '/material', comMoldura = false) {
   const [caminho = '/material', busca = ''] = endereco.split('?')
   const localizacao = memoryLocation({ path: caminho, searchPath: busca, record: true })
-  renderizarTela(
+  renderScreen(
     <Router hook={localizacao.hook} searchHook={localizacao.searchHook}>
       {comMoldura ? (
         <Escola aba="material">
@@ -182,7 +182,7 @@ function corpoDoEnvio(): FormData {
 
 describe('os quatro estados da tela', () => {
   it('carregando: a leitura da lista no ar', async () => {
-    instalar(redeFalsa(), { materiais: nuncaResponde })
+    instalar(fakeNetwork(), { materiais: nuncaResponde })
     montar()
     expect(await screen.findByText('Carregando os materiais…')).toBeTruthy()
     expect(screen.queryByRole('table')).toBeNull()
@@ -191,7 +191,7 @@ describe('os quatro estados da tela', () => {
 
   it('erro: a mensagem curta e "Tentar de novo", que lê a lista de novo', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     let falhar = true
     instalar(rede, { materiais: () => (falhar ? FALHA : ok([PRONTO])) })
     montar()
@@ -204,7 +204,7 @@ describe('os quatro estados da tela', () => {
   })
 
   it('vazio: "Nenhum material ainda", com "Enviar material" — o único botão da tela — e nenhuma tabela', async () => {
-    instalar(redeFalsa(), { materiais: ok([]) })
+    instalar(fakeNetwork(), { materiais: ok([]) })
     montar()
     expect(await screen.findByText('Nenhum material ainda')).toBeTruthy()
     expect(screen.getAllByRole('button')).toHaveLength(1)
@@ -213,7 +213,7 @@ describe('os quatro estados da tela', () => {
   })
 
   it('com dado: a tabela em português, o que não carregou primeiro e depois o mais novo, cada situação em texto', async () => {
-    instalar(redeFalsa())
+    instalar(fakeNetwork())
     await montarEEsperar()
     expect(tabela().getAllByRole('columnheader').map((coluna) => coluna.textContent)).toEqual(['Material', 'Disciplina', 'Licença', 'Situação'])
     expect(linhas().map((linha) => linha.children[0]?.textContent)).toEqual(['Capítulo sem texto', 'Capítulo mais novo', 'Capítulo pronto'])
@@ -225,28 +225,28 @@ describe('os quatro estados da tela', () => {
   })
 
   it('um material processando é dito em texto, e o leitor de tela ouve quantos estão sendo lidos', async () => {
-    instalar(redeFalsa(), { materiais: ok([PRONTO, LENDO]) })
+    instalar(fakeNetwork(), { materiais: ok([PRONTO, LENDO]) })
     await montarEEsperar()
     expect(Array.from(linhaDe('Capítulo em leitura').children)[3]?.textContent).toBe('Processando')
     expect(screen.getByText('Um material está sendo lido.')).toBeTruthy()
   })
 
   it('com dois materiais processando, o leitor de tela ouve o número', async () => {
-    instalar(redeFalsa(), { materiais: ok([PRONTO, LENDO, material(6, { titulo: 'Outro em leitura', estado: 'processando', paginas: null, trechos: 0 })]) })
+    instalar(fakeNetwork(), { materiais: ok([PRONTO, LENDO, material(6, { titulo: 'Outro em leitura', estado: 'processando', paginas: null, trechos: 0 })]) })
     await montarEEsperar()
     expect(screen.getByText('2 materiais estão sendo lidos.')).toBeTruthy()
   })
 
   it('a lista que passou do teto de páginas avisa que mostra só os primeiros', async () => {
     // Toda página diz que há outra: a tela lê até o teto e para.
-    instalar(redeFalsa(), { materiais: () => ok([PRONTO], { proxima: id(999) }) })
+    instalar(fakeNetwork(), { materiais: () => ok([PRONTO], { proxima: id(999) }) })
     montar()
     expect(await screen.findByText('A lista é maior do que esta tela mostra: aparecem só os primeiros.')).toBeTruthy()
   })
 
   it('"Enviar material" é o único botão cheio da tela, com a tabela e com o painel aberto', async () => {
     const usuario = userEvent.setup()
-    instalar(redeFalsa())
+    instalar(fakeNetwork())
     await montarEEsperar()
     expect(cheios()).toEqual(['Enviar material'])
     await usuario.click(botaoDe('Capítulo sem texto'))
@@ -257,7 +257,7 @@ describe('os quatro estados da tela', () => {
   it('a 360 px a tabela vira lista, e o título continua sendo o botão que abre o painel', async () => {
     const usuario = userEvent.setup()
     janelaDe(360)
-    instalar(redeFalsa())
+    instalar(fakeNetwork())
     montar()
     const lista = await screen.findByRole('list', { name: 'Lista de materiais' })
     expect(screen.queryByRole('table')).toBeNull()
@@ -272,7 +272,7 @@ describe('os quatro estados da tela', () => {
 describe('o painel do material', () => {
   it('a linha abre o painel no endereço, só com o id, com o que foi declarado e o motivo da falha; o "Fechar" tira o parâmetro', async () => {
     const usuario = userEvent.setup()
-    instalar(redeFalsa())
+    instalar(fakeNetwork())
     const localizacao = await montarEEsperar()
     await usuario.click(botaoDe('Capítulo sem texto'))
     const painel = await painelDe('Capítulo sem texto')
@@ -299,7 +299,7 @@ describe('o painel do material', () => {
 
   it('o material pronto mostra as páginas, não tem "Quem deu a licença" quando a escola é a dona, e só oferece "Excluir material"', async () => {
     const usuario = userEvent.setup()
-    instalar(redeFalsa())
+    instalar(fakeNetwork())
     await montarEEsperar()
     await usuario.click(botaoDe('Capítulo pronto'))
     const painel = await painelDe('Capítulo pronto')
@@ -313,7 +313,7 @@ describe('o painel do material', () => {
 
   it('o painel aberto pelo endereço (o link do sino) já nasce aberto, sem clique, e ao fechar o foco vai ao título da lista', async () => {
     const usuario = userEvent.setup()
-    instalar(redeFalsa())
+    instalar(fakeNetwork())
     await montarEEsperar(`/material?material=${SEM_TEXTO.id}`)
     const painel = await painelDe('Capítulo sem texto')
     await usuario.click(within(painel).getByRole('button', { name: 'Fechar' }))
@@ -323,7 +323,7 @@ describe('o painel do material', () => {
   })
 
   it('o id que a lista da escola não tem — o de outra escola, na sessão de outra pessoa — não abre painel nem aparece na tela', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { materiais: ok([PRONTO]) })
     const localizacao = await montarEEsperar(`/material?material=${SEM_TEXTO.id}`)
     expect(screen.queryByRole('dialog')).toBeNull()
@@ -335,7 +335,7 @@ describe('o painel do material', () => {
 
   it('"Tentar de novo" abre o envio com o que o material declarava e sem a declaração, e o foco vai a "Escolher arquivo"', async () => {
     const usuario = userEvent.setup()
-    instalar(redeFalsa())
+    instalar(fakeNetwork())
     await montarEEsperar()
     await usuario.click(botaoDe('Capítulo sem texto'))
     await usuario.click(within(await painelDe('Capítulo sem texto')).getByRole('button', { name: 'Tentar de novo' }))
@@ -352,7 +352,7 @@ describe('o painel do material', () => {
 
   it('o envio novo de um material que falhou o troca: o antigo é excluído, o painel sai do endereço e o diálogo fecha', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     let trocado = false
     const novo = material(5, { titulo: 'Capítulo sem texto', disciplinaId: FISICA.id, estado: 'processando', paginas: null, trechos: 0 })
     rede.responderPor('/v1/disciplinas', ok([QUIMICA, FISICA]))
@@ -387,7 +387,7 @@ describe('o painel do material', () => {
 describe('excluir pelo painel', () => {
   it('a confirmação diz o que acontece; cancelar não exclui nada', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede)
     await montarEEsperar()
     await usuario.click(botaoDe('Capítulo sem texto'))
@@ -408,7 +408,7 @@ describe('excluir pelo painel', () => {
 
   it('confirmar tira o material da lista e do endereço, anuncia, e o foco vai ao título da lista — e não ao body', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     let excluido = false
     rede.responderPor('/v1/disciplinas', ok([QUIMICA, FISICA]))
     rede.responderPor('/v1/materiais', () => ok(excluido ? [PRONTO, MAIS_NOVO] : [PRONTO, SEM_TEXTO, MAIS_NOVO]))
@@ -433,7 +433,7 @@ describe('excluir pelo painel', () => {
 
   it('o material que outra pessoa já excluiu: a confirmação diz que a lista foi atualizada, e a lista é relida', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede)
     rede.responderPor(/^\/v1\/materiais\/.+/, ERRO('NAO_ENCONTRADO', 404))
     await montarEEsperar()
@@ -449,7 +449,7 @@ describe('excluir pelo painel', () => {
 describe('a releitura que falha com a lista na tela', () => {
   it('o aviso fica sobre a tabela, com "Tentar de novo" que não é cheio, e a lista de antes continua à vista', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     let falhar = false
     rede.responderPor('/v1/disciplinas', ok([QUIMICA, FISICA]))
     rede.responderPor('/v1/materiais', () => (falhar ? FALHA : ok([PRONTO])))
@@ -477,7 +477,7 @@ describe('a releitura que falha com a lista na tela', () => {
 describe('o diálogo "Enviar material"', () => {
   it('o botão do alto abre o formulário de sempre, com os rótulos de sempre e o arquivo escolhido pelo botão', async () => {
     const usuario = userEvent.setup()
-    instalar(redeFalsa())
+    instalar(fakeNetwork())
     await montarEEsperar()
     await usuario.click(screen.getByRole('button', { name: 'Enviar material' }))
     const dialogo = within(await dialogoDeEnvio())
@@ -494,7 +494,7 @@ describe('o diálogo "Enviar material"', () => {
 
   it('o formulário incompleto diz o que falta em cada campo, e nada vai à API', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede)
     await montarEEsperar()
     await usuario.click(screen.getByRole('button', { name: 'Enviar material' }))
@@ -514,7 +514,7 @@ describe('o diálogo "Enviar material"', () => {
 
   it('o arquivo que não é PDF é recusado na tela, sem pedido à API; dois de uma vez, também', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede)
     await montarEEsperar()
     await usuario.click(screen.getByRole('button', { name: 'Enviar material' }))
@@ -532,7 +532,7 @@ describe('o diálogo "Enviar material"', () => {
 
   it('o envio com licença: o PDF sobe, o diálogo fecha, a lista mostra o novo, o anúncio diz e o foco volta ao botão que abriu', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     let enviado = false
     const novo = material(5, { titulo: 'capitulo novo', estado: 'processando', paginas: null, trechos: 0 })
     rede.responderPor('/v1/disciplinas', ok([QUIMICA, FISICA]))
@@ -567,7 +567,7 @@ describe('o diálogo "Enviar material"', () => {
 
   it('o primeiro envio, do vazio: o botão que abriu saiu da tela, e o foco vai ao título da lista', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     let enviado = false
     const novo = material(5, { titulo: 'capitulo novo', estado: 'processando', paginas: null, trechos: 0 })
     rede.responderPor('/v1/disciplinas', ok([QUIMICA]))
@@ -596,7 +596,7 @@ describe('o diálogo "Enviar material"', () => {
 
   it('o primeiro envio que dá certo e cuja releitura cai não afirma o vazio: a tela diz o erro, e não "Nenhum material ainda"', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     let enviado = false
     rede.responderPor('/v1/disciplinas', ok([QUIMICA]))
     rede.responderPor('/v1/materiais', () => {
@@ -627,7 +627,7 @@ describe('o diálogo "Enviar material"', () => {
 
   it('a falha do envio que não é recusa fica no diálogo, com o que foi digitado, e o conflito relê a lista', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     let falha = ERRO('INDISPONIVEL_TENTE_DE_NOVO', 503)
     rede.responderPor('/v1/disciplinas', ok([QUIMICA]))
     rede.responderPor('/v1/materiais', () => (rede.chamadas.at(-1)?.metodo === 'POST' ? falha : ok([PRONTO])))
@@ -673,7 +673,7 @@ describe('a recusa por licença', () => {
 
   it('sem licença o diálogo diz "Envio recusado" e por quê, com o foco no aviso; a recusa vira a primeira linha da tabela, sem abrir painel', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor('/v1/disciplinas', ok([QUIMICA]))
     rede.responderPor('/v1/materiais', () => (rede.chamadas.at(-1)?.metodo === 'POST' ? RECUSADO : ok([PRONTO, SEM_TEXTO])))
     await montarEEsperar()
@@ -704,7 +704,7 @@ describe('a recusa por licença', () => {
 
   it('com licença e sem a declaração, o motivo é o outro', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor('/v1/disciplinas', ok([QUIMICA]))
     rede.responderPor('/v1/materiais', () => (rede.chamadas.at(-1)?.metodo === 'POST' ? RECUSADO : ok([PRONTO])))
     await montarEEsperar()
@@ -721,7 +721,7 @@ describe('a recusa por licença', () => {
 
   it('reabrir o diálogo começa de um formulário novo, sem o rascunho nem o aviso da tentativa anterior; "Dispensar" tira a linha e volta ao vazio', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor('/v1/disciplinas', ok([QUIMICA]))
     rede.responderPor('/v1/materiais', () => (rede.chamadas.at(-1)?.metodo === 'POST' ? RECUSADO : ok([])))
     montar()
@@ -762,7 +762,7 @@ describe('o que o diálogo e a tabela guardam entre uma tentativa e outra', () =
 
   it('duas recusas: a mais nova vem primeiro, e "Dispensar" tira só a que a pessoa escolheu', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor('/v1/disciplinas', ok([QUIMICA]))
     rede.responderPor('/v1/materiais', () => (rede.chamadas.at(-1)?.metodo === 'POST' ? RECUSADO : ok([PRONTO])))
     await montarEEsperar()
@@ -785,7 +785,7 @@ describe('o que o diálogo e a tabela guardam entre uma tentativa e outra', () =
 
   it('o pedido: a recusa sai sem o arquivo; o envio com licença leva o arquivo e o que foi declarado', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     let recusar = true
     rede.responderPor('/v1/disciplinas', ok([QUIMICA]))
     rede.responderPor('/v1/materiais', () => {
@@ -820,7 +820,7 @@ describe('o que o diálogo e a tabela guardam entre uma tentativa e outra', () =
 
   it('abrir o diálogo apaga o anúncio do envio anterior', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor('/v1/disciplinas', ok([QUIMICA]))
     rede.responderPor('/v1/materiais', () =>
       rede.chamadas.at(-1)?.metodo === 'POST' ? { status: 201, corpo: material(5, { titulo: 'capitulo novo', estado: 'processando', paginas: null, trechos: 0 }) } : ok([PRONTO]),
@@ -839,7 +839,7 @@ describe('o que o diálogo e a tabela guardam entre uma tentativa e outra', () =
 
   it('a falha do envio some quando a pessoa escolhe outro arquivo', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor('/v1/disciplinas', ok([QUIMICA]))
     rede.responderPor('/v1/materiais', () => (rede.chamadas.at(-1)?.metodo === 'POST' ? ERRO('INDISPONIVEL_TENTE_DE_NOVO', 503) : ok([PRONTO])))
     await montarEEsperar()
@@ -856,7 +856,7 @@ describe('o que o diálogo e a tabela guardam entre uma tentativa e outra', () =
 
   it('o seletor de arquivo fechado sem escolha não fecha o diálogo nem apaga o formulário: o `cancel` do input não é o Esc do diálogo', async () => {
     const usuario = userEvent.setup()
-    instalar(redeFalsa())
+    instalar(fakeNetwork())
     await montarEEsperar()
     await usuario.click(screen.getByRole('button', { name: 'Enviar material' }))
     const dialogo = within(await dialogoDeEnvio())
@@ -872,7 +872,7 @@ describe('o que o diálogo e a tabela guardam entre uma tentativa e outra', () =
 
   it('sem disciplina na escola, o diálogo diz onde criá-las, não tem formulário e só se fecha', async () => {
     const usuario = userEvent.setup()
-    instalar(redeFalsa(), { disciplinas: ok([]) })
+    instalar(fakeNetwork(), { disciplinas: ok([]) })
     await montarEEsperar()
     await usuario.click(screen.getByRole('button', { name: 'Enviar material' }))
     const dialogo = within(await dialogoDeEnvio())
@@ -884,7 +884,7 @@ describe('o que o diálogo e a tabela guardam entre uma tentativa e outra', () =
 
   it('a dica do "Tentar de novo" só aparece no envio que troca um material que falhou', async () => {
     const usuario = userEvent.setup()
-    instalar(redeFalsa())
+    instalar(fakeNetwork())
     await montarEEsperar()
     await usuario.click(screen.getByRole('button', { name: 'Enviar material' }))
     const novo = within(await dialogoDeEnvio())
@@ -899,7 +899,7 @@ describe('o que o diálogo e a tabela guardam entre uma tentativa e outra', () =
 
   it('enquanto o envio está no ar o botão diz "Enviando…" e não aceita outro clique', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor('/v1/disciplinas', ok([QUIMICA]))
     rede.responderPor('/v1/materiais', () => (rede.chamadas.at(-1)?.metodo === 'POST' ? nuncaResponde() : ok([PRONTO])))
     await montarEEsperar()
@@ -913,12 +913,12 @@ describe('o que o diálogo e a tabela guardam entre uma tentativa e outra', () =
   })
   it('a resposta que chega com o diálogo já fechado não fecha o diálogo reaberto; a recusa atrasada entra na tabela mesmo assim', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
-    let soltar: (resposta: RespostaFalsa) => void = () => undefined
+    const rede = fakeNetwork()
+    let soltar: (resposta: FakeResponse) => void = () => undefined
     rede.responderPor('/v1/disciplinas', ok([QUIMICA]))
     rede.responderPor('/v1/materiais', () => {
       if (rede.chamadas.at(-1)?.metodo !== 'POST') return ok([PRONTO])
-      return new Promise<RespostaFalsa>((resolver) => {
+      return new Promise<FakeResponse>((resolver) => {
         soltar = resolver
       })
     })
@@ -960,7 +960,7 @@ describe('o que o diálogo e a tabela guardam entre uma tentativa e outra', () =
 
   it('a sessão que muda de dono fecha o diálogo e leva as recusas da tabela', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor('/v1/disciplinas', ok([QUIMICA]))
     rede.responderPor('/v1/materiais', () => (rede.chamadas.at(-1)?.metodo === 'POST' ? RECUSADO : ok([PRONTO])))
     await montarEEsperar()
@@ -986,7 +986,7 @@ describe('o que o diálogo e a tabela guardam entre uma tentativa e outra', () =
 
   it('o segundo clique em "Enviar material" com o pedido no ar não manda outro pedido', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor('/v1/disciplinas', ok([QUIMICA]))
     rede.responderPor('/v1/materiais', () => (rede.chamadas.at(-1)?.metodo === 'POST' ? nuncaResponde() : ok([PRONTO])))
     await montarEEsperar()

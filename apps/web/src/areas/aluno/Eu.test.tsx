@@ -5,10 +5,10 @@ import userEvent from '@testing-library/user-event'
 import type { ComponentProps } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Router } from 'wouter'
-import { CHAVE_DA_MEMORIA_DO_TUTOR } from '../../api/chaves-do-aluno'
-import { criarClienteDeConsultas } from '../../api/query-client'
-import { prepararTela, redeFalsa, renderizarTela } from '../../__fixtures__/render-screen'
-import { ContextoDaSaida } from '../../components/sign-out-context'
+import { MEMORIA_DO_TUTOR_QUERY_KEY } from '../../api/chaves-do-aluno'
+import { createQueryClient } from '../../api/query-client'
+import { setupScreen, fakeNetwork, renderScreen } from '../../__fixtures__/render-screen'
+import { SignOutContext } from '../../components/sign-out-context'
 import { escolherLetra } from '../../text-size'
 import type { MemoriaDoTutorResponse } from '@educa/shared'
 import { DESCRICAO_DO_VAZIO, ROTULO_DAS_HABILIDADES, ROTULO_DO_CARREGANDO, TEXTO_DA_CONTESTACAO, TITULO_DO_VAZIO } from './como-estou-indo'
@@ -20,7 +20,7 @@ import Eu from './Eu'
  * existem em todos: o "Sair" não pode depender de a turma nem de a memória terem chegado (D59). O "Sair" é o da casca, pelo
  * contexto. "Como estou indo" tem os quatro estados dele e não derruba o cartão da turma.
  */
-prepararTela()
+setupScreen()
 
 const REQUISICAO = '0190f5a0-0000-7000-8000-000000000001'
 const FALHA = { status: 429, corpo: { erro: { codigo: 'LIMITE_EXCEDIDO', mensagem: 'x', requisicaoId: REQUISICAO } } } as const
@@ -57,13 +57,13 @@ const memoriaDoAluno = (trabalhos: readonly TrabalhoNaMemoria[]): MemoriaDoTutor
 const NUNCA = () => new Promise<never>(() => undefined)
 
 /** A área do aluno monta as rotas sob `/aluno`; o `Router` com a mesma base dá ao link o endereço que o navegador teria. */
-function montar(saida?: ComponentProps<typeof ContextoDaSaida>['value']) {
+function montar(saida?: ComponentProps<typeof SignOutContext>['value']) {
   const eu = (
     <Router base="/aluno">
       <Eu />
     </Router>
   )
-  return renderizarTela(saida === undefined ? eu : <ContextoDaSaida value={saida}>{eu}</ContextoDaSaida>)
+  return renderScreen(saida === undefined ? eu : <SignOutContext value={saida}>{eu}</SignOutContext>)
 }
 
 /** A linha de apoio do título de Eu: a turma, a série por extenso e a escola, sem cartão próprio (RF20; mockup 2.5). */
@@ -87,7 +87,7 @@ const comoEstouIndo = () => screen.getByRole('region', { name: 'Como estou indo'
 
 describe('Eu', () => {
   it('carregando: o título, os dois rótulos do carregamento e as duas linhas, e nenhuma turma nem tarefa ainda', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor('/v1/minha-turma', NUNCA)
     rede.responderPor('/v1/tutor/memoria', NUNCA)
     montar()
@@ -101,7 +101,7 @@ describe('Eu', () => {
   })
 
   it('com dado: a turma, a série por extenso e a escola na linha de apoio do título, "Como estou indo" antes das linhas', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor('/v1/minha-turma', COM_TURMA)
     rede.responderPor('/v1/tutor/memoria', MEMORIA_VAZIA)
     montar()
@@ -121,7 +121,7 @@ describe('Eu', () => {
   })
 
   it('o título "Rever a introdução" quebra em até duas linhas, e o dos outros fica em uma só com reticências (a 360 px ele não pode sair cortado)', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor('/v1/minha-turma', COM_TURMA)
     rede.responderPor('/v1/tutor/memoria', MEMORIA_VAZIA)
     montar()
@@ -135,7 +135,7 @@ describe('Eu', () => {
   })
 
   it('o aluno sem turma no ano: o texto de hoje numa região de status, sem "Tentar de novo" nem erro de rede, e "Como estou indo" segue, vazio', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor('/v1/minha-turma', NAO_ACHADA)
     rede.responderPor('/v1/tutor/memoria', NAO_ACHADA)
     montar()
@@ -150,7 +150,7 @@ describe('Eu', () => {
   })
 
   it('com erro de rede na turma: o alerta com "Tentar de novo", e o "Sair" continua ao alcance', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor('/v1/minha-turma', FALHA)
     rede.responderPor('/v1/tutor/memoria', MEMORIA_VAZIA)
     montar()
@@ -162,7 +162,7 @@ describe('Eu', () => {
   })
 
   it('"Sair" é a saída da casca: um clique chama a saída do contexto, uma vez, e nada mais é pedido à API pela linha', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor('/v1/minha-turma', COM_TURMA)
     rede.responderPor('/v1/tutor/memoria', MEMORIA_VAZIA)
     const sair = vi.fn()
@@ -178,7 +178,7 @@ describe('Eu', () => {
   })
 
   it('saindo: a linha diz "Saindo…" no lugar de "Sair"', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor('/v1/minha-turma', COM_TURMA)
     rede.responderPor('/v1/tutor/memoria', MEMORIA_VAZIA)
     montar({ sair: () => undefined, saindo: true })
@@ -191,7 +191,7 @@ describe('Eu', () => {
 
 describe('Eu: "Como estou indo"', () => {
   it('só a correção aprovada: o trabalho sem resultado não aparece, nem a contagem dele', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor('/v1/minha-turma', COM_TURMA)
     const pendente = trabalhoNaMemoria({ titulo: 'Lista que ainda espera a professora', resultado: null })
     const aprovado = trabalhoNaMemoria({ titulo: 'Lista aprovada', resultado: resultadoAprovado({ acertos: 7, total: 8 }) })
@@ -211,7 +211,7 @@ describe('Eu: "Como estou indo"', () => {
   })
 
   it('só trabalho sem aprovação: é o vazio, e não uma lista de tarefas pendentes', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor('/v1/minha-turma', COM_TURMA)
     rede.responderPor('/v1/tutor/memoria', { status: 200, corpo: memoriaDoAluno([trabalhoNaMemoria({ titulo: 'Lista pendente' })]) })
     montar()
@@ -225,7 +225,7 @@ describe('Eu: "Como estou indo"', () => {
   })
 
   it('as habilidades a rever vêm como a API mandou: código e descrição, na ordem dela', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor('/v1/minha-turma', COM_TURMA)
     const trabalho = trabalhoNaMemoria({ titulo: 'Lista com habilidades', resultado: resultadoAprovado({ acertos: 2, total: 6, aReforcar: [MASSA_MOLAR, LIMITANTE] }) })
     rede.responderPor('/v1/tutor/memoria', { status: 200, corpo: memoriaDoAluno([trabalho]) })
@@ -243,13 +243,13 @@ describe('Eu: "Como estou indo"', () => {
   })
 
   it('os sinais do Tutor não vão à tela nem ao cache: a memória chega com eles, e o cache guarda só os trabalhos corrigidos', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor('/v1/minha-turma', COM_TURMA)
     const aprovado = trabalhoNaMemoria({ titulo: 'Lista aprovada', resultado: resultadoAprovado() })
     const memoria = memoriaDoAluno([aprovado])
     expect(memoria.sinais).toHaveLength(1)
     rede.responderPor('/v1/tutor/memoria', { status: 200, corpo: memoria })
-    const cliente = criarClienteDeConsultas()
+    const cliente = createQueryClient()
     render(
       <QueryClientProvider client={cliente}>
         <Router base="/aluno">
@@ -259,13 +259,13 @@ describe('Eu: "Como estou indo"', () => {
     )
 
     await within(comoEstouIndo()).findByText('Lista aprovada')
-    expect(cliente.getQueryData(CHAVE_DA_MEMORIA_DO_TUTOR)).toEqual([aprovado])
+    expect(cliente.getQueryData(MEMORIA_DO_TUTOR_QUERY_KEY)).toEqual([aprovado])
     expect(JSON.stringify(cliente.getQueryCache().getAll().map((consulta) => consulta.state.data))).not.toContain('resposta_pronta')
     expect(document.body.textContent).not.toMatch(/resposta_pronta|travou|duvida_repetida|resposta pronta/i)
   })
 
   it('nada de colega, média, posição, sequência de dias, ponto ou meta (RF10), e a rede vê só a turma e a memória', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor('/v1/minha-turma', COM_TURMA)
     rede.responderPor('/v1/tutor/memoria', { status: 200, corpo: memoriaDoAluno([trabalhoNaMemoria({ resultado: resultadoAprovado({ aReforcar: [LIMITANTE] }) })]) })
     montar()
@@ -277,10 +277,10 @@ describe('Eu: "Como estou indo"', () => {
   })
 
   it('a leitura dura 5 minutos e não é refeita ao voltar para a aba, nem ao abrir Eu de novo', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor('/v1/minha-turma', COM_TURMA)
     rede.responderPor('/v1/tutor/memoria', { status: 200, corpo: memoriaDoAluno([trabalhoNaMemoria({ titulo: 'Lista aprovada', resultado: resultadoAprovado() })]) })
-    const cliente = criarClienteDeConsultas()
+    const cliente = createQueryClient()
     const eu = (
       <QueryClientProvider client={cliente}>
         <Router base="/aluno">
@@ -306,7 +306,7 @@ describe('Eu: "Como estou indo"', () => {
       // Dá tempo de uma releitura sair, se a opção a mandasse: o cliente decide depois de alguns turnos, e a espera vem antes da conferência.
       await new Promise((resolver) => setTimeout(resolver, 50))
       // A leitura segue parada (nada em voo) e a rede não viu pedido novo: a primeira conferência não depende da rede responder.
-      expect(cliente.getQueryState(CHAVE_DA_MEMORIA_DO_TUTOR)?.fetchStatus).toBe('idle')
+      expect(cliente.getQueryState(MEMORIA_DO_TUTOR_QUERY_KEY)?.fetchStatus).toBe('idle')
       expect(memorias()).toBe(1)
     } finally {
       focusManager.setFocused(undefined)
@@ -315,7 +315,7 @@ describe('Eu: "Como estou indo"', () => {
   })
 
   it('carregando: o rótulo dele, e o cartão da turma e as linhas já à vista', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor('/v1/minha-turma', COM_TURMA)
     rede.responderPor('/v1/tutor/memoria', NUNCA)
     montar()
@@ -327,7 +327,7 @@ describe('Eu: "Como estou indo"', () => {
   })
 
   it('erro: "Tentar de novo" na seção, sem derrubar o cartão da turma, e a lista volta quando a API volta', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor('/v1/minha-turma', COM_TURMA)
     let falha = true
     rede.responderPor('/v1/tutor/memoria', () => (falha ? FALHA : { status: 200, corpo: memoriaDoAluno([trabalhoNaMemoria({ titulo: 'Lista aprovada', resultado: resultadoAprovado() })]) }))
@@ -367,7 +367,7 @@ describe('Eu: Ajustes', () => {
 
   /** A turma e a memória respondem, para a tela estar parada com dado enquanto o diálogo abre. */
   function montarComDado() {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor('/v1/minha-turma', COM_TURMA)
     rede.responderPor('/v1/tutor/memoria', MEMORIA_VAZIA)
     return montar()

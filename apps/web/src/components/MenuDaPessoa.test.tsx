@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { escolherAparencia } from '../theme'
-import { classesDo } from '../__fixtures__/class-colors'
+import { setThemePreference } from '../theme'
+import { classesOf } from '../__fixtures__/class-colors'
 import { iniciaisDe, MenuDaPessoa } from './MenuDaPessoa'
 
 /**
@@ -18,7 +18,7 @@ beforeEach(() => {
 afterEach(() => {
   cleanup()
   vi.unstubAllGlobals()
-  escolherAparencia('sistema')
+  setThemePreference('sistema')
   window.localStorage.clear()
 })
 
@@ -66,7 +66,7 @@ describe('MenuDaPessoa', () => {
   it('o "Sair" tem a medida de um lugar da navegação, aberto e no trilho, e não é menor que ele (RF15; D59)', () => {
     for (const trilho of [false, true]) {
       render(<MenuDaPessoa nome="Professora Exemplo" aoSair={() => undefined} saindo={false} trilho={trilho} />)
-      const classes = classesDo(screen.getByRole('button', { name: 'Sair' }))
+      const classes = classesOf(screen.getByRole('button', { name: 'Sair' }))
       // A mesma altura que `ItemDaLateral` desenha: 52 px, aberto (e a linha inteira) ou o quadrado do trilho.
       expect(classes.has(trilho ? 'size-13' : 'min-h-13'), `trilho: ${String(trilho)}`).toBe(true)
       if (!trilho) expect(classes.has('w-full')).toBe(true)

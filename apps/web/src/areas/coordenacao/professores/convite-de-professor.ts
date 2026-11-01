@@ -10,7 +10,7 @@ import {
 import type { FalhaDoConvite } from '../../../components/DialogoDoConvite'
 import { pedidoDeConvitePelo, type ValidacaoDoConvite } from '../../../components/pedido-de-convite'
 import type { StatusFamily } from '../../../components/ui/StatusBadge'
-import { listaMudou, textoDaFalha } from '../../../components/error-text'
+import { listChanged, errorText } from '../../../components/error-text'
 import { TEXTO_DO_CONVITE_QUE_MUDOU, TEXTO_DO_CONVITE_QUE_NAO_VALE } from '../../../components/textos-do-convite'
 
 /**
@@ -103,10 +103,10 @@ export const TEXTO_DO_EMAIL_JA_CADASTRADO =
 
 /**
  * O texto da falha do cadastro. O `CONFLITO` é do e-mail digitado: a pessoa volta e corrige, e por isso o diálogo
- * continua com os botões (`listaMudou` falso). O resto (429, 503) é o texto do catálogo, e o mesmo botão tenta de novo.
+ * continua com os botões (`listChanged` falso). O resto (429, 503) é o texto do catálogo, e o mesmo botão tenta de novo.
  */
 export function falhaDoCadastroDeProfessor(erro: unknown): FalhaDoConvite {
-  return { texto: textoDaFalha(erro, { [ErrorCode.CONFLITO]: TEXTO_DO_EMAIL_JA_CADASTRADO }), listaMudou: false }
+  return { texto: errorText(erro, { [ErrorCode.CONFLITO]: TEXTO_DO_EMAIL_JA_CADASTRADO }), listaMudou: false }
 }
 
 /**
@@ -123,5 +123,5 @@ export const TEXTOS_DO_CONVITE_QUE_MUDOU: Readonly<Partial<Record<ErrorCode, str
  * só "Fechar". O resto é o texto do catálogo, e o mesmo botão tenta de novo. Nenhum texto diz o código.
  */
 export function falhaDoRefazerConviteDeProfessor(erro: unknown): FalhaDoConvite {
-  return { texto: textoDaFalha(erro, TEXTOS_DO_CONVITE_QUE_MUDOU), listaMudou: listaMudou(erro, [ErrorCode.CONFLITO, ErrorCode.NAO_ENCONTRADO]) }
+  return { texto: errorText(erro, TEXTOS_DO_CONVITE_QUE_MUDOU), listaMudou: listChanged(erro, [ErrorCode.CONFLITO, ErrorCode.NAO_ENCONTRADO]) }
 }

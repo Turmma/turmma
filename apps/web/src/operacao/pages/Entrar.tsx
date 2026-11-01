@@ -4,10 +4,10 @@ import { useLocation } from 'wouter'
 import { Button } from '../../components/ui/Button'
 import { FormField } from '../../components/ui/fields/FormField'
 import { avisoDaEntradaDeOperador, assinarSessaoDeOperador, entrarComoOperador, estadoDaSessaoDeOperador } from '../api/sessao'
-import { INICIO_DA_OPERACAO, ROTAS_DA_OPERACAO } from '../paths'
+import { INICIO_DA_OPERACAO, OPERACAO_ROUTES } from '../paths'
 import { CascaPublicaDaOperacao } from '../components/CascaDaOperacao'
 import { textoDaFalhaDaEntrada } from '../textos'
-import { useTituloDaPagina } from '../document-title'
+import { useOperacaoPageTitle } from '../document-title'
 
 /**
  * A entrada do operador por e-mail e senha (PRD da A0, RF3). Os quatro estados: o formulário é o "com dado"; carregando
@@ -18,7 +18,7 @@ import { useTituloDaPagina } from '../document-title'
  * fator recusado, ou a saída que a API não confirmou. Vive só na memória da aba.
  */
 export function Entrar() {
-  useTituloDaPagina('Entrar')
+  useOperacaoPageTitle('Entrar')
   const [, navegar] = useLocation()
   const estado = useSyncExternalStore(assinarSessaoDeOperador, estadoDaSessaoDeOperador)
   const aviso = useSyncExternalStore(assinarSessaoDeOperador, avisoDaEntradaDeOperador)
@@ -40,7 +40,7 @@ export function Entrar() {
     definirFalha(undefined)
     try {
       const etapa = await entrarComoOperador({ email, senha })
-      navegar(etapa === 'mfa' ? ROTAS_DA_OPERACAO.mfa : ROTAS_DA_OPERACAO.configurarMfa)
+      navegar(etapa === 'mfa' ? OPERACAO_ROUTES.mfa : OPERACAO_ROUTES.configurarMfa)
     } catch (erro) {
       definirFalha(erro)
       // A pessoa digita a senha de novo, e o foco já está no campo dela (a mensagem é anunciada pelo `alert`).

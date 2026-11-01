@@ -1,23 +1,23 @@
 import { describe, expect, it } from 'vitest'
 import * as navegacao from './navigation'
-import { estaNoItem, MENU_DA_PESSOA, NAVEGACAO, RODAPE_DA_LATERAL } from './navigation'
+import { estaNoItem, PERSON_MENU, NAVIGATION, SIDEBAR_FOOTER } from './navigation'
 
 describe('navegação por papel', () => {
   it('W2: os quatro lugares da coordenação, os três do aluno (Início, Tarefas e Eu) e, na ordem da D80, "Início" (era "Nova conversa"), "Turmas", "Ferramentas" e "Criados" do professor têm tela', () => {
-    expect(NAVEGACAO.professor.map(({ rotulo, caminho }) => ({ rotulo, caminho }))).toEqual([
+    expect(NAVIGATION.professor.map(({ rotulo, caminho }) => ({ rotulo, caminho }))).toEqual([
       { rotulo: 'Início', caminho: '/professor/nova-conversa' },
       { rotulo: 'Turmas', caminho: '/professor/turmas' },
       { rotulo: 'Ferramentas', caminho: '/professor/ferramentas' },
       { rotulo: 'Criados', caminho: '/professor/criados' },
     ])
     // X4 (2.0): o aluno tem Início, Tarefas e Eu, nesta ordem, e mais nada. Tarefas ficou no endereço de Atividades.
-    expect(NAVEGACAO.aluno.map(({ rotulo, caminho }) => ({ rotulo, caminho }))).toEqual([
+    expect(NAVIGATION.aluno.map(({ rotulo, caminho }) => ({ rotulo, caminho }))).toEqual([
       { rotulo: 'Início', caminho: '/aluno/inicio' },
       { rotulo: 'Tarefas', caminho: '/aluno/atividades' },
       { rotulo: 'Eu', caminho: '/aluno/eu' },
     ])
     // X2 (3.0): a coordenação tem quatro lugares, nesta ordem, e o Painel é o primeiro.
-    expect(NAVEGACAO.coordenador.map(({ rotulo, caminho }) => ({ rotulo, caminho }))).toEqual([
+    expect(NAVIGATION.coordenador.map(({ rotulo, caminho }) => ({ rotulo, caminho }))).toEqual([
       { rotulo: 'Painel', caminho: '/coordenacao/painel' },
       { rotulo: 'Analista', caminho: '/coordenacao/analista' },
       { rotulo: 'Escola', caminho: '/coordenacao/estrutura' },
@@ -27,39 +27,39 @@ describe('navegação por papel', () => {
 
   it('X2: "Privacidade" já não é item da lista, e o professor e o aluno não a têm na lista de seções', () => {
     // Na coordenação a Privacidade é uma aba de Registros; a do aluno é uma linha de Eu (X4, 2.0).
-    expect(NAVEGACAO.coordenador.map((item) => item.rotulo)).not.toContain('Privacidade')
-    expect(NAVEGACAO.professor.map((item) => item.rotulo)).not.toContain('Privacidade')
-    expect(NAVEGACAO.aluno.map((item) => item.rotulo)).not.toContain('Privacidade')
+    expect(NAVIGATION.coordenador.map((item) => item.rotulo)).not.toContain('Privacidade')
+    expect(NAVIGATION.professor.map((item) => item.rotulo)).not.toContain('Privacidade')
+    expect(NAVIGATION.aluno.map((item) => item.rotulo)).not.toContain('Privacidade')
   })
 
   it('X4 (2.0, 10.0 e 11.0): o aluno não tem rodapé fixo nem menu da pessoa com links; o professor tem "Meus dados" e "Rever a introdução" no menu, nesta ordem, e a coordenação só a "Rever a introdução"', () => {
-    expect(MENU_DA_PESSOA.professor.map(({ rotulo, caminho }) => ({ rotulo, caminho }))).toEqual([
+    expect(PERSON_MENU.professor.map(({ rotulo, caminho }) => ({ rotulo, caminho }))).toEqual([
       { rotulo: 'Meus dados', caminho: '/professor/meus-dados' },
       { rotulo: 'Rever a introdução', caminho: '/professor/bem-vindo' },
     ])
     // "Privacidade" do aluno saiu do rodapé e virou uma linha de Eu: o rodapé de nenhum papel tem item.
-    for (const papel of ['aluno', 'professor', 'coordenador'] as const) expect(RODAPE_DA_LATERAL[papel], papel).toEqual([])
-    expect(MENU_DA_PESSOA.aluno).toEqual([])
+    for (const papel of ['aluno', 'professor', 'coordenador'] as const) expect(SIDEBAR_FOOTER[papel], papel).toEqual([])
+    expect(PERSON_MENU.aluno).toEqual([])
     // A coordenação não é titular de pedido (a API não lhe dá `meus_dados`): o menu dela tem só o link para rever a introdução.
-    expect(MENU_DA_PESSOA.coordenador.map(({ rotulo, caminho }) => ({ rotulo, caminho }))).toEqual([{ rotulo: 'Rever a introdução', caminho: '/coordenacao/bem-vindo' }])
+    expect(PERSON_MENU.coordenador.map(({ rotulo, caminho }) => ({ rotulo, caminho }))).toEqual([{ rotulo: 'Rever a introdução', caminho: '/coordenacao/bem-vindo' }])
     // Nenhum item do menu da pessoa repete um da lista de seções do mesmo papel: seriam duas linhas para a mesma tela.
     for (const papel of ['aluno', 'professor', 'coordenador'] as const) {
-      const secoes = new Set(NAVEGACAO[papel].map((item) => item.caminho))
-      for (const item of MENU_DA_PESSOA[papel]) expect(secoes.has(item.caminho)).toBe(false)
+      const secoes = new Set(NAVIGATION[papel].map((item) => item.caminho))
+      for (const item of PERSON_MENU[papel]) expect(secoes.has(item.caminho)).toBe(false)
     }
   })
 
   it('F3 (18.0): "Meus dados" fica selecionado no endereço dele, e nenhuma seção do professor fica selecionada ali', () => {
-    const [meusDados] = MENU_DA_PESSOA.professor
+    const [meusDados] = PERSON_MENU.professor
     if (meusDados === undefined) throw new Error('faltou item no menu da pessoa')
     expect(estaNoItem('/professor/meus-dados', meusDados)).toBe(true)
-    for (const item of NAVEGACAO.professor) expect(estaNoItem('/professor/meus-dados', item)).toBe(false)
+    for (const item of NAVIGATION.professor) expect(estaNoItem('/professor/meus-dados', item)).toBe(false)
     // Um endereço que só começa com as mesmas letras é outra tela.
     expect(estaNoItem('/professor/meus-dados-antigos', meusDados)).toBe(false)
   })
 
   it('X4 (2.0): cada endereço do aluno acende o lugar dele, e só ele — o Tutor e a conversa em Início, Privacidade em Eu, a tarefa aberta em Tarefas', () => {
-    const acesos = (caminho: string) => NAVEGACAO.aluno.filter((item) => estaNoItem(caminho, item)).map((item) => item.rotulo)
+    const acesos = (caminho: string) => NAVIGATION.aluno.filter((item) => estaNoItem(caminho, item)).map((item) => item.rotulo)
     const ID = '0190f5a0-0000-7000-8000-000000000001'
     expect(acesos('/aluno/inicio')).toEqual(['Início'])
     expect(acesos('/aluno/tutor')).toEqual(['Início'])
@@ -76,8 +76,8 @@ describe('navegação por papel', () => {
   })
 
   it('X2 (3.0): cada endereço de hoje da coordenação acende o lugar dele, e só ele', () => {
-    const lugares = Object.fromEntries(NAVEGACAO.coordenador.map((item) => [item.rotulo, item]))
-    const acesos = (caminho: string) => NAVEGACAO.coordenador.filter((item) => estaNoItem(caminho, item)).map((item) => item.rotulo)
+    const lugares = Object.fromEntries(NAVIGATION.coordenador.map((item) => [item.rotulo, item]))
+    const acesos = (caminho: string) => NAVIGATION.coordenador.filter((item) => estaNoItem(caminho, item)).map((item) => item.rotulo)
     const ID = '0190f5a0-0000-7000-8000-000000000001'
     expect(Object.keys(lugares)).toEqual(['Painel', 'Analista', 'Escola', 'Registros'])
     expect(acesos('/coordenacao/painel')).toEqual(['Painel'])
@@ -102,7 +102,7 @@ describe('navegação por papel', () => {
   })
 
   it('X3 (6.0): o documento aberto acende Criados, a lista de onde ele vem, e só ela', () => {
-    const acesos = (caminho: string) => NAVEGACAO.professor.filter((item) => estaNoItem(caminho, item)).map((item) => item.rotulo)
+    const acesos = (caminho: string) => NAVIGATION.professor.filter((item) => estaNoItem(caminho, item)).map((item) => item.rotulo)
     const ID = '0190f5a0-0000-7000-8000-000000000001'
     expect(acesos(`/professor/artefatos/${ID}`)).toEqual(['Criados'])
     expect(acesos('/professor/criados')).toEqual(['Criados'])
@@ -112,12 +112,12 @@ describe('navegação por papel', () => {
   })
 
   it('D73: cada item só aparece com a fase dele — o professor não tem Calendário nem Histórico, e os agentes não são lugar da lateral (X3, 2.0)', () => {
-    const rotulos = NAVEGACAO.professor.map((item) => item.rotulo)
+    const rotulos = NAVIGATION.professor.map((item) => item.rotulo)
     expect(rotulos).not.toContain('Calendário')
     expect(rotulos).not.toContain('Histórico')
     // "Seu time" saiu: o Assistente e o Tutor abrem pelo pé do sino, e nenhum papel tem item de agente na lateral.
     for (const papel of ['professor', 'aluno', 'coordenador'] as const) {
-      const nomes = [...NAVEGACAO[papel], ...RODAPE_DA_LATERAL[papel], ...MENU_DA_PESSOA[papel]].map((item) => item.rotulo)
+      const nomes = [...NAVIGATION[papel], ...SIDEBAR_FOOTER[papel], ...PERSON_MENU[papel]].map((item) => item.rotulo)
       expect(nomes, papel).not.toContain('Assistente de ensino')
       expect(nomes, papel).not.toContain('Seu time')
     }
@@ -125,12 +125,12 @@ describe('navegação por papel', () => {
   })
 
   it('o aluno não tem item que leva a tela inexistente nesta fatia: nem Tutor, Atividades, Minha turma e Privacidade como seção, nem Avisar um adulto', () => {
-    const rotulos = NAVEGACAO.aluno.map((item) => item.rotulo)
+    const rotulos = NAVIGATION.aluno.map((item) => item.rotulo)
     for (const fora of ['Tutor', 'Atividades', 'Minha turma', 'Meu desempenho', 'Privacidade', 'Avisar um adulto', 'Ranking', 'Colegas']) expect(rotulos).not.toContain(fora)
   })
 
   it('a conversa aberta fica dentro de "Início", e o documento aberto, dentro de "Criados" (X3, 6.0)', () => {
-    const [inicio, , ferramentas, criados] = NAVEGACAO.professor
+    const [inicio, , ferramentas, criados] = NAVIGATION.professor
     if (inicio === undefined || ferramentas === undefined || criados === undefined) throw new Error('faltou item na navegação do professor')
     expect(estaNoItem('/professor/conversa', inicio)).toBe(true)
     expect(estaNoItem('/professor/conversa', ferramentas)).toBe(false)
@@ -139,7 +139,7 @@ describe('navegação por papel', () => {
     expect(estaNoItem('/professor/ferramentas/adaptacao', ferramentas)).toBe(true)
     expect(estaNoItem('/professor/artefatos/0190f5a0-0000-7000-8000-000000000001', inicio)).toBe(false)
     // As telas do pé do sino não são de nenhum item: a lateral não acende nada nelas.
-    for (const item of NAVEGACAO.professor) {
+    for (const item of NAVIGATION.professor) {
       expect(estaNoItem('/professor/time/assistente', item), item.rotulo).toBe(false)
       expect(estaNoItem('/professor/time/tutor', item), item.rotulo).toBe(false)
     }

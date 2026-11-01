@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { formatarNumero } from '../../format'
+import { formatNumber } from '../../format'
 
 interface StatCardProps {
   readonly rotulo: string
@@ -21,7 +21,7 @@ export function StatCard({ rotulo, valor, apoio }: StatCardProps) {
   return (
     <div className="min-w-0 rounded-cartao border-2 border-borda bg-superficie p-4 lg:p-5">
       <p className="t-selo break-words text-sutil">{rotulo}</p>
-      <p className="t-numero mt-2 break-words text-tinta">{typeof valor === 'number' ? formatarNumero(valor) : valor}</p>
+      <p className="t-numero mt-2 break-words text-tinta">{typeof valor === 'number' ? formatNumber(valor) : valor}</p>
       {apoio !== undefined && <div className="mt-2 text-sm text-sutil">{apoio}</div>}
     </div>
   )

@@ -2,7 +2,7 @@
 import { cleanup, render, screen } from '@testing-library/react'
 import { Eye } from 'lucide-react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { classesDo } from '../../__fixtures__/class-colors'
+import { classesOf } from '../../__fixtures__/class-colors'
 import { Banner } from './Banner'
 import { StatusBadge, STATUS_FAMILIES, TEXTO_DO_PENDENTE } from './StatusBadge'
 
@@ -43,7 +43,7 @@ describe('Estado', () => {
   it('tem a pele da D80: `t-selo`, canto de 8, 24 px de altura mínima e o fundo e o texto da família de hoje', () => {
     const esperado = { pendente: ['bg-pendente-cx', 'text-pendente'], ok: ['bg-ok-cx', 'text-ok'], erro: ['bg-erro-cx', 'text-erro'], info: ['bg-info-cx', 'text-info'] } as const
     for (const familia of STATUS_FAMILIES) {
-      const classes = classesDo(selo(familia).alvo)
+      const classes = classesOf(selo(familia).alvo)
       for (const classe of ['t-selo', 'rounded-selo', 'min-h-6', 'inline-flex', ...esperado[familia]]) expect(classes.has(classe), `${familia}: ${classe}`).toBe(true)
       // O selo é uma pílula de fundo, sem borda: a borda de 2 px é das caixas, e não deste.
       expect([...classes].filter((classe) => /^border/.test(classe)), familia).toEqual([])
@@ -73,7 +73,7 @@ describe('Faixa', () => {
     const { container } = render(<Banner>Aviso.</Banner>)
     const glifo = container.querySelector('svg') as SVGElement
     expect(glifo.getAttribute('aria-hidden')).toBe('true')
-    const classes = classesDo(screen.getByRole('note'))
+    const classes = classesOf(screen.getByRole('note'))
     for (const classe of ['border-2', 'border-borda', 'rounded-controle', 'bg-info-cx', 'text-info', 't-apoio']) expect(classes.has(classe), classe).toBe(true)
   })
 })

@@ -1,7 +1,7 @@
 import { idDoPedidoSchema, TAMANHO_MAXIMO_SLUG } from '@educa/shared'
 import { describe, expect, it } from 'vitest'
 import { TEXTO_DO_EMAIL_INVALIDO, TEXTO_DO_NOME_INVALIDO } from '../components/pedido-de-convite'
-import { pedidoDeConvite, pedidoDeEscola, pedidoDeRede, sortearIdDoPedido } from './pedidos-do-painel'
+import { pedidoDeConvite, pedidoDeEscola, pedidoDeRede, newRequestId } from './pedidos-do-painel'
 import { REGRA_DO_ENDERECO } from './textos'
 
 const REDE = '3f2a8c1e-6b7d-4e9a-8c21-5d4f0e9b7a61'
@@ -9,7 +9,7 @@ const ID = '9a1b2c3d-4e5f-4a6b-8c7d-0e1f2a3b4c5d'
 
 describe('o id do pedido de rede e de escola (Tech Spec da A0b, seção 5, "Idempotência")', () => {
   it('é um UUID v4 que o contrato aceita, e cada abertura de diálogo sorteia outro', () => {
-    const ids = Array.from({ length: 500 }, sortearIdDoPedido)
+    const ids = Array.from({ length: 500 }, newRequestId)
     for (const id of ids) {
       expect(id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/)
       expect(idDoPedidoSchema.safeParse(id).success).toBe(true)

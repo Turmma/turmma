@@ -8,9 +8,9 @@ import type { StatusFamily } from '../../../components/ui/StatusBadge'
  */
 
 /** Os nomes dos parâmetros do endereço. O voltar do navegador devolve a lista como ela estava porque os filtros moram aqui. */
-export const PARAMETRO_DO_TIPO = 'tipo'
-export const PARAMETRO_DA_TURMA = 'turma'
-export const PARAMETRO_DO_ESTADO = 'estado'
+export const TIPO_PARAM = 'tipo'
+export const TURMA_PARAM = 'turma'
+export const ESTADO_PARAM = 'estado'
 
 export type TipoFiltrado = TipoDeArtefato | 'todos'
 export type EstadoFiltrado = EstadoDeEntrega | 'todos'
@@ -60,9 +60,9 @@ function ehEstado(valor: string | null): valor is EstadoDeEntrega {
  */
 export function lerFiltros(busca: string): FiltrosDeCriados {
   const parametros = new URLSearchParams(busca)
-  const tipo = parametros.get(PARAMETRO_DO_TIPO)
-  const estado = parametros.get(PARAMETRO_DO_ESTADO)
-  const turma = parametros.get(PARAMETRO_DA_TURMA)
+  const tipo = parametros.get(TIPO_PARAM)
+  const estado = parametros.get(ESTADO_PARAM)
+  const turma = parametros.get(TURMA_PARAM)
   return {
     tipo: ehTipo(tipo) ? tipo : 'todos',
     turma: turma !== null && UUID.test(turma) ? turma.toLowerCase() : undefined,
@@ -80,9 +80,9 @@ export function enderecoComFiltros(caminho: string, busca: string, mudanca: Part
     if (valor === undefined || valor === 'todos') parametros.delete(nome)
     else parametros.set(nome, valor)
   }
-  if ('tipo' in mudanca) definir(PARAMETRO_DO_TIPO, mudanca.tipo)
-  if ('turma' in mudanca) definir(PARAMETRO_DA_TURMA, mudanca.turma)
-  if ('estado' in mudanca) definir(PARAMETRO_DO_ESTADO, mudanca.estado)
+  if ('tipo' in mudanca) definir(TIPO_PARAM, mudanca.tipo)
+  if ('turma' in mudanca) definir(TURMA_PARAM, mudanca.turma)
+  if ('estado' in mudanca) definir(ESTADO_PARAM, mudanca.estado)
   const resto = parametros.toString()
   return resto === '' ? caminho : `${caminho}?${resto}`
 }

@@ -1,6 +1,6 @@
 import { Link } from 'wouter'
-import { ROTAS } from '../paths'
-import { useTituloDaTela } from '../document-title'
+import { ROUTES } from '../paths'
+import { usePageTitle } from '../document-title'
 
 /**
  * Endereço que não existe, ou que não é do papel de quem está na sessão: diz o que fazer, sem código nem status (regra
@@ -9,14 +9,14 @@ import { useTituloDaTela } from '../document-title'
  *
  * O link começa por `~`, a raiz do wouter: dentro de uma área aninhada (`/professor`), `/` seria a raiz da área.
  */
-export function ConteudoNaoEncontrado() {
-  useTituloDaTela('Página não encontrada')
+export function NotFoundContent() {
+  usePageTitle('Página não encontrada')
   return (
     <>
       <h1 className="text-xl font-semibold sm:text-2xl">Página não encontrada</h1>
       <p className="text-apoio">
         Confira o endereço digitado ou volte à{' '}
-        <Link className="text-caramelo-texto underline" to={`~${ROTAS.inicio}`}>
+        <Link className="text-caramelo-texto underline" to={`~${ROUTES.inicio}`}>
           página inicial
         </Link>
         .
@@ -26,10 +26,10 @@ export function ConteudoNaoEncontrado() {
 }
 
 /** A mesma resposta sem sessão, fora da casca: a página inteira. */
-export function PaginaNaoEncontrada() {
+export function NotFoundPage() {
   return (
     <main className="mx-auto flex min-h-screen max-w-5xl flex-col gap-3 bg-fundo px-4 py-6 text-tinta sm:px-6">
-      <ConteudoNaoEncontrado />
+      <NotFoundContent />
     </main>
   )
 }

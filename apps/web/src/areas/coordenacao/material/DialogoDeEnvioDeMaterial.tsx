@@ -1,15 +1,15 @@
 import { ErrorCode, TAMANHO_MAXIMO_DO_LICENCIANTE, TAMANHO_MAXIMO_TITULO_DO_MATERIAL, type Disciplina, type Material, type MotivoDaRecusaDoMaterial } from '@educa/shared'
 import { FileText, Upload } from 'lucide-react'
 import { useEffect, useId, useRef, useState, type DragEvent, type FormEvent } from 'react'
-import { ErroDaApi } from '../../../api/client'
+import { ApiError } from '../../../api/client'
 import { enviarMaterial, excluirMaterial, type CamposDoEnvioDeMaterial } from './api/material'
 import { Button } from '../../../components/ui/Button'
 import { SECONDARY_BUTTON_CLASSES } from '../../../components/ui/button-variants'
 import { FormField } from '../../../components/ui/fields/FormField'
 import { Dialog } from '../../../components/ui/overlays/Dialog'
-import { useEnvioUnico } from '../../../components/dialogs'
+import { useSingleSubmit } from '../../../components/dialogs'
 import { Select } from '../../../components/ui/fields/Select'
-import { listaMudou, textoDaFalha } from '../../../components/error-text'
+import { listChanged, errorText } from '../../../components/error-text'
 import {
   AVISO_DE_SEM_LICENCA,
   BYTES_DA_ASSINATURA,
@@ -109,7 +109,7 @@ export function DialogoDeEnvioDeMaterial({ disciplinas, inicial, substitui, aoEn
     void receberArquivos(evento.dataTransfer.files)
   }
 
-  const { enviar, mutacao } = useEnvioUnico<Envio, Material>({
+  const { enviar, mutacao } = useSingleSubmit<Envio, Material>({
     mutationFn: ({ campos, arquivo: doEnvio }) => enviarMaterial(campos, doEnvio),
     onSuccess: async () => {
       if (substitui !== undefined) await excluirMaterial(substitui).catch(() => undefined)
@@ -117,13 +117,13 @@ export function DialogoDeEnvioDeMaterial({ disciplinas, inicial, substitui, aoEn
       aoEnviar(substitui)
     },
     onError: (erro, envio) => {
-      if (erro instanceof ErroDaApi && erro.codigo === ErrorCode.MATERIAL_SEM_LICENCA) {
+      if (erro instanceof ApiError && erro.codigo === ErrorCode.MATERIAL_SEM_LICENCA) {
         const motivo = motivoDaRecusa(envio.campos) ?? 'sem_licenca'
         aoRecusar(envio.campos, motivo)
         definirFalha(`Envio recusado. ${TEXTO_DA_RECUSA[motivo]}`)
       } else {
-        definirFalha(textoDaFalha(erro, TEXTOS_DA_FALHA_DO_ENVIO))
-        if (listaMudou(erro, [ErrorCode.CONFLITO])) void recarregar()
+        definirFalha(errorText(erro, TEXTOS_DA_FALHA_DO_ENVIO))
+        if (listChanged(erro, [ErrorCode.CONFLITO])) void recarregar()
       }
     },
   })

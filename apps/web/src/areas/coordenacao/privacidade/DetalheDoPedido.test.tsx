@@ -3,8 +3,8 @@ import { screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Router } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
-import { prepararTela, redeFalsa, renderizarTela, type RespostaFalsa } from '../../../__fixtures__/render-screen'
-import { ROTAS_DA_COORDENACAO } from '../../../paths'
+import { setupScreen, fakeNetwork, renderScreen, type FakeResponse } from '../../../__fixtures__/render-screen'
+import { COORDENACAO_ROUTES } from '../../../paths'
 import DetalheDoPedido from './DetalheDoPedido'
 import { TEXTO_DO_PEDIDO_AUSENTE } from './textos-do-pedido'
 
@@ -14,13 +14,13 @@ import { TEXTO_DO_PEDIDO_AUSENTE } from './textos-do-pedido'
  * consultas e a auditoria da leitura são os da aba. As ações (concluir, cancelar, corrigir, baixar) e o arquivo em preparação
  * são do e2e (`e2e/pedido-do-titular.spec.ts`).
  */
-prepararTela()
+setupScreen()
 
 const PEDIDO_ID = '0197a1c0-0000-7000-8000-000000000042'
 const FORA = { status: 404, corpo: { erro: { codigo: 'NAO_ENCONTRADO', mensagem: 'x', requisicaoId: '0190f5a0-0000-7000-8000-000000000001' } } }
 const AGORA = new Date('2026-10-16T15:00:00Z')
 
-function detalhe(parcial: Record<string, unknown> = {}): RespostaFalsa {
+function detalhe(parcial: Record<string, unknown> = {}): FakeResponse {
   return {
     status: 200,
     corpo: {
@@ -60,7 +60,7 @@ afterEach(() => {
 
 function montar() {
   const localizacao = memoryLocation({ path: `/privacidade/pedidos/${PEDIDO_ID}`, record: true })
-  return renderizarTela(
+  return renderScreen(
     <Router hook={localizacao.hook}>
       <DetalheDoPedido pedidoId={PEDIDO_ID} />
     </Router>,
@@ -71,7 +71,7 @@ const larguraDaTela = () => document.querySelector('[data-tela]')?.getAttribute(
 
 describe('o detalhe do pedido: a página de leitura', () => {
   it('com dado: coluna de leitura, "‹ Pedidos" de volta para a lista, e o nome da pessoa é o título', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor(`/v1/privacidade/pedidos/${PEDIDO_ID}`, detalhe())
     montar()
     expect(await screen.findByRole('heading', { level: 1, name: 'Ana Souza' })).toBeTruthy()
@@ -83,7 +83,7 @@ describe('o detalhe do pedido: a página de leitura', () => {
   })
 
   it('carregando, pedido que não se acha e erro também são a página de leitura, com o mesmo "‹ Pedidos"', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     const lida = rede.segurar()
     const { unmount } = montar()
     expect(await screen.findByText('Carregando o pedido…')).toBeTruthy()
@@ -95,7 +95,7 @@ describe('o detalhe do pedido: a página de leitura', () => {
     expect(screen.getByRole('link', { name: 'Voltar para Pedidos' })).toBeTruthy()
     unmount()
     // O erro que não é "não achado" (aqui, o limite de pedidos) passa pelo mesmo `Page`: "Tentar de novo" e o mesmo "‹ Pedidos".
-    const outraRede = redeFalsa()
+    const outraRede = fakeNetwork()
     outraRede.responderPor(`/v1/privacidade/pedidos/${PEDIDO_ID}`, { status: 429, corpo: { erro: { codigo: 'LIMITE_EXCEDIDO', mensagem: 'x', requisicaoId: '0190f5a0-0000-7000-8000-000000000001' } } })
     montar()
     expect(await screen.findByRole('button', { name: 'Tentar de novo' })).toBeTruthy()
@@ -104,7 +104,7 @@ describe('o detalhe do pedido: a página de leitura', () => {
   })
 
   it('a partir de 768 px a coluna do pedido é o miolo que rola e recebe foco; abaixo disso a página rola e a coluna só recebe o foco de reserva', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor(`/v1/privacidade/pedidos/${PEDIDO_ID}`, detalhe())
     const { unmount } = montar()
     await screen.findByRole('heading', { level: 1, name: 'Ana Souza' })
@@ -119,7 +119,7 @@ describe('o detalhe do pedido: a página de leitura', () => {
   })
 
   it('o prazo vem no topo, antes de "O pedido", e diz há quantos dias venceu', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor(`/v1/privacidade/pedidos/${PEDIDO_ID}`, detalhe())
     montar()
     await screen.findByRole('heading', { level: 1, name: 'Ana Souza' })
@@ -132,18 +132,18 @@ describe('o detalhe do pedido: a página de leitura', () => {
 
 describe('o detalhe do pedido: o caminho até as turmas', () => {
   it('a correção aberta leva a "Escola › Turmas", no mesmo endereço de sempre, e nenhum texto diz "Estrutura"', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor(`/v1/privacidade/pedidos/${PEDIDO_ID}`, detalhe())
     montar()
     await screen.findByRole('heading', { level: 1, name: 'Ana Souza' })
     const link = screen.getByRole('link', { name: 'Ir para as turmas' })
-    expect(link.getAttribute('href')).toBe(ROTAS_DA_COORDENACAO.estrutura)
+    expect(link.getAttribute('href')).toBe(COORDENACAO_ROUTES.estrutura)
     expect(screen.getByText(/pela turma, em Escola › Turmas\./)).toBeTruthy()
     expect(document.body.textContent).not.toContain('Estrutura')
   })
 
   it('o pedido que não é de correção aberta não tem o link', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor(`/v1/privacidade/pedidos/${PEDIDO_ID}`, detalhe({ tipo: 'acesso', estado: 'concluido', concluidoEm: '2026-10-10T12:00:00.000Z' }))
     montar()
     await screen.findByRole('heading', { level: 1, name: 'Ana Souza' })

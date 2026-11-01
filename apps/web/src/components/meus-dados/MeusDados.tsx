@@ -1,19 +1,19 @@
 import type { PedidoDeMeusDados, ArquivoResponse, MeusDadosResponse } from '@educa/shared'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { consultaEu } from '../../api/eu'
-import { baixarMeuArquivo, consultaMeusDados, relerMeusDados } from '../../api/meus-dados'
-import { formatarData, formatarDataHora, formatarQuantidade } from '../../format'
-import { useTituloDaTela } from '../../document-title'
-import { baixarPorUrl } from '../download-from-url'
+import { euQueryOptions } from '../../api/eu'
+import { baixarMeuArquivo, meusDadosQueryOptions, relerMeusDados } from '../../api/meus-dados'
+import { formatDate, formatDateTime, formatQuantity } from '../../format'
+import { usePageTitle } from '../../document-title'
+import { downloadFromUrl } from '../download-from-url'
 import { Button } from '../ui/Button'
 import { Card } from '../ui/Card'
 import { useDialogState } from '../ui/overlays/dialog-state'
 import { ConfirmDialog } from '../ui/overlays/ConfirmDialog'
-import { Anuncio, useEnvioUnico } from '../dialogs'
-import { EstadoCarregando, EstadoErro, EstadoVazio } from '../states'
+import { StatusAnnouncement, useSingleSubmit } from '../dialogs'
+import { LoadingState, ErrorState, EmptyState } from '../states'
 import { StatusBadge } from '../ui/StatusBadge'
-import { listaMudou, textoDaFalha } from '../error-text'
+import { listChanged, errorText } from '../error-text'
 import { Page, type HeadingLevel } from '../ui/Page'
 import {
   agendarPreparacao,
@@ -46,22 +46,22 @@ interface PropsDoDialogo {
 /**
  * Antes de baixar, o que vai acontecer (regra 50, item 8): o que o arquivo traz e o que fazer com ele depois num
  * computador da escola. O endereço assinado vale 5 minutos e sai daqui direto para o navegador: não passa por estado, texto
- * da tela nem endereço. Cada clique é um download registrado, e o clique duplo manda uma chamada só (`useEnvioUnico`).
+ * da tela nem endereço. Cada clique é um download registrado, e o clique duplo manda uma chamada só (`useSingleSubmit`).
  */
 function DialogoDeBaixar({ pedido, aoFechar, aoBaixar, focoDeReserva }: PropsDoDialogo) {
   const cliente = useQueryClient()
-  const { enviar, mutacao } = useEnvioUnico<undefined, ArquivoResponse>({
+  const { enviar, mutacao } = useSingleSubmit<undefined, ArquivoResponse>({
     mutationFn: () => baixarMeuArquivo(pedido.id),
     onSuccess: (arquivo) => {
-      baixarPorUrl(arquivo.url, arquivo.nome)
+      downloadFromUrl(arquivo.url, arquivo.nome)
       aoBaixar(arquivo)
     },
     onError: (erro) => {
       // O arquivo saiu enquanto a pessoa lia: a lista é relida e deixa de oferecer o botão.
-      if (listaMudou(erro, CODIGOS_QUE_MUDAM_OS_MEUS_DADOS)) void relerMeusDados(cliente)
+      if (listChanged(erro, CODIGOS_QUE_MUDAM_OS_MEUS_DADOS)) void relerMeusDados(cliente)
     },
   })
-  const mudou = mutacao.isError && listaMudou(mutacao.error, CODIGOS_QUE_MUDAM_OS_MEUS_DADOS)
+  const mudou = mutacao.isError && listChanged(mutacao.error, CODIGOS_QUE_MUDAM_OS_MEUS_DADOS)
   const expiraEm = pedido.arquivo?.expiraEm
   return (
     <ConfirmDialog
@@ -69,8 +69,8 @@ function DialogoDeBaixar({ pedido, aoFechar, aoBaixar, focoDeReserva }: PropsDoD
       familia="oficial"
       resumo={[
         { rotulo: 'Pedido', valor: ROTULO_DO_TIPO[pedido.tipo] },
-        { rotulo: 'Chegou à escola em', valor: formatarData(pedido.chegouEm) },
-        ...(expiraEm === undefined ? [] : [{ rotulo: 'Disponível até', valor: formatarDataHora(expiraEm) }]),
+        { rotulo: 'Chegou à escola em', valor: formatDate(pedido.chegouEm) },
+        ...(expiraEm === undefined ? [] : [{ rotulo: 'Disponível até', valor: formatDateTime(expiraEm) }]),
       ]}
       efeito={EFEITO_DE_BAIXAR}
       aviso={AVISO_DE_BAIXAR}
@@ -82,7 +82,7 @@ function DialogoDeBaixar({ pedido, aoFechar, aoBaixar, focoDeReserva }: PropsDoD
       confirmando={mutacao.isPending}
       impedido={mudou}
       focoDeReserva={focoDeReserva}
-      {...(mutacao.isError ? { falha: textoDaFalha(mutacao.error, TEXTOS_DA_FALHA_DE_BAIXAR) } : {})}
+      {...(mutacao.isError ? { falha: errorText(mutacao.error, TEXTOS_DA_FALHA_DE_BAIXAR) } : {})}
     />
   )
 }
@@ -135,11 +135,11 @@ function ListaDePedidos({ pedidos, agora, aoBaixar, focoDeReserva }: PropsDaList
               <p className="min-w-0 font-medium break-words text-tinta">{ROTULO_DO_TIPO[pedido.tipo]}</p>
               <StatusBadge familia={situacao.familia}>{situacao.selo}</StatusBadge>
             </div>
-            <p className="text-sm text-sutil">Chegou à escola em {formatarData(pedido.chegouEm)}</p>
+            <p className="text-sm text-sutil">Chegou à escola em {formatDate(pedido.chegouEm)}</p>
             <p className="break-words text-apoio">{situacao.explicacao}</p>
             {disponivel !== null && (
               <>
-                <p className="text-sm break-words text-sutil">O arquivo fica disponível até {formatarDataHora(disponivel.expiraEm)}.</p>
+                <p className="text-sm break-words text-sutil">O arquivo fica disponível até {formatDateTime(disponivel.expiraEm)}.</p>
                 <div>
                   <BotaoDeBaixar aoClicar={() => aoBaixar(pedido)} focoDeReserva={focoDeReserva} />
                 </div>
@@ -170,16 +170,16 @@ interface Props {
  *   pedido é "em preparação" (relê a cada 10 s com a aba à vista), "pronto para baixar" ou "arquivo apagado".
  * - **Nada fica na memória** depois de a tela sair (`gcTime: 0`): o arquivo e o resumo são dados de uma pessoa, num
  *   computador que a próxima usa. O JSON nunca é renderizado: sai como arquivo.
- * - **O arquivo é entregue pela URL assinada de 5 minutos** (`baixarPorUrl`), depois de a pessoa ler o que ele traz e o
+ * - **O arquivo é entregue pela URL assinada de 5 minutos** (`downloadFromUrl`), depois de a pessoa ler o que ele traz e o
  *   que fazer com ele num computador da escola.
  *
  * Mora em `components/` porque é a mesma tela das duas áreas (`areas/navigation.ts`, linha 5).
  */
 export default function MeusDados({ titulo, secao }: Props) {
-  useTituloDaTela(titulo)
+  usePageTitle(titulo)
   const cliente = useQueryClient()
-  const eu = useQuery(consultaEu)
-  const consulta = useQuery(consultaMeusDados)
+  const eu = useQuery(euQueryOptions)
+  const consulta = useQuery(meusDadosQueryOptions)
   const dados = consulta.data
   const pedidos = dados?.pedidos
   const dialogo = useDialogState<'baixar', PedidoDeMeusDados>()
@@ -216,17 +216,17 @@ export default function MeusDados({ titulo, secao }: Props) {
       <div ref={inicio} tabIndex={-1} className="flex min-w-0 flex-col gap-4 outline-none">
         {secao !== undefined && <h2 className="text-[22px] leading-tight font-semibold break-words text-tinta">{secao}</h2>}
         <p className="break-words text-apoio">{textoDaEscola(eu.data?.escola.nome)}</p>
-        {consulta.isPending && <EstadoCarregando rotulo="Carregando os seus pedidos…" />}
+        {consulta.isPending && <LoadingState rotulo="Carregando os seus pedidos…" />}
         {consulta.isError && dados === undefined && (
-          <EstadoErro erro={consulta.error} tentando={consulta.isFetching} aoTentarDeNovo={() => void consulta.refetch({ cancelRefetch: false })} />
+          <ErrorState erro={consulta.error} tentando={consulta.isFetching} aoTentarDeNovo={() => void consulta.refetch({ cancelRefetch: false })} />
         )}
         {dados !== undefined && (
           <>
             <Card titulo="Seus pedidos" nivel={nivel}>
               <div className="flex min-w-0 flex-col gap-3">
-                <Anuncio texto={anuncio} />
+                <StatusAnnouncement texto={anuncio} />
                 {dados.pedidos.length === 0 ? (
-                  <EstadoVazio titulo={TITULO_DO_VAZIO} descricao={TEXTO_DO_VAZIO} />
+                  <EmptyState titulo={TITULO_DO_VAZIO} descricao={TEXTO_DO_VAZIO} />
                 ) : (
                   <ListaDePedidos
                     pedidos={dados.pedidos}
@@ -268,7 +268,7 @@ function ResumoPorCategoria({ categorias }: { readonly categorias: MeusDadosResp
         {linhas.map((linha) => (
           <li key={linha.categoria} className="flex min-w-0 flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
             <span className="min-w-0 break-words text-tinta">{linha.descricao}</span>
-            <span className="shrink-0 text-sm text-sutil tabular-nums">{formatarQuantidade(linha.quantidade, 'registro', 'registros')}</span>
+            <span className="shrink-0 text-sm text-sutil tabular-nums">{formatQuantity(linha.quantidade, 'registro', 'registros')}</span>
           </li>
         ))}
       </ul>

@@ -1,6 +1,6 @@
 import { ErrorCode, ESTADOS_DO_PROFESSOR, MENSAGENS_DE_ERRO, type EstadoDoProfessor } from '@educa/shared'
 import { describe, expect, it } from 'vitest'
-import { ErroDaApi } from '../../../api/client'
+import { ApiError } from '../../../api/client'
 import { TEXTO_DO_EMAIL_INVALIDO, TEXTO_DO_NOME_INVALIDO } from '../../../components/pedido-de-convite'
 import {
   acoesDoConviteDeProfessor,
@@ -84,20 +84,20 @@ describe('o convite do professor na tela Professores (A1, 14.0)', () => {
   })
 
   it('o CONFLITO do cadastro é do e-mail digitado: diz o que fazer, sem dizer de quem é, e deixa a pessoa voltar e corrigir', () => {
-    const falha = falhaDoCadastroDeProfessor(new ErroDaApi(ErrorCode.CONFLITO))
+    const falha = falhaDoCadastroDeProfessor(new ApiError(ErrorCode.CONFLITO))
     expect(falha).toEqual({
       texto: 'Este e-mail já é de um professor desta escola, ativo ou com o convite em aberto. Confira o e-mail; para um link novo, use Refazer na lista.',
       listaMudou: false,
     })
     // O resto é o texto do catálogo, e o mesmo botão tenta de novo.
-    expect(falhaDoCadastroDeProfessor(new ErroDaApi(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO))).toEqual({ texto: MENSAGENS_DE_ERRO.INDISPONIVEL_TENTE_DE_NOVO, listaMudou: false })
-    expect(falhaDoCadastroDeProfessor(new ErroDaApi(ErrorCode.LIMITE_EXCEDIDO, 7))).toEqual({ texto: MENSAGENS_DE_ERRO.LIMITE_EXCEDIDO, listaMudou: false })
+    expect(falhaDoCadastroDeProfessor(new ApiError(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO))).toEqual({ texto: MENSAGENS_DE_ERRO.INDISPONIVEL_TENTE_DE_NOVO, listaMudou: false })
+    expect(falhaDoCadastroDeProfessor(new ApiError(ErrorCode.LIMITE_EXCEDIDO, 7))).toEqual({ texto: MENSAGENS_DE_ERRO.LIMITE_EXCEDIDO, listaMudou: false })
   })
 
   it('o CONFLITO e o NAO_ENCONTRADO do refazer dizem que o convite mudou e que a lista foi atualizada; o resto deixa tentar de novo', () => {
-    expect(falhaDoRefazerConviteDeProfessor(new ErroDaApi(ErrorCode.CONFLITO))).toEqual({ texto: 'O convite mudou. A lista foi atualizada.', listaMudou: true })
-    expect(falhaDoRefazerConviteDeProfessor(new ErroDaApi(ErrorCode.NAO_ENCONTRADO))).toEqual({ texto: 'Esse convite já não vale. A lista foi atualizada.', listaMudou: true })
-    expect(falhaDoRefazerConviteDeProfessor(new ErroDaApi(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO))).toEqual({ texto: MENSAGENS_DE_ERRO.INDISPONIVEL_TENTE_DE_NOVO, listaMudou: false })
+    expect(falhaDoRefazerConviteDeProfessor(new ApiError(ErrorCode.CONFLITO))).toEqual({ texto: 'O convite mudou. A lista foi atualizada.', listaMudou: true })
+    expect(falhaDoRefazerConviteDeProfessor(new ApiError(ErrorCode.NAO_ENCONTRADO))).toEqual({ texto: 'Esse convite já não vale. A lista foi atualizada.', listaMudou: true })
+    expect(falhaDoRefazerConviteDeProfessor(new ApiError(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO))).toEqual({ texto: MENSAGENS_DE_ERRO.INDISPONIVEL_TENTE_DE_NOVO, listaMudou: false })
     // O que não veio da API (um erro de código nosso) nunca diz que a lista mudou.
     expect(falhaDoRefazerConviteDeProfessor(new Error('CONFLITO'))).toEqual({ texto: MENSAGENS_DE_ERRO.ERRO_INTERNO, listaMudou: false })
     // O revogar usa os mesmos dois textos, pela confirmação de perigo.
@@ -106,7 +106,7 @@ describe('o convite do professor na tela Professores (A1, 14.0)', () => {
 
   it('nenhum texto de falha mostra o código do erro', () => {
     for (const codigo of Object.values(ErrorCode)) {
-      for (const falha of [falhaDoCadastroDeProfessor(new ErroDaApi(codigo)), falhaDoRefazerConviteDeProfessor(new ErroDaApi(codigo))]) expect(falha.texto, codigo).not.toContain(codigo)
+      for (const falha of [falhaDoCadastroDeProfessor(new ApiError(codigo)), falhaDoRefazerConviteDeProfessor(new ApiError(codigo))]) expect(falha.texto, codigo).not.toContain(codigo)
     }
   })
 })

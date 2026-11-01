@@ -15,7 +15,7 @@ export type PageWidth = keyof typeof LARGURA_DA_TELA
 interface PageProps {
   /**
    * O nome da tela, o `h1`: visível, em `t-titulo`, numa linha de no mínimo 64 px (RF12; `docs/interface.md` 11.2). O
-   * título da aba do navegador continua com quem escreve a tela (`useTituloDaTela`).
+   * título da aba do navegador continua com quem escreve a tela (`usePageTitle`).
    */
   readonly titulo: string
   readonly largura?: PageWidth

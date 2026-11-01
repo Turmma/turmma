@@ -135,3 +135,13 @@ Leia este índice antes de codar, e abra só os blocos que interessam à tarefa 
 | 2026-10-31 14:48:26 | `infra-guardian` | 1ª | APROVADO | `8_task` | Três exceções agora se chamam de outro jeito no campo `erro.tipo` do log, que vem de `summarizeError`, porque o `this.name` mudou junto com a classe:… |
 | 2026-10-31 15:49:00 | `test-engineer` | 2ª | APROVADO | `8_task` | O texto da linha 169 do `travas.md` ainda descreve a trava pelos nomes antigos (`FalhaDeJob`, `ErroParaAFila`, `PrazoDaFilaEsgotado`). Está coerente, porque… |
 | 2026-10-31 15:49:07 | `revisor-geral` | 2ª | APROVADO | `8_task` | nenhuma nova. As da 1ª rodada que ficaram sem aplicar estão na tabela "Recomendações sem aplicar" do `8_task.md`, cada uma com destino ou motivo. |
+| 2026-10-31 23:01:36 | `tenancy-guardian` | 1ª | APROVADO | `10_task` | `apps/web/src/api/client.ts`: o `this.name` da classe de erro trocou de valor, de `'ErroDaApi'` para `'ApiError'`. Não afeta o isolamento, mas é um valor visto… |
+| 2026-10-31 23:02:05 | `infra-guardian` | 1ª | APROVADO | `10_task` | `apps/web/src/api/client.ts:16` é o único texto que o código de produção da web vê em execução e que mudou: `this.name` passou de `'ErroDaApi'` para… |
+| 2026-10-31 23:03:12 | `frontend-reviewer` | 1ª | APROVADO | `10_task` | , que não bloqueiam: |
+| 2026-10-31 23:03:50 | `test-engineer` | 1ª | REPROVADO | `10_task` | O bloco de mutação de `estados.test.tsx:32` (`travas.md:190`, forma B) está em `tasks/prd-nomes-de-mercado/10_task.md:111-117`. Ele fica vermelho pelo motivo… |
+| 2026-10-31 23:05:09 | `revisor-geral` | 1ª | REPROVADO | `10_task` | Dois arquivos de teste ficaram com o nome antigo. |
+| 2026-10-31 23:59:46 | `tenancy-guardian` | 2ª | APROVADO | `10_task` | Fora do isolamento: dois nomes antigos ficaram dentro dos arquivos renomeados. Um é o `describe('RegiaoQueRola')` em `apps/web/src/components/introducao/ScrollA… |
+| 2026-10-31 23:59:58 | `infra-guardian` | 2ª | APROVADO | `10_task` | O diff desta rodada só troca nomes na web: `chamarComSessaoDeOperador` passa a `operadorAuthedRequest`, e as três constantes locais passam a `*_QUERY_KEY`. Os… |
+| 2026-11-01 00:00:24 | `frontend-reviewer` | 2ª | APROVADO | `10_task` | Sobrou nome em português dentro de dois arquivos de teste e de um tipo local. Não aparece ao usuário e não bloqueia. |
+| 2026-11-01 00:00:41 | `test-engineer` | 2ª | APROVADO | `10_task` | nenhuma nova. |
+| 2026-11-01 00:01:33 | `revisor-geral` | 2ª | APROVADO | `10_task` | A linha `apps/web/index.html \| resolverTema \| 16` foi escrita à mão em `tools/renomear/mapas/10.relatorio.md:115`, dentro de um arquivo que o `aplicar` gera.… |

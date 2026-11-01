@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { LayoutGrid, MessageSquare } from 'lucide-react'
 import { useState } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { classesDo, tokenDe } from '../../../__fixtures__/class-colors'
+import { classesOf, tokenOf } from '../../../__fixtures__/class-colors'
 import { ChoicePrompt, type ChoiceOption } from './ChoicePrompt'
 
 /**
@@ -35,18 +35,18 @@ describe('Escolha', () => {
     if (primeira === undefined || segunda === undefined) throw new Error('a pergunta tem duas opções')
 
     // Uma constante só: as duas classes são iguais, e a ordem não importa.
-    expect([...classesDo(primeira)].sort()).toEqual([...classesDo(segunda)].sort())
+    expect([...classesOf(primeira)].sort()).toEqual([...classesOf(segunda)].sort())
     for (const opcao of [primeira, segunda]) {
-      const classes = classesDo(opcao)
+      const classes = classesOf(opcao)
       expect(classes.has('border-2'), 'a borda de 2 px').toBe(true)
-      expect(tokenDe(opcao, 'border'), 'a borda é a `borda`').toBe('borda')
+      expect(tokenOf(opcao, 'border'), 'a borda é a `borda`').toBe('borda')
       expect(classes.has('degrau') && classes.has('degrau-borda'), 'o degrau da borda').toBe(true)
-      expect(tokenDe(opcao, 'bg'), 'a face é o chão da peça').toBe('superficie')
+      expect(tokenOf(opcao, 'bg'), 'a face é o chão da peça').toBe('superficie')
       // Nenhuma é a ação primária (laranja) nem a decisão oficial (grafite, e a `noite` de antes): D59 e regra 50, item 8.
-      for (const proibida of ['laranja', 'grafite', 'noite', 'caramelo', 'vermelho', 'azul']) expect(tokenDe(opcao, 'bg'), `a face é ${proibida}`).not.toBe(proibida)
-      expect(tokenDe(opcao, 'bg', 'enabled:hover:'), 'o hover clareia, e não vira primária').toBe('fundo-suave')
+      for (const proibida of ['laranja', 'grafite', 'noite', 'caramelo', 'vermelho', 'azul']) expect(tokenOf(opcao, 'bg'), `a face é ${proibida}`).not.toBe(proibida)
+      expect(tokenOf(opcao, 'bg', 'enabled:hover:'), 'o hover clareia, e não vira primária').toBe('fundo-suave')
       // A frase de baixo é `sutil` enquanto a opção está ligada.
-      expect(classesDo(opcao.querySelector('.t-apoio') as Element).has('text-sutil')).toBe(true)
+      expect(classesOf(opcao.querySelector('.t-apoio') as Element).has('text-sutil')).toBe(true)
     }
     // Nenhuma abre com o foco: o Enter de quem chega não escolhe por ela.
     expect(document.activeElement === primeira || document.activeElement === segunda).toBe(false)
@@ -55,10 +55,10 @@ describe('Escolha', () => {
   it('o cartão da pergunta tem a borda de 2 px na `borda`, e não a linha de 1 px de antes', () => {
     render(<Cartao />)
     const cartao = screen.getByRole('group', { name: PERGUNTA })
-    expect(classesDo(cartao).has('border-2'), 'a borda de 2 px').toBe(true)
-    expect(classesDo(cartao).has('border'), 'nem a de 1 px').toBe(false)
-    expect(tokenDe(cartao, 'border'), 'a borda é a `borda`').toBe('borda')
-    expect(tokenDe(cartao, 'bg')).toBe('superficie')
+    expect(classesOf(cartao).has('border-2'), 'a borda de 2 px').toBe(true)
+    expect(classesOf(cartao).has('border'), 'nem a de 1 px').toBe(false)
+    expect(tokenOf(cartao, 'border'), 'a borda é a `borda`').toBe('borda')
+    expect(tokenOf(cartao, 'bg')).toBe('superficie')
   })
 
   it('a opção desligada perde o degrau e a cor de ação, e as duas desligam juntas: o segundo clique não escolhe de novo', async () => {
@@ -68,11 +68,11 @@ describe('Escolha', () => {
     expect(opcoes).toHaveLength(2)
     for (const opcao of opcoes) {
       expect(opcao).toHaveProperty('disabled', true)
-      expect(tokenDe(opcao, 'bg', 'disabled:'), 'a face desligada é a `borda`').toBe('borda')
-      expect(tokenDe(opcao, 'text', 'disabled:'), 'o texto desligado é o `apoio`').toBe('apoio')
-      expect(tokenDe(opcao, 'border', 'disabled:')).toBe('borda')
+      expect(tokenOf(opcao, 'bg', 'disabled:'), 'a face desligada é a `borda`').toBe('borda')
+      expect(tokenOf(opcao, 'text', 'disabled:'), 'o texto desligado é o `apoio`').toBe('apoio')
+      expect(tokenOf(opcao, 'border', 'disabled:')).toBe('borda')
       // A frase de baixo herda o `apoio` da face desligada: o `sutil` sobre a `borda` não chega a 4,5:1.
-      expect(classesDo(opcao.querySelector('.t-apoio') as Element).has('text-sutil')).toBe(false)
+      expect(classesOf(opcao.querySelector('.t-apoio') as Element).has('text-sutil')).toBe(false)
     }
     await userEvent.setup().click(opcoes[0] as HTMLElement)
     expect(aoEscolher).not.toHaveBeenCalled()
@@ -97,8 +97,8 @@ describe('Escolha', () => {
   it('a linha da escolha feita tem a borda de 2 px e é mais curta que a opção, que a gente aperta', () => {
     render(<Cartao inicial="conversa" />)
     const linha = screen.getByText(/Você escolheu:/).closest('p') as HTMLElement
-    expect(classesDo(linha).has('border-2')).toBe(true)
-    expect(tokenDe(linha, 'border')).toBe('borda')
+    expect(classesOf(linha).has('border-2')).toBe(true)
+    expect(tokenOf(linha, 'border')).toBe('borda')
     // Uma linha só, e não o cartão de duas opções: nenhum botão sobrou.
     expect(within(linha).queryAllByRole('button')).toHaveLength(0)
   })

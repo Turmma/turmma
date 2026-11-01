@@ -1,11 +1,11 @@
 import { useInfiniteQuery } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import { useLocation } from 'wouter'
-import { consultaMeusVinculos } from '../comum/api/vinculos'
-import { caminhoDaTurmaDoProfessor, ROTAS_DO_PROFESSOR } from '../../../paths'
-import { EstadoCarregando, EstadoErro } from '../../../components/states/index'
+import { meusVinculosQueryOptions } from '../comum/api/vinculos'
+import { caminhoDaTurmaDoProfessor, PROFESSOR_ROUTES } from '../../../paths'
+import { LoadingState, ErrorState } from '../../../components/states/index'
 import { Page } from '../../../components/ui/Page'
-import { useTituloDaTela } from '../../../document-title'
+import { usePageTitle } from '../../../document-title'
 import { enderecoDaAba } from './endereco-da-turma'
 
 /**
@@ -19,9 +19,9 @@ import { enderecoDaAba } from './endereco-da-turma'
  * "Tentar de novo", e não escolhe uma turma sem saber. Com mais vínculos na página seguinte, também não escolhe: vai a Turmas.
  */
 export default function Tutor() {
-  useTituloDaTela('Tutor')
+  usePageTitle('Tutor')
   const [, navegar] = useLocation()
-  const vinculos = useInfiniteQuery(consultaMeusVinculos)
+  const vinculos = useInfiniteQuery(meusVinculosQueryOptions)
 
   const turmas = new Set<string>()
   for (const vinculo of vinculos.data?.pages.flatMap((pagina) => pagina.itens) ?? []) if (vinculo.estado === 'confirmado') turmas.add(vinculo.turma.id)
@@ -31,13 +31,13 @@ export default function Tutor() {
 
   useEffect(() => {
     if (!chegou) return
-    navegar(unica === undefined ? ROTAS_DO_PROFESSOR.turmas : enderecoDaAba(caminhoDaTurmaDoProfessor(unica), 'hoje'), { replace: true })
+    navegar(unica === undefined ? PROFESSOR_ROUTES.turmas : enderecoDaAba(caminhoDaTurmaDoProfessor(unica), 'hoje'), { replace: true })
   }, [chegou, unica, navegar])
 
   return (
     <Page titulo="Tutor" largura="conversa" tituloSoParaLeitor>
-      {!chegou && !vinculos.isError && <EstadoCarregando rotulo="Abrindo o que o Tutor viu…" />}
-      {!chegou && vinculos.isError && <EstadoErro erro={vinculos.error} tentando={vinculos.isFetching} aoTentarDeNovo={() => void vinculos.refetch({ cancelRefetch: false })} />}
+      {!chegou && !vinculos.isError && <LoadingState rotulo="Abrindo o que o Tutor viu…" />}
+      {!chegou && vinculos.isError && <ErrorState erro={vinculos.error} tentando={vinculos.isFetching} aoTentarDeNovo={() => void vinculos.refetch({ cancelRefetch: false })} />}
     </Page>
   )
 }

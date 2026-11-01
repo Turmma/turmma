@@ -3,21 +3,21 @@ import { useQuery } from '@tanstack/react-query'
 import { ChartNoAxesColumn, ChevronRight, HeartHandshake } from 'lucide-react'
 import { useEffect, useId, useRef } from 'react'
 import { useLocation, useSearch } from 'wouter'
-import { consultaAtividadesAplicadas, consultaDesempenhoDaTurma } from '../atividades/api/atividades'
-import { mensagemDoErro } from '../../../api/client'
-import { agenteDoTime, consultaTime } from '../assistente/api/time'
-import { consultaTitulosDosMateriais } from '../artefatos/api/titulos-dos-materiais'
-import { consultaSinais, consultaUsoDoTutor } from './api/tutor-da-turma'
+import { atividadesAplicadasQueryOptions, desempenhoDaTurmaQueryOptions } from '../atividades/api/atividades'
+import { errorMessage } from '../../../api/client'
+import { agenteDoTime, timeQueryOptions } from '../assistente/api/time'
+import { titulosDosMateriaisQueryOptions } from '../artefatos/api/titulos-dos-materiais'
+import { sinaisQueryOptions, usoDoTutorQueryOptions } from './api/tutor-da-turma'
 import { ProgressBar } from '../../../components/ui/ProgressBar'
 import { Button } from '../../../components/ui/Button'
-import { EstadoCarregando, EstadoErro, EstadoVazio } from '../../../components/states/index'
+import { LoadingState, ErrorState, EmptyState } from '../../../components/states/index'
 import { AgentSignature } from '../../../components/ui/ai/AgentSignature'
 import { Conversation, AIMessage } from '../../../components/ui/ai/Message'
 import { Sheet } from '../../../components/ui/overlays/Sheet'
 import { StatusBadge } from '../../../components/ui/StatusBadge'
 import { Table } from '../../../components/ui/Table'
 import { SectionHeader } from '../../../components/ui/Page'
-import { formatarDiaEHora } from '../../../format'
+import { formatDayAndTime } from '../../../format'
 import { textoDeAlunos } from '../atividades/aprovar'
 import { turmaIndisponivel } from './acesso/acesso-da-turma'
 import { enderecoComOPainelDoTutor, painelDoTutorPedido } from './endereco-da-turma'
@@ -64,10 +64,10 @@ export default function TurmaHoje({ turmaId, aoPerderATurma }: { turmaId: string
   const [caminho, navegar] = useLocation()
   const busca = useSearch()
   const painelAberto = painelDoTutorPedido(busca)
-  const sinais = useQuery({ ...consultaSinais(turmaId), refetchInterval: INTERVALO_DOS_SINAIS_MS, refetchIntervalInBackground: false })
-  const desempenho = useQuery(consultaDesempenhoDaTurma(turmaId))
-  const atividades = useQuery(consultaAtividadesAplicadas(turmaId))
-  const time = useQuery(consultaTime)
+  const sinais = useQuery({ ...sinaisQueryOptions(turmaId), refetchInterval: INTERVALO_DOS_SINAIS_MS, refetchIntervalInBackground: false })
+  const desempenho = useQuery(desempenhoDaTurmaQueryOptions(turmaId))
+  const atividades = useQuery(atividadesAplicadasQueryOptions(turmaId))
+  const time = useQuery(timeQueryOptions)
   const idDosSinais = useId()
   const idDasHabilidades = useId()
   const botaoDoPainel = useRef<HTMLButtonElement>(null)
@@ -135,9 +135,9 @@ export default function TurmaHoje({ turmaId, aoPerderATurma }: { turmaId: string
             </Button>
           }
         />
-        {sinais.isPending && <EstadoCarregando rotulo="Carregando os sinais…" />}
+        {sinais.isPending && <LoadingState rotulo="Carregando os sinais…" />}
         {sinais.isError && sinais.data === undefined && (
-          <EstadoErro
+          <ErrorState
             erro={sinais.error}
             tentando={sinais.isFetching || desempenho.isFetching}
             aoTentarDeNovo={() => {
@@ -148,7 +148,7 @@ export default function TurmaHoje({ turmaId, aoPerderATurma }: { turmaId: string
         )}
         {/* Sem sinal nenhum a tela não fica vazia: diz o que o Tutor avisa e quando (regra 50, item 6). */}
         {sinais.data !== undefined && grupos.length === 0 && trabalho.length === 0 && (
-          <EstadoVazio
+          <EmptyState
             titulo="Nenhum sinal desta turma ainda"
             descricao="Quando um aluno travar numa questão, pedir a resposta pronta ou repetir a mesma dúvida, o Tutor avisa aqui, com a questão ou a página. Ele conduz por perguntas e não entrega a resposta."
           />
@@ -184,7 +184,7 @@ export default function TurmaHoje({ turmaId, aoPerderATurma }: { turmaId: string
             {time.isError && (
               <div className="flex min-w-0 flex-wrap items-center gap-3 text-erro">
                 <p role="alert" className="min-w-0 break-words">
-                  {mensagemDoErro(time.error)}
+                  {errorMessage(time.error)}
                 </p>
                 <Button variante="secundario" onClick={() => void time.refetch({ cancelRefetch: false })}>
                   Tentar de novo
@@ -224,13 +224,13 @@ export default function TurmaHoje({ turmaId, aoPerderATurma }: { turmaId: string
 
       <section aria-labelledby={idDasHabilidades} className="flex min-w-0 flex-col gap-3">
         <SectionHeader id={idDasHabilidades} titulo="Acerto por habilidade" apoio="Só das correções que você já aprovou, na sua disciplina." />
-        {desempenho.isPending && <EstadoCarregando rotulo="Carregando o desempenho da turma…" />}
+        {desempenho.isPending && <LoadingState rotulo="Carregando o desempenho da turma…" />}
         {desempenho.isError && dados === undefined && !caiuTudo && (
-          <EstadoErro erro={desempenho.error} tentando={desempenho.isFetching} aoTentarDeNovo={() => void desempenho.refetch({ cancelRefetch: false })} />
+          <ErrorState erro={desempenho.error} tentando={desempenho.isFetching} aoTentarDeNovo={() => void desempenho.refetch({ cancelRefetch: false })} />
         )}
         {caiuTudo && <p className="text-sm break-words text-sutil">Também não foi possível carregar o acerto por habilidade. “Tentar de novo”, acima, lê os dois.</p>}
         {dados !== undefined && dados.lotesAprovados === 0 && (
-          <EstadoVazio
+          <EmptyState
             variante="tracejado"
             icone={ChartNoAxesColumn}
             titulo="Ainda não há correção aprovada nesta turma"
@@ -295,8 +295,8 @@ interface PropsDoPainel {
  * Nenhuma linha, botão ou link leva à conversa de um aluno com o Tutor.
  */
 function PainelDoTutor({ turmaId, lendoOsSinais, falhouOsSinais, atencao, alunosQuePrecisam, trabalho, titulosDasAtividades, aoFechar }: PropsDoPainel) {
-  const uso = useQuery(consultaUsoDoTutor(turmaId))
-  const materiais = useQuery(consultaTitulosDosMateriais)
+  const uso = useQuery(usoDoTutorQueryOptions(turmaId))
+  const materiais = useQuery(titulosDosMateriaisQueryOptions)
   const idDaDescricao = useId()
   const idDosSinais = useId()
   const idDoUso = useId()
@@ -318,7 +318,7 @@ function PainelDoTutor({ turmaId, lendoOsSinais, falhouOsSinais, atencao, alunos
             <ul className="flex min-w-0 flex-col gap-1 text-tinta">
               {porNome(atencao, (sinal) => sinal.aluno.nome).map((sinal) => (
                 <li key={sinal.id} className="break-words">
-                  <span className="font-medium">{sinal.aluno.nome}</span> · {formatarDiaEHora(sinal.criadoEm)}
+                  <span className="font-medium">{sinal.aluno.nome}</span> · {formatDayAndTime(sinal.criadoEm)}
                 </li>
               ))}
             </ul>
@@ -328,7 +328,7 @@ function PainelDoTutor({ turmaId, lendoOsSinais, falhouOsSinais, atencao, alunos
 
         <section aria-labelledby={idDosSinais} className="flex min-w-0 flex-col gap-3">
           <SectionHeader id={idDosSinais} nivel={3} titulo="Sinais por aluno" />
-          {lendoOsSinais && <EstadoCarregando rotulo="Carregando os sinais…" />}
+          {lendoOsSinais && <LoadingState rotulo="Carregando os sinais…" />}
           {falhouOsSinais && <p className="text-sm break-words text-sutil">Não foi possível carregar os sinais. “Tentar de novo”, na tela, lê de novo.</p>}
           {!lendoOsSinais && !falhouOsSinais && trabalho.length === 0 && <p className="text-sm break-words text-sutil">Nenhum sinal de trabalho por aluno agora.</p>}
           {trabalho.length > 0 && (
@@ -337,7 +337,7 @@ function PainelDoTutor({ turmaId, lendoOsSinais, falhouOsSinais, atencao, alunos
               colunas={[
                 { chave: 'aluno', titulo: 'Aluno', celula: (sinal) => sinal.aluno.nome },
                 { chave: 'sinal', titulo: 'O que aconteceu', celula: (sinal) => textoDoSinal(sinal, referencias) },
-                { chave: 'quando', titulo: 'Quando', celula: (sinal) => formatarDiaEHora(sinal.criadoEm) },
+                { chave: 'quando', titulo: 'Quando', celula: (sinal) => formatDayAndTime(sinal.criadoEm) },
               ]}
               linhas={porNome(trabalho, (sinal) => sinal.aluno.nome)}
               chaveDaLinha={(sinal) => sinal.id}
@@ -347,8 +347,8 @@ function PainelDoTutor({ turmaId, lendoOsSinais, falhouOsSinais, atencao, alunos
 
         <section aria-labelledby={idDoUso} className="flex min-w-0 flex-col gap-3">
           <SectionHeader id={idDoUso} nivel={3} titulo="Uso do Tutor pela turma" apoio="Quem já conversou com o Tutor neste ano, em ordem de nome. Não há uso do Tutor que você não veja." />
-          {uso.isPending && <EstadoCarregando rotulo="Carregando o uso do Tutor…" />}
-          {uso.isError && uso.data === undefined && <EstadoErro erro={uso.error} tentando={uso.isFetching} aoTentarDeNovo={() => void uso.refetch({ cancelRefetch: false })} />}
+          {uso.isPending && <LoadingState rotulo="Carregando o uso do Tutor…" />}
+          {uso.isError && uso.data === undefined && <ErrorState erro={uso.error} tentando={uso.isFetching} aoTentarDeNovo={() => void uso.refetch({ cancelRefetch: false })} />}
           {uso.data !== undefined && (
             <>
               {uso.data.pacoteDaTurmaNoMes > 0 && (
@@ -363,7 +363,7 @@ function PainelDoTutor({ turmaId, lendoOsSinais, falhouOsSinais, atencao, alunos
                 </div>
               )}
               {uso.data.alunos.length === 0 ? (
-                <EstadoVazio titulo="Nenhum aluno desta turma usou o Tutor ainda" descricao="Quando um aluno conversar com o Tutor, ele aparece aqui com as trocas de hoje e em que estava. O conteúdo da conversa não aparece." />
+                <EmptyState titulo="Nenhum aluno desta turma usou o Tutor ainda" descricao="Quando um aluno conversar com o Tutor, ele aparece aqui com as trocas de hoje e em que estava. O conteúdo da conversa não aparece." />
               ) : (
                 <Table
                   rotulo="Uso do Tutor por aluno"
@@ -371,7 +371,7 @@ function PainelDoTutor({ turmaId, lendoOsSinais, falhouOsSinais, atencao, alunos
                     { chave: 'aluno', titulo: 'Aluno', celula: (aluno) => aluno.aluno.nome },
                     { chave: 'hoje', titulo: 'Trocas hoje', celula: (aluno) => trocasDeHoje(aluno, uso.data.limiteDoDia) },
                     // A hora, como hora ("05/10, 10h42"): nunca "há X minutos", que viraria relógio de tempo parado.
-                    { chave: 'ultima', titulo: 'Última troca', celula: (aluno) => formatarDiaEHora(aluno.ultimaTrocaEm) },
+                    { chave: 'ultima', titulo: 'Última troca', celula: (aluno) => formatDayAndTime(aluno.ultimaTrocaEm) },
                     { chave: 'onde', titulo: 'Em que estava', celula: (aluno) => emQueEstava(aluno, referencias) },
                   ]}
                   linhas={porNome(uso.data.alunos, (aluno) => aluno.aluno.nome)}

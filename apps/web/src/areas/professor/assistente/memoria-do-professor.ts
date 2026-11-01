@@ -3,7 +3,7 @@ import { adaptarArtefato } from '../artefatos/api/artefatos'
 import { enviarMensagemAoAssistente } from './api/assistente'
 import { emCurso, type CicloDeExecucao } from '../../../api/ciclo-de-execucao'
 import { gerarComFerramenta } from '../ferramentas/api/ferramentas'
-import { criarLugarNaAba, type LugarNaAba } from '../../../api/tab-store'
+import { createTabStore, type TabStore } from '../../../api/tab-store'
 import type { IniciaisDaFerramenta, PedidoDeFerramenta } from '../ferramentas/ferramentas'
 
 /**
@@ -16,7 +16,7 @@ import type { IniciaisDaFerramenta, PedidoDeFerramenta } from '../ferramentas/fe
 export type PedidoDaConversa = Omit<MensagemAoAssistenteRequest, 'chaveEnvio'>
 
 /** O pedido ao Assistente que está no ar: sai da Home e é acompanhado na Conversa. */
-export const CICLO_DA_CONVERSA = criarLugarNaAba<CicloDeExecucao<PedidoDaConversa>>()
+export const CICLO_DA_CONVERSA = createTabStore<CicloDeExecucao<PedidoDaConversa>>()
 
 export function enviarPedidoDaConversa(pedido: PedidoDaConversa, chaveEnvio: string): Promise<ExecucaoAceitaResponse> {
   return enviarMensagemAoAssistente({ ...pedido, chaveEnvio })
@@ -26,10 +26,10 @@ export function enviarPedidoDaConversa(pedido: PedidoDaConversa, chaveEnvio: str
  * A geração de cada ferramenta que está no ar, uma por ferramenta: o cartão dentro da conversa e o formulário de
  * Ferramentas olham o mesmo lugar, porque são o mesmo caso de uso (D18).
  */
-export const CICLO_DA_FERRAMENTA: Readonly<Record<Ferramenta, LugarNaAba<CicloDeExecucao<PedidoDeFerramenta>>>> = {
-  atividade_objetiva: criarLugarNaAba(),
-  plano_de_aula: criarLugarNaAba(),
-  adaptacao: criarLugarNaAba(),
+export const CICLO_DA_FERRAMENTA: Readonly<Record<Ferramenta, TabStore<CicloDeExecucao<PedidoDeFerramenta>>>> = {
+  atividade_objetiva: createTabStore(),
+  plano_de_aula: createTabStore(),
+  adaptacao: createTabStore(),
 }
 
 /** O `POST` de cada ferramenta. Na Adaptação vão só os tipos e o tempo extra: o pedido não tem onde levar texto. */
@@ -40,14 +40,14 @@ export function enviarPedidoDeFerramenta(pedido: PedidoDeFerramenta, chaveEnvio:
 }
 
 /** A turma e a disciplina escolhidas na caixa de pedido (`turmas-da-professora.ts`): a Conversa abre com a mesma da Home. */
-export const CONTEXTO_ESCOLHIDO = criarLugarNaAba<string>()
+export const CONTEXTO_ESCOLHIDO = createTabStore<string>()
 
 /** O cartão de ferramenta aberto dentro da conversa (11.3): qual ferramenta, e o que ela já sabe do pedido. */
 export interface CartaoAberto {
   readonly ferramenta: Ferramenta
   readonly iniciais: IniciaisDaFerramenta
 }
-export const CARTAO_DA_CONVERSA = criarLugarNaAba<CartaoAberto>()
+export const CARTAO_DA_CONVERSA = createTabStore<CartaoAberto>()
 
 /**
  * Esquece a geração que já terminou (concluída ou falha) de uma ferramenta: o formulário que abre de novo começa em
@@ -66,4 +66,4 @@ export function abrirCartaoNaConversa(cartao: CartaoAberto): void {
 
 /** O que a professora respondeu à pergunta da D18 em cada proposta, pelo id da mensagem: a proposta respondida não pergunta de novo. */
 export type EscolhaDaProposta = 'ferramenta' | 'conversa'
-export const ESCOLHAS_DAS_PROPOSTAS = criarLugarNaAba<Readonly<Record<string, EscolhaDaProposta>>>()
+export const ESCOLHAS_DAS_PROPOSTAS = createTabStore<Readonly<Record<string, EscolhaDaProposta>>>()

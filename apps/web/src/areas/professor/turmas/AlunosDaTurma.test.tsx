@@ -3,8 +3,8 @@ import { QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { criarClienteDeConsultas } from '../../../api/query-client'
-import { AUTORIZACAO_DE_TESTE, prepararTela, redeFalsa, type RedeFalsa, type RespostaFalsa } from '../../../__fixtures__/render-screen'
+import { createQueryClient } from '../../../api/query-client'
+import { TEST_AUTHORIZATION, setupScreen, fakeNetwork, type FakeNetwork, type FakeResponse } from '../../../__fixtures__/render-screen'
 import { buttonVariants } from '../../../components/ui/button-variants'
 import AlunosDaTurma from './AlunosDaTurma'
 
@@ -13,13 +13,13 @@ import AlunosDaTurma from './AlunosDaTurma'
  * correções aprovadas, e os pedidos de nome no alto. A rede é falsa e responde **por caminho**; a aba, os pedidos, o acesso, a
  * tabela e o cliente de consultas são os de verdade. O fluxo de decidir um pedido (o diálogo) fica para o e2e.
  */
-prepararTela()
+setupScreen()
 
 const id = (n: number) => `0197a1c0-0000-7000-8000-${String(n).padStart(12, '0')}`
 const TURMA = id(100)
 const ESCOLA = { id: id(2), nome: 'Escola sintética', slug: 'escola-sintetica' }
-const ok = (corpo: unknown): RespostaFalsa => ({ status: 200, corpo })
-const erro = (status: number, codigo: string): RespostaFalsa => ({ status, corpo: { erro: { codigo, mensagem: 'x', requisicaoId: '0190f5a0-0000-7000-8000-000000000001' } } })
+const ok = (corpo: unknown): FakeResponse => ({ status: 200, corpo })
+const erro = (status: number, codigo: string): FakeResponse => ({ status, corpo: { erro: { codigo, mensagem: 'x', requisicaoId: '0190f5a0-0000-7000-8000-000000000001' } } })
 
 const aluno = (n: number, nome: string) => ({ usuarioId: id(n), nome })
 const HABILIDADE = { codigo: 'QUI.EM.04', descricao: 'Estequiometria' }
@@ -41,13 +41,13 @@ const SEM_PEDIDOS = ok({ itens: [] })
 const MENSAGEM_DO_FIM = 'Todos os alunos da turma estão na lista.'
 
 interface Leituras {
-  alunos?: RespostaFalsa | ((caminho: string) => RespostaFalsa | Promise<RespostaFalsa>)
-  desempenho?: RespostaFalsa | (() => RespostaFalsa | Promise<RespostaFalsa>)
+  alunos?: FakeResponse | ((caminho: string) => FakeResponse | Promise<FakeResponse>)
+  desempenho?: FakeResponse | (() => FakeResponse | Promise<FakeResponse>)
   /** O acesso da turma. `'na-fila'` não registra caminho: o teste responde na ordem dos pedidos (a leitura e o gerar são o mesmo caminho). */
-  acesso?: RespostaFalsa | (() => RespostaFalsa | Promise<RespostaFalsa>) | 'na-fila'
+  acesso?: FakeResponse | (() => FakeResponse | Promise<FakeResponse>) | 'na-fila'
 }
 
-function instalar(rede: RedeFalsa, { alunos = ok({ itens: [BRUNO, CAIO, ANA] }), desempenho: acertos = desempenho([]), acesso = ok({ expiraEm: null }) }: Leituras = {}): void {
+function instalar(rede: FakeNetwork, { alunos = ok({ itens: [BRUNO, CAIO, ANA] }), desempenho: acertos = desempenho([]), acesso = ok({ expiraEm: null }) }: Leituras = {}): void {
   rede.responderPor(`/v1/turmas/${TURMA}/alunos`, alunos)
   rede.responderPor(`/v1/turmas/${TURMA}/desempenho`, acertos)
   rede.responderPor(`/v1/turmas/${TURMA}/reivindicacoes`, SEM_PEDIDOS)
@@ -55,7 +55,7 @@ function instalar(rede: RedeFalsa, { alunos = ok({ itens: [BRUNO, CAIO, ANA] }),
 }
 
 function montar(aoPerderATurma: () => void = () => undefined) {
-  const cliente = criarClienteDeConsultas()
+  const cliente = createQueryClient()
   const tela = render(
     <QueryClientProvider client={cliente}>
       <AlunosDaTurma turmaId={TURMA} turmaNome="7º A" escola={ESCOLA} aoPerderATurma={aoPerderATurma} />
@@ -69,12 +69,12 @@ const nomesNaTela = () => screen.getAllByRole('rowheader').map((celula) => celul
 const linhaDe = (nome: string) => screen.getByRole('rowheader', { name: nome }).closest('tr') as HTMLElement
 const doAluno = (nome: string) => within(linhaDe(nome))
 
-const chamadasA = (rede: RedeFalsa, caminho: string) => rede.chamadas.filter((chamada) => chamada.caminho.split('?')[0] === `/v1/turmas/${TURMA}/${caminho}`)
+const chamadasA = (rede: FakeNetwork, caminho: string) => rede.chamadas.filter((chamada) => chamada.caminho.split('?')[0] === `/v1/turmas/${TURMA}/${caminho}`)
 
 /** Uma resposta que só sai quando o teste manda. */
-function segurada(): { resposta: Promise<RespostaFalsa>; liberar: (resposta: RespostaFalsa) => void } {
-  let liberar: (resposta: RespostaFalsa) => void = () => undefined
-  const resposta = new Promise<RespostaFalsa>((resolver) => (liberar = resolver))
+function segurada(): { resposta: Promise<FakeResponse>; liberar: (resposta: FakeResponse) => void } {
+  let liberar: (resposta: FakeResponse) => void = () => undefined
+  const resposta = new Promise<FakeResponse>((resolver) => (liberar = resolver))
   return { resposta, liberar }
 }
 
@@ -100,7 +100,7 @@ beforeEach(() => {
 
 describe('Alunos: a lista de nomes da turma', () => {
   it('com dado: os alunos em ordem de nome, e não na de id que a API entrega, cada um com os seus acertos', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { desempenho: desempenho([desempenhoDe(1, BRUNO.nome, 1, 2), desempenhoDe(2, CAIO.nome, 2, 2), desempenhoDe(3, ANA.nome, 0, 2)]) })
     montar()
 
@@ -118,12 +118,12 @@ describe('Alunos: a lista de nomes da turma', () => {
   })
 
   it('a web lê a lista de cem em cem, sem `?anoLetivoId` e sem finalidade, e os acertos de lote aprovado: nenhuma outra rota de aluno', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede)
     montar()
     await screen.findByRole('region', { name: 'Por aluno' })
 
-    expect(chamadasA(rede, 'alunos')).toEqual([{ caminho: `/v1/turmas/${TURMA}/alunos?limite=100`, metodo: 'GET', autorizacao: AUTORIZACAO_DE_TESTE }])
+    expect(chamadasA(rede, 'alunos')).toEqual([{ caminho: `/v1/turmas/${TURMA}/alunos?limite=100`, metodo: 'GET', autorizacao: TEST_AUTHORIZATION }])
     expect(rede.chamadas.filter((chamada) => /anoLetivoId|finalidade/.test(chamada.caminho))).toEqual([])
     // Só a lista, os acertos aprovados, os pedidos e o acesso: a aba não lê correção, sinal nem conversa. Correção pendente ou
     // rejeitada nem chega à web, e por isso não entra na conta.
@@ -133,7 +133,7 @@ describe('Alunos: a lista de nomes da turma', () => {
   })
 
   it('aluno sem correção aprovada: aparece com "Sem correção aprovada", e não some nem vira "0 de 0"', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     // Bruno tem total zero no desempenho; Caio nem consta nele; Ana tem um acerto.
     instalar(rede, { desempenho: desempenho([desempenhoDe(1, BRUNO.nome, 0, 0), desempenhoDe(3, ANA.nome, 1, 2)]) })
     montar()
@@ -147,7 +147,7 @@ describe('Alunos: a lista de nomes da turma', () => {
   })
 
   it('turma sem nenhuma correção aprovada: todos aparecem, todos "Sem correção aprovada"', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { desempenho: desempenho([], 0) })
     montar()
     await screen.findByRole('region', { name: 'Por aluno' })
@@ -157,7 +157,7 @@ describe('Alunos: a lista de nomes da turma', () => {
   })
 
   it('aluno transferido ou com o acesso desativado: o desempenho o traz e a lista não, e ele aparece com o estado próprio, sem número', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     const dora = aluno(9, 'Dora Sintética')
     instalar(rede, { alunos: ok({ itens: [BRUNO, ANA] }), desempenho: desempenho([desempenhoDe(1, BRUNO.nome, 1, 2), desempenhoDe(3, ANA.nome, 2, 2), desempenhoDe(9, dora.nome, 2, 2)]) })
     montar()
@@ -172,7 +172,7 @@ describe('Alunos: a lista de nomes da turma', () => {
   })
 
   it('com páginas por ler, o aluno que o desempenho traz e a lista ainda não trouxe não é dado como quem saiu da turma', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     const dora = aluno(9, 'Dora Sintética')
     instalar(rede, {
       alunos: ok({ itens: [BRUNO, ANA], proxima: ANA.usuarioId }),
@@ -188,7 +188,7 @@ describe('Alunos: a lista de nomes da turma', () => {
   })
 
   it('nenhum controle ordena por acerto, nem busca por nome, nem mostra situação, média, selo de adaptação ou a conversa do aluno', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     // O aluno de mais acerto é o último do alfabeto, e o de menos, o primeiro: a ordem de acerto seria a inversa da de nome.
     instalar(rede, { desempenho: desempenho([desempenhoDe(1, BRUNO.nome, 1, 2), desempenhoDe(2, CAIO.nome, 2, 2), desempenhoDe(3, ANA.nome, 0, 2)]) })
     montar()
@@ -206,7 +206,7 @@ describe('Alunos: a lista de nomes da turma', () => {
   })
 
   it('o vazio diz "A lista ainda não chegou" e o caminho: a coordenação monta a lista; e não aparece com acertos ainda por ler', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     const acertos = segurada()
     instalar(rede, { alunos: ok({ itens: [] }), desempenho: () => acertos.resposta })
     const { cliente } = montar()
@@ -226,7 +226,7 @@ describe('Alunos: a lista de nomes da turma', () => {
 
 describe('Alunos: os estados da leitura', () => {
   it('carregando: a lista diz que carrega, e os acertos de cada aluno dizem que carregam; nada afirma "Sem correção aprovada" antes da hora', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     const lista = segurada()
     const acertos = segurada()
     instalar(rede, { alunos: () => lista.resposta, desempenho: () => acertos.resposta })
@@ -246,7 +246,7 @@ describe('Alunos: os estados da leitura', () => {
   })
 
   it('a lista ainda carrega e os acertos já chegaram: nada de "A lista ainda não chegou" antes da hora', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     const lista = segurada()
     instalar(rede, { alunos: () => lista.resposta, desempenho: desempenho([], 0) })
     const { cliente } = montar()
@@ -260,7 +260,7 @@ describe('Alunos: os estados da leitura', () => {
   })
 
   it('erro da lista: a mensagem e "Tentar de novo", e a tabela não aparece; tentar de novo lê outra vez e mostra os alunos', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     let falhar = true
     instalar(rede, { alunos: () => (falhar ? erro(500, 'ERRO_INTERNO') : ok({ itens: [BRUNO, ANA] })) })
     const usuario = userEvent.setup()
@@ -279,7 +279,7 @@ describe('Alunos: os estados da leitura', () => {
   }, 10_000)
 
   it('erro dos acertos: os nomes continuam na tela, com "Acertos não lidos" e o próprio "Tentar de novo", que lê só os acertos', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     let falhar = true
     instalar(rede, { desempenho: () => (falhar ? erro(500, 'ERRO_INTERNO') : desempenho([desempenhoDe(1, BRUNO.nome, 1, 2)])) })
     const usuario = userEvent.setup()
@@ -299,7 +299,7 @@ describe('Alunos: os estados da leitura', () => {
   }, 10_000)
 
   it('a releitura dos acertos que falha com o dado já na tela não tira os acertos nem põe o erro no lugar', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     let falhar = false
     instalar(rede, { desempenho: () => (falhar ? erro(500, 'ERRO_INTERNO') : desempenho([desempenhoDe(1, BRUNO.nome, 1, 2)])) })
     const { cliente } = montar()
@@ -315,7 +315,7 @@ describe('Alunos: os estados da leitura', () => {
   }, 10_000)
 
   it('mais de uma página: "Ver mais" lê a seguinte com a `pagina` da anterior, e os nomes das duas voltam juntos em ordem de nome', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     const dora = aluno(4, 'Dora Sintética')
     const aninha = aluno(5, 'Aninha Sintética')
     instalar(rede, { alunos: (caminho) => (caminho.includes('pagina=') ? ok({ itens: [dora, aninha] }) : ok({ itens: [BRUNO, CAIO, ANA], proxima: ANA.usuarioId })) })
@@ -337,7 +337,7 @@ describe('Alunos: os estados da leitura', () => {
   })
 
   it('dois cliques no mesmo instante em "Ver mais" pedem a página seguinte uma vez só', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     const segunda = segurada()
     instalar(rede, { alunos: (caminho) => (caminho.includes('pagina=') ? segunda.resposta : ok({ itens: [BRUNO, ANA], proxima: ANA.usuarioId })) })
     montar()
@@ -356,7 +356,7 @@ describe('Alunos: os estados da leitura', () => {
   })
 
   it('o foco depois de "Ver mais": fica no botão enquanto há mais, e vai à frase do fim quando o botão sai da tela', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, {
       alunos: (caminho) => {
         if (caminho.includes(`pagina=${CAIO.usuarioId}`)) return ok({ itens: [ANA] })
@@ -381,7 +381,7 @@ describe('Alunos: os estados da leitura', () => {
   })
 
   it('o foco que a professora levou a outro lugar enquanto a página chega não é tomado de volta', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     const segunda = segurada()
     instalar(rede, { alunos: (caminho) => (caminho.includes('pagina=') ? segunda.resposta : ok({ itens: [BRUNO], proxima: BRUNO.usuarioId })) })
     const usuario = userEvent.setup()
@@ -398,7 +398,7 @@ describe('Alunos: os estados da leitura', () => {
   })
 
   it('a falha de "Ver mais" mantém os nomes já lidos e oferece tentar de novo, que lê a mesma página', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     let falhar = true
     instalar(rede, { alunos: (caminho) => (caminho.includes('pagina=') ? (falhar ? erro(500, 'ERRO_INTERNO') : ok({ itens: [CAIO] })) : ok({ itens: [BRUNO, ANA], proxima: ANA.usuarioId })) })
     const usuario = userEvent.setup()
@@ -418,7 +418,7 @@ describe('Alunos: os estados da leitura', () => {
 
 describe('Alunos: a turma, o cache e os pedidos de nome', () => {
   it('a lista não fica no cache: ao sair da aba e voltar, ela é lida de novo; os nomes não ficam em localStorage, sessionStorage nem no endereço', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede)
     const primeira = montar()
     await screen.findByRole('region', { name: 'Por aluno' })
@@ -436,7 +436,7 @@ describe('Alunos: a turma, o cache e os pedidos de nome', () => {
   })
 
   it('a turma que a API deixou de achar tira a página: a lista que responde `NAO_ENCONTRADO` avisa quem desenha a turma, uma vez', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { alunos: erro(404, 'NAO_ENCONTRADO') })
     const aoPerder = vi.fn()
     montar(aoPerder)
@@ -448,7 +448,7 @@ describe('Alunos: a turma, o cache e os pedidos de nome', () => {
   })
 
   it('outro erro da lista não tira a turma da página', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { alunos: erro(400, 'ENTRADA_INVALIDA') })
     const aoPerder = vi.fn()
     montar(aoPerder)
@@ -458,7 +458,7 @@ describe('Alunos: a turma, o cache e os pedidos de nome', () => {
   })
 
   it('os pedidos de nome ficam no alto da aba, antes dos alunos, com as regras de hoje: a seção e o vazio, sem ação', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede)
     montar()
     await screen.findByRole('region', { name: 'Por aluno' })
@@ -474,7 +474,7 @@ describe('Alunos: a turma, o cache e os pedidos de nome', () => {
   })
 
   it('a aba tem um só botão cheio, o "Convidar alunos" (docs/interface.md, R4): o vazio dos pedidos não leva outro', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede)
     montar()
     await screen.findByRole('region', { name: 'Por aluno' })
@@ -498,7 +498,7 @@ describe('AlunosDaTurma: o acesso é um resumo, e "Convidar alunos" abre o diál
   afterEach(() => window.history.replaceState(null, '', '/'))
 
   it('sem acesso: "Sem acesso ativo" e um botão só, "Convidar alunos"; o gerar não está mais na seção', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede)
     montar()
 
@@ -508,7 +508,7 @@ describe('AlunosDaTurma: o acesso é um resumo, e "Convidar alunos" abre o diál
   })
 
   it('com acesso: "Acesso ativo", até quando vale e o mesmo botão; "Gerar novo" e "Revogar" moram no diálogo, e o link e o código não voltam', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { acesso: ok(VIGENTE) })
     montar()
 
@@ -520,7 +520,7 @@ describe('AlunosDaTurma: o acesso é um resumo, e "Convidar alunos" abre o diál
 
   it('a leitura do acesso em erro tira o botão e deixa "Tentar de novo"; relida, o botão volta', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     let falha = true
     instalar(rede, { acesso: () => (falha ? erro(503, 'INDISPONIVEL_TENTE_DE_NOVO') : ok(VIGENTE)) })
     montar()
@@ -535,7 +535,7 @@ describe('AlunosDaTurma: o acesso é um resumo, e "Convidar alunos" abre o diál
 
   it('o botão abre o diálogo sem mexer no endereço; "Cancelar" o fecha, e o foco volta para o botão que o abriu', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede)
     montar()
     window.history.replaceState(null, '', '/professor/turmas/x?aba=alunos')
@@ -556,7 +556,7 @@ describe('AlunosDaTurma: o acesso é um resumo, e "Convidar alunos" abre o diál
 
   it('`?convidar=1` abre o diálogo sozinho; fechar tira só o pedido do endereço (`replace`: nenhum passo no histórico) e a aba fica; o diálogo não volta', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede)
     window.history.replaceState(null, '', '/professor/turmas/x?aba=alunos&convidar=1')
     const passos = window.history.length
@@ -574,7 +574,7 @@ describe('AlunosDaTurma: o acesso é um resumo, e "Convidar alunos" abre o diál
   })
 
   it('só `convidar=1` abre: outro valor no endereço deixa a aba como está, sem diálogo', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede)
     window.history.replaceState(null, '', '/professor/turmas/x?aba=alunos&convidar=0')
     montar()
@@ -586,7 +586,7 @@ describe('AlunosDaTurma: o acesso é um resumo, e "Convidar alunos" abre o diál
 
   it('gerar pelo endereço pedido: o endereço nunca ganha token, link nem código, e o diálogo fechado o deixa só com a aba', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { acesso: 'na-fila' })
     rede.responder(ok({ expiraEm: null }))
     rede.responder(ok(GERADO))
@@ -608,7 +608,7 @@ describe('AlunosDaTurma: o acesso é um resumo, e "Convidar alunos" abre o diál
 
   it('revogar pelo diálogo pedido pelo endereço: a seção anuncia, o diálogo fecha, o pedido sai do endereço, e abrir outro diálogo apaga o anúncio', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { acesso: 'na-fila' })
     rede.responder(ok(VIGENTE))
     window.history.replaceState(null, '', '/professor/turmas/x?aba=alunos&convidar=1')

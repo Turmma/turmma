@@ -1,6 +1,6 @@
 import { ErrorCode, MENSAGENS_DE_ERRO } from '@educa/shared'
 import { describe, expect, it } from 'vitest'
-import { ErroDaApi } from '../../api/client'
+import { ApiError } from '../../api/client'
 import {
   EFEITO_DA_DECISAO,
   quantidadeDePedidos,
@@ -61,12 +61,12 @@ describe('W6: o que a tela dos pedidos diz', () => {
   })
 
   it('a falha diz o que fazer e o que houve com a lista de cada papel, sem o código do erro', () => {
-    const indisponivel = new ErroDaApi(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO)
+    const indisponivel = new ApiError(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO)
     const doProfessor = textoDaFalhaDaDecisao(indisponivel, 'professor')
     const daCoordenacao = textoDaFalhaDaDecisao(indisponivel, 'coordenacao')
     expect(doProfessor).toBe(`${MENSAGENS_DE_ERRO.INDISPONIVEL_TENTE_DE_NOVO} Alguns pedidos podem já ter sido decididos: a lista foi atualizada, e os que continuam aqui ainda esperam.`)
     expect(daCoordenacao).toBe(`${MENSAGENS_DE_ERRO.INDISPONIVEL_TENTE_DE_NOVO} Alguns pedidos podem já ter sido decididos. Feche e clique em Atualizar para ver os que continuam esperando.`)
-    const semAno = textoDaFalhaDaDecisao(new ErroDaApi(ErrorCode.NAO_ENCONTRADO), 'professor')
+    const semAno = textoDaFalhaDaDecisao(new ApiError(ErrorCode.NAO_ENCONTRADO), 'professor')
     expect(semAno).toContain('a escola está sem ano letivo em curso')
     for (const texto of [doProfessor, daCoordenacao, semAno]) expect(texto).not.toMatch(/INDISPONIVEL|NAO_ENCONTRADO|\b[45]\d\d\b/)
   })

@@ -5,8 +5,8 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Router } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
-import { prepararTela, redeFalsa, renderizarTela, type RedeFalsa, type RespostaFalsa } from '../../../__fixtures__/render-screen'
-import { ROTAS_DO_PROFESSOR } from '../../../paths'
+import { setupScreen, fakeNetwork, renderScreen, type FakeNetwork, type FakeResponse } from '../../../__fixtures__/render-screen'
+import { PROFESSOR_ROUTES } from '../../../paths'
 import Ferramenta from './Ferramenta'
 import { TEXTO_DA_SUSPENSAO } from '../comum/avisos'
 import { COMO_VAI_SAIR } from './ferramentas'
@@ -18,15 +18,15 @@ import { CICLO_DA_FERRAMENTA } from '../assistente/memoria-do-professor'
  * vista em todos os estados, não muda ao preencher nem ao gerar, e vem depois do formulário. O motor, os campos e o pedido
  * são de `CartaoDeFerramenta.test.tsx`; as duas colunas a 1024 px e a uma a 360 px são do e2e (o `jsdom` não faz layout).
  */
-prepararTela()
+setupScreen()
 
 const id = (n: number) => `0197a1c0-0000-7000-8000-${String(n).padStart(12, '0')}`
 const QUIMICA = { id: id(500), nome: 'Química' }
 const TURMA_A = { id: id(101), nome: '1º A' }
-const VINCULO: RespostaFalsa = { status: 200, corpo: { itens: [{ id: id(401), turma: TURMA_A, disciplina: QUIMICA, estado: 'confirmado' }] } }
-const SEM_VINCULO: RespostaFalsa = { status: 200, corpo: { itens: [] } }
-const erro = (status: number, codigo: string): RespostaFalsa => ({ status, corpo: { erro: { codigo, mensagem: 'x', requisicaoId: '0190f5a0-0000-7000-8000-000000000001' } } })
-const timeSem = (...suspensas: ChaveDeFuncao[]): RespostaFalsa => ({ status: 200, corpo: montarTime(new Set(suspensas)) })
+const VINCULO: FakeResponse = { status: 200, corpo: { itens: [{ id: id(401), turma: TURMA_A, disciplina: QUIMICA, estado: 'confirmado' }] } }
+const SEM_VINCULO: FakeResponse = { status: 200, corpo: { itens: [] } }
+const erro = (status: number, codigo: string): FakeResponse => ({ status, corpo: { erro: { codigo, mensagem: 'x', requisicaoId: '0190f5a0-0000-7000-8000-000000000001' } } })
+const timeSem = (...suspensas: ChaveDeFuncao[]): FakeResponse => ({ status: 200, corpo: montarTime(new Set(suspensas)) })
 const ATIVIDADE = {
   id: id(700),
   tipo: 'atividade_objetiva',
@@ -40,23 +40,23 @@ const ATIVIDADE = {
 }
 
 interface Quem {
-  readonly vinculos?: RespostaFalsa | (() => RespostaFalsa | Promise<RespostaFalsa>)
-  readonly time?: RespostaFalsa
-  readonly artefatos?: RespostaFalsa
+  readonly vinculos?: FakeResponse | (() => FakeResponse | Promise<FakeResponse>)
+  readonly time?: FakeResponse
+  readonly artefatos?: FakeResponse
 }
 
-function instalar(rede: RedeFalsa, quem: Quem = {}): void {
+function instalar(rede: FakeNetwork, quem: Quem = {}): void {
   rede.responderPor('/v1/meus-vinculos', quem.vinculos ?? VINCULO)
   rede.responderPor('/v1/time', quem.time ?? timeSem())
   rede.responderPor('/v1/artefatos', quem.artefatos ?? { status: 200, corpo: { itens: [ATIVIDADE] } })
   // A geração fica no ar, sem terminar: o teste olha a página enquanto ela acontece.
   rede.responderPor('/v1/ferramentas/atividade_objetiva/gerar', { status: 202, corpo: { execucaoId: id(950) } })
-  rede.responderPor(/^\/v1\/execucoes\//, () => new Promise<RespostaFalsa>(() => undefined))
+  rede.responderPor(/^\/v1\/execucoes\//, () => new Promise<FakeResponse>(() => undefined))
 }
 
 function montar(ferramenta: string) {
   const localizacao = memoryLocation({ path: `/ferramentas/${ferramenta}`, record: true })
-  renderizarTela(
+  renderScreen(
     <Router hook={localizacao.hook}>
       <Ferramenta ferramenta={ferramenta} />
     </Router>,
@@ -78,7 +78,7 @@ const linhasDe = (bloco: HTMLElement) => within(bloco).getAllByRole('listitem').
 
 describe('"Como vai sair" ao lado do formulário', () => {
   it.each(['atividade_objetiva', 'plano_de_aula', 'adaptacao'] as const)('%s: com dado, o formulário e o texto fixo da ferramenta, com o título e as linhas de COMO_VAI_SAIR', async (ferramenta: NomeDeFerramenta) => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede)
     montar(ferramenta)
     await waitFor(() => expect(document.querySelector('[data-motor="formulario"]')).not.toBeNull())
@@ -95,7 +95,7 @@ describe('"Como vai sair" ao lado do formulário', () => {
   })
 
   it('vem depois do formulário no documento: no celular, a coluna única põe "Como vai sair" embaixo', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede)
     montar('atividade_objetiva')
     await waitFor(() => expect(document.querySelector('[data-motor="formulario"]')).not.toBeNull())
@@ -109,7 +109,7 @@ describe('"Como vai sair" ao lado do formulário', () => {
   })
 
   it.each(['atividade_objetiva', 'plano_de_aula', 'adaptacao'] as const)('%s: a grade do formulário é o miolo que rola a partir de 768 px, com o título fora dela e a medida do topo gravada nela', async (ferramenta: NomeDeFerramenta) => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede)
     montar(ferramenta)
     await waitFor(() => expect(document.querySelector('[data-motor="formulario"]')).not.toBeNull())
@@ -153,7 +153,7 @@ describe('"Como vai sair" ao lado do formulário', () => {
       },
     )
     try {
-      const rede = redeFalsa()
+      const rede = fakeNetwork()
       instalar(rede)
       montar('adaptacao')
       await waitFor(() => expect(document.querySelector('[data-motor="formulario"]')).not.toBeNull())
@@ -180,7 +180,7 @@ describe('"Como vai sair" ao lado do formulário', () => {
   })
 
   it('sem prévia: o texto é o mesmo antes de preencher, ao preencher e enquanto gera', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede)
     montar('atividade_objetiva')
     const usuario = userEvent.setup()
@@ -202,9 +202,9 @@ describe('"Como vai sair" ao lado do formulário', () => {
 
 describe('os estados do formulário, com "Como vai sair" à vista', () => {
   it('carregando: o cartão diz que está carregando, e o texto já está na tela', async () => {
-    const rede = redeFalsa()
-    let liberar: (resposta: RespostaFalsa) => void = () => undefined
-    instalar(rede, { vinculos: () => new Promise<RespostaFalsa>((resolver) => (liberar = resolver)) })
+    const rede = fakeNetwork()
+    let liberar: (resposta: FakeResponse) => void = () => undefined
+    instalar(rede, { vinculos: () => new Promise<FakeResponse>((resolver) => (liberar = resolver)) })
     montar('atividade_objetiva')
     expect(await screen.findByText('Carregando a ferramenta…')).toBeTruthy()
     expect(document.querySelector('[data-motor]')).toBeNull()
@@ -215,7 +215,7 @@ describe('os estados do formulário, com "Como vai sair" à vista', () => {
   })
 
   it('erro: a mensagem do catálogo, sem o código; "Tentar de novo" lê de novo; o texto fica na tela o tempo todo', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     let leituras = 0
     instalar(rede, { vinculos: () => (++leituras === 1 ? erro(404, 'NAO_ENCONTRADO') : VINCULO) })
     montar('plano_de_aula')
@@ -231,18 +231,18 @@ describe('os estados do formulário, com "Como vai sair" à vista', () => {
   })
 
   it('sem turma confirmada: diz o que falta, "Ir para Turmas" leva a Turmas, e o texto fica na tela', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { vinculos: SEM_VINCULO })
     const localizacao = montar('atividade_objetiva')
     expect(await screen.findByText('Falta uma turma confirmada')).toBeTruthy()
     expect(document.querySelector('[data-motor]')).toBeNull()
     expect(linhasDe(comoVaiSair() as HTMLElement)).toEqual([...COMO_VAI_SAIR.atividade_objetiva])
     await userEvent.setup().click(screen.getByRole('button', { name: 'Ir para Turmas' }))
-    expect(localizacao.history.at(-1)).toBe(ROTAS_DO_PROFESSOR.turmas)
+    expect(localizacao.history.at(-1)).toBe(PROFESSOR_ROUTES.turmas)
   })
 
   it('função suspensa: o aviso entra no lugar do formulário, sem alarme, e o texto da Adaptação continua à vista', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { time: timeSem('adaptacao') })
     montar('adaptacao')
     await waitFor(() => expect(document.querySelector('[data-funcao-suspensa="adaptacao"]')).not.toBeNull())
@@ -255,7 +255,7 @@ describe('os estados do formulário, com "Como vai sair" à vista', () => {
 
 describe('a Adaptação sem campo de texto (D35, D67)', () => {
   it('pede só a atividade, os tipos da lista fechada e o tempo extra; nenhum campo livre; o texto ao lado não fala de aluno', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede)
     montar('adaptacao')
     await waitFor(() => expect(document.querySelector('[data-motor="formulario"]')).not.toBeNull())
@@ -278,7 +278,7 @@ describe('a Adaptação sem campo de texto (D35, D67)', () => {
 
 describe('o endereço de uma ferramenta que não existe', () => {
   it('responde como página não encontrada, sem formulário nem "Como vai sair"', () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede)
     montar('xyz')
     expect(screen.getByRole('heading', { name: 'Página não encontrada' })).toBeTruthy()

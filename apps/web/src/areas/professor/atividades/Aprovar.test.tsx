@@ -6,7 +6,7 @@ import { Router } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { buttonVariants } from '../../../components/ui/button-variants'
-import { prepararTela, redeFalsa, renderizarTela, type RedeFalsa, type RespostaFalsa } from '../../../__fixtures__/render-screen'
+import { setupScreen, fakeNetwork, renderScreen, type FakeNetwork, type FakeResponse } from '../../../__fixtures__/render-screen'
 import Aprovar from './Aprovar'
 
 /**
@@ -15,7 +15,7 @@ import Aprovar from './Aprovar'
  * consultas e o `wouter` são os da aba (a localização é a de memória, que guarda o histórico). O fluxo da aprovação, do registro e
  * do recomeço é do e2e (`e2e/professor-aprovar.spec.ts`).
  */
-prepararTela()
+setupScreen()
 
 const id = (n: number) => `0197a1c0-0000-7000-8000-${String(n).padStart(12, '0')}`
 const ATIVIDADE = id(1)
@@ -66,12 +66,12 @@ const abertura = (alunoId: string, nome: string) => ({
   historico: [{ titulo: 'Atividade de balanceamento', acertos: 4, total: 5 }],
 })
 
-const ok = (corpo: unknown): RespostaFalsa => ({ status: 200, corpo })
-const erro = (status: number, codigo: string): RespostaFalsa => ({ status, corpo: { erro: { codigo, mensagem: 'x', requisicaoId: '0190f5a0-0000-7000-8000-000000000001' } } })
+const ok = (corpo: unknown): FakeResponse => ({ status: 200, corpo })
+const erro = (status: number, codigo: string): FakeResponse => ({ status, corpo: { erro: { codigo, mensagem: 'x', requisicaoId: '0190f5a0-0000-7000-8000-000000000001' } } })
 const caminhoDaAbertura = (alunoId: string) => `/v1/atividades-aplicadas/${ATIVIDADE}/correcao/destaques/${alunoId}/abrir`
 
-type Resposta = RespostaFalsa | (() => RespostaFalsa | Promise<RespostaFalsa>)
-function instalar(rede: RedeFalsa, doLote: Resposta = () => ok(lote()), aberturas: Partial<Record<string, Resposta>> = {}): void {
+type Resposta = FakeResponse | (() => FakeResponse | Promise<FakeResponse>)
+function instalar(rede: FakeNetwork, doLote: Resposta = () => ok(lote()), aberturas: Partial<Record<string, Resposta>> = {}): void {
   rede.responderPor(`/v1/atividades-aplicadas/${ATIVIDADE}/correcao`, doLote)
   rede.responderPor('/v1/entregas', ok({ itens: [] }))
   rede.responderPor('/v1/meus-vinculos', ok({ itens: [] }))
@@ -79,7 +79,7 @@ function instalar(rede: RedeFalsa, doLote: Resposta = () => ok(lote()), abertura
   rede.responderPor(caminhoDaAbertura(BRUNO), aberturas[BRUNO] ?? (() => ok(abertura(BRUNO, 'Bruno Sintético'))))
 }
 
-const aberturasPedidas = (rede: RedeFalsa) => rede.chamadas.filter((chamada) => chamada.metodo === 'POST' && chamada.caminho.endsWith('/abrir')).map((chamada) => chamada.caminho)
+const aberturasPedidas = (rede: FakeNetwork) => rede.chamadas.filter((chamada) => chamada.metodo === 'POST' && chamada.caminho.endsWith('/abrir')).map((chamada) => chamada.caminho)
 
 function montar(busca = '', { estrito = false }: { estrito?: boolean } = {}) {
   const localizacao = memoryLocation({ path: `/aprovar/${ATIVIDADE}`, searchPath: busca, record: true })
@@ -88,7 +88,7 @@ function montar(busca = '', { estrito = false }: { estrito?: boolean } = {}) {
       <Aprovar atividadeAplicadaId={ATIVIDADE} />
     </Router>
   )
-  renderizarTela(estrito ? <StrictMode>{tela}</StrictMode> : tela)
+  renderScreen(estrito ? <StrictMode>{tela}</StrictMode> : tela)
   return localizacao
 }
 
@@ -121,7 +121,7 @@ afterEach(() => vi.unstubAllGlobals())
 
 describe('Revisar a correção: os estados', () => {
   it('carregando, com o título e o caminho de volta; depois, com dado', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede)
     const leitura = rede.segurar()
     montar()
@@ -136,9 +136,9 @@ describe('Revisar a correção: os estados', () => {
 
   it('erro: a mensagem do catálogo e "Tentar de novo", que lê de novo e mostra a correção', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     let falha = true
-    // Limite excedido não é repetido sozinho (`deveTentarDeNovo`): o erro chega na hora, sem esperar a nova tentativa.
+    // Limite excedido não é repetido sozinho (`shouldRetry`): o erro chega na hora, sem esperar a nova tentativa.
     instalar(rede, () => (falha ? erro(429, 'LIMITE_EXCEDIDO') : ok(lote())))
     montar()
     expect(await screen.findByRole('alert')).toBeTruthy()
@@ -150,7 +150,7 @@ describe('Revisar a correção: os estados', () => {
   })
 
   it('a correção que não existe diz "não está disponível", e é a mesma frase para a de outra turma e a de outra escola', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, () => erro(404, 'NAO_ENCONTRADO'))
     montar()
     expect(await screen.findByText('Esta correção não está disponível')).toBeTruthy()
@@ -163,7 +163,7 @@ describe('Revisar a correção: os estados', () => {
   })
 
   it('com dado: a faixa de números, as três abas e a barra presa', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede)
     montar()
     const faixa = await screen.findByRole('group', { name: 'Números da correção' })
@@ -180,7 +180,7 @@ describe('Revisar a correção: os estados', () => {
 describe('Revisar a correção: o botão oficial', () => {
   it('desligado com destaque fechado, nas três abas, com o contador dizendo por quê; a barra não sai da tela ao trocar de aba', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede)
     montar()
     await screen.findByRole('region', { name: 'Abra estes 2 antes de aprovar' })
@@ -196,7 +196,7 @@ describe('Revisar a correção: o botão oficial', () => {
   })
 
   it('quem liga o botão é a API: com todos abertos e `podeAprovar` falso ele segue desligado e manda atualizar; com `podeAprovar` verdadeiro, liga', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, () => ok(lote({ abertos: [ANA, BRUNO], podeAprovar: false })))
     montar()
     await screen.findByRole('group', { name: 'Aprovação do lote' })
@@ -205,7 +205,7 @@ describe('Revisar a correção: o botão oficial', () => {
   })
 
   it('com `podeAprovar` verdadeiro o botão liga, e o contador diz que está tudo aberto', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, () => ok(lote({ abertos: [ANA, BRUNO], podeAprovar: true })))
     montar()
     await screen.findByRole('group', { name: 'Aprovação do lote' })
@@ -214,7 +214,7 @@ describe('Revisar a correção: o botão oficial', () => {
   })
 
   it('o lote já decidido não tem barra, e o destaque que ficou fechado não se abre mais', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, () => ok(lote({ abertos: [ANA], estado: 'aprovada' })))
     montar()
     await screen.findByRole('region', { name: 'Abra estes 2 antes de aprovar' })
@@ -225,7 +225,7 @@ describe('Revisar a correção: o botão oficial', () => {
   })
 
   it('um único botão oficial e nenhum primário; "Rejeitar a correção" é o `perigo` de contorno, e o oficial não é laranja', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede)
     montar()
     await screen.findByRole('group', { name: 'Aprovação do lote' })
@@ -243,9 +243,9 @@ describe('Revisar a correção: o botão oficial', () => {
 
 describe('Revisar a correção: abrir o destaque registra uma vez', () => {
   it('dois cliques seguidos no mesmo destaque mandam uma abertura só, e o painel abre com as respostas e o endereço leva o id', async () => {
-    const rede = redeFalsa()
-    let liberar: (resposta: RespostaFalsa) => void = () => undefined
-    instalar(rede, undefined, { [ANA]: () => new Promise<RespostaFalsa>((resolver) => (liberar = resolver)) })
+    const rede = fakeNetwork()
+    let liberar: (resposta: FakeResponse) => void = () => undefined
+    instalar(rede, undefined, { [ANA]: () => new Promise<FakeResponse>((resolver) => (liberar = resolver)) })
     const localizacao = montar()
     const linha = within(await screen.findByRole('region', { name: 'Abra estes 2 antes de aprovar' })).getByRole('button', { name: /Ana Sintética/ })
     // Os dois cliques no mesmo instante, antes de a tela se redesenhar com a abertura em espera.
@@ -263,7 +263,7 @@ describe('Revisar a correção: abrir o destaque registra uma vez', () => {
 
   it('a abertura que falha não abre o painel: o erro fica na linha, e o destaque continua fechado', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, undefined, { [BRUNO]: () => erro(503, 'INDISPONIVEL_TENTE_DE_NOVO') })
     const localizacao = montar()
     await usuario.click(within(await screen.findByRole('region', { name: 'Abra estes 2 antes de aprovar' })).getByRole('button', { name: /Bruno Sintético/ }))
@@ -278,7 +278,7 @@ describe('Revisar a correção: abrir o destaque registra uma vez', () => {
   })
 
   it('recarregar com `?ver=` de destaque ainda fechado não abre o painel nem registra abertura', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede)
     montar(`ver=${ANA}`)
     await screen.findByRole('region', { name: 'Abra estes 2 antes de aprovar' })
@@ -291,7 +291,7 @@ describe('Revisar a correção: abrir o destaque registra uma vez', () => {
   })
 
   it('`?ver=` de um id que o lote não tem (outra turma, outra escola) não abre nada nem pergunta à API', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede)
     montar(`ver=${id(99)}`)
     await screen.findByRole('region', { name: 'Abra estes 2 antes de aprovar' })
@@ -303,7 +303,7 @@ describe('Revisar a correção: abrir o destaque registra uma vez', () => {
   })
 
   it('recarregar com `?ver=` de destaque já aberto lê as respostas uma vez só', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, () => ok(lote({ abertos: [ANA] })))
     montar(`ver=${ANA}`, { estrito: true })
     expect(await screen.findByRole('dialog', { name: 'Correção de Ana Sintética' })).toBeTruthy()
@@ -312,9 +312,9 @@ describe('Revisar a correção: abrir o destaque registra uma vez', () => {
   })
 
   it('com uma abertura no ar, o endereço de outro destaque já aberto não manda uma segunda leitura por cima dela', async () => {
-    const rede = redeFalsa()
-    let liberar: (resposta: RespostaFalsa) => void = () => undefined
-    instalar(rede, () => ok(lote({ abertos: [ANA] })), { [BRUNO]: () => new Promise<RespostaFalsa>((resolver) => (liberar = resolver)) })
+    const rede = fakeNetwork()
+    let liberar: (resposta: FakeResponse) => void = () => undefined
+    instalar(rede, () => ok(lote({ abertos: [ANA] })), { [BRUNO]: () => new Promise<FakeResponse>((resolver) => (liberar = resolver)) })
     const localizacao = montar()
     await userEvent.setup().click(within(await screen.findByRole('region', { name: 'Abra estes 2 antes de aprovar' })).getByRole('button', { name: /Bruno Sintético/ }))
     await waitFor(() => expect(aberturasPedidas(rede)).toEqual([caminhoDaAbertura(BRUNO)]))
@@ -332,7 +332,7 @@ describe('Revisar a correção: abrir o destaque registra uma vez', () => {
 
   it('a leitura do painel que falha mostra o erro no painel, e "Tentar de novo" lê e mostra as respostas sem outro passo no histórico', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     let falha = true
     instalar(rede, () => ok(lote({ abertos: [ANA] })), { [ANA]: () => (falha ? erro(503, 'INDISPONIVEL_TENTE_DE_NOVO') : ok(abertura(ANA, 'Ana Sintética'))) })
     const localizacao = montar(`ver=${ANA}`)
@@ -350,7 +350,7 @@ describe('Revisar a correção: abrir o destaque registra uma vez', () => {
 
   it('fechar o painel troca o endereço sem passo novo; abrir de novo o mesmo destaque não chama a API outra vez', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede)
     const localizacao = montar()
     const lista = await screen.findByRole('region', { name: 'Abra estes 2 antes de aprovar' })
@@ -373,7 +373,7 @@ describe('Revisar a correção: abrir o destaque registra uma vez', () => {
 
 describe('Revisar a correção: a aba pelo endereço', () => {
   it('`?aba=resumo` abre o Resumo, e a barra continua', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede)
     montar('aba=resumo')
     expect(await screen.findByRole('region', { name: 'Distribuição dos acertos' })).toBeTruthy()
@@ -386,7 +386,7 @@ describe('Revisar a correção: a aba pelo endereço', () => {
   })
 
   it('um valor que não é aba cai em Destaques', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede)
     montar('aba=todas')
     expect(await screen.findByRole('region', { name: 'Abra estes 2 antes de aprovar' })).toBeTruthy()
@@ -395,7 +395,7 @@ describe('Revisar a correção: a aba pelo endereço', () => {
 
   it('trocar de aba usa `replace`: o histórico não ganha passo, e o `?ver=` que estivesse no endereço fica', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede)
     const localizacao = montar(`ver=${id(99)}`)
     await screen.findByRole('region', { name: 'Abra estes 2 antes de aprovar' })
@@ -406,7 +406,7 @@ describe('Revisar a correção: a aba pelo endereço', () => {
   })
 
   it('as outras correções saem em ordem de nome, e não na ordem da API nem na de acerto', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede)
     montar('aba=outras')
     const tabela = await screen.findByRole('table', { name: 'As outras correções' })

@@ -1,10 +1,10 @@
 import { NOME_DA_CONTESTACAO, type EstadoDeVinculo, type ProfessorDaEscola, type VinculoDaCoordenacao } from '@educa/shared'
 import { useQuery } from '@tanstack/react-query'
 import { useId, type ReactNode, type RefObject } from 'react'
-import { consultaAnosLetivos, consultaDisciplinas, consultaTurmas, consultaVinculos } from '../../../api/estrutura'
+import { anosLetivosQueryOptions, disciplinasQueryOptions, turmasQueryOptions, vinculosQueryOptions } from '../../../api/estrutura'
 import { Button } from '../../../components/ui/Button'
-import { Anuncio } from '../../../components/dialogs'
-import { EstadoCarregando, EstadoErro, EstadoVazio } from '../../../components/states/index'
+import { StatusAnnouncement } from '../../../components/dialogs'
+import { LoadingState, ErrorState, EmptyState } from '../../../components/states/index'
 import { Sheet } from '../../../components/ui/overlays/Sheet'
 import { StatusBadge } from '../../../components/ui/StatusBadge'
 import { acoesDoConviteDeProfessor, FAMILIA_DO_ESTADO_DO_PROFESSOR, TEXTO_DO_ESTADO_DO_PROFESSOR } from './convite-de-professor'
@@ -87,12 +87,12 @@ export function PainelDoProfessor({ professor, aoFechar, aoRefazer, aoRevogar, a
   const idDasTurmas = useId()
   const alocavel = professorAlocavel(professor.estado)
 
-  const anos = useQuery(consultaAnosLetivos)
+  const anos = useQuery(anosLetivosQueryOptions)
   const anoEmCurso = anos.data?.itens.some((ano) => ano.situacao === 'em_curso') === true
   // Vínculos, turmas e disciplinas são do ano em curso: sem ele a API responde como inexistente, e a tela nem pergunta.
-  const vinculos = useQuery({ ...consultaVinculos, enabled: anoEmCurso })
-  const turmas = useQuery({ ...consultaTurmas, enabled: anoEmCurso && alocavel })
-  const disciplinas = useQuery({ ...consultaDisciplinas, enabled: anoEmCurso && alocavel })
+  const vinculos = useQuery({ ...vinculosQueryOptions, enabled: anoEmCurso })
+  const turmas = useQuery({ ...turmasQueryOptions, enabled: anoEmCurso && alocavel })
+  const disciplinas = useQuery({ ...disciplinasQueryOptions, enabled: anoEmCurso && alocavel })
   const consultas = [anos, ...(anoEmCurso ? [vinculos, ...(alocavel ? [turmas, disciplinas] : [])] : [])]
   const falhou = consultas.find((consulta) => consulta.isError)
 
@@ -106,7 +106,7 @@ export function PainelDoProfessor({ professor, aoFechar, aoRefazer, aoRevogar, a
   function turmasDoProfessor(): ReactNode {
     if (falhou !== undefined)
       return (
-        <EstadoErro
+        <ErrorState
           erro={falhou.error}
           tentando={consultas.some((consulta) => consulta.isFetching)}
           aoTentarDeNovo={() => {
@@ -114,9 +114,9 @@ export function PainelDoProfessor({ professor, aoFechar, aoRefazer, aoRevogar, a
           }}
         />
       )
-    if (anos.data === undefined) return <EstadoCarregando rotulo="Carregando as turmas…" />
+    if (anos.data === undefined) return <LoadingState rotulo="Carregando as turmas…" />
     if (!anoEmCurso) return <p className="text-apoio">As turmas são do ano letivo em curso. Abra o ano letivo na tela Turmas.</p>
-    if (vinculos.data === undefined || (alocavel && (turmas.data === undefined || disciplinas.data === undefined))) return <EstadoCarregando rotulo="Carregando as turmas…" />
+    if (vinculos.data === undefined || (alocavel && (turmas.data === undefined || disciplinas.data === undefined))) return <LoadingState rotulo="Carregando as turmas…" />
     const dele = vinculosDoProfessor(vinculos.data.itens, professor.usuarioId)
     const motivoDeNaoAcrescentar = porQueNaoRecebeTurma(professor.estado)
     return (
@@ -133,7 +133,7 @@ export function PainelDoProfessor({ professor, aoFechar, aoRefazer, aoRevogar, a
         <AvisoDeListaIncompleta completa={vinculos.data.completa} />
         {alocavel && dele.some((vinculo) => vinculo.estado === 'contestado') && <p className="text-sm text-apoio">Para corrigir uma turma contestada, acrescente a turma certa.</p>}
         {motivoDeNaoAcrescentar !== undefined && <p className="text-apoio">{motivoDeNaoAcrescentar}</p>}
-        {faltam !== undefined && faltam.length > 0 && <EstadoVazio titulo={tituloDoQueFalta(faltam)} descricao={descricaoDoQueFalta(faltam)} />}
+        {faltam !== undefined && faltam.length > 0 && <EmptyState titulo={tituloDoQueFalta(faltam)} descricao={descricaoDoQueFalta(faltam)} />}
       </>
     )
   }
@@ -181,7 +181,7 @@ export function PainelDoProfessor({ professor, aoFechar, aoRefazer, aoRevogar, a
           </h3>
           {turmasDoProfessor()}
         </section>
-        <Anuncio texto={anuncio} />
+        <StatusAnnouncement texto={anuncio} />
       </div>
     </Sheet>
   )

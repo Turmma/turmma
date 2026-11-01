@@ -8,8 +8,8 @@ import {
   type ListaDeEntregasResponse,
 } from '@educa/shared'
 import { infiniteQueryOptions, queryOptions, type InfiniteData, type QueryClient } from '@tanstack/react-query'
-import { CHAVE_DAS_ENTREGAS, CHAVE_DOS_ARTEFATOS } from '../../../../api/chaves-do-professor'
-import { buscarComSessao, chamarComSessao } from '../../../../api/sessao'
+import { ENTREGAS_QUERY_KEY, ARTEFATOS_QUERY_KEY } from '../../../../api/chaves-do-professor'
+import { authedGet, authedRequest } from '../../../../api/sessao'
 
 const CAMINHO_DAS_ENTREGAS = '/v1/entregas'
 
@@ -17,16 +17,16 @@ const CAMINHO_DAS_ENTREGAS = '/v1/entregas'
  * O que a IA produziu e espera a professora (`GET /v1/entregas?estado=pendente`), nas turmas em que ela tem vínculo
  * confirmado. Uma página, a maior que a API entrega: é o que "Esperando você" mostra na Home e no sino da casca. Havendo mais (`proxima`), a Home diz que há mais e manda ao sino.
  */
-export const consultaEntregasPendentes = queryOptions({
-  queryKey: [...CHAVE_DAS_ENTREGAS, 'pendentes'],
-  queryFn: ({ signal }) => buscarComSessao(`${CAMINHO_DAS_ENTREGAS}?estado=pendente&limite=${String(TAMANHO_MAXIMO_DA_PAGINA)}`, listaDeEntregasResponseSchema, signal),
+export const entregasPendentesQueryOptions = queryOptions({
+  queryKey: [...ENTREGAS_QUERY_KEY, 'pendentes'],
+  queryFn: ({ signal }) => authedGet(`${CAMINHO_DAS_ENTREGAS}?estado=pendente&limite=${String(TAMANHO_MAXIMO_DA_PAGINA)}`, listaDeEntregasResponseSchema, signal),
 })
 
 /** Todas as entregas da professora, de qualquer estado, paginadas: é o que o Assistente fez, na conversa de "O que o Assistente fez". */
-export const consultaEntregas = infiniteQueryOptions({
-  queryKey: [...CHAVE_DAS_ENTREGAS, 'todas'],
+export const entregasQueryOptions = infiniteQueryOptions({
+  queryKey: [...ENTREGAS_QUERY_KEY, 'todas'],
   queryFn: ({ pageParam, signal }) =>
-    buscarComSessao(pageParam === undefined ? CAMINHO_DAS_ENTREGAS : `${CAMINHO_DAS_ENTREGAS}?pagina=${encodeURIComponent(pageParam)}`, listaDeEntregasResponseSchema, signal),
+    authedGet(pageParam === undefined ? CAMINHO_DAS_ENTREGAS : `${CAMINHO_DAS_ENTREGAS}?pagina=${encodeURIComponent(pageParam)}`, listaDeEntregasResponseSchema, signal),
   initialPageParam: undefined as string | undefined,
   getNextPageParam: (ultima) => ultima.proxima,
 })
@@ -35,10 +35,10 @@ export const consultaEntregas = infiniteQueryOptions({
  * As entregas de uma turma, para a tela do artefato dizer quem aprovou a versão adaptada e quando: o artefato traz só o
  * estado e a data da entrega dele (`entregaDoArtefatoSchema`), sem o autor nem a justificativa.
  */
-export function consultaEntregasDaTurma(turmaId: string) {
+export function entregasDaTurmaQueryOptions(turmaId: string) {
   return queryOptions({
-    queryKey: [...CHAVE_DAS_ENTREGAS, 'turma', turmaId],
-    queryFn: ({ signal }) => buscarComSessao(`${CAMINHO_DAS_ENTREGAS}?turmaId=${encodeURIComponent(turmaId)}&limite=${String(TAMANHO_MAXIMO_DA_PAGINA)}`, listaDeEntregasResponseSchema, signal),
+    queryKey: [...ENTREGAS_QUERY_KEY, 'turma', turmaId],
+    queryFn: ({ signal }) => authedGet(`${CAMINHO_DAS_ENTREGAS}?turmaId=${encodeURIComponent(turmaId)}&limite=${String(TAMANHO_MAXIMO_DA_PAGINA)}`, listaDeEntregasResponseSchema, signal),
   })
 }
 
@@ -48,7 +48,7 @@ export function consultaEntregasDaTurma(turmaId: string) {
  * `ENTREGA_JA_DECIDIDA`.
  */
 export function decidirEntrega(id: string, pedido: DecidirEntregaRequest): Promise<EntregaResponse> {
-  return chamarComSessao(`${CAMINHO_DAS_ENTREGAS}/${encodeURIComponent(id)}/decidir`, entregaResponseSchema, { metodo: 'POST', corpo: pedido })
+  return authedRequest(`${CAMINHO_DAS_ENTREGAS}/${encodeURIComponent(id)}/decidir`, entregaResponseSchema, { metodo: 'POST', corpo: pedido })
 }
 
 /**
@@ -57,9 +57,9 @@ export function decidirEntrega(id: string, pedido: DecidirEntregaRequest): Promi
  * o estado da versão adaptada.
  */
 export async function aplicarEntregaDecidida(cliente: QueryClient, decidida: Entrega): Promise<void> {
-  await cliente.cancelQueries({ queryKey: CHAVE_DAS_ENTREGAS })
-  cliente.setQueryData<ListaDeEntregasResponse>(consultaEntregasPendentes.queryKey, (lista) => (lista === undefined ? undefined : { ...lista, itens: lista.itens.filter((entrega) => entrega.id !== decidida.id) }))
-  cliente.setQueryData<InfiniteData<ListaDeEntregasResponse, string | undefined>>(consultaEntregas.queryKey, (lido) =>
+  await cliente.cancelQueries({ queryKey: ENTREGAS_QUERY_KEY })
+  cliente.setQueryData<ListaDeEntregasResponse>(entregasPendentesQueryOptions.queryKey, (lista) => (lista === undefined ? undefined : { ...lista, itens: lista.itens.filter((entrega) => entrega.id !== decidida.id) }))
+  cliente.setQueryData<InfiniteData<ListaDeEntregasResponse, string | undefined>>(entregasQueryOptions.queryKey, (lido) =>
     lido === undefined ? undefined : { ...lido, pages: lido.pages.map((pagina) => ({ ...pagina, itens: pagina.itens.map((entrega) => (entrega.id === decidida.id ? decidida : entrega)) })) },
   )
   void recarregarEntregas(cliente)
@@ -67,7 +67,7 @@ export async function aplicarEntregaDecidida(cliente: QueryClient, decidida: Ent
 
 /** Marca como velho o que depende de uma decisão: a entrega já decidida por outro caminho também cai aqui. */
 export async function recarregarEntregas(cliente: QueryClient): Promise<void> {
-  void cliente.invalidateQueries({ queryKey: CHAVE_DOS_ARTEFATOS })
+  void cliente.invalidateQueries({ queryKey: ARTEFATOS_QUERY_KEY })
   // Quem chama espera a releitura das entregas que estão na tela: só depois a tela mostra como a entrega ficou.
-  await cliente.invalidateQueries({ queryKey: CHAVE_DAS_ENTREGAS })
+  await cliente.invalidateQueries({ queryKey: ENTREGAS_QUERY_KEY })
 }

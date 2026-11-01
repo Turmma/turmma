@@ -10,7 +10,7 @@ import {
   TEXTO_SEM_HABILIDADE,
   textoDosAcertos,
   textoPorHabilidade,
-  type LinhaDeAluno,
+  type AlunoRow,
 } from './alunos-da-turma'
 
 /**
@@ -30,7 +30,7 @@ const desempenhoDe = (n: number, nome: string, acertos: number, total: number, p
 })
 const turma = (alunos: DesempenhoDaTurmaResponse['alunos']): DesempenhoDaTurmaResponse => ({ turmaId: id(100), lotesAprovados: 1, porHabilidade: [], alunos })
 
-const nomes = (linhas: readonly LinhaDeAluno[]) => linhas.map((linha) => linha.nome)
+const nomes = (linhas: readonly AlunoRow[]) => linhas.map((linha) => linha.nome)
 
 describe('a ordem de nome', () => {
   it('a lista chega em ordem de id e sai em ordem de nome, no português do Brasil: "Álvaro" vem com o A, não depois do Z', () => {

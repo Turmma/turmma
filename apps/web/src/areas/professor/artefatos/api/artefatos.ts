@@ -8,9 +8,9 @@ import {
   type ExecucaoAceitaResponse,
 } from '@educa/shared'
 import { infiniteQueryOptions, queryOptions } from '@tanstack/react-query'
-import { CHAVE_DOS_ARTEFATOS } from '../../../../api/chaves-do-professor'
-import { ErroDaApi } from '../../../../api/client'
-import { buscarComSessao, chamarComSessao, renovarSessao, tokenDeAcesso } from '../../../../api/sessao'
+import { ARTEFATOS_QUERY_KEY } from '../../../../api/chaves-do-professor'
+import { ApiError } from '../../../../api/client'
+import { authedGet, authedRequest, renovarSessao, tokenDeAcesso } from '../../../../api/sessao'
 
 const CAMINHO_DOS_ARTEFATOS = '/v1/artefatos'
 
@@ -21,17 +21,17 @@ const CAMINHO_DOS_ARTEFATOS = '/v1/artefatos'
  * Com `turmaId` a leitura é só daquela turma (telas do professor, 5.0): o filtro **vai ao servidor**, que o aplica sobre o
  * que o token alcança, e a turma de outra escola ou de outra professora responde uma página vazia, como o id que não existe
  * (regra 10, itens 4 e 6). A chave de cada turma começa pela de todas, e as duas começam por `artefatos`: quem invalida
- * `CHAVE_DOS_ARTEFATOS` (gerar, adaptar, decidir) alcança as duas.
+ * `ARTEFATOS_QUERY_KEY` (gerar, adaptar, decidir) alcança as duas.
  */
-export function consultaArtefatos(turmaId?: string) {
+export function artefatosQueryOptions(turmaId?: string) {
   return infiniteQueryOptions({
-    queryKey: turmaId === undefined ? [...CHAVE_DOS_ARTEFATOS, 'lista'] : [...CHAVE_DOS_ARTEFATOS, 'lista', turmaId],
+    queryKey: turmaId === undefined ? [...ARTEFATOS_QUERY_KEY, 'lista'] : [...ARTEFATOS_QUERY_KEY, 'lista', turmaId],
     queryFn: ({ pageParam, signal }) => {
       const consulta = new URLSearchParams()
       if (turmaId !== undefined) consulta.set('turmaId', turmaId)
       if (pageParam !== undefined) consulta.set('pagina', pageParam)
       const texto = consulta.toString()
-      return buscarComSessao(texto === '' ? CAMINHO_DOS_ARTEFATOS : `${CAMINHO_DOS_ARTEFATOS}?${texto}`, listaDeArtefatosResponseSchema, signal)
+      return authedGet(texto === '' ? CAMINHO_DOS_ARTEFATOS : `${CAMINHO_DOS_ARTEFATOS}?${texto}`, listaDeArtefatosResponseSchema, signal)
     },
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (ultima) => ultima.proxima,
@@ -39,16 +39,16 @@ export function consultaArtefatos(turmaId?: string) {
 }
 
 /** Um artefato inteiro (`GET /v1/artefatos/:id`): o conteúdo, as versões adaptadas que saíram dele e as aplicações. */
-export function consultaArtefato(id: string) {
+export function artefatoQueryOptions(id: string) {
   return queryOptions({
-    queryKey: [...CHAVE_DOS_ARTEFATOS, 'um', id],
-    queryFn: ({ signal }) => buscarComSessao(`${CAMINHO_DOS_ARTEFATOS}/${encodeURIComponent(id)}`, artefatoResponseSchema, signal),
+    queryKey: [...ARTEFATOS_QUERY_KEY, 'um', id],
+    queryFn: ({ signal }) => authedGet(`${CAMINHO_DOS_ARTEFATOS}/${encodeURIComponent(id)}`, artefatoResponseSchema, signal),
   })
 }
 
 /** `PATCH /v1/artefatos/:id`: só o título. O conteúdo gerado não se edita por aqui. */
 export function renomearArtefato(id: string, titulo: string): Promise<ArtefatoResponse> {
-  return chamarComSessao(`${CAMINHO_DOS_ARTEFATOS}/${encodeURIComponent(id)}`, artefatoResponseSchema, { metodo: 'PATCH', corpo: { titulo } })
+  return authedRequest(`${CAMINHO_DOS_ARTEFATOS}/${encodeURIComponent(id)}`, artefatoResponseSchema, { metodo: 'PATCH', corpo: { titulo } })
 }
 
 /**
@@ -57,7 +57,7 @@ export function renomearArtefato(id: string, titulo: string): Promise<ArtefatoRe
  * nasce com uma entrega pendente.
  */
 export function adaptarArtefato(id: string, pedido: AdaptarArtefatoRequest): Promise<ExecucaoAceitaResponse> {
-  return chamarComSessao(`${CAMINHO_DOS_ARTEFATOS}/${encodeURIComponent(id)}/adaptar`, execucaoAceitaResponseSchema, { metodo: 'POST', corpo: pedido })
+  return authedRequest(`${CAMINHO_DOS_ARTEFATOS}/${encodeURIComponent(id)}/adaptar`, execucaoAceitaResponseSchema, { metodo: 'POST', corpo: pedido })
 }
 
 /** O nome do arquivo quando o cabeçalho não diz: o título, sem o que um nome de arquivo não aceita. */
@@ -92,20 +92,20 @@ function ehCodigoDeErro(valor: unknown): valor is ErrorCode {
 }
 
 /** O erro de uma resposta que não trouxe o PDF: o código do envelope da API, ou o que o status permite dizer. */
-async function erroDoPdf(resposta: Response): Promise<ErroDaApi> {
+async function erroDoPdf(resposta: Response): Promise<ApiError> {
   try {
     const corpo: unknown = await resposta.json()
     if (typeof corpo === 'object' && corpo !== null && 'erro' in corpo) {
       const { erro } = corpo
-      if (typeof erro === 'object' && erro !== null && 'codigo' in erro && ehCodigoDeErro(erro.codigo)) return new ErroDaApi(erro.codigo)
+      if (typeof erro === 'object' && erro !== null && 'codigo' in erro && ehCodigoDeErro(erro.codigo)) return new ApiError(erro.codigo)
     }
   } catch {
     // Sem envelope: o status decide.
   }
-  if (resposta.status === 404) return new ErroDaApi(ErrorCode.NAO_ENCONTRADO)
-  if (resposta.status === 429) return new ErroDaApi(ErrorCode.LIMITE_EXCEDIDO)
-  if (resposta.status >= 502 && resposta.status <= 504) return new ErroDaApi(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO)
-  return new ErroDaApi(ErrorCode.ERRO_INTERNO)
+  if (resposta.status === 404) return new ApiError(ErrorCode.NAO_ENCONTRADO)
+  if (resposta.status === 429) return new ApiError(ErrorCode.LIMITE_EXCEDIDO)
+  if (resposta.status >= 502 && resposta.status <= 504) return new ApiError(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO)
+  return new ApiError(ErrorCode.ERRO_INTERNO)
 }
 
 async function pedirPdf(caminho: string): Promise<Response> {
@@ -114,7 +114,7 @@ async function pedirPdf(caminho: string): Promise<Response> {
     // `no-store`: o PDF tem o gabarito, e o cache HTTP do navegador fica em disco no computador da escola.
     return await fetch(caminho, { cache: 'no-store', headers: { Accept: 'application/pdf', ...(token === undefined ? {} : { Authorization: `Bearer ${token}` }) } })
   } catch {
-    throw new ErroDaApi(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO)
+    throw new ApiError(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO)
   }
 }
 
@@ -124,9 +124,9 @@ export interface PdfDoArtefato {
 }
 
 /**
- * `GET /v1/artefatos/:id/pdf`: o artefato em PDF. É binário, e por isso não passa por `chamarComSessao`, que valida
+ * `GET /v1/artefatos/:id/pdf`: o artefato em PDF. É binário, e por isso não passa por `authedRequest`, que valida
  * JSON; a sessão é a mesma: o token vai no cabeçalho (nunca na URL, regra 50, item 7) e, recusado, é renovado uma vez.
- * Toda falha sai como `ErroDaApi`, com código do catálogo.
+ * Toda falha sai como `ApiError`, com código do catálogo.
  */
 export async function baixarPdfDoArtefato(id: string, titulo: string): Promise<PdfDoArtefato> {
   const caminho = `${CAMINHO_DOS_ARTEFATOS}/${encodeURIComponent(id)}/pdf`

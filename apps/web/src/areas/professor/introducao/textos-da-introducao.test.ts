@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { NOMES_DOS_AGENTES } from '@educa/shared'
 import { describe, expect, it } from 'vitest'
-import { NAVEGACAO } from '../../navigation'
+import { NAVIGATION } from '../../navigation'
 import {
   AGENTE_DA_INTRODUCAO,
   DESCRICAO_DO_LUGAR,
@@ -107,7 +107,7 @@ describe('onde fica cada coisa', () => {
   })
 
   it('todo lugar da navegação do professor tem a frase dele, e nenhuma frase é de lugar que a navegação não tem', () => {
-    const rotulos = NAVEGACAO.professor.map((lugar) => lugar.rotulo)
+    const rotulos = NAVIGATION.professor.map((lugar) => lugar.rotulo)
     for (const rotulo of rotulos) expect(DESCRICAO_DO_LUGAR[rotulo], rotulo).toBeTruthy()
     expect(Object.keys(DESCRICAO_DO_LUGAR).sort()).toEqual([...rotulos].sort())
   })

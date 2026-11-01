@@ -1,15 +1,15 @@
 import type { MinhaAtividade } from '@educa/shared'
 import { useInfiniteQuery } from '@tanstack/react-query'
 import { Check } from 'lucide-react'
-import { consultaMinhasAtividades } from '../../api/atividades-do-aluno'
+import { minhasAtividadesInfiniteQueryOptions } from '../../api/atividades-do-aluno'
 import { caminhoDaAtividadeDoAluno } from '../../paths'
 import { Button } from '../../components/ui/Button'
 import { IconTile } from '../../components/ui/IconTile'
 import { ListItem } from '../../components/ui/ListItem'
-import { EstadoCarregando, EstadoErro, EstadoVazio } from '../../components/states'
+import { LoadingState, ErrorState, EmptyState } from '../../components/states'
 import { StatusBadge } from '../../components/ui/StatusBadge'
 import { SectionHeader, Page } from '../../components/ui/Page'
-import { useTituloDaTela } from '../../document-title'
+import { usePageTitle } from '../../document-title'
 import { AVISO_DA_AVALIACAO, detalheDaSituacao, estaParaResponder, resumoDaAtividade, separarAtividades, TEXTO_DA_SITUACAO, VAZIO_DE_CADA_GRUPO } from './atividades'
 import { caraDaMateria } from './materia'
 
@@ -79,19 +79,19 @@ function GrupoDeTarefas({ id, titulo, vazio, atividades }: PropsDoGrupo) {
  * É aba de navegação: o `<h1>`, visível, é o título da tela, na `Page` (RF12 da X1).
  */
 export default function Atividades() {
-  useTituloDaTela('Tarefas')
-  const atividades = useInfiniteQuery(consultaMinhasAtividades)
+  usePageTitle('Tarefas')
+  const atividades = useInfiniteQuery(minhasAtividadesInfiniteQueryOptions)
   const itens = atividades.data?.pages.flatMap((pagina) => pagina.itens) ?? []
   const { paraFazer, entregues, corrigidas } = separarAtividades(itens)
 
   return (
     <Page titulo="Tarefas" largura="conversa">
-      {atividades.isPending && <EstadoCarregando rotulo="Carregando as suas atividades…" />}
+      {atividades.isPending && <LoadingState rotulo="Carregando as suas atividades…" />}
       {atividades.isError && atividades.data === undefined && (
-        <EstadoErro erro={atividades.error} tentando={atividades.isFetching} aoTentarDeNovo={() => void atividades.refetch({ cancelRefetch: false })} />
+        <ErrorState erro={atividades.error} tentando={atividades.isFetching} aoTentarDeNovo={() => void atividades.refetch({ cancelRefetch: false })} />
       )}
       {atividades.data !== undefined && itens.length === 0 && (
-        <EstadoVazio titulo="Nada para fazer agora" descricao="Quando quem dá a aula passar uma atividade para a turma, ela aparece aqui." />
+        <EmptyState titulo="Nada para fazer agora" descricao="Quando quem dá a aula passar uma atividade para a turma, ela aparece aqui." />
       )}
 
       {itens.length > 0 && (

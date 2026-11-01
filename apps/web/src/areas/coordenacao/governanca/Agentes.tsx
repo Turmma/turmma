@@ -1,24 +1,24 @@
 import { MOTIVOS_DE_SUSPENSAO, NOME_DO_MOTIVO_DE_SUSPENSAO, NOMES_DOS_AGENTES, type Agente, type FuncaoDaGovernanca, type MotivoDeSuspensao } from '@educa/shared'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { aplicarFuncao, consultaFuncoesDaGovernanca, retomarFuncao, suspenderFuncao } from './api/governanca'
+import { aplicarFuncao, funcoesDaGovernancaQueryOptions, retomarFuncao, suspenderFuncao } from './api/governanca'
 import { ArrowLeft } from 'lucide-react'
 import { Link, useLocation, useSearch } from 'wouter'
-import { ROTAS_DA_COORDENACAO } from '../../../paths'
+import { COORDENACAO_ROUTES } from '../../../paths'
 import { Button } from '../../../components/ui/Button'
 import { Card } from '../../../components/ui/Card'
 import { ConfirmDialog } from '../../../components/ui/overlays/ConfirmDialog'
-import { Anuncio, useEnvioUnico } from '../../../components/dialogs'
-import { EstadoCarregando, EstadoErro } from '../../../components/states/index'
+import { StatusAnnouncement, useSingleSubmit } from '../../../components/dialogs'
+import { LoadingState, ErrorState } from '../../../components/states/index'
 import { AgentSignature } from '../../../components/ui/ai/AgentSignature'
 import { MEDIA_MD, useMediaQuery } from '../../../components/ui/media-query'
 import { SegmentedControl, type SegmentedOptions } from '../../../components/ui/fields/SegmentedControl'
 import { Select } from '../../../components/ui/fields/Select'
 import { StatusBadge } from '../../../components/ui/StatusBadge'
 import { Page } from '../../../components/ui/Page'
-import { textoDaFalha } from '../../../components/error-text'
-import { formatarDataHora } from '../../../format'
-import { useTituloDaTela } from '../../../document-title'
+import { errorText } from '../../../components/error-text'
+import { formatDateTime } from '../../../format'
+import { usePageTitle } from '../../../document-title'
 import { enderecoComParametro } from '../comum/endereco-da-tela'
 import { O_MIOLO_DOS_AGENTES } from '../comum/miolo-que-rola'
 import { O_QUE_A_IA_NUNCA_FAZ } from './nunca-faz'
@@ -50,14 +50,14 @@ interface FuncaoDoAgente {
  * A partir de 768 px só o miolo rola, abaixo do título e do seletor (RF23).
  */
 export default function Agentes() {
-  useTituloDaTela('Como cada IA trabalha')
+  usePageTitle('Como cada IA trabalha')
   // O miolo que rola recebe foco, para rolar pelo teclado, a partir de 768 px: abaixo disso rola a página, e não há o que focar.
   const comMiolo = useMediaQuery(MEDIA_MD)
   const cliente = useQueryClient()
   const [caminho, navegar] = useLocation()
   const busca = useSearch()
   const ia = agenteDoEndereco(busca)
-  const funcoes = useQuery(consultaFuncoesDaGovernanca)
+  const funcoes = useQuery(funcoesDaGovernancaQueryOptions)
   const [suspendendo, definirSuspendendo] = useState<FuncaoDoAgente | undefined>(undefined)
   const [anuncio, definirAnuncio] = useState('')
   // Para onde o foco vai se o botão que abriu a confirmação não estiver mais na tela quando ela fecha.
@@ -76,7 +76,7 @@ export default function Agentes() {
   useEffect(() => {
     iaNaTela.current = ia
   }, [ia])
-  const retomada = useEnvioUnico({
+  const retomada = useSingleSubmit({
     mutationFn: ({ funcao }: { funcao: FuncaoDaGovernanca; agente: Agente }) => retomarFuncao(funcao.chave),
     onSuccess: (nova, { agente }) => {
       aplicarFuncao(cliente, nova)
@@ -86,7 +86,7 @@ export default function Agentes() {
       focarFuncao.current = nova.chave
     },
     // A que já tinha sido retomada em outra aba responde como inexistente: a lista é lida de novo e mostra como está.
-    onError: () => void cliente.invalidateQueries({ queryKey: consultaFuncoesDaGovernanca.queryKey }),
+    onError: () => void cliente.invalidateQueries({ queryKey: funcoesDaGovernancaQueryOptions.queryKey }),
   })
 
   // O anúncio e o aviso da retomada são de uma função da IA que estava na tela: ao trocar de IA saem, para não ficarem acima do cartão de outra.
@@ -99,7 +99,7 @@ export default function Agentes() {
 
   // "‹ Registros" (X2, 3.0): a página fica dentro de Registros, que continua aceso na lateral.
   const voltar = (
-    <Link to={ROTAS_DA_COORDENACAO.governanca} aria-label="Voltar para Registros" className="inline-flex min-h-11 items-center gap-2 self-start text-caramelo-texto underline">
+    <Link to={COORDENACAO_ROUTES.governanca} aria-label="Voltar para Registros" className="inline-flex min-h-11 items-center gap-2 self-start text-caramelo-texto underline">
       <ArrowLeft aria-hidden="true" size={18} />
       Registros
     </Link>
@@ -108,9 +108,9 @@ export default function Agentes() {
   // O seletor e o miolo são os mesmos nos três estados: escolher a IA vale também enquanto a lista lê ou falha.
   let conteudo: ReactNode
   if (funcoes.isPending) {
-    conteudo = <EstadoCarregando rotulo="Carregando os agentes…" />
+    conteudo = <LoadingState rotulo="Carregando os agentes…" />
   } else if (funcoes.isError) {
-    conteudo = <EstadoErro erro={funcoes.error} tentando={funcoes.isFetching} aoTentarDeNovo={() => void funcoes.refetch({ cancelRefetch: false })} />
+    conteudo = <ErrorState erro={funcoes.error} tentando={funcoes.isFetching} aoTentarDeNovo={() => void funcoes.refetch({ cancelRefetch: false })} />
   } else {
     conteudo = (
       <>
@@ -118,11 +118,11 @@ export default function Agentes() {
           São três agentes, um para cada pessoa da escola. Cada função diz aqui o que faz sozinha e o que espera uma pessoa. A escola pode suspender uma função sem desligar as outras.
         </p>
         <div ref={avisos} tabIndex={-1}>
-          <Anuncio texto={anuncio} />
+          <StatusAnnouncement texto={anuncio} />
         </div>
         {retomada.mutacao.isError && (
           <p role="alert" className="rounded-controle border border-erro bg-erro-cx p-3 break-words text-erro">
-            {textoDaFalha(retomada.mutacao.error, { NAO_ENCONTRADO: 'Esta função já não estava suspensa. A lista foi atualizada.' })}
+            {errorText(retomada.mutacao.error, { NAO_ENCONTRADO: 'Esta função já não estava suspensa. A lista foi atualizada.' })}
           </p>
         )}
         {funcoes.data.agentes
@@ -208,7 +208,7 @@ function CartaoDoAgente({ agente, nome, funcoes, retomando, aoSuspender, aoRetom
               <StatusBadge familia="info">{NOME_DA_AUTONOMIA[funcao.autonomia]}</StatusBadge>
               {funcao.altoRisco && <StatusBadge familia="info">Alto risco: tem avaliação de impacto</StatusBadge>}
               {funcao.suspensao !== null ? (
-                <StatusBadge familia="pendente">{`Suspensa nesta escola desde ${formatarDataHora(funcao.suspensao.suspensaEm)}`}</StatusBadge>
+                <StatusBadge familia="pendente">{`Suspensa nesta escola desde ${formatDateTime(funcao.suspensao.suspensaEm)}`}</StatusBadge>
               ) : (
                 <StatusBadge familia="ok">Funcionando</StatusBadge>
               )}
@@ -252,7 +252,7 @@ interface PropsDoSuspender {
 /** A confirmação de suspender: diz o que acontece com os pedidos novos e com o que já foi feito, antes de confirmar. */
 function SuspenderFuncao({ alvo, aoFechar, aoSuspender, focoDeReserva }: PropsDoSuspender) {
   const [motivo, definirMotivo] = useState('')
-  const { enviar, mutacao } = useEnvioUnico({
+  const { enviar, mutacao } = useSingleSubmit({
     mutationFn: () => suspenderFuncao(alvo.funcao.chave, ehMotivo(motivo) ? motivo : undefined),
     onSuccess: aoSuspender,
   })
@@ -271,7 +271,7 @@ function SuspenderFuncao({ alvo, aoFechar, aoSuspender, focoDeReserva }: PropsDo
       aoConfirmar={() => enviar(undefined)}
       aoFechar={aoFechar}
       confirmando={mutacao.isPending}
-      {...(mutacao.isError ? { falha: textoDaFalha(mutacao.error) } : {})}
+      {...(mutacao.isError ? { falha: errorText(mutacao.error) } : {})}
       focoDeReserva={focoDeReserva}
     >
       <Select rotulo="Motivo" opcoes={OPCOES_DE_MOTIVO} valor={motivo} aoMudar={definirMotivo} marcador="Sem motivo registrado" dica="Opcional. Fica na auditoria, junto da suspensão." />

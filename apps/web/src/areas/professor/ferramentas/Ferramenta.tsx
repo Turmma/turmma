@@ -1,10 +1,10 @@
 import { ArrowLeft } from 'lucide-react'
 import { useId, useLayoutEffect } from 'react'
 import { Link, useSearch } from 'wouter'
-import { PARAMETRO_DA_ORIGEM, ROTAS_DO_PROFESSOR } from '../../../paths'
-import { ConteudoNaoEncontrado } from '../../../components/NotFound'
+import { ORIGEM_PARAM, PROFESSOR_ROUTES } from '../../../paths'
+import { NotFoundContent } from '../../../components/NotFound'
 import { SectionHeader, Page } from '../../../components/ui/Page'
-import { useTituloDaTela } from '../../../document-title'
+import { usePageTitle } from '../../../document-title'
 import { CartaoDeFerramenta } from './CartaoDeFerramenta'
 import { COMO_VAI_SAIR, ehFerramenta, ferramentaDoCatalogo } from './ferramentas'
 import { esquecerGeracaoTerminada } from '../assistente/memoria-do-professor'
@@ -16,12 +16,12 @@ const FORMA_DE_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{1
 function Formulario({ ferramenta }: { ferramenta: Parameters<typeof ferramentaDoCatalogo>[0] }) {
   const item = ferramentaDoCatalogo(ferramenta)
   const idDoComoVaiSair = useId()
-  useTituloDaTela(item.nome)
+  usePageTitle(item.nome)
   // O formulário aberto de novo começa em branco: a geração que já terminou fica em Criados, e a que ainda
   // está no ar continua aqui. Antes da primeira pintura, para o resultado antigo não piscar na tela.
   useLayoutEffect(() => esquecerGeracaoTerminada(ferramenta), [ferramenta])
   // "Pedir versão adaptada", no artefato, traz a atividade de origem no endereço: só o id dela, e nada sobre aluno.
-  const origem = new URLSearchParams(useSearch()).get(PARAMETRO_DA_ORIGEM)
+  const origem = new URLSearchParams(useSearch()).get(ORIGEM_PARAM)
   const miolo = useTopoDoMiolo<HTMLDivElement>()
   const iniciais = ferramenta === 'adaptacao' && origem !== null && FORMA_DE_ID.test(origem) ? { origem } : undefined
   return (
@@ -32,7 +32,7 @@ function Formulario({ ferramenta }: { ferramenta: Parameters<typeof ferramentaDo
       descricao={item.descricao}
       antes={
         // Relativo à área: o `Route` aninhado em `/professor` resolve o `to` a partir da base dela.
-        <Link to={ROTAS_DO_PROFESSOR.ferramentas} className="inline-flex min-h-11 items-center gap-2 self-start text-caramelo-texto underline">
+        <Link to={PROFESSOR_ROUTES.ferramentas} className="inline-flex min-h-11 items-center gap-2 self-start text-caramelo-texto underline">
           <ArrowLeft aria-hidden="true" size={18} />
           Voltar para Ferramentas
         </Link>
@@ -68,6 +68,6 @@ function Formulario({ ferramenta }: { ferramenta: Parameters<typeof ferramentaDo
  * fora do MVP, ou qualquer outra coisa) responde como página não encontrada.
  */
 export default function Ferramenta({ ferramenta }: { ferramenta: string }) {
-  if (!ehFerramenta(ferramenta)) return <ConteudoNaoEncontrado />
+  if (!ehFerramenta(ferramenta)) return <NotFoundContent />
   return <Formulario ferramenta={ferramenta} />
 }

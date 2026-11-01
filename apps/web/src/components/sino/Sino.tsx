@@ -5,7 +5,7 @@ import { Alert } from '../ui/Alert'
 import { Button } from '../ui/Button'
 import { SECONDARY_LINK_CLASSES } from '../ui/button-variants'
 import { CountBadge } from '../ui/CountBadge'
-import { EstadoCarregando, EstadoErro } from '../states'
+import { LoadingState, ErrorState } from '../states'
 import { Icon } from '../ui/Icon'
 import { ListItem } from '../ui/ListItem'
 import { Sheet } from '../ui/overlays/Sheet'
@@ -191,8 +191,8 @@ export function Sino({ itens, situacao, erro, aoTentarDeNovo, tentandoDeNovo = f
           }
         >
           <div className="flex min-w-0 flex-col gap-4">
-            {situacao === 'carregando' && <EstadoCarregando rotulo="Carregando o que espera você…" />}
-            {situacao === 'erro' && <EstadoErro erro={erro} aoTentarDeNovo={aoTentarDeNovo} tentando={tentandoDeNovo} />}
+            {situacao === 'carregando' && <LoadingState rotulo="Carregando o que espera você…" />}
+            {situacao === 'erro' && <ErrorState erro={erro} aoTentarDeNovo={aoTentarDeNovo} tentando={tentandoDeNovo} />}
             {situacao === 'parcial' && (
               <Alert
                 tom="atencao"

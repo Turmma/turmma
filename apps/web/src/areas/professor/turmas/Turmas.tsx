@@ -2,16 +2,16 @@ import { NOME_DA_CONTESTACAO, NOME_DO_ESTADO_DE_VINCULO, type ContestacaoDeVincu
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link } from 'wouter'
-import { mensagemDoErro } from '../../../api/client'
-import { confirmarVinculo, consultaMeusVinculos, contestarVinculo } from '../comum/api/vinculos'
+import { errorMessage } from '../../../api/client'
+import { confirmarVinculo, meusVinculosQueryOptions, contestarVinculo } from '../comum/api/vinculos'
 import { caminhoDaTurmaDoProfessor } from '../../../paths'
 import { Alert } from '../../../components/ui/Alert'
 import { Button } from '../../../components/ui/Button'
 import { SECONDARY_LINK_CLASSES } from '../../../components/ui/button-variants'
-import { EstadoCarregando, EstadoErro, EstadoVazio } from '../../../components/states/index'
+import { LoadingState, ErrorState, EmptyState } from '../../../components/states/index'
 import { StatusBadge } from '../../../components/ui/StatusBadge'
 import { Page } from '../../../components/ui/Page'
-import { useTituloDaTela } from '../../../document-title'
+import { usePageTitle } from '../../../document-title'
 import { enderecoDoConvite } from './acesso/acesso-da-turma'
 import { esperaNaTurma, useFilaDoProfessor, type EsperaNaTurma } from '../inicio/fila-do-professor'
 import PainelDaContestacao, { type ContestacaoEmAndamento } from './PainelDaContestacao'
@@ -53,9 +53,9 @@ function SeloDoQueEspera({ espera }: { readonly espera: EsperaNaTurma }) {
  *   porque a página sai.
  */
 export default function Turmas() {
-  useTituloDaTela('Turmas')
+  usePageTitle('Turmas')
   const cliente = useQueryClient()
-  const vinculos = useInfiniteQuery(consultaMeusVinculos)
+  const vinculos = useInfiniteQuery(meusVinculosQueryOptions)
   const fila = useFilaDoProfessor()
   const [contestacao, definirContestacao] = useState<ContestacaoEmAndamento | undefined>(undefined)
   const tituloDasTurmas = useRef<HTMLHeadingElement>(null)
@@ -70,7 +70,7 @@ export default function Turmas() {
     if (pedidoDeFoco > 0) (tituloDasTurmas.current ?? tituloDaTela.current)?.focus()
   }, [pedidoDeFoco])
 
-  const recarregar = () => cliente.invalidateQueries({ queryKey: consultaMeusVinculos.queryKey })
+  const recarregar = () => cliente.invalidateQueries({ queryKey: meusVinculosQueryOptions.queryKey })
 
   const confirmar = useMutation({
     mutationFn: (vinculo: Vinculo) => confirmarVinculo(vinculo.id),
@@ -133,7 +133,7 @@ export default function Turmas() {
         </div>
         {confirmar.isError && confirmar.variables.id === vinculo.id && (
           <p role="alert" className="w-full rounded-controle border border-erro bg-erro-cx p-3 text-erro">
-            {mensagemDoErro(confirmar.error)}
+            {errorMessage(confirmar.error)}
           </p>
         )}
       </li>
@@ -187,10 +187,10 @@ export default function Turmas() {
             </Alert>
           )}
         </div>
-        {vinculos.isPending && <EstadoCarregando rotulo="Carregando as suas turmas…" />}
-        {vinculos.isError && <EstadoErro erro={vinculos.error} tentando={vinculos.isFetching} aoTentarDeNovo={() => void vinculos.refetch({ cancelRefetch: false })} />}
+        {vinculos.isPending && <LoadingState rotulo="Carregando as suas turmas…" />}
+        {vinculos.isError && <ErrorState erro={vinculos.error} tentando={vinculos.isFetching} aoTentarDeNovo={() => void vinculos.refetch({ cancelRefetch: false })} />}
         {!vinculos.isPending && !vinculos.isError && itens.length === 0 && (
-          <EstadoVazio titulo="A coordenação ainda não alocou você" descricao="Quem aloca o professor nas turmas é a coordenação. Quando ela alocar você, a turma aparece aqui para você confirmar; se você já deveria ter turmas neste ano, fale com ela." />
+          <EmptyState titulo="A coordenação ainda não alocou você" descricao="Quem aloca o professor nas turmas é a coordenação. Quando ela alocar você, a turma aparece aqui para você confirmar; se você já deveria ter turmas neste ano, fale com ela." />
         )}
 
         {paraConfirmar.length > 0 && (

@@ -22,7 +22,7 @@ interface Props {
  * de QR precisa do contraste e da polaridade (escuro sobre claro), e por isso o fundo não vira no escuro. A guarda de
  * `estilos.test.ts` conhece esta exceção pelo nome do arquivo.
  */
-export function CodigoQr({ conteudo, descricao }: Props) {
+export function QrCode({ conteudo, descricao }: Props) {
   const { caminho, lado } = useMemo(() => desenho(conteudo), [conteudo])
   const inicio = -MARGEM_EM_MODULOS
   const total = lado + MARGEM_EM_MODULOS * 2

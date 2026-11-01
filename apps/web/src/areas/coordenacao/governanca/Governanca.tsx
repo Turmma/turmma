@@ -1,19 +1,19 @@
 import { nomeDaSerie, type ItemDaGovernanca } from '@educa/shared'
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { Link, useLocation, useSearch } from 'wouter'
-import { mensagemDoErro } from '../../../api/client'
-import { consultaConsumo, consultaResumoDaGovernanca, consultaResumoPorEstado } from './api/governanca'
-import { ROTAS_DA_COORDENACAO } from '../../../paths'
+import { errorMessage } from '../../../api/client'
+import { consumoQueryOptions, resumoDaGovernancaQueryOptions, resumoPorEstadoQueryOptions } from './api/governanca'
+import { COORDENACAO_ROUTES } from '../../../paths'
 import { ProgressBar } from '../../../components/ui/ProgressBar'
 import { Button } from '../../../components/ui/Button'
 import { SECONDARY_LINK_CLASSES } from '../../../components/ui/button-variants'
-import { EstadoCarregando, EstadoErro, EstadoVazio } from '../../../components/states/index'
+import { LoadingState, ErrorState, EmptyState } from '../../../components/states/index'
 import { ApprovalLine } from '../../../components/ui/ai/ApprovalLine'
 import { StatCard } from '../../../components/ui/StatCard'
 import { SegmentedControl } from '../../../components/ui/fields/SegmentedControl'
 import { Table, type TableColumn } from '../../../components/ui/Table'
 import { SectionHeader } from '../../../components/ui/Page'
-import { formatarDataHora } from '../../../format'
+import { formatDateTime } from '../../../format'
 import { enderecoComParametro } from '../comum/endereco-da-tela'
 import {
   aprovacaoDoItem,
@@ -39,7 +39,7 @@ const COLUNAS: readonly [TableColumn<ItemDaGovernanca>, ...TableColumn<ItemDaGov
   { chave: 'oQue', titulo: 'O que foi gerado', celula: (item) => NOME_DO_TIPO_DE_ENTREGA[item.tipo] },
   { chave: 'funcao', titulo: 'Agente e função', celula: (item) => nomeDaFuncao(item.funcao) },
   { chave: 'serie', titulo: 'Série', celula: (item) => <span className="inline-block min-w-28">{nomeDaSerie(item.serie)}</span> },
-  { chave: 'quando', titulo: 'Gerado em', celula: (item) => formatarDataHora(item.criadaEm) },
+  { chave: 'quando', titulo: 'Gerado em', celula: (item) => formatDateTime(item.criadaEm) },
   { chave: 'decisao', titulo: 'Decisão', celula: (item) => <ApprovalLine aprovacao={aprovacaoDoItem(item)} espera={ESPERANDO_O_PROFESSOR} /> },
 ]
 
@@ -61,14 +61,14 @@ export default function Governanca() {
   const busca = useSearch()
   const estado = estadoDoEndereco(busca)
   // A consulta sem filtro está sempre montada: os números e, sem filtro, as linhas. A do estado só existe com um estado no endereço.
-  const todos = useInfiniteQuery(consultaResumoDaGovernanca)
-  const doEstado = useInfiniteQuery({ ...consultaResumoPorEstado(estado ?? 'pendente'), enabled: estado !== undefined })
+  const todos = useInfiniteQuery(resumoDaGovernancaQueryOptions)
+  const doEstado = useInfiniteQuery({ ...resumoPorEstadoQueryOptions(estado ?? 'pendente'), enabled: estado !== undefined })
 
   if (todos.isPending) {
-    return <EstadoCarregando rotulo="Carregando a governança…" />
+    return <LoadingState rotulo="Carregando a governança…" />
   }
   if (todos.isError && todos.data === undefined) {
-    return <EstadoErro erro={todos.error} tentando={todos.isFetching} aoTentarDeNovo={() => void todos.refetch({ cancelRefetch: false })} />
+    return <ErrorState erro={todos.error} tentando={todos.isFetching} aoTentarDeNovo={() => void todos.refetch({ cancelRefetch: false })} />
   }
 
   const lista = estado === undefined ? todos : doEstado
@@ -83,7 +83,7 @@ export default function Governanca() {
       <div className="flex min-w-0 flex-col items-start gap-3">
         <p className="max-w-prose text-apoio">O que a IA produziu nesta escola no ano letivo, e o que as pessoas decidiram sobre isso. {O_QUE_CHEGA_AO_ALUNO}</p>
         {/* A porta para "Como cada IA trabalha" (X2, 3.0): sem ela a página dos agentes ficaria sem caminho depois que o item saiu da lateral. */}
-        <Link to={ROTAS_DA_COORDENACAO.agentes} className={SECONDARY_LINK_CLASSES}>
+        <Link to={COORDENACAO_ROUTES.agentes} className={SECONDARY_LINK_CLASSES}>
           Como cada IA trabalha
         </Link>
       </div>
@@ -101,15 +101,15 @@ export default function Governanca() {
           <div className="max-w-3xl">
             <SegmentedControl rotulo="Estado" rotuloVisivel opcoes={OPCOES_DO_ESTADO} valor={estado ?? 'todos'} aoMudar={filtrar} emDuasColunasNoCelular />
           </div>
-          {lista.isPending && <EstadoCarregando rotulo="Carregando a lista…" />}
-          {lista.isError && lista.data === undefined && <EstadoErro erro={lista.error} tentando={lista.isFetching} aoTentarDeNovo={() => void lista.refetch({ cancelRefetch: false })} />}
+          {lista.isPending && <LoadingState rotulo="Carregando a lista…" />}
+          {lista.isError && lista.data === undefined && <ErrorState erro={lista.error} tentando={lista.isFetching} aoTentarDeNovo={() => void lista.refetch({ cancelRefetch: false })} />}
           {lista.data !== undefined && (
             <>
               {/* A página seguinte que falhou: aviso com botão secundário, para a tela não ganhar um segundo primário ao lado do erro do consumo. */}
               {lista.isError && (
                 <div className="flex min-w-0 flex-wrap items-center gap-3 rounded-controle border border-erro bg-erro-cx p-3">
                   <p role="alert" className="min-w-0 flex-1 basis-56 break-words text-erro">
-                    {mensagemDoErro(lista.error)}
+                    {errorMessage(lista.error)}
                   </p>
                   <Button variante="secundario" onClick={() => void lista.fetchNextPage()} disabled={lista.isFetchingNextPage}>
                     Tentar de novo
@@ -118,7 +118,7 @@ export default function Governanca() {
               )}
               {itens.length === 0 ? (
                 estado === undefined ? (
-                  <EstadoVazio
+                  <EmptyState
                     titulo={nadaGerado ? 'A IA ainda não gerou nada nesta escola' : 'Nenhuma linha para mostrar ainda'}
                     descricao={
                       nadaGerado
@@ -127,7 +127,7 @@ export default function Governanca() {
                     }
                   />
                 ) : (
-                  <EstadoVazio titulo={VAZIO_DO_FILTRO[estado].titulo} descricao={VAZIO_DO_FILTRO[estado].descricao} />
+                  <EmptyState titulo={VAZIO_DO_FILTRO[estado].titulo} descricao={VAZIO_DO_FILTRO[estado].descricao} />
                 )
               ) : (
                 <>
@@ -156,15 +156,15 @@ export default function Governanca() {
 
 /** O consumo do mês por função, em barras neutras: o valor está no texto. Por função, nunca por pessoa (D64). */
 function Consumo() {
-  const consumo = useQuery(consultaConsumo)
+  const consumo = useQuery(consumoQueryOptions)
   return (
     <section className="flex min-w-0 flex-col gap-3" aria-labelledby="titulo-consumo">
       <SectionHeader id="titulo-consumo" titulo="Consumo do mês por função" apoio="Quanto cada função da IA trabalhou neste mês. É somado por função: não existe consumo por professor nem por aluno." />
-      {consumo.isPending && <EstadoCarregando rotulo="Carregando o consumo…" />}
-      {consumo.isError && <EstadoErro erro={consumo.error} tentando={consumo.isFetching} aoTentarDeNovo={() => void consumo.refetch({ cancelRefetch: false })} />}
+      {consumo.isPending && <LoadingState rotulo="Carregando o consumo…" />}
+      {consumo.isError && <ErrorState erro={consumo.error} tentando={consumo.isFetching} aoTentarDeNovo={() => void consumo.refetch({ cancelRefetch: false })} />}
       {consumo.data !== undefined &&
         (consumo.data.porFuncao.length === 0 ? (
-          <EstadoVazio titulo="Nenhuma função trabalhou neste mês" descricao="Quando um professor conversar com o Assistente, gerar uma atividade ou um aluno usar o Tutor, o consumo de cada função aparece aqui." />
+          <EmptyState titulo="Nenhuma função trabalhou neste mês" descricao="Quando um professor conversar com o Assistente, gerar uma atividade ou um aluno usar o Tutor, o consumo de cada função aparece aqui." />
         ) : (
           <div className="flex min-w-0 flex-col gap-4 rounded-cartao border border-linha bg-superficie p-4 lg:p-5">
             {consumo.data.porFuncao.map((linha) => (

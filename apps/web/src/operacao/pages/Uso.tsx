@@ -2,17 +2,17 @@ import type { PainelQuery, UsoDoPainelResponse, UsoDaEscolaDoPainel, UsoDoPeriod
 import { useQuery } from '@tanstack/react-query'
 import { useRef } from 'react'
 import { useLocation, useSearch } from 'wouter'
-import { EstadoCarregando, EstadoVazio } from '../../components/states'
+import { LoadingState, EmptyState } from '../../components/states'
 import { MEDIA_MD, useMediaQuery } from '../../components/ui/media-query'
-import { formatarQuantidade } from '../../format'
-import { buscaDaConsulta, consultaDoUso, lerConsultaDaTela, paginasDoTotal } from '../api/painel'
+import { formatQuantity } from '../../format'
+import { buscaDaConsulta, doUsoQueryOptions, lerConsultaDaTela, paginasDoTotal } from '../api/painel'
 import { INICIO_DA_OPERACAO, USO_DA_OPERACAO } from '../paths'
 import { ErroDaOperacao } from '../components/CascaDaOperacao'
-import { PaginasDaLista, SeletorDeOrdem, VazioAlemDaUltima } from '../components/NavegacaoDaLista'
-import { RegiaoDaLista, useSobra } from '../components/RegiaoDaLista'
+import { Pagination, SortSelect, VazioAlemDaUltima } from '../components/NavegacaoDaLista'
+import { ScrollableList, useOverflow } from '../components/ScrollableList'
 import { formatarDia, formatarMedidaDoUso, formatarMesDeReferencia, MEDIDAS_DO_USO, ROTULO_DO_USO } from '../format'
 import { TEXTO_DO_USO_VAZIO } from '../textos'
-import { useTituloDaPagina } from '../document-title'
+import { useOperacaoPageTitle } from '../document-title'
 
 /** Os dois períodos de cada escola, na ordem da tela: o último dia fechado, e o mês dele até esse dia. */
 const PERIODOS = ['dia', 'mes'] as const
@@ -45,7 +45,7 @@ function Valor({ medida, valor }: { medida: keyof UsoDoPeriodoDoPainel; valor: n
  */
 function TabelaDoUso({ escolas, referencia }: { escolas: readonly UsoDaEscolaDoPainel[]; referencia: Referencia }) {
   const moldura = useRef<HTMLDivElement>(null)
-  const sobra = useSobra(moldura, 'x')
+  const sobra = useOverflow(moldura, 'x')
   return (
     <div
       ref={moldura}
@@ -146,11 +146,11 @@ function Cartoes({ escolas, referencia }: { escolas: readonly UsoDaEscolaDoPaine
  * string, e a troca mantém a página anterior na tela até a nova chegar.
  */
 export function Uso() {
-  useTituloDaPagina('Uso')
+  useOperacaoPageTitle('Uso')
   const busca = useSearch()
   const [, navegar] = useLocation()
   const consulta = lerConsultaDaTela(busca)
-  const uso = useQuery(consultaDoUso(consulta))
+  const uso = useQuery(doUsoQueryOptions(consulta))
 
   function irPara(nova: PainelQuery): void {
     navegar(`${USO_DA_OPERACAO}?${buscaDaConsulta(nova)}`)
@@ -165,15 +165,15 @@ export function Uso() {
   return (
     <>
       <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
-        <SeletorDeOrdem ordem={consulta.ordem} aoEscolher={(ordem) => irPara({ pagina: 1, ordem })} />
+        <SortSelect ordem={consulta.ordem} aoEscolher={(ordem) => irPara({ pagina: 1, ordem })} />
       </div>
 
       {uso.isPending ? (
-        <EstadoCarregando rotulo="Carregando o uso das escolas…" />
+        <LoadingState rotulo="Carregando o uso das escolas…" />
       ) : uso.isError && dados === undefined ? (
         <ErroDaOperacao erro={uso.error} aoTentarDeNovo={() => void uso.refetch()} tentando={uso.isFetching} />
       ) : dados === undefined || dados.total === 0 ? (
-        <EstadoVazio
+        <EmptyState
           titulo={TEXTO_DO_USO_VAZIO.titulo}
           descricao={TEXTO_DO_USO_VAZIO.descricao}
           acao={{ rotulo: TEXTO_DO_USO_VAZIO.link, aoAcionar: () => navegar(INICIO_DA_OPERACAO) }}
@@ -181,10 +181,10 @@ export function Uso() {
       ) : dados.itens.length === 0 ? (
         <VazioAlemDaUltima paginas={paginas} aoIrParaAPrimeira={() => irPara({ pagina: 1, ordem: consulta.ordem })} />
       ) : (
-        <RegiaoDaLista
+        <ScrollableList
           rotulo="Uso por escola"
           ocupada={trocando}
-          pe={<PaginasDaLista rotulo="Páginas do uso" pagina={consulta.pagina} paginas={paginas} trocando={trocando} aoIr={(pagina) => irPara({ pagina, ordem: consulta.ordem })} />}
+          pe={<Pagination rotulo="Páginas do uso" pagina={consulta.pagina} paginas={paginas} trocando={trocando} aoIr={(pagina) => irPara({ pagina, ordem: consulta.ordem })} />}
         >
           {uso.isError && <ErroDaOperacao erro={uso.error} aoTentarDeNovo={() => void uso.refetch()} tentando={uso.isFetching} />}
           <div className="flex flex-col gap-1 text-sm">
@@ -193,10 +193,10 @@ export function Uso() {
               <span className="font-medium text-tinta">{formatarMesDeReferencia(dados)}</span>. O dia de hoje entra na
               madrugada seguinte.
             </p>
-            <p className="text-sutil">{formatarQuantidade(dados.total, 'escola', 'escolas')}</p>
+            <p className="text-sutil">{formatQuantity(dados.total, 'escola', 'escolas')}</p>
           </div>
           {larga ? <TabelaDoUso escolas={dados.itens} referencia={dados} /> : <Cartoes escolas={dados.itens} referencia={dados} />}
-        </RegiaoDaLista>
+        </ScrollableList>
       )}
     </>
   )

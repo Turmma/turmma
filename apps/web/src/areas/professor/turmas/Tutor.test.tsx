@@ -5,15 +5,15 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import { Router } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
-import { criarClienteDeConsultas } from '../../../api/query-client'
-import { prepararTela, redeFalsa, type RespostaFalsa } from '../../../__fixtures__/render-screen'
+import { createQueryClient } from '../../../api/query-client'
+import { setupScreen, fakeNetwork, type FakeResponse } from '../../../__fixtures__/render-screen'
 import Tutor from './Tutor'
 
 /**
  * O endereço de antes do Tutor leva à aba Hoje da turma (telas do professor, 10.0; RF2): uma turma confirmada, à turma; mais de
  * uma, ou nenhuma, a Turmas. A rede é falsa; a rota, o cliente de consultas e a tela são os de verdade.
  */
-prepararTela()
+setupScreen()
 
 const id = (n: number) => `0197a1c0-0000-7000-8000-${String(n).padStart(12, '0')}`
 const QUIMICA = { id: id(500), nome: 'Química' }
@@ -22,15 +22,15 @@ const TURMA_A = { id: id(101), nome: '1º A' }
 const TURMA_B = { id: id(102), nome: '2º B' }
 
 const vinculo = (n: number, turma: { id: string; nome: string }, disciplina = QUIMICA, estado = 'confirmado') => ({ id: id(400 + n), turma, disciplina, estado })
-const vinculos = (...itens: readonly unknown[]): RespostaFalsa => ({ status: 200, corpo: { itens } })
-const LIMITE: RespostaFalsa = { status: 429, corpo: { erro: { codigo: 'LIMITE_EXCEDIDO', mensagem: 'x', requisicaoId: '0190f5a0-0000-7000-8000-000000000001' } } }
+const vinculos = (...itens: readonly unknown[]): FakeResponse => ({ status: 200, corpo: { itens } })
+const LIMITE: FakeResponse = { status: 429, corpo: { erro: { codigo: 'LIMITE_EXCEDIDO', mensagem: 'x', requisicaoId: '0190f5a0-0000-7000-8000-000000000001' } } }
 
-function montar(resposta: RespostaFalsa | (() => RespostaFalsa)) {
-  const rede = redeFalsa()
+function montar(resposta: FakeResponse | (() => FakeResponse)) {
+  const rede = fakeNetwork()
   rede.responderPor('/v1/meus-vinculos', resposta)
   const localizacao = memoryLocation({ path: '/time/tutor', record: true })
   render(
-    <QueryClientProvider client={criarClienteDeConsultas()}>
+    <QueryClientProvider client={createQueryClient()}>
       <Router hook={localizacao.hook} searchHook={localizacao.searchHook}>
         <Tutor />
       </Router>

@@ -5,8 +5,8 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Router } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
-import { prepararTela, redeFalsa, renderizarTela, type RedeFalsa, type RespostaFalsa } from '../../../__fixtures__/render-screen'
-import { ROTAS_DO_PROFESSOR } from '../../../paths'
+import { setupScreen, fakeNetwork, renderScreen, type FakeNetwork, type FakeResponse } from '../../../__fixtures__/render-screen'
+import { PROFESSOR_ROUTES } from '../../../paths'
 import { TEXTO_DA_SUSPENSAO } from '../comum/avisos'
 import { CaixaDoAssistente } from '../assistente/CaixaDoAssistente'
 import Home from './Home'
@@ -19,7 +19,7 @@ import type { TurmaDaProfessora } from '../comum/turmas-da-professora'
  * professora está no sino). A rede é falsa; o cliente de consultas, a memória da aba, o roteador e a tela são os de verdade.
  * O tamanho nas duas larguras, o recomeço pela pessoa seguinte e os eixos do axe são do e2e (`e2e/professor-inicio.spec.ts`).
  */
-prepararTela()
+setupScreen()
 
 const id = (n: number) => `0197a1c0-0000-7000-8000-${String(n).padStart(12, '0')}`
 const QUIMICA = { id: id(500), nome: 'Química' }
@@ -30,15 +30,15 @@ const VALOR_DA_TURMA_A = `${TURMA_A.id}:${QUIMICA.id}`
 const VALOR_DA_TURMA_B = `${TURMA_B.id}:${FISICA.id}`
 
 const vinculo = (n: number, turma: { id: string; nome: string }, disciplina: { id: string; nome: string }, estado = 'confirmado') => ({ id: id(400 + n), turma, disciplina, estado })
-const DUAS_TURMAS: RespostaFalsa = { status: 200, corpo: { itens: [vinculo(1, TURMA_A, QUIMICA), vinculo(2, TURMA_B, FISICA)] } }
-const UMA_TURMA: RespostaFalsa = { status: 200, corpo: { itens: [vinculo(1, TURMA_A, QUIMICA)] } }
-const PROFESSORA: RespostaFalsa = {
+const DUAS_TURMAS: FakeResponse = { status: 200, corpo: { itens: [vinculo(1, TURMA_A, QUIMICA), vinculo(2, TURMA_B, FISICA)] } }
+const UMA_TURMA: FakeResponse = { status: 200, corpo: { itens: [vinculo(1, TURMA_A, QUIMICA)] } }
+const PROFESSORA: FakeResponse = {
   status: 200,
   corpo: { usuarioId: id(900), papel: 'professor', nome: 'Camila Souza', escola: { id: id(800), nome: 'Escola Sintética', slug: 'escola-sintetica' }, inatividadeMin: 30, introducaoVistaEm: '2026-02-01T10:00:00.000Z', acessos: [] },
 }
-const erro = (status: number, codigo: string): RespostaFalsa => ({ status, corpo: { erro: { codigo, mensagem: 'x', requisicaoId: '0190f5a0-0000-7000-8000-000000000001' } } })
+const erro = (status: number, codigo: string): FakeResponse => ({ status, corpo: { erro: { codigo, mensagem: 'x', requisicaoId: '0190f5a0-0000-7000-8000-000000000001' } } })
 const NAO_ENCONTRADO = erro(404, 'NAO_ENCONTRADO')
-const timeSem = (...suspensas: ChaveDeFuncao[]): RespostaFalsa => ({ status: 200, corpo: montarTime(new Set(suspensas)) })
+const timeSem = (...suspensas: ChaveDeFuncao[]): FakeResponse => ({ status: 200, corpo: montarTime(new Set(suspensas)) })
 
 /** Uma entrega pendente de adaptação: o que o sino mostra e o Início não lê. */
 const ENTREGA_PENDENTE = {
@@ -57,11 +57,11 @@ const ENTREGA_PENDENTE = {
 }
 
 interface Quem {
-  readonly vinculos?: RespostaFalsa | (() => RespostaFalsa | Promise<RespostaFalsa>)
-  readonly time?: RespostaFalsa
+  readonly vinculos?: FakeResponse | (() => FakeResponse | Promise<FakeResponse>)
+  readonly time?: FakeResponse
 }
 
-function instalar(rede: RedeFalsa, quem: Quem = {}): void {
+function instalar(rede: FakeNetwork, quem: Quem = {}): void {
   rede.responderPor('/v1/eu', PROFESSORA)
   rede.responderPor('/v1/meus-vinculos', quem.vinculos ?? UMA_TURMA)
   rede.responderPor('/v1/time', quem.time ?? timeSem())
@@ -69,12 +69,12 @@ function instalar(rede: RedeFalsa, quem: Quem = {}): void {
   rede.responderPor('/v1/entregas', { status: 200, corpo: { itens: [ENTREGA_PENDENTE] } })
   // O pedido ao Assistente: a execução fica no ar, sem terminar.
   rede.responderPor('/v1/assistente/mensagens', { status: 202, corpo: { execucaoId: id(950) } })
-  rede.responderPor(/^\/v1\/execucoes\//, () => new Promise<RespostaFalsa>(() => undefined))
+  rede.responderPor(/^\/v1\/execucoes\//, () => new Promise<FakeResponse>(() => undefined))
 }
 
 function montar() {
-  const localizacao = memoryLocation({ path: ROTAS_DO_PROFESSOR.novaConversa, record: true })
-  renderizarTela(
+  const localizacao = memoryLocation({ path: PROFESSOR_ROUTES.novaConversa, record: true })
+  renderScreen(
     <Router hook={localizacao.hook}>
       <Home />
     </Router>,
@@ -99,13 +99,13 @@ const caixa = () => screen.findByRole('textbox', { name: 'Pedido ao Assistente d
 const atalhos = () => screen.getByRole('group', { name: 'Atalhos de ferramenta' })
 const botoesDosAtalhos = () => within(atalhos()).getAllByRole('button') as HTMLButtonElement[]
 const atalho = (nome: string) => within(atalhos()).getByRole('button', { name: nome }) as HTMLButtonElement
-const chamadasA = (rede: RedeFalsa, caminho: string) => rede.chamadas.filter((chamada) => chamada.caminho.split('?')[0] === caminho)
+const chamadasA = (rede: FakeNetwork, caminho: string) => rede.chamadas.filter((chamada) => chamada.caminho.split('?')[0] === caminho)
 
 describe('os quatro estados do Início', () => {
   it('carregando: as turmas ainda não vieram, e a tela diz que está carregando, sem caixa nem atalho', async () => {
-    const rede = redeFalsa()
-    let liberar: (resposta: RespostaFalsa) => void = () => undefined
-    instalar(rede, { vinculos: () => new Promise<RespostaFalsa>((resolver) => (liberar = resolver)) })
+    const rede = fakeNetwork()
+    let liberar: (resposta: FakeResponse) => void = () => undefined
+    instalar(rede, { vinculos: () => new Promise<FakeResponse>((resolver) => (liberar = resolver)) })
     montar()
     expect(await screen.findByText('Carregando as suas turmas…')).toBeTruthy()
     expect(screen.queryByRole('textbox')).toBeNull()
@@ -116,7 +116,7 @@ describe('os quatro estados do Início', () => {
   })
 
   it('erro: a mensagem do catálogo e "Tentar de novo", que lê de novo e traz a caixa', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     let leituras = 0
     instalar(rede, { vinculos: () => (++leituras === 1 ? NAO_ENCONTRADO : UMA_TURMA) })
     montar()
@@ -131,7 +131,7 @@ describe('os quatro estados do Início', () => {
   })
 
   it('sem turma confirmada: diz o que falta, sem caixa nem atalho, e "Ir para Turmas" leva a Turmas', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     // Pendente e contestada não contam: a API responderia como inexistente.
     instalar(rede, { vinculos: { status: 200, corpo: { itens: [vinculo(1, TURMA_A, QUIMICA, 'pendente'), vinculo(2, TURMA_B, FISICA, 'contestado')] } } })
     const localizacao = montar()
@@ -140,11 +140,11 @@ describe('os quatro estados do Início', () => {
     expect(screen.queryByRole('group', { name: 'Atalhos de ferramenta' })).toBeNull()
     expect(screen.queryByText(/O Assistente é uma IA e pode errar/)).toBeNull()
     await userEvent.setup().click(screen.getByRole('button', { name: 'Ir para Turmas' }))
-    expect(localizacao.history.at(-1)).toBe(ROTAS_DO_PROFESSOR.turmas)
+    expect(localizacao.history.at(-1)).toBe(PROFESSOR_ROUTES.turmas)
   })
 
   it('com dado: a caixa com a turma, os atalhos, o aviso de IA e o link para a conversa; o título da tela é só para o leitor de tela', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { vinculos: DUAS_TURMAS })
     montar()
     expect(await caixa()).toBeTruthy()
@@ -157,7 +157,7 @@ describe('os quatro estados do Início', () => {
     // Sem link no aviso: o trecho em negrito é texto (o mockup o liga a Configurações, que não é desta tela).
     expect(aviso.querySelector('a, button')).toBeNull()
     const conversa = screen.getByRole('link', { name: 'Abrir a conversa com o Assistente' })
-    expect(conversa.getAttribute('href')).toBe(ROTAS_DO_PROFESSOR.conversa)
+    expect(conversa.getAttribute('href')).toBe(PROFESSOR_ROUTES.conversa)
     const titulo = screen.getByRole('heading', { level: 1, name: 'Início' })
     expect(titulo.className).toContain('sr-only')
     // O menu "Ferramenta" saiu da caixa: os atalhos tomaram o lugar dele.
@@ -175,14 +175,14 @@ describe('a saudação e o Assistente que se apresenta', () => {
     // dia depois dela a tela a veria vencida. Os temporizadores do cliente de consultas seguem reais.
     vi.useFakeTimers({ toFake: ['Date'] })
     vi.setSystemTime(new Date(2026, 0, 5, hora, 0, 0))
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede)
     montar()
     expect(await screen.findByText(texto)).toBeTruthy()
   })
 
   it('o Assistente de ensino aparece com a onça, o nome da função e o selo "IA" num bloco só, e a saudação fica fora dele', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede)
     montar()
     const saudacao = await screen.findByText(/^(Bom dia|Boa tarde|Boa noite), Camila\.$/)
@@ -198,7 +198,7 @@ describe('a saudação e o Assistente que se apresenta', () => {
   })
 
   it('sem o nome ainda lido, a saudação é só o cumprimento', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede)
     rede.responderPor('/v1/eu', NAO_ENCONTRADO)
     montar()
@@ -208,7 +208,7 @@ describe('a saudação e o Assistente que se apresenta', () => {
 
 describe('os atalhos de ferramenta', () => {
   it('um por ferramenta que existe, na ordem do catálogo, cada um com o ícone ilustrado, mais o link "Ferramentas"', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede)
     montar()
     await caixa()
@@ -219,11 +219,11 @@ describe('os atalhos de ferramenta', () => {
       expect(botao.disabled).toBe(false)
     }
     const link = within(atalhos()).getByRole('link', { name: 'Ferramentas' })
-    expect(link.getAttribute('href')).toBe(ROTAS_DO_PROFESSOR.ferramentas)
+    expect(link.getAttribute('href')).toBe(PROFESSOR_ROUTES.ferramentas)
   })
 
   it('a atividade e o plano abrem o cartão na conversa com a turma escolhida e, como tema, o que está na caixa', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { vinculos: DUAS_TURMAS })
     const localizacao = montar()
     const usuario = userEvent.setup()
@@ -231,7 +231,7 @@ describe('os atalhos de ferramenta', () => {
     await usuario.type(await caixa(), 'Equilíbrio químico')
     await usuario.click(atalho('Atividade objetiva'))
     expect(CARTAO_DA_CONVERSA.ler()).toEqual({ ferramenta: 'atividade_objetiva', iniciais: { turma: VALOR_DA_TURMA_B, tema: 'Equilíbrio químico' } })
-    expect(localizacao.history.at(-1)).toBe(ROTAS_DO_PROFESSOR.conversa)
+    expect(localizacao.history.at(-1)).toBe(PROFESSOR_ROUTES.conversa)
 
     await usuario.click(atalho('Plano de aula'))
     expect(CARTAO_DA_CONVERSA.ler()).toEqual({ ferramenta: 'plano_de_aula', iniciais: { turma: VALOR_DA_TURMA_B, tema: 'Equilíbrio químico' } })
@@ -240,7 +240,7 @@ describe('os atalhos de ferramenta', () => {
   })
 
   it('a caixa vazia abre o cartão só com a turma, sem tema', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede)
     montar()
     await caixa()
@@ -249,7 +249,7 @@ describe('os atalhos de ferramenta', () => {
   })
 
   it('a Adaptação abre sem ler a caixa: o que foi escrito não chega a ela por caminho nenhum (D35)', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede)
     const localizacao = montar()
     const usuario = userEvent.setup()
@@ -257,12 +257,12 @@ describe('os atalhos de ferramenta', () => {
     await usuario.click(atalho('Adaptação'))
     expect(CARTAO_DA_CONVERSA.ler()).toEqual({ ferramenta: 'adaptacao', iniciais: {} })
     expect(JSON.stringify(CARTAO_DA_CONVERSA.ler())).not.toContain('laudo')
-    expect(localizacao.history.at(-1)).toBe(ROTAS_DO_PROFESSOR.conversa)
+    expect(localizacao.history.at(-1)).toBe(PROFESSOR_ROUTES.conversa)
     expect(chamadasA(rede, '/v1/assistente/mensagens')).toHaveLength(0)
   })
 
   it('o pedido escrito e enviado não abre cartão: vai ao Assistente, que pergunta antes (D18)', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { vinculos: DUAS_TURMAS })
     const localizacao = montar()
     const usuario = userEvent.setup()
@@ -270,14 +270,14 @@ describe('os atalhos de ferramenta', () => {
     await usuario.click(screen.getByRole('button', { name: 'Enviar' }))
     await waitFor(() => expect(chamadasA(rede, '/v1/assistente/mensagens')).toHaveLength(1))
     expect(CARTAO_DA_CONVERSA.ler()).toBeUndefined()
-    expect(localizacao.history.at(-1)).toBe(ROTAS_DO_PROFESSOR.conversa)
+    expect(localizacao.history.at(-1)).toBe(PROFESSOR_ROUTES.conversa)
     expect(((await caixa()) as HTMLTextAreaElement).value).toBe('')
   })
 })
 
 describe('o que espera a professora não está no Início', () => {
   it('com entrega pendente, a tela não tem "Esperando você" nem lê a lista de entregas', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede)
     montar()
     await caixa()
@@ -292,7 +292,7 @@ describe('o que espera a professora não está no Início', () => {
 
 describe('a função suspensa pela escola', () => {
   it('a conversa e as ferramentas suspensas: o aviso de hoje, a caixa e os três atalhos desligados, e o link de Ferramentas segue', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { time: timeSem('conversa_e_ferramentas') })
     montar()
     const campo = (await caixa()) as HTMLTextAreaElement
@@ -305,7 +305,7 @@ describe('a função suspensa pela escola', () => {
   })
 
   it('a conversa e a Adaptação suspensas juntas: os dois avisos e os três atalhos desligados', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { time: timeSem('conversa_e_ferramentas', 'adaptacao') })
     montar()
     const campo = (await caixa()) as HTMLTextAreaElement
@@ -317,7 +317,7 @@ describe('a função suspensa pela escola', () => {
   })
 
   it('só a Adaptação suspensa: o atalho dela desliga e o aviso explica; a caixa e os outros atalhos seguem', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { time: timeSem('adaptacao') })
     montar()
     const campo = (await caixa()) as HTMLTextAreaElement
@@ -339,8 +339,8 @@ describe('a função suspensa pela escola', () => {
 describe('a mesma caixa na conversa, sem `semMenu`', () => {
   it('mantém o menu "Ferramenta" à esquerda e não desenha atalho nenhum: os atalhos são do Início', () => {
     const turma: TurmaDaProfessora = { valor: VALOR_DA_TURMA_A, turmaId: TURMA_A.id, disciplinaId: QUIMICA.id, turmaNome: TURMA_A.nome, rotulo: '1º A · Química' }
-    renderizarTela(
-      <Router hook={memoryLocation({ path: ROTAS_DO_PROFESSOR.conversa }).hook}>
+    renderScreen(
+      <Router hook={memoryLocation({ path: PROFESSOR_ROUTES.conversa }).hook}>
         <CaixaDoAssistente turmas={[turma]} turma={turma} iniciar={() => true} respondendo={false} desligada={false} />
       </Router>,
     )

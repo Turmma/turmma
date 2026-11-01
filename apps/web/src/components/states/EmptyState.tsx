@@ -43,7 +43,7 @@ function TopoDoVazio({ tracejado, icone: Icone, ilustracao }: { tracejado: boole
  *
  * Esta peça mora na entrada (Tech Spec da X1, seção 7c): só importa o `Button`, e nenhuma das peças que ficam fora dela.
  */
-export function EstadoVazio({ titulo, descricao, acao, variante = 'padrao', icone: Icone, ilustracao }: Props) {
+export function EmptyState({ titulo, descricao, acao, variante = 'padrao', icone: Icone, ilustracao }: Props) {
   const tracejado = variante === 'tracejado'
   return (
     <div className={`rounded-cartao border-2 border-dashed border-borda-campo bg-superficie ${tracejado ? 'flex flex-col items-center px-4 py-10 text-center' : 'p-4'}`}>

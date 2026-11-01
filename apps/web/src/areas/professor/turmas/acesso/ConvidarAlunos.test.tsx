@@ -4,10 +4,10 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testi
 import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
-import { consultaAcessoDaTurma } from '../api/acesso'
-import { criarClienteDeConsultas } from '../../../../api/query-client'
-import { prepararTela, redeFalsa, type RedeFalsa, type RespostaFalsa } from '../../../../__fixtures__/render-screen'
-import { formatarDataHora } from '../../../../format'
+import { acessoDaTurmaQueryOptions } from '../api/acesso'
+import { createQueryClient } from '../../../../api/query-client'
+import { setupScreen, fakeNetwork, type FakeNetwork, type FakeResponse } from '../../../../__fixtures__/render-screen'
+import { formatDateTime } from '../../../../format'
 import { TEXTO_DO_ACESSO_NOVO, TEXTO_DO_ACESSO_QUE_CAI, TEXTO_DO_REVOGAR } from './acesso-da-turma'
 import { ConvidarAlunos } from './ConvidarAlunos'
 
@@ -18,7 +18,7 @@ import { ConvidarAlunos } from './ConvidarAlunos'
  * não implementa o `dialog` modal: o teste instala o `showModal` e o `close`, e o Esc é o evento `cancel` que o navegador dispararia.
  * A janela inteira de verdade (a caixa e o fundo calculados nos dois temas) e o fluxo pela turma aberta ficam para o e2e.
  */
-prepararTela()
+setupScreen()
 
 const TURMA = '0192a4c0-5b1e-7c3d-8e4f-a0b1c2d3e4f5'
 const ESCOLA = { nome: 'Escola sintética', slug: 'escola-sintetica' }
@@ -28,9 +28,9 @@ const GERADO = { token: TOKEN, codigo: CODIGO, expiraEm: '2026-10-09T12:00:00.00
 const VIGENTE = { expiraEm: '2026-10-20T15:30:00.000Z' }
 const SEM_ACESSO = { expiraEm: null }
 
-const ok = (corpo: unknown): RespostaFalsa => ({ status: 200, corpo })
-const erro = (status: number, codigo: string): RespostaFalsa => ({ status, corpo: { erro: { codigo, mensagem: 'x', requisicaoId: '0190f5a0-0000-7000-8000-000000000001' } } })
-const SEM_CORPO: RespostaFalsa = { status: 204 }
+const ok = (corpo: unknown): FakeResponse => ({ status: 200, corpo })
+const erro = (status: number, codigo: string): FakeResponse => ({ status, corpo: { erro: { codigo, mensagem: 'x', requisicaoId: '0190f5a0-0000-7000-8000-000000000001' } } })
+const SEM_CORPO: FakeResponse = { status: 204 }
 
 interface Espioes {
   readonly aoFechar: Mock<() => void>
@@ -45,7 +45,7 @@ function Hospedeiro({ cliente, espioes }: { cliente: QueryClient; espioes: Espio
     <ConvidarAlunos
       turmaId={TURMA}
       escola={ESCOLA}
-      aoTerminar={() => cliente.invalidateQueries({ queryKey: consultaAcessoDaTurma(TURMA).queryKey })}
+      aoTerminar={() => cliente.invalidateQueries({ queryKey: acessoDaTurmaQueryOptions(TURMA).queryKey })}
       aoFechar={() => {
         espioes.aoFechar()
         definirAberto(false)
@@ -59,7 +59,7 @@ function Hospedeiro({ cliente, espioes }: { cliente: QueryClient; espioes: Espio
   )
 }
 
-function montar(cliente = criarClienteDeConsultas()) {
+function montar(cliente = createQueryClient()) {
   const espioes: Espioes = { aoFechar: vi.fn(), aoRevogar: vi.fn() }
   const tela = render(
     <QueryClientProvider client={cliente}>
@@ -84,7 +84,7 @@ function gravacoes(): { caminho: string; corpo: unknown }[] {
 const gerares = () => gravacoes().filter((gravacao) => gravacao.caminho === `/v1/turmas/${TURMA}/acesso`)
 
 /** Abre sem acesso, escolhe a validade e gera: o diálogo fica no passo "Acesso gerado". */
-async function gerarPrimeiro(rede: RedeFalsa, usuario: ReturnType<typeof userEvent.setup>, acesso: typeof GERADO = GERADO) {
+async function gerarPrimeiro(rede: FakeNetwork, usuario: ReturnType<typeof userEvent.setup>, acesso: typeof GERADO = GERADO) {
   rede.responder(ok(SEM_ACESSO))
   rede.responder(ok(acesso))
   rede.responder(ok(VIGENTE))
@@ -112,7 +112,7 @@ afterEach(() => {
 
 describe('Convidar alunos: os estados', () => {
   it('carregando: o diálogo abre dizendo que lê o acesso, com "Fechar"; a leitura sem acesso leva ao passo "Gerar acesso", com 7 dias escolhidos e o foco no texto', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     const leitura = rede.segurar()
     montar()
 
@@ -131,7 +131,7 @@ describe('Convidar alunos: os estados', () => {
 
   it('erro: a mensagem do catálogo e "Tentar de novo", que lê de novo e leva ao passo certo', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     let falha = true
     rede.responderPor(`/v1/turmas/${TURMA}/acesso`, () => (falha ? erro(503, 'INDISPONIVEL_TENTE_DE_NOVO') : ok(VIGENTE)))
     montar()
@@ -143,11 +143,11 @@ describe('Convidar alunos: os estados', () => {
     expect(within(dialogo()).getByRole('button', { name: 'Fechar' })).toBeTruthy()
     falha = false
     await usuario.click(within(dialogo()).getByRole('button', { name: 'Tentar de novo' }))
-    expect(await within(dialogo()).findByText(`Vale até ${formatarDataHora(VIGENTE.expiraEm)}.`)).toBeTruthy()
+    expect(await within(dialogo()).findByText(`Vale até ${formatDateTime(VIGENTE.expiraEm)}.`)).toBeTruthy()
   })
 
   it('a turma que saiu do alcance diz a quem recorrer, sem "Tentar de novo"', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responder(erro(404, 'NAO_ENCONTRADO'))
     montar()
 
@@ -157,11 +157,11 @@ describe('Convidar alunos: os estados', () => {
   })
 
   it('com acesso vigente: só até quando vale e as duas ações, sem link, sem código e sem campo; o foco está no "Vale até"', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responder(ok(VIGENTE))
     montar()
 
-    const vale = await within(dialogo()).findByText(`Vale até ${formatarDataHora(VIGENTE.expiraEm)}.`)
+    const vale = await within(dialogo()).findByText(`Vale até ${formatDateTime(VIGENTE.expiraEm)}.`)
     expect(titulo().textContent).toBe('Convidar alunos')
     expect(vale).toBe(document.activeElement)
     expect(within(dialogo()).getAllByRole('button').map((botao) => botao.textContent)).toEqual(['Gerar novo acesso', 'Revogar o acesso', 'Fechar'])
@@ -172,20 +172,20 @@ describe('Convidar alunos: os estados', () => {
   })
 
   it('com a leitura já na memória, o diálogo abre direto no passo, com o foco no texto dele e sem esperar nenhuma mudança de etapa', () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responder(ok(VIGENTE))
-    const cliente = criarClienteDeConsultas()
-    cliente.setQueryData(consultaAcessoDaTurma(TURMA).queryKey, VIGENTE)
+    const cliente = createQueryClient()
+    cliente.setQueryData(acessoDaTurmaQueryOptions(TURMA).queryKey, VIGENTE)
     montar(cliente)
 
     expect(titulo().textContent).toBe('Convidar alunos')
-    expect(document.activeElement).toBe(within(dialogo()).getByText(`Vale até ${formatarDataHora(VIGENTE.expiraEm)}.`))
+    expect(document.activeElement).toBe(within(dialogo()).getByText(`Vale até ${formatDateTime(VIGENTE.expiraEm)}.`))
     expect(gravacoes()).toEqual([])
   })
 
   it('gerando: o botão diz "Gerando…" e fica desligado, a validade não muda mais, e dois cliques no mesmo instante mandam um pedido só', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responder(ok(SEM_ACESSO))
     const gerar = rede.segurar()
     montar()
@@ -217,7 +217,7 @@ describe('Convidar alunos: os estados', () => {
 describe('Convidar alunos: o acesso gerado, uma vez', () => {
   it('gerar leva ao passo "Acesso gerado" com o código em dois grupos, soletrado para o leitor de tela, e o link da sala; a janela passa a ser a inteira só nele', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responder(ok(SEM_ACESSO))
     rede.responder(ok(GERADO))
     rede.responder(ok(VIGENTE))
@@ -244,12 +244,12 @@ describe('Convidar alunos: o acesso gerado, uma vez', () => {
     expect(codigo.querySelector('p[aria-hidden="true"]')?.textContent).toBe('ABCD 2345')
     expect(codigo.querySelector('p.sr-only')?.textContent).toBe('A B C D, 2 3 4 5')
     expect((within(dialogo()).getByLabelText('Link da sala') as HTMLInputElement).value).toBe(`${window.location.origin}/e/escola-sintetica/turma#${TOKEN}`)
-    expect(within(dialogo()).getByText(`Vale até ${formatarDataHora(GERADO.expiraEm)}. Depois de fechar, o link e o código não aparecem de novo.`)).toBeTruthy()
+    expect(within(dialogo()).getByText(`Vale até ${formatDateTime(GERADO.expiraEm)}. Depois de fechar, o link e o código não aparecem de novo.`)).toBeTruthy()
   })
 
   it('fechar sem ter copiado pergunta antes, pelo botão e pelo Esc, e "Voltar ao acesso" devolve o mesmo link e código; o segundo pedido de fechar fecha', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     const { espioes } = await gerarPrimeiro(rede, usuario)
 
     await usuario.click(within(dialogo()).getByRole('button', { name: 'Fechar' }))
@@ -274,7 +274,7 @@ describe('Convidar alunos: o acesso gerado, uma vez', () => {
 
   it('copiado o link, fechar já não pergunta; sem área de transferência, nada foi copiado e fechar ainda pergunta', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     const escrever = vi.fn().mockResolvedValue(undefined)
     const { espioes } = await gerarPrimeiro(rede, usuario)
 
@@ -297,7 +297,7 @@ describe('Convidar alunos: o acesso gerado, uma vez', () => {
 
   it('o link e o código aparecem uma vez: o diálogo aberto de novo mostra só a validade, e nada deles fica na página', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     const primeira = await gerarPrimeiro(rede, usuario)
     expect((within(dialogo()).getByLabelText('Link da sala') as HTMLInputElement).value).toContain(TOKEN)
 
@@ -310,7 +310,7 @@ describe('Convidar alunos: o acesso gerado, uma vez', () => {
     primeira.unmount()
     rede.responder(ok(VIGENTE))
     montar(primeira.cliente)
-    expect(await within(dialogo()).findByText(`Vale até ${formatarDataHora(VIGENTE.expiraEm)}.`)).toBeTruthy()
+    expect(await within(dialogo()).findByText(`Vale até ${formatDateTime(VIGENTE.expiraEm)}.`)).toBeTruthy()
     for (const segredo of [TOKEN, CODIGO, 'ABCD 2345']) expect(document.body.innerHTML).not.toContain(segredo)
     expect(within(dialogo()).queryByRole('textbox')).toBeNull()
     expect(within(dialogo()).queryByRole('heading', { name: 'Acesso gerado' })).toBeNull()
@@ -318,7 +318,7 @@ describe('Convidar alunos: o acesso gerado, uma vez', () => {
 
   it('o CONFLITO do gerar diz que outro acesso passou a valer, com o foco no aviso, e deixa só "Fechar": a validade não se escolhe mais', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responder(ok(SEM_ACESSO))
     rede.responder(erro(409, 'CONFLITO'))
     rede.responder(ok(VIGENTE))
@@ -341,7 +341,7 @@ describe('Convidar alunos: o acesso gerado, uma vez', () => {
 describe('Convidar alunos: gerar novo e revogar, cada um com a pergunta de hoje', () => {
   it('"Gerar novo acesso" leva ao passo que diz o que cai, com o título do passo e o foco no texto; nada sai antes de confirmar', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responder(ok(VIGENTE))
     montar()
 
@@ -362,7 +362,7 @@ describe('Convidar alunos: gerar novo e revogar, cada um com a pergunta de hoje'
 
   it('"Cancelar" no passo de gerar novo fecha o diálogo, e nada é gravado', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responder(ok(VIGENTE))
     const { espioes } = montar()
 
@@ -374,7 +374,7 @@ describe('Convidar alunos: gerar novo e revogar, cada um com a pergunta de hoje'
 
   it('"Revogar o acesso" leva ao passo que diz o que acontece, com o foco no texto; confirmar revoga uma vez e avisa a seção', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responder(ok(VIGENTE))
     const { espioes } = montar()
 
@@ -397,7 +397,7 @@ describe('Convidar alunos: gerar novo e revogar, cada um com a pergunta de hoje'
 
   it('o revogar do acesso que já não vale diz que a turma não tem acesso ativo, com o foco no aviso, e deixa só "Fechar"', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responder(ok(VIGENTE))
     const { espioes } = montar()
 
@@ -416,14 +416,14 @@ describe('Convidar alunos: gerar novo e revogar, cada um com a pergunta de hoje'
   })
 
   it('o acesso que outra pessoa revogou com o passo "Vigente" na tela vira "Gerar acesso" quando a leitura se atualiza', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responder(ok(VIGENTE))
     const { cliente } = montar()
-    await within(dialogo()).findByText(`Vale até ${formatarDataHora(VIGENTE.expiraEm)}.`)
+    await within(dialogo()).findByText(`Vale até ${formatDateTime(VIGENTE.expiraEm)}.`)
 
     rede.responder(ok(SEM_ACESSO))
     await act(async () => {
-      await cliente.invalidateQueries({ queryKey: consultaAcessoDaTurma(TURMA).queryKey })
+      await cliente.invalidateQueries({ queryKey: acessoDaTurmaQueryOptions(TURMA).queryKey })
     })
     await waitFor(() => expect(titulo().textContent).toBe('Gerar acesso'))
     expect(within(dialogo()).queryByRole('button', { name: 'Revogar o acesso' })).toBeNull()

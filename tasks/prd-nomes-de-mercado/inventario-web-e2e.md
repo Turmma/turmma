@@ -445,7 +445,7 @@ Os 57 `consultaX` são `queryOptions(...)` (ou função que devolve um) e viram 
 | `consultaMinhasAtividades` | `minhasAtividadesInfiniteQueryOptions` | queryOptions | `apps/web/src/api/atividades-do-aluno.ts` | 5 |
 | `consultaProva` | `provaQueryOptions` | queryOptions | `apps/web/src/api/atividades-do-aluno.ts` | 3 |
 | `consultaMeuDiagnostico` | `meuDiagnosticoQueryOptions` | queryOptions | `apps/web/src/api/atividades-do-aluno.ts` | 2 |
-| `consultarConvite` | `rConviteQueryOptions` | queryOptions | `apps/web/src/api/convite.ts` | 2 |
+| `consultarConvite` | fica (`fetch` comum, não `queryOptions`; 10.0) | função (`fetch`) | `apps/web/src/api/convite.ts` | 2 |
 | `consultaAcessoDaEscola` | `acessoDaEscolaQueryOptions` | queryOptions | `apps/web/src/api/escola.ts` | 2 |
 | `consultaAnosLetivos` | `anosLetivosQueryOptions` | queryOptions | `apps/web/src/api/estrutura.ts` | 8 |
 | `consultaSeries` | `seriesQueryOptions` | queryOptions | `apps/web/src/api/estrutura.ts` | 4 |
@@ -493,7 +493,7 @@ Os 57 `consultaX` são `queryOptions(...)` (ou função que devolve um) e viram 
 | `consultaAcessoDaTurma` | `acessoDaTurmaQueryOptions` | queryOptions | `apps/web/src/areas/professor/turmas/api/acesso.ts` | 4 |
 | `consultaSinais` | `sinaisQueryOptions` | queryOptions | `apps/web/src/areas/professor/turmas/api/tutor-da-turma.ts` | 3 |
 | `consultaUsoDoTutor` | `usoDoTutorQueryOptions` | queryOptions | `apps/web/src/areas/professor/turmas/api/tutor-da-turma.ts` | 2 |
-| `consultarConviteDeOperador` | `rConviteDeOperadorQueryOptions` | queryOptions | `apps/web/src/operacao/api/convite.ts` | 2 |
+| `consultarConviteDeOperador` | fica (`fetch` comum, não `queryOptions`; 10.0) | função (`fetch`) | `apps/web/src/operacao/api/convite.ts` | 2 |
 | `consultaEuDoOperador` | `euDoOperadorQueryOptions` | queryOptions | `apps/web/src/operacao/api/eu.ts` | 2 |
 | `consultaDasEscolas` | `dasEscolasQueryOptions` | queryOptions | `apps/web/src/operacao/api/painel.ts` | 2 |
 | `consultaDoUso` | `doUsoQueryOptions` | queryOptions | `apps/web/src/operacao/api/painel.ts` | 2 |
@@ -525,12 +525,12 @@ Os 57 `consultaX` são `queryOptions(...)` (ou função que devolve um) e viram 
 | `CHAVE_DO_ANALISTA` | `ANALISTA_QUERY_KEY` | query key | `apps/web/src/areas/coordenacao/governanca/api/governanca.ts` | 1 |
 | `CHAVE_DO_MATERIAL` | `MATERIAL_QUERY_KEY` | query key | `apps/web/src/areas/coordenacao/material/api/material.ts` | 1 |
 | `CHAVE_DA_PRIVACIDADE` | `PRIVACIDADE_QUERY_KEY` | query key | `apps/web/src/areas/coordenacao/privacidade/api/privacidade.ts` | 1 |
-| `CHAVE_DA_LATERAL_RECOLHIDA` | `LATERAL_RECOLHIDA_QUERY_KEY` | query key | `apps/web/src/componentes/lateral-recolhida.ts` | 2 |
-| `CHAVE_DA_LETRA` | `LETRA_QUERY_KEY` | query key | `apps/web/src/letra.ts` | 3 |
+| `CHAVE_DA_LATERAL_RECOLHIDA` | fica neste §15 (vale o §10: `SIDEBAR_COLLAPSED_STORAGE_KEY`) | query key | `apps/web/src/componentes/lateral-recolhida.ts` | 2 |
+| `CHAVE_DA_LETRA` | fica neste §15 (vale o §10: `TEXT_SIZE_STORAGE_KEY`) | query key | `apps/web/src/letra.ts` | 3 |
 | `CHAVE_DAS_ESCOLAS` | `ESCOLAS_QUERY_KEY` | query key | `apps/web/src/operacao/api/painel.ts` | 4 |
 | `CHAVE_DAS_REDES` | `REDES_QUERY_KEY` | query key | `apps/web/src/operacao/api/painel.ts` | 2 |
 | `CHAVE_DO_USO` | `USO_QUERY_KEY` | query key | `apps/web/src/operacao/api/painel.ts` | 2 |
-| `CHAVE_DA_APARENCIA` | `APARENCIA_QUERY_KEY` | query key | `apps/web/src/tema.ts` | 1 |
+| `CHAVE_DA_APARENCIA` | fica neste §15 (vale o §10: `THEME_STORAGE_KEY`) | query key | `apps/web/src/tema.ts` | 1 |
 
 ## Dúvidas
 
@@ -552,6 +552,7 @@ CascaDaEscola, CascaPublica, CascaEmFoco, CascaDaOperacao, Casca (paginas/), Men
 - **O `Estado` exportado por `SeloDeEstado.tsx`** não é o `estado/` (EstadoVazio…): o comentário do arquivo explica que foi o homônimo que impediu o nome do arquivo.
 - **A fixture `tools/guardas/__fixtures__/kit-importa-api.ts`**: os imports irmãos (`./Botao`, `./campos/Campo`, `./sobrepostos/Dialogo`) e os nomes que eles trazem são virtuais e não resolvem a arquivo. A regra do kit olha só a forma do caminho (`../../../api/`, irmão `./`). Ficam, como `fica`, nas ondas 6.0 e 9.0.
 - **Homônimo e texto virtual na 9.0**: (a) o mesmo nome de uma peça do kit em outra declaração, como o parâmetro de tipo `Linha` de `Table<Linha>` e de `paginar<Linha>`, a variável local `Icone`, o tipo `Aviso` de `@educa/shared`, o `Estado` e a `Escolha` locais, o componente `Linha` de `areas/*/comum/pecas-da-lista` e as `PropsDo…` de peças fora do kit; (b) o comentário que cita o nome do arquivo de tela, como `import('./Tela')` e `tela-<pasta>-<Tela>-*.js`; (c) `apps/web/src/Tela.tsx` e `areas/x/Tela.tsx` em `tools/processo/{linhas,mutacoes}.test.ts`, arquivos inventados; (d) o comentário e o `'**O avatar** (`AvatarAgente`)'` de `onca/*.test.tsx`, que procura essa linha em `docs/interface.md` (os testes da onça ficam sem diff, RF5, e o documento é da 13.0; o único diff da pasta é o import do kit em `Onca.tsx`, Tech Spec §5); (e) o comentário de `tools/ci/duracao-do-e2e.test.ts` que cita a troca `Campo` → `FormField` da 9.0 como exemplo de comentário trocado, texto de um caso de teste da correção `duracao-do-e2e-so-comentario`. Ficam, como `fica`, na 9.0.
+- **Homônimo e texto na 10.0**: (a) o componente `Aparencia` e o componente `TamanhoDaLetra` (decisão 26 de `inventario.md`) têm o nome do tipo de `theme.ts` e de `text-size.ts` que a onda renomeia: o import do componente, o caminho `settings/TamanhoDaLetra`, o `describe` e o nome entre crases em comentário de e2e são do componente e ficam; (b) o rótulo `Tema` do campo de formulário (a ferramenta do professor, o `schema-form`, a conversa, os specs de e2e) é texto de tela, e não o tipo `Tema` de `theme.ts`; (c) o `semComentarios` de `tools/ci/duracao-do-e2e.ts`, com os testes dele, é outra função, que tem o nome do ajudante da web; (d) o título de `describe`/`it` e a mensagem de um `expect` que citam o nome antigo (regra geral 2); (e) `consultarConvite` e `consultarConviteDeOperador` (linhas 448 e 496), que são `fetch` comum e não `queryOptions`; (f) o mesmo nome em outra declaração, que o `aplicar` não renomeia por ser de outro arquivo ou pacote: `Falha` de `FronteiraDaArea`, `Moldura` e `textoDaFalha` de `DialogoDoConvite` e de `operacao/textos.ts`, `ItemDaNavegacao` de `CascaDaOperacao`, `tokenDoFragmento` de `operacao/pages/Convite.tsx`, `LinhaDoResumo` do kit, `BASE_DA_OPERACAO` de `routes.tsx`, `TOKEN_DE_TESTE` da fixture da operação, `SEM_CORPO` e `RespostaFalsa` locais de teste, `Tema` local de teste e o de `class-colors.ts` (o `aplicar` não aceita dois `Tema` no mesmo pacote), `semComentarios`, `tokenDe`, `ROTAS`, `Rotas` e `RotasDaOperacao` de `apps/api`, de `packages/core`, de `tools/` e de `e2e/`, `chamarApi` de `infra/scripts/carga-sala.ts`, `ESPERA_ENTRE_TENTATIVAS_MS` de `tools/testes/compose.ts`, e o import virtual de `tools/guardas/__fixtures__/kit-importa-api.ts`. Ficam, como `fica`, na 10.0.
 
 ## Acoplamentos fora do recorte (precisam acompanhar, mas são de `tools/`, `docs/` e configuração)
 

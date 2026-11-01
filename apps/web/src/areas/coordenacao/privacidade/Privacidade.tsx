@@ -1,5 +1,5 @@
 import { Redirect, useLocation } from 'wouter'
-import { caminhoDaAbaDaPrivacidade, ehTelaDoSeletorDaPrivacidade, ROTAS_DA_COORDENACAO, type TelaDoSeletorDaPrivacidade } from '../../../paths'
+import { caminhoDaAbaDaPrivacidade, ehTelaDoSeletorDaPrivacidade, COORDENACAO_ROUTES, type TelaDoSeletorDaPrivacidade } from '../../../paths'
 import { SegmentedControl, type SegmentedOptions } from '../../../components/ui/fields/SegmentedControl'
 import { SectionHeader } from '../../../components/ui/Page'
 import { EmpresasQueRecebemDados } from './EmpresasQueRecebemDados'
@@ -36,7 +36,7 @@ const TITULOS_DAS_TELAS: Readonly<Record<TelaDoSeletorDaPrivacidade, { readonly 
  */
 export default function Privacidade({ aba }: { readonly aba: string }) {
   const [, navegar] = useLocation()
-  if (!ehTelaDoSeletorDaPrivacidade(aba)) return <Redirect to={ROTAS_DA_COORDENACAO.pedidos} replace />
+  if (!ehTelaDoSeletorDaPrivacidade(aba)) return <Redirect to={COORDENACAO_ROUTES.pedidos} replace />
 
   const { titulo, apoio } = TITULOS_DAS_TELAS[aba]
   return (

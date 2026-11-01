@@ -5,9 +5,9 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Router } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
-import { prepararTela, redeFalsa, renderizarTela, type RedeFalsa, type RespostaFalsa } from '../../../__fixtures__/render-screen'
+import { setupScreen, fakeNetwork, renderScreen, type FakeNetwork, type FakeResponse } from '../../../__fixtures__/render-screen'
 import type { CicloDeExecucao } from '../../../api/ciclo-de-execucao'
-import { ROTAS_DO_PROFESSOR } from '../../../paths'
+import { PROFESSOR_ROUTES } from '../../../paths'
 import { TEXTO_DA_SUSPENSAO } from '../comum/avisos'
 import Conversa from './Conversa'
 import { ESCOLHAS_DAS_PROPOSTAS, CARTAO_DA_CONVERSA, CICLO_DA_CONVERSA, CICLO_DA_FERRAMENTA, CONTEXTO_ESCOLHIDO, type PedidoDaConversa } from './memoria-do-professor'
@@ -19,18 +19,18 @@ import { ESCOLHAS_DAS_PROPOSTAS, CARTAO_DA_CONVERSA, CICLO_DA_CONVERSA, CICLO_DA
  * de verdade. O tamanho nas duas larguras, a caixa a 24 px do pé, o recomeço pela pessoa seguinte e os eixos do axe são do
  * e2e (`e2e/professor-conversa.spec.ts`).
  */
-prepararTela()
+setupScreen()
 
 const id = (n: number) => `0197a1c0-0000-7000-8000-${String(n).padStart(12, '0')}`
 const QUIMICA = { id: id(500), nome: 'Química' }
 const TURMA_A = { id: id(101), nome: '1º A' }
 const VALOR_DA_TURMA_A = `${TURMA_A.id}:${QUIMICA.id}`
 const vinculo = (n: number, estado = 'confirmado') => ({ id: id(400 + n), turma: TURMA_A, disciplina: QUIMICA, estado })
-const UMA_TURMA: RespostaFalsa = { status: 200, corpo: { itens: [vinculo(1)] } }
-const SEM_CONFIRMADA: RespostaFalsa = { status: 200, corpo: { itens: [vinculo(1, 'pendente')] } }
-const erro = (status: number, codigo: string): RespostaFalsa => ({ status, corpo: { erro: { codigo, mensagem: 'x', requisicaoId: '0190f5a0-0000-7000-8000-000000000001' } } })
+const UMA_TURMA: FakeResponse = { status: 200, corpo: { itens: [vinculo(1)] } }
+const SEM_CONFIRMADA: FakeResponse = { status: 200, corpo: { itens: [vinculo(1, 'pendente')] } }
+const erro = (status: number, codigo: string): FakeResponse => ({ status, corpo: { erro: { codigo, mensagem: 'x', requisicaoId: '0190f5a0-0000-7000-8000-000000000001' } } })
 const NAO_ENCONTRADO = erro(404, 'NAO_ENCONTRADO')
-const timeSem = (...suspensas: ChaveDeFuncao[]): RespostaFalsa => ({ status: 200, corpo: montarTime(new Set(suspensas)) })
+const timeSem = (...suspensas: ChaveDeFuncao[]): FakeResponse => ({ status: 200, corpo: montarTime(new Set(suspensas)) })
 
 const FRASE_DE_IA = 'O Assistente é uma IA e pode errar · Nada chega à turma sem você aprovar'
 const PERGUNTA = 'Posso fazer isso com a ferramenta Atividade objetiva, ou só conversar.'
@@ -52,12 +52,12 @@ const CONVERSA_COM_PERGUNTA = [dela(1, PEDIDO_DELA), proposta(2)]
 const ATIVIDADE = { id: id(700), tipo: 'atividade_objetiva', titulo: 'Atividade de estequiometria', turmaId: TURMA_A.id, disciplinaId: QUIMICA.id, origemId: null, adaptacao: null, entrega: null, criadoEm: '2026-10-05T13:00:00.000Z' }
 
 interface Quem {
-  readonly conversa?: RespostaFalsa | (() => RespostaFalsa | Promise<RespostaFalsa>)
-  readonly vinculos?: RespostaFalsa
-  readonly time?: RespostaFalsa
+  readonly conversa?: FakeResponse | (() => FakeResponse | Promise<FakeResponse>)
+  readonly vinculos?: FakeResponse
+  readonly time?: FakeResponse
 }
 
-function instalar(rede: RedeFalsa, quem: Quem = {}): void {
+function instalar(rede: FakeNetwork, quem: Quem = {}): void {
   rede.responderPor('/v1/assistente/conversa', quem.conversa ?? { status: 200, corpo: { mensagens: [] } })
   rede.responderPor('/v1/meus-vinculos', quem.vinculos ?? UMA_TURMA)
   rede.responderPor('/v1/time', quem.time ?? timeSem())
@@ -66,14 +66,14 @@ function instalar(rede: RedeFalsa, quem: Quem = {}): void {
   // O pedido ao Assistente e a geração: a execução fica no ar, sem terminar.
   rede.responderPor('/v1/assistente/mensagens', { status: 202, corpo: { execucaoId: id(950) } })
   rede.responderPor('/v1/ferramentas/atividade_objetiva/gerar', { status: 202, corpo: { execucaoId: id(951) } })
-  rede.responderPor(/^\/v1\/execucoes\//, () => new Promise<RespostaFalsa>(() => undefined))
+  rede.responderPor(/^\/v1\/execucoes\//, () => new Promise<FakeResponse>(() => undefined))
 }
 
-const conversaCom = (mensagens: readonly unknown[]): RespostaFalsa => ({ status: 200, corpo: { mensagens } })
+const conversaCom = (mensagens: readonly unknown[]): FakeResponse => ({ status: 200, corpo: { mensagens } })
 
 function montar() {
-  const localizacao = memoryLocation({ path: ROTAS_DO_PROFESSOR.conversa, record: true })
-  renderizarTela(
+  const localizacao = memoryLocation({ path: PROFESSOR_ROUTES.conversa, record: true })
+  renderScreen(
     <Router hook={localizacao.hook}>
       <Conversa />
     </Router>,
@@ -121,13 +121,13 @@ const botoesDaPergunta = () => within(pergunta()).getAllByRole('button') as HTML
 const frasesDeIA = (dentro: HTMLElement = document.body) => within(dentro).queryAllByText((_texto, elemento) => elemento instanceof HTMLParagraphElement && elemento.textContent === FRASE_DE_IA)
 const fraseDeIA = (dentro: HTMLElement = document.body) => within(dentro).getByText((_texto, elemento) => elemento instanceof HTMLParagraphElement && elemento.textContent === FRASE_DE_IA)
 const cartoes = () => document.querySelectorAll('[data-cartao-de-ferramenta]')
-const chamadasA = (rede: RedeFalsa, caminho: string) => rede.chamadas.filter((chamada) => chamada.caminho.split('?')[0] === caminho)
+const chamadasA = (rede: FakeNetwork, caminho: string) => rede.chamadas.filter((chamada) => chamada.caminho.split('?')[0] === caminho)
 
 describe('os estados da conversa', () => {
   it('carregando: a conversa ainda não veio, e a tela diz que está carregando, sem o convite do vazio', async () => {
-    const rede = redeFalsa()
-    let liberar: (resposta: RespostaFalsa) => void = () => undefined
-    instalar(rede, { conversa: () => new Promise<RespostaFalsa>((resolver) => (liberar = resolver)) })
+    const rede = fakeNetwork()
+    let liberar: (resposta: FakeResponse) => void = () => undefined
+    instalar(rede, { conversa: () => new Promise<FakeResponse>((resolver) => (liberar = resolver)) })
     montar()
     expect(await screen.findByText('Carregando a conversa…')).toBeTruthy()
     expect(screen.queryByText('Nenhuma conversa ainda')).toBeNull()
@@ -138,7 +138,7 @@ describe('os estados da conversa', () => {
   })
 
   it('erro: a mensagem do catálogo, sem o código, e "Tentar de novo" lê de novo e traz a conversa', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     let leituras = 0
     instalar(rede, { conversa: () => (++leituras === 1 ? NAO_ENCONTRADO : conversaCom([dela(1, PEDIDO_DELA)])) })
     montar()
@@ -153,7 +153,7 @@ describe('os estados da conversa', () => {
   })
 
   it('vazio: "Nenhuma conversa ainda" convida a pedir, e a caixa já está lá com a frase embaixo', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede)
     montar()
     expect(await screen.findByText('Nenhuma conversa ainda')).toBeTruthy()
@@ -163,7 +163,7 @@ describe('os estados da conversa', () => {
   })
 
   it('sem turma confirmada: diz o que falta, sem caixa nem frase de IA, e "Ir para Turmas" leva a Turmas', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     // A pendente não conta: a API a responderia como inexistente.
     instalar(rede, { vinculos: SEM_CONFIRMADA })
     const localizacao = montar()
@@ -172,11 +172,11 @@ describe('os estados da conversa', () => {
     expect(screen.queryByRole('group', { name: 'Novo pedido' })).toBeNull()
     expect(screen.queryByText(/O Assistente é uma IA e pode errar/)).toBeNull()
     await userEvent.setup().click(screen.getByRole('button', { name: 'Ir para Turmas' }))
-    expect(localizacao.history.at(-1)).toBe(ROTAS_DO_PROFESSOR.turmas)
+    expect(localizacao.history.at(-1)).toBe(PROFESSOR_ROUTES.turmas)
   })
 
   it('função suspensa pela escola: o aviso que explica, a caixa desligada e o menu "Ferramenta" desligado, sem pedido', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { conversa: conversaCom(CONVERSA_COM_PERGUNTA), time: timeSem('conversa_e_ferramentas') })
     montar()
     const campo = (await caixa()) as HTMLTextAreaElement
@@ -191,7 +191,7 @@ describe('os estados da conversa', () => {
   })
 
   it('com dado: o `log` com o nome de sempre, as mensagens na ordem, a caixa presa embaixo com o menu "Ferramenta" e a frase de IA depois dela', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { conversa: conversaCom([dela(1, 'o que é reagente limitante?'), doAgente(2, 'O reagente limitante é o que acaba primeiro.')]) })
     montar()
     const campo = await caixa()
@@ -215,7 +215,7 @@ describe('os estados da conversa', () => {
 
 describe('a pergunta da D18', () => {
   it('o pedido sem ferramenta recebe a pergunta com "Usar a ferramenta…" e "Só conversar" do mesmo desenho e do mesmo tamanho, e nenhuma vem escolhida', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { conversa: conversaCom(CONVERSA_COM_PERGUNTA) })
     montar()
     await caixa()
@@ -235,7 +235,7 @@ describe('a pergunta da D18', () => {
 
 describe('nenhum cartão sem o "sim"', () => {
   it('enquanto a pergunta está aberta, não há cartão de ferramenta, nem a caixa o abre sozinha', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { conversa: conversaCom(CONVERSA_COM_PERGUNTA) })
     montar()
     await caixa()
@@ -252,7 +252,7 @@ describe('nenhum cartão sem o "sim"', () => {
   })
 
   it('"Só conversar" manda o pedido ao Assistente e não abre cartão', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { conversa: conversaCom(CONVERSA_COM_PERGUNTA) })
     montar()
     await caixa()
@@ -268,7 +268,7 @@ describe('nenhum cartão sem o "sim"', () => {
   })
 
   it('só "Usar a ferramenta" abre o cartão, com a turma e o que o Assistente entendeu do pedido', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { conversa: conversaCom(CONVERSA_COM_PERGUNTA) })
     montar()
     await caixa()
@@ -284,7 +284,7 @@ describe('nenhum cartão sem o "sim"', () => {
 
 describe('a Adaptação', () => {
   it('o cartão da Adaptação abre pelo menu sem o texto da caixa (D35, D67): ele não chega ao cartão por caminho nenhum', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede)
     montar()
     const usuario = userEvent.setup()
@@ -303,7 +303,7 @@ describe('a Adaptação', () => {
 
 describe('a IA se identifica', () => {
   it('cada resposta do Assistente tem o nome da função e o selo "IA" no mesmo bloco, a pergunta da D18 inclusive', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { conversa: conversaCom([dela(1, 'o que é reagente limitante?'), doAgente(2, 'O reagente limitante é o que acaba primeiro.'), dela(3, PEDIDO_DELA), proposta(4)]) })
     montar()
     await caixa()
@@ -323,7 +323,7 @@ describe('a IA se identifica', () => {
   })
 
   it('o cartão da ferramenta tem o ícone ilustrado e o nome da ferramenta no cabeçalho, dentro de uma região com o nome dela', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede)
     CARTAO_DA_CONVERSA.guardar({ ferramenta: 'plano_de_aula', iniciais: { turma: VALOR_DA_TURMA_A, tema: 'Estequiometria' } })
     montar()
@@ -340,7 +340,7 @@ describe('a IA se identifica', () => {
 
 describe('o foco acompanha a professora (regra 50, item 11)', () => {
   it('o cartão que abre recebe o foco, "Cancelar" o fecha e devolve o foco à caixa de pedido', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { conversa: conversaCom(CONVERSA_COM_PERGUNTA) })
     montar()
     await caixa()
@@ -359,7 +359,7 @@ describe('o foco acompanha a professora (regra 50, item 11)', () => {
   })
 
   it('quem chega à conversa com o pedido no ar continua na caixa, pronta para o pedido seguinte', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede)
     const pedido: PedidoDaConversa = { texto: PEDIDO_DELA, turmaId: TURMA_A.id, disciplinaId: QUIMICA.id }
     const noAr: CicloDeExecucao<PedidoDaConversa> = { etapa: 'esperando', pedido, chaveEnvio: 'chave-1', desde: Date.now(), execucaoId: id(950) }
@@ -373,7 +373,7 @@ describe('o foco acompanha a professora (regra 50, item 11)', () => {
   })
 
   it('o pedido enviado da própria conversa deixa o foco na caixa, limpa e pronta', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede)
     montar()
     const usuario = userEvent.setup()

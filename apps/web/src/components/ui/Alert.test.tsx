@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { classesDo } from '../../__fixtures__/class-colors'
+import { classesOf } from '../../__fixtures__/class-colors'
 import { Alert, ALERT_TONES, type AlertTone } from './Alert'
 
 /**
@@ -31,7 +31,7 @@ describe('Aviso', () => {
       expect(svg, tom).not.toBeNull()
       // O círculo que leva o glifo some da leitura de tela: o título e o corpo dizem tudo o que o glifo diria.
       expect(svg.closest('[aria-hidden="true"]'), tom).not.toBeNull()
-      glifos.set(tom, [...classesDo(svg)].find((classe) => classe.startsWith('lucide-')) ?? '')
+      glifos.set(tom, [...classesOf(svg)].find((classe) => classe.startsWith('lucide-')) ?? '')
       expect(aviso.textContent, tom).toContain('Título do aviso')
       expect(aviso.textContent, tom).toContain('O que aconteceu e o que fazer.')
       unmount()
@@ -78,9 +78,9 @@ describe('Aviso', () => {
   it('o título é opcional, em `t-cartao`; o corpo é `tinta`, e sem título só o corpo aparece', () => {
     desenhar('info', { titulo: 'Título' })
     const titulo = screen.getByText('Título')
-    expect(classesDo(titulo).has('t-cartao')).toBe(true)
-    expect(classesDo(titulo).has('text-tinta')).toBe(true)
-    expect(classesDo(screen.getByText('O que aconteceu e o que fazer.')).has('text-tinta')).toBe(true)
+    expect(classesOf(titulo).has('t-cartao')).toBe(true)
+    expect(classesOf(titulo).has('text-tinta')).toBe(true)
+    expect(classesOf(screen.getByText('O que aconteceu e o que fazer.')).has('text-tinta')).toBe(true)
     cleanup()
     const { container: semTitulo } = desenhar('info')
     expect(semTitulo.querySelector('.t-cartao')).toBeNull()
@@ -90,7 +90,7 @@ describe('Aviso', () => {
   it('a caixa é de leitura: borda de 2 px, canto de 12 e nenhum degrau nem sombra', () => {
     for (const tom of ALERT_TONES) {
       const { container, unmount } = desenhar(tom)
-      const classes = classesDo(container.querySelector('[data-aviso]') as Element)
+      const classes = classesOf(container.querySelector('[data-aviso]') as Element)
       for (const classe of ['border-2', 'rounded-controle']) expect(classes.has(classe), `${tom}: ${classe}`).toBe(true)
       expect([...classes].filter((classe) => /^(degrau|shadow)/.test(classe)), `${tom}: sem sombra nem degrau`).toEqual([])
       unmount()
@@ -101,7 +101,7 @@ describe('Aviso', () => {
     const familias: Record<AlertTone, string> = { info: 'azul', atencao: 'amarelo', erro: 'vermelho', certo: 'verde' }
     for (const tom of ALERT_TONES) {
       const { container, unmount } = desenhar(tom)
-      const classes = classesDo(container.querySelector('[data-aviso]') as Element)
+      const classes = classesOf(container.querySelector('[data-aviso]') as Element)
       expect(classes.has(`border-${familias[tom]}-borda`), tom).toBe(true)
       expect(classes.has(`bg-${familias[tom]}-claro`), tom).toBe(true)
       unmount()

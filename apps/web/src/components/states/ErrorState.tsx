@@ -1,4 +1,4 @@
-import { mensagemDoErro } from '../../api/client'
+import { errorMessage } from '../../api/client'
 import { Button } from '../ui/Button'
 
 interface Props {
@@ -20,11 +20,11 @@ interface Props {
  * Esta peça mora na entrada (Tech Spec da X1, seção 7c): não importa `Alert`, `CountBadge`, `Toggle` nem outra peça que
  * fique fora dela, e o teste do build prova.
  */
-export function EstadoErro({ erro, aoTentarDeNovo, tentando = false }: Props) {
+export function ErrorState({ erro, aoTentarDeNovo, tentando = false }: Props) {
   return (
     <div className="rounded-cartao border-2 border-erro bg-erro-cx p-4">
       <p role="alert" className="t-apoio text-erro">
-        {mensagemDoErro(erro)}
+        {errorMessage(erro)}
       </p>
       <div className="mt-3 flex flex-wrap items-center gap-3">
         <Button onClick={aoTentarDeNovo}>Tentar de novo</Button>

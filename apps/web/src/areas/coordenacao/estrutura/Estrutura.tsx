@@ -15,12 +15,12 @@ import { Ellipsis } from 'lucide-react'
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { Link, useLocation, useSearch } from 'wouter'
 import {
-  CHAVE_DA_ESTRUTURA,
-  consultaAnosLetivos,
-  consultaDisciplinas,
-  consultaSeries,
-  consultaTurmas,
-  consultaVinculos,
+  ESTRUTURA_QUERY_KEY,
+  anosLetivosQueryOptions,
+  disciplinasQueryOptions,
+  seriesQueryOptions,
+  turmasQueryOptions,
+  vinculosQueryOptions,
   criarTurma,
   excluirDisciplina,
   excluirTurma,
@@ -28,21 +28,21 @@ import {
   renomearDisciplina,
   renomearTurma,
 } from '../../../api/estrutura'
-import { consultaProfessores } from '../professores/api/professores'
+import { professoresQueryOptions } from '../professores/api/professores'
 import { caminhoDaTurmaNaEstrutura } from '../../../paths'
 import { Alert } from '../../../components/ui/Alert'
 import { Button } from '../../../components/ui/Button'
 import { SECONDARY_BUTTON_CLASSES } from '../../../components/ui/button-variants'
 import { FormField } from '../../../components/ui/fields/FormField'
 import { useDialogState } from '../../../components/ui/overlays/dialog-state'
-import { ConfirmacaoDePerigo, DialogoDeFormulario, useEnvioUnico } from '../../../components/dialogs'
-import { EstadoCarregando, EstadoErro, EstadoVazio } from '../../../components/states/index'
+import { DangerConfirmDialog, FormDialog, useSingleSubmit } from '../../../components/dialogs'
+import { LoadingState, ErrorState, EmptyState } from '../../../components/states/index'
 import { Menu } from '../../../components/ui/overlays/Menu'
 import { SELECT_CLASSES } from '../../../components/ui/fields/field-styles'
 import { SegmentedControl } from '../../../components/ui/fields/SegmentedControl'
 import { StatusBadge } from '../../../components/ui/StatusBadge'
 import { Table, type TableColumn } from '../../../components/ui/Table'
-import { listaMudou, textoDaFalha } from '../../../components/error-text'
+import { listChanged, errorText } from '../../../components/error-text'
 import {
   PainelDoAnoEDisciplinas,
   NovaDisciplina,
@@ -161,18 +161,18 @@ export default function Estrutura() {
   const busca = useSearch()
   const painel = painelDoEndereco(busca)
   const situacao = situacaoDoEndereco(busca)
-  const anos = useQuery(consultaAnosLetivos)
+  const anos = useQuery(anosLetivosQueryOptions)
   const anoEmCurso = anos.data?.itens.find((ano) => ano.situacao === 'em_curso')
-  const series = useQuery(consultaSeries)
-  const disciplinas = useQuery(consultaDisciplinas)
+  const series = useQuery(seriesQueryOptions)
+  const disciplinas = useQuery(disciplinasQueryOptions)
   // Turmas e vínculos são do ano em curso: sem ele a API responde como inexistente, e a tela nem pergunta.
   const turmas = useQuery({
-    ...consultaTurmas,
+    ...turmasQueryOptions,
     enabled: anoEmCurso !== undefined,
   })
-  const professores = useQuery(consultaProfessores)
+  const professores = useQuery(professoresQueryOptions)
   const vinculos = useQuery({
-    ...consultaVinculos,
+    ...vinculosQueryOptions,
     enabled: anoEmCurso !== undefined,
   })
   const dialogo = useDialogState<TipoDeDialogo, AlvoDoDialogo>()
@@ -187,7 +187,7 @@ export default function Estrutura() {
   const tituloDasDisciplinas = useRef<HTMLHeadingElement>(null)
   const tituloDasTurmas = useRef<HTMLHeadingElement>(null)
 
-  const recarregar = useCallback(() => cliente.invalidateQueries({ queryKey: CHAVE_DA_ESTRUTURA }), [cliente])
+  const recarregar = useCallback(() => cliente.invalidateQueries({ queryKey: ESTRUTURA_QUERY_KEY }), [cliente])
 
   /** Abrir um diálogo apaga o anúncio da ação anterior: o que ele dizia já não é o que a pessoa está fazendo. */
   function abrir(tipo: TipoDeDialogo, item?: AlvoDoDialogo): void {
@@ -212,9 +212,9 @@ export default function Estrutura() {
     painelAnterior.current = painel
   }, [painel])
 
-  if (anos.isPending) return <EstadoCarregando rotulo="Carregando a estrutura da escola…" />
+  if (anos.isPending) return <LoadingState rotulo="Carregando a estrutura da escola…" />
 
-  if (anos.isError) return <EstadoErro erro={anos.error} tentando={anos.isFetching} aoTentarDeNovo={() => void anos.refetch({ cancelRefetch: false })} />
+  if (anos.isError) return <ErrorState erro={anos.error} tentando={anos.isFetching} aoTentarDeNovo={() => void anos.refetch({ cancelRefetch: false })} />
 
   const alocaveis = professores.data?.itens.filter((professor) => professorAlocavel(professor.estado))
   // Turmas e vínculos são do ano em curso: sem ele não há leitura a esperar, e o passo falta de fato.
@@ -237,7 +237,7 @@ export default function Estrutura() {
     <section className="flex min-w-0 flex-col gap-8">
       {semAno ? (
         <>
-          <EstadoVazio
+          <EmptyState
             titulo="Comece pelo ano letivo"
             descricao="A escola se monta nesta ordem, e cada passo abre o seguinte. As turmas nascem no ano letivo em curso."
             acao={{
@@ -279,11 +279,11 @@ export default function Estrutura() {
             {anoEmCurso === undefined ? (
               <p className="text-apoio">As turmas nascem no ano letivo em curso. Abra o ano letivo acima para criar as turmas.</p>
             ) : turmas.isPending ? (
-              <EstadoCarregando rotulo="Carregando as turmas…" />
+              <LoadingState rotulo="Carregando as turmas…" />
             ) : turmas.isError ? (
-              <EstadoErro erro={turmas.error} tentando={turmas.isFetching} aoTentarDeNovo={() => void turmas.refetch({ cancelRefetch: false })} />
+              <ErrorState erro={turmas.error} tentando={turmas.isFetching} aoTentarDeNovo={() => void turmas.refetch({ cancelRefetch: false })} />
             ) : turmas.data.itens.length === 0 ? (
-              <EstadoVazio titulo="Nenhuma turma ainda" descricao="Crie cada turma numa série; depois abra a turma para subir a lista de nomes." />
+              <EmptyState titulo="Nenhuma turma ainda" descricao="Crie cada turma numa série; depois abra a turma para subir a lista de nomes." />
             ) : (
               <TurmasDoAno
                 turmas={turmas.data}
@@ -404,7 +404,7 @@ export default function Estrutura() {
         />
       )}
       {aberta?.tipo === 'excluir_disciplina' && alvo !== undefined && (
-        <ConfirmacaoDePerigo
+        <DangerConfirmDialog
           key={aberta.numero}
           titulo="Excluir a disciplina"
           texto={
@@ -429,7 +429,7 @@ export default function Estrutura() {
         />
       )}
       {aberta?.tipo === 'excluir_turma' && alvo !== undefined && (
-        <ConfirmacaoDePerigo
+        <DangerConfirmDialog
           key={aberta.numero}
           titulo="Excluir a turma"
           texto={
@@ -483,14 +483,14 @@ function TurmasDoAno({ turmas, vinculos, nomes, situacao, aoFiltrar, aoEscolher 
   let corpo
   if (filtrando && vinculos.data === undefined) {
     corpo = vinculos.isError ? (
-      <EstadoErro erro={vinculos.error} tentando={vinculos.isFetching} aoTentarDeNovo={() => void vinculos.refetch({ cancelRefetch: false })} />
+      <ErrorState erro={vinculos.error} tentando={vinculos.isFetching} aoTentarDeNovo={() => void vinculos.refetch({ cancelRefetch: false })} />
     ) : (
-      <EstadoCarregando rotulo="Carregando os professores das turmas…" />
+      <LoadingState rotulo="Carregando os professores das turmas…" />
     )
   } else if (filtrando && vinculos.data?.completa === false) {
     corpo = <Alert tom="atencao">A escola tem mais vínculos do que esta tela lê, e por isso ela não diz quais turmas estão sem professor.</Alert>
   } else if (exibidas.length === 0) {
-    corpo = <EstadoVazio titulo="Nenhuma turma sem professor" descricao="Toda turma do ano tem professor alocado, esperando a confirmação ou já confirmado." />
+    corpo = <EmptyState titulo="Nenhuma turma sem professor" descricao="Toda turma do ano tem professor alocado, esperando a confirmação ou já confirmado." />
   } else {
     corpo = (
       <div className="flex min-w-0 flex-col gap-6">
@@ -548,7 +548,7 @@ function NovaTurma({ anoLetivo, series, aoFechar, aoCriar, recarregar }: PropsDe
   const campoDaSerie = useId()
   const campoDoTurno = useId()
   const campoDoNome = useRef<HTMLInputElement>(null)
-  const { enviar, mutacao } = useEnvioUnico({
+  const { enviar, mutacao } = useSingleSubmit({
     mutationFn: criarTurma,
     ...depoisDeCriar(aoCriar, recarregar),
   })
@@ -569,14 +569,14 @@ function NovaTurma({ anoLetivo, series, aoFechar, aoCriar, recarregar }: PropsDe
   }
 
   const falha = mutacao.isError
-    ? textoDaFalha(mutacao.error, {
+    ? errorText(mutacao.error, {
         [ErrorCode.CONFLITO]: 'Já existe uma turma com este nome neste ano letivo.',
         [ErrorCode.NAO_ENCONTRADO]: 'A série ou o ano letivo mudou enquanto você preenchia. A tela foi atualizada: confira e tente de novo.',
       })
     : undefined
 
   return (
-    <DialogoDeFormulario
+    <FormDialog
       titulo={`Nova turma em ${String(anoLetivo.ano)}`}
       aoFechar={aoFechar}
       aoEnviar={aoEnviar}
@@ -633,7 +633,7 @@ function NovaTurma({ anoLetivo, series, aoFechar, aoCriar, recarregar }: PropsDe
           </div>
         </>
       )}
-    </DialogoDeFormulario>
+    </FormDialog>
   )
 }
 
@@ -655,7 +655,7 @@ function Renomear({ titulo, rotulo, atual, maximo, renomear, conflito, aoFechar,
   const [nome, definirNome] = useState(atual)
   const [erroDoNome, definirErroDoNome] = useState<string | undefined>(undefined)
   const campo = useRef<HTMLInputElement>(null)
-  const { enviar, mutacao } = useEnvioUnico({
+  const { enviar, mutacao } = useSingleSubmit({
     mutationFn: renomear,
     onSuccess: async (_resposta, enviado: string) => {
       await recarregar()
@@ -663,8 +663,8 @@ function Renomear({ titulo, rotulo, atual, maximo, renomear, conflito, aoFechar,
     },
     onError: recarregar,
   })
-  const conflitou = mutacao.isError && listaMudou(mutacao.error, [ErrorCode.CONFLITO])
-  const sumiu = mutacao.isError && listaMudou(mutacao.error, [ErrorCode.NAO_ENCONTRADO])
+  const conflitou = mutacao.isError && listChanged(mutacao.error, [ErrorCode.CONFLITO])
+  const sumiu = mutacao.isError && listChanged(mutacao.error, [ErrorCode.NAO_ENCONTRADO])
   // O nome já é de outro item: o erro fica no campo, e o foco volta para ele, para a pessoa trocar o nome ali mesmo.
   useEffect(() => {
     if (conflitou) campo.current?.focus()
@@ -682,7 +682,7 @@ function Renomear({ titulo, rotulo, atual, maximo, renomear, conflito, aoFechar,
   }
 
   return (
-    <DialogoDeFormulario
+    <FormDialog
       titulo={titulo}
       aoFechar={aoFechar}
       aoEnviar={aoEnviar}
@@ -692,7 +692,7 @@ function Renomear({ titulo, rotulo, atual, maximo, renomear, conflito, aoFechar,
       semNovaTentativa={sumiu}
       falha={
         mutacao.isError && !conflitou
-          ? textoDaFalha(mutacao.error, {
+          ? errorText(mutacao.error, {
               [ErrorCode.NAO_ENCONTRADO]: 'Este item já não existe. A lista foi atualizada.',
             })
           : undefined
@@ -709,6 +709,6 @@ function Renomear({ titulo, rotulo, atual, maximo, renomear, conflito, aoFechar,
         onChange={(evento) => definirNome(evento.target.value)}
         erro={erroDoNome ?? (conflitou ? conflito : undefined)}
       />
-    </DialogoDeFormulario>
+    </FormDialog>
   )
 }

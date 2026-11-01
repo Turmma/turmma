@@ -1,7 +1,7 @@
 import { useContext, type ReactNode } from 'react'
 import { Link, useLocation } from 'wouter'
-import { estaNoItem, type IconeDoItem, type ItemDaNavegacao } from '../areas/navigation'
-import { ContextoDaGaveta } from './drawer-context'
+import { estaNoItem, type NavItemIcon, type NavItem } from '../areas/navigation'
+import { DrawerContext } from './drawer-context'
 import { Icon } from './ui/Icon'
 import { IconTile } from './ui/IconTile'
 
@@ -36,7 +36,7 @@ export function classeDoBotaoDeLugar(trilho: boolean): string {
  * de tela o nome já está no próprio controle, e a dica é só visual. É uma caixa flutuante como o menu: face `fundo`, borda
  * de 2 px e degrau de 4 (`shadow-flutua`), e a face do oficial é só do botão oficial.
  */
-export function Dica({ children }: { children: ReactNode }) {
+export function Tooltip({ children }: { children: ReactNode }) {
   return (
     <span
       aria-hidden="true"
@@ -52,7 +52,7 @@ export function Dica({ children }: { children: ReactNode }) {
  * família do lugar. Sempre decoração: o rótulo está escrito ao lado, ou no nome do controle, e dizê-lo duas vezes seria
  * ruído (9.4, "ícone sempre com rótulo").
  */
-export function IconeDoLugar({ icone }: { icone: IconeDoItem }) {
+export function IconeDoLugar({ icone }: { icone: NavItemIcon }) {
   if ('lugar' in icone) {
     return (
       <span aria-hidden="true" className="flex size-9 shrink-0 items-center justify-center">
@@ -76,9 +76,9 @@ export function IconeDoLugar({ icone }: { icone: IconeDoItem }) {
  *
  * Tocar num item fecha a gaveta, também quando o item é o da tela aberta e o endereço não muda.
  */
-export function ItemDaLateral({ item, trilho }: { item: ItemDaNavegacao; trilho: boolean }) {
+export function ItemDaLateral({ item, trilho }: { item: NavItem; trilho: boolean }) {
   const [caminho] = useLocation()
-  const { fechar } = useContext(ContextoDaGaveta)
+  const { fechar } = useContext(DrawerContext)
   const aqui = estaNoItem(caminho, item)
   return (
     <li>
@@ -92,7 +92,7 @@ export function ItemDaLateral({ item, trilho }: { item: ItemDaNavegacao; trilho:
         {trilho ? (
           <>
             <span className="sr-only">{item.rotulo}</span>
-            <Dica>{item.rotulo}</Dica>
+            <Tooltip>{item.rotulo}</Tooltip>
           </>
         ) : (
           <span className="min-w-0 break-words">{item.rotulo}</span>
@@ -103,7 +103,7 @@ export function ItemDaLateral({ item, trilho }: { item: ItemDaNavegacao; trilho:
 }
 
 interface PropsDaListaDeItens {
-  readonly itens: readonly ItemDaNavegacao[]
+  readonly itens: readonly NavItem[]
   /** O nome do grupo para o leitor de tela: `Seções` já é de quem tem os itens principais, e este não se confunde com ele. */
   readonly rotulo: string
   readonly trilho: boolean

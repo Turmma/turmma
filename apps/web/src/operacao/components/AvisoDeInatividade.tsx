@@ -8,7 +8,7 @@ import { SECONDARY_BUTTON_CLASSES } from '../../components/ui/button-variants'
  * operador parado com o Nova escola aberto perderia a sessão sem ter como continuar (D59; WCAG 2.2.1). Por isso, com um
  * diálogo aberto, o aviso sai da casca e é desenhado **dentro** do diálogo.
  */
-export interface AvisoDaSessao {
+export interface SessionWarningContextValue {
   readonly visivel: boolean
   readonly continuar: () => void
   readonly sair: () => void
@@ -16,7 +16,7 @@ export interface AvisoDaSessao {
   readonly registrarDialogo: () => () => void
 }
 
-export const ContextoDoAviso = createContext<AvisoDaSessao | undefined>(undefined)
+export const SessionWarningContext = createContext<SessionWarningContextValue | undefined>(undefined)
 
 /**
  * O aviso 2 min antes do fim da sessão parada (Tech Spec da A0, seção 9). Não é diálogo: não rouba o foco de quem
@@ -42,7 +42,7 @@ export function AvisoDeInatividade({ aoContinuar, aoSair }: { aoContinuar: () =>
 
 /** O aviso dentro de um diálogo aberto, quando a sessão está para terminar. Fora da casca com sessão, nada. */
 export function AvisoNoDialogo() {
-  const aviso = useContext(ContextoDoAviso)
+  const aviso = useContext(SessionWarningContext)
   if (aviso?.visivel !== true) return null
   return <AvisoDeInatividade aoContinuar={aviso.continuar} aoSair={aviso.sair} />
 }

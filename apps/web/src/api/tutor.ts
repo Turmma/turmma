@@ -1,7 +1,7 @@
 import { conversaDoTutorResponseSchema, execucaoAceitaResponseSchema, type MensagemDoTutor, type MensagemAoTutorRequest, type ConversaDoTutorResponse, type ExecucaoAceitaResponse } from '@educa/shared'
 import { infiniteQueryOptions } from '@tanstack/react-query'
-import { CHAVE_DA_CONVERSA_DO_TUTOR } from './chaves-do-aluno'
-import { buscarComSessao, chamarComSessao } from './sessao'
+import { CONVERSA_DO_TUTOR_QUERY_KEY } from './chaves-do-aluno'
+import { authedGet, authedRequest } from './sessao'
 
 const CAMINHO_DA_CONVERSA = '/v1/tutor/conversa'
 
@@ -13,13 +13,13 @@ const CAMINHO_DA_CONVERSA = '/v1/tutor/conversa'
  * A primeira página são as mensagens mais recentes; cada página seguinte, as anteriores (`?antes=<id>`). O estado e o
  * uso valem os da primeira página, que é a lida por último.
  */
-export function consultaConversaDoTutor(atividadeAplicadaId: string) {
+export function conversaDoTutorQueryOptions(atividadeAplicadaId: string) {
   return infiniteQueryOptions({
-    queryKey: [...CHAVE_DA_CONVERSA_DO_TUTOR, atividadeAplicadaId],
+    queryKey: [...CONVERSA_DO_TUTOR_QUERY_KEY, atividadeAplicadaId],
     queryFn: ({ pageParam, signal }) => {
       const consulta = new URLSearchParams({ atividadeAplicadaId })
       if (pageParam !== undefined) consulta.set('antes', pageParam)
-      return buscarComSessao(`${CAMINHO_DA_CONVERSA}?${consulta.toString()}`, conversaDoTutorResponseSchema, signal)
+      return authedGet(`${CAMINHO_DA_CONVERSA}?${consulta.toString()}`, conversaDoTutorResponseSchema, signal)
     },
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (ultima) => ultima.anterior,
@@ -46,5 +46,5 @@ export function mensagensDoTutorEmOrdem(paginas: readonly ConversaDoTutorRespons
 
 /** `POST /v1/tutor/mensagens`: responde 202 com a execução. A resposta do Tutor chega pela execução. */
 export function enviarMensagemAoTutor(pedido: MensagemAoTutorRequest): Promise<ExecucaoAceitaResponse> {
-  return chamarComSessao('/v1/tutor/mensagens', execucaoAceitaResponseSchema, { metodo: 'POST', corpo: pedido })
+  return authedRequest('/v1/tutor/mensagens', execucaoAceitaResponseSchema, { metodo: 'POST', corpo: pedido })
 }

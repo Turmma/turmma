@@ -7,7 +7,7 @@ import {
   type EntradaDeOperadorResponse,
   type RenovacaoDeOperadorResponse,
 } from '@educa/shared'
-import { chamarApi, ErroDaApi, SEM_CORPO, type EsquemaDeResposta, type OpcoesDaChamada } from '../../api/client'
+import { apiRequest, ApiError, EMPTY_BODY, type ResponseSchema, type RequestOptions } from '../../api/client'
 import { TEXTO_DA_SAIDA_NAO_CONFIRMADA, TEXTO_DA_SESSAO_ENCERRADA } from '../textos'
 
 /**
@@ -230,7 +230,7 @@ export function esquecerDesafioDeOperador(): void {
 }
 
 function ehCodigo(erro: unknown, codigo: ErrorCode): boolean {
-  return erro instanceof ErroDaApi && erro.codigo === codigo
+  return erro instanceof ApiError && erro.codigo === codigo
 }
 
 function esperar(ms: number): Promise<void> {
@@ -275,12 +275,12 @@ let renovacaoEmAndamento: Promise<void> | undefined
  * sobem como `INDISPONIVEL_TENTE_DE_NOVO`, com o token em memória intacto.
  */
 export function renovarSessaoDeOperador(): Promise<void> {
-  if (estado === 'anonima') return Promise.reject(new ErroDaApi(ErrorCode.SESSAO_ENCERRADA))
+  if (estado === 'anonima') return Promise.reject(new ApiError(ErrorCode.SESSAO_ENCERRADA))
   const daGeracao = geracao
-  renovacaoEmAndamento ??= comTravaDeRenovacao(() => chamarApi(CAMINHO_DA_RENOVACAO_DE_OPERADOR, renovacaoDeOperadorResponseSchema, { metodo: 'POST' }))
+  renovacaoEmAndamento ??= comTravaDeRenovacao(() => apiRequest(CAMINHO_DA_RENOVACAO_DE_OPERADOR, renovacaoDeOperadorResponseSchema, { metodo: 'POST' }))
     .then((resposta) => {
       // A sessão foi esquecida enquanto a renovação estava no ar ("Sair", outra aba que saiu): o acesso não fica.
-      if (daGeracao !== geracao) throw new ErroDaApi(ErrorCode.SESSAO_ENCERRADA)
+      if (daGeracao !== geracao) throw new ApiError(ErrorCode.SESSAO_ENCERRADA)
       guardarAcesso(resposta, Date.now(), false)
     })
     .finally(() => {
@@ -325,7 +325,7 @@ async function renovarOuEncerrar(): Promise<void> {
   }
 }
 
-export type OpcoesComSessaoDeOperador = Omit<OpcoesDaChamada, 'token'>
+export type OperadorSessaoOptions = Omit<RequestOptions, 'token'>
 
 /**
  * Chamada a uma rota `@OperacaoRoute`, com o token no `Authorization`. As três respostas que a guarda distingue
@@ -337,12 +337,12 @@ export type OpcoesComSessaoDeOperador = Omit<OpcoesDaChamada, 'token'>
  * - **503 e sem rede**: sobe como está. A tela mostra a mensagem e **fica**: ninguém é mandado para a entrada porque o
  *   banco caiu (regra 80, item 6).
  */
-export async function chamarComSessaoDeOperador<T>(caminho: string, esquema: EsquemaDeResposta<T>, opcoes: OpcoesComSessaoDeOperador = {}): Promise<T> {
-  if (estado === 'anonima') throw new ErroDaApi(ErrorCode.SESSAO_ENCERRADA)
+export async function operadorAuthedRequest<T>(caminho: string, esquema: ResponseSchema<T>, opcoes: OperadorSessaoOptions = {}): Promise<T> {
+  if (estado === 'anonima') throw new ApiError(ErrorCode.SESSAO_ENCERRADA)
   if (token === undefined || (expiraEm !== undefined && expiraEm <= Date.now())) await renovarOuEncerrar()
   const enviadaEm = Date.now()
   try {
-    const resposta = await chamarApi(caminho, esquema, { ...opcoes, token })
+    const resposta = await apiRequest(caminho, esquema, { ...opcoes, token })
     registrarUso(enviadaEm)
     return resposta
   } catch (erro) {
@@ -354,7 +354,7 @@ export async function chamarComSessaoDeOperador<T>(caminho: string, esquema: Esq
     await renovarOuEncerrar()
     const repetidaEm = Date.now()
     try {
-      const resposta = await chamarApi(caminho, esquema, { ...opcoes, token })
+      const resposta = await apiRequest(caminho, esquema, { ...opcoes, token })
       registrarUso(repetidaEm)
       return resposta
     } catch (segundoErro) {
@@ -381,12 +381,12 @@ export async function entrarComoOperador(pedido: EntradaDeOperadorRequest): Prom
   const limite = Date.now() + PRAZO_DA_ENTRADA_NO_503_MS
   for (;;) {
     try {
-      const resposta = await chamarApi(CAMINHO_DA_ENTRADA_DE_OPERADOR, entradaDeOperadorResponseSchema, { metodo: 'POST', corpo: pedido })
+      const resposta = await apiRequest(CAMINHO_DA_ENTRADA_DE_OPERADOR, entradaDeOperadorResponseSchema, { metodo: 'POST', corpo: pedido })
       desafio = { etapa: resposta.etapa, valor: resposta.desafio }
       aviso = undefined
       return resposta.etapa
     } catch (erro) {
-      const espera = erro instanceof ErroDaApi && erro.codigo === ErrorCode.INDISPONIVEL_TENTE_DE_NOVO ? erro.esperaSegundos : undefined
+      const espera = erro instanceof ApiError && erro.codigo === ErrorCode.INDISPONIVEL_TENTE_DE_NOVO ? erro.esperaSegundos : undefined
       if (espera === undefined) throw erro
       const atraso = Math.max(espera * 1_000, ESPERA_MINIMA_NO_503_MS)
       if (atraso > limite - Date.now()) throw erro
@@ -422,10 +422,10 @@ export function entrarComSegundoFatorDeOperador(codigo: CodigoDoSegundoFatorDeOp
 
 async function enviarSegundoFator(codigo: CodigoDoSegundoFatorDeOperador): Promise<void> {
   const emAndamento = desafioDeOperador('mfa')
-  if (emAndamento === undefined) throw new ErroDaApi(ErrorCode.NAO_AUTENTICADO)
+  if (emAndamento === undefined) throw new ApiError(ErrorCode.NAO_AUTENTICADO)
   const enviadaEm = Date.now()
   try {
-    const resposta = await chamarApi(CAMINHO_DO_SEGUNDO_FATOR_DE_OPERADOR, segundoFatorDeOperadorResponseSchema, {
+    const resposta = await apiRequest(CAMINHO_DO_SEGUNDO_FATOR_DE_OPERADOR, segundoFatorDeOperadorResponseSchema, {
       metodo: 'POST',
       corpo: { desafio: emAndamento, ...codigo },
     })
@@ -440,12 +440,12 @@ async function enviarSegundoFator(codigo: CodigoDoSegundoFatorDeOperador): Promi
 /** `POST /v1/operacao/sessao/sair`, com uma repetição. A API responde 204 sempre (D59); o que falha aqui é a rede. */
 async function sairNaApi(): Promise<boolean> {
   try {
-    await chamarApi(CAMINHO_DA_SAIDA_DE_OPERADOR, SEM_CORPO, { metodo: 'POST' })
+    await apiRequest(CAMINHO_DA_SAIDA_DE_OPERADOR, EMPTY_BODY, { metodo: 'POST' })
     return true
   } catch {
     await esperar(ESPERA_ENTRE_TENTATIVAS_DE_SAIDA_MS)
     try {
-      await chamarApi(CAMINHO_DA_SAIDA_DE_OPERADOR, SEM_CORPO, { metodo: 'POST' })
+      await apiRequest(CAMINHO_DA_SAIDA_DE_OPERADOR, EMPTY_BODY, { metodo: 'POST' })
       return true
     } catch {
       return false

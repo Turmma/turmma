@@ -1,5 +1,5 @@
 import { Link } from 'wouter'
-import { ROTAS } from '../paths'
+import { ROUTES } from '../paths'
 import { CascaPublica } from '../components/CascaPublica'
 
 /**
@@ -16,7 +16,7 @@ export function SemDesafio({ titulo, explicacao }: { titulo: string; explicacao:
       <p role="alert" className="rounded-controle border border-pendente bg-pendente-cx p-4 text-pendente">
         {explicacao}
       </p>
-      <Link to={ROTAS.entrar} className="inline-flex min-h-11 items-center justify-center self-start rounded-full bg-caramelo px-4 py-2 text-base font-medium text-sobre-cor hover:bg-caramelo-claro active:bg-caramelo-fundo">
+      <Link to={ROUTES.entrar} className="inline-flex min-h-11 items-center justify-center self-start rounded-full bg-caramelo px-4 py-2 text-base font-medium text-sobre-cor hover:bg-caramelo-claro active:bg-caramelo-fundo">
         Ir para a entrada
       </Link>
     </CascaPublica>

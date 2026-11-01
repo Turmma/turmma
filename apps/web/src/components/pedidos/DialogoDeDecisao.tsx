@@ -2,9 +2,9 @@ import type { DecisaoDePedido, DecisorDaReivindicacao, PedidoDaTurma, DecisaoRes
 import { useRef, type ReactNode } from 'react'
 import { decidirPedidos } from '../../api/pedidos'
 import { OFFICIAL_BUTTON_CLASSES, DANGER_SOLID_BUTTON_CLASSES, SECONDARY_BUTTON_CLASSES } from '../ui/button-variants'
-import { Falha, useFocoDaEtapa } from '../copy-once'
+import { FailureAlert, useStepFocus } from '../copy-once'
 import { Dialog } from '../ui/overlays/Dialog'
-import { useEnvioUnico } from '../dialogs'
+import { useSingleSubmit } from '../dialogs'
 import { pedidosQueContinuam } from './atualizacao-dos-pedidos'
 import {
   EFEITO_DA_DECISAO,
@@ -43,18 +43,18 @@ interface PropsDaDecisao {
  * a coordenação, também que a decisão fica na auditoria. O foco começa no texto, e não no botão que decide (regra 50,
  * item 8).
  *
- * - **Um pedido por vez no ar** (`useEnvioUnico`): o clique duplo em confirmar manda uma decisão só.
+ * - **Um pedido por vez no ar** (`useSingleSubmit`): o clique duplo em confirmar manda uma decisão só.
  * - **O diálogo acompanha a lista**: o pedido que outra pessoa decidiu com ele aberto sai dele, e o que vai no envio são
  *   os que continuam. Sem nenhum, só resta fechar.
  * - **Depois, o resultado de cada pedido, em texto**, com o nome que foi enviado: a lista já não os tem.
  * - **A falha diz o que aconteceu com a lista**, e a nova tentativa manda só os pedidos que continuam nela.
  *
- * Os nomes enviados ficam nas variáveis da mutação só enquanto o diálogo existe (`gcTime: 0` do `useEnvioUnico`).
+ * Os nomes enviados ficam nas variáveis da mutação só enquanto o diálogo existe (`gcTime: 0` do `useSingleSubmit`).
  */
 export function DialogoDeDecisao({ decisao, ids, pedidos, turmaNome, quem, aoDecidir, aoFalhar, aoFechar, focoDeReserva }: PropsDaDecisao) {
   const inicio = useRef<HTMLParagraphElement>(null)
   const tituloDoResultado = useRef<HTMLHeadingElement>(null)
-  const { enviar, mutacao } = useEnvioUnico({
+  const { enviar, mutacao } = useSingleSubmit({
     mutationFn: (enviados: readonly PedidoDaTurma[]) => decidirPedidos({ ids: enviados.map((pedido) => pedido.id), decisao }),
     // Nas opções do `useMutation`, e não nos callbacks do `mutate`: aqui ele roda na cadeia da mutação, antes de a tela
     // ver o resultado, e o e2e de pedidos para o relógio da aba contando com isso
@@ -63,7 +63,7 @@ export function DialogoDeDecisao({ decisao, ids, pedidos, turmaNome, quem, aoDec
     onError: aoFalhar,
   })
   const etapa = mutacao.isSuccess ? 'resultado' : 'revisar'
-  useFocoDaEtapa(etapa, etapa === 'resultado' ? tituloDoResultado : inicio, mutacao.isError)
+  useStepFocus(etapa, etapa === 'resultado' ? tituloDoResultado : inicio, mutacao.isError)
 
   const moldura = (conteudo: ReactNode) => (
     <Dialog titulo={TITULO_DA_DECISAO[decisao]} aoFechar={aoFechar} focoInicial={inicio} focoDeReserva={focoDeReserva}>
@@ -100,7 +100,7 @@ export function DialogoDeDecisao({ decisao, ids, pedidos, turmaNome, quem, aoDec
 
   const continuam = pedidosQueContinuam(ids, pedidos)
   const sairam = ids.length - continuam.length
-  const falha = mutacao.isError ? <Falha texto={textoDaFalhaDaDecisao(mutacao.error, quem)} erro={mutacao.error} /> : null
+  const falha = mutacao.isError ? <FailureAlert texto={textoDaFalhaDaDecisao(mutacao.error, quem)} erro={mutacao.error} /> : null
 
   if (continuam.length === 0)
     return moldura(

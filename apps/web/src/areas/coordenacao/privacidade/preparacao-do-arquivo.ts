@@ -1,5 +1,5 @@
 import type { EstadoDoPedido } from '@educa/shared'
-import { agendarRelitura, type AbaDoNavegador } from '../../../components/pedidos/atualizacao-dos-pedidos'
+import { agendarRelitura, type BrowserTab } from '../../../components/pedidos/atualizacao-dos-pedidos'
 
 /**
  * O detalhe do pedido que se atualiza enquanto o arquivo é montado (F3, 17.0; RF16; Tech Spec do F3, seção 9): o pedido de
@@ -24,7 +24,7 @@ export function relerEnquantoPrepara(estado: EstadoDoPedido): boolean {
  * esquecida atrás de outra não fica batendo na API nem enchendo a auditoria (regra 80). Quando a aba volta, relê na hora.
  * Fora de `em_preparacao` não agenda nada. Devolve como parar, para quando o estado muda ou a tela sai.
  */
-export function agendarPreparacao(estado: EstadoDoPedido, atualizar: () => void, aba: AbaDoNavegador): () => void {
+export function agendarPreparacao(estado: EstadoDoPedido, atualizar: () => void, aba: BrowserTab): () => void {
   if (!relerEnquantoPrepara(estado)) return () => undefined
   return agendarRelitura(atualizar, aba, INTERVALO_DA_PREPARACAO_MS)
 }

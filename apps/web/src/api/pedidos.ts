@@ -9,8 +9,8 @@ import {
   type PedidosDaTurmaResponse,
 } from '@educa/shared'
 import { queryOptions, type QueryClient } from '@tanstack/react-query'
-import { CHAVE_DOS_ALUNOS_DA_TURMA } from './alunos-da-turma'
-import { buscarComSessao, chamarComSessao } from './sessao'
+import { ALUNOS_DA_TURMA_QUERY_KEY } from './alunos-da-turma'
+import { authedGet, authedRequest } from './sessao'
 
 /**
  * Os pedidos de reivindicação da turma, por quem decide (A1, 16.0; RF12; as rotas são da 8.0): o professor com vínculo
@@ -31,7 +31,7 @@ export const FINALIDADE_DOS_PEDIDOS_NA_ESTRUTURA: FinalidadeDaLeituraDeAlunos = 
 export const PEDIDOS_POR_LEITURA = TAMANHO_MAXIMO_DA_PAGINA
 
 /** O começo da chave das leituras dos pedidos: a troca de escola e a pessoa seguinte esvaziam tudo junto (`main.tsx`). */
-const CHAVE_DOS_PEDIDOS = ['pedidos-da-turma'] as const
+const PEDIDOS_QUERY_KEY = ['pedidos-da-turma'] as const
 
 /**
  * Os pedidos pendentes da turma (`GET /v1/turmas/:id/reivindicacoes`), como quem decide os lê.
@@ -46,14 +46,14 @@ const CHAVE_DOS_PEDIDOS = ['pedidos-da-turma'] as const
  *
  * Quem decide entra na chave: a lista que o professor leu nunca é a que a coordenação vê sem a leitura dela.
  */
-export function consultaPedidosDaTurma(turmaId: string, quem: DecisorDaReivindicacao) {
+export function pedidosDaTurmaQueryOptions(turmaId: string, quem: DecisorDaReivindicacao) {
   const daCoordenacao = quem === 'coordenacao'
   return queryOptions({
-    queryKey: [...CHAVE_DOS_PEDIDOS, turmaId, quem],
+    queryKey: [...PEDIDOS_QUERY_KEY, turmaId, quem],
     queryFn: ({ signal }) => {
       const consulta = new URLSearchParams({ limite: String(PEDIDOS_POR_LEITURA) })
       if (daCoordenacao) consulta.set('finalidade', FINALIDADE_DOS_PEDIDOS_NA_ESTRUTURA)
-      return buscarComSessao(`/v1/turmas/${encodeURIComponent(turmaId)}/reivindicacoes?${consulta.toString()}`, pedidosDaTurmaResponseSchema, signal)
+      return authedGet(`/v1/turmas/${encodeURIComponent(turmaId)}/reivindicacoes?${consulta.toString()}`, pedidosDaTurmaResponseSchema, signal)
     },
     enabled: !daCoordenacao,
     gcTime: 0,
@@ -61,7 +61,7 @@ export function consultaPedidosDaTurma(turmaId: string, quem: DecisorDaReivindic
 }
 
 /** A chave da contagem de pedidos de uma turma, a do sino do professor: **outra** que a da lista nominal, e nunca a mesma por prefixo. */
-const CHAVE_DA_CONTAGEM_DE_PEDIDOS = [...CHAVE_DOS_PEDIDOS, 'contagem'] as const
+const CONTAGEM_DE_PEDIDOS_QUERY_KEY = [...PEDIDOS_QUERY_KEY, 'contagem'] as const
 
 /** O que o sino do professor guarda dos pedidos de uma turma: quantos esperam e se há mais que a página trouxe. Nenhum nome. */
 export interface ContagemDePedidos {
@@ -79,15 +79,15 @@ export interface ContagemDePedidos {
  * `gcTime: 0`, como nas nominais, por outro motivo: a chave leva o id da turma, e a consulta que sobrasse depois da troca de
  * escola ou da pessoa seguinte deixaria no cache da aba o id de uma turma de quem saiu (W3). Sem observador, ela some.
  *
- * A chave (`['pedidos-da-turma', 'contagem', turmaId]`) é distinta da lista nominal (`[...CHAVE_DOS_PEDIDOS, turmaId, quem]`):
+ * A chave (`['pedidos-da-turma', 'contagem', turmaId]`) é distinta da lista nominal (`[...PEDIDOS_QUERY_KEY, turmaId, quem]`):
  * decidir um pedido a invalida por chave exata (`aplicarDecisao`), e a releitura do sino nunca alcança a lista aberta na tela.
- * Só o professor lê assim: a leitura da coordenação é auditada e pede finalidade (`consultaPedidosDaTurma`).
+ * Só o professor lê assim: a leitura da coordenação é auditada e pede finalidade (`pedidosDaTurmaQueryOptions`).
  */
-export function consultaContagemDePedidos(turmaId: string) {
+export function contagemDePedidosQueryOptions(turmaId: string) {
   return queryOptions({
-    queryKey: [...CHAVE_DA_CONTAGEM_DE_PEDIDOS, turmaId],
+    queryKey: [...CONTAGEM_DE_PEDIDOS_QUERY_KEY, turmaId],
     queryFn: async ({ signal }): Promise<ContagemDePedidos> => {
-      const lista = await buscarComSessao(`/v1/turmas/${encodeURIComponent(turmaId)}/reivindicacoes?limite=${String(PEDIDOS_POR_LEITURA)}`, pedidosDaTurmaResponseSchema, signal)
+      const lista = await authedGet(`/v1/turmas/${encodeURIComponent(turmaId)}/reivindicacoes?limite=${String(PEDIDOS_POR_LEITURA)}`, pedidosDaTurmaResponseSchema, signal)
       return { quantidade: lista.itens.length, haMais: lista.proxima !== undefined }
     },
     gcTime: 0,
@@ -96,7 +96,7 @@ export function consultaContagemDePedidos(turmaId: string) {
 
 /** `POST /v1/reivindicacoes/decidir`: aprova ou recusa os pedidos dados, e diz o que aconteceu com cada um. */
 export function decidirPedidos(pedido: DecidirReivindicacoesRequest): Promise<DecisaoResponse> {
-  return chamarComSessao('/v1/reivindicacoes/decidir', decisaoResponseSchema, { metodo: 'POST', corpo: pedido })
+  return authedRequest('/v1/reivindicacoes/decidir', decisaoResponseSchema, { metodo: 'POST', corpo: pedido })
 }
 
 /**
@@ -106,7 +106,7 @@ export function decidirPedidos(pedido: DecidirReivindicacoesRequest): Promise<De
  * está ligada, é relida em seguida; a da coordenação, desligada (`enabled: false`), não é: leitura dela só no "Atualizar".
  */
 export async function aplicarDecisao(cliente: QueryClient, turmaId: string, quem: DecisorDaReivindicacao, resposta: DecisaoResponse): Promise<void> {
-  const { queryKey } = consultaPedidosDaTurma(turmaId, quem)
+  const { queryKey } = pedidosDaTurmaQueryOptions(turmaId, quem)
   await cliente.cancelQueries({ queryKey })
   const fechados = new Set(resposta.resultados.map((resultado) => resultado.id))
   cliente.setQueryData<PedidosDaTurmaResponse>(queryKey, (lista) => (lista === undefined ? undefined : { ...lista, itens: lista.itens.filter((pedido) => !fechados.has(pedido.id)) }))
@@ -121,7 +121,7 @@ export async function aplicarDecisao(cliente: QueryClient, turmaId: string, quem
  * decisão não alcança as listas de outras turmas. Sem observador ela só fica velha, e a leitura seguinte a refaz.
  */
 function invalidarOsAlunos(cliente: QueryClient, turmaId: string): void {
-  void cliente.invalidateQueries({ queryKey: [...CHAVE_DOS_ALUNOS_DA_TURMA, turmaId] })
+  void cliente.invalidateQueries({ queryKey: [...ALUNOS_DA_TURMA_QUERY_KEY, turmaId] })
 }
 
 /**
@@ -131,7 +131,7 @@ function invalidarOsAlunos(cliente: QueryClient, turmaId: string): void {
  */
 function invalidarAContagem(cliente: QueryClient, turmaId: string, quem: DecisorDaReivindicacao): void {
   if (quem !== 'professor') return
-  const consulta = consultaContagemDePedidos(turmaId)
+  const consulta = contagemDePedidosQueryOptions(turmaId)
   void cliente.invalidateQueries({ queryKey: consulta.queryKey, exact: true, refetchType: 'none' })
   // A invalidação só marca a contagem velha, para o `fetchQuery` abaixo não devolver o dado guardado (o `staleTime` do cliente);
   // quem lê é ele, por isso `refetchType: 'none'`. Só relê se o sino observa a turma: a contagem lida fica desligada, mas o
@@ -147,7 +147,7 @@ function invalidarAContagem(cliente: QueryClient, turmaId: string, quem: Decisor
  * leitura, até ela pedir de novo.
  */
 export async function descartarListaDepoisDaFalha(cliente: QueryClient, turmaId: string, quem: DecisorDaReivindicacao): Promise<void> {
-  const { queryKey } = consultaPedidosDaTurma(turmaId, quem)
+  const { queryKey } = pedidosDaTurmaQueryOptions(turmaId, quem)
   invalidarAContagem(cliente, turmaId, quem)
   invalidarOsAlunos(cliente, turmaId)
   if (quem === 'professor') await cliente.invalidateQueries({ queryKey })

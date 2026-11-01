@@ -1,7 +1,7 @@
 import { execucaoResponseSchema, type ExecucaoAceitaResponse } from '@educa/shared'
 import { queryOptions, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useState } from 'react'
-import { CHAVE_DAS_EXECUCOES } from './chaves-do-professor'
+import { EXECUCOES_QUERY_KEY } from './chaves-do-professor'
 import {
   aceitarEnvio,
   chavesParaInvalidar,
@@ -15,8 +15,8 @@ import {
   tentarDeNovo,
   type CicloDeExecucao,
 } from './ciclo-de-execucao'
-import { useLugarNaAba, type LugarNaAba } from './tab-store'
-import { buscarComSessao } from './sessao'
+import { useTabStore, type TabStore } from './tab-store'
+import { authedGet } from './sessao'
 
 /**
  * A execução que a pessoa pediu (`GET /v1/execucoes/:id`), consultada no intervalo do contrato até terminar. Quem para a
@@ -25,10 +25,10 @@ import { buscarComSessao } from './sessao'
  *
  * Não fica no cache depois de a tela sair (`gcTime: 0`): o que a execução produziu é lido pela consulta dele.
  */
-export function consultaExecucao(id: string) {
+export function execucaoQueryOptions(id: string) {
   return queryOptions({
-    queryKey: [...CHAVE_DAS_EXECUCOES, id],
-    queryFn: ({ signal }) => buscarComSessao(`/v1/execucoes/${encodeURIComponent(id)}`, execucaoResponseSchema, signal),
+    queryKey: [...EXECUCOES_QUERY_KEY, id],
+    queryFn: ({ signal }) => authedGet(`/v1/execucoes/${encodeURIComponent(id)}`, execucaoResponseSchema, signal),
     refetchInterval: (consulta) => intervaloDaConsulta(consulta.state.data, consulta.state.status === 'error'),
     staleTime: 0,
     gcTime: 0,
@@ -58,11 +58,11 @@ export interface CicloNaTela<Pedido> {
  * **A mudança de estado é síncrona**: `iniciar` grava `enviando` antes de devolver, e o segundo toque encontra o pedido
  * no ar sem depender de nenhum `isPending` que só chega no render seguinte.
  */
-export function useCicloDeExecucao<Pedido>(lugar: LugarNaAba<CicloDeExecucao<Pedido>>, enviar: (pedido: Pedido, chaveEnvio: string) => Promise<ExecucaoAceitaResponse>): CicloNaTela<Pedido> {
+export function useExecutionLifecycle<Pedido>(lugar: TabStore<CicloDeExecucao<Pedido>>, enviar: (pedido: Pedido, chaveEnvio: string) => Promise<ExecucaoAceitaResponse>): CicloNaTela<Pedido> {
   const cliente = useQueryClient()
-  const ciclo = useLugarNaAba(lugar)
+  const ciclo = useTabStore(lugar)
   const execucaoId = ciclo?.etapa === 'esperando' ? ciclo.execucaoId : undefined
-  const execucao = useQuery({ ...consultaExecucao(execucaoId ?? ''), enabled: execucaoId !== undefined })
+  const execucao = useQuery({ ...execucaoQueryOptions(execucaoId ?? ''), enabled: execucaoId !== undefined })
   const { data: lida, isError: consultaFalhou, error: erroDaConsulta } = execucao
 
   useEffect(() => {

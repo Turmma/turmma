@@ -1,13 +1,13 @@
 import { InvariantException, adaptarArtefatoRequestSchema, gerarComFerramentaRequestSchema, FERRAMENTAS, ROTULOS_DA_ADAPTACAO, TIPOS_DE_ADAPTACAO } from '@educa/shared'
 import { describe, expect, it } from 'vitest'
 import { problemaDaDescricao, validarFormulario, valoresPadrao } from '../../../components/ui/ai/schema-form'
-import { CATALOGO_DE_FERRAMENTAS, CATEGORIAS_DE_FERRAMENTA, catalogoPorCategoria, COMO_VAI_SAIR, descricaoDaFerramenta, ehFerramenta, ferramentaDoCatalogo, iniciaisDoPedido, montarPedido, TEMPOS_EXTRAS, type OpcoesDaDescricao } from './ferramentas'
+import { CATALOGO_DE_FERRAMENTAS, CATEGORIAS_DE_FERRAMENTA, catalogoPorCategoria, COMO_VAI_SAIR, descricaoDaFerramenta, ehFerramenta, ferramentaDoCatalogo, iniciaisDoPedido, montarPedido, TEMPOS_EXTRAS, type DescricaoOptions } from './ferramentas'
 
 const TURMA = '0190f5a0-0000-7000-8000-00000000002b'
 const DISCIPLINA = '0190f5a0-0000-7000-8000-0000000000c1'
 const ATIVIDADE = '0190f5a0-0000-7000-8000-0000000000a1'
 const CHAVE = '0190f5a0-0000-7000-8000-0000000000e1'
-const OPCOES: OpcoesDaDescricao = { turmas: [{ valor: `${TURMA}:${DISCIPLINA}`, rotulo: '2ºB · Química' }], atividades: [{ valor: ATIVIDADE, rotulo: 'Atividade de estequiometria · 2ºB' }] }
+const OPCOES: DescricaoOptions = { turmas: [{ valor: `${TURMA}:${DISCIPLINA}`, rotulo: '2ºB · Química' }], atividades: [{ valor: ATIVIDADE, rotulo: 'Atividade de estequiometria · 2ºB' }] }
 
 describe('o catálogo de ferramentas (D74)', () => {
   it('tem só as três ferramentas que existem, cada uma numa categoria da D74, e nenhuma outra', () => {

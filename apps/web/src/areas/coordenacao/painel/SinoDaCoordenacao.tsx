@@ -1,5 +1,5 @@
 import { createPortal } from 'react-dom'
-import { useAncoraDoSino } from '../../../components/sino-anchor-context'
+import { useSinoAnchor } from '../../../components/sino-anchor-context'
 import { Sino } from '../../../components/sino/Sino'
 import { useFilaDaCoordenacao } from './fila-da-coordenacao'
 
@@ -12,7 +12,7 @@ import { useFilaDaCoordenacao } from './fila-da-coordenacao'
  * professor é da X3, por outra montagem da mesma peça.
  */
 export default function SinoDaCoordenacao() {
-  const ancora = useAncoraDoSino()
+  const ancora = useSinoAnchor()
   const fila = useFilaDaCoordenacao()
   if (ancora === null) return null
   return createPortal(

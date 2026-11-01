@@ -2,22 +2,22 @@ import { ESTADOS_DO_PROFESSOR_ALOCAVEIS, type EstadoDoProfessor } from '@educa/s
 import { useQuery } from '@tanstack/react-query'
 import { useId, type ReactNode } from 'react'
 import { Link, useLocation } from 'wouter'
-import { consultaAnosLetivos, consultaDisciplinas, consultaSeries, consultaTurmas, consultaVinculos } from '../../../api/estrutura'
-import { consultaConsumo, consultaFuncoesDaGovernanca, consultaPrimeiraPaginaDoResumo } from '../governanca/api/governanca'
-import { consultaProfessores } from '../professores/api/professores'
-import { caminhoDaAbaDaPrivacidade, ROTAS_DA_COORDENACAO } from '../../../paths'
+import { anosLetivosQueryOptions, disciplinasQueryOptions, seriesQueryOptions, turmasQueryOptions, vinculosQueryOptions } from '../../../api/estrutura'
+import { consumoQueryOptions, funcoesDaGovernancaQueryOptions, primeiraPaginaDoResumoQueryOptions } from '../governanca/api/governanca'
+import { professoresQueryOptions } from '../professores/api/professores'
+import { caminhoDaAbaDaPrivacidade, COORDENACAO_ROUTES } from '../../../paths'
 import { Alert } from '../../../components/ui/Alert'
 import { Button } from '../../../components/ui/Button'
 import { SECONDARY_LINK_CLASSES } from '../../../components/ui/button-variants'
 import { CountBadge } from '../../../components/ui/CountBadge'
-import { EstadoCarregando, EstadoErro, EstadoVazio } from '../../../components/states/index'
+import { LoadingState, ErrorState, EmptyState } from '../../../components/states/index'
 import { ListItem } from '../../../components/ui/ListItem'
 import { StatCard } from '../../../components/ui/StatCard'
 import { MEDIA_MD, useMediaQuery } from '../../../components/ui/media-query'
 import { StatusBadge } from '../../../components/ui/StatusBadge'
 import { SectionHeader, Page } from '../../../components/ui/Page'
-import { useTituloDaTela } from '../../../document-title'
-import { SEM_LEITURA_SOZINHA, useFilaDaCoordenacao } from './fila-da-coordenacao'
+import { usePageTitle } from '../../../document-title'
+import { NO_AUTO_REFETCH, useFilaDaCoordenacao } from './fila-da-coordenacao'
 import { O_MIOLO_SEM_ABAS_QUE_ROLA } from '../comum/miolo-que-rola'
 import { oQueFaltaDaEscola, PARA_O_ANO, passosDoRoteiro, type PassoDoRoteiro } from '../estrutura/o-que-falta-da-escola'
 import { nomeDaFuncao, textoDoConsumo, textoDoPacoteDoTutor } from '../governanca/textos-da-governanca'
@@ -32,11 +32,11 @@ import { nomeDaFuncao, textoDoConsumo, textoDoPacoteDoTutor } from '../governanc
  *   pedidos de titular entram por uma porta fixa, **sem contagem**: contá-los seria ler a lista, e cada leitura é auditada
  *   (regra 20, item 10). O mesmo vale para a lista de nomes das turmas.
  * - **Cada bloco tem o seu carregando, o seu erro e o seu "Tentar de novo"**: um bloco que falha não derruba os outros.
- * - **Nenhuma leitura por tempo, foco ou rede** (regra 80): `SEM_LEITURA_SOZINHA` em todo observador, com cinco minutos de
+ * - **Nenhuma leitura por tempo, foco ou rede** (regra 80): `NO_AUTO_REFETCH` em todo observador, com cinco minutos de
  *   frescor. Abrir o Painel relê só o que passou disso.
  */
 export default function Painel() {
-  useTituloDaTela('Painel')
+  usePageTitle('Painel')
   // O miolo que rola recebe foco, para rolar pelo teclado, a partir de 768 px: abaixo disso rola a página, e não há o que focar.
   const comMiolo = useMediaQuery(MEDIA_MD)
   return (
@@ -57,8 +57,8 @@ export default function Painel() {
  * As opções de leitura do Painel: as da consulta, mais "não reler sozinho". Vale para todo observador da tela, também os que
  * já existem na fila do sino: um observador com o frescor padrão (30 s) leria de novo o que a fila acabou de ler.
  */
-function semLeituraSozinha<Opcoes extends object>(opcoes: Opcoes): Opcoes & typeof SEM_LEITURA_SOZINHA {
-  return { ...opcoes, ...SEM_LEITURA_SOZINHA }
+function semLeituraSozinha<Opcoes extends object>(opcoes: Opcoes): Opcoes & typeof NO_AUTO_REFETCH {
+  return { ...opcoes, ...NO_AUTO_REFETCH }
 }
 
 /** Quanto cabe numa lista antes de ela rolar por dentro. Que a página não role a 1366 × 768 (RF23) é do miolo do Painel (`O_MIOLO_SEM_ABAS_QUE_ROLA`); as listas só limitam a própria altura dentro dele. */
@@ -74,12 +74,12 @@ function Lista({ rotulo, children }: { readonly rotulo: string; readonly childre
 
 /** Uma função de IA suspensa na escola: o aviso e o caminho até Agentes, onde se retoma. Sem suspensão, o bloco não existe. */
 function FuncaoSuspensa() {
-  const funcoes = useQuery(semLeituraSozinha(consultaFuncoesDaGovernanca))
+  const funcoes = useQuery(semLeituraSozinha(funcoesDaGovernancaQueryOptions))
   if (funcoes.data === undefined) {
     return funcoes.isError ? (
-      <EstadoErro erro={funcoes.error} tentando={funcoes.isFetching} aoTentarDeNovo={() => void funcoes.refetch()} />
+      <ErrorState erro={funcoes.error} tentando={funcoes.isFetching} aoTentarDeNovo={() => void funcoes.refetch()} />
     ) : (
-      <EstadoCarregando rotulo="Verificando se alguma IA está suspensa…" />
+      <LoadingState rotulo="Verificando se alguma IA está suspensa…" />
     )
   }
   const suspensas = funcoes.data.agentes.flatMap((agente) => agente.funcoes).filter((funcao) => funcao.suspensao !== null)
@@ -90,7 +90,7 @@ function FuncaoSuspensa() {
       tom="atencao"
       titulo={suspensas.length === 1 ? 'Uma função de IA está suspensa nesta escola' : 'Funções de IA estão suspensas nesta escola'}
       acao={
-        <Link to={ROTAS_DA_COORDENACAO.agentes} className={SECONDARY_LINK_CLASSES}>
+        <Link to={COORDENACAO_ROUTES.agentes} className={SECONDARY_LINK_CLASSES}>
           Ver como cada IA trabalha
         </Link>
       }
@@ -110,7 +110,7 @@ function ANoEscola() {
         titulo="A IA nesta escola"
         apoio="No ano letivo em curso, somado para a escola toda."
         acao={
-          <Link to={ROTAS_DA_COORDENACAO.governanca} className={SECONDARY_LINK_CLASSES}>
+          <Link to={COORDENACAO_ROUTES.governanca} className={SECONDARY_LINK_CLASSES}>
             Ver em Registros
           </Link>
         }
@@ -122,15 +122,15 @@ function ANoEscola() {
 }
 
 function OsQuatroNumeros() {
-  const resumo = useQuery(semLeituraSozinha(consultaPrimeiraPaginaDoResumo))
+  const resumo = useQuery(semLeituraSozinha(primeiraPaginaDoResumoQueryOptions))
   if (resumo.data === undefined) {
     return resumo.isError ? (
-      <EstadoErro erro={resumo.error} tentando={resumo.isFetching} aoTentarDeNovo={() => void resumo.refetch()} />
+      <ErrorState erro={resumo.error} tentando={resumo.isFetching} aoTentarDeNovo={() => void resumo.refetch()} />
     ) : (
-      <EstadoCarregando rotulo="Carregando os números da IA…" />
+      <LoadingState rotulo="Carregando os números da IA…" />
     )
   }
-  // Os números vêm em toda página: o Painel lê só a primeira (`consultaPrimeiraPaginaDoResumo`), e vale a mais recente que o cache tiver.
+  // Os números vêm em toda página: o Painel lê só a primeira (`primeiraPaginaDoResumoQueryOptions`), e vale a mais recente que o cache tiver.
   const numeros = resumo.data.pages.at(-1)?.numeros ?? { geradoPorIa: 0, aprovadoPorPessoa: 0, rejeitado: 0, esperando: 0 }
   return (
     <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -144,12 +144,12 @@ function OsQuatroNumeros() {
 
 /** O consumo do mês numa linha: somado, nunca por função, por professor nem por aluno (D64). */
 function OConsumoDoMes() {
-  const consumo = useQuery(semLeituraSozinha(consultaConsumo))
+  const consumo = useQuery(semLeituraSozinha(consumoQueryOptions))
   if (consumo.data === undefined) {
     return consumo.isError ? (
-      <EstadoErro erro={consumo.error} tentando={consumo.isFetching} aoTentarDeNovo={() => void consumo.refetch()} />
+      <ErrorState erro={consumo.error} tentando={consumo.isFetching} aoTentarDeNovo={() => void consumo.refetch()} />
     ) : (
-      <EstadoCarregando rotulo="Carregando o consumo do mês…" />
+      <LoadingState rotulo="Carregando o consumo do mês…" />
     )
   }
   if (consumo.data.porFuncao.length === 0) return <p className="t-apoio text-sutil">Nenhuma função da IA trabalhou neste mês.</p>
@@ -170,8 +170,8 @@ function EsperandoVoce() {
   return (
     <section aria-labelledby={idDoTitulo} className="flex min-w-0 flex-col gap-3">
       <SectionHeader id={idDoTitulo} titulo="Esperando você" />
-      {fila.situacao === 'carregando' && <EstadoCarregando rotulo="Carregando o que espera você…" />}
-      {fila.situacao === 'erro' && <EstadoErro erro={fila.erro} tentando={fila.tentandoDeNovo} aoTentarDeNovo={fila.tentarDeNovo} />}
+      {fila.situacao === 'carregando' && <LoadingState rotulo="Carregando o que espera você…" />}
+      {fila.situacao === 'erro' && <ErrorState erro={fila.erro} tentando={fila.tentandoDeNovo} aoTentarDeNovo={fila.tentarDeNovo} />}
       {fila.situacao === 'parcial' && (
         <Alert
           tom="atencao"
@@ -207,7 +207,7 @@ function EsperandoVoce() {
           ))}
         </Lista>
       )}
-      {fila.situacao === 'pronta' && fila.itens.length === 0 && <EstadoVazio titulo="Tudo em dia" descricao="Nada espera a coordenação agora." />}
+      {fila.situacao === 'pronta' && fila.itens.length === 0 && <EmptyState titulo="Tudo em dia" descricao="Nada espera a coordenação agora." />}
       <ul className="overflow-hidden rounded-cartao border-2 border-borda">
         <li>
           <ListItem para={caminhoDaAbaDaPrivacidade('pedidos')} titulo="Pedidos dos titulares" abaixo="Os prazos aparecem ao abrir. Cada leitura fica na auditoria." />
@@ -226,14 +226,14 @@ function EsperandoVoce() {
 function ParaTerminarAEscola() {
   const idDoTitulo = useId()
   const [, navegar] = useLocation()
-  const anos = useQuery(semLeituraSozinha(consultaAnosLetivos))
+  const anos = useQuery(semLeituraSozinha(anosLetivosQueryOptions))
   const anoEmCurso = anos.data?.itens.find((ano) => ano.situacao === 'em_curso')
-  const series = useQuery(semLeituraSozinha(consultaSeries))
-  const disciplinas = useQuery(semLeituraSozinha(consultaDisciplinas))
+  const series = useQuery(semLeituraSozinha(seriesQueryOptions))
+  const disciplinas = useQuery(semLeituraSozinha(disciplinasQueryOptions))
   // Turmas e vínculos são do ano em curso: sem ele a API responde como inexistente, e o Painel nem pergunta.
-  const turmas = useQuery({ ...semLeituraSozinha(consultaTurmas), enabled: anoEmCurso !== undefined })
-  const professores = useQuery(semLeituraSozinha(consultaProfessores))
-  const vinculos = useQuery({ ...semLeituraSozinha(consultaVinculos), enabled: anoEmCurso !== undefined })
+  const turmas = useQuery({ ...semLeituraSozinha(turmasQueryOptions), enabled: anoEmCurso !== undefined })
+  const professores = useQuery(semLeituraSozinha(professoresQueryOptions))
+  const vinculos = useQuery({ ...semLeituraSozinha(vinculosQueryOptions), enabled: anoEmCurso !== undefined })
 
   const cabecalho = <SectionHeader id={idDoTitulo} titulo="Para terminar a escola" />
 
@@ -242,9 +242,9 @@ function ParaTerminarAEscola() {
       <section aria-labelledby={idDoTitulo} className="flex min-w-0 flex-col gap-3">
         {cabecalho}
         {anos.isError ? (
-          <EstadoErro erro={anos.error} tentando={anos.isFetching} aoTentarDeNovo={() => void anos.refetch()} />
+          <ErrorState erro={anos.error} tentando={anos.isFetching} aoTentarDeNovo={() => void anos.refetch()} />
         ) : (
-          <EstadoCarregando rotulo="Carregando o que falta para a escola…" />
+          <LoadingState rotulo="Carregando o que falta para a escola…" />
         )}
       </section>
     )
@@ -254,7 +254,7 @@ function ParaTerminarAEscola() {
     return (
       <section aria-labelledby={idDoTitulo} className="flex min-w-0 flex-col gap-3">
         {cabecalho}
-        <EstadoVazio
+        <EmptyState
           titulo="Comece pelo ano letivo"
           descricao="As turmas nascem no ano letivo em curso."
           acao={{ rotulo: 'Criar o ano letivo', aoAcionar: () => navegar(PARA_O_ANO) }}
@@ -275,7 +275,7 @@ function ParaTerminarAEscola() {
   const { faltam, montada } = oQueFaltaDaEscola(passos)
   const falhas = [series, disciplinas, professores, turmas, vinculos].filter((consulta) => consulta.isError)
   // `cancelRefetch: false` porque a consulta pode ter dado de antes (a releitura que falhou o deixa no cache): com dado, o padrão do
-  // TanStack cancela a leitura que corre e começa outra a cada clique. Os blocos sem dado (`EstadoErro`) já reaproveitam a que corre.
+  // TanStack cancela a leitura que corre e começa outra a cada clique. Os blocos sem dado (`ErrorState`) já reaproveitam a que corre.
 
   return (
     <section aria-labelledby={idDoTitulo} className="flex min-w-0 flex-col gap-3">
@@ -294,9 +294,9 @@ function ParaTerminarAEscola() {
       )}
       {faltam.length > 0 && <Lista rotulo="Passos que faltam">{faltam.map((passo) => <PassoQueFalta key={passo.titulo} passo={passo} />)}</Lista>}
       {montada && (
-        <EstadoVazio titulo="A escola está montada" descricao="O ano, as séries, as disciplinas, as turmas, os professores e a alocação estão feitos. A lista de nomes de cada turma se confere abrindo a turma: o Painel não a lê, porque cada leitura fica na auditoria." />
+        <EmptyState titulo="A escola está montada" descricao="O ano, as séries, as disciplinas, as turmas, os professores e a alocação estão feitos. A lista de nomes de cada turma se confere abrindo a turma: o Painel não a lê, porque cada leitura fica na auditoria." />
       )}
-      {faltam.length === 0 && !montada && falhas.length === 0 && <EstadoCarregando rotulo="Carregando o que falta para a escola…" />}
+      {faltam.length === 0 && !montada && falhas.length === 0 && <LoadingState rotulo="Carregando o que falta para a escola…" />}
     </section>
   )
 }

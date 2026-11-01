@@ -16,8 +16,8 @@ import {
   type CriadoNoPainelResponse,
 } from '@educa/shared'
 import { keepPreviousData, mutationOptions, queryOptions } from '@tanstack/react-query'
-import { SEM_CORPO } from '../../api/client'
-import { chamarComSessaoDeOperador } from './sessao'
+import { EMPTY_BODY } from '../../api/client'
+import { operadorAuthedRequest } from './sessao'
 
 /**
  * O painel da operação na web (Tech Spec da A0b, seções 4 e 9): a lista de escolas, o uso por escola, as redes do diálogo
@@ -61,10 +61,10 @@ export function buscaDaConsulta(consulta: PainelQuery): string {
  * `GET /v1/operacao/escolas`: a página, com o total. Na troca de página ou de ordem, a anterior fica na tela até a nova
  * chegar (`placeholderData`), em vez de a lista sumir e voltar a cada clique no Chromebook em rede lenta.
  */
-export function consultaDasEscolas(consulta: PainelQuery) {
+export function dasEscolasQueryOptions(consulta: PainelQuery) {
   return queryOptions({
     queryKey: ['operacao', 'escolas', consulta.ordem, consulta.pagina],
-    queryFn: ({ signal }) => chamarComSessaoDeOperador(`${CAMINHO_DAS_ESCOLAS}?${buscaDaConsulta(consulta)}`, escolasDoPainelResponseSchema, { sinal: signal }),
+    queryFn: ({ signal }) => operadorAuthedRequest(`${CAMINHO_DAS_ESCOLAS}?${buscaDaConsulta(consulta)}`, escolasDoPainelResponseSchema, { sinal: signal }),
     placeholderData: keepPreviousData,
   })
 }
@@ -73,10 +73,10 @@ export function consultaDasEscolas(consulta: PainelQuery) {
  * `GET /v1/operacao/uso`: a página do uso por escola, com o total e o dia e o mês de referência que a API escolheu. A
  * troca de página ou de ordem mantém a anterior na tela, como na lista.
  */
-export function consultaDoUso(consulta: PainelQuery) {
+export function doUsoQueryOptions(consulta: PainelQuery) {
   return queryOptions({
     queryKey: ['operacao', 'uso', consulta.ordem, consulta.pagina],
-    queryFn: ({ signal }) => chamarComSessaoDeOperador(`${CAMINHO_DO_USO}?${buscaDaConsulta(consulta)}`, usoDoPainelResponseSchema, { sinal: signal }),
+    queryFn: ({ signal }) => operadorAuthedRequest(`${CAMINHO_DO_USO}?${buscaDaConsulta(consulta)}`, usoDoPainelResponseSchema, { sinal: signal }),
     placeholderData: keepPreviousData,
   })
 }
@@ -87,30 +87,30 @@ export function paginasDoTotal(total: number): number {
 }
 
 /** `GET /v1/operacao/redes`: as redes do diálogo Nova escola, por nome. */
-export const consultaDasRedes = queryOptions({
+export const dasRedesQueryOptions = queryOptions({
   queryKey: ['operacao', 'redes'],
-  queryFn: ({ signal }) => chamarComSessaoDeOperador(CAMINHO_DAS_REDES, redesDoPainelResponseSchema, { sinal: signal }),
+  queryFn: ({ signal }) => operadorAuthedRequest(CAMINHO_DAS_REDES, redesDoPainelResponseSchema, { sinal: signal }),
 })
 
 /** O prefixo das chaves que a criação de rede ou de escola deixa velhas (a da escola também deixa velho o uso). */
-export const CHAVE_DAS_ESCOLAS = ['operacao', 'escolas'] as const
-export const CHAVE_DAS_REDES = consultaDasRedes.queryKey
+export const ESCOLAS_QUERY_KEY = ['operacao', 'escolas'] as const
+export const REDES_QUERY_KEY = dasRedesQueryOptions.queryKey
 /** O prefixo das chaves do uso: a escola criada entra nele com zero, e todas as páginas deixam de valer. */
-export const CHAVE_DO_USO = ['operacao', 'uso'] as const
+export const USO_QUERY_KEY = ['operacao', 'uso'] as const
 
 /** `POST /v1/operacao/redes`, com o id sorteado ao abrir o diálogo. O pedido repetido devolve o mesmo id. */
 export function criarRedeNoPainel(pedido: CriarRedeRequest): Promise<CriadoNoPainelResponse> {
-  return chamarComSessaoDeOperador(CAMINHO_DAS_REDES, criadoNoPainelResponseSchema, { metodo: 'POST', corpo: pedido })
+  return operadorAuthedRequest(CAMINHO_DAS_REDES, criadoNoPainelResponseSchema, { metodo: 'POST', corpo: pedido })
 }
 
 /** `POST /v1/operacao/escolas`, como o da rede. O endereço que já é de outra escola volta `CONFLITO`. */
 export function criarEscolaNoPainel(pedido: CriarEscolaRequest): Promise<CriadoNoPainelResponse> {
-  return chamarComSessaoDeOperador(CAMINHO_DAS_ESCOLAS, criadoNoPainelResponseSchema, { metodo: 'POST', corpo: pedido })
+  return operadorAuthedRequest(CAMINHO_DAS_ESCOLAS, criadoNoPainelResponseSchema, { metodo: 'POST', corpo: pedido })
 }
 
 /** `POST /v1/operacao/escolas/:id/convite-coordenacao`: o convite novo, com o token que só existe nesta resposta. */
 export function gerarConviteNoPainel(escolaId: string, pedido: ConviteDaCoordenacaoRequest): Promise<ConviteDaCoordenacaoResponse> {
-  return chamarComSessaoDeOperador(`${CAMINHO_DAS_ESCOLAS}/${encodeURIComponent(escolaId)}/convite-coordenacao`, conviteDaCoordenacaoResponseSchema, {
+  return operadorAuthedRequest(`${CAMINHO_DAS_ESCOLAS}/${encodeURIComponent(escolaId)}/convite-coordenacao`, conviteDaCoordenacaoResponseSchema, {
     metodo: 'POST',
     corpo: pedido,
   })
@@ -118,12 +118,12 @@ export function gerarConviteNoPainel(escolaId: string, pedido: ConviteDaCoordena
 
 /** `POST /v1/operacao/convites/:id/refazer`, pelo id do último convite que a lista trouxe; o anterior deixa de valer. */
 export function refazerConviteNoPainel(conviteId: string): Promise<ConviteDaCoordenacaoResponse> {
-  return chamarComSessaoDeOperador(`${CAMINHO_DOS_CONVITES}/${encodeURIComponent(conviteId)}/refazer`, conviteDaCoordenacaoResponseSchema, { metodo: 'POST', corpo: {} })
+  return operadorAuthedRequest(`${CAMINHO_DOS_CONVITES}/${encodeURIComponent(conviteId)}/refazer`, conviteDaCoordenacaoResponseSchema, { metodo: 'POST', corpo: {} })
 }
 
 /** `POST /v1/operacao/convites/:id/revogar`: 204, sem corpo. */
 export function revogarConviteNoPainel(conviteId: string): Promise<void> {
-  return chamarComSessaoDeOperador(`${CAMINHO_DOS_CONVITES}/${encodeURIComponent(conviteId)}/revogar`, SEM_CORPO, { metodo: 'POST', corpo: {} })
+  return operadorAuthedRequest(`${CAMINHO_DOS_CONVITES}/${encodeURIComponent(conviteId)}/revogar`, EMPTY_BODY, { metodo: 'POST', corpo: {} })
 }
 
 /**

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { classesDo } from '../../__fixtures__/class-colors'
+import { classesOf } from '../../__fixtures__/class-colors'
 import { Icon } from './Icon'
 import { PLACE_NAMES } from './icons/places'
 
@@ -70,7 +70,7 @@ describe('Icone', () => {
     const { container } = render(<Icon nome="turmas" tamanho={24} />)
     const desenho = container.querySelector('svg') as SVGElement
     expect(desenho.getAttribute('focusable')).toBe('false')
-    const classes = classesDo(desenho)
+    const classes = classesOf(desenho)
     expect(classes.has('shrink-0')).toBe(true)
     expect(classes.has('block')).toBe(true)
   })
@@ -80,6 +80,6 @@ describe('Icone', () => {
     const desenho = container.querySelector('svg') as SVGElement
     expect(desenho.getAttribute('fill')).toBeNull()
     expect(desenho.getAttribute('style')).toBeNull()
-    for (const classe of classesDo(desenho)) expect(classe).not.toMatch(/^(?:fill|text|bg)-/)
+    for (const classe of classesOf(desenho)) expect(classe).not.toMatch(/^(?:fill|text|bg)-/)
   })
 })

@@ -38,7 +38,7 @@ const CORES: Record<Tema, Map<string, string>> = {
 }
 
 /** O valor de um token no tema. Token que o tema não declara é erro do teste, e não um par que passa calado. */
-export function corDoToken(tema: Tema, token: string): string {
+export function tokenColor(tema: Tema, token: string): string {
   const cor = CORES[tema].get(token)
   if (cor === undefined) throw new Error(`o token ${token} não existe em index.css no tema ${tema}`)
   return cor
@@ -59,7 +59,7 @@ export function contraste(uma: string, outra: string): number {
 }
 
 /** As classes do elemento, em conjunto. */
-export function classesDo(elemento: Element): Set<string> {
+export function classesOf(elemento: Element): Set<string> {
   return new Set((elemento.getAttribute('class') ?? '').split(/\s+/).filter((classe) => classe !== ''))
 }
 
@@ -68,9 +68,9 @@ export function classesDo(elemento: Element): Set<string> {
  * `prefixo` é a variante com os dois pontos (`disabled:`, `aria-invalid:`), e vazio para o estado normal. Só vale nome que
  * é token: `border-2` e `text-base` não são cor, e `bg-campo` é.
  */
-export function tokenDe(elemento: Element, propriedade: 'bg' | 'border' | 'text', prefixo = ''): string | undefined {
+export function tokenOf(elemento: Element, propriedade: 'bg' | 'border' | 'text', prefixo = ''): string | undefined {
   const comeco = `${prefixo}${propriedade}-`
-  for (const classe of classesDo(elemento)) {
+  for (const classe of classesOf(elemento)) {
     if (!classe.startsWith(comeco)) continue
     const nome = classe.slice(comeco.length)
     if (CORES.claro.has(nome)) return nome
@@ -78,9 +78,9 @@ export function tokenDe(elemento: Element, propriedade: 'bg' | 'border' | 'text'
   return undefined
 }
 
-/** O mesmo que `tokenDe`, para quem não aceita `undefined`: peça que não diz a cor falha com o nome do elemento. */
-export function tokenOuFalha(elemento: Element, propriedade: 'bg' | 'border' | 'text', prefixo = ''): string {
-  const token = tokenDe(elemento, propriedade, prefixo)
-  if (token === undefined) throw new Error(`o elemento <${elemento.tagName.toLowerCase()}> não tem classe ${prefixo}${propriedade}-<token>: ${[...classesDo(elemento)].join(' ')}`)
+/** O mesmo que `tokenOf`, para quem não aceita `undefined`: peça que não diz a cor falha com o nome do elemento. */
+export function tokenOrThrow(elemento: Element, propriedade: 'bg' | 'border' | 'text', prefixo = ''): string {
+  const token = tokenOf(elemento, propriedade, prefixo)
+  if (token === undefined) throw new Error(`o elemento <${elemento.tagName.toLowerCase()}> não tem classe ${prefixo}${propriedade}-<token>: ${[...classesOf(elemento)].join(' ')}`)
   return token
 }

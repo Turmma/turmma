@@ -5,10 +5,10 @@ import type { ReactElement } from 'react'
 import { afterEach, beforeAll, vi } from 'vitest'
 import { Router } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
-import { criarClienteDeConsultas } from '../../api/query-client'
+import { createQueryClient } from '../../api/query-client'
 import { abrirSessaoDeOperadorPeloCookie } from '../api/sessao'
 
-export { redeFalsa, type RedeFalsa, type RespostaFalsa } from '../../__fixtures__/render-screen'
+export { fakeNetwork, type FakeNetwork, type FakeResponse } from '../../__fixtures__/render-screen'
 
 /**
  * O que o teste de componente das telas da operação usa (telas da coordenação, 14.0). É o molde de `__fixtures__/render-screen.tsx`
@@ -18,14 +18,14 @@ export { redeFalsa, type RedeFalsa, type RespostaFalsa } from '../../__fixtures_
  */
 
 const TOKEN_DE_TESTE = 'token-de-operador-de-teste'
-/** O `Authorization` da sessão que `prepararTelaDaOperacao` abre, para o teste conferir que a tela chamou a API com ela. */
-export const AUTORIZACAO_DE_OPERADOR_DE_TESTE = `Bearer ${TOKEN_DE_TESTE}`
+/** O `Authorization` da sessão que `setupOperacaoScreen` abre, para o teste conferir que a tela chamou a API com ela. */
+export const OPERATOR_TEST_AUTHORIZATION = `Bearer ${TOKEN_DE_TESTE}`
 
 /**
  * Abre a sessão do operador uma vez, como a aba faz ao chegar à área (o acesso fica em memória), e, depois de cada caso,
  * desmonta a tela e tira a rede falsa. Chame no corpo do arquivo, antes dos `describe`.
  */
-export function prepararTelaDaOperacao(): void {
+export function setupOperacaoScreen(): void {
   beforeAll(async () => {
     vi.stubGlobal(
       'fetch',
@@ -60,7 +60,7 @@ export function janelaDe(largura: number): void {
   )
 }
 
-export interface TelaDaOperacao extends RenderResult {
+export interface OperacaoScreen extends RenderResult {
   /** Os endereços para onde a tela navegou, na ordem, com a consulta: `/operacao?pagina=2&ordem=nome`. */
   readonly navegou: readonly string[]
 }
@@ -69,17 +69,17 @@ export interface TelaDaOperacao extends RenderResult {
  * A tela dentro do cliente de consultas da aba (um novo a cada chamada: o cache de um caso não passa ao outro) e do
  * roteador da operação, no endereço dado. `busca` é a query string de entrada, sem o `?`.
  */
-export function renderizarTelaDaOperacao(tela: ReactElement, { caminho = '/', busca = '' }: { caminho?: string; busca?: string } = {}): TelaDaOperacao {
+export function renderOperacaoScreen(tela: ReactElement, { caminho = '/', busca = '' }: { caminho?: string; busca?: string } = {}): OperacaoScreen {
   const memoria = memoryLocation({ path: caminho, searchPath: busca, record: true })
   const resultado = render(
-    <QueryClientProvider client={criarClienteDeConsultas()}>
+    <QueryClientProvider client={createQueryClient()}>
       <Router base="/operacao" hook={memoria.hook} searchHook={memoria.searchHook}>
         {tela}
       </Router>
     </QueryClientProvider>,
   )
   // Lido na hora, e não copiado: o teste pergunta depois do clique.
-  return Object.defineProperty(resultado, 'navegou', { get: () => memoria.history.slice(1) }) as TelaDaOperacao
+  return Object.defineProperty(resultado, 'navegou', { get: () => memoria.history.slice(1) }) as OperacaoScreen
 }
 
 const id = (n: number) => `0197a1c0-0000-7000-8000-${String(n).padStart(12, '0')}`

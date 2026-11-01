@@ -1,5 +1,5 @@
 import type { EstadoDeMaterial, LicencaDeclarada, Material, MotivoDaRecusaDoMaterial } from '@educa/shared'
-import { PARAMETRO_DO_MATERIAL } from '../../../paths'
+import { MATERIAL_PARAM } from '../../../paths'
 import type { StatusFamily } from '../../../components/ui/StatusBadge'
 import { doMaisNovoAoMaisAntigo, OPCOES_DE_LICENCA, textoDoEstado, type RascunhoDoEnvio } from './material-envio'
 
@@ -55,7 +55,7 @@ export function linhasDosMateriais(itens: readonly Material[], recusas: readonly
 
 /** O material que o endereço abre, achado só na lista que a escola já carregou: o id que ela não tem não abre nada (regra 10, item 6). */
 export function materialDoEndereco(busca: string, materiais: readonly Material[]): Material | undefined {
-  const id = new URLSearchParams(busca).get(PARAMETRO_DO_MATERIAL)
+  const id = new URLSearchParams(busca).get(MATERIAL_PARAM)
   return materiais.find((material) => material.id === id)
 }
 

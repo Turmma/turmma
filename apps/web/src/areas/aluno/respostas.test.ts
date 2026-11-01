@@ -1,6 +1,6 @@
 import { ErrorCode, type QuestaoSalvaResponse } from '@educa/shared'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { ErroDaApi } from '../../api/client'
+import { ApiError } from '../../api/client'
 import { criarFilaDeRespostas, provaComRespostaSalva } from './fila-de-respostas'
 import { adotarLeitura, alteradaEmOutraJanela, comecarEnvio, confirmarEnvio, escolher, esperaAntesDeTentar, falharEnvio, FILA_VAZIA, hidratarDoEspelho, MAIOR_ESPERA_DA_FILA_MS, proximoEnvio, tipoDaFalha, type EstadoDaFila } from './respostas'
 
@@ -238,7 +238,7 @@ function servidorDeMentira() {
         sequencia,
         aceitar: () => resolver({ questao, alternativa, sequencia, respondidaEm: '2026-10-05T13:10:00.000Z' }),
         gravadaPorOutraJanela: (outraAlternativa, outraSequencia) => resolver({ questao, alternativa: outraAlternativa, sequencia: outraSequencia, respondidaEm: '2026-10-05T13:10:00.000Z' }),
-        recusar: (codigo) => rejeitar(new ErroDaApi(codigo)),
+        recusar: (codigo) => rejeitar(new ApiError(codigo)),
       })
     })
   return { chamadas, salvar }

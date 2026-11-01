@@ -133,7 +133,7 @@ afterEach(() => {
   expect(fila, 'resposta preparada que nenhuma chamada consumiu').toHaveLength(0)
 })
 
-const buscarEu = (modulo: ModuloDeSessao = sessao) => modulo.chamarComSessaoDeOperador('/v1/operacao/eu', euDoOperadorResponseSchema)
+const buscarEu = (modulo: ModuloDeSessao = sessao) => modulo.operadorAuthedRequest('/v1/operacao/eu', euDoOperadorResponseSchema)
 
 describe('as três respostas da conferência da sessão', () => {
   it('ACESSO_VENCIDO renova pelo cookie e repete a mesma chamada com o acesso novo, sem a pessoa perceber', async () => {

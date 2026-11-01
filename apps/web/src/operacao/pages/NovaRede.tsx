@@ -3,10 +3,10 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useId, useRef, useState, type FormEvent } from 'react'
 import { Button } from '../../components/ui/Button'
 import { FormField } from '../../components/ui/fields/FormField'
-import { CHAVE_DAS_REDES, criarRedeNoPainel } from '../api/painel'
+import { REDES_QUERY_KEY, criarRedeNoPainel } from '../api/painel'
 import { SECONDARY_BUTTON_CLASSES } from '../../components/ui/button-variants'
 import { DialogoDaOperacao } from '../components/DialogoDaOperacao'
-import { pedidoDeRede, sortearIdDoPedido } from '../pedidos-do-painel'
+import { pedidoDeRede, newRequestId } from '../pedidos-do-painel'
 import { ROTULO_DO_TIPO_DE_REDE, textoDaFalha } from '../textos'
 
 interface Props {
@@ -24,7 +24,7 @@ interface Props {
  * se preenche com Tab e Enter (cenário W8), e quem cria a rede de uma prefeitura muda o tipo.
  */
 export function NovaRede({ aoFechar, aoCriar }: Props) {
-  const [id] = useState(sortearIdDoPedido)
+  const [id] = useState(newRequestId)
   const [nome, definirNome] = useState('')
   const [tipo, definirTipo] = useState<TipoDeRede>('independente')
   const [erroDoNome, definirErroDoNome] = useState<string | undefined>(undefined)
@@ -36,7 +36,7 @@ export function NovaRede({ aoFechar, aoCriar }: Props) {
   const criar = useMutation({
     mutationFn: criarRedeNoPainel,
     onSuccess: async (_resposta, pedido) => {
-      await clienteDeConsultas.invalidateQueries({ queryKey: CHAVE_DAS_REDES })
+      await clienteDeConsultas.invalidateQueries({ queryKey: REDES_QUERY_KEY })
       aoCriar({ id: pedido.id, nome: pedido.nome, tipo: pedido.tipo })
     },
   })

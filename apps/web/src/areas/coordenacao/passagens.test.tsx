@@ -4,7 +4,7 @@ import type { ReactElement } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import { Router } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
-import { prepararTela, redeFalsa, renderizarTela, type RespostaFalsa } from '../../__fixtures__/render-screen'
+import { setupScreen, fakeNetwork, renderScreen, type FakeResponse } from '../../__fixtures__/render-screen'
 import { Inicio } from '../../pages/Inicio'
 import Agentes from './governanca/Agentes'
 import Governanca from './governanca/Governanca'
@@ -15,14 +15,14 @@ import ListaDaTurma from './estrutura/ListaDaTurma'
  * Registros leva aos Agentes (que saíram da lateral), e a lista da turma e os Agentes voltam para o lugar de onde vieram. Cada uma é
  * uma linha de código que só o clique prova: sem o teste, apagar o link deixaria a tela em pé e a página dos Agentes sem caminho.
  */
-prepararTela()
+setupScreen()
 
 const ID_DA_TURMA = '0197a1c0-0000-7000-8000-000000000101'
-const NUNCA = () => new Promise<RespostaFalsa>(() => undefined)
+const NUNCA = () => new Promise<FakeResponse>(() => undefined)
 
 function emUmaArea(endereco: string, tela: ReactElement) {
   const local = memoryLocation({ path: endereco, record: true })
-  renderizarTela(
+  renderScreen(
     <Router base="/coordenacao" hook={local.hook}>
       {tela}
     </Router>,
@@ -32,7 +32,7 @@ function emUmaArea(endereco: string, tela: ReactElement) {
 
 describe('a raiz de quem entrou', () => {
   it('a coordenação é levada ao Painel, sem ficar no histórico da raiz', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor('/v1/eu', {
       status: 200,
       corpo: {
@@ -46,7 +46,7 @@ describe('a raiz de quem entrou', () => {
       },
     })
     const local = memoryLocation({ path: '/', record: true })
-    renderizarTela(
+    renderScreen(
       <Router hook={local.hook}>
         <Inicio />
       </Router>,
@@ -59,7 +59,7 @@ describe('a raiz de quem entrou', () => {
 
 describe('Registros › IA', () => {
   it('leva aos Agentes pelo link "Como cada IA trabalha" (RF3: lugar e link, dois cliques)', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor('/v1/governanca/resumo', { status: 200, corpo: { numeros: { geradoPorIa: 0, aprovadoPorPessoa: 0, rejeitado: 0, esperando: 0 }, itens: [] } })
     rede.responderPor('/v1/governanca/consumo', NUNCA)
     emUmaArea('/coordenacao/governanca', <Governanca />)
@@ -72,7 +72,7 @@ describe('as telas que ficam dentro de um lugar voltam para ele', () => {
   it('Agentes volta para Registros, na aba IA', async () => {
     // O miolo dos Agentes lê a largura da janela; o `jsdom` não tem `matchMedia`.
     vi.stubGlobal('matchMedia', () => ({ matches: true, addEventListener: () => undefined, removeEventListener: () => undefined }))
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor('/v1/governanca/funcoes', NUNCA)
     emUmaArea('/coordenacao/agentes', <Agentes />)
     const voltar = await screen.findByRole('link', { name: 'Voltar para Registros' })
@@ -80,7 +80,7 @@ describe('as telas que ficam dentro de um lugar voltam para ele', () => {
   })
 
   it('a lista da turma volta para Escola, na aba Turmas', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor(/\/v1\/turmas\//, NUNCA)
     emUmaArea(`/coordenacao/estrutura/turmas/${ID_DA_TURMA}`, <ListaDaTurma turmaId={ID_DA_TURMA} />)
     const voltar = await screen.findByRole('link', { name: 'Voltar para Escola' })

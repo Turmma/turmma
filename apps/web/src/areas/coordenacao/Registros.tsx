@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
-import { caminhoDaAbaDaPrivacidade, ROTAS_DA_COORDENACAO } from '../../paths'
-import { Moldura, type AbaDaMoldura } from './comum/moldura'
+import { caminhoDaAbaDaPrivacidade, COORDENACAO_ROUTES } from '../../paths'
+import { TabbedPage, type TabbedPageTab } from './comum/moldura'
 
 /**
  * As abas de Registros (D80; Tech Spec da X2, seção 5): IA, Pedidos e Privacidade. IA é a Governança, em `/governanca`; Pedidos
@@ -8,10 +8,10 @@ import { Moldura, type AbaDaMoldura } from './comum/moldura'
  * incidentes num seletor lá dentro, nunca aba dentro de aba (RF17). O caminho é relativo à área.
  */
 export const ABAS_DE_REGISTROS = [
-  { id: 'ia', rotulo: 'IA', caminho: ROTAS_DA_COORDENACAO.governanca },
-  { id: 'pedidos', rotulo: 'Pedidos', caminho: ROTAS_DA_COORDENACAO.pedidos },
+  { id: 'ia', rotulo: 'IA', caminho: COORDENACAO_ROUTES.governanca },
+  { id: 'pedidos', rotulo: 'Pedidos', caminho: COORDENACAO_ROUTES.pedidos },
   { id: 'privacidade', rotulo: 'Privacidade', caminho: caminhoDaAbaDaPrivacidade('retencao') },
-] as const satisfies readonly AbaDaMoldura[]
+] as const satisfies readonly TabbedPageTab[]
 
 export type AbaDeRegistros = (typeof ABAS_DE_REGISTROS)[number]['id']
 
@@ -25,8 +25,8 @@ const TITULO_DA_ABA: Readonly<Record<AbaDeRegistros, string>> = {
 /** A moldura de Registros: o título, as três abas e, dentro, a tela da aba do endereço (X2, 3.0). */
 export default function Registros({ aba, children }: { readonly aba: AbaDeRegistros; readonly children: ReactNode }) {
   return (
-    <Moldura titulo="Registros" tituloDaAba={TITULO_DA_ABA[aba]} rotuloDasAbas="Seções de Registros" abas={ABAS_DE_REGISTROS} ativa={aba}>
+    <TabbedPage titulo="Registros" tituloDaAba={TITULO_DA_ABA[aba]} rotuloDasAbas="Seções de Registros" abas={ABAS_DE_REGISTROS} ativa={aba}>
       {children}
-    </Moldura>
+    </TabbedPage>
   )
 }

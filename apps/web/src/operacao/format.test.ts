@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { formatarBytes, formatarDia, formatarMedidaDoUso, formatarMesDeReferencia, formatarNumero, MEDIDAS_DO_USO, ROTULO_DO_USO } from './format'
+import { formatarBytes, formatarDia, formatarMedidaDoUso, formatarMesDeReferencia, formatNumber, MEDIDAS_DO_USO, ROTULO_DO_USO } from './format'
 
 /** W5: os formatos da tela Uso, com os textos exatos do cenário, escritos aqui por extenso. */
 describe('W5: os formatos do uso por escola', () => {
   it('número pelo Intl pt-BR: zero, e o ponto de milhar', () => {
-    expect(formatarNumero(0)).toBe('0')
-    expect(formatarNumero(999)).toBe('999')
-    expect(formatarNumero(1234)).toBe('1.234')
-    expect(formatarNumero(1_234_567)).toBe('1.234.567')
+    expect(formatNumber(0)).toBe('0')
+    expect(formatNumber(999)).toBe('999')
+    expect(formatNumber(1234)).toBe('1.234')
+    expect(formatNumber(1_234_567)).toBe('1.234.567')
   })
 
   it('bytes: zero e um em bytes, 1 023 ainda em bytes, e 1 024 vira 1 KB', () => {

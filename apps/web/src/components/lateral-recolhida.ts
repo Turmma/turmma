@@ -4,7 +4,7 @@
  * `sim`, e a ausência da chave quer dizer aberta. A lista do que o navegador guarda é fechada, com a `educa.aparencia`
  * (Tech Spec da X1, seção 7), e esta chave **não muda**: quem já recolheu a lateral continua com ela recolhida.
  */
-export const CHAVE_DA_LATERAL_RECOLHIDA = 'educa.lateral-recolhida'
+export const SIDEBAR_COLLAPSED_STORAGE_KEY = 'educa.lateral-recolhida'
 
 /**
  * A lateral está recolhida por escolha da pessoa? Sem acesso ao armazenamento (navegação anônima, política do
@@ -13,7 +13,7 @@ export const CHAVE_DA_LATERAL_RECOLHIDA = 'educa.lateral-recolhida'
  */
 export function lerRecolhida(): boolean {
   try {
-    return window.localStorage.getItem(CHAVE_DA_LATERAL_RECOLHIDA) === 'sim'
+    return window.localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY) === 'sim'
   } catch {
     return false
   }
@@ -25,8 +25,8 @@ export function lerRecolhida(): boolean {
  */
 export function guardarRecolhida(recolhida: boolean): void {
   try {
-    if (recolhida) window.localStorage.setItem(CHAVE_DA_LATERAL_RECOLHIDA, 'sim')
-    else window.localStorage.removeItem(CHAVE_DA_LATERAL_RECOLHIDA)
+    if (recolhida) window.localStorage.setItem(SIDEBAR_COLLAPSED_STORAGE_KEY, 'sim')
+    else window.localStorage.removeItem(SIDEBAR_COLLAPSED_STORAGE_KEY)
   } catch {
     // Sem armazenamento, a escolha vale até a aba fechar: a lateral continua funcionando.
   }

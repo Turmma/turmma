@@ -3,11 +3,11 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, ArrowRight, Check, CircleAlert, MessageCircleQuestion } from 'lucide-react'
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { Link } from 'wouter'
-import { consultaMeuDiagnostico, consultaProva, enviarAtividade } from '../../api/atividades-do-aluno'
-import { CHAVE_DAS_MINHAS_ATIVIDADES } from '../../api/chaves-do-aluno'
-import { ErroDaApi, mensagemDoErro } from '../../api/client'
-import { consultaEu } from '../../api/eu'
-import { caminhoDoTutorNaAtividade, ROTAS_DO_ALUNO } from '../../paths'
+import { meuDiagnosticoQueryOptions, provaQueryOptions, enviarAtividade } from '../../api/atividades-do-aluno'
+import { MINHAS_ATIVIDADES_QUERY_KEY } from '../../api/chaves-do-aluno'
+import { ApiError, errorMessage } from '../../api/client'
+import { euQueryOptions } from '../../api/eu'
+import { caminhoDoTutorNaAtividade, ALUNO_ROUTES } from '../../paths'
 import { StickyFooter } from '../../components/ui/StickyFooter'
 import { ProgressBar } from '../../components/ui/ProgressBar'
 import { Button } from '../../components/ui/Button'
@@ -15,7 +15,7 @@ import { SECONDARY_LINK_CLASSES } from '../../components/ui/button-variants'
 import { Card } from '../../components/ui/Card'
 import { Comemoracao } from '../../components/ui/Comemoracao'
 import { ConfirmDialog } from '../../components/ui/overlays/ConfirmDialog'
-import { EstadoCarregando, EstadoErro, EstadoVazio } from '../../components/states'
+import { LoadingState, ErrorState, EmptyState } from '../../components/states'
 import { Banner } from '../../components/ui/Banner'
 import { AgentSignature } from '../../components/ui/ai/AgentSignature'
 import { CitationChip } from '../../components/ui/ai/CitationChip'
@@ -23,8 +23,8 @@ import { ApprovalLine } from '../../components/ui/ai/ApprovalLine'
 import { MEDIA_LG, useMediaQuery } from '../../components/ui/media-query'
 import { StatusBadge } from '../../components/ui/StatusBadge'
 import { Page } from '../../components/ui/Page'
-import { formatarDiaEHora } from '../../format'
-import { useTituloDaTela } from '../../document-title'
+import { formatDayAndTime } from '../../format'
+import { usePageTitle } from '../../document-title'
 import {
   alternativaMarcada,
   AVISO_DE_OUTRA_JANELA,
@@ -56,7 +56,7 @@ const SEM_TITULOS = {}
 
 const VOLTAR = (
   // Relativo à área: o `Route` aninhado em `/aluno` resolve o `to` a partir da base dela.
-  <Link to={ROTAS_DO_ALUNO.atividades} className="inline-flex min-h-11 items-center gap-2 self-start text-caramelo-texto underline">
+  <Link to={ALUNO_ROUTES.atividades} className="inline-flex min-h-11 items-center gap-2 self-start text-caramelo-texto underline">
     <ArrowLeft aria-hidden="true" size={18} />
     Voltar para Tarefas
   </Link>
@@ -128,15 +128,15 @@ function Respondendo({ prova, fila, estadoDaFila, focoDepoisDeEnviar, aoEntregar
     onSuccess: (enviada) => {
       // Antes de a leitura da prova ganhar `enviadaEm` e esta fase sair do ar: a tela nunca passa pelo "enviada" sem saber que foi agora.
       aoEntregar()
-      cliente.setQueryData(consultaProva(provaId).queryKey, (lida) => (lida === undefined ? lida : { ...lida, enviadaEm: enviada.enviadaEm }))
-      void cliente.invalidateQueries({ queryKey: CHAVE_DAS_MINHAS_ATIVIDADES })
+      cliente.setQueryData(provaQueryOptions(provaId).queryKey, (lida) => (lida === undefined ? lida : { ...lida, enviadaEm: enviada.enviadaEm }))
+      void cliente.invalidateQueries({ queryKey: MINHAS_ATIVIDADES_QUERY_KEY })
       definirConfirmando(false)
     },
     onError: (erro) => {
       // A professora encerrou enquanto o diálogo estava aberto: a tela relê a atividade e mostra o que ficou.
-      if (!(erro instanceof ErroDaApi) || erro.codigo !== ErrorCode.ATIVIDADE_ENCERRADA) return
+      if (!(erro instanceof ApiError) || erro.codigo !== ErrorCode.ATIVIDADE_ENCERRADA) return
       definirConfirmando(false)
-      void cliente.invalidateQueries({ queryKey: consultaProva(provaId).queryKey })
+      void cliente.invalidateQueries({ queryKey: provaQueryOptions(provaId).queryKey })
     },
   })
 
@@ -285,7 +285,7 @@ function Respondendo({ prova, fila, estadoDaFila, focoDepoisDeEnviar, aoEntregar
           }}
           confirmando={envio.isPending}
           impedido={impedimento !== undefined}
-          {...(envio.isError ? { falha: mensagemDoErro(envio.error) } : {})}
+          {...(envio.isError ? { falha: errorMessage(envio.error) } : {})}
           focoDeReserva={focoDepoisDeEnviar}
         />
       )}
@@ -372,7 +372,7 @@ interface PropsDoFim {
  */
 function SemMaisRespostas({ prova, estadoDaFila, entregueAgora }: PropsDoFim) {
   const fase = faseDaAtividade(prova)
-  const diagnostico = useQuery(consultaMeuDiagnostico(prova.atividadeAplicadaId))
+  const diagnostico = useQuery(meuDiagnosticoQueryOptions(prova.atividadeAplicadaId))
   const resultado = resultadoNaTela(fase, diagnostico)
   const contagem = contarRespostas(prova, { ...estadoDaFila, pendentes: [] })
   const perdidas = avisoDeEscolhasPerdidas(estadoDaFila)
@@ -382,14 +382,14 @@ function SemMaisRespostas({ prova, estadoDaFila, entregueAgora }: PropsDoFim) {
       {comemoracaoNaTela(entregueAgora, prova, resultado) && (
         <Card className="flex flex-col items-center gap-4">
           <Comemoracao agente="tutor">{FALA_DA_ENTREGA}</Comemoracao>
-          <Link to={ROTAS_DO_ALUNO.atividades} className={SECONDARY_LINK_CLASSES}>
+          <Link to={ALUNO_ROUTES.atividades} className={SECONDARY_LINK_CLASSES}>
             {ROTULO_DE_VOLTAR_AS_TAREFAS}
           </Link>
         </Card>
       )}
       <Card titulo={prova.enviadaEm === null ? 'Quem dá a aula encerrou esta atividade' : 'Atividade enviada'} className="flex flex-col gap-2">
         <p className="break-words text-apoio">
-          {prova.enviadaEm === null ? '' : `Enviada em ${formatarDiaEHora(prova.enviadaEm)}. `}
+          {prova.enviadaEm === null ? '' : `Enviada em ${formatDayAndTime(prova.enviadaEm)}. `}
           Você respondeu {textoDasRespondidas(contagem)}. Não dá mais para mudar as respostas.
         </p>
         {perdidas !== undefined && (
@@ -399,13 +399,13 @@ function SemMaisRespostas({ prova, estadoDaFila, entregueAgora }: PropsDoFim) {
         )}
       </Card>
 
-      {resultado.tipo === 'carregando' && <EstadoCarregando rotulo="Procurando o resultado…" />}
+      {resultado.tipo === 'carregando' && <LoadingState rotulo="Procurando o resultado…" />}
       {resultado.tipo === 'aguardando' && (
         <div data-resultado="aguardando">
           <Banner>{`${TEXTO_DA_ESPERA_PELA_CORRECAO} O resultado aparece aqui depois que ela aprovar.`}</Banner>
         </div>
       )}
-      {resultado.tipo === 'erro' && <EstadoErro erro={resultado.erro} tentando={diagnostico.isFetching} aoTentarDeNovo={() => void diagnostico.refetch({ cancelRefetch: false })} />}
+      {resultado.tipo === 'erro' && <ErrorState erro={resultado.erro} tentando={diagnostico.isFetching} aoTentarDeNovo={() => void diagnostico.refetch({ cancelRefetch: false })} />}
       {resultado.tipo === 'pronto' && <Diagnostico diagnostico={resultado.diagnostico} prova={prova} />}
     </>
   )
@@ -421,11 +421,11 @@ function SemMaisRespostas({ prova, estadoDaFila, entregueAgora }: PropsDoFim) {
  */
 export default function Atividade({ atividadeAplicadaId }: { atividadeAplicadaId: string }) {
   const cliente = useQueryClient()
-  const prova = useQuery(consultaProva(atividadeAplicadaId))
+  const prova = useQuery(provaQueryOptions(atividadeAplicadaId))
   const fila = filaDaAtividade(cliente, atividadeAplicadaId)
   const estadoDaFila = useSyncExternalStore(fila.assinar, fila.ler)
   // Quem é o aluno da sessão, lido do cache (a casca é quem busca o `/v1/eu`): `enabled: false` assina sem buscar de novo.
-  const alunoDaSessao = useQuery({ ...consultaEu, enabled: false }).data?.usuarioId
+  const alunoDaSessao = useQuery({ ...euQueryOptions, enabled: false }).data?.usuarioId
   // As escolhas que o servidor ainda não confirmou e ficaram no espelho (o F5, a sessão vencida) voltam e saem, só com o mesmo aluno.
   useEffect(() => {
     fila.hidratar()
@@ -433,7 +433,7 @@ export default function Atividade({ atividadeAplicadaId }: { atividadeAplicadaId
   const topo = useRef<HTMLDivElement>(null)
   // O envio confirmado nesta tela, e só nela: estado de tela, sem `localStorage`, URL nem cache. A `key` da rota (`routes.tsx`) a zera ao trocar de tarefa.
   const [entregueAgora, definirEntregueAgora] = useState(false)
-  useTituloDaTela(prova.data?.titulo ?? 'Atividade')
+  usePageTitle(prova.data?.titulo ?? 'Atividade')
 
   // O que o servidor tem de mais novo que esta janela (uma leitura da prova, ou o que o `PUT` que perdeu devolveu) é adotado.
   const respostasLidas = prova.data?.respostas
@@ -444,19 +444,19 @@ export default function Atividade({ atividadeAplicadaId }: { atividadeAplicadaId
   // O servidor recusou uma resposta porque a atividade foi encerrada: a tela relê a atividade, que agora diz isso.
   const encerradaNoServidor = estadoDaFila.falha === 'encerrada'
   useEffect(() => {
-    if (encerradaNoServidor) void cliente.invalidateQueries({ queryKey: consultaProva(atividadeAplicadaId).queryKey })
+    if (encerradaNoServidor) void cliente.invalidateQueries({ queryKey: provaQueryOptions(atividadeAplicadaId).queryKey })
   }, [encerradaNoServidor, cliente, atividadeAplicadaId])
 
   if (prova.data === undefined) {
-    const naoEncontrada = prova.error instanceof ErroDaApi && prova.error.codigo === ErrorCode.NAO_ENCONTRADO
+    const naoEncontrada = prova.error instanceof ApiError && prova.error.codigo === ErrorCode.NAO_ENCONTRADO
     return (
       <Page titulo="Atividade" antes={VOLTAR} largura="leitura">
         {prova.isPending ? (
-          <EstadoCarregando rotulo="Carregando a atividade…" />
+          <LoadingState rotulo="Carregando a atividade…" />
         ) : naoEncontrada ? (
-          <EstadoVazio titulo="Esta atividade não está disponível" descricao="Ela pode ser de outra turma, ou o endereço está errado. As tarefas da sua turma estão em Tarefas." />
+          <EmptyState titulo="Esta atividade não está disponível" descricao="Ela pode ser de outra turma, ou o endereço está errado. As tarefas da sua turma estão em Tarefas." />
         ) : (
-          <EstadoErro erro={prova.error} tentando={prova.isFetching} aoTentarDeNovo={() => void prova.refetch({ cancelRefetch: false })} />
+          <ErrorState erro={prova.error} tentando={prova.isFetching} aoTentarDeNovo={() => void prova.refetch({ cancelRefetch: false })} />
         )}
       </Page>
     )

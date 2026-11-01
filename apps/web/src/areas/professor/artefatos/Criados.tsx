@@ -2,12 +2,12 @@ import { NOME_DA_FERRAMENTA } from '@educa/shared'
 import { useInfiniteQuery } from '@tanstack/react-query'
 import { useEffect, useId, useRef, useState } from 'react'
 import { useLocation, useSearch } from 'wouter'
-import { consultaArtefatos } from './api/artefatos'
-import { consultaMeusVinculos } from '../comum/api/vinculos'
-import { ROTAS_DO_PROFESSOR, caminhoDoArtefatoDoProfessor } from '../../../paths'
+import { artefatosQueryOptions } from './api/artefatos'
+import { meusVinculosQueryOptions } from '../comum/api/vinculos'
+import { PROFESSOR_ROUTES, caminhoDoArtefatoDoProfessor } from '../../../paths'
 import { Button } from '../../../components/ui/Button'
 import { Dialog } from '../../../components/ui/overlays/Dialog'
-import { EstadoCarregando, EstadoErro, EstadoVazio } from '../../../components/states/index'
+import { LoadingState, ErrorState, EmptyState } from '../../../components/states/index'
 import { ListItem } from '../../../components/ui/ListItem'
 import { Menu } from '../../../components/ui/overlays/Menu'
 import { Onca } from '../../../components/ui/onca/Onca'
@@ -15,8 +15,8 @@ import { MEDIA_MD, useMediaQuery } from '../../../components/ui/media-query'
 import { StatusBadge } from '../../../components/ui/StatusBadge'
 import { SectionHeader, Page } from '../../../components/ui/Page'
 import { Toggle } from '../../../components/ui/Toggle'
-import { formatarDataHora, formatarQuantidade } from '../../../format'
-import { useTituloDaTela } from '../../../document-title'
+import { formatDateTime, formatQuantity } from '../../../format'
+import { usePageTitle } from '../../../document-title'
 import { agruparPorTurma, enderecoComFiltros, FAMILIA_DA_ENTREGA, filtrar, filtrosLigados, lerFiltros, OPCOES_DE_ESTADO, OPCOES_DE_TIPO, rotuloDeVerDocumentos, SELO_DA_ENTREGA, SEM_FILTROS, type FiltrosDeCriados, type OpcaoDeFiltro } from './criados'
 import { textoDaAdaptacao } from './entregas'
 import { IconeDeFerramenta } from '../ferramentas/icones-de-ferramenta'
@@ -88,12 +88,12 @@ function GrupoDeToques({ nome, opcoes, valor, valorSemFiltro, aoEscolher }: Omit
  * filtros", com "Limpar filtros".
  */
 export default function Criados() {
-  useTituloDaTela('Criados')
+  usePageTitle('Criados')
   const [caminho, navegar] = useLocation()
   const busca = useSearch()
   const filtros = lerFiltros(busca)
-  const artefatos = useInfiniteQuery(consultaArtefatos(filtros.turma))
-  const vinculos = useInfiniteQuery(consultaMeusVinculos)
+  const artefatos = useInfiniteQuery(artefatosQueryOptions(filtros.turma))
+  const vinculos = useInfiniteQuery(meusVinculosQueryOptions)
   const noComputador = useMediaQuery(MEDIA_MD)
   const [filtrando, definirFiltrando] = useState(false)
   // Os documentos que já estavam na tela quando a professora pediu "Ver mais" (num ref: só o efeito os lê), e a contagem que o acorda.
@@ -177,30 +177,30 @@ export default function Criados() {
       }
     >
       <section aria-labelledby={idDoTitulo} className="flex min-w-0 flex-col gap-6">
-        {carregando && <EstadoCarregando rotulo="Carregando o que você já gerou…" />}
-        {artefatos.isError && <EstadoErro erro={artefatos.error} tentando={artefatos.isFetching} aoTentarDeNovo={() => void artefatos.refetch({ cancelRefetch: false })} />}
+        {carregando && <LoadingState rotulo="Carregando o que você já gerou…" />}
+        {artefatos.isError && <ErrorState erro={artefatos.error} tentando={artefatos.isFetching} aoTentarDeNovo={() => void artefatos.refetch({ cancelRefetch: false })} />}
 
         {lido && visiveis.length === 0 && lidos.length === 0 && !artefatos.hasNextPage && ligados === 0 && (
-          <EstadoVazio
+          <EmptyState
             variante="tracejado"
             ilustracao={<Onca pose="apontando" agente="assistente_de_ensino" tamanho={120} animada={false} />}
             titulo="Nada gerado ainda"
             descricao="Escolha uma ferramenta, ou peça ao Assistente no Início. O que for gerado fica guardado aqui, ligado à turma."
-            acao={{ rotulo: 'Ir para Ferramentas', aoAcionar: () => navegar(ROTAS_DO_PROFESSOR.ferramentas) }}
+            acao={{ rotulo: 'Ir para Ferramentas', aoAcionar: () => navegar(PROFESSOR_ROUTES.ferramentas) }}
           />
         )}
         {lido && visiveis.length === 0 && (lidos.length > 0 || ligados > 0) && !artefatos.hasNextPage && (
-          <EstadoVazio titulo="Nada com estes filtros" descricao="Nenhum documento seu tem este tipo, nesta turma e neste estado." acao={{ rotulo: 'Limpar filtros', aoAcionar: limpar }} />
+          <EmptyState titulo="Nada com estes filtros" descricao="Nenhum documento seu tem este tipo, nesta turma e neste estado." acao={{ rotulo: 'Limpar filtros', aoAcionar: limpar }} />
         )}
         {lido && visiveis.length === 0 && artefatos.hasNextPage && (
-          <EstadoVazio titulo="Nada com estes filtros até aqui" descricao="Ainda há documentos mais antigos que não foram lidos. Veja mais para procurar neles." />
+          <EmptyState titulo="Nada com estes filtros até aqui" descricao="Ainda há documentos mais antigos que não foram lidos. Veja mais para procurar neles." />
         )}
 
         {/* Enquanto os vínculos não chegam, os grupos não têm nome de turma: esperam, em vez de aparecerem como "Outra turma". */}
         <div ref={grupos} className="flex min-w-0 flex-col gap-6">
           {!carregando && porTurma.map((grupo) => (
             <section key={grupo.chave} aria-labelledby={`${idDoTitulo}-${grupo.chave}`} className="flex min-w-0 flex-col gap-3">
-              <SectionHeader id={`${idDoTitulo}-${grupo.chave}`} titulo={grupo.titulo} apoio={formatarQuantidade(grupo.itens.length, 'documento', 'documentos')} />
+              <SectionHeader id={`${idDoTitulo}-${grupo.chave}`} titulo={grupo.titulo} apoio={formatQuantity(grupo.itens.length, 'documento', 'documentos')} />
               <ul className="divide-y-2 divide-borda overflow-hidden rounded-cartao border-2 border-borda bg-superficie">
                 {grupo.itens.map((artefato) => {
                   const turma = nomeDaTurma[artefato.turmaId]
@@ -214,7 +214,7 @@ export default function Criados() {
                           <>
                             {artefato.adaptacao === null ? NOME_DA_FERRAMENTA[artefato.tipo] : `Versão adaptada · ${textoDaAdaptacao(artefato.adaptacao)}`}
                             {/* A turma já é o título do grupo; fora dele, na lista de links, a linha continua dizendo de que turma é. */}
-                            {turma !== undefined && <span className="sr-only"> · {turma}</span>} · {formatarDataHora(artefato.criadoEm)}
+                            {turma !== undefined && <span className="sr-only"> · {turma}</span>} · {formatDateTime(artefato.criadoEm)}
                           </>
                         }
                         {...(artefato.entrega === null ? {} : { fim: <StatusBadge familia={FAMILIA_DA_ENTREGA[artefato.entrega.estado]}>{SELO_DA_ENTREGA[artefato.entrega.estado]}</StatusBadge> })}

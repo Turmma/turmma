@@ -2,18 +2,18 @@ import type { ItemDoPedido } from '@educa/shared'
 import { useInfiniteQuery } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
 import { Link } from 'wouter'
-import { consultaPedidosDoTitular } from './api/privacidade'
+import { pedidosDoTitularQueryOptions } from './api/privacidade'
 import { Button } from '../../../components/ui/Button'
 import { SECONDARY_LINK_CLASSES } from '../../../components/ui/button-variants'
-import { Anuncio } from '../../../components/dialogs'
-import { EstadoCarregando, EstadoErro, EstadoVazio } from '../../../components/states'
+import { StatusAnnouncement } from '../../../components/dialogs'
+import { LoadingState, ErrorState, EmptyState } from '../../../components/states'
 import { Banner } from '../../../components/ui/Banner'
 import { StatusBadge } from '../../../components/ui/StatusBadge'
 import { Table, type TableColumn } from '../../../components/ui/Table'
 import { SectionHeader } from '../../../components/ui/Page'
-import { mensagemDoErro } from '../../../api/client'
-import { caminhoDoPedidoDoTitular, ROTAS_DA_COORDENACAO } from '../../../paths'
-import { formatarData } from '../../../format'
+import { errorMessage } from '../../../api/client'
+import { caminhoDoPedidoDoTitular, COORDENACAO_ROUTES } from '../../../paths'
+import { formatDate } from '../../../format'
 import { RegistrarPedido } from './RegistrarPedido'
 import { prazoDoPedido, textoDoPrazo } from './textos-do-pedido'
 import {
@@ -60,7 +60,7 @@ function colunasDosPedidos(hoje: string): readonly [TableColumn<ItemDoPedido>, .
     { chave: 'turma', titulo: 'Turma', celula: (pedido) => (pedido.titular === null ? TEXTO_SEM_TURMA_DO_ELIMINADO : textoDasTurmas(pedido.titular.turmas)) },
     { chave: 'tipo', titulo: 'Pedido', celula: (pedido) => ROTULO_DO_TIPO[pedido.tipo] },
     { chave: 'solicitante', titulo: 'Quem pediu', celula: (pedido) => ROTULO_DE_QUEM_PEDIU[pedido.solicitante] },
-    { chave: 'chegouEm', titulo: 'Chegou em', celula: (pedido) => formatarData(pedido.chegouEm) },
+    { chave: 'chegouEm', titulo: 'Chegou em', celula: (pedido) => formatDate(pedido.chegouEm) },
     {
       chave: 'prazo',
       titulo: 'Prazo',
@@ -94,16 +94,16 @@ function colunasDosPedidos(hoje: string): readonly [TableColumn<ItemDoPedido>, .
  * - **Aviso fixo** do aluno da lista: ele não tem conta e não aparece na busca, e o caminho dele é a lista da turma.
  */
 export default function Pedidos() {
-  const consulta = useInfiniteQuery(consultaPedidosDoTitular)
+  const consulta = useInfiniteQuery(pedidosDoTitularQueryOptions)
   const [anuncio, definirAnuncio] = useState('')
   const pedidos = useMemo(() => ordenarOsPedidos((consulta.data?.pages ?? []).flatMap((pagina) => pagina.itens)), [consulta.data])
   const hoje = hojeEmSaoPaulo()
   const colunas = useMemo(() => colunasDosPedidos(hoje), [hoje])
 
-  if (consulta.isPending) return <EstadoCarregando rotulo="Carregando os pedidos…" />
+  if (consulta.isPending) return <LoadingState rotulo="Carregando os pedidos…" />
   // Sem página nenhuma e fora do carregamento, só resta a falha. A falha de "Ver mais" fica abaixo da lista, com o que já foi lido.
   if (consulta.data === undefined) {
-    return <EstadoErro erro={consulta.error} tentando={consulta.isFetching} aoTentarDeNovo={() => void consulta.refetch({ cancelRefetch: false })} />
+    return <ErrorState erro={consulta.error} tentando={consulta.isFetching} aoTentarDeNovo={() => void consulta.refetch({ cancelRefetch: false })} />
   }
 
   return (
@@ -114,15 +114,15 @@ export default function Pedidos() {
         apoio="Acesso, portabilidade, compartilhamento, correção e eliminação de dados, pedidos pela própria pessoa ou pelo responsável."
         acao={<RegistrarPedido aoRegistrado={definirAnuncio} />}
       />
-      <Anuncio texto={anuncio} />
+      <StatusAnnouncement texto={anuncio} />
       <Banner>{AVISO_DO_ALUNO_DA_LISTA}</Banner>
       <div>
-        <Link to={ROTAS_DA_COORDENACAO.estrutura} className={SECONDARY_LINK_CLASSES}>
+        <Link to={COORDENACAO_ROUTES.estrutura} className={SECONDARY_LINK_CLASSES}>
           Ir para as turmas
         </Link>
       </div>
       {pedidos.length === 0 ? (
-        <EstadoVazio
+        <EmptyState
           titulo="Nenhum pedido registrado"
           descricao="Quando uma pessoa ou o responsável pedir acesso, correção ou eliminação dos dados, registre aqui: a Turmma monta o arquivo, guarda a lista de quem recebeu dado e agenda a eliminação."
         />
@@ -131,7 +131,7 @@ export default function Pedidos() {
       )}
       {consulta.isFetchNextPageError && (
         <p role="alert" className="rounded-controle border border-erro bg-erro-cx p-3 break-words text-erro">
-          {mensagemDoErro(consulta.error)}
+          {errorMessage(consulta.error)}
         </p>
       )}
       {consulta.hasNextPage && (

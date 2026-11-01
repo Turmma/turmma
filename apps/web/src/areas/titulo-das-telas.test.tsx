@@ -3,7 +3,7 @@ import { screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactElement } from 'react'
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
-import { prepararTela, renderizarTela } from '../__fixtures__/render-screen'
+import { setupScreen, renderScreen } from '../__fixtures__/render-screen'
 import Eu from './aluno/Eu'
 import InicioDoAluno from './aluno/Inicio'
 import Escola from './coordenacao/Escola'
@@ -27,7 +27,7 @@ import Turmas from './professor/turmas/Turmas'
  * A rede é falsa e responde pelo caminho, e não pela ordem: a `Estrutura` faz seis leituras, e uma ordem fixa
  * quebraria a cada leitura que a tela ganhasse. Caminho que o caso não nomeia responde com lista vazia.
  */
-prepararTela()
+setupScreen()
 
 // A lista da turma da coordenação lê a largura da janela (a tabela dos nomes e o miolo que rola) e a `Table` mede o que
 // rola; o `jsdom` não tem `matchMedia` nem `ResizeObserver`. Janela larga, como a do Chromebook.
@@ -99,14 +99,14 @@ function provar(nome: string, estados: Estados): void {
   describe(nome, () => {
     it('carregando: o título já está na tela, e o rótulo do carregamento também', async () => {
       redePorCaminho(estados.carregando.rotas)
-      renderizarTela(estados.tela())
+      renderScreen(estados.tela())
       await estados.carregando.aparece()
       conferirOTitulo(estados.titulo)
     })
 
     it('com erro: o título continua, ao lado do alerta e do "Tentar de novo"', async () => {
       redePorCaminho(estados.erro.rotas)
-      renderizarTela(estados.tela())
+      renderScreen(estados.tela())
       expect(await screen.findByRole('alert')).toBeTruthy()
       expect(screen.getByRole('button', { name: 'Tentar de novo' })).toBeTruthy()
       conferirOTitulo(estados.titulo)
@@ -114,14 +114,14 @@ function provar(nome: string, estados: Estados): void {
 
     it('vazia: o título continua, ao lado do que a tela diz para esse caso', async () => {
       redePorCaminho(estados.vazio.rotas)
-      renderizarTela(estados.tela())
+      renderScreen(estados.tela())
       await estados.vazio.aparece()
       conferirOTitulo(estados.vazio.titulo ?? estados.titulo)
     })
 
     it('com dado: um `h1` só, com o texto de hoje', async () => {
       redePorCaminho(estados.comDado.rotas)
-      renderizarTela(estados.tela())
+      renderScreen(estados.tela())
       await estados.comDado.aparece()
       conferirOTitulo(estados.comDado.titulo ?? estados.titulo)
       // A região da tela leva o nome do título: a `section` da tela aponta para o `h1`, que está fora dela, na `Page`.
@@ -228,7 +228,7 @@ describe('o título das seis telas que passaram à Tela', () => {
 describe('o título de quem recebe o foco', () => {
   it('Professores: o `h1` da moldura entra na ordem de foco por código (`tabindex` -1), que é o que o foco de reserva do diálogo usa', async () => {
     redePorCaminho({ '/v1/professores': { status: 200, corpo: { itens: [PROFESSORA] } } })
-    renderizarTela(
+    renderScreen(
       <Escola aba="professores">
         <Professores />
       </Escola>,
@@ -241,7 +241,7 @@ describe('o título de quem recebe o foco', () => {
 describe('a turma lida e a leitura de quem está na sessão que falha', () => {
   it('professor: o erro toma o lugar das abas, e o título continua com o nome da turma e a série', async () => {
     redePorCaminho({ [CAMINHO_DA_TURMA]: TURMA_ABERTA, '/v1/eu': FALHA })
-    renderizarTela(<Turma turmaId={UUID_DA_TURMA} />)
+    renderScreen(<Turma turmaId={UUID_DA_TURMA} />)
 
     expect(await screen.findByRole('alert')).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Tentar de novo' })).toBeTruthy()
@@ -254,7 +254,7 @@ describe('a turma lida e a leitura de quem está na sessão que falha', () => {
 describe('a turma que sai com a tela aberta', () => {
   it('professor: o aviso toma o lugar da turma, e o título volta a ser "Turma", sem a série', async () => {
     redePorCaminho({ [CAMINHO_DA_TURMA]: TURMA_ABERTA, '/v1/eu': EU, [`${CAMINHO_DA_TURMA}/reivindicacoes`]: NAO_ACHADA })
-    renderizarTela(<Turma turmaId={UUID_DA_TURMA} />)
+    renderScreen(<Turma turmaId={UUID_DA_TURMA} />)
     await screen.findByText(POR_EXTENSO)
     conferirOTitulo('Turma 7º A')
 
@@ -267,7 +267,7 @@ describe('a turma que sai com a tela aberta', () => {
 
   it('coordenação: o aviso toma o lugar da lista, e o título volta a ser "Turma"', async () => {
     redePorCaminho({ [CAMINHO_DA_TURMA]: TURMA_ABERTA, [`${CAMINHO_DA_TURMA}/reivindicacoes`]: NAO_ACHADA })
-    renderizarTela(<ListaDaTurma turmaId={UUID_DA_TURMA} />)
+    renderScreen(<ListaDaTurma turmaId={UUID_DA_TURMA} />)
     await screen.findByText(POR_EXTENSO)
     conferirOTitulo('Turma 7º A')
 
@@ -295,7 +295,7 @@ describe('a conversa é a exceção: o `h1` existe, escondido, com o texto de ho
 
   it.each(CONVERSAS)('%s', (_nome, tela, texto) => {
     redePorCaminho({})
-    renderizarTela(tela())
+    renderScreen(tela())
     const h1 = titulos()
     expect(h1).toHaveLength(1)
     expect(h1[0]?.textContent).toBe(texto)

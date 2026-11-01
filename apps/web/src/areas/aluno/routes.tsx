@@ -1,7 +1,7 @@
 import { lazy } from 'react'
 import { Redirect, Route, Switch } from 'wouter'
-import { ROTAS_DO_ALUNO } from '../../paths'
-import { ConteudoNaoEncontrado } from '../../components/NotFound'
+import { ALUNO_ROUTES } from '../../paths'
+import { NotFoundContent } from '../../components/NotFound'
 
 /**
  * As telas da atividade e do Tutor (A3 e A4), cada uma no pedaço dela (`tela-aluno-<Tela>-*.js`), que só se baixa ao
@@ -38,30 +38,30 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 export default function RotasDoAluno() {
   return (
     <Switch>
-      <Route path={ROTAS_DO_ALUNO.inicio} component={Inicio} />
-      <Route path={ROTAS_DO_ALUNO.tutor}>
+      <Route path={ALUNO_ROUTES.inicio} component={Inicio} />
+      <Route path={ALUNO_ROUTES.tutor}>
         <Tutor />
       </Route>
       {/* A `key` pela atividade: outra atividade é outra conversa, e o que foi digitado numa não aparece na outra. */}
-      <Route path={ROTAS_DO_ALUNO.tutorDaAtividade}>
-        {(parametros) => (UUID.test(parametros.atividadeAplicadaId) ? <Tutor key={parametros.atividadeAplicadaId} atividadeAplicadaId={parametros.atividadeAplicadaId} /> : <ConteudoNaoEncontrado />)}
+      <Route path={ALUNO_ROUTES.tutorDaAtividade}>
+        {(parametros) => (UUID.test(parametros.atividadeAplicadaId) ? <Tutor key={parametros.atividadeAplicadaId} atividadeAplicadaId={parametros.atividadeAplicadaId} /> : <NotFoundContent />)}
       </Route>
-      <Route path={ROTAS_DO_ALUNO.atividades} component={Atividades} />
-      <Route path={ROTAS_DO_ALUNO.atividade}>
-        {(parametros) => (UUID.test(parametros.atividadeAplicadaId) ? <Atividade key={parametros.atividadeAplicadaId} atividadeAplicadaId={parametros.atividadeAplicadaId} /> : <ConteudoNaoEncontrado />)}
+      <Route path={ALUNO_ROUTES.atividades} component={Atividades} />
+      <Route path={ALUNO_ROUTES.atividade}>
+        {(parametros) => (UUID.test(parametros.atividadeAplicadaId) ? <Atividade key={parametros.atividadeAplicadaId} atividadeAplicadaId={parametros.atividadeAplicadaId} /> : <NotFoundContent />)}
       </Route>
-      <Route path={ROTAS_DO_ALUNO.eu} component={Eu} />
-      <Route path={ROTAS_DO_ALUNO.bemVindo} component={BemVindo} />
+      <Route path={ALUNO_ROUTES.eu} component={Eu} />
+      <Route path={ALUNO_ROUTES.bemVindo} component={BemVindo} />
       {/* O endereço de "Minha turma" leva a Eu, sem ficar no histórico: quem o guardou nos favoritos não cai em "não encontrada". */}
-      <Route path={ROTAS_DO_ALUNO.minhaTurma}>
-        <Redirect to={ROTAS_DO_ALUNO.eu} replace />
+      <Route path={ALUNO_ROUTES.minhaTurma}>
+        <Redirect to={ALUNO_ROUTES.eu} replace />
       </Route>
       {/* A tela é uma só com a do professor; o título da aba e o nome da seção são o do aluno ("Privacidade", com "Meus dados"). */}
-      <Route path={ROTAS_DO_ALUNO.privacidade}>
+      <Route path={ALUNO_ROUTES.privacidade}>
         <MeusDados titulo="Privacidade" secao="Meus dados" />
       </Route>
       <Route>
-        <ConteudoNaoEncontrado />
+        <NotFoundContent />
       </Route>
     </Switch>
   )

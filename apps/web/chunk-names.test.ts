@@ -148,7 +148,7 @@ describe('nome dos chunks', () => {
     expect(ehPecaForaDaEntrada('/repo/apps/web/src/components/ui/tabs-keyboard.ts')).toBe(true)
     expect(ehPecaForaDaEntrada('/repo/apps/web/src/components/ui/StatusBadge.tsx?v=1')).toBe(true)
     // As que a entrada usa, e as que só têm o nome parecido.
-    for (const daEntrada of ['ui/Button.tsx', 'ui/button-variants.ts', 'ui/overlays/Dialog.tsx', 'ui/fields/FormField.tsx', 'states/EstadoVazio.tsx', 'MenuDaPessoa.tsx', 'ui/fields/field-styles.ts', 'pedidos/Menu.tsx'])
+    for (const daEntrada of ['ui/Button.tsx', 'ui/button-variants.ts', 'ui/overlays/Dialog.tsx', 'ui/fields/FormField.tsx', 'states/EmptyState.tsx', 'MenuDaPessoa.tsx', 'ui/fields/field-styles.ts', 'pedidos/Menu.tsx'])
       expect(ehPecaForaDaEntrada(`/repo/apps/web/src/components/${daEntrada}`), daEntrada).toBe(false)
     expect(ehPecaForaDaEntrada('/repo/apps/web/src/areas/professor/Menu.tsx')).toBe(false)
   })
@@ -161,14 +161,14 @@ describe('nome dos chunks', () => {
   it('o painel ao lado (X1, 7.0) está fora da entrada, e o que ele divide com o `Dialogo` (`dialogo-modal`) fica dentro', () => {
     expect(ehPecaForaDaEntrada('/repo/apps/web/src/components/ui/overlays/Sheet.tsx')).toBe(true)
     // O `Dialog` é da entrada, e o que o painel divide com ele não pode morar numa peça que a entrada não baixa.
-    for (const daEntrada of ['ui/overlays/Dialog.tsx', 'ui/overlays/modal-dialog.ts', 'LoginPorCima.tsx', 'DialogoDoConvite.tsx']) {
+    for (const daEntrada of ['ui/overlays/Dialog.tsx', 'ui/overlays/modal-dialog.ts', 'ReauthDialog.tsx', 'DialogoDoConvite.tsx']) {
       expect(ehPecaForaDaEntrada(`/repo/apps/web/src/components/${daEntrada}`), daEntrada).toBe(false)
     }
   })
 
   it('as peças novas de estado (X1, 6.0) estão fora da entrada, e os três de `estado/` e o `Botao` que eles usam, dentro', () => {
     for (const nova of ['ui/Alert.tsx', 'ui/CountBadge.tsx', 'ui/Toggle.tsx']) expect(ehPecaForaDaEntrada(`/repo/apps/web/src/components/${nova}`), nova).toBe(true)
-    for (const daEntrada of ['states/EstadoCarregando.tsx', 'states/EstadoErro.tsx', 'states/EstadoVazio.tsx', 'ui/Button.tsx']) {
+    for (const daEntrada of ['states/LoadingState.tsx', 'states/ErrorState.tsx', 'states/EmptyState.tsx', 'ui/Button.tsx']) {
       expect(ehPecaForaDaEntrada(`/repo/apps/web/src/components/${daEntrada}`), daEntrada).toBe(false)
     }
   })

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { baixarPorUrl } from './download-from-url'
+import { downloadFromUrl } from './download-from-url'
 
 /**
  * O download de um endereço assinado (F3, 17.0): a âncora temporária leva o endereço e o nome, é clicada uma vez e sai da
@@ -25,7 +25,7 @@ function documentoFalso() {
 describe('baixarPorUrl', () => {
   it('clica uma âncora oculta com o endereço, o nome e o rel seguro, e a tira da página', () => {
     const { ancora, anexadas, documento } = documentoFalso()
-    baixarPorUrl('http://127.0.0.1:28343/arquivos/x?assinatura=abc', 'meus-dados-2026-10-10.json', documento)
+    downloadFromUrl('http://127.0.0.1:28343/arquivos/x?assinatura=abc', 'meus-dados-2026-10-10.json', documento)
 
     expect(ancora.href).toBe('http://127.0.0.1:28343/arquivos/x?assinatura=abc')
     expect(ancora.download).toBe('meus-dados-2026-10-10.json')
@@ -50,7 +50,7 @@ describe('baixarPorUrl', () => {
       createElement: () => ancora,
       body: { append: () => ordem.push('anexar') },
     } as unknown as Document
-    baixarPorUrl('http://127.0.0.1:28343/arquivos/x', 'arquivo.json', documento)
+    downloadFromUrl('http://127.0.0.1:28343/arquivos/x', 'arquivo.json', documento)
 
     expect(ordem).toEqual(['anexar', 'clicar', 'remover'])
   })

@@ -1,10 +1,10 @@
 import type { Aviso, SystemComponent, SystemStatusResponse } from '@educa/shared'
 import { useQuery, type UseQueryResult } from '@tanstack/react-query'
 import { useEffect, useRef, type ReactNode, type RefObject } from 'react'
-import { consultaAvisos, consultaEstado } from '../api/sistema'
-import { EstadoCarregando, EstadoErro, EstadoVazio } from '../components/states'
+import { avisosQueryOptions, estadoQueryOptions } from '../api/sistema'
+import { LoadingState, ErrorState, EmptyState } from '../components/states'
 import { Logo } from '../components/ui/Logo'
-import { formatarData, formatarDataHora, formatarQuantidade } from '../format'
+import { formatDate, formatDateTime, formatQuantity } from '../format'
 
 const NOME_DO_COMPONENTE: Record<SystemComponent['nome'], string> = { api: 'API', banco: 'Banco de dados' }
 const NOME_DO_AMBIENTE: Record<SystemStatusResponse['ambiente'], string> = { local: 'Local', staging: 'Homologação', producao: 'Produção' }
@@ -58,7 +58,7 @@ function Estado({ estado }: { estado: SystemStatusResponse }) {
             <span className={componente.situacao === 'disponivel' ? 'text-ok' : 'text-erro'}>
               {componente.situacao === 'disponivel' ? 'Disponível' : 'Indisponível'}
             </span>
-            <span className="w-full text-sm text-sutil">Verificado em {formatarDataHora(componente.verificadoEm)}</span>
+            <span className="w-full text-sm text-sutil">Verificado em {formatDateTime(componente.verificadoEm)}</span>
           </li>
         ))}
       </ul>
@@ -69,12 +69,12 @@ function Estado({ estado }: { estado: SystemStatusResponse }) {
 function Avisos({ itens }: { itens: Aviso[] }) {
   return (
     <div className="rounded-cartao border border-linha bg-superficie p-4">
-      <p className="text-sm text-sutil">{formatarQuantidade(itens.length, 'aviso', 'avisos')}</p>
+      <p className="text-sm text-sutil">{formatQuantity(itens.length, 'aviso', 'avisos')}</p>
       <ul className="mt-2 flex flex-col gap-3">
         {itens.map((aviso) => (
           <li key={aviso.id}>
             <p className="break-words text-tinta">{aviso.texto}</p>
-            <p className="text-sm text-sutil">Publicado em {formatarData(aviso.publicadoEm)}</p>
+            <p className="text-sm text-sutil">Publicado em {formatDate(aviso.publicadoEm)}</p>
           </li>
         ))}
       </ul>
@@ -97,9 +97,9 @@ function ConteudoDaConsulta<T>({
   vazio: (dado: T) => ReactNode | null
   comDado: (dado: T) => ReactNode
 }) {
-  if (consulta.isPending) return <EstadoCarregando rotulo={carregando} />
+  if (consulta.isPending) return <LoadingState rotulo={carregando} />
   const erro = consulta.isError ? (
-    <EstadoErro erro={consulta.error} tentando={consulta.isFetching} aoTentarDeNovo={() => buscarDeNovo(consulta)} />
+    <ErrorState erro={consulta.error} tentando={consulta.isFetching} aoTentarDeNovo={() => buscarDeNovo(consulta)} />
   ) : null
   if (consulta.data === undefined) return erro
   return (
@@ -115,8 +115,8 @@ function ConteudoDaConsulta<T>({
  * Coluna única a partir de 360 px, duas colunas em tela larga (D51).
  */
 export function Casca() {
-  const estado = useQuery(consultaEstado)
-  const avisos = useQuery(consultaAvisos)
+  const estado = useQuery(estadoQueryOptions)
+  const avisos = useQuery(avisosQueryOptions)
   const tituloComponentes = useRef<HTMLHeadingElement>(null)
   const tituloAvisos = useRef<HTMLHeadingElement>(null)
   useFocoAoRecuperar(estado, tituloComponentes)
@@ -138,7 +138,7 @@ export function Casca() {
               carregando="Carregando o estado do sistema…"
               vazio={(dado) =>
                 dado.componentes.length === 0 ? (
-                  <EstadoVazio
+                  <EmptyState
                     titulo="Nenhum componente informado"
                     descricao="A API respondeu sem a situação dos componentes. Verifique de novo em instantes."
                     acao={{ rotulo: 'Verificar de novo', aoAcionar: () => buscarDeNovo(estado), emAndamento: estado.isFetching && !estado.isError }}
@@ -154,7 +154,7 @@ export function Casca() {
               carregando="Carregando os avisos…"
               vazio={(dado) =>
                 dado.itens.length === 0 ? (
-                  <EstadoVazio
+                  <EmptyState
                     titulo="Nenhum aviso por enquanto"
                     descricao="Manutenção e atualização do sistema são avisadas aqui. Verifique de novo quando quiser."
                     acao={{ rotulo: 'Verificar de novo', aoAcionar: () => buscarDeNovo(avisos), emAndamento: avisos.isFetching && !avisos.isError }}

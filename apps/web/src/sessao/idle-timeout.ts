@@ -45,7 +45,7 @@ const INTERVALO_DA_DIFUSAO_MS = 60_000
  * `ativa` desliga o relógio enquanto não há sessão aberta (a própria tela vencida, por exemplo); `inatividadeMin`
  * vem do `/v1/eu` e é configurável por escola e por papel, então o relógio só começa quando ele chega.
  */
-export function useInatividade({ inatividadeMin, ativa }: { inatividadeMin: number | undefined; ativa: boolean }): void {
+export function useIdleTimeout({ inatividadeMin, ativa }: { inatividadeMin: number | undefined; ativa: boolean }): void {
   const ultimaInteracao = useRef<number | undefined>(undefined)
   const ultimoAviso = useRef<number | undefined>(undefined)
   const ultimaDifusao = useRef<number | undefined>(undefined)

@@ -2,7 +2,7 @@
 import { cleanup, render, screen } from '@testing-library/react'
 import { BookOpen } from 'lucide-react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { classesDo, contraste, corDoToken, TEMAS } from '../../__fixtures__/class-colors'
+import { classesOf, contraste, tokenColor, TEMAS } from '../../__fixtures__/class-colors'
 import { COLOR_FAMILIES } from './CountBadge'
 import { Icon } from './Icon'
 import { IconTile, type IconTileSize } from './IconTile'
@@ -75,7 +75,7 @@ describe('Ladrilho', () => {
     expect(ladrilhoDe(lucide).querySelectorAll('svg')).toHaveLength(1)
     for (const container of [ilustrado, lucide]) {
       const caixa = ladrilhoDe(container).firstElementChild as HTMLElement
-      const classes = classesDo(caixa)
+      const classes = classesOf(caixa)
       // 72% do lado, e o `svg` de dentro (qualquer um) preenche essa caixa por CSS.
       expect(classes.has('size-[72%]')).toBe(true)
       expect(classes.has('[&>svg]:size-full')).toBe(true)
@@ -91,7 +91,7 @@ describe('Ladrilho', () => {
           <BookOpen aria-hidden="true" />
         </IconTile>,
       )
-      const classes = classesDo(ladrilhoDe(container))
+      const classes = classesOf(ladrilhoDe(container))
       expect(classes.has(`bg-${familia}-claro`), familia).toBe(true)
       expect(classes.has(`text-${familia}-texto`), familia).toBe(true)
       expect(ladrilhoDe(container).getAttribute('data-ladrilho'), familia).toBe(familia)
@@ -104,7 +104,7 @@ describe('Ladrilho', () => {
   it('o texto da família tem 4,5:1 sobre o `claro` dela nos dois temas (o `lucide` desenha com esse `currentColor`)', () => {
     for (const tema of TEMAS) {
       for (const familia of COLOR_FAMILIES) {
-        expect(contraste(corDoToken(tema, `${familia}-texto`), corDoToken(tema, `${familia}-claro`)), `${familia} no ${tema}`).toBeGreaterThanOrEqual(4.5)
+        expect(contraste(tokenColor(tema, `${familia}-texto`), tokenColor(tema, `${familia}-claro`)), `${familia} no ${tema}`).toBeGreaterThanOrEqual(4.5)
       }
     }
   })
@@ -117,7 +117,7 @@ describe('Ladrilho', () => {
           <BookOpen aria-hidden="true" />
         </IconTile>,
       )
-      const classes = classesDo(ladrilhoDe(container))
+      const classes = classesOf(ladrilhoDe(container))
       expect(classes.has(LADO[tamanho]), String(tamanho)).toBe(true)
       lados.add(LADO[tamanho])
       unmount()
@@ -131,7 +131,7 @@ describe('Ladrilho', () => {
         <Icon nome="ferramentas" tamanho={24} />
       </IconTile>,
     )
-    const classes = classesDo(ladrilhoDe(container))
+    const classes = classesOf(ladrilhoDe(container))
     for (const classe of ['rounded-controle', 'shrink-0', 'inline-flex', 'items-center', 'justify-center']) expect(classes.has(classe), classe).toBe(true)
     expect(container.querySelector('button, a, input, [tabindex]')).toBeNull()
   })
@@ -145,7 +145,7 @@ describe('Ladrilho', () => {
     const todos = [ladrilhoDe(container), ...ladrilhoDe(container).querySelectorAll('*')]
     for (const elemento of todos) {
       expect(elemento.getAttribute('style'), elemento.tagName).toBeNull()
-      expect([...classesDo(elemento)].filter((classe) => /^(animate|transition|duration|motion)/.test(classe))).toEqual([])
+      expect([...classesOf(elemento)].filter((classe) => /^(animate|transition|duration|motion)/.test(classe))).toEqual([])
     }
   })
 })

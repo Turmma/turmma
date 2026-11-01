@@ -4,7 +4,7 @@ import { cleanup, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { Router } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
-import { prepararTela, redeFalsa, renderizarTela, type RedeFalsa, type RespostaFalsa } from '../../../__fixtures__/render-screen'
+import { setupScreen, fakeNetwork, renderScreen, type FakeNetwork, type FakeResponse } from '../../../__fixtures__/render-screen'
 import Time from './Time'
 
 /**
@@ -14,12 +14,12 @@ import Time from './Time'
  * a 1366 × 768 é o e2e (`professor-entregas.spec.ts`); este arquivo prova as peças que a produzem, e a variável que o painel
  * mede de si.
  */
-prepararTela()
+setupScreen()
 
 const id = (n: number) => `0197a1c0-0000-7000-8000-${String(n).padStart(12, '0')}`
 const TURMA_A = { id: id(101), nome: '1º A' }
 const QUIMICA = { id: id(500), nome: 'Química' }
-const VINCULO: RespostaFalsa = { status: 200, corpo: { itens: [{ id: id(401), turma: TURMA_A, disciplina: QUIMICA, estado: 'confirmado' }] } }
+const VINCULO: FakeResponse = { status: 200, corpo: { itens: [{ id: id(401), turma: TURMA_A, disciplina: QUIMICA, estado: 'confirmado' }] } }
 
 const entrega = (n: number, estado: 'pendente' | 'aprovada') => ({
   id: id(900 + n),
@@ -36,7 +36,7 @@ const entrega = (n: number, estado: 'pendente' | 'aprovada') => ({
   justificativa: null,
 })
 
-function instalar(rede: RedeFalsa, quem: { entregas: readonly unknown[]; maisUma?: boolean }): void {
+function instalar(rede: FakeNetwork, quem: { entregas: readonly unknown[]; maisUma?: boolean }): void {
   rede.responderPor('/v1/meus-vinculos', VINCULO)
   rede.responderPor('/v1/time', { status: 200, corpo: montarTime(new Set()) })
   rede.responderPor(/^\/v1\/entregas(\?|$)/, { status: 200, corpo: { itens: quem.entregas, ...(quem.maisUma === true ? { proxima: id(999) } : {}) } })
@@ -44,7 +44,7 @@ function instalar(rede: RedeFalsa, quem: { entregas: readonly unknown[]; maisUma
 
 function montar() {
   const localizacao = memoryLocation({ path: '/time/assistente', record: true })
-  renderizarTela(
+  renderScreen(
     <Router hook={localizacao.hook}>
       <Time />
     </Router>,
@@ -57,7 +57,7 @@ afterEach(() => {
 
 describe('o miolo da conversa', () => {
   it('só o painel do filtro rola, a partir de 768 px: a faixa e as abas ficam fora dele, e o "Ver mais entregas" dentro', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { entregas: [entrega(1, 'pendente'), entrega(2, 'aprovada')], maisUma: true })
     montar()
     const painel = await screen.findByRole('tabpanel')
@@ -78,7 +78,7 @@ describe('o miolo da conversa', () => {
   })
 
   it('o painel mede onde começa: a variável `--topo-do-painel` fica na caixa das abas, e sai com a tela', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { entregas: [entrega(1, 'pendente')] })
     montar()
     const painel = await screen.findByRole('tabpanel')
@@ -91,7 +91,7 @@ describe('o miolo da conversa', () => {
   })
 
   it('sem "Ver mais": quando não há outra página, o botão não existe', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { entregas: [entrega(1, 'pendente')] })
     montar()
     await screen.findByRole('tabpanel')

@@ -1,10 +1,10 @@
 import { ErrorCode, type VinculoDaCoordenacao } from '@educa/shared'
 import { useQuery } from '@tanstack/react-query'
 import { useId, useState } from 'react'
-import { alocarProfessor, consultaDisciplinas, consultaTurmas } from '../../../api/estrutura'
-import { DialogoDeFormulario, useEnvioUnico } from '../../../components/dialogs'
+import { alocarProfessor, disciplinasQueryOptions, turmasQueryOptions } from '../../../api/estrutura'
+import { FormDialog, useSingleSubmit } from '../../../components/dialogs'
 import { SELECT_CLASSES } from '../../../components/ui/fields/field-styles'
-import { textoDaFalha } from '../../../components/error-text'
+import { errorText } from '../../../components/error-text'
 import { ordenarPeloNome, ordenarTurmas } from '../comum/ordem'
 
 /** "7ºA · Matemática", ou só a turma quando o vínculo não tem disciplina. */
@@ -46,14 +46,14 @@ interface Props {
  * - **A escolha só vale enquanto o item está na lista:** a turma ou a disciplina que outra pessoa excluiu com o diálogo
  *   aberto sai da escolha quando a lista recarrega, e o envio seguinte pede a escolha de novo, em vez de mandar quem a API
  *   acabou de recusar.
- * - **Um pedido por vez:** o clique duplo em "Acrescentar" é um vínculo só (`useEnvioUnico`). A corrida entre duas pessoas é da
+ * - **Um pedido por vez:** o clique duplo em "Acrescentar" é um vínculo só (`useSingleSubmit`). A corrida entre duas pessoas é da
  *   API, que recusa o vínculo repetido com `CONFLITO`.
  * - **A turma de um vínculo encerrado também aparece:** a escolha é toda a lista de turmas e de disciplinas da escola.
  */
 export function DialogoDeAlocacao({ professor, alocavel, aoFechar, aoAlocar, recarregar, focoDeReserva }: Props) {
   // As listas são as do painel (a mesma chave): ele só oferece o botão com as duas lidas.
-  const turmas = ordenarTurmas(useQuery(consultaTurmas).data?.itens ?? [])
-  const disciplinas = ordenarPeloNome(useQuery(consultaDisciplinas).data?.itens ?? [])
+  const turmas = ordenarTurmas(useQuery(turmasQueryOptions).data?.itens ?? [])
+  const disciplinas = ordenarPeloNome(useQuery(disciplinasQueryOptions).data?.itens ?? [])
   const [turmaId, definirTurmaId] = useState('')
   const [disciplinaId, definirDisciplinaId] = useState('')
   const [faltando, definirFaltando] = useState(false)
@@ -62,7 +62,7 @@ export function DialogoDeAlocacao({ professor, alocavel, aoFechar, aoAlocar, rec
     disciplinaId: disciplinas.some((disciplina) => disciplina.id === disciplinaId) ? disciplinaId : '',
   }
   const campos = { turma: useId(), disciplina: useId() }
-  const { enviar, mutacao } = useEnvioUnico({
+  const { enviar, mutacao } = useSingleSubmit({
     mutationFn: alocarProfessor,
     // Fecha com a lista já recarregada: o vínculo novo está na tela quando o diálogo sai.
     onSuccess: async (vinculo) => {
@@ -85,14 +85,14 @@ export function DialogoDeAlocacao({ professor, alocavel, aoFechar, aoAlocar, rec
     : faltando
       ? TEXTO_DA_ESCOLHA_INCOMPLETA
       : mutacao.isError
-        ? textoDaFalha(mutacao.error, {
+        ? errorText(mutacao.error, {
             [ErrorCode.CONFLITO]: 'Este professor já está alocado nesta turma e nesta disciplina.',
             [ErrorCode.NAO_ENCONTRADO]: TEXTO_DA_ALOCACAO_QUE_MUDOU,
           })
         : undefined
 
   return (
-    <DialogoDeFormulario
+    <FormDialog
       titulo="Acrescentar turma"
       aoFechar={aoFechar}
       aoEnviar={acrescentar}
@@ -132,6 +132,6 @@ export function DialogoDeAlocacao({ professor, alocavel, aoFechar, aoAlocar, rec
           ))}
         </select>
       </div>
-    </DialogoDeFormulario>
+    </FormDialog>
   )
 }

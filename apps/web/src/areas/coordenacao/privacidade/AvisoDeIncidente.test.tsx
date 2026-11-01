@@ -2,7 +2,7 @@
 import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { prepararTela, redeFalsa, renderizarTela } from '../../../__fixtures__/render-screen'
+import { setupScreen, fakeNetwork, renderScreen } from '../../../__fixtures__/render-screen'
 import AvisoDeIncidente from './AvisoDeIncidente'
 
 /**
@@ -10,7 +10,7 @@ import AvisoDeIncidente from './AvisoDeIncidente'
  * miolo que rola, e diz a altura que ocupa em `--faixa-de-incidente` para o miolo descontá-la. A altura de verdade (e a página que
  * não rola a 1366 × 768) é do e2e (`e2e/incidentes.spec.ts`); aqui se prova o recado: a variável existe com a faixa e some com ela.
  */
-prepararTela()
+setupScreen()
 
 const VARIAVEL = '--faixa-de-incidente'
 const aVariavel = () => document.documentElement.style.getPropertyValue(VARIAVEL)
@@ -59,8 +59,8 @@ afterEach(() => {
 describe('AvisoDeIncidente: a faixa diz a altura que ocupa', () => {
   it('com o diálogo aberto não há variável; com a faixa ela vale a altura mais o vão de 24 px; e sai quando a faixa sai', async () => {
     const usuario = userEvent.setup()
-    redeFalsa().responderPor('/v1/privacidade/incidentes', { status: 200, corpo: DO_INCIDENTE })
-    renderizarTela(<AvisoDeIncidente />)
+    fakeNetwork().responderPor('/v1/privacidade/incidentes', { status: 200, corpo: DO_INCIDENTE })
+    renderScreen(<AvisoDeIncidente />)
     await screen.findByRole('alertdialog', { name: 'Aviso de incidente de segurança' })
     expect(aVariavel()).toBe('')
 
@@ -95,8 +95,8 @@ describe('AvisoDeIncidente: a faixa diz a altura que ocupa', () => {
         }
       },
     )
-    redeFalsa().responderPor('/v1/privacidade/incidentes', { status: 200, corpo: DO_INCIDENTE })
-    renderizarTela(<AvisoDeIncidente />)
+    fakeNetwork().responderPor('/v1/privacidade/incidentes', { status: 200, corpo: DO_INCIDENTE })
+    renderScreen(<AvisoDeIncidente />)
     await screen.findByRole('alertdialog', { name: 'Aviso de incidente de segurança' })
     await usuario.click(screen.getByRole('button', { name: 'Ver depois' }))
     const faixa = await screen.findByRole('region', { name: 'Aviso de incidente de segurança' })

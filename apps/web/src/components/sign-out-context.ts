@@ -6,11 +6,11 @@ import { createContext } from 'react'
  * Quem usa não a reescreve, e por isso a linha de Eu e o botão da casca fazem exatamente a mesma coisa (D59). Fora da casca
  * não há sessão a encerrar, e sair não faz nada.
  */
-export interface SaidaDaCasca {
+export interface SignOutContextValue {
   /** Encerra a sessão. Chamar de novo enquanto `saindo` não faz nada: dois cliques saem uma vez só. */
   readonly sair: () => void
   /** A saída está em curso: o botão diz "Saindo…". */
   readonly saindo: boolean
 }
 
-export const ContextoDaSaida = createContext<SaidaDaCasca>({ sair: () => undefined, saindo: false })
+export const SignOutContext = createContext<SignOutContextValue>({ sair: () => undefined, saindo: false })

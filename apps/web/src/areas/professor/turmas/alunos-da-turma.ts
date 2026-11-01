@@ -14,7 +14,7 @@ export type DesempenhoDoAluno = DesempenhoDaTurmaResponse['alunos'][number]
  */
 export type SituacaoDoAluno = 'na_turma' | 'fora_da_turma'
 
-export interface LinhaDeAluno {
+export interface AlunoRow {
   readonly usuarioId: string
   readonly nome: string
   readonly situacao: SituacaoDoAluno
@@ -32,7 +32,7 @@ export const TEXTO_SEM_HABILIDADE = '—'
  * Em ordem de nome, no português do Brasil; dois alunos com o mesmo nome ficam em duas linhas, e o id desempata: a ordem não
  * depende de qual deles a API entregou primeiro. **Nunca por acerto** (o Ranking saiu de vez; D59, D69).
  */
-export function ordemDeNome(a: Pick<LinhaDeAluno, 'nome' | 'usuarioId'>, b: Pick<LinhaDeAluno, 'nome' | 'usuarioId'>): number {
+export function ordemDeNome(a: Pick<AlunoRow, 'nome' | 'usuarioId'>, b: Pick<AlunoRow, 'nome' | 'usuarioId'>): number {
   const porNome = a.nome.localeCompare(b.nome, 'pt-BR')
   if (porNome !== 0) return porNome
   if (a.usuarioId === b.usuarioId) return 0
@@ -46,13 +46,13 @@ export function ordemDeNome(a: Pick<LinhaDeAluno, 'nome' | 'usuarioId'>, b: Pick
  * (`listaCompleta`): enquanto ainda há páginas por ler, ele pode simplesmente estar numa delas, e afirmar que saiu seria
  * dizer o que a tela não sabe. Essa linha não leva acerto nenhum: ele já não conta na turma.
  */
-export function montarLinhas(lidos: readonly AlunoDaTurma[], desempenho: DesempenhoDaTurmaResponse | undefined, listaCompleta: boolean): LinhaDeAluno[] {
+export function montarLinhas(lidos: readonly AlunoDaTurma[], desempenho: DesempenhoDaTurmaResponse | undefined, listaCompleta: boolean): AlunoRow[] {
   const doDesempenho = desempenho?.alunos ?? []
   const acertosDe = new Map(doDesempenho.map((aluno) => [aluno.alunoId, aluno] as const))
   const naLista = new Set(lidos.map((aluno) => aluno.usuarioId))
-  const daTurma = lidos.map((aluno): LinhaDeAluno => ({ usuarioId: aluno.usuarioId, nome: aluno.nome, situacao: 'na_turma', desempenho: acertosDe.get(aluno.usuarioId) }))
+  const daTurma = lidos.map((aluno): AlunoRow => ({ usuarioId: aluno.usuarioId, nome: aluno.nome, situacao: 'na_turma', desempenho: acertosDe.get(aluno.usuarioId) }))
   const quemSaiu = listaCompleta
-    ? doDesempenho.filter((aluno) => !naLista.has(aluno.alunoId)).map((aluno): LinhaDeAluno => ({ usuarioId: aluno.alunoId, nome: aluno.nome, situacao: 'fora_da_turma', desempenho: undefined }))
+    ? doDesempenho.filter((aluno) => !naLista.has(aluno.alunoId)).map((aluno): AlunoRow => ({ usuarioId: aluno.alunoId, nome: aluno.nome, situacao: 'fora_da_turma', desempenho: undefined }))
     : []
   return [...daTurma, ...quemSaiu].sort(ordemDeNome)
 }
@@ -65,7 +65,7 @@ export type LeituraDosAcertos = 'lendo' | 'falhou' | 'lida'
  * (`total` zero, ou fora do desempenho) diz isso, em vez de "0 de 0" (D46). A leitura que não chegou diz que não chegou, e não
  * finge que o aluno não tem acerto.
  */
-export function textoDosAcertos(linha: LinhaDeAluno, leitura: LeituraDosAcertos): string {
+export function textoDosAcertos(linha: AlunoRow, leitura: LeituraDosAcertos): string {
   if (linha.situacao === 'fora_da_turma') return TEXTO_DE_QUEM_SAIU
   if (leitura === 'lendo') return TEXTO_DOS_ACERTOS_QUE_CARREGAM
   if (leitura === 'falhou') return TEXTO_DOS_ACERTOS_QUE_FALHARAM
@@ -75,7 +75,7 @@ export function textoDosAcertos(linha: LinhaDeAluno, leitura: LeituraDosAcertos)
 }
 
 /** O acerto por habilidade do aluno, "QUI.EM.04: 1 de 2 · …". Vazio quando ele não tem correção aprovada. */
-export function textoPorHabilidade(linha: LinhaDeAluno): string {
+export function textoPorHabilidade(linha: AlunoRow): string {
   const itens = linha.desempenho?.porHabilidade ?? []
   if (itens.length === 0) return TEXTO_SEM_HABILIDADE
   return itens.map((item) => `${item.habilidade.codigo}: ${String(item.acertos)} de ${String(item.total)}`).join(' · ')

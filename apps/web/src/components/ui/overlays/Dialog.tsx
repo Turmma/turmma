@@ -31,7 +31,7 @@ export interface DialogProps {
   /**
    * O que a área põe no fim da caixa, depois do conteúdo: na operação, o aviso de inatividade, que fora do diálogo modal
    * ficaria inerte (`operacao/components/DialogoDaOperacao.tsx`). A escola não tem aviso: a sessão vencida abre o login
-   * por cima (`LoginPorCima`), que é outro diálogo.
+   * por cima (`ReauthDialog`), que é outro diálogo.
    */
   readonly rodape?: ReactNode
   /**
@@ -59,7 +59,7 @@ const CAIXA_INTEIRA = 'm-0 h-full max-h-none w-full max-w-none overflow-y-auto b
 const COLUNA_DA_INTEIRA = 'mx-auto w-full max-w-3xl'
 
 /**
- * O diálogo das telas, no padrão do `LoginPorCima` do F1: o `dialog` nativo em modo modal, que deixa o resto da página
+ * O diálogo das telas, no padrão do `ReauthDialog` do F1: o `dialog` nativo em modo modal, que deixa o resto da página
  * inerte. Nasceu na operação (Nova rede, Nova escola; Tech Spec da A0b, seção 9) e veio para `components/` na A1 (13.0,
  * antecipando a 14.1), para a Estrutura da coordenação usar o mesmo: importar de `src/operacao/` levaria o módulo para
  * um `parte-*` que a escola baixaria (B2, `apps/web/chunk-names.test.ts`). Nada da operação mora aqui; o aviso de

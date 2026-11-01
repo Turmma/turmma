@@ -3,23 +3,23 @@ import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, CircleAlert, Hourglass, Lock, MoonStar, PauseCircle, type LucideIcon } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { Link, useSearch } from 'wouter'
-import { consultaMinhasAtividades } from '../../api/atividades-do-aluno'
-import { CHAVE_DA_CONVERSA_DO_TUTOR } from '../../api/chaves-do-aluno'
+import { minhasAtividadesInfiniteQueryOptions } from '../../api/atividades-do-aluno'
+import { CONVERSA_DO_TUTOR_QUERY_KEY } from '../../api/chaves-do-aluno'
 import { emCurso } from '../../api/ciclo-de-execucao'
-import { ErroDaApi } from '../../api/client'
-import { useCicloDeExecucao } from '../../api/execucoes'
-import { consultaConversaDoTutor, mensagensDoTutorEmOrdem } from '../../api/tutor'
+import { ApiError } from '../../api/client'
+import { useExecutionLifecycle } from '../../api/execucoes'
+import { conversaDoTutorQueryOptions, mensagensDoTutorEmOrdem } from '../../api/tutor'
 import { caminhoDaAtividadeDoAluno } from '../../paths'
 import { StickyFooter } from '../../components/ui/StickyFooter'
 import { ProgressBar } from '../../components/ui/ProgressBar'
 import { Button } from '../../components/ui/Button'
-import { EstadoCarregando, EstadoErro, EstadoVazio } from '../../components/states'
+import { LoadingState, ErrorState, EmptyState } from '../../components/states'
 import { AgentSignature } from '../../components/ui/ai/AgentSignature'
 import { PromptInput } from '../../components/ui/ai/PromptInput'
 import { Conversation as ListaDeMensagens, AIMessage, UserMessage, ThinkingIndicator } from '../../components/ui/ai/Message'
 import { AIText } from '../../components/ui/ai/AIText'
 import { Page } from '../../components/ui/Page'
-import { useTituloDaTela } from '../../document-title'
+import { usePageTitle } from '../../document-title'
 import { EscolhaDaAtividade } from './EscolhaDaAtividade'
 import { FaixaDeSupervisao } from './FaixaDeSupervisao'
 import { CICLO_DO_TUTOR, enviarPerguntaAoTutor } from './memoria-do-aluno'
@@ -141,9 +141,9 @@ function FalhaNaConversa({ falha, aoTentarDeNovo }: { falha: FalhaDaPergunta; ao
  */
 function ConversaComOTutor({ atividadeAplicadaId }: { atividadeAplicadaId: string }) {
   const cliente = useQueryClient()
-  const conversa = useInfiniteQuery(consultaConversaDoTutor(atividadeAplicadaId))
-  const atividades = useInfiniteQuery(consultaMinhasAtividades)
-  const { ciclo, demorando, iniciar, repetir, limpar } = useCicloDeExecucao(CICLO_DO_TUTOR, enviarPerguntaAoTutor)
+  const conversa = useInfiniteQuery(conversaDoTutorQueryOptions(atividadeAplicadaId))
+  const atividades = useInfiniteQuery(minhasAtividadesInfiniteQueryOptions)
+  const { ciclo, demorando, iniciar, repetir, limpar } = useExecutionLifecycle(CICLO_DO_TUTOR, enviarPerguntaAoTutor)
   const questao = questaoDoEndereco(useSearch())
   const [texto, definirTexto] = useState('')
   const fim = useRef<HTMLDivElement>(null)
@@ -161,7 +161,7 @@ function ConversaComOTutor({ atividadeAplicadaId }: { atividadeAplicadaId: strin
   useEffect(() => {
     if (terminada === undefined) return
     terminou.current = { chave: terminada, em: Date.now() }
-    void cliente.invalidateQueries({ queryKey: CHAVE_DA_CONVERSA_DO_TUTOR })
+    void cliente.invalidateQueries({ queryKey: CONVERSA_DO_TUTOR_QUERY_KEY })
   }, [terminada, cliente])
 
   // A recusa por pausa deixa de valer quando a conversa, lida depois dela, diz que o Tutor voltou.
@@ -190,7 +190,7 @@ function ConversaComOTutor({ atividadeAplicadaId }: { atividadeAplicadaId: strin
     definirTexto('')
   }
 
-  const naoEncontrada = conversa.error instanceof ErroDaApi && conversa.error.codigo === ErrorCode.NAO_ENCONTRADO
+  const naoEncontrada = conversa.error instanceof ApiError && conversa.error.codigo === ErrorCode.NAO_ENCONTRADO
   const semNada = conversa.data !== undefined && itens.length === 0 && pendente === undefined && pausa === undefined
 
   return (
@@ -206,15 +206,15 @@ function ConversaComOTutor({ atividadeAplicadaId }: { atividadeAplicadaId: strin
         </Link>
       </div>
 
-      {conversa.isPending && <EstadoCarregando rotulo="Carregando a conversa…" />}
+      {conversa.isPending && <LoadingState rotulo="Carregando a conversa…" />}
       {conversa.isError && conversa.data === undefined && naoEncontrada && (
-        <EstadoVazio titulo="Esta atividade não está disponível" descricao="Ela pode ser de outra turma, ou o endereço está errado. Escolha a atividade em Início, no menu." />
+        <EmptyState titulo="Esta atividade não está disponível" descricao="Ela pode ser de outra turma, ou o endereço está errado. Escolha a atividade em Início, no menu." />
       )}
       {conversa.isError && conversa.data === undefined && !naoEncontrada && (
-        <EstadoErro erro={conversa.error} tentando={conversa.isFetching} aoTentarDeNovo={() => void conversa.refetch({ cancelRefetch: false })} />
+        <ErrorState erro={conversa.error} tentando={conversa.isFetching} aoTentarDeNovo={() => void conversa.refetch({ cancelRefetch: false })} />
       )}
       {semNada && (
-        <EstadoVazio
+        <EmptyState
           titulo="Nenhuma pergunta ainda"
           descricao="Escreva a sua dúvida na caixa abaixo. O Tutor não entrega a resposta pronta: ele faz perguntas para você chegar lá e mostra a página do material. Ele é uma inteligência artificial e pode errar."
         />
@@ -279,7 +279,7 @@ function ConversaComOTutor({ atividadeAplicadaId }: { atividadeAplicadaId: strin
  * Já não é item da lateral: o `<h1>` existe só para o leitor de tela (`Page`).
  */
 export default function Tutor({ atividadeAplicadaId }: { atividadeAplicadaId?: string }) {
-  useTituloDaTela('Tutor')
+  usePageTitle('Tutor')
   return (
     <Page titulo="Tutor" largura="conversa" tituloSoParaLeitor>
       <FaixaDeSupervisao />

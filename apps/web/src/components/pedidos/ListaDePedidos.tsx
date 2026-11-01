@@ -1,12 +1,12 @@
 import { ErrorCode, type DecisaoDePedido, type DecisorDaReivindicacao, type PedidoDaTurma, type PedidosDaTurmaResponse } from '@educa/shared'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
-import { aplicarDecisao, consultaPedidosDaTurma, descartarListaDepoisDaFalha } from '../../api/pedidos'
-import { formatarDataHora } from '../../format'
+import { aplicarDecisao, pedidosDaTurmaQueryOptions, descartarListaDepoisDaFalha } from '../../api/pedidos'
+import { formatDateTime } from '../../format'
 import { OFFICIAL_BUTTON_CLASSES, DANGER_BUTTON_CLASSES, SECONDARY_BUTTON_CLASSES } from '../ui/button-variants'
 import { useDialogState } from '../ui/overlays/dialog-state'
-import { EstadoCarregando, EstadoErro, EstadoVazio } from '../states'
-import { listaMudou } from '../error-text'
+import { LoadingState, ErrorState, EmptyState } from '../states'
+import { listChanged } from '../error-text'
 import { agendarAtualizacao, alternarMarca, atualizaSozinha, pedidosQueContinuam, podeMarcarMais, quantosNovos, semOsDecididos } from './atualizacao-dos-pedidos'
 import { DialogoDeDecisao } from './DialogoDeDecisao'
 import {
@@ -65,7 +65,7 @@ interface ListaVista {
  */
 export function ListaDePedidos({ turma, quem, vazio, aoPerderATurma, aoDecidir }: PropsDosPedidos) {
   const cliente = useQueryClient()
-  const pedidos = useQuery(consultaPedidosDaTurma(turma.id, quem))
+  const pedidos = useQuery(pedidosDaTurmaQueryOptions(turma.id, quem))
   const sozinha = atualizaSozinha(quem)
   const [marcados, definirMarcados] = useState<readonly string[]>([])
   const dialogo = useDialogState<DecisaoDePedido, readonly string[]>()
@@ -89,7 +89,7 @@ export function ListaDePedidos({ turma, quem, vazio, aoPerderATurma, aoDecidir }
 
   // A turma que saiu do alcance (o vínculo encerrado com a tela aberta, a turma excluída, o ano virado): quem desenha a
   // página a troca inteira pelo aviso dela, e esta seção sai com os nomes.
-  const semATurma = listaMudou(pedidos.error, [ErrorCode.NAO_ENCONTRADO])
+  const semATurma = listChanged(pedidos.error, [ErrorCode.NAO_ENCONTRADO])
   useEffect(() => {
     if (semATurma) aoPerderATurma()
   }, [semATurma, aoPerderATurma])
@@ -104,11 +104,11 @@ export function ListaDePedidos({ turma, quem, vazio, aoPerderATurma, aoDecidir }
   }
 
   const tentarDeNovo = () => void refetch({ cancelRefetch: false })
-  const erroDaLeitura = <EstadoErro erro={pedidos.error} tentando={pedidos.isFetching} aoTentarDeNovo={tentarDeNovo} />
+  const erroDaLeitura = <ErrorState erro={pedidos.error} tentando={pedidos.isFetching} aoTentarDeNovo={tentarDeNovo} />
 
   function conteudo(): ReactNode {
     if (dados === undefined) {
-      if (pedidos.isFetching) return <EstadoCarregando rotulo="Carregando os pedidos…" />
+      if (pedidos.isFetching) return <LoadingState rotulo="Carregando os pedidos…" />
       if (pedidos.isError) return erroDaLeitura
       // Só a coordenação chega aqui: a lista dela ainda não foi pedida.
       return <p className="rounded-cartao border border-linha bg-superficie p-4 break-words text-apoio">{TEXTO_ANTES_DA_LEITURA}</p>
@@ -116,7 +116,7 @@ export function ListaDePedidos({ turma, quem, vazio, aoPerderATurma, aoDecidir }
     if (itens.length === 0) {
       // A releitura que cai com a lista vazia não afirma o vazio: pode haver pedido esperando.
       if (pedidos.isError) return erroDaLeitura
-      return <EstadoVazio titulo={vazio.titulo} descricao={vazio.descricao} {...(vazio.acao === undefined ? {} : { acao: vazio.acao })} />
+      return <EmptyState titulo={vazio.titulo} descricao={vazio.descricao} {...(vazio.acao === undefined ? {} : { acao: vazio.acao })} />
     }
     return (
       <>
@@ -141,7 +141,7 @@ export function ListaDePedidos({ turma, quem, vazio, aoPerderATurma, aoDecidir }
                   />
                   <span className="min-w-0">
                     <span className="block font-medium break-words text-tinta">{pedido.nome}</span>
-                    <span className="block text-sm text-apoio">Pediu em {formatarDataHora(pedido.solicitadaEm)}</span>
+                    <span className="block text-sm text-apoio">Pediu em {formatDateTime(pedido.solicitadaEm)}</span>
                     {pedido.teveMatriculaErrada && <span className="block text-sm break-words text-pendente">{TEXTO_DA_MATRICULA_ERRADA}</span>}
                   </span>
                 </label>

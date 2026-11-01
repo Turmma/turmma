@@ -5,7 +5,7 @@ import { FormField } from '../../components/ui/fields/FormField'
 import { Textarea } from '../../components/ui/fields/Textarea'
 import { Dialog } from '../../components/ui/overlays/Dialog'
 import { ConfirmDialog } from '../../components/ui/overlays/ConfirmDialog'
-import { ConfirmacaoDePerigo, DialogoDeFormulario } from '../../components/dialogs'
+import { DangerConfirmDialog, FormDialog } from '../../components/dialogs'
 import { Menu } from '../../components/ui/overlays/Menu'
 import { Sheet } from '../../components/ui/overlays/Sheet'
 import { problemaDoTexto } from '../../components/ui/fields/text-limits'
@@ -133,7 +133,7 @@ function DemonstracaoDoDialogo() {
         {resultado}
       </p>
       {dialogo === 'formulario' && (
-        <DialogoDeFormulario
+        <FormDialog
           titulo="Nova disciplina"
           aoFechar={fechar}
           aoEnviar={() => {
@@ -146,10 +146,10 @@ function DemonstracaoDoDialogo() {
           falha={undefined}
         >
           <FormField rotulo="Nome da disciplina" value={disciplina} onChange={(evento) => definirDisciplina(evento.target.value)} />
-        </DialogoDeFormulario>
+        </FormDialog>
       )}
       {dialogo === 'perigo' && (
-        <ConfirmacaoDePerigo
+        <DangerConfirmDialog
           titulo="Excluir a turma 2ºB"
           texto="A turma 2ºB e as atividades dela saem da lista. Os alunos continuam no cadastro da escola."
           rotuloDaAcao="Excluir a turma"

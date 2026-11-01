@@ -1,6 +1,6 @@
 import { useContext, useEffect } from 'react'
 import { Dialog, type DialogProps } from '../../components/ui/overlays/Dialog'
-import { AvisoNoDialogo, ContextoDoAviso } from './AvisoDeInatividade'
+import { AvisoNoDialogo, SessionWarningContext } from './AvisoDeInatividade'
 
 /**
  * O diálogo das telas da operação: o `Dialog` de `components/` (A1, 13.0) com o que só a operação tem, o aviso de
@@ -8,7 +8,7 @@ import { AvisoNoDialogo, ContextoDoAviso } from './AvisoDeInatividade'
  * aparece aqui dentro, onde continua alcançável (`AvisoDeInatividade.tsx`).
  */
 export function DialogoDaOperacao(props: Omit<DialogProps, 'rodape'>) {
-  const registrarDialogo = useContext(ContextoDoAviso)?.registrarDialogo
+  const registrarDialogo = useContext(SessionWarningContext)?.registrarDialogo
   useEffect(() => registrarDialogo?.(), [registrarDialogo])
   return <Dialog {...props} rodape={<AvisoNoDialogo />} />
 }

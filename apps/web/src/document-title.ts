@@ -21,7 +21,7 @@ export function tituloDaOperacao(tela: string): string {
 }
 
 /** Põe o título na aba enquanto a tela está montada, e ao sair devolve o que havia antes dela. */
-export function useTituloDaAba(titulo: string): void {
+export function useTabTitle(titulo: string): void {
   useEffect(() => {
     const anterior = document.title
     document.title = titulo
@@ -32,6 +32,6 @@ export function useTituloDaAba(titulo: string): void {
 }
 
 /** O título de uma tela da escola: `<tela> · Turmma`. */
-export function useTituloDaTela(tela: string): void {
-  useTituloDaAba(tituloDaEscola(tela))
+export function usePageTitle(tela: string): void {
+  useTabTitle(tituloDaEscola(tela))
 }

@@ -1,8 +1,8 @@
 import { conviteDeProfessorResponseSchema, listaDeProfessoresResponseSchema, type CadastrarProfessorRequest, type ProfessorDaEscola, type ConviteDeProfessorResponse } from '@educa/shared'
 import { mutationOptions, queryOptions } from '@tanstack/react-query'
-import { SEM_CORPO } from '../../../../api/client'
-import { CHAVE_DA_ESTRUTURA, lerPaginas } from '../../../../api/estrutura'
-import { chamarComSessao } from '../../../../api/sessao'
+import { EMPTY_BODY } from '../../../../api/client'
+import { ESTRUTURA_QUERY_KEY, lerPaginas } from '../../../../api/estrutura'
+import { authedRequest } from '../../../../api/sessao'
 
 export const CAMINHO_DOS_PROFESSORES = '/v1/professores'
 
@@ -11,14 +11,14 @@ export const CAMINHO_DOS_PROFESSORES = '/v1/professores'
  * sem e-mail, sem link e sem nada que diga se a conta do e-mail já existia (E11). A alocação da Estrutura (13.0) oferece
  * só os de `ESTADOS_DO_PROFESSOR_ALOCAVEIS`; a tela Professores (14.0) cadastra, refaz e revoga.
  */
-export const consultaProfessores = queryOptions({
-  queryKey: [...CHAVE_DA_ESTRUTURA, 'professores'],
+export const professoresQueryOptions = queryOptions({
+  queryKey: [...ESTRUTURA_QUERY_KEY, 'professores'],
   queryFn: ({ signal }) => lerPaginas<ProfessorDaEscola>(CAMINHO_DOS_PROFESSORES, listaDeProfessoresResponseSchema, signal),
 })
 
 /** `POST /v1/professores`: cadastra o professor na escola da sessão; o token do convite só existe nesta resposta. */
 export function cadastrarProfessor(pedido: CadastrarProfessorRequest): Promise<ConviteDeProfessorResponse> {
-  return chamarComSessao(CAMINHO_DOS_PROFESSORES, conviteDeProfessorResponseSchema, { metodo: 'POST', corpo: pedido })
+  return authedRequest(CAMINHO_DOS_PROFESSORES, conviteDeProfessorResponseSchema, { metodo: 'POST', corpo: pedido })
 }
 
 /**
@@ -26,12 +26,12 @@ export function cadastrarProfessor(pedido: CadastrarProfessorRequest): Promise<C
  * deixa de valer, e o token do novo só existe nesta resposta.
  */
 export function refazerConviteDoProfessor(usuarioId: string): Promise<ConviteDeProfessorResponse> {
-  return chamarComSessao(`${CAMINHO_DOS_PROFESSORES}/${encodeURIComponent(usuarioId)}/convite/refazer`, conviteDeProfessorResponseSchema, { metodo: 'POST', corpo: {} })
+  return authedRequest(`${CAMINHO_DOS_PROFESSORES}/${encodeURIComponent(usuarioId)}/convite/refazer`, conviteDeProfessorResponseSchema, { metodo: 'POST', corpo: {} })
 }
 
 /** `POST /v1/professores/:usuarioId/convite/revogar`: 204, sem corpo. */
 export function revogarConviteDoProfessor(usuarioId: string): Promise<void> {
-  return chamarComSessao(`${CAMINHO_DOS_PROFESSORES}/${encodeURIComponent(usuarioId)}/convite/revogar`, SEM_CORPO, { metodo: 'POST', corpo: {} })
+  return authedRequest(`${CAMINHO_DOS_PROFESSORES}/${encodeURIComponent(usuarioId)}/convite/revogar`, EMPTY_BODY, { metodo: 'POST', corpo: {} })
 }
 
 /**

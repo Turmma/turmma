@@ -3,7 +3,7 @@ import { cleanup, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { classesDo, contraste, corDoToken, TEMAS, tokenOuFalha } from '../../../__fixtures__/class-colors'
+import { classesOf, contraste, tokenColor, TEMAS, tokenOrThrow } from '../../../__fixtures__/class-colors'
 import { OptionCard } from './OptionCard'
 
 /**
@@ -163,13 +163,13 @@ describe('Opcao desligada', () => {
   it('é apoio sobre fundo-suave, com 4,5:1 nos dois temas, sem degrau de ação e sem a cor da marcada', () => {
     desligadaMarcada(false)
     const rotulo = rotuloDaNota()
-    expect([tokenOuFalha(rotulo, 'text'), tokenOuFalha(rotulo, 'bg'), tokenOuFalha(rotulo, 'border')]).toEqual(['apoio', 'fundo-suave', 'borda'])
-    const classes = classesDo(rotulo)
+    expect([tokenOrThrow(rotulo, 'text'), tokenOrThrow(rotulo, 'bg'), tokenOrThrow(rotulo, 'border')]).toEqual(['apoio', 'fundo-suave', 'borda'])
+    const classes = classesOf(rotulo)
     expect(classes.has('degrau-azul')).toBe(false)
     expect(classes.has('degrau-borda')).toBe(false)
     expect(classes.has('cursor-not-allowed')).toBe(true)
     for (const tema of TEMAS) {
-      expect(contraste(corDoToken(tema, 'apoio'), corDoToken(tema, 'fundo-suave')), tema).toBeGreaterThanOrEqual(4.5)
+      expect(contraste(tokenColor(tema, 'apoio'), tokenColor(tema, 'fundo-suave')), tema).toBeGreaterThanOrEqual(4.5)
     }
   })
 
@@ -177,9 +177,9 @@ describe('Opcao desligada', () => {
     desligadaMarcada(true)
     const circulo = rotuloDaNota().lastElementChild as HTMLElement
     expect(circulo.querySelector('svg')).not.toBeNull()
-    expect([tokenOuFalha(circulo, 'bg'), tokenOuFalha(circulo, 'text'), tokenOuFalha(circulo, 'border')]).toEqual(['campo', 'apoio', 'borda-campo'])
+    expect([tokenOrThrow(circulo, 'bg'), tokenOrThrow(circulo, 'text'), tokenOrThrow(circulo, 'border')]).toEqual(['campo', 'apoio', 'borda-campo'])
     for (const tema of TEMAS) {
-      expect(contraste(corDoToken(tema, 'apoio'), corDoToken(tema, 'campo')), `${tema}: o visto sobre o círculo`).toBeGreaterThanOrEqual(4.5)
+      expect(contraste(tokenColor(tema, 'apoio'), tokenColor(tema, 'campo')), `${tema}: o visto sobre o círculo`).toBeGreaterThanOrEqual(4.5)
     }
   })
 })
@@ -193,11 +193,11 @@ describe('Opcao: a marcada não é só cor, e a caixa vazia se vê', () => {
     const vazia = radio('Em papel').closest('label') as HTMLElement
     expect(circulo(marcada).querySelector('svg')).not.toBeNull()
     expect(circulo(vazia).querySelector('svg')).toBeNull()
-    expect([tokenOuFalha(marcada, 'bg'), tokenOuFalha(marcada, 'border'), tokenOuFalha(marcada, 'text')]).toEqual(['azul-claro', 'azul-borda', 'azul-texto'])
+    expect([tokenOrThrow(marcada, 'bg'), tokenOrThrow(marcada, 'border'), tokenOrThrow(marcada, 'text')]).toEqual(['azul-claro', 'azul-borda', 'azul-texto'])
     for (const tema of TEMAS) {
-      expect(contraste(corDoToken(tema, 'azul-texto'), corDoToken(tema, 'azul-claro')), `${tema}: texto da marcada`).toBeGreaterThanOrEqual(4.5)
+      expect(contraste(tokenColor(tema, 'azul-texto'), tokenColor(tema, 'azul-claro')), `${tema}: texto da marcada`).toBeGreaterThanOrEqual(4.5)
       // O visto é `sobre-cor` sobre a face `azul` do círculo: o mesmo par "sobre a face" da 9.1.
-      expect(contraste(corDoToken(tema, tokenOuFalha(circulo(marcada), 'text')), corDoToken(tema, tokenOuFalha(circulo(marcada), 'bg'))), `${tema}: visto`).toBeGreaterThanOrEqual(4.5)
+      expect(contraste(tokenColor(tema, tokenOrThrow(circulo(marcada), 'text')), tokenColor(tema, tokenOrThrow(circulo(marcada), 'bg'))), `${tema}: visto`).toBeGreaterThanOrEqual(4.5)
     }
     expect(marcada.className).not.toBe(vazia.className)
   })
@@ -205,19 +205,19 @@ describe('Opcao: a marcada não é só cor, e a caixa vazia se vê', () => {
   it('a caixa vazia tem a borda borda-campo, de 3:1 contra o chão e contra o fundo dela, nos dois temas', () => {
     render(<GrupoDeRadio inicial="tela" />)
     const vazia = circulo(radio('Em papel').closest('label') as HTMLElement)
-    expect(classesDo(vazia).has('border-2')).toBe(true)
-    const borda = tokenOuFalha(vazia, 'border')
+    expect(classesOf(vazia).has('border-2')).toBe(true)
+    const borda = tokenOrThrow(vazia, 'border')
     expect(borda).toBe('borda-campo')
     for (const tema of TEMAS) {
-      expect(contraste(corDoToken(tema, borda), corDoToken(tema, 'fundo')), `${tema}: contra o chão`).toBeGreaterThanOrEqual(3)
-      expect(contraste(corDoToken(tema, borda), corDoToken(tema, tokenOuFalha(vazia, 'bg'))), `${tema}: contra o fundo da caixa`).toBeGreaterThanOrEqual(3)
+      expect(contraste(tokenColor(tema, borda), tokenColor(tema, 'fundo')), `${tema}: contra o chão`).toBeGreaterThanOrEqual(3)
+      expect(contraste(tokenColor(tema, borda), tokenColor(tema, tokenOrThrow(vazia, 'bg'))), `${tema}: contra o fundo da caixa`).toBeGreaterThanOrEqual(3)
     }
   })
 
   it('o anel é do rótulo, por focus-within, e nenhuma classe depende de :has()', () => {
     render(<GrupoDeRadio />)
     const rotulo = radio('Em papel').closest('label') as HTMLElement
-    const classes = [...classesDo(rotulo)]
+    const classes = [...classesOf(rotulo)]
     expect(classes.some((classe) => classe.startsWith('focus-within:outline-foco'))).toBe(true)
     expect(classes.filter((classe) => classe.includes('has-') || classe.includes(':has('))).toEqual([])
   })

@@ -3,14 +3,14 @@ import { useQuery } from '@tanstack/react-query'
 import { ArrowLeft } from 'lucide-react'
 import { lazy, Suspense, useCallback, useEffect, useId, useState } from 'react'
 import { Link, useLocation, useSearch } from 'wouter'
-import { consultaTurmaAberta } from '../../../api/estrutura'
-import { consultaEu } from '../../../api/eu'
-import { ROTAS_DO_PROFESSOR } from '../../../paths'
+import { turmaAbertaQueryOptions } from '../../../api/estrutura'
+import { euQueryOptions } from '../../../api/eu'
+import { PROFESSOR_ROUTES } from '../../../paths'
 import { Tabs } from '../../../components/ui/Tabs'
-import { EstadoCarregando, EstadoErro } from '../../../components/states/index'
+import { LoadingState, ErrorState } from '../../../components/states/index'
 import { Page } from '../../../components/ui/Page'
 import { TurmaIndisponivel } from '../../../components/TurmaIndisponivel'
-import { useTituloDaTela } from '../../../document-title'
+import { usePageTitle } from '../../../document-title'
 import { TEXTO_DA_TURMA_INDISPONIVEL, turmaIndisponivel } from './acesso/acesso-da-turma'
 import { ABAS_DA_TURMA, abaDoEndereco, abaDoId, enderecoDaAba } from './endereco-da-turma'
 import { O_MIOLO_DO_DOCUMENTO, useTopoDoPainel } from '../artefatos/miolo-do-documento'
@@ -50,8 +50,8 @@ const BAIXAR_A_ABA = { hoje: baixarHoje, atividades: baixarAtividades, alunos: b
  * Só o 404 tira a página: a releitura que cai por rede ou servidor, com o dado na tela, não tira.
  */
 export default function Turma({ turmaId }: { turmaId: string }) {
-  const turma = useQuery(consultaTurmaAberta(turmaId))
-  const eu = useQuery(consultaEu)
+  const turma = useQuery(turmaAbertaQueryOptions(turmaId))
+  const eu = useQuery(euQueryOptions)
   const idDoTitulo = useId()
   const [caminho, navegar] = useLocation()
   // A aba é do endereço, e não de `useState`: recarregar e voltar pelo histórico devolvem a mesma.
@@ -69,13 +69,13 @@ export default function Turma({ turmaId }: { turmaId: string }) {
   // O mesmo nome na aba e no `h1`; sem a turma lida, ou com ela fora do ano, é só "Turma".
   const nomeDaTurma = turma.data === undefined || indisponivel ? 'Turma' : `Turma ${turma.data.nome}`
   const serieDaTurma = turma.data === undefined || indisponivel ? undefined : nomeDaSerie(turma.data.serie)
-  useTituloDaTela(nomeDaTurma)
+  usePageTitle(nomeDaTurma)
   // O topo do painel só é medido com a turma à vista: antes disso a tela é o aviso de carregando, de erro ou de indisponível.
   const topoDoPainel = useTopoDoPainel(turma.data !== undefined && eu.data !== undefined && !indisponivel)
 
   const voltar = (
     // Relativo à área: o `Route` aninhado em `/professor` resolve o `to` a partir da base dela.
-    <Link to={ROTAS_DO_PROFESSOR.turmas} className="inline-flex min-h-11 items-center gap-2 self-start text-caramelo-texto underline">
+    <Link to={PROFESSOR_ROUTES.turmas} className="inline-flex min-h-11 items-center gap-2 self-start text-caramelo-texto underline">
       <ArrowLeft aria-hidden="true" size={18} />
       Voltar para Turmas
     </Link>
@@ -93,9 +93,9 @@ export default function Turma({ turmaId }: { turmaId: string }) {
           // vem para o aviso. Na página que abre já sem a turma, fica onde o navegador o pôs.
           <TurmaIndisponivel texto={TEXTO_DA_TURMA_INDISPONIVEL} comFoco={turma.data !== undefined} />
         ) : falha === undefined ? (
-          <EstadoCarregando rotulo="Carregando a turma…" />
+          <LoadingState rotulo="Carregando a turma…" />
         ) : (
-          <EstadoErro erro={falha.error} tentando={falha.isFetching} aoTentarDeNovo={() => void falha.refetch({ cancelRefetch: false })} />
+          <ErrorState erro={falha.error} tentando={falha.isFetching} aoTentarDeNovo={() => void falha.refetch({ cancelRefetch: false })} />
         )}
       </Page>
     )
@@ -107,7 +107,7 @@ export default function Turma({ turmaId }: { turmaId: string }) {
         <div ref={topoDoPainel} className="min-w-0">
           <Tabs rotulo="Seções da turma" abas={ABAS_DA_TURMA} ativa={aba} aoMudar={(id) => navegar(enderecoDaAba(caminho, abaDoId(id)), { replace: true })} classeDoPainel={O_MIOLO_DO_DOCUMENTO}>
             {/* Só a aba à vista existe: a que sai da tela leva com ela as leituras dela, e Hoje, a que se repete a cada 15 s. */}
-            <Suspense fallback={<EstadoCarregando rotulo="Carregando a aba…" />}>
+            <Suspense fallback={<LoadingState rotulo="Carregando a aba…" />}>
               {aba === 'hoje' && <TurmaHoje turmaId={turmaId} aoPerderATurma={perderATurma} />}
               {aba === 'atividades' && <AtividadesDaTurma turmaId={turmaId} />}
               {aba === 'alunos' && <AlunosDaTurma turmaId={turmaId} turmaNome={turma.data.nome} escola={eu.data.escola} aoPerderATurma={perderATurma} />}

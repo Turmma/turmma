@@ -1,6 +1,6 @@
 import { ErrorCode, type MeuDiagnosticoResponse, type ProvaResponse } from '@educa/shared'
-import { ErroDaApi } from '../../api/client'
-import { formatarQuantidade } from '../../format'
+import { ApiError } from '../../api/client'
+import { formatQuantity } from '../../format'
 import { pendenteDaQuestao, type EstadoDaFila } from './respostas'
 
 /**
@@ -40,7 +40,7 @@ export type ResultadoNaTela =
 export function resultadoNaTela(fase: FaseDaAtividade, leitura: LeituraDoDiagnostico): ResultadoNaTela {
   // Com a atividade ainda sendo respondida não há o que mostrar, mesmo que uma leitura antiga tenha ficado no cache.
   if (fase === 'respondendo') return { tipo: 'nenhum' }
-  if (leitura.error instanceof ErroDaApi && leitura.error.codigo === ErrorCode.NAO_ENCONTRADO) return { tipo: 'aguardando' }
+  if (leitura.error instanceof ApiError && leitura.error.codigo === ErrorCode.NAO_ENCONTRADO) return { tipo: 'aguardando' }
   if (leitura.data !== undefined) return { tipo: 'pronto', diagnostico: leitura.data }
   if (leitura.error !== null && leitura.error !== undefined) return { tipo: 'erro', erro: leitura.error }
   return { tipo: 'carregando' }
@@ -142,7 +142,7 @@ export function contarRespostas(prova: Pick<ProvaResponse, 'questoes' | 'respost
 
 /** "Você respondeu 6 de 8 questões." */
 export function textoDasRespondidas(contagem: Pick<ContagemDasRespostas, 'respondidas' | 'questoes'>): string {
-  return `${String(contagem.respondidas)} de ${formatarQuantidade(contagem.questoes, 'questão', 'questões')}`
+  return `${String(contagem.respondidas)} de ${formatQuantity(contagem.questoes, 'questão', 'questões')}`
 }
 
 /** O que a confirmação do envio diz sobre as questões em branco: quantas, por extenso, ou que não ficou nenhuma. */
@@ -172,7 +172,7 @@ export function avisoDeEscolhasPerdidas(fila: EstadoDaFila): string | undefined 
 
 /** "2 de 3 questões": o acerto numa habilidade, em contagem. Sem percentual, que se lê como nota (D46). */
 export function textoDoAcerto(acertos: number, total: number): string {
-  return `${String(acertos)} de ${formatarQuantidade(total, 'questão', 'questões')}`
+  return `${String(acertos)} de ${formatQuantity(total, 'questão', 'questões')}`
 }
 
 /** O número da questão aberta, preso ao que a atividade tem. */

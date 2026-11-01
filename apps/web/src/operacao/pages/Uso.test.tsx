@@ -4,13 +4,13 @@ import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
-  AUTORIZACAO_DE_OPERADOR_DE_TESTE,
+  OPERATOR_TEST_AUTHORIZATION,
   janelaDe,
-  prepararTelaDaOperacao,
-  redeFalsa,
-  renderizarTelaDaOperacao,
+  setupOperacaoScreen,
+  fakeNetwork,
+  renderOperacaoScreen,
   usoDaEscolaDoPainel,
-  type RespostaFalsa,
+  type FakeResponse,
 } from '../__fixtures__/render-operacao-screen'
 import { Uso } from './Uso'
 
@@ -19,23 +19,23 @@ import { Uso } from './Uso'
  * no cabeçalho, a tabela que vira lista de cartões abaixo de 768 px, e nenhum dado de pessoa. A rede é falsa e tudo o mais
  * é o código de verdade. O espaço de verdade, a cor e a rolagem são do e2e (`e2e/operacao-uso.spec.ts`).
  */
-prepararTelaDaOperacao()
+setupOperacaoScreen()
 
 beforeEach(() => janelaDe(1366))
 afterEach(() => vi.restoreAllMocks())
 
 const REFERENCIA = { dia: '2026-09-23', mes: '2026-09' }
-const lista = (itens: readonly UsoDaEscolaDoPainel[], extra: { total?: number; pagina?: number } = {}): RespostaFalsa => ({
+const lista = (itens: readonly UsoDaEscolaDoPainel[], extra: { total?: number; pagina?: number } = {}): FakeResponse => ({
   status: 200,
   corpo: { itens, pagina: extra.pagina ?? 1, total: extra.total ?? itens.length, ...REFERENCIA },
 })
-const FALHA_503: RespostaFalsa = { status: 503, corpo: { erro: { codigo: 'INDISPONIVEL_TENTE_DE_NOVO', mensagem: 'x', requisicaoId: '0190f5a0-0000-7000-8000-000000000001' } } }
+const FALHA_503: FakeResponse = { status: 503, corpo: { erro: { codigo: 'INDISPONIVEL_TENTE_DE_NOVO', mensagem: 'x', requisicaoId: '0190f5a0-0000-7000-8000-000000000001' } } }
 
 describe('Uso: os estados da tela (RF22)', () => {
   it('carrega e mostra a tabela, pela sessão do operador', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     const solta = rede.segurar()
-    renderizarTelaDaOperacao(<Uso />)
+    renderOperacaoScreen(<Uso />)
     expect(await screen.findByText('Carregando o uso das escolas…')).toBeTruthy()
     expect(screen.queryByRole('table')).toBeNull()
     // O vazio só vem com a leitura terminada e sem erro (RF22).
@@ -45,16 +45,16 @@ describe('Uso: os estados da tela (RF22)', () => {
     expect(await screen.findByRole('table')).toBeTruthy()
     expect(screen.queryByText('Carregando o uso das escolas…')).toBeNull()
     expect(rede.chamadas.map(({ caminho, autorizacao }) => ({ caminho, autorizacao }))).toEqual([
-      { caminho: '/v1/operacao/uso?pagina=1&ordem=nome', autorizacao: AUTORIZACAO_DE_OPERADOR_DE_TESTE },
+      { caminho: '/v1/operacao/uso?pagina=1&ordem=nome', autorizacao: OPERATOR_TEST_AUTHORIZATION },
     ])
   })
 
   it('o 503 mostra a mensagem dentro da tela, que fica; "Tentar de novo" lê outra vez e some com o erro', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     // O 503 é repetido sozinho uma vez; só depois a tela mostra o erro.
     rede.responder(FALHA_503)
     rede.responder(FALHA_503)
-    renderizarTelaDaOperacao(<Uso />)
+    renderOperacaoScreen(<Uso />)
     expect((await screen.findByRole('alert', {}, { timeout: 4000 })).textContent).toBe('O Turmma está indisponível agora. Tente de novo em instantes.')
     expect(screen.queryByRole('table')).toBeNull()
     expect(screen.queryByText('Nenhuma escola ainda.')).toBeNull()
@@ -67,8 +67,8 @@ describe('Uso: os estados da tela (RF22)', () => {
   })
 
   it('sem escola nenhuma, o vazio convida a ir para Escolas, e o botão leva a /operacao', async () => {
-    redeFalsa().responder(lista([]))
-    const tela = renderizarTelaDaOperacao(<Uso />, { caminho: '/uso' })
+    fakeNetwork().responder(lista([]))
+    const tela = renderOperacaoScreen(<Uso />, { caminho: '/uso' })
     expect(await screen.findByText('Nenhuma escola ainda.')).toBeTruthy()
     expect(screen.getByText('O uso de cada escola aparece aqui assim que ela é criada.')).toBeTruthy()
     expect(screen.queryByRole('table')).toBeNull()
@@ -79,9 +79,9 @@ describe('Uso: os estados da tela (RF22)', () => {
   })
 
   it('na troca de página, a anterior fica na tela, ocupada, em vez de piscar o vazio; ao chegar, a nova entra', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responder(lista([usoDaEscolaDoPainel(1)], { total: 30 }))
-    const tela = renderizarTelaDaOperacao(<Uso />, { caminho: '/uso' })
+    const tela = renderOperacaoScreen(<Uso />, { caminho: '/uso' })
     await screen.findByRole('table')
     const regiao = screen.getByRole('region', { name: 'Uso por escola' })
     expect(regiao.getAttribute('aria-busy')).toBe('false')
@@ -106,8 +106,8 @@ describe('Uso: a tabela e a lista de cartões (RF21)', () => {
   ]
 
   it('no computador, o dia e o mês de referência estão no cabeçalho, e cada escola tem as seis medidas na ordem da tela', async () => {
-    redeFalsa().responder(lista(ESCOLAS))
-    renderizarTelaDaOperacao(<Uso />)
+    fakeNetwork().responder(lista(ESCOLAS))
+    renderOperacaoScreen(<Uso />)
     const tabela = await screen.findByRole('table')
     const grupos = within(tabela)
       .getAllByRole('columnheader')
@@ -132,8 +132,8 @@ describe('Uso: a tabela e a lista de cartões (RF21)', () => {
 
   it('abaixo de 768 px, cada escola vira um cartão com o dia e o mês empilhados, e a tabela não existe', async () => {
     janelaDe(360)
-    redeFalsa().responder(lista(ESCOLAS))
-    renderizarTelaDaOperacao(<Uso />)
+    fakeNetwork().responder(lista(ESCOLAS))
+    renderOperacaoScreen(<Uso />)
     const cartoes = await screen.findAllByRole('listitem')
     expect(screen.queryByRole('table')).toBeNull()
     expect(cartoes.map((cartao) => within(cartao).getByRole('heading', { level: 2 }).textContent)).toEqual(['Escola Sintética 1', 'Escola Sintética 2'])
@@ -144,8 +144,8 @@ describe('Uso: a tabela e a lista de cartões (RF21)', () => {
   })
 
   it('a data de referência é a que a API devolveu, não a de hoje no navegador', async () => {
-    redeFalsa().responder({ status: 200, corpo: { itens: [usoDaEscolaDoPainel(1)], pagina: 1, total: 1, dia: '2031-02-28', mes: '2031-02' } })
-    renderizarTelaDaOperacao(<Uso />)
+    fakeNetwork().responder({ status: 200, corpo: { itens: [usoDaEscolaDoPainel(1)], pagina: 1, total: 1, dia: '2031-02-28', mes: '2031-02' } })
+    renderOperacaoScreen(<Uso />)
     await screen.findByRole('table')
     expect(screen.getByText('Último dia fechado:', { exact: false }).textContent).toContain('28/02/2031')
     expect(screen.getByRole('columnheader', { name: 'Dia 28/02/2031' })).toBeTruthy()
@@ -154,10 +154,10 @@ describe('Uso: a tabela e a lista de cartões (RF21)', () => {
   it('a tabela que passa da largura rola na própria moldura, que então recebe foco; a que cabe não vira parada no Tab', async () => {
     const largura = vi.spyOn(Element.prototype, 'scrollWidth', 'get')
     const janela = vi.spyOn(Element.prototype, 'clientWidth', 'get')
-    redeFalsa().responder(lista(ESCOLAS))
+    fakeNetwork().responder(lista(ESCOLAS))
     largura.mockReturnValue(900)
     janela.mockReturnValue(700)
-    renderizarTelaDaOperacao(<Uso />)
+    renderOperacaoScreen(<Uso />)
     const moldura = await screen.findByRole('region', { name: 'Medidas de cada escola' })
     expect(moldura.getAttribute('tabindex')).toBe('0')
     expect(within(moldura).getByRole('table')).toBeTruthy()
@@ -166,10 +166,10 @@ describe('Uso: a tabela e a lista de cartões (RF21)', () => {
   it('a tabela que cabe não tem região nem foco', async () => {
     const largura = vi.spyOn(Element.prototype, 'scrollWidth', 'get')
     const janela = vi.spyOn(Element.prototype, 'clientWidth', 'get')
-    redeFalsa().responder(lista(ESCOLAS))
+    fakeNetwork().responder(lista(ESCOLAS))
     largura.mockReturnValue(700)
     janela.mockReturnValue(700)
-    renderizarTelaDaOperacao(<Uso />)
+    renderOperacaoScreen(<Uso />)
     await screen.findByRole('table')
     expect(screen.queryByRole('region', { name: 'Medidas de cada escola' })).toBeNull()
   })
@@ -180,8 +180,8 @@ describe('Uso: a tabela e a lista de cartões (RF21)', () => {
 describe('Uso: nenhum dado de pessoa (D76)', () => {
   it('uma resposta que traz o nome de um aluno é recusada: a tela mostra o erro, e o nome não aparece', async () => {
     const comPessoa = { ...usoDaEscolaDoPainel(1), aluno: 'Joana Pereira' }
-    redeFalsa().responderPor('/v1/operacao/uso', { status: 200, corpo: { itens: [comPessoa], pagina: 1, total: 1, ...REFERENCIA } })
-    renderizarTelaDaOperacao(<Uso />)
+    fakeNetwork().responderPor('/v1/operacao/uso', { status: 200, corpo: { itens: [comPessoa], pagina: 1, total: 1, ...REFERENCIA } })
+    renderOperacaoScreen(<Uso />)
     await screen.findByRole('alert', {}, { timeout: 4000 })
     expect(screen.queryByRole('table')).toBeNull()
     expect(document.body.textContent).not.toContain('Joana Pereira')

@@ -1,6 +1,6 @@
 import type { ExecucaoAceitaResponse } from '@educa/shared'
 import type { CicloDeExecucao } from '../../api/ciclo-de-execucao'
-import { criarLugarNaAba } from '../../api/tab-store'
+import { createTabStore } from '../../api/tab-store'
 import { enviarMensagemAoTutor } from '../../api/tutor'
 import type { PedidoAoTutor } from './tutor'
 
@@ -9,7 +9,7 @@ import type { PedidoAoTutor } from './tutor'
  * sessão. A conversa não mora aqui: ela é da API (`api/tutor.ts`). Aqui fica só a pergunta que saiu e ainda está sendo
  * respondida — uma por vez, em qualquer atividade.
  */
-export const CICLO_DO_TUTOR = criarLugarNaAba<CicloDeExecucao<PedidoAoTutor>>()
+export const CICLO_DO_TUTOR = createTabStore<CicloDeExecucao<PedidoAoTutor>>()
 
 export function enviarPerguntaAoTutor(pedido: PedidoAoTutor, chaveEnvio: string): Promise<ExecucaoAceitaResponse> {
   return enviarMensagemAoTutor({ ...pedido, chaveEnvio })

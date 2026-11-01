@@ -1,12 +1,12 @@
 import { describe, expect, it, vi } from 'vitest'
-import { ROTAS } from '../paths'
+import { ROUTES } from '../paths'
 import { copiarLink, linkDoConvite } from './link-do-convite'
 
 const TOKEN = 'AbCdEfGhIjKlMnOpQrStUvWxYz0123456789-_abcde'
 
 describe('o link do convite', () => {
   it('é a origem desta web, a tela do convite do F1 e o token no fragmento, nunca no caminho nem na consulta', () => {
-    const link = linkDoConvite('http://127.0.0.1:5173', ROTAS.convite, TOKEN)
+    const link = linkDoConvite('http://127.0.0.1:5173', ROUTES.convite, TOKEN)
     expect(link).toBe(`http://127.0.0.1:5173/convite#${TOKEN}`)
     const lido = new URL(link)
     expect(lido.pathname).toBe('/convite')

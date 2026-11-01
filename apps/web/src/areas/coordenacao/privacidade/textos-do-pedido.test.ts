@@ -333,7 +333,7 @@ describe('RF13: as empresas da foto do compartilhamento', () => {
   })
 
   it('o período é o dia, quando começa e termina no mesmo, ou de um dia até o outro', () => {
-    // O dia sai pelo fuso do computador (`formatarDiaDoInstante`), como nos vizinhos: meio-dia de UTC cai no mesmo dia em
+    // O dia sai pelo fuso do computador (`formatDayOfInstant`), como nos vizinhos: meio-dia de UTC cai no mesmo dia em
     // qualquer fuso de -12 a +11, e a unidade roda em Tóquio (`vitest.config.ts`). 13 h e 18 h de UTC eram o mesmo dia só em
     // São Paulo (10 h e 15 h), e viravam dois dias em Tóquio (22 h e 3 h).
     expect(

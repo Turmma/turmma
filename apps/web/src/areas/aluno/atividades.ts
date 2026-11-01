@@ -1,5 +1,5 @@
 import type { MinhaAtividade, SituacaoDaMinhaAtividade } from '@educa/shared'
-import { formatarQuantidade } from '../../format'
+import { formatQuantity } from '../../format'
 
 /**
  * O que a lista de atividades do aluno diz (MVP, A3; `docs/interface.md` 2 e 11.6): o estado de cada atividade **em
@@ -30,7 +30,7 @@ export function estaParaResponder(atividade: Pick<MinhaAtividade, 'situacao'>): 
 
 /** A linha de apoio da atividade: a disciplina e o tamanho. Sem prazo e sem tempo: o contrato não tem, e a tela não inventa. */
 export function resumoDaAtividade(atividade: Pick<MinhaAtividade, 'disciplina' | 'questoes'>): string {
-  return `${atividade.disciplina.nome} · ${formatarQuantidade(atividade.questoes, 'questão', 'questões')}`
+  return `${atividade.disciplina.nome} · ${formatQuantity(atividade.questoes, 'questão', 'questões')}`
 }
 
 /**

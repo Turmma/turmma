@@ -102,13 +102,13 @@ function instalarWebLocks(): { pedidas: string[]; segurar: (nome: string) => () 
   }
 }
 
-async function erroDe(promessa: Promise<unknown>): Promise<InstanceType<typeof cliente.ErroDaApi>> {
+async function erroDe(promessa: Promise<unknown>): Promise<InstanceType<typeof cliente.ApiError>> {
   const erro = await promessa.then(
     () => undefined,
     (motivo: unknown) => motivo,
   )
-  expect(erro).toBeInstanceOf(cliente.ErroDaApi)
-  return erro as InstanceType<typeof cliente.ErroDaApi>
+  expect(erro).toBeInstanceOf(cliente.ApiError)
+  return erro as InstanceType<typeof cliente.ApiError>
 }
 
 /** Entra e deixa a aba com sessão aberta, como depois do login por e-mail. */
@@ -223,7 +223,7 @@ describe('renovação', () => {
     )
 
     const esquema = { safeParse: (valor: unknown) => ({ success: true as const, data: valor }) }
-    await Promise.all([sessao.buscarComSessao('/v1/a', esquema), sessao.buscarComSessao('/v1/b', esquema)])
+    await Promise.all([sessao.authedGet('/v1/a', esquema), sessao.authedGet('/v1/b', esquema)])
 
     const renovacoes = chamadas.filter((chamada) => chamada.caminho === sessao.CAMINHO_DA_RENOVACAO)
     expect(renovacoes).toHaveLength(1)
@@ -238,7 +238,7 @@ describe('chamada com sessão', () => {
     responderCom({ status: 401, corpo: envelope(ErrorCode.NAO_AUTENTICADO) }, { status: 200, corpo: TOKEN_NOVO }, { status: 200, corpo: { nome: 'Camila' } })
 
     const esquema = { safeParse: (valor: unknown) => ({ success: true as const, data: valor as { nome: string } }) }
-    await expect(sessao.buscarComSessao('/v1/eu', esquema)).resolves.toEqual({ nome: 'Camila' })
+    await expect(sessao.authedGet('/v1/eu', esquema)).resolves.toEqual({ nome: 'Camila' })
     expect(chamadas.map((chamada) => [chamada.caminho, chamada.autorizacao])).toEqual([
       ['/v1/eu', 'Bearer token-1'],
       [sessao.CAMINHO_DA_RENOVACAO, null],
@@ -252,10 +252,10 @@ describe('chamada com sessão', () => {
     const esquema = { safeParse: (valor: unknown) => ({ success: true as const, data: valor }) }
 
     responderCom({ status: 503, corpo: envelope(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO) })
-    expect((await erroDe(sessao.buscarComSessao('/v1/eu', esquema))).codigo).toBe(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO)
+    expect((await erroDe(sessao.authedGet('/v1/eu', esquema))).codigo).toBe(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO)
 
     responderCom({ status: 0, semRede: true })
-    expect((await erroDe(sessao.buscarComSessao('/v1/eu', esquema))).codigo).toBe(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO)
+    expect((await erroDe(sessao.authedGet('/v1/eu', esquema))).codigo).toBe(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO)
 
     expect(sessao.tokenDeAcesso()).toBe('token-1')
     expect(sessao.estadoDaSessao()).toBe('aberta')
@@ -271,7 +271,7 @@ describe('chamada com sessão', () => {
     )
 
     const esquema = { safeParse: (valor: unknown) => ({ success: true as const, data: valor }) }
-    expect((await erroDe(sessao.buscarComSessao('/v1/eu', esquema))).codigo).toBe(ErrorCode.NAO_AUTENTICADO)
+    expect((await erroDe(sessao.authedGet('/v1/eu', esquema))).codigo).toBe(ErrorCode.NAO_AUTENTICADO)
     expect(sessao.tokenDeAcesso()).toBeUndefined()
     // `vencida`, e não `anonima`: a tela continua montada e o login abre por cima dela (20.0). Anônima só pelo
     // "Sair" ou pela aba que abriu sem sessão nenhuma — nos dois a pessoa vai para a entrada e não perde nada.
@@ -285,7 +285,7 @@ describe('chamada com sessão', () => {
     chamadas.length = 0
 
     const esquema = { safeParse: (valor: unknown) => ({ success: true as const, data: valor }) }
-    expect((await erroDe(sessao.buscarComSessao('/v1/eu', esquema))).codigo).toBe(ErrorCode.NAO_AUTENTICADO)
+    expect((await erroDe(sessao.authedGet('/v1/eu', esquema))).codigo).toBe(ErrorCode.NAO_AUTENTICADO)
     expect(chamadas, 'consulta de tela sem sessão não pode virar requisição à API').toEqual([])
   })
 
@@ -298,7 +298,7 @@ describe('chamada com sessão', () => {
     vi.setSystemTime(new Date('2026-09-19T12:11:00.000Z'))
     responderCom({ status: 200, corpo: TOKEN_NOVO }, { status: 200, corpo: { nome: 'Camila' } })
     const esquema = { safeParse: (valor: unknown) => ({ success: true as const, data: valor }) }
-    await sessao.buscarComSessao('/v1/eu', esquema)
+    await sessao.authedGet('/v1/eu', esquema)
 
     expect(chamadas.map((chamada) => chamada.caminho)).toEqual([sessao.CAMINHO_DA_RENOVACAO, '/v1/eu'])
   })
@@ -531,7 +531,7 @@ describe('sair', () => {
     // 20.0 a busca nem chega a sair da aba, o que fecha o mesmo furo antes: sem sessão, nada vai à API — e por isso
     // nenhuma resposta é preparada aqui: se alguma requisição saísse, ela não teria o que consumir.
     const esquema = { safeParse: (valor: unknown) => ({ success: true as const, data: valor }) }
-    expect((await erroDe(sessao.buscarComSessao('/v1/eu', esquema))).codigo).toBe(ErrorCode.NAO_AUTENTICADO)
+    expect((await erroDe(sessao.authedGet('/v1/eu', esquema))).codigo).toBe(ErrorCode.NAO_AUTENTICADO)
 
     expect(chamadas.map((chamada) => chamada.caminho), 'nenhuma requisição depois do "Sair", muito menos uma renovação').toEqual([])
     expect(sessao.estadoDaSessao()).toBe('anonima')
@@ -576,7 +576,7 @@ describe('fim de sessão', () => {
       { status: 401, corpo: envelope(ErrorCode.NAO_AUTENTICADO) },
     )
     const esquema = { safeParse: (valor: unknown) => ({ success: true as const, data: valor }) }
-    await erroDe(sessao.buscarComSessao('/v1/eu', esquema))
+    await erroDe(sessao.authedGet('/v1/eu', esquema))
     // O último fim é o da sessão que venceu sozinha: o cache sai do mesmo jeito, e só a tela continua de pé.
     expect(limpezas).toEqual(['aberta', 'anonima', 'aberta', 'vencida'])
   })
@@ -591,7 +591,7 @@ describe('fim de sessão', () => {
     vi.setSystemTime(new Date('2026-09-19T12:11:00.000Z'))
     responderCom({ status: 200, corpo: TOKEN_NOVO }, { status: 200, corpo: { nome: 'Camila' } })
     const esquema = { safeParse: (valor: unknown) => ({ success: true as const, data: valor }) }
-    await sessao.buscarComSessao('/v1/eu', esquema)
+    await sessao.authedGet('/v1/eu', esquema)
 
     // A cada 10 min de aula a professora perderia a tela inteira, e a escola somaria uma busca por consulta aberta.
     expect(limpezas).toBe(0)
@@ -603,7 +603,7 @@ describe('fim de sessão', () => {
     // A consulta da tela sai antes do clique em "Sair" e só volta depois dele, recusada: é a recarga da lista que a
     // professora tinha acabado de pedir.
     responderCom({ status: 401, corpo: envelope(ErrorCode.NAO_AUTENTICADO) }, { status: 204 })
-    const emVoo = erroDe(sessao.buscarComSessao('/v1/vinculos', esquema))
+    const emVoo = erroDe(sessao.authedGet('/v1/vinculos', esquema))
     await sessao.sair()
     expect((await emVoo).codigo).toBe(ErrorCode.NAO_AUTENTICADO)
 
@@ -645,7 +645,7 @@ describe('fim de sessão', () => {
     expect(limpezas).toBe(1)
 
     const esquema = { safeParse: (valor: unknown) => ({ success: true as const, data: valor }) }
-    await erroDe(sessao.buscarComSessao('/v1/eu', esquema))
+    await erroDe(sessao.authedGet('/v1/eu', esquema))
     expect(limpezas).toBe(1)
   })
 })
@@ -687,7 +687,7 @@ describe('acesso suspenso', () => {
     sessao.aoTrocarDeSessao(() => limpezas++)
     responderCom(suspenso)
 
-    const erro = await erroDe(sessao.buscarComSessao('/v1/eu', esquemaQualquer))
+    const erro = await erroDe(sessao.authedGet('/v1/eu', esquemaQualquer))
 
     expect(erro.codigo).toBe(ErrorCode.ACESSO_SUSPENSO)
     expect(sessao.estadoDaSessao()).toBe('suspensa')
@@ -700,7 +700,7 @@ describe('acesso suspenso', () => {
     await comSessaoAberta()
     responderCom({ status: 401, corpo: envelope(ErrorCode.NAO_AUTENTICADO) }, suspenso)
 
-    const erro = await erroDe(sessao.buscarComSessao('/v1/eu', esquemaQualquer))
+    const erro = await erroDe(sessao.authedGet('/v1/eu', esquemaQualquer))
 
     expect(erro.codigo).toBe(ErrorCode.ACESSO_SUSPENSO)
     expect(sessao.estadoDaSessao()).toBe('suspensa')
@@ -713,7 +713,7 @@ describe('acesso suspenso', () => {
     sessao.aoTrocarDeSessao(() => limpezas++)
     responderCom({ status: 401, corpo: envelope(ErrorCode.NAO_AUTENTICADO) }, { status: 401, corpo: envelope(ErrorCode.NAO_AUTENTICADO) }, suspenso)
 
-    const [a, b] = await Promise.all([erroDe(sessao.buscarComSessao('/v1/a', esquemaQualquer)), erroDe(sessao.buscarComSessao('/v1/b', esquemaQualquer))])
+    const [a, b] = await Promise.all([erroDe(sessao.authedGet('/v1/a', esquemaQualquer)), erroDe(sessao.authedGet('/v1/b', esquemaQualquer))])
 
     expect(a.codigo).toBe(ErrorCode.ACESSO_SUSPENSO)
     expect(b.codigo).toBe(ErrorCode.ACESSO_SUSPENSO)
@@ -737,7 +737,7 @@ describe('acesso suspenso', () => {
   it('suspensa, nenhuma chamada sai da aba: nem consulta, nem renovação, nem abertura pelo cookie, nem aviso de atividade', async () => {
     await abrirSuspensa()
 
-    expect((await erroDe(sessao.buscarComSessao('/v1/eu', esquemaQualquer))).codigo).toBe(ErrorCode.ACESSO_SUSPENSO)
+    expect((await erroDe(sessao.authedGet('/v1/eu', esquemaQualquer))).codigo).toBe(ErrorCode.ACESSO_SUSPENSO)
     expect((await erroDe(sessao.renovarSessao())).codigo).toBe(ErrorCode.ACESSO_SUSPENSO)
     expect((await erroDe(sessao.registrarAtividade())).codigo).toBe(ErrorCode.ACESSO_SUSPENSO)
     await sessao.abrirSessaoPeloCookie()
@@ -764,7 +764,7 @@ describe('acesso suspenso', () => {
         return new Response(JSON.stringify(envelope(ErrorCode.ACESSO_SUSPENSO)), { status: 403 })
       }),
     )
-    const atrasada = erroDe(sessao.buscarComSessao('/v1/vinculos', esquemaQualquer))
+    const atrasada = erroDe(sessao.authedGet('/v1/vinculos', esquemaQualquer))
     await erroDe(sessao.renovarSessao())
     expect(sessao.estadoDaSessao()).toBe('suspensa')
 
@@ -831,7 +831,7 @@ describe('acesso suspenso', () => {
     await comSessaoAberta()
     sessao.lembrarQuemEsta({ usuarioId: 'aluno-1', papel: 'aluno', escola: { slug: 'escola-do-aluno' } })
     responderCom({ status: 401, corpo: envelope(ErrorCode.NAO_AUTENTICADO) }, suspenso)
-    await erroDe(sessao.buscarComSessao('/v1/eu', esquemaQualquer))
+    await erroDe(sessao.authedGet('/v1/eu', esquemaQualquer))
     expect(sessao.quemEstaNaSessao()).toEqual({ usuarioId: 'aluno-1', papel: 'aluno', escolaSlug: 'escola-do-aluno' })
 
     sessao.sairDaSessaoSuspensa()

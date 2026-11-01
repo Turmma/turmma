@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { classesDo, tokenDe } from '../../../__fixtures__/class-colors'
+import { classesOf, tokenOf } from '../../../__fixtures__/class-colors'
 import { PromptInput } from './PromptInput'
 
 /**
@@ -84,12 +84,12 @@ describe('CaixaPedido, a altura do campo', () => {
     expect(espelho.getAttribute('aria-hidden')).toBe('true')
     expect(espelho.tabIndex).toBe(-1)
     expect(espelho.readOnly).toBe(true)
-    expect(classesDo(espelho).has('invisible')).toBe(true)
-    expect(classesDo(espelho).has('absolute')).toBe(true)
+    expect(classesOf(espelho).has('invisible')).toBe(true)
+    expect(classesOf(espelho).has('absolute')).toBe(true)
     // O mesmo tamanho de letra e o mesmo respiro do campo: senão o exemplo quebra em outro lugar e a medida mente.
     for (const classe of ['t-corpo', 'px-3', 'py-2.5', 'min-h-11', 'w-full']) {
-      expect(classesDo(espelho).has(classe), classe).toBe(true)
-      expect(classesDo(campo).has(classe), classe).toBe(true)
+      expect(classesOf(espelho).has(classe), classe).toBe(true)
+      expect(classesOf(campo).has(classe), classe).toBe(true)
     }
     // O leitor de tela não o encontra, e o campo continua sendo o único com o nome do pedido.
     expect(screen.getAllByRole('textbox')).toEqual([campo])
@@ -175,17 +175,17 @@ describe('CaixaPedido, o desenho', () => {
     medirComo(conta)
     const { container } = render(<PromptInput {...props} exemplo={EXEMPLO} valor="" />)
     const caixa = container.querySelector('[data-caixa-pedido]') as HTMLElement
-    const classes = classesDo(caixa)
+    const classes = classesOf(caixa)
     expect(classes.has('rounded-caixa')).toBe(true)
     expect(classes.has('border-2')).toBe(true)
-    expect(tokenDe(caixa, 'border')).toBe('borda-campo')
-    expect(tokenDe(caixa, 'bg')).toBe('campo')
+    expect(tokenOf(caixa, 'border')).toBe('borda-campo')
+    expect(tokenOf(caixa, 'bg')).toBe('campo')
     expect([...classes].filter((classe) => classe.startsWith('shadow'))).toEqual([])
     const campo = screen.getByLabelText('Pedido ao Assistente de ensino')
-    expect(tokenDe(campo, 'bg')).toBe('campo')
+    expect(tokenOf(campo, 'bg')).toBe('campo')
     // Desligado, o campo é outro desenho e continua legível: `fundo-suave` com texto `apoio`, e não o `inativo`.
-    expect(tokenDe(campo, 'bg', 'disabled:')).toBe('fundo-suave')
-    expect(tokenDe(campo, 'text', 'disabled:')).toBe('apoio')
+    expect(tokenOf(campo, 'bg', 'disabled:')).toBe('fundo-suave')
+    expect(tokenOf(campo, 'text', 'disabled:')).toBe('apoio')
   })
 
   it('o anel de foco é da caixa, por focus-within, e o campo de dentro não desenha contorno', () => {
@@ -194,7 +194,7 @@ describe('CaixaPedido, o desenho', () => {
       const { container } = render(<PromptInput {...props} variante={variante} exemplo={EXEMPLO} valor="" />)
       const caixa = container.querySelector('[data-caixa-pedido]') as HTMLElement
       // O mesmo anel do produto (foco, 3 px, sólido), colado à borda da caixa, e não afastado dentro dela (`OptionCard`, 10.1).
-      expect([...classesDo(caixa)].filter((classe) => classe.startsWith('focus-within:outline')).sort(), variante).toEqual([
+      expect([...classesOf(caixa)].filter((classe) => classe.startsWith('focus-within:outline')).sort(), variante).toEqual([
         'focus-within:outline-3',
         'focus-within:outline-foco',
         'focus-within:outline-offset-0',
@@ -202,7 +202,7 @@ describe('CaixaPedido, o desenho', () => {
       ])
       // O contorno global (`:focus-visible` do `index.css`) cairia no `textarea`, dentro da moldura: ele não desenha o seu.
       const campo = screen.getByLabelText('Pedido ao Assistente de ensino')
-      expect(classesDo(campo).has('outline-none'), variante).toBe(true)
+      expect(classesOf(campo).has('outline-none'), variante).toBe(true)
       cleanup()
     }
   })
@@ -211,16 +211,16 @@ describe('CaixaPedido, o desenho', () => {
     medirComo(conta)
     const { rerender } = render(<PromptInput {...props} exemplo={EXEMPLO} valor="oi" />)
     const enviar = screen.getByRole('button', { name: 'Enviar' })
-    expect(tokenDe(enviar, 'bg')).toBe('laranja')
-    expect(classesDo(enviar).has('size-11')).toBe(true)
-    expect(classesDo(enviar).has('rounded-full')).toBe(true)
+    expect(tokenOf(enviar, 'bg')).toBe('laranja')
+    expect(classesOf(enviar).has('size-11')).toBe(true)
+    expect(classesOf(enviar).has('rounded-full')).toBe(true)
 
     rerender(<PromptInput {...props} exemplo={EXEMPLO} valor="" estado="gerando" aoParar={() => undefined} />)
     expect(screen.queryByRole('button', { name: 'Enviar' })).toBeNull()
     const parar = screen.getByRole('button', { name: 'Parar' })
-    expect(tokenDe(parar, 'bg')).toBe('superficie')
-    expect(classesDo(parar).has('degrau-borda')).toBe(true)
-    for (const proibida of ['laranja', 'grafite', 'noite']) expect(tokenDe(parar, 'bg'), proibida).not.toBe(proibida)
-    expect(classesDo(parar).has('degrau-grafite')).toBe(false)
+    expect(tokenOf(parar, 'bg')).toBe('superficie')
+    expect(classesOf(parar).has('degrau-borda')).toBe(true)
+    for (const proibida of ['laranja', 'grafite', 'noite']) expect(tokenOf(parar, 'bg'), proibida).not.toBe(proibida)
+    expect(classesOf(parar).has('degrau-grafite')).toBe(false)
   })
 })

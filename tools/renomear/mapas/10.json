@@ -1,0 +1,2671 @@
+{
+  "linha": true,
+  "entradas": [
+    {
+      "tipo": "simbolo",
+      "de": "EstadoCarregando",
+      "para": "LoadingState",
+      "arquivo": "apps/web/src/components/states/EstadoCarregando.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:167"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "apps/web/src/components/states/EstadoCarregando.tsx",
+      "para": "apps/web/src/components/states/LoadingState.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:167"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "EstadoVazio",
+      "para": "EmptyState",
+      "arquivo": "apps/web/src/components/states/EstadoVazio.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:168"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "apps/web/src/components/states/EstadoVazio.tsx",
+      "para": "apps/web/src/components/states/EmptyState.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:168"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "EstadoErro",
+      "para": "ErrorState",
+      "arquivo": "apps/web/src/components/states/EstadoErro.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:169"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "apps/web/src/components/states/EstadoErro.tsx",
+      "para": "apps/web/src/components/states/ErrorState.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:169"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "FronteiraDaArea",
+      "para": "AreaErrorBoundary",
+      "arquivo": "apps/web/src/components/FronteiraDaArea.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:170"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "apps/web/src/components/FronteiraDaArea.tsx",
+      "para": "apps/web/src/components/AreaErrorBoundary.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:170"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ConteudoNaoEncontrado",
+      "para": "NotFoundContent",
+      "arquivo": "apps/web/src/components/NotFound.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:172"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PaginaNaoEncontrada",
+      "para": "NotFoundPage",
+      "arquivo": "apps/web/src/components/NotFound.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:173"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "LoginPorCima",
+      "para": "ReauthDialog",
+      "arquivo": "apps/web/src/components/LoginPorCima.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:174"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "apps/web/src/components/LoginPorCima.tsx",
+      "para": "apps/web/src/components/ReauthDialog.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:174"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "CodigoQr",
+      "para": "QrCode",
+      "arquivo": "apps/web/src/components/CodigoQr.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:175"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "apps/web/src/components/CodigoQr.tsx",
+      "para": "apps/web/src/components/QrCode.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:175"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "Dica",
+      "para": "Tooltip",
+      "arquivo": "apps/web/src/components/itens-da-lateral.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:176"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RegiaoQueRola",
+      "para": "ScrollArea",
+      "arquivo": "apps/web/src/components/introducao/RegiaoQueRola.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:177"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "apps/web/src/components/introducao/RegiaoQueRola.tsx",
+      "para": "apps/web/src/components/introducao/ScrollArea.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:177"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "apps/web/src/components/introducao/RegiaoQueRola.test.tsx",
+      "para": "apps/web/src/components/introducao/ScrollArea.test.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:177"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RegiaoDaLista",
+      "para": "ScrollableList",
+      "arquivo": "apps/web/src/operacao/components/RegiaoDaLista.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:178"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "apps/web/src/operacao/components/RegiaoDaLista.tsx",
+      "para": "apps/web/src/operacao/components/ScrollableList.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:178"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "apps/web/src/operacao/components/RegiaoDaLista.test.tsx",
+      "para": "apps/web/src/operacao/components/ScrollableList.test.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:178"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "useSobra",
+      "para": "useOverflow",
+      "arquivo": "apps/web/src/operacao/components/RegiaoDaLista.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:179"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PaginasDaLista",
+      "para": "Pagination",
+      "arquivo": "apps/web/src/operacao/components/NavegacaoDaLista.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:180"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "SeletorDeOrdem",
+      "para": "SortSelect",
+      "arquivo": "apps/web/src/operacao/components/NavegacaoDaLista.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:181"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "useEnvioUnico",
+      "para": "useSingleSubmit",
+      "arquivo": "apps/web/src/components/dialogs.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:183"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "Anuncio",
+      "para": "StatusAnnouncement",
+      "arquivo": "apps/web/src/components/dialogs.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:184"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "AlertaDaFalha",
+      "para": "ErrorAlert",
+      "arquivo": "apps/web/src/components/dialogs.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:185"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "AlertaSemFoco",
+      "para": "ErrorAlertNoAutofocus",
+      "arquivo": "apps/web/src/components/dialogs.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:186"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "DialogoDeFormulario",
+      "para": "FormDialog",
+      "arquivo": "apps/web/src/components/dialogs.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:187"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "CorpoDaConfirmacaoDePerigo",
+      "para": "DangerConfirmBody",
+      "arquivo": "apps/web/src/components/dialogs.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:188"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ConfirmacaoDePerigo",
+      "para": "DangerConfirmDialog",
+      "arquivo": "apps/web/src/components/dialogs.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:189"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "useFechamento",
+      "para": "useGuardedClose",
+      "arquivo": "apps/web/src/components/copy-once.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:191"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "useCopia",
+      "para": "useCopyToClipboard",
+      "arquivo": "apps/web/src/components/copy-once.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:192"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "useFocoDaEtapa",
+      "para": "useStepFocus",
+      "arquivo": "apps/web/src/components/copy-once.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:193"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "Pergunta",
+      "para": "CloseConfirmation",
+      "arquivo": "apps/web/src/components/copy-once.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:194"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "CampoDoLink",
+      "para": "LinkField",
+      "arquivo": "apps/web/src/components/copy-once.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:195"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "AvisoDaCopia",
+      "para": "CopyStatus",
+      "arquivo": "apps/web/src/components/copy-once.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:196"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "Falha",
+      "para": "FailureAlert",
+      "arquivo": "apps/web/src/components/copy-once.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:197"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "DitosDaCopia",
+      "para": "CopyMessages",
+      "arquivo": "apps/web/src/components/copy-once.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:198"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "AbaDoNavegador",
+      "para": "BrowserTab",
+      "arquivo": "apps/web/src/components/pedidos/atualizacao-dos-pedidos.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:199"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "SEM_LEITURA_SOZINHA",
+      "para": "NO_AUTO_REFETCH",
+      "arquivo": "apps/web/src/components/sino/leitura-do-sino.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:200"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "LEITURA_DA_FILA",
+      "para": "QUEUE_QUERY_OPTIONS",
+      "arquivo": "apps/web/src/components/sino/leitura-do-sino.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:201"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "Moldura",
+      "para": "TabbedPage",
+      "arquivo": "apps/web/src/areas/coordenacao/comum/moldura.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:209"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "AbaDaMoldura",
+      "para": "TabbedPageTab",
+      "arquivo": "apps/web/src/areas/coordenacao/comum/moldura.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:210"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "useFocarOTituloDaMoldura",
+      "para": "useFocusPageHeading",
+      "arquivo": "apps/web/src/areas/coordenacao/comum/moldura.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:211"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "Linha",
+      "para": "ListRow",
+      "arquivo": "apps/web/src/areas/coordenacao/comum/pecas-da-lista.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:212"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ErroDaApi",
+      "para": "ApiError",
+      "arquivo": "apps/web/src/api/client.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:221"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "EsquemaDeResposta",
+      "para": "ResponseSchema",
+      "arquivo": "apps/web/src/api/client.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:222"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "SEM_CORPO",
+      "para": "EMPTY_BODY",
+      "arquivo": "apps/web/src/api/client.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:223"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "OpcoesDaChamada",
+      "para": "RequestOptions",
+      "arquivo": "apps/web/src/api/client.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:224"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "chamarApi",
+      "para": "apiRequest",
+      "arquivo": "apps/web/src/api/client.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:225"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "buscarDaApi",
+      "para": "apiGet",
+      "arquivo": "apps/web/src/api/client.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:226"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "mensagemDoErro",
+      "para": "errorMessage",
+      "arquivo": "apps/web/src/api/client.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:227"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "chamarComSessao",
+      "para": "authedRequest",
+      "arquivo": "apps/web/src/api/sessao.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:228"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "buscarComSessao",
+      "para": "authedGet",
+      "arquivo": "apps/web/src/api/sessao.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:229"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "OpcoesComSessao",
+      "para": "AuthedRequestOptions",
+      "arquivo": "apps/web/src/api/sessao.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:230"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "criarClienteDeConsultas",
+      "para": "createQueryClient",
+      "arquivo": "apps/web/src/api/query-client.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:232"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "deveTentarDeNovo",
+      "para": "shouldRetry",
+      "arquivo": "apps/web/src/api/query-client.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:233"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "TENTATIVAS_AUTOMATICAS",
+      "para": "AUTO_RETRIES",
+      "arquivo": "apps/web/src/api/query-client.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:234"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ESPERA_ENTRE_TENTATIVAS_MS",
+      "para": "RETRY_DELAY_MS",
+      "arquivo": "apps/web/src/api/query-client.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:235"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "LugarNaAba",
+      "para": "TabStore",
+      "arquivo": "apps/web/src/api/tab-store.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:237"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "criarLugarNaAba",
+      "para": "createTabStore",
+      "arquivo": "apps/web/src/api/tab-store.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:238"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "useLugarNaAba",
+      "para": "useTabStore",
+      "arquivo": "apps/web/src/api/tab-store.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:239"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ContextoDaGaveta",
+      "para": "DrawerContext",
+      "arquivo": "apps/web/src/components/drawer-context.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:248"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "Gaveta",
+      "para": "DrawerContextValue",
+      "arquivo": "apps/web/src/components/drawer-context.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:249"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ContextoDaSaida",
+      "para": "SignOutContext",
+      "arquivo": "apps/web/src/components/sign-out-context.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:251"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "SaidaDaCasca",
+      "para": "SignOutContextValue",
+      "arquivo": "apps/web/src/components/sign-out-context.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:252"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ContextoDaAncoraDoSino",
+      "para": "SinoAnchorContext",
+      "arquivo": "apps/web/src/components/sino-anchor-context.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:254"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "AncoraDoSino",
+      "para": "SinoAnchorContextValue",
+      "arquivo": "apps/web/src/components/sino-anchor-context.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:255"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "useAncoraDoSino",
+      "para": "useSinoAnchor",
+      "arquivo": "apps/web/src/components/sino-anchor-context.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:256"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ContextoDoAviso",
+      "para": "SessionWarningContext",
+      "arquivo": "apps/web/src/operacao/components/AvisoDeInatividade.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:258"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "AvisoDaSessao",
+      "para": "SessionWarningContextValue",
+      "arquivo": "apps/web/src/operacao/components/AvisoDeInatividade.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:259"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "useTituloDaAba",
+      "para": "useTabTitle",
+      "arquivo": "apps/web/src/document-title.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:260"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "useTituloDaTela",
+      "para": "usePageTitle",
+      "arquivo": "apps/web/src/document-title.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:261"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "useTituloDaPagina",
+      "para": "useOperacaoPageTitle",
+      "arquivo": "apps/web/src/operacao/document-title.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:262"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "useAparencia",
+      "para": "useThemePreference",
+      "arquivo": "apps/web/src/theme.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:263"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "useLetra",
+      "para": "useTextSize",
+      "arquivo": "apps/web/src/text-size.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:264"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "useTamanhoDaLetra",
+      "para": "useApplyTextSize",
+      "arquivo": "apps/web/src/text-size.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:265"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "useInatividade",
+      "para": "useIdleTimeout",
+      "arquivo": "apps/web/src/sessao/idle-timeout.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:266"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "useInatividadeDaOperacao",
+      "para": "useOperatorIdleTimeout",
+      "arquivo": "apps/web/src/operacao/idle-timeout.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:267"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "useCicloDeExecucao",
+      "para": "useExecutionLifecycle",
+      "arquivo": "apps/web/src/api/execucoes.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:268"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "Rotas",
+      "para": "AppRoutes",
+      "arquivo": "apps/web/src/routes.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:277"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RotasDaOperacao",
+      "para": "OperacaoRoutes",
+      "arquivo": "apps/web/src/operacao/routes.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:278"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ROTAS",
+      "para": "ROUTES",
+      "arquivo": "apps/web/src/paths.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:280"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ROTAS_DO_PROFESSOR",
+      "para": "PROFESSOR_ROUTES",
+      "arquivo": "apps/web/src/paths.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:281"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ROTAS_DA_COORDENACAO",
+      "para": "COORDENACAO_ROUTES",
+      "arquivo": "apps/web/src/paths.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:282"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ROTAS_DO_ALUNO",
+      "para": "ALUNO_ROUTES",
+      "arquivo": "apps/web/src/paths.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:283"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ROTA_DA_ETAPA",
+      "para": "LOGIN_STEP_ROUTE",
+      "arquivo": "apps/web/src/paths.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:285"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "BASE_DA_AREA",
+      "para": "AREA_BASE_PATH",
+      "arquivo": "apps/web/src/paths.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:286"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ROTAS_DA_OPERACAO",
+      "para": "OPERACAO_ROUTES",
+      "arquivo": "apps/web/src/operacao/paths.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:284"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "BASE_DA_OPERACAO",
+      "para": "OPERACAO_BASE_PATH",
+      "arquivo": "apps/web/src/operacao/paths.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:286"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PARAMETRO_DA_ORIGEM",
+      "para": "ORIGEM_PARAM",
+      "arquivo": "apps/web/src/paths.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:287"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PARAMETRO_DO_PROFESSOR",
+      "para": "PROFESSOR_PARAM",
+      "arquivo": "apps/web/src/paths.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:287"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PARAMETRO_DO_MATERIAL",
+      "para": "MATERIAL_PARAM",
+      "arquivo": "apps/web/src/paths.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:287"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PARAMETRO_DA_QUESTAO",
+      "para": "QUESTAO_PARAM",
+      "arquivo": "apps/web/src/paths.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:287"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PARAMETRO_DA_ATIVIDADE",
+      "para": "ATIVIDADE_PARAM",
+      "arquivo": "apps/web/src/areas/professor/atividades/AtividadesDaTurma.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:287"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PARAMETRO_DO_CONVITE",
+      "para": "CONVITE_PARAM",
+      "arquivo": "apps/web/src/areas/professor/turmas/acesso/acesso-da-turma.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:287"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PARAMETRO_DA_ABA",
+      "para": "ABA_PARAM",
+      "arquivo": "apps/web/src/areas/professor/atividades/aprovar.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:287"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PARAMETRO_DO_DESTAQUE",
+      "para": "DESTAQUE_PARAM",
+      "arquivo": "apps/web/src/areas/professor/atividades/aprovar.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:287"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PARAMETRO_DO_TIPO",
+      "para": "TIPO_PARAM",
+      "arquivo": "apps/web/src/areas/professor/artefatos/criados.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:287"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PARAMETRO_DA_TURMA",
+      "para": "TURMA_PARAM",
+      "arquivo": "apps/web/src/areas/professor/artefatos/criados.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:287"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PARAMETRO_DO_ESTADO",
+      "para": "ESTADO_PARAM",
+      "arquivo": "apps/web/src/areas/professor/artefatos/criados.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:287"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "NAVEGACAO",
+      "para": "NAVIGATION",
+      "arquivo": "apps/web/src/areas/navigation.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:290"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RODAPE_DA_LATERAL",
+      "para": "SIDEBAR_FOOTER",
+      "arquivo": "apps/web/src/areas/navigation.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:290"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "MENU_DA_PESSOA",
+      "para": "PERSON_MENU",
+      "arquivo": "apps/web/src/areas/navigation.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:290"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ItemDaNavegacao",
+      "para": "NavItem",
+      "arquivo": "apps/web/src/areas/navigation.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:291"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "IconeDoItem",
+      "para": "NavItemIcon",
+      "arquivo": "apps/web/src/areas/navigation.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:292"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "tokenDoFragmento",
+      "para": "readFragmentToken",
+      "arquivo": "apps/web/src/pages/url-fragment.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:294"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "apagarFragmentoDaBarra",
+      "para": "clearFragment",
+      "arquivo": "apps/web/src/pages/url-fragment.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:294"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "formatarData",
+      "para": "formatDate",
+      "arquivo": "apps/web/src/format.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:303"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "formatarDataHora",
+      "para": "formatDateTime",
+      "arquivo": "apps/web/src/format.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:303"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "formatarNumero",
+      "para": "formatNumber",
+      "arquivo": "apps/web/src/format.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:303"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "formatarQuantidade",
+      "para": "formatQuantity",
+      "arquivo": "apps/web/src/format.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:303"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "formatarDiaEHora",
+      "para": "formatDayAndTime",
+      "arquivo": "apps/web/src/format.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:303"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "formatarDiaDoInstante",
+      "para": "formatDayOfInstant",
+      "arquivo": "apps/web/src/format.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:303"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "Aparencia",
+      "para": "ThemePreference",
+      "arquivo": "apps/web/src/theme.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:306"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "Tema",
+      "para": "ResolvedTheme",
+      "arquivo": "apps/web/src/theme.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:307"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "CHAVE_DA_APARENCIA",
+      "para": "THEME_STORAGE_KEY",
+      "arquivo": "apps/web/src/theme.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:308"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "CHAVE_DA_LETRA",
+      "para": "TEXT_SIZE_STORAGE_KEY",
+      "arquivo": "apps/web/src/text-size.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:308"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "CHAVE_DA_LATERAL_RECOLHIDA",
+      "para": "SIDEBAR_COLLAPSED_STORAGE_KEY",
+      "arquivo": "apps/web/src/components/lateral-recolhida.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:308"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "resolverTema",
+      "para": "resolveTheme",
+      "arquivo": "apps/web/src/theme.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:309"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "aplicarTema",
+      "para": "applyTheme",
+      "arquivo": "apps/web/src/theme.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:309"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "iniciarTema",
+      "para": "initTheme",
+      "arquivo": "apps/web/src/theme.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:309"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "lerAparencia",
+      "para": "readThemePreference",
+      "arquivo": "apps/web/src/theme.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:309"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "escolherAparencia",
+      "para": "setThemePreference",
+      "arquivo": "apps/web/src/theme.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:309"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "TamanhoDaLetra",
+      "para": "TextSize",
+      "arquivo": "apps/web/src/text-size.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:311"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ATRIBUTO_DA_LETRA",
+      "para": "TEXT_SIZE_ATTRIBUTE",
+      "arquivo": "apps/web/src/text-size.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:312"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "NOME_DO_PAPEL",
+      "para": "ROLE_LABELS",
+      "arquivo": "apps/web/src/roles.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:315"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "baixarPorUrl",
+      "para": "downloadFromUrl",
+      "arquivo": "apps/web/src/components/download-from-url.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:317"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "sortearIdDoPedido",
+      "para": "newRequestId",
+      "arquivo": "apps/web/src/components/request-id.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:319"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "textoDaFalha",
+      "para": "errorText",
+      "arquivo": "apps/web/src/components/error-text.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:321"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "listaMudou",
+      "para": "listChanged",
+      "arquivo": "apps/web/src/components/error-text.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:321"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "redeFalsa",
+      "para": "fakeNetwork",
+      "arquivo": "apps/web/src/__fixtures__/render-screen.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:333"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RedeFalsa",
+      "para": "FakeNetwork",
+      "arquivo": "apps/web/src/__fixtures__/render-screen.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:334"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "RespostaFalsa",
+      "para": "FakeResponse",
+      "arquivo": "apps/web/src/__fixtures__/render-screen.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:335"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ChamadaFeita",
+      "para": "RecordedCall",
+      "arquivo": "apps/web/src/__fixtures__/render-screen.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:336"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "prepararTela",
+      "para": "setupScreen",
+      "arquivo": "apps/web/src/__fixtures__/render-screen.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:337"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "renderizarTela",
+      "para": "renderScreen",
+      "arquivo": "apps/web/src/__fixtures__/render-screen.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:338"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "TOKEN_DE_TESTE",
+      "para": "TEST_TOKEN",
+      "arquivo": "apps/web/src/__fixtures__/render-screen.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:339"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "AUTORIZACAO_DE_TESTE",
+      "para": "TEST_AUTHORIZATION",
+      "arquivo": "apps/web/src/__fixtures__/render-screen.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:339"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "corDoToken",
+      "para": "tokenColor",
+      "arquivo": "apps/web/src/__fixtures__/class-colors.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:341"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "classesDo",
+      "para": "classesOf",
+      "arquivo": "apps/web/src/__fixtures__/class-colors.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:341"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "tokenDe",
+      "para": "tokenOf",
+      "arquivo": "apps/web/src/__fixtures__/class-colors.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:341"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "tokenOuFalha",
+      "para": "tokenOrThrow",
+      "arquivo": "apps/web/src/__fixtures__/class-colors.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:341"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "importadoresDe",
+      "para": "importersOf",
+      "arquivo": "apps/web/src/__fixtures__/importers.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:343"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "especificadoresDe",
+      "para": "importSpecifiers",
+      "arquivo": "apps/web/src/__fixtures__/importers.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:343"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "semComentarios",
+      "para": "stripComments",
+      "arquivo": "apps/web/src/__fixtures__/importers.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:343"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ArquivoDaWeb",
+      "para": "WebFile",
+      "arquivo": "apps/web/src/__fixtures__/importers.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:343"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "usaOPerigoCheio",
+      "para": "usesDangerSolid",
+      "arquivo": "apps/web/src/__fixtures__/danger-solid.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:345"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "arquivosDeCodigoDaWeb",
+      "para": "webSourceFiles",
+      "arquivo": "apps/web/src/__fixtures__/danger-solid.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:345"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "arquivosQueUsamOPerigoCheio",
+      "para": "filesUsingDangerSolid",
+      "arquivo": "apps/web/src/__fixtures__/danger-solid.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:345"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "codigoSemComentarioNemTexto",
+      "para": "codeWithoutCommentsOrText",
+      "arquivo": "apps/web/src/__fixtures__/danger-solid.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:345"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "semIdsDoDesenho",
+      "para": "stripSvgIds",
+      "arquivo": "apps/web/src/__fixtures__/svg-ids.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:347"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "prepararTelaDaOperacao",
+      "para": "setupOperacaoScreen",
+      "arquivo": "apps/web/src/operacao/__fixtures__/render-operacao-screen.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:349"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "renderizarTelaDaOperacao",
+      "para": "renderOperacaoScreen",
+      "arquivo": "apps/web/src/operacao/__fixtures__/render-operacao-screen.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:349"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "TelaDaOperacao",
+      "para": "OperacaoScreen",
+      "arquivo": "apps/web/src/operacao/__fixtures__/render-operacao-screen.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:349"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "AUTORIZACAO_DE_OPERADOR_DE_TESTE",
+      "para": "OPERATOR_TEST_AUTHORIZATION",
+      "arquivo": "apps/web/src/operacao/__fixtures__/render-operacao-screen.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:350"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "consultaAlunosDaTurma",
+      "para": "alunosDaTurmaQueryOptions",
+      "arquivo": "apps/web/src/api/alunos-da-turma.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:444"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "consultaMinhasAtividades",
+      "para": "minhasAtividadesInfiniteQueryOptions",
+      "arquivo": "apps/web/src/api/atividades-do-aluno.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:445"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "consultaProva",
+      "para": "provaQueryOptions",
+      "arquivo": "apps/web/src/api/atividades-do-aluno.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:446"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "consultaMeuDiagnostico",
+      "para": "meuDiagnosticoQueryOptions",
+      "arquivo": "apps/web/src/api/atividades-do-aluno.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:447"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "consultaAcessoDaEscola",
+      "para": "acessoDaEscolaQueryOptions",
+      "arquivo": "apps/web/src/api/escola.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:449"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "consultaAnosLetivos",
+      "para": "anosLetivosQueryOptions",
+      "arquivo": "apps/web/src/api/estrutura.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:450"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "consultaSeries",
+      "para": "seriesQueryOptions",
+      "arquivo": "apps/web/src/api/estrutura.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:451"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "consultaDisciplinas",
+      "para": "disciplinasQueryOptions",
+      "arquivo": "apps/web/src/api/estrutura.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:452"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "consultaTurmas",
+      "para": "turmasQueryOptions",
+      "arquivo": "apps/web/src/api/estrutura.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:453"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "consultaVinculos",
+      "para": "vinculosQueryOptions",
+      "arquivo": "apps/web/src/api/estrutura.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:454"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "consultaTurmaAberta",
+      "para": "turmaAbertaQueryOptions",
+      "arquivo": "apps/web/src/api/estrutura.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:455"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "consultaEu",
+      "para": "euQueryOptions",
+      "arquivo": "apps/web/src/api/eu.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:456"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "consultaExecucao",
+      "para": "execucaoQueryOptions",
+      "arquivo": "apps/web/src/api/execucoes.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:457"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "consultaMemoriaDoTutor",
+      "para": "memoriaDoTutorQueryOptions",
+      "arquivo": "apps/web/src/api/memoria-do-tutor.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:458"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "consultaMeusDados",
+      "para": "meusDadosQueryOptions",
+      "arquivo": "apps/web/src/api/meus-dados.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:459"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "consultaMinhaTurma",
+      "para": "minhaTurmaQueryOptions",
+      "arquivo": "apps/web/src/api/minha-turma.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:460"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "consultaPedidosDaTurma",
+      "para": "pedidosDaTurmaQueryOptions",
+      "arquivo": "apps/web/src/api/pedidos.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:461"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "consultaContagemDePedidos",
+      "para": "contagemDePedidosQueryOptions",
+      "arquivo": "apps/web/src/api/pedidos.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:462"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "consultaAvisos",
+      "para": "avisosQueryOptions",
+      "arquivo": "apps/web/src/api/sistema.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:463"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "consultaEstado",
+      "para": "estadoQueryOptions",
+      "arquivo": "apps/web/src/api/sistema.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:464"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "consultaConversaDoTutor",
+      "para": "conversaDoTutorQueryOptions",
+      "arquivo": "apps/web/src/api/tutor.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:465"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "consultaListaDaTurma",
+      "para": "listaDaTurmaQueryOptions",
+      "arquivo": "apps/web/src/areas/coordenacao/estrutura/api/lista.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:466"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "consultaResumoDoAnalista",
+      "para": "resumoDoAnalistaQueryOptions",
+      "arquivo": "apps/web/src/areas/coordenacao/governanca/api/governanca.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:467"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "consultaResumoDaGovernanca",
+      "para": "resumoDaGovernancaQueryOptions",
+      "arquivo": "apps/web/src/areas/coordenacao/governanca/api/governanca.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:468"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "consultaResumoPorEstado",
+      "para": "resumoPorEstadoQueryOptions",
+      "arquivo": "apps/web/src/areas/coordenacao/governanca/api/governanca.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:469"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "consultaPrimeiraPaginaDoResumo",
+      "para": "primeiraPaginaDoResumoQueryOptions",
+      "arquivo": "apps/web/src/areas/coordenacao/governanca/api/governanca.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:470"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "consultaConsumo",
+      "para": "consumoQueryOptions",
+      "arquivo": "apps/web/src/areas/coordenacao/governanca/api/governanca.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:471"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "consultaFuncoesDaGovernanca",
+      "para": "funcoesDaGovernancaQueryOptions",
+      "arquivo": "apps/web/src/areas/coordenacao/governanca/api/governanca.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:472"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "consultaMateriais",
+      "para": "materiaisQueryOptions",
+      "arquivo": "apps/web/src/areas/coordenacao/material/api/material.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:473"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "consultaPreviaDoTitular",
+      "para": "previaDoTitularQueryOptions",
+      "arquivo": "apps/web/src/areas/coordenacao/privacidade/api/privacidade.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:474"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "consultaPedidoDoTitular",
+      "para": "pedidoDoTitularQueryOptions",
+      "arquivo": "apps/web/src/areas/coordenacao/privacidade/api/privacidade.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:475"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "consultaRetencao",
+      "para": "retencaoQueryOptions",
+      "arquivo": "apps/web/src/areas/coordenacao/privacidade/api/privacidade.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:476"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "consultaSuboperadores",
+      "para": "suboperadoresQueryOptions",
+      "arquivo": "apps/web/src/areas/coordenacao/privacidade/api/privacidade.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:477"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "consultaIncidentes",
+      "para": "incidentesQueryOptions",
+      "arquivo": "apps/web/src/areas/coordenacao/privacidade/api/privacidade.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:478"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "consultaPedidosDoTitular",
+      "para": "pedidosDoTitularQueryOptions",
+      "arquivo": "apps/web/src/areas/coordenacao/privacidade/api/privacidade.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:479"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "consultaProfessores",
+      "para": "professoresQueryOptions",
+      "arquivo": "apps/web/src/areas/coordenacao/professores/api/professores.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:480"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "consultaArtefatos",
+      "para": "artefatosQueryOptions",
+      "arquivo": "apps/web/src/areas/professor/artefatos/api/artefatos.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:481"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "consultaArtefato",
+      "para": "artefatoQueryOptions",
+      "arquivo": "apps/web/src/areas/professor/artefatos/api/artefatos.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:482"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "consultaEntregasPendentes",
+      "para": "entregasPendentesQueryOptions",
+      "arquivo": "apps/web/src/areas/professor/artefatos/api/entregas.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:483"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "consultaEntregas",
+      "para": "entregasQueryOptions",
+      "arquivo": "apps/web/src/areas/professor/artefatos/api/entregas.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:484"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "consultaEntregasDaTurma",
+      "para": "entregasDaTurmaQueryOptions",
+      "arquivo": "apps/web/src/areas/professor/artefatos/api/entregas.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:485"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "consultaTitulosDosMateriais",
+      "para": "titulosDosMateriaisQueryOptions",
+      "arquivo": "apps/web/src/areas/professor/artefatos/api/titulos-dos-materiais.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:486"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "consultaConversaDoAssistente",
+      "para": "conversaDoAssistenteQueryOptions",
+      "arquivo": "apps/web/src/areas/professor/assistente/api/assistente.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:487"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "consultaTime",
+      "para": "timeQueryOptions",
+      "arquivo": "apps/web/src/areas/professor/assistente/api/time.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:488"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "consultaAtividadesAplicadas",
+      "para": "atividadesAplicadasQueryOptions",
+      "arquivo": "apps/web/src/areas/professor/atividades/api/atividades.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:489"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "consultaCorrecaoDoLote",
+      "para": "correcaoDoLoteQueryOptions",
+      "arquivo": "apps/web/src/areas/professor/atividades/api/atividades.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:490"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "consultaDesempenhoDaTurma",
+      "para": "desempenhoDaTurmaQueryOptions",
+      "arquivo": "apps/web/src/areas/professor/atividades/api/atividades.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:491"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "consultaMeusVinculos",
+      "para": "meusVinculosQueryOptions",
+      "arquivo": "apps/web/src/areas/professor/comum/api/vinculos.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:492"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "consultaAcessoDaTurma",
+      "para": "acessoDaTurmaQueryOptions",
+      "arquivo": "apps/web/src/areas/professor/turmas/api/acesso.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:493"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "consultaSinais",
+      "para": "sinaisQueryOptions",
+      "arquivo": "apps/web/src/areas/professor/turmas/api/tutor-da-turma.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:494"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "consultaUsoDoTutor",
+      "para": "usoDoTutorQueryOptions",
+      "arquivo": "apps/web/src/areas/professor/turmas/api/tutor-da-turma.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:495"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "consultaEuDoOperador",
+      "para": "euDoOperadorQueryOptions",
+      "arquivo": "apps/web/src/operacao/api/eu.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:497"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "consultaDasEscolas",
+      "para": "dasEscolasQueryOptions",
+      "arquivo": "apps/web/src/operacao/api/painel.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:498"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "consultaDoUso",
+      "para": "doUsoQueryOptions",
+      "arquivo": "apps/web/src/operacao/api/painel.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:499"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "consultaDasRedes",
+      "para": "dasRedesQueryOptions",
+      "arquivo": "apps/web/src/operacao/api/painel.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:500"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "CHAVE_DOS_ALUNOS_DA_TURMA",
+      "para": "ALUNOS_DA_TURMA_QUERY_KEY",
+      "arquivo": "apps/web/src/api/alunos-da-turma.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:506"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "CHAVE_DAS_MINHAS_ATIVIDADES",
+      "para": "MINHAS_ATIVIDADES_QUERY_KEY",
+      "arquivo": "apps/web/src/api/chaves-do-aluno.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:507"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "CHAVE_DA_PROVA",
+      "para": "PROVA_QUERY_KEY",
+      "arquivo": "apps/web/src/api/chaves-do-aluno.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:508"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "CHAVE_DO_MEU_DIAGNOSTICO",
+      "para": "MEU_DIAGNOSTICO_QUERY_KEY",
+      "arquivo": "apps/web/src/api/chaves-do-aluno.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:509"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "CHAVE_DA_CONVERSA_DO_TUTOR",
+      "para": "CONVERSA_DO_TUTOR_QUERY_KEY",
+      "arquivo": "apps/web/src/api/chaves-do-aluno.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:510"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "CHAVE_DA_MEMORIA_DO_TUTOR",
+      "para": "MEMORIA_DO_TUTOR_QUERY_KEY",
+      "arquivo": "apps/web/src/api/chaves-do-aluno.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:511"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "CHAVE_DAS_ATIVIDADES",
+      "para": "ATIVIDADES_QUERY_KEY",
+      "arquivo": "apps/web/src/api/chaves-do-professor.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:512"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "CHAVE_DA_CORRECAO",
+      "para": "CORRECAO_QUERY_KEY",
+      "arquivo": "apps/web/src/api/chaves-do-professor.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:513"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "CHAVE_DO_DESEMPENHO",
+      "para": "DESEMPENHO_QUERY_KEY",
+      "arquivo": "apps/web/src/api/chaves-do-professor.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:514"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "CHAVE_DOS_SINAIS",
+      "para": "SINAIS_QUERY_KEY",
+      "arquivo": "apps/web/src/api/chaves-do-professor.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:515"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "CHAVE_DO_USO_DO_TUTOR",
+      "para": "USO_DO_TUTOR_QUERY_KEY",
+      "arquivo": "apps/web/src/api/chaves-do-professor.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:516"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "CHAVE_DO_TIME",
+      "para": "TIME_QUERY_KEY",
+      "arquivo": "apps/web/src/api/chaves-do-professor.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:517"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "CHAVE_DA_CONVERSA",
+      "para": "CONVERSA_QUERY_KEY",
+      "arquivo": "apps/web/src/api/chaves-do-professor.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:518"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "CHAVE_DOS_ARTEFATOS",
+      "para": "ARTEFATOS_QUERY_KEY",
+      "arquivo": "apps/web/src/api/chaves-do-professor.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:519"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "CHAVE_DAS_ENTREGAS",
+      "para": "ENTREGAS_QUERY_KEY",
+      "arquivo": "apps/web/src/api/chaves-do-professor.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:520"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "CHAVE_DAS_EXECUCOES",
+      "para": "EXECUCOES_QUERY_KEY",
+      "arquivo": "apps/web/src/api/chaves-do-professor.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:521"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "CHAVE_DA_ESTRUTURA",
+      "para": "ESTRUTURA_QUERY_KEY",
+      "arquivo": "apps/web/src/api/estrutura.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:522"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "CHAVE_DE_MEUS_DADOS",
+      "para": "MEUS_DADOS_QUERY_KEY",
+      "arquivo": "apps/web/src/api/meus-dados.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:523"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "CHAVE_DA_GOVERNANCA",
+      "para": "GOVERNANCA_QUERY_KEY",
+      "arquivo": "apps/web/src/areas/coordenacao/governanca/api/governanca.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:524"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "CHAVE_DO_ANALISTA",
+      "para": "ANALISTA_QUERY_KEY",
+      "arquivo": "apps/web/src/areas/coordenacao/governanca/api/governanca.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:525"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "CHAVE_DO_MATERIAL",
+      "para": "MATERIAL_QUERY_KEY",
+      "arquivo": "apps/web/src/areas/coordenacao/material/api/material.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:526"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "CHAVE_DA_PRIVACIDADE",
+      "para": "PRIVACIDADE_QUERY_KEY",
+      "arquivo": "apps/web/src/areas/coordenacao/privacidade/api/privacidade.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:527"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "CHAVE_DAS_ESCOLAS",
+      "para": "ESCOLAS_QUERY_KEY",
+      "arquivo": "apps/web/src/operacao/api/painel.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:530"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "CHAVE_DAS_REDES",
+      "para": "REDES_QUERY_KEY",
+      "arquivo": "apps/web/src/operacao/api/painel.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:531"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "CHAVE_DO_USO",
+      "para": "USO_QUERY_KEY",
+      "arquivo": "apps/web/src/operacao/api/painel.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:532"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "consultaDoResumoDoEstado",
+      "para": "resumoDoEstadoQueryOptions",
+      "arquivo": "apps/web/src/areas/coordenacao/governanca/api/governanca.ts",
+      "linhaDoAnexo": "inventario-adenda-2.md:74"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "LinhaDaCategoria",
+      "para": "CategoriaRow",
+      "arquivo": "apps/web/src/areas/coordenacao/privacidade/Retencao.tsx",
+      "linhaDoAnexo": "inventario-adenda-2.md:75"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "LinhaDoPrazoFixo",
+      "para": "PrazoFixoRow",
+      "arquivo": "apps/web/src/areas/coordenacao/privacidade/Retencao.tsx",
+      "linhaDoAnexo": "inventario-adenda-2.md:76"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "OpcoesDaDescricao",
+      "para": "DescricaoOptions",
+      "arquivo": "apps/web/src/areas/professor/ferramentas/ferramentas.ts",
+      "linhaDoAnexo": "inventario-adenda-2.md:77"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "LinhaDeAluno",
+      "para": "AlunoRow",
+      "arquivo": "apps/web/src/areas/professor/turmas/alunos-da-turma.ts",
+      "linhaDoAnexo": "inventario-adenda-2.md:78"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "LinhaDoResumo",
+      "para": "ResumoRow",
+      "arquivo": "apps/web/src/components/meus-dados/regras.ts",
+      "linhaDoAnexo": "inventario-adenda-2.md:79"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "LinhaDaTipografia",
+      "para": "TipografiaRow",
+      "arquivo": "apps/web/src/estilos.test.ts",
+      "linhaDoAnexo": "inventario-adenda-2.md:83"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "OpcoesComSessaoDeOperador",
+      "para": "OperadorSessaoOptions",
+      "arquivo": "apps/web/src/operacao/api/sessao.ts",
+      "linhaDoAnexo": "inventario-adenda-2.md:84"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "OpcoesDoReenvio",
+      "para": "ReenvioOptions",
+      "arquivo": "apps/web/src/pages/retry-with-backoff.ts",
+      "linhaDoAnexo": "inventario-adenda-2.md:85"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "chamarComSessaoDeOperador",
+      "para": "operadorAuthedRequest",
+      "arquivo": "apps/web/src/operacao/api/sessao.ts",
+      "linhaDoAnexo": "inventario-adenda-4.md:20"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "CHAVE_DO_ACESSO",
+      "para": "ACESSO_QUERY_KEY",
+      "arquivo": "apps/web/src/areas/professor/turmas/api/acesso.ts",
+      "linhaDoAnexo": "inventario-adenda-4.md:21"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "CHAVE_DOS_PEDIDOS",
+      "para": "PEDIDOS_QUERY_KEY",
+      "arquivo": "apps/web/src/api/pedidos.ts",
+      "linhaDoAnexo": "inventario-adenda-4.md:22"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "CHAVE_DA_CONTAGEM_DE_PEDIDOS",
+      "para": "CONTAGEM_DE_PEDIDOS_QUERY_KEY",
+      "arquivo": "apps/web/src/api/pedidos.ts",
+      "linhaDoAnexo": "inventario-adenda-4.md:23"
+    }
+  ],
+  "ocorrencias": [
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "de": "apps/web/src/components/states/EstadoVazio.tsx",
+      "classe": "trava",
+      "linha": "travas.md:101",
+      "trecho": "states/EstadoVazio.tsx"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "de": "EstadoVazio",
+      "classe": "trava",
+      "linha": "travas.md:101",
+      "trecho": "states/EstadoVazio.tsx"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "de": "LoginPorCima",
+      "classe": "trava",
+      "linha": "travas.md:101",
+      "trecho": "LoginPorCima.tsx"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "de": "apps/web/src/components/states/EstadoCarregando.tsx",
+      "classe": "trava",
+      "linha": "travas.md:101",
+      "trecho": "states/EstadoCarregando.tsx"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "de": "EstadoCarregando",
+      "classe": "trava",
+      "linha": "travas.md:101",
+      "trecho": "states/EstadoCarregando.tsx"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "de": "apps/web/src/components/states/EstadoErro.tsx",
+      "classe": "trava",
+      "linha": "travas.md:101",
+      "trecho": "states/EstadoErro.tsx"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "de": "EstadoErro",
+      "classe": "trava",
+      "linha": "travas.md:101",
+      "trecho": "states/EstadoErro.tsx"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "de": "TamanhoDaLetra",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555",
+      "trecho": "/repo/apps/web/src/components/settings/TamanhoDaLetra.tsx"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "de": "TamanhoDaLetra",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555",
+      "trecho": "/repo/apps/web/src/components/TamanhoDaLetra.tsx"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.ts",
+      "de": "TamanhoDaLetra",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555",
+      "trecho": "settings/TamanhoDaLetra"
+    },
+    {
+      "arquivo": "apps/web/src/api/client.test.ts",
+      "de": "buscarDaApi",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:9"
+    },
+    {
+      "arquivo": "apps/web/src/api/client.test.ts",
+      "de": "chamarApi",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:9"
+    },
+    {
+      "arquivo": "apps/web/src/api/client.test.ts",
+      "de": "mensagemDoErro",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:9"
+    },
+    {
+      "arquivo": "apps/web/src/api/client.test.ts",
+      "de": "deveTentarDeNovo",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:9"
+    },
+    {
+      "arquivo": "apps/web/src/api/client.ts",
+      "de": "ErroDaApi",
+      "classe": "trava",
+      "linha": "travas.md:189",
+      "trecho": "ErroDaApi"
+    },
+    {
+      "arquivo": "apps/web/src/api/eu.test.ts",
+      "de": "ErroDaApi",
+      "classe": "trava",
+      "linha": "travas.md:189",
+      "trecho": "ErroDaApi"
+    },
+    {
+      "arquivo": "apps/web/src/areas/aluno/DialogoDeAjustes.tsx",
+      "de": "Aparencia",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555"
+    },
+    {
+      "arquivo": "apps/web/src/areas/aluno/DialogoDeAjustes.tsx",
+      "de": "TamanhoDaLetra",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555"
+    },
+    {
+      "arquivo": "apps/web/src/areas/aluno/introducao/BemVindo.tsx",
+      "de": "TamanhoDaLetra",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555"
+    },
+    {
+      "arquivo": "apps/web/src/areas/coordenacao/introducao/BemVindo.test.tsx",
+      "de": "NAVEGACAO",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:9"
+    },
+    {
+      "arquivo": "apps/web/src/areas/professor/assistente/Conversa.test.tsx",
+      "de": "Tema",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555"
+    },
+    {
+      "arquivo": "apps/web/src/areas/professor/ferramentas/CartaoDeFerramenta.test.tsx",
+      "de": "Tema",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555"
+    },
+    {
+      "arquivo": "apps/web/src/areas/professor/ferramentas/Ferramenta.test.tsx",
+      "de": "Tema",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555"
+    },
+    {
+      "arquivo": "apps/web/src/areas/professor/ferramentas/ferramentas.ts",
+      "de": "Tema",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555"
+    },
+    {
+      "arquivo": "apps/web/src/areas/professor/introducao/BemVindo.test.tsx",
+      "de": "NAVEGACAO",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:9"
+    },
+    {
+      "arquivo": "apps/web/src/components/Aparencia.test.tsx",
+      "de": "Aparencia",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555"
+    },
+    {
+      "arquivo": "apps/web/src/components/MenuDaPessoa.tsx",
+      "de": "Aparencia",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555"
+    },
+    {
+      "arquivo": "apps/web/src/components/casca-sem-import.test.ts",
+      "de": "Aparencia",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555"
+    },
+    {
+      "arquivo": "apps/web/src/components/download-from-url.test.ts",
+      "de": "baixarPorUrl",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:9"
+    },
+    {
+      "arquivo": "apps/web/src/components/introducao/ScrollArea.test.tsx",
+      "de": "RegiaoQueRola",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:9"
+    },
+    {
+      "arquivo": "apps/web/src/components/perigo-cheio.test.ts",
+      "de": "ConfirmacaoDePerigo",
+      "classe": "trava",
+      "linha": "travas.md:140",
+      "trecho": "ConfirmacaoDePerigo"
+    },
+    {
+      "arquivo": "apps/web/src/components/settings/TamanhoDaLetra.test.tsx",
+      "de": "TamanhoDaLetra",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555"
+    },
+    {
+      "arquivo": "apps/web/src/components/states/estados.test.tsx",
+      "de": "EstadoErro",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:9",
+      "trecho": "EstadoErro"
+    },
+    {
+      "arquivo": "apps/web/src/components/states/estados.test.tsx",
+      "de": "ErroDaApi",
+      "classe": "trava",
+      "linha": "travas.md:190",
+      "trecho": "ErroDaApi/"
+    },
+    {
+      "arquivo": "apps/web/src/components/states/estados.test.tsx",
+      "de": "EstadoCarregando",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:9",
+      "trecho": "EstadoCarregando"
+    },
+    {
+      "arquivo": "apps/web/src/components/states/estados.test.tsx",
+      "de": "EstadoVazio",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:9",
+      "trecho": "EstadoVazio"
+    },
+    {
+      "arquivo": "apps/web/src/components/states/estados.test.tsx",
+      "de": "EstadoCarregando",
+      "classe": "trava",
+      "linha": "travas.md:188",
+      "trecho": "EstadoCarregando.tsx"
+    },
+    {
+      "arquivo": "apps/web/src/components/states/estados.test.tsx",
+      "de": "EstadoErro",
+      "classe": "trava",
+      "linha": "travas.md:188",
+      "trecho": "EstadoErro.tsx"
+    },
+    {
+      "arquivo": "apps/web/src/components/states/estados.test.tsx",
+      "de": "EstadoVazio",
+      "classe": "trava",
+      "linha": "travas.md:188",
+      "trecho": "EstadoVazio.tsx"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/ListItem.test.tsx",
+      "de": "Linha",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:9"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/ai/schema-form.test.ts",
+      "de": "Tema",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555"
+    },
+    {
+      "arquivo": "apps/web/src/estilos.test.ts",
+      "de": "apps/web/src/components/CodigoQr.tsx",
+      "classe": "trava",
+      "linha": "travas.md:140",
+      "trecho": "components/CodigoQr.tsx"
+    },
+    {
+      "arquivo": "apps/web/src/estilos.test.ts",
+      "de": "CodigoQr",
+      "classe": "trava",
+      "linha": "travas.md:140",
+      "trecho": "components/CodigoQr.tsx"
+    },
+    {
+      "arquivo": "apps/web/src/gallery/Gallery.tsx",
+      "de": "Aparencia",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555"
+    },
+    {
+      "arquivo": "apps/web/src/gallery/sections/ai.tsx",
+      "de": "Tema",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555"
+    },
+    {
+      "arquivo": "apps/web/src/gallery/sections/text-size.tsx",
+      "de": "TamanhoDaLetra",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555"
+    },
+    {
+      "arquivo": "apps/web/src/operacao/components/CascaDaOperacao.tsx",
+      "de": "Aparencia",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555"
+    },
+    {
+      "arquivo": "apps/web/src/paths.test.ts",
+      "de": "ROTAS",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:9"
+    },
+    {
+      "arquivo": "apps/web/src/text-size.test.ts",
+      "de": "useTamanhoDaLetra",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:9"
+    },
+    {
+      "arquivo": "apps/web/src/theme.test.ts",
+      "de": "resolverTema",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:9"
+    },
+    {
+      "arquivo": "apps/web/src/theme.test.ts",
+      "de": "iniciarTema",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:9"
+    },
+    {
+      "arquivo": "e2e/a2-assistente.spec.ts",
+      "de": "Tema",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555"
+    },
+    {
+      "arquivo": "e2e/components-ai.spec.ts",
+      "de": "Tema",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555"
+    },
+    {
+      "arquivo": "e2e/professor-conversa.spec.ts",
+      "de": "Tema",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555"
+    },
+    {
+      "arquivo": "e2e/professor-ferramentas.spec.ts",
+      "de": "Tema",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555"
+    },
+    {
+      "arquivo": "e2e/professor-inicio.spec.ts",
+      "de": "Tema",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555"
+    },
+    {
+      "arquivo": "e2e/support/professor-flow.ts",
+      "de": "Tema",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555"
+    },
+    {
+      "arquivo": "eslint-suppressions.json",
+      "de": "apps/web/src/components/LoginPorCima.tsx",
+      "classe": "trava",
+      "linha": "travas.md:95",
+      "trecho": "\"apps/web/src/components/LoginPorCima.tsx\": {"
+    },
+    {
+      "arquivo": "eslint-suppressions.json",
+      "de": "LoginPorCima",
+      "classe": "trava",
+      "linha": "travas.md:95",
+      "trecho": "\"apps/web/src/components/LoginPorCima.tsx\": {"
+    },
+    {
+      "arquivo": "tools/ci/duracao-do-e2e.test.ts",
+      "de": "semComentarios",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555"
+    },
+    {
+      "arquivo": "apps/api/src/assistente/assistente.int.test.ts",
+      "de": "semComentarios",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555"
+    },
+    {
+      "arquivo": "apps/api/test/architecture.test.ts",
+      "de": "semComentarios",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555"
+    },
+    {
+      "arquivo": "apps/api/test/eliminacao-agendada.int.test.ts",
+      "de": "tokenDe",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555"
+    },
+    {
+      "arquivo": "apps/api/test/input-boundary-late-modules.int.test.ts",
+      "de": "ROTAS",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555"
+    },
+    {
+      "arquivo": "apps/api/test/input-boundary.int.test.ts",
+      "de": "ROTAS",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555"
+    },
+    {
+      "arquivo": "apps/web/src/__fixtures__/class-colors.ts",
+      "de": "Tema",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555"
+    },
+    {
+      "arquivo": "apps/web/src/api/etapas-do-login.test.ts",
+      "de": "RespostaFalsa",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555"
+    },
+    {
+      "arquivo": "apps/web/src/api/sessao.test.ts",
+      "de": "RespostaFalsa",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555"
+    },
+    {
+      "arquivo": "apps/web/src/api/sessao.test.ts",
+      "de": "tokenDe",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555"
+    },
+    {
+      "arquivo": "apps/web/src/areas/professor/atividades/aprovar.ts",
+      "de": "LinhaDoResumo",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555"
+    },
+    {
+      "arquivo": "apps/web/src/areas/professor/turmas/acesso/ConvidarAlunos.test.tsx",
+      "de": "SEM_CORPO",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555"
+    },
+    {
+      "arquivo": "apps/web/src/components/AreaErrorBoundary.tsx",
+      "de": "Falha",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555"
+    },
+    {
+      "arquivo": "apps/web/src/components/DialogoDoConvite.tsx",
+      "de": "Moldura",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555"
+    },
+    {
+      "arquivo": "apps/web/src/components/DialogoDoConvite.tsx",
+      "de": "textoDaFalha",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555"
+    },
+    {
+      "arquivo": "apps/web/src/components/casca-sem-import.test.ts",
+      "de": "semComentarios",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/button-variants.test.ts",
+      "de": "Tema",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/button-variants.test.ts",
+      "de": "tokenDe",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/overlays/ConfirmDialog.tsx",
+      "de": "LinhaDoResumo",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555"
+    },
+    {
+      "arquivo": "apps/web/src/contraste.test.ts",
+      "de": "Tema",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555"
+    },
+    {
+      "arquivo": "apps/web/src/estilos.test.ts",
+      "de": "Tema",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555"
+    },
+    {
+      "arquivo": "apps/web/src/operacao/__fixtures__/render-operacao-screen.tsx",
+      "de": "TOKEN_DE_TESTE",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555"
+    },
+    {
+      "arquivo": "apps/web/src/operacao/api/sessao.test.ts",
+      "de": "RespostaFalsa",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555"
+    },
+    {
+      "arquivo": "apps/web/src/operacao/components/CascaDaOperacao.tsx",
+      "de": "textoDaFalha",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555"
+    },
+    {
+      "arquivo": "apps/web/src/operacao/components/CascaDaOperacao.tsx",
+      "de": "ItemDaNavegacao",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555"
+    },
+    {
+      "arquivo": "apps/web/src/operacao/pages/Convite.tsx",
+      "de": "textoDaFalha",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555"
+    },
+    {
+      "arquivo": "apps/web/src/operacao/pages/Convite.tsx",
+      "de": "tokenDoFragmento",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555"
+    },
+    {
+      "arquivo": "apps/web/src/operacao/pages/Convite.tsx",
+      "de": "apagarFragmentoDaBarra",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555"
+    },
+    {
+      "arquivo": "apps/web/src/operacao/pages/NovaEscola.tsx",
+      "de": "textoDaFalha",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555"
+    },
+    {
+      "arquivo": "apps/web/src/operacao/pages/NovaRede.tsx",
+      "de": "textoDaFalha",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555"
+    },
+    {
+      "arquivo": "apps/web/src/operacao/textos.test.ts",
+      "de": "textoDaFalha",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555"
+    },
+    {
+      "arquivo": "apps/web/src/operacao/textos.ts",
+      "de": "textoDaFalha",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555"
+    },
+    {
+      "arquivo": "apps/web/src/routes.tsx",
+      "de": "BASE_DA_OPERACAO",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555"
+    },
+    {
+      "arquivo": "e2e/aluno-introducao.spec.ts",
+      "de": "CHAVE_DA_LETRA",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555"
+    },
+    {
+      "arquivo": "e2e/casca-publica.spec.ts",
+      "de": "corDoToken",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555"
+    },
+    {
+      "arquivo": "e2e/components-ai.spec.ts",
+      "de": "corDoToken",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555"
+    },
+    {
+      "arquivo": "e2e/components-brand-icons.spec.ts",
+      "de": "corDoToken",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555"
+    },
+    {
+      "arquivo": "e2e/components-brand-icons.spec.ts",
+      "de": "Tema",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555"
+    },
+    {
+      "arquivo": "e2e/components-brand-onca.spec.ts",
+      "de": "corDoToken",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555"
+    },
+    {
+      "arquivo": "e2e/components-brand-onca.spec.ts",
+      "de": "Tema",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555"
+    },
+    {
+      "arquivo": "e2e/components-fields.spec.ts",
+      "de": "Tema",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555"
+    },
+    {
+      "arquivo": "e2e/components-overlays.spec.ts",
+      "de": "corDoToken",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555"
+    },
+    {
+      "arquivo": "e2e/components-states.spec.ts",
+      "de": "Tema",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555"
+    },
+    {
+      "arquivo": "e2e/components-surfaces.spec.ts",
+      "de": "Tema",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555"
+    },
+    {
+      "arquivo": "e2e/inatividade.spec.ts",
+      "de": "corDoToken",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555"
+    },
+    {
+      "arquivo": "e2e/introducao-components.spec.ts",
+      "de": "Tema",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555"
+    },
+    {
+      "arquivo": "e2e/operacao.spec.ts",
+      "de": "corDoToken",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555"
+    },
+    {
+      "arquivo": "e2e/professores.spec.ts",
+      "de": "corDoToken",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555"
+    },
+    {
+      "arquivo": "e2e/support/aluno.ts",
+      "de": "ROTAS",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555"
+    },
+    {
+      "arquivo": "e2e/support/assistente.ts",
+      "de": "ROTAS",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555"
+    },
+    {
+      "arquivo": "e2e/tokens.spec.ts",
+      "de": "Tema",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555"
+    },
+    {
+      "arquivo": "e2e/troca-de-escola.spec.ts",
+      "de": "tokenDe",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555"
+    },
+    {
+      "arquivo": "infra/scripts/carga-sala.ts",
+      "de": "chamarApi",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555"
+    },
+    {
+      "arquivo": "packages/core/src/identidade/route-without-sessao.test.ts",
+      "de": "Rotas",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555"
+    },
+    {
+      "arquivo": "packages/core/src/identidade/route-without-sessao.test.ts",
+      "de": "RotasDaOperacao",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555"
+    },
+    {
+      "arquivo": "packages/core/src/identidade/sessao.guard.test.ts",
+      "de": "tokenDe",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555"
+    },
+    {
+      "arquivo": "tools/ci/duracao-do-e2e.ts",
+      "de": "semComentarios",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555"
+    },
+    {
+      "arquivo": "tools/guardas/__fixtures__/kit-importa-api.ts",
+      "de": "useInatividade",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555"
+    },
+    {
+      "arquivo": "tools/guardas/__fixtures__/kit-importa-api.ts",
+      "de": "ErroDaApi",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555"
+    },
+    {
+      "arquivo": "tools/processo/caducidade.ts",
+      "de": "semComentarios",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555"
+    },
+    {
+      "arquivo": "tools/testes/compose.ts",
+      "de": "ESPERA_ENTRE_TENTATIVAS_MS",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555"
+    },
+    {
+      "arquivo": "apps/web/src/components/MenuDaPessoa.test.tsx",
+      "de": "Aparencia",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555"
+    },
+    {
+      "arquivo": "apps/web/src/estilos.test.ts",
+      "de": "Aparencia",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555"
+    },
+    {
+      "arquivo": "apps/web/src/gallery/Gallery.test.tsx",
+      "de": "Aparencia",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555"
+    },
+    {
+      "arquivo": "apps/web/src/text-size.ts",
+      "de": "TamanhoDaLetra",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555"
+    },
+    {
+      "arquivo": "apps/web/src/theme.ts",
+      "de": "Aparencia",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555"
+    },
+    {
+      "arquivo": "e2e/aparencia.spec.ts",
+      "de": "Aparencia",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555"
+    },
+    {
+      "arquivo": "e2e/tamanho-da-letra.spec.ts",
+      "de": "TamanhoDaLetra",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555"
+    },
+    {
+      "arquivo": "e2e/tokens.spec.ts",
+      "de": "Aparencia",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:555"
+    }
+  ],
+  "excecoesDoConferir": [
+    {
+      "arquivo": "apps/web/src/components/states/estados.test.tsx",
+      "texto": "/INDISPONIVEL|503|ErroDaApi/",
+      "motivo": "a regex negativa acompanha o nome da classe, que a tela de erro não pode mostrar (travas.md:190)"
+    },
+    {
+      "arquivo": "apps/web/src/components/states/estados.test.tsx",
+      "texto": "/INDISPONIVEL|503|ApiError/",
+      "motivo": "a regex negativa acompanha o nome da classe, que a tela de erro não pode mostrar (travas.md:190)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "texto": "states/EstadoVazio.tsx",
+      "motivo": "o nome do arquivo movido (states/*, ReauthDialog) lido como texto pelo teste das peças da entrada (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "texto": "LoginPorCima.tsx",
+      "motivo": "o nome do arquivo movido (states/*, ReauthDialog) lido como texto pelo teste das peças da entrada (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "texto": "states/EstadoCarregando.tsx",
+      "motivo": "o nome do arquivo movido (states/*, ReauthDialog) lido como texto pelo teste das peças da entrada (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "texto": "states/EstadoErro.tsx",
+      "motivo": "o nome do arquivo movido (states/*, ReauthDialog) lido como texto pelo teste das peças da entrada (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "texto": "states/EmptyState.tsx",
+      "motivo": "o nome do arquivo movido (states/*, ReauthDialog) lido como texto pelo teste das peças da entrada (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "texto": "ReauthDialog.tsx",
+      "motivo": "o nome do arquivo movido (states/*, ReauthDialog) lido como texto pelo teste das peças da entrada (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "texto": "states/LoadingState.tsx",
+      "motivo": "o nome do arquivo movido (states/*, ReauthDialog) lido como texto pelo teste das peças da entrada (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "texto": "states/ErrorState.tsx",
+      "motivo": "o nome do arquivo movido (states/*, ReauthDialog) lido como texto pelo teste das peças da entrada (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/src/api/client.ts",
+      "texto": "ErroDaApi",
+      "motivo": "o this.name acompanha a classe (adenda 1; travas.md:189)"
+    },
+    {
+      "arquivo": "apps/web/src/api/client.ts",
+      "texto": "ApiError",
+      "motivo": "o this.name acompanha a classe (adenda 1; travas.md:189)"
+    },
+    {
+      "arquivo": "apps/web/src/api/eu.test.ts",
+      "texto": "ErroDaApi",
+      "motivo": "o name que o teste espera da rejeição acompanha a classe (adenda 1; travas.md:189)"
+    },
+    {
+      "arquivo": "apps/web/src/api/eu.test.ts",
+      "texto": "ApiError",
+      "motivo": "o name que o teste espera da rejeição acompanha a classe (adenda 1; travas.md:189)"
+    },
+    {
+      "arquivo": "apps/web/src/components/perigo-cheio.test.ts",
+      "texto": "o botão da `ConfirmacaoDePerigo`, que exclui",
+      "motivo": "a mensagem cita o componente pelo nome, que acompanha o componente (travas.md:140)"
+    },
+    {
+      "arquivo": "apps/web/src/components/perigo-cheio.test.ts",
+      "texto": "o `perigo` cheio só vive dentro de uma confirmação: use `ConfirmDialog` ou `ConfirmacaoDePerigo`",
+      "motivo": "a mensagem cita o componente pelo nome, que acompanha o componente (travas.md:140)"
+    },
+    {
+      "arquivo": "apps/web/src/components/perigo-cheio.test.ts",
+      "texto": "o botão da `DangerConfirmDialog`, que exclui",
+      "motivo": "a mensagem cita o componente pelo nome, que acompanha o componente (travas.md:140)"
+    },
+    {
+      "arquivo": "apps/web/src/components/perigo-cheio.test.ts",
+      "texto": "o `perigo` cheio só vive dentro de uma confirmação: use `ConfirmDialog` ou `DangerConfirmDialog`",
+      "motivo": "a mensagem cita o componente pelo nome, que acompanha o componente (travas.md:140)"
+    },
+    {
+      "arquivo": "apps/web/src/components/states/estados.test.tsx",
+      "texto": "EstadoCarregando.tsx",
+      "motivo": "o nome do arquivo movido, que o caso lê do disco (travas.md:188)"
+    },
+    {
+      "arquivo": "apps/web/src/components/states/estados.test.tsx",
+      "texto": "EstadoErro.tsx",
+      "motivo": "o nome do arquivo movido, que o caso lê do disco (travas.md:188)"
+    },
+    {
+      "arquivo": "apps/web/src/components/states/estados.test.tsx",
+      "texto": "EstadoVazio.tsx",
+      "motivo": "o nome do arquivo movido, que o caso lê do disco (travas.md:188)"
+    },
+    {
+      "arquivo": "apps/web/src/components/states/estados.test.tsx",
+      "texto": "LoadingState.tsx",
+      "motivo": "o nome do arquivo movido, que o caso lê do disco (travas.md:188)"
+    },
+    {
+      "arquivo": "apps/web/src/components/states/estados.test.tsx",
+      "texto": "ErrorState.tsx",
+      "motivo": "o nome do arquivo movido, que o caso lê do disco (travas.md:188)"
+    },
+    {
+      "arquivo": "apps/web/src/components/states/estados.test.tsx",
+      "texto": "EmptyState.tsx",
+      "motivo": "o nome do arquivo movido, que o caso lê do disco (travas.md:188)"
+    },
+    {
+      "arquivo": "apps/web/src/estilos.test.ts",
+      "texto": "components/CodigoQr.tsx",
+      "motivo": "o caminho do arquivo movido, lido como texto pela varredura (travas.md:140)"
+    },
+    {
+      "arquivo": "apps/web/src/estilos.test.ts",
+      "texto": "components/QrCode.tsx",
+      "motivo": "o caminho do arquivo movido, lido como texto pela varredura (travas.md:140)"
+    }
+  ]
+}

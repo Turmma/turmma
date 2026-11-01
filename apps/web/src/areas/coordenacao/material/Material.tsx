@@ -3,24 +3,24 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ChevronRight } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useLocation, useSearch } from 'wouter'
-import { mensagemDoErro } from '../../../api/client'
-import { consultaDisciplinas } from '../../../api/estrutura'
-import { consultaMateriais, excluirMaterial, type CamposDoEnvioDeMaterial } from './api/material'
+import { errorMessage } from '../../../api/client'
+import { disciplinasQueryOptions } from '../../../api/estrutura'
+import { materiaisQueryOptions, excluirMaterial, type CamposDoEnvioDeMaterial } from './api/material'
 import { aoTrocarDeSessao } from '../../../api/sessao'
-import { PARAMETRO_DO_MATERIAL } from '../../../paths'
+import { MATERIAL_PARAM } from '../../../paths'
 import { Button } from '../../../components/ui/Button'
 import { useDialogState } from '../../../components/ui/overlays/dialog-state'
 import { ConfirmDialog } from '../../../components/ui/overlays/ConfirmDialog'
-import { Anuncio, useEnvioUnico } from '../../../components/dialogs'
-import { EstadoCarregando, EstadoErro, EstadoVazio } from '../../../components/states/index'
+import { StatusAnnouncement, useSingleSubmit } from '../../../components/dialogs'
+import { LoadingState, ErrorState, EmptyState } from '../../../components/states/index'
 import { StatusBadge } from '../../../components/ui/StatusBadge'
 import { Table, type TableColumn } from '../../../components/ui/Table'
-import { textoDaFalha } from '../../../components/error-text'
+import { errorText } from '../../../components/error-text'
 import { DialogoDeEnvioDeMaterial } from './DialogoDeEnvioDeMaterial'
 import { enderecoComParametro } from '../comum/endereco-da-tela'
 import { RASCUNHO_VAZIO, TEXTO_DA_RECUSA, TEXTOS_DA_FALHA_DA_EXCLUSAO } from './material-envio'
 import { FAMILIA_DA_SITUACAO_DO_MATERIAL, linhasDosMateriais, materialDoEndereco, nomeDaLicenca, rascunhoDoMaterialQueFalhou, textoDaSituacaoDaRecusa, textoDaSituacaoDoMaterial, type LinhaDoMaterial, type RecusaDeEnvio } from './materiais-da-escola'
-import { useFocarOTituloDaMoldura } from '../comum/moldura'
+import { useFocusPageHeading } from '../comum/moldura'
 import { AvisoDeListaIncompleta, CLASSES_DO_BOTAO_DA_LINHA } from '../comum/pecas-da-lista'
 import { PainelDoMaterial } from './PainelDoMaterial'
 
@@ -85,7 +85,7 @@ function colunasDosMateriais(
  *   escola não tem não abre nada (regra 10, item 6).
  * - **Sem licença, ou sem a declaração, o envio é recusado** (`DialogoDeEnvioDeMaterial`): a recusa não vira material. Ela vive só nesta
  *   tela, como uma linha "Envio recusado" na tabela, até a pessoa dispensá-la ou sair.
- * - A lista é do TanStack Query, e se relê sozinha **só enquanto houver material `processando`** (`consultaMateriais`).
+ * - A lista é do TanStack Query, e se relê sozinha **só enquanto houver material `processando`** (`materiaisQueryOptions`).
  *
  * Os quatro estados: carregando; erro com "Tentar de novo"; vazio, que convida a enviar o primeiro material; e com dado.
  */
@@ -93,8 +93,8 @@ export default function Material() {
   const cliente = useQueryClient()
   const [caminho, navegar] = useLocation()
   const busca = useSearch()
-  const materiais = useQuery(consultaMateriais)
-  const disciplinas = useQuery(consultaDisciplinas)
+  const materiais = useQuery(materiaisQueryOptions)
+  const disciplinas = useQuery(disciplinasQueryOptions)
   const dialogo = useDialogState<TipoDeDialogo, MaterialDaEscola>()
   const aberta = dialogo.aberta
   const alvo = aberta?.alvo
@@ -103,14 +103,14 @@ export default function Material() {
   const [recusas, definirRecusas] = useState<readonly RecusaDeEnvio[]>([])
   const [anuncio, definirAnuncio] = useState('')
   const ultimaRecusa = useRef(0)
-  const focarOTituloDaMoldura = useFocarOTituloDaMoldura()
+  const focarOTituloDaMoldura = useFocusPageHeading()
   const tituloDaLista = useRef<HTMLHeadingElement>(null)
 
   const lista = materiais.data
   const doPainel = lista === undefined ? undefined : materialDoEndereco(busca, lista.itens)
   const painelAberto = doPainel !== undefined
 
-  const recarregar = useCallback(() => cliente.invalidateQueries({ queryKey: consultaMateriais.queryKey }), [cliente])
+  const recarregar = useCallback(() => cliente.invalidateQueries({ queryKey: materiaisQueryOptions.queryKey }), [cliente])
   // O foco quando o botão que abriu o diálogo ou o painel saiu da tela: o "Enviar material" do vazio, a linha do material excluído.
   // Sem a lista na tela (a releitura caiu com ela ainda vazia), vai para o título da tela, e não para o `body`.
   const focarNaLista = useCallback(() => (tituloDaLista.current === null ? focarOTituloDaMoldura() : tituloDaLista.current.focus()), [focarOTituloDaMoldura])
@@ -134,11 +134,11 @@ export default function Material() {
     }
   }, [painelAberto])
 
-  const abrirPainel = (materialId: string): void => navegar(enderecoComParametro(caminho, busca, PARAMETRO_DO_MATERIAL, materialId))
-  const fecharPainel = (): void => navegar(enderecoComParametro(caminho, busca, PARAMETRO_DO_MATERIAL, undefined), { replace: true })
+  const abrirPainel = (materialId: string): void => navegar(enderecoComParametro(caminho, busca, MATERIAL_PARAM, materialId))
+  const fecharPainel = (): void => navegar(enderecoComParametro(caminho, busca, MATERIAL_PARAM, undefined), { replace: true })
   /** O material saiu da lista (excluído, ou trocado pelo envio novo): o endereço que o abria deixa de apontar para ele. */
   const tirarDoEndereco = (materialId: string): void => {
-    if (new URLSearchParams(busca).get(PARAMETRO_DO_MATERIAL) === materialId) fecharPainel()
+    if (new URLSearchParams(busca).get(MATERIAL_PARAM) === materialId) fecharPainel()
   }
 
   /** Abrir um diálogo apaga o anúncio da ação anterior: o que ele dizia já não é o que a pessoa está fazendo. */
@@ -148,7 +148,7 @@ export default function Material() {
   }
 
   const erroDaLeitura = (
-    <EstadoErro
+    <ErrorState
       erro={materiais.error ?? disciplinas.error}
       tentando={materiais.isFetching || disciplinas.isFetching}
       aoTentarDeNovo={() => {
@@ -173,7 +173,7 @@ export default function Material() {
   return (
     <section className="flex min-w-0 flex-col gap-6" aria-label="Materiais da escola">
       {materiais.isPending || disciplinas.isPending ? (
-        <EstadoCarregando rotulo="Carregando os materiais…" />
+        <LoadingState rotulo="Carregando os materiais…" />
       ) : lista === undefined || dasDisciplinas === undefined ? (
         erroDaLeitura
       ) : semNada ? (
@@ -181,7 +181,7 @@ export default function Material() {
         materiais.isError ? (
           erroDaLeitura
         ) : (
-          <EstadoVazio
+          <EmptyState
             titulo="Nenhum material ainda"
             descricao="Envie o primeiro PDF da escola, com a licença declarada. É dele que o Assistente e o Tutor tiram as atividades e as explicações, sempre citando a página."
             acao={{ rotulo: 'Enviar material', aoAcionar: () => abrir('enviar') }}
@@ -202,7 +202,7 @@ export default function Material() {
           {materiais.isError && (
             <div className="flex min-w-0 flex-wrap items-center gap-3 rounded-cartao border border-erro bg-erro-cx p-4">
               <p role="alert" className="min-w-0 flex-1 basis-56 break-words text-erro">
-                {mensagemDoErro(materiais.error)}
+                {errorMessage(materiais.error)}
               </p>
               <Button variante="secundario" onClick={() => void materiais.refetch({ cancelRefetch: false })}>
                 Tentar de novo
@@ -221,7 +221,7 @@ export default function Material() {
           <AvisoDeListaIncompleta completa={lista.completa} />
         </>
       )}
-      <Anuncio texto={anuncio} />
+      <StatusAnnouncement texto={anuncio} />
       <span role="status" className="sr-only">
         {emLeitura === 0 ? '' : emLeitura === 1 ? 'Um material está sendo lido.' : `${String(emLeitura)} materiais estão sendo lidos.`}
       </span>
@@ -286,7 +286,7 @@ interface PropsDoExcluir {
 
 /** A confirmação de excluir: diz o que acontece com o que já foi gerado e com a busca, antes de confirmar. */
 function ExcluirMaterial({ material, disciplina, aoFechar, aoTerminar, aoExcluir, focoDeReserva }: PropsDoExcluir) {
-  const { enviar, mutacao } = useEnvioUnico({
+  const { enviar, mutacao } = useSingleSubmit({
     mutationFn: (): Promise<void> => excluirMaterial(material.id),
     onSuccess: async () => {
       await aoTerminar()
@@ -309,7 +309,7 @@ function ExcluirMaterial({ material, disciplina, aoFechar, aoTerminar, aoExcluir
       aoConfirmar={() => enviar(undefined)}
       aoFechar={aoFechar}
       confirmando={mutacao.isPending}
-      {...(mutacao.isError ? { falha: textoDaFalha(mutacao.error, TEXTOS_DA_FALHA_DA_EXCLUSAO) } : {})}
+      {...(mutacao.isError ? { falha: errorText(mutacao.error, TEXTOS_DA_FALHA_DA_EXCLUSAO) } : {})}
       focoDeReserva={focoDeReserva}
     />
   )

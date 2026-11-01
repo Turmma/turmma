@@ -1,7 +1,7 @@
 import { ErrorCode, formatarEspera, MENSAGENS_DE_ERRO, mensagemDaEntrada, mensagemDoSegundoFator, type TipoDeRede } from '@educa/shared'
-import { ErroDaApi } from '../api/client'
+import { ApiError } from '../api/client'
 import type { FalhaDoConvite } from '../components/DialogoDoConvite'
-import { textoDaFalha as textoDaFalhaPeloCodigo } from '../components/error-text'
+import { errorText as textoDaFalhaPeloCodigo } from '../components/error-text'
 import { TEXTO_DO_CONVITE_QUE_MUDOU, TEXTO_DO_CONVITE_QUE_NAO_VALE } from '../components/textos-do-convite'
 
 /**
@@ -30,7 +30,7 @@ export const TEXTO_DA_SAIDA_NAO_CONFIRMADA =
 
 /** O código da falha, ou erro interno para o que não veio da API. */
 function codigoDe(erro: unknown): ErrorCode {
-  return erro instanceof ErroDaApi ? erro.codigo : ErrorCode.ERRO_INTERNO
+  return erro instanceof ApiError ? erro.codigo : ErrorCode.ERRO_INTERNO
 }
 
 /**
@@ -50,14 +50,14 @@ export function textoDoLimite(esperaSegundos: number | undefined): string {
 
 /**
  * O texto de uma falha numa tela com sessão: o 503 da operação, o 503 `TEMPO_ESGOTADO` e o 429 têm o texto deles; o
- * resto, o do catálogo, pela mesma função das telas da escola (`components/error-text.ts`). O 401 `SESSAO_ENCERRADA` não chega a aparecer aqui: `chamarComSessaoDeOperador` já levou a aba à
+ * resto, o do catálogo, pela mesma função das telas da escola (`components/error-text.ts`). O 401 `SESSAO_ENCERRADA` não chega a aparecer aqui: `operadorAuthedRequest` já levou a aba à
  * entrada, com a mensagem de sessão encerrada.
  */
 export function textoDaFalha(erro: unknown): string {
   return textoDaFalhaPeloCodigo(erro, {
     [ErrorCode.INDISPONIVEL_TENTE_DE_NOVO]: TEXTO_DA_OPERACAO_INDISPONIVEL,
     [ErrorCode.TEMPO_ESGOTADO]: TEXTO_DO_TEMPO_ESGOTADO,
-    [ErrorCode.LIMITE_EXCEDIDO]: textoDoLimite(erro instanceof ErroDaApi ? erro.esperaSegundos : undefined),
+    [ErrorCode.LIMITE_EXCEDIDO]: textoDoLimite(erro instanceof ApiError ? erro.esperaSegundos : undefined),
   })
 }
 
@@ -101,7 +101,7 @@ export const TEXTO_DA_ESCOLA_QUE_NAO_EXISTE = 'Essa escola não foi encontrada. 
 /**
  * O texto de uma falha de gerar, refazer ou revogar (cenário W10): `CONFLITO` e `NAO_ENCONTRADO` têm o texto de cada
  * ação (os do refazer e do revogar, em `components/textos-do-convite.ts`, com a escola) e mandam recarregar a lista; o
- * resto (429, 503, 503 `TEMPO_ESGOTADO`) é o de `textoDaFalha`, e o mesmo botão tenta de novo. Nenhum texto diz o código.
+ * resto (429, 503, 503 `TEMPO_ESGOTADO`) é o de `errorText`, e o mesmo botão tenta de novo. Nenhum texto diz o código.
  */
 export function falhaDoConvite(acao: 'gerar' | 'refazer' | 'revogar', erro: unknown): FalhaDoConvite {
   const codigo = codigoDe(erro)
@@ -140,14 +140,14 @@ export const TEXTO_SEM_REDE = 'Crie a rede primeiro. A escola pertence a uma red
 export function textoDaFalhaDaEntrada(erro: unknown): string {
   const codigo = codigoDe(erro)
   if (codigo === ErrorCode.INDISPONIVEL_TENTE_DE_NOVO) return TEXTO_DA_OPERACAO_INDISPONIVEL
-  return mensagemDaEntrada(codigo, erro instanceof ErroDaApi ? erro.esperaSegundos : undefined)
+  return mensagemDaEntrada(codigo, erro instanceof ApiError ? erro.esperaSegundos : undefined)
 }
 
 /** O texto de uma falha do segundo fator que deixa a pessoa na tela (formato do código, 503). */
 export function textoDaFalhaDoSegundoFator(erro: unknown): string {
   const codigo = codigoDe(erro)
   if (codigo === ErrorCode.INDISPONIVEL_TENTE_DE_NOVO) return TEXTO_DA_OPERACAO_INDISPONIVEL
-  return mensagemDoSegundoFator(codigo, erro instanceof ErroDaApi ? erro.esperaSegundos : undefined)
+  return mensagemDoSegundoFator(codigo, erro instanceof ApiError ? erro.esperaSegundos : undefined)
 }
 
 /**

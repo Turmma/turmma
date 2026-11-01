@@ -1,7 +1,7 @@
 import { lazy, Suspense } from 'react'
 import { Route, Switch } from 'wouter'
-import { ROTAS_DO_PROFESSOR } from '../../paths'
-import { ConteudoNaoEncontrado } from '../../components/NotFound'
+import { PROFESSOR_ROUTES } from '../../paths'
+import { NotFoundContent } from '../../components/NotFound'
 
 /**
  * As telas do Assistente de ensino (A2), cada uma no pedaço dela (`tela-professor-<Tela>-*.js`), que só se baixa ao
@@ -52,31 +52,31 @@ export default function RotasDoProfessor() {
         <SinoDoProfessor />
       </Suspense>
       <Switch>
-        <Route path={ROTAS_DO_PROFESSOR.novaConversa} component={Home} />
-        <Route path={ROTAS_DO_PROFESSOR.conversa} component={Conversa} />
-        <Route path={ROTAS_DO_PROFESSOR.ferramentas} component={Ferramentas} />
-        <Route path={ROTAS_DO_PROFESSOR.criados} component={Criados} />
+        <Route path={PROFESSOR_ROUTES.novaConversa} component={Home} />
+        <Route path={PROFESSOR_ROUTES.conversa} component={Conversa} />
+        <Route path={PROFESSOR_ROUTES.ferramentas} component={Ferramentas} />
+        <Route path={PROFESSOR_ROUTES.criados} component={Criados} />
         {/* A `key` pela ferramenta: outra ferramenta é outro formulário, e não o anterior com os valores dele. */}
-        <Route path={ROTAS_DO_PROFESSOR.ferramenta}>{(parametros) => <Ferramenta key={parametros.ferramenta} ferramenta={parametros.ferramenta} />}</Route>
+        <Route path={PROFESSOR_ROUTES.ferramenta}>{(parametros) => <Ferramenta key={parametros.ferramenta} ferramenta={parametros.ferramenta} />}</Route>
         {/* A `key` pelo artefato: ir de uma versão adaptada à atividade de origem é abrir outra tela, sem o renomear da anterior. */}
-        <Route path={ROTAS_DO_PROFESSOR.artefato}>{(parametros) => <Artefato key={parametros.artefatoId} artefatoId={parametros.artefatoId} />}</Route>
-        <Route path={ROTAS_DO_PROFESSOR.timeDoAssistente} component={Time} />
-        <Route path={ROTAS_DO_PROFESSOR.timeDoTutor} component={Tutor} />
+        <Route path={PROFESSOR_ROUTES.artefato}>{(parametros) => <Artefato key={parametros.artefatoId} artefatoId={parametros.artefatoId} />}</Route>
+        <Route path={PROFESSOR_ROUTES.timeDoAssistente} component={Time} />
+        <Route path={PROFESSOR_ROUTES.timeDoTutor} component={Tutor} />
         {/* A `key` pela atividade: outra correção é outra tela, sem os destaques abertos nem o diálogo da anterior. */}
-        <Route path={ROTAS_DO_PROFESSOR.aprovar}>{(parametros) => <Aprovar key={parametros.atividadeAplicadaId} atividadeAplicadaId={parametros.atividadeAplicadaId} />}</Route>
-        <Route path={ROTAS_DO_PROFESSOR.turmas} component={Turmas} />
-        <Route path={ROTAS_DO_PROFESSOR.bemVindo} component={BemVindo} />
+        <Route path={PROFESSOR_ROUTES.aprovar}>{(parametros) => <Aprovar key={parametros.atividadeAplicadaId} atividadeAplicadaId={parametros.atividadeAplicadaId} />}</Route>
+        <Route path={PROFESSOR_ROUTES.turmas} component={Turmas} />
+        <Route path={PROFESSOR_ROUTES.bemVindo} component={BemVindo} />
         {/* No menu da pessoa, e não na lista de seções: o link dele é o que fica selecionado, e nenhuma seção. */}
-        <Route path={ROTAS_DO_PROFESSOR.meusDados}>
+        <Route path={PROFESSOR_ROUTES.meusDados}>
           <MeusDados titulo="Meus dados" />
         </Route>
         {/*
           A `key` pela turma: outra turma é outra tela. Sem ela, ir de uma turma aberta para outra pelo histórico manteria
           o diálogo da anterior, com o link e o código dela, por cima da turma nova.
         */}
-        <Route path={ROTAS_DO_PROFESSOR.turma}>{(parametros) => <Turma key={parametros.turmaId} turmaId={parametros.turmaId} />}</Route>
+        <Route path={PROFESSOR_ROUTES.turma}>{(parametros) => <Turma key={parametros.turmaId} turmaId={parametros.turmaId} />}</Route>
         <Route>
-          <ConteudoNaoEncontrado />
+          <NotFoundContent />
         </Route>
       </Switch>
     </>

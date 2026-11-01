@@ -43,13 +43,13 @@ function responderCom(...respostas: RespostaFalsa[]): void {
   fila = [...respostas]
 }
 
-async function erroDe(promessa: Promise<unknown>): Promise<InstanceType<typeof cliente.ErroDaApi>> {
+async function erroDe(promessa: Promise<unknown>): Promise<InstanceType<typeof cliente.ApiError>> {
   const erro = await promessa.then(
     () => undefined,
     (motivo: unknown) => motivo,
   )
-  expect(erro).toBeInstanceOf(cliente.ErroDaApi)
-  return erro as InstanceType<typeof cliente.ErroDaApi>
+  expect(erro).toBeInstanceOf(cliente.ApiError)
+  return erro as InstanceType<typeof cliente.ApiError>
 }
 
 beforeEach(async () => {
@@ -409,7 +409,7 @@ describe('quem está na aba, para o login por cima da tela', () => {
       { status: 401, corpo: envelope(ErrorCode.NAO_AUTENTICADO) },
     )
     const esquema = { safeParse: (valor: unknown) => ({ success: true as const, data: valor }) }
-    await erroDe(sessao.buscarComSessao('/v1/eu', esquema))
+    await erroDe(sessao.authedGet('/v1/eu', esquema))
     expect(sessao.estadoDaSessao()).toBe('vencida')
     chamadas.length = 0
   }

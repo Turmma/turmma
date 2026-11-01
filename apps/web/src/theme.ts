@@ -7,15 +7,15 @@ import { useSyncExternalStore } from 'react'
  * **apaga** a chave, e o `localStorage` volta a ser o que era antes da escolha. É preferência do aparelho, sem pessoa,
  * escola nem papel (regra 50, item 7; RF24): o próximo aluno do mesmo computador a herda, e mais nada.
  *
- * Quem pinta o primeiro quadro é o `<script>` em linha do `index.html`, que repete a conta de `resolverTema` sem esperar o
+ * Quem pinta o primeiro quadro é o `<script>` em linha do `index.html`, que repete a conta de `resolveTheme` sem esperar o
  * pacote do React. O teste de `theme.test.ts` extrai aquele script do arquivo e o confere contra esta função, caso a caso.
  */
-export type Aparencia = 'sistema' | 'claro' | 'escuro'
+export type ThemePreference = 'sistema' | 'claro' | 'escuro'
 
 /** O tema que a tela pinta de fato: sempre um dos dois, nunca "sistema". */
-export type Tema = 'claro' | 'escuro'
+export type ResolvedTheme = 'claro' | 'escuro'
 
-export const CHAVE_DA_APARENCIA = 'educa.aparencia'
+export const THEME_STORAGE_KEY = 'educa.aparencia'
 
 const CONSULTA_DO_SISTEMA_ESCURO = '(prefers-color-scheme: dark)'
 
@@ -23,7 +23,7 @@ const CONSULTA_DO_SISTEMA_ESCURO = '(prefers-color-scheme: dark)'
  * A escolha vence o sistema; sem escolha, ou com um valor que não é nenhum dos dois, vale o sistema. O valor lido do
  * navegador nunca é confiado: o que o script e esta função escrevem no `<html>` é `claro` ou `escuro`, e mais nada.
  */
-export function resolverTema(escolha: string | null | undefined, sistemaEscuro: boolean): Tema {
+export function resolveTheme(escolha: string | null | undefined, sistemaEscuro: boolean): ResolvedTheme {
   if (escolha === 'claro' || escolha === 'escuro') return escolha
   return sistemaEscuro ? 'escuro' : 'claro'
 }
@@ -36,11 +36,11 @@ export function resolverTema(escolha: string | null | undefined, sistemaEscuro: 
  * Vale também para Sistema: com o `removeItem` lançando e a leitura funcionando, voltar a Sistema vale na aba, mas a chave
  * antiga continua no armazenamento e volta na próxima carga. É o que o RF4 diz ("vale até a aba fechar"), e é calado.
  */
-let escolhaQueOArmazenamentoRecusou: Aparencia | undefined
+let escolhaQueOArmazenamentoRecusou: ThemePreference | undefined
 
 function escolhaGuardada(): 'claro' | 'escuro' | undefined {
   try {
-    const valor = window.localStorage.getItem(CHAVE_DA_APARENCIA)
+    const valor = window.localStorage.getItem(THEME_STORAGE_KEY)
     return valor === 'claro' || valor === 'escuro' ? valor : undefined
   } catch {
     // Sem acesso ao armazenamento: a aparência é a do sistema, calada.
@@ -58,21 +58,21 @@ function sistemaEstaEscuro(): boolean {
 }
 
 /** O que a pessoa escolheu, ou Sistema quando ela não escolheu (ou quando o armazenamento não responde). */
-export function lerAparencia(): Aparencia {
+export function readThemePreference(): ThemePreference {
   return escolhaQueOArmazenamentoRecusou ?? escolhaGuardada() ?? 'sistema'
 }
 
 const ouvintes = new Set<() => void>()
 
 /** Escreve o tema de agora no `<html>`, que é o que o CSS lê (`:root[data-tema]`), e o devolve. */
-export function aplicarTema(): Tema {
-  const tema = resolverTema(lerAparencia(), sistemaEstaEscuro())
+export function applyTheme(): ResolvedTheme {
+  const tema = resolveTheme(readThemePreference(), sistemaEstaEscuro())
   document.documentElement.setAttribute('data-tema', tema)
   return tema
 }
 
 function aoMudarAAparencia(): void {
-  aplicarTema()
+  applyTheme()
   for (const ouvinte of ouvintes) ouvinte()
 }
 
@@ -80,10 +80,10 @@ function aoMudarAAparencia(): void {
  * Guarda a escolha e a aplica na hora. Só `claro` e `escuro` gravam; Sistema apaga a chave. Leitura ou gravação que lança
  * não quebra nada: a escolha vale até a aba fechar.
  */
-export function escolherAparencia(aparencia: Aparencia): void {
+export function setThemePreference(aparencia: ThemePreference): void {
   try {
-    if (aparencia === 'sistema') window.localStorage.removeItem(CHAVE_DA_APARENCIA)
-    else window.localStorage.setItem(CHAVE_DA_APARENCIA, aparencia)
+    if (aparencia === 'sistema') window.localStorage.removeItem(THEME_STORAGE_KEY)
+    else window.localStorage.setItem(THEME_STORAGE_KEY, aparencia)
     escolhaQueOArmazenamentoRecusou = undefined
   } catch {
     escolhaQueOArmazenamentoRecusou = aparencia
@@ -96,8 +96,8 @@ export function escolherAparencia(aparencia: Aparencia): void {
  * outras abas (o evento `storage`). Vale para toda tela, também as públicas, que não têm controle e seguem o que a pessoa
  * já escolheu. Devolve a função que desliga, para o teste.
  */
-export function iniciarTema(): () => void {
-  aplicarTema()
+export function initTheme(): () => void {
+  applyTheme()
   let consulta: MediaQueryList | undefined
   try {
     consulta = window.matchMedia(CONSULTA_DO_SISTEMA_ESCURO)
@@ -107,7 +107,7 @@ export function iniciarTema(): () => void {
   const aoMudarOSistema = () => aoMudarAAparencia()
   const aoMudarOArmazenamento = (evento: StorageEvent) => {
     // `key` nulo é o armazenamento inteiro limpo. Outra chave não é conosco.
-    if (evento.key !== null && evento.key !== CHAVE_DA_APARENCIA) return
+    if (evento.key !== null && evento.key !== THEME_STORAGE_KEY) return
     // O que a outra aba gravou (ou apagou) vale mais do que o que esta aba guardou na memória.
     escolhaQueOArmazenamentoRecusou = undefined
     aoMudarAAparencia()
@@ -128,7 +128,7 @@ function assinar(aoMudar: () => void): () => void {
 }
 
 /** A aparência de agora e como mudá-la, para a peça `Aparencia`. Acompanha a mudança que vem de outra aba. */
-export function useAparencia(): { readonly aparencia: Aparencia; readonly escolher: (aparencia: Aparencia) => void } {
-  const aparencia = useSyncExternalStore(assinar, lerAparencia, (): Aparencia => 'sistema')
-  return { aparencia, escolher: escolherAparencia }
+export function useThemePreference(): { readonly aparencia: ThemePreference; readonly escolher: (aparencia: ThemePreference) => void } {
+  const aparencia = useSyncExternalStore(assinar, readThemePreference, (): ThemePreference => 'sistema')
+  return { aparencia, escolher: setThemePreference }
 }

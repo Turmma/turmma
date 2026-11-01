@@ -3,7 +3,7 @@ import { cleanup, render } from '@testing-library/react'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { codigoSemComentarioNemTexto } from '../../__fixtures__/danger-solid'
+import { codeWithoutCommentsOrText } from '../../__fixtures__/danger-solid'
 import { Comemoracao } from './Comemoracao'
 
 /**
@@ -61,7 +61,7 @@ describe('Comemoracao: o que aparece', () => {
     expect(vi.getTimerCount()).toBe(0)
     expect(container.querySelectorAll('audio, video, source, embed, object')).toHaveLength(0)
     expect(container.textContent).not.toMatch(/\d/)
-    const codigo = codigoSemComentarioNemTexto(FONTE)
+    const codigo = codeWithoutCommentsOrText(FONTE)
     expect(codigo).not.toMatch(/\b(?:Audio|AudioContext|setTimeout|setInterval|requestAnimationFrame|useEffect|useLayoutEffect|useState|useReducer)\b/)
   })
 })

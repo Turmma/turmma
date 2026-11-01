@@ -10,7 +10,7 @@ import { aoTrocarDeSessao } from './sessao'
  * sessão que acaba ou muda de dono esvazia tudo, como o cache de consultas (`main.tsx`). No Chromebook do carrinho, a
  * pessoa seguinte não encontra o pedido da anterior.
  */
-export interface LugarNaAba<T> {
+export interface TabStore<T> {
   readonly ler: () => T | undefined
   readonly guardar: (valor: T | undefined) => void
   readonly assinar: (ouvinte: () => void) => () => void
@@ -23,7 +23,7 @@ aoTrocarDeSessao(() => {
 })
 
 /** Um lugar na memória da aba, com o tipo do que guarda. Criado uma vez, no módulo de quem usa. */
-export function criarLugarNaAba<T>(): LugarNaAba<T> {
+export function createTabStore<T>(): TabStore<T> {
   let valor: T | undefined
   const ouvintes = new Set<() => void>()
   const guardar = (novo: T | undefined): void => {
@@ -45,6 +45,6 @@ export function criarLugarNaAba<T>(): LugarNaAba<T> {
 }
 
 /** O que está guardado no lugar, com a tela refeita quando ele muda. */
-export function useLugarNaAba<T>(lugar: LugarNaAba<T>): T | undefined {
+export function useTabStore<T>(lugar: TabStore<T>): T | undefined {
   return useSyncExternalStore(lugar.assinar, lugar.ler)
 }

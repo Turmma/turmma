@@ -2,14 +2,14 @@ import type { PapelDeUsuario } from '@educa/shared'
 import { useQuery } from '@tanstack/react-query'
 import { lazy, Suspense, useEffect, useState, useSyncExternalStore, type ComponentType, type LazyExoticComponent, type ReactNode } from 'react'
 import { Redirect, Route, Switch, useLocation } from 'wouter'
-import { consultaEu } from './api/eu'
+import { euQueryOptions } from './api/eu'
 import { abrirSessaoPeloCookie, assinarSessao, erroDaSessao, estadoDaSessao } from './api/sessao'
-import { BASE_DA_AREA, ROTAS } from './paths'
+import { AREA_BASE_PATH, ROUTES } from './paths'
 import { CascaDaEscola } from './components/CascaDaEscola'
-import { EstadoCarregando, EstadoErro } from './components/states'
-import { FronteiraDaArea } from './components/FronteiraDaArea'
-import { LoginPorCima } from './components/LoginPorCima'
-import { ConteudoNaoEncontrado, PaginaNaoEncontrada } from './components/NotFound'
+import { LoadingState, ErrorState } from './components/states'
+import { AreaErrorBoundary } from './components/AreaErrorBoundary'
+import { ReauthDialog } from './components/ReauthDialog'
+import { NotFoundContent, NotFoundPage } from './components/NotFound'
 import { AcessoSuspenso } from './pages/AcessoSuspenso'
 import { Casca } from './pages/Casca'
 import { ConfigurarMfa } from './pages/ConfigurarMfa'
@@ -88,17 +88,17 @@ function Protegida({ children }: { children: ReactNode }) {
     return (
       <>
         {children}
-        <LoginPorCima />
+        <ReauthDialog />
       </>
     )
-  if (estado === 'anonima') return <Redirect to={ROTAS.entrar} replace />
+  if (estado === 'anonima') return <Redirect to={ROUTES.entrar} replace />
   if (estado === 'suspensa') return <AcessoSuspenso />
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-4 px-4 py-6 sm:px-6">
       {estado === 'indisponivel' ? (
-        <EstadoErro erro={erroDaSessao()} aoTentarDeNovo={() => void abrirSessaoPeloCookie()} />
+        <ErrorState erro={erroDaSessao()} aoTentarDeNovo={() => void abrirSessaoPeloCookie()} />
       ) : (
-        <EstadoCarregando rotulo="Abrindo a sua sessão…" />
+        <LoadingState rotulo="Abrindo a sua sessão…" />
       )}
     </div>
   )
@@ -119,23 +119,23 @@ function Protegida({ children }: { children: ReactNode }) {
  * "não encontrada".
  */
 function AreaDoPapel({ papel }: { papel: PapelDeUsuario }) {
-  const eu = useQuery(consultaEu)
+  const eu = useQuery(euQueryOptions)
   const [papelConhecido, definirPapelConhecido] = useState(eu.data?.papel)
   if (eu.data !== undefined && eu.data.papel !== papelConhecido) definirPapelConhecido(eu.data.papel)
   const papelDaSessao = eu.data?.papel ?? papelConhecido
 
   if (papelDaSessao === undefined) {
-    if (eu.isError) return <EstadoErro erro={eu.error} tentando={eu.isFetching} aoTentarDeNovo={() => void eu.refetch({ cancelRefetch: false })} />
-    return <EstadoCarregando rotulo="Carregando…" />
+    if (eu.isError) return <ErrorState erro={eu.error} tentando={eu.isFetching} aoTentarDeNovo={() => void eu.refetch({ cancelRefetch: false })} />
+    return <LoadingState rotulo="Carregando…" />
   }
-  if (papelDaSessao !== papel) return <ConteudoNaoEncontrado />
+  if (papelDaSessao !== papel) return <NotFoundContent />
   const Area = AREA_DO_PAPEL[papel]
   return (
-    <FronteiraDaArea {...FALHA_DA_AREA}>
-      <Suspense fallback={<EstadoCarregando rotulo="Carregando…" />}>
+    <AreaErrorBoundary {...FALHA_DA_AREA}>
+      <Suspense fallback={<LoadingState rotulo="Carregando…" />}>
         <Area />
       </Suspense>
-    </FronteiraDaArea>
+    </AreaErrorBoundary>
   )
 }
 
@@ -151,14 +151,14 @@ function AreaAutenticada() {
     <Protegida>
       <CascaDaEscola>
         <Switch>
-          <Route path={ROTAS.inicio} component={Inicio} />
-          <Route path={BASE_DA_AREA.coordenador} nest>
+          <Route path={ROUTES.inicio} component={Inicio} />
+          <Route path={AREA_BASE_PATH.coordenador} nest>
             <AreaDoPapel papel="coordenador" />
           </Route>
-          <Route path={BASE_DA_AREA.professor} nest>
+          <Route path={AREA_BASE_PATH.professor} nest>
             <AreaDoPapel papel="professor" />
           </Route>
-          <Route path={BASE_DA_AREA.aluno} nest>
+          <Route path={AREA_BASE_PATH.aluno} nest>
             <AreaDoPapel papel="aluno" />
           </Route>
         </Switch>
@@ -178,18 +178,18 @@ function Entrada() {
   const estado = useSyncExternalStore(assinarSessao, estadoDaSessao)
   const [, navegar] = useLocation()
   useEffect(() => {
-    if (estado === 'aberta') navegar(ROTAS.inicio, { replace: true })
+    if (estado === 'aberta') navegar(ROUTES.inicio, { replace: true })
   }, [estado, navegar])
   return <Entrar />
 }
 
-export function Rotas() {
+export function AppRoutes() {
   return (
     <Switch>
-      <Route path={ROTAS.entrar} component={Entrada} />
+      <Route path={ROUTES.entrar} component={Entrada} />
       {/* A área do operador, aninhada: dentro dela os caminhos são relativos a `/operacao`. */}
       <Route path={BASE_DA_OPERACAO} nest>
-        <FronteiraDaArea
+        <AreaErrorBoundary
           tituloDaAba={tituloDaOperacao('Não foi possível carregar')}
           titulo="Operação Turmma"
           texto="Não foi possível carregar a área da operação. Confira a conexão e tente de novo."
@@ -198,35 +198,35 @@ export function Rotas() {
           <Suspense
             fallback={
               <div className="mx-auto flex max-w-md flex-col gap-4 px-4 py-6 sm:px-6">
-                <EstadoCarregando rotulo="Carregando a área da operação…" />
+                <LoadingState rotulo="Carregando a área da operação…" />
               </div>
             }
           >
             <AreaDaOperacao />
           </Suspense>
-        </FronteiraDaArea>
+        </AreaErrorBoundary>
       </Route>
-      <Route path={ROTAS.sistema} component={Casca} />
+      <Route path={ROUTES.sistema} component={Casca} />
       {Galeria !== undefined && (
-        <Route path={ROTAS.galeria}>
-          <FronteiraDaArea {...FALHA_DA_AREA} paginaInteira>
-            <Suspense fallback={<EstadoCarregando rotulo="Carregando…" />}>
+        <Route path={ROUTES.galeria}>
+          <AreaErrorBoundary {...FALHA_DA_AREA} paginaInteira>
+            <Suspense fallback={<LoadingState rotulo="Carregando…" />}>
               <Galeria />
             </Suspense>
-          </FronteiraDaArea>
+          </AreaErrorBoundary>
         </Route>
       )}
       {/* A página pública da turma, por onde o aluno pede o nome (A1, 17.0). Na entrada, e não num chunk de área: é a primeira tela do aluno. */}
-      <Route path={ROTAS.salaDaTurma}>{(parametros) => <TurmaPublica slug={parametros.slug} />}</Route>
+      <Route path={ROUTES.salaDaTurma}>{(parametros) => <TurmaPublica slug={parametros.slug} />}</Route>
       {/* O endereço da escola, por onde o aluno entra (RF7). Fica antes das rotas fixas por ser a única com parâmetro. */}
-      <Route path={ROTAS.escola}>{(parametros) => <EntrarNaEscola slug={parametros.slug} />}</Route>
+      <Route path={ROUTES.escola}>{(parametros) => <EntrarNaEscola slug={parametros.slug} />}</Route>
       {/* Etapas do login, sem sessão ainda. */}
-      <Route path={ROTAS.mfa} component={Mfa} />
-      <Route path={ROTAS.configurarMfa} component={ConfigurarMfa} />
-      <Route path={ROTAS.convite} component={Convite} />
-      <Route path={ROTAS.escolherEscola} component={EscolherEscola} />
+      <Route path={ROUTES.mfa} component={Mfa} />
+      <Route path={ROUTES.configurarMfa} component={ConfigurarMfa} />
+      <Route path={ROUTES.convite} component={Convite} />
+      <Route path={ROUTES.escolherEscola} component={EscolherEscola} />
       <Route path={CAMINHOS_COM_SESSAO} component={AreaAutenticada} />
-      <Route component={PaginaNaoEncontrada} />
+      <Route component={NotFoundPage} />
     </Switch>
   )
 }

@@ -2,15 +2,15 @@ import { ErrorCode, nomeDaSerie } from '@educa/shared'
 import { useQuery } from '@tanstack/react-query'
 import { BookOpen, Lock, LogOut, Settings } from 'lucide-react'
 import { useContext, useState } from 'react'
-import { ErroDaApi } from '../../api/client'
-import { consultaMinhaTurma } from '../../api/minha-turma'
-import { ROTAS_DO_ALUNO } from '../../paths'
-import { EstadoCarregando, EstadoErro } from '../../components/states'
-import { ContextoDaSaida } from '../../components/sign-out-context'
+import { ApiError } from '../../api/client'
+import { minhaTurmaQueryOptions } from '../../api/minha-turma'
+import { ALUNO_ROUTES } from '../../paths'
+import { LoadingState, ErrorState } from '../../components/states'
+import { SignOutContext } from '../../components/sign-out-context'
 import { IconTile } from '../../components/ui/IconTile'
 import { ListItem } from '../../components/ui/ListItem'
 import { Page } from '../../components/ui/Page'
-import { useTituloDaTela } from '../../document-title'
+import { usePageTitle } from '../../document-title'
 import { ComoEstouIndo } from './ComoEstouIndo'
 import { DialogoDeAjustes } from './DialogoDeAjustes'
 
@@ -23,7 +23,7 @@ const SEM_TURMA_NO_ANO = 'Você ainda não está em uma turma neste ano letivo. 
 
 /** As linhas da conta, que existem em todos os estados da tela: o "Sair" nunca depende da leitura da turma (D59). */
 function LinhasDaConta({ aoAbrirAjustes }: { readonly aoAbrirAjustes: () => void }) {
-  const { sair, saindo } = useContext(ContextoDaSaida)
+  const { sair, saindo } = useContext(SignOutContext)
   return (
     <ul aria-label="Conta" className="grid grid-cols-1 gap-0.5 overflow-hidden rounded-cartao border-2 border-borda bg-borda lg:grid-cols-2">
       <li className="bg-superficie">
@@ -34,7 +34,7 @@ function LinhasDaConta({ aoAbrirAjustes }: { readonly aoAbrirAjustes: () => void
               <Lock aria-hidden="true" />
             </IconTile>
           }
-          para={ROTAS_DO_ALUNO.privacidade}
+          para={ALUNO_ROUTES.privacidade}
         />
       </li>
       <li className="bg-superficie">
@@ -57,7 +57,7 @@ function LinhasDaConta({ aoAbrirAjustes }: { readonly aoAbrirAjustes: () => void
               <BookOpen aria-hidden="true" />
             </IconTile>
           }
-          para={ROTAS_DO_ALUNO.bemVindo}
+          para={ALUNO_ROUTES.bemVindo}
         />
       </li>
       <li className="bg-superficie">
@@ -85,23 +85,23 @@ function LinhasDaConta({ aoAbrirAjustes }: { readonly aoAbrirAjustes: () => void
  * e, à parte, o aluno sem turma no ano, que não é erro de ninguém e diz o que fazer. **As linhas existem em todos os
  * estados**: o "Sair" nunca depende de a leitura da turma ter dado certo (D59).
  *
- * O "Sair" é o da casca, pelo contexto (`ContextoDaSaida`): a mesma saída do botão da lateral, a um clique.
+ * O "Sair" é o da casca, pelo contexto (`SignOutContext`): a mesma saída do botão da lateral, a um clique.
  */
 export default function Eu() {
-  useTituloDaTela('Eu')
-  const minhaTurma = useQuery(consultaMinhaTurma)
+  usePageTitle('Eu')
+  const minhaTurma = useQuery(minhaTurmaQueryOptions)
   const [ajustesAbertos, definirAjustesAbertos] = useState(false)
 
   function avisoDaTurma() {
-    if (minhaTurma.isPending) return <EstadoCarregando rotulo="Carregando a sua turma…" />
+    if (minhaTurma.isPending) return <LoadingState rotulo="Carregando a sua turma…" />
     if (minhaTurma.isError) {
-      if (minhaTurma.error instanceof ErroDaApi && minhaTurma.error.codigo === ErrorCode.NAO_ENCONTRADO)
+      if (minhaTurma.error instanceof ApiError && minhaTurma.error.codigo === ErrorCode.NAO_ENCONTRADO)
         return (
           <p role="status" className="rounded-cartao border border-linha bg-superficie p-4 text-apoio">
             {SEM_TURMA_NO_ANO}
           </p>
         )
-      return <EstadoErro erro={minhaTurma.error} tentando={minhaTurma.isFetching} aoTentarDeNovo={() => void minhaTurma.refetch({ cancelRefetch: false })} />
+      return <ErrorState erro={minhaTurma.error} tentando={minhaTurma.isFetching} aoTentarDeNovo={() => void minhaTurma.refetch({ cancelRefetch: false })} />
     }
     return null
   }

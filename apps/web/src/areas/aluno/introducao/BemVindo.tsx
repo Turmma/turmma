@@ -1,22 +1,22 @@
 import type { ReactNode } from 'react'
-import { ROTAS_DO_ALUNO } from '../../../paths'
+import { ALUNO_ROUTES } from '../../../paths'
 import { TamanhoDaLetra } from '../../../components/settings/TamanhoDaLetra'
 import { IntroducaoDoPapel } from '../../../components/introducao/IntroducaoDoPapel'
 import type { PassoDaIntroducao } from '../../../components/introducao/Introducao'
 import { Linhas } from '../../../components/introducao/Linhas'
-import { RegiaoQueRola } from '../../../components/introducao/RegiaoQueRola'
+import { ScrollArea } from '../../../components/introducao/ScrollArea'
 import { GRUPOS_DO_AVISO } from './aviso-de-privacidade'
 import { FALA_DO_TUTOR, PASSOS_DO_ALUNO, TOTAL_DE_PASSOS, type PassoDoAluno } from './textos-da-introducao'
 
 /**
  * O aviso de privacidade: quatro grupos, cada um com o título e as frases (`aviso-de-privacidade.ts`). São 17 frases, que não
  * cabem ao lado da onça, da fala e do botão em 1366 × 768 (RF20): **só o miolo rola**, e o "Continuar" fica à vista. A região
- * rolável (`RegiaoQueRola`, a mesma da introdução do professor) tem nome, entra no Tab e avisa "Role para ler mais" enquanto há
+ * rolável (`ScrollArea`, a mesma da introdução do professor) tem nome, entra no Tab e avisa "Role para ler mais" enquanto há
  * o que ler abaixo.
  */
 function AvisoDePrivacidade() {
   return (
-    <RegiaoQueRola nome="Aviso de privacidade" alturaMaxima="max-h-[28dvh]">
+    <ScrollArea nome="Aviso de privacidade" alturaMaxima="max-h-[28dvh]">
       {GRUPOS_DO_AVISO.map((grupo) => (
         <section key={grupo.titulo} className="flex min-w-0 flex-col gap-2">
           <h2 className="t-cartao min-w-0 break-words text-tinta">{grupo.titulo}</h2>
@@ -29,7 +29,7 @@ function AvisoDePrivacidade() {
           </ul>
         </section>
       ))}
-    </RegiaoQueRola>
+    </ScrollArea>
   )
 }
 
@@ -72,8 +72,8 @@ export default function BemVindo() {
       totalDePassos={TOTAL_DE_PASSOS}
       falaDoCarregando={FALA_DO_TUTOR}
       passosDe={passosDoAluno}
-      aoTerminar={ROTAS_DO_ALUNO.inicio}
-      aoRever={ROTAS_DO_ALUNO.eu}
+      aoTerminar={ALUNO_ROUTES.inicio}
+      aoRever={ALUNO_ROUTES.eu}
     />
   )
 }

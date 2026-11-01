@@ -1,6 +1,6 @@
 import { createPortal } from 'react-dom'
-import { ROTAS_DO_PROFESSOR } from '../../../paths'
-import { useAncoraDoSino } from '../../../components/sino-anchor-context'
+import { PROFESSOR_ROUTES } from '../../../paths'
+import { useSinoAnchor } from '../../../components/sino-anchor-context'
 import { Sino, type PeDoSino } from '../../../components/sino/Sino'
 import { useFilaDoProfessor } from './fila-do-professor'
 
@@ -13,8 +13,8 @@ const AVISO_SEM_ANO_LETIVO = 'Não há ano letivo em curso nesta escola. O que e
 const PE_DO_SINO: PeDoSino = {
   titulo: 'Acompanhar a IA',
   links: [
-    { rotulo: 'O que o Assistente fez', para: ROTAS_DO_PROFESSOR.timeDoAssistente },
-    { rotulo: 'O que o Tutor viu', para: ROTAS_DO_PROFESSOR.timeDoTutor },
+    { rotulo: 'O que o Assistente fez', para: PROFESSOR_ROUTES.timeDoAssistente },
+    { rotulo: 'O que o Tutor viu', para: PROFESSOR_ROUTES.timeDoTutor },
   ],
 }
 
@@ -34,7 +34,7 @@ function avisoDaLeituraParcial(semAnoLetivo: boolean, naoLeu: readonly string[])
  * agrupados por turma.
  */
 export default function SinoDoProfessor() {
-  const ancora = useAncoraDoSino()
+  const ancora = useSinoAnchor()
   const fila = useFilaDoProfessor()
   if (ancora === null) return null
   return createPortal(

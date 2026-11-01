@@ -1,9 +1,9 @@
 import { QueryClientProvider, useQuery } from '@tanstack/react-query'
 import { useCallback, useEffect, useState, useSyncExternalStore, type ReactNode } from 'react'
 import { Link, Redirect, Route, Switch } from 'wouter'
-import { criarClienteDeConsultas } from '../api/query-client'
-import { EstadoCarregando } from '../components/states'
-import { consultaEuDoOperador } from './api/eu'
+import { createQueryClient } from '../api/query-client'
+import { LoadingState } from '../components/states'
+import { euDoOperadorQueryOptions } from './api/eu'
 import {
   abrirSessaoDeOperadorPeloCookie,
   aoTrocarDeSessaoDeOperador,
@@ -12,17 +12,17 @@ import {
   estadoDaSessaoDeOperador,
   sairComoOperador,
 } from './api/sessao'
-import { ROTAS_DA_OPERACAO } from './paths'
-import { AvisoDeInatividade, ContextoDoAviso, type AvisoDaSessao } from './components/AvisoDeInatividade'
+import { OPERACAO_ROUTES } from './paths'
+import { AvisoDeInatividade, SessionWarningContext, type SessionWarningContextValue } from './components/AvisoDeInatividade'
 import { CascaDaOperacao, CascaPublicaDaOperacao, ErroDaOperacao } from './components/CascaDaOperacao'
-import { useInatividadeDaOperacao } from './idle-timeout'
+import { useOperatorIdleTimeout } from './idle-timeout'
 import { ConfigurarMfa } from './pages/ConfigurarMfa'
 import { Convite } from './pages/Convite'
 import { Entrar } from './pages/Entrar'
 import { Mfa } from './pages/Mfa'
 import { Escolas } from './pages/Escolas'
 import { Uso } from './pages/Uso'
-import { useTituloDaPagina } from './document-title'
+import { useOperacaoPageTitle } from './document-title'
 
 /**
  * A área do operador Turmma (A0), carregada por `import()` num chunk próprio (`operacao-*.js`): a web da escola nunca
@@ -31,7 +31,7 @@ import { useTituloDaPagina } from './document-title'
  * O cache de consultas é **outro**, e não o da escola: a troca de pessoa numa sessão não esvazia a outra, e nenhuma
  * consulta de uma aparece na outra. Toda sessão de operador que acaba, ou que muda de dono, esvazia o daqui inteiro.
  */
-const clienteDaOperacao = criarClienteDeConsultas()
+const clienteDaOperacao = createQueryClient()
 aoTrocarDeSessaoDeOperador(() => {
   clienteDaOperacao.clear()
 })
@@ -44,13 +44,13 @@ function Protegida({ children }: { children: ReactNode }) {
   }, [estado])
 
   if (estado === 'aberta') return children
-  if (estado === 'anonima') return <Redirect to={ROTAS_DA_OPERACAO.entrar} replace />
+  if (estado === 'anonima') return <Redirect to={OPERACAO_ROUTES.entrar} replace />
   return (
     <CascaPublicaDaOperacao titulo="Operação Turmma">
       {estado === 'indisponivel' ? (
         <ErroDaOperacao erro={erroDaSessaoDeOperador()} aoTentarDeNovo={() => void abrirSessaoDeOperadorPeloCookie()} />
       ) : (
-        <EstadoCarregando rotulo="Abrindo a sua sessão…" />
+        <LoadingState rotulo="Abrindo a sua sessão…" />
       )}
     </CascaPublicaDaOperacao>
   )
@@ -63,9 +63,9 @@ function Protegida({ children }: { children: ReactNode }) {
  * ficam no alto, com a tela embaixo no lugar.
  */
 function ComSessao({ children }: { children: ReactNode }) {
-  const eu = useQuery(consultaEuDoOperador)
+  const eu = useQuery(euDoOperadorQueryOptions)
   const [saindo, definirSaindo] = useState(false)
-  const { avisoVisivel, continuar } = useInatividadeDaOperacao(true)
+  const { avisoVisivel, continuar } = useOperatorIdleTimeout(true)
   // Quantos diálogos estão abertos: com um aberto, o aviso vai para dentro dele (`AvisoDeInatividade.tsx`).
   const [dialogosAbertos, definirDialogosAbertos] = useState(0)
   const registrarDialogo = useCallback(() => {
@@ -79,35 +79,35 @@ function ComSessao({ children }: { children: ReactNode }) {
     void sairComoOperador().finally(() => definirSaindo(false))
   }
 
-  const aviso: AvisoDaSessao = { visivel: avisoVisivel, continuar, sair, registrarDialogo }
+  const aviso: SessionWarningContextValue = { visivel: avisoVisivel, continuar, sair, registrarDialogo }
   return (
-    <ContextoDoAviso value={aviso}>
+    <SessionWarningContext value={aviso}>
       <CascaDaOperacao nome={eu.data?.nome} aoSair={sair} saindo={saindo}>
         {eu.isError && <ErroDaOperacao erro={eu.error} aoTentarDeNovo={() => void eu.refetch()} tentando={eu.isFetching} />}
         {children}
         {avisoVisivel && dialogosAbertos === 0 && <AvisoDeInatividade aoContinuar={continuar} aoSair={sair} />}
       </CascaDaOperacao>
-    </ContextoDoAviso>
+    </SessionWarningContext>
   )
 }
 
 /** As rotas da operação, relativas a `/operacao` (o `Route` aninhado em `apps/web/src/routes.tsx`). */
-export default function RotasDaOperacao() {
+export default function OperacaoRoutes() {
   return (
     <QueryClientProvider client={clienteDaOperacao}>
       <Switch>
-        <Route path={ROTAS_DA_OPERACAO.convite} component={Convite} />
-        <Route path={ROTAS_DA_OPERACAO.entrar} component={Entrar} />
-        <Route path={ROTAS_DA_OPERACAO.mfa} component={Mfa} />
-        <Route path={ROTAS_DA_OPERACAO.configurarMfa} component={ConfigurarMfa} />
-        <Route path={ROTAS_DA_OPERACAO.uso}>
+        <Route path={OPERACAO_ROUTES.convite} component={Convite} />
+        <Route path={OPERACAO_ROUTES.entrar} component={Entrar} />
+        <Route path={OPERACAO_ROUTES.mfa} component={Mfa} />
+        <Route path={OPERACAO_ROUTES.configurarMfa} component={ConfigurarMfa} />
+        <Route path={OPERACAO_ROUTES.uso}>
           <Protegida>
             <ComSessao>
               <Uso />
             </ComSessao>
           </Protegida>
         </Route>
-        <Route path={ROTAS_DA_OPERACAO.inicio}>
+        <Route path={OPERACAO_ROUTES.inicio}>
           <Protegida>
             <ComSessao>
               <Escolas />
@@ -124,12 +124,12 @@ export default function RotasDaOperacao() {
 
 /** Endereço da operação que não existe: diz o que fazer, sem código nem status (regra 50, item 12). */
 function NaoEncontradaNaOperacao() {
-  useTituloDaPagina('Página não encontrada')
+  useOperacaoPageTitle('Página não encontrada')
   return (
     <CascaPublicaDaOperacao titulo="Página não encontrada">
       <p className="text-apoio">
         Confira o endereço digitado ou volte à{' '}
-        <Link className="text-caramelo-texto underline" to={ROTAS_DA_OPERACAO.entrar}>
+        <Link className="text-caramelo-texto underline" to={OPERACAO_ROUTES.entrar}>
           entrada da operação
         </Link>
         .

@@ -1,7 +1,7 @@
 import type { Sinal } from '@educa/shared'
 import { describe, expect, it } from 'vitest'
 import * as textos from './sinais'
-import { formatarDiaEHora } from '../../../format'
+import { formatDayAndTime } from '../../../format'
 import { emQueEstava, falaDoGrupo, horaDoUltimoAviso, ondeFoi, porNome, separarSinais, textoDaAtencaoHumana, textoDaHoraDoAviso, textoDoSinal, tituloDaAtencaoHumana, trocasDeHoje } from './sinais'
 
 const id = (final: string) => `0190f5a0-0000-7000-8000-0000000000${final}`
@@ -69,12 +69,12 @@ describe('o aviso de Hoje diz a hora, e a ordem do painel é a de nome (telas do
   it('a hora é a do aviso mais recente, como hora, na ordem em que a API os deu ou fora dela; sem aviso, nenhuma', () => {
     const velho = { criadoEm: '2026-10-05T13:40:00.000Z' }
     const novo = { criadoEm: '2026-10-05T13:50:00.000Z' }
-    expect(horaDoUltimoAviso([velho, novo])).toBe(formatarDiaEHora(novo.criadoEm))
-    expect(horaDoUltimoAviso([novo, velho])).toBe(formatarDiaEHora(novo.criadoEm))
-    expect(horaDoUltimoAviso([velho])).toBe(formatarDiaEHora(velho.criadoEm))
+    expect(horaDoUltimoAviso([velho, novo])).toBe(formatDayAndTime(novo.criadoEm))
+    expect(horaDoUltimoAviso([novo, velho])).toBe(formatDayAndTime(novo.criadoEm))
+    expect(horaDoUltimoAviso([velho])).toBe(formatDayAndTime(velho.criadoEm))
     expect(horaDoUltimoAviso([])).toBeUndefined()
     // Dois avisos do mesmo instante dão a mesma hora; um aviso de outro dia ganha de um mais tarde do dia anterior.
-    expect(horaDoUltimoAviso([{ criadoEm: '2026-10-05T23:00:00.000Z' }, { criadoEm: '2026-10-06T01:00:00.000Z' }])).toBe(formatarDiaEHora('2026-10-06T01:00:00.000Z'))
+    expect(horaDoUltimoAviso([{ criadoEm: '2026-10-05T23:00:00.000Z' }, { criadoEm: '2026-10-06T01:00:00.000Z' }])).toBe(formatDayAndTime('2026-10-06T01:00:00.000Z'))
   })
 
   it('a hora é dita como hora, nunca como "há X minutos" (D69)', () => {

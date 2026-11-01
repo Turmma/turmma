@@ -1,5 +1,5 @@
 import { reivindicacaoResponseSchema, salaAbertaResponseSchema, type AbrirSalaRequest, type ReivindicarSalaRequest, type ReivindicacaoResponse, type SalaAbertaResponse } from '@educa/shared'
-import { chamarApi } from './client'
+import { apiRequest } from './client'
 
 /**
  * A página pública da turma (A1, 17.0; as rotas são da 5.0 e da 6.0): sem sessão e sem token de acesso. O slug, o token
@@ -12,7 +12,7 @@ import { chamarApi } from './client'
 
 /** `POST /v1/salas/abrir`: o nome da turma e os nomes livres da lista. Acesso que não vale responde `NAO_ENCONTRADO`. */
 export function abrirSala(pedido: AbrirSalaRequest): Promise<SalaAbertaResponse> {
-  return chamarApi('/v1/salas/abrir', salaAbertaResponseSchema, { metodo: 'POST', corpo: pedido })
+  return apiRequest('/v1/salas/abrir', salaAbertaResponseSchema, { metodo: 'POST', corpo: pedido })
 }
 
 /**
@@ -20,5 +20,5 @@ export function abrirSala(pedido: AbrirSalaRequest): Promise<SalaAbertaResponse>
  * responde `enviado` sem pedido novo; a recusa é `REIVINDICACAO_RECUSADA`.
  */
 export function reivindicarNome(pedido: ReivindicarSalaRequest): Promise<ReivindicacaoResponse> {
-  return chamarApi('/v1/salas/reivindicar', reivindicacaoResponseSchema, { metodo: 'POST', corpo: pedido })
+  return apiRequest('/v1/salas/reivindicar', reivindicacaoResponseSchema, { metodo: 'POST', corpo: pedido })
 }

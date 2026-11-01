@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { Router } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
-import { prepararTela, redeFalsa, renderizarTela, type RedeFalsa, type RespostaFalsa } from '../../../__fixtures__/render-screen'
+import { setupScreen, fakeNetwork, renderScreen, type FakeNetwork, type FakeResponse } from '../../../__fixtures__/render-screen'
 import Estrutura from './Estrutura'
 
 /**
@@ -15,7 +15,7 @@ import Estrutura from './Estrutura'
  * em qualquer ponto da linha e o diálogo sobre o painel, com dois `<dialog>` empilhados) é do e2e `estrutura`. O `jsdom` não tem
  * `matchMedia`, `ResizeObserver` nem o `dialog` modal: o teste os põe, e são API do navegador, e não peça nossa.
  */
-prepararTela()
+setupScreen()
 
 const id = (n: number) => `0197a1c0-0000-7000-8000-${String(n).padStart(12, '0')}`
 const ANO = { id: id(1), ano: 2026, inicio: '2026-02-02', fim: '2026-12-18', situacao: 'em_curso' }
@@ -53,16 +53,16 @@ const VINCULOS = [
   VINCULO(6, BEATRIZ, TURMA_1EM, MATEMATICA, 'pendente'),
 ]
 
-const ERRO = (codigo: string, status: number): RespostaFalsa => ({
+const ERRO = (codigo: string, status: number): FakeResponse => ({
   status,
   corpo: { erro: { codigo, mensagem: 'texto que a tela não usa', requisicaoId: '0190f5a0-0000-7000-8000-000000000001' } },
 })
 /** Um erro que a leitura não repete sozinha: a tela mostra o erro na hora, e não depois da nova tentativa de um segundo. */
 const FALHA = ERRO('LIMITE_EXCEDIDO', 429)
-const ok = (itens: readonly unknown[], extra: Record<string, unknown> = {}): RespostaFalsa => ({ status: 200, corpo: { itens, ...extra } })
-const nuncaResponde = () => new Promise<RespostaFalsa>(() => undefined)
+const ok = (itens: readonly unknown[], extra: Record<string, unknown> = {}): FakeResponse => ({ status: 200, corpo: { itens, ...extra } })
+const nuncaResponde = () => new Promise<FakeResponse>(() => undefined)
 
-type Resposta = RespostaFalsa | (() => RespostaFalsa | Promise<RespostaFalsa>)
+type Resposta = FakeResponse | (() => FakeResponse | Promise<FakeResponse>)
 interface Respostas {
   anos: Resposta
   series: Resposta
@@ -81,7 +81,7 @@ const PADRAO: Respostas = {
   vinculos: ok(VINCULOS),
 }
 
-function instalar(rede: RedeFalsa, parcial: Partial<Respostas> = {}): void {
+function instalar(rede: FakeNetwork, parcial: Partial<Respostas> = {}): void {
   const respostas = { ...PADRAO, ...parcial }
   rede.responderPor(/^\/v1\/anos-letivos\?/, respostas.anos)
   rede.responderPor('/v1/series', respostas.series)
@@ -93,8 +93,8 @@ function instalar(rede: RedeFalsa, parcial: Partial<Respostas> = {}): void {
 }
 
 /** Os caminhos pedidos, sem a consulta, na ordem. */
-const caminhosDe = (rede: RedeFalsa) => rede.chamadas.map((chamada) => chamada.caminho.split('?')[0])
-const chamouAlgumaLista = (rede: RedeFalsa) => rede.chamadas.some((chamada) => /\/lista|\/alunos|\/reivindicacoes/.test(chamada.caminho))
+const caminhosDe = (rede: FakeNetwork) => rede.chamadas.map((chamada) => chamada.caminho.split('?')[0])
+const chamouAlgumaLista = (rede: FakeNetwork) => rede.chamadas.some((chamada) => /\/lista|\/alunos|\/reivindicacoes/.test(chamada.caminho))
 
 /** A largura da janela, para a consulta `(min-width: 768px)` que a `Table` e o miolo leem. */
 function janelaDe(largura: number): void {
@@ -128,7 +128,7 @@ beforeEach(() => {
 function montar(endereco = '/estrutura') {
   const [caminho = '/estrutura', busca = ''] = endereco.split('?')
   const localizacao = memoryLocation({ path: caminho, searchPath: busca, record: true })
-  renderizarTela(
+  renderScreen(
     <Router hook={localizacao.hook} searchHook={localizacao.searchHook}>
       <Estrutura />
     </Router>,
@@ -158,7 +158,7 @@ const celulasDe = (nome: string) => {
 
 describe('os quatro estados da tela', () => {
   it('carregando: a leitura dos anos no ar', async () => {
-    instalar(redeFalsa(), { anos: nuncaResponde })
+    instalar(fakeNetwork(), { anos: nuncaResponde })
     montar()
     expect(await screen.findByText('Carregando a estrutura da escola…')).toBeTruthy()
     // O vazio só vem com a leitura terminada e sem erro (RF22): durante a leitura, nem o convite do ano nem o das turmas.
@@ -168,7 +168,7 @@ describe('os quatro estados da tela', () => {
 
   it('erro: a mensagem curta e "Tentar de novo", que lê só os anos de novo', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     let falhar = true
     instalar(rede, { anos: () => (falhar ? FALHA : ok([ANO])) })
     montar()
@@ -183,7 +183,7 @@ describe('os quatro estados da tela', () => {
   })
 
   it('vazio, a escola sem ano letivo: "Comece pelo ano letivo", o botão do primeiro passo e o roteiro sem marca', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { anos: ok([]) })
     montar()
     expect(await screen.findByText('Comece pelo ano letivo')).toBeTruthy()
@@ -197,7 +197,7 @@ describe('os quatro estados da tela', () => {
   })
 
   it('sem ano em curso: o texto de hoje, o botão do painel, sem "Nova turma", e turmas e vínculos nem são chamados', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { anos: ok([ANO_PLANEJADO]) })
     montar()
     const regiao = await screen.findByRole('region', { name: 'Turmas' })
@@ -209,7 +209,7 @@ describe('os quatro estados da tela', () => {
   })
 
   it('o ano sem turma: o vazio das turmas, sem tabela', async () => {
-    instalar(redeFalsa(), { turmas: ok([]), vinculos: ok([]) })
+    instalar(fakeNetwork(), { turmas: ok([]), vinculos: ok([]) })
     montar()
     const regiao = await screen.findByRole('region', { name: 'Turmas de 2026' })
     expect(await within(regiao).findByText('Nenhuma turma ainda')).toBeTruthy()
@@ -220,7 +220,7 @@ describe('os quatro estados da tela', () => {
   it('as turmas carregando e a falha delas: cada seção tem o seu estado, e a tela continua em pé', async () => {
     const usuario = userEvent.setup()
     let falhar = true
-    instalar(redeFalsa(), { turmas: () => (falhar ? FALHA : ok([TURMA_7A])), vinculos: ok([]) })
+    instalar(fakeNetwork(), { turmas: () => (falhar ? FALHA : ok([TURMA_7A])), vinculos: ok([]) })
     montar()
     const regiao = await screen.findByRole('region', { name: 'Turmas de 2026' })
     await within(regiao).findByRole('alert')
@@ -233,7 +233,7 @@ describe('os quatro estados da tela', () => {
   })
 
   it('com dado: uma tabela por série, na ordem da escola, e cada linha com a turma, o turno, os professores e a situação', async () => {
-    instalar(redeFalsa())
+    instalar(fakeNetwork())
     await montarEEsperar()
     await within(screen.getByRole('region', { name: 'Turmas de 2026' })).findAllByText('Com professor')
     expect(
@@ -262,7 +262,7 @@ describe('os quatro estados da tela', () => {
   })
 
   it('a linha é um link para a lista da turma, com o nome acessível "Lista de nomes da turma <nome>", e o menu é irmão dele', async () => {
-    instalar(redeFalsa())
+    instalar(fakeNetwork())
     await montarEEsperar()
     const ligacao = await turmas().findByRole('link', { name: 'Lista de nomes da turma 7ºA' })
     expect(ligacao.getAttribute('href')).toBe(`/estrutura/turmas/${TURMA_7A.id}`)
@@ -283,7 +283,7 @@ describe('os quatro estados da tela', () => {
 
   it('a 360 px a tabela vira lista, com o título de cada coluna ao lado do valor, e o link e o menu continuam', async () => {
     janelaDe(360)
-    instalar(redeFalsa())
+    instalar(fakeNetwork())
     await montarEEsperar()
     await turmas().findByRole('link', { name: 'Lista de nomes da turma 7ºA' })
     expect(turmas().queryByRole('table')).toBeNull()
@@ -299,7 +299,7 @@ describe('os quatro estados da tela', () => {
   it.each([1366, 360])('o link da linha é um alvo de toque de 44 px, na tabela e na lista de 360 px (%i px)', async (largura) => {
     // O jsdom não mede altura: as classes são a aproximação, e a medida é a do W12 (`estrutura.spec.ts`). Sem `inline-flex` o `min-h-11` não vale num `<a>` inline.
     janelaDe(largura)
-    instalar(redeFalsa())
+    instalar(fakeNetwork())
     await montarEEsperar()
     const classes = (await turmas().findByRole('link', { name: 'Lista de nomes da turma 7ºA' })).className.split(/\s+/)
     expect(classes).toContain('inline-flex')
@@ -310,7 +310,7 @@ describe('os quatro estados da tela', () => {
   })
 
   it('"Nova turma" é o único botão cheio da aba, e a alocação já não mora nela: sem a seção e sem o "Alocar" (ela é o "Acrescentar turma" do painel do professor, 7.0)', async () => {
-    instalar(redeFalsa())
+    instalar(fakeNetwork())
     await montarEEsperar()
     // Espera as leituras que a alocação pedia (professores, disciplinas, vínculos): com elas lidas, a ausência da seção não é falta de leitura.
     await waitFor(() => expect(celulasDe('7ºA').slice(2, 4)).toEqual(['Beatriz Sintética, Camila Sintética +1', 'Com professor']))
@@ -327,7 +327,7 @@ describe('"Para terminar a escola"', () => {
   it('enquanto falta passo: o aviso diz o que falta e "Ver o que falta" abre o painel no endereço', async () => {
     const usuario = userEvent.setup()
     // Sem professor alocável e sem vínculo: faltam Professores e Alocação.
-    instalar(redeFalsa(), { professores: ok([]), vinculos: ok([]) })
+    instalar(fakeNetwork(), { professores: ok([]), vinculos: ok([]) })
     const localizacao = await montarEEsperar()
     const aviso = await screen.findByText('Para terminar a escola')
     expect(aviso.closest('[data-aviso]')?.textContent).toContain('Falta: Professores, Alocação.')
@@ -343,7 +343,7 @@ describe('"Para terminar a escola"', () => {
   })
 
   it('com a escola montada, o aviso não existe', async () => {
-    instalar(redeFalsa(), { vinculos: ok([VINCULO(1, CAMILA, TURMA_7A, MATEMATICA, 'confirmado')]) })
+    instalar(fakeNetwork(), { vinculos: ok([VINCULO(1, CAMILA, TURMA_7A, MATEMATICA, 'confirmado')]) })
     // O painel do ano mostra as séries e as disciplinas, e por isso só tem o que mostrar quando as duas foram lidas.
     await montarEEsperar('/estrutura?painel=ano')
     await turmas().findByRole('link', { name: 'Lista de nomes da turma 7ºA' })
@@ -357,7 +357,7 @@ describe('"Para terminar a escola"', () => {
 
   it('"falta" só com a leitura terminada: o que ainda não foi lido não vira passo que falta', async () => {
     // As séries, as disciplinas e os professores nunca respondem; as turmas e os vínculos, sim.
-    instalar(redeFalsa(), { series: nuncaResponde, disciplinas: nuncaResponde, professores: nuncaResponde, turmas: ok([]), vinculos: ok([]) })
+    instalar(fakeNetwork(), { series: nuncaResponde, disciplinas: nuncaResponde, professores: nuncaResponde, turmas: ok([]), vinculos: ok([]) })
     await montarEEsperar()
     const aviso = (await screen.findByText('Para terminar a escola')).closest('[data-aviso]')
     expect(aviso?.textContent).toContain('Falta: Turmas, Alocação.')
@@ -368,7 +368,7 @@ describe('"Para terminar a escola"', () => {
 describe('o filtro "Situação"', () => {
   it('"Sem professor" deixa as turmas sem professor, grava no endereço e a escolha de volta tira do endereço', async () => {
     const usuario = userEvent.setup()
-    instalar(redeFalsa())
+    instalar(fakeNetwork())
     const localizacao = await montarEEsperar()
     await turmas().findByRole('link', { name: 'Lista de nomes da turma 7ºA' })
     expect(screen.getByRole('radio', { name: 'Todas' }).getAttribute('aria-checked')).toBe('true')
@@ -390,46 +390,46 @@ describe('o filtro "Situação"', () => {
   })
 
   it('o endereço com a situação abre já filtrado, e valor desconhecido são todas', async () => {
-    instalar(redeFalsa())
+    instalar(fakeNetwork())
     await montarEEsperar('/estrutura?situacao=sem-professor')
     await turmas().findByRole('link', { name: 'Lista de nomes da turma 7ºB' })
     expect(screen.getByRole('radio', { name: 'Sem professor' }).getAttribute('aria-checked')).toBe('true')
     expect(turmas().getAllByRole('link')).toHaveLength(2)
     cleanup()
-    instalar(redeFalsa())
+    instalar(fakeNetwork())
     await montarEEsperar('/estrutura?situacao=sem-lista')
     expect((await turmas().findAllByRole('link')).length).toBe(4)
     expect(screen.getByRole('radio', { name: 'Todas' }).getAttribute('aria-checked')).toBe('true')
   })
 
   it('o filtro que não acha nada diz "Nenhuma turma sem professor"', async () => {
-    instalar(redeFalsa(), { vinculos: ok([...VINCULOS, VINCULO(7, RAFAEL, TURMA_7B, MATEMATICA, 'confirmado'), VINCULO(8, CAMILA, TURMA_8A, FISICA, 'pendente')]) })
+    instalar(fakeNetwork(), { vinculos: ok([...VINCULOS, VINCULO(7, RAFAEL, TURMA_7B, MATEMATICA, 'confirmado'), VINCULO(8, CAMILA, TURMA_8A, FISICA, 'pendente')]) })
     await montarEEsperar('/estrutura?situacao=sem-professor')
     expect(await turmas().findByText('Nenhuma turma sem professor')).toBeTruthy()
     expect(turmas().queryByRole('table')).toBeNull()
   })
 
   it('os vínculos ainda não lidos: o filtro espera por eles, e não mostra lista que pode estar errada', async () => {
-    instalar(redeFalsa(), { vinculos: nuncaResponde })
+    instalar(fakeNetwork(), { vinculos: nuncaResponde })
     await montarEEsperar('/estrutura?situacao=sem-professor')
     expect(await within(screen.getByRole('region', { name: 'Turmas de 2026' })).findByText('Carregando os professores das turmas…')).toBeTruthy()
     expect(turmas().queryByRole('link')).toBeNull()
   })
 
   it('os vínculos que falharam: o filtro mostra o erro com "Tentar de novo"; sem filtro a tabela fica e o aviso diz que os professores não carregaram', async () => {
-    instalar(redeFalsa(), { vinculos: FALHA })
+    instalar(fakeNetwork(), { vinculos: FALHA })
     await montarEEsperar('/estrutura?situacao=sem-professor')
     await turmas().findByRole('alert')
     expect(turmas().queryByRole('link')).toBeNull()
     cleanup()
-    instalar(redeFalsa(), { vinculos: FALHA })
+    instalar(fakeNetwork(), { vinculos: FALHA })
     await montarEEsperar()
     expect(await turmas().findByText('Os professores das turmas não carregaram')).toBeTruthy()
     expect(celulasDe('7ºA').slice(2, 4)).toEqual(['—', '—'])
   })
 
   it('os vínculos que vieram só em parte: a turma sem professor à vista não é dada como sem professor, e o filtro diz que não consegue afirmar', async () => {
-    instalar(redeFalsa(), { vinculos: ok([VINCULOS[0]], { proxima: id(900) }) })
+    instalar(fakeNetwork(), { vinculos: ok([VINCULOS[0]], { proxima: id(900) }) })
     await montarEEsperar()
     await turmas().findByText('Com professor')
     expect(celulasDe('7ºA')[3]).toBe('Com professor')
@@ -449,7 +449,7 @@ describe('o filtro "Situação"', () => {
 
 describe('as leituras da tela', () => {
   it('nenhuma é a lista de nomes: a tabela não tem contagem de nomes, "sem lista" nem chamada à lista', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede)
     await montarEEsperar()
     await turmas().findByRole('link', { name: 'Lista de nomes da turma 7ºA' })
@@ -459,7 +459,7 @@ describe('as leituras da tela', () => {
   })
 
   it('a tela lê os anos, as séries, as disciplinas, as turmas, os professores e os vínculos, e só eles', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede)
     await montarEEsperar()
     await turmas().findByRole('link', { name: 'Lista de nomes da turma 7ºA' })
@@ -470,7 +470,7 @@ describe('as leituras da tela', () => {
 describe('o painel "Ano letivo e disciplinas"', () => {
   it('"Ano letivo e disciplinas" abre o painel no endereço, com as regiões de hoje, e "Fechar" tira o parâmetro', async () => {
     const usuario = userEvent.setup()
-    instalar(redeFalsa())
+    instalar(fakeNetwork())
     const localizacao = await montarEEsperar()
     await usuario.click(screen.getByRole('button', { name: 'Ano letivo e disciplinas' }))
     expect(localizacao.history?.at(-1)).toBe('/estrutura?painel=ano')
@@ -492,18 +492,18 @@ describe('o painel "Ano letivo e disciplinas"', () => {
   })
 
   it('pelo endereço, abre já com o painel; parâmetro desconhecido não abre nada', async () => {
-    instalar(redeFalsa())
+    instalar(fakeNetwork())
     await montarEEsperar('/estrutura?painel=ano')
     expect(await screen.findByRole('dialog', { name: 'Ano letivo e disciplinas' })).toBeTruthy()
     cleanup()
-    instalar(redeFalsa())
+    instalar(fakeNetwork())
     await montarEEsperar('/estrutura?painel=roteiro')
     expect(screen.queryByRole('dialog')).toBeNull()
   })
 
   it('aberto já pelo endereço, sem botão que o tenha aberto, o painel fecha com o foco no título das turmas', async () => {
     const usuario = userEvent.setup()
-    instalar(redeFalsa())
+    instalar(fakeNetwork())
     const localizacao = await montarEEsperar('/estrutura?painel=ano')
     const painel = await screen.findByRole('dialog', { name: 'Ano letivo e disciplinas' })
     expect(document.activeElement).not.toBe(screen.getByRole('heading', { name: 'Turmas de 2026' }))
@@ -514,7 +514,7 @@ describe('o painel "Ano letivo e disciplinas"', () => {
   })
 
   it('o painel pelo endereço só desenha depois dos anos: com a leitura no ar, nada dele aparece', async () => {
-    instalar(redeFalsa(), { anos: nuncaResponde })
+    instalar(fakeNetwork(), { anos: nuncaResponde })
     montar('/estrutura?painel=ano')
     await screen.findByText('Carregando a estrutura da escola…')
     expect(screen.queryByRole('dialog')).toBeNull()
@@ -523,7 +523,7 @@ describe('o painel "Ano letivo e disciplinas"', () => {
 
   it('o ano criado a partir do vazio abre o painel dele, onde o anúncio e o "Abrir o ano" moram', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     let criado = false
     instalar(rede, { anos: () => ok(criado ? [ANO_PLANEJADO] : []) })
     rede.responderPor(/^\/v1\/anos-letivos$/, () => {
@@ -544,7 +544,7 @@ describe('o painel "Ano letivo e disciplinas"', () => {
 describe('o ano criado de dentro do painel', () => {
   it('o painel já está aberto: criar o ano outro não empilha mais um passo no histórico', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede)
     const ANO_2099 = { ...ANO, id: id(3), ano: 2099, inicio: '2099-02-01', fim: '2099-12-15', situacao: 'planejado' }
     rede.responderPor(/^\/v1\/anos-letivos$/, { status: 201, corpo: ANO_2099 })
@@ -572,7 +572,7 @@ describe('o foco depois de cada ação', () => {
 
   it('criar: o diálogo fecha com a lista recarregada, a turma nova está na tabela, e o foco volta ao "Nova turma"', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     const lista = turmasQueMudam([TURMA_7A])
     instalar(rede, { turmas: lista.resposta, vinculos: ok([]) })
     const nova = { ...TURMA_7B, nome: '7ºC' }
@@ -594,7 +594,7 @@ describe('o foco depois de cada ação', () => {
 
   it('renomear pelo menu da linha: o nome muda na linha, o anúncio fica na seção e o foco volta ao menu da própria linha', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     const lista = turmasQueMudam([TURMA_7A, TURMA_8A])
     instalar(rede, { turmas: lista.resposta, vinculos: ok([]) })
     rede.responderPor(new RegExp(`^/v1/turmas/${TURMA_7A.id}$`), () => {
@@ -617,7 +617,7 @@ describe('o foco depois de cada ação', () => {
 
   it('excluir pelo menu da linha: a turma sai da tabela e o foco vai ao título das turmas, porque o menu saiu com a linha', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     const lista = turmasQueMudam([TURMA_7A, TURMA_8A])
     instalar(rede, { turmas: lista.resposta, vinculos: ok([]) })
     rede.responderPor(new RegExp(`^/v1/turmas/${TURMA_8A.id}$`), () => {
@@ -638,7 +638,7 @@ describe('o foco depois de cada ação', () => {
 
   it('o menu da linha tem Renomear e Excluir, e o Excluir é a ação de perigo', async () => {
     const usuario = userEvent.setup()
-    instalar(redeFalsa())
+    instalar(fakeNetwork())
     await montarEEsperar()
     await usuario.click(await screen.findByRole('button', { name: 'Mais ações da turma 7ºA' }))
     const itens = await screen.findAllByRole('menuitem')

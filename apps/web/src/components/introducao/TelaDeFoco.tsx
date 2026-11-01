@@ -1,5 +1,5 @@
 import { useContext, type ReactNode } from 'react'
-import { ContextoDaSaida } from '../sign-out-context'
+import { SignOutContext } from '../sign-out-context'
 import { Button } from '../ui/Button'
 
 interface PropsDaTelaDeFoco {
@@ -18,13 +18,13 @@ interface PropsDaTelaDeFoco {
 /**
  * A moldura de uma tela de foco (mockup 2.8; `ehTelaDeFoco`): no topo a barra do passo e o **"Sair", sempre à vista**, no
  * mesmo desenho do "Fechar" (D59: sair nunca é menor que seguir); no meio, a fala e o conteúdo; no pé, os botões. Não é
- * `<main>`: o da casca já envolve a tela (um por página). O "Sair" é o da casca (`ContextoDaSaida`), o mesmo da barra do
+ * `<main>`: o da casca já envolve a tela (um por página). O "Sair" é o da casca (`SignOutContext`), o mesmo da barra do
  * topo e do menu da pessoa, e por isso faz exatamente a mesma coisa.
  *
  * A barra é desenho: quem lê com leitor de tela ouve "Passo 2 de 4", no texto que a fala aponta, e a barra fica de fora.
  */
 export function TelaDeFoco({ passo, total, idDoPasso, aoFechar, children, rodape }: PropsDaTelaDeFoco) {
-  const { sair, saindo } = useContext(ContextoDaSaida)
+  const { sair, saindo } = useContext(SignOutContext)
   const cheio = Math.min(100, Math.max(0, (passo / total) * 100))
   return (
     <div data-tela-de-foco="" className="mx-auto flex w-full max-w-[560px] min-w-0 flex-1 flex-col gap-6">

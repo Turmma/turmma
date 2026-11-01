@@ -49,7 +49,7 @@ afterEach(() => {
   window.localStorage.clear()
 })
 
-/** A tabela de casos que `resolverTema` e o script do `index.html` respondem igual. */
+/** A tabela de casos que `resolveTheme` e o script do `index.html` respondem igual. */
 const ESCOLHAS: readonly (string | null)[] = ['claro', 'escuro', null, 'roxo', 'sistema', '', 'ESCURO']
 
 describe('resolverTema', () => {
@@ -61,15 +61,15 @@ describe('resolverTema', () => {
     [null, false, 'claro'],
     [null, true, 'escuro'],
   ] as const)('escolha %s com o sistema escuro=%s: %s (a escolha vence o sistema; sem escolha, vale o sistema)', (escolha, sistemaEscuro, esperado) => {
-    expect(tema.resolverTema(escolha, sistemaEscuro)).toBe(esperado)
+    expect(tema.resolveTheme(escolha, sistemaEscuro)).toBe(esperado)
   })
 
   it('valor que não é claro nem escuro vale o sistema: o que está no navegador nunca é confiado', () => {
     for (const lixo of ['roxo', 'sistema', '', 'ESCURO', ' claro', 'undefined']) {
-      expect(tema.resolverTema(lixo, false), lixo).toBe('claro')
-      expect(tema.resolverTema(lixo, true), lixo).toBe('escuro')
+      expect(tema.resolveTheme(lixo, false), lixo).toBe('claro')
+      expect(tema.resolveTheme(lixo, true), lixo).toBe('escuro')
     }
-    expect(tema.resolverTema(undefined, true)).toBe('escuro')
+    expect(tema.resolveTheme(undefined, true)).toBe('escuro')
   })
 })
 
@@ -119,7 +119,7 @@ describe('o <script> do index.html', () => {
   it.each(ESCOLHAS.flatMap((guardado) => SISTEMAS.map((sistema) => [guardado, sistema] as const)))(
     'escolha %j com o sistema escuro=%s: o data-tema é o que resolverTema devolve',
     (guardado, sistema) => {
-      expect(rodarOScript({ guardado, sistema })).toBe(tema.resolverTema(guardado, sistema))
+      expect(rodarOScript({ guardado, sistema })).toBe(tema.resolveTheme(guardado, sistema))
     },
   )
 
@@ -160,36 +160,36 @@ describe('o <script> do index.html', () => {
 describe('guardar, aplicar e acompanhar a aparência', () => {
   it('sem escolha, a aparência é Sistema e o localStorage continua vazio, também depois de aplicar o tema', () => {
     instalarSistema(false)
-    expect(tema.lerAparencia()).toBe('sistema')
-    expect(tema.aplicarTema()).toBe('claro')
+    expect(tema.readThemePreference()).toBe('sistema')
+    expect(tema.applyTheme()).toBe('claro')
     expect(html().getAttribute('data-tema')).toBe('claro')
     expect(window.localStorage.length).toBe(0)
   })
 
   it('Claro e Escuro gravam só o valor, na chave da aparência; Sistema apaga a chave e o armazenamento volta a nada', () => {
     instalarSistema(true)
-    tema.escolherAparencia('claro')
+    tema.setThemePreference('claro')
     expect(Object.entries(window.localStorage)).toEqual([['educa.aparencia', 'claro']])
     expect(html().getAttribute('data-tema')).toBe('claro')
 
-    tema.escolherAparencia('escuro')
+    tema.setThemePreference('escuro')
     expect(Object.entries(window.localStorage)).toEqual([['educa.aparencia', 'escuro']])
     expect(html().getAttribute('data-tema')).toBe('escuro')
 
     // O sistema está escuro, e o claro foi escolhido: a escolha venceu. Agora, de volta a Sistema.
-    tema.escolherAparencia('claro')
+    tema.setThemePreference('claro')
     expect(html().getAttribute('data-tema')).toBe('claro')
-    tema.escolherAparencia('sistema')
+    tema.setThemePreference('sistema')
     expect(Object.entries(window.localStorage)).toEqual([])
-    expect(tema.lerAparencia()).toBe('sistema')
+    expect(tema.readThemePreference()).toBe('sistema')
     expect(html().getAttribute('data-tema')).toBe('escuro')
   })
 
   it('o que está na chave e não é claro nem escuro é Sistema, e o tema escrito é o do aparelho', () => {
     instalarSistema(true)
     window.localStorage.setItem('educa.aparencia', 'roxo')
-    expect(tema.lerAparencia()).toBe('sistema')
-    expect(tema.aplicarTema()).toBe('escuro')
+    expect(tema.readThemePreference()).toBe('sistema')
+    expect(tema.applyTheme()).toBe('escuro')
   })
 
   it('armazenamento que lança ao ler e ao gravar: a aparência é Sistema, nada quebra, e a escolha vale até a aba fechar', () => {
@@ -203,17 +203,17 @@ describe('guardar, aplicar e acompanhar a aparência', () => {
     vi.spyOn(Storage.prototype, 'removeItem').mockImplementation(() => {
       throw new Error('armazenamento recusado')
     })
-    expect(tema.lerAparencia()).toBe('sistema')
-    expect(() => tema.aplicarTema()).not.toThrow()
+    expect(tema.readThemePreference()).toBe('sistema')
+    expect(() => tema.applyTheme()).not.toThrow()
     expect(html().getAttribute('data-tema')).toBe('claro')
 
-    expect(() => tema.escolherAparencia('escuro')).not.toThrow()
-    expect(tema.lerAparencia()).toBe('escuro')
+    expect(() => tema.setThemePreference('escuro')).not.toThrow()
+    expect(tema.readThemePreference()).toBe('escuro')
     expect(html().getAttribute('data-tema')).toBe('escuro')
 
     // Voltar a Sistema também vale na aba, ainda que a chave não possa ser apagada.
-    expect(() => tema.escolherAparencia('sistema')).not.toThrow()
-    expect(tema.lerAparencia()).toBe('sistema')
+    expect(() => tema.setThemePreference('sistema')).not.toThrow()
+    expect(tema.readThemePreference()).toBe('sistema')
     expect(html().getAttribute('data-tema')).toBe('claro')
   })
 
@@ -222,27 +222,27 @@ describe('guardar, aplicar e acompanhar a aparência', () => {
     const recusa = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
       throw new Error('armazenamento recusado')
     })
-    tema.escolherAparencia('escuro')
-    expect(tema.lerAparencia()).toBe('escuro')
+    tema.setThemePreference('escuro')
+    expect(tema.readThemePreference()).toBe('escuro')
     expect(window.localStorage.length).toBe(0)
     recusa.mockRestore()
 
-    tema.escolherAparencia('claro')
-    expect(tema.lerAparencia()).toBe('claro')
+    tema.setThemePreference('claro')
+    expect(tema.readThemePreference()).toBe('claro')
     expect(html().getAttribute('data-tema')).toBe('claro')
     expect(Object.fromEntries(Object.entries(window.localStorage))).toEqual({ 'educa.aparencia': 'claro' })
   })
 
   it('sem matchMedia, o claro; com a escolha, a escolha', () => {
     vi.stubGlobal('matchMedia', undefined)
-    expect(tema.aplicarTema()).toBe('claro')
-    tema.escolherAparencia('escuro')
+    expect(tema.applyTheme()).toBe('claro')
+    tema.setThemePreference('escuro')
     expect(html().getAttribute('data-tema')).toBe('escuro')
   })
 
   it('iniciarTema: em Sistema, a página aberta acompanha o aparelho; com uma escolha, não', () => {
     const aparelho = instalarSistema(false)
-    const desligar = tema.iniciarTema()
+    const desligar = tema.initTheme()
     expect(html().getAttribute('data-tema')).toBe('claro')
 
     aparelho.mudarOSistema(true)
@@ -250,7 +250,7 @@ describe('guardar, aplicar e acompanhar a aparência', () => {
     aparelho.mudarOSistema(false)
     expect(html().getAttribute('data-tema')).toBe('claro')
 
-    tema.escolherAparencia('claro')
+    tema.setThemePreference('claro')
     aparelho.mudarOSistema(true)
     expect(html().getAttribute('data-tema')).toBe('claro')
 
@@ -260,10 +260,10 @@ describe('guardar, aplicar e acompanhar a aparência', () => {
 
   it('iniciarTema: a escolha feita em outra aba chega pelo evento storage, e só a da chave da aparência conta', () => {
     instalarSistema(false)
-    const desligar = tema.iniciarTema()
+    const desligar = tema.initTheme()
     window.localStorage.setItem('educa.aparencia', 'escuro')
     window.dispatchEvent(new StorageEvent('storage', { key: 'educa.aparencia', newValue: 'escuro' }))
-    expect(tema.lerAparencia()).toBe('escuro')
+    expect(tema.readThemePreference()).toBe('escuro')
     expect(html().getAttribute('data-tema')).toBe('escuro')
 
     // Outra chave não é conosco: o tema fica como está, mesmo que o armazenamento tenha mudado por baixo.
@@ -290,17 +290,17 @@ describe('guardar, aplicar e acompanhar a aparência', () => {
 
   it('a escolha de outra aba vale mais do que a que esta aba guardou na memória por falta de armazenamento', () => {
     instalarSistema(false)
-    const desligar = tema.iniciarTema()
+    const desligar = tema.initTheme()
     const recusa = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
       throw new Error('armazenamento recusado')
     })
-    tema.escolherAparencia('escuro')
-    expect(tema.lerAparencia()).toBe('escuro')
+    tema.setThemePreference('escuro')
+    expect(tema.readThemePreference()).toBe('escuro')
     recusa.mockRestore()
 
     window.localStorage.setItem('educa.aparencia', 'claro')
     window.dispatchEvent(new StorageEvent('storage', { key: 'educa.aparencia', newValue: 'claro' }))
-    expect(tema.lerAparencia()).toBe('claro')
+    expect(tema.readThemePreference()).toBe('claro')
     expect(html().getAttribute('data-tema')).toBe('claro')
     desligar()
   })

@@ -1,9 +1,9 @@
 import { MENSAGENS_DE_ERRO } from '@educa/shared'
 import { Link } from 'wouter'
 import { quemEstaNaSessao, sairDaSessaoSuspensa } from '../api/sessao'
-import { caminhoDaEscola, ROTAS } from '../paths'
+import { caminhoDaEscola, ROUTES } from '../paths'
 import { CascaPublica } from '../components/CascaPublica'
-import { useTituloDaTela } from '../document-title'
+import { usePageTitle } from '../document-title'
 
 /**
  * A renovação da sessão respondeu `ACESSO_SUSPENSO` (F3, 20.0; Tech Spec, seção 9, "Login suspenso"): quem estava nesta
@@ -20,11 +20,11 @@ import { useTituloDaTela } from '../document-title'
  * memória da aba já não sabe quem era.
  */
 export function AcessoSuspenso() {
-  useTituloDaTela('Acesso suspenso')
+  usePageTitle('Acesso suspenso')
   // Lê a memória da aba sem assinar a sessão, de propósito: em `suspensa` ela não muda até o clique no link, que a
   // esquece e tira a aba de `suspensa` (a tela deixa de ser montada).
   const quem = quemEstaNaSessao()
-  const entrada = quem?.papel === 'aluno' ? caminhoDaEscola(quem.escolaSlug) : ROTAS.entrar
+  const entrada = quem?.papel === 'aluno' ? caminhoDaEscola(quem.escolaSlug) : ROUTES.entrar
   return (
     <CascaPublica titulo="Acesso suspenso">
       <p role="alert" className="rounded-controle border border-pendente bg-pendente-cx p-4 text-pendente">

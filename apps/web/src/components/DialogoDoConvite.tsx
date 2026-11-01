@@ -1,10 +1,10 @@
 import { useMutation, type UseMutationOptions } from '@tanstack/react-query'
 import { useRef, useState, type ComponentType, type FormEvent, type ReactNode, type RefObject } from 'react'
-import { ROTAS } from '../paths'
+import { ROUTES } from '../paths'
 import { Button } from './ui/Button'
 import { SECONDARY_BUTTON_CLASSES } from './ui/button-variants'
 import { FormField } from './ui/fields/FormField'
-import { AvisoDaCopia, CampoDoLink, Falha, Pergunta, useCopia, useFechamento, useFocoDaEtapa } from './copy-once'
+import { CopyStatus, LinkField, FailureAlert, CloseConfirmation, useCopyToClipboard, useGuardedClose, useStepFocus } from './copy-once'
 import type { DialogProps } from './ui/overlays/Dialog'
 import { linkDoConvite } from './link-do-convite'
 import type { CampoDoConvite, ValidacaoDoConvite } from './pedido-de-convite'
@@ -96,8 +96,8 @@ function EtapaDoLink({
       <p className="text-apoio">
         {mandePara} {validade} Depois de fechar, este link não aparece de novo.
       </p>
-      <CampoDoLink ref={campo} rotulo="Link do convite" link={link} aoCopiarAMao={aoCopiarAMao} />
-      <AvisoDaCopia texto={copia} vez={vezDaCopia} copiado={copiado} />
+      <LinkField ref={campo} rotulo="Link do convite" link={link} aoCopiarAMao={aoCopiarAMao} />
+      <CopyStatus texto={copia} vez={vezDaCopia} copiado={copiado} />
       <div className="flex flex-wrap justify-end gap-3">
         <Button onClick={() => aoCopiar(campo.current)}>Copiar link</Button>
         <button type="button" onClick={aoFechar} className={SECONDARY_BUTTON_CLASSES}>
@@ -170,15 +170,15 @@ export function DialogoDeConviteNovo<Pedido, Resposta extends { readonly token: 
   // O pedido no ar, na hora: o segundo clique de um clique duplo chega antes do `isPending`.
   const noAr = useRef(false)
   const gerar = useMutation(mutacao)
-  const copia = useCopia()
-  const fechamento = useFechamento(gerar.isPending || (gerar.isSuccess && !copia.copiado), gerar.reset, aoFechar)
+  const copia = useCopyToClipboard()
+  const fechamento = useGuardedClose(gerar.isPending || (gerar.isSuccess && !copia.copiado), gerar.reset, aoFechar)
   const campoDoNome = useRef<HTMLInputElement>(null)
   const tituloDaEtapaDeRevisao = useRef<HTMLHeadingElement>(null)
   const tituloDoLink = useRef<HTMLHeadingElement>(null)
   const tituloDaPergunta = useRef<HTMLHeadingElement>(null)
   const etapa = fechamento.perguntando ? 'pergunta' : gerar.isSuccess ? 'link' : revisando !== undefined ? 'revisar' : 'preencher'
   const focos = { pergunta: tituloDaPergunta, link: tituloDoLink, revisar: tituloDaEtapaDeRevisao, preencher: campoDoNome } as const
-  useFocoDaEtapa(etapa, focos[etapa], gerar.isError)
+  useStepFocus(etapa, focos[etapa], gerar.isError)
 
   function revisar(evento: FormEvent<HTMLFormElement>): void {
     evento.preventDefault()
@@ -213,10 +213,10 @@ export function DialogoDeConviteNovo<Pedido, Resposta extends { readonly token: 
   )
 
   if (etapa === 'pergunta')
-    return dialogo(<Pergunta titulo={tituloDaPergunta} texto={textoDaPergunta(gerar.isPending, textosDoLink.quemEntra)} rotuloDeVoltar={ROTULO_DE_VOLTAR} aoVoltar={fechamento.voltar} aoFecharDeVez={fechamento.fecharDeVez} />)
+    return dialogo(<CloseConfirmation titulo={tituloDaPergunta} texto={textoDaPergunta(gerar.isPending, textosDoLink.quemEntra)} rotuloDeVoltar={ROTULO_DE_VOLTAR} aoVoltar={fechamento.voltar} aoFecharDeVez={fechamento.fecharDeVez} />)
 
   if (etapa === 'link' && gerar.data !== undefined && revisando !== undefined) {
-    const link = linkDoConvite(window.location.origin, ROTAS.convite, gerar.data.token)
+    const link = linkDoConvite(window.location.origin, ROUTES.convite, gerar.data.token)
     return dialogo(
       <EtapaDoLink
         mandePara={mandePara(revisando.pedido)}
@@ -253,7 +253,7 @@ export function DialogoDeConviteNovo<Pedido, Resposta extends { readonly token: 
             <li key={aviso}>{aviso}</li>
           ))}
         </ul>
-        {falha !== undefined && <Falha texto={falha.texto} erro={gerar.error} />}
+        {falha !== undefined && <FailureAlert texto={falha.texto} erro={gerar.error} />}
         <div className="flex flex-wrap justify-end gap-3">
           {falha?.listaMudou !== true && (
             <>
@@ -344,13 +344,13 @@ export function DialogoDeConviteRefeito<Resposta extends { readonly token: strin
 }: PropsDoConviteRefeito<Resposta>) {
   const noAr = useRef(false)
   const refazer = useMutation(mutacao)
-  const copia = useCopia()
-  const fechamento = useFechamento(refazer.isPending || (refazer.isSuccess && !copia.copiado), refazer.reset, aoFechar)
+  const copia = useCopyToClipboard()
+  const fechamento = useGuardedClose(refazer.isPending || (refazer.isSuccess && !copia.copiado), refazer.reset, aoFechar)
   const textoDaConfirmacao = useRef<HTMLParagraphElement>(null)
   const tituloDoLink = useRef<HTMLHeadingElement>(null)
   const tituloDaPergunta = useRef<HTMLHeadingElement>(null)
   const etapa = fechamento.perguntando ? 'pergunta' : refazer.isSuccess ? 'link' : 'confirmar'
-  useFocoDaEtapa(etapa, etapa === 'pergunta' ? tituloDaPergunta : etapa === 'link' ? tituloDoLink : textoDaConfirmacao, refazer.isError)
+  useStepFocus(etapa, etapa === 'pergunta' ? tituloDaPergunta : etapa === 'link' ? tituloDoLink : textoDaConfirmacao, refazer.isError)
 
   function confirmar(): void {
     if (noAr.current) return
@@ -372,10 +372,10 @@ export function DialogoDeConviteRefeito<Resposta extends { readonly token: strin
   )
 
   if (etapa === 'pergunta')
-    return dialogo(<Pergunta titulo={tituloDaPergunta} texto={textoDaPergunta(refazer.isPending, textosDoLink.quemEntra)} rotuloDeVoltar={ROTULO_DE_VOLTAR} aoVoltar={fechamento.voltar} aoFecharDeVez={fechamento.fecharDeVez} />)
+    return dialogo(<CloseConfirmation titulo={tituloDaPergunta} texto={textoDaPergunta(refazer.isPending, textosDoLink.quemEntra)} rotuloDeVoltar={ROTULO_DE_VOLTAR} aoVoltar={fechamento.voltar} aoFecharDeVez={fechamento.fecharDeVez} />)
 
   if (etapa === 'link' && refazer.data !== undefined) {
-    const link = linkDoConvite(window.location.origin, ROTAS.convite, refazer.data.token)
+    const link = linkDoConvite(window.location.origin, ROUTES.convite, refazer.data.token)
     return dialogo(
       <EtapaDoLink
         mandePara={mandePara}
@@ -403,7 +403,7 @@ export function DialogoDeConviteRefeito<Resposta extends { readonly token: strin
           <li key={aviso}>{aviso}</li>
         ))}
       </ul>
-      {falha !== undefined && <Falha texto={falha.texto} erro={refazer.error} />}
+      {falha !== undefined && <FailureAlert texto={falha.texto} erro={refazer.error} />}
       <div className="flex flex-wrap justify-end gap-3">
         {falha?.listaMudou !== true && (
           <Button onClick={confirmar} disabled={refazer.isPending}>

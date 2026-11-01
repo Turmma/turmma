@@ -294,7 +294,7 @@ test.describe('Uso (A0b, tarefa 8.0)', () => {
     await expect(page.getByRole('table')).toHaveCount(0)
     expect(await larguraExcedente(page)).toBe(0)
     expect(await violacoesGraves(page)).toEqual([])
-    // O botão do vazio (a peça `EstadoVazio`) leva a Escolas, onde a escola se cria.
+    // O botão do vazio (a peça `EmptyState`) leva a Escolas, onde a escola se cria.
     if (hasTouch) await paraEscolas.tap()
     else await paraEscolas.click()
     await expect(page).toHaveURL(/\/operacao$/)

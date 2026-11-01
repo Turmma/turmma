@@ -40,7 +40,7 @@ export function prazosDaInatividade(ultimoUso: number): { readonly aviso: number
  * - **2 min antes do fim, o aviso**, com "Continuar na sessão" e "Sair". No fim, a sessão é encerrada na API e a aba
  *   vai à entrada com a mensagem de sessão encerrada.
  */
-export function useInatividadeDaOperacao(ativa: boolean): { readonly avisoVisivel: boolean; readonly continuar: () => void } {
+export function useOperatorIdleTimeout(ativa: boolean): { readonly avisoVisivel: boolean; readonly continuar: () => void } {
   const [avisoVisivel, definirAvisoVisivel] = useState(false)
   const usoEmAndamento = useRef<Promise<unknown> | undefined>(undefined)
 

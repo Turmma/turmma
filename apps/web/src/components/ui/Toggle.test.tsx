@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { Clock } from 'lucide-react'
 import { useState } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { classesDo } from '../../__fixtures__/class-colors'
+import { classesOf } from '../../__fixtures__/class-colors'
 import { Toggle } from './Toggle'
 
 /**
@@ -80,7 +80,7 @@ describe('Toque', () => {
     expect(escolhido).toHaveLength(1)
     expect(escolhido[0]?.classList.contains('lucide-check')).toBe(true)
     expect(escolhido[0]?.getAttribute('aria-hidden')).toBe('true')
-    expect(classesDo(container.querySelector('button') as Element).has('text-azul-texto')).toBe(true)
+    expect(classesOf(container.querySelector('button') as Element).has('text-azul-texto')).toBe(true)
   })
 
   it('sem ícone, o livre não tem glifo e o escolhido ganha o visto', () => {
@@ -115,19 +115,19 @@ describe('Toque', () => {
     expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Depois' }))
     expect(aoMudar).not.toHaveBeenCalled()
     // Perde a cor de ação: a mesma face `borda` e o mesmo texto `apoio` dos outros botões desligados.
-    const classes = classesDo(container.querySelector('button') as Element)
+    const classes = classesOf(container.querySelector('button') as Element)
     for (const classe of ['disabled:border-borda', 'disabled:bg-borda', 'disabled:text-apoio']) expect(classes.has(classe), classe).toBe(true)
   })
 
   it('tem 44 px de face abaixo de 768 e 40 a partir daí, com o degrau de 3 px', () => {
     const { container } = render(<Toggle selecionado={false} aoMudar={() => undefined}>Todas</Toggle>)
-    const classes = classesDo(container.querySelector('button') as Element)
+    const classes = classesOf(container.querySelector('button') as Element)
     for (const classe of ['min-h-11', 'md:min-h-10', 'degrau', '[--altura-degrau:3px]', 'border-2', 'rounded-full']) expect(classes.has(classe), classe).toBe(true)
     // Livre: degrau na `borda`. Escolhido, o degrau é azul: a cor do degrau acompanha a face.
     expect(classes.has('degrau-borda')).toBe(true)
     cleanup()
     const { container: escolhido } = render(<Toggle selecionado aoMudar={() => undefined}>Todas</Toggle>)
-    const classesDoEscolhido = classesDo(escolhido.querySelector('button') as Element)
+    const classesDoEscolhido = classesOf(escolhido.querySelector('button') as Element)
     for (const classe of ['degrau-azul', 'bg-azul-claro', 'border-azul-borda', 'text-azul-texto']) expect(classesDoEscolhido.has(classe), classe).toBe(true)
     expect(classesDoEscolhido.has('degrau-borda')).toBe(false)
   })

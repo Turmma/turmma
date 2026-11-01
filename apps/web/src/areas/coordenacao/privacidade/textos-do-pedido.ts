@@ -12,7 +12,7 @@ import {
   type SuboperadorDaEscola,
 } from '@educa/shared'
 import type { StatusFamily } from '../../../components/ui/StatusBadge'
-import { formatarDiaDoInstante } from '../../../format'
+import { formatDayOfInstant } from '../../../format'
 import { TEXTO_DO_HOMONIMO } from './textos-dos-pedidos'
 
 /**
@@ -43,7 +43,7 @@ export function diasEntre(de: string, ate: string): number {
   return Math.round((emMilissegundos(ate) - emMilissegundos(de)) / DIA_EM_MS)
 }
 
-/** `2026-10-20` → `20/10/2026`: o dia de calendário, sem passar por fuso (`formatarData` o escreve por extenso). */
+/** `2026-10-20` → `20/10/2026`: o dia de calendário, sem passar por fuso (`formatDate` o escreve por extenso). */
 export function diaCurto(dia: string): string {
   const [ano, mes, diaDoMes] = dia.split('-')
   return `${diaDoMes}/${mes}/${ano}`
@@ -299,8 +299,8 @@ export function nomeDaEmpresa(linha: CompartilhamentoRow, suboperadores: readonl
 
 /** O período da linha: o dia, quando começa e termina no mesmo; senão de um dia até o outro. */
 export function periodoDaLinha(linha: Pick<CompartilhamentoRow, 'primeiroEm' | 'ultimoEm'>): string {
-  const primeiro = formatarDiaDoInstante(linha.primeiroEm)
-  const ultimo = formatarDiaDoInstante(linha.ultimoEm)
+  const primeiro = formatDayOfInstant(linha.primeiroEm)
+  const ultimo = formatDayOfInstant(linha.ultimoEm)
   return primeiro === ultimo ? `Em ${primeiro}` : `De ${primeiro} até ${ultimo}`
 }
 

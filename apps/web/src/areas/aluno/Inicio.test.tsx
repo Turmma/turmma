@@ -3,9 +3,9 @@ import { QueryClientProvider, focusManager } from '@tanstack/react-query'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Router } from 'wouter'
-import { CHAVE_DAS_MINHAS_ATIVIDADES } from '../../api/chaves-do-aluno'
-import { criarClienteDeConsultas } from '../../api/query-client'
-import { prepararTela, redeFalsa, renderizarTela, type RedeFalsa } from '../../__fixtures__/render-screen'
+import { MINHAS_ATIVIDADES_QUERY_KEY } from '../../api/chaves-do-aluno'
+import { createQueryClient } from '../../api/query-client'
+import { setupScreen, fakeNetwork, renderScreen, type FakeNetwork } from '../../__fixtures__/render-screen'
 import { AVISO_DA_AVALIACAO } from './atividades'
 import Inicio from './Inicio'
 import { TEXTO_DO_VAZIO, TITULO_DO_VAZIO } from './inicio'
@@ -17,7 +17,7 @@ import { TEXTO_DA_SUPERVISAO } from './tutor'
  * nenhuma depende da leitura das tarefas, e a faixa não tem botão de fechar (D8). A rede é falsa; a tela, o cliente de
  * consultas e a sessão são os da aba. O Início lê `/v1/eu` e `minhas-atividades`, e **nunca** a conversa do Tutor.
  */
-prepararTela()
+setupScreen()
 afterEach(() => vi.useRealTimers())
 
 const REQUISICAO = '0190f5a0-0000-7000-8000-000000000001'
@@ -47,8 +47,8 @@ const atividade = (final: string, campos: Record<string, unknown> = {}) => ({
 const enviada = (final: string) => atividade(final, { situacao: 'enviada', respondidas: 3, enviadaEm: '2026-10-06T13:00:00.000Z' })
 
 /** A rede de um caso: o `/v1/eu` do desvio da entrada e as tarefas dadas. */
-function rede(itens: unknown[], proxima?: string): RedeFalsa {
-  const falsa = redeFalsa()
+function rede(itens: unknown[], proxima?: string): FakeNetwork {
+  const falsa = fakeNetwork()
   falsa.responderPor('/v1/eu', { status: 200, corpo: EU })
   falsa.responderPor('/v1/minhas-atividades', { status: 200, corpo: { itens, ...(proxima === undefined ? {} : { proxima }) } })
   return falsa
@@ -56,7 +56,7 @@ function rede(itens: unknown[], proxima?: string): RedeFalsa {
 
 /** A área do aluno monta as rotas sob `/aluno`; o `Router` com a mesma base dá aos links o endereço que o navegador teria. */
 function montar() {
-  return renderizarTela(
+  return renderScreen(
     <Router base="/aluno">
       <Inicio />
     </Router>,
@@ -72,13 +72,13 @@ function conferirAFaixa(): void {
   expect(within(faixa as HTMLElement).queryAllByRole('button')).toHaveLength(0)
 }
 
-const caminhosPedidos = (falsa: RedeFalsa) => falsa.chamadas.map((chamada) => chamada.caminho.split('?')[0])
-const pedidosDeTarefas = (falsa: RedeFalsa) => caminhosPedidos(falsa).filter((caminho) => caminho === '/v1/minhas-atividades')
-const pedidosDoEu = (falsa: RedeFalsa) => caminhosPedidos(falsa).filter((caminho) => caminho === '/v1/eu')
+const caminhosPedidos = (falsa: FakeNetwork) => falsa.chamadas.map((chamada) => chamada.caminho.split('?')[0])
+const pedidosDeTarefas = (falsa: FakeNetwork) => caminhosPedidos(falsa).filter((caminho) => caminho === '/v1/minhas-atividades')
+const pedidosDoEu = (falsa: FakeNetwork) => caminhosPedidos(falsa).filter((caminho) => caminho === '/v1/eu')
 
 describe('o Início do aluno', () => {
   it('carregando: a faixa já está na tela, o rótulo do carregamento também, e nem o vazio nem "Ver todas as tarefas" ainda', async () => {
-    const falsa = redeFalsa()
+    const falsa = fakeNetwork()
     falsa.responderPor('/v1/eu', { status: 200, corpo: EU })
     falsa.segurar()
     montar()
@@ -93,7 +93,7 @@ describe('o Início do aluno', () => {
   })
 
   it('com erro: o alerta com "Tentar de novo", a saudação e a faixa continuam, e nem o vazio nem a lista aparecem', async () => {
-    const falsa = redeFalsa()
+    const falsa = fakeNetwork()
     falsa.responderPor('/v1/eu', { status: 200, corpo: EU })
     falsa.responderPor('/v1/minhas-atividades', FALHA)
     montar()
@@ -108,7 +108,7 @@ describe('o Início do aluno', () => {
   })
 
   it('"Tentar de novo" lê as tarefas outra vez, e a lista aparece no lugar do alerta', async () => {
-    const falsa = redeFalsa()
+    const falsa = fakeNetwork()
     falsa.responderPor('/v1/eu', { status: 200, corpo: EU })
     let leituras = 0
     falsa.responderPor('/v1/minhas-atividades', () => {
@@ -124,7 +124,7 @@ describe('o Início do aluno', () => {
   })
 
   it('dois cliques seguidos em "Tentar de novo" fazem uma leitura só, e a segunda não cancela a primeira', async () => {
-    const falsa = redeFalsa()
+    const falsa = fakeNetwork()
     falsa.responderPor('/v1/eu', { status: 200, corpo: EU })
     let leituras = 0
     let liberar: (resposta: { status: number; corpo: unknown }) => void = () => undefined
@@ -222,8 +222,8 @@ describe('o Início do aluno', () => {
 
   it('com as duas páginas já no cache, vindas de Tarefas, o Início mostra só as da primeira', async () => {
     const falsa = rede([])
-    const cliente = criarClienteDeConsultas()
-    cliente.setQueryData(CHAVE_DAS_MINHAS_ATIVIDADES, {
+    const cliente = createQueryClient()
+    cliente.setQueryData(MINHAS_ATIVIDADES_QUERY_KEY, {
       pages: [{ itens: [atividade('01')], proxima: PAGINA_SEGUINTE }, { itens: [atividade('02'), atividade('03')] }],
       pageParams: [undefined, PAGINA_SEGUINTE],
     })
@@ -243,11 +243,11 @@ describe('o Início do aluno', () => {
   })
 
   it('uma releitura que falha não tira as tarefas da tela nem põe o alerta no lugar delas', async () => {
-    const falsa = redeFalsa()
+    const falsa = fakeNetwork()
     falsa.responderPor('/v1/eu', { status: 200, corpo: EU })
     let falhar = false
     falsa.responderPor('/v1/minhas-atividades', () => (falhar ? FALHA : { status: 200, corpo: { itens: [atividade('01')] } }))
-    const cliente = criarClienteDeConsultas()
+    const cliente = createQueryClient()
     render(
       <QueryClientProvider client={cliente}>
         <Router base="/aluno">
@@ -259,11 +259,11 @@ describe('o Início do aluno', () => {
 
     falhar = true
     await act(async () => {
-      await cliente.refetchQueries({ queryKey: CHAVE_DAS_MINHAS_ATIVIDADES })
+      await cliente.refetchQueries({ queryKey: MINHAS_ATIVIDADES_QUERY_KEY })
     })
 
     await waitFor(() => expect(pedidosDeTarefas(falsa)).toHaveLength(2))
-    expect(cliente.getQueryState(CHAVE_DAS_MINHAS_ATIVIDADES)?.status).toBe('error')
+    expect(cliente.getQueryState(MINHAS_ATIVIDADES_QUERY_KEY)?.status).toBe('error')
     expect(screen.getByText('Lista sintética 01')).toBeTruthy()
     expect(screen.queryByRole('alert')).toBeNull()
   })
@@ -315,7 +315,7 @@ describe('o que o Início lê', () => {
   it('reaberto antes de 60 s, o Início usa o que já leu; passados os 60 s, lê de novo', async () => {
     vi.useFakeTimers({ toFake: ['Date'] })
     const falsa = rede([atividade('01')])
-    const cliente = criarClienteDeConsultas()
+    const cliente = createQueryClient()
     const tela = () => (
       <QueryClientProvider client={cliente}>
         <Router base="/aluno">
@@ -354,7 +354,7 @@ describe('a saudação do Início', () => {
   })
 
   it('antes de o nome chegar diz só "Oi." e não fica em branco', async () => {
-    const falsa = redeFalsa()
+    const falsa = fakeNetwork()
     falsa.responderPor('/v1/eu', () => new Promise(() => undefined))
     falsa.responderPor('/v1/minhas-atividades', { status: 200, corpo: { itens: [] } })
     montar()
@@ -384,7 +384,7 @@ describe('o texto do Início', () => {
     varrer()
     vazio.unmount()
 
-    const falsa = redeFalsa()
+    const falsa = fakeNetwork()
     falsa.responderPor('/v1/eu', { status: 200, corpo: EU })
     falsa.responderPor('/v1/minhas-atividades', FALHA)
     montar()

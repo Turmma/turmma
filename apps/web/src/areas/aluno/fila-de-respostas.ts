@@ -1,9 +1,9 @@
 import type { ProvaResponse, QuestaoSalvaResponse, RespostaSalva } from '@educa/shared'
 import type { QueryClient } from '@tanstack/react-query'
-import { responderQuestao, consultaProva } from '../../api/atividades-do-aluno'
-import { CHAVE_DAS_MINHAS_ATIVIDADES } from '../../api/chaves-do-aluno'
+import { responderQuestao, provaQueryOptions } from '../../api/atividades-do-aluno'
+import { MINHAS_ATIVIDADES_QUERY_KEY } from '../../api/chaves-do-aluno'
 import { codigoDoErro } from '../../api/ciclo-de-execucao'
-import { consultaEu } from '../../api/eu'
+import { euQueryOptions } from '../../api/eu'
 import { esquecerEspelhosDeOutroDono, gravarEspelho, lerEspelho } from '../../api/espelho-da-fila'
 import { aoAbrirSessao, aoTrocarDeSessao } from '../../api/sessao'
 import { adotarLeitura, comecarEnvio, confirmarEnvio, escolher, esperaAntesDeTentar, falharEnvio, FILA_VAZIA, hidratarDoEspelho, proximoEnvio, type EstadoDaFila } from './respostas'
@@ -172,11 +172,11 @@ export function filaDaAtividade(cliente: QueryClient, atividadeAplicadaId: strin
   const fila = criarFilaDeRespostas({
     salvar: (questao, alternativa, sequencia) => responderQuestao(atividadeAplicadaId, questao, alternativa, sequencia),
     // Quem é o aluno vem do `/v1/eu` desta sessão, no cache: ele sai com a troca de sessão, ao contrário do que a aba lembra.
-    espelho: { atividade: atividadeAplicadaId, dono: () => cliente.getQueryData(consultaEu.queryKey)?.usuarioId },
+    espelho: { atividade: atividadeAplicadaId, dono: () => cliente.getQueryData(euQueryOptions.queryKey)?.usuarioId },
     aoSalvar: (salva) => {
-      cliente.setQueryData(consultaProva(atividadeAplicadaId).queryKey, (prova) => (prova === undefined ? prova : provaComRespostaSalva(prova, salva)))
+      cliente.setQueryData(provaQueryOptions(atividadeAplicadaId).queryKey, (prova) => (prova === undefined ? prova : provaComRespostaSalva(prova, salva)))
       // A lista de atividades conta as respondidas: ela é lida de novo quando o aluno voltar a ela.
-      void cliente.invalidateQueries({ queryKey: CHAVE_DAS_MINHAS_ATIVIDADES, refetchType: 'none' })
+      void cliente.invalidateQueries({ queryKey: MINHAS_ATIVIDADES_QUERY_KEY, refetchType: 'none' })
     },
   })
   filas.set(atividadeAplicadaId, fila)

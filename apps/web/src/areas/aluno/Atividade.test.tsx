@@ -6,10 +6,10 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { Router } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
-import { classesDo } from '../../__fixtures__/class-colors'
-import { prepararTela, redeFalsa, renderizarTela, type RedeFalsa, type RespostaFalsa } from '../../__fixtures__/render-screen'
-import { criarClienteDeConsultas } from '../../api/query-client'
-import { consultaEu } from '../../api/eu'
+import { classesOf } from '../../__fixtures__/class-colors'
+import { setupScreen, fakeNetwork, renderScreen, type FakeNetwork, type FakeResponse } from '../../__fixtures__/render-screen'
+import { createQueryClient } from '../../api/query-client'
+import { euQueryOptions } from '../../api/eu'
 import { AVISO_DE_OUTRA_JANELA, FALA_DA_ENTREGA, ROTULO_DE_VOLTAR_AS_TAREFAS } from './atividade'
 import Atividade from './Atividade'
 
@@ -25,7 +25,7 @@ import Atividade from './Atividade'
  * `jsdom` não tem `ResizeObserver` (a barra presa mede a si mesma) nem o `dialog` modal (o diálogo "Enviar a atividade?"):
  * o teste os põe, e são API do navegador, e não peça nossa.
  */
-prepararTela()
+setupScreen()
 
 /** O `jsdom` não tem `matchMedia`: a janela que o caso diz que tem (o Chromebook, 1366 px, por padrão) responde às consultas `min-width`. */
 function janelaDe(largura: number): void {
@@ -62,18 +62,18 @@ const idDaAtividade = (n: number) => `0197a1c0-0000-7000-8000-${String(n).padSta
 const ALTERNATIVAS = ['Quatro', 'Cinco', 'Seis', 'Sete']
 const questao = (numero: number) => ({ numero, enunciado: `Enunciado sintético da questão ${String(numero)}`, alternativas: ALTERNATIVAS })
 
-function prova(atividadeAplicadaId: string, respostas: readonly { questao: number; alternativa: number; sequencia: number }[] = [], campos: Record<string, unknown> = {}): RespostaFalsa {
+function prova(atividadeAplicadaId: string, respostas: readonly { questao: number; alternativa: number; sequencia: number }[] = [], campos: Record<string, unknown> = {}): FakeResponse {
   return {
     status: 200,
     corpo: { atividadeAplicadaId, titulo: 'Lista sintética', avaliativa: false, estado: 'aberta', adaptacao: null, questoes: [questao(1), questao(2), questao(3)], respostas, enviadaEm: null, ...campos },
   }
 }
 
-const gravada = (alternativa: number, sequencia: number): RespostaFalsa => ({ status: 200, corpo: { questao: 1, alternativa, sequencia, respondidaEm: '2026-10-22T13:10:00.000Z' } })
+const gravada = (alternativa: number, sequencia: number): FakeResponse => ({ status: 200, corpo: { questao: 1, alternativa, sequencia, respondidaEm: '2026-10-22T13:10:00.000Z' } })
 
 function montar(atividadeAplicadaId: string) {
   const localizacao = memoryLocation({ path: `/aluno/atividades/${atividadeAplicadaId}` })
-  return renderizarTela(
+  return renderScreen(
     <Router hook={localizacao.hook}>
       <Atividade atividadeAplicadaId={atividadeAplicadaId} />
     </Router>,
@@ -81,7 +81,7 @@ function montar(atividadeAplicadaId: string) {
 }
 
 /** Os corpos dos `PUT` da resposta, na ordem em que a fila os mandou. */
-const envios = (rede: RedeFalsa) =>
+const envios = (rede: FakeNetwork) =>
   rede.chamadas.flatMap((chamada, indice) => {
     if (chamada.metodo !== 'PUT') return []
     const opcoes = vi.mocked(fetch).mock.calls[indice]?.[1]
@@ -96,7 +96,7 @@ describe('a atividade na tela: a escolha mais nova vale (51.0, RF21)', () => {
   it('a aba que perde adota a alternativa gravada, não reenvia, e avisa dentro da região de status', async () => {
     const usuario = userEvent.setup()
     const id = idDaAtividade(1)
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor(`/v1/atividades-aplicadas/${id}/prova`, prova(id))
     // O servidor já tinha, de outra janela, a alternativa C com a sequência 8: a escolha desta janela perde.
     rede.responderPor(`/v1/atividades-aplicadas/${id}/respostas/1`, gravada(2, 8))
@@ -116,7 +116,7 @@ describe('a atividade na tela: a escolha mais nova vale (51.0, RF21)', () => {
   it('o clique seguinte da aba que perdeu sai com servidor + 1, vence, e o aviso some', async () => {
     const usuario = userEvent.setup()
     const id = idDaAtividade(2)
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor(`/v1/atividades-aplicadas/${id}/prova`, prova(id))
     let chamada = 0
     rede.responderPor(`/v1/atividades-aplicadas/${id}/respostas/1`, () => (++chamada === 1 ? gravada(2, 8) : gravada(0, 9)))
@@ -139,7 +139,7 @@ describe('a atividade na tela: a escolha mais nova vale (51.0, RF21)', () => {
   it('a aba que venceu mostra a sua até a leitura seguinte, e então adota a do servidor com o mesmo aviso', async () => {
     const usuario = userEvent.setup()
     const id = idDaAtividade(3)
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor(`/v1/atividades-aplicadas/${id}/prova`, prova(id))
     rede.responderPor(`/v1/atividades-aplicadas/${id}/respostas/1`, gravada(1, 1))
     montar(id)
@@ -152,7 +152,7 @@ describe('a atividade na tela: a escolha mais nova vale (51.0, RF21)', () => {
 
     // A prova é lida de novo (a tela é aberta outra vez, sem F5): a outra janela gravou D, com a sequência 5.
     cleanup()
-    const redeDaLeitura = redeFalsa()
+    const redeDaLeitura = fakeNetwork()
     redeDaLeitura.responderPor(`/v1/atividades-aplicadas/${id}/prova`, prova(id, [{ questao: 1, alternativa: 3, sequencia: 5 }]))
     redeDaLeitura.responderPor(`/v1/atividades-aplicadas/${id}/respostas/1`, gravada(2, 6))
     montar(id)
@@ -167,7 +167,7 @@ describe('a atividade na tela: a escolha mais nova vale (51.0, RF21)', () => {
 
   it('a primeira abertura da atividade, com respostas já gravadas, não avisa nada: nesta janela não havia o que alterar', async () => {
     const id = idDaAtividade(4)
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor(`/v1/atividades-aplicadas/${id}/prova`, prova(id, [{ questao: 1, alternativa: 2, sequencia: 4 }]))
     montar(id)
 
@@ -186,8 +186,8 @@ describe('a atividade na tela: a escolha pendente sobrevive ao F5 (53.0, RF21)',
     window.sessionStorage.setItem(`educa.escolhas-pendentes.${atividade}`, JSON.stringify({ dono, atividade, pendentes: [{ questao: 1, alternativa: 2, sequencia: 3 }] }))
   /** A tela dentro do cache da aba, com o `/v1/eu` de quem está na sessão (ou sem ele, ainda). */
   function montarComSessao(atividadeAplicadaId: string, usuarioId: string | undefined) {
-    const cliente = criarClienteDeConsultas()
-    if (usuarioId !== undefined) cliente.setQueryData(consultaEu.queryKey, eu(usuarioId))
+    const cliente = createQueryClient()
+    if (usuarioId !== undefined) cliente.setQueryData(euQueryOptions.queryKey, eu(usuarioId))
     const localizacao = memoryLocation({ path: `/aluno/atividades/${atividadeAplicadaId}` })
     render(
       <QueryClientProvider client={cliente}>
@@ -202,11 +202,11 @@ describe('a atividade na tela: a escolha pendente sobrevive ao F5 (53.0, RF21)',
   it('o F5 com a escolha ainda não salva: ela volta marcada, sai com a mesma sequência, e some do espelho quando o servidor confirma', async () => {
     const id = idDaAtividade(5)
     guardar(id, ALUNA)
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor(`/v1/atividades-aplicadas/${id}/prova`, prova(id))
     // O servidor só confirma quando o teste diz: até lá a escolha está na tela, marcada, e no espelho.
-    let confirmar: (resposta: RespostaFalsa) => void = () => undefined
-    const segurada = new Promise<RespostaFalsa>((resolver) => (confirmar = resolver))
+    let confirmar: (resposta: FakeResponse) => void = () => undefined
+    const segurada = new Promise<FakeResponse>((resolver) => (confirmar = resolver))
     rede.responderPor(`/v1/atividades-aplicadas/${id}/respostas/1`, () => segurada)
     montarComSessao(id, ALUNA)
 
@@ -223,7 +223,7 @@ describe('a atividade na tela: a escolha pendente sobrevive ao F5 (53.0, RF21)',
   it('o aluno da sessão só se sabe depois de a tela abrir: a escolha guardada volta e sai assim que ele chega', async () => {
     const id = idDaAtividade(6)
     guardar(id, ALUNA)
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor(`/v1/atividades-aplicadas/${id}/prova`, prova(id))
     rede.responderPor(`/v1/atividades-aplicadas/${id}/respostas/1`, gravada(2, 3))
     const cliente = montarComSessao(id, undefined)
@@ -232,14 +232,14 @@ describe('a atividade na tela: a escolha pendente sobrevive ao F5 (53.0, RF21)',
     expect(envios(rede)).toEqual([])
     // A tela só assina o `/v1/eu` que a casca busca: não o busca de novo.
     expect(rede.chamadas.some(({ caminho }) => caminho.startsWith('/v1/eu'))).toBe(false)
-    act(() => cliente.setQueryData(consultaEu.queryKey, eu(ALUNA)))
+    act(() => cliente.setQueryData(euQueryOptions.queryKey, eu(ALUNA)))
     await waitFor(() => expect(envios(rede)).toEqual([{ alternativa: 2, sequencia: 3 }]))
   })
 
   it('o espelho de outra pessoa no mesmo Chromebook não volta: nada é mandado, nada aparece marcado, e ele sai do armazenamento', async () => {
     const id = idDaAtividade(7)
     guardar(id, OUTRO_ALUNO)
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor(`/v1/atividades-aplicadas/${id}/prova`, prova(id))
     montarComSessao(id, ALUNA)
 
@@ -255,13 +255,13 @@ describe('a atividade na tela: a escolha pendente sobrevive ao F5 (53.0, RF21)',
 // ---------------------------------------------------------------------------------------------------------------------
 
 const REQUISICAO = '0190f5a0-0000-7000-8000-000000000001'
-const erroDaApi = (status: number, codigo: string): RespostaFalsa => ({ status, corpo: { erro: { codigo, mensagem: 'x', requisicaoId: REQUISICAO } } })
+const erroDaApi = (status: number, codigo: string): FakeResponse => ({ status, corpo: { erro: { codigo, mensagem: 'x', requisicaoId: REQUISICAO } } })
 const NAO_ACHADA = erroDaApi(404, ErrorCode.NAO_ENCONTRADO)
 const ENVIADA_EM = '2026-10-22T13:30:00.000Z'
 const respostaDe = (questaoNumero: number, alternativa: number) => ({ questao: questaoNumero, alternativa, sequencia: 1 })
 const DUAS_RESPONDIDAS = [respostaDe(1, 1), respostaDe(2, 0)]
 
-function diagnosticoDe(atividadeAplicadaId: string): RespostaFalsa {
+function diagnosticoDe(atividadeAplicadaId: string): FakeResponse {
   const corpo: MeuDiagnosticoResponse = {
     atividadeAplicadaId,
     titulo: 'Lista sintética',
@@ -275,9 +275,9 @@ function diagnosticoDe(atividadeAplicadaId: string): RespostaFalsa {
   return { status: 200, corpo }
 }
 
-const enviadaAgora: RespostaFalsa = { status: 200, corpo: { enviadaEm: ENVIADA_EM, respondidas: 2, questoes: 3 } }
+const enviadaAgora: FakeResponse = { status: 200, corpo: { enviadaEm: ENVIADA_EM, respondidas: 2, questoes: 3 } }
 const comemoracoes = () => document.querySelectorAll('[data-comemoracao]')
-const pedidosDeEnvio = (rede: RedeFalsa) => rede.chamadas.filter(({ caminho, metodo }) => metodo === 'POST' && caminho.endsWith('/enviar'))
+const pedidosDeEnvio = (rede: FakeNetwork) => rede.chamadas.filter(({ caminho, metodo }) => metodo === 'POST' && caminho.endsWith('/enviar'))
 
 /** O aluno abre a confirmação e confirma o envio: o mesmo caminho da tela, pelos dois botões "Enviar a atividade". */
 async function enviarPelaTela(usuario: ReturnType<typeof userEvent.setup>) {
@@ -288,9 +288,9 @@ async function enviarPelaTela(usuario: ReturnType<typeof userEvent.setup>) {
 }
 
 /** A tela da tarefa de uma aluna que respondeu duas de três, com a rede pronta para o envio dar certo. */
-function prepararEnvio(n: number, diagnostico: RespostaFalsa = NAO_ACHADA) {
+function prepararEnvio(n: number, diagnostico: FakeResponse = NAO_ACHADA) {
   const id = idDaAtividade(n)
-  const rede = redeFalsa()
+  const rede = fakeNetwork()
   rede.responderPor(`/v1/atividades-aplicadas/${id}/prova`, prova(id, DUAS_RESPONDIDAS))
   rede.responderPor(`/v1/atividades-aplicadas/${id}/enviar`, enviadaAgora)
   rede.responderPor(`/v1/atividades-aplicadas/${id}/meu-diagnostico`, diagnostico)
@@ -353,7 +353,7 @@ describe('a comemoração do envio (X4, 6.0; RF8; D59)', () => {
 
     // O F5, ou abrir a tarefa pela lista: outra abertura, outro cache, e o servidor já tem o envio.
     cleanup()
-    const redeDaLeitura = redeFalsa()
+    const redeDaLeitura = fakeNetwork()
     redeDaLeitura.responderPor(`/v1/atividades-aplicadas/${id}/prova`, prova(id, DUAS_RESPONDIDAS, { enviadaEm: ENVIADA_EM }))
     redeDaLeitura.responderPor(`/v1/atividades-aplicadas/${id}/meu-diagnostico`, NAO_ACHADA)
     montar(id)
@@ -365,7 +365,7 @@ describe('a comemoração do envio (X4, 6.0; RF8; D59)', () => {
 
   it('a tarefa que tem resultado abre sem comemoração', async () => {
     const id = idDaAtividade(13)
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor(`/v1/atividades-aplicadas/${id}/prova`, prova(id, DUAS_RESPONDIDAS, { enviadaEm: ENVIADA_EM }))
     rede.responderPor(`/v1/atividades-aplicadas/${id}/meu-diagnostico`, diagnosticoDe(id))
     montar(id)
@@ -375,14 +375,14 @@ describe('a comemoração do envio (X4, 6.0; RF8; D59)', () => {
 
   it('a lista "Questão por questão" rola por dentro e ganha foco só a partir de 1024 px; abaixo disso a página é que rola', async () => {
     const id = idDaAtividade(14)
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor(`/v1/atividades-aplicadas/${id}/prova`, prova(id, DUAS_RESPONDIDAS, { enviadaEm: ENVIADA_EM }))
     rede.responderPor(`/v1/atividades-aplicadas/${id}/meu-diagnostico`, diagnosticoDe(id))
     montar(id)
     const resultado = await screen.findByRole('region', { name: 'Seu resultado' })
     const lista = within(resultado).getByRole('group', { name: 'Questões corrigidas' })
     expect(lista.getAttribute('tabindex')).toBe('0')
-    for (const classe of ['relative', 'lg:overflow-y-auto']) expect(classesDo(lista).has(classe), classe).toBe(true)
+    for (const classe of ['relative', 'lg:overflow-y-auto']) expect(classesOf(lista).has(classe), classe).toBe(true)
     expect(lista.querySelectorAll('[data-questao-corrigida]').length).toBeGreaterThan(0)
     cleanup()
 
@@ -399,7 +399,7 @@ describe('a comemoração do envio (X4, 6.0; RF8; D59)', () => {
 
   it('a tarefa que a professora encerrou abre sem comemoração', async () => {
     const id = idDaAtividade(14)
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor(`/v1/atividades-aplicadas/${id}/prova`, prova(id, DUAS_RESPONDIDAS, { estado: 'encerrada' }))
     rede.responderPor(`/v1/atividades-aplicadas/${id}/meu-diagnostico`, NAO_ACHADA)
     montar(id)
@@ -410,7 +410,7 @@ describe('a comemoração do envio (X4, 6.0; RF8; D59)', () => {
   it('o resultado aprovado que já está à vista na hora do envio tira a comemoração: ela nunca divide a tela com acerto', async () => {
     const usuario = userEvent.setup()
     const id = idDaAtividade(15)
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor(`/v1/atividades-aplicadas/${id}/prova`, prova(id, DUAS_RESPONDIDAS))
     rede.responderPor(`/v1/atividades-aplicadas/${id}/enviar`, enviadaAgora)
     rede.responderPor(`/v1/atividades-aplicadas/${id}/meu-diagnostico`, diagnosticoDe(id))
@@ -425,7 +425,7 @@ describe('a comemoração do envio (X4, 6.0; RF8; D59)', () => {
   it('a professora encerra com o diálogo aberto (ATIVIDADE_ENCERRADA): a tela passa a dizer isso, sem comemoração', async () => {
     const usuario = userEvent.setup()
     const id = idDaAtividade(16)
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     let encerrou = false
     rede.responderPor(`/v1/atividades-aplicadas/${id}/prova`, () => prova(id, DUAS_RESPONDIDAS, encerrou ? { estado: 'encerrada' } : {}))
     rede.responderPor(`/v1/atividades-aplicadas/${id}/enviar`, () => {
@@ -445,7 +445,7 @@ describe('a comemoração do envio (X4, 6.0; RF8; D59)', () => {
   it('a queda de rede no envio deixa o diálogo aberto e sem comemoração; ela só vem quando o envio, de fato, passa', async () => {
     const usuario = userEvent.setup()
     const id = idDaAtividade(17)
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor(`/v1/atividades-aplicadas/${id}/prova`, prova(id, DUAS_RESPONDIDAS))
     let tentativas = 0
     rede.responderPor(`/v1/atividades-aplicadas/${id}/enviar`, () => (++tentativas === 1 ? erroDaApi(503, ErrorCode.INDISPONIVEL_TENTE_DE_NOVO) : enviadaAgora))
@@ -468,7 +468,7 @@ describe('a comemoração do envio (X4, 6.0; RF8; D59)', () => {
   it('o envio que falha com a tarefa já enviada em outra janela não comemora: a comemoração é só do `onSuccess`', async () => {
     const usuario = userEvent.setup()
     const id = idDaAtividade(18)
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     // Outra janela enviou a mesma tarefa: este envio é recusado, e a leitura que a tela refaz já traz o envio.
     let enviadaEmOutraJanela = false
     rede.responderPor(`/v1/atividades-aplicadas/${id}/prova`, () => prova(id, DUAS_RESPONDIDAS, enviadaEmOutraJanela ? { enviadaEm: ENVIADA_EM } : {}))
@@ -491,11 +491,11 @@ describe('a comemoração do envio (X4, 6.0; RF8; D59)', () => {
   it('o clique duplo em "Enviar a atividade" manda um envio só e comemora uma vez', async () => {
     const usuario = userEvent.setup()
     const id = idDaAtividade(19)
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor(`/v1/atividades-aplicadas/${id}/prova`, prova(id, DUAS_RESPONDIDAS))
     // O servidor só responde quando o teste libera: o segundo clique chega com o primeiro envio ainda no ar.
-    let liberar: (resposta: RespostaFalsa) => void = () => undefined
-    const segurada = new Promise<RespostaFalsa>((resolver) => (liberar = resolver))
+    let liberar: (resposta: FakeResponse) => void = () => undefined
+    const segurada = new Promise<FakeResponse>((resolver) => (liberar = resolver))
     rede.responderPor(`/v1/atividades-aplicadas/${id}/enviar`, () => segurada)
     rede.responderPor(`/v1/atividades-aplicadas/${id}/meu-diagnostico`, NAO_ACHADA)
     montar(id)
@@ -516,7 +516,7 @@ describe('a comemoração do envio (X4, 6.0; RF8; D59)', () => {
 describe('a tarefa aberta: a moldura (X4, 6.1; RF7)', () => {
   it('é a `Tela` na largura de leitura, e o "Voltar" diz Tarefas', async () => {
     const id = idDaAtividade(20)
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor(`/v1/atividades-aplicadas/${id}/prova`, prova(id))
     montar(id)
     await screen.findByRole('radio', { name: /^A\./ })
@@ -530,7 +530,7 @@ describe('a tarefa aberta: a moldura (X4, 6.1; RF7)', () => {
   it('"Anterior" e "Próxima" estão na barra presa, e param nas pontas; "Enviar a atividade" não fica dentro dela', async () => {
     const usuario = userEvent.setup()
     const id = idDaAtividade(21)
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor(`/v1/atividades-aplicadas/${id}/prova`, prova(id))
     montar(id)
     await screen.findByRole('radio', { name: /^A\./ })
@@ -554,7 +554,7 @@ describe('a tarefa aberta: a moldura (X4, 6.1; RF7)', () => {
 
   it('"Enviar a atividade", o ponto de parada e a navegação são uma linha só em janela larga; a barra presa embaixo é do celular', async () => {
     const id = idDaAtividade(23)
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor(`/v1/atividades-aplicadas/${id}/prova`, prova(id))
     montar(id)
     await screen.findByRole('radio', { name: /^A\./ })
@@ -566,20 +566,20 @@ describe('a tarefa aberta: a moldura (X4, 6.1; RF7)', () => {
     const linha = barra.parentElement
     expect(parada.parentElement).toBe(linha)
     expect(enviar.closest('div')?.parentElement).toBe(linha)
-    expect(classesDo(linha as HTMLElement).has('md:flex')).toBe(true)
+    expect(classesOf(linha as HTMLElement).has('md:flex')).toBe(true)
     // O invólucro de "Enviar": à esquerda e sem o fio nem o respiro de cima que ele tem no celular, para a linha única alinhar.
-    const envio = classesDo(enviar.closest('div') as HTMLElement)
+    const envio = classesOf(enviar.closest('div') as HTMLElement)
     for (const classe of ['md:justify-start', 'md:border-t-0', 'md:pt-0']) expect(envio.has(classe), classe).toBe(true)
     // Presa no celular; solta, sem fio, a partir de 768 px: presa, cobriria "Enviar" e o ponto de parada.
-    const classes = classesDo(barra)
+    const classes = classesOf(barra)
     for (const classe of ['sticky', 'md:static', 'md:border-t-0', 'md:py-0']) expect(classes.has(classe), classe).toBe(true)
     // O ponto de parada fica no vão da linha, e não numa fileira só dele.
-    expect(classesDo(parada).has('md:flex-1')).toBe(true)
+    expect(classesOf(parada).has('md:flex-1')).toBe(true)
   })
 
   it('o mapa distingue a questão aberta e a respondida da que está em branco, sem depender só da cor', async () => {
     const id = idDaAtividade(22)
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor(`/v1/atividades-aplicadas/${id}/prova`, prova(id, [respostaDe(2, 1)]))
     montar(id)
     await screen.findByRole('radio', { name: /^A\./ })
@@ -598,7 +598,7 @@ describe('a tarefa aberta: a moldura (X4, 6.1; RF7)', () => {
 describe('a tarefa aberta: os quatro estados (X4, 6.1; RF20)', () => {
   it('carregando: o texto, o "Voltar" à vista e nenhuma questão', async () => {
     const id = idDaAtividade(30)
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     const segurada = rede.segurar()
     montar(id)
 
@@ -611,7 +611,7 @@ describe('a tarefa aberta: os quatro estados (X4, 6.1; RF20)', () => {
 
   it('não disponível: a de outra turma responde como a que não existe, e aponta para Tarefas, sem "Tentar de novo"', async () => {
     const id = idDaAtividade(31)
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor(`/v1/atividades-aplicadas/${id}/prova`, NAO_ACHADA)
     montar(id)
 
@@ -625,9 +625,9 @@ describe('a tarefa aberta: os quatro estados (X4, 6.1; RF20)', () => {
   it('erro: diz o que fazer, sem código, e "Tentar de novo" traz a tarefa', async () => {
     const usuario = userEvent.setup()
     const id = idDaAtividade(32)
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     let tentativas = 0
-    // Limite excedido não é repetido sozinho (`deveTentarDeNovo`): o erro aparece na hora, sem esperar a nova tentativa de 1 s.
+    // Limite excedido não é repetido sozinho (`shouldRetry`): o erro aparece na hora, sem esperar a nova tentativa de 1 s.
     rede.responderPor(`/v1/atividades-aplicadas/${id}/prova`, () => (++tentativas === 1 ? erroDaApi(429, ErrorCode.LIMITE_EXCEDIDO) : prova(id)))
     montar(id)
 
@@ -640,7 +640,7 @@ describe('a tarefa aberta: os quatro estados (X4, 6.1; RF20)', () => {
 
   it('com dado: o título da tarefa, a questão, as alternativas e o ponto de parada dito', async () => {
     const id = idDaAtividade(33)
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor(`/v1/atividades-aplicadas/${id}/prova`, prova(id))
     montar(id)
 

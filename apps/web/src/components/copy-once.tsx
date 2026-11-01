@@ -17,12 +17,12 @@ const TEXTO_DO_LINK_COPIADO = 'Link copiado.'
 const TEXTO_DO_LINK_SELECIONADO = 'O link está selecionado no campo. Copie com Ctrl+C, ou toque e segure no campo e escolha Copiar.'
 
 /** O que a cópia diz quando copia e quando só consegue selecionar o campo do link. */
-export interface DitosDaCopia {
+export interface CopyMessages {
   readonly copiado: string
   readonly selecionado: string
 }
 
-const DITOS_DO_LINK: DitosDaCopia = { copiado: TEXTO_DO_LINK_COPIADO, selecionado: TEXTO_DO_LINK_SELECIONADO }
+const DITOS_DO_LINK: CopyMessages = { copiado: TEXTO_DO_LINK_COPIADO, selecionado: TEXTO_DO_LINK_SELECIONADO }
 
 /**
  * Fechar o diálogo que tem, ou vai ter, um link que ninguém copiou. Com o link em risco — o pedido no ar, ou o link na
@@ -32,7 +32,7 @@ const DITOS_DO_LINK: DitosDaCopia = { copiado: TEXTO_DO_LINK_COPIADO, selecionad
  * Fechar de vez solta a mutação (`reset()`): o token sai do diálogo e, com o `gcTime: 0` das mutações que o trazem, do
  * cache na mesma hora (regra 20, item 8).
  */
-export function useFechamento(linkEmRisco: boolean, soltar: () => void, aoFechar: () => void) {
+export function useGuardedClose(linkEmRisco: boolean, soltar: () => void, aoFechar: () => void) {
   const [perguntando, definirPerguntando] = useState(false)
   // A pergunta só vale enquanto há link em risco. O pedido que falha com ela aberta leva o diálogo de volta à etapa
   // dele, com a falha à vista: a pergunta diria que há um link, e "Fechar sem copiar" esconderia a recusa.
@@ -49,7 +49,7 @@ export function useFechamento(linkEmRisco: boolean, soltar: () => void, aoFechar
 }
 
 /** A pergunta antes de fechar sem o link copiado. Voltar e "Fechar sem copiar" do mesmo tamanho (D59). */
-export function Pergunta({
+export function CloseConfirmation({
   titulo,
   texto,
   rotuloDeVoltar,
@@ -84,7 +84,7 @@ export function Pergunta({
  * A cópia do link e o que foi dito dela: vazio, "Link copiado." ou o pedido de copiar à mão. `copiado` é o link que já
  * saiu do diálogo pela mão da pessoa: daí em diante, fechar não pergunta.
  */
-export function useCopia() {
+export function useCopyToClipboard() {
   const [copiado, definirCopiado] = useState(false)
   const [dito, definirDito] = useState({ texto: '', vez: 0 })
   // Cada vez é um nó novo na região, e o leitor de tela anuncia de novo o "Link copiado." da segunda cópia.
@@ -98,7 +98,7 @@ export function useCopia() {
    * Copia o texto (o link, ou o convite inteiro) e diz o que aconteceu. Sem área de transferência, o campo do link fica
    * selecionado, e a tela pede a cópia à mão: nada foi copiado, e fechar continua perguntando.
    */
-  async function copiar(texto: string, campo: HTMLInputElement | null, ditos: DitosDaCopia = DITOS_DO_LINK): Promise<void> {
+  async function copiar(texto: string, campo: HTMLInputElement | null, ditos: CopyMessages = DITOS_DO_LINK): Promise<void> {
     // Sem contexto seguro não há `navigator.clipboard`, embora o tipo diga que sempre há.
     const area: Clipboard | undefined = navigator.clipboard
     if ((await copiarLink(texto, area)) === 'copiado') {
@@ -117,7 +117,7 @@ export function useCopia() {
  * ou o menu do toque) também conta, pelo evento `copy`. A caixa é a do `FormField` (`field-styles.ts`: borda de 2 px em
  * `borda-campo`, fundo `campo`, 48 px), para o campo de leitura e o de escrita não se parecerem com peças diferentes.
  */
-export function CampoDoLink({ rotulo, link, aoCopiarAMao, ref }: { rotulo: string; link: string; aoCopiarAMao: () => void; ref: Ref<HTMLInputElement> }) {
+export function LinkField({ rotulo, link, aoCopiarAMao, ref }: { rotulo: string; link: string; aoCopiarAMao: () => void; ref: Ref<HTMLInputElement> }) {
   const idDoCampo = useId()
   return (
     <div className="flex flex-col gap-1">
@@ -144,7 +144,7 @@ export function CampoDoLink({ rotulo, link, aoCopiarAMao, ref }: { rotulo: strin
  * O que foi dito da cópia. Sempre na árvore, mesmo vazio: a região que aparece junto com o texto nem sempre é anunciada.
  * A altura fica reservada, e o texto chega sem empurrar os botões.
  */
-export function AvisoDaCopia({ texto, vez, copiado }: { texto: string; vez: number; copiado: boolean }) {
+export function CopyStatus({ texto, vez, copiado }: { texto: string; vez: number; copiado: boolean }) {
   return (
     <p role="status" className={`min-h-6 text-sm ${copiado ? 'text-ok' : 'text-apoio'}`}>
       <span key={vez}>{texto}</span>
@@ -156,7 +156,7 @@ export function AvisoDaCopia({ texto, vez, copiado }: { texto: string; vez: numb
  * A falha de um pedido, com o foco nela: o botão que o fez pode sumir (a lista mudou, e só sobra "Fechar") ou estar
  * desligado, e o foco não fica solto no diálogo. O alerta é lido pelo `role="alert"` de qualquer jeito.
  */
-export function Falha({ texto, erro }: { texto: string; erro: unknown }) {
+export function FailureAlert({ texto, erro }: { texto: string; erro: unknown }) {
   const alerta = useRef<HTMLParagraphElement>(null)
   useEffect(() => {
     alerta.current?.focus()
@@ -176,7 +176,7 @@ export function Falha({ texto, erro }: { texto: string; erro: unknown }) {
  * etapa. O diálogo de passos (`ConvidarAlunos`) não tem um alvo só na abertura, e por isso pede `daPrimeira`: o foco do passo
  * em que ele abriu também é daqui, e roda depois do `showModal`, porque o efeito do filho vem antes do do pai.
  */
-export function useFocoDaEtapa(etapa: string, alvo: RefObject<HTMLElement | null>, comFalha: boolean, daPrimeira = false): void {
+export function useStepFocus(etapa: string, alvo: RefObject<HTMLElement | null>, comFalha: boolean, daPrimeira = false): void {
   const primeira = useRef(!daPrimeira)
   // A falha desta renderização, para o efeito da etapa: ele só roda quando a etapa muda.
   const falhou = useRef(comFalha)

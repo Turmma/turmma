@@ -4,8 +4,8 @@ import { cleanup, render } from '@testing-library/react'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { semIdsDoDesenho } from '../../../__fixtures__/svg-ids'
-import { arquivosDeCodigoDaWeb, codigoSemComentarioNemTexto } from '../../../__fixtures__/danger-solid'
+import { stripSvgIds } from '../../../__fixtures__/svg-ids'
+import { webSourceFiles, codeWithoutCommentsOrText } from '../../../__fixtures__/danger-solid'
 import { Onca, POSES, type Pose, type TamanhoDaOnca } from './Onca'
 
 /**
@@ -57,7 +57,7 @@ describe('Onca: as poses', () => {
     const desenhos = new Set<string>()
     for (const pose of POSES) {
       const { container, unmount } = desenhar(pose)
-      desenhos.add(semIdsDoDesenho(container.querySelector('svg')?.innerHTML ?? ''))
+      desenhos.add(stripSvgIds(container.querySelector('svg')?.innerHTML ?? ''))
       unmount()
     }
     expect(desenhos.size).toBe(POSES.length)
@@ -183,7 +183,7 @@ describe('Onca: o desenho', () => {
       expect(svg.getAttribute('width')).toBe(String(tamanho))
       expect(svg.getAttribute('height')).toBe(String(tamanho))
       expect(svg.getAttribute('viewBox')).toBe('0 0 240 240')
-      formas.add(semIdsDoDesenho(svg.innerHTML))
+      formas.add(stripSvgIds(svg.innerHTML))
       unmount()
     }
     expect(formas.size).toBe(1)
@@ -202,7 +202,7 @@ describe('Onca: o desenho', () => {
       }
       primeiro.unmount()
       const segundo = desenhar(pose)
-      expect(semIdsDoDesenho(segundo.container.innerHTML), pose).toBe(semIdsDoDesenho(html))
+      expect(stripSvgIds(segundo.container.innerHTML), pose).toBe(stripSvgIds(html))
       segundo.unmount()
     }
   })
@@ -239,8 +239,8 @@ describe('Onca: o desenho', () => {
     for (const pose of POSES) {
       const { container, unmount } = desenhar(pose)
       // O que não muda: a forma do corpo e da cabeça, as rosetas e a barriga.
-      const parte = (seletor: string) => semIdsDoDesenho(container.querySelector(seletor)?.outerHTML ?? '')
-      comuns.add([parte('[data-parte="corpo"] > g > path'), parte('[data-parte="barriga"]'), semIdsDoDesenho(container.querySelectorAll('g[clip-path] use')[0]?.parentElement?.innerHTML ?? '')].join('|'))
+      const parte = (seletor: string) => stripSvgIds(container.querySelector(seletor)?.outerHTML ?? '')
+      comuns.add([parte('[data-parte="corpo"] > g > path'), parte('[data-parte="barriga"]'), stripSvgIds(container.querySelectorAll('g[clip-path] use')[0]?.parentElement?.innerHTML ?? '')].join('|'))
       // O que muda é desenhado em grupos próprios, para o corpo não ser redesenhado.
       for (const nome of ['pata-e', 'pata-d', 'rabo', 'pe-e', 'pe-d', 'orelha-e', 'orelha-d']) expect(container.querySelectorAll(`[data-parte="${nome}"]`), `${pose} ${nome}`).toHaveLength(1)
       unmount()
@@ -250,11 +250,11 @@ describe('Onca: o desenho', () => {
 })
 
 describe('a pasta da onça com o corpo inteiro', () => {
-  const daPasta = arquivosDeCodigoDaWeb(RAIZ_DA_WEB).filter((nome) => nome.startsWith('components/ui/onca/'))
+  const daPasta = webSourceFiles(RAIZ_DA_WEB).filter((nome) => nome.startsWith('components/ui/onca/'))
 
   it('a `Onca` está na pasta e não tem temporizador, efeito nem estado: o que se mexe está em `movimento-da-onca.ts`', () => {
     expect(daPasta).toContain('components/ui/onca/Onca.tsx')
-    const codigo = codigoSemComentarioNemTexto(readFileSync(join(RAIZ_DA_WEB, 'components/ui/onca/Onca.tsx'), 'utf8'))
+    const codigo = codeWithoutCommentsOrText(readFileSync(join(RAIZ_DA_WEB, 'components/ui/onca/Onca.tsx'), 'utf8'))
     expect(codigo).not.toMatch(/\b(?:setTimeout|setInterval|requestAnimationFrame|useEffect|useLayoutEffect|useState|useReducer|useRef)\b/)
   })
 })

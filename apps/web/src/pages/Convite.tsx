@@ -9,15 +9,15 @@ import {
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link, useLocation } from 'wouter'
 import { aceitarConviteNaVez, consultarConvite } from '../api/convite'
-import { ErroDaApi } from '../api/client'
+import { ApiError } from '../api/client'
 import { definirAvisoDaEntrada } from '../api/sessao'
-import { ROTAS } from '../paths'
+import { ROUTES } from '../paths'
 import { Button } from '../components/ui/Button'
 import { SECONDARY_LINK_CLASSES } from '../components/ui/button-variants'
 import { PasswordInput } from '../components/ui/fields/PasswordInput'
 import { CascaPublica } from '../components/CascaPublica'
-import { EstadoCarregando, EstadoErro } from '../components/states'
-import { apagarFragmentoDaBarra, tokenDoFragmento } from './url-fragment'
+import { LoadingState, ErrorState } from '../components/states'
+import { clearFragment, readFragmentToken } from './url-fragment'
 
 type Etapa =
   | { readonly nome: 'sem-token' }
@@ -52,7 +52,7 @@ type Etapa =
 export function Convite() {
   const [, navegar] = useLocation()
   // O token é lido na primeira renderização, e o efeito tira o fragmento da barra antes de qualquer chamada sair.
-  const [token, definirToken] = useState(tokenDoFragmento)
+  const [token, definirToken] = useState(readFragmentToken)
   const [etapa, definirEtapa] = useState<Etapa>(token === undefined ? { nome: 'sem-token' } : { nome: 'consultando' })
   // Sobe a cada link colado nesta aba. No `ref`, para o aceite no ar conferir a vez de agora quando volta; no estado,
   // para a consulta recomeçar mesmo com o token igual e para o botão saber de que link é o aceite no ar.
@@ -70,7 +70,7 @@ export function Convite() {
   useEffect(() => {
     function aoMudarOFragmento(): void {
       vezDoLink.current++
-      const novo = tokenDoFragmento()
+      const novo = readFragmentToken()
       definirFalha(undefined)
       definirToken(novo)
       definirVez(vezDoLink.current)
@@ -82,12 +82,12 @@ export function Convite() {
 
   // Também depois de cada link colado na aba (a `vez`), com token ou sem: o fragmento sai da barra antes da consulta.
   useEffect(() => {
-    apagarFragmentoDaBarra()
+    clearFragment()
     if (token === undefined) return undefined
     let atual = true
     consultarConvite(token).then(
       (resposta) => atual && definirEtapa({ nome: 'confirmar', token, escolaNome: resposta.escolaNome }),
-      (erro: unknown) => atual && definirEtapa(erro instanceof ErroDaApi && erro.codigo === ErrorCode.NAO_ENCONTRADO ? { nome: 'invalido' } : { nome: 'falhou', erro }),
+      (erro: unknown) => atual && definirEtapa(erro instanceof ApiError && erro.codigo === ErrorCode.NAO_ENCONTRADO ? { nome: 'invalido' } : { nome: 'falhou', erro }),
     )
     return () => {
       atual = false
@@ -108,17 +108,17 @@ export function Convite() {
     if (desfecho.tipo === 'descartado') return
     if (desfecho.tipo === 'aceito') {
       if (desfecho.resposta.etapa === 'configurar_mfa') {
-        navegar(ROTAS.configurarMfa, { replace: true })
+        navegar(ROUTES.configurarMfa, { replace: true })
         return
       }
       // O bilhete ficou na memória desta aba e vai no próximo login por e-mail. Sem senha nova, a conta já existia, e é
       // o login com a senha dela que ativa o acesso à escola que convidou. Com a senha nova, é o professor que acabou de
       // criá-la: falta entrar com ela.
       definirAvisoDaEntrada(senha === undefined ? AVISO_DO_CONVITE_PARA_CONTA_EXISTENTE : AVISO_DO_CONVITE_COM_SENHA_NOVA)
-      navegar(ROTAS.entrar, { replace: true })
+      navegar(ROUTES.entrar, { replace: true })
       return
     }
-    const codigo = desfecho.erro instanceof ErroDaApi ? desfecho.erro.codigo : undefined
+    const codigo = desfecho.erro instanceof ApiError ? desfecho.erro.codigo : undefined
     // Conta nova: a API recusa o aceite sem senha e não gasta o convite. Agora dá para pedir a senha com segurança.
     if (senha === undefined && codigo === ErrorCode.ENTRADA_INVALIDA) definirEtapa({ nome: 'definir-senha', token: tokenDoLink, escolaNome })
     // Usado, refeito ou revogado entre a consulta e o aceite: a mesma tela do convite que não vale, sem o nome da escola.
@@ -135,7 +135,7 @@ export function Convite() {
   if (etapa.nome === 'consultando') {
     return (
       <CascaPublica titulo="Convite">
-        <EstadoCarregando rotulo="Conferindo o convite…" />
+        <LoadingState rotulo="Conferindo o convite…" />
       </CascaPublica>
     )
   }
@@ -143,7 +143,7 @@ export function Convite() {
   if (etapa.nome === 'falhou') {
     return (
       <CascaPublica titulo="Convite">
-        <EstadoErro erro={etapa.erro} aoTentarDeNovo={tentarDeNovo} />
+        <ErrorState erro={etapa.erro} aoTentarDeNovo={tentarDeNovo} />
       </CascaPublica>
     )
   }
@@ -159,7 +159,7 @@ export function Convite() {
         {/* Quem abriu de novo o convite que já aceitou só precisa entrar; a tela não sabe qual dos casos aconteceu. */}
         <p className="text-apoio">Já aceitou o convite? Entre com o seu e-mail e a sua senha.</p>
         <div>
-          <Link className={SECONDARY_LINK_CLASSES} to={ROTAS.entrar}>
+          <Link className={SECONDARY_LINK_CLASSES} to={ROUTES.entrar}>
             Entrar
           </Link>
         </div>
@@ -176,7 +176,7 @@ export function Convite() {
       </p>
       {falha !== undefined && (
         <p role="alert" className="rounded-controle border border-erro bg-erro-cx p-4 text-erro">
-          {falha instanceof ErroDaApi ? mensagemDoConvite(falha.codigo) : mensagemDoConvite(ErrorCode.ERRO_INTERNO)}
+          {falha instanceof ApiError ? mensagemDoConvite(falha.codigo) : mensagemDoConvite(ErrorCode.ERRO_INTERNO)}
         </p>
       )}
       {etapa.nome === 'confirmar' ? (

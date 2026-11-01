@@ -4,8 +4,8 @@ import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useQuery } from '@tanstack/react-query'
-import { consultaAtividadesAplicadas } from './api/atividades'
-import { prepararTela, redeFalsa, renderizarTela, type RespostaFalsa } from '../../../__fixtures__/render-screen'
+import { atividadesAplicadasQueryOptions } from './api/atividades'
+import { setupScreen, fakeNetwork, renderScreen, type FakeResponse } from '../../../__fixtures__/render-screen'
 import { EFEITO_DE_ENCERRAR } from './aprovar'
 import { EncerramentoDaAtividade } from './EncerramentoDaAtividade'
 
@@ -14,7 +14,7 @@ import { EncerramentoDaAtividade } from './EncerramentoDaAtividade'
  * diz antes, o pedido que sai uma vez só e a falha em português. A rede é falsa; a peça, o diálogo e o cliente de consultas são
  * os de verdade. O `jsdom` não tem o `dialog` modal: o teste o põe (é API do navegador, e não peça nossa).
  */
-prepararTela()
+setupScreen()
 
 const id = (n: number) => `0197a1c0-0000-7000-8000-${String(n).padStart(12, '0')}`
 const APLICADA: AtividadeAplicada = {
@@ -31,8 +31,8 @@ const APLICADA: AtividadeAplicada = {
   entrega: null,
 }
 const ENCERRADA: AtividadeAplicada = { ...APLICADA, estado: 'encerrada', encerradaEm: '2026-10-05T13:50:00.000Z' }
-const ok = (corpo: unknown): RespostaFalsa => ({ status: 200, corpo })
-const encerramentos = (rede: ReturnType<typeof redeFalsa>) => rede.chamadas.filter((chamada) => chamada.caminho === `/v1/atividades-aplicadas/${APLICADA.id}/encerrar`)
+const ok = (corpo: unknown): FakeResponse => ({ status: 200, corpo })
+const encerramentos = (rede: ReturnType<typeof fakeNetwork>) => rede.chamadas.filter((chamada) => chamada.caminho === `/v1/atividades-aplicadas/${APLICADA.id}/encerrar`)
 
 beforeEach(() => {
   HTMLDialogElement.prototype.showModal = function showModal(this: HTMLDialogElement) {
@@ -55,12 +55,12 @@ beforeEach(() => {
 })
 
 function montar(aplicada: AtividadeAplicada, focoDeReserva: () => void = () => undefined) {
-  return renderizarTela(<EncerramentoDaAtividade aplicada={aplicada} nomeDaTurma="7ºA" focoDeReserva={focoDeReserva} />)
+  return renderScreen(<EncerramentoDaAtividade aplicada={aplicada} nomeDaTurma="7ºA" focoDeReserva={focoDeReserva} />)
 }
 
 describe('EncerramentoDaAtividade', () => {
   it('só a atividade aberta tem o botão: a encerrada não se encerra de novo por aqui', () => {
-    redeFalsa()
+    fakeNetwork()
     const { unmount } = montar(APLICADA)
     expect(screen.getByRole('button', { name: 'Encerrar a atividade' })).toBeTruthy()
     unmount()
@@ -69,7 +69,7 @@ describe('EncerramentoDaAtividade', () => {
   })
 
   it('a confirmação diz a atividade, a turma, quantos já enviaram e o que acontece, antes de qualquer pedido', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     const usuario = userEvent.setup()
     montar(APLICADA)
     await usuario.click(screen.getByRole('button', { name: 'Encerrar a atividade' }))
@@ -88,7 +88,7 @@ describe('EncerramentoDaAtividade', () => {
   })
 
   it('dois cliques em confirmar no mesmo instante mandam um pedido só, e o diálogo fecha quando ele volta', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor(`/v1/atividades-aplicadas/${APLICADA.id}/encerrar`, ok({ atividade: ENCERRADA, execucaoId: null }))
     const usuario = userEvent.setup()
     montar(APLICADA)
@@ -106,7 +106,7 @@ describe('EncerramentoDaAtividade', () => {
   })
 
   it('a falha fica no diálogo, em português e sem o código; fechando, a mensagem fica ao lado do botão; e abrir de novo a limpa', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor(`/v1/atividades-aplicadas/${APLICADA.id}/encerrar`, { status: 429, corpo: { erro: { codigo: 'LIMITE_EXCEDIDO', mensagem: 'x', requisicaoId: '0190f5a0-0000-7000-8000-000000000001' } } })
     const usuario = userEvent.setup()
     montar(APLICADA)
@@ -135,22 +135,22 @@ describe('EncerramentoDaAtividade', () => {
 
 /** Quem lê a lista da turma, como o painel dela faz: é a leitura que o encerramento manda reler. */
 function LeitorDaLista() {
-  useQuery(consultaAtividadesAplicadas(APLICADA.turmaId))
+  useQuery(atividadesAplicadasQueryOptions(APLICADA.turmaId))
   return null
 }
 
 describe('EncerramentoDaAtividade: a releitura', () => {
   it('o diálogo só fecha depois de a lista da turma ser lida de novo, para o foco ir ao bloco que fica e não ao `body`', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     const usuario = userEvent.setup()
     let segurar = false
-    let liberar: (resposta: RespostaFalsa) => void = () => undefined
+    let liberar: (resposta: FakeResponse) => void = () => undefined
     rede.responderPor(`/v1/atividades-aplicadas`, () => {
       if (!segurar) return ok({ itens: [APLICADA] })
-      return new Promise<RespostaFalsa>((resolver) => (liberar = resolver))
+      return new Promise<FakeResponse>((resolver) => (liberar = resolver))
     })
     rede.responderPor(`/v1/atividades-aplicadas/${APLICADA.id}/encerrar`, ok({ atividade: ENCERRADA, execucaoId: null }))
-    renderizarTela(
+    renderScreen(
       <>
         <LeitorDaLista />
         <EncerramentoDaAtividade aplicada={APLICADA} nomeDaTurma="7ºA" focoDeReserva={() => undefined} />

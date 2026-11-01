@@ -1,7 +1,7 @@
 import { acessoDaTurmaResponseSchema, acessoGeradoResponseSchema, type GerarAcessoRequest, type AcessoGeradoResponse } from '@educa/shared'
 import { mutationOptions, queryOptions } from '@tanstack/react-query'
-import { SEM_CORPO } from '../../../../api/client'
-import { buscarComSessao, chamarComSessao } from '../../../../api/sessao'
+import { EMPTY_BODY } from '../../../../api/client'
+import { authedGet, authedRequest } from '../../../../api/sessao'
 
 /**
  * O acesso da turma pelo professor (A1, 15.0; RF9; as rotas são da 4.0): o link da sala e o código da turma, que ele
@@ -12,27 +12,27 @@ import { buscarComSessao, chamarComSessao } from '../../../../api/sessao'
 const caminhoDoAcesso = (turmaId: string) => `/v1/turmas/${encodeURIComponent(turmaId)}/acesso`
 
 /** O começo da chave das leituras do acesso: a troca de escola e a pessoa seguinte esvaziam tudo junto (`main.tsx`). */
-const CHAVE_DO_ACESSO = ['acesso-da-turma'] as const
+const ACESSO_QUERY_KEY = ['acesso-da-turma'] as const
 
 /**
  * Até quando vale o acesso vigente da turma, ou `null` sem nenhum (`GET /v1/turmas/:id/acesso`). O link e o código não
  * voltam aqui: aparecem uma vez, na resposta que os cria.
  */
-export function consultaAcessoDaTurma(turmaId: string) {
+export function acessoDaTurmaQueryOptions(turmaId: string) {
   return queryOptions({
-    queryKey: [...CHAVE_DO_ACESSO, turmaId],
-    queryFn: ({ signal }) => buscarComSessao(caminhoDoAcesso(turmaId), acessoDaTurmaResponseSchema, signal),
+    queryKey: [...ACESSO_QUERY_KEY, turmaId],
+    queryFn: ({ signal }) => authedGet(caminhoDoAcesso(turmaId), acessoDaTurmaResponseSchema, signal),
   })
 }
 
 /** `POST /v1/turmas/:id/acesso`: gera o link e o código, e derruba os anteriores da turma. Os dois só existem nesta resposta. */
 export function gerarAcesso(turmaId: string, pedido: GerarAcessoRequest): Promise<AcessoGeradoResponse> {
-  return chamarComSessao(caminhoDoAcesso(turmaId), acessoGeradoResponseSchema, { metodo: 'POST', corpo: pedido })
+  return authedRequest(caminhoDoAcesso(turmaId), acessoGeradoResponseSchema, { metodo: 'POST', corpo: pedido })
 }
 
 /** `POST /v1/turmas/:id/acesso/revogar`: 204, sem corpo. O link e o código vigentes deixam de valer na hora. */
 export function revogarAcesso(turmaId: string): Promise<void> {
-  return chamarComSessao(`${caminhoDoAcesso(turmaId)}/revogar`, SEM_CORPO, { metodo: 'POST', corpo: {} })
+  return authedRequest(`${caminhoDoAcesso(turmaId)}/revogar`, EMPTY_BODY, { metodo: 'POST', corpo: {} })
 }
 
 /**

@@ -1,8 +1,8 @@
 import { ErrorCode, exibirCodigoDaTurma, type ValidadeDoAcessoDias } from '@educa/shared'
-import { ErroDaApi } from '../../../../api/client'
-import type { DitosDaCopia } from '../../../../components/copy-once'
-import { listaMudou, textoDaFalha } from '../../../../components/error-text'
-import { formatarQuantidade } from '../../../../format'
+import { ApiError } from '../../../../api/client'
+import type { CopyMessages } from '../../../../components/copy-once'
+import { listChanged, errorText } from '../../../../components/error-text'
+import { formatQuantity } from '../../../../format'
 import { enderecoDaAba } from '../endereco-da-turma'
 
 /**
@@ -15,7 +15,7 @@ export const VALIDADE_PADRAO_DO_ACESSO_DIAS: ValidadeDoAcessoDias = 7
 
 /** "1 dia", "7 dias", "30 dias". */
 export function rotuloDaValidade(dias: ValidadeDoAcessoDias): string {
-  return formatarQuantidade(dias, 'dia', 'dias')
+  return formatQuantity(dias, 'dia', 'dias')
 }
 
 /**
@@ -42,22 +42,22 @@ export const TEXTO_DO_ACESSO_QUE_JA_APARECEU = 'O link e o código apareceram um
  * O parâmetro do endereço que abre o "Convidar alunos" na aba Alunos (`?aba=alunos&convidar=1`; telas do professor, 13.0; RF19). Só
  * este valor fixo vai ao endereço: o token, o link e o código nunca (regra 20, item 8).
  */
-export const PARAMETRO_DO_CONVITE = 'convidar'
+export const CONVITE_PARAM = 'convidar'
 
 /** O endereço pede o "Convidar alunos"? Só o valor `1`: qualquer outro texto no parâmetro não abre nada. */
 export function convitePedido(busca: string): boolean {
-  return new URLSearchParams(busca).get(PARAMETRO_DO_CONVITE) === '1'
+  return new URLSearchParams(busca).get(CONVITE_PARAM) === '1'
 }
 
 /** O endereço da aba Alunos de uma turma com o "Convidar alunos" pedido: para onde "Gerar o acesso" leva depois de confirmar a turma. */
 export function enderecoDoConvite(caminhoDaTurma: string): string {
-  return `${enderecoDaAba(caminhoDaTurma, 'alunos')}&${PARAMETRO_DO_CONVITE}=1`
+  return `${enderecoDaAba(caminhoDaTurma, 'alunos')}&${CONVITE_PARAM}=1`
 }
 
 /** O mesmo endereço sem o pedido, para quando o diálogo fecha: o resto da busca (a aba) fica, e sem busca nenhuma o caminho vai só. */
 export function enderecoSemOConvite(caminho: string, busca: string): string {
   const parametros = new URLSearchParams(busca)
-  parametros.delete(PARAMETRO_DO_CONVITE)
+  parametros.delete(CONVITE_PARAM)
   const restante = parametros.toString()
   return restante === '' ? caminho : `${caminho}?${restante}`
 }
@@ -91,7 +91,7 @@ export const TEXTO_DO_WHATSAPP_ABERTO = 'O WhatsApp abriu em outra aba, com o co
  * Sem o WhatsApp (o navegador não abriu a aba nova): o que o mesmo botão diz quando copia o texto do convite e, sem área
  * de transferência, quando só consegue selecionar o link. "Aqui", e não "neste computador": a tela abre no celular também.
  */
-export const DITOS_DO_CONVITE_SEM_WHATSAPP: DitosDaCopia = {
+export const DITOS_DO_CONVITE_SEM_WHATSAPP: CopyMessages = {
   copiado: 'O WhatsApp não abriu aqui. O texto do convite foi copiado: cole onde a turma conversa.',
   selecionado: 'O WhatsApp não abriu aqui. O link está selecionado no campo: copie com Ctrl+C, ou toque e segure no campo e escolha Copiar.',
 }
@@ -116,7 +116,7 @@ export const TEXTO_DA_TURMA_INDISPONIVEL =
   'Esta turma não está disponível para você agora: o seu vínculo com ela pode não estar confirmado, ou ela saiu do ano letivo em curso. Volte para Turmas; se ela deveria estar lá, fale com a coordenação.'
 
 export function turmaIndisponivel(erro: unknown): boolean {
-  return erro instanceof ErroDaApi && erro.codigo === ErrorCode.NAO_ENCONTRADO
+  return erro instanceof ApiError && erro.codigo === ErrorCode.NAO_ENCONTRADO
 }
 
 /** A falha do gerar: o texto, e se o que a seção mostrava deixou de valer (aí ela recarrega, e o diálogo só oferece "Fechar"). */
@@ -135,8 +135,8 @@ const TEXTO_DO_ACESSO_GERADO_EM_OUTRO_LUGAR =
  */
 export function falhaDoGerarAcesso(erro: unknown): FalhaDoAcesso {
   return {
-    texto: textoDaFalha(erro, { [ErrorCode.CONFLITO]: TEXTO_DO_ACESSO_GERADO_EM_OUTRO_LUGAR, [ErrorCode.NAO_ENCONTRADO]: TEXTO_DA_TURMA_INDISPONIVEL }),
-    secaoMudou: listaMudou(erro, [ErrorCode.CONFLITO, ErrorCode.NAO_ENCONTRADO]),
+    texto: errorText(erro, { [ErrorCode.CONFLITO]: TEXTO_DO_ACESSO_GERADO_EM_OUTRO_LUGAR, [ErrorCode.NAO_ENCONTRADO]: TEXTO_DA_TURMA_INDISPONIVEL }),
+    secaoMudou: listChanged(erro, [ErrorCode.CONFLITO, ErrorCode.NAO_ENCONTRADO]),
   }
 }
 

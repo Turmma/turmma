@@ -2,7 +2,7 @@
 import { act, cleanup, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { escolherAparencia, iniciarTema } from '../theme'
+import { setThemePreference, initTheme } from '../theme'
 import { Aparencia } from './Aparencia'
 
 /**
@@ -25,7 +25,7 @@ afterEach(() => {
   vi.unstubAllGlobals()
   vi.restoreAllMocks()
   // A escolha que o armazenamento recusou fica na memória do módulo, até uma gravação que funcione.
-  escolherAparencia('sistema')
+  setThemePreference('sistema')
   window.localStorage.clear()
 })
 
@@ -83,12 +83,12 @@ describe('Aparencia', () => {
   it('a escolha feita em outro lugar da página chega à peça aberta', () => {
     render(<Aparencia />)
     expect(marcada()).toBe('Sistema')
-    act(() => escolherAparencia('escuro'))
+    act(() => setThemePreference('escuro'))
     expect(marcada()).toBe('Escuro')
   })
 
   it('a escolha de outra aba, pelo evento storage, chega à peça aberta', () => {
-    const desligar = iniciarTema()
+    const desligar = initTheme()
     render(<Aparencia />)
     act(() => {
       window.localStorage.setItem('educa.aparencia', 'claro')

@@ -1,7 +1,7 @@
 import type { SuboperadorDaEscola } from '@educa/shared'
 import { useQuery } from '@tanstack/react-query'
-import { consultaSuboperadores } from './api/privacidade'
-import { EstadoCarregando, EstadoErro, EstadoVazio } from '../../../components/states'
+import { suboperadoresQueryOptions } from './api/privacidade'
+import { LoadingState, ErrorState, EmptyState } from '../../../components/states'
 import { StatusBadge } from '../../../components/ui/StatusBadge'
 import { Table, type TableColumn } from '../../../components/ui/Table'
 import { SectionHeader } from '../../../components/ui/Page'
@@ -28,10 +28,10 @@ const chaveDaLinha = (linha: SuboperadorDaEscola): string => `${linha.chave}@${l
  * passadas ficam numa seção à parte, que só existe quando há alguma.
  */
 export function EmpresasQueRecebemDados() {
-  const consulta = useQuery(consultaSuboperadores)
-  if (consulta.isPending) return <EstadoCarregando rotulo="Carregando as empresas que recebem dados…" />
+  const consulta = useQuery(suboperadoresQueryOptions)
+  if (consulta.isPending) return <LoadingState rotulo="Carregando as empresas que recebem dados…" />
   if (consulta.isError && consulta.data === undefined) {
-    return <EstadoErro erro={consulta.error} tentando={consulta.isFetching} aoTentarDeNovo={() => void consulta.refetch({ cancelRefetch: false })} />
+    return <ErrorState erro={consulta.error} tentando={consulta.isFetching} aoTentarDeNovo={() => void consulta.refetch({ cancelRefetch: false })} />
   }
 
   const { suboperadores } = consulta.data
@@ -47,7 +47,7 @@ export function EmpresasQueRecebemDados() {
           apoio="Por onde o dado passa para o sistema funcionar: o que cada empresa faz, o que recebe, onde processa e o que o contrato diz sobre treinar IA."
         />
         {vigentes.length === 0 ? (
-          <EstadoVazio titulo="Nenhuma empresa recebe dado desta escola" descricao="Quando o Turmma contratar uma empresa que receba dado da escola, ela aparece aqui, com o que faz e o que recebe." />
+          <EmptyState titulo="Nenhuma empresa recebe dado desta escola" descricao="Quando o Turmma contratar uma empresa que receba dado da escola, ela aparece aqui, com o que faz e o que recebe." />
         ) : (
           <Table rotulo="Empresas que recebem dado da escola hoje" colunas={COLUNAS} linhas={vigentes} chaveDaLinha={chaveDaLinha} />
         )}

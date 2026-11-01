@@ -1,6 +1,6 @@
 import type { OrdemDoPainel } from '@educa/shared'
-import { EstadoVazio } from '../../components/states'
-import { formatarNumero, formatarQuantidade } from '../../format'
+import { EmptyState } from '../../components/states'
+import { formatNumber, formatQuantity } from '../../format'
 import { SECONDARY_BUTTON_CLASSES } from '../../components/ui/button-variants'
 
 /**
@@ -11,7 +11,7 @@ import { SECONDARY_BUTTON_CLASSES } from '../../components/ui/button-variants'
 const ROTULO_DA_ORDEM: Readonly<Record<OrdemDoPainel, string>> = { nome: 'Nome', uso: 'Mais uso no mês' }
 
 /** "Nome" e "Mais uso no mês", com `aria-pressed` na escolhida: a escolha não é só cor. Alvo de toque de 44 px. */
-export function SeletorDeOrdem({ ordem, aoEscolher }: { ordem: OrdemDoPainel; aoEscolher: (ordem: OrdemDoPainel) => void }) {
+export function SortSelect({ ordem, aoEscolher }: { ordem: OrdemDoPainel; aoEscolher: (ordem: OrdemDoPainel) => void }) {
   return (
     <div role="group" aria-label="Ordenar as escolas por" className="flex flex-wrap items-center gap-2">
       <span className="text-sm text-sutil" aria-hidden="true">
@@ -45,7 +45,7 @@ interface PropsDasPaginas {
 }
 
 /** "Anterior", "Página N de M" e "Próxima", com o "Carregando a página…" anunciado durante a troca. */
-export function PaginasDaLista({ rotulo, pagina, paginas, trocando, aoIr }: PropsDasPaginas) {
+export function Pagination({ rotulo, pagina, paginas, trocando, aoIr }: PropsDasPaginas) {
   return (
     <nav aria-label={rotulo} className="flex flex-wrap items-center justify-between gap-3">
       <button
@@ -57,7 +57,7 @@ export function PaginasDaLista({ rotulo, pagina, paginas, trocando, aoIr }: Prop
         Anterior
       </button>
       <p className="text-sm text-apoio">
-        Página {formatarNumero(pagina)} de {formatarNumero(paginas)}
+        Página {formatNumber(pagina)} de {formatNumber(paginas)}
         <span role="status" className="sr-only">
           {trocando ? 'Carregando a página…' : ''}
         </span>
@@ -77,9 +77,9 @@ export function PaginasDaLista({ rotulo, pagina, paginas, trocando, aoIr }: Prop
 /** A página além da última (endereço digitado, escola que saiu): o vazio dela, com o caminho de volta à primeira. */
 export function VazioAlemDaUltima({ paginas, aoIrParaAPrimeira }: { paginas: number; aoIrParaAPrimeira: () => void }) {
   return (
-    <EstadoVazio
+    <EmptyState
       titulo="Não há escolas nesta página."
-      descricao={`A lista tem ${formatarQuantidade(paginas, 'página', 'páginas')}.`}
+      descricao={`A lista tem ${formatQuantity(paginas, 'página', 'páginas')}.`}
       acao={{ rotulo: 'Ir para a primeira página', aoAcionar: aoIrParaAPrimeira }}
     />
   )

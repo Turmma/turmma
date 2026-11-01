@@ -81,9 +81,9 @@ describe('os professores da escola (A1, 14.0)', () => {
     const item = { usuarioId: USUARIO, nome: pedido.nome, estado: 'pendente' }
     fila.push({ status: 200, corpo: { itens: [item] } })
     const cliente = new QueryClient()
-    expect(await cliente.fetchQuery(m.professores.consultaProfessores)).toEqual({ itens: [item], completa: true })
+    expect(await cliente.fetchQuery(m.professores.professoresQueryOptions)).toEqual({ itens: [item], completa: true })
     expect(chamadas).toEqual([{ caminho: '/v1/professores?limite=100', metodo: 'GET', corpo: undefined, autorizacao: 'Bearer token-de-acesso' }])
-    expect(m.professores.consultaProfessores.queryKey).toEqual(['estrutura', 'professores'])
+    expect(m.professores.professoresQueryOptions.queryKey).toEqual(['estrutura', 'professores'])
   })
 })
 

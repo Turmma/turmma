@@ -1,13 +1,13 @@
 import { avisosResponseSchema, systemStatusResponseSchema } from '@educa/shared'
 import { queryOptions } from '@tanstack/react-query'
-import { buscarDaApi } from './client'
+import { apiGet } from './client'
 
-export const consultaEstado = queryOptions({
+export const estadoQueryOptions = queryOptions({
   queryKey: ['sistema', 'estado'],
-  queryFn: ({ signal }) => buscarDaApi('/v1/sistema/estado', systemStatusResponseSchema, signal),
+  queryFn: ({ signal }) => apiGet('/v1/sistema/estado', systemStatusResponseSchema, signal),
 })
 
-export const consultaAvisos = queryOptions({
+export const avisosQueryOptions = queryOptions({
   queryKey: ['sistema', 'avisos'],
-  queryFn: ({ signal }) => buscarDaApi('/v1/sistema/avisos', avisosResponseSchema, signal),
+  queryFn: ({ signal }) => apiGet('/v1/sistema/avisos', avisosResponseSchema, signal),
 })

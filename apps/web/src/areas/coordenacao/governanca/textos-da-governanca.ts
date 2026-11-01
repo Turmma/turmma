@@ -19,7 +19,7 @@ import {
 import { aparenciaDaFalha } from '../../../api/ciclo-de-execucao'
 import type { Aprovacao } from '../../../components/ui/ai/approval'
 import type { SegmentedOptions } from '../../../components/ui/fields/SegmentedControl'
-import { formatarNumero, formatarQuantidade } from '../../../format'
+import { formatNumber, formatQuantity } from '../../../format'
 
 /**
  * Os textos da Governança, dos Agentes e do Analista, sem tela: o que cada código vira em português, num lugar só e com
@@ -101,7 +101,7 @@ export function acertoPercentual(acertos: number, total: number): number {
 
 /** "12.340 tokens · 8 execuções": o que a função gastou, em texto. */
 export function textoDoConsumo(consumo: Pick<ConsumoSomado, 'chamadas' | 'tokensDeEntrada' | 'tokensDeSaida'>): string {
-  return `${formatarQuantidade(consumo.tokensDeEntrada + consumo.tokensDeSaida, 'token', 'tokens')} · ${formatarQuantidade(consumo.chamadas, 'execução', 'execuções')}`
+  return `${formatQuantity(consumo.tokensDeEntrada + consumo.tokensDeSaida, 'token', 'tokens')} · ${formatQuantity(consumo.chamadas, 'execução', 'execuções')}`
 }
 
 const reais = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
@@ -117,7 +117,7 @@ export function textoDoCusto(total: Pick<ConsumoSomado, 'custoMicros' | 'chamada
 
 /** "12 de 9.600 trocas": o uso do Tutor no mês contra o pacote da escola. */
 export function textoDoPacoteDoTutor(tutor: { readonly trocasNoMes: number; readonly pacoteDoMes: number }): string {
-  return `${formatarNumero(tutor.trocasNoMes)} de ${formatarQuantidade(tutor.pacoteDoMes, 'troca', 'trocas')}`
+  return `${formatNumber(tutor.trocasNoMes)} de ${formatQuantity(tutor.pacoteDoMes, 'troca', 'trocas')}`
 }
 
 /** "2º ano do Ensino Médio · Química": o recorte do Analista. Nunca turma, nunca professor. */

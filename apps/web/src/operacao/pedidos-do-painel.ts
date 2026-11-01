@@ -14,7 +14,7 @@ import { REGRA_DO_ENDERECO } from './textos'
  * O id do pedido de rede ou de escola (Tech Spec da A0b, seção 5, "Idempotência"). Mora em `components/request-id.ts`, porque o
  * pedido do titular da escola (F3, 16.0) sorteia a chave do mesmo jeito e não pode importar de `operacao/` (B2).
  */
-export { sortearIdDoPedido } from '../components/request-id'
+export { newRequestId } from '../components/request-id'
 
 /** O pedido pronto para enviar, ou o texto de cada campo que não passa no contrato. */
 export type Validacao<Pedido, Campo extends string> = { readonly ok: true; readonly pedido: Pedido } | { readonly ok: false; readonly erros: Readonly<Partial<Record<Campo, string>>> }

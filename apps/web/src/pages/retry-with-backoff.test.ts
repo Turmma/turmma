@@ -1,7 +1,7 @@
 import { ErrorCode } from '@educa/shared'
 import { describe, expect, it } from 'vitest'
-import { ErroDaApi } from '../api/client'
-import { enviarComReenvio, ESPERA_SEM_RETRY_AFTER_SEGUNDOS, esperaDoReenvio, MAXIMO_DE_REENVIOS, VARIACAO_MAXIMA_MS, type OpcoesDoReenvio } from './retry-with-backoff'
+import { ApiError } from '../api/client'
+import { enviarComReenvio, ESPERA_SEM_RETRY_AFTER_SEGUNDOS, esperaDoReenvio, MAXIMO_DE_REENVIOS, VARIACAO_MAXIMA_MS, type ReenvioOptions } from './retry-with-backoff'
 
 /**
  * O reenvio da reivindicação no 503 (A1, 17.0; W8): a mesma chave, até três vezes, cada uma depois do `Retry-After` com a
@@ -9,7 +9,7 @@ import { enviarComReenvio, ESPERA_SEM_RETRY_AFTER_SEGUNDOS, esperaDoReenvio, MAX
  * `e2e/turma-publica.spec.ts`.
  */
 
-const cheio = (segundos?: number) => new ErroDaApi(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO, segundos)
+const cheio = (segundos?: number) => new ApiError(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO, segundos)
 
 /** As opções com um relógio de mentira: guarda cada espera pedida, e quantas vezes a tela foi avisada. */
 function relogio(aleatorios: readonly number[] = [0.5]) {
@@ -17,7 +17,7 @@ function relogio(aleatorios: readonly number[] = [0.5]) {
   let avisos = 0
   let sorteio = 0
   let valendo = true
-  const opcoes: OpcoesDoReenvio = {
+  const opcoes: ReenvioOptions = {
     esperar: (ms) => {
       esperas.push(ms)
       return Promise.resolve()
@@ -39,7 +39,7 @@ function relogio(aleatorios: readonly number[] = [0.5]) {
 }
 
 /** Um envio de mentira que responde, na ordem, o que estiver na fila, e guarda o pedido de cada chamada. */
-function servidor(respostas: ReadonlyArray<'ok' | ErroDaApi>, pedido: { readonly chaveEnvio: string }) {
+function servidor(respostas: ReadonlyArray<'ok' | ApiError>, pedido: { readonly chaveEnvio: string }) {
   const pedidos: string[] = []
   let vez = 0
   const enviar = () => {
@@ -88,7 +88,7 @@ describe('enviarComReenvio', () => {
   })
 
   it('a recusa e o limite não se repetem: voltam na hora, com o erro', async () => {
-    for (const erro of [new ErroDaApi(ErrorCode.REIVINDICACAO_RECUSADA), new ErroDaApi(ErrorCode.LIMITE_EXCEDIDO, 600), new ErroDaApi(ErrorCode.NAO_ENCONTRADO)]) {
+    for (const erro of [new ApiError(ErrorCode.REIVINDICACAO_RECUSADA), new ApiError(ErrorCode.LIMITE_EXCEDIDO, 600), new ApiError(ErrorCode.NAO_ENCONTRADO)]) {
       const { opcoes, esperas } = relogio()
       const { enviar, pedidos } = servidor([erro], { chaveEnvio: 'chave-1' })
       expect(await enviarComReenvio(enviar, opcoes)).toEqual({ tipo: 'falhou', erro })
@@ -98,7 +98,7 @@ describe('enviarComReenvio', () => {
   })
 
   it('o 503 depois de um reenvio que achou a recusa para na recusa', async () => {
-    const recusa = new ErroDaApi(ErrorCode.REIVINDICACAO_RECUSADA)
+    const recusa = new ApiError(ErrorCode.REIVINDICACAO_RECUSADA)
     const { opcoes } = relogio()
     const { enviar, pedidos } = servidor([cheio(1), recusa], { chaveEnvio: 'chave-1' })
     expect(await enviarComReenvio(enviar, opcoes)).toEqual({ tipo: 'falhou', erro: recusa })
@@ -108,7 +108,7 @@ describe('enviarComReenvio', () => {
   it('a tela que mudou durante a espera não reenvia, e a que mudou com o envio no ar descarta a resposta', async () => {
     const durante = relogio()
     const esperarELargar = durante.opcoes.esperar
-    const opcoes: OpcoesDoReenvio = {
+    const opcoes: ReenvioOptions = {
       ...durante.opcoes,
       esperar: async (ms) => {
         await esperarELargar(ms)
@@ -119,7 +119,7 @@ describe('enviarComReenvio', () => {
     expect(await enviarComReenvio(primeiro.enviar, opcoes)).toEqual({ tipo: 'descartado' })
     expect(primeiro.pedidos).toHaveLength(1)
 
-    for (const resposta of ['ok', cheio(1), new ErroDaApi(ErrorCode.REIVINDICACAO_RECUSADA)] as const) {
+    for (const resposta of ['ok', cheio(1), new ApiError(ErrorCode.REIVINDICACAO_RECUSADA)] as const) {
       const noAr = relogio()
       noAr.largar()
       const segundo = servidor([resposta], { chaveEnvio: 'chave-2' })

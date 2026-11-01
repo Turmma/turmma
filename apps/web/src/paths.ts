@@ -5,10 +5,10 @@ import type { EtapaDeLogin, PapelDeUsuario } from '@educa/shared'
  * de a guarda de papel de `routes.tsx` conferir que a sessão é daquele papel: o professor que digita o endereço da
  * coordenação vê "Página não encontrada" e não baixa nada da área dela.
  */
-export const BASE_DA_AREA: Readonly<Record<PapelDeUsuario, string>> = { coordenador: '/coordenacao', professor: '/professor', aluno: '/aluno' }
+export const AREA_BASE_PATH: Readonly<Record<PapelDeUsuario, string>> = { coordenador: '/coordenacao', professor: '/professor', aluno: '/aluno' }
 
 /** As rotas da área do professor, relativas à base dela (o `Route` aninhado de `routes.tsx`). */
-export const ROTAS_DO_PROFESSOR = {
+export const PROFESSOR_ROUTES = {
   /** "Início" (era "Nova conversa"), a Home: a caixa de pedido do Assistente de ensino. É onde o professor abre (A2; D73; `docs/interface.md` 11.2). */
   novaConversa: '/nova-conversa',
   /** A conversa da professora com o Assistente: uma thread só, dela (A2; 11.3). */
@@ -39,34 +39,34 @@ export const ROTAS_DO_PROFESSOR = {
 
 /** O endereço da turma aberta pelo professor, **relativo à área**, como o da Estrutura (`caminhoDaTurmaNaEstrutura`). */
 export function caminhoDaTurmaDoProfessor(turmaId: string): string {
-  return ROTAS_DO_PROFESSOR.turma.replace(':turmaId', encodeURIComponent(turmaId))
+  return PROFESSOR_ROUTES.turma.replace(':turmaId', encodeURIComponent(turmaId))
 }
 
 /** O endereço do formulário de uma ferramenta, **relativo à área**. */
 export function caminhoDaFerramentaDoProfessor(ferramenta: string): string {
-  return ROTAS_DO_PROFESSOR.ferramenta.replace(':ferramenta', encodeURIComponent(ferramenta))
+  return PROFESSOR_ROUTES.ferramenta.replace(':ferramenta', encodeURIComponent(ferramenta))
 }
 
 /** O nome do parâmetro que leva a atividade de origem ao formulário da Adaptação: o id do artefato, e nada sobre aluno. */
-export const PARAMETRO_DA_ORIGEM = 'origem'
+export const ORIGEM_PARAM = 'origem'
 
 /** O endereço da Adaptação já com a atividade de origem escolhida, **relativo à área**: é o "Pedir versão adaptada" do artefato. */
 export function caminhoDaAdaptacaoDoArtefato(artefatoId: string): string {
-  return `${caminhoDaFerramentaDoProfessor('adaptacao')}?${PARAMETRO_DA_ORIGEM}=${encodeURIComponent(artefatoId)}`
+  return `${caminhoDaFerramentaDoProfessor('adaptacao')}?${ORIGEM_PARAM}=${encodeURIComponent(artefatoId)}`
 }
 
 /** O endereço de um artefato aberto, **relativo à área**. */
 export function caminhoDoArtefatoDoProfessor(artefatoId: string): string {
-  return ROTAS_DO_PROFESSOR.artefato.replace(':artefatoId', encodeURIComponent(artefatoId))
+  return PROFESSOR_ROUTES.artefato.replace(':artefatoId', encodeURIComponent(artefatoId))
 }
 
 /** O endereço da correção de uma atividade aplicada, **relativo à área**: é o "Revisar" de "O que o Assistente fez". */
 export function caminhoDaCorrecaoDoProfessor(atividadeAplicadaId: string): string {
-  return ROTAS_DO_PROFESSOR.aprovar.replace(':atividadeAplicadaId', encodeURIComponent(atividadeAplicadaId))
+  return PROFESSOR_ROUTES.aprovar.replace(':atividadeAplicadaId', encodeURIComponent(atividadeAplicadaId))
 }
 
 /** As rotas da área da coordenação, relativas à base dela. */
-export const ROTAS_DA_COORDENACAO = {
+export const COORDENACAO_ROUTES = {
   /** O Painel: os números da IA na escola, o que espera pela coordenação e o que falta para terminar a escola (X2, 2.0; RF6). */
   painel: '/painel',
   /** A governança de IA: o que a IA gerou e quem aprovou, e o consumo. É onde a coordenação abre (MVP, A5; `docs/interface.md` 11.1 e 11.7). */
@@ -100,31 +100,31 @@ export const ROTAS_DA_COORDENACAO = {
  * onde o wouter resolve o `to` a partir da base da área.
  */
 export function caminhoDaTurmaNaEstrutura(turmaId: string): string {
-  return ROTAS_DA_COORDENACAO.turma.replace(':turmaId', encodeURIComponent(turmaId))
+  return COORDENACAO_ROUTES.turma.replace(':turmaId', encodeURIComponent(turmaId))
 }
 
 /** O nome do parâmetro que abre o painel do professor em Professores (X2, 6.0): o endereço o escreve, e a tela o lê, por este nome só. */
-export const PARAMETRO_DO_PROFESSOR = 'professor'
+export const PROFESSOR_PARAM = 'professor'
 
 /** O nome do parâmetro que abre o painel do material em Material (X2, 8.0): só o id do material vai ao endereço, nunca o título (regra 20, item 9). */
-export const PARAMETRO_DO_MATERIAL = 'material'
+export const MATERIAL_PARAM = 'material'
 
 /**
  * O endereço de Professores com o professor aberto, **relativo à área**: só o id do usuário vai na consulta, nunca o nome (regra
  * 20, item 9). É o que a fila do sino e a lista de professores da turma usam para levar ao painel dele (X2, 9.0; o painel é o da 6.0).
  */
 export function caminhoDoProfessor(usuarioId: string): string {
-  return `${ROTAS_DA_COORDENACAO.professores}?${PARAMETRO_DO_PROFESSOR}=${encodeURIComponent(usuarioId)}`
+  return `${COORDENACAO_ROUTES.professores}?${PROFESSOR_PARAM}=${encodeURIComponent(usuarioId)}`
 }
 
 /** O endereço de uma aba da Privacidade, **relativo à área**, como `caminhoDaTurmaNaEstrutura`: é o que a aba usa para trocar de aba. */
 export function caminhoDaAbaDaPrivacidade(aba: string): string {
-  return ROTAS_DA_COORDENACAO.privacidadeDaAba.replace(':aba', encodeURIComponent(aba))
+  return COORDENACAO_ROUTES.privacidadeDaAba.replace(':aba', encodeURIComponent(aba))
 }
 
 /** O endereço do pedido de titular aberto, **relativo à área**. O id vai codificado: nada além dele entra no endereço (regra 20, item 9). */
 export function caminhoDoPedidoDoTitular(pedidoId: string): string {
-  return ROTAS_DA_COORDENACAO.pedidoDoTitular.replace(':pedidoId', encodeURIComponent(pedidoId))
+  return COORDENACAO_ROUTES.pedidoDoTitular.replace(':pedidoId', encodeURIComponent(pedidoId))
 }
 
 /**
@@ -140,7 +140,7 @@ export function ehTelaDoSeletorDaPrivacidade(valor: string): valor is TelaDoSele
 }
 
 /** As rotas da área do aluno, relativas à base dela. */
-export const ROTAS_DO_ALUNO = {
+export const ALUNO_ROUTES = {
   /** "Início": a faixa de supervisão e a escolha da atividade. É onde o aluno abre (telas do aluno e primeiro acesso, 2.0; `docs/interface.md` 11.1). */
   inicio: '/inicio',
   /** O Tutor, que continua abrindo pelo endereço de hoje: a escolha da atividade. Dentro de "Início" na lateral. */
@@ -163,23 +163,23 @@ export const ROTAS_DO_ALUNO = {
 
 /** O endereço de uma atividade aberta pelo aluno, **relativo à área**. */
 export function caminhoDaAtividadeDoAluno(atividadeAplicadaId: string): string {
-  return ROTAS_DO_ALUNO.atividade.replace(':atividadeAplicadaId', encodeURIComponent(atividadeAplicadaId))
+  return ALUNO_ROUTES.atividade.replace(':atividadeAplicadaId', encodeURIComponent(atividadeAplicadaId))
 }
 
 /** O nome do parâmetro que leva ao Tutor a questão em que o aluno estava: só o número dela. */
-export const PARAMETRO_DA_QUESTAO = 'questao'
+export const QUESTAO_PARAM = 'questao'
 
 /**
  * O endereço da conversa com o Tutor numa atividade, **relativo à área**; com a questão, é o "Pedir ajuda ao Tutor nesta
  * questão". Vão só o id da atividade e o número da questão: nada do que o aluno marcou nem escreveu.
  */
 export function caminhoDoTutorNaAtividade(atividadeAplicadaId: string, questao?: number): string {
-  const caminho = ROTAS_DO_ALUNO.tutorDaAtividade.replace(':atividadeAplicadaId', encodeURIComponent(atividadeAplicadaId))
-  return questao === undefined ? caminho : `${caminho}?${PARAMETRO_DA_QUESTAO}=${String(questao)}`
+  const caminho = ALUNO_ROUTES.tutorDaAtividade.replace(':atividadeAplicadaId', encodeURIComponent(atividadeAplicadaId))
+  return questao === undefined ? caminho : `${caminho}?${QUESTAO_PARAM}=${String(questao)}`
 }
 
 /** Os endereços da web, num lugar só. */
-export const ROTAS = {
+export const ROUTES = {
   inicio: '/',
   entrar: '/entrar',
   /** O endereço da escola, por onde o aluno entra (RF7). O slug vem do parâmetro da rota. */
@@ -193,49 +193,49 @@ export const ROTAS = {
   configurarMfa: '/mfa/configurar',
   escolherEscola: '/escolher-escola',
   /** "Início" do professor, pela raiz: é onde ele abre (A2), e o endereço que a navegação usa. */
-  novaConversa: `${BASE_DA_AREA.professor}${ROTAS_DO_PROFESSOR.novaConversa}`,
+  novaConversa: `${AREA_BASE_PATH.professor}${PROFESSOR_ROUTES.novaConversa}`,
   /** A conversa com o Assistente, pela raiz: dentro dela, "Início" continua selecionado na lateral. */
-  conversa: `${BASE_DA_AREA.professor}${ROTAS_DO_PROFESSOR.conversa}`,
+  conversa: `${AREA_BASE_PATH.professor}${PROFESSOR_ROUTES.conversa}`,
   /** "Ferramentas" do professor, pela raiz. */
-  ferramentas: `${BASE_DA_AREA.professor}${ROTAS_DO_PROFESSOR.ferramentas}`,
+  ferramentas: `${AREA_BASE_PATH.professor}${PROFESSOR_ROUTES.ferramentas}`,
   /** "Criados" do professor, pela raiz (telas do professor, 5.0): é o endereço que a navegação usa. */
-  criados: `${BASE_DA_AREA.professor}${ROTAS_DO_PROFESSOR.criados}`,
+  criados: `${AREA_BASE_PATH.professor}${PROFESSOR_ROUTES.criados}`,
   /** Os artefatos abertos, pela raiz: dentro deles, "Ferramentas" continua selecionado na lateral. */
-  artefatos: `${BASE_DA_AREA.professor}/artefatos`,
+  artefatos: `${AREA_BASE_PATH.professor}/artefatos`,
   /** "Turmas" do professor, pela raiz: é o endereço que a navegação usa. */
-  turmas: `${BASE_DA_AREA.professor}${ROTAS_DO_PROFESSOR.turmas}`,
+  turmas: `${AREA_BASE_PATH.professor}${PROFESSOR_ROUTES.turmas}`,
   /** "Meus dados" do professor, pela raiz: é o endereço do link do menu da pessoa (F3, 18.0). */
-  meusDadosDoProfessor: `${BASE_DA_AREA.professor}${ROTAS_DO_PROFESSOR.meusDados}`,
+  meusDadosDoProfessor: `${AREA_BASE_PATH.professor}${PROFESSOR_ROUTES.meusDados}`,
   /** O Painel da coordenação, pela raiz (X2, 2.0). Entra na lateral na 3.0, que também o faz o lugar onde ela abre. */
-  painel: `${BASE_DA_AREA.coordenador}${ROTAS_DA_COORDENACAO.painel}`,
+  painel: `${AREA_BASE_PATH.coordenador}${COORDENACAO_ROUTES.painel}`,
   /** Governança da coordenação, pela raiz: é o endereço que a navegação usa, e onde a coordenação abre (MVP, A5). */
-  governanca: `${BASE_DA_AREA.coordenador}${ROTAS_DA_COORDENACAO.governanca}`,
+  governanca: `${AREA_BASE_PATH.coordenador}${COORDENACAO_ROUTES.governanca}`,
   /** Agentes da coordenação, pela raiz (MVP, A5). */
-  agentes: `${BASE_DA_AREA.coordenador}${ROTAS_DA_COORDENACAO.agentes}`,
+  agentes: `${AREA_BASE_PATH.coordenador}${COORDENACAO_ROUTES.agentes}`,
   /** Analista da coordenação, pela raiz (MVP, A5). */
-  analista: `${BASE_DA_AREA.coordenador}${ROTAS_DA_COORDENACAO.analista}`,
+  analista: `${AREA_BASE_PATH.coordenador}${COORDENACAO_ROUTES.analista}`,
   /** Estrutura da coordenação, pela raiz: é o endereço que a navegação usa (13.0). */
-  estrutura: `${BASE_DA_AREA.coordenador}${ROTAS_DA_COORDENACAO.estrutura}`,
+  estrutura: `${AREA_BASE_PATH.coordenador}${COORDENACAO_ROUTES.estrutura}`,
   /** Professores da coordenação, pela raiz: é o endereço que a navegação usa (14.0). */
-  professores: `${BASE_DA_AREA.coordenador}${ROTAS_DA_COORDENACAO.professores}`,
+  professores: `${AREA_BASE_PATH.coordenador}${COORDENACAO_ROUTES.professores}`,
   /** Material da coordenação, pela raiz: é o endereço que a navegação usa (MVP, A2). */
-  material: `${BASE_DA_AREA.coordenador}${ROTAS_DA_COORDENACAO.material}`,
+  material: `${AREA_BASE_PATH.coordenador}${COORDENACAO_ROUTES.material}`,
   /** Privacidade da coordenação, pela raiz: é o endereço que a navegação usa (F3, 6.0). */
-  privacidade: `${BASE_DA_AREA.coordenador}${ROTAS_DA_COORDENACAO.privacidade}`,
+  privacidade: `${AREA_BASE_PATH.coordenador}${COORDENACAO_ROUTES.privacidade}`,
   /** "Início" do aluno, pela raiz: é onde ele abre (telas do aluno e primeiro acesso, 2.0), e o endereço que a navegação usa. As chaves do aluno levam `DoAluno`: `inicio` já é a raiz `/`. */
-  inicioDoAluno: `${BASE_DA_AREA.aluno}${ROTAS_DO_ALUNO.inicio}`,
+  inicioDoAluno: `${AREA_BASE_PATH.aluno}${ALUNO_ROUTES.inicio}`,
   /** O Tutor do aluno, pela raiz: a escolha da atividade, dentro de "Início" na lateral. */
-  tutor: `${BASE_DA_AREA.aluno}${ROTAS_DO_ALUNO.tutor}`,
+  tutor: `${AREA_BASE_PATH.aluno}${ALUNO_ROUTES.tutor}`,
   /** "Tarefas" do aluno (era "Atividades"), pela raiz: o endereço que a navegação usa (MVP, A3). */
-  atividades: `${BASE_DA_AREA.aluno}${ROTAS_DO_ALUNO.atividades}`,
+  atividades: `${AREA_BASE_PATH.aluno}${ALUNO_ROUTES.atividades}`,
   /** "Eu" do aluno, pela raiz: é o endereço que a navegação usa. */
-  euDoAluno: `${BASE_DA_AREA.aluno}${ROTAS_DO_ALUNO.eu}`,
+  euDoAluno: `${AREA_BASE_PATH.aluno}${ALUNO_ROUTES.eu}`,
   /** "Privacidade" do aluno, pela raiz: a linha de Eu a abre, e Eu fica selecionado nela (F3, 18.0). */
-  privacidadeDoAluno: `${BASE_DA_AREA.aluno}${ROTAS_DO_ALUNO.privacidade}`,
+  privacidadeDoAluno: `${AREA_BASE_PATH.aluno}${ALUNO_ROUTES.privacidade}`,
   /** A introdução de cada papel, pela raiz: telas de foco (`ehTelaDeFoco`). */
-  bemVindoDoAluno: `${BASE_DA_AREA.aluno}${ROTAS_DO_ALUNO.bemVindo}`,
-  bemVindoDoProfessor: `${BASE_DA_AREA.professor}${ROTAS_DO_PROFESSOR.bemVindo}`,
-  bemVindoDaCoordenacao: `${BASE_DA_AREA.coordenador}${ROTAS_DA_COORDENACAO.bemVindo}`,
+  bemVindoDoAluno: `${AREA_BASE_PATH.aluno}${ALUNO_ROUTES.bemVindo}`,
+  bemVindoDoProfessor: `${AREA_BASE_PATH.professor}${PROFESSOR_ROUTES.bemVindo}`,
+  bemVindoDaCoordenacao: `${AREA_BASE_PATH.coordenador}${COORDENACAO_ROUTES.bemVindo}`,
   /** O convite da coordenação e o do professor. O token vai no fragmento `#`, e nunca no caminho nem na consulta. */
   convite: '/convite',
   /** Estado do sistema, público: é a tela que se abre justamente quando não se consegue entrar. */
@@ -252,7 +252,7 @@ export const ROTAS = {
  * inatividade (telas do aluno e primeiro acesso, Tech Spec seção 5). Hoje são as três introduções, uma por papel; a
  * prova em tela de foco (F6) entra aqui quando chegar.
  */
-const TELAS_DE_FOCO: readonly string[] = [ROTAS.bemVindoDoAluno, ROTAS.bemVindoDoProfessor, ROTAS.bemVindoDaCoordenacao]
+const TELAS_DE_FOCO: readonly string[] = [ROUTES.bemVindoDoAluno, ROUTES.bemVindoDoProfessor, ROUTES.bemVindoDaCoordenacao]
 
 /** O caminho é o de uma tela de foco? Só o endereço exato: `/aluno/bem-vindo-velho` e `/aluno/bem-vindo/x` são outra coisa. */
 export function ehTelaDeFoco(caminho: string): boolean {
@@ -264,21 +264,21 @@ export function ehTelaDeFoco(caminho: string): boolean {
  * do link vai no fragmento `#`, como o do convite, e nunca no caminho nem na consulta.
  */
 export function caminhoDaSala(slug: string): string {
-  return ROTAS.salaDaTurma.replace(':slug', encodeURIComponent(slug))
+  return ROUTES.salaDaTurma.replace(':slug', encodeURIComponent(slug))
 }
 
 /** O endereço da escola, onde o aluno aprovado entra com a matrícula e a senha (RF7 do F1). */
 export function caminhoDaEscola(slug: string): string {
-  return ROTAS.escola.replace(':slug', encodeURIComponent(slug))
+  return ROUTES.escola.replace(':slug', encodeURIComponent(slug))
 }
 
 /**
  * A tela de cada etapa que o login pode devolver (Tech Spec, seção 5, "Etapas"). `pronta` já tem sessão e vai para
  * a área autenticada; as outras seguem para a tela da etapa, sem sessão nenhuma gravada.
  */
-export const ROTA_DA_ETAPA: Readonly<Record<EtapaDeLogin, string>> = {
-  pronta: ROTAS.inicio,
-  mfa: ROTAS.mfa,
-  configurar_mfa: ROTAS.configurarMfa,
-  escolher: ROTAS.escolherEscola,
+export const LOGIN_STEP_ROUTE: Readonly<Record<EtapaDeLogin, string>> = {
+  pronta: ROUTES.inicio,
+  mfa: ROUTES.mfa,
+  configurar_mfa: ROUTES.configurarMfa,
+  escolher: ROUTES.escolherEscola,
 }

@@ -1,21 +1,21 @@
 import { ErrorCode, DIGITOS_DO_CODIGO_MFA, formatarEspera, TAMANHO_DO_CODIGO_DE_RECUPERACAO } from '@educa/shared'
 import { useState, type FormEvent } from 'react'
 import { Link, useLocation } from 'wouter'
-import { ErroDaApi } from '../../api/client'
+import { ApiError } from '../../api/client'
 import { Button } from '../../components/ui/Button'
 import { FormField } from '../../components/ui/fields/FormField'
 import { definirAvisoDaEntradaDeOperador, desafioDeOperador, entrarComSegundoFatorDeOperador } from '../api/sessao'
-import { INICIO_DA_OPERACAO, ROTAS_DA_OPERACAO } from '../paths'
+import { INICIO_DA_OPERACAO, OPERACAO_ROUTES } from '../paths'
 import { CascaPublicaDaOperacao } from '../components/CascaDaOperacao'
 import { TEXTO_DO_CODIGO_RECUSADO, textoDaFalhaDoSegundoFator } from '../textos'
-import { useTituloDaPagina } from '../document-title'
+import { useOperacaoPageTitle } from '../document-title'
 
 /** Quanto texto o campo de recuperação aceita: os 12 caracteres, com folga para espaço e hífen copiados. */
 const TAMANHO_MAXIMO_DIGITADO_NA_RECUPERACAO = TAMANHO_DO_CODIGO_DE_RECUPERACAO + 8
 
 /** O aviso da entrada quando o código foi recusado: com a espera da conta segurada, quando a API a informou. */
 function avisoDaRecusa(erro: unknown): string {
-  if (erro instanceof ErroDaApi && erro.codigo === ErrorCode.CONTA_SEGURADA && erro.esperaSegundos !== undefined) {
+  if (erro instanceof ApiError && erro.codigo === ErrorCode.CONTA_SEGURADA && erro.esperaSegundos !== undefined) {
     return `${TEXTO_DO_CODIGO_RECUSADO} Muitas tentativas nesta conta: espere ${formatarEspera(erro.esperaSegundos)} antes de tentar.`
   }
   return TEXTO_DO_CODIGO_RECUSADO
@@ -30,7 +30,7 @@ function avisoDaRecusa(erro: unknown): string {
  * Sem desafio (um F5, o endereço digitado), a tela manda entrar de novo, que é o único caminho.
  */
 export function Mfa() {
-  useTituloDaPagina('Segundo fator')
+  useOperacaoPageTitle('Segundo fator')
   const [, navegar] = useLocation()
   const [recuperacao, definirRecuperacao] = useState(false)
   const [codigo, definirCodigo] = useState('')
@@ -44,7 +44,7 @@ export function Mfa() {
           Para continuar, entre de novo com o seu e-mail e a sua senha.
         </p>
         <Link
-          to={ROTAS_DA_OPERACAO.entrar}
+          to={OPERACAO_ROUTES.entrar}
           className="inline-flex min-h-11 items-center justify-center self-start rounded-full bg-caramelo px-4 py-2 text-base font-medium text-sobre-cor hover:bg-caramelo-claro active:bg-caramelo-fundo"
         >
           Ir para a entrada
@@ -66,7 +66,7 @@ export function Mfa() {
       // O desafio que a API gastou já saiu da memória: sem ele, a tela volta à entrada e explica por quê.
       if (desafioDeOperador('mfa') === undefined) {
         definirAvisoDaEntradaDeOperador(avisoDaRecusa(erro))
-        navegar(ROTAS_DA_OPERACAO.entrar, { replace: true })
+        navegar(OPERACAO_ROUTES.entrar, { replace: true })
         return
       }
       definirFalha(erro)

@@ -1,8 +1,8 @@
 import { ErrorCode, MAXIMO_DE_BYTES_DO_MATERIAL, motivoDaRecusaDoMaterial } from '@educa/shared'
 import { describe, expect, it } from 'vitest'
-import { ErroDaApi } from '../../../api/client'
+import { ApiError } from '../../../api/client'
 import { intervaloDaLista, INTERVALO_DA_LEITURA_DO_MATERIAL_MS } from './api/material'
-import { textoDaFalha } from '../../../components/error-text'
+import { errorText } from '../../../components/error-text'
 import {
   camposDoEnvio,
   doMaisNovoAoMaisAntigo,
@@ -149,8 +149,8 @@ describe('Material: a lista', () => {
   })
 
   it('a falha do envio diz o que fazer, pelo código; o que a tela não conhece cai no catálogo', () => {
-    expect(textoDaFalha(new ErroDaApi(ErrorCode.CONFLITO), TEXTOS_DA_FALHA_DO_ENVIO)).toBe('Este arquivo já foi enviado nesta escola. Procure o material na lista abaixo.')
-    expect(textoDaFalha(new ErroDaApi(ErrorCode.ENTRADA_INVALIDA), TEXTOS_DA_FALHA_DO_ENVIO)).toContain('20 MB')
-    expect(textoDaFalha(new ErroDaApi(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO), TEXTOS_DA_FALHA_DO_ENVIO)).not.toBe('')
+    expect(errorText(new ApiError(ErrorCode.CONFLITO), TEXTOS_DA_FALHA_DO_ENVIO)).toBe('Este arquivo já foi enviado nesta escola. Procure o material na lista abaixo.')
+    expect(errorText(new ApiError(ErrorCode.ENTRADA_INVALIDA), TEXTOS_DA_FALHA_DO_ENVIO)).toContain('20 MB')
+    expect(errorText(new ApiError(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO), TEXTOS_DA_FALHA_DO_ENVIO)).not.toBe('')
   })
 })

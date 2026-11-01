@@ -1,11 +1,11 @@
 import type { ReactNode } from 'react'
-import { ROTAS } from '../../../paths'
+import { ROUTES } from '../../../paths'
 import { IntroducaoDoPapel } from '../../../components/introducao/IntroducaoDoPapel'
 import type { PassoDaIntroducao } from '../../../components/introducao/Introducao'
 import { Linhas } from '../../../components/introducao/Linhas'
 import { OndeFicaCadaCoisa } from '../../../components/introducao/OndeFicaCadaCoisa'
-import { RegiaoQueRola } from '../../../components/introducao/RegiaoQueRola'
-import { NAVEGACAO } from '../../navigation'
+import { ScrollArea } from '../../../components/introducao/ScrollArea'
+import { NAVIGATION } from '../../navigation'
 import {
   AGENTE_DA_INTRODUCAO,
   DESCRICAO_DO_LUGAR,
@@ -20,7 +20,7 @@ import {
  * O primeiro lugar da coordenação, lido da navegação (desde a X3, "Painel"): é para onde ela vai ao terminar, ao pular e ao fechar a
  * revisão. O `~` faz o endereço valer pela raiz do site, e não pela base `/coordenacao` em que a tela está.
  */
-const PRIMEIRO_LUGAR = `~${NAVEGACAO.coordenador[0]?.caminho ?? ROTAS.painel}`
+const PRIMEIRO_LUGAR = `~${NAVIGATION.coordenador[0]?.caminho ?? ROUTES.painel}`
 
 /** O que a IA nunca faz, em lista compacta: são onze frases, e o passo inteiro precisa caber ao lado da onça e do botão (RF20). */
 function ListaDoQueANuncaFaz({ frases }: { readonly frases: readonly string[] }) {
@@ -39,10 +39,10 @@ function conteudoDoPasso(linhas: readonly string[], ultimo: boolean): ReactNode 
   if (!ultimo) return <Linhas linhas={linhas} />
   // O último passo leva a lista do que a IA nunca faz e a de lugares: não cabem a 1366 × 768 ao lado da onça e do botão (RF20), e só o miolo rola.
   return (
-    <RegiaoQueRola nome="Leia até o fim" alturaMaxima="max-h-[34dvh]">
+    <ScrollArea nome="Leia até o fim" alturaMaxima="max-h-[34dvh]">
       <ListaDoQueANuncaFaz frases={linhas} />
-      <OndeFicaCadaCoisa titulo={TITULO_DE_ONDE_FICA_CADA_COISA} lugares={NAVEGACAO.coordenador} descricoes={DESCRICAO_DO_LUGAR} />
-    </RegiaoQueRola>
+      <OndeFicaCadaCoisa titulo={TITULO_DE_ONDE_FICA_CADA_COISA} lugares={NAVIGATION.coordenador} descricoes={DESCRICAO_DO_LUGAR} />
+    </ScrollArea>
   )
 }
 
@@ -60,7 +60,7 @@ function passosDaCoordenacao(nomeDaEscola: string): readonly PassoDaIntroducao[]
  * A introdução da coordenação (telas do aluno e primeiro acesso, 11.0; RF12, RF15 a RF19; mockup 7): quatro passos numa tela de foco,
  * dentro da casca. O Analista ajuda a ler os números da escola; a coordenação vê a escola em números agregados; o dado com nome só
  * abre com um motivo, e isso fica registrado; e a IA nunca faz o que a lista diz. **Os quatro se pulam**, e o último traz "onde fica
- * cada coisa", lida de `NAVEGACAO.coordenador`.
+ * cada coisa", lida de `NAVIGATION.coordenador`.
  *
  * Os quatro estados (carregando, erro, data desconhecida e com dado), a gravação da data e a ida embora são de `IntroducaoDoPapel` e
  * de `useIntroducao`, que as três introduções usam. **Concluir e pular levam a coordenação ao primeiro lugar dela, mesmo se a gravação

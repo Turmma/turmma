@@ -1,6 +1,6 @@
 import { meusVinculosResponseSchema, vinculoResponseSchema, type ContestarVinculoRequest, type VinculoResponse } from '@educa/shared'
 import { infiniteQueryOptions } from '@tanstack/react-query'
-import { buscarComSessao, chamarComSessao } from '../../../../api/sessao'
+import { authedGet, authedRequest } from '../../../../api/sessao'
 
 const CAMINHO_DOS_MEUS_VINCULOS = '/v1/meus-vinculos'
 
@@ -11,17 +11,17 @@ const CAMINHO_DOS_MEUS_VINCULOS = '/v1/meus-vinculos'
  * Paginada como a API entrega (regra 80, item 8): a primeira página cobre o professor de verdade, e `proxima` leva o
  * resto sem a tela nunca pedir a lista inteira.
  */
-export const consultaMeusVinculos = infiniteQueryOptions({
+export const meusVinculosQueryOptions = infiniteQueryOptions({
   queryKey: ['meus-vinculos'],
   queryFn: ({ pageParam, signal }) =>
-    buscarComSessao(pageParam === undefined ? CAMINHO_DOS_MEUS_VINCULOS : `${CAMINHO_DOS_MEUS_VINCULOS}?pagina=${encodeURIComponent(pageParam)}`, meusVinculosResponseSchema, signal),
+    authedGet(pageParam === undefined ? CAMINHO_DOS_MEUS_VINCULOS : `${CAMINHO_DOS_MEUS_VINCULOS}?pagina=${encodeURIComponent(pageParam)}`, meusVinculosResponseSchema, signal),
   initialPageParam: undefined as string | undefined,
   getNextPageParam: (ultima) => ultima.proxima,
 })
 
 /** `POST /v1/vinculos/:id/confirmar` (RF4): o professor confirma aquele vínculo, e só aquele. */
 export function confirmarVinculo(id: string): Promise<VinculoResponse> {
-  return chamarComSessao(`/v1/vinculos/${encodeURIComponent(id)}/confirmar`, vinculoResponseSchema, { metodo: 'POST' })
+  return authedRequest(`/v1/vinculos/${encodeURIComponent(id)}/confirmar`, vinculoResponseSchema, { metodo: 'POST' })
 }
 
 /**
@@ -29,5 +29,5 @@ export function confirmarVinculo(id: string): Promise<VinculoResponse> {
  * coordenação lê. A tela avisa para não escrever nome de aluno ali (regra 20).
  */
 export function contestarVinculo(id: string, pedido: ContestarVinculoRequest): Promise<VinculoResponse> {
-  return chamarComSessao(`/v1/vinculos/${encodeURIComponent(id)}/contestar`, vinculoResponseSchema, { metodo: 'POST', corpo: pedido })
+  return authedRequest(`/v1/vinculos/${encodeURIComponent(id)}/contestar`, vinculoResponseSchema, { metodo: 'POST', corpo: pedido })
 }

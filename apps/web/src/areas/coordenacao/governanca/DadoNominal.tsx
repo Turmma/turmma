@@ -1,17 +1,17 @@
 import { FINALIDADES_DA_LEITURA_NOMINAL, NOME_DA_FINALIDADE_NOMINAL, nomeDaSerie, type FinalidadeDaLeituraNominal, type AnalistaNominalResponse } from '@educa/shared'
 import { useQuery } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
-import { consultaTurmas } from '../../../api/estrutura'
+import { turmasQueryOptions } from '../../../api/estrutura'
 import { lerDadoNominal } from './api/governanca'
 import { ProgressBar } from '../../../components/ui/ProgressBar'
 import { Button } from '../../../components/ui/Button'
 import { Card } from '../../../components/ui/Card'
 import { ConfirmDialog } from '../../../components/ui/overlays/ConfirmDialog'
-import { useEnvioUnico } from '../../../components/dialogs'
+import { useSingleSubmit } from '../../../components/dialogs'
 import { Select } from '../../../components/ui/fields/Select'
 import { SectionHeader } from '../../../components/ui/Page'
-import { textoDaFalha } from '../../../components/error-text'
-import { formatarQuantidade } from '../../../format'
+import { errorText } from '../../../components/error-text'
+import { formatQuantity } from '../../../format'
 import { ordenarTurmas } from '../comum/ordem'
 import { acertoPercentual, AVISO_DO_NOMINAL, EFEITO_DO_NOMINAL, formatarPercentual } from './textos-da-governanca'
 
@@ -34,7 +34,7 @@ export function DadoNominal() {
   const [aberto, definirAberto] = useState(false)
   // Fechar o resultado desmonta o botão que tinha o foco: ele volta para quem abriu (regra 50, item 11).
   const abrir = useRef<HTMLButtonElement>(null)
-  const { enviar, mutacao } = useEnvioUnico({
+  const { enviar, mutacao } = useSingleSubmit({
     mutationFn: ({ turmaId, finalidade }: { turmaId: string; finalidade: FinalidadeDaLeituraNominal }) => lerDadoNominal(turmaId, finalidade),
     onSuccess: () => definirAberto(false),
   })
@@ -70,7 +70,7 @@ export function DadoNominal() {
           aoFechar={() => definirAberto(false)}
           aoConfirmar={enviar}
           confirmando={mutacao.isPending}
-          falha={mutacao.isError ? textoDaFalha(mutacao.error, { NAO_ENCONTRADO: 'Esta turma não está mais na escola. Feche e escolha outra.' }) : undefined}
+          falha={mutacao.isError ? errorText(mutacao.error, { NAO_ENCONTRADO: 'Esta turma não está mais na escola. Feche e escolha outra.' }) : undefined}
         />
       )}
     </section>
@@ -86,7 +86,7 @@ interface PropsDoPedido {
 
 /** A confirmação: a turma, a finalidade, o que a resposta mostra e o aviso de que a abertura fica na auditoria. */
 function PedidoNominal({ aoFechar, aoConfirmar, confirmando, falha }: PropsDoPedido) {
-  const turmas = useQuery(consultaTurmas)
+  const turmas = useQuery(turmasQueryOptions)
   const [turmaId, definirTurmaId] = useState('')
   const [finalidade, definirFinalidade] = useState('')
   const opcoesDeTurma = ordenarTurmas(turmas.data?.itens ?? []).map((turma) => ({ valor: turma.id, rotulo: `${turma.nome} · ${nomeDaSerie(turma.serie)}` }))
@@ -137,9 +137,9 @@ interface PropsDoResultado {
 /** O que a leitura trouxe: a turma, os professores dela com a disciplina, o acerto por habilidade e os sinais de trabalho. */
 function ResultadoNominal({ dado, aoFechar }: PropsDoResultado) {
   const sinais = [
-    formatarQuantidade(dado.sinais.travou, 'aviso de aluno que travou', 'avisos de aluno que travou'),
-    formatarQuantidade(dado.sinais.resposta_pronta, 'pedido de resposta pronta', 'pedidos de resposta pronta'),
-    formatarQuantidade(dado.sinais.duvida_repetida, 'dúvida repetida', 'dúvidas repetidas'),
+    formatQuantity(dado.sinais.travou, 'aviso de aluno que travou', 'avisos de aluno que travou'),
+    formatQuantity(dado.sinais.resposta_pronta, 'pedido de resposta pronta', 'pedidos de resposta pronta'),
+    formatQuantity(dado.sinais.duvida_repetida, 'dúvida repetida', 'dúvidas repetidas'),
   ]
   return (
     <div data-dado-nominal role="region" aria-label={`Dado nominal da turma ${dado.turma.nome}`}>
@@ -176,7 +176,7 @@ function ResultadoNominal({ dado, aoFechar }: PropsDoResultado) {
               <p className="mt-1 text-apoio">A turma ainda não tem correção aprovada pelo professor: só o que foi aprovado vira número.</p>
             ) : (
               <div className="mt-2 flex min-w-0 flex-col gap-3">
-                <p className="text-sm text-sutil">{formatarQuantidade(dado.lotesAprovados, 'correção aprovada', 'correções aprovadas')} na turma, somando as disciplinas.</p>
+                <p className="text-sm text-sutil">{formatQuantity(dado.lotesAprovados, 'correção aprovada', 'correções aprovadas')} na turma, somando as disciplinas.</p>
                 {dado.porHabilidade.map((medida) => (
                   <ProgressBar
                     key={medida.habilidade.codigo}

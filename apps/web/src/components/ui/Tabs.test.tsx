@@ -3,7 +3,7 @@ import { cleanup, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { classesDo } from '../../__fixtures__/class-colors'
+import { classesOf } from '../../__fixtures__/class-colors'
 import { Tabs, type TabItem } from './Tabs'
 
 /**
@@ -40,15 +40,15 @@ describe('Abas', () => {
     render(<Montada inicial="alunos" />)
     const [primeira, ativa, ultima] = abas() as [HTMLElement, HTMLElement, HTMLElement]
     expect(ativa.getAttribute('aria-selected')).toBe('true')
-    expect(classesDo(ativa).has('text-azul-texto')).toBe(true)
+    expect(classesOf(ativa).has('text-azul-texto')).toBe(true)
     // O sublinhado é um desenho à parte, de 3 px, na face `azul`, só na ativa.
     const sublinhado = ativa.querySelector('[aria-hidden="true"]')
     expect(sublinhado).not.toBeNull()
-    expect(classesDo(sublinhado as Element).has('bg-azul')).toBe(true)
-    expect(classesDo(sublinhado as Element).has('h-0.75')).toBe(true)
+    expect(classesOf(sublinhado as Element).has('bg-azul')).toBe(true)
+    expect(classesOf(sublinhado as Element).has('h-0.75')).toBe(true)
     for (const outra of [primeira, ultima]) {
       expect(outra.getAttribute('aria-selected')).toBe('false')
-      expect(classesDo(outra).has('text-azul-texto')).toBe(false)
+      expect(classesOf(outra).has('text-azul-texto')).toBe(false)
       expect(outra.querySelector('[aria-hidden="true"]')).toBeNull()
     }
   })
@@ -56,19 +56,19 @@ describe('Abas', () => {
   it('a aba tem 44 px de altura em qualquer largura, e a lista tem o fio de 2 px', () => {
     render(<Montada />)
     for (const aba of abas()) {
-      const classes = classesDo(aba)
+      const classes = classesOf(aba)
       expect(classes.has('min-h-11'), aba.textContent ?? '').toBe(true)
       // A de 36 px do computador era a barra de controles de antes da D80.
       expect(classes.has('md:min-h-9'), aba.textContent ?? '').toBe(false)
     }
     const lista = screen.getByRole('tablist', { name: 'Seções da turma' })
-    expect(classesDo(lista).has('border-b-2')).toBe(true)
-    expect(classesDo(lista).has('border-borda')).toBe(true)
+    expect(classesOf(lista).has('border-b-2')).toBe(true)
+    expect(classesOf(lista).has('border-borda')).toBe(true)
   })
 
   it('o rótulo da aba é `t-rotulo`, a tipografia de rótulo da D80, na ativa e nas outras', () => {
     render(<Montada inicial="alunos" />)
-    for (const aba of abas()) expect(classesDo(aba).has('t-rotulo'), aba.textContent ?? '').toBe(true)
+    for (const aba of abas()) expect(classesOf(aba).has('t-rotulo'), aba.textContent ?? '').toBe(true)
   })
 
   it('uma parada só no Tab: a ativa; o Tab seguinte entra no painel e não na aba ao lado', async () => {

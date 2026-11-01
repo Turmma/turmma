@@ -1,6 +1,6 @@
 import { useLayoutEffect } from 'react'
 import { Link, useLocation } from 'wouter'
-import { estaNoItem, type ItemDaNavegacao } from '../areas/navigation'
+import { estaNoItem, type NavItem } from '../areas/navigation'
 import { Icon } from './ui/Icon'
 import { IconTile } from './ui/IconTile'
 
@@ -16,7 +16,7 @@ export type OndeFicamOsItens = 'barra' | 'gaveta'
  * Onde os itens de navegação ficam abaixo de 768 px: na barra de baixo, quando são de um a quatro; na gaveta, quando são
  * mais (a coordenação) ou nenhum (o `/v1/eu` ainda não chegou: uma barra vazia seria uma faixa de 68 px sem nada).
  */
-export function ondeFicamOsItens(itens: readonly ItemDaNavegacao[]): OndeFicamOsItens {
+export function ondeFicamOsItens(itens: readonly NavItem[]): OndeFicamOsItens {
   return itens.length > 0 && itens.length <= MAXIMO_NA_BARRA ? 'barra' : 'gaveta'
 }
 
@@ -32,7 +32,7 @@ const PILULA_APAGADA = 'border-transparent'
  * O ícone de 28 px do lugar: o ilustrado, ou o do `lucide` no `IconTile` da família dele, o menor que a peça tem (32 px,
  * que é o miolo da pílula). Decoração: o rótulo está escrito embaixo.
  */
-function IconeDaBarra({ item }: { item: ItemDaNavegacao }) {
+function IconeDaBarra({ item }: { item: NavItem }) {
   if ('lugar' in item.icone) return <Icon nome={item.icone.lugar} tamanho={28} />
   const Desenho = item.icone.lucide
   return (
@@ -55,7 +55,7 @@ function IconeDaBarra({ item }: { item: ItemDaNavegacao }) {
  *   barra inclusive. Por isso ela é irmã da gaveta, e não filha dela.
  * - O selecionado tem o `aria-current`, a borda e o fundo da pílula, e o texto `azul-texto`: a cor sozinha não é a pista.
  */
-export function BarraDeBaixo({ itens }: { itens: readonly ItemDaNavegacao[] }) {
+export function BarraDeBaixo({ itens }: { itens: readonly NavItem[] }) {
   const [caminho] = useLocation()
 
   // Antes da pintura, para o primeiro quadro já ter a reserva: o `<main>` não pula quando a barra aparece.

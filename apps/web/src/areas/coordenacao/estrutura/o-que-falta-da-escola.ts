@@ -1,4 +1,4 @@
-import { ROTAS_DA_COORDENACAO } from '../../../paths'
+import { COORDENACAO_ROUTES } from '../../../paths'
 
 /**
  * O roteiro da escola até a alocação (`docs/interface.md` 3; W4, "Estrutura"; telas da coordenação, 2.0), sem tela: a
@@ -39,9 +39,9 @@ export interface ContagemDoRoteiro {
 }
 
 /** Onde cada passo se faz, relativo à área. O ano, as séries e as disciplinas moram no painel "Ano letivo e disciplinas" da Estrutura. */
-export const PARA_O_ANO = `${ROTAS_DA_COORDENACAO.estrutura}?painel=ano`
-const PARA_AS_TURMAS = ROTAS_DA_COORDENACAO.estrutura
-const PARA_OS_PROFESSORES = ROTAS_DA_COORDENACAO.professores
+export const PARA_O_ANO = `${COORDENACAO_ROUTES.estrutura}?painel=ano`
+const PARA_AS_TURMAS = COORDENACAO_ROUTES.estrutura
+const PARA_OS_PROFESSORES = COORDENACAO_ROUTES.professores
 
 /**
  * Os sete passos. Sem `dados` (a escola ainda não tem ano letivo), nenhum passo tem marca: o vazio mostra o roteiro todo.

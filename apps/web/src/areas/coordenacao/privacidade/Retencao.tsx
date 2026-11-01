@@ -1,22 +1,22 @@
 import type { RetencaoResponse } from '@educa/shared'
 import { useQuery } from '@tanstack/react-query'
-import { consultaRetencao } from './api/privacidade'
-import { EstadoCarregando, EstadoErro } from '../../../components/states'
+import { retencaoQueryOptions } from './api/privacidade'
+import { LoadingState, ErrorState } from '../../../components/states'
 import { Table, type TableColumn } from '../../../components/ui/Table'
 import { SectionHeader } from '../../../components/ui/Page'
 import { textoDaOrigem, textoDoPrazo } from './textos-da-retencao'
 
-type LinhaDaCategoria = RetencaoResponse['categorias'][number]
-type LinhaDoPrazoFixo = RetencaoResponse['prazosFixos'][number]
+type CategoriaRow = RetencaoResponse['categorias'][number]
+type PrazoFixoRow = RetencaoResponse['prazosFixos'][number]
 
-const COLUNAS_DAS_CATEGORIAS: readonly [TableColumn<LinhaDaCategoria>, ...TableColumn<LinhaDaCategoria>[]] = [
+const COLUNAS_DAS_CATEGORIAS: readonly [TableColumn<CategoriaRow>, ...TableColumn<CategoriaRow>[]] = [
   { chave: 'dado', titulo: 'Dado', celula: (linha) => linha.descricao },
   { chave: 'prazo', titulo: 'Prazo que vale', celula: (linha) => textoDoPrazo(linha.meses) },
   { chave: 'contagem', titulo: 'Quando começa a contar', celula: (linha) => linha.contaDe },
   { chave: 'origem', titulo: 'De onde vem', celula: (linha) => textoDaOrigem(linha) },
 ]
 
-const COLUNAS_DOS_PRAZOS_FIXOS: readonly [TableColumn<LinhaDoPrazoFixo>, ...TableColumn<LinhaDoPrazoFixo>[]] = [
+const COLUNAS_DOS_PRAZOS_FIXOS: readonly [TableColumn<PrazoFixoRow>, ...TableColumn<PrazoFixoRow>[]] = [
   { chave: 'dado', titulo: 'Dado', celula: (linha) => linha.descricao },
   { chave: 'prazo', titulo: 'Prazo', celula: (linha) => linha.prazo },
 ]
@@ -29,10 +29,10 @@ const COLUNAS_DOS_PRAZOS_FIXOS: readonly [TableColumn<LinhaDoPrazoFixo>, ...Tabl
  * valem: carregando, erro com "Tentar de novo" e o dado.
  */
 export function Retencao() {
-  const retencao = useQuery(consultaRetencao)
-  if (retencao.isPending) return <EstadoCarregando rotulo="Carregando os prazos de guarda…" />
+  const retencao = useQuery(retencaoQueryOptions)
+  if (retencao.isPending) return <LoadingState rotulo="Carregando os prazos de guarda…" />
   if (retencao.isError && retencao.data === undefined) {
-    return <EstadoErro erro={retencao.error} tentando={retencao.isFetching} aoTentarDeNovo={() => void retencao.refetch({ cancelRefetch: false })} />
+    return <ErrorState erro={retencao.error} tentando={retencao.isFetching} aoTentarDeNovo={() => void retencao.refetch({ cancelRefetch: false })} />
   }
 
   const { categorias, prazosFixos } = retencao.data

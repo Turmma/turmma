@@ -3,7 +3,7 @@ import { cleanup, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { classesDo, contraste, corDoToken, TEMAS, tokenOuFalha } from '../../../__fixtures__/class-colors'
+import { classesOf, contraste, tokenColor, TEMAS, tokenOrThrow } from '../../../__fixtures__/class-colors'
 import { Switch } from './Switch'
 
 /**
@@ -86,13 +86,13 @@ describe('Interruptor', () => {
   it('os dois estados diferem pela posição da bolinha, e não só pela cor', () => {
     render(<Controlado />)
     const trilho = interruptor().firstElementChild as HTMLElement
-    expect(classesDo(trilho).has('justify-start')).toBe(true)
-    expect(classesDo(trilho).has('justify-end')).toBe(false)
+    expect(classesOf(trilho).has('justify-start')).toBe(true)
+    expect(classesOf(trilho).has('justify-end')).toBe(false)
     cleanup()
     render(<Controlado inicial />)
     const ligado = interruptor().firstElementChild as HTMLElement
-    expect(classesDo(ligado).has('justify-end')).toBe(true)
-    expect(classesDo(ligado).has('justify-start')).toBe(false)
+    expect(classesOf(ligado).has('justify-end')).toBe(true)
+    expect(classesOf(ligado).has('justify-start')).toBe(false)
   })
 
   it('fora de uso o trilho é fundo-suave com borda borda e a bolinha borda-campo, sem opacidade, e a posição ainda diz o estado', () => {
@@ -101,11 +101,11 @@ describe('Interruptor', () => {
       const peca = interruptor()
       const trilho = peca.firstElementChild as HTMLElement
       const bolinha = trilho.firstElementChild as HTMLElement
-      expect([tokenOuFalha(trilho, 'bg'), tokenOuFalha(trilho, 'border'), tokenOuFalha(bolinha, 'bg')], `ligado ${String(inicial)}`).toEqual(['fundo-suave', 'borda', 'borda-campo'])
-      expect(classesDo(trilho).has(inicial ? 'justify-end' : 'justify-start'), `ligado ${String(inicial)}: a bolinha`).toBe(true)
-      expect(classesDo(trilho).has(inicial ? 'justify-start' : 'justify-end')).toBe(false)
+      expect([tokenOrThrow(trilho, 'bg'), tokenOrThrow(trilho, 'border'), tokenOrThrow(bolinha, 'bg')], `ligado ${String(inicial)}`).toEqual(['fundo-suave', 'borda', 'borda-campo'])
+      expect(classesOf(trilho).has(inicial ? 'justify-end' : 'justify-start'), `ligado ${String(inicial)}: a bolinha`).toBe(true)
+      expect(classesOf(trilho).has(inicial ? 'justify-start' : 'justify-end')).toBe(false)
       for (const elemento of [peca, trilho, bolinha]) {
-        expect([...classesDo(elemento)].filter((classe) => classe.includes('opacity')), `ligado ${String(inicial)}: um jeito só de mostrar o desligado`).toEqual([])
+        expect([...classesOf(elemento)].filter((classe) => classe.includes('opacity')), `ligado ${String(inicial)}: um jeito só de mostrar o desligado`).toEqual([])
       }
       cleanup()
     }
@@ -114,18 +114,18 @@ describe('Interruptor', () => {
   it('o trilho desligado tem a borda borda-campo, de 3:1 contra o chão, nos dois temas', () => {
     render(<Controlado />)
     const trilho = interruptor().firstElementChild as HTMLElement
-    expect(classesDo(trilho).has('border-2')).toBe(true)
-    const borda = tokenOuFalha(trilho, 'border')
+    expect(classesOf(trilho).has('border-2')).toBe(true)
+    const borda = tokenOrThrow(trilho, 'border')
     expect(borda).toBe('borda-campo')
-    for (const tema of TEMAS) expect(contraste(corDoToken(tema, borda), corDoToken(tema, 'fundo')), tema).toBeGreaterThanOrEqual(3)
+    for (const tema of TEMAS) expect(contraste(tokenColor(tema, borda), tokenColor(tema, 'fundo')), tema).toBeGreaterThanOrEqual(3)
   })
 
   it('o trilho ligado é azul com a borda azul-degrau, de 3:1 contra o chão, nos dois temas', () => {
     render(<Controlado inicial />)
     const trilho = interruptor().firstElementChild as HTMLElement
-    expect(tokenOuFalha(trilho, 'bg')).toBe('azul')
-    const borda = tokenOuFalha(trilho, 'border')
+    expect(tokenOrThrow(trilho, 'bg')).toBe('azul')
+    const borda = tokenOrThrow(trilho, 'border')
     expect(borda).toBe('azul-degrau')
-    for (const tema of TEMAS) expect(contraste(corDoToken(tema, borda), corDoToken(tema, 'fundo')), tema).toBeGreaterThanOrEqual(3)
+    for (const tema of TEMAS) expect(contraste(tokenColor(tema, borda), tokenColor(tema, 'fundo')), tema).toBeGreaterThanOrEqual(3)
   })
 })

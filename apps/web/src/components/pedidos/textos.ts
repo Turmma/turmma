@@ -1,6 +1,6 @@
 import { ErrorCode, MAXIMO_DE_PEDIDOS_POR_DECISAO, type DecisaoDePedido, type DecisorDaReivindicacao, type ResultadoDaDecisao } from '@educa/shared'
-import { textoDaFalha } from '../error-text'
-import { formatarQuantidade } from '../../format'
+import { errorText } from '../error-text'
+import { formatQuantity } from '../../format'
 
 /**
  * O que a tela dos pedidos diz (A1, 16.0; RF12; W6): a marca da tentativa com matrícula errada, o limite de uma decisão,
@@ -25,12 +25,12 @@ export const TEXTO_DE_QUE_HA_MAIS = 'Há mais pedidos esperando do que os que ap
 
 /** "1 pedido", "3 pedidos". */
 export function quantidadeDePedidos(quantos: number): string {
-  return formatarQuantidade(quantos, 'pedido', 'pedidos')
+  return formatQuantity(quantos, 'pedido', 'pedidos')
 }
 
 /** O que a região viva diz quando a atualização traz pedidos: "1 pedido novo na lista.", "3 pedidos novos na lista.". */
 export function textoDosNovos(quantos: number): string {
-  return `${formatarQuantidade(quantos, 'pedido novo', 'pedidos novos')} na lista.`
+  return `${formatQuantity(quantos, 'pedido novo', 'pedidos novos')} na lista.`
 }
 
 /** O título do diálogo de cada decisão. Sem a quantidade: ela pode mudar com o diálogo aberto, e fica no texto. */
@@ -75,7 +75,7 @@ export const TEXTO_DE_QUE_TODOS_SAIRAM = 'Os pedidos que você marcou não estã
 
 /** Quando parte deles saiu: o diálogo passa a mostrar só os que continuam. */
 export function textoDosQueSairam(quantos: number): string {
-  return `${formatarQuantidade(quantos, 'pedido saiu', 'pedidos saíram')} desta decisão: outra pessoa decidiu antes.`
+  return `${formatQuantity(quantos, 'pedido saiu', 'pedidos saíram')} desta decisão: outra pessoa decidiu antes.`
 }
 
 /**
@@ -104,5 +104,5 @@ const TEXTOS_DA_FALHA_DA_DECISAO: Partial<Record<ErrorCode, string>> = {
 
 /** A falha da decisão, com o que fazer: o texto do erro e o que aconteceu com a lista. Nenhum texto diz o código do erro. */
 export function textoDaFalhaDaDecisao(erro: unknown, quem: DecisorDaReivindicacao): string {
-  return `${textoDaFalha(erro, TEXTOS_DA_FALHA_DA_DECISAO)} ${DEPOIS_DA_FALHA[quem]}`
+  return `${errorText(erro, TEXTOS_DA_FALHA_DA_DECISAO)} ${DEPOIS_DA_FALHA[quem]}`
 }

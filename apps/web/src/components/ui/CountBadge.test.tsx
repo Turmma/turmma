@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, render } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { classesDo } from '../../__fixtures__/class-colors'
+import { classesOf } from '../../__fixtures__/class-colors'
 import { CountBadge, COLOR_FAMILIES } from './CountBadge'
 
 /**
@@ -46,7 +46,7 @@ describe('Contador', () => {
 
   it('o número é tabular, em 700, com o texto da face em `sobre-cor`, e a pílula tem 24 px no mínimo', () => {
     const { container } = render(<CountBadge n={128} oQueConta="entregas" />)
-    const classes = classesDo(container.querySelector('[data-contador]') as Element)
+    const classes = classesOf(container.querySelector('[data-contador]') as Element)
     for (const classe of ['tabular-nums', 'font-bold', 'text-sobre-cor', 'min-h-6', 'min-w-6', 'rounded-full']) expect(classes.has(classe), classe).toBe(true)
     // Branco e `tinta` sobre a face reprovam em um dos temas: só `sobre-cor`.
     expect([...classes].filter((classe) => /^text-(white|tinta)$/.test(classe))).toEqual([])
@@ -54,12 +54,12 @@ describe('Contador', () => {
 
   it('sem família é laranja; cada uma das dez tem a face dela, e nenhuma classe repete', () => {
     const { container: padrao } = render(<CountBadge n={1} oQueConta="itens" />)
-    expect(classesDo(padrao.querySelector('[data-contador]') as Element).has('bg-laranja')).toBe(true)
+    expect(classesOf(padrao.querySelector('[data-contador]') as Element).has('bg-laranja')).toBe(true)
 
     const faces = new Set<string>()
     for (const familia of COLOR_FAMILIES) {
       const { container, unmount } = render(<CountBadge n={3} oQueConta="itens" familia={familia} />)
-      const classes = classesDo(container.querySelector('[data-contador]') as Element)
+      const classes = classesOf(container.querySelector('[data-contador]') as Element)
       expect(classes.has(`bg-${familia}`), familia).toBe(true)
       faces.add([...classes].find((classe) => classe.startsWith('bg-')) ?? '')
       unmount()
@@ -75,7 +75,7 @@ describe('Contador', () => {
     // O mesmo nó: o número muda e a pílula não é remontada para chamar a atenção.
     expect(depois).toBe(antes)
     expect(depois.textContent).toBe('2 pedidos')
-    expect([...classesDo(depois)].filter((classe) => /^(animate|transition|duration|motion)/.test(classe))).toEqual([])
+    expect([...classesOf(depois)].filter((classe) => /^(animate|transition|duration|motion)/.test(classe))).toEqual([])
   })
 
   it('não é controle: nenhum papel, nenhum foco e nenhum botão dentro', () => {

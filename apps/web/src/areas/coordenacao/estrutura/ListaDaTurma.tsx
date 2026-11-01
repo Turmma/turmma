@@ -3,25 +3,25 @@ import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-quer
 import { ArrowLeft } from 'lucide-react'
 import { useCallback, useEffect, useId, useRef, useState, type ChangeEvent, type RefObject } from 'react'
 import { Link } from 'wouter'
-import { ErroDaApi } from '../../../api/client'
-import { consultaTurmaAberta, consultaTurmas } from '../../../api/estrutura'
-import { acrescentarNome, consultaListaDaTurma, gravarLista, previaDaLista, retirarNome } from './api/lista'
-import { ROTAS_DA_COORDENACAO } from '../../../paths'
+import { ApiError } from '../../../api/client'
+import { turmaAbertaQueryOptions, turmasQueryOptions } from '../../../api/estrutura'
+import { acrescentarNome, listaDaTurmaQueryOptions, gravarLista, previaDaLista, retirarNome } from './api/lista'
+import { COORDENACAO_ROUTES } from '../../../paths'
 import { Button } from '../../../components/ui/Button'
 import { DANGER_BUTTON_CLASSES, SECONDARY_BUTTON_CLASSES } from '../../../components/ui/button-variants'
 import { FormField } from '../../../components/ui/fields/FormField'
 import { useDialogState } from '../../../components/ui/overlays/dialog-state'
-import { AlertaDaFalha, AlertaSemFoco, Anuncio, ConfirmacaoDePerigo, DialogoDeFormulario, useEnvioUnico } from '../../../components/dialogs'
-import { EstadoCarregando, EstadoErro, EstadoVazio } from '../../../components/states/index'
+import { ErrorAlert, ErrorAlertNoAutofocus, StatusAnnouncement, DangerConfirmDialog, FormDialog, useSingleSubmit } from '../../../components/dialogs'
+import { LoadingState, ErrorState, EmptyState } from '../../../components/states/index'
 import { MEDIA_MD, useMediaQuery } from '../../../components/ui/media-query'
 import { ListaDePedidos } from '../../../components/pedidos/ListaDePedidos'
 import { StatusBadge } from '../../../components/ui/StatusBadge'
 import { Table, type TableColumn } from '../../../components/ui/Table'
-import { listaMudou, textoDaFalha } from '../../../components/error-text'
+import { listChanged, errorText } from '../../../components/error-text'
 import { Page } from '../../../components/ui/Page'
 import { TurmaIndisponivel } from '../../../components/TurmaIndisponivel'
-import { formatarNumero, formatarQuantidade } from '../../../format'
-import { useTituloDaTela } from '../../../document-title'
+import { formatNumber, formatQuantity } from '../../../format'
+import { usePageTitle } from '../../../document-title'
 import { comQuebrasDoCampo, lerArquivoDaLista, tetoPassado, type MotivoDoArquivoRecusado } from './ler-arquivo-da-lista'
 import { O_MIOLO_QUE_ROLA } from '../comum/miolo-que-rola'
 import { NOME_DO_TURNO } from './nome-do-turno'
@@ -56,7 +56,7 @@ type NomeAindaNaLista = NomeDaLista & { readonly estado: Exclude<EstadoDoNomeDaL
  * por ler, a contagem é só dos nomes mostrados, e a tela diz isso, em vez de afirmar o total da turma.
  */
 function textoDosAprovados(aprovados: number, mostrados: number, haMais: boolean): string {
-  const quantos = haMais ? `Aprovados entre os primeiros ${formatarNumero(mostrados)} nomes: ${formatarNumero(aprovados)}.` : `Aprovados nesta turma: ${formatarNumero(aprovados)}.`
+  const quantos = haMais ? `Aprovados entre os primeiros ${formatNumber(mostrados)} nomes: ${formatNumber(aprovados)}.` : `Aprovados nesta turma: ${formatNumber(aprovados)}.`
   return `${quantos} Eles contam entre os nomes da lista, mas não aparecem pelo nome: já entram com a matrícula e a senha.`
 }
 
@@ -103,26 +103,26 @@ interface PreviaDoTexto {
  *   `sessionStorage` (regra 20; regra 50, item 7).
  * - **A prévia é do texto que foi enviado**: editar o texto a descarta, e a resposta de um texto anterior que chega
  *   depois da edição não aparece. A gravação manda o mesmo texto da prévia.
- * - **Um envio por vez**: o clique duplo em "Gravar lista" manda um pedido só (`useEnvioUnico`).
+ * - **Um envio por vez**: o clique duplo em "Gravar lista" manda um pedido só (`useSingleSubmit`).
  * - **Cada leitura da lista é auditada** (`turma.lista_lida`, finalidade de conferência de cadastro): a lista é lida ao
  *   abrir a turma e depois de cada escrita, a decisão de um pedido inclusive, e não ao voltar para a aba.
  * - **A turma que sai com a tela aberta** (a leitura dos pedidos deixa de achá-la) tira a página, com o foco no aviso.
  */
 export default function ListaDaTurma({ turmaId }: { turmaId: string }) {
-  const turma = useQuery(consultaTurmaAberta(turmaId))
+  const turma = useQuery(turmaAbertaQueryOptions(turmaId))
   // O turno não vem na turma aberta, só na lista de turmas do ano. Ela é não auditada e, com a turma lida, o ano em curso existe.
   // O complemento do título é só apoio: a lista que falha, ou que não traz a turma, deixa só a série.
-  const turmas = useQuery({ ...consultaTurmas, enabled: turma.data !== undefined })
+  const turmas = useQuery({ ...turmasQueryOptions, enabled: turma.data !== undefined })
   // A leitura dos pedidos deixou de achar a turma: a página diz isso, como quando é a leitura da turma que não a acha.
   const [perdida, definirPerdida] = useState(false)
   const perderATurma = useCallback(() => definirPerdida(true), [])
   // O mesmo nome na aba e no `h1`; sem a turma lida, ou com ela fora do ano, é só "Turma".
   const nomeDaTurma = turma.data === undefined || perdida ? 'Turma' : `Turma ${turma.data.nome}`
-  useTituloDaTela(nomeDaTurma)
+  usePageTitle(nomeDaTurma)
 
   const voltar = (
     // Relativo à área: o `Route` aninhado em `/coordenacao` resolve o `to` a partir da base dela.
-    <Link to={ROTAS_DA_COORDENACAO.estrutura} aria-label="Voltar para Escola" className="inline-flex min-h-11 items-center gap-2 self-start text-caramelo-texto underline">
+    <Link to={COORDENACAO_ROUTES.estrutura} aria-label="Voltar para Escola" className="inline-flex min-h-11 items-center gap-2 self-start text-caramelo-texto underline">
       <ArrowLeft aria-hidden="true" size={18} />
       Escola
     </Link>
@@ -131,17 +131,17 @@ export default function ListaDaTurma({ turmaId }: { turmaId: string }) {
   if (turma.isPending)
     return (
       <Page titulo={nomeDaTurma} antes={voltar}>
-        <EstadoCarregando rotulo="Carregando a turma…" />
+        <LoadingState rotulo="Carregando a turma…" />
       </Page>
     )
   if (turma.isError || perdida)
     return (
       <Page titulo={nomeDaTurma} antes={voltar}>
-        {perdida || (turma.error instanceof ErroDaApi && turma.error.codigo === ErrorCode.NAO_ENCONTRADO) ? (
+        {perdida || (turma.error instanceof ApiError && turma.error.codigo === ErrorCode.NAO_ENCONTRADO) ? (
           // Quando a turma sai com a tela aberta, o "Atualizar" que tinha o foco saiu com ela: o foco vem para o aviso.
           <TurmaIndisponivel texto={TEXTO_DA_TURMA_FORA_DO_ANO} comFoco={perdida} />
         ) : (
-          <EstadoErro erro={turma.error} tentando={turma.isFetching} aoTentarDeNovo={() => void turma.refetch({ cancelRefetch: false })} />
+          <ErrorState erro={turma.error} tentando={turma.isFetching} aoTentarDeNovo={() => void turma.refetch({ cancelRefetch: false })} />
         )}
       </Page>
     )
@@ -184,7 +184,7 @@ function colunasDosNomes(aoRetirar: (nome: NomeAindaNaLista) => void): readonly 
 
 function ConteudoDaLista({ turmaId, turmaNome, aoPerderATurma }: { turmaId: string; turmaNome: string; aoPerderATurma: () => void }) {
   const cliente = useQueryClient()
-  const nomes = useInfiniteQuery(consultaListaDaTurma(turmaId))
+  const nomes = useInfiniteQuery(listaDaTurmaQueryOptions(turmaId))
   const [anuncio, definirAnuncio] = useState('')
   const dialogo = useDialogState<'acrescentar' | 'retirar', NomeDaLista>()
   const aberta = dialogo.aberta
@@ -195,7 +195,7 @@ function ConteudoDaLista({ turmaId, turmaNome, aoPerderATurma }: { turmaId: stri
   // O miolo que rola recebe foco, para rolar pelo teclado, a partir de 768 px: abaixo disso rola a página, e não há o que focar.
   const comMiolo = useMediaQuery(MEDIA_MD)
 
-  const recarregarNomes = () => cliente.invalidateQueries({ queryKey: consultaListaDaTurma(turmaId).queryKey })
+  const recarregarNomes = () => cliente.invalidateQueries({ queryKey: listaDaTurmaQueryOptions(turmaId).queryKey })
   const itens = nomes.data?.pages.flatMap((pagina) => pagina.itens) ?? []
   // Os aprovados vêm sem nome nem matrícula: entram na contagem, e não na tabela.
   const semAprovados = itens.filter((nome): nome is NomeAindaNaLista => nome.estado !== 'aprovado' && nome.nome !== null && nome.matricula !== null)
@@ -234,17 +234,17 @@ function ConteudoDaLista({ turmaId, turmaNome, aoPerderATurma }: { turmaId: stri
               </button>
             </div>
             {/* O anúncio fica aqui, com os nomes: é para onde o foco vai depois de gravar, acrescentar e retirar. */}
-            <Anuncio texto={anuncio} />
+            <StatusAnnouncement texto={anuncio} />
             {nomes.isPending ? (
-              <EstadoCarregando rotulo="Carregando a lista de nomes…" />
+              <LoadingState rotulo="Carregando a lista de nomes…" />
             ) : nomes.isError ? (
-              <EstadoErro erro={nomes.error} tentando={nomes.isFetching} aoTentarDeNovo={() => void nomes.refetch({ cancelRefetch: false })} />
+              <ErrorState erro={nomes.error} tentando={nomes.isFetching} aoTentarDeNovo={() => void nomes.refetch({ cancelRefetch: false })} />
             ) : itens.length === 0 ? (
-              <EstadoVazio titulo="Nenhum nome nesta turma ainda" descricao="Cole a lista ou envie o arquivo: nome; matrícula, um aluno por linha, no campo acima." />
+              <EmptyState titulo="Nenhum nome nesta turma ainda" descricao="Cole a lista ou envie o arquivo: nome; matrícula, um aluno por linha, no campo acima." />
             ) : (
               <>
                 <p className="text-sm text-sutil">
-                  {nomes.hasNextPage ? `Mostrando os primeiros ${formatarQuantidade(itens.length, 'nome', 'nomes')}` : `${formatarQuantidade(itens.length, 'nome', 'nomes')} na lista`}
+                  {nomes.hasNextPage ? `Mostrando os primeiros ${formatQuantity(itens.length, 'nome', 'nomes')}` : `${formatQuantity(itens.length, 'nome', 'nomes')} na lista`}
                 </p>
                 {aprovados > 0 && (
                   <p className="rounded-cartao border border-ok bg-ok-cx p-4 break-words text-ok">{textoDosAprovados(aprovados, itens.length, nomes.hasNextPage)}</p>
@@ -291,7 +291,7 @@ function ConteudoDaLista({ turmaId, turmaNome, aoPerderATurma }: { turmaId: stri
         />
       )}
       {aberta?.tipo === 'retirar' && alvo !== undefined && (
-        <ConfirmacaoDePerigo
+        <DangerConfirmDialog
           key={aberta.numero}
           titulo="Retirar o nome da lista"
           texto={
@@ -361,7 +361,7 @@ function SubirLista({ turmaId, aoGravar, recarregarNomes }: { turmaId: string; a
   const exemplo = useId()
   const idDoTitulo = useId()
 
-  const pedirPrevia = useEnvioUnico({
+  const pedirPrevia = useSingleSubmit({
     mutationFn: (enviado: string) => previaDaLista(turmaId, enviado),
     // A prévia guarda o texto que foi enviado, e só aparece enquanto ele é o do campo (`previaAtual`): a resposta de um
     // texto que já foi editado não aparece, porque diria que um texto velho está bom (ou ruim).
@@ -371,21 +371,21 @@ function SubirLista({ turmaId, aoGravar, recarregarNomes }: { turmaId: string; a
     },
     onError: () => chegou('falha_da_previa'),
   })
-  const gravar = useEnvioUnico({
+  const gravar = useSingleSubmit({
     mutationFn: (enviado: string) => gravarLista(turmaId, enviado),
     onSuccess: async (gravacao) => {
       await recarregarNomes()
       mudarTexto('')
       definirPrevia(undefined)
       aoGravar(
-        `${formatarQuantidade(gravacao.gravados, 'nome gravado', 'nomes gravados')} na lista.${gravacao.jaExistentes > 0 ? ` ${formatarQuantidade(gravacao.jaExistentes, 'já estava', 'já estavam')} na lista e não mudou.` : ''}`,
+        `${formatQuantity(gravacao.gravados, 'nome gravado', 'nomes gravados')} na lista.${gravacao.jaExistentes > 0 ? ` ${formatQuantity(gravacao.jaExistentes, 'já estava', 'já estavam')} na lista e não mudou.` : ''}`,
       )
     },
     // A gravação recusada pela API diz que a prévia envelheceu (uma matrícula passou a ser usada, a lista tem erro, a
     // turma saiu do ano): ela sai, e o "Gravar lista" com ela, até a pessoa ver a prévia de novo. A queda de rede ou do
     // servidor não diz nada da prévia: ela fica, e "Gravar lista" tenta de novo.
     onError: (erro) => {
-      if (listaMudou(erro, [ErrorCode.CONFLITO, ErrorCode.ENTRADA_INVALIDA, ErrorCode.NAO_ENCONTRADO])) definirPrevia(undefined)
+      if (listChanged(erro, [ErrorCode.CONFLITO, ErrorCode.ENTRADA_INVALIDA, ErrorCode.NAO_ENCONTRADO])) definirPrevia(undefined)
       chegou('falha_da_gravacao')
       void recarregarNomes()
     },
@@ -434,7 +434,7 @@ function SubirLista({ turmaId, aoGravar, recarregarNomes }: { turmaId: string; a
   const previaAtual = previa !== undefined && previa.texto === texto ? previa.resposta : undefined
   const falhaDaPrevia =
     pedirPrevia.mutacao.isError && pedirPrevia.mutacao.variables === texto
-    ? textoDaFalha(pedirPrevia.mutacao.error, {
+    ? errorText(pedirPrevia.mutacao.error, {
         [ErrorCode.ENTRADA_INVALIDA]:
           'Não deu para ler a lista. Confira se cada linha tem o nome e a matrícula, se há ao menos um aluno e se ela não passa de 200 nomes.',
         [ErrorCode.NAO_ENCONTRADO]: 'Esta turma não está mais no ano letivo em curso. Volte para Escola › Turmas.',
@@ -442,7 +442,7 @@ function SubirLista({ turmaId, aoGravar, recarregarNomes }: { turmaId: string; a
     : undefined
   const falhaDaGravacao =
     gravar.mutacao.isError && gravar.mutacao.variables === texto
-    ? textoDaFalha(gravar.mutacao.error, {
+    ? errorText(gravar.mutacao.error, {
         [ErrorCode.CONFLITO]: 'Uma das matrículas passou a ser usada em outra turma ou por um aluno depois da prévia. Nada foi gravado: veja a prévia de novo.',
         [ErrorCode.ENTRADA_INVALIDA]: 'A lista tem linha com erro. Nada foi gravado: veja a prévia de novo.',
         [ErrorCode.NAO_ENCONTRADO]: 'Esta turma não está mais no ano letivo em curso. Nada foi gravado.',
@@ -495,8 +495,8 @@ function SubirLista({ turmaId, aoGravar, recarregarNomes }: { turmaId: string; a
         </p>
       </div>
 
-      {aviso !== undefined && <AlertaDaFalha texto={aviso} />}
-      {falhaDaPrevia !== undefined && <AlertaSemFoco texto={falhaDaPrevia} alvo={alertaDaPrevia} />}
+      {aviso !== undefined && <ErrorAlert texto={aviso} />}
+      {falhaDaPrevia !== undefined && <ErrorAlertNoAutofocus texto={falhaDaPrevia} alvo={alertaDaPrevia} />}
 
       <div className="flex flex-wrap gap-3">
         <button type="button" onClick={verPrevia} disabled={pedirPrevia.mutacao.isPending} className={SECONDARY_BUTTON_CLASSES}>
@@ -504,7 +504,7 @@ function SubirLista({ turmaId, aoGravar, recarregarNomes }: { turmaId: string; a
         </button>
       </div>
 
-      {falhaDaGravacao !== undefined && <AlertaSemFoco texto={falhaDaGravacao} alvo={alertaDaGravacao} />}
+      {falhaDaGravacao !== undefined && <ErrorAlertNoAutofocus texto={falhaDaGravacao} alvo={alertaDaGravacao} />}
       {previaAtual !== undefined && <PreviaDaLista previa={previaAtual} tituloRef={tituloDaPrevia} gravando={gravar.mutacao.isPending} aoGravar={() => gravar.enviar(texto)} />}
     </section>
   )
@@ -532,8 +532,8 @@ function PreviaDaLista({ previa, tituloRef, gravando, aoGravar }: PropsDaPrevia)
         Prévia
       </h3>
       <p role="status" className="text-apoio">
-        {formatarQuantidade(previa.entram, 'nome entra', 'nomes entram')} · {formatarQuantidade(previa.jaExistem, 'já está', 'já estão')} na lista ·{' '}
-        {formatarQuantidade(previa.comErro, 'linha com erro', 'linhas com erro')}
+        {formatQuantity(previa.entram, 'nome entra', 'nomes entram')} · {formatQuantity(previa.jaExistem, 'já está', 'já estão')} na lista ·{' '}
+        {formatQuantity(previa.comErro, 'linha com erro', 'linhas com erro')}
       </p>
       {avisos.map((aviso) => (
         <p key={aviso} className="rounded-controle border border-pendente bg-pendente-cx p-3 break-words text-pendente">
@@ -576,7 +576,7 @@ function NomeAvulso({ turmaId, aoFechar, aoAcrescentar, recarregar }: { turmaId:
   const [erros, definirErros] = useState<{ nome?: string; matricula?: string }>({})
   const campoDoNome = useRef<HTMLInputElement>(null)
   const campoDaMatricula = useRef<HTMLInputElement>(null)
-  const { enviar, mutacao } = useEnvioUnico({
+  const { enviar, mutacao } = useSingleSubmit({
     mutationFn: (pedido: { nome: string; matricula: string }) => acrescentarNome(turmaId, pedido),
     onSuccess: async () => {
       await recarregar()
@@ -599,7 +599,7 @@ function NomeAvulso({ turmaId, aoFechar, aoAcrescentar, recarregar }: { turmaId:
   }
 
   return (
-    <DialogoDeFormulario
+    <FormDialog
       titulo="Acrescentar um nome"
       aoFechar={aoFechar}
       aoEnviar={aoEnviar}
@@ -608,7 +608,7 @@ function NomeAvulso({ turmaId, aoFechar, aoAcrescentar, recarregar }: { turmaId:
       rotuloEnviando="Acrescentando…"
       falha={
         mutacao.isError
-          ? textoDaFalha(mutacao.error, {
+          ? errorText(mutacao.error, {
               [ErrorCode.CONFLITO]: 'Esta matrícula já está na lista de uma turma da escola ou é de um aluno da escola. Nada foi gravado.',
               [ErrorCode.NAO_ENCONTRADO]: 'Esta turma não está mais no ano letivo em curso. Nada foi gravado.',
               // A tela segura antes, com a mesma regra do contrato; se as duas divergirem, a recusa da API diz o que fazer.
@@ -641,6 +641,6 @@ function NomeAvulso({ turmaId, aoFechar, aoAcrescentar, recarregar }: { turmaId:
         onChange={(evento) => definirMatricula(evento.target.value)}
         erro={erros.matricula}
       />
-    </DialogoDeFormulario>
+    </FormDialog>
   )
 }

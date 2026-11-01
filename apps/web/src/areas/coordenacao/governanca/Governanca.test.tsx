@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { Router } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
-import { prepararTela, redeFalsa, renderizarTela, type RedeFalsa, type RespostaFalsa } from '../../../__fixtures__/render-screen'
+import { setupScreen, fakeNetwork, renderScreen, type FakeNetwork, type FakeResponse } from '../../../__fixtures__/render-screen'
 import Governanca from './Governanca'
 
 /**
@@ -12,7 +12,7 @@ import Governanca from './Governanca'
  * consumo. A rede é falsa; o cliente de consultas, o roteador e a tela são os de verdade. O servidor que filtra, o recomeço pela
  * pessoa seguinte e o tamanho nas duas larguras são do e2e (`e2e/governanca.spec.ts`).
  */
-prepararTela()
+setupScreen()
 
 /** A largura da janela, para a consulta `(min-width: 768px)` que a `Table` lê; o `jsdom` não tem `matchMedia`. */
 function janelaDe(largura: number): void {
@@ -37,7 +37,7 @@ beforeEach(() => {
 
 const id = (n: number) => `0197a1c0-0000-7000-8000-${String(n).padStart(12, '0')}`
 const SERIE = { id: id(200), etapa: 'em', ano: 2 }
-const FORA: RespostaFalsa = { status: 404, corpo: { erro: { codigo: 'NAO_ENCONTRADO', mensagem: 'x', requisicaoId: '0190f5a0-0000-7000-8000-000000000001' } } }
+const FORA: FakeResponse = { status: 404, corpo: { erro: { codigo: 'NAO_ENCONTRADO', mensagem: 'x', requisicaoId: '0190f5a0-0000-7000-8000-000000000001' } } }
 
 type Estado = 'pendente' | 'aprovada' | 'rejeitada'
 const NUMEROS_DA_ESCOLA = { geradoPorIa: 41, aprovadoPorPessoa: 7, rejeitado: 3, esperando: 5 }
@@ -55,11 +55,11 @@ function item(n: number, estado: Estado) {
     decididaEm: estado === 'pendente' ? null : '2026-10-05T13:00:00.000Z',
   }
 }
-const resumo = (numeros: typeof NUMEROS_DA_ESCOLA, itens: readonly ReturnType<typeof item>[], proxima?: string): RespostaFalsa => ({
+const resumo = (numeros: typeof NUMEROS_DA_ESCOLA, itens: readonly ReturnType<typeof item>[], proxima?: string): FakeResponse => ({
   status: 200,
   corpo: { numeros, itens, ...(proxima === undefined ? {} : { proxima }) },
 })
-const CONSUMO: RespostaFalsa = {
+const CONSUMO: FakeResponse = {
   status: 200,
   corpo: {
     mes: '2026-10',
@@ -70,14 +70,14 @@ const CONSUMO: RespostaFalsa = {
 }
 
 /** As respostas de cada estado. Registrar os filtros antes do geral: o primeiro que casa responde. */
-function responderPorEstado(rede: RedeFalsa, porEstado: Readonly<Partial<Record<Estado, RespostaFalsa | (() => RespostaFalsa | Promise<RespostaFalsa>)>>>, geral: RespostaFalsa): void {
+function responderPorEstado(rede: FakeNetwork, porEstado: Readonly<Partial<Record<Estado, FakeResponse | (() => FakeResponse | Promise<FakeResponse>)>>>, geral: FakeResponse): void {
   for (const [estado, resposta] of Object.entries(porEstado)) rede.responderPor(new RegExp(`^/v1/governanca/resumo\\?estado=${estado}(&|$)`), resposta)
   rede.responderPor('/v1/governanca/resumo', geral)
   rede.responderPor('/v1/governanca/consumo', CONSUMO)
 }
 
 const TODAS = [item(1, 'pendente'), item(2, 'aprovada'), item(3, 'rejeitada'), item(4, 'aprovada')]
-const caminhosDoResumo = (rede: RedeFalsa) => rede.chamadas.filter((chamada) => chamada.caminho.startsWith('/v1/governanca/resumo')).map((chamada) => chamada.caminho)
+const caminhosDoResumo = (rede: FakeNetwork) => rede.chamadas.filter((chamada) => chamada.caminho.startsWith('/v1/governanca/resumo')).map((chamada) => chamada.caminho)
 /** O estado de cada linha da tabela, na ordem: o selo da decisão carrega `data-aprovacao`. */
 const selosDaLista = () => [...document.querySelectorAll('[data-aprovacao]')].map((selo) => selo.getAttribute('data-aprovacao'))
 const numero = (rotulo: string) => screen.getAllByText(rotulo, { exact: true })[0]?.parentElement?.textContent ?? ''
@@ -85,7 +85,7 @@ const numero = (rotulo: string) => screen.getAllByText(rotulo, { exact: true })[
 function montar(endereco = '/governanca') {
   const [caminho = '/governanca', busca = ''] = endereco.split('?')
   const localizacao = memoryLocation({ path: caminho, searchPath: busca, record: true })
-  renderizarTela(
+  renderScreen(
     <Router hook={localizacao.hook} searchHook={localizacao.searchHook}>
       <Governanca />
     </Router>,
@@ -95,7 +95,7 @@ function montar(endereco = '/governanca') {
 
 describe('Registros › IA: os estados da tela', () => {
   it('carregando: só o aviso de leitura, e nenhum dos vazios enquanto a leitura não terminou', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor('/v1/governanca/consumo', CONSUMO)
     const lida = rede.segurar()
     montar()
@@ -107,7 +107,7 @@ describe('Registros › IA: os estados da tela', () => {
 
   it('erro: diz o que fazer, "Tentar de novo" lê outra vez, e nenhum vazio aparece com a leitura falha', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     let respostas = 0
     rede.responderPor('/v1/governanca/resumo', () => (++respostas === 1 ? FORA : resumo(NUMEROS_DA_ESCOLA, TODAS)))
     rede.responderPor('/v1/governanca/consumo', CONSUMO)
@@ -120,7 +120,7 @@ describe('Registros › IA: os estados da tela', () => {
   })
 
   it('vazio da escola sem nada gerado, e vazio da escola que já gerou mas não tem linha (série de um professor só)', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     responderPorEstado(rede, {}, resumo({ geradoPorIa: 0, aprovadoPorPessoa: 0, rejeitado: 0, esperando: 0 }, []))
     montar()
     expect(await screen.findByText('A IA ainda não gerou nada nesta escola')).toBeTruthy()
@@ -129,7 +129,7 @@ describe('Registros › IA: os estados da tela', () => {
   })
 
   it('com o dado nos números mas sem linha: "Nenhuma linha para mostrar ainda", e o que já foi gerado está nos números', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     responderPorEstado(rede, {}, resumo(NUMEROS_DA_ESCOLA, []))
     montar()
     expect(await screen.findByText('Nenhuma linha para mostrar ainda')).toBeTruthy()
@@ -139,7 +139,7 @@ describe('Registros › IA: os estados da tela', () => {
 
   it('o filtro que não acha nada diz o que vai aparecer ali, por estado, e não repete o vazio da escola', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     responderPorEstado(
       rede,
       { pendente: resumo(NUMEROS_DA_ESCOLA, []), aprovada: resumo(NUMEROS_DA_ESCOLA, []), rejeitada: resumo(NUMEROS_DA_ESCOLA, []) },
@@ -161,9 +161,9 @@ describe('Registros › IA: os estados da tela', () => {
 
   it('com o filtro lendo, a tabela mostra a leitura e nenhum vazio: o vazio só vem com a resposta', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
-    let soltar: (resposta: RespostaFalsa) => void = () => undefined
-    const segurada = new Promise<RespostaFalsa>((resolver) => (soltar = resolver))
+    const rede = fakeNetwork()
+    let soltar: (resposta: FakeResponse) => void = () => undefined
+    const segurada = new Promise<FakeResponse>((resolver) => (soltar = resolver))
     responderPorEstado(rede, { aprovada: () => segurada }, resumo(NUMEROS_DA_ESCOLA, TODAS))
     montar()
     await waitFor(() => expect(selosDaLista()).toHaveLength(4))
@@ -179,7 +179,7 @@ describe('Registros › IA: os estados da tela', () => {
 
   it('o filtro que falha mostra o erro com "Tentar de novo" na lista, sem derrubar os números nem o filtro', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     let respostas = 0
     responderPorEstado(rede, { aprovada: () => (++respostas === 1 ? FORA : resumo(NUMEROS_DA_ESCOLA, [item(2, 'aprovada')])) }, resumo(NUMEROS_DA_ESCOLA, TODAS))
     montar()
@@ -195,7 +195,7 @@ describe('Registros › IA: os estados da tela', () => {
 
   it('com dado: cinco colunas, a decisão no selo e "Carregar mais" lê a página seguinte com o cursor da API', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor(`/v1/governanca/resumo?pagina=${id(99)}`, resumo(NUMEROS_DA_ESCOLA, [item(5, 'aprovada')]))
     responderPorEstado(rede, {}, resumo(NUMEROS_DA_ESCOLA, TODAS, id(99)))
     montar()
@@ -211,7 +211,7 @@ describe('Registros › IA: os estados da tela', () => {
 
   it('a falha de "Carregar mais" não apaga o que já foi lido: o aviso fica ao lado, e tentar de novo traz a página', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     let tentativas = 0
     rede.responderPor(`/v1/governanca/resumo?pagina=${id(99)}`, () => (++tentativas === 1 ? FORA : resumo(NUMEROS_DA_ESCOLA, [item(5, 'aprovada')])))
     responderPorEstado(rede, {}, resumo(NUMEROS_DA_ESCOLA, TODAS, id(99)))
@@ -229,7 +229,7 @@ describe('Registros › IA: os estados da tela', () => {
 
   it('a falha de "Carregar mais" de um filtro fica ao lado das linhas dele, e "Tentar de novo" lê a página do mesmo filtro', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     let tentativas = 0
     rede.responderPor(new RegExp(`^/v1/governanca/resumo\\?estado=aprovada&pagina=${id(98)}$`), () => (++tentativas === 1 ? FORA : resumo(NUMEROS_DA_ESCOLA, [item(6, 'aprovada')])))
     responderPorEstado(rede, { aprovada: resumo(NUMEROS_DA_ESCOLA, [item(2, 'aprovada'), item(4, 'aprovada')], id(98)) }, resumo(NUMEROS_DA_ESCOLA, TODAS))
@@ -251,7 +251,7 @@ describe('Registros › IA: os estados da tela', () => {
 describe('Registros › IA: sem professor e sem turma (D45, D64)', () => {
   it('a tabela não tem coluna, filtro nem ordem por professor ou por turma, e nada disso vai à API', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     responderPorEstado(rede, { pendente: resumo(NUMEROS_DA_ESCOLA, [item(1, 'pendente')], id(97)), aprovada: resumo(NUMEROS_DA_ESCOLA, [item(2, 'aprovada')]) }, resumo(NUMEROS_DA_ESCOLA, TODAS, id(99)))
     rede.responderPor(/pagina=/, resumo(NUMEROS_DA_ESCOLA, []))
     montar()
@@ -280,7 +280,7 @@ describe('Registros › IA: sem professor e sem turma (D45, D64)', () => {
 describe('Registros › IA: o filtro por estado, no endereço', () => {
   it('escolher "Aprovados" chama resumo?estado=aprovada, põe o estado no endereço sem passo novo no histórico, e a tela mantém os quatro números da escola', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     responderPorEstado(rede, { aprovada: resumo(NUMEROS_DO_FILTRO, [item(2, 'aprovada'), item(4, 'aprovada')]) }, resumo(NUMEROS_DA_ESCOLA, TODAS))
     const localizacao = montar()
     await waitFor(() => expect(selosDaLista()).toHaveLength(4))
@@ -302,7 +302,7 @@ describe('Registros › IA: o filtro por estado, no endereço', () => {
 
   it('"Todos" tira o estado do endereço e volta à lista inteira, e cada estado traz só as linhas dele', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     responderPorEstado(
       rede,
       { pendente: resumo(NUMEROS_DA_ESCOLA, [item(1, 'pendente')]), rejeitada: resumo(NUMEROS_DA_ESCOLA, [item(3, 'rejeitada')]) },
@@ -324,7 +324,7 @@ describe('Registros › IA: o filtro por estado, no endereço', () => {
 
   it('"Carregar mais" de um filtro lê a página seguinte do mesmo filtro, e o botão é o da lista dele', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responderPor(new RegExp(`^/v1/governanca/resumo\\?estado=aprovada&pagina=${id(98)}$`), resumo(NUMEROS_DA_ESCOLA, [item(6, 'aprovada')]))
     responderPorEstado(rede, { aprovada: resumo(NUMEROS_DA_ESCOLA, [item(2, 'aprovada'), item(4, 'aprovada')], id(98)) }, resumo(NUMEROS_DA_ESCOLA, TODAS))
     montar('/governanca?estado=aprovada')
@@ -337,9 +337,9 @@ describe('Registros › IA: o filtro por estado, no endereço', () => {
 
   it('dois cliques seguidos em "Carregar mais" de um filtro pedem a página uma vez só', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
-    let soltar: (resposta: RespostaFalsa) => void = () => undefined
-    const segurada = new Promise<RespostaFalsa>((resolver) => {
+    const rede = fakeNetwork()
+    let soltar: (resposta: FakeResponse) => void = () => undefined
+    const segurada = new Promise<FakeResponse>((resolver) => {
       soltar = resolver
     })
     rede.responderPor(new RegExp(`^/v1/governanca/resumo\\?estado=aprovada&pagina=${id(98)}$`), () => segurada)
@@ -357,7 +357,7 @@ describe('Registros › IA: o filtro por estado, no endereço', () => {
   })
 
   it('o endereço com o estado abre já filtrado, e a leitura sem filtro continua dando os números', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     responderPorEstado(rede, { pendente: resumo(NUMEROS_DO_FILTRO, [item(1, 'pendente')]) }, resumo(NUMEROS_DA_ESCOLA, TODAS))
     montar('/governanca?estado=pendente')
     await waitFor(() => expect(selosDaLista()).toEqual(['pendente']))
@@ -367,7 +367,7 @@ describe('Registros › IA: o filtro por estado, no endereço', () => {
   })
 
   it('estado desconhecido no endereço é ignorado: abre sem filtro e a API nunca o recebe', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     responderPorEstado(rede, {}, resumo(NUMEROS_DA_ESCOLA, TODAS))
     montar('/governanca?estado=todos&professor=0197a1c0-0000-7000-8000-000000000301')
     await waitFor(() => expect(selosDaLista()).toHaveLength(4))
@@ -376,7 +376,7 @@ describe('Registros › IA: o filtro por estado, no endereço', () => {
   })
 
   it('sem estado no endereço, a tela lê só a lista sem filtro: nenhuma leitura de estado é feita sem a pessoa escolher', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     responderPorEstado(rede, {}, resumo(NUMEROS_DA_ESCOLA, TODAS))
     montar()
     await waitFor(() => expect(selosDaLista()).toHaveLength(4))
@@ -385,9 +385,9 @@ describe('Registros › IA: o filtro por estado, no endereço', () => {
 
   it('a resposta do filtro antigo, mesmo atrasada, não cai na lista do filtro novo', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
-    let soltar: (resposta: RespostaFalsa) => void = () => undefined
-    const atrasada = new Promise<RespostaFalsa>((resolver) => (soltar = resolver))
+    const rede = fakeNetwork()
+    let soltar: (resposta: FakeResponse) => void = () => undefined
+    const atrasada = new Promise<FakeResponse>((resolver) => (soltar = resolver))
     responderPorEstado(rede, { aprovada: () => atrasada, rejeitada: resumo(NUMEROS_DA_ESCOLA, [item(3, 'rejeitada')]) }, resumo(NUMEROS_DA_ESCOLA, TODAS))
     montar()
     await waitFor(() => expect(selosDaLista()).toHaveLength(4))
@@ -405,7 +405,7 @@ describe('Registros › IA: o filtro por estado, no endereço', () => {
 
 describe('Registros › IA: os números, o link e o consumo', () => {
   it('o filtro "Estado" põe as quatro opções em duas colunas no celular: "Esperando o professor" e "Rejeitados" não cabem lado a lado a 360 px', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     responderPorEstado(rede, {}, resumo(NUMEROS_DA_ESCOLA, TODAS))
     montar()
     await waitFor(() => expect(selosDaLista()).toHaveLength(4))
@@ -415,7 +415,7 @@ describe('Registros › IA: os números, o link e o consumo', () => {
   })
 
   it('os quatro números têm os rótulos e os textos de apoio de hoje, e o link leva a "Como cada IA trabalha"', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     responderPorEstado(rede, {}, resumo(NUMEROS_DA_ESCOLA, TODAS))
     montar()
     await waitFor(() => expect(selosDaLista()).toHaveLength(4))
@@ -427,7 +427,7 @@ describe('Registros › IA: os números, o link e o consumo', () => {
   })
 
   it('o consumo do mês por função fica depois da tabela no documento, com a frase de que a lista não mostra turma nem quem decidiu', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     responderPorEstado(rede, {}, resumo(NUMEROS_DA_ESCOLA, TODAS))
     montar()
     await waitFor(() => expect(selosDaLista()).toHaveLength(4))

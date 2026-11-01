@@ -13,7 +13,7 @@ import {
 } from '@educa/shared'
 import { useCallback, useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { Link } from 'wouter'
-import { ErroDaApi } from '../api/client'
+import { ApiError } from '../api/client'
 import { abrirSala, reivindicarNome } from '../api/salas'
 import { caminhoDaEscola } from '../paths'
 import { Button } from '../components/ui/Button'
@@ -21,9 +21,9 @@ import { SECONDARY_BUTTON_CLASSES, SECONDARY_LINK_CLASSES } from '../components/
 import { FormField } from '../components/ui/fields/FormField'
 import { PasswordInput } from '../components/ui/fields/PasswordInput'
 import { CascaPublica } from '../components/CascaPublica'
-import { EstadoCarregando } from '../components/states'
-import { useTituloDaTela } from '../document-title'
-import { apagarFragmentoDaBarra, tokenDoFragmento } from './url-fragment'
+import { LoadingState } from '../components/states'
+import { usePageTitle } from '../document-title'
+import { clearFragment, readFragmentToken } from './url-fragment'
 import { enviarComReenvio } from './retry-with-backoff'
 
 /** Por onde a página chegou à turma: o link do professor, com o token, ou o código que o aluno digitou. */
@@ -41,8 +41,8 @@ type Etapa =
   | { readonly nome: 'aberta'; readonly caminho: Caminho; readonly turma: string; readonly nomes: readonly NomeLivre[] }
   | { readonly nome: 'enviado'; readonly caminho: Caminho }
 
-const codigoDoErro = (erro: unknown): ErrorCode => (erro instanceof ErroDaApi ? erro.codigo : ErrorCode.ERRO_INTERNO)
-const esperaDoErro = (erro: unknown): number | undefined => (erro instanceof ErroDaApi ? erro.esperaSegundos : undefined)
+const codigoDoErro = (erro: unknown): ErrorCode => (erro instanceof ApiError ? erro.codigo : ErrorCode.ERRO_INTERNO)
+const esperaDoErro = (erro: unknown): number | undefined => (erro instanceof ApiError ? erro.esperaSegundos : undefined)
 
 /** O caminho como o contrato o leva: o token **ou** o código, nunca os dois. */
 const noPedido = (caminho: Caminho): { token: string } | { codigo: string } => (caminho.tipo === 'link' ? { token: caminho.token } : { codigo: caminho.codigo })
@@ -68,9 +68,9 @@ const CLASSES_DO_AVISO = 'rounded-controle border border-erro bg-erro-cx p-4 bre
  * - **O texto do `NAO_ENCONTRADO` é o do caminho usado** (W9): o servidor responde igual ao link e ao código.
  */
 export function TurmaPublica({ slug }: { slug: string }) {
-  useTituloDaTela('Entrar na turma')
+  usePageTitle('Entrar na turma')
   // O token é lido na primeira renderização, e o efeito tira o fragmento da barra antes da primeira chamada sair.
-  const [tokenInicial] = useState(tokenDoFragmento)
+  const [tokenInicial] = useState(readFragmentToken)
   const [etapa, definirEtapa] = useState<Etapa>(() => (tokenInicial === undefined ? { nome: 'codigo', abrindo: false } : { nome: 'abrindo' }))
   const [codigoDigitado, definirCodigoDigitado] = useState('')
   // Sobe a cada vez que a tela leva o aluno ao campo do código: o campo pega o foco também quando já estava na tela.
@@ -120,7 +120,7 @@ export function TurmaPublica({ slug }: { slug: string }) {
   // A primeira abertura, pelo link, com a tela já em "Abrindo a turma…"; e a página que sai descarta o que estiver no ar.
   useEffect(() => {
     const contador = vez
-    apagarFragmentoDaBarra()
+    clearFragment()
     if (tokenInicial !== undefined) void buscar({ tipo: 'link', token: tokenInicial }, ++contador.current, false)
     return () => {
       contador.current++
@@ -130,8 +130,8 @@ export function TurmaPublica({ slug }: { slug: string }) {
   // Outro link colado nesta aba muda só o `#`, sem recarregar: a tela recomeça por ele, e o que estava digitado sai.
   useEffect(() => {
     function aoMudarOFragmento(): void {
-      const token = tokenDoFragmento()
-      apagarFragmentoDaBarra()
+      const token = readFragmentToken()
+      clearFragment()
       definirCodigoDigitado('')
       if (token !== undefined) {
         void abrir({ tipo: 'link', token })
@@ -186,7 +186,7 @@ export function TurmaPublica({ slug }: { slug: string }) {
           aoEnviar={abrirPeloCodigo}
         />
       )}
-      {etapa.nome === 'abrindo' && <EstadoCarregando rotulo="Abrindo a turma…" />}
+      {etapa.nome === 'abrindo' && <LoadingState rotulo="Abrindo a turma…" />}
       {etapa.nome === 'falhou' && <FalhaDoLink erro={etapa.erro} aoTentarDeNovo={() => void abrir(etapa.caminho)} />}
       {etapa.nome === 'aberta' && (
         <>

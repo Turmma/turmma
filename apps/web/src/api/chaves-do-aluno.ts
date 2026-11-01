@@ -2,8 +2,8 @@
  * O começo da chave de cada consulta das telas do aluno (A3 e A4). Ficam num arquivo sem mais nada para a regra das
  * telas dizer o que ler de novo sem carregar a sessão nem a rede.
  */
-export const CHAVE_DAS_MINHAS_ATIVIDADES = ['minhas-atividades'] as const
-export const CHAVE_DA_PROVA = ['minha-atividade', 'prova'] as const
-export const CHAVE_DO_MEU_DIAGNOSTICO = ['minha-atividade', 'diagnostico'] as const
-export const CHAVE_DA_CONVERSA_DO_TUTOR = ['tutor', 'conversa'] as const
-export const CHAVE_DA_MEMORIA_DO_TUTOR = ['tutor', 'memoria'] as const
+export const MINHAS_ATIVIDADES_QUERY_KEY = ['minhas-atividades'] as const
+export const PROVA_QUERY_KEY = ['minha-atividade', 'prova'] as const
+export const MEU_DIAGNOSTICO_QUERY_KEY = ['minha-atividade', 'diagnostico'] as const
+export const CONVERSA_DO_TUTOR_QUERY_KEY = ['tutor', 'conversa'] as const
+export const MEMORIA_DO_TUTOR_QUERY_KEY = ['tutor', 'memoria'] as const

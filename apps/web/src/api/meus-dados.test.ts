@@ -54,7 +54,7 @@ describe('os meus dados na web (F3, 18.0)', () => {
     fila.push({ status: 200, corpo: RESPOSTA })
     const cliente = new QueryClient({ defaultOptions: { queries: { staleTime: 0, retry: false } } })
     cliente.mount()
-    const observador = new QueryObserver(cliente, m.meusDados.consultaMeusDados)
+    const observador = new QueryObserver(cliente, m.meusDados.meusDadosQueryOptions)
     const desinscrever = observador.subscribe(() => undefined)
     await vi.waitFor(() => expect(observador.getCurrentResult().isSuccess).toBe(true))
 
@@ -68,15 +68,15 @@ describe('os meus dados na web (F3, 18.0)', () => {
     fila.push({ status: 200, corpo: RESPOSTA })
     const cliente = new QueryClient({ defaultOptions: { queries: { staleTime: 0, retry: false } } })
     cliente.mount()
-    const observador = new QueryObserver(cliente, m.meusDados.consultaMeusDados)
+    const observador = new QueryObserver(cliente, m.meusDados.meusDadosQueryOptions)
     const desinscrever = observador.subscribe(() => undefined)
     await vi.waitFor(() => expect(observador.getCurrentResult().isSuccess).toBe(true))
-    expect(cliente.getQueryCache().find({ queryKey: m.meusDados.CHAVE_DE_MEUS_DADOS })).toBeDefined()
+    expect(cliente.getQueryCache().find({ queryKey: m.meusDados.MEUS_DADOS_QUERY_KEY })).toBeDefined()
 
     desinscrever()
     await esperar()
 
-    expect(cliente.getQueryCache().find({ queryKey: m.meusDados.CHAVE_DE_MEUS_DADOS })).toBeUndefined()
+    expect(cliente.getQueryCache().find({ queryKey: m.meusDados.MEUS_DADOS_QUERY_KEY })).toBeUndefined()
     cliente.unmount()
   })
 
@@ -103,7 +103,7 @@ describe('os meus dados na web (F3, 18.0)', () => {
     cliente.mount()
     const apagado = { ...RESPOSTA.pedidos[0], estado: 'pronto', arquivo: { situacao: 'expirado', expiraEm: '2026-10-09T15:00:00.000Z' } }
     fila.push({ status: 200, corpo: RESPOSTA }, { status: 200, corpo: { ...RESPOSTA, pedidos: [apagado] } })
-    const observador = new QueryObserver(cliente, m.meusDados.consultaMeusDados)
+    const observador = new QueryObserver(cliente, m.meusDados.meusDadosQueryOptions)
     const desinscrever = observador.subscribe(() => undefined)
     await vi.waitFor(() => expect(observador.getCurrentResult().isSuccess).toBe(true))
 

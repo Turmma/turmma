@@ -3,7 +3,7 @@ import { cleanup, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { FileDown, Trash2 } from 'lucide-react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { classesDo } from '../../../__fixtures__/class-colors'
+import { classesOf } from '../../../__fixtures__/class-colors'
 import { Menu, type MenuItem } from './Menu'
 
 /**
@@ -36,7 +36,7 @@ function item(rotulo: string): HTMLElement {
 
 describe('Menu na pele da D80', () => {
   it('a caixa tem canto de 16 px e a borda de 2 px com o degrau sólido, sem sombra borrada', async () => {
-    const caixa = classesDo(await abrir())
+    const caixa = classesOf(await abrir())
     expect(caixa.has('rounded-cartao')).toBe(true)
     expect(caixa.has('shadow-flutua')).toBe(true)
     expect(caixa.has('bg-superficie')).toBe(true)
@@ -47,7 +47,7 @@ describe('Menu na pele da D80', () => {
   it('cada item tem 44 px no mínimo, canto de 10 e a letra de 15 px em 500 (t-apoio)', async () => {
     await abrir()
     for (const nome of ['Exportar em PDF', 'Aplicar à turma', 'Excluir']) {
-      const classes = classesDo(item(nome))
+      const classes = classesOf(item(nome))
       expect(classes.has('min-h-11'), nome).toBe(true)
       expect(classes.has('rounded-linha'), nome).toBe(true)
       expect(classes.has('t-apoio'), nome).toBe(true)
@@ -56,7 +56,7 @@ describe('Menu na pele da D80', () => {
 
   it('o item comum realça em fundo-suave no hover e no foco, e escreve em tinta', async () => {
     await abrir()
-    const classes = classesDo(item('Exportar em PDF'))
+    const classes = classesOf(item('Exportar em PDF'))
     expect(classes.has('hover:bg-fundo-suave')).toBe(true)
     expect(classes.has('focus-visible:bg-fundo-suave')).toBe(true)
     expect(classes.has('text-tinta')).toBe(true)
@@ -64,7 +64,7 @@ describe('Menu na pele da D80', () => {
 
   it('a ação de perigo escreve em vermelho-texto, e não no `erro` de antes', async () => {
     await abrir()
-    const classes = classesDo(item('Excluir'))
+    const classes = classesOf(item('Excluir'))
     expect(classes.has('text-vermelho-texto')).toBe(true)
     expect(classes.has('text-erro')).toBe(false)
     expect(classes.has('hover:bg-fundo-suave')).toBe(true)
@@ -75,7 +75,7 @@ describe('Menu na pele da D80', () => {
     const desligado = item('Aplicar à turma')
     expect(desligado.getAttribute('aria-disabled')).toBe('true')
     expect(desligado.getAttribute('tabindex')).toBe('-1')
-    const classes = classesDo(desligado)
+    const classes = classesOf(desligado)
     expect(classes.has('text-sutil')).toBe(true)
     expect(classes.has('text-inativo')).toBe(false)
     expect([...classes].filter((classe) => classe.startsWith('hover:') || classe.startsWith('focus-visible:'))).toEqual([])
@@ -88,24 +88,24 @@ describe('Menu na pele da D80', () => {
     expect(glifoComum, 'o glifo do item comum').not.toBeNull()
     expect(glifoDePerigo, 'o glifo do item de perigo').not.toBeNull()
     expect(glifoComum?.getAttribute('aria-hidden')).toBe('true')
-    expect(classesDo(glifoComum as Element).has('text-sutil')).toBe(true)
-    expect(classesDo(glifoDePerigo as Element).has('text-sutil')).toBe(false)
+    expect(classesOf(glifoComum as Element).has('text-sutil')).toBe(true)
+    expect(classesOf(glifoDePerigo as Element).has('text-sutil')).toBe(false)
   })
 
   it('o título do menu é um selo em caixa-alta, escondido do leitor de tela, e a frase do item fica em sutil', async () => {
     await abrir()
     const titulo = screen.getByText('Ações')
-    expect(classesDo(titulo).has('t-selo')).toBe(true)
+    expect(classesOf(titulo).has('t-selo')).toBe(true)
     expect(titulo.getAttribute('aria-hidden')).toBe('true')
     const frase = screen.getByText('Baixa a atividade pronta')
-    expect(classesDo(frase).has('text-sutil')).toBe(true)
+    expect(classesOf(frase).has('text-sutil')).toBe(true)
   })
 
   it('o item escolhido, no menu de escolha única, é marcado em ARIA e em peso 700', async () => {
     await abrir('exportar')
     const escolhido = item('Exportar em PDF')
     expect(escolhido.getAttribute('aria-checked')).toBe('true')
-    expect(classesDo(escolhido).has('font-bold')).toBe(true)
-    expect(classesDo(item('Excluir')).has('font-bold')).toBe(false)
+    expect(classesOf(escolhido).has('font-bold')).toBe(true)
+    expect(classesOf(item('Excluir')).has('font-bold')).toBe(false)
   })
 })

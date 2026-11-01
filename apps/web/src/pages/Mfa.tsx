@@ -8,9 +8,9 @@ import {
 } from '@educa/shared'
 import { useState, type FormEvent } from 'react'
 import { useLocation } from 'wouter'
-import { ErroDaApi } from '../api/client'
+import { ApiError } from '../api/client'
 import { definirAvisoDaEntrada, desafioDaEtapa, entrarComSegundoFator, esquecerDesafio } from '../api/sessao'
-import { ROTA_DA_ETAPA, ROTAS } from '../paths'
+import { LOGIN_STEP_ROUTE, ROUTES } from '../paths'
 import { Button } from '../components/ui/Button'
 import { FormField } from '../components/ui/fields/FormField'
 import { CascaPublica } from '../components/CascaPublica'
@@ -46,22 +46,22 @@ export function Mfa() {
     try {
       const resposta = await entrarComSegundoFator(pedido)
       definirCodigo('')
-      navegar(ROTA_DA_ETAPA[resposta.etapa])
+      navegar(LOGIN_STEP_ROUTE[resposta.etapa])
     } catch (erro) {
       // O quinto código errado gasta o desafio na API (6.0): daí em diante nem o código certo passa com ele, e
       // insistir aqui só seguraria mais a conta. A pessoa refaz a senha, e a entrada explica por quê.
-      if (erro instanceof ErroDaApi && erro.codigo === ErrorCode.CONTA_SEGURADA) {
+      if (erro instanceof ApiError && erro.codigo === ErrorCode.CONTA_SEGURADA) {
         esquecerDesafio()
         definirAvisoDaEntrada(avisoDoSegundoFatorConsumido(erro.esperaSegundos))
-        navegar(ROTAS.entrar, { replace: true })
+        navegar(ROUTES.entrar, { replace: true })
         return
       }
       // O código certo com o convite que já não vale (A0b, E16): a API já gastou o desafio, e repetir o código aqui só
       // daria "Código incorreto". A pessoa volta à entrada, que diz o que fazer: pedir um convite novo.
-      if (erro instanceof ErroDaApi && erro.codigo === ErrorCode.NAO_ENCONTRADO) {
+      if (erro instanceof ApiError && erro.codigo === ErrorCode.NAO_ENCONTRADO) {
         esquecerDesafio()
         definirAvisoDaEntrada(mensagemDoSegundoFator(ErrorCode.NAO_ENCONTRADO))
-        navegar(ROTAS.entrar, { replace: true })
+        navegar(ROUTES.entrar, { replace: true })
         return
       }
       definirFalha(erro)
@@ -117,7 +117,7 @@ export function Mfa() {
         )}
         {falha !== undefined && (
           <p role="alert" className="rounded-controle border border-erro bg-erro-cx p-4 text-erro">
-            {falha instanceof ErroDaApi ? mensagemDoSegundoFator(falha.codigo, falha.esperaSegundos) : mensagemDoSegundoFator(ErrorCode.ERRO_INTERNO)}
+            {falha instanceof ApiError ? mensagemDoSegundoFator(falha.codigo, falha.esperaSegundos) : mensagemDoSegundoFator(ErrorCode.ERRO_INTERNO)}
           </p>
         )}
         <Button type="submit" disabled={entrando} className="w-full">

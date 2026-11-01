@@ -49,7 +49,7 @@ describe('a lista dos pedidos de titular na web (F3, 16.0)', () => {
     fila.push({ status: 200, corpo: { itens: [] } })
     const cliente = new QueryClient({ defaultOptions: { queries: { staleTime: 0, retry: false } } })
     cliente.mount()
-    const observador = new InfiniteQueryObserver(cliente, m.privacidade.consultaPedidosDoTitular)
+    const observador = new InfiniteQueryObserver(cliente, m.privacidade.pedidosDoTitularQueryOptions)
     const desinscrever = observador.subscribe(() => undefined)
     await vi.waitFor(() => expect(chamadas).toHaveLength(1))
     // Com a leitura ainda no ar, o foco só pegaria carona nela: a leitura precisa ter chegado para o foco poder pedir outra.
@@ -70,7 +70,7 @@ describe('a lista dos pedidos de titular na web (F3, 16.0)', () => {
     fila.push({ status: 200, corpo: { itens: [] } }, { status: 200, corpo: { itens: [] } })
     const cliente = new QueryClient({ defaultOptions: { queries: { staleTime: 0, retry: false } } })
     cliente.mount()
-    const observador = new InfiniteQueryObserver(cliente, { ...m.privacidade.consultaPedidosDoTitular, refetchOnWindowFocus: true })
+    const observador = new InfiniteQueryObserver(cliente, { ...m.privacidade.pedidosDoTitularQueryOptions, refetchOnWindowFocus: true })
     const desinscrever = observador.subscribe(() => undefined)
     await vi.waitFor(() => expect(chamadas).toHaveLength(1))
     // Com a leitura ainda no ar, o foco só pegaria carona nela: a leitura precisa ter chegado para o foco poder pedir outra.
@@ -88,16 +88,16 @@ describe('a lista dos pedidos de titular na web (F3, 16.0)', () => {
     fila.push({ status: 200, corpo: { itens: [] } })
     const cliente = new QueryClient({ defaultOptions: { queries: { staleTime: 0, retry: false } } })
     cliente.mount()
-    const observador = new InfiniteQueryObserver(cliente, m.privacidade.consultaPedidosDoTitular)
+    const observador = new InfiniteQueryObserver(cliente, m.privacidade.pedidosDoTitularQueryOptions)
     const desinscrever = observador.subscribe(() => undefined)
     await vi.waitFor(() => expect(chamadas).toHaveLength(1))
     await vi.waitFor(() => expect(observador.getCurrentResult().isSuccess).toBe(true))
-    expect(cliente.getQueryCache().find({ queryKey: m.privacidade.consultaPedidosDoTitular.queryKey })).toBeDefined()
+    expect(cliente.getQueryCache().find({ queryKey: m.privacidade.pedidosDoTitularQueryOptions.queryKey })).toBeDefined()
 
     desinscrever()
     await esperar()
 
-    expect(cliente.getQueryCache().find({ queryKey: m.privacidade.consultaPedidosDoTitular.queryKey })).toBeUndefined()
+    expect(cliente.getQueryCache().find({ queryKey: m.privacidade.pedidosDoTitularQueryOptions.queryKey })).toBeUndefined()
     cliente.unmount()
   })
 })
@@ -121,7 +121,7 @@ describe('o detalhe do pedido de titular na web (F3, 17.0)', () => {
     fila.push({ status: 200, corpo: PEDIDO_DO_TITULAR })
     const cliente = new QueryClient({ defaultOptions: { queries: { staleTime: 0, retry: false } } })
     cliente.mount()
-    const observador = new QueryObserver(cliente, m.privacidade.consultaPedidoDoTitular(PEDIDO))
+    const observador = new QueryObserver(cliente, m.privacidade.pedidoDoTitularQueryOptions(PEDIDO))
     const desinscrever = observador.subscribe(() => undefined)
     await vi.waitFor(() => expect(observador.getCurrentResult().isSuccess).toBe(true))
     expect(chamadas).toEqual([{ caminho: `/v1/privacidade/pedidos/${PEDIDO}`, metodo: 'GET' }])
@@ -141,7 +141,7 @@ describe('o detalhe do pedido de titular na web (F3, 17.0)', () => {
     fila.push({ status: 200, corpo: PEDIDO_DO_TITULAR })
     const cliente = new QueryClient({ defaultOptions: { queries: { staleTime: 0, retry: false } } })
     cliente.mount()
-    const consulta = m.privacidade.consultaPedidoDoTitular(PEDIDO)
+    const consulta = m.privacidade.pedidoDoTitularQueryOptions(PEDIDO)
     const observador = new QueryObserver(cliente, consulta)
     const desinscrever = observador.subscribe(() => undefined)
     await vi.waitFor(() => expect(observador.getCurrentResult().isSuccess).toBe(true))
@@ -203,7 +203,7 @@ describe('o detalhe do pedido de titular na web (F3, 17.0)', () => {
       { status: 200, corpo: PEDIDO_DO_TITULAR },
       { status: 200, corpo: { ...PEDIDO_DO_TITULAR, estado: 'concluido', concluidoEm: '2026-10-10T15:00:00.000Z' } },
     )
-    const observador = new QueryObserver(cliente, m.privacidade.consultaPedidoDoTitular(PEDIDO))
+    const observador = new QueryObserver(cliente, m.privacidade.pedidoDoTitularQueryOptions(PEDIDO))
     const desinscrever = observador.subscribe(() => undefined)
     await vi.waitFor(() => expect(observador.getCurrentResult().isSuccess).toBe(true))
 

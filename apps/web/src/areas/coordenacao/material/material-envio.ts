@@ -16,7 +16,7 @@ import {
   type TitularidadeDeMaterial,
 } from '@educa/shared'
 import type { CamposDoEnvioDeMaterial } from './api/material'
-import { formatarQuantidade } from '../../../format'
+import { formatQuantity } from '../../../format'
 
 /**
  * As regras da tela Material que não dependem do React (MVP, A2; D5, D75): o que falta no formulário, o que há de errado
@@ -145,7 +145,7 @@ export function tamanhoPorExtenso(bytes: number): string {
 export function textoDoEstado(material: Pick<Material, 'estado' | 'paginas'>): string {
   if (material.estado === 'processando') return 'Processando'
   if (material.estado === 'falhou') return 'Falhou'
-  return material.paginas === null ? 'Pronto' : `Pronto · ${formatarQuantidade(material.paginas, 'página', 'páginas')}`
+  return material.paginas === null ? 'Pronto' : `Pronto · ${formatQuantity(material.paginas, 'página', 'páginas')}`
 }
 
 /** A titularidade, o licenciante quando há, e a licença, numa linha. */

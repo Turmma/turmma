@@ -6,14 +6,14 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Router } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
-import { criarClienteDeConsultas } from '../../../api/query-client'
-import { consultaAnosLetivos, consultaSeries } from '../../../api/estrutura'
-import { consultaResumoDaGovernanca } from '../governanca/api/governanca'
-import { consultaListaDaTurma } from '../estrutura/api/lista'
-import { consultaMateriais } from '../material/api/material'
-import { consultaPedidosDaTurma } from '../../../api/pedidos'
-import { consultaPedidosDoTitular } from '../privacidade/api/privacidade'
-import { prepararTela, redeFalsa, type RedeFalsa, type RespostaFalsa } from '../../../__fixtures__/render-screen'
+import { createQueryClient } from '../../../api/query-client'
+import { anosLetivosQueryOptions, seriesQueryOptions } from '../../../api/estrutura'
+import { resumoDaGovernancaQueryOptions } from '../governanca/api/governanca'
+import { listaDaTurmaQueryOptions } from '../estrutura/api/lista'
+import { materiaisQueryOptions } from '../material/api/material'
+import { pedidosDaTurmaQueryOptions } from '../../../api/pedidos'
+import { pedidosDoTitularQueryOptions } from '../privacidade/api/privacidade'
+import { setupScreen, fakeNetwork, type FakeNetwork, type FakeResponse } from '../../../__fixtures__/render-screen'
 import Painel from './Painel'
 
 /**
@@ -21,7 +21,7 @@ import Painel from './Painel'
  * falta para terminar a escola. A rede é falsa e responde **por caminho**, porque o Painel lê em paralelo; a fila, o cliente de
  * consultas e a tela são os da aba.
  */
-prepararTela()
+setupScreen()
 
 const id = (n: number) => `0197a1c0-0000-7000-8000-${String(n).padStart(12, '0')}`
 const ANO = { id: id(1), ano: 2026, inicio: '2026-02-02', fim: '2026-12-18', situacao: 'em_curso' }
@@ -61,11 +61,11 @@ const INCIDENTE_SEM_CONFIRMACAO = {
 }
 const CONSUMO_DO_MES = { chamadas: 2, tokensDeEntrada: 1000, tokensDeSaida: 500, custoMicros: 0, comEnvioExterno: 0 }
 
-const ok = (itens: readonly unknown[], extra: Record<string, unknown> = {}): RespostaFalsa => ({ status: 200, corpo: { itens, ...extra } })
+const ok = (itens: readonly unknown[], extra: Record<string, unknown> = {}): FakeResponse => ({ status: 200, corpo: { itens, ...extra } })
 const FORA = { status: 404, corpo: { erro: { codigo: 'NAO_ENCONTRADO', mensagem: 'x', requisicaoId: '0190f5a0-0000-7000-8000-000000000001' } } }
-const nuncaResponde = () => new Promise<RespostaFalsa>(() => undefined)
+const nuncaResponde = () => new Promise<FakeResponse>(() => undefined)
 
-const funcoes = (suspensas: readonly ChaveDeFuncao[] = []): RespostaFalsa => ({
+const funcoes = (suspensas: readonly ChaveDeFuncao[] = []): FakeResponse => ({
   status: 200,
   corpo: {
     agentes: montarTime(new Set(suspensas)).agentes.map((agente) => ({
@@ -74,14 +74,14 @@ const funcoes = (suspensas: readonly ChaveDeFuncao[] = []): RespostaFalsa => ({
     })),
   },
 })
-const resumo = (numeros = { geradoPorIa: 7, aprovadoPorPessoa: 3, rejeitado: 0, esperando: 1 }): RespostaFalsa => ({ status: 200, corpo: { numeros, itens: [] } })
-const consumo = (porFuncao: readonly unknown[] = [{ ...CONSUMO_DO_MES, funcao: 'conversa_e_ferramentas' }]): RespostaFalsa => ({
+const resumo = (numeros = { geradoPorIa: 7, aprovadoPorPessoa: 3, rejeitado: 0, esperando: 1 }): FakeResponse => ({ status: 200, corpo: { numeros, itens: [] } })
+const consumo = (porFuncao: readonly unknown[] = [{ ...CONSUMO_DO_MES, funcao: 'conversa_e_ferramentas' }]): FakeResponse => ({
   status: 200,
   corpo: { mes: '2026-10', total: CONSUMO_DO_MES, porFuncao, tutor: { trocasNoMes: 12, pacoteDoMes: 9600, trocasPorDiaPorAluno: 60, trocasPorMesPorAluno: 300 } },
 })
 
 /** O que cada leitura do Painel responde. Cada caso muda só o que importa para ele. */
-type Resposta = RespostaFalsa | (() => RespostaFalsa | Promise<RespostaFalsa>)
+type Resposta = FakeResponse | (() => FakeResponse | Promise<FakeResponse>)
 interface Respostas {
   anos: Resposta
   incidentes: Resposta
@@ -110,7 +110,7 @@ const TUDO_EM_DIA: Respostas = {
   funcoes: funcoes(),
 }
 
-function instalar(rede: RedeFalsa, respostas: Respostas): void {
+function instalar(rede: FakeNetwork, respostas: Respostas): void {
   rede.responderPor('/v1/anos-letivos', respostas.anos)
   rede.responderPor('/v1/privacidade/incidentes', respostas.incidentes)
   rede.responderPor('/v1/professores', respostas.professores)
@@ -127,7 +127,7 @@ function instalar(rede: RedeFalsa, respostas: Respostas): void {
 /** As onze leituras do Painel, e só elas. Os incidentes são uma leitura por sessão (o aviso da área). */
 const LEITURAS_DO_PAINEL = ['/v1/anos-letivos', '/v1/professores', '/v1/materiais', '/v1/turmas', '/v1/vinculos', '/v1/series', '/v1/disciplinas', '/v1/governanca/resumo', '/v1/governanca/consumo', '/v1/governanca/funcoes']
 const semConsulta = (caminho: string) => caminho.split('?')[0] ?? caminho
-const caminhosDe = (rede: RedeFalsa) => rede.chamadas.map((chamada) => semConsulta(chamada.caminho))
+const caminhosDe = (rede: FakeNetwork) => rede.chamadas.map((chamada) => semConsulta(chamada.caminho))
 
 /** A largura da janela, para a consulta `(min-width: 768px)` que o miolo lê; o `jsdom` não tem `matchMedia`. */
 function janelaDe(largura: number): void {
@@ -149,21 +149,21 @@ afterEach(() => {
 
 /** O cache que guarda o dado enquanto a tela está fora (como o sino guarda a fila): o teste de frescor vê só o `staleTime`. */
 function clienteQueGuarda(): QueryClient {
-  const cliente = criarClienteDeConsultas()
+  const cliente = createQueryClient()
   cliente.setDefaultOptions({ queries: { ...cliente.getDefaultOptions().queries, gcTime: Infinity } })
   return cliente
 }
 
 /** As leituras auditadas que a Estrutura e a Privacidade têm abertas, para o Painel provar que não as toca. */
 function LeiturasAuditadasAbertas() {
-  useInfiniteQuery(consultaListaDaTurma(TURMA.id))
-  useQuery({ ...consultaPedidosDaTurma(TURMA.id, 'coordenacao'), enabled: true })
-  useInfiniteQuery(consultaPedidosDoTitular)
+  useInfiniteQuery(listaDaTurmaQueryOptions(TURMA.id))
+  useQuery({ ...pedidosDaTurmaQueryOptions(TURMA.id, 'coordenacao'), enabled: true })
+  useInfiniteQuery(pedidosDoTitularQueryOptions)
   return null
 }
 
 function montar(opcoes: { auditadas?: boolean; cliente?: QueryClient } = {}) {
-  const cliente = opcoes.cliente ?? criarClienteDeConsultas()
+  const cliente = opcoes.cliente ?? createQueryClient()
   const localizacao = memoryLocation({ path: '/painel', record: true })
   const { unmount } = render(
     <QueryClientProvider client={cliente}>
@@ -183,7 +183,7 @@ const REGIOES = { ia: 'A IA nesta escola', fila: 'Esperando você', escola: 'Par
 
 describe('o Painel da escola montada', () => {
   it('mostra os quatro números da escola e o consumo do mês numa linha, com o caminho até Registros', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, TUDO_EM_DIA)
     montar()
     await esperarTudoLido()
@@ -196,7 +196,7 @@ describe('o Painel da escola montada', () => {
   })
 
   it('a partir de 768 px o Painel é o miolo que rola e recebe foco; abaixo disso a página rola e não há o que focar', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, TUDO_EM_DIA)
     const { desmontar } = montar()
     await esperarTudoLido()
@@ -211,7 +211,7 @@ describe('o Painel da escola montada', () => {
   })
 
   it('a fila em dia diz "Tudo em dia" e o roteiro completo diz "A escola está montada"; a porta dos pedidos fica sempre, sem número', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, TUDO_EM_DIA)
     montar()
     await esperarTudoLido()
@@ -227,7 +227,7 @@ describe('o Painel da escola montada', () => {
   })
 
   it('a função de IA suspensa vira um aviso com o caminho até Agentes; sem suspensão, nenhum aviso', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { ...TUDO_EM_DIA, funcoes: funcoes(['correcao_de_objetiva']) })
     montar()
     const aviso = await screen.findByText(/Assistente de ensino · Correção de objetiva/)
@@ -237,7 +237,7 @@ describe('o Painel da escola montada', () => {
     expect(screen.getByRole('link', { name: 'Ver como cada IA trabalha' }).getAttribute('href')).toBe('/agentes')
     cleanup()
 
-    const semSuspensa = redeFalsa()
+    const semSuspensa = fakeNetwork()
     instalar(semSuspensa, TUDO_EM_DIA)
     montar()
     await esperarTudoLido()
@@ -245,7 +245,7 @@ describe('o Painel da escola montada', () => {
   })
 
   it('com duas funções suspensas, o aviso nomeia as duas', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { ...TUDO_EM_DIA, funcoes: funcoes(['correcao_de_objetiva', 'adaptacao']) })
     montar()
     const aviso = await screen.findByText(/Funções de IA estão suspensas nesta escola/)
@@ -257,7 +257,7 @@ describe('o Painel da escola montada', () => {
   })
 
   it('a fila lista cada pendência da escola com o link da tela que a resolve, e o roteiro lista só o que falta', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, {
       ...TUDO_EM_DIA,
       professores: ok([CAMILA, PAULO]),
@@ -284,7 +284,7 @@ describe('o Painel da escola montada', () => {
   })
 
   it('o incidente sem confirmação é o item urgente da fila, com o selo escrito', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { ...TUDO_EM_DIA, incidentes: { status: 200, corpo: { incidentes: [INCIDENTE_SEM_CONFIRMACAO], prazoLegal: 'O prazo é da escola.' } } })
     montar()
     await esperarTudoLido()
@@ -296,7 +296,7 @@ describe('o Painel da escola montada', () => {
 
 describe('nenhum número é de professor, de turma ou de pedido de titular (RF7)', () => {
   it('dois professores com pendências diferentes: o Painel tem os quatro números da escola, e nenhum número ao lado de nome de professor', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, {
       ...TUDO_EM_DIA,
       professores: ok([CAMILA, PAULO, MARTA]),
@@ -326,7 +326,7 @@ describe('nenhum número é de professor, de turma ou de pedido de titular (RF7)
   })
 
   it('os tipos da fila do Painel são os cinco do sino: nenhum item de uso, de entrega ou de atividade', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { ...TUDO_EM_DIA, professores: ok([CAMILA, PAULO]), materiais: ok([MATERIAL('falhou')]), turmas: ok([TURMA, OUTRA_TURMA]) })
     montar()
     await esperarTudoLido()
@@ -341,7 +341,7 @@ describe('nenhum número é de professor, de turma ou de pedido de titular (RF7)
 describe('o que o Painel não lê', () => {
   it('nem a lista de nomes, nem os pedidos de nome, nem os pedidos de titular: só as onze leituras dele', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { ...TUDO_EM_DIA, professores: ok([CAMILA, PAULO]) })
     const { localizacao } = montar()
     await esperarTudoLido()
@@ -356,7 +356,7 @@ describe('o que o Painel não lê', () => {
 describe('sem ano letivo', () => {
   it('escola sem nenhum ano: "Comece pelo ano letivo", o convite leva ao painel do ano, e a fila diz "Tudo em dia" sem chamar turmas nem vínculos', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { ...TUDO_EM_DIA, anos: ok([]), turmas: FORA, vinculos: FORA })
     const { localizacao } = montar()
     await esperarTudoLido()
@@ -369,7 +369,7 @@ describe('sem ano letivo', () => {
 
   it('só ano planejado ou só encerrado: "Tudo em dia" na fila, o roteiro diz que o ano letivo falta, e turmas e vínculos nem são chamados', async () => {
     for (const situacao of ['planejado', 'encerrado']) {
-      const rede = redeFalsa()
+      const rede = fakeNetwork()
       instalar(rede, { ...TUDO_EM_DIA, anos: ok([{ ...ANO, situacao }]), turmas: FORA, vinculos: FORA })
       montar()
       await esperarTudoLido()
@@ -386,7 +386,7 @@ describe('sem ano letivo', () => {
 describe('a fila que falha em parte nunca diz "Tudo em dia"', () => {
   it('uma consulta que falha: o Painel mostra o que leu, o aviso, e "Tentar de novo" relê só a que falhou, sem tocar nas leituras auditadas', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     let professoresFora = true
     instalar(rede, { ...TUDO_EM_DIA, materiais: ok([MATERIAL('falhou')]), professores: () => (professoresFora ? FORA : ok([CAMILA])) })
     rede.responderPor(/\/v1\/turmas\/[^/]+\/lista/, ok([]))
@@ -408,7 +408,7 @@ describe('a fila que falha em parte nunca diz "Tudo em dia"', () => {
 
   it('uma lista que veio truncada (`completa: false`): o aviso aparece, "turmas sem professor" não é calculada, e "Tentar de novo" relê só as turmas', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     let truncada = true
     // Uma página com "há mais" depois da outra, até o teto de páginas da estrutura; depois, a lista inteira.
     instalar(rede, { ...TUDO_EM_DIA, turmas: () => (truncada ? ok([TURMA, OUTRA_TURMA], { proxima: id(999) }) : ok([TURMA])) })
@@ -427,12 +427,12 @@ describe('a fila que falha em parte nunca diz "Tudo em dia"', () => {
 
   it('clique duplo em "Tentar de novo" da fila: uma leitura só, e o botão fica desligado enquanto ela corre', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     let truncada = true
     let segura = false
     let liberar: () => void = () => undefined
     // A lista de turmas veio truncada: com o dado já na tela, a releitura não tira o aviso nem o botão, e é aí que o segundo clique chegaria.
-    const turmas = async (): Promise<RespostaFalsa> => {
+    const turmas = async (): Promise<FakeResponse> => {
       if (segura) await new Promise<void>((resolver) => (liberar = resolver))
       return truncada ? ok([TURMA], { proxima: id(999) }) : ok([TURMA])
     }
@@ -454,13 +454,13 @@ describe('a fila que falha em parte nunca diz "Tudo em dia"', () => {
 
   it('a fila inteira em erro: a mensagem e "Tentar de novo", e nunca "Tudo em dia"', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     let fora = true
-    const aTodas = (resposta: RespostaFalsa) => () => (fora ? FORA : resposta)
+    const aTodas = (resposta: FakeResponse) => () => (fora ? FORA : resposta)
     instalar(rede, {
       ...TUDO_EM_DIA,
       anos: aTodas(ok([ANO])),
-      incidentes: aTodas(TUDO_EM_DIA.incidentes as RespostaFalsa),
+      incidentes: aTodas(TUDO_EM_DIA.incidentes as FakeResponse),
       professores: aTodas(ok([CAMILA, PAULO])),
       materiais: aTodas(ok([])),
       turmas: aTodas(ok([TURMA])),
@@ -480,7 +480,7 @@ describe('a fila que falha em parte nunca diz "Tudo em dia"', () => {
 describe('os quatro estados de cada bloco', () => {
   it('as funções de IA: verificando, erro com "Tentar de novo" que relê só elas, e nada quando nenhuma está suspensa', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     let fora = true
     instalar(rede, { ...TUDO_EM_DIA, funcoes: () => (fora ? FORA : funcoes(['adaptacao'])) })
     montar()
@@ -492,7 +492,7 @@ describe('os quatro estados de cada bloco', () => {
     expect(rede.chamadas.slice(antes).map((chamada) => semConsulta(chamada.caminho))).toEqual(['/v1/governanca/funcoes'])
     cleanup()
 
-    const lenta = redeFalsa()
+    const lenta = fakeNetwork()
     instalar(lenta, { ...TUDO_EM_DIA, funcoes: nuncaResponde })
     montar()
     expect(await screen.findByText('Verificando se alguma IA está suspensa…')).toBeTruthy()
@@ -500,7 +500,7 @@ describe('os quatro estados de cada bloco', () => {
 
   it('os quatro números: carregando, erro que relê só o resumo, zerados (os quatro em 0), e com dado', async () => {
     const usuario = userEvent.setup()
-    const lenta = redeFalsa()
+    const lenta = fakeNetwork()
     instalar(lenta, { ...TUDO_EM_DIA, resumo: nuncaResponde })
     montar()
     expect(await bloco(REGIOES.ia).findByText('Carregando os números da IA…')).toBeTruthy()
@@ -508,7 +508,7 @@ describe('os quatro estados de cada bloco', () => {
     expect(await bloco(REGIOES.ia).findByText(/Consumo do mês: /)).toBeTruthy()
     cleanup()
 
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     let fora = true
     instalar(rede, { ...TUDO_EM_DIA, resumo: () => (fora ? FORA : resumo()) })
     montar()
@@ -521,7 +521,7 @@ describe('os quatro estados de cada bloco', () => {
     expect(rede.chamadas.slice(antes).map((chamada) => semConsulta(chamada.caminho))).toEqual(['/v1/governanca/resumo'])
     cleanup()
 
-    const vazia = redeFalsa()
+    const vazia = fakeNetwork()
     instalar(vazia, { ...TUDO_EM_DIA, resumo: resumo({ geradoPorIa: 0, aprovadoPorPessoa: 0, rejeitado: 0, esperando: 0 }) })
     montar()
     await esperarTudoLido()
@@ -530,7 +530,7 @@ describe('os quatro estados de cada bloco', () => {
 
   it('o consumo do mês: carregando, erro que relê só o consumo, vazio e com dado', async () => {
     const usuario = userEvent.setup()
-    const lenta = redeFalsa()
+    const lenta = fakeNetwork()
     instalar(lenta, { ...TUDO_EM_DIA, consumo: nuncaResponde })
     montar()
     expect(await bloco(REGIOES.ia).findByText('Carregando o consumo do mês…')).toBeTruthy()
@@ -540,7 +540,7 @@ describe('os quatro estados de cada bloco', () => {
     expect(bloco(REGIOES.ia).queryByText(/Consumo do mês: /)).toBeNull()
     cleanup()
 
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     let fora = true
     instalar(rede, { ...TUDO_EM_DIA, consumo: () => (fora ? FORA : consumo()) })
     montar()
@@ -556,7 +556,7 @@ describe('os quatro estados de cada bloco', () => {
     expect(rede.chamadas.slice(antes).map((chamada) => semConsulta(chamada.caminho))).toEqual(['/v1/governanca/consumo'])
     cleanup()
 
-    const vazio = redeFalsa()
+    const vazio = fakeNetwork()
     instalar(vazio, { ...TUDO_EM_DIA, consumo: consumo([]) })
     montar()
     await esperarTudoLido()
@@ -565,14 +565,14 @@ describe('os quatro estados de cada bloco', () => {
   })
 
   it('a fila: carregando enquanto alguma leitura não chegou, sem item (nem os das leituras que já vieram) e sem "Tudo em dia"', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     vi.useFakeTimers({ shouldAdvanceTime: true })
     instalar(rede, { ...TUDO_EM_DIA, professores: nuncaResponde, materiais: ok([MATERIAL('falhou')]) })
     const { cliente } = montar()
     expect(await bloco(REGIOES.fila).findByText('Carregando o que espera você…')).toBeTruthy()
     // O material que falhou já veio, e a fila espera as outras: lista pela metade não se mostra. O relógio falso deixa a
     // tela receber o que o cache já tem, sem esperar de verdade.
-    await waitFor(() => expect(cliente.getQueryState(consultaMateriais.queryKey)?.status).toBe('success'))
+    await waitFor(() => expect(cliente.getQueryState(materiaisQueryOptions.queryKey)?.status).toBe('success'))
     await act(async () => {
       await vi.advanceTimersByTimeAsync(50)
     })
@@ -584,13 +584,13 @@ describe('os quatro estados de cada bloco', () => {
 
   it('o roteiro: carregando, erro dos anos que relê só os anos, o que falta e "A escola está montada"', async () => {
     const usuario = userEvent.setup()
-    const lenta = redeFalsa()
+    const lenta = fakeNetwork()
     instalar(lenta, { ...TUDO_EM_DIA, anos: nuncaResponde })
     montar()
     expect(await bloco(REGIOES.escola).findByText('Carregando o que falta para a escola…')).toBeTruthy()
     cleanup()
 
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     let fora = true
     instalar(rede, { ...TUDO_EM_DIA, anos: () => (fora ? FORA : ok([ANO])) })
     montar()
@@ -604,7 +604,7 @@ describe('os quatro estados de cada bloco', () => {
 
   it('"A escola está montada" só com tudo lido e sem erro: uma leitura que falhou ou que não chegou deixa o passo sem marca, e nunca vira "falta"', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     let seriesFora = true
     instalar(rede, { ...TUDO_EM_DIA, series: () => (seriesFora ? FORA : ok([SERIE])) })
     montar()
@@ -621,7 +621,7 @@ describe('os quatro estados de cada bloco', () => {
     cleanup()
 
     // Uma leitura que ainda não chegou: a frase espera, e o bloco diz que carrega.
-    const lenta = redeFalsa()
+    const lenta = fakeNetwork()
     instalar(lenta, { ...TUDO_EM_DIA, disciplinas: nuncaResponde })
     montar()
     expect(await bloco(REGIOES.escola).findByText('Carregando o que falta para a escola…')).toBeTruthy()
@@ -638,9 +638,9 @@ describe('os quatro estados de cada bloco', () => {
       ['vinculos', '/v1/vinculos'],
     ] as const
     for (const [chave, caminho] of leituras) {
-      const rede = redeFalsa()
+      const rede = fakeNetwork()
       let fora = true
-      instalar(rede, { ...TUDO_EM_DIA, [chave]: () => (fora ? FORA : (TUDO_EM_DIA[chave] as RespostaFalsa)) })
+      instalar(rede, { ...TUDO_EM_DIA, [chave]: () => (fora ? FORA : (TUDO_EM_DIA[chave] as FakeResponse)) })
       montar()
       await esperarTudoLido()
       const escola = bloco(REGIOES.escola)
@@ -657,7 +657,7 @@ describe('os quatro estados de cada bloco', () => {
   })
 
   it('cada passo que falta traz o texto do que fazer e o link da tela', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { ...TUDO_EM_DIA, series: ok([]), disciplinas: ok([]), turmas: ok([]), professores: ok([PAULO]), vinculos: ok([]) })
     montar()
     await esperarTudoLido()
@@ -684,7 +684,7 @@ describe('os quatro estados de cada bloco', () => {
 })
 
 describe('o clique duplo em "Tentar de novo" lê uma vez só (regra 80, item 7)', () => {
-  // Nenhum destes botões fica desligado enquanto a leitura corre. Nos blocos sem dado (`EstadoErro`), quem segura o segundo clique é o
+  // Nenhum destes botões fica desligado enquanto a leitura corre. Nos blocos sem dado (`ErrorState`), quem segura o segundo clique é o
   // próprio TanStack, que reaproveita a leitura que corre; no aviso do roteiro, com dado de antes no cache, é o `cancelRefetch: false`.
   const tentarDeNovo = (regiao?: string) => () => (regiao === undefined ? screen.getByRole('button', { name: 'Tentar de novo' }) : bloco(regiao).getByRole('button', { name: 'Tentar de novo' }))
   const casos = [
@@ -697,14 +697,14 @@ describe('o clique duplo em "Tentar de novo" lê uma vez só (regra 80, item 7)'
   for (const caso of casos) {
     it(`clique duplo no Tentar de novo ${caso.nome}: uma leitura só`, async () => {
       const usuario = userEvent.setup()
-      const rede = redeFalsa()
+      const rede = fakeNetwork()
       let segura = false
       let liberar: () => void = () => undefined
       // Falha na primeira leitura; a releitura fica segurada até o teste soltá-la, e é aí que o segundo clique chega.
-      const resposta = async (): Promise<RespostaFalsa> => {
+      const resposta = async (): Promise<FakeResponse> => {
         if (!segura) return FORA
         await new Promise<void>((resolver) => (liberar = resolver))
-        return TUDO_EM_DIA[caso.chave] as RespostaFalsa
+        return TUDO_EM_DIA[caso.chave] as FakeResponse
       }
       instalar(rede, { ...TUDO_EM_DIA, [caso.chave]: resposta })
       montar()
@@ -723,10 +723,10 @@ describe('o clique duplo em "Tentar de novo" lê uma vez só (regra 80, item 7)'
   it('clique duplo no Tentar de novo do aviso do roteiro, com a série já no cache e a releitura que falhou: uma leitura só', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
     const usuario = userEvent.setup({ advanceTimers: (ms) => void vi.advanceTimersByTime(ms) })
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     let estado: 'ok' | 'fora' | 'segura' = 'ok'
     let liberar: () => void = () => undefined
-    const series = async (): Promise<RespostaFalsa> => {
+    const series = async (): Promise<FakeResponse> => {
       if (estado === 'ok') return ok([SERIE])
       if (estado === 'fora') return FORA
       await new Promise<void>((resolver) => (liberar = resolver))
@@ -745,7 +745,7 @@ describe('o clique duplo em "Tentar de novo" lê uma vez só (regra 80, item 7)'
     montar({ cliente })
     await esperarTudoLido()
     const botao = bloco(REGIOES.escola).getByRole('button', { name: 'Tentar de novo' })
-    expect(cliente.getQueryData(consultaSeries.queryKey)).toBeDefined()
+    expect(cliente.getQueryData(seriesQueryOptions.queryKey)).toBeDefined()
 
     estado = 'segura'
     const antes = rede.chamadas.length
@@ -782,7 +782,7 @@ describe('o Painel não relê sozinho (regra 80)', () => {
 
   it('abrir o Painel dentro dos 5 minutos não relê nada: o dado ainda vale', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, TUDO_EM_DIA)
     const cliente = clienteQueGuarda()
     const { desmontar } = montar({ cliente })
@@ -798,12 +798,12 @@ describe('o Painel não relê sozinho (regra 80)', () => {
 
   it('abrir o Painel com a leitura de mais de 5 minutos relê as dez leituras que ficaram velhas, uma vez cada; os incidentes, que são uma leitura por sessão, não', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, TUDO_EM_DIA)
     const cliente = clienteQueGuarda()
     // O aviso de incidente da área mantém a consulta viva e fresca para sempre (`staleTime: Infinity`).
-    const { consultaIncidentes } = await import('../privacidade/api/privacidade')
-    const aviso = new QueryObserver(cliente, { ...consultaIncidentes, staleTime: Infinity })
+    const { incidentesQueryOptions } = await import('../privacidade/api/privacidade')
+    const aviso = new QueryObserver(cliente, { ...incidentesQueryOptions, staleTime: Infinity })
     const largar = aviso.subscribe(() => undefined)
     const { desmontar } = montar({ cliente })
     await esperarTudoLido()
@@ -819,12 +819,12 @@ describe('o Painel não relê sozinho (regra 80)', () => {
 
   it('o resumo que a Governança paginou, velho: o Painel relê uma página só, a primeira, e deixa a chave com essa página', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, TUDO_EM_DIA)
     const cliente = clienteQueGuarda()
     // O cache como a Governança o deixa depois de três páginas "Ver mais": uma requisição por página se o Painel as relesse.
     const antigos = { geradoPorIa: 99, aprovadoPorPessoa: 99, rejeitado: 99, esperando: 99 }
-    cliente.setQueryData(consultaResumoDaGovernanca.queryKey, {
+    cliente.setQueryData(resumoDaGovernancaQueryOptions.queryKey, {
       pages: [
         { numeros: antigos, itens: [], proxima: 'segunda' },
         { numeros: antigos, itens: [], proxima: 'terceira' },
@@ -839,14 +839,14 @@ describe('o Painel não relê sozinho (regra 80)', () => {
     expect(leituras.map((chamada) => chamada.caminho)).toEqual(['/v1/governanca/resumo'])
     // Os números são os de agora, e a chave guarda a primeira página no formato da infinita, que a Governança continua lendo.
     expect(bloco(REGIOES.ia).getByText('Gerado por IA').nextElementSibling?.textContent).toBe('7')
-    const guardado = cliente.getQueryData<{ pages: unknown[]; pageParams: unknown[] }>(consultaResumoDaGovernanca.queryKey)
+    const guardado = cliente.getQueryData<{ pages: unknown[]; pageParams: unknown[] }>(resumoDaGovernancaQueryOptions.queryKey)
     expect(guardado?.pages).toHaveLength(1)
     expect(guardado?.pageParams).toEqual([undefined])
   })
 
   it('com o dado velho (mais de 5 min), o foco sai e volta: nenhuma leitura, de nenhuma consulta', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, TUDO_EM_DIA)
     montar()
     await esperarTudoLido()
@@ -858,7 +858,7 @@ describe('o Painel não relê sozinho (regra 80)', () => {
 
   it('com o dado velho, a rede sai e volta: nenhuma leitura, de nenhuma consulta', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, TUDO_EM_DIA)
     montar()
     await esperarTudoLido()
@@ -870,7 +870,7 @@ describe('o Painel não relê sozinho (regra 80)', () => {
 
   it('com um material processando, 10 s ou mais depois: nenhuma leitura nova (o material se relê a cada 1,5 s na tela dele, e o Painel não)', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { ...TUDO_EM_DIA, materiais: ok([MATERIAL('processando')]) })
     montar()
     await esperarTudoLido()
@@ -882,12 +882,12 @@ describe('o Painel não relê sozinho (regra 80)', () => {
   it('controle: a mesma consulta de anos, com a opção ligada, relê na volta do foco e na volta da rede (o teste enxerga a leitura que o Painel evita)', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
     for (const tipo of ['foco', 'rede'] as const) {
-      const rede = redeFalsa()
+      const rede = fakeNetwork()
       instalar(rede, TUDO_EM_DIA)
-      const cliente = criarClienteDeConsultas()
+      const cliente = createQueryClient()
       cliente.mount()
       const observador = new QueryObserver(cliente, {
-        ...consultaAnosLetivos,
+        ...anosLetivosQueryOptions,
         staleTime: 5 * 60 * MIL,
         refetchInterval: false,
         refetchOnWindowFocus: tipo === 'foco',
@@ -907,12 +907,12 @@ describe('o Painel não relê sozinho (regra 80)', () => {
 
 describe('recomeço: a pessoa seguinte e a troca de escola', () => {
   it('a sessão que troca esvazia o Painel: os números e a fila da escola A não aparecem enquanto a B carrega, nem depois', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     let escola: 'A' | 'B' = 'A'
-    let liberarB: (resposta: RespostaFalsa) => void = () => undefined
-    const daB = new Promise<RespostaFalsa>((resolver) => (liberarB = resolver))
+    let liberarB: (resposta: FakeResponse) => void = () => undefined
+    const daB = new Promise<FakeResponse>((resolver) => (liberarB = resolver))
     // Depois da troca, a escola B responde devagar: o que A tinha não pode aparecer nesse meio-tempo.
-    const daEscola = (deA: RespostaFalsa) => () => (escola === 'A' ? deA : nuncaResponde())
+    const daEscola = (deA: FakeResponse) => () => (escola === 'A' ? deA : nuncaResponde())
     instalar(rede, {
       ...TUDO_EM_DIA,
       professores: () => (escola === 'A' ? ok([CAMILA, PAULO]) : daB),

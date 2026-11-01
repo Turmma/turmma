@@ -1,6 +1,6 @@
 import type { PapelDeUsuario } from '@educa/shared'
 import { BookOpen, FolderLock, UserRound, type LucideIcon } from 'lucide-react'
-import { ROTAS } from '../paths'
+import { ROUTES } from '../paths'
 // Só tipos, que o compilador apaga: o `CountBadge` e os ícones ilustrados são peças da entrada ou fora dela, e este arquivo
 // não importa nenhuma (o item 4 do guia acima). O que ele diz é qual ícone e qual família, e a casca é quem desenha.
 import type { ColorFamily } from '../components/ui/CountBadge'
@@ -22,13 +22,13 @@ import type { PlaceName } from '../components/ui/icons/places'
  * e nunca julgamento: os três agentes têm a deles (Assistente azul, Tutor laranja, Analista anil), e a gestão, a escola e os
  * registros, a que a 9.4 dá aos lugares correspondentes.
  */
-export type IconeDoItem = { readonly lugar: PlaceName } | { readonly lucide: LucideIcon; readonly familia: ColorFamily }
+export type NavItemIcon = { readonly lugar: PlaceName } | { readonly lucide: LucideIcon; readonly familia: ColorFamily }
 
 /** Um item da lateral: o rótulo, o endereço pela raiz e o ícone (`docs/interface.md` 9.4). */
-export interface ItemDaNavegacao {
+export interface NavItem {
   readonly rotulo: string
   readonly caminho: string
-  readonly icone: IconeDoItem
+  readonly icone: NavItemIcon
   /**
    * Outros endereços, pela raiz, em que o item também fica selecionado: a conversa aberta dentro de "Início", o
    * artefato aberto dentro de "Ferramentas". Sem isto a lateral não diria onde a pessoa está nessas telas.
@@ -45,16 +45,16 @@ export interface ItemDaNavegacao {
  * É só o que a tela mostra. Quem decide o que cada papel alcança é a API, pela matriz de permissão: esconder um item não
  * protege nada (regra 00, item 1).
  */
-export const NAVEGACAO: Readonly<Record<PapelDeUsuario, readonly ItemDaNavegacao[]>> = {
+export const NAVIGATION: Readonly<Record<PapelDeUsuario, readonly NavItem[]>> = {
   // X2 (D80; `docs/interface.md` 11.1): quatro lugares, Painel, Analista, Escola e Registros. O Painel é onde a coordenação abre.
   // Escola e Registros são molduras com abas (`areas/coordenacao/Escola.tsx` e `Registros.tsx`) que ficam nos endereços de
   // hoje: o lugar fica aceso por `caminho` e `tambemEm`, e nenhum endereço mudou. A Estrutura abre a lista da turma abaixo
   // dela, e a Governança é a aba IA de Registros; os Agentes ficam acesos em Registros.
   coordenador: [
-    { rotulo: 'Painel', caminho: ROTAS.painel, icone: { lugar: 'painel' } },
-    { rotulo: 'Analista', caminho: ROTAS.analista, icone: { lugar: 'ia' } },
-    { rotulo: 'Escola', caminho: ROTAS.estrutura, icone: { lugar: 'escola' }, tambemEm: [ROTAS.professores, ROTAS.material] },
-    { rotulo: 'Registros', caminho: ROTAS.governanca, icone: { lugar: 'registros' }, tambemEm: [ROTAS.agentes, ROTAS.privacidade] },
+    { rotulo: 'Painel', caminho: ROUTES.painel, icone: { lugar: 'painel' } },
+    { rotulo: 'Analista', caminho: ROUTES.analista, icone: { lugar: 'ia' } },
+    { rotulo: 'Escola', caminho: ROUTES.estrutura, icone: { lugar: 'escola' }, tambemEm: [ROUTES.professores, ROUTES.material] },
+    { rotulo: 'Registros', caminho: ROUTES.governanca, icone: { lugar: 'registros' }, tambemEm: [ROUTES.agentes, ROUTES.privacidade] },
   ],
   // A2 (D73): Início, Turmas e Ferramentas. Calendário nasce com a grade (F8) e Histórico, com o F5: nenhum aparece antes da
   // tela dele. X1 (12.0): "Nova conversa" virou "Início", no mesmo endereço, com os ícones ilustrados da D80. X3 (2.0): a ordem
@@ -62,19 +62,19 @@ export const NAVEGACAO: Readonly<Record<PapelDeUsuario, readonly ItemDaNavegacao
   // o último dos quatro que cabem na barra de baixo. O documento aberto (6.0) acende Criados, que é a lista de onde ele vem.
   // As telas deles (`/professor/time/assistente` e `/professor/time/tutor`) não são lugar de nenhum item.
   professor: [
-    { rotulo: 'Início', caminho: ROTAS.novaConversa, icone: { lugar: 'inicio' }, tambemEm: [ROTAS.conversa] },
-    { rotulo: 'Turmas', caminho: ROTAS.turmas, icone: { lugar: 'turmas' } },
-    { rotulo: 'Ferramentas', caminho: ROTAS.ferramentas, icone: { lugar: 'ferramentas' } },
-    { rotulo: 'Criados', caminho: ROTAS.criados, icone: { lugar: 'criados' }, tambemEm: [ROTAS.artefatos] },
+    { rotulo: 'Início', caminho: ROUTES.novaConversa, icone: { lugar: 'inicio' }, tambemEm: [ROUTES.conversa] },
+    { rotulo: 'Turmas', caminho: ROUTES.turmas, icone: { lugar: 'turmas' } },
+    { rotulo: 'Ferramentas', caminho: ROUTES.ferramentas, icone: { lugar: 'ferramentas' } },
+    { rotulo: 'Criados', caminho: ROUTES.criados, icone: { lugar: 'criados' }, tambemEm: [ROUTES.artefatos] },
   ],
   // X4 (2.0; `docs/interface.md` 11.1): Início, Tarefas e Eu. "Avisar um adulto" e "Meu desempenho" nascem com a tela de cada um
   // (F9): nesta fatia não existem, e por isso não aparecem. O Tutor deixou de ser lugar: a escolha da atividade é o Início, e a
   // conversa abre por ele ou por uma tarefa, de modo que `/aluno/tutor` e a conversa aberta acendem "Início". "Privacidade" é uma
   // linha de Eu e acende Eu; "Minha turma" é o cartão de Eu. A tarefa aberta fica abaixo do endereço de Tarefas.
   aluno: [
-    { rotulo: 'Início', caminho: ROTAS.inicioDoAluno, icone: { lugar: 'inicio' }, tambemEm: [ROTAS.tutor] },
-    { rotulo: 'Tarefas', caminho: ROTAS.atividades, icone: { lugar: 'tarefas' } },
-    { rotulo: 'Eu', caminho: ROTAS.euDoAluno, icone: { lucide: UserRound, familia: 'turquesa' }, tambemEm: [ROTAS.privacidadeDoAluno] },
+    { rotulo: 'Início', caminho: ROUTES.inicioDoAluno, icone: { lugar: 'inicio' }, tambemEm: [ROUTES.tutor] },
+    { rotulo: 'Tarefas', caminho: ROUTES.atividades, icone: { lugar: 'tarefas' } },
+    { rotulo: 'Eu', caminho: ROUTES.euDoAluno, icone: { lucide: UserRound, familia: 'turquesa' }, tambemEm: [ROUTES.privacidadeDoAluno] },
   ],
 }
 
@@ -83,7 +83,7 @@ export const NAVEGACAO: Readonly<Record<PapelDeUsuario, readonly ItemDaNavegacao
  * lista de seções. Hoje nenhum papel tem: o aluno tinha "Privacidade" (F3, 18.0), que na X4 virou uma linha de Eu. O
  * "Sair" nunca entra aqui nem na lista: é do menu da pessoa, sempre à vista (D59).
  */
-export const RODAPE_DA_LATERAL: Readonly<Record<PapelDeUsuario, readonly ItemDaNavegacao[]>> = {
+export const SIDEBAR_FOOTER: Readonly<Record<PapelDeUsuario, readonly NavItem[]>> = {
   coordenador: [],
   professor: [],
   aluno: [],
@@ -94,13 +94,13 @@ export const RODAPE_DA_LATERAL: Readonly<Record<PapelDeUsuario, readonly ItemDaN
  * "Sair" nunca entra aqui, porque é o último e está sempre à vista (D59). O professor tem "Meus dados" desde o F3 (18.0) e "Rever a introdução"
  * desde a X4 (10.0), nesta ordem, antes do "Sair". A coordenação tem só "Rever a introdução", desde a X4 (11.0): não é titular de pedido (a API não lhe dá `meus_dados`). O aluno acha os dados dele em Eu (a linha Privacidade).
  */
-export const MENU_DA_PESSOA: Readonly<Record<PapelDeUsuario, readonly ItemDaNavegacao[]>> = {
+export const PERSON_MENU: Readonly<Record<PapelDeUsuario, readonly NavItem[]>> = {
   // X4 (11.0): rever a introdução é o mesmo endereço da primeira entrada; revendo, todo passo fecha e a data não muda.
-  coordenador: [{ rotulo: 'Rever a introdução', caminho: ROTAS.bemVindoDaCoordenacao, icone: { lucide: BookOpen, familia: 'lima' } }],
+  coordenador: [{ rotulo: 'Rever a introdução', caminho: ROUTES.bemVindoDaCoordenacao, icone: { lucide: BookOpen, familia: 'lima' } }],
   professor: [
-    { rotulo: 'Meus dados', caminho: ROTAS.meusDadosDoProfessor, icone: { lucide: FolderLock, familia: 'verde' } },
+    { rotulo: 'Meus dados', caminho: ROUTES.meusDadosDoProfessor, icone: { lucide: FolderLock, familia: 'verde' } },
     // X4 (10.0): rever a introdução é o mesmo endereço da primeira entrada; revendo, todo passo fecha e a data não muda.
-    { rotulo: 'Rever a introdução', caminho: ROTAS.bemVindoDoProfessor, icone: { lucide: BookOpen, familia: 'lima' } },
+    { rotulo: 'Rever a introdução', caminho: ROUTES.bemVindoDoProfessor, icone: { lucide: BookOpen, familia: 'lima' } },
   ],
   aluno: [],
 }
@@ -113,6 +113,6 @@ export const NOME_DO_MENU_DA_PESSOA = 'Sua conta'
  * O item está selecionado no endereço dele e em qualquer um abaixo dele (a turma aberta dentro de Turmas, na 15.0), e
  * nos endereços que ele declara em `tambemEm`, do mesmo jeito.
  */
-export function estaNoItem(caminho: string, item: Pick<ItemDaNavegacao, 'caminho' | 'tambemEm'>): boolean {
+export function estaNoItem(caminho: string, item: Pick<NavItem, 'caminho' | 'tambemEm'>): boolean {
   return [item.caminho, ...(item.tambemEm ?? [])].some((base) => caminho === base || caminho.startsWith(`${base}/`))
 }

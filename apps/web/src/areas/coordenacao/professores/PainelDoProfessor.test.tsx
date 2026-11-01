@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { Router } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
-import { prepararTela, redeFalsa, renderizarTela, type RedeFalsa, type RespostaFalsa } from '../../../__fixtures__/render-screen'
+import { setupScreen, fakeNetwork, renderScreen, type FakeNetwork, type FakeResponse } from '../../../__fixtures__/render-screen'
 import { TEXTO_DO_ESTADO_DO_PROFESSOR } from './convite-de-professor'
 import Professores from './Professores'
 
@@ -15,7 +15,7 @@ import Professores from './Professores'
  * é falsa e responde por caminho; a tela, o cliente de consultas e a sessão são os da aba. O que só o navegador mede (o clique
  * duplo no navegador real, a corrida entre duas pessoas, o recomeço com outra sessão e o celular de 360 px) é do e2e `alocacao`.
  */
-prepararTela()
+setupScreen()
 
 const id = (n: number) => `0197a1c0-0000-7000-8000-${String(n).padStart(12, '0')}`
 const ANO = { id: id(1), ano: 2026, inicio: '2026-02-02', fim: '2026-12-18', situacao: 'em_curso' }
@@ -45,16 +45,16 @@ const vinculo = (n: number, dono: { usuarioId: string }, turmaDele: { id: string
   ...extra,
 })
 
-const ERRO = (codigo: string, status: number): RespostaFalsa => ({
+const ERRO = (codigo: string, status: number): FakeResponse => ({
   status,
   corpo: { erro: { codigo, mensagem: 'texto que a tela não usa', requisicaoId: '0190f5a0-0000-7000-8000-000000000001' } },
 })
 /** Um erro que a leitura não repete sozinha: a tela mostra o erro na hora, e não depois da nova tentativa de um segundo. */
 const FALHA = ERRO('LIMITE_EXCEDIDO', 429)
-const ok = (itens: readonly unknown[], extra: Record<string, unknown> = {}): RespostaFalsa => ({ status: 200, corpo: { itens, ...extra } })
-const nuncaResponde = () => new Promise<RespostaFalsa>(() => undefined)
+const ok = (itens: readonly unknown[], extra: Record<string, unknown> = {}): FakeResponse => ({ status: 200, corpo: { itens, ...extra } })
+const nuncaResponde = () => new Promise<FakeResponse>(() => undefined)
 
-type Resposta = RespostaFalsa | (() => RespostaFalsa | Promise<RespostaFalsa>)
+type Resposta = FakeResponse | (() => FakeResponse | Promise<FakeResponse>)
 interface Respostas {
   anos: Resposta
   professores: Resposta
@@ -72,7 +72,7 @@ const PADRAO: Respostas = {
   disciplinas: ok([MATEMATICA, FISICA]),
 }
 
-function instalar(rede: RedeFalsa, parcial: Partial<Respostas> = {}): void {
+function instalar(rede: FakeNetwork, parcial: Partial<Respostas> = {}): void {
   const respostas = { ...PADRAO, ...parcial }
   rede.responderPor(/^\/v1\/anos-letivos\?/, respostas.anos)
   rede.responderPor('/v1/professores', respostas.professores)
@@ -82,14 +82,14 @@ function instalar(rede: RedeFalsa, parcial: Partial<Respostas> = {}): void {
 }
 
 /** Os caminhos pedidos, sem a consulta, na ordem. */
-const caminhosDe = (rede: RedeFalsa) => rede.chamadas.map((chamada) => chamada.caminho.split('?')[0])
-const vezes = (rede: RedeFalsa, caminho: string, metodo = 'GET') => rede.chamadas.filter((chamada) => chamada.caminho.split('?')[0] === caminho && chamada.metodo === metodo).length
+const caminhosDe = (rede: FakeNetwork) => rede.chamadas.map((chamada) => chamada.caminho.split('?')[0])
+const vezes = (rede: FakeNetwork, caminho: string, metodo = 'GET') => rede.chamadas.filter((chamada) => chamada.caminho.split('?')[0] === caminho && chamada.metodo === metodo).length
 
 /**
  * A resposta de `/v1/vinculos`, que é o mesmo caminho da leitura (`GET`) e da alocação (`POST`): a lista para quem lê, e a resposta do
  * caso para quem aloca. A rede falsa responde por caminho, sem olhar o método; o último pedido registrado é o que está chegando.
  */
-function porMetodo(rede: RedeFalsa, lista: () => unknown[], aoAlocar: () => RespostaFalsa | Promise<RespostaFalsa>): Resposta {
+function porMetodo(rede: FakeNetwork, lista: () => unknown[], aoAlocar: () => FakeResponse | Promise<FakeResponse>): Resposta {
   return () => (rede.chamadas.at(-1)?.metodo === 'POST' ? aoAlocar() : ok(lista()))
 }
 
@@ -131,7 +131,7 @@ beforeEach(() => {
 /** A tela Professores aberta no painel do professor, pelo endereço. */
 function abrirPainelDe(dono: { usuarioId: string }) {
   const localizacao = memoryLocation({ path: '/professores', searchPath: `professor=${dono.usuarioId}`, record: true })
-  renderizarTela(
+  renderScreen(
     <Router hook={localizacao.hook} searchHook={localizacao.searchHook}>
       <Professores />
     </Router>,
@@ -151,7 +151,7 @@ const secaoDasTurmas = (painel: HTMLElement) => within(painel).getByRole('region
 
 describe('os estados da seção "Turmas"', () => {
   it('carregando: os vínculos no ar; nem "Nenhuma turma" nem o botão aparecem antes da leitura', async () => {
-    instalar(redeFalsa(), { vinculos: nuncaResponde })
+    instalar(fakeNetwork(), { vinculos: nuncaResponde })
     abrirPainelDe(BRUNO)
     const painel = await painelDe(BRUNO)
     expect(await within(painel).findByText('Carregando as turmas…')).toBeTruthy()
@@ -160,7 +160,7 @@ describe('os estados da seção "Turmas"', () => {
   })
 
   it('carregando os anos: a seção espera, e não afirma que não há ano em curso', async () => {
-    instalar(redeFalsa(), { anos: nuncaResponde })
+    instalar(fakeNetwork(), { anos: nuncaResponde })
     abrirPainelDe(BRUNO)
     const painel = await painelDe(BRUNO)
     expect(await within(painel).findByText('Carregando as turmas…')).toBeTruthy()
@@ -169,7 +169,7 @@ describe('os estados da seção "Turmas"', () => {
   })
 
   it('o miolo rolável do painel está no ciclo do Tab e recebe o foco inicial: quem usa teclado alcança o que rola', async () => {
-    instalar(redeFalsa())
+    instalar(fakeNetwork())
     const painel = await painelComTurmasLidas(BRUNO)
     const miolo = painel.querySelector('[data-painel-miolo]')
     expect(miolo?.getAttribute('tabindex')).toBe('0')
@@ -178,7 +178,7 @@ describe('os estados da seção "Turmas"', () => {
 
   it('erro nos vínculos: a mensagem curta e "Tentar de novo", que lê só o que falhou', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     let falhar = true
     instalar(rede, { vinculos: () => (falhar ? FALHA : ok([vinculo(1, BRUNO, T7A, MATEMATICA, 'pendente')])) })
     abrirPainelDe(BRUNO)
@@ -195,7 +195,7 @@ describe('os estados da seção "Turmas"', () => {
 
   it('erro nas turmas da escola: o mesmo erro, e "Tentar de novo" lê só as turmas, que liberam o botão', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     let falhar = true
     instalar(rede, { turmas: () => (falhar ? FALHA : ok([T7A])) })
     abrirPainelDe(BRUNO)
@@ -210,20 +210,20 @@ describe('os estados da seção "Turmas"', () => {
   })
 
   it('vazio: "Nenhuma turma." para quem não tem vínculo; a lista que passou do teto de páginas avisa e não afirma o vazio', async () => {
-    instalar(redeFalsa())
+    instalar(fakeNetwork())
     const painel = await painelComTurmasLidas(ELIS)
     expect(within(painel).getByText('Nenhuma turma.')).toBeTruthy()
     expect(within(painel).queryByRole('list', { name: 'Turmas do professor' })).toBeNull()
     cleanup()
     // Toda página diz que há outra: a tela lê até o teto e para, e o professor pode ter turma na parte que ficou de fora.
-    instalar(redeFalsa(), { vinculos: () => ok([vinculo(9, ANA, T7A, MATEMATICA, 'confirmado')], { proxima: id(999) }) })
+    instalar(fakeNetwork(), { vinculos: () => ok([vinculo(9, ANA, T7A, MATEMATICA, 'confirmado')], { proxima: id(999) }) })
     const incompleto = await painelComTurmasLidas(ELIS)
     expect(within(incompleto).queryByText('Nenhuma turma.')).toBeNull()
     expect(within(incompleto).getByText('A lista é maior do que esta tela mostra: aparecem só os primeiros.')).toBeTruthy()
   })
 
   it('com dado: um item por vínculo — turma, disciplina e o estado em texto —, pela turma e pela disciplina, e só os do professor do painel', async () => {
-    instalar(redeFalsa(), {
+    instalar(fakeNetwork(), {
       vinculos: ok([
         vinculo(1, ANA, T8A, FISICA, 'confirmado'),
         vinculo(2, ANA, T7A, MATEMATICA, 'confirmado'),
@@ -242,14 +242,14 @@ describe('os estados da seção "Turmas"', () => {
   })
 
   it('o vínculo sem disciplina diz "Sem disciplina", em vez de deixar a linha vazia', async () => {
-    instalar(redeFalsa(), { vinculos: ok([vinculo(1, BRUNO, T7A, MATEMATICA, 'pendente', { disciplina: undefined })]) })
+    instalar(fakeNetwork(), { vinculos: ok([vinculo(1, BRUNO, T7A, MATEMATICA, 'pendente', { disciplina: undefined })]) })
     const painel = await painelComTurmasLidas(BRUNO)
     const itens = within(within(painel).getByRole('list', { name: 'Turmas do professor' })).getAllByRole('listitem')
     expect(itens.map((item) => item.textContent)).toEqual(['7ºASem disciplinaEsperando o professor confirmar'])
   })
 
   it('o contestado diz o motivo e o complemento que o professor escreveu, e a saída é acrescentar a turma certa', async () => {
-    instalar(redeFalsa(), { vinculos: ok([vinculo(1, BRUNO, T7B, MATEMATICA, 'contestado', { contestacao: 'turma_errada', complemento: 'Dou aula na 7ºA.' })]) })
+    instalar(fakeNetwork(), { vinculos: ok([vinculo(1, BRUNO, T7B, MATEMATICA, 'contestado', { contestacao: 'turma_errada', complemento: 'Dou aula na 7ºA.' })]) })
     const painel = await painelComTurmasLidas(BRUNO)
     const secao = secaoDasTurmas(painel)
     expect(within(secao).getByText('Contestou')).toBeTruthy()
@@ -259,21 +259,21 @@ describe('os estados da seção "Turmas"', () => {
   })
 
   it('o contestado sem complemento não inventa a linha dele; a dica de corrigir só aparece para quem ainda recebe turma', async () => {
-    instalar(redeFalsa(), {
+    instalar(fakeNetwork(), {
       vinculos: ok([vinculo(1, BRUNO, T7B, MATEMATICA, 'contestado', { contestacao: 'nao_leciono' }), vinculo(2, CAIO, T8A, FISICA, 'contestado', { contestacao: 'outro' })]),
     })
     const doBruno = await painelComTurmasLidas(BRUNO)
     expect(within(doBruno).getByText('Motivo: Não dou aula nesta turma')).toBeTruthy()
     expect(within(doBruno).queryByText(/Explicação do professor/)).toBeNull()
     cleanup()
-    instalar(redeFalsa(), { vinculos: ok([vinculo(2, CAIO, T8A, FISICA, 'contestado', { contestacao: 'outro' })]) })
+    instalar(fakeNetwork(), { vinculos: ok([vinculo(2, CAIO, T8A, FISICA, 'contestado', { contestacao: 'outro' })]) })
     const doCaio = await painelComTurmasLidas(CAIO)
     expect(within(doCaio).getByText('Contestou')).toBeTruthy()
     expect(within(doCaio).queryByText('Para corrigir uma turma contestada, acrescente a turma certa.')).toBeNull()
   })
 
   it('sem ano em curso: a seção diz que as turmas são do ano em curso, e vínculos, turmas e disciplinas nem são pedidos', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { anos: ok([ANO_PLANEJADO]) })
     const painel = await painelComTurmasLidas(BRUNO)
     expect(within(painel).getByText('As turmas são do ano letivo em curso. Abra o ano letivo na tela Turmas.')).toBeTruthy()
@@ -284,7 +284,7 @@ describe('os estados da seção "Turmas"', () => {
 
 describe('o que falta criar, só com as leituras terminadas', () => {
   it('sem turma na escola: o vazio pede a turma, e não o professor nem a disciplina; sem o botão', async () => {
-    instalar(redeFalsa(), { turmas: ok([]) })
+    instalar(fakeNetwork(), { turmas: ok([]) })
     const painel = await painelComTurmasLidas(BRUNO)
     expect(within(painel).getByText('Crie uma turma primeiro')).toBeTruthy()
     expect(within(painel).getByText('A alocação liga um professor a uma turma e a uma disciplina. Falta: uma turma.')).toBeTruthy()
@@ -293,15 +293,15 @@ describe('o que falta criar, só com as leituras terminadas', () => {
   })
 
   it('sem disciplina, e sem as duas: o título diz só o que falta', async () => {
-    instalar(redeFalsa(), { disciplinas: ok([]) })
+    instalar(fakeNetwork(), { disciplinas: ok([]) })
     expect(within(await painelComTurmasLidas(BRUNO)).getByText('Crie uma disciplina primeiro')).toBeTruthy()
     cleanup()
-    instalar(redeFalsa(), { turmas: ok([]), disciplinas: ok([]) })
+    instalar(fakeNetwork(), { turmas: ok([]), disciplinas: ok([]) })
     expect(within(await painelComTurmasLidas(BRUNO)).getByText('Crie uma turma e uma disciplina primeiro')).toBeTruthy()
   })
 
   it('com a leitura das turmas ainda no ar, nada de vazio nem de botão: o que não foi lido não vira "falta"', async () => {
-    instalar(redeFalsa(), { turmas: nuncaResponde })
+    instalar(fakeNetwork(), { turmas: nuncaResponde })
     abrirPainelDe(BRUNO)
     const painel = await painelDe(BRUNO)
     expect(await within(painel).findByText('Carregando as turmas…')).toBeTruthy()
@@ -310,7 +310,7 @@ describe('o que falta criar, só com as leituras terminadas', () => {
   })
 
   it('o vazio e o botão da escola montada não aparecem juntos: com turma e disciplina, só o botão', async () => {
-    instalar(redeFalsa())
+    instalar(fakeNetwork())
     const painel = await painelComTurmasLidas(BRUNO)
     expect(within(painel).getByRole('button', { name: 'Acrescentar turma' })).toBeTruthy()
     expect(within(painel).queryByText(/Crie/)).toBeNull()
@@ -320,7 +320,7 @@ describe('o que falta criar, só com as leituras terminadas', () => {
 describe('quem recebe turma e quem vê por quê não', () => {
   it('o convite em aberto, o aceito e o ativo têm "Acrescentar turma" e nenhum motivo de não ter', async () => {
     for (const dono of [BRUNO, ANA, ELIS]) {
-      instalar(redeFalsa())
+      instalar(fakeNetwork())
       const painel = await painelComTurmasLidas(dono)
       expect(within(painel).getByRole('button', { name: 'Acrescentar turma' }), dono.nome).toBeTruthy()
       expect(painel.textContent, dono.nome).not.toMatch(/acrescentar uma turma/)
@@ -335,7 +335,7 @@ describe('quem recebe turma e quem vê por quê não', () => {
       [FABIO, 'A conta foi desativada. Para acrescentar uma turma, cadastre o mesmo e-mail de novo.'],
     ]
     for (const [dono, texto] of porque) {
-      const rede = redeFalsa()
+      const rede = fakeNetwork()
       instalar(rede)
       const painel = await painelComTurmasLidas(dono)
       expect(within(painel).getByText(texto), dono.nome).toBeTruthy()
@@ -346,7 +346,7 @@ describe('quem recebe turma e quem vê por quê não', () => {
   })
 
   it('o vencido ainda refaz e revoga o convite, e o painel continua dizendo a situação dele', async () => {
-    instalar(redeFalsa())
+    instalar(fakeNetwork())
     const painel = await painelComTurmasLidas(CAIO)
     expect(within(painel).getByText(TEXTO_DO_ESTADO_DO_PROFESSOR.vencido)).toBeTruthy()
     expect(within(painel).getByRole('button', { name: 'Refazer convite' })).toBeTruthy()
@@ -359,7 +359,7 @@ describe('o vínculo encerrado ao lado do aberto', () => {
   const ABERTO = vinculo(2, ANA, T8A, FISICA, 'pendente')
 
   it('os dois aparecem, cada um com o estado dele, e o motivo de encerrar só no encerrado', async () => {
-    instalar(redeFalsa(), { vinculos: ok([ABERTO, ENCERRADO]) })
+    instalar(fakeNetwork(), { vinculos: ok([ABERTO, ENCERRADO]) })
     const painel = await painelComTurmasLidas(ANA)
     const itens = within(within(painel).getByRole('list', { name: 'Turmas do professor' })).getAllByRole('listitem')
     expect(itens.map((item) => item.textContent)).toEqual(['7ºAMatemáticaEncerradaMotivo: fim do ano letivo', '8ºAFísicaEsperando o professor confirmar'])
@@ -367,7 +367,7 @@ describe('o vínculo encerrado ao lado do aberto', () => {
 
   it('"Acrescentar turma" aceita de novo a turma e a disciplina do encerrado, e o pedido sai com o professor do painel', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { vinculos: porMetodo(rede, () => [ABERTO, ENCERRADO], () => ({ status: 201, corpo: vinculo(3, ANA, T7A, MATEMATICA, 'pendente') })) })
     const painel = await painelComTurmasLidas(ANA)
     const corpos = gravarCorposDosPosts()
@@ -388,8 +388,8 @@ describe('"Acrescentar turma": o diálogo', () => {
   const NOVO = vinculo(1, BRUNO, T7A, MATEMATICA, 'pendente')
 
   /** A rede com os vínculos que o caso quer, e a resposta do POST da alocação; devolve a rede para o caso ler os pedidos. */
-  function comAlocacao(aoAlocar: () => RespostaFalsa | Promise<RespostaFalsa>, parcial: Partial<Respostas> = {}, lista: () => unknown[] = () => []) {
-    const rede = redeFalsa()
+  function comAlocacao(aoAlocar: () => FakeResponse | Promise<FakeResponse>, parcial: Partial<Respostas> = {}, lista: () => unknown[] = () => []) {
+    const rede = fakeNetwork()
     instalar(rede, { vinculos: porMetodo(rede, lista, aoAlocar), ...parcial })
     return rede
   }
@@ -442,8 +442,8 @@ describe('"Acrescentar turma": o diálogo', () => {
   })
 
   it('clique duplo em "Acrescentar": um pedido só', async () => {
-    let solta: (resposta: RespostaFalsa) => void = () => undefined
-    const rede = comAlocacao(() => new Promise<RespostaFalsa>((resolver) => (solta = resolver)))
+    let solta: (resposta: FakeResponse) => void = () => undefined
+    const rede = comAlocacao(() => new Promise<FakeResponse>((resolver) => (solta = resolver)))
     const painel = await painelComTurmasLidas(BRUNO)
     const aberto = await abrirODialogo(painel)
     await escolher(aberto)

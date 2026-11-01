@@ -1,15 +1,15 @@
 import { ErrorCode, DIGITOS_DO_CODIGO_MFA, formatarEspera } from '@educa/shared'
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { Link, useLocation } from 'wouter'
-import { ErroDaApi } from '../../api/client'
+import { ApiError } from '../../api/client'
 import { Button } from '../../components/ui/Button'
 import { CopyButton } from '../../components/ui/CopyButton'
 import { FormField } from '../../components/ui/fields/FormField'
-import { CodigoQr } from '../../components/CodigoQr'
-import { EstadoCarregando } from '../../components/states'
+import { QrCode } from '../../components/QrCode'
+import { LoadingState } from '../../components/states'
 import { configurarSegundoFatorDeOperador, type SegundoFatorParaConfigurar } from '../api/mfa'
 import { definirAvisoDaEntradaDeOperador, desafioDeOperador, entrarComSegundoFatorDeOperador, esquecerDesafioDeOperador } from '../api/sessao'
-import { INICIO_DA_OPERACAO, ROTAS_DA_OPERACAO } from '../paths'
+import { INICIO_DA_OPERACAO, OPERACAO_ROUTES } from '../paths'
 import { CascaPublicaDaOperacao, ErroDaOperacao } from '../components/CascaDaOperacao'
 import {
   TEXTO_DA_CONFIGURACAO_RECUSADA,
@@ -17,14 +17,14 @@ import {
   TEXTO_DO_CONFIGURE_DE_NOVO,
   textoDaFalhaDoSegundoFator,
 } from '../textos'
-import { useTituloDaPagina } from '../document-title'
+import { useOperacaoPageTitle } from '../document-title'
 
 const TITULO = 'Configurar o segundo fator'
 
 /** O aviso da entrada quando o código da configuração foi recusado e a API gastou o desafio. */
 function avisoDaRecusa(erro: unknown): string {
-  if (erro instanceof ErroDaApi && erro.codigo === ErrorCode.CONFLITO) return TEXTO_DO_CONFIGURE_DE_NOVO
-  if (erro instanceof ErroDaApi && erro.codigo === ErrorCode.CONTA_SEGURADA && erro.esperaSegundos !== undefined) {
+  if (erro instanceof ApiError && erro.codigo === ErrorCode.CONFLITO) return TEXTO_DO_CONFIGURE_DE_NOVO
+  if (erro instanceof ApiError && erro.codigo === ErrorCode.CONTA_SEGURADA && erro.esperaSegundos !== undefined) {
     return `${TEXTO_DA_CONFIGURACAO_RECUSADA} Muitas tentativas nesta conta: espere ${formatarEspera(erro.esperaSegundos)} antes de tentar.`
   }
   return TEXTO_DA_CONFIGURACAO_RECUSADA
@@ -46,7 +46,7 @@ function avisoDaRecusa(erro: unknown): string {
  * manda entrar de novo. Enquanto eles estão na tela, o navegador pergunta antes de sair ou recarregar.
  */
 export function ConfigurarMfa() {
-  useTituloDaPagina(TITULO)
+  useOperacaoPageTitle(TITULO)
   const [, navegar] = useLocation()
   const [temDesafio] = useState(() => desafioDeOperador('configurar_mfa') !== undefined)
   const [dados, definirDados] = useState<SegundoFatorParaConfigurar | undefined>(undefined)
@@ -81,7 +81,7 @@ export function ConfigurarMfa() {
           return
         }
         definirAvisoDaEntradaDeOperador(TEXTO_DO_CONFIGURAR_SEM_DESAFIO)
-        navegar(ROTAS_DA_OPERACAO.entrar, { replace: true })
+        navegar(OPERACAO_ROUTES.entrar, { replace: true })
       },
     )
     return () => {
@@ -117,7 +117,7 @@ export function ConfigurarMfa() {
           {TEXTO_DO_CONFIGURAR_SEM_DESAFIO}
         </p>
         <Link
-          to={ROTAS_DA_OPERACAO.entrar}
+          to={OPERACAO_ROUTES.entrar}
           className="inline-flex min-h-11 items-center justify-center self-start rounded-full bg-caramelo px-4 py-2 text-base font-medium text-sobre-cor hover:bg-caramelo-claro active:bg-caramelo-fundo"
         >
           Ir para a entrada
@@ -135,7 +135,7 @@ export function ConfigurarMfa() {
       // devolve a etapa de configurar enquanto o segundo fator não estiver ativo. Formato e 503 deixam a pessoa aqui.
       if (desafioDeOperador('mfa') === undefined) {
         definirAvisoDaEntradaDeOperador(avisoDaRecusa(erro))
-        navegar(ROTAS_DA_OPERACAO.entrar, { replace: true })
+        navegar(OPERACAO_ROUTES.entrar, { replace: true })
         return
       }
       throw erro
@@ -149,7 +149,7 @@ export function ConfigurarMfa() {
         chave num gerenciador de senhas do computador, como KeePassXC ou Bitwarden. Se preferir o celular, leia o código QR
         ou abra o link nele.
       </p>
-      {dados === undefined && falhaDoPreparo === undefined && <EstadoCarregando rotulo="Preparando o segundo fator…" />}
+      {dados === undefined && falhaDoPreparo === undefined && <LoadingState rotulo="Preparando o segundo fator…" />}
       {falhaDoPreparo !== undefined && (
         <ErroDaOperacao
           erro={falhaDoPreparo}
@@ -193,7 +193,7 @@ function Configuracao({ dados, aoAtivar }: { dados: SegundoFatorParaConfigurar; 
           1. Guarde a chave no aplicativo autenticador
         </h2>
         <div className="flex flex-wrap items-center gap-3">
-          <CodigoQr conteudo={dados.uri} descricao="Código QR com a chave do segundo fator" />
+          <QrCode conteudo={dados.uri} descricao="Código QR com a chave do segundo fator" />
           <p className="min-w-0 flex-1 text-apoio">No celular, leia o código QR com o aplicativo. No computador, copie a chave abaixo.</p>
         </div>
         <p className="select-all break-all font-mono text-base text-tinta">{dados.segredo}</p>

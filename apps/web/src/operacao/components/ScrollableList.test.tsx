@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { RegiaoDaLista } from './RegiaoDaLista'
+import { ScrollableList } from './ScrollableList'
 
 /**
  * A região da lista de uma tela da operação (RF23): o que passa da altura rola por dentro, e só a região que rola recebe
@@ -32,9 +32,9 @@ function conteudoDe(altura: number, janela: number): void {
 
 function regiao() {
   return render(
-    <RegiaoDaLista rotulo="Lista de escolas" ocupada={false} pe={<nav aria-label="Páginas da lista">páginas</nav>}>
+    <ScrollableList rotulo="Lista de escolas" ocupada={false} pe={<nav aria-label="Páginas da lista">páginas</nav>}>
       <p>a lista</p>
-    </RegiaoDaLista>,
+    </ScrollableList>,
   )
 }
 
@@ -60,9 +60,9 @@ describe('a região da lista', () => {
     const { rerender } = regiao()
     expect(screen.getByRole('region', { name: 'Lista de escolas' }).getAttribute('aria-busy')).toBe('false')
     rerender(
-      <RegiaoDaLista rotulo="Lista de escolas" ocupada pe={<nav aria-label="Páginas da lista">páginas</nav>}>
+      <ScrollableList rotulo="Lista de escolas" ocupada pe={<nav aria-label="Páginas da lista">páginas</nav>}>
         <p>a lista</p>
-      </RegiaoDaLista>,
+      </ScrollableList>,
     )
     expect(screen.getByRole('region', { name: 'Lista de escolas' }).getAttribute('aria-busy')).toBe('true')
   })

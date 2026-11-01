@@ -3,8 +3,8 @@ import { cleanup, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { Router } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
-import { MENU_DA_PESSOA, NAVEGACAO, RODAPE_DA_LATERAL } from '../areas/navigation'
-import { classesDo, contraste, corDoToken, TEMAS } from '../__fixtures__/class-colors'
+import { PERSON_MENU, NAVIGATION, SIDEBAR_FOOTER } from '../areas/navigation'
+import { classesOf, contraste, tokenColor, TEMAS } from '../__fixtures__/class-colors'
 import { ItemDaLateral, ListaDeItens } from './itens-da-lateral'
 
 /**
@@ -22,7 +22,7 @@ function noEndereco(caminho: string, filho: React.ReactNode): React.ReactElement
 
 describe('ItemDaLateral', () => {
   it.each(PAPEIS)('todo item de %s tem o ícone decorativo e o rótulo por nome, aberto e no trilho', (papel) => {
-    const itens = [...NAVEGACAO[papel], ...RODAPE_DA_LATERAL[papel], ...MENU_DA_PESSOA[papel]]
+    const itens = [...NAVIGATION[papel], ...SIDEBAR_FOOTER[papel], ...PERSON_MENU[papel]]
     for (const trilho of [false, true]) {
       const { unmount } = render(
         noEndereco(
@@ -53,7 +53,7 @@ describe('ItemDaLateral', () => {
     const ladrilhos = new Map<string, string>()
     const porPapel = new Map<string, string>()
     for (const papel of PAPEIS) {
-      for (const item of [...NAVEGACAO[papel], ...RODAPE_DA_LATERAL[papel], ...MENU_DA_PESSOA[papel]]) {
+      for (const item of [...NAVIGATION[papel], ...SIDEBAR_FOOTER[papel], ...PERSON_MENU[papel]]) {
         if ('lugar' in item.icone) ilustrados.set(item.rotulo, item.icone.lugar)
         else {
           ladrilhos.set(item.rotulo, item.icone.familia)
@@ -81,13 +81,13 @@ describe('ItemDaLateral', () => {
     })
     // Cada um dos outros tem a família dele, e a do ladrilho chega ao DOM.
     expect([...ladrilhos.keys()].sort()).toEqual(['Eu', 'Meus dados', 'Rever a introdução'].sort())
-    const eu = NAVEGACAO.aluno.find((item) => item.rotulo === 'Eu')
+    const eu = NAVIGATION.aluno.find((item) => item.rotulo === 'Eu')
     if (eu === undefined) throw new Error('faltou o Eu')
     render(noEndereco('/', <ul><ItemDaLateral item={eu} trilho={false} /></ul>))
     expect(screen.getByRole('link', { name: 'Eu' }).querySelector('[data-ladrilho]')?.getAttribute('data-ladrilho')).toBe('turquesa')
     // E o ilustrado chega ao DOM pelo mesmo caminho, sem ladrilho: o ramo do `lugar` é o que desenha o `Icon`.
     cleanup()
-    const inicio = NAVEGACAO.professor.find((item) => item.rotulo === 'Início')
+    const inicio = NAVIGATION.professor.find((item) => item.rotulo === 'Início')
     if (inicio === undefined) throw new Error('faltou o Início')
     render(noEndereco('/', <ul><ItemDaLateral item={inicio} trilho={false} /></ul>))
     const link = screen.getByRole('link', { name: 'Início' })
@@ -96,8 +96,8 @@ describe('ItemDaLateral', () => {
   })
 
   it('aceso: `aria-current`, fundo `azul-claro`, borda `azul-borda` e texto `azul-texto`; apagado: nenhuma das três, e a borda transparente', () => {
-    const inicio = NAVEGACAO.professor.find((item) => item.rotulo === 'Início')
-    const ferramentas = NAVEGACAO.professor.find((item) => item.rotulo === 'Ferramentas')
+    const inicio = NAVIGATION.professor.find((item) => item.rotulo === 'Início')
+    const ferramentas = NAVIGATION.professor.find((item) => item.rotulo === 'Ferramentas')
     if (inicio === undefined || ferramentas === undefined) throw new Error('faltou item')
     render(
       noEndereco(
@@ -112,40 +112,40 @@ describe('ItemDaLateral', () => {
     const apagado = screen.getByRole('link', { name: 'Ferramentas' })
     expect(aceso.getAttribute('aria-current')).toBe('page')
     expect(apagado.getAttribute('aria-current')).toBeNull()
-    expect([...classesDo(aceso)].filter((classe) => ['bg-azul-claro', 'border-azul-borda', 'text-azul-texto', 'border-2'].includes(classe)).sort()).toEqual(['bg-azul-claro', 'border-2', 'border-azul-borda', 'text-azul-texto'])
+    expect([...classesOf(aceso)].filter((classe) => ['bg-azul-claro', 'border-azul-borda', 'text-azul-texto', 'border-2'].includes(classe)).sort()).toEqual(['bg-azul-claro', 'border-2', 'border-azul-borda', 'text-azul-texto'])
     // A negativa (A24): o apagado não tem nenhuma das pistas, e guarda a borda de 2 px, transparente, para acender não mexer em nada.
-    const doApagado = classesDo(apagado)
+    const doApagado = classesOf(apagado)
     for (const classe of ['bg-azul-claro', 'border-azul-borda', 'text-azul-texto']) expect(doApagado.has(classe), classe).toBe(false)
     expect(doApagado.has('border-2')).toBe(true)
     expect(doApagado.has('border-transparent')).toBe(true)
     expect(doApagado.has('text-sutil')).toBe(true)
     // O peso não é pista: os dois são `t-rotulo` (700), e o filete de antes saiu.
-    expect(classesDo(aceso).has('t-rotulo')).toBe(true)
+    expect(classesOf(aceso).has('t-rotulo')).toBe(true)
     expect(doApagado.has('t-rotulo')).toBe(true)
     expect(document.querySelector('[data-filete]')).toBeNull()
   })
 
   it.each(TEMAS)('o texto do aceso e o do apagado têm 4,5:1 sobre o chão deles no tema %s', (tema) => {
-    expect(contraste(corDoToken(tema, 'azul-texto'), corDoToken(tema, 'azul-claro'))).toBeGreaterThanOrEqual(4.5)
-    expect(contraste(corDoToken(tema, 'sutil'), corDoToken(tema, 'lateral'))).toBeGreaterThanOrEqual(4.5)
-    expect(contraste(corDoToken(tema, 'tinta'), corDoToken(tema, 'fundo-suave'))).toBeGreaterThanOrEqual(4.5)
+    expect(contraste(tokenColor(tema, 'azul-texto'), tokenColor(tema, 'azul-claro'))).toBeGreaterThanOrEqual(4.5)
+    expect(contraste(tokenColor(tema, 'sutil'), tokenColor(tema, 'lateral'))).toBeGreaterThanOrEqual(4.5)
+    expect(contraste(tokenColor(tema, 'tinta'), tokenColor(tema, 'fundo-suave'))).toBeGreaterThanOrEqual(4.5)
     // A borda do aceso contra o chão da lateral é o que a distingue sem a cor do fundo: precisa existir no tema.
-    expect(corDoToken(tema, 'azul-borda')).not.toBe(corDoToken(tema, 'lateral'))
+    expect(tokenColor(tema, 'azul-borda')).not.toBe(tokenColor(tema, 'lateral'))
   })
 
   it('de 768 a 1023 px o item é um quadrado de 52 px com o rótulo só para o leitor de tela, e aberto tem 52 px de altura', () => {
-    const turmas = NAVEGACAO.professor.find((item) => item.rotulo === 'Turmas')
+    const turmas = NAVIGATION.professor.find((item) => item.rotulo === 'Turmas')
     if (turmas === undefined) throw new Error('faltou Turmas')
     const { unmount } = render(noEndereco('/', <ul><ItemDaLateral item={turmas} trilho /></ul>))
     const noTrilho = screen.getByRole('link', { name: 'Turmas' })
-    expect(classesDo(noTrilho).has('size-13')).toBe(true)
+    expect(classesOf(noTrilho).has('size-13')).toBe(true)
     // O texto visível não existe: só o do leitor de tela e o da dica, que é decoração.
     expect(noTrilho.querySelector('.sr-only')?.textContent).toBe('Turmas')
     expect(noTrilho.querySelector('[aria-hidden="true"].shadow-flutua')?.textContent).toBe('Turmas')
     unmount()
     render(noEndereco('/', <ul><ItemDaLateral item={turmas} trilho={false} /></ul>))
     const aberto = screen.getByRole('link', { name: 'Turmas' })
-    expect(classesDo(aberto).has('min-h-13')).toBe(true)
+    expect(classesOf(aberto).has('min-h-13')).toBe(true)
     expect(aberto.querySelector('.sr-only')).toBeNull()
   })
 })

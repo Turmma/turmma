@@ -1,7 +1,7 @@
 import { sinaisResponseSchema, usoDoTutorResponseSchema, TAMANHO_MAXIMO_DA_PAGINA } from '@educa/shared'
 import { queryOptions } from '@tanstack/react-query'
-import { CHAVE_DO_USO_DO_TUTOR, CHAVE_DOS_SINAIS } from '../../../../api/chaves-do-professor'
-import { buscarComSessao } from '../../../../api/sessao'
+import { USO_DO_TUTOR_QUERY_KEY, SINAIS_QUERY_KEY } from '../../../../api/chaves-do-professor'
+import { authedGet } from '../../../../api/sessao'
 
 /**
  * O que o Tutor mostra à professora da turma (A4; D8, D47; regra 70, itens 4 e 7): os **sinais** e o **uso**. Nenhuma
@@ -10,10 +10,10 @@ import { buscarComSessao } from '../../../../api/sessao'
  */
 
 /** Os sinais da turma (`GET /v1/sinais?turmaId=`): os mais recentes e os grupos ("oito travaram na questão 3"). */
-export function consultaSinais(turmaId: string) {
+export function sinaisQueryOptions(turmaId: string) {
   return queryOptions({
-    queryKey: [...CHAVE_DOS_SINAIS, turmaId],
-    queryFn: ({ signal }) => buscarComSessao(`/v1/sinais?turmaId=${encodeURIComponent(turmaId)}&limite=${String(TAMANHO_MAXIMO_DA_PAGINA)}`, sinaisResponseSchema, signal),
+    queryKey: [...SINAIS_QUERY_KEY, turmaId],
+    queryFn: ({ signal }) => authedGet(`/v1/sinais?turmaId=${encodeURIComponent(turmaId)}&limite=${String(TAMANHO_MAXIMO_DA_PAGINA)}`, sinaisResponseSchema, signal),
     gcTime: 0,
   })
 }
@@ -23,10 +23,10 @@ export function consultaSinais(turmaId: string) {
  * que ele estava. É o que faz não existir uso do Tutor invisível ao professor. Sem tempo ocioso e sem lista de quem não
  * usou: o contrato nem tem esses campos.
  */
-export function consultaUsoDoTutor(turmaId: string) {
+export function usoDoTutorQueryOptions(turmaId: string) {
   return queryOptions({
-    queryKey: [...CHAVE_DO_USO_DO_TUTOR, turmaId],
-    queryFn: ({ signal }) => buscarComSessao(`/v1/tutor/uso?turmaId=${encodeURIComponent(turmaId)}`, usoDoTutorResponseSchema, signal),
+    queryKey: [...USO_DO_TUTOR_QUERY_KEY, turmaId],
+    queryFn: ({ signal }) => authedGet(`/v1/tutor/uso?turmaId=${encodeURIComponent(turmaId)}`, usoDoTutorResponseSchema, signal),
     gcTime: 0,
   })
 }

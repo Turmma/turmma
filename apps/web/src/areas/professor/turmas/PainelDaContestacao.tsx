@@ -1,6 +1,6 @@
 import { AVISO_DO_COMPLEMENTO, CONTESTACOES_DE_VINCULO, EFEITO_DA_CONTESTACAO, NOME_DA_CONTESTACAO, TAMANHO_MAXIMO_DO_COMPLEMENTO, type ContestacaoDeVinculo, type Vinculo } from '@educa/shared'
 import { useId, type FormEvent } from 'react'
-import { mensagemDoErro } from '../../../api/client'
+import { errorMessage } from '../../../api/client'
 import { Button } from '../../../components/ui/Button'
 import { Sheet } from '../../../components/ui/overlays/Sheet'
 import { LadrilhoDoVinculo, nomeDoVinculo } from './vinculo-na-tela'
@@ -86,7 +86,7 @@ export default function PainelDaContestacao({ vinculo, contestacao, enviando, fa
         </div>
         {falha !== undefined && (
           <p role="alert" className="rounded-controle border border-erro bg-erro-cx p-3 text-erro">
-            {mensagemDoErro(falha)}
+            {errorMessage(falha)}
           </p>
         )}
       </form>

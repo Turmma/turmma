@@ -1,6 +1,6 @@
 import { acessoDaEscolaResponseSchema, type ProvedorDeContaDaEscola } from '@educa/shared'
 import { queryOptions } from '@tanstack/react-query'
-import { buscarDaApi } from './client'
+import { apiGet } from './client'
 
 /** `GET /v1/escolas/:slug/acesso`, anônima: o nome da escola do endereço e os provedores que ela liberou (11.0, 13.0). */
 export function caminhoDoAcessoDaEscola(slug: string): string {
@@ -14,10 +14,10 @@ export function caminhoDoAcessoDaEscola(slug: string): string {
  * Endereço que não existe responde `NAO_ENCONTRADO`, que o cliente de consultas não repete sozinho: insistir não faz
  * um endereço passar a existir, e às 7h30 a escola inteira está atrás do mesmo IP.
  */
-export function consultaAcessoDaEscola(slug: string) {
+export function acessoDaEscolaQueryOptions(slug: string) {
   return queryOptions({
     queryKey: ['acesso-da-escola', slug],
-    queryFn: ({ signal }) => buscarDaApi(caminhoDoAcessoDaEscola(slug), acessoDaEscolaResponseSchema, signal),
+    queryFn: ({ signal }) => apiGet(caminhoDoAcessoDaEscola(slug), acessoDaEscolaResponseSchema, signal),
   })
 }
 

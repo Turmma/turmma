@@ -14,11 +14,11 @@ export type LeituraDaFila<Dado> =
 
 /**
  * As opções de leitura da fila (Tech Spec das telas da coordenação, seção 7c, "Releitura"; a das telas do professor, seção
- * 5): cinco minutos de frescor e **nenhuma leitura por tempo, por foco ou por rede**. `consultaMateriais` traz o
+ * 5): cinco minutos de frescor e **nenhuma leitura por tempo, por foco ou por rede**. `materiaisQueryOptions` traz o
  * `refetchInterval` de 1,5 s da tela Material, e sem o `false` um material `processando` faria cerca de 40 leituras por
  * minuto por aba (regra 80).
  */
-export const SEM_LEITURA_SOZINHA = { staleTime: 5 * 60_000, refetchInterval: false, refetchOnWindowFocus: false, refetchOnReconnect: false } as const
+export const NO_AUTO_REFETCH = { staleTime: 5 * 60_000, refetchInterval: false, refetchOnWindowFocus: false, refetchOnReconnect: false } as const
 
 /**
  * As opções dos observadores da fila: as de cima, mais **nenhuma releitura de consulta que já falhou só porque o sino
@@ -27,4 +27,4 @@ export const SEM_LEITURA_SOZINHA = { staleTime: 5 * 60_000, refetchInterval: fal
  * Estrutura no celular). Quem relê o que falhou é o "Tentar de novo" do sino ou o da tela. Consulta que ainda não existe
  * carrega normalmente: `retryOnMount` só vale para a que já está em erro.
  */
-export const LEITURA_DA_FILA = { ...SEM_LEITURA_SOZINHA, retryOnMount: false } as const
+export const QUEUE_QUERY_OPTIONS = { ...NO_AUTO_REFETCH, retryOnMount: false } as const

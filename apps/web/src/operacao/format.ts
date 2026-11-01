@@ -1,5 +1,5 @@
 import type { UsoDoPainelResponse, UsoDoPeriodoDoPainel } from '@educa/shared'
-import { formatarNumero, formatarQuantidade } from '../format'
+import { formatNumber, formatQuantity } from '../format'
 
 /**
  * Os formatos da tela Uso do painel da operação (A0b, tarefa 8.0; cenário W5): número, bytes, o dia e o mês de referência
@@ -8,7 +8,7 @@ import { formatarNumero, formatarQuantidade } from '../format'
  */
 
 /** Número inteiro pelo `Intl.NumberFormat('pt-BR')`, o mesmo do resto da web: `1234` → `1.234`. */
-export { formatarNumero }
+export { formatNumber }
 
 /** As unidades acima do byte, na base 1024: é a conta que o sistema operacional do Chromebook e do Windows mostra. */
 const UNIDADES_DE_BYTES = ['KB', 'MB', 'GB', 'TB', 'PB'] as const
@@ -22,7 +22,7 @@ const umaCasa = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 1 })
  * bytes seriam "1.024 KB"), sobe para a seguinte ("1 MB"): o número mostrado nunca passa de 1.023,9.
  */
 export function formatarBytes(bytes: number): string {
-  if (bytes < BASE_DE_BYTES) return formatarQuantidade(bytes, 'byte', 'bytes')
+  if (bytes < BASE_DE_BYTES) return formatQuantity(bytes, 'byte', 'bytes')
   let valor = bytes / BASE_DE_BYTES
   let unidade = 0
   while (unidade < UNIDADES_DE_BYTES.length - 1 && Math.round(valor * 10) / 10 >= BASE_DE_BYTES) {
@@ -73,5 +73,5 @@ export const MEDIDAS_DO_USO: readonly (keyof UsoDoPeriodoDoPainel)[] = ['requisi
 
 /** O valor de uma medida: bytes na unidade, o resto como número. */
 export function formatarMedidaDoUso(medida: keyof UsoDoPeriodoDoPainel, valor: number): string {
-  return medida === 'bytesStorage' ? formatarBytes(valor) : formatarNumero(valor)
+  return medida === 'bytesStorage' ? formatarBytes(valor) : formatNumber(valor)
 }

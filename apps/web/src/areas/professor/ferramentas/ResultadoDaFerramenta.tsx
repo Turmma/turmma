@@ -1,11 +1,11 @@
 import type { ChaveDeFuncao } from '@educa/shared'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'wouter'
-import { consultaArtefato } from '../artefatos/api/artefatos'
-import { consultaTitulosDosMateriais } from '../artefatos/api/titulos-dos-materiais'
-import { caminhoDoArtefatoDoProfessor, ROTAS_DO_PROFESSOR } from '../../../paths'
+import { artefatoQueryOptions } from '../artefatos/api/artefatos'
+import { titulosDosMateriaisQueryOptions } from '../artefatos/api/titulos-dos-materiais'
+import { caminhoDoArtefatoDoProfessor, PROFESSOR_ROUTES } from '../../../paths'
 import { buttonVariants } from '../../../components/ui/button-variants'
-import { EstadoCarregando, EstadoErro } from '../../../components/states/index'
+import { LoadingState, ErrorState } from '../../../components/states/index'
 import { AIMessage } from '../../../components/ui/ai/Message'
 import { ConteudoDoArtefato } from '../artefatos/ConteudoDoArtefato'
 import { saidaEmPdf, textoDaAdaptacao } from '../artefatos/entregas'
@@ -30,10 +30,10 @@ const CLASSES_DA_ACAO = `${buttonVariants({ variante: 'discreto', tamanho: 'comp
  * antes da aprovação registrada (regra 70, item 3).
  */
 export function ResultadoDaFerramenta({ artefatoId, entregaId, funcao }: PropsDoResultado) {
-  const artefato = useQuery(consultaArtefato(artefatoId))
-  const materiais = useQuery(consultaTitulosDosMateriais)
-  if (artefato.isPending) return <EstadoCarregando rotulo="Carregando o que foi gerado…" />
-  if (artefato.isError) return <EstadoErro erro={artefato.error} tentando={artefato.isFetching} aoTentarDeNovo={() => void artefato.refetch({ cancelRefetch: false })} />
+  const artefato = useQuery(artefatoQueryOptions(artefatoId))
+  const materiais = useQuery(titulosDosMateriaisQueryOptions)
+  if (artefato.isPending) return <LoadingState rotulo="Carregando o que foi gerado…" />
+  if (artefato.isError) return <ErrorState erro={artefato.error} tentando={artefato.isFetching} aoTentarDeNovo={() => void artefato.refetch({ cancelRefetch: false })} />
   const { data } = artefato
   return (
     <AIMessage
@@ -49,7 +49,7 @@ export function ResultadoDaFerramenta({ artefatoId, entregaId, funcao }: PropsDo
           {/* A versão adaptada recém-gerada ainda espera a decisão: sai como rascunho, e o botão diz isso. */}
           {saidaEmPdf(data.entrega) !== 'nao_exporta' && <ExportarPdf artefatoId={data.id} titulo={data.titulo} rascunho={saidaEmPdf(data.entrega) === 'rascunho'} />}
           {entregaId !== null && (
-            <Link to={ROTAS_DO_PROFESSOR.timeDoAssistente} className={CLASSES_DA_ACAO}>
+            <Link to={PROFESSOR_ROUTES.timeDoAssistente} className={CLASSES_DA_ACAO}>
               Ver e decidir
             </Link>
           )}

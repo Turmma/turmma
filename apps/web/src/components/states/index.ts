@@ -1,3 +1,3 @@
-export { EstadoCarregando } from './EstadoCarregando'
-export { EstadoErro } from './EstadoErro'
-export { EstadoVazio } from './EstadoVazio'
+export { LoadingState } from './LoadingState'
+export { ErrorState } from './ErrorState'
+export { EmptyState } from './EmptyState'

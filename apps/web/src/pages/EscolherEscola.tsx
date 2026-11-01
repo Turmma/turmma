@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import { useLocation } from 'wouter'
-import { mensagemDoErro } from '../api/client'
+import { errorMessage } from '../api/client'
 import { acessosParaEscolher, desafioDaEtapa, escolherEscola } from '../api/sessao'
-import { ROTA_DA_ETAPA } from '../paths'
+import { LOGIN_STEP_ROUTE } from '../paths'
 import { CascaPublica } from '../components/CascaPublica'
-import { EstadoVazio } from '../components/states'
-import { NOME_DO_PAPEL } from '../roles'
+import { EmptyState } from '../components/states'
+import { ROLE_LABELS } from '../roles'
 import { SemDesafio } from './SemDesafio'
 
 /**
@@ -34,7 +34,7 @@ export function EscolherEscola() {
     definirFalha(undefined)
     try {
       const resposta = await escolherEscola(usuarioId)
-      navegar(ROTA_DA_ETAPA[resposta.etapa], { replace: true })
+      navegar(LOGIN_STEP_ROUTE[resposta.etapa], { replace: true })
     } catch (erro) {
       definirFalha(erro)
     } finally {
@@ -45,7 +45,7 @@ export function EscolherEscola() {
   return (
     <CascaPublica titulo="Escolher a escola">
       {acessos.length === 0 ? (
-        <EstadoVazio
+        <EmptyState
           titulo="Nenhuma escola para entrar agora"
           descricao="A sua conta não tem acesso ativo em nenhuma escola neste momento. Procure a coordenação da escola para conferir o seu vínculo."
         />
@@ -61,7 +61,7 @@ export function EscolherEscola() {
                   disabled={entrando !== undefined}
                   className="flex min-h-11 w-full items-center rounded-controle border border-borda-campo bg-superficie px-4 py-3 text-left break-words enabled:hover:bg-realce-suave enabled:active:bg-realce disabled:text-sutil"
                 >
-                  {entrando === acesso.usuarioId ? `Entrando em ${acesso.escolaNome}…` : `${acesso.escolaNome} · ${NOME_DO_PAPEL[acesso.papel]}`}
+                  {entrando === acesso.usuarioId ? `Entrando em ${acesso.escolaNome}…` : `${acesso.escolaNome} · ${ROLE_LABELS[acesso.papel]}`}
                 </button>
               </li>
             ))}
@@ -70,7 +70,7 @@ export function EscolherEscola() {
       )}
       {falha !== undefined && (
         <p role="alert" className="rounded-controle border border-erro bg-erro-cx p-4 text-erro">
-          {mensagemDoErro(falha)}
+          {errorMessage(falha)}
         </p>
       )}
       <span role="status" className="sr-only">

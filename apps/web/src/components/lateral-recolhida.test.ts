@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { CHAVE_DA_LATERAL_RECOLHIDA, guardarRecolhida, lerRecolhida } from './lateral-recolhida'
+import { SIDEBAR_COLLAPSED_STORAGE_KEY, guardarRecolhida, lerRecolhida } from './lateral-recolhida'
 
 /**
  * A lateral recolhida por escolha (`docs/interface.md` 11.1; RF13, RF24 da X1): o que o navegador guarda é só `sim`, sob
@@ -18,7 +18,7 @@ afterEach(() => {
 
 describe('lateral recolhida', () => {
   it('a chave é a de sempre, e o valor guardado é só `sim`', () => {
-    expect(CHAVE_DA_LATERAL_RECOLHIDA).toBe('educa.lateral-recolhida')
+    expect(SIDEBAR_COLLAPSED_STORAGE_KEY).toBe('educa.lateral-recolhida')
     guardarRecolhida(true)
     expect(window.localStorage.getItem('educa.lateral-recolhida')).toBe('sim')
     expect(window.localStorage.length).toBe(1)

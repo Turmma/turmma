@@ -1,14 +1,14 @@
 import { ErrorCode } from '@educa/shared'
 import { Clock, Eye, Inbox, Sparkles } from 'lucide-react'
 import { useState } from 'react'
-import { ErroDaApi } from '../../api/client'
+import { ApiError } from '../../api/client'
 import { Tabs } from '../../components/ui/Tabs'
 import { Alert, ALERT_TONES, type AlertTone } from '../../components/ui/Alert'
 import { ProgressBar } from '../../components/ui/ProgressBar'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
 import { CountBadge, COLOR_FAMILIES } from '../../components/ui/CountBadge'
-import { EstadoCarregando, EstadoErro, EstadoVazio } from '../../components/states'
+import { LoadingState, ErrorState, EmptyState } from '../../components/states'
 import { Banner } from '../../components/ui/Banner'
 import { StatCard } from '../../components/ui/StatCard'
 import { StatusBadge } from '../../components/ui/StatusBadge'
@@ -86,7 +86,7 @@ export default function SecoesDeEstado() {
             <ProgressBar rotulo="Hoje" valor={12} maximo={60} texto="12 de 60 perguntas" />
           </div>
         </Card>
-        <EstadoVazio variante="tracejado" icone={Inbox} titulo="Nenhuma correção aprovada ainda" descricao="O acerto por habilidade aparece aqui depois que você aprova a correção de uma atividade da turma." />
+        <EmptyState variante="tracejado" icone={Inbox} titulo="Nenhuma correção aprovada ainda" descricao="O acerto por habilidade aparece aqui depois que você aprova a correção de uma atividade da turma." />
       </Secao>
 
       <Secao nome="abas" titulo="Abas">
@@ -165,16 +165,16 @@ export default function SecoesDeEstado() {
 
       <Secao nome="estados-de-tela" titulo="Carregando, vazio e erro">
         <div data-estados className="flex min-w-0 flex-col gap-3">
-          <EstadoCarregando rotulo="Carregando as atividades da turma…" />
-          <EstadoVazio titulo="Nenhuma atividade ainda" descricao="As atividades que você aplicar à turma aparecem aqui, com a entrega de cada aluno." />
-          <EstadoVazio
+          <LoadingState rotulo="Carregando as atividades da turma…" />
+          <EmptyState titulo="Nenhuma atividade ainda" descricao="As atividades que você aplicar à turma aparecem aqui, com a entrega de cada aluno." />
+          <EmptyState
             titulo="Nenhum material enviado"
             descricao="Envie o PDF da apostila para o Assistente poder citar a página."
             acao={{ rotulo: 'Verificar de novo', aoAcionar: () => undefined }}
           />
-          <EstadoVazio titulo="Nenhuma conversa" descricao="As conversas com o Assistente aparecem aqui. Se acabou de pedir uma, verifique de novo." acao={{ rotulo: 'Verificar de novo', aoAcionar: () => undefined, emAndamento: true }} />
-          <EstadoErro erro={new ErroDaApi(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO)} aoTentarDeNovo={() => definirTentativas((atual) => atual + 1)} />
-          <EstadoErro erro={new ErroDaApi(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO)} aoTentarDeNovo={() => undefined} tentando />
+          <EmptyState titulo="Nenhuma conversa" descricao="As conversas com o Assistente aparecem aqui. Se acabou de pedir uma, verifique de novo." acao={{ rotulo: 'Verificar de novo', aoAcionar: () => undefined, emAndamento: true }} />
+          <ErrorState erro={new ApiError(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO)} aoTentarDeNovo={() => definirTentativas((atual) => atual + 1)} />
+          <ErrorState erro={new ApiError(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO)} aoTentarDeNovo={() => undefined} tentando />
         </div>
         <p data-tentativas={tentativas} className="sr-only">
           {tentativas} tentativas

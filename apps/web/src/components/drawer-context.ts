@@ -6,9 +6,9 @@ import { createContext } from 'react'
  * sai de um `dialog` modal aberto. Fora da casca (a área da operação, a página pública) não há gaveta, e fechar não faz
  * nada.
  */
-export interface Gaveta {
+export interface DrawerContextValue {
   /** Fecha a gaveta **agora**, e não no próximo render: quem chama move o foco logo em seguida. */
   readonly fechar: () => void
 }
 
-export const ContextoDaGaveta = createContext<Gaveta>({ fechar: () => undefined })
+export const DrawerContext = createContext<DrawerContextValue>({ fechar: () => undefined })

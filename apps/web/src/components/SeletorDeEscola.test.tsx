@@ -4,7 +4,7 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { Router } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
-import { classesDo } from '../__fixtures__/class-colors'
+import { classesOf } from '../__fixtures__/class-colors'
 import { SeletorDeEscola } from './SeletorDeEscola'
 
 /**
@@ -33,16 +33,16 @@ describe('SeletorDeEscola', () => {
   it('o botão e cada linha da lista têm a altura mínima de 48 px, com a borda de 2 px no botão', () => {
     desenhar()
     const botao = screen.getByRole('button', { name: /Colégio Vista Alegre/ })
-    expect(classesDo(botao).has('min-h-12')).toBe(true)
-    expect(classesDo(botao).has('min-h-11')).toBe(false)
-    expect(classesDo(botao).has('border-2')).toBe(true)
+    expect(classesOf(botao).has('min-h-12')).toBe(true)
+    expect(classesOf(botao).has('min-h-11')).toBe(false)
+    expect(classesOf(botao).has('border-2')).toBe(true)
 
     fireEvent.click(botao)
     const linhas = screen.getByRole('list', { name: 'Suas escolas' }).querySelectorAll('button')
     expect(linhas).toHaveLength(2)
     for (const linha of linhas) {
-      expect(classesDo(linha).has('min-h-12'), linha.textContent ?? '').toBe(true)
-      expect(classesDo(linha).has('min-h-11'), linha.textContent ?? '').toBe(false)
+      expect(classesOf(linha).has('min-h-12'), linha.textContent ?? '').toBe(true)
+      expect(classesOf(linha).has('min-h-11'), linha.textContent ?? '').toBe(false)
     }
   })
 

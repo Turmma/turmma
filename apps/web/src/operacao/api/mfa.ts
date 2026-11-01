@@ -1,5 +1,5 @@
 import { ErrorCode, configurarSegundoFatorDeOperadorResponseSchema, type ConfigurarSegundoFatorDeOperadorResponse } from '@educa/shared'
-import { chamarApi, ErroDaApi } from '../../api/client'
+import { apiRequest, ApiError } from '../../api/client'
 import { desafioDeOperador, esquecerDesafioDeOperador, guardarDesafioDeOperador } from './sessao'
 
 export const CAMINHO_DA_CONFIGURACAO_DO_SEGUNDO_FATOR_DE_OPERADOR = '/v1/operacao/sessao/mfa/configurar'
@@ -19,16 +19,16 @@ export type SegundoFatorParaConfigurar = Omit<ConfigurarSegundoFatorDeOperadorRe
  */
 export async function configurarSegundoFatorDeOperador(): Promise<SegundoFatorParaConfigurar> {
   const desafio = desafioDeOperador('configurar_mfa')
-  if (desafio === undefined) throw new ErroDaApi(ErrorCode.NAO_AUTENTICADO)
+  if (desafio === undefined) throw new ApiError(ErrorCode.NAO_AUTENTICADO)
   try {
-    const resposta = await chamarApi(CAMINHO_DA_CONFIGURACAO_DO_SEGUNDO_FATOR_DE_OPERADOR, configurarSegundoFatorDeOperadorResponseSchema, {
+    const resposta = await apiRequest(CAMINHO_DA_CONFIGURACAO_DO_SEGUNDO_FATOR_DE_OPERADOR, configurarSegundoFatorDeOperadorResponseSchema, {
       metodo: 'POST',
       corpo: { desafio },
     })
     guardarDesafioDeOperador(resposta.etapa, resposta.desafio)
     return { uri: resposta.uri, segredo: resposta.segredo, codigosRecuperacao: resposta.codigosRecuperacao }
   } catch (erro) {
-    const desafioSegue = erro instanceof ErroDaApi && (erro.codigo === ErrorCode.INDISPONIVEL_TENTE_DE_NOVO || erro.codigo === ErrorCode.LIMITE_EXCEDIDO)
+    const desafioSegue = erro instanceof ApiError && (erro.codigo === ErrorCode.INDISPONIVEL_TENTE_DE_NOVO || erro.codigo === ErrorCode.LIMITE_EXCEDIDO)
     if (!desafioSegue) esquecerDesafioDeOperador()
     throw erro
   }

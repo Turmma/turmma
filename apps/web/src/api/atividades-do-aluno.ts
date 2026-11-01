@@ -8,8 +8,8 @@ import {
   type QuestaoSalvaResponse,
 } from '@educa/shared'
 import { infiniteQueryOptions, queryOptions } from '@tanstack/react-query'
-import { CHAVE_DA_PROVA, CHAVE_DAS_MINHAS_ATIVIDADES, CHAVE_DO_MEU_DIAGNOSTICO } from './chaves-do-aluno'
-import { buscarComSessao, chamarComSessao } from './sessao'
+import { PROVA_QUERY_KEY, MINHAS_ATIVIDADES_QUERY_KEY, MEU_DIAGNOSTICO_QUERY_KEY } from './chaves-do-aluno'
+import { authedGet, authedRequest } from './sessao'
 
 /**
  * O lado do aluno na atividade (MVP, A3; `docs/mvp-contratos.md`, "Atividade e correção"). A escola, o ano, a turma e o
@@ -25,10 +25,10 @@ function caminhoDaAtividade(atividadeAplicadaId: string): string {
 }
 
 /** `GET /v1/minhas-atividades`: o que foi atribuído à turma do aluno, paginado como a API entrega (`?pagina=`). */
-export const consultaMinhasAtividades = infiniteQueryOptions({
-  queryKey: CHAVE_DAS_MINHAS_ATIVIDADES,
+export const minhasAtividadesInfiniteQueryOptions = infiniteQueryOptions({
+  queryKey: MINHAS_ATIVIDADES_QUERY_KEY,
   queryFn: ({ pageParam, signal }) =>
-    buscarComSessao(pageParam === undefined ? CAMINHO_DAS_ATIVIDADES : `${CAMINHO_DAS_ATIVIDADES}?pagina=${encodeURIComponent(pageParam)}`, minhasAtividadesResponseSchema, signal),
+    authedGet(pageParam === undefined ? CAMINHO_DAS_ATIVIDADES : `${CAMINHO_DAS_ATIVIDADES}?pagina=${encodeURIComponent(pageParam)}`, minhasAtividadesResponseSchema, signal),
   initialPageParam: undefined as string | undefined,
   getNextPageParam: (ultima) => ultima.proxima,
 })
@@ -39,10 +39,10 @@ export const consultaMinhasAtividades = infiniteQueryOptions({
  * e a tela as acerta no cache a cada "Resposta salva"; reler no meio (ao voltar para a aba) trocaria a escolha que ainda
  * está sendo salva pela anterior.
  */
-export function consultaProva(atividadeAplicadaId: string) {
+export function provaQueryOptions(atividadeAplicadaId: string) {
   return queryOptions({
-    queryKey: [...CHAVE_DA_PROVA, atividadeAplicadaId],
-    queryFn: ({ signal }) => buscarComSessao(`${caminhoDaAtividade(atividadeAplicadaId)}/prova`, provaResponseSchema, signal),
+    queryKey: [...PROVA_QUERY_KEY, atividadeAplicadaId],
+    queryFn: ({ signal }) => authedGet(`${caminhoDaAtividade(atividadeAplicadaId)}/prova`, provaResponseSchema, signal),
     staleTime: Number.POSITIVE_INFINITY,
   })
 }
@@ -52,10 +52,10 @@ export function consultaProva(atividadeAplicadaId: string) {
  * professora aprovar a correção**. Antes disso a rota responde `NAO_ENCONTRADO`, e a tela diz que a correção ainda vai
  * ser revista (regra 70, item 3). Quem está esperando relê ao voltar para a tela.
  */
-export function consultaMeuDiagnostico(atividadeAplicadaId: string) {
+export function meuDiagnosticoQueryOptions(atividadeAplicadaId: string) {
   return queryOptions({
-    queryKey: [...CHAVE_DO_MEU_DIAGNOSTICO, atividadeAplicadaId],
-    queryFn: ({ signal }) => buscarComSessao(`${caminhoDaAtividade(atividadeAplicadaId)}/meu-diagnostico`, meuDiagnosticoResponseSchema, signal),
+    queryKey: [...MEU_DIAGNOSTICO_QUERY_KEY, atividadeAplicadaId],
+    queryFn: ({ signal }) => authedGet(`${caminhoDaAtividade(atividadeAplicadaId)}/meu-diagnostico`, meuDiagnosticoResponseSchema, signal),
     staleTime: 0,
   })
 }
@@ -66,10 +66,10 @@ export function consultaMeuDiagnostico(atividadeAplicadaId: string) {
  * `sequencia` menor que a gravada perde: a resposta traz o que ficou gravado, e a fila não reenvia (RF21).
  */
 export function responderQuestao(atividadeAplicadaId: string, questao: number, alternativa: number, sequencia: number): Promise<QuestaoSalvaResponse> {
-  return chamarComSessao(`${caminhoDaAtividade(atividadeAplicadaId)}/respostas/${String(questao)}`, questaoSalvaResponseSchema, { metodo: 'PUT', corpo: { alternativa, sequencia } })
+  return authedRequest(`${caminhoDaAtividade(atividadeAplicadaId)}/respostas/${String(questao)}`, questaoSalvaResponseSchema, { metodo: 'PUT', corpo: { alternativa, sequencia } })
 }
 
 /** `POST /v1/atividades-aplicadas/:id/enviar`: corpo vazio e estrito. Enviar de novo devolve o mesmo. */
 export function enviarAtividade(atividadeAplicadaId: string): Promise<AtividadeEnviadaResponse> {
-  return chamarComSessao(`${caminhoDaAtividade(atividadeAplicadaId)}/enviar`, atividadeEnviadaResponseSchema, { metodo: 'POST', corpo: {} })
+  return authedRequest(`${caminhoDaAtividade(atividadeAplicadaId)}/enviar`, atividadeEnviadaResponseSchema, { metodo: 'POST', corpo: {} })
 }

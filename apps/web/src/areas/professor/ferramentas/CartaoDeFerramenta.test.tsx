@@ -5,8 +5,8 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { Router } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
-import { prepararTela, redeFalsa, renderizarTela, type RedeFalsa, type RespostaFalsa } from '../../../__fixtures__/render-screen'
-import { ROTAS_DO_PROFESSOR } from '../../../paths'
+import { setupScreen, fakeNetwork, renderScreen, type FakeNetwork, type FakeResponse } from '../../../__fixtures__/render-screen'
+import { PROFESSOR_ROUTES } from '../../../paths'
 import { CartaoDeFerramenta } from './CartaoDeFerramenta'
 import { TEXTO_DA_SUSPENSAO } from '../comum/avisos'
 import type { IniciaisDaFerramenta } from './ferramentas'
@@ -19,16 +19,16 @@ import { CICLO_DA_FERRAMENTA } from '../assistente/memoria-do-professor'
  * a memória da aba, o roteador e a tela são os de verdade. O cartão dentro da conversa, a pergunta que o abre e o foco são
  * de `Conversa.test.tsx`; o fluxo inteiro, de `e2e/professor-conversa.spec.ts`.
  */
-prepararTela()
+setupScreen()
 
 const id = (n: number) => `0197a1c0-0000-7000-8000-${String(n).padStart(12, '0')}`
 const QUIMICA = { id: id(500), nome: 'Química' }
 const TURMA_A = { id: id(101), nome: '1º A' }
 const VALOR_DA_TURMA_A = `${TURMA_A.id}:${QUIMICA.id}`
-const VINCULO: RespostaFalsa = { status: 200, corpo: { itens: [{ id: id(401), turma: TURMA_A, disciplina: QUIMICA, estado: 'confirmado' }] } }
-const SEM_VINCULO: RespostaFalsa = { status: 200, corpo: { itens: [] } }
-const erro = (status: number, codigo: string): RespostaFalsa => ({ status, corpo: { erro: { codigo, mensagem: 'x', requisicaoId: '0190f5a0-0000-7000-8000-000000000001' } } })
-const timeSem = (...suspensas: ChaveDeFuncao[]): RespostaFalsa => ({ status: 200, corpo: montarTime(new Set(suspensas)) })
+const VINCULO: FakeResponse = { status: 200, corpo: { itens: [{ id: id(401), turma: TURMA_A, disciplina: QUIMICA, estado: 'confirmado' }] } }
+const SEM_VINCULO: FakeResponse = { status: 200, corpo: { itens: [] } }
+const erro = (status: number, codigo: string): FakeResponse => ({ status, corpo: { erro: { codigo, mensagem: 'x', requisicaoId: '0190f5a0-0000-7000-8000-000000000001' } } })
+const timeSem = (...suspensas: ChaveDeFuncao[]): FakeResponse => ({ status: 200, corpo: montarTime(new Set(suspensas)) })
 
 /** Uma atividade objetiva já gerada: o que a Adaptação precisa ter para abrir o formulário. */
 const ATIVIDADE = {
@@ -44,25 +44,25 @@ const ATIVIDADE = {
 }
 
 interface Quem {
-  readonly vinculos?: RespostaFalsa | (() => RespostaFalsa | Promise<RespostaFalsa>)
-  readonly time?: RespostaFalsa
-  readonly artefatos?: RespostaFalsa
+  readonly vinculos?: FakeResponse | (() => FakeResponse | Promise<FakeResponse>)
+  readonly time?: FakeResponse
+  readonly artefatos?: FakeResponse
 }
 
-function instalar(rede: RedeFalsa, quem: Quem = {}): void {
+function instalar(rede: FakeNetwork, quem: Quem = {}): void {
   rede.responderPor('/v1/meus-vinculos', quem.vinculos ?? VINCULO)
   rede.responderPor('/v1/time', quem.time ?? timeSem())
   rede.responderPor('/v1/artefatos', quem.artefatos ?? { status: 200, corpo: { itens: [ATIVIDADE] } })
   // O pedido de geração: a execução fica no ar, sem terminar.
   rede.responderPor('/v1/ferramentas/atividade_objetiva/gerar', { status: 202, corpo: { execucaoId: id(950) } })
-  rede.responderPor(/^\/v1\/execucoes\//, () => new Promise<RespostaFalsa>(() => undefined))
+  rede.responderPor(/^\/v1\/execucoes\//, () => new Promise<FakeResponse>(() => undefined))
 }
 
 const INICIAIS: IniciaisDaFerramenta = { turma: VALOR_DA_TURMA_A, tema: 'Estequiometria' }
 
 function montar(ferramenta: 'atividade_objetiva' | 'plano_de_aula' | 'adaptacao', props: { comIcone?: boolean; iniciais?: IniciaisDaFerramenta } = {}) {
-  const localizacao = memoryLocation({ path: ROTAS_DO_PROFESSOR.conversa, record: true })
-  renderizarTela(
+  const localizacao = memoryLocation({ path: PROFESSOR_ROUTES.conversa, record: true })
+  renderScreen(
     <Router hook={localizacao.hook}>
       <CartaoDeFerramenta ferramenta={ferramenta} nivel={2} {...(props.iniciais === undefined ? {} : { iniciais: props.iniciais })} {...(props.comIcone === undefined ? {} : { comIcone: props.comIcone })} />
     </Router>,
@@ -83,9 +83,9 @@ const iconesDe = (dentro: ParentNode) => Array.from(dentro.querySelectorAll('[da
 
 describe('os estados do cartão', () => {
   it('carregando: as turmas ainda não vieram, e o cartão diz que está carregando, sem formulário', async () => {
-    const rede = redeFalsa()
-    let liberar: (resposta: RespostaFalsa) => void = () => undefined
-    instalar(rede, { vinculos: () => new Promise<RespostaFalsa>((resolver) => (liberar = resolver)) })
+    const rede = fakeNetwork()
+    let liberar: (resposta: FakeResponse) => void = () => undefined
+    instalar(rede, { vinculos: () => new Promise<FakeResponse>((resolver) => (liberar = resolver)) })
     montar('atividade_objetiva', { comIcone: true, iniciais: INICIAIS })
     expect(await screen.findByText('Carregando a ferramenta…')).toBeTruthy()
     expect(document.querySelector('[data-cartao-de-ferramenta]')).toBeNull()
@@ -96,7 +96,7 @@ describe('os estados do cartão', () => {
   })
 
   it('erro: a mensagem do catálogo, sem o código, e "Tentar de novo" lê de novo e traz o formulário', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     let leituras = 0
     instalar(rede, { vinculos: () => (++leituras === 1 ? erro(404, 'NAO_ENCONTRADO') : VINCULO) })
     montar('atividade_objetiva', { comIcone: true, iniciais: INICIAIS })
@@ -110,18 +110,18 @@ describe('os estados do cartão', () => {
   })
 
   it('vazio: sem turma confirmada diz o que falta, sem formulário nem ícone, e "Ir para Turmas" leva a Turmas', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { vinculos: SEM_VINCULO })
     const localizacao = montar('atividade_objetiva', { comIcone: true })
     expect(await screen.findByText('Falta uma turma confirmada')).toBeTruthy()
     expect(document.querySelector('[data-cartao-de-ferramenta]')).toBeNull()
     expect(iconesDe(document.body)).toHaveLength(0)
     await userEvent.setup().click(screen.getByRole('button', { name: 'Ir para Turmas' }))
-    expect(localizacao.history.at(-1)).toBe(ROTAS_DO_PROFESSOR.turmas)
+    expect(localizacao.history.at(-1)).toBe(PROFESSOR_ROUTES.turmas)
   })
 
   it('vazio: a Adaptação sem atividade gerada diz o que fazer, e o botão leva à Atividade objetiva', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { artefatos: { status: 200, corpo: { itens: [] } } })
     const localizacao = montar('adaptacao', { comIcone: true })
     expect(await screen.findByText('Ainda não há atividade para adaptar')).toBeTruthy()
@@ -131,7 +131,7 @@ describe('os estados do cartão', () => {
   })
 
   it('função suspensa pela escola: o aviso que explica, sem formulário e sem ícone', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { time: timeSem('conversa_e_ferramentas') })
     montar('atividade_objetiva', { comIcone: true, iniciais: INICIAIS })
     await waitFor(() => expect(document.querySelector('[data-funcao-suspensa="conversa_e_ferramentas"]')).not.toBeNull())
@@ -147,7 +147,7 @@ describe('o ícone e o nome no cabeçalho do cartão da conversa', () => {
     ['plano_de_aula', 'Plano de aula'],
     ['adaptacao', 'Adaptação'],
   ] as const)('%s: o título é o nome da ferramenta, com o ícone ilustrado dela de 32 px dentro dele, só para os olhos', async (ferramenta, nome) => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede)
     montar(ferramenta, { comIcone: true, ...(ferramenta === 'adaptacao' ? {} : { iniciais: INICIAIS }) })
     const titulo = await screen.findByRole('heading', { level: 2, name: nome })
@@ -167,7 +167,7 @@ describe('o ícone e o nome no cabeçalho do cartão da conversa', () => {
   })
 
   it('o formulário de Ferramentas, que não pede o ícone, fica sem ele: o nome já é o título da página', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede)
     montar('atividade_objetiva', { iniciais: INICIAIS })
     const titulo = await screen.findByRole('heading', { level: 2, name: 'Atividade objetiva' })
@@ -176,7 +176,7 @@ describe('o ícone e o nome no cabeçalho do cartão da conversa', () => {
   })
 
   it('gerando: o pedido recolhido continua com o ícone e o nome, e o resumo do que foi pedido', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede)
     montar('atividade_objetiva', { comIcone: true, iniciais: INICIAIS })
     const usuario = userEvent.setup()
@@ -196,7 +196,7 @@ describe('o ícone e o nome no cabeçalho do cartão da conversa', () => {
 
 describe('a Adaptação não tem onde receber texto (D35, D67)', () => {
   it('o cartão da Adaptação abre só com a atividade e os tipos de adaptação, sem campo de texto nem tema', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede)
     montar('adaptacao', { comIcone: true })
     expect(await screen.findByRole('heading', { level: 2, name: 'Adaptação' })).toBeTruthy()

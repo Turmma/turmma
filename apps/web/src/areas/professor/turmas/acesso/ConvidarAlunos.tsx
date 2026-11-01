@@ -1,17 +1,17 @@
 import { VALIDADES_DO_ACESSO_DIAS, type AcessoGeradoResponse, type ValidadeDoAcessoDias } from '@educa/shared'
 import { useQuery } from '@tanstack/react-query'
 import { useId, useRef, useState, type ReactNode, type RefObject } from 'react'
-import { consultaAcessoDaTurma, mutacaoDoGerarAcesso, revogarAcesso } from '../api/acesso'
+import { acessoDaTurmaQueryOptions, mutacaoDoGerarAcesso, revogarAcesso } from '../api/acesso'
 import { caminhoDaSala } from '../../../../paths'
 import { Button } from '../../../../components/ui/Button'
 import { DANGER_BUTTON_CLASSES, SECONDARY_BUTTON_CLASSES } from '../../../../components/ui/button-variants'
-import { AvisoDaCopia, CampoDoLink, Falha, Pergunta, useCopia, useFechamento, useFocoDaEtapa } from '../../../../components/copy-once'
+import { CopyStatus, LinkField, FailureAlert, CloseConfirmation, useCopyToClipboard, useGuardedClose, useStepFocus } from '../../../../components/copy-once'
 import { Dialog } from '../../../../components/ui/overlays/Dialog'
-import { CorpoDaConfirmacaoDePerigo, useEnvioUnico } from '../../../../components/dialogs'
-import { EstadoCarregando, EstadoErro } from '../../../../components/states/index'
+import { DangerConfirmBody, useSingleSubmit } from '../../../../components/dialogs'
+import { LoadingState, ErrorState } from '../../../../components/states/index'
 import { linkDoConvite } from '../../../../components/link-do-convite'
 import { TurmaIndisponivel } from '../../../../components/TurmaIndisponivel'
-import { formatarDataHora } from '../../../../format'
+import { formatDateTime } from '../../../../format'
 import {
   DITOS_DO_CONVITE_SEM_WHATSAPP,
   falhaDoGerarAcesso,
@@ -74,15 +74,15 @@ interface PropsDoConvite {
  * - **Com acesso vigente**, só até quando vale, "Gerar novo acesso" e "Revogar o acesso", cada um com a pergunta de hoje. O link
  *   e o código **não voltam**: a leitura não os devolve, e o produto só os mostra no passo que os gerou.
  * - O título do diálogo é o do passo ("Gerar acesso", "Gerar novo acesso", "Revogar o acesso"), como era no diálogo de cada um.
- * - **Fechar com o link em risco pergunta antes**, pelo botão e pelo Esc (`useFechamento`); nos passos da caixa de sempre, também pelo
+ * - **Fechar com o link em risco pergunta antes**, pelo botão e pelo Esc (`useGuardedClose`); nos passos da caixa de sempre, também pelo
  *   toque fora. No "Acesso gerado", que é a janela inteira, não há "fora". Fechar solta a
  *   mutação: o token sai do diálogo e do cache (`gcTime: 0`).
- * - **O envio é único** (`useEnvioUnico`): dois pedidos de gerar ao mesmo tempo dariam um acesso e um `CONFLITO`.
+ * - **O envio é único** (`useSingleSubmit`): dois pedidos de gerar ao mesmo tempo dariam um acesso e um `CONFLITO`.
  * - **A leitura decide só o passo de abertura.** Depois de o passo "Gerar" começar, ele fica: a releitura que o gerar dispara
  *   traz o acesso novo, e não pode trocar o passo debaixo do link que acabou de aparecer.
  */
 export function ConvidarAlunos({ turmaId, escola, aoTerminar, aoFechar, aoRevogar, focoDeReserva }: PropsDoConvite) {
-  const acesso = useQuery(consultaAcessoDaTurma(turmaId))
+  const acesso = useQuery(acessoDaTurmaQueryOptions(turmaId))
   const [passo, definirPasso] = useState<Passo | undefined>(() => passoDoAcesso(acesso.data))
   // A leitura que chega depois de o diálogo abrir (a rede lenta, o "Tentar de novo") escolhe o passo uma vez.
   if (passo === undefined && acesso.data !== undefined) definirPasso(passoDoAcesso(acesso.data))
@@ -90,9 +90,9 @@ export function ConvidarAlunos({ turmaId, escola, aoTerminar, aoFechar, aoRevoga
   if (passo?.tipo === 'vigente' && acesso.data?.expiraEm === null) definirPasso({ tipo: 'gerar', substitui: false })
 
   const [validadeDias, definirValidadeDias] = useState<ValidadeDoAcessoDias>(VALIDADE_PADRAO_DO_ACESSO_DIAS)
-  const { enviar, mutacao: gerar } = useEnvioUnico(mutacaoDoGerarAcesso(turmaId, aoTerminar))
-  const copia = useCopia()
-  const fechamento = useFechamento(gerar.isPending || (gerar.isSuccess && !copia.copiado), gerar.reset, aoFechar)
+  const { enviar, mutacao: gerar } = useSingleSubmit(mutacaoDoGerarAcesso(turmaId, aoTerminar))
+  const copia = useCopyToClipboard()
+  const fechamento = useGuardedClose(gerar.isPending || (gerar.isSuccess && !copia.copiado), gerar.reset, aoFechar)
 
   const semAlvo = useRef<HTMLElement>(null)
   const vigente = useRef<HTMLParagraphElement>(null)
@@ -125,7 +125,7 @@ export function ConvidarAlunos({ turmaId, escola, aoTerminar, aoFechar, aoRevoga
     pergunta: tituloDaPergunta,
   }
   // Na abertura, no meio do caminho e na volta de uma falha: o foco é do passo, e da falha quando há uma (ela o toma sozinha).
-  useFocoDaEtapa(etapa, alvos[etapa], gerar.isError, true)
+  useStepFocus(etapa, alvos[etapa], gerar.isError, true)
 
   const substitui = passo?.tipo === 'gerar' && passo.substitui
   const rotuloDaAcao = substitui ? 'Gerar novo acesso' : 'Gerar acesso'
@@ -138,7 +138,7 @@ export function ConvidarAlunos({ turmaId, escola, aoTerminar, aoFechar, aoRevoga
     if (etapa === 'carregando')
       return (
         <div className="mt-4 flex min-w-0 flex-col gap-4">
-          <EstadoCarregando rotulo="Carregando o acesso da turma…" />
+          <LoadingState rotulo="Carregando o acesso da turma…" />
           <BotaoDeFechar aoFechar={fechamento.pedirParaFechar} />
         </div>
       )
@@ -149,7 +149,7 @@ export function ConvidarAlunos({ turmaId, escola, aoTerminar, aoFechar, aoRevoga
           {turmaIndisponivel(acesso.error) ? (
             <TurmaIndisponivel texto={TEXTO_DA_TURMA_INDISPONIVEL} />
           ) : (
-            <EstadoErro erro={acesso.error} tentando={acesso.isFetching} aoTentarDeNovo={() => void acesso.refetch({ cancelRefetch: false })} />
+            <ErrorState erro={acesso.error} tentando={acesso.isFetching} aoTentarDeNovo={() => void acesso.refetch({ cancelRefetch: false })} />
           )}
           <BotaoDeFechar aoFechar={fechamento.pedirParaFechar} />
         </div>
@@ -157,7 +157,7 @@ export function ConvidarAlunos({ turmaId, escola, aoTerminar, aoFechar, aoRevoga
 
     if (etapa === 'pergunta')
       return (
-        <Pergunta
+        <CloseConfirmation
           titulo={tituloDaPergunta}
           texto={textoDaPerguntaDeFechar(gerar.isPending)}
           rotuloDeVoltar="Voltar ao acesso"
@@ -168,7 +168,7 @@ export function ConvidarAlunos({ turmaId, escola, aoTerminar, aoFechar, aoRevoga
 
     if (etapa === 'revogar')
       return (
-        <CorpoDaConfirmacaoDePerigo
+        <DangerConfirmBody
           inicio={revogar}
           texto={TEXTO_DO_REVOGAR}
           rotuloDaAcao="Revogar acesso"
@@ -188,7 +188,7 @@ export function ConvidarAlunos({ turmaId, escola, aoTerminar, aoFechar, aoRevoga
       return (
         <div className="mt-4 flex min-w-0 flex-col gap-4">
           <p ref={vigente} tabIndex={-1} className="break-words font-medium text-tinta">
-            Vale até {formatarDataHora(acesso.data.expiraEm)}.
+            Vale até {formatDateTime(acesso.data.expiraEm)}.
           </p>
           <p className="break-words text-apoio">{TEXTO_DO_ACESSO_QUE_JA_APARECEU}</p>
           <div className="flex flex-wrap gap-3">
@@ -230,7 +230,7 @@ export function ConvidarAlunos({ turmaId, escola, aoTerminar, aoFechar, aoRevoga
           ))}
         </fieldset>
         <p className="text-apoio">{TEXTO_DO_ACESSO_UMA_VEZ}</p>
-        {falha !== undefined && <Falha texto={falha.texto} erro={gerar.error} />}
+        {falha !== undefined && <FailureAlert texto={falha.texto} erro={gerar.error} />}
         <div className="flex flex-wrap gap-3">
           {!semNovaTentativa && (
             <Button onClick={() => enviar({ validadeDias })} disabled={gerar.isPending}>
@@ -289,7 +289,7 @@ function AcessoGerado({
   acesso: AcessoGeradoResponse
   escola: EscolaDaSessao
   titulo: RefObject<HTMLHeadingElement | null>
-  copia: ReturnType<typeof useCopia>
+  copia: ReturnType<typeof useCopyToClipboard>
   aoFechar: () => void
 }) {
   const campo = useRef<HTMLInputElement>(null)
@@ -311,7 +311,7 @@ function AcessoGerado({
       <h3 ref={titulo} tabIndex={-1} className="font-semibold">
         Acesso gerado
       </h3>
-      <p className="break-words text-apoio">Vale até {formatarDataHora(acesso.expiraEm)}. Depois de fechar, o link e o código não aparecem de novo.</p>
+      <p className="break-words text-apoio">Vale até {formatDateTime(acesso.expiraEm)}. Depois de fechar, o link e o código não aparecem de novo.</p>
       <div role="group" aria-labelledby={idDoCodigo} className="flex min-w-0 flex-col gap-1">
         <p id={idDoCodigo} className="font-medium">
           Código da turma
@@ -325,9 +325,9 @@ function AcessoGerado({
           Para entrar com o código, os alunos abrem <span className="font-medium text-tinta wrap-anywhere">{`${window.location.host}${caminho}`}</span>.
         </p>
       </div>
-      <CampoDoLink ref={campo} rotulo="Link da sala" link={link} aoCopiarAMao={copia.copiadoAMao} />
+      <LinkField ref={campo} rotulo="Link da sala" link={link} aoCopiarAMao={copia.copiadoAMao} />
       <p className="text-sm text-apoio">{TEXTO_DE_QUEM_VE_A_LISTA}</p>
-      <AvisoDaCopia texto={copia.texto} vez={copia.vez} copiado={copia.copiado} />
+      <CopyStatus texto={copia.texto} vez={copia.vez} copiado={copia.copiado} />
       <div className="flex flex-wrap gap-3">
         <Button onClick={() => void copia.copiar(link, campo.current)}>Copiar link</Button>
         <button type="button" onClick={() => void compartilhar()} className={SECONDARY_BUTTON_CLASSES}>

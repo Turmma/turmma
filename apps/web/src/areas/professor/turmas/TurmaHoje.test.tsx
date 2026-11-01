@@ -6,11 +6,11 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Router } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
-import { criarClienteDeConsultas } from '../../../api/query-client'
-import { formatarDiaEHora } from '../../../format'
-import { CHAVE_DO_USO_DO_TUTOR } from '../../../api/chaves-do-professor'
-import { consultaSinais } from './api/tutor-da-turma'
-import { prepararTela, redeFalsa, type RedeFalsa, type RespostaFalsa } from '../../../__fixtures__/render-screen'
+import { createQueryClient } from '../../../api/query-client'
+import { formatDayAndTime } from '../../../format'
+import { USO_DO_TUTOR_QUERY_KEY } from '../../../api/chaves-do-professor'
+import { sinaisQueryOptions } from './api/tutor-da-turma'
+import { setupScreen, fakeNetwork, type FakeNetwork, type FakeResponse } from '../../../__fixtures__/render-screen'
 import TurmaHoje from './TurmaHoje'
 
 /**
@@ -18,7 +18,7 @@ import TurmaHoje from './TurmaHoje'
  * agregado, o que o Tutor faz sozinho e o acerto por habilidade. A rede é falsa e responde **por caminho**; a aba, o cliente de
  * consultas, o painel e a rota são os de verdade. O `jsdom` não implementa o `dialog` modal: o teste instala o `showModal`.
  */
-prepararTela()
+setupScreen()
 
 const id = (n: number) => `0197a1c0-0000-7000-8000-${String(n).padStart(12, '0')}`
 const TURMA = id(100)
@@ -28,12 +28,12 @@ const BRUNO = { id: id(902), nome: 'Bruno Sintético' }
 const CAIO = { id: id(903), nome: 'Caio Sintético' }
 const DELA = { id: id(904), nome: 'Dani Sintética' }
 // A hora na zona de quem roda o teste, como a tela a mostra: a conta é a da tela, e o caso vale em qualquer zona.
-const HORA_DO_AVISO = formatarDiaEHora('2026-10-05T13:40:00.000Z')
-const HORA_DO_AVISO_MAIS_NOVO = formatarDiaEHora('2026-10-05T13:50:00.000Z')
+const HORA_DO_AVISO = formatDayAndTime('2026-10-05T13:40:00.000Z')
+const HORA_DO_AVISO_MAIS_NOVO = formatDayAndTime('2026-10-05T13:50:00.000Z')
 const NOMES = [ANA, BRUNO, CAIO, DELA].map((aluno) => aluno.nome)
 
-const ok = (corpo: unknown): RespostaFalsa => ({ status: 200, corpo })
-const erro = (status: number, codigo: string): RespostaFalsa => ({ status, corpo: { erro: { codigo, mensagem: 'x', requisicaoId: '0190f5a0-0000-7000-8000-000000000001' } } })
+const ok = (corpo: unknown): FakeResponse => ({ status: 200, corpo })
+const erro = (status: number, codigo: string): FakeResponse => ({ status, corpo: { erro: { codigo, mensagem: 'x', requisicaoId: '0190f5a0-0000-7000-8000-000000000001' } } })
 // Limite excedido não é repetido sozinho: o erro chega na hora, sem esperar a nova tentativa.
 const FALHA = erro(429, 'LIMITE_EXCEDIDO')
 
@@ -77,12 +77,12 @@ const DESEMPENHO = {
 }
 
 interface Quem {
-  sinais?: RespostaFalsa | (() => RespostaFalsa | Promise<RespostaFalsa>)
-  uso?: RespostaFalsa | (() => RespostaFalsa | Promise<RespostaFalsa>)
-  desempenho?: RespostaFalsa | (() => RespostaFalsa | Promise<RespostaFalsa>)
+  sinais?: FakeResponse | (() => FakeResponse | Promise<FakeResponse>)
+  uso?: FakeResponse | (() => FakeResponse | Promise<FakeResponse>)
+  desempenho?: FakeResponse | (() => FakeResponse | Promise<FakeResponse>)
 }
 
-function instalar(rede: RedeFalsa, quem: Quem = {}): void {
+function instalar(rede: FakeNetwork, quem: Quem = {}): void {
   rede.responderPor('/v1/sinais', quem.sinais ?? sinais([]))
   rede.responderPor('/v1/tutor/uso', quem.uso ?? ok(USO))
   rede.responderPor(`/v1/turmas/${TURMA}/desempenho`, quem.desempenho ?? ok(DESEMPENHO_VAZIO))
@@ -92,11 +92,11 @@ function instalar(rede: RedeFalsa, quem: Quem = {}): void {
 }
 
 const semConsulta = (caminho: string) => caminho.split('?')[0] ?? caminho
-const caminhosDe = (rede: RedeFalsa) => rede.chamadas.map((chamada) => semConsulta(chamada.caminho))
-const vezesQue = (rede: RedeFalsa, caminho: string) => caminhosDe(rede).filter((chamado) => chamado === caminho).length
+const caminhosDe = (rede: FakeNetwork) => rede.chamadas.map((chamada) => semConsulta(chamada.caminho))
+const vezesQue = (rede: FakeNetwork, caminho: string) => caminhosDe(rede).filter((chamado) => chamado === caminho).length
 
 function montar(busca = 'aba=hoje', aoPerderATurma: () => void = () => undefined) {
-  const cliente: QueryClient = criarClienteDeConsultas()
+  const cliente: QueryClient = createQueryClient()
   const localizacao = memoryLocation({ path: `/turmas/${TURMA}`, searchPath: busca, record: true })
   const tela = render(
     <QueryClientProvider client={cliente}>
@@ -142,7 +142,7 @@ afterEach(() => {
 
 describe('Hoje: os estados', () => {
   it('carregando: cada bloco diz que está lendo, e nenhum diz que não há nada', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { sinais: () => new Promise(() => undefined), desempenho: () => new Promise(() => undefined) })
     montar()
     expect(await screen.findByText('Carregando os sinais…')).toBeTruthy()
@@ -154,7 +154,7 @@ describe('Hoje: os estados', () => {
 
   it('erro das duas leituras: um erro só, com um "Tentar de novo" que lê as duas, e nunca o vazio', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     let falhando = true
     instalar(rede, { sinais: () => (falhando ? FALHA : sinais([])), desempenho: () => (falhando ? FALHA : ok(DESEMPENHO_VAZIO)) })
     montar()
@@ -173,7 +173,7 @@ describe('Hoje: os estados', () => {
   })
 
   it('erro de uma leitura só: o bloco dela mostra o erro, e o outro segue com o dado', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { sinais: sinais([]), desempenho: FALHA })
     montar()
     await screen.findByRole('alert')
@@ -183,7 +183,7 @@ describe('Hoje: os estados', () => {
   })
 
   it('sem sinal: o vazio diz o que o Tutor avisa e quando (regra 50, item 6); sem correção aprovada: o vazio tracejado diz o que falta', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede)
     montar()
     expect(await screen.findByText('Nenhum sinal desta turma ainda')).toBeTruthy()
@@ -193,7 +193,7 @@ describe('Hoje: os estados', () => {
   })
 
   it('sinal de trabalho só antigo (sem grupo dos últimos 7 dias): a seção diz isso e aponta o painel, sem nome nenhum, e não fica em branco', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { sinais: sinais([travou(ANA, 1), pediu(BRUNO, 2)], []) })
     montar()
     const regiao = await screen.findByRole('region', { name: 'Sinais da turma' })
@@ -206,7 +206,7 @@ describe('Hoje: os estados', () => {
 
   it('com dado: o grupo é dito sem nome, assinado pela função do Tutor, e as funções e o "quando o Tutor avisa" estão na aba', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { sinais: sinais([travou(ANA, 1), pediu(BRUNO, 2)], [{ tipo: 'travou', atividadeAplicadaId: ATIVIDADE, questao: 3, alunos: 8 }]), desempenho: ok(DESEMPENHO) })
     montar()
     const regiao = await screen.findByRole('region', { name: 'Sinais da turma' })
@@ -225,7 +225,7 @@ describe('Hoje: os estados', () => {
 
 describe('Hoje: a atenção humana vai sem nome e sem conteúdo (D34, D36; LGPD, art. 14)', () => {
   it('recém-aberta, com sinal de atenção: o aviso está no alto, sem painel, com a contagem, a hora e o que fazer, e nenhum nome no DOM', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { sinais: sinais([atencao(CAIO, 1), travou(ANA, 2)]) })
     const { container } = montar()
     await waitFor(() => expect(aviso()).not.toBeNull())
@@ -243,7 +243,7 @@ describe('Hoje: a atenção humana vai sem nome e sem conteúdo (D34, D36; LGPD,
   })
 
   it('dois alunos: a contagem diz dois, e o mesmo aluno com dois avisos conta um', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { sinais: sinais([atencao(CAIO, 1), atencao(CAIO, 2, '2026-10-05T13:50:00.000Z'), atencao(DELA, 3)]) })
     montar()
     await waitFor(() => expect(aviso()?.textContent).toContain('2 alunos precisam de um adulto'))
@@ -253,7 +253,7 @@ describe('Hoje: a atenção humana vai sem nome e sem conteúdo (D34, D36; LGPD,
   })
 
   it('o aviso some quando não há sinal de atenção', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { sinais: sinais([travou(ANA, 1)]) })
     montar()
     await screen.findByRole('region', { name: 'Sinais da turma' })
@@ -264,7 +264,7 @@ describe('Hoje: a atenção humana vai sem nome e sem conteúdo (D34, D36; LGPD,
   it('o aviso que a releitura dos 15 s traz resolvido sai da tela: a professora não fica com um aviso que já passou', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
     let leituras = 0
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { sinais: () => ((leituras += 1) === 1 ? sinais([atencao(CAIO, 1)]) : sinais([])) })
     montar()
     await waitFor(() => expect(aviso()).not.toBeNull())
@@ -277,7 +277,7 @@ describe('Hoje: a atenção humana vai sem nome e sem conteúdo (D34, D36; LGPD,
   })
 
   it('o painel lista a atenção humana em ordem de nome, e não pela recência: o aviso mais novo vem primeiro da API e não vem primeiro na tela', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     // A API entrega do mais novo ao mais antigo: Dani às 13h50, Ana às 13h40.
     instalar(rede, { sinais: sinais([atencao(DELA, 1, '2026-10-05T13:50:00.000Z'), atencao(ANA, 2, '2026-10-05T13:40:00.000Z')]) })
     montar('aba=hoje&ver=tutor')
@@ -291,7 +291,7 @@ describe('Hoje: a atenção humana vai sem nome e sem conteúdo (D34, D36; LGPD,
 
   it('o nome só aparece depois de "Ver quem", no painel, que começa pela atenção humana e leva ao endereço', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { sinais: sinais([travou(ANA, 1), atencao(CAIO, 2)]) })
     const { localizacao } = montar()
     await usuario.click(await screen.findByRole('button', { name: 'Ver quem' }))
@@ -309,7 +309,7 @@ describe('Hoje: a atenção humana vai sem nome e sem conteúdo (D34, D36; LGPD,
   it('o aviso novo chega aos 15 s dentro de uma região educada, sem mover o foco, e o nome continua fora da tela', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
     let leituras = 0
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { sinais: () => ((leituras += 1) === 1 ? sinais([travou(ANA, 1)]) : sinais([travou(ANA, 1), atencao(CAIO, 2)])) })
     montar()
     await screen.findByRole('region', { name: 'Sinais da turma' })
@@ -335,7 +335,7 @@ describe('Hoje lê os sinais aos 15 s, só com a aba à vista', () => {
   it('relógio falso: aos 15 s sai nova leitura, e o sinal novo aparece no alto sem recarregar', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
     let leituras = 0
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { sinais: () => ((leituras += 1) === 1 ? sinais([]) : sinais([atencao(CAIO, 1)])) })
     montar()
     expect(await screen.findByText('Nenhum sinal desta turma ainda')).toBeTruthy()
@@ -356,7 +356,7 @@ describe('Hoje lê os sinais aos 15 s, só com a aba à vista', () => {
 
   it('com a janela escondida, nenhuma leitura aos 15 s; o controle: com ela à vista, a leitura sai', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede)
     montar()
     await screen.findByText('Nenhum sinal desta turma ainda')
@@ -383,12 +383,12 @@ describe('Hoje e a turma que sai do alcance com a aba aberta (PRD §7, "Vínculo
   }
   // A leitura dos sinais já chegou ao estado da consulta (a chamada ao `fetch` conta antes da resposta): só depois disso as
   // asserções "não avisou" valem, e não passam só porque a falha ainda estava a caminho.
-  const falhaDosSinaisChegou = (cliente: QueryClient) => waitFor(() => expect(cliente.getQueryState(consultaSinais(TURMA).queryKey)?.status).toBe('error'))
+  const falhaDosSinaisChegou = (cliente: QueryClient) => waitFor(() => expect(cliente.getQueryState(sinaisQueryOptions(TURMA).queryKey)?.status).toBe('error'))
 
   it('o 404 da releitura dos 15 s avisa a página que a turma saiu do alcance, uma vez só, também nas releituras seguintes', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
     let leituras = 0
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { sinais: () => ((leituras += 1) === 1 ? sinais([atencao(CAIO, 1)]) : erro(404, 'NAO_ENCONTRADO')) })
     const aoPerderATurma = vi.fn()
     montar('aba=hoje', aoPerderATurma)
@@ -406,7 +406,7 @@ describe('Hoje e a turma que sai do alcance com a aba aberta (PRD §7, "Vínculo
   })
 
   it('a primeira leitura dos sinais já com 404 (a página abre sem o vínculo) também avisa a página', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { sinais: erro(404, 'NAO_ENCONTRADO') })
     const aoPerderATurma = vi.fn()
     montar('aba=hoje', aoPerderATurma)
@@ -416,7 +416,7 @@ describe('Hoje e a turma que sai do alcance com a aba aberta (PRD §7, "Vínculo
   it('o controle: a releitura que cai por limite ou servidor, com o dado na tela, não avisa nada e o aviso fica', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
     let leituras = 0
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { sinais: () => ((leituras += 1) === 1 ? sinais([atencao(CAIO, 1)]) : FALHA) })
     const aoPerderATurma = vi.fn()
     const { cliente } = montar('aba=hoje', aoPerderATurma)
@@ -430,7 +430,7 @@ describe('Hoje e a turma que sai do alcance com a aba aberta (PRD §7, "Vínculo
   })
 
   it('o controle: a primeira leitura que cai por limite, sem dado, mostra o erro e não avisa a página', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { sinais: FALHA })
     const aoPerderATurma = vi.fn()
     const { cliente } = montar('aba=hoje', aoPerderATurma)
@@ -442,14 +442,14 @@ describe('Hoje e a turma que sai do alcance com a aba aberta (PRD §7, "Vínculo
 
 describe('Hoje: sem painel, sem rota nominal; com painel, só o que o painel pede', () => {
   it('sem `?ver=tutor` só a leitura dos sinais é do Tutor: nada do uso por aluno, nenhum nome na tela e nenhuma consulta de uso no cache', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { sinais: sinais([travou(ANA, 1), atencao(CAIO, 2)]), desempenho: ok(DESEMPENHO) })
     const { cliente } = montar()
     await waitFor(() => expect(aviso()).not.toBeNull())
     await screen.findByText('QUI.EM.04 · Usar a proporção da equação balanceada.')
     expect(caminhosDe(rede).filter((caminho) => caminho.startsWith('/v1/tutor'))).toEqual([])
     expect(caminhosDe(rede).filter((caminho) => caminho === '/v1/materiais')).toEqual([])
-    expect(tudoDoCache(cliente).some((consulta) => consulta.queryKey[0] === CHAVE_DO_USO_DO_TUTOR[0])).toBe(false)
+    expect(tudoDoCache(cliente).some((consulta) => consulta.queryKey[0] === USO_DO_TUTOR_QUERY_KEY[0])).toBe(false)
     expect(seNomes(textoDaPagina())).toEqual([])
     // Os nomes dos sinais ficam em memória, na resposta da leitura, e não na tela.
     expect(JSON.stringify(tudoDoCache(cliente).map((consulta) => consulta.state.data))).toContain('Caio Sintético')
@@ -457,7 +457,7 @@ describe('Hoje: sem painel, sem rota nominal; com painel, só o que o painel ped
 
   it('o painel pelo endereço lê o uso, mostra os nomes em ordem de nome e some com eles ao fechar: a consulta de uso sai do cache', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { sinais: sinais([travou(BRUNO, 1), travou(ANA, 2)]) })
     const { cliente, localizacao } = montar('aba=hoje&ver=tutor')
     const aberto = await screen.findByRole('dialog', { name: 'O que o Tutor viu' })
@@ -472,7 +472,7 @@ describe('Hoje: sem painel, sem rota nominal; com painel, só o que o painel ped
     expect(within(sinaisPorAluno).getAllByRole('row').map((linha) => linha.textContent?.slice(0, 20))).toEqual([expect.stringContaining('Aluno'), expect.stringContaining('Ana'), expect.stringContaining('Bruno')])
     expect(aberto.textContent).toContain('12 de 60')
     expect(aberto.textContent).toContain('412 de 9000')
-    expect(tudoDoCache(cliente).some((consulta) => consulta.queryKey[0] === CHAVE_DO_USO_DO_TUTOR[0])).toBe(true)
+    expect(tudoDoCache(cliente).some((consulta) => consulta.queryKey[0] === USO_DO_TUTOR_QUERY_KEY[0])).toBe(true)
     expect(vezesQue(rede, '/v1/tutor/uso')).toBe(1)
 
     await usuario.click(within(aberto).getByRole('button', { name: 'Fechar' }))
@@ -480,12 +480,12 @@ describe('Hoje: sem painel, sem rota nominal; com painel, só o que o painel ped
     // Fechar troca o endereço em vez de acrescentar um passo: o histórico fica do mesmo tamanho, sem o painel no último.
     expect(localizacao.history).toEqual([`/turmas/${TURMA}?aba=hoje`])
     expect(textoDaPagina()).not.toContain('Ana Sintética')
-    await waitFor(() => expect(tudoDoCache(cliente).some((consulta) => consulta.queryKey[0] === CHAVE_DO_USO_DO_TUTOR[0])).toBe(false))
+    await waitFor(() => expect(tudoDoCache(cliente).some((consulta) => consulta.queryKey[0] === USO_DO_TUTOR_QUERY_KEY[0])).toBe(false))
   })
 
   it('"Ver o uso do Tutor por aluno" abre o mesmo painel, também sem sinal de atenção', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede)
     const { localizacao } = montar()
     await usuario.click(await screen.findByRole('button', { name: 'Ver o uso do Tutor por aluno' }))
@@ -495,7 +495,7 @@ describe('Hoje: sem painel, sem rota nominal; com painel, só o que o painel ped
 
   it('o uso que falha mostra o erro e o "Tentar de novo" dentro do painel, e o uso sem aluno diz que ninguém usou ainda', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     let falhando = true
     instalar(rede, { uso: () => (falhando ? FALHA : ok({ ...USO, alunos: [] })) })
     montar('aba=hoje&ver=tutor')
@@ -508,7 +508,7 @@ describe('Hoje: sem painel, sem rota nominal; com painel, só o que o painel ped
 
   it('o painel aberto pelo endereço devolve o foco ao botão do painel ao fechar, e não ao corpo da página', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede)
     montar('aba=hoje&ver=tutor')
     const aberto = await screen.findByRole('dialog', { name: 'O que o Tutor viu' })
@@ -521,7 +521,7 @@ describe('Hoje: sem painel, sem rota nominal; com painel, só o que o painel ped
     vi.useFakeTimers({ shouldAdvanceTime: true })
     const usuario = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
     let leituras = 0
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { sinais: () => ((leituras += 1) === 1 ? sinais([atencao(CAIO, 1)]) : sinais([])) })
     montar()
     await usuario.click(await screen.findByRole('button', { name: 'Ver quem' }))
@@ -537,7 +537,7 @@ describe('Hoje: sem painel, sem rota nominal; com painel, só o que o painel ped
 
   it('o foco volta ao botão que abriu o painel ("Ver quem"), quando foi ele que o abriu', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { sinais: sinais([atencao(CAIO, 1)]) })
     montar()
     const quem = await screen.findByRole('button', { name: 'Ver quem' })
@@ -549,7 +549,7 @@ describe('Hoje: sem painel, sem rota nominal; com painel, só o que o painel ped
 
 describe('Hoje: nada abre a conversa de um aluno, nem mede tempo ou recência (D46, D69; regra 70, item 7)', () => {
   it('nenhuma linha, botão ou link do painel leva a conversa; sem tempo parado, "há X minutos" nem lista de quem não usou', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { sinais: sinais([travou(ANA, 1), pediu(BRUNO, 2), atencao(CAIO, 3)]) })
     montar('aba=hoje&ver=tutor')
     const aberto = await screen.findByRole('dialog', { name: 'O que o Tutor viu' })
@@ -562,7 +562,7 @@ describe('Hoje: nada abre a conversa de um aluno, nem mede tempo ou recência (D
 
   it('a aba inteira não fala em nota, conceito, média nem pontuação, com dado em todos os blocos', async () => {
     const usuario = userEvent.setup()
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { sinais: sinais([travou(ANA, 1), atencao(CAIO, 2)], [{ tipo: 'resposta_pronta', atividadeAplicadaId: ATIVIDADE, questao: 1, alunos: 2 }]), desempenho: ok(DESEMPENHO) })
     montar('aba=hoje&ver=tutor')
     const aberto = await screen.findByRole('dialog', { name: 'O que o Tutor viu' })
@@ -576,7 +576,7 @@ describe('Hoje: nada abre a conversa de um aluno, nem mede tempo ou recência (D
 
 describe('Hoje: o acerto por habilidade é só de correção aprovada, em barra neutra e sem aluno em ordem de acerto', () => {
   it('com lote aprovado: uma barra por habilidade, com o que cada número quer dizer, e nenhum aluno na aba', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { desempenho: ok(DESEMPENHO) })
     montar()
     const regiao = await screen.findByRole('region', { name: 'Acerto por habilidade' })
@@ -592,7 +592,7 @@ describe('Hoje: o acerto por habilidade é só de correção aprovada, em barra 
   })
 
   it('só de correção aprovada: com `lotesAprovados` zero não há barra, e o vazio diz o que falta', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     instalar(rede, { desempenho: ok({ ...DESEMPENHO_VAZIO, porHabilidade: [] }) })
     montar()
     const regiao = await screen.findByRole('region', { name: 'Acerto por habilidade' })

@@ -1,7 +1,7 @@
 import type { AtividadeAplicada } from '@educa/shared'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
-import { consultaAtividadesAplicadas, encerrarAtividade, recarregarAtividades } from './api/atividades'
+import { atividadesAplicadasQueryOptions, encerrarAtividade, recarregarAtividades } from './api/atividades'
 import { semCorrecao, TEXTO_SEM_CORRECAO } from './aprovar'
 
 /**
@@ -22,7 +22,7 @@ export function useCorrigirDeNovo(turmaId: string) {
     mutationFn: (id: string) => encerrarAtividade(id),
     onSuccess: async () => {
       recarregarAtividades(cliente)
-      await cliente.invalidateQueries({ queryKey: consultaAtividadesAplicadas(turmaId).queryKey })
+      await cliente.invalidateQueries({ queryKey: atividadesAplicadasQueryOptions(turmaId).queryKey })
     },
     onSettled: () => (decidindo.current = false),
   })

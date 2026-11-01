@@ -2,10 +2,10 @@ import type { EstadoDeVinculo, VinculoDaCoordenacao } from '@educa/shared'
 import { useQuery } from '@tanstack/react-query'
 import { useId, type ReactNode } from 'react'
 import { useLocation } from 'wouter'
-import { consultaVinculos } from '../../../api/estrutura'
-import { consultaProfessores } from '../professores/api/professores'
-import { caminhoDoProfessor, ROTAS_DA_COORDENACAO } from '../../../paths'
-import { EstadoCarregando, EstadoErro, EstadoVazio } from '../../../components/states/index'
+import { vinculosQueryOptions } from '../../../api/estrutura'
+import { professoresQueryOptions } from '../professores/api/professores'
+import { caminhoDoProfessor, COORDENACAO_ROUTES } from '../../../paths'
+import { LoadingState, ErrorState, EmptyState } from '../../../components/states/index'
 import { ListItem } from '../../../components/ui/ListItem'
 import { StatusBadge } from '../../../components/ui/StatusBadge'
 import { ordenarPeloNome, ordenarVinculos } from '../comum/ordem'
@@ -31,8 +31,8 @@ function SeloDoVinculo({ estado }: { readonly estado: EstadoDeVinculo }) {
  * Os professores da turma aberta (X2, 9.0; RF16): um item por vínculo, com o nome, a disciplina e o estado do vínculo, e o
  * link para o painel do professor. O professor com duas disciplinas na turma aparece duas vezes, uma por disciplina.
  *
- * - **Nenhuma leitura auditada.** Os vínculos e os professores são as consultas da Estrutura (`consultaVinculos` e
- *   `consultaProfessores`), que não levam finalidade: a lista de nomes e os pedidos, que levam, são das outras seções.
+ * - **Nenhuma leitura auditada.** Os vínculos e os professores são as consultas da Estrutura (`vinculosQueryOptions` e
+ *   `professoresQueryOptions`), que não levam finalidade: a lista de nomes e os pedidos, que levam, são das outras seções.
  * - **Nome e id, nada mais do professor.** O complemento da contestação é só do painel dele (Tech Spec, seção 7), e o
  *   endereço do link leva só o id (`caminhoDoProfessor`).
  * - **Nada indica uso.** O que aparece é o vínculo que a escola criou e o que o professor respondeu a ele (D45, D64).
@@ -42,8 +42,8 @@ function SeloDoVinculo({ estado }: { readonly estado: EstadoDeVinculo }) {
 export function ProfessoresDaTurma({ turmaId }: { turmaId: string }) {
   const idDoTitulo = useId()
   const [, navegar] = useLocation()
-  const vinculos = useQuery(consultaVinculos)
-  const professores = useQuery(consultaProfessores)
+  const vinculos = useQuery(vinculosQueryOptions)
+  const professores = useQuery(professoresQueryOptions)
 
   const cabecalho = (
     <h2 id={idDoTitulo} className="text-lg font-semibold text-tinta">
@@ -64,9 +64,9 @@ export function ProfessoresDaTurma({ turmaId }: { turmaId: string }) {
     const primeira = falhas[0]
     return secao(
       primeira === undefined ? (
-        <EstadoCarregando rotulo="Carregando os professores da turma…" />
+        <LoadingState rotulo="Carregando os professores da turma…" />
       ) : (
-        <EstadoErro erro={primeira.error} aoTentarDeNovo={() => falhas.forEach((consulta) => void consulta.refetch({ cancelRefetch: false }))} />
+        <ErrorState erro={primeira.error} aoTentarDeNovo={() => falhas.forEach((consulta) => void consulta.refetch({ cancelRefetch: false }))} />
       ),
     )
   }
@@ -86,10 +86,10 @@ export function ProfessoresDaTurma({ turmaId }: { turmaId: string }) {
     <>
       {daTurma.length === 0 ? (
         vinculos.data.completa && (
-          <EstadoVazio
+          <EmptyState
             titulo="Nenhum professor nesta turma"
             descricao="O professor aparece aqui quando a escola o aloca na turma, e o estado diz se ele já confirmou."
-            acao={{ rotulo: 'Ver os professores', aoAcionar: () => navegar(ROTAS_DA_COORDENACAO.professores) }}
+            acao={{ rotulo: 'Ver os professores', aoAcionar: () => navegar(COORDENACAO_ROUTES.professores) }}
           />
         )
       ) : (

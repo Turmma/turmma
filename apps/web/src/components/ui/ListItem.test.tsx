@@ -2,7 +2,7 @@
 import { cleanup, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { classesDo } from '../../__fixtures__/class-colors'
+import { classesOf } from '../../__fixtures__/class-colors'
 import { ListItem } from './ListItem'
 
 /**
@@ -93,7 +93,7 @@ describe('Linha', () => {
     expect(screen.getByText('Camila Souza')).toBeTruthy()
     expect(screen.getByText('Professora de Química')).toBeTruthy()
     // E a linha de leitura não finge que se aperta: sem o realce do hover.
-    expect(classesDo(linhaDe('Camila Souza')).has('hover:bg-fundo-suave')).toBe(false)
+    expect(classesOf(linhaDe('Camila Souza')).has('hover:bg-fundo-suave')).toBe(false)
   })
 
   it('o chevron do fim é decoração e só existe quando há ação', () => {
@@ -108,8 +108,8 @@ describe('Linha', () => {
     expect(chevrons).toHaveLength(2)
     for (const chevron of chevrons) {
       expect(chevron.getAttribute('aria-hidden')).toBe('true')
-      expect(classesDo(chevron).has('text-apagado')).toBe(true)
-      expect(classesDo(chevron).has('size-5'), 'chevron de 20 px').toBe(true)
+      expect(classesOf(chevron).has('text-apagado')).toBe(true)
+      expect(classesOf(chevron).has('size-5'), 'chevron de 20 px').toBe(true)
       expect(chevron.closest('a, button')).not.toBeNull()
     }
     // O chevron é o último do alvo: no fim, depois do que a linha diz.
@@ -122,11 +122,11 @@ describe('Linha', () => {
     render(<ListItem para="/a" titulo={comprido} abaixo="1ºA · Química" />)
     const titulo = screen.getByText(comprido)
     expect(titulo.getAttribute('title')).toBe(comprido)
-    const classes = classesDo(titulo)
+    const classes = classesOf(titulo)
     expect(classes.has('truncate')).toBe(true)
     expect(classes.has('t-cartao')).toBe(true)
     // A segunda linha não corta: quebra, para o texto inteiro continuar à mão, e é `t-apoio` em `sutil`.
-    const abaixo = classesDo(screen.getByText('1ºA · Química'))
+    const abaixo = classesOf(screen.getByText('1ºA · Química'))
     expect(abaixo.has('truncate')).toBe(false)
     expect(abaixo.has('break-words')).toBe(true)
     expect(abaixo.has('t-apoio')).toBe(true)
@@ -135,7 +135,7 @@ describe('Linha', () => {
 
   it('o título que pede `tituloEmDuasLinhas` quebra em até duas linhas, sem reticência de uma só', () => {
     render(<ListItem para="/a" titulo="Rever a introdução" tituloEmDuasLinhas />)
-    const classes = classesDo(screen.getByText('Rever a introdução'))
+    const classes = classesOf(screen.getByText('Rever a introdução'))
     expect(classes.has('line-clamp-2')).toBe(true)
     expect(classes.has('break-words')).toBe(true)
     expect(classes.has('truncate')).toBe(false)
@@ -149,18 +149,18 @@ describe('Linha', () => {
       </>,
     )
     for (const alvo of [screen.getByRole('link'), screen.getByRole('button')]) {
-      const classes = classesDo(alvo)
+      const classes = classesOf(alvo)
       expect(classes.has('min-h-16'), 'altura mínima de 64 px').toBe(true)
       expect(classes.has('w-full')).toBe(true)
       expect(classes.has('focus-visible:-outline-offset-3'), 'o anel por dentro').toBe(true)
       expect(classes.has('hover:bg-fundo-suave')).toBe(true)
     }
-    expect(classesDo(linhaDe('Link')).has('min-h-16')).toBe(true)
+    expect(classesOf(linhaDe('Link')).has('min-h-16')).toBe(true)
   })
 
   it('a linha só de leitura também tem 64 px, para a lista não mudar de altura entre uma e outra', () => {
     render(<ListItem titulo="Só leitura" />)
-    expect(classesDo(linhaDe('Só leitura')).has('min-h-16')).toBe(true)
+    expect(classesOf(linhaDe('Só leitura')).has('min-h-16')).toBe(true)
   })
 
   it('o fim desce para baixo do texto no celular e fica à direita dele a partir de 640 px, sem duplicar o conteúdo', () => {
@@ -171,8 +171,8 @@ describe('Linha', () => {
     expect(link.textContent?.match(/Esperando você/g)).toHaveLength(1)
     const fim = link.querySelector('[data-teste="fim"]')?.parentElement as Element
     const corpo = fim.parentElement as Element
-    for (const classe of ['flex-col', 'sm:flex-row', 'sm:items-center']) expect(classesDo(corpo).has(classe), `corpo: ${classe}`).toBe(true)
-    for (const classe of ['self-start', 'sm:self-center']) expect(classesDo(fim).has(classe), `fim: ${classe}`).toBe(true)
+    for (const classe of ['flex-col', 'sm:flex-row', 'sm:items-center']) expect(classesOf(corpo).has(classe), `corpo: ${classe}`).toBe(true)
+    for (const classe of ['self-start', 'sm:self-center']) expect(classesOf(fim).has(classe), `fim: ${classe}`).toBe(true)
   })
 
   it('o `inicio` e o `fim` ficam dentro do alvo e não encolhem o título', () => {
@@ -182,11 +182,11 @@ describe('Linha', () => {
     const fim = link.querySelector('[data-teste="fim"]')?.parentElement
     expect(inicio).toBeTruthy()
     expect(fim).toBeTruthy()
-    expect(classesDo(inicio as Element).has('shrink-0')).toBe(true)
-    expect(classesDo(fim as Element).has('shrink-0')).toBe(true)
+    expect(classesOf(inicio as Element).has('shrink-0')).toBe(true)
+    expect(classesOf(fim as Element).has('shrink-0')).toBe(true)
     // O título, que é o que encolhe, está entre os dois.
     const titulo = screen.getByText('Com ícone').parentElement as Element
-    expect(classesDo(titulo).has('min-w-0')).toBe(true)
-    expect(classesDo(titulo).has('flex-1')).toBe(true)
+    expect(classesOf(titulo).has('min-w-0')).toBe(true)
+    expect(classesOf(titulo).has('flex-1')).toBe(true)
   })
 })

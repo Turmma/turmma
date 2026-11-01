@@ -5,11 +5,11 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Router } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
-import { criarClienteDeConsultas } from '../../../api/query-client'
-import { consultaEu } from '../../../api/eu'
-import { prepararTela, redeFalsa } from '../../../__fixtures__/render-screen'
-import { ContextoDaSaida } from '../../../components/sign-out-context'
-import { CHAVE_DA_LETRA, escolherLetra } from '../../../text-size'
+import { createQueryClient } from '../../../api/query-client'
+import { euQueryOptions } from '../../../api/eu'
+import { setupScreen, fakeNetwork } from '../../../__fixtures__/render-screen'
+import { SignOutContext } from '../../../components/sign-out-context'
+import { TEXT_SIZE_STORAGE_KEY, escolherLetra } from '../../../text-size'
 import { GRUPOS_DO_AVISO } from './aviso-de-privacidade'
 import BemVindo from './BemVindo'
 import { FALA_DO_TUTOR, PASSOS_DO_ALUNO } from './textos-da-introducao'
@@ -20,7 +20,7 @@ import { FALA_DO_TUTOR, PASSOS_DO_ALUNO } from './textos-da-introducao'
  * consultas, a rota e o armazenamento são os de verdade. O que os textos dizem está em `textos-da-introducao.test.ts`; a
  * entrada em dois computadores, o clique duplo no navegador e a 360 px estão em `e2e/aluno-introducao.spec.ts`.
  */
-prepararTela()
+setupScreen()
 
 const ESCOLA = { id: '0197a1c0-0000-7000-8000-0000000000e1', nome: 'Colégio Vista Alegre', slug: 'vista-alegre' }
 const REQUISICAO = '0190f5a0-0000-7000-8000-000000000001'
@@ -39,16 +39,16 @@ afterEach(() => {
 
 /** A área do aluno monta as rotas sob `/aluno`; o `Router` com a mesma base dá ao link e ao `navigate` o endereço que o navegador teria. */
 function montar(opcoes: { readonly sair?: () => void } = {}) {
-  const cliente = criarClienteDeConsultas()
+  const cliente = createQueryClient()
   const localizacao = memoryLocation({ path: '/aluno/bem-vindo', record: true })
   const sair = opcoes.sair ?? vi.fn()
   render(
     <QueryClientProvider client={cliente}>
-      <ContextoDaSaida value={{ sair, saindo: false }}>
+      <SignOutContext value={{ sair, saindo: false }}>
         <Router base="/aluno" hook={localizacao.hook}>
           <BemVindo />
         </Router>
-      </ContextoDaSaida>
+      </SignOutContext>
     </QueryClientProvider>,
   )
   return { cliente, localizacao, sair }
@@ -85,7 +85,7 @@ async function percorrer(usuario: Usuario, aoChegar: (n: number) => void | Promi
 
 describe('BemVindo: carregando', () => {
   it('mostra a fala do passo 1 e o "Sair", sem "Fechar", sem "Pular" e sem "Continuar" enquanto o modo não se sabe', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     const leitura = rede.segurar()
     montar()
 
@@ -103,7 +103,7 @@ describe('BemVindo: carregando', () => {
 
 describe('BemVindo: erro', () => {
   it('diz o erro com "Tentar de novo", "Voltar para a abertura" e o "Sair"; tentar de novo leva aos passos', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responder(FALHA)
     rede.responder(euComData(null))
     const usuario = userEvent.setup()
@@ -122,7 +122,7 @@ describe('BemVindo: erro', () => {
   })
 
   it('"Sair" no erro sai da conta e não grava nada', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responder(FALHA)
     const usuario = userEvent.setup()
     const { sair } = montar()
@@ -136,7 +136,7 @@ describe('BemVindo: erro', () => {
 
 describe('BemVindo: com dado', () => {
   it('uma releitura do `/v1/eu` que falha não tira os passos da tela: o erro é de quem ainda não tem dado', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responder(euComData(null))
     rede.responder(FALHA)
     const { cliente } = montar()
@@ -144,11 +144,11 @@ describe('BemVindo: com dado', () => {
 
     // O TanStack avisa a tela uma tarefa depois de a leitura terminar: sem esperar essa tarefa, o caso passaria mesmo se o erro tirasse os passos.
     await act(async () => {
-      await cliente.refetchQueries({ queryKey: consultaEu.queryKey })
+      await cliente.refetchQueries({ queryKey: euQueryOptions.queryKey })
       await new Promise((resolver) => setTimeout(resolver, 0))
     })
 
-    expect(cliente.getQueryState(consultaEu.queryKey)?.status).toBe('error')
+    expect(cliente.getQueryState(euQueryOptions.queryKey)?.status).toBe('error')
     expect(screen.queryByRole('alert')).toBeNull()
     expect(botao('Continuar')).toBeTruthy()
     expect(fala().textContent).toBe(FALA_DO_TUTOR)
@@ -157,7 +157,7 @@ describe('BemVindo: com dado', () => {
 
 describe('BemVindo: primeira vez', () => {
   it('data nula é a primeira vez: o passo 1 diz que o Tutor é um programa e pode errar, sem "Fechar" nem "Pular"', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responder(euComData(null))
     montar()
 
@@ -169,7 +169,7 @@ describe('BemVindo: primeira vez', () => {
   })
 
   it('os passos 1 a 3 não têm "Pular" nem X, o Esc não sai, e o 4 tem "Pular" do mesmo tamanho que "Continuar"', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responder(euComData(null))
     const usuario = userEvent.setup()
     const { localizacao } = montar()
@@ -187,7 +187,7 @@ describe('BemVindo: primeira vez', () => {
   })
 
   it('o passo 3 mostra o aviso: os quatro grupos, com todas as frases, e a supervisão é a da faixa', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responder(euComData(null))
     const usuario = userEvent.setup()
     montar()
@@ -201,7 +201,7 @@ describe('BemVindo: primeira vez', () => {
   })
 
   it('o aviso mostra "Role para ler mais" enquanto há o que ler abaixo, e o tira ao chegar ao fim da região', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responder(euComData(null))
     const usuario = userEvent.setup()
     montar()
@@ -225,7 +225,7 @@ describe('BemVindo: primeira vez', () => {
   })
 
   it('seguir ou pular no passo 4 sem escolher a letra deixa o armazenamento vazio; escolher "Maior" guarda na hora', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responder(euComData(null))
     rede.responderPor('/v1/eu/introducao', { status: 200, corpo: { introducaoVistaEm: PRIMEIRA_DATA } })
     const usuario = userEvent.setup()
@@ -235,15 +235,15 @@ describe('BemVindo: primeira vez', () => {
     expect(Object.entries(window.localStorage)).toEqual([])
 
     await usuario.click(screen.getByRole('radio', { name: 'Maior' }))
-    expect(window.localStorage.getItem(CHAVE_DA_LETRA)).toBe('maior')
+    expect(window.localStorage.getItem(TEXT_SIZE_STORAGE_KEY)).toBe('maior')
 
     await usuario.click(botao('Pular'))
-    expect(window.localStorage.getItem(CHAVE_DA_LETRA)).toBe('maior')
+    expect(window.localStorage.getItem(TEXT_SIZE_STORAGE_KEY)).toBe('maior')
     expect(localizacao.history.at(-1)).toBe('/aluno/inicio')
   })
 
   it.each(['Continuar', 'Pular'])('"%s" no passo 4, sem escolher a letra, faz as mesmas coisas: um POST, a data no cache e a ida à abertura', async (saida) => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responder(euComData(null))
     rede.responderPor('/v1/eu/introducao', { status: 200, corpo: { introducaoVistaEm: PRIMEIRA_DATA } })
     const usuario = userEvent.setup()
@@ -253,14 +253,14 @@ describe('BemVindo: primeira vez', () => {
 
     await usuario.click(botao(saida))
 
-    await waitFor(() => expect(cliente.getQueryData(consultaEu.queryKey)?.introducaoVistaEm).toBe(PRIMEIRA_DATA))
+    await waitFor(() => expect(cliente.getQueryData(euQueryOptions.queryKey)?.introducaoVistaEm).toBe(PRIMEIRA_DATA))
     expect(localizacao.history.at(-1)).toBe('/aluno/inicio')
     expect(rede.chamadas.filter((chamada) => chamada.metodo === 'POST').map((chamada) => chamada.caminho)).toEqual(['/v1/eu/introducao'])
     expect(Object.entries(window.localStorage)).toEqual([])
   })
 
   it('dois cliques seguidos em "Continuar" no último passo fazem um POST só', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responder(euComData(null))
     // A gravação fica no ar até o fim do caso: com a resposta já no cache, o segundo clique cairia em "revendo" e o caso passaria sem a trava.
     let liberar: () => void = () => undefined
@@ -278,12 +278,12 @@ describe('BemVindo: primeira vez', () => {
     expect(rede.chamadas.filter((chamada) => chamada.metodo === 'POST')).toHaveLength(1)
 
     liberar()
-    await waitFor(() => expect(cliente.getQueryData(consultaEu.queryKey)?.introducaoVistaEm).toBe(PRIMEIRA_DATA))
+    await waitFor(() => expect(cliente.getQueryData(euQueryOptions.queryKey)?.introducaoVistaEm).toBe(PRIMEIRA_DATA))
     expect(rede.chamadas.filter((chamada) => chamada.metodo === 'POST')).toHaveLength(1)
   })
 
   it('se a gravação falha, a pessoa segue para a abertura do mesmo jeito e a data continua nula no cache', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responder(euComData(null))
     rede.responderPor('/v1/eu/introducao', FALHA)
     const usuario = userEvent.setup()
@@ -295,11 +295,11 @@ describe('BemVindo: primeira vez', () => {
 
     await waitFor(() => expect(rede.chamadas.some((chamada) => chamada.metodo === 'POST')).toBe(true))
     expect(localizacao.history.at(-1)).toBe('/aluno/inicio')
-    expect(cliente.getQueryData(consultaEu.queryKey)?.introducaoVistaEm).toBeNull()
+    expect(cliente.getQueryData(euQueryOptions.queryKey)?.introducaoVistaEm).toBeNull()
   })
 
   it('"Sair" no meio sai da conta e não grava: nenhum POST', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responder(euComData(null))
     const usuario = userEvent.setup()
     const { sair } = montar()
@@ -314,7 +314,7 @@ describe('BemVindo: primeira vez', () => {
 
 describe('BemVindo: revendo', () => {
   it('com a data já gravada, "Fechar" está em todo passo e "Pular" em nenhum', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responder(euComData(DATA_ANTIGA))
     const usuario = userEvent.setup()
     montar()
@@ -327,7 +327,7 @@ describe('BemVindo: revendo', () => {
   })
 
   it.each([1, 2, 3, 4])('com a data já gravada, "Fechar" no passo %i volta a Eu sem gravar nada', async (passo) => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responder(euComData(DATA_ANTIGA))
     const usuario = userEvent.setup()
     const { localizacao } = montar()
@@ -341,7 +341,7 @@ describe('BemVindo: revendo', () => {
   })
 
   it.each([1, 2, 3])('com a data já gravada, o Esc no passo %i, que na primeira vez é obrigatório, leva a Eu sem gravar nada', async (passo) => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responder(euComData(DATA_ANTIGA))
     const usuario = userEvent.setup()
     const { localizacao } = montar()
@@ -356,7 +356,7 @@ describe('BemVindo: revendo', () => {
   })
 
   it('na primeira vez o Esc não leva a lugar nenhum: os passos 1 a 3 são avisos obrigatórios', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responder(euComData(null))
     const usuario = userEvent.setup()
     const { localizacao } = montar()
@@ -369,7 +369,7 @@ describe('BemVindo: revendo', () => {
   })
 
   it('o último "Continuar" de quem revê também só fecha: a data não muda e nada é gravado', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responder(euComData(DATA_ANTIGA))
     const usuario = userEvent.setup()
     const { cliente, localizacao } = montar()
@@ -379,14 +379,14 @@ describe('BemVindo: revendo', () => {
     await usuario.click(botao('Continuar'))
 
     expect(localizacao.history.at(-1)).toBe('/aluno/eu')
-    expect(cliente.getQueryData(consultaEu.queryKey)?.introducaoVistaEm).toBe(DATA_ANTIGA)
+    expect(cliente.getQueryData(euQueryOptions.queryKey)?.introducaoVistaEm).toBe(DATA_ANTIGA)
     expect(rede.chamadas.filter((chamada) => chamada.metodo === 'POST')).toEqual([])
   })
 })
 
 describe('BemVindo: o que a tela nunca mostra', () => {
   it('nenhum passo tem pontos, sequência, contador de uso nem a palavra "nota" (RF10, D59)', async () => {
-    const rede = redeFalsa()
+    const rede = fakeNetwork()
     rede.responder(euComData(null))
     const usuario = userEvent.setup()
     montar()

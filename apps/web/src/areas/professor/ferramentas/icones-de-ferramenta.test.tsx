@@ -3,8 +3,8 @@ import { join } from 'node:path'
 import { FERRAMENTAS } from '@educa/shared'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
-import { corDoToken, TEMAS } from '../../../__fixtures__/class-colors'
-import { semComentarios } from '../../../__fixtures__/importers'
+import { tokenColor, TEMAS } from '../../../__fixtures__/class-colors'
+import { stripComments } from '../../../__fixtures__/importers'
 import { COLOR_FAMILIES } from '../../../components/ui/CountBadge'
 import { DESENHO_DA_FERRAMENTA, IconeDeFerramenta } from './icones-de-ferramenta'
 
@@ -38,7 +38,7 @@ describe('os ícones das ferramentas', () => {
         expect(classe, `${ferramenta}: a forma não tem uma classe só`).toMatch(/^fill-[a-z-]+$/)
         const token = classe.replace(/^fill-/, '')
         expect(permitidos.has(token as never), `${ferramenta}: ${classe} não é família nem neutro do ícone`).toBe(true)
-        for (const tema of TEMAS) expect(corDoToken(tema, token), `${ferramenta}: ${token} no tema ${tema}`).toMatch(/^#[0-9a-f]{6}$/)
+        for (const tema of TEMAS) expect(tokenColor(tema, token), `${ferramenta}: ${token} no tema ${tema}`).toMatch(/^#[0-9a-f]{6}$/)
       }
     }
   })
@@ -57,7 +57,7 @@ describe('os ícones das ferramentas', () => {
       const html = renderToStaticMarkup(<IconeDeFerramenta ferramenta={ferramenta} tamanho={48} />)
       expect(html, ferramenta).not.toMatch(/stroke|gradient|filter|<text|<title|<desc|<image|<animate|<set\b|<style|<defs|opacity/i)
     }
-    expect(semComentarios(FONTE)).not.toMatch(/stroke|gradient|<animate|<text|<title|<desc|opacity/i)
+    expect(stripComments(FONTE)).not.toMatch(/stroke|gradient|<animate|<text|<title|<desc|opacity/i)
   })
 
   it('são decoração: `aria-hidden`, fora da ordem de foco e sem nome, com o tamanho pedido; o desenho é diferente em cada ferramenta', () => {

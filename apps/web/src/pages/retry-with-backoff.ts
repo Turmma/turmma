@@ -1,5 +1,5 @@
 import { ErrorCode } from '@educa/shared'
-import { ErroDaApi } from '../api/client'
+import { ApiError } from '../api/client'
 
 /**
  * O reenvio da reivindicação quando o sistema está cheio (A1, 17.0; Tech Spec da A1, seção 9, "Página pública"; W8).
@@ -42,7 +42,7 @@ export type DesfechoDoEnvio =
   /** A tela mudou enquanto o envio estava no ar (outro link na aba, a página saiu): ninguém olha para a resposta. */
   | { readonly tipo: 'descartado' }
 
-export interface OpcoesDoReenvio {
+export interface ReenvioOptions {
   /** Espera os milissegundos dados; na página, o `setTimeout`. */
   readonly esperar: (ms: number) => Promise<void>
   /** Um número em [0, 1); na página, o `Math.random`. */
@@ -53,13 +53,13 @@ export interface OpcoesDoReenvio {
   readonly valendo: () => boolean
 }
 
-const ehSistemaCheio = (erro: unknown): erro is ErroDaApi => erro instanceof ErroDaApi && erro.codigo === ErrorCode.INDISPONIVEL_TENTE_DE_NOVO
+const ehSistemaCheio = (erro: unknown): erro is ApiError => erro instanceof ApiError && erro.codigo === ErrorCode.INDISPONIVEL_TENTE_DE_NOVO
 
 /**
  * Manda o envio e repete o 503 até `MAXIMO_DE_REENVIOS` vezes. `enviar` é sempre o mesmo pedido, com a mesma chave: quem
  * chama monta o pedido uma vez e o fecha aqui dentro.
  */
-export async function enviarComReenvio(enviar: () => Promise<unknown>, opcoes: OpcoesDoReenvio): Promise<DesfechoDoEnvio> {
+export async function enviarComReenvio(enviar: () => Promise<unknown>, opcoes: ReenvioOptions): Promise<DesfechoDoEnvio> {
   for (let reenvios = 0; ; reenvios++) {
     try {
       await enviar()
