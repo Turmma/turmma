@@ -2,7 +2,7 @@ import type { Locator, Page, Route } from '@playwright/test'
 import { MENSAGENS_DE_ERRO } from '../packages/shared/src/errors/messages.ts'
 import type { ProvaResponse } from '../packages/shared/src/index.ts'
 import { diagnosticoDa, erroDaApi, minhaAtividade, portao, provaDa, QUEM_APROVA, QUESTOES_SINTETICAS, simularAluno, type ApiDoAluno } from './support/aluno.ts'
-import { abrirNavegacao, entrarComoAluno, esperarInicioDoAluno, irPelaNavegacao, lateral, PRAZO_DA_ENTRADA_MS } from './support/casca.ts'
+import { abrirNavegacao, entrarComoAluno, esperarATelaDepoisDaRecarga, esperarInicioDoAluno, irPelaNavegacao, lateral, PRAZO_DA_ENTRADA_MS } from './support/casca.ts'
 import { expect, test } from './support/profiles.ts'
 import { colocarAlunoNaTurma, criarAlunoComMatricula, type AlunoDeTeste } from './support/seed.ts'
 import { ALVO_DE_TOQUE_PRINCIPAL_PX, codigoCru, larguraExcedente, larguraExcedenteDoDialogo, violacoesGraves } from './support/checks.ts'
@@ -42,7 +42,7 @@ async function irPara(page: Page, caminho: string): Promise<void> {
 
 async function recarregar(page: Page): Promise<void> {
   await page.reload()
-  await expect(page.getByRole('main').getByRole('heading', { level: 1 })).toBeAttached({ timeout: PRAZO_DA_ENTRADA_MS })
+  await esperarATelaDepoisDaRecarga(page)
 }
 
 /** O aluno entra, com a API das telas dele simulada e um colega de verdade na mesma turma. */

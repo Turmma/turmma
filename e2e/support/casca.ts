@@ -133,6 +133,31 @@ export const PRAZO_DA_ENTRADA_MS = 20_000
 /** Um passo do TOTP à frente: a ativação grava o passo usado, e só um passo maior entra depois (6.0 do F1). */
 const PASSO_SEGUINTE_SEGUNDOS = 30
 
+/** A recarga tenta abrir a sessão duas vezes: a segunda cobre o Postgres da esteira que não respondeu por um instante. */
+const TENTATIVAS_DA_RECARGA = 2
+
+/**
+ * Espera a tela da área depois de `page.reload()`: o título do `main`, que só existe com a sessão aberta pelo cookie e o `/v1/eu` lido.
+ *
+ * Com a esteira carregada, o Postgres pode passar dos 4 s do cliente (`query_timeout`) dentro da renovação, e a API devolve 500: a web
+ * deixa a sessão `indisponivel`, **de propósito** (ninguém vai ao login por queda), e mostra "Tentar de novo" fora do `main`. A transação
+ * desfez e o cookie não girou, então a mesma ação que a pessoa faria resolve. Por isso a recusa tem uma segunda tentativa, pela tela. Uma
+ * recusa que se repete é da API, e falha aqui dizendo o que a tela mostrava, em vez de esperar o título até o fim do relógio.
+ */
+export async function esperarATelaDepoisDaRecarga(page: Page): Promise<void> {
+  const titulo = page.getByRole('main').getByRole('heading', { level: 1 })
+  const tentarDeNovo = page.getByRole('button', { name: 'Tentar de novo' }).and(page.locator(':not(main *)'))
+  for (let tentativa = 1; tentativa <= TENTATIVAS_DA_RECARGA; tentativa += 1) {
+    await expect(titulo.or(tentarDeNovo).first()).toBeAttached({ timeout: PRAZO_DA_ENTRADA_MS })
+    if ((await titulo.count()) > 0) return
+    if (tentativa === TENTATIVAS_DA_RECARGA) {
+      const aviso = await page.getByRole('alert').and(page.locator(':not(main *)')).first().innerText()
+      throw new Error(`A API recusou a renovação da sessão ${String(TENTATIVAS_DA_RECARGA)} vezes seguidas depois da recarga: "${aviso}"`)
+    }
+    await tentarDeNovo.click()
+  }
+}
+
 /** A ativação do segundo fator tenta duas vezes: a segunda cobre o Redis de fila que parou por um instante na esteira. */
 const TENTATIVAS_DA_ATIVACAO = 2
 
