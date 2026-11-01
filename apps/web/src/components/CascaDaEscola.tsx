@@ -11,11 +11,11 @@ import { NOME_DO_PAPEL } from '../roles'
 import { useInatividade } from '../sessao/idle-timeout'
 import { ContextoDaAncoraDoSino, type AncoraDoSino } from './sino-anchor-context'
 import { BarraDeBaixo, ondeFicamOsItens } from './BarraDeBaixo'
-import { CLASSES_DO_BOTAO_SECUNDARIO } from './ui/button-variants'
+import { SECONDARY_BUTTON_CLASSES } from './ui/button-variants'
 import { ContextoDaGaveta, type Gaveta } from './drawer-context'
 import { Dica, ItemDaLateral, ListaDeItens } from './itens-da-lateral'
 import { guardarRecolhida, lerRecolhida } from './lateral-recolhida'
-import { Marca } from './ui/Marca'
+import { Logo } from './ui/Logo'
 import { MenuDaPessoa } from './MenuDaPessoa'
 import { ContextoDaSaida, type SaidaDaCasca } from './sign-out-context'
 import { SeletorDeEscola } from './SeletorDeEscola'
@@ -79,7 +79,7 @@ function LateralAberta({ pessoa, itens, rodape, menuDaPessoa, seletor, botaoDoTo
       <div className="-m-1.5 flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-1.5">
         <div className="flex items-center justify-between gap-2">
           <Link to={ROTAS.inicio} aria-label="Turmma, página inicial" className="rounded-controle px-2 py-1.5 hover:bg-fundo-suave">
-            <Marca />
+            <Logo />
           </Link>
           {botaoDoTopo}
         </div>
@@ -340,7 +340,7 @@ export function CascaDaEscola({ children }: { children: ReactNode }) {
               </Link>
               <p className="t-cartao min-w-0 flex-1 truncate">{dados?.escola.nome}</p>
               <div ref={definirAncora} data-ancora-do-sino="" className="flex shrink-0 empty:hidden" />
-              <button type="button" onClick={aoSair} disabled={saindo} className={`${CLASSES_DO_BOTAO_SECUNDARIO} shrink-0`}>
+              <button type="button" onClick={aoSair} disabled={saindo} className={`${SECONDARY_BUTTON_CLASSES} shrink-0`}>
                 {saindo ? 'Saindo…' : 'Sair'}
               </button>
             </header>

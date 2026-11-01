@@ -7,22 +7,22 @@ import { abrirDestaque, aprovarLote, consultaCorrecaoDoLote, recarregarDepoisDoL
 import { ErroDaApi, mensagemDoErro } from '../../../api/client'
 import { consultaEntregas, decidirEntrega } from '../artefatos/api/entregas'
 import { consultaMeusVinculos } from '../comum/api/vinculos'
-import { Abas } from '../../../components/ui/Abas'
-import { Aviso } from '../../../components/ui/Aviso'
-import { BarraPresa } from '../../../components/ui/BarraPresa'
-import { BarraRotulada } from '../../../components/ui/BarraRotulada'
-import { Botao } from '../../../components/ui/Botao'
-import { CampoLongo } from '../../../components/ui/fields/CampoLongo'
-import { DialogoDeConfirmacao } from '../../../components/ui/overlays/DialogoDeConfirmacao'
+import { Tabs } from '../../../components/ui/Tabs'
+import { Alert } from '../../../components/ui/Alert'
+import { StickyFooter } from '../../../components/ui/StickyFooter'
+import { ProgressBar } from '../../../components/ui/ProgressBar'
+import { Button } from '../../../components/ui/Button'
+import { Textarea } from '../../../components/ui/fields/Textarea'
+import { ConfirmDialog } from '../../../components/ui/overlays/ConfirmDialog'
 import { EstadoCarregando, EstadoErro, EstadoVazio } from '../../../components/states/index'
-import { AssinaturaIA } from '../../../components/ui/ai/AssinaturaIA'
-import { LinhaAprovacao } from '../../../components/ui/ai/LinhaAprovacao'
-import { Linha } from '../../../components/ui/Linha'
-import { NumeroPainel } from '../../../components/ui/NumeroPainel'
-import { PainelLado } from '../../../components/ui/overlays/PainelLado'
-import { Estado } from '../../../components/ui/SeloDeEstado'
-import { Tabela } from '../../../components/ui/Tabela'
-import { CabecalhoDeSecao, Tela } from '../../../components/ui/Tela'
+import { AgentSignature } from '../../../components/ui/ai/AgentSignature'
+import { ApprovalLine } from '../../../components/ui/ai/ApprovalLine'
+import { ListItem } from '../../../components/ui/ListItem'
+import { StatCard } from '../../../components/ui/StatCard'
+import { Sheet } from '../../../components/ui/overlays/Sheet'
+import { StatusBadge } from '../../../components/ui/StatusBadge'
+import { Table } from '../../../components/ui/Table'
+import { SectionHeader, Page } from '../../../components/ui/Page'
 import { problemaDoTexto } from '../../../components/ui/fields/text-limits'
 import { useTituloDaTela } from '../../../document-title'
 import {
@@ -83,7 +83,7 @@ function DestaqueAberto({ aberto }: { aberto: DestaqueAbertoResponse }) {
         <p className="text-sm break-words text-apoio">{explicacoesDoDestaque(aberto.destaque)}</p>
         <p className="text-sm break-words text-sutil">{acertosDoAluno(aberto.destaque)}</p>
       </div>
-      <Tabela
+      <Table
         rotulo={`Respostas de ${aberto.destaque.nome}`}
         colunas={[
           { chave: 'questao', titulo: 'Questão', celula: (resposta) => String(resposta.questao) },
@@ -237,7 +237,7 @@ export default function Aprovar({ atividadeAplicadaId }: { atividadeAplicadaId: 
   if (dados === undefined) {
     const naoEncontrada = correcao.error instanceof ErroDaApi && correcao.error.codigo === ErrorCode.NAO_ENCONTRADO
     return (
-      <Tela titulo="Revisar a correção" largura="leitura" antes={voltar}>
+      <Page titulo="Revisar a correção" largura="leitura" antes={voltar}>
         {correcao.isPending ? (
           <EstadoCarregando rotulo="Carregando a correção…" />
         ) : naoEncontrada ? (
@@ -245,7 +245,7 @@ export default function Aprovar({ atividadeAplicadaId }: { atividadeAplicadaId: 
         ) : (
           <EstadoErro erro={correcao.error} tentando={correcao.isFetching} aoTentarDeNovo={() => void correcao.refetch({ cancelRefetch: false })} />
         )}
-      </Tela>
+      </Page>
     )
   }
 
@@ -282,10 +282,10 @@ export default function Aprovar({ atividadeAplicadaId }: { atividadeAplicadaId: 
     const acionavel = estado.aberto || pendente
     return (
       <li key={destaque.alunoId} id={idDoDestaque(destaque.alunoId)} data-destaque={estado.aberto ? 'aberto' : 'fechado'} className="flex min-w-0 flex-col">
-        <Linha
+        <ListItem
           titulo={destaque.nome}
           abaixo={`${motivosDoDestaque(destaque)} · ${acertosDoAluno(destaque)}`}
-          fim={abrindo ? <Estado familia="pendente">Abrindo…</Estado> : estado.aberto ? <Estado familia="ok">{estado.texto}</Estado> : <Estado familia="pendente">{estado.texto}</Estado>}
+          fim={abrindo ? <StatusBadge familia="pendente">Abrindo…</StatusBadge> : estado.aberto ? <StatusBadge familia="ok">{estado.texto}</StatusBadge> : <StatusBadge familia="pendente">{estado.texto}</StatusBadge>}
           {...(acionavel ? { aoAcionar: () => abrirOuMostrar(destaque.alunoId) } : {})}
         />
         {abrir.isError && abrir.variables === destaque.alunoId && doPainel?.alunoId !== destaque.alunoId && (
@@ -300,20 +300,20 @@ export default function Aprovar({ atividadeAplicadaId }: { atividadeAplicadaId: 
   const outrasEmOrdem = outrasEmOrdemDeNome(outras)
 
   return (
-    <Tela titulo="Revisar a correção" largura="leitura" objeto descricao={turma === undefined ? dados.titulo : `${dados.titulo} · ${turma}`} antes={voltar}>
+    <Page titulo="Revisar a correção" largura="leitura" objeto descricao={turma === undefined ? dados.titulo : `${dados.titulo} · ${turma}`} antes={voltar}>
       <div className="flex min-w-0 flex-col gap-2">
         {/* A correção é saída de IA: leva a assinatura da função e o selo, como toda saída de IA do produto. */}
-        <AssinaturaIA funcao="correcao_de_objetiva" />
+        <AgentSignature funcao="correcao_de_objetiva" />
         <p className="min-w-0 text-sm break-words text-sutil">Corrigi pelo gabarito e somei os acertos por habilidade. É diagnóstico: o resultado só chega aos alunos depois que você aprovar.</p>
       </div>
 
       <div ref={situacao} tabIndex={-1} data-situacao-do-lote={dados.entrega.estado} className="flex min-w-0 flex-col items-start gap-2 rounded-cartao">
         {dados.validacao !== null ? (
-          <LinhaAprovacao aprovacao={{ estado: 'aprovada', por: dados.validacao.confirmadaPor?.nome ?? AUTOR_QUE_SAIU, quando: dados.validacao.confirmadaEm }} verbo="Validação registrada por" />
+          <ApprovalLine aprovacao={{ estado: 'aprovada', por: dados.validacao.confirmadaPor?.nome ?? AUTOR_QUE_SAIU, quando: dados.validacao.confirmadaEm }} verbo="Validação registrada por" />
         ) : dados.entrega.estado === 'pendente' ? (
-          <LinhaAprovacao aprovacao={{ estado: 'pendente' }} />
+          <ApprovalLine aprovacao={{ estado: 'pendente' }} />
         ) : entregaInteira !== undefined ? (
-          <LinhaAprovacao aprovacao={aprovacaoDaEntrega(entregaInteira)} verbo={VERBO_DA_ENTREGA} />
+          <ApprovalLine aprovacao={aprovacaoDaEntrega(entregaInteira)} verbo={VERBO_DA_ENTREGA} />
         ) : (
           // A decisão só é afirmada com quem decidiu (regra 70, item 6): sem a leitura da entrega, a tela diz onde ver.
           <p className="text-sm text-sutil">{dados.entrega.estado === 'rejeitada' ? 'Esta correção foi rejeitada. Quem rejeitou e por quê está em “O que o Assistente fez”, pelo sino.' : 'Esta correção já foi decidida. A decisão está em “O que o Assistente fez”, pelo sino.'}</p>
@@ -327,14 +327,14 @@ export default function Aprovar({ atividadeAplicadaId }: { atividadeAplicadaId: 
 
       <div role="group" aria-label="Números da correção" className="grid grid-cols-[minmax(0,1fr)] gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)]">
         {numerosDoLote(dados).map((numero) => (
-          <NumeroPainel key={numero.rotulo} rotulo={numero.rotulo} valor={numero.valor} apoio={numero.apoio} />
+          <StatCard key={numero.rotulo} rotulo={numero.rotulo} valor={numero.valor} apoio={numero.apoio} />
         ))}
       </div>
 
-      <Abas rotulo={ROTULO_DAS_ABAS_DA_CORRECAO} abas={ABAS_DA_CORRECAO} ativa={aba} aoMudar={trocarAba}>
+      <Tabs rotulo={ROTULO_DAS_ABAS_DA_CORRECAO} abas={ABAS_DA_CORRECAO} ativa={aba} aoMudar={trocarAba}>
         {aba === 'destaques' && (
           <section aria-labelledby={idDosDestaques} className="flex min-w-0 flex-col gap-3">
-            <CabecalhoDeSecao
+            <SectionHeader
               id={idDosDestaques}
               titulo={tituloDosDestaques(destaques.length)}
               apoio={destaques.length === 0 ? 'Nenhuma correção deste lote ficou fora do esperado. Confira o resumo e aprove.' : 'São as correções fora da curva. Abrir cada uma fica registrado, com a hora.'}
@@ -345,9 +345,9 @@ export default function Aprovar({ atividadeAplicadaId }: { atividadeAplicadaId: 
 
         {aba === 'outras' && (
           <section aria-labelledby={idDasOutras} className="flex min-w-0 flex-col gap-3">
-            <CabecalhoDeSecao id={idDasOutras} titulo={tituloDasOutras(outras.length)} apoio={outras.length === 0 ? 'Todas as correções deste lote estão nos destaques.' : APOIO_DAS_OUTRAS} />
+            <SectionHeader id={idDasOutras} titulo={tituloDasOutras(outras.length)} apoio={outras.length === 0 ? 'Todas as correções deste lote estão nos destaques.' : APOIO_DAS_OUTRAS} />
             {outras.length > 0 && (
-              <Tabela
+              <Table
                 rotulo="As outras correções"
                 colunas={[
                   { chave: 'nome', titulo: 'Aluno', celula: (aluno) => aluno.nome },
@@ -363,27 +363,27 @@ export default function Aprovar({ atividadeAplicadaId }: { atividadeAplicadaId: 
         {aba === 'resumo' && (
           <div className="flex min-w-0 flex-col gap-6">
             <section className="flex min-w-0 flex-col gap-3" aria-label="Distribuição dos acertos">
-              <CabecalhoDeSecao titulo="Distribuição dos acertos" apoio="Quantos alunos ficaram em cada faixa de acertos." />
+              <SectionHeader titulo="Distribuição dos acertos" apoio="Quantos alunos ficaram em cada faixa de acertos." />
               <div className="flex min-w-0 flex-col gap-3 rounded-cartao border-2 border-borda bg-superficie p-4">
                 {resumo.distribuicao.map((faixa) => (
-                  <BarraRotulada key={`${String(faixa.de)}-${String(faixa.ate)}`} rotulo={rotuloDaFaixa(faixa)} valor={faixa.alunos} maximo={Math.max(resumo.corrigidos, 1)} texto={textoDeAlunos(faixa.alunos)} />
+                  <ProgressBar key={`${String(faixa.de)}-${String(faixa.ate)}`} rotulo={rotuloDaFaixa(faixa)} valor={faixa.alunos} maximo={Math.max(resumo.corrigidos, 1)} texto={textoDeAlunos(faixa.alunos)} />
                 ))}
               </div>
             </section>
 
             <section className="flex min-w-0 flex-col gap-3" aria-label="Acerto por habilidade">
-              <CabecalhoDeSecao titulo="Acerto por habilidade" apoio="As respostas certas da turma em cada habilidade, somadas." />
+              <SectionHeader titulo="Acerto por habilidade" apoio="As respostas certas da turma em cada habilidade, somadas." />
               <div className="flex min-w-0 flex-col gap-3 rounded-cartao border-2 border-borda bg-superficie p-4">
                 {resumo.porHabilidade.map((item) => (
-                  <BarraRotulada key={item.habilidade.codigo} rotulo={`${item.habilidade.codigo} · ${item.habilidade.descricao}`} valor={item.acertos} maximo={item.total} texto={`${String(item.acertos)} de ${String(item.total)}`} />
+                  <ProgressBar key={item.habilidade.codigo} rotulo={`${item.habilidade.codigo} · ${item.habilidade.descricao}`} valor={item.acertos} maximo={item.total} texto={`${String(item.acertos)} de ${String(item.total)}`} />
                 ))}
               </div>
             </section>
 
             <section className="flex min-w-0 flex-col gap-3" aria-label="Por questão">
-              <CabecalhoDeSecao titulo="Por questão" />
-              <Aviso tom="atencao">{AVISO_DO_GABARITO}</Aviso>
-              <Tabela
+              <SectionHeader titulo="Por questão" />
+              <Alert tom="atencao">{AVISO_DO_GABARITO}</Alert>
+              <Table
                 rotulo="Acertos por questão"
                 colunas={[
                   { chave: 'numero', titulo: 'Questão', celula: (questao) => String(questao.numero) },
@@ -399,10 +399,10 @@ export default function Aprovar({ atividadeAplicadaId }: { atividadeAplicadaId: 
             </section>
           </div>
         )}
-      </Abas>
+      </Tabs>
 
       {pendente && (
-        <BarraPresa
+        <StickyFooter
           rotulo="Aprovação do lote"
           informacao={
             <span id={idDoContador} data-contador-dos-destaques="">
@@ -410,18 +410,18 @@ export default function Aprovar({ atividadeAplicadaId }: { atividadeAplicadaId: 
             </span>
           }
         >
-          <Botao variante="perigo" onClick={() => abrirDecisao('rejeitar')}>
+          <Button variante="perigo" onClick={() => abrirDecisao('rejeitar')}>
             {ROTULO_DE_REJEITAR_O_LOTE}
-          </Botao>
+          </Button>
           {/* O contador diz por que o botão está desligado: o leitor de tela o lê junto do botão. */}
-          <Botao variante="oficial" disabled={!dados.podeAprovar} aria-describedby={idDoContador} onClick={() => abrirDecisao('aprovar')}>
+          <Button variante="oficial" disabled={!dados.podeAprovar} aria-describedby={idDoContador} onClick={() => abrirDecisao('aprovar')}>
             {rotuloDeAprovar(resumo.corrigidos)}
-          </Botao>
-        </BarraPresa>
+          </Button>
+        </StickyFooter>
       )}
 
       {doPainel !== undefined && (
-        <PainelLado key={doPainel.alunoId} titulo={`Correção de ${doPainel.nome}`} aoFechar={fecharPainel} focoDeReserva={() => situacao.current?.focus()}>
+        <Sheet key={doPainel.alunoId} titulo={`Correção de ${doPainel.nome}`} aoFechar={fecharPainel} focoDeReserva={() => situacao.current?.focus()}>
           {doAberto !== undefined ? (
             <DestaqueAberto aberto={doAberto} />
           ) : abrir.isError && abrir.variables === doPainel.alunoId ? (
@@ -429,18 +429,18 @@ export default function Aprovar({ atividadeAplicadaId }: { atividadeAplicadaId: 
               <p role="alert" className="rounded-controle bg-erro-cx p-3 break-words text-erro">
                 {mensagemDoErro(abrir.error)}
               </p>
-              <Botao variante="secundario" onClick={() => abrirOuMostrar(doPainel.alunoId)}>
+              <Button variante="secundario" onClick={() => abrirOuMostrar(doPainel.alunoId)}>
                 Tentar de novo
-              </Botao>
+              </Button>
             </div>
           ) : (
             <EstadoCarregando rotulo="Abrindo a correção…" />
           )}
-        </PainelLado>
+        </Sheet>
       )}
 
       {decisao === 'aprovar' && (
-        <DialogoDeConfirmacao
+        <ConfirmDialog
           titulo={rotuloDeAprovar(resumo.corrigidos)}
           familia="oficial"
           resumo={resumoDoLote(dados, turma)}
@@ -455,7 +455,7 @@ export default function Aprovar({ atividadeAplicadaId }: { atividadeAplicadaId: 
         />
       )}
       {decisao === 'rejeitar' && (
-        <DialogoDeConfirmacao
+        <ConfirmDialog
           titulo={ROTULO_DE_REJEITAR_O_LOTE}
           familia="perigo"
           resumo={resumoDoLote(dados, turma)}
@@ -468,7 +468,7 @@ export default function Aprovar({ atividadeAplicadaId }: { atividadeAplicadaId: 
           focoDeReserva={() => situacao.current?.focus()}
           {...(falha === undefined ? {} : { falha })}
         >
-          <CampoLongo
+          <Textarea
             rotulo="Por que você está rejeitando?"
             dica={AVISO_DA_REJEICAO_DO_LOTE}
             valor={justificativa}
@@ -478,8 +478,8 @@ export default function Aprovar({ atividadeAplicadaId }: { atividadeAplicadaId: 
             erro={tentouRejeitar ? problemaDaJustificativa : undefined}
             {...LIMITES_DA_JUSTIFICATIVA}
           />
-        </DialogoDeConfirmacao>
+        </ConfirmDialog>
       )}
-    </Tela>
+    </Page>
   )
 }

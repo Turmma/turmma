@@ -3,10 +3,10 @@ import type { Agente } from '@educa/shared'
 import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { semIdsDoDesenho } from '../../../__fixtures__/svg-ids'
-import { AssinaturaIA, SeloIA } from './AssinaturaIA'
-import { AvatarAgente } from './AvatarAgente'
+import { AgentSignature, AIBadge } from './AgentSignature'
+import { AgentAvatar } from './AgentAvatar'
 import { nomeDaAssinatura } from './signature'
-import { Conversa, MensagemIA, Pensando } from './Message'
+import { Conversation, AIMessage, ThinkingIndicator } from './Message'
 
 /**
  * O avatar da onça só aparece com o nome da função e o selo "IA" (RF10 da X1; `docs/interface.md` 9.7; regra 70, item
@@ -65,7 +65,7 @@ describe('AvatarAgente', () => {
   it('é a cabeça da onça num círculo `fundo`, com o anel de 2 px na cor do agente, escondido da leitura e sem nome', () => {
     const aneis: Record<Agente, string> = { assistente_de_ensino: 'border-azul', tutor: 'border-laranja', analista_de_desempenho_escolar: 'border-anil' }
     for (const agente of AGENTES) {
-      const { container, unmount } = render(<AvatarAgente agente={agente} tamanho={32} />)
+      const { container, unmount } = render(<AgentAvatar agente={agente} tamanho={32} />)
       const avatar = container.querySelector('[data-agente]') as HTMLElement
       expect(avatar.getAttribute('data-agente')).toBe(agente)
       expect(avatar.getAttribute('aria-hidden')).toBe('true')
@@ -87,11 +87,11 @@ describe('AvatarAgente', () => {
   it('o círculo é quadrado de 24, 32, 40 ou 48 px, e o padrão é o da linha da mensagem', () => {
     const caixas = new Map([[24, 'size-6'], [32, 'size-8'], [40, 'size-10'], [48, 'size-12']] as const)
     for (const [tamanho, classe] of caixas) {
-      const { container, unmount } = render(<AvatarAgente agente="tutor" tamanho={tamanho} />)
+      const { container, unmount } = render(<AgentAvatar agente="tutor" tamanho={tamanho} />)
       expect((container.firstElementChild as HTMLElement).className.split(' '), String(tamanho)).toContain(classe)
       unmount()
     }
-    const { container } = render(<AvatarAgente agente="tutor" />)
+    const { container } = render(<AgentAvatar agente="tutor" />)
     expect((container.firstElementChild as HTMLElement).className.split(' ')).toContain('size-6')
   })
 
@@ -99,7 +99,7 @@ describe('AvatarAgente', () => {
     // A conta: o miolo já descontou o anel de 2 px, e o topo é o recuo do mockup (3 px em 24, 4 px a partir de 32) menos 2, mais 6% do
     // tamanho. Os quatro números abaixo saem dela; quem protege o componente é a classe lida do `span`.
     for (const [tamanho, topo] of [[24, 2.44], [32, 3.92], [40, 4.4], [48, 4.88]] as const) {
-      const { container } = render(<AvatarAgente agente="tutor" tamanho={tamanho} />)
+      const { container } = render(<AgentAvatar agente="tutor" tamanho={tamanho} />)
       const cabeca = container.querySelector('[data-agente] > span')
       const classeDoTopo = [...(cabeca?.classList ?? [])].filter((classe) => classe.startsWith('top-'))
       expect(classeDoTopo, `${String(tamanho)} px: uma classe de topo só`).toHaveLength(1)
@@ -111,17 +111,17 @@ describe('AvatarAgente', () => {
   it('um desenho por agente, igual em qualquer render, sem temporizador e sem estado', () => {
     vi.useFakeTimers()
     for (const agente of AGENTES) {
-      const primeiro = render(<AvatarAgente agente={agente} tamanho={48} />)
+      const primeiro = render(<AgentAvatar agente={agente} tamanho={48} />)
       const html = primeiro.container.innerHTML
       primeiro.unmount()
-      const segundo = render(<AvatarAgente agente={agente} tamanho={48} />)
+      const segundo = render(<AgentAvatar agente={agente} tamanho={48} />)
       expect(semIdsDoDesenho(segundo.container.innerHTML), agente).toBe(semIdsDoDesenho(html))
       segundo.unmount()
     }
     expect(vi.getTimerCount()).toBe(0)
     // Os três agentes diferem só no anel: a cabeça, por dentro, é a mesma.
     const dentro = AGENTES.map((agente) => {
-      const { container, unmount } = render(<AvatarAgente agente={agente} />)
+      const { container, unmount } = render(<AgentAvatar agente={agente} />)
       const svg = container.querySelector('svg')?.outerHTML
       unmount()
       return svg === undefined ? svg : semIdsDoDesenho(svg)
@@ -131,15 +131,15 @@ describe('AvatarAgente', () => {
 
   it('só tem as props `agente` e `tamanho`: nenhuma pose, nenhum "pensando", nenhum humor', () => {
     // @ts-expect-error o avatar é um desenho só: nenhuma pose
-    render(<AvatarAgente agente="tutor" pose="acenando" />)
+    render(<AgentAvatar agente="tutor" pose="acenando" />)
     // @ts-expect-error nenhum "pensando": o texto "Preparando a resposta…" é que diz isso, e a onça fica parada
-    render(<AvatarAgente agente="tutor" pensando />)
+    render(<AgentAvatar agente="tutor" pensando />)
     // @ts-expect-error nenhum humor que mude com quem usa (D57, D58)
-    render(<AvatarAgente agente="tutor" humor="feliz" />)
+    render(<AgentAvatar agente="tutor" humor="feliz" />)
     // @ts-expect-error nenhum ponto de "online" (D59)
-    render(<AvatarAgente agente="tutor" online />)
+    render(<AgentAvatar agente="tutor" online />)
     // @ts-expect-error o tamanho é um dos quatro
-    render(<AvatarAgente agente="tutor" tamanho={36} />)
+    render(<AgentAvatar agente="tutor" tamanho={36} />)
   })
 })
 
@@ -148,11 +148,11 @@ describe('função e selo no mesmo bloco, em toda peça que desenha o avatar', (
     let conferidos = 0
     for (const tamanho of [24, 32, 40, 48] as const) {
       for (const agente of AGENTES) {
-        const { container, unmount } = render(<AssinaturaIA agente={agente} tamanho={tamanho} />)
+        const { container, unmount } = render(<AgentSignature agente={agente} tamanho={tamanho} />)
         conferidos += conferirAssinaturas(container, [[agente, NOME_DO_AGENTE[agente]]])
         unmount()
       }
-      const { container, unmount } = render(<AssinaturaIA funcao="correcao_de_objetiva" tamanho={tamanho} />)
+      const { container, unmount } = render(<AgentSignature funcao="correcao_de_objetiva" tamanho={tamanho} />)
       conferidos += conferirAssinaturas(container, [['assistente_de_ensino', 'Assistente · correção de objetiva']])
       unmount()
     }
@@ -161,15 +161,15 @@ describe('função e selo no mesmo bloco, em toda peça que desenha o avatar', (
 
   it('MensagemIA, nas duas variantes, com aprovação e com ações', () => {
     const { container } = render(
-      <Conversa rotulo="Conversa de teste">
-        <MensagemIA agente="tutor">Vamos por partes.</MensagemIA>
-        <MensagemIA variante="balao" funcao="sinais_para_o_professor">
+      <Conversation rotulo="Conversa de teste">
+        <AIMessage agente="tutor">Vamos por partes.</AIMessage>
+        <AIMessage variante="balao" funcao="sinais_para_o_professor">
           Oito alunos travaram na questão 3.
-        </MensagemIA>
-        <MensagemIA agente="assistente_de_ensino" aprovacao={{ aprovacao: { estado: 'pendente' } }} acoes={<button type="button">Copiar</button>}>
+        </AIMessage>
+        <AIMessage agente="assistente_de_ensino" aprovacao={{ aprovacao: { estado: 'pendente' } }} acoes={<button type="button">Copiar</button>}>
           Atividade pronta.
-        </MensagemIA>
-      </Conversa>,
+        </AIMessage>
+      </Conversation>,
     )
     expect(
       conferirAssinaturas(container, [
@@ -188,13 +188,13 @@ describe('função e selo no mesmo bloco, em toda peça que desenha o avatar', (
   })
 
   it('Pensando: o avatar, o nome e o selo ficam junto do "Preparando a resposta…"', () => {
-    const { container } = render(<Pensando agente="tutor" />)
+    const { container } = render(<ThinkingIndicator agente="tutor" />)
     expect(conferirAssinaturas(container, [['tutor', 'Tutor']])).toBe(1)
     expect(screen.getByText('Preparando a resposta…')).toBeTruthy()
   })
 
   it('o selo "IA" é um só: o texto da sigla está escondido da leitura, e o que ela quer dizer vai em texto', () => {
-    const { container } = render(<SeloIA />)
+    const { container } = render(<AIBadge />)
     const selo = container.querySelector('[data-selo-ia]') as HTMLElement
     // O desenho do selo de estado (24 px, canto de 8, `t-selo`), na família neutra `ia`: o selo informa, não chama.
     // `shrink-0` e `px-2`: o selo não é espremido na linha estreita do celular e tem o respiro do selo de estado.
@@ -207,7 +207,7 @@ describe('função e selo no mesmo bloco, em toda peça que desenha o avatar', (
 
 describe('o nome da função é texto, e é título só quando a tela pede', () => {
   it('sem `titulo`, é um parágrafo; com `titulo={2}`, um `h2`; com `titulo={3}`, um `h3`', () => {
-    const sem = render(<AssinaturaIA agente="tutor" />)
+    const sem = render(<AgentSignature agente="tutor" />)
     expect(sem.container.querySelectorAll('h1, h2, h3, h4, h5, h6')).toHaveLength(0)
     const nome = sem.container.querySelector('[data-assinatura] p') as HTMLElement
     expect(nome.textContent).toBe('Tutor')
@@ -220,7 +220,7 @@ describe('o nome da função é texto, e é título só quando a tela pede', () 
     expect(bloco.parentElement?.hasAttribute('data-assinatura')).toBe(true)
     sem.unmount()
 
-    const dois = render(<AssinaturaIA agente="tutor" titulo={2} />)
+    const dois = render(<AgentSignature agente="tutor" titulo={2} />)
     expect(screen.getByRole('heading', { level: 2, name: 'Tutor' })).toBeTruthy()
     // O título é o nome e só o nome: o selo e o avatar ficam ao lado dele, e não dentro.
     expect(dois.container.querySelector('h2')?.textContent).toBe('Tutor')
@@ -228,18 +228,18 @@ describe('o nome da função é texto, e é título só quando a tela pede', () 
     expect(dois.container.querySelector('h2')?.className.split(' ')).toEqual(expect.arrayContaining(['inline', 'break-words']))
     dois.unmount()
 
-    const tres = render(<AssinaturaIA agente="analista_de_desempenho_escolar" titulo={3} />)
+    const tres = render(<AgentSignature agente="analista_de_desempenho_escolar" titulo={3} />)
     expect(screen.getByRole('heading', { level: 3, name: 'Analista de desempenho escolar' })).toBeTruthy()
     expect(tres.container.querySelector('h2')).toBeNull()
   })
 
   it('nenhum nome acessível da assinatura, da mensagem ou da conversa casa "onça"', () => {
     const { container } = render(
-      <Conversa rotulo="Conversa com o Tutor">
-        <MensagemIA agente="tutor">Vamos por partes.</MensagemIA>
-        <AssinaturaIA agente="assistente_de_ensino" titulo={2} />
-        <Pensando agente="analista_de_desempenho_escolar" />
-      </Conversa>,
+      <Conversation rotulo="Conversa com o Tutor">
+        <AIMessage agente="tutor">Vamos por partes.</AIMessage>
+        <AgentSignature agente="assistente_de_ensino" titulo={2} />
+        <ThinkingIndicator agente="analista_de_desempenho_escolar" />
+      </Conversation>,
     )
     expect(container.textContent).not.toMatch(/onça/i)
     for (const no of container.querySelectorAll('[aria-label], [aria-labelledby], [title], [alt]')) {

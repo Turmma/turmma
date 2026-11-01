@@ -2417,3 +2417,11 @@ repetem aqui.
       (1) um caso que prove o filtro `.and(page.locator(':not(main *)'))` sobre o `alert` de `esperarATelaDepoisDaRecarga` (apagado, os três casos seguem
       verdes; o efeito é só o texto do erro de diagnóstico); (2) subir os 300 ms do `setTimeout` do caso do `main` para uns 1000 ms, para dar folga à detecção
       da mutação do filtro do botão (test-engineer, rodada 2)
+
+## Da correção 2026-10-31-introducao-pular-grava-a-data, fora dela
+
+- [ ] Da correção `2026-10-31-introducao-pular-grava-a-data`: levar `ATRASO_DA_GRAVACAO_MS`, o trecho de `page.route` que atrasa a gravação e o `contarGravacoes`,
+      hoje copiados nos specs de introdução do professor e da coordenação (e o `contarGravacoes` também no do aluno), para um ajudante em `e2e/support/`; fazer quando um
+      spec de introdução voltar a ser tocado (revisor-geral e test-engineer, rodada 1)
+- [ ] Da correção `2026-10-31-introducao-pular-grava-a-data`: caso de clique duplo no "Pular" com a resposta atrasada, provando uma gravação só no e2e; é cenário novo,
+      e a data já é única por `coalesce(introducao_vista_em, now())` (`eu.repository.ts:51`) (infra-guardian, rodada 1)

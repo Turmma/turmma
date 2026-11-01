@@ -1,6 +1,6 @@
 import { NOME_DO_MOTIVO_DE_DESTAQUE, type AtividadeAplicada, type Destaque, type MotivoDeDestaque, type CorrecaoDoLoteResponse, type ResumoDoLote } from '@educa/shared'
 import { caminhoDaTurmaDoProfessor, ROTAS_DO_PROFESSOR } from '../../../paths'
-import type { LinhaDoResumo } from '../../../components/ui/overlays/DialogoDeConfirmacao'
+import type { LinhaDoResumo } from '../../../components/ui/overlays/ConfirmDialog'
 import { formatarDiaEHora } from '../../../format'
 
 /**

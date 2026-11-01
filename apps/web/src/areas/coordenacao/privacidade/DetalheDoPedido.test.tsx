@@ -94,7 +94,7 @@ describe('o detalhe do pedido: a página de leitura', () => {
     expect(larguraDaTela()).toBe('leitura')
     expect(screen.getByRole('link', { name: 'Voltar para Pedidos' })).toBeTruthy()
     unmount()
-    // O erro que não é "não achado" (aqui, o limite de pedidos) passa pelo mesmo `Tela`: "Tentar de novo" e o mesmo "‹ Pedidos".
+    // O erro que não é "não achado" (aqui, o limite de pedidos) passa pelo mesmo `Page`: "Tentar de novo" e o mesmo "‹ Pedidos".
     const outraRede = redeFalsa()
     outraRede.responderPor(`/v1/privacidade/pedidos/${PEDIDO_ID}`, { status: 429, corpo: { erro: { codigo: 'LIMITE_EXCEDIDO', mensagem: 'x', requisicaoId: '0190f5a0-0000-7000-8000-000000000001' } } })
     montar()

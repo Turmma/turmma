@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { FileDown, Trash2 } from 'lucide-react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { classesDo } from '../../../__fixtures__/class-colors'
-import { Menu, type ItemDoMenu } from './Menu'
+import { Menu, type MenuItem } from './Menu'
 
 /**
  * A caixa do menu na D80 (X1, tarefa 7.0; `docs/interface.md` 10.2): canto de 16 px, a borda de 2 px e o degrau sólido em
@@ -14,7 +14,7 @@ import { Menu, type ItemDoMenu } from './Menu'
  */
 afterEach(cleanup)
 
-const ITENS: readonly ItemDoMenu[] = [
+const ITENS: readonly MenuItem[] = [
   { id: 'exportar', rotulo: 'Exportar em PDF', descricao: 'Baixa a atividade pronta', icone: FileDown },
   { id: 'aplicar', rotulo: 'Aplicar à turma', desabilitado: true },
   { id: 'excluir', rotulo: 'Excluir', perigo: true, icone: Trash2 },

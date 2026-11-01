@@ -4,11 +4,11 @@ import { useLocation } from 'wouter'
 import { ErroDaApi } from '../api/client'
 import { descartarSessaoVencida, entrarPorEmail, entrarPorMatricula, quemEstaNaSessao } from '../api/sessao'
 import { ROTA_DA_ETAPA, ROTAS } from '../paths'
-import { Botao } from './ui/Botao'
-import { CAIXA_DO_CAMPO } from './ui/fields/field-styles'
+import { Button } from './ui/Button'
+import { FIELD_BOX } from './ui/fields/field-styles'
 
-/** O campo do login, igual ao do `Campo`: 48 px, canto de 12, borda de 2 px em `borda-campo` e fundo `campo`. */
-const CLASSES_DO_CAMPO_DO_LOGIN = `min-h-12 px-3.5 py-2 t-corpo ${CAIXA_DO_CAMPO}`
+/** O campo do login, igual ao do `FormField`: 48 px, canto de 12, borda de 2 px em `borda-campo` e fundo `campo`. */
+const CLASSES_DO_CAMPO_DO_LOGIN = `min-h-12 px-3.5 py-2 t-corpo ${FIELD_BOX}`
 
 /**
  * A sessão venceu, e a tela continua atrás do diálogo. Quem volta é quase sempre a mesma pessoa, pelo mesmo caminho
@@ -17,8 +17,8 @@ const CLASSES_DO_CAMPO_DO_LOGIN = `min-h-12 px-3.5 py-2 t-corpo ${CAIXA_DO_CAMPO
  * O `dialog` nativo é o que prende o foco e deixa o resto da página inerte sem nenhum JavaScript nosso — e o Esc não
  * fecha, porque não há para onde fechar: atrás dele não há sessão nenhuma.
  *
- * A caixa é a do `Dialogo` (`docs/interface.md` 10.2, "na mesma caixa"): canto de 16 px, borda de 2 px e degrau sólido de
- * 4 px (`shadow-flutua`). O véu é outro, de propósito: `data-sessao-vencida` o pede forte em `index.css`, e o `Dialogo`
+ * A caixa é a do `Dialog` (`docs/interface.md` 10.2, "na mesma caixa"): canto de 16 px, borda de 2 px e degrau sólido de
+ * 4 px (`shadow-flutua`). O véu é outro, de propósito: `data-sessao-vencida` o pede forte em `index.css`, e o `Dialog`
  * usa o `veu`.
  */
 export function LoginPorCima() {
@@ -136,9 +136,9 @@ export function LoginPorCima() {
             {mensagem(falha)}
           </p>
         )}
-        <Botao type="submit" disabled={entrando} className="w-full">
+        <Button type="submit" disabled={entrando} className="w-full">
           {entrando ? 'Entrando…' : 'Entrar'}
-        </Botao>
+        </Button>
         <span role="status" className="sr-only">
           {entrando ? 'Entrando…' : ''}
         </span>

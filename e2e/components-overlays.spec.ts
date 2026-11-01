@@ -320,7 +320,7 @@ test.describe('peças do MVP de apresentação, na galeria', () => {
     }
     expect(await larguraExcedenteDoDialogo(page)).toBe(0)
 
-    // A caixa tem até 520 px (`Dialogo`, `docs/interface.md` 10.2) e, na janela estreita, a janela menos duas margens de
+    // A caixa tem até 520 px (`Dialog`, `docs/interface.md` 10.2) e, na janela estreita, a janela menos duas margens de
     // 16 px. O rodapé fica à direita: o último botão termina na borda do miolo, que é o enchimento de 24 px (20 abaixo de 640).
     const janela = page.viewportSize()
     if (janela === null) throw new Error('o projeto não tem janela')
@@ -399,7 +399,7 @@ test.describe('peças do MVP de apresentação, na galeria', () => {
     await expect(cancelar).not.toBeFocused()
     expect(await confirmacao.evaluate((alvo) => alvo.contains(document.activeElement))).toBe(true)
     // O perigo cheio, e o botão ao lado com a mesma altura (D59). Esta confirmação tem os botões à direita, cada um com a
-    // largura do próprio rótulo: as duas colunas iguais são da `DialogoDeConfirmacao`, provadas no caso seguinte.
+    // largura do próprio rótulo: as duas colunas iguais são da `ConfirmDialog`, provadas no caso seguinte.
     expect(await desenho(excluir)).toMatchObject({ fundo: RGB.vermelho })
     expect((await caixa(excluir)).height).toBe((await caixa(cancelar)).height)
     expect(await larguraExcedenteDoDialogo(page)).toBe(0)

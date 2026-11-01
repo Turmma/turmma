@@ -6,16 +6,16 @@ import { consultaAnosLetivos, consultaDisciplinas, consultaSeries, consultaTurma
 import { consultaConsumo, consultaFuncoesDaGovernanca, consultaPrimeiraPaginaDoResumo } from '../governanca/api/governanca'
 import { consultaProfessores } from '../professores/api/professores'
 import { caminhoDaAbaDaPrivacidade, ROTAS_DA_COORDENACAO } from '../../../paths'
-import { Aviso } from '../../../components/ui/Aviso'
-import { Botao } from '../../../components/ui/Botao'
-import { CLASSES_DO_LINK_SECUNDARIO } from '../../../components/ui/button-variants'
-import { Contador } from '../../../components/ui/Contador'
+import { Alert } from '../../../components/ui/Alert'
+import { Button } from '../../../components/ui/Button'
+import { SECONDARY_LINK_CLASSES } from '../../../components/ui/button-variants'
+import { CountBadge } from '../../../components/ui/CountBadge'
 import { EstadoCarregando, EstadoErro, EstadoVazio } from '../../../components/states/index'
-import { Linha } from '../../../components/ui/Linha'
-import { NumeroPainel } from '../../../components/ui/NumeroPainel'
-import { A_PARTIR_DE_768, useMidia } from '../../../components/ui/media-query'
-import { Estado } from '../../../components/ui/SeloDeEstado'
-import { CabecalhoDeSecao, Tela } from '../../../components/ui/Tela'
+import { ListItem } from '../../../components/ui/ListItem'
+import { StatCard } from '../../../components/ui/StatCard'
+import { MEDIA_MD, useMediaQuery } from '../../../components/ui/media-query'
+import { StatusBadge } from '../../../components/ui/StatusBadge'
+import { SectionHeader, Page } from '../../../components/ui/Page'
 import { useTituloDaTela } from '../../../document-title'
 import { SEM_LEITURA_SOZINHA, useFilaDaCoordenacao } from './fila-da-coordenacao'
 import { O_MIOLO_SEM_ABAS_QUE_ROLA } from '../comum/miolo-que-rola'
@@ -38,9 +38,9 @@ import { nomeDaFuncao, textoDoConsumo, textoDoPacoteDoTutor } from '../governanc
 export default function Painel() {
   useTituloDaTela('Painel')
   // O miolo que rola recebe foco, para rolar pelo teclado, a partir de 768 px: abaixo disso rola a página, e não há o que focar.
-  const comMiolo = useMidia(A_PARTIR_DE_768)
+  const comMiolo = useMediaQuery(MEDIA_MD)
   return (
-    <Tela titulo="Painel">
+    <Page titulo="Painel">
       <section aria-label="O Painel da escola" {...(comMiolo ? { tabIndex: 0 } : {})} className={`flex min-w-0 flex-col gap-4 ${O_MIOLO_SEM_ABAS_QUE_ROLA}`}>
         <FuncaoSuspensa />
         <ANoEscola />
@@ -49,7 +49,7 @@ export default function Painel() {
           <ParaTerminarAEscola />
         </div>
       </section>
-    </Tela>
+    </Page>
   )
 }
 
@@ -86,17 +86,17 @@ function FuncaoSuspensa() {
   if (suspensas.length === 0) return null
   const frase = suspensas.length === 1 ? 'Ela recusa pedido novo até ser retomada.' : 'Elas recusam pedido novo até ser retomada.'
   return (
-    <Aviso
+    <Alert
       tom="atencao"
       titulo={suspensas.length === 1 ? 'Uma função de IA está suspensa nesta escola' : 'Funções de IA estão suspensas nesta escola'}
       acao={
-        <Link to={ROTAS_DA_COORDENACAO.agentes} className={CLASSES_DO_LINK_SECUNDARIO}>
+        <Link to={ROTAS_DA_COORDENACAO.agentes} className={SECONDARY_LINK_CLASSES}>
           Ver como cada IA trabalha
         </Link>
       }
     >
       {suspensas.map((funcao) => nomeDaFuncao(funcao.chave)).join('; ')}. {frase}
-    </Aviso>
+    </Alert>
   )
 }
 
@@ -105,12 +105,12 @@ function ANoEscola() {
   const idDoTitulo = useId()
   return (
     <section aria-labelledby={idDoTitulo} className="flex min-w-0 flex-col gap-3">
-      <CabecalhoDeSecao
+      <SectionHeader
         id={idDoTitulo}
         titulo="A IA nesta escola"
         apoio="No ano letivo em curso, somado para a escola toda."
         acao={
-          <Link to={ROTAS_DA_COORDENACAO.governanca} className={CLASSES_DO_LINK_SECUNDARIO}>
+          <Link to={ROTAS_DA_COORDENACAO.governanca} className={SECONDARY_LINK_CLASSES}>
             Ver em Registros
           </Link>
         }
@@ -134,10 +134,10 @@ function OsQuatroNumeros() {
   const numeros = resumo.data.pages.at(-1)?.numeros ?? { geradoPorIa: 0, aprovadoPorPessoa: 0, rejeitado: 0, esperando: 0 }
   return (
     <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-      <NumeroPainel rotulo="Gerado por IA" valor={numeros.geradoPorIa} apoio="Atividades, planos, versões adaptadas e correções" />
-      <NumeroPainel rotulo="Aprovado por gente" valor={numeros.aprovadoPorPessoa} apoio="Versões adaptadas e correções que um professor aprovou" />
-      <NumeroPainel rotulo="Esperando o professor" valor={numeros.esperando} apoio="Só valem depois da decisão dele" />
-      <NumeroPainel rotulo="Rejeitado" valor={numeros.rejeitado} apoio="O professor recusou, com justificativa" />
+      <StatCard rotulo="Gerado por IA" valor={numeros.geradoPorIa} apoio="Atividades, planos, versões adaptadas e correções" />
+      <StatCard rotulo="Aprovado por gente" valor={numeros.aprovadoPorPessoa} apoio="Versões adaptadas e correções que um professor aprovou" />
+      <StatCard rotulo="Esperando o professor" valor={numeros.esperando} apoio="Só valem depois da decisão dele" />
+      <StatCard rotulo="Rejeitado" valor={numeros.rejeitado} apoio="O professor recusou, com justificativa" />
     </div>
   )
 }
@@ -169,26 +169,26 @@ function EsperandoVoce() {
   const fila = useFilaDaCoordenacao()
   return (
     <section aria-labelledby={idDoTitulo} className="flex min-w-0 flex-col gap-3">
-      <CabecalhoDeSecao id={idDoTitulo} titulo="Esperando você" />
+      <SectionHeader id={idDoTitulo} titulo="Esperando você" />
       {fila.situacao === 'carregando' && <EstadoCarregando rotulo="Carregando o que espera você…" />}
       {fila.situacao === 'erro' && <EstadoErro erro={fila.erro} tentando={fila.tentandoDeNovo} aoTentarDeNovo={fila.tentarDeNovo} />}
       {fila.situacao === 'parcial' && (
-        <Aviso
+        <Alert
           tom="atencao"
           acao={
-            <Botao variante="secundario" disabled={fila.tentandoDeNovo} onClick={fila.tentarDeNovo}>
+            <Button variante="secundario" disabled={fila.tentandoDeNovo} onClick={fila.tentarDeNovo}>
               {fila.tentandoDeNovo ? 'Tentando de novo…' : 'Tentar de novo'}
-            </Botao>
+            </Button>
           }
         >
           Parte da lista não carregou
-        </Aviso>
+        </Alert>
       )}
       {(fila.situacao === 'pronta' || fila.situacao === 'parcial') && fila.itens.length > 0 && (
         <Lista rotulo="Itens que esperam você">
           {fila.itens.map((item) => (
             <li key={item.id}>
-              <Linha
+              <ListItem
                 para={item.para}
                 titulo={item.titulo}
                 abaixo={item.detalhe}
@@ -197,8 +197,8 @@ function EsperandoVoce() {
                   : {
                       fim: (
                         <>
-                          {item.urgente && <Estado familia="erro">Urgente</Estado>}
-                          {item.contador !== undefined && <Contador n={item.contador.n} oQueConta={item.contador.oQueConta} />}
+                          {item.urgente && <StatusBadge familia="erro">Urgente</StatusBadge>}
+                          {item.contador !== undefined && <CountBadge n={item.contador.n} oQueConta={item.contador.oQueConta} />}
                         </>
                       ),
                     })}
@@ -210,7 +210,7 @@ function EsperandoVoce() {
       {fila.situacao === 'pronta' && fila.itens.length === 0 && <EstadoVazio titulo="Tudo em dia" descricao="Nada espera a coordenação agora." />}
       <ul className="overflow-hidden rounded-cartao border-2 border-borda">
         <li>
-          <Linha para={caminhoDaAbaDaPrivacidade('pedidos')} titulo="Pedidos dos titulares" abaixo="Os prazos aparecem ao abrir. Cada leitura fica na auditoria." />
+          <ListItem para={caminhoDaAbaDaPrivacidade('pedidos')} titulo="Pedidos dos titulares" abaixo="Os prazos aparecem ao abrir. Cada leitura fica na auditoria." />
         </li>
       </ul>
     </section>
@@ -235,7 +235,7 @@ function ParaTerminarAEscola() {
   const professores = useQuery(semLeituraSozinha(consultaProfessores))
   const vinculos = useQuery({ ...semLeituraSozinha(consultaVinculos), enabled: anoEmCurso !== undefined })
 
-  const cabecalho = <CabecalhoDeSecao id={idDoTitulo} titulo="Para terminar a escola" />
+  const cabecalho = <SectionHeader id={idDoTitulo} titulo="Para terminar a escola" />
 
   if (anos.data === undefined) {
     return (
@@ -281,16 +281,16 @@ function ParaTerminarAEscola() {
     <section aria-labelledby={idDoTitulo} className="flex min-w-0 flex-col gap-3">
       {cabecalho}
       {falhas.length > 0 && (
-        <Aviso
+        <Alert
           tom="atencao"
           acao={
-            <Botao variante="secundario" onClick={() => falhas.forEach((consulta) => void consulta.refetch({ cancelRefetch: false }))}>
+            <Button variante="secundario" onClick={() => falhas.forEach((consulta) => void consulta.refetch({ cancelRefetch: false }))}>
               Tentar de novo
-            </Botao>
+            </Button>
           }
         >
           Parte do que falta não carregou
-        </Aviso>
+        </Alert>
       )}
       {faltam.length > 0 && <Lista rotulo="Passos que faltam">{faltam.map((passo) => <PassoQueFalta key={passo.titulo} passo={passo} />)}</Lista>}
       {montada && (
@@ -304,7 +304,7 @@ function ParaTerminarAEscola() {
 function PassoQueFalta({ passo }: { readonly passo: PassoDoRoteiro }) {
   return (
     <li>
-      <Linha para={passo.para} titulo={passo.titulo} abaixo={passo.acao} fim={<Estado familia="pendente">Falta</Estado>} />
+      <ListItem para={passo.para} titulo={passo.titulo} abaixo={passo.acao} fim={<StatusBadge familia="pendente">Falta</StatusBadge>} />
     </li>
   )
 }

@@ -2,14 +2,14 @@ import { MAXIMO_DO_NOME_DO_TITULAR, SOLICITANTES_DO_PEDIDO, TIPOS_DE_PEDIDO_DO_T
 import { useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query'
 import { useRef, useState, type FormEvent } from 'react'
 import { buscarTitulares, consultaPreviaDoTitular, registrarPedidoDoTitular, relerPedidosDoTitular } from './api/privacidade'
-import { Botao } from '../../../components/ui/Botao'
-import { Campo } from '../../../components/ui/fields/Campo'
-import { Dialogo } from '../../../components/ui/overlays/Dialogo'
-import { useDialogoDaTela } from '../../../components/ui/overlays/dialog-state'
-import { DialogoDeConfirmacao } from '../../../components/ui/overlays/DialogoDeConfirmacao'
+import { Button } from '../../../components/ui/Button'
+import { FormField } from '../../../components/ui/fields/FormField'
+import { Dialog } from '../../../components/ui/overlays/Dialog'
+import { useDialogState } from '../../../components/ui/overlays/dialog-state'
+import { ConfirmDialog } from '../../../components/ui/overlays/ConfirmDialog'
 import { AlertaDaFalha, useEnvioUnico } from '../../../components/dialogs'
 import { sortearIdDoPedido } from '../../../components/request-id'
-import { Selecao } from '../../../components/ui/fields/Selecao'
+import { Select } from '../../../components/ui/fields/Select'
 import { mensagemDoErro } from '../../../api/client'
 import { textoDaFalha } from '../../../components/error-text'
 import { formatarData, formatarNumero } from '../../../format'
@@ -77,9 +77,9 @@ function PedidoDaPessoa({ titular, aoFechar, aoContinuar }: PropsDoPedidoDaPesso
     <form onSubmit={continuar} noValidate className="flex min-w-0 flex-col gap-4">
       <fieldset className="flex min-w-0 flex-col gap-3">
         <legend className="font-medium">O pedido</legend>
-        <Selecao rotulo="Tipo do pedido" marcador="Escolha o tipo" opcoes={OPCOES_DO_TIPO} valor={tipo} aoMudar={definirTipo} obrigatoria erro={erros.tipo} />
-        <Selecao rotulo="Quem pediu" marcador="Escolha quem pediu" opcoes={OPCOES_DE_QUEM_PEDIU} valor={solicitante} aoMudar={definirSolicitante} obrigatoria erro={erros.solicitante} />
-        <Campo
+        <Select rotulo="Tipo do pedido" marcador="Escolha o tipo" opcoes={OPCOES_DO_TIPO} valor={tipo} aoMudar={definirTipo} obrigatoria erro={erros.tipo} />
+        <Select rotulo="Quem pediu" marcador="Escolha quem pediu" opcoes={OPCOES_DE_QUEM_PEDIU} valor={solicitante} aoMudar={definirSolicitante} obrigatoria erro={erros.solicitante} />
+        <FormField
           rotulo="Dia em que o pedido chegou à escola"
           dica="O prazo para responder conta deste dia."
           name="chegouEm"
@@ -92,10 +92,10 @@ function PedidoDaPessoa({ titular, aoFechar, aoContinuar }: PropsDoPedidoDaPesso
         />
       </fieldset>
       <div className="flex flex-wrap gap-3">
-        <Botao type="submit">Continuar</Botao>
-        <Botao variante="secundario" onClick={aoFechar}>
+        <Button type="submit">Continuar</Button>
+        <Button variante="secundario" onClick={aoFechar}>
           Cancelar
-        </Botao>
+        </Button>
       </div>
     </form>
   )
@@ -139,10 +139,10 @@ function DialogoDeBusca({ aoFechar, aoContinuar }: PropsDoDialogoDeBusca) {
 
   const anuncio = mutacao.isPending ? 'Buscando…' : achados === undefined ? '' : anuncioDaBusca(achados.length)
   return (
-    <Dialogo titulo="Registrar pedido de titular" aoFechar={aoFechar} focoInicial={campoDoTermo}>
+    <Dialog titulo="Registrar pedido de titular" aoFechar={aoFechar} focoInicial={campoDoTermo}>
       <div className="mt-4 flex min-w-0 flex-col gap-4">
         <form role="search" aria-label="Buscar a pessoa" onSubmit={buscar} noValidate className="flex min-w-0 flex-col gap-3">
-          <Campo
+          <FormField
             ref={campoDoTermo}
             rotulo="Nome do aluno ou do professor"
             dica="Digite pelo menos 3 letras do nome e aperte Enter ou o botão Buscar."
@@ -155,9 +155,9 @@ function DialogoDeBusca({ aoFechar, aoContinuar }: PropsDoDialogoDeBusca) {
             erro={erroDoTermo}
           />
           <div>
-            <Botao type="submit" variante="secundario" disabled={mutacao.isPending}>
+            <Button type="submit" variante="secundario" disabled={mutacao.isPending}>
               {mutacao.isPending ? 'Buscando…' : 'Buscar'}
-            </Botao>
+            </Button>
           </div>
         </form>
         {/* A região existe antes do texto: o leitor de tela ouve a contagem quando a busca termina (RF20). */}
@@ -185,15 +185,15 @@ function DialogoDeBusca({ aoFechar, aoContinuar }: PropsDoDialogoDeBusca) {
         )}
         {titular === undefined ? (
           <div>
-            <Botao variante="secundario" onClick={aoFechar}>
+            <Button variante="secundario" onClick={aoFechar}>
               Cancelar
-            </Botao>
+            </Button>
           </div>
         ) : (
           <PedidoDaPessoa key={titular.id} titular={titular} aoFechar={aoFechar} aoContinuar={aoContinuar} />
         )}
       </div>
-    </Dialogo>
+    </Dialog>
   )
 }
 
@@ -210,9 +210,9 @@ function Previa({ consulta }: { readonly consulta: UseQueryResult<PreviaDoTitula
           {mensagemDoErro(consulta.error)}
         </p>
         <div>
-          <Botao variante="secundario" onClick={() => void consulta.refetch({ cancelRefetch: false })}>
+          <Button variante="secundario" onClick={() => void consulta.refetch({ cancelRefetch: false })}>
             Tentar de novo
-          </Botao>
+          </Button>
         </div>
       </div>
     )
@@ -269,7 +269,7 @@ function DialogoDoRegistro({ alvo, aoFechar, aoRegistrado }: PropsDoDialogoDoReg
   const eliminacao = registro.tipo === 'eliminacao'
   const aviso = [previa.data?.homonimo === true ? TEXTO_DO_HOMONIMO : undefined, eliminacao ? AVISO_DA_ELIMINACAO : undefined].filter((texto) => texto !== undefined).join(' ')
   return (
-    <DialogoDeConfirmacao
+    <ConfirmDialog
       titulo={`Registrar pedido: ${ROTULO_DO_TIPO[registro.tipo]}`}
       familia={eliminacao ? 'perigo' : 'oficial'}
       resumo={[
@@ -291,7 +291,7 @@ function DialogoDoRegistro({ alvo, aoFechar, aoRegistrado }: PropsDoDialogoDoReg
       {...(mutacao.isError ? { falha: textoDaFalha(mutacao.error, TEXTOS_DA_FALHA_DO_REGISTRO) } : {})}
     >
       <Previa consulta={previa} />
-    </DialogoDeConfirmacao>
+    </ConfirmDialog>
   )
 }
 
@@ -301,15 +301,15 @@ function DialogoDoRegistro({ alvo, aoFechar, aoRegistrado }: PropsDoDialogoDoReg
  * não vão para a seguinte.
  *
  * Cancelar, em qualquer etapa, fecha tudo e esquece: sair nunca é mais difícil que entrar (D59). O foco volta ao botão
- * pelo próprio `Dialogo`: a confirmação nasce quando a busca sai, e quem tinha o foco nessa hora é o botão.
+ * pelo próprio `Dialog`: a confirmação nasce quando a busca sai, e quem tinha o foco nessa hora é o botão.
  */
 export function RegistrarPedido({ aoRegistrado }: { readonly aoRegistrado: (texto: string) => void }) {
-  const janela = useDialogoDaTela<'busca' | 'confirmacao', AlvoDaConfirmacao>()
+  const janela = useDialogState<'busca' | 'confirmacao', AlvoDaConfirmacao>()
   const { aberta } = janela
 
   return (
     <>
-      <Botao onClick={() => janela.abrir('busca')}>Registrar pedido</Botao>
+      <Button onClick={() => janela.abrir('busca')}>Registrar pedido</Button>
       {aberta?.tipo === 'busca' && <DialogoDeBusca aoFechar={janela.fechar} aoContinuar={(alvo) => janela.abrir('confirmacao', alvo)} />}
       {/* Só a confirmação tem alvo: a abertura da busca nasce sem ele. */}
       {aberta?.alvo !== undefined && (

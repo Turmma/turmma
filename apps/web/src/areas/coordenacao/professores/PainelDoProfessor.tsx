@@ -2,11 +2,11 @@ import { NOME_DA_CONTESTACAO, type EstadoDeVinculo, type ProfessorDaEscola, type
 import { useQuery } from '@tanstack/react-query'
 import { useId, type ReactNode, type RefObject } from 'react'
 import { consultaAnosLetivos, consultaDisciplinas, consultaTurmas, consultaVinculos } from '../../../api/estrutura'
-import { Botao } from '../../../components/ui/Botao'
+import { Button } from '../../../components/ui/Button'
 import { Anuncio } from '../../../components/dialogs'
 import { EstadoCarregando, EstadoErro, EstadoVazio } from '../../../components/states/index'
-import { PainelLado } from '../../../components/ui/overlays/PainelLado'
-import { Estado } from '../../../components/ui/SeloDeEstado'
+import { Sheet } from '../../../components/ui/overlays/Sheet'
+import { StatusBadge } from '../../../components/ui/StatusBadge'
 import { acoesDoConviteDeProfessor, FAMILIA_DO_ESTADO_DO_PROFESSOR, TEXTO_DO_ESTADO_DO_PROFESSOR } from './convite-de-professor'
 import { descricaoDoQueFalta, oQueFaltaParaAlocar, tituloDoQueFalta } from './o-que-falta-para-alocar'
 import { AvisoDeListaIncompleta } from '../comum/pecas-da-lista'
@@ -25,7 +25,7 @@ const SELO_DO_VINCULO = {
 
 function SeloDoVinculo({ estado }: { readonly estado: EstadoDeVinculo }) {
   const { familia, texto } = SELO_DO_VINCULO[estado]
-  return familia === 'pendente' ? <Estado familia="pendente">{texto}</Estado> : <Estado familia={familia}>{texto}</Estado>
+  return familia === 'pendente' ? <StatusBadge familia="pendente">{texto}</StatusBadge> : <StatusBadge familia={familia}>{texto}</StatusBadge>
 }
 
 /** Uma turma do professor: a turma, a disciplina, o estado em texto e, no contestado, o motivo e o que ele escreveu. */
@@ -139,7 +139,7 @@ export function PainelDoProfessor({ professor, aoFechar, aoRefazer, aoRevogar, a
   }
 
   return (
-    <PainelLado
+    <Sheet
       titulo={professor.nome}
       aoFechar={aoFechar}
       focoDeReserva={focoDeReserva}
@@ -148,19 +148,19 @@ export function PainelDoProfessor({ professor, aoFechar, aoRefazer, aoRevogar, a
           <>
             {acoes.map((acao) =>
               acao === 'refazer' ? (
-                <Botao key={acao} variante="secundario" onClick={aoRefazer}>
+                <Button key={acao} variante="secundario" onClick={aoRefazer}>
                   Refazer convite
-                </Botao>
+                </Button>
               ) : (
-                <Botao key={acao} variante="perigo" onClick={aoRevogar}>
+                <Button key={acao} variante="perigo" onClick={aoRevogar}>
                   Revogar convite
-                </Botao>
+                </Button>
               ),
             )}
             {podeAcrescentar && (
-              <Botao variante="secundario" onClick={aoAcrescentar}>
+              <Button variante="secundario" onClick={aoAcrescentar}>
                 Acrescentar turma
-              </Botao>
+              </Button>
             )}
           </>
         )
@@ -172,7 +172,7 @@ export function PainelDoProfessor({ professor, aoFechar, aoRefazer, aoRevogar, a
             Situação do convite
           </h3>
           <div>
-            <Estado familia={FAMILIA_DO_ESTADO_DO_PROFESSOR[professor.estado]}>{TEXTO_DO_ESTADO_DO_PROFESSOR[professor.estado]}</Estado>
+            <StatusBadge familia={FAMILIA_DO_ESTADO_DO_PROFESSOR[professor.estado]}>{TEXTO_DO_ESTADO_DO_PROFESSOR[professor.estado]}</StatusBadge>
           </div>
         </section>
         <section aria-labelledby={idDasTurmas} className="flex min-w-0 flex-col gap-3">
@@ -183,6 +183,6 @@ export function PainelDoProfessor({ professor, aoFechar, aoRefazer, aoRevogar, a
         </section>
         <Anuncio texto={anuncio} />
       </div>
-    </PainelLado>
+    </Sheet>
   )
 }

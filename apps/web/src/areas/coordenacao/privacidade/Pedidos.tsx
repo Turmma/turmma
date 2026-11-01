@@ -3,14 +3,14 @@ import { useInfiniteQuery } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
 import { Link } from 'wouter'
 import { consultaPedidosDoTitular } from './api/privacidade'
-import { Botao } from '../../../components/ui/Botao'
-import { CLASSES_DO_LINK_SECUNDARIO } from '../../../components/ui/button-variants'
+import { Button } from '../../../components/ui/Button'
+import { SECONDARY_LINK_CLASSES } from '../../../components/ui/button-variants'
 import { Anuncio } from '../../../components/dialogs'
 import { EstadoCarregando, EstadoErro, EstadoVazio } from '../../../components/states'
-import { Faixa } from '../../../components/ui/Faixa'
-import { Estado } from '../../../components/ui/SeloDeEstado'
-import { Tabela, type ColunaDaTabela } from '../../../components/ui/Tabela'
-import { CabecalhoDeSecao } from '../../../components/ui/Tela'
+import { Banner } from '../../../components/ui/Banner'
+import { StatusBadge } from '../../../components/ui/StatusBadge'
+import { Table, type TableColumn } from '../../../components/ui/Table'
+import { SectionHeader } from '../../../components/ui/Page'
 import { mensagemDoErro } from '../../../api/client'
 import { caminhoDoPedidoDoTitular, ROTAS_DA_COORDENACAO } from '../../../paths'
 import { formatarData } from '../../../format'
@@ -35,11 +35,11 @@ const TEXTO_SEM_TURMA_DO_ELIMINADO = 'Não consta'
  * (`prazoDoPedido`), sem chamada a mais à API.
  *
  * - **A linha inteira abre o detalhe** (X2, 12.0): o link fica na célula da pessoa, e o `after:absolute after:inset-0` o
- *   estende pela linha, que a `Tabela` deixa `relative`. É um link só por linha, com o tipo do pedido no nome para quem
+ *   estende pela linha, que a `Table` deixa `relative`. É um link só por linha, com o tipo do pedido no nome para quem
  *   ouve (uma pessoa pode ter dois pedidos; o texto à vista continua só o nome), e o endereço leva só o id do pedido.
  * - **O prazo é um selo de estado**: o vencido é `erro`, diz "vencido há N dias" e leva o ícone da família; estado nunca é só cor.
  */
-function colunasDosPedidos(hoje: string): readonly [ColunaDaTabela<ItemDoPedido>, ...ColunaDaTabela<ItemDoPedido>[]] {
+function colunasDosPedidos(hoje: string): readonly [TableColumn<ItemDoPedido>, ...TableColumn<ItemDoPedido>[]] {
   return [
     {
       chave: 'pessoa',
@@ -66,7 +66,7 @@ function colunasDosPedidos(hoje: string): readonly [ColunaDaTabela<ItemDoPedido>
       titulo: 'Prazo',
       celula: (pedido) => {
         const prazo = textoDoPrazo(prazoDoPedido(pedido, hoje))
-        return <Estado familia={prazo.familia}>{prazo.texto}</Estado>
+        return <StatusBadge familia={prazo.familia}>{prazo.texto}</StatusBadge>
       },
     },
     {
@@ -74,7 +74,7 @@ function colunasDosPedidos(hoje: string): readonly [ColunaDaTabela<ItemDoPedido>
       titulo: 'Situação',
       celula: (pedido) => {
         const situacao = SITUACAO_DO_PEDIDO[pedido.estado]
-        return <Estado familia={situacao.familia}>{situacao.texto}</Estado>
+        return <StatusBadge familia={situacao.familia}>{situacao.texto}</StatusBadge>
       },
     },
   ]
@@ -108,16 +108,16 @@ export default function Pedidos() {
 
   return (
     <section className="flex min-w-0 flex-col gap-3" aria-labelledby="titulo-dos-pedidos">
-      <CabecalhoDeSecao
+      <SectionHeader
         id="titulo-dos-pedidos"
         titulo="Pedidos dos titulares"
         apoio="Acesso, portabilidade, compartilhamento, correção e eliminação de dados, pedidos pela própria pessoa ou pelo responsável."
         acao={<RegistrarPedido aoRegistrado={definirAnuncio} />}
       />
       <Anuncio texto={anuncio} />
-      <Faixa>{AVISO_DO_ALUNO_DA_LISTA}</Faixa>
+      <Banner>{AVISO_DO_ALUNO_DA_LISTA}</Banner>
       <div>
-        <Link to={ROTAS_DA_COORDENACAO.estrutura} className={CLASSES_DO_LINK_SECUNDARIO}>
+        <Link to={ROTAS_DA_COORDENACAO.estrutura} className={SECONDARY_LINK_CLASSES}>
           Ir para as turmas
         </Link>
       </div>
@@ -127,7 +127,7 @@ export default function Pedidos() {
           descricao="Quando uma pessoa ou o responsável pedir acesso, correção ou eliminação dos dados, registre aqui: a Turmma monta o arquivo, guarda a lista de quem recebeu dado e agenda a eliminação."
         />
       ) : (
-        <Tabela rotulo="Pedidos dos titulares" colunas={colunas} linhas={pedidos} chaveDaLinha={(pedido) => pedido.id} />
+        <Table rotulo="Pedidos dos titulares" colunas={colunas} linhas={pedidos} chaveDaLinha={(pedido) => pedido.id} />
       )}
       {consulta.isFetchNextPageError && (
         <p role="alert" className="rounded-controle border border-erro bg-erro-cx p-3 break-words text-erro">
@@ -136,9 +136,9 @@ export default function Pedidos() {
       )}
       {consulta.hasNextPage && (
         <div className="flex flex-wrap items-center gap-3">
-          <Botao variante="secundario" disabled={consulta.isFetchingNextPage} onClick={() => void consulta.fetchNextPage()}>
+          <Button variante="secundario" disabled={consulta.isFetchingNextPage} onClick={() => void consulta.fetchNextPage()}>
             {consulta.isFetchingNextPage ? 'Carregando…' : 'Ver mais pedidos'}
-          </Botao>
+          </Button>
         </div>
       )}
     </section>

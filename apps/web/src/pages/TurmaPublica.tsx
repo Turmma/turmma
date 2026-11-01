@@ -16,10 +16,10 @@ import { Link } from 'wouter'
 import { ErroDaApi } from '../api/client'
 import { abrirSala, reivindicarNome } from '../api/salas'
 import { caminhoDaEscola } from '../paths'
-import { Botao } from '../components/ui/Botao'
-import { CLASSES_DO_BOTAO_SECUNDARIO, CLASSES_DO_LINK_SECUNDARIO } from '../components/ui/button-variants'
-import { Campo } from '../components/ui/fields/Campo'
-import { CampoDeSenha } from '../components/ui/fields/CampoDeSenha'
+import { Button } from '../components/ui/Button'
+import { SECONDARY_BUTTON_CLASSES, SECONDARY_LINK_CLASSES } from '../components/ui/button-variants'
+import { FormField } from '../components/ui/fields/FormField'
+import { PasswordInput } from '../components/ui/fields/PasswordInput'
 import { CascaPublica } from '../components/CascaPublica'
 import { EstadoCarregando } from '../components/states'
 import { useTituloDaTela } from '../document-title'
@@ -208,7 +208,7 @@ export function TurmaPublica({ slug }: { slug: string }) {
             />
           )}
           <div>
-            <button type="button" onClick={usarOutroCodigo} className={CLASSES_DO_BOTAO_SECUNDARIO}>
+            <button type="button" onClick={usarOutroCodigo} className={SECONDARY_BUTTON_CLASSES}>
               Não é a sua turma? Usar outro código
             </button>
           </div>
@@ -262,7 +262,7 @@ function FormularioDoCodigo({
   return (
     <form className="flex flex-col gap-4" onSubmit={aoEnviar} noValidate>
       <p className="text-apoio">Digite o código da turma que o professor mostrou.</p>
-      <Campo
+      <FormField
         ref={campo}
         rotulo="Código da turma"
         dica="São 8 letras e números. Pode digitar com ou sem o espaço do meio."
@@ -283,9 +283,9 @@ function FormularioDoCodigo({
           {aviso}
         </p>
       )}
-      <Botao type="submit" disabled={abrindo} className="w-full">
+      <Button type="submit" disabled={abrindo} className="w-full">
         {abrindo ? 'Abrindo…' : 'Abrir a turma'}
-      </Botao>
+      </Button>
       <span id={idDoStatus} role="status" className="sr-only">
         {abrindo ? 'Abrindo a turma…' : ''}
       </span>
@@ -301,7 +301,7 @@ function FalhaDoLink({ erro, aoTentarDeNovo }: { erro: unknown; aoTentarDeNovo: 
         {mensagemDaSala(codigoDoErro(erro), { caminho: 'link', esperaSegundos: esperaDoErro(erro), esgotado: true })}
       </p>
       <div className="mt-3">
-        <Botao onClick={aoTentarDeNovo}>Tentar de novo</Botao>
+        <Button onClick={aoTentarDeNovo}>Tentar de novo</Button>
       </div>
     </div>
   )
@@ -433,7 +433,7 @@ function FormularioDoNome(props: {
         )}
       </fieldset>
       <p className="text-apoio">Se o seu nome não aparece, chame o professor.</p>
-      <Campo
+      <FormField
         ref={campoDaMatricula}
         rotulo="Matrícula"
         name="matricula"
@@ -451,7 +451,7 @@ function FormularioDoNome(props: {
         }}
         descritoTambemPor={descritoPor}
       />
-      <CampoDeSenha
+      <PasswordInput
         rotulo="Crie uma senha"
         dica={`Pelo menos ${String(TAMANHO_MINIMO_SENHA_NOVA)} caracteres. Use uma frase que só você saiba: é com ela e com a matrícula que você vai entrar.`}
         name="senha"
@@ -475,9 +475,9 @@ function FormularioDoNome(props: {
       <span id={idDoStatus} role="status" className={tentando ? 'rounded-controle border border-pendente bg-pendente-cx p-4 text-pendente' : 'sr-only'}>
         {tentando ? MENSAGENS_DA_SALA.tentandoDeNovo : enviando ? 'Enviando…' : ''}
       </span>
-      <Botao type="submit" disabled={enviando} aria-describedby={descritoPor} className="w-full">
+      <Button type="submit" disabled={enviando} aria-describedby={descritoPor} className="w-full">
         {enviando ? 'Enviando…' : cheio ? 'Tentar de novo' : 'Enviar pedido'}
-      </Botao>
+      </Button>
     </form>
   )
 }
@@ -502,10 +502,10 @@ function PedidoEnviado({ slug, aoVoltar }: { slug: string; aoVoltar: () => void 
         Até a aprovação, a entrada da escola responde “Matrícula ou senha incorretas”. Não é erro: é só esperar o professor aprovar.
       </p>
       <p className="text-apoio">Se o pedido for recusado, o seu nome volta para a lista, e você pode pedir de novo.</p>
-      <Link to={caminhoDaEscola(slug)} className={CLASSES_DO_LINK_SECUNDARIO}>
+      <Link to={caminhoDaEscola(slug)} className={SECONDARY_LINK_CLASSES}>
         Ir para a entrada da escola
       </Link>
-      <button type="button" onClick={aoVoltar} className={CLASSES_DO_BOTAO_SECUNDARIO}>
+      <button type="button" onClick={aoVoltar} className={SECONDARY_BUTTON_CLASSES}>
         Voltar à lista de nomes
       </button>
     </section>

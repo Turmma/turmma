@@ -2,17 +2,17 @@ import type { SuboperadorDaEscola } from '@educa/shared'
 import { useQuery } from '@tanstack/react-query'
 import { consultaSuboperadores } from './api/privacidade'
 import { EstadoCarregando, EstadoErro, EstadoVazio } from '../../../components/states'
-import { Estado } from '../../../components/ui/SeloDeEstado'
-import { Tabela, type ColunaDaTabela } from '../../../components/ui/Tabela'
-import { CabecalhoDeSecao } from '../../../components/ui/Tela'
+import { StatusBadge } from '../../../components/ui/StatusBadge'
+import { Table, type TableColumn } from '../../../components/ui/Table'
+import { SectionHeader } from '../../../components/ui/Page'
 import { textoDaVigencia, textoDasCategorias, textoDoPais, textoDoTreinamento } from './textos-dos-suboperadores'
 
-const COLUNAS: readonly [ColunaDaTabela<SuboperadorDaEscola>, ...ColunaDaTabela<SuboperadorDaEscola>[]] = [
+const COLUNAS: readonly [TableColumn<SuboperadorDaEscola>, ...TableColumn<SuboperadorDaEscola>[]] = [
   { chave: 'empresa', titulo: 'Empresa', celula: (linha) => linha.nome },
   { chave: 'finalidade', titulo: 'Para que serve', celula: (linha) => linha.finalidade },
   { chave: 'recebe', titulo: 'O que recebe', celula: (linha) => textoDasCategorias(linha.categorias) },
   { chave: 'pais', titulo: 'Onde processa', celula: (linha) => textoDoPais(linha.pais) },
-  { chave: 'treinamento', titulo: 'Treinar IA com o dado', celula: (linha) => <Estado familia={linha.vedaTreinamento ? 'ok' : 'pendente'}>{textoDoTreinamento(linha.vedaTreinamento)}</Estado> },
+  { chave: 'treinamento', titulo: 'Treinar IA com o dado', celula: (linha) => <StatusBadge familia={linha.vedaTreinamento ? 'ok' : 'pendente'}>{textoDoTreinamento(linha.vedaTreinamento)}</StatusBadge> },
   { chave: 'vigencia', titulo: 'Vigência', celula: (linha) => textoDaVigencia(linha) },
 ]
 
@@ -40,7 +40,7 @@ export function EmpresasQueRecebemDados() {
   return (
     <div className="flex min-w-0 flex-col gap-8">
       <section className="flex min-w-0 flex-col gap-3" aria-labelledby="titulo-das-vigentes">
-        <CabecalhoDeSecao
+        <SectionHeader
           id="titulo-das-vigentes"
           nivel={3}
           titulo="Empresas que recebem dado da escola hoje"
@@ -49,18 +49,18 @@ export function EmpresasQueRecebemDados() {
         {vigentes.length === 0 ? (
           <EstadoVazio titulo="Nenhuma empresa recebe dado desta escola" descricao="Quando o Turmma contratar uma empresa que receba dado da escola, ela aparece aqui, com o que faz e o que recebe." />
         ) : (
-          <Tabela rotulo="Empresas que recebem dado da escola hoje" colunas={COLUNAS} linhas={vigentes} chaveDaLinha={chaveDaLinha} />
+          <Table rotulo="Empresas que recebem dado da escola hoje" colunas={COLUNAS} linhas={vigentes} chaveDaLinha={chaveDaLinha} />
         )}
       </section>
       {passadas.length > 0 && (
         <section className="flex min-w-0 flex-col gap-3" aria-labelledby="titulo-das-passadas">
-          <CabecalhoDeSecao
+          <SectionHeader
             id="titulo-das-passadas"
             nivel={3}
             titulo="Empresas que já receberam dado da escola"
             apoio="Ficam aqui depois de encerradas: se o responsável perguntar por onde o dado passou, a resposta inclui estas."
           />
-          <Tabela rotulo="Empresas que já receberam dado da escola" colunas={COLUNAS} linhas={passadas} chaveDaLinha={chaveDaLinha} />
+          <Table rotulo="Empresas que já receberam dado da escola" colunas={COLUNAS} linhas={passadas} chaveDaLinha={chaveDaLinha} />
         </section>
       )}
     </div>

@@ -4,9 +4,9 @@ import { Link } from 'wouter'
 import { consultaArtefato } from '../artefatos/api/artefatos'
 import { consultaTitulosDosMateriais } from '../artefatos/api/titulos-dos-materiais'
 import { caminhoDoArtefatoDoProfessor, ROTAS_DO_PROFESSOR } from '../../../paths'
-import { classesDoBotao } from '../../../components/ui/button-variants'
+import { buttonVariants } from '../../../components/ui/button-variants'
 import { EstadoCarregando, EstadoErro } from '../../../components/states/index'
-import { MensagemIA } from '../../../components/ui/ai/Message'
+import { AIMessage } from '../../../components/ui/ai/Message'
 import { ConteudoDoArtefato } from '../artefatos/ConteudoDoArtefato'
 import { saidaEmPdf, textoDaAdaptacao } from '../artefatos/entregas'
 import { ExportarPdf } from '../artefatos/ExportarPdf'
@@ -19,7 +19,7 @@ interface PropsDoResultado {
   readonly funcao: ChaveDeFuncao
 }
 
-const CLASSES_DA_ACAO = `${classesDoBotao({ variante: 'discreto', tamanho: 'compacto' })} hover:bg-realce-suave hover:text-tinta`
+const CLASSES_DA_ACAO = `${buttonVariants({ variante: 'discreto', tamanho: 'compacto' })} hover:bg-realce-suave hover:text-tinta`
 
 /**
  * O que a ferramenta gerou, como resposta do Assistente (`docs/interface.md` 11.3): a **assinatura da IA**, o conteúdo
@@ -36,7 +36,7 @@ export function ResultadoDaFerramenta({ artefatoId, entregaId, funcao }: PropsDo
   if (artefato.isError) return <EstadoErro erro={artefato.error} tentando={artefato.isFetching} aoTentarDeNovo={() => void artefato.refetch({ cancelRefetch: false })} />
   const { data } = artefato
   return (
-    <MensagemIA
+    <AIMessage
       funcao={funcao}
       // A entrega recém-nascida é sempre pendente: a aprovação só existe depois da decisão, em “O que o Assistente fez”.
       {...(entregaId === null ? {} : { aprovacao: { aprovacao: { estado: 'pendente' as const } } })}
@@ -62,6 +62,6 @@ export function ResultadoDaFerramenta({ artefatoId, entregaId, funcao }: PropsDo
         <ConteudoDoArtefato conteudo={data.conteudo} materiais={materiais.data ?? {}} resumido />
         {entregaId !== null && <p className="min-w-0 text-sm break-words text-sutil">Esta versão só pode ir aos alunos depois que você aprovar. Até lá, o PDF dela sai marcado como rascunho.</p>}
       </div>
-    </MensagemIA>
+    </AIMessage>
   )
 }

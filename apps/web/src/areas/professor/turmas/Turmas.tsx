@@ -5,12 +5,12 @@ import { Link } from 'wouter'
 import { mensagemDoErro } from '../../../api/client'
 import { confirmarVinculo, consultaMeusVinculos, contestarVinculo } from '../comum/api/vinculos'
 import { caminhoDaTurmaDoProfessor } from '../../../paths'
-import { Aviso } from '../../../components/ui/Aviso'
-import { Botao } from '../../../components/ui/Botao'
-import { CLASSES_DO_LINK_SECUNDARIO } from '../../../components/ui/button-variants'
+import { Alert } from '../../../components/ui/Alert'
+import { Button } from '../../../components/ui/Button'
+import { SECONDARY_LINK_CLASSES } from '../../../components/ui/button-variants'
 import { EstadoCarregando, EstadoErro, EstadoVazio } from '../../../components/states/index'
-import { Estado } from '../../../components/ui/SeloDeEstado'
-import { Tela } from '../../../components/ui/Tela'
+import { StatusBadge } from '../../../components/ui/StatusBadge'
+import { Page } from '../../../components/ui/Page'
 import { useTituloDaTela } from '../../../document-title'
 import { enderecoDoConvite } from './acesso/acesso-da-turma'
 import { esperaNaTurma, useFilaDoProfessor, type EsperaNaTurma } from '../inicio/fila-do-professor'
@@ -23,10 +23,10 @@ import { LadrilhoDoVinculo, nomeDoVinculo } from './vinculo-na-tela'
  * o número de uma turma lida pela metade é um piso ("3 ou mais").
  */
 function SeloDoQueEspera({ espera }: { readonly espera: EsperaNaTurma }) {
-  if (espera.n > 0) return <Estado familia="pendente">{`${String(espera.n)}${espera.ouMais ? ' ou mais' : ''} esperando você`}</Estado>
-  if (espera.leitura === 'lendo') return <Estado familia="info">Lendo o que espera…</Estado>
-  if (espera.leitura === 'nao-lida') return <Estado familia="info">Não lida</Estado>
-  return <Estado familia="ok">Em dia</Estado>
+  if (espera.n > 0) return <StatusBadge familia="pendente">{`${String(espera.n)}${espera.ouMais ? ' ou mais' : ''} esperando você`}</StatusBadge>
+  if (espera.leitura === 'lendo') return <StatusBadge familia="info">Lendo o que espera…</StatusBadge>
+  if (espera.leitura === 'nao-lida') return <StatusBadge familia="info">Não lida</StatusBadge>
+  return <StatusBadge familia="ok">Em dia</StatusBadge>
 }
 
 /**
@@ -40,7 +40,7 @@ function SeloDoQueEspera({ espera }: { readonly espera: EsperaNaTurma }) {
  * decididos. Sem confirmar, a turma não abre (E12, P2), e é por isso que as faixas vêm primeiro. Só o cartão do vínculo
  * confirmado leva à turma aberta (15.0): o contestado e o encerrado não a alcançam, e a tela não oferece o que a API recusaria.
  *
- * É aba de navegação: o `<h1>`, visível, é o título da tela, na `Tela` (RF12; `docs/interface.md` 11.2).
+ * É aba de navegação: o `<h1>`, visível, é o título da tela, na `Page` (RF12; `docs/interface.md` 11.2).
  *
  * - **O estado aparece em texto**, e não só em cor (regra 50, item 11). **A série não entra no cartão**: o `Vinculo` não a traz
  *   (divergência da 9.0, Tech Spec, seção 9).
@@ -124,12 +124,12 @@ export default function Turmas() {
           <p className="min-w-0 font-medium break-words text-tinta">Confirme sua turma · {nomeDoVinculo(vinculo)}</p>
         </div>
         <div className="flex flex-wrap gap-3">
-          <Botao variante="oficial" onClick={() => confirmar.mutate(vinculo)} disabled={decidindo}>
+          <Button variante="oficial" onClick={() => confirmar.mutate(vinculo)} disabled={decidindo}>
             {confirmar.isPending && confirmar.variables.id === vinculo.id ? 'Confirmando…' : 'Confirmar'}
-          </Botao>
-          <Botao variante="secundario" onClick={() => abrirContestacao(vinculo.id)} disabled={decidindo}>
+          </Button>
+          <Button variante="secundario" onClick={() => abrirContestacao(vinculo.id)} disabled={decidindo}>
             Contestar
-          </Botao>
+          </Button>
         </div>
         {confirmar.isError && confirmar.variables.id === vinculo.id && (
           <p role="alert" className="w-full rounded-controle border border-erro bg-erro-cx p-3 text-erro">
@@ -159,7 +159,7 @@ export default function Turmas() {
         )}
         {vinculo.estado === 'confirmado' && (
           // Relativo à área: o `Route` aninhado em `/professor` resolve o `to` a partir da base dela.
-          <Link to={caminhoDaTurmaDoProfessor(vinculo.turma.id)} className={`self-start ${CLASSES_DO_LINK_SECUNDARIO}`}>
+          <Link to={caminhoDaTurmaDoProfessor(vinculo.turma.id)} className={`self-start ${SECONDARY_LINK_CLASSES}`}>
             Abrir a turma<span className="sr-only"> {vinculo.turma.nome}</span>
           </Link>
         )}
@@ -168,23 +168,23 @@ export default function Turmas() {
   }
 
   return (
-    <Tela titulo="Turmas" idDoTitulo="titulo-turmas" refDoTitulo={tituloDaTela}>
+    <Page titulo="Turmas" idDoTitulo="titulo-turmas" refDoTitulo={tituloDaTela}>
       <section className="flex min-w-0 flex-col gap-6" aria-labelledby="titulo-turmas">
         {/* A região existe antes do texto, para o leitor de tela anunciar a turma confirmada quando o aviso aparece. */}
         <div role="status" className="empty:hidden">
           {confirmada !== undefined && (
-            <Aviso
+            <Alert
               tom="certo"
               titulo={`Turma ${confirmada.nome} confirmada`}
               acao={
                 // Relativo à área, como o link do cartão. O endereço leva só a aba e o pedido do diálogo.
-                <Link to={enderecoDoConvite(caminhoDaTurmaDoProfessor(confirmada.id))} className={CLASSES_DO_LINK_SECUNDARIO}>
+                <Link to={enderecoDoConvite(caminhoDaTurmaDoProfessor(confirmada.id))} className={SECONDARY_LINK_CLASSES}>
                   Gerar o acesso
                 </Link>
               }
             >
               Agora os alunos podem entrar nela: gere o link e o código para eles pedirem o nome.
-            </Aviso>
+            </Alert>
           )}
         </div>
         {vinculos.isPending && <EstadoCarregando rotulo="Carregando as suas turmas…" />}
@@ -213,9 +213,9 @@ export default function Turmas() {
         )}
 
         {vinculos.hasNextPage && (
-          <Botao onClick={() => void vinculos.fetchNextPage()} disabled={vinculos.isFetchingNextPage} className="self-start">
+          <Button onClick={() => void vinculos.fetchNextPage()} disabled={vinculos.isFetchingNextPage} className="self-start">
             {vinculos.isFetchingNextPage ? 'Carregando…' : 'Ver mais turmas'}
-          </Botao>
+          </Button>
         )}
       </section>
 
@@ -232,6 +232,6 @@ export default function Turmas() {
           focoDeReserva={() => (tituloDasTurmas.current ?? tituloDaTela.current)?.focus()}
         />
       )}
-    </Tela>
+    </Page>
   )
 }

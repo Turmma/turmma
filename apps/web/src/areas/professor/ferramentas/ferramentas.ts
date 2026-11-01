@@ -21,7 +21,7 @@ import { lerContexto } from '../comum/turmas-da-professora'
 /**
  * **As ferramentas do Assistente, como dado** (D74; P23; `docs/interface.md` 1.2): o catálogo e os campos de cada uma.
  * É o único lugar que os descreve: a página de Ferramentas, o menu da caixa de pedido, o formulário e o cartão dentro da
- * conversa leem daqui, e o `MotorFormulario` desenha os campos. Ferramenta nova é uma linha nova aqui, e não uma tela.
+ * conversa leem daqui, e o `SchemaForm` desenha os campos. Ferramenta nova é uma linha nova aqui, e não uma tela.
  *
  * Só entram as que existem (`FERRAMENTAS`, em `@educa/shared`): atividade objetiva, plano de aula e Adaptação. As outras
  * do desenho não aparecem, nem desligadas.

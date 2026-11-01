@@ -7,19 +7,19 @@ import { especificadoresDe, importadoresDe, semComentarios, type ArquivoDaWeb } 
 /**
  * A cadeia fechada da onça (RF10 da X1; `docs/interface.md` 9.7; regra 70, item 4a): o avatar **só existe com o nome da
  * função e o selo "IA" no mesmo bloco**, e isso é garantido por quem pode desenhá-lo, e não por combinado. A pasta
- * `components/ui/onca/` — a cabeça, e a onça de corpo inteiro — só é importada pelo `AvatarAgente`, por arquivo da
+ * `components/ui/onca/` — a cabeça, e a onça de corpo inteiro — só é importada pelo `AgentAvatar`, por arquivo da
  * própria pasta e, desde a tarefa 5.0 da X4, pelas peças que desenham o corpo inteiro: a `Introducao`, a `Comemoracao` e a
  * introdução de cada papel (`BemVindo`). A `Onca` traz junto o nome da função e o selo "IA" (`figcaption`), e a pose
  * `comemorando` só a `Comemoracao` pede. Desde a correção `2026-10-28-onca-do-mockup-v3` uma tela que já existia a desenha também, o vazio de
- * Criados (`TELAS_COM_A_ONCA`), assinada pelo Assistente de ensino. O `AvatarAgente`, só a `AssinaturaIA` e a `MensagemIA`. Tela, galeria e peça
- * nova que queiram o **avatar** passam pela `AssinaturaIA`, que traz junto o nome e o selo; a **onça de corpo inteiro** só entra numa tela da
+ * Criados (`TELAS_COM_A_ONCA`), assinada pelo Assistente de ensino. O `AgentAvatar`, só a `AgentSignature` e a `AIMessage`. Tela, galeria e peça
+ * nova que queiram o **avatar** passam pela `AgentSignature`, que traz junto o nome e o selo; a **onça de corpo inteiro** só entra numa tela da
  * lista fechada, com parecer, e só onde a região guarda produção do agente que assina.
  */
 const RAIZ_DA_WEB = join(import.meta.dirname, '..', '..', '..')
 
 const PASTA_DA_ONCA = 'components/ui/onca/'
-const AVATAR = 'components/ui/ai/AvatarAgente'
-const ASSINATURA = 'components/ui/ai/AssinaturaIA'
+const AVATAR = 'components/ui/ai/AgentAvatar'
+const ASSINATURA = 'components/ui/ai/AgentSignature'
 const ONCA_INTEIRA = 'components/ui/onca/Onca'
 const COMEMORACAO = 'components/ui/Comemoracao'
 const PECAS_DA_INTRODUCAO = 'components/introducao/'
@@ -33,12 +33,12 @@ const BEM_VINDO_DOS_PAPEIS = ['areas/aluno/introducao/BemVindo.tsx', 'areas/prof
  */
 const TELAS_COM_A_ONCA = ['areas/professor/artefatos/Criados.tsx']
 const QUEM_IMPORTA_A_ONCA_INTEIRA = ['components/introducao/Introducao.tsx', 'components/introducao/IntroducaoDoPapel.tsx', 'components/ui/Comemoracao.tsx', ...BEM_VINDO_DOS_PAPEIS, ...TELAS_COM_A_ONCA]
-const QUEM_IMPORTA_A_PASTA_DA_ONCA = ['components/ui/ai/AvatarAgente.tsx', ...QUEM_IMPORTA_A_ONCA_INTEIRA]
+const QUEM_IMPORTA_A_PASTA_DA_ONCA = ['components/ui/ai/AgentAvatar.tsx', ...QUEM_IMPORTA_A_ONCA_INTEIRA]
 /** A `Comemoracao` é da tarefa aberta; a galeria é o palco dela até lá (o e2e de movimento precisa de uma página). */
 const QUEM_IMPORTA_A_COMEMORACAO = ['areas/aluno/Atividade.tsx', 'gallery/sections/introducao.tsx']
 /** As peças da introdução: a galeria as mostra, e a introdução de cada papel as usa. Nenhum arquivo da entrada. */
 const QUEM_IMPORTA_AS_PECAS_DA_INTRODUCAO = ['gallery/sections/introducao.tsx', ...BEM_VINDO_DOS_PAPEIS]
-const QUEM_IMPORTA_O_AVATAR = ['components/ui/ai/AssinaturaIA.tsx', 'components/ui/ai/Message.tsx']
+const QUEM_IMPORTA_O_AVATAR = ['components/ui/ai/AgentSignature.tsx', 'components/ui/ai/Message.tsx']
 
 function arquivosDaWeb(): ArquivoDaWeb[] {
   return arquivosDeCodigoDaWeb(RAIZ_DA_WEB).map((nome) => ({ nome, conteudo: readFileSync(join(RAIZ_DA_WEB, nome), 'utf8') }))
@@ -53,14 +53,14 @@ describe('a onça só chega à tela pela assinatura', () => {
   it('`componentes/ui/onca/` só é importado pelo `AvatarAgente`, por arquivo da própria pasta e pelas peças do corpo inteiro', () => {
     const importadores = importadoresDe(arquivosDaWeb(), PASTA_DA_ONCA)
     // Sem isto o caso passaria vazio no dia em que a varredura deixasse de achar o import.
-    expect(importadores, 'o `AvatarAgente` desenha a cabeça: a varredura não o achou').toContain('components/ui/ai/AvatarAgente.tsx')
-    expect(foraDaLista(importadores, QUEM_IMPORTA_A_PASTA_DA_ONCA, PASTA_DA_ONCA), 'a onça só entra na tela pelo `AvatarAgente` (e ele só pela `AssinaturaIA`) ou pelas peças do corpo inteiro').toEqual([])
+    expect(importadores, 'o `AgentAvatar` desenha a cabeça: a varredura não o achou').toContain('components/ui/ai/AgentAvatar.tsx')
+    expect(foraDaLista(importadores, QUEM_IMPORTA_A_PASTA_DA_ONCA, PASTA_DA_ONCA), 'a onça só entra na tela pelo `AgentAvatar` (e ele só pela `AgentSignature`) ou pelas peças do corpo inteiro').toEqual([])
   })
 
   it('o `AvatarAgente` só é importado pela `AssinaturaIA` e pela `MensagemIA`', () => {
     const importadores = importadoresDe(arquivosDaWeb(), AVATAR)
-    expect(importadores, 'a `AssinaturaIA` desenha o avatar: a varredura não a achou').toContain('components/ui/ai/AssinaturaIA.tsx')
-    expect(foraDaLista(importadores, QUEM_IMPORTA_O_AVATAR), 'avatar sem o nome da função e o selo "IA": use a `AssinaturaIA`').toEqual([])
+    expect(importadores, 'a `AgentSignature` desenha o avatar: a varredura não a achou').toContain('components/ui/ai/AgentSignature.tsx')
+    expect(foraDaLista(importadores, QUEM_IMPORTA_O_AVATAR), 'avatar sem o nome da função e o selo "IA": use a `AgentSignature`').toEqual([])
   })
 
   it('as telas e a galeria que mostram a onça usam a `AssinaturaIA`, e nenhuma importa o avatar nem a pasta da onça', () => {
@@ -116,7 +116,7 @@ describe('o atributo do avatar', () => {
   it('`data-agente` é só do avatar: nenhum outro arquivo o escreve, e o cartão do agente usa o dele', () => {
     const arquivos = arquivosDaWeb()
     const queEscrevem = arquivos.filter(({ conteudo }) => /\bdata-agente\b/.test(semComentarios(conteudo))).map(({ nome }) => nome)
-    expect(queEscrevem, 'o teste confere cada `data-agente` pelo bloco dele: o cartão da tela não pode levá-lo').toEqual(['components/ui/ai/AvatarAgente.tsx'])
+    expect(queEscrevem, 'o teste confere cada `data-agente` pelo bloco dele: o cartão da tela não pode levá-lo').toEqual(['components/ui/ai/AgentAvatar.tsx'])
     expect(arquivos.find(({ nome }) => nome === 'areas/coordenacao/governanca/Agentes.tsx')?.conteudo).toMatch(/data-cartao-do-agente=/)
   })
 })
@@ -124,19 +124,19 @@ describe('o atributo do avatar', () => {
 describe('como o importador é reconhecido', () => {
   const arquivo = (nome: string, conteudo: string): ArquivoDaWeb => ({ nome, conteudo })
   const AMOSTRA = [
-    arquivo('components/ui/ai/AvatarAgente.tsx', "import { CabecaOnca } from '../onca/CabecaOnca'"),
+    arquivo('components/ui/ai/AgentAvatar.tsx', "import { CabecaOnca } from '../onca/CabecaOnca'"),
     arquivo('components/ui/onca/OncaInteira.tsx', "import { CabecaOnca } from './CabecaOnca'"),
-    arquivo('components/ui/ai/AssinaturaIA.tsx', "import { AvatarAgente, type TamanhoDoAvatar } from './AvatarAgente'"),
-    arquivo('areas/professor/Painel.tsx', "import { AvatarAgente } from '../../components/ui/ai/AvatarAgente'"),
+    arquivo('components/ui/ai/AgentSignature.tsx', "import { AgentAvatar, type TamanhoDoAvatar } from './AgentAvatar'"),
+    arquivo('areas/professor/Painel.tsx', "import { AgentAvatar } from '../../components/ui/ai/AgentAvatar'"),
     arquivo('areas/aluno/Saudacao.tsx', "import { CabecaOnca } from '../../components/ui/onca/CabecaOnca'"),
-    arquivo('gallery/sections/solta.tsx', "import type { TamanhoDoAvatar } from '../../components/ui/ai/AvatarAgente'"),
-    arquivo('areas/aluno/Tardia.tsx', "const Peca = lazy(() => import('../../components/ui/ai/AvatarAgente'))"),
-    arquivo('areas/aluno/Reexporta.tsx', "export { AvatarAgente } from '../../components/ui/ai/AvatarAgente'"),
+    arquivo('gallery/sections/solta.tsx', "import type { TamanhoDoAvatar } from '../../components/ui/ai/AgentAvatar'"),
+    arquivo('areas/aluno/Tardia.tsx', "const Peca = lazy(() => import('../../components/ui/ai/AgentAvatar'))"),
+    arquivo('areas/aluno/Reexporta.tsx', "export { AgentAvatar } from '../../components/ui/ai/AgentAvatar'"),
     arquivo('areas/aluno/PorIndice.tsx', "import { Qualquer } from '../../components/ui/onca'"),
-    arquivo('areas/aluno/Comentada.tsx', "// import { AvatarAgente } from '../../components/ui/ai/AvatarAgente'\n/* import { CabecaOnca } from '../../components/ui/onca/CabecaOnca' */\nexport const x = 1"),
-    arquivo('areas/aluno/Vizinha.tsx', "import { AvatarDoAluno } from '../../components/ui/ai/AvatarAgenteDoAluno'\nimport { Outra } from '../../components/oncas/Outra'"),
-    arquivo('areas/aluno/ComExtensao.tsx', "import { AvatarAgente } from '../../components/ui/ai/AvatarAgente.tsx'"),
-    arquivo('areas/aluno/Pasta.tsx', "import { AvatarAgente } from '../../components/ui/ai/AvatarAgente/index'"),
+    arquivo('areas/aluno/Comentada.tsx', "// import { AgentAvatar } from '../../components/ui/ai/AgentAvatar'\n/* import { CabecaOnca } from '../../components/ui/onca/CabecaOnca' */\nexport const x = 1"),
+    arquivo('areas/aluno/Vizinha.tsx', "import { AvatarDoAluno } from '../../components/ui/ai/AgentAvatarDoAluno'\nimport { Outra } from '../../components/oncas/Outra'"),
+    arquivo('areas/aluno/ComExtensao.tsx', "import { AgentAvatar } from '../../components/ui/ai/AgentAvatar.tsx'"),
+    arquivo('areas/aluno/Pasta.tsx', "import { AgentAvatar } from '../../components/ui/ai/AgentAvatar/index'"),
     arquivo('areas/aluno/Pacote.tsx', "import { useQuery } from '@tanstack/react-query'\nimport { x } from 'react'"),
     arquivo('areas/aluno/OncaSolta.tsx', "import { Onca } from '../../components/ui/onca/Onca'"),
     arquivo('areas/aluno/OncaReexportada.tsx', "export { Onca } from '../../components/ui/onca/Onca'"),
@@ -147,7 +147,7 @@ describe('como o importador é reconhecido', () => {
 
   it('acha o import estático, o de tipo, o dinâmico e a reexportação, e a pasta pelo arquivo e pelo `index`', () => {
     expect(importadoresDe(AMOSTRA, AVATAR)).toEqual([
-      'components/ui/ai/AssinaturaIA.tsx',
+      'components/ui/ai/AgentSignature.tsx',
       'areas/professor/Painel.tsx',
       'gallery/sections/solta.tsx',
       'areas/aluno/Tardia.tsx',
@@ -156,7 +156,7 @@ describe('como o importador é reconhecido', () => {
       'areas/aluno/Pasta.tsx',
     ])
     expect(importadoresDe(AMOSTRA, PASTA_DA_ONCA)).toEqual([
-      'components/ui/ai/AvatarAgente.tsx',
+      'components/ui/ai/AgentAvatar.tsx',
       'components/ui/onca/OncaInteira.tsx',
       'areas/aluno/Saudacao.tsx',
       'areas/aluno/PorIndice.tsx',

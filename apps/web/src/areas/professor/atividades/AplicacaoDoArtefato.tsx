@@ -5,10 +5,10 @@ import { Link } from 'wouter'
 import { aplicarAtividade, consultaAtividadesAplicadas, recarregarAtividades } from './api/atividades'
 import { textoDaFalha } from '../../../components/error-text'
 import { caminhoDaCorrecaoDoProfessor } from '../../../paths'
-import { Botao } from '../../../components/ui/Botao'
-import { DialogoDeConfirmacao } from '../../../components/ui/overlays/DialogoDeConfirmacao'
+import { Button } from '../../../components/ui/Button'
+import { ConfirmDialog } from '../../../components/ui/overlays/ConfirmDialog'
 import { EstadoCarregando } from '../../../components/states/index'
-import { CabecalhoDeSecao } from '../../../components/ui/Tela'
+import { SectionHeader } from '../../../components/ui/Page'
 import { formatarDataHora } from '../../../format'
 import { AVISO_DA_AVALIATIVA_ABERTA, EFEITO_DE_APLICAR, ESCOLHA_DE_AVALIATIVA, semCorrecao, situacaoDaAplicacao, TEXTO_SEM_CORRECAO } from './aprovar'
 import { useCorrigirDeNovo } from './corrigir-de-novo'
@@ -97,16 +97,16 @@ export function AplicacaoDoArtefato({ artefato, nomeDaTurma }: PropsDaAplicacao)
 
   return (
     <section ref={secao} tabIndex={-1} aria-labelledby={idDoTitulo} data-aplicacao-do-artefato="" className="flex min-w-0 flex-col gap-3 rounded-cartao">
-      <CabecalhoDeSecao
+      <SectionHeader
         id={idDoTitulo}
         titulo="Na turma"
         // A frase só com a lista lida: carregando ou com falha, a tela não afirma que a atividade não foi aplicada.
         {...(atividades.data === undefined ? {} : { apoio: aplicadas.length === 0 ? 'Esta atividade ainda não foi aplicada.' : 'Atribuída à turma.' })}
         acao={
           aplicavel ? (
-            <Botao variante="oficial" onClick={abrirAplicar}>
+            <Button variante="oficial" onClick={abrirAplicar}>
               Aplicar à turma
-            </Botao>
+            </Button>
           ) : undefined
         }
       />
@@ -117,9 +117,9 @@ export function AplicacaoDoArtefato({ artefato, nomeDaTurma }: PropsDaAplicacao)
           <p role="alert" className="min-w-0 flex-1 basis-56 rounded-controle bg-erro-cx p-3 break-words text-erro">
             {textoDaFalha(atividades.error)}
           </p>
-          <Botao variante="secundario" disabled={atividades.isFetching} onClick={() => void atividades.refetch({ cancelRefetch: false })}>
+          <Button variante="secundario" disabled={atividades.isFetching} onClick={() => void atividades.refetch({ cancelRefetch: false })}>
             {atividades.isFetching ? 'Tentando…' : 'Tentar de novo'}
-          </Botao>
+          </Button>
         </div>
       )}
       <p role="status" className="rounded-controle bg-info-cx p-3 break-words text-info empty:hidden">
@@ -159,9 +159,9 @@ export function AplicacaoDoArtefato({ artefato, nomeDaTurma }: PropsDaAplicacao)
               )}
               {/* Encerrada sem lote que valha (função suspensa, ou lote rejeitado): encerrar de novo corrige de novo. */}
               {(motivo === 'correcao_suspensa' || motivo === 'lote_rejeitado') && (
-                <Botao variante="secundario" disabled={corrigindo !== undefined} onClick={() => corrigirDeNovo(aplicada)}>
+                <Button variante="secundario" disabled={corrigindo !== undefined} onClick={() => corrigirDeNovo(aplicada)}>
                   {corrigindo === aplicada.id ? 'Corrigindo…' : 'Corrigir de novo'}
-                </Botao>
+                </Button>
               )}
             </li>
             )
@@ -170,7 +170,7 @@ export function AplicacaoDoArtefato({ artefato, nomeDaTurma }: PropsDaAplicacao)
       )}
 
       {aplicando && (
-        <DialogoDeConfirmacao
+        <ConfirmDialog
           titulo="Aplicar à turma"
           familia="oficial"
           resumo={[
@@ -202,7 +202,7 @@ export function AplicacaoDoArtefato({ artefato, nomeDaTurma }: PropsDaAplicacao)
               {tentou && escolha === undefined ? 'Escolha se a atividade é prática ou avaliativa.' : ''}
             </p>
           </fieldset>
-        </DialogoDeConfirmacao>
+        </ConfirmDialog>
       )}
     </section>
   )

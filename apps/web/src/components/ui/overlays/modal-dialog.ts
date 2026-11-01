@@ -2,11 +2,11 @@ import { useEffect, useRef, type RefObject } from 'react'
 import { quandoNaoHouverPrioritario } from './priority-dialog'
 
 /**
- * O que os dois `<dialog>` modais do produto, o `Dialogo` e o `PainelLado`, fazem do mesmo jeito: abrir com `showModal`,
+ * O que os dois `<dialog>` modais do produto, o `Dialog` e o `Sheet`, fazem do mesmo jeito: abrir com `showModal`,
  * prender o foco e devolvê-lo a quem abriu (Tech Spec da X1, seção 9, "Peças novas"). O navegador dá o Esc e deixa o
  * resto da página inerte; as outras duas coisas não, e por isso moram aqui, uma vez só, e não copiadas em cada peça.
  *
- * Fica fora das duas porque o `Dialogo` é da entrada e o `PainelLado` não: o que as duas dividem não pode morar numa
+ * Fica fora das duas porque o `Dialog` é da entrada e o `Sheet` não: o que as duas dividem não pode morar numa
  * peça que a entrada não baixa (`apps/web/chunk-names.ts`).
  */
 
@@ -27,7 +27,7 @@ export interface TeclaDoDialogo {
  * O foco pode estar fora da ordem do Tab — o título da etapa ou o miolo do painel, focados por código (`tabIndex={-1}`) —,
  * e então o limite não é "estar no primeiro", e sim "não haver controle antes" (ou depois) dele.
  */
-export function prenderOFoco(evento: TeclaDoDialogo, raiz: HTMLElement | null): void {
+export function trapFocus(evento: TeclaDoDialogo, raiz: HTMLElement | null): void {
   if (evento.key !== 'Tab' || raiz === null) return
   const focaveis = Array.from(raiz.querySelectorAll<HTMLElement>(FOCAVEIS))
   const primeiro = focaveis[0]
@@ -45,7 +45,7 @@ export function prenderOFoco(evento: TeclaDoDialogo, raiz: HTMLElement | null): 
   }
 }
 
-interface OpcoesDoDialogoModal {
+interface ModalDialogOptions {
   /**
    * Onde o foco começa. Sem isto, o navegador o põe no primeiro controle do diálogo, que numa confirmação é o botão que
    * confirma: um Enter a mais e a ação sai sem a pessoa ter lido o que ela faz (regra 50, item 8).
@@ -75,7 +75,7 @@ interface OpcoesDoDialogoModal {
  * - **O gatilho que continua na página mas ficou desligado** (o "Aprovar" depois de aprovado) não aceita foco: vale como
  *   o que saiu da página, e o foco vai para a reserva.
  */
-export function useDialogoModal({ focoInicial, focoDeReserva, cedeAoPrioritario = false }: OpcoesDoDialogoModal) {
+export function useModalDialog({ focoInicial, focoDeReserva, cedeAoPrioritario = false }: ModalDialogOptions) {
   const dialogo = useRef<HTMLDialogElement>(null)
   const desmontando = useRef(false)
   // O `focoDeReserva` da última renderização: a limpeza do efeito roda uma vez só, ao desmontar.
@@ -121,6 +121,6 @@ export function useDialogoModal({ focoInicial, focoDeReserva, cedeAoPrioritario 
   return {
     dialogo,
     fechadoPeloNavegador,
-    prender: (evento: TeclaDoDialogo) => prenderOFoco(evento, dialogo.current),
+    prender: (evento: TeclaDoDialogo) => trapFocus(evento, dialogo.current),
   }
 }

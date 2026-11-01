@@ -1,9 +1,9 @@
 import type { ChaveDeFuncao, Ferramenta } from '@educa/shared'
 import { LayoutGrid, MessagesSquare } from 'lucide-react'
 import { useState } from 'react'
-import { CaixaPedido } from '../../../components/ui/ai/CaixaPedido'
-import { Menu, type ItemDoMenu } from '../../../components/ui/overlays/Menu'
-import { Selecao } from '../../../components/ui/fields/Selecao'
+import { PromptInput } from '../../../components/ui/ai/PromptInput'
+import { Menu, type MenuItem } from '../../../components/ui/overlays/Menu'
+import { Select } from '../../../components/ui/fields/Select'
 import { AtalhosDeFerramenta } from './AtalhosDeFerramenta'
 import { CATALOGO_DE_FERRAMENTAS, ehFerramenta, ferramentaDoCatalogo, iniciaisDoPedido } from '../ferramentas/ferramentas'
 import { abrirCartaoNaConversa, CARTAO_DA_CONVERSA, CONTEXTO_ESCOLHIDO, type PedidoDaConversa } from './memoria-do-professor'
@@ -16,7 +16,7 @@ const SEM_FERRAMENTA = 'nenhuma'
  * O menu **Ferramenta** da caixa de pedido (11.2; P17): lê o mesmo catálogo da página de Ferramentas, e só o que existe.
  * A primeira linha desfaz a escolha.
  */
-const ITENS_DO_MENU: readonly ItemDoMenu[] = [
+const ITENS_DO_MENU: readonly MenuItem[] = [
   { id: SEM_FERRAMENTA, rotulo: 'Sem ferramenta', descricao: 'O Assistente lê o pedido e pergunta antes de abrir uma.', icone: MessagesSquare },
   ...CATALOGO_DE_FERRAMENTAS.map((item) => ({ id: item.ferramenta, rotulo: item.nome, descricao: item.descricao, icone: item.icone })),
 ]
@@ -105,7 +105,7 @@ export function CaixaDoAssistente({ turmas, turma, iniciar, respondendo, desliga
   )
 
   const caixa = (
-    <CaixaPedido
+    <PromptInput
       rotulo="Pedido ao Assistente de ensino"
       exemplo={escolhida === undefined ? 'Peça uma atividade, um plano de aula…' : `O tema para ${escolhida.nome.toLocaleLowerCase('pt-BR')}…`}
       valor={texto}
@@ -113,7 +113,7 @@ export function CaixaDoAssistente({ turmas, turma, iniciar, respondendo, desliga
       aoEnviar={aoEnviar}
       estado={desligada ? 'desligada' : respondendo ? 'gerando' : 'pronta'}
       {...(semMenu ? {} : { esquerda: menu })}
-      direita={<Selecao variante="pilula" rotulo="Turma e disciplina" opcoes={turmas.map((item) => ({ valor: item.valor, rotulo: item.rotulo }))} valor={turma.valor} aoMudar={CONTEXTO_ESCOLHIDO.guardar} desligada={desligada} />}
+      direita={<Select variante="pilula" rotulo="Turma e disciplina" opcoes={turmas.map((item) => ({ valor: item.valor, rotulo: item.rotulo }))} valor={turma.valor} aoMudar={CONTEXTO_ESCOLHIDO.guardar} desligada={desligada} />}
     />
   )
   if (!semMenu) return caixa

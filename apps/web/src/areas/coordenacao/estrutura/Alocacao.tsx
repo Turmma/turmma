@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useId, useState } from 'react'
 import { alocarProfessor, consultaDisciplinas, consultaTurmas } from '../../../api/estrutura'
 import { DialogoDeFormulario, useEnvioUnico } from '../../../components/dialogs'
-import { CLASSES_DO_SELETOR } from '../../../components/ui/fields/field-styles'
+import { SELECT_CLASSES } from '../../../components/ui/fields/field-styles'
 import { textoDaFalha } from '../../../components/error-text'
 import { ordenarPeloNome, ordenarTurmas } from '../comum/ordem'
 
@@ -110,7 +110,7 @@ export function DialogoDeAlocacao({ professor, alocavel, aoFechar, aoAlocar, rec
         <label htmlFor={campos.turma} className="font-medium">
           Turma
         </label>
-        <select id={campos.turma} value={escolhido.turmaId} onChange={(evento) => definirTurmaId(evento.target.value)} className={CLASSES_DO_SELETOR}>
+        <select id={campos.turma} value={escolhido.turmaId} onChange={(evento) => definirTurmaId(evento.target.value)} className={SELECT_CLASSES}>
           <option value="">Escolha a turma</option>
           {turmas.map((turma) => (
             <option key={turma.id} value={turma.id}>
@@ -123,7 +123,7 @@ export function DialogoDeAlocacao({ professor, alocavel, aoFechar, aoAlocar, rec
         <label htmlFor={campos.disciplina} className="font-medium">
           Disciplina
         </label>
-        <select id={campos.disciplina} value={escolhido.disciplinaId} onChange={(evento) => definirDisciplinaId(evento.target.value)} className={CLASSES_DO_SELETOR}>
+        <select id={campos.disciplina} value={escolhido.disciplinaId} onChange={(evento) => definirDisciplinaId(evento.target.value)} className={SELECT_CLASSES}>
           <option value="">Escolha a disciplina</option>
           {disciplinas.map((disciplina) => (
             <option key={disciplina.id} value={disciplina.id}>

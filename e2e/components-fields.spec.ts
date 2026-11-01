@@ -7,7 +7,7 @@ import { ALVO_DE_TOQUE_PRINCIPAL_PX, focoVisivel, IMPACTOS_QUE_REPROVAM, TAGS_WC
 /**
  * Os campos da D80 na galeria (`/galeria`), nos projetos `chromebook` e `celular` e nos dois temas (X1, tarefa 4.0; RF2,
  * RF7, RF9 e RF11): a borda de 2 px que se vê, o anel de foco colado à borda, o alvo de toque, o erro com ícone e as três
- * peças novas (`Busca`, `Interruptor` e `Opcao`). O que cada peça promete sem medida (nome acessível, teclado, estado) está
+ * peças novas (`SearchInput`, `Switch` e `OptionCard`). O que cada peça promete sem medida (nome acessível, teclado, estado) está
  * no teste de componente de cada uma; aqui está o que só o navegador calcula: a cor resolvida, o contorno desenhado e a
  * medida. A galeria não chama a API e não tem sessão; o dado é inventado, escrito em `gallery/sections/fields.tsx`.
  *

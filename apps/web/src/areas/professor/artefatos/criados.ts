@@ -1,5 +1,5 @@
 import { ESTADOS_DE_ENTREGA, NOME_DA_FERRAMENTA, TIPOS_DE_ARTEFATO, type ArtefatoResumido, type EstadoDeEntrega, type TipoDeArtefato } from '@educa/shared'
-import type { FamiliaDeEstado } from '../../../components/ui/SeloDeEstado'
+import type { StatusFamily } from '../../../components/ui/StatusBadge'
 
 /**
  * O que a tela de Criados decide sem tocar a rede (telas do professor, 5.0; `docs/interface.md` 11.2): os filtros que moram
@@ -29,7 +29,7 @@ export const SEM_FILTROS: FiltrosDeCriados = { tipo: 'todos', turma: undefined, 
  * turma" são atos), e por isso não tem selo. O detalhe — quem decidiu e quando — está no artefato aberto.
  */
 export const SELO_DA_ENTREGA: Readonly<Record<EstadoDeEntrega, string>> = { pendente: 'Esperando você', aprovada: 'Aprovada', rejeitada: 'Rejeitada' }
-export const FAMILIA_DA_ENTREGA: Readonly<Record<EstadoDeEntrega, FamiliaDeEstado>> = { pendente: 'pendente', aprovada: 'ok', rejeitada: 'erro' }
+export const FAMILIA_DA_ENTREGA: Readonly<Record<EstadoDeEntrega, StatusFamily>> = { pendente: 'pendente', aprovada: 'ok', rejeitada: 'erro' }
 
 export interface OpcaoDeFiltro<Valor extends string> {
   readonly id: Valor

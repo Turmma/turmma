@@ -3,13 +3,13 @@ import { useQuery } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
 import { consultaTurmas } from '../../../api/estrutura'
 import { lerDadoNominal } from './api/governanca'
-import { BarraRotulada } from '../../../components/ui/BarraRotulada'
-import { Botao } from '../../../components/ui/Botao'
-import { Cartao } from '../../../components/ui/Cartao'
-import { DialogoDeConfirmacao } from '../../../components/ui/overlays/DialogoDeConfirmacao'
+import { ProgressBar } from '../../../components/ui/ProgressBar'
+import { Button } from '../../../components/ui/Button'
+import { Card } from '../../../components/ui/Card'
+import { ConfirmDialog } from '../../../components/ui/overlays/ConfirmDialog'
 import { useEnvioUnico } from '../../../components/dialogs'
-import { Selecao } from '../../../components/ui/fields/Selecao'
-import { CabecalhoDeSecao } from '../../../components/ui/Tela'
+import { Select } from '../../../components/ui/fields/Select'
+import { SectionHeader } from '../../../components/ui/Page'
 import { textoDaFalha } from '../../../components/error-text'
 import { formatarQuantidade } from '../../../format'
 import { ordenarTurmas } from '../comum/ordem'
@@ -41,13 +41,13 @@ export function DadoNominal() {
 
   return (
     <section className="flex min-w-0 flex-col gap-3" aria-labelledby="titulo-dado-nominal">
-      <CabecalhoDeSecao
+      <SectionHeader
         id="titulo-dado-nominal"
         titulo="Dado nominal"
         apoio="Tudo nesta tela é agregado, sem nome de professor nem de aluno. O detalhe de uma turma, que identifica os professores dela, só abre por aqui, com a finalidade registrada na auditoria."
       />
       <div>
-        <Botao
+        <Button
           ref={abrir}
           variante="oficial"
           onClick={() => {
@@ -56,7 +56,7 @@ export function DadoNominal() {
           }}
         >
           Abrir dado nominal de uma turma
-        </Botao>
+        </Button>
       </div>
       {mutacao.data !== undefined && !aberto && <ResultadoNominal
           dado={mutacao.data}
@@ -93,7 +93,7 @@ function PedidoNominal({ aoFechar, aoConfirmar, confirmando, falha }: PropsDoPed
   const escolhida = opcoesDeTurma.find((opcao) => opcao.valor === turmaId)
   const semTurmas = turmas.isSuccess && opcoesDeTurma.length === 0
   return (
-    <DialogoDeConfirmacao
+    <ConfirmDialog
       titulo="Abrir o dado nominal de uma turma"
       familia="oficial"
       resumo={[
@@ -113,7 +113,7 @@ function PedidoNominal({ aoFechar, aoConfirmar, confirmando, falha }: PropsDoPed
       {...(falha === undefined ? (turmas.isError ? { falha: 'Não foi possível ler as turmas da escola. Feche e tente de novo.' } : {}) : { falha })}
     >
       <div className="flex min-w-0 flex-col gap-3">
-        <Selecao
+        <Select
           rotulo="Turma"
           opcoes={opcoesDeTurma}
           valor={turmaId}
@@ -123,9 +123,9 @@ function PedidoNominal({ aoFechar, aoConfirmar, confirmando, falha }: PropsDoPed
           obrigatoria
           {...(semTurmas ? { dica: 'A escola ainda não tem turma no ano letivo em curso.' } : {})}
         />
-        <Selecao rotulo="Finalidade" opcoes={OPCOES_DE_FINALIDADE} valor={finalidade} aoMudar={definirFinalidade} marcador="Escolha a finalidade" obrigatoria dica="Fica registrada na auditoria, junto da abertura." />
+        <Select rotulo="Finalidade" opcoes={OPCOES_DE_FINALIDADE} valor={finalidade} aoMudar={definirFinalidade} marcador="Escolha a finalidade" obrigatoria dica="Fica registrada na auditoria, junto da abertura." />
       </div>
-    </DialogoDeConfirmacao>
+    </ConfirmDialog>
   )
 }
 
@@ -143,13 +143,13 @@ function ResultadoNominal({ dado, aoFechar }: PropsDoResultado) {
   ]
   return (
     <div data-dado-nominal role="region" aria-label={`Dado nominal da turma ${dado.turma.nome}`}>
-      <Cartao
+      <Card
         titulo={`Turma ${dado.turma.nome} · ${nomeDaSerie(dado.turma.serie)}`}
         nivel={3}
         acao={
-          <Botao variante="secundario" tamanho="compacto" onClick={aoFechar}>
+          <Button variante="secundario" tamanho="compacto" onClick={aoFechar}>
             Fechar dado nominal
-          </Botao>
+          </Button>
         }
       >
         <div className="flex min-w-0 flex-col gap-4">
@@ -178,7 +178,7 @@ function ResultadoNominal({ dado, aoFechar }: PropsDoResultado) {
               <div className="mt-2 flex min-w-0 flex-col gap-3">
                 <p className="text-sm text-sutil">{formatarQuantidade(dado.lotesAprovados, 'correção aprovada', 'correções aprovadas')} na turma, somando as disciplinas.</p>
                 {dado.porHabilidade.map((medida) => (
-                  <BarraRotulada
+                  <ProgressBar
                     key={medida.habilidade.codigo}
                     rotulo={medida.habilidade.descricao}
                     valor={acertoPercentual(medida.acertos, medida.total)}
@@ -194,7 +194,7 @@ function ResultadoNominal({ dado, aoFechar }: PropsDoResultado) {
             <p className="mt-1 break-words text-apoio">{sinais.join(' · ')}. Só a contagem: os nomes chegam apenas aos professores da turma.</p>
           </div>
         </div>
-      </Cartao>
+      </Card>
     </div>
   )
 }

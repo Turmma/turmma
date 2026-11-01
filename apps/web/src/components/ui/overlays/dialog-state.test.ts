@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act, renderHook } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import { fecharSeAindaAberta, proximaAbertura, useDialogoDaTela } from './dialog-state'
+import { fecharSeAindaAberta, proximaAbertura, useDialogState } from './dialog-state'
 
 describe('a resposta de um pedido fecha só a abertura em que ele saiu (correção 2026-09-25-resposta-atrasada-fecha-o-dialogo-reaberto)', () => {
   it('cancelar e reabrir o mesmo diálogo dá outra abertura, e a resposta da primeira não fecha a segunda', () => {
@@ -46,13 +46,13 @@ describe('a abertura do convite leva a escola da linha (tarefa 7.0)', () => {
 
 describe('o diálogo aberto desde a montagem (telas do professor, 13.0)', () => {
   it('sem pedido, nada abre; com o tipo, a primeira renderização já o traz aberto, como a primeira abertura da tela', () => {
-    expect(renderHook(() => useDialogoDaTela<'convidar'>()).result.current.aberta).toBeUndefined()
-    expect(renderHook(() => useDialogoDaTela<'convidar'>(undefined)).result.current.aberta).toBeUndefined()
-    expect(renderHook(() => useDialogoDaTela<'convidar'>('convidar')).result.current.aberta).toEqual({ tipo: 'convidar', numero: 1 })
+    expect(renderHook(() => useDialogState<'convidar'>()).result.current.aberta).toBeUndefined()
+    expect(renderHook(() => useDialogState<'convidar'>(undefined)).result.current.aberta).toBeUndefined()
+    expect(renderHook(() => useDialogState<'convidar'>('convidar')).result.current.aberta).toEqual({ tipo: 'convidar', numero: 1 })
   })
 
   it('a abertura seguinte conta a partir da de montagem: a resposta do pedido da primeira não fecha a segunda', () => {
-    const { result } = renderHook(() => useDialogoDaTela<'convidar'>('convidar'))
+    const { result } = renderHook(() => useDialogState<'convidar'>('convidar'))
     const primeira = result.current.aberta
     if (primeira === undefined) throw new Error('o diálogo da montagem não abriu')
     act(() => result.current.fechar())

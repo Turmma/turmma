@@ -3,10 +3,10 @@ import { cleanup, render, screen } from '@testing-library/react'
 import { createRef } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { classesDo } from '../../__fixtures__/class-colors'
-import { BarraPresa } from './BarraPresa'
-import { BarraRotulada } from './BarraRotulada'
-import { Cartao } from './Cartao'
-import { NumeroPainel } from './NumeroPainel'
+import { StickyFooter } from './StickyFooter'
+import { ProgressBar } from './ProgressBar'
+import { Card } from './Card'
+import { StatCard } from './StatCard'
 
 /**
  * As quatro peças que a 5.0 da X1 só reveste, sem mudar props (`docs/interface.md` 9.3 e 10.2): cartão, número de painel,
@@ -47,7 +47,7 @@ function conferirCaixaDeLeitura(elemento: Element, nome: string): void {
 
 describe('Cartao', () => {
   it('sem título é só a caixa, com a borda de 2 px em borda, o canto de 16 e nenhuma sombra', () => {
-    const { container } = render(<Cartao>conteúdo</Cartao>)
+    const { container } = render(<Card>conteúdo</Card>)
     const caixa = container.firstElementChild as Element
     expect(caixa.tagName).toBe('DIV')
     conferirCaixaDeLeitura(caixa, 'cartão')
@@ -55,9 +55,9 @@ describe('Cartao', () => {
 
   it('com título, é uma região com nome, com a mesma caixa e o título em `t-cartao` no nível pedido', () => {
     render(
-      <Cartao titulo="Atividades da semana" nivel={3} acao={<button type="button">Ver todas</button>}>
+      <Card titulo="Atividades da semana" nivel={3} acao={<button type="button">Ver todas</button>}>
         conteúdo
-      </Cartao>,
+      </Card>,
     )
     const regiao = screen.getByRole('region', { name: 'Atividades da semana' })
     conferirCaixaDeLeitura(regiao, 'cartão com título')
@@ -71,10 +71,10 @@ describe('Cartao', () => {
     const ref = createRef<HTMLHeadingElement>()
     render(
       <>
-        <Cartao titulo="Sem ref">conteúdo</Cartao>
-        <Cartao titulo="Com ref" refDoTitulo={ref}>
+        <Card titulo="Sem ref">conteúdo</Card>
+        <Card titulo="Com ref" refDoTitulo={ref}>
           conteúdo
-        </Cartao>
+        </Card>
       </>,
     )
     // Sem a ref o título é só texto: não vira parada no Tab nem aceita foco.
@@ -89,7 +89,7 @@ describe('Cartao', () => {
   })
 
   it('o `className` de quem usa se soma à caixa, sem trocar a borda', () => {
-    const { container } = render(<Cartao className="mt-4">conteúdo</Cartao>)
+    const { container } = render(<Card className="mt-4">conteúdo</Card>)
     const caixa = container.firstElementChild as Element
     expect(classesDo(caixa).has('mt-4')).toBe(true)
     conferirCaixaDeLeitura(caixa, 'cartão com className')
@@ -98,7 +98,7 @@ describe('Cartao', () => {
 
 describe('NumeroPainel', () => {
   it('é um cartão de leitura: borda de 2 px, o rótulo em `t-selo` e `sutil`, e o número em `t-numero`', () => {
-    const { container } = render(<NumeroPainel rotulo="Gerado por IA" valor={1284} apoio="Atividades, planos e correções" />)
+    const { container } = render(<StatCard rotulo="Gerado por IA" valor={1284} apoio="Atividades, planos e correções" />)
     conferirCaixaDeLeitura(container.firstElementChild as Element, 'número de painel')
     const rotulo = screen.getByText('Gerado por IA')
     expect(classesDo(rotulo).has('t-selo')).toBe(true)
@@ -111,7 +111,7 @@ describe('NumeroPainel', () => {
   })
 
   it('o texto vai como veio, sem formatar', () => {
-    render(<NumeroPainel rotulo="Média de acertos" valor="61%" />)
+    render(<StatCard rotulo="Média de acertos" valor="61%" />)
     expect(screen.getByText('61%')).toBeTruthy()
   })
 })
@@ -121,7 +121,7 @@ describe('BarraRotulada', () => {
 
   it('é neutra: trilho `ia-cx` e enchimento `sutil`, sem família de cor, vazia, no meio ou cheia', () => {
     for (const valor of [0, 50, 100]) {
-      const { container, unmount } = render(<BarraRotulada rotulo="Hoje" valor={valor} texto={`${String(valor)}%`} />)
+      const { container, unmount } = render(<ProgressBar rotulo="Hoje" valor={valor} texto={`${String(valor)}%`} />)
       const [trilho, enchimento] = retangulosDe(container)
       expect(retangulosDe(container), `valor ${String(valor)}`).toHaveLength(2)
       expect([...classesDo(trilho as Element)], `trilho com ${String(valor)}`).toEqual(['fill-ia-cx'])
@@ -131,7 +131,7 @@ describe('BarraRotulada', () => {
   })
 
   it('a forma é de 12 px de altura com a ponta redonda, e o enchimento acompanha o valor', () => {
-    const { container } = render(<BarraRotulada rotulo="Consumo do mês" valor={188} maximo={300} texto="188 de 300 trocas" />)
+    const { container } = render(<ProgressBar rotulo="Consumo do mês" valor={188} maximo={300} texto="188 de 300 trocas" />)
     const svg = container.querySelector('svg') as SVGElement
     expect(classesDo(svg).has('h-3')).toBe(true)
     expect(svg.getAttribute('aria-hidden')).toBe('true')
@@ -143,7 +143,7 @@ describe('BarraRotulada', () => {
   })
 
   it('o valor está escrito: a barra é só desenho, e o leitor de tela lê o texto', () => {
-    render(<BarraRotulada rotulo="Habilidade EM13CNT101" valor={72} texto="72%" detalhe="3 questões" />)
+    render(<ProgressBar rotulo="Habilidade EM13CNT101" valor={72} texto="72%" detalhe="3 questões" />)
     expect(screen.getByText('Habilidade EM13CNT101')).toBeTruthy()
     expect(screen.getByText('72%')).toBeTruthy()
     expect(screen.getByText('3 questões')).toBeTruthy()
@@ -153,9 +153,9 @@ describe('BarraRotulada', () => {
 describe('BarraPresa', () => {
   it('tem o fio de 2 px em borda em cima, o fundo cheio e fica presa no pé', () => {
     render(
-      <BarraPresa rotulo="Aprovação do lote" informacao="3 de 5 destaques abertos">
+      <StickyFooter rotulo="Aprovação do lote" informacao="3 de 5 destaques abertos">
         <button type="button">Aprovar</button>
-      </BarraPresa>,
+      </StickyFooter>,
     )
     const barra = screen.getByRole('group', { name: 'Aprovação do lote' })
     const classes = classesDo(barra)
@@ -168,9 +168,9 @@ describe('BarraPresa', () => {
 
   it('a barra da caixa de pedido (`semLinha`) não leva o fio', () => {
     render(
-      <BarraPresa rotulo="Novo pedido" semLinha>
+      <StickyFooter rotulo="Novo pedido" semLinha>
         <button type="button">Enviar</button>
-      </BarraPresa>,
+      </StickyFooter>,
     )
     const classes = classesDo(screen.getByRole('group', { name: 'Novo pedido' }))
     expect(classes.has('border-t-2')).toBe(false)
@@ -181,9 +181,9 @@ describe('BarraPresa', () => {
     vi.spyOn(Element.prototype, 'getBoundingClientRect').mockReturnValue({ height: 71.2 } as DOMRect)
     const { unmount } = render(
       <div data-bloco="" style={{ overflowY: 'auto' }}>
-        <BarraPresa rotulo="Aprovação do lote">
+        <StickyFooter rotulo="Aprovação do lote">
           <button type="button">Aprovar</button>
-        </BarraPresa>
+        </StickyFooter>
       </div>,
     )
     // O `jsdom` lê o `overflow-y` do estilo em linha como o do ancestral que rola.
@@ -212,9 +212,9 @@ describe('BarraPresa', () => {
     barraQueSobe({ valor: '68px' })
     render(
       <div data-bloco="">
-        <BarraPresa rotulo="Aprovação do lote">
+        <StickyFooter rotulo="Aprovação do lote">
           <button type="button">Aprovar</button>
-        </BarraPresa>
+        </StickyFooter>
       </div>,
     )
     const bloco = document.querySelector('[data-bloco]') as HTMLElement
@@ -228,9 +228,9 @@ describe('BarraPresa', () => {
     barraQueSobe(sobe)
     const { unmount } = render(
       <div data-bloco="">
-        <BarraPresa rotulo="Aprovação do lote">
+        <StickyFooter rotulo="Aprovação do lote">
           <button type="button">Aprovar</button>
-        </BarraPresa>
+        </StickyFooter>
       </div>,
     )
     const bloco = document.querySelector('[data-bloco]') as HTMLElement

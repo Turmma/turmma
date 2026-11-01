@@ -1,0 +1,4043 @@
+{
+  "linha": true,
+  "entradas": [
+    {
+      "tipo": "simbolo",
+      "de": "Botao",
+      "para": "Button",
+      "arquivo": "apps/web/src/components/ui/Botao.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:21"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "BotaoCopiar",
+      "para": "CopyButton",
+      "arquivo": "apps/web/src/components/ui/BotaoCopiar.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:22"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "Cartao",
+      "para": "Card",
+      "arquivo": "apps/web/src/components/ui/Cartao.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:23"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "Abas",
+      "para": "Tabs",
+      "arquivo": "apps/web/src/components/ui/Abas.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:24"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "Aba",
+      "para": "TabItem",
+      "arquivo": "apps/web/src/components/ui/Abas.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:25"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "Aviso",
+      "para": "Alert",
+      "arquivo": "apps/web/src/components/ui/Aviso.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:26"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "TomDeAviso",
+      "para": "AlertTone",
+      "arquivo": "apps/web/src/components/ui/Aviso.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:27"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "TONS_DE_AVISO",
+      "para": "ALERT_TONES",
+      "arquivo": "apps/web/src/components/ui/Aviso.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:28"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "Faixa",
+      "para": "Banner",
+      "arquivo": "apps/web/src/components/ui/Faixa.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:29"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "BarraPresa",
+      "para": "StickyFooter",
+      "arquivo": "apps/web/src/components/ui/BarraPresa.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:30"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "BarraRotulada",
+      "para": "ProgressBar",
+      "arquivo": "apps/web/src/components/ui/BarraRotulada.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:31"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "Contador",
+      "para": "CountBadge",
+      "arquivo": "apps/web/src/components/ui/Contador.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:32"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "FamiliaDeCor",
+      "para": "ColorFamily",
+      "arquivo": "apps/web/src/components/ui/Contador.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:33"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "FAMILIAS_DE_COR",
+      "para": "COLOR_FAMILIES",
+      "arquivo": "apps/web/src/components/ui/Contador.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:34"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "Estado",
+      "para": "StatusBadge",
+      "arquivo": "apps/web/src/components/ui/SeloDeEstado.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:35"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "FamiliaDeEstado",
+      "para": "StatusFamily",
+      "arquivo": "apps/web/src/components/ui/SeloDeEstado.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:36"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "FAMILIAS_DE_ESTADO",
+      "para": "STATUS_FAMILIES",
+      "arquivo": "apps/web/src/components/ui/SeloDeEstado.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:37"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "CORES_DO_ESTADO",
+      "para": "STATUS_COLORS",
+      "arquivo": "apps/web/src/components/ui/SeloDeEstado.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:38"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "Icone",
+      "para": "Icon",
+      "arquivo": "apps/web/src/components/ui/Icone.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:39"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "TamanhoDoIcone",
+      "para": "IconSize",
+      "arquivo": "apps/web/src/components/ui/Icone.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:40"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "Ladrilho",
+      "para": "IconTile",
+      "arquivo": "apps/web/src/components/ui/Ladrilho.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:41"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "TamanhoDoLadrilho",
+      "para": "IconTileSize",
+      "arquivo": "apps/web/src/components/ui/Ladrilho.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:42"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "Linha",
+      "para": "ListItem",
+      "arquivo": "apps/web/src/components/ui/Linha.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:43"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "Marca",
+      "para": "Logo",
+      "arquivo": "apps/web/src/components/ui/Marca.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:44"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "NumeroPainel",
+      "para": "StatCard",
+      "arquivo": "apps/web/src/components/ui/NumeroPainel.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:45"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "Tabela",
+      "para": "Table",
+      "arquivo": "apps/web/src/components/ui/Tabela.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:46"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ColunaDaTabela",
+      "para": "TableColumn",
+      "arquivo": "apps/web/src/components/ui/Tabela.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:47"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "Tela",
+      "para": "Page",
+      "arquivo": "apps/web/src/components/ui/Tela.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:48"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "LarguraDaTela",
+      "para": "PageWidth",
+      "arquivo": "apps/web/src/components/ui/Tela.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:49"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "CabecalhoDeSecao",
+      "para": "SectionHeader",
+      "arquivo": "apps/web/src/components/ui/Tela.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:50"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "NivelDoTitulo",
+      "para": "HeadingLevel",
+      "arquivo": "apps/web/src/components/ui/Tela.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:51"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "Toque",
+      "para": "Toggle",
+      "arquivo": "apps/web/src/components/ui/Toque.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:52"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "classesDoBotao",
+      "para": "buttonVariants",
+      "arquivo": "apps/web/src/components/ui/button-variants.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:53"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "VarianteDeBotao",
+      "para": "ButtonVariant",
+      "arquivo": "apps/web/src/components/ui/button-variants.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:54"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "VARIANTES_DE_BOTAO",
+      "para": "BUTTON_VARIANTS",
+      "arquivo": "apps/web/src/components/ui/button-variants.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:55"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "TamanhoDeBotao",
+      "para": "ButtonSize",
+      "arquivo": "apps/web/src/components/ui/button-variants.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:56"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "TAMANHOS_DE_BOTAO",
+      "para": "BUTTON_SIZES",
+      "arquivo": "apps/web/src/components/ui/button-variants.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:57"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "AparenciaDoBotao",
+      "para": "ButtonVariantProps",
+      "arquivo": "apps/web/src/components/ui/button-variants.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:58"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "CLASSES_DO_BOTAO_SECUNDARIO",
+      "para": "SECONDARY_BUTTON_CLASSES",
+      "arquivo": "apps/web/src/components/ui/button-variants.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:59"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "CLASSES_DO_LINK_SECUNDARIO",
+      "para": "SECONDARY_LINK_CLASSES",
+      "arquivo": "apps/web/src/components/ui/button-variants.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:60"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "CLASSES_DO_BOTAO_PERIGO",
+      "para": "DANGER_BUTTON_CLASSES",
+      "arquivo": "apps/web/src/components/ui/button-variants.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:61"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "CLASSES_DO_BOTAO_PERIGO_CHEIO",
+      "para": "DANGER_SOLID_BUTTON_CLASSES",
+      "arquivo": "apps/web/src/components/ui/button-variants.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:62"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "CLASSES_DO_BOTAO_OFICIAL",
+      "para": "OFFICIAL_BUTTON_CLASSES",
+      "arquivo": "apps/web/src/components/ui/button-variants.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:63"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "useMidia",
+      "para": "useMediaQuery",
+      "arquivo": "apps/web/src/components/ui/media-query.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:64"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PONTEIRO_GROSSO",
+      "para": "COARSE_POINTER",
+      "arquivo": "apps/web/src/components/ui/media-query.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:65"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "A_PARTIR_DE_768",
+      "para": "MEDIA_MD",
+      "arquivo": "apps/web/src/components/ui/media-query.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:66"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "A_PARTIR_DE_1024",
+      "para": "MEDIA_LG",
+      "arquivo": "apps/web/src/components/ui/media-query.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:67"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "Campo",
+      "para": "FormField",
+      "arquivo": "apps/web/src/components/ui/fields/Campo.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:76"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "MensagemDeErro",
+      "para": "FieldError",
+      "arquivo": "apps/web/src/components/ui/fields/Campo.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:77"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "MarcaDeObrigatorio",
+      "para": "RequiredMark",
+      "arquivo": "apps/web/src/components/ui/fields/Campo.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:78"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "CampoDeSenha",
+      "para": "PasswordInput",
+      "arquivo": "apps/web/src/components/ui/fields/CampoDeSenha.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:79"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "CampoLongo",
+      "para": "Textarea",
+      "arquivo": "apps/web/src/components/ui/fields/CampoLongo.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:80"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "Busca",
+      "para": "SearchInput",
+      "arquivo": "apps/web/src/components/ui/fields/Busca.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:81"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "Interruptor",
+      "para": "Switch",
+      "arquivo": "apps/web/src/components/ui/fields/Interruptor.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:82"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "Opcao",
+      "para": "OptionCard",
+      "arquivo": "apps/web/src/components/ui/fields/Opcao.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:83"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "Segmentado",
+      "para": "SegmentedControl",
+      "arquivo": "apps/web/src/components/ui/fields/Segmentado.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:84"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "OpcaoDoSegmentado",
+      "para": "SegmentedOption",
+      "arquivo": "apps/web/src/components/ui/fields/Segmentado.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:85"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "OpcoesDoSegmentado",
+      "para": "SegmentedOptions",
+      "arquivo": "apps/web/src/components/ui/fields/Segmentado.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:85"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "Selecao",
+      "para": "Select",
+      "arquivo": "apps/web/src/components/ui/fields/Selecao.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:86"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "OpcaoDeSelecao",
+      "para": "SelectOption",
+      "arquivo": "apps/web/src/components/ui/fields/Selecao.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:87"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "FACE_DO_CAMPO",
+      "para": "FIELD_FACE",
+      "arquivo": "apps/web/src/components/ui/fields/field-styles.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:88"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "CAIXA_DO_CAMPO",
+      "para": "FIELD_BOX",
+      "arquivo": "apps/web/src/components/ui/fields/field-styles.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:89"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "CLASSES_DO_SELETOR",
+      "para": "SELECT_CLASSES",
+      "arquivo": "apps/web/src/components/ui/fields/field-styles.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:90"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "LimitesDoTexto",
+      "para": "TextLimits",
+      "arquivo": "apps/web/src/components/ui/fields/text-limits.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:91"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "NomeDoLugar",
+      "para": "PlaceName",
+      "arquivo": "apps/web/src/components/ui/icons/places.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:100"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "NOMES_DOS_LUGARES",
+      "para": "PLACE_NAMES",
+      "arquivo": "apps/web/src/components/ui/icons/places.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:101"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "DESENHO_DO_LUGAR",
+      "para": "PLACE_DRAWINGS",
+      "arquivo": "apps/web/src/components/ui/icons/places.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:102"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "AvatarAgente",
+      "para": "AgentAvatar",
+      "arquivo": "apps/web/src/components/ui/ai/AvatarAgente.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:110"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "AssinaturaIA",
+      "para": "AgentSignature",
+      "arquivo": "apps/web/src/components/ui/ai/AssinaturaIA.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:111"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "SeloIA",
+      "para": "AIBadge",
+      "arquivo": "apps/web/src/components/ui/ai/AssinaturaIA.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:112"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "TextoDaIA",
+      "para": "AIText",
+      "arquivo": "apps/web/src/components/ui/ai/TextoDaIA.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:113"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "Conversa",
+      "para": "Conversation",
+      "arquivo": "apps/web/src/components/ui/ai/Message.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:114"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "MensagemIA",
+      "para": "AIMessage",
+      "arquivo": "apps/web/src/components/ui/ai/Message.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:115"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "MensagemPessoa",
+      "para": "UserMessage",
+      "arquivo": "apps/web/src/components/ui/ai/Message.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:116"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "Pensando",
+      "para": "ThinkingIndicator",
+      "arquivo": "apps/web/src/components/ui/ai/Message.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:117"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "CaixaPedido",
+      "para": "PromptInput",
+      "arquivo": "apps/web/src/components/ui/ai/CaixaPedido.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:119"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ChipFonte",
+      "para": "CitationChip",
+      "arquivo": "apps/web/src/components/ui/ai/ChipFonte.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:120"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "Fontes",
+      "para": "Sources",
+      "arquivo": "apps/web/src/components/ui/ai/Fontes.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:121"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PaginaMini",
+      "para": "PageThumbnail",
+      "arquivo": "apps/web/src/components/ui/ai/PaginaMini.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:122"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "LinhaAprovacao",
+      "para": "ApprovalLine",
+      "arquivo": "apps/web/src/components/ui/ai/LinhaAprovacao.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:123"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "Escolha",
+      "para": "ChoicePrompt",
+      "arquivo": "apps/web/src/components/ui/ai/Escolha.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:124"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "OpcaoDeEscolha",
+      "para": "ChoiceOption",
+      "arquivo": "apps/web/src/components/ui/ai/Escolha.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:125"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "AvisoFila",
+      "para": "QueueAlert",
+      "arquivo": "apps/web/src/components/ui/ai/AvisoFila.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:126"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "MotorFormulario",
+      "para": "SchemaForm",
+      "arquivo": "apps/web/src/components/ui/ai/MotorFormulario.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:127"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "EstadoDoMotor",
+      "para": "SchemaFormState",
+      "arquivo": "apps/web/src/components/ui/ai/MotorFormulario.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:128"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "CampoDoMotor",
+      "para": "FormFieldDef",
+      "arquivo": "apps/web/src/components/ui/ai/schema-form.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:129"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "EstadoDaCaixa",
+      "para": "PromptInputState",
+      "arquivo": "apps/web/src/components/ui/ai/prompt-input.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:132"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "Dialogo",
+      "para": "Dialog",
+      "arquivo": "apps/web/src/components/ui/overlays/Dialogo.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:144"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "DialogoDeConfirmacao",
+      "para": "ConfirmDialog",
+      "arquivo": "apps/web/src/components/ui/overlays/DialogoDeConfirmacao.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:145"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PainelLado",
+      "para": "Sheet",
+      "arquivo": "apps/web/src/components/ui/overlays/PainelLado.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:146"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ItemDoMenu",
+      "para": "MenuItem",
+      "arquivo": "apps/web/src/components/ui/overlays/Menu.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:147"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "useDialogoDaTela",
+      "para": "useDialogState",
+      "arquivo": "apps/web/src/components/ui/overlays/dialog-state.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:149"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "AberturaDeDialogo",
+      "para": "DialogOpening",
+      "arquivo": "apps/web/src/components/ui/overlays/dialog-state.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:150"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "useDialogoModal",
+      "para": "useModalDialog",
+      "arquivo": "apps/web/src/components/ui/overlays/modal-dialog.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:152"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "prenderOFoco",
+      "para": "trapFocus",
+      "arquivo": "apps/web/src/components/ui/overlays/modal-dialog.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:153"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "useDialogoPrioritario",
+      "para": "usePriorityDialog",
+      "arquivo": "apps/web/src/components/ui/overlays/priority-dialog.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:155"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "useFlutuante",
+      "para": "useFloating",
+      "arquivo": "apps/web/src/components/ui/overlays/floating.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:157"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "useRestoInerte",
+      "para": "useInertOutside",
+      "arquivo": "apps/web/src/components/ui/overlays/floating.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:158"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "OpcoesDoTexto",
+      "para": "TextoOptions",
+      "arquivo": "apps/web/src/components/ui/ai/approval.ts",
+      "linhaDoAnexo": "inventario-adenda-2.md:80"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "OpcoesDoDialogoModal",
+      "para": "ModalDialogOptions",
+      "arquivo": "apps/web/src/components/ui/overlays/modal-dialog.ts",
+      "linhaDoAnexo": "inventario-adenda-2.md:81"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "OpcoesDoFlutuante",
+      "para": "FloatingOptions",
+      "arquivo": "apps/web/src/components/ui/overlays/floating.ts",
+      "linhaDoAnexo": "inventario-adenda-2.md:82"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PropsDaFaixa",
+      "para": "BannerProps",
+      "arquivo": "apps/web/src/components/ui/Faixa.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:68"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PropsDeBotao",
+      "para": "ButtonProps",
+      "arquivo": "apps/web/src/components/ui/Botao.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:68"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PropsDasAbas",
+      "para": "TabsProps",
+      "arquivo": "apps/web/src/components/ui/Abas.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:68"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PropsDaBarraRotulada",
+      "para": "ProgressBarProps",
+      "arquivo": "apps/web/src/components/ui/BarraRotulada.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:68"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PropsComunsDaLinha",
+      "para": "ListItemCommonProps",
+      "arquivo": "apps/web/src/components/ui/Linha.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:68"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PropsDaLinha",
+      "para": "ListItemProps",
+      "arquivo": "apps/web/src/components/ui/Linha.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:68"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PropsDoMiolo",
+      "para": "ListItemBodyProps",
+      "arquivo": "apps/web/src/components/ui/Linha.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:68"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PropsDoCartao",
+      "para": "CardProps",
+      "arquivo": "apps/web/src/components/ui/Cartao.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:68"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PropsDoDialogo",
+      "para": "DialogProps",
+      "arquivo": "apps/web/src/components/ui/overlays/Dialogo.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:68"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PropsDaBarraPresa",
+      "para": "StickyFooterProps",
+      "arquivo": "apps/web/src/components/ui/BarraPresa.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:68"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PropsDoEstado",
+      "para": "StatusBadgeProps",
+      "arquivo": "apps/web/src/components/ui/SeloDeEstado.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:68"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PropsDoDialogoDeConfirmacao",
+      "para": "ConfirmDialogProps",
+      "arquivo": "apps/web/src/components/ui/overlays/DialogoDeConfirmacao.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:68"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PropsDoPainelLado",
+      "para": "SheetProps",
+      "arquivo": "apps/web/src/components/ui/overlays/PainelLado.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:68"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PropsDoCampoLongo",
+      "para": "TextareaProps",
+      "arquivo": "apps/web/src/components/ui/fields/CampoLongo.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:68"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PropsDaCaixa",
+      "para": "PromptInputProps",
+      "arquivo": "apps/web/src/components/ui/ai/CaixaPedido.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:68"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PropsDaSelecao",
+      "para": "SelectProps",
+      "arquivo": "apps/web/src/components/ui/fields/Selecao.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:68"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PropsDaLinhaDeAprovacao",
+      "para": "ApprovalLineProps",
+      "arquivo": "apps/web/src/components/ui/ai/LinhaAprovacao.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:68"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PropsDaAssinatura",
+      "para": "AgentSignatureProps",
+      "arquivo": "apps/web/src/components/ui/ai/AssinaturaIA.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:68"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PropsDoAvatar",
+      "para": "AgentAvatarProps",
+      "arquivo": "apps/web/src/components/ui/ai/AvatarAgente.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:68"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PropsDaMensagemIA",
+      "para": "AIMessageProps",
+      "arquivo": "apps/web/src/components/ui/ai/Message.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:68"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PropsDaMensagemPessoa",
+      "para": "UserMessageProps",
+      "arquivo": "apps/web/src/components/ui/ai/Message.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:68"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PropsDoPensando",
+      "para": "ThinkingIndicatorProps",
+      "arquivo": "apps/web/src/components/ui/ai/Message.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:68"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PropsDaConversa",
+      "para": "ConversationProps",
+      "arquivo": "apps/web/src/components/ui/ai/Message.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:68"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PropsDoTextoDaIA",
+      "para": "AITextProps",
+      "arquivo": "apps/web/src/components/ui/ai/TextoDaIA.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:68"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PropsDoMotor",
+      "para": "SchemaFormProps",
+      "arquivo": "apps/web/src/components/ui/ai/MotorFormulario.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:68"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PropsDasFontes",
+      "para": "SourcesProps",
+      "arquivo": "apps/web/src/components/ui/ai/Fontes.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:68"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PropsDaPaginaMini",
+      "para": "PageThumbnailProps",
+      "arquivo": "apps/web/src/components/ui/ai/PaginaMini.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:68"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PropsDoAviso",
+      "para": "QueueAlertProps",
+      "arquivo": "apps/web/src/components/ui/ai/AvisoFila.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:68"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PropsDaTabela",
+      "para": "TableProps",
+      "arquivo": "apps/web/src/components/ui/Tabela.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:68"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PropsDaTela",
+      "para": "PageProps",
+      "arquivo": "apps/web/src/components/ui/Tela.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:68"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PropsDoCabecalhoDeSecao",
+      "para": "SectionHeaderProps",
+      "arquivo": "apps/web/src/components/ui/Tela.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:68"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PropsDoMenu",
+      "para": "MenuProps",
+      "arquivo": "apps/web/src/components/ui/overlays/Menu.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:68"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PropsDoChip",
+      "para": "CitationChipProps",
+      "arquivo": "apps/web/src/components/ui/ai/ChipFonte.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:68"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PropsDoNumeroPainel",
+      "para": "StatCardProps",
+      "arquivo": "apps/web/src/components/ui/NumeroPainel.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:68"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PropsDaEscolha",
+      "para": "ChoicePromptProps",
+      "arquivo": "apps/web/src/components/ui/ai/Escolha.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:68"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "apps/web/src/components/ui/Botao.tsx",
+      "para": "apps/web/src/components/ui/Button.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:21"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "apps/web/src/components/ui/Botao.test.tsx",
+      "para": "apps/web/src/components/ui/Button.test.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:21"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "apps/web/src/components/ui/BotaoCopiar.tsx",
+      "para": "apps/web/src/components/ui/CopyButton.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:22"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "apps/web/src/components/ui/Cartao.tsx",
+      "para": "apps/web/src/components/ui/Card.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:23"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "apps/web/src/components/ui/Abas.tsx",
+      "para": "apps/web/src/components/ui/Tabs.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:24"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "apps/web/src/components/ui/Abas.test.tsx",
+      "para": "apps/web/src/components/ui/Tabs.test.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:24"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "apps/web/src/components/ui/Aviso.tsx",
+      "para": "apps/web/src/components/ui/Alert.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:26"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "apps/web/src/components/ui/Aviso.test.tsx",
+      "para": "apps/web/src/components/ui/Alert.test.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:26"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "apps/web/src/components/ui/Faixa.tsx",
+      "para": "apps/web/src/components/ui/Banner.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:29"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "apps/web/src/components/ui/BarraPresa.tsx",
+      "para": "apps/web/src/components/ui/StickyFooter.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:30"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "apps/web/src/components/ui/BarraRotulada.tsx",
+      "para": "apps/web/src/components/ui/ProgressBar.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:31"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "apps/web/src/components/ui/Contador.tsx",
+      "para": "apps/web/src/components/ui/CountBadge.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:32"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "apps/web/src/components/ui/Contador.test.tsx",
+      "para": "apps/web/src/components/ui/CountBadge.test.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:32"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "apps/web/src/components/ui/SeloDeEstado.tsx",
+      "para": "apps/web/src/components/ui/StatusBadge.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:35"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "apps/web/src/components/ui/Icone.tsx",
+      "para": "apps/web/src/components/ui/Icon.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:39"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "apps/web/src/components/ui/Icone.test.tsx",
+      "para": "apps/web/src/components/ui/Icon.test.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:39"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "apps/web/src/components/ui/Ladrilho.tsx",
+      "para": "apps/web/src/components/ui/IconTile.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:41"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "apps/web/src/components/ui/Ladrilho.test.tsx",
+      "para": "apps/web/src/components/ui/IconTile.test.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:41"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "apps/web/src/components/ui/Linha.tsx",
+      "para": "apps/web/src/components/ui/ListItem.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:43"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "apps/web/src/components/ui/Linha.test.tsx",
+      "para": "apps/web/src/components/ui/ListItem.test.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:43"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "apps/web/src/components/ui/Marca.tsx",
+      "para": "apps/web/src/components/ui/Logo.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:44"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "apps/web/src/components/ui/NumeroPainel.tsx",
+      "para": "apps/web/src/components/ui/StatCard.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:45"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "apps/web/src/components/ui/Tabela.tsx",
+      "para": "apps/web/src/components/ui/Table.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:46"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "apps/web/src/components/ui/Tabela.test.tsx",
+      "para": "apps/web/src/components/ui/Table.test.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:46"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "apps/web/src/components/ui/Tela.tsx",
+      "para": "apps/web/src/components/ui/Page.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:48"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "apps/web/src/components/ui/Tela.test.tsx",
+      "para": "apps/web/src/components/ui/Page.test.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:48"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "apps/web/src/components/ui/Toque.tsx",
+      "para": "apps/web/src/components/ui/Toggle.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:52"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "apps/web/src/components/ui/Toque.test.tsx",
+      "para": "apps/web/src/components/ui/Toggle.test.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:52"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "apps/web/src/components/ui/fields/Campo.tsx",
+      "para": "apps/web/src/components/ui/fields/FormField.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:76"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "apps/web/src/components/ui/fields/Campo.test.tsx",
+      "para": "apps/web/src/components/ui/fields/FormField.test.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:76"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "apps/web/src/components/ui/fields/CampoDeSenha.tsx",
+      "para": "apps/web/src/components/ui/fields/PasswordInput.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:79"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "apps/web/src/components/ui/fields/CampoLongo.tsx",
+      "para": "apps/web/src/components/ui/fields/Textarea.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:80"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "apps/web/src/components/ui/fields/Busca.tsx",
+      "para": "apps/web/src/components/ui/fields/SearchInput.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:81"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "apps/web/src/components/ui/fields/Busca.test.tsx",
+      "para": "apps/web/src/components/ui/fields/SearchInput.test.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:81"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "apps/web/src/components/ui/fields/Interruptor.tsx",
+      "para": "apps/web/src/components/ui/fields/Switch.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:82"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "apps/web/src/components/ui/fields/Interruptor.test.tsx",
+      "para": "apps/web/src/components/ui/fields/Switch.test.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:82"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "apps/web/src/components/ui/fields/Opcao.tsx",
+      "para": "apps/web/src/components/ui/fields/OptionCard.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:83"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "apps/web/src/components/ui/fields/Opcao.test.tsx",
+      "para": "apps/web/src/components/ui/fields/OptionCard.test.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:83"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "apps/web/src/components/ui/fields/Segmentado.tsx",
+      "para": "apps/web/src/components/ui/fields/SegmentedControl.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:84"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "apps/web/src/components/ui/fields/Segmentado.test.tsx",
+      "para": "apps/web/src/components/ui/fields/SegmentedControl.test.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:84"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "apps/web/src/components/ui/fields/Selecao.tsx",
+      "para": "apps/web/src/components/ui/fields/Select.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:86"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "apps/web/src/components/ui/ai/AvatarAgente.tsx",
+      "para": "apps/web/src/components/ui/ai/AgentAvatar.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:110"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "apps/web/src/components/ui/ai/AssinaturaIA.tsx",
+      "para": "apps/web/src/components/ui/ai/AgentSignature.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:111"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "apps/web/src/components/ui/ai/TextoDaIA.tsx",
+      "para": "apps/web/src/components/ui/ai/AIText.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:113"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "apps/web/src/components/ui/ai/CaixaPedido.tsx",
+      "para": "apps/web/src/components/ui/ai/PromptInput.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:119"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "apps/web/src/components/ui/ai/CaixaPedido.test.tsx",
+      "para": "apps/web/src/components/ui/ai/PromptInput.test.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:119"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "apps/web/src/components/ui/ai/ChipFonte.tsx",
+      "para": "apps/web/src/components/ui/ai/CitationChip.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:120"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "apps/web/src/components/ui/ai/Fontes.tsx",
+      "para": "apps/web/src/components/ui/ai/Sources.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:121"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "apps/web/src/components/ui/ai/PaginaMini.tsx",
+      "para": "apps/web/src/components/ui/ai/PageThumbnail.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:122"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "apps/web/src/components/ui/ai/LinhaAprovacao.tsx",
+      "para": "apps/web/src/components/ui/ai/ApprovalLine.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:123"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "apps/web/src/components/ui/ai/Escolha.tsx",
+      "para": "apps/web/src/components/ui/ai/ChoicePrompt.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:124"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "apps/web/src/components/ui/ai/Escolha.test.tsx",
+      "para": "apps/web/src/components/ui/ai/ChoicePrompt.test.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:124"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "apps/web/src/components/ui/ai/AvisoFila.tsx",
+      "para": "apps/web/src/components/ui/ai/QueueAlert.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:126"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "apps/web/src/components/ui/ai/AvisoFila.test.tsx",
+      "para": "apps/web/src/components/ui/ai/QueueAlert.test.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:126"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "apps/web/src/components/ui/ai/MotorFormulario.tsx",
+      "para": "apps/web/src/components/ui/ai/SchemaForm.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:127"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "apps/web/src/components/ui/overlays/Dialogo.tsx",
+      "para": "apps/web/src/components/ui/overlays/Dialog.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:144"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "apps/web/src/components/ui/overlays/DialogoDeConfirmacao.tsx",
+      "para": "apps/web/src/components/ui/overlays/ConfirmDialog.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:145"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "apps/web/src/components/ui/overlays/PainelLado.tsx",
+      "para": "apps/web/src/components/ui/overlays/Sheet.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:146"
+    },
+    {
+      "tipo": "arquivo",
+      "de": "apps/web/src/components/ui/overlays/PainelLado.test.tsx",
+      "para": "apps/web/src/components/ui/overlays/Sheet.test.tsx",
+      "linhaDoAnexo": "inventario-web-e2e.md:146"
+    }
+  ],
+  "ocorrencias": [
+    {
+      "arquivo": "apps/api/src/artefato/pdf-do-artefato.ts",
+      "de": "Fontes",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:9"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "de": "apps/web/src/components/ui/ai/CaixaPedido.tsx",
+      "classe": "trava",
+      "linha": "travas.md:101"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "de": "CaixaPedido",
+      "classe": "trava",
+      "linha": "travas.md:101"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "de": "apps/web/src/components/ui/overlays/Dialogo.tsx",
+      "classe": "trava",
+      "linha": "travas.md:101"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "de": "Dialogo",
+      "classe": "trava",
+      "linha": "travas.md:101"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "de": "apps/web/src/components/ui/Abas.tsx",
+      "classe": "trava",
+      "linha": "travas.md:101"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "de": "Abas",
+      "classe": "trava",
+      "linha": "travas.md:101"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "de": "apps/web/src/components/ui/SeloDeEstado.tsx",
+      "classe": "trava",
+      "linha": "travas.md:101"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "de": "apps/web/src/components/ui/Botao.tsx",
+      "classe": "trava",
+      "linha": "travas.md:101"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "de": "Botao",
+      "classe": "trava",
+      "linha": "travas.md:101"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "de": "apps/web/src/components/ui/fields/Campo.tsx",
+      "classe": "trava",
+      "linha": "travas.md:101"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "de": "Campo",
+      "classe": "trava",
+      "linha": "travas.md:101"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "de": "apps/web/src/components/ui/fields/Busca.tsx",
+      "classe": "trava",
+      "linha": "travas.md:101"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "de": "Busca",
+      "classe": "trava",
+      "linha": "travas.md:101"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "de": "apps/web/src/components/ui/fields/Interruptor.tsx",
+      "classe": "trava",
+      "linha": "travas.md:101"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "de": "Interruptor",
+      "classe": "trava",
+      "linha": "travas.md:101"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "de": "apps/web/src/components/ui/fields/Opcao.tsx",
+      "classe": "trava",
+      "linha": "travas.md:101"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "de": "Opcao",
+      "classe": "trava",
+      "linha": "travas.md:101"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "de": "apps/web/src/components/ui/fields/CampoDeSenha.tsx",
+      "classe": "trava",
+      "linha": "travas.md:101"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "de": "CampoDeSenha",
+      "classe": "trava",
+      "linha": "travas.md:101"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "de": "apps/web/src/components/ui/overlays/PainelLado.tsx",
+      "classe": "trava",
+      "linha": "travas.md:101"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "de": "PainelLado",
+      "classe": "trava",
+      "linha": "travas.md:101"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "de": "apps/web/src/components/ui/Aviso.tsx",
+      "classe": "trava",
+      "linha": "travas.md:101"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "de": "Aviso",
+      "classe": "trava",
+      "linha": "travas.md:101"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "de": "apps/web/src/components/ui/Contador.tsx",
+      "classe": "trava",
+      "linha": "travas.md:101"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "de": "Contador",
+      "classe": "trava",
+      "linha": "travas.md:101"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "de": "apps/web/src/components/ui/Toque.tsx",
+      "classe": "trava",
+      "linha": "travas.md:101"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "de": "Toque",
+      "classe": "trava",
+      "linha": "travas.md:101"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "de": "apps/web/src/components/ui/ai/AvatarAgente.tsx",
+      "classe": "trava",
+      "linha": "travas.md:101"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "de": "AvatarAgente",
+      "classe": "trava",
+      "linha": "travas.md:101"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "de": "apps/web/src/components/ui/Linha.tsx",
+      "classe": "trava",
+      "linha": "travas.md:101"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "de": "Linha",
+      "classe": "trava",
+      "linha": "travas.md:101"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "de": "apps/web/src/components/ui/Linha.test.tsx",
+      "classe": "trava",
+      "linha": "travas.md:101"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "de": "AssinaturaIA",
+      "classe": "trava",
+      "linha": "travas.md:101"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "de": "ChipFonte",
+      "classe": "trava",
+      "linha": "travas.md:101"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "de": "Escolha",
+      "classe": "trava",
+      "linha": "travas.md:101"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "de": "MotorFormulario",
+      "classe": "trava",
+      "linha": "travas.md:101"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "de": "TextoDaIA",
+      "classe": "trava",
+      "linha": "travas.md:101"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "de": "Conversa",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:554"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.ts",
+      "de": "apps/web/src/components/ui/Abas.tsx",
+      "classe": "trava",
+      "linha": "travas.md:101"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.ts",
+      "de": "Abas",
+      "classe": "trava",
+      "linha": "travas.md:101"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.ts",
+      "de": "apps/web/src/components/ui/Aviso.tsx",
+      "classe": "trava",
+      "linha": "travas.md:101"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.ts",
+      "de": "Aviso",
+      "classe": "trava",
+      "linha": "travas.md:101"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.ts",
+      "de": "apps/web/src/components/ui/BarraPresa.tsx",
+      "classe": "trava",
+      "linha": "travas.md:101"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.ts",
+      "de": "BarraPresa",
+      "classe": "trava",
+      "linha": "travas.md:101"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.ts",
+      "de": "apps/web/src/components/ui/BarraRotulada.tsx",
+      "classe": "trava",
+      "linha": "travas.md:101"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.ts",
+      "de": "BarraRotulada",
+      "classe": "trava",
+      "linha": "travas.md:101"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.ts",
+      "de": "apps/web/src/components/ui/fields/Busca.tsx",
+      "classe": "trava",
+      "linha": "travas.md:101"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.ts",
+      "de": "Busca",
+      "classe": "trava",
+      "linha": "travas.md:101"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.ts",
+      "de": "apps/web/src/components/ui/fields/CampoLongo.tsx",
+      "classe": "trava",
+      "linha": "travas.md:101"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.ts",
+      "de": "CampoLongo",
+      "classe": "trava",
+      "linha": "travas.md:101"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.ts",
+      "de": "apps/web/src/components/ui/fields/Interruptor.tsx",
+      "classe": "trava",
+      "linha": "travas.md:101"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.ts",
+      "de": "Interruptor",
+      "classe": "trava",
+      "linha": "travas.md:101"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.ts",
+      "de": "apps/web/src/components/ui/fields/Opcao.tsx",
+      "classe": "trava",
+      "linha": "travas.md:101"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.ts",
+      "de": "Opcao",
+      "classe": "trava",
+      "linha": "travas.md:101"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.ts",
+      "de": "apps/web/src/components/ui/fields/Selecao.tsx",
+      "classe": "trava",
+      "linha": "travas.md:101"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.ts",
+      "de": "Selecao",
+      "classe": "trava",
+      "linha": "travas.md:101"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.ts",
+      "de": "apps/web/src/components/ui/Cartao.tsx",
+      "classe": "trava",
+      "linha": "travas.md:101"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.ts",
+      "de": "Cartao",
+      "classe": "trava",
+      "linha": "travas.md:101"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.ts",
+      "de": "apps/web/src/components/ui/Contador.tsx",
+      "classe": "trava",
+      "linha": "travas.md:101"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.ts",
+      "de": "Contador",
+      "classe": "trava",
+      "linha": "travas.md:101"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.ts",
+      "de": "apps/web/src/components/ui/Faixa.tsx",
+      "classe": "trava",
+      "linha": "travas.md:101"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.ts",
+      "de": "Faixa",
+      "classe": "trava",
+      "linha": "travas.md:101"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.ts",
+      "de": "apps/web/src/components/ui/Linha.tsx",
+      "classe": "trava",
+      "linha": "travas.md:101"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.ts",
+      "de": "Linha",
+      "classe": "trava",
+      "linha": "travas.md:101"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.ts",
+      "de": "apps/web/src/components/ui/NumeroPainel.tsx",
+      "classe": "trava",
+      "linha": "travas.md:101"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.ts",
+      "de": "NumeroPainel",
+      "classe": "trava",
+      "linha": "travas.md:101"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.ts",
+      "de": "apps/web/src/components/ui/SeloDeEstado.tsx",
+      "classe": "trava",
+      "linha": "travas.md:101"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.ts",
+      "de": "apps/web/src/components/ui/overlays/DialogoDeConfirmacao.tsx",
+      "classe": "trava",
+      "linha": "travas.md:101"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.ts",
+      "de": "DialogoDeConfirmacao",
+      "classe": "trava",
+      "linha": "travas.md:101"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.ts",
+      "de": "apps/web/src/components/ui/overlays/PainelLado.tsx",
+      "classe": "trava",
+      "linha": "travas.md:101"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.ts",
+      "de": "PainelLado",
+      "classe": "trava",
+      "linha": "travas.md:101"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.ts",
+      "de": "apps/web/src/components/ui/Tabela.tsx",
+      "classe": "trava",
+      "linha": "travas.md:101"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.ts",
+      "de": "Tabela",
+      "classe": "trava",
+      "linha": "travas.md:101"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.ts",
+      "de": "apps/web/src/components/ui/Tela.tsx",
+      "classe": "trava",
+      "linha": "travas.md:101"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.ts",
+      "de": "Tela",
+      "classe": "trava",
+      "linha": "travas.md:101"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.ts",
+      "de": "apps/web/src/components/ui/Toque.tsx",
+      "classe": "trava",
+      "linha": "travas.md:101"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.ts",
+      "de": "Toque",
+      "classe": "trava",
+      "linha": "travas.md:101"
+    },
+    {
+      "arquivo": "apps/web/src/__fixtures__/danger-solid.ts",
+      "de": "Botao",
+      "classe": "trava",
+      "linha": "travas.md:140"
+    },
+    {
+      "arquivo": "apps/web/src/__fixtures__/danger-solid.ts",
+      "de": "classesDoBotao",
+      "classe": "trava",
+      "linha": "travas.md:140"
+    },
+    {
+      "arquivo": "apps/web/src/__fixtures__/danger-solid.ts",
+      "de": "CLASSES_DO_BOTAO_PERIGO_CHEIO",
+      "classe": "trava",
+      "linha": "travas.md:140"
+    },
+    {
+      "arquivo": "apps/web/src/areas/coordenacao/governanca/Governanca.test.tsx",
+      "de": "Estado",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:9"
+    },
+    {
+      "arquivo": "apps/web/src/areas/coordenacao/governanca/Governanca.tsx",
+      "de": "Estado",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:9"
+    },
+    {
+      "arquivo": "apps/web/src/areas/coordenacao/privacidade/Privacidade.test.tsx",
+      "de": "Conversa",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:9"
+    },
+    {
+      "arquivo": "apps/web/src/areas/professor/artefatos/Criados.test.tsx",
+      "de": "Estado",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:9"
+    },
+    {
+      "arquivo": "apps/web/src/areas/professor/artefatos/Criados.tsx",
+      "de": "Estado",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:9"
+    },
+    {
+      "arquivo": "apps/web/src/areas/professor/assistente/Conversa.test.tsx",
+      "de": "Conversa",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:551"
+    },
+    {
+      "arquivo": "apps/web/src/areas/professor/routes.tsx",
+      "de": "Conversa",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:551"
+    },
+    {
+      "arquivo": "apps/web/src/areas/titulo-das-telas.test.tsx",
+      "de": "Conversa",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:551"
+    },
+    {
+      "arquivo": "apps/web/src/components/casca-sem-import.test.ts",
+      "de": "apps/web/src/components/ui/fields/Segmentado.tsx",
+      "classe": "trava",
+      "linha": "travas.md:140"
+    },
+    {
+      "arquivo": "apps/web/src/components/casca-sem-import.test.ts",
+      "de": "Segmentado",
+      "classe": "trava",
+      "linha": "travas.md:140"
+    },
+    {
+      "arquivo": "apps/web/src/components/casca-sem-import.test.ts",
+      "de": "apps/web/src/components/ui/Ladrilho.tsx",
+      "classe": "trava",
+      "linha": "travas.md:140"
+    },
+    {
+      "arquivo": "apps/web/src/components/casca-sem-import.test.ts",
+      "de": "Ladrilho",
+      "classe": "trava",
+      "linha": "travas.md:140"
+    },
+    {
+      "arquivo": "apps/web/src/components/casca-sem-import.test.ts",
+      "de": "apps/web/src/components/ui/Icone.tsx",
+      "classe": "trava",
+      "linha": "travas.md:140"
+    },
+    {
+      "arquivo": "apps/web/src/components/casca-sem-import.test.ts",
+      "de": "Icone",
+      "classe": "trava",
+      "linha": "travas.md:140"
+    },
+    {
+      "arquivo": "apps/web/src/components/casca-sem-import.test.ts",
+      "de": "apps/web/src/components/ui/Marca.tsx",
+      "classe": "trava",
+      "linha": "travas.md:140"
+    },
+    {
+      "arquivo": "apps/web/src/components/casca-sem-import.test.ts",
+      "de": "Marca",
+      "classe": "trava",
+      "linha": "travas.md:140"
+    },
+    {
+      "arquivo": "apps/web/src/components/casca-sem-import.test.ts",
+      "de": "Contador",
+      "classe": "trava",
+      "linha": "travas.md:140"
+    },
+    {
+      "arquivo": "apps/web/src/components/casca-sem-import.test.ts",
+      "de": "FamiliaDeCor",
+      "classe": "trava",
+      "linha": "travas.md:140"
+    },
+    {
+      "arquivo": "apps/web/src/components/casca-sem-import.test.ts",
+      "de": "apps/web/src/components/ui/ai/AssinaturaIA.tsx",
+      "classe": "trava",
+      "linha": "travas.md:140"
+    },
+    {
+      "arquivo": "apps/web/src/components/casca-sem-import.test.ts",
+      "de": "AssinaturaIA",
+      "classe": "trava",
+      "linha": "travas.md:140"
+    },
+    {
+      "arquivo": "apps/web/src/components/casca-sem-import.test.ts",
+      "de": "apps/web/src/components/ui/Contador.tsx",
+      "classe": "trava",
+      "linha": "travas.md:140"
+    },
+    {
+      "arquivo": "apps/web/src/components/perigo-cheio.test.ts",
+      "de": "apps/web/src/components/ui/Botao.tsx",
+      "classe": "trava",
+      "linha": "travas.md:140"
+    },
+    {
+      "arquivo": "apps/web/src/components/perigo-cheio.test.ts",
+      "de": "Botao",
+      "classe": "trava",
+      "linha": "travas.md:140"
+    },
+    {
+      "arquivo": "apps/web/src/components/perigo-cheio.test.ts",
+      "de": "apps/web/src/components/ui/overlays/DialogoDeConfirmacao.tsx",
+      "classe": "trava",
+      "linha": "travas.md:140"
+    },
+    {
+      "arquivo": "apps/web/src/components/perigo-cheio.test.ts",
+      "de": "DialogoDeConfirmacao",
+      "classe": "trava",
+      "linha": "travas.md:140"
+    },
+    {
+      "arquivo": "apps/web/src/components/perigo-cheio.test.ts",
+      "de": "classesDoBotao",
+      "classe": "trava",
+      "linha": "travas.md:140"
+    },
+    {
+      "arquivo": "apps/web/src/components/perigo-cheio.test.ts",
+      "de": "CLASSES_DO_BOTAO_PERIGO_CHEIO",
+      "classe": "trava",
+      "linha": "travas.md:140"
+    },
+    {
+      "arquivo": "apps/web/src/components/states/estados.test.tsx",
+      "de": "apps/web/src/components/ui/Aviso.tsx",
+      "classe": "trava",
+      "linha": "travas.md:170"
+    },
+    {
+      "arquivo": "apps/web/src/components/states/estados.test.tsx",
+      "de": "Aviso",
+      "classe": "trava",
+      "linha": "travas.md:170"
+    },
+    {
+      "arquivo": "apps/web/src/components/states/estados.test.tsx",
+      "de": "apps/web/src/components/ui/Contador.tsx",
+      "classe": "trava",
+      "linha": "travas.md:170"
+    },
+    {
+      "arquivo": "apps/web/src/components/states/estados.test.tsx",
+      "de": "Contador",
+      "classe": "trava",
+      "linha": "travas.md:170"
+    },
+    {
+      "arquivo": "apps/web/src/components/states/estados.test.tsx",
+      "de": "apps/web/src/components/ui/Toque.tsx",
+      "classe": "trava",
+      "linha": "travas.md:170"
+    },
+    {
+      "arquivo": "apps/web/src/components/states/estados.test.tsx",
+      "de": "Toque",
+      "classe": "trava",
+      "linha": "travas.md:170"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/Alert.test.tsx",
+      "de": "Aviso",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:9"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/Button.test.tsx",
+      "de": "Botao",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:9"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/CountBadge.test.tsx",
+      "de": "Contador",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:9"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/Icon.test.tsx",
+      "de": "Icone",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:9"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/IconTile.test.tsx",
+      "de": "Ladrilho",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:9"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/ListItem.test.tsx",
+      "de": "Linha",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:9"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/Page.test.tsx",
+      "de": "Tela",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:9"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/SeloEFaixa.test.tsx",
+      "de": "Estado",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:9"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/SeloEFaixa.test.tsx",
+      "de": "Faixa",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:9"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/Superficies.test.tsx",
+      "de": "Cartao",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:9"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/Superficies.test.tsx",
+      "de": "NumeroPainel",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:9"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/Superficies.test.tsx",
+      "de": "BarraRotulada",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:9"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/Superficies.test.tsx",
+      "de": "BarraPresa",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:9"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/Table.test.tsx",
+      "de": "Tabela",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:9"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/Tabs.test.tsx",
+      "de": "Abas",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:9"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/Toggle.test.tsx",
+      "de": "Toque",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:9"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/ai/ChoicePrompt.test.tsx",
+      "de": "Escolha",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:9"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/ai/Message.test.tsx",
+      "de": "MensagemPessoa",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:9"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/ai/Message.test.tsx",
+      "de": "MensagemIA",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:9"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/ai/Message.test.tsx",
+      "de": "AvatarAgente",
+      "classe": "trava",
+      "linha": "travas.md:73",
+      "trecho": "from './AvatarAgente'"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/ai/Message.test.tsx",
+      "de": "Pensando",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:9"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/ai/Message.test.tsx",
+      "de": "Conversa",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:9"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/ai/PromptInput.test.tsx",
+      "de": "CaixaPedido",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:9"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/ai/QueueAlert.test.tsx",
+      "de": "AvisoFila",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:9"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/ai/avatar-com-funcao-e-selo.test.tsx",
+      "de": "AvatarAgente",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:9"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/ai/avatar-com-funcao-e-selo.test.tsx",
+      "de": "AssinaturaIA",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:9"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/ai/avatar-com-funcao-e-selo.test.tsx",
+      "de": "MensagemIA",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:9"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/ai/avatar-so-nas-duas-pecas.test.ts",
+      "de": "apps/web/src/components/ui/ai/AvatarAgente.tsx",
+      "classe": "trava",
+      "linha": "travas.md:74"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/ai/avatar-so-nas-duas-pecas.test.ts",
+      "de": "AvatarAgente",
+      "classe": "trava",
+      "linha": "travas.md:74"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/ai/avatar-so-nas-duas-pecas.test.ts",
+      "de": "apps/web/src/components/ui/ai/AssinaturaIA.tsx",
+      "classe": "trava",
+      "linha": "travas.md:74"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/ai/avatar-so-nas-duas-pecas.test.ts",
+      "de": "AssinaturaIA",
+      "classe": "trava",
+      "linha": "travas.md:74"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/ai/avatar-so-nas-duas-pecas.test.ts",
+      "de": "MensagemIA",
+      "classe": "trava",
+      "linha": "travas.md:74"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/ai/pecas-revestidas.test.tsx",
+      "de": "ChipFonte",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:9"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/ai/pecas-revestidas.test.tsx",
+      "de": "Fontes",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:9"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/ai/pecas-revestidas.test.tsx",
+      "de": "PaginaMini",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:9"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/ai/pecas-revestidas.test.tsx",
+      "de": "MotorFormulario",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:9"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/fields/FormField.test.tsx",
+      "de": "CampoDeSenha",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:9"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/fields/FormField.test.tsx",
+      "de": "CampoLongo",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:9"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/fields/FormField.test.tsx",
+      "de": "Escolha",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:9"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/fields/FormField.test.tsx",
+      "de": "Campo",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:9"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/fields/FormField.test.tsx",
+      "de": "Selecao",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:9"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/fields/SearchInput.test.tsx",
+      "de": "Busca",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:9"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/fields/SegmentedControl.test.tsx",
+      "de": "Segmentado",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:9"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/fields/Switch.test.tsx",
+      "de": "Interruptor",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:9"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/onca/CabecaOnca.test.tsx",
+      "de": "AvatarAgente",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:554"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/onca/Onca.test.tsx",
+      "de": "AvatarAgente",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:554"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/overlays/Sheet.test.tsx",
+      "de": "PainelLado",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:9"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/overlays/modal-dialog.test.ts",
+      "de": "prenderOFoco",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:9"
+    },
+    {
+      "arquivo": "apps/web/src/estilos.test.ts",
+      "de": "apps/web/src/components/ui/Botao.tsx",
+      "classe": "trava",
+      "linha": "travas.md:140"
+    },
+    {
+      "arquivo": "apps/web/src/estilos.test.ts",
+      "de": "Botao",
+      "classe": "trava",
+      "linha": "travas.md:140"
+    },
+    {
+      "arquivo": "apps/web/src/estilos.test.ts",
+      "de": "apps/web/src/components/ui/ai/AssinaturaIA.tsx",
+      "classe": "trava",
+      "linha": "travas.md:140"
+    },
+    {
+      "arquivo": "apps/web/src/estilos.test.ts",
+      "de": "AssinaturaIA",
+      "classe": "trava",
+      "linha": "travas.md:140"
+    },
+    {
+      "arquivo": "apps/web/src/gallery/sections/ai.tsx",
+      "de": "Conversa",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:9"
+    },
+    {
+      "arquivo": "apps/web/src/gallery/sections/fields.tsx",
+      "de": "Busca",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:9"
+    },
+    {
+      "arquivo": "apps/web/src/gallery/sections/fields.tsx",
+      "de": "Interruptor",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:9"
+    },
+    {
+      "arquivo": "apps/web/src/gallery/sections/states.tsx",
+      "de": "Abas",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:9"
+    },
+    {
+      "arquivo": "apps/web/src/gallery/sections/states.tsx",
+      "de": "Contador",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:9"
+    },
+    {
+      "arquivo": "e2e/components-ai.spec.ts",
+      "de": "ChipFonte",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:9"
+    },
+    {
+      "arquivo": "e2e/components-ai.spec.ts",
+      "de": "CaixaPedido",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:9"
+    },
+    {
+      "arquivo": "e2e/governanca.spec.ts",
+      "de": "Estado",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:9"
+    },
+    {
+      "arquivo": "e2e/professor-criados.spec.ts",
+      "de": "Estado",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:9"
+    },
+    {
+      "arquivo": "e2e/professor-tutor.spec.ts",
+      "de": "Aviso",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:9"
+    },
+    {
+      "arquivo": "eslint-suppressions.json",
+      "de": "Conversa",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:551"
+    },
+    {
+      "arquivo": "eslint-suppressions.json",
+      "de": "apps/web/src/components/ui/fields/Campo.tsx",
+      "classe": "trava",
+      "linha": "travas.md:95"
+    },
+    {
+      "arquivo": "eslint-suppressions.json",
+      "de": "Campo",
+      "classe": "trava",
+      "linha": "travas.md:95"
+    },
+    {
+      "arquivo": "eslint-suppressions.json",
+      "de": "apps/web/src/components/ui/fields/CampoLongo.tsx",
+      "classe": "trava",
+      "linha": "travas.md:95"
+    },
+    {
+      "arquivo": "eslint-suppressions.json",
+      "de": "CampoLongo",
+      "classe": "trava",
+      "linha": "travas.md:95"
+    },
+    {
+      "arquivo": "eslint-suppressions.json",
+      "de": "apps/web/src/components/ui/fields/Selecao.tsx",
+      "classe": "trava",
+      "linha": "travas.md:95"
+    },
+    {
+      "arquivo": "eslint-suppressions.json",
+      "de": "Selecao",
+      "classe": "trava",
+      "linha": "travas.md:95"
+    },
+    {
+      "arquivo": "eslint-suppressions.json",
+      "de": "apps/web/src/components/ui/ai/CaixaPedido.tsx",
+      "classe": "trava",
+      "linha": "travas.md:95"
+    },
+    {
+      "arquivo": "eslint-suppressions.json",
+      "de": "CaixaPedido",
+      "classe": "trava",
+      "linha": "travas.md:95"
+    },
+    {
+      "arquivo": "eslint-suppressions.json",
+      "de": "apps/web/src/components/ui/ai/MotorFormulario.tsx",
+      "classe": "trava",
+      "linha": "travas.md:95"
+    },
+    {
+      "arquivo": "eslint-suppressions.json",
+      "de": "MotorFormulario",
+      "classe": "trava",
+      "linha": "travas.md:95"
+    },
+    {
+      "arquivo": "eslint-suppressions.json",
+      "de": "apps/web/src/components/ui/overlays/DialogoDeConfirmacao.tsx",
+      "classe": "trava",
+      "linha": "travas.md:95"
+    },
+    {
+      "arquivo": "eslint-suppressions.json",
+      "de": "DialogoDeConfirmacao",
+      "classe": "trava",
+      "linha": "travas.md:95"
+    },
+    {
+      "arquivo": "tools/ci/tamanho-web.test.ts",
+      "de": "CaixaPedido",
+      "classe": "trava",
+      "linha": "travas.md:169"
+    },
+    {
+      "arquivo": "tools/ci/tamanho-web.test.ts",
+      "de": "Abas",
+      "classe": "trava",
+      "linha": "travas.md:169"
+    },
+    {
+      "arquivo": "tools/guardas/__fixtures__/kit-importa-api.ts",
+      "de": "Botao",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:553"
+    },
+    {
+      "arquivo": "tools/guardas/__fixtures__/kit-importa-api.ts",
+      "de": "Campo",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:553"
+    },
+    {
+      "arquivo": "tools/guardas/__fixtures__/kit-importa-api.ts",
+      "de": "Dialogo",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:553"
+    },
+    {
+      "arquivo": "tools/processo/harness/guardioes.test.ts",
+      "de": "apps/web/src/components/ui/Abas.tsx",
+      "classe": "trava",
+      "linha": "travas.md:168"
+    },
+    {
+      "arquivo": "tools/processo/harness/guardioes.test.ts",
+      "de": "Abas",
+      "classe": "trava",
+      "linha": "travas.md:168"
+    },
+    {
+      "arquivo": "tools/processo/harness/guardioes.test.ts",
+      "de": "apps/web/src/components/ui/ai/AssinaturaIA.tsx",
+      "classe": "trava",
+      "linha": "travas.md:168"
+    },
+    {
+      "arquivo": "tools/processo/harness/guardioes.test.ts",
+      "de": "AssinaturaIA",
+      "classe": "trava",
+      "linha": "travas.md:168"
+    },
+    {
+      "arquivo": "tools/processo/harness/guardioes.test.ts",
+      "de": "apps/web/src/components/ui/ai/AvisoFila.tsx",
+      "classe": "trava",
+      "linha": "travas.md:168"
+    },
+    {
+      "arquivo": "tools/processo/harness/guardioes.test.ts",
+      "de": "AvisoFila",
+      "classe": "trava",
+      "linha": "travas.md:168"
+    },
+    {
+      "arquivo": "tools/processo/harness/guardioes.test.ts",
+      "de": "apps/web/src/components/ui/overlays/DialogoDeConfirmacao.tsx",
+      "classe": "trava",
+      "linha": "travas.md:168"
+    },
+    {
+      "arquivo": "tools/processo/harness/guardioes.test.ts",
+      "de": "DialogoDeConfirmacao",
+      "classe": "trava",
+      "linha": "travas.md:168"
+    },
+    {
+      "arquivo": "tools/processo/harness/guardioes.test.ts",
+      "de": "apps/web/src/components/ui/Aviso.tsx",
+      "classe": "trava",
+      "linha": "travas.md:168"
+    },
+    {
+      "arquivo": "tools/processo/harness/guardioes.test.ts",
+      "de": "Aviso",
+      "classe": "trava",
+      "linha": "travas.md:168"
+    },
+    {
+      "arquivo": "tools/processo/harness/instalacao.test.ts",
+      "de": "Aviso",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:9"
+    },
+    {
+      "arquivo": "tools/processo/linhas.test.ts",
+      "de": "Tela",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:554"
+    },
+    {
+      "arquivo": "tools/processo/mutacoes.test.ts",
+      "de": "Tela",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:554"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/onca/",
+      "de": "AvatarAgente",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:554"
+    },
+    {
+      "arquivo": "apps/api/src/atividade/atividade-isolamento.int.test.ts",
+      "de": "Linha",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:554"
+    },
+    {
+      "arquivo": "apps/api/src/atividade/atividade.int.test.ts",
+      "de": "Linha",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:554"
+    },
+    {
+      "arquivo": "apps/api/src/atividade/correcao/correcao.int.test.ts",
+      "de": "Linha",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:554"
+    },
+    {
+      "arquivo": "apps/api/src/atividade/minha-atividade/minha-atividade.repository.ts",
+      "de": "Tabela",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:554"
+    },
+    {
+      "arquivo": "apps/api/src/config.ts",
+      "de": "Aviso",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:554"
+    },
+    {
+      "arquivo": "apps/api/src/governanca/analista.int.test.ts",
+      "de": "Linha",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:554"
+    },
+    {
+      "arquivo": "apps/api/src/governanca/governanca.int.test.ts",
+      "de": "Linha",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:554"
+    },
+    {
+      "arquivo": "apps/api/src/http/pagination.ts",
+      "de": "Linha",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:554"
+    },
+    {
+      "arquivo": "apps/api/src/system/notices.controller.ts",
+      "de": "Aviso",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:554"
+    },
+    {
+      "arquivo": "apps/api/src/system/system.module.ts",
+      "de": "Aviso",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:554"
+    },
+    {
+      "arquivo": "apps/api/src/tutor/tutor-modelo.int.test.ts",
+      "de": "Linha",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:554"
+    },
+    {
+      "arquivo": "apps/api/src/tutor/tutor.int.test.ts",
+      "de": "Linha",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:554"
+    },
+    {
+      "arquivo": "apps/api/test/ops-operador.int.test.ts",
+      "de": "Estado",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:554"
+    },
+    {
+      "arquivo": "apps/web/src/areas/aluno/Atividades.tsx",
+      "de": "Icone",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:554"
+    },
+    {
+      "arquivo": "apps/web/src/areas/aluno/Tutor.tsx",
+      "de": "Icone",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:554"
+    },
+    {
+      "arquivo": "apps/web/src/areas/aluno/routes.tsx",
+      "de": "Tela",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:554"
+    },
+    {
+      "arquivo": "apps/web/src/areas/coordenacao/estrutura/AnoEDisciplinas.tsx",
+      "de": "Linha",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:554"
+    },
+    {
+      "arquivo": "apps/web/src/areas/coordenacao/privacidade/DetalheDoPedido.tsx",
+      "de": "Linha",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:554"
+    },
+    {
+      "arquivo": "apps/web/src/areas/coordenacao/privacidade/Incidentes.tsx",
+      "de": "PropsDoCartao",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:554"
+    },
+    {
+      "arquivo": "apps/web/src/areas/coordenacao/routes.tsx",
+      "de": "Tela",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:554"
+    },
+    {
+      "arquivo": "apps/web/src/areas/navigation.ts",
+      "de": "Tela",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:554"
+    },
+    {
+      "arquivo": "apps/web/src/areas/professor/assistente/CaixaDoAssistente.tsx",
+      "de": "PropsDaCaixa",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:554"
+    },
+    {
+      "arquivo": "apps/web/src/areas/professor/atividades/AplicacaoDoArtefato.tsx",
+      "de": "Escolha",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:554"
+    },
+    {
+      "arquivo": "apps/web/src/areas/professor/ferramentas/CartaoDeFerramenta.test.tsx",
+      "de": "Conversa",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:554"
+    },
+    {
+      "arquivo": "apps/web/src/areas/professor/ferramentas/CartaoDeFerramenta.tsx",
+      "de": "PropsDoCartao",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:554"
+    },
+    {
+      "arquivo": "apps/web/src/areas/professor/routes.tsx",
+      "de": "Tela",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:554"
+    },
+    {
+      "arquivo": "apps/web/src/areas/professor/turmas/Turma.tsx",
+      "de": "Aba",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:554"
+    },
+    {
+      "arquivo": "apps/web/src/components/CascaDaEscola.tsx",
+      "de": "Faixa",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:554"
+    },
+    {
+      "arquivo": "apps/web/src/components/meus-dados/MeusDados.tsx",
+      "de": "PropsDoDialogo",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:554"
+    },
+    {
+      "arquivo": "apps/web/src/components/states/EstadoVazio.tsx",
+      "de": "Icone",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:554"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/Alert.tsx",
+      "de": "Icone",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:554"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/Banner.tsx",
+      "de": "Icone",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:554"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/StatusBadge.tsx",
+      "de": "Estado",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:554"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/StatusBadge.tsx",
+      "de": "Icone",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:554"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/Table.tsx",
+      "de": "Linha",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:554"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/Toggle.tsx",
+      "de": "Icone",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:554"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/ai/ChoicePrompt.test.tsx",
+      "de": "Cartao",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:554"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/ai/ChoicePrompt.tsx",
+      "de": "Icone",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:554"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/ai/QueueAlert.tsx",
+      "de": "Icone",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:554"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/button-variants.test.ts",
+      "de": "Estado",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:554"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/onca/CabecaOnca.tsx",
+      "de": "AssinaturaIA",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:554"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/overlays/Menu.tsx",
+      "de": "Icone",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:554"
+    },
+    {
+      "arquivo": "apps/web/src/operacao/pedidos-do-painel.ts",
+      "de": "Campo",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:554"
+    },
+    {
+      "arquivo": "apps/web/src/pages/Casca.tsx",
+      "de": "Aviso",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:554"
+    },
+    {
+      "arquivo": "apps/web/src/pages/Casca.tsx",
+      "de": "Estado",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:554"
+    },
+    {
+      "arquivo": "e2e/aparencia.spec.ts",
+      "de": "Opcao",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:554"
+    },
+    {
+      "arquivo": "e2e/incidentes.spec.ts",
+      "de": "Tela",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:554"
+    },
+    {
+      "arquivo": "e2e/tokens.spec.ts",
+      "de": "apps/web/src/estilos.css",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:554"
+    },
+    {
+      "arquivo": "infra/test/conferir-carga.int.test.ts",
+      "de": "Linha",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:554"
+    },
+    {
+      "arquivo": "packages/core/src/context/context.ts",
+      "de": "Campo",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:554"
+    },
+    {
+      "arquivo": "packages/shared/src/index.ts",
+      "de": "Aviso",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:554"
+    },
+    {
+      "arquivo": "tools/processo/estado.ts",
+      "de": "Escolha",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:554"
+    },
+    {
+      "arquivo": "tools/processo/estado.ts",
+      "de": "Estado",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:554"
+    },
+    {
+      "arquivo": "tools/processo/estado.ts",
+      "de": "Marca",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:554"
+    },
+    {
+      "arquivo": "tools/processo/linhas.ts",
+      "de": "Linha",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:554"
+    },
+    {
+      "arquivo": "tools/ci/duracao-do-e2e.test.ts",
+      "de": "Campo",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:554"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/onca/",
+      "de": "AssinaturaIA",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:554"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.ts",
+      "de": "Tela",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:554",
+      "trecho": "O nome dos arquivos de JS do build"
+    }
+  ],
+  "excecoesDoConferir": [
+    {
+      "arquivo": "apps/web/src/components/perigo-cheio.test.ts",
+      "texto": "components/ui/Botao.tsx",
+      "motivo": "caminho e nome do kit lidos como texto pela trava do perigo cheio, trocados à mão (travas.md:140)"
+    },
+    {
+      "arquivo": "apps/web/src/components/perigo-cheio.test.ts",
+      "texto": "components/ui/overlays/DialogoDeConfirmacao.tsx",
+      "motivo": "caminho e nome do kit lidos como texto pela trava do perigo cheio, trocados à mão (travas.md:140)"
+    },
+    {
+      "arquivo": "apps/web/src/components/perigo-cheio.test.ts",
+      "texto": "components/ui/Button.tsx",
+      "motivo": "caminho e nome do kit lidos como texto pela trava do perigo cheio, trocados à mão (travas.md:140)"
+    },
+    {
+      "arquivo": "apps/web/src/components/perigo-cheio.test.ts",
+      "texto": "components/ui/overlays/ConfirmDialog.tsx",
+      "motivo": "caminho e nome do kit lidos como texto pela trava do perigo cheio, trocados à mão (travas.md:140)"
+    },
+    {
+      "arquivo": "tools/ci/tamanho-web.test.ts",
+      "texto": "pecas-CaixaPedido.js",
+      "motivo": "nome do chunk de mentira que o build dá ao arquivo movido (travas.md:169)"
+    },
+    {
+      "arquivo": "tools/ci/tamanho-web.test.ts",
+      "texto": "pecas-Abas.js",
+      "motivo": "nome do chunk de mentira que o build dá ao arquivo movido (travas.md:169)"
+    },
+    {
+      "arquivo": "tools/ci/tamanho-web.test.ts",
+      "texto": "pecas-PromptInput.js",
+      "motivo": "nome do chunk de mentira que o build dá ao arquivo movido (travas.md:169)"
+    },
+    {
+      "arquivo": "tools/ci/tamanho-web.test.ts",
+      "texto": "pecas-Tabs.js",
+      "motivo": "nome do chunk de mentira que o build dá ao arquivo movido (travas.md:169)"
+    },
+    {
+      "arquivo": "apps/web/src/__fixtures__/danger-solid.ts",
+      "texto": "/<Botao\\b(?:[^<>{}]|\\{(?:[^{}]|\\{[^{}]*\\})*\\})*\\bcheio\\b/",
+      "motivo": "regex que lê o nome do kit no código-fonte: troca à mão para o nome novo (travas.md:140)"
+    },
+    {
+      "arquivo": "apps/web/src/__fixtures__/danger-solid.ts",
+      "texto": "/\\bclassesDoBotao\\(\\s*\\{[^}]*\\bcheio\\b/",
+      "motivo": "regex que lê o nome do kit no código-fonte: troca à mão para o nome novo (travas.md:140)"
+    },
+    {
+      "arquivo": "apps/web/src/__fixtures__/danger-solid.ts",
+      "texto": "/\\bCLASSES_DO_BOTAO_PERIGO_CHEIO\\b/",
+      "motivo": "regex que lê o nome do kit no código-fonte: troca à mão para o nome novo (travas.md:140)"
+    },
+    {
+      "arquivo": "apps/web/src/__fixtures__/danger-solid.ts",
+      "texto": "/<Button\\b(?:[^<>{}]|\\{(?:[^{}]|\\{[^{}]*\\})*\\})*\\bcheio\\b/",
+      "motivo": "regex que lê o nome do kit no código-fonte: troca à mão para o nome novo (travas.md:140)"
+    },
+    {
+      "arquivo": "apps/web/src/__fixtures__/danger-solid.ts",
+      "texto": "/\\bbuttonVariants\\(\\s*\\{[^}]*\\bcheio\\b/",
+      "motivo": "regex que lê o nome do kit no código-fonte: troca à mão para o nome novo (travas.md:140)"
+    },
+    {
+      "arquivo": "apps/web/src/__fixtures__/danger-solid.ts",
+      "texto": "/\\bDANGER_SOLID_BUTTON_CLASSES\\b/",
+      "motivo": "regex que lê o nome do kit no código-fonte: troca à mão para o nome novo (travas.md:140)"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/ai/Message.test.tsx",
+      "texto": "/from '\\.\\/AvatarAgente'/",
+      "motivo": "trava do avatar: a mensagem que importa o AgentAvatar sem a assinatura (travas.md:73)"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/ai/Message.test.tsx",
+      "texto": "/from '\\.\\/AgentAvatar'/",
+      "motivo": "trava do avatar: a mensagem que importa o AgentAvatar sem a assinatura (travas.md:73)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "texto": "/repo/apps/web/src/components/ui/ai/CaixaPedido.tsx",
+      "motivo": "caminho do kit que o teste da lista escreve como texto: troca à mão com o arquivo movido (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "texto": "/repo/apps/web/src/components/ui/overlays/Dialogo.tsx",
+      "motivo": "caminho do kit que o teste da lista escreve como texto: troca à mão com o arquivo movido (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "texto": "/repo/apps/web/src/components/ui/Abas.tsx",
+      "motivo": "caminho do kit que o teste da lista escreve como texto: troca à mão com o arquivo movido (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "texto": "/repo/apps/web/src/components/ui/SeloDeEstado.tsx?v=1",
+      "motivo": "caminho do kit que o teste da lista escreve como texto: troca à mão com o arquivo movido (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "texto": "ui/Botao.tsx",
+      "motivo": "caminho do kit que o teste da lista escreve como texto: troca à mão com o arquivo movido (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "texto": "ui/overlays/Dialogo.tsx",
+      "motivo": "caminho do kit que o teste da lista escreve como texto: troca à mão com o arquivo movido (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "texto": "ui/fields/Campo.tsx",
+      "motivo": "caminho do kit que o teste da lista escreve como texto: troca à mão com o arquivo movido (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "texto": "ui/fields/Busca.tsx",
+      "motivo": "caminho do kit que o teste da lista escreve como texto: troca à mão com o arquivo movido (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "texto": "ui/fields/Interruptor.tsx",
+      "motivo": "caminho do kit que o teste da lista escreve como texto: troca à mão com o arquivo movido (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "texto": "ui/fields/Opcao.tsx",
+      "motivo": "caminho do kit que o teste da lista escreve como texto: troca à mão com o arquivo movido (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "texto": "ui/fields/CampoDeSenha.tsx",
+      "motivo": "caminho do kit que o teste da lista escreve como texto: troca à mão com o arquivo movido (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "texto": "/repo/apps/web/src/components/ui/overlays/PainelLado.tsx",
+      "motivo": "caminho do kit que o teste da lista escreve como texto: troca à mão com o arquivo movido (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "texto": "ui/Aviso.tsx",
+      "motivo": "caminho do kit que o teste da lista escreve como texto: troca à mão com o arquivo movido (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "texto": "ui/Contador.tsx",
+      "motivo": "caminho do kit que o teste da lista escreve como texto: troca à mão com o arquivo movido (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "texto": "ui/Toque.tsx",
+      "motivo": "caminho do kit que o teste da lista escreve como texto: troca à mão com o arquivo movido (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "texto": "/repo/apps/web/src/components/ui/ai/AvatarAgente.tsx",
+      "motivo": "caminho do kit que o teste da lista escreve como texto: troca à mão com o arquivo movido (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "texto": "/repo/apps/web/src/components/ui/Botao.css",
+      "motivo": "caminho do kit que o teste da lista escreve como texto: troca à mão com o arquivo movido (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "texto": "/repo/apps/web/src/components/ui/Linha.tsx",
+      "motivo": "caminho do kit que o teste da lista escreve como texto: troca à mão com o arquivo movido (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "texto": "/repo/apps/web/src/components/ui/Linha.test.tsx",
+      "motivo": "caminho do kit que o teste da lista escreve como texto: troca à mão com o arquivo movido (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "texto": "/repo/apps/web/src/areas/professor/Linha.tsx",
+      "motivo": "caminho do kit que o teste da lista escreve como texto: troca à mão com o arquivo movido (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "texto": "AssinaturaIA.tsx",
+      "motivo": "caminho do kit que o teste da lista escreve como texto: troca à mão com o arquivo movido (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "texto": "CaixaPedido.tsx",
+      "motivo": "caminho do kit que o teste da lista escreve como texto: troca à mão com o arquivo movido (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "texto": "ChipFonte.tsx",
+      "motivo": "caminho do kit que o teste da lista escreve como texto: troca à mão com o arquivo movido (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "texto": "Escolha.tsx",
+      "motivo": "caminho do kit que o teste da lista escreve como texto: troca à mão com o arquivo movido (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "texto": "MotorFormulario.tsx",
+      "motivo": "caminho do kit que o teste da lista escreve como texto: troca à mão com o arquivo movido (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "texto": "TextoDaIA.tsx",
+      "motivo": "caminho do kit que o teste da lista escreve como texto: troca à mão com o arquivo movido (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "texto": "/repo/apps/web/src/components/ui/ai/PromptInput.tsx",
+      "motivo": "caminho do kit que o teste da lista escreve como texto: troca à mão com o arquivo movido (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "texto": "/repo/apps/web/src/components/ui/overlays/Dialog.tsx",
+      "motivo": "caminho do kit que o teste da lista escreve como texto: troca à mão com o arquivo movido (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "texto": "/repo/apps/web/src/components/ui/Tabs.tsx",
+      "motivo": "caminho do kit que o teste da lista escreve como texto: troca à mão com o arquivo movido (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "texto": "/repo/apps/web/src/components/ui/StatusBadge.tsx?v=1",
+      "motivo": "caminho do kit que o teste da lista escreve como texto: troca à mão com o arquivo movido (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "texto": "ui/Button.tsx",
+      "motivo": "caminho do kit que o teste da lista escreve como texto: troca à mão com o arquivo movido (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "texto": "ui/overlays/Dialog.tsx",
+      "motivo": "caminho do kit que o teste da lista escreve como texto: troca à mão com o arquivo movido (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "texto": "ui/fields/FormField.tsx",
+      "motivo": "caminho do kit que o teste da lista escreve como texto: troca à mão com o arquivo movido (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "texto": "ui/fields/SearchInput.tsx",
+      "motivo": "caminho do kit que o teste da lista escreve como texto: troca à mão com o arquivo movido (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "texto": "ui/fields/Switch.tsx",
+      "motivo": "caminho do kit que o teste da lista escreve como texto: troca à mão com o arquivo movido (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "texto": "ui/fields/OptionCard.tsx",
+      "motivo": "caminho do kit que o teste da lista escreve como texto: troca à mão com o arquivo movido (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "texto": "ui/fields/PasswordInput.tsx",
+      "motivo": "caminho do kit que o teste da lista escreve como texto: troca à mão com o arquivo movido (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "texto": "/repo/apps/web/src/components/ui/overlays/Sheet.tsx",
+      "motivo": "caminho do kit que o teste da lista escreve como texto: troca à mão com o arquivo movido (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "texto": "ui/Alert.tsx",
+      "motivo": "caminho do kit que o teste da lista escreve como texto: troca à mão com o arquivo movido (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "texto": "ui/CountBadge.tsx",
+      "motivo": "caminho do kit que o teste da lista escreve como texto: troca à mão com o arquivo movido (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "texto": "ui/Toggle.tsx",
+      "motivo": "caminho do kit que o teste da lista escreve como texto: troca à mão com o arquivo movido (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "texto": "/repo/apps/web/src/components/ui/ai/AgentAvatar.tsx",
+      "motivo": "caminho do kit que o teste da lista escreve como texto: troca à mão com o arquivo movido (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "texto": "/repo/apps/web/src/components/ui/Button.css",
+      "motivo": "caminho do kit que o teste da lista escreve como texto: troca à mão com o arquivo movido (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "texto": "/repo/apps/web/src/components/ui/ListItem.tsx",
+      "motivo": "caminho do kit que o teste da lista escreve como texto: troca à mão com o arquivo movido (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "texto": "/repo/apps/web/src/components/ui/ListItem.test.tsx",
+      "motivo": "caminho do kit que o teste da lista escreve como texto: troca à mão com o arquivo movido (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "texto": "/repo/apps/web/src/areas/professor/ListItem.tsx",
+      "motivo": "caminho do kit que o teste da lista escreve como texto: troca à mão com o arquivo movido (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "texto": "AgentSignature.tsx",
+      "motivo": "caminho do kit que o teste da lista escreve como texto: troca à mão com o arquivo movido (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "texto": "PromptInput.tsx",
+      "motivo": "caminho do kit que o teste da lista escreve como texto: troca à mão com o arquivo movido (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "texto": "CitationChip.tsx",
+      "motivo": "caminho do kit que o teste da lista escreve como texto: troca à mão com o arquivo movido (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "texto": "ChoicePrompt.tsx",
+      "motivo": "caminho do kit que o teste da lista escreve como texto: troca à mão com o arquivo movido (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "texto": "SchemaForm.tsx",
+      "motivo": "caminho do kit que o teste da lista escreve como texto: troca à mão com o arquivo movido (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.test.ts",
+      "texto": "AIText.tsx",
+      "motivo": "caminho do kit que o teste da lista escreve como texto: troca à mão com o arquivo movido (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.ts",
+      "texto": "ui/Abas",
+      "motivo": "caminho do kit que a lista de peças fora da entrada escreve como texto: a 9.0 move o arquivo do componente e troca à mão (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.ts",
+      "texto": "ui/Aviso",
+      "motivo": "caminho do kit que a lista de peças fora da entrada escreve como texto: a 9.0 move o arquivo do componente e troca à mão (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.ts",
+      "texto": "ui/BarraPresa",
+      "motivo": "caminho do kit que a lista de peças fora da entrada escreve como texto: a 9.0 move o arquivo do componente e troca à mão (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.ts",
+      "texto": "ui/BarraRotulada",
+      "motivo": "caminho do kit que a lista de peças fora da entrada escreve como texto: a 9.0 move o arquivo do componente e troca à mão (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.ts",
+      "texto": "ui/fields/Busca",
+      "motivo": "caminho do kit que a lista de peças fora da entrada escreve como texto: a 9.0 move o arquivo do componente e troca à mão (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.ts",
+      "texto": "ui/fields/CampoLongo",
+      "motivo": "caminho do kit que a lista de peças fora da entrada escreve como texto: a 9.0 move o arquivo do componente e troca à mão (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.ts",
+      "texto": "ui/fields/Interruptor",
+      "motivo": "caminho do kit que a lista de peças fora da entrada escreve como texto: a 9.0 move o arquivo do componente e troca à mão (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.ts",
+      "texto": "ui/fields/Opcao",
+      "motivo": "caminho do kit que a lista de peças fora da entrada escreve como texto: a 9.0 move o arquivo do componente e troca à mão (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.ts",
+      "texto": "ui/fields/Selecao",
+      "motivo": "caminho do kit que a lista de peças fora da entrada escreve como texto: a 9.0 move o arquivo do componente e troca à mão (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.ts",
+      "texto": "ui/Cartao",
+      "motivo": "caminho do kit que a lista de peças fora da entrada escreve como texto: a 9.0 move o arquivo do componente e troca à mão (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.ts",
+      "texto": "ui/Contador",
+      "motivo": "caminho do kit que a lista de peças fora da entrada escreve como texto: a 9.0 move o arquivo do componente e troca à mão (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.ts",
+      "texto": "ui/Faixa",
+      "motivo": "caminho do kit que a lista de peças fora da entrada escreve como texto: a 9.0 move o arquivo do componente e troca à mão (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.ts",
+      "texto": "ui/Linha",
+      "motivo": "caminho do kit que a lista de peças fora da entrada escreve como texto: a 9.0 move o arquivo do componente e troca à mão (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.ts",
+      "texto": "ui/NumeroPainel",
+      "motivo": "caminho do kit que a lista de peças fora da entrada escreve como texto: a 9.0 move o arquivo do componente e troca à mão (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.ts",
+      "texto": "ui/SeloDeEstado",
+      "motivo": "caminho do kit que a lista de peças fora da entrada escreve como texto: a 9.0 move o arquivo do componente e troca à mão (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.ts",
+      "texto": "ui/overlays/DialogoDeConfirmacao",
+      "motivo": "caminho do kit que a lista de peças fora da entrada escreve como texto: a 9.0 move o arquivo do componente e troca à mão (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.ts",
+      "texto": "ui/overlays/PainelLado",
+      "motivo": "caminho do kit que a lista de peças fora da entrada escreve como texto: a 9.0 move o arquivo do componente e troca à mão (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.ts",
+      "texto": "ui/Tabela",
+      "motivo": "caminho do kit que a lista de peças fora da entrada escreve como texto: a 9.0 move o arquivo do componente e troca à mão (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.ts",
+      "texto": "ui/Tela",
+      "motivo": "caminho do kit que a lista de peças fora da entrada escreve como texto: a 9.0 move o arquivo do componente e troca à mão (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.ts",
+      "texto": "ui/Toque",
+      "motivo": "caminho do kit que a lista de peças fora da entrada escreve como texto: a 9.0 move o arquivo do componente e troca à mão (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.ts",
+      "texto": "ui/Tabs",
+      "motivo": "caminho do kit que a lista de peças fora da entrada escreve como texto: a 9.0 move o arquivo do componente e troca à mão (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.ts",
+      "texto": "ui/Alert",
+      "motivo": "caminho do kit que a lista de peças fora da entrada escreve como texto: a 9.0 move o arquivo do componente e troca à mão (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.ts",
+      "texto": "ui/StickyFooter",
+      "motivo": "caminho do kit que a lista de peças fora da entrada escreve como texto: a 9.0 move o arquivo do componente e troca à mão (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.ts",
+      "texto": "ui/ProgressBar",
+      "motivo": "caminho do kit que a lista de peças fora da entrada escreve como texto: a 9.0 move o arquivo do componente e troca à mão (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.ts",
+      "texto": "ui/fields/SearchInput",
+      "motivo": "caminho do kit que a lista de peças fora da entrada escreve como texto: a 9.0 move o arquivo do componente e troca à mão (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.ts",
+      "texto": "ui/fields/Textarea",
+      "motivo": "caminho do kit que a lista de peças fora da entrada escreve como texto: a 9.0 move o arquivo do componente e troca à mão (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.ts",
+      "texto": "ui/fields/Switch",
+      "motivo": "caminho do kit que a lista de peças fora da entrada escreve como texto: a 9.0 move o arquivo do componente e troca à mão (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.ts",
+      "texto": "ui/fields/OptionCard",
+      "motivo": "caminho do kit que a lista de peças fora da entrada escreve como texto: a 9.0 move o arquivo do componente e troca à mão (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.ts",
+      "texto": "ui/fields/Select",
+      "motivo": "caminho do kit que a lista de peças fora da entrada escreve como texto: a 9.0 move o arquivo do componente e troca à mão (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.ts",
+      "texto": "ui/Card",
+      "motivo": "caminho do kit que a lista de peças fora da entrada escreve como texto: a 9.0 move o arquivo do componente e troca à mão (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.ts",
+      "texto": "ui/CountBadge",
+      "motivo": "caminho do kit que a lista de peças fora da entrada escreve como texto: a 9.0 move o arquivo do componente e troca à mão (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.ts",
+      "texto": "ui/Banner",
+      "motivo": "caminho do kit que a lista de peças fora da entrada escreve como texto: a 9.0 move o arquivo do componente e troca à mão (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.ts",
+      "texto": "ui/ListItem",
+      "motivo": "caminho do kit que a lista de peças fora da entrada escreve como texto: a 9.0 move o arquivo do componente e troca à mão (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.ts",
+      "texto": "ui/StatCard",
+      "motivo": "caminho do kit que a lista de peças fora da entrada escreve como texto: a 9.0 move o arquivo do componente e troca à mão (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.ts",
+      "texto": "ui/StatusBadge",
+      "motivo": "caminho do kit que a lista de peças fora da entrada escreve como texto: a 9.0 move o arquivo do componente e troca à mão (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.ts",
+      "texto": "ui/overlays/ConfirmDialog",
+      "motivo": "caminho do kit que a lista de peças fora da entrada escreve como texto: a 9.0 move o arquivo do componente e troca à mão (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.ts",
+      "texto": "ui/overlays/Sheet",
+      "motivo": "caminho do kit que a lista de peças fora da entrada escreve como texto: a 9.0 move o arquivo do componente e troca à mão (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.ts",
+      "texto": "ui/Table",
+      "motivo": "caminho do kit que a lista de peças fora da entrada escreve como texto: a 9.0 move o arquivo do componente e troca à mão (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.ts",
+      "texto": "ui/Page",
+      "motivo": "caminho do kit que a lista de peças fora da entrada escreve como texto: a 9.0 move o arquivo do componente e troca à mão (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/chunk-names.ts",
+      "texto": "ui/Toggle",
+      "motivo": "caminho do kit que a lista de peças fora da entrada escreve como texto: a 9.0 move o arquivo do componente e troca à mão (travas.md:101)"
+    },
+    {
+      "arquivo": "apps/web/src/components/casca-sem-import.test.ts",
+      "texto": "ui/fields/Segmentado.tsx",
+      "motivo": "caminho do kit lido como texto, trocado à mão com o arquivo movido (travas.md:140)"
+    },
+    {
+      "arquivo": "apps/web/src/components/casca-sem-import.test.ts",
+      "texto": "ui/Ladrilho.tsx",
+      "motivo": "caminho do kit lido como texto, trocado à mão com o arquivo movido (travas.md:140)"
+    },
+    {
+      "arquivo": "apps/web/src/components/casca-sem-import.test.ts",
+      "texto": "ui/Icone.tsx",
+      "motivo": "caminho do kit lido como texto, trocado à mão com o arquivo movido (travas.md:140)"
+    },
+    {
+      "arquivo": "apps/web/src/components/casca-sem-import.test.ts",
+      "texto": "ui/Marca.tsx",
+      "motivo": "caminho do kit lido como texto, trocado à mão com o arquivo movido (travas.md:140)"
+    },
+    {
+      "arquivo": "apps/web/src/components/casca-sem-import.test.ts",
+      "texto": "import { Contador } from './Contador'\nimport { Dica } from './itens-da-lateral'",
+      "motivo": "caminho do kit lido como texto, trocado à mão com o arquivo movido (travas.md:140)"
+    },
+    {
+      "arquivo": "apps/web/src/components/casca-sem-import.test.ts",
+      "texto": "./Contador",
+      "motivo": "caminho do kit lido como texto, trocado à mão com o arquivo movido (travas.md:140)"
+    },
+    {
+      "arquivo": "apps/web/src/components/casca-sem-import.test.ts",
+      "texto": "import { Icone } from './Icone'",
+      "motivo": "caminho do kit lido como texto, trocado à mão com o arquivo movido (travas.md:140)"
+    },
+    {
+      "arquivo": "apps/web/src/components/casca-sem-import.test.ts",
+      "texto": "./Icone",
+      "motivo": "caminho do kit lido como texto, trocado à mão com o arquivo movido (travas.md:140)"
+    },
+    {
+      "arquivo": "apps/web/src/components/casca-sem-import.test.ts",
+      "texto": "import type { FamiliaDeCor } from './Contador'",
+      "motivo": "caminho do kit lido como texto, trocado à mão com o arquivo movido (travas.md:140)"
+    },
+    {
+      "arquivo": "apps/web/src/components/casca-sem-import.test.ts",
+      "texto": "import { AssinaturaIA } from './ai/AssinaturaIA'",
+      "motivo": "caminho do kit lido como texto, trocado à mão com o arquivo movido (travas.md:140)"
+    },
+    {
+      "arquivo": "apps/web/src/components/casca-sem-import.test.ts",
+      "texto": "./ai/AssinaturaIA",
+      "motivo": "caminho do kit lido como texto, trocado à mão com o arquivo movido (travas.md:140)"
+    },
+    {
+      "arquivo": "apps/web/src/components/casca-sem-import.test.ts",
+      "texto": "./ui/Contador",
+      "motivo": "caminho do kit lido como texto, trocado à mão com o arquivo movido (travas.md:140)"
+    },
+    {
+      "arquivo": "apps/web/src/components/casca-sem-import.test.ts",
+      "texto": "../components/ui/Contador",
+      "motivo": "caminho do kit lido como texto, trocado à mão com o arquivo movido (travas.md:140)"
+    },
+    {
+      "arquivo": "apps/web/src/components/casca-sem-import.test.ts",
+      "texto": "../../components/ui/Contador",
+      "motivo": "caminho do kit lido como texto, trocado à mão com o arquivo movido (travas.md:140)"
+    },
+    {
+      "arquivo": "apps/web/src/components/casca-sem-import.test.ts",
+      "texto": "./ui/ai/AssinaturaIA",
+      "motivo": "caminho do kit lido como texto, trocado à mão com o arquivo movido (travas.md:140)"
+    },
+    {
+      "arquivo": "apps/web/src/components/casca-sem-import.test.ts",
+      "texto": "../Contador",
+      "motivo": "caminho do kit lido como texto, trocado à mão com o arquivo movido (travas.md:140)"
+    },
+    {
+      "arquivo": "apps/web/src/components/casca-sem-import.test.ts",
+      "texto": "../ai/AssinaturaIA",
+      "motivo": "caminho do kit lido como texto, trocado à mão com o arquivo movido (travas.md:140)"
+    },
+    {
+      "arquivo": "apps/web/src/components/casca-sem-import.test.ts",
+      "texto": "./ui/Icone",
+      "motivo": "caminho do kit lido como texto, trocado à mão com o arquivo movido (travas.md:140)"
+    },
+    {
+      "arquivo": "apps/web/src/components/casca-sem-import.test.ts",
+      "texto": "../components/ui/Ladrilho",
+      "motivo": "caminho do kit lido como texto, trocado à mão com o arquivo movido (travas.md:140)"
+    },
+    {
+      "arquivo": "apps/web/src/components/casca-sem-import.test.ts",
+      "texto": "ui/fields/SegmentedControl.tsx",
+      "motivo": "caminho do kit lido como texto, trocado à mão com o arquivo movido (travas.md:140)"
+    },
+    {
+      "arquivo": "apps/web/src/components/casca-sem-import.test.ts",
+      "texto": "ui/IconTile.tsx",
+      "motivo": "caminho do kit lido como texto, trocado à mão com o arquivo movido (travas.md:140)"
+    },
+    {
+      "arquivo": "apps/web/src/components/casca-sem-import.test.ts",
+      "texto": "ui/Icon.tsx",
+      "motivo": "caminho do kit lido como texto, trocado à mão com o arquivo movido (travas.md:140)"
+    },
+    {
+      "arquivo": "apps/web/src/components/casca-sem-import.test.ts",
+      "texto": "ui/Logo.tsx",
+      "motivo": "caminho do kit lido como texto, trocado à mão com o arquivo movido (travas.md:140)"
+    },
+    {
+      "arquivo": "apps/web/src/components/casca-sem-import.test.ts",
+      "texto": "import { CountBadge } from './CountBadge'\nimport { Dica } from './itens-da-lateral'",
+      "motivo": "caminho do kit lido como texto, trocado à mão com o arquivo movido (travas.md:140)"
+    },
+    {
+      "arquivo": "apps/web/src/components/casca-sem-import.test.ts",
+      "texto": "./CountBadge",
+      "motivo": "caminho do kit lido como texto, trocado à mão com o arquivo movido (travas.md:140)"
+    },
+    {
+      "arquivo": "apps/web/src/components/casca-sem-import.test.ts",
+      "texto": "import { Icon } from './Icon'",
+      "motivo": "caminho do kit lido como texto, trocado à mão com o arquivo movido (travas.md:140)"
+    },
+    {
+      "arquivo": "apps/web/src/components/casca-sem-import.test.ts",
+      "texto": "./Icon",
+      "motivo": "caminho do kit lido como texto, trocado à mão com o arquivo movido (travas.md:140)"
+    },
+    {
+      "arquivo": "apps/web/src/components/casca-sem-import.test.ts",
+      "texto": "import type { ColorFamily } from './CountBadge'",
+      "motivo": "caminho do kit lido como texto, trocado à mão com o arquivo movido (travas.md:140)"
+    },
+    {
+      "arquivo": "apps/web/src/components/casca-sem-import.test.ts",
+      "texto": "import { AgentSignature } from './ai/AgentSignature'",
+      "motivo": "caminho do kit lido como texto, trocado à mão com o arquivo movido (travas.md:140)"
+    },
+    {
+      "arquivo": "apps/web/src/components/casca-sem-import.test.ts",
+      "texto": "./ai/AgentSignature",
+      "motivo": "caminho do kit lido como texto, trocado à mão com o arquivo movido (travas.md:140)"
+    },
+    {
+      "arquivo": "apps/web/src/components/casca-sem-import.test.ts",
+      "texto": "./ui/CountBadge",
+      "motivo": "caminho do kit lido como texto, trocado à mão com o arquivo movido (travas.md:140)"
+    },
+    {
+      "arquivo": "apps/web/src/components/casca-sem-import.test.ts",
+      "texto": "../components/ui/CountBadge",
+      "motivo": "caminho do kit lido como texto, trocado à mão com o arquivo movido (travas.md:140)"
+    },
+    {
+      "arquivo": "apps/web/src/components/casca-sem-import.test.ts",
+      "texto": "../../components/ui/CountBadge",
+      "motivo": "caminho do kit lido como texto, trocado à mão com o arquivo movido (travas.md:140)"
+    },
+    {
+      "arquivo": "apps/web/src/components/casca-sem-import.test.ts",
+      "texto": "./ui/ai/AgentSignature",
+      "motivo": "caminho do kit lido como texto, trocado à mão com o arquivo movido (travas.md:140)"
+    },
+    {
+      "arquivo": "apps/web/src/components/casca-sem-import.test.ts",
+      "texto": "../CountBadge",
+      "motivo": "caminho do kit lido como texto, trocado à mão com o arquivo movido (travas.md:140)"
+    },
+    {
+      "arquivo": "apps/web/src/components/casca-sem-import.test.ts",
+      "texto": "../ai/AgentSignature",
+      "motivo": "caminho do kit lido como texto, trocado à mão com o arquivo movido (travas.md:140)"
+    },
+    {
+      "arquivo": "apps/web/src/components/casca-sem-import.test.ts",
+      "texto": "./ui/Icon",
+      "motivo": "caminho do kit lido como texto, trocado à mão com o arquivo movido (travas.md:140)"
+    },
+    {
+      "arquivo": "apps/web/src/components/casca-sem-import.test.ts",
+      "texto": "../components/ui/IconTile",
+      "motivo": "caminho do kit lido como texto, trocado à mão com o arquivo movido (travas.md:140)"
+    },
+    {
+      "arquivo": "apps/web/src/components/perigo-cheio.test.ts",
+      "texto": "o `perigo` cheio só vive dentro de uma confirmação: use `DialogoDeConfirmacao` ou `ConfirmacaoDePerigo`",
+      "motivo": "caminho e nome do kit lidos como texto pela trava do perigo cheio, trocados à mão (travas.md:140)"
+    },
+    {
+      "arquivo": "apps/web/src/components/perigo-cheio.test.ts",
+      "texto": "<Botao variante=\"perigo\" cheio onClick={fechar}>Excluir</Botao>",
+      "motivo": "caminho e nome do kit lidos como texto pela trava do perigo cheio, trocados à mão (travas.md:140)"
+    },
+    {
+      "arquivo": "apps/web/src/components/perigo-cheio.test.ts",
+      "texto": "const classes = classesDoBotao({ variante: 'perigo', cheio: true })",
+      "motivo": "caminho e nome do kit lidos como texto pela trava do perigo cheio, trocados à mão (travas.md:140)"
+    },
+    {
+      "arquivo": "apps/web/src/components/perigo-cheio.test.ts",
+      "texto": "import { CLASSES_DO_BOTAO_PERIGO_CHEIO } from './botao-secundario'",
+      "motivo": "caminho e nome do kit lidos como texto pela trava do perigo cheio, trocados à mão (travas.md:140)"
+    },
+    {
+      "arquivo": "apps/web/src/components/perigo-cheio.test.ts",
+      "texto": "<Botao onClick={() => enviar({ a: 1 })} variante=\"perigo\" cheio>Recusar</Botao>",
+      "motivo": "caminho e nome do kit lidos como texto pela trava do perigo cheio, trocados à mão (travas.md:140)"
+    },
+    {
+      "arquivo": "apps/web/src/components/perigo-cheio.test.ts",
+      "texto": "/* o fundo cheio é para a faixa */\n<Botao variante=\"perigo\">Excluir</Botao>",
+      "motivo": "caminho e nome do kit lidos como texto pela trava do perigo cheio, trocados à mão (travas.md:140)"
+    },
+    {
+      "arquivo": "apps/web/src/components/perigo-cheio.test.ts",
+      "texto": "<Botao variante=\"perigo\" onClick={excluir}>Excluir</Botao>",
+      "motivo": "caminho e nome do kit lidos como texto pela trava do perigo cheio, trocados à mão (travas.md:140)"
+    },
+    {
+      "arquivo": "apps/web/src/components/perigo-cheio.test.ts",
+      "texto": "/* <Botao variante=\"perigo\" cheio>Excluir</Botao> */\nconst x = 1",
+      "motivo": "caminho e nome do kit lidos como texto pela trava do perigo cheio, trocados à mão (travas.md:140)"
+    },
+    {
+      "arquivo": "apps/web/src/components/perigo-cheio.test.ts",
+      "texto": "// <Botao variante=\"perigo\" cheio>Excluir</Botao>\nconst x = 1",
+      "motivo": "caminho e nome do kit lidos como texto pela trava do perigo cheio, trocados à mão (travas.md:140)"
+    },
+    {
+      "arquivo": "apps/web/src/components/perigo-cheio.test.ts",
+      "texto": "const c = `${classesDoBotao({ variante, cheio })} ${className}`",
+      "motivo": "caminho e nome do kit lidos como texto pela trava do perigo cheio, trocados à mão (travas.md:140)"
+    },
+    {
+      "arquivo": "apps/web/src/components/perigo-cheio.test.ts",
+      "texto": "const u = 'https://exemplo.test'; const c = classesDoBotao({ cheio: true })",
+      "motivo": "caminho e nome do kit lidos como texto pela trava do perigo cheio, trocados à mão (travas.md:140)"
+    },
+    {
+      "arquivo": "apps/web/src/components/perigo-cheio.test.ts",
+      "texto": "o `perigo` cheio só vive dentro de uma confirmação: use `ConfirmDialog` ou `ConfirmacaoDePerigo`",
+      "motivo": "caminho e nome do kit lidos como texto pela trava do perigo cheio, trocados à mão (travas.md:140)"
+    },
+    {
+      "arquivo": "apps/web/src/components/perigo-cheio.test.ts",
+      "texto": "<Button variante=\"perigo\" cheio onClick={fechar}>Excluir</Button>",
+      "motivo": "caminho e nome do kit lidos como texto pela trava do perigo cheio, trocados à mão (travas.md:140)"
+    },
+    {
+      "arquivo": "apps/web/src/components/perigo-cheio.test.ts",
+      "texto": "const classes = buttonVariants({ variante: 'perigo', cheio: true })",
+      "motivo": "caminho e nome do kit lidos como texto pela trava do perigo cheio, trocados à mão (travas.md:140)"
+    },
+    {
+      "arquivo": "apps/web/src/components/perigo-cheio.test.ts",
+      "texto": "import { DANGER_SOLID_BUTTON_CLASSES } from './botao-secundario'",
+      "motivo": "caminho e nome do kit lidos como texto pela trava do perigo cheio, trocados à mão (travas.md:140)"
+    },
+    {
+      "arquivo": "apps/web/src/components/perigo-cheio.test.ts",
+      "texto": "<Button onClick={() => enviar({ a: 1 })} variante=\"perigo\" cheio>Recusar</Button>",
+      "motivo": "caminho e nome do kit lidos como texto pela trava do perigo cheio, trocados à mão (travas.md:140)"
+    },
+    {
+      "arquivo": "apps/web/src/components/perigo-cheio.test.ts",
+      "texto": "/* o fundo cheio é para a faixa */\n<Button variante=\"perigo\">Excluir</Button>",
+      "motivo": "caminho e nome do kit lidos como texto pela trava do perigo cheio, trocados à mão (travas.md:140)"
+    },
+    {
+      "arquivo": "apps/web/src/components/perigo-cheio.test.ts",
+      "texto": "<Button variante=\"perigo\" onClick={excluir}>Excluir</Button>",
+      "motivo": "caminho e nome do kit lidos como texto pela trava do perigo cheio, trocados à mão (travas.md:140)"
+    },
+    {
+      "arquivo": "apps/web/src/components/perigo-cheio.test.ts",
+      "texto": "/* <Button variante=\"perigo\" cheio>Excluir</Button> */\nconst x = 1",
+      "motivo": "caminho e nome do kit lidos como texto pela trava do perigo cheio, trocados à mão (travas.md:140)"
+    },
+    {
+      "arquivo": "apps/web/src/components/perigo-cheio.test.ts",
+      "texto": "// <Button variante=\"perigo\" cheio>Excluir</Button>\nconst x = 1",
+      "motivo": "caminho e nome do kit lidos como texto pela trava do perigo cheio, trocados à mão (travas.md:140)"
+    },
+    {
+      "arquivo": "apps/web/src/components/perigo-cheio.test.ts",
+      "texto": "const c = `${buttonVariants({ variante, cheio })} ${className}`",
+      "motivo": "caminho e nome do kit lidos como texto pela trava do perigo cheio, trocados à mão (travas.md:140)"
+    },
+    {
+      "arquivo": "apps/web/src/components/perigo-cheio.test.ts",
+      "texto": "const u = 'https://exemplo.test'; const c = buttonVariants({ cheio: true })",
+      "motivo": "caminho e nome do kit lidos como texto pela trava do perigo cheio, trocados à mão (travas.md:140)"
+    },
+    {
+      "arquivo": "apps/web/src/components/perigo-cheio.test.ts",
+      "texto": "<Botao\n  variante=\"perigo\"\n  cheio\n>",
+      "motivo": "caminho e nome do kit lidos como texto pela trava do perigo cheio, trocados à mão (travas.md:140)"
+    },
+    {
+      "arquivo": "apps/web/src/components/perigo-cheio.test.ts",
+      "texto": "const exemplo = '<Botao variante=\"perigo\" cheio>'",
+      "motivo": "caminho e nome do kit lidos como texto pela trava do perigo cheio, trocados à mão (travas.md:140)"
+    },
+    {
+      "arquivo": "apps/web/src/components/perigo-cheio.test.ts",
+      "texto": "<Button\n  variante=\"perigo\"\n  cheio\n>",
+      "motivo": "caminho e nome do kit lidos como texto pela trava do perigo cheio, trocados à mão (travas.md:140)"
+    },
+    {
+      "arquivo": "apps/web/src/components/perigo-cheio.test.ts",
+      "texto": "const exemplo = '<Button variante=\"perigo\" cheio>'",
+      "motivo": "caminho e nome do kit lidos como texto pela trava do perigo cheio, trocados à mão (travas.md:140)"
+    },
+    {
+      "arquivo": "apps/web/src/components/states/estados.test.tsx",
+      "texto": "ui/Aviso",
+      "motivo": "nome da peça na lista de PECAS_FORA_DA_ENTRADA, trocado à mão (travas.md:170)"
+    },
+    {
+      "arquivo": "apps/web/src/components/states/estados.test.tsx",
+      "texto": "ui/Contador",
+      "motivo": "nome da peça na lista de PECAS_FORA_DA_ENTRADA, trocado à mão (travas.md:170)"
+    },
+    {
+      "arquivo": "apps/web/src/components/states/estados.test.tsx",
+      "texto": "ui/Toque",
+      "motivo": "nome da peça na lista de PECAS_FORA_DA_ENTRADA, trocado à mão (travas.md:170)"
+    },
+    {
+      "arquivo": "apps/web/src/components/states/estados.test.tsx",
+      "texto": "ui/Alert",
+      "motivo": "nome da peça na lista de PECAS_FORA_DA_ENTRADA, trocado à mão (travas.md:170)"
+    },
+    {
+      "arquivo": "apps/web/src/components/states/estados.test.tsx",
+      "texto": "ui/CountBadge",
+      "motivo": "nome da peça na lista de PECAS_FORA_DA_ENTRADA, trocado à mão (travas.md:170)"
+    },
+    {
+      "arquivo": "apps/web/src/components/states/estados.test.tsx",
+      "texto": "ui/Toggle",
+      "motivo": "nome da peça na lista de PECAS_FORA_DA_ENTRADA, trocado à mão (travas.md:170)"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/ai/avatar-so-nas-duas-pecas.test.ts",
+      "texto": "components/ui/ai/AvatarAgente",
+      "motivo": "caminho e nome do kit lidos como texto pela trava do avatar (travas.md:74)"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/ai/avatar-so-nas-duas-pecas.test.ts",
+      "texto": "components/ui/ai/AssinaturaIA",
+      "motivo": "caminho e nome do kit lidos como texto pela trava do avatar (travas.md:74)"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/ai/avatar-so-nas-duas-pecas.test.ts",
+      "texto": "components/ui/ai/AvatarAgente.tsx",
+      "motivo": "caminho e nome do kit lidos como texto pela trava do avatar (travas.md:74)"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/ai/avatar-so-nas-duas-pecas.test.ts",
+      "texto": "components/ui/ai/AssinaturaIA.tsx",
+      "motivo": "caminho e nome do kit lidos como texto pela trava do avatar (travas.md:74)"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/ai/avatar-so-nas-duas-pecas.test.ts",
+      "texto": "o `AvatarAgente` desenha a cabeça: a varredura não o achou",
+      "motivo": "caminho e nome do kit lidos como texto pela trava do avatar (travas.md:74)"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/ai/avatar-so-nas-duas-pecas.test.ts",
+      "texto": "a onça só entra na tela pelo `AvatarAgente` (e ele só pela `AssinaturaIA`) ou pelas peças do corpo inteiro",
+      "motivo": "caminho e nome do kit lidos como texto pela trava do avatar (travas.md:74)"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/ai/avatar-so-nas-duas-pecas.test.ts",
+      "texto": "a `AssinaturaIA` desenha o avatar: a varredura não a achou",
+      "motivo": "caminho e nome do kit lidos como texto pela trava do avatar (travas.md:74)"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/ai/avatar-so-nas-duas-pecas.test.ts",
+      "texto": "avatar sem o nome da função e o selo \"IA\": use a `AssinaturaIA`",
+      "motivo": "caminho e nome do kit lidos como texto pela trava do avatar (travas.md:74)"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/ai/avatar-so-nas-duas-pecas.test.ts",
+      "texto": "import { AvatarAgente, type TamanhoDoAvatar } from './AvatarAgente'",
+      "motivo": "caminho e nome do kit lidos como texto pela trava do avatar (travas.md:74)"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/ai/avatar-so-nas-duas-pecas.test.ts",
+      "texto": "import { AvatarAgente } from '../../components/ui/ai/AvatarAgente'",
+      "motivo": "caminho e nome do kit lidos como texto pela trava do avatar (travas.md:74)"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/ai/avatar-so-nas-duas-pecas.test.ts",
+      "texto": "import type { TamanhoDoAvatar } from '../../components/ui/ai/AvatarAgente'",
+      "motivo": "caminho e nome do kit lidos como texto pela trava do avatar (travas.md:74)"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/ai/avatar-so-nas-duas-pecas.test.ts",
+      "texto": "const Peca = lazy(() => import('../../components/ui/ai/AvatarAgente'))",
+      "motivo": "caminho e nome do kit lidos como texto pela trava do avatar (travas.md:74)"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/ai/avatar-so-nas-duas-pecas.test.ts",
+      "texto": "export { AvatarAgente } from '../../components/ui/ai/AvatarAgente'",
+      "motivo": "caminho e nome do kit lidos como texto pela trava do avatar (travas.md:74)"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/ai/avatar-so-nas-duas-pecas.test.ts",
+      "texto": "// import { AvatarAgente } from '../../components/ui/ai/AvatarAgente'\n/* import { CabecaOnca } from '../../components/ui/onca/CabecaOnca' */\nexport const x = 1",
+      "motivo": "caminho e nome do kit lidos como texto pela trava do avatar (travas.md:74)"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/ai/avatar-so-nas-duas-pecas.test.ts",
+      "texto": "import { AvatarAgente } from '../../components/ui/ai/AvatarAgente.tsx'",
+      "motivo": "caminho e nome do kit lidos como texto pela trava do avatar (travas.md:74)"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/ai/avatar-so-nas-duas-pecas.test.ts",
+      "texto": "import { AvatarAgente } from '../../components/ui/ai/AvatarAgente/index'",
+      "motivo": "caminho e nome do kit lidos como texto pela trava do avatar (travas.md:74)"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/ai/avatar-so-nas-duas-pecas.test.ts",
+      "texto": "components/ui/ai/AgentAvatar",
+      "motivo": "caminho e nome do kit lidos como texto pela trava do avatar (travas.md:74)"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/ai/avatar-so-nas-duas-pecas.test.ts",
+      "texto": "components/ui/ai/AgentSignature",
+      "motivo": "caminho e nome do kit lidos como texto pela trava do avatar (travas.md:74)"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/ai/avatar-so-nas-duas-pecas.test.ts",
+      "texto": "components/ui/ai/AgentAvatar.tsx",
+      "motivo": "caminho e nome do kit lidos como texto pela trava do avatar (travas.md:74)"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/ai/avatar-so-nas-duas-pecas.test.ts",
+      "texto": "components/ui/ai/AgentSignature.tsx",
+      "motivo": "caminho e nome do kit lidos como texto pela trava do avatar (travas.md:74)"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/ai/avatar-so-nas-duas-pecas.test.ts",
+      "texto": "o `AgentAvatar` desenha a cabeça: a varredura não o achou",
+      "motivo": "caminho e nome do kit lidos como texto pela trava do avatar (travas.md:74)"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/ai/avatar-so-nas-duas-pecas.test.ts",
+      "texto": "a onça só entra na tela pelo `AgentAvatar` (e ele só pela `AgentSignature`) ou pelas peças do corpo inteiro",
+      "motivo": "caminho e nome do kit lidos como texto pela trava do avatar (travas.md:74)"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/ai/avatar-so-nas-duas-pecas.test.ts",
+      "texto": "a `AgentSignature` desenha o avatar: a varredura não a achou",
+      "motivo": "caminho e nome do kit lidos como texto pela trava do avatar (travas.md:74)"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/ai/avatar-so-nas-duas-pecas.test.ts",
+      "texto": "avatar sem o nome da função e o selo \"IA\": use a `AgentSignature`",
+      "motivo": "caminho e nome do kit lidos como texto pela trava do avatar (travas.md:74)"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/ai/avatar-so-nas-duas-pecas.test.ts",
+      "texto": "import { AgentAvatar, type TamanhoDoAvatar } from './AgentAvatar'",
+      "motivo": "caminho e nome do kit lidos como texto pela trava do avatar (travas.md:74)"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/ai/avatar-so-nas-duas-pecas.test.ts",
+      "texto": "import { AgentAvatar } from '../../components/ui/ai/AgentAvatar'",
+      "motivo": "caminho e nome do kit lidos como texto pela trava do avatar (travas.md:74)"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/ai/avatar-so-nas-duas-pecas.test.ts",
+      "texto": "import type { TamanhoDoAvatar } from '../../components/ui/ai/AgentAvatar'",
+      "motivo": "caminho e nome do kit lidos como texto pela trava do avatar (travas.md:74)"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/ai/avatar-so-nas-duas-pecas.test.ts",
+      "texto": "const Peca = lazy(() => import('../../components/ui/ai/AgentAvatar'))",
+      "motivo": "caminho e nome do kit lidos como texto pela trava do avatar (travas.md:74)"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/ai/avatar-so-nas-duas-pecas.test.ts",
+      "texto": "export { AgentAvatar } from '../../components/ui/ai/AgentAvatar'",
+      "motivo": "caminho e nome do kit lidos como texto pela trava do avatar (travas.md:74)"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/ai/avatar-so-nas-duas-pecas.test.ts",
+      "texto": "// import { AgentAvatar } from '../../components/ui/ai/AgentAvatar'\n/* import { CabecaOnca } from '../../components/ui/onca/CabecaOnca' */\nexport const x = 1",
+      "motivo": "caminho e nome do kit lidos como texto pela trava do avatar (travas.md:74)"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/ai/avatar-so-nas-duas-pecas.test.ts",
+      "texto": "import { AgentAvatar } from '../../components/ui/ai/AgentAvatar.tsx'",
+      "motivo": "caminho e nome do kit lidos como texto pela trava do avatar (travas.md:74)"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/ai/avatar-so-nas-duas-pecas.test.ts",
+      "texto": "import { AgentAvatar } from '../../components/ui/ai/AgentAvatar/index'",
+      "motivo": "caminho e nome do kit lidos como texto pela trava do avatar (travas.md:74)"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/ai/avatar-so-nas-duas-pecas.test.ts",
+      "texto": "import { AvatarDoAluno } from '../../components/ui/ai/AvatarAgenteDoAluno'\nimport { Outra } from '../../components/oncas/Outra'",
+      "motivo": "amostra Vizinha.tsx: nome mais longo que começa com o alvo do avatar (ordem 9_task-r1, item 1; travas.md:74)"
+    },
+    {
+      "arquivo": "apps/web/src/components/ui/ai/avatar-so-nas-duas-pecas.test.ts",
+      "texto": "import { AvatarDoAluno } from '../../components/ui/ai/AgentAvatarDoAluno'\nimport { Outra } from '../../components/oncas/Outra'",
+      "motivo": "amostra Vizinha.tsx: nome mais longo que começa com o alvo do avatar (ordem 9_task-r1, item 1; travas.md:74)"
+    },
+    {
+      "arquivo": "apps/web/src/estilos.test.ts",
+      "texto": "components/ui/Botao.tsx",
+      "motivo": "caminho do kit lido como texto, trocado à mão com o arquivo movido (travas.md:140)"
+    },
+    {
+      "arquivo": "apps/web/src/estilos.test.ts",
+      "texto": "components/ui/ai/AssinaturaIA.tsx",
+      "motivo": "caminho do kit lido como texto, trocado à mão com o arquivo movido (travas.md:140)"
+    },
+    {
+      "arquivo": "apps/web/src/estilos.test.ts",
+      "texto": "components/ui/Button.tsx",
+      "motivo": "caminho do kit lido como texto, trocado à mão com o arquivo movido (travas.md:140)"
+    },
+    {
+      "arquivo": "apps/web/src/estilos.test.ts",
+      "texto": "components/ui/ai/AgentSignature.tsx",
+      "motivo": "caminho do kit lido como texto, trocado à mão com o arquivo movido (travas.md:140)"
+    },
+    {
+      "arquivo": "tools/processo/harness/guardioes.test.ts",
+      "texto": "apps/web/src/components/ui/Abas.tsx",
+      "motivo": "caminho do kit nos exemplos de EXCECOES e de pede, trocado à mão com o arquivo movido (travas.md:168)"
+    },
+    {
+      "arquivo": "tools/processo/harness/guardioes.test.ts",
+      "texto": "apps/web/src/components/ui/ai/AssinaturaIA.tsx",
+      "motivo": "caminho do kit nos exemplos de EXCECOES e de pede, trocado à mão com o arquivo movido (travas.md:168)"
+    },
+    {
+      "arquivo": "tools/processo/harness/guardioes.test.ts",
+      "texto": "apps/web/src/components/ui/ai/AvisoFila.tsx",
+      "motivo": "caminho do kit nos exemplos de EXCECOES e de pede, trocado à mão com o arquivo movido (travas.md:168)"
+    },
+    {
+      "arquivo": "tools/processo/harness/guardioes.test.ts",
+      "texto": "apps/web/src/components/ui/overlays/DialogoDeConfirmacao.tsx",
+      "motivo": "caminho do kit nos exemplos de EXCECOES e de pede, trocado à mão com o arquivo movido (travas.md:168)"
+    },
+    {
+      "arquivo": "tools/processo/harness/guardioes.test.ts",
+      "texto": "apps/web/src/components/ui/Aviso.tsx",
+      "motivo": "caminho do kit nos exemplos de EXCECOES e de pede, trocado à mão com o arquivo movido (travas.md:168)"
+    },
+    {
+      "arquivo": "tools/processo/harness/guardioes.test.ts",
+      "texto": "apps/web/src/components/ui/Tabs.tsx",
+      "motivo": "caminho do kit nos exemplos de EXCECOES e de pede, trocado à mão com o arquivo movido (travas.md:168)"
+    },
+    {
+      "arquivo": "tools/processo/harness/guardioes.test.ts",
+      "texto": "apps/web/src/components/ui/ai/AgentSignature.tsx",
+      "motivo": "caminho do kit nos exemplos de EXCECOES e de pede, trocado à mão com o arquivo movido (travas.md:168)"
+    },
+    {
+      "arquivo": "tools/processo/harness/guardioes.test.ts",
+      "texto": "apps/web/src/components/ui/ai/QueueAlert.tsx",
+      "motivo": "caminho do kit nos exemplos de EXCECOES e de pede, trocado à mão com o arquivo movido (travas.md:168)"
+    },
+    {
+      "arquivo": "tools/processo/harness/guardioes.test.ts",
+      "texto": "apps/web/src/components/ui/overlays/ConfirmDialog.tsx",
+      "motivo": "caminho do kit nos exemplos de EXCECOES e de pede, trocado à mão com o arquivo movido (travas.md:168)"
+    },
+    {
+      "arquivo": "tools/processo/harness/guardioes.test.ts",
+      "texto": "apps/web/src/components/ui/Alert.tsx",
+      "motivo": "caminho do kit nos exemplos de EXCECOES e de pede, trocado à mão com o arquivo movido (travas.md:168)"
+    }
+  ]
+}

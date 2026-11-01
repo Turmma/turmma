@@ -7,7 +7,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from 're
  * item 2a).
  *
  * A posição é **fixa na janela**, e não absoluta no fluxo: dentro de um contêiner que rola ou corta (a tabela que rola
- * de lado, o `Dialogo`, a lista da conversa) o que flutua sairia cortado. Fixo, ele fica por cima de tudo. **Quando a
+ * de lado, o `Dialog`, a lista da conversa) o que flutua sairia cortado. Fixo, ele fica por cima de tudo. **Quando a
  * rolagem tira o botão do lugar, ele fecha**, em vez de correr atrás do botão: remedir a cada quadro de rolagem é um
  * ouvinte contínuo, e no Chromebook de entrada o menu andaria um quadro atrás do botão (regra 50, item 1). O que decide
  * é o botão ter saído de onde estava na abertura, e não o evento de rolagem em si: o navegador entrega o evento um
@@ -98,7 +98,7 @@ export function estiloDoFlutuante(posicao: PosicaoDoFlutuante | undefined): { le
   return posicao.lado === 'abaixo' ? { left: posicao.esquerda, top: posicao.distancia } : { left: posicao.esquerda, bottom: posicao.distancia }
 }
 
-export interface OpcoesDoFlutuante {
+export interface FloatingOptions {
   readonly aberto: boolean
   /**
    * O toque ou o clique fora, e a rolagem por fora, pedem para fechar. Quem desenha decide para onde o foco vai: o que
@@ -116,7 +116,7 @@ export interface OpcoesDoFlutuante {
  * tamanho. Fecha no `pointerdown` fora da âncora, que vale para mouse, toque e caneta, e **quando a rolagem tira o botão
  * de onde ele estava na medida**. `posicao` é `undefined` até a primeira medida.
  */
-export function useFlutuante<Ancora extends HTMLElement>({ aberto, aoFechar, alinhamento, lado, altura }: OpcoesDoFlutuante): {
+export function useFloating<Ancora extends HTMLElement>({ aberto, aoFechar, alinhamento, lado, altura }: FloatingOptions): {
   readonly ancora: RefObject<Ancora | null>
   readonly posicao: PosicaoDoFlutuante | undefined
 } {
@@ -188,7 +188,7 @@ export function useFlutuante<Ancora extends HTMLElement>({ aberto, aoFechar, ali
  * controle que o menu cobriu pela metade deixa de ser alvo de toque, em vez de sobrar com uma fresta de 10 px (regra
  * 50, item 2a). Ao fechar, cada elemento volta a ser o que era: só o que este gancho deixou inerte é solto.
  */
-export function useRestoInerte(ativo: boolean, ancora: RefObject<HTMLElement | null>): void {
+export function useInertOutside(ativo: boolean, ancora: RefObject<HTMLElement | null>): void {
   useEffect(() => {
     const inicio = ancora.current
     if (!ativo || inicio === null) return

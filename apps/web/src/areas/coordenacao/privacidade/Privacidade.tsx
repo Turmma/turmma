@@ -1,7 +1,7 @@
 import { Redirect, useLocation } from 'wouter'
 import { caminhoDaAbaDaPrivacidade, ehTelaDoSeletorDaPrivacidade, ROTAS_DA_COORDENACAO, type TelaDoSeletorDaPrivacidade } from '../../../paths'
-import { Segmentado, type OpcoesDoSegmentado } from '../../../components/ui/fields/Segmentado'
-import { CabecalhoDeSecao } from '../../../components/ui/Tela'
+import { SegmentedControl, type SegmentedOptions } from '../../../components/ui/fields/SegmentedControl'
+import { SectionHeader } from '../../../components/ui/Page'
 import { EmpresasQueRecebemDados } from './EmpresasQueRecebemDados'
 import { Incidentes } from './Incidentes'
 import { Retencao } from './Retencao'
@@ -11,7 +11,7 @@ import { Retencao } from './Retencao'
  * recebem dados (8.0) e os incidentes (10.0). **Seletor, e não aba**: aba dentro de aba é o que o RF17 proíbe, e a tela escolhida
  * continua no endereço de hoje (`/privacidade/retencao`, `/suboperadores`, `/incidentes`). O `valor` é o do endereço.
  */
-const TELAS_DA_PRIVACIDADE: OpcoesDoSegmentado<TelaDoSeletorDaPrivacidade> = [
+const TELAS_DA_PRIVACIDADE: SegmentedOptions<TelaDoSeletorDaPrivacidade> = [
   { valor: 'retencao', rotulo: 'Prazos de guarda' },
   { valor: 'suboperadores', rotulo: 'Empresas' },
   { valor: 'incidentes', rotulo: 'Incidentes' },
@@ -41,8 +41,8 @@ export default function Privacidade({ aba }: { readonly aba: string }) {
   const { titulo, apoio } = TITULOS_DAS_TELAS[aba]
   return (
     <div className="flex min-w-0 flex-col gap-4">
-      <Segmentado rotulo="O que ver em Privacidade" opcoes={TELAS_DA_PRIVACIDADE} valor={aba} aoMudar={(id) => navegar(caminhoDaAbaDaPrivacidade(id))} />
-      <CabecalhoDeSecao titulo={titulo} {...(apoio === undefined ? {} : { apoio })} />
+      <SegmentedControl rotulo="O que ver em Privacidade" opcoes={TELAS_DA_PRIVACIDADE} valor={aba} aoMudar={(id) => navegar(caminhoDaAbaDaPrivacidade(id))} />
+      <SectionHeader titulo={titulo} {...(apoio === undefined ? {} : { apoio })} />
       {aba === 'suboperadores' ? <EmpresasQueRecebemDados /> : aba === 'incidentes' ? <Incidentes /> : <Retencao />}
     </div>
   )

@@ -1,20 +1,20 @@
 import { ROTULOS_DA_ADAPTACAO, TIPOS_DE_ADAPTACAO, type Citacao } from '@educa/shared'
 import { LayoutGrid, MessageSquare } from 'lucide-react'
 import { useState } from 'react'
-import { Botao } from '../../components/ui/Botao'
-import { Cartao } from '../../components/ui/Cartao'
-import { AssinaturaIA, SeloIA } from '../../components/ui/ai/AssinaturaIA'
-import { AvisoFila } from '../../components/ui/ai/AvisoFila'
-import { CaixaPedido } from '../../components/ui/ai/CaixaPedido'
-import { Escolha } from '../../components/ui/ai/Escolha'
-import { LinhaAprovacao } from '../../components/ui/ai/LinhaAprovacao'
-import { Conversa, MensagemIA, MensagemPessoa, Pensando } from '../../components/ui/ai/Message'
+import { Button } from '../../components/ui/Button'
+import { Card } from '../../components/ui/Card'
+import { AgentSignature, AIBadge } from '../../components/ui/ai/AgentSignature'
+import { QueueAlert } from '../../components/ui/ai/QueueAlert'
+import { PromptInput } from '../../components/ui/ai/PromptInput'
+import { ChoicePrompt } from '../../components/ui/ai/ChoicePrompt'
+import { ApprovalLine } from '../../components/ui/ai/ApprovalLine'
+import { Conversation, AIMessage, UserMessage, ThinkingIndicator } from '../../components/ui/ai/Message'
 import type { DescricaoDeFerramenta, ValoresValidados } from '../../components/ui/ai/schema-form'
-import { MotorFormulario, type EstadoDoMotor } from '../../components/ui/ai/MotorFormulario'
-import { PaginaMini } from '../../components/ui/ai/PaginaMini'
-import { TextoDaIA } from '../../components/ui/ai/TextoDaIA'
+import { SchemaForm, type SchemaFormState } from '../../components/ui/ai/SchemaForm'
+import { PageThumbnail } from '../../components/ui/ai/PageThumbnail'
+import { AIText } from '../../components/ui/ai/AIText'
 import { Menu } from '../../components/ui/overlays/Menu'
-import { Selecao } from '../../components/ui/fields/Selecao'
+import { Select } from '../../components/ui/fields/Select'
 import { QUANDO, TURMAS } from '../sample-data'
 import { Secao } from '../GallerySection'
 
@@ -43,7 +43,7 @@ const TEXTO_DO_MODELO =
 
 /**
  * O menu de ferramenta da caixa de pedido. **A Adaptação não está aqui**: ela não nasce de um texto livre, e sim do tipo
- * de adaptação, e abre direto no `MotorFormulario` (D35, D67). Ao lado de uma caixa de texto, ela convidaria a escrever
+ * de adaptação, e abre direto no `SchemaForm` (D35, D67). Ao lado de uma caixa de texto, ela convidaria a escrever
  * sobre o aluno.
  */
 const FERRAMENTAS = [
@@ -99,14 +99,14 @@ function DemonstracaoDaCaixa({ variante }: { variante: 'completa' | 'so-texto' }
   return (
     <div className="flex min-w-0 flex-col gap-2">
       {variante === 'so-texto' ? (
-        <CaixaPedido variante="so-texto" rotulo="Pergunta para o Tutor" exemplo="Escreva a sua dúvida" {...comuns} />
+        <PromptInput variante="so-texto" rotulo="Pergunta para o Tutor" exemplo="Escreva a sua dúvida" {...comuns} />
       ) : (
-        <CaixaPedido
+        <PromptInput
           rotulo="Pedido ao Assistente de ensino"
           exemplo="Peça uma atividade, um plano de aula…"
           {...comuns}
           esquerda={<Menu rotulo={FERRAMENTAS.find((item) => item.id === ferramenta)?.rotulo ?? 'Ferramenta'} prefixo="Ferramenta" icone={LayoutGrid} titulo="Ferramentas" itens={FERRAMENTAS} escolhido={ferramenta} aoEscolher={definirFerramenta} />}
-          direita={<Selecao variante="pilula" rotulo="Turma do pedido" opcoes={TURMAS} valor={turma} aoMudar={definirTurma} />}
+          direita={<Select variante="pilula" rotulo="Turma do pedido" opcoes={TURMAS} valor={turma} aoMudar={definirTurma} />}
         />
       )}
       <p role="status" data-enviado="" className="min-h-6 text-sm break-words whitespace-pre-wrap text-sutil">
@@ -117,11 +117,11 @@ function DemonstracaoDaCaixa({ variante }: { variante: 'completa' | 'so-texto' }
 }
 
 function DemonstracaoDoMotor({ descricao }: { descricao: DescricaoDeFerramenta }) {
-  const [estado, definirEstado] = useState<EstadoDoMotor>('formulario')
+  const [estado, definirEstado] = useState<SchemaFormState>('formulario')
   const [pedido, definirPedido] = useState<ValoresValidados | undefined>(undefined)
   return (
     <div className="flex min-w-0 flex-col gap-3">
-      <MotorFormulario
+      <SchemaForm
         descricao={descricao}
         estado={estado}
         aoGerar={(valores) => {
@@ -131,15 +131,15 @@ function DemonstracaoDoMotor({ descricao }: { descricao: DescricaoDeFerramenta }
         aoCancelar={() => definirPedido(undefined)}
         aoEditar={() => definirEstado('formulario')}
       >
-        <Cartao>
+        <Card>
           <p className="text-apoio">O artefato gerado aparece aqui, com a assinatura da IA e as fontes.</p>
-        </Cartao>
-      </MotorFormulario>
+        </Card>
+      </SchemaForm>
       {estado === 'gerando' && (
         <div>
-          <Botao variante="secundario" onClick={() => definirEstado('pronto')}>
+          <Button variante="secundario" onClick={() => definirEstado('pronto')}>
             Simular a resposta
-          </Botao>
+          </Button>
         </div>
       )}
       <p data-pedido="" className="min-h-6 text-sm break-all text-sutil">
@@ -156,24 +156,24 @@ export default function SecoesDeIA() {
     <>
       <Secao nome="selo-de-ia" titulo="Selo de IA e assinatura">
         <div className="flex min-w-0 flex-wrap items-center gap-4">
-          <SeloIA />
+          <AIBadge />
         </div>
-        <AssinaturaIA agente="assistente_de_ensino" />
-        <AssinaturaIA agente="tutor" />
-        <AssinaturaIA agente="analista_de_desempenho_escolar" />
-        <AssinaturaIA funcao="correcao_de_objetiva" />
+        <AgentSignature agente="assistente_de_ensino" />
+        <AgentSignature agente="tutor" />
+        <AgentSignature agente="analista_de_desempenho_escolar" />
+        <AgentSignature funcao="correcao_de_objetiva" />
         <div className="flex min-w-0 flex-col items-start gap-2">
-          <LinhaAprovacao aprovacao={{ estado: 'aprovada', por: 'Camila Souza', quando: QUANDO }} />
-          <LinhaAprovacao aprovacao={{ estado: 'pendente' }} />
-          <LinhaAprovacao aprovacao={{ estado: 'rejeitada', por: 'Camila Souza', quando: QUANDO, motivo: 'A questão 3 não é do capítulo 7.' }} />
+          <ApprovalLine aprovacao={{ estado: 'aprovada', por: 'Camila Souza', quando: QUANDO }} />
+          <ApprovalLine aprovacao={{ estado: 'pendente' }} />
+          <ApprovalLine aprovacao={{ estado: 'rejeitada', por: 'Camila Souza', quando: QUANDO, motivo: 'A questão 3 não é do capítulo 7.' }} />
         </div>
       </Secao>
 
       <Secao nome="conversa" titulo="Conversa">
-        <Conversa rotulo="Conversa com o Assistente de ensino" ocupada={demorando}>
-          <MensagemPessoa>monta uma atividade de estequiometria pro 2ºB, dez questões</MensagemPessoa>
-          <MensagemIA agente="assistente_de_ensino">
-            <Escolha
+        <Conversation rotulo="Conversa com o Assistente de ensino" ocupada={demorando}>
+          <UserMessage>monta uma atividade de estequiometria pro 2ºB, dez questões</UserMessage>
+          <AIMessage agente="assistente_de_ensino">
+            <ChoicePrompt
               pergunta="Posso fazer isso com a ferramenta Atividade, ou só conversar."
               opcoes={[
                 { id: 'ferramenta', titulo: 'Usar a ferramenta Atividade', descricao: 'Salva na biblioteca, liga ao 2ºB e cita a página.', icone: LayoutGrid },
@@ -182,52 +182,52 @@ export default function SecoesDeIA() {
               escolhida={escolha}
               aoEscolher={definirEscolha}
             />
-          </MensagemIA>
-          <MensagemIA
+          </AIMessage>
+          <AIMessage
             agente="assistente_de_ensino"
             aprovacao={{ aprovacao: { estado: 'aprovada', por: 'Camila Souza', quando: QUANDO }, verbo: 'Aprovada por' }}
             acoes={
               <>
-                <Botao variante="discreto" tamanho="compacto">
+                <Button variante="discreto" tamanho="compacto">
                   Copiar
-                </Botao>
-                <Botao variante="discreto" tamanho="compacto">
+                </Button>
+                <Button variante="discreto" tamanho="compacto">
                   Exportar em PDF
-                </Botao>
+                </Button>
               </>
             }
           >
-            <TextoDaIA texto={TEXTO_DO_MODELO} citacoes={CITACOES} materiais={MATERIAIS} />
-          </MensagemIA>
-          <AvisoFila situacao="demora" />
-          <AvisoFila situacao="falha" aoTentarDeNovo={() => undefined} />
-          <MensagemIA
+            <AIText texto={TEXTO_DO_MODELO} citacoes={CITACOES} materiais={MATERIAIS} />
+          </AIMessage>
+          <QueueAlert situacao="demora" />
+          <QueueAlert situacao="falha" aoTentarDeNovo={() => undefined} />
+          <AIMessage
             variante="balao"
             funcao="correcao_de_objetiva"
             aprovacao={{ aprovacao: { estado: 'pendente' } }}
             acoes={
-              <Botao variante="secundario" tamanho="compacto">
+              <Button variante="secundario" tamanho="compacto">
                 Revisar
-              </Botao>
+              </Button>
             }
           >
             Corrigi as 32 atividades de estequiometria do 2ºB. Há 5 casos para você abrir antes de aprovar.
-          </MensagemIA>
-          <MensagemIA variante="balao" funcao="sinais_para_o_professor">
+          </AIMessage>
+          <AIMessage variante="balao" funcao="sinais_para_o_professor">
             Oito alunos travaram na questão 3.
-          </MensagemIA>
-          <Pensando agente="tutor" demorando={demorando} />
-        </Conversa>
+          </AIMessage>
+          <ThinkingIndicator agente="tutor" demorando={demorando} />
+        </Conversation>
         <div>
-          <Botao variante="secundario" tamanho="compacto" onClick={() => definirDemorando((estava) => !estava)}>
+          <Button variante="secundario" tamanho="compacto" onClick={() => definirDemorando((estava) => !estava)}>
             Simular a demora
-          </Botao>
+          </Button>
         </div>
       </Secao>
 
       <Secao nome="escolha-estados" titulo="Escolha: desligada e escolhida">
         {/* A pergunta é outra da de cima: o e2e acha a Escolha aberta pelo nome do grupo, e dois com o mesmo nome o quebrariam. */}
-        <Escolha
+        <ChoicePrompt
           pergunta="Posso montar o plano de aula com a ferramenta, ou só conversar."
           opcoes={[
             { id: 'ferramenta', titulo: 'Usar a ferramenta Plano de aula', descricao: 'Salva na biblioteca e liga à turma.', icone: LayoutGrid },
@@ -236,7 +236,7 @@ export default function SecoesDeIA() {
           aoEscolher={() => undefined}
           desligada
         />
-        <Escolha
+        <ChoicePrompt
           pergunta="Posso corrigir a lista objetiva com a ferramenta, ou só conversar."
           opcoes={[
             { id: 'ferramenta', titulo: 'Usar a ferramenta Correção', descricao: 'Organiza o lote e abre os casos para você.', icone: LayoutGrid },
@@ -256,29 +256,29 @@ export default function SecoesDeIA() {
       </Secao>
 
       <Secao nome="caixa-desligada" titulo="Caixa de pedido desligada">
-        <CaixaPedido variante="so-texto" rotulo="Pergunta para o Tutor, desligada" exemplo="O Tutor está pausado nesta avaliação" valor="" aoMudar={() => undefined} aoEnviar={() => undefined} estado="desligada" />
+        <PromptInput variante="so-texto" rotulo="Pergunta para o Tutor, desligada" exemplo="O Tutor está pausado nesta avaliação" valor="" aoMudar={() => undefined} aoEnviar={() => undefined} estado="desligada" />
       </Secao>
 
       <Secao nome="pagina-mini" titulo="Página de origem">
-        <PaginaMini citacao={PAGINA_142} materiais={MATERIAIS} />
+        <PageThumbnail citacao={PAGINA_142} materiais={MATERIAIS} />
       </Secao>
 
       <Secao nome="motor" titulo="Motor de formulário">
-        <Cartao>
+        <Card>
           <DemonstracaoDoMotor descricao={ATIVIDADE} />
-        </Cartao>
+        </Card>
       </Secao>
 
       <Secao nome="motor-com-falha" titulo="Motor de formulário: o que deu errado">
-        <Cartao>
-          <MotorFormulario descricao={ATIVIDADE} estado="formulario" aoGerar={() => undefined} falha="Não foi possível gerar agora. Tente de novo em instantes." />
-        </Cartao>
+        <Card>
+          <SchemaForm descricao={ATIVIDADE} estado="formulario" aoGerar={() => undefined} falha="Não foi possível gerar agora. Tente de novo em instantes." />
+        </Card>
       </Secao>
 
       <Secao nome="motor-da-adaptacao" titulo="Motor de formulário: Adaptação">
-        <Cartao>
+        <Card>
           <DemonstracaoDoMotor descricao={ADAPTACAO} />
-        </Cartao>
+        </Card>
       </Secao>
     </>
   )

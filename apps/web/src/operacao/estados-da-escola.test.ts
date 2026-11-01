@@ -1,6 +1,6 @@
 import { ESTADOS_DA_COORDENACAO } from '@educa/shared'
 import { describe, expect, it } from 'vitest'
-import { CORES_DO_ESTADO, FAMILIAS_DE_ESTADO } from '../components/ui/SeloDeEstado'
+import { STATUS_COLORS, STATUS_FAMILIES } from '../components/ui/StatusBadge'
 import { TEXTO_DO_ESTADO, TOM_DO_ESTADO } from './estados-da-escola'
 
 /**
@@ -36,8 +36,8 @@ describe('W10: o texto de cada estado da coordenação na lista', () => {
 
   it('a cor é de reforço e vem das famílias de estado da 9.1: verde só para a escola ativa', () => {
     for (const estado of ESTADOS_DA_COORDENACAO) {
-      expect(FAMILIAS_DE_ESTADO).toContain(TOM_DO_ESTADO[estado])
-      expect(CORES_DO_ESTADO[TOM_DO_ESTADO[estado]]).toMatch(/^bg-(ok|pendente|erro|info)-cx text-(ok|pendente|erro|info)$/)
+      expect(STATUS_FAMILIES).toContain(TOM_DO_ESTADO[estado])
+      expect(STATUS_COLORS[TOM_DO_ESTADO[estado]]).toMatch(/^bg-(ok|pendente|erro|info)-cx text-(ok|pendente|erro|info)$/)
     }
     expect(ESTADOS_DA_COORDENACAO.filter((estado) => TOM_DO_ESTADO[estado] === 'ok')).toEqual(['ativa'])
   })

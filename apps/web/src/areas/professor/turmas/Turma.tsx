@@ -6,9 +6,9 @@ import { Link, useLocation, useSearch } from 'wouter'
 import { consultaTurmaAberta } from '../../../api/estrutura'
 import { consultaEu } from '../../../api/eu'
 import { ROTAS_DO_PROFESSOR } from '../../../paths'
-import { Abas } from '../../../components/ui/Abas'
+import { Tabs } from '../../../components/ui/Tabs'
 import { EstadoCarregando, EstadoErro } from '../../../components/states/index'
-import { Tela } from '../../../components/ui/Tela'
+import { Page } from '../../../components/ui/Page'
 import { TurmaIndisponivel } from '../../../components/TurmaIndisponivel'
 import { useTituloDaTela } from '../../../document-title'
 import { TEXTO_DA_TURMA_INDISPONIVEL, turmaIndisponivel } from './acesso/acesso-da-turma'
@@ -87,7 +87,7 @@ export default function Turma({ turmaId }: { turmaId: string }) {
     // A que falhou, a turma primeiro: sem ela não há o que mostrar, e é dela o "não está disponível".
     const falha = turma.isError ? turma : eu.isError ? eu : undefined
     return (
-      <Tela titulo={nomeDaTurma} descricao={serieDaTurma} antes={voltar}>
+      <Page titulo={nomeDaTurma} descricao={serieDaTurma} antes={voltar}>
         {indisponivel ? (
           // Com a turma já na tela, tudo o que tinha o foco saiu com ela (o diálogo aberto, os botões das seções): o foco
           // vem para o aviso. Na página que abre já sem a turma, fica onde o navegador o pôs.
@@ -97,24 +97,24 @@ export default function Turma({ turmaId }: { turmaId: string }) {
         ) : (
           <EstadoErro erro={falha.error} tentando={falha.isFetching} aoTentarDeNovo={() => void falha.refetch({ cancelRefetch: false })} />
         )}
-      </Tela>
+      </Page>
     )
   }
 
   return (
-    <Tela titulo={nomeDaTurma} descricao={serieDaTurma} antes={voltar} idDoTitulo={idDoTitulo}>
+    <Page titulo={nomeDaTurma} descricao={serieDaTurma} antes={voltar} idDoTitulo={idDoTitulo}>
       <section className="flex min-w-0 flex-col gap-6" aria-labelledby={idDoTitulo}>
         <div ref={topoDoPainel} className="min-w-0">
-          <Abas rotulo="Seções da turma" abas={ABAS_DA_TURMA} ativa={aba} aoMudar={(id) => navegar(enderecoDaAba(caminho, abaDoId(id)), { replace: true })} classeDoPainel={O_MIOLO_DO_DOCUMENTO}>
+          <Tabs rotulo="Seções da turma" abas={ABAS_DA_TURMA} ativa={aba} aoMudar={(id) => navegar(enderecoDaAba(caminho, abaDoId(id)), { replace: true })} classeDoPainel={O_MIOLO_DO_DOCUMENTO}>
             {/* Só a aba à vista existe: a que sai da tela leva com ela as leituras dela, e Hoje, a que se repete a cada 15 s. */}
             <Suspense fallback={<EstadoCarregando rotulo="Carregando a aba…" />}>
               {aba === 'hoje' && <TurmaHoje turmaId={turmaId} aoPerderATurma={perderATurma} />}
               {aba === 'atividades' && <AtividadesDaTurma turmaId={turmaId} />}
               {aba === 'alunos' && <AlunosDaTurma turmaId={turmaId} turmaNome={turma.data.nome} escola={eu.data.escola} aoPerderATurma={perderATurma} />}
             </Suspense>
-          </Abas>
+          </Tabs>
         </div>
       </section>
-    </Tela>
+    </Page>
   )
 }

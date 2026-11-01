@@ -373,14 +373,14 @@ describe('guarda de cor em apps/web/src (U3)', () => {
     // pasta ou no filtro de extensão —, e `[].flatMap(...)` é `[]`. O botão primário é a cor da marca (9.1), e as
     // telas de `pages/` são as que a tarefa 2.0 da A0 migrou; a de vínculos foi para `areas/professor/` na 11.0 da A1.
     const nomes = conteudos.map(({ nome }) => nome)
-    expect(nomes, 'a varredura não está achando os arquivos da web').toContain('components/ui/Botao.tsx')
+    expect(nomes, 'a varredura não está achando os arquivos da web').toContain('components/ui/Button.tsx')
     expect(nomes.filter((nome) => nome.startsWith('pages/') || nome.startsWith('areas/')).length).toBeGreaterThanOrEqual(10)
-    // As classes do botão moraram em `Botao.tsx` até o MVP de apresentação; com as variantes da 10.2, a tabela que o
-    // `Botao` lê fica em `button-variants.ts`, e é lá que a face laranja da ação primária precisa estar.
+    // As classes do botão moraram em `Button.tsx` até o MVP de apresentação; com as variantes da 10.2, a tabela que o
+    // `Button` lê fica em `button-variants.ts`, e é lá que a face laranja da ação primária precisa estar.
     expect(conteudos.find(({ nome }) => nome === 'components/ui/button-variants.ts')?.conteudo).toMatch(/\bbg-laranja\b/)
     // As peças do MVP de apresentação (`docs/mvp-rapido.md`, 9.3) também são varridas: o selo "IA" pinta com a família
     // `ia`, e a pasta inteira das peças de IA entra na conta.
-    expect(conteudos.find(({ nome }) => nome === 'components/ui/ai/AssinaturaIA.tsx')?.conteudo).toMatch(/\bbg-ia-cx\b/)
+    expect(conteudos.find(({ nome }) => nome === 'components/ui/ai/AgentSignature.tsx')?.conteudo).toMatch(/\bbg-ia-cx\b/)
     expect(nomes.filter((nome) => nome.startsWith('components/ui/ai/') && nome.endsWith('.tsx')).length).toBeGreaterThanOrEqual(10)
     // As duas listas fechadas apontam arquivo que existe: lista com nome velho deixaria a exceção valendo para ninguém.
     for (const arquivo of [...ARQUIVOS_COM_BRANCO_FIXO, ...ARQUIVOS_COM_COR_EM_LINHA]) expect(nomes, `${arquivo} saiu do lugar`).toContain(arquivo)

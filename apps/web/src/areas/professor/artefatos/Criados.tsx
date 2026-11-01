@@ -5,16 +5,16 @@ import { useLocation, useSearch } from 'wouter'
 import { consultaArtefatos } from './api/artefatos'
 import { consultaMeusVinculos } from '../comum/api/vinculos'
 import { ROTAS_DO_PROFESSOR, caminhoDoArtefatoDoProfessor } from '../../../paths'
-import { Botao } from '../../../components/ui/Botao'
-import { Dialogo } from '../../../components/ui/overlays/Dialogo'
+import { Button } from '../../../components/ui/Button'
+import { Dialog } from '../../../components/ui/overlays/Dialog'
 import { EstadoCarregando, EstadoErro, EstadoVazio } from '../../../components/states/index'
-import { Linha } from '../../../components/ui/Linha'
+import { ListItem } from '../../../components/ui/ListItem'
 import { Menu } from '../../../components/ui/overlays/Menu'
 import { Onca } from '../../../components/ui/onca/Onca'
-import { A_PARTIR_DE_768, useMidia } from '../../../components/ui/media-query'
-import { Estado } from '../../../components/ui/SeloDeEstado'
-import { CabecalhoDeSecao, Tela } from '../../../components/ui/Tela'
-import { Toque } from '../../../components/ui/Toque'
+import { MEDIA_MD, useMediaQuery } from '../../../components/ui/media-query'
+import { StatusBadge } from '../../../components/ui/StatusBadge'
+import { SectionHeader, Page } from '../../../components/ui/Page'
+import { Toggle } from '../../../components/ui/Toggle'
 import { formatarDataHora, formatarQuantidade } from '../../../format'
 import { useTituloDaTela } from '../../../document-title'
 import { agruparPorTurma, enderecoComFiltros, FAMILIA_DA_ENTREGA, filtrar, filtrosLigados, lerFiltros, OPCOES_DE_ESTADO, OPCOES_DE_TIPO, rotuloDeVerDocumentos, SELO_DA_ENTREGA, SEM_FILTROS, type FiltrosDeCriados, type OpcaoDeFiltro } from './criados'
@@ -60,9 +60,9 @@ function GrupoDeToques({ nome, opcoes, valor, valorSemFiltro, aoEscolher }: Omit
         {opcoes
           .filter((opcao) => opcao.id !== valorSemFiltro)
           .map((opcao) => (
-            <Toque key={opcao.id} selecionado={opcao.id === valor} aoMudar={(selecionado) => aoEscolher(selecionado ? opcao.id : valorSemFiltro)}>
+            <Toggle key={opcao.id} selecionado={opcao.id === valor} aoMudar={(selecionado) => aoEscolher(selecionado ? opcao.id : valorSemFiltro)}>
               {opcao.rotulo}
-            </Toque>
+            </Toggle>
           ))}
       </div>
     </div>
@@ -94,7 +94,7 @@ export default function Criados() {
   const filtros = lerFiltros(busca)
   const artefatos = useInfiniteQuery(consultaArtefatos(filtros.turma))
   const vinculos = useInfiniteQuery(consultaMeusVinculos)
-  const noComputador = useMidia(A_PARTIR_DE_768)
+  const noComputador = useMediaQuery(MEDIA_MD)
   const [filtrando, definirFiltrando] = useState(false)
   // Os documentos que já estavam na tela quando a professora pediu "Ver mais" (num ref: só o efeito os lê), e a contagem que o acorda.
   const jaNaTela = useRef<ReadonlySet<string> | undefined>(undefined)
@@ -162,7 +162,7 @@ export default function Criados() {
   )
 
   return (
-    <Tela
+    <Page
       titulo="Criados"
       idDoTitulo={idDoTitulo}
       refDoTitulo={tituloDaTela}
@@ -170,9 +170,9 @@ export default function Criados() {
         noComputador ? (
           menus
         ) : (
-          <Botao variante="secundario" tamanho="compacto" onClick={() => definirFiltrando(true)}>
+          <Button variante="secundario" tamanho="compacto" onClick={() => definirFiltrando(true)}>
             {ligados === 0 ? 'Filtrar' : `Filtrar (${String(ligados)})`}
-          </Botao>
+          </Button>
         )
       }
     >
@@ -200,13 +200,13 @@ export default function Criados() {
         <div ref={grupos} className="flex min-w-0 flex-col gap-6">
           {!carregando && porTurma.map((grupo) => (
             <section key={grupo.chave} aria-labelledby={`${idDoTitulo}-${grupo.chave}`} className="flex min-w-0 flex-col gap-3">
-              <CabecalhoDeSecao id={`${idDoTitulo}-${grupo.chave}`} titulo={grupo.titulo} apoio={formatarQuantidade(grupo.itens.length, 'documento', 'documentos')} />
+              <SectionHeader id={`${idDoTitulo}-${grupo.chave}`} titulo={grupo.titulo} apoio={formatarQuantidade(grupo.itens.length, 'documento', 'documentos')} />
               <ul className="divide-y-2 divide-borda overflow-hidden rounded-cartao border-2 border-borda bg-superficie">
                 {grupo.itens.map((artefato) => {
                   const turma = nomeDaTurma[artefato.turmaId]
                   return (
                     <li key={artefato.id} data-artefato="" data-artefato-id={artefato.id}>
-                      <Linha
+                      <ListItem
                         para={caminhoDoArtefatoDoProfessor(artefato.id)}
                         titulo={artefato.titulo}
                         inicio={<IconeDeFerramenta ferramenta={artefato.adaptacao === null ? artefato.tipo : 'adaptacao'} tamanho={40} />}
@@ -217,7 +217,7 @@ export default function Criados() {
                             {turma !== undefined && <span className="sr-only"> · {turma}</span>} · {formatarDataHora(artefato.criadoEm)}
                           </>
                         }
-                        {...(artefato.entrega === null ? {} : { fim: <Estado familia={FAMILIA_DA_ENTREGA[artefato.entrega.estado]}>{SELO_DA_ENTREGA[artefato.entrega.estado]}</Estado> })}
+                        {...(artefato.entrega === null ? {} : { fim: <StatusBadge familia={FAMILIA_DA_ENTREGA[artefato.entrega.estado]}>{SELO_DA_ENTREGA[artefato.entrega.estado]}</StatusBadge> })}
                       />
                     </li>
                   )
@@ -228,25 +228,25 @@ export default function Criados() {
         </div>
 
         {artefatos.hasNextPage && (
-          <Botao variante="secundario" onClick={() => void verMais()} disabled={artefatos.isFetchingNextPage} className="self-start">
+          <Button variante="secundario" onClick={() => void verMais()} disabled={artefatos.isFetchingNextPage} className="self-start">
             {artefatos.isFetchingNextPage ? 'Carregando…' : 'Ver mais'}
-          </Botao>
+          </Button>
         )}
       </section>
 
       {!noComputador && filtrando && (
-        <Dialogo titulo="Filtrar" aoFechar={() => definirFiltrando(false)}>
+        <Dialog titulo="Filtrar" aoFechar={() => definirFiltrando(false)}>
           <GrupoDeToques nome="Tipo" opcoes={OPCOES_DE_TIPO} valor={filtros.tipo} valorSemFiltro="todos" aoEscolher={escolherTipo} />
           <GrupoDeToques nome="Turma" opcoes={turmasDoFiltro} valor={filtros.turma ?? ''} valorSemFiltro="" aoEscolher={escolherTurma} />
           <GrupoDeToques nome="Estado" opcoes={OPCOES_DE_ESTADO} valor={filtros.estado} valorSemFiltro="todos" aoEscolher={escolherEstado} />
           <div className="mt-6 flex flex-wrap justify-end gap-3">
-            <Botao variante="secundario" onClick={() => mudar(SEM_FILTROS)} disabled={ligados === 0}>
+            <Button variante="secundario" onClick={() => mudar(SEM_FILTROS)} disabled={ligados === 0}>
               Limpar filtros
-            </Botao>
-            <Botao onClick={() => definirFiltrando(false)}>{rotuloDeVerDocumentos(visiveis.length, artefatos.hasNextPage)}</Botao>
+            </Button>
+            <Button onClick={() => definirFiltrando(false)}>{rotuloDeVerDocumentos(visiveis.length, artefatos.hasNextPage)}</Button>
           </div>
-        </Dialogo>
+        </Dialog>
       )}
-    </Tela>
+    </Page>
   )
 }

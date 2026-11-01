@@ -1,6 +1,6 @@
 import { useId } from 'react'
 import { Link } from 'wouter'
-import { PainelLado } from '../../../components/ui/overlays/PainelLado'
+import { Sheet } from '../../../components/ui/overlays/Sheet'
 import type { PassoDoRoteiro } from './o-que-falta-da-escola'
 
 /**
@@ -55,8 +55,8 @@ export function PainelDoQueFalta({
   readonly focoDeReserva: () => void
 }) {
   return (
-    <PainelLado titulo="O que falta" aoFechar={aoFechar} focoDeReserva={focoDeReserva}>
+    <Sheet titulo="O que falta" aoFechar={aoFechar} focoDeReserva={focoDeReserva}>
       <Roteiro titulo="O que falta para a escola começar" passos={passos} />
-    </PainelLado>
+    </Sheet>
   )
 }

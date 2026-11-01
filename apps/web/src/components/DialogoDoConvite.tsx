@@ -1,11 +1,11 @@
 import { useMutation, type UseMutationOptions } from '@tanstack/react-query'
 import { useRef, useState, type ComponentType, type FormEvent, type ReactNode, type RefObject } from 'react'
 import { ROTAS } from '../paths'
-import { Botao } from './ui/Botao'
-import { CLASSES_DO_BOTAO_SECUNDARIO } from './ui/button-variants'
-import { Campo } from './ui/fields/Campo'
+import { Button } from './ui/Button'
+import { SECONDARY_BUTTON_CLASSES } from './ui/button-variants'
+import { FormField } from './ui/fields/FormField'
 import { AvisoDaCopia, CampoDoLink, Falha, Pergunta, useCopia, useFechamento, useFocoDaEtapa } from './copy-once'
-import type { PropsDoDialogo } from './ui/overlays/Dialogo'
+import type { DialogProps } from './ui/overlays/Dialog'
 import { linkDoConvite } from './link-do-convite'
 import type { CampoDoConvite, ValidacaoDoConvite } from './pedido-de-convite'
 
@@ -13,7 +13,7 @@ import type { CampoDoConvite, ValidacaoDoConvite } from './pedido-de-convite'
  * O diálogo do convite de cópia única: o link que aparece uma vez, logo depois de gerar, para quem convida copiar e
  * mandar. Nasceu na operação, no convite da coordenação (A0b, tarefa 7.0), e veio para `components/` na A1 (14.0), com
  * a coordenação da escola convidando o professor pelo mesmo diálogo. Nada da operação nem da escola mora aqui: quem usa
- * passa a moldura (o `Dialogo`, ou o da operação, com o aviso de inatividade), os textos, a mutação e o texto de cada
+ * passa a moldura (o `Dialog`, ou o da operação, com o aviso de inatividade), os textos, a mutação e o texto de cada
  * falha.
  *
  * A pergunta de fechar, a cópia, a falha com o foco e o foco de cada etapa são as peças de `copy-once.tsx`, que o acesso
@@ -24,8 +24,8 @@ import type { CampoDoConvite, ValidacaoDoConvite } from './pedido-de-convite'
  * entram no `useMutation` como estão: fechado o diálogo, o token sai do cache na mesma hora (regra 20, item 8).
  */
 
-/** A moldura do diálogo: o `Dialogo` de `components/`, ou o da operação, que acrescenta o aviso de inatividade. */
-export type MolduraDoConvite = ComponentType<Omit<PropsDoDialogo, 'rodape'>>
+/** A moldura do diálogo: o `Dialog` de `components/`, ou o da operação, que acrescenta o aviso de inatividade. */
+export type MolduraDoConvite = ComponentType<Omit<DialogProps, 'rodape'>>
 
 /** A falha de uma ação do convite: o texto, e se a lista deixou de valer e precisa ser recarregada. */
 export interface FalhaDoConvite {
@@ -99,8 +99,8 @@ function EtapaDoLink({
       <CampoDoLink ref={campo} rotulo="Link do convite" link={link} aoCopiarAMao={aoCopiarAMao} />
       <AvisoDaCopia texto={copia} vez={vezDaCopia} copiado={copiado} />
       <div className="flex flex-wrap justify-end gap-3">
-        <Botao onClick={() => aoCopiar(campo.current)}>Copiar link</Botao>
-        <button type="button" onClick={aoFechar} className={CLASSES_DO_BOTAO_SECUNDARIO}>
+        <Button onClick={() => aoCopiar(campo.current)}>Copiar link</Button>
+        <button type="button" onClick={aoFechar} className={SECONDARY_BUTTON_CLASSES}>
           Fechar
         </button>
       </div>
@@ -120,7 +120,7 @@ interface PropsComuns {
   readonly link: TextosDoLink
   /** Quem fecha é quem desmonta: a tela, pela abertura deste diálogo. */
   readonly aoFechar: () => void
-  /** O foco ao fechar quando o botão que abriu já saiu da tela (`Dialogo`). */
+  /** O foco ao fechar quando o botão que abriu já saiu da tela (`Dialog`). */
   readonly focoDeReserva?: (() => void) | undefined
 }
 
@@ -257,15 +257,15 @@ export function DialogoDeConviteNovo<Pedido, Resposta extends { readonly token: 
         <div className="flex flex-wrap justify-end gap-3">
           {falha?.listaMudou !== true && (
             <>
-              <Botao onClick={confirmar} disabled={gerar.isPending}>
+              <Button onClick={confirmar} disabled={gerar.isPending}>
                 {gerar.isPending ? acao.confirmando : acao.confirmar}
-              </Botao>
-              <button type="button" onClick={voltarECorrigir} disabled={gerar.isPending} className={CLASSES_DO_BOTAO_SECUNDARIO}>
+              </Button>
+              <button type="button" onClick={voltarECorrigir} disabled={gerar.isPending} className={SECONDARY_BUTTON_CLASSES}>
                 Voltar e corrigir
               </button>
             </>
           )}
-          <button type="button" onClick={fechamento.pedirParaFechar} className={CLASSES_DO_BOTAO_SECUNDARIO}>
+          <button type="button" onClick={fechamento.pedirParaFechar} className={SECONDARY_BUTTON_CLASSES}>
             {falha?.listaMudou === true ? 'Fechar' : 'Cancelar'}
           </button>
         </div>
@@ -279,7 +279,7 @@ export function DialogoDeConviteNovo<Pedido, Resposta extends { readonly token: 
   return dialogo(
     <form className="mt-4 flex flex-col gap-4" onSubmit={revisar} noValidate>
       <p className="text-apoio">{apresentacao}</p>
-      <Campo
+      <FormField
         ref={campoDoNome}
         rotulo={rotulos.nome}
         name="nome"
@@ -290,7 +290,7 @@ export function DialogoDeConviteNovo<Pedido, Resposta extends { readonly token: 
         onChange={(evento) => definirNome(evento.target.value)}
         erro={erros.nome}
       />
-      <Campo
+      <FormField
         rotulo={rotulos.email}
         name="email"
         type="email"
@@ -305,8 +305,8 @@ export function DialogoDeConviteNovo<Pedido, Resposta extends { readonly token: 
         erro={erros.email}
       />
       <div className="flex flex-wrap justify-end gap-3">
-        <Botao type="submit">Revisar</Botao>
-        <button type="button" onClick={fechamento.pedirParaFechar} className={CLASSES_DO_BOTAO_SECUNDARIO}>
+        <Button type="submit">Revisar</Button>
+        <button type="button" onClick={fechamento.pedirParaFechar} className={SECONDARY_BUTTON_CLASSES}>
           Cancelar
         </button>
       </div>
@@ -406,11 +406,11 @@ export function DialogoDeConviteRefeito<Resposta extends { readonly token: strin
       {falha !== undefined && <Falha texto={falha.texto} erro={refazer.error} />}
       <div className="flex flex-wrap justify-end gap-3">
         {falha?.listaMudou !== true && (
-          <Botao onClick={confirmar} disabled={refazer.isPending}>
+          <Button onClick={confirmar} disabled={refazer.isPending}>
             {refazer.isPending ? acao.confirmando : acao.confirmar}
-          </Botao>
+          </Button>
         )}
-        <button type="button" onClick={fechamento.pedirParaFechar} className={CLASSES_DO_BOTAO_SECUNDARIO}>
+        <button type="button" onClick={fechamento.pedirParaFechar} className={SECONDARY_BUTTON_CLASSES}>
           {falha?.listaMudou === true ? 'Fechar' : 'Cancelar'}
         </button>
       </div>

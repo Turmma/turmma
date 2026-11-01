@@ -6,7 +6,7 @@ import { Router } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
 import { prepararTela, redeFalsa, renderizarTela, type RedeFalsa, type RespostaFalsa } from '../../../__fixtures__/render-screen'
 import type * as Sessao from '../../../api/sessao'
-import { classesDoBotao } from '../../../components/ui/button-variants'
+import { buttonVariants } from '../../../components/ui/button-variants'
 import Escola from '../Escola'
 import Material from './Material'
 
@@ -99,7 +99,7 @@ function instalar(rede: RedeFalsa, parcial: Partial<Respostas> = {}): void {
 const pedidosDe = (rede: RedeFalsa) => rede.chamadas.map((chamada) => `${chamada.metodo} ${chamada.caminho.split('?')[0] ?? ''}`)
 const quantos = (rede: RedeFalsa, pedido: string) => pedidosDe(rede).filter((feito) => feito === pedido).length
 
-/** A largura da janela, para a consulta `(min-width: 768px)` que a `Tabela` lê. */
+/** A largura da janela, para a consulta `(min-width: 768px)` que a `Table` lê. */
 function janelaDe(largura: number): void {
   vi.stubGlobal('matchMedia', (consulta: string) => ({
     matches: consulta === '(min-width: 768px)' ? largura >= 768 : false,
@@ -163,11 +163,11 @@ const linhaDe = (titulo: string) => {
 const botaoDe = (titulo: string) => tabela().getByRole('button', { name: titulo })
 const painelDe = (titulo: string) => screen.findByRole('dialog', { name: titulo })
 const dialogoDeEnvio = () => screen.findByRole('dialog', { name: 'Enviar material' })
-/** Os botões da face cheia da ação primária: as classes são as que o próprio `Botao` dá, e não um nome de cor escrito aqui. */
+/** Os botões da face cheia da ação primária: as classes são as que o próprio `Button` dá, e não um nome de cor escrito aqui. */
 const cheios = () =>
   screen
     .getAllByRole('button')
-    .filter((botao) => botao.className.startsWith(classesDoBotao({ variante: 'primario', tamanho: 'principal' })))
+    .filter((botao) => botao.className.startsWith(buttonVariants({ variante: 'primario', tamanho: 'principal' })))
     .map((botao) => botao.textContent)
 
 const PDF = () => new File(['%PDF-1.4 sintético'], 'capitulo-novo.pdf', { type: 'application/pdf' })

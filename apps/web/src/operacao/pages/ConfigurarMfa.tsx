@@ -2,9 +2,9 @@ import { ErrorCode, DIGITOS_DO_CODIGO_MFA, formatarEspera } from '@educa/shared'
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { Link, useLocation } from 'wouter'
 import { ErroDaApi } from '../../api/client'
-import { Botao } from '../../components/ui/Botao'
-import { BotaoCopiar } from '../../components/ui/BotaoCopiar'
-import { Campo } from '../../components/ui/fields/Campo'
+import { Button } from '../../components/ui/Button'
+import { CopyButton } from '../../components/ui/CopyButton'
+import { FormField } from '../../components/ui/fields/FormField'
 import { CodigoQr } from '../../components/CodigoQr'
 import { EstadoCarregando } from '../../components/states'
 import { configurarSegundoFatorDeOperador, type SegundoFatorParaConfigurar } from '../api/mfa'
@@ -197,7 +197,7 @@ function Configuracao({ dados, aoAtivar }: { dados: SegundoFatorParaConfigurar; 
           <p className="min-w-0 flex-1 text-apoio">No celular, leia o código QR com o aplicativo. No computador, copie a chave abaixo.</p>
         </div>
         <p className="select-all break-all font-mono text-base text-tinta">{dados.segredo}</p>
-        <BotaoCopiar texto={dados.segredo} rotulo="Copiar a chave" avisoDeCopiado="Chave copiada." />
+        <CopyButton texto={dados.segredo} rotulo="Copiar a chave" avisoDeCopiado="Chave copiada." />
         <a href={dados.uri} className="inline-flex min-h-11 items-center self-start text-caramelo-texto underline">
           Abrir no aplicativo autenticador deste aparelho
         </a>
@@ -224,11 +224,11 @@ function Configuracao({ dados, aoAtivar }: { dados: SegundoFatorParaConfigurar; 
           onFocus={(evento) => evento.currentTarget.select()}
           className="resize-none rounded-controle border border-borda-campo bg-superficie px-3 py-2 font-mono text-base text-tinta"
         />
-        <BotaoCopiar texto={dados.codigosRecuperacao.join('\n')} rotulo="Copiar os códigos" avisoDeCopiado="Códigos copiados." />
+        <CopyButton texto={dados.codigosRecuperacao.join('\n')} rotulo="Copiar os códigos" avisoDeCopiado="Códigos copiados." />
       </section>
 
       <form className="flex flex-col gap-4" onSubmit={(evento) => void enviar(evento)}>
-        <Campo
+        <FormField
           rotulo="3. Digite o código que o aplicativo mostra"
           dica={`${String(DIGITOS_DO_CODIGO_MFA)} dígitos. Ele ativa o segundo fator e abre a sua sessão.`}
           name="codigo"
@@ -246,9 +246,9 @@ function Configuracao({ dados, aoAtivar }: { dados: SegundoFatorParaConfigurar; 
             {textoDaFalhaDoSegundoFator(falha)}
           </p>
         )}
-        <Botao type="submit" disabled={ativando} className="w-full">
+        <Button type="submit" disabled={ativando} className="w-full">
           {ativando ? 'Ativando…' : 'Ativar e entrar'}
-        </Botao>
+        </Button>
         <span role="status" className="sr-only">
           {ativando ? 'Ativando…' : ''}
         </span>

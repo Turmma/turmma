@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { classesDo, tokenDe } from '../../../__fixtures__/class-colors'
-import { Conversa, MensagemIA, MensagemPessoa, Pensando } from './Message'
+import { Conversation, AIMessage, UserMessage, ThinkingIndicator } from './Message'
 
 /**
  * A mensagem da conversa na pele da D80 (`docs/interface.md` 9.3 e 11.3): a pessoa em bolha, a IA sem bolha na coluna, e
@@ -20,7 +20,7 @@ const vemAntes = (a: Element, b: Element): boolean => (a.compareDocumentPosition
 
 describe('MensagemPessoa', () => {
   it('é a bolha da pessoa, à direita, com a borda de 2 px, e as quebras de linha que ela escreveu ficam', () => {
-    const { container } = render(<MensagemPessoa>{'monta uma atividade\nde estequiometria'}</MensagemPessoa>)
+    const { container } = render(<UserMessage>{'monta uma atividade\nde estequiometria'}</UserMessage>)
     const bolha = container.querySelector('p') as HTMLElement
     const classes = classesDo(bolha)
     expect(tokenDe(bolha, 'bg')).toBe('fundo-suave')
@@ -40,7 +40,7 @@ describe('MensagemPessoa', () => {
 
 describe('MensagemIA', () => {
   it('na coluna, a IA não tem bolha: sem fundo e sem borda, com a assinatura em cima do texto', () => {
-    const { container } = render(<MensagemIA agente="assistente_de_ensino">Aqui está a lista.</MensagemIA>)
+    const { container } = render(<AIMessage agente="assistente_de_ensino">Aqui está a lista.</AIMessage>)
     const texto = screen.getByText('Aqui está a lista.')
     expect(classesDo(texto).has('border-2')).toBe(false)
     expect([...classesDo(texto)].filter((classe) => classe.startsWith('bg-') || classe.startsWith('border'))).toEqual([])
@@ -51,9 +51,9 @@ describe('MensagemIA', () => {
 
   it('no balão, a assinatura é o cabeçalho e o balão vem logo abaixo, com a borda de 2 px; o avatar é um só, o da assinatura', () => {
     const { container } = render(
-      <MensagemIA variante="balao" funcao="correcao_de_objetiva">
+      <AIMessage variante="balao" funcao="correcao_de_objetiva">
         Corrigi as 32 atividades.
-      </MensagemIA>,
+      </AIMessage>,
     )
     const balao = screen.getByText('Corrigi as 32 atividades.')
     const assinatura = container.querySelector('[data-assinatura]') as HTMLElement
@@ -73,9 +73,9 @@ describe('MensagemIA', () => {
   it('a aprovação tem lugar fixo, depois do conteúdo e antes das ações, nas duas variantes', () => {
     for (const variante of ['coluna', 'balao'] as const) {
       const { unmount } = render(
-        <MensagemIA agente="assistente_de_ensino" variante={variante} aprovacao={{ aprovacao: { estado: 'pendente' } }} acoes={<button type="button">Copiar</button>}>
+        <AIMessage agente="assistente_de_ensino" variante={variante} aprovacao={{ aprovacao: { estado: 'pendente' } }} acoes={<button type="button">Copiar</button>}>
           O conteúdo.
-        </MensagemIA>,
+        </AIMessage>,
       )
       const conteudo = screen.getByText('O conteúdo.')
       const aprovacao = screen.getByText('Esperando você').closest('[data-aprovacao]') as HTMLElement
@@ -87,14 +87,14 @@ describe('MensagemIA', () => {
   })
 
   it('a mensagem não importa o avatar: ele chega só pela assinatura, e o desenho do balão não o põe ao lado', () => {
-    expect(FONTE).not.toMatch(/from '\.\/AvatarAgente'/)
+    expect(FONTE).not.toMatch(/from '\.\/AgentAvatar'/)
     expect(FONTE).not.toMatch(/from '\.\.\/onca/)
   })
 })
 
 describe('Pensando', () => {
   it('é a assinatura e um texto parado: nenhuma classe de animação ou de laço, e a demora só troca o texto', () => {
-    const { container, rerender } = render(<Pensando agente="tutor" />)
+    const { container, rerender } = render(<ThinkingIndicator agente="tutor" />)
     const raiz = container.querySelector('[data-pensando]') as HTMLElement
     const texto = screen.getByText('Preparando a resposta…')
     expect(texto.getAttribute('aria-live')).toBe('polite')
@@ -105,7 +105,7 @@ describe('Pensando', () => {
     }
     expect(raiz.querySelectorAll('[data-assinatura]')).toHaveLength(1)
 
-    rerender(<Pensando agente="tutor" demorando />)
+    rerender(<ThinkingIndicator agente="tutor" demorando />)
     expect(screen.getByText('Ainda preparando a resposta. Você não precisa pedir de novo.').getAttribute('aria-live')).toBe('polite')
     expect(screen.queryByText('Preparando a resposta…')).toBeNull()
   })
@@ -113,14 +113,14 @@ describe('Pensando', () => {
 
 describe('Conversa', () => {
   it('é um registro que anuncia só o que entra, e `ocupada` liga o `aria-busy` enquanto a resposta chega', () => {
-    const { rerender } = render(<Conversa rotulo="Conversa com o Tutor">{null}</Conversa>)
+    const { rerender } = render(<Conversation rotulo="Conversa com o Tutor">{null}</Conversation>)
     const registro = screen.getByRole('log', { name: 'Conversa com o Tutor' })
     expect(registro.getAttribute('aria-relevant')).toBe('additions')
     expect(registro.getAttribute('aria-busy')).toBe('false')
     rerender(
-      <Conversa rotulo="Conversa com o Tutor" ocupada>
+      <Conversation rotulo="Conversa com o Tutor" ocupada>
         {null}
-      </Conversa>,
+      </Conversation>,
     )
     expect(screen.getByRole('log').getAttribute('aria-busy')).toBe('true')
   })

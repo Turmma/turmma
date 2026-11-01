@@ -1,6 +1,6 @@
 import { Atom, BookOpen, Calculator, Landmark } from 'lucide-react'
 import { describe, expect, it } from 'vitest'
-import { FAMILIAS_DE_COR } from '../../components/ui/Contador'
+import { COLOR_FAMILIES } from '../../components/ui/CountBadge'
 import { caraDaMateria } from './materia'
 
 describe('a cara da matéria na lista de tarefas', () => {
@@ -28,7 +28,7 @@ describe('a cara da matéria na lista de tarefas', () => {
     for (const nome of ['Matemática', 'Língua Portuguesa', 'Ciências', 'Biologia', 'Química', 'Física', 'História', 'Filosofia', 'Geografia', 'Sociologia', 'Língua Inglesa', 'Arte', 'Educação Física', 'Desconhecida']) {
       const { familia } = caraDaMateria(nome)
       expect(familia, nome).not.toBe('laranja')
-      expect(FAMILIAS_DE_COR, nome).toContain(familia)
+      expect(COLOR_FAMILIES, nome).toContain(familia)
     }
   })
 })

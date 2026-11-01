@@ -1,6 +1,6 @@
 import { useContext, type ReactNode } from 'react'
 import { ContextoDaSaida } from '../sign-out-context'
-import { Botao } from '../ui/Botao'
+import { Button } from '../ui/Button'
 
 interface PropsDaTelaDeFoco {
   /** O passo de agora e quantos há, a partir de 1: a barra e o texto "Passo N de M" saem deles. */
@@ -35,13 +35,13 @@ export function TelaDeFoco({ passo, total, idDoPasso, aoFechar, children, rodape
         </svg>
         <p id={idDoPasso} className="sr-only">{`Passo ${String(passo)} de ${String(total)}`}</p>
         {aoFechar !== undefined && (
-          <Botao variante="secundario" onClick={aoFechar} className="shrink-0">
+          <Button variante="secundario" onClick={aoFechar} className="shrink-0">
             Fechar
-          </Botao>
+          </Button>
         )}
-        <Botao variante="secundario" onClick={sair} disabled={saindo} className="shrink-0">
+        <Button variante="secundario" onClick={sair} disabled={saindo} className="shrink-0">
           {saindo ? 'Saindo…' : 'Sair'}
-        </Botao>
+        </Button>
       </header>
       <div className="flex min-w-0 flex-1 flex-col items-center gap-5">{children}</div>
       <footer className="flex min-w-0 flex-wrap gap-3 pb-4">{rodape}</footer>

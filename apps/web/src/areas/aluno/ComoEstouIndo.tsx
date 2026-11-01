@@ -1,8 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
 import { consultaMemoriaDoTutor } from '../../api/memoria-do-tutor'
 import { EstadoCarregando, EstadoErro, EstadoVazio } from '../../components/states'
-import { BarraRotulada } from '../../components/ui/BarraRotulada'
-import { CabecalhoDeSecao } from '../../components/ui/Tela'
+import { ProgressBar } from '../../components/ui/ProgressBar'
+import { SectionHeader } from '../../components/ui/Page'
 import {
   DESCRICAO_DO_VAZIO,
   ROTULO_DAS_HABILIDADES,
@@ -32,7 +32,7 @@ export function ComoEstouIndo() {
         <ul className="grid gap-3 lg:grid-cols-2">
           {memoria.data.map(({ atividadeAplicadaId, titulo, resultado }) => (
             <li key={atividadeAplicadaId} className="rounded-cartao border border-linha bg-superficie p-4">
-              <BarraRotulada rotulo={titulo} valor={resultado.acertos} maximo={resultado.total} texto={textoDasCertas(resultado.acertos, resultado.total)} />
+              <ProgressBar rotulo={titulo} valor={resultado.acertos} maximo={resultado.total} texto={textoDasCertas(resultado.acertos, resultado.total)} />
               {resultado.aReforcar.length > 0 && (
                 <div className="mt-3">
                   <p className="text-sm text-apoio">{ROTULO_DAS_HABILIDADES}</p>
@@ -55,7 +55,7 @@ export function ComoEstouIndo() {
 
   return (
     <section aria-labelledby="titulo-como-estou-indo" className="flex min-w-0 flex-col gap-3">
-      <CabecalhoDeSecao titulo={TITULO_DE_COMO_ESTOU_INDO} id="titulo-como-estou-indo" />
+      <SectionHeader titulo={TITULO_DE_COMO_ESTOU_INDO} id="titulo-como-estou-indo" />
       {conteudo()}
     </section>
   )

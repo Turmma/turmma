@@ -597,22 +597,22 @@
       "count": 1
     }
   },
-  "apps/web/src/components/ui/fields/Campo.tsx": {
+  "apps/web/src/components/ui/fields/FormField.tsx": {
     "complexity": {
       "count": 1
     }
   },
-  "apps/web/src/components/ui/fields/CampoLongo.tsx": {
+  "apps/web/src/components/ui/fields/Textarea.tsx": {
     "complexity": {
       "count": 1
     }
   },
-  "apps/web/src/components/ui/fields/Selecao.tsx": {
+  "apps/web/src/components/ui/fields/Select.tsx": {
     "complexity": {
       "count": 1
     }
   },
-  "apps/web/src/components/ui/ai/CaixaPedido.tsx": {
+  "apps/web/src/components/ui/ai/PromptInput.tsx": {
     "complexity": {
       "count": 1
     },
@@ -620,7 +620,7 @@
       "count": 1
     }
   },
-  "apps/web/src/components/ui/ai/MotorFormulario.tsx": {
+  "apps/web/src/components/ui/ai/SchemaForm.tsx": {
     "complexity": {
       "count": 2
     },
@@ -638,7 +638,7 @@
       "count": 1
     }
   },
-  "apps/web/src/components/ui/overlays/DialogoDeConfirmacao.tsx": {
+  "apps/web/src/components/ui/overlays/ConfirmDialog.tsx": {
     "complexity": {
       "count": 1
     }

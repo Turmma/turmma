@@ -1,10 +1,10 @@
 import { Check, ChevronDown, type LucideIcon } from 'lucide-react'
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react'
-import { classesDoBotao } from '../button-variants'
-import { estiloDoFlutuante, useFlutuante, useRestoInerte } from './floating'
+import { buttonVariants } from '../button-variants'
+import { estiloDoFlutuante, useFloating, useInertOutside } from './floating'
 import { itemDaTecla, itemInicial } from './menu-keyboard'
 
-export interface ItemDoMenu {
+export interface MenuItem {
   readonly id: string
   readonly rotulo: string
   /** Uma frase embaixo do rótulo: o que a ferramenta entrega. */
@@ -12,11 +12,11 @@ export interface ItemDoMenu {
   readonly icone?: LucideIcon
   /** Aparece, mas não dá para escolher. O foco pula. */
   readonly desabilitado?: boolean
-  /** Ação de perigo (excluir, revogar): texto em `vermelho-texto`. A confirmação é de quem usa (`DialogoDeConfirmacao`). */
+  /** Ação de perigo (excluir, revogar): texto em `vermelho-texto`. A confirmação é de quem usa (`ConfirmDialog`). */
   readonly perigo?: boolean
 }
 
-interface PropsDoMenu {
+interface MenuProps {
   /** O texto do botão que abre o menu, visível e lido: "Ferramenta", "2ºB · Química". */
   readonly rotulo: string
   /**
@@ -27,7 +27,7 @@ interface PropsDoMenu {
   readonly icone?: LucideIcon
   /** O botão mostra só o ícone, e o rótulo fica para o leitor de tela: o "mais ações" de uma linha. */
   readonly soIcone?: boolean
-  readonly itens: readonly ItemDoMenu[]
+  readonly itens: readonly MenuItem[]
   readonly aoEscolher: (id: string) => void
   /**
    * O item escolhido agora. Com ele, o menu é de escolha única (a ferramenta do pedido, a turma): os itens são
@@ -72,10 +72,10 @@ function focarItem(lista: HTMLElement | null, indice: number | undefined): void 
  *   fica inerte enquanto o menu está aberto.
  *
  * O menu fica no documento logo depois do botão, sem portal, e em **posição fixa na janela** (`floating.ts`): dentro de
- * uma tabela que rola, de um `Dialogo` ou da lista da conversa ele não sai cortado. O limite está escrito lá: ancestral
+ * uma tabela que rola, de um `Dialog` ou da lista da conversa ele não sai cortado. O limite está escrito lá: ancestral
  * com `transform` ou `filter` tira a posição do lugar.
  */
-export function Menu({ rotulo, prefixo, icone: Icone, soIcone = false, itens, aoEscolher, escolhido, titulo, alinhamento = 'inicio', lado = 'auto', variante = 'secundario', desligado = false }: PropsDoMenu) {
+export function Menu({ rotulo, prefixo, icone: Icone, soIcone = false, itens, aoEscolher, escolhido, titulo, alinhamento = 'inicio', lado = 'auto', variante = 'secundario', desligado = false }: MenuProps) {
   const [aberto, definirAberto] = useState(false)
   // Por onde o foco entra na abertura que acabou de acontecer: o escolhido (ou o primeiro) pelo clique e pela seta para
   // baixo, o último pela seta para cima. Fica vazio depois de o foco entrar: a lista que muda com o menu aberto não tira
@@ -85,8 +85,8 @@ export function Menu({ rotulo, prefixo, icone: Icone, soIcone = false, itens, ao
   const lista = useRef<HTMLDivElement>(null)
   const idDoBotao = useId()
   const idDaLista = useId()
-  const { ancora, posicao } = useFlutuante<HTMLSpanElement>({ aberto, aoFechar: fecharEVoltar, alinhamento, lado, altura: ALTURA_DO_MENU })
-  useRestoInerte(aberto, ancora)
+  const { ancora, posicao } = useFloating<HTMLSpanElement>({ aberto, aoFechar: fecharEVoltar, alinhamento, lado, altura: ALTURA_DO_MENU })
+  useInertOutside(aberto, ancora)
   const deEscolha = escolhido !== undefined
 
   const medido = posicao !== undefined
@@ -135,7 +135,7 @@ export function Menu({ rotulo, prefixo, icone: Icone, soIcone = false, itens, ao
     focarItem(lista.current, destino)
   }
 
-  function escolher(item: ItemDoMenu): void {
+  function escolher(item: MenuItem): void {
     if (item.desabilitado === true) return
     fecharEVoltar()
     aoEscolher(item.id)
@@ -153,7 +153,7 @@ export function Menu({ rotulo, prefixo, icone: Icone, soIcone = false, itens, ao
         {...(aberto ? { 'aria-controls': idDaLista } : {})}
         onClick={() => (aberto ? definirAberto(false) : abrir('primeiro'))}
         onKeyDown={teclaNoBotao}
-        className={`${classesDoBotao({ variante, tamanho: 'compacto' })} max-w-full`}
+        className={`${buttonVariants({ variante, tamanho: 'compacto' })} max-w-full`}
       >
         {Icone !== undefined && <Icone aria-hidden="true" size={soIcone ? 20 : 16} strokeWidth={1.75} className="shrink-0" />}
         {prefixo !== undefined && <span className="sr-only">{prefixo}: </span>}
@@ -163,7 +163,7 @@ export function Menu({ rotulo, prefixo, icone: Icone, soIcone = false, itens, ao
       {/*
         O fundo do menu aberto: transparente, por cima da tela inteira e por baixo do menu. O toque fora fecha o menu e
         **não aciona o que estava embaixo** — sem ele, quem erra o item por um dedo aprova, exclui ou troca de tela sem
-        querer. O resto da página fica inerte enquanto isso (`useRestoInerte`); o fundo é o que garante o mesmo no
+        querer. O resto da página fica inerte enquanto isso (`useInertOutside`); o fundo é o que garante o mesmo no
         navegador antigo, que não conhece `inert`.
       */}
       {aberto && <span aria-hidden="true" data-fundo-do-menu="" onClick={fecharEVoltar} className="fixed inset-0 z-20" />}

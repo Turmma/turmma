@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from 'vitest'
-import { prenderOFoco, type TeclaDoDialogo } from './modal-dialog'
+import { trapFocus, type TeclaDoDialogo } from './modal-dialog'
 
 /**
- * A prisão do foco do `Dialogo` e do `PainelLado` (X1, tarefa 7.0; Tech Spec, seção 9, "Peças novas"): o Tab que sairia do
+ * A prisão do foco do `Dialog` e do `Sheet` (X1, tarefa 7.0; Tech Spec, seção 9, "Peças novas"): o Tab que sairia do
  * diálogo volta para dentro dele. O `showModal`, o Esc e o foco devolvido a quem abriu precisam do navegador e são do e2e
  * (`e2e/components-overlays.spec.ts`); aqui está a regra que é só do DOM.
  */
@@ -55,7 +55,7 @@ describe('prenderOFoco', () => {
     const { raiz, por } = montar()
     por('ultimo').focus()
     const evento = tecla('Tab')
-    prenderOFoco(evento, raiz)
+    trapFocus(evento, raiz)
     expect(document.activeElement).toBe(por('primeiro'))
     expect(evento.impedida()).toBe(true)
   })
@@ -64,7 +64,7 @@ describe('prenderOFoco', () => {
     const { raiz, por } = montar()
     por('primeiro').focus()
     const evento = tecla('Tab', true)
-    prenderOFoco(evento, raiz)
+    trapFocus(evento, raiz)
     expect(document.activeElement).toBe(por('ultimo'))
     expect(evento.impedida()).toBe(true)
   })
@@ -74,7 +74,7 @@ describe('prenderOFoco', () => {
     por('meio').focus()
     for (const shift of [false, true]) {
       const evento = tecla('Tab', shift)
-      prenderOFoco(evento, raiz)
+      trapFocus(evento, raiz)
       expect(document.activeElement, `shift ${String(shift)}`).toBe(por('meio'))
       expect(evento.impedida(), `shift ${String(shift)}`).toBe(false)
     }
@@ -84,13 +84,13 @@ describe('prenderOFoco', () => {
     const { raiz, por } = montar()
     por('titulo').focus()
     const paraTras = tecla('Tab', true)
-    prenderOFoco(paraTras, raiz)
+    trapFocus(paraTras, raiz)
     expect(document.activeElement).toBe(por('ultimo'))
     expect(paraTras.impedida()).toBe(true)
 
     por('titulo').focus()
     const paraFrente = tecla('Tab')
-    prenderOFoco(paraFrente, raiz)
+    trapFocus(paraFrente, raiz)
     expect(document.activeElement).toBe(por('titulo'))
     expect(paraFrente.impedida()).toBe(false)
   })
@@ -99,13 +99,13 @@ describe('prenderOFoco', () => {
     const { raiz, por } = montar()
     por('fora-da-ordem').focus()
     const paraFrente = tecla('Tab')
-    prenderOFoco(paraFrente, raiz)
+    trapFocus(paraFrente, raiz)
     expect(document.activeElement).toBe(por('primeiro'))
     expect(paraFrente.impedida()).toBe(true)
 
     por('fora-da-ordem').focus()
     const paraTras = tecla('Tab', true)
-    prenderOFoco(paraTras, raiz)
+    trapFocus(paraTras, raiz)
     expect(document.activeElement).toBe(por('fora-da-ordem'))
     expect(paraTras.impedida()).toBe(false)
   })
@@ -113,7 +113,7 @@ describe('prenderOFoco', () => {
   it('o controle desligado não é o último: o Tab no último que se alcança volta ao primeiro', () => {
     const { raiz, por } = montar()
     por('ultimo').focus()
-    prenderOFoco(tecla('Tab'), raiz)
+    trapFocus(tecla('Tab'), raiz)
     expect(document.activeElement).not.toBe(por('desligado'))
     expect(document.activeElement).toBe(por('primeiro'))
   })
@@ -122,19 +122,19 @@ describe('prenderOFoco', () => {
     const { raiz, por } = montar()
     por('ultimo').focus()
     const enter = tecla('Enter')
-    prenderOFoco(enter, raiz)
+    trapFocus(enter, raiz)
     expect(document.activeElement).toBe(por('ultimo'))
     expect(enter.impedida()).toBe(false)
 
     const semRaiz = tecla('Tab')
-    expect(() => prenderOFoco(semRaiz, null)).not.toThrow()
+    expect(() => trapFocus(semRaiz, null)).not.toThrow()
     expect(semRaiz.impedida()).toBe(false)
 
     const vazio = document.createElement('div')
     document.body.append(vazio)
     por('ultimo').focus()
     const semControle = tecla('Tab')
-    expect(() => prenderOFoco(semControle, vazio)).not.toThrow()
+    expect(() => trapFocus(semControle, vazio)).not.toThrow()
     expect(semControle.impedida()).toBe(false)
   })
 })

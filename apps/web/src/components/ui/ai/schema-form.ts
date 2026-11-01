@@ -79,7 +79,7 @@ export interface CampoDeMultipla extends CampoBase {
 
 /** Os campos de lista fechada e de número: os que a Adaptação pode ter. */
 export type CampoFechado = CampoDeNumero | CampoDeSelecao | CampoDeMultipla
-export type CampoDoMotor = CampoDeTexto | CampoFechado
+export type FormFieldDef = CampoDeTexto | CampoFechado
 
 /** As ferramentas que não aceitam texto livre: nelas, texto livre é texto sobre o aluno. */
 export const FERRAMENTAS_SEM_TEXTO_LIVRE = ['adaptacao'] as const satisfies readonly Ferramenta[]
@@ -96,7 +96,7 @@ export type DescricaoDeFerramenta = {
     readonly nome: string
     /** O botão diz o que acontece, com o objeto: "Gerar atividade" (9.8). */
     readonly verbo: string
-    readonly campos: F extends FerramentaSemTextoLivre ? readonly CampoFechado[] : readonly CampoDoMotor[]
+    readonly campos: F extends FerramentaSemTextoLivre ? readonly CampoFechado[] : readonly FormFieldDef[]
   }
 }[Ferramenta]
 
@@ -121,7 +121,7 @@ export const MAXIMO_DO_TEXTO = 200
  * O que há de errado na própria descrição, ou `undefined`. Quem escreve a descrição em TypeScript é parado pelo tipo;
  * isto para a que vem como dado.
  */
-export function problemaDaDescricao(descricao: { readonly ferramenta: Ferramenta; readonly campos: readonly CampoDoMotor[] }): string | undefined {
+export function problemaDaDescricao(descricao: { readonly ferramenta: Ferramenta; readonly campos: readonly FormFieldDef[] }): string | undefined {
   const semTexto: readonly Ferramenta[] = FERRAMENTAS_SEM_TEXTO_LIVRE
   if (semTexto.includes(descricao.ferramenta) && descricao.campos.some((campo) => campo.tipo === 'texto'))
     return 'A Adaptação não tem campo de texto: ela recebe o tipo de adaptação, de lista fechada (D35, D67).'
@@ -140,14 +140,14 @@ export function problemaDaDescricao(descricao: { readonly ferramenta: Ferramenta
 }
 
 /** O campo aparece agora? Sem condição, sempre; com ela, só com a opção marcada no campo de múltipla escolha. */
-export function campoVisivel(campo: CampoDoMotor, valores: ValoresDoFormulario): boolean {
+export function campoVisivel(campo: FormFieldDef, valores: ValoresDoFormulario): boolean {
   if (campo.quando === undefined) return true
   const marcados = valores[campo.quando.campo]
   return Array.isArray(marcados) && marcados.includes(campo.quando.contem)
 }
 
 /** Os valores com que o formulário abre: o padrão de cada campo, ou vazio. Padrão fora da lista de opções é ignorado. */
-export function valoresPadrao(campos: readonly CampoDoMotor[]): ValoresDoFormulario {
+export function valoresPadrao(campos: readonly FormFieldDef[]): ValoresDoFormulario {
   const valores: Record<string, string | readonly string[]> = {}
   for (const campo of campos) {
     if (campo.tipo === 'texto') valores[campo.chave] = campo.padrao ?? ''
@@ -158,7 +158,7 @@ export function valoresPadrao(campos: readonly CampoDoMotor[]): ValoresDoFormula
   return valores
 }
 
-function pendenciaDe(campo: CampoDoMotor, mensagem: string): Pendencia {
+function pendenciaDe(campo: FormFieldDef, mensagem: string): Pendencia {
   return { chave: campo.chave, rotulo: campo.rotulo, mensagem }
 }
 
@@ -167,7 +167,7 @@ function pendenciaDe(campo: CampoDoMotor, mensagem: string): Pendencia {
  * campo, na ordem do formulário. Valor de chave que a descrição não tem é descartado, e opção fora da lista é recusada:
  * o que sai daqui só tem o que a ferramenta declarou.
  */
-export function validarFormulario(campos: readonly CampoDoMotor[], valores: ValoresDoFormulario): ResultadoDaValidacao {
+export function validarFormulario(campos: readonly FormFieldDef[], valores: ValoresDoFormulario): ResultadoDaValidacao {
   const validados: Record<string, ValorDoCampo> = {}
   const pendencias: Pendencia[] = []
   for (const campo of campos) {
@@ -211,7 +211,7 @@ export function validarFormulario(campos: readonly CampoDoMotor[], valores: Valo
 }
 
 /** O pedido numa linha, para o formulário recolhido enquanto gera e depois de pronto: "Estequiometria · 10 · 2ºB". */
-export function resumoDoPedido(campos: readonly CampoDoMotor[], valores: ValoresValidados): string {
+export function resumoDoPedido(campos: readonly FormFieldDef[], valores: ValoresValidados): string {
   const partes: string[] = []
   for (const campo of campos) {
     const valor = valores[campo.chave]

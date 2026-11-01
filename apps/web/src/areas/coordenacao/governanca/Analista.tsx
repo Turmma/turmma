@@ -4,16 +4,16 @@ import { useCallback, useEffect, useRef, type RefObject } from 'react'
 import { emCurso } from '../../../api/ciclo-de-execucao'
 import { useCicloDeExecucao } from '../../../api/execucoes'
 import { consultaResumoDoAnalista, gerarResumoDoAnalista, lugarDoResumoDoAnalista } from './api/governanca'
-import { BarraRotulada } from '../../../components/ui/BarraRotulada'
-import { Botao } from '../../../components/ui/Botao'
-import { Cartao } from '../../../components/ui/Cartao'
+import { ProgressBar } from '../../../components/ui/ProgressBar'
+import { Button } from '../../../components/ui/Button'
+import { Card } from '../../../components/ui/Card'
 import { EstadoCarregando, EstadoErro, EstadoVazio } from '../../../components/states/index'
-import { AssinaturaIA } from '../../../components/ui/ai/AssinaturaIA'
-import { AvisoFila } from '../../../components/ui/ai/AvisoFila'
-import { A_PARTIR_DE_768, useMidia } from '../../../components/ui/media-query'
-import { NumeroPainel } from '../../../components/ui/NumeroPainel'
-import { Estado } from '../../../components/ui/SeloDeEstado'
-import { CabecalhoDeSecao, Tela } from '../../../components/ui/Tela'
+import { AgentSignature } from '../../../components/ui/ai/AgentSignature'
+import { QueueAlert } from '../../../components/ui/ai/QueueAlert'
+import { MEDIA_MD, useMediaQuery } from '../../../components/ui/media-query'
+import { StatCard } from '../../../components/ui/StatCard'
+import { StatusBadge } from '../../../components/ui/StatusBadge'
+import { SectionHeader, Page } from '../../../components/ui/Page'
 import { formatarData, formatarDataHora, formatarQuantidade } from '../../../format'
 import { useTituloDaTela } from '../../../document-title'
 import { DadoNominal } from './DadoNominal'
@@ -37,7 +37,7 @@ const enviarPedido = (_pedido: null, chaveEnvio: string) => gerarResumoDoAnalist
 export default function Analista() {
   useTituloDaTela('Analista')
   // O miolo que rola recebe foco, para rolar pelo teclado, a partir de 768 px: abaixo disso rola a página, e não há o que focar.
-  const comMiolo = useMidia(A_PARTIR_DE_768)
+  const comMiolo = useMediaQuery(MEDIA_MD)
   const cliente = useQueryClient()
   const resumo = useQuery(consultaResumoDoAnalista)
   const { ciclo, demorando, iniciar, repetir, limpar } = useCicloDeExecucao(lugarDoResumoDoAnalista, enviarPedido)
@@ -74,16 +74,16 @@ export default function Analista() {
   const semResumo = resumo.data !== undefined && resumo.data.resumo === null
   const acoes = semResumo ? undefined : (
     // Um `primario` por tela: com o erro na tela, o "Tentar de novo" dele é o primário.
-    <Botao variante={resumo.isError ? 'secundario' : 'primario'} onClick={gerar} disabled={gerando}>
+    <Button variante={resumo.isError ? 'secundario' : 'primario'} onClick={gerar} disabled={gerando}>
       {rotuloDeGerar}
-    </Botao>
+    </Button>
   )
 
   return (
-    <Tela titulo="Analista" largura="leitura" acoes={acoes}>
+    <Page titulo="Analista" largura="leitura" acoes={acoes}>
       <section aria-label="Resumo do Analista" {...(comMiolo ? { tabIndex: 0 } : {})} className={`flex min-w-0 flex-col gap-4 ${O_MIOLO_SEM_ABAS_QUE_ROLA}`}>
         <div className="flex min-w-0 flex-col gap-3 rounded-cartao border-2 border-borda bg-superficie p-4 lg:p-5">
-          <AssinaturaIA agente="analista_de_desempenho_escolar" tamanho={48} />
+          <AgentSignature agente="analista_de_desempenho_escolar" tamanho={48} />
           <p className="break-words text-apoio">
             Resume o desempenho por série e disciplina, a partir do que os professores já aprovaram. Feito de dado agregado: nenhum nome de aluno ou de professor entra nele. Só avisa a coordenação: nunca contata professor nem
             família.
@@ -94,8 +94,8 @@ export default function Analista() {
           <p role="status" className="text-apoio empty:hidden">
             {gerando ? 'O Analista está montando o resumo. Você pode continuar nesta tela.' : ''}
           </p>
-          {gerando && demorando && <AvisoFila situacao="demora" />}
-          {falha !== undefined && (falha.repetivel ? <AvisoFila situacao="falha" aoTentarDeNovo={repetir} /> : <p role="alert" className="rounded-controle border border-pendente bg-pendente-cx p-3 break-words text-pendente">{falha.texto}</p>)}
+          {gerando && demorando && <QueueAlert situacao="demora" />}
+          {falha !== undefined && (falha.repetivel ? <QueueAlert situacao="falha" aoTentarDeNovo={repetir} /> : <p role="alert" className="rounded-controle border border-pendente bg-pendente-cx p-3 break-words text-pendente">{falha.texto}</p>)}
         </div>
 
         {resumo.isPending && <EstadoCarregando rotulo="Carregando o resumo…" />}
@@ -114,7 +114,7 @@ export default function Analista() {
 
         <DadoNominal />
       </section>
-    </Tela>
+    </Page>
   )
 }
 
@@ -132,14 +132,14 @@ function Resumo({ geradoEm, conteudo, foco }: { readonly geradoEm: string; reado
         Resumo gerado em {formatarDataHora(geradoEm)} · de {formatarData(periodo.inicio)} a {formatarData(periodo.fim)}
       </p>
       <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <NumeroPainel rotulo="Atividades aplicadas" valor={escola.atividadesAplicadas} />
-        <NumeroPainel rotulo="Correções aprovadas" valor={escola.lotesAprovados} apoio={`${formatarQuantidade(escola.lotesEsperando, 'esperando', 'esperando')} o professor`} />
-        <NumeroPainel rotulo="Trocas com o Tutor" valor={escola.trocasComOTutor} apoio={`${formatarQuantidade(sinais, 'aviso', 'avisos')} aos professores`} />
-        <NumeroPainel rotulo="Versões adaptadas aprovadas" valor={escola.versoesAdaptadasAprovadas} />
+        <StatCard rotulo="Atividades aplicadas" valor={escola.atividadesAplicadas} />
+        <StatCard rotulo="Correções aprovadas" valor={escola.lotesAprovados} apoio={`${formatarQuantidade(escola.lotesEsperando, 'esperando', 'esperando')} o professor`} />
+        <StatCard rotulo="Trocas com o Tutor" valor={escola.trocasComOTutor} apoio={`${formatarQuantidade(sinais, 'aviso', 'avisos')} aos professores`} />
+        <StatCard rotulo="Versões adaptadas aprovadas" valor={escola.versoesAdaptadasAprovadas} />
       </div>
 
       <section className="flex min-w-0 flex-col gap-3" aria-labelledby="titulo-alertas">
-        <CabecalhoDeSecao id="titulo-alertas" titulo="Alertas" apoio={AVISO_DE_HIPOTESE} />
+        <SectionHeader id="titulo-alertas" titulo="Alertas" apoio={AVISO_DE_HIPOTESE} />
         {alertas.length === 0 ? (
           <EstadoVazio titulo="Nenhum alerta neste resumo" descricao="O Analista avisa quando o acerto de uma habilidade, numa série e disciplina com correção aprovada de dois ou mais professores, fica abaixo do limite provisório desta versão." />
         ) : (
@@ -149,7 +149,7 @@ function Resumo({ geradoEm, conteudo, foco }: { readonly geradoEm: string; reado
                 <div className="flex min-w-0 flex-wrap items-center gap-2">
                   <h3 className="min-w-0 font-medium break-words text-tinta">{NOME_DO_ALERTA_DO_ANALISTA[alerta.tipo]}</h3>
                   {/* O alerta é hipótese, e o selo diz isso em texto: a cor sozinha não diz (regra 50, item 11). */}
-                  <Estado familia="info">Hipótese</Estado>
+                  <StatusBadge familia="info">Hipótese</StatusBadge>
                 </div>
                 <p className="max-w-prose break-words text-tinta">{frase}</p>
                 <div className="min-w-0 rounded-controle bg-info-cx p-3 text-info">
@@ -169,19 +169,19 @@ function Resumo({ geradoEm, conteudo, foco }: { readonly geradoEm: string; reado
       </section>
 
       <section className="flex min-w-0 flex-col gap-3" aria-labelledby="titulo-recortes">
-        <CabecalhoDeSecao id="titulo-recortes" titulo="Acerto por série e disciplina" apoio="Só das correções que os professores aprovaram. Um recorte só tem número quando dois ou mais professores aprovaram correção nele." />
+        <SectionHeader id="titulo-recortes" titulo="Acerto por série e disciplina" apoio="Só das correções que os professores aprovaram. Um recorte só tem número quando dois ou mais professores aprovaram correção nele." />
         {recortes.length === 0 && recortesNominais.length === 0 && (
           <EstadoVazio titulo="Ainda não há correção aprovada" descricao="Quando um professor aprovar a correção de uma atividade objetiva, o acerto por habilidade da série e da disciplina aparece aqui no próximo resumo." />
         )}
         {recortes.map((recorte) => (
-          <Cartao key={`${recorte.serie.id}:${recorte.disciplina.id}`} titulo={nomeDoRecorte(recorte)} nivel={3}>
+          <Card key={`${recorte.serie.id}:${recorte.disciplina.id}`} titulo={nomeDoRecorte(recorte)} nivel={3}>
             <p className="text-sm break-words text-sutil">
               {formatarQuantidade(recorte.alunos, 'aluno', 'alunos')} · {formatarQuantidade(recorte.lotesAprovados, 'correção aprovada', 'correções aprovadas')} · acerto de{' '}
               {formatarPercentual(recorte.acertoPercentual)}
             </p>
             <div className="mt-3 flex min-w-0 flex-col gap-3">
               {recorte.porHabilidade.map((medida) => (
-                <BarraRotulada
+                <ProgressBar
                   key={medida.habilidade.codigo}
                   rotulo={medida.habilidade.descricao}
                   valor={acertoPercentual(medida.acertos, medida.total)}
@@ -190,20 +190,20 @@ function Resumo({ geradoEm, conteudo, foco }: { readonly geradoEm: string; reado
                 />
               ))}
             </div>
-          </Cartao>
+          </Card>
         ))}
         {recortesNominais.length > 0 && (
-          <Cartao titulo="Recortes sem número" nivel={3}>
+          <Card titulo="Recortes sem número" nivel={3}>
             <p className="break-words text-apoio">Estes recortes têm correção aprovada, mas de menos de dois professores. O número deles seria o resultado de um professor só, e por isso não aparece no agregado.</p>
             <ul className="mt-3 flex min-w-0 flex-col gap-2">
               {recortesNominais.map((recorte) => (
                 <li key={`${recorte.serie.id}:${recorte.disciplina.id}`} data-recorte-nominal className="flex min-w-0 flex-wrap items-center justify-between gap-2">
                   <span className="min-w-0 break-words text-tinta">{nomeDoRecorte(recorte)}</span>
-                  <Estado familia="info">Menos de dois professores com correção aprovada: conta como nominal</Estado>
+                  <StatusBadge familia="info">Menos de dois professores com correção aprovada: conta como nominal</StatusBadge>
                 </li>
               ))}
             </ul>
-          </Cartao>
+          </Card>
         )}
       </section>
     </div>

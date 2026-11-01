@@ -1,10 +1,10 @@
 import { BookOpen, BookOpenText, Calculator, Dna, Dumbbell, FlaskConical, Globe, Landmark, Languages, Leaf, Lightbulb, Palette, Atom, Users, type LucideIcon } from 'lucide-react'
-// Só o tipo, que o compilador apaga: o `Contador` é peça fora da entrada.
-import type { FamiliaDeCor } from '../../components/ui/Contador'
+// Só o tipo, que o compilador apaga: o `CountBadge` é peça fora da entrada.
+import type { ColorFamily } from '../../components/ui/CountBadge'
 
 /** A cara de uma matéria na lista: a família do ladrilho e o ícone do `lucide` que ele leva. */
 export interface CaraDaMateria {
-  readonly familia: FamiliaDeCor
+  readonly familia: ColorFamily
   readonly Icone: LucideIcon
 }
 
@@ -34,7 +34,7 @@ const MATERIAS: ReadonlyMap<string, CaraDaMateria> = new Map<string, CaraDaMater
 
 /**
  * O que vale para a disciplina que não está na lista (a escola cadastra o nome que quiser): um livro aberto na família
- * `anil`. O `Ladrilho` só tem as dez famílias de cor e nenhuma é neutra, então a reserva é uma cor fixa; o ícone de livro
+ * `anil`. O `IconTile` só tem as dez famílias de cor e nenhuma é neutra, então a reserva é uma cor fixa; o ícone de livro
  * é o que a distingue das matérias conhecidas.
  */
 const RESERVA: CaraDaMateria = { familia: 'anil', Icone: BookOpen }

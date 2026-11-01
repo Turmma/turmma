@@ -2,11 +2,11 @@ import type { IncidenteDaEscola } from '@educa/shared'
 import { useQuery } from '@tanstack/react-query'
 import { useRef } from 'react'
 import { consultaIncidentes } from './api/privacidade'
-import { Botao } from '../../../components/ui/Botao'
-import { Cartao } from '../../../components/ui/Cartao'
+import { Button } from '../../../components/ui/Button'
+import { Card } from '../../../components/ui/Card'
 import { EstadoCarregando, EstadoErro, EstadoVazio } from '../../../components/states'
-import { Faixa } from '../../../components/ui/Faixa'
-import { Estado } from '../../../components/ui/SeloDeEstado'
+import { Banner } from '../../../components/ui/Banner'
+import { StatusBadge } from '../../../components/ui/StatusBadge'
 import { useConfirmarIncidente } from './confirmar-o-incidente'
 import { DetalhesDoIncidente } from './DetalhesDoIncidente'
 import { TEXTO_DO_QUE_CONFIRMAR_FAZ, textoDaConfirmacao, textoDoConhecimento } from './textos-dos-incidentes'
@@ -21,7 +21,7 @@ interface PropsDoCartao {
 }
 
 /**
- * Um incidente da escola, num `Cartao` (X2, 13.0): o estado, todos os campos e, se espera a confirmação, o botão oficial que a
+ * Um incidente da escola, num `Card` (X2, 13.0): o estado, todos os campos e, se espera a confirmação, o botão oficial que a
  * dá. O cartão é uma região com o nome do aviso (`h3`), e é o título que recebe o foco quando o aviso passa a "confirmado".
  */
 function CartaoDoIncidente({ incidente, confirmando, falha, aoConfirmar }: PropsDoCartao) {
@@ -29,11 +29,11 @@ function CartaoDoIncidente({ incidente, confirmando, falha, aoConfirmar }: Props
   const pendente = incidente.confirmadoEm === null
   const esteConfirmando = confirmando === incidente.id
   return (
-    <Cartao
+    <Card
       titulo={`Incidente conhecido em ${textoDoConhecimento(incidente)}`}
       nivel={3}
       refDoTitulo={titulo}
-      acao={<Estado familia={pendente ? 'pendente' : 'ok'}>{textoDaConfirmacao(incidente)}</Estado>}
+      acao={<StatusBadge familia={pendente ? 'pendente' : 'ok'}>{textoDaConfirmacao(incidente)}</StatusBadge>}
     >
       <div className="flex min-w-0 flex-col gap-4">
         <DetalhesDoIncidente incidente={incidente} />
@@ -44,7 +44,7 @@ function CartaoDoIncidente({ incidente, confirmando, falha, aoConfirmar }: Props
               {falha?.id === incidente.id ? falha.texto : ''}
             </p>
             <div className="flex flex-wrap items-center gap-3">
-              <Botao
+              <Button
                 variante="oficial"
                 disabled={confirmando !== undefined}
                 onClick={() =>
@@ -55,7 +55,7 @@ function CartaoDoIncidente({ incidente, confirmando, falha, aoConfirmar }: Props
                 }
               >
                 {esteConfirmando ? 'Confirmando…' : 'Confirmo que recebi'}
-              </Botao>
+              </Button>
               <span role="status" className="sr-only">
                 {esteConfirmando ? 'Confirmando…' : ''}
               </span>
@@ -63,7 +63,7 @@ function CartaoDoIncidente({ incidente, confirmando, falha, aoConfirmar }: Props
           </div>
         )}
       </div>
-    </Cartao>
+    </Card>
   )
 }
 
@@ -87,7 +87,7 @@ export function Incidentes() {
   const { incidentes, prazoLegal } = consulta.data
   return (
     <div className="flex min-w-0 flex-col gap-3">
-      <Faixa>{prazoLegal}</Faixa>
+      <Banner>{prazoLegal}</Banner>
       {incidentes.length === 0 ? (
         <EstadoVazio titulo="Nenhum incidente afetou esta escola" descricao="Se a Turmma registrar um incidente de segurança que alcance dados da escola, o aviso aparece aqui e ao entrar." />
       ) : (

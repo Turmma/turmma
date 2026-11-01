@@ -1,9 +1,9 @@
 import { MENSAGENS_DE_ERRO, type ChaveDeFuncao, type ErrorCode } from '@educa/shared'
 import { Hourglass, PauseCircle } from 'lucide-react'
 import { aparenciaDaFalha } from '../../../api/ciclo-de-execucao'
-import { Botao } from '../../../components/ui/Botao'
-import { Faixa } from '../../../components/ui/Faixa'
-import { AvisoFila } from '../../../components/ui/ai/AvisoFila'
+import { Button } from '../../../components/ui/Button'
+import { Banner } from '../../../components/ui/Banner'
+import { QueueAlert } from '../../../components/ui/ai/QueueAlert'
 
 /**
  * O que a tela diz quando a escola suspendeu uma função do Assistente (D60): o que parou, que foi a coordenação, e o que
@@ -19,7 +19,7 @@ export const TEXTO_DA_SUSPENSAO: Readonly<Partial<Record<ChaveDeFuncao, string>>
 export function AvisoDeSuspensao({ funcao }: { funcao: ChaveDeFuncao }) {
   return (
     <div data-funcao-suspensa={funcao}>
-      <Faixa icone={PauseCircle}>{TEXTO_DA_SUSPENSAO[funcao] ?? MENSAGENS_DE_ERRO.FUNCAO_SUSPENSA}</Faixa>
+      <Banner icone={PauseCircle}>{TEXTO_DA_SUSPENSAO[funcao] ?? MENSAGENS_DE_ERRO.FUNCAO_SUSPENSA}</Banner>
     </div>
   )
 }
@@ -42,7 +42,7 @@ export function AvisoDeIA() {
 export function AvisoNaEntregaDeFuncaoSuspensa({ texto }: { texto: string }) {
   return (
     <div data-entrega-de-funcao-suspensa="">
-      <Faixa icone={PauseCircle}>{texto}</Faixa>
+      <Banner icone={PauseCircle}>{texto}</Banner>
     </div>
   )
 }
@@ -59,22 +59,22 @@ interface PropsDaFalha {
 
 /**
  * A falha de um pedido de IA, dentro da conversa e do cartão: **nunca o código nem o erro cru** (regra 80, item 4). O que
- * passa sozinho vira o `AvisoFila`, com "Tentar de novo"; a função suspensa e o limite de pedidos por minuto viram
+ * passa sozinho vira o `QueueAlert`, com "Tentar de novo"; a função suspensa e o limite de pedidos por minuto viram
  * avisos que explicam, sem alarme; e o que pede que
  * algo mude antes (o tema que não está no material, o limite de IA da escola) vem com a mensagem do catálogo.
  */
 export function FalhaDoPedido({ erro, funcao, aoTentarDeNovo }: PropsDaFalha) {
   const aparencia = aparenciaDaFalha(erro)
-  if (aparencia === 'fila') return <AvisoFila situacao="falha" aoTentarDeNovo={aoTentarDeNovo} />
+  if (aparencia === 'fila') return <QueueAlert situacao="falha" aoTentarDeNovo={aoTentarDeNovo} />
   if (aparencia === 'suspensa') return <AvisoDeSuspensao funcao={funcao} />
   if (aparencia === 'limite')
     return (
       // Cinza e sem alarme: ninguém errou, é o limite por minuto que protege a escola inteira (regra 80, item 1).
       <div data-limite-de-pedidos="" className="flex min-w-0 flex-col items-start gap-2">
-        <Faixa icone={Hourglass}>{TEXTO_DO_LIMITE_DE_PEDIDOS}</Faixa>
-        <Botao variante="secundario" onClick={aoTentarDeNovo}>
+        <Banner icone={Hourglass}>{TEXTO_DO_LIMITE_DE_PEDIDOS}</Banner>
+        <Button variante="secundario" onClick={aoTentarDeNovo}>
           Pedir de novo
-        </Botao>
+        </Button>
       </div>
     )
   return (

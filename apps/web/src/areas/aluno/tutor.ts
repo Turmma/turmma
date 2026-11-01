@@ -25,7 +25,7 @@ export interface UsoDoDia {
 
 /**
  * O uso do dia, **em texto** (D38, D59): quanto já foi e o ponto de parada, sem esconder nem dramatizar. A barra que
- * acompanha é a `BarraRotulada`, neutra sempre; aqui não há cor, e o texto do fim não é alarme.
+ * acompanha é a `ProgressBar`, neutra sempre; aqui não há cor, e o texto do fim não é alarme.
  */
 export function usoDoDia(uso: ConversaDoTutorResponse['uso']): UsoDoDia {
   const hoje = Math.min(Math.max(uso.hoje, 0), uso.limiteDoDia)

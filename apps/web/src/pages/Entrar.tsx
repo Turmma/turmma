@@ -3,8 +3,8 @@ import { useState, type FormEvent } from 'react'
 import { useLocation } from 'wouter'
 import { ErroDaApi } from '../api/client'
 import { avisoDaEntrada, definirAvisoDaEntrada, entrarPorEmail, saidaPendente } from '../api/sessao'
-import { Botao } from '../components/ui/Botao'
-import { Campo } from '../components/ui/fields/Campo'
+import { Button } from '../components/ui/Button'
+import { FormField } from '../components/ui/fields/FormField'
 import { CascaPublica } from '../components/CascaPublica'
 import { ROTA_DA_ETAPA } from '../paths'
 
@@ -68,7 +68,7 @@ export function Entrar() {
       )}
       <p className="text-apoio">Use o e-mail e a senha que a sua escola cadastrou.</p>
       <form className="flex flex-col gap-4" onSubmit={(evento) => void enviar(evento)}>
-        <Campo
+        <FormField
           rotulo="E-mail"
           name="email"
           type="email"
@@ -81,7 +81,7 @@ export function Entrar() {
           value={email}
           onChange={(evento) => definirEmail(evento.target.value)}
         />
-        <Campo
+        <FormField
           rotulo="Senha"
           name="senha"
           type="password"
@@ -96,9 +96,9 @@ export function Entrar() {
             {mensagemDaFalha(falha)}
           </p>
         )}
-        <Botao type="submit" disabled={entrando} className="w-full">
+        <Button type="submit" disabled={entrando} className="w-full">
           {entrando ? 'Entrando…' : 'Entrar'}
-        </Botao>
+        </Button>
         {/* O "Entrando…" também é anunciado a quem usa leitor de tela: no 503 da rajada das 7h30 a espera passa de um segundo. */}
         <span role="status" className="sr-only">
           {entrando ? 'Entrando…' : ''}

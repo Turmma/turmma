@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { Marca } from './ui/Marca'
+import { Logo } from './ui/Logo'
 
 /**
  * A casca das telas de fora da sessão: entrada da equipe, endereço da escola, segundo fator, convite e página da turma
@@ -23,7 +23,7 @@ export function CascaPublica({ titulo, children }: { titulo: string; children: R
     <div className="min-h-screen bg-fundo text-tinta lg:grid lg:grid-cols-2">
       <div data-painel-publico="" className="relative border-b-2 border-borda bg-papel lg:border-r-2 lg:border-b-0">
         <header className="relative px-4 py-3 sm:px-6 lg:px-10 lg:py-10">
-          <Marca />
+          <Logo />
         </header>
         <img
           src="/marca/turmma-pinta.svg"

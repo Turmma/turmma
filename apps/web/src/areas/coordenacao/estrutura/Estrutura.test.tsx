@@ -96,7 +96,7 @@ function instalar(rede: RedeFalsa, parcial: Partial<Respostas> = {}): void {
 const caminhosDe = (rede: RedeFalsa) => rede.chamadas.map((chamada) => chamada.caminho.split('?')[0])
 const chamouAlgumaLista = (rede: RedeFalsa) => rede.chamadas.some((chamada) => /\/lista|\/alunos|\/reivindicacoes/.test(chamada.caminho))
 
-/** A largura da janela, para a consulta `(min-width: 768px)` que a `Tabela` e o miolo leem. */
+/** A largura da janela, para a consulta `(min-width: 768px)` que a `Table` e o miolo leem. */
 function janelaDe(largura: number): void {
   vi.stubGlobal('matchMedia', (consulta: string) => ({
     matches: consulta === '(min-width: 768px)' ? largura >= 768 : false,

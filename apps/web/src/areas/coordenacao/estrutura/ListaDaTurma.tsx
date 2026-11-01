@@ -7,18 +7,18 @@ import { ErroDaApi } from '../../../api/client'
 import { consultaTurmaAberta, consultaTurmas } from '../../../api/estrutura'
 import { acrescentarNome, consultaListaDaTurma, gravarLista, previaDaLista, retirarNome } from './api/lista'
 import { ROTAS_DA_COORDENACAO } from '../../../paths'
-import { Botao } from '../../../components/ui/Botao'
-import { CLASSES_DO_BOTAO_PERIGO, CLASSES_DO_BOTAO_SECUNDARIO } from '../../../components/ui/button-variants'
-import { Campo } from '../../../components/ui/fields/Campo'
-import { useDialogoDaTela } from '../../../components/ui/overlays/dialog-state'
+import { Button } from '../../../components/ui/Button'
+import { DANGER_BUTTON_CLASSES, SECONDARY_BUTTON_CLASSES } from '../../../components/ui/button-variants'
+import { FormField } from '../../../components/ui/fields/FormField'
+import { useDialogState } from '../../../components/ui/overlays/dialog-state'
 import { AlertaDaFalha, AlertaSemFoco, Anuncio, ConfirmacaoDePerigo, DialogoDeFormulario, useEnvioUnico } from '../../../components/dialogs'
 import { EstadoCarregando, EstadoErro, EstadoVazio } from '../../../components/states/index'
-import { A_PARTIR_DE_768, useMidia } from '../../../components/ui/media-query'
+import { MEDIA_MD, useMediaQuery } from '../../../components/ui/media-query'
 import { ListaDePedidos } from '../../../components/pedidos/ListaDePedidos'
-import { Estado } from '../../../components/ui/SeloDeEstado'
-import { Tabela, type ColunaDaTabela } from '../../../components/ui/Tabela'
+import { StatusBadge } from '../../../components/ui/StatusBadge'
+import { Table, type TableColumn } from '../../../components/ui/Table'
 import { listaMudou, textoDaFalha } from '../../../components/error-text'
-import { Tela } from '../../../components/ui/Tela'
+import { Page } from '../../../components/ui/Page'
 import { TurmaIndisponivel } from '../../../components/TurmaIndisponivel'
 import { formatarNumero, formatarQuantidade } from '../../../format'
 import { useTituloDaTela } from '../../../document-title'
@@ -130,33 +130,33 @@ export default function ListaDaTurma({ turmaId }: { turmaId: string }) {
 
   if (turma.isPending)
     return (
-      <Tela titulo={nomeDaTurma} antes={voltar}>
+      <Page titulo={nomeDaTurma} antes={voltar}>
         <EstadoCarregando rotulo="Carregando a turma…" />
-      </Tela>
+      </Page>
     )
   if (turma.isError || perdida)
     return (
-      <Tela titulo={nomeDaTurma} antes={voltar}>
+      <Page titulo={nomeDaTurma} antes={voltar}>
         {perdida || (turma.error instanceof ErroDaApi && turma.error.codigo === ErrorCode.NAO_ENCONTRADO) ? (
           // Quando a turma sai com a tela aberta, o "Atualizar" que tinha o foco saiu com ela: o foco vem para o aviso.
           <TurmaIndisponivel texto={TEXTO_DA_TURMA_FORA_DO_ANO} comFoco={perdida} />
         ) : (
           <EstadoErro erro={turma.error} tentando={turma.isFetching} aoTentarDeNovo={() => void turma.refetch({ cancelRefetch: false })} />
         )}
-      </Tela>
+      </Page>
     )
 
   const turno = turmas.data?.itens.find((candidata) => candidata.id === turmaId)?.turno ?? null
   const serie = nomeDaSerie(turma.data.serie)
   return (
-    <Tela titulo={nomeDaTurma} descricao={turno === null ? serie : `${serie} · ${NOME_DO_TURNO[turno]}`} antes={voltar} idDoTitulo="titulo-da-turma">
+    <Page titulo={nomeDaTurma} descricao={turno === null ? serie : `${serie} · ${NOME_DO_TURNO[turno]}`} antes={voltar} idDoTitulo="titulo-da-turma">
       <ConteudoDaLista turmaId={turmaId} turmaNome={turma.data.nome} aoPerderATurma={perderATurma} />
-    </Tela>
+    </Page>
   )
 }
 
-/** O que a tabela dos nomes diz de cada coluna. A tabela vira lista no celular (`Tabela`), e o título da coluna passa a ser o rótulo do valor. */
-function colunasDosNomes(aoRetirar: (nome: NomeAindaNaLista) => void): readonly [ColunaDaTabela<NomeAindaNaLista>, ...ColunaDaTabela<NomeAindaNaLista>[]] {
+/** O que a tabela dos nomes diz de cada coluna. A tabela vira lista no celular (`Table`), e o título da coluna passa a ser o rótulo do valor. */
+function colunasDosNomes(aoRetirar: (nome: NomeAindaNaLista) => void): readonly [TableColumn<NomeAindaNaLista>, ...TableColumn<NomeAindaNaLista>[]] {
   return [
     { chave: 'nome', titulo: 'Nome', celula: (nome) => <span className="font-medium break-words">{nome.nome}</span> },
     { chave: 'matricula', titulo: 'Matrícula', celula: (nome) => <span className="break-words">{nome.matricula}</span> },
@@ -165,9 +165,9 @@ function colunasDosNomes(aoRetirar: (nome: NomeAindaNaLista) => void): readonly 
       titulo: 'Situação',
       celula: (nome) => (
         <div className="flex min-w-0 flex-wrap items-center gap-2">
-          {nome.estado === 'livre' ? <Estado familia="info">{ESTADO_DO_NOME.livre}</Estado> : <Estado familia="pendente">{ESTADO_DO_NOME.reivindicado}</Estado>}
+          {nome.estado === 'livre' ? <StatusBadge familia="info">{ESTADO_DO_NOME.livre}</StatusBadge> : <StatusBadge familia="pendente">{ESTADO_DO_NOME.reivindicado}</StatusBadge>}
           {nome.estado === 'livre' && (
-            <button type="button" onClick={() => aoRetirar(nome)} className={CLASSES_DO_BOTAO_PERIGO}>
+            <button type="button" onClick={() => aoRetirar(nome)} className={DANGER_BUTTON_CLASSES}>
               {/* Com a matrícula: dois alunos com o mesmo nome na turma têm botões de nome diferente. */}
               Retirar
               <span className="sr-only">
@@ -186,14 +186,14 @@ function ConteudoDaLista({ turmaId, turmaNome, aoPerderATurma }: { turmaId: stri
   const cliente = useQueryClient()
   const nomes = useInfiniteQuery(consultaListaDaTurma(turmaId))
   const [anuncio, definirAnuncio] = useState('')
-  const dialogo = useDialogoDaTela<'acrescentar' | 'retirar', NomeDaLista>()
+  const dialogo = useDialogState<'acrescentar' | 'retirar', NomeDaLista>()
   const aberta = dialogo.aberta
   // O nome da linha, fotografado na abertura: o diálogo de retirar só existe com ele.
   const alvo = aberta?.alvo
   const tituloDosNomes = useRef<HTMLHeadingElement>(null)
   const idDoTitulo = useId()
   // O miolo que rola recebe foco, para rolar pelo teclado, a partir de 768 px: abaixo disso rola a página, e não há o que focar.
-  const comMiolo = useMidia(A_PARTIR_DE_768)
+  const comMiolo = useMediaQuery(MEDIA_MD)
 
   const recarregarNomes = () => cliente.invalidateQueries({ queryKey: consultaListaDaTurma(turmaId).queryKey })
   const itens = nomes.data?.pages.flatMap((pagina) => pagina.itens) ?? []
@@ -229,7 +229,7 @@ function ConteudoDaLista({ turmaId, turmaNome, aoPerderATurma }: { turmaId: stri
               <h2 ref={tituloDosNomes} id={idDoTitulo} tabIndex={-1} className="text-lg font-semibold text-tinta">
                 Nomes da turma
               </h2>
-              <button type="button" onClick={() => abrir('acrescentar')} className={CLASSES_DO_BOTAO_SECUNDARIO}>
+              <button type="button" onClick={() => abrir('acrescentar')} className={SECONDARY_BUTTON_CLASSES}>
                 Acrescentar um nome
               </button>
             </div>
@@ -251,10 +251,10 @@ function ConteudoDaLista({ turmaId, turmaNome, aoPerderATurma }: { turmaId: stri
                 )}
                 {/* Só aprovados: a tabela ficaria só com o cabeçalho, e a contagem acima já diz tudo o que há para dizer. */}
                 {semAprovados.length > 0 && (
-                  <Tabela rotulo="Cada nome com a matrícula e a situação" colunas={colunasDosNomes((nome) => abrir('retirar', nome))} linhas={semAprovados} chaveDaLinha={(nome) => nome.id} />
+                  <Table rotulo="Cada nome com a matrícula e a situação" colunas={colunasDosNomes((nome) => abrir('retirar', nome))} linhas={semAprovados} chaveDaLinha={(nome) => nome.id} />
                 )}
                 {nomes.hasNextPage && (
-                  <button type="button" onClick={() => void nomes.fetchNextPage()} disabled={nomes.isFetchingNextPage} className={`${CLASSES_DO_BOTAO_SECUNDARIO} self-start`}>
+                  <button type="button" onClick={() => void nomes.fetchNextPage()} disabled={nomes.isFetchingNextPage} className={`${SECONDARY_BUTTON_CLASSES} self-start`}>
                     {nomes.isFetchingNextPage ? 'Carregando…' : 'Ver mais nomes'}
                   </button>
                 )}
@@ -499,7 +499,7 @@ function SubirLista({ turmaId, aoGravar, recarregarNomes }: { turmaId: string; a
       {falhaDaPrevia !== undefined && <AlertaSemFoco texto={falhaDaPrevia} alvo={alertaDaPrevia} />}
 
       <div className="flex flex-wrap gap-3">
-        <button type="button" onClick={verPrevia} disabled={pedirPrevia.mutacao.isPending} className={CLASSES_DO_BOTAO_SECUNDARIO}>
+        <button type="button" onClick={verPrevia} disabled={pedirPrevia.mutacao.isPending} className={SECONDARY_BUTTON_CLASSES}>
           {pedirPrevia.mutacao.isPending ? 'Lendo a lista…' : 'Ver a prévia'}
         </button>
       </div>
@@ -559,9 +559,9 @@ function PreviaDaLista({ previa, tituloRef, gravando, aoGravar }: PropsDaPrevia)
       </ol>
       {gravacao.pode ? (
         <div>
-          <Botao onClick={aoGravar} disabled={gravando}>
+          <Button onClick={aoGravar} disabled={gravando}>
             {gravando ? 'Gravando…' : 'Gravar lista'}
-          </Botao>
+          </Button>
         </div>
       ) : (
         <p className="text-apoio">{gravacao.motivo}</p>
@@ -618,7 +618,7 @@ function NomeAvulso({ turmaId, aoFechar, aoAcrescentar, recarregar }: { turmaId:
       }
     >
       <p className="text-sm text-apoio">Para o aluno que chega depois: ele aparece na lista da turma e pede o nome pelo acesso que já está valendo.</p>
-      <Campo
+      <FormField
         ref={campoDoNome}
         rotulo="Nome do aluno"
         name="nome"
@@ -629,7 +629,7 @@ function NomeAvulso({ turmaId, aoFechar, aoAcrescentar, recarregar }: { turmaId:
         onChange={(evento) => definirNome(evento.target.value)}
         erro={erros.nome}
       />
-      <Campo
+      <FormField
         ref={campoDaMatricula}
         rotulo="Matrícula"
         name="matricula"

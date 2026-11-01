@@ -5,17 +5,17 @@ import { aplicarFuncao, consultaFuncoesDaGovernanca, retomarFuncao, suspenderFun
 import { ArrowLeft } from 'lucide-react'
 import { Link, useLocation, useSearch } from 'wouter'
 import { ROTAS_DA_COORDENACAO } from '../../../paths'
-import { Botao } from '../../../components/ui/Botao'
-import { Cartao } from '../../../components/ui/Cartao'
-import { DialogoDeConfirmacao } from '../../../components/ui/overlays/DialogoDeConfirmacao'
+import { Button } from '../../../components/ui/Button'
+import { Card } from '../../../components/ui/Card'
+import { ConfirmDialog } from '../../../components/ui/overlays/ConfirmDialog'
 import { Anuncio, useEnvioUnico } from '../../../components/dialogs'
 import { EstadoCarregando, EstadoErro } from '../../../components/states/index'
-import { AssinaturaIA } from '../../../components/ui/ai/AssinaturaIA'
-import { A_PARTIR_DE_768, useMidia } from '../../../components/ui/media-query'
-import { Segmentado, type OpcoesDoSegmentado } from '../../../components/ui/fields/Segmentado'
-import { Selecao } from '../../../components/ui/fields/Selecao'
-import { Estado } from '../../../components/ui/SeloDeEstado'
-import { Tela } from '../../../components/ui/Tela'
+import { AgentSignature } from '../../../components/ui/ai/AgentSignature'
+import { MEDIA_MD, useMediaQuery } from '../../../components/ui/media-query'
+import { SegmentedControl, type SegmentedOptions } from '../../../components/ui/fields/SegmentedControl'
+import { Select } from '../../../components/ui/fields/Select'
+import { StatusBadge } from '../../../components/ui/StatusBadge'
+import { Page } from '../../../components/ui/Page'
 import { textoDaFalha } from '../../../components/error-text'
 import { formatarDataHora } from '../../../format'
 import { useTituloDaTela } from '../../../document-title'
@@ -25,7 +25,7 @@ import { O_QUE_A_IA_NUNCA_FAZ } from './nunca-faz'
 import { agenteDoEndereco, AVISO_DA_SUSPENSAO, EFEITO_DA_SUSPENSAO, NOME_DA_AUTONOMIA } from './textos-da-governanca'
 
 /** As três IAs do seletor, com o nome de função de cada uma (D17) e o valor que o endereço leva (`?ia=tutor`). */
-const OPCOES_DE_IA: OpcoesDoSegmentado<Agente> = [
+const OPCOES_DE_IA: SegmentedOptions<Agente> = [
   { valor: 'assistente_de_ensino', rotulo: NOMES_DOS_AGENTES.assistente_de_ensino },
   { valor: 'tutor', rotulo: NOMES_DOS_AGENTES.tutor },
   { valor: 'analista_de_desempenho_escolar', rotulo: NOMES_DOS_AGENTES.analista_de_desempenho_escolar },
@@ -52,7 +52,7 @@ interface FuncaoDoAgente {
 export default function Agentes() {
   useTituloDaTela('Como cada IA trabalha')
   // O miolo que rola recebe foco, para rolar pelo teclado, a partir de 768 px: abaixo disso rola a página, e não há o que focar.
-  const comMiolo = useMidia(A_PARTIR_DE_768)
+  const comMiolo = useMediaQuery(MEDIA_MD)
   const cliente = useQueryClient()
   const [caminho, navegar] = useLocation()
   const busca = useSearch()
@@ -146,7 +146,7 @@ export default function Agentes() {
             />
           ))}
 
-        <Cartao titulo="O que a IA nunca faz">
+        <Card titulo="O que a IA nunca faz">
           <p className="text-apoio">Vale para os três agentes e para todas as funções, por lei ou por escolha do produto. Não há configuração que ligue isto.</p>
           <ul className="mt-3 flex min-w-0 list-disc flex-col gap-1.5 pl-5">
             {O_QUE_A_IA_NUNCA_FAZ.map((frase) => (
@@ -155,14 +155,14 @@ export default function Agentes() {
               </li>
             ))}
           </ul>
-        </Cartao>
+        </Card>
       </>
     )
   }
 
   return (
-    <Tela titulo="Como cada IA trabalha" largura="leitura" antes={voltar}>
-      <Segmentado rotulo="Qual IA" opcoes={OPCOES_DE_IA} valor={ia} aoMudar={escolherIA} />
+    <Page titulo="Como cada IA trabalha" largura="leitura" antes={voltar}>
+      <SegmentedControl rotulo="Qual IA" opcoes={OPCOES_DE_IA} valor={ia} aoMudar={escolherIA} />
       <section aria-label="O que cada função da IA faz" {...(comMiolo ? { tabIndex: 0 } : {})} className={`flex min-w-0 flex-col gap-4 ${O_MIOLO_DOS_AGENTES}`}>
         {conteudo}
       </section>
@@ -181,7 +181,7 @@ export default function Agentes() {
           }}
         />
       )}
-    </Tela>
+    </Page>
   )
 }
 
@@ -199,18 +199,18 @@ function CartaoDoAgente({ agente, nome, funcoes, retomando, aoSuspender, aoRetom
   return (
     <section data-cartao-do-agente={agente} aria-label={nome} className="flex min-w-0 flex-col gap-4 rounded-cartao border-2 border-borda bg-superficie p-4 lg:p-5">
       {/* O nome da função é o título do cartão (`h2`), e vem com o avatar e o selo "IA" no mesmo bloco (RF10). */}
-      <AssinaturaIA agente={agente} tamanho={48} titulo={2} />
+      <AgentSignature agente={agente} tamanho={48} titulo={2} />
       <ul className="flex min-w-0 flex-col gap-4">
         {funcoes.map((funcao) => (
           <li key={funcao.chave} data-funcao={funcao.chave} className="flex min-w-0 flex-col gap-2 border-t border-linha pt-4">
             <h3 className="font-medium break-words text-tinta">{funcao.nome}</h3>
             <div className="flex min-w-0 flex-wrap gap-2">
-              <Estado familia="info">{NOME_DA_AUTONOMIA[funcao.autonomia]}</Estado>
-              {funcao.altoRisco && <Estado familia="info">Alto risco: tem avaliação de impacto</Estado>}
+              <StatusBadge familia="info">{NOME_DA_AUTONOMIA[funcao.autonomia]}</StatusBadge>
+              {funcao.altoRisco && <StatusBadge familia="info">Alto risco: tem avaliação de impacto</StatusBadge>}
               {funcao.suspensao !== null ? (
-                <Estado familia="pendente">{`Suspensa nesta escola desde ${formatarDataHora(funcao.suspensao.suspensaEm)}`}</Estado>
+                <StatusBadge familia="pendente">{`Suspensa nesta escola desde ${formatarDataHora(funcao.suspensao.suspensaEm)}`}</StatusBadge>
               ) : (
-                <Estado familia="ok">Funcionando</Estado>
+                <StatusBadge familia="ok">Funcionando</StatusBadge>
               )}
             </div>
             {funcao.suspensao?.motivo != null && <p className="text-sm break-words text-apoio">Motivo: {NOME_DO_MOTIVO_DE_SUSPENSAO[funcao.suspensao.motivo]}</p>}
@@ -226,13 +226,13 @@ function CartaoDoAgente({ agente, nome, funcoes, retomando, aoSuspender, aoRetom
             </dl>
             <div>
               {funcao.suspensao !== null ? (
-                <Botao variante="secundario" tamanho="compacto" data-alternar-funcao aria-label={`Retomar esta função: ${funcao.nome}`} onClick={() => aoRetomar(funcao)} disabled={retomando === funcao.chave}>
+                <Button variante="secundario" tamanho="compacto" data-alternar-funcao aria-label={`Retomar esta função: ${funcao.nome}`} onClick={() => aoRetomar(funcao)} disabled={retomando === funcao.chave}>
                   {retomando === funcao.chave ? 'Retomando…' : 'Retomar esta função'}
-                </Botao>
+                </Button>
               ) : (
-                <Botao variante="perigo" tamanho="compacto" data-alternar-funcao aria-label={`Suspender esta função: ${funcao.nome}`} onClick={() => aoSuspender(funcao)}>
+                <Button variante="perigo" tamanho="compacto" data-alternar-funcao aria-label={`Suspender esta função: ${funcao.nome}`} onClick={() => aoSuspender(funcao)}>
                   Suspender esta função
-                </Botao>
+                </Button>
               )}
             </div>
           </li>
@@ -257,7 +257,7 @@ function SuspenderFuncao({ alvo, aoFechar, aoSuspender, focoDeReserva }: PropsDo
     onSuccess: aoSuspender,
   })
   return (
-    <DialogoDeConfirmacao
+    <ConfirmDialog
       titulo={`Suspender a função ${alvo.funcao.nome}`}
       familia="perigo"
       resumo={[
@@ -274,7 +274,7 @@ function SuspenderFuncao({ alvo, aoFechar, aoSuspender, focoDeReserva }: PropsDo
       {...(mutacao.isError ? { falha: textoDaFalha(mutacao.error) } : {})}
       focoDeReserva={focoDeReserva}
     >
-      <Selecao rotulo="Motivo" opcoes={OPCOES_DE_MOTIVO} valor={motivo} aoMudar={definirMotivo} marcador="Sem motivo registrado" dica="Opcional. Fica na auditoria, junto da suspensão." />
-    </DialogoDeConfirmacao>
+      <Select rotulo="Motivo" opcoes={OPCOES_DE_MOTIVO} valor={motivo} aoMudar={definirMotivo} marcador="Sem motivo registrado" dica="Opcional. Fica na auditoria, junto da suspensão." />
+    </ConfirmDialog>
   )
 }

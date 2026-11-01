@@ -14,7 +14,7 @@ import Governanca from './Governanca'
  */
 prepararTela()
 
-/** A largura da janela, para a consulta `(min-width: 768px)` que a `Tabela` lê; o `jsdom` não tem `matchMedia`. */
+/** A largura da janela, para a consulta `(min-width: 768px)` que a `Table` lê; o `jsdom` não tem `matchMedia`. */
 function janelaDe(largura: number): void {
   vi.stubGlobal('matchMedia', (consulta: string) => ({
     matches: consulta === '(min-width: 768px)' ? largura >= 768 : false,

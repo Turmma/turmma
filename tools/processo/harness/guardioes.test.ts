@@ -29,8 +29,8 @@ const versionados = (...pastas: string[]): string[] =>
 
 /** As exceções do código, com o conjunto exato que cada uma pede. O arquivo é um que existe no repositório. */
 const EXCECOES: { prefixo: string; arquivo: string; guardioes: Guardiao[] }[] = [
-  { prefixo: 'apps/web/src/components/ui/', arquivo: 'apps/web/src/components/ui/Abas.tsx', guardioes: [C, I] },
-  { prefixo: 'apps/web/src/components/ui/ai/', arquivo: 'apps/web/src/components/ui/ai/AssinaturaIA.tsx', guardioes: [P, C, I] },
+  { prefixo: 'apps/web/src/components/ui/', arquivo: 'apps/web/src/components/ui/Tabs.tsx', guardioes: [C, I] },
+  { prefixo: 'apps/web/src/components/ui/ai/', arquivo: 'apps/web/src/components/ui/ai/AgentSignature.tsx', guardioes: [P, C, I] },
   { prefixo: 'apps/web/src/index.css', arquivo: 'apps/web/src/index.css', guardioes: [C] },
   { prefixo: 'apps/web/src/theme.ts', arquivo: 'apps/web/src/theme.ts', guardioes: [] },
   { prefixo: 'apps/web/src/estilos.test.ts', arquivo: 'apps/web/src/estilos.test.ts', guardioes: [] },
@@ -101,8 +101,8 @@ describe('as exceções do código', () => {
   })
 
   it('vale o prefixo mais longo: ui/ia/ pede P C I e o resto de ui/ pede C I', () => {
-    expect(pede('apps/web/src/components/ui/ai/AvisoFila.tsx')).toEqual([P, C, I])
-    expect(pede('apps/web/src/components/ui/overlays/DialogoDeConfirmacao.tsx')).toEqual([C, I])
+    expect(pede('apps/web/src/components/ui/ai/QueueAlert.tsx')).toEqual([P, C, I])
+    expect(pede('apps/web/src/components/ui/overlays/ConfirmDialog.tsx')).toEqual([C, I])
     // O mais longo vence também quando a exceção é mais curta que o padrão: a exceção está dentro de apps/.
     expect(pede('apps/web/src/gallery/Gallery.tsx')).toEqual([P, C])
   })
@@ -126,7 +126,7 @@ describe('as exceções do código', () => {
   })
 
   it('@SemEscopo( no índice, só no HEAD ou em nenhum: quatro, quatro, e C I (componentes/ui/)', () => {
-    const arquivo = 'apps/web/src/components/ui/Aviso.tsx'
+    const arquivo = 'apps/web/src/components/ui/Alert.tsx'
     const marca = '@Unscoped() // rotina administrativa nossa\n'
     expect(pede(arquivo, textos(marca, 'export const a = 1\n'))).toEqual(OS_QUATRO)
     expect(pede(arquivo, textos('export const a = 1\n', marca))).toEqual(OS_QUATRO)

@@ -5,7 +5,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { corDoToken, TEMAS } from '../../../__fixtures__/class-colors'
 import { semComentarios } from '../../../__fixtures__/importers'
-import { FAMILIAS_DE_COR } from '../../../components/ui/Contador'
+import { COLOR_FAMILIES } from '../../../components/ui/CountBadge'
 import { DESENHO_DA_FERRAMENTA, IconeDeFerramenta } from './icones-de-ferramenta'
 
 /**
@@ -31,7 +31,7 @@ describe('os ícones das ferramentas', () => {
     expect(FONTE).not.toMatch(/#[0-9a-fA-F]{3,8}\b/)
     expect(FONTE).not.toMatch(/\b(?:rgba?|hsla?|oklch|color-mix)\(/i)
     expect(FONTE).not.toMatch(/style\s*=/)
-    const permitidos = new Set([...FAMILIAS_DE_COR, ...NEUTROS])
+    const permitidos = new Set([...COLOR_FAMILIES, ...NEUTROS])
     for (const ferramenta of FERRAMENTAS) {
       for (const forma of formasDe(ferramenta)) expect(forma, `${ferramenta}: ${forma}`).not.toMatch(/\b(?:fill|stroke|stop-color|color)=/)
       for (const classe of classesDe(ferramenta)) {

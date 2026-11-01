@@ -11,7 +11,7 @@ import {
   type PedidoDoTitular,
   type SuboperadorDaEscola,
 } from '@educa/shared'
-import type { FamiliaDeEstado } from '../../../components/ui/SeloDeEstado'
+import type { StatusFamily } from '../../../components/ui/StatusBadge'
 import { formatarDiaDoInstante } from '../../../format'
 import { TEXTO_DO_HOMONIMO } from './textos-dos-pedidos'
 
@@ -83,7 +83,7 @@ const dias = (quantidade: number): string => `${String(quantidade)} ${quantidade
  * é só cor (regra 50, item 11). O que ainda vale é `pendente`, e o dia em que vence é dito por inteiro.
  */
 export function textoDoPrazo(prazo: PrazoDoPedido): {
-  readonly familia: FamiliaDeEstado
+  readonly familia: StatusFamily
   readonly texto: string
 } {
   switch (prazo.situacao) {

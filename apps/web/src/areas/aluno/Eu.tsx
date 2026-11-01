@@ -7,9 +7,9 @@ import { consultaMinhaTurma } from '../../api/minha-turma'
 import { ROTAS_DO_ALUNO } from '../../paths'
 import { EstadoCarregando, EstadoErro } from '../../components/states'
 import { ContextoDaSaida } from '../../components/sign-out-context'
-import { Ladrilho } from '../../components/ui/Ladrilho'
-import { Linha } from '../../components/ui/Linha'
-import { Tela } from '../../components/ui/Tela'
+import { IconTile } from '../../components/ui/IconTile'
+import { ListItem } from '../../components/ui/ListItem'
+import { Page } from '../../components/ui/Page'
 import { useTituloDaTela } from '../../document-title'
 import { ComoEstouIndo } from './ComoEstouIndo'
 import { DialogoDeAjustes } from './DialogoDeAjustes'
@@ -27,46 +27,46 @@ function LinhasDaConta({ aoAbrirAjustes }: { readonly aoAbrirAjustes: () => void
   return (
     <ul aria-label="Conta" className="grid grid-cols-1 gap-0.5 overflow-hidden rounded-cartao border-2 border-borda bg-borda lg:grid-cols-2">
       <li className="bg-superficie">
-        <Linha
+        <ListItem
           titulo="Privacidade"
           inicio={
-            <Ladrilho familia="verde" tamanho={40}>
+            <IconTile familia="verde" tamanho={40}>
               <Lock aria-hidden="true" />
-            </Ladrilho>
+            </IconTile>
           }
           para={ROTAS_DO_ALUNO.privacidade}
         />
       </li>
       <li className="bg-superficie">
-        <Linha
+        <ListItem
           titulo="Ajustes"
           inicio={
-            <Ladrilho familia="turquesa" tamanho={40}>
+            <IconTile familia="turquesa" tamanho={40}>
               <Settings aria-hidden="true" />
-            </Ladrilho>
+            </IconTile>
           }
           aoAcionar={aoAbrirAjustes}
         />
       </li>
       <li className="bg-superficie">
-        <Linha
+        <ListItem
           titulo="Rever a introdução"
           tituloEmDuasLinhas
           inicio={
-            <Ladrilho familia="lima" tamanho={40}>
+            <IconTile familia="lima" tamanho={40}>
               <BookOpen aria-hidden="true" />
-            </Ladrilho>
+            </IconTile>
           }
           para={ROTAS_DO_ALUNO.bemVindo}
         />
       </li>
       <li className="bg-superficie">
-        <Linha
+        <ListItem
           titulo={saindo ? 'Saindo…' : 'Sair'}
           inicio={
-            <Ladrilho familia="anil" tamanho={40}>
+            <IconTile familia="anil" tamanho={40}>
               <LogOut aria-hidden="true" />
-            </Ladrilho>
+            </IconTile>
           }
           aoAcionar={sair}
         />
@@ -114,14 +114,14 @@ export default function Eu() {
   }
 
   return (
-    <Tela titulo="Eu" idDoTitulo="titulo-eu" largura="conversa" descricao={descricaoDaTurma()}>
-      {/* A região da tela, com o nome do título: o conteúdo todo, com os 16 px entre blocos que a `Tela` dá. */}
+    <Page titulo="Eu" idDoTitulo="titulo-eu" largura="conversa" descricao={descricaoDaTurma()}>
+      {/* A região da tela, com o nome do título: o conteúdo todo, com os 16 px entre blocos que a `Page` dá. */}
       <section className="flex min-w-0 flex-col gap-4" aria-labelledby="titulo-eu">
         {avisoDaTurma()}
         <ComoEstouIndo />
         <LinhasDaConta aoAbrirAjustes={() => definirAjustesAbertos(true)} />
       </section>
       {ajustesAbertos && <DialogoDeAjustes aoFechar={() => definirAjustesAbertos(false)} />}
-    </Tela>
+    </Page>
   )
 }

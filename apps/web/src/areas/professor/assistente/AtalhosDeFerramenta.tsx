@@ -2,8 +2,8 @@ import type { ChaveDeFuncao, Ferramenta } from '@educa/shared'
 import { ArrowRight } from 'lucide-react'
 import { Link } from 'wouter'
 import { ROTAS_DO_PROFESSOR } from '../../../paths'
-import { Botao } from '../../../components/ui/Botao'
-import { CLASSES_DO_LINK_SECUNDARIO } from '../../../components/ui/button-variants'
+import { Button } from '../../../components/ui/Button'
+import { SECONDARY_LINK_CLASSES } from '../../../components/ui/button-variants'
 import { CATALOGO_DE_FERRAMENTAS } from '../ferramentas/ferramentas'
 import { IconeDeFerramenta } from '../ferramentas/icones-de-ferramenta'
 
@@ -32,13 +32,13 @@ export function AtalhosDeFerramenta({ aoAbrir, desligado }: PropsDosAtalhos) {
   return (
     <div role="group" aria-label="Atalhos de ferramenta" className="flex min-w-0 flex-wrap items-center justify-center gap-x-3 gap-y-4">
       {CATALOGO_DE_FERRAMENTAS.map((item) => (
-        <Botao key={item.ferramenta} variante="secundario" disabled={desligado(item.funcao)} onClick={() => aoAbrir(item.ferramenta)}>
+        <Button key={item.ferramenta} variante="secundario" disabled={desligado(item.funcao)} onClick={() => aoAbrir(item.ferramenta)}>
           <IconeDeFerramenta ferramenta={item.ferramenta} tamanho={24} />
           {item.nome}
-        </Botao>
+        </Button>
       ))}
       {/* Relativo à área: o `Route` aninhado em `/professor` resolve o `to` a partir da base dela. */}
-      <Link to={ROTAS_DO_PROFESSOR.ferramentas} className={`${CLASSES_DO_LINK_SECUNDARIO} gap-2`}>
+      <Link to={ROTAS_DO_PROFESSOR.ferramentas} className={`${SECONDARY_LINK_CLASSES} gap-2`}>
         Ferramentas
         <ArrowRight aria-hidden="true" size={18} strokeWidth={2} />
       </Link>

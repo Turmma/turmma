@@ -1,9 +1,9 @@
 import type { DecisaoDePedido, DecisorDaReivindicacao, PedidoDaTurma, DecisaoResponse } from '@educa/shared'
 import { useRef, type ReactNode } from 'react'
 import { decidirPedidos } from '../../api/pedidos'
-import { CLASSES_DO_BOTAO_OFICIAL, CLASSES_DO_BOTAO_PERIGO_CHEIO, CLASSES_DO_BOTAO_SECUNDARIO } from '../ui/button-variants'
+import { OFFICIAL_BUTTON_CLASSES, DANGER_SOLID_BUTTON_CLASSES, SECONDARY_BUTTON_CLASSES } from '../ui/button-variants'
 import { Falha, useFocoDaEtapa } from '../copy-once'
-import { Dialogo } from '../ui/overlays/Dialogo'
+import { Dialog } from '../ui/overlays/Dialog'
 import { useEnvioUnico } from '../dialogs'
 import { pedidosQueContinuam } from './atualizacao-dos-pedidos'
 import {
@@ -66,13 +66,13 @@ export function DialogoDeDecisao({ decisao, ids, pedidos, turmaNome, quem, aoDec
   useFocoDaEtapa(etapa, etapa === 'resultado' ? tituloDoResultado : inicio, mutacao.isError)
 
   const moldura = (conteudo: ReactNode) => (
-    <Dialogo titulo={TITULO_DA_DECISAO[decisao]} aoFechar={aoFechar} focoInicial={inicio} focoDeReserva={focoDeReserva}>
+    <Dialog titulo={TITULO_DA_DECISAO[decisao]} aoFechar={aoFechar} focoInicial={inicio} focoDeReserva={focoDeReserva}>
       <div className="mt-4 flex min-w-0 flex-col gap-4">{conteudo}</div>
-    </Dialogo>
+    </Dialog>
   )
   const fechar = (
     <div className="flex flex-wrap gap-3">
-      <button type="button" onClick={aoFechar} className={CLASSES_DO_BOTAO_SECUNDARIO}>
+      <button type="button" onClick={aoFechar} className={SECONDARY_BUTTON_CLASSES}>
         Fechar
       </button>
     </div>
@@ -139,11 +139,11 @@ export function DialogoDeDecisao({ decisao, ids, pedidos, turmaNome, quem, aoDec
           type="button"
           onClick={() => enviar(continuam)}
           disabled={mutacao.isPending}
-          className={decisao === 'aprovar' ? CLASSES_DO_BOTAO_OFICIAL : CLASSES_DO_BOTAO_PERIGO_CHEIO}
+          className={decisao === 'aprovar' ? OFFICIAL_BUTTON_CLASSES : DANGER_SOLID_BUTTON_CLASSES}
         >
           {mutacao.isPending ? ROTULO_EM_ANDAMENTO[decisao] : rotuloDaDecisao(decisao, continuam.length)}
         </button>
-        <button type="button" onClick={aoFechar} className={CLASSES_DO_BOTAO_SECUNDARIO}>
+        <button type="button" onClick={aoFechar} className={SECONDARY_BUTTON_CLASSES}>
           Cancelar
         </button>
       </div>

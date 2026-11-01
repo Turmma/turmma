@@ -2,21 +2,21 @@ import type { RetencaoResponse } from '@educa/shared'
 import { useQuery } from '@tanstack/react-query'
 import { consultaRetencao } from './api/privacidade'
 import { EstadoCarregando, EstadoErro } from '../../../components/states'
-import { Tabela, type ColunaDaTabela } from '../../../components/ui/Tabela'
-import { CabecalhoDeSecao } from '../../../components/ui/Tela'
+import { Table, type TableColumn } from '../../../components/ui/Table'
+import { SectionHeader } from '../../../components/ui/Page'
 import { textoDaOrigem, textoDoPrazo } from './textos-da-retencao'
 
 type LinhaDaCategoria = RetencaoResponse['categorias'][number]
 type LinhaDoPrazoFixo = RetencaoResponse['prazosFixos'][number]
 
-const COLUNAS_DAS_CATEGORIAS: readonly [ColunaDaTabela<LinhaDaCategoria>, ...ColunaDaTabela<LinhaDaCategoria>[]] = [
+const COLUNAS_DAS_CATEGORIAS: readonly [TableColumn<LinhaDaCategoria>, ...TableColumn<LinhaDaCategoria>[]] = [
   { chave: 'dado', titulo: 'Dado', celula: (linha) => linha.descricao },
   { chave: 'prazo', titulo: 'Prazo que vale', celula: (linha) => textoDoPrazo(linha.meses) },
   { chave: 'contagem', titulo: 'Quando começa a contar', celula: (linha) => linha.contaDe },
   { chave: 'origem', titulo: 'De onde vem', celula: (linha) => textoDaOrigem(linha) },
 ]
 
-const COLUNAS_DOS_PRAZOS_FIXOS: readonly [ColunaDaTabela<LinhaDoPrazoFixo>, ...ColunaDaTabela<LinhaDoPrazoFixo>[]] = [
+const COLUNAS_DOS_PRAZOS_FIXOS: readonly [TableColumn<LinhaDoPrazoFixo>, ...TableColumn<LinhaDoPrazoFixo>[]] = [
   { chave: 'dado', titulo: 'Dado', celula: (linha) => linha.descricao },
   { chave: 'prazo', titulo: 'Prazo', celula: (linha) => linha.prazo },
 ]
@@ -39,22 +39,22 @@ export function Retencao() {
   return (
     <div className="flex min-w-0 flex-col gap-8">
       <section className="flex min-w-0 flex-col gap-3" aria-labelledby="titulo-das-categorias">
-        <CabecalhoDeSecao
+        <SectionHeader
           id="titulo-das-categorias"
           nivel={3}
           titulo="O que a escola guarda, e por quanto tempo"
           apoio="O prazo que vale hoje para cada dado de pessoa da escola, e de onde ele vem. É por esse prazo que o sistema apaga o dado."
         />
-        <Tabela rotulo="O que a escola guarda, e por quanto tempo" colunas={COLUNAS_DAS_CATEGORIAS} linhas={categorias} chaveDaLinha={(linha) => linha.categoria} />
+        <Table rotulo="O que a escola guarda, e por quanto tempo" colunas={COLUNAS_DAS_CATEGORIAS} linhas={categorias} chaveDaLinha={(linha) => linha.categoria} />
       </section>
       <section className="flex min-w-0 flex-col gap-3" aria-labelledby="titulo-dos-prazos-fixos">
-        <CabecalhoDeSecao
+        <SectionHeader
           id="titulo-dos-prazos-fixos"
           nivel={3}
           titulo="Prazos que não mudam"
           apoio="Vêm da lei ou de outra fase do sistema, e a escola não os ajusta. Aparecem aqui para a coordenação saber o que existe."
         />
-        <Tabela rotulo="Prazos que não mudam" colunas={COLUNAS_DOS_PRAZOS_FIXOS} linhas={prazosFixos} chaveDaLinha={(linha) => linha.chave} />
+        <Table rotulo="Prazos que não mudam" colunas={COLUNAS_DOS_PRAZOS_FIXOS} linhas={prazosFixos} chaveDaLinha={(linha) => linha.chave} />
       </section>
     </div>
   )

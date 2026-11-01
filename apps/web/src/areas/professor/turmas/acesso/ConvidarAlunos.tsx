@@ -3,10 +3,10 @@ import { useQuery } from '@tanstack/react-query'
 import { useId, useRef, useState, type ReactNode, type RefObject } from 'react'
 import { consultaAcessoDaTurma, mutacaoDoGerarAcesso, revogarAcesso } from '../api/acesso'
 import { caminhoDaSala } from '../../../../paths'
-import { Botao } from '../../../../components/ui/Botao'
-import { CLASSES_DO_BOTAO_PERIGO, CLASSES_DO_BOTAO_SECUNDARIO } from '../../../../components/ui/button-variants'
+import { Button } from '../../../../components/ui/Button'
+import { DANGER_BUTTON_CLASSES, SECONDARY_BUTTON_CLASSES } from '../../../../components/ui/button-variants'
 import { AvisoDaCopia, CampoDoLink, Falha, Pergunta, useCopia, useFechamento, useFocoDaEtapa } from '../../../../components/copy-once'
-import { Dialogo } from '../../../../components/ui/overlays/Dialogo'
+import { Dialog } from '../../../../components/ui/overlays/Dialog'
 import { CorpoDaConfirmacaoDePerigo, useEnvioUnico } from '../../../../components/dialogs'
 import { EstadoCarregando, EstadoErro } from '../../../../components/states/index'
 import { linkDoConvite } from '../../../../components/link-do-convite'
@@ -70,7 +70,7 @@ interface PropsDoConvite {
  *
  * - **Sem acesso**, o primeiro passo é "Gerar acesso": a validade (1, 7 ou 30 dias, 7 já escolhidos), o que acontece e o botão.
  * - **Gerado**, "Acesso gerado" é a **tela inteira**: o link, o código em dois grupos e o WhatsApp. É o passo que a professora
- *   projeta, e por isso nada da página de trás fica legível (`Dialogo`, `inteira`). Os outros passos continuam na caixa de sempre.
+ *   projeta, e por isso nada da página de trás fica legível (`Dialog`, `inteira`). Os outros passos continuam na caixa de sempre.
  * - **Com acesso vigente**, só até quando vale, "Gerar novo acesso" e "Revogar o acesso", cada um com a pergunta de hoje. O link
  *   e o código **não voltam**: a leitura não os devolve, e o produto só os mostra no passo que os gerou.
  * - O título do diálogo é o do passo ("Gerar acesso", "Gerar novo acesso", "Revogar o acesso"), como era no diálogo de cada um.
@@ -192,13 +192,13 @@ export function ConvidarAlunos({ turmaId, escola, aoTerminar, aoFechar, aoRevoga
           </p>
           <p className="break-words text-apoio">{TEXTO_DO_ACESSO_QUE_JA_APARECEU}</p>
           <div className="flex flex-wrap gap-3">
-            <button type="button" onClick={() => definirPasso({ tipo: 'gerar', substitui: true })} className={CLASSES_DO_BOTAO_SECUNDARIO}>
+            <button type="button" onClick={() => definirPasso({ tipo: 'gerar', substitui: true })} className={SECONDARY_BUTTON_CLASSES}>
               Gerar novo acesso
             </button>
-            <button type="button" onClick={() => definirPasso({ tipo: 'revogar' })} className={CLASSES_DO_BOTAO_PERIGO}>
+            <button type="button" onClick={() => definirPasso({ tipo: 'revogar' })} className={DANGER_BUTTON_CLASSES}>
               Revogar o acesso
             </button>
-            <button type="button" onClick={fechamento.pedirParaFechar} className={CLASSES_DO_BOTAO_SECUNDARIO}>
+            <button type="button" onClick={fechamento.pedirParaFechar} className={SECONDARY_BUTTON_CLASSES}>
               Fechar
             </button>
           </div>
@@ -233,11 +233,11 @@ export function ConvidarAlunos({ turmaId, escola, aoTerminar, aoFechar, aoRevoga
         {falha !== undefined && <Falha texto={falha.texto} erro={gerar.error} />}
         <div className="flex flex-wrap gap-3">
           {!semNovaTentativa && (
-            <Botao onClick={() => enviar({ validadeDias })} disabled={gerar.isPending}>
+            <Button onClick={() => enviar({ validadeDias })} disabled={gerar.isPending}>
               {gerar.isPending ? 'Gerando…' : rotuloDaAcao}
-            </Botao>
+            </Button>
           )}
-          <button type="button" onClick={fechamento.pedirParaFechar} className={CLASSES_DO_BOTAO_SECUNDARIO}>
+          <button type="button" onClick={fechamento.pedirParaFechar} className={SECONDARY_BUTTON_CLASSES}>
             {semNovaTentativa ? 'Fechar' : 'Cancelar'}
           </button>
         </div>
@@ -249,7 +249,7 @@ export function ConvidarAlunos({ turmaId, escola, aoTerminar, aoFechar, aoRevoga
   }
 
   return (
-    <Dialogo
+    <Dialog
       titulo={titulo}
       aoFechar={fechamento.pedirParaFechar}
       aoFecharPeloNavegador={fechamento.fecharDeVez}
@@ -258,7 +258,7 @@ export function ConvidarAlunos({ turmaId, escola, aoTerminar, aoFechar, aoRevoga
       inteira={inteira}
     >
       {conteudo()}
-    </Dialogo>
+    </Dialog>
   )
 }
 
@@ -266,7 +266,7 @@ export function ConvidarAlunos({ turmaId, escola, aoTerminar, aoFechar, aoRevoga
 function BotaoDeFechar({ aoFechar }: { aoFechar: () => void }) {
   return (
     <div className="flex flex-wrap gap-3">
-      <button type="button" onClick={aoFechar} className={CLASSES_DO_BOTAO_SECUNDARIO}>
+      <button type="button" onClick={aoFechar} className={SECONDARY_BUTTON_CLASSES}>
         Fechar
       </button>
     </div>
@@ -329,11 +329,11 @@ function AcessoGerado({
       <p className="text-sm text-apoio">{TEXTO_DE_QUEM_VE_A_LISTA}</p>
       <AvisoDaCopia texto={copia.texto} vez={copia.vez} copiado={copia.copiado} />
       <div className="flex flex-wrap gap-3">
-        <Botao onClick={() => void copia.copiar(link, campo.current)}>Copiar link</Botao>
-        <button type="button" onClick={() => void compartilhar()} className={CLASSES_DO_BOTAO_SECUNDARIO}>
+        <Button onClick={() => void copia.copiar(link, campo.current)}>Copiar link</Button>
+        <button type="button" onClick={() => void compartilhar()} className={SECONDARY_BUTTON_CLASSES}>
           Compartilhar pelo WhatsApp
         </button>
-        <button type="button" onClick={aoFechar} className={CLASSES_DO_BOTAO_SECUNDARIO}>
+        <button type="button" onClick={aoFechar} className={SECONDARY_BUTTON_CLASSES}>
           Fechar
         </button>
       </div>

@@ -9,8 +9,8 @@ import { consultaTime, funcaoSuspensa } from '../assistente/api/time'
 import { consultaMeusVinculos } from '../comum/api/vinculos'
 import { ROTAS_DO_PROFESSOR } from '../../../paths'
 import { EstadoCarregando, EstadoErro, EstadoVazio } from '../../../components/states/index'
-import { AssinaturaIA } from '../../../components/ui/ai/AssinaturaIA'
-import { Tela } from '../../../components/ui/Tela'
+import { AgentSignature } from '../../../components/ui/ai/AgentSignature'
+import { Page } from '../../../components/ui/Page'
 import { useTituloDaTela } from '../../../document-title'
 import { AvisoDeIA, AvisoDeSuspensao } from '../comum/avisos'
 import { CaixaDoAssistente } from '../assistente/CaixaDoAssistente'
@@ -54,13 +54,13 @@ export default function Home() {
   const respondendo = emCurso(ciclo)
 
   return (
-    <Tela titulo="Início" largura="conversa" tituloSoParaLeitor>
+    <Page titulo="Início" largura="conversa" tituloSoParaLeitor>
       {/* Uma coluna de três linhas, 1fr · auto · 2fr: o grupo fica na do meio, a um terço da altura livre. O piso é a janela
           menos a casca (barra de cima, margens e a barra de baixo do celular), e a tela cresce além dele se o grupo pedir. */}
       <div className="grid min-h-[calc(100dvh-14rem)] min-w-0 grid-rows-[1fr_auto_2fr] md:min-h-[calc(100dvh-9rem)]">
         <div data-grupo-do-inicio="" className="row-start-2 flex min-w-0 flex-col gap-6 pb-4">
           <div className="flex min-w-0 flex-col items-center gap-3 text-center">
-            <AssinaturaIA agente="assistente_de_ensino" tamanho={40} />
+            <AgentSignature agente="assistente_de_ensino" tamanho={40} />
             <div className="min-w-0">
               <p className="text-[28px] leading-tight break-words text-tinta">{saudacao(eu.data?.nome, agora)}</p>
               <p className="mt-1 text-lg text-sutil">O que vamos preparar hoje?</p>
@@ -105,6 +105,6 @@ export default function Home() {
           )}
         </div>
       </div>
-    </Tela>
+    </Page>
   )
 }

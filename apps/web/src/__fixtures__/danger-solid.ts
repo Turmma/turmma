@@ -9,7 +9,7 @@ import { join, relative } from 'node:path'
 
 /**
  * O texto sem comentário e sem o que está entre aspas: "fundo cheio", numa frase ou numa explicação, não é o botão. Num
- * texto com `${ … }`, o que fica é o código de dentro dele: `className={`${classesDoBotao({ cheio })}`}` é uso.
+ * texto com `${ … }`, o que fica é o código de dentro dele: `className={`${buttonVariants({ cheio })}`}` é uso.
  */
 export function codigoSemComentarioNemTexto(texto: string): string {
   return texto
@@ -19,20 +19,20 @@ export function codigoSemComentarioNemTexto(texto: string): string {
     .replace(/'(?:[^'\\\n]|\\.)*'|"(?:[^"\\\n]|\\.)*"/g, "''")
 }
 
-/** A tag `<Botao …>` com uma prop `cheio` dentro: os `{ … }` das props podem ter `>` (uma seta) e um objeto dentro. */
-const PROP_CHEIO_NO_BOTAO = /<Botao\b(?:[^<>{}]|\{(?:[^{}]|\{[^{}]*\})*\})*\bcheio\b/
+/** A tag `<Button …>` com uma prop `cheio` dentro: os `{ … }` das props podem ter `>` (uma seta) e um objeto dentro. */
+const PROP_CHEIO_NO_BOTAO = /<Button\b(?:[^<>{}]|\{(?:[^{}]|\{[^{}]*\})*\})*\bcheio\b/
 
-/** O objeto de `classesDoBotao({ … cheio … })`. */
-const CHAVE_CHEIO_NAS_CLASSES = /\bclassesDoBotao\(\s*\{[^}]*\bcheio\b/
+/** O objeto de `buttonVariants({ … cheio … })`. */
+const CHAVE_CHEIO_NAS_CLASSES = /\bbuttonVariants\(\s*\{[^}]*\bcheio\b/
 
 /**
- * O arquivo escreve o `perigo` cheio? De três jeitos: pela constante `CLASSES_DO_BOTAO_PERIGO_CHEIO`, pela prop `cheio` do
- * `<Botao variante="perigo" cheio>`, ou pela chave do `classesDoBotao({ variante: 'perigo', cheio: true })`. A palavra
+ * O arquivo escreve o `perigo` cheio? De três jeitos: pela constante `DANGER_SOLID_BUTTON_CLASSES`, pela prop `cheio` do
+ * `<Button variante="perigo" cheio>`, ou pela chave do `buttonVariants({ variante: 'perigo', cheio: true })`. A palavra
  * solta não basta: `const [cheio, definirCheio] = useState(false)` é a sala que encheu (`pages/TurmaPublica.tsx`).
  */
 export function usaOPerigoCheio(texto: string): boolean {
   const codigo = codigoSemComentarioNemTexto(texto)
-  return /\bCLASSES_DO_BOTAO_PERIGO_CHEIO\b/.test(codigo) || PROP_CHEIO_NO_BOTAO.test(codigo) || CHAVE_CHEIO_NAS_CLASSES.test(codigo)
+  return /\bDANGER_SOLID_BUTTON_CLASSES\b/.test(codigo) || PROP_CHEIO_NO_BOTAO.test(codigo) || CHAVE_CHEIO_NAS_CLASSES.test(codigo)
 }
 
 /** Os arquivos de código da web, sem teste: o caminho de cada um a partir de `apps/web/src`, com `/`. */

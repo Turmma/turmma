@@ -1,10 +1,10 @@
 import type { EscolaDoPainel } from '@educa/shared'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef } from 'react'
-import { Botao } from '../../components/ui/Botao'
+import { Button } from '../../components/ui/Button'
 import { CHAVE_DAS_ESCOLAS, revogarConviteNoPainel } from '../api/painel'
 import { falhaDoConvite } from '../textos'
-import { CLASSES_DO_BOTAO_SECUNDARIO } from '../../components/ui/button-variants'
+import { SECONDARY_BUTTON_CLASSES } from '../../components/ui/button-variants'
 import { DialogoDaOperacao } from './DialogoDaOperacao'
 
 interface Props {
@@ -73,11 +73,11 @@ export function ConfirmarConvite({ escola, conviteId, aoFechar, aoRevogar, focoD
         )}
         <div className="flex flex-wrap gap-3">
           {falha?.listaMudou !== true && (
-            <Botao onClick={confirmar} disabled={revogar.isPending}>
+            <Button onClick={confirmar} disabled={revogar.isPending}>
               {revogar.isPending ? 'Revogando…' : 'Revogar convite'}
-            </Botao>
+            </Button>
           )}
-          <button type="button" onClick={aoFechar} className={CLASSES_DO_BOTAO_SECUNDARIO}>
+          <button type="button" onClick={aoFechar} className={SECONDARY_BUTTON_CLASSES}>
             {falha?.listaMudou === true ? 'Fechar' : 'Cancelar'}
           </button>
         </div>

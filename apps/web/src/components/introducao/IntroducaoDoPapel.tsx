@@ -3,7 +3,7 @@ import { useId } from 'react'
 import { Link } from 'wouter'
 import { useTituloDaTela } from '../../document-title'
 import { EstadoErro } from '../states'
-import { CLASSES_DO_LINK_SECUNDARIO } from '../ui/button-variants'
+import { SECONDARY_LINK_CLASSES } from '../ui/button-variants'
 import { Onca } from '../ui/onca/Onca'
 import { Balao } from './Balao'
 import { Introducao, type PassoDaIntroducao } from './Introducao'
@@ -50,7 +50,7 @@ export function IntroducaoDoPapel({ agente, totalDePassos, falaDoCarregando, pas
         total={totalDePassos}
         idDoPasso={idDoPasso}
         rodape={
-          <Link to={aoTerminar} replace className={`${CLASSES_DO_LINK_SECUNDARIO} flex-1`}>
+          <Link to={aoTerminar} replace className={`${SECONDARY_LINK_CLASSES} flex-1`}>
             Voltar para a abertura
           </Link>
         }

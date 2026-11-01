@@ -3,8 +3,8 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { aplicarDecisao, consultaPedidosDaTurma, descartarListaDepoisDaFalha } from '../../api/pedidos'
 import { formatarDataHora } from '../../format'
-import { CLASSES_DO_BOTAO_OFICIAL, CLASSES_DO_BOTAO_PERIGO, CLASSES_DO_BOTAO_SECUNDARIO } from '../ui/button-variants'
-import { useDialogoDaTela } from '../ui/overlays/dialog-state'
+import { OFFICIAL_BUTTON_CLASSES, DANGER_BUTTON_CLASSES, SECONDARY_BUTTON_CLASSES } from '../ui/button-variants'
+import { useDialogState } from '../ui/overlays/dialog-state'
 import { EstadoCarregando, EstadoErro, EstadoVazio } from '../states'
 import { listaMudou } from '../error-text'
 import { agendarAtualizacao, alternarMarca, atualizaSozinha, pedidosQueContinuam, podeMarcarMais, quantosNovos, semOsDecididos } from './atualizacao-dos-pedidos'
@@ -68,7 +68,7 @@ export function ListaDePedidos({ turma, quem, vazio, aoPerderATurma, aoDecidir }
   const pedidos = useQuery(consultaPedidosDaTurma(turma.id, quem))
   const sozinha = atualizaSozinha(quem)
   const [marcados, definirMarcados] = useState<readonly string[]>([])
-  const dialogo = useDialogoDaTela<DecisaoDePedido, readonly string[]>()
+  const dialogo = useDialogState<DecisaoDePedido, readonly string[]>()
   const aberta = dialogo.aberta
   const titulo = useRef<HTMLHeadingElement>(null)
   const idDoTitulo = useId()
@@ -159,10 +159,10 @@ export function ListaDePedidos({ turma, quem, vazio, aoPerderATurma, aoDecidir }
           <p className="break-words text-apoio">{TEXTO_DE_COMO_DECIDIR}</p>
         ) : (
           <div className="flex flex-wrap items-center gap-3">
-            <button type="button" onClick={() => dialogo.abrir('aprovar', marcadosNaLista.map((pedido) => pedido.id))} className={CLASSES_DO_BOTAO_OFICIAL}>
+            <button type="button" onClick={() => dialogo.abrir('aprovar', marcadosNaLista.map((pedido) => pedido.id))} className={OFFICIAL_BUTTON_CLASSES}>
               {rotuloDaDecisao('aprovar', marcadosNaLista.length)}
             </button>
-            <button type="button" onClick={() => dialogo.abrir('recusar', marcadosNaLista.map((pedido) => pedido.id))} className={CLASSES_DO_BOTAO_PERIGO}>
+            <button type="button" onClick={() => dialogo.abrir('recusar', marcadosNaLista.map((pedido) => pedido.id))} className={DANGER_BUTTON_CLASSES}>
               {rotuloDaDecisao('recusar', marcadosNaLista.length)}
             </button>
           </div>
@@ -182,7 +182,7 @@ export function ListaDePedidos({ turma, quem, vazio, aoPerderATurma, aoDecidir }
             <span role="status" className="text-sm text-apoio">
               {pedidos.isFetching ? 'Atualizando…' : ''}
             </span>
-            <button type="button" onClick={tentarDeNovo} className={CLASSES_DO_BOTAO_SECUNDARIO}>
+            <button type="button" onClick={tentarDeNovo} className={SECONDARY_BUTTON_CLASSES}>
               Atualizar<span className="sr-only"> os pedidos</span>
             </button>
           </div>

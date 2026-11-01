@@ -1,6 +1,6 @@
 import { Component, useContext, useEffect, useRef, type ReactNode } from 'react'
 import { useTituloDaAba } from '../document-title'
-import { Botao } from './ui/Botao'
+import { Button } from './ui/Button'
 import { ContextoDaGaveta } from './drawer-context'
 
 interface PropsDaFalha {
@@ -44,9 +44,9 @@ function Falha({ tituloDaAba, titulo, texto, paginaInteira = false }: PropsDaFal
       <p role="alert" className="rounded-controle border border-erro bg-erro-cx p-4 text-erro">
         {texto}
       </p>
-      <Botao className="self-start" onClick={() => window.location.reload()}>
+      <Button className="self-start" onClick={() => window.location.reload()}>
         Tentar de novo
-      </Botao>
+      </Button>
     </>
   )
   if (paginaInteira) return <main className="mx-auto flex min-h-screen max-w-md flex-col gap-4 bg-fundo px-4 py-6 text-tinta sm:px-6">{conteudo}</main>

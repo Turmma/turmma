@@ -7,7 +7,7 @@ import { corDoToken, IMPACTOS_QUE_REPROVAM, larguraExcedente, TAGS_WCAG } from '
 /**
  * Os ícones ilustrados dos lugares e o ladrilho, na galeria (`/galeria`), nos projetos `chromebook` e `celular` e nos
  * dois temas (X1, tarefa 9.0; RF17 e RF22; `docs/interface.md` 9.4 e 10.2). O que o `jsdom` prova — o nome, a decoração,
- * a família de cada ladrilho, as classes — está em `components/ui/Icone.test.tsx`, `components/ui/Ladrilho.test.tsx` e
+ * a família de cada ladrilho, as classes — está em `components/ui/Icon.test.tsx`, `components/ui/IconTile.test.tsx` e
  * `components/ui/icons/places.test.tsx`; aqui está o que só o navegador calcula: a cor resolvida de cada forma, a medida
  * e o ícone a 72% do lado.
  */

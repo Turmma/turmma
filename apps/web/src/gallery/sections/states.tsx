@@ -2,17 +2,17 @@ import { ErrorCode } from '@educa/shared'
 import { Clock, Eye, Inbox, Sparkles } from 'lucide-react'
 import { useState } from 'react'
 import { ErroDaApi } from '../../api/client'
-import { Abas } from '../../components/ui/Abas'
-import { Aviso, TONS_DE_AVISO, type TomDeAviso } from '../../components/ui/Aviso'
-import { BarraRotulada } from '../../components/ui/BarraRotulada'
-import { Botao } from '../../components/ui/Botao'
-import { Cartao } from '../../components/ui/Cartao'
-import { Contador, FAMILIAS_DE_COR } from '../../components/ui/Contador'
+import { Tabs } from '../../components/ui/Tabs'
+import { Alert, ALERT_TONES, type AlertTone } from '../../components/ui/Alert'
+import { ProgressBar } from '../../components/ui/ProgressBar'
+import { Button } from '../../components/ui/Button'
+import { Card } from '../../components/ui/Card'
+import { CountBadge, COLOR_FAMILIES } from '../../components/ui/CountBadge'
 import { EstadoCarregando, EstadoErro, EstadoVazio } from '../../components/states'
-import { Faixa } from '../../components/ui/Faixa'
-import { NumeroPainel } from '../../components/ui/NumeroPainel'
-import { Estado } from '../../components/ui/SeloDeEstado'
-import { Toque } from '../../components/ui/Toque'
+import { Banner } from '../../components/ui/Banner'
+import { StatCard } from '../../components/ui/StatCard'
+import { StatusBadge } from '../../components/ui/StatusBadge'
+import { Toggle } from '../../components/ui/Toggle'
 import { Secao } from '../GallerySection'
 
 const ABAS = [
@@ -22,14 +22,14 @@ const ABAS = [
 ]
 
 /** O que cada tom diz, com texto inventado: o título e o corpo mudam com o tom, e nenhum fala de pessoa de verdade. */
-const AVISOS: Readonly<Record<TomDeAviso, { readonly titulo: string; readonly corpo: string }>> = {
+const AVISOS: Readonly<Record<AlertTone, { readonly titulo: string; readonly corpo: string }>> = {
   info: { titulo: 'A turma 2ºB tem um professor novo', corpo: 'A coordenação alocou você na turma. Confirme o vínculo para ver os alunos.' },
   atencao: { titulo: 'O prazo da lista 3 termina amanhã', corpo: 'Faltam quatro entregas. A correção só começa depois do prazo.' },
   erro: { titulo: 'Não foi possível salvar o plano', corpo: 'Tente de novo em instantes. O que você escreveu continua aqui.' },
   certo: { titulo: 'Correção da lista 2 aprovada', corpo: 'O diagnóstico por habilidade já aparece para a turma.' },
 }
 
-const NOMES_DAS_FAMILIAS: Readonly<Record<(typeof FAMILIAS_DE_COR)[number], string>> = {
+const NOMES_DAS_FAMILIAS: Readonly<Record<(typeof COLOR_FAMILIES)[number], string>> = {
   laranja: 'Laranja',
   azul: 'Azul',
   verde: 'Verde',
@@ -67,72 +67,72 @@ export default function SecoesDeEstado() {
     <>
       <Secao nome="estado" titulo="Selo de estado">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
-          <Estado familia="pendente" />
-          <Estado familia="ok">Aprovado</Estado>
-          <Estado familia="erro">Rejeitado</Estado>
-          <Estado familia="info">Faz e avisa</Estado>
+          <StatusBadge familia="pendente" />
+          <StatusBadge familia="ok">Aprovado</StatusBadge>
+          <StatusBadge familia="erro">Rejeitado</StatusBadge>
+          <StatusBadge familia="info">Faz e avisa</StatusBadge>
         </div>
-        <Faixa icone={Eye}>Seu professor acompanha como você usa o Tutor.</Faixa>
+        <Banner icone={Eye}>Seu professor acompanha como você usa o Tutor.</Banner>
       </Secao>
 
       <Secao nome="painel" titulo="Número de painel e barra">
         <div className="grid grid-cols-[minmax(0,1fr)] gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-          <NumeroPainel rotulo="Gerado por IA" valor={1412} />
-          <NumeroPainel rotulo="Consumo do mês" valor="61%" apoio={<BarraRotulada rotulo="Do orçamento" valor={61} />} />
+          <StatCard rotulo="Gerado por IA" valor={1412} />
+          <StatCard rotulo="Consumo do mês" valor="61%" apoio={<ProgressBar rotulo="Do orçamento" valor={61} />} />
         </div>
-        <Cartao titulo="Acerto por habilidade" nivel={3}>
+        <Card titulo="Acerto por habilidade" nivel={3}>
           <div className="flex min-w-0 flex-col gap-4">
-            <BarraRotulada rotulo="Cálculo estequiométrico" valor={72} detalhe="EM13CNT101 · 4 questões" />
-            <BarraRotulada rotulo="Hoje" valor={12} maximo={60} texto="12 de 60 perguntas" />
+            <ProgressBar rotulo="Cálculo estequiométrico" valor={72} detalhe="EM13CNT101 · 4 questões" />
+            <ProgressBar rotulo="Hoje" valor={12} maximo={60} texto="12 de 60 perguntas" />
           </div>
-        </Cartao>
+        </Card>
         <EstadoVazio variante="tracejado" icone={Inbox} titulo="Nenhuma correção aprovada ainda" descricao="O acerto por habilidade aparece aqui depois que você aprova a correção de uma atividade da turma." />
       </Secao>
 
       <Secao nome="abas" titulo="Abas">
-        <Abas rotulo="Seções da turma" abas={ABAS} ativa={aba} aoMudar={definirAba}>
+        <Tabs rotulo="Seções da turma" abas={ABAS} ativa={aba} aoMudar={definirAba}>
           <p className="text-apoio">Conteúdo de {ABAS.find((item) => item.id === aba)?.rotulo}.</p>
-        </Abas>
+        </Tabs>
         {/* A aba ativa que não existe na lista: a primeira continua alcançável pelo Tab. */}
         <div data-abas="sem-ativa">
-          <Abas rotulo="Abas com a ativa fora da lista" abas={ABAS} ativa="aba-que-sumiu" aoMudar={() => undefined}>
+          <Tabs rotulo="Abas com a ativa fora da lista" abas={ABAS} ativa="aba-que-sumiu" aoMudar={() => undefined}>
             <p className="text-apoio">Escolha uma aba.</p>
-          </Abas>
+          </Tabs>
         </div>
       </Secao>
 
       <Secao nome="aviso" titulo="Aviso, nos quatro tons">
         <div data-avisos className="flex min-w-0 flex-col gap-3">
-          {TONS_DE_AVISO.map((tom) => (
-            <Aviso
+          {ALERT_TONES.map((tom) => (
+            <Alert
               key={tom}
               tom={tom}
               titulo={AVISOS[tom].titulo}
-              {...(tom === 'erro' || tom === 'info' ? { acao: <Botao variante="secundario">{tom === 'erro' ? 'Tentar de novo' : 'Confirmar vínculo'}</Botao> } : {})}
+              {...(tom === 'erro' || tom === 'info' ? { acao: <Button variante="secundario">{tom === 'erro' ? 'Tentar de novo' : 'Confirmar vínculo'}</Button> } : {})}
             >
               {AVISOS[tom].corpo}
-            </Aviso>
+            </Alert>
           ))}
-          <Aviso tom="info">Um aviso sem título é só o corpo, com o glifo do tom.</Aviso>
+          <Alert tom="info">Um aviso sem título é só o corpo, com o glifo do tom.</Alert>
         </div>
       </Secao>
 
       <Secao nome="contador" titulo="Contador">
         <ul data-contadores className="flex min-w-0 flex-wrap gap-x-4 gap-y-3">
-          {FAMILIAS_DE_COR.map((familia, indice) => (
+          {COLOR_FAMILIES.map((familia, indice) => (
             <li key={familia} className="flex items-center gap-2 text-apoio">
-              <Contador n={indice + 1} oQueConta="pedidos de nome" familia={familia} />
+              <CountBadge n={indice + 1} oQueConta="pedidos de nome" familia={familia} />
               {NOMES_DAS_FAMILIAS[familia]}
             </li>
           ))}
         </ul>
         {/* Zero não desenha: só o texto que o acompanha aparece. */}
         <p data-contador-zero className="flex items-center gap-2 text-apoio">
-          <Contador n={0} oQueConta="pedidos de nome" />
+          <CountBadge n={0} oQueConta="pedidos de nome" />
           Sem pedidos esperando: nenhuma pílula.
         </p>
         <p className="flex items-center gap-2 text-apoio">
-          <Contador n={128} oQueConta="entregas esperando você" />
+          <CountBadge n={128} oQueConta="entregas esperando você" />
           Três dígitos cabem na mesma pílula.
         </p>
       </Secao>
@@ -140,23 +140,23 @@ export default function SecoesDeEstado() {
       <Secao nome="toque" titulo="Toque, para filtro e sugestão">
         <div role="group" aria-label="Filtros das atividades" data-toques className="flex min-w-0 flex-wrap gap-2">
           {FILTROS.map((filtro) => (
-            <Toque
+            <Toggle
               key={filtro.id}
               selecionado={escolhidos.has(filtro.id)}
               aoMudar={(ligado) => alternar(filtro.id, ligado)}
               {...('icone' in filtro ? { icone: filtro.icone } : {})}
             >
               {filtro.rotulo}
-            </Toque>
+            </Toggle>
           ))}
         </div>
         <div role="group" aria-label="Filtros fora de uso" data-toques-desligados className="flex min-w-0 flex-wrap gap-2">
-          <Toque selecionado={false} aoMudar={() => definirAcionados((atual) => atual + 1)} desligado>
+          <Toggle selecionado={false} aoMudar={() => definirAcionados((atual) => atual + 1)} desligado>
             Corrigidas
-          </Toque>
-          <Toque selecionado aoMudar={() => definirAcionados((atual) => atual + 1)} desligado>
+          </Toggle>
+          <Toggle selecionado aoMudar={() => definirAcionados((atual) => atual + 1)} desligado>
             Arquivadas
-          </Toque>
+          </Toggle>
         </div>
         <p data-toques-acionados={acionados} className="sr-only">
           {acionados} toques fora de uso acionados

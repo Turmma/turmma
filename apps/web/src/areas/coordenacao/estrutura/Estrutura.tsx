@@ -30,18 +30,18 @@ import {
 } from '../../../api/estrutura'
 import { consultaProfessores } from '../professores/api/professores'
 import { caminhoDaTurmaNaEstrutura } from '../../../paths'
-import { Aviso } from '../../../components/ui/Aviso'
-import { Botao } from '../../../components/ui/Botao'
-import { CLASSES_DO_BOTAO_SECUNDARIO } from '../../../components/ui/button-variants'
-import { Campo } from '../../../components/ui/fields/Campo'
-import { useDialogoDaTela } from '../../../components/ui/overlays/dialog-state'
+import { Alert } from '../../../components/ui/Alert'
+import { Button } from '../../../components/ui/Button'
+import { SECONDARY_BUTTON_CLASSES } from '../../../components/ui/button-variants'
+import { FormField } from '../../../components/ui/fields/FormField'
+import { useDialogState } from '../../../components/ui/overlays/dialog-state'
 import { ConfirmacaoDePerigo, DialogoDeFormulario, useEnvioUnico } from '../../../components/dialogs'
 import { EstadoCarregando, EstadoErro, EstadoVazio } from '../../../components/states/index'
 import { Menu } from '../../../components/ui/overlays/Menu'
-import { CLASSES_DO_SELETOR } from '../../../components/ui/fields/field-styles'
-import { Segmentado } from '../../../components/ui/fields/Segmentado'
-import { Estado } from '../../../components/ui/SeloDeEstado'
-import { Tabela, type ColunaDaTabela } from '../../../components/ui/Tabela'
+import { SELECT_CLASSES } from '../../../components/ui/fields/field-styles'
+import { SegmentedControl } from '../../../components/ui/fields/SegmentedControl'
+import { StatusBadge } from '../../../components/ui/StatusBadge'
+import { Table, type TableColumn } from '../../../components/ui/Table'
 import { listaMudou, textoDaFalha } from '../../../components/error-text'
 import {
   PainelDoAnoEDisciplinas,
@@ -78,7 +78,7 @@ import {
 type TipoDeDialogo = TipoDeDialogoDoPainel | 'turma' | 'renomear_turma' | 'excluir_turma'
 
 /**
- * O link da primeira célula da linha: ele se estende por ela toda (`after:inset-0`, sobre o `relative` da linha da `Tabela`), e o
+ * O link da primeira célula da linha: ele se estende por ela toda (`after:inset-0`, sobre o `relative` da linha da `Table`), e o
  * anel do foco do teclado é desenhado por dentro dela, e não só em volta do nome.
  */
 const CLASSES_DO_LINK_DA_LINHA =
@@ -89,7 +89,7 @@ const ITENS_DO_MENU_DA_TURMA = [
   { id: 'excluir', rotulo: 'Excluir', perigo: true },
 ] as const
 
-function colunasDasTurmas(aoEscolher: (turma: Turma, acao: 'renomear' | 'excluir') => void): readonly [ColunaDaTabela<TurmaDaTabela>, ...ColunaDaTabela<TurmaDaTabela>[]] {
+function colunasDasTurmas(aoEscolher: (turma: Turma, acao: 'renomear' | 'excluir') => void): readonly [TableColumn<TurmaDaTabela>, ...TableColumn<TurmaDaTabela>[]] {
   return [
     {
       chave: 'turma',
@@ -115,7 +115,7 @@ function colunasDasTurmas(aoEscolher: (turma: Turma, acao: 'renomear' | 'excluir
       chave: 'situacao',
       titulo: 'Situação',
       celula: ({ semProfessor }) =>
-        semProfessor === undefined ? '—' : semProfessor ? <Estado familia="pendente">Sem professor</Estado> : <Estado familia="ok">Com professor</Estado>,
+        semProfessor === undefined ? '—' : semProfessor ? <StatusBadge familia="pendente">Sem professor</StatusBadge> : <StatusBadge familia="ok">Com professor</StatusBadge>,
     },
     {
       chave: 'acoes',
@@ -175,7 +175,7 @@ export default function Estrutura() {
     ...consultaVinculos,
     enabled: anoEmCurso !== undefined,
   })
-  const dialogo = useDialogoDaTela<TipoDeDialogo, AlvoDoDialogo>()
+  const dialogo = useDialogState<TipoDeDialogo, AlvoDoDialogo>()
   const aberta = dialogo.aberta
   // O item da linha, fotografado na abertura: os diálogos de renomear e de excluir só existem com ele.
   const alvo = aberta?.alvo
@@ -250,17 +250,17 @@ export default function Estrutura() {
       ) : (
         <>
           {faltam.length > 0 && (
-            <Aviso
+            <Alert
               tom="info"
               titulo="Para terminar a escola"
               acao={
-                <button type="button" onClick={() => abrirPainel('falta')} className={CLASSES_DO_BOTAO_SECUNDARIO}>
+                <button type="button" onClick={() => abrirPainel('falta')} className={SECONDARY_BUTTON_CLASSES}>
                   Ver o que falta
                 </button>
               }
             >
               Falta: {faltam.map((passo) => passo.titulo).join(', ')}.
-            </Aviso>
+            </Alert>
           )}
 
           <Secao
@@ -269,10 +269,10 @@ export default function Estrutura() {
             anuncio={anuncioDa('turmas')}
             acao={
               <div className="flex flex-wrap items-center gap-3">
-                <button type="button" onClick={() => abrirPainel('ano')} className={CLASSES_DO_BOTAO_SECUNDARIO}>
+                <button type="button" onClick={() => abrirPainel('ano')} className={SECONDARY_BUTTON_CLASSES}>
                   Ano letivo e disciplinas
                 </button>
-                {anoEmCurso !== undefined && <Botao onClick={() => abrir('turma')}>Nova turma</Botao>}
+                {anoEmCurso !== undefined && <Button onClick={() => abrir('turma')}>Nova turma</Button>}
               </div>
             }
           >
@@ -488,7 +488,7 @@ function TurmasDoAno({ turmas, vinculos, nomes, situacao, aoFiltrar, aoEscolher 
       <EstadoCarregando rotulo="Carregando os professores das turmas…" />
     )
   } else if (filtrando && vinculos.data?.completa === false) {
-    corpo = <Aviso tom="atencao">A escola tem mais vínculos do que esta tela lê, e por isso ela não diz quais turmas estão sem professor.</Aviso>
+    corpo = <Alert tom="atencao">A escola tem mais vínculos do que esta tela lê, e por isso ela não diz quais turmas estão sem professor.</Alert>
   } else if (exibidas.length === 0) {
     corpo = <EstadoVazio titulo="Nenhuma turma sem professor" descricao="Toda turma do ano tem professor alocado, esperando a confirmação ou já confirmado." />
   } else {
@@ -497,7 +497,7 @@ function TurmasDoAno({ turmas, vinculos, nomes, situacao, aoFiltrar, aoEscolher 
         {agruparPorSerie(exibidas).map((grupo) => (
           <div key={grupo.serie.id} className="flex min-w-0 flex-col gap-2">
             <h3 className="t-cartao text-tinta">{nomeDaSerie(grupo.serie)}</h3>
-            <Tabela rotulo={`Turmas do ${nomeDaSerie(grupo.serie)}`} colunas={colunas} linhas={grupo.turmas} chaveDaLinha={(linha) => linha.turma.id} />
+            <Table rotulo={`Turmas do ${nomeDaSerie(grupo.serie)}`} colunas={colunas} linhas={grupo.turmas} chaveDaLinha={(linha) => linha.turma.id} />
           </div>
         ))}
       </div>
@@ -507,7 +507,7 @@ function TurmasDoAno({ turmas, vinculos, nomes, situacao, aoFiltrar, aoEscolher 
   return (
     <>
       <div className="max-w-sm">
-        <Segmentado
+        <SegmentedControl
           rotulo="Situação"
           rotuloVisivel
           opcoes={[
@@ -519,16 +519,16 @@ function TurmasDoAno({ turmas, vinculos, nomes, situacao, aoFiltrar, aoEscolher 
         />
       </div>
       {!filtrando && vinculos.data === undefined && vinculos.isError && (
-        <Aviso
+        <Alert
           tom="atencao"
           acao={
-            <Botao variante="secundario" disabled={vinculos.isFetching} onClick={() => void vinculos.refetch({ cancelRefetch: false })}>
+            <Button variante="secundario" disabled={vinculos.isFetching} onClick={() => void vinculos.refetch({ cancelRefetch: false })}>
               {vinculos.isFetching ? 'Tentando de novo…' : 'Tentar de novo'}
-            </Botao>
+            </Button>
           }
         >
           Os professores das turmas não carregaram
-        </Aviso>
+        </Alert>
       )}
       {corpo}
       <AvisoDeListaIncompleta completa={turmas.completa} />
@@ -594,7 +594,7 @@ function NovaTurma({ anoLetivo, series, aoFechar, aoCriar, recarregar }: PropsDe
             <label htmlFor={campoDaSerie} className="font-medium">
               Série
             </label>
-            <select id={campoDaSerie} value={serieEscolhida} onChange={(evento) => definirSerieId(evento.target.value)} className={CLASSES_DO_SELETOR}>
+            <select id={campoDaSerie} value={serieEscolhida} onChange={(evento) => definirSerieId(evento.target.value)} className={SELECT_CLASSES}>
               {ordenadas.map((serie) => (
                 <option key={serie.id} value={serie.id}>
                   {nomeDaSerie(serie)}
@@ -602,7 +602,7 @@ function NovaTurma({ anoLetivo, series, aoFechar, aoCriar, recarregar }: PropsDe
               ))}
             </select>
           </div>
-          <Campo
+          <FormField
             ref={campoDoNome}
             rotulo="Nome da turma"
             dica="Como a escola chama: 7ºA, 2ºB."
@@ -621,7 +621,7 @@ function NovaTurma({ anoLetivo, series, aoFechar, aoCriar, recarregar }: PropsDe
               id={campoDoTurno}
               value={turno}
               onChange={(evento) => definirTurno(evento.target.value === '' ? '' : (TURNOS.find((opcao) => opcao === evento.target.value) ?? ''))}
-              className={CLASSES_DO_SELETOR}
+              className={SELECT_CLASSES}
             >
               <option value="">Sem turno</option>
               {TURNOS.map((opcao) => (
@@ -699,7 +699,7 @@ function Renomear({ titulo, rotulo, atual, maximo, renomear, conflito, aoFechar,
       }
       focoDeReserva={focoDeReserva}
     >
-      <Campo
+      <FormField
         ref={campo}
         rotulo={rotulo}
         name="nome"

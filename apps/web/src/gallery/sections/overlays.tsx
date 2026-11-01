@@ -1,13 +1,13 @@
 import { TAMANHO_MAXIMO_DA_JUSTIFICATIVA, TAMANHO_MINIMO_DA_JUSTIFICATIVA } from '@educa/shared'
 import { useRef, useState } from 'react'
-import { Botao } from '../../components/ui/Botao'
-import { Campo } from '../../components/ui/fields/Campo'
-import { CampoLongo } from '../../components/ui/fields/CampoLongo'
-import { Dialogo } from '../../components/ui/overlays/Dialogo'
-import { DialogoDeConfirmacao } from '../../components/ui/overlays/DialogoDeConfirmacao'
+import { Button } from '../../components/ui/Button'
+import { FormField } from '../../components/ui/fields/FormField'
+import { Textarea } from '../../components/ui/fields/Textarea'
+import { Dialog } from '../../components/ui/overlays/Dialog'
+import { ConfirmDialog } from '../../components/ui/overlays/ConfirmDialog'
 import { ConfirmacaoDePerigo, DialogoDeFormulario } from '../../components/dialogs'
 import { Menu } from '../../components/ui/overlays/Menu'
-import { PainelLado } from '../../components/ui/overlays/PainelLado'
+import { Sheet } from '../../components/ui/overlays/Sheet'
 import { problemaDoTexto } from '../../components/ui/fields/text-limits'
 import { TURMAS } from '../sample-data'
 import { Secao } from '../GallerySection'
@@ -36,27 +36,27 @@ function DemonstracaoDaConfirmacao() {
     <>
       <div className="flex min-w-0 flex-wrap items-center gap-3">
         {/* Depois de aprovar, o gatilho desliga: o foco não tem como voltar para ele, e vai para o resultado. */}
-        <Botao variante="oficial" disabled={aprovado} onClick={() => definirDialogo('aprovar')}>
+        <Button variante="oficial" disabled={aprovado} onClick={() => definirDialogo('aprovar')}>
           Aprovar 32 correções
-        </Botao>
-        <Botao variante="perigo" onClick={() => definirDialogo('rejeitar')}>
+        </Button>
+        <Button variante="perigo" onClick={() => definirDialogo('rejeitar')}>
           Rejeitar o lote
-        </Botao>
-        <Botao variante="perigo" onClick={() => definirDialogo('suspender')}>
+        </Button>
+        <Button variante="perigo" onClick={() => definirDialogo('suspender')}>
           Suspender a função
-        </Botao>
-        <Botao variante="secundario" onClick={() => definirDialogo('andamento')}>
+        </Button>
+        <Button variante="secundario" onClick={() => definirDialogo('andamento')}>
           Ver a confirmação em andamento
-        </Botao>
-        <Botao variante="secundario" onClick={() => definirDialogo('falha')}>
+        </Button>
+        <Button variante="secundario" onClick={() => definirDialogo('falha')}>
           Ver a confirmação com falha
-        </Botao>
+        </Button>
       </div>
       <p ref={resultado} tabIndex={-1} role="status" data-decisao="" className="min-h-6 text-sm text-sutil">
         {decisao}
       </p>
       {(dialogo === 'aprovar' || dialogo === 'andamento' || dialogo === 'falha') && (
-        <DialogoDeConfirmacao
+        <ConfirmDialog
           familia="oficial"
           titulo="Aprovar 32 correções"
           resumo={RESUMO_DO_LOTE}
@@ -71,7 +71,7 @@ function DemonstracaoDaConfirmacao() {
         />
       )}
       {dialogo === 'rejeitar' && (
-        <DialogoDeConfirmacao
+        <ConfirmDialog
           familia="perigo"
           titulo="Rejeitar 32 correções"
           resumo={RESUMO_DO_LOTE}
@@ -81,11 +81,11 @@ function DemonstracaoDaConfirmacao() {
           aoConfirmar={() => decidir('Rejeitado')}
           aoFechar={fechar}
         >
-          <CampoLongo rotulo="Motivo da rejeição" obrigatorio dica="De 8 a 500 caracteres. O Assistente usa o motivo para refazer." valor={justificativa} aoMudar={definirJustificativa} {...justificativas} />
-        </DialogoDeConfirmacao>
+          <Textarea rotulo="Motivo da rejeição" obrigatorio dica="De 8 a 500 caracteres. O Assistente usa o motivo para refazer." valor={justificativa} aoMudar={definirJustificativa} {...justificativas} />
+        </ConfirmDialog>
       )}
       {dialogo === 'suspender' && (
-        <DialogoDeConfirmacao
+        <ConfirmDialog
           familia="perigo"
           titulo="Suspender a correção de objetiva"
           resumo={[{ rotulo: 'Função', valor: 'Assistente · correção de objetiva' }]}
@@ -118,16 +118,16 @@ function DemonstracaoDoDialogo() {
   return (
     <>
       <div className="flex min-w-0 flex-wrap items-center gap-3">
-        <Botao variante="secundario" onClick={() => definirDialogo('formulario')}>
+        <Button variante="secundario" onClick={() => definirDialogo('formulario')}>
           Nova disciplina
-        </Botao>
+        </Button>
         {/* Depois de excluir, o gatilho desliga: o foco não tem como voltar para ele, e vai para o resultado. */}
-        <Botao variante="perigo" disabled={resultado === 'Turma excluída: 2ºB'} onClick={() => definirDialogo('perigo')}>
+        <Button variante="perigo" disabled={resultado === 'Turma excluída: 2ºB'} onClick={() => definirDialogo('perigo')}>
           Excluir a turma 2ºB
-        </Botao>
-        <Botao variante="secundario" onClick={() => definirDialogo('menu')}>
+        </Button>
+        <Button variante="secundario" onClick={() => definirDialogo('menu')}>
           Atribuir à turma
-        </Botao>
+        </Button>
       </div>
       <p ref={textoDoResultado} tabIndex={-1} role="status" data-dialogo-resultado="" className="min-h-6 text-sm text-sutil">
         {resultado}
@@ -145,7 +145,7 @@ function DemonstracaoDoDialogo() {
           rotuloEnviando="Criando…"
           falha={undefined}
         >
-          <Campo rotulo="Nome da disciplina" value={disciplina} onChange={(evento) => definirDisciplina(evento.target.value)} />
+          <FormField rotulo="Nome da disciplina" value={disciplina} onChange={(evento) => definirDisciplina(evento.target.value)} />
         </DialogoDeFormulario>
       )}
       {dialogo === 'perigo' && (
@@ -166,17 +166,17 @@ function DemonstracaoDoDialogo() {
         />
       )}
       {dialogo === 'menu' && (
-        <Dialogo titulo="Atribuir à turma" aoFechar={fechar}>
+        <Dialog titulo="Atribuir à turma" aoFechar={fechar}>
           <div className="mt-4 flex min-w-0 flex-col gap-4">
             <p className="text-apoio">Escolha a turma que recebe a atividade. O Esc de dentro do menu fecha só o menu.</p>
             <Menu rotulo={rotuloDaTurma} prefixo="Turma" titulo="Turmas" itens={TURMAS.map((item) => ({ id: item.valor, rotulo: item.rotulo }))} escolhido={turma} aoEscolher={definirTurma} />
             <div className="flex flex-wrap justify-end gap-3">
-              <Botao variante="secundario" onClick={fechar}>
+              <Button variante="secundario" onClick={fechar}>
                 Fechar
-              </Botao>
+              </Button>
             </div>
           </div>
-        </Dialogo>
+        </Dialog>
       )}
     </>
   )
@@ -196,31 +196,31 @@ function DemonstracaoDoPainel() {
     <>
       <div className="flex min-w-0 flex-wrap items-center gap-3">
         {/* Depois de aplicar, o gatilho desliga: o foco vai para o resultado, pelo `focoDeReserva`. */}
-        <Botao variante="secundario" disabled={decisao !== ''} onClick={() => definirAberto(true)}>
+        <Button variante="secundario" disabled={decisao !== ''} onClick={() => definirAberto(true)}>
           Abrir o painel da turma 2ºB
-        </Botao>
+        </Button>
       </div>
       <p ref={resultado} tabIndex={-1} role="status" data-painel-resultado="" className="min-h-6 text-sm text-sutil">
         {decisao}
       </p>
       {aberto && (
-        <PainelLado
+        <Sheet
           titulo="Turma 2ºB · Química"
           aoFechar={fechar}
           focoDeReserva={() => resultado.current?.focus()}
           rodape={
             <>
-              <Botao variante="secundario" onClick={fechar}>
+              <Button variante="secundario" onClick={fechar}>
                 Cancelar
-              </Botao>
-              <Botao
+              </Button>
+              <Button
                 onClick={() => {
                   definirDecisao('Painel aplicado: ordem por ' + ordem)
                   definirAberto(false)
                 }}
               >
                 Aplicar
-              </Botao>
+              </Button>
             </>
           }
         >
@@ -236,7 +236,7 @@ function DemonstracaoDoPainel() {
               escolhido={ordem}
               aoEscolher={definirOrdem}
             />
-            <Campo rotulo="Buscar na turma" />
+            <FormField rotulo="Buscar na turma" />
             <ul className="flex min-w-0 flex-col gap-2">
               {Array.from({ length: 24 }, (_, indice) => (
                 <li key={indice} className="min-w-0 rounded-controle border-2 border-borda p-3 break-words">
@@ -245,7 +245,7 @@ function DemonstracaoDoPainel() {
               ))}
             </ul>
           </div>
-        </PainelLado>
+        </Sheet>
       )}
     </>
   )

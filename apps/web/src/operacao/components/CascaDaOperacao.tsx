@@ -2,8 +2,8 @@ import { Lock } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Link, useRoute } from 'wouter'
 import { Aparencia } from '../../components/Aparencia'
-import { Botao } from '../../components/ui/Botao'
-import { CLASSES_DO_BOTAO_SECUNDARIO } from '../../components/ui/button-variants'
+import { Button } from '../../components/ui/Button'
+import { SECONDARY_BUTTON_CLASSES } from '../../components/ui/button-variants'
 import { INICIO_DA_OPERACAO, ROTAS_DA_OPERACAO, USO_DA_OPERACAO } from '../paths'
 import { TEXTO_DA_OPERACAO_SEM_DADO_DE_PESSOA, textoDaFalha } from '../textos'
 
@@ -26,7 +26,7 @@ interface PropsDoItem {
 
 /**
  * Um item da navegação. O selecionado não é só cor: leva o sublinhado de 3 px em `azul` sobre o fio de 2 px da lista (o
- * mesmo desenho das `Abas`) e o `aria-current`, que o leitor de tela anuncia. 44 px de altura em todo tamanho de tela.
+ * mesmo desenho das `Tabs`) e o `aria-current`, que o leitor de tela anuncia. 44 px de altura em todo tamanho de tela.
  */
 function ItemDaNavegacao({ rotulo, rota, endereco }: PropsDoItem) {
   const [aqui] = useRoute(rota)
@@ -108,7 +108,7 @@ export function CascaDaOperacao({ nome, aoSair, saindo, children }: PropsDaCasca
         <div className="flex min-w-0 flex-wrap items-center gap-3">
           <Aparencia rotuloVisivel={false} />
           {nome !== undefined && <span className="min-w-0 truncate text-apoio">{nome}</span>}
-          <button type="button" onClick={aoSair} disabled={saindo} className={`${CLASSES_DO_BOTAO_SECUNDARIO} shrink-0`}>
+          <button type="button" onClick={aoSair} disabled={saindo} className={`${SECONDARY_BUTTON_CLASSES} shrink-0`}>
             {saindo ? 'Saindo…' : 'Sair'}
           </button>
         </div>
@@ -143,9 +143,9 @@ export function ErroDaOperacao({ erro, aoTentarDeNovo, tentando = false }: { err
         {textoDaFalha(erro)}
       </p>
       <div className="mt-3 flex flex-wrap items-center gap-3">
-        <Botao onClick={aoTentarDeNovo} disabled={tentando}>
+        <Button onClick={aoTentarDeNovo} disabled={tentando}>
           Tentar de novo
-        </Botao>
+        </Button>
         <span role="status" className="t-apoio text-erro">
           {tentando ? 'Tentando de novo…' : ''}
         </span>

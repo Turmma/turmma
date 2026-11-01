@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Router } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
 import { prepararTela, redeFalsa, renderizarTela, type RespostaFalsa } from '../../../__fixtures__/render-screen'
-import { classesDoBotao } from '../../../components/ui/button-variants'
+import { buttonVariants } from '../../../components/ui/button-variants'
 import { ROTAS_DA_COORDENACAO } from '../../../paths'
 import Pedidos from './Pedidos'
 
@@ -279,7 +279,7 @@ describe('Pedidos: a linha inteira é o link do detalhe', () => {
     rede.responderPor('/v1/privacidade/pedidos', pagina(DOS_CINCO, id(900)))
     montar()
     await screen.findByRole('table')
-    const primario = new Set(classesDoBotao({ variante: 'primario' }).split(/\s+/))
+    const primario = new Set(buttonVariants({ variante: 'primario' }).split(/\s+/))
     const primarios = screen.getAllByRole('button').filter((botao) => [...primario].every((classe) => botao.classList.contains(classe)))
     expect(primarios.map((botao) => botao.textContent)).toEqual(['Registrar pedido'])
     expect(screen.getByRole('button', { name: 'Ver mais pedidos' })).toBeTruthy()

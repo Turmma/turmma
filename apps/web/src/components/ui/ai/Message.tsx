@@ -1,16 +1,16 @@
 import type { ReactNode } from 'react'
 import type { QuemAssina } from './signature'
-import { AssinaturaIA } from './AssinaturaIA'
-import { LinhaAprovacao, type PropsDaLinhaDeAprovacao } from './LinhaAprovacao'
+import { AgentSignature } from './AgentSignature'
+import { ApprovalLine, type ApprovalLineProps } from './ApprovalLine'
 
-type PropsDaMensagemIA = QuemAssina & {
-  /** O conteúdo: o `TextoDaIA`, a pergunta da D18, o cartão de ferramenta, o aviso de fila. */
+type AIMessageProps = QuemAssina & {
+  /** O conteúdo: o `AIText`, a pergunta da D18, o cartão de ferramenta, o aviso de fila. */
   readonly children: ReactNode
   /**
    * A situação da saída diante da aprovação humana, quando ela precisa de uma (regra 70, item 3). **Tem lugar fixo**:
-   * depois do conteúdo e antes das ações, em toda mensagem, e é sempre a `LinhaAprovacao`.
+   * depois do conteúdo e antes das ações, em toda mensagem, e é sempre a `ApprovalLine`.
    */
-  readonly aprovacao?: PropsDaLinhaDeAprovacao
+  readonly aprovacao?: ApprovalLineProps
   /**
    * As ações da resposta ("Copiar", "Abrir na biblioteca", "Exportar em PDF"), em botões `discreto`. **Sempre
    * visíveis**: nada aparece só no hover (regra 50, item 2a).
@@ -31,10 +31,10 @@ type PropsDaMensagemIA = QuemAssina & {
  * Sem coreografia de entrada: a mensagem aparece, e pronto. Na área do aluno movimento é só resposta ao que ele fez
  * (9.5, regra 7), e a peça é a mesma nas três áreas.
  */
-export function MensagemIA({ children, aprovacao, acoes, variante = 'coluna', ...quem }: PropsDaMensagemIA) {
+export function AIMessage({ children, aprovacao, acoes, variante = 'coluna', ...quem }: AIMessageProps) {
   const rodape = (
     <>
-      {aprovacao !== undefined && <LinhaAprovacao {...aprovacao} />}
+      {aprovacao !== undefined && <ApprovalLine {...aprovacao} />}
       {acoes !== undefined && <div className="flex min-w-0 flex-wrap items-center gap-1">{acoes}</div>}
     </>
   )
@@ -42,21 +42,21 @@ export function MensagemIA({ children, aprovacao, acoes, variante = 'coluna', ..
     return (
       <article className="flex min-w-0 flex-col items-start gap-1.5">
         {/* O cabeçalho do balão é a assinatura inteira: o avatar, o nome da função e o selo, num bloco só (RF10). */}
-        <AssinaturaIA {...quem} />
+        <AgentSignature {...quem} />
         <div className="t-corpo max-w-full min-w-0 rounded-cartao border-2 border-borda bg-superficie px-4 py-3 break-words text-tinta sm:max-w-[85%]">{children}</div>
         {rodape}
       </article>
     )
   return (
     <article className="flex min-w-0 flex-col gap-2">
-      <AssinaturaIA {...quem} />
+      <AgentSignature {...quem} />
       <div className="t-corpo min-w-0 break-words text-tinta">{children}</div>
       {rodape}
     </article>
   )
 }
 
-interface PropsDaMensagemPessoa {
+interface UserMessageProps {
   /** O texto que a pessoa escreveu, como escreveu: as quebras de linha ficam. */
   readonly children: string
 }
@@ -66,7 +66,7 @@ interface PropsDaMensagemPessoa {
  * da IA não tem bolha: só a pessoa fala em bolha. O "Você:" é só para o leitor de tela, que não vê de que lado a bolha
  * está.
  */
-export function MensagemPessoa({ children }: PropsDaMensagemPessoa) {
+export function UserMessage({ children }: UserMessageProps) {
   return (
     <article className="flex min-w-0 justify-end">
       <p className="t-corpo max-w-[85%] min-w-0 rounded-cartao border-2 border-borda bg-fundo-suave px-4 py-2.5 break-words whitespace-pre-wrap text-tinta">
@@ -77,7 +77,7 @@ export function MensagemPessoa({ children }: PropsDaMensagemPessoa) {
   )
 }
 
-type PropsDoPensando = QuemAssina & {
+type ThinkingIndicatorProps = QuemAssina & {
   /** A execução passou do tempo de costume: o texto muda, uma vez, para dizer que o trabalho continua. */
   readonly demorando?: boolean
 }
@@ -88,10 +88,10 @@ type PropsDoPensando = QuemAssina & {
  * quadro, e na área do aluno nada se mexe sozinho (regra 50, item 1; 9.5, regra 7). A única mudança é o texto de quem
  * está demorando, anunciada com calma (`aria-live="polite"`).
  */
-export function Pensando({ demorando = false, ...quem }: PropsDoPensando) {
+export function ThinkingIndicator({ demorando = false, ...quem }: ThinkingIndicatorProps) {
   return (
     <article data-pensando="" className="flex min-w-0 flex-col gap-2">
-      <AssinaturaIA {...quem} />
+      <AgentSignature {...quem} />
       <p aria-live="polite" className="t-corpo min-w-0 break-words text-sutil">
         {demorando ? 'Ainda preparando a resposta. Você não precisa pedir de novo.' : 'Preparando a resposta…'}
       </p>
@@ -99,10 +99,10 @@ export function Pensando({ demorando = false, ...quem }: PropsDoPensando) {
   )
 }
 
-interface PropsDaConversa {
+interface ConversationProps {
   /** O nome da conversa para o leitor de tela: "Conversa com o Assistente de ensino". */
   readonly rotulo: string
-  /** As mensagens, na ordem: `MensagemPessoa`, `MensagemIA`, `Pensando`, `AvisoFila`. */
+  /** As mensagens, na ordem: `UserMessage`, `AIMessage`, `ThinkingIndicator`, `QueueAlert`. */
   readonly children: ReactNode
   /**
    * A resposta está chegando (a execução está `pendente` ou `rodando`): o leitor de tela espera a conversa ficar pronta
@@ -120,7 +120,7 @@ interface PropsDaConversa {
  * lê **cada nó que entra**, quem usa liga `ocupada` enquanto a resposta chega (`aria-busy`): a resposta é lida uma vez,
  * inteira, quando fica pronta.
  */
-export function Conversa({ rotulo, children, ocupada = false }: PropsDaConversa) {
+export function Conversation({ rotulo, children, ocupada = false }: ConversationProps) {
   return (
     <div role="log" aria-live="polite" aria-relevant="additions" aria-busy={ocupada} aria-label={rotulo} className="flex min-w-0 flex-col gap-6">
       {children}

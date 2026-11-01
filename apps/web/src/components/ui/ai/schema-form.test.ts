@@ -1,6 +1,6 @@
 import { ROTULOS_DA_ADAPTACAO, TIPOS_DE_ADAPTACAO } from '@educa/shared'
 import { describe, expect, it } from 'vitest'
-import { campoVisivel, problemaDaDescricao, resumoDoPedido, validarFormulario, valoresPadrao, type CampoDoMotor, type DescricaoDeFerramenta } from './schema-form'
+import { campoVisivel, problemaDaDescricao, resumoDoPedido, validarFormulario, valoresPadrao, type FormFieldDef, type DescricaoDeFerramenta } from './schema-form'
 
 const TURMAS = [
   { valor: 'turma-2b', rotulo: '2ºB' },
@@ -46,7 +46,7 @@ describe('a Adaptação não tem campo de texto livre (D35, D67)', () => {
   })
 
   it('a descrição com duas chaves iguais é recusada: um campo apagaria o valor do outro', () => {
-    const campos: CampoDoMotor[] = [
+    const campos: FormFieldDef[] = [
       { tipo: 'texto', chave: 'tema', rotulo: 'Tema' },
       { tipo: 'numero', chave: 'tema', rotulo: 'Questões', minimo: 1, maximo: 20 },
     ]
@@ -61,7 +61,7 @@ describe('valores padrão', () => {
   })
 
   it('o padrão que não está na lista de opções é ignorado', () => {
-    const campos: CampoDoMotor[] = [
+    const campos: FormFieldDef[] = [
       { tipo: 'selecao', chave: 'turmaId', rotulo: 'Turma', opcoes: TURMAS, padrao: 'turma-de-outra-escola' },
       { tipo: 'multipla', chave: 'tipos', rotulo: 'Tipos', opcoes: [{ valor: 'fonte_ampliada', rotulo: 'Fonte ampliada' }], padrao: ['fonte_ampliada', 'laudo'] },
     ]
@@ -165,9 +165,9 @@ describe('campo condicional', () => {
     expect(problemaDaDescricao(comCondicao)).toBeUndefined()
     const semOpcao = { ...tempo, quando: { campo: 'tipos', contem: 'laudo' } }
     const semCampo = { ...tempo, quando: { campo: 'nao-existe', contem: 'tempo_adicional' } }
-    const deSelecao: CampoDoMotor = { tipo: 'selecao', chave: 'turmaId', rotulo: 'Turma', opcoes: TURMAS }
+    const deSelecao: FormFieldDef = { tipo: 'selecao', chave: 'turmaId', rotulo: 'Turma', opcoes: TURMAS }
     const sobreSelecao = { ...tempo, quando: { campo: 'turmaId', contem: 'turma-2b' } }
-    const sobreSiMesmo: CampoDoMotor = { ...tipos, quando: { campo: 'tipos', contem: 'tempo_adicional' } }
+    const sobreSiMesmo: FormFieldDef = { ...tipos, quando: { campo: 'tipos', contem: 'tempo_adicional' } }
     expect(problemaDaDescricao({ ferramenta: 'adaptacao', campos: [tipos, semOpcao] })).toMatch(/não aponta para uma opção/)
     expect(problemaDaDescricao({ ferramenta: 'adaptacao', campos: [tipos, semCampo] })).toMatch(/não aponta para uma opção/)
     expect(problemaDaDescricao({ ferramenta: 'adaptacao', campos: [deSelecao, sobreSelecao] })).toMatch(/não aponta para uma opção/)

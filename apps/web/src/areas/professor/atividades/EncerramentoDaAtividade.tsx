@@ -2,8 +2,8 @@ import type { AtividadeAplicada } from '@educa/shared'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
 import { consultaAtividadesAplicadas, encerrarAtividade, recarregarAtividades } from './api/atividades'
-import { Botao } from '../../../components/ui/Botao'
-import { DialogoDeConfirmacao } from '../../../components/ui/overlays/DialogoDeConfirmacao'
+import { Button } from '../../../components/ui/Button'
+import { ConfirmDialog } from '../../../components/ui/overlays/ConfirmDialog'
 import { textoDaFalha } from '../../../components/error-text'
 import { EFEITO_DE_ENCERRAR, textoDeAlunos } from './aprovar'
 
@@ -54,7 +54,7 @@ export function EncerramentoDaAtividade({ aplicada, nomeDaTurma, focoDeReserva }
   return (
     <>
       {aplicada.estado === 'aberta' && (
-        <Botao
+        <Button
           variante="oficial"
           onClick={() => {
             encerrar.reset()
@@ -62,7 +62,7 @@ export function EncerramentoDaAtividade({ aplicada, nomeDaTurma, focoDeReserva }
           }}
         >
           Encerrar a atividade
-        </Botao>
+        </Button>
       )}
       {encerrar.isError && aberto === undefined && (
         <p role="alert" className="w-full rounded-controle bg-erro-cx p-3 break-words text-erro">
@@ -70,7 +70,7 @@ export function EncerramentoDaAtividade({ aplicada, nomeDaTurma, focoDeReserva }
         </p>
       )}
       {aberto !== undefined && (
-        <DialogoDeConfirmacao
+        <ConfirmDialog
           titulo="Encerrar a atividade"
           familia="oficial"
           resumo={[

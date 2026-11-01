@@ -3,10 +3,10 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useState, type FormEvent } from 'react'
 import { cancelarPedidoDoTitular, concluirPedidoDoTitular, corrigirNomeDoTitular, pedirArquivoDaEscola, relerPedidoDoTitular } from './api/privacidade'
 import { baixarPorUrl } from '../../../components/download-from-url'
-import { Botao } from '../../../components/ui/Botao'
-import { Campo } from '../../../components/ui/fields/Campo'
-import { useDialogoDaTela } from '../../../components/ui/overlays/dialog-state'
-import { DialogoDeConfirmacao } from '../../../components/ui/overlays/DialogoDeConfirmacao'
+import { Button } from '../../../components/ui/Button'
+import { FormField } from '../../../components/ui/fields/FormField'
+import { useDialogState } from '../../../components/ui/overlays/dialog-state'
+import { ConfirmDialog } from '../../../components/ui/overlays/ConfirmDialog'
 import { useEnvioUnico } from '../../../components/dialogs'
 import { listaMudou, textoDaFalha } from '../../../components/error-text'
 import { formatarData } from '../../../format'
@@ -85,7 +85,7 @@ function DialogoDeConcluir({ props, aoFechar, aoConcluido }: { readonly props: P
   const { enviar, mutacao } = useAcaoDoPedido(pedido, concluirPedidoDoTitular, ANUNCIO_DE_PEDIDO_CONCLUIDO, props, aoConcluido)
   const mudou = mutacao.isError && listaMudou(mutacao.error, CODIGOS_QUE_MUDAM_O_PEDIDO)
   return (
-    <DialogoDeConfirmacao
+    <ConfirmDialog
       titulo={`Concluir o pedido: ${ROTULO_DO_TIPO[pedido.tipo]}`}
       familia="oficial"
       resumo={resumoDoPedido(pedido)}
@@ -109,7 +109,7 @@ function DialogoDeCancelar({ props, aoFechar, aoConcluido }: { readonly props: P
   const { enviar, mutacao } = useAcaoDoPedido(pedido, cancelarPedidoDoTitular, ANUNCIO_DE_ELIMINACAO_CANCELADA, props, aoConcluido)
   const mudou = mutacao.isError && listaMudou(mutacao.error, CODIGOS_QUE_MUDAM_O_PEDIDO)
   return (
-    <DialogoDeConfirmacao
+    <ConfirmDialog
       titulo="Cancelar a eliminação"
       familia="oficial"
       resumo={resumoDoPedido(pedido)}
@@ -159,7 +159,7 @@ function DialogoDeCorrigirNome({ props, aoFechar, aoConcluido }: { readonly prop
   }
 
   return (
-    <DialogoDeConfirmacao
+    <ConfirmDialog
       titulo="Corrigir o nome"
       familia="oficial"
       resumo={[
@@ -184,7 +184,7 @@ function DialogoDeCorrigirNome({ props, aoFechar, aoConcluido }: { readonly prop
         : {})}
     >
       <form onSubmit={aoEnviarOForm} noValidate className="flex min-w-0 flex-col gap-2">
-        <Campo
+        <FormField
           rotulo="Nome correto"
           dica="O nome completo, como deve ficar no cadastro."
           name="nome"
@@ -196,7 +196,7 @@ function DialogoDeCorrigirNome({ props, aoFechar, aoConcluido }: { readonly prop
           {...(digitado !== '' && !nome.ok ? { erro: nome.erro } : {})}
         />
       </form>
-    </DialogoDeConfirmacao>
+    </ConfirmDialog>
   )
 }
 
@@ -213,7 +213,7 @@ function DialogoDeBaixar({ props, aoFechar, aoConcluido }: { readonly props: Pro
     },
   })
   return (
-    <DialogoDeConfirmacao
+    <ConfirmDialog
       titulo="Baixar a versão da escola"
       familia="oficial"
       resumo={resumoDoPedido(pedido)}
@@ -249,21 +249,21 @@ function DialogoDeBaixar({ props, aoFechar, aoConcluido }: { readonly props: Pro
           </label>
         ))}
       </fieldset>
-    </DialogoDeConfirmacao>
+    </ConfirmDialog>
   )
 }
 
 /**
  * Os botões do detalhe do pedido e os diálogos que eles abrem, um de cada vez (F3, 17.0; RF12, RF13b, RF14 e RF16). Cada
  * botão só existe quando a ação vale para o tipo e o estado de agora (`acoesDoPedido`): a página não oferece o que a API
- * recusaria. Cada abertura monta o diálogo do zero (`useDialogoDaTela`), e a falha e o campo de uma não vão para a seguinte.
+ * recusaria. Cada abertura monta o diálogo do zero (`useDialogState`), e a falha e o campo de uma não vão para a seguinte.
  *
  * Cancelar, em qualquer um, fecha e esquece: sair nunca é mais difícil que entrar (D59). O aviso do que terminou fica na
  * seção do detalhe (`aoAnunciar`), e o foco volta ao botão que abriu o diálogo ou, quando ele saiu, a `focoDeReserva`.
  */
 export function AcoesDoPedido(props: PropsDosDialogos) {
   const { pedido } = props
-  const janela = useDialogoDaTela<Janela>()
+  const janela = useDialogState<Janela>()
   const acoes = acoesDoPedido(pedido)
   const { aberta } = janela
   const algumaAcao = acoes.concluir || acoes.cancelar || acoes.corrigirNome || acoes.baixar
@@ -275,24 +275,24 @@ export function AcoesDoPedido(props: PropsDosDialogos) {
       {algumaAcao && (
         <div className="flex flex-wrap gap-3" role="group" aria-label="O que fazer com este pedido">
           {acoes.baixar && (
-            <Botao variante="oficial" onClick={() => janela.abrir('baixar')}>
+            <Button variante="oficial" onClick={() => janela.abrir('baixar')}>
               Baixar a versão da escola
-            </Botao>
+            </Button>
           )}
           {acoes.corrigirNome && (
-            <Botao variante="secundario" onClick={() => janela.abrir('corrigir_nome')}>
+            <Button variante="secundario" onClick={() => janela.abrir('corrigir_nome')}>
               Corrigir nome
-            </Botao>
+            </Button>
           )}
           {acoes.concluir && (
-            <Botao variante="secundario" onClick={() => janela.abrir('concluir')}>
+            <Button variante="secundario" onClick={() => janela.abrir('concluir')}>
               Concluir
-            </Botao>
+            </Button>
           )}
           {acoes.cancelar && (
-            <Botao variante="secundario" onClick={() => janela.abrir('cancelar')}>
+            <Button variante="secundario" onClick={() => janela.abrir('cancelar')}>
               Cancelar eliminação
-            </Botao>
+            </Button>
           )}
         </div>
       )}

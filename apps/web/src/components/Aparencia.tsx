@@ -1,7 +1,7 @@
 import { useAparencia, type Aparencia as TipoDaAparencia } from '../theme'
-import { Segmentado, type OpcoesDoSegmentado } from './ui/fields/Segmentado'
+import { SegmentedControl, type SegmentedOptions } from './ui/fields/SegmentedControl'
 
-const OPCOES: OpcoesDoSegmentado<TipoDaAparencia> = [
+const OPCOES: SegmentedOptions<TipoDaAparencia> = [
   { valor: 'sistema', rotulo: 'Sistema' },
   { valor: 'claro', rotulo: 'Claro' },
   { valor: 'escuro', rotulo: 'Escuro' },
@@ -21,5 +21,5 @@ interface Props {
  */
 export function Aparencia({ rotuloVisivel = true }: Props) {
   const { aparencia, escolher } = useAparencia()
-  return <Segmentado rotulo="Aparência" rotuloVisivel={rotuloVisivel} opcoes={OPCOES} valor={aparencia} aoMudar={escolher} />
+  return <SegmentedControl rotulo="Aparência" rotuloVisivel={rotuloVisivel} opcoes={OPCOES} valor={aparencia} aoMudar={escolher} />
 }

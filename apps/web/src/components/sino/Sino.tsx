@@ -1,14 +1,14 @@
 import { Bell } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useLocation, useSearch } from 'wouter'
-import { Aviso } from '../ui/Aviso'
-import { Botao } from '../ui/Botao'
-import { CLASSES_DO_LINK_SECUNDARIO } from '../ui/button-variants'
-import { Contador } from '../ui/Contador'
+import { Alert } from '../ui/Alert'
+import { Button } from '../ui/Button'
+import { SECONDARY_LINK_CLASSES } from '../ui/button-variants'
+import { CountBadge } from '../ui/CountBadge'
 import { EstadoCarregando, EstadoErro } from '../states'
-import { Icone } from '../ui/Icone'
-import { Linha } from '../ui/Linha'
-import { PainelLado } from '../ui/overlays/PainelLado'
+import { Icon } from '../ui/Icon'
+import { ListItem } from '../ui/ListItem'
+import { Sheet } from '../ui/overlays/Sheet'
 
 /** Um item da lista "Esperando você": o que é, por que importa e a tela que o resolve. */
 export interface ItemDoSino {
@@ -107,11 +107,11 @@ function GrupoDeItens({ titulo, itens }: { readonly titulo: string; readonly ite
       <ul className="divide-y-2 divide-borda overflow-hidden rounded-cartao border-2 border-borda">
         {itens.map((item) => (
           <li key={item.id}>
-            <Linha
+            <ListItem
               para={item.para}
               titulo={item.titulo}
               abaixo={item.detalhe}
-              {...(item.contador === undefined ? {} : { fim: <Contador n={item.contador.n} oQueConta={item.contador.oQueConta} /> })}
+              {...(item.contador === undefined ? {} : { fim: <CountBadge n={item.contador.n} oQueConta={item.contador.oQueConta} /> })}
             />
           </li>
         ))}
@@ -129,7 +129,7 @@ function PeDaLista({ titulo, links }: PeDoSino) {
       <ul className="divide-y-2 divide-borda overflow-hidden rounded-cartao border-2 border-borda">
         {links.map((link) => (
           <li key={link.para}>
-            <Linha para={link.para} titulo={link.rotulo} />
+            <ListItem para={link.para} titulo={link.rotulo} />
           </li>
         ))}
       </ul>
@@ -139,10 +139,10 @@ function PeDaLista({ titulo, links }: PeDoSino) {
 
 /**
  * O sino da coordenação (D80; Tech Spec das telas da coordenação, seções 5 e 9): um botão "Esperando você, N" que abre a
- * lista num `PainelLado`. Recebe a lista por prop e não lê nada: quem a calcula é a área (`useFilaDaCoordenacao`), e
+ * lista num `Sheet`. Recebe a lista por prop e não lê nada: quem a calcula é a área (`useFilaDaCoordenacao`), e
  * por isso a peça serve também ao sino do professor (X3).
  *
- * - **Não pisca, não soa e não anima**: o número é um `Contador` parado, e o botão não muda por tempo (D59). **Abrir a lista
+ * - **Não pisca, não soa e não anima**: o número é um `CountBadge` parado, e o botão não muda por tempo (D59). **Abrir a lista
  *   não faz leitura**; só "Tentar de novo" e "Atualizar" pedem (RF5).
  * - **Nunca diz "Tudo em dia" sem ter lido tudo**: a lista parcial mostra o que veio, com o aviso (por padrão, "Parte da lista
  *   não carregou"; o sino do professor diz o que não leu) e "Tentar de novo". O vazio é ícone ilustrado, sem mascote (a onça de corpo inteiro é decisão do Joaquim, seção 12).
@@ -169,14 +169,14 @@ export function Sino({ itens, situacao, erro, aoTentarDeNovo, tentandoDeNovo = f
 
   return (
     <>
-      <Botao variante="secundario" aria-label={nome} aria-haspopup="dialog" aria-expanded={aberto} onClick={() => definirAberto(true)} className="gap-2 px-3">
+      <Button variante="secundario" aria-label={nome} aria-haspopup="dialog" aria-expanded={aberto} onClick={() => definirAberto(true)} className="gap-2 px-3">
         <Bell aria-hidden="true" size={20} strokeWidth={2.5} />
         {/* O nome vem do `aria-label`, com o número; o texto à vista é o rótulo do botão a partir de 768 px, e abaixo disso só o ícone cabe. */}
         <span className="sr-only md:not-sr-only">Esperando você</span>
-        <Contador n={itens.length} oQueConta="esperando você" ouMais={ouMais} />
-      </Botao>
+        <CountBadge n={itens.length} oQueConta="esperando você" ouMais={ouMais} />
+      </Button>
       {aberto && (
-        <PainelLado
+        <Sheet
           titulo="Esperando você"
           aoFechar={() => definirAberto(false)}
           rodape={
@@ -184,9 +184,9 @@ export function Sino({ itens, situacao, erro, aoTentarDeNovo, tentandoDeNovo = f
               <p role="status" className="t-apoio mr-auto text-sutil">
                 {atualizadoEm === undefined ? '' : `Atualizado às ${HORA.format(atualizadoEm)}`}
               </p>
-              <Botao variante="secundario" disabled={atualizando} onClick={aoAtualizar}>
+              <Button variante="secundario" disabled={atualizando} onClick={aoAtualizar}>
                 {atualizando ? 'Atualizando…' : 'Atualizar'}
-              </Botao>
+              </Button>
             </>
           }
         >
@@ -194,16 +194,16 @@ export function Sino({ itens, situacao, erro, aoTentarDeNovo, tentandoDeNovo = f
             {situacao === 'carregando' && <EstadoCarregando rotulo="Carregando o que espera você…" />}
             {situacao === 'erro' && <EstadoErro erro={erro} aoTentarDeNovo={aoTentarDeNovo} tentando={tentandoDeNovo} />}
             {situacao === 'parcial' && (
-              <Aviso
+              <Alert
                 tom="atencao"
                 acao={
-                  <Botao variante="secundario" disabled={tentandoDeNovo} onClick={aoTentarDeNovo}>
+                  <Button variante="secundario" disabled={tentandoDeNovo} onClick={aoTentarDeNovo}>
                     {tentandoDeNovo ? 'Tentando de novo…' : 'Tentar de novo'}
-                  </Botao>
+                  </Button>
                 }
               >
                 {avisoDaLeituraParcial}
-              </Aviso>
+              </Alert>
             )}
             {(situacao === 'pronta' || situacao === 'parcial') && (
               <>
@@ -215,11 +215,11 @@ export function Sino({ itens, situacao, erro, aoTentarDeNovo, tentandoDeNovo = f
             )}
             {situacao === 'pronta' && itens.length === 0 && (
               <div data-vazio-do-sino="" className="flex flex-col items-center gap-2 rounded-cartao border-2 border-dashed border-borda-campo bg-superficie px-4 py-10 text-center">
-                <Icone nome="inicio" tamanho={48} />
+                <Icon nome="inicio" tamanho={48} />
                 <p className="t-secao text-tinta">Tudo em dia</p>
                 <p className="t-apoio max-w-prose text-apoio">{textoDoVazio}</p>
                 {faltaPara !== undefined && (
-                  <Link to={faltaPara} className={CLASSES_DO_LINK_SECUNDARIO}>
+                  <Link to={faltaPara} className={SECONDARY_LINK_CLASSES}>
                     Ver o que falta para a escola
                   </Link>
                 )}
@@ -227,7 +227,7 @@ export function Sino({ itens, situacao, erro, aoTentarDeNovo, tentandoDeNovo = f
             )}
             {pe !== undefined && <PeDaLista {...pe} />}
           </div>
-        </PainelLado>
+        </Sheet>
       )}
     </>
   )

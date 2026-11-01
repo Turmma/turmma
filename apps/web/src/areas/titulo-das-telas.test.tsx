@@ -19,7 +19,7 @@ import TutorDoProfessor from './professor/turmas/Tutor'
 import Turmas from './professor/turmas/Turmas'
 
 /**
- * O título das seis telas que escreviam o cabeçalho à mão e passaram à `Tela` (RF12; Tech Spec da X1, seção 9, "Página"):
+ * O título das seis telas que escreviam o cabeçalho à mão e passaram à `Page` (RF12; Tech Spec da X1, seção 9, "Página"):
  * cada uma, nos quatro estados — carregando, com erro, vazia e com dado —, tem **um** `h1`, com o texto de hoje, e ele
  * aparece também onde antes não havia: no carregando, no erro e no vazio. A caixa que o navegador desenha (24 px, 64 px
  * de cabeçalho) é do e2e (`e2e/titulo-da-tela.spec.ts`).
@@ -29,7 +29,7 @@ import Turmas from './professor/turmas/Turmas'
  */
 prepararTela()
 
-// A lista da turma da coordenação lê a largura da janela (a tabela dos nomes e o miolo que rola) e a `Tabela` mede o que
+// A lista da turma da coordenação lê a largura da janela (a tabela dos nomes e o miolo que rola) e a `Table` mede o que
 // rola; o `jsdom` não tem `matchMedia` nem `ResizeObserver`. Janela larga, como a do Chromebook.
 beforeEach(() => {
   vi.stubGlobal('matchMedia', (consulta: string) => ({ matches: consulta === '(min-width: 768px)', addEventListener: () => undefined, removeEventListener: () => undefined }))
@@ -124,7 +124,7 @@ function provar(nome: string, estados: Estados): void {
       renderizarTela(estados.tela())
       await estados.comDado.aparece()
       conferirOTitulo(estados.comDado.titulo ?? estados.titulo)
-      // A região da tela leva o nome do título: a `section` da tela aponta para o `h1`, que está fora dela, na `Tela`.
+      // A região da tela leva o nome do título: a `section` da tela aponta para o `h1`, que está fora dela, na `Page`.
       if (estados.comDado.regiao !== undefined) expect(screen.getByRole('region', { name: estados.comDado.regiao })).toBeTruthy()
     })
   })

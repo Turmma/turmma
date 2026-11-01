@@ -1,9 +1,9 @@
 import { ErrorCode } from '@educa/shared'
 import { useMutation, type UseMutationOptions } from '@tanstack/react-query'
 import { useEffect, useRef, type FormEvent, type ReactNode, type Ref, type RefObject } from 'react'
-import { Botao } from './ui/Botao'
-import { CLASSES_DO_BOTAO_PERIGO_CHEIO, CLASSES_DO_BOTAO_SECUNDARIO } from './ui/button-variants'
-import { Dialogo } from './ui/overlays/Dialogo'
+import { Button } from './ui/Button'
+import { DANGER_SOLID_BUTTON_CLASSES, SECONDARY_BUTTON_CLASSES } from './ui/button-variants'
+import { Dialog } from './ui/overlays/Dialog'
 import { listaMudou, textoDaFalha } from './error-text'
 
 /**
@@ -13,7 +13,7 @@ import { listaMudou, textoDaFalha } from './error-text'
  * a turma do professor usando as mesmas: importar de `areas/coordenacao/` levaria o módulo para o chunk da outra área.
  * O texto de cada falha e o "a lista mudou" moram em `error-text.ts`, sem React.
  *
- * Cada abertura é uma instância nova (`useDialogoDaTela`, `key` pelo número): o aviso e o foco de uma tentativa anterior
+ * Cada abertura é uma instância nova (`useDialogState`, `key` pelo número): o aviso e o foco de uma tentativa anterior
  * não sobrevivem ao fechar e abrir de novo (o "recomeço da tela" do 13_task.md).
  */
 
@@ -104,17 +104,17 @@ export function DialogoDeFormulario({ titulo, aoFechar, aoEnviar, enviando, rotu
     if (!semNovaTentativa) aoEnviar()
   }
   return (
-    <Dialogo titulo={titulo} aoFechar={aoFechar} {...(focoDeReserva === undefined ? {} : { focoDeReserva })}>
+    <Dialog titulo={titulo} aoFechar={aoFechar} {...(focoDeReserva === undefined ? {} : { focoDeReserva })}>
       <form className="mt-4 flex min-w-0 flex-col gap-4" onSubmit={enviar} noValidate>
         {children}
         {falha !== undefined && <AlertaDaFalha texto={falha} />}
         <div className="flex flex-wrap justify-end gap-3">
           {!semNovaTentativa && (
-            <Botao type="submit" disabled={enviando}>
+            <Button type="submit" disabled={enviando}>
               {enviando ? rotuloEnviando : rotuloDoEnvio}
-            </Botao>
+            </Button>
           )}
-          <button type="button" onClick={aoFechar} className={CLASSES_DO_BOTAO_SECUNDARIO}>
+          <button type="button" onClick={aoFechar} className={SECONDARY_BUTTON_CLASSES}>
             {semNovaTentativa ? 'Fechar' : 'Cancelar'}
           </button>
         </div>
@@ -122,7 +122,7 @@ export function DialogoDeFormulario({ titulo, aoFechar, aoEnviar, enviando, rotu
           {enviando ? rotuloEnviando : ''}
         </span>
       </form>
-    </Dialogo>
+    </Dialog>
   )
 }
 
@@ -152,7 +152,7 @@ interface PropsDoCorpoDaConfirmacao extends Omit<PropsDaConfirmacao, 'titulo' | 
 }
 
 /**
- * O que a confirmação de `perigo` tem dentro da caixa: o texto, a falha, os dois botões e o envio único. Separado do `Dialogo`
+ * O que a confirmação de `perigo` tem dentro da caixa: o texto, a falha, os dois botões e o envio único. Separado do `Dialog`
  * para o passo "Revogar o acesso" do "Convidar alunos" viver dentro do diálogo que já está aberto, sem diálogo dentro de diálogo
  * (telas do professor, 13.0).
  */
@@ -176,11 +176,11 @@ export function CorpoDaConfirmacaoDePerigo({ texto, rotuloDaAcao, rotuloEmAndame
       {falha !== undefined && <AlertaDaFalha texto={falha} />}
       <div className="flex flex-wrap justify-end gap-3">
         {!mudou && (
-          <button type="button" onClick={() => enviar(undefined)} disabled={mutacao.isPending} className={CLASSES_DO_BOTAO_PERIGO_CHEIO}>
+          <button type="button" onClick={() => enviar(undefined)} disabled={mutacao.isPending} className={DANGER_SOLID_BUTTON_CLASSES}>
             {mutacao.isPending ? rotuloEmAndamento : rotuloDaAcao}
           </button>
         )}
-        <button type="button" onClick={aoFechar} className={CLASSES_DO_BOTAO_SECUNDARIO}>
+        <button type="button" onClick={aoFechar} className={SECONDARY_BUTTON_CLASSES}>
           {mudou ? 'Fechar' : 'Cancelar'}
         </button>
       </div>
@@ -199,8 +199,8 @@ export function CorpoDaConfirmacaoDePerigo({ texto, rotuloDaAcao, rotuloEmAndame
 export function ConfirmacaoDePerigo({ titulo, focoDeReserva, ...corpo }: PropsDaConfirmacao) {
   const inicio = useRef<HTMLParagraphElement>(null)
   return (
-    <Dialogo titulo={titulo} aoFechar={corpo.aoFechar} focoInicial={inicio} focoDeReserva={focoDeReserva}>
+    <Dialog titulo={titulo} aoFechar={corpo.aoFechar} focoInicial={inicio} focoDeReserva={focoDeReserva}>
       <CorpoDaConfirmacaoDePerigo {...corpo} inicio={inicio} />
-    </Dialogo>
+    </Dialog>
   )
 }

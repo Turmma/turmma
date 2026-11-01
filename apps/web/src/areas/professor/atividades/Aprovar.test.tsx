@@ -5,7 +5,7 @@ import { StrictMode } from 'react'
 import { Router } from 'wouter'
 import { memoryLocation } from 'wouter/memory-location'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { classesDoBotao } from '../../../components/ui/button-variants'
+import { buttonVariants } from '../../../components/ui/button-variants'
 import { prepararTela, redeFalsa, renderizarTela, type RedeFalsa, type RespostaFalsa } from '../../../__fixtures__/render-screen'
 import Aprovar from './Aprovar'
 
@@ -105,7 +105,7 @@ beforeEach(() => {
     this.removeAttribute('open')
     this.dispatchEvent(new Event('close'))
   }
-  // A tabela é tabela a partir de 768 px (`useMidia`): o `jsdom` não tem `matchMedia`, e a janela do teste é a larga.
+  // A tabela é tabela a partir de 768 px (`useMediaQuery`): o `jsdom` não tem `matchMedia`, e a janela do teste é a larga.
   vi.stubGlobal('matchMedia', () => ({ matches: true, addEventListener: () => undefined, removeEventListener: () => undefined }))
   // A barra presa mede a si mesma para reservar o lugar do foco: o `jsdom` não tem `ResizeObserver`.
   vi.stubGlobal(
@@ -231,13 +231,13 @@ describe('Revisar a correção: o botão oficial', () => {
     await screen.findByRole('group', { name: 'Aprovação do lote' })
     const botoes = screen.getAllByRole('button')
     const classes = (botao: HTMLElement) => botao.className.trim()
-    expect(botoes.filter((botao) => classes(botao) === classesDoBotao({ variante: 'oficial' }))).toHaveLength(1)
+    expect(botoes.filter((botao) => classes(botao) === buttonVariants({ variante: 'oficial' }))).toHaveLength(1)
     expect(botoes.filter((botao) => botao.className.includes('bg-laranja'))).toHaveLength(0)
-    expect(botoes.filter((botao) => classes(botao) === classesDoBotao({ variante: 'primario' }))).toHaveLength(0)
+    expect(botoes.filter((botao) => classes(botao) === buttonVariants({ variante: 'primario' }))).toHaveLength(0)
     const rejeitar = within(barra()).getByRole('button', { name: 'Rejeitar a correção' })
-    expect(classes(rejeitar)).toBe(classesDoBotao({ variante: 'perigo' }))
-    expect(classes(rejeitar)).not.toBe(classesDoBotao({ variante: 'perigo', cheio: true }))
-    expect(classes(botaoDeAprovar())).toBe(classesDoBotao({ variante: 'oficial' }))
+    expect(classes(rejeitar)).toBe(buttonVariants({ variante: 'perigo' }))
+    expect(classes(rejeitar)).not.toBe(buttonVariants({ variante: 'perigo', cheio: true }))
+    expect(classes(botaoDeAprovar())).toBe(buttonVariants({ variante: 'oficial' }))
   })
 })
 

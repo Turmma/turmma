@@ -5,9 +5,9 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { corDoToken, TEMAS } from '../../../__fixtures__/class-colors'
 import { semComentarios } from '../../../__fixtures__/importers'
-import { FAMILIAS_DE_COR } from '../Contador'
-import { Icone } from '../Icone'
-import { DESENHO_DO_LUGAR, NOMES_DOS_LUGARES, type NomeDoLugar } from './places'
+import { COLOR_FAMILIES } from '../CountBadge'
+import { Icon } from '../Icon'
+import { PLACE_DRAWINGS, PLACE_NAMES, type PlaceName } from './places'
 
 /**
  * Os ícones ilustrados dos lugares (`docs/interface.md` 9.4; Tech Spec da X1, seções 7c e 9; os quatro da coordenação, na X2): o que cada desenho
@@ -20,13 +20,13 @@ const FONTE = readFileSync(join(import.meta.dirname, 'places.tsx'), 'utf8')
 /** As formas de um desenho, como saem no HTML, na ordem em que foram escritas. */
 const FORMA = /<(?:rect|circle|path|ellipse|polygon|polyline|line)\b[^>]*>/g
 
-function formasDe(nome: NomeDoLugar): string[] {
-  const Desenho = DESENHO_DO_LUGAR[nome]
+function formasDe(nome: PlaceName): string[] {
+  const Desenho = PLACE_DRAWINGS[nome]
   return renderToStaticMarkup(<Desenho />).match(FORMA) ?? []
 }
 
 /** A classe de cada forma, na ordem. */
-function classesDe(nome: NomeDoLugar): string[] {
+function classesDe(nome: PlaceName): string[] {
   return formasDe(nome).map((forma) => /class="([^"]+)"/.exec(forma)?.[1] ?? '')
 }
 
@@ -37,9 +37,9 @@ const NEUTROS = ['icone-papel', 'icone-linha']
 
 describe('os ícones dos lugares', () => {
   it('são os quatro da X1, os quatro da coordenação (X2) e o de Criados (X3), e cada nome tem um desenho', () => {
-    expect([...NOMES_DOS_LUGARES]).toEqual(['inicio', 'turmas', 'tarefas', 'ferramentas', 'painel', 'ia', 'escola', 'registros', 'criados'])
-    expect(Object.keys(DESENHO_DO_LUGAR).sort()).toEqual([...NOMES_DOS_LUGARES].sort())
-    for (const nome of NOMES_DOS_LUGARES) expect(formasDe(nome).length, nome).toBeGreaterThan(0)
+    expect([...PLACE_NAMES]).toEqual(['inicio', 'turmas', 'tarefas', 'ferramentas', 'painel', 'ia', 'escola', 'registros', 'criados'])
+    expect(Object.keys(PLACE_DRAWINGS).sort()).toEqual([...PLACE_NAMES].sort())
+    for (const nome of PLACE_NAMES) expect(formasDe(nome).length, nome).toBeGreaterThan(0)
   })
 
   it('nenhuma cor é escrita: sem hex, função de cor, `style` nem atributo de pintura, só classe', () => {
@@ -47,14 +47,14 @@ describe('os ícones dos lugares', () => {
     expect(FONTE).not.toMatch(/\b(?:rgba?|hsla?|oklch|color-mix)\(/i)
     expect(FONTE).not.toMatch(/style\s*=/)
     // A cor é de classe: nada de `fill="…"` nem `stroke="…"` nas formas.
-    for (const nome of NOMES_DOS_LUGARES) {
+    for (const nome of PLACE_NAMES) {
       for (const forma of formasDe(nome)) expect(forma, `${nome}: ${forma}`).not.toMatch(/\b(?:fill|stroke|stop-color|color)=/)
     }
   })
 
   it('toda forma pinta com `fill-<família>`, `fill-icone-papel` ou `fill-icone-linha`, e o nome é token nos dois temas', () => {
-    const permitidos = new Set([...FAMILIAS_DE_COR, ...NEUTROS])
-    for (const nome of NOMES_DOS_LUGARES) {
+    const permitidos = new Set([...COLOR_FAMILIES, ...NEUTROS])
+    for (const nome of PLACE_NAMES) {
       for (const classe of classesDe(nome)) {
         expect(classe, `${nome}: a forma não tem uma classe só`).toMatch(/^fill-[a-z-]+$/)
         const token = tokenDa(classe)
@@ -72,7 +72,7 @@ describe('os ícones dos lugares', () => {
   })
 
   it('cada um tem de 3 a 10 formas, e de duas a três cores (a exceção é a das ferramentas, com quatro)', () => {
-    for (const nome of NOMES_DOS_LUGARES) {
+    for (const nome of PLACE_NAMES) {
       const formas = formasDe(nome).length
       expect(formas, `${nome}: formas`).toBeGreaterThanOrEqual(3)
       expect(formas, `${nome}: formas`).toBeLessThanOrEqual(10)
@@ -111,8 +111,8 @@ describe('os ícones dos lugares', () => {
   })
 
   it('são chapados e parados: sem contorno, degradê, sombra, texto nem animação', () => {
-    for (const nome of NOMES_DOS_LUGARES) {
-      const html = renderToStaticMarkup(<Icone nome={nome} tamanho={48} />)
+    for (const nome of PLACE_NAMES) {
+      const html = renderToStaticMarkup(<Icon nome={nome} tamanho={48} />)
       expect(html, nome).not.toMatch(/stroke|gradient|filter|<text|<title|<desc|<image|<animate|<set\b|<style|<defs|opacity/i)
     }
     // E o fonte, sem os comentários: o que o desenho diz de si não conta, o que ele escreve sim.
@@ -120,21 +120,21 @@ describe('os ícones dos lugares', () => {
   })
 
   it('cada um é um desenho diferente dos outros três', () => {
-    const html = NOMES_DOS_LUGARES.map((nome) => renderToStaticMarkup(<Icone nome={nome} tamanho={48} />))
-    expect(new Set(html).size).toBe(NOMES_DOS_LUGARES.length)
-    const formas = NOMES_DOS_LUGARES.map((nome) => formasDe(nome).join(''))
-    expect(new Set(formas).size).toBe(NOMES_DOS_LUGARES.length)
+    const html = PLACE_NAMES.map((nome) => renderToStaticMarkup(<Icon nome={nome} tamanho={48} />))
+    expect(new Set(html).size).toBe(PLACE_NAMES.length)
+    const formas = PLACE_NAMES.map((nome) => formasDe(nome).join(''))
+    expect(new Set(formas).size).toBe(PLACE_NAMES.length)
   })
 
   it('o peso: o HTML dos oito, em brotli, cabe nos 3 kB que a entrada reserva (de 4 kB; a Tech Spec, seção 7c)', () => {
-    const html = NOMES_DOS_LUGARES.map((nome) => renderToStaticMarkup(<Icone nome={nome} tamanho={48} />)).join('')
+    const html = PLACE_NAMES.map((nome) => renderToStaticMarkup(<Icon nome={nome} tamanho={48} />)).join('')
     const bytes = brotliCompressSync(Buffer.from(html)).length
     expect(bytes).toBeGreaterThan(200)
     expect(bytes).toBeLessThanOrEqual(3_000)
   })
 
   it('o peso dos quatro da coordenação: até 1 kB em brotli, que é o que a Tech Spec da X2 (seção 7c) dá para eles ficarem ilustrados', () => {
-    const html = (['painel', 'ia', 'escola', 'registros'] as const).map((nome) => renderToStaticMarkup(<Icone nome={nome} tamanho={48} />)).join('')
+    const html = (['painel', 'ia', 'escola', 'registros'] as const).map((nome) => renderToStaticMarkup(<Icon nome={nome} tamanho={48} />)).join('')
     expect(brotliCompressSync(Buffer.from(html)).length).toBeLessThanOrEqual(1_000)
   })
 })

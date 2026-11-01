@@ -3,7 +3,7 @@ import { useId, useLayoutEffect } from 'react'
 import { Link, useSearch } from 'wouter'
 import { PARAMETRO_DA_ORIGEM, ROTAS_DO_PROFESSOR } from '../../../paths'
 import { ConteudoNaoEncontrado } from '../../../components/NotFound'
-import { CabecalhoDeSecao, Tela } from '../../../components/ui/Tela'
+import { SectionHeader, Page } from '../../../components/ui/Page'
 import { useTituloDaTela } from '../../../document-title'
 import { CartaoDeFerramenta } from './CartaoDeFerramenta'
 import { COMO_VAI_SAIR, ehFerramenta, ferramentaDoCatalogo } from './ferramentas'
@@ -25,7 +25,7 @@ function Formulario({ ferramenta }: { ferramenta: Parameters<typeof ferramentaDo
   const miolo = useTopoDoMiolo<HTMLDivElement>()
   const iniciais = ferramenta === 'adaptacao' && origem !== null && FORMA_DE_ID.test(origem) ? { origem } : undefined
   return (
-    <Tela
+    <Page
       largura="formulario"
       titulo={item.nome}
       objeto
@@ -50,7 +50,7 @@ function Formulario({ ferramenta }: { ferramenta: Parameters<typeof ferramentaDo
         </div>
         {/* Fora do cartão: carregando, erro, sem turma e função suspensa não o tiram da tela. */}
         <aside aria-labelledby={idDoComoVaiSair} data-como-vai-sair={ferramenta} className="min-w-0 rounded-cartao border border-linha bg-superficie p-4">
-          <CabecalhoDeSecao titulo="Como vai sair" id={idDoComoVaiSair} />
+          <SectionHeader titulo="Como vai sair" id={idDoComoVaiSair} />
           <ul className="mt-2 flex flex-col gap-2 text-sm break-words text-tinta">
             {COMO_VAI_SAIR[ferramenta].map((linha) => (
               <li key={linha}>{linha}</li>
@@ -58,7 +58,7 @@ function Formulario({ ferramenta }: { ferramenta: Parameters<typeof ferramentaDo
           </ul>
         </aside>
       </div>
-    </Tela>
+    </Page>
   )
 }
 

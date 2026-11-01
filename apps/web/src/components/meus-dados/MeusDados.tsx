@@ -6,15 +6,15 @@ import { baixarMeuArquivo, consultaMeusDados, relerMeusDados } from '../../api/m
 import { formatarData, formatarDataHora, formatarQuantidade } from '../../format'
 import { useTituloDaTela } from '../../document-title'
 import { baixarPorUrl } from '../download-from-url'
-import { Botao } from '../ui/Botao'
-import { Cartao } from '../ui/Cartao'
-import { useDialogoDaTela } from '../ui/overlays/dialog-state'
-import { DialogoDeConfirmacao } from '../ui/overlays/DialogoDeConfirmacao'
+import { Button } from '../ui/Button'
+import { Card } from '../ui/Card'
+import { useDialogState } from '../ui/overlays/dialog-state'
+import { ConfirmDialog } from '../ui/overlays/ConfirmDialog'
 import { Anuncio, useEnvioUnico } from '../dialogs'
 import { EstadoCarregando, EstadoErro, EstadoVazio } from '../states'
-import { Estado } from '../ui/SeloDeEstado'
+import { StatusBadge } from '../ui/StatusBadge'
 import { listaMudou, textoDaFalha } from '../error-text'
-import { Tela, type NivelDoTitulo } from '../ui/Tela'
+import { Page, type HeadingLevel } from '../ui/Page'
 import {
   agendarPreparacao,
   anuncioDoArquivoBaixado,
@@ -64,7 +64,7 @@ function DialogoDeBaixar({ pedido, aoFechar, aoBaixar, focoDeReserva }: PropsDoD
   const mudou = mutacao.isError && listaMudou(mutacao.error, CODIGOS_QUE_MUDAM_OS_MEUS_DADOS)
   const expiraEm = pedido.arquivo?.expiraEm
   return (
-    <DialogoDeConfirmacao
+    <ConfirmDialog
       titulo="Baixar os seus dados"
       familia="oficial"
       resumo={[
@@ -115,9 +115,9 @@ function BotaoDeBaixar({ aoClicar, focoDeReserva }: { readonly aoClicar: () => v
     }
   }, [])
   return (
-    <Botao ref={botao} variante="secundario" onClick={aoClicar}>
+    <Button ref={botao} variante="secundario" onClick={aoClicar}>
       Baixar meus dados
-    </Botao>
+    </Button>
   )
 }
 
@@ -133,7 +133,7 @@ function ListaDePedidos({ pedidos, agora, aoBaixar, focoDeReserva }: PropsDaList
           <li key={pedido.id} className="flex min-w-0 flex-col gap-2 rounded-controle border border-linha p-3">
             <div className="flex min-w-0 flex-wrap items-center justify-between gap-x-3 gap-y-2">
               <p className="min-w-0 font-medium break-words text-tinta">{ROTULO_DO_TIPO[pedido.tipo]}</p>
-              <Estado familia={situacao.familia}>{situacao.selo}</Estado>
+              <StatusBadge familia={situacao.familia}>{situacao.selo}</StatusBadge>
             </div>
             <p className="text-sm text-sutil">Chegou à escola em {formatarData(pedido.chegouEm)}</p>
             <p className="break-words text-apoio">{situacao.explicacao}</p>
@@ -182,7 +182,7 @@ export default function MeusDados({ titulo, secao }: Props) {
   const consulta = useQuery(consultaMeusDados)
   const dados = consulta.data
   const pedidos = dados?.pedidos
-  const dialogo = useDialogoDaTela<'baixar', PedidoDeMeusDados>()
+  const dialogo = useDialogState<'baixar', PedidoDeMeusDados>()
   const [anuncio, definirAnuncio] = useState('')
   const inicio = useRef<HTMLDivElement>(null)
 
@@ -206,13 +206,13 @@ export default function MeusDados({ titulo, secao }: Props) {
     emPreparacao.current = agora
   }, [pedidos])
 
-  const nivel: NivelDoTitulo = secao === undefined ? 2 : 3
+  const nivel: HeadingLevel = secao === undefined ? 2 : 3
   const agora = new Date()
   // A abertura de **este** render: a resposta do download fecha só ela, nunca outro diálogo aberto depois.
   const aberta = dialogo.aberta
 
   return (
-    <Tela titulo={titulo} largura="conversa">
+    <Page titulo={titulo} largura="conversa">
       <div ref={inicio} tabIndex={-1} className="flex min-w-0 flex-col gap-4 outline-none">
         {secao !== undefined && <h2 className="text-[22px] leading-tight font-semibold break-words text-tinta">{secao}</h2>}
         <p className="break-words text-apoio">{textoDaEscola(eu.data?.escola.nome)}</p>
@@ -222,7 +222,7 @@ export default function MeusDados({ titulo, secao }: Props) {
         )}
         {dados !== undefined && (
           <>
-            <Cartao titulo="Seus pedidos" nivel={nivel}>
+            <Card titulo="Seus pedidos" nivel={nivel}>
               <div className="flex min-w-0 flex-col gap-3">
                 <Anuncio texto={anuncio} />
                 {dados.pedidos.length === 0 ? (
@@ -236,10 +236,10 @@ export default function MeusDados({ titulo, secao }: Props) {
                   />
                 )}
               </div>
-            </Cartao>
-            <Cartao titulo="O que a escola guarda de você" nivel={nivel}>
+            </Card>
+            <Card titulo="O que a escola guarda de você" nivel={nivel}>
               <ResumoPorCategoria categorias={dados.categorias} />
-            </Cartao>
+            </Card>
           </>
         )}
       </div>
@@ -254,7 +254,7 @@ export default function MeusDados({ titulo, secao }: Props) {
           }}
         />
       )}
-    </Tela>
+    </Page>
   )
 }
 
