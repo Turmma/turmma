@@ -254,4 +254,17 @@ ou a trava contra filtro vazio. Nenhum caso entra (RF7). A onda sem trava leva "
   de duração": é a marca da subtarefa 11.5. A frase "continua medido" acima vale para o caso fora dessa isenção.
   Testes a acrescentar em `tools/ci/duracao-do-e2e.test.ts`, ao lado de "só o comentário do caso lento muda": isenta
   o só-mapa (com e sem a quebra do prettier); reprova o nome trocado fora do mapa, o nome do mapa mais uma linha de
-  código, o nome antigo trocado dentro de um texto, e o mesmo rename com o mapa já no HEAD
+  código, o nome antigo trocado dentro de um texto, e o mesmo rename com o mapa já no HEAD.
+  **Duas ampliações** (divergência de portão da correção, 01/11/2026: 7 casos do relatório real da 11.0 ficaram fora).
+  (a) **Token: o do HEAD ou o do mapa.** Em cada posição, o token da árvore vale se for igual ao do HEAD ou a um `para`
+  do mapa para aquele `de`; o número de tokens continua o mesmo. Cobre o nome local homônimo de um `de` que o mapa
+  troca só noutro arquivo (`secao` em `e2e/lista-da-turma.spec.ts:214`, ao lado de `secao` → `gallerySection` de
+  `e2e/support/gallery.ts`), sem resolver símbolo: nos dois lados só há o nome velho ou o do mapa, e nada disso faz o
+  caso crescer. Pelo mesmo argumento, o `de` com mais de um `para` deixa de ser ambíguo: vale qualquer um deles.
+  (b) **Título de modelo.** O caso cujo título tem `${}` deixa de ficar sem par: o da árvore é o caso cujo `test(` está na
+  linha que o relatório do Playwright dá (`CasoMedido.linha`), e o do HEAD é o único caso do HEAD cujo título, lido como
+  tokens pela regra (a), bate com o da árvore. Título de modelo repetido no HEAD, ou que não bate: sem par, e medido.
+  Vale para as duas exceções (só comentário e só nomes), que usam o mesmo par. Cobre `e2e/incidentes.spec.ts:756`.
+  O prazo do caso de modelo continua sem leitura (conta 30 s); só a isenção muda. Testes a acrescentar: isenta o nome
+  local homônimo de um `de` com `arquivo`; isenta o título de modelo só com nomes do mapa; reprova o título de modelo com
+  a parte literal mudada, o título de modelo repetido no HEAD, e o token que não é nem o do HEAD nem o do mapa.
