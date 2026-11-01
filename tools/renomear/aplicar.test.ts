@@ -551,6 +551,40 @@ describe('as seis recusas, e a árvore sai igual', () => {
       expect(aMao).toEqual(['| apps/api/src/montagem.ts | OpcoesDaMontagem | 4 |', '| apps/web/src/montagem.ts | OpcoesDaMontagem | 4 |', '| docs/y.md | OpcoesDaMontagem | 1 |'])
     })
 
+    describe('as cópias do mesmo nome com o mesmo para (o portao do e2e, Tech Spec §5)', () => {
+      const copia = (arquivo: string) => ({ tipo: 'simbolo' as const, de: 'portao', para: 'gate', arquivo })
+      // O pacote do `e2e` é a primeira pasta (`pacoteDoArquivo`), e não há `package.json` nele: só o `tsconfig`, como no monorepo.
+      const copias = {
+        'e2e/tsconfig.json': tsconfigDe(1, ['.']),
+        'e2e/support/assistente.ts': 'export function portao(): number {\n  return 1\n}\n// o `portao` do suporte\n',
+        'e2e/support/professor/sino.ts': 'export function portao(): number {\n  return 4\n}\n',
+        'e2e/aluno.spec.ts': "import { portao } from './support/assistente.ts'\nexport const p = portao()\n",
+        'e2e/local.spec.ts': 'const portao = (): number => 2\nexport const l = portao()\n',
+        // o homônimo de outro pacote não tem entrada: fica
+        'apps/web/src/portao.ts': 'export function portao(): number {\n  return 3\n}\n',
+      }
+      const entradas = [copia('e2e/support/assistente.ts'), copia('e2e/support/professor/sino.ts'), copia('e2e/local.spec.ts')]
+
+      it('cada declaração sai com o para, e os usos dela; o homônimo de outro pacote fica', { timeout: PRAZO }, () => {
+        const repo = mundo(copias, entradas)
+        expect(rodar(repo).recusas).toEqual([])
+        expect(repo.ler('e2e/support/assistente.ts')).toContain('export function gate(): number {')
+        expect(repo.ler('e2e/support/professor/sino.ts')).toBe('export function gate(): number {\n  return 4\n}\n')
+        expect(repo.ler('e2e/aluno.spec.ts')).toBe("import { gate } from './support/assistente.ts'\nexport const p = gate()\n")
+        expect(repo.ler('e2e/local.spec.ts')).toBe('const gate = (): number => 2\nexport const l = gate()\n')
+        expect(repo.ler('apps/web/src/portao.ts')).toBe(copias['apps/web/src/portao.ts'])
+      })
+
+      it('o passo 5: o comentário com o nome entre crases não é trocado, e vai à troca à mão', { timeout: PRAZO }, () => {
+        const repo = mundo(copias, entradas)
+        const resultado = rodar(repo)
+        expect(resultado.recusas).toEqual([])
+        expect(repo.ler('e2e/support/assistente.ts')).toContain('// o `portao` do suporte\n')
+        const aMao = (resultado.relatorio ?? '').split('\n').filter((linha) => linha.includes('| portao |'))
+        expect(aMao).toEqual(['| e2e/support/assistente.ts | portao | 4 |'])
+      })
+    })
+
     it('uma das entradas sem arquivo (vale em todo pacote): recusa, nas duas ordens', { timeout: PRAZO }, () => {
       const { arquivo: _arquivo, ...semArquivo } = doWeb
       expect(recusado(mundo(homonimos, [doApi, semArquivo]))).toEqual(['de-repetido'])

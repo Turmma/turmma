@@ -195,12 +195,15 @@ export function pacoteDoArquivo(arquivo: string): string {
 }
 
 /**
- * Duas entradas de mesmo `de` se repetem, salvo se as duas forem de símbolo, cada uma com `arquivo`, em pacotes diferentes: o
- * `aplicar` acha cada declaração pelo `arquivo`, e o `conferir` segue cada entrada só no pacote dela (Tech Spec §5).
+ * Duas entradas de mesmo `de` se repetem, salvo se as duas forem de símbolo, cada uma com `arquivo`, e ou caírem em pacotes diferentes
+ * ou, no mesmo pacote, forem de arquivos diferentes com o mesmo `para` (as cópias do mesmo nome, uma entrada por declaração): o
+ * `aplicar` acha cada declaração pelo `arquivo`, e o `conferir` segue cada entrada só no pacote dela, ou, no mesmo pacote, devolve o
+ * mesmo `para` por qualquer uma (Tech Spec §5). O mesmo `arquivo` duas vezes é a linha duplicada, e não uma cópia.
  */
 function seRepetem(a: EntradaDoMapa, b: EntradaDoMapa): boolean {
   if (a.tipo !== 'simbolo' || b.tipo !== 'simbolo' || a.arquivo === undefined || b.arquivo === undefined) return true
-  return pacoteDoArquivo(a.arquivo) === pacoteDoArquivo(b.arquivo)
+  if (pacoteDoArquivo(a.arquivo) !== pacoteDoArquivo(b.arquivo)) return false
+  return a.arquivo === b.arquivo || a.para !== b.para
 }
 
 /** As recusas que o mapa sozinho dá, antes de olhar a árvore: o `de` que se repete, e a linha do anexo que falta. */

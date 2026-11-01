@@ -327,6 +327,28 @@ describe('conferir: verde quando', () => {
     const ENTRADA = { tipo: 'simbolo', de: 'Banco', para: 'Database', arquivo: 'packages/shared/src/db.ts' }
     const OUTRO = { 'packages/outro/src/o.ts': 'export class Banco {}\n', 'packages/outro/package.json': pacoteDeTeste('@educa/outro'), 'packages/outro/tsconfig.json': tsconfigDe(2) }
 
+    it('duas cópias do mesmo nome no mesmo pacote, com o mesmo para: os dois exportados renomeados saem limpos', () => {
+      const repo = repositorio({ 'packages/shared/src/copia.ts': 'export class Banco {}\n' })
+      repo.escrever('packages/shared/src/db.ts', 'export class Database {}\n')
+      repo.escrever('packages/shared/src/copia.ts', 'export class Database {}\n')
+      const copia = { ...ENTRADA, arquivo: 'packages/shared/src/copia.ts' }
+      expect(rodar(repo, [ENTRADA, copia]).divergencias).toEqual([])
+    })
+
+    it('duas cópias do mesmo nome com o mesmo para: a reexportação de cada uma, no mesmo pacote, sai limpa', () => {
+      const repo = repositorio({
+        'packages/shared/src/copia.ts': 'export class Banco {}\n',
+        'packages/shared/src/r1.ts': "export { Banco } from './db.ts'\n",
+        'packages/shared/src/r2.ts': "export { Banco } from './copia.ts'\n",
+      })
+      repo.escrever('packages/shared/src/db.ts', 'export class Database {}\n')
+      repo.escrever('packages/shared/src/copia.ts', 'export class Database {}\n')
+      repo.escrever('packages/shared/src/r1.ts', "export { Database } from './db.ts'\n")
+      repo.escrever('packages/shared/src/r2.ts', "export { Database } from './copia.ts'\n")
+      const copia = { ...ENTRADA, arquivo: 'packages/shared/src/copia.ts' }
+      expect(rodar(repo, [ENTRADA, copia]).divergencias).toEqual([])
+    })
+
     it('o homônimo exportado por outro pacote fica com o nome antigo', () => {
       const repo = repositorio(OUTRO)
       repo.escrever('packages/shared/src/db.ts', 'export class Database {}\n')
