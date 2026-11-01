@@ -1,9 +1,9 @@
 import { METRICS, type ArquivoDoTitularRepository, type CronEscolasRepository, type LoggerBase, type Meter, type Clock } from '@educa/core'
-import { MedicaoPorEscola } from './escola-gauge.js'
+import { EscolaGauge } from './escola-gauge.js'
 
 const MS_POR_HORA = 3_600_000
 
-export interface DependenciasDaMedicaoDoArquivo {
+export interface ArquivoGaugeDependencies {
   escolas: Pick<CronEscolasRepository, 'listarIds'>
   repositorio: Pick<ArquivoDoTitularRepository, 'registradoEmDoEmPreparacaoMaisAntigo'>
   relogio: Clock
@@ -17,13 +17,13 @@ export interface DependenciasDaMedicaoDoArquivo {
  * dispara acima de 2 (`HORAS_EM_PREPARACAO_PARA_ALERTAR`). A escola sem pedido em preparação não tem série, e a série some quando
  * o job termina e o pedido fica `pronto`.
  *
- * O laço, a lista de escolas, o contexto de cada uma e a exportação são da `MedicaoPorEscola`; aqui está só o que se mede numa
+ * O laço, a lista de escolas, o contexto de cada uma e a exportação são da `EscolaGauge`; aqui está só o que se mede numa
  * escola, lido pelo `ArquivoDoTitularRepository`, com o escopo do contexto. A série traz a escola e um número: nenhum id de
  * pedido, nenhum titular.
  */
-export class MedicaoDoArquivo extends MedicaoPorEscola {
+export class ArquivoGauge extends EscolaGauge {
   constructor(
-    private readonly dependencias: DependenciasDaMedicaoDoArquivo,
+    private readonly dependencias: ArquivoGaugeDependencies,
     opcoes: { intervaloMs?: number } = {},
   ) {
     super(

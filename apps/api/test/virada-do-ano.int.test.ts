@@ -5,11 +5,11 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { AnoLetivoRepository } from '../src/estrutura/ano-letivo/ano-letivo.repository.js'
 import { VinculoRepository } from '../src/estrutura/vinculo/vinculo.repository.js'
-import { chamar, subirApi, type ApiDeTeste, type RespostaHttp } from './test-api.js'
+import { chamar, subirApi, type TestApi, type RespostaHttp } from './test-api.js'
 import { alunosNaTurma, montarEscolaComTurma, type EscolaComTurma } from './escola-turma.fixture.js'
-import { aguardar, GatilhoDeParada } from './write-block-trigger.js'
-import { FerramentasDaSala, pedidoDaSala, semRequisicao as semRequisicaoDaSala, type NomeDaLista, type SalaDeTeste } from './sala.fixture.js'
-import { BancadaDeSessoes, type SessaoDeTeste } from './sessao.fixture.js'
+import { aguardar, WriteBlockTrigger } from './write-block-trigger.js'
+import { FerramentasDaSala, pedidoDaSala, semRequisicao as semRequisicaoDaSala, type NomeDaLista, type TestSala } from './sala.fixture.js'
+import { SessaoFixtures, type TestSessao } from './sessao.fixture.js'
 
 /** Cada pedido pela sala sai de um IP sorteado (`X-Forwarded-For`), com a API confiando no 127.0.0.1. */
 const AMBIENTE = { LIMITE_PROXIES_CONFIAVEIS: '127.0.0.1' }
@@ -21,7 +21,7 @@ const NAO_ENCONTRADO = { status: 404, codigo: ErrorCode.NAO_ENCONTRADO, mensagem
 
 const semRequisicao = (resposta: RespostaHttp) => ({ status: resposta.status, codigo: resposta.corpo.erro?.codigo, mensagem: (resposta.corpo.erro as { mensagem?: string } | undefined)?.mensagem })
 
-interface LinhaDeVinculo {
+interface VinculoRow {
   readonly id: string
   readonly papel: string
   readonly estado: string
@@ -41,15 +41,15 @@ interface EscolaNaVirada extends EscolaComTurma {
   readonly pendente: string
   readonly contestado: string
   readonly desligado: string
-  readonly professorConfirmado: SessaoDeTeste
+  readonly professorConfirmado: TestSessao
 }
 
 describe('virada do ano: encerrar o ano letivo encerra os vínculos por `fim_do_ano` e apaga o `complemento`, numa transação (10.0)', () => {
-  const bancada = new BancadaDeSessoes()
+  const bancada = new SessaoFixtures()
   const medidor = new MedidorDeTeste()
   /** O log da API montada, para o log novo do `encerrar` (10.0): só ids. */
   const linhasDeLog: string[] = []
-  let api: ApiDeTeste
+  let api: TestApi
 
   beforeAll(async () => {
     api = await subirApi(medidor.medidor, { ambiente: AMBIENTE }, linhasDeLog)
@@ -61,10 +61,10 @@ describe('virada do ano: encerrar o ano letivo encerra os vínculos por `fim_do_
     await medidor.encerrar()
   })
 
-  const post = (sessao: SessaoDeTeste, caminho: string, corpo?: unknown): Promise<RespostaHttp> => chamar(api.url, 'POST', caminho, sessao.token, corpo)
-  const get = (sessao: SessaoDeTeste, caminho: string): Promise<RespostaHttp> => chamar(api.url, 'GET', caminho, sessao.token)
+  const post = (sessao: TestSessao, caminho: string, corpo?: unknown): Promise<RespostaHttp> => chamar(api.url, 'POST', caminho, sessao.token, corpo)
+  const get = (sessao: TestSessao, caminho: string): Promise<RespostaHttp> => chamar(api.url, 'GET', caminho, sessao.token)
 
-  async function vincular(escola: EscolaComTurma, professor: SessaoDeTeste, turmaId: string): Promise<string> {
+  async function vincular(escola: EscolaComTurma, professor: TestSessao, turmaId: string): Promise<string> {
     const resposta = await post(escola.coordenacao, '/v1/vinculos', { usuarioId: professor.usuarioId, turmaId, disciplinaId: escola.quimica, papel: 'professor' })
     expect(resposta.status).toBe(201)
     return resposta.corpo['id'] as string
@@ -87,8 +87,8 @@ describe('virada do ano: encerrar o ano letivo encerra os vínculos por `fim_do_
   }
 
   /** As linhas de `vinculo` do ano, lidas direto do banco: é a coluna que precisa estar vazia, não só a resposta da API. */
-  async function vinculosDoAno(anoLetivoId: string): Promise<LinhaDeVinculo[]> {
-    const { rows } = await bancada.pool.query<LinhaDeVinculo>(
+  async function vinculosDoAno(anoLetivoId: string): Promise<VinculoRow[]> {
+    const { rows } = await bancada.pool.query<VinculoRow>(
       'select id, papel, estado, contestacao, complemento, motivo_encerramento, decidido_em, encerrado_em from vinculo where ano_letivo_id = $1 order by id',
       [anoLetivoId],
     )
@@ -237,8 +237,8 @@ describe('virada do ano: encerrar o ano letivo encerra os vínculos por `fim_do_
       sala = new FerramentasDaSala(api, bancada)
     })
 
-    const encerrar = (s: SalaDeTeste) => post(s.coordenacao, `/v1/anos-letivos/${s.anoLetivoId}/encerrar`)
-    const decidir = (sessao: SessaoDeTeste, ids: readonly string[], decisao: 'aprovar' | 'recusar' = 'aprovar') => post(sessao, '/v1/reivindicacoes/decidir', { ids, decisao })
+    const encerrar = (s: TestSala) => post(s.coordenacao, `/v1/anos-letivos/${s.anoLetivoId}/encerrar`)
+    const decidir = (sessao: TestSessao, ids: readonly string[], decisao: 'aprovar' | 'recusar' = 'aprovar') => post(sessao, '/v1/reivindicacoes/decidir', { ids, decisao })
 
     function resultados(resposta: RespostaHttp): ResultadoDaDecisao[] {
       expect(resposta.status).toBe(200)
@@ -246,7 +246,7 @@ describe('virada do ano: encerrar o ano letivo encerra os vínculos por `fim_do_
     }
 
     /** O aluno reivindica o nome pela sala, com a matrícula certa, e o id do pedido pendente que nasceu. */
-    async function pedir(s: SalaDeTeste, nome: NomeDaLista): Promise<string> {
+    async function pedir(s: TestSala, nome: NomeDaLista): Promise<string> {
       expect((await sala.reivindicar(pedidoDaSala(s, nome))).status).toBe(200)
       const { rows } = await bancada.pool.query<{ id: string }>(`select id from reivindicacao where escola_id = $1 and lista_nome_id = $2 and estado = 'pendente'`, [s.escolaId, nome.id])
       const id = rows[0]?.id
@@ -274,7 +274,7 @@ describe('virada do ano: encerrar o ano letivo encerra os vínculos por `fim_do_
     }
 
     /** Os pedidos da escola no ano: estado e se sobrou algum segredo do pendente. */
-    async function pedidosDoAno(s: SalaDeTeste): Promise<Array<{ estado: string; com_segredo: boolean }>> {
+    async function pedidosDoAno(s: TestSala): Promise<Array<{ estado: string; com_segredo: boolean }>> {
       const { rows } = await bancada.pool.query<{ estado: string; com_segredo: boolean }>(
         `select estado, (senha_hash is not null or chave_envio is not null or teve_matricula_errada is not null) as com_segredo
            from reivindicacao where escola_id = $1 and ano_letivo_id = $2 order by id`,
@@ -288,13 +288,13 @@ describe('virada do ano: encerrar o ano letivo encerra os vínculos por `fim_do_
     }
 
     /** Os estados das linhas da lista da escola no ano, em ordem. */
-    async function nomesDoAno(s: SalaDeTeste): Promise<string[]> {
+    async function nomesDoAno(s: TestSala): Promise<string[]> {
       const { rows } = await bancada.pool.query<{ estado: string }>('select estado from lista_nome where escola_id = $1 and ano_letivo_id = $2 order by estado', [s.escolaId, s.anoLetivoId])
       return rows.map((linha) => linha.estado)
     }
 
     /** Os vínculos do ano que não foram encerrados: depois da virada, nenhum. */
-    async function vinculosAbertosDoAno(s: SalaDeTeste): Promise<Array<{ papel: string; estado: string }>> {
+    async function vinculosAbertosDoAno(s: TestSala): Promise<Array<{ papel: string; estado: string }>> {
       const { rows } = await bancada.pool.query<{ papel: string; estado: string }>(
         `select papel, estado from vinculo where escola_id = $1 and ano_letivo_id = $2 and estado <> 'encerrado' order by id`,
         [s.escolaId, s.anoLetivoId],
@@ -329,13 +329,13 @@ describe('virada do ano: encerrar o ano letivo encerra os vínculos por `fim_do_
     }
 
     /** O `encerrar` parado logo depois de mudar o ano, com a trava da linha do ano segura. */
-    const paradaNoAno = (s: SalaDeTeste) => new GatilhoDeParada(bancada.pool, { tabela: 'ano_letivo', evento: 'update', quando: `new.id = '${s.anoLetivoId}'::uuid and new.situacao = 'encerrado'` })
+    const paradaNoAno = (s: TestSala) => new WriteBlockTrigger(bancada.pool, { tabela: 'ano_letivo', evento: 'update', quando: `new.id = '${s.anoLetivoId}'::uuid and new.situacao = 'encerrado'` })
 
     it('V1: o acesso fica revogado, o pendente vira `encerrada` sem segredo, os nomes livre e reivindicado saem, o recusado fica sem nome, o aprovado fica; depois, link e código `NAO_ENCONTRADO` e o pedido `nao_encontrada`', async () => {
       const montada = await sala.montar()
       // "Gerar novo": o ano tem um acesso já revogado, que a virada não toca, e o vigente, que ela revoga.
       const anterior = await sala.acessoVigente(montada.turma)
-      const s: SalaDeTeste = { ...montada, ...(await sala.gerar(montada, montada.turma)) }
+      const s: TestSala = { ...montada, ...(await sala.gerar(montada, montada.turma)) }
       const revogadoAntes = async () =>
         (await bancada.pool.query<{ revogado_em: Date | null }>('select revogado_em from acesso_turma where id = $1', [anterior])).rows[0]?.revogado_em
       const revogadoEm = await revogadoAntes()
@@ -519,7 +519,7 @@ describe('virada do ano: encerrar o ano letivo encerra os vínculos por `fim_do_
     it('C10: `encerrar` × reivindicar, com a reivindicação parada depois do `insert`: o `encerrar` espera o ano e fecha o pedido; nada pendente sobra no ano encerrado', async () => {
       const s = await sala.montar()
       const nome = await sala.umNome(s)
-      const parada = new GatilhoDeParada(bancada.pool, { tabela: 'reivindicacao', evento: 'insert', quando: `new.lista_nome_id = '${nome.id}'::uuid` })
+      const parada = new WriteBlockTrigger(bancada.pool, { tabela: 'reivindicacao', evento: 'insert', quando: `new.lista_nome_id = '${nome.id}'::uuid` })
       await parada.armar()
       try {
         const reivindicando = sala.reivindicar(pedidoDaSala(s, nome))
@@ -565,7 +565,7 @@ describe('virada do ano: encerrar o ano letivo encerra os vínculos por `fim_do_
       const s = await sala.montar()
       const nome = await sala.umNome(s)
       const pedidoId = await pedir(s, nome)
-      const parada = new GatilhoDeParada(bancada.pool, { tabela: 'lista_nome', evento: 'update', quando: `new.id = '${nome.id}'::uuid and new.estado = 'aprovado'` })
+      const parada = new WriteBlockTrigger(bancada.pool, { tabela: 'lista_nome', evento: 'update', quando: `new.id = '${nome.id}'::uuid and new.estado = 'aprovado'` })
       await parada.armar()
       try {
         const aprovando = decidir(s.professor, [pedidoId])
@@ -613,7 +613,7 @@ describe('virada do ano: encerrar o ano letivo encerra os vínculos por `fim_do_
       it(`C10 (decidido na 10.0): \`encerrar\` × ${caminho}, parado depois do \`insert\`: o \`encerrar\` espera o ano e apaga o nome livre; nenhum sobra no ano encerrado`, async () => {
         const s = await sala.montar()
         const matricula = `virada-${randomUUID().slice(0, 8)}`
-        const parada = new GatilhoDeParada(bancada.pool, { tabela: 'lista_nome', evento: 'insert', quando: `new.matricula = '${matricula}'` })
+        const parada = new WriteBlockTrigger(bancada.pool, { tabela: 'lista_nome', evento: 'insert', quando: `new.matricula = '${matricula}'` })
         await parada.armar()
         try {
           const nome = `Aluna ${randomUUID().slice(0, 8)}`

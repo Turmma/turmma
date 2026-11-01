@@ -4,17 +4,17 @@ import { randomUUID } from 'node:crypto'
 import { afterAll, describe, expect, it, onTestFinished } from 'vitest'
 import { lerAmbienteDeTeste, valorObrigatorio } from '../../../tools/ci/compose.ts'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
-import type { ConfiguracaoStorage } from '../src/config.js'
-import { MedicaoDoArquivo } from '../src/arquivo-gauge.js'
-import { montarWorker } from '../src/composition.js'
-import { BancadaDeFila, configuracaoDoBanco, janelaPadraoDoAmbiente, LogEmMemoria, urlRedisDeFila, vagasPadraoDoAmbiente } from './queue.fixture.js'
+import type { StorageConfig } from '../src/config.js'
+import { ArquivoGauge } from '../src/arquivo-gauge.js'
+import { createWorker } from '../src/composition.js'
+import { QueueFixtures, configuracaoDoBanco, janelaPadraoDoAmbiente, InMemoryLog, urlRedisDeFila, vagasPadraoDoAmbiente } from './queue.fixture.js'
 
 // A medição `arquivo.horas_em_preparacao` (F3, tarefa 13.0; Tech Spec do F3, seção 7c) contra o Postgres do compose de teste, com a
 // lista de escolas dada e o relógio injetado: as horas desde que o pedido de acesso mais antigo da escola foi registrado e ainda
 // espera o arquivo. O alerta de 2 h em si, com o Prometheus e o Grafana, é `infra/test/alerta-do-arquivo.int.test.ts`.
 
 const ambiente = lerAmbienteDeTeste()
-const STORAGE: ConfiguracaoStorage = {
+const STORAGE: StorageConfig = {
   url: `http://127.0.0.1:${valorObrigatorio(ambiente, 'STORAGE_PORTA_HOST')}`,
   regiao: valorObrigatorio(ambiente, 'STORAGE_REGIAO'),
   bucket: valorObrigatorio(ambiente, 'STORAGE_BUCKET'),
@@ -26,8 +26,8 @@ const relogio = { agora: () => AGORA }
 const METRICA = 'arquivo.horas_em_preparacao'
 
 describe('medição das horas do arquivo do titular em preparação', () => {
-  const bancada = new BancadaDeFila()
-  const log = new LogEmMemoria('worker-teste')
+  const bancada = new QueueFixtures()
+  const log = new InMemoryLog('worker-teste')
 
   afterAll(async () => {
     await bancada.fechar()
@@ -49,8 +49,8 @@ describe('medição das horas do arquivo do titular em preparação', () => {
     )
   }
 
-  function medicaoDe(ids: readonly string[], medidor: MedidorDeTeste, repositorio: Pick<ArquivoDoTitularRepository, 'registradoEmDoEmPreparacaoMaisAntigo'> = new ArquivoDoTitularRepository(bancada.banco)): MedicaoDoArquivo {
-    return new MedicaoDoArquivo({ escolas: { listarIds: () => Promise.resolve([...ids]) }, repositorio, relogio, logger: log.logger, medidor: medidor.medidor })
+  function medicaoDe(ids: readonly string[], medidor: MedidorDeTeste, repositorio: Pick<ArquivoDoTitularRepository, 'registradoEmDoEmPreparacaoMaisAntigo'> = new ArquivoDoTitularRepository(bancada.banco)): ArquivoGauge {
+    return new ArquivoGauge({ escolas: { listarIds: () => Promise.resolve([...ids]) }, repositorio, relogio, logger: log.logger, medidor: medidor.medidor })
   }
 
   async function porEscola(medidor: MedidorDeTeste): Promise<Record<string, unknown>> {
@@ -121,7 +121,7 @@ describe('medição das horas do arquivo do titular em preparação', () => {
     await pedido(a, 7)
     const medidor = new MedidorDeTeste()
     onTestFinished(() => medidor.encerrar())
-    const worker = montarWorker(
+    const worker = createWorker(
       { banco: configuracaoDoBanco(), redisFilaUrl: urlRedisDeFila(), pools: { lote: 2 }, vagasPadrao: vagasPadraoDoAmbiente(), threadsMaximo: 1, storage: STORAGE, janelaPadrao: janelaPadraoDoAmbiente() },
       log.logger,
       { prefixo: bancada.prefixo, relogio, agendamentos: [], medidor: medidor.medidor },

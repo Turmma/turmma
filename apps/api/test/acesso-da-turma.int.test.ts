@@ -3,11 +3,11 @@ import { createHash, createHmac, randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { hmacDoCodigoDaTurma, sortearCodigoDaTurma } from '../src/sala/codigo-da-sala.js'
-import { chamar, subirApi, type ApiDeTeste, type RespostaHttp } from './test-api.js'
-import { configuracaoDeTeste, MONTAGEM_DE_TESTE } from './test-config.js'
+import { chamar, subirApi, type TestApi, type RespostaHttp } from './test-api.js'
+import { testConfig, TEST_APP_OPTIONS } from './test-config.js'
 import { montarEscolaComTurma, type EscolaComTurma } from './escola-turma.fixture.js'
-import { esperarNaTrava, GatilhoDeParada } from './write-block-trigger.js'
-import { BancadaDeSessoes, type SessaoDeTeste } from './sessao.fixture.js'
+import { esperarNaTrava, WriteBlockTrigger } from './write-block-trigger.js'
+import { SessaoFixtures, type TestSessao } from './sessao.fixture.js'
 
 /**
  * O acesso da turma (A1, tarefa 4.0; `tasks/prd-apresentacao-escola/cenarios.md`): E13, E14, P2 com o E12, a parte do
@@ -33,12 +33,12 @@ function semRequisicao(resposta: RespostaHttp): unknown {
 /** Uma escola da `montarEscolaComTurma` com um professor de Química confirmado na `turma`. */
 interface EscolaComProfessor extends EscolaComTurma {
   readonly escolaId: string
-  readonly professor: SessaoDeTeste
+  readonly professor: TestSessao
   /** O vínculo confirmado do professor na `turma`. */
   readonly vinculo: string
 }
 
-interface LinhaDoAcesso {
+interface AcessoRow {
   readonly id: string
   readonly token_hash: string
   readonly codigo_hmac: string
@@ -50,16 +50,16 @@ interface LinhaDoAcesso {
 }
 
 describe('acesso da turma (A1, tarefa 4.0): gerar, revogar e ler o link e o código', () => {
-  const bancada = new BancadaDeSessoes()
+  const bancada = new SessaoFixtures()
   const medidor = new MedidorDeTeste()
-  let api: ApiDeTeste
+  let api: TestApi
   /** A API com o sorteio do código na mão do teste (C6): tira da fila e, vazia, sorteia de verdade. */
-  let apiDoSorteio: ApiDeTeste
+  let apiDoSorteio: TestApi
   const filaDeCodigos: string[] = []
 
   beforeAll(async () => {
     api = await subirApi(medidor.medidor)
-    apiDoSorteio = await subirApi(medidor.medidor, {}, undefined, { ...MONTAGEM_DE_TESTE, sortearCodigoDaSala: () => filaDeCodigos.shift() ?? sortearCodigoDaTurma() })
+    apiDoSorteio = await subirApi(medidor.medidor, {}, undefined, { ...TEST_APP_OPTIONS, sortearCodigoDaSala: () => filaDeCodigos.shift() ?? sortearCodigoDaTurma() })
   })
 
   afterAll(async () => {
@@ -69,10 +69,10 @@ describe('acesso da turma (A1, tarefa 4.0): gerar, revogar e ler o link e o cód
     await medidor.encerrar()
   })
 
-  const post = (sessao: SessaoDeTeste, caminho: string, corpo?: unknown, url = api.url) => chamar(url, 'POST', caminho, sessao.token, corpo)
-  const gerar = (sessao: SessaoDeTeste, turma: string, validadeDias: number = 7, url = api.url) => post(sessao, `/v1/turmas/${turma}/acesso`, { validadeDias }, url)
-  const revogar = (sessao: SessaoDeTeste, turma: string) => post(sessao, `/v1/turmas/${turma}/acesso/revogar`, {})
-  const ler = (sessao: SessaoDeTeste, turma: string) => chamar(api.url, 'GET', `/v1/turmas/${turma}/acesso`, sessao.token)
+  const post = (sessao: TestSessao, caminho: string, corpo?: unknown, url = api.url) => chamar(url, 'POST', caminho, sessao.token, corpo)
+  const gerar = (sessao: TestSessao, turma: string, validadeDias: number = 7, url = api.url) => post(sessao, `/v1/turmas/${turma}/acesso`, { validadeDias }, url)
+  const revogar = (sessao: TestSessao, turma: string) => post(sessao, `/v1/turmas/${turma}/acesso/revogar`, {})
+  const ler = (sessao: TestSessao, turma: string) => chamar(api.url, 'GET', `/v1/turmas/${turma}/acesso`, sessao.token)
   const excluirTurma = (escola: EscolaComTurma, turma: string) => chamar(api.url, 'DELETE', `/v1/turmas/${turma}`, escola.coordenacao.token)
 
   async function vincular(escola: EscolaComTurma, usuarioId: string, turmaId = escola.turma, disciplinaId = escola.quimica): Promise<string> {
@@ -81,16 +81,16 @@ describe('acesso da turma (A1, tarefa 4.0): gerar, revogar e ler o link e o cód
     return resposta.corpo['id'] as string
   }
 
-  async function confirmar(professor: SessaoDeTeste, vinculo: string): Promise<void> {
+  async function confirmar(professor: TestSessao, vinculo: string): Promise<void> {
     expect((await post(professor, `/v1/vinculos/${vinculo}/confirmar`)).status).toBe(200)
   }
 
-  async function contestar(professor: SessaoDeTeste, vinculo: string): Promise<void> {
+  async function contestar(professor: TestSessao, vinculo: string): Promise<void> {
     expect((await post(professor, `/v1/vinculos/${vinculo}/contestar`, { contestacao: 'nao_leciono' })).status).toBe(200)
   }
 
   /** Um professor novo da escola, com o vínculo confirmado na turma e na disciplina. */
-  async function professorConfirmado(escola: EscolaComTurma, turmaId = escola.turma, disciplinaId = escola.quimica): Promise<{ sessao: SessaoDeTeste; vinculo: string }> {
+  async function professorConfirmado(escola: EscolaComTurma, turmaId = escola.turma, disciplinaId = escola.quimica): Promise<{ sessao: TestSessao; vinculo: string }> {
     const sessao = await bancada.sessao(escola.coordenacao.escolaId, 'professor')
     const vinculo = await vincular(escola, sessao.usuarioId, turmaId, disciplinaId)
     await confirmar(sessao, vinculo)
@@ -104,8 +104,8 @@ describe('acesso da turma (A1, tarefa 4.0): gerar, revogar e ler o link e o cód
   }
 
   /** Todos os acessos da turma, em ordem de criação. */
-  async function acessosDa(escola: EscolaComProfessor, turma: string): Promise<LinhaDoAcesso[]> {
-    const { rows } = await bancada.pool.query<LinhaDoAcesso>(
+  async function acessosDa(escola: EscolaComProfessor, turma: string): Promise<AcessoRow[]> {
+    const { rows } = await bancada.pool.query<AcessoRow>(
       `select id, token_hash, codigo_hmac, validade_dias, expira_em, revogado_em, criado_por, criado_em from acesso_turma
         where escola_id = $1 and turma_id = $2 order by criado_em, id`,
       [escola.escolaId, turma],
@@ -113,7 +113,7 @@ describe('acesso da turma (A1, tarefa 4.0): gerar, revogar e ler o link e o cód
     return rows
   }
 
-  async function naoRevogados(escola: EscolaComProfessor, turma: string): Promise<LinhaDoAcesso[]> {
+  async function naoRevogados(escola: EscolaComProfessor, turma: string): Promise<AcessoRow[]> {
     return (await acessosDa(escola, turma)).filter((linha) => linha.revogado_em === null)
   }
 
@@ -266,7 +266,7 @@ describe('acesso da turma (A1, tarefa 4.0): gerar, revogar e ler o link e o cód
       const deOutraTurma = await professorConfirmado(e, e.outraTurma)
       const aluno = await bancada.sessao(e.escolaId, 'aluno')
 
-      const quem: ReadonlyArray<readonly [string, SessaoDeTeste]> = [
+      const quem: ReadonlyArray<readonly [string, TestSessao]> = [
         ['coordenação', e.coordenacao],
         ['aluno', aluno],
         ['professor sem vínculo', semVinculo],
@@ -412,7 +412,7 @@ describe('acesso da turma (A1, tarefa 4.0): gerar, revogar e ler o link e o cód
       ])
       expect(linhaDoPrimeiro?.criado_por).toBe(e.professor.usuarioId)
 
-      const config = configuracaoDeTeste()
+      const config = testConfig()
       const chaveCodigo = config.sala.chaveCodigo
       const chaveContador = config.login.chaveContador
       for (const [resposta, linha] of [
@@ -469,7 +469,7 @@ describe('acesso da turma (A1, tarefa 4.0): gerar, revogar e ler o link e o cód
         const fisica = await professorConfirmado(e, e.turma, e.fisica)
         if (comAcesso) expect((await gerar(e.professor, e.turma)).status).toBe(201)
         const auditoriaAntes = (await auditoriaDoAcesso(e)).length
-        const gatilho = new GatilhoDeParada(bancada.pool, { tabela: 'acesso_turma', evento: 'insert', quando: `new.turma_id = '${e.turma}'::uuid` })
+        const gatilho = new WriteBlockTrigger(bancada.pool, { tabela: 'acesso_turma', evento: 'insert', quando: `new.turma_id = '${e.turma}'::uuid` })
         await gatilho.armar()
         try {
           const primeiro = gerar(e.professor, e.turma)
@@ -509,7 +509,7 @@ describe('acesso da turma (A1, tarefa 4.0): gerar, revogar e ler o link e o cód
       const e = await montar()
       const fisica = await professorConfirmado(e, e.turma, e.fisica)
       expect((await gerar(e.professor, e.turma)).status).toBe(201)
-      const gatilho = new GatilhoDeParada(bancada.pool, { tabela: 'acesso_turma', evento: 'insert', quando: `new.turma_id = '${e.turma}'::uuid` })
+      const gatilho = new WriteBlockTrigger(bancada.pool, { tabela: 'acesso_turma', evento: 'insert', quando: `new.turma_id = '${e.turma}'::uuid` })
       await gatilho.armar()
       try {
         const gerando = gerar(fisica.sessao, e.turma)
@@ -536,7 +536,7 @@ describe('acesso da turma (A1, tarefa 4.0): gerar, revogar e ler o link e o cód
       const fisica = await professorConfirmado(e, e.turma, e.fisica)
       expect((await gerar(e.professor, e.turma)).status).toBe(201)
       const [anterior] = await naoRevogados(e, e.turma)
-      const gatilho = new GatilhoDeParada(bancada.pool, { tabela: 'acesso_turma', evento: 'update', quando: `new.id = '${anterior?.id ?? ''}'::uuid and new.revogado_em is not null` })
+      const gatilho = new WriteBlockTrigger(bancada.pool, { tabela: 'acesso_turma', evento: 'update', quando: `new.id = '${anterior?.id ?? ''}'::uuid and new.revogado_em is not null` })
       await gatilho.armar()
       try {
         const revogando = revogar(e.professor, e.turma)
@@ -574,7 +574,7 @@ describe('acesso da turma (A1, tarefa 4.0): gerar, revogar e ler o link e o cód
       expect(gerado.corpo['codigo']).toBe('BBBB3333')
       expect(filaDeCodigos).toEqual([])
       const [vigente] = await naoRevogados(e, e.turma)
-      expect(vigente?.codigo_hmac).toBe(hmacDoCodigoDaTurma(configuracaoDeTeste().sala.chaveCodigo, 'BBBB3333'))
+      expect(vigente?.codigo_hmac).toBe(hmacDoCodigoDaTurma(testConfig().sala.chaveCodigo, 'BBBB3333'))
       // O da outra turma continua vigente, com o mesmo código.
       expect(await naoRevogados(e, e.outraTurma)).toHaveLength(1)
     })
@@ -606,7 +606,7 @@ describe('acesso da turma (A1, tarefa 4.0): gerar, revogar e ler o link e o cód
   describe('C11: excluir a turma × gerar o acesso, em paralelo, sem acesso antes', () => {
     it('o gerar parado depois do insert: o excluir espera a turma e sai CONFLITO; o acesso entregue continua vigente', async () => {
       const e = await montar()
-      const gatilho = new GatilhoDeParada(bancada.pool, { tabela: 'acesso_turma', evento: 'insert', quando: `new.turma_id = '${e.turma}'::uuid` })
+      const gatilho = new WriteBlockTrigger(bancada.pool, { tabela: 'acesso_turma', evento: 'insert', quando: `new.turma_id = '${e.turma}'::uuid` })
       await gatilho.armar()
       try {
         const gerando = gerar(e.professor, e.turma)
@@ -655,7 +655,7 @@ describe('acesso da turma (A1, tarefa 4.0): gerar, revogar e ler o link e o cód
 
   it('4.5: o gerar trava o ano em curso; o encerramento no meio faz o gerar sair NAO_ENCONTRADO, sem acesso no ano encerrado', async () => {
     const e = await montar()
-    const gatilho = new GatilhoDeParada(bancada.pool, { tabela: 'ano_letivo', evento: 'update', quando: `new.id = '${e.anoLetivoId}'::uuid and new.situacao = 'encerrado'` })
+    const gatilho = new WriteBlockTrigger(bancada.pool, { tabela: 'ano_letivo', evento: 'update', quando: `new.id = '${e.anoLetivoId}'::uuid and new.situacao = 'encerrado'` })
     await gatilho.armar()
     try {
       const encerrando = post(e.coordenacao, `/v1/anos-letivos/${e.anoLetivoId}/encerrar`)

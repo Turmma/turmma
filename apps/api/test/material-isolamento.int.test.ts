@@ -4,10 +4,10 @@ import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { TrechoSearch } from '../src/material/trecho-search.js'
-import { chamar, subirApi, type ApiDeTeste, type RespostaHttp } from './test-api.js'
+import { chamar, subirApi, type TestApi, type RespostaHttp } from './test-api.js'
 import { montarEscolaComTurma as montarEscola, type EscolaComTurma } from './escola-turma.fixture.js'
 import { apagarMateriais, auditoriaDa, enviarMaterial, esperarExtracao, materiaisDa, trechosDa } from './material.fixture.js'
-import { BancadaDeSessoes, type SessaoDeTeste } from './sessao.fixture.js'
+import { SessaoFixtures, type TestSessao } from './sessao.fixture.js'
 
 /**
  * Isolamento do material entre escolas (regra 10, itens 3 a 6; regra 60, item 10): a escola A não lista, não lê, não
@@ -15,13 +15,13 @@ import { BancadaDeSessoes, type SessaoDeTeste } from './sessao.fixture.js'
  * as mesmas palavras: cada caso tem linhas de B que a consulta alcançaria se a cláusula de escola saísse do repository.
  */
 describe('material: isolamento entre escolas', () => {
-  const bancada = new BancadaDeSessoes()
+  const bancada = new SessaoFixtures()
   const medidor = new MedidorDeTeste()
-  let api: ApiDeTeste
+  let api: TestApi
   /** As escolas que o teste montou: o material delas sai antes de a bancada apagar as disciplinas. */
   const escolasDoTeste: string[] = []
 
-  async function montarEscolaComTurma(daApi: ApiDeTeste, daBancada: BancadaDeSessoes): Promise<EscolaComTurma> {
+  async function montarEscolaComTurma(daApi: TestApi, daBancada: SessaoFixtures): Promise<EscolaComTurma> {
     const escola = await montarEscola(daApi, daBancada)
     escolasDoTeste.push(escola.coordenacao.escolaId)
     return escola
@@ -29,19 +29,19 @@ describe('material: isolamento entre escolas', () => {
 
   interface EscolaComMaterial extends EscolaComTurma {
     readonly materialId: string
-    readonly professor: SessaoDeTeste
+    readonly professor: TestSessao
   }
 
   let a: EscolaComMaterial
   let b: EscolaComMaterial
 
-  const get = (sessao: SessaoDeTeste, caminho: string): Promise<RespostaHttp> => chamar(api.url, 'GET', caminho, sessao.token)
-  const del = (sessao: SessaoDeTeste, caminho: string): Promise<RespostaHttp> => chamar(api.url, 'DELETE', caminho, sessao.token)
-  const post = (sessao: SessaoDeTeste, caminho: string, corpo?: unknown): Promise<RespostaHttp> => chamar(api.url, 'POST', caminho, sessao.token, corpo)
+  const get = (sessao: TestSessao, caminho: string): Promise<RespostaHttp> => chamar(api.url, 'GET', caminho, sessao.token)
+  const del = (sessao: TestSessao, caminho: string): Promise<RespostaHttp> => chamar(api.url, 'DELETE', caminho, sessao.token)
+  const post = (sessao: TestSessao, caminho: string, corpo?: unknown): Promise<RespostaHttp> => chamar(api.url, 'POST', caminho, sessao.token, corpo)
   /** A resposta sem o id da requisição, que muda a cada chamada: o resto precisa ser idêntico. */
   const semRequisicao = (resposta: RespostaHttp) => ({ status: resposta.status, codigo: resposta.corpo.erro?.codigo, mensagem: (resposta.corpo.erro as { mensagem?: string } | undefined)?.mensagem })
-  const idsDaLista = async (sessao: SessaoDeTeste, consulta = '') => listaDeMateriaisResponseSchema.parse((await get(sessao, `/v1/materiais${consulta}`)).corpo).itens.map((item) => item.id)
-  const materiaisDaBusca = async (sessao: SessaoDeTeste, consulta: string) => buscaDeMaterialResponseSchema.parse((await get(sessao, `/v1/materiais/busca?${consulta}`)).corpo).itens.map((item) => item.materialId)
+  const idsDaLista = async (sessao: TestSessao, consulta = '') => listaDeMateriaisResponseSchema.parse((await get(sessao, `/v1/materiais${consulta}`)).corpo).itens.map((item) => item.id)
+  const materiaisDaBusca = async (sessao: TestSessao, consulta: string) => buscaDeMaterialResponseSchema.parse((await get(sessao, `/v1/materiais/busca?${consulta}`)).corpo).itens.map((item) => item.materialId)
 
   /** Uma escola com o PDF de demonstração `pronto` em Química e um professor com vínculo confirmado em Química. */
   async function montar(): Promise<EscolaComMaterial> {

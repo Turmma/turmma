@@ -30,16 +30,16 @@ import { afterAll, beforeAll, describe, expect, it, onTestFinished } from 'vites
 import { lerAmbienteDeTeste, valorObrigatorio } from '../../../tools/ci/compose.ts'
 import { compose, PROCESSOS_DA_FILA } from '../../../tools/testes/compose.ts'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
-import { esperarNaTrava, GatilhoDeParada } from '../../api/test/write-block-trigger.js'
-import type { ConfiguracaoStorage } from '../src/config.js'
-import type { Processador } from '../src/job-executor.js'
-import { MedicaoDoExpurgo } from '../src/expurgo-gauge.js'
+import { esperarNaTrava, WriteBlockTrigger } from '../../api/test/write-block-trigger.js'
+import type { StorageConfig } from '../src/config.js'
+import type { JobProcessor } from '../src/job-executor.js'
+import { ExpurgoGauge } from '../src/expurgo-gauge.js'
 import { GovernancaRepository } from '../../api/src/governanca/governanca.repository.js'
-import { montarWorker } from '../src/composition.js'
+import { createWorker } from '../src/composition.js'
 import { chaveDaNoite, criarRotinaDeExpurgo } from '../src/processors/expurgar-dado-pessoal.js'
 import { criarExpurgoDaEscola } from '../src/processors/expurgar-escola.js'
-import { BancadaDeFila, configuracaoDoBanco, janelaPadraoDoAmbiente, LogEmMemoria, urlRedisDeFila, vagasPadraoDoAmbiente } from './queue.fixture.js'
-import { execucaoDoJob } from './job-execution.fixture.js'
+import { QueueFixtures, configuracaoDoBanco, janelaPadraoDoAmbiente, InMemoryLog, urlRedisDeFila, vagasPadraoDoAmbiente } from './queue.fixture.js'
+import { jobExecution } from './job-execution.fixture.js'
 
 // O expurgo noturno da escola (F3, tarefas 3.0 a 5.0), contra o Postgres do compose de teste: a conversa do Tutor, os
 // sinais e a conversa do professor, que saem; a execução de agente, o texto do modelo, o consumo por aluno e a autoria
@@ -50,7 +50,7 @@ import { execucaoDoJob } from './job-execution.fixture.js'
 // janela, e às 8h, dentro.
 
 const ambiente = lerAmbienteDeTeste()
-const STORAGE: ConfiguracaoStorage = {
+const STORAGE: StorageConfig = {
   url: `http://127.0.0.1:${valorObrigatorio(ambiente, 'STORAGE_PORTA_HOST')}`,
   regiao: valorObrigatorio(ambiente, 'STORAGE_REGIAO'),
   bucket: valorObrigatorio(ambiente, 'STORAGE_BUCKET'),
@@ -100,8 +100,8 @@ beforeAll(() => {
 })
 
 describe('retencao.expurgar-escola e sistema.expurgar-dado-pessoal', () => {
-  const bancada = new BancadaDeFila()
-  const log = new LogEmMemoria('worker-teste')
+  const bancada = new QueueFixtures()
+  const log = new InMemoryLog('worker-teste')
   const escolas: string[] = []
 
   afterAll(async () => {
@@ -533,7 +533,7 @@ describe('retencao.expurgar-escola e sistema.expurgar-dado-pessoal', () => {
   /** O horário letivo da escola do contexto, lido como o worker-lote lê. */
   const janelaDaEscola = () => new OperationalSettings<JanelaLetiva>(new OperationalSettingsRepository(bancada.banco), (linha) => resolverJanela(janelaPadraoDoAmbiente(), linha))
 
-  function expurgo(relogio: Clock, opcoes: { lote?: number; repositorio?: ExpurgoDaEscolaRepository; armazem?: FileStorage } = {}): Processador {
+  function expurgo(relogio: Clock, opcoes: { lote?: number; repositorio?: ExpurgoDaEscolaRepository; armazem?: FileStorage } = {}): JobProcessor {
     return criarExpurgoDaEscola({
       repositorio: opcoes.repositorio ?? new ExpurgoDaEscolaRepository(bancada.banco),
       arquivos: new ArquivoDoTitularRepository(bancada.banco),
@@ -547,12 +547,12 @@ describe('retencao.expurgar-escola e sistema.expurgar-dado-pessoal', () => {
     })
   }
 
-  function rodar(escolaId: string, processador: Processador): Promise<void> {
+  function rodar(escolaId: string, processador: JobProcessor): Promise<void> {
     const jobId = randomUUID()
-    return runInContext({ requisicaoId: randomUUID(), escolaId }, () => processador({}, execucaoDoJob(jobId)))
+    return runInContext({ requisicaoId: randomUUID(), escolaId }, () => processador({}, jobExecution(jobId)))
   }
 
-  function rotina(relogio: Clock, ids: readonly string[]): Processador {
+  function rotina(relogio: Clock, ids: readonly string[]): JobProcessor {
     return criarRotinaDeExpurgo({
       escolas: { listarIds: () => Promise.resolve([...ids]) },
       banco: bancada.banco,
@@ -563,9 +563,9 @@ describe('retencao.expurgar-escola e sistema.expurgar-dado-pessoal', () => {
     })
   }
 
-  function rodarRotina(processador: Processador): Promise<void> {
+  function rodarRotina(processador: JobProcessor): Promise<void> {
     const jobId = randomUUID()
-    return runInContext({ requisicaoId: randomUUID(), rotinaDoSistema: true }, () => processador({}, execucaoDoJob(jobId)))
+    return runInContext({ requisicaoId: randomUUID(), rotinaDoSistema: true }, () => processador({}, jobExecution(jobId)))
   }
 
   async function jobsDoExpurgo(escolaId: string): Promise<Array<{ id: string; chave: string; fila: string; prioridade: number; naoUrgente: boolean; estado: string }>> {
@@ -755,7 +755,7 @@ describe('retencao.expurgar-escola e sistema.expurgar-dado-pessoal', () => {
       expect((await execucoes(a.escolaId)).slice(2)).toEqual([{ categoria: 'sinal_tutor', linhas: 0, concluida: false }])
       const medidor = new MedidorDeTeste()
       onTestFinished(() => medidor.encerrar())
-      await new MedicaoDoExpurgo({
+      await new ExpurgoGauge({
         escolas: { listarIds: () => Promise.resolve([a.escolaId]) },
         repositorio: real,
         janelaDaEscola: janelaDaEscola(),
@@ -782,7 +782,7 @@ describe('retencao.expurgar-escola e sistema.expurgar-dado-pessoal', () => {
       ])
       const medidor = new MedidorDeTeste()
       onTestFinished(() => medidor.encerrar())
-      await new MedicaoDoExpurgo({
+      await new ExpurgoGauge({
         escolas: { listarIds: () => Promise.resolve([a.escolaId]) },
         repositorio: real,
         janelaDaEscola: janelaDaEscola(),
@@ -1072,7 +1072,7 @@ describe('retencao.expurgar-escola e sistema.expurgar-dado-pessoal', () => {
       const chave = `chave-${randomUUID()}`
       const gravar = () => runInContext({ requisicaoId: randomUUID(), escolaId: a.escolaId }, () => bancada.banco.transaction((tx) => bancada.enfileirador.enfileirarUmaVez(tx, TIPO_EXPURGAR_ESCOLA, {}, chave)))
       // A primeira para depois de inserir, sem confirmar; a segunda chega e espera no índice único; só então a primeira segue.
-      const gatilho = new GatilhoDeParada(bancada.pool, { tabela: 'job_registro', evento: 'insert', quando: `new.chave_idempotencia = '${chave}'` })
+      const gatilho = new WriteBlockTrigger(bancada.pool, { tabela: 'job_registro', evento: 'insert', quando: `new.chave_idempotencia = '${chave}'` })
       await gatilho.armar()
       onTestFinished(() => gatilho.desarmar())
       const primeira = gravar()
@@ -1204,13 +1204,13 @@ describe('retencao.expurgar-escola e sistema.expurgar-dado-pessoal', () => {
 
     it('permissão: a rotina só roda como rotina do sistema, e o job da escola só no contexto de uma escola', async () => {
       const a = await escolaNova()
-      await expect(runInContext({ requisicaoId: randomUUID(), escolaId: a.escolaId }, () => rotina(relogioEm(QUARTA_1H), [a.escolaId])({}, execucaoDoJob('x')))).rejects.toMatchObject({
-        name: 'FalhaDeJob',
+      await expect(runInContext({ requisicaoId: randomUUID(), escolaId: a.escolaId }, () => rotina(relogioEm(QUARTA_1H), [a.escolaId])({}, jobExecution('x')))).rejects.toMatchObject({
+        name: 'JobFailureError',
         codigo: JobFailureCode.DADOS_INVALIDOS,
       })
       expect(await jobsDoExpurgo(a.escolaId)).toEqual([])
       const vencida = await mensagemTutor(a, QUARTA_1H, '13 months')
-      await expect(rodarRotina(expurgo(relogioEm(QUARTA_1H)))).rejects.toMatchObject({ name: 'FalhaDeJob', codigo: JobFailureCode.DADOS_INVALIDOS })
+      await expect(rodarRotina(expurgo(relogioEm(QUARTA_1H)))).rejects.toMatchObject({ name: 'JobFailureError', codigo: JobFailureCode.DADOS_INVALIDOS })
       expect(await existe('mensagem_tutor', vencida)).toBe(true)
     })
 
@@ -2516,8 +2516,8 @@ describe('retencao.expurgar-escola e sistema.expurgar-dado-pessoal', () => {
     /** Quarta ao meio-dia: as noites contadas são terça (ontem) e segunda. */
     const QUARTA_12H = new Date('2026-10-07T12:00:00-03:00')
 
-    function medicaoDe(ids: readonly string[], medidor: MedidorDeTeste, repositorio: Pick<ExpurgoDaEscolaRepository, 'noitesDoAlerta'> = new ExpurgoDaEscolaRepository(bancada.banco), listar?: () => Promise<string[]>): MedicaoDoExpurgo {
-      return new MedicaoDoExpurgo({
+    function medicaoDe(ids: readonly string[], medidor: MedidorDeTeste, repositorio: Pick<ExpurgoDaEscolaRepository, 'noitesDoAlerta'> = new ExpurgoDaEscolaRepository(bancada.banco), listar?: () => Promise<string[]>): ExpurgoGauge {
+      return new ExpurgoGauge({
         escolas: { listarIds: listar ?? (() => Promise.resolve([...ids])) },
         repositorio,
         janelaDaEscola: janelaDaEscola(),
@@ -2547,7 +2547,7 @@ describe('retencao.expurgar-escola e sistema.expurgar-dado-pessoal', () => {
       await noite(e.escolaId, '2026-10-06T02:00:00', parcial)
       const medidor = new MedidorDeTeste()
       onTestFinished(() => medidor.encerrar())
-      const medicao = new MedicaoDoExpurgo({
+      const medicao = new ExpurgoGauge({
         escolas: { listarIds: () => Promise.resolve([a.escolaId, b.escolaId, c.escolaId, d.escolaId, e.escolaId]) },
         repositorio: new ExpurgoDaEscolaRepository(bancada.banco),
         janelaDaEscola: janelaDaEscola(),
@@ -2623,7 +2623,7 @@ describe('retencao.expurgar-escola e sistema.expurgar-dado-pessoal', () => {
       const real = new ExpurgoDaEscolaRepository(bancada.banco)
       const medidor = new MedidorDeTeste()
       onTestFinished(() => medidor.encerrar())
-      const montada: { medicao?: MedicaoDoExpurgo } = {}
+      const montada: { medicao?: ExpurgoGauge } = {}
       const encerraNaPrimeira: Pick<ExpurgoDaEscolaRepository, 'noitesDoAlerta'> = {
         noitesDoAlerta: async (fuso, agora, categorias) => {
           await montada.medicao?.encerrar()
@@ -2643,7 +2643,7 @@ describe('retencao.expurgar-escola e sistema.expurgar-dado-pessoal', () => {
       await noite(a.escolaId, '2026-10-06T01:30:00', completa)
       const medidor = new MedidorDeTeste()
       onTestFinished(() => medidor.encerrar())
-      const medicao = new MedicaoDoExpurgo({
+      const medicao = new ExpurgoGauge({
         escolas: { listarIds: () => Promise.resolve([a.escolaId]) },
         repositorio: new ExpurgoDaEscolaRepository(bancada.banco),
         janelaDaEscola: janelaDaEscola(),
@@ -2666,7 +2666,7 @@ describe('retencao.expurgar-escola e sistema.expurgar-dado-pessoal', () => {
       await noite(a.escolaId, '2026-10-07T01:30:00', completa)
       const medidor = new MedidorDeTeste()
       onTestFinished(() => medidor.encerrar())
-      const medicao = new MedicaoDoExpurgo({
+      const medicao = new ExpurgoGauge({
         escolas: { listarIds: () => Promise.resolve([a.escolaId]) },
         repositorio: new ExpurgoDaEscolaRepository(bancada.banco),
         janelaDaEscola: janelaDaEscola(),
@@ -2988,7 +2988,7 @@ describe('retencao.expurgar-escola e sistema.expurgar-dado-pessoal', () => {
       const a = await escolaNova()
       const vencida = await mensagemTutor(a, QUARTA_1H, '13 months')
       const relogio = relogioEm(QUARTA_1H)
-      const worker = montarWorker(
+      const worker = createWorker(
         { banco: configuracaoDoBanco(), redisFilaUrl: urlRedisDeFila(), pools: { lote: 2 }, vagasPadrao: vagasPadraoDoAmbiente(), threadsMaximo: 1, storage: STORAGE, janelaPadrao: janelaPadraoDoAmbiente() },
         log.logger,
         { prefixo: bancada.prefixo, relogio, agendamentos: [] },

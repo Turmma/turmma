@@ -4,9 +4,9 @@ import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { MinhaTurmaRepository } from '../src/sala/minha-turma/minha-turma.repository.js'
-import { chamar, subirApi, type ApiDeTeste, type RespostaHttp } from './test-api.js'
-import { FerramentasDaSala, pedidoDaSala, SENHA_DA_SALA, type SalaDeTeste } from './sala.fixture.js'
-import { BancadaDeSessoes } from './sessao.fixture.js'
+import { chamar, subirApi, type TestApi, type RespostaHttp } from './test-api.js'
+import { FerramentasDaSala, pedidoDaSala, SENHA_DA_SALA, type TestSala } from './sala.fixture.js'
+import { SessaoFixtures } from './sessao.fixture.js'
 
 /**
  * A turma do aluno aprovado (A1, tarefa 8.0; `tasks/prd-apresentacao-escola/cenarios.md`): `GET /v1/minha-turma`, só do
@@ -19,9 +19,9 @@ const AMBIENTE = { LIMITE_PROXIES_CONFIAVEIS: '127.0.0.1' }
 const NAO_ENCONTRADO = { status: 404, erro: { codigo: ErrorCode.NAO_ENCONTRADO, mensagem: MENSAGENS_DE_ERRO.NAO_ENCONTRADO } }
 
 describe('minha-turma (A1, tarefa 8.0): o aluno aprovado vê a própria turma, e só ela', () => {
-  const bancada = new BancadaDeSessoes()
+  const bancada = new SessaoFixtures()
   const medidor = new MedidorDeTeste()
-  let api: ApiDeTeste
+  let api: TestApi
   let sala: FerramentasDaSala
 
   beforeAll(async () => {
@@ -39,7 +39,7 @@ describe('minha-turma (A1, tarefa 8.0): o aluno aprovado vê a própria turma, e
   const semRequisicao = (resposta: RespostaHttp) => ({ status: resposta.status, erro: { codigo: resposta.corpo.erro?.codigo, mensagem: (resposta.corpo.erro as { mensagem?: string } | undefined)?.mensagem } })
 
   /** Um aluno aprovado na turma pelo professor, que entra por matrícula e senha: o id dele e o token da sessão. */
-  async function alunoAprovado(s: SalaDeTeste, turmaId: string): Promise<{ usuarioId: string; token: string }> {
+  async function alunoAprovado(s: TestSala, turmaId: string): Promise<{ usuarioId: string; token: string }> {
     const nome = await sala.umNome(s, turmaId)
     const acesso = turmaId === s.turma ? s : { ...s, ...(await sala.gerar(s, turmaId)) }
     expect((await sala.reivindicar(pedidoDaSala(acesso, nome))).status).toBe(200)

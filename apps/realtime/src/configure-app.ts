@@ -16,9 +16,9 @@ import {
 } from '@educa/core'
 import { NestFactory } from '@nestjs/core'
 import type { NestExpressApplication } from '@nestjs/platform-express'
-import { AdaptadorSocketIoComRedis, criarClienteRedisDoRealtime } from './redis-adapter.js'
+import { RedisIoAdapter, createRealtimeRedisClient } from './redis-adapter.js'
 import { AppModule } from './app.module.js'
-import type { ConfiguracaoRealtime } from './config.js'
+import type { RealtimeConfig } from './config.js'
 
 /**
  * Monta uma instância do realtime: Redis de fila conectado, pool do Postgres para o handshake ler a
@@ -26,8 +26,8 @@ import type { ConfiguracaoRealtime } from './config.js'
  * (duração por rota, conexões abertas, Redis, pool do banco). O boot e os testes de integração passam por
  * aqui, para provar a mesma ligação que sobe no container.
  */
-export async function criarAplicacaoRealtime(config: ConfiguracaoRealtime, logger: LoggerBase, medidor: Meter = globalMeter()): Promise<NestExpressApplication> {
-  const cliente = criarClienteRedisDoRealtime(config.redis.url, (erro) =>
+export async function createRealtimeApp(config: RealtimeConfig, logger: LoggerBase, medidor: Meter = globalMeter()): Promise<NestExpressApplication> {
+  const cliente = createRealtimeRedisClient(config.redis.url, (erro) =>
     logger.warn({ evento: 'realtime.redis_indisponivel', erro: summarizeError(erro) }),
   )
   await cliente.connect()
@@ -37,7 +37,7 @@ export async function criarAplicacaoRealtime(config: ConfiguracaoRealtime, logge
   app.use(httpMetricsMiddleware(medidor))
   app.useLogger(new NestLogger(logger))
   app.useGlobalFilters(new AllExceptionsFilter(logger))
-  const adaptador = new AdaptadorSocketIoComRedis(app, cliente, config.redis.tamanhoMaximoDoStream)
+  const adaptador = new RedisIoAdapter(app, cliente, config.redis.tamanhoMaximoDoStream)
   app.useWebSocketAdapter(adaptador)
   observeRealtimeConnections(medidor, () => adaptador.conexoesAbertas())
   observeRedis(medidor, { fila: [cliente] })

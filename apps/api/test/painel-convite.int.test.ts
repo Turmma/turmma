@@ -15,10 +15,10 @@ import { executarOpsConviteCoordenador } from '../src/ops/convite-coordenador.js
 import { desativarOperador } from '../src/ops/operador.js'
 import { executarOpsRevogarConvite } from '../src/ops/revogar-convite.js'
 import { ConviteRepository, criarConviteDeCoordenador, refazerConviteDaCoordenacao } from '../src/sessao/index.js'
-import { esperarNaTrava, GatilhoDeParada } from './write-block-trigger.js'
+import { esperarNaTrava, WriteBlockTrigger } from './write-block-trigger.js'
 import { ESPERA_DO_AUTOR, esperarErro, nomeQueVemPrimeiro, pedir, PRAZO_DAS_CONSULTAS_MS, segurarODesativar, subirApiDoPainel, type Resposta } from './painel.fixture.js'
-import { BancadaDeOperadores } from './operador-session.fixture.js'
-import { autorDaBancada, BancadaDeSessoes } from './sessao.fixture.js'
+import { OperadorFixtures } from './operador-session.fixture.js'
+import { autorDaBancada, SessaoFixtures } from './sessao.fixture.js'
 import { emOrdemNaTrava as emOrdem, esperarNaTravaDaEscola as esperarNaFilaDaEscola, segurarTravaDaEscola as segurarTrava } from './escola-lock.js'
 
 /**
@@ -105,8 +105,8 @@ interface EscolaPreparada {
 }
 
 describe('painel da operação: o convite da coordenação, gerar e revogar (tarefa 2.0)', () => {
-  const operadores = new BancadaDeOperadores()
-  const escolas = new BancadaDeSessoes()
+  const operadores = new OperadorFixtures()
+  const escolas = new SessaoFixtures()
   const linhasDeLog: string[] = []
   const pasta = mkdtempSync(join(tmpdir(), 'painel-convite-int-'))
   let app: INestApplication
@@ -533,7 +533,7 @@ describe('painel da operação: o convite da coordenação, gerar e revogar (tar
     ] as const)('%s segurando o for share (parado no %s de convite): o desativar espera, e a escrita entra com a auditoria', async (acao, evento) => {
       const [sessao, quemDesativa] = await Promise.all([operadores.operadorComSessao(), operadores.operador()])
       const escola = acao === 'gerar' ? { escolaId: await escolas.escola(), conviteId: undefined } : await escolaEm('pendente', (await operadores.operadorComSessao()).token)
-      const gatilho = new GatilhoDeParada(pool, { tabela: 'convite', evento, quando: `new.escola_id = '${escola.escolaId}'::uuid` })
+      const gatilho = new WriteBlockTrigger(pool, { tabela: 'convite', evento, quando: `new.escola_id = '${escola.escolaId}'::uuid` })
       await gatilho.armar()
       try {
         const escrita = acao === 'gerar' ? gerar(sessao.token, escola.escolaId) : acao === 'refazer' ? refazer(sessao.token, escola.conviteId ?? '') : revogar(sessao.token, escola.conviteId ?? '')
@@ -764,7 +764,7 @@ describe('painel da operação: o convite da coordenação, gerar e revogar (tar
       const escola = await escolaEm('pendente', sessao.token)
       const alvo = escola.conviteId ?? ''
       const semTrava = semATravaDaEscola(banco)
-      const gatilho = new GatilhoDeParada(pool, { tabela: 'convite', evento: 'update', quando: `new.id = '${alvo}'::uuid` })
+      const gatilho = new WriteBlockTrigger(pool, { tabela: 'convite', evento: 'update', quando: `new.id = '${alvo}'::uuid` })
       await gatilho.armar()
       try {
         const primeiro = refazerConviteDaCoordenacao(semTrava, autorDaBancada, alvo).catch((erro: unknown) => erro)
@@ -790,7 +790,7 @@ describe('painel da operação: o convite da coordenação, gerar e revogar (tar
       const sessao = await operadores.operadorComSessao()
       const escola = await escolaEm('pendente', sessao.token)
       const alvo = escola.conviteId ?? ''
-      const gatilho = new GatilhoDeParada(pool, { tabela: 'convite', evento: 'update', quando: `new.id = '${alvo}'::uuid and new.usado_em is not null` })
+      const gatilho = new WriteBlockTrigger(pool, { tabela: 'convite', evento: 'update', quando: `new.id = '${alvo}'::uuid and new.usado_em is not null` })
       await gatilho.armar()
       try {
         // O aceite pega a trava da escola (4.0) e para no gatilho, com a linha do convite presa. O refazer, sem a trava

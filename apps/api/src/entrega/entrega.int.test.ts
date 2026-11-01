@@ -6,7 +6,7 @@ import { join, relative, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../../tools/testes/metricas.ts'
-import { chamar, subirApi, type ApiDeTeste, type RespostaHttp } from '../../test/test-api.js'
+import { chamar, subirApi, type TestApi, type RespostaHttp } from '../../test/test-api.js'
 import {
   comoPessoa,
   copiarArtefatoParaOAnoAnterior,
@@ -19,7 +19,7 @@ import {
   zerarLimiteDePedidosDeIa,
   type EscolaComAssistente,
 } from '../../test/escola-assistente.fixture.js'
-import { BancadaDeSessoes, type SessaoDeTeste } from '../../test/sessao.fixture.js'
+import { SessaoFixtures, type TestSessao } from '../../test/sessao.fixture.js'
 import { EXECUTOR_DE_AGENTE } from '../ia/ia.module.js'
 import { EntregaRepository } from './entrega.repository.js'
 import { EntregaService } from './entrega.service.js'
@@ -33,10 +33,10 @@ import { EntregaService } from './entrega.service.js'
  * escopo do repository (regra 10, item 5).
  */
 describe('entregas', () => {
-  const bancada = new BancadaDeSessoes()
+  const bancada = new SessaoFixtures()
   const medidor = new MedidorDeTeste()
   const linhasDeLog: string[] = []
-  let api: ApiDeTeste
+  let api: TestApi
   let executor: InProcessAgenteExecutor
   let a: EscolaComAssistente
   let b: EscolaComAssistente
@@ -44,9 +44,9 @@ describe('entregas', () => {
   let atividadeDeB: string
 
   const sql = (texto: string, valores: unknown[] = []) => bancada.pool.query(texto, valores)
-  const pedir = async (sessao: SessaoDeTeste, metodo: string, caminho: string, corpo?: unknown): Promise<RespostaHttp> => chamar(api.url, metodo, caminho, await sessao.tokenNovo(), corpo)
-  const decidir = (sessao: SessaoDeTeste, id: string, corpo: unknown) => pedir(sessao, 'POST', `/v1/entregas/${id}/decidir`, corpo)
-  const listar = async (sessao: SessaoDeTeste, consulta = '') => listaDeEntregasResponseSchema.parse((await pedir(sessao, 'GET', `/v1/entregas${consulta}`)).corpo)
+  const pedir = async (sessao: TestSessao, metodo: string, caminho: string, corpo?: unknown): Promise<RespostaHttp> => chamar(api.url, metodo, caminho, await sessao.tokenNovo(), corpo)
+  const decidir = (sessao: TestSessao, id: string, corpo: unknown) => pedir(sessao, 'POST', `/v1/entregas/${id}/decidir`, corpo)
+  const listar = async (sessao: TestSessao, consulta = '') => listaDeEntregasResponseSchema.parse((await pedir(sessao, 'GET', `/v1/entregas${consulta}`)).corpo)
   const semId = (resposta: RespostaHttp) => ({ status: resposta.status, codigo: resposta.corpo.erro?.codigo })
 
   interface EntregaNoBanco {

@@ -21,9 +21,9 @@ import { executarOpsRevogarAcessosSala } from '../src/ops/revogar-acessos-sala.j
 import { executarOpsRevogarConvite } from '../src/ops/revogar-convite.js'
 import { executarOpsSuboperador } from '../src/ops/suboperador.js'
 import { executarOpsUso } from '../src/ops/uso.js'
-import { subirApi, type ApiDeTeste } from './test-api.js'
-import { FerramentasDaSala, type SalaDeTeste } from './sala.fixture.js'
-import { BancadaDeSessoes } from './sessao.fixture.js'
+import { subirApi, type TestApi } from './test-api.js'
+import { FerramentasDaSala, type TestSala } from './sala.fixture.js'
+import { SessaoFixtures } from './sessao.fixture.js'
 
 type Comando = (argumentos: string[], ambiente: Record<string, string | undefined>, terminal: CommandOutput, abrirBanco?: (ambiente: Record<string, string | undefined>) => CommandDatabase) => Promise<number>
 
@@ -186,10 +186,10 @@ describe('npm run ops:operador: o operador nasce, é reconvidado e é desativado
     // O convite pendente de ana, gravado no começo de cada caso.
     let conviteDaAna = ''
     // A escola com um acesso da turma vigente, que o `ops:revogar-acessos-sala` recusado não pode tocar (A1, 9.0).
-    const bancada = new BancadaDeSessoes()
+    const bancada = new SessaoFixtures()
     const medidor = new MedidorDeTeste()
-    let api: ApiDeTeste | undefined
-    let sala: SalaDeTeste | undefined
+    let api: TestApi | undefined
+    let sala: TestSala | undefined
     let acessoVigente = ''
 
     beforeAll(async () => {

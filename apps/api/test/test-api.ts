@@ -6,29 +6,29 @@ import { createHash, randomBytes } from 'node:crypto'
 import type { AddressInfo } from 'node:net'
 import { AppModule, type AppModuleOptions } from '../src/app.module.js'
 import { configureApp } from '../src/configure-app.js'
-import { configuracaoDeTeste, MONTAGEM_DE_TESTE, type SobreposicaoDeTeste } from './test-config.js'
-import type { BancadaDeSessoes, SessaoDeTeste } from './sessao.fixture.js'
+import { testConfig, TEST_APP_OPTIONS, type TestOverrides } from './test-config.js'
+import type { SessaoFixtures, TestSessao } from './sessao.fixture.js'
 
 /** A API de verdade, montada pelo mesmo `AppModule` e `configureApp` do boot, numa porta livre. */
-export interface ApiDeTeste {
+export interface TestApi {
   readonly app: INestApplication
   readonly url: string
 }
 
 /**
- * Sobe a API com a montagem de teste (`MONTAGEM_DE_TESTE`, que fixa o prazo maior do cliente Redis do login qualquer
+ * Sobe a API com a montagem de teste (`TEST_APP_OPTIONS`, que fixa o prazo maior do cliente Redis do login qualquer
  * que seja a configuração). Com `montagem` vazia, o prazo passa a sair da configuração, como no contêiner, e o do
  * compose de teste é o de 2 s. **Quem quer o corte de 100 ms pede o prazo na configuração**, com
  * `{ login: { prazoDoRedisMs: TIMEOUT_COMANDO_REDIS_API_MS } }`, e não a montagem vazia
  * (`password-attack.int.test.ts`, "falha (15.5)"). Com `linhasDeLog`, o logger escreve tudo, até `trace`, nessa
  * lista, para o teste procurar nela o que nunca pode ir a log; sem ela, o log fica mudo.
  */
-export async function subirApi(medidor: Meter, sobreposicao: SobreposicaoDeTeste = {}, linhasDeLog?: string[], montagem: AppModuleOptions = MONTAGEM_DE_TESTE): Promise<ApiDeTeste> {
+export async function subirApi(medidor: Meter, sobreposicao: TestOverrides = {}, linhasDeLog?: string[], montagem: AppModuleOptions = TEST_APP_OPTIONS): Promise<TestApi> {
   const logger =
     linhasDeLog === undefined
       ? createLogger({ servico: 'api-teste', nivel: 'silent' })
       : createLogger({ servico: 'api-teste', nivel: 'trace', destino: { write: (linha: string) => linhasDeLog.push(linha) } })
-  const app = await NestFactory.create(AppModule.forRoot(configuracaoDeTeste(sobreposicao), { ...montagem, medidor, logger }), { logger: false })
+  const app = await NestFactory.create(AppModule.forRoot(testConfig(sobreposicao), { ...montagem, medidor, logger }), { logger: false })
   configureApp(app, logger, medidor)
   await app.listen(0, '127.0.0.1')
   return { app, url: `http://127.0.0.1:${(app.getHttpServer().address() as AddressInfo).port}` }
@@ -86,7 +86,7 @@ export function hashDoCookie(cookie: string): string {
  * Dá à sessão de teste um cookie de renovação que o teste conhece, como o login faria: a sessão sintética nasce com
  * um refresh que ninguém guarda.
  */
-export async function cookieDeRenovacao(bancada: BancadaDeSessoes, sessao: SessaoDeTeste): Promise<string> {
+export async function cookieDeRenovacao(bancada: SessaoFixtures, sessao: TestSessao): Promise<string> {
   const cookie = `educa_sessao=${randomBytes(32).toString('base64url')}`
   await bancada.pool.query('update sessao set refresh_hash = $1 where escola_id = $2 and id = $3', [hashDoCookie(cookie), sessao.escolaId, sessao.sessaoId])
   return cookie
@@ -104,7 +104,7 @@ export interface EstadoDaSessaoNoBanco {
   readonly familia: string
 }
 
-export async function estadoDaSessao(bancada: BancadaDeSessoes, sessao: Pick<SessaoDeTeste, 'escolaId' | 'sessaoId'>): Promise<EstadoDaSessaoNoBanco> {
+export async function estadoDaSessao(bancada: SessaoFixtures, sessao: Pick<TestSessao, 'escolaId' | 'sessaoId'>): Promise<EstadoDaSessaoNoBanco> {
   const { rows } = await bancada.pool.query<EstadoDaSessaoNoBanco>(
     'select refresh_hash, refresh_hash_anterior, atual_apresentado, rotacionado_em, ultimo_uso_em, expira_em, encerrada_em, motivo, familia from sessao where escola_id = $1 and id = $2',
     [sessao.escolaId, sessao.sessaoId],
@@ -115,7 +115,7 @@ export async function estadoDaSessao(bancada: BancadaDeSessoes, sessao: Pick<Ses
 }
 
 /** Quantos registros de acesso do evento o usuário tem na escola. */
-export async function registrosDeAcesso(bancada: BancadaDeSessoes, sessao: Pick<SessaoDeTeste, 'escolaId' | 'usuarioId'>, evento: string): Promise<number> {
+export async function registrosDeAcesso(bancada: SessaoFixtures, sessao: Pick<TestSessao, 'escolaId' | 'usuarioId'>, evento: string): Promise<number> {
   const { rows } = await bancada.pool.query<{ total: string }>('select count(*) as total from registro_acesso where escola_id = $1 and usuario_id = $2 and evento = $3', [
     sessao.escolaId,
     sessao.usuarioId,

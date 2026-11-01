@@ -4,13 +4,13 @@ import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { EscolaSessaoRepository } from '../src/estrutura/escola-sessao/escola-sessao.repository.js'
-import { chamar, subirApi, type ApiDeTeste } from './test-api.js'
-import { BancadaDeSessoes, type SessaoDeTeste } from './sessao.fixture.js'
+import { chamar, subirApi, type TestApi } from './test-api.js'
+import { SessaoFixtures, type TestSessao } from './sessao.fixture.js'
 
 describe('PUT /v1/escola/sessao: a coordenação configura a inatividade da própria escola', () => {
-  const bancada = new BancadaDeSessoes()
+  const bancada = new SessaoFixtures()
   const medidor = new MedidorDeTeste()
-  let api: ApiDeTeste
+  let api: TestApi
 
   beforeAll(async () => {
     api = await subirApi(medidor.medidor)
@@ -37,8 +37,8 @@ describe('PUT /v1/escola/sessao: a coordenação configura a inatividade da pró
     return rows
   }
 
-  const alterar = (sessao: SessaoDeTeste, corpo: unknown) => chamar(api.url, 'PUT', '/v1/escola/sessao', sessao.token, corpo)
-  const ultimoUsoHa = (sessao: SessaoDeTeste, minutos: number) =>
+  const alterar = (sessao: TestSessao, corpo: unknown) => chamar(api.url, 'PUT', '/v1/escola/sessao', sessao.token, corpo)
+  const ultimoUsoHa = (sessao: TestSessao, minutos: number) =>
     bancada.pool.query('update sessao set ultimo_uso_em = now() - make_interval(mins => $3) where escola_id = $1 and id = $2', [sessao.escolaId, sessao.sessaoId, minutos])
 
   it('permissão: professor e aluno recebem o mesmo 404 de rota inexistente, e nada muda nem entra na auditoria', async () => {

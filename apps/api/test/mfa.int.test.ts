@@ -15,8 +15,8 @@ import { AppModule } from '../src/app.module.js'
 import { configureApp } from '../src/configure-app.js'
 import { executarOpsRedefinirMfa } from '../src/ops/redefinir-mfa.js'
 import { SecretCipher, REDIS_LOGIN_CLIENT, ChallengeIssuer, gerarCodigosDeRecuperacao, gerarSegredo, PasswordHasher, hmacDaRecuperacao } from '../src/credencial/index.js'
-import { configuracaoDeTeste, MONTAGEM_DE_TESTE } from './test-config.js'
-import { BancadaDeSessoes } from './sessao.fixture.js'
+import { testConfig, TEST_APP_OPTIONS } from './test-config.js'
+import { SessaoFixtures } from './sessao.fixture.js'
 
 const SENHA = 'senha-sintetica-correta-1'
 const PERIODO_MS = 30_000
@@ -57,9 +57,9 @@ function codigoDoPasso(base32: string, passo: number): string {
 }
 
 describe('MFA do coordenador: configurar, ativar, entrar com o código e redefinir', () => {
-  const bancada = new BancadaDeSessoes()
+  const bancada = new SessaoFixtures()
   const medidor = new MedidorDeTeste()
-  const configuracao = configuracaoDeTeste()
+  const configuracao = testConfig()
   const emissorDeDesafio = new ChallengeIssuer(configuracao.identidade.chaveAssinatura)
   const cifra = new SecretCipher(configuracao.login.mfa.versaoCifra, configuracao.login.mfa.chavesCifra)
   const linhasDeLog: string[] = []
@@ -71,7 +71,7 @@ describe('MFA do coordenador: configurar, ativar, entrar com o código e redefin
   let cliente: Redis
 
   beforeAll(async () => {
-    app = await NestFactory.create(AppModule.forRoot(configuracao, { medidor: medidor.medidor, ...MONTAGEM_DE_TESTE }), { logger: false })
+    app = await NestFactory.create(AppModule.forRoot(configuracao, { medidor: medidor.medidor, ...TEST_APP_OPTIONS }), { logger: false })
     configureApp(app, createLogger({ servico: 'api-teste', nivel: 'trace', destino: { write: (linha: string) => linhasDeLog.push(linha) } }), medidor.medidor)
     await app.listen(0, '127.0.0.1')
     url = `http://127.0.0.1:${(app.getHttpServer().address() as AddressInfo).port}`

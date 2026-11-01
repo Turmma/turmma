@@ -16,13 +16,13 @@ import {
   type RetencaoDaEscolaRepository,
 } from '@educa/core'
 import { JobFailureCode, InvariantException, retencaoDaEscola, type TIPO_EXPURGAR_ESCOLA } from '@educa/shared'
-import type { Processador } from '../job-executor.js'
-import { FalhaDeJob } from '../job-failure.error.js'
+import type { JobProcessor } from '../job-executor.js'
+import { JobFailureError } from '../job-failure.error.js'
 
 /** Quantos arquivos do titular o expurgo apaga por volta: cada um é uma chamada ao storage, e são poucos por escola. */
 export const LOTE_DOS_ARQUIVOS_DO_TITULAR = 100
 
-export interface DependenciasDoExpurgoDaEscola {
+export interface ExpurgoDaEscolaDependencies {
   repositorio: Pick<ExpurgoDaEscolaRepository, 'expurgarLote' | 'expurgarRegistroDoExpurgo' | 'registrar' | 'categoriaPendente' | 'enfileirarEliminacoes'>
   /** A porta de entrada do trabalho demorado: o job `titular.eliminar` de cada pedido de eliminação vencido sai por ela (F3, tarefa 15.0). */
   enfileirador: Pick<JobOutbox, 'enfileirarUmaVez'>
@@ -61,9 +61,9 @@ export interface DependenciasDoExpurgoDaEscola {
  *   `eliminacao_enfileirada_em` (a trava do cancelamento). O trabalho em si é do job `titular.eliminar`.
  * - Loga só a categoria (sob `tipo`) e as contagens; a escola vai pelo contexto, nunca uma linha.
  */
-export function criarExpurgoDaEscola({ repositorio, arquivos, armazem, retencao, janelaDaEscola, enfileirador, relogio, logger, lote = LOTE_DO_EXPURGO }: DependenciasDoExpurgoDaEscola): Processador<typeof TIPO_EXPURGAR_ESCOLA> {
+export function criarExpurgoDaEscola({ repositorio, arquivos, armazem, retencao, janelaDaEscola, enfileirador, relogio, logger, lote = LOTE_DO_EXPURGO }: ExpurgoDaEscolaDependencies): JobProcessor<typeof TIPO_EXPURGAR_ESCOLA> {
   return async () => {
-    if (currentContext()?.escolaId === undefined) throw new FalhaDeJob(JobFailureCode.DADOS_INVALIDOS, true)
+    if (currentContext()?.escolaId === undefined) throw new JobFailureError(JobFailureCode.DADOS_INVALIDOS, true)
     const agora = relogio.agora()
     // Primeiro, as eliminações vencidas (F3, tarefa 15.0): cada pedido `agendado` com `eliminar_em` passado vira um
     // `titular.eliminar` na fila de lote, na mesma transação da marca `eliminacao_enfileirada_em`. É só gravar linhas: o
@@ -137,9 +137,9 @@ export function criarExpurgoDaEscola({ repositorio, arquivos, armazem, retencao,
   }
 }
 
-interface DependenciasDoApagarArquivos {
-  arquivos: DependenciasDoExpurgoDaEscola['arquivos']
-  armazem: DependenciasDoExpurgoDaEscola['armazem']
+interface ApagarArquivosDependencies {
+  arquivos: ExpurgoDaEscolaDependencies['arquivos']
+  armazem: ExpurgoDaEscolaDependencies['armazem']
   janela: JanelaLetiva
   relogio: Clock
   agora: Date
@@ -153,7 +153,7 @@ interface DependenciasDoApagarArquivos {
  * para o laço, porque os mesmos voltariam; o laço termina quando a leitura volta vazia. O arquivo com 7 dias fica e o com 8 sai
  * (a comparação do repositório é estrita).
  */
-async function apagarArquivosDoTitular({ arquivos, armazem, janela, relogio, agora, logger }: DependenciasDoApagarArquivos): Promise<{ apagados: number; naoApagados: number }> {
+async function apagarArquivosDoTitular({ arquivos, armazem, janela, relogio, agora, logger }: ApagarArquivosDependencies): Promise<{ apagados: number; naoApagados: number }> {
   let apagados = 0
   let naoApagados = 0
   for (;;) {

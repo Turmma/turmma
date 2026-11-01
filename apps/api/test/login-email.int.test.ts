@@ -13,8 +13,8 @@ import { AppModule } from '../src/app.module.js'
 import { configureApp } from '../src/configure-app.js'
 import { REDIS_LOGIN_CLIENT, LoginLockout, PasswordHasher } from '../src/credencial/index.js'
 import { comoAWebNo503 } from './test-api.js'
-import { configuracaoDeTeste, MONTAGEM_DE_TESTE } from './test-config.js'
-import { BancadaDeSessoes } from './sessao.fixture.js'
+import { testConfig, TEST_APP_OPTIONS } from './test-config.js'
+import { SessaoFixtures } from './sessao.fixture.js'
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 const SENHA = 'senha-sintetica-correta-1'
@@ -43,7 +43,7 @@ async function clientePronto(cliente: Redis): Promise<void> {
 }
 
 describe('POST /v1/sessao/email: a equipe entra por e-mail e senha', () => {
-  const bancada = new BancadaDeSessoes()
+  const bancada = new SessaoFixtures()
   const medidor = new MedidorDeTeste()
   const linhasDeLog: string[] = []
   /** Tudo que foi mandado ou recebido e não pode aparecer no log: e-mails, senhas, cookies e desafios. */
@@ -54,7 +54,7 @@ describe('POST /v1/sessao/email: a equipe entra por e-mail e senha', () => {
   let verificacoes: ReturnType<typeof vi.spyOn>
 
   beforeAll(async () => {
-    app = await NestFactory.create(AppModule.forRoot(configuracaoDeTeste(), { medidor: medidor.medidor, ...MONTAGEM_DE_TESTE }), { logger: false })
+    app = await NestFactory.create(AppModule.forRoot(testConfig(), { medidor: medidor.medidor, ...TEST_APP_OPTIONS }), { logger: false })
     configureApp(app, createLogger({ servico: 'api-teste', nivel: 'trace', destino: { write: (linha: string) => linhasDeLog.push(linha) } }), medidor.medidor)
     await app.listen(0, '127.0.0.1')
     url = `http://127.0.0.1:${(app.getHttpServer().address() as AddressInfo).port}`
@@ -404,7 +404,7 @@ describe('POST /v1/sessao/email: a equipe entra por e-mail e senha', () => {
     // Uma instância só para este caso: a proporção do seguro é da janela de 30 s da instância, e nesta nenhuma
     // tentativa foi contada pelo Redis antes de ele cair.
     const medidorDaQueda = new MedidorDeTeste()
-    const instancia = await NestFactory.create(AppModule.forRoot(configuracaoDeTeste(), { medidor: medidorDaQueda.medidor }), { logger: false })
+    const instancia = await NestFactory.create(AppModule.forRoot(testConfig(), { medidor: medidorDaQueda.medidor }), { logger: false })
     configureApp(instancia, createLogger({ servico: 'api-teste', nivel: 'trace', destino: { write: (linha: string) => linhasDeLog.push(linha) } }), medidorDaQueda.medidor)
     await instancia.listen(0, '127.0.0.1')
     const urlDaQueda = `http://127.0.0.1:${(instancia.getHttpServer().address() as AddressInfo).port}`

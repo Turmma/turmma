@@ -3,14 +3,14 @@ import { SYSTEM_REALTIME_NAMESPACE } from '@educa/shared'
 import { Inject } from '@nestjs/common'
 import { WebSocketGateway, type OnGatewayConnection, type OnGatewayInit } from '@nestjs/websockets'
 import type { Namespace } from 'socket.io'
-import { autenticacaoDoHandshake, type SocketRealtime } from './handshake-auth.js'
+import { handshakeAuth, type RealtimeSocket } from './handshake-auth.js'
 
-export const CONFIGURACAO_IDENTIDADE = Symbol('CONFIGURACAO_IDENTIDADE')
-export const LEITURA_DE_SESSAO = Symbol('LEITURA_DE_SESSAO')
-export const LOGGER_REALTIME = Symbol('LOGGER_REALTIME')
+export const IDENTITY_CONFIG = Symbol('IDENTITY_CONFIG')
+export const SESSAO_READER = Symbol('SESSAO_READER')
+export const REALTIME_LOGGER = Symbol('REALTIME_LOGGER')
 
 /** Sala de todos os clientes de uma escola. O nome só é montado aqui, a partir do token verificado. */
-export function salaDaEscola(escolaId: string): string {
+export function escolaRoom(escolaId: string): string {
   return `escola:${escolaId}`
 }
 
@@ -20,24 +20,24 @@ export function salaDaEscola(escolaId: string): string {
  * mande (regra 10, item 3). Sem handler de mensagem no F0: a emissão chega pelo adaptador Redis.
  */
 @WebSocketGateway({ namespace: SYSTEM_REALTIME_NAMESPACE })
-export class SistemaGateway implements OnGatewayInit<Namespace>, OnGatewayConnection<SocketRealtime> {
+export class SystemGateway implements OnGatewayInit<Namespace>, OnGatewayConnection<RealtimeSocket> {
   constructor(
-    @Inject(CONFIGURACAO_IDENTIDADE) private readonly identidade: AuthConfig,
-    @Inject(LEITURA_DE_SESSAO) private readonly sessoes: SessaoReader,
-    @Inject(LOGGER_REALTIME) private readonly logger: LoggerBase,
+    @Inject(IDENTITY_CONFIG) private readonly identidade: AuthConfig,
+    @Inject(SESSAO_READER) private readonly sessoes: SessaoReader,
+    @Inject(REALTIME_LOGGER) private readonly logger: LoggerBase,
   ) {}
 
   afterInit(namespace: Namespace): void {
-    namespace.use(autenticacaoDoHandshake(this.identidade, this.sessoes, this.logger))
+    namespace.use(handshakeAuth(this.identidade, this.sessoes, this.logger))
   }
 
-  async handleConnection(socket: SocketRealtime): Promise<void> {
+  async handleConnection(socket: RealtimeSocket): Promise<void> {
     const identidade = socket.data.identidade
     // O middleware só deixa passar socket autenticado; sem identidade aqui, falha fechada.
     if (identidade === undefined) {
       socket.disconnect(true)
       return
     }
-    await socket.join(salaDaEscola(identidade.escolaId))
+    await socket.join(escolaRoom(identidade.escolaId))
   }
 }

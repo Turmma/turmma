@@ -24,13 +24,13 @@ import {
 } from '@educa/core'
 import type { JobRegistry } from '@educa/shared'
 import { Queue } from 'bullmq'
-import type { ConfiguracaoDespachante } from './config.js'
-import { Despachante } from './outbox-relay.js'
-import { PublicacaoBullMQ } from './job-publisher.js'
-import { MedicaoDaFila } from './queue-gauge.js'
-import { Reconciliacao } from './outbox-sweeper.js'
+import type { DespachanteConfig } from './config.js'
+import { OutboxRelay } from './outbox-relay.js'
+import { BullMQJobPublisher } from './job-publisher.js'
+import { QueueGauge } from './queue-gauge.js'
+import { OutboxSweeper } from './outbox-sweeper.js'
 
-export interface OpcoesDaMontagem {
+export interface CreateOutboxRelayOptions {
   /** Prefixo das chaves do BullMQ e das vagas. Só o teste troca, para não disputar a fila com outro teste. */
   prefixo?: string
   /** Intervalo da sondagem. Só o teste troca, para provar que o `NOTIFY` acorda o despachante antes dela. */
@@ -55,11 +55,11 @@ export interface OpcoesDaMontagem {
   definicoes?: JobRegistry
 }
 
-export interface DespachanteMontado {
-  despachante: Despachante
-  reconciliacao: Reconciliacao
+export interface OutboxRelayRuntime {
+  despachante: OutboxRelay
+  reconciliacao: OutboxSweeper
   /** Só com `medidor`: a medição das filas por escola. */
-  medicao?: MedicaoDaFila
+  medicao?: QueueGauge
   /**
    * Resolve quando o cliente de Redis fica de pé, quando ele erra (Redis fora de verdade) ou no teto
    * de espera, o que vier primeiro. Nunca rejeita.
@@ -82,7 +82,7 @@ export interface DespachanteMontado {
 export const TETO_DA_ESPERA_DO_REDIS_MS = 5_000
 
 /** Liga o despachante ao Postgres (pool próprio e `LISTEN`) e ao Redis de fila (filas e vagas). */
-export function montarDespachante(config: Omit<ConfiguracaoDespachante, 'telemetria'>, logger: LoggerBase, opcoes: OpcoesDaMontagem = {}): DespachanteMontado {
+export function createOutboxRelay(config: Omit<DespachanteConfig, 'telemetria'>, logger: LoggerBase, opcoes: CreateOutboxRelayOptions = {}): OutboxRelayRuntime {
   if (config.vagasPorEscolaDesligadas === true) {
     // Só o controle negativo do cenário de carga chega aqui, e ele precisa ficar visível no log de quem subiu assim.
     logger.warn({ evento: 'despachante.vagas_por_escola_desligadas' })
@@ -94,7 +94,7 @@ export function montarDespachante(config: Omit<ConfiguracaoDespachante, 'telemet
     throttledWarn(() => logger.warn({ evento: 'despachante.redis_indisponivel' })),
   )
   const avisarErroDaFila = throttledWarn(() => logger.warn({ evento: 'despachante.fila_com_erro' }))
-  const fila = new PublicacaoBullMQ(
+  const fila = new BullMQJobPublisher(
     (nome, executor) => {
       const queue = new Queue<QueuedJobData>(bullmqQueueName(nome, executor), {
         connection: redis,
@@ -130,7 +130,7 @@ export function montarDespachante(config: Omit<ConfiguracaoDespachante, 'telemet
     () => despachante.acordar(),
     throttledWarn(() => logger.warn({ evento: 'despachante.escuta_indisponivel' })),
   )
-  const despachante = new Despachante({
+  const despachante = new OutboxRelay({
     repositorio,
     fila,
     vagas,
@@ -141,17 +141,17 @@ export function montarDespachante(config: Omit<ConfiguracaoDespachante, 'telemet
     ouvinte,
     ...(opcoes.batimento === undefined ? {} : { batimento: opcoes.batimento }),
   }, opcoes.intervaloMs === undefined ? {} : { intervaloMs: opcoes.intervaloMs })
-  const reconciliacao = new Reconciliacao(
+  const reconciliacao = new OutboxSweeper(
     { repositorio, fila, vagas, vagasDaEscola, logger },
     opcoes.intervaloReconciliacaoMs === undefined ? {} : { intervaloMs: opcoes.intervaloReconciliacaoMs },
   )
 
   const { medidor } = opcoes
-  let medicao: MedicaoDaFila | undefined
+  let medicao: QueueGauge | undefined
   if (medidor !== undefined) {
     observeDatabasePool(medidor, pool)
     observeRedis(medidor, { fila: [redis] })
-    medicao = new MedicaoDaFila(
+    medicao = new QueueGauge(
       { repositorio, vagas: vagasReais, janelaDaEscola, relogio: opcoes.relogio ?? systemClock, logger, medidor },
       opcoes.intervaloMedicaoMs === undefined ? {} : { intervaloMs: opcoes.intervaloMedicaoMs },
     )

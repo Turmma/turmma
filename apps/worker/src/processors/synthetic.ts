@@ -1,20 +1,20 @@
 import type { SyntheticEffectRepository } from '@educa/core'
 import { JobFailureCode, InvariantException, type TIPO_JOB_SINTETICO } from '@educa/shared'
 import { Worker } from 'node:worker_threads'
-import type { Processador } from '../job-executor.js'
-import { FalhaDeJob } from '../job-failure.error.js'
+import type { JobProcessor } from '../job-executor.js'
+import { JobFailureError } from '../job-failure.error.js'
 
 /**
  * O arquivo da thread: o `.js` compilado no container e o próprio `.ts` no teste, que o Node carrega sem build.
  * Nunca o BullMQ `useWorkerThreads`: ele poria o executor inteiro (estado no banco, vaga) dentro da thread, e
  * não tem teto de threads além da concorrência do pool.
  */
-export const ARQUIVO_DO_SANDBOX = new URL(import.meta.url.endsWith('.ts') ? './synthetic.sandbox.ts' : './synthetic.sandbox.js', import.meta.url)
+export const SANDBOX_FILE = new URL(import.meta.url.endsWith('.ts') ? './synthetic.sandbox.ts' : './synthetic.sandbox.js', import.meta.url)
 
 /** Memória de cada thread do sandbox. Ela só gira um laço: o teto impede uma thread de pesar no container. */
 const MEMORIA_DA_THREAD_MB = 16
 
-export interface QueimaDeCpu {
+export interface CpuBurner {
   /** Com `sinal`, o aborto tira o pedido da fila ou termina a thread que o roda, e rejeita com `EXECUCAO_INTERROMPIDA`. */
   queimar(cpuMs: number, sinal?: AbortSignal): Promise<void>
 }
@@ -22,7 +22,7 @@ export interface QueimaDeCpu {
 interface Pedido {
   cpuMs: number
   resolver: () => void
-  rejeitar: (erro: FalhaDeJob) => void
+  rejeitar: (erro: JobFailureError) => void
 }
 
 /**
@@ -36,7 +36,7 @@ interface Pedido {
  * Thread que morre no meio (erro, memória) falha o job com `ERRO_INTERNO`, que vai para nova tentativa, e dá
  * lugar a outra. `encerrar` termina as threads e falha o que ainda esperava.
  */
-export class SandboxDeCpu implements QueimaDeCpu {
+export class CpuSandbox implements CpuBurner {
   readonly #ociosas: Worker[] = []
   readonly #ocupadas = new Map<Worker, Pedido>()
   readonly #fila: Pedido[] = []
@@ -44,7 +44,7 @@ export class SandboxDeCpu implements QueimaDeCpu {
 
   constructor(
     private readonly threadsMaximo: number,
-    private readonly arquivo: URL = ARQUIVO_DO_SANDBOX,
+    private readonly arquivo: URL = SANDBOX_FILE,
   ) {
     if (!Number.isInteger(threadsMaximo) || threadsMaximo < 1) throw new InvariantException('o sandbox de CPU precisa de pelo menos uma thread')
   }
@@ -55,8 +55,8 @@ export class SandboxDeCpu implements QueimaDeCpu {
   }
 
   queimar(cpuMs: number, sinal?: AbortSignal): Promise<void> {
-    if (this.#encerrado) return Promise.reject(new FalhaDeJob(JobFailureCode.ERRO_INTERNO))
-    if (sinal?.aborted === true) return Promise.reject(new FalhaDeJob(JobFailureCode.EXECUCAO_INTERROMPIDA))
+    if (this.#encerrado) return Promise.reject(new JobFailureError(JobFailureCode.ERRO_INTERNO))
+    if (sinal?.aborted === true) return Promise.reject(new JobFailureError(JobFailureCode.EXECUCAO_INTERROMPIDA))
     if (cpuMs === 0) return Promise.resolve()
     return new Promise((resolver, rejeitar) => {
       const pedido: Pedido = { cpuMs, resolver, rejeitar }
@@ -70,9 +70,9 @@ export class SandboxDeCpu implements QueimaDeCpu {
   /** Termina as threads e falha o que estava esperando ou em andamento. Depois disso, todo pedido falha. */
   async encerrar(): Promise<void> {
     this.#encerrado = true
-    for (const pedido of this.#fila.splice(0)) pedido.rejeitar(new FalhaDeJob(JobFailureCode.ERRO_INTERNO))
+    for (const pedido of this.#fila.splice(0)) pedido.rejeitar(new JobFailureError(JobFailureCode.ERRO_INTERNO))
     const threads = [...this.#ociosas.splice(0), ...this.#ocupadas.keys()]
-    for (const pedido of this.#ocupadas.values()) pedido.rejeitar(new FalhaDeJob(JobFailureCode.ERRO_INTERNO))
+    for (const pedido of this.#ocupadas.values()) pedido.rejeitar(new JobFailureError(JobFailureCode.ERRO_INTERNO))
     this.#ocupadas.clear()
     await Promise.all(threads.map((thread) => thread.terminate()))
   }
@@ -92,7 +92,7 @@ export class SandboxDeCpu implements QueimaDeCpu {
         void thread.terminate()
       }
     }
-    pedido.rejeitar(new FalhaDeJob(JobFailureCode.EXECUCAO_INTERROMPIDA))
+    pedido.rejeitar(new JobFailureError(JobFailureCode.EXECUCAO_INTERROMPIDA))
   }
 
   #distribuir(): void {
@@ -118,7 +118,7 @@ export class SandboxDeCpu implements QueimaDeCpu {
       if (pedido === undefined) return
       this.#ocupadas.delete(thread)
       if (resposta === 'pronto') pedido.resolver()
-      else pedido.rejeitar(new FalhaDeJob(JobFailureCode.DADOS_INVALIDOS, true))
+      else pedido.rejeitar(new JobFailureError(JobFailureCode.DADOS_INVALIDOS, true))
       if (this.#encerrado) return
       this.#ociosas.push(thread)
       this.#distribuir()
@@ -128,7 +128,7 @@ export class SandboxDeCpu implements QueimaDeCpu {
       this.#ocupadas.delete(thread)
       const ociosa = this.#ociosas.indexOf(thread)
       if (ociosa >= 0) this.#ociosas.splice(ociosa, 1)
-      pedido?.rejeitar(new FalhaDeJob(JobFailureCode.ERRO_INTERNO))
+      pedido?.rejeitar(new JobFailureError(JobFailureCode.ERRO_INTERNO))
       if (!this.#encerrado) this.#distribuir()
     }
     // A mensagem do erro da thread não sai daqui: o código tipado basta, e ela nunca carrega dado de job.
@@ -147,10 +147,10 @@ export class SandboxDeCpu implements QueimaDeCpu {
  * mesma em toda reexecução, e a gravação com a mesma chave não duplica. Falhar depois de gravar é o caso que
  * a retentativa precisa aguentar.
  */
-export function criarProcessadorSintetico(cpu: QueimaDeCpu, efeitos: Pick<SyntheticEffectRepository, 'gravar'>): Processador<typeof TIPO_JOB_SINTETICO> {
+export function createSyntheticProcessor(cpu: CpuBurner, efeitos: Pick<SyntheticEffectRepository, 'gravar'>): JobProcessor<typeof TIPO_JOB_SINTETICO> {
   return async ({ cpuMs, efeito, falhar }, { tentativa, chaveIdempotencia }, sinal) => {
     await cpu.queimar(cpuMs, sinal)
     if (efeito === true) await efeitos.gravar({ chaveIdempotencia, tentativa })
-    if (falhar) throw new FalhaDeJob(JobFailureCode.FALHA_SINTETICA)
+    if (falhar) throw new JobFailureError(JobFailureCode.FALHA_SINTETICA)
   }
 }

@@ -2,9 +2,9 @@ import { ErrorCode, listaDaTurmaResponseSchema, previaDaListaResponseSchema, MEN
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
-import { chamar, subirApi, type ApiDeTeste, type RespostaHttp } from './test-api.js'
-import { esperarNaTrava, GatilhoDeParada } from './write-block-trigger.js'
-import { BancadaDeSessoes, type SessaoDeTeste } from './sessao.fixture.js'
+import { chamar, subirApi, type TestApi, type RespostaHttp } from './test-api.js'
+import { esperarNaTrava, WriteBlockTrigger } from './write-block-trigger.js'
+import { SessaoFixtures, type TestSessao } from './sessao.fixture.js'
 
 /**
  * A lista de nomes da turma (A1, tarefa 2.0; `tasks/prd-apresentacao-escola/cenarios.md`): E4, E5, E6 e E7 (sem o
@@ -20,7 +20,7 @@ const FINALIDADE = 'conferencia_de_cadastro'
 /** Uma escola com o ano de 2026 em curso, uma série e duas turmas, montada pela API como a coordenação faria. */
 interface EscolaComTurmas {
   readonly escolaId: string
-  readonly coordenacao: SessaoDeTeste
+  readonly coordenacao: TestSessao
   readonly anoId: string
   readonly serieId: string
   readonly t1: string
@@ -46,10 +46,10 @@ function semRequisicao(resposta: RespostaHttp): unknown {
 }
 
 describe('lista de nomes da turma (A1, tarefa 2.0): prévia, gravação, avulso, retirada e leitura auditada', () => {
-  const bancada = new BancadaDeSessoes()
+  const bancada = new SessaoFixtures()
   const medidor = new MedidorDeTeste()
   const linhasDeLog: string[] = []
-  let api: ApiDeTeste
+  let api: TestApi
 
   beforeAll(async () => {
     api = await subirApi(medidor.medidor, {}, linhasDeLog)
@@ -61,7 +61,7 @@ describe('lista de nomes da turma (A1, tarefa 2.0): prévia, gravação, avulso,
     await medidor.encerrar()
   })
 
-  const pedir = (sessao: SessaoDeTeste, metodo: string, caminho: string, corpo?: unknown) => chamar(api.url, metodo, caminho, sessao.token, corpo)
+  const pedir = (sessao: TestSessao, metodo: string, caminho: string, corpo?: unknown) => chamar(api.url, metodo, caminho, sessao.token, corpo)
   const previa = (e: EscolaComTurmas, turma: string, lista: string) => pedir(e.coordenacao, 'POST', `/v1/turmas/${turma}/lista/previa`, { texto: lista })
   const gravar = (e: EscolaComTurmas, turma: string, lista: string) => pedir(e.coordenacao, 'POST', `/v1/turmas/${turma}/lista`, { texto: lista })
   const avulso = (e: EscolaComTurmas, turma: string, corpo: unknown) => pedir(e.coordenacao, 'POST', `/v1/turmas/${turma}/lista/nome`, corpo)
@@ -74,11 +74,11 @@ describe('lista de nomes da turma (A1, tarefa 2.0): prévia, gravação, avulso,
     return lida.corpo['id'] as string
   }
 
-  async function turmaNova(coordenacao: SessaoDeTeste, serieId: string): Promise<string> {
+  async function turmaNova(coordenacao: TestSessao, serieId: string): Promise<string> {
     return criado(pedir(coordenacao, 'POST', '/v1/turmas', { serieId, nome: `turma ${randomUUID().slice(0, 8)}` }))
   }
 
-  async function anoAberto(coordenacao: SessaoDeTeste, ano: number): Promise<string> {
+  async function anoAberto(coordenacao: TestSessao, ano: number): Promise<string> {
     const id = await criado(pedir(coordenacao, 'POST', '/v1/anos-letivos', { ano, inicio: `${String(ano)}-02-01`, fim: `${String(ano)}-12-15` }))
     await criado(pedir(coordenacao, 'POST', `/v1/anos-letivos/${id}/abrir`), 200)
     return id
@@ -641,7 +641,7 @@ describe('lista de nomes da turma (A1, tarefa 2.0): prévia, gravação, avulso,
 
   describe('concorrência (regra 80, item 7)', () => {
     /** Para a gravação na turma depois do `insert` dela, antes do commit. */
-    const pararNaTurma = (turma: string) => new GatilhoDeParada(bancada.pool, { tabela: 'lista_nome', evento: 'insert', quando: `new.turma_id = '${turma}'::uuid` })
+    const pararNaTurma = (turma: string) => new WriteBlockTrigger(bancada.pool, { tabela: 'lista_nome', evento: 'insert', quando: `new.turma_id = '${turma}'::uuid` })
 
     it('C8: a mesma lista gravada duas vezes em paralelo entra uma vez; as duas respondem 201, e a segunda conta tudo como já existente', async () => {
       const e = await escolaComTurmas()

@@ -6,8 +6,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { criarConviteDeCoordenador } from '../src/sessao/index.js'
 import { REDIS_LOGIN_CLIENT, PasswordHasher } from '../src/credencial/index.js'
-import { chamar, subirApi, type ApiDeTeste } from './test-api.js'
-import { autorDaBancada, BancadaDeSessoes, type SessaoDeTeste } from './sessao.fixture.js'
+import { chamar, subirApi, type TestApi } from './test-api.js'
+import { autorDaBancada, SessaoFixtures, type TestSessao } from './sessao.fixture.js'
 import { emOrdemNaTrava } from './escola-lock.js'
 
 /**
@@ -47,9 +47,9 @@ const NAO_ENCONTRADO = { status: 404, corpo: { erro: { codigo: ErrorCode.NAO_ENC
 const CONFLITO = { status: 409, corpo: { erro: { codigo: ErrorCode.CONFLITO, mensagem: MENSAGENS_DE_ERRO.CONFLITO } } }
 
 describe('professores (A1, tarefa 3.0): a coordenação cadastra, o professor aceita o convite de 7 dias', () => {
-  const bancada = new BancadaDeSessoes()
+  const bancada = new SessaoFixtures()
   const medidor = new MedidorDeTeste()
-  let api: ApiDeTeste
+  let api: TestApi
   let hash: PasswordHasher
 
   beforeAll(async () => {
@@ -79,22 +79,22 @@ describe('professores (A1, tarefa 3.0): a coordenação cadastra, o professor ac
   }
 
   const pessoa = () => ({ nome: `Professor Sintético ${randomUUID().slice(0, 8)}`, email: `professor-${randomUUID()}@escola.invalid` })
-  const cadastrar = (coordenacao: SessaoDeTeste, corpo: unknown) => pedir('POST', '/v1/professores', coordenacao.token, corpo)
-  const listar = (coordenacao: SessaoDeTeste, consulta = '') => pedir('GET', `/v1/professores${consulta}`, coordenacao.token)
-  const refazer = (coordenacao: SessaoDeTeste, usuarioId: string) => pedir('POST', `/v1/professores/${usuarioId}/convite/refazer`, coordenacao.token, {})
-  const revogar = (coordenacao: SessaoDeTeste, usuarioId: string) => pedir('POST', `/v1/professores/${usuarioId}/convite/revogar`, coordenacao.token, {})
+  const cadastrar = (coordenacao: TestSessao, corpo: unknown) => pedir('POST', '/v1/professores', coordenacao.token, corpo)
+  const listar = (coordenacao: TestSessao, consulta = '') => pedir('GET', `/v1/professores${consulta}`, coordenacao.token)
+  const refazer = (coordenacao: TestSessao, usuarioId: string) => pedir('POST', `/v1/professores/${usuarioId}/convite/refazer`, coordenacao.token, {})
+  const revogar = (coordenacao: TestSessao, usuarioId: string) => pedir('POST', `/v1/professores/${usuarioId}/convite/revogar`, coordenacao.token, {})
   const consultar = (token: string) => pedir('POST', '/v1/convites/consultar', undefined, { token })
   const aceitar = (token: string, senha?: string) => pedir('POST', '/v1/convites/aceitar', undefined, senha === undefined ? { token } : { token, senha })
   const entrar = (email: string, senha: string, bilhete?: string) => pedir('POST', '/v1/sessao/email', undefined, bilhete === undefined ? { email, senha } : { email, senha, bilhete })
 
   /** Uma escola com a coordenação que cadastra. */
-  async function escolaComCoordenacao(): Promise<{ escolaId: string; coordenacao: SessaoDeTeste }> {
+  async function escolaComCoordenacao(): Promise<{ escolaId: string; coordenacao: TestSessao }> {
     const escolaId = await bancada.escola()
     return { escolaId, coordenacao: await bancada.sessao(escolaId, 'coordenador') }
   }
 
   /** Cadastra e devolve o convite gerado, conferindo o 201 e o contrato estrito. */
-  async function cadastrado(coordenacao: SessaoDeTeste, quem = pessoa()): Promise<ConviteDeProfessorResponse & { email: string; nome: string }> {
+  async function cadastrado(coordenacao: TestSessao, quem = pessoa()): Promise<ConviteDeProfessorResponse & { email: string; nome: string }> {
     const resposta = await cadastrar(coordenacao, quem)
     expect(resposta.status).toBe(201)
     return { ...conviteDeProfessorResponseSchema.parse(resposta.corpo), ...quem }
@@ -127,7 +127,7 @@ describe('professores (A1, tarefa 3.0): a coordenação cadastra, o professor ac
       )
     ).rows
 
-  const estadoNaLista = async (coordenacao: SessaoDeTeste, usuarioId: string) => {
+  const estadoNaLista = async (coordenacao: TestSessao, usuarioId: string) => {
     const lista = listaDeProfessoresResponseSchema.parse((await listar(coordenacao, '?limite=100')).corpo)
     return lista.itens.find((item) => item.usuarioId === usuarioId)?.estado
   }
@@ -485,7 +485,7 @@ describe('professores (A1, tarefa 3.0): a coordenação cadastra, o professor ac
 
   describe('E12 (13.0): a alocação aceita o professor com convite em aberto, e o vínculo só alcança a turma depois do aceite e da confirmação', () => {
     /** O ano em curso, a série, a disciplina e a turma da escola, pela API, como a tela da Estrutura os cria. */
-    async function estruturaDa(coordenacao: SessaoDeTeste): Promise<{ turmaId: string; disciplinaId: string }> {
+    async function estruturaDa(coordenacao: TestSessao): Promise<{ turmaId: string; disciplinaId: string }> {
       const criado = async (caminho: string, corpo?: unknown, status = 201): Promise<string> => {
         const resposta = await pedir('POST', caminho, coordenacao.token, corpo)
         expect(resposta.status, caminho).toBe(status)
@@ -500,13 +500,13 @@ describe('professores (A1, tarefa 3.0): a coordenação cadastra, o professor ac
     }
 
     /** Uma disciplina a mais na escola: a alocação nova, que o índice único do vínculo não recusaria. */
-    async function estruturaExtra(coordenacao: SessaoDeTeste): Promise<{ disciplinaId: string }> {
+    async function estruturaExtra(coordenacao: TestSessao): Promise<{ disciplinaId: string }> {
       const resposta = await pedir('POST', '/v1/disciplinas', coordenacao.token, { nome: `História ${randomUUID().slice(0, 8)}` })
       expect(resposta.status).toBe(201)
       return { disciplinaId: String(resposta.corpo['id']) }
     }
 
-    const alocar = (coordenacao: SessaoDeTeste, usuarioId: string, { turmaId, disciplinaId }: { turmaId: string; disciplinaId: string }) =>
+    const alocar = (coordenacao: TestSessao, usuarioId: string, { turmaId, disciplinaId }: { turmaId: string; disciplinaId: string }) =>
       pedir('POST', '/v1/vinculos', coordenacao.token, { usuarioId, turmaId, disciplinaId, papel: 'professor' })
 
     const vinculosDa = async (escolaId: string) =>

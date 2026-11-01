@@ -5,8 +5,8 @@ import { randomBytes, randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest'
 import { MedidorDeTeste, type PontoLido } from '../../../tools/testes/metricas.ts'
 import { REDIS_LOGIN_CLIENT, ESPERA_MAXIMA_PELO_HASH_MS, PasswordHasher, RETRY_AFTER_MAXIMO_S, RETRY_AFTER_MINIMO_S } from '../src/credencial/index.js'
-import { comoAWebNo503, PRAZO_DA_WEB_NO_503_MS, subirApi, type ApiDeTeste } from './test-api.js'
-import { BancadaDeSessoes } from './sessao.fixture.js'
+import { comoAWebNo503, PRAZO_DA_WEB_NO_503_MS, subirApi, type TestApi } from './test-api.js'
+import { SessaoFixtures } from './sessao.fixture.js'
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 const SENHA = 'senha-sintetica-do-semaforo-1'
@@ -44,9 +44,9 @@ function matriculaRara(): string {
 }
 
 describe('semáforo do hash no login: fila justa com prazo, sem revelar quem existe', () => {
-  const bancada = new BancadaDeSessoes()
+  const bancada = new SessaoFixtures()
   const medidor = new MedidorDeTeste()
-  let api: ApiDeTeste
+  let api: TestApi
   let hash: PasswordHasher
   let verificacoes: MockInstance<PasswordHasher['verificar']>
   let verificarReal: PasswordHasher['verificar']

@@ -13,10 +13,10 @@ import { EntradaDoOperadorService } from '../src/operacao/entrada/entrada.servic
 import { OperadorRepository } from '../src/operacao/operador/operador.repository.js'
 import { JANELA_DO_REFRESH_ANTERIOR_SEGUNDOS } from '../src/operacao/sessao/sessao-timeouts.js'
 import { executarOpsOperador } from '../src/ops/operador.js'
-import { configuracaoDeTeste } from './test-config.js'
+import { testConfig } from './test-config.js'
 import { esperarNaTrava } from './write-block-trigger.js'
 import { barreira, doIp, esperarErro, ipSorteado, pedir, subir, valorDoCookie, type Cabecalhos, type Resposta } from './operador-mfa.fixture.js'
-import { BancadaDeOperadores, type SessaoDeOperadorDeTeste } from './operador-session.fixture.js'
+import { OperadorFixtures, type TestOperadorSessao } from './operador-session.fixture.js'
 
 const RENOVAR = '/v1/operacao/sessao/renovar'
 const SAIR = '/v1/operacao/sessao/sair'
@@ -38,7 +38,7 @@ interface LinhaDaSessao {
  * tivesse passado.
  */
 describe('sessão do operador: renovar, sair e os prazos (tarefa 8.0)', () => {
-  const operadores = new BancadaDeOperadores()
+  const operadores = new OperadorFixtures()
   const linhasDeLog: string[] = []
   let app: INestApplication
   let url: string
@@ -56,7 +56,7 @@ describe('sessão do operador: renovar, sair e os prazos (tarefa 8.0)', () => {
   const sair = (refresh: string | undefined, ip?: string): Promise<Resposta> => pedir(url, 'POST', SAIR, undefined, refresh === undefined ? doIp(ip) : comCookie(refresh, ip))
   const eu = (token: string) => pedir(url, 'GET', '/v1/operacao/eu', undefined, { Authorization: `Bearer ${token}` })
   /** Um token de acesso desta sessão emitido agora: o prazo de 10 min do token não entra na conta do teste. */
-  const euAgora = async (sessao: SessaoDeOperadorDeTeste) => eu(await sessao.tokenEm(new Date()))
+  const euAgora = async (sessao: TestOperadorSessao) => eu(await sessao.tokenEm(new Date()))
 
   /** Passa `intervalo` no relógio da sessão: todas as datas dela vão para trás. */
   async function avancar(sessaoId: string, intervalo: string): Promise<void> {
@@ -397,12 +397,12 @@ describe('sessão do operador: renovar, sair e os prazos (tarefa 8.0)', () => {
 
 describe('sessão do operador: o limite de renovar e sair (C32) e o Redis de cache fora (C36b)', () => {
   const LIMITE_POR_IP = 3
-  const operadores = new BancadaDeOperadores()
+  const operadores = new OperadorFixtures()
   let app: INestApplication
   let url: string
 
   beforeAll(async () => {
-    ;({ app, url } = await subir(configuracaoDeTeste({ ambiente: { LIMITE_REQ_IP_ANONIMO_MIN: String(LIMITE_POR_IP), LIMITE_REQ_OPERADOR_MIN: '4', LIMITE_INSTANCIAS_API: '2', LIMITE_PROXIES_CONFIAVEIS: '127.0.0.1' } })))
+    ;({ app, url } = await subir(testConfig({ ambiente: { LIMITE_REQ_IP_ANONIMO_MIN: String(LIMITE_POR_IP), LIMITE_REQ_OPERADOR_MIN: '4', LIMITE_INSTANCIAS_API: '2', LIMITE_PROXIES_CONFIAVEIS: '127.0.0.1' } })))
   })
 
   afterAll(async () => {

@@ -22,12 +22,12 @@ import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it, onTestFinished } from 'vitest'
 import { lerAmbienteDeTeste, valorObrigatorio } from '../../../tools/ci/compose.ts'
 import { compose, PROCESSOS_DA_FILA } from '../../../tools/testes/compose.ts'
-import type { ConfiguracaoStorage } from '../src/config.js'
-import { montarWorker } from '../src/composition.js'
+import type { StorageConfig } from '../src/config.js'
+import { createWorker } from '../src/composition.js'
 import { criarEliminacaoDoTitular } from '../src/processors/eliminar-titular.js'
 import { criarExpurgoDaEscola } from '../src/processors/expurgar-escola.js'
-import { BancadaDeFila, configuracaoDoBanco, janelaPadraoDoAmbiente, LogEmMemoria, urlRedisDeFila, vagasPadraoDoAmbiente } from './queue.fixture.js'
-import { execucaoDoJob } from './job-execution.fixture.js'
+import { QueueFixtures, configuracaoDoBanco, janelaPadraoDoAmbiente, InMemoryLog, urlRedisDeFila, vagasPadraoDoAmbiente } from './queue.fixture.js'
+import { jobExecution } from './job-execution.fixture.js'
 
 // O job `titular.eliminar` (F3, tarefa 15.0; Tech Spec do F3, seção 5, "Eliminação") contra o Postgres do compose de teste:
 // o prazo, a troca do nome completo em faixas (cada coluna, a caixa, a fronteira de palavra, o JSON válido), o homônimo, o
@@ -36,7 +36,7 @@ import { execucaoDoJob } from './job-execution.fixture.js'
 // 1h está fora da janela, e às 8h, dentro.
 
 const ambiente = lerAmbienteDeTeste()
-const STORAGE: ConfiguracaoStorage = {
+const STORAGE: StorageConfig = {
   url: `http://127.0.0.1:${valorObrigatorio(ambiente, 'STORAGE_PORTA_HOST')}`,
   regiao: valorObrigatorio(ambiente, 'STORAGE_REGIAO'),
   bucket: valorObrigatorio(ambiente, 'STORAGE_BUCKET'),
@@ -74,8 +74,8 @@ function relogioQueAbreDepoisDe(chamadas: number): Clock {
 }
 
 describe('titular.eliminar', () => {
-  const bancada = new BancadaDeFila()
-  const log = new LogEmMemoria('worker-teste')
+  const bancada = new QueueFixtures()
+  const log = new InMemoryLog('worker-teste')
   const escolas: string[] = []
 
   afterAll(async () => {
@@ -149,7 +149,7 @@ describe('titular.eliminar', () => {
       ...(opcoes.faixa === undefined ? {} : { faixa: opcoes.faixa }),
     })
     const jobId = randomUUID()
-    const executar = () => processador(dados, execucaoDoJob(jobId))
+    const executar = () => processador(dados, jobExecution(jobId))
     return escolaId === undefined ? executar() : runInContext({ requisicaoId: randomUUID(), escolaId }, executar)
   }
 
@@ -828,7 +828,7 @@ describe('titular.eliminar', () => {
         logger: log.logger,
       })
       const jobId = randomUUID()
-      const expurgar = runInContext({ requisicaoId: randomUUID(), escolaId: c.escolaId }, () => expurgo({}, execucaoDoJob(jobId)))
+      const expurgar = runInContext({ requisicaoId: randomUUID(), escolaId: c.escolaId }, () => expurgo({}, jobExecution(jobId)))
       await Promise.all([rodar(c.escolaId, { pedidoId }, { relogio }), expurgar])
       expect(await existeUsuario(c.alunoId)).toBe(false)
       expect((await pedido(pedidoId)).estado).toBe('concluido')
@@ -973,7 +973,7 @@ describe('titular.eliminar', () => {
       const execucaoId = await execucaoDoProfessor(c, { tarefa: 'gerar_plano_de_aula', parametros: { tema: `Reforço para ${c.nome}` } })
       const pedidoId = await agendar(c, c.alunoId)
       const relogio = relogioEm(QUARTA_1H)
-      const worker = montarWorker(
+      const worker = createWorker(
         { banco: configuracaoDoBanco(), redisFilaUrl: urlRedisDeFila(), pools: { lote: 2 }, vagasPadrao: vagasPadraoDoAmbiente(), threadsMaximo: 1, storage: STORAGE, janelaPadrao: janelaPadraoDoAmbiente() },
         log.logger,
         { prefixo: bancada.prefixo, relogio, agendamentos: [] },

@@ -5,10 +5,10 @@ import { createAdapter } from '@socket.io/redis-streams-adapter'
 import { Redis } from 'ioredis'
 import type { Server as ServidorHttp } from 'node:http'
 import { Server, type ServerOptions } from 'socket.io'
-import { erroDeConexaoNaoAutenticada } from './handshake-auth.js'
+import { unauthenticatedConnectionError } from './handshake-auth.js'
 
 /** Nome do stream e prefixo dos canais do adaptador no Redis de fila. */
-export const PREFIXO_REDIS_REALTIME = 'realtime'
+export const REALTIME_REDIS_PREFIX = 'realtime'
 
 /**
  * Cliente do Redis de fila para o adaptador. O adaptador duplica este cliente para ler o stream
@@ -19,8 +19,8 @@ export const PREFIXO_REDIS_REALTIME = 'realtime'
  *   a reconexão, em vez de girar em falso consumindo CPU;
  * - `lazyConnect`: o boot espera a conexão, e o adaptador também espera a das cópias.
  */
-export function criarClienteRedisDoRealtime(url: string, aoErrar: (erro: Error) => void): Redis {
-  const cliente = new Redis(url, { lazyConnect: true, connectionName: PREFIXO_REDIS_REALTIME })
+export function createRealtimeRedisClient(url: string, aoErrar: (erro: Error) => void): Redis {
+  const cliente = new Redis(url, { lazyConnect: true, connectionName: REALTIME_REDIS_PREFIX })
   // Sem ouvinte, o ioredis escreve o erro no console, fora do log JSON.
   cliente.on('error', aoErrar)
   return cliente
@@ -31,10 +31,10 @@ export function criarClienteRedisDoRealtime(url: string, aoErrar: (erro: Error) 
  * as outras; nenhuma sala fica só na memória de uma instância (regra 80, item 5). O stream tem
  * teto de tamanho, porque o Redis de fila não expulsa chave.
  */
-export function criarAdaptadorRedis(cliente: Redis, tamanhoMaximoDoStream: number): ReturnType<typeof createAdapter> {
+export function createRedisAdapter(cliente: Redis, tamanhoMaximoDoStream: number): ReturnType<typeof createAdapter> {
   return createAdapter(cliente, {
-    streamName: PREFIXO_REDIS_REALTIME,
-    channelPrefix: PREFIXO_REDIS_REALTIME,
+    streamName: REALTIME_REDIS_PREFIX,
+    channelPrefix: REALTIME_REDIS_PREFIX,
     maxLen: tamanhoMaximoDoStream,
   })
 }
@@ -46,7 +46,7 @@ export function criarAdaptadorRedis(cliente: Redis, tamanhoMaximoDoStream: numbe
  * - 10 s para o cliente entrar no namespace depois do handshake do engine.io, para conexão que
  *   nunca se autentica não ficar ocupando a instância.
  */
-export const OPCOES_DO_SERVIDOR_REALTIME = {
+export const REALTIME_SERVER_OPTIONS = {
   path: REALTIME_PATH,
   serveClient: false,
   maxHttpBufferSize: 64 * 1024,
@@ -54,15 +54,15 @@ export const OPCOES_DO_SERVIDOR_REALTIME = {
 } as const satisfies Partial<ServerOptions>
 
 /** Monta o servidor socket.io com o adaptador Redis, e fecha o namespace padrão `/`. */
-export function prepararServidorRealtime(servidor: Server, cliente: Redis, tamanhoMaximoDoStream: number): Server {
-  servidor.adapter(criarAdaptadorRedis(cliente, tamanhoMaximoDoStream))
+export function prepareRealtimeServer(servidor: Server, cliente: Redis, tamanhoMaximoDoStream: number): Server {
+  servidor.adapter(createRedisAdapter(cliente, tamanhoMaximoDoStream))
   // O namespace `/` existe em todo servidor socket.io e não tem autenticação. Ninguém entra nele.
-  servidor.of('/').use((_socket, proximo) => proximo(erroDeConexaoNaoAutenticada()))
+  servidor.of('/').use((_socket, proximo) => proximo(unauthenticatedConnectionError()))
   return servidor
 }
 
 /** Adaptador Nest: todo gateway da aplicação usa o mesmo servidor, já com Redis e opções fixas. */
-export class AdaptadorSocketIoComRedis extends IoAdapter {
+export class RedisIoAdapter extends IoAdapter {
   #servidor: Server | undefined
 
   constructor(
@@ -74,14 +74,14 @@ export class AdaptadorSocketIoComRedis extends IoAdapter {
   }
 
   /**
-   * As opções vêm só de `OPCOES_DO_SERVIDOR_REALTIME`: nenhum gateway escolhe CORS, caminho ou
+   * As opções vêm só de `REALTIME_SERVER_OPTIONS`: nenhum gateway escolhe CORS, caminho ou
    * tamanho de pacote por conta própria. O servidor fica no mesmo HTTP da aplicação, que tem a
    * `/prontidao` e passa pela drenagem.
    */
   override createIOServer(porta: number): Server {
     if (porta !== 0) throw new InvariantException('gateway do realtime não abre porta própria: use a porta HTTP da aplicação')
     const servidorHttp: ServidorHttp = this.httpServer
-    this.#servidor = prepararServidorRealtime(new Server(servidorHttp, OPCOES_DO_SERVIDOR_REALTIME), this.cliente, this.tamanhoMaximoDoStream)
+    this.#servidor = prepareRealtimeServer(new Server(servidorHttp, REALTIME_SERVER_OPTIONS), this.cliente, this.tamanhoMaximoDoStream)
     return this.#servidor
   }
 

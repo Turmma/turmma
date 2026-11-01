@@ -6,12 +6,12 @@ import type { JobFailureCode } from '@educa/shared'
  *
  * A mensagem é o próprio código. O BullMQ grava a mensagem no Redis, e nenhum valor de campo pode ir junto.
  */
-export class FalhaDeJob extends Error {
+export class JobFailureError extends Error {
   constructor(
     readonly codigo: JobFailureCode,
     readonly definitiva = false,
   ) {
     super(codigo)
-    this.name = 'FalhaDeJob'
+    this.name = 'JobFailureError'
   }
 }

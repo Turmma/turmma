@@ -2,9 +2,9 @@ import { ErrorCode } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
-import { chamar, subirApi, type ApiDeTeste, type RespostaHttp } from './test-api.js'
+import { chamar, subirApi, type TestApi, type RespostaHttp } from './test-api.js'
 import { alunosNaTurma, montarEscolaComTurma, type EscolaComTurma } from './escola-turma.fixture.js'
-import { BancadaDeSessoes, type SessaoDeTeste } from './sessao.fixture.js'
+import { SessaoFixtures, type TestSessao } from './sessao.fixture.js'
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
 
@@ -22,10 +22,10 @@ interface AuditoriaGravada {
 }
 
 describe('vínculo: a coordenação cria, o professor confirma ou contesta, a coordenação encerra (RF3, RF4, RF19)', () => {
-  const bancada = new BancadaDeSessoes()
+  const bancada = new SessaoFixtures()
   const medidor = new MedidorDeTeste()
   const linhasDeLog: string[] = []
-  let api: ApiDeTeste
+  let api: TestApi
 
   beforeAll(async () => {
     api = await subirApi(medidor.medidor, {}, linhasDeLog)
@@ -37,14 +37,14 @@ describe('vínculo: a coordenação cria, o professor confirma ou contesta, a co
     await medidor.encerrar()
   })
 
-  const post = (sessao: SessaoDeTeste, caminho: string, corpo?: unknown): Promise<RespostaHttp> => chamar(api.url, 'POST', caminho, sessao.token, corpo)
-  const get = (sessao: SessaoDeTeste, caminho: string): Promise<RespostaHttp> => chamar(api.url, 'GET', caminho, sessao.token)
+  const post = (sessao: TestSessao, caminho: string, corpo?: unknown): Promise<RespostaHttp> => chamar(api.url, 'POST', caminho, sessao.token, corpo)
+  const get = (sessao: TestSessao, caminho: string): Promise<RespostaHttp> => chamar(api.url, 'GET', caminho, sessao.token)
 
-  async function professorDe(escola: EscolaComTurma): Promise<SessaoDeTeste> {
+  async function professorDe(escola: EscolaComTurma): Promise<TestSessao> {
     return bancada.sessao(escola.coordenacao.escolaId, 'professor')
   }
 
-  async function vincular(escola: EscolaComTurma, professor: SessaoDeTeste, disciplinaId?: string, turmaId = escola.turma): Promise<string> {
+  async function vincular(escola: EscolaComTurma, professor: TestSessao, disciplinaId?: string, turmaId = escola.turma): Promise<string> {
     const resposta = await post(escola.coordenacao, '/v1/vinculos', { usuarioId: professor.usuarioId, turmaId, papel: 'professor', ...(disciplinaId === undefined ? {} : { disciplinaId }) })
     expect(resposta.status).toBe(201)
     return resposta.corpo['id'] as string

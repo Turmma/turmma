@@ -4,9 +4,9 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { lerAmbienteDeTeste } from '../../../tools/ci/compose.ts'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { executarOpsSuboperador } from '../src/ops/suboperador.js'
-import { chamar, subirApi, type ApiDeTeste } from './test-api.js'
-import { GatilhoDeParada, esperarNaTrava } from './write-block-trigger.js'
-import { BancadaDeSessoes, type SessaoDeTeste } from './sessao.fixture.js'
+import { chamar, subirApi, type TestApi } from './test-api.js'
+import { WriteBlockTrigger, esperarNaTrava } from './write-block-trigger.js'
+import { SessaoFixtures, type TestSessao } from './sessao.fixture.js'
 
 /**
  * Os suboperadores (F3, tarefa 8.0; `tasks/prd-lgpd-e-titular/cenarios.md`, RF6 e RF7): a operação cadastra e encerra pelo
@@ -28,7 +28,7 @@ interface Execucao {
   readonly erro: string
 }
 
-interface LinhaDoSuboperador {
+interface SuboperadorRow {
   id: string
   chave: string
   nome: string
@@ -65,10 +65,10 @@ const chaveNova = () => {
 const nomeNovo = () => `Empresa Sintética ${randomUUID().slice(0, 8)}`
 
 describe('suboperadores: a operação cadastra e encerra por comando, e a coordenação lê os da escola (F3, tarefa 8.0)', () => {
-  const bancada = new BancadaDeSessoes()
+  const bancada = new SessaoFixtures()
   const medidor = new MedidorDeTeste()
   const ambiente = { ...ambienteDeTeste, OPERADOR }
-  let api: ApiDeTeste
+  let api: TestApi
 
   beforeAll(async () => {
     api = await subirApi(medidor.medidor)
@@ -135,8 +135,8 @@ describe('suboperadores: a operação cadastra e encerra por comando, e a coorde
   }
   const idDoCadastro = (execucao: Execucao) => (JSON.parse(execucao.saida) as { suboperadorId: string }).suboperadorId
 
-  async function linhasDa(chave: string): Promise<LinhaDoSuboperador[]> {
-    const { rows } = await bancada.pool.query<LinhaDoSuboperador>(
+  async function linhasDa(chave: string): Promise<SuboperadorRow[]> {
+    const { rows } = await bancada.pool.query<SuboperadorRow>(
       'select id, chave, nome, finalidade, categorias, pais, contrato, veda_treinamento, alcance, fim, registrado_por from suboperador where chave = $1 order by inicio, id',
       [chave],
     )
@@ -156,14 +156,14 @@ describe('suboperadores: a operação cadastra e encerra por comando, e a coorde
     return rows
   }
 
-  async function dosSuboperadores(coordenacao: SessaoDeTeste): Promise<SuboperadoresResponse> {
+  async function dosSuboperadores(coordenacao: TestSessao): Promise<SuboperadoresResponse> {
     const resposta = await chamar(api.url, 'GET', '/v1/privacidade/suboperadores', await coordenacao.tokenNovo())
     expect(resposta.status).toBe(200)
     return suboperadoresResponseSchema.parse(resposta.corpo)
   }
 
   /** O que a escola lê das chaves que o teste criou: um suboperador `todas` de outro teste não entra na conta. */
-  async function leitura(coordenacao: SessaoDeTeste, ...chaves: string[]): Promise<SuboperadorDaEscola[]> {
+  async function leitura(coordenacao: TestSessao, ...chaves: string[]): Promise<SuboperadorDaEscola[]> {
     return (await dosSuboperadores(coordenacao)).suboperadores.filter((lido) => chaves.includes(lido.chave))
   }
 
@@ -469,7 +469,7 @@ describe('suboperadores: a operação cadastra e encerra por comando, e a coorde
 
   it('concorrência: dois cadastros da mesma chave ao mesmo tempo deixam um só, e o outro dá CONFLITO sem erro cru', async () => {
     const chave = chaveNova()
-    const gatilho = new GatilhoDeParada(bancada.pool, { tabela: 'suboperador', evento: 'insert', quando: `new.chave = '${chave}'` })
+    const gatilho = new WriteBlockTrigger(bancada.pool, { tabela: 'suboperador', evento: 'insert', quando: `new.chave = '${chave}'` })
     await gatilho.armar()
     let resultados: Execucao[]
     try {
@@ -495,7 +495,7 @@ describe('suboperadores: a operação cadastra e encerra por comando, e a coorde
   it('concorrência: dois encerramentos da mesma chave passam um de cada vez, e o segundo não acha vigente', async () => {
     const lista = cadastrar({ alcance: [await bancada.escola()] })
     const id = idDoCadastro(await lista)
-    const gatilho = new GatilhoDeParada(bancada.pool, { tabela: 'suboperador', evento: 'update', quando: `new.id = '${id}'` })
+    const gatilho = new WriteBlockTrigger(bancada.pool, { tabela: 'suboperador', evento: 'update', quando: `new.id = '${id}'` })
     await gatilho.armar()
     let resultados: Execucao[]
     try {

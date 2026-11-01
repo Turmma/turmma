@@ -1,7 +1,7 @@
 import { currentContext, createLogger, type EscolaWithPendingJobs, type JanelaLetiva, type ReservedJob } from '@educa/core'
 import type { QueueName } from '@educa/shared'
 import { describe, expect, it } from 'vitest'
-import { Despachante, type DependenciasDoDespachante } from './outbox-relay.js'
+import { OutboxRelay, type OutboxRelayDependencies } from './outbox-relay.js'
 
 const ESCOLA_A = '0190f5a0-0000-7000-8000-00000000000a'
 const ESCOLA_B = '0190f5a0-0000-7000-8000-00000000000b'
@@ -22,7 +22,7 @@ const DOMINGO_MEIO_DIA = new Date('2026-09-13T12:00:00-03:00')
 /** Terça, 15/09/2026, 10h em São Paulo: dentro do horário letivo padrão. */
 const TERCA_10H = new Date('2026-09-15T10:00:00-03:00')
 
-/** Despachante com repository, vagas e fila falsos, que registram o que o despachante pediu e em que contexto. */
+/** `OutboxRelay` com repository, vagas e fila falsos, que registram o que o despachante pediu e em que contexto. */
 function montar({
   pendentes,
   livres = () => 5,
@@ -59,7 +59,7 @@ function montar({
   const tomadas: Array<{ fila: QueueName; escolaId: string | null; limite: number; ids: readonly string[] }> = []
   let sequencia = 0
 
-  const repositorio: DependenciasDoDespachante['repositorio'] = {
+  const repositorio: OutboxRelayDependencies['repositorio'] = {
     listarEscolasComPendentes: () => Promise.resolve(pendentes),
     publicadosEntre: (ids: readonly string[]) => {
       consultasDePublicados.push([...ids])
@@ -81,7 +81,7 @@ function montar({
     marcarPublicados: (ids: readonly string[]) => Promise.resolve(ids.length),
   }
 
-  const dependencias: DependenciasDoDespachante = {
+  const dependencias: OutboxRelayDependencies = {
     repositorio,
     fila: {
       publicar: (jobs) => {
@@ -119,7 +119,7 @@ function montar({
     relogio: { agora: () => agora },
     logger: createLogger({ servico: 'despachante-teste', nivel: 'silent' }),
   }
-  return { dependencias, despachante: new Despachante(dependencias, lote === undefined ? {} : { lote }), reservas, devolvidos, publicados, liberados, tomadas, mantidas, ordem, consultasDePublicados }
+  return { dependencias, despachante: new OutboxRelay(dependencias, lote === undefined ? {} : { lote }), reservas, devolvidos, publicados, liberados, tomadas, mantidas, ordem, consultasDePublicados }
 }
 
 describe('Despachante.rodada', () => {
@@ -271,7 +271,7 @@ describe('Despachante.rodada no horário letivo', () => {
     let agora = new Date('2026-09-15T17:59:59.999-03:00')
     const pendentes: EscolaWithPendingJobs[] = [{ fila: 'lote', escolaId: ESCOLA_A }]
     const falsos = montar({ pendentes, urgentesDisponiveis: 0 })
-    const despachante = new Despachante({ ...falsos.dependencias, relogio: { agora: () => agora } })
+    const despachante = new OutboxRelay({ ...falsos.dependencias, relogio: { agora: () => agora } })
     await despachante.rodada()
     expect(falsos.reservas.splice(0).map(({ soUrgentes }) => soUrgentes)).toEqual([true])
     agora = new Date('2026-09-15T18:00:00-03:00')

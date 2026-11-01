@@ -40,7 +40,7 @@ export async function esperarNaTrava(pool: DatabasePool, padrao: string, quantos
  * Só dispara para as linhas da condição `quando` (SQL sobre `new`; no `delete`, sobre `old`), para não parar outra
  * escrita do mesmo arquivo. `desarmar` apaga o gatilho e a função, e solta a trava se ela ainda estiver segura.
  */
-export class GatilhoDeParada {
+export class WriteBlockTrigger {
   readonly #pool: DatabasePool
   readonly #nome = `teste_parada_${randomBytes(6).toString('hex')}`
   readonly #chave = randomBytes(3).readUIntBE(0, 3)

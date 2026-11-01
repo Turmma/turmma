@@ -14,7 +14,7 @@ import { join, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../../../tools/testes/metricas.ts'
-import { chamar, subirApi, type ApiDeTeste, type RespostaHttp } from '../../../test/test-api.js'
+import { chamar, subirApi, type TestApi, type RespostaHttp } from '../../../test/test-api.js'
 import {
   alunosComSessao,
   aplicarAtividade,
@@ -31,7 +31,7 @@ import {
   type RotasDaAtividade,
 } from '../../../test/atividade.fixture.js'
 import { montarEscolaComAssistente, NOME_DA_PROFESSORA_DE_TESTE, NOME_DO_ALUNO_DE_TESTE, vincularProfessor, type EscolaComAssistente } from '../../../test/escola-assistente.fixture.js'
-import { BancadaDeSessoes, type SessaoDeTeste } from '../../../test/sessao.fixture.js'
+import { SessaoFixtures, type TestSessao } from '../../../test/sessao.fixture.js'
 import { CorrecaoService } from './correcao.service.js'
 import { LoteReadMarker } from './lote-read-marker.js'
 
@@ -44,19 +44,19 @@ const NOME_REPETIDO = 'Aluna Sintética Ana Lima'
  * mesmo nome, Bia e Davi.
  */
 describe('correção de objetiva e validação do lote', () => {
-  const bancada = new BancadaDeSessoes()
+  const bancada = new SessaoFixtures()
   const medidor = new MedidorDeTeste()
   const linhasDeLog: string[] = []
-  let api: ApiDeTeste
+  let api: TestApi
   let rotas: RotasDaAtividade
 
   interface Turma {
     readonly escola: EscolaComAssistente
-    readonly caio: SessaoDeTeste
-    readonly ana1: SessaoDeTeste
-    readonly ana2: SessaoDeTeste
-    readonly bia: SessaoDeTeste
-    readonly davi: SessaoDeTeste
+    readonly caio: TestSessao
+    readonly ana1: TestSessao
+    readonly ana2: TestSessao
+    readonly bia: TestSessao
+    readonly davi: TestSessao
   }
 
   const sql = async <Linha extends Record<string, unknown>>(texto: string, valores: unknown[] = []): Promise<Linha[]> => (await bancada.pool.query(texto, valores)).rows as Linha[]
@@ -65,16 +65,16 @@ describe('correção de objetiva e validação do lote', () => {
   const entregaNoBanco = async (id: string) => (await sql<{ estado: string; decidida_por: string | null; decidida_em: Date | null }>('select estado, decidida_por, decidida_em from entrega where id = $1', [id]))[0]
   const auditorias = (acao: string, entidadeId: string) => sql<{ autor_usuario_id: string; antes: unknown; depois: Record<string, unknown>; finalidade: string | null }>('select autor_usuario_id, antes, depois, finalidade from auditoria where acao = $1 and entidade_id = $2 order by em', [acao, entidadeId])
   const correcoesDoLote = (entregaId: string) => sql('select id, aluno_id, acertos, total, em_branco, por_habilidade, destaques, destaque_aberto_em, destaque_aberto_por, corrigida_em from correcao where entrega_id = $1 order by aluno_id', [entregaId])
-  const lerCorrecao = async (sessao: SessaoDeTeste, atividadeId: string): Promise<CorrecaoDoLoteResponse> => correcaoDoLoteResponseSchema.parse((await rotas.correcao(sessao, atividadeId)).corpo)
+  const lerCorrecao = async (sessao: TestSessao, atividadeId: string): Promise<CorrecaoDoLoteResponse> => correcaoDoLoteResponseSchema.parse((await rotas.correcao(sessao, atividadeId)).corpo)
 
   async function turmaNova(): Promise<Turma> {
     const escola = await montarEscolaComAssistente(api, bancada)
-    const [ana1, ana2, bia, davi] = (await alunosComSessao(bancada, escola, escola.turma, [NOME_REPETIDO, NOME_REPETIDO, 'Aluna Sintética Bia Souza', 'Aluno Sintético Davi Rocha'])) as [SessaoDeTeste, SessaoDeTeste, SessaoDeTeste, SessaoDeTeste]
+    const [ana1, ana2, bia, davi] = (await alunosComSessao(bancada, escola, escola.turma, [NOME_REPETIDO, NOME_REPETIDO, 'Aluna Sintética Bia Souza', 'Aluno Sintético Davi Rocha'])) as [TestSessao, TestSessao, TestSessao, TestSessao]
     return { escola, caio: escola.aluno, ana1, ana2, bia, davi }
   }
 
   /** Uma atividade aplicada ao 2ºB, respondida como o cenário pede (`null` na lista deixa a questão em branco; aluno fora do mapa falta). */
-  async function atividadeRespondida(turma: Turma, respostas: readonly (readonly [SessaoDeTeste, readonly (number | null)[]])[], titulo = `Lista sintética ${randomUUID()}`): Promise<{ id: string; entregaId: string }> {
+  async function atividadeRespondida(turma: Turma, respostas: readonly (readonly [TestSessao, readonly (number | null)[]])[], titulo = `Lista sintética ${randomUUID()}`): Promise<{ id: string; entregaId: string }> {
     const { escola } = turma
     const id = await aplicarAtividade(rotas, escola.professora, await criarAtividade(bancada, escola, { conteudo: conteudoDeTeste(escola.materialId, titulo) }), escola.turma)
     for (const [aluno, marcadas] of respostas) await responderProva(rotas, aluno, id, marcadas)
@@ -465,7 +465,7 @@ describe('correção de objetiva e validação do lote', () => {
 
   describe('desempenho da turma', () => {
     const FINALIDADE = '?finalidade=acompanhamento_pedagogico'
-    const lerDesempenho = async (sessao: SessaoDeTeste, turmaId: string, consulta = '') => desempenhoDaTurmaResponseSchema.parse((await rotas.desempenho(sessao, turmaId, consulta)).corpo)
+    const lerDesempenho = async (sessao: TestSessao, turmaId: string, consulta = '') => desempenhoDaTurmaResponseSchema.parse((await rotas.desempenho(sessao, turmaId, consulta)).corpo)
 
     it('só soma lote aprovado: pendente e rejeitado não entram em número nenhum, e a turma sem lote aprovado vem vazia, com os alunos zerados', async () => {
       const turma = await turmaNova()
@@ -506,7 +506,7 @@ describe('correção de objetiva e validação do lote', () => {
       await vincularProfessor(bancada, escola, escola.professora.usuarioId, escola.turma, escola.fisica)
       const biologia = (await chamar(api.url, 'POST', '/v1/disciplinas', await escola.coordenacao.tokenNovo(), { nome: 'Biologia' })).corpo['id'] as string
       await vincularProfessor(bancada, escola, escola.deFisica.usuarioId, escola.turma, biologia)
-      const loteAprovado = async (professora: SessaoDeTeste, disciplinaId: string, respostas: readonly (readonly [SessaoDeTeste, readonly number[]])[]) => {
+      const loteAprovado = async (professora: TestSessao, disciplinaId: string, respostas: readonly (readonly [TestSessao, readonly number[]])[]) => {
         const id = await aplicarAtividade(rotas, professora, await criarAtividade(bancada, escola, { disciplinaId, conteudo: conteudoDeTeste(escola.materialId, `Lista sintética ${randomUUID()}`) }), escola.turma)
         for (const [aluno, marcadas] of respostas) await responderProva(rotas, aluno, id, marcadas)
         if ((await encerrarAtividade(rotas, professora, id)) === null) throw new Error('o lote não nasceu')
@@ -566,8 +566,8 @@ describe('correção de objetiva e validação do lote', () => {
    * diagnóstico da turma antiga nesta fatia (lacuna registrada em `minha-atividade.service.ts`).
    */
   describe('aluno transferido', () => {
-    const lerDesempenho = async (sessao: SessaoDeTeste, turmaId: string) => desempenhoDaTurmaResponseSchema.parse((await rotas.desempenho(sessao, turmaId)).corpo)
-    const transferir = async (escola: EscolaComAssistente, aluno: SessaoDeTeste) => {
+    const lerDesempenho = async (sessao: TestSessao, turmaId: string) => desempenhoDaTurmaResponseSchema.parse((await rotas.desempenho(sessao, turmaId)).corpo)
+    const transferir = async (escola: EscolaComAssistente, aluno: TestSessao) => {
       await sql(`update vinculo set estado = 'encerrado', motivo_encerramento = 'realocacao', encerrado_em = now() where escola_id = $1 and usuario_id = $2 and turma_id = $3`, [escola.escolaId, aluno.usuarioId, escola.turma])
       await sql(`insert into vinculo (escola_id, ano_letivo_id, usuario_id, turma_id, papel, estado, criado_por, decidido_em) values ($1, $2, $3, $4, 'aluno', 'confirmado', $5, now())`, [escola.escolaId, escola.anoLetivoId, aluno.usuarioId, escola.outraTurma, escola.coordenacao.usuarioId])
     }

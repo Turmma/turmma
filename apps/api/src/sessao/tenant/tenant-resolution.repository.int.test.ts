@@ -5,7 +5,7 @@ import { randomUUID } from 'node:crypto'
 import pg from 'pg'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { urlDoBancoDeTeste } from '../../../../../tools/testes/integracao.setup.ts'
-import { BancadaDeSessoes } from '../../../test/sessao.fixture.js'
+import { SessaoFixtures } from '../../../test/sessao.fixture.js'
 import { TenantResolutionRepository } from './tenant-resolution.repository.js'
 
 interface NoDoPlano {
@@ -19,7 +19,7 @@ function nosDoPlano(no: NoDoPlano | undefined): NoDoPlano[] {
 }
 
 describe('ResolucaoDeTenantRepository: a resolução antes de haver escola devolve só o mínimo', () => {
-  const bancada = new BancadaDeSessoes()
+  const bancada = new SessaoFixtures()
   let repositorio: TenantResolutionRepository
 
   beforeAll(() => {

@@ -6,14 +6,14 @@ import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it, onTestFinished } from 'vitest'
 import { lerAmbienteDeTeste, valorObrigatorio } from '../../../tools/ci/compose.ts'
 import { compose, PROCESSOS_DA_FILA } from '../../../tools/testes/compose.ts'
-import type { ConfiguracaoStorage } from '../src/config.js'
-import { montarWorker } from '../src/composition.js'
+import type { StorageConfig } from '../src/config.js'
+import { createWorker } from '../src/composition.js'
 import { criarMontagemDoArquivo } from '../src/processors/montar-arquivo.js'
-import { BancadaDeFila, configuracaoDoBanco, LogEmMemoria, urlRedisDeFila, vagasPadraoDoAmbiente } from './queue.fixture.js'
-import { execucaoDoJob } from './job-execution.fixture.js'
+import { QueueFixtures, configuracaoDoBanco, InMemoryLog, urlRedisDeFila, vagasPadraoDoAmbiente } from './queue.fixture.js'
+import { jobExecution } from './job-execution.fixture.js'
 
 const ambiente = lerAmbienteDeTeste()
-const STORAGE: ConfiguracaoStorage = {
+const STORAGE: StorageConfig = {
   url: `http://127.0.0.1:${valorObrigatorio(ambiente, 'STORAGE_PORTA_HOST')}`,
   regiao: valorObrigatorio(ambiente, 'STORAGE_REGIAO'),
   bucket: valorObrigatorio(ambiente, 'STORAGE_BUCKET'),
@@ -34,8 +34,8 @@ const AGORA = new Date('2026-10-09T15:00:00-03:00')
 const UM_DIA_MS = 86_400_000
 
 describe('titular.montar-arquivo', () => {
-  const bancada = new BancadaDeFila()
-  const log = new LogEmMemoria('worker-teste')
+  const bancada = new QueueFixtures()
+  const log = new InMemoryLog('worker-teste')
   const relogio: Clock & { atual: Date } = { atual: AGORA, agora: () => relogio.atual }
 
   afterAll(async () => {
@@ -67,7 +67,7 @@ describe('titular.montar-arquivo', () => {
   function rodar(escolaId: string | undefined, armazem: InMemoryFileStorage, dados: { pedidoId: string }): Promise<void> {
     const jobId = randomUUID()
     const processador = job(armazem)
-    const executar = () => processador(dados, execucaoDoJob(jobId))
+    const executar = () => processador(dados, jobExecution(jobId))
     return escolaId === undefined ? executar() : runInContext({ requisicaoId: randomUUID(), escolaId }, executar)
   }
 
@@ -289,7 +289,7 @@ describe('titular.montar-arquivo', () => {
 
   it('trilha: o job sai do banco pelo despachante, roda no worker montado da fila normal e grava o JSON no SeaweedFS de verdade', async () => {
     const { escolaId, pedidoId } = await pedidoNovo()
-    const worker = montarWorker(
+    const worker = createWorker(
       { banco: configuracaoDoBanco(), redisFilaUrl: urlRedisDeFila(), pools: { normal: 2 }, vagasPadrao: vagasPadraoDoAmbiente(), threadsMaximo: 1, storage: STORAGE },
       log.logger,
       { prefixo: bancada.prefixo, relogio },

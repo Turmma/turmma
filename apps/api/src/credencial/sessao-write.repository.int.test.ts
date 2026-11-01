@@ -2,11 +2,11 @@ import { runInContext, SessaoRepository, type VerifiedToken } from '@educa/core'
 import { randomUUID } from 'node:crypto'
 import { afterAll, describe, expect, it } from 'vitest'
 import { estadoDaSessao } from '../../test/test-api.js'
-import { BancadaDeSessoes } from '../../test/sessao.fixture.js'
+import { SessaoFixtures } from '../../test/sessao.fixture.js'
 import { SessaoWriteRepository } from './sessao-write.repository.js'
 
 describe('EscritaDeSessaoRepository: toda escrita na sessão fica na escola do contexto', () => {
-  const bancada = new BancadaDeSessoes()
+  const bancada = new SessaoFixtures()
 
   afterAll(async () => {
     await bancada.fechar()

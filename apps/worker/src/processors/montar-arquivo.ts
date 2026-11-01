@@ -9,9 +9,9 @@ import {
   type Clock,
 } from '@educa/core'
 import { TIPOS_DE_PEDIDO_COM_ARQUIVO, type TIPO_MONTAR_ARQUIVO, type VersaoDoArquivo } from '@educa/shared'
-import type { Processador } from '../job-executor.js'
+import type { JobProcessor } from '../job-executor.js'
 
-export interface DependenciasDaMontagemDoArquivo {
+export interface MontarArquivoDependencies {
   banco: Database
   armazem: FileStorage
   relogio: Clock
@@ -33,11 +33,11 @@ export interface DependenciasDaMontagemDoArquivo {
  *   `(escola_id, pedido_id, versao)` só atualiza os bytes: dois jobs do mesmo pedido ao mesmo tempo deixam o `pronto_em` do
  *   primeiro que gravou.
  * - **Armazém fora**: o erro sobe, o pedido continua `em_preparacao` e a fila tenta de novo. Nada do que o storage disse
- *   sai no erro (`ErroParaAFila` leva só o código), e o log leva só o id do pedido e contagens.
+ *   sai no erro (`QueueFacingError` leva só o código), e o log leva só o id do pedido e contagens.
  * - O titular que já não existe na escola não tem o que montar: termina sem efeito. O pedido de acesso dele fica
  *   `em_preparacao` e o alerta de duas horas o mostra.
  */
-export function criarMontagemDoArquivo({ banco, armazem, relogio, logger }: DependenciasDaMontagemDoArquivo): Processador<typeof TIPO_MONTAR_ARQUIVO> {
+export function criarMontagemDoArquivo({ banco, armazem, relogio, logger }: MontarArquivoDependencies): JobProcessor<typeof TIPO_MONTAR_ARQUIVO> {
   return async ({ pedidoId }) => {
     const escolaId = requireEscolaId()
     const arquivos = new ArquivoDoTitularRepository(banco)

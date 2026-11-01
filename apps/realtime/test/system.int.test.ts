@@ -11,9 +11,9 @@ import type { Socket as SocketCliente } from 'socket.io-client'
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { valorObrigatorio } from '../../../tools/ci/compose.ts'
 import { aguardarSaudavel, compose, composeAssincronoOuFalha } from '../../../tools/testes/compose.ts'
-import { BancadaDeSessoes, type SessaoDeTeste } from '../../api/test/sessao.fixture.js'
-import { PREFIXO_REDIS_REALTIME } from '../src/redis-adapter.js'
-import { salaDaEscola } from '../src/system.gateway.js'
+import { SessaoFixtures, type TestSessao } from '../../api/test/sessao.fixture.js'
+import { REALTIME_REDIS_PREFIX } from '../src/redis-adapter.js'
+import { escolaRoom } from '../src/system.gateway.js'
 import {
   coletar,
   conectar,
@@ -24,19 +24,19 @@ import {
   recusaDaConexao,
   subirInstancia,
   urlRedisDeFila,
-  type InstanciaDeTeste,
+  type TestInstance,
 } from './realtime.fixture.js'
 
 // Escolas e sessões reais no Postgres do compose de teste: desde a tarefa 3.0 o handshake lê a sessão
 // gravada, com a mesma consulta da `SessaoGuard` da API. Token sem sessão não entra.
-const bancada = new BancadaDeSessoes()
+const bancada = new SessaoFixtures()
 let ESCOLA_A: string
 let ESCOLA_B: string
 /** Duas sessões em cada escola: A1 e A2 provam a sala compartilhada, B1 e B2 o isolamento. */
-let SESSAO_A1: SessaoDeTeste
-let SESSAO_A2: SessaoDeTeste
-let SESSAO_B1: SessaoDeTeste
-let SESSAO_B2: SessaoDeTeste
+let SESSAO_A1: TestSessao
+let SESSAO_A2: TestSessao
+let SESSAO_B1: TestSessao
+let SESSAO_B2: TestSessao
 let USUARIO_A1: string
 let USUARIO_A2: string
 let USUARIO_B2: string
@@ -46,7 +46,7 @@ beforeAll(async () => {
   ;[[SESSAO_A1, SESSAO_A2], [SESSAO_B1, SESSAO_B2]] = (await Promise.all([
     bancada.sessoes(ESCOLA_A, { quantidade: 2 }),
     bancada.sessoes(ESCOLA_B, { quantidade: 2 }),
-  ])) as [[SessaoDeTeste, SessaoDeTeste], [SessaoDeTeste, SessaoDeTeste]]
+  ])) as [[TestSessao, TestSessao], [TestSessao, TestSessao]]
   USUARIO_A1 = SESSAO_A1.usuarioId
   USUARIO_A2 = SESSAO_A2.usuarioId
   USUARIO_B2 = SESSAO_B2.usuarioId
@@ -79,7 +79,7 @@ function tokenDeSessaoInexistente(escolaId: string, usuarioId: string): Promise<
 }
 
 /** A sessão é real e o `sid` existe: só o emissor é o `sintetico` que saiu na tarefa 3.0. */
-function tokenComEmissorSintetico(sessao: SessaoDeTeste): Promise<string> {
+function tokenComEmissorSintetico(sessao: TestSessao): Promise<string> {
   return assinar({ esc: sessao.escolaId, sub: sessao.usuarioId, sid: sessao.sessaoId }, 'sintetico')
 }
 
@@ -96,8 +96,8 @@ afterEach(() => {
 describe('realtime em duas instâncias, com o adaptador de streams no Redis de fila', () => {
   const log1 = loggerEmMemoria()
   const log2 = loggerEmMemoria()
-  let instancia1: InstanciaDeTeste
-  let instancia2: InstanciaDeTeste
+  let instancia1: TestInstance
+  let instancia2: TestInstance
   let emissor: Awaited<ReturnType<typeof criarEmissor>>
 
   beforeAll(async () => {
@@ -112,14 +112,14 @@ describe('realtime em duas instâncias, com o adaptador de streams no Redis de f
     await instancia2.app.close()
   })
 
-  async function conectado(instancia: InstanciaDeTeste, sessao: SessaoDeTeste): Promise<SocketCliente> {
+  async function conectado(instancia: TestInstance, sessao: TestSessao): Promise<SocketCliente> {
     const cliente = registrar(criarCliente(instancia.url, await sessao.tokenNovo()))
     await conectar(cliente)
     return cliente
   }
 
   function emitirParaEscola(escolaId: string, dados: Record<string, string>): void {
-    emissor.servidor.of(SYSTEM_REALTIME_NAMESPACE).to(salaDaEscola(escolaId)).emit('sistema.teste', dados)
+    emissor.servidor.of(SYSTEM_REALTIME_NAMESPACE).to(escolaRoom(escolaId)).emit('sistema.teste', dados)
   }
 
   it('clientes da mesma escola em instâncias diferentes recebem a mesma emissão', async () => {
@@ -144,7 +144,7 @@ describe('realtime em duas instâncias, com o adaptador de streams no Redis de f
     await conectado(instancia1, SESSAO_B1)
     await conectado(instancia2, SESSAO_B2)
 
-    const naSalaA = await emissor.servidor.of(SYSTEM_REALTIME_NAMESPACE).in(salaDaEscola(ESCOLA_A)).fetchSockets()
+    const naSalaA = await emissor.servidor.of(SYSTEM_REALTIME_NAMESPACE).in(escolaRoom(ESCOLA_A)).fetchSockets()
 
     expect(naSalaA.map((socket) => socket.id).sort()).toEqual([a1.id, a2.id].sort())
     // O handshake atravessa o Redis nessa consulta: o token verificado e a query já não estão nele.
@@ -186,12 +186,12 @@ describe('realtime em duas instâncias, com o adaptador de streams no Redis de f
     const tokenB = await SESSAO_B2.tokenNovo()
     const intruso = registrar(
       criarCliente(instancia2.url, tokenB, {
-        auth: { token: tokenB, escolaId: ESCOLA_A, sala: salaDaEscola(ESCOLA_A) },
-        query: { escolaId: ESCOLA_A, sala: salaDaEscola(ESCOLA_A) },
+        auth: { token: tokenB, escolaId: ESCOLA_A, sala: escolaRoom(ESCOLA_A) },
+        query: { escolaId: ESCOLA_A, sala: escolaRoom(ESCOLA_A) },
       }),
     )
     await conectar(intruso)
-    for (const evento of ['join', 'entrar', 'subscribe', 'sala']) intruso.emit(evento, salaDaEscola(ESCOLA_A))
+    for (const evento of ['join', 'entrar', 'subscribe', 'sala']) intruso.emit(evento, escolaRoom(ESCOLA_A))
     const a1 = await conectado(instancia1, SESSAO_A1)
     const recebidosIntruso = coletar(intruso, 'sistema.teste')
     const recebidosA1 = coletar(a1, 'sistema.teste')
@@ -202,9 +202,9 @@ describe('realtime em duas instâncias, com o adaptador de streams no Redis de f
     await esperar(JANELA_DE_SILENCIO_MS)
 
     expect(recebidosIntruso).toEqual([])
-    const naSalaA = await emissor.servidor.of(SYSTEM_REALTIME_NAMESPACE).in(salaDaEscola(ESCOLA_A)).fetchSockets()
+    const naSalaA = await emissor.servidor.of(SYSTEM_REALTIME_NAMESPACE).in(escolaRoom(ESCOLA_A)).fetchSockets()
     expect(naSalaA.map((socket) => socket.id)).toEqual([a1.id])
-    const naSalaB = await emissor.servidor.of(SYSTEM_REALTIME_NAMESPACE).in(salaDaEscola(ESCOLA_B)).fetchSockets()
+    const naSalaB = await emissor.servidor.of(SYSTEM_REALTIME_NAMESPACE).in(escolaRoom(ESCOLA_B)).fetchSockets()
     expect(naSalaB.map((socket) => socket.data)).toEqual([{ identidade: { escolaId: ESCOLA_B, usuarioId: USUARIO_B2 } }])
   })
 
@@ -338,7 +338,7 @@ describe('realtime em duas instâncias, com o adaptador de streams no Redis de f
 
     await expect
       .poll(async () => {
-        const naSala = await emissor.servidor.of(SYSTEM_REALTIME_NAMESPACE).in(salaDaEscola(ESCOLA_A)).fetchSockets()
+        const naSala = await emissor.servidor.of(SYSTEM_REALTIME_NAMESPACE).in(escolaRoom(ESCOLA_A)).fetchSockets()
         return naSala.map((socket) => socket.data.identidade?.usuarioId)
       })
       .toEqual([USUARIO_A2])
@@ -404,16 +404,16 @@ describe('realtime em duas instâncias, com o adaptador de streams no Redis de f
 describe('stream do adaptador no Redis de fila', () => {
   it('tem teto de tamanho: o Redis de fila não expulsa chave, e o stream não cresce sem limite', async () => {
     const redis = new Redis(urlRedisDeFila())
-    await redis.del(PREFIXO_REDIS_REALTIME)
+    await redis.del(REALTIME_REDIS_PREFIX)
     const emissor = await criarEmissor(100)
     try {
       for (let indice = 0; indice < 1_000; indice++) {
-        emissor.servidor.of(SYSTEM_REALTIME_NAMESPACE).to(salaDaEscola(ESCOLA_A)).emit('sistema.teste', { indice })
+        emissor.servidor.of(SYSTEM_REALTIME_NAMESPACE).to(escolaRoom(ESCOLA_A)).emit('sistema.teste', { indice })
       }
-      await expect.poll(async () => redis.xinfo('STREAM', PREFIXO_REDIS_REALTIME).then(() => true), { timeout: 5_000 }).toBe(true)
+      await expect.poll(async () => redis.xinfo('STREAM', REALTIME_REDIS_PREFIX).then(() => true), { timeout: 5_000 }).toBe(true)
       await esperar(500)
       // O corte é aproximado (MAXLEN ~), por nó do stream: fica perto do teto, longe das 1.000 emissões.
-      expect(await redis.xlen(PREFIXO_REDIS_REALTIME)).toBeLessThanOrEqual(300)
+      expect(await redis.xlen(REALTIME_REDIS_PREFIX)).toBeLessThanOrEqual(300)
     } finally {
       await emissor.fechar()
       await redis.quit()

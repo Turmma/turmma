@@ -14,7 +14,7 @@ import type { RespostaHttp } from './test-api.js'
  * chama a API direto e confere o que quer, para a varredura não ser vazia — o teste de 11.0 confere que o nome aparece
  * na busca antes de varrer o log.
  */
-export class CapturaDeDadoPessoal {
+export class PersonalDataCapture {
   readonly #respostas: string[] = []
   /** Quantas linhas o log já tinha quando a captura nasceu: o que vem antes é de outro teste do mesmo arquivo. */
   readonly #inicio: number

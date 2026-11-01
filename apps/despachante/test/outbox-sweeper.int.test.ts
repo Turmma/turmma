@@ -13,11 +13,11 @@ import { Redis } from 'ioredis'
 import { randomUUID } from 'node:crypto'
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { aguardarSaudavel, compose, composeAssincronoOuFalha, PROCESSOS_DA_FILA } from '../../../tools/testes/compose.ts'
-import { FalhaDeJob } from '../../worker/src/job-failure.error.js'
-import { BancadaDeFila, LogEmMemoria, urlRedisDeFila } from '../../worker/test/queue.fixture.js'
-import type { DespachanteMontado } from '../src/composition.js'
-import { PublicacaoBullMQ, type FilaDePublicacao } from '../src/job-publisher.js'
-import { Reconciliacao } from '../src/outbox-sweeper.js'
+import { JobFailureError } from '../../worker/src/job-failure.error.js'
+import { QueueFixtures, InMemoryLog, urlRedisDeFila } from '../../worker/test/queue.fixture.js'
+import type { OutboxRelayRuntime } from '../src/composition.js'
+import { BullMQJobPublisher, type JobPublisher } from '../src/job-publisher.js'
+import { OutboxSweeper } from '../src/outbox-sweeper.js'
 
 // Despachantes e workers de verdade no processo do teste, contra o Postgres e o Redis de fila do
 // compose de teste. A idade de 2 min é simulada recuando as datas da linha no banco.
@@ -27,14 +27,14 @@ beforeAll(() => {
 })
 
 describe('reconciliação entre job_registro e o BullMQ', () => {
-  let bancada: BancadaDeFila
+  let bancada: QueueFixtures
   // Escolas reais, criadas a cada caso: desde a tarefa 3.0 `job_registro` e
   // `configuracao_operacional_escola` têm FK para `escola`, e id inventado é recusado pelo banco.
   let ESCOLA_A: string
   let ESCOLA_B: string
 
   beforeEach(async () => {
-    bancada = new BancadaDeFila()
+    bancada = new QueueFixtures()
     await bancada.limparRegistro()
     ;[ESCOLA_A, ESCOLA_B] = await Promise.all([bancada.escola(), bancada.escola()])
     // Os jobs publicados aqui não executam (não há worker na maior parte dos testes) e seguram a vaga:
@@ -61,7 +61,7 @@ describe('reconciliação entre job_registro e o BullMQ', () => {
   }
 
   /** Enfileira e publica pela rodada de um despachante, sem ligar o laço. Devolve o despachante e os ids. */
-  async function publicados(log: LogEmMemoria, quantidade: number, fila: 'interativa' | 'lote' = 'interativa'): Promise<{ montado: DespachanteMontado; ids: string[] }> {
+  async function publicados(log: InMemoryLog, quantidade: number, fila: 'interativa' | 'lote' = 'interativa'): Promise<{ montado: OutboxRelayRuntime; ids: string[] }> {
     const ids: string[] = []
     for (let indice = 0; indice < quantidade; indice++) ids.push(await bancada.enfileirar(ESCOLA_A, { fila }))
     const montado = bancada.despachante(log)
@@ -80,14 +80,14 @@ describe('reconciliação entre job_registro e o BullMQ', () => {
   }
 
   /** Uma reconciliação à parte, com cliente e `Queue` próprios, e a consulta à fila embrulhada pelo teste. */
-  function reconciliacaoAParte(nome: string, embrulhar: (consultar: FilaDePublicacao['consultar']) => FilaDePublicacao['consultar'], lote?: number) {
+  function reconciliacaoAParte(nome: string, embrulhar: (consultar: JobPublisher['consultar']) => JobPublisher['consultar'], lote?: number) {
     const redis = createQueueRedisClient(urlRedisDeFila(), nome, () => undefined)
-    const publicacao = new PublicacaoBullMQ((filaDoJob, executor) => new Queue<QueuedJobData>(bullmqQueueName(filaDoJob, executor), { connection: redis, prefix: bancada.prefixo }))
-    const fila: FilaDePublicacao = { publicar: (jobs) => publicacao.publicar(jobs), consultar: embrulhar((job) => publicacao.consultar(job)) }
-    const log = new LogEmMemoria(nome)
+    const publicacao = new BullMQJobPublisher((filaDoJob, executor) => new Queue<QueuedJobData>(bullmqQueueName(filaDoJob, executor), { connection: redis, prefix: bancada.prefixo }))
+    const fila: JobPublisher = { publicar: (jobs) => publicacao.publicar(jobs), consultar: embrulhar((job) => publicacao.consultar(job)) }
+    const log = new InMemoryLog(nome)
     return {
       log,
-      reconciliacao: new Reconciliacao(
+      reconciliacao: new OutboxSweeper(
         { repositorio: bancada.despacho, fila, vagas: bancada.vagas, vagasDaEscola: bancada.vagasDaEscola(), logger: log.logger },
         lote === undefined ? {} : { lote },
       ),
@@ -99,7 +99,7 @@ describe('reconciliação entre job_registro e o BullMQ', () => {
   }
 
   it('job que a fila perdeu depois de publicado, ou de ativo, volta com o mesmo id e executa uma vez; o que a fila tem e o recente ficam como estão', async () => {
-    const logDespachante = new LogEmMemoria('despachante')
+    const logDespachante = new InMemoryLog('despachante')
     const requisicaoId = randomUUID()
     const perdido = await bancada.enfileirar(ESCOLA_B, {}, requisicaoId)
     const [presente = '', recente = '', ativoPerdido = ''] = [await bancada.enfileirar(ESCOLA_A), await bancada.enfileirar(ESCOLA_A), await bancada.enfileirar(ESCOLA_A)]
@@ -130,7 +130,7 @@ describe('reconciliação entre job_registro e o BullMQ', () => {
     await comoAtivo(ativoPerdido)
     expect(await montado.reconciliacao.reconciliar()).toEqual({ conferidos: 1, republicados: [], falhasRegistradas: [], semConfirmacao: 0 })
 
-    const logWorker = new LogEmMemoria('worker')
+    const logWorker = new InMemoryLog('worker')
     bancada.worker(logWorker)
     const reconciliados = [perdido, presente, ativoPerdido]
     await expect
@@ -142,7 +142,7 @@ describe('reconciliação entre job_registro e o BullMQ', () => {
   })
 
   it('a varredura passa por todos: um job perdido atrás de 150 lotes que a fila tem é republicado na mesma reconciliação', async () => {
-    const log = new LogEmMemoria('despachante')
+    const log = new InMemoryLog('despachante')
     const { montado, ids: lotesNaFila } = await publicados(log, 150, 'lote')
     const { ids: [perdido = ''] } = await publicados(log, 1, 'lote')
     await perderNaFila(perdido)
@@ -160,7 +160,7 @@ describe('reconciliação entre job_registro e o BullMQ', () => {
   }, 90_000)
 
   it('a varredura vai do interativo ao lote, e um job que a fila não consegue ler não a prende na mesma página', async () => {
-    const log = new LogEmMemoria('despachante')
+    const log = new InMemoryLog('despachante')
     const { ids: lotes } = await publicados(log, 3, 'lote')
     const { ids: [interativo = ''] } = await publicados(log, 1, 'interativa')
     const [ilegivel = '', ...outrosLotes] = lotes
@@ -182,7 +182,7 @@ describe('reconciliação entre job_registro e o BullMQ', () => {
   })
 
   it('consulta sem resposta (Redis de fila travado, e depois parado) não republica; com o Redis de volta, republica', async () => {
-    const log = new LogEmMemoria('despachante')
+    const log = new InMemoryLog('despachante')
     // O mesmo despachante que acabou de publicar: o cliente dele está conectado quando o Redis trava.
     const { montado, ids: [id = ''] } = await publicados(log, 1)
     await perderNaFila(id)
@@ -220,7 +220,7 @@ describe('reconciliação entre job_registro e o BullMQ', () => {
   }, 120_000)
 
   it('duas reconciliações que confirmaram juntas a perda dos mesmos 20 jobs: cada um é tomado e publicado por uma só, e executa uma vez', async () => {
-    const { ids } = await publicados(new LogEmMemoria('despachante'), 20)
+    const { ids } = await publicados(new InMemoryLog('despachante'), 20)
     await perderNaFila(...ids)
     await envelhecer(...ids)
 
@@ -250,7 +250,7 @@ describe('reconciliação entre job_registro e o BullMQ', () => {
       expect([...republicados1, ...republicados2].sort()).toEqual([...ids].sort())
       expect(instancias.flatMap(({ log }) => log.doEvento('job.republicado'))).toHaveLength(20)
 
-      const logWorker = new LogEmMemoria('worker')
+      const logWorker = new InMemoryLog('worker')
       bancada.worker(logWorker, { concorrencia: 10 })
       await expect.poll(async () => (await bancada.fila.getJobCounts('completed'))['completed'], { timeout: 20_000 }).toBe(20)
       expect(new Set(logWorker.doEvento('job.iniciado').map((registro) => registro['jobId'])).size).toBe(20)
@@ -261,7 +261,7 @@ describe('reconciliação entre job_registro e o BullMQ', () => {
   })
 
   it('confirmação que envelheceu: outra reconciliação já republicou e o worker recomeçou o job ativo, e a que atrasou não o toma de novo', async () => {
-    const { ids: [id = ''] } = await publicados(new LogEmMemoria('despachante'), 1)
+    const { ids: [id = ''] } = await publicados(new InMemoryLog('despachante'), 1)
     await comoAtivo(id)
     await perderNaFila(id)
     await envelhecer(id)
@@ -300,7 +300,7 @@ describe('reconciliação entre job_registro e o BullMQ', () => {
 
   describe('falha que a fila tem e a linha não', () => {
     it('Postgres fora na última tentativa: a fila tem o job falho, a linha ficou ativo, e a reconciliação a leva a falhou com o código do worker', async () => {
-      const log = new LogEmMemoria('despachante')
+      const log = new InMemoryLog('despachante')
       const requisicaoId = randomUUID()
       const id = await bancada.enfileirar(ESCOLA_A, {}, requisicaoId)
       await bancada.reservar(ESCOLA_A)
@@ -308,13 +308,13 @@ describe('reconciliação entre job_registro e o BullMQ', () => {
       await bancada.fila.add('sintetico', { escolaId: ESCOLA_A, requisicaoId }, { jobId: id, attempts: 1 })
       await runInContext({ requisicaoId: randomUUID(), escolaId: ESCOLA_A }, () => bancada.despacho.marcarPublicados([id]))
 
-      const logWorker = new LogEmMemoria('worker')
+      const logWorker = new InMemoryLog('worker')
       bancada.worker(logWorker, {
         processadores: {
           // O Postgres cai durante o job: o `falhou` que o worker grava no fim não chega ao banco.
           sintetico: async () => {
             await composeAssincronoOuFalha('stop', 'postgres')
-            throw new FalhaDeJob(JobFailureCode.FALHA_SINTETICA)
+            throw new JobFailureError(JobFailureCode.FALHA_SINTETICA)
           },
         },
       })
@@ -337,7 +337,7 @@ describe('reconciliação entre job_registro e o BullMQ', () => {
     }, 120_000)
 
     it('stalled acima do limite (motivo que não é código nosso) com a linha ativo, e job.data inválido com a linha publicado: falhou, com ERRO_INTERNO e DADOS_INVALIDOS', async () => {
-      const log = new LogEmMemoria('despachante')
+      const log = new InMemoryLog('despachante')
       const { ids: [stalled = '', comDadoInvalido = ''] } = await publicados(log, 2)
       // O que a fila tem para cada um é trocado pelo que o teste precisa.
       await perderNaFila(stalled, comDadoInvalido)
@@ -360,7 +360,7 @@ describe('reconciliação entre job_registro e o BullMQ', () => {
       }
 
       const invalido = await bancada.fila.add('sintetico', { escolaId: 'nao-e-uuid', requisicaoId: null }, { jobId: comDadoInvalido, attempts: 5 })
-      bancada.worker(new LogEmMemoria('worker'))
+      bancada.worker(new InMemoryLog('worker'))
       await expect.poll(() => invalido.getState(), { timeout: 15_000 }).toBe('failed')
       expect((await bancada.estado(stalled))?.estado).toBe('ativo')
       expect((await bancada.estado(comDadoInvalido))?.estado).toBe('publicado')
@@ -379,7 +379,7 @@ describe('reconciliação entre job_registro e o BullMQ', () => {
     }, 60_000)
 
     it('a falha da fila não muda job que já terminou: o worker lento concluiu antes de a falha ser gravada', async () => {
-      const { ids: [id = ''] } = await publicados(new LogEmMemoria('despachante'), 1)
+      const { ids: [id = ''] } = await publicados(new InMemoryLog('despachante'), 1)
       await runInContext({ requisicaoId: randomUUID(), escolaId: ESCOLA_A }, async () => {
         await bancada.registro.iniciarExecucao(id)
         await bancada.registro.concluir(id)
@@ -392,7 +392,7 @@ describe('reconciliação entre job_registro e o BullMQ', () => {
 
   describe('laço', () => {
     it('roda sozinha a cada intervalo, sem ninguém chamar', async () => {
-      const log = new LogEmMemoria('despachante')
+      const log = new InMemoryLog('despachante')
       const { ids: [id = ''] } = await publicados(log, 1)
       await perderNaFila(id)
       await envelhecer(id)
@@ -401,7 +401,7 @@ describe('reconciliação entre job_registro e o BullMQ', () => {
     })
 
     it('com o Postgres fora, a reconciliação falha a cada volta sem derrubar o laço, e republica quando ele volta', async () => {
-      const log = new LogEmMemoria('despachante')
+      const log = new InMemoryLog('despachante')
       const { ids: [id = ''] } = await publicados(log, 1)
       await perderNaFila(id)
       await envelhecer(id)

@@ -53,33 +53,33 @@ import {
 import { S3FileStorage } from '@educa/core/s3-file-storage'
 import { Queue, Worker } from 'bullmq'
 import { Redis } from 'ioredis'
-import { AGENDAMENTOS, criarDisparoDeAgendamento, FILA_DOS_AGENDAMENTOS, registrarAgendamentos, type Agendamento } from './job-schedules.js'
-import type { ConfiguracaoStorage, ConfiguracaoWorker } from './config.js'
-import { AvisoDeVagaLivre, ExecutorDeJobs, type ProcessadoresDeJob } from './job-executor.js'
+import { JOB_SCHEDULES, createScheduleProcessor, SCHEDULES_QUEUE, registerJobSchedulers, type JobSchedule } from './job-schedules.js'
+import type { StorageConfig, WorkerConfig } from './config.js'
+import { SlotReleasedNotifier, JobExecutor, type JobProcessors } from './job-executor.js'
 import { criarConsolidacaoDeUso } from './processors/consolidar-uso.js'
 import { criarExpurgoDeAcesso } from './processors/expurgar-acesso.js'
 import { criarExpurgoDeJobs } from './processors/expurgar-jobs.js'
 import { criarRotinaDeExpurgo } from './processors/expurgar-dado-pessoal.js'
 import { criarEliminacaoDoTitular } from './processors/eliminar-titular.js'
 import { criarExpurgoDaEscola } from './processors/expurgar-escola.js'
-import { MedicaoDaEliminacao } from './eliminacao-gauge.js'
-import { MedicaoDoArquivo } from './arquivo-gauge.js'
-import { MedicaoDoExpurgo } from './expurgo-gauge.js'
-import { MedicaoDoIncidente } from './incidente-gauge.js'
+import { EliminacaoGauge } from './eliminacao-gauge.js'
+import { ArquivoGauge } from './arquivo-gauge.js'
+import { ExpurgoGauge } from './expurgo-gauge.js'
+import { IncidenteGauge } from './incidente-gauge.js'
 import { criarMontagemDoArquivo } from './processors/montar-arquivo.js'
-import { criarProcessadorSintetico, SandboxDeCpu, type QueimaDeCpu } from './processors/synthetic.js'
-import { criarClienteS3, MedidorDeStorage } from './storage/storage-size-reader.js'
+import { createSyntheticProcessor, CpuSandbox, type CpuBurner } from './processors/synthetic.js'
+import { criarClienteS3, StorageSizeReader } from './storage/storage-size-reader.js'
 
 /**
  * Quanto o SIGTERM espera os jobs em andamento terminarem antes de fechar à força (Tech Spec, seção 5; R55). O
  * `stop_grace_period` do worker, em `infra/compose.yml`, é maior que ela: o Docker só manda SIGKILL depois dos dois.
  */
-export const GRACA_DO_DESLIGAMENTO_MS = 20_000
+export const SHUTDOWN_GRACE_MS = 20_000
 const INTERVALO_BATIMENTO_MS = 2_000
 
-export interface OpcoesDaMontagem {
+export interface CreateWorkerOptions {
   /** Troca os processadores da réplica. Sem isto, o sintético (no sandbox de CPU) e, no lote, as rotinas do sistema. */
-  processadores?: ProcessadoresDeJob
+  processadores?: JobProcessors
   /** O registro de jobs que valida os dados e dá o prazo de cada tipo. Só o teste troca, para ter um tipo de dados próprios. */
   definicoes?: JobRegistry
   /** Prefixo das chaves do BullMQ e das vagas. Só o teste troca, para não disputar a fila com outro teste. */
@@ -94,7 +94,7 @@ export interface OpcoesDaMontagem {
    */
   relogio?: Clock
   /** Agendamentos registrados na réplica de lote. Só o teste troca, para não esperar as 2h. */
-  agendamentos?: readonly Agendamento[]
+  agendamentos?: readonly JobSchedule[]
   batimento?: Heartbeat
   graca?: number
   /**
@@ -104,7 +104,7 @@ export interface OpcoesDaMontagem {
   medidor?: Meter
 }
 
-export interface WorkerMontado {
+export interface WorkerRuntime {
   /** Um `Worker` do BullMQ por fila atendida, cada um com o próprio pool. */
   workers: ReadonlyMap<QueueName, Worker<QueuedJobData>>
   /** Só na réplica que atende o lote: a fila dos disparos agendados e o worker que os grava em `job_registro`. */
@@ -121,7 +121,7 @@ export interface WorkerMontado {
  * O stalled é o do BullMQ, com lock e verificação por fila (`WORKER_POOL_OPTIONS_BY_QUEUE`): se a réplica
  * morre no meio, o lock vence e outra réplica retoma o job, ainda dono da vaga.
  */
-export function montarWorker(config: Omit<ConfiguracaoWorker, 'telemetria'>, logger: LoggerBase, opcoes: OpcoesDaMontagem = {}): WorkerMontado {
+export function createWorker(config: Omit<WorkerConfig, 'telemetria'>, logger: LoggerBase, opcoes: CreateWorkerOptions = {}): WorkerRuntime {
   if (config.vagasPorEscolaDesligadas === true) {
     // Só o controle negativo do cenário de carga chega aqui, e ele precisa ficar visível no log de quem subiu assim.
     logger.warn({ evento: 'worker.vagas_por_escola_desligadas' })
@@ -149,10 +149,10 @@ export function montarWorker(config: Omit<ConfiguracaoWorker, 'telemetria'>, log
   const stalled = medidor?.createCounter(METRICS.jobsStalled, { description: 'Jobs devolvidos à espera por lock vencido' })
   // O armazém do arquivo do titular (F3, tarefa 13.0): a réplica da fila normal grava o JSON, e a do lote apaga o vencido.
   const armazemS3 = config.storage === undefined ? undefined : S3FileStorage.criar(config.storage)
-  const sandbox = new SandboxDeCpu(config.threadsMaximo)
+  const sandbox = new CpuSandbox(config.threadsMaximo)
   const repositorio = new JobOutboxRepository(banco)
   // Banco fora: o despachante acorda pela sondagem, e só.
-  const { processadores, rotinas } = montarProcessadores(config, {
+  const { processadores, rotinas } = createProcessors(config, {
     banco,
     uso,
     relogio,
@@ -162,8 +162,8 @@ export function montarWorker(config: Omit<ConfiguracaoWorker, 'telemetria'>, log
     efeitos: new SyntheticEffectRepository(banco),
     armazem: armazemS3?.armazem,
   })
-  const avisoDeVagaLivre = new AvisoDeVagaLivre(() => repositorio.avisarVagaLivre(), throttledWarn(() => logger.warn({ evento: 'worker.aviso_de_vaga_indisponivel' })))
-  const executor = new ExecutorDeJobs({
+  const avisoDeVagaLivre = new SlotReleasedNotifier(() => repositorio.avisarVagaLivre(), throttledWarn(() => logger.warn({ evento: 'worker.aviso_de_vaga_indisponivel' })))
+  const executor = new JobExecutor({
     repositorio,
     aoLiberarVaga: avisoDeVagaLivre.avisar,
     processadores: opcoes.processadores ?? processadores,
@@ -199,11 +199,11 @@ export function montarWorker(config: Omit<ConfiguracaoWorker, 'telemetria'>, log
     workers.set(fila, worker)
   }
 
-  const agendamentos = rotinas === undefined ? undefined : montarAgendamentos(redis, banco, logger, opcoes.prefixo, opcoes.agendamentos ?? AGENDAMENTOS)
+  const agendamentos = rotinas === undefined ? undefined : montarAgendamentos(redis, banco, logger, opcoes.prefixo, opcoes.agendamentos ?? JOB_SCHEDULES)
 
   const batimento = opcoes.batimento
   const pulso = batimento === undefined ? undefined : setInterval(() => batimento.bater(), INTERVALO_BATIMENTO_MS)
-  const graca = opcoes.graca ?? GRACA_DO_DESLIGAMENTO_MS
+  const graca = opcoes.graca ?? SHUTDOWN_GRACE_MS
 
   const encerrar = async (): Promise<void> => {
     if (pulso !== undefined) clearInterval(pulso)
@@ -244,21 +244,21 @@ export function montarWorker(config: Omit<ConfiguracaoWorker, 'telemetria'>, log
 }
 
 /** As peças que os processadores usam, já criadas: quem monta decide quais processadores a réplica leva, e não como se constroem as peças. */
-export interface PecasDosProcessadores {
+export interface ProcessorParts {
   banco: Database
   uso: UsageMeter
   relogio: Clock
   logger: LoggerBase
   medidor: Meter | undefined
   /** O sandbox de CPU do job sintético. */
-  cpu: QueimaDeCpu
+  cpu: CpuBurner
   efeitos: Pick<SyntheticEffectRepository, 'gravar'>
   /** O armazém do storage; sem credencial de storage (`config.storage`), não há. */
   armazem: FileStorage | undefined
 }
 
-export interface ProcessadoresMontados {
-  processadores: ProcessadoresDeJob
+export interface ProcessorSet {
+  processadores: JobProcessors
   /** Só na réplica que atende o lote: o que as rotinas do sistema abriram (medições) e precisam fechar. */
   rotinas?: { encerrar(): Promise<void> }
 }
@@ -269,16 +269,16 @@ export interface ProcessadoresMontados {
  * réplica sabe executar, e `composition.test.ts` a liga a `JOB_DEFINITIONS`: todo tipo do worker tem processador nas filas
  * dele, e nenhum processador está numa fila que a definição do tipo não lista.
  */
-export function montarProcessadores(config: Pick<ConfiguracaoWorker, 'pools' | 'storage' | 'janelaPadrao'>, pecas: PecasDosProcessadores): ProcessadoresMontados {
+export function createProcessors(config: Pick<WorkerConfig, 'pools' | 'storage' | 'janelaPadrao'>, pecas: ProcessorParts): ProcessorSet {
   const { banco, uso, relogio, logger, medidor, armazem } = pecas
   const rotinas =
     config.pools.lote === undefined || config.storage === undefined || config.janelaPadrao === undefined || armazem === undefined
       ? undefined
-      : montarRotinas(config.storage, config.janelaPadrao, banco, uso, relogio, logger, medidor, armazem)
+      : createRoutines(config.storage, config.janelaPadrao, banco, uso, relogio, logger, medidor, armazem)
   const montagemDoArquivo =
     config.pools.normal === undefined || armazem === undefined ? undefined : { [TIPO_MONTAR_ARQUIVO]: criarMontagemDoArquivo({ banco, armazem, relogio, logger }) }
   return {
-    processadores: { [TIPO_JOB_SINTETICO]: criarProcessadorSintetico(pecas.cpu, pecas.efeitos), ...rotinas?.processadores, ...montagemDoArquivo },
+    processadores: { [TIPO_JOB_SINTETICO]: createSyntheticProcessor(pecas.cpu, pecas.efeitos), ...rotinas?.processadores, ...montagemDoArquivo },
     ...(rotinas === undefined ? {} : { rotinas }),
   }
 }
@@ -289,8 +289,8 @@ export function montarProcessadores(config: Pick<ConfiguracaoWorker, 'pools' | '
  * (F3, tarefa 3.0): a rotina que grava um job por escola, o job da escola, e, com o medidor, a medição das noites
  * incompletas que o alerta lê.
  */
-function montarRotinas(
-  storage: ConfiguracaoStorage,
+function createRoutines(
+  storage: StorageConfig,
   janelaPadrao: JanelaLetiva,
   banco: Database,
   contador: UsageMeter,
@@ -298,7 +298,7 @@ function montarRotinas(
   logger: LoggerBase,
   medidor: Meter | undefined,
   armazem: FileStorage,
-): { processadores: ProcessadoresDeJob; encerrar(): Promise<void> } {
+): { processadores: JobProcessors; encerrar(): Promise<void> } {
   const s3 = criarClienteS3(storage)
   const avisarJanelaDescartada = throttledWarn(() => logger.warn({ evento: 'worker.janela_da_escola_invalida' }))
   // O horário letivo da escola, lido como o despachante lê: o lote não urgente que ele soltou fora da janela para quando ela abre.
@@ -307,21 +307,21 @@ function montarRotinas(
   })
   const escolas = new CronEscolasRepository(banco)
   const expurgoDaEscola = new ExpurgoDaEscolaRepository(banco)
-  const medicao = medidor === undefined ? undefined : new MedicaoDoExpurgo({ escolas, repositorio: expurgoDaEscola, janelaDaEscola, relogio, logger, medidor })
+  const medicao = medidor === undefined ? undefined : new ExpurgoGauge({ escolas, repositorio: expurgoDaEscola, janelaDaEscola, relogio, logger, medidor })
   medicao?.iniciar()
-  const medicaoDoIncidente = medidor === undefined ? undefined : new MedicaoDoIncidente({ escolas, repositorio: new IncidenteDaEscolaRepository(banco), relogio, logger, medidor })
+  const medicaoDoIncidente = medidor === undefined ? undefined : new IncidenteGauge({ escolas, repositorio: new IncidenteDaEscolaRepository(banco), relogio, logger, medidor })
   medicaoDoIncidente?.iniciar()
   const arquivos = new ArquivoDoTitularRepository(banco)
-  const medicaoDoArquivo = medidor === undefined ? undefined : new MedicaoDoArquivo({ escolas, repositorio: arquivos, relogio, logger, medidor })
+  const medicaoDoArquivo = medidor === undefined ? undefined : new ArquivoGauge({ escolas, repositorio: arquivos, relogio, logger, medidor })
   medicaoDoArquivo?.iniciar()
-  const medicaoDaEliminacao = medidor === undefined ? undefined : new MedicaoDaEliminacao({ escolas, repositorio: expurgoDaEscola, relogio, logger, medidor })
+  const medicaoDaEliminacao = medidor === undefined ? undefined : new EliminacaoGauge({ escolas, repositorio: expurgoDaEscola, relogio, logger, medidor })
   medicaoDaEliminacao?.iniciar()
   return {
     processadores: {
       [TIPO_CONSOLIDAR_USO]: criarConsolidacaoDeUso({
         contador,
         repositorio: new UsageRepository(banco),
-        storage: new MedidorDeStorage(s3, storage.bucket),
+        storage: new StorageSizeReader(s3, storage.bucket),
         relogio,
         logger,
         ...(medidor === undefined ? {} : { medidor }),
@@ -361,19 +361,19 @@ function montarAgendamentos(
   banco: Database,
   logger: LoggerBase,
   prefixo: string | undefined,
-  agendamentos: readonly Agendamento[],
+  agendamentos: readonly JobSchedule[],
 ): { fila: Queue; worker: Worker } {
   const comPrefixo = prefixo === undefined ? {} : { prefix: prefixo }
-  const fila = new Queue(FILA_DOS_AGENDAMENTOS, { connection: redis, ...comPrefixo })
+  const fila = new Queue(SCHEDULES_QUEUE, { connection: redis, ...comPrefixo })
   const avisarErro = throttledWarn(() => logger.warn({ evento: 'worker.agendamentos_com_erro' }))
   fila.on('error', avisarErro)
   const agendamentosTotal = agendamentos.length
-  registrarAgendamentos(fila, agendamentos).then(
+  registerJobSchedulers(fila, agendamentos).then(
     () => logger.info({ evento: 'agendamentos.registrados', agendamentosTotal }),
     () => logger.warn({ evento: 'agendamentos.nao_registrados' }),
   )
-  const disparar = criarDisparoDeAgendamento(banco, new JobOutbox(new JobOutboxRepository(banco)), logger, agendamentos)
-  const worker = new Worker(FILA_DOS_AGENDAMENTOS, (job) => disparar(job), { connection: redis, concurrency: 1, ...comPrefixo })
+  const disparar = createScheduleProcessor(banco, new JobOutbox(new JobOutboxRepository(banco)), logger, agendamentos)
+  const worker = new Worker(SCHEDULES_QUEUE, (job) => disparar(job), { connection: redis, concurrency: 1, ...comPrefixo })
   worker.on('error', avisarErro)
   return { fila, worker }
 }

@@ -1,14 +1,14 @@
 import { runInContext } from '@educa/core'
 import { randomUUID } from 'node:crypto'
 import { afterAll, describe, expect, it } from 'vitest'
-import { BancadaDeSessoes } from '../../../test/sessao.fixture.js'
+import { SessaoFixtures } from '../../../test/sessao.fixture.js'
 import { AlunosAtivosRepository } from './alunos-ativos.repository.js'
 
 /** Hash sintético: a contagem não confere senha. */
 const HASH_SINTETICO = '$argon2id$v=19$m=19456,t=2,p=1$c2ludGV0aWNv$c2ludGV0aWNvc2ludGV0aWNv'
 
 describe('AlunosAtivosRepository: o tamanho da escola que dá o limiar do rebaixamento (15.1) é só da escola do contexto', () => {
-  const bancada = new BancadaDeSessoes()
+  const bancada = new SessaoFixtures()
 
   afterAll(async () => {
     await bancada.fechar()

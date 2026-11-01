@@ -7,12 +7,12 @@ import { randomBytes, randomUUID } from 'node:crypto'
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { lerAmbienteDeTeste, valorObrigatorio } from '../../../tools/ci/compose.ts'
 import { compose, PROCESSOS_DA_FILA } from '../../../tools/testes/compose.ts'
-import { AGENDAMENTOS, FILA_DOS_AGENDAMENTOS } from '../src/job-schedules.js'
-import type { ConfiguracaoStorage } from '../src/config.js'
-import { montarWorker, type WorkerMontado } from '../src/composition.js'
+import { JOB_SCHEDULES, SCHEDULES_QUEUE } from '../src/job-schedules.js'
+import type { StorageConfig } from '../src/config.js'
+import { createWorker, type WorkerRuntime } from '../src/composition.js'
 import { criarExpurgoDeAcesso, type TotaisDoExpurgoDeAcesso } from '../src/processors/expurgar-acesso.js'
-import { BancadaDeFila, configuracaoDoBanco, janelaPadraoDoAmbiente, LogEmMemoria, urlRedisDeFila, vagasPadraoDoAmbiente } from './queue.fixture.js'
-import { execucaoDoJob } from './job-execution.fixture.js'
+import { QueueFixtures, configuracaoDoBanco, janelaPadraoDoAmbiente, InMemoryLog, urlRedisDeFila, vagasPadraoDoAmbiente } from './queue.fixture.js'
+import { jobExecution } from './job-execution.fixture.js'
 
 // `registro_acesso`, `sessao` e `convite` do Postgres do compose de teste, com linhas de duas escolas (e a falha de
 // login sem escola) dos dois lados de cada prazo, e `acesso_operacao`, `sessao_operador` e `convite_operador` da
@@ -21,7 +21,7 @@ import { execucaoDoJob } from './job-execution.fixture.js'
 // prazo" só saem se o corte vier do relógio injetado, e não do banco.
 
 const ambiente = lerAmbienteDeTeste()
-const STORAGE: ConfiguracaoStorage = {
+const STORAGE: StorageConfig = {
   url: `http://127.0.0.1:${valorObrigatorio(ambiente, 'STORAGE_PORTA_HOST')}`,
   regiao: valorObrigatorio(ambiente, 'STORAGE_REGIAO'),
   bucket: valorObrigatorio(ambiente, 'STORAGE_BUCKET'),
@@ -63,7 +63,7 @@ interface Semeado {
 const PREFIXO_DO_OPERADOR = 'expurgo-'
 
 /** Apaga os operadores deste arquivo (pelo prefixo) e tudo que aponta para eles. */
-async function limparOperadores(pool: BancadaDeFila['pool']): Promise<void> {
+async function limparOperadores(pool: QueueFixtures['pool']): Promise<void> {
   const ids = (await pool.query<{ id: string }>('select id from operador where apelido like $1', [`${PREFIXO_DO_OPERADOR}%`])).rows.map(({ id }) => id)
   if (ids.length === 0) return
   await pool.query('delete from auditoria_operacao where operador_alvo_id = any($1::uuid[])', [ids])
@@ -79,7 +79,7 @@ beforeAll(async () => {
   compose('stop', ...PROCESSOS_DA_FILA)
   // Um operador ativo que um portão interrompido tivesse deixado faria todo `ops:*` de outro arquivo exigir um
   // `OPERADOR` que ele não conhece.
-  const bancada = new BancadaDeFila()
+  const bancada = new QueueFixtures()
   try {
     await limparOperadores(bancada.pool)
   } finally {
@@ -88,9 +88,9 @@ beforeAll(async () => {
 })
 
 describe('sistema.expurgar-acesso', () => {
-  let bancada: BancadaDeFila
-  const log = new LogEmMemoria('worker-teste')
-  const montados: WorkerMontado[] = []
+  let bancada: QueueFixtures
+  const log = new InMemoryLog('worker-teste')
+  const montados: WorkerRuntime[] = []
   let semeado: Semeado
 
   async function inserir(texto: string, valores: unknown[]): Promise<string> {
@@ -427,11 +427,11 @@ describe('sistema.expurgar-acesso', () => {
       ...(lote === undefined ? {} : { lote }),
     })
     const jobId = randomUUID()
-    return runInContext({ requisicaoId: randomUUID(), rotinaDoSistema: true }, () => processador({}, execucaoDoJob(jobId)))
+    return runInContext({ requisicaoId: randomUUID(), rotinaDoSistema: true }, () => processador({}, jobExecution(jobId)))
   }
 
   beforeEach(async () => {
-    bancada = new BancadaDeFila()
+    bancada = new QueueFixtures()
     await bancada.limparRegistro()
     log.linhas.length = 0
     semeado = await semear()
@@ -472,7 +472,7 @@ describe('sistema.expurgar-acesso', () => {
       logger: log.logger,
     })
     const jobId = randomUUID()
-    await runInContext({ requisicaoId: randomUUID(), rotinaDoSistema: true }, () => processador({}, execucaoDoJob(jobId)))
+    await runInContext({ requisicaoId: randomUUID(), rotinaDoSistema: true }, () => processador({}, jobExecution(jobId)))
     expect(log.doEvento('acesso.expurgado')[0]).toMatchObject({
       registrosDeAcessoTotal: porAlvo.registro_acesso,
       sessoesTotal: porAlvo.sessao,
@@ -810,8 +810,8 @@ describe('sistema.expurgar-acesso', () => {
     const escolaId = await bancada.escola()
     const processador = criarExpurgoDeAcesso({ repositorio: new ExpurgoDeAcessoRepository(bancada.banco), relogio, logger: log.logger })
     const jobId = randomUUID()
-    await expect(runInContext({ requisicaoId: randomUUID(), escolaId }, () => processador({}, execucaoDoJob(jobId)))).rejects.toMatchObject({
-      name: 'FalhaDeJob',
+    await expect(runInContext({ requisicaoId: randomUUID(), escolaId }, () => processador({}, jobExecution(jobId)))).rejects.toMatchObject({
+      name: 'JobFailureError',
       codigo: JobFailureCode.DADOS_INVALIDOS,
       definitiva: true,
     })
@@ -847,15 +847,15 @@ describe('sistema.expurgar-acesso', () => {
   })
 
   it('trilha completa: o agendamento das 4h30 grava o job, o despachante o solta fora do horário letivo, e o worker de lote expurga', async () => {
-    expect(AGENDAMENTOS).toContainEqual({ tipo: TIPO_EXPURGAR_ACESSO, padrao: '30 4 * * *' })
-    const worker = montarWorker(
+    expect(JOB_SCHEDULES).toContainEqual({ tipo: TIPO_EXPURGAR_ACESSO, padrao: '30 4 * * *' })
+    const worker = createWorker(
       { banco: configuracaoDoBanco(), redisFilaUrl: urlRedisDeFila(), pools: { lote: 2 }, vagasPadrao: vagasPadraoDoAmbiente(), threadsMaximo: 1, storage: STORAGE, janelaPadrao: janelaPadraoDoAmbiente() },
       log.logger,
-      { prefixo: bancada.prefixo, relogio, agendamentos: AGENDAMENTOS },
+      { prefixo: bancada.prefixo, relogio, agendamentos: JOB_SCHEDULES },
     )
     montados.push(worker)
     bancada.despachante(log, { relogio }).iniciar()
-    const fila = new Queue(FILA_DOS_AGENDAMENTOS, { connection: bancada.redis, prefix: bancada.prefixo })
+    const fila = new Queue(SCHEDULES_QUEUE, { connection: bancada.redis, prefix: bancada.prefixo })
     try {
       await fila.add(TIPO_EXPURGAR_ACESSO, {})
       await expect

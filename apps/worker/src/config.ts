@@ -23,7 +23,7 @@ export function variavelDoPool(fila: QueueName): string {
   return `WORKER_POOL_${fila.toUpperCase()}`
 }
 
-const esquemaFilas = z.object({
+const filasSchema = z.object({
   // `interativa,normal` no worker-interativo e `lote` no worker-lote: cada réplica atende só as filas dela.
   FILAS: z
     .string()
@@ -36,7 +36,7 @@ const envSchema = z.object({
   WORKER_THREADS_MAXIMO: inteiroPositivo,
 })
 
-const esquemaStorage = z.object({
+const storageSchema = z.object({
   STORAGE_URL: z.url({ protocol: /^https?$/ }),
   STORAGE_REGIAO: z.string().regex(/^[a-z0-9-]+$/),
   STORAGE_BUCKET: z.string().regex(/^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/),
@@ -48,7 +48,7 @@ const esquemaStorage = z.object({
  * Acesso ao storage S3-compatível. O worker-lote lista (a consolidação de uso mede os bytes de cada escola) e apaga (o
  * expurgo remove os arquivos do titular vencidos); o que atende a fila normal grava o arquivo do titular (F3, tarefa 13.0).
  */
-export interface ConfiguracaoStorage {
+export interface StorageConfig {
   url: string
   regiao: string
   bucket: string
@@ -56,7 +56,7 @@ export interface ConfiguracaoStorage {
   chaveSecreta: string
 }
 
-export interface ConfiguracaoWorker {
+export interface WorkerConfig {
   /** Pool próprio, com o `statement_timeout` do ambiente. Cabe na soma dos pools das filas: cada job usa uma conexão por vez. */
   banco: DatabaseConfig
   redisFilaUrl: string
@@ -80,7 +80,7 @@ export interface ConfiguracaoWorker {
    * onde se monta o arquivo do titular (F3, tarefa 13.0). A que atende só a interativa não toca o storage e não precisa
    * da credencial.
    */
-  storage?: ConfiguracaoStorage
+  storage?: StorageConfig
   /**
    * Só na réplica que atende o lote: o horário letivo de toda escola sem horário próprio, o mesmo do despachante
    * (`JANELA_LETIVA_*`). O expurgo da escola confere a janela a cada lote e para quando ela abre, e a rotina noturna tira
@@ -92,7 +92,7 @@ export interface ConfiguracaoWorker {
 }
 
 /** Lê e valida o ambiente do worker. Todos os problemas saem de uma vez, só pelo nome. */
-export function lerConfiguracao(ambiente: Record<string, string | undefined>): ConfiguracaoWorker {
+export function loadConfig(ambiente: Record<string, string | undefined>): WorkerConfig {
   const problemas: InvalidConfigError[] = []
   const ler = <T>(leitura: () => T): T | undefined => {
     try {
@@ -105,7 +105,7 @@ export function lerConfiguracao(ambiente: Record<string, string | undefined>): C
   }
   const banco = ler(() => loadDatabaseConfig(ambiente))
   const proprio = ler(() => validateEnvironment(envSchema, ambiente))
-  const filas = ler(() => validateEnvironment(esquemaFilas, ambiente))
+  const filas = ler(() => validateEnvironment(filasSchema, ambiente))
   // O pool só é exigido para as filas que a réplica atende.
   const esquemaPools = z.object(Object.fromEntries((filas?.FILAS ?? []).map((fila) => [variavelDoPool(fila), inteiroPositivo])))
   const pools = ler(() => validateEnvironment(esquemaPools, ambiente))
@@ -113,7 +113,7 @@ export function lerConfiguracao(ambiente: Record<string, string | undefined>): C
   const vagasDesligadas = ler(() => isEscolaConcurrencyLimitDisabled(ambiente))
   const atendeLote = filas?.FILAS.includes('lote') === true
   const atendeStorage = atendeLote || filas?.FILAS.includes('normal') === true
-  const storage = atendeStorage ? ler(() => validateEnvironment(esquemaStorage, ambiente)) : undefined
+  const storage = atendeStorage ? ler(() => validateEnvironment(storageSchema, ambiente)) : undefined
   const janelaPadrao = atendeLote ? ler(() => lerJanelaPadrao(ambiente)) : undefined
   const telemetria = ler(() => loadTelemetryConfig(ambiente))
   if (

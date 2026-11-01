@@ -3,8 +3,8 @@ import { ErrorCode } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { criarConviteDeCoordenador, refazerConviteDaCoordenacao, revogarConvitePeloOperador } from '../src/sessao/index.js'
-import { CenarioDeAtivacao, SENHA_DA_CONTA, SENHA_ERRADA, SENHA_NOVA, type ContaDeTeste, type ConviteDeTeste } from './ativacao.fixture.js'
-import { aguardar, GatilhoDeParada } from './write-block-trigger.js'
+import { ActivationScenario, SENHA_DA_CONTA, SENHA_ERRADA, SENHA_NOVA, type TestConta, type TestConvite } from './ativacao.fixture.js'
+import { aguardar, WriteBlockTrigger } from './write-block-trigger.js'
 import { esperarErro, subirApiDoPainel, type Resposta } from './painel.fixture.js'
 import { autorDaBancada } from './sessao.fixture.js'
 import { esperarNaTravaDaEscola, segurarTravaDaEscola } from './escola-lock.js'
@@ -48,7 +48,7 @@ async function esperarParadaEm(pool: DatabasePool, ...padroes: string[]): Promis
 }
 
 describe('ativação por convite sob a trava da escola (E15)', () => {
-  const cenario = new CenarioDeAtivacao()
+  const cenario = new ActivationScenario()
 
   beforeAll(async () => {
     await cenario.subir()
@@ -59,7 +59,7 @@ describe('ativação por convite sob a trava da escola (E15)', () => {
   })
 
   /** A conta com senha, com ou sem MFA, e o convite dela aceito numa escola nova (`aceito`). */
-  async function contaEmAceito(login: Login): Promise<{ conta: ContaDeTeste; convite: ConviteDeTeste & { bilhete: string } }> {
+  async function contaEmAceito(login: Login): Promise<{ conta: TestConta; convite: TestConvite & { bilhete: string } }> {
     const conta = await cenario.conta({ mfa: login === 'com MFA' })
     return { conta, convite: await cenario.aceito(conta) }
   }
@@ -70,7 +70,7 @@ describe('ativação por convite sob a trava da escola (E15)', () => {
    */
   async function ativacaoPeloLogin(
     login: Login,
-    conta: ContaDeTeste,
+    conta: TestConta,
     bilhete: string,
     url = cenario.url,
     passo = 0,
@@ -160,7 +160,7 @@ describe('ativação por convite sob a trava da escola (E15)', () => {
       const { conta, convite } = await contaEmAceito(login)
       const ativacao = await ativacaoPeloLogin(login, conta, convite.bilhete)
       const falhasAntes = await ativacao.falhas()
-      const gatilho = new GatilhoDeParada(cenario.pool, { tabela: 'convite', evento: 'update', quando: `new.id = '${convite.conviteId}'::uuid and new.revogado_em is not null` })
+      const gatilho = new WriteBlockTrigger(cenario.pool, { tabela: 'convite', evento: 'update', quando: `new.id = '${convite.conviteId}'::uuid and new.revogado_em is not null` })
       await gatilho.armar()
       try {
         const gerar = criarConviteDeCoordenador(cenario.banco, autorDaBancada, { escolaId: convite.escolaId, email: `outra-${randomUUID()}@escola.invalid`, nome: 'Outra Pessoa' })
@@ -184,7 +184,7 @@ describe('ativação por convite sob a trava da escola (E15)', () => {
     it.each(LOGINS)('login %s, com o mesmo e-mail: o bilhete antigo não ativa o usuário reaproveitado, e só o convite novo o ativa', async (login) => {
       const { conta, convite } = await contaEmAceito(login)
       const ativacao = await ativacaoPeloLogin(login, conta, convite.bilhete)
-      const gatilho = new GatilhoDeParada(cenario.pool, { tabela: 'convite', evento: 'update', quando: `new.id = '${convite.conviteId}'::uuid and new.revogado_em is not null` })
+      const gatilho = new WriteBlockTrigger(cenario.pool, { tabela: 'convite', evento: 'update', quando: `new.id = '${convite.conviteId}'::uuid and new.revogado_em is not null` })
       await gatilho.armar()
       let novo: { conviteId: string; token: string }
       try {
@@ -249,7 +249,7 @@ describe('ativação por convite sob a trava da escola (E15)', () => {
       const convite = await cenario.convidar(await cenario.escolas.escola(), `nova-${randomUUID()}@escola.invalid`)
       expect(await cenario.estado(convite.escolaId)).toBe('pendente')
       const quem = ordem === 'aceite primeiro' ? 'new.usado_em is not null' : 'new.revogado_em is not null'
-      const gatilho = new GatilhoDeParada(cenario.pool, { tabela: 'convite', evento: 'update', quando: `new.id = '${convite.conviteId}'::uuid and ${quem}` })
+      const gatilho = new WriteBlockTrigger(cenario.pool, { tabela: 'convite', evento: 'update', quando: `new.id = '${convite.conviteId}'::uuid and ${quem}` })
       await gatilho.armar()
       let doAceite: Resposta
       let doOperador: unknown
@@ -368,7 +368,7 @@ describe('ativação por convite sob a trava da escola (E15)', () => {
   })
 
   /** Um desafio `mfa` novo, com o bilhete, para errar o código sem gastar o desafio da tentativa sob teste. */
-  async function desafioNovo(conta: ContaDeTeste, bilhete: string): Promise<string> {
+  async function desafioNovo(conta: TestConta, bilhete: string): Promise<string> {
     return cenario.desafio(await cenario.entrar(conta.email, SENHA_DA_CONTA, bilhete))
   }
 })

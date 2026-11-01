@@ -4,14 +4,14 @@ import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { AcessoDaEscolaRepository } from '../src/credencial/index.js'
-import { subirApi, type ApiDeTeste } from './test-api.js'
-import { BancadaDeSessoes } from './sessao.fixture.js'
+import { subirApi, type TestApi } from './test-api.js'
+import { SessaoFixtures } from './sessao.fixture.js'
 
 describe('GET /v1/escolas/:slug/acesso: o que a tela /e/:slug mostra antes do login', () => {
-  const bancada = new BancadaDeSessoes()
+  const bancada = new SessaoFixtures()
   const medidor = new MedidorDeTeste()
   const linhasDeLog: string[] = []
-  let api: ApiDeTeste
+  let api: TestApi
 
   beforeAll(async () => {
     api = await subirApi(medidor.medidor, {}, linhasDeLog)

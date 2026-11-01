@@ -6,11 +6,11 @@ import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { AppModule } from '../src/app.module.js'
 import { executarOpsRetencao } from '../src/ops/retencao.js'
 import { ChallengeIssuer } from '../src/credencial/index.js'
-import { chamar, subirApi, type ApiDeTeste } from './test-api.js'
-import { configuracaoDeTeste } from './test-config.js'
-import { esperarNaTrava, GatilhoDeParada } from './write-block-trigger.js'
+import { chamar, subirApi, type TestApi } from './test-api.js'
+import { testConfig } from './test-config.js'
+import { esperarNaTrava, WriteBlockTrigger } from './write-block-trigger.js'
 import { controladoresDoModulo, rotasDe } from './registered-routes.js'
-import { BancadaDeSessoes, type SessaoDeTeste } from './sessao.fixture.js'
+import { SessaoFixtures, type TestSessao } from './sessao.fixture.js'
 
 /**
  * A retenção da escola (F3, tarefa 2.0; `tasks/prd-lgpd-e-titular/cenarios.md`, RF1, RF2 e Permissão): a operação
@@ -39,10 +39,10 @@ interface AuditoriaDoAjuste {
 }
 
 describe('retenção da escola: a operação ajusta por comando, e a coordenação lê (F3, tarefa 2.0)', () => {
-  const bancada = new BancadaDeSessoes()
+  const bancada = new SessaoFixtures()
   const medidor = new MedidorDeTeste()
   const ambiente = { ...ambienteDeTeste, OPERADOR }
-  let api: ApiDeTeste
+  let api: TestApi
 
   beforeAll(async () => {
     api = await subirApi(medidor.medidor)
@@ -64,13 +64,13 @@ describe('retenção da escola: a operação ajusta por comando, e a coordenaç�
   const ajustar = (escolaId: string, categoria: string, meses: number, contrato = 14) =>
     rodar(['ajustar', '--escola', escolaId, '--categoria', categoria, '--meses', String(meses), '--contrato', String(contrato)])
 
-  async function retencaoDe(coordenacao: SessaoDeTeste): Promise<RetencaoResponse> {
+  async function retencaoDe(coordenacao: TestSessao): Promise<RetencaoResponse> {
     const resposta = await chamar(api.url, 'GET', '/v1/privacidade/retencao', await coordenacao.tokenNovo())
     expect(resposta.status).toBe(200)
     return retencaoResponseSchema.parse(resposta.corpo)
   }
 
-  async function categoriaDe(coordenacao: SessaoDeTeste, categoria: CategoriaDeRetencao) {
+  async function categoriaDe(coordenacao: TestSessao, categoria: CategoriaDeRetencao) {
     const achada = (await retencaoDe(coordenacao)).categorias.find((candidata) => candidata.categoria === categoria)
     if (achada === undefined) throw new Error('categoria fora da resposta')
     return achada
@@ -93,7 +93,7 @@ describe('retenção da escola: a operação ajusta por comando, e a coordenaç�
   }
 
   /** Uma escola nova com a coordenação dela. */
-  async function escolaComCoordenacao(): Promise<SessaoDeTeste> {
+  async function escolaComCoordenacao(): Promise<TestSessao> {
     return bancada.escolaComSessao('coordenador')
   }
 
@@ -278,7 +278,7 @@ describe('retenção da escola: a operação ajusta por comando, e a coordenaç�
   it('concorrência: dois ajustes da mesma escola passam um de cada vez, e o segundo audita o primeiro como anterior', async () => {
     const coordenacao = await escolaComCoordenacao()
     const { escolaId } = coordenacao
-    const gatilho = new GatilhoDeParada(bancada.pool, { tabela: 'retencao_escola', evento: 'insert', quando: `new.escola_id = '${escolaId}'` })
+    const gatilho = new WriteBlockTrigger(bancada.pool, { tabela: 'retencao_escola', evento: 'insert', quando: `new.escola_id = '${escolaId}'` })
     await gatilho.armar()
     try {
       const primeiro = ajustar(escolaId, 'conversa_tutor', 18)
@@ -303,7 +303,7 @@ describe('retenção da escola: a operação ajusta por comando, e a coordenaç�
   it('concorrência: baixar a mãe e subir a travada ao mesmo tempo passam um de cada vez, e a travada lê a mãe já baixada e é recusada', async () => {
     const coordenacao = await escolaComCoordenacao()
     const { escolaId } = coordenacao
-    const gatilho = new GatilhoDeParada(bancada.pool, { tabela: 'retencao_escola', evento: 'insert', quando: `new.escola_id = '${escolaId}' and new.categoria = 'conversa_professor'` })
+    const gatilho = new WriteBlockTrigger(bancada.pool, { tabela: 'retencao_escola', evento: 'insert', quando: `new.escola_id = '${escolaId}' and new.categoria = 'conversa_professor'` })
     await gatilho.armar()
     let travada: Execucao | undefined
     try {
@@ -375,7 +375,7 @@ describe('retenção da escola: a operação ajusta por comando, e a coordenaç�
     // barrou: cada uma tem a permissão provada no teste do módulo dela (`incidente.int.test.ts` e `pedido-titular.int.test.ts`,
     // "permissão"; a do arquivo da escola, 13.0, também no segundo; a do cancelamento da eliminação, 14.0, em
     // `eliminacao-agendada.int.test.ts`, "só a coordenação cancela").
-    const todas = rotasDe(controladoresDoModulo(AppModule.forRoot(configuracaoDeTeste()))).filter((rota) => rota.caminho.startsWith('/v1/privacidade/'))
+    const todas = rotasDe(controladoresDoModulo(AppModule.forRoot(testConfig()))).filter((rota) => rota.caminho.startsWith('/v1/privacidade/'))
     const rotas = todas.filter((rota) => rota.verbo === 'GET' && !rota.caminho.includes(':'))
     expect(todas.filter((rota) => rota.verbo === 'GET').map((rota) => rota.caminho)).toEqual(
       expect.arrayContaining([

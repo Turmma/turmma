@@ -8,20 +8,20 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, onTestFinished 
 import { lerAmbienteDeTeste, valorObrigatorio } from '../../../tools/ci/compose.ts'
 import { compose, PROCESSOS_DA_FILA } from '../../../tools/testes/compose.ts'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
-import { AGENDAMENTOS, criarDisparoDeAgendamento, FILA_DOS_AGENDAMENTOS, FUSO_DOS_AGENDAMENTOS, registrarAgendamentos } from '../src/job-schedules.js'
-import type { ConfiguracaoStorage } from '../src/config.js'
-import { FalhaDeJob } from '../src/job-failure.error.js'
-import { montarWorker, type WorkerMontado } from '../src/composition.js'
+import { JOB_SCHEDULES, createScheduleProcessor, SCHEDULES_QUEUE, SCHEDULE_TIMEZONE, registerJobSchedulers } from '../src/job-schedules.js'
+import type { StorageConfig } from '../src/config.js'
+import { JobFailureError } from '../src/job-failure.error.js'
+import { createWorker, type WorkerRuntime } from '../src/composition.js'
 import { criarConsolidacaoDeUso, FALHAS_DE_STORAGE_SEGUIDAS_ATE_DESISTIR } from '../src/processors/consolidar-uso.js'
-import { criarClienteS3, MedidorDeStorage } from '../src/storage/storage-size-reader.js'
-import { BancadaDeFila, configuracaoDoBanco, janelaPadraoDoAmbiente, LogEmMemoria, urlRedisDeFila, vagasPadraoDoAmbiente } from './queue.fixture.js'
-import { execucaoDoJob } from './job-execution.fixture.js'
+import { criarClienteS3, StorageSizeReader } from '../src/storage/storage-size-reader.js'
+import { QueueFixtures, configuracaoDoBanco, janelaPadraoDoAmbiente, InMemoryLog, urlRedisDeFila, vagasPadraoDoAmbiente } from './queue.fixture.js'
+import { jobExecution } from './job-execution.fixture.js'
 
 // Contadores no Redis de fila, `uso_infra_diario` no Postgres e bytes no storage, todos do compose de
 // teste. Só o relógio é falso: é ele que marca às 23h59 de 31/12 e consolida às 2h do dia seguinte.
 
 const ambiente = lerAmbienteDeTeste()
-const STORAGE: ConfiguracaoStorage = {
+const STORAGE: StorageConfig = {
   url: `http://127.0.0.1:${valorObrigatorio(ambiente, 'STORAGE_PORTA_HOST')}`,
   regiao: valorObrigatorio(ambiente, 'STORAGE_REGIAO'),
   bucket: valorObrigatorio(ambiente, 'STORAGE_BUCKET'),
@@ -39,7 +39,7 @@ beforeAll(() => {
 })
 
 describe('uso por escola: contagem, consolidação e bytes', () => {
-  let bancada: BancadaDeFila
+  let bancada: QueueFixtures
   let agora: Date
   const relogio = { agora: () => agora }
   let contador: UsageMeter
@@ -49,8 +49,8 @@ describe('uso por escola: contagem, consolidação e bytes', () => {
   const objetosDoTeste: string[] = []
   /** Pastas que o teste quer fora do storage no fim: o SeaweedFS guarda a pasta vazia depois que os objetos saem. */
   const pastasDoTeste = new Set<string>()
-  const montados: WorkerMontado[] = []
-  const log = new LogEmMemoria('worker-teste')
+  const montados: WorkerRuntime[] = []
+  const log = new InMemoryLog('worker-teste')
 
   // Escola real: desde a tarefa 3.0 `uso_infra_diario` tem FK para `escola`, e a consolidação de um id
   // inventado seria recusada pelo banco.
@@ -71,12 +71,12 @@ describe('uso por escola: contagem, consolidação e bytes', () => {
     expect.poll(() => bancada.redis.get(`${bancada.prefixo}:uso:${dia}:${escolaId}:${metrica}`), { timeout: 5_000, interval: 50 }).toBe(String(valor))
 
   const consolidacao = () =>
-    criarConsolidacaoDeUso({ contador, repositorio, storage: new MedidorDeStorage(s3, STORAGE.bucket), relogio, logger: log.logger })
+    criarConsolidacaoDeUso({ contador, repositorio, storage: new StorageSizeReader(s3, STORAGE.bucket), relogio, logger: log.logger })
 
   /** Roda como o worker roda um job `sistema.*`: no contexto da rotina do sistema, sem escola. */
   const consolidar = (processador = consolidacao()) => {
     const jobId = randomUUID()
-    return runInContext({ requisicaoId: randomUUID(), rotinaDoSistema: true }, () => processador({}, execucaoDoJob(jobId)))
+    return runInContext({ requisicaoId: randomUUID(), rotinaDoSistema: true }, () => processador({}, jobExecution(jobId)))
   }
 
   const usoDoDia = (escolaId: string, dia: string) => runInContext({ requisicaoId: randomUUID(), escolaId }, () => repositorio.doDia(dia))
@@ -92,7 +92,7 @@ describe('uso por escola: contagem, consolidação e bytes', () => {
   }
 
   beforeEach(async () => {
-    bancada = new BancadaDeFila()
+    bancada = new QueueFixtures()
     await bancada.limparRegistro()
     agora = TERCA_10H
     contador = new UsageMeter(bancada.redis, { relogio, prefixo: bancada.prefixo })
@@ -120,7 +120,7 @@ describe('uso por escola: contagem, consolidação e bytes', () => {
   it('caminho feliz: N requisições e M jobs da escola A, executados pelo worker de verdade, aparecem no dia e no mês', async () => {
     const [escolaA, escolaB] = await Promise.all([novaEscola(), novaEscola()])
     marcarRequisicoes(escolaA, 5)
-    const worker = montarWorker({ banco: configuracaoDoBanco(), redisFilaUrl: urlRedisDeFila(), pools: { interativa: 3 }, vagasPadrao: vagasPadraoDoAmbiente(), threadsMaximo: 1 }, log.logger, {
+    const worker = createWorker({ banco: configuracaoDoBanco(), redisFilaUrl: urlRedisDeFila(), pools: { interativa: 3 }, vagasPadrao: vagasPadraoDoAmbiente(), threadsMaximo: 1 }, log.logger, {
       prefixo: bancada.prefixo,
       relogio,
     })
@@ -202,7 +202,7 @@ describe('uso por escola: contagem, consolidação e bytes', () => {
         apagarConsolidado: () => Promise.reject(new Error('worker morto')),
       },
       repositorio,
-      storage: new MedidorDeStorage(s3, STORAGE.bucket),
+      storage: new StorageSizeReader(s3, STORAGE.bucket),
       relogio,
       logger: log.logger,
     })
@@ -301,7 +301,7 @@ describe('uso por escola: contagem, consolidação e bytes', () => {
     await aguardarContador(escolaA, '2026-09-15', 'req', 2)
     agora = QUARTA_2H
     const jobId = randomUUID()
-    await expect(runInContext({ requisicaoId: randomUUID(), escolaId: escolaA }, () => consolidacao()({}, execucaoDoJob(jobId)))).rejects.toThrow()
+    await expect(runInContext({ requisicaoId: randomUUID(), escolaId: escolaA }, () => consolidacao()({}, jobExecution(jobId)))).rejects.toThrow()
     expect(await usoDoDia(escolaA, '2026-09-15')).toEqual(SEM_USO)
   })
 
@@ -329,7 +329,7 @@ describe('uso por escola: contagem, consolidação e bytes', () => {
     })
 
     const consolidacaoMedida = (sobrepor: Partial<Parameters<typeof criarConsolidacaoDeUso>[0]> = {}) =>
-      criarConsolidacaoDeUso({ contador, repositorio, storage: new MedidorDeStorage(s3, STORAGE.bucket), relogio, logger: log.logger, medidor: medidor.medidor, ...sobrepor })
+      criarConsolidacaoDeUso({ contador, repositorio, storage: new StorageSizeReader(s3, STORAGE.bucket), relogio, logger: log.logger, medidor: medidor.medidor, ...sobrepor })
 
     /** A métrica por origem e causa. Ela não leva escola: o teste a confere contra os avisos do log. */
     const ignoradas = async () =>
@@ -423,7 +423,7 @@ describe('uso por escola: contagem, consolidação e bytes', () => {
         (erro: unknown) => erro,
       )
 
-      expect(falha).toBeInstanceOf(FalhaDeJob)
+      expect(falha).toBeInstanceOf(JobFailureError)
       expect(falha).toMatchObject({ codigo: JobFailureCode.ERRO_INTERNO, definitiva: false })
       // Cada uma foi pulada e contada como antes, e nada foi gravado nem apagado.
       expect(avisosDas([orfaA, orfaB, orfaC]).filter(({ origem }) => origem === 'storage')).toEqual([
@@ -518,7 +518,7 @@ describe('uso por escola: contagem, consolidação e bytes', () => {
 
     it('erro de storage numa pasta: a escola seguinte tem os bytes gravados, e o job falha no fim para a fila tentar de novo', async () => {
       const [escolaA, escolaB, escolaC] = await Promise.all([novaEscola(), novaEscola(), novaEscola()])
-      const real = new MedidorDeStorage(s3, STORAGE.bucket)
+      const real = new StorageSizeReader(s3, STORAGE.bucket)
       const pastaQuebrada = Object.assign(new Error('AccessDenied'), { name: 'AccessDenied' })
       const storage = {
         listarEscolas: () => Promise.resolve([escolaA, escolaB, escolaC]),
@@ -581,7 +581,7 @@ describe('uso por escola: contagem, consolidação e bytes', () => {
     let fila: Queue
 
     beforeEach(() => {
-      fila = new Queue(FILA_DOS_AGENDAMENTOS, { connection: bancada.redis, prefix: bancada.prefixo })
+      fila = new Queue(SCHEDULES_QUEUE, { connection: bancada.redis, prefix: bancada.prefixo })
     })
 
     afterEach(async () => {
@@ -590,14 +590,14 @@ describe('uso por escola: contagem, consolidação e bytes', () => {
     })
 
     it('as rotinas são agendadas à 1h, às 2h, às 3h30 e às 4h30 de São Paulo, e registrar de novo (a outra réplica) não duplica o agendador', async () => {
-      await registrarAgendamentos(fila)
-      await registrarAgendamentos(fila)
+      await registerJobSchedulers(fila)
+      await registerJobSchedulers(fila)
       const agendadores = await fila.getJobSchedulers()
       expect(agendadores.map(({ key, pattern, tz }) => ({ key, pattern, tz })).sort((a, b) => a.key.localeCompare(b.key))).toEqual([
-        { key: TIPO_CONSOLIDAR_USO, pattern: '0 2 * * *', tz: FUSO_DOS_AGENDAMENTOS },
-        { key: TIPO_EXPURGAR_ACESSO, pattern: '30 4 * * *', tz: FUSO_DOS_AGENDAMENTOS },
-        { key: TIPO_EXPURGAR_DADO_PESSOAL, pattern: '0 1 * * *', tz: FUSO_DOS_AGENDAMENTOS },
-        { key: TIPO_EXPURGAR_JOBS, pattern: '30 3 * * *', tz: FUSO_DOS_AGENDAMENTOS },
+        { key: TIPO_CONSOLIDAR_USO, pattern: '0 2 * * *', tz: SCHEDULE_TIMEZONE },
+        { key: TIPO_EXPURGAR_ACESSO, pattern: '30 4 * * *', tz: SCHEDULE_TIMEZONE },
+        { key: TIPO_EXPURGAR_DADO_PESSOAL, pattern: '0 1 * * *', tz: SCHEDULE_TIMEZONE },
+        { key: TIPO_EXPURGAR_JOBS, pattern: '30 3 * * *', tz: SCHEDULE_TIMEZONE },
       ])
       const proximaConsolidacao = agendadores.find(({ key }) => key === TIPO_CONSOLIDAR_USO)?.next
       const horaEmSaoPaulo = new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' }).format(new Date(proximaConsolidacao ?? 0))
@@ -605,7 +605,7 @@ describe('uso por escola: contagem, consolidação e bytes', () => {
     })
 
     it('o disparo grava o job da rotina em job_registro pelo Enfileirador: lote, não urgente, sem escola, com requisição', async () => {
-      const disparar = criarDisparoDeAgendamento(bancada.banco, bancada.enfileirador, log.logger)
+      const disparar = createScheduleProcessor(bancada.banco, bancada.enfileirador, log.logger)
       const jobId = await disparar({ name: TIPO_CONSOLIDAR_USO })
       const { rows } = await bancada.pool.query<Record<string, unknown>>(
         'select tipo, fila, nao_urgente as "naoUrgente", escola_id as "escolaId", requisicao_id is not null as "comRequisicao", estado from job_registro where id = $1',
@@ -625,10 +625,10 @@ describe('uso por escola: contagem, consolidação e bytes', () => {
       const medidor = new MedidorDeTeste()
       onTestFinished(() => medidor.encerrar())
       agora = QUARTA_2H
-      const worker = montarWorker(
+      const worker = createWorker(
         { banco: configuracaoDoBanco(), redisFilaUrl: urlRedisDeFila(), pools: { lote: 2 }, vagasPadrao: vagasPadraoDoAmbiente(), threadsMaximo: 1, storage: STORAGE, janelaPadrao: janelaPadraoDoAmbiente() },
         log.logger,
-        { prefixo: bancada.prefixo, relogio, agendamentos: AGENDAMENTOS, medidor: medidor.medidor },
+        { prefixo: bancada.prefixo, relogio, agendamentos: JOB_SCHEDULES, medidor: medidor.medidor },
       )
       montados.push(worker)
       expect(worker.agendamentos).toBeDefined()

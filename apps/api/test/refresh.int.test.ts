@@ -2,15 +2,15 @@ import { METRICS } from '@educa/core'
 import { ErrorCode, JANELA_DE_RENOVACAO_SIMULTANEA_MS } from '@educa/shared'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
-import { chamar, cookieDaResposta, cookieDeRenovacao, estadoDaSessao, hashDoCookie, registrosDeAcesso, renovar, subirApi, type ApiDeTeste, type RespostaHttp } from './test-api.js'
-import { BancadaDeSessoes, type SessaoDeTeste } from './sessao.fixture.js'
+import { chamar, cookieDaResposta, cookieDeRenovacao, estadoDaSessao, hashDoCookie, registrosDeAcesso, renovar, subirApi, type TestApi, type RespostaHttp } from './test-api.js'
+import { SessaoFixtures, type TestSessao } from './sessao.fixture.js'
 
 const esperar = (ms: number) => new Promise((resolver) => setTimeout(resolver, ms))
 
 describe('POST /v1/sessao/renovar: a sessão dura enquanto a pessoa usa, e o cookie roubado encerra a família', () => {
-  const bancada = new BancadaDeSessoes()
+  const bancada = new SessaoFixtures()
   const medidor = new MedidorDeTeste()
-  let api: ApiDeTeste
+  let api: TestApi
 
   beforeAll(async () => {
     api = await subirApi(medidor.medidor)
@@ -29,13 +29,13 @@ describe('POST /v1/sessao/renovar: a sessão dura enquanto a pessoa usa, e o coo
   }
 
   /** Usa o token numa requisição qualquer e espera a guarda marcar `atual_apresentado`, que não segura a resposta. */
-  async function apresentar(sessao: SessaoDeTeste, resposta: RespostaHttp): Promise<void> {
+  async function apresentar(sessao: TestSessao, resposta: RespostaHttp): Promise<void> {
     expect((await chamar(api.url, 'GET', '/v1/eu', String(resposta.corpo['token']))).status).toBe(200)
     await expect.poll(async () => (await estadoDaSessao(bancada, sessao)).atual_apresentado, { timeout: 5_000 }).toBe(true)
   }
 
   /** Leva a última rotação para `segundos` atrás, como se o tempo tivesse passado (a hora que conta é a do banco). */
-  async function rotacaoHa(sessao: SessaoDeTeste, segundos: number): Promise<void> {
+  async function rotacaoHa(sessao: TestSessao, segundos: number): Promise<void> {
     await bancada.pool.query(`update sessao set rotacionado_em = now() - make_interval(secs => $3) where escola_id = $1 and id = $2`, [sessao.escolaId, sessao.sessaoId, segundos])
   }
 

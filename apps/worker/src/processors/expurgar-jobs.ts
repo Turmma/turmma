@@ -1,9 +1,9 @@
 import { currentContext, LOTE_DO_EXPURGO, type ExpurgoDeJobsRepository, type LoggerBase } from '@educa/core'
 import { JobFailureCode, type TIPO_EXPURGAR_JOBS } from '@educa/shared'
-import type { Processador } from '../job-executor.js'
-import { FalhaDeJob } from '../job-failure.error.js'
+import type { JobProcessor } from '../job-executor.js'
+import { JobFailureError } from '../job-failure.error.js'
 
-export interface DependenciasDoExpurgo {
+export interface ExpurgoDeJobsDependencies {
   repositorio: Pick<ExpurgoDeJobsRepository, 'apagarLoteVencido'>
   logger: LoggerBase
   /** Linhas por lote. Só o teste troca. */
@@ -20,9 +20,9 @@ export interface DependenciasDoExpurgo {
  * mesmo tempo pegam linhas diferentes; o lote de um worker que morreu no meio é desfeito pelo Postgres
  * e sai na execução seguinte.
  */
-export function criarExpurgoDeJobs({ repositorio, logger, lote = LOTE_DO_EXPURGO }: DependenciasDoExpurgo): Processador<typeof TIPO_EXPURGAR_JOBS> {
+export function criarExpurgoDeJobs({ repositorio, logger, lote = LOTE_DO_EXPURGO }: ExpurgoDeJobsDependencies): JobProcessor<typeof TIPO_EXPURGAR_JOBS> {
   return async () => {
-    if (currentContext()?.rotinaDoSistema !== true) throw new FalhaDeJob(JobFailureCode.DADOS_INVALIDOS, true)
+    if (currentContext()?.rotinaDoSistema !== true) throw new JobFailureError(JobFailureCode.DADOS_INVALIDOS, true)
     let total = 0
     let lotesTotal = 0
     for (;;) {

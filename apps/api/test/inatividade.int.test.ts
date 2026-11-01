@@ -1,16 +1,16 @@
 import { METRICS } from '@educa/core'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
-import { chamar, cookieDaResposta, cookieDeRenovacao, estadoDaSessao, registrosDeAcesso, renovar, subirApi, type ApiDeTeste } from './test-api.js'
-import { BancadaDeSessoes, type SessaoDeTeste } from './sessao.fixture.js'
+import { chamar, cookieDaResposta, cookieDeRenovacao, estadoDaSessao, registrosDeAcesso, renovar, subirApi, type TestApi } from './test-api.js'
+import { SessaoFixtures, type TestSessao } from './sessao.fixture.js'
 
 /** Prazo da consulta na API da falha: a atividade presa atrás de uma trava desiste nele. */
 const PRAZO_DA_CONSULTA_MS = 1_500
 
 describe('atividade e inatividade: a sessão vence sem uso, renovar não é uso, e a atividade perdida não desloga', () => {
-  const bancada = new BancadaDeSessoes()
+  const bancada = new SessaoFixtures()
   const medidor = new MedidorDeTeste()
-  let api: ApiDeTeste
+  let api: TestApi
 
   beforeAll(async () => {
     api = await subirApi(medidor.medidor)
@@ -23,7 +23,7 @@ describe('atividade e inatividade: a sessão vence sem uso, renovar não é uso,
   })
 
   /** Leva o último uso para `segundos` atrás (a hora que conta é a do banco, a mesma da guarda). */
-  async function ultimoUsoHa(sessao: SessaoDeTeste, segundos: number): Promise<void> {
+  async function ultimoUsoHa(sessao: TestSessao, segundos: number): Promise<void> {
     await bancada.pool.query('update sessao set ultimo_uso_em = now() - make_interval(secs => $3) where escola_id = $1 and id = $2', [sessao.escolaId, sessao.sessaoId, segundos])
   }
 
@@ -130,7 +130,7 @@ describe('atividade e inatividade: a sessão vence sem uso, renovar não é uso,
 
   describe('falha: com o Postgres lento na gravação', () => {
     const medidorDaFalha = new MedidorDeTeste()
-    let lenta: ApiDeTeste
+    let lenta: TestApi
 
     beforeAll(async () => {
       lenta = await subirApi(medidorDaFalha.medidor, { banco: { timeoutConsultaMs: PRAZO_DA_CONSULTA_MS } })

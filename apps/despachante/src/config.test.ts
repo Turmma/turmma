@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { MOTIVO_VAGAS_DESLIGADAS_EM_PRODUCAO } from '@educa/core'
-import { InvalidConfigError, lerConfiguracao } from './config.js'
+import { InvalidConfigError, loadConfig } from './config.js'
 
 const ambienteValido = {
   AMBIENTE: 'local',
@@ -23,7 +23,7 @@ const ambienteValido = {
 
 function erroDe(ambiente: Record<string, string | undefined>): InvalidConfigError {
   try {
-    lerConfiguracao(ambiente)
+    loadConfig(ambiente)
   } catch (erro) {
     if (erro instanceof InvalidConfigError) return erro
     throw erro
@@ -33,7 +33,7 @@ function erroDe(ambiente: Record<string, string | undefined>): InvalidConfigErro
 
 describe('lerConfiguracao do despachante', () => {
   it('converte o ambiente, com statement_timeout próprio no pool e as vagas padrão por fila', () => {
-    expect(lerConfiguracao(ambienteValido)).toEqual({
+    expect(loadConfig(ambienteValido)).toEqual({
       banco: { url: ambienteValido.BANCO_URL, maximoConexoes: 3, timeoutConexaoMs: 2000, timeoutConsultaMs: 2000 },
       redisFilaUrl: 'redis://redis-fila:6379',
       vagasPadrao: { interativa: 5, normal: 5, lote: 2 },
@@ -57,7 +57,7 @@ describe('lerConfiguracao do despachante', () => {
   })
 
   it('escola com aula aos sábados no padrão: os dias saem em ordem e sem repetição', () => {
-    expect(lerConfiguracao({ ...ambienteValido, JANELA_LETIVA_DIAS: '6,1,2,3,4,5,1' }).janelaPadrao.diasLetivos).toEqual([1, 2, 3, 4, 5, 6])
+    expect(loadConfig({ ...ambienteValido, JANELA_LETIVA_DIAS: '6,1,2,3,4,5,1' }).janelaPadrao.diasLetivos).toEqual([1, 2, 3, 4, 5, 6])
   })
 
   it.each(['0', '-2', '1.5', 'duas'])('não sobe com VAGAS_ESCOLA_LOTE=%s: vaga zero pararia toda escola sem configuração própria', (valor) => {
@@ -65,14 +65,14 @@ describe('lerConfiguracao do despachante', () => {
   })
 
   it('com VAGAS_POR_ESCOLA_DESLIGADAS=true fora de produção, sobe sem teto por escola (controle negativo do cenário de carga)', () => {
-    expect(lerConfiguracao({ ...ambienteValido, VAGAS_POR_ESCOLA_DESLIGADAS: 'true' }).vagasPorEscolaDesligadas).toBe(true)
+    expect(loadConfig({ ...ambienteValido, VAGAS_POR_ESCOLA_DESLIGADAS: 'true' }).vagasPorEscolaDesligadas).toBe(true)
   })
 
   it('recusa subir com VAGAS_POR_ESCOLA_DESLIGADAS=true e AMBIENTE=producao: a flag de teste não vira porta aberta', () => {
     const erro = erroDe({ ...ambienteValido, AMBIENTE: 'producao', VAGAS_POR_ESCOLA_DESLIGADAS: 'true' })
     expect(erro.variaveis).toEqual(['VAGAS_POR_ESCOLA_DESLIGADAS'])
     expect(erro.motivos).toEqual([MOTIVO_VAGAS_DESLIGADAS_EM_PRODUCAO])
-    expect(lerConfiguracao({ ...ambienteValido, AMBIENTE: 'producao' })).not.toHaveProperty('vagasPorEscolaDesligadas')
+    expect(loadConfig({ ...ambienteValido, AMBIENTE: 'producao' })).not.toHaveProperty('vagasPorEscolaDesligadas')
   })
 
   it.each(Object.keys(ambienteValido))('não sobe sem %s', (variavel) => {

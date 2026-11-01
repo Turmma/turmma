@@ -10,9 +10,9 @@ import {
   type Meter,
   type Clock,
 } from '@educa/core'
-import { MedicaoPorEscola } from './escola-gauge.js'
+import { EscolaGauge } from './escola-gauge.js'
 
-export interface DependenciasDaMedicaoDoExpurgo {
+export interface ExpurgoGaugeDependencies {
   escolas: Pick<CronEscolasRepository, 'listarIds'>
   repositorio: Pick<ExpurgoDaEscolaRepository, 'noitesDoAlerta'>
   /** O horário letivo da escola do contexto: dele sai o fuso em que a noite é contada. */
@@ -28,12 +28,12 @@ export interface DependenciasDaMedicaoDoExpurgo {
  * noite conta como não concluída; a noite anterior à primeira execução da escola não conta. O alerta "Expurgo incompleto
  * por duas noites numa escola" dispara em 2.
  *
- * O laço, a lista de escolas, o contexto de cada uma e a exportação são da `MedicaoPorEscola`; aqui está só o que se mede numa
+ * O laço, a lista de escolas, o contexto de cada uma e a exportação são da `EscolaGauge`; aqui está só o que se mede numa
  * escola. Escola que nunca rodou o expurgo não tem série.
  */
-export class MedicaoDoExpurgo extends MedicaoPorEscola {
+export class ExpurgoGauge extends EscolaGauge {
   constructor(
-    private readonly dependencias: DependenciasDaMedicaoDoExpurgo,
+    private readonly dependencias: ExpurgoGaugeDependencies,
     opcoes: { intervaloMs?: number } = {},
   ) {
     super(
