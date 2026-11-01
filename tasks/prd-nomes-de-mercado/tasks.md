@@ -64,7 +64,7 @@ O commit da onda leva o mapa, o relatório e o diff. O caso de e2e só renomeado
 | 9.0 | 6.0 | 7.0, 8.0 |
 | 10.0 | 9.0 | 7.0, 8.0 |
 | 11.0 | 10.0 | 8.0 |
-| 12.0 | 8.0, 11.0 | — |
+| 12.0 | 8.0, 11.0, e a correção da adenda 5 (`inventario-adenda-5.md`, aprovada em 01/11) | — |
 | 13.0 | 12.0, e a correção do ouro (Arquiteto, depois da 5.0; `travas.md`, "O ouro") | — |
 
 A 7.0 e a 11.0 não correm juntas: as duas editam `e2e/__fixtures__/sessao.ts` e `tools/ci/codigo-do-autenticador.test.ts`.
@@ -85,7 +85,7 @@ Na 2.0 e na 12.0, os quatro guardiões vêm pelo caminho (`tools/guardas/`).
 
 Vem do `ROADMAP.md` (X8) e do PRD §5:
 
-- nenhuma peça do inventário aprovado e das adendas 1 a 4 continua com o nome antigo (RF3; o `restos` dá zero com todos os mapas, sem a isenção do ouro);
+- nenhuma peça do inventário aprovado e das adendas 1 a 5 continua com o nome antigo (RF3; o `restos` dá zero com todos os mapas, sem a isenção do ouro);
 - o `@educa/core` está construído, e o compose de produção não tem diff de serviço (RF4);
 - o kit visual tem os nomes do shadcn e do Radix, e o teste da onça continua sem diff (RF5);
 - o apoio de teste tem os nomes de mercado, e o texto dos casos não mudou (RF6);

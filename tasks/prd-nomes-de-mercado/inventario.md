@@ -202,3 +202,9 @@ caso que pegava.
 - Quatro nomes da web de regra já aprovada que nenhum anexo listava: `chamarComSessaoDeOperador` → `operadorAuthedRequest`
   (o par do operador do `authedRequest`, decisão 24) e três `CHAVE_` do TanStack Query não exportadas → `<X>_QUERY_KEY`
   (§1). A tabela está em `inventario-adenda-4.md`. Os valores das chaves não mudam
+
+**Adenda 5 — 01/11/2026, aprovada pelo Joaquim no terminal do Orquestrador (opção A), na triagem da divergência da 12.0**
+
+- Onze declarações de topo de regra já aprovada (§1) que a guarda do RF8 acusou na árvore depois das ondas 3.0 a 11.0:
+  a adenda 2 as tirou por terem homônimo já citado num anexo, pelo nome e não pelo caminho. A tabela está em
+  `inventario-adenda-5.md`. Entram numa correção com mapa próprio, antes de a 12.0 retomar; a guarda não ganha exceção

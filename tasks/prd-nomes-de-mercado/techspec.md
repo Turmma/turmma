@@ -1,6 +1,6 @@
 # Tech Spec — Nomes de mercado (X8)
 
-**PRD:** `prd.md` · **Inventário:** `inventario.md` e anexos (adendas 2 e 4 em `inventario-adenda-2.md` e `inventario-adenda-4.md`) · **Travas:** `travas.md` · **Guarda:** `guarda.md` · **Casos:** `casos.md`
+**PRD:** `prd.md` · **Inventário:** `inventario.md` e anexos (adendas 2, 4 e 5 em `inventario-adenda-2.md`, `inventario-adenda-4.md` e `inventario-adenda-5.md`) · **Travas:** `travas.md` · **Guarda:** `guarda.md` · **Casos:** `casos.md`
 **Status:** aprovada na revisão da spec (rodada 9, 30/10/2026)
 
 ## 1. Resumo da abordagem
