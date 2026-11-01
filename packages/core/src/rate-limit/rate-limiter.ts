@@ -76,7 +76,7 @@ type ConsumoOptions = Parameters<RateLimiterMemory['consume']>[2]
  * Seguro em memória de um limite. Marca cada resposta que ele deu, para o limitador saber, por
  * requisição, se o Redis atendeu ou se o seguro entrou no lugar.
  */
-class SeguroEmMemoria extends RateLimiterMemory {
+class InMemoryFallback extends RateLimiterMemory {
   readonly #respostasDoSeguro = new WeakSet<RateLimiterRes>()
 
   override async consume(chave: string | number, pontos?: number, opcoes?: ConsumoOptions): Promise<RateLimiterRes> {
@@ -97,7 +97,7 @@ class SeguroEmMemoria extends RateLimiterMemory {
 
 interface Limite {
   readonly redis: RateLimiterRedis
-  readonly seguro: SeguroEmMemoria
+  readonly seguro: InMemoryFallback
 }
 
 /**
@@ -126,7 +126,7 @@ class LimitesDoPrefixo {
 type Consumo = { aceita: boolean; resposta: RateLimiterRes; doSeguro: boolean }
 
 function criarLimite(cliente: Redis, prefixo: string, pontos: number, instancias: number): Limite {
-  const seguro = new SeguroEmMemoria({ keyPrefix: prefixo, points: insuranceLimit(pontos, instancias), duration: JANELA_LIMITE_SEGUNDOS })
+  const seguro = new InMemoryFallback({ keyPrefix: prefixo, points: insuranceLimit(pontos, instancias), duration: JANELA_LIMITE_SEGUNDOS })
   const redis = new RateLimiterRedis({
     storeClient: cliente,
     keyPrefix: prefixo,

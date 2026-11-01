@@ -27,7 +27,7 @@ export interface PedidoDeRedefinicao {
   readonly pedido: number
 }
 
-const esquemaPedido = z.coerce.number().int().positive().max(2_147_483_647)
+const pedidoSchema = z.coerce.number().int().positive().max(2_147_483_647)
 
 export function lerPedidoDeRedefinicao(argumentos: string[]): PedidoDeRedefinicao {
   let valores: { usuario?: string | undefined; pedido?: string | undefined }
@@ -39,7 +39,7 @@ export function lerPedidoDeRedefinicao(argumentos: string[]): PedidoDeRedefinica
   }
   const usuario = z.uuid().safeParse(valores.usuario)
   if (!usuario.success) throw new InvalidArgumentError('--usuario')
-  const pedido = /^\d{1,10}$/.test(valores.pedido ?? '') ? esquemaPedido.safeParse(valores.pedido) : undefined
+  const pedido = /^\d{1,10}$/.test(valores.pedido ?? '') ? pedidoSchema.safeParse(valores.pedido) : undefined
   if (pedido?.success !== true) throw new InvalidArgumentError('--pedido')
   return { usuarioId: usuario.data.toLowerCase(), pedido: pedido.data }
 }

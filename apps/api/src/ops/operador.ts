@@ -22,7 +22,7 @@ import {
   abrirBancoDeOperacao,
   InvalidArgumentError,
   criarArquivoDoToken,
-  esquemaNome,
+  nomeSchema,
   lerOperador,
   OperadorRejectedError,
   type CommandDatabase,
@@ -106,7 +106,7 @@ export function lerPedidoDeOperador(argumentos: string[]): PedidoDeOperador {
   const apelido = apelidoValido(valores.apelido)
   if (acao === 'desativar') return { acao, apelido }
   if (acao === 'convite') return { acao, apelido, saida: saidaValida(valores.saida) }
-  const nome = esquemaNome.safeParse(valores.nome)
+  const nome = nomeSchema.safeParse(valores.nome)
   if (!nome.success) throw new InvalidArgumentError('--nome')
   const email = emailSchema.safeParse(valores.email?.trim().toLowerCase())
   if (!email.success) throw new InvalidArgumentError('--email')

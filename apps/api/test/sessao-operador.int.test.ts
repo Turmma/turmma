@@ -24,7 +24,7 @@ const ambienteDeTeste = lerAmbienteDeTeste()
 const hash = (valor: string) => createHash('sha256').update(valor).digest('hex')
 const comCookie = (refresh: string, ip = ipSorteado()): Cabecalhos => ({ ...doIp(ip), Cookie: `${COOKIE_SESSAO_DE_OPERADOR}=${refresh}` })
 
-interface LinhaDaSessao {
+interface SessaoRow {
   readonly refreshHash: string
   readonly refreshHashAnterior: string | null
   readonly encerrada: boolean
@@ -67,8 +67,8 @@ describe('sessão do operador: renovar, sair e os prazos (tarefa 8.0)', () => {
     )
   }
 
-  async function linha(sessaoId: string): Promise<LinhaDaSessao> {
-    const { rows } = await operadores.pool.query<LinhaDaSessao>(
+  async function linha(sessaoId: string): Promise<SessaoRow> {
+    const { rows } = await operadores.pool.query<SessaoRow>(
       `select refresh_hash as "refreshHash", refresh_hash_anterior as "refreshHashAnterior", encerrada_em is not null as encerrada, motivo,
               extract(epoch from now() - ultimo_uso_em)::int as "usoHaSegundos"
          from sessao_operador where id = $1`,

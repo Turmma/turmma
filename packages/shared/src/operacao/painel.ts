@@ -184,7 +184,7 @@ export const painelQuerySchema = z.strictObject({
 
 export type PainelQuery = z.infer<typeof painelQuerySchema>
 
-const esquemaContagem = z.number().int().nonnegative()
+const contagemSchema = z.number().int().nonnegative()
 
 /**
  * Uma escola na lista do painel: id, nome, endereço, a rede, o estado da primeira coordenação (com o id do último convite
@@ -198,9 +198,9 @@ export const escolaDoPainelSchema = z.strictObject({
   rede: z.strictObject({ id: z.uuid(), nome: z.string().min(1).max(TAMANHO_MAXIMO_NOME_DIGITADO) }),
   estado: z.enum(ESTADOS_DA_COORDENACAO),
   conviteId: z.uuid().optional(),
-  turmas: esquemaContagem,
-  professores: esquemaContagem,
-  alunos: esquemaContagem,
+  turmas: contagemSchema,
+  professores: contagemSchema,
+  alunos: contagemSchema,
 })
 
 export type EscolaDoPainel = z.infer<typeof escolaDoPainelSchema>
@@ -209,16 +209,16 @@ export type EscolaDoPainel = z.infer<typeof escolaDoPainelSchema>
 export const escolasDoPainelResponseSchema = z.strictObject({
   itens: z.array(escolaDoPainelSchema).max(ESCOLAS_POR_PAGINA),
   pagina: z.number().int().min(1),
-  total: esquemaContagem,
+  total: contagemSchema,
 })
 
 export type EscolasDoPainelResponse = z.infer<typeof escolasDoPainelResponseSchema>
 
 /** O uso de infra de uma escola num período (D30): requisições, jobs e bytes de storage. */
 export const usoDoPeriodoDoPainelSchema = z.strictObject({
-  requisicoes: esquemaContagem,
-  jobs: esquemaContagem,
-  bytesStorage: esquemaContagem,
+  requisicoes: contagemSchema,
+  jobs: contagemSchema,
+  bytesStorage: contagemSchema,
 })
 
 export type UsoDoPeriodoDoPainel = z.infer<typeof usoDoPeriodoDoPainelSchema>
@@ -244,7 +244,7 @@ export type UsoDaEscolaDoPainel = z.infer<typeof usoDaEscolaDoPainelSchema>
 export const usoDoPainelResponseSchema = z.strictObject({
   itens: z.array(usoDaEscolaDoPainelSchema).max(ESCOLAS_POR_PAGINA),
   pagina: z.number().int().min(1),
-  total: esquemaContagem,
+  total: contagemSchema,
   dia: z.iso.date(),
   mes: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/),
 })

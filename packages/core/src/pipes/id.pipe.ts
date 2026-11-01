@@ -3,7 +3,7 @@ import type { PipeTransform } from '@nestjs/common'
 import { z } from 'zod'
 import { DomainException } from '../error/domain.exception.js'
 
-const esquemaId = z.uuid()
+const idSchema = z.uuid()
 
 export interface IdPipeOptions {
   /** Id fora do formato devolve `undefined` em vez de lançar: o `redefinir-mfa` responde 202 sem efeito ao id inválido. */
@@ -22,7 +22,7 @@ export class IdPipe implements PipeTransform<unknown, string | undefined> {
   constructor(private readonly opcoes: IdPipeOptions = {}) {}
 
   transform(valor: unknown): string | undefined {
-    const lido = esquemaId.safeParse(valor)
+    const lido = idSchema.safeParse(valor)
     if (lido.success) return lido.data.toLowerCase()
     if (this.opcoes.invalidAsUndefined === true) return undefined
     throw new DomainException(ErrorCode.NAO_ENCONTRADO)

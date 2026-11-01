@@ -1,0 +1,91 @@
+{
+  "linha": true,
+  "entradas": [
+    {
+      "tipo": "simbolo",
+      "de": "LinhaDoResumo",
+      "para": "ConfirmDialogRow",
+      "arquivo": "apps/web/src/components/ui/overlays/ConfirmDialog.tsx",
+      "linhaDoAnexo": "inventario-adenda-5.md:24"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "LinhaDoMaterial",
+      "para": "MaterialRow",
+      "arquivo": "apps/web/src/areas/coordenacao/material/materiais-da-escola.ts",
+      "linhaDoAnexo": "inventario-adenda-5.md:25"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "Cartao",
+      "para": "StatefulChoicePrompt",
+      "arquivo": "apps/web/src/components/ui/ai/ChoicePrompt.test.tsx",
+      "linhaDoAnexo": "inventario-adenda-5.md:26"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "LinhaDaSessao",
+      "para": "SessaoRow",
+      "arquivo": "apps/api/test/sessao-operador.int.test.ts",
+      "linhaDoAnexo": "inventario-adenda-5.md:27"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "OpcoesDeToken",
+      "para": "TokenOptions",
+      "arquivo": "packages/core/src/identidade/verify-token.test.ts",
+      "linhaDoAnexo": "inventario-adenda-5.md:28"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "SeguroEmMemoria",
+      "para": "InMemoryFallback",
+      "arquivo": "packages/core/src/rate-limit/rate-limiter.ts",
+      "linhaDoAnexo": "inventario-adenda-5.md:29"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaNome",
+      "para": "nomeSchema",
+      "arquivo": "apps/api/src/ops/command.ts",
+      "linhaDoAnexo": "inventario-adenda-5.md:30"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaAmbienteMigrar",
+      "para": "migrarEnvSchema",
+      "arquivo": "apps/api/src/ops/migrar.ts",
+      "linhaDoAnexo": "inventario-adenda-5.md:31"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaPedido",
+      "para": "pedidoSchema",
+      "arquivo": "apps/api/src/ops/redefinir-mfa.ts",
+      "linhaDoAnexo": "inventario-adenda-5.md:32"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaId",
+      "para": "idSchema",
+      "arquivo": "packages/core/src/pipes/id.pipe.ts",
+      "linhaDoAnexo": "inventario-adenda-5.md:33"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "esquemaContagem",
+      "para": "contagemSchema",
+      "arquivo": "packages/shared/src/operacao/painel.ts",
+      "linhaDoAnexo": "inventario-adenda-5.md:34"
+    }
+  ],
+  "ocorrencias": [
+    {
+      "arquivo": "apps/web/src/components/ui/Superficies.test.tsx",
+      "de": "Cartao",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:9"
+    }
+  ],
+  "excecoesDoConferir": []
+}

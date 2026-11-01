@@ -19,7 +19,7 @@ export interface RecusaDeEnvio {
 }
 
 /** Uma linha da tabela: o material da escola, ou o envio que foi recusado e ainda está à vista. */
-export type LinhaDoMaterial = { readonly tipo: 'material'; readonly material: Material } | { readonly tipo: 'recusa'; readonly recusa: RecusaDeEnvio }
+export type MaterialRow = { readonly tipo: 'material'; readonly material: Material } | { readonly tipo: 'recusa'; readonly recusa: RecusaDeEnvio }
 
 /** A família do selo de cada situação: o que está sendo lido espera, o pronto está certo e o que falhou é erro. */
 export const FAMILIA_DA_SITUACAO_DO_MATERIAL = { processando: 'pendente', pronto: 'ok', falhou: 'erro' } as const satisfies Readonly<Record<EstadoDeMaterial, StatusFamily>>
@@ -44,12 +44,12 @@ export function textoDaSituacaoDaRecusa(recusa: Pick<RecusaDeEnvio, 'motivo'>): 
  * seguida o resto; dentro de cada grupo, o mais novo antes. As recusas já chegam da mais nova para a mais antiga (a tela põe a
  * nova na frente), e os materiais chegam na ordem de envio da API.
  */
-export function linhasDosMateriais(itens: readonly Material[], recusas: readonly RecusaDeEnvio[]): LinhaDoMaterial[] {
+export function linhasDosMateriais(itens: readonly Material[], recusas: readonly RecusaDeEnvio[]): MaterialRow[] {
   const maisNovosPrimeiro = doMaisNovoAoMaisAntigo(itens)
   return [
-    ...recusas.map((recusa): LinhaDoMaterial => ({ tipo: 'recusa', recusa })),
-    ...maisNovosPrimeiro.filter((material) => material.estado === 'falhou').map((material): LinhaDoMaterial => ({ tipo: 'material', material })),
-    ...maisNovosPrimeiro.filter((material) => material.estado !== 'falhou').map((material): LinhaDoMaterial => ({ tipo: 'material', material })),
+    ...recusas.map((recusa): MaterialRow => ({ tipo: 'recusa', recusa })),
+    ...maisNovosPrimeiro.filter((material) => material.estado === 'falhou').map((material): MaterialRow => ({ tipo: 'material', material })),
+    ...maisNovosPrimeiro.filter((material) => material.estado !== 'falhou').map((material): MaterialRow => ({ tipo: 'material', material })),
   ]
 }
 

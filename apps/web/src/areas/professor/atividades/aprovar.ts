@@ -1,6 +1,6 @@
 import { NOME_DO_MOTIVO_DE_DESTAQUE, type AtividadeAplicada, type Destaque, type MotivoDeDestaque, type CorrecaoDoLoteResponse, type ResumoDoLote } from '@educa/shared'
 import { caminhoDaTurmaDoProfessor, PROFESSOR_ROUTES } from '../../../paths'
-import type { LinhaDoResumo } from '../../../components/ui/overlays/ConfirmDialog'
+import type { ConfirmDialogRow } from '../../../components/ui/overlays/ConfirmDialog'
 import { formatDayAndTime } from '../../../format'
 
 /**
@@ -106,7 +106,7 @@ export function rotuloDeAprovar(corrigidos: number): string {
 }
 
 /** O que o diálogo de aprovar mostra antes de confirmar: a atividade, a turma, quantas correções e os destaques abertos. */
-export function resumoDoLote(correcao: Pick<CorrecaoDoLoteResponse, 'titulo' | 'resumo' | 'destaques' | 'destaquesAbertos'>, nomeDaTurma: string | undefined): readonly [LinhaDoResumo, ...LinhaDoResumo[]] {
+export function resumoDoLote(correcao: Pick<CorrecaoDoLoteResponse, 'titulo' | 'resumo' | 'destaques' | 'destaquesAbertos'>, nomeDaTurma: string | undefined): readonly [ConfirmDialogRow, ...ConfirmDialogRow[]] {
   return [
     { rotulo: 'Atividade', valor: correcao.titulo },
     { rotulo: 'Turma', valor: nomeDaTurma ?? 'Turma da atividade' },

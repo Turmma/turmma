@@ -23,7 +23,7 @@ export class InvalidArgumentError extends Error {
  * Nome de rede, de escola ou da pessoa convidada (`ops:convite-coordenador`): o mesmo esquema do contrato do painel da
  * operação (`@educa/shared`), para o comando e a tela aceitarem o mesmo nome.
  */
-export const esquemaNome = nomeDigitadoSchema
+export const nomeSchema = nomeDigitadoSchema
 
 const operadorEnvSchema = z.object({ OPERADOR: z.string().regex(FORMATO_OPERADOR) })
 

@@ -9,7 +9,7 @@ import { z } from 'zod'
 
 const inteiroPositivo = z.coerce.number().int().positive()
 
-const esquemaAmbienteMigrar = z.object({
+const migrarEnvSchema = z.object({
   BANCO_URL: z.string().regex(/^postgres(ql)?:\/\/[^/]+\/[^/]+$/),
   BANCO_TIMEOUT_CONEXAO_MS: inteiroPositivo,
   MIGRAR_TIMEOUT_CONSULTA_MS: inteiroPositivo,
@@ -18,7 +18,7 @@ const esquemaAmbienteMigrar = z.object({
 async function executar(): Promise<void> {
   const logger = createLogger({ servico: 'migrar' })
   try {
-    const valores = validateEnvironment(esquemaAmbienteMigrar, process.env)
+    const valores = validateEnvironment(migrarEnvSchema, process.env)
     await migrate(
       { url: valores.BANCO_URL, timeoutConexaoMs: valores.BANCO_TIMEOUT_CONEXAO_MS, timeoutConsultaMs: valores.MIGRAR_TIMEOUT_CONSULTA_MS },
       logger,

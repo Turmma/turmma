@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto'
 import { pathToFileURL } from 'node:url'
 import { parseArgs } from 'node:util'
 import { z } from 'zod'
-import { abrirBancoDeOperacao, InvalidArgumentError, autorDoComando, esquemaNome, lerOperador, OperadorRejectedError, type CommandDatabase, type CommandOutput } from './command.js'
+import { abrirBancoDeOperacao, InvalidArgumentError, autorDoComando, nomeSchema, lerOperador, OperadorRejectedError, type CommandDatabase, type CommandOutput } from './command.js'
 import { criarEscola, criarRede } from '../operacao/escola/escola.js'
 
 // O que é comum aos comandos do operador mora em `command.ts`; reexportado aqui para quem já o importava daqui.
@@ -45,7 +45,7 @@ function lerOpcoes(argumentos: string[]) {
 }
 
 function nomeValido(valor: string | undefined): string {
-  const resultado = esquemaNome.safeParse(valor)
+  const resultado = nomeSchema.safeParse(valor)
   if (!resultado.success) throw new InvalidArgumentError('--nome')
   return resultado.data
 }

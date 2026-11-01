@@ -2,7 +2,7 @@ import { useId, useRef, type ReactNode } from 'react'
 import { Button } from '../Button'
 import { Dialog } from './Dialog'
 
-export interface LinhaDoResumo {
+export interface ConfirmDialogRow {
   readonly rotulo: string
   readonly valor: string
 }
@@ -19,7 +19,7 @@ interface ConfirmDialogProps {
    * **O que vai acontecer**, em pares: a avaliação, a turma, quantas correções. É obrigatório pelo tipo: ação oficial
    * mostra o que vai acontecer antes de confirmar (regra 50, item 8).
    */
-  readonly resumo: readonly [LinhaDoResumo, ...LinhaDoResumo[]]
+  readonly resumo: readonly [ConfirmDialogRow, ...ConfirmDialogRow[]]
   /** A consequência, numa frase: "O diagnóstico chega aos alunos da turma." */
   readonly efeito: string
   /** O que fica registrado: "Esta abertura fica na auditoria da escola." Em família `pendente`, para não passar batido. */

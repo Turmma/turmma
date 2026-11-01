@@ -18,7 +18,7 @@ const EMISSOR_SINTETICO_DO_F0 = 'sintetico'
 
 const agora = () => Math.floor(Date.now() / 1000)
 
-interface OpcoesDeToken {
+interface TokenOptions {
   claims?: JWTPayload
   semClaims?: string[]
   chave?: Uint8Array
@@ -27,7 +27,7 @@ interface OpcoesDeToken {
   typ?: string
 }
 
-async function assinar(opcoes: OpcoesDeToken = {}): Promise<string> {
+async function assinar(opcoes: TokenOptions = {}): Promise<string> {
   const todas: JWTPayload = {
     esc: ESCOLA_A,
     sub: USUARIO,

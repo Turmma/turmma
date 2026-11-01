@@ -21,7 +21,7 @@ const OPCOES: readonly [ChoiceOption, ChoiceOption] = [
 ]
 const PERGUNTA = 'Posso fazer isso com a ferramenta Atividade, ou só conversar.'
 
-function Cartao({ desligada = false, inicial }: { desligada?: boolean; inicial?: string }) {
+function StatefulChoicePrompt({ desligada = false, inicial }: { desligada?: boolean; inicial?: string }) {
   const [escolhida, definirEscolhida] = useState<string | undefined>(inicial)
   return <ChoicePrompt pergunta={PERGUNTA} opcoes={OPCOES} escolhida={escolhida} aoEscolher={definirEscolhida} desligada={desligada} />
 }
@@ -30,7 +30,7 @@ const opcoesAbertas = () => within(screen.getByRole('group', { name: PERGUNTA })
 
 describe('Escolha', () => {
   it('as duas opções são a mesma classe, com borda de 2 px e o degrau da borda, e nenhuma é a face do primário nem a do oficial', () => {
-    render(<Cartao />)
+    render(<StatefulChoicePrompt />)
     const [primeira, segunda] = opcoesAbertas()
     if (primeira === undefined || segunda === undefined) throw new Error('a pergunta tem duas opções')
 
@@ -53,7 +53,7 @@ describe('Escolha', () => {
   })
 
   it('o cartão da pergunta tem a borda de 2 px na `borda`, e não a linha de 1 px de antes', () => {
-    render(<Cartao />)
+    render(<StatefulChoicePrompt />)
     const cartao = screen.getByRole('group', { name: PERGUNTA })
     expect(classesOf(cartao).has('border-2'), 'a borda de 2 px').toBe(true)
     expect(classesOf(cartao).has('border'), 'nem a de 1 px').toBe(false)
@@ -80,7 +80,7 @@ describe('Escolha', () => {
 
   it('escolher aqui leva o foco à linha do que foi escolhido, e a conversa que abre com a escolha já feita não puxa o foco', async () => {
     const usuario = userEvent.setup()
-    const { unmount } = render(<Cartao />)
+    const { unmount } = render(<StatefulChoicePrompt />)
     await usuario.click(screen.getByRole('button', { name: /Só conversar/ }))
     const linha = screen.getByText(/Você escolheu:/).closest('p')
     expect(linha?.textContent).toBe('Você escolheu: Só conversar')
@@ -89,13 +89,13 @@ describe('Escolha', () => {
     expect(screen.queryByRole('group', { name: PERGUNTA })).toBeNull()
     unmount()
 
-    render(<Cartao inicial="ferramenta" />)
+    render(<StatefulChoicePrompt inicial="ferramenta" />)
     expect(screen.getByText(/Você escolheu:/).textContent).toBe('Você escolheu: Usar a ferramenta Atividade')
     expect(document.activeElement).toBe(document.body)
   })
 
   it('a linha da escolha feita tem a borda de 2 px e é mais curta que a opção, que a gente aperta', () => {
-    render(<Cartao inicial="conversa" />)
+    render(<StatefulChoicePrompt inicial="conversa" />)
     const linha = screen.getByText(/Você escolheu:/).closest('p') as HTMLElement
     expect(classesOf(linha).has('border-2')).toBe(true)
     expect(tokenOf(linha, 'border')).toBe('borda')

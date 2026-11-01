@@ -19,7 +19,7 @@ import { errorText } from '../../../components/error-text'
 import { DialogoDeEnvioDeMaterial } from './DialogoDeEnvioDeMaterial'
 import { enderecoComParametro } from '../comum/endereco-da-tela'
 import { RASCUNHO_VAZIO, TEXTO_DA_RECUSA, TEXTOS_DA_FALHA_DA_EXCLUSAO } from './material-envio'
-import { FAMILIA_DA_SITUACAO_DO_MATERIAL, linhasDosMateriais, materialDoEndereco, nomeDaLicenca, rascunhoDoMaterialQueFalhou, textoDaSituacaoDaRecusa, textoDaSituacaoDoMaterial, type LinhaDoMaterial, type RecusaDeEnvio } from './materiais-da-escola'
+import { FAMILIA_DA_SITUACAO_DO_MATERIAL, linhasDosMateriais, materialDoEndereco, nomeDaLicenca, rascunhoDoMaterialQueFalhou, textoDaSituacaoDaRecusa, textoDaSituacaoDoMaterial, type MaterialRow, type RecusaDeEnvio } from './materiais-da-escola'
 import { useFocusPageHeading } from '../comum/moldura'
 import { AvisoDeListaIncompleta, CLASSES_DO_BOTAO_DA_LINHA } from '../comum/pecas-da-lista'
 import { PainelDoMaterial } from './PainelDoMaterial'
@@ -33,7 +33,7 @@ function colunasDosMateriais(
   nomeDaDisciplina: (disciplinaId: string) => string,
   aoAbrir: (materialId: string) => void,
   aoDispensar: (chave: number) => void,
-): readonly [TableColumn<LinhaDoMaterial>, ...TableColumn<LinhaDoMaterial>[]] {
+): readonly [TableColumn<MaterialRow>, ...TableColumn<MaterialRow>[]] {
   return [
     {
       chave: 'material',
