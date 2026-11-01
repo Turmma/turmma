@@ -2413,6 +2413,10 @@ repetem aqui.
 - [ ] Da correção `2026-10-31-aplicar-lento-com-dependentes`, `tools/renomear/projetos.test.ts`, para a próxima correção que o tocar: repetir
       `expect(projetos.length).toBeGreaterThan(0)` no caso da pasta e separar em dois `it` o caso do `include` por padrão, que faz dois moves
       (test-engineer e revisor-geral, rodada 2)
+- [ ] Da correção `2026-10-31-conversa-sem-titulo-na-entrada`, `e2e/support/casca.ts` e `e2e/recarga-da-sessao.spec.ts`, para a próxima correção que os tocar:
+      (1) um caso que prove o filtro `.and(page.locator(':not(main *)'))` sobre o `alert` de `esperarATelaDepoisDaRecarga` (apagado, os três casos seguem
+      verdes; o efeito é só o texto do erro de diagnóstico); (2) subir os 300 ms do `setTimeout` do caso do `main` para uns 1000 ms, para dar folga à detecção
+      da mutação do filtro do botão (test-engineer, rodada 2)
 
 ## Da correção 2026-10-31-introducao-pular-grava-a-data, fora dela
 

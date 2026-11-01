@@ -19,6 +19,12 @@ chaves do TanStack Query ficam como estão.
   de `inventario-adenda-2.md` fora do kit
 - `inventario.md` §1, as linhas `consulta<X>` e `CHAVE_<X>`
 - `.claude/rules/50-frontend.md`
+- A leitura do anexo (triagem da divergência da 10.0): `consultarConvite` e `consultarConviteDeOperador`
+  (`inventario-web-e2e.md:448` e `:496`) ficam, porque são `fetch` comum e não `queryOptions`, e o verbo de domínio fica
+  (`inventario.md` §2, decisão 3); entram como `fica` no item "Homônimo e texto na 10.0" do anexo. As três `CHAVE_` de
+  `localStorage` seguem o §10 (`*_STORAGE_KEY`), e as linhas delas no §15 ganham "(vale o §10)". `caminhoDoX` fica e
+  `formatar*` entra (decisão 3). `PARAMETRO_DO_X` entra pela linha 287: a linha aprovada vale sobre a regra geral da
+  decisão 4
 
 ## Subtarefas
 
@@ -36,6 +42,8 @@ chaves do TanStack Query ficam como estão.
 | `apps/web/src/`, `apps/web/chunk-names.ts` (o `nome-dos-chunks.ts` de antes da 6.0), `apps/web/chunk-names.test.ts`, `apps/web/vite.config.ts` | alterado |
 | `eslint-suppressions.json` | alterado (a chave de `LoginPorCima.tsx`, que acompanha o componente; triagem da 9.0) |
 | `e2e/operacao-escolas.spec.ts`, `e2e/operacao-uso.spec.ts` | alterado |
+| `e2e/casca.spec.ts` | alterado (o comentário que cita `RODAPE_DA_LATERAL`; triagem da divergência da 10.0) |
+| `e2e/aparencia.spec.ts`, `e2e/tokens.spec.ts`, `e2e/tamanho-da-letra.spec.ts`, `tools/ci/duracao-do-e2e.ts` | sem diff no fim: o passo 5 troca o comentário do homônimo, a onda desfaz e registra `fica` (Tech Spec §5, passo 5; triagem da divergência da 10.0) |
 | `tools/renomear/mapas/10.json`, `tools/renomear/mapas/10.relatorio.md` | novo |
 
 ## Testes que provam a regra
@@ -64,7 +72,7 @@ As 12 perguntas do modelo, no plano. Na 5: compare os valores das chaves, e não
 
 ## Fora do escopo desta tarefa
 
-O kit (9.0) e o e2e (11.0), a não ser o arquivo que importa a web.
+O kit (9.0) e o e2e (11.0), a não ser o arquivo que importa a web e o comentário que o passo 5 alcança (os previstos acima).
 
 ## Divergências resolvidas nesta tarefa
 

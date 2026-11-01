@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { expect, type Locator, type Page } from '@playwright/test'
 import { entregaDoLote, loteSintetico, simularAssistente, type ApiDoAssistente } from '../assistente.ts'
-import { entrarPorEmail, esperarNovaConversa, PRAZO_DA_ENTRADA_MS } from '../casca.ts'
+import { entrarPorEmail, esperarATelaDepoisDaRecarga, esperarNovaConversa } from '../casca.ts'
 import { paginaNaoRola } from '../coordenacao.ts'
 import { acionar } from '../professor-flow.ts'
 import { sinoDe } from './sino.ts'
@@ -90,7 +90,7 @@ export async function entrar(
 export async function recarregar(page: Page): Promise<void> {
   await page.reload()
   // A tela da área só existe com a sessão de volta e o `/v1/eu` lido: antes disso a lateral ainda não tem os itens.
-  await expect(page.getByRole('main').getByRole('heading', { level: 1 })).toBeAttached({ timeout: PRAZO_DA_ENTRADA_MS })
+  await esperarATelaDepoisDaRecarga(page)
 }
 
 export const selosDeIA = (alvo: Page | Locator) => alvo.locator('[data-selo-ia]')

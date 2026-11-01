@@ -240,7 +240,21 @@ test.describe('a conversa (11.3)', () => {
 
     // A escola suspende a função: aviso que explica, sem alerta, e a caixa não aceita pedido.
     api.suspensas.add('conversa_e_ferramentas')
+    // E a esteira carregada: com o Postgres sem responder por 4 s, a renovação pelo cookie da recarga devolve 500 uma vez e a tela da sessão
+    // mostra "Tentar de novo" (correção 2026-10-31-conversa-sem-titulo-na-entrada). A recusa é a da API, na rede: não dá para parar o Postgres
+    // num e2e que roda em paralelo com os outros casos. A recarga tenta de novo pela tela e chega à conversa.
+    let renovacoes = 0
+    await page.route('**/v1/sessao/renovar', async (rota) => {
+      renovacoes += 1
+      if (renovacoes > 1) return rota.continue()
+      const { status, corpo } = erroDaApi(500, 'ERRO_INTERNO')
+      return rota.fulfill({ status, contentType: 'application/json', body: JSON.stringify(corpo) })
+    })
     await recarregar(page)
+    // Exato: a recusa e o clique em "Tentar de novo". A web não renova sozinha em segundo plano entre os dois; se um dia renovar, o número muda aqui.
+    expect(renovacoes, 'a renovação recusada e a repetição pela tela').toBe(2)
+    // A recusa é desta recarga: a rota sai para não contornar, sem ninguém ver, uma renovação simulada que `simularAssistente` ganhe depois.
+    await page.unroute('**/v1/sessao/renovar')
     const explicacao = page.getByRole('note')
     await expect(explicacao).toContainText('A coordenação suspendeu a conversa e as ferramentas do Assistente nesta escola.', { timeout: PRAZO_DA_ENTRADA_MS })
     await expect(caixa(page)).toBeDisabled()

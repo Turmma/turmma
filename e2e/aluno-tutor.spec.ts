@@ -2,7 +2,7 @@ import type { Locator, Page } from '@playwright/test'
 import { MENSAGENS_DE_ERRO } from '../packages/shared/src/errors/messages.ts'
 import { conferirAssinaturas, conferirQueAOncaNaoTemNome } from './support/avatar.ts'
 import { encaminhamento, erroDaApi, minhaAtividade, perguntaDoAluno, portao, provaDa, respostaDoTutor, simularAluno, type ApiDoAluno } from './support/aluno.ts'
-import { entrarComoAluno, irPelaNavegacao, PRAZO_DA_ENTRADA_MS } from './support/casca.ts'
+import { entrarComoAluno, esperarATelaDepoisDaRecarga, irPelaNavegacao } from './support/casca.ts'
 import { expect, test } from './support/profiles.ts'
 import { colocarAlunoNaTurma, criarAlunoComMatricula, type AlunoDeTeste } from './support/seed.ts'
 import { codigoCru, larguraExcedente, violacoesGraves } from './support/checks.ts'
@@ -39,7 +39,7 @@ async function irPara(page: Page, caminho: string): Promise<void> {
 
 async function recarregar(page: Page): Promise<void> {
   await page.reload()
-  await expect(page.getByRole('main').getByRole('heading', { level: 1 })).toBeAttached({ timeout: PRAZO_DA_ENTRADA_MS })
+  await esperarATelaDepoisDaRecarga(page)
 }
 
 async function entrar(page: Page, hasTouch: boolean, antes?: (api: ApiDoAluno) => void): Promise<Cena> {
