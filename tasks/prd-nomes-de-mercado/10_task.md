@@ -43,6 +43,7 @@ chaves do TanStack Query ficam como estão.
 | `eslint-suppressions.json` | alterado (a chave de `LoginPorCima.tsx`, que acompanha o componente; triagem da 9.0) |
 | `e2e/operacao-escolas.spec.ts`, `e2e/operacao-uso.spec.ts` | alterado |
 | `e2e/casca.spec.ts` | alterado (o comentário que cita `RODAPE_DA_LATERAL`; triagem da divergência da 10.0) |
+| `apps/web/index.html` | alterado (só o comentário do script do tema: `resolverTema` → `resolveTheme`, à mão, porque o passo 5 não lê HTML; troca à mão no relatório; triagem da 2ª divergência da 10.0) |
 | `e2e/aparencia.spec.ts`, `e2e/tokens.spec.ts`, `e2e/tamanho-da-letra.spec.ts`, `tools/ci/duracao-do-e2e.ts` | sem diff no fim: o passo 5 troca o comentário do homônimo, a onda desfaz e registra `fica` (Tech Spec §5, passo 5; triagem da divergência da 10.0) |
 | `tools/renomear/mapas/10.json`, `tools/renomear/mapas/10.relatorio.md` | novo |
 
