@@ -1,13 +1,13 @@
 import { MENSAGENS_DE_ERRO } from '../packages/shared/src/errors/messages.ts'
-import { ALUNOS_DO_LOTE, erroDaApi, portao, QUEM_DECIDE } from './support/assistente.ts'
-import { abrirNavegacao, entrarPorEmail, esperarNovaConversa, lateral, PRAZO_DA_ENTRADA_MS, secoes } from './support/casca.ts'
-import { cacheDeConsultas, semAcessosDaConta } from './support/query-cache.ts'
+import { ALUNOS_DO_LOTE, apiError, gate, QUEM_DECIDE } from './support/assistente.ts'
+import { abrirNavegacao, entrarPorEmail, esperarNovaConversa, lateral, SIGN_IN_TIMEOUT_MS, secoes } from './support/casca.ts'
+import { queryCache, semAcessosDaConta } from './support/query-cache.ts'
 import { principal } from './support/professor-flow.ts'
 import { expect, test } from './support/profiles.ts'
 import { abrirODestaque, fecharOPainel, painelDoDestaque } from './support/professor/aprovar.ts'
-import { acionar, comLote, entrar, irPara, PRAZO_DA_TELA_MS, recarregar } from './support/professor/scenario.ts'
+import { activate, comLote, entrar, irPara, SCREEN_TIMEOUT_MS, recarregar } from './support/professor/scenario.ts'
 import { confirmarVinculosNoBanco, criarAlocacaoDoProfessor, criarProfessoraNaEscola, encerrarSessoesDoUsuario } from './support/seed.ts'
-import { larguraExcedente, larguraExcedenteDoDialogo, violacoesGraves } from './support/checks.ts'
+import { horizontalOverflow, larguraExcedenteDoDialogo, seriousViolations } from './support/checks.ts'
 
 /**
  * Aprovar a correção (11.5, A3, pacote W; telas do professor, 14.0). Separado de `professor-turma.spec.ts` pela 2.5. Nos dois
@@ -28,35 +28,35 @@ test.describe('aprovar a correção (11.5)', () => {
     test.slow()
     const { api, professora, turmaId, turmaNome } = await entrar(page, hasTouch, { antes: (simulada, turma) => void comLote(simulada, turma) })
     const atividadeId = [...api.correcoes.keys()][0] ?? ''
-    const segura = portao()
+    const segura = gate()
     api.trocar('correcao', async () => {
       await segura.aberta
-      return erroDaApi(503, 'INDISPONIVEL_TENTE_DE_NOVO')
+      return apiError(503, 'INDISPONIVEL_TENTE_DE_NOVO')
     })
     await irPara(page, `/professor/aprovar/${atividadeId}`)
-    await expect(page.getByText('Carregando a correção…')).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
+    await expect(page.getByText('Carregando a correção…')).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
     segura.abrir()
-    await expect(principal(page).getByRole('alert')).toHaveText(MENSAGENS_DE_ERRO.INDISPONIVEL_TENTE_DE_NOVO, { timeout: PRAZO_DA_TELA_MS })
-    api.trocar('correcao', () => erroDaApi(404, 'NAO_ENCONTRADO'))
-    await acionar(page.getByRole('button', { name: 'Tentar de novo' }), hasTouch)
-    await expect(page.getByText('Esta correção não está disponível')).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
+    await expect(principal(page).getByRole('alert')).toHaveText(MENSAGENS_DE_ERRO.INDISPONIVEL_TENTE_DE_NOVO, { timeout: SCREEN_TIMEOUT_MS })
+    api.trocar('correcao', () => apiError(404, 'NAO_ENCONTRADO'))
+    await activate(page.getByRole('button', { name: 'Tentar de novo' }), hasTouch)
+    await expect(page.getByText('Esta correção não está disponível')).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
     // Nenhum texto diz "Seu time", e sem a turma da correção o caminho de volta é a lista de turmas.
     await expect(page.getByText(/Seu time/)).toHaveCount(0)
     await expect(page.getByRole('link', { name: 'Voltar para a turma' })).toHaveAttribute('href', '/professor/turmas')
     api.trocar('correcao')
     // Sai e volta: a tela de aprovar só desmonta quando a outra aparece, e é a volta que relê a correção.
     await irPara(page, '/professor/time/assistente')
-    await expect(page.getByRole('heading', { level: 1, name: 'Assistente de ensino' })).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
+    await expect(page.getByRole('heading', { level: 1, name: 'Assistente de ensino' })).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
     await irPara(page, `/professor/aprovar/${atividadeId}`)
 
-    await expect(page.getByRole('heading', { level: 1, name: 'Revisar a correção' })).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
+    await expect(page.getByRole('heading', { level: 1, name: 'Revisar a correção' })).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
     await expect(page).toHaveTitle('Revisar a correção · Turmma')
     await expect(principal(page)).toContainText(`Atividade de estequiometria · ${turmaNome}`)
     // A correção é saída de IA: a função assina, com o selo.
     await expect(page.getByText('Assistente · correção de objetiva')).toBeVisible()
     await expect(principal(page).locator('[data-selo-ia]')).toHaveCount(1)
     // Com a entrega lida, "Voltar para a turma" leva à turma da correção, e nenhum texto diz "Seu time".
-    await expect(page.getByRole('link', { name: 'Voltar para a turma' })).toHaveAttribute('href', `/professor/turmas/${turmaId}`, { timeout: PRAZO_DA_TELA_MS })
+    await expect(page.getByRole('link', { name: 'Voltar para a turma' })).toHaveAttribute('href', `/professor/turmas/${turmaId}`, { timeout: SCREEN_TIMEOUT_MS })
     await expect(page.getByText(/Seu time/)).toHaveCount(0)
     const faixa = page.getByRole('group', { name: 'Números da correção' })
     await expect(faixa).toContainText('Corrigidas')
@@ -78,14 +78,14 @@ test.describe('aprovar a correção (11.5)', () => {
     await expect(principal(page)).not.toContainText(VOCABULARIO_PROIBIDO)
     const passos = await page.evaluate(() => window.history.length)
 
-    await acionar(abas.getByRole('tab', { name: 'Outras' }), hasTouch)
+    await activate(abas.getByRole('tab', { name: 'Outras' }), hasTouch)
     await expect(page).toHaveURL(new RegExp(`/professor/aprovar/${atividadeId}\\?aba=outras$`))
     await expect(page.getByRole('region', { name: 'As outras 2 correções' })).toContainText('Caio Sintético')
     await expect(page.getByRole('region', { name: 'As outras 2 correções' })).toContainText('Dora Sintética')
     await expect(barra).toBeVisible()
     await expect(principal(page)).not.toContainText(VOCABULARIO_PROIBIDO)
 
-    await acionar(abas.getByRole('tab', { name: 'Resumo' }), hasTouch)
+    await activate(abas.getByRole('tab', { name: 'Resumo' }), hasTouch)
     await expect(page).toHaveURL(new RegExp(`/professor/aprovar/${atividadeId}\\?aba=resumo$`))
     await expect(page.getByRole('region', { name: 'Distribuição dos acertos' })).toContainText('2 acertos')
     await expect(page.getByRole('region', { name: 'Acerto por habilidade' })).toContainText('QUI.EM.05')
@@ -107,20 +107,20 @@ test.describe('aprovar a correção (11.5)', () => {
     }
     // D46: é diagnóstico, não nota. A tela inteira fala em acertos e habilidades.
     await expect(principal(page)).not.toContainText(VOCABULARIO_PROIBIDO)
-    expect(await larguraExcedente(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await horizontalOverflow(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
     expect(await page.evaluate(() => window.history.length)).toBe(passos)
 
     // O que não é aba cai em Destaques, sem erro.
     await irPara(page, `/professor/aprovar/${atividadeId}?aba=todas`)
     await expect(abas.getByRole('tab', { name: 'Destaques' })).toHaveAttribute('aria-selected', 'true')
     await expect(page.getByRole('region', { name: 'Abra estes 2 antes de aprovar' })).toBeVisible()
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await seriousViolations(page)).toEqual([])
 
     // Recarregar com o endereço de um destaque ainda fechado não abre o painel nem registra abertura: abrir é o clique.
     await irPara(page, `/professor/aprovar/${atividadeId}?ver=${ALUNOS_DO_LOTE[0]?.alunoId ?? ''}`)
     await recarregar(page)
-    await expect(page.locator('[data-destaque="fechado"]')).toHaveCount(2, { timeout: PRAZO_DA_TELA_MS })
+    await expect(page.locator('[data-destaque="fechado"]')).toHaveCount(2, { timeout: SCREEN_TIMEOUT_MS })
     await expect(painelDoDestaque(page)).toHaveCount(0)
     expect(api.pedidosEm(/abrir$/)).toHaveLength(0)
 
@@ -130,15 +130,15 @@ test.describe('aprovar a correção (11.5)', () => {
     const dela = await criarAlocacaoDoProfessor(segunda.escolaId, segunda.usuarioId, ['Biologia'])
     await confirmarVinculosNoBanco(segunda.escolaId, dela.vinculoIds)
     await abrirNavegacao(page, hasTouch)
-    await acionar(lateral(page).getByRole('button', { name: 'Sair' }), hasTouch)
-    await expect(page).toHaveURL(/\/entrar$/, { timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(lateral(page).getByRole('button', { name: 'Sair' }), hasTouch)
+    await expect(page).toHaveURL(/\/entrar$/, { timeout: SIGN_IN_TIMEOUT_MS })
     api.correcoes.delete(atividadeId)
     api.entregas = []
     await entrarPorEmail(page, segunda, hasTouch)
     await esperarNovaConversa(page, segunda.nome)
     await irPara(page, `/professor/aprovar/${atividadeId}`)
-    await expect(page.getByText('Esta correção não está disponível')).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
-    const cache = semAcessosDaConta(await cacheDeConsultas(page))
+    await expect(page.getByText('Esta correção não está disponível')).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
+    const cache = semAcessosDaConta(await queryCache(page))
     const corpo = page.locator('body')
     for (const aluno of ALUNOS_DO_LOTE) {
       await expect(corpo).not.toContainText(aluno.nome)
@@ -160,7 +160,7 @@ test.describe('aprovar a correção (11.5)', () => {
     await irPara(page, `/professor/aprovar/${atividadeId}`)
 
     const destaques = page.getByRole('region', { name: 'Abra estes 2 antes de aprovar' })
-    await expect(destaques.locator('[data-destaque="fechado"]')).toHaveCount(2, { timeout: PRAZO_DA_TELA_MS })
+    await expect(destaques.locator('[data-destaque="fechado"]')).toHaveCount(2, { timeout: SCREEN_TIMEOUT_MS })
     // Cada destaque diz o motivo em texto, como fato do trabalho, e está fechado como pendente.
     const ana = destaques.getByRole('listitem').filter({ hasText: 'Ana Sintética' })
     await expect(ana).toContainText('Em branco')
@@ -179,8 +179,8 @@ test.describe('aprovar a correção (11.5)', () => {
     // O leitor de tela lê o porquê junto do botão desligado.
     await expect(aprovar).toHaveAccessibleDescription('0 de 2 destaques abertos. Abra os 2 destaques que faltam para liberar a aprovação.')
     expect(await principal(page).getByRole('button').evaluateAll((botoes) => botoes.filter((botao) => getComputedStyle(botao).backgroundColor === 'rgb(232, 115, 46)').length)).toBe(0)
-    expect(await larguraExcedente(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await horizontalOverflow(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
 
     // Abrir: dois cliques seguidos mandam uma abertura só, e o painel ao lado mostra as respostas e o histórico do aluno.
     await ana.getByRole('button').evaluate((botao: HTMLButtonElement) => {
@@ -188,7 +188,7 @@ test.describe('aprovar a correção (11.5)', () => {
       botao.click()
     })
     const painel = painelDoDestaque(page)
-    await expect(painel.locator('[data-destaque-aberto]')).toContainText('Em branco', { timeout: PRAZO_DA_TELA_MS })
+    await expect(painel.locator('[data-destaque-aberto]')).toContainText('Em branco', { timeout: SCREEN_TIMEOUT_MS })
     await expect(painel.locator('[data-destaque-aberto]')).toContainText('Nenhuma questão foi respondida.')
     await expect(painel.locator('[data-destaque-aberto]')).toContainText('Atividade de balanceamento: 4 de 5 acertos')
     await expect(page).toHaveURL(new RegExp(`\\?ver=${anaDoLote?.alunoId ?? ''}$`))
@@ -208,10 +208,10 @@ test.describe('aprovar a correção (11.5)', () => {
       expect(caixa.height).toBeCloseTo(janela.height, 0)
     }
     expect(await larguraExcedenteDoDialogo(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await seriousViolations(page)).toEqual([])
     await fecharOPainel(page, hasTouch)
     await expect(page).not.toHaveURL(/ver=/)
-    await expect(ana).toContainText(/Aberto · \d{2}\/\d{2}, \d{2}h\d{2}/, { timeout: PRAZO_DA_TELA_MS })
+    await expect(ana).toContainText(/Aberto · \d{2}\/\d{2}, \d{2}h\d{2}/, { timeout: SCREEN_TIMEOUT_MS })
     await expect(contador).toHaveText('1 de 2 destaques abertos. Abra o destaque que falta para liberar a aprovação.')
     await expect(aprovar).toBeDisabled()
 
@@ -220,14 +220,14 @@ test.describe('aprovar a correção (11.5)', () => {
     // Abaixo de 768 px a tabela vira lista, com o mesmo nome.
     await expect(doBruno.getByRole(hasTouch ? 'list' : 'table', { name: `Respostas de ${brunoDoLote?.nome ?? ''}` })).toBeVisible()
     await fecharOPainel(page, hasTouch)
-    await expect(contador).toHaveText('2 de 2 destaques abertos. Tudo aberto: a aprovação está liberada.', { timeout: PRAZO_DA_TELA_MS })
+    await expect(contador).toHaveText('2 de 2 destaques abertos. Tudo aberto: a aprovação está liberada.', { timeout: SCREEN_TIMEOUT_MS })
     await expect(aprovar).toBeEnabled()
     expect(await aprovar.evaluate((botao) => getComputedStyle(botao).backgroundColor)).toBe('rgb(51, 51, 51)')
 
     // Recarregar mantém a aba e os destaques já abertos, e o endereço do painel de um destaque aberto o traz de volta.
     await irPara(page, `/professor/aprovar/${atividadeId}?aba=resumo&ver=${anaDoLote?.alunoId ?? ''}`)
     await recarregar(page)
-    await expect(painelDoDestaque(page).locator('[data-destaque-aberto]')).toContainText('Em branco', { timeout: PRAZO_DA_TELA_MS })
+    await expect(painelDoDestaque(page).locator('[data-destaque-aberto]')).toContainText('Em branco', { timeout: SCREEN_TIMEOUT_MS })
     await expect(page.getByRole('tab', { name: 'Resumo' })).toHaveAttribute('aria-selected', 'true')
     await fecharOPainel(page, hasTouch)
     await expect(page).toHaveURL(new RegExp(`\\?aba=resumo$`))
@@ -236,7 +236,7 @@ test.describe('aprovar a correção (11.5)', () => {
     await expect(aprovar).toBeEnabled()
 
     // A confirmação diz a atividade, a turma, quantas correções, e que o diagnóstico chega aos alunos.
-    await acionar(aprovar, hasTouch)
+    await activate(aprovar, hasTouch)
     const dialogo = page.getByRole('alertdialog', { name: 'Aprovar 28 correções' })
     await expect(dialogo).toContainText('Atividade de estequiometria')
     await expect(dialogo).toContainText(turmaNome)
@@ -245,10 +245,10 @@ test.describe('aprovar a correção (11.5)', () => {
     await expect(dialogo).not.toContainText(VOCABULARIO_PROIBIDO)
     expect(api.pedidosEm(/aprovar-lote$/)).toHaveLength(0)
     expect(await larguraExcedenteDoDialogo(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await seriousViolations(page)).toEqual([])
 
     // Dois cliques em confirmar: uma aprovação só, de corpo vazio (a tela não manda o que mostrou).
-    const segura = portao()
+    const segura = gate()
     api.trocar('aprovarLote', async (pedido) => {
       await segura.aberta
       return api.responder('aprovarLote', pedido)
@@ -259,16 +259,16 @@ test.describe('aprovar a correção (11.5)', () => {
     })
     await expect(dialogo.getByRole('button', { name: 'Aprovando…' })).toBeDisabled()
     segura.abrir()
-    await expect(dialogo).toBeHidden({ timeout: PRAZO_DA_TELA_MS })
+    await expect(dialogo).toBeHidden({ timeout: SCREEN_TIMEOUT_MS })
     expect(api.pedidosEm(/aprovar-lote$/).map(({ caminho, corpo }) => ({ caminho, corpo }))).toEqual([{ caminho: `/v1/entregas/${entregaId}/aprovar-lote`, corpo: {} }])
 
     // Depois: a validação registrada, com quem e quando; a barra de decisão sai; o foco fica na situação.
     const situacao = page.locator('[data-situacao-do-lote="aprovada"]')
-    await expect(situacao.locator('[data-aprovacao="aprovada"]')).toContainText(new RegExp(`^Validação registrada por ${QUEM_DECIDE.nome} · \\d{2}/\\d{2}, \\d{2}h\\d{2}$`), { timeout: PRAZO_DA_TELA_MS })
+    await expect(situacao.locator('[data-aprovacao="aprovada"]')).toContainText(new RegExp(`^Validação registrada por ${QUEM_DECIDE.nome} · \\d{2}/\\d{2}, \\d{2}h\\d{2}$`), { timeout: SCREEN_TIMEOUT_MS })
     await expect(situacao).toBeFocused()
     await expect(barra).toHaveCount(0)
     await expect(principal(page)).not.toContainText(VOCABULARIO_PROIBIDO)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await seriousViolations(page)).toEqual([])
     semNomeDeAluno(rastros)
   })
 
@@ -283,13 +283,13 @@ test.describe('aprovar a correção (11.5)', () => {
     await irPara(page, `/professor/aprovar/${atividadeId}`)
     const barra = page.getByRole('group', { name: 'Aprovação do lote' })
     const aprovar = barra.getByRole('button', { name: 'Aprovar 28 correções' })
-    await expect(aprovar).toBeEnabled({ timeout: PRAZO_DA_TELA_MS })
+    await expect(aprovar).toBeEnabled({ timeout: SCREEN_TIMEOUT_MS })
 
     // O lote mudou desde a leitura: a API recusa com conflito, e a tela relê e pede para conferir de novo, sem erro cru.
-    api.trocar('aprovarLote', () => erroDaApi(409, 'CONFLITO'))
-    await acionar(aprovar, hasTouch)
-    await acionar(page.getByRole('alertdialog').getByRole('button', { name: 'Aprovar 28 correções' }), hasTouch)
-    await expect(page.getByRole('alertdialog')).toBeHidden({ timeout: PRAZO_DA_TELA_MS })
+    api.trocar('aprovarLote', () => apiError(409, 'CONFLITO'))
+    await activate(aprovar, hasTouch)
+    await activate(page.getByRole('alertdialog').getByRole('button', { name: 'Aprovar 28 correções' }), hasTouch)
+    await expect(page.getByRole('alertdialog')).toBeHidden({ timeout: SCREEN_TIMEOUT_MS })
     await expect(principal(page).getByRole('status').filter({ hasText: 'A correção mudou desde que você abriu esta tela, e nada foi aprovado.' })).toBeVisible()
     await expect(principal(page).getByRole('alert')).toHaveCount(0)
     await expect(principal(page)).not.toContainText('CONFLITO')
@@ -301,55 +301,55 @@ test.describe('aprovar a correção (11.5)', () => {
     // A sessão vence com a confirmação aberta: a decisão não sai sozinha quando a pessoa volta a entrar. A API de aprovar
     // responde 401 e a renovação também (a sessão foi encerrada); depois do login, a rota volta a aceitar, e se a tela repetisse
     // a decisão por conta própria ela passaria agora.
-    await acionar(aprovar, hasTouch)
+    await activate(aprovar, hasTouch)
     const confirmacao = page.getByRole('alertdialog', { name: 'Aprovar 28 correções' })
     await expect(confirmacao).toBeVisible()
     const antesDaSessao = api.pedidosEm(/aprovar-lote$/).length
-    api.trocar('aprovarLote', () => erroDaApi(401, 'NAO_AUTENTICADO'))
+    api.trocar('aprovarLote', () => apiError(401, 'NAO_AUTENTICADO'))
     await encerrarSessoesDoUsuario(professora.usuarioId)
-    await acionar(confirmacao.getByRole('button', { name: 'Aprovar 28 correções' }), hasTouch)
+    await activate(confirmacao.getByRole('button', { name: 'Aprovar 28 correções' }), hasTouch)
     const login = page.getByRole('dialog', { name: 'Sua sessão expirou' })
-    await expect(login).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(login).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     api.trocar('aprovarLote')
     await login.getByLabel('E-mail').fill(professora.email)
     await login.getByLabel('Senha').fill(professora.senha)
-    await acionar(login.getByRole('button', { name: /^Entrar$/ }), hasTouch)
-    await expect(login).toBeHidden({ timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(login.getByRole('button', { name: /^Entrar$/ }), hasTouch)
+    await expect(login).toBeHidden({ timeout: SIGN_IN_TIMEOUT_MS })
     // Só a tentativa que falhou saiu, nada foi aprovado, e o lote continua esperando a professora.
-    await expect(page.locator('[data-situacao-do-lote="pendente"]')).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
+    await expect(page.locator('[data-situacao-do-lote="pendente"]')).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
     expect(api.pedidosEm(/aprovar-lote$/)).toHaveLength(antesDaSessao + 1)
     expect(api.correcoes.get(atividadeId)?.entrega.estado).toBe('pendente')
-    if (await confirmacao.isVisible()) await acionar(confirmacao.getByRole('button', { name: 'Cancelar' }), hasTouch)
+    if (await confirmacao.isVisible()) await activate(confirmacao.getByRole('button', { name: 'Cancelar' }), hasTouch)
     await expect(confirmacao).toBeHidden()
 
     // Rejeitar é `perigo`, e pede a justificativa antes de mandar.
-    await acionar(barra.getByRole('button', { name: 'Rejeitar a correção' }), hasTouch)
+    await activate(barra.getByRole('button', { name: 'Rejeitar a correção' }), hasTouch)
     const dialogo = page.getByRole('alertdialog', { name: 'Rejeitar a correção' })
     await expect(dialogo).toContainText('Nenhum aluno recebe o diagnóstico desta correção.')
-    await acionar(dialogo.getByRole('button', { name: 'Rejeitar a correção' }), hasTouch)
+    await activate(dialogo.getByRole('button', { name: 'Rejeitar a correção' }), hasTouch)
     await expect(dialogo.getByText('Escreva pelo menos 8 caracteres.')).toBeVisible()
     expect(api.pedidosEm(/decidir$/)).toHaveLength(0)
     await dialogo.getByLabel(/Por que você está rejeitando\?/).fill('O gabarito da questão 2 está errado.')
-    await acionar(dialogo.getByRole('button', { name: 'Rejeitar a correção' }), hasTouch)
-    await expect(dialogo).toBeHidden({ timeout: PRAZO_DA_TELA_MS })
+    await activate(dialogo.getByRole('button', { name: 'Rejeitar a correção' }), hasTouch)
+    await expect(dialogo).toBeHidden({ timeout: SCREEN_TIMEOUT_MS })
     expect(api.pedidosEm(/decidir$/).map((pedido) => pedido.corpo)).toEqual([{ decisao: 'rejeitar', justificativa: 'O gabarito da questão 2 está errado.' }])
     const situacao = page.locator('[data-situacao-do-lote="rejeitada"]')
-    await expect(situacao.locator('[data-aprovacao="rejeitada"]')).toContainText(`${QUEM_DECIDE.nome} rejeitou`, { timeout: PRAZO_DA_TELA_MS })
+    await expect(situacao.locator('[data-aprovacao="rejeitada"]')).toContainText(`${QUEM_DECIDE.nome} rejeitou`, { timeout: SCREEN_TIMEOUT_MS })
     await expect(situacao.locator('[data-aprovacao="rejeitada"]')).toContainText('Motivo: O gabarito da questão 2 está errado.')
     await expect(barra).toHaveCount(0)
     await expect(page.getByText(/Seu time/)).toHaveCount(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await seriousViolations(page)).toEqual([])
 
     // Sem a leitura das entregas, a decisão só é afirmada com quem decidiu: a tela diz onde ver, pelo sino, sem "Seu time".
     api.entregas = []
     await recarregar(page)
-    await expect(principal(page)).toContainText('Esta correção foi rejeitada. Quem rejeitou e por quê está em “O que o Assistente fez”, pelo sino.', { timeout: PRAZO_DA_TELA_MS })
+    await expect(principal(page)).toContainText('Esta correção foi rejeitada. Quem rejeitou e por quê está em “O que o Assistente fez”, pelo sino.', { timeout: SCREEN_TIMEOUT_MS })
     await expect(page.getByText(/Seu time/)).toHaveCount(0)
     const decidida = api.correcoes.get(atividadeId)
     if (decidida === undefined) throw new Error('faltou o lote')
     api.correcoes.set(atividadeId, { ...decidida, entrega: { ...decidida.entrega, estado: 'aprovada' } })
     await recarregar(page)
-    await expect(principal(page)).toContainText('Esta correção já foi decidida. A decisão está em “O que o Assistente fez”, pelo sino.', { timeout: PRAZO_DA_TELA_MS })
+    await expect(principal(page)).toContainText('Esta correção já foi decidida. A decisão está em “O que o Assistente fez”, pelo sino.', { timeout: SCREEN_TIMEOUT_MS })
     await expect(page.getByText(/Seu time/)).toHaveCount(0)
   })
 })

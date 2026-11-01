@@ -1,9 +1,9 @@
 import type { Locator, Page, Route } from '@playwright/test'
-import { abrirNavegacao, entrarComoAluno, esperarInicioDoAluno, irPelaNavegacao, lateral, PRAZO_DA_ENTRADA_MS } from './support/casca.ts'
+import { abrirNavegacao, entrarComoAluno, esperarInicioDoAluno, irPelaNavegacao, lateral, SIGN_IN_TIMEOUT_MS } from './support/casca.ts'
 import { memoriaDoAluno, resultadoAprovado, trabalhoNaMemoria } from './support/tutor-memory.ts'
 import { expect, test } from './support/profiles.ts'
 import { colocarAlunoNaTurma, criarAlunoComMatricula } from './support/seed.ts'
-import { ALVO_DE_TOQUE_PRINCIPAL_PX, larguraExcedente, violacoesGraves } from './support/checks.ts'
+import { ALVO_DE_TOQUE_PRINCIPAL_PX, horizontalOverflow, seriousViolations } from './support/checks.ts'
 
 /**
  * "Como estou indo" em Eu (telas do aluno e primeiro acesso, 7.0; RF9, RF10, RF20): as tarefas de correção aprovada com
@@ -21,7 +21,7 @@ function json(corpo: unknown): { status: number; contentType: string; body: stri
 }
 
 /** O aluno acionou com o dedo no celular e com o clique no computador. */
-async function acionar(alvo: ReturnType<Page['locator']>, hasTouch: boolean): Promise<void> {
+async function activate(alvo: ReturnType<Page['locator']>, hasTouch: boolean): Promise<void> {
   if (hasTouch) await alvo.tap()
   else await alvo.click()
 }
@@ -31,8 +31,8 @@ async function sairPelaCasca(page: Page, hasTouch: boolean): Promise<void> {
   await abrirNavegacao(page, hasTouch)
   const sair = lateral(page).getByRole('button', { name: 'Sair' }).and(page.locator(':not(main *)'))
   await expect(sair).toHaveCount(1)
-  await acionar(sair, hasTouch)
-  await expect(page).toHaveURL(/\/entrar$/, { timeout: PRAZO_DA_ENTRADA_MS })
+  await activate(sair, hasTouch)
+  await expect(page).toHaveURL(/\/entrar$/, { timeout: SIGN_IN_TIMEOUT_MS })
 }
 
 test.describe('"Como estou indo": o que a memória do Tutor mostra', () => {
@@ -47,7 +47,7 @@ test.describe('"Como estou indo": o que a memória do Tutor mostra', () => {
     await irPelaNavegacao(page, 'Eu', hasTouch)
     const principal = page.getByRole('main')
     const secao = principal.getByRole('region', { name: 'Como estou indo' })
-    await expect(secao).toContainText('Lista corrigida de reações', { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(secao).toContainText('Lista corrigida de reações', { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(secao).toContainText('7 de 8 certas')
     await expect(secao).toContainText(`${HABILIDADE.codigo} · ${HABILIDADE.descricao}`)
     await expect(secao).toContainText('Achou algo errado? Fale com quem dá a aula.')
@@ -56,7 +56,7 @@ test.describe('"Como estou indo": o que a memória do Tutor mostra', () => {
     // A ordem na página: o título com a turma, "Como estou indo", as linhas.
     await expect(principal.getByRole('heading', { level: 2 })).toHaveText(['Como estou indo'])
     await expect(principal.locator('header')).toContainText(turma.turmaNome)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await seriousViolations(page)).toEqual([])
 
     // O que o aluno vê não vai ao navegador: nem `localStorage`, nem `sessionStorage`, nem IndexedDB, nem Cache Storage.
     const guardado = await page.evaluate(async () => ({
@@ -77,10 +77,10 @@ test.describe('"Como estou indo": o que a memória do Tutor mostra', () => {
     await irPelaNavegacao(page, 'Eu', hasTouch)
     const principal = page.getByRole('main')
     const secao = principal.getByRole('region', { name: 'Como estou indo' })
-    await expect(secao).toContainText('Nada corrigido ainda', { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(secao).toContainText('Nada corrigido ainda', { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(secao).toContainText('Depois que quem dá a aula aprovar a primeira correção, ela aparece aqui.')
     await expect(principal.getByRole('button', { name: 'Sair' })).toHaveCount(1)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await seriousViolations(page)).toEqual([])
   })
 
   test('o aluno sem turma no ano: o texto da turma e "Nada corrigido ainda", sem erro', async ({ page, hasTouch }) => {
@@ -89,10 +89,10 @@ test.describe('"Como estou indo": o que a memória do Tutor mostra', () => {
 
     await irPelaNavegacao(page, 'Eu', hasTouch)
     const principal = page.getByRole('main')
-    await expect(principal).toContainText('Você ainda não está em uma turma neste ano letivo.', { timeout: PRAZO_DA_ENTRADA_MS })
-    await expect(principal.getByRole('region', { name: 'Como estou indo' })).toContainText('Nada corrigido ainda', { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(principal).toContainText('Você ainda não está em uma turma neste ano letivo.', { timeout: SIGN_IN_TIMEOUT_MS })
+    await expect(principal.getByRole('region', { name: 'Como estou indo' })).toContainText('Nada corrigido ainda', { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(principal.getByRole('alert')).toHaveCount(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await seriousViolations(page)).toEqual([])
   })
 })
 
@@ -126,7 +126,7 @@ test.describe('"Como estou indo": o recomeço da tela', () => {
     const entrada = await page.context().request.post('/v1/sessao/matricula', { data: { slug: primeiro.slug, matricula: primeiro.matricula, senha: primeiro.senha } })
     expect(entrada.ok(), 'entrada do primeiro aluno pela API').toBe(true)
     await page.goto('/aluno/eu')
-    await expect(page.getByRole('main').getByRole('status').filter({ hasText: 'Carregando as suas tarefas corrigidas…' })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page.getByRole('main').getByRole('status').filter({ hasText: 'Carregando as suas tarefas corrigidas…' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await sairPelaCasca(page, hasTouch)
 
     // O segundo entra na mesma aba, sem recarregar, com a leitura dele segurada: é aí que a lista do anterior apareceria.
@@ -137,14 +137,14 @@ test.describe('"Como estou indo": o recomeço da tela', () => {
     }, segundo.slug)
     await page.getByLabel('Matrícula').fill(segundo.matricula)
     await page.getByLabel('Senha').fill(segundo.senha)
-    await acionar(page.getByRole('button', { name: /^Entrar$/ }), hasTouch)
+    await activate(page.getByRole('button', { name: /^Entrar$/ }), hasTouch)
     await esperarInicioDoAluno(page, segundo.nome)
     await irPelaNavegacao(page, 'Eu', hasTouch)
-    await expect(page.getByRole('main').getByRole('status').filter({ hasText: 'Carregando as suas tarefas corrigidas…' })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page.getByRole('main').getByRole('status').filter({ hasText: 'Carregando as suas tarefas corrigidas…' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(page.locator('body')).not.toContainText('Lista só do primeiro aluno')
 
     abrirOSegundo()
-    await expect(page.getByRole('main')).toContainText('Lista só do segundo aluno', { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page.getByRole('main')).toContainText('Lista só do segundo aluno', { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(page.getByRole('main')).toContainText('3 de 4 certas')
 
     // Só agora a resposta do primeiro chega: ela já não é de ninguém que esteja na tela.
@@ -171,9 +171,9 @@ test.describe('"Como estou indo" a 360 px', () => {
 
     await irPelaNavegacao(page, 'Eu', hasTouch)
     const principal = page.getByRole('main')
-    await expect(principal).toContainText('2 de 9 certas', { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(principal).toContainText('2 de 9 certas', { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(principal).toContainText('5 de 5 certas')
-    expect(await larguraExcedente(page)).toBe(0)
+    expect(await horizontalOverflow(page)).toBe(0)
     for (const [nome, alvo] of [
       ['Privacidade', principal.getByRole('link', { name: 'Privacidade', exact: true })],
       ['Sair', principal.getByRole('button', { name: 'Sair' })],
@@ -181,7 +181,7 @@ test.describe('"Como estou indo" a 360 px', () => {
       const caixa = await alvo.boundingBox()
       expect(caixa?.height ?? 0, nome).toBeGreaterThanOrEqual(ALVO_DE_TOQUE_PRINCIPAL_PX)
     }
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await seriousViolations(page)).toEqual([])
   })
 })
 
@@ -208,7 +208,7 @@ async function conferirAJanelaDoChromebook(page: Page): Promise<void> {
   const primeira = await caixaDe(tarefas.nth(0), 'a primeira tarefa')
   const segunda = await caixaDe(tarefas.nth(1), 'a segunda tarefa')
   expect(Math.abs(primeira.y - segunda.y), 'as duas tarefas lado a lado').toBeLessThan(2)
-  expect(await larguraExcedente(page), 'a página rola para o lado').toBe(0)
+  expect(await horizontalOverflow(page), 'a página rola para o lado').toBe(0)
   expect(await page.evaluate(() => document.documentElement.scrollHeight), 'a página rola').toBeLessThanOrEqual(768)
   await expect(conta.getByRole('button', { name: 'Sair' })).toBeInViewport()
 }
@@ -224,7 +224,7 @@ async function conferirAJanelaDoCelular(page: Page): Promise<void> {
   const primeira = await caixaDe(tarefas.nth(0), 'a primeira tarefa')
   const segunda = await caixaDe(tarefas.nth(1), 'a segunda tarefa')
   expect(segunda.y, 'a segunda tarefa abaixo da primeira').toBeGreaterThan(primeira.y + 1)
-  expect(await larguraExcedente(page), 'a página rola para o lado').toBe(0)
+  expect(await horizontalOverflow(page), 'a página rola para o lado').toBe(0)
 }
 
 test.describe('"Eu" na janela do aluno', () => {
@@ -240,10 +240,10 @@ test.describe('"Eu" na janela do aluno', () => {
 
     await irPelaNavegacao(page, 'Eu', hasTouch)
     const principal = page.getByRole('main')
-    await expect(principal).toContainText('1 de 4 certas', { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(principal).toContainText('1 de 4 certas', { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(principal).toContainText('3 de 4 certas')
     // A turma também carregou: com ela a página é a de verdade, e não a do "Carregando a sua turma…", que tem outra altura.
-    await expect(principal.locator('header')).toContainText(turma.turmaNome, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(principal.locator('header')).toContainText(turma.turmaNome, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(principal.getByText(/^Carregando/)).toHaveCount(0)
     // A medida de altura vale na janela larga; o celular rola a página, mas nunca para o lado.
     if ((page.viewportSize()?.width ?? 0) >= 1024) await conferirAJanelaDoChromebook(page)

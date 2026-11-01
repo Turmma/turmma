@@ -2,8 +2,8 @@ import { AxeBuilder } from '@axe-core/playwright'
 import type { Page } from '@playwright/test'
 import { expect, test } from './support/profiles.ts'
 import { avaliarAssinaturas, avaliarAvatares, avaliarSelos, conferirAssinaturas, conferirQueAOncaNaoTemNome, conferirQueOAvatarFicaParado } from './support/avatar.ts'
-import { abrirGaleria, caixa, desenho, secao } from './support/gallery.ts'
-import { corDoToken, IMPACTOS_QUE_REPROVAM, larguraExcedente, TAGS_WCAG } from './support/checks.ts'
+import { openGallery, caixa, desenho, gallerySection } from './support/gallery.ts'
+import { corDoToken, FAILING_IMPACTS, horizontalOverflow, WCAG_TAGS } from './support/checks.ts'
 
 /**
  * A onça como avatar dos três agentes, na galeria (`/galeria`), nos projetos `chromebook` e `celular` e nos dois temas
@@ -33,7 +33,7 @@ const OLHO = 'rgb(255, 255, 255)'
 const PUPILA = 'rgb(22, 35, 62)'
 
 async function irParaOTema(page: Page, tema: Tema): Promise<void> {
-  await abrirGaleria(page)
+  await openGallery(page)
   await page.evaluate((valor) => document.documentElement.setAttribute('data-tema', valor), tema)
 }
 
@@ -43,13 +43,13 @@ for (const tema of TEMAS) {
       await irParaOTema(page, tema)
       const [fundo, azul, laranja, anil] = await Promise.all(['fundo', 'azul', 'laranja', 'anil'].map((token) => corDoToken(page, token)))
       const anel: Record<Agente, string | undefined> = { assistente_de_ensino: azul, tutor: laranja, analista_de_desempenho_escolar: anil }
-      const avatares = secao(page, 'marca-onca').locator('[data-agente]')
+      const avatares = gallerySection(page, 'marca-onca').locator('[data-agente]')
       await expect(avatares).toHaveCount(AVATARES_DA_SECAO)
 
       let conferidos = 0
       for (const tamanho of TAMANHOS) {
         for (const agente of AGENTES) {
-          const avatar = secao(page, 'marca-onca').locator(`[data-tamanho="${String(tamanho)}"] [data-agente="${agente}"]`)
+          const avatar = gallerySection(page, 'marca-onca').locator(`[data-tamanho="${String(tamanho)}"] [data-agente="${agente}"]`)
           await expect(avatar, `${agente} a ${String(tamanho)} px`).toHaveCount(1)
           const medida = await caixa(avatar)
           expect(medida, `${agente}: quadrado de ${String(tamanho)} px`).toMatchObject({ width: tamanho, height: tamanho })
@@ -65,15 +65,15 @@ for (const tema of TEMAS) {
       }
       expect(conferidos).toBe(AGENTES.length * TAMANHOS.length)
       // O de cada tipo de mensagem tem o mesmo desenho: o avatar da linha é o de 24 px.
-      for (const agente of AGENTES) expect(await desenho(secao(page, 'marca-onca').locator(`[data-onca-na-mensagem] [data-agente="${agente}"]`)), agente).toMatchObject({ fundo, borda: `2px solid ${anel[agente] ?? ''}` })
+      for (const agente of AGENTES) expect(await desenho(gallerySection(page, 'marca-onca').locator(`[data-onca-na-mensagem] [data-agente="${agente}"]`)), agente).toMatchObject({ fundo, borda: `2px solid ${anel[agente] ?? ''}` })
     })
 
     test('as cores da onça são fixas: a pelagem, o olho e a pupila são os mesmos no claro e no escuro, e a cabeça é a mesma nos três agentes', async ({ page }) => {
       await irParaOTema(page, tema)
-      const cabecas = await secao(page, 'marca-onca').locator('[data-tamanho="48"] [data-agente] svg').evaluateAll((svgs) => svgs.map((svg) => svg.innerHTML.replace(/\bcab[a-zA-Z0-9]+(?=-(?:pinta|corpo|olho-[ed])\b)/g, 'id')))
+      const cabecas = await gallerySection(page, 'marca-onca').locator('[data-tamanho="48"] [data-agente] svg').evaluateAll((svgs) => svgs.map((svg) => svg.innerHTML.replace(/\bcab[a-zA-Z0-9]+(?=-(?:pinta|corpo|olho-[ed])\b)/g, 'id')))
       expect(cabecas).toHaveLength(AGENTES.length)
       expect(new Set(cabecas).size, 'um desenho só: a cabeça não muda de um agente para outro').toBe(1)
-      const cores = await secao(page, 'marca-onca')
+      const cores = await gallerySection(page, 'marca-onca')
         .locator('[data-tamanho="48"] [data-agente="tutor"] svg')
         .evaluate((svg) => {
           const fill = (seletor: string) => getComputedStyle(svg.querySelector(seletor) as Element).fill
@@ -84,15 +84,15 @@ for (const tema of TEMAS) {
 
     test('todo avatar tem o nome da função em texto visível e o selo "IA" no mesmo bloco, e a assinatura não passa da janela', async ({ page }) => {
       await irParaOTema(page, tema)
-      expect(await conferirAssinaturas(secao(page, 'marca-onca'))).toBe(AVATARES_DA_SECAO)
+      expect(await conferirAssinaturas(gallerySection(page, 'marca-onca'))).toBe(AVATARES_DA_SECAO)
       // Os avatares das outras seções da galeria (a conversa, a assinatura) também assinam.
       expect(await conferirAssinaturas(page)).toBeGreaterThan(AVATARES_DA_SECAO)
-      expect(await larguraExcedente(page)).toBe(0)
+      expect(await horizontalOverflow(page)).toBe(0)
     })
 
     test('no balão do Seu time a assinatura fica em cima e o balão logo abaixo dela, com no máximo 85% da coluna no computador e a coluna inteira no celular', async ({ page }) => {
       await irParaOTema(page, tema)
-      const mensagem = secao(page, 'marca-onca').locator('article').filter({ has: page.locator('[data-agente="assistente_de_ensino"]') })
+      const mensagem = gallerySection(page, 'marca-onca').locator('article').filter({ has: page.locator('[data-agente="assistente_de_ensino"]') })
       await expect(mensagem).toHaveCount(1)
       const assinatura = mensagem.locator(':scope > [data-assinatura]')
       const balao = mensagem.locator(':scope > div:not([data-assinatura])').first()
@@ -110,8 +110,8 @@ for (const tema of TEMAS) {
 
     test('nada se mexe: nenhuma animação nem transição no avatar, e o "preparando a resposta" ao lado dele continua parado (A51)', async ({ page }) => {
       await irParaOTema(page, tema)
-      expect(await conferirQueOAvatarFicaParado(secao(page, 'marca-onca'))).toBeGreaterThan(0)
-      const pensando = secao(page, 'marca-onca').locator('[data-pensando]')
+      expect(await conferirQueOAvatarFicaParado(gallerySection(page, 'marca-onca'))).toBeGreaterThan(0)
+      const pensando = gallerySection(page, 'marca-onca').locator('[data-pensando]')
       await expect(pensando).toHaveCount(1)
       await expect(pensando.locator('[data-agente]')).toHaveCount(1)
       expect(await pensando.evaluate((elemento) => [elemento, ...elemento.querySelectorAll('*')].filter((no) => getComputedStyle(no).animationName !== 'none').length)).toBe(0)
@@ -119,7 +119,7 @@ for (const tema of TEMAS) {
 
     test('a onça não tem nome: o avatar some da leitura de tela, e nada na tela se chama "onça"', async ({ page }) => {
       await irParaOTema(page, tema)
-      const avatares = secao(page, 'marca-onca').locator('[data-agente]')
+      const avatares = gallerySection(page, 'marca-onca').locator('[data-agente]')
       for (const avatar of await avatares.all()) {
         await expect(avatar).toHaveAttribute('aria-hidden', 'true')
         await expect(avatar).not.toHaveAttribute('title')
@@ -131,12 +131,12 @@ for (const tema of TEMAS) {
 
     test('a seção não tem violação grave de acessibilidade, e a página não ganha rolagem horizontal', async ({ page }) => {
       await irParaOTema(page, tema)
-      const { violations } = await new AxeBuilder({ page }).withTags([...TAGS_WCAG]).include('[data-galeria="marca-onca"]').analyze()
+      const { violations } = await new AxeBuilder({ page }).withTags([...WCAG_TAGS]).include('[data-galeria="marca-onca"]').analyze()
       const graves = violations
-        .filter((violacao) => (IMPACTOS_QUE_REPROVAM as readonly string[]).includes(violacao.impact ?? ''))
+        .filter((violacao) => (FAILING_IMPACTS as readonly string[]).includes(violacao.impact ?? ''))
         .map((violacao) => ({ regra: violacao.id, impacto: violacao.impact, alvos: violacao.nodes.map((no) => no.target.join(' ')) }))
       expect(graves).toEqual([])
-      expect(await larguraExcedente(page)).toBe(0)
+      expect(await horizontalOverflow(page)).toBe(0)
     })
   })
 }

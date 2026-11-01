@@ -1,11 +1,11 @@
 import { randomUUID } from 'node:crypto'
 import type { Locator, Page } from '@playwright/test'
-import { atividadeSintetica, entregaDoLote, loteSintetico, simularAssistente, type ApiDoAssistente } from './support/assistente.ts'
-import { minhaAtividade, provaDa, simularAluno } from './support/aluno.ts'
-import { entrarComoAluno, entrarComoCoordenacaoNaMesmaAba, entrarPorEmail, esperarNovaConversa, gaveta, irPelaNavegacao, PRAZO_DA_ENTRADA_MS, reservaDaBarraDeBaixo, secoes } from './support/casca.ts'
+import { atividadeSintetica, entregaDoLote, loteSintetico, mockAssistenteApi, type AssistenteApiMock } from './support/assistente.ts'
+import { minhaAtividade, provaDa, mockAlunoApi } from './support/aluno.ts'
+import { entrarComoAluno, entrarComoCoordenacaoNaMesmaAba, entrarPorEmail, esperarNovaConversa, gaveta, irPelaNavegacao, SIGN_IN_TIMEOUT_MS, reservaDaBarraDeBaixo, secoes } from './support/casca.ts'
 import { expect, test } from './support/profiles.ts'
 import { colocarAlunoNaTurma, confirmarVinculosNoBanco, criarAlocacaoDoProfessor, criarAlunoComMatricula, criarEquipeComSenha, renomearEscolaNoBanco } from './support/seed.ts'
-import { ALVO_DE_TOQUE_PRINCIPAL_PX, larguraExcedente, violacoesGraves } from './support/checks.ts'
+import { ALVO_DE_TOQUE_PRINCIPAL_PX, horizontalOverflow, seriousViolations } from './support/checks.ts'
 
 /**
  * A casca da escola no celular (X1, 13.0; `docs/interface.md` 11.1; D80; RF14, RF15): a barra de topo de 56 px, a barra de
@@ -19,7 +19,7 @@ const ALTURA_DA_JANELA = 800
 /** Os 68 px da `docs/interface.md` 11.1, sem a área segura (nenhuma no navegador de teste). */
 const ALTURA_DA_BARRA_PX = 68
 const ALTURA_DO_TOPO_PX = 56
-const PRAZO_DA_TELA_MS = 15_000
+const SCREEN_TIMEOUT_MS = 15_000
 /**
  * Quanto o `/v1/eu` demora a voltar no caso do ajudante de navegação: o toque no menu, contado do pedido e não do fim do
  * `page.reload()`, tem de acontecer antes da resposta mesmo num runner carregado, ou o caso passaria verde sem a correção. O
@@ -30,7 +30,7 @@ const PRAZO_DA_ACAO_MS = 15_000
 
 const NOME_COMPRIDO = 'Colégio Estadual de Educação Básica Professora Maria das Dores Albuquerque de Sá e Silva do Vale do Itajaí'
 
-async function acionar(alvo: Locator, hasTouch: boolean): Promise<void> {
+async function activate(alvo: Locator, hasTouch: boolean): Promise<void> {
   await (hasTouch ? alvo.tap() : alvo.click())
 }
 
@@ -61,9 +61,9 @@ async function rolarAteOFim(page: Page): Promise<void> {
 }
 
 /** Uma professora com a turma de Química confirmada e a API da fase 3 simulada, na janela do celular. */
-async function entrarComoProfessoraDeTurma(page: Page, hasTouch: boolean, antes?: (api: ApiDoAssistente, turmaId: string) => void, nomeDaEscola?: string) {
+async function entrarComoProfessoraDeTurma(page: Page, hasTouch: boolean, antes?: (api: AssistenteApiMock, turmaId: string) => void, nomeDaEscola?: string) {
   await page.setViewportSize({ width: LARGURA, height: ALTURA_DA_JANELA })
-  const api = await simularAssistente(page)
+  const api = await mockAssistenteApi(page)
   const professora = await criarEquipeComSenha()
   if (nomeDaEscola !== undefined) await renomearEscolaNoBanco(professora.escolaId, nomeDaEscola)
   const alocacao = await criarAlocacaoDoProfessor(professora.escolaId, professora.usuarioId, ['Química'])
@@ -104,11 +104,11 @@ test.describe('a casca da escola no celular', () => {
     expect(Math.round(topo.height)).toBe(ALTURA_DO_TOPO_PX)
     await esperarAlvoDe44(page.getByRole('button', { name: 'Abrir o menu' }), 'Abrir o menu')
     await esperarAlvoDe44(page.getByRole('banner').getByRole('button', { name: 'Sair' }), 'Sair')
-    expect(await larguraExcedente(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await horizontalOverflow(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
 
     // A gaveta leva escola e "Sua conta", e já não leva `Seções`, que é da barra, nem "Seu time", que saiu da lateral (telas do professor, 2.0).
-    await acionar(page.getByRole('button', { name: 'Abrir o menu' }), hasTouch)
+    await activate(page.getByRole('button', { name: 'Abrir o menu' }), hasTouch)
     await expect(gaveta(page)).toBeVisible()
     await expect(gaveta(page).getByRole('navigation', { name: 'Seções' })).toHaveCount(0)
     await expect(gaveta(page).getByRole('navigation', { name: 'Seu time' })).toHaveCount(0)
@@ -126,7 +126,7 @@ test.describe('a casca da escola no celular', () => {
     await expect(escola).toBeVisible()
     const corte = await escola.evaluate((elemento) => ({ cortado: elemento.scrollWidth > elemento.clientWidth, estilo: getComputedStyle(elemento).textOverflow }))
     expect(corte).toEqual({ cortado: true, estilo: 'ellipsis' })
-    expect(await larguraExcedente(page)).toBe(0)
+    expect(await horizontalOverflow(page)).toBe(0)
 
     const sair = await caixaDe(topo.getByRole('button', { name: 'Sair' }), 'o "Sair"')
     expect(sair.x).toBeGreaterThanOrEqual(0)
@@ -146,7 +146,7 @@ test.describe('a casca da escola no celular', () => {
     await irPara(page, `/professor/aprovar/${atividadeId}`)
 
     const aprovacao = page.getByRole('group', { name: 'Aprovação do lote' })
-    await expect(aprovacao).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
+    await expect(aprovacao).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
     const barra = await caixaDe(secoes(page), 'a barra de baixo')
 
     // Em qualquer ponto da rolagem a barra presa está à vista e termina acima da de navegação.
@@ -165,13 +165,13 @@ test.describe('a casca da escola no celular', () => {
       return { fundo, limite: (document.querySelector('nav[aria-label="Seções"]') as HTMLElement | null)?.getBoundingClientRect().top ?? Number.NaN }
     })
     expect(ultimo.fundo).toBeLessThanOrEqual(ultimo.limite + 1)
-    expect(await larguraExcedente(page)).toBe(0)
+    expect(await horizontalOverflow(page)).toBe(0)
   })
 
   test('o aluno tem os três itens na barra de baixo, e a faixa do Tutor e o "Hoje: N de 60" ficam à vista, acima dela (A54, A55)', async ({ page, hasTouch }) => {
     test.slow()
     await page.setViewportSize({ width: LARGURA, height: ALTURA_DA_JANELA })
-    const api = await simularAluno(page)
+    const api = await mockAlunoApi(page)
     const atividade = minhaAtividade()
     api.atividades = [atividade]
     api.provas.set(atividade.id, provaDa(atividade))
@@ -184,13 +184,13 @@ test.describe('a casca da escola no celular', () => {
     for (const rotulo of ['Início', 'Tarefas', 'Eu']) await esperarAlvoDe44(secoes(page).getByRole('link', { name: rotulo, exact: true }), rotulo)
 
     // O aluno abre no Início (X4, 3.0): a tarefa para fazer e a faixa já estão ali, e o Tutor da atividade é o próximo toque.
-    await expect(page).toHaveURL(/\/aluno\/inicio$/, { timeout: PRAZO_DA_ENTRADA_MS })
-    await acionar(page.getByRole('main').getByRole('link', { name: 'Pedir ajuda ao Tutor' }), hasTouch)
-    await expect(page).toHaveURL(new RegExp(`/aluno/tutor/${atividade.id}$`), { timeout: PRAZO_DA_TELA_MS })
+    await expect(page).toHaveURL(/\/aluno\/inicio$/, { timeout: SIGN_IN_TIMEOUT_MS })
+    await activate(page.getByRole('main').getByRole('link', { name: 'Pedir ajuda ao Tutor' }), hasTouch)
+    await expect(page).toHaveURL(new RegExp(`/aluno/tutor/${atividade.id}$`), { timeout: SCREEN_TIMEOUT_MS })
 
     const faixa = page.getByRole('main').locator('[data-faixa-de-supervisao]')
     const uso = page.getByRole('main').locator('[data-uso-do-dia]')
-    await expect(uso).toContainText('Hoje: 12 de 60 perguntas', { timeout: PRAZO_DA_TELA_MS })
+    await expect(uso).toContainText('Hoje: 12 de 60 perguntas', { timeout: SCREEN_TIMEOUT_MS })
     const barra = await caixaDe(secoes(page), 'a barra de baixo')
     const doTopo = await caixaDe(page.getByRole('banner'), 'a barra de topo')
 
@@ -202,7 +202,7 @@ test.describe('a casca da escola no celular', () => {
     // O uso do dia termina acima da barra de baixo, não atrás dela.
     const usoDoDia = await caixaDe(uso, 'o uso do dia')
     expect(usoDoDia.y + usoDoDia.height).toBeLessThanOrEqual(barra.y + 1)
-    expect(await larguraExcedente(page)).toBe(0)
+    expect(await horizontalOverflow(page)).toBe(0)
   })
 
   test('a coordenação tem os quatro lugares na barra de baixo, à vista sem abrir nada, de 44 px, e a gaveta nem abre', async ({ page, hasTouch }) => {
@@ -226,7 +226,7 @@ test.describe('a casca da escola no celular', () => {
     expect(Math.round(barra.width)).toBe(LARGURA)
     expect((await reservaDaBarraDeBaixo(page)).paddingDoMain).toBe(`${String(ALTURA_DA_BARRA_PX + 32)}px`)
     for (let indice = 0; indice < 4; indice++) await esperarAlvoDe44(itens.nth(indice), `item ${String(indice)}`)
-    expect(await larguraExcedente(page)).toBe(0)
+    expect(await horizontalOverflow(page)).toBe(0)
   })
 
   test('o ajudante de navegação espera a sessão depois do recarregamento: com o /v1/eu atrasado, a gaveta não fica aberta por cima da barra de baixo', async ({ page, hasTouch }) => {
@@ -234,7 +234,7 @@ test.describe('a casca da escola no celular', () => {
     const professora = await criarEquipeComSenha()
     await page.goto('/entrar')
     await entrarPorEmail(page, professora, hasTouch)
-    await expect(page).toHaveURL(/\/professor\//, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page).toHaveURL(/\/professor\//, { timeout: SIGN_IN_TIMEOUT_MS })
 
     // CPU lenta e rede de escola: a barra do topo e o botão do menu já estão na tela, e os itens só chegam com a sessão.
     // O toque que a gaveta intercepta não passa: com o prazo curto de ação o caso cai em segundos, e não no teto do teste.
@@ -247,7 +247,7 @@ test.describe('a casca da escola no celular', () => {
     await page.reload()
     await irPelaNavegacao(page, 'Criados', hasTouch)
 
-    await expect(page).toHaveURL(/\/professor\/criados$/, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page).toHaveURL(/\/professor\/criados$/, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(gaveta(page)).toBeHidden()
   })
 
@@ -260,9 +260,9 @@ test.describe('a casca da escola no celular', () => {
     await entrarComoProfessoraDeTurma(page, hasTouch, (simulada, turmaId) => {
       simulada.artefatos = Array.from({ length: 16 }, (_, indice) => atividadeSintetica(turmaId, randomUUID(), { titulo: `Atividade de estequiometria ${String(indice + 1)}` }))
     })
-    await acionar(secoes(page).getByRole('link', { name: 'Criados' }), hasTouch)
-    await expect(page).toHaveURL(/\/professor\/criados$/, { timeout: PRAZO_DA_ENTRADA_MS })
-    await expect(page.locator('[data-artefato]')).toHaveCount(16, { timeout: PRAZO_DA_TELA_MS })
+    await activate(secoes(page).getByRole('link', { name: 'Criados' }), hasTouch)
+    await expect(page).toHaveURL(/\/professor\/criados$/, { timeout: SIGN_IN_TIMEOUT_MS })
+    await expect(page.locator('[data-artefato]')).toHaveCount(16, { timeout: SCREEN_TIMEOUT_MS })
     await expect(page.locator('[data-barra-presa]')).toHaveCount(0)
     const rola = await page.evaluate(() => document.documentElement.scrollHeight - window.innerHeight)
     expect(rola, 'a tela de teste precisa rolar bem mais que a barra de baixo').toBeGreaterThan(ALTURA_DA_BARRA_PX * 2)
@@ -276,7 +276,7 @@ test.describe('a casca da escola no celular', () => {
     const barra = await caixaDe(secoes(page), 'a barra de baixo')
     const ultimo = await caixaDe(page.locator('[data-artefato]').last(), 'o último artefato')
     expect(ultimo.y + ultimo.height, 'o último controle acima da barra de baixo').toBeLessThanOrEqual(barra.y + 1)
-    expect(await larguraExcedente(page)).toBe(0)
+    expect(await horizontalOverflow(page)).toBe(0)
   })
 
   test('o foco do teclado no meio da tela comprida para acima da barra de baixo, e não atrás dela (WCAG 2.4.11, RF23)', async ({ page, hasTouch }) => {
@@ -322,7 +322,7 @@ test.describe('a casca da escola no celular', () => {
   })
 
   /**
-   * A auditoria de alvo de toque (`violacoesGraves`) não depende de onde a rolagem parou. O axe tira do alvo a área que um
+   * A auditoria de alvo de toque (`seriousViolations`) não depende de onde a rolagem parou. O axe tira do alvo a área que um
    * elemento sobreposto cobre, e a barra de topo, presa por `sticky`, cobre o pedaço de um controle que passa por baixo
    * dela; com um vizinho ao lado e só 8 px à vista, o botão de 28 px reprova o `target-size`, embora nada esteja errado com
    * ele, que a pessoa rola para a vista. Foi isso que deixou o W6 e o A2 vermelhos no celular (correção
@@ -362,7 +362,7 @@ test.describe('a casca da escola no celular', () => {
     }, { topo: ALTURA_DO_TOPO_PX, vista: 8 })
     expect(fileira.base, 'a fileira termina 8 px abaixo da barra de topo').toBeCloseTo(ALTURA_DO_TOPO_PX + 8, 0)
     expect(fileira.topo, 'e começa por baixo dela').toBeLessThan(ALTURA_DO_TOPO_PX - 8)
-    expect(await violacoesGraves(page), 'cortada pela barra de topo').toEqual([])
+    expect(await seriousViolations(page), 'cortada pela barra de topo').toEqual([])
 
     // A auditoria devolve as barras como estavam: a que tinha valor em linha, com a prioridade, e a que não tinha, sem nenhum;
     // e nada fica marcado na página.

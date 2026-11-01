@@ -1,5 +1,5 @@
 import { expect, type Locator, type Page } from '@playwright/test'
-import { acionar, PRAZO_DA_TELA_MS } from './scenario.ts'
+import { activate, SCREEN_TIMEOUT_MS } from './scenario.ts'
 
 /**
  * Como os specs chegam ao destaque aberto de "Revisar a correção" (telas do professor, 14.0): o clique na linha registra a
@@ -15,16 +15,16 @@ export const painelDoDestaque = (page: Page): Locator => page.getByRole('dialog'
  * Abre o destaque da linha (um item de `[data-destaque]`): um clique, e o painel com as respostas na tela. Devolve o painel.
  * O prazo é o da tela; quem usa uma API de verdade passa o da entrada.
  */
-export async function abrirODestaque(page: Page, linha: Locator, hasTouch: boolean, prazo = PRAZO_DA_TELA_MS): Promise<Locator> {
-  await acionar(linha.getByRole('button'), hasTouch)
+export async function abrirODestaque(page: Page, linha: Locator, hasTouch: boolean, prazo = SCREEN_TIMEOUT_MS): Promise<Locator> {
+  await activate(linha.getByRole('button'), hasTouch)
   const painel = painelDoDestaque(page)
   await expect(painel.locator('[data-destaque-aberto]')).toBeVisible({ timeout: prazo })
   return painel
 }
 
 /** Fecha o painel pelo "Fechar" e espera a página de trás voltar a ser alcançável. */
-export async function fecharOPainel(page: Page, hasTouch: boolean, prazo = PRAZO_DA_TELA_MS): Promise<void> {
+export async function fecharOPainel(page: Page, hasTouch: boolean, prazo = SCREEN_TIMEOUT_MS): Promise<void> {
   const painel = painelDoDestaque(page)
-  await acionar(painel.getByRole('button', { name: 'Fechar' }), hasTouch)
+  await activate(painel.getByRole('button', { name: 'Fechar' }), hasTouch)
   await expect(painel).toBeHidden({ timeout: prazo })
 }

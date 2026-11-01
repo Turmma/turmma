@@ -4,10 +4,10 @@ import { criarOperadorConvidado as criarConvidado, removerOperador, type EstadoD
 import { codigoDoAutenticador } from './support/seed.ts'
 import { expect, test } from './support/profiles.ts'
 import { esperarCasca as esperarCascaDaOperacao } from './support/operacao-screen.ts'
-import { ALVO_DE_TOQUE_PRINCIPAL_PX, focoVisivel, larguraExcedente, violacoesGraves } from './support/checks.ts'
+import { ALVO_DE_TOQUE_PRINCIPAL_PX, isFocusVisible, horizontalOverflow, seriousViolations } from './support/checks.ts'
 
 /** O Chromebook com CPU ×4 e Fast 3G carrega o chunk da operação, e o servidor ainda faz o hash da senha. */
-const PRAZO_DA_TELA_MS = 20_000
+const SCREEN_TIMEOUT_MS = 20_000
 const ROTA_CONSULTAR = '**/v1/operacao/convite/consultar'
 const ROTA_ACEITAR = '**/v1/operacao/convite/aceitar'
 const CAMINHO_DO_CONFIGURAR = '/v1/operacao/sessao/mfa/configurar'
@@ -40,7 +40,7 @@ test.afterEach(async () => {
 })
 
 /** Toque no celular, clique no Chromebook: a mesma ação pela entrada que cada aparelho tem. */
-async function acionar(page: Page, nome: string | RegExp, hasTouch: boolean): Promise<void> {
+async function activate(page: Page, nome: string | RegExp, hasTouch: boolean): Promise<void> {
   const alvo = page.getByRole('button', { name: nome })
   if (hasTouch) await alvo.tap()
   else await alvo.click()
@@ -52,23 +52,23 @@ const respostaDoConfigurar = (page: Page): Promise<Response> => page.waitForResp
 async function aceitarConvite(page: Page, operador: OperadorConvidado, hasTouch: boolean): Promise<Configurado> {
   const configurar = respostaDoConfigurar(page)
   await page.goto(`/operacao/convite#${operador.token}`)
-  await page.getByLabel('Senha nova').fill(SENHA_NOVA, { timeout: PRAZO_DA_TELA_MS })
-  await acionar(page, /Criar a senha e continuar|Salvando/, hasTouch)
-  await expect(page.getByRole('heading', { name: 'Configurar o segundo fator' })).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
+  await page.getByLabel('Senha nova').fill(SENHA_NOVA, { timeout: SCREEN_TIMEOUT_MS })
+  await activate(page, /Criar a senha e continuar|Salvando/, hasTouch)
+  await expect(page.getByRole('heading', { name: 'Configurar o segundo fator' })).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
   const configurado = (await (await configurar).json()) as Configurado
-  await expect(page.getByRole('main')).toContainText(configurado.segredo, { timeout: PRAZO_DA_TELA_MS })
+  await expect(page.getByRole('main')).toContainText(configurado.segredo, { timeout: SCREEN_TIMEOUT_MS })
   return configurado
 }
 
 /** A entrada por e-mail e senha, que devolve a etapa de configurar enquanto o segundo fator não está ativo. */
 async function entrarAteOConfigurar(page: Page, operador: OperadorConvidado, hasTouch: boolean): Promise<Configurado> {
   const configurar = respostaDoConfigurar(page)
-  await page.getByLabel('E-mail').fill(operador.email, { timeout: PRAZO_DA_TELA_MS })
+  await page.getByLabel('E-mail').fill(operador.email, { timeout: SCREEN_TIMEOUT_MS })
   await page.getByLabel('Senha').fill(SENHA_NOVA)
-  await acionar(page, /^Entrar$/, hasTouch)
-  await expect(page.getByRole('heading', { name: 'Configurar o segundo fator' })).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
+  await activate(page, /^Entrar$/, hasTouch)
+  await expect(page.getByRole('heading', { name: 'Configurar o segundo fator' })).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
   const configurado = (await (await configurar).json()) as Configurado
-  await expect(page.getByRole('main')).toContainText(configurado.segredo, { timeout: PRAZO_DA_TELA_MS })
+  await expect(page.getByRole('main')).toContainText(configurado.segredo, { timeout: SCREEN_TIMEOUT_MS })
   return configurado
 }
 
@@ -112,14 +112,14 @@ test.describe('convite do operador Turmma e o segundo fator pela web', () => {
     })
 
     await page.goto(`/operacao/convite#${operador.token}`)
-    await expect.poll(() => barraNaPrimeiraChamada, { timeout: PRAZO_DA_TELA_MS }).not.toBe('')
+    await expect.poll(() => barraNaPrimeiraChamada, { timeout: SCREEN_TIMEOUT_MS }).not.toBe('')
     expect(barraNaPrimeiraChamada, 'o token precisa sair da barra antes de a primeira chamada sair').not.toContain(operador.token)
     expect(barraNaPrimeiraChamada).toMatch(/\/operacao\/convite$/)
     // Enquanto a consulta não volta, a tela diz o que está fazendo.
     await expect(page.getByRole('status').filter({ hasText: 'Conferindo o convite' })).toBeVisible()
     liberar()
 
-    await expect(page.getByLabel('Senha nova')).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
+    await expect(page.getByLabel('Senha nova')).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
     await expect(page).toHaveTitle('Convite · Operação Turmma')
     await expect(page.getByRole('banner')).toContainText('Operação Turmma')
     await expect(page.getByLabel('Senha nova')).toHaveAttribute('autocomplete', 'new-password')
@@ -127,15 +127,15 @@ test.describe('convite do operador Turmma e o segundo fator pela web', () => {
     // Quem tem o link ainda não provou nada: a tela não mostra quem foi convidado.
     await expect(page.locator('body')).not.toContainText(operador.nome)
     await expect(page.locator('body')).not.toContainText(operador.email)
-    expect(await larguraExcedente(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await horizontalOverflow(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
     const botaoCriar = page.getByRole('button', { name: /Criar a senha e continuar|Salvando/ })
     expect((await botaoCriar.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(ALVO_DE_TOQUE_PRINCIPAL_PX)
 
     const configurar = respostaDoConfigurar(page)
     await page.getByLabel('Senha nova').fill(SENHA_NOVA)
-    await acionar(page, /Criar a senha e continuar|Salvando/, hasTouch)
-    await expect(page.getByRole('heading', { name: 'Configurar o segundo fator' })).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
+    await activate(page, /Criar a senha e continuar|Salvando/, hasTouch)
+    await expect(page.getByRole('heading', { name: 'Configurar o segundo fator' })).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
     await expect(page).toHaveURL(/\/operacao\/mfa\/configurar$/)
     await expect(page).toHaveTitle('Configurar o segundo fator · Operação Turmma')
     const respostaDaConfiguracao = await configurar
@@ -146,11 +146,11 @@ test.describe('convite do operador Turmma e o segundo fator pela web', () => {
 
     // O QR, a chave em texto (o caminho sem celular) e o link `otpauth://`, para configurar no próprio aparelho.
     const main = page.getByRole('main')
-    await expect(main.getByRole('img', { name: 'Código QR com a chave do segundo fator' })).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
+    await expect(main.getByRole('img', { name: 'Código QR com a chave do segundo fator' })).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
     await expect(main).toContainText(configurado.segredo)
     await expect(main.getByRole('link', { name: 'Abrir no aplicativo autenticador deste aparelho' })).toHaveAttribute('href', configurado.uri)
     expect(configurado.uri).toMatch(/^otpauth:\/\/totp\//)
-    await acionar(page, 'Copiar a chave', hasTouch)
+    await activate(page, 'Copiar a chave', hasTouch)
     await expect(page.getByRole('status').filter({ hasText: 'Chave copiada.' })).toBeVisible()
     expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(configurado.segredo)
 
@@ -159,22 +159,22 @@ test.describe('convite do operador Turmma e o segundo fator pela web', () => {
     await expect(campoDosCodigos).toHaveValue(configurado.codigosRecuperacao.join('\n'))
     await expect(campoDosCodigos).toHaveAttribute('readonly', '')
     await expect(main).toContainText('não voltam')
-    await acionar(page, 'Copiar os códigos', hasTouch)
+    await activate(page, 'Copiar os códigos', hasTouch)
     await expect(page.getByRole('status').filter({ hasText: 'Códigos copiados.' })).toBeVisible()
     expect((await page.evaluate(() => navigator.clipboard.readText())).split('\n')).toEqual(configurado.codigosRecuperacao)
 
     await expect(campoDoCodigo(page)).toHaveAttribute('inputmode', 'numeric')
     await expect(campoDoCodigo(page)).toHaveAttribute('autocomplete', 'one-time-code')
-    expect(await larguraExcedente(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await horizontalOverflow(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
     await nadaSensivelNoNavegador(page, [operador.token, SENHA_NOVA, configurado.segredo, ...configurado.codigosRecuperacao])
     const botaoAtivar = page.getByRole('button', { name: /Ativar e entrar|Ativando/ })
     expect((await botaoAtivar.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(ALVO_DE_TOQUE_PRINCIPAL_PX)
 
     await campoDoCodigo(page).fill(codigoDoAutenticador(configurado.segredo))
-    await acionar(page, /Ativar e entrar|Ativando/, hasTouch)
+    await activate(page, /Ativar e entrar|Ativando/, hasTouch)
     await esperarCasca(page, operador)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await seriousViolations(page)).toEqual([])
 
     // Ao sair da tela, segredo e códigos saem junto: nada deles na casca, na barra, no navegador ou em chamada alguma.
     await expect(page.locator('body')).not.toContainText(configurado.segredo)
@@ -192,7 +192,7 @@ test.describe('convite do operador Turmma e o segundo fator pela web', () => {
 
     for (const token of [...convites.map((convite) => convite.token), 'token-que-nunca-existiu-no-e2e']) {
       await page.goto(`/operacao/convite#${token}`)
-      await expect(page.getByRole('alert')).toHaveText(TEXTO_DO_CONVITE_INVALIDO, { timeout: PRAZO_DA_TELA_MS })
+      await expect(page.getByRole('alert')).toHaveText(TEXTO_DO_CONVITE_INVALIDO, { timeout: SCREEN_TIMEOUT_MS })
       await expect(page.getByLabel('Senha nova')).toHaveCount(0)
       expect(page.url()).not.toContain(token)
       telas.push(await page.getByRole('main').innerText())
@@ -200,8 +200,8 @@ test.describe('convite do operador Turmma e o segundo fator pela web', () => {
         await expect(page.locator('body')).not.toContainText(convite.nome)
         await expect(page.locator('body')).not.toContainText(convite.email)
       }
-      expect(await larguraExcedente(page)).toBe(0)
-      expect(await violacoesGraves(page)).toEqual([])
+      expect(await horizontalOverflow(page)).toBe(0)
+      expect(await seriousViolations(page)).toEqual([])
     }
     // As quatro telas são a mesma, letra por letra.
     expect(new Set(telas).size).toBe(1)
@@ -215,13 +215,13 @@ test.describe('convite do operador Turmma e o segundo fator pela web', () => {
     })
 
     await page.goto(`/operacao/convite#${operador.token}`)
-    await page.getByLabel('Senha nova').fill(SENHA_NOVA, { timeout: PRAZO_DA_TELA_MS })
+    await page.getByLabel('Senha nova').fill(SENHA_NOVA, { timeout: SCREEN_TIMEOUT_MS })
     expect(consultas).toHaveLength(1)
 
     // O mesmo link de novo: só o `#` muda, sem recarregar. A tela consulta outra vez, e a senha digitada sai da memória.
     await page.goto(`/operacao/convite#${operador.token}`)
-    await expect.poll(() => consultas.length, { timeout: PRAZO_DA_TELA_MS }).toBe(2)
-    await expect(page.getByLabel('Senha nova')).toHaveValue('', { timeout: PRAZO_DA_TELA_MS })
+    await expect.poll(() => consultas.length, { timeout: SCREEN_TIMEOUT_MS }).toBe(2)
+    await expect(page.getByLabel('Senha nova')).toHaveValue('', { timeout: SCREEN_TIMEOUT_MS })
     await expect(page.getByLabel('Senha nova')).toBeVisible()
     await expect(page.getByRole('status').filter({ hasText: 'Conferindo o convite' })).toHaveCount(0)
     expect(page.url()).not.toContain(operador.token)
@@ -229,12 +229,12 @@ test.describe('convite do operador Turmma e o segundo fator pela web', () => {
 
     // Um fragmento que não é token (o link colado pela metade): a mesma tela do convite que não vale, com a barra limpa.
     await page.goto('/operacao/convite#%E0%A4%A')
-    await expect(page.getByRole('alert')).toHaveText(TEXTO_DO_CONVITE_INVALIDO, { timeout: PRAZO_DA_TELA_MS })
+    await expect(page.getByRole('alert')).toHaveText(TEXTO_DO_CONVITE_INVALIDO, { timeout: SCREEN_TIMEOUT_MS })
     await expect(page.getByLabel('Senha nova')).toHaveCount(0)
     expect(page.url()).toMatch(/\/operacao\/convite$/)
     expect(consultas).toHaveLength(2)
     await expect(page.getByRole('link', { name: 'Entrar na operação' })).toBeVisible()
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await seriousViolations(page)).toEqual([])
   })
 
   test('o aceite ainda no ar quando outro link chega à aba é descartado: a tela fica no link novo, que segue até o configurar', async ({ page, hasTouch }) => {
@@ -251,20 +251,20 @@ test.describe('convite do operador Turmma e o segundo fator pela web', () => {
     })
 
     await page.goto(`/operacao/convite#${anterior.token}`)
-    await page.getByLabel('Senha nova').fill(SENHA_NOVA, { timeout: PRAZO_DA_TELA_MS })
-    await acionar(page, /Criar a senha e continuar|Salvando/, hasTouch)
-    await expect.poll(() => aceites, { timeout: PRAZO_DA_TELA_MS }).toBe(1)
+    await page.getByLabel('Senha nova').fill(SENHA_NOVA, { timeout: SCREEN_TIMEOUT_MS })
+    await activate(page, /Criar a senha e continuar|Salvando/, hasTouch)
+    await expect.poll(() => aceites, { timeout: SCREEN_TIMEOUT_MS }).toBe(1)
 
     // O link novo muda só o `#`: a tela confere o convite dele e mostra o formulário vazio, com o aceite anterior no ar.
     await page.goto(`/operacao/convite#${novo.token}`)
-    await expect(page.getByLabel('Senha nova')).toHaveValue('', { timeout: PRAZO_DA_TELA_MS })
-    await expect(page.getByRole('status').filter({ hasText: 'Conferindo o convite' })).toHaveCount(0, { timeout: PRAZO_DA_TELA_MS })
+    await expect(page.getByLabel('Senha nova')).toHaveValue('', { timeout: SCREEN_TIMEOUT_MS })
+    await expect(page.getByRole('status').filter({ hasText: 'Conferindo o convite' })).toHaveCount(0, { timeout: SCREEN_TIMEOUT_MS })
     const respostaDoAnterior = page.waitForResponse((resposta) => new URL(resposta.url()).pathname === '/v1/operacao/convite/aceitar')
     liberar()
     // O aceite anterior valeu no servidor (200, com o desafio de configurar), e mesmo assim a tela não segue com ele.
     expect((await respostaDoAnterior).status()).toBe(200)
     const botao = page.getByRole('button', { name: 'Criar a senha e continuar' })
-    await expect(botao).toBeEnabled({ timeout: PRAZO_DA_TELA_MS })
+    await expect(botao).toBeEnabled({ timeout: SCREEN_TIMEOUT_MS })
     await expect(page).toHaveURL(/\/operacao\/convite$/)
     await expect(page.getByRole('heading', { name: 'Configurar o segundo fator' })).toHaveCount(0)
     await expect(page.getByRole('alert')).toHaveCount(0)
@@ -272,8 +272,8 @@ test.describe('convite do operador Turmma e o segundo fator pela web', () => {
     // A tela é a do link novo, e segue: a senha dele leva ao configurar do segundo fator dele.
     const configurar = respostaDoConfigurar(page)
     await page.getByLabel('Senha nova').fill(SENHA_NOVA)
-    await acionar(page, 'Criar a senha e continuar', hasTouch)
-    await expect(page.getByRole('heading', { name: 'Configurar o segundo fator' })).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
+    await activate(page, 'Criar a senha e continuar', hasTouch)
+    await expect(page.getByRole('heading', { name: 'Configurar o segundo fator' })).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
     expect(aceites).toBe(2)
     expect((await configurar).status()).toBe(200)
   })
@@ -290,7 +290,7 @@ test.describe('convite do operador Turmma e o segundo fator pela web', () => {
     })
 
     await page.goto(`/operacao/convite#${operador.token}`)
-    await page.getByLabel('Senha nova').fill(SENHA_NOVA, { timeout: PRAZO_DA_TELA_MS })
+    await page.getByLabel('Senha nova').fill(SENHA_NOVA, { timeout: SCREEN_TIMEOUT_MS })
     const botao = page.getByRole('button', { name: /Criar a senha e continuar|Salvando/ })
     if (hasTouch) await botao.tap()
     else await botao.click()
@@ -298,7 +298,7 @@ test.describe('convite do operador Turmma e o segundo fator pela web', () => {
     await botao.dispatchEvent('click')
     await page.getByLabel('Senha nova').press('Enter')
     liberar()
-    await expect(page.getByRole('heading', { name: 'Configurar o segundo fator' })).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
+    await expect(page.getByRole('heading', { name: 'Configurar o segundo fator' })).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
     expect(aceites).toBe(1)
   })
 
@@ -315,12 +315,12 @@ test.describe('convite do operador Turmma e o segundo fator pela web', () => {
     await page.reload()
     expect(perguntas).toEqual(['beforeunload'])
 
-    await expect(page.getByRole('alert')).toHaveText(TEXTO_DO_CONFIGURAR_SEM_DESAFIO, { timeout: PRAZO_DA_TELA_MS })
+    await expect(page.getByRole('alert')).toHaveText(TEXTO_DO_CONFIGURAR_SEM_DESAFIO, { timeout: SCREEN_TIMEOUT_MS })
     await expect(page.getByRole('link', { name: 'Ir para a entrada' })).toBeVisible()
     await expect(page.locator('body')).not.toContainText(configurado.segredo)
     for (const codigo of configurado.codigosRecuperacao) await expect(page.locator('body')).not.toContainText(codigo)
     await expect(page.getByRole('textbox', { name: 'Códigos de recuperação' })).toHaveCount(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await seriousViolations(page)).toEqual([])
   })
 
   test('desafio de configurar recusado pela API volta à entrada, com o que fazer', async ({ page, hasTouch }) => {
@@ -334,13 +334,13 @@ test.describe('convite do operador Turmma e o segundo fator pela web', () => {
       }),
     )
     await page.goto(`/operacao/convite#${operador.token}`)
-    await page.getByLabel('Senha nova').fill(SENHA_NOVA, { timeout: PRAZO_DA_TELA_MS })
-    await acionar(page, /Criar a senha e continuar|Salvando/, hasTouch)
+    await page.getByLabel('Senha nova').fill(SENHA_NOVA, { timeout: SCREEN_TIMEOUT_MS })
+    await activate(page, /Criar a senha e continuar|Salvando/, hasTouch)
 
-    await expect(page).toHaveURL(/\/operacao\/entrar$/, { timeout: PRAZO_DA_TELA_MS })
+    await expect(page).toHaveURL(/\/operacao\/entrar$/, { timeout: SCREEN_TIMEOUT_MS })
     await expect(page.getByRole('alert')).toHaveText(TEXTO_DO_CONFIGURAR_SEM_DESAFIO)
     await expect(page.locator('body')).not.toContainText('texto da API')
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await seriousViolations(page)).toEqual([])
   })
 
   test('duas abas configurando: a vencida recebe "configure de novo", recomeça pela entrada, e o QR novo funciona', async ({ page, context, hasTouch }) => {
@@ -354,17 +354,17 @@ test.describe('convite do operador Turmma e o segundo fator pela web', () => {
 
     // A primeira aba manda o código do segredo dela: a API responde "configure de novo" sem conferir o código.
     await campoDoCodigo(page).fill(codigoDoAutenticador(primeira.segredo))
-    await acionar(page, /Ativar e entrar|Ativando/, hasTouch)
-    await expect(page).toHaveURL(/\/operacao\/entrar$/, { timeout: PRAZO_DA_TELA_MS })
+    await activate(page, /Ativar e entrar|Ativando/, hasTouch)
+    await expect(page).toHaveURL(/\/operacao\/entrar$/, { timeout: SCREEN_TIMEOUT_MS })
     await expect(page.getByRole('alert')).toHaveText(TEXTO_DO_CONFIGURE_DE_NOVO)
     await expect(page.locator('body')).not.toContainText(primeira.segredo)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await seriousViolations(page)).toEqual([])
 
     // Recomeça: o e-mail e a senha levam de volta ao configurar, com um QR novo, e o código dele abre a sessão.
     const nova = await entrarAteOConfigurar(page, operador, hasTouch)
     expect(nova.segredo).not.toBe(primeira.segredo)
     await campoDoCodigo(page).fill(codigoDoAutenticador(nova.segredo))
-    await acionar(page, /Ativar e entrar|Ativando/, hasTouch)
+    await activate(page, /Ativar e entrar|Ativando/, hasTouch)
     await esperarCasca(page, operador)
   })
 
@@ -373,13 +373,13 @@ test.describe('convite do operador Turmma e o segundo fator pela web', () => {
     const operador = await criarOperadorConvidado()
     const configurar = respostaDoConfigurar(page)
     await page.goto(`/operacao/convite#${operador.token}`)
-    await expect(page.getByLabel('Senha nova')).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
+    await expect(page.getByLabel('Senha nova')).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
 
     /** Tab até o elemento, conferindo a cada parada que o foco aparece. */
     async function tabAte(alvo: ReturnType<Page['getByLabel']>): Promise<void> {
       for (let tecla = 0; tecla < 30 && !(await alvo.evaluate((elemento) => elemento === document.activeElement)); tecla++) {
         await page.keyboard.press('Tab')
-        expect(await focoVisivel(page), 'foco sem contorno visível').toBe(true)
+        expect(await isFocusVisible(page), 'foco sem contorno visível').toBe(true)
       }
       await expect(alvo).toBeFocused()
     }
@@ -387,9 +387,9 @@ test.describe('convite do operador Turmma e o segundo fator pela web', () => {
     await tabAte(page.getByLabel('Senha nova'))
     await page.keyboard.type(SENHA_NOVA)
     await page.keyboard.press('Enter')
-    await expect(page.getByRole('heading', { name: 'Configurar o segundo fator' })).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
+    await expect(page.getByRole('heading', { name: 'Configurar o segundo fator' })).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
     const configurado = (await (await configurar).json()) as Configurado
-    await expect(page.getByRole('main')).toContainText(configurado.segredo, { timeout: PRAZO_DA_TELA_MS })
+    await expect(page.getByRole('main')).toContainText(configurado.segredo, { timeout: SCREEN_TIMEOUT_MS })
 
     await tabAte(page.getByRole('button', { name: 'Copiar os códigos' }))
     await page.keyboard.press('Enter')

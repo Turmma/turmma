@@ -1,7 +1,7 @@
 import type { Locator, Page, Request, Route } from '@playwright/test'
 import { MENSAGENS_DE_ERRO } from '../packages/shared/src/errors/messages.ts'
 import type { PedidosDaTurmaResponse } from '../packages/shared/src/sala/pedidos.ts'
-import { abrirNavegacao, entrarComoCoordenacaoNaMesmaAba, entrarPorEmail, abrirEstrutura, irPelaNavegacao, lateral, PRAZO_DA_ENTRADA_MS, esperarNovaConversa, abrirAbaAlunos } from './support/casca.ts'
+import { abrirNavegacao, entrarComoCoordenacaoNaMesmaAba, entrarPorEmail, abrirEstrutura, irPelaNavegacao, lateral, SIGN_IN_TIMEOUT_MS, esperarNovaConversa, abrirAbaAlunos } from './support/casca.ts'
 import { linhasDaTabela } from './support/coordenacao.ts'
 import { expect, test } from './support/profiles.ts'
 import {
@@ -24,7 +24,7 @@ import {
   type EquipeDeTeste,
   type PedidoDeTeste,
 } from './support/seed.ts'
-import { ALVO_DE_TOQUE_PRINCIPAL_PX, larguraExcedente, larguraExcedenteDoDialogo, violacoesGraves } from './support/checks.ts'
+import { ALVO_DE_TOQUE_PRINCIPAL_PX, horizontalOverflow, larguraExcedenteDoDialogo, seriousViolations } from './support/checks.ts'
 
 /**
  * Os pedidos de nome, com os diálogos de decisão, do professor e da coordenação (A1, tarefa 16.0;
@@ -74,14 +74,14 @@ const ehALeitura = (url: URL) => /^\/v1\/turmas\/[^/]+\/reivindicacoes$/.test(ur
 const ehADecisao = (url: URL) => url.pathname === '/v1/reivindicacoes/decidir'
 const ehUmaLeitura = (pedido: Request) => pedido.method() === 'GET' && ehALeitura(new URL(pedido.url()))
 
-async function acionar(alvo: Locator, hasTouch: boolean): Promise<void> {
+async function activate(alvo: Locator, hasTouch: boolean): Promise<void> {
   if (hasTouch) await alvo.tap()
   else await alvo.click()
 }
 
 /** Um botão, pelo nome exato, dentro de um lugar: toque no celular, clique no Chromebook. */
 async function tocar(lugar: Locator, nome: string, hasTouch: boolean): Promise<void> {
-  await acionar(lugar.getByRole('button', { name: nome, exact: true }), hasTouch)
+  await activate(lugar.getByRole('button', { name: nome, exact: true }), hasTouch)
 }
 
 /** Os dois cliques de um clique duplo no mesmo instante, antes de a tela desligar o botão. */
@@ -93,7 +93,7 @@ async function doisCliquesNoMesmoInstante(botao: Locator): Promise<void> {
 }
 
 /** Uma porta que segura a resposta até o teste abrir. */
-function portao(): { aberta: Promise<void>; abrir: () => void } {
+function gate(): { aberta: Promise<void>; abrir: () => void } {
   let abrir: () => void = () => undefined
   const aberta = new Promise<void>((resolver) => {
     abrir = resolver
@@ -130,8 +130,8 @@ async function alvoDeToque(alvo: Locator, descricao: string): Promise<void> {
 /** Sem rolagem horizontal no documento nem no diálogo aberto, e o axe limpo. */
 async function conferirDialogo(page: Page): Promise<void> {
   expect(await larguraExcedenteDoDialogo(page)).toBe(0)
-  expect(await larguraExcedente(page)).toBe(0)
-  expect(await violacoesGraves(page)).toEqual([])
+  expect(await horizontalOverflow(page)).toBe(0)
+  expect(await seriousViolations(page)).toEqual([])
 }
 
 /** Aperta Tab até o foco chegar no alvo, sem passar de 60 teclas. */
@@ -175,7 +175,7 @@ async function abrirATurma(page: Page, { professora, turma }: Cenario, hasTouch:
   await entrarPorEmail(page, professora, hasTouch)
   await esperarNovaConversa(page, professora.nome)
   await irPelaNavegacao(page, 'Turmas', hasTouch)
-  await acionar(principal(page).getByRole('link', { name: `Abrir a turma ${turma.turmaNome}` }), hasTouch)
+  await activate(principal(page).getByRole('link', { name: `Abrir a turma ${turma.turmaNome}` }), hasTouch)
   await expect(page).toHaveURL(new RegExp(`/professor/turmas/${turma.turmaId}$`))
   // Os pedidos de nome ficam na aba "Alunos" da turma aberta (A3).
   await abrirAbaAlunos(page, hasTouch)
@@ -192,7 +192,7 @@ async function passarOIntervalo(page: Page): Promise<void> {
 /** Marca os pedidos pelo nome, com toque ou clique. */
 async function marcar(page: Page, nomes: readonly string[], hasTouch: boolean): Promise<void> {
   for (const nome of nomes) {
-    await acionar(caixa(page, nome), hasTouch)
+    await activate(caixa(page, nome), hasTouch)
     await expect(caixa(page, nome)).toBeChecked()
   }
 }
@@ -206,7 +206,7 @@ test.describe('W4 (Pedidos) e W15, pelo professor', () => {
     const cenario = await criarProfessoraComTurma()
     const { professora, turma } = cenario
     // A leitura dos pedidos, segurada na primeira vez (o carregando) e recusada quando o teste pede (o erro).
-    const segurada = portao()
+    const segurada = gate()
     let falhar = false
     await page.route(ehALeitura, async (rota: Route) => {
       await segurada.aberta
@@ -218,29 +218,29 @@ test.describe('W4 (Pedidos) e W15, pelo professor', () => {
     await abrirATurma(page, cenario, hasTouch)
 
     // Carregando.
-    await expect(secao(page).getByRole('status').filter({ hasText: 'Carregando os pedidos…' })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(secao(page).getByRole('status').filter({ hasText: 'Carregando os pedidos…' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(vazio(page)).toHaveCount(0)
     segurada.abrir()
 
     // Vazio: o texto manda conferir o acesso dos alunos, que está logo acima, e não leva botão: o "Convidar alunos" é o único
     // botão cheio da aba (docs/interface.md, R4). Sem "Atualizar": a lista do professor se atualiza sozinha, e a tela diz isso.
-    await expect(vazio(page)).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(vazio(page)).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(secao(page)).toContainText(TEXTO_DA_ATUALIZACAO_SOZINHA)
     await expect(secao(page).getByRole('button')).toHaveCount(0)
-    expect(await larguraExcedente(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await horizontalOverflow(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
     const tituloDoAcesso = principal(page).getByRole('heading', { name: 'Acesso dos alunos' })
     await expect(regiaoViva(page)).toHaveText('')
 
     // Erro: a releitura cai com a lista ainda vazia, e a tela não afirma "Nenhum pedido esperando".
     falhar = true
     await passarOIntervalo(page)
-    await expect(secao(page).getByRole('alert')).toHaveText(MENSAGENS_DE_ERRO.INDISPONIVEL_TENTE_DE_NOVO, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(secao(page).getByRole('alert')).toHaveText(MENSAGENS_DE_ERRO.INDISPONIVEL_TENTE_DE_NOVO, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(vazio(page)).toHaveCount(0)
     await expect(secao(page).getByRole('button')).toHaveText(['Tentar de novo'])
     falhar = false
     await tocar(secao(page), 'Tentar de novo', hasTouch)
-    await expect(vazio(page)).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(vazio(page)).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
 
     // Com dado: dois pedidos chegam, e a lista os traz sozinha, 15 s depois. O foco, que o teste deixou no título do
     // acesso, não sai de lá, e a região viva diz quantos chegaram.
@@ -253,11 +253,11 @@ test.describe('W4 (Pedidos) e W15, pelo professor', () => {
         if (!ehUmaLeitura(resposta.request()) || !resposta.ok()) return false
         return ((await resposta.json()) as PedidosDaTurmaResponse).itens.length === 2
       },
-      { timeout: PRAZO_DA_ENTRADA_MS },
+      { timeout: SIGN_IN_TIMEOUT_MS },
     )
     await passarOIntervalo(page)
     const { itens } = (await (await leitura).json()) as PedidosDaTurmaResponse
-    await expect(linhas(page)).toHaveCount(2, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(linhas(page)).toHaveCount(2, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(regiaoViva(page)).toHaveText('2 pedidos novos na lista.')
     await expect(tituloDoAcesso).toBeFocused()
     await expect(secao(page)).toContainText('2 pedidos esperando a decisão')
@@ -270,8 +270,8 @@ test.describe('W4 (Pedidos) e W15, pelo professor', () => {
     for (const { matricula } of [ana, bruno]) await expect(page.locator('body')).not.toContainText(matricula)
     await expect(secao(page)).toContainText(TEXTO_DE_COMO_DECIDIR)
     await expect(secao(page).getByRole('button')).toHaveCount(0)
-    expect(await larguraExcedente(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await horizontalOverflow(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
 
     // A professora marca o segundo pedido, e chega um terceiro: a marcação e o foco continuam no mesmo pedido, e o novo
     // é anunciado sem levar o foco.
@@ -281,7 +281,7 @@ test.describe('W4 (Pedidos) e W15, pelo professor', () => {
     await expect(secao(page).getByRole('button')).toHaveText(['Aprovar 1 pedido', 'Recusar 1 pedido'])
     await criarPedidosNoBanco(professora.escolaId, turma.turmaId, [carla])
     await passarOIntervalo(page)
-    await expect(linhas(page)).toHaveCount(3, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(linhas(page)).toHaveCount(3, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(regiaoViva(page)).toHaveText('1 pedido novo na lista.')
     await expect(caixa(page, bruno.nome)).toBeChecked()
     await expect(caixa(page, bruno.nome)).toBeFocused()
@@ -292,19 +292,19 @@ test.describe('W4 (Pedidos) e W15, pelo professor', () => {
     // A releitura que cai com a lista na tela deixa a lista e a marcação, com o erro por cima.
     falhar = true
     await passarOIntervalo(page)
-    await expect(secao(page).getByRole('alert')).toHaveText(MENSAGENS_DE_ERRO.INDISPONIVEL_TENTE_DE_NOVO, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(secao(page).getByRole('alert')).toHaveText(MENSAGENS_DE_ERRO.INDISPONIVEL_TENTE_DE_NOVO, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(linhas(page)).toHaveCount(3)
     await expect(caixa(page, bruno.nome)).toBeChecked()
     falhar = false
     await tocar(secao(page), 'Tentar de novo', hasTouch)
-    await expect(secao(page).getByRole('alert')).toHaveCount(0, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(secao(page).getByRole('alert')).toHaveCount(0, { timeout: SIGN_IN_TIMEOUT_MS })
 
     // A coordenação encerra o vínculo com a tela aberta: a leitura seguinte deixa de achar a turma, e a página inteira
     // passa a dizer isso, com um aviso só, o foco nele, e nenhum nome de aluno na tela.
     await encerrarVinculosNoBanco(professora.escolaId, turma.turmaId, professora.usuarioId)
     await passarOIntervalo(page)
     const aviso = principal(page).getByRole('status').filter({ hasText: 'Esta turma não está disponível' })
-    await expect(aviso).toHaveText(TEXTO_DA_TURMA_INDISPONIVEL, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(aviso).toHaveText(TEXTO_DA_TURMA_INDISPONIVEL, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(aviso).toBeFocused()
     await expect(principal(page).getByRole('heading', { name: 'Pedidos de nome' })).toHaveCount(0)
     await expect(page).toHaveTitle('Turma · Turmma')
@@ -333,18 +333,18 @@ test.describe('W4 (Pedidos) e W6, pela coordenação', () => {
     await page.goto('/entrar')
     await entrarComoCoordenacaoNaMesmaAba(page, coordenadora, hasTouch)
     await abrirEstrutura(page, hasTouch)
-    await acionar(principal(page).getByRole('link', { name: `Lista de nomes da turma ${turma.nome}` }), hasTouch)
-    await expect(principal(page).getByRole('heading', { level: 1, name: `Turma ${turma.nome}` })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(principal(page).getByRole('link', { name: `Lista de nomes da turma ${turma.nome}` }), hasTouch)
+    await expect(principal(page).getByRole('heading', { level: 1, name: `Turma ${turma.nome}` })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
 
     // Antes do clique: a seção diz o que fazer e por quê, e nada foi lido, nem com a aba à vista por um minuto.
-    await expect(secao(page)).toContainText(TEXTO_ANTES_DA_LEITURA, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(secao(page)).toContainText(TEXTO_ANTES_DA_LEITURA, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(secao(page)).toContainText(TEXTO_DA_AUDITORIA_DA_LEITURA)
     await expect(secao(page)).not.toContainText(TEXTO_DA_ATUALIZACAO_SOZINHA)
     const atualizar = secao(page).getByRole('button', { name: 'Atualizar os pedidos' })
     await expect(secao(page).getByRole('button')).toHaveCount(1)
     await alvoDeToque(atualizar, 'Atualizar')
-    expect(await larguraExcedente(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await horizontalOverflow(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
     for (let volta = 0; volta < 4; volta++) await page.clock.fastForward(INTERVALO_MS)
     await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')))
     await page.evaluate(() => window.dispatchEvent(new Event('focus')))
@@ -353,32 +353,32 @@ test.describe('W4 (Pedidos) e W6, pela coordenação', () => {
     expect(await leiturasDePedidosNaAuditoria(coordenadora.escolaId, turma.id)).toEqual([])
 
     // O erro: a leitura cai (a rota responde no lugar da API, e nada chega à auditoria), e a tela diz o que fazer.
-    const segurada = portao()
+    const segurada = gate()
     let falhar = true
     await page.route(ehALeitura, async (rota: Route) => {
       if (falhar) return rota.fulfill({ status: 503, contentType: 'application/json', body: INDISPONIVEL })
       await segurada.aberta
       return rota.fallback()
     })
-    await acionar(atualizar, hasTouch)
-    await expect(secao(page).getByRole('alert')).toHaveText(MENSAGENS_DE_ERRO.INDISPONIVEL_TENTE_DE_NOVO, { timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(atualizar, hasTouch)
+    await expect(secao(page).getByRole('alert')).toHaveText(MENSAGENS_DE_ERRO.INDISPONIVEL_TENTE_DE_NOVO, { timeout: SIGN_IN_TIMEOUT_MS })
     expect(await leiturasDePedidosNaAuditoria(coordenadora.escolaId, turma.id)).toEqual([])
 
     // Carregando, e então o vazio da coordenação: sem botão, porque ela não alcança o acesso da turma.
     falhar = false
     leituras.length = 0
     await tocar(secao(page), 'Tentar de novo', hasTouch)
-    await expect(secao(page).getByRole('status').filter({ hasText: 'Carregando os pedidos…' })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(secao(page).getByRole('status').filter({ hasText: 'Carregando os pedidos…' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(secao(page).getByRole('status').filter({ hasText: 'Atualizando…' })).toBeVisible()
     segurada.abrir()
-    await expect(vazio(page)).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(vazio(page)).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(secao(page)).toContainText('Os pedidos chegam quando o professor da turma gerar o acesso e os alunos pedirem o nome.')
     await expect(secao(page).getByRole('button')).toHaveText(['Atualizar os pedidos'])
     // A leitura levou a finalidade, e ficou na auditoria em nome dela: uma leitura, um registro.
     expect(leituras).toEqual(['?limite=100&finalidade=conferencia_de_cadastro'])
     const umaLeitura = { autor: coordenadora.usuarioId, finalidade: 'conferencia_de_cadastro' }
     expect(await leiturasDePedidosNaAuditoria(coordenadora.escolaId, turma.id)).toEqual([umaLeitura])
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await seriousViolations(page)).toEqual([])
 
     // Chegam três pedidos. A lista não se atualiza sozinha: só no clique.
     const [ana, bruno, carla] = nomesDeTeste(3)
@@ -389,7 +389,7 @@ test.describe('W4 (Pedidos) e W6, pela coordenação', () => {
     expect(leituras).toHaveLength(1)
     // Dois cliques no mesmo instante em "Atualizar": uma leitura só, e um registro só na auditoria.
     await doisCliquesNoMesmoInstante(atualizar)
-    await expect(linhas(page)).toHaveCount(3, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(linhas(page)).toHaveCount(3, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(regiaoViva(page)).toHaveText('3 pedidos novos na lista.')
     expect(await leiturasDePedidosNaAuditoria(coordenadora.escolaId, turma.id)).toEqual([umaLeitura, umaLeitura])
     expect(leituras).toHaveLength(2)
@@ -398,7 +398,7 @@ test.describe('W4 (Pedidos) e W6, pela coordenação', () => {
     await marcar(page, [ana.nome, bruno.nome], hasTouch)
     const aprovar = secao(page).getByRole('button', { name: 'Aprovar 2 pedidos' })
     expect(await aprovar.evaluate((botao) => getComputedStyle(botao).backgroundColor)).toBe(COR_DO_OFICIAL)
-    await acionar(aprovar, hasTouch)
+    await activate(aprovar, hasTouch)
     await expect(page.getByRole('dialog', { name: 'Aprovar pedidos' })).toBeVisible()
     await expect(oQueVaiSerDecidido(page, `Você vai aprovar 2 pedidos da turma ${turma.nome}.`)).toBeFocused()
     await expect(pedidosDoDialogo(page)).toHaveText([ana.nome, `${bruno.nome}${TEXTO_DA_MATRICULA_ERRADA}`])
@@ -406,7 +406,7 @@ test.describe('W4 (Pedidos) e W6, pela coordenação', () => {
     await expect(noDialogo(page)).toContainText(TEXTO_DA_AUDITORIA_DA_DECISAO)
     await conferirDialogo(page)
     await tocar(noDialogo(page), 'Aprovar 2 pedidos', hasTouch)
-    await expect(tituloDoResultado(page)).toBeFocused({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(tituloDoResultado(page)).toBeFocused({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(resultados(page)).toHaveText([`${ana.nome}${APROVADO}`, `${bruno.nome}${APROVADO}`])
     await tocar(noDialogo(page), 'Fechar', hasTouch)
     await expect(dialogosDaTela(page)).toHaveCount(0)
@@ -417,7 +417,7 @@ test.describe('W4 (Pedidos) e W6, pela coordenação', () => {
     expect(await alunosDaTurmaNoBanco(coordenadora.escolaId, turma.id)).toBe(2)
     const nomesDaTurma = principal(page).getByRole('region', { name: 'Nomes da turma' })
     await expect(nomesDaTurma).toContainText(`Aprovados nesta turma: 2. ${DOS_APROVADOS}`, {
-      timeout: PRAZO_DA_ENTRADA_MS,
+      timeout: SIGN_IN_TIMEOUT_MS,
     })
     await expect(linhasDaTabela(nomesDaTurma)).toHaveCount(2)
     await expect(nomesDaTurma).not.toContainText('Aluno aprovado')
@@ -429,11 +429,11 @@ test.describe('W4 (Pedidos) e W6, pela coordenação', () => {
     await marcar(page, [carla.nome], hasTouch)
     const recusar = secao(page).getByRole('button', { name: 'Recusar 1 pedido' })
     expect(await recusar.evaluate((botao) => getComputedStyle(botao).color)).toBe(COR_DO_PERIGO)
-    await acionar(recusar, hasTouch)
+    await activate(recusar, hasTouch)
     await expect(noDialogo(page)).toContainText(TEXTO_DA_AUDITORIA_DA_DECISAO)
     await tocar(noDialogo(page), 'Recusar 1 pedido', hasTouch)
     const falha = noDialogo(page).getByRole('alert')
-    await expect(falha).toHaveText(`${MENSAGENS_DE_ERRO.INDISPONIVEL_TENTE_DE_NOVO} ${DEPOIS_DA_FALHA_DA_COORDENACAO}`, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(falha).toHaveText(`${MENSAGENS_DE_ERRO.INDISPONIVEL_TENTE_DE_NOVO} ${DEPOIS_DA_FALHA_DA_COORDENACAO}`, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(falha).toBeFocused()
     await expect(noDialogo(page).getByRole('button')).toHaveText(['Fechar'])
     await expect(noDialogo(page)).not.toContainText(carla.nome)
@@ -446,8 +446,8 @@ test.describe('W4 (Pedidos) e W6, pela coordenação', () => {
 
     // Ela atualiza, e o pedido continua lá, desmarcado: a marcação de antes da falha saiu com a lista, e não há decisão
     // a um clique.
-    await acionar(atualizar, hasTouch)
-    await expect(linhas(page)).toHaveCount(1, { timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(atualizar, hasTouch)
+    await expect(linhas(page)).toHaveCount(1, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(caixa(page, carla.nome)).not.toBeChecked()
     await expect(secao(page).getByRole('button')).toHaveText(['Atualizar os pedidos'])
     expect(leituras).toHaveLength(3)
@@ -465,23 +465,23 @@ test.describe('W4 (Pedidos) e W6, pela coordenação', () => {
     await expect(noDialogo(page)).toContainText(EFEITO_DE_RECUSAR)
     await expect(noDialogo(page).getByRole('alert')).toHaveCount(0)
     await tocar(noDialogo(page), 'Recusar 1 pedido', hasTouch)
-    await expect(noDialogo(page).getByRole('alert')).toBeFocused({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(noDialogo(page).getByRole('alert')).toBeFocused({ timeout: SIGN_IN_TIMEOUT_MS })
     await tocar(noDialogo(page), 'Fechar', hasTouch)
-    await expect(linhasDaTabela(nomesDaTurma).filter({ hasText: carla.nome })).toContainText('Livre: esperando o aluno pedir o nome', { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(linhasDaTabela(nomesDaTurma).filter({ hasText: carla.nome })).toContainText('Livre: esperando o aluno pedir o nome', { timeout: SIGN_IN_TIMEOUT_MS })
     await page.unroute(ehADecisao)
     expect(await alunosDaTurmaNoBanco(coordenadora.escolaId, turma.id)).toBe(2)
     expect(leituras).toHaveLength(3)
-    await acionar(atualizar, hasTouch)
-    await expect(vazio(page)).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(atualizar, hasTouch)
+    await expect(vazio(page)).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     expect(leituras).toHaveLength(4)
     expect(await leiturasDePedidosNaAuditoria(coordenadora.escolaId, turma.id)).toHaveLength(4)
 
     // O ano letivo é encerrado com a tela aberta: o "Atualizar" deixa de achar a turma, e a página diz isso, com o foco
     // no aviso, e não no botão que saiu.
     await encerrarAnoNoBanco(coordenadora.escolaId)
-    await acionar(atualizar, hasTouch)
+    await activate(atualizar, hasTouch)
     const aviso = principal(page).getByRole('status').filter({ hasText: 'Esta turma não está no ano letivo em curso' })
-    await expect(aviso).toHaveText(TEXTO_DA_TURMA_FORA_DO_ANO, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(aviso).toHaveText(TEXTO_DA_TURMA_FORA_DO_ANO, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(aviso).toBeFocused()
     await expect(page).toHaveTitle('Turma · Turmma')
     await expect(principal(page).getByRole('heading', { name: 'Pedidos de nome' })).toHaveCount(0)
@@ -532,14 +532,14 @@ test.describe('W6: a decisão do professor', () => {
     })
     await page.clock.install()
     await abrirATurma(page, cenario, hasTouch)
-    await expect(linhas(page)).toHaveCount(41, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(linhas(page)).toHaveCount(41, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(secao(page)).toContainText('41 pedidos esperando a decisão')
 
     // Há mais pedidos do que os de uma leitura: a tela diz. Sem o `proxima`, não diz.
     await expect(secao(page)).toContainText(TEXTO_DE_QUE_HA_MAIS)
     haMais = false
     await passarOIntervalo(page)
-    await expect(secao(page)).not.toContainText(TEXTO_DE_QUE_HA_MAIS, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(secao(page)).not.toContainText(TEXTO_DE_QUE_HA_MAIS, { timeout: SIGN_IN_TIMEOUT_MS })
 
     // Não existe "aprovar todos", nem "marcar todos": só a caixa de cada pedido.
     await expect(secao(page)).toContainText(TEXTO_DE_COMO_DECIDIR)
@@ -561,12 +561,12 @@ test.describe('W6: a decisão do professor', () => {
     await expect(secao(page)).not.toContainText(TEXTO_DO_LIMITE)
     await caixa(page, pedido(39).nome).check()
     await expect(aUltima).toBeDisabled()
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await seriousViolations(page)).toEqual([])
 
     // "Aprovar 40": o preto da decisão oficial, na seção e no diálogo, que revisa a turma, cada nome e o efeito.
     const aprovar = secao(page).getByRole('button', { name: 'Aprovar 40 pedidos' })
     expect(await aprovar.evaluate((botao) => getComputedStyle(botao).backgroundColor)).toBe(COR_DO_OFICIAL)
-    await acionar(aprovar, hasTouch)
+    await activate(aprovar, hasTouch)
     await expect(page.getByRole('dialog', { name: 'Aprovar pedidos' })).toBeVisible()
     await expect(oQueVaiSerDecidido(page, `Você vai aprovar 40 pedidos da turma ${turma.turmaNome}.`)).toBeFocused()
     await expect(pedidosDoDialogo(page)).toHaveCount(40)
@@ -612,13 +612,13 @@ test.describe('W6: a decisão do professor', () => {
     await tocar(noDialogo(page), 'Fechar', hasTouch)
     await expect(dialogosDaTela(page)).toHaveCount(0)
     await expect(tituloDaSecao(page)).toBeFocused()
-    await expect(linhas(page)).toHaveText([new RegExp(`^${pedido(40).nome}`)], { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(linhas(page)).toHaveText([new RegExp(`^${pedido(40).nome}`)], { timeout: SIGN_IN_TIMEOUT_MS })
 
     // "Recusar": o `perigo`, texto em vermelho na seção e cheio só na confirmação, que diz que o nome volta à lista.
     await marcar(page, [pedido(40).nome], hasTouch)
     const recusar = secao(page).getByRole('button', { name: 'Recusar 1 pedido' })
     expect(await recusar.evaluate((botao) => getComputedStyle(botao).color)).toBe(COR_DO_PERIGO)
-    await acionar(recusar, hasTouch)
+    await activate(recusar, hasTouch)
     await expect(page.getByRole('dialog', { name: 'Recusar pedidos' })).toBeVisible()
     await expect(oQueVaiSerDecidido(page, `Você vai recusar 1 pedido da turma ${turma.turmaNome}.`)).toBeFocused()
     await expect(pedidosDoDialogo(page)).toHaveText([pedido(40).nome])
@@ -627,11 +627,11 @@ test.describe('W6: a decisão do professor', () => {
     expect(await confirmarRecusa.evaluate((botao) => getComputedStyle(botao).backgroundColor)).toBe(COR_DO_PERIGO_CHEIO)
     // Nada foi recusado antes de confirmar.
     expect(decisoes).toBe(1)
-    await acionar(confirmarRecusa, hasTouch)
-    await expect(resultados(page)).toHaveText([`${pedido(40).nome}${RECUSADO}`], { timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(confirmarRecusa, hasTouch)
+    await expect(resultados(page)).toHaveText([`${pedido(40).nome}${RECUSADO}`], { timeout: SIGN_IN_TIMEOUT_MS })
     expect(decisoes).toBe(2)
     await tocar(noDialogo(page), 'Fechar', hasTouch)
-    await expect(vazio(page)).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(vazio(page)).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     const estados = await estadosDaListaNoBanco(professora.escolaId, turma.turmaId)
     expect(estados.find(({ nome }) => nome === pedido(40).nome)?.estado).toBe('livre')
     expect(estados.filter(({ estado }) => estado === 'aprovado')).toHaveLength(38)
@@ -655,7 +655,7 @@ test.describe('W12 (Pedidos): a 360 px e só com teclado', () => {
     const comprido = { nome: `${'Ab'.repeat(40)}${crypto.randomUUID().slice(0, 8)}`, matricula: bruno.matricula }
     await criarPedidosNoBanco(professora.escolaId, turma.turmaId, [{ ...ana, teveMatriculaErrada: true }, comprido, carla])
     await abrirATurma(page, cenario, hasTouch)
-    await expect(linhas(page)).toHaveCount(3, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(linhas(page)).toHaveCount(3, { timeout: SIGN_IN_TIMEOUT_MS })
 
     // Cartões, um embaixo do outro, cada um com 44 px ou mais de altura e a largura da tela, sem rolagem horizontal.
     const caixas = await Promise.all([0, 1, 2].map((indice) => linhas(page).nth(indice).locator('label').boundingBox()))
@@ -665,8 +665,8 @@ test.describe('W12 (Pedidos): a 360 px e só com teclado', () => {
       expect((caixaDoCartao?.x ?? 0) + (caixaDoCartao?.width ?? 361)).toBeLessThanOrEqual(360)
     }
     expect((caixas[1]?.y ?? 0) >= (caixas[0]?.y ?? 0) + (caixas[0]?.height ?? 0)).toBe(true)
-    expect(await larguraExcedente(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await horizontalOverflow(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
 
     // Marcar só com o teclado: Tab até a caixa, Espaço marca; os botões da decisão aparecem depois da lista.
     await tituloDaSecao(page).focus()
@@ -681,7 +681,7 @@ test.describe('W12 (Pedidos): a 360 px e só com teclado', () => {
     const recusar = secao(page).getByRole('button', { name: 'Recusar 2 pedidos' })
     await alvoDeToque(aprovar, 'Aprovar 2 pedidos')
     await alvoDeToque(recusar, 'Recusar 2 pedidos')
-    expect(await larguraExcedente(page)).toBe(0)
+    expect(await horizontalOverflow(page)).toBe(0)
 
     // O Esc fecha sem decidir, e o foco volta ao botão que abriu o diálogo.
     await tabAte(page, recusar)
@@ -707,7 +707,7 @@ test.describe('W12 (Pedidos): a 360 px e só com teclado', () => {
     }
     await tabAte(page, noDialogo(page).getByRole('button', { name: 'Aprovar 2 pedidos' }))
     await page.keyboard.press('Enter')
-    await expect(tituloDoResultado(page)).toBeFocused({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(tituloDoResultado(page)).toBeFocused({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(resultados(page)).toHaveText([`${ana.nome}${APROVADO}`, `${comprido.nome}${APROVADO}`])
     await conferirDialogo(page)
     await tabAte(page, noDialogo(page).getByRole('button', { name: 'Fechar' }))
@@ -716,9 +716,9 @@ test.describe('W12 (Pedidos): a 360 px e só com teclado', () => {
     await expect(dialogosDaTela(page)).toHaveCount(0)
     // O botão que abriu saiu com a marcação: o foco vai ao título da seção, e não ao `body`.
     await expect(tituloDaSecao(page)).toBeFocused()
-    await expect(linhas(page)).toHaveText([new RegExp(`^${carla.nome}`)], { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(linhas(page)).toHaveText([new RegExp(`^${carla.nome}`)], { timeout: SIGN_IN_TIMEOUT_MS })
     expect(await alunosDaTurmaNoBanco(professora.escolaId, turma.turmaId)).toBe(2)
-    expect(await larguraExcedente(page)).toBe(0)
+    expect(await horizontalOverflow(page)).toBe(0)
   })
 })
 
@@ -736,7 +736,7 @@ test.describe('recomeço da tela dos pedidos', () => {
     if (pedidoDaCarla === undefined) throw new Error('faltou pedido de teste')
     await page.clock.install()
     await abrirATurma(page, cenario, hasTouch)
-    await expect(linhas(page)).toHaveCount(3, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(linhas(page)).toHaveCount(3, { timeout: SIGN_IN_TIMEOUT_MS })
     // A primeira leitura não anuncia pedido novo: a região viva fala só do que chega depois.
     await expect(regiaoViva(page)).toHaveText('')
     await marcar(page, [ana.nome, bruno.nome, carla.nome], hasTouch)
@@ -747,7 +747,7 @@ test.describe('recomeço da tela dos pedidos', () => {
     // da marcação e do diálogo, que diz que ele saiu. O que vai no envio são os dois que continuam.
     await recusarPedidoNoBanco(professora.escolaId, pedidoDaCarla)
     await passarOIntervalo(page)
-    await expect(pedidosDoDialogo(page)).toHaveText([ana.nome, bruno.nome], { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(pedidosDoDialogo(page)).toHaveText([ana.nome, bruno.nome], { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(noDialogo(page).getByRole('status').filter({ hasText: 'saiu desta decisão' })).toHaveText('1 pedido saiu desta decisão: outra pessoa decidiu antes.')
     await expect(oQueVaiSerDecidido(page, `Você vai aprovar 2 pedidos da turma ${turma.turmaNome}.`)).toBeVisible()
     await expect(focoDentroDoDialogo(page)).resolves.toBe(true)
@@ -766,7 +766,7 @@ test.describe('recomeço da tela dos pedidos', () => {
     await page.route(ehALeitura, (rota: Route) => (derrubarALeitura ? rota.fulfill({ status: 503, contentType: 'application/json', body: INDISPONIVEL }) : rota.fallback()))
     await tocar(noDialogo(page), 'Aprovar 2 pedidos', hasTouch)
     const falha = noDialogo(page).getByRole('alert')
-    await expect(falha).toHaveText(`${MENSAGENS_DE_ERRO.INDISPONIVEL_TENTE_DE_NOVO} ${DEPOIS_DA_FALHA_DO_PROFESSOR}`, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(falha).toHaveText(`${MENSAGENS_DE_ERRO.INDISPONIVEL_TENTE_DE_NOVO} ${DEPOIS_DA_FALHA_DO_PROFESSOR}`, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(falha).toBeFocused()
     expect(await alunosDaTurmaNoBanco(professora.escolaId, turma.turmaId)).toBe(2)
 
@@ -781,7 +781,7 @@ test.describe('recomeço da tela dos pedidos', () => {
     // nasce em dobro.
     perderAResposta = false
     await tocar(noDialogo(page), 'Aprovar 2 pedidos', hasTouch)
-    await expect(resultados(page)).toHaveText([`${ana.nome}${JA_DECIDIDO}`, `${bruno.nome}${JA_DECIDIDO}`], { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(resultados(page)).toHaveText([`${ana.nome}${JA_DECIDIDO}`, `${bruno.nome}${JA_DECIDIDO}`], { timeout: SIGN_IN_TIMEOUT_MS })
     expect(corpos).toHaveLength(2)
     expect(corpos[1]).toEqual(corpos[0])
     expect(await alunosDaTurmaNoBanco(professora.escolaId, turma.turmaId)).toBe(2)
@@ -791,7 +791,7 @@ test.describe('recomeço da tela dos pedidos', () => {
     // Os dois saíram da lista com a resposta, e a leitura seguinte, que já passa, confirma: nenhum pedido esperando.
     await expect(linhas(page)).toHaveCount(0)
     await passarOIntervalo(page)
-    await expect(vazio(page)).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(vazio(page)).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
 
     // O único pedido do diálogo sai da lista com ele aberto: não há o que enviar, a tela diz por quê, com o foco no
     // texto, e só deixa fechar.
@@ -800,14 +800,14 @@ test.describe('recomeço da tela dos pedidos', () => {
     const [pedidoDaDani] = await criarPedidosNoBanco(professora.escolaId, turma.turmaId, [dani])
     if (pedidoDaDani === undefined) throw new Error('faltou pedido de teste')
     await passarOIntervalo(page)
-    await expect(linhas(page)).toHaveCount(1, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(linhas(page)).toHaveCount(1, { timeout: SIGN_IN_TIMEOUT_MS })
     await marcar(page, [dani.nome], hasTouch)
     await tocar(secao(page), 'Recusar 1 pedido', hasTouch)
     await expect(oQueVaiSerDecidido(page, `Você vai recusar 1 pedido da turma ${turma.turmaNome}.`)).toBeFocused()
     await recusarPedidoNoBanco(professora.escolaId, pedidoDaDani)
     await passarOIntervalo(page)
     const todosSairam = noDialogo(page).getByText('Os pedidos que você marcou não estão mais esperando: outra pessoa decidiu antes. Nada foi enviado.', { exact: true })
-    await expect(todosSairam).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(todosSairam).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(todosSairam).toBeFocused()
     await expect(noDialogo(page).getByRole('button')).toHaveText(['Fechar'])
     await expect(noDialogo(page)).not.toContainText(dani.nome)
@@ -831,9 +831,9 @@ test.describe('recomeço da tela dos pedidos', () => {
     // Uma leitura segurada, quando o teste pede: a API a responde na hora (antes da decisão), e a resposta só chega à
     // tela quando o teste abre a porta (depois da decisão).
     let segurar = false
-    const fotografada = portao()
-    const porta = portao()
-    const entregue = portao()
+    const fotografada = gate()
+    const porta = gate()
+    const entregue = gate()
     await page.route(ehALeitura, async (rota: Route) => {
       if (!segurar) return rota.fallback()
       segurar = false
@@ -846,7 +846,7 @@ test.describe('recomeço da tela dos pedidos', () => {
     })
     await page.clock.install()
     await abrirATurma(page, cenario, hasTouch)
-    await expect(linhas(page)).toHaveCount(2, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(linhas(page)).toHaveCount(2, { timeout: SIGN_IN_TIMEOUT_MS })
     await marcar(page, [ana.nome], hasTouch)
 
     // A atualização de 15 s sai, e fica no ar com os dois pedidos ainda pendentes.
@@ -856,9 +856,9 @@ test.describe('recomeço da tela dos pedidos', () => {
     // A professora aprova a Ana, e a decisão responde antes daquela leitura.
     await tocar(secao(page), 'Aprovar 1 pedido', hasTouch)
     await tocar(noDialogo(page), 'Aprovar 1 pedido', hasTouch)
-    await expect(resultados(page)).toHaveText([`${ana.nome}${APROVADO}`], { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(resultados(page)).toHaveText([`${ana.nome}${APROVADO}`], { timeout: SIGN_IN_TIMEOUT_MS })
     await tocar(noDialogo(page), 'Fechar', hasTouch)
-    await expect(linhas(page)).toHaveText([new RegExp(`^${bruno.nome}`)], { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(linhas(page)).toHaveText([new RegExp(`^${bruno.nome}`)], { timeout: SIGN_IN_TIMEOUT_MS })
     // A leitura atrasada chega agora, com a Ana ainda pendente. Ela não volta à lista: nem na hora, nem depois de dar
     // tempo de a tela se redesenhar, nem na atualização seguinte.
     porta.abrir()
@@ -874,8 +874,8 @@ test.describe('recomeço da tela dos pedidos', () => {
     // recarregar, e abre a mesma turma.
     await marcar(page, [bruno.nome], hasTouch)
     await abrirNavegacao(page, hasTouch)
-    await acionar(lateral(page).getByRole('button', { name: 'Sair' }), hasTouch)
-    await expect(page).toHaveURL(/\/entrar$/, { timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(lateral(page).getByRole('button', { name: 'Sair' }), hasTouch)
+    await expect(page).toHaveURL(/\/entrar$/, { timeout: SIGN_IN_TIMEOUT_MS })
     const coordenadora = await criarCoordenadoraNaEscola(professora)
     const leituras: string[] = []
     page.on('request', (pedido) => {
@@ -883,10 +883,10 @@ test.describe('recomeço da tela dos pedidos', () => {
     })
     await entrarComoCoordenacaoNaMesmaAba(page, coordenadora, hasTouch)
     await abrirEstrutura(page, hasTouch)
-    await acionar(principal(page).getByRole('link', { name: `Lista de nomes da turma ${turma.turmaNome}` }), hasTouch)
-    await expect(principal(page).getByRole('heading', { level: 1, name: `Turma ${turma.turmaNome}` })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(principal(page).getByRole('link', { name: `Lista de nomes da turma ${turma.turmaNome}` }), hasTouch)
+    await expect(principal(page).getByRole('heading', { level: 1, name: `Turma ${turma.turmaNome}` })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     // Nada do que o professor leu ou marcou: a seção espera o clique dela, e nenhuma leitura saiu.
-    await expect(secao(page)).toContainText(TEXTO_ANTES_DA_LEITURA, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(secao(page)).toContainText(TEXTO_ANTES_DA_LEITURA, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(secao(page).getByRole('checkbox')).toHaveCount(0)
     await expect(secao(page)).not.toContainText(bruno.nome)
     await expect(secao(page).getByRole('button')).toHaveText(['Atualizar os pedidos'])
@@ -896,7 +896,7 @@ test.describe('recomeço da tela dos pedidos', () => {
 
     // No clique, a leitura é dela, com a finalidade, e o pedido vem sem a marcação do professor.
     await tocar(secao(page), 'Atualizar os pedidos', hasTouch)
-    await expect(linhas(page)).toHaveText([new RegExp(`^${bruno.nome}`)], { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(linhas(page)).toHaveText([new RegExp(`^${bruno.nome}`)], { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(caixa(page, bruno.nome)).not.toBeChecked()
     await expect(secao(page).getByRole('button')).toHaveText(['Atualizar os pedidos'])
     expect(leituras).toEqual(['?limite=100&finalidade=conferencia_de_cadastro'])
@@ -920,7 +920,7 @@ test.describe('recomeço da tela dos pedidos', () => {
     let ultima = ''
     // Só conta a releitura pedida pela decisão: uma de 15 s que saia antes dela não prova a ordem que o teste quer.
     let decidido = false
-    const releu = portao()
+    const releu = gate()
     page.on('response', (resposta) => {
       if (resposta.request().method() === 'POST' && ehADecisao(new URL(resposta.url()))) decidido = true
     })
@@ -936,7 +936,7 @@ test.describe('recomeço da tela dos pedidos', () => {
     })
     await page.clock.install()
     await abrirATurma(page, cenario, hasTouch)
-    await expect(linhas(page)).toHaveCount(2, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(linhas(page)).toHaveCount(2, { timeout: SIGN_IN_TIMEOUT_MS })
     await marcar(page, [ana.nome], hasTouch)
     await tocar(secao(page), 'Aprovar 1 pedido', hasTouch)
     await expect(oQueVaiSerDecidido(page, `Você vai aprovar 1 pedido da turma ${turma.turmaNome}.`)).toBeFocused()
@@ -951,7 +951,7 @@ test.describe('recomeço da tela dos pedidos', () => {
     await decidiu
     await releu.aberta
     await page.clock.resume()
-    await expect(resultados(page)).toHaveText([`${ana.nome}${APROVADO}`], { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(resultados(page)).toHaveText([`${ana.nome}${APROVADO}`], { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(tituloDoResultado(page)).toBeFocused()
 
     // A Ana está na lista velha, mas não marcada: na seção, o único botão é o "Fechar" do diálogo (que mora nela), sem o
@@ -964,7 +964,7 @@ test.describe('recomeço da tela dos pedidos', () => {
     // A releitura seguinte, que já vem do servidor, tira a Ana; o foco continua no título.
     parar = false
     await passarOIntervalo(page)
-    await expect(linhas(page)).toHaveText([new RegExp(`^${bruno.nome}`)], { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(linhas(page)).toHaveText([new RegExp(`^${bruno.nome}`)], { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(tituloDaSecao(page)).toBeFocused()
     expect(await alunosDaTurmaNoBanco(professora.escolaId, turma.turmaId)).toBe(1)
   })
@@ -984,14 +984,14 @@ test.describe('os aprovados na lista de nomes da coordenação', () => {
     await page.goto('/entrar')
     await entrarComoCoordenacaoNaMesmaAba(page, coordenadora, hasTouch)
     await abrirEstrutura(page, hasTouch)
-    await acionar(principal(page).getByRole('link', { name: `Lista de nomes da turma ${turma.nome}` }), hasTouch)
+    await activate(principal(page).getByRole('link', { name: `Lista de nomes da turma ${turma.nome}` }), hasTouch)
     const nomesDaTurma = principal(page).getByRole('region', { name: 'Nomes da turma' })
-    await expect(nomesDaTurma).toContainText('Mostrando os primeiros 100 nomes', { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(nomesDaTurma).toContainText('Mostrando os primeiros 100 nomes', { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(nomesDaTurma).toContainText(`Aprovados entre os primeiros 100 nomes: 1. ${DOS_APROVADOS}`)
     await expect(nomesDaTurma).not.toContainText('Aprovados nesta turma')
     await expect(linhasDaTabela(nomesDaTurma)).toHaveCount(99)
     await tocar(nomesDaTurma, 'Ver mais nomes', hasTouch)
-    await expect(nomesDaTurma).toContainText('102 nomes na lista', { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(nomesDaTurma).toContainText('102 nomes na lista', { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(nomesDaTurma).toContainText(`Aprovados nesta turma: 2. ${DOS_APROVADOS}`)
     await expect(linhasDaTabela(nomesDaTurma)).toHaveCount(100)
   })

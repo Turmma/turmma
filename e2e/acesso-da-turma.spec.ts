@@ -1,7 +1,7 @@
 import type { Locator, Page, Request, Route } from '@playwright/test'
 import { MENSAGENS_DE_ERRO } from '../packages/shared/src/errors/messages.ts'
 import type { AcessoGeradoResponse } from '../packages/shared/src/sala/acesso.ts'
-import { abrirNavegacao, entrarPorEmail, irPelaNavegacao, lateral, PRAZO_DA_ENTRADA_MS, esperarNovaConversa, abrirAbaAlunos, secoes } from './support/casca.ts'
+import { abrirNavegacao, entrarPorEmail, irPelaNavegacao, lateral, SIGN_IN_TIMEOUT_MS, esperarNovaConversa, abrirAbaAlunos, secoes } from './support/casca.ts'
 import { expect, test } from './support/profiles.ts'
 import {
   acessosVigentesDaTurma,
@@ -17,7 +17,7 @@ import {
   type AlocacaoDeTeste,
   type EquipeDeTeste,
 } from './support/seed.ts'
-import { ALVO_DE_TOQUE_PRINCIPAL_PX, codigoCru, larguraExcedente, larguraExcedenteDoDialogo, violacoesGraves } from './support/checks.ts'
+import { ALVO_DE_TOQUE_PRINCIPAL_PX, rawCodePattern, horizontalOverflow, larguraExcedenteDoDialogo, seriousViolations } from './support/checks.ts'
 
 /**
  * O acesso da turma do professor (A1, tarefa 15.0; `tasks/prd-apresentacao-escola/cenarios.md`): W7, W4 e W12 de
@@ -71,14 +71,14 @@ const ehOEu = (url: URL) => url.pathname === '/v1/eu'
 const ehOsMeusVinculos = (url: URL) => url.pathname === '/v1/meus-vinculos'
 const ehOGerar = (pedido: Request) => pedido.method() === 'POST' && ehOAcesso(new URL(pedido.url()))
 
-async function acionar(alvo: Locator, hasTouch: boolean): Promise<void> {
+async function activate(alvo: Locator, hasTouch: boolean): Promise<void> {
   if (hasTouch) await alvo.tap()
   else await alvo.click()
 }
 
 /** Um botão, pelo nome exato, dentro de um lugar: toque no celular, clique no Chromebook. */
 async function tocar(lugar: Locator, nome: string, hasTouch: boolean): Promise<void> {
-  await acionar(lugar.getByRole('button', { name: nome, exact: true }), hasTouch)
+  await activate(lugar.getByRole('button', { name: nome, exact: true }), hasTouch)
 }
 
 /**
@@ -93,7 +93,7 @@ async function doisCliquesNoMesmoInstante(botao: Locator): Promise<void> {
 }
 
 /** Uma porta que segura a resposta até o teste abrir. */
-function portao(): { aberta: Promise<void>; abrir: () => void } {
+function gate(): { aberta: Promise<void>; abrir: () => void } {
   let abrir: () => void = () => undefined
   const aberta = new Promise<void>((resolver) => {
     abrir = resolver
@@ -152,8 +152,8 @@ async function alvoDeToque(alvo: Locator, descricao: string): Promise<void> {
 /** Sem rolagem horizontal no documento nem no diálogo aberto, e o axe limpo. */
 async function conferirDialogo(page: Page): Promise<void> {
   expect(await larguraExcedenteDoDialogo(page)).toBe(0)
-  expect(await larguraExcedente(page)).toBe(0)
-  expect(await violacoesGraves(page)).toEqual([])
+  expect(await horizontalOverflow(page)).toBe(0)
+  expect(await seriousViolations(page)).toEqual([])
 }
 
 /** Aperta Tab até o foco chegar no alvo, sem passar de 40 teclas. */
@@ -210,7 +210,7 @@ async function abrirATurma(page: Page, { professora, turma }: Cenario, hasTouch:
   await entrarPorEmail(page, professora, hasTouch)
   await esperarNovaConversa(page, professora.nome)
   await irPelaNavegacao(page, 'Turmas', hasTouch)
-  await acionar(principal(page).getByRole('link', { name: `Abrir a turma ${turma.turmaNome}` }), hasTouch)
+  await activate(principal(page).getByRole('link', { name: `Abrir a turma ${turma.turmaNome}` }), hasTouch)
   await expect(page).toHaveURL(new RegExp(`/professor/turmas/${turma.turmaId}$`))
   // O acesso dos alunos fica na aba "Alunos" da turma aberta (A3).
   await abrirAbaAlunos(page, hasTouch)
@@ -229,7 +229,7 @@ async function abrirJaEntrando(page: Page, professora: EquipeDeTeste, endereco: 
 
 /** O clique novo (13.0): o botão "Convidar alunos" da seção abre o diálogo, que começa no passo que o acesso da turma pede. */
 async function abrirOConvite(page: Page, hasTouch: boolean): Promise<void> {
-  await acionar(botaoConvidar(page), hasTouch)
+  await activate(botaoConvidar(page), hasTouch)
   await expect(noDialogo(page)).toBeVisible()
 }
 
@@ -247,7 +247,7 @@ async function gerarPelaTela(page: Page, comAcesso: boolean, hasTouch: boolean, 
   const resposta = proximoAcessoGerado(page)
   await tocar(noDialogo(page), comAcesso ? 'Gerar novo acesso' : 'Gerar acesso', hasTouch)
   const gerado = (await (await resposta).json()) as AcessoGeradoResponse
-  await expect(etapaDoAcesso(page)).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+  await expect(etapaDoAcesso(page)).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
   return gerado
 }
 
@@ -320,7 +320,7 @@ test.describe('W4 (Acesso): os quatro estados', () => {
     // oferecem o que a API recusaria.
     const paraConfirmar = principal(page).getByRole('region', { name: 'Confirme suas turmas', exact: true })
     const decididas = principal(page).getByRole('region', { name: 'Suas turmas', exact: true })
-    await expect(paraConfirmar.getByRole('listitem')).toHaveCount(1, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(paraConfirmar.getByRole('listitem')).toHaveCount(1, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(paraConfirmar.getByRole('listitem').filter({ hasText: pendente.turmaNome })).toContainText(`Confirme sua turma · ${pendente.turmaNome} · Ciências`)
     await expect(paraConfirmar.getByRole('link')).toHaveCount(0)
     const abrir = decididas.getByRole('link', { name: `Abrir a turma ${turma.turmaNome}` })
@@ -329,13 +329,13 @@ test.describe('W4 (Acesso): os quatro estados', () => {
     await expect(decididas.getByRole('listitem').filter({ hasText: encerrada.turmaNome })).toContainText('Encerrado pela escola')
     await expect(decididas.getByRole('link')).toHaveCount(1)
     await alvoDeToque(abrir, 'Abrir a turma')
-    expect(await larguraExcedente(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
-    await acionar(abrir, hasTouch)
+    expect(await horizontalOverflow(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
+    await activate(abrir, hasTouch)
 
     // A turma aberta: o endereço, o título na aba, o nome e a série, e "Turmas" ainda selecionado na lateral.
     await expect(page).toHaveURL(new RegExp(`/professor/turmas/${turma.turmaId}$`))
-    await expect(page).toHaveTitle(`Turma ${turma.turmaNome} · Turmma`, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page).toHaveTitle(`Turma ${turma.turmaNome} · Turmma`, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(principal(page).getByRole('heading', { level: 1, name: `Turma ${turma.turmaNome}` })).toBeVisible()
     await expect(principal(page)).toContainText(SERIE_DA_TURMA)
     // A turma abre em Hoje (X3, 10.0); o acesso dos alunos está na aba "Alunos".
@@ -345,7 +345,7 @@ test.describe('W4 (Acesso): os quatro estados', () => {
     // A aba fica no endereço, e recarregar a página a mantém (X3, 10.0; RF15).
     await expect(page).toHaveURL(new RegExp(`/professor/turmas/${turma.turmaId}\\?aba=alunos$`))
     await page.reload()
-    await expect(page.getByRole('tab', { selected: true })).toHaveText('Alunos', { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page.getByRole('tab', { selected: true })).toHaveText('Alunos', { timeout: SIGN_IN_TIMEOUT_MS })
   })
 
   test('carregando; "Sem acesso ativo" com o "Convidar alunos", sem link nem código; e o diálogo do primeiro acesso diz o que ele faz, com 7 dias já escolhidos', async ({ page, hasTouch }) => {
@@ -353,7 +353,7 @@ test.describe('W4 (Acesso): os quatro estados', () => {
     const cenario = await criarProfessoraComTurma()
     const { professora, turma } = cenario
     // A leitura do acesso, segurada na primeira vez (o carregando).
-    const segurada = portao()
+    const segurada = gate()
     await page.route(ehOAcesso, async (rota: Route) => {
       if (rota.request().method() !== 'GET') return rota.fallback()
       await segurada.aberta
@@ -363,19 +363,19 @@ test.describe('W4 (Acesso): os quatro estados', () => {
     await abrirJaEntrando(page, professora, `/professor/turmas/${turma.turmaId}?aba=alunos`)
 
     // Carregando.
-    await expect(secao(page).getByRole('status').filter({ hasText: 'Carregando o acesso da turma…' })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(secao(page).getByRole('status').filter({ hasText: 'Carregando o acesso da turma…' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(semAcesso(page)).toHaveCount(0)
     segurada.abrir()
 
     // Vazio: o convite para agir, com um "Convidar alunos" só, e nada de link nem de código.
-    await expect(semAcesso(page)).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(semAcesso(page)).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     const convidar = botaoConvidar(page)
     await expect(secao(page).getByRole('button')).toHaveCount(1)
     await alvoDeToque(convidar, 'Convidar alunos')
     await expect(acessoAtivo(page)).toHaveCount(0)
 
     // O primeiro acesso: o diálogo abre no passo "Gerar acesso", que diz o que ele faz, sem falar de acesso que cai, com 7 dias já escolhidos.
-    await acionar(convidar, hasTouch)
+    await activate(convidar, hasTouch)
     await expect(page.getByRole('dialog', { name: 'Gerar acesso' })).toBeVisible()
     await expect(oQueAcontece(page, TEXTO_DO_ACESSO_NOVO)).toBeFocused()
     await expect(noDialogo(page)).not.toContainText('deixam de valer')
@@ -399,7 +399,7 @@ test.describe('W4 (Acesso): os quatro estados', () => {
     )
     await abrirJaEntrando(page, professora, `/professor/turmas/${turma.turmaId}`)
     await abrirAbaAlunos(page, hasTouch)
-    await expect(semAcesso(page)).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(semAcesso(page)).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await abrirOConvite(page, hasTouch)
     await expect(page.getByRole('dialog', { name: 'Gerar acesso' })).toBeVisible()
 
@@ -413,7 +413,7 @@ test.describe('W4 (Acesso): os quatro estados', () => {
     const gerado = (await (await resposta).json()) as AcessoGeradoResponse
     expect(diasAte(gerado.expiraEm)).toBe(7)
     // O acesso só aparece com a releitura já terminada, em erro: a mutação espera a releitura (`api/acesso.ts`).
-    await expect(etapaDoAcesso(page)).toBeFocused({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(etapaDoAcesso(page)).toBeFocused({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(noDialogo(page)).toContainText(`Vale até ${await dataNaTela(page, gerado.expiraEm)}.`)
     await fecharSemCopiar(page, hasTouch)
     await expect(secao(page).getByRole('alert')).toHaveText(MENSAGENS_DE_ERRO.INDISPONIVEL_TENTE_DE_NOVO)
@@ -422,11 +422,11 @@ test.describe('W4 (Acesso): os quatro estados', () => {
     // A leitura em erro tirou o "Convidar alunos" da seção: o foco vai para o título dela, e não para o `body`.
     await expect(botaoConvidar(page)).toHaveCount(0)
     await expect(tituloDaSecao(page)).toBeFocused()
-    for (const proibido of [codigoCru('503'), 'INDISPONIVEL_TENTE_DE_NOVO']) await expect(principal(page)).not.toContainText(proibido)
-    expect(await violacoesGraves(page)).toEqual([])
+    for (const proibido of [rawCodePattern('503'), 'INDISPONIVEL_TENTE_DE_NOVO']) await expect(principal(page)).not.toContainText(proibido)
+    expect(await seriousViolations(page)).toEqual([])
     falhar = false
     await tocar(secao(page), 'Tentar de novo', hasTouch)
-    await expect(acessoAtivo(page)).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(acessoAtivo(page)).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     // O erro sai com o "Tentar de novo": a seção não fica com o alerta de antes.
     await expect(secao(page).getByRole('alert')).toHaveCount(0)
     expect(await acessosVigentesDaTurma(professora.escolaId, turma.turmaId)).toBe(1)
@@ -445,7 +445,7 @@ test.describe('W4 (Acesso): os quatro estados', () => {
     await abrirJaEntrando(page, professora, `/professor/turmas/${turma.turmaId}?aba=alunos`)
 
     // Com dado, na seção: só até quando vale, e o mesmo botão que abre o convite. O link e o código não voltam.
-    await expect(acessoAtivo(page)).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(acessoAtivo(page)).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     const vale = `Vale até ${await dataNaTela(page, expiraEm)}.`
     await expect(secao(page)).toContainText(vale)
     await expect(secao(page).getByRole('alert')).toHaveCount(0)
@@ -481,12 +481,12 @@ test.describe('W4 (Acesso): os quatro estados', () => {
     await abrirJaEntrando(page, professora, `/professor/turmas/${turma.turmaId}`)
     // A turma abre em Hoje: o acesso está na aba "Alunos".
     await abrirAbaAlunos(page, hasTouch)
-    await expect(secao(page).getByRole('alert')).toHaveText(MENSAGENS_DE_ERRO.INDISPONIVEL_TENTE_DE_NOVO, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(secao(page).getByRole('alert')).toHaveText(MENSAGENS_DE_ERRO.INDISPONIVEL_TENTE_DE_NOVO, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(acessoAtivo(page)).toHaveCount(0)
     await expect(semAcesso(page)).toHaveCount(0)
     falhar = false
     await tocar(secao(page), 'Tentar de novo', hasTouch)
-    await expect(acessoAtivo(page)).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(acessoAtivo(page)).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(secao(page)).toContainText('Vale até')
     // O erro sai com o "Tentar de novo": a seção não fica com o alerta de antes.
     await expect(secao(page).getByRole('alert')).toHaveCount(0)
@@ -500,14 +500,14 @@ test.describe('W4 (Acesso): os quatro estados', () => {
     let derrubarATurma = true
     await page.route(ehATurma, (rota: Route) => (derrubarATurma ? rota.fulfill({ status: 503, contentType: 'application/json', body: INDISPONIVEL }) : rota.fallback()))
     await abrirJaEntrando(page, professora, `/professor/turmas/${turma.turmaId}`)
-    await expect(principal(page).getByRole('alert')).toHaveText(MENSAGENS_DE_ERRO.INDISPONIVEL_TENTE_DE_NOVO, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(principal(page).getByRole('alert')).toHaveText(MENSAGENS_DE_ERRO.INDISPONIVEL_TENTE_DE_NOVO, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(principal(page).getByRole('heading', { name: 'Acesso dos alunos' })).toHaveCount(0)
     await expect(principal(page).getByRole('link', { name: 'Voltar para Turmas' })).toBeVisible()
     derrubarATurma = false
     await tocar(principal(page), 'Tentar de novo', hasTouch)
-    await expect(principal(page).getByRole('heading', { level: 1, name: `Turma ${turma.turmaNome}` })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(principal(page).getByRole('heading', { level: 1, name: `Turma ${turma.turmaNome}` })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await abrirAbaAlunos(page, hasTouch)
-    await expect(acessoAtivo(page)).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(acessoAtivo(page)).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
   })
 
   /*
@@ -533,7 +533,7 @@ test.describe('W4 (Acesso): os quatro estados', () => {
       await confirmarVinculosNoBanco(professora.escolaId, encerrada.vinculoIds)
       await encerrarVinculosNoBanco(professora.escolaId, encerrada.turmaId, professora.usuarioId)
       const turmaId = endereco === 'com o vínculo pendente' ? pendente.turmaId : endereco === 'com o vínculo encerrado' ? encerrada.turmaId : crypto.randomUUID()
-      const leituraDoSino = portao()
+      const leituraDoSino = gate()
       await page.route(ehOsMeusVinculos, async (rota: Route) => {
         if (!sinoSegurado) return rota.fallback()
         await leituraDoSino.aberta
@@ -541,7 +541,7 @@ test.describe('W4 (Acesso): os quatro estados', () => {
       })
       await abrirJaEntrando(page, professora, `/professor/turmas/${turmaId}`)
       await expect(principal(page).getByRole('status').filter({ hasText: 'Esta turma não está disponível' })).toHaveText(TEXTO_DA_TURMA_INDISPONIVEL, {
-        timeout: PRAZO_DA_ENTRADA_MS,
+        timeout: SIGN_IN_TIMEOUT_MS,
       })
       for (const nome of [pendente.turmaNome, encerrada.turmaNome]) await expect(principal(page)).not.toContainText(nome)
       await expect(principal(page).getByRole('heading', { name: 'Acesso dos alunos' })).toHaveCount(0)
@@ -554,8 +554,8 @@ test.describe('W4 (Acesso): os quatro estados', () => {
       else await expect(sinoDaProfessora(page)).toHaveAccessibleName(/^Esperando você, \d+$/)
       expect(await textoDaTelaSemOSino(page)).toBe(TELA_DA_TURMA_INDISPONIVEL)
       leituraDoSino.abrir()
-      expect(await violacoesGraves(page)).toEqual([])
-      await acionar(principal(page).getByRole('link', { name: 'Voltar para Turmas' }), hasTouch)
+      expect(await seriousViolations(page)).toEqual([])
+      await activate(principal(page).getByRole('link', { name: 'Voltar para Turmas' }), hasTouch)
       await expect(page).toHaveURL(/\/professor\/turmas$/)
     })
   }
@@ -581,7 +581,7 @@ test.describe('W7: gerar, projetar, copiar, compartilhar e trocar o acesso', () 
     )
     const semRastro = vigiarAba(page)
     await abrirATurma(page, cenario, hasTouch)
-    await expect(semAcesso(page)).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(semAcesso(page)).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     const origem = new URL(page.url()).origin
 
     // Gerar com 1 dia, e não com os 7 que o diálogo propõe: a validade escolhida é a que vai ao servidor.
@@ -593,7 +593,7 @@ test.describe('W7: gerar, projetar, copiar, compartilhar e trocar o acesso', () 
     expect((await pedido).postDataJSON()).toEqual({ validadeDias: 1 })
     const primeiro = (await (await resposta).json()) as AcessoGeradoResponse
     expect(diasAte(primeiro.expiraEm)).toBe(1)
-    await expect(etapaDoAcesso(page)).toBeFocused({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(etapaDoAcesso(page)).toBeFocused({ timeout: SIGN_IN_TIMEOUT_MS })
 
     // O código em dois grupos de quatro, grande, e o endereço onde o aluno o digita.
     await expect(codigoNaTela(page)).toHaveText(CODIGO_EM_DOIS_GRUPOS)
@@ -618,7 +618,7 @@ test.describe('W7: gerar, projetar, copiar, compartilhar e trocar o acesso', () 
     await tocar(noDialogo(page), 'Fechar', hasTouch)
     await expect(dialogosDaTela(page)).toHaveCount(0)
     await expect(botaoConvidar(page)).toBeFocused()
-    await expect(secao(page)).toContainText(`Vale até ${await dataNaTela(page, primeiro.expiraEm)}.`, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(secao(page)).toContainText(`Vale até ${await dataNaTela(page, primeiro.expiraEm)}.`, { timeout: SIGN_IN_TIMEOUT_MS })
 
     // "Gerar novo acesso" pede confirmação: diz que o de agora cai, também o de outro professor, e que os nomes travados
     // destravam. O foco começa no texto, e não no botão. O toque fora, que não existe na tela inteira, fecha este passo sem gerar.
@@ -641,7 +641,7 @@ test.describe('W7: gerar, projetar, copiar, compartilhar e trocar o acesso', () 
     const respostaDoSegundo = proximoAcessoGerado(page)
     await tocar(noDialogo(page), 'Gerar novo acesso', hasTouch)
     const segundo = (await (await respostaDoSegundo).json()) as AcessoGeradoResponse
-    await expect(etapaDoAcesso(page)).toBeFocused({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(etapaDoAcesso(page)).toBeFocused({ timeout: SIGN_IN_TIMEOUT_MS })
     expect(semEspaco(await codigoNaTela(page).innerText())).toBe(segundo.codigo)
     expect(segundo.codigo).not.toBe(primeiro.codigo)
     expect(segundo.token).not.toBe(primeiro.token)
@@ -724,15 +724,15 @@ test.describe('W7: gerar, projetar, copiar, compartilhar e trocar o acesso', () 
     await abrirOConvite(page, hasTouch)
     const revogar = noDialogo(page).getByRole('button', { name: 'Revogar o acesso', exact: true })
     expect(await revogar.evaluate((botao) => getComputedStyle(botao).color)).toBe(COR_DO_PERIGO)
-    await acionar(revogar, hasTouch)
+    await activate(revogar, hasTouch)
     await expect(page.getByRole('dialog', { name: 'Revogar o acesso' })).toBeVisible()
     await expect(noDialogo(page).getByText(TEXTO_DO_REVOGAR, { exact: true })).toBeFocused()
     const confirmar = noDialogo(page).getByRole('button', { name: 'Revogar acesso', exact: true })
     expect(await confirmar.evaluate((botao) => getComputedStyle(botao).backgroundColor)).toBe(COR_DO_PERIGO_CHEIO)
     await conferirDialogo(page)
     expect(await acessosVigentesDaTurma(professora.escolaId, turma.turmaId)).toBe(1)
-    await acionar(confirmar, hasTouch)
-    await expect(anuncio(page, 'Acesso revogado. O link e o código não valem mais.')).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(confirmar, hasTouch)
+    await expect(anuncio(page, 'Acesso revogado. O link e o código não valem mais.')).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(dialogosDaTela(page)).toHaveCount(0)
     await expect(semAcesso(page)).toBeVisible()
     await expect(botaoConvidar(page)).toBeFocused()
@@ -768,16 +768,16 @@ test.describe('W12 (Acesso): a 360 px e só com teclado', () => {
     // A lista de Turmas, com o cartão do nome comprido e o link da turma, também cabe em 360 px.
     const abrir = principal(page).getByRole('link', { name: `Abrir a turma ${turma.turmaNome}` })
     await alvoDeToque(abrir, 'Abrir a turma')
-    expect(await larguraExcedente(page)).toBe(0)
-    await acionar(abrir, hasTouch)
+    expect(await horizontalOverflow(page)).toBe(0)
+    await activate(abrir, hasTouch)
     await expect(page).toHaveURL(new RegExp(`/professor/turmas/${turma.turmaId}$`))
     await abrirAbaAlunos(page, hasTouch)
     const gerar = botaoConvidar(page)
-    await expect(gerar).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(gerar).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await alvoDeToque(principal(page).getByRole('link', { name: 'Voltar para Turmas' }), 'Voltar para Turmas')
     await alvoDeToque(gerar, 'Convidar alunos')
-    expect(await larguraExcedente(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await horizontalOverflow(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
 
     // Gerar só com o teclado: Enter abre, o foco começa no texto e não sai do diálogo; a validade troca pelas setas.
     await gerar.focus()
@@ -802,7 +802,7 @@ test.describe('W12 (Acesso): a 360 px e só com teclado', () => {
     await page.keyboard.press('Enter')
     expect((await pedido).postDataJSON()).toEqual({ validadeDias: 30 })
     const primeiro = (await (await resposta).json()) as AcessoGeradoResponse
-    await expect(etapaDoAcesso(page)).toBeFocused({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(etapaDoAcesso(page)).toBeFocused({ timeout: SIGN_IN_TIMEOUT_MS })
 
     // O acesso a 360 px: o código grande, em dois grupos, cabe no diálogo, e os alvos têm 44 px.
     await expect(codigoNaTela(page)).toHaveText(CODIGO_EM_DOIS_GRUPOS)
@@ -827,10 +827,10 @@ test.describe('W12 (Acesso): a 360 px e só com teclado', () => {
 
     // A seção com o acesso, a 360 px: o botão com 44 px, e nada passa da largura. O diálogo abre no passo "Vigente", com os
     // dois botões de 44 px.
-    await expect(acessoAtivo(page)).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(acessoAtivo(page)).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await alvoDeToque(botaoConvidar(page), 'Convidar alunos')
-    expect(await larguraExcedente(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await horizontalOverflow(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
     const gerarNovo = noDialogo(page).getByRole('button', { name: 'Gerar novo acesso', exact: true })
     const revogar = noDialogo(page).getByRole('button', { name: 'Revogar o acesso', exact: true })
     await page.keyboard.press('Enter')
@@ -855,7 +855,7 @@ test.describe('W12 (Acesso): a 360 px e só com teclado', () => {
     await tabAte(page, noDialogo(page).getByRole('button', { name: 'Gerar novo acesso' }))
     await page.keyboard.press('Enter')
     const segundo = (await (await respostaDoSegundo).json()) as AcessoGeradoResponse
-    await expect(etapaDoAcesso(page)).toBeFocused({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(etapaDoAcesso(page)).toBeFocused({ timeout: SIGN_IN_TIMEOUT_MS })
     await page.keyboard.press('Escape')
     await expect(pergunta(page)).toBeFocused()
     await conferirDialogo(page)
@@ -876,7 +876,7 @@ test.describe('W12 (Acesso): a 360 px e só com teclado', () => {
     await tabAte(page, noDialogo(page).getByRole('button', { name: 'Gerar novo acesso' }))
     await page.keyboard.press('Enter')
     const terceiro = (await (await respostaDoTerceiro).json()) as AcessoGeradoResponse
-    await expect(etapaDoAcesso(page)).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(etapaDoAcesso(page)).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await dialogosAbertos(page).evaluate((dialogo: HTMLDialogElement) => dialogo.close())
     await expect(dialogosDaTela(page)).toHaveCount(0)
     for (const segredo of [terceiro.token, terceiro.codigo]) expect(await page.content()).not.toContain(segredo)
@@ -892,12 +892,12 @@ test.describe('W12 (Acesso): a 360 px e só com teclado', () => {
     for (const botao of ['Revogar acesso', 'Cancelar']) await alvoDeToque(noDialogo(page).getByRole('button', { name: botao, exact: true }), botao)
     await tabAte(page, noDialogo(page).getByRole('button', { name: 'Revogar acesso', exact: true }))
     await page.keyboard.press('Enter')
-    await expect(anuncio(page, 'Acesso revogado.')).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(anuncio(page, 'Acesso revogado.')).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(dialogosDaTela(page)).toHaveCount(0)
     await expect(semAcesso(page)).toBeVisible()
     await expect(botaoConvidar(page)).toBeFocused()
-    expect(await larguraExcedente(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await horizontalOverflow(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
     expect(await acessosVigentesDaTurma(professora.escolaId, turma.turmaId)).toBe(0)
   })
 })
@@ -908,10 +908,10 @@ test.describe('clique duplo', () => {
     const cenario = await criarProfessoraComTurma()
     const { professora, turma } = cenario
     await abrirATurma(page, cenario, hasTouch)
-    await expect(semAcesso(page)).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(semAcesso(page)).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
 
     let pedidos = 0
-    let seguro = portao()
+    let seguro = gate()
     const segurar = async (rota: Route) => {
       if (rota.request().method() !== 'POST') return rota.fallback()
       pedidos++
@@ -937,7 +937,7 @@ test.describe('clique duplo', () => {
     await expect(noDialogo(page)).toContainText('O acesso ainda está sendo gerado')
     seguro.abrir()
     const gerado = (await (await resposta).json()) as AcessoGeradoResponse
-    await expect(noDialogo(page)).toContainText(TEXTO_DA_PERGUNTA, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(noDialogo(page)).toContainText(TEXTO_DA_PERGUNTA, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(pergunta(page)).toBeVisible()
     await expect(campoDoLink(page)).toHaveCount(0)
     await tocar(noDialogo(page), 'Voltar ao acesso', hasTouch)
@@ -949,18 +949,18 @@ test.describe('clique duplo', () => {
     expect(await acessosVigentesDaTurma(professora.escolaId, turma.turmaId)).toBe(1)
     await page.unroute(ehOAcesso, segurar)
     await fecharSemCopiar(page, hasTouch)
-    await expect(acessoAtivo(page)).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(acessoAtivo(page)).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
 
     // Revogar: um pedido só, e o anúncio do revogado, sem "já não tem acesso ativo".
     pedidos = 0
-    seguro = portao()
+    seguro = gate()
     await page.route(ehORevogar, segurar)
     await abrirOConvite(page, hasTouch)
     await tocar(noDialogo(page), 'Revogar o acesso', hasTouch)
     await doisCliquesNoMesmoInstante(noDialogo(page).getByRole('button', { name: 'Revogar acesso', exact: true }))
     await expect.poll(() => pedidos).toBe(1)
     seguro.abrir()
-    await expect(anuncio(page, 'Acesso revogado.')).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(anuncio(page, 'Acesso revogado.')).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(dialogosDaTela(page)).toHaveCount(0)
     await expect(page.getByRole('alert')).toHaveCount(0)
     expect(pedidos).toBe(1)
@@ -977,7 +977,7 @@ test.describe('recomeço da tela do acesso', () => {
     const cenario = await criarProfessoraComTurma()
     const { professora, turma } = cenario
     await abrirATurma(page, cenario, hasTouch)
-    await expect(semAcesso(page)).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(semAcesso(page)).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
 
     // Outro professor da turma gera o acesso com esta tela aberta, e o gerar daqui chega junto com o dele: CONFLITO. O
     // aviso fica dentro do diálogo, com o foco nele; a seção recarrega com o acesso que passou a valer, e sobra só "Fechar".
@@ -987,14 +987,14 @@ test.describe('recomeço da tela do acesso', () => {
     const recarregada = proximaLeitura(page)
     await abrirOConvite(page, hasTouch)
     await tocar(noDialogo(page), 'Gerar acesso', hasTouch)
-    await expect(noDialogo(page).getByRole('alert')).toHaveText(TEXTO_DO_ACESSO_GERADO_EM_OUTRO_LUGAR, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(noDialogo(page).getByRole('alert')).toHaveText(TEXTO_DO_ACESSO_GERADO_EM_OUTRO_LUGAR, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(noDialogo(page).getByRole('alert')).toBeFocused()
     expect(((await (await recarregada).json()) as { expiraEm: string | null }).expiraEm).toBe(doOutro)
     await expect(noDialogo(page).getByRole('button')).toHaveText(['Fechar'])
     for (const dias of ['1 dia', '7 dias', '30 dias']) await expect(validade(page, dias)).toBeDisabled()
     await expect(campoDoLink(page)).toHaveCount(0)
     await expect(noDialogo(page)).not.toContainText('CONFLITO')
-    await expect(noDialogo(page)).not.toContainText(codigoCru('409'))
+    await expect(noDialogo(page)).not.toContainText(rawCodePattern('409'))
     await conferirDialogo(page)
     await page.unroute(ehOAcesso, recusar)
     // Sem link em risco, "Fechar" fecha na hora. A seção recarregou com o acesso do outro: o foco volta ao "Convidar alunos".
@@ -1014,7 +1014,7 @@ test.describe('recomeço da tela do acesso', () => {
 
     // A recusa que chega com a pergunta de fechar aberta: o pedido fica segurado e responde 503. A pergunta sai, a etapa
     // do pedido volta com o aviso e o foco nele, e a nova tentativa mostra o acesso.
-    const seguro = portao()
+    const seguro = gate()
     const derrubar = async (rota: Route) => {
       if (rota.request().method() !== 'POST') return rota.fallback()
       await seguro.aberta
@@ -1027,7 +1027,7 @@ test.describe('recomeço da tela do acesso', () => {
     await expect(pergunta(page)).toBeFocused()
     await expect(noDialogo(page)).toContainText('O acesso ainda está sendo gerado')
     seguro.abrir()
-    await expect(noDialogo(page).getByRole('alert')).toHaveText(MENSAGENS_DE_ERRO.INDISPONIVEL_TENTE_DE_NOVO, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(noDialogo(page).getByRole('alert')).toHaveText(MENSAGENS_DE_ERRO.INDISPONIVEL_TENTE_DE_NOVO, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(noDialogo(page).getByRole('alert')).toBeFocused()
     await expect(pergunta(page)).toHaveCount(0)
     await expect(noDialogo(page)).not.toContainText(TEXTO_DA_PERGUNTA)
@@ -1035,10 +1035,10 @@ test.describe('recomeço da tela do acesso', () => {
     // A queda não muda a seção: o mesmo botão tenta de novo, e a validade continua escolhível.
     await expect(noDialogo(page).getByRole('button', { name: 'Gerar novo acesso' })).toBeEnabled()
     await expect(validade(page, '7 dias')).toBeEnabled()
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await seriousViolations(page)).toEqual([])
     await page.unroute(ehOAcesso, derrubar)
     await tocar(noDialogo(page), 'Gerar novo acesso', hasTouch)
-    await expect(etapaDoAcesso(page)).toBeFocused({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(etapaDoAcesso(page)).toBeFocused({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(noDialogo(page).getByRole('alert')).toHaveCount(0)
     await expect(pergunta(page)).toHaveCount(0)
     await fecharSemCopiar(page, hasTouch)
@@ -1046,12 +1046,12 @@ test.describe('recomeço da tela do acesso', () => {
 
     // O revogar do acesso que outra pessoa já revogou com esta tela aberta: "já não tem acesso ativo", dentro do diálogo;
     // a seção recarrega, e sobra só "Fechar". O diálogo abre antes, com o acesso ainda vigente: ele lê o que a tela tem.
-    await expect(acessoAtivo(page)).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(acessoAtivo(page)).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await abrirOConvite(page, hasTouch)
     await revogarAcessoNoBanco(professora.escolaId, turma.turmaId)
     await tocar(noDialogo(page), 'Revogar o acesso', hasTouch)
     await tocar(noDialogo(page), 'Revogar acesso', hasTouch)
-    await expect(noDialogo(page).getByRole('alert')).toHaveText(TEXTO_DO_ACESSO_QUE_JA_NAO_VALE, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(noDialogo(page).getByRole('alert')).toHaveText(TEXTO_DO_ACESSO_QUE_JA_NAO_VALE, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(noDialogo(page).getByRole('alert')).toBeFocused()
     await expect(noDialogo(page).getByRole('button')).toHaveText(['Fechar'])
     await tocar(noDialogo(page), 'Fechar', hasTouch)
@@ -1065,7 +1065,7 @@ test.describe('recomeço da tela do acesso', () => {
     await encerrarVinculosNoBanco(professora.escolaId, turma.turmaId, professora.usuarioId)
     await abrirOConvite(page, hasTouch)
     await tocar(noDialogo(page), 'Gerar acesso', hasTouch)
-    await expect(noDialogo(page).getByRole('alert')).toHaveText(TEXTO_DA_TURMA_INDISPONIVEL, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(noDialogo(page).getByRole('alert')).toHaveText(TEXTO_DA_TURMA_INDISPONIVEL, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(noDialogo(page).getByRole('alert')).toBeFocused()
     await expect(noDialogo(page).getByRole('button')).toHaveText(['Fechar'])
     await tocar(noDialogo(page), 'Fechar', hasTouch)
@@ -1074,7 +1074,7 @@ test.describe('recomeço da tela do acesso', () => {
     await expect(secao(page).getByRole('button')).toHaveCount(0)
     await expect(acessoAtivo(page)).toHaveCount(0)
     await expect(tituloDaSecao(page)).toBeFocused()
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await seriousViolations(page)).toEqual([])
   })
 
   test('resposta atrasada: o gerar anterior que responde depois do gerar seguinte não troca o código novo, e a validade na seção é a do servidor', async ({
@@ -1085,10 +1085,10 @@ test.describe('recomeço da tela do acesso', () => {
     const cenario = await criarProfessoraComTurma()
     const { professora, turma } = cenario
     await abrirATurma(page, cenario, hasTouch)
-    await expect(semAcesso(page)).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(semAcesso(page)).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
 
     // O primeiro gerar chega ao servidor e é atendido; é a resposta dele que fica segurada no caminho de volta.
-    const seguro = portao()
+    const seguro = gate()
     let primeiroPedido = true
     let doPrimeiro: AcessoGeradoResponse | undefined
     let primeiroEntregue = false
@@ -1132,7 +1132,7 @@ test.describe('recomeço da tela do acesso', () => {
     await fecharSemCopiar(page, hasTouch)
 
     // A validade na seção é a do acesso que o servidor tem (30 dias), e não a da resposta que chegou por último (1 dia).
-    await expect(acessoAtivo(page)).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(acessoAtivo(page)).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(secao(page)).toContainText(`Vale até ${await dataNaTela(page, segundo.expiraEm)}.`)
     expect(await dataNaTela(page, doPrimeiro?.expiraEm ?? '')).not.toBe(await dataNaTela(page, segundo.expiraEm))
     expect(await acessosVigentesDaTurma(professora.escolaId, turma.turmaId)).toBe(1)
@@ -1150,35 +1150,35 @@ test.describe('recomeço da tela do acesso', () => {
     const semRastro = vigiarAba(page)
     // A professora passa pela segunda turma, que fica lida, e volta para abrir a primeira.
     await abrirATurma(page, { professora, turma: segunda }, hasTouch)
-    await expect(semAcesso(page)).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
-    await acionar(principal(page).getByRole('link', { name: 'Voltar para Turmas' }), hasTouch)
-    await acionar(principal(page).getByRole('link', { name: `Abrir a turma ${turma.turmaNome}` }), hasTouch)
+    await expect(semAcesso(page)).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
+    await activate(principal(page).getByRole('link', { name: 'Voltar para Turmas' }), hasTouch)
+    await activate(principal(page).getByRole('link', { name: `Abrir a turma ${turma.turmaNome}` }), hasTouch)
     await abrirAbaAlunos(page, hasTouch)
-    await expect(semAcesso(page)).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(semAcesso(page)).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     const gerado = await gerarPelaTela(page, false, hasTouch)
 
     // Outra turma é outra tela: o endereço muda para a segunda turma com o diálogo da primeira aberto (o histórico do
     // navegador), e o link e o código da primeira não ficam por cima dela.
     await page.evaluate((caminho) => history.pushState(null, '', caminho), `/professor/turmas/${segunda.turmaId}`)
-    await expect(principal(page).getByRole('heading', { level: 1, name: `Turma ${segunda.turmaNome}` })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(principal(page).getByRole('heading', { level: 1, name: `Turma ${segunda.turmaNome}` })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(dialogosDaTela(page)).toHaveCount(0)
     // Outra turma é outra tela, e abre em Hoje: o acesso está na aba "Alunos".
     await abrirAbaAlunos(page, hasTouch)
-    await expect(semAcesso(page)).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(semAcesso(page)).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(acessoAtivo(page)).toHaveCount(0)
     await semRastro(gerado)
     await page.goBack()
-    await expect(principal(page).getByRole('heading', { level: 1, name: `Turma ${turma.turmaNome}` })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(principal(page).getByRole('heading', { level: 1, name: `Turma ${turma.turmaNome}` })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(dialogosDaTela(page)).toHaveCount(0)
     await abrirAbaAlunos(page, hasTouch)
-    await expect(acessoAtivo(page)).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(acessoAtivo(page)).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
 
     // Mesma entrada: voltar para Turmas e abrir a mesma turma de novo. Só a validade; o link e o código não voltam.
-    await acionar(principal(page).getByRole('link', { name: 'Voltar para Turmas' }), hasTouch)
+    await activate(principal(page).getByRole('link', { name: 'Voltar para Turmas' }), hasTouch)
     await expect(page).toHaveURL(/\/professor\/turmas$/)
-    await acionar(principal(page).getByRole('link', { name: `Abrir a turma ${turma.turmaNome}` }), hasTouch)
+    await activate(principal(page).getByRole('link', { name: `Abrir a turma ${turma.turmaNome}` }), hasTouch)
     await abrirAbaAlunos(page, hasTouch)
-    await expect(acessoAtivo(page)).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(acessoAtivo(page)).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(secao(page)).toContainText(`Vale até ${await dataNaTela(page, gerado.expiraEm)}.`)
     await expect(dialogosAbertos(page)).toHaveCount(0)
     await expect(secao(page).getByRole('textbox')).toHaveCount(0)
@@ -1187,12 +1187,12 @@ test.describe('recomeço da tela do acesso', () => {
     // Segunda pessoa: outro professor, de outra escola, com a turma dele, entra na mesma aba, sem recarregar. A leitura do
     // acesso dele fica segurada: é aí que o "Acesso ativo" da turma do primeiro apareceria.
     await abrirNavegacao(page, hasTouch)
-    await acionar(lateral(page).getByRole('button', { name: 'Sair' }), hasTouch)
-    await expect(page).toHaveURL(/\/entrar$/, { timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(lateral(page).getByRole('button', { name: 'Sair' }), hasTouch)
+    await expect(page).toHaveURL(/\/entrar$/, { timeout: SIGN_IN_TIMEOUT_MS })
     const outro = await criarEquipeComSenha()
     const turmaDoOutro = await criarAlocacaoDoProfessor(outro.escolaId, outro.usuarioId, ['Geografia'])
     await confirmarVinculosNoBanco(outro.escolaId, turmaDoOutro.vinculoIds)
-    const segurada = portao()
+    const segurada = gate()
     await page.route(ehOAcesso, async (rota: Route) => {
       if (rota.request().method() === 'GET') await segurada.aberta
       return rota.fallback()
@@ -1201,14 +1201,14 @@ test.describe('recomeço da tela do acesso', () => {
     await esperarNovaConversa(page, outro.nome)
     await irPelaNavegacao(page, 'Turmas', hasTouch)
     await expect(principal(page).getByRole('link', { name: `Abrir a turma ${turma.turmaNome}` })).toHaveCount(0)
-    await acionar(principal(page).getByRole('link', { name: `Abrir a turma ${turmaDoOutro.turmaNome}` }), hasTouch)
+    await activate(principal(page).getByRole('link', { name: `Abrir a turma ${turmaDoOutro.turmaNome}` }), hasTouch)
     await abrirAbaAlunos(page, hasTouch)
-    await expect(secao(page).getByRole('status').filter({ hasText: 'Carregando o acesso da turma…' })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(secao(page).getByRole('status').filter({ hasText: 'Carregando o acesso da turma…' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(acessoAtivo(page)).toHaveCount(0)
     await expect(page.locator('body')).not.toContainText(turma.turmaNome)
     await expect(dialogosAbertos(page)).toHaveCount(0)
     segurada.abrir()
-    await expect(semAcesso(page)).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(semAcesso(page)).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(acessoAtivo(page)).toHaveCount(0)
     await semRastro(gerado)
     expect(await acessosVigentesDaTurma(professora.escolaId, turma.turmaId)).toBe(1)
@@ -1217,7 +1217,7 @@ test.describe('recomeço da tela do acesso', () => {
     // E a turma do primeiro, pelo endereço dela: para o segundo ela responde como a que não existe.
     await page.goto(`/professor/turmas/${turma.turmaId}`)
     await expect(principal(page).getByRole('status').filter({ hasText: 'Esta turma não está disponível' })).toHaveText(TEXTO_DA_TURMA_INDISPONIVEL, {
-      timeout: PRAZO_DA_ENTRADA_MS,
+      timeout: SIGN_IN_TIMEOUT_MS,
     })
     await expect(page.locator('body')).not.toContainText(turma.turmaNome)
     await expect(principal(page).getByRole('heading', { name: 'Acesso dos alunos' })).toHaveCount(0)
@@ -1230,7 +1230,7 @@ test.describe('recomeço da tela do acesso', () => {
     // O relógio da aba é simulado, para as leituras envelhecerem sem o teste esperar.
     await page.clock.install()
     await abrirATurma(page, cenario, hasTouch)
-    await expect(semAcesso(page)).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(semAcesso(page)).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     const gerado = await gerarPelaTela(page, false, hasTouch)
 
     // A professora projeta o código, vai a outra aba e volta: a web relê o que envelheceu, e a rede da escola caiu.
@@ -1243,8 +1243,8 @@ test.describe('recomeço da tela do acesso', () => {
     await page.clock.fastForward('00:01:00')
     await page.evaluate(() => window.dispatchEvent(new Event('visibilitychange')))
     // A leitura da turma falhou, e a nova tentativa automática também; a do acesso, idem, e a seção já mostra o erro.
-    await expect.poll(() => falhasDaTurma, { timeout: PRAZO_DA_ENTRADA_MS }).toBe(2)
-    await expect(secao(page).getByRole('alert')).toHaveText(MENSAGENS_DE_ERRO.INDISPONIVEL_TENTE_DE_NOVO, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect.poll(() => falhasDaTurma, { timeout: SIGN_IN_TIMEOUT_MS }).toBe(2)
+    await expect(secao(page).getByRole('alert')).toHaveText(MENSAGENS_DE_ERRO.INDISPONIVEL_TENTE_DE_NOVO, { timeout: SIGN_IN_TIMEOUT_MS })
     // O diálogo continua aberto, com o mesmo código e o mesmo link, e a turma continua na tela.
     await expect(etapaDoAcesso(page)).toBeVisible()
     expect(semEspaco(await codigoNaTela(page).innerText())).toBe(gerado.codigo)
@@ -1260,7 +1260,7 @@ test.describe('recomeço da tela do acesso', () => {
     await page.clock.fastForward('00:01:00')
     await page.evaluate(() => window.dispatchEvent(new Event('visibilitychange')))
     await expect(principal(page).getByRole('status').filter({ hasText: 'Esta turma não está disponível' })).toHaveText(TEXTO_DA_TURMA_INDISPONIVEL, {
-      timeout: PRAZO_DA_ENTRADA_MS,
+      timeout: SIGN_IN_TIMEOUT_MS,
     })
     // A tela continua com o título da 11.0, mas só "Turma": sem o nome nem a série da turma que saiu.
     await expect(principal(page).getByRole('heading', { level: 1 })).toHaveCount(1)
@@ -1287,13 +1287,13 @@ test.describe('recomeço da tela do acesso', () => {
     // O relógio da aba é simulado: ninguém espera meia hora no e2e, e o servidor continua no tempo real.
     await page.clock.install()
     await abrirATurma(page, cenario, hasTouch)
-    await expect(semAcesso(page)).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(semAcesso(page)).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     const gerado = await gerarPelaTela(page, false, hasTouch)
     expect(await page.content()).toContain(gerado.token)
     expect(semEspaco(await codigoNaTela(page).innerText())).toBe(gerado.codigo)
 
     await page.clock.fastForward(`00:${String(INATIVIDADE_MIN + 1)}:00`)
-    await expect(page.getByRole('dialog', { name: 'Sua sessão expirou' })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page.getByRole('dialog', { name: 'Sua sessão expirou' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     // Só o login por cima: o diálogo do acesso saiu da página, com o link e o código.
     await expect(dialogosAbertos(page)).toHaveCount(1)
     await expect(dialogosDaTela(page)).toHaveCount(0)
@@ -1305,14 +1305,14 @@ test.describe('recomeço da tela do acesso', () => {
     await page.route(ehOEu, (rota: Route) => (derrubarOEu ? rota.fulfill({ status: 503, contentType: 'application/json', body: INDISPONIVEL }) : rota.fallback()))
     await page.getByLabel('E-mail').fill(professora.email)
     await page.getByLabel('Senha').fill(professora.senha)
-    await acionar(page.getByRole('button', { name: /^Entrar$/ }), hasTouch)
-    await expect(page.getByRole('dialog', { name: 'Sua sessão expirou' })).toBeHidden({ timeout: PRAZO_DA_ENTRADA_MS })
-    await expect(principal(page).getByRole('alert')).toHaveText(MENSAGENS_DE_ERRO.INDISPONIVEL_TENTE_DE_NOVO, { timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(page.getByRole('button', { name: /^Entrar$/ }), hasTouch)
+    await expect(page.getByRole('dialog', { name: 'Sua sessão expirou' })).toBeHidden({ timeout: SIGN_IN_TIMEOUT_MS })
+    await expect(principal(page).getByRole('alert')).toHaveText(MENSAGENS_DE_ERRO.INDISPONIVEL_TENTE_DE_NOVO, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(principal(page).getByRole('heading', { name: 'Acesso dos alunos' })).toHaveCount(0)
     derrubarOEu = false
     await tocar(principal(page), 'Tentar de novo', hasTouch)
     await expect(page).toHaveURL(new RegExp(`/professor/turmas/${turma.turmaId}(\\?aba=alunos)?$`))
-    await expect(acessoAtivo(page)).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(acessoAtivo(page)).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(secao(page)).toContainText(`Vale até ${await dataNaTela(page, gerado.expiraEm)}.`)
     await expect(dialogosAbertos(page)).toHaveCount(0)
     for (const segredo of [gerado.token, gerado.codigo]) expect(await page.content()).not.toContain(segredo)

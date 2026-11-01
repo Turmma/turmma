@@ -145,3 +145,10 @@ Leia este índice antes de codar, e abra só os blocos que interessam à tarefa 
 | 2026-11-01 00:00:24 | `frontend-reviewer` | 2ª | APROVADO | `10_task` | Sobrou nome em português dentro de dois arquivos de teste e de um tipo local. Não aparece ao usuário e não bloqueia. |
 | 2026-11-01 00:00:41 | `test-engineer` | 2ª | APROVADO | `10_task` | nenhuma nova. |
 | 2026-11-01 00:01:33 | `revisor-geral` | 2ª | APROVADO | `10_task` | A linha `apps/web/index.html \| resolverTema \| 16` foi escrita à mão em `tools/renomear/mapas/10.relatorio.md:115`, dentro de um arquivo que o `aplicar` gera.… |
+| 2026-11-01 15:26:11 | `infra-guardian` | 1ª | APROVADO | `11_task` | O perfil de máquina do e2e, que simula o Chromebook e o celular de entrada, continua igual depois do rename, e esse perfil é o que reproduz a condição de sala. |
+| 2026-11-01 15:26:24 | `privacy-guardian` | 1ª | APROVADO | `11_task` | nenhuma de LGPD. |
+| 2026-11-01 15:26:31 | `conformidade-reviewer` | 1ª | APROVADO | `11_task` | nenhuma da regra 70. A tarefa não tem tela, então não havia fotos para conferir. |
+| 2026-11-01 15:27:50 | `test-engineer` | 1ª | APROVADO | `11_task` | . Nenhum. |
+| 2026-11-01 15:28:07 | `revisor-geral` | 1ª | APROVADO | `11_task` | O documento `tasks/prd-nomes-de-mercado/11_task.md:52` lista `tools/ci/codigo-do-autenticador.test.ts` como "alterado", mas o arquivo ficou sem diff. Está… |
+| 2026-11-01 16:48:54 | `test-engineer` | 2ª | APROVADO | `11_task` | `11_task.md:116` cita `e2e/support/profiles.ts:68-69` para a chave `profile` do `base.extend`. O comentário novo deslocou o código em 3 linhas, e o ponto certo… |
+| 2026-11-01 16:49:07 | `revisor-geral` | 2ª | APROVADO | `11_task` | `tasks/prd-nomes-de-mercado/11_task.md`, seção "Como testar": o texto ainda diz que `tools/ci/codigo-do-autenticador.test.ts` importa… |

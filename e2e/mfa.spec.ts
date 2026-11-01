@@ -2,11 +2,11 @@ import { AVISO_DO_SEGUNDO_FATOR_CONSUMIDO, mensagemDoSegundoFator } from '../pac
 import { QUANTIDADE_DE_CODIGOS_DE_RECUPERACAO } from '../packages/shared/src/sessao/mfa.ts'
 import { entrarComoCoordenacaoNaMesmaAba, esperarPainel } from './support/casca.ts'
 import { expect, test } from './support/profiles.ts'
-import { campoCodigo, configurarSegundoFator, configurarSegundoFatorPelaApi, entrarComSenha, gastarCodigoDeRecuperacaoPelaApi } from './support/mfa.ts'
+import { campoCodigo, setUpMfa, configurarSegundoFatorPelaApi, entrarComSenha, gastarCodigoDeRecuperacaoPelaApi } from './support/mfa.ts'
 import { codigoDoAutenticador, criarEquipeComSenha } from './support/seed.ts'
-import { ALVO_DE_TOQUE_PRINCIPAL_PX, larguraExcedente, violacoesGraves } from './support/checks.ts'
+import { ALVO_DE_TOQUE_PRINCIPAL_PX, horizontalOverflow, seriousViolations } from './support/checks.ts'
 
-const PRAZO_DA_ENTRADA_MS = 20_000
+const SIGN_IN_TIMEOUT_MS = 20_000
 /** Um passo do TOTP à frente: a ativação grava o passo usado, e só um passo maior entra depois (6.0). */
 const PASSO_SEGUINTE_SEGUNDOS = 30
 
@@ -17,7 +17,7 @@ test.describe('segundo fator da coordenação, sem celular', () => {
 
     const respostaDoSegredo = page.waitForResponse((resposta) => new URL(resposta.url()).pathname === '/v1/conta/mfa/configurar')
     await entrarComSenha(page, renata)
-    await expect(page.getByRole('heading', { name: 'Configurar o segundo fator' })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page.getByRole('heading', { name: 'Configurar o segundo fator' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     const { segredo } = (await (await respostaDoSegredo).json()) as { segredo: string }
 
     // O segredo aparece em texto, que é o caminho de quem não tem celular: o QR é só conveniência (regra 50, item 2).
@@ -33,8 +33,8 @@ test.describe('segundo fator da coordenação, sem celular', () => {
     expect(guardado.local).toBe('[]')
     expect(guardado.sessao).toBe('[]')
     expect(guardado.url).not.toContain(segredo)
-    expect(await larguraExcedente(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await horizontalOverflow(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
 
     const respostaDosCodigos = page.waitForResponse((resposta) => new URL(resposta.url()).pathname === '/v1/conta/mfa/ativar')
     await campoCodigo(page).fill(codigoDoAutenticador(segredo))
@@ -52,8 +52,8 @@ test.describe('segundo fator da coordenação, sem celular', () => {
     else await page.getByRole('button', { name: 'Copiar os códigos' }).click()
     await expect(page.getByRole('status').filter({ hasText: 'Códigos copiados' })).toBeVisible()
     expect((await page.evaluate(() => navigator.clipboard.readText())).split('\n')).toEqual(codigosRecuperacao)
-    expect(await larguraExcedente(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await horizontalOverflow(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
 
     // Sair da tela, por dentro da web e sem recarregar, já apaga segredo e códigos: eles vivem só no estado do
     // componente, e não num cache que a próxima tela devolveria.
@@ -63,17 +63,17 @@ test.describe('segundo fator da coordenação, sem celular', () => {
     for (const codigo of codigosRecuperacao) await expect(page.locator('body')).not.toContainText(codigo)
     // E voltar à tela não os traz de volta: o desafio foi consumido na ativação, e não há o que remontar.
     await page.goto('/mfa/configurar')
-    await expect(page.getByRole('alert')).toContainText('entre de novo', { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page.getByRole('alert')).toContainText('entre de novo', { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(page.locator('body')).not.toContainText(segredo)
 
     // E o segundo fator agora vale: a senha sozinha para na tela do código.
     await entrarComSenha(page, renata)
-    await expect(page.getByRole('heading', { name: 'Segundo fator' })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page.getByRole('heading', { name: 'Segundo fator' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(campoCodigo(page)).toHaveAttribute('autocomplete', 'one-time-code')
     await expect(campoCodigo(page)).toHaveAttribute('inputmode', 'numeric')
     // A tela do código é uma tela como outra qualquer: cabe em 360 px, passa no axe e tem alvo de 44 px.
-    expect(await larguraExcedente(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await horizontalOverflow(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
     const caixaDoEntrar = await page.getByRole('button', { name: /^Entrar$/ }).boundingBox()
     expect(caixaDoEntrar?.height ?? 0).toBeGreaterThanOrEqual(ALVO_DE_TOQUE_PRINCIPAL_PX)
     await campoCodigo(page).fill(codigoDoAutenticador(segredo, PASSO_SEGUINTE_SEGUNDOS))
@@ -90,7 +90,7 @@ test.describe('segundo fator da coordenação, sem celular', () => {
     expect(primeiro).toBeDefined()
 
     await entrarComSenha(page, renata)
-    await expect(page.getByRole('heading', { name: 'Segundo fator' })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page.getByRole('heading', { name: 'Segundo fator' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await page.getByRole('button', { name: 'Usar um código de recuperação' }).click()
     await page.getByLabel('Código de recuperação').fill(primeiro ?? '')
     await page.getByRole('button', { name: /^Entrar$/ }).click()
@@ -109,11 +109,11 @@ test.describe('segundo fator da coordenação, sem celular', () => {
     await gastarCodigoDeRecuperacaoPelaApi(request, renata, primeiro ?? '')
 
     await entrarComSenha(page, renata)
-    await expect(page.getByRole('heading', { name: 'Segundo fator' })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page.getByRole('heading', { name: 'Segundo fator' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await page.getByRole('button', { name: 'Usar um código de recuperação' }).click()
     await page.getByLabel('Código de recuperação').fill(primeiro ?? '')
     await page.getByRole('button', { name: /^Entrar$/ }).click()
-    await expect(page.getByRole('alert')).toHaveText(mensagemDoSegundoFator('NAO_AUTENTICADO'), { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page.getByRole('alert')).toHaveText(mensagemDoSegundoFator('NAO_AUTENTICADO'), { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(page).toHaveURL(/\/mfa$/)
 
     // E um código ainda não usado entra: o que valeu uma vez foi aquele, não o segundo fator inteiro.
@@ -150,28 +150,28 @@ test.describe('segundo fator da coordenação, sem celular', () => {
 
   test('cinco códigos errados gastam o desafio: a tela volta à entrada explicando, e o código certo não entra sem refazer a senha', async ({ page }) => {
     const renata = await criarEquipeComSenha('coordenador')
-    const { segredo } = await configurarSegundoFator(page, renata)
+    const { segredo } = await setUpMfa(page, renata)
 
     await entrarComSenha(page, renata)
-    await expect(page.getByRole('heading', { name: 'Segundo fator' })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page.getByRole('heading', { name: 'Segundo fator' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     for (let tentativa = 1; tentativa <= 4; tentativa++) {
       await campoCodigo(page).fill('000000')
       await page.getByRole('button', { name: /^Entrar$/ }).click()
       // Os quatro primeiros erros não gastam o desafio: a pessoa continua na tela do código.
-      await expect(page.getByRole('alert')).toHaveText(mensagemDoSegundoFator('NAO_AUTENTICADO'), { timeout: PRAZO_DA_ENTRADA_MS })
+      await expect(page.getByRole('alert')).toHaveText(mensagemDoSegundoFator('NAO_AUTENTICADO'), { timeout: SIGN_IN_TIMEOUT_MS })
       await expect(page).toHaveURL(/\/mfa$/)
     }
 
     await campoCodigo(page).fill('000000')
     await page.getByRole('button', { name: /^Entrar$/ }).click()
     // O quinto gasta o desafio: insistir com outro código só seguraria mais a conta.
-    await expect(page).toHaveURL(/\/entrar$/, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page).toHaveURL(/\/entrar$/, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(page.getByRole('alert')).toContainText(AVISO_DO_SEGUNDO_FATOR_CONSUMIDO)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await seriousViolations(page)).toEqual([])
 
     // O sexto código, mesmo certo, não tem por onde entrar: a tela do segundo fator nem formulário mostra.
     await page.goto('/mfa')
-    await expect(page.getByRole('alert')).toContainText('entre de novo', { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page.getByRole('alert')).toContainText('entre de novo', { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(campoCodigo(page)).toHaveCount(0)
     await expect(page.locator('body')).not.toContainText(codigoDoAutenticador(segredo, PASSO_SEGUINTE_SEGUNDOS))
   })

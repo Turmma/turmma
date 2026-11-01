@@ -2,8 +2,8 @@ import { AxeBuilder } from '@axe-core/playwright'
 import type { Page } from '@playwright/test'
 import { expect, test } from './support/profiles.ts'
 import { avaliarAvatares, avaliarSelos, conferirAssinaturas } from './support/avatar.ts'
-import { abrirGaleria, acionar, caixa, conferirQueCabeNaJanela, conferirQueOFocoNaoCaiu, desenho, desenhos, secao } from './support/gallery.ts'
-import { ALVO_DE_TOQUE_PRINCIPAL_PX, corDoToken, focoVisivel, IMPACTOS_QUE_REPROVAM, larguraExcedente, TAGS_WCAG, violacoesGraves } from './support/checks.ts'
+import { openGallery, activate, caixa, conferirQueCabeNaJanela, conferirQueOFocoNaoCaiu, desenho, desenhos, gallerySection } from './support/gallery.ts'
+import { ALVO_DE_TOQUE_PRINCIPAL_PX, corDoToken, isFocusVisible, FAILING_IMPACTS, horizontalOverflow, WCAG_TAGS, seriousViolations } from './support/checks.ts'
 
 /**
  * As peças do MVP de apresentação (`docs/mvp-rapido.md` 9.3; `docs/interface.md` 11.1 e 11.3), na galeria (`/galeria`),
@@ -33,8 +33,8 @@ const RGB = {
 
 test.describe('peças do MVP de apresentação, na galeria', () => {
   test('o selo de IA e a assinatura: o texto "IA" em toda saída de IA, um desenho só, e avatar da onça em círculo com anel, nunca pessoa', async ({ page }) => {
-    await abrirGaleria(page)
-    const seloDeIa = secao(page, 'selo-de-ia')
+    await openGallery(page)
+    const seloDeIa = gallerySection(page, 'selo-de-ia')
 
     // A assinatura: o nome da função e o selo com o texto "IA", para o agente e para a função dele.
     for (const nome of ['Assistente de ensino', 'Tutor', 'Analista de desempenho escolar', 'Assistente · correção de objetiva']) {
@@ -56,7 +56,7 @@ test.describe('peças do MVP de apresentação, na galeria', () => {
     expect(desenhosDosSelos[0]).toMatchObject({ fundo: RGB.iaFundo, texto: RGB.iaTexto })
 
     // Toda mensagem de IA da conversa assina: avatar, nome e selo. Nas duas variantes e no "preparando a resposta".
-    const mensagensDeIa = secao(page, 'conversa')
+    const mensagensDeIa = gallerySection(page, 'conversa')
       .locator('article')
       .filter({ has: page.locator('[data-agente]') })
     expect(await mensagensDeIa.count()).toBe(5)
@@ -91,7 +91,7 @@ test.describe('peças do MVP de apresentação, na galeria', () => {
     await expect(rejeitada).toContainText('Motivo: A questão 3 não é do capítulo 7.')
 
     // A linha da aprovação é o selo de estado, e não um segundo desenho: mesma cor, mesmo canto, mesmo respiro.
-    const selosDeEstado = secao(page, 'estado')
+    const selosDeEstado = gallerySection(page, 'estado')
     for (const [estado, familia, fundo] of [
       ['aprovada', 'ok', RGB.okFundo],
       ['pendente', 'pendente', RGB.pendenteFundo],
@@ -112,7 +112,7 @@ test.describe('peças do MVP de apresentação, na galeria', () => {
   })
 
   test('a Escolha da D18: duas opções do mesmo tamanho e do mesmo desenho, nenhuma primária, e o foco vai para a linha da escolha', async ({ page }) => {
-    await abrirGaleria(page)
+    await openGallery(page)
     const escolha = page.getByRole('group', { name: 'Posso fazer isso com a ferramenta Atividade, ou só conversar.' })
     const opcoes = escolha.getByRole('button')
     await expect(opcoes).toHaveCount(2)
@@ -143,7 +143,7 @@ test.describe('peças do MVP de apresentação, na galeria', () => {
     // Pelo teclado: o botão escolhido some com o cartão, e o foco vai para a linha que diz o que foi escolhido.
     await conversa.focus()
     await page.keyboard.press('Enter')
-    const feita = secao(page, 'conversa').locator('[data-escolha="feita"]')
+    const feita = gallerySection(page, 'conversa').locator('[data-escolha="feita"]')
     await expect(feita).toHaveText('Você escolheu: Só conversar')
     await expect(escolha).toHaveCount(0)
     await expect(feita).toBeFocused()
@@ -153,8 +153,8 @@ test.describe('peças do MVP de apresentação, na galeria', () => {
   })
 
   test('a Escolha desligada e a escolhida: as duas opções desligam juntas, sem degrau e sem cor de ação, e a linha da escolha é uma só', async ({ page }) => {
-    await abrirGaleria(page)
-    const estados = secao(page, 'escolha-estados')
+    await openGallery(page)
+    const estados = gallerySection(page, 'escolha-estados')
     const desligada = estados.getByRole('group', { name: 'Posso montar o plano de aula com a ferramenta, ou só conversar.' })
     const opcoes = desligada.getByRole('button')
     await expect(opcoes).toHaveCount(2)
@@ -178,8 +178,8 @@ test.describe('peças do MVP de apresentação, na galeria', () => {
   // Este caso era um só, de 9,8 s na máquina e 24,5 s no runner do celular (execução 40880199949, 1ª tentativa; mais de 30 s na
   // esteira anterior); são quatro, que abrem a galeria cada um e dividem o que ele afirmava, na mesma ordem e sem tirar asserção.
   test('o texto da IA entra como texto, com os chips no fim, um por fonte, na pílula de 28 px', async ({ page }) => {
-    await abrirGaleria(page)
-    const texto = secao(page, 'conversa').locator('[data-texto-da-ia]')
+    await openGallery(page)
+    const texto = gallerySection(page, 'conversa').locator('[data-texto-da-ia]')
 
     // O que o modelo devolveu com cara de HTML está escrito, e não virou marcação.
     await expect(texto).toContainText('Use <b>massa molar</b> e a proporção da equação balanceada.')
@@ -203,7 +203,7 @@ test.describe('peças do MVP de apresentação, na galeria', () => {
   })
 
   test('o ChipFonte abre pelo teclado e mostra o trecho, que cabe na janela e não tem violação', async ({ page }) => {
-    await abrirGaleria(page)
+    await openGallery(page)
     const chip = page.getByRole('button', { name: 'Fonte: Química 2, cap. 7, p. 142' })
     await expect(chip).toHaveAttribute('aria-expanded', 'false')
     expect((await caixa(chip)).height).toBeGreaterThanOrEqual(24)
@@ -217,11 +217,11 @@ test.describe('peças do MVP de apresentação, na galeria', () => {
     await expect(cartao).toContainText('Página 142')
     await expect(cartao).toContainText('A proporção entre as quantidades de matéria de reagentes e produtos é dada pelos coeficientes da equação balanceada.')
     await conferirQueCabeNaJanela(page, cartao)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await seriousViolations(page)).toEqual([])
   })
 
   test('o Esc fecha o cartão e devolve o foco ao chip, com o anel à vista, e o Tab não deixa o cartão aberto para trás', async ({ page }) => {
-    await abrirGaleria(page)
+    await openGallery(page)
     const chip = page.getByRole('button', { name: 'Fonte: Química 2, cap. 7, p. 142' })
     const cartao = page.getByRole('group', { name: 'Fonte: Química 2, cap. 7, p. 142' })
     await chip.focus()
@@ -232,7 +232,7 @@ test.describe('peças do MVP de apresentação, na galeria', () => {
     await page.keyboard.press('Escape')
     await expect(cartao).toHaveCount(0)
     await expect(chip).toBeFocused()
-    expect(await focoVisivel(page)).toBe(true)
+    expect(await isFocusVisible(page)).toBe(true)
 
     // O Tab que segue adiante não deixa o cartão aberto para trás.
     await page.keyboard.press('Enter')
@@ -243,32 +243,32 @@ test.describe('peças do MVP de apresentação, na galeria', () => {
   })
 
   test('o ChipFonte abre pelo toque, tocar no trecho não fecha, o toque fora fecha, e a lista de fontes diz as páginas sem repetir', async ({ page, hasTouch }) => {
-    await abrirGaleria(page)
+    await openGallery(page)
     const chip = page.getByRole('button', { name: 'Fonte: Química 2, cap. 7, p. 142' })
     const cartao = page.getByRole('group', { name: 'Fonte: Química 2, cap. 7, p. 142' })
 
     // Pelo toque (ou pelo clique) abre do mesmo jeito; tocar no trecho não fecha, e o toque fora fecha.
-    await acionar(chip, hasTouch)
+    await activate(chip, hasTouch)
     await expect(cartao).toBeVisible()
-    await acionar(cartao.getByText('A proporção entre as quantidades'), hasTouch)
+    await activate(cartao.getByText('A proporção entre as quantidades'), hasTouch)
     await expect(cartao).toBeVisible()
-    await acionar(page.getByRole('heading', { level: 1, name: 'Galeria de peças' }), hasTouch)
+    await activate(page.getByRole('heading', { level: 1, name: 'Galeria de peças' }), hasTouch)
     await expect(cartao).toHaveCount(0)
 
     // A lista de fontes: a linha recolhida já diz as páginas, sem repetir a que foi citada duas vezes.
-    const fontes = secao(page, 'conversa').locator('summary')
+    const fontes = gallerySection(page, 'conversa').locator('summary')
     await expect(fontes).toHaveText('Fontes (3): Química 2, cap. 7, p. 142 · p. 145 · p. 151')
     await fontes.focus()
     await page.keyboard.press('Enter')
-    const lista = secao(page, 'conversa').locator('details li')
+    const lista = gallerySection(page, 'conversa').locator('details li')
     await expect(lista).toHaveCount(3)
     await expect(lista.nth(1)).toContainText('O reagente limitante é o que acaba primeiro')
-    expect(await larguraExcedente(page)).toBe(0)
+    expect(await horizontalOverflow(page)).toBe(0)
   })
 
   test('a CaixaPedido: com teclado, Enter envia e Shift+Enter quebra a linha; com o dedo, Enter quebra a linha e o envio é o botão; o foco volta ao campo', async ({ page, hasTouch }) => {
-    await abrirGaleria(page)
-    const doProfessor = secao(page, 'caixa-pedido')
+    await openGallery(page)
+    const doProfessor = gallerySection(page, 'caixa-pedido')
     const campo = doProfessor.getByLabel('Pedido ao Assistente de ensino')
     const enviar = doProfessor.getByRole('button', { name: 'Enviar' })
     const parar = doProfessor.getByRole('button', { name: 'Parar' })
@@ -282,7 +282,7 @@ test.describe('peças do MVP de apresentação, na galeria', () => {
 
     // Vazia, não envia: o botão está desligado.
     await expect(enviar).toBeDisabled()
-    await acionar(campo, hasTouch)
+    await activate(campo, hasTouch)
     await page.keyboard.type('monta uma atividade')
     const alturaDeUmaLinha = (await caixa(campo)).height
 
@@ -346,20 +346,20 @@ test.describe('peças do MVP de apresentação, na galeria', () => {
     await expect(doProfessor.getByLabel('Turma do pedido')).toHaveValue('turma-2b')
 
     // A do aluno é só texto e enviar: sem menu, sem seleção, sem mais nenhum controle.
-    const doAluno = secao(page, 'caixa-do-aluno')
+    const doAluno = gallerySection(page, 'caixa-do-aluno')
     await expect(doAluno.locator('[data-caixa-pedido="so-texto"]')).toHaveCount(1)
     await expect(doAluno.locator('[data-caixa-pedido] select')).toHaveCount(0)
     await expect(doAluno.locator('[data-caixa-pedido] button')).toHaveCount(1)
     await expect(doAluno.getByLabel('Pergunta para o Tutor')).toHaveAttribute('maxlength', '2000')
     await doAluno.getByLabel('Pergunta para o Tutor').fill('o que é reagente limitante?')
-    await acionar(doAluno.getByRole('button', { name: 'Enviar' }), hasTouch)
+    await activate(doAluno.getByRole('button', { name: 'Enviar' }), hasTouch)
     await expect(doAluno.locator('[data-enviado]')).toHaveText('Enviado: o que é reagente limitante?')
     await expect(doAluno.getByLabel('Pergunta para o Tutor')).toBeFocused()
   })
 
   test('o motor de formulário diz o que falta e o que é obrigatório, entrega os valores validados, não perde o foco, e a Adaptação não tem campo de texto', async ({ page, hasTouch }) => {
-    await abrirGaleria(page)
-    const motor = secao(page, 'motor')
+    await openGallery(page)
+    const motor = gallerySection(page, 'motor')
     const gerar = motor.getByRole('button', { name: 'Gerar atividade' })
     // O botão que gera é o primário, e o de cancelar tem o mesmo tamanho.
     expect(await desenho(gerar)).toMatchObject({ fundo: RGB.laranja })
@@ -373,7 +373,7 @@ test.describe('peças do MVP de apresentação, na galeria', () => {
     await expect(motor.getByLabel('Questões')).not.toHaveAttribute('aria-required')
 
     // Gerar com o que falta não sai: a tela diz o que falta, e o foco vai ao primeiro campo pendente.
-    await acionar(gerar, hasTouch)
+    await activate(gerar, hasTouch)
     await expect(motor.getByRole('alert')).toHaveText('Para gerar, confira: Turma, Tema.')
     await expect(motor.getByLabel('Turma')).toBeFocused()
     await expect(motor.getByText('Escolha uma opção em "Turma".')).toBeVisible()
@@ -384,7 +384,7 @@ test.describe('peças do MVP de apresentação, na galeria', () => {
     await motor.getByLabel('Tema').fill('  Estequiometria ')
     // Número fora da faixa também não sai.
     await motor.getByLabel('Questões').fill('40')
-    await acionar(gerar, hasTouch)
+    await activate(gerar, hasTouch)
     await expect(motor.getByRole('alert')).toHaveText('Para gerar, confira: Questões.')
     await expect(motor.getByText('Use um número inteiro de 1 a 20 em "Questões".')).toBeVisible()
     await motor.getByLabel('Questões').fill('8')
@@ -397,7 +397,7 @@ test.describe('peças do MVP de apresentação, na galeria', () => {
     await conferirQueOFocoNaoCaiu(page)
     expect(await page.evaluate(() => document.activeElement?.closest('[data-motor="gerando"]') !== null)).toBe(true)
     expect(JSON.parse((await motor.locator('[data-pedido]').textContent()) ?? '')).toEqual({ turmaId: 'turma-2b', tema: 'Estequiometria', quantidade: 8 })
-    await acionar(motor.getByRole('button', { name: 'Simular a resposta' }), hasTouch)
+    await activate(motor.getByRole('button', { name: 'Simular a resposta' }), hasTouch)
     await expect(motor.locator('[data-motor="pronto"]')).toContainText('O artefato gerado aparece aqui')
 
     // "Editar os campos" pelo teclado: o botão some com o pedido recolhido, e o foco vai para o título do formulário.
@@ -409,27 +409,27 @@ test.describe('peças do MVP de apresentação, na galeria', () => {
     await expect(motor.getByLabel('Tema')).toHaveValue('  Estequiometria ')
 
     // A Adaptação: só a lista fechada de tipos. Nenhum campo de texto, nem de uma linha nem de várias (D35, D67).
-    const adaptacao = secao(page, 'motor-da-adaptacao')
+    const adaptacao = gallerySection(page, 'motor-da-adaptacao')
     await expect(adaptacao.locator('form input[type="checkbox"]')).toHaveCount(6)
     await expect(adaptacao.locator('form input:not([type="checkbox"]), form textarea, form [contenteditable]')).toHaveCount(0)
     await expect(adaptacao.getByText('Tipo de adaptação (obrigatório)')).toBeVisible()
-    await acionar(adaptacao.getByRole('button', { name: 'Gerar versão adaptada' }), hasTouch)
+    await activate(adaptacao.getByRole('button', { name: 'Gerar versão adaptada' }), hasTouch)
     await expect(adaptacao.getByRole('alert')).toHaveText('Para gerar, confira: Tipo de adaptação.')
     await adaptacao.getByLabel('Tempo adicional').check()
     await adaptacao.getByLabel('Fonte ampliada').check()
-    await acionar(adaptacao.getByRole('button', { name: 'Gerar versão adaptada' }), hasTouch)
+    await activate(adaptacao.getByRole('button', { name: 'Gerar versão adaptada' }), hasTouch)
     // Os tipos saem na ordem da lista, e não na do clique.
     expect(JSON.parse((await adaptacao.locator('[data-pedido]').textContent()) ?? '')).toEqual({ tipos: ['fonte_ampliada', 'tempo_adicional'] })
-    expect(await larguraExcedente(page)).toBe(0)
+    expect(await horizontalOverflow(page)).toBe(0)
   })
 
   test('o exemplo do campo vazio aparece inteiro: a caixa mede o exemplo, e não só o que se digita', async ({ page, hasTouch }) => {
-    await abrirGaleria(page)
+    await openGallery(page)
     for (const [nome, rotulo] of [
       ['caixa-pedido', 'Pedido ao Assistente de ensino'],
       ['caixa-do-aluno', 'Pergunta para o Tutor'],
     ] as const) {
-      const campo = secao(page, nome).getByLabel(rotulo)
+      const campo = gallerySection(page, nome).getByLabel(rotulo)
       const exemplo = (await campo.getAttribute('placeholder')) ?? ''
       expect(exemplo.length, nome).toBeGreaterThan(10)
 
@@ -453,7 +453,7 @@ test.describe('peças do MVP de apresentação, na galeria', () => {
 
     // A medida não escreve no campo em uso: quem apaga o pedido inteiro ainda desfaz com Ctrl+Z (o histórico do campo,
     // que trocar o valor por código apagaria).
-    const campo = secao(page, 'caixa-pedido').getByLabel('Pedido ao Assistente de ensino')
+    const campo = gallerySection(page, 'caixa-pedido').getByLabel('Pedido ao Assistente de ensino')
     await campo.click()
     await page.keyboard.type('monta uma atividade de química')
     await page.keyboard.press('Control+A')
@@ -461,19 +461,19 @@ test.describe('peças do MVP de apresentação, na galeria', () => {
     await expect(campo).toHaveValue('')
     await page.keyboard.press('Control+Z')
     await expect(campo).toHaveValue('monta uma atividade de química')
-    expect(await larguraExcedente(page)).toBe(0)
+    expect(await horizontalOverflow(page)).toBe(0)
   })
 
   for (const tema of ['claro', 'escuro'] as const) {
     // Este caso era um só, de 10,5 s na máquina e 27 s no runner do celular (execução 40880199949, 1ª tentativa); são dois por tema:
     // o axe, e o alvo de toque, que agora mede todas as peças numa ida só ao navegador, em vez de uma ida por peça.
     test(`as peças da conversa, no tema ${tema}: sem violação grave`, async ({ page }) => {
-      await abrirGaleria(page)
+      await openGallery(page)
       await page.evaluate((valor) => document.documentElement.setAttribute('data-tema', valor), tema)
       expect(await violacoesDasSecoes(page, SECOES_DA_CONVERSA)).toEqual([])
 
       // Abre o chip e a lista de fontes: o cartão e a lista também passam no axe, nos dois temas.
-      const conversa = secao(page, 'conversa')
+      const conversa = gallerySection(page, 'conversa')
       await conversa.getByRole('button', { name: 'Fonte: Química 2, cap. 7, p. 142' }).click()
       await conversa.locator('summary').click()
       expect(await violacoesDasSecoes(page, ['conversa'])).toEqual([])
@@ -481,7 +481,7 @@ test.describe('peças do MVP de apresentação, na galeria', () => {
     })
 
     test(`as peças da conversa, no tema ${tema}: o alvo de toque do projeto`, async ({ page, hasTouch }) => {
-      await abrirGaleria(page)
+      await openGallery(page)
       await page.evaluate((valor) => document.documentElement.setAttribute('data-tema', valor), tema)
       // O alvo: 44 px no celular em toda peça de ação das seções, **inclusive os gatilhos de menu** (o chip, que corre
       // dentro da linha, tem os 28 px da pílula e é medido à parte); no computador, o piso de 24 px (WCAG 2.5.8).
@@ -502,17 +502,17 @@ test.describe('peças do MVP de apresentação, na galeria', () => {
         expect(medida.height, medida.quem).toBeGreaterThanOrEqual(minimo)
         expect(medida.width, medida.quem).toBeGreaterThanOrEqual(minimo)
       }
-      for (const chip of await secao(page, 'conversa').locator('[data-texto-da-ia] button[aria-expanded]').all()) expect((await caixa(chip)).height).toBeGreaterThanOrEqual(28)
+      for (const chip of await gallerySection(page, 'conversa').locator('[data-texto-da-ia] button[aria-expanded]').all()) expect((await caixa(chip)).height).toBeGreaterThanOrEqual(28)
     })
   }
 })
 
 /** O axe, só nas seções pedidas: as peças desta tarefa, e não a galeria inteira, que é de outras tarefas. */
 async function violacoesDasSecoes(page: Page, nomes: readonly string[]): Promise<{ regra: string; impacto: string; alvos: string[] }[]> {
-  let construtor = new AxeBuilder({ page }).withTags([...TAGS_WCAG])
+  let construtor = new AxeBuilder({ page }).withTags([...WCAG_TAGS])
   for (const nome of nomes) construtor = construtor.include(`[data-galeria="${nome}"]`)
   const resultado = await construtor.analyze()
   return resultado.violations
-    .filter((violacao) => (IMPACTOS_QUE_REPROVAM as readonly string[]).includes(violacao.impact ?? ''))
+    .filter((violacao) => (FAILING_IMPACTS as readonly string[]).includes(violacao.impact ?? ''))
     .map((violacao) => ({ regra: violacao.id, impacto: violacao.impact ?? '', alvos: violacao.nodes.map((no) => no.target.join(' ')) }))
 }

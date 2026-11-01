@@ -15,8 +15,8 @@ import {
   type UsoDoPainel,
 } from './support/painel.ts'
 import { expect, test } from './support/profiles.ts'
-import { acionar, conferirAListaQueRola, conferirQueCadaNumeroFicaEmUmaLinha, entrarNaOperacao, PRAZO_DA_ENTRADA_MS, trocarAPrimeiraDaResposta } from './support/operacao-screen.ts'
-import { ALVO_DE_TOQUE_PRINCIPAL_PX, codigoCru, larguraExcedente, violacoesGraves } from './support/checks.ts'
+import { activate, conferirAListaQueRola, conferirQueCadaNumeroFicaEmUmaLinha, entrarNaOperacao, SIGN_IN_TIMEOUT_MS, trocarAPrimeiraDaResposta } from './support/operacao-screen.ts'
+import { ALVO_DE_TOQUE_PRINCIPAL_PX, rawCodePattern, horizontalOverflow, seriousViolations } from './support/checks.ts'
 
 /**
  * Uso (A0b, tarefa 8.0; cenários W6, W7 e a data de referência), nos projetos `chromebook` e `celular`. A lista é de todas
@@ -134,7 +134,7 @@ test.describe('Uso (A0b, tarefa 8.0)', () => {
 
     // A ordem por uso vai à barra e volta à primeira página; as escolas do teste, com o maior uso do banco, estão nela.
     const porUsoResposta = respostaDoUso(page, 1, 'uso')
-    await acionar(page, 'Mais uso no mês', hasTouch)
+    await activate(page, 'Mais uso no mês', hasTouch)
     const porUso = (await (await porUsoResposta).json()) as UsoDoPainelResponse
     await expect(page).toHaveURL(/\/operacao\/uso\?pagina=1&ordem=uso$/)
     await expect(page.getByRole('button', { name: 'Mais uso no mês' })).toHaveAttribute('aria-pressed', 'true')
@@ -159,8 +159,8 @@ test.describe('Uso (A0b, tarefa 8.0)', () => {
 
     // A escola de nome no limite cabe na tela, sem rolagem horizontal, também a 360 px; os alvos de toque têm 44 px.
     expect(naTela.map((escola) => escola.nome)).toContain(painel.longa.nome)
-    expect(await larguraExcedente(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await horizontalOverflow(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
     for (const nome of ['Próxima', 'Nome', 'Mais uso no mês']) {
       const caixa = await page.getByRole('button', { name: nome, exact: true }).boundingBox()
       expect(caixa?.height ?? 0, nome).toBeGreaterThanOrEqual(ALVO_DE_TOQUE_PRINCIPAL_PX)
@@ -183,7 +183,7 @@ test.describe('Uso (A0b, tarefa 8.0)', () => {
     }
     await page.route(ROTA_DO_USO, segurarSegunda)
     const segundaResposta = respostaDoUso(page, 2, 'uso')
-    await acionar(page, 'Próxima', hasTouch)
+    await activate(page, 'Próxima', hasTouch)
     await expect(page).toHaveURL(/\/operacao\/uso\?pagina=2&ordem=uso$/)
     await expect(page.getByRole('region', { name: 'Uso por escola' })).toHaveAttribute('aria-busy', 'true')
     expect(await nomesNaTela(page)).toEqual(porUso.itens.map((escola) => escola.nome))
@@ -196,19 +196,19 @@ test.describe('Uso (A0b, tarefa 8.0)', () => {
     await expect.poll(() => nomesNaTela(page)).toEqual(segunda.itens.map((escola) => escola.nome))
     for (const escola of semeadas) expect(segunda.itens.map((item) => item.id)).not.toContain(escola.id)
     await expect(page.getByRole('navigation', { name: 'Páginas do uso' })).toContainText(`Página 2 de ${String(Math.ceil(segunda.total / 25))}`)
-    expect(await larguraExcedente(page)).toBe(0)
+    expect(await horizontalOverflow(page)).toBe(0)
 
     // O endereço copiado abre a mesma página: a página e a ordem vêm da barra, não da memória da aba.
     const recarregada = respostaDoUso(page, 2, 'uso')
     await page.reload()
     const depoisDaRecarga = (await (await recarregada).json()) as UsoDoPainelResponse
-    await expect(page.getByRole('button', { name: 'Mais uso no mês' })).toHaveAttribute('aria-pressed', 'true', { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page.getByRole('button', { name: 'Mais uso no mês' })).toHaveAttribute('aria-pressed', 'true', { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(page.getByRole('navigation', { name: 'Páginas do uso' })).toContainText(`Página 2 de ${String(Math.ceil(depoisDaRecarga.total / 25))}`)
     await expect.poll(() => nomesNaTela(page)).toEqual(depoisDaRecarga.itens.map((escola) => escola.nome))
 
     // "Anterior" volta à primeira página, na mesma ordem, com as escolas do teste.
     const devolta = respostaDoUso(page, 1, 'uso')
-    await acionar(page, 'Anterior', hasTouch)
+    await activate(page, 'Anterior', hasTouch)
     const primeiraDeNovo = (await (await devolta).json()) as UsoDoPainelResponse
     await expect(page).toHaveURL(/\/operacao\/uso\?pagina=1&ordem=uso$/)
     await expect.poll(() => nomesNaTela(page)).toEqual(primeiraDeNovo.itens.map((escola) => escola.nome))
@@ -227,12 +227,12 @@ test.describe('Uso (A0b, tarefa 8.0)', () => {
     // Dia e mês trazem o mesmo número: dois trechos de cada, ou uma linha de cartão para cada.
     const numeros = ['1.234.567.890', '1.234.567', '115 GB']
     await conferirQueCadaNumeroFicaEmUmaLinha(page, numeros)
-    expect(await larguraExcedente(page)).toBe(0)
+    expect(await horizontalOverflow(page)).toBe(0)
     // A tabela mais estreita que há, a 768 px (abaixo dela é a lista de cartões): as colunas apertam, e o número ainda não quebra.
     if (!hasTouch) {
       await page.setViewportSize({ width: 768, height: 800 })
       await conferirQueCadaNumeroFicaEmUmaLinha(page, numeros)
-      expect(await larguraExcedente(page)).toBe(0)
+      expect(await horizontalOverflow(page)).toBe(0)
     }
   })
 
@@ -242,9 +242,9 @@ test.describe('Uso (A0b, tarefa 8.0)', () => {
     const operador = await novoOperador()
     await entrarNaOperacao(page, operador, hasTouch)
     await irPelaNavegacao(page, 'Uso', hasTouch)
-    await expect.poll(() => nomesNaTela(page), { timeout: PRAZO_DA_ENTRADA_MS }).not.toEqual([])
+    await expect.poll(() => nomesNaTela(page), { timeout: SIGN_IN_TIMEOUT_MS }).not.toEqual([])
     if (hasTouch) {
-      expect(await larguraExcedente(page)).toBe(0)
+      expect(await horizontalOverflow(page)).toBe(0)
       return
     }
     await conferirAListaQueRola(page, 'Uso por escola', 'Páginas do uso')
@@ -256,7 +256,7 @@ test.describe('Uso (A0b, tarefa 8.0)', () => {
       if (ROTA_DO_USO(new URL(pedido.url()))) pedidosDoUso++
     })
     await page.goto('/operacao/uso?pagina=2&ordem=uso')
-    await expect(page).toHaveURL(/\/operacao\/entrar$/, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page).toHaveURL(/\/operacao\/entrar$/, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(page.getByRole('heading', { name: 'Entrar na operação' })).toBeVisible()
     await expect(page.getByRole('table')).toHaveCount(0)
     expect(pedidosDoUso).toBe(0)
@@ -279,12 +279,12 @@ test.describe('Uso (A0b, tarefa 8.0)', () => {
     }
     await page.route(ROTA_DO_USO, vazio)
     await irPelaNavegacao(page, 'Uso', hasTouch)
-    await expect(page.getByRole('status').filter({ hasText: 'Carregando o uso das escolas…' })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
-    expect(await larguraExcedente(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    await expect(page.getByRole('status').filter({ hasText: 'Carregando o uso das escolas…' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
+    expect(await horizontalOverflow(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
 
     soltar()
-    await expect(page.getByRole('main')).toContainText('Nenhuma escola ainda.', { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page.getByRole('main')).toContainText('Nenhuma escola ainda.', { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(page.getByRole('main')).toContainText('O uso de cada escola aparece aqui assim que ela é criada.')
     const paraEscolas = page.getByRole('main').getByRole('button', { name: 'Ir para Escolas' })
     await expect(paraEscolas).toBeVisible()
@@ -292,8 +292,8 @@ test.describe('Uso (A0b, tarefa 8.0)', () => {
     expect(caixa?.height ?? 0).toBeGreaterThanOrEqual(ALVO_DE_TOQUE_PRINCIPAL_PX)
     await expect(page.getByRole('navigation', { name: 'Páginas do uso' })).toHaveCount(0)
     await expect(page.getByRole('table')).toHaveCount(0)
-    expect(await larguraExcedente(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await horizontalOverflow(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
     // O botão do vazio (a peça `EmptyState`) leva a Escolas, onde a escola se cria.
     if (hasTouch) await paraEscolas.tap()
     else await paraEscolas.click()
@@ -306,33 +306,33 @@ test.describe('Uso (A0b, tarefa 8.0)', () => {
     const falhar = (rota: Route) => rota.fulfill({ status: 503, contentType: 'application/json', body: envelope('INDISPONIVEL_TENTE_DE_NOVO') })
     await page.route(ROTA_DO_USO, falhar)
     await page.goto('/operacao/uso')
-    await expect(page.getByRole('alert')).toHaveText(TEXTO_DO_503, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page.getByRole('alert')).toHaveText(TEXTO_DO_503, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(page).toHaveURL(/\/operacao\/uso$/)
-    await expect(page.getByRole('main')).not.toContainText(codigoCru('503'))
-    expect(await larguraExcedente(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    await expect(page.getByRole('main')).not.toContainText(rawCodePattern('503'))
+    expect(await horizontalOverflow(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
 
     await page.unroute(ROTA_DO_USO, falhar)
     const lista = respostaDoUso(page, 1, 'nome')
-    await acionar(page, 'Tentar de novo', hasTouch)
+    await activate(page, 'Tentar de novo', hasTouch)
     const dados = (await (await lista).json()) as UsoDoPainelResponse
     await expect.poll(() => nomesNaTela(page)).toEqual(dados.itens.map((escola) => escola.nome))
     await expect(page.getByRole('alert')).toHaveCount(0)
-    expect(await larguraExcedente(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await horizontalOverflow(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
 
     // Com o uso na tela, a busca seguinte falha (a volta à aba com o dado já velho): a mensagem e o "Tentar de novo" em
     // cima, e o uso que já estava fica. Tentando de novo com a API de volta, a mensagem sai.
     await page.route(ROTA_DO_USO, falhar)
     await page.clock.setFixedTime(new Date(Date.now() + 60_000))
     await page.evaluate(() => window.dispatchEvent(new Event('visibilitychange')))
-    await expect(page.getByRole('region', { name: 'Uso por escola' }).getByRole('alert')).toHaveText(TEXTO_DO_503, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page.getByRole('region', { name: 'Uso por escola' }).getByRole('alert')).toHaveText(TEXTO_DO_503, { timeout: SIGN_IN_TIMEOUT_MS })
     expect(await nomesNaTela(page)).toEqual(dados.itens.map((escola) => escola.nome))
-    expect(await larguraExcedente(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await horizontalOverflow(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
     await page.unroute(ROTA_DO_USO, falhar)
     const denovo = respostaDoUso(page, 1, 'nome')
-    await acionar(page, 'Tentar de novo', hasTouch)
+    await activate(page, 'Tentar de novo', hasTouch)
     await denovo
     await expect(page.getByRole('alert')).toHaveCount(0)
 
@@ -341,13 +341,13 @@ test.describe('Uso (A0b, tarefa 8.0)', () => {
       rota.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ itens: [], pagina: 9999, total: 30, dia: '2026-09-23', mes: '2026-09' }) })
     await page.route(ROTA_DO_USO, alemDaUltima)
     await page.goto('/operacao/uso?pagina=9999&ordem=uso')
-    await expect(page.getByRole('main')).toContainText('Não há escolas nesta página.', { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page.getByRole('main')).toContainText('Não há escolas nesta página.', { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(page.getByRole('main')).toContainText('A lista tem 2 páginas.')
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await seriousViolations(page)).toEqual([])
     await page.unroute(ROTA_DO_USO, alemDaUltima)
-    await acionar(page, 'Ir para a primeira página', hasTouch)
+    await activate(page, 'Ir para a primeira página', hasTouch)
     await expect(page).toHaveURL(/\/operacao\/uso\?pagina=1&ordem=uso$/)
-    await expect.poll(() => nomesNaTela(page), { timeout: PRAZO_DA_ENTRADA_MS }).not.toEqual([])
+    await expect.poll(() => nomesNaTela(page), { timeout: SIGN_IN_TIMEOUT_MS }).not.toEqual([])
   })
 
   test('referência: o dia e o mês são os que a API devolveu, e não os de hoje no navegador; cada período nas suas colunas', async ({ page, hasTouch }) => {
@@ -372,7 +372,7 @@ test.describe('Uso (A0b, tarefa 8.0)', () => {
     await irPelaNavegacao(page, 'Uso', hasTouch)
 
     const principal = page.getByRole('main')
-    await expect(principal).toContainText('Último dia fechado: 31/12/2025. Mês: dezembro de 2025, até 31/12.', { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(principal).toContainText('Último dia fechado: 31/12/2025. Mês: dezembro de 2025, até 31/12.', { timeout: SIGN_IN_TIMEOUT_MS })
     const hojeNoNavegador = await page.evaluate(() => new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date()))
     expect(diaDeVerdade).toBeDefined()
     await expect(principal).not.toContainText(hojeNoNavegador)
@@ -390,8 +390,8 @@ test.describe('Uso (A0b, tarefa 8.0)', () => {
       expect(await cartao.getByRole('heading', { level: 3 }).allTextContents()).toEqual(titulosDosPeriodos)
       expect(await cartao.getByRole('term').allTextContents()).toEqual(['Requisições', 'Tarefas em segundo plano', 'Armazenamento', 'Requisições', 'Tarefas em segundo plano', 'Armazenamento'])
     }
-    expect(await larguraExcedente(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await horizontalOverflow(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
   })
 
   test('a escola criada pela tela entra no Uso com zero, mesmo com o Uso aberto há pouco no cache', async ({ page, hasTouch }) => {
@@ -405,7 +405,7 @@ test.describe('Uso (A0b, tarefa 8.0)', () => {
     const antes = respostaDoUso(page, 1, 'nome')
     await irPelaNavegacao(page, 'Uso', hasTouch)
     await antes
-    await expect.poll(() => nomesNaTela(page), { timeout: PRAZO_DA_ENTRADA_MS }).not.toEqual([])
+    await expect.poll(() => nomesNaTela(page), { timeout: SIGN_IN_TIMEOUT_MS }).not.toEqual([])
     // O relógio do navegador para aqui (os temporizadores seguem): o cache do Uso não envelhece sozinho durante o teste, e
     // só a criação da escola pode fazê-lo buscar de novo.
     await page.clock.setFixedTime(new Date())
@@ -413,14 +413,14 @@ test.describe('Uso (A0b, tarefa 8.0)', () => {
     await irPelaNavegacao(page, 'Escolas', hasTouch)
     const nome = nomeQueVemPrimeiro('Escola sintética do uso')
     const endereco = `uso-${crypto.randomUUID().slice(0, 8)}`
-    await acionar(page, 'Nova escola', hasTouch)
+    await activate(page, 'Nova escola', hasTouch)
     const dialogo = page.getByRole('dialog')
-    await dialogo.getByLabel('Rede').selectOption(rede.id, { timeout: PRAZO_DA_ENTRADA_MS })
+    await dialogo.getByLabel('Rede').selectOption(rede.id, { timeout: SIGN_IN_TIMEOUT_MS })
     await dialogo.getByLabel('Nome da escola').fill(nome)
     await dialogo.getByLabel('Endereço da escola').fill(endereco)
-    await acionar(page, 'Revisar', hasTouch)
-    await acionar(page, 'Criar escola', hasTouch)
-    await expect(page.getByRole('status').filter({ hasText: `Escola ${nome} criada.` })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(page, 'Revisar', hasTouch)
+    await activate(page, 'Criar escola', hasTouch)
+    await expect(page.getByRole('status').filter({ hasText: `Escola ${nome} criada.` })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     expect(await escolasComOEndereco(endereco)).toHaveLength(1)
 
     // De volta ao Uso: a página busca de novo, e a escola nova, sem uso consolidado, aparece com zero no dia e no mês.
@@ -429,6 +429,6 @@ test.describe('Uso (A0b, tarefa 8.0)', () => {
     const lista = (await (await depois).json()) as UsoDoPainelResponse
     expect(lista.itens.map((escola) => escola.nome)).toContain(nome)
     await expect.poll(async () => (await usoNaTela(page)).find((escola) => escola.nome === nome)?.valores).toEqual(['0', '0', '0 bytes', '0', '0', '0 bytes'])
-    expect(await larguraExcedente(page)).toBe(0)
+    expect(await horizontalOverflow(page)).toBe(0)
   })
 })

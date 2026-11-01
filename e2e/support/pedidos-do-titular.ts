@@ -1,5 +1,5 @@
 import type { Locator, Page } from '@playwright/test'
-import { entrarComoCoordenacaoNaMesmaAba, esperarPainel, PRAZO_DA_ENTRADA_MS } from './casca.ts'
+import { entrarComoCoordenacaoNaMesmaAba, esperarPainel, SIGN_IN_TIMEOUT_MS } from './casca.ts'
 import { irPelaCoordenacao } from './coordenacao.ts'
 import { expect } from './profiles.ts'
 import type { EquipeDeTeste } from './seed.ts'
@@ -57,7 +57,7 @@ export function somarDiasAHoje(dias: number): string {
   return new Date(Date.parse(`${hoje()}T00:00:00Z`) + dias * 86_400_000).toISOString().slice(0, 10)
 }
 
-export async function acionar(alvo: Locator, hasTouch: boolean): Promise<void> {
+export async function activate(alvo: Locator, hasTouch: boolean): Promise<void> {
   if (hasTouch) await alvo.tap()
   else await alvo.click()
 }
@@ -71,7 +71,7 @@ export async function acionarNoPontoDaLinha(alvo: Locator, hasTouch: boolean): P
   else await alvo.click({ force: true })
 }
 
-export function portao(): { aberta: Promise<void>; abrir: () => void } {
+export function gate(): { aberta: Promise<void>; abrir: () => void } {
   let abrir: () => void = () => undefined
   const aberta = new Promise<void>((resolver) => {
     abrir = resolver
@@ -94,18 +94,18 @@ export async function entrarNosPedidos(page: Page, hasTouch: boolean, pessoa: Eq
   await esperarPainel(page)
   await irPelaCoordenacao(page, 'Pedidos', hasTouch)
   await expect(page).toHaveURL(ENDERECO_DA_ABA, {
-    timeout: PRAZO_DA_ENTRADA_MS,
+    timeout: SIGN_IN_TIMEOUT_MS,
   })
   await expect(
     principal(page).getByRole('button', {
       name: 'Registrar pedido',
       exact: true,
     }),
-  ).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+  ).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
 }
 
 export async function abrirABusca(page: Page, hasTouch: boolean): Promise<void> {
-  await acionar(
+  await activate(
     principal(page).getByRole('button', {
       name: 'Registrar pedido',
       exact: true,
@@ -126,7 +126,7 @@ export async function escolherEPedir(page: Page, hasTouch: boolean, pessoa: RegE
   await busca(page).getByRole('radio', { name: pessoa }).check()
   await busca(page).getByLabel('Tipo do pedido').selectOption({ label: tipo })
   await busca(page).getByLabel('Quem pediu').selectOption({ label: quemPediu })
-  await acionar(busca(page).getByRole('button', { name: 'Continuar', exact: true }), hasTouch)
+  await activate(busca(page).getByRole('button', { name: 'Continuar', exact: true }), hasTouch)
 }
 
 /**
@@ -147,10 +147,10 @@ export async function registrarPeloFluxo(
 ): Promise<void> {
   await abrirABusca(page, hasTouch)
   await buscarPor(page, opcoes.nome)
-  await expect(busca(page).getByRole('radio', { name: opcoes.pessoa })).toHaveCount(1, { timeout: PRAZO_DA_ENTRADA_MS })
+  await expect(busca(page).getByRole('radio', { name: opcoes.pessoa })).toHaveCount(1, { timeout: SIGN_IN_TIMEOUT_MS })
   await escolherEPedir(page, hasTouch, opcoes.pessoa, opcoes.tipo, opcoes.quemPediu)
   const dialogo = page.getByRole('alertdialog')
-  await expect(dialogo.getByRole('button', { name: opcoes.confirmar, exact: true })).toBeEnabled({ timeout: PRAZO_DA_ENTRADA_MS })
-  await acionar(dialogo.getByRole('button', { name: opcoes.confirmar, exact: true }), hasTouch)
-  await expect(dialogo).toHaveCount(0, { timeout: PRAZO_DA_ENTRADA_MS })
+  await expect(dialogo.getByRole('button', { name: opcoes.confirmar, exact: true })).toBeEnabled({ timeout: SIGN_IN_TIMEOUT_MS })
+  await activate(dialogo.getByRole('button', { name: opcoes.confirmar, exact: true }), hasTouch)
+  await expect(dialogo).toHaveCount(0, { timeout: SIGN_IN_TIMEOUT_MS })
 }

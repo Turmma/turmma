@@ -13,16 +13,16 @@ import {
   linhaDoSeletor,
   naGaveta,
   nomeNoSeletor,
-  PRAZO_DA_ENTRADA_MS,
+  SIGN_IN_TIMEOUT_MS,
   esperarNovaConversa,
   esperarInicioDoAluno,
   entrarPelaApi,
 } from './support/casca.ts'
-import { cacheDeConsultas, semAcessosDaConta } from './support/query-cache.ts'
+import { queryCache, semAcessosDaConta } from './support/query-cache.ts'
 import { expect, test } from './support/profiles.ts'
 import { abrirEntregasDoAssistente } from './support/professor/entregas.ts'
 import { criarAlocacaoDoProfessor, criarAlunoComMatricula, criarEquipeComSenha, criarUsuarioEmOutraEscola, type EquipeDeTeste } from './support/seed.ts'
-import { ALVO_DE_TOQUE_PRINCIPAL_PX, focoVisivel, larguraExcedente, violacoesGraves } from './support/checks.ts'
+import { ALVO_DE_TOQUE_PRINCIPAL_PX, isFocusVisible, horizontalOverflow, seriousViolations } from './support/checks.ts'
 
 /**
  * O seletor de escola (P30; A1, tarefa 12.0): a troca que não deixa nada da escola anterior no cliente (W3), o formato de
@@ -50,7 +50,7 @@ function tokenDe(pedido: Request): string | undefined {
 }
 
 /** Toque no celular, clique no Chromebook. */
-async function acionar(page: Page, nome: string | RegExp, hasTouch: boolean): Promise<void> {
+async function activate(page: Page, nome: string | RegExp, hasTouch: boolean): Promise<void> {
   const alvo = page.getByRole('button', { name: nome })
   if (hasTouch) await alvo.tap()
   else await alvo.click()
@@ -61,8 +61,8 @@ async function entrarEmA(page: Page, emA: EquipeDeTeste, hasTouch: boolean): Pro
   await page.goto('/entrar')
   await entrarPorEmail(page, emA, hasTouch)
   const escolherA = page.getByRole('button', { name: `${emA.escolaNome} · professor` })
-  if (hasTouch) await escolherA.tap({ timeout: PRAZO_DA_ENTRADA_MS })
-  else await escolherA.click({ timeout: PRAZO_DA_ENTRADA_MS })
+  if (hasTouch) await escolherA.tap({ timeout: SIGN_IN_TIMEOUT_MS })
+  else await escolherA.click({ timeout: SIGN_IN_TIMEOUT_MS })
   await esperarNovaConversa(page, emA.nome)
 }
 
@@ -71,7 +71,7 @@ async function tabAte(page: Page, alvo: Locator, descricao: string, maximoDeTecl
   for (let tecla = 0; tecla < maximoDeTeclas; tecla++) {
     await page.keyboard.press('Tab')
     if (await alvo.evaluate((elemento) => elemento === document.activeElement)) {
-      expect(await focoVisivel(page), `foco invisível em ${descricao}`).toBe(true)
+      expect(await isFocusVisible(page), `foco invisível em ${descricao}`).toBe(true)
       return
     }
   }
@@ -79,7 +79,7 @@ async function tabAte(page: Page, alvo: Locator, descricao: string, maximoDeTecl
 }
 
 /** Uma porta que segura a resposta até o teste abrir. */
-function portao(): { aberta: Promise<void>; abrir: () => void } {
+function gate(): { aberta: Promise<void>; abrir: () => void } {
   let abrir: () => void = () => undefined
   const aberta = new Promise<void>((resolver) => {
     abrir = resolver
@@ -121,15 +121,15 @@ test.describe('W3: a troca de escola não deixa nada de A no cliente', () => {
     await entrarEmA(page, emA, hasTouch)
     dentroDeA = true
     await irPelaNavegacao(page, 'Turmas', hasTouch)
-    await expect(page.getByRole('main')).toContainText(deA.turmaNome, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page.getByRole('main')).toContainText(deA.turmaNome, { timeout: SIGN_IN_TIMEOUT_MS })
     // O controle: antes da troca, o cache guarda de fato a turma de A. Sem isto, a ausência depois não provaria nada.
-    expect(semAcessosDaConta(await cacheDeConsultas(page))).toContain(deA.turmaId)
+    expect(semAcessosDaConta(await queryCache(page))).toContain(deA.turmaId)
 
     // A troca sai da tela de Turmas de A, com a lista dela montada e no cache.
     await escolherNoSeletor(page, nomeNoSeletor(emB, 'professor'), hasTouch)
     await esperarNovaConversa(page, NOME_DA_PROFESSORA_EM_B)
     await irPelaNavegacao(page, 'Turmas', hasTouch)
-    await expect(page.getByRole('main')).toContainText(deB.turmaNome, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page.getByRole('main')).toContainText(deB.turmaNome, { timeout: SIGN_IN_TIMEOUT_MS })
     const corpos = await Promise.all(respostasDepois)
 
     // Nenhuma requisição depois da troca levou o token de A: a limpeza refez as buscas já com o de B.
@@ -147,7 +147,7 @@ test.describe('W3: a troca de escola não deixa nada de A no cliente', () => {
     for (const deA_ of deEscolaA) expect(semAcessos).not.toContain(deA_)
 
     // E o cache do TanStack, lido de dentro da página: só B, fora a lista `acessos`.
-    const cache = semAcessosDaConta(await cacheDeConsultas(page))
+    const cache = semAcessosDaConta(await queryCache(page))
     expect(cache).toContain(deB.turmaId)
     for (const deA_ of deEscolaA) expect(cache).not.toContain(deA_)
   })
@@ -188,8 +188,8 @@ test.describe('W13: o seletor no formato de espaço de trabalho', () => {
     // Nada de dentro de B: nem a turma, nem um número de turmas.
     await expect(lateral(page)).not.toContainText(deB.turmaNome)
     await expect(lista).not.toContainText(/\d+ turmas?/)
-    expect(await larguraExcedente(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await horizontalOverflow(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
   })
 
   test('com uma escola só, mostra o nome e não abre', async ({ page, hasTouch }) => {
@@ -203,7 +203,7 @@ test.describe('W13: o seletor no formato de espaço de trabalho', () => {
     // Nada ali abre: o nome é texto, e não um controle. O sino "Esperando você" (X3) também tem `aria-expanded` e, no computador,
     // `lateral` é a página inteira: ele é de outra peça, e fica de fora da conta.
     await expect(lateral(page).locator('[aria-expanded]:not([aria-label^="Esperando você"])')).toHaveCount(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await seriousViolations(page)).toEqual([])
   })
 })
 
@@ -240,8 +240,8 @@ test.describe('W12: o seletor pelo teclado, pelo toque e a 360 px', () => {
       expect(caixa?.height ?? 0).toBeGreaterThanOrEqual(ALVO_DE_TOQUE_PRINCIPAL_PX)
       expect(caixa?.width ?? 0).toBeGreaterThanOrEqual(ALVO_DE_TOQUE_PRINCIPAL_PX)
     }
-    expect(await larguraExcedente(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await horizontalOverflow(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
 
     // O Esc fecha a lista e devolve o foco ao botão; a gaveta continua aberta.
     await linhaDoSeletor(page, nomeNoSeletor(emA, 'professor')).focus()
@@ -255,7 +255,7 @@ test.describe('W12: o seletor pelo teclado, pelo toque e a 360 px', () => {
     await expect(linhaDoSeletor(page, nomeNoSeletor(emA, 'professor'))).toBeFocused()
     await page.keyboard.press('Tab')
     await expect(linhaDoSeletor(page, nomeNoSeletor(emB, 'professor'))).toBeFocused()
-    expect(await focoVisivel(page)).toBe(true)
+    expect(await isFocusVisible(page)).toBe(true)
     await page.keyboard.press('Enter')
     await esperarNovaConversa(page, NOME_DA_PROFESSORA_EM_B)
   })
@@ -268,13 +268,13 @@ test.describe('recomeço da tela do seletor', () => {
     const [emB, deA] = await Promise.all([criarUsuarioEmOutraEscola(emA.contaId), criarAlocacaoDoProfessor(emA.escolaId, emA.usuarioId)])
     // A entrada da professora não é o assunto do caso: pela API, e o segundo login (o do aluno, pelo formulário) é o que cabe nos 15 s.
     await entrarPelaApi(page, emA, '/professor/turmas', emA.usuarioId)
-    await expect(page.getByRole('main')).toContainText(deA.turmaNome, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page.getByRole('main')).toContainText(deA.turmaNome, { timeout: SIGN_IN_TIMEOUT_MS })
     // A lista fica aberta quando ela sai: é o estado que a pessoa seguinte não pode herdar.
     await abrirSeletorDeEscola(page, hasTouch)
     const sair = lateral(page).getByRole('button', { name: 'Sair' })
     if (hasTouch) await sair.tap()
     else await sair.click()
-    await expect(page).toHaveURL(/\/entrar$/, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page).toHaveURL(/\/entrar$/, { timeout: SIGN_IN_TIMEOUT_MS })
 
     // O aluno entra na mesma aba, sem recarregar: o módulo da web continua na memória da página.
     await page.evaluate((slug) => {
@@ -283,7 +283,7 @@ test.describe('recomeço da tela do seletor', () => {
     }, aluno.slug)
     await page.getByLabel('Matrícula').fill(aluno.matricula)
     await page.getByLabel('Senha').fill(aluno.senha)
-    await acionar(page, /^Entrar$/, hasTouch)
+    await activate(page, /^Entrar$/, hasTouch)
     await esperarInicioDoAluno(page, aluno.nome)
 
     // Contagem de nós, e não de nós à vista: vale com a gaveta fechada, e abri-la só gastaria o tempo do caso.
@@ -292,7 +292,7 @@ test.describe('recomeço da tela do seletor', () => {
     // Um só texto lido, e cada nome conferido nele: seis esperas em sequência seriam seis idas ao navegador.
     const tela = (await page.locator('body').textContent()) ?? ''
     for (const daProfessora of [emA.escolaNome, emB.escolaNome, emA.redeNome, emB.redeNome, emA.nome, deA.turmaNome]) expect(tela).not.toContain(daProfessora)
-    const cache = semAcessosDaConta(await cacheDeConsultas(page))
+    const cache = semAcessosDaConta(await queryCache(page))
     for (const daProfessora of [emA.usuarioId, emB.usuarioId, emA.escolaId, deA.turmaId]) expect(cache).not.toContain(daProfessora)
     expect(cache).toContain(aluno.usuarioId)
   })
@@ -328,7 +328,7 @@ test.describe('recomeço da tela do seletor', () => {
     // Nova conversa já leu os vínculos, e o cache das consultas os serve); a tela do Assistente, aberta pelo pé do sino, lê a lista inteira das
     // entregas, que a Nova conversa não lê, e por isso sempre sai ao menos um pedido observado depois da escolha.
     await irPelaNavegacao(page, 'Turmas', hasTouch)
-    await expect(page.getByText('A coordenação ainda não alocou você')).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page.getByText('A coordenação ainda não alocou você')).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     const listaDasEntregas = page.waitForRequest((pedido) => {
       const url = new URL(pedido.url())
       return url.pathname === '/v1/entregas' && !url.searchParams.has('estado')
@@ -348,7 +348,7 @@ test.describe('recomeço da tela do seletor', () => {
     // Só a primeira leitura, a de A, fica presa; a de B, depois da troca, passa. A rota entra antes da entrada: a Nova
     // conversa já lê os vínculos, e com a leitura dela livre a de Turmas saía do cache, sem janela nenhuma de
     // carregamento (falhou assim no celular, esteira `37250031803`). Só telas do professor leem os vínculos.
-    const segurada = portao()
+    const segurada = gate()
     let leituras = 0
     await page.route(ROTA_MEUS_VINCULOS, async (rota: Route) => {
       leituras++
@@ -358,7 +358,7 @@ test.describe('recomeço da tela do seletor', () => {
     })
     await entrarEmA(page, emA, hasTouch)
     await irPelaNavegacao(page, 'Turmas', hasTouch)
-    await expect(page.getByText('Carregando as suas turmas…')).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page.getByText('Carregando as suas turmas…')).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
 
     await escolherNoSeletor(page, nomeNoSeletor(emB, 'professor'), hasTouch)
     await esperarNovaConversa(page, NOME_DA_PROFESSORA_EM_B)
@@ -369,9 +369,9 @@ test.describe('recomeço da tela do seletor', () => {
 
     // E em "Turmas" de B, que é onde a lista de A cairia se tivesse ficado no cache.
     await irPelaNavegacao(page, 'Turmas', hasTouch)
-    await expect(page.getByText('A coordenação ainda não alocou você')).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page.getByText('A coordenação ainda não alocou você')).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(page.locator('body')).not.toContainText(deA.turmaNome)
-    expect(semAcessosDaConta(await cacheDeConsultas(page))).not.toContain(deA.turmaId)
+    expect(semAcessosDaConta(await queryCache(page))).not.toContain(deA.turmaId)
   })
 
   test('falha com o seletor aberto: dois toques mandam uma troca só, a recusada mostra o aviso, e ao reabrir o aviso sai e o foco vai para a escola de agora', async ({
@@ -381,7 +381,7 @@ test.describe('recomeço da tela do seletor', () => {
     const emA = await criarEquipeComSenha()
     const emB = await criarUsuarioEmOutraEscola(emA.contaId)
     await entrarEmA(page, emA, hasTouch)
-    const segurada = portao()
+    const segurada = gate()
     let trocas = 0
     await page.route(`**${CAMINHO_DA_TROCA}`, async (rota: Route) => {
       trocas++
@@ -411,11 +411,11 @@ test.describe('recomeço da tela do seletor', () => {
     segurada.abrir()
 
     const aviso = lateral(page).getByRole('alert')
-    await expect(aviso).toHaveText(AVISO_DA_TROCA_RECUSADA, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(aviso).toHaveText(AVISO_DA_TROCA_RECUSADA, { timeout: SIGN_IN_TIMEOUT_MS })
     expect(trocas).toBe(1)
     await expect(linhaDoSeletor(page, nomeNoSeletor(emB, 'professor'))).toBeFocused()
     await expect(page.locator('body')).not.toContainText('NAO_ENCONTRADO')
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await seriousViolations(page)).toEqual([])
 
     // Fecha e reabre: o aviso era da tentativa anterior, e o foco vai para a escola de agora, e não para a que falhou.
     await page.keyboard.press('Escape')

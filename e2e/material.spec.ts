@@ -1,12 +1,12 @@
 import type { APIRequestContext, Locator, Page, Request, Route } from '@playwright/test'
 import { readFileSync } from 'node:fs'
-import { abrirNavegacao, entrarPelaTelaComSegundoFator, lateral, PRAZO_DA_ENTRADA_MS } from './support/casca.ts'
+import { abrirNavegacao, entrarPelaTelaComSegundoFator, lateral, SIGN_IN_TIMEOUT_MS } from './support/casca.ts'
 import { irPelaCoordenacao, linhasDaTabela } from './support/coordenacao.ts'
 import { CAMINHO_DO_PDF_DE_DEMONSTRACAO, criarMaterialNoBanco, materiaisNoBanco, recusasNaAuditoria } from './support/material.ts'
 import { expect, test } from './support/profiles.ts'
 import { abrirPelaApiSemMedirAPrimeiraCarga, configurarSegundoFatorPelaApi } from './support/mfa.ts'
 import { criarEquipeComSenha, montarEstruturaNoBanco, type EquipeDeTeste, type EstruturaDeTeste } from './support/seed.ts'
-import { ALVO_DE_TOQUE_PRINCIPAL_PX, larguraExcedente, larguraExcedenteDoDialogo, violacoesGraves } from './support/checks.ts'
+import { ALVO_DE_TOQUE_PRINCIPAL_PX, horizontalOverflow, larguraExcedenteDoDialogo, seriousViolations } from './support/checks.ts'
 
 /**
  * A tela Material da coordenação (MVP de apresentação, A2; telas da coordenação, 8.0; `docs/mvp-rapido.md`, seções 1 e 9.2; D5, D22,
@@ -52,13 +52,13 @@ const anuncio = (page: Page, texto: string) => lista(page).getByRole('status').f
 /** O arquivo escolhido, como a área de envio o mostra: o nome e o tamanho (o anúncio para o leitor de tela começa por outro texto). */
 const escolhido = (page: Page, nome: string) => caixaDeEnvio(page).getByText(new RegExp(`^${nome.replaceAll('.', '\\.')} · \\d`))
 
-async function acionar(alvo: Locator, hasTouch: boolean): Promise<void> {
+async function activate(alvo: Locator, hasTouch: boolean): Promise<void> {
   if (hasTouch) await alvo.tap()
   else await alvo.click()
 }
 
 /** Uma porta que segura a resposta até o teste abrir. */
-function portao(): { aberta: Promise<void>; abrir: () => void } {
+function gate(): { aberta: Promise<void>; abrir: () => void } {
   let abrir: () => void = () => undefined
   const aberta = new Promise<void>((resolver) => {
     abrir = resolver
@@ -84,10 +84,10 @@ async function abrirMaterial(page: Page, request: APIRequestContext, antes?: (ce
   const cenario = { coordenadora, estrutura }
   await antes?.(cenario)
   await abrirPelaApiSemMedirAPrimeiraCarga(page, request, coordenadora, '/coordenacao/material', async () => {
-    await expect(page).toHaveURL(/\/coordenacao\/material$/, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page).toHaveURL(/\/coordenacao\/material$/, { timeout: SIGN_IN_TIMEOUT_MS })
     // A tela monta quando o pedaço dela chega (`import()`): sem esperá-lo aqui, ele baixaria com a rede do perfil de volta, e o título e
     // o resto da tela só apareceriam depois dos 5 s do `expect` de quem chama.
-    await expect(principal(page).getByRole('heading', { level: 1, name: 'Escola' })).toBeAttached({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(principal(page).getByRole('heading', { level: 1, name: 'Escola' })).toBeAttached({ timeout: SIGN_IN_TIMEOUT_MS })
   })
   return cenario
 }
@@ -118,13 +118,13 @@ async function abrirMaterialPeloEndereco(
 
 /** Abre o diálogo "Enviar material" pelo botão da tela e espera o formulário. */
 async function abrirEnvio(page: Page, hasTouch: boolean): Promise<void> {
-  await acionar(botaoDoEnvio(page), hasTouch)
+  await activate(botaoDoEnvio(page), hasTouch)
   await expect(caixaDeEnvio(page)).toBeVisible()
 }
 
 /** Fecha o diálogo pelo "Cancelar" dele: a página por trás é inerte enquanto ele está aberto. */
 async function cancelarEnvio(page: Page, hasTouch: boolean): Promise<void> {
-  await acionar(caixaDeEnvio(page).getByRole('button', { name: 'Cancelar' }), hasTouch)
+  await activate(caixaDeEnvio(page).getByRole('button', { name: 'Cancelar' }), hasTouch)
   await expect(caixaDeEnvio(page)).toHaveCount(0)
 }
 
@@ -149,7 +149,7 @@ test.describe('Material da coordenação', () => {
     const cenario = await abrirMaterial(page, request)
     await expect(page).toHaveTitle('Escola: material · Turmma')
     // O vazio convida a enviar o primeiro material.
-    await expect(lista(page).getByText('Nenhum material ainda')).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(lista(page).getByText('Nenhum material ainda')).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await page.evaluate(() => {
       ;(window as unknown as { semRecarga?: boolean }).semRecarga = true
     })
@@ -160,10 +160,10 @@ test.describe('Material da coordenação', () => {
     await expect(escolhido(page, 'quimica-2-cap-7-estequiometria.pdf')).toBeVisible()
     await expect(caixaDeEnvio(page).getByLabel('Título')).toHaveValue('quimica 2 cap 7 estequiometria')
     await preencher(page, cenario, { comArquivo: false })
-    await acionar(enviar(page), hasTouch)
+    await activate(enviar(page), hasTouch)
 
     // O diálogo fecha, a tabela mostra o material e o anúncio diz o que acontece agora.
-    await expect(caixaDeEnvio(page)).toHaveCount(0, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(caixaDeEnvio(page)).toHaveCount(0, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(anuncio(page, 'Material enviado. A leitura das páginas começa agora e leva alguns instantes.')).toBeVisible()
     // O botão que abriu o diálogo era o do vazio, e saiu da tela com ele: o foco vai para o título da lista, e não para o `body`.
     await expect(tituloDaLista(page)).toBeFocused()
@@ -181,7 +181,7 @@ test.describe('Material da coordenação', () => {
     await cancelarEnvio(page, hasTouch)
 
     expect(await materiaisNoBanco(cenario.coordenadora.escolaId)).toEqual([expect.objectContaining({ titulo: TITULO, estado: 'pronto', paginas: 6, trechos: 6, excluido: false })])
-    expect(await larguraExcedente(page)).toBe(0)
+    expect(await horizontalOverflow(page)).toBe(0)
     // A margem da página é uma só, a da casca (16 px no celular, 32 px a partir de 768 px, A84): a `Page` não a repete, e o
     // conteúdo começa onde o `main` começa.
     const [daCasca, daTela] = await principal(page).evaluate((main) => {
@@ -206,7 +206,7 @@ test.describe('Material da coordenação', () => {
     // Antes da medida, que o `h1` está num cabeçalho: sem ele a conferência de 64 px falharia sem dizer o que quebrou.
     expect(titulo.cabecalho).not.toBeNull()
     expect(titulo.cabecalho ?? 0).toBeGreaterThanOrEqual(64)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await seriousViolations(page)).toEqual([])
   })
 
   test('enquanto o material está sendo lido a tela consulta sozinha, e troca "Processando" por "Pronto" sem recarregar', async ({ page, request }) => {
@@ -239,7 +239,7 @@ test.describe('Material da coordenação', () => {
     await abrirMaterial(page, request)
 
     const linha = linhaDe(page, TITULO)
-    await expect(linha.getByText('Processando')).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(linha.getByText('Processando')).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     // A marca é posta com a página já aberta e antes da troca: uma recarga a apagaria (como no caso de cima).
     await page.evaluate(() => {
       ;(window as unknown as { semRecarga?: boolean }).semRecarga = true
@@ -264,7 +264,7 @@ test.describe('Material da coordenação', () => {
       () => '/coordenacao/material',
       async () => {
         await expect(page).toHaveURL(/\/coordenacao\/material$/)
-        await expect(lista(page).getByText('Nenhum material ainda')).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+        await expect(lista(page).getByText('Nenhum material ainda')).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
       },
     )
     await abrirEnvio(page, hasTouch)
@@ -273,12 +273,12 @@ test.describe('Material da coordenação', () => {
     await expect(caixaDeEnvio(page).getByText('Sem licença, o envio é recusado: o arquivo não é enviado nem lido, e a tentativa fica registrada na auditoria da escola.')).toBeVisible()
 
     const pedido = page.waitForRequest(ehOEnvio)
-    await acionar(enviar(page), hasTouch)
+    await activate(enviar(page), hasTouch)
     const corpo = (await pedido).postDataBuffer()
 
     // O diálogo fica aberto, com o motivo no aviso (que recebe o foco) e o que foi digitado.
     const alerta = caixaDeEnvio(page).getByRole('alert').filter({ hasText: 'Envio recusado.' })
-    await expect(alerta).toHaveText(`Envio recusado. ${TEXTO_SEM_LICENCA}`, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(alerta).toHaveText(`Envio recusado. ${TEXTO_SEM_LICENCA}`, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(alerta).toBeFocused()
     await expect(caixaDeEnvio(page).getByLabel('Título')).toHaveValue(TITULO)
     // A recusa é uma linha da tabela, e não se confunde com um material: ela não abre painel, e só se dispensa.
@@ -298,14 +298,14 @@ test.describe('Material da coordenação', () => {
     await caixaDeEnvio(page).getByLabel('Título').fill('Outro capítulo')
     await caixaDeEnvio(page).getByLabel('Licença de uso (obrigatória)').selectOption({ label: 'Licença aberta (Creative Commons e semelhantes)' })
     await declaracao(page).uncheck()
-    await acionar(enviar(page), hasTouch)
-    await expect(caixaDeEnvio(page).getByRole('alert').filter({ hasText: 'Envio recusado.' })).toHaveText(`Envio recusado. ${TEXTO_SEM_DECLARACAO}`, { timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(enviar(page), hasTouch)
+    await expect(caixaDeEnvio(page).getByRole('alert').filter({ hasText: 'Envio recusado.' })).toHaveText(`Envio recusado. ${TEXTO_SEM_DECLARACAO}`, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(linhaDe(page, 'Outro capítulo').getByText('Envio recusado · sem declaração')).toBeVisible()
     expect(await materiaisNoBanco(cenario.coordenadora.escolaId)).toEqual([])
     expect((await recusasNaAuditoria(cenario.coordenadora.escolaId)).map((recusa) => recusa.motivo)).toEqual(['sem_licenca', 'sem_declaracao'])
 
     expect(await larguraExcedenteDoDialogo(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await seriousViolations(page)).toEqual([])
 
     // Reabrir o diálogo começa de um formulário novo: o rascunho e o aviso da tentativa anterior saem, e a recusa continua na tabela.
     await cancelarEnvio(page, hasTouch)
@@ -314,28 +314,28 @@ test.describe('Material da coordenação', () => {
     await expect(caixaDeEnvio(page).getByRole('alert').filter({ hasText: 'Envio recusado.' })).toHaveCount(0)
     await cancelarEnvio(page, hasTouch)
     await expect(linhasDaLista(page)).toHaveCount(2)
-    expect(await larguraExcedente(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await horizontalOverflow(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
 
     // Dispensar tira a recusa da tela; a lista volta ao vazio.
-    await acionar(linhaDe(page, 'Outro capítulo').getByRole('button', { name: /Dispensar/ }), hasTouch)
-    await acionar(linhaDe(page, TITULO).getByRole('button', { name: /Dispensar/ }), hasTouch)
+    await activate(linhaDe(page, 'Outro capítulo').getByRole('button', { name: /Dispensar/ }), hasTouch)
+    await activate(linhaDe(page, TITULO).getByRole('button', { name: /Dispensar/ }), hasTouch)
     await expect(lista(page).getByText('Nenhum material ainda')).toBeVisible()
   })
 
   test('depois da recusa o diálogo continua aberto: corrigir a licença e enviar de novo entra o material, e a recusa continua na tabela', async ({ page, hasTouch, request }) => {
     const cenario = await abrirMaterial(page, request)
-    await expect(lista(page).getByText('Nenhum material ainda')).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(lista(page).getByText('Nenhum material ainda')).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await abrirEnvio(page, hasTouch)
     await preencher(page, cenario, { licenca: 'Não tenho a licença, ou não sei' })
-    await acionar(enviar(page), hasTouch)
-    await expect(caixaDeEnvio(page).getByRole('alert').filter({ hasText: 'Envio recusado.' })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(enviar(page), hasTouch)
+    await expect(caixaDeEnvio(page).getByRole('alert').filter({ hasText: 'Envio recusado.' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     expect(await materiaisNoBanco(cenario.coordenadora.escolaId)).toEqual([])
 
     // A coordenação corrige a licença no mesmo diálogo e envia de novo.
     await preencher(page, cenario)
-    await acionar(enviar(page), hasTouch)
-    await expect(caixaDeEnvio(page)).toHaveCount(0, { timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(enviar(page), hasTouch)
+    await expect(caixaDeEnvio(page)).toHaveCount(0, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(linhaDe(page, TITULO).getByText('Pronto · 6 páginas')).toBeVisible({ timeout: PRAZO_DA_LEITURA_MS })
     await expect(linhaDe(page, TITULO).getByText('Envio recusado · sem licença')).toBeVisible()
     expect(await materiaisNoBanco(cenario.coordenadora.escolaId)).toEqual([expect.objectContaining({ titulo: TITULO, estado: 'pronto', paginas: 6 })])
@@ -343,7 +343,7 @@ test.describe('Material da coordenação', () => {
 
   test('o texto do campo "De quem é o material" cabe inteiro, também na opção mais longa: a coordenação lê a titularidade que declarou', async ({ page, hasTouch, request }) => {
     await abrirMaterial(page, request)
-    await expect(lista(page).getByText('Nenhum material ainda')).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(lista(page).getByText('Nenhum material ainda')).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await abrirEnvio(page, hasTouch)
     const campo = caixaDeEnvio(page).getByLabel('De quem é o material')
     await campo.selectOption({ label: 'Material de autoria de professor da escola' })
@@ -369,7 +369,7 @@ test.describe('Material da coordenação', () => {
 
   test('o formulário incompleto diz o que falta em cada campo, e o arquivo que não é PDF é recusado na tela, sem pedido à API', async ({ page, hasTouch, request }) => {
     await abrirMaterial(page, request)
-    await expect(lista(page).getByText('Nenhum material ainda')).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(lista(page).getByText('Nenhum material ainda')).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     let envios = 0
     page.on('request', (pedido) => {
       if (ehOEnvio(pedido)) envios += 1
@@ -377,7 +377,7 @@ test.describe('Material da coordenação', () => {
 
     await abrirEnvio(page, hasTouch)
     const caixa = caixaDeEnvio(page)
-    await acionar(enviar(page), hasTouch)
+    await activate(enviar(page), hasTouch)
     await expect(caixa.getByText('Escolha o PDF do material.')).toBeVisible()
     await expect(caixa.getByText('Dê um título ao material, como ele aparece no livro ou na apostila.')).toBeVisible()
     await expect(caixa.getByText('Escolha a disciplina do material.')).toBeVisible()
@@ -393,16 +393,16 @@ test.describe('Material da coordenação', () => {
     // Material de terceiro pede quem deu a licença.
     await caixa.getByLabel('De quem é o material').selectOption({ label: 'Material de terceiro, com licença' })
     await expect(caixa.getByLabel('Quem deu a licença')).toBeVisible()
-    await acionar(enviar(page), hasTouch)
+    await activate(enviar(page), hasTouch)
     await expect(caixa.getByText('Diga quem é o dono do conteúdo que deu a licença.')).toBeVisible()
     expect(envios).toBe(0)
     expect(await larguraExcedenteDoDialogo(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await seriousViolations(page)).toEqual([])
   })
 
   test('o arquivo entra arrastado e também pelo botão, com o teclado, dentro do diálogo: nada só funciona arrastando', async ({ page, hasTouch, request }) => {
     await abrirMaterial(page, request)
-    await expect(lista(page).getByText('Nenhum material ainda')).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(lista(page).getByText('Nenhum material ainda')).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await abrirEnvio(page, hasTouch)
     const botao = caixaDeEnvio(page).getByRole('button', { name: 'Escolher arquivo' })
     const caixa = await botao.boundingBox()
@@ -443,7 +443,7 @@ test.describe('Material da coordenação', () => {
   // Os quatro estados, em três casos: juntos, com a entrada da coordenação, três varreduras de acessibilidade e a leitura
   // de um PDF de verdade, passavam dos 30 s no celular (CPU ×4). Cada caso começa da escola montada no banco.
   test('os estados sem dado: carregando, erro com "Tentar de novo", e o vazio que convida a enviar', async ({ page, hasTouch, request }) => {
-    const segurada = portao()
+    const segurada = gate()
     let falhar = true
     await page.route(
       (url) => ehALista(url),
@@ -457,22 +457,22 @@ test.describe('Material da coordenação', () => {
     await abrirMaterial(page, request)
 
     // Carregando: a lista ainda não chegou.
-    await expect(principal(page).getByRole('status').filter({ hasText: 'Carregando os materiais…' })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(principal(page).getByRole('status').filter({ hasText: 'Carregando os materiais…' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(principal(page).getByRole('heading', { level: 1, name: 'Escola' })).toBeAttached()
 
     // Erro: diz o que fazer, e "Tentar de novo" lê outra vez.
     segurada.abrir()
-    await expect(principal(page).getByRole('alert').filter({ hasText: TEXTO_INDISPONIVEL })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
-    expect(await violacoesGraves(page)).toEqual([])
+    await expect(principal(page).getByRole('alert').filter({ hasText: TEXTO_INDISPONIVEL })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
+    expect(await seriousViolations(page)).toEqual([])
     falhar = false
-    await acionar(principal(page).getByRole('button', { name: 'Tentar de novo' }), hasTouch)
+    await activate(principal(page).getByRole('button', { name: 'Tentar de novo' }), hasTouch)
 
     // Vazio: convida a enviar o primeiro material, e a ação da tela é uma só, o "Enviar material".
-    await expect(lista(page).getByText('Nenhum material ainda')).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(lista(page).getByText('Nenhum material ainda')).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(lista(page)).toContainText('Envie o primeiro PDF da escola, com a licença declarada.')
     await expect(lista(page).getByRole('button')).toHaveText(['Enviar material'])
     expect(await botoesCheios(page)).toEqual(['Enviar material'])
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await seriousViolations(page)).toEqual([])
   })
 
   test('com dado, em cada situação: o que não carregou primeiro, depois o mais novo; a linha abre o painel no endereço, com o que foi declarado', async ({ page, hasTouch, request }) => {
@@ -482,18 +482,18 @@ test.describe('Material da coordenação', () => {
       semTextoId = await criarMaterialNoBanco(coordenadora.escolaId, estrutura.disciplina.id, { titulo: 'Capítulo sem texto', estado: 'falhou', falha: 'sem_texto' })
       await criarMaterialNoBanco(coordenadora.escolaId, estrutura.disciplina.id, { titulo: 'Capítulo em leitura', estado: 'processando' })
     })
-    await expect(linhaDe(page, 'Capítulo pronto').getByText('Pronto · 12 páginas')).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(linhaDe(page, 'Capítulo pronto').getByText('Pronto · 12 páginas')).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(linhaDe(page, 'Capítulo em leitura').getByText('Processando')).toBeVisible()
     await expect(linhaDe(page, 'Capítulo sem texto').getByText('Não carregou')).toBeVisible()
     // O que não carregou vem primeiro; depois, o mais novo: enviados pronto, sem texto e em leitura, a ordem é sem texto, em leitura, pronto.
     await expect(linhasDaLista(page)).toHaveText([/Capítulo sem texto/, /Capítulo em leitura/, /Capítulo pronto/])
     // "Enviar material" é o único botão cheio da tela.
     expect(await botoesCheios(page)).toEqual(['Enviar material'])
-    expect(await larguraExcedente(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await horizontalOverflow(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
 
     // A linha abre o painel: o endereço leva só o id do material, e o painel diz o motivo da falha e o que foi declarado.
-    await acionar(botaoDaLinha(page, 'Capítulo sem texto'), hasTouch)
+    await activate(botaoDaLinha(page, 'Capítulo sem texto'), hasTouch)
     const painel = painelDe(page, 'Capítulo sem texto')
     await expect(painel).toBeVisible()
     await expect(page).toHaveURL(new RegExp(`/coordenacao/material\\?material=${semTextoId}$`))
@@ -503,8 +503,8 @@ test.describe('Material da coordenação', () => {
     await expect(painel).toContainText('Autoria da escola ou de professor dela')
     await expect(painel.locator('button:not([aria-label="Fechar"])')).toHaveText(['Tentar de novo', 'Excluir material'])
     expect(await botoesCheios(page)).toEqual(['Enviar material'])
-    expect(await larguraExcedente(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await horizontalOverflow(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
 
     // O Esc fecha e tira o parâmetro do endereço.
     await page.keyboard.press('Escape')
@@ -512,7 +512,7 @@ test.describe('Material da coordenação', () => {
     await expect(page).toHaveURL(/\/coordenacao\/material$/)
 
     // O material pronto só oferece "Excluir material".
-    await acionar(botaoDaLinha(page, 'Capítulo pronto'), hasTouch)
+    await activate(botaoDaLinha(page, 'Capítulo pronto'), hasTouch)
     await expect(painelDe(page, 'Capítulo pronto').locator('button:not([aria-label="Fechar"])')).toHaveText(['Excluir material'])
   })
 
@@ -526,7 +526,7 @@ test.describe('Material da coordenação', () => {
       },
       () => `/coordenacao/material?material=${semTextoId}`,
     )
-    await expect(painelDe(page, 'Capítulo sem texto')).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(painelDe(page, 'Capítulo sem texto')).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await page.keyboard.press('Escape')
     await expect(page).toHaveURL(/\/coordenacao\/material$/)
   })
@@ -540,7 +540,7 @@ test.describe('Material da coordenação', () => {
       },
       () => '/coordenacao/material?material=0190f5a0-0000-7000-8000-0000000000ff',
     )
-    await expect(linhaDe(page, 'Capítulo sem texto')).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(linhaDe(page, 'Capítulo sem texto')).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(page.getByRole('dialog')).toHaveCount(0)
   })
 
@@ -550,17 +550,17 @@ test.describe('Material da coordenação', () => {
     await abrirMaterial(page, request, async ({ coordenadora, estrutura }) => {
       materialDeA = await criarMaterialNoBanco(coordenadora.escolaId, estrutura.disciplina.id, { titulo: 'Capítulo da escola A', estado: 'pronto', paginas: 4 })
     })
-    await acionar(botaoDaLinha(page, 'Capítulo da escola A'), hasTouch)
-    await expect(painelDe(page, 'Capítulo da escola A')).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(botaoDaLinha(page, 'Capítulo da escola A'), hasTouch)
+    await expect(painelDe(page, 'Capítulo da escola A')).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await page.keyboard.press('Escape')
     await abrirNavegacao(page, hasTouch)
-    await acionar(lateral(page).getByRole('button', { name: 'Sair' }), hasTouch)
-    await expect(page).toHaveURL(/\/entrar$/, { timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(lateral(page).getByRole('button', { name: 'Sair' }), hasTouch)
+    await expect(page).toHaveURL(/\/entrar$/, { timeout: SIGN_IN_TIMEOUT_MS })
 
     // A de B entra na mesma aba, sem recarregar, com a leitura da lista segurada: é aí que a lista de A apareceria.
     const deB = await criarEquipeComSenha('coordenador')
     await montarEstruturaNoBanco(deB.escolaId)
-    const segurada = portao()
+    const segurada = gate()
     await page.route(
       (url) => ehALista(url),
       async (rota: Route) => {
@@ -571,17 +571,17 @@ test.describe('Material da coordenação', () => {
     // O segundo fator da de B é configurado pela API: o caso é sobre o que a aba mostra da de A, e não sobre configurar o segundo fator.
     const { segredo } = await configurarSegundoFatorPelaApi(request, deB)
     await entrarPelaTelaComSegundoFator(page, deB, segredo, hasTouch)
-    await expect(page).toHaveURL(/\/coordenacao\/painel$/, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page).toHaveURL(/\/coordenacao\/painel$/, { timeout: SIGN_IN_TIMEOUT_MS })
     await irPelaCoordenacao(page, 'Material', hasTouch)
-    await expect(principal(page).getByRole('status').filter({ hasText: 'Carregando os materiais…' })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(principal(page).getByRole('status').filter({ hasText: 'Carregando os materiais…' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(page.locator('body')).not.toContainText('Capítulo da escola A')
     segurada.abrir()
-    await expect(lista(page).getByText('Nenhum material ainda')).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(lista(page).getByText('Nenhum material ainda')).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(page.locator('body')).not.toContainText('Capítulo da escola A')
 
     // O endereço do material de A, aberto na sessão de B: a lista de B não o tem, e a tela não abre painel nem diz que ele existe.
     await page.goto(`/coordenacao/material?material=${materialDeA}`)
-    await expect(lista(page).getByText('Nenhum material ainda')).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(lista(page).getByText('Nenhum material ainda')).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(page.getByRole('dialog')).toHaveCount(0)
     await expect(page.locator('body')).not.toContainText('Capítulo da escola A')
   })
@@ -596,18 +596,18 @@ test.describe('Material da coordenação', () => {
       },
     )
     const cenario = await abrirMaterial(page, request)
-    await expect(lista(page).getByText('Nenhum material ainda')).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(lista(page).getByText('Nenhum material ainda')).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await abrirEnvio(page, hasTouch)
     await preencher(page, cenario)
-    await acionar(enviar(page), hasTouch)
+    await activate(enviar(page), hasTouch)
 
     const alerta = caixaDeEnvio(page).getByRole('alert').filter({ hasText: TEXTO_INDISPONIVEL })
-    await expect(alerta).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(alerta).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(alerta).toBeFocused()
     await expect(caixaDeEnvio(page).getByLabel('Título')).toHaveValue(TITULO)
     await expect(escolhido(page, 'quimica-2-cap-7-estequiometria.pdf')).toBeVisible()
     expect(await larguraExcedenteDoDialogo(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await seriousViolations(page)).toEqual([])
     expect(await materiaisNoBanco(cenario.coordenadora.escolaId)).toEqual([])
 
     derrubar = false
@@ -623,11 +623,11 @@ test.describe('Material da coordenação', () => {
     await abrirMaterial(page, request, async ({ coordenadora, estrutura }) => {
       await criarMaterialNoBanco(coordenadora.escolaId, estrutura.disciplina.id, { titulo: 'Capítulo sem texto', estado: 'falhou', falha: 'sem_texto' })
     })
-    await expect(linhaDe(page, 'Capítulo sem texto').getByText('Não carregou')).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(linhaDe(page, 'Capítulo sem texto').getByText('Não carregou')).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
 
     // "Tentar de novo", no painel, abre o diálogo com o que o material declarava, e pede o arquivo.
-    await acionar(botaoDaLinha(page, 'Capítulo sem texto'), hasTouch)
-    await acionar(painelDe(page, 'Capítulo sem texto').getByRole('button', { name: 'Tentar de novo' }), hasTouch)
+    await activate(botaoDaLinha(page, 'Capítulo sem texto'), hasTouch)
+    await activate(painelDe(page, 'Capítulo sem texto').getByRole('button', { name: 'Tentar de novo' }), hasTouch)
     await expect(caixaDeEnvio(page)).toBeVisible()
     await expect(caixaDeEnvio(page).getByLabel('Título')).toHaveValue('Capítulo sem texto')
     await expect(caixaDeEnvio(page).getByLabel('Licença de uso (obrigatória)')).toHaveValue('autoria_da_escola')
@@ -638,8 +638,8 @@ test.describe('Material da coordenação', () => {
     // Com o arquivo de verdade, o material entra, e o que falhou sai da lista e do endereço.
     await arquivo(page).setInputFiles(CAMINHO_DO_PDF_DE_DEMONSTRACAO)
     await declaracao(page).check()
-    await acionar(enviar(page), hasTouch)
-    await expect(caixaDeEnvio(page)).toHaveCount(0, { timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(enviar(page), hasTouch)
+    await expect(caixaDeEnvio(page)).toHaveCount(0, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(linhaDe(page, 'Capítulo sem texto').getByText('Pronto · 6 páginas')).toBeVisible({ timeout: PRAZO_DA_LEITURA_MS })
     await expect(linhaDe(page, 'Capítulo sem texto')).toHaveCount(1)
     await expect(lista(page).getByText('Não carregou')).toHaveCount(0)
@@ -653,10 +653,10 @@ test.describe('Material da coordenação', () => {
       materialId = await criarMaterialNoBanco(coordenadora.escolaId, estrutura.disciplina.id, { titulo: TITULO, estado: 'pronto', paginas: 6 })
       await criarMaterialNoBanco(coordenadora.escolaId, estrutura.disciplina.id, { titulo: 'Capítulo que fica', estado: 'pronto', paginas: 2 })
     })
-    await expect(linhaDe(page, TITULO).getByText('Pronto · 6 páginas')).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(linhaDe(page, TITULO).getByText('Pronto · 6 páginas')).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
 
-    await acionar(botaoDaLinha(page, TITULO), hasTouch)
-    await acionar(painelDe(page, TITULO).getByRole('button', { name: 'Excluir material' }), hasTouch)
+    await activate(botaoDaLinha(page, TITULO), hasTouch)
+    await activate(painelDe(page, TITULO).getByRole('button', { name: 'Excluir material' }), hasTouch)
     await expect(confirmacao(page).getByRole('heading', { name: 'Excluir material' })).toBeVisible()
     await expect(confirmacao(page)).toContainText(TITULO)
     await expect(confirmacao(page)).toContainText(cenario.estrutura.disciplina.nome)
@@ -670,16 +670,16 @@ test.describe('Material da coordenação', () => {
     expect((await cancelar.boundingBox())?.height).toBe((await confirmar.boundingBox())?.height)
     expect((await confirmar.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(ALVO_DE_TOQUE_PRINCIPAL_PX)
     expect(await larguraExcedenteDoDialogo(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await seriousViolations(page)).toEqual([])
 
-    await acionar(cancelar, hasTouch)
+    await activate(cancelar, hasTouch)
     await expect(confirmacao(page)).toHaveCount(0)
     await expect(painelDe(page, TITULO)).toBeVisible()
     expect((await materiaisNoBanco(cenario.coordenadora.escolaId)).find((material) => material.id === materialId)).toMatchObject({ excluido: false, trechos: 6 })
 
-    await acionar(painelDe(page, TITULO).getByRole('button', { name: 'Excluir material' }), hasTouch)
-    await acionar(confirmacao(page).getByRole('button', { name: 'Excluir material' }), hasTouch)
-    await expect(anuncio(page, 'Material excluído. A busca do Assistente e do Tutor deixou de achá-lo.')).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(painelDe(page, TITULO).getByRole('button', { name: 'Excluir material' }), hasTouch)
+    await activate(confirmacao(page).getByRole('button', { name: 'Excluir material' }), hasTouch)
+    await expect(anuncio(page, 'Material excluído. A busca do Assistente e do Tutor deixou de achá-lo.')).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(confirmacao(page)).toHaveCount(0)
     await expect(page.getByRole('dialog')).toHaveCount(0)
     await expect(linhaDe(page, TITULO)).toHaveCount(0)

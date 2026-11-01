@@ -29,7 +29,7 @@ export interface RelatorioDaConferencia {
  *
  * "Visível" é o do Playwright: caixa com largura e altura e sem `visibility: hidden`.
  *
- * **Não espera nada aparecer**: lê a tela uma vez, como está. Quem chama já esperou a galeria abrir (`abrirGaleria`).
+ * **Não espera nada aparecer**: lê a tela uma vez, como está. Quem chama já esperou a galeria abrir (`openGallery`).
  */
 export function avaliarAssinaturas(raiz: Locator | Page): Promise<RelatorioDaConferencia> {
   const nomes = Object.entries(NOME_POR_AGENTE).map(([agente, nome]) => [agente, nome.source] as const)

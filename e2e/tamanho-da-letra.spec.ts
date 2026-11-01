@@ -1,10 +1,10 @@
 import type { Locator, Page, Request } from '@playwright/test'
-import { minhaAtividade, provaDa, simularAluno } from './support/aluno.ts'
-import { abrirGaleria, secao } from './support/gallery.ts'
-import { entrarComoAluno, entrarComoCoordenacaoNaMesmaAba, entrarComoProfessora, irPelaNavegacao, PRAZO_DA_ENTRADA_MS } from './support/casca.ts'
+import { minhaAtividade, provaDa, mockAlunoApi } from './support/aluno.ts'
+import { openGallery, gallerySection } from './support/gallery.ts'
+import { entrarComoAluno, entrarComoCoordenacaoNaMesmaAba, entrarComoProfessora, irPelaNavegacao, SIGN_IN_TIMEOUT_MS } from './support/casca.ts'
 import { expect, test } from './support/profiles.ts'
 import { colocarAlunoNaTurma, criarAlunoComMatricula, criarEquipeComSenha } from './support/seed.ts'
-import { larguraExcedente, larguraExcedenteDoDialogo } from './support/checks.ts'
+import { horizontalOverflow, larguraExcedenteDoDialogo } from './support/checks.ts'
 
 /**
  * O tamanho da letra do aluno (telas do aluno e primeiro acesso, 8.0; RF11, RF20; Tech Spec, seção 5): Padrão, Grande ou
@@ -17,11 +17,11 @@ import { larguraExcedente, larguraExcedenteDoDialogo } from './support/checks.ts
  * anterior a escrevem antes de a página carregar (`addInitScript`).
  */
 
-const PRAZO_DA_TELA_MS = 15_000
+const SCREEN_TIMEOUT_MS = 15_000
 const CHAVE = 'educa.letra'
 const TITULO_SEM_ESPACO = 'Exercícios_de_estequiometria_do_capítulo_três_parte_dois'
 
-async function acionar(alvo: Locator, hasTouch: boolean): Promise<void> {
+async function activate(alvo: Locator, hasTouch: boolean): Promise<void> {
   await (hasTouch ? alvo.tap() : alvo.click())
 }
 
@@ -48,7 +48,7 @@ async function guardarAntesDeCarregar(page: Page, valor: string): Promise<void> 
 /** Abre Eu pela navegação e o diálogo "Ajustes" pela linha. */
 async function abrirAjustes(page: Page, hasTouch: boolean): Promise<void> {
   await irPelaNavegacao(page, 'Eu', hasTouch)
-  await acionar(linhaAjustes(page), hasTouch)
+  await activate(linhaAjustes(page), hasTouch)
   await expect(dialogo(page)).toBeVisible()
 }
 
@@ -59,8 +59,8 @@ const rotuloDe = (page: Page, nome: Nome) => dialogo(page).getByRole('group', { 
 
 /** O "Sair" da linha de Eu, que é o do aluno a um clique. */
 async function sairPelaLinha(page: Page, hasTouch: boolean): Promise<void> {
-  await acionar(principal(page).getByRole('button', { name: 'Sair' }), hasTouch)
-  await expect(page).toHaveURL(/\/entrar$/, { timeout: PRAZO_DA_ENTRADA_MS })
+  await activate(principal(page).getByRole('button', { name: 'Sair' }), hasTouch)
+  await expect(page).toHaveURL(/\/entrar$/, { timeout: SIGN_IN_TIMEOUT_MS })
 }
 
 test.describe('o tamanho da letra do aluno', () => {
@@ -76,7 +76,7 @@ test.describe('o tamanho da letra do aluno', () => {
     })
     await page.goto('/aluno/inicio')
     // Sem sessão a área do aluno nunca monta e o endereço vira a entrada: a letra do primeiro quadro sai com ele.
-    await expect(page).toHaveURL(/\/entrar$/, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page).toHaveURL(/\/entrar$/, { timeout: SIGN_IN_TIMEOUT_MS })
 
     expect(await page.evaluate(() => (window as unknown as Record<string, unknown>)['__letraNoPrimeiroQuadro'])).toEqual({ atributo: 'maior', fonte: '20px' })
     await expect.poll(() => letraDaPagina(page)).toEqual({ atributo: null, fonte: '16px' })
@@ -94,15 +94,15 @@ test.describe('o tamanho da letra do aluno', () => {
     await expect(dialogo(page).getByText('Assim fica a minha letra.')).toBeVisible()
     expect(await letraDaPagina(page)).toEqual({ atributo: null, fonte: '16px' })
 
-    await acionar(rotuloDe(page, 'Maior'), hasTouch)
+    await activate(rotuloDe(page, 'Maior'), hasTouch)
     await expect.poll(() => letraDaPagina(page)).toEqual({ atributo: 'maior', fonte: '20px' })
     expect(await guardadoNoNavegador(page)).toBe(JSON.stringify([[CHAVE, 'maior']]))
 
-    await acionar(rotuloDe(page, 'Grande'), hasTouch)
+    await activate(rotuloDe(page, 'Grande'), hasTouch)
     await expect.poll(() => letraDaPagina(page)).toEqual({ atributo: 'grande', fonte: '18px' })
     expect(await guardadoNoNavegador(page)).toBe(JSON.stringify([[CHAVE, 'grande']]))
 
-    await acionar(rotuloDe(page, 'Padrão'), hasTouch)
+    await activate(rotuloDe(page, 'Padrão'), hasTouch)
     await expect.poll(() => letraDaPagina(page)).toEqual({ atributo: null, fonte: '16px' })
     expect(await guardadoNoNavegador(page)).toBe('[]')
   })
@@ -114,7 +114,7 @@ test.describe('o tamanho da letra do aluno', () => {
     await entrarComoAluno(page, aluno, hasTouch)
     await abrirAjustes(page, hasTouch)
     const antes = saidas.length
-    await acionar(rotuloDe(page, 'Maior'), hasTouch)
+    await activate(rotuloDe(page, 'Maior'), hasTouch)
     await expect.poll(() => letraDaPagina(page)).toEqual({ atributo: 'maior', fonte: '20px' })
 
     await page.keyboard.press('Escape')
@@ -159,22 +159,22 @@ test.describe('o tamanho da letra do aluno', () => {
   })
 
   test('duas abas do mesmo navegador: a escolha feita numa chega à outra, e a última vence', async ({ page, hasTouch }) => {
-    await abrirGaleria(page)
+    await openGallery(page)
     const outra = await page.context().newPage()
     try {
       await outra.goto('/galeria')
-      await expect(outra.getByRole('heading', { level: 1, name: 'Galeria de peças' })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
-      const daGaleria = (aba: Page, nome: Nome) => secao(aba, 'tamanho-da-letra').getByRole('radio', { name: nome, exact: true })
-      const rotuloDaGaleria = (aba: Page, nome: Nome) => secao(aba, 'tamanho-da-letra').locator('label').filter({ has: aba.getByRole('radio', { name: nome, exact: true }) })
+      await expect(outra.getByRole('heading', { level: 1, name: 'Galeria de peças' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
+      const daGaleria = (aba: Page, nome: Nome) => gallerySection(aba, 'tamanho-da-letra').getByRole('radio', { name: nome, exact: true })
+      const rotuloDaGaleria = (aba: Page, nome: Nome) => gallerySection(aba, 'tamanho-da-letra').locator('label').filter({ has: aba.getByRole('radio', { name: nome, exact: true }) })
       await expect(daGaleria(outra, 'Padrão')).toBeChecked()
 
-      await acionar(rotuloDaGaleria(page, 'Maior'), hasTouch)
+      await activate(rotuloDaGaleria(page, 'Maior'), hasTouch)
       await expect(daGaleria(outra, 'Maior')).toBeChecked()
       // A outra aba escolhe depois: a última vence, e a primeira acompanha.
-      await acionar(rotuloDaGaleria(outra, 'Grande'), hasTouch)
+      await activate(rotuloDaGaleria(outra, 'Grande'), hasTouch)
       await expect(daGaleria(page, 'Grande')).toBeChecked()
       // Padrão apaga a chave nas duas.
-      await acionar(rotuloDaGaleria(page, 'Padrão'), hasTouch)
+      await activate(rotuloDaGaleria(page, 'Padrão'), hasTouch)
       await expect(daGaleria(outra, 'Padrão')).toBeChecked()
       expect(await guardadoNoNavegador(outra)).toBe('[]')
     } finally {
@@ -202,7 +202,7 @@ test.describe('o tamanho da letra do aluno', () => {
     test.slow()
     await page.setViewportSize({ width: 360, height: 640 })
     await guardarAntesDeCarregar(page, 'maior')
-    const api = await simularAluno(page)
+    const api = await mockAlunoApi(page)
     const atividade = minhaAtividade({ titulo: TITULO_SEM_ESPACO, situacao: 'em_andamento', respondidas: 1 })
     api.atividades = [atividade, minhaAtividade({ titulo: 'Lista de mol com um título bem comprido para quebrar' })]
     api.provas.set(atividade.id, provaDa(atividade, { respostas: [{ questao: 1, alternativa: 1, sequencia: 1 }] }))
@@ -212,20 +212,20 @@ test.describe('o tamanho da letra do aluno', () => {
 
     const semRolagem = async (onde: string) => {
       expect(await letraDaPagina(page), onde).toEqual({ atributo: 'maior', fonte: '20px' })
-      expect(await larguraExcedente(page), onde).toBe(0)
+      expect(await horizontalOverflow(page), onde).toBe(0)
     }
-    await expect(principal(page).getByText(TITULO_SEM_ESPACO)).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
+    await expect(principal(page).getByText(TITULO_SEM_ESPACO)).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
     await semRolagem('Início')
 
     await irPelaNavegacao(page, 'Tarefas', hasTouch)
-    await expect(principal(page).getByRole('heading', { level: 1, name: 'Tarefas' })).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
+    await expect(principal(page).getByRole('heading', { level: 1, name: 'Tarefas' })).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
     await semRolagem('Tarefas')
 
     await irPelaNavegacao(page, 'Eu', hasTouch)
-    await expect(linhaAjustes(page)).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
+    await expect(linhaAjustes(page)).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
     await semRolagem('Eu')
 
-    await acionar(linhaAjustes(page), hasTouch)
+    await activate(linhaAjustes(page), hasTouch)
     await expect(dialogo(page)).toBeVisible()
     await semRolagem('o diálogo')
     expect(await larguraExcedenteDoDialogo(page), 'o diálogo').toBe(0)
@@ -237,13 +237,13 @@ test.describe('o tamanho da letra do aluno', () => {
       window.history.pushState(null, '', destino)
       window.dispatchEvent(new PopStateEvent('popstate'))
     }, `/aluno/atividades/${atividade.id}`)
-    await expect(principal(page)).toContainText('Questão 1 de 3', { timeout: PRAZO_DA_TELA_MS })
+    await expect(principal(page)).toContainText('Questão 1 de 3', { timeout: SCREEN_TIMEOUT_MS })
     await semRolagem('a tarefa aberta')
   })
 
   test('o enunciado da tarefa aberta acompanha a letra: 17 px no Padrão e 21,25 px com Maior escolhida no diálogo, com a tarefa aberta pelo endereço', async ({ page, hasTouch }) => {
     const atividade = minhaAtividade({ situacao: 'em_andamento', respondidas: 0 })
-    const api = await simularAluno(page)
+    const api = await mockAlunoApi(page)
     api.atividades = [atividade]
     api.provas.set(atividade.id, provaDa(atividade))
     const aluno = await criarAlunoComMatricula()
@@ -257,14 +257,14 @@ test.describe('o tamanho da letra do aluno', () => {
         window.history.pushState(null, '', destino)
         window.dispatchEvent(new PopStateEvent('popstate'))
       }, `/aluno/atividades/${atividade.id}`)
-      await expect(enunciado).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
+      await expect(enunciado).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
     }
 
     await abrirATarefa()
     await expect.poll(tamanhoDoEnunciado, { message: 'Padrão' }).toBe(17)
 
     await abrirAjustes(page, hasTouch)
-    await acionar(rotuloDe(page, 'Maior'), hasTouch)
+    await activate(rotuloDe(page, 'Maior'), hasTouch)
     await expect(opcao(page, 'Maior')).toBeChecked()
     await page.keyboard.press('Escape')
     await expect(dialogo(page)).toBeHidden()

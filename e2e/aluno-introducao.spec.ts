@@ -7,12 +7,12 @@ import {
   FALAS_DA_INTRODUCAO_DO_ALUNO,
   falaDoPasso,
   lateral,
-  PRAZO_DA_ENTRADA_MS,
+  SIGN_IN_TIMEOUT_MS,
   seguirAteOFimDaIntroducao,
 } from './support/casca.ts'
 import { expect, test } from './support/profiles.ts'
 import { criarAlunoComMatricula, criarEscolaSintetica } from './support/seed.ts'
-import { ALVO_DE_TOQUE_PRINCIPAL_PX, larguraExcedente, violacoesGraves } from './support/checks.ts'
+import { ALVO_DE_TOQUE_PRINCIPAL_PX, horizontalOverflow, seriousViolations } from './support/checks.ts'
 
 /**
  * A introdução do aluno (telas do aluno e primeiro acesso, 9.0; RF11 a RF14, RF16 a RF18, RF20; mockup 2.8): na primeira entrada
@@ -26,7 +26,7 @@ import { ALVO_DE_TOQUE_PRINCIPAL_PX, larguraExcedente, violacoesGraves } from '.
 
 const CHAVE_DA_LETRA = 'educa.letra'
 
-async function acionar(alvo: Locator, hasTouch: boolean): Promise<void> {
+async function activate(alvo: Locator, hasTouch: boolean): Promise<void> {
   await (hasTouch ? alvo.tap() : alvo.click())
 }
 
@@ -106,7 +106,7 @@ test.describe('a introdução do aluno', () => {
     await entrarComoAlunoNaPrimeiraVez(page, aluno, hasTouch)
     for (let passo = 1; passo < FALAS_DA_INTRODUCAO_DO_ALUNO.length; passo++) {
       await expect(falaDoPasso(page, passo)).toBeVisible()
-      await acionar(continuar(page), hasTouch)
+      await activate(continuar(page), hasTouch)
     }
     await expect(falaDoPasso(page, 4)).toBeVisible()
     expect(await guardadoNoNavegador(page)).toBe('[]')
@@ -116,7 +116,7 @@ test.describe('a introdução do aluno', () => {
     expect(caixaPular?.height).toBe(caixaContinuar?.height)
     expect(caixaPular?.width).toBe(caixaContinuar?.width)
 
-    await acionar(page.getByRole('button', { name: 'Pular', exact: true }), hasTouch)
+    await activate(page.getByRole('button', { name: 'Pular', exact: true }), hasTouch)
     await esperarInicioDoAluno(page, aluno.nome)
     expect(await guardadoNoNavegador(page)).toBe('[]')
   })
@@ -125,14 +125,14 @@ test.describe('a introdução do aluno', () => {
     await page.setViewportSize({ width: 360, height: 640 })
     const aluno = await criarAlunoComMatricula({ introducao: 'por_ver' })
     await entrarComoAlunoNaPrimeiraVez(page, aluno, hasTouch)
-    for (let passo = 1; passo < FALAS_DA_INTRODUCAO_DO_ALUNO.length; passo++) await acionar(continuar(page), hasTouch)
+    for (let passo = 1; passo < FALAS_DA_INTRODUCAO_DO_ALUNO.length; passo++) await activate(continuar(page), hasTouch)
     await expect(falaDoPasso(page, 4)).toBeVisible()
 
-    await acionar(page.getByRole('radio', { name: 'Maior', exact: true }).locator('xpath=ancestor::label[1]'), hasTouch)
+    await activate(page.getByRole('radio', { name: 'Maior', exact: true }).locator('xpath=ancestor::label[1]'), hasTouch)
     await expect.poll(() => letraDaPagina(page)).toEqual({ atributo: 'maior', fonte: '20px' })
     expect(await guardadoNoNavegador(page)).toBe(JSON.stringify([[CHAVE_DA_LETRA, 'maior']]))
 
-    expect(await larguraExcedente(page)).toBe(0)
+    expect(await horizontalOverflow(page)).toBe(0)
     for (const nome of ['Continuar', 'Pular']) {
       const alvo = page.getByRole('button', { name: nome, exact: true })
       await alvo.scrollIntoViewIfNeeded()
@@ -141,7 +141,7 @@ test.describe('a introdução do aluno', () => {
       expect(caixa?.height, nome).toBeGreaterThanOrEqual(ALVO_DE_TOQUE_PRINCIPAL_PX)
       expect(caixa?.width, nome).toBeGreaterThanOrEqual(ALVO_DE_TOQUE_PRINCIPAL_PX)
     }
-    await acionar(continuar(page), hasTouch)
+    await activate(continuar(page), hasTouch)
     await esperarInicioDoAluno(page, aluno.nome)
     // A letra escolhida fica na área do aluno e a chave é a única coisa que o navegador guarda.
     await expect.poll(() => letraDaPagina(page)).toEqual({ atributo: 'maior', fonte: '20px' })
@@ -155,11 +155,11 @@ test.describe('a introdução do aluno', () => {
 
     for (let passo = 1; passo <= FALAS_DA_INTRODUCAO_DO_ALUNO.length; passo++) {
       await expect(falaDoPasso(page, passo), `passo ${String(passo)}`).toBeVisible()
-      expect(await larguraExcedente(page), `passo ${String(passo)}`).toBe(0)
+      expect(await horizontalOverflow(page), `passo ${String(passo)}`).toBe(0)
       const caixa = await continuar(page).boundingBox()
       expect(caixa?.height, `passo ${String(passo)}`).toBeGreaterThanOrEqual(ALVO_DE_TOQUE_PRINCIPAL_PX)
-      if (passo === 3) expect(await violacoesGraves(page)).toEqual([])
-      if (passo < FALAS_DA_INTRODUCAO_DO_ALUNO.length) await acionar(continuar(page), hasTouch)
+      if (passo === 3) expect(await seriousViolations(page)).toEqual([])
+      if (passo < FALAS_DA_INTRODUCAO_DO_ALUNO.length) await activate(continuar(page), hasTouch)
     }
   })
 
@@ -168,7 +168,7 @@ test.describe('a introdução do aluno', () => {
     await entrarComoAlunoNaPrimeiraVez(page, aluno, hasTouch)
     // Ligado antes do primeiro "Continuar": a asserção cobre o caminho todo, e não só o que sairia ao descarregar a aba.
     const gravacoes = contarGravacoes(page)
-    await acionar(continuar(page), hasTouch)
+    await activate(continuar(page), hasTouch)
     await expect(falaDoPasso(page, 2)).toBeVisible()
     const contexto = page.context()
     await page.close()
@@ -184,10 +184,10 @@ test.describe('a introdução do aluno', () => {
     const aluno = await criarAlunoComMatricula({ introducao: 'por_ver' })
     await entrarComoAlunoNaPrimeiraVez(page, aluno, hasTouch)
     const gravacoes = contarGravacoes(page)
-    await acionar(continuar(page), hasTouch)
+    await activate(continuar(page), hasTouch)
     await expect(falaDoPasso(page, 2)).toBeVisible()
-    await acionar(page.getByRole('button', { name: 'Sair', exact: true }), hasTouch)
-    await expect(page).toHaveURL(/\/entrar$/, { timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(page.getByRole('button', { name: 'Sair', exact: true }), hasTouch)
+    await expect(page).toHaveURL(/\/entrar$/, { timeout: SIGN_IN_TIMEOUT_MS })
     expect(gravacoes).toHaveLength(0)
   })
 
@@ -201,7 +201,7 @@ test.describe('a introdução do aluno', () => {
 
     // A pessoa segue ao Início assim mesmo. Que a introdução volta na entrada seguinte, com a data ainda nula no servidor e no
     // cache, está em `BemVindo.test.tsx`; que uma aba nova sem gravação recomeça, no caso de fechar a aba, acima.
-    await expect(page).toHaveURL(/\/aluno\/inicio$/, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page).toHaveURL(/\/aluno\/inicio$/, { timeout: SIGN_IN_TIMEOUT_MS })
     expect(gravacoes.length).toBeGreaterThan(0)
   })
 
@@ -212,7 +212,7 @@ test.describe('a introdução do aluno', () => {
     const aluno = await criarAlunoComMatricula({ introducao: 'por_ver' })
     await entrarComoAlunoNaPrimeiraVez(page, aluno, hasTouch)
     const gravacoes = contarGravacoes(page)
-    for (let passo = 1; passo < FALAS_DA_INTRODUCAO_DO_ALUNO.length; passo++) await acionar(continuar(page), hasTouch)
+    for (let passo = 1; passo < FALAS_DA_INTRODUCAO_DO_ALUNO.length; passo++) await activate(continuar(page), hasTouch)
     await expect(falaDoPasso(page, 4)).toBeVisible()
 
     await continuar(page).dblclick()
@@ -234,13 +234,13 @@ test.describe('a introdução do aluno', () => {
     const antes = await dataDe(primeiraLeitura)
     expect(antes).not.toBeNull()
 
-    await acionar(page.getByRole('main').getByRole('link', { name: 'Rever a introdução' }), hasTouch)
+    await activate(page.getByRole('main').getByRole('link', { name: 'Rever a introdução' }), hasTouch)
     await esperarIntroducaoDoAluno(page)
     // O passo 1 é obrigatório na primeira vez: revendo, é ele que mostra que "Fechar" existe e que "Pular" não. Que todo passo
     // tem "Fechar" está em `BemVindo.test.tsx`.
     await expect(falaDoPasso(page, 1)).toBeVisible()
     await expect(page.getByRole('button', { name: 'Pular', exact: true })).toHaveCount(0)
-    await acionar(page.getByRole('button', { name: 'Fechar', exact: true }), hasTouch)
+    await activate(page.getByRole('button', { name: 'Fechar', exact: true }), hasTouch)
     await expect(page).toHaveURL(/\/aluno\/eu$/)
     expect(gravacoes).toHaveLength(0)
 
@@ -266,11 +266,11 @@ test.describe('a introdução do aluno', () => {
     const primeiro = await criarAlunoComMatricula({ escola, matricula: '1001' })
     const segundo = await criarAlunoComMatricula({ escola, matricula: '1002', introducao: 'por_ver' })
     await entrarPelaApi(page, primeiro)
-    await expect(page).toHaveURL(/\/aluno\/inicio$/, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page).toHaveURL(/\/aluno\/inicio$/, { timeout: SIGN_IN_TIMEOUT_MS })
 
     await abrirNavegacao(page, hasTouch)
-    await acionar(lateral(page).getByRole('button', { name: 'Sair' }).and(page.locator(':not(main *)')), hasTouch)
-    await expect(page).toHaveURL(/\/entrar$/, { timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(lateral(page).getByRole('button', { name: 'Sair' }).and(page.locator(':not(main *)')), hasTouch)
+    await expect(page).toHaveURL(/\/entrar$/, { timeout: SIGN_IN_TIMEOUT_MS })
 
     // Sem recarregar a página: a aplicação é a mesma, com o que o primeiro deixou na memória dela, e o segundo entra pela tela.
     await page.evaluate((endereco) => {
@@ -279,7 +279,7 @@ test.describe('a introdução do aluno', () => {
     }, `/e/${segundo.slug}`)
     await page.getByLabel('Matrícula').fill(segundo.matricula)
     await page.getByLabel('Senha').fill(segundo.senha)
-    await acionar(page.getByRole('button', { name: /^Entrar$/ }), hasTouch)
+    await activate(page.getByRole('button', { name: /^Entrar$/ }), hasTouch)
     await esperarIntroducaoDoAluno(page)
   })
 })

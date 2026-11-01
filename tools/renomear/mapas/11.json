@@ -1,0 +1,655 @@
+{
+  "linha": true,
+  "entradas": [
+    {
+      "tipo": "simbolo",
+      "de": "PerfilDeMaquina",
+      "para": "MachineProfile",
+      "arquivo": "e2e/support/profiles.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:360"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "OpcoesDoPerfil",
+      "para": "ProfileOptions",
+      "arquivo": "e2e/support/profiles.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:360"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "CondicaoDeRede",
+      "para": "NetworkCondition",
+      "arquivo": "e2e/support/profiles.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:360"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PERFIL_CHROMEBOOK",
+      "para": "CHROMEBOOK_PROFILE",
+      "arquivo": "e2e/support/profiles.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:361"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PERFIL_CELULAR",
+      "para": "MOBILE_PROFILE",
+      "arquivo": "e2e/support/profiles.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:361"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "carregarSemRedeLenta",
+      "para": "loadUnthrottled",
+      "arquivo": "e2e/support/profiles.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:363"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "violacoesGraves",
+      "para": "seriousViolations",
+      "arquivo": "e2e/support/checks.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:365"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "larguraExcedente",
+      "para": "horizontalOverflow",
+      "arquivo": "e2e/support/checks.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:365"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "focoVisivel",
+      "para": "isFocusVisible",
+      "arquivo": "e2e/support/checks.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:365"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "codigoCru",
+      "para": "rawCodePattern",
+      "arquivo": "e2e/support/checks.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:365"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ViolacaoGrave",
+      "para": "SeriousViolation",
+      "arquivo": "e2e/support/checks.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:366"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "TAGS_WCAG",
+      "para": "WCAG_TAGS",
+      "arquivo": "e2e/support/checks.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:366"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "IMPACTOS_QUE_REPROVAM",
+      "para": "FAILING_IMPACTS",
+      "arquivo": "e2e/support/checks.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:366"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PAGINA_MAIS_LARGA",
+      "para": "WIDE_PAGE",
+      "arquivo": "e2e/support/html-pages.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:368"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PAGINA_DENTRO_DA_LARGURA",
+      "para": "HTML_PAGE_WITHIN_WIDTH",
+      "arquivo": "e2e/support/html-pages.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:368"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PAGINA_BOTOES_DE_16_PX",
+      "para": "HTML_PAGE_16_PX_BUTTONS",
+      "arquivo": "e2e/support/html-pages.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:368"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PAGINA_BOTOES_DE_44_PX",
+      "para": "HTML_PAGE_44_PX_BUTTONS",
+      "arquivo": "e2e/support/html-pages.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:368"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PAGINA_SEM_CONTRASTE",
+      "para": "HTML_PAGE_LOW_CONTRAST",
+      "arquivo": "e2e/support/html-pages.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:368"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PAGINA_COM_CONTRASTE",
+      "para": "HTML_PAGE_GOOD_CONTRAST",
+      "arquivo": "e2e/support/html-pages.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:368"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PAGINA_COM_503_NO_NOME_DA_ESCOLA",
+      "para": "HTML_PAGE_503_IN_SCHOOL_NAME",
+      "arquivo": "e2e/support/html-pages.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:368"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PAGINA_COM_O_503_CRU",
+      "para": "HTML_PAGE_RAW_503",
+      "arquivo": "e2e/support/html-pages.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:368"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PAGINA_COM_O_503_COLADO_AO_BOTAO",
+      "para": "HTML_PAGE_503_GLUED_TO_BUTTON",
+      "arquivo": "e2e/support/html-pages.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:368"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "cacheDeConsultas",
+      "para": "queryCache",
+      "arquivo": "e2e/support/query-cache.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:370"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ConsultaNoCache",
+      "para": "CachedQuery",
+      "arquivo": "e2e/support/query-cache.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:370"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "abrirGaleria",
+      "para": "openGallery",
+      "arquivo": "e2e/support/gallery.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:372"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PRAZO_DA_GALERIA_MS",
+      "para": "GALLERY_TIMEOUT_MS",
+      "arquivo": "e2e/support/gallery.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:372"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "medirBlocosDaGaleria",
+      "para": "measureGalleryBlocks",
+      "arquivo": "e2e/support/gallery.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:372"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "secao",
+      "para": "gallerySection",
+      "arquivo": "e2e/support/gallery.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:372"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "SegundoFatorConfigurado",
+      "para": "ConfiguredMfa",
+      "arquivo": "e2e/support/mfa.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:374"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "configurarSegundoFator",
+      "para": "setUpMfa",
+      "arquivo": "e2e/support/mfa.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:374"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "OpcoesDoPasso",
+      "para": "PassoOptions",
+      "arquivo": "e2e/support/mfa.ts",
+      "linhaDoAnexo": "inventario-adenda-2.md:90"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "LinhaDaAuditoriaDoPedido",
+      "para": "AuditoriaDoPedidoRow",
+      "arquivo": "e2e/support/seed.ts",
+      "linhaDoAnexo": "inventario-adenda-2.md:91"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "vigiarODado",
+      "para": "watchData",
+      "arquivo": "e2e/support/screen-data-watch.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:379"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "instanteGravado",
+      "para": "recordedInstant",
+      "arquivo": "e2e/support/screen-data-watch.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:379"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ApiDoAluno",
+      "para": "AlunoApiMock",
+      "arquivo": "e2e/support/aluno.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:380"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "simularAluno",
+      "para": "mockAlunoApi",
+      "arquivo": "e2e/support/aluno.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:380"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ApiDoAssistente",
+      "para": "AssistenteApiMock",
+      "arquivo": "e2e/support/assistente.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:381"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "simularAssistente",
+      "para": "mockAssistenteApi",
+      "arquivo": "e2e/support/assistente.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:381"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "ProfessoraPelaApi",
+      "para": "ProfessoraApiClient",
+      "arquivo": "e2e/support/atividade-db.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:382"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "erroDaApi",
+      "para": "apiError",
+      "arquivo": "e2e/support/assistente.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:383"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "portao",
+      "para": "gate",
+      "arquivo": "e2e/acesso-da-turma.spec.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:384"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "portao",
+      "para": "gate",
+      "arquivo": "e2e/agentes.spec.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:384"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "portao",
+      "para": "gate",
+      "arquivo": "e2e/alocacao.spec.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:384"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "portao",
+      "para": "gate",
+      "arquivo": "e2e/areas.spec.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:384"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "portao",
+      "para": "gate",
+      "arquivo": "e2e/casca.spec.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:384"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "portao",
+      "para": "gate",
+      "arquivo": "e2e/estrutura.spec.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:384"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "portao",
+      "para": "gate",
+      "arquivo": "e2e/governanca.spec.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:384"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "portao",
+      "para": "gate",
+      "arquivo": "e2e/incidentes.spec.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:384"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "portao",
+      "para": "gate",
+      "arquivo": "e2e/lista-da-turma.spec.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:384"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "portao",
+      "para": "gate",
+      "arquivo": "e2e/material.spec.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:384"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "portao",
+      "para": "gate",
+      "arquivo": "e2e/minha-turma.spec.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:384"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "portao",
+      "para": "gate",
+      "arquivo": "e2e/pedidos.spec.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:384"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "portao",
+      "para": "gate",
+      "arquivo": "e2e/privacidade.spec.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:384"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "portao",
+      "para": "gate",
+      "arquivo": "e2e/professores.spec.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:384"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "portao",
+      "para": "gate",
+      "arquivo": "e2e/support/assistente.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:384"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "portao",
+      "para": "gate",
+      "arquivo": "e2e/support/pedidos-do-titular.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:384"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "portao",
+      "para": "gate",
+      "arquivo": "e2e/support/professor/sino.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:384"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "portao",
+      "para": "gate",
+      "arquivo": "e2e/tokens.spec.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:384"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "portao",
+      "para": "gate",
+      "arquivo": "e2e/troca-de-escola.spec.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:384"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "portao",
+      "para": "gate",
+      "arquivo": "e2e/turma-publica.spec.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:384"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "acionar",
+      "para": "activate",
+      "linhaDoAnexo": "inventario-web-e2e.md:385"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PRAZO_DA_ENTRADA_MS",
+      "para": "SIGN_IN_TIMEOUT_MS",
+      "linhaDoAnexo": "inventario-web-e2e.md:386"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PRAZO_DA_IA_MS",
+      "para": "AI_TIMEOUT_MS",
+      "linhaDoAnexo": "inventario-web-e2e.md:386"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "PRAZO_DA_TELA_MS",
+      "para": "SCREEN_TIMEOUT_MS",
+      "linhaDoAnexo": "inventario-web-e2e.md:386"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "Cena",
+      "para": "Scenario",
+      "linhaDoAnexo": "inventario-web-e2e.md:388"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "CenaDoSino",
+      "para": "SinoScenario",
+      "arquivo": "e2e/support/professor/sino.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:388"
+    },
+    {
+      "tipo": "simbolo",
+      "de": "prepararCena",
+      "para": "setupScenario",
+      "arquivo": "e2e/support/professor/sino.ts",
+      "linhaDoAnexo": "inventario-web-e2e.md:388"
+    }
+  ],
+  "ocorrencias": [
+    {
+      "arquivo": "tools/",
+      "de": "portao",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:556"
+    },
+    {
+      "arquivo": "apps/api/test/",
+      "de": "portao",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:556"
+    },
+    {
+      "arquivo": ".claude/settings.json",
+      "de": "portao",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:556"
+    },
+    {
+      "arquivo": "e2e/casca.spec.ts",
+      "de": "vigiarODado",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:9"
+    },
+    {
+      "arquivo": "e2e/components-gallery.spec.ts",
+      "de": "medirBlocosDaGaleria",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:9"
+    },
+    {
+      "arquivo": "e2e/components-gallery.spec.ts",
+      "de": "carregarSemRedeLenta",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:9"
+    },
+    {
+      "arquivo": "tools/ci/duracao-do-e2e.test.ts",
+      "de": "secao",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:556"
+    },
+    {
+      "arquivo": "tools/demonstracao/conteudo-estequiometria.ts",
+      "de": "secao",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:556"
+    },
+    {
+      "arquivo": "tools/processo/linhas.test.ts",
+      "de": "secao",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:556"
+    },
+    {
+      "arquivo": "apps/web/src/components/states/EmptyState.tsx",
+      "de": "secao",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:556"
+    },
+    {
+      "arquivo": "apps/",
+      "de": "secao",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:556"
+    },
+    {
+      "arquivo": "tools/",
+      "de": "secao",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:556"
+    },
+    {
+      "arquivo": "e2e/acesso-da-turma.spec.ts",
+      "de": "secao",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:556"
+    },
+    {
+      "arquivo": "e2e/alocacao.spec.ts",
+      "de": "secao",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:556"
+    },
+    {
+      "arquivo": "e2e/aluno-eu.spec.ts",
+      "de": "secao",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:556"
+    },
+    {
+      "arquivo": "e2e/casca.spec.ts",
+      "de": "secao",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:556"
+    },
+    {
+      "arquivo": "e2e/coordenacao-introducao.spec.ts",
+      "de": "secao",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:556"
+    },
+    {
+      "arquivo": "e2e/estrutura.spec.ts",
+      "de": "secao",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:556"
+    },
+    {
+      "arquivo": "e2e/incidentes.spec.ts",
+      "de": "secao",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:556"
+    },
+    {
+      "arquivo": "e2e/lista-da-turma.spec.ts",
+      "de": "secao",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:556"
+    },
+    {
+      "arquivo": "e2e/pedidos.spec.ts",
+      "de": "secao",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:556"
+    },
+    {
+      "arquivo": "e2e/privacidade.spec.ts",
+      "de": "secao",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:556"
+    },
+    {
+      "arquivo": "e2e/professor-sino.spec.ts",
+      "de": "secao",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:556"
+    },
+    {
+      "arquivo": "e2e/tokens.spec.ts",
+      "de": "secao",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:556"
+    },
+    {
+      "arquivo": "e2e/support/screen-data-watch.ts",
+      "de": "secao",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:556"
+    },
+    {
+      "arquivo": "apps/web/src/api/sessao.ts",
+      "de": "erroDaApi",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:556"
+    },
+    {
+      "arquivo": "apps/web/src/areas/aluno/Atividade.test.tsx",
+      "de": "erroDaApi",
+      "classe": "fica",
+      "linha": "inventario-web-e2e.md:556"
+    }
+  ],
+  "excecoesDoConferir": [
+    {
+      "arquivo": "e2e/support/profiles.ts",
+      "texto": "perfil",
+      "motivo": "a opção do Playwright `perfil` vira `profile`: chave do `base.extend` de `profiles.ts` (11.0, troca à mão) (travas.md:198)"
+    },
+    {
+      "arquivo": "e2e/support/profiles.ts",
+      "texto": "profile",
+      "motivo": "a opção do Playwright `perfil` vira `profile`: chave do `base.extend` de `profiles.ts` (11.0, troca à mão) (travas.md:198)"
+    },
+    {
+      "arquivo": "e2e/support/profiles.ts",
+      "texto": "projeto do Playwright sem perfil de máquina: declare `perfil` em playwright.config.ts",
+      "motivo": "a mensagem cita a opção `perfil`, que passa a `profile` (11.0, troca à mão) (travas.md:198)"
+    },
+    {
+      "arquivo": "e2e/support/profiles.ts",
+      "texto": "projeto do Playwright sem perfil de máquina: declare `profile` em playwright.config.ts",
+      "motivo": "a mensagem cita a opção `perfil`, que passa a `profile` (11.0, troca à mão) (travas.md:198)"
+    }
+  ]
+}

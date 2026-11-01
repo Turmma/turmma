@@ -1,10 +1,10 @@
 import type { Locator, Page } from '@playwright/test'
 import { montarEscolaComEntregas } from './support/governanca.ts'
-import { abrirSeletorDeEscola, entrarComoCoordenacaoNaMesmaAba, entrarPorEmail, esperarPainel, linhaDoSeletor, nomeNoSeletor, PRAZO_DA_ENTRADA_MS } from './support/casca.ts'
+import { abrirSeletorDeEscola, entrarComoCoordenacaoNaMesmaAba, entrarPorEmail, esperarPainel, linhaDoSeletor, nomeNoSeletor, SIGN_IN_TIMEOUT_MS } from './support/casca.ts'
 import { expect, test } from './support/profiles.ts'
 import { campoCodigo } from './support/mfa.ts'
 import { codigoDoAutenticador, codigoDoPassoAnterior, convidarProfessorNoBanco, criarEquipeComSenha, criarUsuarioEmOutraEscola } from './support/seed.ts'
-import { larguraExcedente, violacoesGraves } from './support/checks.ts'
+import { horizontalOverflow, seriousViolations } from './support/checks.ts'
 
 /**
  * O Painel da coordenação (telas da coordenação, 2.0; RF6, RF7 e RF22), pela tela, nos projetos `chromebook` e `celular`: os
@@ -26,10 +26,10 @@ async function abrirPainel(page: Page): Promise<void> {
     window.dispatchEvent(new PopStateEvent('popstate'))
   })
   await expect(page).toHaveURL(/\/coordenacao\/painel$/)
-  await expect(page.getByRole('heading', { level: 1, name: 'Painel' })).toBeAttached({ timeout: PRAZO_DA_ENTRADA_MS })
+  await expect(page.getByRole('heading', { level: 1, name: 'Painel' })).toBeAttached({ timeout: SIGN_IN_TIMEOUT_MS })
 }
 
-async function acionar(alvo: Locator, hasTouch: boolean): Promise<void> {
+async function activate(alvo: Locator, hasTouch: boolean): Promise<void> {
   if (hasTouch) await alvo.tap()
   else await alvo.click()
 }
@@ -54,7 +54,7 @@ test.describe('o Painel da coordenação', () => {
 
     await expect(page).toHaveTitle('Painel · Turmma')
     // Quatro artefatos e três lotes; três aprovados, um esperando: os mesmos números da Governança.
-    await expect(numero(page, 'Gerado por IA')).toContainText('7', { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(numero(page, 'Gerado por IA')).toContainText('7', { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(numero(page, 'Aprovado por gente')).toContainText('3')
     await expect(numero(page, 'Esperando o professor')).toContainText('1')
     await expect(numero(page, 'Rejeitado')).toContainText('0')
@@ -76,8 +76,8 @@ test.describe('o Painel da coordenação', () => {
     // O Painel não lê a lista de nomes, os pedidos dos titulares nem as reivindicações: cada leitura iria para a auditoria.
     expect(pedidos.filter((caminho) => /\/v1\/privacidade\/pedidos|\/lista$|\/reivindicacoes/.test(caminho))).toEqual([])
 
-    expect(await larguraExcedente(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await horizontalOverflow(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
   })
 
   test('a escola sem ano letivo: "Comece pelo ano letivo", "Tudo em dia" e nenhuma chamada a turmas nem a vínculos', async ({ page, hasTouch }) => {
@@ -90,7 +90,7 @@ test.describe('o Painel da coordenação', () => {
     await esperarPainel(page)
     await abrirPainel(page)
 
-    await expect(principal(page).getByText('Comece pelo ano letivo')).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(principal(page).getByText('Comece pelo ano letivo')).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(principal(page).getByText('Tudo em dia')).toBeVisible()
     await expect(numero(page, 'Gerado por IA')).toContainText('0')
     await expect(principal(page).getByText('Nenhuma função da IA trabalhou neste mês.')).toBeVisible()
@@ -100,8 +100,8 @@ test.describe('o Painel da coordenação', () => {
 
     // A escola vazia cabe na janela: a página não rola a 1366 × 768, e nos 360 px não rola de lado.
     if (!hasTouch) expect(await rolagemDaPagina(page), 'a página rola a 1366 × 768').toBeLessThanOrEqual(0)
-    expect(await larguraExcedente(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await horizontalOverflow(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
   })
 
   test('a lista longa rola por dentro, e a página não rola a 1366 × 768', async ({ page, hasTouch }) => {
@@ -115,7 +115,7 @@ test.describe('o Painel da coordenação', () => {
     await abrirPainel(page)
 
     const lista = itensQueEsperam(page)
-    await expect(lista).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(lista).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(lista.getByRole('link')).toHaveCount(8)
     const medidas = await lista.evaluate((no) => ({ conteudo: no.scrollHeight, caixa: no.clientHeight, rola: getComputedStyle(no).overflowY }))
     expect(medidas.rola).toBe('auto')
@@ -123,8 +123,8 @@ test.describe('o Painel da coordenação', () => {
     // Quem usa teclado alcança a lista para rolar.
     await expect(lista).toHaveAttribute('tabindex', '0')
     if (!hasTouch) expect(await rolagemDaPagina(page), 'a página rola a 1366 × 768').toBeLessThanOrEqual(0)
-    expect(await larguraExcedente(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await horizontalOverflow(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
     // A lista rola por dentro: o que não cabia chega à vista, e a página continua parada.
     await lista.evaluate((no) => no.scrollTo({ top: no.scrollHeight }))
     expect(await lista.evaluate((no) => no.scrollTop)).toBeGreaterThan(0)
@@ -140,7 +140,7 @@ test.describe('o Painel da coordenação', () => {
     await abrirPainel(page)
 
     const faltam = passosQueFaltam(page)
-    await expect(faltam).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(faltam).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(faltam.getByRole('link', { name: /^Séries/ })).toHaveAttribute('href', '/coordenacao/estrutura?painel=ano')
     await expect(faltam.getByRole('link', { name: /^Professores/ })).toHaveAttribute('href', '/coordenacao/professores')
     await expect(faltam.getByRole('link', { name: /^Turmas/ })).toHaveAttribute('href', '/coordenacao/estrutura')
@@ -150,9 +150,9 @@ test.describe('o Painel da coordenação', () => {
     await expect(principal(page).getByText('A escola está montada')).toHaveCount(0)
 
     // O link leva à tela do passo, sem recarregar.
-    await acionar(faltam.getByRole('link', { name: /^Professores/ }), hasTouch)
+    await activate(faltam.getByRole('link', { name: /^Professores/ }), hasTouch)
     await expect(page).toHaveURL(/\/coordenacao\/professores$/)
-    await expect(page.getByRole('heading', { level: 1, name: 'Escola' })).toBeAttached({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page.getByRole('heading', { level: 1, name: 'Escola' })).toBeAttached({ timeout: SIGN_IN_TIMEOUT_MS })
   })
 })
 
@@ -168,16 +168,16 @@ test.describe('recomeço: a pessoa seguinte na mesma aba', () => {
     await entrarComoCoordenacaoNaMesmaAba(page, primeira, hasTouch)
     await esperarPainel(page)
     await abrirPainel(page)
-    await expect(numero(page, 'Gerado por IA')).toContainText('7', { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(numero(page, 'Gerado por IA')).toContainText('7', { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(itensQueEsperam(page).getByRole('link', { name: new RegExp(professor.nome) })).toBeVisible()
 
-    await acionar(page.getByRole('button', { name: 'Sair' }).first(), hasTouch)
-    await expect(page).toHaveURL(/\/entrar$/, { timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(page.getByRole('button', { name: 'Sair' }).first(), hasTouch)
+    await expect(page).toHaveURL(/\/entrar$/, { timeout: SIGN_IN_TIMEOUT_MS })
     await entrarComoCoordenacaoNaMesmaAba(page, segunda, hasTouch)
     await esperarPainel(page)
     await abrirPainel(page)
     // Nem o número nem o item da anterior, nem durante a leitura: o que a segunda pessoa vê é só da escola dela.
-    await expect(numero(page, 'Gerado por IA')).toContainText('0', { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(numero(page, 'Gerado por IA')).toContainText('0', { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(principal(page).getByText('Tudo em dia')).toBeVisible()
     expect(await page.content()).not.toContain(professor.nome)
   })
@@ -195,20 +195,20 @@ test.describe('recomeço: a troca de escola pelo seletor', () => {
     const respostaDoSegredo = page.waitForResponse((resposta) => new URL(resposta.url()).pathname === '/v1/conta/mfa/configurar')
     await page.goto('/entrar')
     await entrarPorEmail(page, emA, hasTouch)
-    await acionar(page.getByRole('button', { name: `${emA.escolaNome} · coordenação` }), hasTouch)
-    await expect(page.getByRole('heading', { name: 'Configurar o segundo fator' })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(page.getByRole('button', { name: `${emA.escolaNome} · coordenação` }), hasTouch)
+    await expect(page.getByRole('heading', { name: 'Configurar o segundo fator' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     const { segredo } = (await (await respostaDoSegredo).json()) as { segredo: string }
     await campoCodigo(page).fill(await codigoDoPassoAnterior(segredo))
-    await acionar(page.getByRole('button', { name: /Ativar o segundo fator|Ativando/ }), hasTouch)
-    await acionar(page.getByRole('link', { name: 'Ir para a entrada' }), hasTouch)
+    await activate(page.getByRole('button', { name: /Ativar o segundo fator|Ativando/ }), hasTouch)
+    await activate(page.getByRole('link', { name: 'Ir para a entrada' }), hasTouch)
     await entrarPorEmail(page, emA, hasTouch)
-    await acionar(page.getByRole('button', { name: `${emA.escolaNome} · coordenação` }), hasTouch)
-    await expect(page.getByRole('heading', { name: 'Segundo fator' })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(page.getByRole('button', { name: `${emA.escolaNome} · coordenação` }), hasTouch)
+    await expect(page.getByRole('heading', { name: 'Segundo fator' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await campoCodigo(page).fill(codigoDoAutenticador(segredo))
-    await acionar(page.getByRole('button', { name: /^Entrar$/ }), hasTouch)
+    await activate(page.getByRole('button', { name: /^Entrar$/ }), hasTouch)
     await esperarPainel(page)
     await abrirPainel(page)
-    await expect(numero(page, 'Gerado por IA')).toContainText('7', { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(numero(page, 'Gerado por IA')).toContainText('7', { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(itensQueEsperam(page).getByRole('link', { name: new RegExp(professor.nome) })).toBeVisible()
 
     // Daqui em diante, qualquer momento em que a tela traz o nome do professor de A, ou o número de A no cartão "Gerado por IA",
@@ -226,10 +226,10 @@ test.describe('recomeço: a troca de escola pelo seletor', () => {
     }, professor.nome)
 
     await abrirSeletorDeEscola(page, hasTouch)
-    await acionar(linhaDoSeletor(page, nomeNoSeletor(emB, 'coordenação')), hasTouch)
-    await expect(page.getByRole('heading', { name: 'Segundo fator' })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(linhaDoSeletor(page, nomeNoSeletor(emB, 'coordenação')), hasTouch)
+    await expect(page.getByRole('heading', { name: 'Segundo fator' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await campoCodigo(page).fill(codigoDoAutenticador(segredo, 30))
-    await acionar(page.getByRole('button', { name: /^Entrar$/ }), hasTouch)
+    await activate(page.getByRole('button', { name: /^Entrar$/ }), hasTouch)
     await esperarPainel(page)
     await expect(page.locator('body')).toContainText(emB.escolaNome)
     // A contagem se lê aqui: a tela de A já saiu, e tudo o que entra a partir daí é a tela de B. O Painel de B ainda não abriu, e
@@ -237,7 +237,7 @@ test.describe('recomeço: a troca de escola pelo seletor', () => {
     const ultimo = await page.evaluate(() => (window as unknown as { __vazamentos: string[] }).__vazamentos.length)
     await abrirPainel(page)
 
-    await expect(numero(page, 'Gerado por IA')).toContainText('0', { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(numero(page, 'Gerado por IA')).toContainText('0', { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(principal(page).getByText('Tudo em dia')).toBeVisible()
     expect(await page.content()).not.toContain(professor.nome)
     // Nem o nome nem o 7 de A em nenhum momento da abertura do Painel de B: se o `resetQueries` de `main.tsx` virasse

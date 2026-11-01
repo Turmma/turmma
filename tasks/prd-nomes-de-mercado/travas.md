@@ -188,3 +188,11 @@ O relatório do `aplicar` da 10.0 achou estas, que a revisão da spec não listo
 | `apps/web/src/components/states/estados.test.tsx` (linha 169) | os arquivos `EstadoCarregando.tsx`, `EstadoErro.tsx` e `EstadoVazio.tsx`, que o caso lê do disco para conferir o que cada um importa | 10.0 | A | Com o nome antigo, o `readFileSync` não acha o arquivo e o caso "nenhum importa `Aviso`, `Contador`, `Toque` nem peça de `PECAS_FORA_DA_ENTRADA`" fica vermelho |
 | o `this.name` de `ErroDaApi` (`apps/web/src/api/client.ts`) e o `name: 'ErroDaApi'` que `apps/web/src/api/eu.test.ts` (linhas 50 e 52) espera da rejeição | o nome da classe, que acompanha a classe (adenda 1) | 10.0 | A | Com o `this.name` no nome antigo, os dois casos de `eu.test.ts` ficam vermelhos |
 | `apps/web/src/components/states/estados.test.tsx` (linha 32), a regex `/INDISPONIVEL\|503\|ErroDaApi/` | o nome da classe, que a tela de erro não pode mostrar (catálogo, sem texto cru) | 10.0 | B | A mutação põe `ApiError` num `<span>` fora do `alert` do `ErrorState` (depois do `</p>`), e só a negativa da linha 32 do caso "o `alert` é só a mensagem do catálogo" fica vermelho. Com o nome antigo na regex, a negativa passaria sem checar nada |
+
+## Achadas na 11.0
+
+O relatório do `aplicar` da 11.0 achou esta, que a revisão da spec não listou (Tech Spec §5, passo 6; triagem da divergência da 11.0, 01/11/2026). As linhas acima não mudam de número.
+
+| Trava | O que lê pelo nome | Onda | Forma | Prova |
+|---|---|---|---|---|
+| `playwright.config.ts` (a chave `use.profile` dos projetos `chromebook` e `celular`), `e2e/support/profiles.ts` (o membro de `ProfileOptions`, a chave do `base.extend` e a mensagem de erro que a cita) e `tools/ci/playwright.test.ts` (o `profile?:` de `UsoDoProjeto` e as leituras `uso?.profile`) | a opção `perfil` do Playwright, que a fixture `test` lê pelo nome; é troca à mão, porque o mapa não renomeia chave de objeto (inventário `:362`) | 11.0 | A | Com a chave antiga em `playwright.config.ts`, os casos `chromebook: …` e `celular: …` de `tools/ci/playwright.test.ts`, que leem `uso?.profile`, ficam vermelhos. A chave e a mensagem de `profiles.ts` entram em `excecoesDoConferir`; o `tsc` pega o membro de `ProfileOptions` |

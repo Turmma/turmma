@@ -1,14 +1,14 @@
 import type { Locator, Page } from '@playwright/test'
 import { ROTULOS_DA_ADAPTACAO, TIPOS_DE_ADAPTACAO } from '../packages/shared/src/assistente/conteudo.ts'
-import { atividadeSintetica, erroDaApi, simularAssistente, versaoAdaptada } from './support/assistente.ts'
+import { atividadeSintetica, apiError, mockAssistenteApi, versaoAdaptada } from './support/assistente.ts'
 import { paginaNaoRola } from './support/coordenacao.ts'
 import { caixa } from './support/professor-flow.ts'
-import { entrarPelaApi, entrarPorEmail, PRAZO_DA_ENTRADA_MS } from './support/casca.ts'
+import { entrarPelaApi, entrarPorEmail, SIGN_IN_TIMEOUT_MS } from './support/casca.ts'
 import { entrarEmCriados } from './support/professor/criados.ts'
-import { acionar, entrar, irPara, PRAZO_DA_TELA_MS, recarregar, selosDeIA } from './support/professor/scenario.ts'
-import { carregarSemRedeLenta, expect, test } from './support/profiles.ts'
+import { activate, entrar, irPara, SCREEN_TIMEOUT_MS, recarregar, selosDeIA } from './support/professor/scenario.ts'
+import { loadUnthrottled, expect, test } from './support/profiles.ts'
 import { confirmarVinculosNoBanco, criarAlocacaoDoProfessor, criarEquipeComSenha } from './support/seed.ts'
-import { ALVO_DE_TOQUE_PRINCIPAL_PX, larguraExcedente, violacoesGraves } from './support/checks.ts'
+import { ALVO_DE_TOQUE_PRINCIPAL_PX, horizontalOverflow, seriousViolations } from './support/checks.ts'
 
 /**
  * "Como vai sair" como a tela o escreve (`COMO_VAI_SAIR`, em `ferramentas.ts`). Copiado aqui de propósito: o e2e não importa o
@@ -42,7 +42,7 @@ test.describe('Ferramentas (D74) e o formulário', () => {
         api.artefatos = [atividadeSintetica(turmaId, disciplinaId)]
       },
     })
-    await expect(page).toHaveTitle('Ferramentas · Turmma', { timeout: PRAZO_DA_TELA_MS })
+    await expect(page).toHaveTitle('Ferramentas · Turmma', { timeout: SCREEN_TIMEOUT_MS })
     const principal = page.getByRole('main')
     await expect(principal.getByRole('heading', { level: 1 })).toHaveText('Ferramentas')
     await expect(principal.getByRole('heading', { level: 2 })).toHaveText(['Planejar', 'Preparar a aula', 'Avaliar'])
@@ -82,28 +82,28 @@ test.describe('Ferramentas (D74) e o formulário', () => {
     const colunasDaGrade = () => page.locator('[data-ferramenta]').first().locator('xpath=..').evaluate((lista) => getComputedStyle(lista).gridTemplateColumns.split(' ').length)
     const largura = page.viewportSize()?.width ?? 0
     expect(await colunasDaGrade()).toBe(largura >= 1280 ? 3 : largura >= 768 ? 2 : 1)
-    expect(await larguraExcedente(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await horizontalOverflow(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
     await page.setViewportSize({ width: 800, height: 900 })
     await expect.poll(colunasDaGrade).toBe(2)
-    expect(await larguraExcedente(page)).toBe(0)
+    expect(await horizontalOverflow(page)).toBe(0)
   })
 
   test('cada cartão abre o formulário da ferramenta dele, e "Voltar para Ferramentas" traz de volta ao catálogo', async ({ page, hasTouch }) => {
     await entrarEmCriados(page, { endereco: '/professor/ferramentas' })
     const principal = page.getByRole('main')
-    await expect(page.locator('[data-ferramenta]')).toHaveCount(3, { timeout: PRAZO_DA_TELA_MS })
+    await expect(page.locator('[data-ferramenta]')).toHaveCount(3, { timeout: SCREEN_TIMEOUT_MS })
     for (const [ferramenta, nome] of [
       ['plano_de_aula', 'Plano de aula'],
       ['adaptacao', 'Adaptação'],
       ['atividade_objetiva', 'Atividade objetiva'],
     ] as const) {
-      await acionar(page.locator(`[data-ferramenta="${ferramenta}"]`).getByRole('link'), hasTouch)
-      await expect(page).toHaveURL(new RegExp(`/professor/ferramentas/${ferramenta}$`), { timeout: PRAZO_DA_TELA_MS })
-      await expect(principal.getByRole('heading', { level: 1, name: nome })).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
-      await acionar(page.getByRole('link', { name: 'Voltar para Ferramentas' }), hasTouch)
-      await expect(page).toHaveURL(/\/professor\/ferramentas$/, { timeout: PRAZO_DA_TELA_MS })
-      await expect(principal.getByRole('heading', { level: 1, name: 'Ferramentas' })).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
+      await activate(page.locator(`[data-ferramenta="${ferramenta}"]`).getByRole('link'), hasTouch)
+      await expect(page).toHaveURL(new RegExp(`/professor/ferramentas/${ferramenta}$`), { timeout: SCREEN_TIMEOUT_MS })
+      await expect(principal.getByRole('heading', { level: 1, name: nome })).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
+      await activate(page.getByRole('link', { name: 'Voltar para Ferramentas' }), hasTouch)
+      await expect(page).toHaveURL(/\/professor\/ferramentas$/, { timeout: SCREEN_TIMEOUT_MS })
+      await expect(principal.getByRole('heading', { level: 1, name: 'Ferramentas' })).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
     }
   })
 
@@ -115,65 +115,65 @@ test.describe('Ferramentas (D74) e o formulário', () => {
       },
     })
     const selo = (ferramenta: string) => page.locator(`[data-ferramenta="${ferramenta}"]`).getByText('Suspensa pela coordenação')
-    await expect(selo('adaptacao')).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
+    await expect(selo('adaptacao')).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
     await expect(selo('plano_de_aula')).toHaveCount(0)
     await expect(selo('atividade_objetiva')).toHaveCount(0)
     await expect(page.getByRole('main').getByRole('note')).toContainText('A coordenação suspendeu a Adaptação nesta escola.')
     // Suspensa, o cartão continua um link que abre o formulário: quem explica o resto é o formulário.
     await expect(page.locator('[data-ferramenta]').getByRole('link')).toHaveCount(3)
-    expect(await larguraExcedente(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await horizontalOverflow(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
   })
 
   test('a leitura do time que falha não tira cartão: o aviso diz que não foi possível conferir, e "Tentar de novo" lê outra vez e põe o selo', async ({ page, hasTouch }) => {
     const { api } = await entrarEmCriados(page, {
       endereco: '/professor/ferramentas',
       antes: ({ api: simulada }) => {
-        simulada.trocar('time', () => erroDaApi(404, 'NAO_ENCONTRADO'))
+        simulada.trocar('time', () => apiError(404, 'NAO_ENCONTRADO'))
       },
     })
-    await expect(page.getByText('Não foi possível conferir se alguma ferramenta está suspensa')).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
+    await expect(page.getByText('Não foi possível conferir se alguma ferramenta está suspensa')).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
     await expect(page.locator('[data-ferramenta]').getByRole('link')).toHaveCount(3)
     await expect(page.getByText('Suspensa pela coordenação')).toHaveCount(0)
-    expect(await larguraExcedente(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await horizontalOverflow(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
 
     api.suspensas.add('adaptacao')
     api.trocar('time')
-    await acionar(page.getByRole('button', { name: 'Tentar de novo' }), hasTouch)
-    await expect(page.locator('[data-ferramenta="adaptacao"]').getByText('Suspensa pela coordenação')).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
+    await activate(page.getByRole('button', { name: 'Tentar de novo' }), hasTouch)
+    await expect(page.locator('[data-ferramenta="adaptacao"]').getByText('Suspensa pela coordenação')).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
     await expect(page.getByText('Não foi possível conferir')).toHaveCount(0)
     await expect(page.locator('[data-ferramenta]').getByRole('link')).toHaveCount(3)
 
     // A ferramenta que não existe não tem formulário: o endereço responde como página não encontrada.
     await irPara(page, '/professor/ferramentas/prova')
-    await expect(page.getByRole('heading', { name: 'Página não encontrada' })).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
+    await expect(page.getByRole('heading', { name: 'Página não encontrada' })).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
   })
 
   test('recomeço: a professora seguinte entra na mesma aba, sem recarregar, e vê o catálogo e o selo conforme a escola dela, não o da anterior', async ({ page, hasTouch }) => {
-    const api = await simularAssistente(page)
+    const api = await mockAssistenteApi(page)
     api.suspensas.add('adaptacao')
     const primeira = await criarEquipeComSenha()
     const alocacao = await criarAlocacaoDoProfessor(primeira.escolaId, primeira.usuarioId, ['Química'])
     await confirmarVinculosNoBanco(primeira.escolaId, alocacao.vinculoIds)
     // A segunda é de outra escola e ainda não tem turma confirmada.
     const segunda = await criarEquipeComSenha()
-    await carregarSemRedeLenta(page, async () => {
+    await loadUnthrottled(page, async () => {
       await entrarPelaApi(page, primeira, '/professor/ferramentas')
-      await expect(page.locator('[data-ferramenta="adaptacao"]').getByText('Suspensa pela coordenação')).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
+      await expect(page.locator('[data-ferramenta="adaptacao"]').getByText('Suspensa pela coordenação')).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
     })
     await expect(page.getByText('Falta uma turma confirmada')).toHaveCount(0)
 
     if (hasTouch) await page.getByRole('button', { name: 'Sair' }).tap()
     else await page.getByRole('button', { name: 'Sair' }).click()
-    await expect(page).toHaveURL(/\/entrar$/, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page).toHaveURL(/\/entrar$/, { timeout: SIGN_IN_TIMEOUT_MS })
     api.suspensas.clear()
     // Pela tela, sem recarregar: a recarga apagaria o cache, e o cache é o que este caso quer ver esvaziado.
     await entrarPorEmail(page, segunda, hasTouch)
-    await expect(page).toHaveURL(/\/professor\/nova-conversa$/, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page).toHaveURL(/\/professor\/nova-conversa$/, { timeout: SIGN_IN_TIMEOUT_MS })
     await irPara(page, '/professor/ferramentas')
-    await expect(page.getByRole('main').getByRole('heading', { level: 1, name: 'Ferramentas' })).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
-    await expect(page.getByText('Falta uma turma confirmada')).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
+    await expect(page.getByRole('main').getByRole('heading', { level: 1, name: 'Ferramentas' })).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
+    await expect(page.getByText('Falta uma turma confirmada')).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
     await expect(page.locator('[data-ferramenta]')).toHaveCount(3)
     await expect(page.getByText('Suspensa pela coordenação')).toHaveCount(0)
     await expect(page.locator('[data-funcao-suspensa]')).toHaveCount(0)
@@ -186,18 +186,18 @@ test.describe('Ferramentas (D74) e o formulário', () => {
 
     // Vazio: sem atividade para adaptar, a tela diz o que falta e leva até lá.
     await irPara(page, '/professor/ferramentas/adaptacao')
-    await expect(page.getByText('Ainda não há atividade para adaptar')).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
+    await expect(page.getByText('Ainda não há atividade para adaptar')).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
     await expect(page.getByRole('button', { name: 'Gerar uma atividade' })).toBeVisible()
 
     const origem = atividadeSintetica(turmaId, disciplinaId)
     api.artefatos = [origem]
     await recarregar(page)
     await irPara(page, '/professor/ferramentas')
-    await acionar(page.locator('[data-ferramenta="adaptacao"]'), hasTouch)
+    await activate(page.locator('[data-ferramenta="adaptacao"]'), hasTouch)
     await expect(page).toHaveURL(/\/professor\/ferramentas\/adaptacao$/)
     await expect(page).toHaveTitle('Adaptação · Turmma')
     const formulario = page.locator('[data-motor="formulario"]')
-    await expect(formulario).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
+    await expect(formulario).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
     // Nenhum campo de texto: nem de uma linha, nem de várias. Só lista fechada.
     await expect(formulario.locator('textarea, input:not([type="checkbox"])')).toHaveCount(0)
     await expect(formulario.getByRole('textbox')).toHaveCount(0)
@@ -208,11 +208,11 @@ test.describe('Ferramentas (D74) e o formulário', () => {
     const comoVaiSair = page.locator('[data-como-vai-sair="adaptacao"]')
     await expect(comoVaiSair.getByRole('listitem')).toHaveText([...COMO_VAI_SAIR.adaptacao])
     await expect(comoVaiSair.getByText(/alun/i)).toHaveCount(0)
-    expect(await larguraExcedente(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await horizontalOverflow(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
 
     // Sem atividade e sem tipo, nada sai, e cada campo diz o que falta.
-    await acionar(formulario.getByRole('button', { name: 'Gerar versão adaptada' }), hasTouch)
+    await activate(formulario.getByRole('button', { name: 'Gerar versão adaptada' }), hasTouch)
     await expect(formulario.getByRole('alert')).toContainText('Para gerar, confira: Atividade de origem, Tipo de adaptação.')
     // O tempo extra só existe com "Tempo adicional" marcado: sem o tipo, o campo nem aparece, e não há o que recusar
     // depois de enviar. Marcado o tipo, o campo aparece; desmarcado, some de novo.
@@ -228,7 +228,7 @@ test.describe('Ferramentas (D74) e o formulário', () => {
     // De volta com o tipo marcado, o campo volta com o que estava escolhido.
     await formulario.getByRole('checkbox', { name: 'Tempo adicional' }).check()
     await expect(formulario.getByLabel('Tempo extra')).toHaveValue('50')
-    await acionar(formulario.getByRole('button', { name: 'Gerar versão adaptada' }), hasTouch)
+    await activate(formulario.getByRole('button', { name: 'Gerar versão adaptada' }), hasTouch)
     await expect.poll(() => api.pedidosEm(/adaptar$/).length).toBe(1)
     const adaptar = api.pedidosEm(/adaptar$/)[0]
     expect(adaptar?.caminho).toBe(`/v1/artefatos/${origem.id}/adaptar`)
@@ -243,7 +243,7 @@ test.describe('Ferramentas (D74) e o formulário', () => {
     api.entregas = [adaptada.entrega]
     api.concluir(api.ultimaExecucao(), { tipo: 'artefato', artefatoId: adaptada.artefato.id, entregaId: adaptada.entrega.id })
     const pronto = page.locator('[data-motor="pronto"]')
-    await expect(pronto.getByText('Assistente · adaptação')).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
+    await expect(pronto.getByText('Assistente · adaptação')).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
     await expect(selosDeIA(pronto)).toHaveCount(1)
     await expect(pronto.locator('[data-aprovacao="pendente"]')).toHaveText('Esperando você')
     await expect(pronto.getByText('Esta versão só pode ir aos alunos depois que você aprovar. Até lá, o PDF dela sai marcado como rascunho.')).toBeVisible()
@@ -251,16 +251,16 @@ test.describe('Ferramentas (D74) e o formulário', () => {
     await expect(pronto.getByRole('button', { name: 'Exportar rascunho em PDF' })).toBeVisible()
     await expect(pronto.getByRole('button', { name: 'Exportar em PDF', exact: true })).toHaveCount(0)
     await expect(pronto.getByRole('link', { name: 'Ver e decidir' })).toBeVisible()
-    expect(await larguraExcedente(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await horizontalOverflow(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
 
     // O atalho da Adaptação, no Início, abre o cartão dela, e o que estava escrito na caixa não vai junto.
     await irPara(page, '/professor/nova-conversa')
     await caixa(page).fill('prova adaptada para um aluno com laudo')
-    await acionar(page.getByRole('group', { name: 'Atalhos de ferramenta' }).getByRole('button', { name: /^Adaptação/ }), hasTouch)
+    await activate(page.getByRole('group', { name: 'Atalhos de ferramenta' }).getByRole('button', { name: /^Adaptação/ }), hasTouch)
     await expect(page).toHaveURL(/\/professor\/conversa$/)
     const cartao = page.locator('[data-cartao-de-ferramenta="adaptacao"]')
-    await expect(cartao.locator('[data-motor="formulario"]')).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
+    await expect(cartao.locator('[data-motor="formulario"]')).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
     await expect(cartao.locator('textarea, input:not([type="checkbox"])')).toHaveCount(0)
     await expect(page.getByRole('main')).not.toContainText('laudo')
     expect(api.pedidosEm(/mensagens$/)).toHaveLength(0)
@@ -272,20 +272,20 @@ test.describe('Ferramentas (D74) e o formulário', () => {
     const { api, turmaId, disciplinaId } = await entrar(page, hasTouch, { antes: (simulada) => simulada.suspensas.add('adaptacao') })
     api.artefatos = [atividadeSintetica(turmaId, disciplinaId)]
     await irPara(page, '/professor/ferramentas/adaptacao')
-    await expect(page.getByRole('note')).toContainText('A coordenação suspendeu a Adaptação nesta escola.', { timeout: PRAZO_DA_TELA_MS })
+    await expect(page.getByRole('note')).toContainText('A coordenação suspendeu a Adaptação nesta escola.', { timeout: SCREEN_TIMEOUT_MS })
     await expect(page.locator('[data-motor]')).toHaveCount(0)
     await expect(page.getByRole('main').getByRole('alert')).toHaveCount(0)
     // "Como vai sair" continua à vista no lugar do formulário que saiu.
     await expect(page.locator('[data-como-vai-sair="adaptacao"]').getByRole('listitem')).toHaveText([...COMO_VAI_SAIR.adaptacao])
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await seriousViolations(page)).toEqual([])
     // A recusa do servidor, para quem tinha a tela aberta antes da suspensão, vira o mesmo aviso, e não um erro.
     api.suspensas.clear()
-    api.trocar('gerar', () => erroDaApi(409, 'FUNCAO_SUSPENSA'))
+    api.trocar('gerar', () => apiError(409, 'FUNCAO_SUSPENSA'))
     await irPara(page, '/professor/ferramentas/plano_de_aula')
     const formulario = page.locator('[data-motor="formulario"]')
     await formulario.getByLabel('Tema').fill('Introdução à estequiometria')
-    await acionar(formulario.getByRole('button', { name: 'Gerar plano de aula' }), hasTouch)
-    await expect(page.getByRole('note')).toContainText('A coordenação suspendeu a conversa e as ferramentas', { timeout: PRAZO_DA_TELA_MS })
+    await activate(formulario.getByRole('button', { name: 'Gerar plano de aula' }), hasTouch)
+    await expect(page.getByRole('note')).toContainText('A coordenação suspendeu a conversa e as ferramentas', { timeout: SCREEN_TIMEOUT_MS })
     await expect(page.getByRole('main')).not.toContainText('FUNCAO_SUSPENSA')
   })
 })
@@ -304,7 +304,7 @@ const colunasDoFormulario = (page: Page) => page.locator('[data-como-vai-sair]')
 test.describe('O formulário da ferramenta com "Como vai sair" (telas do professor, 8.0)', () => {
   test('a 1366 px o formulário e, ao lado, "Como vai sair"; a 360 px uma coluna, com o texto depois do formulário e sem rolar de lado; o botão de gerar à vista', async ({ page }) => {
     // A atividade já gerada é o que deixa a Adaptação abrir o formulário dela, a única que rola a 1366 × 768.
-    await carregarSemRedeLenta(page, () =>
+    await loadUnthrottled(page, () =>
       entrarEmCriados(page, {
         endereco: '/professor/ferramentas/atividade_objetiva',
         antes: ({ api, turmaId, disciplinaId }) => {
@@ -313,7 +313,7 @@ test.describe('O formulário da ferramenta com "Como vai sair" (telas do profess
       }),
     )
     const formulario = page.locator('[data-cartao-de-ferramenta="atividade_objetiva"]')
-    await expect(formulario.locator('[data-motor="formulario"]')).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
+    await expect(formulario.locator('[data-motor="formulario"]')).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
     const bloco = page.locator('[data-como-vai-sair="atividade_objetiva"]')
     await expect(bloco.getByRole('heading', { level: 2, name: 'Como vai sair' })).toBeVisible()
     await expect(bloco.getByRole('listitem')).toHaveText([...COMO_VAI_SAIR.atividade_objetiva])
@@ -334,10 +334,10 @@ test.describe('O formulário da ferramenta com "Como vai sair" (telas do profess
       await expect(botao).toBeInViewport({ ratio: 1 })
       // A Adaptação é a que tem mais campos e a única que rola a 1366 × 768 com a escola cheia: o botão dela também fica à vista.
       await irPara(page, '/professor/ferramentas/adaptacao')
-      await expect(page.locator('[data-cartao-de-ferramenta="adaptacao"]').getByRole('button', { name: 'Gerar versão adaptada' })).toBeInViewport({ ratio: 1, timeout: PRAZO_DA_TELA_MS })
+      await expect(page.locator('[data-cartao-de-ferramenta="adaptacao"]').getByRole('button', { name: 'Gerar versão adaptada' })).toBeInViewport({ ratio: 1, timeout: SCREEN_TIMEOUT_MS })
       await expect(page.locator('[data-como-vai-sair="adaptacao"]').getByRole('listitem')).toHaveText([...COMO_VAI_SAIR.adaptacao])
       await irPara(page, '/professor/ferramentas/atividade_objetiva')
-      await expect(botao).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
+      await expect(botao).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
     } else {
       // Uma coluna: o texto vem depois do formulário, na mesma largura.
       expect(await colunasDoFormulario(page)).toBe(1)
@@ -345,14 +345,14 @@ test.describe('O formulário da ferramenta com "Como vai sair" (telas do profess
       expect(Math.round(caixaDoBloco?.x ?? 0)).toBe(Math.round(caixaDoFormulario?.x ?? 0))
       expect(Math.round(caixaDoBloco?.width ?? 0)).toBe(Math.round(caixaDoFormulario?.width ?? 0))
     }
-    expect(await larguraExcedente(page)).toBe(0)
+    expect(await horizontalOverflow(page)).toBe(0)
 
     // O ponto da virada é 1024 px, a largura da janela e não a do contêiner: 1023 ainda é uma coluna, e 1024 já são duas.
     await page.setViewportSize({ width: 1023, height: 768 })
     await expect.poll(() => colunasDoFormulario(page)).toBe(1)
     await page.setViewportSize({ width: 1024, height: 768 })
     await expect.poll(() => colunasDoFormulario(page)).toBe(2)
-    expect(await larguraExcedente(page)).toBe(0)
+    expect(await horizontalOverflow(page)).toBe(0)
   })
 
   test('a 1366 × 768 a página não rola em nenhum formulário: o cabeçalho fica parado, o formulário rola por dentro e o botão de gerar fica ao alcance (RF22, correção formulario-e-assistente-rolam-a-pagina)', async ({ page }) => {
@@ -372,8 +372,8 @@ test.describe('O formulário da ferramenta com "Como vai sair" (telas do profess
     ] as const) {
       await irPara(page, `/professor/ferramentas/${ferramenta}`)
       const botao = page.locator(`[data-cartao-de-ferramenta="${ferramenta}"]`).getByRole('button', { name: gerar })
-      await expect(botao).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
-      expect(await larguraExcedente(page)).toBe(0)
+      await expect(botao).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
+      expect(await horizontalOverflow(page)).toBe(0)
       // A 360 px a página rola inteira, como qualquer outra: só se mede o miolo a partir de 768 px.
       if (largura < 768) continue
 
@@ -390,20 +390,20 @@ test.describe('O formulário da ferramenta com "Como vai sair" (telas do profess
   })
 
   test('o endereço de uma ferramenta que não existe responde como página não encontrada, sem formulário nem "Como vai sair"', async ({ page }) => {
-    await carregarSemRedeLenta(page, () => entrarEmCriados(page, { endereco: '/professor/ferramentas/xyz' }))
-    await expect(page.getByRole('heading', { name: 'Página não encontrada' })).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
+    await loadUnthrottled(page, () => entrarEmCriados(page, { endereco: '/professor/ferramentas/xyz' }))
+    await expect(page.getByRole('heading', { name: 'Página não encontrada' })).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
     await expect(page.locator('[data-como-vai-sair]')).toHaveCount(0)
     await expect(page.locator('[data-motor]')).toHaveCount(0)
   })
 
   test('dois cliques em "Gerar" mandam um pedido só, e o texto ao lado não muda enquanto gera', async ({ page }) => {
-    const { api } = await carregarSemRedeLenta(page, () => entrarEmCriados(page, { endereco: '/professor/ferramentas/atividade_objetiva' }))
+    const { api } = await loadUnthrottled(page, () => entrarEmCriados(page, { endereco: '/professor/ferramentas/atividade_objetiva' }))
     const formulario = page.locator('[data-motor="formulario"]')
-    await expect(formulario).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
+    await expect(formulario).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
     const bloco = page.locator('[data-como-vai-sair="atividade_objetiva"]')
     await formulario.getByLabel('Tema').fill('Estequiometria')
     await doisCliquesNoMesmoInstante(formulario.getByRole('button', { name: 'Gerar atividade' }))
-    await expect(page.locator('[data-motor="gerando"]')).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
+    await expect(page.locator('[data-motor="gerando"]')).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
     await expect.poll(() => api.pedidosEm(/gerar$/).length).toBe(1)
     // Sem prévia: o texto ao lado é o mesmo enquanto gera, e não leva nada do que foi escrito.
     await expect(bloco.getByRole('listitem')).toHaveText([...COMO_VAI_SAIR.atividade_objetiva])
@@ -413,52 +413,52 @@ test.describe('O formulário da ferramenta com "Como vai sair" (telas do profess
   })
 
   test('o formulário aberto de novo começa em branco, e o texto ao lado é o mesmo depois de gerar', async ({ page }) => {
-    const { api, turmaId, disciplinaId } = await carregarSemRedeLenta(page, () => entrarEmCriados(page, { endereco: '/professor/ferramentas/atividade_objetiva' }))
+    const { api, turmaId, disciplinaId } = await loadUnthrottled(page, () => entrarEmCriados(page, { endereco: '/professor/ferramentas/atividade_objetiva' }))
     const formulario = page.locator('[data-motor="formulario"]')
     await formulario.getByLabel('Tema').fill('Estequiometria')
     await formulario.getByRole('button', { name: 'Gerar atividade' }).click()
-    await expect.poll(() => api.pedidosEm(/gerar$/).length, { timeout: PRAZO_DA_TELA_MS }).toBe(1)
+    await expect.poll(() => api.pedidosEm(/gerar$/).length, { timeout: SCREEN_TIMEOUT_MS }).toBe(1)
     const artefato = atividadeSintetica(turmaId, disciplinaId)
     api.artefatos = [artefato]
     api.concluir(api.ultimaExecucao(), { tipo: 'artefato', artefatoId: artefato.id, entregaId: null })
-    await expect(page.locator('[data-motor="pronto"]')).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
+    await expect(page.locator('[data-motor="pronto"]')).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
     await expect(page.locator('[data-como-vai-sair="atividade_objetiva"]').getByRole('listitem')).toHaveText([...COMO_VAI_SAIR.atividade_objetiva])
 
     // Sai e volta: a geração que terminou fica em Criados, e o formulário começa em branco. Espera o catálogo no meio: as duas
     // navegações juntas se fundem, e o formulário nunca sairia da tela.
     await irPara(page, '/professor/ferramentas')
-    await expect(page.locator('[data-ferramenta]')).toHaveCount(3, { timeout: PRAZO_DA_TELA_MS })
+    await expect(page.locator('[data-ferramenta]')).toHaveCount(3, { timeout: SCREEN_TIMEOUT_MS })
     await irPara(page, '/professor/ferramentas/atividade_objetiva')
-    await expect(page.locator('[data-motor="formulario"]').getByLabel('Tema')).toHaveValue('', { timeout: PRAZO_DA_TELA_MS })
+    await expect(page.locator('[data-motor="formulario"]').getByLabel('Tema')).toHaveValue('', { timeout: SCREEN_TIMEOUT_MS })
     await expect(page.locator('[data-motor="pronto"]')).toHaveCount(0)
   })
 
   test('recomeço: a segunda pessoa na mesma aba abre o formulário em branco, sem a geração que a primeira deixou no ar', async ({ page, hasTouch }) => {
-    const api = await simularAssistente(page)
+    const api = await mockAssistenteApi(page)
     const primeira = await criarEquipeComSenha()
     const alocacao = await criarAlocacaoDoProfessor(primeira.escolaId, primeira.usuarioId, ['Química'])
     await confirmarVinculosNoBanco(primeira.escolaId, alocacao.vinculoIds)
     const segunda = await criarEquipeComSenha()
     const alocacaoDaSegunda = await criarAlocacaoDoProfessor(segunda.escolaId, segunda.usuarioId, ['Química'])
     await confirmarVinculosNoBanco(segunda.escolaId, alocacaoDaSegunda.vinculoIds)
-    await carregarSemRedeLenta(page, async () => {
+    await loadUnthrottled(page, async () => {
       await entrarPelaApi(page, primeira, '/professor/ferramentas/atividade_objetiva')
-      await expect(page.locator('[data-motor="formulario"]')).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
+      await expect(page.locator('[data-motor="formulario"]')).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
     })
     // A primeira deixa uma geração no ar e sai.
     const formulario = page.locator('[data-motor="formulario"]')
     await formulario.getByLabel('Tema').fill('Tema da primeira pessoa')
-    await acionar(formulario.getByRole('button', { name: 'Gerar atividade' }), hasTouch)
-    await expect(page.locator('[data-motor="gerando"]')).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
+    await activate(formulario.getByRole('button', { name: 'Gerar atividade' }), hasTouch)
+    await expect(page.locator('[data-motor="gerando"]')).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
     await expect.poll(() => api.pedidosEm(/gerar$/).length).toBe(1)
-    await acionar(page.getByRole('button', { name: 'Sair' }), hasTouch)
-    await expect(page).toHaveURL(/\/entrar$/, { timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(page.getByRole('button', { name: 'Sair' }), hasTouch)
+    await expect(page).toHaveURL(/\/entrar$/, { timeout: SIGN_IN_TIMEOUT_MS })
 
     // Pela tela, sem recarregar: a recarga apagaria a memória da aba, e é ela que este caso quer ver esvaziada.
     await entrarPorEmail(page, segunda, hasTouch)
-    await expect(page).toHaveURL(/\/professor\/nova-conversa$/, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page).toHaveURL(/\/professor\/nova-conversa$/, { timeout: SIGN_IN_TIMEOUT_MS })
     await irPara(page, '/professor/ferramentas/atividade_objetiva')
-    await expect(page.locator('[data-motor="formulario"]')).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
+    await expect(page.locator('[data-motor="formulario"]')).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
     await expect(page.locator('[data-motor="gerando"]')).toHaveCount(0)
     await expect(page.locator('[data-motor="pronto"]')).toHaveCount(0)
     await expect(page.locator('[data-motor="formulario"]').getByLabel('Tema')).toHaveValue('')

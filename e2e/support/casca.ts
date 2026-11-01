@@ -1,6 +1,6 @@
 import type { Locator, Page } from '@playwright/test'
 import { mensagemDoSegundoFator } from '../../packages/shared/src/errors/messages.ts'
-import { carregarSemRedeLenta, expect } from './profiles.ts'
+import { loadUnthrottled, expect } from './profiles.ts'
 import { campoCodigo } from './mfa.ts'
 import { codigoDoAutenticador, criarEquipeComSenha, type ConviteDeCoordenadorDeTeste, type EquipeDeTeste } from './seed.ts'
 
@@ -71,7 +71,7 @@ export async function abrirNavegacao(page: Page, hasTouch: boolean): Promise<voi
  */
 async function esperarASessaoNaBarraDoTopo(page: Page): Promise<void> {
   await expect(page.getByRole('banner').locator('p').first(), 'a sessão (o /v1/eu) não chegou: a barra do topo está sem o nome da escola').not.toBeEmpty({
-    timeout: PRAZO_DA_ENTRADA_MS,
+    timeout: SIGN_IN_TIMEOUT_MS,
   })
 }
 
@@ -128,7 +128,7 @@ export async function escolherNoSeletor(page: Page, nome: string, hasTouch: bool
 }
 
 /** O Chromebook com CPU ×4 e rede Fast 3G carrega a página e ainda faz o hash da senha no servidor. */
-export const PRAZO_DA_ENTRADA_MS = 20_000
+export const SIGN_IN_TIMEOUT_MS = 20_000
 
 /** Um passo do TOTP à frente: a ativação grava o passo usado, e só um passo maior entra depois (6.0 do F1). */
 const PASSO_SEGUINTE_SEGUNDOS = 30
@@ -148,7 +148,7 @@ export async function esperarATelaDepoisDaRecarga(page: Page): Promise<void> {
   const titulo = page.getByRole('main').getByRole('heading', { level: 1 })
   const tentarDeNovo = page.getByRole('button', { name: 'Tentar de novo' }).and(page.locator(':not(main *)'))
   for (let tentativa = 1; tentativa <= TENTATIVAS_DA_RECARGA; tentativa += 1) {
-    await expect(titulo.or(tentarDeNovo).first()).toBeAttached({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(titulo.or(tentarDeNovo).first()).toBeAttached({ timeout: SIGN_IN_TIMEOUT_MS })
     if ((await titulo.count()) > 0) return
     if (tentativa === TENTATIVAS_DA_RECARGA) {
       const aviso = await page.getByRole('alert').and(page.locator(':not(main *)')).first().innerText()
@@ -161,7 +161,7 @@ export async function esperarATelaDepoisDaRecarga(page: Page): Promise<void> {
 /** A ativação do segundo fator tenta duas vezes: a segunda cobre o Redis de fila que parou por um instante na esteira. */
 const TENTATIVAS_DA_ATIVACAO = 2
 
-async function acionar(alvo: Locator, hasTouch: boolean): Promise<void> {
+async function activate(alvo: Locator, hasTouch: boolean): Promise<void> {
   if (hasTouch) await alvo.tap()
   else await alvo.click()
 }
@@ -170,7 +170,7 @@ async function acionar(alvo: Locator, hasTouch: boolean): Promise<void> {
 export async function entrarPorEmail(page: Page, pessoa: Pick<EquipeDeTeste, 'email' | 'senha'>, hasTouch: boolean): Promise<void> {
   await page.getByLabel('E-mail').fill(pessoa.email)
   await page.getByLabel('Senha').fill(pessoa.senha)
-  await acionar(page.getByRole('button', { name: /^Entrar$/ }), hasTouch)
+  await activate(page.getByRole('button', { name: /^Entrar$/ }), hasTouch)
 }
 
 /**
@@ -189,7 +189,7 @@ export const TITULO_DA_NOVA_CONVERSA = 'Início · Turmma'
  * está na barra de topo.
  */
 export async function esperarNovaConversa(page: Page, nome: string, opcoes: { readonly timeout?: number; readonly escolaNome?: string } = {}): Promise<void> {
-  const timeout = opcoes.timeout ?? PRAZO_DA_ENTRADA_MS
+  const timeout = opcoes.timeout ?? SIGN_IN_TIMEOUT_MS
   await expect(page).toHaveURL(/\/professor\/nova-conversa$/, { timeout })
   const primeiroNome = (nome.trim().split(/\s+/)[0] ?? '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
   await expect(page.getByText(new RegExp(`^(Bom dia|Boa tarde|Boa noite), ${primeiroNome}\\.$`))).toBeVisible({ timeout })
@@ -204,8 +204,8 @@ export async function esperarNovaConversa(page: Page, nome: string, opcoes: { re
  */
 export async function abrirAbaAlunos(page: Page, hasTouch: boolean): Promise<void> {
   const aba = page.getByRole('tab', { name: 'Alunos' })
-  if (hasTouch) await aba.tap({ timeout: PRAZO_DA_ENTRADA_MS })
-  else await aba.click({ timeout: PRAZO_DA_ENTRADA_MS })
+  if (hasTouch) await aba.tap({ timeout: SIGN_IN_TIMEOUT_MS })
+  else await aba.click({ timeout: SIGN_IN_TIMEOUT_MS })
   await expect(aba).toHaveAttribute('aria-selected', 'true')
 }
 
@@ -220,7 +220,7 @@ export async function entrarComoProfessora(page: Page, hasTouch: boolean): Promi
 
 /**
  * A mesma entrada pela API, com a **primeira carga** (o endereço e a primeira tela, que `aguardar` espera) sem a rede do perfil
- * (`carregarSemRedeLenta`): a receita de `abrirPelaApiSemMedirAPrimeiraCarga` (`mfa.ts`) para quem não tem segundo
+ * (`loadUnthrottled`): a receita de `abrirPelaApiSemMedirAPrimeiraCarga` (`mfa.ts`) para quem não tem segundo
  * fator. A CPU do perfil continua, e a rede do perfil volta quando a função devolve.
  *
  * **O que ele não mede:** quanto a aplicação leva para baixar e abrir na rede lenta, nem a entrada pela tela (senha, escolha de
@@ -237,7 +237,7 @@ export async function entrarPelaApiSemMedirAPrimeiraCarga(
   aguardar?: () => Promise<void>,
   usuarioId?: string,
 ): Promise<void> {
-  await carregarSemRedeLenta(page, async () => {
+  await loadUnthrottled(page, async () => {
     await entrarPelaApi(page, pessoa, endereco, usuarioId)
     await aguardar?.()
   })
@@ -256,14 +256,14 @@ export async function entrarComoProfessoraPelaApi(page: Page): Promise<EquipeDeT
  * que segura o chunk da área confere só o endereço. **É o único lugar** que diz onde a coordenação abre.
  */
 export async function esperarPainel(page: Page): Promise<void> {
-  await expect(page).toHaveURL(/\/coordenacao\/painel$/, { timeout: PRAZO_DA_ENTRADA_MS })
-  await expect(page.getByRole('heading', { level: 1, name: 'Painel' })).toBeAttached({ timeout: PRAZO_DA_ENTRADA_MS })
+  await expect(page).toHaveURL(/\/coordenacao\/painel$/, { timeout: SIGN_IN_TIMEOUT_MS })
+  await expect(page.getByRole('heading', { level: 1, name: 'Painel' })).toBeAttached({ timeout: SIGN_IN_TIMEOUT_MS })
 }
 
 /** A Estrutura da coordenação aberta (A1, 13.0), que é a aba Turmas de Escola: o endereço e a moldura. */
 export async function esperarEstrutura(page: Page): Promise<void> {
-  await expect(page).toHaveURL(/\/coordenacao\/estrutura$/, { timeout: PRAZO_DA_ENTRADA_MS })
-  await expect(page.getByRole('heading', { level: 1, name: 'Escola' })).toBeAttached({ timeout: PRAZO_DA_ENTRADA_MS })
+  await expect(page).toHaveURL(/\/coordenacao\/estrutura$/, { timeout: SIGN_IN_TIMEOUT_MS })
+  await expect(page.getByRole('heading', { level: 1, name: 'Escola' })).toBeAttached({ timeout: SIGN_IN_TIMEOUT_MS })
 }
 
 /**
@@ -292,8 +292,8 @@ async function ativarOSegundoFator(page: Page, segredo: string, hasTouch: boolea
   const recusa = page.getByRole('alert').filter({ hasText: RECUSA_DA_ATIVACAO })
   for (let tentativa = 1; tentativa <= TENTATIVAS_DA_ATIVACAO; tentativa += 1) {
     await campoCodigo(page).fill(codigoDoAutenticador(segredo))
-    await acionar(page.getByRole('button', { name: /Ativar o segundo fator|Ativando/ }), hasTouch)
-    await expect(ativou.or(recusa)).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(page.getByRole('button', { name: /Ativar o segundo fator|Ativando/ }), hasTouch)
+    await expect(ativou.or(recusa)).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     if (await ativou.isVisible()) return
   }
   throw new Error(`A API recusou a ativação do segundo fator ${String(TENTATIVAS_DA_ATIVACAO)} vezes seguidas, com o código do passo de agora: "${RECUSA_DA_ATIVACAO}"`)
@@ -308,15 +308,15 @@ async function ativarOSegundoFator(page: Page, segredo: string, hasTouch: boolea
 export async function entrarComoCoordenacaoNaMesmaAba(page: Page, coordenadora: EquipeDeTeste, hasTouch: boolean): Promise<void> {
   const respostaDoSegredo = page.waitForResponse((resposta) => new URL(resposta.url()).pathname === '/v1/conta/mfa/configurar')
   await entrarPorEmail(page, coordenadora, hasTouch)
-  await expect(page.getByRole('heading', { name: 'Configurar o segundo fator' })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+  await expect(page.getByRole('heading', { name: 'Configurar o segundo fator' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
   const { segredo } = (await (await respostaDoSegredo).json()) as { segredo: string }
   await ativarOSegundoFator(page, segredo, hasTouch)
-  await acionar(page.getByRole('link', { name: 'Ir para a entrada' }), hasTouch)
+  await activate(page.getByRole('link', { name: 'Ir para a entrada' }), hasTouch)
   await entrarPorEmail(page, coordenadora, hasTouch)
-  await expect(page.getByRole('heading', { name: 'Segundo fator' })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+  await expect(page.getByRole('heading', { name: 'Segundo fator' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
   await campoCodigo(page).fill(codigoDoAutenticador(segredo, PASSO_SEGUINTE_SEGUNDOS))
-  await acionar(page.getByRole('button', { name: /^Entrar$/ }), hasTouch)
-  await expect(page).toHaveURL(/\/coordenacao\/painel$/, { timeout: PRAZO_DA_ENTRADA_MS })
+  await activate(page.getByRole('button', { name: /^Entrar$/ }), hasTouch)
+  await expect(page).toHaveURL(/\/coordenacao\/painel$/, { timeout: SIGN_IN_TIMEOUT_MS })
 }
 
 /**
@@ -325,9 +325,9 @@ export async function entrarComoCoordenacaoNaMesmaAba(page: Page, coordenadora: 
  */
 export async function entrarPelaTelaComSegundoFator(page: Page, coordenadora: Pick<EquipeDeTeste, 'email' | 'senha'>, segredo: string, hasTouch: boolean): Promise<void> {
   await entrarPorEmail(page, coordenadora, hasTouch)
-  await expect(page.getByRole('heading', { name: 'Segundo fator' })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+  await expect(page.getByRole('heading', { name: 'Segundo fator' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
   await campoCodigo(page).fill(codigoDoAutenticador(segredo, PASSO_SEGUINTE_SEGUNDOS))
-  await acionar(page.getByRole('button', { name: /^Entrar$/ }), hasTouch)
+  await activate(page.getByRole('button', { name: /^Entrar$/ }), hasTouch)
 }
 
 /**
@@ -337,19 +337,19 @@ export async function entrarPelaTelaComSegundoFator(page: Page, coordenadora: Pi
  */
 export async function entrarComoCoordenacaoPeloConvite(page: Page, convite: ConviteDeCoordenadorDeTeste, senha: string, hasTouch: boolean): Promise<void> {
   await page.goto(`/convite#${convite.token}`)
-  await expect(page.getByRole('main')).toContainText(convite.escolaNome, { timeout: PRAZO_DA_ENTRADA_MS })
-  await acionar(page.getByRole('button', { name: /Aceitar o convite|Aceitando/ }), hasTouch)
-  await page.getByLabel('Senha nova').fill(senha, { timeout: PRAZO_DA_ENTRADA_MS })
+  await expect(page.getByRole('main')).toContainText(convite.escolaNome, { timeout: SIGN_IN_TIMEOUT_MS })
+  await activate(page.getByRole('button', { name: /Aceitar o convite|Aceitando/ }), hasTouch)
+  await page.getByLabel('Senha nova').fill(senha, { timeout: SIGN_IN_TIMEOUT_MS })
   const respostaDoSegredo = page.waitForResponse((resposta) => new URL(resposta.url()).pathname === '/v1/conta/mfa/configurar')
-  await acionar(page.getByRole('button', { name: /Definir a senha e continuar|Salvando/ }), hasTouch)
-  await expect(page.getByRole('heading', { name: 'Configurar o segundo fator' })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+  await activate(page.getByRole('button', { name: /Definir a senha e continuar|Salvando/ }), hasTouch)
+  await expect(page.getByRole('heading', { name: 'Configurar o segundo fator' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
   const { segredo } = (await (await respostaDoSegredo).json()) as { segredo: string }
   await ativarOSegundoFator(page, segredo, hasTouch)
-  await acionar(page.getByRole('link', { name: 'Ir para a entrada' }), hasTouch)
+  await activate(page.getByRole('link', { name: 'Ir para a entrada' }), hasTouch)
   await entrarPorEmail(page, { email: convite.email, senha }, hasTouch)
-  await expect(page.getByRole('heading', { name: 'Segundo fator' })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+  await expect(page.getByRole('heading', { name: 'Segundo fator' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
   await campoCodigo(page).fill(codigoDoAutenticador(segredo, PASSO_SEGUINTE_SEGUNDOS))
-  await acionar(page.getByRole('button', { name: /^Entrar$/ }), hasTouch)
+  await activate(page.getByRole('button', { name: /^Entrar$/ }), hasTouch)
 }
 
 /** O título da aba na tela em que o aluno abre. */
@@ -364,7 +364,7 @@ export const TITULO_DO_INICIO_DO_ALUNO = 'Início · Turmma'
  * No celular a lateral é a gaveta, fechada: o nome está nela, fora da vista, e o teste o lê sem abri-la.
  */
 export async function esperarInicioDoAluno(page: Page, nome: string, opcoes: { readonly timeout?: number; readonly escolaNome?: string } = {}): Promise<void> {
-  const timeout = opcoes.timeout ?? PRAZO_DA_ENTRADA_MS
+  const timeout = opcoes.timeout ?? SIGN_IN_TIMEOUT_MS
   const lateralDaCasca = naGaveta(page) ? page.locator('dialog[aria-label="Menu"]') : page.locator('body')
   // As esperas correm juntas: em série, cada uma pagaria a sua ida ao navegador, e o caso de 15 s não tem de sobra.
   await Promise.all([
@@ -383,7 +383,7 @@ async function entrarPelaTelaDaEscola(page: Page, aluno: Pick<DadosDeEntradaDoAl
   await page.goto(`/e/${aluno.slug}`)
   await page.getByLabel('Matrícula').fill(aluno.matricula)
   await page.getByLabel('Senha').fill(aluno.senha)
-  await acionar(page.getByRole('button', { name: /^Entrar$/ }), hasTouch)
+  await activate(page.getByRole('button', { name: /^Entrar$/ }), hasTouch)
 }
 
 /** O aluno entra pelo endereço da escola, com matrícula e senha, e chega a "Início", onde ele abre. */
@@ -412,7 +412,7 @@ export const falaDoPasso = (page: Page, n: number): Locator => page.getByRole('m
  * fala juntos (cada uma paga a sua ida ao navegador, e o caso de 15 s não tem de sobra).
  */
 export async function esperarIntroducaoDoAluno(page: Page, opcoes: { readonly timeout?: number } = {}): Promise<void> {
-  const timeout = opcoes.timeout ?? PRAZO_DA_ENTRADA_MS
+  const timeout = opcoes.timeout ?? SIGN_IN_TIMEOUT_MS
   await Promise.all([expect(page).toHaveURL(/\/aluno\/bem-vindo$/, { timeout }), expect(falaDoPasso(page, 1)).toBeVisible({ timeout })])
 }
 
@@ -426,7 +426,7 @@ export async function entrarComoAlunoNaPrimeiraVez(page: Page, aluno: Pick<Dados
 export async function seguirAteOFimDaIntroducao(page: Page, hasTouch: boolean): Promise<void> {
   for (let passo = 1; passo <= FALAS_DA_INTRODUCAO_DO_ALUNO.length; passo++) {
     await expect(falaDoPasso(page, passo)).toBeVisible()
-    await acionar(page.getByRole('button', { name: 'Continuar', exact: true }), hasTouch)
+    await activate(page.getByRole('button', { name: 'Continuar', exact: true }), hasTouch)
   }
 }
 
@@ -458,7 +458,7 @@ export const falaDoPassoDoProfessor = (page: Page, n: number): Locator =>
 
 /** A primeira entrada do professor: o endereço é o da introdução e a fala do passo 1 está na tela, esperados juntos. */
 export async function esperarIntroducaoDoProfessor(page: Page, opcoes: { readonly timeout?: number } = {}): Promise<void> {
-  const timeout = opcoes.timeout ?? PRAZO_DA_ENTRADA_MS
+  const timeout = opcoes.timeout ?? SIGN_IN_TIMEOUT_MS
   await Promise.all([expect(page).toHaveURL(/\/professor\/bem-vindo$/, { timeout }), expect(falaDoPassoDoProfessor(page, 1)).toBeVisible({ timeout })])
 }
 
@@ -466,7 +466,7 @@ export async function esperarIntroducaoDoProfessor(page: Page, opcoes: { readonl
 export async function seguirAteOFimDaIntroducaoDoProfessor(page: Page, hasTouch: boolean): Promise<void> {
   for (let passo = 1; passo <= FALAS_DA_INTRODUCAO_DO_PROFESSOR.length; passo++) {
     await expect(falaDoPassoDoProfessor(page, passo)).toBeVisible()
-    await acionar(page.getByRole('button', { name: 'Continuar', exact: true }), hasTouch)
+    await activate(page.getByRole('button', { name: 'Continuar', exact: true }), hasTouch)
   }
 }
 
@@ -500,7 +500,7 @@ export const falaDoPassoDaCoordenacao = (page: Page, n: number, escolaNome: stri
 
 /** A primeira entrada da coordenação: o endereço é o da introdução e a fala do passo 1 está na tela, esperados juntos. */
 export async function esperarIntroducaoDaCoordenacao(page: Page, escolaNome: string, opcoes: { readonly timeout?: number } = {}): Promise<void> {
-  const timeout = opcoes.timeout ?? PRAZO_DA_ENTRADA_MS
+  const timeout = opcoes.timeout ?? SIGN_IN_TIMEOUT_MS
   await Promise.all([expect(page).toHaveURL(/\/coordenacao\/bem-vindo$/, { timeout }), expect(falaDoPassoDaCoordenacao(page, 1, escolaNome)).toBeVisible({ timeout })])
 }
 
@@ -508,7 +508,7 @@ export async function esperarIntroducaoDaCoordenacao(page: Page, escolaNome: str
 export async function seguirAteOFimDaIntroducaoDaCoordenacao(page: Page, escolaNome: string, hasTouch: boolean): Promise<void> {
   for (let passo = 1; passo <= falasDaIntroducaoDaCoordenacao(escolaNome).length; passo++) {
     await expect(falaDoPassoDaCoordenacao(page, passo, escolaNome)).toBeVisible()
-    await acionar(page.getByRole('button', { name: 'Continuar', exact: true }), hasTouch)
+    await activate(page.getByRole('button', { name: 'Continuar', exact: true }), hasTouch)
   }
 }
 

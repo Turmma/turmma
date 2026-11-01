@@ -3,11 +3,11 @@ import { MENSAGENS_DE_ERRO, mensagemDaEntradaPorMatricula, mensagemDaFalhaExtern
 import { criarAlunoComMatricula, criarEscolaSintetica, liberarProvedorDaEscola, ligarContaExterna, type AlunoDeTeste } from './support/seed.ts'
 import { esperarInicioDoAluno } from './support/casca.ts'
 import { expect, test } from './support/profiles.ts'
-import { ALVO_DE_TOQUE_PRINCIPAL_PX, codigoCru, focoVisivel, larguraExcedente, violacoesGraves } from './support/checks.ts'
+import { ALVO_DE_TOQUE_PRINCIPAL_PX, rawCodePattern, isFocusVisible, horizontalOverflow, seriousViolations } from './support/checks.ts'
 
 const ROTA_MATRICULA = '**/v1/sessao/matricula'
 /** O Chromebook com CPU ×4 e rede Fast 3G carrega a página e ainda faz o hash da senha no servidor. */
-const PRAZO_DA_ENTRADA_MS = 20_000
+const SIGN_IN_TIMEOUT_MS = 20_000
 /** O login pela conta da escola passa por três navegações e o discovery do provedor. */
 const PRAZO_DO_LOGIN_EXTERNO_MS = 40_000
 /** Quantas senhas erradas seguidas seguram a conta (`FALHAS_ANTES_DE_SEGURAR`, apps/api/src/credencial/login-lockout.ts). */
@@ -25,7 +25,7 @@ const campoSenha = (page: Page) => page.getByLabel('Senha')
 const botaoEntrar = (page: Page) => page.getByRole('button', { name: /Entrar|Entrando/ })
 
 /** Toque no celular, clique no Chromebook: a mesma ação pela entrada que cada aparelho tem. */
-async function acionar(page: Page, nome: string | RegExp, hasTouch: boolean, papel: 'button' | 'link' = 'button'): Promise<void> {
+async function activate(page: Page, nome: string | RegExp, hasTouch: boolean, papel: 'button' | 'link' = 'button'): Promise<void> {
   const alvo = page.getByRole(papel, { name: nome })
   if (hasTouch) await alvo.tap()
   else await alvo.click()
@@ -46,7 +46,7 @@ async function esperarAreaAutenticada(page: Page, aluno: AlunoDeTeste): Promise<
 async function entrar(page: Page, matricula: string, senha: string, hasTouch: boolean): Promise<void> {
   await campoMatricula(page).fill(matricula)
   await campoSenha(page).fill(senha)
-  await acionar(page, /^Entrar$/, hasTouch)
+  await activate(page, /^Entrar$/, hasTouch)
 }
 
 /**
@@ -66,7 +66,7 @@ test.describe('entrada do aluno pelo endereço da escola', () => {
     await page.goto(`/e/${aluno.slug}`)
 
     // O topo é o nome da escola: é ele que diz ao aluno que está no endereço certo.
-    await expect(page.getByRole('heading', { name: aluno.escolaNome })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page.getByRole('heading', { name: aluno.escolaNome })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     // Teclado numérico no celular e preenchimento automático do identificador (regra 50, item 2a).
     await expect(campoMatricula(page)).toHaveAttribute('inputmode', 'numeric')
     await expect(campoMatricula(page)).toHaveAttribute('autocomplete', 'username')
@@ -74,11 +74,11 @@ test.describe('entrada do aluno pelo endereço da escola', () => {
 
     await page.keyboard.press('Tab')
     await expect(campoMatricula(page)).toBeFocused()
-    expect(await focoVisivel(page)).toBe(true)
+    expect(await isFocusVisible(page)).toBe(true)
     await page.keyboard.type(aluno.matricula)
     await page.keyboard.press('Tab')
     await expect(campoSenha(page)).toBeFocused()
-    expect(await focoVisivel(page)).toBe(true)
+    expect(await isFocusVisible(page)).toBe(true)
     await page.keyboard.type(aluno.senha)
     await page.keyboard.press('Enter')
 
@@ -86,8 +86,8 @@ test.describe('entrada do aluno pelo endereço da escola', () => {
     // O aluno sai do endereço da escola e abre em "Início" (X4, 2.0): o endereço é só o da tela, sem nada do login.
     expect(new URL(page.url()).pathname).toBe('/aluno/inicio')
     expect(new URL(page.url()).search).toBe('')
-    expect(await larguraExcedente(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await horizontalOverflow(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
   })
 
   test('escola sem provedor liberado não mostra botão de conta nenhuma: só aparece o que a escola liberou', async ({ page }) => {
@@ -95,7 +95,7 @@ test.describe('entrada do aluno pelo endereço da escola', () => {
     const aluno = await criarAlunoComMatricula()
     await page.goto(`/e/${aluno.slug}`)
 
-    await expect(campoMatricula(page)).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(campoMatricula(page)).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(page.getByRole('link', { name: /Entrar com a conta/ })).toHaveCount(0)
     await expect(page.locator('body')).not.toContainText('precisa liberar este aplicativo')
   })
@@ -103,10 +103,10 @@ test.describe('entrada do aluno pelo endereço da escola', () => {
   test('caminho feliz só com toque: campos e botão alcançados por toque, com alvo de 44 px e sem rolagem horizontal', async ({ page, hasTouch }) => {
     const aluno = await criarAlunoComMatricula()
     await page.goto(`/e/${aluno.slug}`)
-    await expect(campoMatricula(page)).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(campoMatricula(page)).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
 
-    expect(await larguraExcedente(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await horizontalOverflow(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
     await esperarAlvoDeToque(page, /^Entrar$/)
 
     if (hasTouch) await campoMatricula(page).tap()
@@ -115,11 +115,11 @@ test.describe('entrada do aluno pelo endereço da escola', () => {
     if (hasTouch) await campoSenha(page).tap()
     else await campoSenha(page).click()
     await page.keyboard.type(aluno.senha)
-    await acionar(page, /^Entrar$/, hasTouch)
+    await activate(page, /^Entrar$/, hasTouch)
 
     await esperarAreaAutenticada(page, aluno)
-    expect(await larguraExcedente(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await horizontalOverflow(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
   })
 
   test('isolamento: a matrícula 1234 da escola A, com a senha de A, é recusada no endereço da escola B, e entra na A', async ({ page, hasTouch }) => {
@@ -129,15 +129,15 @@ test.describe('entrada do aluno pelo endereço da escola', () => {
     await criarAlunoComMatricula({ escola: escolaB, matricula: '1234', senha: `senha-de-b-${alunoA.usuarioId}` })
 
     await page.goto(`/e/${escolaB.slug}`)
-    await expect(campoMatricula(page)).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(campoMatricula(page)).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await entrar(page, '1234', alunoA.senha, hasTouch)
     // A mesma mensagem da senha errada: a tela não diz que a matrícula existe na outra escola.
-    await expect(page.getByRole('alert')).toHaveText(mensagemDaEntradaPorMatricula('NAO_AUTENTICADO'), { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page.getByRole('alert')).toHaveText(mensagemDaEntradaPorMatricula('NAO_AUTENTICADO'), { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(page).toHaveURL(new RegExp(`/e/${escolaB.slug}$`))
     await expect(page.locator('body')).not.toContainText(alunoA.escolaNome)
 
     await page.goto(`/e/${alunoA.slug}`)
-    await expect(campoMatricula(page)).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(campoMatricula(page)).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await entrar(page, '1234', alunoA.senha, hasTouch)
     await esperarAreaAutenticada(page, alunoA)
   })
@@ -146,11 +146,11 @@ test.describe('entrada do aluno pelo endereço da escola', () => {
     const aluno = await criarAlunoComMatricula()
     await page.goto('/e/endereco-que-nao-existe-no-e2e')
 
-    await expect(page.getByRole('alert')).toHaveText(mensagemDoAcessoDaEscola('NAO_ENCONTRADO'), { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page.getByRole('alert')).toHaveText(mensagemDoAcessoDaEscola('NAO_ENCONTRADO'), { timeout: SIGN_IN_TIMEOUT_MS })
     // Nem o nome de uma escola de verdade, nem formulário que faça o aluno digitar a matrícula à toa.
     await expect(page.locator('body')).not.toContainText(aluno.escolaNome)
     await expect(campoMatricula(page)).toHaveCount(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await seriousViolations(page)).toEqual([])
   })
 
   test('conta segurada de verdade: a tela diz em português quanto esperar, e o colega entra no mesmo computador', async ({ page, hasTouch }) => {
@@ -158,18 +158,18 @@ test.describe('entrada do aluno pelo endereço da escola', () => {
     const colega = await criarAlunoComMatricula({ escola: enzo })
 
     await page.goto(`/e/${enzo.slug}`)
-    await expect(campoMatricula(page)).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(campoMatricula(page)).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     // Sem mock: quem segura a conta é o contador da API, depois de cinco senhas erradas seguidas (RF11).
     const alerta = page.getByRole('alert')
     for (let tentativa = 1; tentativa <= FALHAS_ATE_SEGURAR; tentativa++) {
       await entrar(page, enzo.matricula, `senha-errada-${String(tentativa)}`, hasTouch)
-      await expect(alerta).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+      await expect(alerta).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
       if (tentativa < FALHAS_ATE_SEGURAR) await expect(alerta).toHaveText(mensagemDaEntradaPorMatricula('NAO_AUTENTICADO'))
     }
     // A mensagem da conta segurada diz a espera por extenso, e nunca o código nem o status.
     await expect(alerta).toContainText('Muitas tentativas com senha errada nesta conta')
     await expect(alerta).toContainText(/segundos|minutos/)
-    for (const proibido of [codigoCru('429'), 'CONTA_SEGURADA', 'Retry-After']) {
+    for (const proibido of [rawCodePattern('429'), 'CONTA_SEGURADA', 'Retry-After']) {
       await expect(page.locator('body')).not.toContainText(proibido)
     }
 
@@ -190,10 +190,10 @@ test.describe('entrada do aluno pelo endereço da escola', () => {
     })
 
     await page.goto(`/e/${aluno.slug}`)
-    await expect(campoMatricula(page)).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(campoMatricula(page)).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await campoMatricula(page).fill(aluno.matricula)
     await campoSenha(page).fill(aluno.senha)
-    await acionar(page, /^Entrar$/, hasTouch)
+    await activate(page, /^Entrar$/, hasTouch)
 
     await expect(botaoEntrar(page)).toBeDisabled()
     // Dois logins da mesma pessoa gravariam duas sessões e duas linhas de registro de acesso.
@@ -218,14 +218,14 @@ test.describe('entrada do aluno pela conta Google da escola', () => {
 
     await page.goto(`/e/${aluno.slug}`)
     const botao = page.getByRole('link', { name: /Entrar com a conta Google/ })
-    await expect(botao).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(botao).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     // O aviso da TI vem antes do botão: é o que explica o caso de a escola não ter liberado o aplicativo.
     await expect(page.getByRole('main')).toContainText('precisa liberar este aplicativo')
     await esperarAlvoDeToque(page, /Entrar com a conta Google/, 'link')
-    expect(await larguraExcedente(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await horizontalOverflow(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
 
-    await acionar(page, /Entrar com a conta Google/, hasTouch, 'link')
+    await activate(page, /Entrar com a conta Google/, hasTouch, 'link')
     await entrarNoProvedorFalso(page, ALUNA_NO_PROVEDOR)
 
     await esperarAreaAutenticada(page, aluno)
@@ -242,8 +242,8 @@ test.describe('entrada do aluno pela conta Google da escola', () => {
     const aluno = await escolaComProvedor()
 
     await page.goto(`/e/${aluno.slug}`)
-    await expect(page.getByRole('link', { name: /Entrar com a conta Google/ })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
-    await acionar(page, /Entrar com a conta Google/, hasTouch, 'link')
+    await expect(page.getByRole('link', { name: /Entrar com a conta Google/ })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
+    await activate(page, /Entrar com a conta Google/, hasTouch, 'link')
     await entrarNoProvedorFalso(page, ALUNA_NO_PROVEDOR)
 
     await expect(page.getByRole('alert')).toHaveText(MENSAGENS_DE_ERRO.CONTA_EXTERNA_NAO_LIGADA, { timeout: PRAZO_DO_LOGIN_EXTERNO_MS })
@@ -261,11 +261,11 @@ test.describe('entrada do aluno pela conta Google da escola', () => {
     // (Tech Spec, seção 12): a API transforma todo `error` em `?falha=provedor`, e a tela trata qualquer valor igual.
     for (const valor of ['provedor', 'admin_policy_enforced']) {
       await page.goto(`/e/${aluno.slug}?falha=${valor}`)
-      await expect(page.getByRole('alert')).toHaveText(mensagemDaFalhaExterna('provedor'), { timeout: PRAZO_DA_ENTRADA_MS })
+      await expect(page.getByRole('alert')).toHaveText(mensagemDaFalhaExterna('provedor'), { timeout: SIGN_IN_TIMEOUT_MS })
       await expect(page).toHaveURL(new RegExp(`/e/${aluno.slug}$`))
       expect(new URL(page.url()).search, 'o parâmetro da falha precisa sair da barra').toBe('')
-      expect(await violacoesGraves(page)).toEqual([])
-      expect(await larguraExcedente(page)).toBe(0)
+      expect(await seriousViolations(page)).toEqual([])
+      expect(await horizontalOverflow(page)).toBe(0)
     }
   })
 })

@@ -1,9 +1,9 @@
 import type { Locator, Page } from '@playwright/test'
 import type { AcessoGeradoResponse } from '../packages/shared/src/sala/acesso.ts'
-import { PRAZO_DA_ENTRADA_MS } from './support/casca.ts'
+import { SIGN_IN_TIMEOUT_MS } from './support/casca.ts'
 import { expect, test } from './support/profiles.ts'
 import { confirmarVinculosNoBanco, criarAlocacaoDoProfessor, criarEquipeComSenha, porNaListaDaTurma, type EquipeDeTeste } from './support/seed.ts'
-import { larguraExcedente, violacoesGraves } from './support/checks.ts'
+import { horizontalOverflow, seriousViolations } from './support/checks.ts'
 
 /**
  * O diálogo "Convidar alunos" pelo endereço e pela confirmação da turma (telas do professor, 13.0; RF19): `?convidar=1` abre o
@@ -18,13 +18,13 @@ import { larguraExcedente, violacoesGraves } from './support/checks.ts'
 const FUNDO_NO_CLARO = 'rgb(255, 255, 255)'
 const FUNDO_NO_ESCURO = 'rgb(19, 31, 36)'
 
-async function acionar(alvo: Locator, hasTouch: boolean): Promise<void> {
+async function activate(alvo: Locator, hasTouch: boolean): Promise<void> {
   if (hasTouch) await alvo.tap()
   else await alvo.click()
 }
 
 async function tocar(lugar: Locator, nome: string, hasTouch: boolean): Promise<void> {
-  await acionar(lugar.getByRole('button', { name: nome, exact: true }), hasTouch)
+  await activate(lugar.getByRole('button', { name: nome, exact: true }), hasTouch)
 }
 
 /** A professora entra pela API (o cookie fica na aba) e abre o endereço: uma carga só, sem passar pela tela de entrada. */
@@ -58,7 +58,7 @@ test.describe('o endereço ?convidar=1', () => {
     const { professora, turma } = await criarProfessoraComTurma()
     const endereco = `/professor/turmas/${turma.turmaId}`
     await abrirJaEntrando(page, professora, `${endereco}?aba=alunos&convidar=1`)
-    await expect(dialogo(page)).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(dialogo(page)).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(page.getByRole('dialog', { name: 'Gerar acesso' })).toBeVisible()
     expect(caminhoEBusca(page)).toBe(`${endereco}?aba=alunos&convidar=1`)
 
@@ -66,7 +66,7 @@ test.describe('o endereço ?convidar=1', () => {
     const resposta = page.waitForResponse((r) => r.request().method() === 'POST' && /\/v1\/turmas\/[^/]+\/acesso$/.test(new URL(r.url()).pathname))
     await tocar(dialogo(page), 'Gerar acesso', hasTouch)
     const gerado = (await (await resposta).json()) as AcessoGeradoResponse
-    await expect(dialogo(page).getByRole('heading', { name: 'Acesso gerado' })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(dialogo(page).getByRole('heading', { name: 'Acesso gerado' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     for (const segredo of [gerado.token, gerado.codigo]) expect(page.url()).not.toContain(segredo)
     expect(caminhoEBusca(page)).toBe(`${endereco}?aba=alunos&convidar=1`)
 
@@ -81,7 +81,7 @@ test.describe('o endereço ?convidar=1', () => {
     for (const segredo of [gerado.token, gerado.codigo]) expect(page.url()).not.toContain(segredo)
 
     // O botão abre o diálogo sem escrever nada no endereço.
-    await acionar(botaoConvidar(page), hasTouch)
+    await activate(botaoConvidar(page), hasTouch)
     await expect(page.getByRole('dialog', { name: 'Convidar alunos' })).toBeVisible()
     expect(caminhoEBusca(page)).toBe(`${endereco}?aba=alunos`)
   })
@@ -103,7 +103,7 @@ test.describe('o endereço ?convidar=1', () => {
         if (pedido.method() === 'POST' && /\/v1\/turmas\/[^/]+\/acesso/.test(new URL(pedido.url()).pathname)) gravacoes.push(pedido.url())
       })
       await abrirJaEntrando(page, professora, `/professor/turmas/${turmaId}?aba=alunos&convidar=1`)
-      await expect(principal(page).getByRole('status').filter({ hasText: 'Esta turma não está disponível' })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+      await expect(principal(page).getByRole('status').filter({ hasText: 'Esta turma não está disponível' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
       await expect(page.locator('dialog[open]')).toHaveCount(0)
       await expect(principal(page).getByRole('heading', { name: 'Acesso dos alunos' })).toHaveCount(0)
       for (const nome of [pendente.turmaNome, deOutraEscola.turmaNome]) await expect(principal(page)).not.toContainText(nome)
@@ -118,27 +118,27 @@ test.describe('depois de confirmar a turma', () => {
     const turma = await criarAlocacaoDoProfessor(professora.escolaId, professora.usuarioId, ['História'])
     await abrirJaEntrando(page, professora, '/professor/turmas')
     const paraConfirmar = principal(page).getByRole('region', { name: 'Confirme suas turmas', exact: true })
-    await expect(paraConfirmar).toContainText(turma.turmaNome, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(paraConfirmar).toContainText(turma.turmaNome, { timeout: SIGN_IN_TIMEOUT_MS })
     await tocar(paraConfirmar.getByRole('listitem').filter({ hasText: turma.turmaNome }), 'Confirmar', hasTouch)
 
     const aviso = principal(page).locator('[data-aviso="certo"]')
-    await expect(aviso).toContainText(`Turma ${turma.turmaNome} confirmada`, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(aviso).toContainText(`Turma ${turma.turmaNome} confirmada`, { timeout: SIGN_IN_TIMEOUT_MS })
     const gerar = aviso.getByRole('link', { name: 'Gerar o acesso' })
     // O endereço leva só a aba e o pedido do diálogo.
     await expect(gerar).toHaveAttribute('href', `/professor/turmas/${turma.turmaId}?aba=alunos&convidar=1`)
-    await acionar(gerar, hasTouch)
+    await activate(gerar, hasTouch)
 
     await expect(page).toHaveURL(new RegExp(`/professor/turmas/${turma.turmaId}\\?aba=alunos&convidar=1$`))
-    await expect(page.getByRole('dialog', { name: 'Gerar acesso' })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page.getByRole('dialog', { name: 'Gerar acesso' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(page.getByRole('tab', { name: 'Alunos' })).toHaveAttribute('aria-selected', 'true')
     await tocar(dialogo(page), 'Cancelar', hasTouch)
     await expect(dialogosDaTela(page)).toHaveCount(0)
     expect(caminhoEBusca(page)).toBe(`/professor/turmas/${turma.turmaId}?aba=alunos`)
 
     // O aviso mora na página de Turmas: ao voltar, ela abre sem ele.
-    await acionar(principal(page).getByRole('link', { name: 'Voltar para Turmas' }), hasTouch)
+    await activate(principal(page).getByRole('link', { name: 'Voltar para Turmas' }), hasTouch)
     await expect(page).toHaveURL(/\/professor\/turmas$/)
-    await expect(principal(page).getByRole('link', { name: `Abrir a turma ${turma.turmaNome}` })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(principal(page).getByRole('link', { name: `Abrir a turma ${turma.turmaNome}` })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(principal(page).locator('[data-aviso="certo"]')).toHaveCount(0)
   })
 })
@@ -154,7 +154,7 @@ test.describe('o passo "Acesso gerado" é a janela inteira', () => {
       nomes.map((nome, posicao) => ({ nome, matricula: `M${String(posicao)}-${crypto.randomUUID().slice(0, 8)}` })),
     )
     await abrirJaEntrando(page, professora, `/professor/turmas/${turma.turmaId}?aba=alunos&convidar=1`)
-    await expect(page.getByRole('dialog', { name: 'Gerar acesso' })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page.getByRole('dialog', { name: 'Gerar acesso' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     const janela = page.viewportSize()
     if (janela === null) throw new Error('a página sem viewport')
 
@@ -165,7 +165,7 @@ test.describe('o passo "Acesso gerado" é a janela inteira', () => {
     expect(dePartida?.width ?? Number.POSITIVE_INFINITY).toBeLessThan(janela.width)
 
     await tocar(dialogo(page), 'Gerar acesso', hasTouch)
-    await expect(dialogo(page).getByRole('heading', { name: 'Acesso gerado' })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(dialogo(page).getByRole('heading', { name: 'Acesso gerado' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
 
     for (const [esquema, fundo] of [
       ['light', FUNDO_NO_CLARO],
@@ -208,7 +208,7 @@ test.describe('o passo "Acesso gerado" é a janela inteira', () => {
     const daPergunta = await dialogo(page).boundingBox()
     expect(Math.round(daPergunta?.width ?? 0)).toBe(janela.width)
     expect(Math.round(daPergunta?.height ?? 0)).toBe(janela.height)
-    expect(await larguraExcedente(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await horizontalOverflow(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
   })
 })

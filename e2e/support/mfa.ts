@@ -1,14 +1,14 @@
 import type { APIRequestContext, Page } from '@playwright/test'
 import { codigoDoAutenticador, codigoDoPassoAnterior, type EquipeDeTeste } from './seed.ts'
-import { carregarSemRedeLenta, expect } from './profiles.ts'
+import { loadUnthrottled, expect } from './profiles.ts'
 
 /**
  * O segundo fator da coordenação, para os specs que precisam de uma conta com MFA ativo (a 6.0 do F1 e o W10 da A0b):
- * entrar com a senha e configurar o app autenticador do jeito sem celular, pela tela (`configurarSegundoFator`) ou, quando
+ * entrar com a senha e configurar o app autenticador do jeito sem celular, pela tela (`setUpMfa`) ou, quando
  * a configuração só prepara a conta, pela API (`configurarSegundoFatorPelaApi`).
  */
 
-const PRAZO_DA_ENTRADA_MS = 20_000
+const SIGN_IN_TIMEOUT_MS = 20_000
 
 /**
  * O segundo fator aceita um passo de 30 s uma vez só e sempre maior que o anterior (`mfa_ultimo_passo`), numa janela de um passo para
@@ -16,14 +16,14 @@ const PRAZO_DA_ENTRADA_MS = 20_000
  * `+30` para um **login seguinte da mesma conta** (a troca de escola, que pede o código de novo) sem esperar a virada do relógio. Sem
  * a opção, a ativação usa o `0` e a entrada, o `+30`, como sempre.
  */
-export interface OpcoesDoPasso {
+export interface PassoOptions {
   readonly deixarOPassoSeguinteLivre?: boolean
 }
 
 export const campoCodigo = (page: Page) => page.getByLabel(/Código do aplicativo|Digite o código que o aplicativo mostra/)
 
 /** O segundo fator e os códigos de recuperação que a configuração entregou uma vez só. */
-export interface SegundoFatorConfigurado {
+export interface ConfiguredMfa {
   readonly segredo: string
   readonly codigosDeRecuperacao: readonly string[]
 }
@@ -39,17 +39,17 @@ export async function entrarComSenha(page: Page, equipe: EquipeDeTeste): Promise
  * A pessoa da equipe configura o segundo fator pela tela, do jeito sem celular: copia o segredo em texto, cola no
  * aplicativo do computador (aqui, o `otpauth` do teste) e ativa.
  */
-export async function configurarSegundoFator(page: Page, equipe: EquipeDeTeste): Promise<SegundoFatorConfigurado> {
+export async function setUpMfa(page: Page, equipe: EquipeDeTeste): Promise<ConfiguredMfa> {
   const respostaDoSegredo = page.waitForResponse((resposta) => new URL(resposta.url()).pathname === '/v1/conta/mfa/configurar')
   await entrarComSenha(page, equipe)
-  await expect(page.getByRole('heading', { name: 'Configurar o segundo fator' })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+  await expect(page.getByRole('heading', { name: 'Configurar o segundo fator' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
   const { segredo } = (await (await respostaDoSegredo).json()) as { segredo: string }
 
   const respostaDosCodigos = page.waitForResponse((resposta) => new URL(resposta.url()).pathname === '/v1/conta/mfa/ativar')
   await campoCodigo(page).fill(codigoDoAutenticador(segredo))
   await page.getByRole('button', { name: /Ativar o segundo fator|Ativando/ }).click()
   const { codigosRecuperacao } = (await (await respostaDosCodigos).json()) as { codigosRecuperacao: string[] }
-  await expect(page.getByRole('link', { name: 'Ir para a entrada' })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+  await expect(page.getByRole('link', { name: 'Ir para a entrada' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
   return { segredo, codigosDeRecuperacao: codigosRecuperacao }
 }
 
@@ -64,13 +64,13 @@ async function entrarPelaApi(request: APIRequestContext, equipe: EquipeDeTeste, 
 
 /**
  * O mesmo segundo fator, configurado pela API em vez de pela tela: o que o caso quer provar vem depois da configuração, e a
- * tela de configuração custa uns 8 s de um prazo de 30 s. Quem precisa provar a própria tela chama `configurarSegundoFator`.
+ * tela de configuração custa uns 8 s de um prazo de 30 s. Quem precisa provar a própria tela chama `setUpMfa`.
  */
 export async function configurarSegundoFatorPelaApi(
   request: APIRequestContext,
   equipe: EquipeDeTeste,
-  opcoes: OpcoesDoPasso = {},
-): Promise<SegundoFatorConfigurado> {
+  opcoes: PassoOptions = {},
+): Promise<ConfiguredMfa> {
   const desafio = await entrarPelaApi(request, equipe, 'configurar_mfa')
   const porDesafio = { Authorization: `Bearer ${desafio}` }
   const configurado = await request.post('/v1/conta/mfa/configurar', { headers: porDesafio })
@@ -101,7 +101,7 @@ export async function entrarPelaApiComSegundoFator(
   request: APIRequestContext,
   pessoa: EquipeDeTeste,
   endereco: string,
-  opcoes: OpcoesDoPasso = {},
+  opcoes: PassoOptions = {},
 ): Promise<string> {
   const { segredo } = await configurarSegundoFatorPelaApi(request, pessoa, opcoes)
   const pedidos = page.context().request
@@ -120,7 +120,7 @@ export async function entrarPelaApiComSegundoFator(
  * A receita das correções `2026-10-26-areas-entrar-estoura-o-prazo`, `2026-10-26-tres-casos-do-e2e-perto-do-prazo` e
  * `2026-10-26-material-sem-licenca-perto-do-prazo`, num lugar só: a pessoa da equipe entra pela API, com o segundo fator já
  * configurado, e a **primeira carga** (o endereço e a primeira tela, que `aguardar` espera) roda sem a rede do perfil
- * (`carregarSemRedeLenta`). A CPU do perfil continua, e a rede do perfil volta quando a função devolve.
+ * (`loadUnthrottled`). A CPU do perfil continua, e a rede do perfil volta quando a função devolve.
  *
  * **O que ele não mede:** quanto a aplicação leva para baixar e abrir na rede lenta. Isso fica para o orçamento do build e para
  * os specs de tela cujo assunto é a carga; um caso que afirma o tempo de abrir não usa este ajudante. Também não prova a entrada
@@ -137,9 +137,9 @@ export async function abrirPelaApiSemMedirAPrimeiraCarga(
   pessoa: EquipeDeTeste,
   endereco: string,
   aguardar?: () => Promise<void>,
-  opcoes: OpcoesDoPasso = {},
+  opcoes: PassoOptions = {},
 ): Promise<string> {
-  return carregarSemRedeLenta(page, async () => {
+  return loadUnthrottled(page, async () => {
     const segredo = await entrarPelaApiComSegundoFator(page, request, pessoa, endereco, opcoes)
     await aguardar?.()
     return segredo

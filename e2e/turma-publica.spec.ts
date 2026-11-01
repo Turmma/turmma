@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import type { Browser, BrowserContext, BrowserContextOptions, Locator, Page, Route } from '@playwright/test'
-import { PRAZO_DA_ENTRADA_MS } from './support/casca.ts'
+import { SIGN_IN_TIMEOUT_MS } from './support/casca.ts'
 import { expect, test } from './support/profiles.ts'
 import {
   criarEscolaSintetica,
@@ -12,7 +12,7 @@ import {
   type AcessoDaSalaDeTeste,
   type EscolaDeTeste,
 } from './support/seed.ts'
-import { ALVO_DE_TOQUE_PRINCIPAL_PX, codigoCru, focoVisivel, larguraExcedente, violacoesGraves } from './support/checks.ts'
+import { ALVO_DE_TOQUE_PRINCIPAL_PX, rawCodePattern, isFocusVisible, horizontalOverflow, seriousViolations } from './support/checks.ts'
 
 /**
  * A página pública da turma, `/e/<slug>/turma` (A1, tarefa 17.0; `tasks/prd-apresentacao-escola/cenarios.md`): W8, W11,
@@ -47,13 +47,13 @@ const tituloDaTurma = (page: Page, nome: string) => principal(page).getByRole('h
 const tituloDoPedido = (page: Page) => principal(page).getByRole('heading', { level: 2, name: 'Pedido enviado' })
 const aviso = (page: Page) => principal(page).getByRole('alert')
 
-async function acionar(alvo: Locator, hasTouch: boolean): Promise<void> {
+async function activate(alvo: Locator, hasTouch: boolean): Promise<void> {
   if (hasTouch) await alvo.tap()
   else await alvo.click()
 }
 
 /** Uma porta que segura a resposta até o teste abrir. */
-function portao(): { aberta: Promise<void>; abrir: () => void } {
+function gate(): { aberta: Promise<void>; abrir: () => void } {
   let abrir: () => void = () => undefined
   const aberta = new Promise<void>((resolver) => {
     abrir = resolver
@@ -96,10 +96,10 @@ const enderecoDaSala = (cenario: Pick<Cenario, 'escola'>) => `/e/${cenario.escol
 
 /** Escolhe o nome, digita a matrícula e a senha, e envia. */
 async function pedirONome(page: Page, nome: string, matricula: string, hasTouch: boolean): Promise<void> {
-  await acionar(principal(page).getByRole('radio', { name: nome }), hasTouch)
+  await activate(principal(page).getByRole('radio', { name: nome }), hasTouch)
   await campoDaMatricula(page).fill(matricula)
   await campoDaSenha(page).fill(SENHA)
-  await acionar(botaoEnviar(page), hasTouch)
+  await activate(botaoEnviar(page), hasTouch)
 }
 
 /** Outro navegador, com as opções do projeto: é o segundo computador da sala. */
@@ -140,7 +140,7 @@ test.describe('W8, W11 e W4 (Pública): pelo link', () => {
     page.on('request', (pedido) => enderecos.push(pedido.url()))
 
     // A abertura fica segurada: é a janela em que o token ainda estaria na barra se a tela o tivesse deixado lá.
-    const segurada = portao()
+    const segurada = gate()
     let barraNaPrimeiraChamada = ''
     await page.route('**/v1/salas/abrir', async (rota: Route) => {
       if (barraNaPrimeiraChamada === '') barraNaPrimeiraChamada = page.url()
@@ -148,7 +148,7 @@ test.describe('W8, W11 e W4 (Pública): pelo link', () => {
       await rota.continue()
     })
     await page.goto(`${enderecoDaSala(cenario)}#${cenario.acesso.token}`)
-    await expect.poll(() => barraNaPrimeiraChamada, { timeout: PRAZO_DA_ENTRADA_MS }).not.toBe('')
+    await expect.poll(() => barraNaPrimeiraChamada, { timeout: SIGN_IN_TIMEOUT_MS }).not.toBe('')
     expect(barraNaPrimeiraChamada, 'o token precisa sair da barra antes de a primeira chamada sair').not.toContain('#')
     expect(barraNaPrimeiraChamada).not.toContain(cenario.acesso.token)
     // Carregando: o texto, e nada da turma ainda.
@@ -157,7 +157,7 @@ test.describe('W8, W11 e W4 (Pública): pelo link', () => {
     segurada.abrir()
 
     // Com dado: a turma, com o foco no título, e só os nomes livres, sem matrícula.
-    await expect(tituloDaTurma(page, cenario.turma.nome)).toBeFocused({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(tituloDaTurma(page, cenario.turma.nome)).toBeFocused({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(principal(page).getByRole('radio')).toHaveCount(3)
     for (const { nome, matricula } of cenario.lista) {
       await expect(principal(page).getByRole('radio', { name: nome })).toBeVisible()
@@ -176,13 +176,13 @@ test.describe('W8, W11 e W4 (Pública): pelo link', () => {
     await expect(campoDaSenha(page)).toHaveAccessibleDescription(/Pelo menos 12 caracteres\./)
     await expect(botaoMostrar(page)).toHaveAttribute('aria-pressed', 'false')
     await campoDaSenha(page).fill(SENHA)
-    await acionar(botaoMostrar(page), hasTouch)
+    await activate(botaoMostrar(page), hasTouch)
     await expect(campoDaSenha(page)).toHaveAttribute('type', 'text')
     await expect(botaoMostrar(page)).toHaveAttribute('aria-pressed', 'true')
-    await acionar(botaoMostrar(page), hasTouch)
+    await activate(botaoMostrar(page), hasTouch)
     await expect(campoDaSenha(page)).toHaveAttribute('type', 'password')
-    expect(await violacoesGraves(page)).toEqual([])
-    expect(await larguraExcedente(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
+    expect(await horizontalOverflow(page)).toBe(0)
     for (const alvo of [principal(page).getByRole('radio', { name: primeira.nome }).locator('xpath=ancestor::label'), botaoMostrar(page), botaoEnviar(page)])
       await alvoDeToque(alvo, (await alvo.textContent()) ?? 'alvo')
 
@@ -193,7 +193,7 @@ test.describe('W8, W11 e W4 (Pública): pelo link', () => {
       if (ehOReivindicar(requisicao.url())) envios++
     })
     await campoDaMatricula(page).fill(segunda.matricula)
-    await acionar(botaoEnviar(page), hasTouch)
+    await activate(botaoEnviar(page), hasTouch)
     const faltaONome = principal(page).getByText('Escolha o seu nome na lista.')
     await expect(faltaONome).toBeVisible()
     await expect(principal(page).getByRole('radio').first()).toBeFocused()
@@ -207,7 +207,7 @@ test.describe('W8, W11 e W4 (Pública): pelo link', () => {
     expect(corpo.token).toBe(cenario.acesso.token)
     expect(corpo.codigo).toBeUndefined()
     expect(corpo.matricula).toBe(segunda.matricula)
-    await expect(tituloDoPedido(page)).toBeFocused({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(tituloDoPedido(page)).toBeFocused({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(principal(page)).toContainText(AVISO_DA_ESPERA)
     await expect(principal(page)).toContainText(TEXTO_DA_DECISAO)
     await expect(principal(page)).toContainText(TEXTO_DA_RECUSA_DEPOIS)
@@ -216,7 +216,7 @@ test.describe('W8, W11 e W4 (Pública): pelo link', () => {
     await expect(principal(page)).not.toContainText(segunda.nome)
     await expect(principal(page)).not.toContainText(segunda.matricula)
     expect(await pedidosPendentesDaTurma(cenario.escola.escolaId, cenario.turma.id)).toBe(1)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await seriousViolations(page)).toEqual([])
 
     // Sem rastro: nomes, matrícula, senha, token e chave fora do armazenamento do navegador, do endereço e de toda URL.
     const guardado = await page.evaluate(async () => ({
@@ -233,8 +233,8 @@ test.describe('W8, W11 e W4 (Pública): pelo link', () => {
     }
 
     // Segunda pessoa: o aluno seguinte, no mesmo computador, volta à lista sem nada do anterior, e o nome pedido saiu.
-    await acionar(principal(page).getByRole('button', { name: 'Voltar à lista de nomes' }), hasTouch)
-    await expect(tituloDaTurma(page, cenario.turma.nome)).toBeFocused({ timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(principal(page).getByRole('button', { name: 'Voltar à lista de nomes' }), hasTouch)
+    await expect(tituloDaTurma(page, cenario.turma.nome)).toBeFocused({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(principal(page).getByRole('radio')).toHaveCount(2)
     await expect(principal(page).getByRole('radio', { name: segunda.nome })).toHaveCount(0)
     for (const radio of await principal(page).getByRole('radio').all()) await expect(radio).not.toBeChecked()
@@ -257,7 +257,7 @@ test.describe('W8 e W4 (Pública): pelo código, e o texto de cada caminho', () 
       if (ehOAbrir(pedido.url())) aberturas.push(pedido.postData() ?? '')
     })
     await page.goto(enderecoDaSala(cenario))
-    await expect(campoDoCodigo(page)).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(campoDoCodigo(page)).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     // A página abre sem puxar o foco para o campo: quem usa leitor de tela começa pelo título, e o celular não abre o
     // teclado por cima do texto.
     await expect(campoDoCodigo(page)).not.toBeFocused()
@@ -265,20 +265,20 @@ test.describe('W8 e W4 (Pública): pelo código, e o texto de cada caminho', () 
     await expect(campoDoCodigo(page)).toHaveAttribute('autocapitalize', 'characters')
     await expect(campoDoCodigo(page)).toHaveAttribute('autocomplete', 'off')
     await expect(campoDoCodigo(page)).toHaveAttribute('spellcheck', 'false')
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await seriousViolations(page)).toEqual([])
 
     // Em branco, e fora do alfabeto (o 0 e o O se confundem na lousa, e o código não os usa): nada sai da página.
-    await acionar(principal(page).getByRole('button', { name: 'Abrir a turma' }), hasTouch)
+    await activate(principal(page).getByRole('button', { name: 'Abrir a turma' }), hasTouch)
     await expect(aviso(page)).toHaveText('Digite o código da turma que o professor mostrou.')
     await campoDoCodigo(page).fill('ABCD 0000')
-    await acionar(principal(page).getByRole('button', { name: 'Abrir a turma' }), hasTouch)
+    await activate(principal(page).getByRole('button', { name: 'Abrir a turma' }), hasTouch)
     await expect(aviso(page)).toHaveText(TEXTO_DO_CODIGO)
     await expect(campoDoCodigo(page)).toBeFocused()
     expect(aberturas).toEqual([])
 
     // O servidor responde o mesmo NAO_ENCONTRADO aos dois caminhos; a página escolhe o texto pelo caminho que usou.
     // O clique duplo em "Abrir a turma" manda uma abertura só.
-    const segurada = portao()
+    const segurada = gate()
     await page.route('**/v1/salas/abrir', async (rota: Route) => {
       await segurada.aberta
       await rota.fulfill({ status: 404, contentType: 'application/json', body: erro('NAO_ENCONTRADO') })
@@ -293,7 +293,7 @@ test.describe('W8 e W4 (Pública): pelo código, e o texto de cada caminho', () 
     await expect(principal(page).getByRole('button', { name: 'Abrindo…' })).toBeDisabled()
     await expect.poll(() => aberturas.length).toBe(1)
     segurada.abrir()
-    await expect(aviso(page)).toHaveText(TEXTO_DO_CODIGO, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(aviso(page)).toHaveText(TEXTO_DO_CODIGO, { timeout: SIGN_IN_TIMEOUT_MS })
     expect(aberturas).toHaveLength(1)
     await expect(campoDoCodigo(page)).toHaveValue('wxyz-2345')
     await expect(campoDoCodigo(page)).toBeFocused()
@@ -307,18 +307,18 @@ test.describe('W8 e W4 (Pública): pelo código, e o texto de cada caminho', () 
     await page.evaluate((token) => {
       window.location.hash = token
     }, cenario.acesso.token)
-    await expect(aviso(page)).toHaveText(TEXTO_DO_LINK, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(aviso(page)).toHaveText(TEXTO_DO_LINK, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(campoDoCodigo(page)).toHaveValue('')
     await expect(campoDoCodigo(page)).toBeFocused()
     expect(page.url()).not.toContain('#')
     expect(JSON.parse(aberturas.at(-1) ?? '{}')).toEqual({ slug: cenario.escola.slug, token: cenario.acesso.token })
     // E o link aberto do zero, numa aba nova: o mesmo.
     await page.goto(`${enderecoDaSala(cenario)}#${cenario.acesso.token}`)
-    await expect(aviso(page)).toHaveText(TEXTO_DO_LINK, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(aviso(page)).toHaveText(TEXTO_DO_LINK, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(campoDoCodigo(page)).toBeFocused()
     await expect(campoDoCodigo(page)).toHaveValue('')
     expect(page.url()).not.toContain('#')
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await seriousViolations(page)).toEqual([])
     await page.unroute('**/v1/salas/abrir')
     // O link colado pela metade (`%` solto) não é token: o campo do código, sem chamada nenhuma.
     const antesDoQuebrado = aberturas.length
@@ -333,18 +333,18 @@ test.describe('W8 e W4 (Pública): pelo código, e o texto de cada caminho', () 
     // O código certo, como o aluno digita: minúsculo e com o espaço do meio. A turma sem nome livre diz o que fazer.
     const digitado = `${cenario.acesso.codigo.slice(0, 4).toLowerCase()} ${cenario.acesso.codigo.slice(4).toLowerCase()}`
     await campoDoCodigo(page).fill(digitado)
-    await acionar(principal(page).getByRole('button', { name: 'Abrir a turma' }), hasTouch)
-    await expect(tituloDaTurma(page, cenario.turma.nome)).toBeFocused({ timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(principal(page).getByRole('button', { name: 'Abrir a turma' }), hasTouch)
+    await expect(tituloDaTurma(page, cenario.turma.nome)).toBeFocused({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(principal(page)).toContainText('Nenhum nome livre nesta turma.')
     await expect(principal(page)).toContainText(TEXTO_DO_NOME_QUE_FALTA)
     await expect(principal(page).getByRole('radio')).toHaveCount(0)
     await expect(principal(page).getByRole('button', { name: /Enviar/ })).toHaveCount(0)
     expect(JSON.parse(aberturas.at(-1) ?? '{}')).toEqual({ slug: cenario.escola.slug, codigo: cenario.acesso.codigo })
-    expect(await violacoesGraves(page)).toEqual([])
-    expect(await larguraExcedente(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
+    expect(await horizontalOverflow(page)).toBe(0)
 
     // "Usar outro código" volta ao campo vazio, com o foco nele.
-    await acionar(principal(page).getByRole('button', { name: 'Não é a sua turma? Usar outro código' }), hasTouch)
+    await activate(principal(page).getByRole('button', { name: 'Não é a sua turma? Usar outro código' }), hasTouch)
     await expect(campoDoCodigo(page)).toBeFocused()
     await expect(campoDoCodigo(page)).toHaveValue('')
   })
@@ -362,28 +362,28 @@ test.describe('W8 e W4 (Pública): pelo código, e o texto de cada caminho', () 
     })
     await page.goto(enderecoDaSala(cenario))
     await campoDoCodigo(page).fill(cenario.acesso.codigo)
-    await acionar(principal(page).getByRole('button', { name: 'Abrir a turma' }), hasTouch)
-    await expect(aviso(page)).toHaveText('Muitas tentativas agora. Espere 1 minuto ou chame o professor.', { timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(principal(page).getByRole('button', { name: 'Abrir a turma' }), hasTouch)
+    await expect(aviso(page)).toHaveText('Muitas tentativas agora. Espere 1 minuto ou chame o professor.', { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(campoDoCodigo(page)).toHaveValue(cenario.acesso.codigo)
 
     // O 503 na abertura não se repete sozinho: o texto não promete "Tentando de novo…", e o botão do código tenta.
     resposta = 'cheio'
-    await acionar(principal(page).getByRole('button', { name: 'Abrir a turma' }), hasTouch)
-    await expect(aviso(page)).toHaveText(TEXTO_CHEIO, { timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(principal(page).getByRole('button', { name: 'Abrir a turma' }), hasTouch)
+    await expect(aviso(page)).toHaveText(TEXTO_CHEIO, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(campoDoCodigo(page)).toHaveValue(cenario.acesso.codigo)
 
     // Pelo link, o limite e o 503 têm "Tentar de novo", com o token da memória.
     resposta = 'limite'
     await page.goto(`${enderecoDaSala(cenario)}#${cenario.acesso.token}`)
-    await expect(aviso(page)).toHaveText('Muitas tentativas agora. Espere 1 minuto ou chame o professor.', { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(aviso(page)).toHaveText('Muitas tentativas agora. Espere 1 minuto ou chame o professor.', { timeout: SIGN_IN_TIMEOUT_MS })
     resposta = 'cheio'
-    await acionar(principal(page).getByRole('button', { name: 'Tentar de novo' }), hasTouch)
-    await expect(aviso(page)).toHaveText(TEXTO_CHEIO, { timeout: PRAZO_DA_ENTRADA_MS })
-    for (const proibido of [codigoCru('503'), 'INDISPONIVEL', 'computador']) await expect(page.locator('body')).not.toContainText(proibido)
+    await activate(principal(page).getByRole('button', { name: 'Tentar de novo' }), hasTouch)
+    await expect(aviso(page)).toHaveText(TEXTO_CHEIO, { timeout: SIGN_IN_TIMEOUT_MS })
+    for (const proibido of [rawCodePattern('503'), 'INDISPONIVEL', 'computador']) await expect(page.locator('body')).not.toContainText(proibido)
     expect(page.url()).not.toContain('#')
     resposta = 'normal'
-    await acionar(principal(page).getByRole('button', { name: 'Tentar de novo' }), hasTouch)
-    await expect(tituloDaTurma(page, cenario.turma.nome)).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(principal(page).getByRole('button', { name: 'Tentar de novo' }), hasTouch)
+    await expect(tituloDaTurma(page, cenario.turma.nome)).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
   })
 })
 
@@ -393,14 +393,14 @@ test.describe('W8: um envio no ar, e o sistema cheio', () => {
     const [aluna] = cenario.lista
     if (aluna === undefined) throw new Error('lista sem nome')
     let envios = 0
-    const segurado = portao()
+    const segurado = gate()
     await page.route('**/v1/salas/reivindicar', async (rota: Route) => {
       envios++
       await segurado.aberta
       await rota.continue()
     })
     await page.goto(`${enderecoDaSala(cenario)}#${cenario.acesso.token}`)
-    await acionar(principal(page).getByRole('radio', { name: aluna.nome }), hasTouch)
+    await activate(principal(page).getByRole('radio', { name: aluna.nome }), hasTouch)
     await campoDaMatricula(page).fill(aluna.matricula)
     await campoDaSenha(page).fill(SENHA)
     // Os dois cliques no mesmo instante, antes de a tela desligar o botão: é o caso que o botão desligado não segura.
@@ -418,7 +418,7 @@ test.describe('W8: um envio no ar, e o sistema cheio', () => {
     await botaoEnviar(page).dispatchEvent('click')
     await expect.poll(() => envios).toBe(1)
     segurado.abrir()
-    await expect(tituloDoPedido(page)).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(tituloDoPedido(page)).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     expect(envios).toBe(1)
     expect(await pedidosPendentesDaTurma(cenario.escola.escolaId, cenario.turma.id)).toBe(1)
   })
@@ -448,7 +448,7 @@ test.describe('W8: um envio no ar, e o sistema cheio', () => {
         return rota.continue()
       })
       await pagina.goto(`${enderecoDaSala(cenario)}#${cenario.acesso.token}`)
-      await expect(principal(pagina).getByRole('radio').first()).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+      await expect(principal(pagina).getByRole('radio').first()).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
       await pagina.clock.pauseAt(new Date('2026-10-05T09:30:00-03:00'))
       return chaves
     }
@@ -456,10 +456,10 @@ test.describe('W8: um envio no ar, e o sistema cheio', () => {
     // O primeiro computador sorteia 0,5: cada reenvio sai 5 s (o Retry-After) e meio depois do 503.
     const chaves = await computador(page, 0.5, 4)
     await pedirONome(page, primeira.nome, primeira.matricula, hasTouch)
-    await expect.poll(() => chaves.length, { timeout: PRAZO_DA_ENTRADA_MS }).toBe(1)
+    await expect.poll(() => chaves.length, { timeout: SIGN_IN_TIMEOUT_MS }).toBe(1)
     const status = principal(page).getByRole('status').filter({ hasText: TEXTO_TENTANDO })
     for (let reenvio = 2; reenvio <= 4; reenvio++) {
-      await expect(status).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+      await expect(status).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
       await expect(botaoEnviar(page)).toBeDisabled()
       // "Tentando de novo…" numa região `role="status"`, ligada ao campo da matrícula, e à vista, não só para o leitor.
       expect(await descritoPor(campoDaMatricula(page))).toContain(await status.getAttribute('id'))
@@ -469,10 +469,10 @@ test.describe('W8: um envio no ar, e o sistema cheio', () => {
       await page.waitForTimeout(300)
       expect(chaves, 'nenhum reenvio antes do Retry-After somado à variação').toHaveLength(reenvio - 1)
       await page.clock.runFor(1)
-      await expect.poll(() => chaves.length, { timeout: PRAZO_DA_ENTRADA_MS }).toBe(reenvio)
+      await expect.poll(() => chaves.length, { timeout: SIGN_IN_TIMEOUT_MS }).toBe(reenvio)
     }
     // O quarto 503: o texto e "Tentar de novo", e mais nada sai sozinho.
-    await expect(aviso(page)).toHaveText(TEXTO_CHEIO, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(aviso(page)).toHaveText(TEXTO_CHEIO, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(botaoEnviar(page)).toHaveText('Tentar de novo')
     await expect(botaoEnviar(page)).toBeEnabled()
     await expect(status).toHaveCount(0)
@@ -483,8 +483,8 @@ test.describe('W8: um envio no ar, e o sistema cheio', () => {
     expect(await pedidosPendentesDaTurma(cenario.escola.escolaId, cenario.turma.id)).toBe(0)
 
     // "Tentar de novo" manda o mesmo pedido, com a mesma chave, e agora entra.
-    await acionar(botaoEnviar(page), hasTouch)
-    await expect(tituloDoPedido(page)).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(botaoEnviar(page), hasTouch)
+    await expect(tituloDoPedido(page)).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     expect(chaves).toHaveLength(5)
     expect(new Set(chaves).size).toBe(1)
     expect(await pedidosPendentesDaTurma(cenario.escola.escolaId, cenario.turma.id)).toBe(1)
@@ -493,8 +493,8 @@ test.describe('W8: um envio no ar, e o sistema cheio', () => {
     const outro = await outroNavegador(browser)
     const chavesDoOutro = await computador(outro, 0.9, 1)
     await pedirONome(outro, segunda.nome, segunda.matricula, hasTouch)
-    await expect.poll(() => chavesDoOutro.length, { timeout: PRAZO_DA_ENTRADA_MS }).toBe(1)
-    await expect(principal(outro).getByRole('status').filter({ hasText: TEXTO_TENTANDO })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect.poll(() => chavesDoOutro.length, { timeout: SIGN_IN_TIMEOUT_MS }).toBe(1)
+    await expect(principal(outro).getByRole('status').filter({ hasText: TEXTO_TENTANDO })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await outro.clock.runFor(5_500)
     await outro.waitForTimeout(300)
     expect(chavesDoOutro).toHaveLength(1)
@@ -502,8 +502,8 @@ test.describe('W8: um envio no ar, e o sistema cheio', () => {
     await outro.waitForTimeout(300)
     expect(chavesDoOutro).toHaveLength(1)
     await outro.clock.runFor(1)
-    await expect.poll(() => chavesDoOutro.length, { timeout: PRAZO_DA_ENTRADA_MS }).toBe(2)
-    await expect(tituloDoPedido(outro)).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect.poll(() => chavesDoOutro.length, { timeout: SIGN_IN_TIMEOUT_MS }).toBe(2)
+    await expect(tituloDoPedido(outro)).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     expect(await pedidosPendentesDaTurma(cenario.escola.escolaId, cenario.turma.id)).toBe(2)
   })
 })
@@ -522,23 +522,23 @@ test.describe('W8: a recusa e o limite', () => {
       if (ehOAbrir(pedido.url())) aberturas++
     })
     await page.goto(`${enderecoDaSala(cenario)}#${cenario.acesso.token}`)
-    await expect(tituloDaTurma(page, cenario.turma.nome)).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(tituloDaTurma(page, cenario.turma.nome)).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     expect(aberturas).toBe(1)
     // Outro aluno pede o nome da colega com a página aberta.
     await tomarNomeNoBanco(cenario.escola.escolaId, (await principal(page).getByRole('radio', { name: colega.nome }).getAttribute('value')) ?? '')
 
     // A matrícula de outro nome: a recusa, sem dizer qual dos dois errou.
     await pedirONome(page, aluna.nome, outra.matricula, hasTouch)
-    await expect(aviso(page)).toHaveText(TEXTO_DA_RECUSA, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(aviso(page)).toHaveText(TEXTO_DA_RECUSA, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(campoDaMatricula(page)).toBeFocused()
     expect(await descritoPor(campoDaMatricula(page))).toContain(await aviso(page).getAttribute('id'))
     await expect(campoDaSenha(page)).toHaveValue('')
     await expect(campoDaMatricula(page)).toHaveValue(outra.matricula)
     // A lista foi relida: o nome que a colega pediu saiu, e o escolhido continua escolhido.
-    await expect.poll(() => aberturas, { timeout: PRAZO_DA_ENTRADA_MS }).toBe(2)
-    await expect(principal(page).getByRole('radio', { name: colega.nome })).toHaveCount(0, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect.poll(() => aberturas, { timeout: SIGN_IN_TIMEOUT_MS }).toBe(2)
+    await expect(principal(page).getByRole('radio', { name: colega.nome })).toHaveCount(0, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(principal(page).getByRole('radio', { name: aluna.nome })).toBeChecked()
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await seriousViolations(page)).toEqual([])
 
     // O aviso da tentativa anterior sai com o envio seguinte, e mais quatro matrículas erradas no mesmo nome.
     for (let tentativa = 2; tentativa <= 5; tentativa++) {
@@ -550,12 +550,12 @@ test.describe('W8: a recusa e o limite', () => {
       await campoDaMatricula(page).fill(`errada-${String(tentativa)}`)
       await campoDaSenha(page).fill(SENHA)
       const resposta = page.waitForResponse((r) => ehOReivindicar(r.url()))
-      await acionar(botaoEnviar(page), hasTouch)
+      await activate(botaoEnviar(page), hasTouch)
       await expect(aviso(page)).toHaveCount(0)
       expect((await resposta).status()).toBe(409)
-      await expect(aviso(page)).toHaveText(TEXTO_DA_RECUSA, { timeout: PRAZO_DA_ENTRADA_MS })
+      await expect(aviso(page)).toHaveText(TEXTO_DA_RECUSA, { timeout: SIGN_IN_TIMEOUT_MS })
       if (tentativa === 2) {
-        await expect.poll(() => aberturas, { timeout: PRAZO_DA_ENTRADA_MS }).toBe(3)
+        await expect.poll(() => aberturas, { timeout: SIGN_IN_TIMEOUT_MS }).toBe(3)
         await expect(principal(page).getByRole('radio')).toHaveCount(2)
         await expect(campoDaMatricula(page)).toHaveValue('errada-2')
         await expect(principal(page).getByRole('radio', { name: aluna.nome })).toBeChecked()
@@ -564,35 +564,35 @@ test.describe('W8: a recusa e o limite', () => {
     // A 6ª, já com a matrícula certa: o nome está segurado, pelo que falta da janela de 10 min.
     await campoDaMatricula(page).fill(aluna.matricula)
     await campoDaSenha(page).fill(SENHA)
-    await acionar(botaoEnviar(page), hasTouch)
-    await expect(aviso(page)).toHaveText('Muitas tentativas agora. Espere 10 minutos ou chame o professor.', { timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(botaoEnviar(page), hasTouch)
+    await expect(aviso(page)).toHaveText('Muitas tentativas agora. Espere 10 minutos ou chame o professor.', { timeout: SIGN_IN_TIMEOUT_MS })
     expect(await pedidosPendentesDaTurma(cenario.escola.escolaId, cenario.turma.id)).toBe(0)
 
     // O nome escolhido é tomado por outro aluno antes do envio: a recusa relê a lista, o nome sai da escolha, e o envio
     // seguinte pede o nome de novo, sem chamada.
-    await acionar(principal(page).getByRole('radio', { name: outra.nome }), hasTouch)
+    await activate(principal(page).getByRole('radio', { name: outra.nome }), hasTouch)
     await tomarNomeNoBanco(cenario.escola.escolaId, (await principal(page).getByRole('radio', { name: outra.nome }).getAttribute('value')) ?? '')
     await campoDaMatricula(page).fill(outra.matricula)
     await campoDaSenha(page).fill(SENHA)
-    await acionar(botaoEnviar(page), hasTouch)
-    await expect(aviso(page)).toHaveText(TEXTO_DA_RECUSA, { timeout: PRAZO_DA_ENTRADA_MS })
-    await expect(principal(page).getByRole('radio', { name: outra.nome })).toHaveCount(0, { timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(botaoEnviar(page), hasTouch)
+    await expect(aviso(page)).toHaveText(TEXTO_DA_RECUSA, { timeout: SIGN_IN_TIMEOUT_MS })
+    await expect(principal(page).getByRole('radio', { name: outra.nome })).toHaveCount(0, { timeout: SIGN_IN_TIMEOUT_MS })
     let enviosDepois = 0
     page.on('request', (pedido) => {
       if (ehOReivindicar(pedido.url())) enviosDepois++
     })
     await campoDaSenha(page).fill(SENHA)
-    await acionar(botaoEnviar(page), hasTouch)
+    await activate(botaoEnviar(page), hasTouch)
     await expect(principal(page).getByText('Escolha o seu nome na lista.')).toBeVisible()
     expect(enviosDepois).toBe(0)
 
     // O rl:ip responde o mesmo LIMITE_EXCEDIDO, e o texto é o mesmo, com os minutos do Retry-After dele.
     await page.route('**/v1/salas/reivindicar', (rota: Route) => rota.fulfill({ status: 429, contentType: 'application/json', headers: { 'Retry-After': '61' }, body: erro('LIMITE_EXCEDIDO') }))
-    await acionar(principal(page).getByRole('radio', { name: aluna.nome }), hasTouch)
+    await activate(principal(page).getByRole('radio', { name: aluna.nome }), hasTouch)
     await campoDaMatricula(page).fill(outra.matricula)
     await campoDaSenha(page).fill(SENHA)
-    await acionar(botaoEnviar(page), hasTouch)
-    await expect(aviso(page)).toHaveText('Muitas tentativas agora. Espere 2 minutos ou chame o professor.', { timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(botaoEnviar(page), hasTouch)
+    await expect(aviso(page)).toHaveText('Muitas tentativas agora. Espere 2 minutos ou chame o professor.', { timeout: SIGN_IN_TIMEOUT_MS })
   })
 })
 
@@ -608,10 +608,10 @@ test.describe('W8: a página que sai no meio dos reenvios', () => {
       return rota.fulfill({ status: 503, contentType: 'application/json', headers: { 'Retry-After': '5' }, body: erro('INDISPONIVEL_TENTE_DE_NOVO') })
     })
     await page.goto(`${enderecoDaSala(cenario)}#${cenario.acesso.token}`)
-    await expect(tituloDaTurma(page, cenario.turma.nome)).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(tituloDaTurma(page, cenario.turma.nome)).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await page.clock.pauseAt(new Date('2026-10-05T09:30:00-03:00'))
     await pedirONome(page, aluna.nome, aluna.matricula, hasTouch)
-    await expect(principal(page).getByRole('status').filter({ hasText: TEXTO_TENTANDO })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(principal(page).getByRole('status').filter({ hasText: TEXTO_TENTANDO })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     // Outra tela da web, sem recarregar a página: a da sala sai, com o reenvio esperando o relógio.
     await page.evaluate(() => {
       window.history.pushState(null, '', '/sistema')
@@ -644,13 +644,13 @@ test.describe('W8: o pedido sem resposta e o acesso que cai', () => {
       return rota.continue()
     })
     await page.goto(`${enderecoDaSala(cenario)}#${cenario.acesso.token}`)
-    await expect(tituloDaTurma(page, cenario.turma.nome)).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(tituloDaTurma(page, cenario.turma.nome)).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     const idDe = async (nome: string) => (await principal(page).getByRole('radio', { name: nome }).getAttribute('value')) ?? ''
 
     // Cada campo, um de cada vez: o nome, a matrícula e a senha. Depois do quarto 503, mexer naquele campo volta o botão a
     // "Enviar pedido", e o envio seguinte é um pedido novo, com chave nova e com o que está na tela — e não o pedido antigo.
     const mudancas: ReadonlyArray<{ campo: string; mudar: () => Promise<void>; nome: string; matricula: string; senha: string }> = [
-      { campo: 'o nome', mudar: () => acionar(principal(page).getByRole('radio', { name: colega.nome }), hasTouch), nome: colega.nome, matricula: aluna.matricula, senha: SENHA },
+      { campo: 'o nome', mudar: () => activate(principal(page).getByRole('radio', { name: colega.nome }), hasTouch), nome: colega.nome, matricula: aluna.matricula, senha: SENHA },
       { campo: 'a matrícula', mudar: () => campoDaMatricula(page).fill(colega.matricula), nome: aluna.nome, matricula: colega.matricula, senha: SENHA },
       { campo: 'a senha', mudar: () => campoDaSenha(page).fill(`${SENHA} nova`), nome: aluna.nome, matricula: aluna.matricula, senha: `${SENHA} nova` },
     ]
@@ -660,15 +660,15 @@ test.describe('W8: o pedido sem resposta e o acesso que cai', () => {
       resposta = 'cheio'
       const antes = corpos.length
       await pedirONome(page, aluna.nome, aluna.matricula, hasTouch)
-      await expect(aviso(page)).toHaveText(TEXTO_CHEIO, { timeout: PRAZO_DA_ENTRADA_MS })
+      await expect(aviso(page)).toHaveText(TEXTO_CHEIO, { timeout: SIGN_IN_TIMEOUT_MS })
       await expect(botaoEnviar(page)).toHaveText('Tentar de novo')
       expect(corpos).toHaveLength(antes + 4)
       const antigo = corpos.at(-1)
       resposta = 'recusa'
       await mudanca.mudar()
       await expect(botaoEnviar(page), mudanca.campo).toHaveText('Enviar pedido')
-      await acionar(botaoEnviar(page), hasTouch)
-      await expect(aviso(page)).toHaveText(TEXTO_DA_RECUSA, { timeout: PRAZO_DA_ENTRADA_MS })
+      await activate(botaoEnviar(page), hasTouch)
+      await expect(aviso(page)).toHaveText(TEXTO_DA_RECUSA, { timeout: SIGN_IN_TIMEOUT_MS })
       const novo = corpos.at(-1)
       expect(corpos, mudanca.campo).toHaveLength(antes + 5)
       expect(novo?.chaveEnvio, mudanca.campo).not.toBe(antigo?.chaveEnvio)
@@ -680,21 +680,21 @@ test.describe('W8: o pedido sem resposta e o acesso que cai', () => {
     // Sem mexer em nada, o "Tentar de novo" manda o mesmo pedido, e agora entra.
     resposta = 'cheio'
     await pedirONome(page, aluna.nome, aluna.matricula, hasTouch)
-    await expect(botaoEnviar(page)).toHaveText('Tentar de novo', { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(botaoEnviar(page)).toHaveText('Tentar de novo', { timeout: SIGN_IN_TIMEOUT_MS })
     const semResposta = corpos.at(-1)
     resposta = 'normal'
-    await acionar(botaoEnviar(page), hasTouch)
-    await expect(tituloDoPedido(page)).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(botaoEnviar(page), hasTouch)
+    await expect(tituloDoPedido(page)).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     expect(corpos.at(-1)).toEqual(semResposta)
     expect(await pedidosPendentesDaTurma(cenario.escola.escolaId, cenario.turma.id)).toBe(1)
 
     // O professor gerou outro acesso com a página aberta: o envio responde NAO_ENCONTRADO, e a página leva ao código, com o
     // texto do link.
     resposta = 'sem-acesso'
-    await acionar(principal(page).getByRole('button', { name: 'Voltar à lista de nomes' }), hasTouch)
-    await expect(tituloDaTurma(page, cenario.turma.nome)).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(principal(page).getByRole('button', { name: 'Voltar à lista de nomes' }), hasTouch)
+    await expect(tituloDaTurma(page, cenario.turma.nome)).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await pedirONome(page, colega.nome, colega.matricula, hasTouch)
-    await expect(aviso(page)).toHaveText(TEXTO_DO_LINK, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(aviso(page)).toHaveText(TEXTO_DO_LINK, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(campoDoCodigo(page)).toBeFocused()
     await expect(principal(page).getByRole('radio')).toHaveCount(0)
   })
@@ -703,7 +703,7 @@ test.describe('W8: o pedido sem resposta e o acesso que cai', () => {
     const cenario = await criarCenario(1)
     const [aluna] = cenario.lista
     if (aluna === undefined) throw new Error('lista sem nome')
-    let segurado = portao()
+    let segurado = gate()
     let respondeu = false
     await page.route('**/v1/salas/reivindicar', async (rota: Route) => {
       await segurado.aberta
@@ -713,20 +713,20 @@ test.describe('W8: o pedido sem resposta e o acesso que cai', () => {
     await page.goto(`${enderecoDaSala(cenario)}#${cenario.acesso.token}`)
     await pedirONome(page, aluna.nome, aluna.matricula, hasTouch)
     await expect(botaoEnviar(page)).toHaveText('Enviando…')
-    await acionar(principal(page).getByRole('button', { name: 'Não é a sua turma? Usar outro código' }), hasTouch)
+    await activate(principal(page).getByRole('button', { name: 'Não é a sua turma? Usar outro código' }), hasTouch)
     await expect(campoDoCodigo(page)).toBeFocused()
     segurado.abrir()
-    await expect.poll(() => respondeu, { timeout: PRAZO_DA_ENTRADA_MS }).toBe(true)
+    await expect.poll(() => respondeu, { timeout: SIGN_IN_TIMEOUT_MS }).toBe(true)
     await page.waitForTimeout(1_000)
     // A resposta do envio anterior chegou e não pôs aviso nenhum no campo do código.
     await expect(aviso(page)).toHaveCount(0)
     await expect(campoDoCodigo(page)).toHaveValue('')
 
     // O mesmo com o link colado pela metade na aba, no lugar do "Usar outro código".
-    segurado = portao()
+    segurado = gate()
     respondeu = false
     await campoDoCodigo(page).fill(cenario.acesso.codigo)
-    await acionar(principal(page).getByRole('button', { name: 'Abrir a turma' }), hasTouch)
+    await activate(principal(page).getByRole('button', { name: 'Abrir a turma' }), hasTouch)
     await pedirONome(page, aluna.nome, aluna.matricula, hasTouch)
     await expect(botaoEnviar(page)).toHaveText('Enviando…')
     await page.evaluate(() => {
@@ -734,7 +734,7 @@ test.describe('W8: o pedido sem resposta e o acesso que cai', () => {
     })
     await expect(campoDoCodigo(page)).toBeFocused()
     segurado.abrir()
-    await expect.poll(() => respondeu, { timeout: PRAZO_DA_ENTRADA_MS }).toBe(true)
+    await expect.poll(() => respondeu, { timeout: SIGN_IN_TIMEOUT_MS }).toBe(true)
     await page.waitForTimeout(1_000)
     await expect(aviso(page)).toHaveCount(0)
   })
@@ -746,8 +746,8 @@ test.describe('recomeço da página pública', () => {
     const [aluna] = cenario.lista
     if (aluna === undefined) throw new Error('lista sem nome')
     await page.goto(`${enderecoDaSala(cenario)}#${cenario.acesso.token}`)
-    await expect(tituloDaTurma(page, cenario.turma.nome)).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
-    await acionar(principal(page).getByRole('radio', { name: aluna.nome }), hasTouch)
+    await expect(tituloDaTurma(page, cenario.turma.nome)).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
+    await activate(principal(page).getByRole('radio', { name: aluna.nome }), hasTouch)
     await campoDaMatricula(page).fill(aluna.matricula)
     await campoDaSenha(page).fill(SENHA)
     const abertura = page.waitForRequest((pedido) => ehOAbrir(pedido.url()))
@@ -755,7 +755,7 @@ test.describe('recomeço da página pública', () => {
       window.location.hash = token
     }, cenario.acesso.token)
     await abertura
-    await expect(tituloDaTurma(page, cenario.turma.nome)).toBeFocused({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(tituloDaTurma(page, cenario.turma.nome)).toBeFocused({ timeout: SIGN_IN_TIMEOUT_MS })
     expect(page.url()).not.toContain('#')
     await expect(campoDaMatricula(page)).toHaveValue('')
     await expect(campoDaSenha(page)).toHaveValue('')
@@ -770,7 +770,7 @@ test.describe('recomeço da página pública', () => {
     await porNaListaDaTurma(primeiro.escola.escolaId, outraTurma.id, [{ nome: `Aluno da segunda ${randomUUID().slice(0, 8)}`, matricula: `S-${randomUUID().slice(0, 8)}` }])
     const outroAcesso = await gerarAcessoDaSalaNoBanco(primeiro.escola.escolaId, outraTurma.id)
     // O código da primeira turma fica segurado; na primeira vez responde que não acha, na segunda abre de verdade.
-    let segurada = portao()
+    let segurada = gate()
     let respostas = 0
     let vez = 0
     await page.route('**/v1/salas/abrir', async (rota: Route) => {
@@ -785,17 +785,17 @@ test.describe('recomeço da página pública', () => {
 
     for (const rodada of [1, 2]) {
       await campoDoCodigo(page).fill(primeiro.acesso.codigo)
-      await acionar(principal(page).getByRole('button', { name: 'Abrir a turma' }), hasTouch)
+      await activate(principal(page).getByRole('button', { name: 'Abrir a turma' }), hasTouch)
       await expect(principal(page).getByRole('button', { name: 'Abrindo…' })).toBeDisabled()
       // O link da outra turma chega à aba com o código ainda no ar.
       await page.evaluate((token) => {
         window.location.hash = token
       }, outroAcesso.token)
-      await expect(tituloDaTurma(page, outraTurma.nome)).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+      await expect(tituloDaTurma(page, outraTurma.nome)).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
       const chegou = page.waitForResponse((r) => ehOAbrir(r.url()) && (r.request().postDataJSON() as { codigo?: string }).codigo === primeiro.acesso.codigo)
       segurada.abrir()
       await chegou
-      await expect.poll(() => respostas, { timeout: PRAZO_DA_ENTRADA_MS }).toBe(rodada)
+      await expect.poll(() => respostas, { timeout: SIGN_IN_TIMEOUT_MS }).toBe(rodada)
       // A página tem tempo de tratar a resposta antes de o teste olhar: "nada mudou" não tem evento para esperar.
       await page.waitForTimeout(1_000)
       // A resposta do código anterior chegou — a que não achou e a que achou — e não mudou nada.
@@ -803,8 +803,8 @@ test.describe('recomeço da página pública', () => {
       await expect(tituloDaTurma(page, primeiro.turma.nome)).toHaveCount(0)
       await expect(aviso(page)).toHaveCount(0)
       await expect(principal(page)).not.toContainText(primeiro.lista[0]?.nome ?? 'sem nome')
-      segurada = portao()
-      await acionar(principal(page).getByRole('button', { name: 'Não é a sua turma? Usar outro código' }), hasTouch)
+      segurada = gate()
+      await activate(principal(page).getByRole('button', { name: 'Não é a sua turma? Usar outro código' }), hasTouch)
     }
   })
 })
@@ -821,14 +821,14 @@ test.describe('W12 (Pública): a 360 px e só com teclado', () => {
     if (aluna === undefined) throw new Error('lista sem nome')
 
     await page.goto(enderecoDaSala(cenario))
-    await expect(campoDoCodigo(page)).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(campoDoCodigo(page)).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await page.keyboard.press('Tab')
     for (let tecla = 0; tecla < 10 && !(await campoDoCodigo(page).evaluate((elemento) => elemento === document.activeElement)); tecla++) await page.keyboard.press('Tab')
     await expect(campoDoCodigo(page)).toBeFocused()
     await page.keyboard.type(cenario.acesso.codigo)
     await page.keyboard.press('Enter')
-    await expect(tituloDaTurma(page, cenario.turma.nome)).toBeFocused({ timeout: PRAZO_DA_ENTRADA_MS })
-    expect(await larguraExcedente(page)).toBe(0)
+    await expect(tituloDaTurma(page, cenario.turma.nome)).toBeFocused({ timeout: SIGN_IN_TIMEOUT_MS })
+    expect(await horizontalOverflow(page)).toBe(0)
     await alvoDeToque(principal(page).getByText(comprido).locator('xpath=ancestor::label'), 'o nome comprido')
 
     // Os nomes: o Tab entra no grupo, e as setas escolhem.
@@ -845,7 +845,7 @@ test.describe('W12 (Pública): a 360 px e só com teclado', () => {
       if (escolhido > radios.length) throw new Error('a seta não chegou ao nome')
     }
     await expect(principal(page).getByRole('radio', { name: aluna.nome })).toBeChecked()
-    expect(await focoVisivel(page)).toBe(true)
+    expect(await isFocusVisible(page)).toBe(true)
 
     await page.keyboard.press('Tab')
     await expect(campoDaMatricula(page)).toBeFocused()
@@ -855,18 +855,18 @@ test.describe('W12 (Pública): a 360 px e só com teclado', () => {
     await page.keyboard.type(SENHA)
     await page.keyboard.press('Tab')
     await expect(botaoMostrar(page)).toBeFocused()
-    expect(await focoVisivel(page)).toBe(true)
+    expect(await isFocusVisible(page)).toBe(true)
     await page.keyboard.press('Space')
     await expect(campoDaSenha(page)).toHaveAttribute('type', 'text')
     await page.keyboard.press('Tab')
     await expect(botaoEnviar(page)).toBeFocused()
-    expect(await focoVisivel(page)).toBe(true)
-    expect(await larguraExcedente(page)).toBe(0)
+    expect(await isFocusVisible(page)).toBe(true)
+    expect(await horizontalOverflow(page)).toBe(0)
     await page.keyboard.press('Enter')
-    await expect(tituloDoPedido(page)).toBeFocused({ timeout: PRAZO_DA_ENTRADA_MS })
-    expect(await larguraExcedente(page)).toBe(0)
+    await expect(tituloDoPedido(page)).toBeFocused({ timeout: SIGN_IN_TIMEOUT_MS })
+    expect(await horizontalOverflow(page)).toBe(0)
     for (const alvo of [principal(page).getByRole('link', { name: 'Ir para a entrada da escola' }), principal(page).getByRole('button', { name: 'Voltar à lista de nomes' })])
       await alvoDeToque(alvo, (await alvo.textContent()) ?? 'alvo')
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await seriousViolations(page)).toEqual([])
   })
 })

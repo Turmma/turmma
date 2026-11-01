@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'
 import type { Locator, Page, Request, Route } from '@playwright/test'
 import { MENSAGENS_DE_ERRO } from '../packages/shared/src/errors/messages.ts'
-import { abrirNavegacao, entrarComoCoordenacaoNaMesmaAba, abrirEstrutura, esperarPainel, lateral, PRAZO_DA_ENTRADA_MS, secoes as secoesDaNavegacao } from './support/casca.ts'
+import { abrirNavegacao, entrarComoCoordenacaoNaMesmaAba, abrirEstrutura, esperarPainel, lateral, SIGN_IN_TIMEOUT_MS, secoes as secoesDaNavegacao } from './support/casca.ts'
 import { abrirAnoEDisciplinas, comOQueFalta, fecharPainel, irPelaCoordenacao, linhasDaTabela, paginaNaoRola, painelDoAno } from './support/coordenacao.ts'
 import { expect, test } from './support/profiles.ts'
 import {
@@ -18,7 +18,7 @@ import {
   montarEstruturaNoBanco,
   porNaListaDaTurma,
 } from './support/seed.ts'
-import { ALVO_DE_TOQUE_PRINCIPAL_PX, codigoCru, larguraExcedente, larguraExcedenteDoDialogo, violacoesGraves } from './support/checks.ts'
+import { ALVO_DE_TOQUE_PRINCIPAL_PX, rawCodePattern, horizontalOverflow, larguraExcedenteDoDialogo, seriousViolations } from './support/checks.ts'
 
 /**
  * A Estrutura da coordenação (A1, tarefa 13.0; `tasks/prd-apresentacao-escola/cenarios.md`): W4 de Estrutura; W12 (360 px,
@@ -35,13 +35,13 @@ const INDISPONIVEL = JSON.stringify({ erro: { codigo: 'INDISPONIVEL_TENTE_DE_NOV
 /** Os nomes que o arquivo do Excel traz, com acento: é por eles que se vê que o windows-1252 foi lido certo. */
 const ARQUIVO_DO_EXCEL = 'e2e/support/lista-excel.csv'
 
-async function acionar(alvo: Locator, hasTouch: boolean): Promise<void> {
+async function activate(alvo: Locator, hasTouch: boolean): Promise<void> {
   if (hasTouch) await alvo.tap()
   else await alvo.click()
 }
 
 /** Uma porta que segura a resposta até o teste abrir. */
-function portao(): { aberta: Promise<void>; abrir: () => void } {
+function gate(): { aberta: Promise<void>; abrir: () => void } {
   let abrir: () => void = () => undefined
   const aberta = new Promise<void>((resolver) => {
     abrir = resolver
@@ -74,15 +74,15 @@ async function alvoDeToque(alvo: Locator, descricao: string): Promise<void> {
 
 /** Abre a turma pela lista de turmas da Estrutura, pelo link "Lista de nomes". */
 async function abrirTurma(page: Page, nome: string, hasTouch: boolean): Promise<void> {
-  await acionar(principal(page).getByRole('link', { name: `Lista de nomes da turma ${nome}` }), hasTouch)
-  await expect(principal(page).getByRole('heading', { level: 1, name: `Turma ${nome}` })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+  await activate(principal(page).getByRole('link', { name: `Lista de nomes da turma ${nome}` }), hasTouch)
+  await expect(principal(page).getByRole('heading', { level: 1, name: `Turma ${nome}` })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
 }
 
 /** A ação do menu "Mais ações da turma <nome>" (Renomear ou Excluir): abre o menu da linha e escolhe o item. Devolve o botão que abriu o menu. */
 async function agirNaTurma(page: Page, regiao: Locator, nome: string, acao: 'Renomear' | 'Excluir', hasTouch: boolean): Promise<Locator> {
   const gatilho = regiao.getByRole('button', { name: `Mais ações da turma ${nome}` })
-  await acionar(gatilho, hasTouch)
-  await acionar(page.getByRole('menuitem', { name: acao }), hasTouch)
+  await activate(gatilho, hasTouch)
+  await activate(page.getByRole('menuitem', { name: acao }), hasTouch)
   return gatilho
 }
 
@@ -90,7 +90,7 @@ test.describe('W4 (Estrutura): do vazio ao roteiro, montando a escola pela tela'
   test('carregando, o vazio "Comece pelo ano letivo" com o roteiro, e o ano, a série, a turma e a disciplina criados pela tela', async ({ page, hasTouch }) => {
     test.slow()
     // Carregando: a leitura dos anos segurada na primeira vez.
-    const segurado = portao()
+    const segurado = gate()
     let primeira = true
     await page.route(ROTA_ANOS, async (rota: Route) => {
       if (primeira && rota.request().method() === 'GET') {
@@ -117,23 +117,23 @@ test.describe('W4 (Estrutura): do vazio ao roteiro, montando a escola pela tela'
     // A coordenação abre em Governança (A5) e chega à Estrutura pela lateral.
     await esperarPainel(page)
     await irPelaCoordenacao(page, 'Turmas', hasTouch)
-    await expect(principal(page).getByRole('status').filter({ hasText: 'Carregando a estrutura da escola…' })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(principal(page).getByRole('status').filter({ hasText: 'Carregando a estrutura da escola…' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(page).toHaveTitle('Escola: turmas · Turmma')
     segurado.abrir()
 
     // Vazio: o próximo passo e o roteiro até a alocação.
-    await expect(principal(page).getByText('Comece pelo ano letivo')).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(principal(page).getByText('Comece pelo ano letivo')).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     const roteiro = principal(page).getByRole('region', { name: 'O roteiro até a alocação' })
     await expect(roteiro.getByRole('listitem')).toHaveCount(7)
     await expect(roteiro).toContainText('Lista de nomes')
     await expect(roteiro).toContainText('Alocação')
     // No vazio o roteiro é só o caminho: nada foi feito ainda, e nenhum passo leva marca.
     await expect(roteiro).not.toContainText('falta')
-    expect(await violacoesGraves(page)).toEqual([])
-    expect(await larguraExcedente(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
+    expect(await horizontalOverflow(page)).toBe(0)
 
     // O ano letivo, pelo botão do vazio; o foco vai para a seção do ano quando o botão sai com o vazio.
-    await acionar(principal(page).getByRole('button', { name: 'Criar o ano letivo' }), hasTouch)
+    await activate(principal(page).getByRole('button', { name: 'Criar o ano letivo' }), hasTouch)
     const doAno = dialogo(page, 'Novo ano letivo')
     await expect(doAno).toBeVisible()
     expect(await larguraExcedenteDoDialogo(page)).toBe(0)
@@ -143,7 +143,7 @@ test.describe('W4 (Estrutura): do vazio ao roteiro, montando a escola pela tela'
     await doAno.getByLabel('Ano').fill('26')
     await doAno.getByLabel('Início').fill('2026-02-02')
     await doAno.getByLabel('Fim').fill('2026-12-11')
-    await acionar(doAno.getByRole('button', { name: 'Criar ano letivo' }), hasTouch)
+    await activate(doAno.getByRole('button', { name: 'Criar ano letivo' }), hasTouch)
     await expect(erroDoAno).toBeVisible()
     await expect(erroDoPeriodo).toHaveCount(0)
     await expect(doAno.getByLabel('Ano')).toHaveAttribute('aria-invalid', 'true')
@@ -154,38 +154,38 @@ test.describe('W4 (Estrutura): do vazio ao roteiro, montando a escola pela tela'
     await doAno.getByLabel('Ano').fill('2026')
     await expect(doAno.getByLabel('Início')).toHaveValue('2026-02-02')
     await doAno.getByLabel('Fim').fill('2026-01-15')
-    await acionar(doAno.getByRole('button', { name: 'Criar ano letivo' }), hasTouch)
+    await activate(doAno.getByRole('button', { name: 'Criar ano letivo' }), hasTouch)
     await expect(erroDoPeriodo).toBeVisible()
     await expect(erroDoAno).toHaveCount(0)
     await expect(doAno.getByLabel('Fim')).toBeFocused()
     // O período de outro ano não sai calado: o ano letivo não se altera nem se exclui depois.
     await doAno.getByLabel('Início').fill('2025-02-02')
     await doAno.getByLabel('Fim').fill('2025-12-11')
-    await acionar(doAno.getByRole('button', { name: 'Criar ano letivo' }), hasTouch)
+    await activate(doAno.getByRole('button', { name: 'Criar ano letivo' }), hasTouch)
     await expect(doAno.getByText('O início precisa cair em 2026, o ano letivo digitado.')).toBeVisible()
     await expect(doAno.getByLabel('Início')).toBeFocused()
     // O início apagado: o erro vai para o campo que está vazio, e não para o fim.
     await doAno.getByLabel('Início').fill('')
     await doAno.getByLabel('Fim').fill('2026-12-11')
-    await acionar(doAno.getByRole('button', { name: 'Criar ano letivo' }), hasTouch)
+    await activate(doAno.getByRole('button', { name: 'Criar ano letivo' }), hasTouch)
     await expect(doAno.getByText('Preencha o início.')).toBeVisible()
     await expect(doAno.getByLabel('Início')).toBeFocused()
     await expect(erroDoPeriodo).toHaveCount(0)
     // O fim apagado, do mesmo jeito.
     await doAno.getByLabel('Início').fill('2026-02-02')
     await doAno.getByLabel('Fim').fill('')
-    await acionar(doAno.getByRole('button', { name: 'Criar ano letivo' }), hasTouch)
+    await activate(doAno.getByRole('button', { name: 'Criar ano letivo' }), hasTouch)
     await expect(doAno.getByText('Preencha o fim.')).toBeVisible()
     await expect(doAno.getByLabel('Fim')).toBeFocused()
     await expect(erroDoPeriodo).toHaveCount(0)
     // O ano errado na data do fim (2207 no lugar de 2027) não passa: o fim cai no ano letivo ou no seguinte.
     await doAno.getByLabel('Fim').fill('2207-12-11')
-    await acionar(doAno.getByRole('button', { name: 'Criar ano letivo' }), hasTouch)
+    await activate(doAno.getByRole('button', { name: 'Criar ano letivo' }), hasTouch)
     await expect(doAno.getByText('O fim precisa cair em 2026 ou em 2027.')).toBeVisible()
     await expect(doAno.getByLabel('Fim')).toBeFocused()
     await doAno.getByLabel('Fim').fill('2026-12-11')
-    await acionar(doAno.getByRole('button', { name: 'Criar ano letivo' }), hasTouch)
-    await expect(doAno).toHaveCount(0, { timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(doAno.getByRole('button', { name: 'Criar ano letivo' }), hasTouch)
+    await expect(doAno).toHaveCount(0, { timeout: SIGN_IN_TIMEOUT_MS })
     // O primeiro ano leva ao painel dele, no endereço: é nele que o anúncio mora e que o ano se abre.
     const painel = painelDoAno(page)
     await expect(painel).toBeVisible()
@@ -206,8 +206,8 @@ test.describe('W4 (Estrutura): do vazio ao roteiro, montando a escola pela tela'
     await expect(principal(page).getByRole('button', { name: 'Nova turma' })).toHaveCount(0)
     expect(doAnoEmCurso).toEqual([])
     const doPainel = await abrirAnoEDisciplinas(page, hasTouch)
-    await acionar(doPainel.getByRole('button', { name: 'Abrir o ano letivo 2026' }), hasTouch)
-    await expect(anuncio(secao(page, 'Ano letivo'), 'Ano letivo 2026 aberto.')).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(doPainel.getByRole('button', { name: 'Abrir o ano letivo 2026' }), hasTouch)
+    await expect(anuncio(secao(page, 'Ano letivo'), 'Ano letivo 2026 aberto.')).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(doPainel.getByRole('heading', { name: 'Ano letivo', exact: true })).toBeFocused()
     await expect(doPainel).toContainText('Em curso')
 
@@ -215,13 +215,13 @@ test.describe('W4 (Estrutura): do vazio ao roteiro, montando a escola pela tela'
     // O período acompanha o ano digitado enquanto a pessoa não mexe nas datas: preparar outro ano não grava o período do
     // ano do relógio. O ano é um que o relógio do teste nunca vai marcar, para a prova não vencer na virada do ano. E o
     // fim pode cair em janeiro do ano seguinte, como na rede que termina o ano letivo depois das férias.
-    await acionar(doPainel.getByRole('button', { name: 'Novo ano letivo' }), hasTouch)
+    await activate(doPainel.getByRole('button', { name: 'Novo ano letivo' }), hasTouch)
     await doAno.getByLabel('Ano').fill('2099')
     await expect(doAno.getByLabel('Início')).toHaveValue('2099-02-01')
     await expect(doAno.getByLabel('Fim')).toHaveValue('2099-12-15')
     await doAno.getByLabel('Fim').fill('2100-01-20')
-    await acionar(doAno.getByRole('button', { name: 'Criar ano letivo' }), hasTouch)
-    await expect(doAno).toHaveCount(0, { timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(doAno.getByRole('button', { name: 'Criar ano letivo' }), hasTouch)
+    await expect(doAno).toHaveCount(0, { timeout: SIGN_IN_TIMEOUT_MS })
     const anos = doPainel.getByRole('region', { name: 'Ano letivo' })
     await expect(anos.getByRole('listitem')).toHaveCount(2)
     await expect(anos.getByRole('listitem').first()).toContainText('2099Planejado · de 1 de fevereiro de 2099 a 20 de janeiro de 2100')
@@ -229,40 +229,40 @@ test.describe('W4 (Estrutura): do vazio ao roteiro, montando a escola pela tela'
     await fecharPainel(page, doPainel, hasTouch)
 
     // A turma antes da série: o diálogo diz o que falta, e só oferece "Fechar".
-    await acionar(principal(page).getByRole('button', { name: 'Nova turma' }), hasTouch)
+    await activate(principal(page).getByRole('button', { name: 'Nova turma' }), hasTouch)
     const daTurma = dialogo(page, 'Nova turma em 2026')
     await expect(daTurma).toContainText('Crie a série primeiro')
     await expect(daTurma.getByRole('button', { name: 'Criar turma' })).toHaveCount(0)
-    await acionar(daTurma.getByRole('button', { name: 'Fechar' }), hasTouch)
+    await activate(daTurma.getByRole('button', { name: 'Fechar' }), hasTouch)
 
     // A série (no painel do ano letivo): só as do recorte são oferecidas (D43), e o "5º ano" nem aparece; a criada sai da escolha.
     await abrirAnoEDisciplinas(page, hasTouch)
-    await acionar(principal(page).getByRole('button', { name: 'Nova série' }), hasTouch)
+    await activate(principal(page).getByRole('button', { name: 'Nova série' }), hasTouch)
     const daSerie = dialogo(page, 'Nova série')
     await expect(daSerie.getByLabel('Série').locator('option')).toHaveText(SERIES_DO_RECORTE)
     await daSerie.getByLabel('Série').selectOption({ label: '7º ano do Ensino Fundamental' })
-    await acionar(daSerie.getByRole('button', { name: 'Criar série' }), hasTouch)
-    await expect(daSerie).toHaveCount(0, { timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(daSerie.getByRole('button', { name: 'Criar série' }), hasTouch)
+    await expect(daSerie).toHaveCount(0, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(principal(page).getByRole('region', { name: 'Séries' })).toContainText('7º ano do Ensino Fundamental')
     await expect(anuncio(secao(page, 'Séries'), '7º ano do Ensino Fundamental criado.')).toBeVisible()
-    await acionar(principal(page).getByRole('button', { name: 'Nova série' }), hasTouch)
+    await activate(principal(page).getByRole('button', { name: 'Nova série' }), hasTouch)
     await expect(daSerie.getByLabel('Série').locator('option')).toHaveText(SERIES_DO_RECORTE.filter((serie) => serie !== '7º ano do Ensino Fundamental'))
-    await acionar(daSerie.getByRole('button', { name: 'Cancelar' }), hasTouch)
+    await activate(daSerie.getByRole('button', { name: 'Cancelar' }), hasTouch)
     await fecharPainel(page, doPainel, hasTouch)
 
     // A turma, na série criada.
     const marca = randomUUID().slice(0, 8)
     const turma = `7A ${marca}`
-    await acionar(principal(page).getByRole('button', { name: 'Nova turma' }), hasTouch)
+    await activate(principal(page).getByRole('button', { name: 'Nova turma' }), hasTouch)
     // Sem o nome, o erro fica no campo, e nada é enviado.
-    await acionar(daTurma.getByRole('button', { name: 'Criar turma' }), hasTouch)
+    await activate(daTurma.getByRole('button', { name: 'Criar turma' }), hasTouch)
     await expect(daTurma.getByText('Digite o nome da turma, como 7ºA.')).toBeVisible()
     await expect(daTurma.getByLabel('Nome da turma')).toBeFocused()
     await daTurma.getByLabel('Nome da turma').fill(turma)
     await daTurma.getByLabel('Turno (opcional)').selectOption({ label: 'manhã' })
     expect(await larguraExcedenteDoDialogo(page)).toBe(0)
-    await acionar(daTurma.getByRole('button', { name: 'Criar turma' }), hasTouch)
-    await expect(daTurma).toHaveCount(0, { timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(daTurma.getByRole('button', { name: 'Criar turma' }), hasTouch)
+    await expect(daTurma).toHaveCount(0, { timeout: SIGN_IN_TIMEOUT_MS })
     const turmas = principal(page).getByRole('region', { name: 'Turmas de 2026' })
     await expect(turmas).toContainText(turma)
     // A turma entra na tabela da série dela, com o turno na coluna.
@@ -277,24 +277,24 @@ test.describe('W4 (Estrutura): do vazio ao roteiro, montando a escola pela tela'
     const disciplina = `Matemática ${marca}`
     await abrirAnoEDisciplinas(page, hasTouch)
     for (const tentativa of [1, 2]) {
-      await acionar(principal(page).getByRole('button', { name: 'Nova disciplina' }), hasTouch)
+      await activate(principal(page).getByRole('button', { name: 'Nova disciplina' }), hasTouch)
       const daDisciplina = dialogo(page, 'Nova disciplina')
       if (tentativa === 1) {
         // Só espaços não é nome: o erro fica no campo, e nada é enviado.
         await daDisciplina.getByLabel('Nome da disciplina').fill('   ')
-        await acionar(daDisciplina.getByRole('button', { name: 'Criar disciplina' }), hasTouch)
+        await activate(daDisciplina.getByRole('button', { name: 'Criar disciplina' }), hasTouch)
         await expect(daDisciplina.getByText('Digite o nome da disciplina.')).toBeVisible()
         await expect(daDisciplina.getByLabel('Nome da disciplina')).toBeFocused()
       }
       await daDisciplina.getByLabel('Nome da disciplina').fill(disciplina)
-      await acionar(daDisciplina.getByRole('button', { name: 'Criar disciplina' }), hasTouch)
+      await activate(daDisciplina.getByRole('button', { name: 'Criar disciplina' }), hasTouch)
       if (tentativa === 1) {
-        await expect(daDisciplina).toHaveCount(0, { timeout: PRAZO_DA_ENTRADA_MS })
+        await expect(daDisciplina).toHaveCount(0, { timeout: SIGN_IN_TIMEOUT_MS })
         await expect(anuncio(secao(page, 'Disciplinas'), `Disciplina ${disciplina} criada.`)).toBeVisible()
       } else {
-        await expect(daDisciplina.getByRole('alert')).toHaveText('Já existe uma disciplina com este nome na escola.', { timeout: PRAZO_DA_ENTRADA_MS })
+        await expect(daDisciplina.getByRole('alert')).toHaveText('Já existe uma disciplina com este nome na escola.', { timeout: SIGN_IN_TIMEOUT_MS })
         await expect(daDisciplina.getByRole('alert')).toBeFocused()
-        await acionar(daDisciplina.getByRole('button', { name: 'Cancelar' }), hasTouch)
+        await activate(daDisciplina.getByRole('button', { name: 'Cancelar' }), hasTouch)
       }
     }
 
@@ -305,8 +305,8 @@ test.describe('W4 (Estrutura): do vazio ao roteiro, montando a escola pela tela'
         await expect(oQueFalta).toContainText(passo)
     })
     await expect(principal(page).getByRole('button', { name: 'Alocar' })).toHaveCount(0)
-    expect(await violacoesGraves(page)).toEqual([])
-    expect(await larguraExcedente(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
+    expect(await horizontalOverflow(page)).toBe(0)
     // Só o que passou pela conferência da tela saiu: os dois anos, a turma, e a disciplina e a repetição dela.
     expect(criacoes).toEqual(['/v1/anos-letivos', '/v1/anos-letivos', '/v1/turmas', '/v1/disciplinas', '/v1/disciplinas'])
   })
@@ -327,7 +327,7 @@ test.describe('W4 (Estrutura): do vazio ao roteiro, montando a escola pela tela'
     await page.goto('/entrar')
     await entrarComoCoordenacaoNaMesmaAba(page, coordenadora, hasTouch)
     await abrirEstrutura(page, hasTouch)
-    await expect(principal(page).getByRole('button', { name: 'Ano letivo e disciplinas' })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(principal(page).getByRole('button', { name: 'Ano letivo e disciplinas' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(principal(page).getByRole('region', { name: 'Turmas' })).toContainText('Abra o ano letivo acima para criar as turmas')
     const doPainel = await abrirAnoEDisciplinas(page, hasTouch)
     const anos = doPainel.getByRole('region', { name: 'Ano letivo' })
@@ -338,8 +338,8 @@ test.describe('W4 (Estrutura): do vazio ao roteiro, montando a escola pela tela'
     // Falha com a tela aberta: outra pessoa da coordenação abriu 2027 enquanto esta tela oferecia o "Abrir" de 2026. A
     // API recusa, a tela explica, e a lista recarrega com o ano em curso e sem o "Abrir".
     await criarAnoLetivoNoBanco(coordenadora.escolaId, 2027, 'em_curso')
-    await acionar(anos.getByRole('button', { name: 'Abrir o ano letivo 2026' }), hasTouch)
-    await expect(anos.getByRole('alert')).toHaveText('Já há um ano letivo em curso na escola. Só um fica em curso por vez.', { timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(anos.getByRole('button', { name: 'Abrir o ano letivo 2026' }), hasTouch)
+    await expect(anos.getByRole('alert')).toHaveText('Já há um ano letivo em curso na escola. Só um fica em curso por vez.', { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(anos.getByRole('listitem')).toContainText(['2027', '2026', '2025'])
     await expect(anos.getByRole('listitem').first()).toContainText('Em curso')
     await expect(anos.getByRole('button', { name: /Abrir o ano letivo/ })).toHaveCount(0)
@@ -347,18 +347,18 @@ test.describe('W4 (Estrutura): do vazio ao roteiro, montando a escola pela tela'
     await fecharPainel(page, doPainel, hasTouch)
     falhar = true
     await page.reload()
-    await expect(principal(page).getByRole('alert')).toHaveText(MENSAGENS_DE_ERRO.INDISPONIVEL_TENTE_DE_NOVO, { timeout: PRAZO_DA_ENTRADA_MS })
-    for (const proibido of [codigoCru('503'), 'INDISPONIVEL']) await expect(page.locator('body')).not.toContainText(proibido)
-    expect(await violacoesGraves(page)).toEqual([])
+    await expect(principal(page).getByRole('alert')).toHaveText(MENSAGENS_DE_ERRO.INDISPONIVEL_TENTE_DE_NOVO, { timeout: SIGN_IN_TIMEOUT_MS })
+    for (const proibido of [rawCodePattern('503'), 'INDISPONIVEL']) await expect(page.locator('body')).not.toContainText(proibido)
+    expect(await seriousViolations(page)).toEqual([])
 
     falhar = false
-    await acionar(principal(page).getByRole('button', { name: 'Tentar de novo' }), hasTouch)
-    await expect(principal(page).getByRole('heading', { name: 'Turmas de 2027' })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(principal(page).getByRole('button', { name: 'Tentar de novo' }), hasTouch)
+    await expect(principal(page).getByRole('heading', { name: 'Turmas de 2027' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(principal(page).getByRole('alert')).toHaveCount(0)
 
     // Cada seção tem o seu carregando e o seu erro, e a tela continua em pé quando uma delas falha: as leituras das
     // séries, das disciplinas e das turmas seguradas, e depois recusadas.
-    const seguradas = portao()
+    const seguradas = gate()
     let falharSecoes = true
     for (const rota of ROTAS_DAS_SECOES)
       await page.route(rota, async (pedido: Route) => {
@@ -374,7 +374,7 @@ test.describe('W4 (Estrutura): do vazio ao roteiro, montando a escola pela tela'
       { regiao: doPainelDasSecoes.getByRole('region', { name: 'Disciplinas' }), carregando: 'Carregando as disciplinas…', vazio: 'Nenhuma disciplina ainda' },
     ]
     for (const { regiao, carregando } of [...secoesDoPainel, turmasDaPagina])
-      await expect(regiao.getByRole('status').filter({ hasText: carregando })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+      await expect(regiao.getByRole('status').filter({ hasText: carregando })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await fecharPainel(page, doPainelDasSecoes, hasTouch)
     // O roteiro não diz "falta" do que ainda não leu: mandaria a coordenação criar o que a escola pode já ter.
     const semLeitura = ['Séries · falta', 'Disciplinas · falta', 'Turmas · falta', 'Professores · falta']
@@ -383,31 +383,31 @@ test.describe('W4 (Estrutura): do vazio ao roteiro, montando a escola pela tela'
       for (const passo of semLeitura) await expect(oQueFalta).not.toContainText(passo)
     })
     seguradas.abrir()
-    await expect(turmasDaPagina.regiao.getByRole('alert')).toHaveText(MENSAGENS_DE_ERRO.INDISPONIVEL_TENTE_DE_NOVO, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(turmasDaPagina.regiao.getByRole('alert')).toHaveText(MENSAGENS_DE_ERRO.INDISPONIVEL_TENTE_DE_NOVO, { timeout: SIGN_IN_TIMEOUT_MS })
     const painelComErro = await abrirAnoEDisciplinas(page, hasTouch)
-    for (const { regiao } of secoesDoPainel) await expect(regiao.getByRole('alert')).toHaveText(MENSAGENS_DE_ERRO.INDISPONIVEL_TENTE_DE_NOVO, { timeout: PRAZO_DA_ENTRADA_MS })
+    for (const { regiao } of secoesDoPainel) await expect(regiao.getByRole('alert')).toHaveText(MENSAGENS_DE_ERRO.INDISPONIVEL_TENTE_DE_NOVO, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(painelComErro.getByRole('region', { name: 'Ano letivo' }).getByRole('listitem')).toHaveCount(3)
     // Nem do que falhou.
     await fecharPainel(page, painelComErro, hasTouch)
     await comOQueFalta(page, hasTouch, async (oQueFalta) => {
       for (const passo of semLeitura) await expect(oQueFalta).not.toContainText(passo)
     })
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await seriousViolations(page)).toEqual([])
     falharSecoes = false
     const painelParaTentar = await abrirAnoEDisciplinas(page, hasTouch)
     for (const { regiao, vazio } of secoesDoPainel) {
-      await acionar(regiao.getByRole('button', { name: 'Tentar de novo' }), hasTouch)
-      await expect(regiao).toContainText(vazio, { timeout: PRAZO_DA_ENTRADA_MS })
+      await activate(regiao.getByRole('button', { name: 'Tentar de novo' }), hasTouch)
+      await expect(regiao).toContainText(vazio, { timeout: SIGN_IN_TIMEOUT_MS })
       await expect(regiao.getByRole('alert')).toHaveCount(0)
     }
     await fecharPainel(page, painelParaTentar, hasTouch)
-    await acionar(turmasDaPagina.regiao.getByRole('button', { name: 'Tentar de novo' }), hasTouch)
-    await expect(turmasDaPagina.regiao).toContainText(turmasDaPagina.vazio, { timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(turmasDaPagina.regiao.getByRole('button', { name: 'Tentar de novo' }), hasTouch)
+    await expect(turmasDaPagina.regiao).toContainText(turmasDaPagina.vazio, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(turmasDaPagina.regiao.getByRole('alert')).toHaveCount(0)
     // A leitura dos professores só alimenta o roteiro, e não tem "Tentar de novo" nesta tela: a tela relida, com as leituras de volta,
     // marca o que a escola de fato não tem.
     await page.reload()
-    await expect(turmasDaPagina.regiao).toContainText(turmasDaPagina.vazio, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(turmasDaPagina.regiao).toContainText(turmasDaPagina.vazio, { timeout: SIGN_IN_TIMEOUT_MS })
     await comOQueFalta(page, hasTouch, async (oQueFalta) => {
       for (const passo of semLeitura) await expect(oQueFalta).toContainText(passo)
     })
@@ -427,7 +427,7 @@ test.describe('Escola › Turmas em tabela (X2, 5.0)', () => {
     await entrarComoCoordenacaoNaMesmaAba(page, coordenadora, hasTouch)
     await abrirEstrutura(page, hasTouch)
     const turmas = principal(page).getByRole('region', { name: 'Turmas de 2026' })
-    await expect(linhasDaTabela(turmas).filter({ hasText: alocada.turmaNome })).toContainText('Com professor', { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(linhasDaTabela(turmas).filter({ hasText: alocada.turmaNome })).toContainText('Com professor', { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(linhasDaTabela(turmas).filter({ hasText: alocada.turmaNome })).toContainText(professor.nome)
     // Uma tabela por série (as quatro turmas são do 7º ano), e a marca só nas turmas sem professor.
     await expect(turmas.getByRole('heading', { level: 3 })).toHaveText('7º ano do Ensino Fundamental')
@@ -436,19 +436,19 @@ test.describe('Escola › Turmas em tabela (X2, 5.0)', () => {
     if ((page.viewportSize()?.width ?? 0) >= 768)
       expect(await turmas.getByRole('table').getByRole('columnheader').allTextContents()).toEqual(['Turma', 'Turno', 'Professores', 'Situação', 'Ações'])
     await paginaNaoRola(page)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await seriousViolations(page)).toEqual([])
     // Nada de nome de aluno, de contagem de nomes nem de "sem lista" na tabela: a tela nunca leu a lista (regra 20, item 10).
     await expect(turmas).not.toContainText(/sem lista|nomes na lista/i)
 
     // O filtro "Situação" grava no endereço, sobrevive ao recarregar e a escolha de volta o tira.
-    await acionar(principal(page).getByRole('radio', { name: 'Sem professor' }), hasTouch)
+    await activate(principal(page).getByRole('radio', { name: 'Sem professor' }), hasTouch)
     await expect(page).toHaveURL(/\?situacao=sem-professor$/)
     await expect(linhasDaTabela(turmas)).toHaveCount(3)
     await expect(turmas).not.toContainText(alocada.turmaNome)
     await page.reload()
-    await expect(linhasDaTabela(turmas)).toHaveCount(3, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(linhasDaTabela(turmas)).toHaveCount(3, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(principal(page).getByRole('radio', { name: 'Sem professor' })).toHaveAttribute('aria-checked', 'true')
-    await acionar(principal(page).getByRole('radio', { name: 'Todas' }), hasTouch)
+    await activate(principal(page).getByRole('radio', { name: 'Todas' }), hasTouch)
     await expect(page).toHaveURL(/\/estrutura$/)
     await expect(linhasDaTabela(turmas)).toHaveCount(4)
 
@@ -459,12 +459,12 @@ test.describe('Escola › Turmas em tabela (X2, 5.0)', () => {
     const celula = linhasDaTabela(turmas).filter({ hasText: alvo.nome }).getByText('Sem professor')
     if (hasTouch) await celula.tap({ force: true })
     else await celula.click({ force: true })
-    await expect(principal(page).getByRole('heading', { level: 1, name: `Turma ${alvo.nome}` })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(principal(page).getByRole('heading', { level: 1, name: `Turma ${alvo.nome}` })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await page.goBack()
-    await expect(linhasDaTabela(turmas)).toHaveCount(4, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(linhasDaTabela(turmas)).toHaveCount(4, { timeout: SIGN_IN_TIMEOUT_MS })
 
     // O menu da linha não é capturado pelo link estendido: abre o menu e não a turma.
-    await acionar(turmas.getByRole('button', { name: `Mais ações da turma ${alvo.nome}` }), hasTouch)
+    await activate(turmas.getByRole('button', { name: `Mais ações da turma ${alvo.nome}` }), hasTouch)
     await expect(page.getByRole('menuitem', { name: 'Renomear' })).toBeVisible()
     await expect(page.getByRole('menuitem', { name: 'Excluir' })).toBeVisible()
     await expect(page).toHaveURL(/\/estrutura$/)
@@ -477,7 +477,7 @@ test.describe('Escola › Turmas em tabela (X2, 5.0)', () => {
     const coordenadora = await criarEquipeComSenha('coordenador')
     await montarEstruturaNoBanco(coordenadora.escolaId)
     // O painel pelo endereço só aparece depois dos anos: com a leitura segurada, nada dele existe ainda.
-    const segurada = portao()
+    const segurada = gate()
     await page.route(ROTA_ANOS, async (rota: Route) => {
       if (rota.request().method() === 'GET') await segurada.aberta
       await rota.continue()
@@ -489,19 +489,19 @@ test.describe('Escola › Turmas em tabela (X2, 5.0)', () => {
       window.history.pushState(null, '', '/coordenacao/estrutura?painel=ano')
       window.dispatchEvent(new PopStateEvent('popstate'))
     })
-    await expect(principal(page).getByRole('status').filter({ hasText: 'Carregando a estrutura da escola…' })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(principal(page).getByRole('status').filter({ hasText: 'Carregando a estrutura da escola…' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(painelDoAno(page)).toHaveCount(0)
     segurada.abrir()
     const painel = painelDoAno(page)
-    await expect(painel).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(painel).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(painel.getByRole('region', { name: 'Séries' })).toBeVisible()
     await expect(painel.getByRole('region', { name: 'Disciplinas' })).toBeVisible()
     await expect(painel.getByRole('region', { name: 'Ano letivo' })).toBeVisible()
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await seriousViolations(page)).toEqual([])
 
     // O diálogo por cima do painel: o foco fica preso nele, e o Esc fecha só ele, devolvendo o foco a quem o abriu.
     const nova = painel.getByRole('button', { name: 'Nova disciplina' })
-    await acionar(nova, hasTouch)
+    await activate(nova, hasTouch)
     const daDisciplina = dialogo(page, 'Nova disciplina')
     await expect(daDisciplina.getByLabel('Nome da disciplina')).toBeFocused()
     const dentroDoDialogo = () => page.evaluate(() => document.activeElement?.closest('dialog[open]:not([data-painel-lado])') !== null)
@@ -519,10 +519,10 @@ test.describe('Escola › Turmas em tabela (X2, 5.0)', () => {
       if (rota.request().method() === 'POST') await rota.fulfill({ status: 503, contentType: 'application/json', body: INDISPONIVEL })
       else await rota.continue()
     })
-    await acionar(nova, hasTouch)
+    await activate(nova, hasTouch)
     await daDisciplina.getByLabel('Nome da disciplina').fill(`Artes ${randomUUID().slice(0, 8)}`)
-    await acionar(daDisciplina.getByRole('button', { name: 'Criar disciplina' }), hasTouch)
-    await expect(daDisciplina.getByRole('alert')).toHaveText(MENSAGENS_DE_ERRO.INDISPONIVEL_TENTE_DE_NOVO, { timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(daDisciplina.getByRole('button', { name: 'Criar disciplina' }), hasTouch)
+    await expect(daDisciplina.getByRole('alert')).toHaveText(MENSAGENS_DE_ERRO.INDISPONIVEL_TENTE_DE_NOVO, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(painel).toBeVisible()
     await page.keyboard.press('Escape')
     await expect(daDisciplina).toHaveCount(0)
@@ -565,7 +565,7 @@ test.describe('a lista maior que o que a tela lê', () => {
     await entrarComoCoordenacaoNaMesmaAba(page, coordenadora, hasTouch)
     await abrirEstrutura(page, hasTouch)
     const turmas = principal(page).getByRole('region', { name: 'Turmas de 2026' })
-    await expect(turmas).toContainText('A lista é maior do que esta tela mostra', { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(turmas).toContainText('A lista é maior do que esta tela mostra', { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(linhasDaTabela(turmas)).toHaveCount(10)
     // Dez páginas, cada uma com o limite de 100 e a seguinte pelo `proxima` da anterior; nenhuma a mais.
     expect(new Set(paginas.map((url) => new URL(url).searchParams.get('limite')))).toEqual(new Set(['100']))
@@ -594,7 +594,7 @@ test.describe('renomear e excluir', () => {
     await entrarComoCoordenacaoNaMesmaAba(page, coordenadora, hasTouch)
     await abrirEstrutura(page, hasTouch)
     const turmas = principal(page).getByRole('region', { name: 'Turmas de 2026' })
-    await expect(turmas).toContainText(vazia.nome, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(turmas).toContainText(vazia.nome, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(linhasDaTabela(turmas)).toContainText([comNome.nome, vazia.nome, deOutraPessoa.nome])
     // As séries e as disciplinas moram no painel do ano letivo.
     const painelInicial = await abrirAnoEDisciplinas(page, hasTouch)
@@ -611,18 +611,18 @@ test.describe('renomear e excluir', () => {
     await agirNaTurma(page, turmas, vazia.nome, 'Renomear', hasTouch)
     const renomear = dialogo(page, 'Renomear a turma')
     await renomear.getByLabel('Nome da turma').fill('   ')
-    await acionar(renomear.getByRole('button', { name: 'Salvar nome' }), hasTouch)
+    await activate(renomear.getByRole('button', { name: 'Salvar nome' }), hasTouch)
     await expect(renomear.getByText('Digite o nome novo.')).toBeVisible()
     await expect(renomear.getByLabel('Nome da turma')).toBeFocused()
     await renomear.getByLabel('Nome da turma').fill(comNome.nome)
-    await acionar(renomear.getByRole('button', { name: 'Salvar nome' }), hasTouch)
-    await expect(renomear.getByText('Já existe uma turma com este nome neste ano letivo. Escolha outro.')).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(renomear.getByRole('button', { name: 'Salvar nome' }), hasTouch)
+    await expect(renomear.getByText('Já existe uma turma com este nome neste ano letivo. Escolha outro.')).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(renomear.getByLabel('Nome da turma')).toBeFocused()
     await expect(renomear.getByLabel('Nome da turma')).toHaveAttribute('aria-invalid', 'true')
     const novoNome = `${vazia.nome} renomeada`
     await renomear.getByLabel('Nome da turma').fill(novoNome)
-    await acionar(renomear.getByRole('button', { name: 'Salvar nome' }), hasTouch)
-    await expect(renomear).toHaveCount(0, { timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(renomear.getByRole('button', { name: 'Salvar nome' }), hasTouch)
+    await expect(renomear).toHaveCount(0, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(anuncio(turmas, `Turma renomeada para ${novoNome}.`)).toBeVisible()
     await expect(principal(page).getByRole('status').filter({ hasText: `Turma renomeada para ${novoNome}.` })).toHaveCount(1)
     await expect(turmas).toContainText(novoNome)
@@ -641,14 +641,14 @@ test.describe('renomear e excluir', () => {
     await expect(excluir.getByText(/Só sai a turma vazia/)).toBeFocused()
     await excluir.getByRole('button', { name: 'Excluir turma' }).dblclick()
     const aviso = excluir.getByRole('alert')
-    await expect(aviso).toContainText('ainda tem nomes na lista, professor alocado, pedido de aluno ou acesso da turma em vigor', { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(aviso).toContainText('ainda tem nomes na lista, professor alocado, pedido de aluno ou acesso da turma em vigor', { timeout: SIGN_IN_TIMEOUT_MS })
     // E o que a tela pode e o que não pode desfazer.
     await expect(aviso).toContainText('Os nomes livres saem pela lista de nomes da turma; a alocação, o pedido e o acesso não se desfazem por esta tela.')
     await expect(aviso).toBeFocused()
     expect(exclusoes).toHaveLength(1)
     await expect(excluir.getByRole('button', { name: 'Excluir turma' })).toHaveCount(0)
-    expect(await violacoesGraves(page)).toEqual([])
-    await acionar(excluir.getByRole('button', { name: 'Fechar' }), hasTouch)
+    expect(await seriousViolations(page)).toEqual([])
+    await activate(excluir.getByRole('button', { name: 'Fechar' }), hasTouch)
     await expect(excluir).toHaveCount(0)
     // O foco volta ao botão do menu da linha, que é quem abriu.
     await expect(excluirComNome).toBeFocused()
@@ -656,7 +656,7 @@ test.describe('renomear e excluir', () => {
     await agirNaTurma(page, turmas, comNome.nome, 'Excluir', hasTouch)
     await expect(excluir.getByRole('alert')).toHaveCount(0)
     await expect(excluir.getByText(/Só sai a turma vazia/)).toBeFocused()
-    await acionar(excluir.getByRole('button', { name: 'Cancelar' }), hasTouch)
+    await activate(excluir.getByRole('button', { name: 'Cancelar' }), hasTouch)
     await expect(turmas).toContainText(comNome.nome)
 
     // Falha com o diálogo aberto que muda a lista: outra pessoa da coordenação excluiu a turma enquanto o diálogo estava
@@ -665,54 +665,54 @@ test.describe('renomear e excluir', () => {
     await agirNaTurma(page, turmas, deOutraPessoa.nome, 'Excluir', hasTouch)
     await expect(excluir.getByText(/Só sai a turma vazia/)).toBeFocused()
     await apagarTurmaNoBanco(coordenadora.escolaId, deOutraPessoa.id)
-    await acionar(excluir.getByRole('button', { name: 'Excluir turma' }), hasTouch)
-    await expect(excluir.getByRole('alert')).toHaveText('Esta turma já não existe. A lista foi atualizada.', { timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(excluir.getByRole('button', { name: 'Excluir turma' }), hasTouch)
+    await expect(excluir.getByRole('alert')).toHaveText('Esta turma já não existe. A lista foi atualizada.', { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(excluir.getByRole('button', { name: 'Excluir turma' })).toHaveCount(0)
     await expect(turmas).not.toContainText(deOutraPessoa.nome)
-    await acionar(excluir.getByRole('button', { name: 'Fechar' }), hasTouch)
+    await activate(excluir.getByRole('button', { name: 'Fechar' }), hasTouch)
     await expect(excluir).toHaveCount(0)
     await expect(principal(page).getByRole('heading', { name: 'Turmas de 2026' })).toBeFocused()
 
     // A turma vazia sai; o botão que abriu sai com ela, e o foco vai para o título das turmas.
     await agirNaTurma(page, turmas, novoNome, 'Excluir', hasTouch)
-    await acionar(excluir.getByRole('button', { name: 'Excluir turma' }), hasTouch)
-    await expect(excluir).toHaveCount(0, { timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(excluir.getByRole('button', { name: 'Excluir turma' }), hasTouch)
+    await expect(excluir).toHaveCount(0, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(anuncio(turmas, `Turma ${novoNome} excluída.`)).toBeVisible()
     // O anúncio fica na seção das turmas, e diz o nome: quem saiu foi o cartão dela.
     await expect(linhasDaTabela(turmas).filter({ hasText: novoNome })).toHaveCount(0)
     await expect(principal(page).getByRole('heading', { name: 'Turmas de 2026' })).toBeFocused()
 
     // A escolha da série na turma nova vem na ordem da escola, e não na de criação (o 7º ano nasceu antes do 6º).
-    await acionar(principal(page).getByRole('button', { name: 'Nova turma' }), hasTouch)
+    await activate(principal(page).getByRole('button', { name: 'Nova turma' }), hasTouch)
     const daTurma = dialogo(page, 'Nova turma em 2026')
     await expect(daTurma.getByLabel('Série').locator('option')).toHaveText(SERIES_DO_RECORTE)
-    await acionar(daTurma.getByRole('button', { name: 'Cancelar' }), hasTouch)
+    await activate(daTurma.getByRole('button', { name: 'Cancelar' }), hasTouch)
 
     // Com as sete séries do recorte, não há o que criar: o diálogo diz isso e só oferece "Fechar" (a série nasce no painel do ano letivo).
     const painelDasSeries = await abrirAnoEDisciplinas(page, hasTouch)
-    await acionar(painelDasSeries.getByRole('button', { name: 'Nova série' }), hasTouch)
+    await activate(painelDasSeries.getByRole('button', { name: 'Nova série' }), hasTouch)
     const daSerie = dialogo(page, 'Nova série')
     await expect(daSerie).toContainText('A escola já tem todas as séries')
     await expect(daSerie.getByRole('button', { name: 'Criar série' })).toHaveCount(0)
-    await acionar(daSerie.getByRole('button', { name: 'Fechar' }), hasTouch)
+    await activate(daSerie.getByRole('button', { name: 'Fechar' }), hasTouch)
     await fecharPainel(page, painelDasSeries, hasTouch)
 
     // A série que outra pessoa excluiu com o diálogo da turma nova aberto: a API responde como inexistente, a tela
     // explica, e a escolha e a lista de séries recarregam sem ela.
-    await acionar(principal(page).getByRole('button', { name: 'Nova turma' }), hasTouch)
+    await activate(principal(page).getByRole('button', { name: 'Nova turma' }), hasTouch)
     await daTurma.getByLabel('Série').selectOption({ label: '6º ano do Ensino Fundamental' })
     const turmaNova = `Turma nova ${randomUUID().slice(0, 8)}`
     await daTurma.getByLabel('Nome da turma').fill(turmaNova)
     await apagarSerieNoBanco(coordenadora.escolaId, 'ef_anos_finais', 6)
-    await acionar(daTurma.getByRole('button', { name: 'Criar turma' }), hasTouch)
+    await activate(daTurma.getByRole('button', { name: 'Criar turma' }), hasTouch)
     await expect(daTurma.getByRole('alert')).toHaveText('A série ou o ano letivo mudou enquanto você preenchia. A tela foi atualizada: confira e tente de novo.', {
-      timeout: PRAZO_DA_ENTRADA_MS,
+      timeout: SIGN_IN_TIMEOUT_MS,
     })
     await expect(daTurma.getByLabel('Série').locator('option')).toHaveText(SERIES_DO_RECORTE.slice(1))
     // A série que saiu sai da escolha: o envio seguinte cria a turma na série que a tela mostra, e não reenvia a que a
     // API acabou de recusar.
-    await acionar(daTurma.getByRole('button', { name: 'Criar turma' }), hasTouch)
-    await expect(daTurma).toHaveCount(0, { timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(daTurma.getByRole('button', { name: 'Criar turma' }), hasTouch)
+    await expect(daTurma).toHaveCount(0, { timeout: SIGN_IN_TIMEOUT_MS })
     // A turma nova entra na tabela da série em que a tela a pôs (o 7º ano), e a lista de séries do painel também recarregou sem a que saiu.
     await expect(turmas.locator('div:has(> h3)').filter({ hasText: turmaNova }).getByRole('heading', { level: 3 })).toHaveText('7º ano do Ensino Fundamental')
     const painelDasDisciplinas = await abrirAnoEDisciplinas(page, hasTouch)
@@ -724,31 +724,31 @@ test.describe('renomear e excluir', () => {
     page.on('request', (pedido) => {
       if (pedido.method() === 'PATCH' && new URL(pedido.url()).pathname.startsWith('/v1/disciplinas/')) renomeacoesDeDisciplina.push(pedido)
     })
-    await acionar(disciplinas.getByRole('button', { name: `Renomear a disciplina ${outraDisciplina}` }), hasTouch)
+    await activate(disciplinas.getByRole('button', { name: `Renomear a disciplina ${outraDisciplina}` }), hasTouch)
     const renomearDisciplina = dialogo(page, 'Renomear a disciplina')
     await apagarDisciplinaNoBanco(coordenadora.escolaId, outraDisciplinaId)
     await renomearDisciplina.getByLabel('Nome da disciplina').fill(`${outraDisciplina} nova`)
-    await acionar(renomearDisciplina.getByRole('button', { name: 'Salvar nome' }), hasTouch)
-    await expect(renomearDisciplina.getByRole('alert')).toHaveText('Este item já não existe. A lista foi atualizada.', { timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(renomearDisciplina.getByRole('button', { name: 'Salvar nome' }), hasTouch)
+    await expect(renomearDisciplina.getByRole('alert')).toHaveText('Este item já não existe. A lista foi atualizada.', { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(renomearDisciplina.getByRole('button', { name: 'Salvar nome' })).toHaveCount(0)
     await expect(disciplinas).not.toContainText(outraDisciplina)
     // Sem o botão, o Enter no campo também não manda de novo o que a API acabou de dizer que não existe (contado no fim).
     await renomearDisciplina.getByLabel('Nome da disciplina').press('Enter')
-    await acionar(renomearDisciplina.getByRole('button', { name: 'Fechar' }), hasTouch)
+    await activate(renomearDisciplina.getByRole('button', { name: 'Fechar' }), hasTouch)
     await expect(painelDasDisciplinas.getByRole('heading', { name: 'Disciplinas', exact: true })).toBeFocused()
 
     // Renomear a disciplina que continua lá: o anúncio aparece na seção das disciplinas.
     const renomeada = `${estrutura.disciplina.nome} II`
-    await acionar(disciplinas.getByRole('button', { name: `Renomear a disciplina ${estrutura.disciplina.nome}` }), hasTouch)
+    await activate(disciplinas.getByRole('button', { name: `Renomear a disciplina ${estrutura.disciplina.nome}` }), hasTouch)
     await renomearDisciplina.getByLabel('Nome da disciplina').fill(renomeada)
-    await acionar(renomearDisciplina.getByRole('button', { name: 'Salvar nome' }), hasTouch)
-    await expect(renomearDisciplina).toHaveCount(0, { timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(renomearDisciplina.getByRole('button', { name: 'Salvar nome' }), hasTouch)
+    await expect(renomearDisciplina).toHaveCount(0, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(anuncio(disciplinas, `Disciplina renomeada para ${renomeada}.`)).toBeVisible()
 
     // A disciplina sem professor alocado sai também.
-    await acionar(disciplinas.getByRole('button', { name: `Excluir a disciplina ${renomeada}` }), hasTouch)
-    await acionar(dialogo(page, 'Excluir a disciplina').getByRole('button', { name: 'Excluir disciplina' }), hasTouch)
-    await expect(anuncio(disciplinas, `Disciplina ${renomeada} excluída.`)).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(disciplinas.getByRole('button', { name: `Excluir a disciplina ${renomeada}` }), hasTouch)
+    await activate(dialogo(page, 'Excluir a disciplina').getByRole('button', { name: 'Excluir disciplina' }), hasTouch)
+    await expect(anuncio(disciplinas, `Disciplina ${renomeada} excluída.`)).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(disciplinas.getByRole('listitem').filter({ hasText: renomeada })).toHaveCount(0)
     expect(renomeacoesDeDisciplina).toHaveLength(2)
   })
@@ -770,8 +770,8 @@ test.describe('W12: a Estrutura a 360 px e só com teclado', () => {
     await entrarComoCoordenacaoNaMesmaAba(page, coordenadora, hasTouch)
     await abrirEstrutura(page, hasTouch)
     const turmas = principal(page).getByRole('region', { name: 'Turmas de 2026' })
-    await expect(turmas).toContainText(turma.nome, { timeout: PRAZO_DA_ENTRADA_MS })
-    expect(await larguraExcedente(page)).toBe(0)
+    await expect(turmas).toContainText(turma.nome, { timeout: SIGN_IN_TIMEOUT_MS })
+    expect(await horizontalOverflow(page)).toBe(0)
     // Abaixo de 768 px a tabela vira lista: sem tabela, e a turma e as ações dentro do mesmo cartão.
     await expect(turmas.getByRole('table')).toHaveCount(0)
     await expect(linhasDaTabela(turmas)).toHaveCount(1)
@@ -818,7 +818,7 @@ test.describe('W12: a Estrutura a 360 px e só com teclado', () => {
     const nome = `História ${randomUUID().slice(0, 8)}`
     await page.keyboard.type(nome)
     await page.keyboard.press('Enter')
-    await expect(doDialogo).toHaveCount(0, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(doDialogo).toHaveCount(0, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(novaDisciplina).toBeFocused()
     await expect(painel.getByRole('region', { name: 'Disciplinas' })).toContainText(nome)
     // E o Esc seguinte fecha o painel, e o foco volta ao botão que o abriu.
@@ -829,12 +829,12 @@ test.describe('W12: a Estrutura a 360 px e só com teclado', () => {
     // A turma aberta, com a prévia de uma linha longa, também cabe.
     await abrirTurma(page, turma.nome, hasTouch)
     await principal(page).getByLabel('Lista colada').fill(`${'Nome'.repeat(30)};${'9'.repeat(40)}`)
-    await acionar(principal(page).getByRole('button', { name: 'Ver a prévia' }), hasTouch)
-    await expect(principal(page).getByRole('region', { name: 'Prévia' })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
-    expect(await larguraExcedente(page)).toBe(0)
+    await activate(principal(page).getByRole('button', { name: 'Ver a prévia' }), hasTouch)
+    await expect(principal(page).getByRole('region', { name: 'Prévia' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
+    expect(await horizontalOverflow(page)).toBe(0)
     await alvoDeToque(principal(page).getByRole('button', { name: 'Gravar lista' }), 'Gravar lista')
     await alvoDeToque(principal(page).getByRole('button', { name: 'Ver a prévia' }), 'Ver a prévia')
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await seriousViolations(page)).toEqual([])
   })
 })
 
@@ -850,18 +850,18 @@ test.describe('recomeço da Estrutura', () => {
     await page.goto('/entrar')
     await entrarComoCoordenacaoNaMesmaAba(page, deA, hasTouch)
     await abrirEstrutura(page, hasTouch)
-    await expect(principal(page).getByRole('region', { name: 'Turmas de 2026' })).toContainText(turmaDeA.nome, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(principal(page).getByRole('region', { name: 'Turmas de 2026' })).toContainText(turmaDeA.nome, { timeout: SIGN_IN_TIMEOUT_MS })
     await abrirTurma(page, turmaDeA.nome, hasTouch)
-    await expect(principal(page)).toContainText(nomeDeA, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(principal(page)).toContainText(nomeDeA, { timeout: SIGN_IN_TIMEOUT_MS })
     await abrirNavegacao(page, hasTouch)
-    await acionar(lateral(page).getByRole('button', { name: 'Sair' }), hasTouch)
-    await expect(page).toHaveURL(/\/entrar$/, { timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(lateral(page).getByRole('button', { name: 'Sair' }), hasTouch)
+    await expect(page).toHaveURL(/\/entrar$/, { timeout: SIGN_IN_TIMEOUT_MS })
 
     // A de B entra na mesma aba, sem recarregar. A leitura dos anos fica segurada, e as das séries e das disciplinas também depois que
     // os anos soltam: é aí que a estrutura de A apareceria, vinda do cache, dentro do painel que só a Estrutura de agora desenha.
     const deB = await criarEquipeComSenha('coordenador')
-    const segurada = portao()
-    const seguradasDoPainel = portao()
+    const segurada = gate()
+    const seguradasDoPainel = gate()
     await page.route(ROTA_ANOS, async (rota: Route) => {
       await segurada.aberta
       await rota.continue()
@@ -885,13 +885,13 @@ test.describe('recomeço da Estrutura', () => {
       window.history.pushState(null, '', '/coordenacao/estrutura?painel=ano')
       window.dispatchEvent(new PopStateEvent('popstate'))
     })
-    await expect(principal(page).getByRole('status').filter({ hasText: 'Carregando a estrutura da escola…' })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(principal(page).getByRole('status').filter({ hasText: 'Carregando a estrutura da escola…' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(painelDoAno(page)).toHaveCount(0)
     await nadaDeA()
     // Os anos soltam, e as séries e disciplinas seguem seguradas: o painel abre, e o que o cache de A deixaria nele não aparece.
     segurada.abrir()
     const painel = painelDoAno(page)
-    await expect(painel).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(painel).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await nadaDeA()
     seguradasDoPainel.abrir()
     await expect(painel.getByRole('region', { name: 'Séries' })).toBeVisible()
@@ -902,7 +902,7 @@ test.describe('recomeço da Estrutura', () => {
     await nadaDeA()
     await page.keyboard.press('Escape')
     await expect(painel).toHaveCount(0)
-    await expect(principal(page).getByRole('heading', { name: 'Turmas de 2026' })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(principal(page).getByRole('heading', { name: 'Turmas de 2026' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await nadaDeA()
 
     // Nem pelo endereço da turma de A: a API responde como inexistente, e nada de A aparece.
@@ -910,7 +910,7 @@ test.describe('recomeço da Estrutura', () => {
       window.history.pushState(null, '', destino)
       window.dispatchEvent(new PopStateEvent('popstate'))
     }, `/coordenacao/estrutura/turmas/${turmaDeA.id}`)
-    await expect(principal(page)).toContainText('Esta turma não está no ano letivo em curso', { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(principal(page)).toContainText('Esta turma não está no ano letivo em curso', { timeout: SIGN_IN_TIMEOUT_MS })
     // Na página que já abre sem a turma, o aviso não puxa o foco: isso é de quando ela sai com a tela aberta (16.0).
     await expect(principal(page).getByRole('status').filter({ hasText: 'Esta turma não está no ano letivo em curso' })).not.toBeFocused()
     for (const deOutra of [turmaDeA.nome, nomeDeA]) await expect(page.locator('body')).not.toContainText(deOutra)

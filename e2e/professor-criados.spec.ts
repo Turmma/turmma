@@ -1,13 +1,13 @@
 import { randomUUID } from 'node:crypto'
 import type { Page } from '@playwright/test'
 import { MENSAGENS_DE_ERRO } from '../packages/shared/src/errors/messages.ts'
-import { atividadeSintetica, erroDaApi, portao, versaoAdaptada } from './support/assistente.ts'
-import { abrirNavegacao, entrarPelaApi, entrarPorEmail, escolherNoSeletor, irPelaNavegacao, nomeNoSeletor, PRAZO_DA_ENTRADA_MS, secoes } from './support/casca.ts'
+import { atividadeSintetica, apiError, gate, versaoAdaptada } from './support/assistente.ts'
+import { abrirNavegacao, entrarPelaApi, entrarPorEmail, escolherNoSeletor, irPelaNavegacao, nomeNoSeletor, SIGN_IN_TIMEOUT_MS, secoes } from './support/casca.ts'
 import { criarArtefatoDoVinculo, entrarEmCriados } from './support/professor/criados.ts'
-import { acionar, irPara, PRAZO_DA_TELA_MS } from './support/professor/scenario.ts'
-import { carregarSemRedeLenta, expect, test } from './support/profiles.ts'
+import { activate, irPara, SCREEN_TIMEOUT_MS } from './support/professor/scenario.ts'
+import { loadUnthrottled, expect, test } from './support/profiles.ts'
 import { confirmarVinculosNoBanco, criarAlocacaoDoProfessor, criarEquipeComSenha, criarUsuarioEmOutraEscola } from './support/seed.ts'
-import { larguraExcedente, violacoesGraves } from './support/checks.ts'
+import { horizontalOverflow, seriousViolations } from './support/checks.ts'
 
 /**
  * "Criados" (telas do professor, 5.0; D74, D80; `docs/interface.md` 11.2): o que a professora já gerou, por turma, com os
@@ -38,50 +38,50 @@ function leiturasDaLista(page: Page): { readonly urls: string[] } {
  */
 async function escolher(page: Page, hasTouch: boolean, filtro: 'Tipo' | 'Turma' | 'Estado', opcao: string): Promise<void> {
   if (noComputador(page)) {
-    await acionar(page.getByRole('button', { name: new RegExp(`^${filtro}`) }), hasTouch)
-    await acionar(page.getByRole('menuitemradio', { name: opcao, exact: true }), hasTouch)
+    await activate(page.getByRole('button', { name: new RegExp(`^${filtro}`) }), hasTouch)
+    await activate(page.getByRole('menuitemradio', { name: opcao, exact: true }), hasTouch)
     return
   }
   const dialogo = page.getByRole('dialog', { name: 'Filtrar' })
-  await acionar(page.getByRole('button', { name: /^Filtrar/ }), hasTouch)
+  await activate(page.getByRole('button', { name: /^Filtrar/ }), hasTouch)
   await expect(dialogo).toBeVisible()
-  await acionar(dialogo.getByRole('group', { name: filtro }).getByRole('button', { name: opcao, exact: true }), hasTouch)
-  await acionar(dialogo.getByRole('button', { name: /^Ver / }), hasTouch)
+  await activate(dialogo.getByRole('group', { name: filtro }).getByRole('button', { name: opcao, exact: true }), hasTouch)
+  await activate(dialogo.getByRole('button', { name: /^Ver / }), hasTouch)
   await expect(dialogo).toBeHidden()
 }
 
 test.describe('Criados (D74, D80): o que a professora já gerou', () => {
   test('carregando e erro: o texto de espera, a mensagem do catálogo, e "Tentar de novo" lê de novo e mostra o vazio', async ({ page, hasTouch }) => {
-    const segura = portao()
+    const segura = gate()
     const { api } = await entrarEmCriados(page, {
       antes: ({ api: simulada }) =>
         simulada.trocar('artefatos', async () => {
           await segura.aberta
-          return erroDaApi(503, 'INDISPONIVEL_TENTE_DE_NOVO')
+          return apiError(503, 'INDISPONIVEL_TENTE_DE_NOVO')
         }),
     })
-    await expect(page).toHaveTitle('Criados · Turmma', { timeout: PRAZO_DA_TELA_MS })
+    await expect(page).toHaveTitle('Criados · Turmma', { timeout: SCREEN_TIMEOUT_MS })
     await expect(tituloDaTela(page)).toBeVisible()
     await expect(page.getByText('Carregando o que você já gerou…')).toBeVisible()
     segura.abrir()
-    await expect(page.getByRole('main').getByRole('alert')).toHaveText(MENSAGENS_DE_ERRO.INDISPONIVEL_TENTE_DE_NOVO, { timeout: PRAZO_DA_TELA_MS })
+    await expect(page.getByRole('main').getByRole('alert')).toHaveText(MENSAGENS_DE_ERRO.INDISPONIVEL_TENTE_DE_NOVO, { timeout: SCREEN_TIMEOUT_MS })
     api.trocar('artefatos')
-    await acionar(page.getByRole('button', { name: 'Tentar de novo' }), hasTouch)
-    await expect(page.getByText('Nada gerado ainda')).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
+    await activate(page.getByRole('button', { name: 'Tentar de novo' }), hasTouch)
+    await expect(page.getByText('Nada gerado ainda')).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
   })
 
   test('vazio: "Nada gerado ainda" leva a Ferramentas, sem rolagem para o lado e sem violação de acessibilidade', async ({ page, hasTouch }) => {
     await entrarEmCriados(page)
-    await expect(page.getByText('Nada gerado ainda')).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
-    expect(await larguraExcedente(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
-    await acionar(page.getByRole('button', { name: 'Ir para Ferramentas' }), hasTouch)
-    await expect(page).toHaveURL(/\/professor\/ferramentas$/, { timeout: PRAZO_DA_TELA_MS })
+    await expect(page.getByText('Nada gerado ainda')).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
+    expect(await horizontalOverflow(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
+    await activate(page.getByRole('button', { name: 'Ir para Ferramentas' }), hasTouch)
+    await expect(page).toHaveURL(/\/professor\/ferramentas$/, { timeout: SCREEN_TIMEOUT_MS })
   })
 
   test('vazio: a onça, o título e a ação ficam no mesmo eixo, como no mockup', async ({ page }) => {
     await entrarEmCriados(page)
-    await expect(page.getByText('Nada gerado ainda')).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
+    await expect(page.getByText('Nada gerado ainda')).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
     // Mede o que se vê. A caixa do `<p>` do título ocupa a largura inteira mesmo com o texto à esquerda, e enganaria a conta: por isso o
     // centro do título é o do **texto** (um `Range`), e o do botão é o da caixa dele.
     const centros = await page.evaluate(() => {
@@ -111,9 +111,9 @@ test.describe('Criados (D74, D80): o que a professora já gerou', () => {
         api.porPagina = 1
       },
     })
-    await expect(documentos(page)).toHaveCount(1, { timeout: PRAZO_DA_TELA_MS })
-    await acionar(page.getByRole('button', { name: 'Ver mais' }), hasTouch)
-    await expect(documentos(page)).toHaveCount(2, { timeout: PRAZO_DA_TELA_MS })
+    await expect(documentos(page)).toHaveCount(1, { timeout: SCREEN_TIMEOUT_MS })
+    await activate(page.getByRole('button', { name: 'Ver mais' }), hasTouch)
+    await expect(documentos(page)).toHaveCount(2, { timeout: SCREEN_TIMEOUT_MS })
     await expect(page.getByRole('button', { name: 'Ver mais' })).toHaveCount(0)
     // Os dois são da mesma turma e disciplina: um grupo só, com o nome dela.
     await expect(gruposDe(page)).toHaveText([`${turmaNome} · Química`])
@@ -122,8 +122,8 @@ test.describe('Criados (D74, D80): o que a professora já gerou', () => {
     await expect(documentos(page).nth(1)).toContainText(`Atividade objetiva · ${turmaNome}`)
     // O original não passa por aprovação: não tem selo.
     await expect(documentos(page).nth(1)).not.toContainText('Esperando você')
-    expect(await larguraExcedente(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await horizontalOverflow(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
   })
 
   test('o tipo filtra o que já foi lido, sem ler de novo, e mora no endereço', async ({ page, hasTouch }) => {
@@ -137,7 +137,7 @@ test.describe('Criados (D74, D80): o que a professora já gerou', () => {
       },
     })
     const leituras = leiturasDaLista(page)
-    await expect(documentos(page)).toHaveCount(3, { timeout: PRAZO_DA_TELA_MS })
+    await expect(documentos(page)).toHaveCount(3, { timeout: SCREEN_TIMEOUT_MS })
     await expect(page.getByRole('region', { name: nomeDoGrupo })).toContainText('3 documentos')
     await escolher(page, hasTouch, 'Tipo', 'Plano de aula')
     await expect(page).toHaveURL(/\/professor\/criados\?tipo=plano_de_aula$/)
@@ -159,14 +159,14 @@ test.describe('Criados (D74, D80): o que a professora já gerou', () => {
       },
     })
     const leituras = leiturasDaLista(page)
-    await expect(documentos(page)).toHaveCount(2, { timeout: PRAZO_DA_TELA_MS })
+    await expect(documentos(page)).toHaveCount(2, { timeout: SCREEN_TIMEOUT_MS })
     // Com um estado escolhido o original não passa: ele não tem decisão. Ninguém rejeitou a versão adaptada.
     await escolher(page, hasTouch, 'Estado', 'Rejeitada')
     await expect(page).toHaveURL(/estado=rejeitada/)
     await expect(documentos(page)).toHaveCount(0)
     await expect(page.getByText('Nada com estes filtros')).toBeVisible()
     expect(leituras.urls, 'o estado não lê a lista de novo').toEqual([])
-    await acionar(page.getByRole('button', { name: 'Limpar filtros' }), hasTouch)
+    await activate(page.getByRole('button', { name: 'Limpar filtros' }), hasTouch)
     await expect(page).toHaveURL(/\/professor\/criados$/)
     await expect(documentos(page)).toHaveCount(2)
     await expect(tituloDaTela(page)).toBeFocused()
@@ -180,11 +180,11 @@ test.describe('Criados (D74, D80): o que a professora já gerou', () => {
       },
     })
     const leituras = leiturasDaLista(page)
-    await expect(documentos(page)).toHaveCount(2, { timeout: PRAZO_DA_TELA_MS })
+    await expect(documentos(page)).toHaveCount(2, { timeout: SCREEN_TIMEOUT_MS })
     await expect(gruposDe(page)).toHaveText([`${turmaNome} · Química`, 'Outra turma'])
     await escolher(page, hasTouch, 'Turma', turmaNome)
     await expect(page).toHaveURL(new RegExp(`/professor/criados\\?turma=${turmaId}$`))
-    await expect(documentos(page)).toHaveCount(1, { timeout: PRAZO_DA_TELA_MS })
+    await expect(documentos(page)).toHaveCount(1, { timeout: SCREEN_TIMEOUT_MS })
     await expect(documentos(page)).toContainText('Atividade de estequiometria')
     expect(leituras.urls).toContain(`/v1/artefatos?turmaId=${turmaId}`)
   })
@@ -195,15 +195,15 @@ test.describe('Criados (D74, D80): o que a professora já gerou', () => {
         api.artefatos = [atividadeSintetica(turmaId, disciplinaId, { titulo: 'Plano de eletroquímica', tipo: 'plano_de_aula' }), atividadeSintetica(turmaId, disciplinaId, { titulo: 'Atividade de estequiometria' })]
       },
     })
-    await expect(documentos(page)).toHaveCount(2, { timeout: PRAZO_DA_TELA_MS })
+    await expect(documentos(page)).toHaveCount(2, { timeout: SCREEN_TIMEOUT_MS })
     // O filtro é do endereço: ligar um, abrir um documento e voltar tem de devolver a lista com ele.
     await irPara(page, '/professor/criados?tipo=atividade_objetiva')
     await expect(documentos(page)).toHaveCount(1)
-    await acionar(documentos(page).getByRole('link'), hasTouch)
-    await expect(page.getByRole('heading', { level: 1, name: 'Atividade de estequiometria' })).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
+    await activate(documentos(page).getByRole('link'), hasTouch)
+    await expect(page.getByRole('heading', { level: 1, name: 'Atividade de estequiometria' })).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
     await page.goBack()
     await expect(page).toHaveURL(/\/professor\/criados\?tipo=atividade_objetiva$/)
-    await expect(documentos(page)).toHaveCount(1, { timeout: PRAZO_DA_TELA_MS })
+    await expect(documentos(page)).toHaveCount(1, { timeout: SCREEN_TIMEOUT_MS })
     await expect(documentos(page)).toContainText('Atividade de estequiometria')
     await expect(page.getByText('Plano de eletroquímica')).toHaveCount(0)
   })
@@ -223,7 +223,7 @@ test.describe('Criados (D74, D80): o que a professora já gerou', () => {
       await abrirNavegacao(page, hasTouch)
       await expect(secoes(page).getByRole('link', { name: 'Criados' }), `${String(largura)} px`).toHaveAttribute('aria-current', 'page')
       await expect(secoes(page).getByRole('link', { name: 'Ferramentas' })).not.toHaveAttribute('aria-current', 'page')
-      expect(await larguraExcedente(page), `${String(largura)} px`).toBe(0)
+      expect(await horizontalOverflow(page), `${String(largura)} px`).toBe(0)
       await irPelaNavegacao(page, 'Turmas', hasTouch)
       await expect(page).toHaveURL(/\/professor\/turmas$/)
     }
@@ -239,20 +239,20 @@ test.describe('Criados (D74, D80): o que a professora já gerou', () => {
     const alocacaoDaSegunda = await criarAlocacaoDoProfessor(segunda.escolaId, segunda.usuarioId, ['Química'])
     await confirmarVinculosNoBanco(segunda.escolaId, alocacaoDaSegunda.vinculoIds)
     // A primeira abre Criados já com a turma no endereço: é a chave que a segunda vai pedir, e que o cache só guarda se a leitura foi essa.
-    // A primeira carga não afirma nada sobre o tempo de baixar (`carregarSemRedeLenta`); o que vem depois, sim.
-    await carregarSemRedeLenta(page, async () => {
+    // A primeira carga não afirma nada sobre o tempo de baixar (`loadUnthrottled`); o que vem depois, sim.
+    await loadUnthrottled(page, async () => {
       await entrarPelaApi(page, primeira, `/professor/criados?turma=${alocacao.turmaId}`)
-      await expect(documentos(page)).toContainText(confidencial, { timeout: PRAZO_DA_TELA_MS })
+      await expect(documentos(page)).toContainText(confidencial, { timeout: SCREEN_TIMEOUT_MS })
     })
 
     if (hasTouch) await page.getByRole('button', { name: 'Sair' }).tap()
     else await page.getByRole('button', { name: 'Sair' }).click()
-    await expect(page).toHaveURL(/\/entrar$/, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page).toHaveURL(/\/entrar$/, { timeout: SIGN_IN_TIMEOUT_MS })
     // Pela tela, sem recarregar: a recarga apagaria o cache, e o cache é o que este caso quer ver esvaziado.
     await entrarPorEmail(page, segunda, hasTouch)
-    await expect(page).toHaveURL(/\/professor\/nova-conversa$/, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page).toHaveURL(/\/professor\/nova-conversa$/, { timeout: SIGN_IN_TIMEOUT_MS })
     await irPara(page, `/professor/criados?turma=${alocacao.turmaId}`)
-    await expect(page.getByText('Nada com estes filtros')).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
+    await expect(page.getByText('Nada com estes filtros')).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
     await expect(documentos(page)).toHaveCount(0)
     await expect(page.locator('body')).not.toContainText(confidencial)
     await expect(page.locator('body')).not.toContainText(primeira.nome)
@@ -276,14 +276,14 @@ test.describe('Criados (D74, D80): o que a professora já gerou', () => {
 
     await entrarPelaApi(page, professora, '/professor/criados')
     // Sem filtro: só o dela, na turma dela.
-    await expect(documentos(page)).toHaveCount(1, { timeout: PRAZO_DA_TELA_MS })
+    await expect(documentos(page)).toHaveCount(1, { timeout: SCREEN_TIMEOUT_MS })
     await expect(documentos(page)).toContainText(tituloDela)
     await expect(gruposDe(page)).toHaveText([`${alocacao.turmaNome} · Química`])
     await expect(page.locator('body')).not.toContainText(tituloDeFora)
 
     // A turma da escola vizinha, no endereço: nada, e a tela não diz que a turma existe.
     await irPara(page, `/professor/criados?turma=${deFora.turmaId}`)
-    await expect(page.getByText('Nada com estes filtros')).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
+    await expect(page.getByText('Nada com estes filtros')).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
     await expect(documentos(page)).toHaveCount(0)
     await expect(page.locator('body')).not.toContainText(tituloDeFora)
     await expect(page.locator('body')).not.toContainText(alocacaoDaVizinha.turmaNome)
@@ -291,7 +291,7 @@ test.describe('Criados (D74, D80): o que a professora já gerou', () => {
 
     // Uma turma que não existe em lugar nenhum responde igual (regra 10, item 6): o texto da tela é o mesmo.
     await irPara(page, `/professor/criados?turma=${randomUUID()}`)
-    await expect(page.getByText('Nada com estes filtros')).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
+    await expect(page.getByText('Nada com estes filtros')).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
     expect(await page.getByRole('main').innerText()).toBe(comTurmaDeFora)
   })
 
@@ -310,24 +310,24 @@ test.describe('Criados (D74, D80): o que a professora já gerou', () => {
     await confirmarVinculosNoBanco(emB.escolaId, alocacaoB.vinculoIds)
     await criarArtefatoDoVinculo(emB.escolaId, alocacaoB.vinculoIds[0] ?? '', emB.usuarioId, tituloDeB)
 
-    // A primeira carga não afirma nada sobre o tempo de baixar (`carregarSemRedeLenta`); a troca de escola e o que vem depois, sim.
-    await carregarSemRedeLenta(page, async () => {
+    // A primeira carga não afirma nada sobre o tempo de baixar (`loadUnthrottled`); a troca de escola e o que vem depois, sim.
+    await loadUnthrottled(page, async () => {
       await entrarPelaApi(page, emA, '/professor/criados', emA.usuarioId)
-      await expect(documentos(page)).toHaveCount(1, { timeout: PRAZO_DA_TELA_MS })
+      await expect(documentos(page)).toHaveCount(1, { timeout: SCREEN_TIMEOUT_MS })
       await expect(documentos(page)).toContainText(tituloDeA)
     })
 
     await escolherNoSeletor(page, nomeNoSeletor(emB, 'professor'), hasTouch)
-    await expect(page).toHaveURL(/\/professor\/nova-conversa$/, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page).toHaveURL(/\/professor\/nova-conversa$/, { timeout: SIGN_IN_TIMEOUT_MS })
     await irPelaNavegacao(page, 'Criados', hasTouch)
-    await expect(documentos(page)).toHaveCount(1, { timeout: PRAZO_DA_TELA_MS })
+    await expect(documentos(page)).toHaveCount(1, { timeout: SCREEN_TIMEOUT_MS })
     await expect(documentos(page)).toContainText(tituloDeB)
     await expect(page.locator('body')).not.toContainText(tituloDeA)
     await expect(page.locator('body')).not.toContainText(alocacaoA.turmaNome)
 
     // A turma da escola A, no endereço, já na B: a mesma pessoa, mas a escola ativa é outra. Responde como o filtro sem resultado.
     await irPara(page, `/professor/criados?turma=${alocacaoA.turmaId}`)
-    await expect(page.getByText('Nada com estes filtros')).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
+    await expect(page.getByText('Nada com estes filtros')).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
     await expect(documentos(page)).toHaveCount(0)
     await expect(page.locator('body')).not.toContainText(tituloDeA)
     await expect(page.locator('body')).not.toContainText(alocacaoA.turmaNome)

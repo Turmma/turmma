@@ -7,11 +7,11 @@ import {
   entrarComoProfessoraPelaApi,
   esperarPainel,
   irPelaNavegacao,
-  PRAZO_DA_ENTRADA_MS,
+  SIGN_IN_TIMEOUT_MS,
 } from './support/casca.ts'
 import { expect, test } from './support/profiles.ts'
 import { colocarAlunoNaTurma, criarAlunoComMatricula, criarEquipeComSenha } from './support/seed.ts'
-import { larguraExcedente } from './support/checks.ts'
+import { horizontalOverflow } from './support/checks.ts'
 
 /**
  * O título de toda tela aberta pela lateral (X1, tarefa 11.0; RF12 e RF23; `docs/interface.md` 11.2): o `h1` aparece, com
@@ -70,7 +70,7 @@ interface CaixaDoTitulo {
 /** O `h1` da tela aberta: um só, e a caixa que o navegador deu a ele. */
 async function caixaDoTitulo(page: Page): Promise<CaixaDoTitulo> {
   const titulo = page.getByRole('main').getByRole('heading', { level: 1 })
-  await expect(titulo).toHaveCount(1, { timeout: PRAZO_DA_ENTRADA_MS })
+  await expect(titulo).toHaveCount(1, { timeout: SIGN_IN_TIMEOUT_MS })
   return titulo.evaluate((elemento) => {
     const estilo = getComputedStyle(elemento)
     const caixa = elemento.getBoundingClientRect()
@@ -115,12 +115,12 @@ function conferirTituloEscondido(caixa: CaixaDoTitulo, texto: string): void {
 async function percorrer(page: Page, itens: readonly Item[], hasTouch: boolean): Promise<void> {
   for (const item of itens) {
     await irPelaNavegacao(page, item.rotulo, hasTouch)
-    await expect(page).toHaveTitle(`${item.titulo ?? item.rotulo} · Turmma`, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page).toHaveTitle(`${item.titulo ?? item.rotulo} · Turmma`, { timeout: SIGN_IN_TIMEOUT_MS })
     const caixa = await caixaDoTitulo(page)
     if (item.escondido) conferirTituloEscondido(caixa, item.rotulo)
     else conferirTituloVisivel(caixa, item.rotulo)
     // A 360 px o título maior não pode empurrar a página para o lado (RF23).
-    expect(await larguraExcedente(page), item.rotulo).toBe(0)
+    expect(await horizontalOverflow(page), item.rotulo).toBe(0)
   }
 }
 
@@ -167,15 +167,15 @@ test.describe('o título nos estados da tela', () => {
 
     // Vazio: o título e, embaixo dele, o que a tela diz para quem ainda não foi alocado.
     await irPelaNavegacao(page, 'Turmas', hasTouch)
-    await expect(page.getByText('A coordenação ainda não alocou você')).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page.getByText('A coordenação ainda não alocou você')).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     conferirTituloVisivel(await caixaDoTitulo(page), 'Turmas')
 
     // Erro: a mensagem do catálogo, com "Tentar de novo", e o título no lugar dele.
     resposta = 'falha'
     await page.reload()
-    await expect(page.getByRole('alert')).toContainText(MENSAGENS_DE_ERRO.INDISPONIVEL_TENTE_DE_NOVO, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page.getByRole('alert')).toContainText(MENSAGENS_DE_ERRO.INDISPONIVEL_TENTE_DE_NOVO, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(page.getByRole('button', { name: 'Tentar de novo' })).toBeVisible()
     conferirTituloVisivel(await caixaDoTitulo(page), 'Turmas')
-    expect(await larguraExcedente(page)).toBe(0)
+    expect(await horizontalOverflow(page)).toBe(0)
   })
 })

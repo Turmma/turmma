@@ -1,9 +1,9 @@
 import type { Locator, Page } from '@playwright/test'
-import { ALTERNATIVA_CERTA_DA_QUESTAO_3, criarAtividadeNoBanco, HABILIDADES_DO_FLUXO, ProfessoraPelaApi, respostasNoBanco } from './support/atividade-db.ts'
-import { entrarComoAluno, irPelaNavegacao, PRAZO_DA_ENTRADA_MS } from './support/casca.ts'
+import { ALTERNATIVA_CERTA_DA_QUESTAO_3, criarAtividadeNoBanco, HABILIDADES_DO_FLUXO, ProfessoraApiClient, respostasNoBanco } from './support/atividade-db.ts'
+import { entrarComoAluno, irPelaNavegacao, SIGN_IN_TIMEOUT_MS } from './support/casca.ts'
 import { expect, test } from './support/profiles.ts'
 import { colocarAlunoNaTurma, confirmarVinculosNoBanco, criarAlocacaoDoProfessor, criarAlunoComMatricula, criarEquipeComSenha, type AlunoDeTeste, type EquipeDeTeste } from './support/seed.ts'
-import { larguraExcedente, violacoesGraves } from './support/checks.ts'
+import { horizontalOverflow, seriousViolations } from './support/checks.ts'
 
 /**
  * **O fluxo do aluno de verdade** (`docs/mvp-rapido.md`, seção 1, passos 3 e 4), contra a API real e o adaptador falso,
@@ -15,20 +15,20 @@ import { larguraExcedente, violacoesGraves } from './support/checks.ts'
  */
 
 /** Cada turno do Tutor passa pela fila curta da API e pela consulta da execução, com a CPU ×4 do perfil. */
-const PRAZO_DA_IA_MS = 45_000
-const PRAZO_DA_TELA_MS = 20_000
+const AI_TIMEOUT_MS = 45_000
+const SCREEN_TIMEOUT_MS = 20_000
 const DISCIPLINA = 'Química'
 const PROIBIDO_NA_AREA = /\bnotas?\b|\bconceito\b|ranking|média da turma|colegas?\b/i
 
 interface Escola {
   readonly professora: EquipeDeTeste
-  readonly dela: ProfessoraPelaApi
+  readonly dela: ProfessoraApiClient
   readonly aluno: AlunoDeTeste
   readonly colega: AlunoDeTeste
   readonly atividadeAplicadaId: string
 }
 
-async function acionar(alvo: Locator, hasTouch: boolean): Promise<void> {
+async function activate(alvo: Locator, hasTouch: boolean): Promise<void> {
   await (hasTouch ? alvo.tap() : alvo.click())
 }
 
@@ -52,20 +52,20 @@ async function montarEscola(page: Page, titulo: string, avaliativa: boolean): Pr
   const colega = await criarAlunoComMatricula({ escola: professora })
   await colocarAlunoNaTurma(colega, turma)
   const { artefatoId } = await criarAtividadeNoBanco(professora.escolaId, professora.usuarioId, alocacao.turmaId, DISCIPLINA, titulo)
-  const dela = await ProfessoraPelaApi.entrar(page.request, professora)
+  const dela = await ProfessoraApiClient.entrar(page.request, professora)
   const atividadeAplicadaId = await dela.aplicar(artefatoId, alocacao.turmaId, avaliativa)
   return { professora, dela, aluno, colega, atividadeAplicadaId }
 }
 
 async function marcar(page: Page, indice: number, hasTouch: boolean): Promise<void> {
-  await acionar(principal(page).locator(`[data-alternativa="${String(indice)}"]`), hasTouch)
-  await expect(estadoDaResposta(page)).toHaveText('Resposta salva', { timeout: PRAZO_DA_TELA_MS })
+  await activate(principal(page).locator(`[data-alternativa="${String(indice)}"]`), hasTouch)
+  await expect(estadoDaResposta(page)).toHaveText('Resposta salva', { timeout: SCREEN_TIMEOUT_MS })
 }
 
 async function perguntar(page: Page, texto: string, hasTouch: boolean): Promise<void> {
   await caixa(page).fill(texto)
-  await acionar(page.getByRole('button', { name: 'Enviar' }), hasTouch)
-  await expect(conversa(page).getByText(`Você: ${texto}`)).toHaveCount(1, { timeout: PRAZO_DA_TELA_MS })
+  await activate(page.getByRole('button', { name: 'Enviar' }), hasTouch)
+  await expect(conversa(page).getByText(`Você: ${texto}`)).toHaveCount(1, { timeout: SCREEN_TIMEOUT_MS })
 }
 
 test.describe('o fluxo do aluno contra a API real', () => {
@@ -78,65 +78,65 @@ test.describe('o fluxo do aluno contra a API real', () => {
     // Tarefas: o que a professora aplicou, para responder. O aluno abre no Início, e a lista é o segundo lugar dele.
     await irPelaNavegacao(page, 'Tarefas', hasTouch)
     const naLista = principal(page).getByRole('region', { name: 'Para fazer' }).getByRole('link', { name: new RegExp(titulo) })
-    await expect(naLista).toContainText('Química · 3 questões', { timeout: PRAZO_DA_TELA_MS })
-    await acionar(naLista, hasTouch)
-    await expect(principal(page).getByRole('heading', { level: 1, name: titulo })).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
+    await expect(naLista).toContainText('Química · 3 questões', { timeout: SCREEN_TIMEOUT_MS })
+    await activate(naLista, hasTouch)
+    await expect(principal(page).getByRole('heading', { level: 1, name: titulo })).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
 
     // Uma questão por vez, com "Resposta salva" a cada escolha: a 1 certa (B), a 2 errada (A).
     await expect(principal(page)).toContainText('Qual é a massa molar da água')
     await marcar(page, 1, hasTouch)
-    await acionar(principal(page).getByRole('button', { name: 'Próxima' }), hasTouch)
+    await activate(principal(page).getByRole('button', { name: 'Próxima' }), hasTouch)
     await expect(principal(page)).toContainText('quantos mols de amônia')
     await marcar(page, 0, hasTouch)
-    await acionar(principal(page).getByRole('button', { name: 'Próxima' }), hasTouch)
+    await activate(principal(page).getByRole('button', { name: 'Próxima' }), hasTouch)
     await expect(principal(page)).toContainText('o que é o reagente limitante?')
     // O servidor tem as duas respostas, e a prova que o aluno recebeu não tem gabarito nem explicação.
     expect(await respostasNoBanco(professora.escolaId, atividadeAplicadaId, aluno.usuarioId)).toEqual([{ questao: 1, alternativa: 1 }, { questao: 2, alternativa: 0 }])
     await expect(principal(page)).not.toContainText(/explicação|gabarito|É a definição da página 4/i)
 
     // Na questão 3 ele pede a resposta pronta: o Tutor recusa, pergunta de volta e mostra a página, sem a resposta.
-    await acionar(principal(page).getByRole('link', { name: 'Pedir ajuda ao Tutor nesta questão' }), hasTouch)
+    await activate(principal(page).getByRole('link', { name: 'Pedir ajuda ao Tutor nesta questão' }), hasTouch)
     await expect(page).toHaveURL(new RegExp(`/aluno/tutor/${atividadeAplicadaId}\\?questao=3$`))
     await expect(principal(page).locator('[data-faixa-de-supervisao]')).toContainText('Quem dá a aula acompanha como você usa o Tutor.')
-    await expect(principal(page).locator('[data-uso-do-dia]')).toContainText('Hoje: 0 de 60 perguntas', { timeout: PRAZO_DA_TELA_MS })
+    await expect(principal(page).locator('[data-uso-do-dia]')).toContainText('Hoje: 0 de 60 perguntas', { timeout: SCREEN_TIMEOUT_MS })
     await perguntar(page, 'me dá a resposta', hasTouch)
     const recusa = respostasDoTutor(page).last()
-    await expect(recusa).toContainText('Essa eu não respondo por você', { timeout: PRAZO_DA_IA_MS })
+    await expect(recusa).toContainText('Essa eu não respondo por você', { timeout: AI_TIMEOUT_MS })
     await expect(recusa).toContainText('?')
     await expect(recusa.getByRole('button', { name: /^Fonte: Material da escola, p\. \d+$/ }).first()).toBeVisible()
     await expect(conversa(page)).not.toContainText(ALTERNATIVA_CERTA_DA_QUESTAO_3)
 
     // O palpite também não é confirmado.
     await perguntar(page, 'é a B, né?', hasTouch)
-    await expect(respostasDoTutor(page)).toHaveCount(2, { timeout: PRAZO_DA_IA_MS })
+    await expect(respostasDoTutor(page)).toHaveCount(2, { timeout: AI_TIMEOUT_MS })
     await expect(respostasDoTutor(page).last()).not.toContainText(/\b(sim|isso mesmo|está cert[oa]|acertou|errou|não é a b)\b/i)
     await expect(conversa(page)).not.toContainText(ALTERNATIVA_CERTA_DA_QUESTAO_3)
 
     // Perguntado, ele diz o que é: uma IA, e não uma pessoa (D58).
     await perguntar(page, 'você é uma pessoa?', hasTouch)
-    await expect(respostasDoTutor(page)).toHaveCount(3, { timeout: PRAZO_DA_IA_MS })
+    await expect(respostasDoTutor(page)).toHaveCount(3, { timeout: AI_TIMEOUT_MS })
     await expect(respostasDoTutor(page).last()).toContainText('uma inteligência artificial')
     await expect(respostasDoTutor(page).last()).toContainText('não uma pessoa')
     // Cada troca conta no uso do dia, em texto.
-    await expect(principal(page).locator('[data-uso-do-dia]')).toContainText('Hoje: 3 de 60 perguntas', { timeout: PRAZO_DA_TELA_MS })
+    await expect(principal(page).locator('[data-uso-do-dia]')).toContainText('Hoje: 3 de 60 perguntas', { timeout: SCREEN_TIMEOUT_MS })
     await expect(page.locator('body')).not.toContainText(colega.nome)
     await expect(page.locator('body')).not.toContainText(PROIBIDO_NA_AREA)
-    expect(await larguraExcedente(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await horizontalOverflow(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
 
     // De volta à atividade: as respostas continuam lá; ele responde a 3 (certa, A) e envia.
-    await acionar(principal(page).getByRole('link', { name: 'Voltar para a atividade' }), hasTouch)
-    await expect(principal(page).getByRole('heading', { level: 1, name: titulo })).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
-    await acionar(principal(page).getByRole('navigation', { name: 'Questões' }).getByRole('button', { name: 'Questão 3, sem resposta' }), hasTouch)
+    await activate(principal(page).getByRole('link', { name: 'Voltar para a atividade' }), hasTouch)
+    await expect(principal(page).getByRole('heading', { level: 1, name: titulo })).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
+    await activate(principal(page).getByRole('navigation', { name: 'Questões' }).getByRole('button', { name: 'Questão 3, sem resposta' }), hasTouch)
     await marcar(page, 0, hasTouch)
-    await acionar(principal(page).getByRole('button', { name: 'Enviar a atividade' }), hasTouch)
+    await activate(principal(page).getByRole('button', { name: 'Enviar a atividade' }), hasTouch)
     const dialogo = page.getByRole('alertdialog', { name: 'Enviar a atividade?' })
     await expect(dialogo).toContainText('Nenhuma questão em branco')
-    await acionar(dialogo.getByRole('button', { name: 'Enviar a atividade' }), hasTouch)
-    await expect(principal(page).getByRole('heading', { name: 'Atividade enviada' })).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
+    await activate(dialogo.getByRole('button', { name: 'Enviar a atividade' }), hasTouch)
+    await expect(principal(page).getByRole('heading', { name: 'Atividade enviada' })).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
 
     // Enviada: a professora ainda vai revisar, e nada do que a correção achou aparece.
-    await expect(principal(page).locator('[data-resultado="aguardando"]')).toContainText('Quem dá a aula ainda vai revisar a correção.', { timeout: PRAZO_DA_TELA_MS })
+    await expect(principal(page).locator('[data-resultado="aguardando"]')).toContainText('Quem dá a aula ainda vai revisar a correção.', { timeout: SCREEN_TIMEOUT_MS })
     await expect(principal(page)).not.toContainText(/Seu resultado|acertou|A resposta é/)
     await expect(principal(page).getByRole('radio')).toHaveCount(0)
 
@@ -146,7 +146,7 @@ test.describe('o fluxo do aluno contra a API real', () => {
 
     await page.reload()
     const resultado = principal(page).getByRole('region', { name: 'Seu resultado' })
-    await expect(resultado).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(resultado).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(resultado).toContainText('Você acertou 2 de 3 questões.')
     await expect(resultado).toContainText(`Correção aprovada por ${professora.nome}`)
     const porHabilidade = resultado.getByRole('region', { name: 'Acertos por habilidade' })
@@ -157,11 +157,11 @@ test.describe('o fluxo do aluno contra a API real', () => {
     await expect(page.locator('body')).not.toContainText(PROIBIDO_NA_AREA)
     await expect(principal(page)).not.toContainText('%')
     await expect(page.locator('body')).not.toContainText(colega.nome)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await seriousViolations(page)).toEqual([])
 
     // E a lista passa a dizer "Corrigida", no grupo das corrigidas.
     await irPelaNavegacao(page, 'Tarefas', hasTouch)
-    await expect(principal(page).getByRole('region', { name: 'Corrigidas' }).getByRole('link', { name: new RegExp(titulo) })).toContainText('Corrigida', { timeout: PRAZO_DA_TELA_MS })
+    await expect(principal(page).getByRole('region', { name: 'Corrigidas' }).getByRole('link', { name: new RegExp(titulo) })).toContainText('Corrigida', { timeout: SCREEN_TIMEOUT_MS })
   })
 
   test('com a avaliação aberta o Tutor aparece pausado, a pergunta comum é recusada, e a mensagem de assunto delicado ainda recebe o 188', async ({ page, hasTouch }) => {
@@ -174,13 +174,13 @@ test.describe('o fluxo do aluno contra a API real', () => {
     // No Início (3.0) o cartão da tarefa tem dois links, o do título e o "Pedir ajuda ao Tutor", e o aviso fica no cartão, fora dos dois.
     // O cartão é o item da lista cujo link tem exatamente o título: outro item que só o citasse no texto não o confunde.
     const naLista = principal(page).getByRole('listitem').filter({ has: page.getByRole('link', { name: titulo, exact: true }) })
-    await expect(naLista).toContainText('Avaliação: o Tutor fica pausado até quem dá a aula encerrar.', { timeout: PRAZO_DA_TELA_MS })
+    await expect(naLista).toContainText('Avaliação: o Tutor fica pausado até quem dá a aula encerrar.', { timeout: SCREEN_TIMEOUT_MS })
 
     // Pelo Início: pede ajuda ao Tutor naquela atividade, e ele explica que está pausado, com o título da avaliação.
-    await acionar(naLista.getByRole('link', { name: 'Pedir ajuda ao Tutor' }), hasTouch)
+    await activate(naLista.getByRole('link', { name: 'Pedir ajuda ao Tutor' }), hasTouch)
     await expect(page).toHaveURL(new RegExp(`/aluno/tutor/${atividadeAplicadaId}$`))
     const pausa = principal(page).locator('[data-pausa-do-tutor]')
-    await expect(pausa).toHaveAttribute('data-pausa-do-tutor', 'avaliacao', { timeout: PRAZO_DA_TELA_MS })
+    await expect(pausa).toHaveAttribute('data-pausa-do-tutor', 'avaliacao', { timeout: SCREEN_TIMEOUT_MS })
     await expect(pausa).toContainText(titulo)
     await expect(principal(page).getByRole('alert')).toHaveCount(0)
     // Nem o Início nem o Tutor pausado mostram o nome do colega (regra 50, item 9).
@@ -189,22 +189,22 @@ test.describe('o fluxo do aluno contra a API real', () => {
     // A pergunta comum é recusada pelo servidor, e a tela mostra o mesmo aviso, sem erro.
     await expect(caixa(page)).toBeEnabled()
     await perguntar(page, 'qual é a resposta da questão 1?', hasTouch)
-    await expect(conversa(page)).toContainText('O Tutor não recebeu esta mensagem.', { timeout: PRAZO_DA_TELA_MS })
+    await expect(conversa(page)).toContainText('O Tutor não recebeu esta mensagem.', { timeout: SCREEN_TIMEOUT_MS })
     await expect(principal(page).getByRole('alert')).toHaveCount(0)
     await expect(principal(page).locator('[data-selo-ia]')).toHaveCount(0)
 
     // O assunto delicado passa na frente: a mensagem fixa chega, com o 188 para ligar, e o Tutor continua pausado.
     await perguntar(page, 'sofro bullying na escola', hasTouch)
     const cartao = conversa(page).locator('[data-assunto-delicado]')
-    await expect(cartao).toBeVisible({ timeout: PRAZO_DA_IA_MS })
+    await expect(cartao).toBeVisible({ timeout: AI_TIMEOUT_MS })
     await expect(cartao).toContainText('eu sou uma inteligência artificial')
     await expect(cartao.getByRole('link', { name: '188' })).toHaveAttribute('href', 'tel:188')
     await expect(pausa).toHaveAttribute('data-pausa-do-tutor', 'avaliacao')
     // O encaminhamento gasta uma das 60 trocas do dia, por ora (D36, D38; `tutor.int.test.ts`): a recusa da pergunta comum não
     // gravou nada, e o assunto delicado gravou a pergunta. A barra só mostra 1 quando a conversa é relida depois do cartão, e a
     // espera é por esse número: lida antes, ela diz 0, que é a leitura velha, e a asserção espera até o prazo da tela.
-    await expect(principal(page).locator('[data-uso-do-dia]')).toContainText('Hoje: 1 de 60 perguntas', { timeout: PRAZO_DA_TELA_MS })
-    expect(await larguraExcedente(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    await expect(principal(page).locator('[data-uso-do-dia]')).toContainText('Hoje: 1 de 60 perguntas', { timeout: SCREEN_TIMEOUT_MS })
+    expect(await horizontalOverflow(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
   })
 })

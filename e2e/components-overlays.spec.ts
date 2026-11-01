@@ -1,7 +1,7 @@
 import type { Locator, Page } from '@playwright/test'
 import { expect, test } from './support/profiles.ts'
-import { abrirGaleria, acionar, caixa, conferirQueOFocoNaoCaiu, desenho, secao } from './support/gallery.ts'
-import { ALVO_DE_TOQUE_PRINCIPAL_PX, corDoToken, focoVisivel, larguraExcedente, larguraExcedenteDoDialogo, violacoesGraves } from './support/checks.ts'
+import { openGallery, activate, caixa, conferirQueOFocoNaoCaiu, desenho, gallerySection } from './support/gallery.ts'
+import { ALVO_DE_TOQUE_PRINCIPAL_PX, corDoToken, isFocusVisible, horizontalOverflow, larguraExcedenteDoDialogo, seriousViolations } from './support/checks.ts'
 
 /**
  * As peças do MVP de apresentação (`docs/mvp-rapido.md` 9.3; `docs/interface.md` 11.1 e 11.3), na galeria (`/galeria`),
@@ -38,8 +38,8 @@ function estaDentro(alvo: Locator): Promise<boolean> {
 test.describe('peças do MVP de apresentação, na galeria', () => {
   // Este caso era um só, de 8,3 s na máquina e 20,7 s no `celular` da esteira (execução 40880199949); são dois, que abrem a galeria cada um.
   test('abas pelo teclado: uma parada só no Tab, as setas trocam de aba e levam o foco junto', async ({ page }) => {
-    await abrirGaleria(page)
-    const abas = secao(page, 'abas')
+    await openGallery(page)
+    const abas = gallerySection(page, 'abas')
     const lista = abas.getByRole('tablist', { name: 'Seções da turma' })
     const painel = abas.getByRole('tabpanel').first()
     await expect(lista.getByRole('tab')).toHaveCount(3)
@@ -60,7 +60,7 @@ test.describe('peças do MVP de apresentação, na galeria', () => {
     const alunos = lista.getByRole('tab', { name: /Alunos/ })
     await expect(alunos).toHaveAttribute('aria-selected', 'true')
     await expect(alunos).toBeFocused()
-    expect(await focoVisivel(page)).toBe(true)
+    expect(await isFocusVisible(page)).toBe(true)
     await expect(painel).toHaveText('Conteúdo de Alunos.')
     // O contador diz o que conta, e quem usa a peça é que diz o quê.
     await expect(alunos).toHaveText(/2 pedidos de nome/)
@@ -83,15 +83,15 @@ test.describe('peças do MVP de apresentação, na galeria', () => {
   })
 
   test('menu pelo teclado: a seta abre, as setas pulam o item desligado, a letra busca, o Esc devolve o foco, e o toque fora só fecha', async ({ page, hasTouch }) => {
-    await abrirGaleria(page)
+    await openGallery(page)
     // O menu: a seta para baixo abre com o foco no primeiro item, e as setas pulam o desligado.
-    const bloco = secao(page, 'selecao-e-menu')
+    const bloco = gallerySection(page, 'selecao-e-menu')
     const botao = bloco.getByRole('button', { name: 'Ações da atividade' })
     await botao.focus()
     await page.keyboard.press('ArrowDown')
     const menu = page.getByRole('menu', { name: 'Ações da atividade' })
     await expect(menu.getByRole('menuitem', { name: 'Exportar em PDF' })).toBeFocused()
-    expect(await focoVisivel(page)).toBe(true)
+    expect(await isFocusVisible(page)).toBe(true)
     // A letra com Ctrl é atalho do navegador, e não busca no menu; sozinha, leva ao item que começa por ela.
     await page.keyboard.press('Control+g')
     await expect(menu.getByRole('menuitem', { name: 'Exportar em PDF' })).toBeFocused()
@@ -101,7 +101,7 @@ test.describe('peças do MVP de apresentação, na galeria', () => {
     // "Aplicar à turma" está desligado: a seta vai direto ao "Excluir".
     await expect(menu.getByRole('menuitem', { name: 'Excluir' })).toBeFocused()
     await expect(menu.getByRole('menuitem', { name: /Aplicar à turma/ })).toHaveAttribute('aria-disabled', 'true')
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await seriousViolations(page)).toEqual([])
     await page.keyboard.press('Home')
     await expect(menu.getByRole('menuitem', { name: 'Exportar em PDF' })).toBeFocused()
 
@@ -126,7 +126,7 @@ test.describe('peças do MVP de apresentação, na galeria', () => {
     await expect(bloco.locator('[data-acao]')).toHaveText('')
     await expect(vizinho).not.toHaveAttribute('inert')
     // O controle: com o menu fechado, o mesmo toque aciona o vizinho.
-    await acionar(vizinho, hasTouch)
+    await activate(vizinho, hasTouch)
     await expect(bloco.locator('[data-acao]')).toHaveText('Escolhido: vizinho')
     await botao.focus()
 
@@ -151,8 +151,8 @@ test.describe('peças do MVP de apresentação, na galeria', () => {
   })
 
   test('o menu que abre logo depois de uma rolagem fica aberto: o evento de rolagem que sobrou de antes do clique não o fecha', async ({ page }) => {
-    await abrirGaleria(page)
-    const bloco = secao(page, 'selecao-e-menu')
+    await openGallery(page)
+    const bloco = gallerySection(page, 'selecao-e-menu')
     const botao = bloco.getByRole('button', { name: 'Ações da atividade' })
     const menu = page.getByRole('menu', { name: 'Ações da atividade' })
     await botao.scrollIntoViewIfNeeded()
@@ -186,12 +186,12 @@ test.describe('peças do MVP de apresentação, na galeria', () => {
   // abrem a galeria cada um e dividem o que ele afirmava, na mesma ordem e sem tirar asserção: o runner leva uns três vezes o
   // tempo da máquina nos casos que são só CPU ×4 (a galeria não chama a API).
   test('o diálogo de confirmação: o que vai acontecer e o aviso são lidos ao abrir, o foco não começa em confirmar e volta para onde dá', async ({ page, hasTouch }) => {
-    await abrirGaleria(page)
-    const bloco = secao(page, 'confirmacao')
+    await openGallery(page)
+    const bloco = gallerySection(page, 'confirmacao')
     const gatilho = bloco.getByRole('button', { name: 'Aprovar 32 correções' })
     const decisao = bloco.locator('[data-decisao]')
 
-    await acionar(gatilho, hasTouch)
+    await activate(gatilho, hasTouch)
     const oficial = page.getByRole('alertdialog', { name: 'Aprovar 32 correções' })
     await expect(oficial).toBeVisible()
     // O que vai acontecer, antes de confirmar: a atividade, a turma, quantas correções, e o efeito (regra 50, item 8).
@@ -210,7 +210,7 @@ test.describe('peças do MVP de apresentação, na galeria', () => {
     expect((await caixa(cancelar)).height).toBe((await caixa(aprovar)).height)
     expect((await caixa(cancelar)).height).toBeGreaterThanOrEqual(ALVO_DE_TOQUE_PRINCIPAL_PX)
     expect(await larguraExcedenteDoDialogo(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await seriousViolations(page)).toEqual([])
     // O Esc cancela, sem decidir, e o foco volta ao botão que abriu.
     await page.keyboard.press('Escape')
     await expect(oficial).toHaveCount(0)
@@ -218,26 +218,26 @@ test.describe('peças do MVP de apresentação, na galeria', () => {
     await expect(gatilho).toBeFocused()
 
     // Em andamento: o botão que confirma desliga e diz o que está fazendo; cancelar continua valendo.
-    await acionar(bloco.getByRole('button', { name: 'Ver a confirmação em andamento' }), hasTouch)
+    await activate(bloco.getByRole('button', { name: 'Ver a confirmação em andamento' }), hasTouch)
     await expect(oficial.getByRole('button', { name: 'Aprovando…' })).toBeDisabled()
     await expect(oficial.getByRole('button', { name: 'Cancelar' })).toBeEnabled()
     await page.keyboard.press('Escape')
     await expect(bloco.getByRole('button', { name: 'Ver a confirmação em andamento' })).toBeFocused()
 
     // Com falha: o texto diz o que fazer, e dá para tentar de novo.
-    await acionar(bloco.getByRole('button', { name: 'Ver a confirmação com falha' }), hasTouch)
+    await activate(bloco.getByRole('button', { name: 'Ver a confirmação com falha' }), hasTouch)
     await expect(oficial.getByRole('alert')).toHaveText('Não foi possível aprovar. Tente de novo em instantes.')
     await expect(oficial.getByRole('button', { name: 'Aprovar 32 correções' })).toBeEnabled()
     await page.keyboard.press('Escape')
   })
 
   test('rejeitar o lote pede o motivo: de 8 a 500 caracteres, contados sem o espaço das pontas, e o botão que confirma é o vermelho', async ({ page, hasTouch }) => {
-    await abrirGaleria(page)
-    const bloco = secao(page, 'confirmacao')
+    await openGallery(page)
+    const bloco = gallerySection(page, 'confirmacao')
     const decisao = bloco.locator('[data-decisao]')
 
     // Rejeitar pede o motivo: sem ele, de 8 a 500 caracteres, o botão que confirma fica desligado.
-    await acionar(bloco.getByRole('button', { name: 'Rejeitar o lote' }), hasTouch)
+    await activate(bloco.getByRole('button', { name: 'Rejeitar o lote' }), hasTouch)
     const rejeicao = page.getByRole('alertdialog', { name: 'Rejeitar 32 correções' })
     const rejeitar = rejeicao.getByRole('button', { name: 'Rejeitar 32 correções' })
     const motivo = rejeicao.getByLabel('Motivo da rejeição')
@@ -257,14 +257,14 @@ test.describe('peças do MVP de apresentação, na galeria', () => {
     await expect(rejeitar).toBeEnabled()
     expect(await desenho(rejeitar)).toMatchObject({ fundo: RGB.vermelho })
     expect(await larguraExcedenteDoDialogo(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
-    await acionar(rejeitar, hasTouch)
+    expect(await seriousViolations(page)).toEqual([])
+    await activate(rejeitar, hasTouch)
     await expect(decisao).toHaveText('Rejeitado')
   })
 
   test('a ação de perigo com aviso suspende a função, e aprovar pelo teclado leva o foco ao resultado', async ({ page, hasTouch }) => {
-    await abrirGaleria(page)
-    const bloco = secao(page, 'confirmacao')
+    await openGallery(page)
+    const bloco = gallerySection(page, 'confirmacao')
     const gatilho = bloco.getByRole('button', { name: 'Aprovar 32 correções' })
     const decisao = bloco.locator('[data-decisao]')
     const oficial = page.getByRole('alertdialog', { name: 'Aprovar 32 correções' })
@@ -274,7 +274,7 @@ test.describe('peças do MVP de apresentação, na galeria', () => {
     // leitor de tela ouve ao abrir (a descrição do diálogo), e não só do que se vê.
     const suspender = bloco.getByRole('button', { name: 'Suspender a função' })
     expect(await desenho(suspender)).toMatchObject({ fundo: RGB.superficie, texto: RGB.vermelhoTexto })
-    await acionar(suspender, hasTouch)
+    await activate(suspender, hasTouch)
     const perigo = page.getByRole('alertdialog', { name: 'Suspender a correção de objetiva' })
     await expect(perigo).toContainText('A suspensão fica na auditoria da escola.')
     const descricao = await perigo.evaluate((dialogo) => document.getElementById(dialogo.getAttribute('aria-describedby') ?? '')?.textContent ?? '')
@@ -282,7 +282,7 @@ test.describe('peças do MVP de apresentação, na galeria', () => {
     expect(descricao).toContain('A suspensão fica na auditoria da escola.')
     const confirmar = perigo.getByRole('button', { name: 'Suspender a função' })
     expect(await desenho(confirmar)).toMatchObject({ fundo: RGB.vermelho })
-    await acionar(confirmar, hasTouch)
+    await activate(confirmar, hasTouch)
     await expect(perigo).toHaveCount(0)
     await expect(decisao).toHaveText('Suspensa')
 
@@ -299,10 +299,10 @@ test.describe('peças do MVP de apresentação, na galeria', () => {
     await conferirQueOFocoNaoCaiu(page)
   })
   test('o diálogo comum: o Tab e o Shift+Tab não saem dele, o Esc fecha e o foco volta ao botão que abriu', async ({ page, hasTouch }) => {
-    await abrirGaleria(page)
-    const bloco = secao(page, 'dialogo')
+    await openGallery(page)
+    const bloco = gallerySection(page, 'dialogo')
     const gatilho = bloco.getByRole('button', { name: 'Nova disciplina' })
-    await acionar(gatilho, hasTouch)
+    await activate(gatilho, hasTouch)
     const dialogo = page.getByRole('dialog', { name: 'Nova disciplina' })
     await expect(dialogo).toBeVisible()
 
@@ -339,13 +339,13 @@ test.describe('peças do MVP de apresentação, na galeria', () => {
 
     // O que foi digitado vai ao resultado, e o foco volta ao botão que abriu.
     await dialogo.getByLabel('Nome da disciplina').fill('Química orgânica')
-    await acionar(dialogo.getByRole('button', { name: 'Criar disciplina' }), hasTouch)
+    await activate(dialogo.getByRole('button', { name: 'Criar disciplina' }), hasTouch)
     await expect(dialogo).toHaveCount(0)
     await expect(bloco.locator('[data-dialogo-resultado]')).toHaveText('Disciplina criada: Química orgânica')
     await expect(gatilho).toBeFocused()
 
     // O Esc cancela, sem criar nada, e o foco volta ao mesmo botão.
-    await acionar(gatilho, hasTouch)
+    await activate(gatilho, hasTouch)
     await expect(dialogo).toBeVisible()
     await page.keyboard.press('Escape')
     await expect(dialogo).toHaveCount(0)
@@ -354,15 +354,15 @@ test.describe('peças do MVP de apresentação, na galeria', () => {
   })
 
   test('o Esc de dentro do menu fecha o menu, e não o diálogo atrás: o seguinte é que fecha o diálogo', async ({ page, hasTouch }) => {
-    await abrirGaleria(page)
-    const bloco = secao(page, 'dialogo')
+    await openGallery(page)
+    const bloco = gallerySection(page, 'dialogo')
     const gatilho = bloco.getByRole('button', { name: 'Atribuir à turma' })
-    await acionar(gatilho, hasTouch)
+    await activate(gatilho, hasTouch)
     const dialogo = page.getByRole('dialog', { name: 'Atribuir à turma' })
     await expect(dialogo).toBeVisible()
 
     const botao = dialogo.getByRole('button', { name: /2ºB · Química/ })
-    await acionar(botao, hasTouch)
+    await activate(botao, hasTouch)
     const menu = page.getByRole('menu')
     await expect(menu).toBeVisible()
     // O menu aberto dentro do diálogo cabe na janela, e o Esc é dele.
@@ -373,8 +373,8 @@ test.describe('peças do MVP de apresentação, na galeria', () => {
     await expect(botao).toBeFocused()
 
     // Escolher fecha o menu, troca o rótulo e deixa o diálogo onde estava.
-    await acionar(botao, hasTouch)
-    await acionar(menu.getByRole('menuitemradio', { name: '1ºA · Química' }), hasTouch)
+    await activate(botao, hasTouch)
+    await activate(menu.getByRole('menuitemradio', { name: '1ºA · Química' }), hasTouch)
     await expect(menu).toHaveCount(0)
     await expect(dialogo.getByRole('button', { name: /1ºA · Química/ })).toBeFocused()
     await expect(dialogo).toBeVisible()
@@ -386,11 +386,11 @@ test.describe('peças do MVP de apresentação, na galeria', () => {
   })
 
   test('a confirmação de perigo: o foco começa no texto, os dois botões têm a mesma altura e, depois de excluir, o foco vai ao resultado', async ({ page, hasTouch }) => {
-    await abrirGaleria(page)
-    const bloco = secao(page, 'dialogo')
+    await openGallery(page)
+    const bloco = gallerySection(page, 'dialogo')
     const resultado = bloco.locator('[data-dialogo-resultado]')
     const gatilho = bloco.getByRole('button', { name: 'Excluir a turma 2ºB' })
-    await acionar(gatilho, hasTouch)
+    await activate(gatilho, hasTouch)
     const confirmacao = page.getByRole('dialog', { name: 'Excluir a turma 2ºB' })
     await expect(confirmacao).toBeVisible()
     const excluir = confirmacao.getByRole('button', { name: 'Excluir a turma' })
@@ -403,9 +403,9 @@ test.describe('peças do MVP de apresentação, na galeria', () => {
     expect(await desenho(excluir)).toMatchObject({ fundo: RGB.vermelho })
     expect((await caixa(excluir)).height).toBe((await caixa(cancelar)).height)
     expect(await larguraExcedenteDoDialogo(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await seriousViolations(page)).toEqual([])
 
-    await acionar(excluir, hasTouch)
+    await activate(excluir, hasTouch)
     await expect(confirmacao).toHaveCount(0)
     await expect(resultado).toHaveText('Turma excluída: 2ºB')
     // O gatilho desligou com o que fez: o foco não cai no `body`, vai para o resultado.
@@ -414,15 +414,15 @@ test.describe('peças do MVP de apresentação, na galeria', () => {
   })
 
   test('a confirmação oficial e a de perigo: dois botões do mesmo tamanho, cancelar antes de confirmar, lado a lado no computador e empilhados no celular', async ({ page, hasTouch }) => {
-    await abrirGaleria(page)
-    const bloco = secao(page, 'confirmacao')
+    await openGallery(page)
+    const bloco = gallerySection(page, 'confirmacao')
     const largura = page.viewportSize()?.width ?? 0
     const casos = [
       { gatilho: 'Aprovar 32 correções', dialogo: 'Aprovar 32 correções', confirmar: 'Aprovar 32 correções' },
       { gatilho: 'Suspender a função', dialogo: 'Suspender a correção de objetiva', confirmar: 'Suspender a função' },
     ] as const
     for (const caso of casos) {
-      await acionar(bloco.getByRole('button', { name: caso.gatilho }), hasTouch)
+      await activate(bloco.getByRole('button', { name: caso.gatilho }), hasTouch)
       const confirmacao = page.getByRole('alertdialog', { name: caso.dialogo })
       await expect(confirmacao).toBeVisible()
       const botoes = confirmacao.locator('[data-botoes-da-confirmacao] button')
@@ -466,10 +466,10 @@ test.describe('peças do MVP de apresentação, na galeria', () => {
   })
 
   test('o painel ao lado: 480 px colados à direita no computador, folha de baixo no celular, e o foco entra no miolo', async ({ page, hasTouch }) => {
-    await abrirGaleria(page)
-    const bloco = secao(page, 'painel-lado')
+    await openGallery(page)
+    const bloco = gallerySection(page, 'painel-lado')
     const gatilho = bloco.getByRole('button', { name: 'Abrir o painel da turma 2ºB' })
-    await acionar(gatilho, hasTouch)
+    await activate(gatilho, hasTouch)
     const painel = page.getByRole('dialog', { name: 'Turma 2ºB · Química' })
     await expect(painel).toBeVisible()
     const janela = page.viewportSize()
@@ -490,7 +490,7 @@ test.describe('peças do MVP de apresentação, na galeria', () => {
       expect(medida.height).toBeLessThanOrEqual(janela.height * 0.88 + 1)
     }
     expect(await larguraExcedenteDoDialogo(page)).toBe(0)
-    expect(await larguraExcedente(page)).toBe(0)
+    expect(await horizontalOverflow(page)).toBe(0)
 
     // O foco entra no miolo, e não no "Fechar"; o miolo é comprido e rola por dentro, sem a página junto.
     const miolo = painel.locator('[data-painel-miolo]')
@@ -503,15 +503,15 @@ test.describe('peças do MVP de apresentação, na galeria', () => {
     expect(fechar.height).toBeGreaterThanOrEqual(ALVO_DE_TOQUE_PRINCIPAL_PX)
     const cabecalho = await painel.getByRole('heading', { name: 'Turma 2ºB · Química' }).evaluate((titulo) => titulo.parentElement?.getBoundingClientRect().height ?? 0)
     expect(cabecalho).toBeGreaterThanOrEqual(64)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await seriousViolations(page)).toEqual([])
   })
 
   test('o painel ao lado: foco preso, o Esc do menu é do menu, o toque fora não fecha, e o foco volta a quem abriu ou ao resultado', async ({ page, hasTouch }) => {
-    await abrirGaleria(page)
-    const bloco = secao(page, 'painel-lado')
+    await openGallery(page)
+    const bloco = gallerySection(page, 'painel-lado')
     const gatilho = bloco.getByRole('button', { name: 'Abrir o painel da turma 2ºB' })
     const resultado = bloco.locator('[data-painel-resultado]')
-    await acionar(gatilho, hasTouch)
+    await activate(gatilho, hasTouch)
     const painel = page.getByRole('dialog', { name: 'Turma 2ºB · Química' })
     await expect(painel).toBeVisible()
 
@@ -529,7 +529,7 @@ test.describe('peças do MVP de apresentação, na galeria', () => {
 
     // O Esc do menu de dentro fecha o menu, e o painel fica.
     const ordem = painel.getByRole('button', { name: /Ordem por nome/ })
-    await acionar(ordem, hasTouch)
+    await activate(ordem, hasTouch)
     const menu = page.getByRole('menu')
     await expect(menu).toBeVisible()
     await page.keyboard.press('Escape')
@@ -545,20 +545,20 @@ test.describe('peças do MVP de apresentação, na galeria', () => {
     await expect(painel).toBeVisible()
 
     // O "Fechar" fecha, e o foco volta ao botão que abriu.
-    await acionar(painel.getByRole('button', { name: 'Fechar' }), hasTouch)
+    await activate(painel.getByRole('button', { name: 'Fechar' }), hasTouch)
     await expect(painel).toHaveCount(0)
     await expect(gatilho).toBeFocused()
 
     // O Esc também fecha, e o foco volta ao mesmo botão.
-    await acionar(gatilho, hasTouch)
+    await activate(gatilho, hasTouch)
     await expect(painel).toBeVisible()
     await page.keyboard.press('Escape')
     await expect(painel).toHaveCount(0)
     await expect(gatilho).toBeFocused()
 
     // Aplicar fecha com o botão que abriu desligado: o foco não cai no `body`, vai para o resultado (`focoDeReserva`).
-    await acionar(gatilho, hasTouch)
-    await acionar(painel.getByRole('button', { name: 'Aplicar' }), hasTouch)
+    await activate(gatilho, hasTouch)
+    await activate(painel.getByRole('button', { name: 'Aplicar' }), hasTouch)
     await expect(painel).toHaveCount(0)
     await expect(resultado).toHaveText('Painel aplicado: ordem por nome')
     await expect(gatilho).toBeDisabled()
@@ -567,10 +567,10 @@ test.describe('peças do MVP de apresentação, na galeria', () => {
   })
 
   test('o item do menu e o "Fechar" do painel têm 44 px de alto, e o menu aberto no painel cabe na janela', async ({ page, hasTouch }) => {
-    await abrirGaleria(page)
-    await acionar(secao(page, 'painel-lado').getByRole('button', { name: 'Abrir o painel da turma 2ºB' }), hasTouch)
+    await openGallery(page)
+    await activate(gallerySection(page, 'painel-lado').getByRole('button', { name: 'Abrir o painel da turma 2ºB' }), hasTouch)
     const painel = page.getByRole('dialog', { name: 'Turma 2ºB · Química' })
-    await acionar(painel.getByRole('button', { name: /Ordem por nome/ }), hasTouch)
+    await activate(painel.getByRole('button', { name: /Ordem por nome/ }), hasTouch)
     const itens = page.getByRole('menu').getByRole('menuitemradio')
     await expect(itens).toHaveCount(2)
     for (const item of await itens.all()) {
@@ -580,7 +580,7 @@ test.describe('peças do MVP de apresentação, na galeria', () => {
     const menu = await caixa(page.getByRole('menu'))
     expect(menu.x).toBeGreaterThanOrEqual(0)
     expect(menu.x + menu.width).toBeLessThanOrEqual(janela?.width ?? 0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await seriousViolations(page)).toEqual([])
   })
 
   // Um caso por tema e por peça aberta: os quatro em sequência num caso só levavam 12 s aqui e 31,7 s no runner da esteira
@@ -588,13 +588,13 @@ test.describe('peças do MVP de apresentação, na galeria', () => {
   for (const tema of TEMAS) {
     for (const aberto of ABERTOS) {
       test(`${aberto.nome}, no tema ${tema}: ${aberto.borda}, véu do tema, sem violação do axe`, async ({ page, hasTouch }) => {
-        await abrirGaleria(page)
+        await openGallery(page)
         await page.evaluate((valor) => document.documentElement.setAttribute('data-tema', valor), tema)
         const veuEsperado = tema === 'claro' ? 'rgba(0, 0, 0, 0.35)' : 'rgba(0, 0, 0, 0.6)'
         const borda = await corDoToken(page, 'borda')
         const alvo = aberto.alvo(page)
 
-        await acionar(secao(page, aberto.bloco).getByRole('button', { name: aberto.gatilho }), hasTouch)
+        await activate(gallerySection(page, aberto.bloco).getByRole('button', { name: aberto.gatilho }), hasTouch)
         await expect(alvo).toBeVisible()
         const estilo = await alvo.evaluate((dialogo) => {
           const caixaDoDialogo = getComputedStyle(dialogo)
@@ -631,7 +631,7 @@ test.describe('peças do MVP de apresentação, na galeria', () => {
           const oficial = await desenho(alvo.getByRole('button', { name: aberto.gatilho }))
           expect(oficial.fundo, `${aberto.gatilho}: oficial`).not.toBe(await corDoToken(page, 'vermelho'))
         }
-        expect(await violacoesGraves(page), `${aberto.bloco}: axe`).toEqual([])
+        expect(await seriousViolations(page), `${aberto.bloco}: axe`).toEqual([])
         await page.keyboard.press('Escape')
         await expect(alvo).toHaveCount(0)
       })

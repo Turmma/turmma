@@ -6,7 +6,7 @@ import type { Page } from '@playwright/test'
  * apareceu, porque o Playwright confere a asserção em degraus (100, 250, 500 e 1000 ms) e o relógio lido no instante em que
  * ele a percebe conta o degrau, e não o produto: com o dado já na tela, o caso passava de 5 s na esteira (5018 e 5117 ms).
  */
-export async function vigiarODado(page: Page): Promise<void> {
+export async function watchData(page: Page): Promise<void> {
   await page.addInitScript(() => {
     const w = window as unknown as { __dadoApareceuEm?: number }
     // Só a seção "Componentes" (a mesma de `esperarEstadoComDado`): outro item da página que dissesse "API" e "Disponível" não conta.
@@ -20,7 +20,7 @@ export async function vigiarODado(page: Page): Promise<void> {
   })
 }
 
-/** O que `vigiarODado` gravou na página, ou `undefined` se o dado ainda não apareceu (ou se a vigia veio depois do `goto`). */
-export function instanteGravado(page: Page): Promise<number | undefined> {
+/** O que `watchData` gravou na página, ou `undefined` se o dado ainda não apareceu (ou se a vigia veio depois do `goto`). */
+export function recordedInstant(page: Page): Promise<number | undefined> {
   return page.evaluate(() => (window as unknown as { __dadoApareceuEm?: number }).__dadoApareceuEm)
 }

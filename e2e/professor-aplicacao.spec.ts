@@ -1,9 +1,9 @@
 import { randomUUID } from 'node:crypto'
 import { MENSAGENS_DE_ERRO } from '../packages/shared/src/errors/messages.ts'
-import { atividadeSintetica, erroDaApi, loteSintetico, portao, versaoAdaptada } from './support/assistente.ts'
+import { atividadeSintetica, apiError, loteSintetico, gate, versaoAdaptada } from './support/assistente.ts'
 import { principal } from './support/professor-flow.ts'
-import { acionar, entrar, irPara, PRAZO_DA_TELA_MS } from './support/professor/scenario.ts'
-import { larguraExcedente, larguraExcedenteDoDialogo, violacoesGraves } from './support/checks.ts'
+import { activate, entrar, irPara, SCREEN_TIMEOUT_MS } from './support/professor/scenario.ts'
+import { horizontalOverflow, larguraExcedenteDoDialogo, seriousViolations } from './support/checks.ts'
 import { expect, test } from './support/profiles.ts'
 
 /**
@@ -24,39 +24,39 @@ test.describe('aplicar à turma e encerrar, no artefato (A3)', () => {
     // "Na turma" do documento, que também abre pelo endereço (`?aba=turma`).
     await irPara(page, `/professor/artefatos/${pendente.artefato.id}?aba=turma`)
     const naTurma = page.locator('[data-aplicacao-do-artefato]')
-    await expect(naTurma).toContainText('Esta versão adaptada só pode ser aplicada à turma depois que você aprovar.', { timeout: PRAZO_DA_TELA_MS })
+    await expect(naTurma).toContainText('Esta versão adaptada só pode ser aplicada à turma depois que você aprovar.', { timeout: SCREEN_TIMEOUT_MS })
     await expect(page.getByRole('button', { name: 'Aplicar à turma' })).toHaveCount(0)
 
     // Carregando e com falha, a seção não afirma que a atividade não foi aplicada, nem oferece "Aplicar à turma".
-    const segura = portao()
+    const segura = gate()
     api.trocar('aplicadas', async () => {
       await segura.aberta
-      return erroDaApi(503, 'INDISPONIVEL_TENTE_DE_NOVO')
+      return apiError(503, 'INDISPONIVEL_TENTE_DE_NOVO')
     })
     // A recarga esquece a lista que a versão adaptada já leu (é a mesma turma), e a tela lê de novo.
     await page.reload()
-    await expect(page.getByRole('main').getByRole('heading', { level: 1 })).toBeAttached({ timeout: PRAZO_DA_TELA_MS })
+    await expect(page.getByRole('main').getByRole('heading', { level: 1 })).toBeAttached({ timeout: SCREEN_TIMEOUT_MS })
     await irPara(page, `/professor/artefatos/${atividade.id}`)
     // O documento abre em Conteúdo, que não oferece aplicar: a professora vai à aba "Na turma" pelo clique.
-    await expect(page.getByRole('tab', { name: 'Conteúdo', selected: true })).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
+    await expect(page.getByRole('tab', { name: 'Conteúdo', selected: true })).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
     await expect(page.getByRole('button', { name: 'Aplicar à turma' })).toHaveCount(0)
-    await acionar(page.getByRole('tab', { name: 'Na turma' }), hasTouch)
+    await activate(page.getByRole('tab', { name: 'Na turma' }), hasTouch)
     await expect(page).toHaveURL(new RegExp(`/professor/artefatos/${atividade.id}\\?aba=turma$`))
-    await expect(naTurma.getByText('Carregando as aplicações desta atividade…')).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
+    await expect(naTurma.getByText('Carregando as aplicações desta atividade…')).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
     await expect(naTurma).not.toContainText('ainda não foi aplicada')
     await expect(page.getByRole('button', { name: 'Aplicar à turma' })).toHaveCount(0)
     segura.abrir()
-    await expect(naTurma.getByRole('alert')).toHaveText(MENSAGENS_DE_ERRO.INDISPONIVEL_TENTE_DE_NOVO, { timeout: PRAZO_DA_TELA_MS })
+    await expect(naTurma.getByRole('alert')).toHaveText(MENSAGENS_DE_ERRO.INDISPONIVEL_TENTE_DE_NOVO, { timeout: SCREEN_TIMEOUT_MS })
     await expect(naTurma).not.toContainText('ainda não foi aplicada')
     await expect(page.getByRole('button', { name: 'Aplicar à turma' })).toHaveCount(0)
     api.trocar('aplicadas')
-    await acionar(naTurma.getByRole('button', { name: 'Tentar de novo' }), hasTouch)
-    await expect(naTurma).toContainText('Esta atividade ainda não foi aplicada.', { timeout: PRAZO_DA_TELA_MS })
+    await activate(naTurma.getByRole('button', { name: 'Tentar de novo' }), hasTouch)
+    await expect(naTurma).toContainText('Esta atividade ainda não foi aplicada.', { timeout: SCREEN_TIMEOUT_MS })
     const aplicar = page.getByRole('button', { name: 'Aplicar à turma' })
     // Decisão da professora, registrada: o botão é o preto. O ponteiro sai de cima dele: o "Tentar de novo" estava ali.
     if (!hasTouch) await page.mouse.move(0, 0)
     expect(await aplicar.evaluate((botao) => getComputedStyle(botao).backgroundColor)).toBe('rgb(51, 51, 51)')
-    await acionar(aplicar, hasTouch)
+    await activate(aplicar, hasTouch)
     const dialogo = page.getByRole('alertdialog', { name: 'Aplicar à turma' })
     await expect(dialogo).toContainText(atividade.titulo)
     await expect(dialogo).toContainText(turmaNome)
@@ -67,26 +67,26 @@ test.describe('aplicar à turma e encerrar, no artefato (A3)', () => {
     await expect(dialogo).toContainText('O Tutor continua disponível para a turma, conduzindo por perguntas.')
     await expect(dialogo).toContainText('O Tutor fica pausado para a turma até você encerrar a atividade.')
     // Sem escolher, nada é aplicado.
-    await acionar(dialogo.getByRole('button', { name: 'Aplicar à turma' }), hasTouch)
+    await activate(dialogo.getByRole('button', { name: 'Aplicar à turma' }), hasTouch)
     await expect(dialogo.getByText('Escolha se a atividade é prática ou avaliativa.')).toBeVisible()
     expect(api.pedidosEm(/atividades-aplicadas$/)).toHaveLength(0)
     expect(await larguraExcedenteDoDialogo(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await seriousViolations(page)).toEqual([])
 
     await dialogo.getByRole('radio', { name: /^É avaliativa/ }).check()
     // Dois cliques em confirmar mandam um pedido só (regra 80, item 7).
     await dialogo.getByRole('button', { name: 'Aplicar à turma' }).dblclick()
-    await expect(dialogo).toBeHidden({ timeout: PRAZO_DA_TELA_MS })
+    await expect(dialogo).toBeHidden({ timeout: SCREEN_TIMEOUT_MS })
     expect(api.pedidosEm(/atividades-aplicadas$/).map((pedido) => pedido.corpo)).toEqual([{ artefatoId: atividade.id, turmaId, avaliativa: true }])
     const aplicada = naTurma.locator('[data-atividade-aplicada="aberta"]')
-    await expect(aplicada).toContainText('Aberta para a turma · avaliativa · 0 de 30 alunos enviaram', { timeout: PRAZO_DA_TELA_MS })
+    await expect(aplicada).toContainText('Aberta para a turma · avaliativa · 0 de 30 alunos enviaram', { timeout: SCREEN_TIMEOUT_MS })
     await expect(aplicada).toContainText('É avaliativa: o Tutor está pausado para a turma até você encerrar.')
     // Aberta para a turma, não se aplica de novo.
     await expect(page.getByRole('button', { name: 'Aplicar à turma' })).toHaveCount(0)
     await expect(naTurma).toBeFocused()
 
     // Encerrar diz o que vai acontecer antes de confirmar.
-    await acionar(aplicada.getByRole('button', { name: 'Encerrar a atividade' }), hasTouch)
+    await activate(aplicada.getByRole('button', { name: 'Encerrar a atividade' }), hasTouch)
     const encerrar = page.getByRole('alertdialog', { name: 'Encerrar a atividade' })
     await expect(encerrar).toContainText('As respostas param agora')
     await expect(encerrar).toContainText('a correção fica esperando você revisar e aprovar')
@@ -94,14 +94,14 @@ test.describe('aplicar à turma e encerrar, no artefato (A3)', () => {
     expect(api.pedidosEm(/encerrar$/)).toHaveLength(0)
     // Dois cliques em confirmar mandam um pedido só (regra 80, item 7).
     await encerrar.getByRole('button', { name: 'Encerrar a atividade' }).dblclick()
-    await expect(encerrar).toBeHidden({ timeout: PRAZO_DA_TELA_MS })
+    await expect(encerrar).toBeHidden({ timeout: SCREEN_TIMEOUT_MS })
     expect(api.pedidosEm(/encerrar$/)).toHaveLength(1)
     const encerrada = naTurma.locator('[data-atividade-aplicada="encerrada"]')
-    await expect(encerrada).toContainText('Encerrada · avaliativa', { timeout: PRAZO_DA_TELA_MS })
+    await expect(encerrada).toContainText('Encerrada · avaliativa', { timeout: SCREEN_TIMEOUT_MS })
     await expect(encerrada.getByRole('button', { name: 'Encerrar a atividade' })).toHaveCount(0)
-    expect(await larguraExcedente(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
-    await acionar(encerrada.getByRole('link', { name: 'Revisar a correção' }), hasTouch)
+    expect(await horizontalOverflow(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
+    await activate(encerrada.getByRole('link', { name: 'Revisar a correção' }), hasTouch)
     await expect(page).toHaveURL(/\/professor\/aprovar\/[0-9a-f-]+$/)
   })
 
@@ -115,25 +115,25 @@ test.describe('aplicar à turma e encerrar, no artefato (A3)', () => {
     ]
     await irPara(page, `/professor/artefatos/${atividade.id}?aba=turma`)
     const naTurma = page.locator('[data-aplicacao-do-artefato]')
-    await expect(naTurma).toContainText('Aberta para a turma · prática · 10 de 30 alunos enviaram', { timeout: PRAZO_DA_TELA_MS })
-    await acionar(naTurma.getByRole('button', { name: 'Encerrar a atividade' }), hasTouch)
-    await acionar(page.getByRole('alertdialog').getByRole('button', { name: 'Encerrar a atividade' }), hasTouch)
+    await expect(naTurma).toContainText('Aberta para a turma · prática · 10 de 30 alunos enviaram', { timeout: SCREEN_TIMEOUT_MS })
+    await activate(naTurma.getByRole('button', { name: 'Encerrar a atividade' }), hasTouch)
+    await activate(page.getByRole('alertdialog').getByRole('button', { name: 'Encerrar a atividade' }), hasTouch)
     const semCorrecao = naTurma.locator('[data-sem-correcao="correcao_suspensa"]')
-    await expect(semCorrecao).toContainText('a coordenação suspendeu a correção de objetiva nesta escola', { timeout: PRAZO_DA_TELA_MS })
+    await expect(semCorrecao).toContainText('a coordenação suspendeu a correção de objetiva nesta escola', { timeout: SCREEN_TIMEOUT_MS })
     await expect(naTurma.getByRole('link', { name: 'Revisar a correção' })).toHaveCount(0)
     await expect(principal(page).getByRole('alert')).toHaveCount(0)
     // O pedido de "Corrigir de novo" falha: a mensagem do catálogo fica na seção, sem o código, e a atividade continua como estava.
-    api.trocar('encerrar', () => erroDaApi(503, 'INDISPONIVEL_TENTE_DE_NOVO'))
-    await acionar(naTurma.getByRole('button', { name: 'Corrigir de novo' }), hasTouch)
-    await expect(naTurma.getByRole('alert')).toHaveText(MENSAGENS_DE_ERRO.INDISPONIVEL_TENTE_DE_NOVO, { timeout: PRAZO_DA_TELA_MS })
+    api.trocar('encerrar', () => apiError(503, 'INDISPONIVEL_TENTE_DE_NOVO'))
+    await activate(naTurma.getByRole('button', { name: 'Corrigir de novo' }), hasTouch)
+    await expect(naTurma.getByRole('alert')).toHaveText(MENSAGENS_DE_ERRO.INDISPONIVEL_TENTE_DE_NOVO, { timeout: SCREEN_TIMEOUT_MS })
     await expect(naTurma.getByRole('button', { name: 'Corrigir de novo' })).toBeEnabled()
     api.trocar('encerrar')
     // A função volta: "Corrigir de novo" encerra de novo, e agora a correção nasce.
     api.loteAoEncerrar = loteSintetico
-    await acionar(naTurma.getByRole('button', { name: 'Corrigir de novo' }), hasTouch)
-    await expect(naTurma.getByRole('link', { name: 'Revisar a correção' })).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
+    await activate(naTurma.getByRole('button', { name: 'Corrigir de novo' }), hasTouch)
+    await expect(naTurma.getByRole('link', { name: 'Revisar a correção' })).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
     await expect(naTurma.getByRole('status')).toHaveText('Correção feita. Ela está esperando você revisar.')
     expect(api.pedidosEm(/encerrar$/)).toHaveLength(3)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await seriousViolations(page)).toEqual([])
   })
 })

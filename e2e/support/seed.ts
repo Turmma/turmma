@@ -1307,7 +1307,7 @@ export async function nomeDoUsuarioNoBanco(escolaId: string, usuarioId: string):
 }
 
 /** Uma linha da auditoria do pedido: a ação, quem a fez, a finalidade e o que ficou registrado. */
-export interface LinhaDaAuditoriaDoPedido {
+export interface AuditoriaDoPedidoRow {
   readonly acao: string
   readonly autor: string | null
   readonly finalidade: string | null
@@ -1316,7 +1316,7 @@ export interface LinhaDaAuditoriaDoPedido {
 }
 
 /** A auditoria da escola sobre o pedido, em ordem: `pedido.lido`, `pedido.concluido`, `titular.arquivo_baixado`… */
-export async function auditoriaDoPedidoNoBanco(escolaId: string, pedidoId: string): Promise<LinhaDaAuditoriaDoPedido[]> {
+export async function auditoriaDoPedidoNoBanco(escolaId: string, pedidoId: string): Promise<AuditoriaDoPedidoRow[]> {
   return comBanco(async (banco) => {
     const { rows } = await banco.query<{ acao: string; autor: string | null; finalidade: string | null; antes: unknown; depois: unknown }>(
       'select acao, autor_usuario_id as autor, finalidade, antes, depois from auditoria where escola_id = $1 and entidade_id = $2 order by em, id',

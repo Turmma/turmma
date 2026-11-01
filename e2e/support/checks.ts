@@ -2,14 +2,14 @@ import { AxeBuilder } from '@axe-core/playwright'
 import type { Page } from '@playwright/test'
 
 /** As regras do axe que a esteira aplica. `wcag22aa` traz o `target-size` (alvo de toque de 24 px). */
-export const TAGS_WCAG = ['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'] as const
+export const WCAG_TAGS = ['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'] as const
 
-export const IMPACTOS_QUE_REPROVAM = ['serious', 'critical'] as const
+export const FAILING_IMPACTS = ['serious', 'critical'] as const
 
 /** Alvo de toque mínimo de ação principal, além dos 24 px que o axe cobra (regra 50, item 2a). */
 export const ALVO_DE_TOQUE_PRINCIPAL_PX = 44
 
-export interface ViolacaoGrave {
+export interface SeriousViolation {
   regra: string
   impacto: string
   alvos: string[]
@@ -49,16 +49,16 @@ async function tirarAsBarrasPresasDoCaminho(page: Page): Promise<() => Promise<v
  * Violações `serious` e `critical` do axe na página como está agora, sem que uma barra presa por `sticky` cubra um alvo no
  * meio da rolagem. Lista vazia é a única que passa.
  */
-export async function violacoesGraves(page: Page): Promise<ViolacaoGrave[]> {
+export async function seriousViolations(page: Page): Promise<SeriousViolation[]> {
   const desfazer = await tirarAsBarrasPresasDoCaminho(page)
   let resultado
   try {
-    resultado = await new AxeBuilder({ page }).withTags([...TAGS_WCAG]).analyze()
+    resultado = await new AxeBuilder({ page }).withTags([...WCAG_TAGS]).analyze()
   } finally {
     await desfazer()
   }
   return resultado.violations
-    .filter((violacao) => (IMPACTOS_QUE_REPROVAM as readonly string[]).includes(violacao.impact ?? ''))
+    .filter((violacao) => (FAILING_IMPACTS as readonly string[]).includes(violacao.impact ?? ''))
     .map((violacao) => ({
       regra: violacao.id,
       impacto: violacao.impact ?? '',
@@ -70,7 +70,7 @@ export async function violacoesGraves(page: Page): Promise<ViolacaoGrave[]> {
  * Quantos px o documento passa da largura da janela. Zero é sem rolagem horizontal. Compara com a
  * largura do viewport de layout, que o `width=device-width` fixa na largura do aparelho.
  */
-export function larguraExcedente(page: Page): Promise<number> {
+export function horizontalOverflow(page: Page): Promise<number> {
   return page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
 }
 
@@ -91,7 +91,7 @@ export function corDoToken(page: Page, token: string): Promise<string> {
 
 /**
  * Quantos px o conteúdo do diálogo aberto passa da largura dele. O `dialog` modal fica na camada de cima, fixo, e o que
- * transborda dele não aumenta o documento: vira rolagem horizontal dentro do próprio diálogo, que a `larguraExcedente`
+ * transborda dele não aumenta o documento: vira rolagem horizontal dentro do próprio diálogo, que a `horizontalOverflow`
  * não enxerga. Zero é sem rolagem; sem diálogo aberto, falha alto.
  */
 export function larguraExcedenteDoDialogo(page: Page): Promise<number> {
@@ -110,7 +110,7 @@ export function larguraExcedenteDoDialogo(page: Page): Promise<number> {
  * A cor do token é lida da própria página, por uma sonda com `color: var(--color-foco)`: vale nos dois temas, sem
  * repetir o hex aqui.
  */
-export function focoVisivel(page: Page, seletorAtivo = ':focus-visible'): Promise<boolean> {
+export function isFocusVisible(page: Page, seletorAtivo = ':focus-visible'): Promise<boolean> {
   return page.evaluate((seletor) => {
     const elemento = document.activeElement
     if (!elemento || !elemento.matches(seletor)) return false
@@ -138,6 +138,6 @@ export function focoVisivel(page: Page, seletorAtivo = ':focus-visible'): Promis
  * começam em maiúscula, então o risco é baixo; um botão que comece em minúscula de `a` a `f` e venha logo depois do erro
  * pede outra guarda, e não o afrouxamento desta.
  */
-export function codigoCru(codigo: string): RegExp {
+export function rawCodePattern(codigo: string): RegExp {
   return new RegExp(`(?<![0-9a-f])${codigo}(?![0-9a-f])`)
 }

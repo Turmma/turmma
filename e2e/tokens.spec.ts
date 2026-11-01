@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { botaoDoSeletor, gaveta, lateral, naGaveta, esperarNovaConversa, secoes } from './support/casca.ts'
 import { expect, test } from './support/profiles.ts'
 import { criarEquipeComSenha, criarUsuarioEmOutraEscola } from './support/seed.ts'
-import { larguraExcedente, violacoesGraves } from './support/checks.ts'
+import { horizontalOverflow, seriousViolations } from './support/checks.ts'
 
 /**
  * A pele nos componentes compartilhados (tarefa 1.0 da A0; os tokens são os da D80 desde a 1.0 da X1): os dois blocos
@@ -15,7 +15,7 @@ import { larguraExcedente, violacoesGraves } from './support/checks.ts'
  */
 
 /** O Chromebook com CPU ×4 e rede Fast 3G carrega a página e ainda faz o hash da senha no servidor. */
-const PRAZO_DA_ENTRADA_MS = 20_000
+const SIGN_IN_TIMEOUT_MS = 20_000
 
 /** Os hex da 9.9 que os componentes desta tarefa pintam, como o navegador os devolve no estilo calculado. */
 const RGB = {
@@ -131,7 +131,7 @@ async function tabAteOAnel(page: Page, alvo: Locator, descricao: string, maximoD
 }
 
 /** Uma porta que segura a resposta até o teste abrir. */
-function portao(): { aberta: Promise<void>; abrir: () => void } {
+function gate(): { aberta: Promise<void>; abrir: () => void } {
   let abrir: () => void = () => undefined
   const aberta = new Promise<void>((resolver) => {
     abrir = resolver
@@ -162,13 +162,13 @@ test.describe('pele da D72 nos componentes compartilhados', () => {
     expect(await chaoETexto()).toEqual(['rgb(255, 255, 255)', RGB.tinta])
     await page.evaluate(() => document.documentElement.setAttribute('data-tema', 'escuro'))
     expect(await chaoETexto()).toEqual(['rgb(19, 31, 36)', 'rgb(241, 247, 251)'])
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await seriousViolations(page)).toEqual([])
     await page.evaluate(() => document.documentElement.setAttribute('data-tema', 'claro'))
     expect(await chaoETexto()).toEqual(['rgb(255, 255, 255)', RGB.tinta])
   })
 
   test('botão primário: laranja com texto sobre-cor e degrau, sem violação do axe, e o desligado em borda com texto apoio', async ({ page, hasTouch }) => {
-    const segurada = portao()
+    const segurada = gate()
     await page.route('**/v1/sessao/email', async (rota) => {
       await segurada.aberta
       await rota.abort()
@@ -181,7 +181,7 @@ test.describe('pele da D72 nos componentes compartilhados', () => {
     expect(ligado).toEqual({ fundo: RGB.laranja, texto: RGB.sobreCor })
     // 6,4:1 na 9.1: passa o AA de texto (4,5:1), e o axe confere o mesmo na página inteira.
     expect(contraste(ligado.fundo, ligado.texto)).toBeGreaterThanOrEqual(4.5)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await seriousViolations(page)).toEqual([])
 
     // O degrau: sombra sólida de 4 px na cor do degrau da família (`laranja-degrau`, #ba5c25), sem desfoque, e a margem
     // de baixo do mesmo tamanho, que reserva o lugar para apertar não mexer em nada em volta (9.3).
@@ -226,7 +226,7 @@ test.describe('pele da D72 nos componentes compartilhados', () => {
     await tabAteOAnel(page, page.getByRole('button', { name: 'Entrar' }), 'botão Entrar')
     await page.keyboard.press('Enter')
 
-    await expect(page.getByRole('heading', { name: 'Escolher a escola' })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page.getByRole('heading', { name: 'Escolher a escola' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await page.getByRole('button', { name: `${emA.escolaNome} · professor` }).focus()
     await page.keyboard.press('Enter')
     await esperarNovaConversa(page, emA.nome)
@@ -242,7 +242,7 @@ test.describe('pele da D72 nos componentes compartilhados', () => {
     await expect(casca.getByText('Turmma', { exact: true })).toBeVisible()
     await expect(pinta).toHaveJSProperty('complete', true)
     expect(await pinta.evaluate((imagem) => (imagem as HTMLImageElement).naturalWidth)).toBeGreaterThan(0)
-    expect(await larguraExcedente(page)).toBe(0)
+    expect(await horizontalOverflow(page)).toBe(0)
     await tabAteOAnel(page, botaoDoSeletor(page), 'seletor de escola')
     const itemTurmas = secoes(page).getByRole('link', { name: 'Turmas' })
     if (naGaveta(page)) {
@@ -352,8 +352,8 @@ test.describe('pele da D72 nos componentes compartilhados', () => {
     await expect(pinta).toHaveAttribute('alt', '')
     await expect(pinta).toHaveJSProperty('complete', true)
     expect(await pinta.evaluate((imagem) => (imagem as HTMLImageElement).naturalWidth)).toBeGreaterThan(0)
-    expect(await larguraExcedente(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await horizontalOverflow(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
 
     // O ícone do aplicativo é o `turmma-icone.svg` do manual (9.6), servido pelo próprio app.
     const icone = await page.locator('link[rel="icon"]').getAttribute('href')

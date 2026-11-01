@@ -1,9 +1,9 @@
 import { randomUUID } from 'node:crypto'
 import { MENSAGENS_DE_ERRO } from '../packages/shared/src/errors/messages.ts'
-import { ALUNOS_DO_LOTE, erroDaApi, type ApiDoAssistente } from './support/assistente.ts'
-import { PRAZO_DA_ENTRADA_MS } from './support/casca.ts'
+import { ALUNOS_DO_LOTE, apiError, type AssistenteApiMock } from './support/assistente.ts'
+import { SIGN_IN_TIMEOUT_MS } from './support/casca.ts'
 import { principal } from './support/professor-flow.ts'
-import { abrirOSino, acionar, entrar, irPara, PRAZO_DA_TELA_MS } from './support/professor/scenario.ts'
+import { abrirOSino, activate, entrar, irPara, SCREEN_TIMEOUT_MS } from './support/professor/scenario.ts'
 import { peDoSino } from './support/professor/sino.ts'
 import { abrirOPainelDoTutor, ENDERECO_DE_HOJE, painelDoTutor } from './support/professor/tutor.ts'
 import { expect, test } from './support/profiles.ts'
@@ -27,7 +27,7 @@ const CAIO = alunoDoLote(2)
 const NOMES = [ANA.nome, BRUNO.nome, CAIO.nome]
 
 /** A turma passa a ter atividade, sinais e uso: a atenção de Caio, o travou de Ana e a resposta pronta de Bruno. */
-function comSinaisEUso(api: ApiDoAssistente, turmaId: string): void {
+function comSinaisEUso(api: AssistenteApiMock, turmaId: string): void {
   api.aplicadas = [{ id: atividade.id, artefatoId: randomUUID(), turmaId, titulo: atividade.titulo, avaliativa: false, estado: 'aberta', questoes: 5, aplicadaEm: '2026-10-05T13:00:00.000Z', encerradaEm: null, participacao: { alunos: 30, iniciaram: 20, enviaram: 3 }, entrega: null }]
   api.sinais = {
     itens: [
@@ -55,15 +55,15 @@ test.describe('o Tutor em Hoje (11.4, X3)', () => {
     await abrirOSino(page, hasTouch)
     const link = peDoSino(page).getByRole('link', { name: 'O que o Tutor viu' })
     await expect(link).toHaveAccessibleName('O que o Tutor viu')
-    await acionar(link, hasTouch)
-    await expect(page).toHaveURL(ENDERECO_DE_HOJE, { timeout: PRAZO_DA_ENTRADA_MS })
-    await expect(page.getByRole('tab', { selected: true })).toHaveText('Hoje', { timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(link, hasTouch)
+    await expect(page).toHaveURL(ENDERECO_DE_HOJE, { timeout: SIGN_IN_TIMEOUT_MS })
+    await expect(page.getByRole('tab', { selected: true })).toHaveText('Hoje', { timeout: SIGN_IN_TIMEOUT_MS })
   })
 
   test('sem sinal e sem uso, a tela não fica vazia: diz o que o Tutor avisa, sem aviso de atenção', async ({ page, hasTouch }) => {
     const { turmaId } = await entrar(page, hasTouch)
     await irPara(page, `/professor/turmas/${turmaId}?aba=hoje`)
-    await expect(page.getByText('Nenhum sinal desta turma ainda')).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
+    await expect(page.getByText('Nenhum sinal desta turma ainda')).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
     await expect(page.locator('[data-atencao-humana]')).toHaveCount(0)
     await expect(principal(page).locator('[data-selo-ia]')).toHaveCount(1)
   })
@@ -71,14 +71,14 @@ test.describe('o Tutor em Hoje (11.4, X3)', () => {
   test('a leitura dos sinais que falha mostra a mensagem e "Tentar de novo"; relida, mostra o grupo da turma, assinado pela função do Tutor e sem nome', async ({ page, hasTouch }) => {
     const { api, turmaId } = await entrar(page, hasTouch)
     comSinaisEUso(api, turmaId)
-    api.trocar('sinais', () => erroDaApi(429, 'LIMITE_EXCEDIDO'))
+    api.trocar('sinais', () => apiError(429, 'LIMITE_EXCEDIDO'))
     await irPara(page, `/professor/turmas/${turmaId}?aba=hoje`)
     const sinais = page.getByRole('region', { name: 'Sinais da turma' })
-    await expect(sinais.getByRole('alert')).toHaveText(MENSAGENS_DE_ERRO.LIMITE_EXCEDIDO, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(sinais.getByRole('alert')).toHaveText(MENSAGENS_DE_ERRO.LIMITE_EXCEDIDO, { timeout: SIGN_IN_TIMEOUT_MS })
 
     api.trocar('sinais')
-    await acionar(sinais.getByRole('button', { name: 'Tentar de novo' }), hasTouch)
-    await expect(sinais.getByRole('log')).toContainText('8 alunos travaram na questão 3 de "Atividade de estequiometria".', { timeout: PRAZO_DA_TELA_MS })
+    await activate(sinais.getByRole('button', { name: 'Tentar de novo' }), hasTouch)
+    await expect(sinais.getByRole('log')).toContainText('8 alunos travaram na questão 3 de "Atividade de estequiometria".', { timeout: SCREEN_TIMEOUT_MS })
     await expect(sinais.getByRole('log').getByText('Tutor · sinais para o professor')).toBeVisible()
     await expect(sinais.getByRole('link')).toHaveCount(0)
   })
@@ -88,7 +88,7 @@ test.describe('o Tutor em Hoje (11.4, X3)', () => {
     comSinaisEUso(api, turmaId)
     await irPara(page, `/professor/turmas/${turmaId}?aba=hoje`)
     const atencao = page.locator('[data-atencao-humana]')
-    await expect(atencao).toContainText('Um aluno precisa de um adulto', { timeout: PRAZO_DA_TELA_MS })
+    await expect(atencao).toContainText('Um aluno precisa de um adulto', { timeout: SCREEN_TIMEOUT_MS })
     await expect(atencao).toContainText(/Aviso mais recente: 05\/10, \d{2}h40/)
     await expect(atencao).toContainText('O que foi dito não aparece aqui')
     await expect(atencao.getByRole('link')).toHaveCount(0)
@@ -107,7 +107,7 @@ test.describe('o Tutor em Hoje (11.4, X3)', () => {
       if (pedido.method() === 'GET') lidos.push(new URL(pedido.url()).pathname)
     })
     await irPara(page, `/professor/turmas/${turmaId}?aba=hoje`)
-    await expect(page.locator('[data-atencao-humana]')).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
+    await expect(page.locator('[data-atencao-humana]')).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
     expect(lidos).toContain('/v1/sinais')
     expect(lidos).not.toContain('/v1/tutor/uso')
 
@@ -115,7 +115,7 @@ test.describe('o Tutor em Hoje (11.4, X3)', () => {
     await expect(painelDoTutor(page)).toContainText(CAIO.nome)
     expect(lidos).toContain('/v1/tutor/uso')
 
-    await acionar(painelDoTutor(page).getByRole('button', { name: 'Fechar' }), hasTouch)
+    await activate(painelDoTutor(page).getByRole('button', { name: 'Fechar' }), hasTouch)
     await expect(painelDoTutor(page)).toHaveCount(0)
     await expect(page).toHaveURL(ENDERECO_DE_HOJE)
     for (const nome of NOMES) await expect(page.locator('body')).not.toContainText(nome)
@@ -125,12 +125,12 @@ test.describe('o Tutor em Hoje (11.4, X3)', () => {
     const { api, turmaId } = await entrar(page, hasTouch)
     comSinaisEUso(api, turmaId)
     await irPara(page, `/professor/turmas/${turmaId}?aba=hoje`)
-    await expect(page.locator('[data-atencao-humana]')).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
+    await expect(page.locator('[data-atencao-humana]')).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
     await abrirOPainelDoTutor(page, hasTouch)
     const painel = painelDoTutor(page)
 
     const atencao = painel.getByRole('region', { name: 'Alunos que precisam de um adulto' })
-    await expect(atencao).toContainText(/Caio Sintético · 05\/10, \d{2}h40/, { timeout: PRAZO_DA_TELA_MS })
+    await expect(atencao).toContainText(/Caio Sintético · 05\/10, \d{2}h40/, { timeout: SCREEN_TIMEOUT_MS })
     await expect(atencao).toContainText('O que foi dito não aparece aqui')
 
     const sinais = painel.getByRole('region', { name: 'Sinais por aluno' })
@@ -159,9 +159,9 @@ test.describe('o Tutor em Hoje (11.4, X3)', () => {
     const { api, turmaId } = await entrar(page, hasTouch)
     comSinaisEUso(api, turmaId)
     await irPara(page, `/professor/turmas/${turmaId}?aba=hoje`)
-    await expect(page.locator('[data-atencao-humana]')).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
+    await expect(page.locator('[data-atencao-humana]')).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
     await abrirOPainelDoTutor(page, hasTouch, 'quem')
-    await expect(painelDoTutor(page)).toContainText(CAIO.nome, { timeout: PRAZO_DA_TELA_MS })
+    await expect(painelDoTutor(page)).toContainText(CAIO.nome, { timeout: SCREEN_TIMEOUT_MS })
     const guardado = await page.evaluate(() => JSON.stringify({ local: { ...localStorage }, sessao: { ...sessionStorage }, endereco: location.href }))
     for (const nome of NOMES) expect(guardado).not.toContain(nome)
   })
@@ -170,7 +170,7 @@ test.describe('o Tutor em Hoje (11.4, X3)', () => {
     const { api, turmaId } = await entrar(page, hasTouch)
     comSinaisEUso(api, turmaId)
     await irPara(page, `/professor/turmas/${turmaId}?aba=hoje&ver=tutor`)
-    await expect(painelDoTutor(page)).toContainText(CAIO.nome, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(painelDoTutor(page)).toContainText(CAIO.nome, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(page).toHaveURL(/\?aba=hoje&ver=tutor$/)
   })
 
@@ -180,7 +180,7 @@ test.describe('o Tutor em Hoje (11.4, X3)', () => {
     // O relógio é simulado antes de Hoje abrir: a releitura dos 15 s (o intervalo nasce com a aba) anda quando o teste manda.
     await page.clock.install()
     await irPara(page, `/professor/turmas/${turmaId}?aba=hoje&ver=tutor`)
-    await expect(painelDoTutor(page)).toContainText(CAIO.nome, { timeout: PRAZO_DA_TELA_MS })
+    await expect(painelDoTutor(page)).toContainText(CAIO.nome, { timeout: SCREEN_TIMEOUT_MS })
     // A página sai pela releitura dos sinais, e não pela releitura da turma (foco e visibilidade, 30 s): a turma não é lida de novo.
     const leiturasDaTurma: string[] = []
     page.on('request', (pedido) => {
@@ -188,9 +188,9 @@ test.describe('o Tutor em Hoje (11.4, X3)', () => {
     })
 
     // A coordenação encerrou o vínculo: a releitura seguinte dos sinais já não acha a turma.
-    api.trocar('sinais', () => erroDaApi(404, 'NAO_ENCONTRADO'))
+    api.trocar('sinais', () => apiError(404, 'NAO_ENCONTRADO'))
     await page.clock.fastForward('00:16')
-    await expect(principal(page).getByRole('status').filter({ hasText: 'Esta turma não está disponível' })).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
+    await expect(principal(page).getByRole('status').filter({ hasText: 'Esta turma não está disponível' })).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
     await expect(painelDoTutor(page)).toHaveCount(0)
     await expect(page.getByRole('tab')).toHaveCount(0)
     await expect(page).toHaveTitle('Turma · Turmma')
@@ -201,8 +201,8 @@ test.describe('o Tutor em Hoje (11.4, X3)', () => {
   test('as funções do Tutor e o bloco "Quando o Tutor avisa você" estão em Hoje, e os do Assistente continuam pelo sino', async ({ page, hasTouch }) => {
     const { turmaId } = await entrar(page, hasTouch)
     await irPara(page, `/professor/turmas/${turmaId}?aba=hoje`)
-    await acionar(page.getByText('O que o Tutor faz sozinho, e o que você vê aqui'), hasTouch)
-    await expect(page.locator('[data-funcao="sinais_para_o_professor"]')).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
+    await activate(page.getByText('O que o Tutor faz sozinho, e o que você vê aqui'), hasTouch)
+    await expect(page.locator('[data-funcao="sinais_para_o_professor"]')).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
     await expect(principal(page)).toContainText('Quando o Tutor avisa você')
     await expect(principal(page)).toContainText('Travou: a quarta troca seguida na mesma questão ou página, no mesmo dia.')
     await abrirOSino(page, hasTouch)
@@ -214,8 +214,8 @@ test.describe('o endereço antigo do Tutor leva a Hoje', () => {
   test('com uma turma confirmada, `/professor/time/tutor` leva a Hoje dela, e o Voltar não cai no endereço antigo', async ({ page, hasTouch }) => {
     await entrar(page, hasTouch)
     await irPara(page, '/professor/time/tutor')
-    await expect(page).toHaveURL(ENDERECO_DE_HOJE, { timeout: PRAZO_DA_ENTRADA_MS })
-    await expect(page.getByRole('region', { name: 'Sinais da turma' })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page).toHaveURL(ENDERECO_DE_HOJE, { timeout: SIGN_IN_TIMEOUT_MS })
+    await expect(page.getByRole('region', { name: 'Sinais da turma' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await page.goBack()
     await expect(page).not.toHaveURL(/\/time\/tutor$/)
   })
@@ -223,13 +223,13 @@ test.describe('o endereço antigo do Tutor leva a Hoje', () => {
   test('com duas turmas, leva a Turmas, onde ela escolhe', async ({ page, hasTouch }) => {
     await entrar(page, hasTouch, { outrasDisciplinas: ['Física'] })
     await irPara(page, '/professor/time/tutor')
-    await expect(page).toHaveURL(/\/professor\/turmas$/, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page).toHaveURL(/\/professor\/turmas$/, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(page.getByRole('region', { name: 'Sinais da turma' })).toHaveCount(0)
   })
 
   test('sem turma confirmada, leva a Turmas', async ({ page, hasTouch }) => {
     await entrar(page, hasTouch, { comTurma: false })
     await irPara(page, '/professor/time/tutor')
-    await expect(page).toHaveURL(/\/professor\/turmas$/, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page).toHaveURL(/\/professor\/turmas$/, { timeout: SIGN_IN_TIMEOUT_MS })
   })
 })

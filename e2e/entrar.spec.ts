@@ -3,14 +3,14 @@ import { MENSAGENS_DE_ERRO, mensagemDaEntrada } from '../packages/shared/src/err
 import { criarEquipeComSenha, criarUsuarioEmOutraEscola, type EquipeDeTeste } from './support/seed.ts'
 import { entrarPelaApiSemMedirAPrimeiraCarga, esperarNovaConversa } from './support/casca.ts'
 import { expect, test } from './support/profiles.ts'
-import { ALVO_DE_TOQUE_PRINCIPAL_PX, codigoCru, focoVisivel, larguraExcedente, violacoesGraves } from './support/checks.ts'
+import { ALVO_DE_TOQUE_PRINCIPAL_PX, rawCodePattern, isFocusVisible, horizontalOverflow, seriousViolations } from './support/checks.ts'
 
 const ROTA_ENTRAR = '**/v1/sessao/email'
 const ROTA_RENOVAR = '**/v1/sessao/renovar'
 const ROTA_EU = '**/v1/eu'
 const ROTA_SESSAO = '**/v1/sessao'
 /** O Chromebook com CPU ×4 e rede Fast 3G carrega a página e ainda faz o hash da senha no servidor. */
-const PRAZO_DA_ENTRADA_MS = 20_000
+const SIGN_IN_TIMEOUT_MS = 20_000
 /**
  * O início de uma renovação (`request`) e o fim da anterior (`requestfinished`) chegam ao teste por duas abas, cada uma com a
  * sua sessão do CDP, e são datados na entrega, não no navegador: com a trava, a folga entre uma e a outra medida aqui foi de 1 a
@@ -33,7 +33,7 @@ const campoSenha = (page: Page) => page.getByLabel('Senha')
 const botaoEntrar = (page: Page) => page.getByRole('button', { name: /Entrar|Entrando/ })
 
 /** Toque no celular, clique no Chromebook: a mesma ação pela entrada que cada aparelho tem. */
-async function acionar(page: Page, nome: string | RegExp, hasTouch: boolean): Promise<void> {
+async function activate(page: Page, nome: string | RegExp, hasTouch: boolean): Promise<void> {
   const alvo = page.getByRole('button', { name: nome })
   if (hasTouch) await alvo.tap()
   else await alvo.click()
@@ -71,7 +71,7 @@ async function nadaGuardado(page: Page): Promise<void> {
 async function entrar(page: Page, equipe: EquipeDeTeste, hasTouch: boolean): Promise<void> {
   await campoEmail(page).fill(equipe.email)
   await campoSenha(page).fill(equipe.senha)
-  await acionar(page, /^Entrar$/, hasTouch)
+  await activate(page, /^Entrar$/, hasTouch)
 }
 
 test.describe('entrada da equipe por e-mail e senha', () => {
@@ -81,12 +81,12 @@ test.describe('entrada da equipe por e-mail e senha', () => {
 
     await page.keyboard.press('Tab')
     await expect(campoEmail(page)).toBeFocused()
-    expect(await focoVisivel(page)).toBe(true)
+    expect(await isFocusVisible(page)).toBe(true)
     await page.keyboard.type(equipe.email)
 
     await page.keyboard.press('Tab')
     await expect(campoSenha(page)).toBeFocused()
-    expect(await focoVisivel(page)).toBe(true)
+    expect(await isFocusVisible(page)).toBe(true)
     await page.keyboard.type(equipe.senha)
 
     // Enter dentro do formulário envia: ninguém precisa alcançar o botão para entrar.
@@ -94,16 +94,16 @@ test.describe('entrada da equipe por e-mail e senha', () => {
     await esperarAreaAutenticada(page, equipe)
     expect(new URL(page.url()).pathname).toBe('/professor/nova-conversa')
 
-    expect(await larguraExcedente(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await horizontalOverflow(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
   })
 
   test('caminho feliz só com toque: campos e botão alcançados por toque, com alvo de 44 px e sem rolagem horizontal', async ({ page, hasTouch }) => {
     const equipe = await criarEquipeComSenha()
     await page.goto('/entrar')
 
-    expect(await larguraExcedente(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await horizontalOverflow(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
     await esperarAlvoDeToque(page, /^Entrar$/)
 
     if (hasTouch) await campoEmail(page).tap()
@@ -112,12 +112,12 @@ test.describe('entrada da equipe por e-mail e senha', () => {
     if (hasTouch) await campoSenha(page).tap()
     else await campoSenha(page).click()
     await page.keyboard.type(equipe.senha)
-    await acionar(page, /^Entrar$/, hasTouch)
+    await activate(page, /^Entrar$/, hasTouch)
 
     await esperarAreaAutenticada(page, equipe)
     await esperarAlvoDeToque(page, 'Sair')
-    expect(await larguraExcedente(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await horizontalOverflow(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
   })
 
   test('etapa configurar_mfa: a coordenadora sem segundo fator chega à tela do MFA, e não à área autenticada nem de volta à entrada', async ({
@@ -129,16 +129,16 @@ test.describe('entrada da equipe por e-mail e senha', () => {
     await entrar(page, equipe, hasTouch)
 
     // Quem decide a compra é ela, e é ela que passa por esta etapa no primeiro acesso (RF12).
-    await expect(page.getByRole('heading', { name: 'Configurar o segundo fator' })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page.getByRole('heading', { name: 'Configurar o segundo fator' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(page).toHaveURL(/\/mfa\/configurar$/)
     // A tela da etapa chegou na 19.0: o que ela mostra e o que faz está em `mfa.spec.ts`; aqui vale que a etapa leva
     // a ela, e que nada da escola aparece antes da sessão existir.
-    await expect(page.getByRole('main')).toContainText('1. Guarde o segredo no seu aplicativo', { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page.getByRole('main')).toContainText('1. Guarde o segredo no seu aplicativo', { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(page.locator('body')).not.toContainText(equipe.escolaNome)
     // Nenhuma sessão foi gravada nesta etapa: nem token, nem cookie de renovação.
     await nadaGuardado(page)
-    expect(await larguraExcedente(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await horizontalOverflow(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
   })
 
   test('etapa escolher: a professora com vínculo em duas escolas chega à escolha de escola, sem sessão gravada', async ({ page, hasTouch }) => {
@@ -147,14 +147,14 @@ test.describe('entrada da equipe por e-mail e senha', () => {
     await page.goto('/entrar')
     await entrar(page, equipe, hasTouch)
 
-    await expect(page.getByRole('heading', { name: 'Escolher a escola' })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page.getByRole('heading', { name: 'Escolher a escola' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(page).toHaveURL(/\/escolher-escola$/)
     // A tela da escolha chegou na 20.0: o que ela mostra e o que faz está em `escola-e-vinculos.spec.ts`; aqui vale
     // que a etapa leva a ela e que nenhuma sessão foi gravada antes de a escola ser escolhida.
     await expect(page.getByRole('main')).toContainText('Escolha por onde quer entrar agora')
     await nadaGuardado(page)
-    expect(await larguraExcedente(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await horizontalOverflow(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
   })
 
   test('privacidade: depois de entrar, o token não está em localStorage, sessionStorage, cookie legível nem na URL', async ({ page, hasTouch }) => {
@@ -232,8 +232,8 @@ test.describe('entrada da equipe por e-mail e senha', () => {
     // `Network.emulateNetworkConditions` que o perfil do projeto já aplica pelo CDP, e o pedido ficaria pendurado.
     let semRede = true
     await page.route(ROTA_ENTRAR, (rota) => (semRede ? rota.abort('internetdisconnected') : rota.continue()))
-    await acionar(page, /^Entrar$/, hasTouch)
-    await expect(page.getByRole('alert')).toContainText(MENSAGENS_DE_ERRO.INDISPONIVEL_TENTE_DE_NOVO, { timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(page, /^Entrar$/, hasTouch)
+    await expect(page.getByRole('alert')).toContainText(MENSAGENS_DE_ERRO.INDISPONIVEL_TENTE_DE_NOVO, { timeout: SIGN_IN_TIMEOUT_MS })
     // O que a pessoa digitou fica, os dois campos: perder o formulário por causa da rede da escola é o mesmo erro de
     // perder resposta de prova.
     await expect(campoEmail(page)).toHaveValue(equipe.email)
@@ -241,7 +241,7 @@ test.describe('entrada da equipe por e-mail e senha', () => {
     await expect(page).toHaveURL(/\/entrar$/)
 
     semRede = false
-    await acionar(page, /^Entrar$/, hasTouch)
+    await activate(page, /^Entrar$/, hasTouch)
     await esperarAreaAutenticada(page, equipe)
   })
 
@@ -253,12 +253,12 @@ test.describe('entrada da equipe por e-mail e senha', () => {
     await page.route(ROTA_EU, (rota) => (fora ? falharCom(503, 'INDISPONIVEL_TENTE_DE_NOVO')(rota) : rota.continue()))
     // Recarregar é o caso real: a sessão volta pelo cookie, e é a consulta da tela que cai.
     await page.reload()
-    await expect(page.getByRole('alert')).toContainText(MENSAGENS_DE_ERRO.INDISPONIVEL_TENTE_DE_NOVO, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page.getByRole('alert')).toContainText(MENSAGENS_DE_ERRO.INDISPONIVEL_TENTE_DE_NOVO, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(page).not.toHaveURL(/\/entrar$/)
     await expect(page.getByRole('button', { name: 'Sair' })).toBeVisible()
 
     fora = false
-    await acionar(page, 'Tentar de novo', hasTouch)
+    await activate(page, 'Tentar de novo', hasTouch)
     await esperarAreaAutenticada(page, equipe)
   })
 
@@ -293,7 +293,7 @@ test.describe('entrada da equipe por e-mail e senha', () => {
     await page.goto('/entrar')
     await campoEmail(page).fill(equipe.email)
     await campoSenha(page).fill(equipe.senha)
-    await acionar(page, /^Entrar$/, hasTouch)
+    await activate(page, /^Entrar$/, hasTouch)
 
     await expect(botaoEntrar(page)).toBeDisabled()
     // Dois logins da mesma pessoa gravariam duas sessões e duas linhas de registro de acesso.
@@ -322,11 +322,11 @@ test.describe('entrada da equipe por e-mail e senha', () => {
       await rota.continue()
     })
 
-    await acionar(page, 'Sair', hasTouch)
+    await activate(page, 'Sair', hasTouch)
     await expect(page.getByRole('button', { name: /Saindo/ })).toBeDisabled()
     await page.getByRole('button', { name: /Saindo/ }).dispatchEvent('click')
     liberar()
-    await expect(page).toHaveURL(/\/entrar$/, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page).toHaveURL(/\/entrar$/, { timeout: SIGN_IN_TIMEOUT_MS })
     expect(encerramentos).toBe(1)
   })
 
@@ -337,8 +337,8 @@ test.describe('entrada da equipe por e-mail e senha', () => {
     await entrar(page, primeira, hasTouch)
     await esperarAreaAutenticada(page, primeira)
 
-    await acionar(page, 'Sair', hasTouch)
-    await expect(page).toHaveURL(/\/entrar$/, { timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(page, 'Sair', hasTouch)
+    await expect(page).toHaveURL(/\/entrar$/, { timeout: SIGN_IN_TIMEOUT_MS })
 
     // A consulta de quem entrou fica segurada: é a janela em que o cache da pessoa anterior apareceria, e sem
     // limpá-lo o TanStack Query a devolveria pronta, sem nem refazer a chamada.
@@ -351,7 +351,7 @@ test.describe('entrada da equipe por e-mail e senha', () => {
 
     // Mesma aba, sem recarregar a página: é assim que o aluno seguinte usa o computador do carrinho.
     await entrar(page, segunda, hasTouch)
-    await expect(page.getByText('Carregando a sua escola…')).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page.getByText('Carregando a sua escola…')).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(page.locator('body')).not.toContainText(primeira.nome)
     await expect(page.locator('body')).not.toContainText(primeira.escolaNome)
 
@@ -376,8 +376,8 @@ test.describe('entrada da equipe por e-mail e senha', () => {
       if (new URL(pedido.url()).pathname === '/v1/sessao/renovar' && encerramentos > 0) renovacoesDepoisDaSaida.push(pedido.url())
     })
 
-    await acionar(page, 'Sair', hasTouch)
-    await expect(page).toHaveURL(/\/entrar$/, { timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(page, 'Sair', hasTouch)
+    await expect(page).toHaveURL(/\/entrar$/, { timeout: SIGN_IN_TIMEOUT_MS })
     // Apresentar a saída como feita é o que põe a pessoa seguinte na sessão desta.
     await expect(page.getByRole('alert')).toContainText('Não foi possível encerrar a sessão anterior neste computador')
     expect(encerramentos, 'a saída precisa ser repetida uma vez antes de avisar').toBe(2)
@@ -385,8 +385,8 @@ test.describe('entrada da equipe por e-mail e senha', () => {
     // Uma renovação aqui reabriria, pelo cookie que sobreviveu, a sessão que a pessoa acabou de encerrar.
     expect(renovacoesDepoisDaSaida, 'renovação depois do "Sair" ressuscita a sessão').toEqual([])
     // A entrada com o aviso é uma variante de layout como outra qualquer.
-    expect(await larguraExcedente(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await horizontalOverflow(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
 
     // E o aviso não é decorativo: o cookie de renovação sobreviveu, e a sessão volta inteira.
     await page.unroute(ROTA_SESSAO)
@@ -401,13 +401,13 @@ test.describe('entrada da equipe por e-mail e senha', () => {
     await entrar(page, equipe, hasTouch)
 
     const alerta = page.getByRole('alert')
-    await expect(alerta).toHaveText(mensagemDaEntrada('CONTA_SEGURADA', 90), { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(alerta).toHaveText(mensagemDaEntrada('CONTA_SEGURADA', 90), { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(alerta).toContainText('2 minutos')
     const tela = page.locator('body')
-    for (const proibido of [codigoCru('429'), 'CONTA_SEGURADA', 'mensagem da API']) {
+    for (const proibido of [rawCodePattern('429'), 'CONTA_SEGURADA', 'mensagem da API']) {
       await expect(tela).not.toContainText(proibido)
     }
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await seriousViolations(page)).toEqual([])
   })
 
   test('senha errada e e-mail que não existe dizem a mesma coisa, sem revelar se a conta existe', async ({ page, hasTouch }) => {
@@ -416,14 +416,14 @@ test.describe('entrada da equipe por e-mail e senha', () => {
 
     await campoEmail(page).fill(equipe.email)
     await campoSenha(page).fill('senha-que-nao-e-dela')
-    await acionar(page, /^Entrar$/, hasTouch)
-    const comSenhaErrada = await page.getByRole('alert').textContent({ timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(page, /^Entrar$/, hasTouch)
+    const comSenhaErrada = await page.getByRole('alert').textContent({ timeout: SIGN_IN_TIMEOUT_MS })
 
     await page.reload()
     await campoEmail(page).fill(`ninguem-${Date.now().toString()}@educa.invalid`)
     await campoSenha(page).fill(equipe.senha)
-    await acionar(page, /^Entrar$/, hasTouch)
-    const comEmailInexistente = await page.getByRole('alert').textContent({ timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(page, /^Entrar$/, hasTouch)
+    const comEmailInexistente = await page.getByRole('alert').textContent({ timeout: SIGN_IN_TIMEOUT_MS })
 
     expect(comSenhaErrada).toBe(comEmailInexistente)
     expect(comSenhaErrada).toBe(mensagemDaEntrada('NAO_AUTENTICADO'))
@@ -433,14 +433,14 @@ test.describe('entrada da equipe por e-mail e senha', () => {
   test('permissão: sem sessão a rota autenticada leva à entrada; "Sair" encerra, e Voltar não traz a tela com dado', async ({ page, hasTouch }) => {
     const equipe = await criarEquipeComSenha()
     await page.goto('/')
-    await expect(page).toHaveURL(/\/entrar$/, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page).toHaveURL(/\/entrar$/, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(campoSenha(page)).toBeVisible()
 
     await entrar(page, equipe, hasTouch)
     await esperarAreaAutenticada(page, equipe)
 
-    await acionar(page, 'Sair', hasTouch)
-    await expect(page).toHaveURL(/\/entrar$/, { timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(page, 'Sair', hasTouch)
+    await expect(page).toHaveURL(/\/entrar$/, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(page.locator('body')).not.toContainText(equipe.nome)
 
     await page.goBack()
@@ -449,6 +449,6 @@ test.describe('entrada da equipe por e-mail e senha', () => {
 
     // O cookie de renovação foi apagado no "Sair": recarregar a área autenticada volta para a entrada.
     await page.goto('/')
-    await expect(page).toHaveURL(/\/entrar$/, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page).toHaveURL(/\/entrar$/, { timeout: SIGN_IN_TIMEOUT_MS })
   })
 })

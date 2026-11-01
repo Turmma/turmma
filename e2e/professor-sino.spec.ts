@@ -1,14 +1,14 @@
 import { randomUUID } from 'node:crypto'
 import type { BrowserContextOptions, Browser, Locator, Page } from '@playwright/test'
-import { abrirAbaAlunos, abrirNavegacao, entrarComoCoordenacaoNaMesmaAba, entrarPorEmail, escolherNoSeletor, esperarNovaConversa, esperarPainel, lateral, nomeNoSeletor, PRAZO_DA_ENTRADA_MS } from './support/casca.ts'
+import { abrirAbaAlunos, abrirNavegacao, entrarComoCoordenacaoNaMesmaAba, entrarPorEmail, escolherNoSeletor, esperarNovaConversa, esperarPainel, lateral, nomeNoSeletor, SIGN_IN_TIMEOUT_MS } from './support/casca.ts'
 import { mensagemDela } from './support/assistente.ts'
-import { cacheDeConsultas, semAcessosDaConta } from './support/query-cache.ts'
+import { queryCache, semAcessosDaConta } from './support/query-cache.ts'
 import { caixa as caixaDoPedido } from './support/professor-flow.ts'
 import { expect, test } from './support/profiles.ts'
 import { irPara } from './support/professor/scenario.ts'
-import { entrarNaCena, esperarSino, listaDoSino, peDoSino, portao, prepararCena, semAnimacao, sinoDe, TITULO_DA_CORRECAO, TITULO_DA_VERSAO } from './support/professor/sino.ts'
+import { entrarNaCena, esperarSino, listaDoSino, peDoSino, gate, setupScenario, semAnimacao, sinoDe, TITULO_DA_CORRECAO, TITULO_DA_VERSAO } from './support/professor/sino.ts'
 import { confirmarVinculosNoBanco, criarAlocacaoDoProfessor, criarCoordenadoraNaEscola, criarProfessoraNaEscola, criarUsuarioEmOutraEscola, matricularAlunosNaTurmaNoBanco } from './support/seed.ts'
-import { ALVO_DE_TOQUE_PRINCIPAL_PX, larguraExcedente, larguraExcedenteDoDialogo, violacoesGraves } from './support/checks.ts'
+import { ALVO_DE_TOQUE_PRINCIPAL_PX, horizontalOverflow, larguraExcedenteDoDialogo, seriousViolations } from './support/checks.ts'
 
 /**
  * O sino "Esperando você" da professora (telas do professor, 1.0; RF3 a RF5), pela tela, nos projetos `chromebook` e
@@ -17,10 +17,10 @@ import { ALVO_DE_TOQUE_PRINCIPAL_PX, larguraExcedente, larguraExcedenteDoDialogo
  * são os de verdade; as entregas e a correção, as da API simulada do Assistente. Nomes e e-mails inventados pelo teste.
  */
 
-const PRAZO_DA_TELA_MS = 15_000
+const SCREEN_TIMEOUT_MS = 15_000
 const contextos: Array<{ close: () => Promise<void> }> = []
 
-async function acionar(alvo: Locator, hasTouch: boolean): Promise<void> {
+async function activate(alvo: Locator, hasTouch: boolean): Promise<void> {
   if (hasTouch) await alvo.tap()
   else await alvo.click()
 }
@@ -52,7 +52,7 @@ const literal = (texto: string): string => texto.replace(/[.*+?^${}()|[\]\\]/g, 
 test.describe('do sino à tela', () => {
   test('um item de cada tipo: o sino conta 4, cada item leva à tela dele, o contador não se mexe e decidir os pedidos tira o item', async ({ page, hasTouch }) => {
     test.slow()
-    const cena = await prepararCena(page)
+    const cena = await setupScenario(page)
     await entrarNaCena(page, cena, hasTouch)
 
     const sino = await esperarSino(page, 'Esperando você, 4')
@@ -62,7 +62,7 @@ test.describe('do sino à tela', () => {
     await semAnimacao(sino)
 
     // A lista agrupa por turma, com o item de cada tipo e o texto do trabalho (nunca o nome de aluno).
-    await acionar(sino, hasTouch)
+    await activate(sino, hasTouch)
     const lista = listaDoSino(page)
     await expect(lista).toBeVisible()
     await expect(lista.getByRole('region', { name: cena.turmaA.turmaNome })).toBeVisible()
@@ -77,8 +77,8 @@ test.describe('do sino à tela', () => {
     await expect(lista).not.toContainText('Sintético do sino')
     await semAnimacao(lista)
     expect(await larguraExcedenteDoDialogo(page)).toBe(0)
-    expect(await larguraExcedente(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await horizontalOverflow(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
 
     // Os quatro destinos. Cada clique fecha a lista e leva à tela do item.
     const destinos: ReadonlyArray<readonly [RegExp, RegExp]> = [
@@ -91,9 +91,9 @@ test.describe('do sino à tela', () => {
     await expect(lista).toHaveCount(0)
     await expect(sino).toBeFocused()
     for (const [item, endereco] of destinos) {
-      await acionar(sino, hasTouch)
-      await acionar(listaDoSino(page).getByRole('link', { name: item }), hasTouch)
-      await expect(page).toHaveURL(endereco, { timeout: PRAZO_DA_ENTRADA_MS })
+      await activate(sino, hasTouch)
+      await activate(listaDoSino(page).getByRole('link', { name: item }), hasTouch)
+      await expect(page).toHaveURL(endereco, { timeout: SIGN_IN_TIMEOUT_MS })
       await expect(listaDoSino(page)).toHaveCount(0)
     }
 
@@ -104,15 +104,15 @@ test.describe('do sino à tela', () => {
     }, `/professor/turmas/${cena.turmaA.turmaId}`)
     await abrirAbaAlunos(page, hasTouch)
     const secao = page.getByRole('main').getByRole('region', { name: 'Pedidos de nome' })
-    for (const pedido of cena.pedidos) await acionar(secao.getByRole('checkbox', { name: new RegExp(pedido.nome) }), hasTouch)
-    await acionar(secao.getByRole('button', { name: 'Recusar 2 pedidos' }), hasTouch)
+    for (const pedido of cena.pedidos) await activate(secao.getByRole('checkbox', { name: new RegExp(pedido.nome) }), hasTouch)
+    await activate(secao.getByRole('button', { name: 'Recusar 2 pedidos' }), hasTouch)
     const dialogo = page.getByRole('dialog', { name: 'Recusar pedidos' })
     await expect(dialogo).toBeVisible()
-    await acionar(dialogo.getByRole('button', { name: 'Recusar 2 pedidos' }), hasTouch)
-    await expect(dialogo.getByRole('list', { name: 'Resultado de cada pedido' })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
-    await acionar(dialogo.getByRole('button', { name: 'Fechar' }), hasTouch)
+    await activate(dialogo.getByRole('button', { name: 'Recusar 2 pedidos' }), hasTouch)
+    await expect(dialogo.getByRole('list', { name: 'Resultado de cada pedido' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
+    await activate(dialogo.getByRole('button', { name: 'Fechar' }), hasTouch)
     await esperarSino(page, 'Esperando você, 3')
-    await acionar(sino, hasTouch)
+    await activate(sino, hasTouch)
     await expect(listaDoSino(page).getByRole('link', { name: /Pedidos de nome para decidir/ })).toHaveCount(0)
     // Os três itens que restam e os dois links do pé, que a fila não gasta.
     await expect(listaDoSino(page).getByRole('link')).toHaveCount(3 + 2)
@@ -121,7 +121,7 @@ test.describe('do sino à tela', () => {
 
   test('entrega decidida em outra aba: o item segue no sino até a tentativa, a tela diz que já estava decidida, e o item sai sem recarregar', async ({ page, browser, hasTouch }) => {
     test.slow()
-    const cena = await prepararCena(page)
+    const cena = await setupScenario(page)
     await entrarNaCena(page, cena, hasTouch)
     const sino = await esperarSino(page, 'Esperando você, 4')
     await page.evaluate(() => {
@@ -129,11 +129,11 @@ test.describe('do sino à tela', () => {
     })
 
     // A: a tela do Assistente com a versão adaptada esperando.
-    await acionar(sino, hasTouch)
-    await acionar(listaDoSino(page).getByRole('link', { name: /Versão adaptada para decidir/ }), hasTouch)
-    await expect(page).toHaveURL(/\/professor\/time\/assistente$/, { timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(sino, hasTouch)
+    await activate(listaDoSino(page).getByRole('link', { name: /Versão adaptada para decidir/ }), hasTouch)
+    await expect(page).toHaveURL(/\/professor\/time\/assistente$/, { timeout: SIGN_IN_TIMEOUT_MS })
     const pendente = page.locator('[data-entrega="pendente"]').filter({ hasText: TITULO_DA_VERSAO })
-    await expect(pendente).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
+    await expect(pendente).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
 
     // B: a mesma professora, em outra aba, decide a mesma entrega.
     const outra = await outroNavegador(browser)
@@ -146,43 +146,43 @@ test.describe('do sino à tela', () => {
       window.dispatchEvent(new PopStateEvent('popstate'))
     })
     const pendenteEmB = outra.locator('[data-entrega="pendente"]').filter({ hasText: TITULO_DA_VERSAO })
-    await expect(pendenteEmB).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
-    await acionar(pendenteEmB.getByRole('button', { name: /^Aprovar/ }), hasTouch)
+    await expect(pendenteEmB).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
+    await activate(pendenteEmB.getByRole('button', { name: /^Aprovar/ }), hasTouch)
     const dialogoDeB = outra.getByRole('alertdialog', { name: 'Aprovar a versão adaptada' })
-    await acionar(dialogoDeB.getByRole('button', { name: 'Aprovar a versão adaptada' }), hasTouch)
-    await expect(dialogoDeB).toBeHidden({ timeout: PRAZO_DA_TELA_MS })
+    await activate(dialogoDeB.getByRole('button', { name: 'Aprovar a versão adaptada' }), hasTouch)
+    await expect(dialogoDeB).toBeHidden({ timeout: SCREEN_TIMEOUT_MS })
     expect(cena.api.entregas.find((entrega) => entrega.id === cena.entregaDaVersao)?.estado).toBe('aprovada')
 
     // A não leu nada de novo: o item segue no sino, com o dado de antes.
     await expect(sino).toHaveAccessibleName('Esperando você, 4')
-    await acionar(sino, hasTouch)
+    await activate(sino, hasTouch)
     await expect(listaDoSino(page).getByRole('link', { name: /Versão adaptada para decidir/ })).toBeVisible()
     await page.keyboard.press('Escape')
     await expect(listaDoSino(page)).toHaveCount(0)
 
     // A tenta decidir: a tela diz que já estava decidida, e o item sai do sino, na mesma página.
-    await acionar(pendente.getByRole('button', { name: /^Aprovar/ }), hasTouch)
+    await activate(pendente.getByRole('button', { name: /^Aprovar/ }), hasTouch)
     const dialogo = page.getByRole('alertdialog', { name: 'Aprovar a versão adaptada' })
-    await acionar(dialogo.getByRole('button', { name: 'Aprovar a versão adaptada' }), hasTouch)
-    await expect(dialogo).toBeHidden({ timeout: PRAZO_DA_TELA_MS })
+    await activate(dialogo.getByRole('button', { name: 'Aprovar a versão adaptada' }), hasTouch)
+    await expect(dialogo).toBeHidden({ timeout: SCREEN_TIMEOUT_MS })
     await expect(page.getByRole('main').getByRole('status').filter({ hasText: 'já tinha sido decidida' })).toBeVisible()
     await expect(page.getByRole('main')).not.toContainText('ENTREGA_JA_DECIDIDA')
     await esperarSino(page, 'Esperando você, 3')
-    await acionar(sino, hasTouch)
+    await activate(sino, hasTouch)
     await expect(listaDoSino(page).getByRole('link', { name: /Versão adaptada para decidir/ })).toHaveCount(0)
     expect(await page.evaluate(() => (window as unknown as { __semRecarga?: boolean }).__semRecarga)).toBe(true)
   })
 
   test('permissão: a coordenação que entra na mesma aba depois da professora não chama entregas, vínculos nem pedidos, e não vê os itens dela', async ({ page, hasTouch }) => {
     test.slow()
-    const cena = await prepararCena(page)
+    const cena = await setupScenario(page)
     await entrarNaCena(page, cena, hasTouch)
     await esperarSino(page, 'Esperando você, 4')
 
     // A professora sai com a lista aberta, e a coordenação da mesma escola entra na mesma aba, sem recarregar.
     await abrirNavegacao(page, hasTouch)
-    await acionar(lateral(page).getByRole('button', { name: 'Sair' }), hasTouch)
-    await expect(page).toHaveURL(/\/entrar$/, { timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(lateral(page).getByRole('button', { name: 'Sair' }), hasTouch)
+    await expect(page).toHaveURL(/\/entrar$/, { timeout: SIGN_IN_TIMEOUT_MS })
     const coordenadora = await criarCoordenadoraNaEscola(cena.professora)
     const caminhos: string[] = []
     page.on('request', (pedido) => caminhos.push(pathDe(pedido.url())))
@@ -190,9 +190,9 @@ test.describe('do sino à tela', () => {
     await esperarPainel(page)
 
     const sino = sinoDe(page)
-    await expect(sino).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(sino).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(sino).not.toHaveAccessibleName('Esperando você, 4')
-    await acionar(sino, hasTouch)
+    await activate(sino, hasTouch)
     await expect(listaDoSino(page)).toBeVisible()
     for (const daProfessora of [/Correção para revisar/, /Versão adaptada para decidir/, /Pedidos de nome para decidir/, /Confirme sua turma/]) await expect(listaDoSino(page).getByRole('link', { name: daProfessora })).toHaveCount(0)
     // Tempo para uma leitura da fila da professora sair, se saísse.
@@ -203,13 +203,13 @@ test.describe('do sino à tela', () => {
 
   test('recomeço: a troca de escola não deixa itens nem número da anterior, e a contagem que chega atrasada não entra', async ({ page, hasTouch }) => {
     test.slow()
-    const cena = await prepararCena(page)
+    const cena = await setupScenario(page)
     const emB = await criarUsuarioEmOutraEscola(cena.professora.contaId)
     const deB = await criarAlocacaoDoProfessor(emB.escolaId, emB.usuarioId, ['História'])
     await confirmarVinculosNoBanco(emB.escolaId, deB.vinculoIds)
 
     // A contagem de pedidos da turma A, depois do primeiro "Atualizar", fica no ar até o teste abrir.
-    const segura = portao()
+    const segura = gate()
     let segurar = false
     await page.route(new RegExp(`/v1/turmas/${cena.turmaA.turmaId}/reivindicacoes`), async (rota) => {
       if (segurar) await segura.aberta
@@ -218,14 +218,14 @@ test.describe('do sino à tela', () => {
 
     await page.goto('/entrar')
     await entrarPorEmail(page, cena.professora, hasTouch)
-    await acionar(page.getByRole('button', { name: `${cena.professora.escolaNome} · professor` }), hasTouch)
+    await activate(page.getByRole('button', { name: `${cena.professora.escolaNome} · professor` }), hasTouch)
     await esperarNovaConversa(page, cena.professora.nome)
     const sino = await esperarSino(page, 'Esperando você, 4')
 
     // "Atualizar" reabre a leitura; a dos pedidos da turma A fica no ar enquanto a professora troca de escola.
-    await acionar(sino, hasTouch)
+    await activate(sino, hasTouch)
     segurar = true
-    await acionar(listaDoSino(page).getByRole('button', { name: 'Atualizar' }), hasTouch)
+    await activate(listaDoSino(page).getByRole('button', { name: 'Atualizar' }), hasTouch)
     await page.keyboard.press('Escape')
     // Na escola B não há entrega, e a turma dela não tem pedido.
     cena.api.entregas = []
@@ -238,19 +238,19 @@ test.describe('do sino à tela', () => {
     segura.abrir()
     await page.waitForTimeout(1_500)
     await expect(sinoDe(page)).toHaveAccessibleName('Esperando você, nada')
-    await acionar(sinoDe(page), hasTouch)
+    await activate(sinoDe(page), hasTouch)
     await expect(listaDoSino(page).getByText('Tudo em dia')).toBeVisible()
     // Sem nada esperando, só o pé tem link.
     await expect(listaDoSino(page).getByRole('link')).toHaveCount(2)
     await expect(peDoSino(page).getByRole('link')).toHaveCount(2)
     await expect(page.locator('body')).not.toContainText(cena.turmaA.turmaNome)
-    const cache = semAcessosDaConta(await cacheDeConsultas(page))
+    const cache = semAcessosDaConta(await queryCache(page))
     for (const deA of [cena.professora.escolaId, cena.professora.usuarioId, cena.turmaA.turmaId, cena.turmaA.turmaNome, cena.turmaB.turmaNome, ...cena.turmaA.vinculoIds, ...cena.turmaB.vinculoIds]) expect(cache).not.toContain(deA)
   })
 
   test('recomeço: a segunda professora da mesma escola, na mesma aba, não herda o sino, as turmas nem as contagens da anterior', async ({ page, hasTouch }) => {
     test.slow()
-    const cena = await prepararCena(page)
+    const cena = await setupScenario(page)
     await entrarNaCena(page, cena, hasTouch)
     await esperarSino(page, 'Esperando você, 4')
     // A primeira abre a aba Alunos da turma A (telas do professor, 12.0): a lista de nomes e os pedidos de nome. A segunda, na mesma
@@ -258,8 +258,8 @@ test.describe('do sino à tela', () => {
     const alunoDaPrimeira = `Aluno da primeira ${randomUUID().slice(0, 8)}`
     await matricularAlunosNaTurmaNoBanco(cena.professora.escolaId, cena.turmaA.turmaId, [alunoDaPrimeira])
     await irPara(page, `/professor/turmas/${cena.turmaA.turmaId}?aba=alunos`)
-    await expect(page.getByRole('region', { name: 'Por aluno' })).toContainText(alunoDaPrimeira, { timeout: PRAZO_DA_TELA_MS })
-    await expect(page.getByRole('region', { name: 'Pedidos de nome' })).toContainText('Ana Sintética do sino', { timeout: PRAZO_DA_TELA_MS })
+    await expect(page.getByRole('region', { name: 'Por aluno' })).toContainText(alunoDaPrimeira, { timeout: SCREEN_TIMEOUT_MS })
+    await expect(page.getByRole('region', { name: 'Pedidos de nome' })).toContainText('Ana Sintética do sino', { timeout: SCREEN_TIMEOUT_MS })
     // A primeira abre também a aba Atividades da turma A (telas do professor, 11.0), com o painel de uma atividade: a segunda não encontra a
     // lista nem o painel, na tela ou no cache.
     const atividadeDela = `Atividade da primeira ${randomUUID().slice(0, 8)}`
@@ -280,15 +280,15 @@ test.describe('do sino à tela', () => {
       },
     ]
     await irPara(page, `/professor/turmas/${cena.turmaA.turmaId}?aba=atividades&atividade=${idDaAtividade}`)
-    await expect(page.getByRole('dialog', { name: atividadeDela })).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
+    await expect(page.getByRole('dialog', { name: atividadeDela })).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
     // A primeira deixa também uma conversa lida e um cartão aberto na conversa (telas do professor, 4.0): a segunda, na mesma
     // aba, não encontra nenhum dos dois. Volta ao Início sem recarregar, porque recarregar esvaziaria a memória da aba.
     cena.api.conversa = [mensagemDela('pedido da primeira professora', cena.turmaA.turmaId, randomUUID())]
     await irPara(page, '/professor/conversa')
-    await expect(page.getByRole('log').getByText('pedido da primeira professora')).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
-    await acionar(page.getByRole('button', { name: 'Ferramenta', exact: true }), hasTouch)
-    await acionar(page.getByRole('menuitemradio', { name: /Adaptação/ }), hasTouch)
-    await expect(page.getByRole('region', { name: 'Ferramenta Adaptação' })).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
+    await expect(page.getByRole('log').getByText('pedido da primeira professora')).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
+    await activate(page.getByRole('button', { name: 'Ferramenta', exact: true }), hasTouch)
+    await activate(page.getByRole('menuitemradio', { name: /Adaptação/ }), hasTouch)
+    await expect(page.getByRole('region', { name: 'Ferramenta Adaptação' })).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
     await irPara(page, '/professor/nova-conversa')
     // A primeira deixa um pedido escrito na caixa do Início; a segunda, com uma turma dela (sem turma não haveria caixa), a
     // encontra vazia: a memória da aba não passa de uma pessoa a outra (telas do professor, 3.4). O texto da caixa vive no
@@ -302,19 +302,19 @@ test.describe('do sino à tela', () => {
     // A primeira sai, e a segunda entra na mesma aba, sem recarregar: o cache de consultas é o mesmo. Na API simulada não sobra
     // entrega: o que apareceria no sino dela só podia vir do que ficou da primeira.
     await abrirNavegacao(page, hasTouch)
-    await acionar(lateral(page).getByRole('button', { name: 'Sair' }), hasTouch)
-    await expect(page).toHaveURL(/\/entrar$/, { timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(lateral(page).getByRole('button', { name: 'Sair' }), hasTouch)
+    await expect(page).toHaveURL(/\/entrar$/, { timeout: SIGN_IN_TIMEOUT_MS })
     cena.api.entregas = []
     cena.api.conversa = []
     cena.api.aplicadas = []
     await entrarPorEmail(page, segunda, hasTouch)
     await esperarNovaConversa(page, segunda.nome)
-    await expect(caixaDoPedido(page)).toHaveValue('', { timeout: PRAZO_DA_TELA_MS })
+    await expect(caixaDoPedido(page)).toHaveValue('', { timeout: SCREEN_TIMEOUT_MS })
     await expect(page.getByLabel('Turma e disciplina').locator('option:checked')).toHaveText(`${dela.turmaNome} · Biologia`)
 
     const sino = await esperarSino(page, 'Esperando você, nada')
     await expect(sino).not.toHaveAccessibleName('Esperando você, 4')
-    await acionar(sino, hasTouch)
+    await activate(sino, hasTouch)
     await expect(listaDoSino(page).getByText('Tudo em dia')).toBeVisible()
     // Sem nada esperando, só o pé tem link.
     await expect(listaDoSino(page).getByRole('link')).toHaveCount(2)
@@ -324,7 +324,7 @@ test.describe('do sino à tela', () => {
     await expect(page.locator('body')).not.toContainText('rascunho da primeira professora')
     await expect(page.locator('body')).not.toContainText(alunoDaPrimeira)
     await expect(page.locator('body')).not.toContainText(atividadeDela)
-    const consultas = await cacheDeConsultas(page)
+    const consultas = await queryCache(page)
     const cache = semAcessosDaConta(consultas)
     // A turma que a primeira abriu deixa, na troca de sessão, a chave de três consultas da navegação (`estrutura/turma/<id>`,
     // `acesso-da-turma/<id>` e `atividades-aplicadas/<id>`, a da aba Atividades), esvaziadas e sem dado: o id opaco da turma, e mais nada. Só essas três chaves, e só sem dado, ficam fora da
@@ -336,7 +336,7 @@ test.describe('do sino à tela', () => {
       expect(cache).not.toContain(daPrimeira)
     // A conversa que a primeira leu e o cartão que deixou aberto não estão na conversa da segunda.
     await irPara(page, '/professor/conversa')
-    await expect(page.getByText('Nenhuma conversa ainda')).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
+    await expect(page.getByText('Nenhuma conversa ainda')).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
     await expect(page.locator('[data-cartao-de-ferramenta]')).toHaveCount(0)
     await expect(page.getByRole('region', { name: 'Ferramenta Adaptação' })).toHaveCount(0)
     await expect(page.locator('body')).not.toContainText('pedido da primeira professora')
@@ -345,15 +345,15 @@ test.describe('do sino à tela', () => {
   test('360 px: o sino e a lista não rolam de lado e não têm violação grave', async ({ page, hasTouch }) => {
     test.slow()
     await page.setViewportSize({ width: 360, height: 740 })
-    const cena = await prepararCena(page)
+    const cena = await setupScenario(page)
     await entrarNaCena(page, cena, hasTouch)
     const sino = await esperarSino(page, 'Esperando você, 4')
-    expect(await larguraExcedente(page)).toBe(0)
-    await acionar(sino, hasTouch)
+    expect(await horizontalOverflow(page)).toBe(0)
+    await activate(sino, hasTouch)
     await expect(listaDoSino(page)).toBeVisible()
     expect(await larguraExcedenteDoDialogo(page)).toBe(0)
-    expect(await larguraExcedente(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await horizontalOverflow(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
     const painel = await listaDoSino(page).boundingBox()
     expect(painel?.width ?? 0).toBeLessThanOrEqual(360)
   })

@@ -1,8 +1,8 @@
 import { AxeBuilder } from '@axe-core/playwright'
 import type { Locator, Page } from '@playwright/test'
 import { expect, test } from './support/profiles.ts'
-import { abrirGaleria, acionar, caixa, desenho, secao } from './support/gallery.ts'
-import { ALVO_DE_TOQUE_PRINCIPAL_PX, focoVisivel, IMPACTOS_QUE_REPROVAM, larguraExcedente, TAGS_WCAG } from './support/checks.ts'
+import { openGallery, activate, caixa, desenho, gallerySection } from './support/gallery.ts'
+import { ALVO_DE_TOQUE_PRINCIPAL_PX, isFocusVisible, FAILING_IMPACTS, horizontalOverflow, WCAG_TAGS } from './support/checks.ts'
 
 /**
  * O estado dito sem depender da cor, na galeria (`/galeria`), nos projetos `chromebook` e `celular` e nos dois temas
@@ -74,7 +74,7 @@ function contraste(a: string, b: string): number {
 }
 
 async function irParaOTema(page: Page, tema: Tema): Promise<void> {
-  await abrirGaleria(page)
+  await openGallery(page)
   await page.evaluate((valor) => document.documentElement.setAttribute('data-tema', valor), tema)
 }
 
@@ -83,11 +83,11 @@ function estiloDe(alvo: Locator, ...propriedades: string[]): Promise<string[]> {
   return alvo.evaluate((elemento, nomes) => nomes.map((nome) => getComputedStyle(elemento).getPropertyValue(nome)), propriedades)
 }
 
-const selo = (page: Page, familia: string) => secao(page, 'estado').locator(`[data-estado="${familia}"]`)
-const aviso = (page: Page, tom: string) => secao(page, 'aviso').locator(`[data-aviso="${tom}"]`)
-const toques = (page: Page) => secao(page, 'toque').locator('[data-toques] button')
-const desligados = (page: Page) => secao(page, 'toque').locator('[data-toques-desligados] button')
-const estados = (page: Page) => secao(page, 'estados-de-tela').locator('[data-estados]')
+const selo = (page: Page, familia: string) => gallerySection(page, 'estado').locator(`[data-estado="${familia}"]`)
+const aviso = (page: Page, tom: string) => gallerySection(page, 'aviso').locator(`[data-aviso="${tom}"]`)
+const toques = (page: Page) => gallerySection(page, 'toque').locator('[data-toques] button')
+const desligados = (page: Page) => gallerySection(page, 'toque').locator('[data-toques-desligados] button')
+const estados = (page: Page) => gallerySection(page, 'estados-de-tela').locator('[data-estados]')
 
 for (const tema of TEMAS) {
   test.describe(`estado sem depender da cor, no tema ${tema}`, () => {
@@ -116,7 +116,7 @@ for (const tema of TEMAS) {
     test('a faixa é o aviso permanente: família info, borda de 2 px, sem botão nem link, role note', async ({ page }) => {
       await irParaOTema(page, tema)
       const { 'info-cx': fundo, info: texto, borda } = await rgbDosTokens(page, ['info-cx', 'info', 'borda'])
-      const faixa = secao(page, 'estado').getByRole('note')
+      const faixa = gallerySection(page, 'estado').getByRole('note')
       await expect(faixa).toHaveCount(1)
       expect(await desenho(faixa)).toMatchObject({ fundo, texto, borda: `2px solid ${borda}`, canto: '12px' })
       expect(contraste(texto, fundo)).toBeGreaterThanOrEqual(4.5)
@@ -148,9 +148,9 @@ for (const tema of TEMAS) {
         expect(contraste(glifo, cores.fundo), `${tom}: glifo contra o círculo`).toBeGreaterThanOrEqual(3)
       }
       // O erro é o único com região viva, e só o texto dele; os outros três não têm papel vivo.
-      await expect(secao(page, 'aviso').getByRole('alert')).toHaveCount(1)
+      await expect(gallerySection(page, 'aviso').getByRole('alert')).toHaveCount(1)
       await expect(aviso(page, 'erro').getByRole('alert')).toHaveCount(1)
-      await expect(secao(page, 'aviso').getByRole('status')).toHaveCount(0)
+      await expect(gallerySection(page, 'aviso').getByRole('status')).toHaveCount(0)
       await expect(aviso(page, 'erro').getByRole('alert').getByRole('button')).toHaveCount(0)
       await expect(aviso(page, 'erro').getByRole('button', { name: 'Tentar de novo' })).toBeVisible()
     })
@@ -158,7 +158,7 @@ for (const tema of TEMAS) {
     test('o contador: a face de cada família, o texto em sobre-cor com 4,5:1, 24 px e algarismos tabulares; zero não desenha', async ({ page }) => {
       await irParaOTema(page, tema)
       const { 'sobre-cor': sobreCor, ...faces } = await rgbDosTokens(page, ['sobre-cor', ...FAMILIAS])
-      const pilulas = secao(page, 'contador').locator('[data-contadores] [data-contador]')
+      const pilulas = gallerySection(page, 'contador').locator('[data-contadores] [data-contador]')
       await expect(pilulas).toHaveCount(FAMILIAS.length)
       for (const [indice, familia] of FAMILIAS.entries()) {
         const pilula = pilulas.nth(indice)
@@ -175,7 +175,7 @@ for (const tema of TEMAS) {
         await expect(escondido, familia).toHaveCount(1)
         expect(await caixa(escondido), `${familia}: o texto do que conta`).toMatchObject({ width: 1, height: 1 })
       }
-      await expect(secao(page, 'contador').locator('[data-contador-zero] [data-contador]')).toHaveCount(0)
+      await expect(gallerySection(page, 'contador').locator('[data-contador-zero] [data-contador]')).toHaveCount(0)
       // Não pisca: nenhuma pílula tem animação.
       expect(await pilulas.evaluateAll((itens) => itens.map((item) => getComputedStyle(item).animationName))).toEqual(FAMILIAS.map(() => 'none'))
     })
@@ -212,7 +212,7 @@ for (const tema of TEMAS) {
     test('as abas: a ativa em azul-texto com o sublinhado de 3 px em azul, e as outras em sutil, com 4,5:1 nas duas', async ({ page }) => {
       await irParaOTema(page, tema)
       const c = await rgbDosTokens(page, ['azul-texto', 'azul', 'sutil', 'fundo', 'borda'])
-      const lista = secao(page, 'abas').getByRole('tablist', { name: 'Seções da turma' })
+      const lista = gallerySection(page, 'abas').getByRole('tablist', { name: 'Seções da turma' })
       const [ativa, outra] = [lista.getByRole('tab', { selected: true }), lista.getByRole('tab', { selected: false }).first()]
       expect((await desenho(ativa)).texto).toBe(c['azul-texto'])
       expect((await desenho(outra)).texto).toBe(c.sutil)
@@ -265,22 +265,22 @@ for (const tema of TEMAS) {
 
     test('as seções não têm violação grave de acessibilidade, e nenhuma passa da largura da janela', async ({ page }) => {
       await irParaOTema(page, tema)
-      const analise = new AxeBuilder({ page }).withTags([...TAGS_WCAG])
+      const analise = new AxeBuilder({ page }).withTags([...WCAG_TAGS])
       for (const nome of SECOES) analise.include(`[data-galeria="${nome}"]`)
       const { violations } = await analise.analyze()
       const graves = violations
-        .filter((violacao) => (IMPACTOS_QUE_REPROVAM as readonly string[]).includes(violacao.impact ?? ''))
+        .filter((violacao) => (FAILING_IMPACTS as readonly string[]).includes(violacao.impact ?? ''))
         .map((violacao) => ({ regra: violacao.id, impacto: violacao.impact, alvos: violacao.nodes.map((no) => no.target.join(' ')) }))
       expect(graves).toEqual([])
-      expect(await larguraExcedente(page)).toBe(0)
+      expect(await horizontalOverflow(page)).toBe(0)
     })
   })
 }
 
 test.describe('estado sem depender da cor: medida, teclado e toque', () => {
   test('alvo de toque: a aba e o toque têm 44 px de altura abaixo de 768, e 44 e 40 a partir daí', async ({ page, hasTouch }) => {
-    await abrirGaleria(page)
-    const abas = secao(page, 'abas').getByRole('tablist', { name: 'Seções da turma' }).getByRole('tab')
+    await openGallery(page)
+    const abas = gallerySection(page, 'abas').getByRole('tablist', { name: 'Seções da turma' }).getByRole('tab')
     await expect(abas).toHaveCount(3)
     for (const aba of await abas.all()) {
       const medida = await caixa(aba)
@@ -297,14 +297,14 @@ test.describe('estado sem depender da cor: medida, teclado e toque', () => {
   })
 
   test('o toque troca no clique e no teclado, mostra o visto, e o desligado fica fora do Tab', async ({ page, hasTouch }) => {
-    await abrirGaleria(page)
+    await openGallery(page)
     const esperando = toques(page).nth(1)
     const sugeridas = toques(page).nth(2)
     await expect(esperando).toHaveAttribute('aria-pressed', 'false')
-    await acionar(esperando, hasTouch)
+    await activate(esperando, hasTouch)
     await expect(esperando).toHaveAttribute('aria-pressed', 'true')
     expect(await esperando.locator('svg').evaluate((svg) => svg.classList.contains('lucide-check'))).toBe(true)
-    await acionar(esperando, hasTouch)
+    await activate(esperando, hasTouch)
     await expect(esperando).toHaveAttribute('aria-pressed', 'false')
 
     // Pelo teclado: Espaço e Enter trocam, e a ordem do Tab passa pelas três e salta as desligadas.
@@ -314,7 +314,7 @@ test.describe('estado sem depender da cor: medida, teclado e toque', () => {
     await page.keyboard.press('Shift+Tab')
     await page.keyboard.press('Tab')
     await expect(esperando).toBeFocused()
-    expect(await focoVisivel(page)).toBe(true)
+    expect(await isFocusVisible(page)).toBe(true)
     await page.keyboard.press('Space')
     await expect(esperando).toHaveAttribute('aria-pressed', 'true')
     await page.keyboard.press('Tab')
@@ -330,12 +330,12 @@ test.describe('estado sem depender da cor: medida, teclado e toque', () => {
     await expect(arquivadas).toHaveAttribute('aria-pressed', 'true')
     await arquivadas.click({ force: true })
     await expect(arquivadas).toHaveAttribute('aria-pressed', 'true')
-    await expect(secao(page, 'toque').locator('[data-toques-acionados]')).toHaveAttribute('data-toques-acionados', '0')
+    await expect(gallerySection(page, 'toque').locator('[data-toques-acionados]')).toHaveAttribute('data-toques-acionados', '0')
   })
 
   test('as abas pelo teclado: uma parada só no Tab, as setas dão a volta, Home e End, e o painel aponta para a aba', async ({ page }) => {
-    await abrirGaleria(page)
-    const abas = secao(page, 'abas')
+    await openGallery(page)
+    const abas = gallerySection(page, 'abas')
     const lista = abas.getByRole('tablist', { name: 'Seções da turma' })
     const painel = abas.getByRole('tabpanel').first()
     const aba = (nome: RegExp | string) => lista.getByRole('tab', { name: nome })
@@ -358,8 +358,8 @@ test.describe('estado sem depender da cor: medida, teclado e toque', () => {
   })
 
   test('a faixa não fecha e continua à vista: sem botão nem link, e visível depois de rolar a galeria', async ({ page }) => {
-    await abrirGaleria(page)
-    const faixa = secao(page, 'estado').getByRole('note')
+    await openGallery(page)
+    const faixa = gallerySection(page, 'estado').getByRole('note')
     await expect(faixa.getByRole('button')).toHaveCount(0)
     await expect(faixa.getByRole('link')).toHaveCount(0)
     await expect(faixa).toHaveText('Seu professor acompanha como você usa o Tutor.')
@@ -368,14 +368,14 @@ test.describe('estado sem depender da cor: medida, teclado e toque', () => {
   })
 
   test('o "Tentar de novo" é o botão primário de 44 px, e o "Tentando de novo…" é um status fora do alerta', async ({ page, hasTouch }) => {
-    await abrirGaleria(page)
+    await openGallery(page)
     const blocos = estados(page).locator('div', { has: page.getByRole('alert') })
     const erro = blocos.last()
     await expect(erro.getByRole('alert')).toHaveCount(1)
     const botao = erro.getByRole('button', { name: 'Tentar de novo' })
     expect((await caixa(botao)).height).toBeGreaterThanOrEqual(ALVO_DE_TOQUE_PRINCIPAL_PX)
-    await acionar(estados(page).getByRole('button', { name: 'Tentar de novo' }).first(), hasTouch)
-    await expect(secao(page, 'estados-de-tela').locator('[data-tentativas]')).toHaveAttribute('data-tentativas', '1')
+    await activate(estados(page).getByRole('button', { name: 'Tentar de novo' }).first(), hasTouch)
+    await expect(gallerySection(page, 'estados-de-tela').locator('[data-tentativas]')).toHaveAttribute('data-tentativas', '1')
     await expect(estados(page).getByRole('status').filter({ hasText: 'Tentando de novo…' })).toHaveCount(1)
     await expect(estados(page).getByRole('alert').filter({ hasText: 'Tentando' })).toHaveCount(0)
     await expect(estados(page).getByRole('status').filter({ hasText: 'Verificando…' })).toHaveCount(1)

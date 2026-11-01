@@ -2,9 +2,9 @@ import { randomUUID } from 'node:crypto'
 import { atividadeSintetica, versaoAdaptada } from './support/assistente.ts'
 import { conferirAssinaturas } from './support/avatar.ts'
 import { caixa } from './support/professor-flow.ts'
-import { acionar, entrar, irPara, PRAZO_DA_TELA_MS } from './support/professor/scenario.ts'
+import { activate, entrar, irPara, SCREEN_TIMEOUT_MS } from './support/professor/scenario.ts'
 import { esperarSino, listaDoSino } from './support/professor/sino.ts'
-import { larguraExcedente, violacoesGraves } from './support/checks.ts'
+import { horizontalOverflow, seriousViolations } from './support/checks.ts'
 import { expect, test } from './support/profiles.ts'
 
 /**
@@ -22,11 +22,11 @@ test.describe('a Home (11.5)', () => {
     test.slow()
     await entrar(page, hasTouch, { comTurma: false })
     await irPara(page, '/professor/nova-conversa')
-    await expect(page.getByText('Falta uma turma confirmada')).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
+    await expect(page.getByText('Falta uma turma confirmada')).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
     await expect(caixa(page)).toHaveCount(0)
-    expect(await larguraExcedente(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
-    await acionar(page.getByRole('button', { name: 'Ir para Turmas' }), hasTouch)
+    expect(await horizontalOverflow(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
+    await activate(page.getByRole('button', { name: 'Ir para Turmas' }), hasTouch)
     await expect(page).toHaveURL(/\/professor\/turmas$/)
   })
 
@@ -35,7 +35,7 @@ test.describe('a Home (11.5)', () => {
 
     // A saudação pela hora, com o primeiro nome, e o Assistente com a função e o selo "IA" no mesmo bloco.
     const principal = page.getByRole('main')
-    await expect(page.getByText(/^(Bom dia|Boa tarde|Boa noite), Professora\.$/)).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
+    await expect(page.getByText(/^(Bom dia|Boa tarde|Boa noite), Professora\.$/)).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
     await expect(principal.getByRole('heading', { level: 1, name: 'Início' })).toBeAttached()
     expect(await conferirAssinaturas(principal)).toBe(1)
     await expect(principal.locator('[data-assinatura]')).toContainText('Assistente de ensino')
@@ -50,8 +50,8 @@ test.describe('a Home (11.5)', () => {
     await expect(atalhos.getByRole('link', { name: 'Ferramentas' })).toHaveAttribute('href', '/professor/ferramentas')
     await expect(page.getByRole('button', { name: 'Ferramenta', exact: true })).toHaveCount(0)
     await expect(principal.getByRole('heading', { name: 'Esperando você' })).toHaveCount(0)
-    expect(await larguraExcedente(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await horizontalOverflow(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
   })
 
   test('com entrega pendente, o sino a conta e a lista leva a ela; o Início não a mostra', async ({ page, hasTouch }) => {
@@ -64,17 +64,17 @@ test.describe('a Home (11.5)', () => {
     await expect(principal).not.toContainText('Há mais entregas esperando você')
     await expect(principal).not.toContainText('Atividade de estequiometria (versão adaptada)')
     await expect(principal.getByRole('link', { name: /^Ver e decidir|^Revisar/ })).toHaveCount(0)
-    await acionar(page.getByRole('button', { name: /^Esperando você/ }), hasTouch)
-    await expect(listaDoSino(page).getByRole('link', { name: /Versão adaptada para decidir.*Atividade de estequiometria \(versão adaptada\)/ })).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
+    await activate(page.getByRole('button', { name: /^Esperando você/ }), hasTouch)
+    await expect(listaDoSino(page).getByRole('link', { name: /Versão adaptada para decidir.*Atividade de estequiometria \(versão adaptada\)/ })).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
   })
 
   test('o atalho da atividade abre o cartão na conversa com o texto da caixa como tema', async ({ page, hasTouch }) => {
     const { api, turmaNome } = await entrar(page, hasTouch)
     await caixa(page).fill('Equilíbrio químico')
-    await acionar(page.getByRole('group', { name: 'Atalhos de ferramenta' }).getByRole('button', { name: /^Atividade objetiva/ }), hasTouch)
+    await activate(page.getByRole('group', { name: 'Atalhos de ferramenta' }).getByRole('button', { name: /^Atividade objetiva/ }), hasTouch)
     await expect(page).toHaveURL(/\/professor\/conversa$/)
     const cartao = page.locator('[data-cartao-de-ferramenta="atividade_objetiva"]')
-    await expect(cartao.getByLabel('Tema')).toHaveValue('Equilíbrio químico', { timeout: PRAZO_DA_TELA_MS })
+    await expect(cartao.getByLabel('Tema')).toHaveValue('Equilíbrio químico', { timeout: SCREEN_TIMEOUT_MS })
     await expect(cartao.getByLabel('Turma e disciplina').locator('option:checked')).toHaveText(`${turmaNome} · Química`)
     // Atalho é a escolha da ferramenta: nenhum pedido sai para o Assistente.
     expect(api.pedidosEm(/mensagens$/)).toHaveLength(0)
@@ -85,10 +85,10 @@ test.describe('a Home (11.5)', () => {
     const janela = page.viewportSize()
     if (janela === null) throw new Error('o projeto não declara a janela')
     const grupo = page.locator('[data-grupo-do-inicio]')
-    await expect(grupo).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
+    await expect(grupo).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
     const atalhos = page.getByRole('group', { name: 'Atalhos de ferramenta' })
     await expect(atalhos).toBeVisible()
-    expect(await larguraExcedente(page)).toBe(0)
+    expect(await horizontalOverflow(page)).toBe(0)
 
     // A caixa e os atalhos cabem na primeira tela, e cada alvo dentro da largura da janela.
     const campo = await caixa(page).boundingBox()

@@ -1,10 +1,10 @@
 import type { Locator, Page } from '@playwright/test'
 import { MENSAGENS_DE_ERRO } from '../packages/shared/src/errors/messages.ts'
-import { atividadeSintetica, erroDaApi, mensagemDela, portao, propostaDeAtividade, respostaComPagina, TITULO_DO_MATERIAL } from './support/assistente.ts'
-import { PRAZO_DA_ENTRADA_MS } from './support/casca.ts'
+import { atividadeSintetica, apiError, mensagemDela, gate, propostaDeAtividade, respostaComPagina, TITULO_DO_MATERIAL } from './support/assistente.ts'
+import { SIGN_IN_TIMEOUT_MS } from './support/casca.ts'
 import { caixa } from './support/professor-flow.ts'
-import { acionar, entrar, irPara, PRAZO_DA_TELA_MS, recarregar, selosDeIA, UUID } from './support/professor/scenario.ts'
-import { larguraExcedente, violacoesGraves } from './support/checks.ts'
+import { activate, entrar, irPara, SCREEN_TIMEOUT_MS, recarregar, selosDeIA, UUID } from './support/professor/scenario.ts'
+import { horizontalOverflow, seriousViolations } from './support/checks.ts'
 import { expect, test } from './support/profiles.ts'
 
 /**
@@ -13,7 +13,7 @@ import { expect, test } from './support/profiles.ts'
 
 async function enviarPedido(page: Page, texto: string, hasTouch: boolean): Promise<void> {
   await caixa(page).fill(texto)
-  await acionar(page.getByRole('button', { name: 'Enviar' }), hasTouch)
+  await activate(page.getByRole('button', { name: 'Enviar' }), hasTouch)
 }
 
 test.describe('a conversa (11.3)', () => {
@@ -22,14 +22,14 @@ test.describe('a conversa (11.3)', () => {
     test.slow()
     const { api, turmaId, disciplinaId } = await entrar(page, hasTouch)
     await irPara(page, '/professor/nova-conversa')
-    await expect(caixa(page)).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
+    await expect(caixa(page)).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
 
     const pedido = 'monta uma atividade de estequiometria, dez questões'
     await enviarPedido(page, pedido, hasTouch)
     // Enviando e pensando: o pedido dela na tela, a caixa limpa e a assinatura da IA com o texto de quem está preparando.
     await expect(page).toHaveURL(/\/professor\/conversa$/)
     const conversa = page.getByRole('log', { name: 'Conversa com o Assistente de ensino' })
-    await expect(conversa.getByText(pedido)).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
+    await expect(conversa.getByText(pedido)).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
     await expect(conversa.locator('[data-pensando]')).toContainText('Assistente de ensino')
     await expect(selosDeIA(conversa.locator('[data-pensando]'))).toHaveCount(1)
     await expect(caixa(page)).toHaveValue('')
@@ -53,14 +53,14 @@ test.describe('a conversa (11.3)', () => {
     api.conversa = [mensagemDela(pedido, turmaId, disciplinaId), proposta]
     // A releitura da conversa demora: enquanto ela não volta, a resposta que a execução trouxe aparece **depois** do
     // pedido, e não acima dele.
-    const releitura = portao()
+    const releitura = gate()
     api.trocar('conversa', async (lido) => {
       await releitura.aberta
       return api.responder('conversa', lido)
     })
     api.concluir(api.ultimaExecucao(), { tipo: 'mensagem', mensagem: proposta })
     const escolha = conversa.getByRole('group', { name: proposta.texto })
-    await expect(escolha).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
+    await expect(escolha).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
     await expect(conversa.locator('article')).toHaveText([new RegExp(`^Você: ${pedido}$`), /Posso fazer isso com a ferramenta Atividade objetiva/])
     releitura.abrir()
     api.trocar('conversa')
@@ -75,15 +75,15 @@ test.describe('a conversa (11.3)', () => {
     expect(Math.round(usar?.height ?? 0)).toBe(Math.round(soConversar?.height ?? -1))
     const desenho = (alvo: Locator) => alvo.evaluate((elemento) => [getComputedStyle(elemento).backgroundColor, getComputedStyle(elemento).color, getComputedStyle(elemento).borderTopColor, getComputedStyle(elemento).fontWeight])
     expect(await desenho(opcoes.nth(0))).toEqual(await desenho(opcoes.nth(1)))
-    expect(await larguraExcedente(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await horizontalOverflow(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
     // A consulta da execução parou quando ela concluiu.
     const consultas = api.consultasDeExecucao.length
     await page.waitForTimeout(2_500)
     expect(api.consultasDeExecucao.length).toBe(consultas)
 
     // Com o sim, o cartão da ferramenta abre dentro da conversa, com o que o Assistente entendeu.
-    await acionar(opcoes.nth(0), hasTouch)
+    await activate(opcoes.nth(0), hasTouch)
     await expect(conversa.getByText('Você escolheu:')).toContainText('Usar a ferramenta Atividade objetiva')
     const cartao = page.locator('[data-cartao-de-ferramenta="atividade_objetiva"]')
     await expect(cartao.getByLabel('Tema')).toHaveValue('Estequiometria')
@@ -105,8 +105,8 @@ test.describe('a conversa (11.3)', () => {
     // Com o cartão aberto, a ação da tela é a dele: a caixa de pedido espera.
     await expect(caixa(page)).toBeDisabled()
     await cartao.getByLabel('Questões').fill('2')
-    await acionar(cartao.getByRole('button', { name: 'Gerar atividade' }), hasTouch)
-    await expect(cartao.getByRole('status').filter({ hasText: 'Gerando' })).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
+    await activate(cartao.getByRole('button', { name: 'Gerar atividade' }), hasTouch)
+    await expect(cartao.getByRole('status').filter({ hasText: 'Gerando' })).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
     // O botão de gerar deu lugar ao pedido recolhido: o foco fica dentro do cartão.
     expect(await page.evaluate(() => document.activeElement?.closest('[data-motor]') !== null && document.activeElement !== document.body)).toBe(true)
     await expect.poll(() => api.pedidosEm(/gerar$/).length).toBe(1)
@@ -118,7 +118,7 @@ test.describe('a conversa (11.3)', () => {
     const artefato = atividadeSintetica(turmaId, disciplinaId)
     api.artefatos = [artefato]
     api.concluir(api.ultimaExecucao(), { tipo: 'artefato', artefatoId: artefato.id, entregaId: null })
-    await expect(cartao.getByText(artefato.titulo)).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
+    await expect(cartao.getByText(artefato.titulo)).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
     // A troca de "Gerando…" pelo resultado é anunciada a quem não vê a tela.
     await expect(cartao.locator('[data-anuncio-do-resultado]')).toHaveText('Atividade objetiva: geração concluída. O resultado está logo abaixo do pedido.')
     await expect(cartao.getByText('Assistente · conversa e ferramentas')).toBeVisible()
@@ -130,9 +130,9 @@ test.describe('a conversa (11.3)', () => {
     // Toda saída de IA da tela leva o selo: a proposta e o que a ferramenta gerou.
     await expect(selosDeIA(page.getByRole('main'))).toHaveCount(2)
     await expect(page.getByText(/Seu time/)).toHaveCount(0)
-    expect(await larguraExcedente(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
-    await acionar(cartao.getByRole('link', { name: 'Abrir o artefato' }), hasTouch)
+    expect(await horizontalOverflow(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
+    await activate(cartao.getByRole('link', { name: 'Abrir o artefato' }), hasTouch)
     await expect(page).toHaveURL(new RegExp(`/professor/artefatos/${artefato.id}$`))
   })
 
@@ -146,14 +146,14 @@ test.describe('a conversa (11.3)', () => {
     const conversa = page.getByRole('log')
     const ultima = conversa.getByText('Resposta recente 6,')
     // A conversa abre no fim: a última mensagem à vista.
-    await expect(ultima).toBeInViewport({ timeout: PRAZO_DA_TELA_MS })
+    await expect(ultima).toBeInViewport({ timeout: SCREEN_TIMEOUT_MS })
     await expect(conversa.getByText('Você: pergunta antiga 1')).toHaveCount(0)
 
     const anteriores = page.getByRole('button', { name: 'Ver mensagens anteriores' })
     await anteriores.scrollIntoViewIfNeeded()
     await expect(ultima).not.toBeInViewport()
-    await acionar(anteriores, hasTouch)
-    await expect(conversa.getByText('Você: pergunta antiga 1')).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
+    await activate(anteriores, hasTouch)
+    await expect(conversa.getByText('Você: pergunta antiga 1')).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
     await expect(anteriores).toHaveCount(0)
     // Ela foi ler o começo: a tela fica onde ela está, e não volta para o fim.
     await page.evaluate(() => new Promise<void>((pronto) => requestAnimationFrame(() => requestAnimationFrame(() => pronto()))))
@@ -165,7 +165,7 @@ test.describe('a conversa (11.3)', () => {
     expect(falas[1]).toContain('Resposta antiga 1,')
     expect(falas[12]).toContain('pergunta recente 1')
     expect(falas[23]).toContain('Resposta recente 6,')
-    expect(await larguraExcedente(page)).toBe(0)
+    expect(await horizontalOverflow(page)).toBe(0)
   })
 
   test('os quatro estados da conversa; a resposta com chip de página e fontes; a falha vira aviso com "Tentar de novo", nunca código; a função suspensa vira aviso que explica', async ({ page, hasTouch }) => {
@@ -174,33 +174,33 @@ test.describe('a conversa (11.3)', () => {
     const { api, turmaId, disciplinaId } = await entrar(page, hasTouch)
 
     // Carregando e erro.
-    const segura = portao()
+    const segura = gate()
     api.trocar('conversa', async () => {
       await segura.aberta
-      return erroDaApi(503, 'INDISPONIVEL_TENTE_DE_NOVO')
+      return apiError(503, 'INDISPONIVEL_TENTE_DE_NOVO')
     })
     await irPara(page, '/professor/conversa')
-    await expect(page.getByText('Carregando a conversa…')).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
+    await expect(page.getByText('Carregando a conversa…')).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
     segura.abrir()
-    await expect(page.getByRole('main').getByRole('alert')).toHaveText(MENSAGENS_DE_ERRO.INDISPONIVEL_TENTE_DE_NOVO, { timeout: PRAZO_DA_TELA_MS })
+    await expect(page.getByRole('main').getByRole('alert')).toHaveText(MENSAGENS_DE_ERRO.INDISPONIVEL_TENTE_DE_NOVO, { timeout: SCREEN_TIMEOUT_MS })
     // Vazio: o convite para pedir.
     api.trocar('conversa')
-    await acionar(page.getByRole('button', { name: 'Tentar de novo' }), hasTouch)
-    await expect(page.getByText('Nenhuma conversa ainda')).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
-    expect(await violacoesGraves(page)).toEqual([])
+    await activate(page.getByRole('button', { name: 'Tentar de novo' }), hasTouch)
+    await expect(page.getByText('Nenhuma conversa ainda')).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
+    expect(await seriousViolations(page)).toEqual([])
 
     // A execução falha: aviso dentro da conversa, com "Tentar de novo", e nenhum código na tela.
     // O 13º pedido do minuto: a API recusa com 429, e a tela diz com calma que é só esperar, sem alarme e sem código.
-    api.trocar('mensagens', () => erroDaApi(429, 'LIMITE_EXCEDIDO'))
+    api.trocar('mensagens', () => apiError(429, 'LIMITE_EXCEDIDO'))
     await enviarPedido(page, 'o que é reagente limitante?', hasTouch)
     const limite = page.locator('[data-limite-de-pedidos]')
-    await expect(limite).toContainText('Você fez muitos pedidos ao Assistente em pouco tempo.', { timeout: PRAZO_DA_TELA_MS })
+    await expect(limite).toContainText('Você fez muitos pedidos ao Assistente em pouco tempo.', { timeout: SCREEN_TIMEOUT_MS })
     await expect(page.getByRole('main').getByRole('alert')).toHaveCount(0)
     await expect(page.getByRole('main')).not.toContainText('LIMITE_EXCEDIDO')
     await expect(page.getByRole('log').getByText('o que é reagente limitante?')).toBeVisible()
     // "Pedir de novo" manda o mesmo pedido com a mesma chave: o recusado não chegou a virar execução.
     api.trocar('mensagens')
-    await acionar(limite.getByRole('button', { name: 'Pedir de novo' }), hasTouch)
+    await activate(limite.getByRole('button', { name: 'Pedir de novo' }), hasTouch)
     await expect.poll(() => api.pedidosEm(/mensagens$/).length).toBe(2)
     const [recusado, repetido] = api.pedidosEm(/mensagens$/).map((pedido) => pedido.corpo as { texto: string; chaveEnvio: string })
     expect(repetido).toEqual(recusado)
@@ -208,11 +208,11 @@ test.describe('a conversa (11.3)', () => {
 
     api.falhar(api.ultimaExecucao(), 'IA_INDISPONIVEL')
     const aviso = page.locator('[data-aviso-fila="falha"]')
-    await expect(aviso).toContainText('Não foi possível responder agora.', { timeout: PRAZO_DA_TELA_MS })
+    await expect(aviso).toContainText('Não foi possível responder agora.', { timeout: SCREEN_TIMEOUT_MS })
     await expect(page.getByRole('main')).not.toContainText('IA_INDISPONIVEL')
     await expect(page.getByRole('log').getByText('o que é reagente limitante?')).toBeVisible()
     // "Tentar de novo" manda o mesmo pedido com chave nova: a antiga devolveria a execução que falhou.
-    await acionar(aviso.getByRole('button', { name: 'Tentar de novo' }), hasTouch)
+    await activate(aviso.getByRole('button', { name: 'Tentar de novo' }), hasTouch)
     await expect.poll(() => api.pedidosEm(/mensagens$/).length).toBe(3)
     const [, primeiro, segundo] = api.pedidosEm(/mensagens$/).map((pedido) => pedido.corpo as { texto: string; chaveEnvio: string })
     expect(segundo?.texto).toBe(primeiro?.texto)
@@ -223,20 +223,20 @@ test.describe('a conversa (11.3)', () => {
     api.conversa = [mensagemDela('o que é reagente limitante?', turmaId, disciplinaId), resposta]
     api.concluir(api.ultimaExecucao(), { tipo: 'mensagem', mensagem: resposta })
     const conversa = page.getByRole('log')
-    await expect(conversa.getByText('O reagente limitante é o que acaba primeiro.')).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
+    await expect(conversa.getByText('O reagente limitante é o que acaba primeiro.')).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
     // O texto do modelo entra como texto: a marcação aparece escrita, e não vira elemento.
     await expect(conversa.locator('[data-texto-da-ia] b')).toHaveCount(0)
     await expect(conversa.getByText('Assistente de ensino', { exact: true })).toHaveCount(1)
     await expect(selosDeIA(conversa)).toHaveCount(1)
     const chip = conversa.getByRole('button', { name: `Fonte: ${TITULO_DO_MATERIAL}, p. 142` })
-    await acionar(chip, hasTouch)
+    await activate(chip, hasTouch)
     await expect(page.getByRole('group', { name: `Fonte: ${TITULO_DO_MATERIAL}, p. 142` })).toContainText('cada mol de carbono')
-    expect(await larguraExcedente(page)).toBe(0)
+    expect(await horizontalOverflow(page)).toBe(0)
     await page.keyboard.press('Escape')
     await expect(conversa.getByText(`Fontes (1): ${TITULO_DO_MATERIAL}, p. 142`)).toBeVisible()
     await expect(conversa.getByText('o que é reagente limitante?')).toHaveCount(1)
     await expect(page.getByText(/Seu time/)).toHaveCount(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await seriousViolations(page)).toEqual([])
 
     // A escola suspende a função: aviso que explica, sem alerta, e a caixa não aceita pedido.
     api.suspensas.add('conversa_e_ferramentas')
@@ -247,19 +247,19 @@ test.describe('a conversa (11.3)', () => {
     await page.route('**/v1/sessao/renovar', async (rota) => {
       renovacoes += 1
       if (renovacoes > 1) return rota.continue()
-      const { status, corpo } = erroDaApi(500, 'ERRO_INTERNO')
+      const { status, corpo } = apiError(500, 'ERRO_INTERNO')
       return rota.fulfill({ status, contentType: 'application/json', body: JSON.stringify(corpo) })
     })
     await recarregar(page)
     // Exato: a recusa e o clique em "Tentar de novo". A web não renova sozinha em segundo plano entre os dois; se um dia renovar, o número muda aqui.
     expect(renovacoes, 'a renovação recusada e a repetição pela tela').toBe(2)
-    // A recusa é desta recarga: a rota sai para não contornar, sem ninguém ver, uma renovação simulada que `simularAssistente` ganhe depois.
+    // A recusa é desta recarga: a rota sai para não contornar, sem ninguém ver, uma renovação simulada que `mockAssistenteApi` ganhe depois.
     await page.unroute('**/v1/sessao/renovar')
     const explicacao = page.getByRole('note')
-    await expect(explicacao).toContainText('A coordenação suspendeu a conversa e as ferramentas do Assistente nesta escola.', { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(explicacao).toContainText('A coordenação suspendeu a conversa e as ferramentas do Assistente nesta escola.', { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(caixa(page)).toBeDisabled()
     await expect(page.getByRole('main').getByRole('alert')).toHaveCount(0)
     await expect(page.getByRole('main')).not.toContainText('FUNCAO_SUSPENSA')
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await seriousViolations(page)).toEqual([])
   })
 })

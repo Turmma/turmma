@@ -87,12 +87,12 @@ const ROTAS: readonly { readonly rota: Rota; readonly metodo: string; readonly c
   { rota: 'uso', metodo: 'GET', caminho: /^\/v1\/tutor\/uso$/ },
 ]
 
-export function erroDaApi(status: number, codigo: string): Resposta {
+export function apiError(status: number, codigo: string): Resposta {
   return { status, corpo: { erro: { codigo, mensagem: 'x', requisicaoId: randomUUID() } } }
 }
 
 /** Uma porta que segura a resposta até o teste abrir: é como o teste vê o estado "carregando" e o clique duplo. */
-export function portao(): { readonly aberta: Promise<void>; readonly abrir: () => void } {
+export function gate(): { readonly aberta: Promise<void>; readonly abrir: () => void } {
   let abrir: () => void = () => undefined
   const aberta = new Promise<void>((resolver) => {
     abrir = resolver
@@ -105,7 +105,7 @@ export const TITULO_DO_MATERIAL = 'Química 2, cap. 7 — Estequiometria'
 /** A professora que decide, nas respostas simuladas: nome inventado, de ninguém. */
 export const QUEM_DECIDE = { id: randomUUID(), nome: 'Camila Souza sintética' }
 
-export class ApiDoAssistente {
+export class AssistenteApiMock {
   conversa: MensagemDaConversa[] = []
   /** As mensagens anteriores às de `conversa`: a API as entrega em outra página, por `?antes=`. */
   conversaAnterior: MensagemDaConversa[] = []
@@ -190,7 +190,7 @@ export class ApiDoAssistente {
     if (rota === 'execucao') {
       this.consultasDeExecucao.push(id)
       const execucao = this.execucoes.get(id)
-      return execucao === undefined ? erroDaApi(404, 'NAO_ENCONTRADO') : { status: 200, corpo: execucao }
+      return execucao === undefined ? apiError(404, 'NAO_ENCONTRADO') : { status: 200, corpo: execucao }
     }
     if (rota === 'artefatos') {
       // Como a API: `?turmaId=` só restringe a lista (telas do professor, 5.0). Turma que não é da professora devolve a página vazia.
@@ -200,7 +200,7 @@ export class ApiDoAssistente {
     }
     if (rota === 'artefato' || rota === 'renomear' || rota === 'pdf') {
       const artefato = this.artefatos.find((item) => item.id === id)
-      if (artefato === undefined) return erroDaApi(404, 'NAO_ENCONTRADO')
+      if (artefato === undefined) return apiError(404, 'NAO_ENCONTRADO')
       if (rota === 'pdf') return { status: 200, pdf: 'atividade-sintetica.pdf' }
       if (rota === 'artefato') return { status: 200, corpo: artefato }
       const titulo = typeof corpo === 'object' && corpo !== null && 'titulo' in corpo && typeof corpo.titulo === 'string' ? corpo.titulo : artefato.titulo
@@ -219,9 +219,9 @@ export class ApiDoAssistente {
     if (rota === 'aplicar') {
       const pedido = corpo as { artefatoId: string; turmaId: string; avaliativa: boolean }
       const artefato = this.artefatos.find((item) => item.id === pedido.artefatoId)
-      if (artefato === undefined || artefato.conteudo.tipo !== 'atividade_objetiva') return erroDaApi(404, 'NAO_ENCONTRADO')
-      if (artefato.entrega !== null && artefato.entrega.estado !== 'aprovada') return erroDaApi(409, 'VERSAO_ADAPTADA_NAO_APROVADA')
-      if (this.aplicadas.some((aplicada) => aplicada.artefatoId === artefato.id && aplicada.estado === 'aberta')) return erroDaApi(409, 'CONFLITO')
+      if (artefato === undefined || artefato.conteudo.tipo !== 'atividade_objetiva') return apiError(404, 'NAO_ENCONTRADO')
+      if (artefato.entrega !== null && artefato.entrega.estado !== 'aprovada') return apiError(409, 'VERSAO_ADAPTADA_NAO_APROVADA')
+      if (this.aplicadas.some((aplicada) => aplicada.artefatoId === artefato.id && aplicada.estado === 'aberta')) return apiError(409, 'CONFLITO')
       const aplicada: AtividadeAplicada = {
         id: randomUUID(),
         artefatoId: artefato.id,
@@ -240,7 +240,7 @@ export class ApiDoAssistente {
     }
     if (rota === 'encerrar') {
       const aplicada = this.aplicadas.find((item) => item.id === id)
-      if (aplicada === undefined) return erroDaApi(404, 'NAO_ENCONTRADO')
+      if (aplicada === undefined) return apiError(404, 'NAO_ENCONTRADO')
       const lote = this.loteAoEncerrar?.(aplicada)
       const encerrada: AtividadeAplicada = { ...aplicada, estado: 'encerrada', encerradaEm: aplicada.encerradaEm ?? new Date().toISOString(), entrega: lote === undefined ? null : lote.entrega }
       if (lote !== undefined) {
@@ -252,13 +252,13 @@ export class ApiDoAssistente {
     }
     if (rota === 'correcao') {
       const lote = this.correcoes.get(id)
-      return lote === undefined ? erroDaApi(404, 'NAO_ENCONTRADO') : { status: 200, corpo: lote }
+      return lote === undefined ? apiError(404, 'NAO_ENCONTRADO') : { status: 200, corpo: lote }
     }
     if (rota === 'abrirDestaque') {
       const lote = this.correcoes.get(id)
       const destaque = lote?.destaques.find((item) => item.alunoId === ids[1])
-      if (lote === undefined || destaque === undefined) return erroDaApi(404, 'NAO_ENCONTRADO')
-      if (destaque.abertoEm === null && lote.entrega.estado !== 'pendente') return erroDaApi(409, 'ENTREGA_JA_DECIDIDA')
+      if (lote === undefined || destaque === undefined) return apiError(404, 'NAO_ENCONTRADO')
+      if (destaque.abertoEm === null && lote.entrega.estado !== 'pendente') return apiError(409, 'ENTREGA_JA_DECIDIDA')
       // Abrir de novo devolve o mesmo, com a primeira hora.
       const aberto = { ...destaque, abertoEm: destaque.abertoEm ?? new Date().toISOString() }
       const destaques = lote.destaques.map((item) => (item.alunoId === aberto.alunoId ? aberto : item))
@@ -275,10 +275,10 @@ export class ApiDoAssistente {
     }
     if (rota === 'aprovarLote') {
       const achado = [...this.correcoes].find(([, lote]) => lote.entrega.id === id)
-      if (achado === undefined) return erroDaApi(404, 'NAO_ENCONTRADO')
+      if (achado === undefined) return apiError(404, 'NAO_ENCONTRADO')
       const [atividadeId, lote] = achado
-      if (lote.entrega.estado !== 'pendente') return erroDaApi(409, 'ENTREGA_JA_DECIDIDA')
-      if (!lote.podeAprovar) return erroDaApi(409, 'DESTAQUES_NAO_ABERTOS')
+      if (lote.entrega.estado !== 'pendente') return apiError(409, 'ENTREGA_JA_DECIDIDA')
+      if (!lote.podeAprovar) return apiError(409, 'DESTAQUES_NAO_ABERTOS')
       const confirmadaEm = new Date().toISOString()
       const validacao = {
         id: randomUUID(),
@@ -299,8 +299,8 @@ export class ApiDoAssistente {
     if (rota === 'uso') return { status: 200, corpo: this.uso ?? { turmaId: url.searchParams.get('turmaId') ?? randomUUID(), limiteDoDia: 60, trocasDaTurmaNoMes: 0, pacoteDaTurmaNoMes: 9000, alunos: [] } }
     if (rota === 'decidir') {
       const entrega = this.entregas.find((item) => item.id === id)
-      if (entrega === undefined) return erroDaApi(404, 'NAO_ENCONTRADO')
-      if (entrega.estado !== 'pendente') return erroDaApi(409, 'ENTREGA_JA_DECIDIDA')
+      if (entrega === undefined) return apiError(404, 'NAO_ENCONTRADO')
+      if (entrega.estado !== 'pendente') return apiError(409, 'ENTREGA_JA_DECIDIDA')
       const rejeitar = typeof corpo === 'object' && corpo !== null && 'decisao' in corpo && corpo.decisao === 'rejeitar'
       const justificativa = rejeitar && typeof corpo === 'object' && corpo !== null && 'justificativa' in corpo && typeof corpo.justificativa === 'string' ? corpo.justificativa : null
       const decidida: Entrega = { ...entrega, estado: rejeitar ? 'rejeitada' : 'aprovada', decididaEm: new Date().toISOString(), decididaPor: QUEM_DECIDE, justificativa }
@@ -326,7 +326,7 @@ export class ApiDoAssistente {
     const achada = ROTAS.map((rota) => ({ ...rota, ids: rota.caminho.exec(url.pathname) })).find((rota) => rota.metodo === metodo && rota.ids !== null)
     if (achada === undefined || achada.ids === null) {
       // Rota destas telas que o teste não conhece: falha alto, em vez de bater numa API que ainda não a tem.
-      await route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify(erroDaApi(500, 'ERRO_INTERNO').corpo) })
+      await route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify(apiError(500, 'ERRO_INTERNO').corpo) })
       return
     }
     const corpo: unknown = metodo === 'GET' ? undefined : pedido.postDataJSON()
@@ -353,8 +353,8 @@ export class ApiDoAssistente {
 }
 
 /** Liga a API simulada na página, antes de a professora entrar: nenhuma tela chega a pedir a rota que ainda não existe. */
-export async function simularAssistente(page: Page): Promise<ApiDoAssistente> {
-  const api = new ApiDoAssistente()
+export async function mockAssistenteApi(page: Page): Promise<AssistenteApiMock> {
+  const api = new AssistenteApiMock()
   await api.ligar(page)
   return api
 }

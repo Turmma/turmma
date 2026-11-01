@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import type { Locator, Page, Request } from '@playwright/test'
-import { abrirNavegacao, entrarComoCoordenacaoPeloConvite, entrarPelaTelaComSegundoFator, esperarIntroducaoDaCoordenacao, esperarPainel, falaDoPassoDaCoordenacao, falasDaIntroducaoDaCoordenacao, lateral, PRAZO_DA_ENTRADA_MS } from './support/casca.ts'
+import { abrirNavegacao, entrarComoCoordenacaoPeloConvite, entrarPelaTelaComSegundoFator, esperarIntroducaoDaCoordenacao, esperarPainel, falaDoPassoDaCoordenacao, falasDaIntroducaoDaCoordenacao, lateral, SIGN_IN_TIMEOUT_MS } from './support/casca.ts'
 import { paginaNaoRola } from './support/coordenacao.ts'
 import { expect, test } from './support/profiles.ts'
 import { abrirPelaApiSemMedirAPrimeiraCarga, configurarSegundoFatorPelaApi } from './support/mfa.ts'
@@ -12,7 +12,7 @@ import {
   criarProfessoraNaEscola,
   introducaoVistaEmDoUsuario,
 } from './support/seed.ts'
-import { ALVO_DE_TOQUE_PRINCIPAL_PX, larguraExcedente, violacoesGraves } from './support/checks.ts'
+import { ALVO_DE_TOQUE_PRINCIPAL_PX, horizontalOverflow, seriousViolations } from './support/checks.ts'
 
 /**
  * A introdução da coordenação (telas do aluno e primeiro acesso, 11.0; RF12, RF15 a RF18, RF20; mockup 7): na primeira entrada, depois do
@@ -31,7 +31,7 @@ const SENHA_NOVA = 'frase-sintetica-do-convite'
 const ATRASO_DA_GRAVACAO_MS = 1000
 const TITULO_DO_AVISO = 'Aviso de incidente de segurança'
 
-async function acionar(alvo: Locator, hasTouch: boolean): Promise<void> {
+async function activate(alvo: Locator, hasTouch: boolean): Promise<void> {
   await (hasTouch ? alvo.tap() : alvo.click())
 }
 
@@ -56,7 +56,7 @@ function contarGravacoes(page: Page): Request[] {
 /** "Rever a introdução", o link do menu da pessoa: no computador a lateral já está aberta, e no celular ele está na gaveta. */
 async function reverPeloMenuDaPessoa(page: Page, hasTouch: boolean): Promise<void> {
   await abrirNavegacao(page, hasTouch)
-  await acionar(lateral(page).getByRole('navigation', { name: 'Sua conta', exact: true }).getByRole('link', { name: 'Rever a introdução' }), hasTouch)
+  await activate(lateral(page).getByRole('navigation', { name: 'Sua conta', exact: true }).getByRole('link', { name: 'Rever a introdução' }), hasTouch)
 }
 
 test.describe('a introdução da coordenação', () => {
@@ -82,7 +82,7 @@ test.describe('a introdução da coordenação', () => {
     for (let passo = 1; passo < total; passo++) {
       await expect(falaDoPassoDaCoordenacao(page, passo, coordenadora.escolaNome)).toBeVisible()
       await expect(page.getByRole('region', { name: 'Onde fica cada coisa' })).toHaveCount(0)
-      await acionar(continuar(page), hasTouch)
+      await activate(continuar(page), hasTouch)
     }
     await expect(falaDoPassoDaCoordenacao(page, total, coordenadora.escolaNome)).toBeVisible()
     // RF20: no computador (1366 × 768) o último passo cabe sem rolar a página, com as duas listas dentro da região que rola, e "Continuar" e
@@ -96,7 +96,7 @@ test.describe('a introdução da coordenação', () => {
     const lugares = page.getByRole('region', { name: 'Onde fica cada coisa' })
     await expect(lugares.getByRole('listitem')).toHaveCount(4)
     for (const lugar of ['Painel', 'Analista', 'Escola', 'Registros']) await expect(lugares).toContainText(lugar)
-    await acionar(continuar(page), hasTouch)
+    await activate(continuar(page), hasTouch)
     await esperarPainel(page)
     await expect.poll(() => gravacoes.length).toBe(1)
     // Nada da introdução fica no navegador: a data mora no servidor.
@@ -117,18 +117,18 @@ test.describe('a introdução da coordenação', () => {
       await new Promise((fim) => setTimeout(fim, ATRASO_DA_GRAVACAO_MS))
       await rota.continue()
     })
-    await acionar(pular(page), hasTouch)
+    await activate(pular(page), hasTouch)
     // Só o endereço: esperar a tela do Painel soma uns 5 s ao caso (o Painel em si está provado no caso dos quatro passos).
-    await expect(page).toHaveURL(/\/coordenacao\/painel$/, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page).toHaveURL(/\/coordenacao\/painel$/, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect.poll(() => gravacoes.length).toBe(1)
     // Quem prova a gravação é este poll do banco: o pedido saiu e a tela já seguiu, mas o servidor pode ainda não ter gravado. A data no servidor
     // é o que faz a entrada seguinte não desviar para a introdução (o desvio em si está em `Inicio.test.tsx`); a contagem acima só diz que o pedido saiu.
-    await expect.poll(() => introducaoVistaEmDoUsuario(coordenadora.usuarioId), { timeout: PRAZO_DA_ENTRADA_MS }).not.toBeNull()
+    await expect.poll(() => introducaoVistaEmDoUsuario(coordenadora.usuarioId), { timeout: SIGN_IN_TIMEOUT_MS }).not.toBeNull()
     // O atraso só valia para a gravação do "Pular": a entrada seguinte volta ao servidor sem ele.
     await page.unroute('**/v1/eu/introducao')
     await page.goto('/')
     // Só o endereço, como acima: esperar a tela do Painel não prova mais nada aqui.
-    await expect(page).toHaveURL(/\/coordenacao\/painel$/, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page).toHaveURL(/\/coordenacao\/painel$/, { timeout: SIGN_IN_TIMEOUT_MS })
     // A entrada seguinte não gravou de novo, e nenhuma gravação tardia chegou: a contagem final.
     expect(gravacoes).toHaveLength(1)
   })
@@ -163,9 +163,9 @@ test.describe('a introdução da coordenação', () => {
       await expect(falaDoPassoDaCoordenacao(page, passo, coordenadora.escolaNome)).toBeVisible()
       await expect(pular(page)).toHaveCount(0)
       await expect(fechar(page)).toBeVisible()
-      if (passo < falas.length) await acionar(continuar(page), hasTouch)
+      if (passo < falas.length) await activate(continuar(page), hasTouch)
     }
-    await acionar(fechar(page), hasTouch)
+    await activate(fechar(page), hasTouch)
     await esperarPainel(page)
     // Nenhuma gravação saiu, e a data que o servidor já tinha é a mesma.
     expect(gravacoes).toHaveLength(0)
@@ -188,22 +188,22 @@ test.describe('a introdução da coordenação', () => {
 
     // O aviso é da área, e não da tela: aparece por cima da introdução, que está atrás.
     const dialogo = page.getByRole('alertdialog', { name: TITULO_DO_AVISO, exact: true })
-    await expect(dialogo).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(dialogo).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(page).toHaveURL(/\/coordenacao\/bem-vindo$/)
 
     // "Ver depois" fecha o aviso, deixa a faixa, e a introdução continua no passo em que estava.
-    await acionar(dialogo.getByRole('button', { name: 'Ver depois', exact: true }), hasTouch)
+    await activate(dialogo.getByRole('button', { name: 'Ver depois', exact: true }), hasTouch)
     await expect(dialogo).toBeHidden()
     const faixa = page.getByRole('region', { name: TITULO_DO_AVISO, exact: true })
     await expect(faixa).toBeVisible()
     await expect(falaDoPassoDaCoordenacao(page, 1, coordenadora.escolaNome)).toBeVisible()
-    await acionar(continuar(page), hasTouch)
+    await activate(continuar(page), hasTouch)
     await expect(falaDoPassoDaCoordenacao(page, 2, coordenadora.escolaNome)).toBeVisible()
     if ((page.viewportSize()?.width ?? 0) >= 768) await paginaNaoRola(page)
 
     // Confirmar o incidente tira a faixa, grava a confirmação dele, e não toca na data da introdução.
-    await acionar(faixa.getByRole('button', { name: 'Ver o aviso', exact: true }), hasTouch)
-    await acionar(dialogo.getByRole('button', { name: 'Confirmo que recebi', exact: true }), hasTouch)
+    await activate(faixa.getByRole('button', { name: 'Ver o aviso', exact: true }), hasTouch)
+    await activate(dialogo.getByRole('button', { name: 'Confirmo que recebi', exact: true }), hasTouch)
     await expect(dialogo).toHaveCount(0)
     await expect(faixa).toHaveCount(0)
     expect(await confirmacaoDoIncidenteNoBanco(secao)).not.toBeNull()
@@ -218,11 +218,11 @@ test.describe('a introdução da coordenação', () => {
     const { segredo } = await configurarSegundoFatorPelaApi(request, segunda)
     // A primeira já viu a introdução (o `/v1/eu` dela, com a data, fica no cache da aba); a segunda ainda não.
     await abrirPelaApiSemMedirAPrimeiraCarga(page, request, primeira, '/coordenacao/agentes')
-    await expect(page).toHaveURL(/\/coordenacao\/agentes$/, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page).toHaveURL(/\/coordenacao\/agentes$/, { timeout: SIGN_IN_TIMEOUT_MS })
 
     await abrirNavegacao(page, hasTouch)
-    await acionar(lateral(page).getByRole('button', { name: 'Sair' }).and(page.locator(':not(main *)')), hasTouch)
-    await expect(page).toHaveURL(/\/entrar$/, { timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(lateral(page).getByRole('button', { name: 'Sair' }).and(page.locator(':not(main *)')), hasTouch)
+    await expect(page).toHaveURL(/\/entrar$/, { timeout: SIGN_IN_TIMEOUT_MS })
 
     // Sem recarregar a página: a aplicação é a mesma, com o que a primeira deixou na memória dela, e a segunda entra pela tela.
     await entrarPelaTelaComSegundoFator(page, segunda, segredo, hasTouch)
@@ -239,7 +239,7 @@ test.describe('a introdução da coordenação', () => {
     for (let passo = 1; passo <= total; passo++) {
       const rotulo = `passo ${String(passo)}`
       await expect(falaDoPassoDaCoordenacao(page, passo, coordenadora.escolaNome), rotulo).toBeVisible()
-      expect(await larguraExcedente(page), rotulo).toBe(0)
+      expect(await horizontalOverflow(page), rotulo).toBe(0)
       for (const botao of [continuar(page), pular(page)]) {
         await botao.scrollIntoViewIfNeeded()
         await expect(botao, rotulo).toBeInViewport()
@@ -251,8 +251,8 @@ test.describe('a introdução da coordenação', () => {
       // "Pular" tem o mesmo tamanho que "Continuar" (RF16, D59).
       expect(caixaPular?.height, rotulo).toBe(caixaContinuar?.height)
       expect(caixaPular?.width, rotulo).toBe(caixaContinuar?.width)
-      if (passo === total) expect(await violacoesGraves(page), rotulo).toEqual([])
-      else await acionar(continuar(page), hasTouch)
+      if (passo === total) expect(await seriousViolations(page), rotulo).toEqual([])
+      else await activate(continuar(page), hasTouch)
     }
   })
 
@@ -261,11 +261,11 @@ test.describe('a introdução da coordenação', () => {
     await abrirPelaApiSemMedirAPrimeiraCarga(page, request, coordenadora, '/')
     await esperarIntroducaoDaCoordenacao(page, coordenadora.escolaNome)
     const gravacoes = contarGravacoes(page)
-    await acionar(continuar(page), hasTouch)
+    await activate(continuar(page), hasTouch)
     await expect(falaDoPassoDaCoordenacao(page, 2, coordenadora.escolaNome)).toBeVisible()
 
-    await acionar(page.getByRole('button', { name: 'Sair', exact: true }), hasTouch)
-    await expect(page).toHaveURL(/\/entrar$/, { timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(page.getByRole('button', { name: 'Sair', exact: true }), hasTouch)
+    await expect(page).toHaveURL(/\/entrar$/, { timeout: SIGN_IN_TIMEOUT_MS })
     expect(gravacoes).toHaveLength(0)
     expect(await introducaoVistaEmDoUsuario(coordenadora.usuarioId)).toBeNull()
   })

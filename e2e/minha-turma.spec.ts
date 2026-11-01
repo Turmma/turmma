@@ -1,10 +1,10 @@
 import type { Page, Route } from '@playwright/test'
 import { MENSAGENS_DE_ERRO } from '../packages/shared/src/errors/messages.ts'
-import { abrirNavegacao, irPelaNavegacao, lateral, PRAZO_DA_ENTRADA_MS, esperarInicioDoAluno, secoes } from './support/casca.ts'
+import { abrirNavegacao, irPelaNavegacao, lateral, SIGN_IN_TIMEOUT_MS, esperarInicioDoAluno, secoes } from './support/casca.ts'
 import { minhaAtividade } from './support/aluno.ts'
 import { expect, test } from './support/profiles.ts'
 import { colocarAlunoNaTurma, criarAlunoComMatricula, type AlunoDeTeste } from './support/seed.ts'
-import { ALVO_DE_TOQUE_PRINCIPAL_PX, codigoCru, larguraExcedente, violacoesGraves } from './support/checks.ts'
+import { ALVO_DE_TOQUE_PRINCIPAL_PX, rawCodePattern, horizontalOverflow, seriousViolations } from './support/checks.ts'
 
 /**
  * "Eu" do aluno (X4, tarefa 2.0; antes "Minha turma", A1, 12.0; RF13): a escola, a turma e a série dele, sem colegas, e as
@@ -36,11 +36,11 @@ async function sairPelaCasca(page: Page, hasTouch: boolean): Promise<void> {
   await expect(sair).toHaveCount(1)
   if (hasTouch) await sair.tap()
   else await sair.click()
-  await expect(page).toHaveURL(/\/entrar$/, { timeout: PRAZO_DA_ENTRADA_MS })
+  await expect(page).toHaveURL(/\/entrar$/, { timeout: SIGN_IN_TIMEOUT_MS })
 }
 
 /** Uma porta que segura a resposta até o teste abrir. */
-function portao(): { aberta: Promise<void>; abrir: () => void } {
+function gate(): { aberta: Promise<void>; abrir: () => void } {
   let abrir: () => void = () => undefined
   const aberta = new Promise<void>((resolver) => {
     abrir = resolver
@@ -57,7 +57,7 @@ test.describe('W4: os estados de "Eu"', () => {
     await colocarAlunoNaTurma(colega, turma)
     await entrarComoAluno(page, aluno, hasTouch)
 
-    const segurado = portao()
+    const segurado = gate()
     await page.route(ROTA_MINHA_TURMA, async (rota: Route) => {
       await segurado.aberta
       return rota.continue()
@@ -65,19 +65,19 @@ test.describe('W4: os estados de "Eu"', () => {
 
     // Carregando: o texto, e nada da turma ainda.
     await irPelaNavegacao(page, 'Eu', hasTouch)
-    await expect(page.getByRole('main').getByRole('status').filter({ hasText: 'Carregando a sua turma…' })).toHaveText('Carregando a sua turma…', { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page.getByRole('main').getByRole('status').filter({ hasText: 'Carregando a sua turma…' })).toHaveText('Carregando a sua turma…', { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(page).toHaveTitle('Eu · Turmma')
 
     // Com dado: a turma, a série por extenso e a escola; o colega, não.
     segurado.abrir()
     const principal = page.getByRole('main')
-    await expect(principal.locator('header').getByText(turma.turmaNome)).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(principal.locator('header').getByText(turma.turmaNome)).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(principal).toContainText(turma.serieNome)
     await expect(principal).toContainText(aluno.escolaNome)
     await expect(page.locator('body')).not.toContainText(colega.nome)
     await expect(principal.getByRole('button', { name: 'Tentar de novo' })).toHaveCount(0)
     await expect(principal).not.toContainText(SEM_TURMA_NO_ANO)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await seriousViolations(page)).toEqual([])
   })
 
   test('o erro com "Tentar de novo", sem código nem status, e a turma que volta quando a API volta', async ({ page, hasTouch }) => {
@@ -99,17 +99,17 @@ test.describe('W4: os estados de "Eu"', () => {
     // Erro: a API cai, e a tela diz o que fazer, com "Tentar de novo", sem código nem status.
     await irPelaNavegacao(page, 'Eu', hasTouch)
     const principal = page.getByRole('main')
-    await expect(principal.getByRole('alert')).toHaveText(MENSAGENS_DE_ERRO.INDISPONIVEL_TENTE_DE_NOVO, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(principal.getByRole('alert')).toHaveText(MENSAGENS_DE_ERRO.INDISPONIVEL_TENTE_DE_NOVO, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(principal).not.toContainText(turma.turmaNome)
-    for (const proibido of [codigoCru('503'), 'INDISPONIVEL']) await expect(page.locator('body')).not.toContainText(proibido)
-    expect(await violacoesGraves(page)).toEqual([])
+    for (const proibido of [rawCodePattern('503'), 'INDISPONIVEL']) await expect(page.locator('body')).not.toContainText(proibido)
+    expect(await seriousViolations(page)).toEqual([])
 
     // A API volta: "Tentar de novo" traz a turma.
     falha = false
     const tentar = principal.getByRole('button', { name: 'Tentar de novo' })
     if (hasTouch) await tentar.tap()
     else await tentar.click()
-    await expect(principal).toContainText(turma.turmaNome, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(principal).toContainText(turma.turmaNome, { timeout: SIGN_IN_TIMEOUT_MS })
   })
 
   test('o aluno sem turma no ano letivo em curso vê a quem recorrer, e não um erro de rede', async ({ page, hasTouch }) => {
@@ -120,10 +120,10 @@ test.describe('W4: os estados de "Eu"', () => {
     const principal = page.getByRole('main')
     // Numa região de status: o leitor de tela anuncia a troca do "carregando" por este texto. "Como estou indo" também tem a dele
     // (carregando, depois o vazio), e por isso o filtro: o `main` pode ter duas regiões de status ao mesmo tempo.
-    await expect(principal.getByRole('status').filter({ hasText: SEM_TURMA_NO_ANO })).toHaveText(SEM_TURMA_NO_ANO, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(principal.getByRole('status').filter({ hasText: SEM_TURMA_NO_ANO })).toHaveText(SEM_TURMA_NO_ANO, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(principal.getByRole('button', { name: 'Tentar de novo' })).toHaveCount(0)
     await expect(principal).not.toContainText(MENSAGENS_DE_ERRO.NAO_ENCONTRADO)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await seriousViolations(page)).toEqual([])
   })
 })
 
@@ -138,7 +138,7 @@ test.describe('recomeço de "Eu" e do Início', () => {
     const entrada = await page.context().request.post('/v1/sessao/matricula', { data: { slug: primeiro.slug, matricula: primeiro.matricula, senha: primeiro.senha } })
     expect(entrada.ok(), 'entrada do primeiro aluno pela API').toBe(true)
     await page.goto('/aluno/eu')
-    await expect(page.getByRole('main')).toContainText(turmaDoPrimeiro.turmaNome, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page.getByRole('main')).toContainText(turmaDoPrimeiro.turmaNome, { timeout: SIGN_IN_TIMEOUT_MS })
     await sairPelaCasca(page, hasTouch)
 
     // O segundo entra na mesma aba, sem recarregar, e com a leitura da turma segurada: é aí que a turma do anterior
@@ -160,10 +160,10 @@ test.describe('recomeço de "Eu" e do Início', () => {
     else await entrar.click()
     await esperarInicioDoAluno(page, segundo.nome)
     await irPelaNavegacao(page, 'Eu', hasTouch)
-    await expect(page.getByRole('main').getByRole('status').filter({ hasText: 'Carregando a sua turma…' })).toHaveText('Carregando a sua turma…', { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page.getByRole('main').getByRole('status').filter({ hasText: 'Carregando a sua turma…' })).toHaveText('Carregando a sua turma…', { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(page.locator('body')).not.toContainText(turmaDoPrimeiro.turmaNome)
     liberar()
-    await expect(page.getByRole('main')).toContainText(turmaDoSegundo.turmaNome, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page.getByRole('main')).toContainText(turmaDoSegundo.turmaNome, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(page.locator('body')).not.toContainText(turmaDoPrimeiro.turmaNome)
     await expect(page.locator('body')).not.toContainText(primeiro.nome)
   })
@@ -184,7 +184,7 @@ test.describe('recomeço de "Eu" e do Início', () => {
 
     // O primeiro vê a atividade dele no Início e sai.
     await entrarComoAluno(page, primeiro, hasTouch)
-    await expect(page.getByRole('main')).toContainText(atividadeDoPrimeiro.titulo, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page.getByRole('main')).toContainText(atividadeDoPrimeiro.titulo, { timeout: SIGN_IN_TIMEOUT_MS })
     await sairPelaCasca(page, hasTouch)
 
     // O segundo entra na mesma aba, sem recarregar, e com a leitura das atividades segurada: é aí que a do anterior apareceria,
@@ -200,12 +200,12 @@ test.describe('recomeço de "Eu" e do Início', () => {
     if (hasTouch) await entrar.tap()
     else await entrar.click()
     await esperarInicioDoAluno(page, segundo.nome)
-    await expect(page.getByRole('main').getByRole('status')).toHaveText('Carregando as suas tarefas…', { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page.getByRole('main').getByRole('status')).toHaveText('Carregando as suas tarefas…', { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(page.locator('body')).not.toContainText(atividadeDoPrimeiro.titulo)
 
     // Liberada a leitura, aparece a do segundo, e a do primeiro continua ausente.
     liberar()
-    await expect(page.getByRole('main')).toContainText(atividadeDoSegundo.titulo, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page.getByRole('main')).toContainText(atividadeDoSegundo.titulo, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(page.locator('body')).not.toContainText(atividadeDoPrimeiro.titulo)
   })
 })
@@ -223,9 +223,9 @@ test.describe('W12: "Eu" a 360 px', () => {
     expect(caixa?.height ?? 0).toBeGreaterThanOrEqual(ALVO_DE_TOQUE_PRINCIPAL_PX)
     expect(caixa?.width ?? 0).toBeGreaterThanOrEqual(ALVO_DE_TOQUE_PRINCIPAL_PX)
     await irPelaNavegacao(page, 'Eu', hasTouch)
-    await expect(page.getByRole('main')).toContainText(turma.turmaNome, { timeout: PRAZO_DA_ENTRADA_MS })
-    expect(await larguraExcedente(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    await expect(page.getByRole('main')).toContainText(turma.turmaNome, { timeout: SIGN_IN_TIMEOUT_MS })
+    expect(await horizontalOverflow(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
   })
 })
 
@@ -255,7 +255,7 @@ test.describe('RF3: "Sair" a um clique em cada lugar do aluno', () => {
     expect(caixaDoSair?.height).toBe(caixaDaPrivacidade?.height)
     if (hasTouch) await linha.tap()
     else await linha.click()
-    await expect(page).toHaveURL(/\/entrar$/, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page).toHaveURL(/\/entrar$/, { timeout: SIGN_IN_TIMEOUT_MS })
   })
 
   test('o "Sair" de Eu continua à mão quando a leitura da turma falha', async ({ page, hasTouch }) => {
@@ -271,10 +271,10 @@ test.describe('RF3: "Sair" a um clique em cada lugar do aluno', () => {
     )
     await irPelaNavegacao(page, 'Eu', hasTouch)
     const principal = page.getByRole('main')
-    await expect(principal.getByRole('alert')).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(principal.getByRole('alert')).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     const linha = principal.getByRole('button', { name: 'Sair' })
     if (hasTouch) await linha.tap()
     else await linha.click()
-    await expect(page).toHaveURL(/\/entrar$/, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page).toHaveURL(/\/entrar$/, { timeout: SIGN_IN_TIMEOUT_MS })
   })
 })

@@ -1,7 +1,7 @@
 import type { Page } from '@playwright/test'
-import { carregarSemRedeLenta, expect, test, type PerfilDeMaquina } from './support/profiles.ts'
-import { abrirGaleria, acionar, conferirQueCabeNaJanela, desenho, desenhos, medirBlocosDaGaleria, secao } from './support/gallery.ts'
-import { larguraExcedente, violacoesGraves } from './support/checks.ts'
+import { loadUnthrottled, expect, test, type MachineProfile } from './support/profiles.ts'
+import { openGallery, activate, conferirQueCabeNaJanela, desenho, desenhos, measureGalleryBlocks, gallerySection } from './support/gallery.ts'
+import { horizontalOverflow, seriousViolations } from './support/checks.ts'
 
 /**
  * As peças do MVP de apresentação (`docs/mvp-rapido.md` 9.3; `docs/interface.md` 11.1 e 11.3), na galeria (`/galeria`),
@@ -17,49 +17,49 @@ test.describe('peças do MVP de apresentação, na galeria', () => {
   // abrem a galeria cada um e dividem o que ele afirmava, sem tirar asserção. O runner leva uns três vezes o tempo da máquina
   // nos casos que são só CPU ×4 (a galeria não chama a API).
   test('nenhuma peça passa da largura da janela, e o axe não acha violação na galeria', async ({ page }) => {
-    await abrirGaleria(page)
-    expect(await larguraExcedente(page)).toBe(0)
+    await openGallery(page)
+    expect(await horizontalOverflow(page)).toBe(0)
     // Cada bloco da galeria cabe na janela e não rola por dentro: uma peça que estourasse dentro de um contêiner com rolagem
     // passaria na conta do documento.
-    const blocos = await medirBlocosDaGaleria(page)
+    const blocos = await measureGalleryBlocks(page)
     expect(blocos.total).toBeGreaterThanOrEqual(15)
     expect(blocos.passamDaJanela, 'blocos que passam da janela').toEqual([])
     expect(blocos.comRolagemPropria, 'blocos com rolagem horizontal própria').toEqual([])
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await seriousViolations(page)).toEqual([])
   })
 
   test('o menu de ferramenta da caixa de pedido abre, cabe na janela, não tem violação e escolhe um item só', async ({ page, hasTouch }) => {
-    await abrirGaleria(page)
+    await openGallery(page)
     // O menu de ferramenta da caixa de pedido: abre, cabe na janela a 360 px, e continua sem violação.
-    const ferramenta = secao(page, 'caixa-pedido').getByRole('button', { name: 'Ferramenta: Só conversar' })
-    await acionar(ferramenta, hasTouch)
+    const ferramenta = gallerySection(page, 'caixa-pedido').getByRole('button', { name: 'Ferramenta: Só conversar' })
+    await activate(ferramenta, hasTouch)
     const menu = page.getByRole('menu', { name: 'Ferramenta: Só conversar' })
     await expect(menu).toBeVisible()
     await conferirQueCabeNaJanela(page, menu)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await seriousViolations(page)).toEqual([])
     // A Adaptação não fica ao lado de uma caixa de texto livre: ela abre o formulário de tipos, e não leva o texto (D35).
     await expect(menu.getByRole('menuitemradio')).toHaveCount(3)
     await expect(menu.getByRole('menuitemradio', { name: /Adaptação/ })).toHaveCount(0)
     // É menu de escolha única: o item de agora vem marcado, e escolher outro troca o texto do botão.
     await expect(menu.getByRole('menuitemradio', { name: /Só conversar/ })).toHaveAttribute('aria-checked', 'true')
-    await acionar(menu.getByRole('menuitemradio', { name: /Atividade objetiva/ }), hasTouch)
+    await activate(menu.getByRole('menuitemradio', { name: /Atividade objetiva/ }), hasTouch)
     await expect(menu).toHaveCount(0)
-    await expect(secao(page, 'caixa-pedido').getByRole('button', { name: 'Ferramenta: Atividade objetiva' })).toBeFocused()
+    await expect(gallerySection(page, 'caixa-pedido').getByRole('button', { name: 'Ferramenta: Atividade objetiva' })).toBeFocused()
   })
 
   test('os selos de estado dizem o estado em texto, a faixa do aluno não fecha e o número de painel vem no formato local', async ({ page }) => {
-    await abrirGaleria(page)
+    await openGallery(page)
     // Os selos de estado dizem o estado em texto, e não só na cor.
-    const estado = secao(page, 'estado')
+    const estado = gallerySection(page, 'estado')
     for (const texto of ['Esperando você', 'Aprovado', 'Rejeitado', 'Faz e avisa']) await expect(estado.getByText(texto, { exact: true })).toBeVisible()
     // A faixa do aluno não fecha: não tem botão nenhum.
     const faixa = estado.getByRole('note')
     await expect(faixa).toHaveText('Seu professor acompanha como você usa o Tutor.')
     await expect(faixa.getByRole('button')).toHaveCount(0)
     // A barra diz o valor em texto, e o número de painel vem no formato local.
-    await expect(secao(page, 'painel').getByText('12 de 60 perguntas')).toBeVisible()
-    await expect(secao(page, 'painel').getByText('72%')).toBeVisible()
-    await expect(secao(page, 'painel').getByText('1.412')).toBeVisible()
+    await expect(gallerySection(page, 'painel').getByText('12 de 60 perguntas')).toBeVisible()
+    await expect(gallerySection(page, 'painel').getByText('72%')).toBeVisible()
+    await expect(gallerySection(page, 'painel').getByText('1.412')).toBeVisible()
   })
 })
 
@@ -75,12 +75,12 @@ test.describe('os verificadores em lote da galeria', () => {
       <section data-galeria="deslocado" style="margin-left:1500px;width:100px">z</section>
       <section data-galeria="ok">ok</section>
     </body>`)
-    expect(await medirBlocosDaGaleria(page)).toEqual({ total: 4, passamDaJanela: ['largo', 'deslocado'], comRolagemPropria: ['com-rolagem'] })
+    expect(await measureGalleryBlocks(page)).toEqual({ total: 4, passamDaJanela: ['largo', 'deslocado'], comRolagemPropria: ['com-rolagem'] })
   })
 
   test('medirBlocosDaGaleria deixa passar o bloco que cabe, e conta os blocos', async ({ page }) => {
     await page.setContent('<meta name="viewport" content="width=device-width"><body><section data-galeria="a">a</section><section data-galeria="b">b</section></body>')
-    expect(await medirBlocosDaGaleria(page)).toEqual({ total: 2, passamDaJanela: [], comRolagemPropria: [] })
+    expect(await measureGalleryBlocks(page)).toEqual({ total: 2, passamDaJanela: [], comRolagemPropria: [] })
   })
 
   test('desenhos devolve o desenho de cada peça, na ordem, com os sete campos do `desenho` de uma só', async ({ page }) => {
@@ -143,7 +143,7 @@ function pedidoNovo(page: Page, enviar = 0): Promise<PedidoMedido> {
 }
 
 /** Os 500 ms são o piso da latência; a vazão do perfil soma ao piso o tempo de passar os bytes, com 20% de folga para baixo. */
-function tempoMinimoDoPerfil(perfil: PerfilDeMaquina | undefined, baixados: number, enviados: number): number {
+function tempoMinimoDoPerfil(perfil: MachineProfile | undefined, baixados: number, enviados: number): number {
   if (perfil === undefined) throw new Error('o projeto não tem perfil')
   const rede = perfil.rede
   return 0.8 * (rede.latenciaMs + (baixados / rede.downloadBytesPorSegundo) * 1000 + (enviados / rede.uploadBytesPorSegundo) * 1000)
@@ -161,7 +161,7 @@ const DESCIDA_MINIMA_DO_PERFIL_MS = 200
 
 test.describe('a abertura da galeria não paga a latência do perfil', () => {
   test('nenhum pedaço da galeria espera a latência do perfil para chegar', async ({ page }) => {
-    await abrirGaleria(page)
+    await openGallery(page)
     const duracoes = await duracaoDosPedacosDeJs(page)
     // A galeria são dezenas de pedaços: se ela virasse um só, ou o filtro não achasse nenhum, o teste passaria vazio.
     expect(duracoes.length, 'pedaços de JS que a galeria baixou').toBeGreaterThanOrEqual(20)
@@ -171,28 +171,28 @@ test.describe('a abertura da galeria não paga a latência do perfil', () => {
 
   // Um caso só para as três medidas e para o erro de `carregar`, e não um por medida: o teto de casos de cada fatia do e2e
   // (`tools/ci/esteira.test.ts`) não deixa dobrar os casos de uma correção de tempo.
-  test('depois de aberta, e também depois de um carregamento que falha, a rede do perfil está de volta: latência, descida e subida', async ({ page, perfil }) => {
-    await abrirGaleria(page)
+  test('depois de aberta, e também depois de um carregamento que falha, a rede do perfil está de volta: latência, descida e subida', async ({ page, profile }) => {
+    await openGallery(page)
     const descida = await pedidoNovo(page)
-    expect((descida.baixados / (perfil?.rede.downloadBytesPorSegundo ?? 1)) * 1000, 'o maior pedaço, em ms de descida do perfil').toBeGreaterThanOrEqual(DESCIDA_MINIMA_DO_PERFIL_MS)
+    expect((descida.baixados / (profile?.rede.downloadBytesPorSegundo ?? 1)) * 1000, 'o maior pedaço, em ms de descida do perfil').toBeGreaterThanOrEqual(DESCIDA_MINIMA_DO_PERFIL_MS)
     expect(descida.ms, 'a latência do perfil').toBeGreaterThanOrEqual(PISO_DA_LATENCIA_DO_PERFIL_MS)
-    expect(descida.ms, 'a descida do perfil').toBeGreaterThanOrEqual(tempoMinimoDoPerfil(perfil, descida.baixados, 0))
-    expect((await pedidoNovo(page, BYTES_ENVIADOS)).ms, 'a subida do perfil').toBeGreaterThanOrEqual(tempoMinimoDoPerfil(perfil, 0, BYTES_ENVIADOS))
+    expect(descida.ms, 'a descida do perfil').toBeGreaterThanOrEqual(tempoMinimoDoPerfil(profile, descida.baixados, 0))
+    expect((await pedidoNovo(page, BYTES_ENVIADOS)).ms, 'a subida do perfil').toBeGreaterThanOrEqual(tempoMinimoDoPerfil(profile, 0, BYTES_ENVIADOS))
 
     // O que carrega lança: o erro sobe, e a rede do perfil volta do mesmo jeito.
-    await expect(carregarSemRedeLenta(page, () => Promise.reject(new Error('o carregamento falhou')))).rejects.toThrow('o carregamento falhou')
+    await expect(loadUnthrottled(page, () => Promise.reject(new Error('o carregamento falhou')))).rejects.toThrow('o carregamento falhou')
     expect((await pedidoNovo(page)).ms, 'depois do erro').toBeGreaterThanOrEqual(PISO_DA_LATENCIA_DO_PERFIL_MS)
   })
 
   test('dentro de carregarSemRedeLenta o pedido não paga a latência, a descida nem a subida; numa página que não veio do `test` do perfil, falha alto', async ({ page, browser }) => {
-    await abrirGaleria(page)
-    const dentro = await carregarSemRedeLenta(page, async () => [(await pedidoNovo(page)).ms, (await pedidoNovo(page, BYTES_ENVIADOS)).ms])
+    await openGallery(page)
+    const dentro = await loadUnthrottled(page, async () => [(await pedidoNovo(page)).ms, (await pedidoNovo(page, BYTES_ENVIADOS)).ms])
     for (const ms of dentro) expect(ms).toBeLessThan(PISO_DA_LATENCIA_DO_PERFIL_MS)
 
     // Sem o perfil não há rede para tirar nem para devolver: falhar alto, e não seguir sem limitação nenhuma.
     const semPerfil = await browser.newPage()
     try {
-      await expect(carregarSemRedeLenta(semPerfil, () => Promise.resolve())).rejects.toThrow('não veio do `test` de profiles.ts')
+      await expect(loadUnthrottled(semPerfil, () => Promise.resolve())).rejects.toThrow('não veio do `test` de profiles.ts')
     } finally {
       await semPerfil.close()
     }

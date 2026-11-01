@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { dirname, extname, join, relative, resolve } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import configuracao from '../../playwright.config.ts'
-import { REDE_FAST_3G, type PerfilDeMaquina } from '../../e2e/support/profiles.ts'
+import { REDE_FAST_3G, type MachineProfile } from '../../e2e/support/profiles.ts'
 import { raizRepositorio } from './executar.ts'
 
 // A configuração do Playwright é portão da D51: se um projeto sumir, perder a limitação ou filtrar spec, o e2e
@@ -15,7 +15,7 @@ interface UsoDoProjeto {
   viewport?: { width: number; height: number }
   isMobile?: boolean
   hasTouch?: boolean
-  perfil?: PerfilDeMaquina
+  profile?: MachineProfile
 }
 
 const projetos = (configuracao.projects ?? []) as { name?: string; use?: UsoDoProjeto; testMatch?: unknown; testIgnore?: unknown; testDir?: unknown }[]
@@ -37,7 +37,7 @@ describe('projetos do Playwright (playwright.config.ts)', () => {
   it('chromebook: Chromium com CPU ×4 e Fast 3G do DevTools', () => {
     const uso = projeto('chromebook')?.use
     expect(uso?.defaultBrowserType ?? uso?.browserName).toBe('chromium')
-    expect(uso?.perfil).toEqual({ cpuMaisLenta: 4, rede: REDE_FAST_3G })
+    expect(uso?.profile).toEqual({ cpuMaisLenta: 4, rede: REDE_FAST_3G })
     expect(REDE_FAST_3G).toEqual({ nome: 'Fast 3G', latenciaMs: 562.5, downloadBytesPorSegundo: 180_000, uploadBytesPorSegundo: 84_375 })
   })
 
@@ -47,10 +47,10 @@ describe('projetos do Playwright (playwright.config.ts)', () => {
     expect(uso?.viewport).toEqual({ width: 360, height: 800 })
     expect(uso?.isMobile).toBe(true)
     expect(uso?.hasTouch).toBe(true)
-    expect(uso?.perfil?.cpuMaisLenta).toBe(4)
-    expect(uso?.perfil?.rede.latenciaMs).toBeGreaterThanOrEqual(REDE_FAST_3G.latenciaMs)
-    expect(uso?.perfil?.rede.downloadBytesPorSegundo).toBeLessThanOrEqual(REDE_FAST_3G.downloadBytesPorSegundo)
-    expect(uso?.perfil?.rede.uploadBytesPorSegundo).toBeLessThanOrEqual(REDE_FAST_3G.uploadBytesPorSegundo)
+    expect(uso?.profile?.cpuMaisLenta).toBe(4)
+    expect(uso?.profile?.rede.latenciaMs).toBeGreaterThanOrEqual(REDE_FAST_3G.latenciaMs)
+    expect(uso?.profile?.rede.downloadBytesPorSegundo).toBeLessThanOrEqual(REDE_FAST_3G.downloadBytesPorSegundo)
+    expect(uso?.profile?.rede.uploadBytesPorSegundo).toBeLessThanOrEqual(REDE_FAST_3G.uploadBytesPorSegundo)
   })
 
   it('todo spec usa o test com perfil de e2e/__fixtures__/perfis.ts, e não o de @playwright/test, que pula a limitação', () => {

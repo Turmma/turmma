@@ -1,8 +1,8 @@
 import { AxeBuilder } from '@axe-core/playwright'
 import type { Locator, Page } from '@playwright/test'
 import { expect, test } from './support/profiles.ts'
-import { abrirGaleria, caixa, secao } from './support/gallery.ts'
-import { ALVO_DE_TOQUE_PRINCIPAL_PX, IMPACTOS_QUE_REPROVAM, larguraExcedente, TAGS_WCAG } from './support/checks.ts'
+import { openGallery, caixa, gallerySection } from './support/gallery.ts'
+import { ALVO_DE_TOQUE_PRINCIPAL_PX, FAILING_IMPACTS, horizontalOverflow, WCAG_TAGS } from './support/checks.ts'
 
 /**
  * As peças da introdução, na galeria (`/galeria`, seção "Introdução"), nos projetos `chromebook` e `celular` e nos dois temas
@@ -19,11 +19,11 @@ type Tema = (typeof TEMAS)[number]
 const PELAGEM = 'rgb(232, 115, 46)'
 
 async function irParaOTema(page: Page, tema: Tema): Promise<void> {
-  await abrirGaleria(page)
+  await openGallery(page)
   await page.evaluate((valor) => document.documentElement.setAttribute('data-tema', valor), tema)
 }
 
-const introducao = (page: Page) => secao(page, 'introducao').locator('[data-introducao-da-galeria]')
+const introducao = (page: Page) => gallerySection(page, 'introducao').locator('[data-introducao-da-galeria]')
 const fala = (page: Page) => introducao(page).getByRole('heading', { level: 1 })
 const botao = (page: Page, nome: string) => introducao(page).getByRole('button', { name: nome, exact: true })
 
@@ -76,7 +76,7 @@ for (const tema of TEMAS) {
       await expect(botao(page, 'Pular')).toHaveCount(0)
       await expect(botao(page, 'Fechar')).toHaveCount(0)
       await page.keyboard.press('Escape')
-      await expect(secao(page, 'introducao').locator('[data-ultimo-evento]')).toHaveText('Último evento: nenhum')
+      await expect(gallerySection(page, 'introducao').locator('[data-ultimo-evento]')).toHaveText('Último evento: nenhum')
 
       // Sem foco na galeria, o Enter vem do corpo da página: avança um passo e leva o foco à fala.
       await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur())
@@ -87,30 +87,30 @@ for (const tema of TEMAS) {
 
     test('revendo, todo passo tem "Fechar", e o Esc fecha', async ({ page }) => {
       await irParaOTema(page, tema)
-      await secao(page, 'introducao').getByLabel('Revendo').check()
+      await gallerySection(page, 'introducao').getByLabel('Revendo').check()
       for (let passo = 0; passo < 3; passo++) {
         await expect(botao(page, 'Fechar')).toBeVisible()
         await expect(botao(page, 'Pular')).toHaveCount(0)
         if (passo < 2) await botao(page, 'Continuar').click()
       }
       await page.keyboard.press('Escape')
-      await expect(secao(page, 'introducao').locator('[data-ultimo-evento]')).toHaveText('Último evento: pulou')
+      await expect(gallerySection(page, 'introducao').locator('[data-ultimo-evento]')).toHaveText('Último evento: pulou')
     })
 
     test('a seção não tem violação grave de acessibilidade, e a página não ganha rolagem horizontal', async ({ page }) => {
       await irParaOTema(page, tema)
-      const { violations } = await new AxeBuilder({ page }).withTags([...TAGS_WCAG]).include('[data-galeria="introducao"]').analyze()
+      const { violations } = await new AxeBuilder({ page }).withTags([...WCAG_TAGS]).include('[data-galeria="introducao"]').analyze()
       const graves = violations
-        .filter((violacao) => (IMPACTOS_QUE_REPROVAM as readonly string[]).includes(violacao.impact ?? ''))
+        .filter((violacao) => (FAILING_IMPACTS as readonly string[]).includes(violacao.impact ?? ''))
         .map((violacao) => ({ regra: violacao.id, impacto: violacao.impact, alvos: violacao.nodes.map((no) => no.target.join(' ')) }))
       expect(graves).toEqual([])
-      expect(await larguraExcedente(page)).toBe(0)
+      expect(await horizontalOverflow(page)).toBe(0)
     })
   })
 }
 
 test.describe('o movimento da comemoração', () => {
-  const comemoracao = (page: Page) => secao(page, 'introducao').locator('[data-comemoracao]')
+  const comemoracao = (page: Page) => gallerySection(page, 'introducao').locator('[data-comemoracao]')
   const salto = (page: Page) => comemoracao(page).locator('.onca-comemora')
 
   /** Os elementos da subárvore (a raiz inclusa) com alguma animação: o que o navegador resolve, não o que o CSS diz. */
@@ -123,7 +123,7 @@ test.describe('o movimento da comemoração', () => {
     )
 
   test('um salto só: na árvore da comemoração uma única animação, `onca-comemorar`, uma iteração, nunca em laço', async ({ page }) => {
-    await abrirGaleria(page)
+    await openGallery(page)
     await expect(comemoracao(page)).toHaveCount(1)
     await expect(salto(page)).toHaveCount(1)
     const todas = await animados(page)
@@ -149,7 +149,7 @@ test.describe('o movimento da comemoração', () => {
 
   test('com "reduzir movimento" nenhuma animação na árvore: a onça aparece parada, inteira, com função e selo', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' })
-    await abrirGaleria(page)
+    await openGallery(page)
     await expect(salto(page)).toHaveCount(1)
     expect(await animados(page)).toEqual([])
     expect(await salto(page).evaluate((no) => getComputedStyle(no).animationName)).toBe('none')
@@ -158,7 +158,7 @@ test.describe('o movimento da comemoração', () => {
   })
 
   test('sem "reduzir movimento" o salto roda e termina: a onça acaba no lugar, visível', async ({ page }) => {
-    await abrirGaleria(page)
+    await openGallery(page)
     await expect.poll(() => salto(page).evaluate((no) => no.getAnimations().every((animacao) => animacao.playState === 'finished'))).toBe(true)
     expect(await salto(page).evaluate((no) => getComputedStyle(no).transform)).toMatch(/^(?:none|matrix\(1, 0, 0, 1, 0, 0\))$/)
     await expect(comemoracao(page).locator('[data-onca]')).toBeVisible()
@@ -166,7 +166,7 @@ test.describe('o movimento da comemoração', () => {
 
   test('com "reduzir movimento" a introdução não tem animação nenhuma, e a onça não acena', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' })
-    await abrirGaleria(page)
+    await openGallery(page)
     const animadas = await introducao(page).evaluate((raiz) => [raiz, ...raiz.querySelectorAll('*')].filter((no) => getComputedStyle(no).animationName !== 'none').length)
     expect(animadas).toBe(0)
     // O acenar não é ligado; a onça também não pisca nem agenda temporizador (teste de unidade).
@@ -175,7 +175,7 @@ test.describe('o movimento da comemoração', () => {
   })
 
   test('sem "reduzir movimento" a onça da introdução só faz os movimentos do `Onca.css`: entrar uma vez, nada em laço, nenhuma transição', async ({ page }) => {
-    await abrirGaleria(page)
+    await openGallery(page)
     const animacoes = await introducao(page)
       .locator('[data-onca]')
       .evaluate((onca) =>

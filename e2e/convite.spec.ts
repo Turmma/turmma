@@ -3,14 +3,14 @@ import { AVISO_DO_CONVITE_COM_SENHA_NOVA, AVISO_DO_CONVITE_PARA_CONTA_EXISTENTE,
 import { criarConviteDeCoordenador, criarConviteDeProfessor, criarEquipeComSenha, revogarConvite } from './support/seed.ts'
 import { esperarNovaConversa } from './support/casca.ts'
 import { expect, test } from './support/profiles.ts'
-import { ALVO_DE_TOQUE_PRINCIPAL_PX, larguraExcedente, violacoesGraves } from './support/checks.ts'
+import { ALVO_DE_TOQUE_PRINCIPAL_PX, horizontalOverflow, seriousViolations } from './support/checks.ts'
 
 const ROTA_CONSULTAR = '**/v1/convites/consultar'
 const ROTA_ACEITAR = '**/v1/convites/aceitar'
 const INDISPONIVEL = JSON.stringify({ erro: { codigo: 'INDISPONIVEL_TENTE_DE_NOVO', mensagem: 'texto que a tela não usa', requisicaoId: '0190f5a0-0000-7000-8000-000000000001' } })
 /** O que a tela diz quando o `#` do endereço não é um token: vazio, longo demais ou com `%` quebrado. */
 const TEXTO_DO_ENDERECO_INCOMPLETO = 'O endereço do convite está incompleto. Abra o link inteiro que a escola enviou, ou peça um convite novo.'
-const PRAZO_DA_TELA_MS = 20_000
+const SCREEN_TIMEOUT_MS = 20_000
 /**
  * O que a consulta do link anterior responde quando enfim volta: o convite dele, que vale; a recusa de verdade da API (o convite
  * revogado); e a queda do servidor. Cada volta é um caso, com os 30 s dela: as três juntas num caso só levavam 27 s no celular da esteira.
@@ -29,7 +29,7 @@ function seguirEnderecos(page: Page): string[] {
 }
 
 /** Toque no celular, clique no Chromebook. */
-async function acionar(page: Page, nome: string | RegExp, hasTouch: boolean): Promise<void> {
+async function activate(page: Page, nome: string | RegExp, hasTouch: boolean): Promise<void> {
   const botao = page.getByRole('button', { name: nome })
   if (hasTouch) await botao.tap()
   else await botao.click()
@@ -51,13 +51,13 @@ test.describe('aceite do convite, do coordenador e do professor', () => {
     })
 
     await page.goto(`/convite#${convite.token}`)
-    await expect.poll(() => barraNaPrimeiraChamada, { timeout: PRAZO_DA_TELA_MS }).not.toBe('')
+    await expect.poll(() => barraNaPrimeiraChamada, { timeout: SCREEN_TIMEOUT_MS }).not.toBe('')
     expect(barraNaPrimeiraChamada, 'o token precisa sair da barra antes de a primeira chamada sair').not.toContain(convite.token)
     liberar()
 
-    await expect(page.getByRole('main')).toContainText(convite.escolaNome, { timeout: PRAZO_DA_TELA_MS })
-    expect(await larguraExcedente(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    await expect(page.getByRole('main')).toContainText(convite.escolaNome, { timeout: SCREEN_TIMEOUT_MS })
+    expect(await horizontalOverflow(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
     const caixa = await page.getByRole('button', { name: /Aceitar o convite/ }).boundingBox()
     expect(caixa?.height ?? 0).toBeGreaterThanOrEqual(ALVO_DE_TOQUE_PRINCIPAL_PX)
 
@@ -65,14 +65,14 @@ test.describe('aceite do convite, do coordenador e do professor', () => {
     const botaoAceitar = page.getByRole('button', { name: /Aceitar o convite|Aceitando/ })
     if (hasTouch) await botaoAceitar.tap()
     else await botaoAceitar.click()
-    await expect(page.getByLabel('Senha nova')).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
+    await expect(page.getByLabel('Senha nova')).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
     await expect(page.getByLabel('Senha nova')).toHaveAttribute('autocomplete', 'new-password')
     await page.getByLabel('Senha nova').fill(SENHA_NOVA)
     if (hasTouch) await page.getByRole('button', { name: /Definir a senha e continuar|Salvando/ }).tap()
     else await page.getByRole('button', { name: /Definir a senha e continuar|Salvando/ }).click()
 
     // Aceitar não abre sessão: o coordenador vai configurar o segundo fator antes de entrar (RF12).
-    await expect(page.getByRole('heading', { name: 'Configurar o segundo fator' })).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
+    await expect(page.getByRole('heading', { name: 'Configurar o segundo fator' })).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
     await expect(page).toHaveURL(/\/mfa\/configurar$/)
 
     // Nem na barra, nem em chamada nenhuma, nem em armazenamento do navegador: o link some do computador da escola.
@@ -95,7 +95,7 @@ test.describe('aceite do convite, do coordenador e do professor', () => {
     })
 
     await page.goto(`/convite#${convite.token}`)
-    await expect(page.getByRole('main')).toContainText(convite.escolaNome, { timeout: PRAZO_DA_TELA_MS })
+    await expect(page.getByRole('main')).toContainText(convite.escolaNome, { timeout: SCREEN_TIMEOUT_MS })
     const botaoAceitar = page.getByRole('button', { name: /Aceitar o convite|Aceitando/ })
     // Os dois cliques no mesmo instante, antes de a tela desligar o botão: é o caso que o botão desligado não segura.
     await botaoAceitar.evaluate((botao: HTMLButtonElement) => {
@@ -105,9 +105,9 @@ test.describe('aceite do convite, do coordenador e do professor', () => {
 
     await expect(botaoAceitar).toBeDisabled()
     await botaoAceitar.dispatchEvent('click')
-    await expect.poll(() => aceites, { timeout: PRAZO_DA_TELA_MS }).toBe(1)
+    await expect.poll(() => aceites, { timeout: SCREEN_TIMEOUT_MS }).toBe(1)
     liberar()
-    await expect(page.getByLabel('Senha nova')).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
+    await expect(page.getByLabel('Senha nova')).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
     expect(aceites).toBe(1)
     // O aceite terminou: o botão da senha não fica preso no "Salvando…" do pedido anterior.
     await expect(page.getByRole('button', { name: 'Definir a senha e continuar' })).toBeEnabled()
@@ -131,12 +131,12 @@ test.describe('aceite do convite, do coordenador e do professor', () => {
     const telas: string[] = []
     for (const token of [...convites.map((convite) => convite.token), 'token-que-nunca-existiu-no-e2e']) {
       await page.goto(`/convite#${token}`)
-      await expect(page.getByRole('alert')).toHaveText(mensagem, { timeout: PRAZO_DA_TELA_MS })
+      await expect(page.getByRole('alert')).toHaveText(mensagem, { timeout: SCREEN_TIMEOUT_MS })
       // Nem o nome da escola aparece: a tela não confirma que aquele convite já existiu.
       for (const convite of convites) await expect(page.locator('body')).not.toContainText(convite.escolaNome)
       expect(page.url()).not.toContain(token)
-      expect(await larguraExcedente(page)).toBe(0)
-      expect(await violacoesGraves(page)).toEqual([])
+      expect(await horizontalOverflow(page)).toBe(0)
+      expect(await seriousViolations(page)).toEqual([])
       telas.push(await page.getByRole('main').innerText())
     }
     // As seis telas são a mesma, letra por letra: nada diz se o convite existiu, nem de que tipo era.
@@ -155,50 +155,50 @@ test.describe('aceite do convite, do coordenador e do professor', () => {
     const convite = await criarConviteDeProfessor()
     const enderecos = seguirEnderecos(page)
     await page.goto(`/convite#${convite.token}`)
-    await expect(page.getByRole('main')).toContainText(convite.escolaNome, { timeout: PRAZO_DA_TELA_MS })
+    await expect(page.getByRole('main')).toContainText(convite.escolaNome, { timeout: SCREEN_TIMEOUT_MS })
     // A consulta diz só a escola: o texto vale para o professor e para a coordenação, e não promete o segundo fator.
     await expect(page.getByRole('main')).toContainText(`Você foi convidado para entrar em ${convite.escolaNome}.`)
     await expect(page.locator('body')).not.toContainText(convite.nome)
     expect(page.url()).not.toContain(convite.token)
-    expect(await larguraExcedente(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await horizontalOverflow(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
 
     // Pelo teclado: o botão que tinha o foco sai da tela com o passo da senha, e o foco vai para o campo, e não para o
     // `body`.
     await page.getByRole('button', { name: 'Aceitar o convite' }).focus()
     await page.keyboard.press('Enter')
-    await expect(page.getByLabel('Senha nova')).toBeFocused({ timeout: PRAZO_DA_TELA_MS })
+    await expect(page.getByLabel('Senha nova')).toBeFocused({ timeout: SCREEN_TIMEOUT_MS })
     await expect(page.getByLabel('Senha nova')).toHaveAttribute('autocomplete', 'new-password')
     await expect(page.getByRole('main')).not.toContainText('segundo fator')
-    expect(await larguraExcedente(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await horizontalOverflow(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
     await page.getByLabel('Senha nova').fill(SENHA_NOVA)
     // A senha digitada uma vez só, às cegas, se confere com o "Mostrar" (herdado da 14.0, a peça da 17.0).
     const mostrar = page.getByRole('button', { name: 'Mostrar a senha' })
     await expect(mostrar).toHaveAttribute('aria-pressed', 'false')
-    await acionar(page, 'Mostrar a senha', hasTouch)
+    await activate(page, 'Mostrar a senha', hasTouch)
     await expect(page.getByLabel('Senha nova')).toHaveAttribute('type', 'text')
     await expect(mostrar).toHaveAttribute('aria-pressed', 'true')
-    await acionar(page, 'Mostrar a senha', hasTouch)
+    await activate(page, 'Mostrar a senha', hasTouch)
     await expect(page.getByLabel('Senha nova')).toHaveAttribute('type', 'password')
-    await acionar(page, /Definir a senha e continuar|Salvando/, hasTouch)
+    await activate(page, /Definir a senha e continuar|Salvando/, hasTouch)
 
     // O professor não configura segundo fator: vai à entrada, com o aviso de que a senha foi criada.
-    await expect(page).toHaveURL(/\/entrar$/, { timeout: PRAZO_DA_TELA_MS })
+    await expect(page).toHaveURL(/\/entrar$/, { timeout: SCREEN_TIMEOUT_MS })
     await expect(page.getByRole('alert')).toHaveText(AVISO_DO_CONVITE_COM_SENHA_NOVA)
     await expect(page.getByRole('heading', { name: 'Configurar o segundo fator' })).toHaveCount(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await seriousViolations(page)).toEqual([])
     await page.getByLabel('E-mail').fill(convite.email)
     await page.getByLabel('Senha').fill(SENHA_NOVA)
-    await acionar(page, /^Entrar$/, hasTouch)
+    await activate(page, /^Entrar$/, hasTouch)
     // O professor abre em "Nova conversa" (A2), com o nome dele e o da escola na casca.
-    await esperarNovaConversa(page, convite.nome, { timeout: PRAZO_DA_TELA_MS, escolaNome: convite.escolaNome })
+    await esperarNovaConversa(page, convite.nome, { timeout: SCREEN_TIMEOUT_MS, escolaNome: convite.escolaNome })
     // Sem turma confirmada, a tela em que ele abre aponta para Turmas, a um toque.
     const paraTurmas = page.getByRole('main').getByRole('button', { name: 'Ir para Turmas' })
     if (hasTouch) await paraTurmas.tap()
     else await paraTurmas.click()
     await expect(page).toHaveURL(/\/professor\/turmas$/)
-    await expect(page.getByRole('main')).toContainText('A coordenação ainda não alocou você', { timeout: PRAZO_DA_TELA_MS })
+    await expect(page.getByRole('main')).toContainText('A coordenação ainda não alocou você', { timeout: SCREEN_TIMEOUT_MS })
 
     // Nem na barra, nem em chamada nenhuma, nem em armazenamento do navegador.
     for (const endereco of enderecos) expect(endereco, 'token do convite numa URL').not.toContain(convite.token)
@@ -211,16 +211,16 @@ test.describe('aceite do convite, do coordenador e do professor', () => {
     const camila = await criarEquipeComSenha('professor')
     const convite = await criarConviteDeProfessor({ conta: camila })
     await page.goto(`/convite#${convite.token}`)
-    await expect(page.getByRole('main')).toContainText(convite.escolaNome, { timeout: PRAZO_DA_TELA_MS })
-    await acionar(page, /Aceitar o convite|Aceitando/, hasTouch)
-    await expect(page).toHaveURL(/\/entrar$/, { timeout: PRAZO_DA_TELA_MS })
+    await expect(page.getByRole('main')).toContainText(convite.escolaNome, { timeout: SCREEN_TIMEOUT_MS })
+    await activate(page, /Aceitar o convite|Aceitando/, hasTouch)
+    await expect(page).toHaveURL(/\/entrar$/, { timeout: SCREEN_TIMEOUT_MS })
     // O aviso é o de quem já tem conta, e não o da senha criada: o link não trocou a senha dela.
     await expect(page.getByRole('alert')).toHaveText(AVISO_DO_CONVITE_PARA_CONTA_EXISTENTE)
     await expect(page.getByLabel('Senha nova')).toHaveCount(0)
     await page.getByLabel('E-mail').fill(camila.email)
     await page.getByLabel('Senha').fill(camila.senha)
-    await acionar(page, /^Entrar$/, hasTouch)
-    await expect(page.getByRole('heading', { name: 'Escolher a escola' })).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
+    await activate(page, /^Entrar$/, hasTouch)
+    await expect(page.getByRole('heading', { name: 'Escolher a escola' })).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
     await expect(page.getByRole('main')).toContainText(convite.escolaNome)
     await expect(page.getByRole('main')).toContainText(camila.escolaNome)
   })
@@ -231,16 +231,16 @@ test.describe('aceite do convite, do coordenador e do professor', () => {
     const convite = await criarConviteDeCoordenador({ conta: camila })
 
     await page.goto(`/convite#${convite.token}`)
-    await expect(page.getByRole('main')).toContainText(convite.escolaNome, { timeout: PRAZO_DA_TELA_MS })
+    await expect(page.getByRole('main')).toContainText(convite.escolaNome, { timeout: SCREEN_TIMEOUT_MS })
     const botaoAceitar = page.getByRole('button', { name: /Aceitar o convite|Aceitando/ })
     if (hasTouch) await botaoAceitar.tap()
     else await botaoAceitar.click()
 
-    await expect(page).toHaveURL(/\/entrar$/, { timeout: PRAZO_DA_TELA_MS })
+    await expect(page).toHaveURL(/\/entrar$/, { timeout: SCREEN_TIMEOUT_MS })
     await expect(page.getByRole('alert')).toContainText(AVISO_DO_CONVITE_PARA_CONTA_EXISTENTE)
     // A tela nunca pede senha nova a quem já tem conta: o que falta é a senha que ela já usa.
     await expect(page.getByLabel('Senha nova')).toHaveCount(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await seriousViolations(page)).toEqual([])
 
     await page.getByLabel('E-mail').fill(camila.email)
     await page.getByLabel('Senha').fill(camila.senha)
@@ -249,7 +249,7 @@ test.describe('aceite do convite, do coordenador e do professor', () => {
 
     // Com o bilhete guardado em memória, o login ativa o usuário da escola que convidou: agora são duas escolas
     // ativas, e a etapa passa a ser a escolha. Sem o bilhete, ela entraria direto na escola antiga.
-    await expect(page.getByRole('heading', { name: 'Escolher a escola' })).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
+    await expect(page.getByRole('heading', { name: 'Escolher a escola' })).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
     await expect(page).toHaveURL(/\/escolher-escola$/)
   })
 
@@ -267,18 +267,18 @@ test.describe('aceite do convite, do coordenador e do professor', () => {
       return rota.continue()
     })
     await page.goto(`/convite#${convite.token}`)
-    await expect(page.getByRole('alert')).toHaveText(MENSAGENS_DE_ERRO.INDISPONIVEL_TENTE_DE_NOVO, { timeout: PRAZO_DA_TELA_MS })
+    await expect(page.getByRole('alert')).toHaveText(MENSAGENS_DE_ERRO.INDISPONIVEL_TENTE_DE_NOVO, { timeout: SCREEN_TIMEOUT_MS })
     // Não é a tela do convite que não vale: a pessoa não é mandada pedir outro convite por causa de uma queda de rede.
     await expect(page.locator('body')).not.toContainText('não vale mais')
     expect(page.url()).not.toContain(convite.token)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await seriousViolations(page)).toEqual([])
     expect(consultas).toBe(1)
     falhar = false
-    await acionar(page, 'Tentar de novo', hasTouch)
+    await activate(page, 'Tentar de novo', hasTouch)
     await expect(page.getByRole('status').filter({ hasText: 'Conferindo o convite…' })).toBeVisible()
     await expect(page.getByRole('alert')).toHaveCount(0)
     liberar()
-    await expect(page.getByRole('main')).toContainText(convite.escolaNome, { timeout: PRAZO_DA_TELA_MS })
+    await expect(page.getByRole('main')).toContainText(convite.escolaNome, { timeout: SCREEN_TIMEOUT_MS })
     expect(consultas).toBe(2)
     expect(page.url()).not.toContain(convite.token)
   })
@@ -312,43 +312,43 @@ test.describe('aceite do convite, do coordenador e do professor', () => {
       return rota.continue()
     })
     await page.goto(`/convite#${convite.token}`)
-    await acionar(page, /Aceitar o convite|Aceitando/, hasTouch)
-    await page.getByLabel('Senha nova').fill(SENHA_NOVA, { timeout: PRAZO_DA_TELA_MS })
-    await acionar(page, /Definir a senha e continuar|Salvando/, hasTouch)
-    await expect(page.getByRole('alert')).toHaveText(MENSAGENS_DE_ERRO.INDISPONIVEL_TENTE_DE_NOVO, { timeout: PRAZO_DA_TELA_MS })
+    await activate(page, /Aceitar o convite|Aceitando/, hasTouch)
+    await page.getByLabel('Senha nova').fill(SENHA_NOVA, { timeout: SCREEN_TIMEOUT_MS })
+    await activate(page, /Definir a senha e continuar|Salvando/, hasTouch)
+    await expect(page.getByRole('alert')).toHaveText(MENSAGENS_DE_ERRO.INDISPONIVEL_TENTE_DE_NOVO, { timeout: SCREEN_TIMEOUT_MS })
     await expect(page.getByLabel('Senha nova')).toHaveValue(SENHA_NOVA)
     expect(barraNasConsultas).toHaveLength(1)
 
     // O mesmo link de novo: só o `#` muda, sem recarregar. A tela consulta outra vez, e a senha digitada e o aviso da
     // tentativa anterior saem.
     await page.goto(`/convite#${convite.token}`)
-    await expect.poll(() => barraNasConsultas.length, { timeout: PRAZO_DA_TELA_MS }).toBe(2)
+    await expect.poll(() => barraNasConsultas.length, { timeout: SCREEN_TIMEOUT_MS }).toBe(2)
     // Com a consulta ainda no ar, a tela já recomeçou: confere o convite, sem o campo da senha nem o aviso.
     await expect(page.getByRole('status').filter({ hasText: 'Conferindo o convite…' })).toBeVisible()
     await expect(page.getByLabel('Senha nova')).toHaveCount(0)
     await expect(page.getByRole('alert')).toHaveCount(0)
     liberarASegunda()
-    await expect(page.getByRole('button', { name: 'Aceitar o convite' })).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
+    await expect(page.getByRole('button', { name: 'Aceitar o convite' })).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
     await expect(page.getByLabel('Senha nova')).toHaveCount(0)
     await expect(page.getByRole('alert')).toHaveCount(0)
     expect(page.url()).not.toContain(convite.token)
     for (const barra of barraNasConsultas) expect(barra, 'o token precisa sair da barra antes da consulta').not.toContain(convite.token)
     // O convite continua valendo: recomeçar não o gastou, e a senha volta vazia.
-    await acionar(page, /Aceitar o convite|Aceitando/, hasTouch)
-    await expect(page.getByLabel('Senha nova')).toHaveValue('', { timeout: PRAZO_DA_TELA_MS })
+    await activate(page, /Aceitar o convite|Aceitando/, hasTouch)
+    await expect(page.getByLabel('Senha nova')).toHaveValue('', { timeout: SCREEN_TIMEOUT_MS })
 
     // Um fragmento que não é token (o link colado pela metade): a tela diz que o endereço está incompleto, com a barra
     // limpa, sem consultar nada e sem quebrar.
     await page.goto('/convite#%E0%A4%A')
-    await expect(page.getByRole('alert')).toHaveText(TEXTO_DO_ENDERECO_INCOMPLETO, { timeout: PRAZO_DA_TELA_MS })
+    await expect(page.getByRole('alert')).toHaveText(TEXTO_DO_ENDERECO_INCOMPLETO, { timeout: SCREEN_TIMEOUT_MS })
     await expect(page.getByLabel('Senha nova')).toHaveCount(0)
     expect(page.url()).toMatch(/\/convite$/)
     expect(barraNasConsultas).toHaveLength(2)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await seriousViolations(page)).toEqual([])
     // E a página carregada já com o fragmento quebrado também abre, na mesma tela.
     await page.goto('/sistema')
     await page.goto('/convite#%E0%A4%A')
-    await expect(page.getByRole('alert')).toHaveText(TEXTO_DO_ENDERECO_INCOMPLETO, { timeout: PRAZO_DA_TELA_MS })
+    await expect(page.getByRole('alert')).toHaveText(TEXTO_DO_ENDERECO_INCOMPLETO, { timeout: SCREEN_TIMEOUT_MS })
   })
 
   test('recomeço, resposta atrasada: o aceite do link anterior que responde depois de outro link chegar à aba não entra; a tela fica no link novo, que segue até a entrada', async ({
@@ -371,21 +371,21 @@ test.describe('aceite do convite, do coordenador e do professor', () => {
     })
 
     await page.goto(`/convite#${anterior.token}`)
-    await expect(page.getByRole('main')).toContainText(anterior.escolaNome, { timeout: PRAZO_DA_TELA_MS })
-    await acionar(page, /Aceitar o convite|Aceitando/, hasTouch)
-    await expect.poll(() => aceites, { timeout: PRAZO_DA_TELA_MS }).toBe(1)
+    await expect(page.getByRole('main')).toContainText(anterior.escolaNome, { timeout: SCREEN_TIMEOUT_MS })
+    await activate(page, /Aceitar o convite|Aceitando/, hasTouch)
+    await expect.poll(() => aceites, { timeout: SCREEN_TIMEOUT_MS }).toBe(1)
     await expect(page.getByRole('button', { name: 'Aceitando…' })).toBeDisabled()
 
     // O link novo muda só o `#`: a tela confere o convite dele e mostra a escola dele, com o aceite anterior no ar. O
     // botão do link novo não fica preso no "Aceitando…" de um pedido que não é dele.
     await page.goto(`/convite#${novo.token}`)
-    await expect(page.getByRole('main')).toContainText(novo.escolaNome, { timeout: PRAZO_DA_TELA_MS })
+    await expect(page.getByRole('main')).toContainText(novo.escolaNome, { timeout: SCREEN_TIMEOUT_MS })
     await expect(page.locator('body')).not.toContainText(anterior.escolaNome)
     await expect(page.getByRole('button', { name: 'Aceitar o convite' })).toBeEnabled()
 
     // O aceite do link novo sai com o anterior ainda no ar, e fica no ar também.
-    await acionar(page, 'Aceitar o convite', hasTouch)
-    await expect.poll(() => aceites, { timeout: PRAZO_DA_TELA_MS }).toBe(2)
+    await activate(page, 'Aceitar o convite', hasTouch)
+    await expect.poll(() => aceites, { timeout: SCREEN_TIMEOUT_MS }).toBe(2)
     const aceitandoONovo = page.getByRole('button', { name: 'Aceitando…' })
     await expect(aceitandoONovo).toBeDisabled()
     const respostaDoAnterior = page.waitForResponse((resposta) => new URL(resposta.url()).pathname === '/v1/convites/aceitar')
@@ -402,15 +402,15 @@ test.describe('aceite do convite, do coordenador e do professor', () => {
     // A tela é a do link novo, e segue: a conta dele é nova, e a senha leva à entrada com o aviso da senha criada, e
     // não com o de quem já tinha conta, que seria o do aceite anterior.
     liberar[1]?.()
-    await page.getByLabel('Senha nova').fill(SENHA_NOVA, { timeout: PRAZO_DA_TELA_MS })
-    await acionar(page, /Definir a senha e continuar|Salvando/, hasTouch)
-    await expect(page).toHaveURL(/\/entrar$/, { timeout: PRAZO_DA_TELA_MS })
+    await page.getByLabel('Senha nova').fill(SENHA_NOVA, { timeout: SCREEN_TIMEOUT_MS })
+    await activate(page, /Definir a senha e continuar|Salvando/, hasTouch)
+    await expect(page).toHaveURL(/\/entrar$/, { timeout: SCREEN_TIMEOUT_MS })
     await expect(page.getByRole('alert')).toHaveText(AVISO_DO_CONVITE_COM_SENHA_NOVA)
     expect(aceites).toBe(3)
     await page.getByLabel('E-mail').fill(novo.email)
     await page.getByLabel('Senha').fill(SENHA_NOVA)
-    await acionar(page, /^Entrar$/, hasTouch)
-    await esperarNovaConversa(page, novo.nome, { timeout: PRAZO_DA_TELA_MS, escolaNome: novo.escolaNome })
+    await activate(page, /^Entrar$/, hasTouch)
+    await esperarNovaConversa(page, novo.nome, { timeout: SCREEN_TIMEOUT_MS, escolaNome: novo.escolaNome })
   })
 
   voltas.forEach((volta) => test(tituloDaConsultaAtrasada(volta), async ({ page, hasTouch }) => {
@@ -429,11 +429,11 @@ test.describe('aceite do convite, do coordenador e do professor', () => {
     // Uma carga nova da página: o link anterior é o que a página leu ao abrir.
     await page.goto('/sistema')
     await page.goto(`/convite#${anterior.token}`)
-    await expect(page.getByRole('status').filter({ hasText: 'Conferindo o convite…' })).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
+    await expect(page.getByRole('status').filter({ hasText: 'Conferindo o convite…' })).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
 
     // O link novo muda só o `#`: a consulta dele responde, com a do anterior ainda no ar.
     await page.goto(`/convite#${novo.token}`)
-    await expect(page.getByRole('main')).toContainText(novo.escolaNome, { timeout: PRAZO_DA_TELA_MS })
+    await expect(page.getByRole('main')).toContainText(novo.escolaNome, { timeout: SCREEN_TIMEOUT_MS })
     const respostaDoAnterior = page.waitForResponse(
       (resposta) => new URL(resposta.url()).pathname === '/v1/convites/consultar' && (resposta.request().postDataJSON() as { token: string }).token === anterior.token,
     )
@@ -450,19 +450,19 @@ test.describe('aceite do convite, do coordenador e do professor', () => {
     await expect(page.getByRole('button', { name: 'Aceitar o convite' }), volta).toBeEnabled()
     // E o aceite seguinte leva o token do link novo, e não o do anterior.
     const aceite = page.waitForRequest((pedido) => new URL(pedido.url()).pathname === '/v1/convites/aceitar')
-    await acionar(page, 'Aceitar o convite', hasTouch)
+    await activate(page, 'Aceitar o convite', hasTouch)
     expect((await aceite).postDataJSON(), volta).toEqual({ token: novo.token })
-    await expect(page.getByLabel('Senha nova')).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
+    await expect(page.getByLabel('Senha nova')).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
   }))
 
   test('o convite usado entre a consulta e o aceite mostra a tela do convite que não vale, sem o nome da escola', async ({ page, hasTouch }) => {
     const convite = await criarConviteDeProfessor()
     await page.goto(`/convite#${convite.token}`)
-    await expect(page.getByRole('main')).toContainText(convite.escolaNome, { timeout: PRAZO_DA_TELA_MS })
+    await expect(page.getByRole('main')).toContainText(convite.escolaNome, { timeout: SCREEN_TIMEOUT_MS })
     // Outra pessoa da coordenação revoga o convite com esta tela aberta.
     await revogarConvite(convite)
-    await acionar(page, /Aceitar o convite|Aceitando/, hasTouch)
-    await expect(page.getByRole('alert')).toHaveText(mensagemDoConvite('NAO_ENCONTRADO'), { timeout: PRAZO_DA_TELA_MS })
+    await activate(page, /Aceitar o convite|Aceitando/, hasTouch)
+    await expect(page.getByRole('alert')).toHaveText(mensagemDoConvite('NAO_ENCONTRADO'), { timeout: SCREEN_TIMEOUT_MS })
     await expect(page.locator('body')).not.toContainText(convite.escolaNome)
     await expect(page.getByRole('button', { name: 'Aceitar o convite' })).toHaveCount(0)
   })

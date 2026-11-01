@@ -1,10 +1,10 @@
 import { atividadeSintetica, versaoAdaptada } from './support/assistente.ts'
-import { abrirNavegacao, gaveta, irPelaNavegacao, lateral, naGaveta, PRAZO_DA_ENTRADA_MS, secoes } from './support/casca.ts'
-import { entrar, irPara, PRAZO_DA_TELA_MS, recarregar } from './support/professor/scenario.ts'
+import { abrirNavegacao, gaveta, irPelaNavegacao, lateral, naGaveta, SIGN_IN_TIMEOUT_MS, secoes } from './support/casca.ts'
+import { entrar, irPara, SCREEN_TIMEOUT_MS, recarregar } from './support/professor/scenario.ts'
 import { abrirEntregasDoAssistente } from './support/professor/entregas.ts'
 import { sinoDe } from './support/professor/sino.ts'
 import { abrirSinaisDoTutor } from './support/professor/tutor.ts'
-import { violacoesGraves } from './support/checks.ts'
+import { seriousViolations } from './support/checks.ts'
 import { expect, test } from './support/profiles.ts'
 
 /**
@@ -25,7 +25,7 @@ test.describe('a navegação do professor na A2 (D73)', () => {
     await recarregar(page)
     await irPelaNavegacao(page, 'Início', hasTouch)
     await expect(page).toHaveURL(/\/professor\/nova-conversa$/)
-    await expect(page).toHaveTitle('Início · Turmma', { timeout: PRAZO_DA_TELA_MS })
+    await expect(page).toHaveTitle('Início · Turmma', { timeout: SCREEN_TIMEOUT_MS })
     await expect(page.getByText(/Seu time/)).toHaveCount(0)
 
     // `Seções` está à vista sem abrir a gaveta (a barra de baixo, no celular): os três lugares, na ordem da D80.
@@ -38,31 +38,31 @@ test.describe('a navegação do professor na A2 (D73)', () => {
     // X1 (12.0): nenhum avatar da onça na casca (A80). O Início tem o do Assistente, no `main` (telas do professor, 3.1): a
     // casca é tudo o que está fora dele.
     await expect(lateral(page).locator('[data-agente]:not(main *)')).toHaveCount(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await seriousViolations(page)).toEqual([])
     if (naGaveta(page)) {
       await page.keyboard.press('Escape')
       await expect(gaveta(page)).toBeHidden()
     }
     // O que espera a professora mora no sino: as duas pendentes contam, e não a que ela já aprovou.
-    await expect(sinoDe(page)).toHaveAccessibleName('Esperando você, 2', { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(sinoDe(page)).toHaveAccessibleName('Esperando você, 2', { timeout: SIGN_IN_TIMEOUT_MS })
 
     // O Assistente abre pelo pé do sino, e a tela dele não acende nenhum item da lateral.
     await abrirEntregasDoAssistente(page, hasTouch)
     await expect(page).toHaveURL(/\/professor\/time\/assistente$/)
-    await expect(page).toHaveTitle('Assistente de ensino · Turmma', { timeout: PRAZO_DA_TELA_MS })
+    await expect(page).toHaveTitle('Assistente de ensino · Turmma', { timeout: SCREEN_TIMEOUT_MS })
     await expect(secoes(page).locator('[aria-current="page"]')).toHaveCount(0)
     await expect(page.getByText(/Seu time/)).toHaveCount(0)
     // O Tutor, também pelo pé do sino.
     await abrirSinaisDoTutor(page, hasTouch)
     await expect(page).toHaveURL(/\/professor\/turmas\/[0-9a-f-]{36}\?aba=hoje$/)
-    await expect(page).toHaveTitle(/^Turma .+ · Turmma$/, { timeout: PRAZO_DA_TELA_MS })
+    await expect(page).toHaveTitle(/^Turma .+ · Turmma$/, { timeout: SCREEN_TIMEOUT_MS })
     // O Tutor mora na turma (aba Hoje): é "Turmas" que a lateral acende, e nenhum outro item.
     await expect(secoes(page).locator('[aria-current="page"]')).toHaveText('Turmas')
     await expect(page.getByText(/Seu time/)).toHaveCount(0)
     // Turmas e Ferramentas, os outros dois lugares, também não dizem "Seu time".
     for (const rotulo of ['Turmas', 'Ferramentas']) {
       await irPelaNavegacao(page, rotulo, hasTouch)
-      await expect(page).toHaveTitle(`${rotulo} · Turmma`, { timeout: PRAZO_DA_TELA_MS })
+      await expect(page).toHaveTitle(`${rotulo} · Turmma`, { timeout: SCREEN_TIMEOUT_MS })
       await expect(secoes(page).getByRole('link', { name: rotulo })).toHaveAttribute('aria-current', 'page')
       await expect(page.getByText(/Seu time/)).toHaveCount(0)
     }

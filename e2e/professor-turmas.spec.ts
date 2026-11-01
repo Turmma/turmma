@@ -1,9 +1,9 @@
 import type { Locator, Page, Request } from '@playwright/test'
 import { AVISO_DO_COMPLEMENTO, EFEITO_DA_CONTESTACAO, NOME_DA_CONTESTACAO } from '../packages/shared/src/estrutura/vinculo.ts'
 import { confirmarVinculosNoBanco, criarAlocacaoDoProfessor, criarEquipeComSenha, criarPedidosNoBanco, type EquipeDeTeste } from './support/seed.ts'
-import { PRAZO_DA_ENTRADA_MS } from './support/casca.ts'
+import { SIGN_IN_TIMEOUT_MS } from './support/casca.ts'
 import { expect, test } from './support/profiles.ts'
-import { ALVO_DE_TOQUE_PRINCIPAL_PX, larguraExcedente, violacoesGraves } from './support/checks.ts'
+import { ALVO_DE_TOQUE_PRINCIPAL_PX, horizontalOverflow, seriousViolations } from './support/checks.ts'
 
 /**
  * Turmas do professor, na pele nova (telas do professor, 9.0; RF14, RF22): os cartões com o que espera em cada turma e a
@@ -14,7 +14,7 @@ import { ALVO_DE_TOQUE_PRINCIPAL_PX, larguraExcedente, violacoesGraves } from '.
 const PAINEL = 'dialog[data-painel-lado]'
 const painel = (page: Page): Locator => page.locator(PAINEL)
 
-async function acionar(alvo: Locator, hasTouch: boolean): Promise<void> {
+async function activate(alvo: Locator, hasTouch: boolean): Promise<void> {
   if (hasTouch) await alvo.tap()
   else await alvo.click()
 }
@@ -49,9 +49,9 @@ test.describe('Turmas na pele nova (9.0)', () => {
     const principal = page.getByRole('main')
     const faixas = principal.getByRole('region', { name: 'Confirme suas turmas', exact: true })
     const cartoes = principal.getByRole('region', { name: 'Suas turmas', exact: true })
-    await expect(principal.getByRole('heading', { level: 1, name: 'Turmas' })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(principal.getByRole('heading', { level: 1, name: 'Turmas' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     // A faixa: a turma e a disciplina no texto, e os dois botões.
-    await expect(faixas.getByRole('listitem')).toHaveText([/Confirme sua turma · 6ºC sintética · Ciências/], { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(faixas.getByRole('listitem')).toHaveText([/Confirme sua turma · 6ºC sintética · Ciências/], { timeout: SIGN_IN_TIMEOUT_MS })
     await alvoDeToque(faixas.getByRole('button', { name: 'Confirmar' }), 'o botão de confirmar')
     await alvoDeToque(faixas.getByRole('button', { name: 'Contestar' }), 'o botão de contestar')
     // A faixa quebra a 360 px: os botões descem para baixo do texto; no computador ficam ao lado dele, na mesma linha.
@@ -64,18 +64,18 @@ test.describe('Turmas na pele nova (9.0)', () => {
     // Os cartões: um por turma e disciplina confirmada. A turma lida inteira diz o número, ou "Em dia"; nunca os dois.
     const doOito = cartoes.getByRole('listitem').filter({ hasText: comPedidos.turmaNome })
     const doNove = cartoes.getByRole('listitem').filter({ hasText: semPedidos.turmaNome })
-    await expect(doOito).toContainText('2 esperando você', { timeout: PRAZO_DA_ENTRADA_MS })
-    await expect(doNove).toContainText('Em dia', { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(doOito).toContainText('2 esperando você', { timeout: SIGN_IN_TIMEOUT_MS })
+    await expect(doNove).toContainText('Em dia', { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(doOito).not.toContainText('Em dia')
     await expect(doNove).not.toContainText('esperando você')
     // O vínculo a confirmar não vira cartão e não entra na soma de ninguém.
     await expect(cartoes.getByRole('listitem').filter({ hasText: aConfirmar.turmaNome })).toHaveCount(0)
     await expect(cartoes.getByRole('listitem')).toHaveCount(2)
     await alvoDeToque(doOito.getByRole('link', { name: /Abrir a turma/ }), 'Abrir a turma')
-    expect(await larguraExcedente(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
-    await acionar(doOito.getByRole('link', { name: /Abrir a turma/ }), hasTouch)
-    await expect(page).toHaveURL(new RegExp(`/professor/turmas/${comPedidos.turmaId}$`), { timeout: PRAZO_DA_ENTRADA_MS })
+    expect(await horizontalOverflow(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
+    await activate(doOito.getByRole('link', { name: /Abrir a turma/ }), hasTouch)
+    await expect(page).toHaveURL(new RegExp(`/professor/turmas/${comPedidos.turmaId}$`), { timeout: SIGN_IN_TIMEOUT_MS })
   })
 
   test('a contestação abre num painel: ao lado no computador, folha de baixo a 360 px, sem rolar de lado; o aviso e o efeito vêm antes do envio; Esc devolve o foco', async ({
@@ -87,8 +87,8 @@ test.describe('Turmas na pele nova (9.0)', () => {
     await abrirJaEntrando(page, professora, '/professor/turmas')
 
     const contestar = page.getByRole('button', { name: 'Contestar' })
-    await expect(contestar).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
-    await acionar(contestar, hasTouch)
+    await expect(contestar).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
+    await activate(contestar, hasTouch)
     const aberto = page.getByRole('dialog', { name: 'Contestar a turma' })
     await expect(aberto).toBeVisible()
     // O que a coordenação vai ler e o que vai acontecer, antes do envio (regra 50, item 8; regra 20).
@@ -118,8 +118,8 @@ test.describe('Turmas na pele nova (9.0)', () => {
       expect(Math.round((caixa?.x ?? 0) + (caixa?.width ?? 0))).toBe(larguraDaJanela)
       expect(Math.round(caixa?.height ?? 0)).toBe(alturaDaJanela)
     }
-    expect(await larguraExcedente(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await horizontalOverflow(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
 
     // Esc fecha, e o foco volta ao botão que abriu.
     await page.keyboard.press('Escape')
@@ -137,15 +137,15 @@ test.describe('Turmas na pele nova (9.0)', () => {
     page.on('request', (requisicao) => requisicoes.push(requisicao))
     await abrirJaEntrando(page, professora, '/professor/turmas')
 
-    await acionar(page.getByRole('button', { name: 'Contestar' }), hasTouch)
+    await activate(page.getByRole('button', { name: 'Contestar' }), hasTouch)
     const aberto = page.getByRole('dialog', { name: 'Contestar a turma' })
     await aberto.getByRole('radio', { name: NOME_DA_CONTESTACAO.outro }).check()
     await aberto.getByRole('textbox').fill(escrito)
     // Com o texto escrito e o painel aberto, o endereço continua sendo o da tela.
     expect(new URL(page.url()).pathname).toBe('/professor/turmas')
     expect(page.url()).not.toContain(escrito)
-    await acionar(aberto.getByRole('button', { name: 'Enviar a contestação' }), hasTouch)
-    await expect(aberto).toHaveCount(0, { timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(aberto.getByRole('button', { name: 'Enviar a contestação' }), hasTouch)
+    await expect(aberto).toHaveCount(0, { timeout: SIGN_IN_TIMEOUT_MS })
 
     // Só a requisição da contestação leva o texto, e no corpo: nenhuma outra o carrega, nem no endereço.
     const comTexto = requisicoes.filter((requisicao) => requisicao.url().includes(escrito) || (requisicao.postData() ?? '').includes(escrito))

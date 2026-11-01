@@ -2,10 +2,10 @@ import { randomUUID } from 'node:crypto'
 import { expect, type Page } from '@playwright/test'
 import { Client } from 'pg'
 import { urlDoBancoDeTeste } from '../../../tools/ci/compose.ts'
-import { simularAssistente } from '../assistente.ts'
-import { entrarPelaApi, irPelaNavegacao, PRAZO_DA_ENTRADA_MS } from '../casca.ts'
+import { mockAssistenteApi } from '../assistente.ts'
+import { entrarPelaApi, irPelaNavegacao, SIGN_IN_TIMEOUT_MS } from '../casca.ts'
 import { confirmarVinculosNoBanco, criarAlocacaoDoProfessor, criarEquipeComSenha } from '../seed.ts'
-import type { Cena } from './scenario.ts'
+import type { Scenario } from './scenario.ts'
 
 /**
  * "O que você já gerou": mora em Criados, o quarto lugar da navegação do professor (telas do professor, 5.0). Se o lugar mudar
@@ -61,8 +61,8 @@ export async function criarArtefatoDoVinculo(escolaId: string, vinculoId: string
  * padrão, Criados): o login pela tela e o Início, que os casos de Criados não provam, ficam de fora. `antes` monta o que a
  * escola já tinha antes de ela abrir a tela, com a turma e a disciplina dela já conhecidas.
  */
-export async function entrarEmCriados(page: Page, { endereco = '/professor/criados', antes }: { endereco?: string; antes?: (cena: Cena) => void } = {}): Promise<Cena> {
-  const api = await simularAssistente(page)
+export async function entrarEmCriados(page: Page, { endereco = '/professor/criados', antes }: { endereco?: string; antes?: (cena: Scenario) => void } = {}): Promise<Scenario> {
+  const api = await mockAssistenteApi(page)
   const professora = await criarEquipeComSenha()
   const alocacao = await criarAlocacaoDoProfessor(professora.escolaId, professora.usuarioId, ['Química'])
   await confirmarVinculosNoBanco(professora.escolaId, alocacao.vinculoIds)
@@ -72,9 +72,9 @@ export async function entrarEmCriados(page: Page, { endereco = '/professor/criad
     .query<{ disciplina_id: string }>('select disciplina_id from vinculo where id = $1 and escola_id = $2', [alocacao.vinculoIds[0], professora.escolaId])
     .then(({ rows }) => rows[0]?.disciplina_id ?? '')
     .finally(() => banco.end())
-  const cena: Cena = { api, professora, turmaId: alocacao.turmaId, turmaNome: alocacao.turmaNome, disciplinaId }
+  const cena: Scenario = { api, professora, turmaId: alocacao.turmaId, turmaNome: alocacao.turmaNome, disciplinaId }
   antes?.(cena)
   await entrarPelaApi(page, professora, endereco)
-  await expect(page.getByRole('main').getByRole('heading', { level: 1 })).toBeAttached({ timeout: PRAZO_DA_ENTRADA_MS })
+  await expect(page.getByRole('main').getByRole('heading', { level: 1 })).toBeAttached({ timeout: SIGN_IN_TIMEOUT_MS })
   return cena
 }

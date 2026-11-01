@@ -1,32 +1,32 @@
 import type { Locator, Page } from '@playwright/test'
-import { carregarSemRedeLenta, expect } from './profiles.ts'
-import { larguraExcedente } from './checks.ts'
+import { loadUnthrottled, expect } from './profiles.ts'
+import { horizontalOverflow } from './checks.ts'
 
 /**
  * O que os `e2e/pecas-*.spec.ts` dividem: abrir a galeria (`/galeria`), achar um bloco dela, medir uma peça. O que cada
  * grupo afirma de cor mora no arquivo do grupo, para a tarefa da peça não editar o arquivo de outra (tarefa 2.0 da X1).
  */
 
-/** O quanto `abrirGaleria` espera o título: a galeria baixa com a rede livre (`carregarSemRedeLenta`), mas lê o JS com a CPU ×4 do perfil. */
-export const PRAZO_DA_GALERIA_MS = 20_000
+/** O quanto `openGallery` espera o título: a galeria baixa com a rede livre (`loadUnthrottled`), mas lê o JS com a CPU ×4 do perfil. */
+export const GALLERY_TIMEOUT_MS = 20_000
 
 /** O bloco da galeria pelo nome que a `Secao` dá (`data-galeria`). */
-export const secao = (page: Page, nome: string) => page.locator(`[data-galeria="${nome}"]`)
+export const gallerySection = (page: Page, nome: string) => page.locator(`[data-galeria="${nome}"]`)
 
 /**
  * Abre `/galeria` e espera o título. A galeria não chama a API e não tem sessão, e tudo o que ela baixa chega antes de o
- * título aparecer: a abertura roda sem a rede do perfil (`carregarSemRedeLenta`), que custava mais de seis segundos de
+ * título aparecer: a abertura roda sem a rede do perfil (`loadUnthrottled`), que custava mais de seis segundos de
  * latência em cascata aos trinta de cada caso. A rede do perfil está de volta quando a função devolve.
  */
-export async function abrirGaleria(page: Page): Promise<void> {
-  await carregarSemRedeLenta(page, async () => {
+export async function openGallery(page: Page): Promise<void> {
+  await loadUnthrottled(page, async () => {
     await page.goto('/galeria')
-    await expect(page.getByRole('heading', { level: 1, name: 'Galeria de peças' })).toBeVisible({ timeout: PRAZO_DA_GALERIA_MS })
+    await expect(page.getByRole('heading', { level: 1, name: 'Galeria de peças' })).toBeVisible({ timeout: GALLERY_TIMEOUT_MS })
   })
 }
 
 /** Clica ou toca, conforme o projeto: no celular não existe clique de mouse. */
-export async function acionar(alvo: Locator, hasTouch: boolean): Promise<void> {
+export async function activate(alvo: Locator, hasTouch: boolean): Promise<void> {
   await (hasTouch ? alvo.tap() : alvo.click())
 }
 
@@ -86,10 +86,10 @@ export interface MedidaDosBlocos {
 
 /**
  * Cada `[data-galeria]` cabe na janela e não rola por dentro, numa ida só: uma peça que estourasse dentro de um contêiner
- * com rolagem passaria na conta do documento (`larguraExcedente`). Percorrer os blocos com três idas cada, somado às duas
+ * com rolagem passaria na conta do documento (`horizontalOverflow`). Percorrer os blocos com três idas cada, somado às duas
  * auditorias do axe, passava dos 30 s do caso no runner da esteira (CPU ×4).
  */
-export function medirBlocosDaGaleria(page: Page): Promise<MedidaDosBlocos> {
+export function measureGalleryBlocks(page: Page): Promise<MedidaDosBlocos> {
   const janela = page.viewportSize()?.width ?? 0
   return page.locator('[data-galeria]').evaluateAll((blocos, largura) => {
     const medidas = blocos.map((bloco) => {
@@ -116,7 +116,7 @@ export async function conferirQueCabeNaJanela(page: Page, flutuante: Locator): P
   const largura = page.viewportSize()?.width ?? 0
   expect(medida.x).toBeGreaterThanOrEqual(0)
   expect(medida.x + medida.width).toBeLessThanOrEqual(largura)
-  expect(await larguraExcedente(page)).toBe(0)
+  expect(await horizontalOverflow(page)).toBe(0)
 }
 
 /** O foco está em algum controle ou texto da página, e não perdido no `body` (regra 50, item 11). */

@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import type { Locator, Page, Request, Route } from '@playwright/test'
 import { MENSAGENS_DE_ERRO } from '../packages/shared/src/errors/messages.ts'
-import { entrarComoCoordenacaoNaMesmaAba, abrirEstrutura, PRAZO_DA_ENTRADA_MS } from './support/casca.ts'
+import { entrarComoCoordenacaoNaMesmaAba, abrirEstrutura, SIGN_IN_TIMEOUT_MS } from './support/casca.ts'
 import { comOQueFalta, irPelaCoordenacao } from './support/coordenacao.ts'
 import { expect, test } from './support/profiles.ts'
 import {
@@ -16,7 +16,7 @@ import {
   montarEstruturaNoBanco,
   vencerConviteNoBanco,
 } from './support/seed.ts'
-import { ALVO_DE_TOQUE_PRINCIPAL_PX, violacoesGraves } from './support/checks.ts'
+import { ALVO_DE_TOQUE_PRINCIPAL_PX, seriousViolations } from './support/checks.ts'
 
 /**
  * A alocação no painel do professor (X2, 7.0; antes a seção "Alocação" da Estrutura): W4. A coordenação abre o professor em Professores e
@@ -28,13 +28,13 @@ const ROTA_VINCULOS = '**/v1/vinculos?*'
 
 const INDISPONIVEL = JSON.stringify({ erro: { codigo: 'INDISPONIVEL_TENTE_DE_NOVO', mensagem: 'texto que a tela não usa', requisicaoId: '0190f5a0-0000-7000-8000-000000000001' } })
 
-async function acionar(alvo: Locator, hasTouch: boolean): Promise<void> {
+async function activate(alvo: Locator, hasTouch: boolean): Promise<void> {
   if (hasTouch) await alvo.tap()
   else await alvo.click()
 }
 
 /** Uma porta que segura a resposta até o teste abrir. */
-function portao(): { aberta: Promise<void>; abrir: () => void } {
+function gate(): { aberta: Promise<void>; abrir: () => void } {
   let abrir: () => void = () => undefined
   const aberta = new Promise<void>((resolver) => {
     abrir = resolver
@@ -63,14 +63,14 @@ async function abrirProfessores(page: Page, coordenadora: Awaited<ReturnType<typ
 
 /** Abre o painel do professor pelo botão do nome na linha dele. */
 async function abrirPainel(page: Page, nome: string, hasTouch: boolean): Promise<Locator> {
-  await acionar(principal(page).getByRole('button', { name: nome }), hasTouch)
+  await activate(principal(page).getByRole('button', { name: nome }), hasTouch)
   const painel = painelDe(page, nome)
-  await expect(painel).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+  await expect(painel).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
   return painel
 }
 
 async function fecharPainel(painel: Locator, hasTouch: boolean): Promise<void> {
-  await acionar(painel.getByRole('button', { name: 'Fechar', exact: true }), hasTouch)
+  await activate(painel.getByRole('button', { name: 'Fechar', exact: true }), hasTouch)
   await expect(painel).toHaveCount(0)
 }
 
@@ -101,7 +101,7 @@ test.describe('W4 (Alocação): "Acrescentar turma" no painel do professor', () 
       if (pedido.method() === 'POST' && new URL(pedido.url()).pathname === '/v1/vinculos') alocacoes.push(pedido)
     })
     let falhar = false
-    const vinculosSegurados = portao()
+    const vinculosSegurados = gate()
     await page.route(ROTA_VINCULOS, async (rota: Route) => {
       await vinculosSegurados.aberta
       await (falhar ? rota.fulfill({ status: 503, contentType: 'application/json', body: INDISPONIVEL }) : rota.continue())
@@ -112,7 +112,7 @@ test.describe('W4 (Alocação): "Acrescentar turma" no painel do professor', () 
     const doVencido = await abrirPainel(page, vencido.nome, hasTouch)
     await expect(doVencido.getByRole('status').filter({ hasText: 'Carregando as turmas…' })).toBeVisible()
     vinculosSegurados.abrir()
-    await expect(doVencido).toContainText('O convite venceu. Refaça o convite para acrescentar uma turma.', { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(doVencido).toContainText('O convite venceu. Refaça o convite para acrescentar uma turma.', { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(doVencido).toContainText('Nenhuma turma.')
     await expect(doVencido.getByRole('button', { name: 'Acrescentar turma' })).toHaveCount(0)
     await fecharPainel(doVencido, hasTouch)
@@ -123,28 +123,28 @@ test.describe('W4 (Alocação): "Acrescentar turma" no painel do professor', () 
     await page.reload()
     // O roteiro "O que falta" abre pela tela Turmas, que tem o aviso dele.
     await irPelaCoordenacao(page, 'Turmas', hasTouch)
-    await expect(principal(page).getByRole('region', { name: /^Turmas de / })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(principal(page).getByRole('region', { name: /^Turmas de / })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await comOQueFalta(page, hasTouch, async (oQueFalta) => {
       await expect(oQueFalta).toContainText('Professores · feito')
       await expect(oQueFalta).toContainText('Alocação · falta')
     })
     await irPelaCoordenacao(page, 'Professores', hasTouch)
     const daAna = await abrirPainel(page, ana.nome, hasTouch)
-    await expect(daAna).toContainText('Nenhuma turma.', { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(daAna).toContainText('Nenhuma turma.', { timeout: SIGN_IN_TIMEOUT_MS })
 
     await alvoDeToque(daAna.getByRole('button', { name: 'Acrescentar turma' }), 'Acrescentar turma')
-    await acionar(daAna.getByRole('button', { name: 'Acrescentar turma' }), hasTouch)
+    await activate(daAna.getByRole('button', { name: 'Acrescentar turma' }), hasTouch)
     const aberto = dialogo(page)
     await expect(aberto.getByLabel('Turma').locator('option')).toHaveText(['Escolha a turma', turma.nome, outraTurma.nome])
     await expect(aberto.getByLabel('Disciplina').locator('option')).toHaveText(['Escolha a disciplina', artes, estrutura.disciplina.nome])
     // Sem escolher tudo, diz o que falta, e nada sai.
-    await acionar(aberto.getByRole('button', { name: 'Acrescentar', exact: true }), hasTouch)
+    await activate(aberto.getByRole('button', { name: 'Acrescentar', exact: true }), hasTouch)
     await expect(aberto.getByRole('alert')).toHaveText('Escolha a turma e a disciplina.')
     expect(alocacoes).toHaveLength(0)
     await aberto.getByLabel('Turma').selectOption({ label: turma.nome })
     await aberto.getByLabel('Disciplina').selectOption({ label: estrutura.disciplina.nome })
-    await acionar(aberto.getByRole('button', { name: 'Acrescentar', exact: true }), hasTouch)
-    await expect(aberto).toHaveCount(0, { timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(aberto.getByRole('button', { name: 'Acrescentar', exact: true }), hasTouch)
+    await expect(aberto).toHaveCount(0, { timeout: SIGN_IN_TIMEOUT_MS })
     const alocado = anuncio(daAna, `Alocação feita: ${ana.nome} em ${turma.nome} · ${estrutura.disciplina.nome}. A turma abre depois que quem foi alocado confirmar.`)
     await expect(alocado).toBeVisible()
     const turmasDela = daAna.getByRole('list', { name: 'Turmas do professor' })
@@ -153,7 +153,7 @@ test.describe('W4 (Alocação): "Acrescentar turma" no painel do professor', () 
     await expect(turmasDela).toContainText('Esperando o professor confirmar')
     await fecharPainel(daAna, hasTouch)
     await irPelaCoordenacao(page, 'Turmas', hasTouch)
-    await expect(principal(page).getByRole('region', { name: /^Turmas de / })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(principal(page).getByRole('region', { name: /^Turmas de / })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await comOQueFalta(page, hasTouch, async (oQueFalta) => {
       await expect(oQueFalta).toContainText('Alocação · feito')
     })
@@ -161,34 +161,34 @@ test.describe('W4 (Alocação): "Acrescentar turma" no painel do professor', () 
     await abrirPainel(page, ana.nome, hasTouch)
 
     // A mesma alocação de novo: a API recusa, e o diálogo explica.
-    await acionar(daAna.getByRole('button', { name: 'Acrescentar turma' }), hasTouch)
+    await activate(daAna.getByRole('button', { name: 'Acrescentar turma' }), hasTouch)
     await aberto.getByLabel('Turma').selectOption({ label: turma.nome })
     await aberto.getByLabel('Disciplina').selectOption({ label: estrutura.disciplina.nome })
-    await acionar(aberto.getByRole('button', { name: 'Acrescentar', exact: true }), hasTouch)
-    await expect(aberto.getByRole('alert')).toHaveText('Este professor já está alocado nesta turma e nesta disciplina.', { timeout: PRAZO_DA_ENTRADA_MS })
-    expect(await violacoesGraves(page)).toEqual([])
+    await activate(aberto.getByRole('button', { name: 'Acrescentar', exact: true }), hasTouch)
+    await expect(aberto.getByRole('alert')).toHaveText('Este professor já está alocado nesta turma e nesta disciplina.', { timeout: SIGN_IN_TIMEOUT_MS })
+    expect(await seriousViolations(page)).toEqual([])
     // A mesma professora em outra disciplina da mesma turma: os vínculos vêm pela turma e pela disciplina, e não pela ordem de criação.
     await aberto.getByLabel('Disciplina').selectOption({ label: artes })
-    await acionar(aberto.getByRole('button', { name: 'Acrescentar', exact: true }), hasTouch)
-    await expect(aberto).toHaveCount(0, { timeout: PRAZO_DA_ENTRADA_MS })
-    await expect(turmasDela.getByRole('listitem')).toHaveCount(2, { timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(aberto.getByRole('button', { name: 'Acrescentar', exact: true }), hasTouch)
+    await expect(aberto).toHaveCount(0, { timeout: SIGN_IN_TIMEOUT_MS })
+    await expect(turmasDela.getByRole('listitem')).toHaveCount(2, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(turmasDela.getByRole('listitem')).toContainText([artes, estrutura.disciplina.nome])
     await fecharPainel(daAna, hasTouch)
 
     // O convite do outro professor vence com o diálogo aberto: a API responde como inexistente, e o diálogo explica.
     const doBruno = await abrirPainel(page, bruno.nome, hasTouch)
-    await acionar(doBruno.getByRole('button', { name: 'Acrescentar turma' }), hasTouch)
+    await activate(doBruno.getByRole('button', { name: 'Acrescentar turma' }), hasTouch)
     await aberto.getByLabel('Turma').selectOption({ label: turma.nome })
     await aberto.getByLabel('Disciplina').selectOption({ label: artes })
     await vencerConviteNoBanco(bruno.usuarioId)
     const antes = alocacoes.length
-    await acionar(aberto.getByRole('button', { name: 'Acrescentar', exact: true }), hasTouch)
-    await expect(aberto.getByRole('alert')).toHaveText('Este professor já não pode receber turma: o convite mudou. A tela foi atualizada.', { timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(aberto.getByRole('button', { name: 'Acrescentar', exact: true }), hasTouch)
+    await expect(aberto.getByRole('alert')).toHaveText('Este professor já não pode receber turma: o convite mudou. A tela foi atualizada.', { timeout: SIGN_IN_TIMEOUT_MS })
     expect(alocacoes).toHaveLength(antes + 1)
     // O convite venceu: sobra só "Fechar", sem "Acrescentar" nem "Cancelar".
     await expect(aberto.getByRole('button', { name: 'Acrescentar', exact: true })).toHaveCount(0)
     await expect(aberto.getByRole('button', { name: 'Cancelar', exact: true })).toHaveCount(0)
-    await acionar(aberto.getByRole('button', { name: 'Fechar', exact: true }), hasTouch)
+    await activate(aberto.getByRole('button', { name: 'Fechar', exact: true }), hasTouch)
     await expect(aberto).toHaveCount(0)
     await fecharPainel(doBruno, hasTouch)
 
@@ -196,37 +196,37 @@ test.describe('W4 (Alocação): "Acrescentar turma" no painel do professor', () 
     falhar = true
     await page.reload()
     const comErro = await abrirPainel(page, ana.nome, hasTouch)
-    await expect(comErro.getByRole('alert')).toHaveText(MENSAGENS_DE_ERRO.INDISPONIVEL_TENTE_DE_NOVO, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(comErro.getByRole('alert')).toHaveText(MENSAGENS_DE_ERRO.INDISPONIVEL_TENTE_DE_NOVO, { timeout: SIGN_IN_TIMEOUT_MS })
     falhar = false
-    await acionar(comErro.getByRole('button', { name: 'Tentar de novo' }), hasTouch)
-    await expect(comErro.getByRole('list', { name: 'Turmas do professor' })).toContainText(artes, { timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(comErro.getByRole('button', { name: 'Tentar de novo' }), hasTouch)
+    await expect(comErro.getByRole('list', { name: 'Turmas do professor' })).toContainText(artes, { timeout: SIGN_IN_TIMEOUT_MS })
 
     // A turma que outra pessoa excluiu com a escolha feita: a API responde como inexistente, a turma sai da escolha quando a tela
     // recarrega, e o "Acrescentar" seguinte pede a escolha de novo, com a disciplina ainda escolhida.
     const mudou = 'O professor, a turma ou a disciplina mudou enquanto você escolhia. A tela foi atualizada: confira e tente de novo.'
-    await acionar(comErro.getByRole('button', { name: 'Acrescentar turma' }), hasTouch)
+    await activate(comErro.getByRole('button', { name: 'Acrescentar turma' }), hasTouch)
     const daTurma = aberto.getByLabel('Turma')
     const daDisciplina = aberto.getByLabel('Disciplina')
     await daTurma.selectOption({ label: turma.nome })
     await daDisciplina.selectOption({ label: artes })
     await apagarTurmaNoBanco(coordenadora.escolaId, turma.id)
-    await acionar(aberto.getByRole('button', { name: 'Acrescentar', exact: true }), hasTouch)
-    await expect(aberto.getByRole('alert')).toHaveText(mudou, { timeout: PRAZO_DA_ENTRADA_MS })
-    await expect(daTurma.locator('option')).toHaveText(['Escolha a turma', outraTurma.nome], { timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(aberto.getByRole('button', { name: 'Acrescentar', exact: true }), hasTouch)
+    await expect(aberto.getByRole('alert')).toHaveText(mudou, { timeout: SIGN_IN_TIMEOUT_MS })
+    await expect(daTurma.locator('option')).toHaveText(['Escolha a turma', outraTurma.nome], { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(daTurma).toHaveValue('')
     const aposATurma = alocacoes.length
-    await acionar(aberto.getByRole('button', { name: 'Acrescentar', exact: true }), hasTouch)
+    await activate(aberto.getByRole('button', { name: 'Acrescentar', exact: true }), hasTouch)
     await expect(aberto.getByRole('alert')).toHaveText('Escolha a turma e a disciplina.')
     expect(alocacoes).toHaveLength(aposATurma)
     // E a disciplina, do mesmo jeito.
     await daTurma.selectOption({ label: outraTurma.nome })
     await daDisciplina.selectOption({ label: estrutura.disciplina.nome })
     await apagarDisciplinaNoBanco(coordenadora.escolaId, estrutura.disciplina.id)
-    await acionar(aberto.getByRole('button', { name: 'Acrescentar', exact: true }), hasTouch)
-    await expect(aberto.getByRole('alert')).toHaveText(mudou, { timeout: PRAZO_DA_ENTRADA_MS })
-    await expect(daDisciplina.locator('option')).toHaveText(['Escolha a disciplina', artes], { timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(aberto.getByRole('button', { name: 'Acrescentar', exact: true }), hasTouch)
+    await expect(aberto.getByRole('alert')).toHaveText(mudou, { timeout: SIGN_IN_TIMEOUT_MS })
+    await expect(daDisciplina.locator('option')).toHaveText(['Escolha a disciplina', artes], { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(daDisciplina).toHaveValue('')
-    await acionar(aberto.getByRole('button', { name: 'Cancelar', exact: true }), hasTouch)
+    await activate(aberto.getByRole('button', { name: 'Cancelar', exact: true }), hasTouch)
     await expect(aberto).toHaveCount(0)
     await fecharPainel(comErro, hasTouch)
 
@@ -234,7 +234,7 @@ test.describe('W4 (Alocação): "Acrescentar turma" no painel do professor', () 
     await apagarTurmaNoBanco(coordenadora.escolaId, outraTurma.id)
     await page.reload()
     const semTurma = await abrirPainel(page, ana.nome, hasTouch)
-    await expect(semTurma).toContainText('Crie uma turma primeiro', { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(semTurma).toContainText('Crie uma turma primeiro', { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(semTurma).toContainText('Falta: uma turma.')
     await expect(semTurma.getByRole('button', { name: 'Acrescentar turma' })).toHaveCount(0)
   })
@@ -257,19 +257,19 @@ test.describe('W4 (Alocação): o que o painel mostra e o recomeço do diálogo'
 
     const painel = await abrirPainel(page, professor.nome, hasTouch)
     const turmas = painel.getByRole('list', { name: 'Turmas do professor' })
-    await expect(turmas.getByRole('listitem')).toHaveCount(2, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(turmas.getByRole('listitem')).toHaveCount(2, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(turmas.getByRole('listitem')).toContainText(['Contestou', 'Confirmou'])
     await expect(turmas).toContainText('Motivo: Não dou aula nesta turma')
     await expect(painel).toContainText('Para corrigir uma turma contestada, acrescente a turma certa.')
     // Corrigir: acrescentar a turma certa. O vínculo novo espera o aceite, ao lado dos dois.
-    await acionar(painel.getByRole('button', { name: 'Acrescentar turma' }), hasTouch)
+    await activate(painel.getByRole('button', { name: 'Acrescentar turma' }), hasTouch)
     await dialogo(page).getByLabel('Turma').selectOption({ label: turmaCerta.nome })
     await dialogo(page).getByLabel('Disciplina').selectOption({ label: estrutura.disciplina.nome })
-    await acionar(dialogo(page).getByRole('button', { name: 'Acrescentar', exact: true }), hasTouch)
-    await expect(turmas.getByRole('listitem')).toHaveCount(3, { timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(dialogo(page).getByRole('button', { name: 'Acrescentar', exact: true }), hasTouch)
+    await expect(turmas.getByRole('listitem')).toHaveCount(3, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(turmas).toContainText('Esperando o professor confirmar')
     // Três turmas passam da altura do painel nos dois projetos: o miolo que rola está no ciclo do Tab, e o axe não acusa nada.
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await seriousViolations(page)).toEqual([])
   })
 
   test('dois cliques em "Acrescentar" são um pedido e um vínculo só; a falha de um professor não passa ao diálogo do outro', async ({ page, hasTouch }) => {
@@ -287,7 +287,7 @@ test.describe('W4 (Alocação): o que o painel mostra e o recomeço do diálogo'
     await abrirProfessores(page, coordenadora, hasTouch)
 
     const daAna = await abrirPainel(page, ana.nome, hasTouch)
-    await acionar(daAna.getByRole('button', { name: 'Acrescentar turma' }), hasTouch)
+    await activate(daAna.getByRole('button', { name: 'Acrescentar turma' }), hasTouch)
     await dialogo(page).getByLabel('Turma').selectOption({ label: turma.nome })
     await dialogo(page).getByLabel('Disciplina').selectOption({ label: estrutura.disciplina.nome })
     // Os dois cliques no mesmo instante, antes de a tela desligar o botão: só a trava do pedido no ar os segura.
@@ -298,21 +298,21 @@ test.describe('W4 (Alocação): o que o painel mostra e o recomeço do diálogo'
         elemento.click()
       })
     const turmasDela = daAna.getByRole('list', { name: 'Turmas do professor' })
-    await expect(turmasDela.getByRole('listitem')).toHaveCount(1, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(turmasDela.getByRole('listitem')).toHaveCount(1, { timeout: SIGN_IN_TIMEOUT_MS })
     expect(alocacoes).toHaveLength(1)
 
     // A mesma alocação de novo: o CONFLITO fica no diálogo da Ana e não vai ao do Bruno.
-    await acionar(daAna.getByRole('button', { name: 'Acrescentar turma' }), hasTouch)
+    await activate(daAna.getByRole('button', { name: 'Acrescentar turma' }), hasTouch)
     await dialogo(page).getByLabel('Turma').selectOption({ label: turma.nome })
     await dialogo(page).getByLabel('Disciplina').selectOption({ label: estrutura.disciplina.nome })
-    await acionar(dialogo(page).getByRole('button', { name: 'Acrescentar', exact: true }), hasTouch)
-    await expect(dialogo(page).getByRole('alert')).toHaveText('Este professor já está alocado nesta turma e nesta disciplina.', { timeout: PRAZO_DA_ENTRADA_MS })
-    await acionar(dialogo(page).getByRole('button', { name: 'Cancelar', exact: true }), hasTouch)
+    await activate(dialogo(page).getByRole('button', { name: 'Acrescentar', exact: true }), hasTouch)
+    await expect(dialogo(page).getByRole('alert')).toHaveText('Este professor já está alocado nesta turma e nesta disciplina.', { timeout: SIGN_IN_TIMEOUT_MS })
+    await activate(dialogo(page).getByRole('button', { name: 'Cancelar', exact: true }), hasTouch)
     await expect(dialogo(page)).toHaveCount(0)
     await fecharPainel(daAna, hasTouch)
 
     const doBruno = await abrirPainel(page, bruno.nome, hasTouch)
-    await acionar(doBruno.getByRole('button', { name: 'Acrescentar turma' }), hasTouch)
+    await activate(doBruno.getByRole('button', { name: 'Acrescentar turma' }), hasTouch)
     await expect(dialogo(page).getByRole('alert')).toHaveCount(0)
     await expect(dialogo(page)).toContainText(bruno.nome)
     await expect(dialogo(page)).not.toContainText(ana.nome)
@@ -329,30 +329,30 @@ test.describe('W4 (Alocação): o que o painel mostra e o recomeço do diálogo'
     const ana = await convidarProfessorNoBanco(coordenadora.escolaId, 'pendente', 'Ana')
     await abrirProfessores(page, coordenadora, hasTouch)
     const painel = await abrirPainel(page, ana.nome, hasTouch)
-    await expect(painel).toContainText('Nenhuma turma.', { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(painel).toContainText('Nenhuma turma.', { timeout: SIGN_IN_TIMEOUT_MS })
 
     // O pedido fica segurado: a pessoa cancela o diálogo e abre outro por cima do painel antes de a resposta chegar.
-    const seguro = portao()
+    const seguro = gate()
     await page.route('**/v1/vinculos', async (rota: Route) => {
       if (rota.request().method() !== 'POST') return rota.fallback()
       await seguro.aberta
       return rota.fallback()
     })
-    await acionar(painel.getByRole('button', { name: 'Acrescentar turma' }), hasTouch)
+    await activate(painel.getByRole('button', { name: 'Acrescentar turma' }), hasTouch)
     await dialogo(page).getByLabel('Turma').selectOption({ label: turma.nome })
     await dialogo(page).getByLabel('Disciplina').selectOption({ label: estrutura.disciplina.nome })
-    await acionar(dialogo(page).getByRole('button', { name: 'Acrescentar', exact: true }), hasTouch)
+    await activate(dialogo(page).getByRole('button', { name: 'Acrescentar', exact: true }), hasTouch)
     await expect(dialogo(page).getByRole('button', { name: 'Acrescentando…' })).toBeDisabled()
-    await acionar(dialogo(page).getByRole('button', { name: 'Cancelar', exact: true }), hasTouch)
+    await activate(dialogo(page).getByRole('button', { name: 'Cancelar', exact: true }), hasTouch)
     await expect(dialogo(page)).toHaveCount(0)
-    await acionar(painel.getByRole('button', { name: 'Refazer convite' }), hasTouch)
+    await activate(painel.getByRole('button', { name: 'Refazer convite' }), hasTouch)
     await expect(dialogo(page).getByText('O link mandado antes para de valer na hora.', { exact: false })).toBeVisible()
     seguro.abrir()
     // A resposta chega: o vínculo entra na lista e o painel anuncia, mas o diálogo do refazer continua onde a pessoa o deixou.
-    await expect(painel.getByRole('list', { name: 'Turmas do professor' }).getByRole('listitem')).toHaveCount(1, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(painel.getByRole('list', { name: 'Turmas do professor' }).getByRole('listitem')).toHaveCount(1, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(painel.locator('[role="status"]').filter({ hasText: `Alocação feita: ${ana.nome} em ${turma.nome}` })).toHaveCount(1)
     await expect(dialogo(page).getByText('O link mandado antes para de valer na hora.', { exact: false })).toBeVisible()
-    await acionar(dialogo(page).getByRole('button', { name: 'Cancelar', exact: true }), hasTouch)
+    await activate(dialogo(page).getByRole('button', { name: 'Cancelar', exact: true }), hasTouch)
     await expect(dialogo(page)).toHaveCount(0)
   })
 })

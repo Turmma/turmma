@@ -100,7 +100,7 @@ export function respostasNoBanco(escolaId: string, atividadeAplicadaId: string, 
 }
 
 /** A professora pela API, com a sessão dela: o que a tela dela faria, sem passar pela tela. */
-export class ProfessoraPelaApi {
+export class ProfessoraApiClient {
   private readonly pedidos: APIRequestContext
   private readonly token: string
 
@@ -109,11 +109,11 @@ export class ProfessoraPelaApi {
     this.token = token
   }
 
-  static async entrar(pedidos: APIRequestContext, professora: { readonly email: string; readonly senha: string }): Promise<ProfessoraPelaApi> {
+  static async entrar(pedidos: APIRequestContext, professora: { readonly email: string; readonly senha: string }): Promise<ProfessoraApiClient> {
     const resposta = await pedidos.post('/v1/sessao/email', { data: { email: professora.email, senha: professora.senha } })
     const corpo = (await resposta.json()) as { etapa?: string; token?: string }
     if (!resposta.ok() || corpo.etapa !== 'pronta' || corpo.token === undefined) throw new Error(`a professora não entrou pela API: ${String(resposta.status())}`)
-    return new ProfessoraPelaApi(pedidos, corpo.token)
+    return new ProfessoraApiClient(pedidos, corpo.token)
   }
 
   private async chamar<T>(metodo: 'GET' | 'POST', caminho: string, corpo?: unknown): Promise<T> {

@@ -1,11 +1,11 @@
 import type { Locator, Page } from '@playwright/test'
-import { abrirGaleria, acionar, caixa } from './support/gallery.ts'
-import { abrirNavegacao, entrarComoAluno, entrarComoCoordenacaoNaMesmaAba, entrarComoProfessora, entrarPorEmail, lateral, naGaveta, PRAZO_DA_ENTRADA_MS } from './support/casca.ts'
+import { openGallery, activate, caixa } from './support/gallery.ts'
+import { abrirNavegacao, entrarComoAluno, entrarComoCoordenacaoNaMesmaAba, entrarComoProfessora, entrarPorEmail, lateral, naGaveta, SIGN_IN_TIMEOUT_MS } from './support/casca.ts'
 import { criarOperadorComSegundoFator, removerOperador, type OperadorDeTeste } from './support/operacao.ts'
 import { expect, test } from './support/profiles.ts'
 import { colocarAlunoNaTurma, criarAlunoComMatricula, criarEquipeComSenha } from './support/seed.ts'
 import { entrarNaOperacao } from './support/operacao-screen.ts'
-import { larguraExcedente, violacoesGraves } from './support/checks.ts'
+import { horizontalOverflow, seriousViolations } from './support/checks.ts'
 
 /**
  * A aparência da pessoa (X1, tarefa 2.0; RF3, RF4 e RF24; Tech Spec, seções 5 e 7): Sistema, Claro ou Escuro, no menu da
@@ -34,19 +34,19 @@ const opcaoDaAparencia = (dentro: Locator, nome: Opcao) => dentro.getByRole('rad
 /** Escolhe pelo menu da conta da casca da escola, abrindo a gaveta antes quando a casca está nela. */
 async function escolherNaCasca(page: Page, hasTouch: boolean, nome: Opcao): Promise<void> {
   await abrirNavegacao(page, hasTouch)
-  await acionar(opcaoDaAparencia(lateral(page), nome), hasTouch)
+  await activate(opcaoDaAparencia(lateral(page), nome), hasTouch)
 }
 
 /** A tela de entrada, onde `Sair` termina: a pessoa seguinte começa dali. */
 async function sair(page: Page, hasTouch: boolean): Promise<void> {
-  await acionar(lateral(page).getByRole('button', { name: 'Sair' }), hasTouch)
-  await expect(page).toHaveURL(/\/entrar$/, { timeout: PRAZO_DA_ENTRADA_MS })
+  await activate(lateral(page).getByRole('button', { name: 'Sair' }), hasTouch)
+  await expect(page).toHaveURL(/\/entrar$/, { timeout: SIGN_IN_TIMEOUT_MS })
 }
 
 test.describe('aparência: Sistema, Claro e Escuro', () => {
   test('RF3: a escolha vale no primeiro quadro, antes de o React montar: o data-tema e o chão já são os do escuro', async ({ page, hasTouch }) => {
-    await abrirGaleria(page)
-    await acionar(opcaoDaAparencia(page.locator('body'), 'Escuro'), hasTouch)
+    await openGallery(page)
+    await activate(opcaoDaAparencia(page.locator('body'), 'Escuro'), hasTouch)
     await expect.poll(() => temaDaPagina(page)).toBe('escuro')
     expect(await guardadoNoNavegador(page)).toEqual({ 'educa.aparencia': 'escuro' })
 
@@ -69,12 +69,12 @@ test.describe('aparência: Sistema, Claro e Escuro', () => {
     } finally {
       soltar()
     }
-    await expect(opcaoDaAparencia(page.locator('body'), 'Escuro')).toHaveAttribute('aria-checked', 'true', { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(opcaoDaAparencia(page.locator('body'), 'Escuro')).toHaveAttribute('aria-checked', 'true', { timeout: SIGN_IN_TIMEOUT_MS })
   })
 
   test('RF3: em Sistema a página aberta acompanha o aparelho; com Claro escolhido, não, e o documento continua claro', async ({ page, hasTouch }) => {
     await page.emulateMedia({ colorScheme: 'light' })
-    await abrirGaleria(page)
+    await openGallery(page)
     await expect(opcaoDaAparencia(page.locator('body'), 'Sistema')).toHaveAttribute('aria-checked', 'true')
     expect(await temaDaPagina(page)).toBe('claro')
     // Sem escolha, nada foi gravado: ver a página não é escolher.
@@ -88,7 +88,7 @@ test.describe('aparência: Sistema, Claro e Escuro', () => {
     await expect.poll(() => temaDaPagina(page)).toBe('claro')
 
     // Claro escolhido com o aparelho no escuro: a escolha vence, e o navegador (barra de rolagem, controles) também fica claro.
-    await acionar(opcaoDaAparencia(page.locator('body'), 'Claro'), hasTouch)
+    await activate(opcaoDaAparencia(page.locator('body'), 'Claro'), hasTouch)
     await page.emulateMedia({ colorScheme: 'dark' })
     // Dois quadros: a mudança do aparelho já foi entregue.
     await page.evaluate(() => new Promise((resolver) => requestAnimationFrame(() => requestAnimationFrame(() => resolver(null)))))
@@ -98,33 +98,33 @@ test.describe('aparência: Sistema, Claro e Escuro', () => {
   })
 
   test('RF3 e RF24: voltar a Sistema apaga a chave, e o armazenamento volta a nada', async ({ page, hasTouch }) => {
-    await abrirGaleria(page)
+    await openGallery(page)
     expect(await guardadoNoNavegador(page)).toEqual({})
 
-    await acionar(opcaoDaAparencia(page.locator('body'), 'Escuro'), hasTouch)
+    await activate(opcaoDaAparencia(page.locator('body'), 'Escuro'), hasTouch)
     expect(await guardadoNoNavegador(page)).toEqual({ 'educa.aparencia': 'escuro' })
-    await acionar(opcaoDaAparencia(page.locator('body'), 'Claro'), hasTouch)
+    await activate(opcaoDaAparencia(page.locator('body'), 'Claro'), hasTouch)
     expect(await guardadoNoNavegador(page)).toEqual({ 'educa.aparencia': 'claro' })
 
-    await acionar(opcaoDaAparencia(page.locator('body'), 'Sistema'), hasTouch)
+    await activate(opcaoDaAparencia(page.locator('body'), 'Sistema'), hasTouch)
     expect(await page.evaluate(() => JSON.stringify(Object.entries(localStorage)))).toBe('[]')
     expect(await page.evaluate(() => JSON.stringify(Object.entries(sessionStorage)))).toBe('[]')
   })
 
   test('duas abas do mesmo navegador: a escolha feita numa chega à outra, que está em Sistema', async ({ page, hasTouch }) => {
-    await abrirGaleria(page)
+    await openGallery(page)
     const outra = await page.context().newPage()
     try {
       await outra.goto('/galeria')
-      await expect(outra.getByRole('heading', { level: 1, name: 'Galeria de peças' })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+      await expect(outra.getByRole('heading', { level: 1, name: 'Galeria de peças' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
       expect(await temaDaPagina(outra)).toBe('claro')
 
-      await acionar(opcaoDaAparencia(page.locator('body'), 'Escuro'), hasTouch)
+      await activate(opcaoDaAparencia(page.locator('body'), 'Escuro'), hasTouch)
       await expect.poll(() => temaDaPagina(outra)).toBe('escuro')
       await expect(opcaoDaAparencia(outra.locator('body'), 'Escuro')).toHaveAttribute('aria-checked', 'true')
 
       // E a volta a Sistema, que apaga a chave, também chega.
-      await acionar(opcaoDaAparencia(page.locator('body'), 'Sistema'), hasTouch)
+      await activate(opcaoDaAparencia(page.locator('body'), 'Sistema'), hasTouch)
       await expect.poll(() => temaDaPagina(outra)).toBe('claro')
       await expect(opcaoDaAparencia(outra.locator('body'), 'Sistema')).toHaveAttribute('aria-checked', 'true')
     } finally {
@@ -133,7 +133,7 @@ test.describe('aparência: Sistema, Claro e Escuro', () => {
   })
 
   test('alvo de toque: cada opção da Aparência tem 44 px de altura no toque e 36 px no computador, e o grupo cabe na tela', async ({ page, hasTouch }) => {
-    await abrirGaleria(page)
+    await openGallery(page)
     const opcoes = page.getByRole('radiogroup', { name: 'Aparência' }).getByRole('radio')
     await expect(opcoes).toHaveCount(3)
     for (const opcao of await opcoes.all()) {
@@ -141,7 +141,7 @@ test.describe('aparência: Sistema, Claro e Escuro', () => {
       expect(medida.height).toBeGreaterThanOrEqual(hasTouch ? 44 : 36)
       expect(medida.x + medida.width).toBeLessThanOrEqual(page.viewportSize()?.width ?? 0)
     }
-    expect(await larguraExcedente(page)).toBe(0)
+    expect(await horizontalOverflow(page)).toBe(0)
   })
 
   test('RF24: duas pessoas no mesmo computador: o navegador guarda só a aparência, a lateral recolhida e a letra do aluno, a segunda pessoa herda as três e nada mais, e entra na largura do projeto', async ({ page, hasTouch }) => {
@@ -152,7 +152,7 @@ test.describe('aparência: Sistema, Claro e Escuro', () => {
     await page.setViewportSize({ width: 1024, height: 768 })
     await escolherNaCasca(page, hasTouch, 'Escuro')
     expect(await temaDaPagina(page)).toBe('escuro')
-    await acionar(page.getByRole('button', { name: 'Recolher a lateral' }), hasTouch)
+    await activate(page.getByRole('button', { name: 'Recolher a lateral' }), hasTouch)
     await expect(page.getByRole('button', { name: 'Abrir a lateral' })).toBeVisible()
     // A terceira chave da lista fechada (telas do aluno, 8.0): quem a escolhe é o aluno, em Eu › Ajustes (`tamanho-da-letra.spec.ts`);
     // aqui ela é posta à mão, para provar que fica na lista e que a professora que entra depois não a aplica.
@@ -167,8 +167,8 @@ test.describe('aparência: Sistema, Claro e Escuro', () => {
     if (larguraDoProjeto !== null) await page.setViewportSize(larguraDoProjeto)
     const segunda = await criarEquipeComSenha()
     await entrarPorEmail(page, segunda, hasTouch)
-    await expect(page).toHaveURL(/\/professor\/nova-conversa$/, { timeout: PRAZO_DA_ENTRADA_MS })
-    await expect(page.getByText(/^(Bom dia|Boa tarde|Boa noite), /)).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page).toHaveURL(/\/professor\/nova-conversa$/, { timeout: SIGN_IN_TIMEOUT_MS })
+    await expect(page.getByText(/^(Bom dia|Boa tarde|Boa noite), /)).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     const depois = await page.evaluate(() => ({ local: Object.fromEntries(Object.entries(localStorage)), sessao: Object.fromEntries(Object.entries(sessionStorage)) }))
     // Nenhuma chave nem valor leva pessoa, escola ou papel; o `sessionStorage` não tem nada.
     expect(depois.local).toEqual({ 'educa.aparencia': 'escuro', 'educa.lateral-recolhida': 'sim', 'educa.letra': 'maior' })
@@ -179,8 +179,8 @@ test.describe('aparência: Sistema, Claro e Escuro', () => {
 
     // Na mesma aba, é a segunda pessoa que está na tela: nada da primeira ficou no cache (regra 20, itens 4 e 5).
     if (naGaveta(page)) await abrirNavegacao(page, hasTouch)
-    else await acionar(page.getByRole('button', { name: 'Abrir a lateral' }), hasTouch)
-    await expect(page.locator('body')).toContainText(segunda.nome, { timeout: PRAZO_DA_ENTRADA_MS })
+    else await activate(page.getByRole('button', { name: 'Abrir a lateral' }), hasTouch)
+    await expect(page.locator('body')).toContainText(segunda.nome, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(page.locator('body')).not.toContainText(primeira.nome)
   })
 })
@@ -203,8 +203,8 @@ test.describe('aparência em cada área', () => {
     await escolherNaCasca(page, hasTouch, 'Escuro')
     expect(await temaDaPagina(page)).toBe('escuro')
     await expect(opcaoDaAparencia(lateral(page), 'Escuro')).toHaveAttribute('aria-checked', 'true')
-    expect(await larguraExcedente(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await horizontalOverflow(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
   })
 
   test('a coordenação acha a Aparência no menu da conta, e a escolha vale', async ({ page, hasTouch }) => {
@@ -215,8 +215,8 @@ test.describe('aparência em cada área', () => {
     await escolherNaCasca(page, hasTouch, 'Escuro')
     expect(await temaDaPagina(page)).toBe('escuro')
     await expect(opcaoDaAparencia(lateral(page), 'Escuro')).toHaveAttribute('aria-checked', 'true')
-    expect(await larguraExcedente(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await horizontalOverflow(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
   })
 
   test('o aluno acha a Aparência no menu da conta, e a escolha vale', async ({ page, hasTouch }) => {
@@ -228,8 +228,8 @@ test.describe('aparência em cada área', () => {
     await escolherNaCasca(page, hasTouch, 'Escuro')
     expect(await temaDaPagina(page)).toBe('escuro')
     await expect(opcaoDaAparencia(lateral(page), 'Escuro')).toHaveAttribute('aria-checked', 'true')
-    expect(await larguraExcedente(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await horizontalOverflow(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
   })
 
   test('na operação, a Aparência fica na faixa de cima, ao lado do "Sair", sem passar da largura; as telas públicas seguem o sistema, sem controle', async ({ page, hasTouch }) => {
@@ -237,7 +237,7 @@ test.describe('aparência em cada área', () => {
     // As páginas de fora da sessão não têm o controle e seguem o aparelho.
     await page.emulateMedia({ colorScheme: 'dark' })
     await page.goto('/operacao/entrar')
-    await expect(page.getByRole('heading', { name: 'Entrar na operação' })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page.getByRole('heading', { name: 'Entrar na operação' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(page.getByRole('radiogroup', { name: 'Aparência' })).toHaveCount(0)
     expect(await temaDaPagina(page)).toBe('escuro')
     await page.emulateMedia({ colorScheme: 'light' })
@@ -251,13 +251,13 @@ test.describe('aparência em cada área', () => {
       const grupo = faixa.getByRole('radiogroup', { name: 'Aparência' })
       await expect(grupo).toBeVisible()
       await expect(faixa.getByRole('button', { name: 'Sair' })).toBeVisible()
-      expect(await larguraExcedente(page)).toBe(0)
+      expect(await horizontalOverflow(page)).toBe(0)
 
-      await acionar(opcaoDaAparencia(faixa, 'Escuro'), hasTouch)
+      await activate(opcaoDaAparencia(faixa, 'Escuro'), hasTouch)
       expect(await temaDaPagina(page)).toBe('escuro')
       await expect(opcaoDaAparencia(faixa, 'Escuro')).toHaveAttribute('aria-checked', 'true')
-      expect(await larguraExcedente(page)).toBe(0)
-      expect(await violacoesGraves(page)).toEqual([])
+      expect(await horizontalOverflow(page)).toBe(0)
+      expect(await seriousViolations(page)).toEqual([])
     } finally {
       if (operador !== undefined) await removerOperador(operador.operadorId)
     }

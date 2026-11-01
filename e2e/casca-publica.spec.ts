@@ -1,6 +1,6 @@
 import type { Locator, Page } from '@playwright/test'
 import { expect, test } from './support/profiles.ts'
-import { corDoToken, larguraExcedente, violacoesGraves } from './support/checks.ts'
+import { corDoToken, horizontalOverflow, seriousViolations } from './support/checks.ts'
 
 /**
  * A moldura das páginas de fora da sessão (X1, tarefa 14.0; `docs/interface.md` 11.3, 9.6): a partir de 1024 px a tela
@@ -43,7 +43,7 @@ test.describe('a moldura das páginas públicas', () => {
         // Meia janela para cada lado: o formulário não se espalha, e o painel não some.
         expect(lateral.width, `largura do painel a ${String(largura)} px`).toBeGreaterThanOrEqual(largura / 2 - 2)
         expect(lateral.height, `altura do painel a ${String(largura)} px`).toBeGreaterThanOrEqual(768)
-        expect(await larguraExcedente(page), `rolagem de lado a ${String(largura)} px`).toBe(0)
+        expect(await horizontalOverflow(page), `rolagem de lado a ${String(largura)} px`).toBe(0)
         // O cartão fica no meio da altura do painel: o espaço de cima é o de baixo, e maior que o enchimento da coluna
         // (48 px). Sem o centro, a linha da coluna o esticaria até o pé, e os dois espaços cairiam para o enchimento.
         const acima = principal.y - lateral.y
@@ -76,7 +76,7 @@ test.describe('a moldura das páginas públicas', () => {
         // O formulário continua legível no celular: não passa da janela, e a coluna única ocupa a largura menos a margem.
         expect(principal.x).toBeGreaterThanOrEqual(0)
         expect(principal.x + principal.width).toBeLessThanOrEqual(largura)
-        expect(await larguraExcedente(page), `rolagem de lado a ${String(largura)} px`).toBe(0)
+        expect(await horizontalOverflow(page), `rolagem de lado a ${String(largura)} px`).toBe(0)
         // Empilhado o painel é só a marca: a pinta grande é do computador.
         await expect(pintaDoPainel(page)).toBeHidden()
         await expect(page.getByRole('banner').getByText('Turmma')).toBeVisible()
@@ -121,7 +121,7 @@ test.describe('a moldura das páginas públicas', () => {
     expect(await fundoDoPainel()).toBe(await corDoToken(page, 'papel'))
     expect(await fundoDoPainel()).not.toBe(claro)
     expect(await fundoDoCartao()).toBe(await corDoToken(page, 'superficie'))
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await seriousViolations(page)).toEqual([])
   })
 
   test('/entrar: os dois campos têm o rótulo, o tipo, o teclado, o preenchimento e o limite de sempre, o e-mail antes da senha', async ({ page }) => {
@@ -163,7 +163,7 @@ test.describe('a moldura das páginas públicas', () => {
       const titulo = page.getByRole('heading', { level: 1, name: nome })
       await expect(titulo).toBeVisible()
 
-      expect(await larguraExcedente(page), `rolagem de lado a ${String(largura)} px`).toBe(0)
+      expect(await horizontalOverflow(page), `rolagem de lado a ${String(largura)} px`).toBe(0)
       const [h1, principal] = [await caixa(titulo), await caixa(cartao(page))]
       expect(h1.x, `título dentro do cartão a ${String(largura)} px`).toBeGreaterThanOrEqual(principal.x)
       expect(h1.x + h1.width, `título dentro do cartão a ${String(largura)} px`).toBeLessThanOrEqual(principal.x + principal.width + 1)
@@ -178,7 +178,7 @@ test.describe('a moldura das páginas públicas', () => {
       await page.setViewportSize({ width: largura, height: 800 })
       await page.goto('/entrar')
       await expect(page.getByRole('heading', { level: 1, name: 'Entrar' })).toBeVisible()
-      expect(await violacoesGraves(page), `axe a ${String(largura)} px`).toEqual([])
+      expect(await seriousViolations(page), `axe a ${String(largura)} px`).toEqual([])
       // Um `banner` e um `main` só: dois deles dão a violação `landmark-no-duplicate-*` que o axe leria como grave.
       await expect(page.getByRole('banner')).toHaveCount(1)
       await expect(page.getByRole('main')).toHaveCount(1)

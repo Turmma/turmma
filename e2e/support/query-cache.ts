@@ -1,7 +1,7 @@
 import type { Page } from '@playwright/test'
 
 /** Uma consulta do cache do TanStack Query da página: a chave e o dado que ela guarda agora. */
-export interface ConsultaNoCache {
+export interface CachedQuery {
   readonly chave: unknown
   readonly dado: unknown
 }
@@ -12,7 +12,7 @@ export interface ConsultaNoCache {
  * `QueryClientProvider`, cuja prop `client` é o cliente que a tela usa. É leitura de teste, sem nada no código de
  * produção para isso.
  */
-export function cacheDeConsultas(page: Page): Promise<ConsultaNoCache[]> {
+export function queryCache(page: Page): Promise<CachedQuery[]> {
   return page.evaluate(() => {
     interface ConsultaDoReact {
       readonly queryKey: unknown

@@ -1,9 +1,9 @@
 import { randomUUID } from 'node:crypto'
 import type { Locator, Page, Request, Route } from '@playwright/test'
 import type { DesempenhoDaTurmaResponse } from '../packages/shared/src/atividade/desempenho.ts'
-import { desempenhoSintetico, simularAssistente, type ApiDoAssistente } from './support/assistente.ts'
-import { PRAZO_DA_ENTRADA_MS } from './support/casca.ts'
-import { cacheDeConsultas } from './support/query-cache.ts'
+import { desempenhoSintetico, mockAssistenteApi, type AssistenteApiMock } from './support/assistente.ts'
+import { SIGN_IN_TIMEOUT_MS } from './support/casca.ts'
+import { queryCache } from './support/query-cache.ts'
 import { principal } from './support/professor-flow.ts'
 import { expect, test } from './support/profiles.ts'
 import { irPara, soOPainelDaAbaRola, VOCABULARIO_DE_NOTA } from './support/professor/scenario.ts'
@@ -17,7 +17,7 @@ import {
   type AlunoNaTurmaDeTeste,
   type EquipeDeTeste,
 } from './support/seed.ts'
-import { larguraExcedente, violacoesGraves } from './support/checks.ts'
+import { horizontalOverflow, seriousViolations } from './support/checks.ts'
 
 /**
  * A aba Alunos da turma aberta (telas do professor, 12.0; RF18, RF21), pela tela, nos projetos `chromebook` e `celular`: a lista
@@ -40,7 +40,7 @@ async function abrirJaEntrando(page: Page, professora: EquipeDeTeste, endereco: 
 }
 
 interface Cenario {
-  readonly api: ApiDoAssistente
+  readonly api: AssistenteApiMock
   readonly professora: EquipeDeTeste
   readonly turma: AlocacaoDeTeste
   readonly alunos: readonly AlunoNaTurmaDeTeste[]
@@ -50,7 +50,7 @@ interface Cenario {
 /** A professora com a turma confirmada e alunos nela, em ordem de id (a da API), que não é a de nome. */
 async function prepararCenario(page: Page, nomes?: readonly string[]): Promise<Cenario> {
   const marca = randomUUID().slice(0, 8)
-  const api = await simularAssistente(page)
+  const api = await mockAssistenteApi(page)
   const professora = await criarEquipeComSenha()
   const turma = await criarAlocacaoDoProfessor(professora.escolaId, professora.usuarioId, ['Química'])
   await confirmarVinculosNoBanco(professora.escolaId, turma.vinculoIds)
@@ -114,7 +114,7 @@ test.describe('Alunos na turma aberta: a lista de nomes e os acertos', () => {
     ])
     await abrirJaEntrando(page, professora, enderecoDaAba(turma))
 
-    await expect(linhaDe(page, ana.nome)).toContainText('2 de 2', { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(linhaDe(page, ana.nome)).toContainText('2 de 2', { timeout: SIGN_IN_TIMEOUT_MS })
     // Em ordem de nome (a lista chegou em ordem de id): "Álvaro" com o A, os dois "João" em duas linhas, Dora entre Bruna e João.
     expect(await nomesNaTela(page)).toEqual([
       `Álvaro Sintético ${marca}`,
@@ -138,8 +138,8 @@ test.describe('Alunos na turma aberta: a lista de nomes e os acertos', () => {
     await expect(regiaoDosAlunos(page).getByRole('button')).toHaveCount(0)
     await expect(principal(page)).not.toContainText(VOCABULARIO_DE_NOTA)
     await expect(principal(page)).not.toContainText(PALAVRAS_DE_RANKING)
-    expect(await larguraExcedente(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await horizontalOverflow(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
   })
 
   test('a lista não fica na memória da aba: sai o nome ao deixar a aba, volta a ser lida ao voltar; nenhum nome em localStorage, sessionStorage, endereço nem log da web', async ({ page }) => {
@@ -151,9 +151,9 @@ test.describe('Alunos na turma aberta: a lista de nomes e os acertos', () => {
     page.on('console', (mensagem) => logs.push(mensagem.text()))
     page.on('pageerror', (erro) => logs.push(erro.message))
     await abrirJaEntrando(page, professora, enderecoDaAba(turma))
-    await expect(linhaDe(page, nomeDeUm)).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(linhaDe(page, nomeDeUm)).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     // O controle: com a aba aberta, o cache guarda os nomes. Sem isto, a ausência depois não provaria nada.
-    expect(JSON.stringify(await cacheDeConsultas(page))).toContain(nomeDeUm)
+    expect(JSON.stringify(await queryCache(page))).toContain(nomeDeUm)
     expect(lista.turmas).toEqual([turma.turmaId])
 
     const guardado = await page.evaluate(() => JSON.stringify({ local: { ...window.localStorage }, sessao: { ...window.sessionStorage }, endereco: window.location.href }))
@@ -163,9 +163,9 @@ test.describe('Alunos na turma aberta: a lista de nomes e os acertos', () => {
     // Sai da aba (Hoje), sem recarregar: a lista sai do cache. Volta, e ela é lida de novo.
     await irPara(page, `/professor/turmas/${turma.turmaId}?aba=hoje`)
     await expect(principal(page).getByRole('tab', { name: 'Hoje', selected: true })).toBeVisible()
-    await expect.poll(async () => JSON.stringify(await cacheDeConsultas(page)), { timeout: 5_000 }).not.toContain(nomeDeUm)
+    await expect.poll(async () => JSON.stringify(await queryCache(page)), { timeout: 5_000 }).not.toContain(nomeDeUm)
     await irPara(page, enderecoDaAba(turma))
-    await expect(linhaDe(page, nomeDeUm)).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(linhaDe(page, nomeDeUm)).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     expect(lista.turmas).toEqual([turma.turmaId, turma.turmaId])
 
     // Nenhum nome em log da web: a auditoria da leitura é a da API.
@@ -175,7 +175,7 @@ test.describe('Alunos na turma aberta: a lista de nomes e os acertos', () => {
 
   test('resposta atrasada: a lista da primeira turma, ainda a caminho quando a professora abre a segunda, não troca os alunos dela: a leitura sai do ar e nada dela fica no cache', async ({ page }) => {
     const marca = randomUUID().slice(0, 8)
-    await simularAssistente(page)
+    await mockAssistenteApi(page)
     const professora = await criarEquipeComSenha()
     const primeira = await criarAlocacaoDoProfessor(professora.escolaId, professora.usuarioId, ['Química'], `8ºA sintética ${marca}`)
     const segunda = await criarAlocacaoDoProfessor(professora.escolaId, professora.usuarioId, ['Física'], `8ºB sintética ${marca}`)
@@ -193,13 +193,13 @@ test.describe('Alunos na turma aberta: a lista de nomes e os acertos', () => {
     })
 
     await abrirJaEntrando(page, professora, enderecoDaAba(primeira))
-    await expect(principal(page).getByRole('status').filter({ hasText: 'Carregando os alunos da turma…' })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(principal(page).getByRole('status').filter({ hasText: 'Carregando os alunos da turma…' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await irPara(page, enderecoDaAba(segunda))
-    await expect(linhaDe(page, `Aluno da segunda ${marca}`)).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(linhaDe(page, `Aluno da segunda ${marca}`)).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     abrir()
     // Ao trocar de turma a web cancela a leitura da primeira (o `signal` da consulta), e o navegador a aborta antes de a resposta chegar: o
     // que o caso prova é que, com a leitura solta, a segunda não mostra nome da primeira, e a primeira, que já saiu da tela, não deixa nome no cache.
-    await expect.poll(async () => JSON.stringify(await cacheDeConsultas(page)), { timeout: 5_000 }).not.toContain(`Aluno da primeira ${marca}`)
+    await expect.poll(async () => JSON.stringify(await queryCache(page)), { timeout: 5_000 }).not.toContain(`Aluno da primeira ${marca}`)
     await expect(principal(page)).not.toContainText(`Aluno da primeira ${marca}`)
     expect(await nomesNaTela(page)).toEqual([`Aluno da segunda ${marca}`])
   })
@@ -207,7 +207,7 @@ test.describe('Alunos na turma aberta: a lista de nomes e os acertos', () => {
   test('1366 × 768: a página fica parada com um aluno na lista, e quem rola é o painel da aba', async ({ page }) => {
     const { professora, turma, alunos } = await prepararCenario(page, [`Ana Sintética ${randomUUID().slice(0, 8)}`])
     await abrirJaEntrando(page, professora, enderecoDaAba(turma))
-    await expect(linhaDe(page, alunos[0]?.nome ?? '')).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(linhaDe(page, alunos[0]?.nome ?? '')).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await soOPainelDaAbaRola(page)
   })
 
@@ -218,8 +218,8 @@ test.describe('Alunos na turma aberta: a lista de nomes e os acertos', () => {
     await abrirJaEntrando(page, professora, enderecoDaAba(turma))
 
     const itens = regiaoDosAlunos(page).locator('[data-tabela="lista"] > li')
-    await expect(itens).toHaveCount(2, { timeout: PRAZO_DA_ENTRADA_MS })
-    expect(await larguraExcedente(page)).toBe(0)
+    await expect(itens).toHaveCount(2, { timeout: SIGN_IN_TIMEOUT_MS })
+    expect(await horizontalOverflow(page)).toBe(0)
     for (const caixa of await itens.evaluateAll((lista) => lista.map((item) => item.getBoundingClientRect().toJSON() as { width: number; height: number; right: number }))) {
       expect(caixa.height).toBeGreaterThanOrEqual(56)
       expect(caixa.right).toBeLessThanOrEqual(360)
@@ -229,7 +229,7 @@ test.describe('Alunos na turma aberta: a lista de nomes e os acertos', () => {
     const altura = await nome.evaluate((elemento) => elemento.getBoundingClientRect().height)
     const umaLinha = await itens.filter({ hasText: 'Bia Sintética' }).locator('> div:first-child').evaluate((elemento) => elemento.getBoundingClientRect().height)
     expect(altura).toBeGreaterThan(umaLinha)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await seriousViolations(page)).toEqual([])
   })
 })
 
@@ -269,7 +269,7 @@ test.describe('Alunos: a turma de outra pessoa não lê a lista (regra 10, itens
       const lista = vigiarALista(page)
       await abrirJaEntrando(page, professora, enderecoDaAba(alheia))
 
-      await expect(principal(page).getByRole('status').filter({ hasText: 'Esta turma não está disponível' })).toContainText(TURMA_INDISPONIVEL, { timeout: PRAZO_DA_ENTRADA_MS })
+      await expect(principal(page).getByRole('status').filter({ hasText: 'Esta turma não está disponível' })).toContainText(TURMA_INDISPONIVEL, { timeout: SIGN_IN_TIMEOUT_MS })
       await expect(page.getByRole('tab')).toHaveCount(0)
       await expect(regiaoDosAlunos(page)).toHaveCount(0)
       await expect(page.locator('body')).not.toContainText(alheia.turmaNome)
@@ -277,7 +277,7 @@ test.describe('Alunos: a turma de outra pessoa não lê a lista (regra 10, itens
       expect(lista.turmas).not.toContain(alheia.turmaId)
       // A chave de uma consulta que falhou leva o id que a professora digitou no endereço (a da estrutura da turma, da 9.x): o que não
       // pode existir é dado da turma alheia, nem consulta da lista de nomes dela.
-      const cache = await cacheDeConsultas(page)
+      const cache = await queryCache(page)
       expect(cache.filter((consulta) => Array.isArray(consulta.chave) && consulta.chave[0] === 'alunos-da-turma')).toEqual([])
       // O vínculo pendente é da própria professora e consta de `meus-vinculos`, com o id da turma: o dado da turma é o que não pode existir.
       const dados = JSON.stringify(cache.filter((consulta) => !(Array.isArray(consulta.chave) && consulta.chave[0] === 'meus-vinculos')).map((consulta) => consulta.dado))

@@ -1,23 +1,23 @@
 import { randomUUID } from 'node:crypto'
 import { expect, type Locator, type Page } from '@playwright/test'
-import { entregaDoLote, loteSintetico, simularAssistente, type ApiDoAssistente } from '../assistente.ts'
+import { entregaDoLote, loteSintetico, mockAssistenteApi, type AssistenteApiMock } from '../assistente.ts'
 import { entrarPorEmail, esperarATelaDepoisDaRecarga, esperarNovaConversa } from '../casca.ts'
 import { paginaNaoRola } from '../coordenacao.ts'
-import { acionar } from '../professor-flow.ts'
+import { activate } from '../professor-flow.ts'
 import { sinoDe } from './sino.ts'
 import { confirmarVinculosNoBanco, criarAlocacaoDoProfessor, criarEquipeComSenha, type EquipeDeTeste } from '../seed.ts'
 
-export { acionar }
+export { activate }
 
 /** O prazo de uma tela do professor aparecer, com a API das telas simulada na página. */
-export const PRAZO_DA_TELA_MS = 15_000
+export const SCREEN_TIMEOUT_MS = 15_000
 export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
 /** A tela inteira não fala em nota: é diagnóstico (D46). */
 export const VOCABULARIO_DE_NOTA = /\bnotas?\b|\bconceitos?\b|pontuaç/i
 
-export interface Cena {
-  readonly api: ApiDoAssistente
+export interface Scenario {
+  readonly api: AssistenteApiMock
   readonly professora: EquipeDeTeste
   readonly turmaId: string
   readonly turmaNome: string
@@ -26,13 +26,13 @@ export interface Cena {
 
 /** O sino da professora, aberto: o pé dele leva às duas telas do que a IA fez (telas do professor, 2.0). */
 export async function abrirOSino(page: Page, hasTouch: boolean): Promise<void> {
-  await acionar(sinoDe(page), hasTouch)
+  await activate(sinoDe(page), hasTouch)
 }
 
 /** Abre o sino e vai a um link do pé dele. A lista fecha ao se ir a um item. */
 export async function irPeloPeDoSino(page: Page, rotulo: string, hasTouch: boolean): Promise<void> {
   await abrirOSino(page, hasTouch)
-  await acionar(page.getByRole('dialog', { name: 'Esperando você' }).getByRole('region', { name: 'Acompanhar a IA' }).getByRole('link', { name: rotulo }), hasTouch)
+  await activate(page.getByRole('dialog', { name: 'Esperando você' }).getByRole('region', { name: 'Acompanhar a IA' }).getByRole('link', { name: rotulo }), hasTouch)
 }
 
 /** Navega dentro da aplicação, sem recarregar: a sessão e a memória da aba continuam, como num clique. */
@@ -51,9 +51,9 @@ export async function irPara(page: Page, caminho: string): Promise<void> {
 export async function entrar(
   page: Page,
   hasTouch: boolean,
-  { comTurma = true, outrasDisciplinas = [], antes }: { comTurma?: boolean; outrasDisciplinas?: readonly string[]; antes?: (api: ApiDoAssistente, turmaId: string) => void } = {},
-): Promise<Cena> {
-  const api = await simularAssistente(page)
+  { comTurma = true, outrasDisciplinas = [], antes }: { comTurma?: boolean; outrasDisciplinas?: readonly string[]; antes?: (api: AssistenteApiMock, turmaId: string) => void } = {},
+): Promise<Scenario> {
+  const api = await mockAssistenteApi(page)
   const professora = await criarEquipeComSenha()
   let turmaId = ''
   let turmaNome = ''
@@ -96,7 +96,7 @@ export async function recarregar(page: Page): Promise<void> {
 export const selosDeIA = (alvo: Page | Locator) => alvo.locator('[data-selo-ia]')
 
 /** Uma atividade encerrada, com o lote de correção pendente e a entrega dele (a que o sino e a tela do Assistente mostram). */
-export function comLote(api: ApiDoAssistente, turmaId: string): { atividadeId: string; titulo: string } {
+export function comLote(api: AssistenteApiMock, turmaId: string): { atividadeId: string; titulo: string } {
   const aplicada = { id: randomUUID(), titulo: 'Atividade de estequiometria' }
   const lote = loteSintetico(aplicada)
   api.correcoes.set(aplicada.id, lote)

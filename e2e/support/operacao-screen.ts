@@ -3,10 +3,10 @@ import { codigoDoOperador, type OperadorDeTeste } from './operacao.ts'
 import { expect } from './profiles.ts'
 
 /** O Chromebook com CPU ×4 e Fast 3G carrega o chunk da operação, e o servidor ainda faz o hash da senha. */
-export const PRAZO_DA_ENTRADA_MS = 20_000
+export const SIGN_IN_TIMEOUT_MS = 20_000
 
 /** Toque no celular, clique no Chromebook: a mesma ação pela entrada que cada aparelho tem. */
-export async function acionar(page: Page, nome: string | RegExp, hasTouch: boolean): Promise<void> {
+export async function activate(page: Page, nome: string | RegExp, hasTouch: boolean): Promise<void> {
   const alvo = page.getByRole('button', { name: nome })
   if (hasTouch) await alvo.tap()
   else await alvo.click()
@@ -14,20 +14,20 @@ export async function acionar(page: Page, nome: string | RegExp, hasTouch: boole
 
 /** A casca da operação com a sessão aberta: o nome de quem entrou na faixa, em `/operacao`. */
 export async function esperarCasca(page: Page, operador: Pick<OperadorDeTeste, 'nome'>): Promise<void> {
-  await expect(page.getByRole('banner')).toContainText(operador.nome, { timeout: PRAZO_DA_ENTRADA_MS })
+  await expect(page.getByRole('banner')).toContainText(operador.nome, { timeout: SIGN_IN_TIMEOUT_MS })
   await expect(page).toHaveURL(/\/operacao(\?.*)?$/)
 }
 
 /** O operador entra pela tela: e-mail e senha, depois o código do aplicativo, até a casca da operação. */
 export async function entrarNaOperacao(page: Page, operador: OperadorDeTeste, hasTouch: boolean): Promise<void> {
   await page.goto('/operacao/entrar')
-  await expect(page.getByRole('heading', { name: 'Entrar na operação' })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+  await expect(page.getByRole('heading', { name: 'Entrar na operação' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
   await page.getByLabel('E-mail').fill(operador.email)
   await page.getByLabel('Senha').fill(operador.senha)
-  await acionar(page, /^Entrar$/, hasTouch)
-  await expect(page.getByRole('heading', { name: 'Segundo fator' })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+  await activate(page, /^Entrar$/, hasTouch)
+  await expect(page.getByRole('heading', { name: 'Segundo fator' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
   await page.getByLabel('Código do aplicativo').fill(codigoDoOperador(operador))
-  await acionar(page, /^Entrar$/, hasTouch)
+  await activate(page, /^Entrar$/, hasTouch)
   await esperarCasca(page, operador)
 }
 
@@ -42,7 +42,7 @@ export function alturaExcedente(page: Page): Promise<number> {
  */
 export async function conferirAListaQueRola(page: Page, regiao: string, paginas: string): Promise<void> {
   const lista = page.getByRole('region', { name: regiao })
-  await expect(lista).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+  await expect(lista).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
   expect(await alturaExcedente(page)).toBe(0)
   expect(await lista.evaluate((elemento) => elemento.scrollHeight - elemento.clientHeight)).toBeGreaterThan(0)
   await expect(lista).toHaveAttribute('tabindex', '0')
@@ -78,7 +78,7 @@ export async function trocarAPrimeiraDaResposta(
 export async function conferirQueCadaNumeroFicaEmUmaLinha(page: Page, textos: readonly string[]): Promise<void> {
   for (const texto of textos) {
     const trechos = page.getByRole('main').getByText(texto, { exact: true })
-    await expect(trechos.first(), texto).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(trechos.first(), texto).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     const retangulos = await trechos.evaluateAll((elementos) => elementos.map((elemento) => elemento.getClientRects().length))
     expect(retangulos.filter((quantos) => quantos !== 1), texto).toEqual([])
   }

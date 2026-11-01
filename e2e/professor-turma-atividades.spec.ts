@@ -1,13 +1,13 @@
 import { randomUUID } from 'node:crypto'
 import type { Page } from '@playwright/test'
 import type { AtividadeAplicada } from '../packages/shared/src/index.ts'
-import { loteSintetico, portao, simularAssistente } from './support/assistente.ts'
-import { PRAZO_DA_ENTRADA_MS } from './support/casca.ts'
-import { acionar, irPara, PRAZO_DA_TELA_MS, VOCABULARIO_DE_NOTA } from './support/professor/scenario.ts'
+import { loteSintetico, gate, mockAssistenteApi } from './support/assistente.ts'
+import { SIGN_IN_TIMEOUT_MS } from './support/casca.ts'
+import { activate, irPara, SCREEN_TIMEOUT_MS, VOCABULARIO_DE_NOTA } from './support/professor/scenario.ts'
 import { principal } from './support/professor-flow.ts'
 import { expect, test } from './support/profiles.ts'
 import { confirmarVinculosNoBanco, criarAlocacaoDoProfessor, criarEquipeComSenha, type EquipeDeTeste } from './support/seed.ts'
-import { larguraExcedente, larguraExcedenteDoDialogo, violacoesGraves } from './support/checks.ts'
+import { horizontalOverflow, larguraExcedenteDoDialogo, seriousViolations } from './support/checks.ts'
 
 /**
  * A aba Atividades da turma aberta (telas do professor, 11.0; RF17, RF22): a linha de cada atividade, o painel ao lado no
@@ -20,7 +20,7 @@ import { larguraExcedente, larguraExcedenteDoDialogo, violacoesGraves } from './
 
 /** A professora com a turma confirmada, a API do Assistente simulada, e a sessão ainda por abrir (`abrirJaEntrando`). */
 async function preparar(page: Page) {
-  const api = await simularAssistente(page)
+  const api = await mockAssistenteApi(page)
   const professora = await criarEquipeComSenha()
   const turma = await criarAlocacaoDoProfessor(professora.escolaId, professora.usuarioId, ['Química'])
   await confirmarVinculosNoBanco(professora.escolaId, turma.vinculoIds)
@@ -63,18 +63,18 @@ test.describe('Atividades da turma: a linha, o painel e encerrar (X3, 11.0)', ()
     api.loteAoEncerrar = loteSintetico
     await abrirJaEntrando(page, professora, `/professor/turmas/${turmaId}?aba=atividades`)
     const linha = lista(page).getByRole('button', { name: new RegExp(TITULO) })
-    await expect(linha).toContainText('Aberta para a turma · avaliativa · 10 de 30 alunos enviaram', { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(linha).toContainText('Aberta para a turma · avaliativa · 10 de 30 alunos enviaram', { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(linha).toContainText('Aberta')
 
-    await acionar(linha, hasTouch)
+    await activate(linha, hasTouch)
     await expect(page).toHaveURL(new RegExp(`\\?aba=atividades&atividade=${aberta.id}$`))
     const painel = painelDa(page)
-    await expect(painel).toContainText('É avaliativa: o Tutor está pausado para a turma até você encerrar.', { timeout: PRAZO_DA_TELA_MS })
+    await expect(painel).toContainText('É avaliativa: o Tutor está pausado para a turma até você encerrar.', { timeout: SCREEN_TIMEOUT_MS })
     expect(await larguraExcedenteDoDialogo(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await seriousViolations(page)).toEqual([])
 
     // A confirmação diz o que vai acontecer antes de confirmar, e nada é pedido até a professora confirmar.
-    await acionar(painel.getByRole('button', { name: 'Encerrar a atividade' }), hasTouch)
+    await activate(painel.getByRole('button', { name: 'Encerrar a atividade' }), hasTouch)
     const encerrar = page.getByRole('alertdialog', { name: 'Encerrar a atividade' })
     await expect(encerrar).toContainText('As respostas param agora')
     await expect(encerrar).toContainText('a correção fica esperando você revisar e aprovar')
@@ -83,10 +83,10 @@ test.describe('Atividades da turma: a linha, o painel e encerrar (X3, 11.0)', ()
     expect(api.pedidosEm(/encerrar$/)).toHaveLength(0)
     // Dois cliques em confirmar mandam um pedido só (regra 80, item 7).
     await encerrar.getByRole('button', { name: 'Encerrar a atividade' }).dblclick()
-    await expect(encerrar).toBeHidden({ timeout: PRAZO_DA_TELA_MS })
+    await expect(encerrar).toBeHidden({ timeout: SCREEN_TIMEOUT_MS })
     expect(api.pedidosEm(/encerrar$/)).toHaveLength(1)
 
-    await expect(linha).toContainText('Encerrada · avaliativa', { timeout: PRAZO_DA_TELA_MS })
+    await expect(linha).toContainText('Encerrada · avaliativa', { timeout: SCREEN_TIMEOUT_MS })
     await expect(linha).toContainText('Correção para revisar')
     await expect(painel.getByRole('link', { name: 'Revisar a correção' })).toBeVisible()
     await expect(painel.getByRole('button', { name: 'Encerrar a atividade' })).toHaveCount(0)
@@ -94,7 +94,7 @@ test.describe('Atividades da turma: a linha, o painel e encerrar (X3, 11.0)', ()
     // O botão que tinha o foco saiu com o estado: o foco não se perde no corpo da página.
     await expect(painel.locator(':focus')).toHaveCount(1)
     expect(await larguraExcedenteDoDialogo(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await seriousViolations(page)).toEqual([])
     await expect(page.locator('body')).not.toContainText(VOCABULARIO_DE_NOTA)
   })
 
@@ -102,11 +102,11 @@ test.describe('Atividades da turma: a linha, o painel e encerrar (X3, 11.0)', ()
     const { api, professora, turmaId, turmaNome } = await preparar(page)
     api.aplicadas = [atividade(turmaId)]
     await abrirJaEntrando(page, professora, `/professor/turmas/${turmaId}?aba=atividades`)
-    await expect(lista(page).getByRole('button', { name: new RegExp(TITULO) })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
-    await acionar(lista(page).getByRole('link', { name: 'Aplicar uma atividade' }), hasTouch)
+    await expect(lista(page).getByRole('button', { name: new RegExp(TITULO) })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
+    await activate(lista(page).getByRole('link', { name: 'Aplicar uma atividade' }), hasTouch)
 
     await expect(page).toHaveURL(new RegExp(`/professor/criados\\?tipo=atividade_objetiva&turma=${turmaId}$`))
-    await expect(principal(page).getByRole('heading', { level: 1, name: 'Criados' })).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
+    await expect(principal(page).getByRole('heading', { level: 1, name: 'Criados' })).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
     // No computador os filtros são menus com o valor escolhido; no celular, o botão "Filtrar (2)".
     if (hasTouch) await expect(principal(page).getByRole('button', { name: 'Filtrar (2)' })).toBeVisible()
     else await expect(principal(page)).toContainText(turmaNome)
@@ -121,18 +121,18 @@ test.describe('Atividades da turma: a linha, o painel e encerrar (X3, 11.0)', ()
     const daSegunda = atividade(outra.turmaId, { titulo: 'Atividade da segunda turma' })
     api.aplicadas = [daPrimeira, daSegunda]
     // O encerrar da primeira fica no ar até a professora estar na segunda turma.
-    const segura = portao()
+    const segura = gate()
     api.trocar('encerrar', async () => {
       await segura.aberta
       return { status: 200, corpo: { atividade: { ...daPrimeira, estado: 'encerrada', encerradaEm: '2026-10-05T13:50:00.000Z', entrega: null }, execucaoId: null } }
     })
     await abrirJaEntrando(page, professora, `/professor/turmas/${turmaId}?aba=atividades&atividade=${daPrimeira.id}`)
-    await acionar(painelDa(page, daPrimeira.titulo).getByRole('button', { name: 'Encerrar a atividade' }), hasTouch)
-    await acionar(page.getByRole('alertdialog', { name: 'Encerrar a atividade' }).getByRole('button', { name: 'Encerrar a atividade' }), hasTouch)
+    await activate(painelDa(page, daPrimeira.titulo).getByRole('button', { name: 'Encerrar a atividade' }), hasTouch)
+    await activate(page.getByRole('alertdialog', { name: 'Encerrar a atividade' }).getByRole('button', { name: 'Encerrar a atividade' }), hasTouch)
     await expect.poll(() => api.pedidosEm(/encerrar$/).length).toBe(1)
 
     await irPara(page, `/professor/turmas/${outra.turmaId}?aba=atividades`)
-    await expect(lista(page).getByRole('button', { name: /Atividade da segunda turma/ })).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
+    await expect(lista(page).getByRole('button', { name: /Atividade da segunda turma/ })).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
     await expect(page.getByRole('dialog')).toHaveCount(0)
     const respondeu = page.waitForResponse((resposta) => /encerrar$/.test(new URL(resposta.url()).pathname))
     // A resposta atrasada invalida as listas e a da turma aberta é lida de novo: a segunda turma segue como estava depois das duas.
@@ -154,11 +154,11 @@ test.describe('Atividades da turma: a lista (X3, 11.0)', () => {
     api.aplicadas = [atividade(turmaId)]
     await abrirJaEntrando(page, professora, `/professor/turmas/${turmaId}?aba=atividades`)
     const linha = lista(page).getByRole('button', { name: new RegExp(TITULO) })
-    await expect(linha).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
-    expect(await larguraExcedente(page)).toBe(0)
-    await acionar(linha, hasTouch)
-    await expect(painelDa(page)).toBeVisible({ timeout: PRAZO_DA_TELA_MS })
+    await expect(linha).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
+    expect(await horizontalOverflow(page)).toBe(0)
+    await activate(linha, hasTouch)
+    await expect(painelDa(page)).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
     expect(await larguraExcedenteDoDialogo(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await seriousViolations(page)).toEqual([])
   })
 })

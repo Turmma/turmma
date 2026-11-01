@@ -1,8 +1,8 @@
 import { AxeBuilder } from '@axe-core/playwright'
 import type { Page } from '@playwright/test'
 import { expect, test } from './support/profiles.ts'
-import { abrirGaleria, caixa, desenho, secao } from './support/gallery.ts'
-import { corDoToken, IMPACTOS_QUE_REPROVAM, larguraExcedente, TAGS_WCAG } from './support/checks.ts'
+import { openGallery, caixa, desenho, gallerySection } from './support/gallery.ts'
+import { corDoToken, FAILING_IMPACTS, horizontalOverflow, WCAG_TAGS } from './support/checks.ts'
 
 /**
  * Os ícones ilustrados dos lugares e o ladrilho, na galeria (`/galeria`), nos projetos `chromebook` e `celular` e nos
@@ -24,12 +24,12 @@ const PAPEL: Record<Tema, string> = { claro: 'rgb(239, 239, 239)', escuro: 'rgb(
 const LINHA: Record<Tema, string> = { claro: 'rgb(215, 215, 215)', escuro: 'rgb(82, 101, 109)' }
 
 async function irParaOTema(page: Page, tema: Tema): Promise<void> {
-  await abrirGaleria(page)
+  await openGallery(page)
   await page.evaluate((valor) => document.documentElement.setAttribute('data-tema', valor), tema)
 }
 
 /** O `fill` calculado de cada forma de um ícone, na ordem em que foram desenhadas. */
-function enchimentoDasFormas(icone: ReturnType<typeof secao>): Promise<string[]> {
+function enchimentoDasFormas(icone: ReturnType<typeof gallerySection>): Promise<string[]> {
   return icone.evaluate((svg) => [...svg.children].map((forma) => getComputedStyle(forma).fill))
 }
 
@@ -41,7 +41,7 @@ for (const tema of TEMAS) {
       expect(papelDoToken).toBe(PAPEL[tema])
       expect(linhaDoToken).toBe(LINHA[tema])
 
-      const casa = secao(page, 'marca-icones').locator('[data-icones-do-tamanho="48"] [data-icone="inicio"]')
+      const casa = gallerySection(page, 'marca-icones').locator('[data-icones-do-tamanho="48"] [data-icone="inicio"]')
       await expect(casa).toHaveCount(1)
       const enchimento = await enchimentoDasFormas(casa)
       // A casa tem o papel (o corpo) e a linha (as janelas), e nenhuma forma ficou sem cor: `none` seria um buraco.
@@ -56,7 +56,7 @@ for (const tema of TEMAS) {
       const faces = Object.fromEntries(
         await Promise.all(['laranja', 'azul', 'verde', 'roxo', 'turquesa', 'amarelo'].map(async (token) => [token, await corDoToken(page, token)] as const)),
       )
-      const doLugar = (nome: string) => secao(page, 'marca-icones').locator(`[data-icones-do-tamanho="48"] [data-icone="${nome}"]`)
+      const doLugar = (nome: string) => gallerySection(page, 'marca-icones').locator(`[data-icones-do-tamanho="48"] [data-icone="${nome}"]`)
       expect(await enchimentoDasFormas(doLugar('inicio'))).toContain(faces['laranja'])
       expect(await enchimentoDasFormas(doLugar('turmas'))).toContain(faces['turquesa'])
       expect(await enchimentoDasFormas(doLugar('tarefas'))).toContain(faces['azul'])
@@ -69,7 +69,7 @@ for (const tema of TEMAS) {
       await irParaOTema(page, tema)
       for (const tamanho of TAMANHOS_DO_ICONE) {
         for (const nome of LUGARES) {
-          const icone = secao(page, 'marca-icones').locator(`[data-icones-do-tamanho="${String(tamanho)}"] [data-icone="${nome}"]`)
+          const icone = gallerySection(page, 'marca-icones').locator(`[data-icones-do-tamanho="${String(tamanho)}"] [data-icone="${nome}"]`)
           await expect(icone, `${nome} a ${String(tamanho)} px`).toHaveCount(1)
           expect(await caixa(icone), `${nome}: quadrado de ${String(tamanho)} px`).toMatchObject({ width: tamanho, height: tamanho })
         }
@@ -78,7 +78,7 @@ for (const tema of TEMAS) {
         ['data-ladrilhos-ilustrados', 'svg[data-icone="inicio"]'],
         ['data-ladrilhos-do-lucide', 'svg'],
       ] as const) {
-        const ladrilhos = secao(page, 'marca-icones').locator(`[${grupo}] [data-ladrilho]`)
+        const ladrilhos = gallerySection(page, 'marca-icones').locator(`[${grupo}] [data-ladrilho]`)
         await expect(ladrilhos, grupo).toHaveCount(TAMANHOS_DO_LADRILHO.length)
         for (const [indice, tamanho] of TAMANHOS_DO_LADRILHO.entries()) {
           const ladrilho = ladrilhos.nth(indice)
@@ -97,7 +97,7 @@ for (const tema of TEMAS) {
     test('o fundo do ladrilho é o `claro` da família, de canto 12, e o ícone do `lucide` desenha com o `texto` dela', async ({ page }) => {
       await irParaOTema(page, tema)
       const familias = ['laranja', 'azul', 'verde', 'amarelo', 'vermelho', 'roxo', 'turquesa', 'anil', 'lima', 'rosa'] as const
-      const ladrilhos = secao(page, 'marca-icones').locator('[data-ladrilhos-das-familias] [data-ladrilho]')
+      const ladrilhos = gallerySection(page, 'marca-icones').locator('[data-ladrilhos-das-familias] [data-ladrilho]')
       await expect(ladrilhos).toHaveCount(familias.length)
       for (const [indice, familia] of familias.entries()) {
         const ladrilho = ladrilhos.nth(indice)
@@ -112,7 +112,7 @@ for (const tema of TEMAS) {
 
     test('o ícone com nome é uma imagem; ao lado do texto, ele some da leitura de tela, e o ladrilho com nome é uma imagem só', async ({ page }) => {
       await irParaOTema(page, tema)
-      const bloco = secao(page, 'marca-icones').locator('[data-ladrilhos-com-nome]')
+      const bloco = gallerySection(page, 'marca-icones').locator('[data-ladrilhos-com-nome]')
       await expect(bloco.getByRole('img', { name: 'Turmas' })).toHaveCount(1)
       await expect(bloco.getByRole('img', { name: 'Início' })).toHaveCount(1)
       // Os dois que têm o texto ao lado são decoração: nenhuma imagem com o nome deles.
@@ -121,12 +121,12 @@ for (const tema of TEMAS) {
       await expect(bloco.getByText('Ferramentas')).toBeVisible()
       await expect(bloco.getByText('Atividades')).toBeVisible()
       // Na seção toda, as imagens com nome são só essas duas.
-      await expect(secao(page, 'marca-icones').getByRole('img')).toHaveCount(2)
+      await expect(gallerySection(page, 'marca-icones').getByRole('img')).toHaveCount(2)
     })
 
     test('nada se mexe: nenhuma animação nem transição em ícone nem em ladrilho', async ({ page }) => {
       await irParaOTema(page, tema)
-      const animados = await secao(page, 'marca-icones').evaluate((raiz) =>
+      const animados = await gallerySection(page, 'marca-icones').evaluate((raiz) =>
         [raiz, ...raiz.querySelectorAll('*')].filter((no) => {
           const estilo = getComputedStyle(no)
           return estilo.animationName !== 'none' || Number.parseFloat(estilo.transitionDuration) > 0
@@ -137,12 +137,12 @@ for (const tema of TEMAS) {
 
     test('a seção não tem violação grave de acessibilidade, e a página não ganha rolagem horizontal', async ({ page }) => {
       await irParaOTema(page, tema)
-      const { violations } = await new AxeBuilder({ page }).withTags([...TAGS_WCAG]).include('[data-galeria="marca-icones"]').analyze()
+      const { violations } = await new AxeBuilder({ page }).withTags([...WCAG_TAGS]).include('[data-galeria="marca-icones"]').analyze()
       const graves = violations
-        .filter((violacao) => (IMPACTOS_QUE_REPROVAM as readonly string[]).includes(violacao.impact ?? ''))
+        .filter((violacao) => (FAILING_IMPACTS as readonly string[]).includes(violacao.impact ?? ''))
         .map((violacao) => ({ regra: violacao.id, impacto: violacao.impact, alvos: violacao.nodes.map((no) => no.target.join(' ')) }))
       expect(graves).toEqual([])
-      expect(await larguraExcedente(page)).toBe(0)
+      expect(await horizontalOverflow(page)).toBe(0)
     })
   })
 }

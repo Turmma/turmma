@@ -4,8 +4,8 @@ import { codigoDoOperador, criarOperadorComSegundoFator as criarOperador, encerr
 import { criarEquipeComSenha } from './support/seed.ts'
 import { esperarNovaConversa } from './support/casca.ts'
 import { expect, test } from './support/profiles.ts'
-import { acionar, entrarNaOperacao, esperarCasca, PRAZO_DA_ENTRADA_MS } from './support/operacao-screen.ts'
-import { ALVO_DE_TOQUE_PRINCIPAL_PX, corDoToken, larguraExcedente, violacoesGraves } from './support/checks.ts'
+import { activate, entrarNaOperacao, esperarCasca, SIGN_IN_TIMEOUT_MS } from './support/operacao-screen.ts'
+import { ALVO_DE_TOQUE_PRINCIPAL_PX, corDoToken, horizontalOverflow, seriousViolations } from './support/checks.ts'
 
 const ROTA_EU_DO_OPERADOR = '**/v1/operacao/eu'
 const CHUNK_DA_OPERACAO = /\/assets\/operacao-[^/]+\.js$/
@@ -46,20 +46,20 @@ test.describe('área do operador Turmma', () => {
     const operador = await criarOperadorComSegundoFator()
 
     await page.goto('/operacao/entrar')
-    await expect(page.getByRole('heading', { name: 'Entrar na operação' })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page.getByRole('heading', { name: 'Entrar na operação' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(page).toHaveTitle('Entrar · Operação Turmma')
     // A faixa diz que ali é a operação, para ninguém confundir com a tela de uma escola.
     await expect(page.getByRole('banner')).toContainText('Operação Turmma')
     await expect(page.getByLabel('E-mail')).toHaveAttribute('autocomplete', 'username')
     await expect(page.getByLabel('Senha')).toHaveAttribute('autocomplete', 'current-password')
-    expect(await larguraExcedente(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await horizontalOverflow(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
 
     // A senha errada diz o que fazer, e a tela fica.
     await page.getByLabel('E-mail').fill(operador.email)
     await page.getByLabel('Senha').fill('senha-que-nao-e-a-dela')
-    await acionar(page, /^Entrar$/, hasTouch)
-    await expect(page.getByRole('alert')).toContainText('E-mail ou senha incorretos', { timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(page, /^Entrar$/, hasTouch)
+    await expect(page.getByRole('alert')).toContainText('E-mail ou senha incorretos', { timeout: SIGN_IN_TIMEOUT_MS })
     // A senha errada sai da tela junto com a resposta, e o foco volta ao campo dela para digitar de novo.
     await expect(page.getByLabel('Senha')).toHaveValue('')
     await expect(page.getByLabel('Senha')).toBeFocused()
@@ -69,18 +69,18 @@ test.describe('área do operador Turmma', () => {
     const entrar = page.getByRole('button', { name: /^Entrar$/ })
     const caixa = await entrar.boundingBox()
     expect(caixa?.height ?? 0).toBeGreaterThanOrEqual(ALVO_DE_TOQUE_PRINCIPAL_PX)
-    await acionar(page, /^Entrar$/, hasTouch)
+    await activate(page, /^Entrar$/, hasTouch)
 
-    await expect(page.getByRole('heading', { name: 'Segundo fator' })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page.getByRole('heading', { name: 'Segundo fator' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(page).toHaveTitle('Segundo fator · Operação Turmma')
     await expect(page.getByLabel('Código do aplicativo')).toHaveAttribute('inputmode', 'numeric')
     await expect(page.getByLabel('Código do aplicativo')).toHaveAttribute('autocomplete', 'one-time-code')
-    expect(await larguraExcedente(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await horizontalOverflow(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
     await semNadaGuardadoNoNavegador(page)
 
     await page.getByLabel('Código do aplicativo').fill(codigoDoOperador(operador))
-    await acionar(page, /^Entrar$/, hasTouch)
+    await activate(page, /^Entrar$/, hasTouch)
 
     await esperarCasca(page, operador)
     await expect(page).toHaveTitle('Escolas · Operação Turmma')
@@ -88,8 +88,8 @@ test.describe('área do operador Turmma', () => {
     await expect(page.getByRole('heading', { level: 1, name: 'Operação' })).toBeVisible()
     await expect(page.getByRole('main')).toContainText('A operação não vê dado de aluno nem de professor: nem nome, nem nota, nem conversa.')
     await expect(page.getByRole('navigation', { name: 'Operação' }).getByRole('link', { name: 'Escolas' })).toHaveAttribute('aria-current', 'page')
-    expect(await larguraExcedente(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await horizontalOverflow(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
     await semNadaGuardadoNoNavegador(page)
 
     // O "Sair" está à vista na barra de topo clara, sem abrir nada, com alvo de toque de 44 px, e o anel de foco dele é o
@@ -113,12 +113,12 @@ test.describe('área do operador Turmma', () => {
       expect(barra).toEqual({ fundo: FUNDO_CLARO, bordaDeBaixo: '2px' })
     }
 
-    await acionar(page, 'Sair', hasTouch)
-    await expect(page).toHaveURL(/\/operacao\/entrar$/, { timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(page, 'Sair', hasTouch)
+    await expect(page).toHaveURL(/\/operacao\/entrar$/, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(page.getByRole('heading', { name: 'Entrar na operação' })).toBeVisible()
     // Depois de sair, voltar a `/operacao` não devolve a sessão: o cookie foi apagado pela API.
     await page.goto('/operacao')
-    await expect(page).toHaveURL(/\/operacao\/entrar$/, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page).toHaveURL(/\/operacao\/entrar$/, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(page.getByRole('alert')).toHaveCount(0)
   })
 
@@ -140,14 +140,14 @@ test.describe('área do operador Turmma', () => {
           const onde = `${endereco} a ${String(largura)} px, ${esquema}`
           await page.goto(endereco)
           // O título fixa a tela: um redirecionamento à entrada não passaria por "Segundo fator" nem pelo convite.
-          await expect(page.getByRole('heading', { level: 1, name: titulo }), onde).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+          await expect(page.getByRole('heading', { level: 1, name: titulo }), onde).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
           const banner = page.getByRole('banner')
           await expect(banner, onde).toContainText('Operação Turmma')
           await expect(banner.getByRole('button', { name: 'Sair' }), onde).toHaveCount(0)
           await expect(page.getByRole('navigation'), onde).toHaveCount(0)
           expect(await banner.evaluate((elemento) => getComputedStyle(elemento).backgroundColor), onde).toBe(await corDoToken(page, 'fundo'))
-          expect(await larguraExcedente(page), onde).toBe(0)
-          if (esquema === 'dark') expect(await violacoesGraves(page), onde).toEqual([])
+          expect(await horizontalOverflow(page), onde).toBe(0)
+          if (esquema === 'dark') expect(await seriousViolations(page), onde).toEqual([])
         }
       }
     }
@@ -166,7 +166,7 @@ test.describe('área do operador Turmma', () => {
         for (const tela of ['Escolas', 'Uso']) {
           const onde = `${tela} a ${String(largura)} px, ${esquema}`
           await navegacao.getByRole('link', { name: tela }).click()
-          await expect(page, onde).toHaveTitle(`${tela} · Operação Turmma`, { timeout: PRAZO_DA_ENTRADA_MS })
+          await expect(page, onde).toHaveTitle(`${tela} · Operação Turmma`, { timeout: SIGN_IN_TIMEOUT_MS })
           await expect(page.getByRole('heading', { level: 1, name: 'Operação' }), onde).toBeVisible()
           const banner = page.getByRole('banner')
           await expect(banner, onde).toContainText('Operação Turmma')
@@ -209,7 +209,7 @@ test.describe('área do operador Turmma', () => {
           })
           expect(sublinhado, onde).toEqual({ cor: await corDoToken(page, 'azul'), altura: '3px' })
           await expect(navegacao.locator('span[aria-hidden="true"]'), onde).toHaveCount(1)
-          expect(await larguraExcedente(page), onde).toBe(0)
+          expect(await horizontalOverflow(page), onde).toBe(0)
         }
       }
     }
@@ -220,16 +220,16 @@ test.describe('área do operador Turmma', () => {
     const bruno = await criarOperadorComSegundoFator()
     await entrarNaOperacao(page, ana, hasTouch)
 
-    await acionar(page, 'Sair', hasTouch)
-    await expect(page.getByRole('heading', { name: 'Entrar na operação' })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(page, 'Sair', hasTouch)
+    await expect(page.getByRole('heading', { name: 'Entrar na operação' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     // Sem `goto` nem recarga: a aba é a mesma, e o que sobrasse da Ana em memória apareceria aqui.
     await page.getByLabel('E-mail').fill(bruno.email)
     await page.getByLabel('Senha').fill(bruno.senha)
-    await acionar(page, /^Entrar$/, hasTouch)
+    await activate(page, /^Entrar$/, hasTouch)
     await page.getByLabel('Código do aplicativo').fill(codigoDoOperador(bruno))
-    await acionar(page, /^Entrar$/, hasTouch)
+    await activate(page, /^Entrar$/, hasTouch)
 
-    await expect(page.getByRole('banner')).toContainText(bruno.nome, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page.getByRole('banner')).toContainText(bruno.nome, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(page.getByRole('banner')).not.toContainText(ana.nome)
   })
 
@@ -252,10 +252,10 @@ test.describe('área do operador Turmma', () => {
       })
 
     await page.goto('/operacao/entrar')
-    await page.getByLabel('E-mail').fill(ana.email, { timeout: PRAZO_DA_ENTRADA_MS })
+    await page.getByLabel('E-mail').fill(ana.email, { timeout: SIGN_IN_TIMEOUT_MS })
     await page.getByLabel('Senha').fill(ana.senha)
-    await acionar(page, /^Entrar$/, hasTouch)
-    await expect(page.getByRole('heading', { name: 'Segundo fator' })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(page, /^Entrar$/, hasTouch)
+    await expect(page.getByRole('heading', { name: 'Segundo fator' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await page.getByLabel('Código do aplicativo').fill(codigoDoOperador(ana))
     await cliqueDuplo(page.getByRole('button', { name: /^Entrar$/ }))
 
@@ -264,7 +264,7 @@ test.describe('área do operador Turmma', () => {
     await expect(page.getByRole('alert')).toHaveCount(0)
 
     await cliqueDuplo(page.getByRole('banner').getByRole('button', { name: 'Sair' }))
-    await expect(page.getByRole('heading', { name: 'Entrar na operação' })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page.getByRole('heading', { name: 'Entrar na operação' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     expect(quantos('/v1/operacao/sessao/sair')).toBe(1)
     // A saída confirmada não deixa aviso: a segunda saída que falhasse diria "a saída não foi confirmada".
     await expect(page.getByRole('alert')).toHaveCount(0)
@@ -272,13 +272,13 @@ test.describe('área do operador Turmma', () => {
     // O recomeço, na mesma aba e sem recarregar: o Bruno entra, não vê nada da Ana, e o Sair dele sai de novo.
     await page.getByLabel('E-mail').fill(bruno.email)
     await page.getByLabel('Senha').fill(bruno.senha)
-    await acionar(page, /^Entrar$/, hasTouch)
-    await page.getByLabel('Código do aplicativo').fill(codigoDoOperador(bruno), { timeout: PRAZO_DA_ENTRADA_MS })
-    await acionar(page, /^Entrar$/, hasTouch)
+    await activate(page, /^Entrar$/, hasTouch)
+    await page.getByLabel('Código do aplicativo').fill(codigoDoOperador(bruno), { timeout: SIGN_IN_TIMEOUT_MS })
+    await activate(page, /^Entrar$/, hasTouch)
     await esperarCasca(page, bruno)
     await expect(page.getByRole('banner')).not.toContainText(ana.nome)
-    await acionar(page, 'Sair', hasTouch)
-    await expect(page.getByRole('heading', { name: 'Entrar na operação' })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(page, 'Sair', hasTouch)
+    await expect(page.getByRole('heading', { name: 'Entrar na operação' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     expect(quantos('/v1/operacao/sessao/sair')).toBe(2)
     expect(quantos('/v1/operacao/sessao/mfa')).toBe(2)
   })
@@ -288,15 +288,15 @@ test.describe('área do operador Turmma', () => {
     await page.goto('/operacao/entrar')
     await page.getByLabel('E-mail').fill(operador.email)
     await page.getByLabel('Senha').fill(operador.senha)
-    await acionar(page, /^Entrar$/, hasTouch)
-    await expect(page.getByRole('heading', { name: 'Segundo fator' })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(page, /^Entrar$/, hasTouch)
+    await expect(page.getByRole('heading', { name: 'Segundo fator' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     const certo = codigoDoOperador(operador)
     await page.getByLabel('Código do aplicativo').fill(certo === '000000' ? '111111' : '000000')
-    await acionar(page, /^Entrar$/, hasTouch)
+    await activate(page, /^Entrar$/, hasTouch)
 
-    await expect(page).toHaveURL(/\/operacao\/entrar$/, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page).toHaveURL(/\/operacao\/entrar$/, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(page.getByRole('alert')).toContainText('O código não foi aceito')
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await seriousViolations(page)).toEqual([])
   })
 
   test('E2: a sessão encerrada volta à entrada com a mensagem', async ({ page, hasTouch }) => {
@@ -310,9 +310,9 @@ test.describe('área do operador Turmma', () => {
     await page.clock.fastForward(tempo(1, 5))
     await page.keyboard.press('Shift')
 
-    await expect(page).toHaveURL(/\/operacao\/entrar$/, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page).toHaveURL(/\/operacao\/entrar$/, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(page.getByRole('alert')).toHaveText(TEXTO_DA_SESSAO_ENCERRADA)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await seriousViolations(page)).toEqual([])
   })
 
   test('E2: o 503 mostra a mensagem e fica na tela, com "Tentar de novo"', async ({ page, hasTouch }) => {
@@ -328,22 +328,22 @@ test.describe('área do operador Turmma', () => {
     await page.goto('/operacao/entrar')
     await page.getByLabel('E-mail').fill(operador.email)
     await page.getByLabel('Senha').fill(operador.senha)
-    await acionar(page, /^Entrar$/, hasTouch)
+    await activate(page, /^Entrar$/, hasTouch)
     await page.getByLabel('Código do aplicativo').fill(codigoDoOperador(operador))
-    await acionar(page, /^Entrar$/, hasTouch)
+    await activate(page, /^Entrar$/, hasTouch)
 
-    await expect(page.getByRole('alert')).toHaveText(TEXTO_DO_503, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page.getByRole('alert')).toHaveText(TEXTO_DO_503, { timeout: SIGN_IN_TIMEOUT_MS })
     // O `/eu` não segura a tela (A0b, tarefa 6.0): a tela de Escolas carrega embaixo do erro, junto dele.
     await expect(page.getByRole('main').getByRole('button', { name: 'Nova escola' })).toBeVisible()
     // Fica: nem a entrada, nem a mensagem de sessão encerrada.
     await expect(page).toHaveURL(/\/operacao$/)
     await expect(page.getByRole('banner').getByRole('button', { name: 'Sair' })).toBeVisible()
-    expect(await larguraExcedente(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await horizontalOverflow(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
 
     await page.unroute(ROTA_EU_DO_OPERADOR, falhar)
-    await acionar(page, 'Tentar de novo', hasTouch)
-    await expect(page.getByRole('banner')).toContainText(operador.nome, { timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(page, 'Tentar de novo', hasTouch)
+    await expect(page.getByRole('banner')).toContainText(operador.nome, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(page.getByRole('alert')).toHaveCount(0)
   })
 
@@ -359,28 +359,28 @@ test.describe('área do operador Turmma', () => {
 
     // Passados os 27 min (o fim desconta o minuto em que a API pode não ter gravado o uso), o aviso.
     await page.clock.fastForward(tempo(1))
-    await expect(aviso).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(aviso).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(aviso.getByRole('alert')).toHaveText(AVISO_DE_INATIVIDADE)
     // "Continuar" e "Sair" do mesmo tamanho (D59), com alvo de toque de 44 px.
     const continuar = await aviso.getByRole('button', { name: 'Continuar na sessão' }).boundingBox()
     const sair = await aviso.getByRole('button', { name: 'Sair' }).boundingBox()
     expect(continuar?.height ?? 0).toBeGreaterThanOrEqual(ALVO_DE_TOQUE_PRINCIPAL_PX)
     expect(sair?.height ?? 0).toBe(continuar?.height ?? -1)
-    expect(await larguraExcedente(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await horizontalOverflow(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
 
     // Continuar conta como uso no servidor, e o aviso sai.
     const uso = page.waitForResponse((resposta) => new URL(resposta.url()).pathname === '/v1/operacao/eu' && resposta.ok())
     if (hasTouch) await aviso.getByRole('button', { name: 'Continuar na sessão' }).tap()
     else await aviso.getByRole('button', { name: 'Continuar na sessão' }).click()
     await uso
-    await expect(aviso).toBeHidden({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(aviso).toBeHidden({ timeout: SIGN_IN_TIMEOUT_MS })
 
     // Parada de novo até o fim: a sessão é encerrada e a aba vai à entrada com a mensagem.
     await page.clock.fastForward(tempo(27, 30))
-    await expect(aviso).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(aviso).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await page.clock.fastForward(tempo(2))
-    await expect(page).toHaveURL(/\/operacao\/entrar$/, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page).toHaveURL(/\/operacao\/entrar$/, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(page.getByRole('alert')).toHaveText(TEXTO_DA_SESSAO_ENCERRADA)
   })
 
@@ -389,25 +389,25 @@ test.describe('área do operador Turmma', () => {
     await page.route(CHUNK_DA_OPERACAO, abortar)
 
     await page.goto('/operacao/entrar')
-    await expect(page.getByRole('alert')).toContainText('Não foi possível carregar a área da operação', { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page.getByRole('alert')).toContainText('Não foi possível carregar a área da operação', { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(page.getByRole('button', { name: 'Tentar de novo' })).toBeVisible()
     // A falha assume com o foco no título dela, que é o que o leitor de tela anuncia (11.0 da A1).
     await expect(page.getByRole('heading', { name: 'Operação Turmma' })).toBeFocused()
     // A aba diz o que aconteceu, e não fica com o título da página de antes ("Turmma", do `index.html`).
     await expect(page).toHaveTitle('Não foi possível carregar · Operação Turmma')
-    expect(await larguraExcedente(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await horizontalOverflow(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
 
     await page.unroute(CHUNK_DA_OPERACAO, abortar)
-    await acionar(page, 'Tentar de novo', hasTouch)
-    await expect(page.getByRole('heading', { name: 'Entrar na operação' })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(page, 'Tentar de novo', hasTouch)
+    await expect(page.getByRole('heading', { name: 'Entrar na operação' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
   })
 
   test('B2: a web da escola nunca baixa o chunk da operação', async ({ page }) => {
     const pedidos: string[] = []
     page.on('request', (pedido: Request) => pedidos.push(pedido.url()))
     await page.goto('/entrar')
-    await expect(page.getByRole('heading', { name: 'Entrar' })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page.getByRole('heading', { name: 'Entrar' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await page.waitForLoadState('networkidle')
     expect(pedidos.some((url) => url.includes('/assets/index-'))).toBe(true)
     expect(pedidos.filter((url) => CHUNK_DA_OPERACAO.test(new URL(url).pathname))).toEqual([])
@@ -422,7 +422,7 @@ test.describe('área do operador Turmma', () => {
     await escola.goto('/entrar')
     await escola.getByLabel('E-mail').fill(professora.email)
     await escola.getByLabel('Senha').fill(professora.senha)
-    await acionar(escola, /^Entrar$/, hasTouch)
+    await activate(escola, /^Entrar$/, hasTouch)
     // A professora abre em "Nova conversa" (A2, D73).
     await esperarNovaConversa(escola, professora.nome)
 
@@ -432,10 +432,10 @@ test.describe('área do operador Turmma', () => {
     await outra.goto('/operacao')
     await esperarCasca(outra, operador)
 
-    await acionar(page, 'Sair', hasTouch)
-    await expect(page).toHaveURL(/\/operacao\/entrar$/, { timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(page, 'Sair', hasTouch)
+    await expect(page).toHaveURL(/\/operacao\/entrar$/, { timeout: SIGN_IN_TIMEOUT_MS })
     // A outra aba da operação sai junto, pelo canal próprio, sem ninguém tocar nela.
-    await expect(outra).toHaveURL(/\/operacao\/entrar$/, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(outra).toHaveURL(/\/operacao\/entrar$/, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(outra.getByRole('banner')).not.toContainText(operador.nome)
 
     // A escola não ouviu nada: a tela continua, e a sessão dela ainda vale no servidor (recarregar reabre pelo cookie).

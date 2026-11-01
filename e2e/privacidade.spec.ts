@@ -1,10 +1,10 @@
 import type { APIRequestContext, Locator, Page, Route } from '@playwright/test'
-import { abrirNavegacao, entrarPelaTelaComSegundoFator, escolherNoSeletor, esperarPainel, lateral, nomeNoSeletor, PRAZO_DA_ENTRADA_MS } from './support/casca.ts'
+import { abrirNavegacao, entrarPelaTelaComSegundoFator, escolherNoSeletor, esperarPainel, lateral, nomeNoSeletor, SIGN_IN_TIMEOUT_MS } from './support/casca.ts'
 import { irPelaCoordenacao, paginaNaoRola } from './support/coordenacao.ts'
-import { carregarSemRedeLenta, expect, test } from './support/profiles.ts'
+import { loadUnthrottled, expect, test } from './support/profiles.ts'
 import { abrirPelaApiSemMedirAPrimeiraCarga, configurarSegundoFatorPelaApi } from './support/mfa.ts'
 import { ajustarRetencaoDaEscola, cadastrarSuboperadorDeTeste, codigoDoAutenticador, criarEquipeComSenha, criarEscolaSintetica, criarUsuarioEmOutraEscola, type EquipeDeTeste } from './support/seed.ts'
-import { violacoesGraves } from './support/checks.ts'
+import { seriousViolations } from './support/checks.ts'
 
 /**
  * A Privacidade da coordenação, na tela "Prazos de guarda" do seletor da aba Privacidade de Registros (F3, 6.0; X2, 3.0; RF20; `docs/interface.md` 3): o prazo que
@@ -34,7 +34,7 @@ const linhaDa = (page: Page, dado: string) => {
   return categorias(page).locator('tr, li').filter({ hasText: new RegExp(`^(Dado:\\s*)?${escapado}`) })
 }
 
-function portao(): { aberta: Promise<void>; abrir: () => void } {
+function gate(): { aberta: Promise<void>; abrir: () => void } {
   let abrir: () => void = () => undefined
   const aberta = new Promise<void>((resolver) => {
     abrir = resolver
@@ -42,7 +42,7 @@ function portao(): { aberta: Promise<void>; abrir: () => void } {
   return { aberta, abrir }
 }
 
-async function acionar(alvo: Locator, hasTouch: boolean): Promise<void> {
+async function activate(alvo: Locator, hasTouch: boolean): Promise<void> {
   if (hasTouch) await alvo.tap()
   else await alvo.click()
 }
@@ -53,7 +53,7 @@ async function acionar(alvo: Locator, hasTouch: boolean): Promise<void> {
  */
 async function abrirARetencao(page: Page, hasTouch: boolean): Promise<void> {
   await irPelaCoordenacao(page, 'Prazos de guarda', hasTouch)
-  await expect(page).toHaveURL(ENDERECO_DA_RETENCAO, { timeout: PRAZO_DA_ENTRADA_MS })
+  await expect(page).toHaveURL(ENDERECO_DA_RETENCAO, { timeout: SIGN_IN_TIMEOUT_MS })
 }
 
 /**
@@ -120,7 +120,7 @@ test.describe('Privacidade: por quanto tempo a escola guarda cada dado', () => {
 
     // A 1366 × 768 a página não rola: quem rola é o miolo da moldura (RF23). A 360 px nada rola de lado.
     await paginaNaoRola(page)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await seriousViolations(page)).toEqual([])
   })
 
   test('o seletor da Privacidade: uma parada no Tab, as setas trocam de tela e de endereço, e o alvo tem o tamanho do toque', async ({ page, hasTouch, request }) => {
@@ -141,23 +141,23 @@ test.describe('Privacidade: por quanto tempo a escola guarda cada dado', () => {
 
     await prazos.focus()
     await page.keyboard.press('ArrowRight')
-    await expect(page).toHaveURL(/\/coordenacao\/privacidade\/suboperadores$/, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page).toHaveURL(/\/coordenacao\/privacidade\/suboperadores$/, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(empresas).toBeFocused()
     await expect(empresas).toHaveAttribute('aria-checked', 'true')
     await expect(principal(page).getByRole('heading', { level: 2, name: 'Empresas que recebem dados' })).toBeVisible()
     await page.keyboard.press('ArrowRight')
-    await expect(page).toHaveURL(/\/coordenacao\/privacidade\/incidentes$/, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page).toHaveURL(/\/coordenacao\/privacidade\/incidentes$/, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(incidentes).toBeFocused()
     await expect(principal(page).getByRole('heading', { level: 2, name: 'Incidentes' })).toBeVisible()
     // Do último volta ao primeiro, e a escolha fica no endereço: recarregar abre a mesma tela.
     await page.keyboard.press('ArrowRight')
-    await expect(page).toHaveURL(ENDERECO_DA_RETENCAO, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page).toHaveURL(ENDERECO_DA_RETENCAO, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(prazos).toBeFocused()
     // O Tab sai do seletor, e não passa pelas outras opções.
     await page.keyboard.press('Tab')
     await expect(page.getByRole('radio').and(page.locator(':focus'))).toHaveCount(0)
     await paginaNaoRola(page)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await seriousViolations(page)).toEqual([])
   })
 
   test('o endereço sem aba, e um endereço com aba que não existe, abrem a aba dos pedidos', async ({ page, request }) => {
@@ -165,19 +165,19 @@ test.describe('Privacidade: por quanto tempo a escola guarda cada dado', () => {
     await entrarPelaApiComSegundoFator(page, request, coordenadora)
 
     // As cargas frias de página rodam sem a rede lenta do perfil: o caso prova para onde o endereço leva, não o quanto a rede custa.
-    await carregarSemRedeLenta(page, async () => {
+    await loadUnthrottled(page, async () => {
       await page.goto('/coordenacao/privacidade')
-      await expect(page).toHaveURL(ENDERECO_DOS_PEDIDOS, { timeout: PRAZO_DA_ENTRADA_MS })
+      await expect(page).toHaveURL(ENDERECO_DOS_PEDIDOS, { timeout: SIGN_IN_TIMEOUT_MS })
     })
-    await carregarSemRedeLenta(page, async () => {
+    await loadUnthrottled(page, async () => {
       await page.goto('/coordenacao/privacidade/nao-existe')
-      await expect(page).toHaveURL(ENDERECO_DOS_PEDIDOS, { timeout: PRAZO_DA_ENTRADA_MS })
+      await expect(page).toHaveURL(ENDERECO_DOS_PEDIDOS, { timeout: SIGN_IN_TIMEOUT_MS })
     })
     await expect(page.getByRole('tab', { name: NOME_DA_ABA_DOS_PEDIDOS, exact: true })).toHaveAttribute('aria-selected', 'true')
   })
 
   test('os estados: carregando, erro com "Tentar de novo", e com dado', async ({ page, hasTouch, request }) => {
-    const segurada = portao()
+    const segurada = gate()
     let falhar = true
     await page.route(
       (url) => url.pathname === '/v1/privacidade/retencao',
@@ -193,14 +193,14 @@ test.describe('Privacidade: por quanto tempo a escola guarda cada dado', () => {
     await irPelaCoordenacao(page, 'Pedidos', hasTouch)
     await abrirARetencao(page, hasTouch)
 
-    await expect(principal(page).getByRole('status').filter({ hasText: CARREGANDO })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(principal(page).getByRole('status').filter({ hasText: CARREGANDO })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     segurada.abrir()
-    await expect(principal(page).getByRole('alert')).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(principal(page).getByRole('alert')).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(principal(page).getByRole('button', { name: 'Tentar de novo' })).toBeVisible()
 
     falhar = false
-    await acionar(principal(page).getByRole('button', { name: 'Tentar de novo' }), hasTouch)
-    await expect(categorias(page)).toContainText(AJUSTADO, { timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(principal(page).getByRole('button', { name: 'Tentar de novo' }), hasTouch)
+    await expect(categorias(page)).toContainText(AJUSTADO, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(principal(page).getByRole('alert')).toHaveCount(0)
   })
 
@@ -213,15 +213,15 @@ test.describe('Privacidade: por quanto tempo a escola guarda cada dado', () => {
     // entrada, o de agora, e a troca, o seguinte (`deixarOPassoSeguinteLivre`): sem esperar a virada de 30 s do relógio, que levava até meio minuto.
     const segredo = await abrirPelaApiSemMedirAPrimeiraCarga(page, request, emA, '/coordenacao/painel', () => esperarPainel(page), { deixarOPassoSeguinteLivre: true })
     await abrirARetencao(page, hasTouch)
-    await expect(categorias(page)).toContainText(AJUSTADO, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(categorias(page)).toContainText(AJUSTADO, { timeout: SIGN_IN_TIMEOUT_MS })
     // A segunda escola entra depois do primeiro acesso: com duas escolas, o login pede a escola e o segundo fator, e o
     // helper de entrada só cobre uma. A lista de escolas da sessão vê a nova ao recarregar a aba.
     const emB = await criarUsuarioEmOutraEscola(emA.contaId, 'coordenador')
     await page.reload()
-    await expect(categorias(page)).toContainText(AJUSTADO, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(categorias(page)).toContainText(AJUSTADO, { timeout: SIGN_IN_TIMEOUT_MS })
 
     // A resposta de B fica segurada: enquanto ela não chega, a tela não pode mostrar o ajuste de A.
-    const segurada = portao()
+    const segurada = gate()
     await page.route(
       (url) => url.pathname === '/v1/privacidade/retencao',
       async (rota: Route) => {
@@ -230,18 +230,18 @@ test.describe('Privacidade: por quanto tempo a escola guarda cada dado', () => {
       },
     )
     await escolherNoSeletor(page, nomeNoSeletor(emB, 'coordenação'), hasTouch)
-    await expect(page.getByRole('heading', { name: 'Segundo fator' })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page.getByRole('heading', { name: 'Segundo fator' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     // A entrada usou o passo de agora e a ativação, o anterior: o código desta troca é o do passo seguinte, que a janela da API aceita.
     await page.getByLabel('Código do aplicativo').fill(codigoDoAutenticador(segredo, 30))
-    await acionar(page.getByRole('button', { name: /^Entrar$|Entrando/ }), hasTouch)
+    await activate(page.getByRole('button', { name: /^Entrar$|Entrando/ }), hasTouch)
     await esperarPainel(page)
     await irPelaCoordenacao(page, 'Pedidos', hasTouch)
     await abrirARetencao(page, hasTouch)
-    await expect(principal(page).getByRole('status').filter({ hasText: CARREGANDO })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(principal(page).getByRole('status').filter({ hasText: CARREGANDO })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(principal(page)).not.toContainText(AJUSTADO)
 
     segurada.abrir()
-    await expect(categorias(page)).toContainText('Padrão do sistema', { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(categorias(page)).toContainText('Padrão do sistema', { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(principal(page)).not.toContainText(AJUSTADO)
   })
 
@@ -249,15 +249,15 @@ test.describe('Privacidade: por quanto tempo a escola guarda cada dado', () => {
     const primeira = await criarEquipeComSenha('coordenador')
     await ajustarRetencaoDaEscola(primeira.escolaId, 'conversa_tutor', 6)
     await entrarNaPrivacidade(page, request, hasTouch, primeira)
-    await expect(categorias(page)).toContainText(AJUSTADO, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(categorias(page)).toContainText(AJUSTADO, { timeout: SIGN_IN_TIMEOUT_MS })
 
     await abrirNavegacao(page, hasTouch)
-    await acionar(lateral(page).getByRole('button', { name: 'Sair' }), hasTouch)
-    await expect(page).toHaveURL(/\/entrar$/, { timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(lateral(page).getByRole('button', { name: 'Sair' }), hasTouch)
+    await expect(page).toHaveURL(/\/entrar$/, { timeout: SIGN_IN_TIMEOUT_MS })
 
     const segunda = await criarEquipeComSenha('coordenador')
     // A resposta da segunda pessoa fica segurada: enquanto ela não chega, a tela não pode mostrar o ajuste da primeira.
-    const segurada = portao()
+    const segurada = gate()
     await page.route(
       (url) => url.pathname === '/v1/privacidade/retencao',
       async (rota: Route) => {
@@ -268,15 +268,15 @@ test.describe('Privacidade: por quanto tempo a escola guarda cada dado', () => {
     // O segundo fator da segunda pessoa é configurado pela API: o caso é sobre o que a aba mostra da primeira, e o login dela, pela tela, continua.
     const { segredo } = await configurarSegundoFatorPelaApi(request, segunda)
     await entrarPelaTelaComSegundoFator(page, segunda, segredo, hasTouch)
-    await expect(page).toHaveURL(/\/coordenacao\/painel$/, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page).toHaveURL(/\/coordenacao\/painel$/, { timeout: SIGN_IN_TIMEOUT_MS })
     await esperarPainel(page)
     await irPelaCoordenacao(page, 'Pedidos', hasTouch)
     await abrirARetencao(page, hasTouch)
-    await expect(principal(page).getByRole('status').filter({ hasText: CARREGANDO })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(principal(page).getByRole('status').filter({ hasText: CARREGANDO })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(principal(page)).not.toContainText(AJUSTADO)
 
     segurada.abrir()
-    await expect(categorias(page)).toContainText('Padrão do sistema', { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(categorias(page)).toContainText('Padrão do sistema', { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(principal(page)).not.toContainText(AJUSTADO)
   })
 })
@@ -303,7 +303,7 @@ async function abrirAsEmpresas(page: Page, request: APIRequestContext, hasTouch:
   // Direto da aba dos pedidos, que é a que a Privacidade abre: passar antes pela retenção leria a retenção à toa.
   await abrirPelaApiSemMedirAPrimeiraCarga(page, request, pessoa, '/coordenacao/painel', () => esperarPainel(page))
   await irPelaCoordenacao(page, 'Empresas', hasTouch)
-  await expect(page).toHaveURL(ENDERECO_DAS_EMPRESAS, { timeout: PRAZO_DA_ENTRADA_MS })
+  await expect(page).toHaveURL(ENDERECO_DAS_EMPRESAS, { timeout: SIGN_IN_TIMEOUT_MS })
 }
 
 test.describe('Privacidade: as empresas que recebem dados da escola', () => {
@@ -324,7 +324,7 @@ test.describe('Privacidade: as empresas que recebem dados da escola', () => {
     await expect(page.getByRole('radio', { name: NOME_DA_ABA_DAS_EMPRESAS })).toHaveAttribute('aria-checked', 'true')
     await expect(principal(page).getByRole('heading', { level: 2, name: 'Empresas que recebem dados' })).toBeVisible()
     await expect(principal(page).getByRole('heading', { level: 3, name: SECAO_DAS_VIGENTES })).toBeVisible()
-    await expect(secao(page, SECAO_DAS_VIGENTES)).toContainText(hospedagem, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(secao(page, SECAO_DAS_VIGENTES)).toContainText(hospedagem, { timeout: SIGN_IN_TIMEOUT_MS })
 
     const daHospedagem = linhaDaEmpresa(page, hospedagem)
     await expect(daHospedagem).toHaveCount(1)
@@ -351,7 +351,7 @@ test.describe('Privacidade: as empresas que recebem dados da escola', () => {
     await expect(principal(page).getByRole('heading', { level: 3, name: SECAO_DAS_PASSADAS })).toBeVisible()
 
     await paginaNaoRola(page)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await seriousViolations(page)).toEqual([])
   })
 
   test('as duas abas se alternam pelo clique ou toque, e o endereço guarda a aba', async ({ page, hasTouch, request }) => {
@@ -361,13 +361,13 @@ test.describe('Privacidade: as empresas que recebem dados da escola', () => {
     const nome = `Hospedagem ${marca()}`
     await cadastrarSuboperadorDeTeste({ nome, escolas: [coordenadora.escolaId] })
     await abrirAsEmpresas(page, request, hasTouch, coordenadora)
-    await expect(secao(page, SECAO_DAS_VIGENTES)).toContainText(nome, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(secao(page, SECAO_DAS_VIGENTES)).toContainText(nome, { timeout: SIGN_IN_TIMEOUT_MS })
 
     await page.reload()
     // Recarregar abre o aplicativo de novo (casca, renovação da sessão, área e sino): é o prazo da entrada, não os 5 s do `expect`.
-    await expect(page).toHaveURL(ENDERECO_DAS_EMPRESAS, { timeout: PRAZO_DA_ENTRADA_MS })
-    await expect(page.getByRole('radio', { name: NOME_DA_ABA_DAS_EMPRESAS })).toHaveAttribute('aria-checked', 'true', { timeout: PRAZO_DA_ENTRADA_MS })
-    await expect(secao(page, SECAO_DAS_VIGENTES)).toContainText(nome, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page).toHaveURL(ENDERECO_DAS_EMPRESAS, { timeout: SIGN_IN_TIMEOUT_MS })
+    await expect(page.getByRole('radio', { name: NOME_DA_ABA_DAS_EMPRESAS })).toHaveAttribute('aria-checked', 'true', { timeout: SIGN_IN_TIMEOUT_MS })
+    await expect(secao(page, SECAO_DAS_VIGENTES)).toContainText(nome, { timeout: SIGN_IN_TIMEOUT_MS })
 
     await irPelaCoordenacao(page, 'Prazos de guarda', hasTouch)
     await expect(page).toHaveURL(ENDERECO_DA_RETENCAO)
@@ -378,7 +378,7 @@ test.describe('Privacidade: as empresas que recebem dados da escola', () => {
   test('os estados: carregando, erro com "Tentar de novo", vazio, só passadas e com dado', async ({ page, hasTouch, request }) => {
     // Quatro cargas de página sob o perfil do celular: a entrada abre na aba dos pedidos (F3, 16.0), que lê a lista antes de a coordenação trocar de aba.
     test.setTimeout(90_000)
-    const segurada = portao()
+    const segurada = gate()
     let modo: 'erro' | 'vazio' | 'so_passadas' | 'real' = 'erro'
     const passada = { chave: 'antiga-do-estado', nome: `Antiga do estado ${marca()}`, finalidade: 'Hospedagem', pais: 'BR', categorias: ['cadastro'], vedaTreinamento: true, inicio: '2026-01-05T12:00:00.000Z', fim: '2026-02-20T12:00:00.000Z' }
     await page.route(
@@ -396,30 +396,30 @@ test.describe('Privacidade: as empresas que recebem dados da escola', () => {
     await cadastrarSuboperadorDeTeste({ nome: real, escolas: [coordenadora.escolaId] })
     await abrirAsEmpresas(page, request, hasTouch, coordenadora)
 
-    await expect(principal(page).getByRole('status').filter({ hasText: CARREGANDO_AS_EMPRESAS })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(principal(page).getByRole('status').filter({ hasText: CARREGANDO_AS_EMPRESAS })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     segurada.abrir()
-    await expect(principal(page).getByRole('alert')).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(principal(page).getByRole('alert')).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(principal(page).getByRole('button', { name: 'Tentar de novo' })).toBeVisible()
 
     // Vazio: nenhuma empresa recebe dado da escola, e a tela diz isso; não há seção de passadas.
     modo = 'vazio'
-    await acionar(principal(page).getByRole('button', { name: 'Tentar de novo' }), hasTouch)
-    await expect(principal(page).getByText(VAZIO_DAS_EMPRESAS)).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(principal(page).getByRole('button', { name: 'Tentar de novo' }), hasTouch)
+    await expect(principal(page).getByText(VAZIO_DAS_EMPRESAS)).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(principal(page).getByRole('alert')).toHaveCount(0)
     await expect(principal(page).getByRole('region', { name: SECAO_DAS_PASSADAS })).toHaveCount(0)
 
     // Só passadas: o vazio das vigentes continua, e a passada aparece com o período.
     modo = 'so_passadas'
     await page.reload()
-    await expect(principal(page).getByText(VAZIO_DAS_EMPRESAS)).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(principal(page).getByText(VAZIO_DAS_EMPRESAS)).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     const daPassada = secao(page, SECAO_DAS_PASSADAS).locator('tr, li').filter({ hasText: passada.nome })
-    await expect(daPassada).toHaveCount(1, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(daPassada).toHaveCount(1, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(daPassada).toContainText('De 05/01/2026 até 20/02/2026')
 
     // Com dado: a resposta real, com a empresa que o teste cadastrou, e sem o vazio.
     modo = 'real'
     await page.reload()
-    await expect(secao(page, SECAO_DAS_VIGENTES)).toContainText(real, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(secao(page, SECAO_DAS_VIGENTES)).toContainText(real, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(principal(page).getByText(VAZIO_DAS_EMPRESAS)).toHaveCount(0)
   })
 
@@ -428,15 +428,15 @@ test.describe('Privacidade: as empresas que recebem dados da escola', () => {
     const daPrimeira = `Só da primeira escola ${marca()}`
     await cadastrarSuboperadorDeTeste({ nome: daPrimeira, escolas: [primeira.escolaId] })
     await abrirAsEmpresas(page, request, hasTouch, primeira)
-    await expect(secao(page, SECAO_DAS_VIGENTES)).toContainText(daPrimeira, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(secao(page, SECAO_DAS_VIGENTES)).toContainText(daPrimeira, { timeout: SIGN_IN_TIMEOUT_MS })
 
     await abrirNavegacao(page, hasTouch)
-    await acionar(lateral(page).getByRole('button', { name: 'Sair' }), hasTouch)
-    await expect(page).toHaveURL(/\/entrar$/, { timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(lateral(page).getByRole('button', { name: 'Sair' }), hasTouch)
+    await expect(page).toHaveURL(/\/entrar$/, { timeout: SIGN_IN_TIMEOUT_MS })
 
     const segunda = await criarEquipeComSenha('coordenador')
     // A resposta da segunda pessoa fica segurada: enquanto ela não chega, a tela não pode mostrar a empresa da primeira.
-    const segurada = portao()
+    const segurada = gate()
     await page.route(
       (url) => url.pathname === '/v1/privacidade/suboperadores',
       async (rota: Route) => {
@@ -447,14 +447,14 @@ test.describe('Privacidade: as empresas que recebem dados da escola', () => {
     // O segundo fator da segunda pessoa é configurado pela API: o caso é sobre o que a aba mostra da primeira, e o login dela, pela tela, continua.
     const { segredo } = await configurarSegundoFatorPelaApi(request, segunda)
     await entrarPelaTelaComSegundoFator(page, segunda, segredo, hasTouch)
-    await expect(page).toHaveURL(/\/coordenacao\/painel$/, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page).toHaveURL(/\/coordenacao\/painel$/, { timeout: SIGN_IN_TIMEOUT_MS })
     await esperarPainel(page)
     await irPelaCoordenacao(page, 'Empresas', hasTouch)
-    await expect(principal(page).getByRole('status').filter({ hasText: CARREGANDO_AS_EMPRESAS })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(principal(page).getByRole('status').filter({ hasText: CARREGANDO_AS_EMPRESAS })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(principal(page)).not.toContainText(daPrimeira)
 
     segurada.abrir()
-    await expect(principal(page).getByRole('status').filter({ hasText: CARREGANDO_AS_EMPRESAS })).toHaveCount(0, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(principal(page).getByRole('status').filter({ hasText: CARREGANDO_AS_EMPRESAS })).toHaveCount(0, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(principal(page)).not.toContainText(daPrimeira)
   })
 })

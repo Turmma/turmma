@@ -1,6 +1,6 @@
 import type { Locator, Page } from '@playwright/test'
 import { expect, test } from './support/profiles.ts'
-import { abrirGaleria, caixa, desenho, secao } from './support/gallery.ts'
+import { openGallery, caixa, desenho, gallerySection } from './support/gallery.ts'
 import { ALVO_DE_TOQUE_PRINCIPAL_PX } from './support/checks.ts'
 
 /**
@@ -38,8 +38,8 @@ const PECAS_NA_ORDEM_DO_TAB = [
 
 test.describe('peças do MVP de apresentação, na galeria', () => {
   test('botões: cinco variantes, só a oficial em grafite e só a primária em laranja, e o desligado nunca é igual ao ligado', async ({ page, hasTouch }) => {
-    await abrirGaleria(page)
-    const botoes = secao(page, 'botoes')
+    await openGallery(page)
+    const botoes = gallerySection(page, 'botoes')
     const principais = botoes.locator('[data-tamanho="principal"] [data-variante]')
     await expect(principais).toHaveCount(5)
     const fundos: Record<string, string> = {}
@@ -84,17 +84,17 @@ test.describe('peças do MVP de apresentação, na galeria', () => {
   })
 
   test('o perigo cheio é a face vermelha com o texto sobre-cor, e o desligado dele perde o vermelho', async ({ page }) => {
-    await abrirGaleria(page)
-    const cheio = secao(page, 'botoes').locator('[data-tamanho="perigo-cheio"]').getByRole('button', { name: 'Perigo cheio', exact: true })
+    await openGallery(page)
+    const cheio = gallerySection(page, 'botoes').locator('[data-tamanho="perigo-cheio"]').getByRole('button', { name: 'Perigo cheio', exact: true })
     expect(await desenho(cheio)).toMatchObject({ fundo: RGB.vermelho, texto: 'rgb(13, 13, 13)', canto: '12px' })
-    const desligado = secao(page, 'botoes').locator('[data-tamanho="perigo-cheio"]').getByRole('button', { name: 'Perigo cheio desligado' })
+    const desligado = gallerySection(page, 'botoes').locator('[data-tamanho="perigo-cheio"]').getByRole('button', { name: 'Perigo cheio desligado' })
     await expect(desligado).toBeDisabled()
     expect(await desenho(desligado)).toMatchObject({ fundo: RGB.borda, texto: RGB.apoio })
   })
 
   test('alvo de 44 px: toda variante e todo tamanho, ligado e desligado, com glifo e sem; o compacto tem 36 só a partir de 768', async ({ page }) => {
-    await abrirGaleria(page)
-    const botoes = secao(page, 'botoes')
+    await openGallery(page)
+    const botoes = gallerySection(page, 'botoes')
     const estreito = (page.viewportSize()?.width ?? 0) < 768
     const todos = botoes.locator('[data-variante]')
     // 5 principais, 5 desligados, 5 compactos, 5 compactos desligados, 5 com glifo, 5 só de ícone, 5 de ícone desligados,
@@ -131,8 +131,8 @@ test.describe('peças do MVP de apresentação, na galeria', () => {
   })
 
   test('o degrau é sombra sólida e margem do mesmo tamanho fora da face, e o desligado perde a sombra e guarda a margem', async ({ page }) => {
-    await abrirGaleria(page)
-    const botoes = secao(page, 'botoes')
+    await openGallery(page)
+    const botoes = gallerySection(page, 'botoes')
     const sombraEMargem = (alvo: Locator) => alvo.evaluate((elemento) => [getComputedStyle(elemento).boxShadow, getComputedStyle(elemento).marginBottom])
     const degraus: Record<string, string> = {
       primario: 'rgb(186, 92, 37)',
@@ -188,8 +188,8 @@ test.describe('peças do MVP de apresentação, na galeria', () => {
   const transformDe = (alvo: Locator) => alvo.evaluate((elemento) => getComputedStyle(elemento).transform)
 
   test('apertado, a face desce o degrau e a sombra some; no celular, pelo toque e sem hover', async ({ page, hasTouch }) => {
-    await abrirGaleria(page)
-    const primario = secao(page, 'botoes').locator('[data-tamanho="principal"] [data-variante="primario"]')
+    await openGallery(page)
+    const primario = gallerySection(page, 'botoes').locator('[data-tamanho="principal"] [data-variante="primario"]')
     await expect(primario).toBeVisible()
     expect(await transformDe(primario)).toBe('none')
     const soltar = await apertar(page, primario, hasTouch)
@@ -203,8 +203,8 @@ test.describe('peças do MVP de apresentação, na galeria', () => {
 
   test('com movimento reduzido, apertar não desloca a face, e a transição some', async ({ page, hasTouch }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' })
-    await abrirGaleria(page)
-    const oficial = secao(page, 'botoes').locator('[data-tamanho="principal"] [data-variante="oficial"]')
+    await openGallery(page)
+    const oficial = gallerySection(page, 'botoes').locator('[data-tamanho="principal"] [data-variante="oficial"]')
     await expect(oficial).toBeVisible()
     // A duração é de 0,01 ms: nenhuma transição que se veja (RF8).
     expect(Number.parseFloat(await oficial.evaluate((elemento) => getComputedStyle(elemento).transitionDuration))).toBeLessThan(0.001)
@@ -218,9 +218,9 @@ test.describe('peças do MVP de apresentação, na galeria', () => {
 
   for (const tema of ['claro', 'escuro'] as const) {
     test(`o anel de foco é de 3 px na cor foco, afastado 2 px, em todo botão da galeria, no ${tema}`, async ({ page }) => {
-      await abrirGaleria(page)
+      await openGallery(page)
       await page.evaluate((valor) => document.documentElement.setAttribute('data-tema', valor), tema)
-      const ativos = secao(page, 'botoes').locator('button:not([disabled])[data-variante]')
+      const ativos = gallerySection(page, 'botoes').locator('button:not([disabled])[data-variante]')
       const quantos = await ativos.count()
       // 5 principais, 5 compactos, 5 com glifo, 5 só de ícone e o perigo cheio ligado.
       expect(quantos).toBe(21)

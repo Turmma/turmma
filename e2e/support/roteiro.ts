@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import type { APIRequestContext } from '@playwright/test'
 import { Client } from 'pg'
 import { urlDoBancoDeTeste } from '../../tools/ci/compose.ts'
-import { ProfessoraPelaApi } from './atividade-db.ts'
+import { ProfessoraApiClient } from './atividade-db.ts'
 import { entrarComoAlunoPelaApi, responderPelaApi } from './aluno-api.ts'
 import { expect } from './profiles.ts'
 
@@ -183,7 +183,7 @@ export async function segundaProfessoraAprovaUmLotePelaApi(
     .toBe('concluida')
   if (artefatoId === undefined) throw new Error('a geração da segunda professora não devolveu artefato')
 
-  const dela = await ProfessoraPelaApi.entrar(request, professora)
+  const dela = await ProfessoraApiClient.entrar(request, professora)
   const aplicadaId = await dela.aplicar(artefatoId, turma.turmaId, false)
   for (const aluno of alunos) await responderPelaApi(request, await entrarComoAlunoPelaApi(request, { slug: turma.slug, ...aluno }), aplicadaId, [0, 1, 2])
   await dela.encerrarEAprovar(aplicadaId)

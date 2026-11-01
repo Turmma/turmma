@@ -10,7 +10,7 @@ import {
   lateral,
   naGaveta,
   nomeNoSeletor,
-  PRAZO_DA_ENTRADA_MS,
+  SIGN_IN_TIMEOUT_MS,
   secoes,
 } from './support/casca.ts'
 import { expect, test } from './support/profiles.ts'
@@ -30,7 +30,7 @@ import {
   type AlunoDeTeste,
   type EquipeDeTeste,
 } from './support/seed.ts'
-import { ALVO_DE_TOQUE_PRINCIPAL_PX, larguraExcedente, larguraExcedenteDoDialogo, violacoesGraves } from './support/checks.ts'
+import { ALVO_DE_TOQUE_PRINCIPAL_PX, horizontalOverflow, larguraExcedenteDoDialogo, seriousViolations } from './support/checks.ts'
 
 /**
  * "Meus dados" do aluno e do professor (F3, 18.0; RF12 e RF20; `docs/interface.md` 11.1): o aluno acha "Meus dados" em
@@ -72,15 +72,15 @@ test.afterEach(async () => {
   for (const contexto of contextos.splice(0)) await contexto.close()
 })
 
-async function acionar(alvo: Locator, hasTouch: boolean): Promise<void> {
+async function activate(alvo: Locator, hasTouch: boolean): Promise<void> {
   if (hasTouch) await alvo.tap()
   else await alvo.click()
 }
 
 /** Sem estouro de largura (a 360 px também), sem violação grave de acessibilidade. */
 async function telaSemProblema(page: Page): Promise<void> {
-  expect(await larguraExcedente(page)).toBe(0)
-  expect(await violacoesGraves(page)).toEqual([])
+  expect(await horizontalOverflow(page)).toBe(0)
+  expect(await seriousViolations(page)).toEqual([])
 }
 
 interface Cenario {
@@ -99,32 +99,32 @@ async function montarEscola(): Promise<Cenario> {
 /** O aluno, por Eu (X4, 2.0): a linha Privacidade, no miolo da tela, e não mais o rodapé da lateral. Só leva até lá, sem esperar o conteúdo. */
 async function irAPrivacidadeDoAluno(page: Page, hasTouch: boolean): Promise<void> {
   await irPelaNavegacao(page, 'Eu', hasTouch)
-  await acionar(principal(page).getByRole('link', { name: 'Privacidade', exact: true }), hasTouch)
-  await expect(page).toHaveURL(/\/aluno\/privacidade$/, { timeout: PRAZO_DA_ENTRADA_MS })
+  await activate(principal(page).getByRole('link', { name: 'Privacidade', exact: true }), hasTouch)
+  await expect(page).toHaveURL(/\/aluno\/privacidade$/, { timeout: SIGN_IN_TIMEOUT_MS })
 }
 
 /** O aluno, por Eu: a linha Privacidade, e a seção "Meus dados" dentro dela. */
 async function abrirPrivacidadeDoAluno(page: Page, hasTouch: boolean): Promise<void> {
   await irAPrivacidadeDoAluno(page, hasTouch)
-  await expect(principal(page).getByRole('heading', { level: 2, name: 'Meus dados', exact: true })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+  await expect(principal(page).getByRole('heading', { level: 2, name: 'Meus dados', exact: true })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
   // Os cartões ficam um nível abaixo da seção, e o título da aba é o da tela.
-  await expect(principal(page).getByRole('heading', { level: 3, name: 'Seus pedidos', exact: true })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+  await expect(principal(page).getByRole('heading', { level: 3, name: 'Seus pedidos', exact: true })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
   await expect(page).toHaveTitle('Privacidade · Turmma')
 }
 
 /** O professor, pelo menu da pessoa: o link "Meus dados" fica antes do "Sair". */
 async function abrirMeusDadosDoProfessor(page: Page, hasTouch: boolean): Promise<void> {
   await abrirNavegacao(page, hasTouch)
-  await acionar(lateral(page).getByRole('navigation', { name: 'Sua conta', exact: true }).getByRole('link', { name: 'Meus dados', exact: true }), hasTouch)
-  await expect(page).toHaveURL(/\/professor\/meus-dados$/, { timeout: PRAZO_DA_ENTRADA_MS })
-  await expect(principal(page).getByRole('heading', { level: 2, name: 'Seus pedidos', exact: true })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+  await activate(lateral(page).getByRole('navigation', { name: 'Sua conta', exact: true }).getByRole('link', { name: 'Meus dados', exact: true }), hasTouch)
+  await expect(page).toHaveURL(/\/professor\/meus-dados$/, { timeout: SIGN_IN_TIMEOUT_MS })
+  await expect(principal(page).getByRole('heading', { level: 2, name: 'Seus pedidos', exact: true })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
   await expect(page).toHaveTitle('Meus dados · Turmma')
 }
 
 async function sair(page: Page, hasTouch: boolean): Promise<void> {
   await abrirNavegacao(page, hasTouch)
-  await acionar(lateral(page).getByRole('button', { name: 'Sair' }), hasTouch)
-  await expect(page).toHaveURL(/\/entrar$/, { timeout: PRAZO_DA_ENTRADA_MS })
+  await activate(lateral(page).getByRole('button', { name: 'Sair' }), hasTouch)
+  await expect(page).toHaveURL(/\/entrar$/, { timeout: SIGN_IN_TIMEOUT_MS })
 }
 
 /**
@@ -132,7 +132,7 @@ async function sair(page: Page, hasTouch: boolean): Promise<void> {
  * o navegador recebeu e quantas chamadas de download saíram (uma só, que é o que cada clique custa na auditoria).
  */
 async function baixarPelaTela(page: Page): Promise<{ readonly nome: string; readonly conteudo: string; readonly chamadas: number }> {
-  await acionar(botaoDeBaixar(page), test.info().project.use.hasTouch === true)
+  await activate(botaoDeBaixar(page), test.info().project.use.hasTouch === true)
   const dialogo = confirmacao(page)
   await expect(dialogo).toBeVisible()
   // O que vai acontecer (regra 50, item 8) e o aviso do computador compartilhado (RF12).
@@ -145,15 +145,15 @@ async function baixarPelaTela(page: Page): Promise<{ readonly nome: string; read
   await expect(dialogo).toContainText('Se este computador é da escola, apague o arquivo dele depois de usar e saia da sua conta')
   await expect(dialogo).toContainText('O download fica registrado na escola')
   expect(await larguraExcedenteDoDialogo(page)).toBe(0)
-  expect(await violacoesGraves(page)).toEqual([])
+  expect(await seriousViolations(page)).toEqual([])
   let chamadas = 0
   page.on('request', (pedido) => {
     if (pedido.method() === 'POST' && /^\/v1\/meus-dados\/[0-9a-f-]{36}\/baixar$/.test(new URL(pedido.url()).pathname)) chamadas += 1
   })
   const confirmar = dialogo.getByRole('button', { name: 'Baixar o arquivo', exact: true })
-  const [download] = await Promise.all([page.waitForEvent('download', { timeout: PRAZO_DA_ENTRADA_MS }), doisCliquesNoMesmoInstante(confirmar)])
+  const [download] = await Promise.all([page.waitForEvent('download', { timeout: SIGN_IN_TIMEOUT_MS }), doisCliquesNoMesmoInstante(confirmar)])
   const conteudo = await readFile(await download.path(), 'utf8')
-  await expect(dialogo).toHaveCount(0, { timeout: PRAZO_DA_ENTRADA_MS })
+  await expect(dialogo).toHaveCount(0, { timeout: SIGN_IN_TIMEOUT_MS })
   return { nome: download.suggestedFilename(), conteudo, chamadas }
 }
 
@@ -175,9 +175,9 @@ async function fecharODialogoComALeituraRetida(page: Page, hasTouch: boolean): P
   await criarArquivoDoTitularNoBanco(coordenadora.escolaId, pedidoId)
   await entrarComoAluno(page, aluno, hasTouch)
   await abrirPrivacidadeDoAluno(page, hasTouch)
-  await expect(pedidosDaTela(page, 'Cópia dos seus dados')).toContainText('Pronto para baixar', { timeout: PRAZO_DA_ENTRADA_MS })
+  await expect(pedidosDaTela(page, 'Cópia dos seus dados')).toContainText('Pronto para baixar', { timeout: SIGN_IN_TIMEOUT_MS })
 
-  await acionar(botaoDeBaixar(page), hasTouch)
+  await activate(botaoDeBaixar(page), hasTouch)
   const dialogo = confirmacao(page)
   await expect(dialogo).toBeVisible()
   await apagarArquivoDoTitularNoBanco(coordenadora.escolaId, pedidoId)
@@ -190,10 +190,10 @@ async function fecharODialogoComALeituraRetida(page: Page, hasTouch: boolean): P
     await retida
     return rota.continue()
   })
-  await acionar(dialogo.getByRole('button', { name: 'Baixar o arquivo', exact: true }), hasTouch)
-  await expect(dialogo.getByRole('alert')).toContainText('Este arquivo não está mais disponível', { timeout: PRAZO_DA_ENTRADA_MS })
-  await expect.poll(() => releituras, { timeout: PRAZO_DA_ENTRADA_MS }).toBe(1)
-  await acionar(dialogo.getByRole('button', { name: 'Fechar', exact: true }), hasTouch)
+  await activate(dialogo.getByRole('button', { name: 'Baixar o arquivo', exact: true }), hasTouch)
+  await expect(dialogo.getByRole('alert')).toContainText('Este arquivo não está mais disponível', { timeout: SIGN_IN_TIMEOUT_MS })
+  await expect.poll(() => releituras, { timeout: SIGN_IN_TIMEOUT_MS }).toBe(1)
+  await activate(dialogo.getByRole('button', { name: 'Fechar', exact: true }), hasTouch)
   await expect(dialogo).toHaveCount(0)
   // A lista ainda é a velha: o botão continua nela, e o foco voltou a ele.
   await expect(botaoDeBaixar(page)).toBeFocused()
@@ -248,23 +248,23 @@ test.describe('Meus dados: o aluno e o professor baixam o que a coordenação re
     expect(baixados[0]).toMatchObject({ autor: aluno.usuarioId, finalidade: 'acesso_do_proprio_titular' })
 
     // O arquivo saiu da escola enquanto o aluno lia: o clique diz isso, e a lista passa a mostrar o arquivo apagado.
-    await acionar(botaoDeBaixar(alunoNaTela), hasTouch)
+    await activate(botaoDeBaixar(alunoNaTela), hasTouch)
     const dialogo = confirmacao(alunoNaTela)
     await expect(dialogo).toBeVisible()
     await apagarArquivoDoTitularNoBanco(coordenacaoDaEscola.escolaId, pedidoDoAluno.id)
-    await acionar(dialogo.getByRole('button', { name: 'Baixar o arquivo', exact: true }), hasTouch)
-    await expect(dialogo.getByRole('alert')).toContainText('Este arquivo não está mais disponível', { timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(dialogo.getByRole('button', { name: 'Baixar o arquivo', exact: true }), hasTouch)
+    await expect(dialogo.getByRole('alert')).toContainText('Este arquivo não está mais disponível', { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(dialogo.getByRole('button', { name: 'Baixar o arquivo', exact: true })).toBeDisabled()
-    await acionar(dialogo.getByRole('button', { name: 'Fechar', exact: true }), hasTouch)
+    await activate(dialogo.getByRole('button', { name: 'Fechar', exact: true }), hasTouch)
     await expect(dialogo).toHaveCount(0)
     // O botão que abriu o diálogo saiu da lista: o foco vai para a tela, e não se perde no corpo da página.
     expect(await alunoNaTela.evaluate(() => document.activeElement === document.body)).toBe(false)
-    await expect(pedidosDaTela(alunoNaTela, 'Cópia dos seus dados')).toContainText('Arquivo apagado', { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(pedidosDaTela(alunoNaTela, 'Cópia dos seus dados')).toContainText('Arquivo apagado', { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(pedidosDaTela(alunoNaTela, 'Cópia dos seus dados')).toContainText('peça à coordenação')
     await expect(botaoDeBaixar(alunoNaTela)).toHaveCount(0)
     // Depois de recarregar, o apagado continua apagado: o estado é o do servidor.
     await alunoNaTela.reload()
-    await expect(pedidosDaTela(alunoNaTela, 'Cópia dos seus dados')).toContainText('Arquivo apagado', { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(pedidosDaTela(alunoNaTela, 'Cópia dos seus dados')).toContainText('Arquivo apagado', { timeout: SIGN_IN_TIMEOUT_MS })
     await telaSemProblema(alunoNaTela)
 
     // A professora, no computador dela, pelo menu da pessoa: o arquivo é o dela, e o do aluno nunca aparece.
@@ -299,22 +299,22 @@ test.describe('Meus dados: onde cada pessoa os acha', () => {
     await expect(secoes(page).getByRole('link', { name: 'Privacidade' })).toHaveCount(0)
     await irPelaNavegacao(page, 'Eu', hasTouch)
     const item = principal(page).getByRole('link', { name: 'Privacidade', exact: true })
-    await expect(item).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(item).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(item).not.toHaveAttribute('aria-current', 'page')
     const caixa = await item.boundingBox()
     expect(caixa?.height ?? 0).toBeGreaterThanOrEqual(ALVO_DE_TOQUE_PRINCIPAL_PX)
-    expect(await larguraExcedente(page)).toBe(0)
+    expect(await horizontalOverflow(page)).toBe(0)
     await expect(item).toBeInViewport()
     // O rodapé fixo da lateral saiu: nem na gaveta (aberta antes) nem na lateral há o grupo "Rodapé".
     await abrirNavegacao(page, hasTouch)
     await expect(lateral(page).getByRole('navigation', { name: 'Rodapé', exact: true })).toHaveCount(0)
     // Na página toda há um só link "Privacidade": o da linha de Eu (na lateral, que no computador é o mesmo `body`, não há outro).
     await expect(page.getByRole('link', { name: 'Privacidade', exact: true })).toHaveCount(1)
-    if (naGaveta(page)) await acionar(page.getByRole('button', { name: 'Fechar o menu' }), hasTouch)
+    if (naGaveta(page)) await activate(page.getByRole('button', { name: 'Fechar o menu' }), hasTouch)
 
-    await acionar(item, hasTouch)
-    await expect(page).toHaveURL(/\/aluno\/privacidade$/, { timeout: PRAZO_DA_ENTRADA_MS })
-    await expect(principal(page).getByRole('heading', { level: 2, name: 'Meus dados', exact: true })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(item, hasTouch)
+    await expect(page).toHaveURL(/\/aluno\/privacidade$/, { timeout: SIGN_IN_TIMEOUT_MS })
+    await expect(principal(page).getByRole('heading', { level: 2, name: 'Meus dados', exact: true })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     // Eu fica selecionado em Privacidade, e é o único: a lista de seções nunca marca duas telas. O controle positivo é a
     // própria lista à vista, com os três itens: sem ele a ausência passaria vazia se `Seções` saísse do lugar.
     await expect(secoes(page).getByRole('link')).toHaveCount(3)
@@ -344,8 +344,8 @@ test.describe('Meus dados: onde cada pessoa os acha', () => {
     await expect(secoes(page).getByRole('link')).toHaveText(['Início', 'Turmas', 'Ferramentas', 'Criados'])
     await expect(secoes(page).getByRole('link', { name: 'Meus dados' })).toHaveCount(0)
 
-    await acionar(link, hasTouch)
-    await expect(page).toHaveURL(/\/professor\/meus-dados$/, { timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(link, hasTouch)
+    await expect(page).toHaveURL(/\/professor\/meus-dados$/, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(principal(page).getByRole('heading', { level: 1, name: 'Meus dados' })).toBeAttached()
     await abrirNavegacao(page, hasTouch)
     await expect(lateral(page).getByRole('navigation', { name: 'Sua conta', exact: true }).getByRole('link', { name: 'Meus dados', exact: true })).toHaveAttribute('aria-current', 'page')
@@ -360,25 +360,25 @@ test.describe('Meus dados: no trilho da lateral', () => {
     // como em `casca.spec.ts` (W12), e o teste roda nos dois projetos.
     await page.setViewportSize({ width: 1366, height: 768 })
     await entrarComoAluno(page, aluno, hasTouch)
-    await acionar(page.getByRole('button', { name: 'Recolher a lateral' }), hasTouch)
+    await activate(page.getByRole('button', { name: 'Recolher a lateral' }), hasTouch)
     const eu = page.getByRole('navigation', { name: 'Seções', exact: true }).getByRole('link', { name: 'Eu', exact: true })
     await expect(eu).toBeVisible()
     expect((await eu.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(ALVO_DE_TOQUE_PRINCIPAL_PX)
-    await acionar(eu, hasTouch)
-    await acionar(principal(page).getByRole('link', { name: 'Privacidade', exact: true }), hasTouch)
-    await expect(page).toHaveURL(/\/aluno\/privacidade$/, { timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(eu, hasTouch)
+    await activate(principal(page).getByRole('link', { name: 'Privacidade', exact: true }), hasTouch)
+    await expect(page).toHaveURL(/\/aluno\/privacidade$/, { timeout: SIGN_IN_TIMEOUT_MS })
 
     // A mesma aba, a professora: o trilho guardado a recebe com o link do menu da pessoa.
     const professora = await criarEquipeComSenha('professor')
     await sair(page, hasTouch)
     await entrarPorEmail(page, professora, hasTouch)
     // O trilho esconde o nome da pessoa: a entrada se confere pelo endereço, e não pelo nome na lateral.
-    await expect(page).toHaveURL(/\/professor\/nova-conversa$/, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page).toHaveURL(/\/professor\/nova-conversa$/, { timeout: SIGN_IN_TIMEOUT_MS })
     const meusDados = page.getByRole('navigation', { name: 'Sua conta', exact: true }).getByRole('link', { name: 'Meus dados', exact: true })
     await expect(meusDados).toBeVisible()
     expect((await meusDados.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(ALVO_DE_TOQUE_PRINCIPAL_PX)
-    await acionar(meusDados, hasTouch)
-    await expect(page).toHaveURL(/\/professor\/meus-dados$/, { timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(meusDados, hasTouch)
+    await expect(page).toHaveURL(/\/professor\/meus-dados$/, { timeout: SIGN_IN_TIMEOUT_MS })
   })
 })
 
@@ -402,7 +402,7 @@ test.describe('Meus dados: os estados', () => {
 
     const resumo = principal(page).getByRole('region', { name: 'O que a escola guarda de você' })
     const linhas = resumo.getByRole('listitem')
-    await expect(linhas).toHaveCount(2, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(linhas).toHaveCount(2, { timeout: SIGN_IN_TIMEOUT_MS })
     // A ordem é a do catálogo da coordenação (o trabalho vem antes do cadastro de quem saiu), e o que tem zero não aparece.
     await expect(linhas.nth(0)).toContainText('12 registros')
     await expect(linhas.nth(1)).toContainText('1 registro')
@@ -416,7 +416,7 @@ test.describe('Meus dados: os estados', () => {
     corpo = { pedidos: [], categorias: [] }
     await page.reload()
     await expect(principal(page).getByRole('region', { name: 'O que a escola guarda de você' })).toContainText('A escola não guarda nenhum registro seu por categoria por enquanto.', {
-      timeout: PRAZO_DA_ENTRADA_MS,
+      timeout: SIGN_IN_TIMEOUT_MS,
     })
     await telaSemProblema(page)
   })
@@ -427,7 +427,7 @@ test.describe('Meus dados: os estados', () => {
     await entrarComoAluno(page, aluno, hasTouch)
     await abrirPrivacidadeDoAluno(page, hasTouch)
 
-    await expect(principal(page).getByText('Nenhum pedido ainda', { exact: true })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(principal(page).getByText('Nenhum pedido ainda', { exact: true })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(principal(page)).toContainText('Para receber uma cópia dos seus dados, peça à coordenação da escola.')
     await expect(principal(page)).toContainText(`Aqui aparecem só os pedidos feitos em ${coordenadora.escolaNome}.`)
     // Sem pedido a tela não oferece ação nenhuma de baixar, e a pessoa não pede por ela: o pedido é da escola.
@@ -461,22 +461,22 @@ test.describe('Meus dados: os estados', () => {
     })
     await entrarComoAluno(page, aluno, hasTouch)
     await irAPrivacidadeDoAluno(page, hasTouch)
-    await expect(principal(page).getByRole('status').filter({ hasText: 'Carregando os seus pedidos…' })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(principal(page).getByRole('status').filter({ hasText: 'Carregando os seus pedidos…' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(principal(page)).not.toContainText('Nenhum pedido ainda')
     liberar()
-    await expect(principal(page).getByRole('alert').filter({ hasText: 'O sistema está indisponível no momento' })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(principal(page).getByRole('alert').filter({ hasText: 'O sistema está indisponível no momento' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await telaSemProblema(page)
     // Enquanto falha, "Tentar de novo" lê de novo: a tentativa e a repetição automática que vem um segundo depois falham,
     // e a tela volta ao erro. Só quando as duas passaram o servidor volta, e o botão leva ao dado.
-    await expect.poll(() => falhas, { timeout: PRAZO_DA_ENTRADA_MS }).toBe(2)
+    await expect.poll(() => falhas, { timeout: SIGN_IN_TIMEOUT_MS }).toBe(2)
     const antes = falhas
-    await acionar(principal(page).getByRole('button', { name: 'Tentar de novo', exact: true }), hasTouch)
-    await expect.poll(() => falhas, { timeout: PRAZO_DA_ENTRADA_MS }).toBe(antes + 2)
-    await expect(principal(page).getByRole('status').filter({ hasText: 'Tentando de novo…' })).toHaveCount(0, { timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(principal(page).getByRole('button', { name: 'Tentar de novo', exact: true }), hasTouch)
+    await expect.poll(() => falhas, { timeout: SIGN_IN_TIMEOUT_MS }).toBe(antes + 2)
+    await expect(principal(page).getByRole('status').filter({ hasText: 'Tentando de novo…' })).toHaveCount(0, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(principal(page).getByRole('alert').filter({ hasText: 'O sistema está indisponível no momento' })).toBeVisible()
     falhando = false
-    await acionar(principal(page).getByRole('button', { name: 'Tentar de novo', exact: true }), hasTouch)
-    await expect(principal(page).getByText('Nenhum pedido ainda', { exact: true })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(principal(page).getByRole('button', { name: 'Tentar de novo', exact: true }), hasTouch)
+    await expect(principal(page).getByText('Nenhum pedido ainda', { exact: true })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
   })
 
   test('em preparação se relê a cada 10 s e vira pronto sem recarregar; com a aba escondida para, e ao voltar relê na hora', async ({ page, hasTouch }) => {
@@ -498,7 +498,7 @@ test.describe('Meus dados: os estados', () => {
     })
     await entrarComoAluno(page, aluno, hasTouch)
     await abrirPrivacidadeDoAluno(page, hasTouch)
-    await expect(pedidosDaTela(page, 'Cópia dos seus dados')).toContainText('Em preparação', { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(pedidosDaTela(page, 'Cópia dos seus dados')).toContainText('Em preparação', { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(pedidosDaTela(page, 'Cópia dos seus dados')).toContainText('Estamos preparando o seu arquivo. Volte em alguns minutos.')
     await expect(botaoDeBaixar(page)).toHaveCount(0)
     await expect.poll(() => leituras).toBe(1)
@@ -513,7 +513,7 @@ test.describe('Meus dados: os estados', () => {
     await esperarOQueJaSaiu(page)
     expect(leituras).toBe(1)
     await page.clock.fastForward('00:05')
-    await expect.poll(() => leituras, { timeout: PRAZO_DA_ENTRADA_MS }).toBe(2)
+    await expect.poll(() => leituras, { timeout: SIGN_IN_TIMEOUT_MS }).toBe(2)
     await expect(pedidosDaTela(page, 'Cópia dos seus dados')).toContainText('Em preparação')
 
     // Com a aba escondida, nenhuma leitura sai, por mais que o tempo passe.
@@ -529,14 +529,14 @@ test.describe('Meus dados: os estados', () => {
       Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true })
       document.dispatchEvent(new Event('visibilitychange'))
     })
-    await expect.poll(() => leituras, { timeout: PRAZO_DA_ENTRADA_MS }).toBeGreaterThanOrEqual(3)
+    await expect.poll(() => leituras, { timeout: SIGN_IN_TIMEOUT_MS }).toBeGreaterThanOrEqual(3)
     await esperarOQueJaSaiu(page)
     expect(leituras).toBe(3)
 
     // A escola termina: na leitura seguinte a tela mostra pronto, anuncia, e para de reler.
     await mudarEstadoDoPedidoNoBanco(coordenadora.escolaId, pedidoId, 'pronto')
     await page.clock.fastForward('00:10')
-    await expect(pedidosDaTela(page, 'Cópia dos seus dados')).toContainText('Pronto', { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(pedidosDaTela(page, 'Cópia dos seus dados')).toContainText('Pronto', { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(pedidosDaTela(page, 'Cópia dos seus dados')).not.toContainText('Estamos preparando')
     await expect(anuncios(page).filter({ hasText: 'O seu arquivo ficou pronto.' })).toBeVisible()
     await esperarOQueJaSaiu(page)
@@ -570,22 +570,22 @@ test.describe('Meus dados: os estados', () => {
     })
     await entrarComoAluno(page, aluno, hasTouch)
     await abrirPrivacidadeDoAluno(page, hasTouch)
-    await expect(pedidosDaTela(page, 'Cópia para levar a outro serviço')).toContainText('Pronto para baixar', { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(pedidosDaTela(page, 'Cópia para levar a outro serviço')).toContainText('Pronto para baixar', { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(pedidosDaTela(page, 'Cópia para levar a outro serviço')).toContainText('O arquivo fica disponível até')
 
-    await acionar(botaoDeBaixar(page), hasTouch)
+    await activate(botaoDeBaixar(page), hasTouch)
     const dialogo = confirmacao(page)
     await expect(dialogo).toBeVisible()
-    await acionar(dialogo.getByRole('button', { name: 'Baixar o arquivo', exact: true }), hasTouch)
+    await activate(dialogo.getByRole('button', { name: 'Baixar o arquivo', exact: true }), hasTouch)
     // A chamada está no ar: o botão diz o que acontece e fica desligado, e o diálogo continua aberto.
     await expect(dialogo.getByRole('button', { name: 'Preparando o arquivo…', exact: true })).toBeDisabled()
     await expect.poll(() => baixadas).toBe(1)
     liberar()
-    await expect(dialogo.getByRole('alert')).toContainText('Tente de novo em instantes: o arquivo continua guardado', { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(dialogo.getByRole('alert')).toContainText('Tente de novo em instantes: o arquivo continua guardado', { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(dialogo.getByRole('button', { name: 'Baixar o arquivo', exact: true })).toBeEnabled()
     await expect(dialogo.getByRole('button', { name: 'Cancelar', exact: true })).toBeVisible()
     // Cancelar fecha sem mudar nada: o botão continua na lista, com o foco de volta nele, e nenhum download foi feito.
-    await acionar(dialogo.getByRole('button', { name: 'Cancelar', exact: true }), hasTouch)
+    await activate(dialogo.getByRole('button', { name: 'Cancelar', exact: true }), hasTouch)
     await expect(dialogo).toHaveCount(0)
     await expect(botaoDeBaixar(page)).toBeFocused()
     expect(baixadas).toBe(1)
@@ -597,7 +597,7 @@ test.describe('Meus dados: os estados', () => {
     test.setTimeout(90_000)
     const { soltar } = await fecharODialogoComALeituraRetida(page, hasTouch)
     soltar()
-    await expect(pedidosDaTela(page, 'Cópia dos seus dados')).toContainText('Arquivo apagado', { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(pedidosDaTela(page, 'Cópia dos seus dados')).toContainText('Arquivo apagado', { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(botaoDeBaixar(page)).toHaveCount(0)
     // O botão que tinha o foco saiu da lista: o foco vai para o contêiner da tela (`div` com `tabIndex={-1}` que guarda a lista),
     // e não se perde no corpo da página nem fica em outro elemento qualquer (regra 50, item 11).
@@ -627,7 +627,7 @@ test.describe('Meus dados: os estados', () => {
       outro.focus()
     })
     soltar()
-    await expect(pedidosDaTela(page, 'Cópia dos seus dados')).toContainText('Arquivo apagado', { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(pedidosDaTela(page, 'Cópia dos seus dados')).toContainText('Arquivo apagado', { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(botaoDeBaixar(page)).toHaveCount(0)
     await expect(page.locator('#outro-controle-da-pessoa')).toBeFocused()
     expect(await page.evaluate(() => (window as unknown as { __focos: string[] }).__focos)).toEqual(['outro-controle-da-pessoa'])
@@ -643,7 +643,7 @@ test.describe('Meus dados: os estados', () => {
     await page.clock.install()
     await entrarComoAluno(page, aluno, hasTouch)
     await abrirPrivacidadeDoAluno(page, hasTouch)
-    await expect(pedidosDaTela(page, 'Correção dos seus dados')).toContainText('Pronto', { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(pedidosDaTela(page, 'Correção dos seus dados')).toContainText('Pronto', { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(pedidosDaTela(page, 'Cópia dos seus dados')).toContainText('Em preparação')
     // O que já chegou pronto não é novidade: nada é anunciado na abertura.
     await expect(anuncios(page).filter({ hasText: 'ficou pronto' })).toHaveCount(0)
@@ -651,7 +651,7 @@ test.describe('Meus dados: os estados', () => {
     // O pedido em preparação é cancelado pela escola: a tela o mostra cancelado, e não diz que "ficou pronto".
     await mudarEstadoDoPedidoNoBanco(coordenadora.escolaId, emPreparacao, 'cancelado')
     await page.clock.fastForward('00:10')
-    await expect(pedidosDaTela(page, 'Cópia dos seus dados')).toContainText('Cancelado', { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(pedidosDaTela(page, 'Cópia dos seus dados')).toContainText('Cancelado', { timeout: SIGN_IN_TIMEOUT_MS })
     await esperarOQueJaSaiu(page)
     await expect(anuncios(page).filter({ hasText: 'ficou pronto' })).toHaveCount(0)
   })
@@ -677,11 +677,11 @@ test.describe('Meus dados: os estados', () => {
     })
     await entrarComoAluno(page, aluno, hasTouch)
     await abrirPrivacidadeDoAluno(page, hasTouch)
-    await expect(pedidosDaTela(page, 'Cópia dos seus dados')).toContainText('Em preparação', { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(pedidosDaTela(page, 'Cópia dos seus dados')).toContainText('Em preparação', { timeout: SIGN_IN_TIMEOUT_MS })
 
     falhando = true
     await page.clock.fastForward('00:10')
-    await expect.poll(() => falhas, { timeout: PRAZO_DA_ENTRADA_MS }).toBeGreaterThan(0)
+    await expect.poll(() => falhas, { timeout: SIGN_IN_TIMEOUT_MS }).toBeGreaterThan(0)
     // A repetição automática da consulta sai um segundo depois: o tempo corre na aba, e a tela continua com o pedido.
     await page.clock.fastForward('00:05')
     await esperarOQueJaSaiu(page)
@@ -703,7 +703,7 @@ test.describe('Meus dados: os estados', () => {
     await abrirPrivacidadeDoAluno(page, hasTouch)
 
     const itens = principal(page).getByRole('listitem').filter({ hasText: 'Chegou à escola em' })
-    await expect(itens).toHaveCount(3, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(itens).toHaveCount(3, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(itens.nth(0)).toContainText('Eliminação dos seus dados')
     await expect(itens.nth(0)).toContainText('Cancelado')
     await expect(itens.nth(1)).toContainText('Quem recebeu os seus dados')
@@ -743,12 +743,12 @@ test.describe('Meus dados: só a escola ativa, e o recomeço', () => {
     await page.goto('/entrar')
     await entrarPorEmail(page, emA, hasTouch)
     const escolherA = page.getByRole('button', { name: `${emA.escolaNome} · professor` })
-    await acionar(escolherA, hasTouch)
+    await activate(escolherA, hasTouch)
     await esperarNovaConversa(page, emA.nome)
     await abrirMeusDadosDoProfessor(page, hasTouch)
 
     await expect(principal(page)).toContainText(`feitos em ${emA.escolaNome}`)
-    await expect(pedidosDaTela(page, 'Correção dos seus dados')).toHaveCount(1, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(pedidosDaTela(page, 'Correção dos seus dados')).toHaveCount(1, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(principal(page)).not.toContainText('Quem recebeu os seus dados')
 
     // Troca para B pela lateral: a tela de B não herda nada de A, nem enquanto a leitura de B não chega.
@@ -759,14 +759,14 @@ test.describe('Meus dados: só a escola ativa, e o recomeço', () => {
       await rota.continue()
     })
     await escolherNoSeletor(page, nomeNoSeletor(emB, 'professor'), hasTouch)
-    await expect(page).toHaveURL(/\/professor\/nova-conversa$/, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page).toHaveURL(/\/professor\/nova-conversa$/, { timeout: SIGN_IN_TIMEOUT_MS })
     await abrirNavegacao(page, hasTouch)
-    await acionar(lateral(page).getByRole('navigation', { name: 'Sua conta', exact: true }).getByRole('link', { name: 'Meus dados', exact: true }), hasTouch)
-    await expect(principal(page).getByRole('status').filter({ hasText: 'Carregando os seus pedidos…' })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(lateral(page).getByRole('navigation', { name: 'Sua conta', exact: true }).getByRole('link', { name: 'Meus dados', exact: true }), hasTouch)
+    await expect(principal(page).getByRole('status').filter({ hasText: 'Carregando os seus pedidos…' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(page.locator('body')).not.toContainText('Correção dos seus dados')
     await expect(page.locator('body')).not.toContainText(emA.escolaNome)
     liberar()
-    await expect(pedidosDaTela(page, 'Quem recebeu os seus dados')).toHaveCount(1, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(pedidosDaTela(page, 'Quem recebeu os seus dados')).toHaveCount(1, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(principal(page)).toContainText(`feitos em ${emB.escolaNome}`)
     await expect(page.locator('body')).not.toContainText('Correção dos seus dados')
     await telaSemProblema(page)
@@ -788,7 +788,7 @@ test.describe('Meus dados: só a escola ativa, e o recomeço', () => {
     await criarArquivoDoTitularNoBanco(coordenadora.escolaId, pedidoId)
     await entrarComoAluno(page, primeiro, hasTouch)
     await abrirPrivacidadeDoAluno(page, hasTouch)
-    await expect(pedidosDaTela(page, 'Cópia para levar a outro serviço')).toContainText('Pronto para baixar', { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(pedidosDaTela(page, 'Cópia para levar a outro serviço')).toContainText('Pronto para baixar', { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(botaoDeBaixar(page)).toBeVisible()
     await sair(page, hasTouch)
 
@@ -806,14 +806,14 @@ test.describe('Meus dados: só a escola ativa, e o recomeço', () => {
     }, segundo.slug)
     await page.getByLabel('Matrícula').fill(segundo.matricula)
     await page.getByLabel('Senha').fill(segundo.senha)
-    await acionar(page.getByRole('button', { name: /^Entrar$/ }), hasTouch)
-    await expect(page).toHaveURL(/\/aluno\/inicio$/, { timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(page.getByRole('button', { name: /^Entrar$/ }), hasTouch)
+    await expect(page).toHaveURL(/\/aluno\/inicio$/, { timeout: SIGN_IN_TIMEOUT_MS })
     await irAPrivacidadeDoAluno(page, hasTouch)
-    await expect(principal(page).getByRole('status').filter({ hasText: 'Carregando os seus pedidos…' })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(principal(page).getByRole('status').filter({ hasText: 'Carregando os seus pedidos…' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(page.locator('body')).not.toContainText('Cópia para levar a outro serviço')
     await expect(page.locator('body')).not.toContainText(primeiro.nome)
     liberar()
-    await expect(principal(page).getByText('Nenhum pedido ainda', { exact: true })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(principal(page).getByText('Nenhum pedido ainda', { exact: true })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(botaoDeBaixar(page)).toHaveCount(0)
     await expect(page.locator('body')).not.toContainText('Pronto para baixar')
     await expect(page.locator('body')).not.toContainText('Cópia para levar a outro serviço')

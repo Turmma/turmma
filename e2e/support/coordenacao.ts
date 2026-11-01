@@ -1,7 +1,7 @@
 import type { Locator, Page } from '@playwright/test'
 import { irPelaNavegacao } from './casca.ts'
 import { expect } from './profiles.ts'
-import { larguraExcedente } from './checks.ts'
+import { horizontalOverflow } from './checks.ts'
 
 /**
  * A navegação da coordenação pela tela (telas da coordenação, 3.0; D80): quatro lugares na lateral e na barra de baixo, e as
@@ -61,7 +61,7 @@ export function cliquesAte(tela: TelaDaCoordenacao): number {
   return 1 + (aba === undefined ? 0 : 1) + (seletor === undefined ? 0 : 1) + (link === undefined ? 0 : 1)
 }
 
-async function acionar(alvo: Locator, hasTouch: boolean): Promise<void> {
+async function activate(alvo: Locator, hasTouch: boolean): Promise<void> {
   if (hasTouch) await alvo.tap()
   else await alvo.click()
 }
@@ -77,15 +77,15 @@ export async function irPelaCoordenacao(page: Page, tela: TelaDaCoordenacao, has
   const principal = page.getByRole('main')
   if (aba !== undefined) {
     const abaDoLugar = principal.getByRole('tab', { name: aba, exact: true })
-    await acionar(abaDoLugar, hasTouch)
+    await activate(abaDoLugar, hasTouch)
     await expect(abaDoLugar).toHaveAttribute('aria-selected', 'true')
   }
   if (seletor !== undefined) {
     const opcao = principal.getByRole('radio', { name: seletor, exact: true })
-    await acionar(opcao, hasTouch)
+    await activate(opcao, hasTouch)
     await expect(opcao).toHaveAttribute('aria-checked', 'true')
   }
-  if (link !== undefined) await acionar(principal.getByRole('link', { name: link }), hasTouch)
+  if (link !== undefined) await activate(principal.getByRole('link', { name: link }), hasTouch)
 }
 
 /**
@@ -96,7 +96,7 @@ export async function paginaNaoRola(page: Page): Promise<void> {
   // A primeira amostra bastava para passar, e com a tela ainda em "Carregando…" a página é curta e passa sem provar nada (foi o que
   // deixou o laço do W2 passar nos Agentes, que rolavam). Só se mede com a leitura terminada, nas duas larguras.
   await expect(page.getByRole('main').getByText(/^(Carregando|Verificando)/), 'a tela ainda está carregando: a medida dela não é a de verdade').toHaveCount(0)
-  expect(await larguraExcedente(page)).toBe(0)
+  expect(await horizontalOverflow(page)).toBe(0)
   if ((page.viewportSize()?.width ?? 0) < 768) return
   const sobra = () => page.evaluate(() => document.documentElement.scrollHeight - document.documentElement.clientHeight)
   await expect.poll(sobra, { message: 'a página inteira rola a partir de 768 px: só o miolo deveria' }).toBeLessThanOrEqual(0)
@@ -121,7 +121,7 @@ export const painelDoQueFalta = (page: Page): Locator => page.getByRole('dialog'
 
 /** Abre o painel do ano letivo pelo botão da aba Turmas e devolve o painel, já visível. */
 export async function abrirAnoEDisciplinas(page: Page, hasTouch: boolean): Promise<Locator> {
-  await acionar(page.getByRole('main').getByRole('button', { name: 'Ano letivo e disciplinas' }), hasTouch)
+  await activate(page.getByRole('main').getByRole('button', { name: 'Ano letivo e disciplinas' }), hasTouch)
   const painel = painelDoAno(page)
   await expect(painel).toBeVisible()
   return painel
@@ -129,7 +129,7 @@ export async function abrirAnoEDisciplinas(page: Page, hasTouch: boolean): Promi
 
 /** Abre o painel do que falta pelo "Ver o que falta" do aviso e devolve o roteiro dos sete passos, dentro do painel. Quem sai por um link dele não fecha o painel. */
 export async function abrirOQueFalta(page: Page, hasTouch: boolean): Promise<Locator> {
-  await acionar(page.getByRole('main').getByRole('button', { name: 'Ver o que falta' }), hasTouch)
+  await activate(page.getByRole('main').getByRole('button', { name: 'Ver o que falta' }), hasTouch)
   const painel = painelDoQueFalta(page)
   await expect(painel).toBeVisible()
   return painel.getByRole('region', { name: 'O que falta para a escola começar' })
@@ -141,7 +141,7 @@ export async function abrirOQueFalta(page: Page, hasTouch: boolean): Promise<Loc
  */
 export async function comOQueFalta(page: Page, hasTouch: boolean, conferir: (roteiro: Locator) => Promise<void>): Promise<void> {
   const botao = page.getByRole('main').getByRole('button', { name: 'Ver o que falta' })
-  if ((await botao.count()) > 0) await acionar(botao, hasTouch)
+  if ((await botao.count()) > 0) await activate(botao, hasTouch)
   else
     await page.evaluate(() => {
       const endereco = new URL(window.location.href)
@@ -157,6 +157,6 @@ export async function comOQueFalta(page: Page, hasTouch: boolean, conferir: (rot
 
 /** Fecha o painel que está aberto pelo "Fechar" dele e espera ele sair. */
 export async function fecharPainel(page: Page, painel: Locator, hasTouch: boolean): Promise<void> {
-  await acionar(painel.getByRole('button', { name: 'Fechar', exact: true }), hasTouch)
+  await activate(painel.getByRole('button', { name: 'Fechar', exact: true }), hasTouch)
   await expect(painel).toHaveCount(0)
 }

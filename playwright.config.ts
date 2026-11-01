@@ -1,5 +1,5 @@
 import { defineConfig, devices } from '@playwright/test'
-import { PERFIL_CELULAR, PERFIL_CHROMEBOOK, type OpcoesDoPerfil } from './e2e/support/profiles.ts'
+import { MOBILE_PROFILE, CHROMEBOOK_PROFILE, type ProfileOptions } from './e2e/support/profiles.ts'
 import { lerAmbienteDeTeste, valorObrigatorio } from './tools/ci/compose.ts'
 import { relatoriosDoPlaywright, VARIAVEL_DO_RELATORIO_DO_E2E } from './tools/ci/duracao-do-e2e.ts'
 
@@ -23,7 +23,7 @@ const regraDeNomeDoOidcFalso = `MAP ${emissorDoOidcFalso.host} 127.0.0.1:${valor
  * Todo spec de tela roda nos dois projetos (D51), sem `testMatch` nem `testIgnore` por projeto. Os dois são
  * Chromium: a limitação de CPU e de rede vem do CDP, que só ele tem.
  */
-export default defineConfig<OpcoesDoPerfil>({
+export default defineConfig<ProfileOptions>({
   testDir: 'e2e',
   fullyParallel: true,
   forbidOnly: process.env['CI'] === 'true',
@@ -44,7 +44,7 @@ export default defineConfig<OpcoesDoPerfil>({
     {
       // Chromebook de entrada: tela de 1366 × 768, CPU ×4 e Fast 3G.
       name: 'chromebook',
-      use: { ...devices['Desktop Chrome'], viewport: { width: 1366, height: 768 }, perfil: PERFIL_CHROMEBOOK },
+      use: { ...devices['Desktop Chrome'], viewport: { width: 1366, height: 768 }, profile: CHROMEBOOK_PROFILE },
     },
     {
       // Celular de entrada: 360 × 800, toque, CPU ×4 e rede móvel lenta.
@@ -56,7 +56,7 @@ export default defineConfig<OpcoesDoPerfil>({
         deviceScaleFactor: 2,
         isMobile: true,
         hasTouch: true,
-        perfil: PERFIL_CELULAR,
+        profile: MOBILE_PROFILE,
       },
     },
   ],

@@ -1,9 +1,9 @@
 import { randomUUID } from 'node:crypto'
 import type { Page, Route } from '@playwright/test'
 import type { MensagemDoTutor, MensagemDoTutorAoAluno, MinhaAtividade, ConversaDoTutorResponse, ExecucaoResponse, MemoriaDoTutorResponse, MeuDiagnosticoResponse, ProvaResponse } from '../../packages/shared/src/index.ts'
-import { erroDaApi, portao, type PedidoRegistrado } from './assistente.ts'
+import { apiError, gate, type PedidoRegistrado } from './assistente.ts'
 
-export { erroDaApi, portao }
+export { apiError, gate }
 
 /**
  * A API das telas do aluno (A3 e A4), **simulada na página** (`page.route`): as atividades dele, a prova, as respostas,
@@ -45,7 +45,7 @@ function campo(corpo: unknown, nome: string): unknown {
   return typeof corpo === 'object' && corpo !== null && nome in corpo ? (corpo as Record<string, unknown>)[nome] : undefined
 }
 
-export class ApiDoAluno {
+export class AlunoApiMock {
   atividades: MinhaAtividade[] = []
   readonly provas = new Map<string, ProvaResponse>()
   readonly diagnosticos = new Map<string, MeuDiagnosticoResponse>()
@@ -112,9 +112,9 @@ export class ApiDoAluno {
     if (rota === 'atividades') return { status: 200, corpo: { itens: this.atividades } }
     if (rota === 'execucao') {
       const execucao = this.execucoes.get(id)
-      return execucao === undefined ? erroDaApi(404, 'NAO_ENCONTRADO') : { status: 200, corpo: execucao }
+      return execucao === undefined ? apiError(404, 'NAO_ENCONTRADO') : { status: 200, corpo: execucao }
     }
-    if (rota === 'memoria') return this.memoria === null ? erroDaApi(404, 'NAO_ENCONTRADO') : { status: 200, corpo: this.memoria }
+    if (rota === 'memoria') return this.memoria === null ? apiError(404, 'NAO_ENCONTRADO') : { status: 200, corpo: this.memoria }
     if (rota === 'conversa') {
       // Sem `atividadeAplicadaId` a resposta é o estado do Tutor e nenhuma mensagem: é o que a API devolve a quem pergunta o estado sem abrir conversa. Nenhuma tela do aluno faz essa leitura hoje (Tech Spec 7c e 12b, item 4).
       const atividade = url.searchParams.get('atividadeAplicadaId') ?? ''
@@ -127,18 +127,18 @@ export class ApiDoAluno {
     }
     if (rota === 'mensagens') {
       // Como a API: em avaliação e no limite a pergunta comum é recusada, sem gravar nada.
-      if (this.tutor.estado === 'avaliacao') return erroDaApi(409, 'TUTOR_PAUSADO_EM_AVALIACAO')
-      if (this.tutor.estado === 'limite') return erroDaApi(429, 'LIMITE_DIARIO_DO_TUTOR')
+      if (this.tutor.estado === 'avaliacao') return apiError(409, 'TUTOR_PAUSADO_EM_AVALIACAO')
+      if (this.tutor.estado === 'limite') return apiError(429, 'LIMITE_DIARIO_DO_TUTOR')
       return this.aceitarPergunta(corpo)
     }
     if (rota === 'diagnostico') {
       const diagnostico = this.diagnosticos.get(id)
-      return diagnostico === undefined ? erroDaApi(404, 'NAO_ENCONTRADO') : { status: 200, corpo: diagnostico }
+      return diagnostico === undefined ? apiError(404, 'NAO_ENCONTRADO') : { status: 200, corpo: diagnostico }
     }
     const prova = this.provas.get(id)
-    if (prova === undefined) return erroDaApi(404, 'NAO_ENCONTRADO')
+    if (prova === undefined) return apiError(404, 'NAO_ENCONTRADO')
     if (rota === 'prova') return { status: 200, corpo: prova }
-    if (prova.enviadaEm !== null || prova.estado === 'encerrada') return erroDaApi(409, 'ATIVIDADE_ENCERRADA')
+    if (prova.enviadaEm !== null || prova.estado === 'encerrada') return apiError(409, 'ATIVIDADE_ENCERRADA')
     if (rota === 'enviar') {
       const enviadaEm = new Date().toISOString()
       this.provas.set(id, { ...prova, enviadaEm })
@@ -167,7 +167,7 @@ export class ApiDoAluno {
     const achada = ROTAS.map((rota) => ({ ...rota, ids: rota.caminho.exec(url.pathname) })).find((rota) => rota.metodo === metodo && rota.ids !== null)
     if (achada === undefined || achada.ids === null) {
       // Rota destas telas que o teste não conhece: falha alto.
-      await route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify(erroDaApi(500, 'ERRO_INTERNO').corpo) })
+      await route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify(apiError(500, 'ERRO_INTERNO').corpo) })
       return
     }
     const corpo: unknown = metodo === 'GET' ? undefined : pedido.postDataJSON()
@@ -183,8 +183,8 @@ export class ApiDoAluno {
 }
 
 /** Liga a API simulada na página, antes de o aluno entrar. */
-export async function simularAluno(page: Page): Promise<ApiDoAluno> {
-  const api = new ApiDoAluno()
+export async function mockAlunoApi(page: Page): Promise<AlunoApiMock> {
+  const api = new AlunoApiMock()
   await api.ligar(page)
   return api
 }

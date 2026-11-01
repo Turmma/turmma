@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { expect, type Locator, type Page } from '@playwright/test'
-import { atividadeSintetica, entregaDoLote, loteSintetico, simularAssistente, versaoAdaptada, type ApiDoAssistente } from '../assistente.ts'
-import { entrarPorEmail, esperarNovaConversa, PRAZO_DA_ENTRADA_MS } from '../casca.ts'
+import { atividadeSintetica, entregaDoLote, loteSintetico, mockAssistenteApi, versaoAdaptada, type AssistenteApiMock } from '../assistente.ts'
+import { entrarPorEmail, esperarNovaConversa, SIGN_IN_TIMEOUT_MS } from '../casca.ts'
 import { confirmarVinculosNoBanco, criarAlocacaoDoProfessor, criarEquipeComSenha, criarPedidosNoBanco, type AlocacaoDeTeste, type EquipeDeTeste, type PedidoDeTeste } from '../seed.ts'
 
 /**
@@ -17,8 +17,8 @@ import { confirmarVinculosNoBanco, criarAlocacaoDoProfessor, criarEquipeComSenha
 export const TITULO_DA_CORRECAO = 'Atividade de estequiometria'
 export const TITULO_DA_VERSAO = 'Atividade de estequiometria (versão adaptada)'
 
-export interface CenaDoSino {
-  readonly api: ApiDoAssistente
+export interface SinoScenario {
+  readonly api: AssistenteApiMock
   readonly professora: EquipeDeTeste
   /** A turma confirmada, com as duas entregas e os dois pedidos de nome. */
   readonly turmaA: AlocacaoDeTeste
@@ -30,8 +30,8 @@ export interface CenaDoSino {
 }
 
 /** Cria a cena no banco e na API simulada, sem entrar: quem usa decide como a professora chega (a mesma aba, outra escola). */
-export async function prepararCena(page: Page): Promise<CenaDoSino> {
-  const api = await simularAssistente(page)
+export async function setupScenario(page: Page): Promise<SinoScenario> {
+  const api = await mockAssistenteApi(page)
   const professora = await criarEquipeComSenha()
   const turmaA = await criarAlocacaoDoProfessor(professora.escolaId, professora.usuarioId, ['Química'])
   const turmaB = await criarAlocacaoDoProfessor(professora.escolaId, professora.usuarioId, ['Física'])
@@ -51,7 +51,7 @@ export async function prepararCena(page: Page): Promise<CenaDoSino> {
 }
 
 /** A professora entra pela tela de entrada e chega a "Início", onde o sino já está. */
-export async function entrarNaCena(page: Page, cena: Pick<CenaDoSino, 'professora'>, hasTouch: boolean): Promise<void> {
+export async function entrarNaCena(page: Page, cena: Pick<SinoScenario, 'professora'>, hasTouch: boolean): Promise<void> {
   await page.goto('/entrar')
   await entrarPorEmail(page, cena.professora, hasTouch)
   await esperarNovaConversa(page, cena.professora.nome)
@@ -65,7 +65,7 @@ export const peDoSino = (page: Page): Locator => listaDoSino(page).getByRole('re
 /** Espera o sino ter lido tudo (nome com o número) e devolve o botão. */
 export async function esperarSino(page: Page, nome: string): Promise<Locator> {
   const sino = sinoDe(page)
-  await expect(sino).toHaveAccessibleName(nome, { timeout: PRAZO_DA_ENTRADA_MS })
+  await expect(sino).toHaveAccessibleName(nome, { timeout: SIGN_IN_TIMEOUT_MS })
   return sino
 }
 
@@ -87,7 +87,7 @@ export async function semAnimacao(alvo: Locator): Promise<void> {
 }
 
 /** Uma porta que segura a resposta até o teste abrir. */
-export function portao(): { readonly aberta: Promise<void>; readonly abrir: () => void } {
+export function gate(): { readonly aberta: Promise<void>; readonly abrir: () => void } {
   let abrir: () => void = () => undefined
   const aberta = new Promise<void>((resolver) => {
     abrir = resolver

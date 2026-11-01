@@ -12,14 +12,14 @@ import {
   type EquipeDeTeste,
 } from './support/seed.ts'
 import { abrirNavegacao, abrirSeletorDeEscola, botaoDoSeletor, entrarPelaApi, esperarPainel, irPelaNavegacao, lateral, linhaDoSeletor, nomeNoSeletor, esperarNovaConversa, esperarInicioDoAluno, secoes } from './support/casca.ts'
-import { carregarSemRedeLenta, expect, test } from './support/profiles.ts'
-import { ALVO_DE_TOQUE_PRINCIPAL_PX, codigoCru, focoVisivel, larguraExcedente, violacoesGraves } from './support/checks.ts'
+import { loadUnthrottled, expect, test } from './support/profiles.ts'
+import { ALVO_DE_TOQUE_PRINCIPAL_PX, rawCodePattern, isFocusVisible, horizontalOverflow, seriousViolations } from './support/checks.ts'
 
 const ROTA_MEUS_VINCULOS = '**/v1/meus-vinculos*'
 const ROTA_CONFIRMAR = '**/v1/vinculos/*/confirmar'
 const ROTA_CONTESTAR = '**/v1/vinculos/*/contestar'
 /** O Chromebook com CPU ×4 e rede Fast 3G carrega a página e ainda faz o hash da senha no servidor. */
-const PRAZO_DA_ENTRADA_MS = 20_000
+const SIGN_IN_TIMEOUT_MS = 20_000
 /** O login pela conta da escola passa por três navegações e o discovery do provedor. */
 const PRAZO_DO_LOGIN_EXTERNO_MS = 40_000
 /** Um passo do TOTP à frente: a ativação grava o passo usado, e só um passo maior entra depois (6.0). */
@@ -34,7 +34,7 @@ const campoEmail = (page: Page) => page.getByLabel('E-mail')
 const campoSenha = (page: Page) => page.getByLabel('Senha')
 
 /** Toque no celular, clique no Chromebook: a mesma ação pela entrada que cada aparelho tem. */
-async function acionar(page: Page, nome: string | RegExp, hasTouch: boolean, papel: 'button' | 'link' = 'button'): Promise<void> {
+async function activate(page: Page, nome: string | RegExp, hasTouch: boolean, papel: 'button' | 'link' = 'button'): Promise<void> {
   const alvo = page.getByRole(papel, { name: nome })
   if (hasTouch) await alvo.tap()
   else await alvo.click()
@@ -50,7 +50,7 @@ async function esperarAlvoDeToque(alvo: Locator, descricao: string): Promise<voi
 async function entrarPorEmail(page: Page, equipe: EquipeDeTeste, hasTouch: boolean): Promise<void> {
   await campoEmail(page).fill(equipe.email)
   await campoSenha(page).fill(equipe.senha)
-  await acionar(page, /^Entrar$/, hasTouch)
+  await activate(page, /^Entrar$/, hasTouch)
 }
 
 /**
@@ -82,7 +82,7 @@ async function tabAte(page: Page, alvo: Locator, descricao: string, maximoDeTecl
   for (let tecla = 0; tecla < maximoDeTeclas; tecla++) {
     await page.keyboard.press('Tab')
     if (await alvo.evaluate((elemento) => elemento === document.activeElement)) {
-      expect(await focoVisivel(page), `foco invisível em ${descricao}`).toBe(true)
+      expect(await isFocusVisible(page), `foco invisível em ${descricao}`).toBe(true)
       return
     }
   }
@@ -118,16 +118,16 @@ test.describe('escolher e trocar de escola', () => {
     await page.keyboard.type(emA.senha)
     await page.keyboard.press('Enter')
 
-    await expect(page.getByRole('heading', { name: 'Escolher a escola' })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page.getByRole('heading', { name: 'Escolher a escola' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     // Sem a lista que vem junto com o desafio, esta tela não teria o que mostrar: não há sessão para consultar nada.
     await expect(page.getByRole('button', { name: `${emA.escolaNome} · professor` })).toBeVisible()
     await expect(page.getByRole('button', { name: `${emB.escolaNome} · professor` })).toBeVisible()
-    expect(await larguraExcedente(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await horizontalOverflow(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
 
     // Alcança a escolha só com o teclado, e o foco aparece.
     await page.keyboard.press('Tab')
-    expect(await focoVisivel(page)).toBe(true)
+    expect(await isFocusVisible(page)).toBe(true)
     await page.getByRole('button', { name: `${emB.escolaNome} · professor` }).focus()
     await page.keyboard.press('Enter')
 
@@ -145,11 +145,11 @@ test.describe('escolher e trocar de escola', () => {
 
     await page.goto('/entrar')
     await entrarPorEmail(page, emA, hasTouch)
-    await acionar(page, `${emA.escolaNome} · professor`, hasTouch)
+    await activate(page, `${emA.escolaNome} · professor`, hasTouch)
     await esperarEscola(page, emA.nome, emA.escolaNome)
 
     await irPelaNavegacao(page, 'Turmas', hasTouch)
-    await expect(page.getByRole('main')).toContainText(alocacao.turmaNome, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page.getByRole('main')).toContainText(alocacao.turmaNome, { timeout: SIGN_IN_TIMEOUT_MS })
 
     // A janela que importa: a lista de B segurada desde antes da troca. É nela que a turma de A apareceria se tivesse
     // ficado no cliente — depois que a resposta de B chega, a ausência já não prova nada. A rota entra antes da troca
@@ -169,7 +169,7 @@ test.describe('escolher e trocar de escola', () => {
     // A troca volta à tela em que o professor abre, já da escola de destino, com a lista de B ainda a caminho.
     await esperarEscola(page, 'Professora sintética na outra escola', emB.escolaNome)
     expect(new URL(page.url()).pathname).toBe('/professor/nova-conversa')
-    await expect(page.getByText('Carregando as suas turmas…')).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page.getByText('Carregando as suas turmas…')).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     // Sem o esvaziamento do cache na troca, a turma de A continuaria no cliente e apareceria na tela de B. O nome da
     // escola A segue no seletor, e só nele: ele é um acesso da própria conta, e não dado da escola A.
     await expect(page.locator('body')).not.toContainText(alocacao.turmaNome)
@@ -177,14 +177,14 @@ test.describe('escolher e trocar de escola', () => {
 
     // E nem voltando pelo histórico: o que saiu do cliente não volta.
     await page.goBack()
-    await expect(page.locator('body')).not.toContainText(alocacao.turmaNome, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page.locator('body')).not.toContainText(alocacao.turmaNome, { timeout: SIGN_IN_TIMEOUT_MS })
 
     // Voltar aos vínculos, já em B, com a lista ainda segurada.
     await irPelaNavegacao(page, 'Turmas', hasTouch)
-    await expect(page.getByText('Carregando as suas turmas…')).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page.getByText('Carregando as suas turmas…')).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(page.locator('body')).not.toContainText(alocacao.turmaNome)
     liberar()
-    await expect(page.getByText('A coordenação ainda não alocou você')).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page.getByText('A coordenação ainda não alocou você')).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(page.locator('body')).not.toContainText(alocacao.turmaNome)
   })
 
@@ -193,7 +193,7 @@ test.describe('escolher e trocar de escola', () => {
     await page.goto(`/e/${aluno.slug}`)
     await page.getByLabel('Matrícula').fill(aluno.matricula)
     await campoSenha(page).fill(aluno.senha)
-    await acionar(page, /^Entrar$/, hasTouch)
+    await activate(page, /^Entrar$/, hasTouch)
     await esperarEscolaDoAluno(page, aluno.nome, aluno.escolaNome)
 
     // O aluno entra por matrícula e não tem conta (regra 20, item 2): não há outra escola para listar, e é por isso
@@ -205,7 +205,7 @@ test.describe('escolher e trocar de escola', () => {
     // Vínculo é do professor: o aluno não confirma turma nenhuma (RF4); os itens dele são Início, Tarefas e Eu (X4, 2.0; W2).
     await expect(page.getByRole('link', { name: 'Turmas', exact: true })).toHaveCount(0)
     await expect(secoes(page).getByRole('link')).toHaveText(['Início', 'Tarefas', 'Eu'])
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await seriousViolations(page)).toEqual([])
   })
 
   test('isolamento: a troca que passa pelo segundo fator também não leva nada da escola de origem para a de destino', async ({ page, hasTouch }) => {
@@ -217,28 +217,28 @@ test.describe('escolher e trocar de escola', () => {
     const respostaDoSegredo = page.waitForResponse((resposta) => new URL(resposta.url()).pathname === '/v1/conta/mfa/configurar')
     await page.goto('/entrar')
     await entrarPorEmail(page, emA, hasTouch)
-    await acionar(page, `${emB.escolaNome} · coordenação`, hasTouch)
-    await expect(page.getByRole('heading', { name: 'Configurar o segundo fator' })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(page, `${emB.escolaNome} · coordenação`, hasTouch)
+    await expect(page.getByRole('heading', { name: 'Configurar o segundo fator' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     const { segredo } = (await (await respostaDoSegredo).json()) as { segredo: string }
     await page.getByLabel(/Código do aplicativo|Digite o código que o aplicativo mostra/).fill(codigoDoAutenticador(segredo))
-    await acionar(page, /Ativar o segundo fator|Ativando/, hasTouch)
-    await acionar(page, 'Ir para a entrada', hasTouch, 'link')
+    await activate(page, /Ativar o segundo fator|Ativando/, hasTouch)
+    await activate(page, 'Ir para a entrada', hasTouch, 'link')
 
     // Agora ela entra na escola onde dá aula, e carrega os vínculos dela lá.
     await entrarPorEmail(page, emA, hasTouch)
-    await acionar(page, `${emA.escolaNome} · professor`, hasTouch)
+    await activate(page, `${emA.escolaNome} · professor`, hasTouch)
     await esperarEscola(page, emA.nome, emA.escolaNome)
     await irPelaNavegacao(page, 'Turmas', hasTouch)
-    await expect(page.getByRole('main')).toContainText(alocacao.turmaNome, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page.getByRole('main')).toContainText(alocacao.turmaNome, { timeout: SIGN_IN_TIMEOUT_MS })
 
     // E troca para a escola onde coordena. A sessão de origem continua valendo até o código ser aceito: é por isso
     // que esvaziar o cache aqui, antes do token de destino, traria de volta o dado da escola de origem — com a
     // credencial dela, que ainda funciona (regra 10, item 1).
     await abrirSeletorDeEscola(page, hasTouch)
     await acionarNoSeletor(page, nomeNoSeletor(emB, 'coordenação'), hasTouch)
-    await expect(page.getByRole('heading', { name: 'Segundo fator' })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page.getByRole('heading', { name: 'Segundo fator' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await page.getByLabel('Código do aplicativo').fill(codigoDoAutenticador(segredo, PASSO_SEGUINTE_SEGUNDOS))
-    await acionar(page, /^Entrar$|Entrando/, hasTouch)
+    await activate(page, /^Entrar$|Entrando/, hasTouch)
 
     // Na escola onde coordena, ela abre em Governança (A5), com a escola de destino no seletor.
     await esperarPainel(page)
@@ -256,14 +256,14 @@ test.describe('escolher e trocar de escola', () => {
 
     await page.goto('/entrar')
     await entrarPorEmail(page, emA, hasTouch)
-    await acionar(page, `${emA.escolaNome} · professor`, hasTouch)
+    await activate(page, `${emA.escolaNome} · professor`, hasTouch)
     await esperarEscola(page, emA.nome, emA.escolaNome)
 
     await abrirSeletorDeEscola(page, hasTouch)
     await acionarNoSeletor(page, nomeNoSeletor(emB, 'coordenação'), hasTouch)
 
     // Coordenar exige o segundo fator sempre, mesmo vindo de uma sessão já aberta (Tech Spec, seção 5).
-    await expect(page.getByRole('heading', { name: 'Configurar o segundo fator' })).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page.getByRole('heading', { name: 'Configurar o segundo fator' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(page).toHaveURL(/\/mfa\/configurar$/)
     await expect(page.locator('body')).not.toContainText(emB.escolaNome)
   })
@@ -275,7 +275,7 @@ test.describe('escolher e trocar de escola', () => {
     await ligarContaExterna(emA.escolaId, emA.usuarioId, { provedor: 'google', sujeito: SUJEITO_NO_PROVEDOR })
 
     await page.goto(`/e/${emA.slug}`)
-    await acionar(page, /Entrar com a conta Google/, hasTouch, 'link')
+    await activate(page, /Entrar com a conta Google/, hasTouch, 'link')
     await entrarNoProvedorFalso(page, CONTA_NO_PROVEDOR)
     await esperarNovaConversa(page, emA.nome, { timeout: PRAZO_DO_LOGIN_EXTERNO_MS })
 
@@ -283,8 +283,8 @@ test.describe('escolher e trocar de escola', () => {
     await acionarNoSeletor(page, nomeNoSeletor(emB, 'professor'), hasTouch)
 
     // A API recusa a troca de uma sessão que não é de e-mail, e a tela diz o que fazer em vez de mostrar o código.
-    await expect(page.getByRole('alert')).toContainText(AVISO_DA_TROCA_RECUSADA, { timeout: PRAZO_DA_ENTRADA_MS })
-    for (const proibido of ['NAO_ENCONTRADO', codigoCru('404')]) await expect(page.locator('body')).not.toContainText(proibido)
+    await expect(page.getByRole('alert')).toContainText(AVISO_DA_TROCA_RECUSADA, { timeout: SIGN_IN_TIMEOUT_MS })
+    for (const proibido of ['NAO_ENCONTRADO', rawCodePattern('404')]) await expect(page.locator('body')).not.toContainText(proibido)
     // E continua na escola em que estava, com a sessão de pé.
     await esperarEscola(page, emA.nome, emA.escolaNome)
   })
@@ -300,17 +300,17 @@ test.describe('vínculos do professor', () => {
     const matematica = page.getByRole('listitem').filter({ hasText: 'Matemática' })
     const historia = page.getByRole('listitem').filter({ hasText: 'História' })
     // Cada vínculo que espera a professora é uma faixa "Confirme sua turma", com a turma e a disciplina, e ainda não é cartão de turma.
-    await expect(matematica).toContainText(`Confirme sua turma · ${alocacao.turmaNome} · Matemática`, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(matematica).toContainText(`Confirme sua turma · ${alocacao.turmaNome} · Matemática`, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(historia).toContainText(`Confirme sua turma · ${alocacao.turmaNome} · História`)
     await expect(page.getByRole('region', { name: 'Suas turmas', exact: true })).toHaveCount(0)
     await expect(page.getByRole('button', { name: 'Sair' })).toBeVisible()
     await esperarAlvoDeToque(matematica.getByRole('button', { name: 'Confirmar' }), 'o botão de confirmar o vínculo')
-    expect(await larguraExcedente(page)).toBe(0)
+    expect(await horizontalOverflow(page)).toBe(0)
 
     // Confirma só a de matemática: ela vira cartão, e a outra continua na faixa.
     if (hasTouch) await matematica.getByRole('button', { name: 'Confirmar' }).tap()
     else await matematica.getByRole('button', { name: 'Confirmar' }).click()
-    await expect(matematica).toContainText(NOME_DO_ESTADO_DE_VINCULO.confirmado, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(matematica).toContainText(NOME_DO_ESTADO_DE_VINCULO.confirmado, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(historia).toContainText('Confirme sua turma')
 
     // Contesta a de história, no painel ao lado, com o motivo e o complemento.
@@ -325,13 +325,13 @@ test.describe('vínculos do professor', () => {
 
     await painel.getByRole('radio', { name: NOME_DA_CONTESTACAO.nao_leciono }).check()
     await painel.getByRole('textbox').fill('Quem dá história nesta turma é o outro professor.')
-    expect(await violacoesGraves(page)).toEqual([])
-    expect(await larguraExcedente(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
+    expect(await horizontalOverflow(page)).toBe(0)
     if (hasTouch) await painel.getByRole('button', { name: 'Enviar a contestação' }).tap()
     else await painel.getByRole('button', { name: 'Enviar a contestação' }).click()
 
-    await expect(painel).toHaveCount(0, { timeout: PRAZO_DA_ENTRADA_MS })
-    await expect(historia).toContainText(NOME_DO_ESTADO_DE_VINCULO.contestado, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(painel).toHaveCount(0, { timeout: SIGN_IN_TIMEOUT_MS })
+    await expect(historia).toContainText(NOME_DO_ESTADO_DE_VINCULO.contestado, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(historia).toContainText(NOME_DA_CONTESTACAO.nao_leciono)
     // O contestado espera a coordenação: sai da faixa e não abre a turma.
     await expect(page.getByRole('region', { name: 'Confirme suas turmas', exact: true })).toHaveCount(0)
@@ -345,7 +345,7 @@ test.describe('vínculos do professor', () => {
     const alocacao = await criarAlocacaoDoProfessor(professora.escolaId, professora.usuarioId, ['Matemática'])
 
     await abrirJaEntrando(page, professora, '/professor/turmas')
-    await expect(page.getByRole('main')).toContainText(alocacao.turmaNome, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page.getByRole('main')).toContainText(alocacao.turmaNome, { timeout: SIGN_IN_TIMEOUT_MS })
 
     // Abre a contestação sem tocar no mouse: ela abre no painel ao lado, e o foco entra nele.
     await tabAte(page, page.getByRole('button', { name: 'Contestar' }), 'o botão de contestar')
@@ -364,7 +364,7 @@ test.describe('vínculos do professor', () => {
     await tabAte(page, page.getByRole('button', { name: 'Enviar a contestação' }), 'o botão de enviar a contestação')
     await page.keyboard.press('Enter')
 
-    await expect(page.getByRole('main')).toContainText(NOME_DO_ESTADO_DE_VINCULO.contestado, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page.getByRole('main')).toContainText(NOME_DO_ESTADO_DE_VINCULO.contestado, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(page.getByRole('main')).toContainText(NOME_DA_CONTESTACAO.nao_leciono)
     // O painel fechou, e o foco foi para onde o cartão entrou: quem usa o teclado não volta ao topo da página.
     await expect(page.getByRole('dialog', { name: 'Contestar a turma' })).toHaveCount(0)
@@ -392,7 +392,7 @@ test.describe('vínculos do professor', () => {
     await abrirJaEntrando(page, professora, '/professor/turmas')
 
     const historia = page.getByRole('listitem').filter({ hasText: 'História' })
-    await expect(historia).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(historia).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     if (hasTouch) await historia.getByRole('button', { name: 'Contestar' }).tap()
     else await historia.getByRole('button', { name: 'Contestar' }).click()
     const painel = page.getByRole('dialog', { name: 'Contestar a turma' })
@@ -415,13 +415,13 @@ test.describe('vínculos do professor', () => {
     // Duas confirmações do mesmo vínculo são duas decisões oficiais registradas com autor e data.
     await confirmar.dispatchEvent('click')
     liberar()
-    await expect(matematica).toContainText(NOME_DO_ESTADO_DE_VINCULO.confirmado, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(matematica).toContainText(NOME_DO_ESTADO_DE_VINCULO.confirmado, { timeout: SIGN_IN_TIMEOUT_MS })
     expect(confirmacoes).toBe(1)
   })
 
-  /** A professora entra pela API e abre as Turmas; a primeira carga não afirma nada sobre o tempo de baixar (`carregarSemRedeLenta`). */
+  /** A professora entra pela API e abre as Turmas; a primeira carga não afirma nada sobre o tempo de baixar (`loadUnthrottled`). */
   async function abrirTurmasDaProfessora(page: Page, professora: EquipeDeTeste, hasTouch: boolean): Promise<void> {
-    await carregarSemRedeLenta(page, async () => {
+    await loadUnthrottled(page, async () => {
       await entrarPelaApi(page, professora, '/professor/nova-conversa')
       await esperarEscola(page, professora.nome, professora.escolaNome)
     })
@@ -452,24 +452,24 @@ test.describe('vínculos do professor', () => {
     await abrirTurmasDaProfessora(page, professora, hasTouch)
 
     // Carregando.
-    await expect(page.getByText('Carregando as suas turmas…')).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page.getByText('Carregando as suas turmas…')).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
 
     // Erro: a tela fica de pé e oferece tentar de novo (regra 80, item 6).
     falhar = true
     liberar()
-    await expect(page.getByRole('alert')).toContainText(MENSAGENS_DE_ERRO.INDISPONIVEL_TENTE_DE_NOVO, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page.getByRole('alert')).toContainText(MENSAGENS_DE_ERRO.INDISPONIVEL_TENTE_DE_NOVO, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(page.getByRole('button', { name: 'Sair' })).toBeVisible()
 
     // Vazio: a professora ainda não foi alocada, e o vazio diz o que fazer.
     falhar = false
     segurar = false
-    await acionar(page, 'Tentar de novo', hasTouch)
-    await expect(page.getByText('A coordenação ainda não alocou você')).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await activate(page, 'Tentar de novo', hasTouch)
+    await expect(page.getByText('A coordenação ainda não alocou você')).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(page.getByRole('main')).toContainText('fale com ela')
     // Sem lista, o que resta na ordem de foco é a casca, e ela continua alcançável com foco visível.
     await tabAte(page, page.getByRole('button', { name: 'Sair' }), 'o "Sair" da casca')
-    expect(await larguraExcedente(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await horizontalOverflow(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
   })
 
   test('o estado com a lista: carregando a leitura das turmas e depois a turma alocada pela coordenação', async ({ page, hasTouch }) => {
@@ -485,10 +485,10 @@ test.describe('vínculos do professor', () => {
     })
 
     await abrirTurmasDaProfessora(page, professora, hasTouch)
-    await expect(page.getByText('Carregando as suas turmas…')).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page.getByText('Carregando as suas turmas…')).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     liberar()
-    await expect(page.getByRole('main')).toContainText(alocacao.turmaNome, { timeout: PRAZO_DA_ENTRADA_MS })
-    expect(await larguraExcedente(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    await expect(page.getByRole('main')).toContainText(alocacao.turmaNome, { timeout: SIGN_IN_TIMEOUT_MS })
+    expect(await horizontalOverflow(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
   })
 })

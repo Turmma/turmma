@@ -17,17 +17,17 @@ import {
   irPelaNavegacao,
   lateral,
   naGaveta,
-  PRAZO_DA_ENTRADA_MS,
+  SIGN_IN_TIMEOUT_MS,
   esperarNovaConversa,
   secoes,
   TITULO_DA_NOVA_CONVERSA,
   esperarInicioDoAluno,
 } from './support/casca.ts'
 import { cliquesAte, irPelaCoordenacao, paginaNaoRola, type TelaDaCoordenacao } from './support/coordenacao.ts'
-import { carregarSemRedeLenta, expect, test } from './support/profiles.ts'
+import { loadUnthrottled, expect, test } from './support/profiles.ts'
 import { configurarSegundoFatorPelaApi } from './support/mfa.ts'
 import { colocarAlunoNaTurma, criarAlocacaoDoProfessor, criarAlunoComMatricula, criarEquipeComSenha, criarUsuarioEmOutraEscola, type EquipeDeTeste } from './support/seed.ts'
-import { codigoCru, larguraExcedente, violacoesGraves } from './support/checks.ts'
+import { rawCodePattern, horizontalOverflow, seriousViolations } from './support/checks.ts'
 
 /**
  * As áreas de cada papel na casca da escola (A1, tarefa 11.0): a navegação por papel e a guarda (W2), a fronteira do
@@ -102,7 +102,7 @@ function registrarChunks(page: Page): string[] {
 }
 
 /** Uma porta que segura a resposta até o teste abrir. */
-function portao(): { aberta: Promise<void>; abrir: () => void } {
+function gate(): { aberta: Promise<void>; abrir: () => void } {
   let abrir: () => void = () => undefined
   const aberta = new Promise<void>((resolver) => {
     abrir = resolver
@@ -183,7 +183,7 @@ test.describe('W2: a navegação de cada papel e a guarda de papel', () => {
     // F3 (18.0) e X4 (10.0): "Meus dados" e "Rever a introdução" são links do menu da pessoa, e não itens da lista de seções; o professor não tem rodapé.
     await expect(lateral(page).getByRole('navigation', { name: 'Sua conta', exact: true }).getByRole('link')).toHaveText(['Meus dados', 'Rever a introdução'])
     await expect(lateral(page).getByRole('navigation', { name: 'Rodapé', exact: true })).toHaveCount(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await seriousViolations(page)).toEqual([])
   })
 
   test('o professor: cada item da navegação leva à tela dele, e nenhum à que não existe', async ({ page, hasTouch }) => {
@@ -192,12 +192,12 @@ test.describe('W2: a navegação de cada papel e a guarda de papel', () => {
     for (const item of [...ITENS_DO_PROFESSOR].sort((a, b) => Number(a.rotulo === 'Turmas') - Number(b.rotulo === 'Turmas'))) {
       await irPelaNavegacao(page, item.rotulo, hasTouch)
       await expect(page).toHaveURL(new RegExp(`${item.caminho}$`))
-      await expect(page).toHaveTitle(`${item.rotulo} · Turmma`, { timeout: PRAZO_DA_ENTRADA_MS })
+      await expect(page).toHaveTitle(`${item.rotulo} · Turmma`, { timeout: SIGN_IN_TIMEOUT_MS })
       await expect(naoEncontrada(page)).toHaveCount(0)
     }
     // O laço terminou em "Turmas" (endereço, título e "não encontrada" já conferidos): a tela é a das turmas, e não a página não encontrada.
-    await expect(page.getByRole('heading', { level: 1, name: 'Turmas' })).toBeAttached({ timeout: PRAZO_DA_ENTRADA_MS })
-    await expect(page.getByText('A coordenação ainda não alocou você')).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page.getByRole('heading', { level: 1, name: 'Turmas' })).toBeAttached({ timeout: SIGN_IN_TIMEOUT_MS })
+    await expect(page.getByText('A coordenação ainda não alocou você')).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
   })
 
   test('o professor: o item da tela aberta ganha as pistas do selecionado, e o apagado, nenhuma', async ({ page, hasTouch }) => {
@@ -207,10 +207,10 @@ test.describe('W2: a navegação de cada papel e a guarda de papel', () => {
     // também no celular.
     await expect(page.getByRole('main')).not.toContainText('próximas versões')
     const paraTurmas = page.getByRole('main').getByRole('button', { name: 'Ir para Turmas' })
-    if (hasTouch) await paraTurmas.tap({ timeout: PRAZO_DA_ENTRADA_MS })
-    else await paraTurmas.click({ timeout: PRAZO_DA_ENTRADA_MS })
+    if (hasTouch) await paraTurmas.tap({ timeout: SIGN_IN_TIMEOUT_MS })
+    else await paraTurmas.click({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(page).toHaveURL(/\/professor\/turmas$/)
-    await expect(page.getByRole('heading', { level: 1, name: 'Turmas' })).toBeAttached({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page.getByRole('heading', { level: 1, name: 'Turmas' })).toBeAttached({ timeout: SIGN_IN_TIMEOUT_MS })
 
     // O selecionado (A23; D80): o `aria-current`, que o leitor de tela anuncia, o fundo `azul-claro`, a borda de 2 px
     // `azul-borda` e o texto `azul-texto`. O peso deixa de ser pista (os dois em 700), e o filete saiu.
@@ -218,8 +218,8 @@ test.describe('W2: a navegação de cada papel e a guarda de papel', () => {
     await expect(turmas).toHaveAttribute('aria-current', 'page')
     expect(await pinturaDoItem(turmas)).toEqual({ fundo: 'rgb(223, 241, 253)', borda: 'rgb(153, 210, 248)', larguraDaBorda: '2px', estiloDaBorda: 'solid', texto: 'rgb(20, 110, 170)', peso: '700' })
     await expect(turmas.locator('[data-filete]')).toHaveCount(0)
-    expect(await larguraExcedente(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await horizontalOverflow(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
 
     // Fora de "Turmas", o item volta a ser um item comum. A marca não é item, e a gaveta fecha também pela troca de
     // endereço, e não só pelo toque num item.
@@ -250,7 +250,7 @@ test.describe('W2: a navegação de cada papel e a guarda de papel', () => {
     await entrarPelaApi(page)
 
     await page.goto('/aluno/eu')
-    await expect(naoEncontrada(page)).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(naoEncontrada(page)).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     // A área do aluno responderia "não encontrada" para o professor também sem a guarda (Eu é só do aluno
     // na API): é o pedido do chunk que mostra que nenhuma das duas áreas foi baixada nem montada.
     expect(pedidos.filter((caminho) => CHUNK_DA_COORDENACAO.test(caminho) || CHUNK_DO_ALUNO.test(caminho))).toEqual([])
@@ -262,7 +262,7 @@ test.describe('W2: a navegação de cada papel e a guarda de papel', () => {
       await entrarPelaApi(page)
 
       await page.goto(endereco)
-      await expect(naoEncontrada(page)).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+      await expect(naoEncontrada(page)).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
       for (const titulo of ['Governança', 'Estrutura', 'Professores', 'Painel']) {
         await expect(page.getByRole('heading', { name: titulo })).toHaveCount(0)
       }
@@ -282,10 +282,10 @@ test.describe('W2: a navegação de cada papel e a guarda de papel', () => {
 
     // Um endereço que não existe dentro da própria área responde igual: a tela não confirma o que é de outro papel.
     await page.goto('/professor/qualquer')
-    await expect(naoEncontrada(page)).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(naoEncontrada(page)).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     expect(pedidos.some((caminho) => CHUNK_DO_PROFESSOR.test(caminho))).toBe(true)
-    expect(await larguraExcedente(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await horizontalOverflow(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
     // Dentro da área, "página inicial" leva à raiz, e não ao começo da área (`/professor/`).
     if (hasTouch) await page.getByRole('main').getByRole('link', { name: 'página inicial', exact: true }).tap()
     else await page.getByRole('main').getByRole('link', { name: 'página inicial', exact: true }).click()
@@ -309,7 +309,7 @@ test.describe('W2: a navegação de cada papel e a guarda de papel', () => {
     await expect(page.getByRole('main')).not.toContainText('próximas versões')
     await irPelaNavegacao(page, 'Eu', hasTouch)
     await expect(page).toHaveURL(/\/aluno\/eu$/)
-    await expect(page.getByRole('main')).toContainText(turma.turmaNome, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page.getByRole('main')).toContainText(turma.turmaNome, { timeout: SIGN_IN_TIMEOUT_MS })
     // A marca leva à raiz, e a raiz do aluno é "Início".
     await voltarAoInicio(page, hasTouch)
     await expect(page).toHaveURL(/\/aluno\/inicio$/)
@@ -328,13 +328,13 @@ test.describe('W2: a navegação de cada papel e a guarda de papel', () => {
     for (const item of ITENS_DO_ALUNO) {
       await irPelaNavegacao(page, item.rotulo, hasTouch)
       await expect(page).toHaveURL(new RegExp(`${item.caminho}$`))
-      await expect(page).toHaveTitle(`${item.rotulo} · Turmma`, { timeout: PRAZO_DA_ENTRADA_MS })
+      await expect(page).toHaveTitle(`${item.rotulo} · Turmma`, { timeout: SIGN_IN_TIMEOUT_MS })
       await expect(naoEncontrada(page)).toHaveCount(0)
       await expect(secoes(page).getByRole('link', { name: item.rotulo, exact: true })).toHaveAttribute('aria-current', 'page')
       await expect(secoes(page).locator('[aria-current="page"]')).toHaveCount(1)
     }
     // O último item é "Eu": a tela dele, com a turma dele.
-    await expect(page.getByRole('main')).toContainText(turma.turmaNome, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page.getByRole('main')).toContainText(turma.turmaNome, { timeout: SIGN_IN_TIMEOUT_MS })
   })
 
   test('os endereços do professor e da coordenação caem em "não encontrada" para o aluno, sem baixar o pedaço da área deles', async ({ page, hasTouch }) => {
@@ -343,10 +343,10 @@ test.describe('W2: a navegação de cada papel e a guarda de papel', () => {
 
     // O primeiro, com a página recarregada (a guarda lê o `/v1/eu` do zero); os outros, sem recarregar.
     await page.goto('/professor/turmas')
-    await expect(naoEncontrada(page)).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(naoEncontrada(page)).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     for (const endereco of ['/coordenacao/estrutura', '/coordenacao/professores']) {
       await navegarSemRecarregar(page, endereco)
-      await expect(naoEncontrada(page)).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+      await expect(naoEncontrada(page)).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     }
     expect(pedidos.filter((caminho) => CHUNK_DO_PROFESSOR.test(caminho) || CHUNK_DA_COORDENACAO.test(caminho))).toEqual([])
   })
@@ -356,10 +356,10 @@ test.describe('W2: a navegação de cada papel e a guarda de papel', () => {
 
     // O endereço antigo da turma troca a entrada do histórico: o Voltar não cai de novo no endereço que redireciona.
     await navegarSemRecarregar(page, '/aluno/minha-turma')
-    await expect(page).toHaveURL(/\/aluno\/eu$/, { timeout: PRAZO_DA_ENTRADA_MS })
-    await expect(page.getByRole('main')).toContainText(turma.turmaNome, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page).toHaveURL(/\/aluno\/eu$/, { timeout: SIGN_IN_TIMEOUT_MS })
+    await expect(page.getByRole('main')).toContainText(turma.turmaNome, { timeout: SIGN_IN_TIMEOUT_MS })
     await page.goBack()
-    await expect(page).toHaveURL(/\/aluno\/inicio$/, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page).toHaveURL(/\/aluno\/inicio$/, { timeout: SIGN_IN_TIMEOUT_MS })
   })
 
   test('os endereços de hoje do aluno abrem as telas de hoje, e Tutor e Privacidade acendem Início e Eu', async ({ page, hasTouch }) => {
@@ -367,14 +367,14 @@ test.describe('W2: a navegação de cada papel e a guarda de papel', () => {
 
     // O lugar aceso é o de Início para o Tutor e o de Eu para Privacidade.
     await navegarSemRecarregar(page, '/aluno/tutor')
-    await expect(page).toHaveTitle('Tutor · Turmma', { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page).toHaveTitle('Tutor · Turmma', { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(naoEncontrada(page)).toHaveCount(0)
     await expect(secoes(page).getByRole('link', { name: 'Início', exact: true })).toHaveAttribute('aria-current', 'page')
     await navegarSemRecarregar(page, '/aluno/privacidade')
-    await expect(page).toHaveTitle('Privacidade · Turmma', { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page).toHaveTitle('Privacidade · Turmma', { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(secoes(page).getByRole('link', { name: 'Eu', exact: true })).toHaveAttribute('aria-current', 'page')
     await navegarSemRecarregar(page, '/aluno/atividades')
-    await expect(page).toHaveTitle('Tarefas · Turmma', { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page).toHaveTitle('Tarefas · Turmma', { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(secoes(page).getByRole('link', { name: 'Tarefas', exact: true })).toHaveAttribute('aria-current', 'page')
   })
 
@@ -417,16 +417,16 @@ test.describe('W2: a navegação de cada papel e a guarda de papel', () => {
       await expect(secoes(page).first()).toBeVisible()
       await expect(gaveta(page).getByRole('navigation', { name: 'Seções', exact: true })).toHaveCount(0)
     }
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await seriousViolations(page)).toEqual([])
 
     // Cada lugar leva ao endereço de hoje da primeira aba dele, com o título na aba e o lugar aceso.
     for (const item of ITENS_DA_COORDENACAO) {
       await irPelaNavegacao(page, item.rotulo, hasTouch)
       await expect(page).toHaveURL(new RegExp(`${item.caminho}$`))
-      await expect(page).toHaveTitle(`${item.titulo} · Turmma`, { timeout: PRAZO_DA_ENTRADA_MS })
+      await expect(page).toHaveTitle(`${item.titulo} · Turmma`, { timeout: SIGN_IN_TIMEOUT_MS })
       await expect(naoEncontrada(page)).toHaveCount(0)
       await expect(secoes(page).getByRole('link', { name: item.rotulo, exact: true })).toHaveAttribute('aria-current', 'page')
-      expect(await larguraExcedente(page), item.rotulo).toBe(0)
+      expect(await horizontalOverflow(page), item.rotulo).toBe(0)
     }
 
     // O RF3: de um lugar que não é o da tela, cada uma está a até dois cliques (três, no seletor da Privacidade), e o endereço
@@ -453,15 +453,15 @@ test.describe('W5: a fronteira do import() de cada área', () => {
     const professora = await criarEquipeComSenha()
     await page.goto('/entrar')
     await entrarPorEmail(page, professora, hasTouch)
-    await expect(page).toHaveURL(/\/professor\/nova-conversa$/, { timeout: PRAZO_DA_ENTRADA_MS })
-    await expect(page.getByRole('alert')).toContainText('Confira a conexão e tente de novo', { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page).toHaveURL(/\/professor\/nova-conversa$/, { timeout: SIGN_IN_TIMEOUT_MS })
+    await expect(page.getByRole('alert')).toContainText('Confira a conexão e tente de novo', { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(page).toHaveTitle('Não foi possível carregar · Turmma')
     // A fronteira assume com o foco nela: quem usa leitor de tela fica sabendo que a tela mudou.
     await expect(page.getByRole('heading', { name: TITULO_DA_FALHA })).toBeFocused()
     await expect(page.getByRole('button', { name: 'Tentar de novo' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Sair' })).toBeVisible()
-    expect(await larguraExcedente(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await horizontalOverflow(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
 
     // Saindo por outra rota, a aba volta a dizer a tela em que a pessoa está. Fora da área do professor, o que existe
     // para ele é a página não encontrada, que não depende do pedaço que falhou.
@@ -473,10 +473,10 @@ test.describe('W5: a fronteira do import() de cada área', () => {
     // Saindo pelo "Sair", para uma tela que não põe título: a fronteira devolve o de antes dela, e a aba não continua
     // dizendo que algo não carregou (o `componentWillUnmount`, pendência da A0b).
     await irPelaNavegacao(page, 'Turmas', hasTouch)
-    await expect(page).toHaveTitle('Não foi possível carregar · Turmma', { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page).toHaveTitle('Não foi possível carregar · Turmma', { timeout: SIGN_IN_TIMEOUT_MS })
     if (hasTouch) await page.getByRole('button', { name: 'Sair' }).tap()
     else await page.getByRole('button', { name: 'Sair' }).click()
-    await expect(page).toHaveURL(/\/entrar$/, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page).toHaveURL(/\/entrar$/, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(page).toHaveTitle('Turmma')
   })
 
@@ -487,10 +487,10 @@ test.describe('W5: a fronteira do import() de cada área', () => {
     await page.route(CHUNK_DA_COORDENACAO, abortar)
     await page.goto('/entrar')
     await entrarComoCoordenacaoNaMesmaAba(page, coordenadora, hasTouch)
-    await expect(page.getByRole('alert')).toContainText('Confira a conexão e tente de novo', { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page.getByRole('alert')).toContainText('Confira a conexão e tente de novo', { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(page).toHaveTitle('Não foi possível carregar · Turmma')
     await expect(page.getByRole('heading', { name: TITULO_DA_FALHA })).toBeFocused()
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await seriousViolations(page)).toEqual([])
 
     // Com a rede de volta, "Tentar de novo" recarrega e a área chega, com o Painel.
     await page.unroute(CHUNK_DA_COORDENACAO, abortar)
@@ -508,10 +508,10 @@ test.describe('W4: os estados de "Turmas"', () => {
     await entrarPelaApi(page)
     await page.goto('/professor/turmas')
 
-    await expect(page.getByText('A coordenação ainda não alocou você')).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page.getByText('A coordenação ainda não alocou você')).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(page.getByRole('main')).toContainText('fale com ela')
-    expect(await larguraExcedente(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await horizontalOverflow(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
   })
 
   test('erro com a rota interceptada: a mensagem do catálogo, com "Tentar de novo", e nenhum código na tela', async ({ page }) => {
@@ -525,9 +525,9 @@ test.describe('W4: os estados de "Turmas"', () => {
     await entrarPelaApi(page)
     await page.goto('/professor/turmas')
 
-    await expect(page.getByRole('alert')).toContainText(MENSAGENS_DE_ERRO.INDISPONIVEL_TENTE_DE_NOVO, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page.getByRole('alert')).toContainText(MENSAGENS_DE_ERRO.INDISPONIVEL_TENTE_DE_NOVO, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(page.getByRole('button', { name: 'Tentar de novo' })).toBeVisible()
-    for (const proibido of [codigoCru('503'), 'INDISPONIVEL_TENTE_DE_NOVO']) await expect(page.locator('body')).not.toContainText(proibido)
+    for (const proibido of [rawCodePattern('503'), 'INDISPONIVEL_TENTE_DE_NOVO']) await expect(page.locator('body')).not.toContainText(proibido)
   })
 
   test('só pendente e com as confirmadas: a confirmada passa para "Suas turmas", a contestada vira cartão sem link, e a faixa some', async ({ page, hasTouch }) => {
@@ -539,18 +539,18 @@ test.describe('W4: os estados de "Turmas"', () => {
     // Só pendente: "Confirme suas turmas", com as duas disciplinas, e nenhuma "Suas turmas" ainda.
     const paraConfirmar = page.getByRole('region', { name: 'Confirme suas turmas', exact: true })
     const decididas = page.getByRole('region', { name: 'Suas turmas', exact: true })
-    await expect(paraConfirmar.getByRole('listitem')).toHaveCount(2, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(paraConfirmar.getByRole('listitem')).toHaveCount(2, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(paraConfirmar).toContainText(alocacao.turmaNome)
     await expect(decididas).toHaveCount(0)
-    expect(await larguraExcedente(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await horizontalOverflow(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
 
     // Com dado: a confirmada passa para "Suas turmas", e a outra continua esperando a decisão.
     const matematica = paraConfirmar.getByRole('listitem').filter({ hasText: 'Matemática' })
     if (hasTouch) await matematica.getByRole('button', { name: 'Confirmar' }).tap()
     else await matematica.getByRole('button', { name: 'Confirmar' }).click()
     await expect(decididas.getByRole('listitem')).toHaveText([new RegExp(`${alocacao.turmaNome} · Matemática.*${NOME_DO_ESTADO_DE_VINCULO.confirmado}`)], {
-      timeout: PRAZO_DA_ENTRADA_MS,
+      timeout: SIGN_IN_TIMEOUT_MS,
     })
     await expect(paraConfirmar.getByRole('listitem')).toHaveCount(1)
     await expect(paraConfirmar).toContainText('História')
@@ -565,7 +565,7 @@ test.describe('W4: os estados de "Turmas"', () => {
     await painel.getByRole('radio', { name: NOME_DA_CONTESTACAO.nao_leciono }).check()
     if (hasTouch) await painel.getByRole('button', { name: 'Enviar a contestação' }).tap()
     else await painel.getByRole('button', { name: 'Enviar a contestação' }).click()
-    await expect(decididas.getByRole('listitem')).toHaveCount(2, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(decididas.getByRole('listitem')).toHaveCount(2, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(decididas.getByRole('listitem').filter({ hasText: 'História' })).toContainText(NOME_DO_ESTADO_DE_VINCULO.contestado)
     await expect(decididas.getByRole('listitem').filter({ hasText: 'História' }).getByRole('link')).toHaveCount(0)
     await expect(page.getByRole('region', { name: 'Confirme suas turmas', exact: true })).toHaveCount(0)
@@ -581,11 +581,11 @@ test.describe('recomeço da tela', () => {
     const alocacao = await criarAlocacaoDoProfessor(professora.escolaId, professora.usuarioId)
     await entrarPelaApiSemMedirAPrimeiraCarga(page, professora, '/professor/nova-conversa', () => esperarNovaConversa(page, professora.nome))
     await irPelaNavegacao(page, 'Turmas', hasTouch)
-    await expect(page.getByRole('main')).toContainText(alocacao.turmaNome, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page.getByRole('main')).toContainText(alocacao.turmaNome, { timeout: SIGN_IN_TIMEOUT_MS })
 
     if (hasTouch) await page.getByRole('button', { name: 'Sair' }).tap()
     else await page.getByRole('button', { name: 'Sair' }).click()
-    await expect(page).toHaveURL(/\/entrar$/, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page).toHaveURL(/\/entrar$/, { timeout: SIGN_IN_TIMEOUT_MS })
 
     // A coordenadora entra na mesma aba, sem recarregar: o módulo da área do professor continua na memória da página.
     let leiturasDosVinculos = 0
@@ -615,7 +615,7 @@ test.describe('recomeço da tela', () => {
     // Nem voltando ao endereço das turmas: a guarda responde pelo papel da pessoa de agora, e o cache da anterior
     // não aparece.
     await navegarSemRecarregar(page, '/professor/turmas')
-    await expect(naoEncontrada(page)).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(naoEncontrada(page)).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(page.locator('body')).not.toContainText(alocacao.turmaNome)
     expect(leiturasDosVinculos).toBe(0)
   })
@@ -626,11 +626,11 @@ test.describe('recomeço da tela', () => {
     // A primeira carga não afirma nada sobre o tempo de baixar `/entrar`: o caso é sobre a gaveta na troca de escola. Na rede do
     // perfil ela travou na esteira, com o documento 200 e 14 pedidos que nunca saíram do navegador (execução 40332902053; a mesma
     // trava de `2026-10-17-casca-carregando-estoura-o-goto`, em outro caso). A entrada e a troca seguem na rede do perfil.
-    await carregarSemRedeLenta(page, () => page.goto('/entrar'))
+    await loadUnthrottled(page, () => page.goto('/entrar'))
     await entrarPorEmail(page, emA, hasTouch)
     const escolherA = page.getByRole('button', { name: `${emA.escolaNome} · professor` })
-    if (hasTouch) await escolherA.tap({ timeout: PRAZO_DA_ENTRADA_MS })
-    else await escolherA.click({ timeout: PRAZO_DA_ENTRADA_MS })
+    if (hasTouch) await escolherA.tap({ timeout: SIGN_IN_TIMEOUT_MS })
+    else await escolherA.click({ timeout: SIGN_IN_TIMEOUT_MS })
     await esperarNovaConversa(page, emA.nome)
 
     // A tela é a mesma antes e depois da troca (o professor abre em "Início" nas duas escolas): é a pessoa da
@@ -646,7 +646,7 @@ test.describe('recomeço da tela', () => {
     const pedidos = registrarChunks(page)
     await entrarComoProfessora(page, hasTouch)
     await irPelaNavegacao(page, 'Turmas', hasTouch)
-    await expect(page.getByText('A coordenação ainda não alocou você')).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page.getByText('A coordenação ainda não alocou você')).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
 
     await irPelaNavegacao(page, 'Turmas', hasTouch)
     await irPelaNavegacao(page, 'Turmas', hasTouch)
@@ -659,7 +659,7 @@ test.describe('recomeço da tela', () => {
 
   test('resposta atrasada: a área lenta que chega depois de a pessoa sair dela não aparece', async ({ page, hasTouch }) => {
     const pedidos = registrarChunks(page)
-    const segurada = portao()
+    const segurada = gate()
     await page.route(CHUNK_DO_PROFESSOR, async (rota: Route) => {
       await segurada.aberta
       await rota.continue()
@@ -669,8 +669,8 @@ test.describe('recomeço da tela', () => {
     await page.goto('/entrar')
     const pedidoDoChunk = page.waitForRequest((pedido) => CHUNK_DO_PROFESSOR.test(new URL(pedido.url()).pathname))
     await entrarPorEmail(page, professora, hasTouch)
-    await expect(page).toHaveURL(/\/professor\/nova-conversa$/, { timeout: PRAZO_DA_ENTRADA_MS })
-    await expect(page.getByRole('main').getByRole('status')).toHaveText('Carregando…', { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page).toHaveURL(/\/professor\/nova-conversa$/, { timeout: SIGN_IN_TIMEOUT_MS })
+    await expect(page.getByRole('main').getByRole('status')).toHaveText('Carregando…', { timeout: SIGN_IN_TIMEOUT_MS })
     const chunk = await pedidoDoChunk
     // Ela sai da área antes de a área chegar. Fora dela, o que existe para o professor é a página não encontrada.
     await navegarSemRecarregar(page, '/coordenacao/estrutura')
@@ -696,7 +696,7 @@ test.describe('recomeço da tela', () => {
 
     // Controle: a área chegou de fato. Voltando a ela sem recarregar, aparece sem pedir o chunk de novo.
     await navegarSemRecarregar(page, '/professor/turmas')
-    await expect(page.getByText('A coordenação ainda não alocou você')).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page.getByText('A coordenação ainda não alocou você')).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     expect(pedidos.filter((caminho) => CHUNK_DO_PROFESSOR.test(caminho))).toHaveLength(1)
   })
 
@@ -705,7 +705,7 @@ test.describe('recomeço da tela', () => {
     await entrarComoProfessoraPelaApi(page)
 
     let estado: 'segurado' | 'falha' | 'normal' = 'segurado'
-    const segurado = portao()
+    const segurado = gate()
     await page.route('**/v1/eu', async (rota: Route) => {
       if (estado === 'segurado') await segurado.aberta
       if (estado === 'falha')
@@ -721,26 +721,26 @@ test.describe('recomeço da tela', () => {
     // entrada baixou (o professor abre em "Início") foi com a página anterior: a conta recomeça aqui.
     pedidos.length = 0
     await page.goto('/professor/turmas')
-    await expect(page.getByRole('main').getByRole('status')).toHaveText('Carregando…', { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page.getByRole('main').getByRole('status')).toHaveText('Carregando…', { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(naoEncontrada(page)).toHaveCount(0)
     await expect(page).not.toHaveTitle('Página não encontrada · Turmma')
 
     // A API cai: a guarda diz o que fazer, e não que a página não existe, nem baixa a área sem saber o papel.
     estado = 'falha'
     segurado.abrir()
-    await expect(page.getByRole('main').getByRole('alert')).toContainText(MENSAGENS_DE_ERRO.INDISPONIVEL_TENTE_DE_NOVO, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page.getByRole('main').getByRole('alert')).toContainText(MENSAGENS_DE_ERRO.INDISPONIVEL_TENTE_DE_NOVO, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(page.getByRole('main').getByRole('button', { name: 'Tentar de novo' })).toBeVisible()
     await expect(naoEncontrada(page)).toHaveCount(0)
     await expect(page).not.toHaveTitle('Página não encontrada · Turmma')
     expect(pedidos.filter((caminho) => CHUNK_DO_PROFESSOR.test(caminho))).toEqual([])
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await seriousViolations(page)).toEqual([])
 
     // A API volta: "Tentar de novo" leva a "Turmas".
     estado = 'normal'
     const tentar = page.getByRole('main').getByRole('button', { name: 'Tentar de novo' })
     if (hasTouch) await tentar.tap()
     else await tentar.click()
-    await expect(page.getByText('A coordenação ainda não alocou você')).toBeVisible({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page.getByText('A coordenação ainda não alocou você')).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(page).toHaveTitle('Turmas · Turmma')
     expect(pedidos.filter((caminho) => CHUNK_DO_PROFESSOR.test(caminho))).toHaveLength(1)
   })
@@ -748,7 +748,7 @@ test.describe('recomeço da tela', () => {
   test('sem sessão, o endereço de uma área leva à entrada sem baixar a área', async ({ page }) => {
     const pedidos = registrarChunks(page)
     await page.goto('/professor/turmas')
-    await expect(page).toHaveURL(/\/entrar$/, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page).toHaveURL(/\/entrar$/, { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(page.getByRole('heading', { name: 'Entrar' })).toBeVisible()
     expect(pedidos.filter((caminho) => CHUNK_DO_PROFESSOR.test(caminho))).toEqual([])
   })
@@ -756,7 +756,7 @@ test.describe('recomeço da tela', () => {
   test('falha com a gaveta aberta: a fronteira assume, a gaveta fecha e o foco vai para a falha', async ({ page, hasTouch }) => {
     // No computador, a gaveta é a lateral que o trilho abre por cima, entre 768 e 1023 px.
     if (!naGaveta(page)) await page.setViewportSize({ width: 900, height: 768 })
-    const segurada = portao()
+    const segurada = gate()
     await page.route(CHUNK_DO_PROFESSOR, async (rota: Route) => {
       await segurada.aberta
       await rota.abort('internetdisconnected')
@@ -765,19 +765,19 @@ test.describe('recomeço da tela', () => {
     await page.goto('/entrar')
     await entrarPorEmail(page, professora, hasTouch)
     // O professor abre em "Início" (A2; D73; D80): a área começa a carregar já na entrada.
-    await expect(page).toHaveURL(/\/professor\/nova-conversa$/, { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page).toHaveURL(/\/professor\/nova-conversa$/, { timeout: SIGN_IN_TIMEOUT_MS })
 
     // A área está carregando, e a pessoa abre a gaveta enquanto espera.
-    await expect(page.getByRole('main').getByRole('status')).toHaveText('Carregando…', { timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page.getByRole('main').getByRole('status')).toHaveText('Carregando…', { timeout: SIGN_IN_TIMEOUT_MS })
     const abrir = page.getByRole('button', { name: naGaveta(page) ? 'Abrir o menu' : 'Abrir a lateral' })
     if (hasTouch) await abrir.tap()
     else await abrir.click()
     await expect(gaveta(page)).toBeVisible()
 
     segurada.abrir()
-    await expect(page.getByRole('heading', { name: TITULO_DA_FALHA })).toBeFocused({ timeout: PRAZO_DA_ENTRADA_MS })
+    await expect(page.getByRole('heading', { name: TITULO_DA_FALHA })).toBeFocused({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(gaveta(page)).toBeHidden()
     await expect(page.getByRole('alert')).toContainText('Confira a conexão e tente de novo')
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await seriousViolations(page)).toEqual([])
   })
 })

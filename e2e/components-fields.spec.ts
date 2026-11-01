@@ -1,8 +1,8 @@
 import { AxeBuilder } from '@axe-core/playwright'
 import type { Locator, Page } from '@playwright/test'
 import { expect, test } from './support/profiles.ts'
-import { abrirGaleria, caixa, desenho, secao } from './support/gallery.ts'
-import { ALVO_DE_TOQUE_PRINCIPAL_PX, focoVisivel, IMPACTOS_QUE_REPROVAM, TAGS_WCAG } from './support/checks.ts'
+import { openGallery, caixa, desenho, gallerySection } from './support/gallery.ts'
+import { ALVO_DE_TOQUE_PRINCIPAL_PX, isFocusVisible, FAILING_IMPACTS, WCAG_TAGS } from './support/checks.ts'
 
 /**
  * Os campos da D80 na galeria (`/galeria`), nos projetos `chromebook` e `celular` e nos dois temas (X1, tarefa 4.0; RF2,
@@ -57,7 +57,7 @@ function contraste(a: string, b: string): number {
 }
 
 async function irParaOTema(page: Page, tema: Tema): Promise<void> {
-  await abrirGaleria(page)
+  await openGallery(page)
   await page.evaluate((valor) => document.documentElement.setAttribute('data-tema', valor), tema)
 }
 
@@ -78,23 +78,23 @@ function anelDe(alvo: Locator): Promise<{ estilo: string; largura: string; cor: 
 
 /** Os campos de uma linha, o longo, a seleção e a busca, um por estado: o que a regra da caixa vale para. */
 const campos = (page: Page) => ({
-  vazio: secao(page, 'campos').locator('[data-estado="vazio"] input'),
-  preenchido: secao(page, 'campos').locator('[data-estado="preenchido"] input'),
-  erro: secao(page, 'campos').locator('[data-estado="erro"] input'),
-  desligado: secao(page, 'campos').locator('[data-estado="desligado"] input'),
-  senha: secao(page, 'campos').locator('[data-estado="senha"] input'),
-  longo: secao(page, 'campos').locator('[data-estado="longo-erro"] textarea'),
-  longoDesligado: secao(page, 'campos').locator('[data-estado="longo-desligado"] textarea'),
-  selecao: secao(page, 'campos').locator('[data-estado="selecao-erro"] select'),
-  selecaoDesligada: secao(page, 'campos').locator('[data-estado="selecao-desligada"] select'),
-  busca: secao(page, 'busca').locator('[data-estado="vazia"] input'),
+  vazio: gallerySection(page, 'campos').locator('[data-estado="vazio"] input'),
+  preenchido: gallerySection(page, 'campos').locator('[data-estado="preenchido"] input'),
+  erro: gallerySection(page, 'campos').locator('[data-estado="erro"] input'),
+  desligado: gallerySection(page, 'campos').locator('[data-estado="desligado"] input'),
+  senha: gallerySection(page, 'campos').locator('[data-estado="senha"] input'),
+  longo: gallerySection(page, 'campos').locator('[data-estado="longo-erro"] textarea'),
+  longoDesligado: gallerySection(page, 'campos').locator('[data-estado="longo-desligado"] textarea'),
+  selecao: gallerySection(page, 'campos').locator('[data-estado="selecao-erro"] select'),
+  selecaoDesligada: gallerySection(page, 'campos').locator('[data-estado="selecao-desligada"] select'),
+  busca: gallerySection(page, 'busca').locator('[data-estado="vazia"] input'),
   // Os que não estão inválidos nem desligados, da seção de seleção e menu: a borda é a de campo.
-  selecaoLivre: secao(page, 'selecao-e-menu').getByLabel('Turma'),
-  longoLivre: secao(page, 'selecao-e-menu').getByLabel('Observação'),
+  selecaoLivre: gallerySection(page, 'selecao-e-menu').getByLabel('Turma'),
+  longoLivre: gallerySection(page, 'selecao-e-menu').getByLabel('Observação'),
 })
 
-const trilho = (page: Page, estado: string) => secao(page, 'interruptor').locator(`[data-estado="${estado}"] [role="switch"]`)
-const opcao = (page: Page, grupo: string, nome: string) => secao(page, 'opcao').locator(`[data-grupo="${grupo}"]`).getByRole(grupo === 'radio' ? 'radio' : 'checkbox', { name: nome, exact: true })
+const trilho = (page: Page, estado: string) => gallerySection(page, 'interruptor').locator(`[data-estado="${estado}"] [role="switch"]`)
+const opcao = (page: Page, grupo: string, nome: string) => gallerySection(page, 'opcao').locator(`[data-grupo="${grupo}"]`).getByRole(grupo === 'radio' ? 'radio' : 'checkbox', { name: nome, exact: true })
 const rotuloDaOpcao = (alvo: Locator) => alvo.locator('xpath=ancestor::label')
 
 for (const tema of TEMAS) {
@@ -141,7 +141,7 @@ for (const tema of TEMAS) {
         ['busca', alvos.busca],
       ] as const) {
         await alvo.focus()
-        expect(await focoVisivel(page), `${nome}: o anel é sólido, de 3 px, na cor foco`).toBe(true)
+        expect(await isFocusVisible(page), `${nome}: o anel é sólido, de 3 px, na cor foco`).toBe(true)
         expect(await anelDe(alvo), nome).toMatchObject({ estilo: 'solid', largura: '3px', cor: FOCO[tema], afastamento: '0px', bordaLargura: '2px', bordaCor: bordaDeCampo })
       }
     })
@@ -191,13 +191,13 @@ for (const tema of TEMAS) {
       await page.keyboard.press('Tab')
       const liga = trilho(page, 'desligado')
       await liga.focus()
-      expect(await focoVisivel(page)).toBe(true)
+      expect(await isFocusVisible(page)).toBe(true)
       expect(await anelDe(liga)).toMatchObject({ estilo: 'solid', largura: '3px', cor: FOCO[tema], afastamento: '2px' })
 
       const tela = opcao(page, 'radio', 'Na tela')
       await tela.focus()
       // O elemento ativo é o `<input>` escondido: o anel que se vê é o do rótulo, por `focus-within`.
-      expect(await focoVisivel(page)).toBe(true)
+      expect(await isFocusVisible(page)).toBe(true)
       const rotulo = rotuloDaOpcao(tela)
       expect(await anelDe(rotulo)).toMatchObject({ estilo: 'solid', largura: '3px', cor: FOCO[tema], afastamento: '2px', bordaLargura: '2px' })
       // A opção que não tem o foco não desenha o anel: o contorno dela é `none` (a largura calculada é a padrão, de 3 px).
@@ -223,11 +223,11 @@ for (const tema of TEMAS) {
 
     test('a seção não tem violação grave de acessibilidade', async ({ page }) => {
       await irParaOTema(page, tema)
-      const analise = new AxeBuilder({ page }).withTags([...TAGS_WCAG])
+      const analise = new AxeBuilder({ page }).withTags([...WCAG_TAGS])
       for (const nome of SECOES) analise.include(`[data-galeria="${nome}"]`)
       const { violations } = await analise.analyze()
       const graves = violations
-        .filter((violacao) => (IMPACTOS_QUE_REPROVAM as readonly string[]).includes(violacao.impact ?? ''))
+        .filter((violacao) => (FAILING_IMPACTS as readonly string[]).includes(violacao.impact ?? ''))
         .map((violacao) => ({ regra: violacao.id, impacto: violacao.impact, alvos: violacao.nodes.map((no) => no.target.join(' ')) }))
       expect(graves).toEqual([])
     })
@@ -236,7 +236,7 @@ for (const tema of TEMAS) {
 
 test.describe('campos: medida e toque', () => {
   test('o alvo: campo, busca, interruptor e opção têm 44 px de altura no celular; o campo tem 48 e a opção 64 em qualquer tela', async ({ page, hasTouch }) => {
-    await abrirGaleria(page)
+    await openGallery(page)
     const alvos = campos(page)
     const altura = async (alvo: Locator) => (await caixa(alvo.first())).height
     expect(await altura(alvos.vazio)).toBeGreaterThanOrEqual(48)
@@ -258,7 +258,7 @@ test.describe('campos: medida e toque', () => {
   })
 
   test('o trilho desenhado mede 52 por 32 px, e a bolinha de 24 px troca de lado quando liga', async ({ page }) => {
-    await abrirGaleria(page)
+    await openGallery(page)
     const botao = trilho(page, 'desligado')
     const face = botao.locator('span').first()
     expect(await caixa(face)).toMatchObject({ width: 52, height: 32 })
@@ -276,9 +276,9 @@ test.describe('campos: medida e toque', () => {
   })
 
   test('a busca: o rótulo não aparece escrito, a lupa não cobre o texto, e o valor digitado fica', async ({ page }) => {
-    await abrirGaleria(page)
+    await openGallery(page)
     const busca = campos(page).busca
-    const rotulo = secao(page, 'busca').locator('[data-estado="vazia"] label')
+    const rotulo = gallerySection(page, 'busca').locator('[data-estado="vazia"] label')
     expect(await caixa(rotulo)).toMatchObject({ width: 1, height: 1 })
     // O texto começa depois da lupa (20 px a 12 px da borda): o enchimento da esquerda passa de 32 px.
     expect(Number.parseFloat(await busca.evaluate((elemento) => getComputedStyle(elemento).paddingLeft))).toBeGreaterThanOrEqual(36)
@@ -288,7 +288,7 @@ test.describe('campos: medida e toque', () => {
   })
 
   test('o grupo de rádio é uma parada de Tab e as setas trocam a marcada; a caixa de marcar liga pelo Espaço', async ({ page }) => {
-    await abrirGaleria(page)
+    await openGallery(page)
     const papel = opcao(page, 'radio', 'Em papel')
     const tela = opcao(page, 'radio', 'Na tela')
     await page.keyboard.press('Tab')

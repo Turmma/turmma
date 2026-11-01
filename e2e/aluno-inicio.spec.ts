@@ -1,9 +1,9 @@
 import type { Locator, Page, Route } from '@playwright/test'
-import { minhaAtividade, simularAluno } from './support/aluno.ts'
-import { abrirNavegacao, entrarComoAluno, esperarInicioDoAluno, lateral, naGaveta, PRAZO_DA_ENTRADA_MS, secoes } from './support/casca.ts'
+import { minhaAtividade, mockAlunoApi } from './support/aluno.ts'
+import { abrirNavegacao, entrarComoAluno, esperarInicioDoAluno, lateral, naGaveta, SIGN_IN_TIMEOUT_MS, secoes } from './support/casca.ts'
 import { expect, test } from './support/profiles.ts'
 import { colocarAlunoNaTurma, criarAlunoComMatricula } from './support/seed.ts'
-import { ALVO_DE_TOQUE_PRINCIPAL_PX, larguraExcedente, violacoesGraves } from './support/checks.ts'
+import { ALVO_DE_TOQUE_PRINCIPAL_PX, horizontalOverflow, seriousViolations } from './support/checks.ts'
 
 /**
  * O Início do aluno (telas do aluno e primeiro acesso, 3.0; RF3, RF4, RF5): a faixa de supervisão presa, o aviso da avaliação
@@ -12,12 +12,12 @@ import { ALVO_DE_TOQUE_PRINCIPAL_PX, larguraExcedente, violacoesGraves } from '.
  * verdade. Os quatro estados e o que o Início nunca lê estão no teste de componente (`Inicio.test.tsx`).
  */
 
-const PRAZO_DA_TELA_MS = 15_000
+const SCREEN_TIMEOUT_MS = 15_000
 const TITULO_SEM_ESPACO = 'Exercícios_de_estequiometria_do_capítulo_três_parte_dois'
 const SUPERVISAO = 'Quem dá a aula acompanha como você usa o Tutor.'
 const AVISO_DA_AVALIACAO = 'Avaliação: o Tutor fica pausado até quem dá a aula encerrar.'
 
-async function acionar(alvo: Locator, hasTouch: boolean): Promise<void> {
+async function activate(alvo: Locator, hasTouch: boolean): Promise<void> {
   await (hasTouch ? alvo.tap() : alvo.click())
 }
 
@@ -28,15 +28,15 @@ async function sairPelaCasca(page: Page, hasTouch: boolean): Promise<void> {
   await abrirNavegacao(page, hasTouch)
   const sair = lateral(page).getByRole('button', { name: 'Sair' }).and(page.locator(':not(main *)'))
   await expect(sair).toHaveCount(1)
-  await acionar(sair, hasTouch)
-  await expect(page).toHaveURL(/\/entrar$/, { timeout: PRAZO_DA_ENTRADA_MS })
+  await activate(sair, hasTouch)
+  await expect(page).toHaveURL(/\/entrar$/, { timeout: SIGN_IN_TIMEOUT_MS })
 }
 
 test.describe('o Início do aluno', () => {
   test('a faixa de supervisão fica presa e à vista depois de rolar, a 360 px, sem como fechá-la, e a página não rola de lado', async ({ page, hasTouch }) => {
     test.slow()
     await page.setViewportSize({ width: 360, height: 520 })
-    const api = await simularAluno(page)
+    const api = await mockAlunoApi(page)
     // O primeiro título é uma palavra longa sem espaço, como o professor pode escrever: a 360 px ela tem de quebrar dentro do cartão.
     api.atividades = [1, 2, 3, 4].map((numero) => minhaAtividade({ titulo: numero === 1 ? TITULO_SEM_ESPACO : `Lista sintética ${String(numero)}` }))
     const aluno = await criarAlunoComMatricula()
@@ -45,7 +45,7 @@ test.describe('o Início do aluno', () => {
 
     const faixa = principal(page).locator('[data-faixa-de-supervisao]')
     const verTodas = principal(page).getByRole('link', { name: 'Ver todas as tarefas' })
-    await expect(principal(page).getByRole('link', { name: 'Pedir ajuda ao Tutor' })).toHaveCount(3, { timeout: PRAZO_DA_TELA_MS })
+    await expect(principal(page).getByRole('link', { name: 'Pedir ajuda ao Tutor' })).toHaveCount(3, { timeout: SCREEN_TIMEOUT_MS })
     await expect(principal(page).getByText(TITULO_SEM_ESPACO)).toBeVisible()
     await expect(principal(page).getByText('Lista sintética 4')).toHaveCount(0)
     await expect(faixa.getByRole('note')).toHaveText(SUPERVISAO)
@@ -62,13 +62,13 @@ test.describe('o Início do aluno', () => {
     expect(presa.y).toBeGreaterThanOrEqual(topo.y + topo.height - 1)
     expect(presa.y).toBeLessThan(topo.y + topo.height + 8)
 
-    expect(await larguraExcedente(page)).toBe(0)
-    expect(await violacoesGraves(page)).toEqual([])
+    expect(await horizontalOverflow(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
   })
 
   test('com três tarefas "Para fazer", o Início cabe em 1366 × 768 (RF20), com "Pedir ajuda ao Tutor" na linha do título; abaixo de 768 px o link desce para baixo do título', async ({ page, hasTouch }) => {
     test.slow()
-    const api = await simularAluno(page)
+    const api = await mockAlunoApi(page)
     // As três avaliativas: cada cartão leva a linha de aviso a mais, que é o pior caso de altura do Início.
     api.atividades = [1, 2, 3].map((numero) => minhaAtividade({ titulo: `Lista sintética ${String(numero)}`, avaliativa: true }))
     const aluno = await criarAlunoComMatricula()
@@ -76,7 +76,7 @@ test.describe('o Início do aluno', () => {
     await entrarComoAluno(page, aluno, hasTouch)
 
     const ajudas = principal(page).getByRole('link', { name: 'Pedir ajuda ao Tutor' })
-    await expect(ajudas).toHaveCount(3, { timeout: PRAZO_DA_TELA_MS })
+    await expect(ajudas).toHaveCount(3, { timeout: SCREEN_TIMEOUT_MS })
     await expect(principal(page).getByRole('link', { name: 'Ver todas as tarefas' })).toBeVisible()
     const largura = page.viewportSize()?.width ?? 0
     const altura = page.viewportSize()?.height ?? 0
@@ -94,14 +94,14 @@ test.describe('o Início do aluno', () => {
       // No celular a página rola, e o link desce para baixo do título, na largura do cartão.
       expect(ajuda.y).toBeGreaterThanOrEqual(titulo.y + titulo.height - 1)
     }
-    expect(await larguraExcedente(page)).toBe(0)
+    expect(await horizontalOverflow(page)).toBe(0)
   })
 
   test('com título longo de várias palavras, a 1366 px, "Pedir ajuda ao Tutor" fica numa linha só, à direita do título, e a página não rola de lado', async ({ page, hasTouch }) => {
     test.slow()
     // A largura é a da janela de teste do computador, nos dois projetos: o ramo em linha só existe a partir de 768 px.
     await page.setViewportSize({ width: 1366, height: 768 })
-    const api = await simularAluno(page)
+    const api = await mockAlunoApi(page)
     const tituloLongo = 'Exercícios de estequiometria e balanceamento de equações químicas do capítulo três, parte dois, para entregar até a sexta-feira da semana que vem'
     api.atividades = [minhaAtividade({ titulo: tituloLongo })]
     const aluno = await criarAlunoComMatricula()
@@ -109,7 +109,7 @@ test.describe('o Início do aluno', () => {
     await entrarComoAluno(page, aluno, hasTouch)
 
     const ajuda = principal(page).getByRole('link', { name: 'Pedir ajuda ao Tutor' })
-    await expect(ajuda).toHaveCount(1, { timeout: PRAZO_DA_TELA_MS })
+    await expect(ajuda).toHaveCount(1, { timeout: SCREEN_TIMEOUT_MS })
     const titulo = await principal(page).getByRole('link', { name: tituloLongo }).boundingBox()
     const caixa = await ajuda.boundingBox()
     if (titulo === null || caixa === null) throw new Error('o título e o "Pedir ajuda ao Tutor" precisam estar na tela')
@@ -118,14 +118,14 @@ test.describe('o Início do aluno', () => {
     // O link continua numa linha só (44 px de alto) e ao lado do título, não abaixo.
     expect(caixa.height).toBeLessThanOrEqual(ALVO_DE_TOQUE_PRINCIPAL_PX + 1)
     expect(caixa.x).toBeGreaterThanOrEqual(titulo.x + titulo.width - 1)
-    expect(await larguraExcedente(page)).toBe(0)
+    expect(await horizontalOverflow(page)).toBe(0)
   })
 
   test('"Sair" está à vista no Início e tem o tamanho de toque dos vizinhos, a 360 px e no computador', async ({ page, hasTouch }) => {
     test.slow()
     const aluno = await criarAlunoComMatricula()
     await colocarAlunoNaTurma(aluno)
-    await simularAluno(page)
+    await mockAlunoApi(page)
     await entrarComoAluno(page, aluno, hasTouch)
 
     // No celular o "Sair" a um toque é o da barra do topo, sem abrir a gaveta (a dois toques fica o da gaveta); no computador, o da lateral.
@@ -144,7 +144,7 @@ test.describe('o Início do aluno', () => {
   test('avaliação aberta: o Início avisa com o texto de hoje, o link "Pedir ajuda ao Tutor" continua e leva ao Tutor, que pausa mas mantém a caixa', async ({ page, hasTouch }) => {
     test.slow()
     const atividade = minhaAtividade({ titulo: 'Prova de estequiometria', avaliativa: true })
-    const api = await simularAluno(page)
+    const api = await mockAlunoApi(page)
     const leiturasDoTutor: string[] = []
     page.on('request', (pedido) => {
       if (new URL(pedido.url()).pathname.startsWith('/v1/tutor')) leiturasDoTutor.push(pedido.url())
@@ -156,15 +156,15 @@ test.describe('o Início do aluno', () => {
     await entrarComoAluno(page, aluno, hasTouch)
 
     const linha = principal(page).getByRole('listitem').filter({ hasText: 'Prova de estequiometria' })
-    await expect(linha).toContainText(AVISO_DA_AVALIACAO, { timeout: PRAZO_DA_TELA_MS })
+    await expect(linha).toContainText(AVISO_DA_AVALIACAO, { timeout: SCREEN_TIMEOUT_MS })
     const ajuda = linha.getByRole('link', { name: 'Pedir ajuda ao Tutor' })
     await expect(ajuda).toHaveAttribute('href', `/aluno/tutor/${atividade.id}`)
     // O Início não lê a conversa: o estado do Tutor só chega quando o aluno abre a dele.
     expect(leiturasDoTutor).toEqual([])
 
-    await acionar(ajuda, hasTouch)
-    await expect(page).toHaveURL(new RegExp(`/aluno/tutor/${atividade.id}$`), { timeout: PRAZO_DA_TELA_MS })
-    await expect(principal(page).locator('[data-pausa-do-tutor]')).toHaveAttribute('data-pausa-do-tutor', 'avaliacao', { timeout: PRAZO_DA_TELA_MS })
+    await activate(ajuda, hasTouch)
+    await expect(page).toHaveURL(new RegExp(`/aluno/tutor/${atividade.id}$`), { timeout: SCREEN_TIMEOUT_MS })
+    await expect(principal(page).locator('[data-pausa-do-tutor]')).toHaveAttribute('data-pausa-do-tutor', 'avaliacao', { timeout: SCREEN_TIMEOUT_MS })
     // A caixa existe em todo estado (D36): o aluno que escrever um assunto delicado ainda recebe o encaminhamento.
     await expect(page.getByRole('textbox', { name: 'Pergunta para o Tutor' })).toBeEnabled()
   })
@@ -191,7 +191,7 @@ test.describe('o Início do aluno', () => {
     })
 
     await entrarComoAluno(page, primeiro, hasTouch)
-    await expect(principal(page).getByRole('status')).toHaveText('Carregando as suas tarefas…', { timeout: PRAZO_DA_TELA_MS })
+    await expect(principal(page).getByRole('status')).toHaveText('Carregando as suas tarefas…', { timeout: SCREEN_TIMEOUT_MS })
     await sairPelaCasca(page, hasTouch)
 
     // O segundo entra na mesma aba, sem recarregar.
@@ -201,9 +201,9 @@ test.describe('o Início do aluno', () => {
     }, segundo.slug)
     await page.getByLabel('Matrícula').fill(segundo.matricula)
     await page.getByLabel('Senha').fill(segundo.senha)
-    await acionar(page.getByRole('button', { name: /^Entrar$/ }), hasTouch)
+    await activate(page.getByRole('button', { name: /^Entrar$/ }), hasTouch)
     await esperarInicioDoAluno(page, segundo.nome)
-    await expect(principal(page)).toContainText(doSegundo.titulo, { timeout: PRAZO_DA_TELA_MS })
+    await expect(principal(page)).toContainText(doSegundo.titulo, { timeout: SCREEN_TIMEOUT_MS })
 
     // Agora chega a resposta do primeiro, atrasada: a tela do segundo não a mostra, nem o nome do primeiro.
     liberarAPrimeira()
