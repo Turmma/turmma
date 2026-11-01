@@ -1,6 +1,6 @@
 # Tech Spec — Nomes de mercado (X8)
 
-**PRD:** `prd.md` · **Inventário:** `inventario.md` e anexos (adenda 2 em `inventario-adenda-2.md`) · **Travas:** `travas.md` · **Guarda:** `guarda.md` · **Casos:** `casos.md`
+**PRD:** `prd.md` · **Inventário:** `inventario.md` e anexos (adendas 2 e 4 em `inventario-adenda-2.md` e `inventario-adenda-4.md`) · **Travas:** `travas.md` · **Guarda:** `guarda.md` · **Casos:** `casos.md`
 **Status:** aprovada na revisão da spec (rodada 9, 30/10/2026)
 
 ## 1. Resumo da abordagem
@@ -166,7 +166,7 @@ comentário da onça que cita o nome antigo do kit é da 13.0 (triagem da 9.0, 3
 
 **A guarda (12.0)** é a regra `guardas/nome-de-mercado`, em `REGRAS_DAS_GUARDAS`, só em `apps/`, `packages/` e
 `e2e/`. A gramática (forma, tipos de declaração em que vale, nome de mercado na mensagem), o limite declarado e os
-casos estão em `guarda.md`. Com o inventário e as duas adendas aplicados, a árvore inteira passa.
+casos estão em `guarda.md`. Com o inventário e as adendas aplicados, a árvore inteira passa.
 
 ## 6. Isolamento (obrigatório)
 

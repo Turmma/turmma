@@ -16,7 +16,8 @@ chaves do TanStack Query ficam como estão.
 - `techspec.md` §5, §9 e §10
 - `prd.md` RF3, RF6 e RF7
 - `inventario-web-e2e.md` §6 a §11 e §15, mais "Ficam (casca e telas)" e "Não muda, mas parece". As linhas `apps/web`
-  de `inventario-adenda-2.md` fora do kit
+  de `inventario-adenda-2.md` fora do kit, e as quatro de `inventario-adenda-4.md` (aprovada em 01/11; triagem da 2ª
+  divergência da 10.0)
 - `inventario.md` §1, as linhas `consulta<X>` e `CHAVE_<X>`
 - `.claude/rules/50-frontend.md`
 - A leitura do anexo (triagem da divergência da 10.0): `consultarConvite` e `consultarConviteDeOperador`

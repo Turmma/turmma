@@ -1,6 +1,7 @@
-# Inventário — adenda 3 (X8)
+# Inventário — adenda 4 (X8)
 
-Anexo do `inventario.md`. **Status:** proposta, aguarda a aprovação do Joaquim (RF2). Nada daqui é renomeado antes dela.
+Anexo do `inventario.md`. **Status:** aprovada pelo Joaquim em 01/11/2026, no terminal do Orquestrador (RF2), na tarefa 10.0. Proposta no
+`d945e7cd`, com o nome de adenda 3, que já era a do `lerConfiguracao` (30/10): a numeração certa é 4.
 
 **De onde vem.** A revisão da 10.0, rodada 1 (`frontend-reviewer`; ordem r1, item 4), achou quatro nomes da web que seguem
 regras que o §1 e o §2 do inventário já aprovaram, mas que nenhum anexo lista. A guarda do RF8 não os recusa (`chamar` e

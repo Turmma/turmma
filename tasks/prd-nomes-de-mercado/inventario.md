@@ -196,3 +196,9 @@ caso que pegava.
   `readExternalLoginConfig` e `readConfig` dos quatro apps (anexo back), `readFileStorageConfig` e `readSalaConfig`
   (adenda 2) passam a `load…`. O Joaquim escolheu o verbo "para todos"; o quinto nome, `readConfig`, foi achado na
   rodada 5
+
+**Adenda 4 — 01/11/2026, aprovada pelo Joaquim no terminal do Orquestrador, na tarefa 10.0 (triagem da 2ª divergência)**
+
+- Quatro nomes da web de regra já aprovada que nenhum anexo listava: `chamarComSessaoDeOperador` → `operadorAuthedRequest`
+  (o par do operador do `authedRequest`, decisão 24) e três `CHAVE_` do TanStack Query não exportadas → `<X>_QUERY_KEY`
+  (§1). A tabela está em `inventario-adenda-4.md`. Os valores das chaves não mudam
