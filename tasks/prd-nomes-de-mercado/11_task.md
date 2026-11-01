@@ -1,6 +1,6 @@
 # Tarefa 11.0 — Onda do e2e, símbolos (linha web)
 
-**Funcionalidade:** nomes-de-mercado · **Depende de:** 10.0
+**Funcionalidade:** nomes-de-mercado · **Depende de:** 10.0 e a correção `2026-11-01-mapa-copias-do-mesmo-nome`
 **Subagentes obrigatórios:** `tenancy-guardian`, `privacy-guardian`, `conformidade-reviewer`, `infra-guardian`, `test-engineer`, `revisor-geral`
 **Porte:** grande
 
@@ -16,6 +16,24 @@ As fixtures, os ajudantes e os page objects de `e2e/` passam ao nome de mercado.
 - `prd.md` RF3, RF6 e RF7
 - `inventario-web-e2e.md` §12, mais "Não muda, mas parece". As duas linhas `e2e/` de `inventario-adenda-2.md`
 - `guarda.md`, a exceção nominal `esquemaDeCor`
+- A leitura do anexo (triagem da divergência da 11.0, 01/11/2026):
+  - `portao` (`inventario-web-e2e.md:384`): uma entrada por declaração, todas → `gate`, cada uma com o seu `arquivo`
+    (`support/assistente.ts`, `support/pedidos-do-titular.ts`, `support/professor/sino.ts` e cada spec que declara a cópia
+    local); o mapa só passa depois da correção acima (Tech Spec §5). O `portao` de `tools/`, de `apps/api/test/` e de
+    `.claude/settings.json` é `fica`, item "Homônimo e texto na 11.0" do anexo. Comentário com `portao` é troca à mão
+  - opção `perfil` → `profile` (`:362`): fora do mapa, troca à mão da onda (o membro de `OpcoesDoPerfil`, a chave do
+    `base.extend`, as duas de `playwright.config.ts`, as desestruturações da fixture em `profiles.ts`,
+    `components-gallery.spec.ts` e `guardas.spec.ts`, a mensagem de `profiles.ts:70` e o `perfil?:` e as leituras de
+    `tools/ci/playwright.test.ts`). É trava (11.3): linha nova em `travas.md` e bloco de mutação (o caso de
+    `playwright.test.ts` que lê `uso?.profile` fica vermelho com a chave antiga em `playwright.config.ts`); as chaves e a
+    mensagem vão para `excecoesDoConferir`. O outro `perfil` fica (anexo, item 11.0 c)
+  - `PAGINA_*` (`:368`): vale o exemplo literal e, nas outras oito, o prefixo `HTML_PAGE_`: `PAGINA_MAIS_LARGA` →
+    `WIDE_PAGE`, `PAGINA_DENTRO_DA_LARGURA` → `HTML_PAGE_WITHIN_WIDTH`, `PAGINA_BOTOES_DE_16_PX` → `HTML_PAGE_16_PX_BUTTONS`,
+    `PAGINA_BOTOES_DE_44_PX` → `HTML_PAGE_44_PX_BUTTONS`, `PAGINA_SEM_CONTRASTE` → `HTML_PAGE_LOW_CONTRAST`,
+    `PAGINA_COM_CONTRASTE` → `HTML_PAGE_GOOD_CONTRAST`, `PAGINA_COM_503_NO_NOME_DA_ESCOLA` → `HTML_PAGE_503_IN_SCHOOL_NAME`,
+    `PAGINA_COM_O_503_CRU` → `HTML_PAGE_RAW_503`, `PAGINA_COM_O_503_COLADO_AO_BOTAO` → `HTML_PAGE_503_GLUED_TO_BUTTON`
+  - `entrarComSegundoFator` (`:374`) não está no e2e: fora do mapa da 11.0 (anexo, item 11.0 e). As cópias locais de
+    `acionar`, `PRAZO_*` e `Cena` nos specs entram junto, pela entrada sem `arquivo`
 
 ## Subtarefas
 
@@ -32,6 +50,8 @@ As fixtures, os ajudantes e os page objects de `e2e/` passam ao nome de mercado.
 |---|---|
 | `e2e/**`, `playwright.config.ts` | alterado |
 | `tools/ci/codigo-do-autenticador.test.ts` | alterado |
+| `tools/ci/playwright.test.ts` | alterado (a opção `perfil` → `profile`, à mão; triagem da divergência da 11.0) |
+| `apps/web/src/components/states/EmptyState.tsx` | sem diff no fim: o passo 5 troca o `secao` de `` `t-secao` ``, a onda desfaz e registra `fica` (Tech Spec §5, passo 5; triagem da divergência da 11.0) |
 | `tools/renomear/mapas/11.json`, `tools/renomear/mapas/11.relatorio.md` | novo |
 
 ## Testes que provam a regra

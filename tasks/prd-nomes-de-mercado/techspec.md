@@ -45,7 +45,14 @@ homônimos com destinos diferentes, cada um num pacote, entram com `arquivo` nas
 e o do despachante, `inventario-back.md:316` e `:321`): o `aplicar` acha a declaração pelo `arquivo`, e o `conferir` segue
 cada entrada só no pacote dela. Repete, e recusa, se uma das entradas não tem `arquivo` (ela vale em todo pacote) ou se os
 dois `arquivo` caem no mesmo pacote, onde o `conferir` não separa o nome reexportado. Arquivo, pasta e pacote seguem pelo `de`
-sozinho (triagem da divergência da 8.0, 31/10/2026).
+sozinho (triagem da divergência da 8.0, 31/10/2026). A exceção são as cópias do mesmo nome: duas entradas de símbolo com
+`arquivo` no mesmo pacote e o **mesmo `para`** não se repetem, uma por declaração (o `portao` de `e2e/support/assistente.ts`,
+`pedidos-do-titular.ts`, `professor/sino.ts` e as cópias locais dos specs, todas → `gate`, `inventario-web-e2e.md:384`). Não há
+o que separar: o `aplicar` acha cada declaração pelo `arquivo` dela, e o nome exportado vai ao mesmo `para` por qualquer uma.
+Com `para` diferente no mesmo pacote, ou com uma das entradas sem `arquivo`, continua recusa. Para o passo 5, esse `de` é de
+mais de uma entrada (troca à mão), porque o homônimo de outro pacote é citado em comentário (o `portao` de
+`tools/processo/portao.ts`). Triagem da divergência da 11.0, 01/11/2026; a regra entra no `validarMapa` pela correção
+`2026-11-01-mapa-copias-do-mesmo-nome`, antes da 11.0.
 
 **O `aplicar`, passo a passo:**
 
