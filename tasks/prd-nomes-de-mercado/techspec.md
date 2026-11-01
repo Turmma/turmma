@@ -247,4 +247,18 @@ ou a trava contra filtro vazio. Nenhum caso entra (RF7). A onda sem trava leva "
   (`casosDoSpec`: do título ao próximo `test(`, o mesmo que `casosAlterados` atribui ao caso, com o gancho que vier
   depois dele; no último caso, até o fim do arquivo) é igual ao do HEAD, no mesmo arquivo e com o mesmo título, único
   dos dois lados. O caso com identificador renomeado no código, ou com um gancho mudado no trecho dele, continua
-  medido (divergência de portão da 9.0, `e2e/tokens.spec.ts:215`, 31/10/2026)
+  medido (divergência de portão da 9.0, `e2e/tokens.spec.ts:215`, 31/10/2026).
+  **A marca "só rename" é o mapa da onda** (2ª divergência da 11.0, 01/11/2026: 55 casos marcados só por fixture
+  renomeada). A correção `2026-11-01-duracao-do-e2e-so-nomes-do-mapa` (`tools/ci/duracao-do-e2e.ts`) estende a de só
+  comentário: sai da régua o caso cujo trecho do HEAD (o mesmo par, por título único dos dois lados), com cada
+  `de` → `para` das entradas `tipo: "simbolo"` aplicado **só a token identificador** (nunca dentro de texto, crase ou
+  título), dá a mesma sequência de tokens que o trecho da árvore. Vale só o mapa da onda em curso: os
+  `tools/renomear/mapas/*.json` que a árvore tem fora do HEAD ou diferentes dele; sem mapa assim, a isenção não existe,
+  e mapa já commitado não isenta nada. A comparação é por token, ignorando espaço, quebra de linha, comentário e a
+  vírgula logo antes de `)`, `]` ou `}` (o que o prettier refaz quando o nome muda de tamanho); qualquer outro token
+  diferente põe o caso de volta na régua. Entrada `arquivo`, `pasta`, `pacote` e o `alias` não isentam. O portão
+  lista os casos isentos que estavam acima do limite, e o `11.relatorio.md` os copia numa seção "Só rename na régua
+  de duração": é a marca da subtarefa 11.5. A frase "continua medido" acima vale para o caso fora dessa isenção.
+  Testes a acrescentar em `tools/ci/duracao-do-e2e.test.ts`, ao lado de "só o comentário do caso lento muda": isenta
+  o só-mapa (com e sem a quebra do prettier); reprova o nome trocado fora do mapa, o nome do mapa mais uma linha de
+  código, o nome antigo trocado dentro de um texto, e o mesmo rename com o mapa já no HEAD
