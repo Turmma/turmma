@@ -1,8 +1,8 @@
 import { TAMANHO_MAXIMO_EMAIL, TAMANHO_MAXIMO_SENHA } from '@educa/shared'
 import { useEffect, useRef, useState, useSyncExternalStore, type FormEvent } from 'react'
 import { useLocation } from 'wouter'
-import { Botao } from '../../components/ui/Botao'
-import { Campo } from '../../components/ui/fields/Campo'
+import { Button } from '../../components/ui/Button'
+import { FormField } from '../../components/ui/fields/FormField'
 import { avisoDaEntradaDeOperador, assinarSessaoDeOperador, entrarComoOperador, estadoDaSessaoDeOperador } from '../api/sessao'
 import { INICIO_DA_OPERACAO, ROTAS_DA_OPERACAO } from '../paths'
 import { CascaPublicaDaOperacao } from '../components/CascaDaOperacao'
@@ -62,7 +62,7 @@ export function Entrar() {
       )}
       <p className="text-apoio">Área da equipe Turmma. Use o e-mail e a senha da sua conta de operador.</p>
       <form className="flex flex-col gap-4" onSubmit={(evento) => void enviar(evento)}>
-        <Campo
+        <FormField
           rotulo="E-mail"
           name="email"
           type="email"
@@ -75,7 +75,7 @@ export function Entrar() {
           value={email}
           onChange={(evento) => definirEmail(evento.target.value)}
         />
-        <Campo
+        <FormField
           rotulo="Senha"
           name="senha"
           type="password"
@@ -91,9 +91,9 @@ export function Entrar() {
             {textoDaFalhaDaEntrada(falha)}
           </p>
         )}
-        <Botao type="submit" disabled={entrando} className="w-full">
+        <Button type="submit" disabled={entrando} className="w-full">
           {entrando ? 'Entrando…' : 'Entrar'}
-        </Botao>
+        </Button>
         <span role="status" className="sr-only">
           {entrando ? 'Entrando…' : ''}
         </span>

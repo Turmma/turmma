@@ -1,6 +1,6 @@
 import type { EstadoDeMaterial, LicencaDeclarada, Material, MotivoDaRecusaDoMaterial } from '@educa/shared'
 import { PARAMETRO_DO_MATERIAL } from '../../../paths'
-import type { FamiliaDeEstado } from '../../../components/ui/SeloDeEstado'
+import type { StatusFamily } from '../../../components/ui/StatusBadge'
 import { doMaisNovoAoMaisAntigo, OPCOES_DE_LICENCA, textoDoEstado, type RascunhoDoEnvio } from './material-envio'
 
 /**
@@ -22,7 +22,7 @@ export interface RecusaDeEnvio {
 export type LinhaDoMaterial = { readonly tipo: 'material'; readonly material: Material } | { readonly tipo: 'recusa'; readonly recusa: RecusaDeEnvio }
 
 /** A família do selo de cada situação: o que está sendo lido espera, o pronto está certo e o que falhou é erro. */
-export const FAMILIA_DA_SITUACAO_DO_MATERIAL = { processando: 'pendente', pronto: 'ok', falhou: 'erro' } as const satisfies Readonly<Record<EstadoDeMaterial, FamiliaDeEstado>>
+export const FAMILIA_DA_SITUACAO_DO_MATERIAL = { processando: 'pendente', pronto: 'ok', falhou: 'erro' } as const satisfies Readonly<Record<EstadoDeMaterial, StatusFamily>>
 
 /** O que o selo diz do material: "Não carregou", "Processando" ou "Pronto · N páginas". */
 export function textoDaSituacaoDoMaterial(material: Pick<Material, 'estado' | 'paginas'>): string {

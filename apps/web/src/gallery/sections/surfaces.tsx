@@ -1,17 +1,17 @@
 import { Ellipsis, FileDown, FileText } from 'lucide-react'
 import { useState } from 'react'
-import { Botao } from '../../components/ui/Botao'
-import { BarraPresa } from '../../components/ui/BarraPresa'
-import { BarraRotulada } from '../../components/ui/BarraRotulada'
-import { Cartao } from '../../components/ui/Cartao'
+import { Button } from '../../components/ui/Button'
+import { StickyFooter } from '../../components/ui/StickyFooter'
+import { ProgressBar } from '../../components/ui/ProgressBar'
+import { Card } from '../../components/ui/Card'
 import type { Aprovacao } from '../../components/ui/ai/approval'
-import { AssinaturaIA } from '../../components/ui/ai/AssinaturaIA'
-import { LinhaAprovacao } from '../../components/ui/ai/LinhaAprovacao'
-import { Linha } from '../../components/ui/Linha'
+import { AgentSignature } from '../../components/ui/ai/AgentSignature'
+import { ApprovalLine } from '../../components/ui/ai/ApprovalLine'
+import { ListItem } from '../../components/ui/ListItem'
 import { Menu } from '../../components/ui/overlays/Menu'
-import { NumeroPainel } from '../../components/ui/NumeroPainel'
-import { Estado } from '../../components/ui/SeloDeEstado'
-import { Tabela, type ColunaDaTabela } from '../../components/ui/Tabela'
+import { StatCard } from '../../components/ui/StatCard'
+import { StatusBadge } from '../../components/ui/StatusBadge'
+import { Table, type TableColumn } from '../../components/ui/Table'
 import { QUANDO } from '../sample-data'
 import { Secao } from '../GallerySection'
 
@@ -31,14 +31,14 @@ const REGISTROS: readonly Registro[] = [
 
 const DESTAQUES = ['Ana B. · em branco', 'Caio M. · muito abaixo do histórico', 'Questão 7 · erro em 28 de 32', 'Davi R. · em branco', 'Elis T. · padrão de erro', 'Fábio L. · em branco']
 
-const COLUNAS_SEM_MENU: readonly [ColunaDaTabela<Registro>, ...ColunaDaTabela<Registro>[]] = [
+const COLUNAS_SEM_MENU: readonly [TableColumn<Registro>, ...TableColumn<Registro>[]] = [
   { chave: 'oQue', titulo: 'O quê', celula: (registro) => registro.oQue },
-  { chave: 'funcao', titulo: 'Agente e função', celula: (registro) => <AssinaturaIA funcao={registro.funcao} /> },
+  { chave: 'funcao', titulo: 'Agente e função', celula: (registro) => <AgentSignature funcao={registro.funcao} /> },
   { chave: 'turma', titulo: 'Turma', celula: (registro) => registro.turma },
-  { chave: 'estado', titulo: 'Aprovação', celula: (registro) => <LinhaAprovacao aprovacao={registro.aprovacao} espera="Esperando o professor" /> },
+  { chave: 'estado', titulo: 'Aprovação', celula: (registro) => <ApprovalLine aprovacao={registro.aprovacao} espera="Esperando o professor" /> },
 ]
 
-const COLUNAS: readonly [ColunaDaTabela<Registro>, ...ColunaDaTabela<Registro>[]] = [
+const COLUNAS: readonly [TableColumn<Registro>, ...TableColumn<Registro>[]] = [
   ...COLUNAS_SEM_MENU,
   {
     chave: 'acoes',
@@ -61,22 +61,22 @@ function LinhasDeExemplo() {
     <>
       <ul data-linhas="" className={MOLDURA_DA_LISTA}>
         <li>
-          <Linha
+          <ListItem
             para="/galeria"
             titulo="Lista de estequiometria"
             abaixo="2ºB · entregas até 24/10"
             inicio={<FileText aria-hidden="true" className="size-6 text-sutil" />}
-            fim={<Estado familia="pendente">Esperando você</Estado>}
+            fim={<StatusBadge familia="pendente">Esperando você</StatusBadge>}
           />
         </li>
         <li>
-          <Linha aoAcionar={() => definirAberta('Resultado da lista 3')} titulo="Resultado da lista 3" abaixo="Corrigida em 19/09" />
+          <ListItem aoAcionar={() => definirAberta('Resultado da lista 3')} titulo="Resultado da lista 3" abaixo="Corrigida em 19/09" />
         </li>
         <li>
-          <Linha titulo="Camila Souza" abaixo="Professora de Química, 2ºB e 1ºA" />
+          <ListItem titulo="Camila Souza" abaixo="Professora de Química, 2ºB e 1ºA" />
         </li>
         <li>
-          <Linha para="/galeria" titulo={TITULO_COMPRIDO} abaixo="1ºA · Química" />
+          <ListItem para="/galeria" titulo={TITULO_COMPRIDO} abaixo="1ºA · Química" />
         </li>
       </ul>
       <p role="status" data-linha-aberta="" className="t-apoio text-sutil">
@@ -91,29 +91,29 @@ export default function SecoesDeSuperficies() {
     <>
       <Secao nome="cartao-e-numero" titulo="Cartão e número de painel">
         <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2">
-          <Cartao titulo="Atividades da semana" acao={<Botao variante="discreto" tamanho="compacto">Ver todas</Botao>}>
+          <Card titulo="Atividades da semana" acao={<Button variante="discreto" tamanho="compacto">Ver todas</Button>}>
             <p className="t-apoio text-sutil">Quatro atividades aplicadas, duas esperando a sua aprovação.</p>
-          </Cartao>
-          <Cartao>
+          </Card>
+          <Card>
             <p className="t-apoio text-sutil">Um cartão sem título é só a caixa.</p>
-          </Cartao>
+          </Card>
         </div>
         <div data-numeros="" className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-3">
-          <NumeroPainel rotulo="Gerado por IA" valor={1284} apoio="Atividades, planos e correções" />
-          <NumeroPainel rotulo="Média de acertos" valor="61%" apoio={<BarraRotulada rotulo="Turma 2ºB" valor={61} />} />
-          <NumeroPainel rotulo="Esperando o professor" valor="—" />
+          <StatCard rotulo="Gerado por IA" valor={1284} apoio="Atividades, planos e correções" />
+          <StatCard rotulo="Média de acertos" valor="61%" apoio={<ProgressBar rotulo="Turma 2ºB" valor={61} />} />
+          <StatCard rotulo="Esperando o professor" valor="—" />
         </div>
       </Secao>
 
       <Secao nome="barra-rotulada" titulo="Barra rotulada, sempre neutra">
-        <Cartao>
+        <Card>
           <div data-barras="" className="flex min-w-0 flex-col gap-4">
-            <BarraRotulada rotulo="Habilidade EM13CNT101" valor={72} texto="72%" detalhe="3 questões" />
-            <BarraRotulada rotulo="Consumo do mês" valor={188} maximo={300} texto="188 de 300 trocas" />
-            <BarraRotulada rotulo="Hoje" valor={60} maximo={60} texto="60 de 60 perguntas" />
-            <BarraRotulada rotulo="Ainda sem acerto" valor={0} texto="0%" />
+            <ProgressBar rotulo="Habilidade EM13CNT101" valor={72} texto="72%" detalhe="3 questões" />
+            <ProgressBar rotulo="Consumo do mês" valor={188} maximo={300} texto="188 de 300 trocas" />
+            <ProgressBar rotulo="Hoje" valor={60} maximo={60} texto="60 de 60 perguntas" />
+            <ProgressBar rotulo="Ainda sem acerto" valor={0} texto="0%" />
           </div>
-        </Cartao>
+        </Card>
       </Secao>
 
       <Secao nome="linha" titulo="Linha de lista">
@@ -128,26 +128,26 @@ export default function SecoesDeSuperficies() {
               <li key={destaque} className="flex min-w-0 flex-wrap items-center justify-between gap-2 rounded-controle border border-linha p-3">
                 <span className="min-w-0 break-words">{destaque}</span>
                 {/* Um controle em cada item: é o que o Tab alcança no meio da lista, atrás de onde a barra está. */}
-                <Botao variante="secundario" tamanho="compacto">
+                <Button variante="secundario" tamanho="compacto">
                   Abrir
-                </Botao>
+                </Button>
               </li>
             ))}
           </ul>
-          <BarraPresa rotulo="Aprovação do lote" informacao="3 de 5 destaques abertos">
-            <Botao variante="perigo">Rejeitar</Botao>
-            <Botao variante="oficial" disabled>
+          <StickyFooter rotulo="Aprovação do lote" informacao="3 de 5 destaques abertos">
+            <Button variante="perigo">Rejeitar</Button>
+            <Button variante="oficial" disabled>
               Aprovar 32 correções
-            </Botao>
-          </BarraPresa>
+            </Button>
+          </StickyFooter>
         </div>
       </Secao>
 
       <Secao nome="tabela" titulo="Tabela que vira lista">
-        <Tabela rotulo="O que a IA gerou e quem aprovou" colunas={COLUNAS} linhas={REGISTROS} chaveDaLinha={(registro) => registro.id} />
+        <Table rotulo="O que a IA gerou e quem aprovou" colunas={COLUNAS} linhas={REGISTROS} chaveDaLinha={(registro) => registro.id} />
         {/* A mesma tabela num lugar onde não cabe: aí, e só aí, a região que rola recebe foco. */}
         <div data-tabela-estreita="" className="max-w-[280px]">
-          <Tabela rotulo="Tabela que não cabe" colunas={COLUNAS_SEM_MENU} linhas={REGISTROS} chaveDaLinha={(registro) => registro.id} />
+          <Table rotulo="Tabela que não cabe" colunas={COLUNAS_SEM_MENU} linhas={REGISTROS} chaveDaLinha={(registro) => registro.id} />
         </div>
       </Secao>
     </>

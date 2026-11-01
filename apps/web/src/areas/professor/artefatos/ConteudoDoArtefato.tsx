@@ -1,8 +1,8 @@
 import type { Citacao, ConteudoDoArtefato as Conteudo, ConteudoDeAtividade, ConteudoDePlanoDeAula } from '@educa/shared'
 import { Check } from 'lucide-react'
-import { ChipFonte } from '../../../components/ui/ai/ChipFonte'
-import { Fontes } from '../../../components/ui/ai/Fontes'
-import { PaginaMini } from '../../../components/ui/ai/PaginaMini'
+import { CitationChip } from '../../../components/ui/ai/CitationChip'
+import { Sources } from '../../../components/ui/ai/Sources'
+import { PageThumbnail } from '../../../components/ui/ai/PageThumbnail'
 import type { TitulosDosMateriais } from '../../../components/ui/ai/source-labels'
 
 /** A letra de cada alternativa, pelo índice que o contrato usa (0 a 3). */
@@ -39,7 +39,7 @@ function Atividade({ conteudo, materiais, resumido, comGabarito }: { conteudo: C
             <div className="flex min-w-0 flex-1 flex-col gap-3">
               <p className="min-w-0 break-words whitespace-pre-wrap text-tinta">
                 <span className="font-semibold">{indice + 1}. </span>
-                {questao.enunciado} <ChipFonte citacao={questao.citacao} materiais={materiais} />
+                {questao.enunciado} <CitationChip citacao={questao.citacao} materiais={materiais} />
               </p>
               {!resumido && (
                 <>
@@ -74,7 +74,7 @@ function Atividade({ conteudo, materiais, resumido, comGabarito }: { conteudo: C
                 </>
               )}
             </div>
-            {!resumido && <PaginaMini citacao={questao.citacao} materiais={materiais} />}
+            {!resumido && <PageThumbnail citacao={questao.citacao} materiais={materiais} />}
           </div>
         </li>
       ))}
@@ -113,7 +113,7 @@ function Plano({ conteudo, materiais, resumido }: { conteudo: ConteudoDePlanoDeA
                   {etapa.citacao !== undefined && (
                     <>
                       {' '}
-                      <ChipFonte citacao={etapa.citacao} materiais={materiais} />
+                      <CitationChip citacao={etapa.citacao} materiais={materiais} />
                     </>
                   )}
                 </p>
@@ -157,7 +157,7 @@ export function ConteudoDoArtefato({ conteudo, materiais, resumido = false, comG
   return (
     <div className="flex min-w-0 flex-col gap-3">
       {conteudo.tipo === 'atividade_objetiva' ? <Atividade conteudo={conteudo} materiais={materiais} resumido={resumido} comGabarito={comGabarito} /> : <Plano conteudo={conteudo} materiais={materiais} resumido={resumido} />}
-      <Fontes citacoes={citacoesDoConteudo(conteudo)} materiais={materiais} />
+      <Sources citacoes={citacoesDoConteudo(conteudo)} materiais={materiais} />
     </div>
   )
 }

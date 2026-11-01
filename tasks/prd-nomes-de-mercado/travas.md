@@ -92,13 +92,13 @@ altera o ouro (X7, RF16). Depois da 5.0, uma correção do Arquiteto troca as ci
 
 | Trava | O que lê pelo nome | Onda | Forma | Prova |
 |---|---|---|---|---|
-| `eslint-suppressions.json` | os caminhos de arquivo | 5.0 e 6.0 | C (o lint) | O lint verde, sem supressão órfã nem violação reativada |
+| `eslint-suppressions.json` | os caminhos de arquivo | 5.0, 6.0, 9.0 e 10.0 | C (o lint) | O lint verde, sem supressão órfã nem violação reativada |
 | `eslint.config.mjs` | `files: ['apps/worker/src/processadores/**/*.ts']` (linha 72, sem afirmação de tipo nos totais do expurgo) e `files: ['apps/web/src/componentes/ui/**/*.{ts,tsx}']` (linha 116, a fronteira do kit); os demais `files`/`ignores` com caminho renomeado | 5.0 e 6.0 | C | A trava contra filtro vazio lê a configuração exportada. O caminho virtual de `guardas.test.ts:159` passa ao nome novo |
 | `package.json` da raiz | `-w @educa/nucleo` em cerca de 20 scripts (`build`, `ops:*`, `carga:*`, `ensaio:alertas`) e `db:gerar --config packages/nucleo/drizzle.config.ts` | 5.0 | C | O `restos` dá zero na raiz; a onda roda `npm run build` e `npm run db:gerar` (sem migration nova) |
 | `knip.json` e `vitest.config.ts` | o workspace `"packages/nucleo"` e os caminhos do core | 5.0 | C | A trava contra filtro vazio (workspaces e entries do `knip.json`) e o `restos` |
 | `tools/ci/dockerfile.test.ts`, `borda.test.ts`, `resolucao-do-shared.test.ts`, `caminhos-da-esteira.ts` | `not.toContain('@educa/nucleo')` (dockerfile, 118), `COPY packages/nucleo/drizzle` (111), as linhas 78 e 95 de `borda` (na 95, o nome `TENTE_DE_NOVO_PADRAO_SEGUNDOS` da regex passa a `DEFAULT_RETRY_AFTER_SECONDS` na 4.0, e o caminho na 5.0), a 23 de `resolucao-do-shared` e a 7 de `caminhos-da-esteira` | 5.0 | A, B e C (118, B; 111, A; `borda` 78 e 95, `resolucao-do-shared` 23 e `caminhos-da-esteira` 7, C) | A asserção passa ao nome novo, e a mutação que põe no Dockerfile o que a 118 proíbe a deixa vermelha |
 | `tools/processo/mutacoes.ts` (linhas 681 e 696) | `__fixtures__/` como apoio de teste | 6.0 | A | `e2e/support/` continua classificado como apoio |
-| `apps/web/nome-dos-chunks.ts` | o caminho do kit em texto | 6.0 | A | O teste dele, com o caminho novo |
+| `apps/web/nome-dos-chunks.ts` | o caminho do kit em texto | 6.0, 9.0 e 10.0 | A | O teste dele, com o caminho novo |
 
 ## Achadas na 4.0
 
@@ -137,7 +137,7 @@ O relatório do `aplicar` da 6.0 achou estas, que a revisão da spec não listou
 | `tools/guardas/camadas.test.ts`, `camadas.cjs` (linha 139) e a fixture `camadas/apps/api/src/credencial/hash-do-token.ts` | `hash-do-token.ts`, `arquitetura.test.ts`, as mensagens com o caminho | 6.0 | A | `camadas.test.ts`: as violações de `credencial` e do teste de arquitetura, vermelhas com o caminho novo |
 | `tools/guardas/{guardas,tamanho-das-pastas,filtros-casam}.test.ts` | caminhos de exemplo (`apps/api/src/sistema/x.ts`, `apps/web/src/paginas/Casca.tsx`, `e2e/__fixtures__/x.ts`) e o `dist` de `hash-de-senha` | 6.0 | C | O `restos` dá zero; o `filtros-casam.test.ts` ("dist de infra/scripts…") casa o caminho novo com a fonte |
 | `apps/api/test/architecture.test.ts` (linhas 22, 358, 559, 634, 660, 1330 a 1335, 1393, 1394, 1423, 1439 e 1473) | caminhos de arquivo em listas de varredura e em mensagens | 6.0 | C | O `restos` dá zero; o teste continua com os mesmos casos |
-| `apps/web/src/components/{casca-sem-import,perigo-cheio}.test.ts`, `estilos.test.ts` | caminhos do kit lidos como texto (`ui/campos/Segmentado.tsx`, `ui/botao-secundario.ts`, `ui/ia/`) | 6.0 | C | O `restos` dá zero e os testes leem o arquivo (arquivo que não existe falha alto) |
+| `apps/web/src/components/{casca-sem-import,perigo-cheio}.test.ts`, `estilos.test.ts` | caminhos do kit lidos como texto (`ui/campos/Segmentado.tsx`, `ui/botao-secundario.ts`, `ui/ia/`) | 6.0 e 9.0 | C | O `restos` dá zero e os testes leem o arquivo (arquivo que não existe falha alto) |
 | `apps/web/src/areas/*/introducao/textos-da-introducao.test.ts` | a mensagem de falha que cita `e2e/__fixtures__/casca.ts` | 6.0 | C | O `restos` dá zero; a string entra em `excecoesDoConferir` |
 | `e2e/estrutura.spec.ts` e `e2e/lista-da-turma.spec.ts` | `e2e/__fixtures__/lista-excel.csv`, que a pasta carrega para `e2e/support/` | 6.0 | C | O e2e abre o arquivo: caminho esquecido falha alto |
 | `apps/api/src/operacao/escola/escola.repository.test.ts` | a lista `IMPORTADORES_PERMITIDOS_DO_CASO_DE_USO` (`sessao-de-teste.ts`, `fila-de-teste.ts`) | 6.0 | A | O caso da varredura de importadores: um importador fora da lista, vermelho |
@@ -158,3 +158,13 @@ O relatório do `aplicar` da 7.0 achou estas, que a revisão da spec não listou
 | `architecture.test.ts`, o caso "operador.repository.ts não declara nem reexporta ConferenciaDoAutor" | `/\bConferenciaDoAutor\b/` → `AuthorCheck` | 7.0 | B | O `operador.repository.ts` com `export type AuthorCheck = unknown`: o caso fica vermelho |
 | `tools/guardas/camadas.cjs` (`cerca-resolucao-de-tenant`, linha 147, e o `comment`) e `camadas.test.ts` (a chave, linha 142) | o nome da cerca acompanha a classe `TenantResolutionRepository` (observação do Orquestrador, levada da 6.0) | 7.0 | A | O `camadas.test.ts` com a chave antiga `'cerca-resolucao-de-tenant'`: o caso "toda regra da configuração tem a sua fixture, e nenhuma fixture é de regra que não existe" fica vermelho, porque o `camadas.cjs` não tem mais essa regra |
 | `infra/scripts/carga-login.ts`, `carga-sala.ts`, `ensaio-alertas.ts`, as chaves `criarSessoesSinteticas` e `emissorDeTokenSintetico` do tipo literal de `importar<…>` e as chamadas que as usam | `createSyntheticSessions` e `syntheticTokenIssuer`: a chave é o que o `dist` da api exporta, e o `importar<T>` é uma afirmação de tipo, então a chave antiga compilaria e quebraria na execução (a mesma troca da chave `HashDeSenha`, linha 85) | 7.0 | C (`tsc`) | `tsc -p infra/tsconfig.json`: a chave antiga numa chamada dá `TS2339` nas três; o `restos` não olha a chave nem o membro (`7_task.md`, "Mutações") |
+
+## Achadas na 9.0
+
+O relatório do `aplicar` da 9.0 achou estas, que a revisão da spec não listou (Tech Spec §5, passo 6). As linhas acima não mudam de número.
+
+| Trava | O que lê pelo nome | Onda | Forma | Prova |
+|---|---|---|---|---|
+| `tools/processo/harness/guardioes.test.ts` (linhas 32, 33, 104 e 105) | o arquivo de exemplo de `EXCECOES` (`ui/Abas.tsx`, `ui/ai/AssinaturaIA.tsx`) e os exemplos de `pede` (`ui/ai/AvisoFila.tsx`, `ui/overlays/DialogoDeConfirmacao.tsx`) | 9.0 | A | Com o nome antigo, o caso que confere que cada exceção aponta um arquivo que existe (linha 99) fica vermelho |
+| `tools/ci/tamanho-web.test.ts` (linha 148) | o chunk `pecas-CaixaPedido.js` do build de mentira | 9.0 | C | O `restos` dá zero. O chunk de mentira só precisa casar `pecas-*.js`, e passa a `pecas-PromptInput.js`, o nome que o build dá depois do move |
+| `apps/web/src/components/states/estados.test.tsx` (linhas 168 e 181) | os nomes da lista `PECAS_FORA_DA_ENTRADA` (`ui/Aviso`, `ui/Contador`, `ui/Toque`) | 9.0 | A | Com o nome antigo, a lista de `chunk-names.ts` não tem a peça e o caso "a lista fechada tem as três peças novas" fica vermelho |

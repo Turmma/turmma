@@ -1,8 +1,8 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useId, useRef, useState, type ReactNode, type RefObject } from 'react'
 import { consultaAcessoDaTurma } from '../api/acesso'
-import { Botao } from '../../../../components/ui/Botao'
-import { useDialogoDaTela } from '../../../../components/ui/overlays/dialog-state'
+import { Button } from '../../../../components/ui/Button'
+import { useDialogState } from '../../../../components/ui/overlays/dialog-state'
 import { Anuncio } from '../../../../components/dialogs'
 import { EstadoCarregando, EstadoErro, EstadoVazio } from '../../../../components/states/index'
 import { TurmaIndisponivel } from '../../../../components/TurmaIndisponivel'
@@ -43,7 +43,7 @@ export function AcessoDaTurma({ turmaId, escola, titulo, convidarPeloEndereco = 
   const acesso = useQuery(consultaAcessoDaTurma(turmaId))
   // O endereço pede o diálogo: ele abre na montagem da aba, uma vez. Fechar tira o pedido do endereço, e a aba que monta de novo
   // (a turma aberta outra vez) o abre só se o endereço ainda o pede.
-  const { aberta, abrir: abrirDialogo, fechar: fecharDialogo, fecharSeAinda } = useDialogoDaTela<'convidar'>(convidarPeloEndereco ? 'convidar' : undefined)
+  const { aberta, abrir: abrirDialogo, fechar: fecharDialogo, fecharSeAinda } = useDialogState<'convidar'>(convidarPeloEndereco ? 'convidar' : undefined)
   const [anuncio, definirAnuncio] = useState('')
   const idDoTitulo = useId()
   const botaoConvidar = useRef<HTMLButtonElement>(null)
@@ -93,7 +93,7 @@ export function AcessoDaTurma({ turmaId, escola, titulo, convidarPeloEndereco = 
         <h2 ref={titulo} id={idDoTitulo} tabIndex={-1} className="text-lg font-semibold text-tinta">
           Acesso dos alunos
         </h2>
-        {acesso.isSuccess && <Botao ref={botaoConvidar} onClick={abrir}>Convidar alunos</Botao>}
+        {acesso.isSuccess && <Button ref={botaoConvidar} onClick={abrir}>Convidar alunos</Button>}
       </div>
       <Anuncio texto={anuncio} />
       {conteudo()}

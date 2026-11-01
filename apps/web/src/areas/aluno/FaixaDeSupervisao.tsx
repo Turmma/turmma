@@ -1,5 +1,5 @@
 import { Eye } from 'lucide-react'
-import { Faixa } from '../../components/ui/Faixa'
+import { Banner } from '../../components/ui/Banner'
 import { TEXTO_DA_SUPERVISAO } from './tutor'
 
 /**
@@ -11,7 +11,7 @@ import { TEXTO_DA_SUPERVISAO } from './tutor'
 export function FaixaDeSupervisao() {
   return (
     <div data-faixa-de-supervisao="" className="sticky top-14 z-[5] bg-fundo py-2 md:top-0">
-      <Faixa icone={Eye}>{TEXTO_DA_SUPERVISAO}</Faixa>
+      <Banner icone={Eye}>{TEXTO_DA_SUPERVISAO}</Banner>
     </div>
   )
 }

@@ -4,15 +4,15 @@ import { Link, useLocation, useSearch } from 'wouter'
 import { mensagemDoErro } from '../../../api/client'
 import { consultaConsumo, consultaResumoDaGovernanca, consultaResumoPorEstado } from './api/governanca'
 import { ROTAS_DA_COORDENACAO } from '../../../paths'
-import { BarraRotulada } from '../../../components/ui/BarraRotulada'
-import { Botao } from '../../../components/ui/Botao'
-import { CLASSES_DO_LINK_SECUNDARIO } from '../../../components/ui/button-variants'
+import { ProgressBar } from '../../../components/ui/ProgressBar'
+import { Button } from '../../../components/ui/Button'
+import { SECONDARY_LINK_CLASSES } from '../../../components/ui/button-variants'
 import { EstadoCarregando, EstadoErro, EstadoVazio } from '../../../components/states/index'
-import { LinhaAprovacao } from '../../../components/ui/ai/LinhaAprovacao'
-import { NumeroPainel } from '../../../components/ui/NumeroPainel'
-import { Segmentado } from '../../../components/ui/fields/Segmentado'
-import { Tabela, type ColunaDaTabela } from '../../../components/ui/Tabela'
-import { CabecalhoDeSecao } from '../../../components/ui/Tela'
+import { ApprovalLine } from '../../../components/ui/ai/ApprovalLine'
+import { StatCard } from '../../../components/ui/StatCard'
+import { SegmentedControl } from '../../../components/ui/fields/SegmentedControl'
+import { Table, type TableColumn } from '../../../components/ui/Table'
+import { SectionHeader } from '../../../components/ui/Page'
 import { formatarDataHora } from '../../../format'
 import { enderecoComParametro } from '../comum/endereco-da-tela'
 import {
@@ -35,12 +35,12 @@ import {
  * filtro nem ordenação por professor ou por turma: a API não os aceita (D45, D64). O único filtro é o estado da entrega. A última
  * coluna diz que uma pessoa decidiu e quando; quem foi está na auditoria.
  */
-const COLUNAS: readonly [ColunaDaTabela<ItemDaGovernanca>, ...ColunaDaTabela<ItemDaGovernanca>[]] = [
+const COLUNAS: readonly [TableColumn<ItemDaGovernanca>, ...TableColumn<ItemDaGovernanca>[]] = [
   { chave: 'oQue', titulo: 'O que foi gerado', celula: (item) => NOME_DO_TIPO_DE_ENTREGA[item.tipo] },
   { chave: 'funcao', titulo: 'Agente e função', celula: (item) => nomeDaFuncao(item.funcao) },
   { chave: 'serie', titulo: 'Série', celula: (item) => <span className="inline-block min-w-28">{nomeDaSerie(item.serie)}</span> },
   { chave: 'quando', titulo: 'Gerado em', celula: (item) => formatarDataHora(item.criadaEm) },
-  { chave: 'decisao', titulo: 'Decisão', celula: (item) => <LinhaAprovacao aprovacao={aprovacaoDoItem(item)} espera={ESPERANDO_O_PROFESSOR} /> },
+  { chave: 'decisao', titulo: 'Decisão', celula: (item) => <ApprovalLine aprovacao={aprovacaoDoItem(item)} espera={ESPERANDO_O_PROFESSOR} /> },
 ]
 
 /**
@@ -83,23 +83,23 @@ export default function Governanca() {
       <div className="flex min-w-0 flex-col items-start gap-3">
         <p className="max-w-prose text-apoio">O que a IA produziu nesta escola no ano letivo, e o que as pessoas decidiram sobre isso. {O_QUE_CHEGA_AO_ALUNO}</p>
         {/* A porta para "Como cada IA trabalha" (X2, 3.0): sem ela a página dos agentes ficaria sem caminho depois que o item saiu da lateral. */}
-        <Link to={ROTAS_DA_COORDENACAO.agentes} className={CLASSES_DO_LINK_SECUNDARIO}>
+        <Link to={ROTAS_DA_COORDENACAO.agentes} className={SECONDARY_LINK_CLASSES}>
           Como cada IA trabalha
         </Link>
       </div>
       <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <NumeroPainel rotulo="Gerado por IA" valor={numeros.geradoPorIa} apoio="Atividades, planos, versões adaptadas e correções" />
-        <NumeroPainel rotulo="Aprovado por gente" valor={numeros.aprovadoPorPessoa} apoio="Versões adaptadas e correções que um professor aprovou" />
-        <NumeroPainel rotulo="Esperando o professor" valor={numeros.esperando} apoio="Só valem depois da decisão dele" />
-        <NumeroPainel rotulo="Rejeitado" valor={numeros.rejeitado} apoio="O professor recusou, com justificativa" />
+        <StatCard rotulo="Gerado por IA" valor={numeros.geradoPorIa} apoio="Atividades, planos, versões adaptadas e correções" />
+        <StatCard rotulo="Aprovado por gente" valor={numeros.aprovadoPorPessoa} apoio="Versões adaptadas e correções que um professor aprovou" />
+        <StatCard rotulo="Esperando o professor" valor={numeros.esperando} apoio="Só valem depois da decisão dele" />
+        <StatCard rotulo="Rejeitado" valor={numeros.rejeitado} apoio="O professor recusou, com justificativa" />
       </div>
 
       {/* Do computador largo para cima, o consumo fica ao lado da tabela; abaixo disso, embaixo dela. */}
       <div className="grid min-w-0 grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_18rem] lg:items-start">
         <section className="flex min-w-0 flex-col gap-3" aria-labelledby="titulo-registro">
-          <CabecalhoDeSecao id="titulo-registro" titulo="O que a IA gerou e quem aprovou" apoio="Da mais nova para a mais antiga. Cada linha diz o que foi gerado, por qual função, e se uma pessoa já decidiu." />
+          <SectionHeader id="titulo-registro" titulo="O que a IA gerou e quem aprovou" apoio="Da mais nova para a mais antiga. Cada linha diz o que foi gerado, por qual função, e se uma pessoa já decidiu." />
           <div className="max-w-3xl">
-            <Segmentado rotulo="Estado" rotuloVisivel opcoes={OPCOES_DO_ESTADO} valor={estado ?? 'todos'} aoMudar={filtrar} emDuasColunasNoCelular />
+            <SegmentedControl rotulo="Estado" rotuloVisivel opcoes={OPCOES_DO_ESTADO} valor={estado ?? 'todos'} aoMudar={filtrar} emDuasColunasNoCelular />
           </div>
           {lista.isPending && <EstadoCarregando rotulo="Carregando a lista…" />}
           {lista.isError && lista.data === undefined && <EstadoErro erro={lista.error} tentando={lista.isFetching} aoTentarDeNovo={() => void lista.refetch({ cancelRefetch: false })} />}
@@ -111,9 +111,9 @@ export default function Governanca() {
                   <p role="alert" className="min-w-0 flex-1 basis-56 break-words text-erro">
                     {mensagemDoErro(lista.error)}
                   </p>
-                  <Botao variante="secundario" onClick={() => void lista.fetchNextPage()} disabled={lista.isFetchingNextPage}>
+                  <Button variante="secundario" onClick={() => void lista.fetchNextPage()} disabled={lista.isFetchingNextPage}>
                     Tentar de novo
-                  </Botao>
+                  </Button>
                 </div>
               )}
               {itens.length === 0 ? (
@@ -131,12 +131,12 @@ export default function Governanca() {
                 )
               ) : (
                 <>
-                  <Tabela rotulo="O que a IA gerou e quem aprovou" colunas={COLUNAS} linhas={itens} chaveDaLinha={(item) => item.id} />
+                  <Table rotulo="O que a IA gerou e quem aprovou" colunas={COLUNAS} linhas={itens} chaveDaLinha={(item) => item.id} />
                   {lista.hasNextPage && (
                     <div>
-                      <Botao variante="secundario" onClick={() => void lista.fetchNextPage()} disabled={lista.isFetchingNextPage}>
+                      <Button variante="secundario" onClick={() => void lista.fetchNextPage()} disabled={lista.isFetchingNextPage}>
                         {lista.isFetchingNextPage ? 'Carregando…' : 'Carregar mais'}
-                      </Botao>
+                      </Button>
                     </div>
                   )}
                 </>
@@ -159,7 +159,7 @@ function Consumo() {
   const consumo = useQuery(consultaConsumo)
   return (
     <section className="flex min-w-0 flex-col gap-3" aria-labelledby="titulo-consumo">
-      <CabecalhoDeSecao id="titulo-consumo" titulo="Consumo do mês por função" apoio="Quanto cada função da IA trabalhou neste mês. É somado por função: não existe consumo por professor nem por aluno." />
+      <SectionHeader id="titulo-consumo" titulo="Consumo do mês por função" apoio="Quanto cada função da IA trabalhou neste mês. É somado por função: não existe consumo por professor nem por aluno." />
       {consumo.isPending && <EstadoCarregando rotulo="Carregando o consumo…" />}
       {consumo.isError && <EstadoErro erro={consumo.error} tentando={consumo.isFetching} aoTentarDeNovo={() => void consumo.refetch({ cancelRefetch: false })} />}
       {consumo.data !== undefined &&
@@ -168,7 +168,7 @@ function Consumo() {
         ) : (
           <div className="flex min-w-0 flex-col gap-4 rounded-cartao border border-linha bg-superficie p-4 lg:p-5">
             {consumo.data.porFuncao.map((linha) => (
-              <BarraRotulada
+              <ProgressBar
                 key={linha.funcao}
                 rotulo={nomeDaFuncao(linha.funcao)}
                 valor={linha.tokensDeEntrada + linha.tokensDeSaida}
@@ -176,7 +176,7 @@ function Consumo() {
                 texto={textoDoConsumo(linha)}
               />
             ))}
-            <BarraRotulada
+            <ProgressBar
               rotulo="Trocas dos alunos com o Tutor"
               valor={consumo.data.tutor.trocasNoMes}
               maximo={Math.max(1, consumo.data.tutor.pacoteDoMes)}

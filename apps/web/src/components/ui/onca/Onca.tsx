@@ -1,5 +1,5 @@
 import { NOMES_DOS_AGENTES, type Agente } from '@educa/shared'
-import { SeloIA } from '../ai/AssinaturaIA'
+import { AIBadge } from '../ai/AgentSignature'
 import { Boca, DeclaracaoDaPinta, Focinho, Mascara, Olhos, ONCA, Orelha, Rosetas, useIdDoDesenho, type BocaDaOnca, type OlharDaOnca } from './CabecaOnca'
 import { CORPO_D, OMBRO_D, OMBRO_E, ROSETAS } from './geometria'
 import { useAcenarNaPrimeiraVez } from './movimento-da-onca'
@@ -283,7 +283,7 @@ export function Onca({ pose, agente, tamanho, animada = true }: PropsDaOnca) {
       </svg>
       <figcaption data-onca-assinatura="" className="flex min-w-0 flex-wrap items-center justify-center gap-x-2 gap-y-1">
         <span className="text-[15px] leading-5 font-bold break-words text-tinta">{funcao}</span>
-        <SeloIA />
+        <AIBadge />
       </figcaption>
     </figure>
   )

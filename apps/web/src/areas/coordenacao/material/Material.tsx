@@ -8,13 +8,13 @@ import { consultaDisciplinas } from '../../../api/estrutura'
 import { consultaMateriais, excluirMaterial, type CamposDoEnvioDeMaterial } from './api/material'
 import { aoTrocarDeSessao } from '../../../api/sessao'
 import { PARAMETRO_DO_MATERIAL } from '../../../paths'
-import { Botao } from '../../../components/ui/Botao'
-import { useDialogoDaTela } from '../../../components/ui/overlays/dialog-state'
-import { DialogoDeConfirmacao } from '../../../components/ui/overlays/DialogoDeConfirmacao'
+import { Button } from '../../../components/ui/Button'
+import { useDialogState } from '../../../components/ui/overlays/dialog-state'
+import { ConfirmDialog } from '../../../components/ui/overlays/ConfirmDialog'
 import { Anuncio, useEnvioUnico } from '../../../components/dialogs'
 import { EstadoCarregando, EstadoErro, EstadoVazio } from '../../../components/states/index'
-import { Estado } from '../../../components/ui/SeloDeEstado'
-import { Tabela, type ColunaDaTabela } from '../../../components/ui/Tabela'
+import { StatusBadge } from '../../../components/ui/StatusBadge'
+import { Table, type TableColumn } from '../../../components/ui/Table'
 import { textoDaFalha } from '../../../components/error-text'
 import { DialogoDeEnvioDeMaterial } from './DialogoDeEnvioDeMaterial'
 import { enderecoComParametro } from '../comum/endereco-da-tela'
@@ -33,7 +33,7 @@ function colunasDosMateriais(
   nomeDaDisciplina: (disciplinaId: string) => string,
   aoAbrir: (materialId: string) => void,
   aoDispensar: (chave: number) => void,
-): readonly [ColunaDaTabela<LinhaDoMaterial>, ...ColunaDaTabela<LinhaDoMaterial>[]] {
+): readonly [TableColumn<LinhaDoMaterial>, ...TableColumn<LinhaDoMaterial>[]] {
   return [
     {
       chave: 'material',
@@ -60,14 +60,14 @@ function colunasDosMateriais(
       titulo: 'Situação',
       celula: (linha) =>
         linha.tipo === 'material' ? (
-          <Estado familia={FAMILIA_DA_SITUACAO_DO_MATERIAL[linha.material.estado]}>{textoDaSituacaoDoMaterial(linha.material)}</Estado>
+          <StatusBadge familia={FAMILIA_DA_SITUACAO_DO_MATERIAL[linha.material.estado]}>{textoDaSituacaoDoMaterial(linha.material)}</StatusBadge>
         ) : (
           <div className="flex min-w-0 flex-col items-start gap-2">
-            <Estado familia="erro">{textoDaSituacaoDaRecusa(linha.recusa)}</Estado>
+            <StatusBadge familia="erro">{textoDaSituacaoDaRecusa(linha.recusa)}</StatusBadge>
             <p className="max-w-prose text-sm break-words text-apoio">{TEXTO_DA_RECUSA[linha.recusa.motivo]}</p>
-            <Botao variante="discreto" onClick={() => aoDispensar(linha.recusa.chave)}>
+            <Button variante="discreto" onClick={() => aoDispensar(linha.recusa.chave)}>
               Dispensar <span className="sr-only">o aviso de {linha.recusa.titulo}</span>
-            </Botao>
+            </Button>
           </div>
         ),
     },
@@ -95,7 +95,7 @@ export default function Material() {
   const busca = useSearch()
   const materiais = useQuery(consultaMateriais)
   const disciplinas = useQuery(consultaDisciplinas)
-  const dialogo = useDialogoDaTela<TipoDeDialogo, MaterialDaEscola>()
+  const dialogo = useDialogState<TipoDeDialogo, MaterialDaEscola>()
   const aberta = dialogo.aberta
   const alvo = aberta?.alvo
   const fecharDialogo = dialogo.fechar
@@ -193,7 +193,7 @@ export default function Material() {
             <h2 ref={tituloDaLista} tabIndex={-1} className="text-lg font-semibold text-tinta">
               Materiais da escola
             </h2>
-            <Botao onClick={() => abrir('enviar')}>Enviar material</Botao>
+            <Button onClick={() => abrir('enviar')}>Enviar material</Button>
           </div>
           {/*
             Com a lista já na tela, a releitura que falhou é dita aqui com o "Tentar de novo" em `secundario`: o `primario`
@@ -204,15 +204,15 @@ export default function Material() {
               <p role="alert" className="min-w-0 flex-1 basis-56 break-words text-erro">
                 {mensagemDoErro(materiais.error)}
               </p>
-              <Botao variante="secundario" onClick={() => void materiais.refetch({ cancelRefetch: false })}>
+              <Button variante="secundario" onClick={() => void materiais.refetch({ cancelRefetch: false })}>
                 Tentar de novo
-              </Botao>
+              </Button>
               <span role="status" className="text-erro">
                 {materiais.isFetching ? 'Tentando de novo…' : ''}
               </span>
             </div>
           )}
-          <Tabela
+          <Table
             rotulo="Lista de materiais"
             colunas={colunasDosMateriais(nomeDe, abrirPainel, (chave) => definirRecusas((atuais) => atuais.filter((outra) => outra.chave !== chave)))}
             linhas={linhasDosMateriais(lista.itens, recusas)}
@@ -295,7 +295,7 @@ function ExcluirMaterial({ material, disciplina, aoFechar, aoTerminar, aoExcluir
     onError: () => void aoTerminar(),
   })
   return (
-    <DialogoDeConfirmacao
+    <ConfirmDialog
       titulo="Excluir material"
       familia="perigo"
       resumo={[

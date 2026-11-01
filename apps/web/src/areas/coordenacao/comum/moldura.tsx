@@ -1,18 +1,18 @@
 import { createContext, Suspense, useCallback, useContext, useRef, type ReactNode } from 'react'
 import { useLocation } from 'wouter'
-import { Abas, type Aba } from '../../../components/ui/Abas'
+import { Tabs, type TabItem } from '../../../components/ui/Tabs'
 import { EstadoCarregando } from '../../../components/states/index'
-import { Tela } from '../../../components/ui/Tela'
+import { Page } from '../../../components/ui/Page'
 import { useTituloDaTela } from '../../../document-title'
 import { O_MIOLO_QUE_ROLA } from './miolo-que-rola'
 
-/** Uma aba de moldura: o que o `Abas` pede, mais o endereço **de hoje** dela, relativo à área. */
-export interface AbaDaMoldura extends Aba {
+/** Uma aba de moldura: o que o `Tabs` pede, mais o endereço **de hoje** dela, relativo à área. */
+export interface AbaDaMoldura extends TabItem {
   readonly caminho: string
 }
 
 /**
- * Quem leva o foco ao título da moldura (o `h1` "Escola" ou "Registros"). A tela de dentro perdeu a `Tela` dela, e o `h1` onde
+ * Quem leva o foco ao título da moldura (o `h1` "Escola" ou "Registros"). A tela de dentro perdeu a `Page` dela, e o `h1` onde
  * o foco cai quando o botão que abriu um diálogo saiu da tela (`Professores`) é o da moldura.
  */
 const ContextoDoTituloDaMoldura = createContext<(() => void) | undefined>(undefined)
@@ -39,8 +39,8 @@ interface Props {
 }
 
 /**
- * A moldura de um lugar que tem abas (D80; Tech Spec da X2, seção 9, "Molduras"): o `Tela` com o título do lugar, as `Abas` com
- * a do endereço e, dentro, a tela que já existia, sem a `Tela` dela. **A aba é o endereço**: trocar de aba navega para o
+ * A moldura de um lugar que tem abas (D80; Tech Spec da X2, seção 9, "Molduras"): o `Page` com o título do lugar, as `Tabs` com
+ * a do endereço e, dentro, a tela que já existia, sem a `Page` dela. **A aba é o endereço**: trocar de aba navega para o
  * endereço de hoje daquela tela, e o `routes.tsx` é quem diz qual aba é a de cada endereço. A moldura não lê consulta nenhuma e
  * não sabe o que há dentro.
  *
@@ -56,8 +56,8 @@ export function Moldura({ titulo, tituloDaAba, rotuloDasAbas, abas, ativa, child
 
   return (
     <ContextoDoTituloDaMoldura value={focarOTitulo}>
-      <Tela titulo={titulo} refDoTitulo={tituloRef}>
-        <Abas
+      <Page titulo={titulo} refDoTitulo={tituloRef}>
+        <Tabs
           rotulo={rotuloDasAbas}
           abas={abas}
           ativa={ativa}
@@ -68,8 +68,8 @@ export function Moldura({ titulo, tituloDaAba, rotuloDasAbas, abas, ativa, child
           classeDoPainel={O_MIOLO_QUE_ROLA}
         >
           <Suspense key={ativa} fallback={<EstadoCarregando rotulo="Carregando…" />}>{children}</Suspense>
-        </Abas>
-      </Tela>
+        </Tabs>
+      </Page>
     </ContextoDoTituloDaMoldura>
   )
 }

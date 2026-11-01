@@ -12,9 +12,9 @@ import { aceitarConviteNaVez, consultarConvite } from '../api/convite'
 import { ErroDaApi } from '../api/client'
 import { definirAvisoDaEntrada } from '../api/sessao'
 import { ROTAS } from '../paths'
-import { Botao } from '../components/ui/Botao'
-import { CLASSES_DO_LINK_SECUNDARIO } from '../components/ui/button-variants'
-import { CampoDeSenha } from '../components/ui/fields/CampoDeSenha'
+import { Button } from '../components/ui/Button'
+import { SECONDARY_LINK_CLASSES } from '../components/ui/button-variants'
+import { PasswordInput } from '../components/ui/fields/PasswordInput'
 import { CascaPublica } from '../components/CascaPublica'
 import { EstadoCarregando, EstadoErro } from '../components/states'
 import { apagarFragmentoDaBarra, tokenDoFragmento } from './url-fragment'
@@ -159,7 +159,7 @@ export function Convite() {
         {/* Quem abriu de novo o convite que já aceitou só precisa entrar; a tela não sabe qual dos casos aconteceu. */}
         <p className="text-apoio">Já aceitou o convite? Entre com o seu e-mail e a sua senha.</p>
         <div>
-          <Link className={CLASSES_DO_LINK_SECUNDARIO} to={ROTAS.entrar}>
+          <Link className={SECONDARY_LINK_CLASSES} to={ROTAS.entrar}>
             Entrar
           </Link>
         </div>
@@ -181,9 +181,9 @@ export function Convite() {
       )}
       {etapa.nome === 'confirmar' ? (
         <>
-          <Botao onClick={() => void aceitar(etapa.token, escolaNome)} disabled={aceitando} className="w-full">
+          <Button onClick={() => void aceitar(etapa.token, escolaNome)} disabled={aceitando} className="w-full">
             {aceitando ? 'Aceitando…' : 'Aceitar o convite'}
-          </Botao>
+          </Button>
           <span role="status" className="sr-only">
             {aceitando ? 'Aceitando…' : ''}
           </span>
@@ -213,7 +213,7 @@ function SenhaNova({ aceitando, aoEnviar }: { aceitando: boolean; aoEnviar: (sen
   return (
     <form className="flex flex-col gap-4" onSubmit={enviar}>
       <p className="text-apoio">Crie a senha que você vai usar para entrar.</p>
-      <CampoDeSenha
+      <PasswordInput
         ref={campo}
         rotulo="Senha nova"
         dica={`Pelo menos ${String(TAMANHO_MINIMO_SENHA_NOVA)} caracteres. Use uma frase que só você saiba.`}
@@ -225,9 +225,9 @@ function SenhaNova({ aceitando, aoEnviar }: { aceitando: boolean; aoEnviar: (sen
         value={senha}
         onChange={(evento) => definirSenha(evento.target.value)}
       />
-      <Botao type="submit" disabled={aceitando} className="w-full">
+      <Button type="submit" disabled={aceitando} className="w-full">
         {aceitando ? 'Salvando…' : 'Definir a senha e continuar'}
-      </Botao>
+      </Button>
       <span role="status" className="sr-only">
         {aceitando ? 'Salvando…' : ''}
       </span>

@@ -45,7 +45,7 @@ export function fontesUnicas(citacoes: readonly Citacao[]): Citacao[] {
 }
 
 /**
- * A linha que abre a lista de fontes: `Fontes (3): Química 2, p. 142 · p. 145 · p. 151`. O número é o de fontes únicas,
+ * A linha que abre a lista de fontes: `Sources (3): Química 2, p. 142 · p. 145 · p. 151`. O número é o de fontes únicas,
  * e o título do material aparece uma vez, antes das páginas dele.
  */
 export function resumoDasFontes(citacoes: readonly Citacao[], materiais: TitulosDosMateriais): string {

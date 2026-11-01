@@ -15,8 +15,8 @@ import { ErroDaApi } from '../api/client'
 import { consultaAcessoDaEscola, enderecoDoLoginExterno, NOME_DO_PROVEDOR } from '../api/escola'
 import { entrarPorMatricula } from '../api/sessao'
 import { ROTA_DA_ETAPA } from '../paths'
-import { Botao } from '../components/ui/Botao'
-import { Campo } from '../components/ui/fields/Campo'
+import { Button } from '../components/ui/Button'
+import { FormField } from '../components/ui/fields/FormField'
 import { CascaPublica } from '../components/CascaPublica'
 import { EstadoCarregando } from '../components/states'
 
@@ -84,7 +84,7 @@ function ErroDoEndereco({ erro, aoTentarDeNovo, tentando }: { erro: unknown; aoT
       </p>
       {codigo !== ErrorCode.NAO_ENCONTRADO && (
         <div className="mt-3 flex flex-wrap items-center gap-3">
-          <Botao onClick={aoTentarDeNovo}>Tentar de novo</Botao>
+          <Button onClick={aoTentarDeNovo}>Tentar de novo</Button>
           <span role="status" className="text-erro">
             {tentando ? 'Tentando de novo…' : ''}
           </span>
@@ -120,7 +120,7 @@ function FormularioDaMatricula({ slug }: { slug: string }) {
 
   return (
     <form className="flex flex-col gap-4" onSubmit={(evento) => void enviar(evento)}>
-      <Campo
+      <FormField
         rotulo="Matrícula"
         name="matricula"
         type="text"
@@ -134,7 +134,7 @@ function FormularioDaMatricula({ slug }: { slug: string }) {
         value={matricula}
         onChange={(evento) => definirMatricula(evento.target.value)}
       />
-      <Campo
+      <FormField
         rotulo="Senha"
         name="senha"
         type="password"
@@ -149,9 +149,9 @@ function FormularioDaMatricula({ slug }: { slug: string }) {
           {falha instanceof ErroDaApi ? mensagemDaEntradaPorMatricula(falha.codigo, falha.esperaSegundos) : mensagemDaEntradaPorMatricula(ErrorCode.ERRO_INTERNO)}
         </p>
       )}
-      <Botao type="submit" disabled={entrando} className="w-full">
+      <Button type="submit" disabled={entrando} className="w-full">
         {entrando ? 'Entrando…' : 'Entrar'}
-      </Botao>
+      </Button>
       {/* Às 7h30 o 503 do semáforo faz a espera passar de um segundo: quem usa leitor de tela precisa ouvir isso. */}
       <span role="status" className="sr-only">
         {entrando ? 'Entrando…' : ''}

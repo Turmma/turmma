@@ -10,15 +10,15 @@ import { ErroDaApi } from '../../api/client'
 import { useCicloDeExecucao } from '../../api/execucoes'
 import { consultaConversaDoTutor, mensagensDoTutorEmOrdem } from '../../api/tutor'
 import { caminhoDaAtividadeDoAluno } from '../../paths'
-import { BarraPresa } from '../../components/ui/BarraPresa'
-import { BarraRotulada } from '../../components/ui/BarraRotulada'
-import { Botao } from '../../components/ui/Botao'
+import { StickyFooter } from '../../components/ui/StickyFooter'
+import { ProgressBar } from '../../components/ui/ProgressBar'
+import { Button } from '../../components/ui/Button'
 import { EstadoCarregando, EstadoErro, EstadoVazio } from '../../components/states'
-import { AssinaturaIA } from '../../components/ui/ai/AssinaturaIA'
-import { CaixaPedido } from '../../components/ui/ai/CaixaPedido'
-import { Conversa as ListaDeMensagens, MensagemIA, MensagemPessoa, Pensando } from '../../components/ui/ai/Message'
-import { TextoDaIA } from '../../components/ui/ai/TextoDaIA'
-import { Tela } from '../../components/ui/Tela'
+import { AgentSignature } from '../../components/ui/ai/AgentSignature'
+import { PromptInput } from '../../components/ui/ai/PromptInput'
+import { Conversation as ListaDeMensagens, AIMessage, UserMessage, ThinkingIndicator } from '../../components/ui/ai/Message'
+import { AIText } from '../../components/ui/ai/AIText'
+import { Page } from '../../components/ui/Page'
 import { useTituloDaTela } from '../../document-title'
 import { EscolhaDaAtividade } from './EscolhaDaAtividade'
 import { FaixaDeSupervisao } from './FaixaDeSupervisao'
@@ -77,7 +77,7 @@ function Encaminhamento({ texto }: { texto: string }) {
   )
   return (
     <article data-assunto-delicado="" className="flex min-w-0 flex-col gap-3 rounded-cartao border border-linha bg-info-cx p-4 text-base text-info">
-      <AssinaturaIA agente="tutor" />
+      <AgentSignature agente="tutor" />
       {paragrafos.map((paragrafo, posicao) => (
         // A ordem dos parágrafos da mensagem fixa não muda: a posição é a chave.
         <p key={posicao} className="min-w-0 break-words">
@@ -118,9 +118,9 @@ function FalhaNaConversa({ falha, aoTentarDeNovo }: { falha: FalhaDaPergunta; ao
         <span className="min-w-0 break-words">{falha.texto}</span>
       </p>
       {falha.tipo !== 'explicada' && (
-        <Botao variante="secundario" onClick={aoTentarDeNovo}>
+        <Button variante="secundario" onClick={aoTentarDeNovo}>
           Tentar de novo
-        </Botao>
+        </Button>
       )}
     </div>
   )
@@ -221,25 +221,25 @@ function ConversaComOTutor({ atividadeAplicadaId }: { atividadeAplicadaId: strin
       )}
 
       {conversa.hasNextPage && (
-        <Botao variante="secundario" onClick={() => void conversa.fetchNextPage()} disabled={conversa.isFetchingNextPage} className="self-center">
+        <Button variante="secundario" onClick={() => void conversa.fetchNextPage()} disabled={conversa.isFetchingNextPage} className="self-center">
           {conversa.isFetchingNextPage ? 'Carregando…' : 'Ver mensagens anteriores'}
-        </Botao>
+        </Button>
       )}
 
       {conversa.data !== undefined && (itens.length > 0 || pendente !== undefined) && (
         <ListaDeMensagens rotulo="Conversa com o Tutor" ocupada={pendente?.pensando === true}>
           {itens.map((item) => {
-            if (item.tipo === 'pergunta') return <MensagemPessoa key={`pergunta:${item.texto}`}>{item.texto}</MensagemPessoa>
+            if (item.tipo === 'pergunta') return <UserMessage key={`pergunta:${item.texto}`}>{item.texto}</UserMessage>
             const { mensagem } = item
-            if (mensagem.autor === 'aluno') return <MensagemPessoa key={mensagem.id}>{mensagem.texto}</MensagemPessoa>
+            if (mensagem.autor === 'aluno') return <UserMessage key={mensagem.id}>{mensagem.texto}</UserMessage>
             if (mensagem.tipo === 'assunto_delicado') return <Encaminhamento key={mensagem.id} texto={mensagem.texto} />
             return (
-              <MensagemIA key={mensagem.id} agente="tutor">
-                <TextoDaIA texto={mensagem.texto} citacoes={mensagem.citacoes} materiais={SEM_TITULOS} />
-              </MensagemIA>
+              <AIMessage key={mensagem.id} agente="tutor">
+                <AIText texto={mensagem.texto} citacoes={mensagem.citacoes} materiais={SEM_TITULOS} />
+              </AIMessage>
             )
           })}
-          {pendente?.pensando === true && <Pensando agente="tutor" demorando={demorando} />}
+          {pendente?.pensando === true && <ThinkingIndicator agente="tutor" demorando={demorando} />}
           {pendente?.falha !== undefined && <FalhaNaConversa falha={pendente.falha} aoTentarDeNovo={repetir} />}
         </ListaDeMensagens>
       )}
@@ -250,22 +250,22 @@ function ConversaComOTutor({ atividadeAplicadaId }: { atividadeAplicadaId: strin
 
       {/* A caixa existe em todos os estados do Tutor, e só espera enquanto uma pergunta está no ar. */}
       {conversa.data !== undefined && (
-        <BarraPresa rotulo="Pergunta para o Tutor" semLinha>
+        <StickyFooter rotulo="Pergunta para o Tutor" semLinha>
           <div className="flex w-full min-w-0 flex-col gap-3">
             {uso !== undefined && (
               <div data-uso-do-dia="">
                 {/* Com a tela baixa (o teclado aberto no celular), a barra vira uma linha de texto: a caixa continua à vista. */}
                 <div className="[@media(max-height:32rem)]:hidden">
-                  <BarraRotulada rotulo={uso.rotulo} valor={uso.valor} maximo={uso.maximo} texto={uso.resto} />
+                  <ProgressBar rotulo={uso.rotulo} valor={uso.valor} maximo={uso.maximo} texto={uso.resto} />
                 </div>
                 <p className="hidden text-sm text-sutil [@media(max-height:32rem)]:block">
                   {uso.rotulo} · {uso.resto}
                 </p>
               </div>
             )}
-            <CaixaPedido variante="so-texto" rotulo="Pergunta para o Tutor" exemplo="Escreva a sua dúvida…" valor={texto} aoMudar={definirTexto} aoEnviar={aoEnviar} estado={emCurso(ciclo) ? 'gerando' : 'pronta'} />
+            <PromptInput variante="so-texto" rotulo="Pergunta para o Tutor" exemplo="Escreva a sua dúvida…" valor={texto} aoMudar={definirTexto} aoEnviar={aoEnviar} estado={emCurso(ciclo) ? 'gerando' : 'pronta'} />
           </div>
-        </BarraPresa>
+        </StickyFooter>
       )}
     </>
   )
@@ -276,14 +276,14 @@ function ConversaComOTutor({ atividadeAplicadaId }: { atividadeAplicadaId: strin
  * lateral que o acende); a partir de uma atividade ("Pedir ajuda ao Tutor nesta questão"), a conversa dela. Nas duas, a
  * **faixa de supervisão no topo, que não fecha** (D8).
  *
- * Já não é item da lateral: o `<h1>` existe só para o leitor de tela (`Tela`).
+ * Já não é item da lateral: o `<h1>` existe só para o leitor de tela (`Page`).
  */
 export default function Tutor({ atividadeAplicadaId }: { atividadeAplicadaId?: string }) {
   useTituloDaTela('Tutor')
   return (
-    <Tela titulo="Tutor" largura="conversa" tituloSoParaLeitor>
+    <Page titulo="Tutor" largura="conversa" tituloSoParaLeitor>
       <FaixaDeSupervisao />
       {atividadeAplicadaId === undefined ? <EscolhaDaAtividade /> : <ConversaComOTutor atividadeAplicadaId={atividadeAplicadaId} />}
-    </Tela>
+    </Page>
   )
 }

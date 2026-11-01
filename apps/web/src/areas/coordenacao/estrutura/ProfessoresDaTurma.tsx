@@ -6,8 +6,8 @@ import { consultaVinculos } from '../../../api/estrutura'
 import { consultaProfessores } from '../professores/api/professores'
 import { caminhoDoProfessor, ROTAS_DA_COORDENACAO } from '../../../paths'
 import { EstadoCarregando, EstadoErro, EstadoVazio } from '../../../components/states/index'
-import { Linha } from '../../../components/ui/Linha'
-import { Estado } from '../../../components/ui/SeloDeEstado'
+import { ListItem } from '../../../components/ui/ListItem'
+import { StatusBadge } from '../../../components/ui/StatusBadge'
 import { ordenarPeloNome, ordenarVinculos } from '../comum/ordem'
 import { AvisoDeListaIncompleta } from '../comum/pecas-da-lista'
 
@@ -24,7 +24,7 @@ const SELO_DO_VINCULO = {
 
 function SeloDoVinculo({ estado }: { readonly estado: EstadoDeVinculo }) {
   const { familia, texto } = SELO_DO_VINCULO[estado]
-  return familia === 'pendente' ? <Estado familia="pendente">{texto}</Estado> : <Estado familia={familia}>{texto}</Estado>
+  return familia === 'pendente' ? <StatusBadge familia="pendente">{texto}</StatusBadge> : <StatusBadge familia={familia}>{texto}</StatusBadge>
 }
 
 /**
@@ -96,12 +96,12 @@ export function ProfessoresDaTurma({ turmaId }: { turmaId: string }) {
         <ul className="divide-y-2 divide-borda overflow-hidden rounded-cartao border-2 border-borda">
           {daTurma.map(({ nome, vinculo }) => (
             <li key={vinculo.id}>
-              <Linha
+              <ListItem
                 para={caminhoDoProfessor(vinculo.usuarioId)}
                 titulo={nome}
                 abaixo={
                   // O estado desce para baixo da disciplina em vez de ir ao `fim` da linha: a coluna tem 19 rem, e o `fim` da
-                  // `Linha` (que fica ao lado do texto a partir de 640 px) tomaria a largura toda e espremeria o nome.
+                  // `ListItem` (que fica ao lado do texto a partir de 640 px) tomaria a largura toda e espremeria o nome.
                   <span className="flex flex-col items-start gap-1">
                     <span>{vinculo.disciplina?.nome ?? 'Sem disciplina'}</span>
                     <SeloDoVinculo estado={vinculo.estado} />

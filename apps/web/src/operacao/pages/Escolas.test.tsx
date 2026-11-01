@@ -220,7 +220,7 @@ describe('Escolas: as ações da página (RF21)', () => {
     redeFalsa().responder(lista(UMA_ESCOLA_POR_ESTADO))
     renderizarTelaDaOperacao(<Escolas />)
     await screen.findByRole('table')
-    // A face laranja é só do `primario` (`button-variants.ts`): é o que o `Botao` sem variante desenha.
+    // A face laranja é só do `primario` (`button-variants.ts`): é o que o `Button` sem variante desenha.
     const cheios = screen.getAllByRole('button').filter((botao) => botao.classList.contains('bg-laranja'))
     expect(cheios.map((botao) => botao.textContent)).toEqual(['Nova escola'])
     expect(screen.getByRole('button', { name: 'Nova rede' }).classList.contains('bg-laranja')).toBe(false)

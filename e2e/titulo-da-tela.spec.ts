@@ -63,7 +63,7 @@ interface CaixaDoTitulo {
   readonly recorte: string
   readonly recorteDoCaminho: string
   readonly posicao: string
-  /** A altura do `header` da `Tela` em que o `h1` está, ou `null` quando ele não está em um. */
+  /** A altura do `header` da `Page` em que o `h1` está, ou `null` quando ele não está em um. */
   readonly cabecalho: number | null
 }
 

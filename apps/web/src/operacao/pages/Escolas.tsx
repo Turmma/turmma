@@ -2,21 +2,21 @@ import type { PainelQuery, EscolaDoPainel } from '@educa/shared'
 import { useQuery } from '@tanstack/react-query'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useLocation, useSearch } from 'wouter'
-import { Botao } from '../../components/ui/Botao'
+import { Button } from '../../components/ui/Button'
 import { EstadoCarregando, EstadoVazio } from '../../components/states'
-import { Estado } from '../../components/ui/SeloDeEstado'
-import { Tabela } from '../../components/ui/Tabela'
+import { StatusBadge } from '../../components/ui/StatusBadge'
+import { Table } from '../../components/ui/Table'
 import { formatarQuantidade } from '../../format'
 import { acoesDoConvite, ROTULO_DA_ACAO, type AcaoDoConvite } from '../acoes-do-convite'
 import { buscaDaConsulta, consultaDasEscolas, lerConsultaDaTela, paginasDoTotal } from '../api/painel'
 import { INICIO_DA_OPERACAO } from '../paths'
-import { CLASSES_DO_BOTAO_SECUNDARIO } from '../../components/ui/button-variants'
+import { SECONDARY_BUTTON_CLASSES } from '../../components/ui/button-variants'
 import { ErroDaOperacao } from '../components/CascaDaOperacao'
 import { ConfirmarConvite } from '../components/ConfirmarConvite'
 import { GerarConvite, RefazerConvite } from '../components/DialogoDoConvite'
 import { PaginasDaLista, SeletorDeOrdem, VazioAlemDaUltima } from '../components/NavegacaoDaLista'
 import { RegiaoDaLista } from '../components/RegiaoDaLista'
-import { useDialogoDaTela } from '../../components/ui/overlays/dialog-state'
+import { useDialogState } from '../../components/ui/overlays/dialog-state'
 import { TEXTO_DO_ESTADO, TOM_DO_ESTADO } from '../estados-da-escola'
 import { TEXTO_DA_LISTA_VAZIA } from '../textos'
 import { useTituloDaPagina } from '../document-title'
@@ -25,7 +25,7 @@ import { NovaRede } from './NovaRede'
 
 /** O estado da coordenação em texto, com o ícone e a cor de reforço da família dele (regra 50, item 11). */
 function EstadoDaCoordenacao({ escola }: { escola: EscolaDoPainel }) {
-  return <Estado familia={TOM_DO_ESTADO[escola.estado]}>{TEXTO_DO_ESTADO[escola.estado]}</Estado>
+  return <StatusBadge familia={TOM_DO_ESTADO[escola.estado]}>{TEXTO_DO_ESTADO[escola.estado]}</StatusBadge>
 }
 
 /** O resto do nome acessível de cada ação, depois do rótulo visível: o botão diz de que escola é (WCAG 2.5.3). */
@@ -75,7 +75,7 @@ function AcoesDoConvite({ escola, aoAcionar, focarNaEscola }: { escola: EscolaDo
           }}
           type="button"
           onClick={() => aoAcionar(acao, escola)}
-          className={CLASSES_DO_BOTAO_SECUNDARIO}
+          className={SECONDARY_BUTTON_CLASSES}
         >
           {ROTULO_DA_ACAO[acao]}
           <span className="sr-only">
@@ -143,7 +143,7 @@ export function Escolas() {
   const escolas = useQuery(consultaDasEscolas(consulta))
   // O diálogo aberto: um de cada vez, e só enquanto está aberto ele existe; cada abertura é uma instância própria. Os do
   // convite levam a escola da linha, fotografada na abertura.
-  const dialogo = useDialogoDaTela<'rede' | 'escola' | AcaoDoConvite, EscolaDoPainel>()
+  const dialogo = useDialogState<'rede' | 'escola' | AcaoDoConvite, EscolaDoPainel>()
   const aberta = dialogo.aberta
   const alvo = aberta?.alvo
   const [anuncio, definirAnuncio] = useState('')
@@ -174,8 +174,8 @@ export function Escolas() {
     <>
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <div className="flex flex-wrap gap-3">
-          <Botao onClick={() => dialogo.abrir('escola')}>Nova escola</Botao>
-          <button type="button" onClick={() => dialogo.abrir('rede')} className={CLASSES_DO_BOTAO_SECUNDARIO}>
+          <Button onClick={() => dialogo.abrir('escola')}>Nova escola</Button>
+          <button type="button" onClick={() => dialogo.abrir('rede')} className={SECONDARY_BUTTON_CLASSES}>
             Nova rede
           </button>
         </div>
@@ -202,7 +202,7 @@ export function Escolas() {
           {escolas.isError && <ErroDaOperacao erro={escolas.error} aoTentarDeNovo={() => void escolas.refetch()} tentando={escolas.isFetching} />}
           <p className="text-sm text-sutil">{formatarQuantidade(dados.total, 'escola', 'escolas')}</p>
           {/* As quatro colunas (RF21; mockup 12.1): a coordenação aparece pelo estado, nunca por nome ou e-mail (D76). */}
-          <Tabela
+          <Table
             rotulo="Escolas, com a rede, o estado da coordenação e as contagens do ano letivo em curso"
             colunas={[
               { chave: 'escola', titulo: 'Escola', celula: (escola) => <IdentidadeDaEscola escola={escola} /> },

@@ -8,7 +8,7 @@ function passaDoQueMostra(alvo: HTMLElement, eixo: 'x' | 'y'): boolean {
 /**
  * Se o conteúdo do elemento passa do que ele mostra, no eixo dado. Medido a cada renderização (o que há dentro mudou) e
  * quando ele ou um filho dele muda de tamanho (a janela, a fonte). Só o elemento que rola ganha foco: o que cabe não vira
- * uma parada a mais no Tab (a mesma regra da `Tabela`).
+ * uma parada a mais no Tab (a mesma regra da `Table`).
  */
 export function useSobra(elemento: RefObject<HTMLElement | null>, eixo: 'x' | 'y'): boolean {
   const [sobra, definirSobra] = useState(false)

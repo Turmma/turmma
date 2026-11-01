@@ -2,8 +2,8 @@ import { useContext, type ReactNode } from 'react'
 import { Link, useLocation } from 'wouter'
 import { estaNoItem, type IconeDoItem, type ItemDaNavegacao } from '../areas/navigation'
 import { ContextoDaGaveta } from './drawer-context'
-import { Icone } from './ui/Icone'
-import { Ladrilho } from './ui/Ladrilho'
+import { Icon } from './ui/Icon'
+import { IconTile } from './ui/IconTile'
 
 /**
  * O lugar da lateral (`docs/interface.md` 11.1; D80): uma linha de 52 px de canto 12 e borda de 2, com o ícone numa caixa de
@@ -48,7 +48,7 @@ export function Dica({ children }: { children: ReactNode }) {
 }
 
 /**
- * O ícone de um lugar, na caixa de 36 do lugar (D80): o ilustrado a 32 px, ou o do `lucide` dentro de um `Ladrilho` na
+ * O ícone de um lugar, na caixa de 36 do lugar (D80): o ilustrado a 32 px, ou o do `lucide` dentro de um `IconTile` na
  * família do lugar. Sempre decoração: o rótulo está escrito ao lado, ou no nome do controle, e dizê-lo duas vezes seria
  * ruído (9.4, "ícone sempre com rótulo").
  */
@@ -56,16 +56,16 @@ export function IconeDoLugar({ icone }: { icone: IconeDoItem }) {
   if ('lugar' in icone) {
     return (
       <span aria-hidden="true" className="flex size-9 shrink-0 items-center justify-center">
-        <Icone nome={icone.lugar} tamanho={32} />
+        <Icon nome={icone.lugar} tamanho={32} />
       </span>
     )
   }
-  // O `lucide` num `Ladrilho` de 36, com o traço de 2,5 px da 9.4.
+  // O `lucide` num `IconTile` de 36, com o traço de 2,5 px da 9.4.
   const Desenho = icone.lucide
   return (
-    <Ladrilho familia={icone.familia} tamanho={36}>
+    <IconTile familia={icone.familia} tamanho={36}>
       <Desenho strokeWidth={2.5} />
-    </Ladrilho>
+    </IconTile>
   )
 }
 

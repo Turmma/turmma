@@ -218,7 +218,7 @@ test.describe('pele da D72 nos componentes compartilhados', () => {
     await page.goto('/entrar')
 
     // A entrada: os dois campos e o botão primário, pelo teclado.
-    // Os dois campos são a peça `Campo` desde a 14.0: o anel é colado na borda, com afastamento 0 (10.1).
+    // Os dois campos são a peça `FormField` desde a 14.0: o anel é colado na borda, com afastamento 0 (10.1).
     await tabAteOAnel(page, page.getByLabel('E-mail'), 'campo de e-mail', 30, RGB.foco, '0px')
     await page.keyboard.type(emA.email)
     await tabAteOAnel(page, page.getByLabel('Senha'), 'campo de senha', 30, RGB.foco, '0px')

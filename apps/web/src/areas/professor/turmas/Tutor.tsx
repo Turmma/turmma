@@ -4,7 +4,7 @@ import { useLocation } from 'wouter'
 import { consultaMeusVinculos } from '../comum/api/vinculos'
 import { caminhoDaTurmaDoProfessor, ROTAS_DO_PROFESSOR } from '../../../paths'
 import { EstadoCarregando, EstadoErro } from '../../../components/states/index'
-import { Tela } from '../../../components/ui/Tela'
+import { Page } from '../../../components/ui/Page'
 import { useTituloDaTela } from '../../../document-title'
 import { enderecoDaAba } from './endereco-da-turma'
 
@@ -35,9 +35,9 @@ export default function Tutor() {
   }, [chegou, unica, navegar])
 
   return (
-    <Tela titulo="Tutor" largura="conversa" tituloSoParaLeitor>
+    <Page titulo="Tutor" largura="conversa" tituloSoParaLeitor>
       {!chegou && !vinculos.isError && <EstadoCarregando rotulo="Abrindo o que o Tutor viu…" />}
       {!chegou && vinculos.isError && <EstadoErro erro={vinculos.error} tentando={vinculos.isFetching} aoTentarDeNovo={() => void vinculos.refetch({ cancelRefetch: false })} />}
-    </Tela>
+    </Page>
   )
 }

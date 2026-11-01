@@ -5,7 +5,7 @@ import { RegiaoDaLista } from './RegiaoDaLista'
 
 /**
  * A região da lista de uma tela da operação (RF23): o que passa da altura rola por dentro, e só a região que rola recebe
- * foco, para rolar pelo teclado. O `jsdom` não calcula medida: o teste diz quando o conteúdo "passa", como o da `Tabela`.
+ * foco, para rolar pelo teclado. O `jsdom` não calcula medida: o teste diz quando o conteúdo "passa", como o da `Table`.
  * A altura de verdade, a 1366 × 768, é do e2e (`e2e/operacao-escolas.spec.ts`).
  */
 beforeEach(() => {

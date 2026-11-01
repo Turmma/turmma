@@ -18,7 +18,7 @@ import {
 } from '@educa/shared'
 import { aparenciaDaFalha } from '../../../api/ciclo-de-execucao'
 import type { Aprovacao } from '../../../components/ui/ai/approval'
-import type { OpcoesDoSegmentado } from '../../../components/ui/fields/Segmentado'
+import type { SegmentedOptions } from '../../../components/ui/fields/SegmentedControl'
 import { formatarNumero, formatarQuantidade } from '../../../format'
 
 /**
@@ -40,7 +40,7 @@ export function nomeDaFuncao(chave: ChaveDeFuncao): string {
 }
 
 /**
- * A aprovação de uma linha da governança, para a `LinhaAprovacao`. A API não diz quem decidiu (quem foi está na
+ * A aprovação de uma linha da governança, para a `ApprovalLine`. A API não diz quem decidiu (quem foi está na
  * auditoria), e a tela também não: fica "um professor", que é o único papel que decide entrega.
  */
 export function aprovacaoDoItem(item: Pick<ItemDaGovernanca, 'estado' | 'decididaEm'>): Aprovacao {
@@ -57,7 +57,7 @@ export const OPCOES_DO_ESTADO = [
   { valor: 'pendente', rotulo: 'Esperando o professor' },
   { valor: 'aprovada', rotulo: 'Aprovados' },
   { valor: 'rejeitada', rotulo: 'Rejeitados' },
-] as const satisfies OpcoesDoSegmentado<FiltroDeEstado>
+] as const satisfies SegmentedOptions<FiltroDeEstado>
 
 /** O estado que o endereço pede (`?estado=aprovada`). Valor desconhecido é ignorado: a lista abre sem filtro, e a API nunca recebe o que não é estado. */
 export function estadoDoEndereco(busca: string): EstadoDeEntrega | undefined {

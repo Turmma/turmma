@@ -14,7 +14,7 @@ import {
   type TipoDePedidoDoTitular,
   type TitularAchado,
 } from '@educa/shared'
-import type { FamiliaDeEstado } from '../../../components/ui/SeloDeEstado'
+import type { StatusFamily } from '../../../components/ui/StatusBadge'
 
 /**
  * Os textos e as regras sem React da aba Pedidos da Privacidade (F3, 16.0; RF10 e RF16): o que cada tipo, quem pediu e
@@ -43,7 +43,7 @@ export const ROTULO_DO_PAPEL: Readonly<Record<PapelDoTitular, string>> = { aluno
  * O estado do pedido na lista: a família do selo e o texto. Estado nunca é só cor (regra 50, item 11): o texto diz. Os que
  * esperam a coordenação (recebido, pronto, agendado) são `pendente`; o arquivo em montagem é `info`.
  */
-export const SITUACAO_DO_PEDIDO: Readonly<Record<EstadoDoPedido, { readonly familia: FamiliaDeEstado; readonly texto: string }>> = {
+export const SITUACAO_DO_PEDIDO: Readonly<Record<EstadoDoPedido, { readonly familia: StatusFamily; readonly texto: string }>> = {
   recebido: { familia: 'pendente', texto: 'Recebido' },
   em_preparacao: { familia: 'info', texto: 'Em preparação' },
   pronto: { familia: 'pendente', texto: 'Pronto' },

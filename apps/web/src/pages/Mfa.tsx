@@ -11,8 +11,8 @@ import { useLocation } from 'wouter'
 import { ErroDaApi } from '../api/client'
 import { definirAvisoDaEntrada, desafioDaEtapa, entrarComSegundoFator, esquecerDesafio } from '../api/sessao'
 import { ROTA_DA_ETAPA, ROTAS } from '../paths'
-import { Botao } from '../components/ui/Botao'
-import { Campo } from '../components/ui/fields/Campo'
+import { Button } from '../components/ui/Button'
+import { FormField } from '../components/ui/fields/FormField'
 import { CascaPublica } from '../components/CascaPublica'
 import { SemDesafio } from './SemDesafio'
 
@@ -85,7 +85,7 @@ export function Mfa() {
       </p>
       <form className="flex flex-col gap-4" onSubmit={(evento) => void enviar(evento)}>
         {recuperacao ? (
-          <Campo
+          <FormField
             key="recuperacao"
             rotulo="Código de recuperação"
             dica={`${String(TAMANHO_DO_CODIGO_DE_RECUPERACAO)} letras e números.`}
@@ -100,7 +100,7 @@ export function Mfa() {
             onChange={(evento) => definirCodigo(evento.target.value)}
           />
         ) : (
-          <Campo
+          <FormField
             key="codigo"
             rotulo="Código do aplicativo"
             dica={`${String(DIGITOS_DO_CODIGO_MFA)} dígitos.`}
@@ -120,9 +120,9 @@ export function Mfa() {
             {falha instanceof ErroDaApi ? mensagemDoSegundoFator(falha.codigo, falha.esperaSegundos) : mensagemDoSegundoFator(ErrorCode.ERRO_INTERNO)}
           </p>
         )}
-        <Botao type="submit" disabled={entrando} className="w-full">
+        <Button type="submit" disabled={entrando} className="w-full">
           {entrando ? 'Entrando…' : 'Entrar'}
-        </Botao>
+        </Button>
         <span role="status" className="sr-only">
           {entrando ? 'Entrando…' : ''}
         </span>

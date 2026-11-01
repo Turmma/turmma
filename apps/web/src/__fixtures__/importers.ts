@@ -11,7 +11,7 @@ import { posix } from 'node:path'
  */
 
 export interface ArquivoDaWeb {
-  /** O caminho a partir de `apps/web/src`, com `/` e a extensão: `components/ui/ai/AssinaturaIA.tsx`. */
+  /** O caminho a partir de `apps/web/src`, com `/` e a extensão: `components/ui/ai/AgentSignature.tsx`. */
   readonly nome: string
   readonly conteudo: string
 }
@@ -29,7 +29,7 @@ export function especificadoresDe(conteudo: string): string[] {
 }
 
 /**
- * Os arquivos de `arquivos` que importam `alvo`. O alvo é um arquivo sem extensão (`components/ui/ai/AvatarAgente`) ou uma
+ * Os arquivos de `arquivos` que importam `alvo`. O alvo é um arquivo sem extensão (`components/ui/ai/AgentAvatar`) ou uma
  * pasta, com a barra no fim (`components/ui/onca/`): o arquivo da pasta, e a pasta pelo `index`, contam.
  */
 export function importadoresDe(arquivos: readonly ArquivoDaWeb[], alvo: string): string[] {

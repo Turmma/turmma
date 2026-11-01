@@ -2,14 +2,14 @@ import { useMutation } from '@tanstack/react-query'
 import { FileDown } from 'lucide-react'
 import { baixarPdfDoArtefato, salvarArquivo } from './api/artefatos'
 import { mensagemDoErro } from '../../../api/client'
-import { Botao } from '../../../components/ui/Botao'
-import type { VarianteDeBotao } from '../../../components/ui/button-variants'
+import { Button } from '../../../components/ui/Button'
+import type { ButtonVariant } from '../../../components/ui/button-variants'
 
 interface PropsDoExportar {
   readonly artefatoId: string
   /** O título do artefato: vira o nome do arquivo quando a API não diz um. */
   readonly titulo: string
-  readonly variante?: Extract<VarianteDeBotao, 'secundario' | 'discreto'>
+  readonly variante?: Extract<ButtonVariant, 'secundario' | 'discreto'>
   /**
    * A versão adaptada que ainda espera a decisão sai como **rascunho**: a API marca toda página, e o botão já diz isso
    * antes do clique, para ninguém levar à turma o que não foi aprovado (regra 70, item 3).
@@ -27,10 +27,10 @@ export function ExportarPdf({ artefatoId, titulo, variante = 'discreto', rascunh
   const exportar = useMutation({ mutationFn: () => baixarPdfDoArtefato(artefatoId, titulo), onSuccess: salvarArquivo })
   return (
     <>
-      <Botao variante={variante} tamanho={variante === 'discreto' ? 'compacto' : 'principal'} disabled={exportar.isPending} onClick={() => exportar.mutate()}>
+      <Button variante={variante} tamanho={variante === 'discreto' ? 'compacto' : 'principal'} disabled={exportar.isPending} onClick={() => exportar.mutate()}>
         <FileDown aria-hidden="true" size={16} strokeWidth={1.75} className="shrink-0" />
         {exportar.isPending ? 'Exportando…' : rascunho ? 'Exportar rascunho em PDF' : 'Exportar em PDF'}
-      </Botao>
+      </Button>
       <span role="alert" className="min-w-0 text-sm break-words text-erro empty:hidden">
         {exportar.isError ? mensagemDoErro(exportar.error) : ''}
       </span>

@@ -5,9 +5,9 @@ import { ErroDaApi, mensagemDoErro } from '../api/client'
 import { ativarMfa, configurarMfa } from '../api/mfa'
 import { desafioDaEtapa } from '../api/sessao'
 import { ROTAS } from '../paths'
-import { Botao } from '../components/ui/Botao'
-import { BotaoCopiar } from '../components/ui/BotaoCopiar'
-import { Campo } from '../components/ui/fields/Campo'
+import { Button } from '../components/ui/Button'
+import { CopyButton } from '../components/ui/CopyButton'
+import { FormField } from '../components/ui/fields/FormField'
 import { CascaPublica } from '../components/CascaPublica'
 import { CodigoQr } from '../components/CodigoQr'
 import { EstadoCarregando } from '../components/states'
@@ -71,14 +71,14 @@ export function ConfigurarMfa() {
                 {mensagemDoErro(falhaDoPreparo)} Se continuar assim, entre de novo com a sua senha.
               </p>
               <div className="mt-3">
-                <Botao
+                <Button
                   onClick={() => {
                     definirFalhaDoPreparo(undefined)
                     definirTentativa(tentativa + 1)
                   }}
                 >
                   Tentar de novo
-                </Botao>
+                </Button>
               </div>
             </div>
           )}
@@ -119,14 +119,14 @@ function Segredo({ segredo, aoAtivar }: { segredo: ConfigurarMfaResponse; aoAtiv
           1. Guarde o segredo no seu aplicativo
         </h2>
         <p className="break-all font-mono text-base text-tinta">{segredo.segredo}</p>
-        <BotaoCopiar texto={segredo.segredo} rotulo="Copiar o segredo" avisoDeCopiado="Segredo copiado." />
+        <CopyButton texto={segredo.segredo} rotulo="Copiar o segredo" avisoDeCopiado="Segredo copiado." />
         <div className="flex flex-wrap items-center gap-3">
           <CodigoQr conteudo={segredo.uri} descricao="Código QR com o segredo do segundo fator" />
           <p className="min-w-0 flex-1 text-apoio">Se você usa um aplicativo de celular, leia o código ao lado. No computador, cole o segredo.</p>
         </div>
       </section>
       <form className="flex flex-col gap-4" onSubmit={(evento) => void enviar(evento)}>
-        <Campo
+        <FormField
           rotulo="2. Digite o código que o aplicativo mostra"
           dica={`${String(DIGITOS_DO_CODIGO_MFA)} dígitos.`}
           name="codigo"
@@ -144,9 +144,9 @@ function Segredo({ segredo, aoAtivar }: { segredo: ConfigurarMfaResponse; aoAtiv
             {falha instanceof ErroDaApi ? mensagemDoSegundoFator(falha.codigo, falha.esperaSegundos) : mensagemDoSegundoFator(ErrorCode.ERRO_INTERNO)}
           </p>
         )}
-        <Botao type="submit" disabled={ativando} className="w-full">
+        <Button type="submit" disabled={ativando} className="w-full">
           {ativando ? 'Ativando…' : 'Ativar o segundo fator'}
-        </Botao>
+        </Button>
         <span role="status" className="sr-only">
           {ativando ? 'Ativando…' : ''}
         </span>
@@ -171,7 +171,7 @@ function CodigosDeRecuperacao({ codigos }: { codigos: readonly string[] }) {
           <li key={codigo}>{codigo}</li>
         ))}
       </ul>
-      <BotaoCopiar texto={codigos.join('\n')} rotulo="Copiar os códigos" avisoDeCopiado="Códigos copiados." />
+      <CopyButton texto={codigos.join('\n')} rotulo="Copiar os códigos" avisoDeCopiado="Códigos copiados." />
       <p className="text-apoio">O segundo fator está ativo. Entre de novo com a sua senha e com o código do aplicativo.</p>
       <Link
         to={ROTAS.entrar}

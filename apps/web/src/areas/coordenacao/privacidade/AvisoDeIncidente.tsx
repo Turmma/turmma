@@ -2,9 +2,9 @@ import { useQuery } from '@tanstack/react-query'
 import { TriangleAlert } from 'lucide-react'
 import { useEffect, useId, useRef, useState, type RefObject } from 'react'
 import { consultaIncidentes } from './api/privacidade'
-import { Botao } from '../../../components/ui/Botao'
-import { Dialogo } from '../../../components/ui/overlays/Dialogo'
-import { useDialogoPrioritario } from '../../../components/ui/overlays/priority-dialog'
+import { Button } from '../../../components/ui/Button'
+import { Dialog } from '../../../components/ui/overlays/Dialog'
+import { usePriorityDialog } from '../../../components/ui/overlays/priority-dialog'
 import { useConfirmarIncidente } from './confirmar-o-incidente'
 import { DetalhesDoIncidente } from './DetalhesDoIncidente'
 import { TEXTO_DO_QUE_CONFIRMAR_FAZ, textoDaFaixa, textoDaFila } from './textos-dos-incidentes'
@@ -35,19 +35,19 @@ function FaixaDoIncidente({ pendentes, botao, aoVer }: { readonly pendentes: num
     <div ref={faixa} role="region" aria-label="Aviso de incidente de segurança" className="flex min-w-0 flex-wrap items-center gap-3 rounded-controle border border-pendente bg-pendente-cx p-3 text-pendente">
       <TriangleAlert aria-hidden="true" size={18} strokeWidth={1.75} className="shrink-0" />
       <p className="min-w-0 flex-1 basis-60 break-words">{textoDaFaixa(pendentes)}</p>
-      <Botao ref={botao} variante="secundario" onClick={aoVer}>
+      <Button ref={botao} variante="secundario" onClick={aoVer}>
         Ver o aviso
-      </Botao>
+      </Button>
     </div>
   )
 }
 
 /**
  * Marca o diálogo do aviso como prioritário enquanto ele está na tela: o painel que abre pelo endereço espera por ele em vez de
- * abrir por cima (`components/ui/overlays/priority-dialog.ts`). É um filho do `Dialogo`: o efeito dos filhos roda antes do que abre o `dialog`.
+ * abrir por cima (`components/ui/overlays/priority-dialog.ts`). É um filho do `Dialog`: o efeito dos filhos roda antes do que abre o `dialog`.
  */
 function PrioridadeDoAviso() {
-  useDialogoPrioritario()
+  usePriorityDialog()
   return null
 }
 
@@ -78,7 +78,7 @@ export default function AvisoDeIncidente() {
   const inicio = useRef<HTMLDivElement>(null)
   const idDaDescricao = useId()
   const { confirmar, confirmando, falha } = useConfirmarIncidente()
-  // "Ver depois" e o Esc pedem o foco da faixa: o `Dialogo` devolve o foco a quem o tinha antes de abrir (o corpo da página, ao
+  // "Ver depois" e o Esc pedem o foco da faixa: o `Dialog` devolve o foco a quem o tinha antes de abrir (o corpo da página, ao
   // entrar), e a faixa que acabou de nascer ficaria sem o foco de quem acabou de usar o teclado (regra 50, item 11).
   const focarAFaixa = useRef(false)
   function adiar(): void {
@@ -97,7 +97,7 @@ export default function AvisoDeIncidente() {
   // O foco fica no começo do texto, e não no botão que confirma, mas sem rolar o diálogo até ele: o `div` do texto fica abaixo do
   // título e da frase que diz o que o aviso é, e `focus()` com rolagem os deixaria para fora da tela quando o aviso passa da
   // janela. Vale nos dois casos em que o diálogo muda de texto: o seguinte da fila, depois de confirmar o primeiro, e "Ver o
-  // aviso", que monta o diálogo de novo com o mesmo texto (o `Dialogo` já focou com rolagem antes deste efeito rodar).
+  // aviso", que monta o diálogo de novo com o mesmo texto (o `Dialog` já focou com rolagem antes deste efeito rodar).
   useEffect(() => {
     const comeco = inicio.current
     if (comeco === null) return
@@ -113,7 +113,7 @@ export default function AvisoDeIncidente() {
   }
 
   return (
-    <Dialogo
+    <Dialog
       titulo="Aviso de incidente de segurança"
       aoFechar={adiar}
       focoInicial={inicio}
@@ -135,17 +135,17 @@ export default function AvisoDeIncidente() {
           {falha?.id === atual.id ? falha.texto : ''}
         </p>
         <div className="flex flex-wrap gap-3">
-          <Botao variante="oficial" disabled={confirmando !== undefined} onClick={() => void confirmar(atual.id)}>
+          <Button variante="oficial" disabled={confirmando !== undefined} onClick={() => void confirmar(atual.id)}>
             {confirmando === undefined ? 'Confirmo que recebi' : 'Confirmando…'}
-          </Botao>
-          <Botao variante="secundario" onClick={adiar}>
+          </Button>
+          <Button variante="secundario" onClick={adiar}>
             Ver depois
-          </Botao>
+          </Button>
         </div>
         <span role="status" className="sr-only">
           {confirmando === undefined ? '' : 'Confirmando…'}
         </span>
       </div>
-    </Dialogo>
+    </Dialog>
   )
 }

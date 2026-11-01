@@ -9,10 +9,10 @@ import { consultaTime, funcaoSuspensa } from '../assistente/api/time'
 import { consultaMeusVinculos } from '../comum/api/vinculos'
 import { caminhoDaFerramentaDoProfessor, ROTAS_DO_PROFESSOR } from '../../../paths'
 import { EstadoCarregando, EstadoErro, EstadoVazio } from '../../../components/states/index'
-import { AvisoFila } from '../../../components/ui/ai/AvisoFila'
+import { QueueAlert } from '../../../components/ui/ai/QueueAlert'
 import type { OpcaoDoCampo, ValoresValidados } from '../../../components/ui/ai/schema-form'
-import { MotorFormulario } from '../../../components/ui/ai/MotorFormulario'
-import type { NivelDoTitulo } from '../../../components/ui/Tela'
+import { SchemaForm } from '../../../components/ui/ai/SchemaForm'
+import type { HeadingLevel } from '../../../components/ui/Page'
 import { AvisoDeSuspensao, FalhaDoPedido } from '../comum/avisos'
 import { descricaoDaFerramenta, ferramentaDoCatalogo, montarPedido, type IniciaisDaFerramenta } from './ferramentas'
 import { IconeDeFerramenta } from './icones-de-ferramenta'
@@ -27,7 +27,7 @@ interface PropsDoCartao {
   /** Com ele, o formulário ganha o "Cancelar", do mesmo tamanho do botão que gera (D59). */
   readonly aoCancelar?: () => void
   /** O nível do título do formulário, para a ordem dos títulos da tela não pular. Sem ele, 3. */
-  readonly nivel?: NivelDoTitulo
+  readonly nivel?: HeadingLevel
   /** O ícone ilustrado da ferramenta, de 32 px, antes do nome: o cabeçalho do cartão da conversa. O formulário de Ferramentas já tem o nome no `h1`, e fica sem. */
   readonly comIcone?: boolean
 }
@@ -108,14 +108,14 @@ export function CartaoDeFerramenta({ ferramenta, iniciais, aoCancelar, nivel = 3
 
   return (
     <div data-cartao-de-ferramenta={ferramenta} className="flex min-w-0 flex-col gap-3">
-      <MotorFormulario descricao={descricao} estado={estado} nivel={nivel} aoGerar={aoGerar} aoEditar={limpar} {...(comIcone ? { icone: <IconeDeFerramenta ferramenta={ferramenta} tamanho={32} /> } : {})} {...(aoCancelar === undefined ? {} : { aoCancelar })} {...(problema === undefined ? {} : { falha: problema })}>
+      <SchemaForm descricao={descricao} estado={estado} nivel={nivel} aoGerar={aoGerar} aoEditar={limpar} {...(comIcone ? { icone: <IconeDeFerramenta ferramenta={ferramenta} tamanho={32} /> } : {})} {...(aoCancelar === undefined ? {} : { aoCancelar })} {...(problema === undefined ? {} : { falha: problema })}>
         {artefatoGerado !== undefined && <ResultadoDaFerramenta artefatoId={artefatoGerado.artefatoId} entregaId={artefatoGerado.entregaId} funcao={item.funcao} />}
-      </MotorFormulario>
+      </SchemaForm>
       {/* Para quem não vê a tela: a troca de "Gerando…" pelo resultado é dita uma vez, com calma. */}
       <span role="status" data-anuncio-do-resultado="" className="sr-only">
         {estado === 'pronto' ? `${descricao.nome}: geração concluída. O resultado está logo abaixo do pedido.` : ''}
       </span>
-      {gerando && demorando && <AvisoFila situacao="demora" />}
+      {gerando && demorando && <QueueAlert situacao="demora" />}
       {ciclo?.etapa === 'falhou' && <FalhaDoPedido erro={ciclo.erro} funcao={item.funcao} aoTentarDeNovo={repetir} />}
     </div>
   )

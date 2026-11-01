@@ -1,6 +1,6 @@
 import type { ComponentType } from 'react'
 import { Aparencia } from '../components/Aparencia'
-import { Tela } from '../components/ui/Tela'
+import { Page } from '../components/ui/Page'
 import { useTituloDaTela } from '../document-title'
 
 /**
@@ -30,14 +30,14 @@ export default function Galeria() {
   useTituloDaTela('Galeria de peças')
   return (
     <main className="min-h-screen bg-fundo text-tinta">
-      <Tela comMargem titulo="Galeria de peças" objeto descricao="As peças do MVP de apresentação, com dado inventado. Não é uma tela do produto." largura="formulario">
+      <Page comMargem titulo="Galeria de peças" objeto descricao="As peças do MVP de apresentação, com dado inventado. Não é uma tela do produto." largura="formulario">
         <div className="max-w-xs">
           <Aparencia />
         </div>
         {SECOES.map(({ caminho, Secoes }) => (
           <Secoes key={caminho} />
         ))}
-      </Tela>
+      </Page>
     </main>
   )
 }

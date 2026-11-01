@@ -182,7 +182,7 @@ test.describe('Material da coordenação', () => {
 
     expect(await materiaisNoBanco(cenario.coordenadora.escolaId)).toEqual([expect.objectContaining({ titulo: TITULO, estado: 'pronto', paginas: 6, trechos: 6, excluido: false })])
     expect(await larguraExcedente(page)).toBe(0)
-    // A margem da página é uma só, a da casca (16 px no celular, 32 px a partir de 768 px, A84): a `Tela` não a repete, e o
+    // A margem da página é uma só, a da casca (16 px no celular, 32 px a partir de 768 px, A84): a `Page` não a repete, e o
     // conteúdo começa onde o `main` começa.
     const [daCasca, daTela] = await principal(page).evaluate((main) => {
       const tela = main.querySelector('[data-tela]')

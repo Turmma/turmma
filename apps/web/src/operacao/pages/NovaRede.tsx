@@ -1,10 +1,10 @@
 import { TIPOS_DE_REDE, type RedeDoPainel, type TipoDeRede } from '@educa/shared'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useId, useRef, useState, type FormEvent } from 'react'
-import { Botao } from '../../components/ui/Botao'
-import { Campo } from '../../components/ui/fields/Campo'
+import { Button } from '../../components/ui/Button'
+import { FormField } from '../../components/ui/fields/FormField'
 import { CHAVE_DAS_REDES, criarRedeNoPainel } from '../api/painel'
-import { CLASSES_DO_BOTAO_SECUNDARIO } from '../../components/ui/button-variants'
+import { SECONDARY_BUTTON_CLASSES } from '../../components/ui/button-variants'
 import { DialogoDaOperacao } from '../components/DialogoDaOperacao'
 import { pedidoDeRede, sortearIdDoPedido } from '../pedidos-do-painel'
 import { ROTULO_DO_TIPO_DE_REDE, textoDaFalha } from '../textos'
@@ -57,7 +57,7 @@ export function NovaRede({ aoFechar, aoCriar }: Props) {
   return (
     <DialogoDaOperacao titulo="Nova rede" aoFechar={aoFechar}>
       <form className="mt-4 flex flex-col gap-4" onSubmit={enviar} noValidate>
-        <Campo
+        <FormField
           rotulo="Nome da rede"
           dica="Como a rede é chamada: a prefeitura, o grupo educacional ou o próprio colégio."
           name="nome"
@@ -83,10 +83,10 @@ export function NovaRede({ aoFechar, aoCriar }: Props) {
           </p>
         )}
         <div className="flex flex-wrap gap-3">
-          <Botao type="submit" disabled={criar.isPending}>
+          <Button type="submit" disabled={criar.isPending}>
             {criar.isPending ? 'Criando…' : 'Criar rede'}
-          </Botao>
-          <button type="button" onClick={aoFechar} className={CLASSES_DO_BOTAO_SECUNDARIO}>
+          </Button>
+          <button type="button" onClick={aoFechar} className={SECONDARY_BUTTON_CLASSES}>
             Cancelar
           </button>
         </div>

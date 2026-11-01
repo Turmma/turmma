@@ -85,7 +85,7 @@ describe('ItemDaLateral', () => {
     if (eu === undefined) throw new Error('faltou o Eu')
     render(noEndereco('/', <ul><ItemDaLateral item={eu} trilho={false} /></ul>))
     expect(screen.getByRole('link', { name: 'Eu' }).querySelector('[data-ladrilho]')?.getAttribute('data-ladrilho')).toBe('turquesa')
-    // E o ilustrado chega ao DOM pelo mesmo caminho, sem ladrilho: o ramo do `lugar` é o que desenha o `Icone`.
+    // E o ilustrado chega ao DOM pelo mesmo caminho, sem ladrilho: o ramo do `lugar` é o que desenha o `Icon`.
     cleanup()
     const inicio = NAVEGACAO.professor.find((item) => item.rotulo === 'Início')
     if (inicio === undefined) throw new Error('faltou o Início')

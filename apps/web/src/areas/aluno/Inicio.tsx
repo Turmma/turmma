@@ -5,9 +5,9 @@ import { consultaEu } from '../../api/eu'
 import { consultaMinhasAtividades } from '../../api/atividades-do-aluno'
 import { caminhoDaAtividadeDoAluno, caminhoDoTutorNaAtividade, ROTAS_DO_ALUNO } from '../../paths'
 import { EstadoCarregando, EstadoErro, EstadoVazio } from '../../components/states'
-import { AssinaturaIA } from '../../components/ui/ai/AssinaturaIA'
-import { CLASSES_DO_LINK_SECUNDARIO } from '../../components/ui/button-variants'
-import { CabecalhoDeSecao, Tela } from '../../components/ui/Tela'
+import { AgentSignature } from '../../components/ui/ai/AgentSignature'
+import { SECONDARY_LINK_CLASSES } from '../../components/ui/button-variants'
+import { SectionHeader, Page } from '../../components/ui/Page'
 import { useTituloDaTela } from '../../document-title'
 import { AVISO_DA_AVALIACAO, resumoDaAtividade } from './atividades'
 import { FaixaDeSupervisao } from './FaixaDeSupervisao'
@@ -31,7 +31,7 @@ function TarefaParaFazer({ atividade }: { atividade: MinhaAtividade }) {
         <p className="min-w-0 text-sm break-words text-sutil">{resumoDaAtividade(atividade)}</p>
         {atividade.avaliativa && <p className="min-w-0 text-sm break-words text-apoio">{AVISO_DA_AVALIACAO}</p>}
       </div>
-      <Link to={caminhoDoTutorNaAtividade(atividade.id)} className={`${CLASSES_DO_LINK_SECUNDARIO} self-start md:shrink-0`}>
+      <Link to={caminhoDoTutorNaAtividade(atividade.id)} className={`${SECONDARY_LINK_CLASSES} self-start md:shrink-0`}>
         Pedir ajuda ao Tutor
       </Link>
     </li>
@@ -50,7 +50,7 @@ function ListaParaFazer({ tarefas, lida }: { tarefas: readonly MinhaAtividade[];
         </ul>
       )}
       {lida && (
-        <Link to={ROTAS_DO_ALUNO.atividades} className={`${CLASSES_DO_LINK_SECUNDARIO} self-start`}>
+        <Link to={ROTAS_DO_ALUNO.atividades} className={`${SECONDARY_LINK_CLASSES} self-start`}>
           Ver todas as tarefas
         </Link>
       )}
@@ -64,7 +64,7 @@ function ParaFazer() {
   const lida = atividades.data !== undefined
   return (
     <section aria-labelledby="titulo-para-fazer" className="flex min-w-0 flex-col gap-3">
-      <CabecalhoDeSecao id="titulo-para-fazer" titulo="Para fazer" />
+      <SectionHeader id="titulo-para-fazer" titulo="Para fazer" />
       {atividades.isPending && <EstadoCarregando rotulo="Carregando as suas tarefas…" />}
       {atividades.isError && !lida && (
         <EstadoErro erro={atividades.error} tentando={atividades.isFetching} aoTentarDeNovo={() => void atividades.refetch({ cancelRefetch: false })} />
@@ -90,13 +90,13 @@ export default function Inicio() {
   useTituloDaTela('Início')
   const eu = useQuery({ ...consultaEu, ...LEITURA_DO_INICIO })
   return (
-    <Tela titulo="Início" largura="conversa" tituloSoParaLeitor>
+    <Page titulo="Início" largura="conversa" tituloSoParaLeitor>
       <div className="pt-2">
-        <AssinaturaIA agente="tutor" tamanho={40} />
+        <AgentSignature agente="tutor" tamanho={40} />
         <p className="mt-3 text-3xl leading-tight font-bold break-words text-tinta">{saudacaoDoAluno(eu.data?.nome)}</p>
       </div>
       <FaixaDeSupervisao />
       <ParaFazer />
-    </Tela>
+    </Page>
   )
 }

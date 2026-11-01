@@ -3,12 +3,12 @@ import { useInfiniteQuery } from '@tanstack/react-query'
 import { Check } from 'lucide-react'
 import { consultaMinhasAtividades } from '../../api/atividades-do-aluno'
 import { caminhoDaAtividadeDoAluno } from '../../paths'
-import { Botao } from '../../components/ui/Botao'
-import { Ladrilho } from '../../components/ui/Ladrilho'
-import { Linha } from '../../components/ui/Linha'
+import { Button } from '../../components/ui/Button'
+import { IconTile } from '../../components/ui/IconTile'
+import { ListItem } from '../../components/ui/ListItem'
 import { EstadoCarregando, EstadoErro, EstadoVazio } from '../../components/states'
-import { Estado } from '../../components/ui/SeloDeEstado'
-import { CabecalhoDeSecao, Tela } from '../../components/ui/Tela'
+import { StatusBadge } from '../../components/ui/StatusBadge'
+import { SectionHeader, Page } from '../../components/ui/Page'
 import { useTituloDaTela } from '../../document-title'
 import { AVISO_DA_AVALIACAO, detalheDaSituacao, estaParaResponder, resumoDaAtividade, separarAtividades, TEXTO_DA_SITUACAO, VAZIO_DE_CADA_GRUPO } from './atividades'
 import { caraDaMateria } from './materia'
@@ -18,13 +18,13 @@ function LinhaDaTarefa({ atividade }: { atividade: MinhaAtividade }) {
   const { familia, Icone } = caraDaMateria(atividade.disciplina.nome)
   return (
     <li data-atividade={atividade.situacao}>
-      <Linha
+      <ListItem
         titulo={atividade.titulo}
         para={caminhoDaAtividadeDoAluno(atividade.id)}
         inicio={
-          <Ladrilho familia={familia} tamanho={44}>
+          <IconTile familia={familia} tamanho={44}>
             <Icone aria-hidden="true" />
-          </Ladrilho>
+          </IconTile>
         }
         abaixo={
           <>
@@ -34,7 +34,7 @@ function LinhaDaTarefa({ atividade }: { atividade: MinhaAtividade }) {
           </>
         }
         /* O estado em texto, no selo: `ok` só quando a correção foi aprovada; o resto é cinza, porque nada aqui é alarme. */
-        fim={<Estado familia={atividade.situacao === 'com_diagnostico' ? 'ok' : 'info'}>{TEXTO_DA_SITUACAO[atividade.situacao]}</Estado>}
+        fim={<StatusBadge familia={atividade.situacao === 'com_diagnostico' ? 'ok' : 'info'}>{TEXTO_DA_SITUACAO[atividade.situacao]}</StatusBadge>}
       />
     </li>
   )
@@ -51,7 +51,7 @@ interface PropsDoGrupo {
 function GrupoDeTarefas({ id, titulo, vazio, atividades }: PropsDoGrupo) {
   return (
     <section aria-labelledby={id} className="flex min-w-0 flex-col gap-3">
-      <CabecalhoDeSecao id={id} titulo={titulo} />
+      <SectionHeader id={id} titulo={titulo} />
       {atividades.length === 0 ? (
         <p className="flex min-w-0 items-center gap-2 rounded-cartao border-2 border-dashed border-borda bg-superficie p-4 text-apoio">
           <Check aria-hidden="true" size={20} className="shrink-0" />
@@ -76,7 +76,7 @@ function GrupoDeTarefas({ id, titulo, vazio, atividades }: PropsDoGrupo) {
  * de `GET /v1/minhas-atividades` não traz nada disso. E nada aqui empurra (D59): sem contagem regressiva, sem "atrasada",
  * sem selo de conquista; o vazio diz que não há o que fazer agora, e pronto.
  *
- * É aba de navegação: o `<h1>`, visível, é o título da tela, na `Tela` (RF12 da X1).
+ * É aba de navegação: o `<h1>`, visível, é o título da tela, na `Page` (RF12 da X1).
  */
 export default function Atividades() {
   useTituloDaTela('Tarefas')
@@ -85,7 +85,7 @@ export default function Atividades() {
   const { paraFazer, entregues, corrigidas } = separarAtividades(itens)
 
   return (
-    <Tela titulo="Tarefas" largura="conversa">
+    <Page titulo="Tarefas" largura="conversa">
       {atividades.isPending && <EstadoCarregando rotulo="Carregando as suas atividades…" />}
       {atividades.isError && atividades.data === undefined && (
         <EstadoErro erro={atividades.error} tentando={atividades.isFetching} aoTentarDeNovo={() => void atividades.refetch({ cancelRefetch: false })} />
@@ -104,10 +104,10 @@ export default function Atividades() {
 
       {/* A lista não rola sem fim: a página seguinte só vem quando o aluno pede (D59). */}
       {atividades.hasNextPage && (
-        <Botao variante="secundario" onClick={() => void atividades.fetchNextPage()} disabled={atividades.isFetchingNextPage} className="self-center">
+        <Button variante="secundario" onClick={() => void atividades.fetchNextPage()} disabled={atividades.isFetchingNextPage} className="self-center">
           {atividades.isFetchingNextPage ? 'Carregando…' : 'Ver mais tarefas'}
-        </Botao>
+        </Button>
       )}
-    </Tela>
+    </Page>
   )
 }

@@ -38,7 +38,7 @@ export function consultaExecucao(id: string) {
 export interface CicloNaTela<Pedido> {
   /** Onde o pedido está, ou `undefined` sem pedido nenhum. */
   readonly ciclo: CicloDeExecucao<Pedido> | undefined
-  /** O pedido está no ar há mais tempo que o de costume: a tela avisa, sem contar o tempo (`AvisoFila`). */
+  /** O pedido está no ar há mais tempo que o de costume: a tela avisa, sem contar o tempo (`QueueAlert`). */
   readonly demorando: boolean
   /** Manda um pedido novo. Devolve `false`, sem mandar nada, com outro pedido ainda no ar. */
   readonly iniciar: (pedido: Pedido) => boolean

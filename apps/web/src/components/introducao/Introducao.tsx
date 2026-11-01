@@ -1,6 +1,6 @@
 import type { Agente } from '@educa/shared'
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
-import { classesDoBotao } from '../ui/button-variants'
+import { buttonVariants } from '../ui/button-variants'
 import { Onca, type PoseDaIntroducao } from '../ui/onca/Onca'
 import { Balao } from './Balao'
 import { TelaDeFoco } from './TelaDeFoco'
@@ -80,7 +80,7 @@ export function Introducao({ passos, agente, revendo = false, aoConcluir, aoPula
   }, [ultimo, podeFechar, aoConcluir, aoPular])
 
   if (passo === undefined) return null
-  const classe = classesDoBotao({ variante: 'secundario' })
+  const classe = buttonVariants({ variante: 'secundario' })
   return (
     <TelaDeFoco
       passo={indice + 1}

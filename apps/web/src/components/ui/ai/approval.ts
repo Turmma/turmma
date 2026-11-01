@@ -9,7 +9,7 @@ export type Aprovacao =
   | { readonly estado: 'aprovada'; readonly por: string; readonly quando: string }
   | { readonly estado: 'rejeitada'; readonly por: string; readonly quando: string; readonly motivo: string }
 
-export interface OpcoesDoTexto {
+export interface TextoOptions {
   /** O verbo da aprovação, com o gênero do que foi aprovado: "Aprovada por", "Validação registrada por". */
   readonly verbo?: string
   /** O que o pendente diz. Para a professora é "Esperando você"; na Governança da coordenação, "Esperando o professor". */
@@ -29,7 +29,7 @@ export const TEXTO_DA_ESPERA = 'Esperando você'
  * rejeitado (a versão adaptada, o lote), e a frase com o verbo vale para qualquer coisa e para qualquer pessoa. A
  * aprovação segue a 11.3, com o `verbo` de quem usa para o gênero do que foi aprovado.
  */
-export function textoDaAprovacao(aprovacao: Aprovacao, { verbo = VERBO_DA_APROVACAO, espera = TEXTO_DA_ESPERA, fuso, agora }: OpcoesDoTexto = {}): string {
+export function textoDaAprovacao(aprovacao: Aprovacao, { verbo = VERBO_DA_APROVACAO, espera = TEXTO_DA_ESPERA, fuso, agora }: TextoOptions = {}): string {
   if (aprovacao.estado === 'pendente') return espera
   const quando = formatarDiaEHora(aprovacao.quando, { ...(fuso === undefined ? {} : { fuso }), ...(agora === undefined ? {} : { agora }) })
   return aprovacao.estado === 'aprovada' ? `${verbo} ${aprovacao.por} · ${quando}` : `${aprovacao.por} rejeitou · ${quando}`

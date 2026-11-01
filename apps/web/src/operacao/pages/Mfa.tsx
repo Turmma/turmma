@@ -2,8 +2,8 @@ import { ErrorCode, DIGITOS_DO_CODIGO_MFA, formatarEspera, TAMANHO_DO_CODIGO_DE_
 import { useState, type FormEvent } from 'react'
 import { Link, useLocation } from 'wouter'
 import { ErroDaApi } from '../../api/client'
-import { Botao } from '../../components/ui/Botao'
-import { Campo } from '../../components/ui/fields/Campo'
+import { Button } from '../../components/ui/Button'
+import { FormField } from '../../components/ui/fields/FormField'
 import { definirAvisoDaEntradaDeOperador, desafioDeOperador, entrarComSegundoFatorDeOperador } from '../api/sessao'
 import { INICIO_DA_OPERACAO, ROTAS_DA_OPERACAO } from '../paths'
 import { CascaPublicaDaOperacao } from '../components/CascaDaOperacao'
@@ -90,7 +90,7 @@ export function Mfa() {
       </p>
       <form className="flex flex-col gap-4" onSubmit={(evento) => void enviar(evento)}>
         {recuperacao ? (
-          <Campo
+          <FormField
             key="recuperacao"
             rotulo="Código de recuperação"
             dica={`${String(TAMANHO_DO_CODIGO_DE_RECUPERACAO)} letras e números.`}
@@ -105,7 +105,7 @@ export function Mfa() {
             onChange={(evento) => definirCodigo(evento.target.value)}
           />
         ) : (
-          <Campo
+          <FormField
             key="codigo"
             rotulo="Código do aplicativo"
             dica={`${String(DIGITOS_DO_CODIGO_MFA)} dígitos.`}
@@ -125,9 +125,9 @@ export function Mfa() {
             {textoDaFalhaDoSegundoFator(falha)}
           </p>
         )}
-        <Botao type="submit" disabled={entrando} className="w-full">
+        <Button type="submit" disabled={entrando} className="w-full">
           {entrando ? 'Entrando…' : 'Entrar'}
-        </Botao>
+        </Button>
         <span role="status" className="sr-only">
           {entrando ? 'Entrando…' : ''}
         </span>

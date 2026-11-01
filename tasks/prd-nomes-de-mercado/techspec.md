@@ -150,6 +150,18 @@ divergência (triagem da 7.0, 31/10/2026).
 Os arquivos dos apps vêm antes das linhas porque o rename de arquivo mexe na configuração da raiz. As linhas só renomeiam símbolo, separadas pelo `--escopo` e pelo `linhas.ts`;
 trava de `tools/` nas duas é divergência.
 
+O arquivo de componente da web (o `.tsx` com o nome do componente, e o `.test.tsx` dele) acompanha o componente na onda de
+linha dele (9.0, 10.0): a 6.0 moveu as linhas `arquivo` e `pasta` do inventário, e o arquivo de componente vem nas linhas
+`componente`. As edições que esse move pede fora de `apps/web/src/` (a chave de `eslint-suppressions.json`, o caminho de
+`chunk-names`, o comentário de `e2e/`, a trava de `tools/`) entram nomeadas nos previstos da onda, desde que não estejam
+nos previstos da tarefa da outra linha; se estiverem, é divergência (triagem da 9.0, 31/10/2026).
+
+A onça (`components/ui/onca/`) fica fora do rename (RF5), mas o import que ela faz de uma peça do kit acompanha o nome
+novo, como qualquer chamador: na 9.0, `Onca.tsx` troca `SeloIA` de `../ai/AssinaturaIA` por `AIBadge` de
+`../ai/AgentSignature`, no import e no uso do JSX (duas linhas). Os símbolos, os comentários e os testes da onça não
+mudam: o teste de fidelidade e os irmãos passam sem diff, e o `git diff --stat` da pasta mostra só `Onca.tsx`. O
+comentário da onça que cita o nome antigo do kit é da 13.0 (triagem da 9.0, 31/10/2026).
+
 **A guarda (12.0)** é a regra `guardas/nome-de-mercado`, em `REGRAS_DAS_GUARDAS`, só em `apps/`, `packages/` e
 `e2e/`. A gramática (forma, tipos de declaração em que vale, nome de mercado na mensagem), o limite declarado e os
 casos estão em `guarda.md`. Com o inventário e as duas adendas aplicados, a árvore inteira passa.

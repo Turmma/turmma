@@ -17,12 +17,12 @@ import {
 import type { UseQueryResult } from '@tanstack/react-query'
 import { useId, useRef, useState, type ReactNode, type RefObject } from 'react'
 import { abrirAnoLetivo, criarAnoLetivo, criarDisciplina, criarSerie, type ListaDaEstrutura } from '../../../api/estrutura'
-import { CLASSES_DO_BOTAO_PERIGO, CLASSES_DO_BOTAO_SECUNDARIO } from '../../../components/ui/button-variants'
-import { Campo } from '../../../components/ui/fields/Campo'
+import { DANGER_BUTTON_CLASSES, SECONDARY_BUTTON_CLASSES } from '../../../components/ui/button-variants'
+import { FormField } from '../../../components/ui/fields/FormField'
 import { AlertaDaFalha, Anuncio, DialogoDeFormulario, useEnvioUnico } from '../../../components/dialogs'
 import { EstadoCarregando, EstadoErro } from '../../../components/states/index'
-import { PainelLado } from '../../../components/ui/overlays/PainelLado'
-import { CLASSES_DO_SELETOR } from '../../../components/ui/fields/field-styles'
+import { Sheet } from '../../../components/ui/overlays/Sheet'
+import { SELECT_CLASSES } from '../../../components/ui/fields/field-styles'
 import { textoDaFalha } from '../../../components/error-text'
 import { formatarData } from '../../../format'
 import { ordenarPeloNome, ordenarSeries } from '../comum/ordem'
@@ -73,14 +73,14 @@ export function Secao({ titulo, tituloRef, anuncio, acao, children }: PropsDaSec
 function AcoesDaLinha({ nome, tipo, aoRenomear, aoExcluir }: { nome: string; tipo: string; aoRenomear: () => void; aoExcluir: () => void }) {
   return (
     <>
-      <button type="button" onClick={aoRenomear} className={CLASSES_DO_BOTAO_SECUNDARIO}>
+      <button type="button" onClick={aoRenomear} className={SECONDARY_BUTTON_CLASSES}>
         Renomear
         <span className="sr-only">
           {' '}
           {tipo} {nome}
         </span>
       </button>
-      <button type="button" onClick={aoExcluir} className={CLASSES_DO_BOTAO_PERIGO}>
+      <button type="button" onClick={aoExcluir} className={DANGER_BUTTON_CLASSES}>
         Excluir
         <span className="sr-only">
           {' '}
@@ -131,7 +131,7 @@ function AnosLetivos({
       tituloRef={tituloRef}
       anuncio={anuncio}
       acao={
-        <button type="button" onClick={aoCriar} className={CLASSES_DO_BOTAO_SECUNDARIO}>
+        <button type="button" onClick={aoCriar} className={SECONDARY_BUTTON_CLASSES}>
           Novo ano letivo
         </button>
       }
@@ -148,7 +148,7 @@ function AnosLetivos({
         {ordenados.map((ano) => (
           <Linha key={ano.id} titulo={String(ano.ano)} detalhe={`${SITUACAO_DO_ANO[ano.situacao]} · de ${formatarData(ano.inicio)} a ${formatarData(ano.fim)}`}>
             {ano.situacao === 'planejado' && !temEmCurso && (
-              <button type="button" onClick={() => enviar(ano.id)} disabled={mutacao.isPending} className={CLASSES_DO_BOTAO_SECUNDARIO}>
+              <button type="button" onClick={() => enviar(ano.id)} disabled={mutacao.isPending} className={SECONDARY_BUTTON_CLASSES}>
                 {mutacao.isPending && mutacao.variables === ano.id ? 'Abrindo…' : `Abrir o ano letivo ${String(ano.ano)}`}
               </button>
             )}
@@ -256,8 +256,8 @@ export function NovoAnoLetivo({ aoFechar, aoCriar, recarregar, focoDeReserva }: 
           : undefined
       }
     >
-      <Campo ref={campoDoAno} rotulo="Ano" name="ano" inputMode="numeric" autoComplete="off" value={ano} onChange={(evento) => definirAno(evento.target.value)} erro={erros.ano} />
-      <Campo
+      <FormField ref={campoDoAno} rotulo="Ano" name="ano" inputMode="numeric" autoComplete="off" value={ano} onChange={(evento) => definirAno(evento.target.value)} erro={erros.ano} />
+      <FormField
         ref={campoDoInicio}
         rotulo="Início"
         name="inicio"
@@ -266,7 +266,7 @@ export function NovoAnoLetivo({ aoFechar, aoCriar, recarregar, focoDeReserva }: 
         onChange={(evento) => definirPeriodoDigitado({ inicio: evento.target.value, fim })}
         erro={erros.inicio}
       />
-      <Campo
+      <FormField
         ref={campoDoFim}
         rotulo="Fim"
         name="fim"
@@ -325,7 +325,7 @@ export function NovaSerie({ existentes, aoFechar, aoCriar, recarregar }: PropsDe
           <label htmlFor={campo} className="font-medium">
             Série
           </label>
-          <select id={campo} value={escolhida} onChange={(evento) => definirEscolhida(evento.target.value)} className={CLASSES_DO_SELETOR}>
+          <select id={campo} value={escolhida} onChange={(evento) => definirEscolhida(evento.target.value)} className={SELECT_CLASSES}>
             {disponiveis.map((serie) => (
               <option key={`${serie.etapa}:${String(serie.ano)}`} value={`${serie.etapa}:${String(serie.ano)}`}>
                 {nomeDaSerie(serie)}
@@ -370,7 +370,7 @@ export function NovaDisciplina({ aoFechar, aoCriar, recarregar }: PropsDeCriar<D
           : undefined
       }
     >
-      <Campo
+      <FormField
         ref={campo}
         rotulo="Nome da disciplina"
         dica="Como a escola chama: Matemática, Língua Portuguesa, Química."
@@ -422,7 +422,7 @@ export function PainelDoAnoEDisciplinas({
   focoDeReserva,
 }: PropsDoPainel) {
   return (
-    <PainelLado titulo="Ano letivo e disciplinas" aoFechar={aoFechar} focoDeReserva={focoDeReserva}>
+    <Sheet titulo="Ano letivo e disciplinas" aoFechar={aoFechar} focoDeReserva={focoDeReserva}>
       <div className="flex min-w-0 flex-col gap-8">
         <AnosLetivos
           anos={anos}
@@ -438,7 +438,7 @@ export function PainelDoAnoEDisciplinas({
           tituloRef={tituloDasSeries}
           anuncio={anuncioDa('series')}
           acao={
-            <button type="button" onClick={() => aoAbrir('serie')} className={CLASSES_DO_BOTAO_SECUNDARIO}>
+            <button type="button" onClick={() => aoAbrir('serie')} className={SECONDARY_BUTTON_CLASSES}>
               Nova série
             </button>
           }
@@ -465,7 +465,7 @@ export function PainelDoAnoEDisciplinas({
           tituloRef={tituloDasDisciplinas}
           anuncio={anuncioDa('disciplinas')}
           acao={
-            <button type="button" onClick={() => aoAbrir('disciplina')} className={CLASSES_DO_BOTAO_SECUNDARIO}>
+            <button type="button" onClick={() => aoAbrir('disciplina')} className={SECONDARY_BUTTON_CLASSES}>
               Nova disciplina
             </button>
           }
@@ -495,6 +495,6 @@ export function PainelDoAnoEDisciplinas({
           )}
         </Secao>
       </div>
-    </PainelLado>
+    </Sheet>
   )
 }

@@ -3,14 +3,14 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import {
-  classesDoBotao,
-  CLASSES_DO_BOTAO_OFICIAL,
-  CLASSES_DO_BOTAO_PERIGO,
-  CLASSES_DO_BOTAO_PERIGO_CHEIO,
-  CLASSES_DO_BOTAO_SECUNDARIO,
-  CLASSES_DO_LINK_SECUNDARIO,
-  TAMANHOS_DE_BOTAO,
-  VARIANTES_DE_BOTAO,
+  buttonVariants,
+  OFFICIAL_BUTTON_CLASSES,
+  DANGER_BUTTON_CLASSES,
+  DANGER_SOLID_BUTTON_CLASSES,
+  SECONDARY_BUTTON_CLASSES,
+  SECONDARY_LINK_CLASSES,
+  BUTTON_SIZES,
+  BUTTON_VARIANTS,
 } from './button-variants'
 
 const classes = (texto: string): Set<string> => new Set(texto.split(/\s+/).filter((classe) => classe !== ''))
@@ -110,19 +110,19 @@ const ESTADOS: readonly Estado[] = ['ligado', 'hover', 'apertado', 'desligado']
 
 /** Os seis desenhos: as cinco variantes e o `perigo` cheio, com o nome para a mensagem. */
 const DESENHOS: readonly { readonly nome: string; readonly lista: string }[] = [
-  ...VARIANTES_DE_BOTAO.map((variante) => ({ nome: variante, lista: classesDoBotao({ variante }) })),
-  { nome: 'perigo cheio', lista: classesDoBotao({ variante: 'perigo', cheio: true }) },
+  ...BUTTON_VARIANTS.map((variante) => ({ nome: variante, lista: buttonVariants({ variante }) })),
+  { nome: 'perigo cheio', lista: buttonVariants({ variante: 'perigo', cheio: true }) },
 ]
 
 describe('os desenhos de botão da 10.2', () => {
   it('são cinco variantes, e o sexto desenho é o perigo cheio', () => {
-    expect([...VARIANTES_DE_BOTAO]).toEqual(['primario', 'oficial', 'secundario', 'discreto', 'perigo'])
+    expect([...BUTTON_VARIANTS]).toEqual(['primario', 'oficial', 'secundario', 'discreto', 'perigo'])
     expect(DESENHOS).toHaveLength(6)
   })
 
   it('só o oficial é grafite: a face e o degrau dele não são os de nenhuma outra variante, nos dois temas (RF6)', () => {
     for (const tema of TEMAS) {
-      const oficial = classesDoBotao({ variante: 'oficial' })
+      const oficial = buttonVariants({ variante: 'oficial' })
       // Os valores são lidos do CSS: o oficial é grafite no claro e o claro do tema no escuro, e nenhum outro botão repete.
       const faceDoOficial = coresDoBotao(oficial, 'ligado', tema).face
       const degrauDoOficial = degrauDoBotao(oficial, 'ligado', tema)
@@ -137,11 +137,11 @@ describe('os desenhos de botão da 10.2', () => {
       }
     }
     // E na classe: só o oficial pede a face `grafite`, e o texto é `sobre-grafite`, que acompanha a face nos dois temas.
-    const comGrafite = VARIANTES_DE_BOTAO.filter((variante) => classes(classesDoBotao({ variante })).has('bg-grafite'))
+    const comGrafite = BUTTON_VARIANTS.filter((variante) => classes(buttonVariants({ variante })).has('bg-grafite'))
     expect(comGrafite).toEqual(['oficial'])
-    expect(classes(classesDoBotao({ variante: 'oficial' })).has('text-sobre-grafite')).toBe(true)
-    expect(classes(classesDoBotao({ variante: 'oficial' })).has('text-white')).toBe(false)
-    expect(classes(classesDoBotao({ variante: 'oficial' })).has('bg-noite')).toBe(false)
+    expect(classes(buttonVariants({ variante: 'oficial' })).has('text-sobre-grafite')).toBe(true)
+    expect(classes(buttonVariants({ variante: 'oficial' })).has('text-white')).toBe(false)
+    expect(classes(buttonVariants({ variante: 'oficial' })).has('bg-noite')).toBe(false)
   })
 
   it('todo estado de todo desenho passa de 4,5:1 nos dois temas, com as classes de verdade', () => {
@@ -160,7 +160,7 @@ describe('os desenhos de botão da 10.2', () => {
 
   it('a conta do contraste reprova o desligado em sutil: 3,7:1 no escuro', () => {
     // O modo de falhar do caso acima é passar sempre; aqui a mesma conta recebe o desenho que ela existe para barrar.
-    const comSutil = classesDoBotao({ variante: 'secundario' }).replace('disabled:text-apoio', 'disabled:text-sutil')
+    const comSutil = buttonVariants({ variante: 'secundario' }).replace('disabled:text-apoio', 'disabled:text-sutil')
     const { face, texto } = coresDoBotao(comSutil, 'desligado', 'escuro')
     expect(contraste(face, texto)).toBeLessThan(4.5)
     const { face: faceDoClaro, texto: textoDoClaro } = coresDoBotao(comSutil, 'desligado', 'claro')
@@ -168,21 +168,21 @@ describe('os desenhos de botão da 10.2', () => {
   })
 
   it('só a primária pinta de laranja, e com texto escuro: branco sobre o laranja dá 3,0:1 e reprova (9.1)', () => {
-    const comOLaranja = VARIANTES_DE_BOTAO.filter((variante) => classes(classesDoBotao({ variante })).has('bg-laranja'))
+    const comOLaranja = BUTTON_VARIANTS.filter((variante) => classes(buttonVariants({ variante })).has('bg-laranja'))
     expect(comOLaranja).toEqual(['primario'])
     // A face `laranja` e o hover `caramelo-claro` da 10.2; nenhuma outra variante traz `caramelo` nem `laranja` na face.
-    expect(classes(classesDoBotao()).has('enabled:hover:bg-caramelo-claro')).toBe(true)
+    expect(classes(buttonVariants()).has('enabled:hover:bg-caramelo-claro')).toBe(true)
     // `sobre-cor` é escuro nos dois temas. `text-tinta` clarearia no escuro, e daria o mesmo 3:1 do branco.
-    expect(classes(classesDoBotao()).has('text-sobre-cor')).toBe(true)
-    expect(classes(classesDoBotao()).has('text-sobre-grafite')).toBe(false)
-    expect(classes(classesDoBotao()).has('text-tinta')).toBe(false)
-    expect(classes(classesDoBotao()).has('text-white')).toBe(false)
+    expect(classes(buttonVariants()).has('text-sobre-cor')).toBe(true)
+    expect(classes(buttonVariants()).has('text-sobre-grafite')).toBe(false)
+    expect(classes(buttonVariants()).has('text-tinta')).toBe(false)
+    expect(classes(buttonVariants()).has('text-white')).toBe(false)
     // O degrau do primário é o `laranja-degrau`, da própria família.
-    expect(classes(classesDoBotao()).has('degrau-laranja')).toBe(true)
+    expect(classes(buttonVariants()).has('degrau-laranja')).toBe(true)
   })
 
   it('o perigo cheio leva a face vermelha, o texto que acompanha e o degrau da família', () => {
-    const cheio = classes(classesDoBotao({ variante: 'perigo', cheio: true }))
+    const cheio = classes(buttonVariants({ variante: 'perigo', cheio: true }))
     expect(cheio.has('bg-vermelho')).toBe(true)
     expect(cheio.has('text-sobre-cor')).toBe(true)
     expect(cheio.has('degrau-vermelho')).toBe(true)
@@ -193,35 +193,35 @@ describe('os desenhos de botão da 10.2', () => {
   })
 
   it('o perigo só é cheio quando pedido: fora do diálogo de confirmação ele é texto e borda vermelhos, sem face vermelha', () => {
-    const fora = classes(classesDoBotao({ variante: 'perigo' }))
+    const fora = classes(buttonVariants({ variante: 'perigo' }))
     expect(fora.has('bg-vermelho')).toBe(false)
     expect(fora.has('bg-erro')).toBe(false)
     expect(fora.has('text-vermelho-texto')).toBe(true)
     expect(fora.has('border-vermelho-borda')).toBe(true)
     expect(fora.has('degrau-vermelho-borda')).toBe(true)
-    expect(classes(classesDoBotao({ variante: 'perigo', cheio: true })).has('bg-vermelho')).toBe(true)
+    expect(classes(buttonVariants({ variante: 'perigo', cheio: true })).has('bg-vermelho')).toBe(true)
     // `cheio` não muda as outras variantes: a primária não vira botão de erro por engano.
-    expect(classesDoBotao({ variante: 'primario', cheio: true })).toBe(classesDoBotao({ variante: 'primario' }))
+    expect(buttonVariants({ variante: 'primario', cheio: true })).toBe(buttonVariants({ variante: 'primario' }))
     // Nenhuma outra variante tem a face vermelha, ligada ou não.
-    const comOVermelho = VARIANTES_DE_BOTAO.filter((variante) => classes(classesDoBotao({ variante })).has('bg-vermelho'))
+    const comOVermelho = BUTTON_VARIANTS.filter((variante) => classes(buttonVariants({ variante })).has('bg-vermelho'))
     expect(comOVermelho).toEqual([])
   })
 
   it('todos têm o canto de 12 px, menos o botão só de ícone, que é círculo', () => {
-    for (const variante of VARIANTES_DE_BOTAO) {
+    for (const variante of BUTTON_VARIANTS) {
       for (const tamanho of ['principal', 'compacto'] as const) {
-        const lista = classes(classesDoBotao({ variante, tamanho }))
+        const lista = classes(buttonVariants({ variante, tamanho }))
         expect(lista.has('rounded-botao'), `${variante} ${tamanho}`).toBe(true)
         expect(lista.has('rounded-full'), `${variante} ${tamanho}`).toBe(false)
       }
-      const icone = classes(classesDoBotao({ variante, tamanho: 'icone' }))
+      const icone = classes(buttonVariants({ variante, tamanho: 'icone' }))
       expect(icone.has('rounded-full'), variante).toBe(true)
       expect(icone.has('rounded-botao'), variante).toBe(false)
     }
     // O rótulo é `t-rotulo`: caixa-alta, 700, uma linha, em todos.
     for (const { nome, lista } of DESENHOS) expect(classes(lista).has('t-rotulo'), nome).toBe(true)
     // E o `<button>` e o `<a>` escritos à mão, que as telas de antes usam: o canto e o rótulo são os mesmos.
-    for (const constante of [CLASSES_DO_BOTAO_SECUNDARIO, CLASSES_DO_BOTAO_PERIGO, CLASSES_DO_BOTAO_PERIGO_CHEIO, CLASSES_DO_BOTAO_OFICIAL, CLASSES_DO_LINK_SECUNDARIO]) {
+    for (const constante of [SECONDARY_BUTTON_CLASSES, DANGER_BUTTON_CLASSES, DANGER_SOLID_BUTTON_CLASSES, OFFICIAL_BUTTON_CLASSES, SECONDARY_LINK_CLASSES]) {
       expect(classes(constante).has('rounded-botao'), constante).toBe(true)
       expect(classes(constante).has('rounded-full'), constante).toBe(false)
       expect(classes(constante).has('t-rotulo'), constante).toBe(true)
@@ -229,10 +229,10 @@ describe('os desenhos de botão da 10.2', () => {
   })
 
   it('a face tem 44 px no principal; o compacto tem 36 px só a partir de 768 px, e 44 px no celular; o ícone é de 44', () => {
-    for (const variante of VARIANTES_DE_BOTAO) {
-      const principal = classes(classesDoBotao({ variante }))
+    for (const variante of BUTTON_VARIANTS) {
+      const principal = classes(buttonVariants({ variante }))
       expect(principal.has('min-h-11') && principal.has('min-w-11'), variante).toBe(true)
-      const compacto = classes(classesDoBotao({ variante, tamanho: 'compacto' }))
+      const compacto = classes(buttonVariants({ variante, tamanho: 'compacto' }))
       expect(compacto.has('md:min-h-9') && compacto.has('md:min-w-9'), variante).toBe(true)
       // Sem prefixo de largura, vale o de 44 px: é o que o celular recebe (regra 50, item 2a).
       expect(compacto.has('min-h-11') && compacto.has('min-w-11'), variante).toBe(true)
@@ -242,18 +242,18 @@ describe('os desenhos de botão da 10.2', () => {
       expect(principal.has('text-[14px]'), variante).toBe(false)
       // O botão só de ícone é o círculo de 44 px, sem enchimento lateral, que o deixaria mais largo que alto, e com o
       // degrau de 3 px da 9.3.
-      const icone = classes(classesDoBotao({ variante, tamanho: 'icone' }))
+      const icone = classes(buttonVariants({ variante, tamanho: 'icone' }))
       expect(icone.has('size-11'), variante).toBe(true)
       expect(icone.has('[--altura-degrau:3px]'), variante).toBe(true)
       expect([...icone].filter((classe) => classe.startsWith('px-')), variante).toEqual([])
     }
-    expect([...TAMANHOS_DE_BOTAO]).toEqual(['principal', 'compacto', 'icone'])
+    expect([...BUTTON_SIZES]).toEqual(['principal', 'compacto', 'icone'])
   })
 
   it('o discreto não tem degrau nem face; todos os outros têm degrau, e é ele que o desligado perde', () => {
-    const comDegrau = VARIANTES_DE_BOTAO.filter((variante) => classes(classesDoBotao({ variante })).has('degrau'))
+    const comDegrau = BUTTON_VARIANTS.filter((variante) => classes(buttonVariants({ variante })).has('degrau'))
     expect(comDegrau).toEqual(['primario', 'oficial', 'secundario', 'perigo'])
-    const discreto = classes(classesDoBotao({ variante: 'discreto' }))
+    const discreto = classes(buttonVariants({ variante: 'discreto' }))
     expect([...discreto].some((classe) => /^bg-/.test(classe) || /^degrau/.test(classe))).toBe(false)
     expect(discreto.has('text-azul-texto')).toBe(true)
     // Todo botão com degrau tem a classe da cor do degrau ao lado: sem ela a sombra cai na `borda` por omissão.
@@ -278,7 +278,7 @@ describe('os desenhos de botão da 10.2', () => {
       }
     }
     // E as constantes escritas à mão, que as telas da A0 e da A1 usam num `<button>` solto, também.
-    for (const constante of [CLASSES_DO_BOTAO_SECUNDARIO, CLASSES_DO_BOTAO_PERIGO, CLASSES_DO_BOTAO_PERIGO_CHEIO, CLASSES_DO_BOTAO_OFICIAL]) {
+    for (const constante of [SECONDARY_BUTTON_CLASSES, DANGER_BUTTON_CLASSES, DANGER_SOLID_BUTTON_CLASSES, OFFICIAL_BUTTON_CLASSES]) {
       expect(classes(constante).has('disabled:bg-borda'), constante).toBe(true)
       expect(classes(constante).has('disabled:text-apoio'), constante).toBe(true)
     }
@@ -288,15 +288,15 @@ describe('os desenhos de botão da 10.2', () => {
     // As telas da A0 e da A1 usam as constantes num `<button>` solto; se uma das duas mudar sozinha, a tela nova e a
     // antiga passam a ter dois "secundários". A tabela acrescenta só o vão do ícone.
     const comOVao = (constante: string) => new Set([...classes(constante), 'gap-2'])
-    expect(classes(classesDoBotao({ variante: 'secundario' }))).toEqual(comOVao(CLASSES_DO_BOTAO_SECUNDARIO))
-    expect(classes(classesDoBotao({ variante: 'oficial' }))).toEqual(comOVao(CLASSES_DO_BOTAO_OFICIAL))
-    expect(classes(classesDoBotao({ variante: 'perigo' }))).toEqual(comOVao(CLASSES_DO_BOTAO_PERIGO))
-    expect(classes(classesDoBotao({ variante: 'perigo', cheio: true }))).toEqual(comOVao(CLASSES_DO_BOTAO_PERIGO_CHEIO))
+    expect(classes(buttonVariants({ variante: 'secundario' }))).toEqual(comOVao(SECONDARY_BUTTON_CLASSES))
+    expect(classes(buttonVariants({ variante: 'oficial' }))).toEqual(comOVao(OFFICIAL_BUTTON_CLASSES))
+    expect(classes(buttonVariants({ variante: 'perigo' }))).toEqual(comOVao(DANGER_BUTTON_CLASSES))
+    expect(classes(buttonVariants({ variante: 'perigo', cheio: true }))).toEqual(comOVao(DANGER_SOLID_BUTTON_CLASSES))
   })
 
   it('o link secundário é o secundário sem o desligado, com o hover valendo sempre', () => {
-    const link = classes(CLASSES_DO_LINK_SECUNDARIO)
-    const botao = classes(CLASSES_DO_BOTAO_SECUNDARIO)
+    const link = classes(SECONDARY_LINK_CLASSES)
+    const botao = classes(SECONDARY_BUTTON_CLASSES)
     expect([...link].filter((classe) => classe.startsWith('disabled:'))).toEqual([])
     expect(link.has('hover:bg-fundo-suave')).toBe(true)
     // O resto do desenho é o mesmo: a face, a borda, o degrau e o texto.

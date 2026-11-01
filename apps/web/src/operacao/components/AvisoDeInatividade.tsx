@@ -1,6 +1,6 @@
 import { createContext, useContext } from 'react'
-import { Botao } from '../../components/ui/Botao'
-import { CLASSES_DO_BOTAO_SECUNDARIO } from '../../components/ui/button-variants'
+import { Button } from '../../components/ui/Button'
+import { SECONDARY_BUTTON_CLASSES } from '../../components/ui/button-variants'
 
 /**
  * O aviso de inatividade da sessão com a tela aberta, e o que a casca precisa saber dos diálogos. Um `dialog` modal deixa
@@ -30,8 +30,8 @@ export function AvisoDeInatividade({ aoContinuar, aoSair }: { aoContinuar: () =>
           Sua sessão vai terminar em 2 minutos por falta de uso.
         </p>
         <div className="flex flex-wrap gap-3">
-          <Botao onClick={aoContinuar}>Continuar na sessão</Botao>
-          <button type="button" onClick={aoSair} className={CLASSES_DO_BOTAO_SECUNDARIO}>
+          <Button onClick={aoContinuar}>Continuar na sessão</Button>
+          <button type="button" onClick={aoSair} className={SECONDARY_BUTTON_CLASSES}>
             Sair
           </button>
         </div>

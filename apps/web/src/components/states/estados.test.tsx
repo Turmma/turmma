@@ -165,12 +165,12 @@ describe('os três moram na entrada', () => {
   }
 
   it('nenhum importa `Aviso`, `Contador`, `Toque` nem peça de `PECAS_FORA_DA_ENTRADA`', () => {
-    const proibidas = new Set<string>([...PECAS_FORA_DA_ENTRADA, 'ui/Aviso', 'ui/Contador', 'ui/Toque'])
+    const proibidas = new Set<string>([...PECAS_FORA_DA_ENTRADA, 'ui/Alert', 'ui/CountBadge', 'ui/Toggle'])
     for (const arquivo of ['EstadoCarregando.tsx', 'EstadoErro.tsx', 'EstadoVazio.tsx']) {
       for (const caminho of importadosDe(arquivo)) {
         // Só o que é do repositório: `lucide-react` e `@educa/shared` não são peça.
         if (!caminho.startsWith('.')) continue
-        // A peça é o caminho a partir de `components/`, como a lista a escreve: `../ui/Aviso` de `states/` é `ui/Aviso`.
+        // A peça é o caminho a partir de `components/`, como a lista a escreve: `../ui/Alert` de `states/` é `ui/Alert`.
         const nome = posix.normalize(posix.join('states', caminho))
         expect(proibidas.has(nome), `${arquivo} importa ${caminho}`).toBe(false)
       }
@@ -178,6 +178,6 @@ describe('os três moram na entrada', () => {
   })
 
   it('a lista fechada tem as três peças novas: elas ficam fora, e quem as usa as baixa com a tela', () => {
-    for (const nova of ['ui/Aviso', 'ui/Contador', 'ui/Toque']) expect(PECAS_FORA_DA_ENTRADA as readonly string[], nova).toContain(nova)
+    for (const nova of ['ui/Alert', 'ui/CountBadge', 'ui/Toggle']) expect(PECAS_FORA_DA_ENTRADA as readonly string[], nova).toContain(nova)
   })
 })

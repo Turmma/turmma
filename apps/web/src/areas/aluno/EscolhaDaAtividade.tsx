@@ -5,8 +5,8 @@ import { Link } from 'wouter'
 import { consultaMinhasAtividades } from '../../api/atividades-do-aluno'
 import { caminhoDoTutorNaAtividade } from '../../paths'
 import { EstadoCarregando, EstadoErro, EstadoVazio } from '../../components/states'
-import { Botao } from '../../components/ui/Botao'
-import { CabecalhoDeSecao } from '../../components/ui/Tela'
+import { Button } from '../../components/ui/Button'
+import { SectionHeader } from '../../components/ui/Page'
 import { AVISO_DA_AVALIACAO, estaParaResponder, resumoDaAtividade } from './atividades'
 
 /** Uma atividade da escolha: o link inteiro leva ao Tutor dela, e a avaliação que espera resposta é avisada antes de abrir. */
@@ -29,9 +29,9 @@ function LinhaDaEscolha({ atividade }: { atividade: MinhaAtividade }) {
 /** A página seguinte só vem quando o aluno pede: a lista não rola sem fim (D59). */
 function VerMais({ carregando, aoPedir }: { carregando: boolean; aoPedir: () => void }) {
   return (
-    <Botao variante="secundario" onClick={aoPedir} disabled={carregando} className="self-center">
+    <Button variante="secundario" onClick={aoPedir} disabled={carregando} className="self-center">
       {carregando ? 'Carregando…' : 'Ver mais atividades'}
-    </Botao>
+    </Button>
   )
 }
 
@@ -54,7 +54,7 @@ export function EscolhaDaAtividade() {
       )}
       {itens.length > 0 && (
         <section aria-labelledby="titulo-escolha" className="flex min-w-0 flex-col gap-3">
-          <CabecalhoDeSecao id="titulo-escolha" titulo="Em qual atividade você quer ajuda?" />
+          <SectionHeader id="titulo-escolha" titulo="Em qual atividade você quer ajuda?" />
           <ul className="flex min-w-0 flex-col gap-2">
             {itens.map((atividade) => (
               <LinhaDaEscolha key={atividade.id} atividade={atividade} />

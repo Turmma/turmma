@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useRef } from 'react'
 import { useLocation, useSearch } from 'wouter'
 import { EstadoCarregando, EstadoVazio } from '../../components/states'
-import { A_PARTIR_DE_768, useMidia } from '../../components/ui/media-query'
+import { MEDIA_MD, useMediaQuery } from '../../components/ui/media-query'
 import { formatarQuantidade } from '../../format'
 import { buscaDaConsulta, consultaDoUso, lerConsultaDaTela, paginasDoTotal } from '../api/painel'
 import { INICIO_DA_OPERACAO, USO_DA_OPERACAO } from '../paths'
@@ -159,8 +159,8 @@ export function Uso() {
   const dados = uso.data
   const paginas = paginasDoTotal(dados?.total ?? 0)
   const trocando = uso.isPlaceholderData
-  // Uma estrutura de cada vez no documento: a tabela a partir de 768 px, a lista de cartões abaixo (a `Tabela` do produto faz o mesmo).
-  const larga = useMidia(A_PARTIR_DE_768)
+  // Uma estrutura de cada vez no documento: a tabela a partir de 768 px, a lista de cartões abaixo (a `Table` do produto faz o mesmo).
+  const larga = useMediaQuery(MEDIA_MD)
 
   return (
     <>

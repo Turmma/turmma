@@ -11,13 +11,13 @@ import { consultaTime, funcaoSuspensa } from './api/time'
 import { consultaTitulosDosMateriais } from '../artefatos/api/titulos-dos-materiais'
 import { consultaMeusVinculos } from '../comum/api/vinculos'
 import { ROTAS_DO_PROFESSOR } from '../../../paths'
-import { BarraPresa } from '../../../components/ui/BarraPresa'
-import { Botao } from '../../../components/ui/Botao'
+import { StickyFooter } from '../../../components/ui/StickyFooter'
+import { Button } from '../../../components/ui/Button'
 import { EstadoCarregando, EstadoErro, EstadoVazio } from '../../../components/states/index'
-import { Escolha, type OpcaoDeEscolha } from '../../../components/ui/ai/Escolha'
-import { Conversa as ListaDeMensagens, MensagemIA, MensagemPessoa, Pensando } from '../../../components/ui/ai/Message'
-import { TextoDaIA } from '../../../components/ui/ai/TextoDaIA'
-import { Tela } from '../../../components/ui/Tela'
+import { ChoicePrompt, type ChoiceOption } from '../../../components/ui/ai/ChoicePrompt'
+import { Conversation as ListaDeMensagens, AIMessage, UserMessage, ThinkingIndicator } from '../../../components/ui/ai/Message'
+import { AIText } from '../../../components/ui/ai/AIText'
+import { Page } from '../../../components/ui/Page'
 import { useTituloDaTela } from '../../../document-title'
 import { AvisoDeIA, AvisoDeSuspensao, FalhaDoPedido } from '../comum/avisos'
 import { CaixaDoAssistente } from './CaixaDoAssistente'
@@ -27,8 +27,8 @@ import { ferramentaDoCatalogo } from '../ferramentas/ferramentas'
 import { abrirCartaoNaConversa, CARTAO_DA_CONVERSA, CICLO_DA_CONVERSA, CICLO_DA_FERRAMENTA, CONTEXTO_ESCOLHIDO, enviarPedidoDaConversa, ESCOLHAS_DAS_PROPOSTAS, type EscolhaDaProposta } from './memoria-do-professor'
 import { turmaEscolhida, turmasDaProfessora, valorDoContexto } from '../comum/turmas-da-professora'
 
-/** As duas respostas à pergunta da D18, **do mesmo peso**: nenhuma é a "certa" (D59), e a peça `Escolha` as desenha iguais. */
-function opcoesDaProposta(mensagem: Extract<MensagemDoAgente, { tipo: 'proposta_de_ferramenta' }>): readonly [OpcaoDeEscolha, OpcaoDeEscolha] {
+/** As duas respostas à pergunta da D18, **do mesmo peso**: nenhuma é a "certa" (D59), e a peça `ChoicePrompt` as desenha iguais. */
+function opcoesDaProposta(mensagem: Extract<MensagemDoAgente, { tipo: 'proposta_de_ferramenta' }>): readonly [ChoiceOption, ChoiceOption] {
   return [
     { id: 'ferramenta' satisfies EscolhaDaProposta, titulo: `Usar a ferramenta ${NOME_DA_FERRAMENTA[mensagem.proposta.ferramenta]}`, descricao: 'Salva em Criados, liga à turma e cita a página.', icone: LayoutGrid },
     { id: 'conversa' satisfies EscolhaDaProposta, titulo: 'Só conversar', descricao: 'Sigo respondendo aqui, sem salvar nada.', icone: MessageCircle },
@@ -124,47 +124,47 @@ export default function Conversa() {
   const semNada = conversa.data !== undefined && mensagens.length === 0 && pendente === undefined && cartao === undefined
 
   return (
-    <Tela titulo="Conversa com o Assistente de ensino" largura="conversa" tituloSoParaLeitor>
+    <Page titulo="Conversa com o Assistente de ensino" largura="conversa" tituloSoParaLeitor>
       {conversa.isPending && <EstadoCarregando rotulo="Carregando a conversa…" />}
       {conversa.isError && conversa.data === undefined && <EstadoErro erro={conversa.error} tentando={conversa.isFetching} aoTentarDeNovo={() => void conversa.refetch({ cancelRefetch: false })} />}
       {semNada && <EstadoVazio titulo="Nenhuma conversa ainda" descricao="Escreva um pedido na caixa abaixo: uma atividade, um plano de aula, uma dúvida sobre o material da turma. O Assistente responde com a página de onde tirou." />}
 
       {conversa.hasNextPage && (
-        <Botao variante="secundario" onClick={() => void conversa.fetchNextPage()} disabled={conversa.isFetchingNextPage} className="self-center">
+        <Button variante="secundario" onClick={() => void conversa.fetchNextPage()} disabled={conversa.isFetchingNextPage} className="self-center">
           {conversa.isFetchingNextPage ? 'Carregando…' : 'Ver mensagens anteriores'}
-        </Botao>
+        </Button>
       )}
 
       {!semNada && conversa.data !== undefined && (
         <ListaDeMensagens rotulo="Conversa com o Assistente de ensino" ocupada={pendente?.pensando === true}>
           {itens.map((item) => {
             // O pedido que ainda não voltou da API: no lugar dele, antes da resposta.
-            if (item.tipo === 'pedido') return <MensagemPessoa key="pedido-no-ar">{item.texto}</MensagemPessoa>
+            if (item.tipo === 'pedido') return <UserMessage key="pedido-no-ar">{item.texto}</UserMessage>
             const { mensagem } = item
-            if (mensagem.autor === 'usuario') return <MensagemPessoa key={mensagem.id}>{mensagem.texto}</MensagemPessoa>
+            if (mensagem.autor === 'usuario') return <UserMessage key={mensagem.id}>{mensagem.texto}</UserMessage>
             if (mensagem.tipo === 'texto')
               return (
-                <MensagemIA key={mensagem.id} agente="assistente_de_ensino">
-                  <TextoDaIA texto={mensagem.texto} citacoes={mensagem.citacoes} materiais={titulos} />
-                </MensagemIA>
+                <AIMessage key={mensagem.id} agente="assistente_de_ensino">
+                  <AIText texto={mensagem.texto} citacoes={mensagem.citacoes} materiais={titulos} />
+                </AIMessage>
               )
             const escolhida = escolhas[mensagem.id]
             const aberta = perguntando === mensagem.id
             return (
-              <MensagemIA key={mensagem.id} agente="assistente_de_ensino">
+              <AIMessage key={mensagem.id} agente="assistente_de_ensino">
                 {aberta ? (
-                  <Escolha pergunta={mensagem.texto} opcoes={opcoesDaProposta(mensagem)} aoEscolher={(escolha) => aoEscolher(mensagem, escolha)} desligada={suspensa} />
+                  <ChoicePrompt pergunta={mensagem.texto} opcoes={opcoesDaProposta(mensagem)} aoEscolher={(escolha) => aoEscolher(mensagem, escolha)} desligada={suspensa} />
                 ) : (
                   <div className="flex min-w-0 flex-col items-start gap-2">
-                    <TextoDaIA texto={mensagem.texto} citacoes={[]} materiais={titulos} />
-                    {escolhida !== undefined && <Escolha pergunta={mensagem.texto} opcoes={opcoesDaProposta(mensagem)} escolhida={escolhida} aoEscolher={() => undefined} />}
+                    <AIText texto={mensagem.texto} citacoes={[]} materiais={titulos} />
+                    {escolhida !== undefined && <ChoicePrompt pergunta={mensagem.texto} opcoes={opcoesDaProposta(mensagem)} escolhida={escolhida} aoEscolher={() => undefined} />}
                   </div>
                 )}
-              </MensagemIA>
+              </AIMessage>
             )
           })}
 
-          {pendente?.pensando === true && <Pensando agente="assistente_de_ensino" demorando={demorando} />}
+          {pendente?.pensando === true && <ThinkingIndicator agente="assistente_de_ensino" demorando={demorando} />}
           {pendente?.erro !== undefined && <FalhaDoPedido erro={pendente.erro} funcao="conversa_e_ferramentas" aoTentarDeNovo={repetir} />}
 
           {cartao !== undefined && (
@@ -188,14 +188,14 @@ export default function Conversa() {
       )}
       {suspensa && <AvisoDeSuspensao funcao="conversa_e_ferramentas" />}
       {turma !== undefined && (
-        <BarraPresa rotulo="Novo pedido" semLinha>
+        <StickyFooter rotulo="Novo pedido" semLinha>
           {/* A barra já tem 12 px de folga; o `pb-3` leva a frase a 24 px do pé da janela. */}
           <div ref={barra} className="flex w-full min-w-0 flex-col gap-2 pb-3">
             <CaixaDoAssistente turmas={turmas} turma={turma} iniciar={iniciar} respondendo={emCurso(ciclo)} desligada={suspensa || cartaoOcupaATela} />
             <AvisoDeIA />
           </div>
-        </BarraPresa>
+        </StickyFooter>
       )}
-    </Tela>
+    </Page>
   )
 }

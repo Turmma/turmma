@@ -49,6 +49,6 @@ export function quandoNaoHouverPrioritario(abrir: () => void): () => void {
 }
 
 /** O diálogo que desenha isto é prioritário enquanto estiver montado. */
-export function useDialogoPrioritario(): void {
+export function usePriorityDialog(): void {
   useEffect(() => registrarDialogoPrioritario(), [])
 }

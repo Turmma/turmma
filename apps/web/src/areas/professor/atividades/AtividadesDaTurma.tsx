@@ -5,15 +5,15 @@ import { Link, useLocation, useSearch } from 'wouter'
 import { consultaAtividadesAplicadas } from './api/atividades'
 import { consultaTurmaAberta } from '../../../api/estrutura'
 import { caminhoDaCorrecaoDoProfessor, caminhoDoArtefatoDoProfessor, ROTAS_DO_PROFESSOR } from '../../../paths'
-import { Botao } from '../../../components/ui/Botao'
-import { CLASSES_DO_LINK_SECUNDARIO } from '../../../components/ui/button-variants'
+import { Button } from '../../../components/ui/Button'
+import { SECONDARY_LINK_CLASSES } from '../../../components/ui/button-variants'
 import { EstadoCarregando, EstadoErro, EstadoVazio } from '../../../components/states/index'
-import { Linha } from '../../../components/ui/Linha'
-import { PainelLado } from '../../../components/ui/overlays/PainelLado'
-import { Segmentado } from '../../../components/ui/fields/Segmentado'
-import { Estado, type FamiliaDeEstado } from '../../../components/ui/SeloDeEstado'
+import { ListItem } from '../../../components/ui/ListItem'
+import { Sheet } from '../../../components/ui/overlays/Sheet'
+import { SegmentedControl } from '../../../components/ui/fields/SegmentedControl'
+import { StatusBadge, type StatusFamily } from '../../../components/ui/StatusBadge'
 import { textoDaFalha } from '../../../components/error-text'
-import { CabecalhoDeSecao } from '../../../components/ui/Tela'
+import { SectionHeader } from '../../../components/ui/Page'
 import { formatarDataHora } from '../../../format'
 import { AVISO_DA_AVALIATIVA_ABERTA, semCorrecao, situacaoDaAplicacao, TEXTO_SEM_CORRECAO } from './aprovar'
 import { useCorrigirDeNovo } from './corrigir-de-novo'
@@ -36,7 +36,7 @@ export function estadoDaAtividade(aplicada: Pick<AtividadeAplicada, 'estado' | '
 }
 
 /** O selo de cada estado: o texto diz tudo, a família só repete (estado nunca é só cor). A correção por revisar é a que espera a professora. */
-export const SELO_DA_ATIVIDADE: Readonly<Record<EstadoDaAtividade, { readonly familia: FamiliaDeEstado; readonly texto: string }>> = {
+export const SELO_DA_ATIVIDADE: Readonly<Record<EstadoDaAtividade, { readonly familia: StatusFamily; readonly texto: string }>> = {
   aberta: { familia: 'info', texto: 'Aberta' },
   para_revisar: { familia: 'pendente', texto: 'Correção para revisar' },
   aprovada: { familia: 'ok', texto: 'Correção aprovada' },
@@ -164,14 +164,14 @@ function AbaDeAtividades({ turmaId }: { turmaId: string }) {
 
   return (
     <section aria-labelledby={idDasAtividades} className="flex min-w-0 flex-col gap-3">
-      <CabecalhoDeSecao
+      <SectionHeader
         id={idDasAtividades}
         titulo="Atividades da turma"
         // Sem atividade, a ação mora no vazio: um convite só, e não dois botões com o mesmo nome.
         {...(todas.length > 0
           ? {
               acao: (
-                <Link to={enderecoParaAplicar(turmaId)} className={CLASSES_DO_LINK_SECUNDARIO}>
+                <Link to={enderecoParaAplicar(turmaId)} className={SECONDARY_LINK_CLASSES}>
                   Aplicar uma atividade
                 </Link>
               ),
@@ -189,7 +189,7 @@ function AbaDeAtividades({ turmaId }: { turmaId: string }) {
       )}
       {comFiltro && (
         <div ref={filtroNaTela}>
-          <Segmentado rotulo="Filtrar as atividades" opcoes={FILTROS_DAS_ATIVIDADES} valor={filtroEmUso} aoMudar={definirFiltro} emDuasColunasNoCelular />
+          <SegmentedControl rotulo="Filtrar as atividades" opcoes={FILTROS_DAS_ATIVIDADES} valor={filtroEmUso} aoMudar={definirFiltro} emDuasColunasNoCelular />
         </div>
       )}
       {todas.length > 0 && visiveis.length === 0 && (
@@ -209,12 +209,12 @@ function AbaDeAtividades({ turmaId }: { turmaId: string }) {
                 data-atividade-aplicada={aplicada.estado}
                 data-estado-da-atividade={estadoDaAtividade(aplicada)}
               >
-                <Linha
+                <ListItem
                   aoAcionar={() => abrir(aplicada.id)}
                   titulo={aplicada.titulo}
                   inicio={<IconeDeFerramenta ferramenta="atividade_objetiva" tamanho={40} />}
                   abaixo={situacaoDaAplicacao(aplicada)}
-                  fim={<Estado familia={selo.familia}>{selo.texto}</Estado>}
+                  fim={<StatusBadge familia={selo.familia}>{selo.texto}</StatusBadge>}
                 />
               </li>
             )
@@ -258,7 +258,7 @@ function PainelDaAtividade({ aplicada, nomeDaTurma, turmaId, aoFechar }: PropsDo
   }, [estado])
 
   return (
-    <PainelLado
+    <Sheet
       titulo={aplicada.titulo}
       aoFechar={aoFechar}
       descritoPor={idDaDescricao}
@@ -266,19 +266,19 @@ function PainelDaAtividade({ aplicada, nomeDaTurma, turmaId, aoFechar }: PropsDo
       rodape={
         <>
           {/* Relativos à área: o `Route` aninhado em `/professor` resolve o `to` a partir da base dela. */}
-          <Link to={caminhoDoArtefatoDoProfessor(aplicada.artefatoId)} className={CLASSES_DO_LINK_SECUNDARIO}>
+          <Link to={caminhoDoArtefatoDoProfessor(aplicada.artefatoId)} className={SECONDARY_LINK_CLASSES}>
             Abrir a atividade
           </Link>
           {aplicada.entrega !== null && (
-            <Link to={caminhoDaCorrecaoDoProfessor(aplicada.id)} className={CLASSES_DO_LINK_SECUNDARIO}>
+            <Link to={caminhoDaCorrecaoDoProfessor(aplicada.id)} className={SECONDARY_LINK_CLASSES}>
               {aplicada.entrega.estado === 'pendente' ? 'Revisar a correção' : 'Ver a correção'}
             </Link>
           )}
           {/* Encerrada sem lote que valha (função suspensa, ou lote rejeitado): encerrar de novo corrige de novo. */}
           {(motivo === 'correcao_suspensa' || motivo === 'lote_rejeitado') && (
-            <Botao variante="secundario" disabled={corrigindo !== undefined} onClick={() => corrigirDeNovo(aplicada)}>
+            <Button variante="secundario" disabled={corrigindo !== undefined} onClick={() => corrigirDeNovo(aplicada)}>
               {corrigindo === aplicada.id ? 'Corrigindo…' : 'Corrigir de novo'}
-            </Botao>
+            </Button>
           )}
           <EncerramentoDaAtividade aplicada={aplicada} nomeDaTurma={nomeDaTurma} focoDeReserva={() => reserva.current?.focus()} />
         </>
@@ -289,7 +289,7 @@ function PainelDaAtividade({ aplicada, nomeDaTurma, turmaId, aoFechar }: PropsDo
           Situação da atividade e o que fazer agora.
         </p>
         <div className="flex min-w-0 flex-wrap items-center gap-2">
-          <Estado familia={selo.familia}>{selo.texto}</Estado>
+          <StatusBadge familia={selo.familia}>{selo.texto}</StatusBadge>
         </div>
         <p className="min-w-0 font-medium break-words text-tinta">{situacaoDaAplicacao(aplicada)}</p>
         <p className="min-w-0 text-sm break-words text-sutil">
@@ -311,6 +311,6 @@ function PainelDaAtividade({ aplicada, nomeDaTurma, turmaId, aoFechar }: PropsDo
           )}
         </section>
       </div>
-    </PainelLado>
+    </Sheet>
   )
 }

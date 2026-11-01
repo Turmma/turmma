@@ -1,16 +1,16 @@
 import type { PapelDeUsuario } from '@educa/shared'
 import { BookOpen, FolderLock, UserRound, type LucideIcon } from 'lucide-react'
 import { ROTAS } from '../paths'
-// Só tipos, que o compilador apaga: o `Contador` e os ícones ilustrados são peças da entrada ou fora dela, e este arquivo
+// Só tipos, que o compilador apaga: o `CountBadge` e os ícones ilustrados são peças da entrada ou fora dela, e este arquivo
 // não importa nenhuma (o item 4 do guia acima). O que ele diz é qual ícone e qual família, e a casca é quem desenha.
-import type { FamiliaDeCor } from '../components/ui/Contador'
-import type { NomeDoLugar } from '../components/ui/icons/places'
+import type { ColorFamily } from '../components/ui/CountBadge'
+import type { PlaceName } from '../components/ui/icons/places'
 
 /*
  * COMO ENTRA UMA TELA NOVA NUMA ÁREA (MVP de apresentação; `apps/web/chunk-names.ts` e o teste dele sobre o build):
  * 1. A tela é um arquivo em `areas/<area>/` com `export default`, declarada no `routes.tsx` da área por `const Tela = lazy(() => import('./Tela'))`; o `Suspense` e a fronteira de erro da área já a cobrem. Sai em `tela-<area>-<Tela>-*.js`, com teto de 30 kB em brotli.
  * 2. Tela nova nunca entra por `import` direto no `routes.tsx`: o teto da fachada (`<area>-*.js`) é o das telas da A1, que ficam como estão.
- * 3. Peça se importa pelo arquivo dela (`../../components/ui/ai/CaixaPedido`, `../../components/ui/Cartao`), sem arquivo-barril.
+ * 3. Peça se importa pelo arquivo dela (`../../components/ui/ai/PromptInput`, `../../components/ui/Card`), sem arquivo-barril.
  * 4. Nada da entrada (`src/routes.tsx`, `pages/`, a casca, este arquivo) importa peça de `components/ui/ai/` ou da lista `PECAS_FORA_DA_ENTRADA`, nem módulo de `areas/<area>/`.
  * 5. Tela de uma área não importa módulo de outra área: o que duas áreas dividem mora em `components/`. O build reprova a tela do professor que o aluno baixaria.
  * Como usar cada peça (aprovação, conversa, barra presa, o que a peça não dá): `src/components/ui/ai/README.md`.
@@ -18,11 +18,11 @@ import type { NomeDoLugar } from '../components/ui/icons/places'
 
 /**
  * O ícone de um lugar (`docs/interface.md` 9.4): o ilustrado, onde a D80 desenhou um (Início, Turmas, Ferramentas e
- * Atividades, que usa o `tarefas`), ou o do `lucide` dentro de um `Ladrilho`, na família do lugar. A família é categoria,
+ * Atividades, que usa o `tarefas`), ou o do `lucide` dentro de um `IconTile`, na família do lugar. A família é categoria,
  * e nunca julgamento: os três agentes têm a deles (Assistente azul, Tutor laranja, Analista anil), e a gestão, a escola e os
  * registros, a que a 9.4 dá aos lugares correspondentes.
  */
-export type IconeDoItem = { readonly lugar: NomeDoLugar } | { readonly lucide: LucideIcon; readonly familia: FamiliaDeCor }
+export type IconeDoItem = { readonly lugar: PlaceName } | { readonly lucide: LucideIcon; readonly familia: ColorFamily }
 
 /** Um item da lateral: o rótulo, o endereço pela raiz e o ícone (`docs/interface.md` 9.4). */
 export interface ItemDaNavegacao {

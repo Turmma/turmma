@@ -7,8 +7,8 @@ import { ALVO_DE_TOQUE_PRINCIPAL_PX, focoVisivel, IMPACTOS_QUE_REPROVAM, largura
 /**
  * O estado dito sem depender da cor, na galeria (`/galeria`), nos projetos `chromebook` e `celular` e nos dois temas
  * (X1, tarefa 6.0; RF9 e RF11): o selo, a faixa, o aviso, o contador, o toque, as abas e os três estados de tela. O que
- * cada peça promete sem medida (papel, `aria-*`, teclado) está nos testes de componente (`Abas.test.tsx`,
- * `Aviso.test.tsx`, `Contador.test.tsx`, `Toque.test.tsx` e `states/estados.test.tsx`); aqui está o que só o navegador
+ * cada peça promete sem medida (papel, `aria-*`, teclado) está nos testes de componente (`Tabs.test.tsx`,
+ * `Alert.test.tsx`, `CountBadge.test.tsx`, `Toggle.test.tsx` e `states/estados.test.tsx`); aqui está o que só o navegador
  * calcula: a cor resolvida, o contraste real e a medida.
  *
  * Os casos de regra que tocam estas peças continuam nos arquivos de origem, sem edição: "Tentar de novo" em 18 specs,

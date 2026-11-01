@@ -7,15 +7,15 @@ import { CHAVE_DA_ESTRUTURA, consultaAnosLetivos, consultaVinculos } from '../..
 import { consultaProfessores, mutacaoDoCadastroDeProfessor, mutacaoDoRefazerConviteDoProfessor, revogarConviteDoProfessor } from './api/professores'
 import { aoTrocarDeSessao } from '../../../api/sessao'
 import { PARAMETRO_DO_PROFESSOR } from '../../../paths'
-import { Aviso } from '../../../components/ui/Aviso'
-import { Botao } from '../../../components/ui/Botao'
-import { Dialogo } from '../../../components/ui/overlays/Dialogo'
-import { useDialogoDaTela } from '../../../components/ui/overlays/dialog-state'
+import { Alert } from '../../../components/ui/Alert'
+import { Button } from '../../../components/ui/Button'
+import { Dialog } from '../../../components/ui/overlays/Dialog'
+import { useDialogState } from '../../../components/ui/overlays/dialog-state'
 import { DialogoDeConviteNovo, DialogoDeConviteRefeito } from '../../../components/DialogoDoConvite'
 import { ConfirmacaoDePerigo } from '../../../components/dialogs'
 import { EstadoCarregando, EstadoErro, EstadoVazio } from '../../../components/states/index'
-import { Estado } from '../../../components/ui/SeloDeEstado'
-import { Tabela, type ColunaDaTabela } from '../../../components/ui/Tabela'
+import { StatusBadge } from '../../../components/ui/StatusBadge'
+import { Table, type TableColumn } from '../../../components/ui/Table'
 import {
   falhaDoCadastroDeProfessor,
   falhaDoRefazerConviteDeProfessor,
@@ -61,7 +61,7 @@ function mandeOLinkA(nome: string, email?: string) {
   )
 }
 
-function colunasDosProfessores(aoAbrir: (usuarioId: string) => void): readonly [ColunaDaTabela<ProfessorDaTabela>, ...ColunaDaTabela<ProfessorDaTabela>[]] {
+function colunasDosProfessores(aoAbrir: (usuarioId: string) => void): readonly [TableColumn<ProfessorDaTabela>, ...TableColumn<ProfessorDaTabela>[]] {
   return [
     {
       chave: 'nome',
@@ -79,7 +79,7 @@ function colunasDosProfessores(aoAbrir: (usuarioId: string) => void): readonly [
     {
       chave: 'situacao',
       titulo: 'Situação',
-      celula: ({ professor }) => <Estado familia={FAMILIA_DO_ESTADO_DO_PROFESSOR[professor.estado]}>{TEXTO_DO_ESTADO_DO_PROFESSOR[professor.estado]}</Estado>,
+      celula: ({ professor }) => <StatusBadge familia={FAMILIA_DO_ESTADO_DO_PROFESSOR[professor.estado]}>{TEXTO_DO_ESTADO_DO_PROFESSOR[professor.estado]}</StatusBadge>,
     },
   ]
 }
@@ -114,7 +114,7 @@ export default function Professores() {
   // Turmas e disciplinas são dos vínculos do ano em curso: sem ele a API responde como inexistente, e a tela nem pergunta.
   const anos = useQuery(consultaAnosLetivos)
   const vinculos = useQuery({ ...consultaVinculos, enabled: anos.data?.itens.some((ano) => ano.situacao === 'em_curso') === true })
-  const dialogo = useDialogoDaTela<TipoDeDialogo, ProfessorDaLinha>()
+  const dialogo = useDialogState<TipoDeDialogo, ProfessorDaLinha>()
   const aberta = dialogo.aberta
   const fechar = dialogo.fechar
   // O professor da linha, fotografado na abertura: os diálogos de refazer e de revogar só existem com ele.
@@ -198,22 +198,22 @@ export default function Professores() {
               </h2>
               <p className="t-apoio text-sutil">{contagemDeProfessores(dados.itens.length)}</p>
             </div>
-            <Botao onClick={() => abrir('cadastrar')}>Cadastrar professor</Botao>
+            <Button onClick={() => abrir('cadastrar')}>Cadastrar professor</Button>
           </div>
           {professores.isError && erroDaLeitura}
           {turmasComFalha && (
-            <Aviso
+            <Alert
               tom="atencao"
               acao={
-                <Botao variante="secundario" disabled={lendoTurmas} onClick={lerTurmasDeNovo}>
+                <Button variante="secundario" disabled={lendoTurmas} onClick={lerTurmasDeNovo}>
                   {lendoTurmas ? 'Tentando de novo…' : 'Tentar de novo'}
-                </Botao>
+                </Button>
               }
             >
               As turmas e as disciplinas dos professores não carregaram
-            </Aviso>
+            </Alert>
           )}
-          <Tabela rotulo="Professores da escola" colunas={colunasDosProfessores(abrirPainel)} linhas={professoresDaTabela(dados.itens, vinculos.data)} chaveDaLinha={(linha) => linha.professor.usuarioId} />
+          <Table rotulo="Professores da escola" colunas={colunasDosProfessores(abrirPainel)} linhas={professoresDaTabela(dados.itens, vinculos.data)} chaveDaLinha={(linha) => linha.professor.usuarioId} />
           <AvisoDeListaIncompleta completa={dados.completa} />
         </>
       )}
@@ -237,7 +237,7 @@ export default function Professores() {
       {aberta?.tipo === 'cadastrar' && (
         <DialogoDeConviteNovo
           key={aberta.numero}
-          Moldura={Dialogo}
+          Moldura={Dialog}
           titulo="Cadastrar professor"
           apresentacao="O nome e o e-mail com que a pessoa vai entrar. Você copia o link do convite e manda a ela, que cria a senha ao abrir."
           rotulos={{ nome: 'Nome do professor', email: 'E-mail do professor' }}
@@ -263,7 +263,7 @@ export default function Professores() {
       {aberta?.tipo === 'refazer' && alvo !== undefined && (
         <DialogoDeConviteRefeito
           key={aberta.numero}
-          Moldura={Dialogo}
+          Moldura={Dialog}
           titulo="Refazer o convite"
           confirmacao={
             <>

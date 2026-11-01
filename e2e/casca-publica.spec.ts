@@ -147,7 +147,7 @@ test.describe('a moldura das páginas públicas', () => {
     await expect(senha).toHaveAttribute('required', '')
     await expect(senha).toHaveAttribute('maxlength', '1024')
 
-    // A ordem: o e-mail vem antes da senha, e entre os dois não há parada de Tab nova (a senha é `Campo`, sem o "Mostrar").
+    // A ordem: o e-mail vem antes da senha, e entre os dois não há parada de Tab nova (a senha é `FormField`, sem o "Mostrar").
     const emOrdem = await email.evaluate((campo, alvo) => Boolean(campo.compareDocumentPosition(alvo as Node) & Node.DOCUMENT_POSITION_FOLLOWING), await senha.elementHandle())
     expect(emOrdem).toBe(true)
     await expect(page.getByRole('button', { name: 'Mostrar a senha' })).toHaveCount(0)

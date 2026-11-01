@@ -9,7 +9,7 @@ import {
 } from '@educa/shared'
 import type { FalhaDoConvite } from '../../../components/DialogoDoConvite'
 import { pedidoDeConvitePelo, type ValidacaoDoConvite } from '../../../components/pedido-de-convite'
-import type { FamiliaDeEstado } from '../../../components/ui/SeloDeEstado'
+import type { StatusFamily } from '../../../components/ui/StatusBadge'
 import { listaMudou, textoDaFalha } from '../../../components/error-text'
 import { TEXTO_DO_CONVITE_QUE_MUDOU, TEXTO_DO_CONVITE_QUE_NAO_VALE } from '../../../components/textos-do-convite'
 
@@ -37,7 +37,7 @@ export const TEXTO_DO_ESTADO_DO_PROFESSOR: Readonly<Record<EstadoDoProfessor, st
  * A família do selo de cada estado (X2, 6.0; `docs/interface.md` 9.1): o que espera a pessoa é `pendente`, o convite vencido é `erro`, quem
  * entrou é `ok`, e o convite revogado e o professor desativado são `info`, sem urgência. O texto do selo é o de cima: a cor nunca diz sozinha.
  */
-export const FAMILIA_DO_ESTADO_DO_PROFESSOR: Readonly<Record<EstadoDoProfessor, FamiliaDeEstado>> = {
+export const FAMILIA_DO_ESTADO_DO_PROFESSOR: Readonly<Record<EstadoDoProfessor, StatusFamily>> = {
   pendente: 'pendente',
   vencido: 'erro',
   revogado: 'info',

@@ -252,8 +252,8 @@ test.describe('a casca da escola no celular', () => {
   })
 
   /**
-   * "Criados" com dezesseis coisas já geradas: uma tela comprida, **sem `BarraPresa`**. É isso que prova a reserva da barra de
-   * baixo, e não a da barra presa: a `BarraPresa` sobe sozinha e grava a reserva dela em linha, e com ela na tela o `<main>`
+   * "Criados" com dezesseis coisas já geradas: uma tela comprida, **sem `StickyFooter`**. É isso que prova a reserva da barra de
+   * baixo, e não a da barra presa: a `StickyFooter` sobe sozinha e grava a reserva dela em linha, e com ela na tela o `<main>`
    * e o `scroll-padding` do `<html>` nunca seriam o que falha. A lista termina num controle (o último artefato).
    */
   async function entrarNaTelaComprida(page: Page, hasTouch: boolean): Promise<void> {

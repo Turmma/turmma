@@ -4,7 +4,7 @@ import { expect } from './profiles.ts'
 /**
  * O que os specs que olham o avatar da onça dividem (RF10 da X1; `docs/interface.md` 9.7): **todo `[data-agente]` tem, no
  * `[data-assinatura]` mais próximo, exatamente ele, o nome da função em texto visível e um `[data-selo-ia]`**. A
- * `AssinaturaIA` e o cabeçalho do balão da `MensagemIA` levam o atributo; o avatar sem eles é o que o teste reprova.
+ * `AgentSignature` e o cabeçalho do balão da `AIMessage` levam o atributo; o avatar sem eles é o que o teste reprova.
  *
  * O nome que acompanha o avatar é o do agente dele: o `[data-agente="tutor"]` tem ao lado "Tutor" ou "Tutor · <função>",
  * e nunca o nome de outro.

@@ -1,8 +1,8 @@
 import { MENSAGEM_DA_FALHA_DE_MATERIAL, NOME_DA_LICENCA, NOME_DA_TITULARIDADE, type Material } from '@educa/shared'
 import type { ReactNode } from 'react'
-import { Botao } from '../../../components/ui/Botao'
-import { PainelLado } from '../../../components/ui/overlays/PainelLado'
-import { Estado } from '../../../components/ui/SeloDeEstado'
+import { Button } from '../../../components/ui/Button'
+import { Sheet } from '../../../components/ui/overlays/Sheet'
+import { StatusBadge } from '../../../components/ui/StatusBadge'
 import { FAMILIA_DA_SITUACAO_DO_MATERIAL, textoDaSituacaoDoMaterial } from './materiais-da-escola'
 
 interface Props {
@@ -37,27 +37,27 @@ function Dado({ rotulo, children }: { readonly rotulo: string; readonly children
  */
 export function PainelDoMaterial({ material, disciplina, aoFechar, aoTentarDeNovo, aoExcluir, focoDeReserva }: Props) {
   return (
-    <PainelLado
+    <Sheet
       titulo={material.titulo}
       aoFechar={aoFechar}
       focoDeReserva={focoDeReserva}
       rodape={
         <>
           {material.estado === 'falhou' && (
-            <Botao variante="secundario" onClick={aoTentarDeNovo}>
+            <Button variante="secundario" onClick={aoTentarDeNovo}>
               Tentar de novo
-            </Botao>
+            </Button>
           )}
-          <Botao variante="perigo" onClick={aoExcluir}>
+          <Button variante="perigo" onClick={aoExcluir}>
             Excluir material
-          </Botao>
+          </Button>
         </>
       }
     >
       <div className="flex min-w-0 flex-col gap-5">
         <section aria-label="Situação" className="flex min-w-0 flex-col gap-2">
           <div>
-            <Estado familia={FAMILIA_DA_SITUACAO_DO_MATERIAL[material.estado]}>{textoDaSituacaoDoMaterial(material)}</Estado>
+            <StatusBadge familia={FAMILIA_DA_SITUACAO_DO_MATERIAL[material.estado]}>{textoDaSituacaoDoMaterial(material)}</StatusBadge>
           </div>
           {material.falha !== null && <p className="break-words text-erro">{MENSAGEM_DA_FALHA_DE_MATERIAL[material.falha]}</p>}
         </section>
@@ -69,6 +69,6 @@ export function PainelDoMaterial({ material, disciplina, aoFechar, aoTentarDeNov
           <Dado rotulo="Páginas">{material.paginas === null ? '—' : String(material.paginas)}</Dado>
         </dl>
       </div>
-    </PainelLado>
+    </Sheet>
   )
 }

@@ -4,7 +4,7 @@
  */
 
 /** `pronta` aceita pedido; `gerando` é a resposta chegando, e enviar vira "Parar"; `desligada` não aceita nada. */
-export type EstadoDaCaixa = 'pronta' | 'gerando' | 'desligada'
+export type PromptInputState = 'pronta' | 'gerando' | 'desligada'
 
 /** O texto que vai no pedido: sem o espaço das pontas. Só espaço e quebra de linha não é pedido (`undefined`). */
 export function textoDoPedido(valor: string): string | undefined {
@@ -13,7 +13,7 @@ export function textoDoPedido(valor: string): string | undefined {
 }
 
 /** Dá para enviar agora? Só com a caixa pronta e com texto: enquanto a resposta chega, um segundo pedido não sai. */
-export function podeEnviar(valor: string, estado: EstadoDaCaixa): boolean {
+export function podeEnviar(valor: string, estado: PromptInputState): boolean {
   return estado === 'pronta' && textoDoPedido(valor) !== undefined
 }
 

@@ -1,8 +1,8 @@
 import { TAMANHO_MAXIMO_SENHA, TAMANHO_MAXIMO_TOKEN_DE_CONVITE, TAMANHO_MINIMO_SENHA_NOVA } from '@educa/shared'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link, useLocation } from 'wouter'
-import { Botao } from '../../components/ui/Botao'
-import { Campo } from '../../components/ui/fields/Campo'
+import { Button } from '../../components/ui/Button'
+import { FormField } from '../../components/ui/fields/FormField'
 import { EstadoCarregando } from '../../components/states'
 import { aceitarConviteDeOperadorNaVez, consultarConviteDeOperador, ehConviteInvalido } from '../api/convite'
 import { ROTAS_DA_OPERACAO } from '../paths'
@@ -151,7 +151,7 @@ export function Convite() {
             Você foi convidado para a equipe de operação do Turmma. Crie a sua senha; depois dela, você configura o segundo
             fator.
           </p>
-          <Campo
+          <FormField
             rotulo="Senha nova"
             dica={`Pelo menos ${String(TAMANHO_MINIMO_SENHA_NOVA)} caracteres. Use uma frase que só você saiba.`}
             name="senha"
@@ -168,9 +168,9 @@ export function Convite() {
               {textoDaFalha(falha)}
             </p>
           )}
-          <Botao type="submit" disabled={aceitando} className="w-full">
+          <Button type="submit" disabled={aceitando} className="w-full">
             {aceitando ? 'Salvando…' : 'Criar a senha e continuar'}
-          </Botao>
+          </Button>
           <span role="status" className="sr-only">
             {aceitando ? 'Salvando…' : ''}
           </span>

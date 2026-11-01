@@ -4,11 +4,11 @@ import { cleanup, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { classesDo, tokenDe } from '../../../__fixtures__/class-colors'
-import { ChipFonte } from './ChipFonte'
-import { Fontes } from './Fontes'
+import { CitationChip } from './CitationChip'
+import { Sources } from './Sources'
 import type { DescricaoDeFerramenta, ValoresValidados } from './schema-form'
-import { MotorFormulario } from './MotorFormulario'
-import { PaginaMini } from './PaginaMini'
+import { SchemaForm } from './SchemaForm'
+import { PageThumbnail } from './PageThumbnail'
 
 /**
  * As peças de IA que a 10.0 reveste sem mudar o que dizem nem a ordem do foco (`docs/interface.md` 9.3 e 10.2): o chip de
@@ -31,7 +31,7 @@ afterEach(() => {
 
 describe('ChipFonte', () => {
   it('é a pílula de 28 px, com a borda de 2 px, em família `ia`, e sem degrau: ele corre dentro de uma linha de texto', () => {
-    render(<ChipFonte citacao={CITACAO} materiais={MATERIAIS} />)
+    render(<CitationChip citacao={CITACAO} materiais={MATERIAIS} />)
     // O `jsdom` junta o texto escondido ao visível sem o espaço do fim (`cap. 7,p. 142`); o navegador o mantém.
     const chip = screen.getByRole('button', { name: /^Fonte: Química 2, cap\. 7,\s?p\. 142$/ })
     const classes = classesDo(chip)
@@ -52,7 +52,7 @@ describe('ChipFonte', () => {
   })
 
   it('aberto, o cartão é a caixa flutuante da pele (borda de 2 px e degrau, `shadow-flutua`), e o texto não desce de 14 px', async () => {
-    render(<ChipFonte citacao={CITACAO} materiais={MATERIAIS} />)
+    render(<CitationChip citacao={CITACAO} materiais={MATERIAIS} />)
     await userEvent.setup().click(screen.getByRole('button', { name: /^Fonte:/ }))
     const cartao = screen.getByRole('group', { name: 'Fonte: Química 2, cap. 7, p. 142' })
     expect(classesDo(cartao).has('shadow-flutua')).toBe(true)
@@ -66,7 +66,7 @@ describe('ChipFonte', () => {
 
 describe('Fontes', () => {
   it('a linha recolhida tem 44 px de alvo, e cada fonte aberta é uma caixa de 2 px em família `ia`', () => {
-    const { container } = render(<Fontes citacoes={[CITACAO]} materiais={MATERIAIS} />)
+    const { container } = render(<Sources citacoes={[CITACAO]} materiais={MATERIAIS} />)
     const resumo = container.querySelector('summary') as HTMLElement
     expect(classesDo(resumo).has('min-h-11')).toBe(true)
     expect(tokenDe(resumo, 'text')).toBe('apoio')
@@ -81,7 +81,7 @@ describe('Fontes', () => {
 
 describe('PaginaMini', () => {
   it('a folha tem a borda de 2 px, e nada nela desce de 14 px', () => {
-    const { container } = render(<PaginaMini citacao={CITACAO} materiais={MATERIAIS} />)
+    const { container } = render(<PageThumbnail citacao={CITACAO} materiais={MATERIAIS} />)
     const folha = container.querySelector('figure > div') as HTMLElement
     expect(classesDo(folha).has('border-2')).toBe(true)
     expect(tokenDe(folha, 'border')).toBe('borda')
@@ -116,7 +116,7 @@ const ADAPTACAO: DescricaoDeFerramenta = {
 
 describe('MotorFormulario', () => {
   it('gerar é o primário, cancelar é o secundário, e os dois têm a mesma altura mínima', () => {
-    render(<MotorFormulario descricao={ADAPTACAO} estado="formulario" aoGerar={() => undefined} aoCancelar={() => undefined} />)
+    render(<SchemaForm descricao={ADAPTACAO} estado="formulario" aoGerar={() => undefined} aoCancelar={() => undefined} />)
     const gerar = screen.getByRole('button', { name: 'Gerar versão adaptada' })
     const cancelar = screen.getByRole('button', { name: 'Cancelar' })
     expect(tokenDe(gerar, 'bg')).toBe('laranja')
@@ -128,7 +128,7 @@ describe('MotorFormulario', () => {
   it('a lista de tipos é uma caixa por tipo (borda de 2 px, degrau e 64 px, com o `checkbox` nativo), e marcar entrega os tipos na ordem da lista', async () => {
     const aoGerar = vi.fn<(valores: ValoresValidados) => void>()
     const usuario = userEvent.setup()
-    render(<MotorFormulario descricao={ADAPTACAO} estado="formulario" aoGerar={aoGerar} />)
+    render(<SchemaForm descricao={ADAPTACAO} estado="formulario" aoGerar={aoGerar} />)
     const grupo = screen.getByRole('group', { name: /Tipo de adaptação/ })
     const caixas = within(grupo).getAllByRole('checkbox')
     expect(caixas).toHaveLength(2)
@@ -138,7 +138,7 @@ describe('MotorFormulario', () => {
       expect(classesDo(rotulo).has('min-h-16'), '64 px').toBe(true)
       expect(classesDo(rotulo).has('border-2')).toBe(true)
       expect(classesDo(rotulo).has('degrau-borda'), 'desmarcada, o degrau é o da borda').toBe(true)
-      // O anel é do rótulo, por `focus-within`, como o da `Opcao` (4.0: aparece também no clique, decisão registrada). Nada de
+      // O anel é do rótulo, por `focus-within`, como o da `OptionCard` (4.0: aparece também no clique, decisão registrada). Nada de
       // `has-*` (`has-[...]`, `has-checked:`, `group-has-*`): o Tailwind o gera como `:has()`, que não existe antes do Chrome 105 e que o E5 do `casca.spec.ts` proíbe.
       const classesDoRotulo = [...classesDo(rotulo)]
       expect(classesDoRotulo.filter((classe) => classe.startsWith('focus-within:outline')).sort(), 'o anel por focus-within').toEqual([
@@ -171,7 +171,7 @@ describe('MotorFormulario', () => {
 
   it('o que falta é dito com o ícone ao lado do texto, ligado ao grupo, e o aviso do envio tem a borda do erro', async () => {
     const usuario = userEvent.setup()
-    render(<MotorFormulario descricao={ADAPTACAO} estado="formulario" aoGerar={() => undefined} />)
+    render(<SchemaForm descricao={ADAPTACAO} estado="formulario" aoGerar={() => undefined} />)
     await usuario.click(screen.getByRole('button', { name: 'Gerar versão adaptada' }))
     const aviso = screen.getByRole('alert')
     expect(aviso.textContent).toBe('Para gerar, confira: Tipo de adaptação.')
@@ -191,7 +191,7 @@ describe('MotorFormulario', () => {
   it('a descrição com campo de texto na Adaptação não abre: a caixa de erro tem a borda do erro e o aviso vai ao leitor de tela', () => {
     // O tipo já barra isto em TypeScript; a descrição que chega como dado é o caso que a peça ainda recusa.
     const comTexto = { ...ADAPTACAO, campos: [{ tipo: 'texto', chave: 'sobre', rotulo: 'Sobre o aluno' }] } as unknown as DescricaoDeFerramenta
-    render(<MotorFormulario descricao={comTexto} estado="formulario" aoGerar={() => undefined} />)
+    render(<SchemaForm descricao={comTexto} estado="formulario" aoGerar={() => undefined} />)
     const alerta = screen.getByRole('alert')
     expect(alerta.textContent).toBe('Esta ferramenta não pôde ser aberta. Avise a equipe Turmma.')
     expect(classesDo(alerta).has('border-2')).toBe(true)
@@ -200,7 +200,7 @@ describe('MotorFormulario', () => {
   })
 
   it('pedido recolhido e gerando: a linha e o status têm a borda de 2 px, e "preparando" não tem nada em laço', () => {
-    const { container } = render(<MotorFormulario descricao={ADAPTACAO} estado="gerando" aoGerar={() => undefined} />)
+    const { container } = render(<SchemaForm descricao={ADAPTACAO} estado="gerando" aoGerar={() => undefined} />)
     const gerando = screen.getByRole('status')
     expect(gerando.textContent).toBe('Gerando… Isso leva alguns instantes.')
     expect(classesDo(gerando).has('border-2')).toBe(true)

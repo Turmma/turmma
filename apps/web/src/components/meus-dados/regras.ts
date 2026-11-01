@@ -9,7 +9,7 @@ import {
   type MeusDadosResponse,
   type TipoDePedidoDoTitular,
 } from '@educa/shared'
-import type { FamiliaDeEstado } from '../ui/SeloDeEstado'
+import type { StatusFamily } from '../ui/StatusBadge'
 import { agendarRelitura, type AbaDoNavegador } from '../pedidos/atualizacao-dos-pedidos'
 
 /**
@@ -69,12 +69,12 @@ export const TEXTO_DO_VAZIO = 'Para receber uma cópia dos seus dados, peça à 
 
 /** O selo e a explicação de um pedido, em texto: estado nunca é só cor (regra 50, item 11). */
 export interface SituacaoDoPedido {
-  readonly familia: FamiliaDeEstado
+  readonly familia: StatusFamily
   readonly selo: string
   readonly explicacao: string
 }
 
-const SELO_DO_ESTADO: Readonly<Record<EstadoDoPedido, { readonly familia: FamiliaDeEstado; readonly selo: string; readonly explicacao: string }>> = {
+const SELO_DO_ESTADO: Readonly<Record<EstadoDoPedido, { readonly familia: StatusFamily; readonly selo: string; readonly explicacao: string }>> = {
   recebido: { familia: 'info', selo: 'Recebido', explicacao: 'A escola recebeu o seu pedido e vai cuidar dele.' },
   em_preparacao: { familia: 'info', selo: 'Em preparação', explicacao: TEXTO_DO_ARQUIVO_EM_PREPARACAO },
   pronto: { familia: 'ok', selo: 'Pronto', explicacao: 'A escola preparou o seu pedido e vai concluí-lo.' },

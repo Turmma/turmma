@@ -11,7 +11,7 @@ import type { Aprovacao } from '../../../components/ui/ai/approval'
 export const AUTOR_QUE_SAIU = 'pessoa que não está mais na escola'
 
 /**
- * A situação da entrega para a `LinhaAprovacao`: pendente, aprovada por quem e quando, ou rejeitada com o motivo. A
+ * A situação da entrega para a `ApprovalLine`: pendente, aprovada por quem e quando, ou rejeitada com o motivo. A
  * decidida que chegar sem a data (o contrato não deixa) é mostrada como pendente: a tela não afirma uma aprovação que
  * não sabe datar.
  */
@@ -105,7 +105,7 @@ export function decideAqui(entrega: Pick<Entrega, 'tipo' | 'estado'>): boolean {
   return entrega.tipo === 'versao_adaptada' && entrega.estado === 'pendente'
 }
 
-/** Os limites da justificativa de quem rejeita, os do contrato: o `CampoLongo` conta e o `problemaDoTexto` diz o que falta. */
+/** Os limites da justificativa de quem rejeita, os do contrato: o `Textarea` conta e o `problemaDoTexto` diz o que falta. */
 export const LIMITES_DA_JUSTIFICATIVA = { minimo: TAMANHO_MINIMO_DA_JUSTIFICATIVA, maximo: TAMANHO_MAXIMO_DA_JUSTIFICATIVA } as const
 
 /** O aviso do campo da justificativa: ela fala da saída da IA, e não de aluno (regra 20). */

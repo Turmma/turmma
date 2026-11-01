@@ -11,7 +11,7 @@ import { PECAS_FORA_DA_ENTRADA } from '../../chunk-names'
  * dinâmico, a peça de `PECAS_FORA_DA_ENTRADA` e a pasta `components/ui/ai/` ou `components/ui/onca/`.
  */
 const pasta = dirname(fileURLToPath(import.meta.url))
-const ARQUIVOS_DA_CASCA = ['CascaDaEscola.tsx', 'BarraDeBaixo.tsx', 'itens-da-lateral.tsx', 'MenuDaPessoa.tsx', 'SeletorDeEscola.tsx', 'lateral-recolhida.ts', 'Aparencia.tsx', 'ui/fields/Segmentado.tsx', 'ui/Ladrilho.tsx', 'ui/Icone.tsx', 'ui/Marca.tsx', 'drawer-context.ts', 'sino-anchor-context.ts'] as const
+const ARQUIVOS_DA_CASCA = ['CascaDaEscola.tsx', 'BarraDeBaixo.tsx', 'itens-da-lateral.tsx', 'MenuDaPessoa.tsx', 'SeletorDeEscola.tsx', 'lateral-recolhida.ts', 'Aparencia.tsx', 'ui/fields/SegmentedControl.tsx', 'ui/IconTile.tsx', 'ui/Icon.tsx', 'ui/Logo.tsx', 'drawer-context.ts', 'sino-anchor-context.ts'] as const
 
 function fonteDe(arquivo: string): string {
   return readFileSync(join(pasta, arquivo), 'utf8')
@@ -24,8 +24,8 @@ function semComentarios(fonte: string): string {
 
 /**
  * Cada módulo que o arquivo importa, estaticamente, com o caminho como está escrito. O `import type` fica de fora: o
- * compilador o apaga, e ele não leva módulo nenhum para a entrada (o `Ladrilho` e `areas/navigation.ts` só tomam o tipo
- * `FamiliaDeCor` do `Contador`).
+ * compilador o apaga, e ele não leva módulo nenhum para a entrada (o `IconTile` e `areas/navigation.ts` só tomam o tipo
+ * `ColorFamily` do `CountBadge`).
  */
 function importados(fonte: string): string[] {
   return [...semComentarios(fonte).matchAll(/(?:^|\s)(?:import|export)\s(?!type\s)[^'"]*?from\s+'([^']+)'/g)].map(([, caminho = '']) => caminho)
@@ -34,8 +34,8 @@ function importados(fonte: string): string[] {
 /**
  * Por que um caminho importado não pode estar na casca, ou `null`. Só olha o relativo (o pacote de fora é do build). O
  * caminho é resolvido a partir da pasta do arquivo que o importa (`doArquivo`, relativo a `components/`) e perde os
- * `../` e o `components/` do começo, para `'./ui/Contador'` e `'../components/ui/Contador'` serem a mesma peça, e
- * `'./Contador'`, escrito dentro de `ui/`, também.
+ * `../` e o `components/` do começo, para `'./ui/CountBadge'` e `'../components/ui/CountBadge'` serem a mesma peça, e
+ * `'./CountBadge'`, escrito dentro de `ui/`, também.
  */
 function motivoDeFora(caminho: string, doArquivo = ''): string | null {
   if (!caminho.startsWith('.')) return null
@@ -65,27 +65,27 @@ describe('a casca da escola, da entrada', () => {
   it('o detector enxerga o `import()`, a peça e a pasta proibidas (sem isto, os casos acima passariam sempre)', () => {
     expect(semComentarios("const Menu = lazy(() => import('./Menu'))")).toMatch(/\bimport\s*\(/)
     expect(semComentarios("// import('./Menu') e lazy(...)\n/* import('x') */ const a = 1")).not.toMatch(/\bimport\s*\(/)
-    expect(importados("import { Contador } from './Contador'\nimport { Dica } from './itens-da-lateral'")).toEqual(['./Contador', './itens-da-lateral'])
-    expect(importados("import { Icone } from './Icone'")).toEqual(['./Icone'])
+    expect(importados("import { CountBadge } from './CountBadge'\nimport { Dica } from './itens-da-lateral'")).toEqual(['./CountBadge', './itens-da-lateral'])
+    expect(importados("import { Icon } from './Icon'")).toEqual(['./Icon'])
     // O tipo, que o compilador apaga, não conta: `import type` não leva módulo.
-    expect(importados("import type { FamiliaDeCor } from './Contador'")).toEqual([])
-    expect(importados("import { AssinaturaIA } from './ai/AssinaturaIA'")).toEqual(['./ai/AssinaturaIA'])
+    expect(importados("import type { ColorFamily } from './CountBadge'")).toEqual([])
+    expect(importados("import { AgentSignature } from './ai/AgentSignature'")).toEqual(['./ai/AgentSignature'])
   })
 
   it('o detector reprova a peça e a pasta por caminho relativo, também o que sobe e desce, e deixa passar a da entrada', () => {
-    expect(motivoDeFora('./ui/Contador')).toBe('peça fora da entrada')
-    expect(motivoDeFora('../components/ui/Contador')).toBe('peça fora da entrada')
-    expect(motivoDeFora('../../components/ui/Contador')).toBe('peça fora da entrada')
-    expect(motivoDeFora('./ui/ai/AssinaturaIA')).toBe('pasta fora da entrada')
+    expect(motivoDeFora('./ui/CountBadge')).toBe('peça fora da entrada')
+    expect(motivoDeFora('../components/ui/CountBadge')).toBe('peça fora da entrada')
+    expect(motivoDeFora('../../components/ui/CountBadge')).toBe('peça fora da entrada')
+    expect(motivoDeFora('./ui/ai/AgentSignature')).toBe('pasta fora da entrada')
     expect(motivoDeFora('../components/ui/onca/Onca')).toBe('pasta fora da entrada')
     // De dentro de `ui/`, o irmão e o primo, escritos relativos ao arquivo que importa.
-    expect(motivoDeFora('./Contador', 'ui/Ladrilho.tsx')).toBe('peça fora da entrada')
-    expect(motivoDeFora('../Contador', 'ui/fields/Segmentado.tsx')).toBe('peça fora da entrada')
-    expect(motivoDeFora('../ai/AssinaturaIA', 'ui/fields/Segmentado.tsx')).toBe('pasta fora da entrada')
+    expect(motivoDeFora('./CountBadge', 'ui/IconTile.tsx')).toBe('peça fora da entrada')
+    expect(motivoDeFora('../CountBadge', 'ui/fields/SegmentedControl.tsx')).toBe('peça fora da entrada')
+    expect(motivoDeFora('../ai/AgentSignature', 'ui/fields/SegmentedControl.tsx')).toBe('pasta fora da entrada')
     // O que a entrada baixa e o que não é relativo passam.
-    expect(motivoDeFora('./ui/Icone')).toBeNull()
-    expect(motivoDeFora('../components/ui/Ladrilho')).toBeNull()
-    expect(motivoDeFora('./Icone', 'ui/Ladrilho.tsx')).toBeNull()
+    expect(motivoDeFora('./ui/Icon')).toBeNull()
+    expect(motivoDeFora('../components/ui/IconTile')).toBeNull()
+    expect(motivoDeFora('./Icon', 'ui/IconTile.tsx')).toBeNull()
     expect(motivoDeFora('react')).toBeNull()
   })
 })

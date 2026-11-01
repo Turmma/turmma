@@ -5,20 +5,20 @@ import type { ReactElement } from 'react'
  * (`inicio`, `turmas`, `tarefas`, `ferramentas`), os quatro que a coordenação ganha na X2 (`painel`, `ia`, `escola`,
  * `registros`) e o `criados` da professora (X3, 5.0). Os outros nascem com o lugar de cada um (X3 e X4).
  *
- * Cada desenho é **a grade de 48 por 48 e só as formas dela**: o `<svg>` é do `Icone`, que dá o tamanho, o `viewBox` e o
+ * Cada desenho é **a grade de 48 por 48 e só as formas dela**: o `<svg>` é do `Icon`, que dá o tamanho, o `viewBox` e o
  * nome. Chapados, de duas a três cores, sem contorno, sem degradê e sem sombra.
  *
  * - **Nenhuma cor escrita.** A cor dominante é a face da família (`fill-laranja`, `fill-azul`…), e o papel e as linhas são
  *   `fill-icone-papel` e `fill-icone-linha`: tokens, que mudam com o tema. Por isso o ícone não leva hex, função de cor nem
  *   `style`, e a guarda de cor (`estilos.test.ts`) o varre como a qualquer outro arquivo, sem exceção na lista. O mapa de
  *   classes é literal: o Tailwind só gera a classe que acha escrita por inteiro.
- * - **Sem texto.** Nenhum `<title>`, `<desc>` nem `<text>`: quem dá nome é o `rotulo` do `Icone`, ou o texto ao lado.
+ * - **Sem texto.** Nenhum `<title>`, `<desc>` nem `<text>`: quem dá nome é o `rotulo` do `Icon`, ou o texto ao lado.
  * - **Parados.** Nenhuma animação (D59).
  * - O visto é feito de dois retângulos de ponta redonda, e não de um traço, para a cor ser sempre `fill-*`.
  */
 
-export const NOMES_DOS_LUGARES = ['inicio', 'turmas', 'tarefas', 'ferramentas', 'painel', 'ia', 'escola', 'registros', 'criados'] as const
-export type NomeDoLugar = (typeof NOMES_DOS_LUGARES)[number]
+export const PLACE_NAMES = ['inicio', 'turmas', 'tarefas', 'ferramentas', 'painel', 'ia', 'escola', 'registros', 'criados'] as const
+export type PlaceName = (typeof PLACE_NAMES)[number]
 
 /** Início, em laranja: a casa, com a porta e a chaminé na família e as janelas na linha. */
 function Inicio() {
@@ -138,8 +138,8 @@ function Criados() {
   )
 }
 
-/** O desenho de cada lugar. A chave é o `nome` do `Icone`. */
-export const DESENHO_DO_LUGAR: Readonly<Record<NomeDoLugar, () => ReactElement>> = {
+/** O desenho de cada lugar. A chave é o `nome` do `Icon`. */
+export const PLACE_DRAWINGS: Readonly<Record<PlaceName, () => ReactElement>> = {
   inicio: Inicio,
   turmas: Turmas,
   tarefas: Tarefas,

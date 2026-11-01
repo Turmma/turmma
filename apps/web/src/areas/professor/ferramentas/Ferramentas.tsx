@@ -4,11 +4,11 @@ import { useLocation } from 'wouter'
 import { consultaTime, funcaoSuspensa } from '../assistente/api/time'
 import { consultaMeusVinculos } from '../comum/api/vinculos'
 import { caminhoDaFerramentaDoProfessor, ROTAS_DO_PROFESSOR } from '../../../paths'
-import { Aviso } from '../../../components/ui/Aviso'
-import { Botao } from '../../../components/ui/Botao'
-import { Linha } from '../../../components/ui/Linha'
-import { Estado } from '../../../components/ui/SeloDeEstado'
-import { CabecalhoDeSecao, Tela } from '../../../components/ui/Tela'
+import { Alert } from '../../../components/ui/Alert'
+import { Button } from '../../../components/ui/Button'
+import { ListItem } from '../../../components/ui/ListItem'
+import { StatusBadge } from '../../../components/ui/StatusBadge'
+import { SectionHeader, Page } from '../../../components/ui/Page'
 import { useTituloDaTela } from '../../../document-title'
 import { AvisoDeSuspensao } from '../comum/avisos'
 import { CATALOGO_DE_FERRAMENTAS, catalogoPorCategoria } from './ferramentas'
@@ -47,17 +47,17 @@ export default function Ferramentas() {
   const suspensas = FUNCOES_DO_CATALOGO.filter((funcao) => funcaoSuspensa(time.data, funcao))
 
   return (
-    <Tela titulo="Ferramentas">
+    <Page titulo="Ferramentas">
       <div className="flex min-w-0 flex-col gap-6">
         {leituraDoTimeFalhou && (
-          <Aviso
+          <Alert
             tom="atencao"
             titulo="Não foi possível conferir se alguma ferramenta está suspensa"
             acao={
               <>
-                <Botao variante="secundario" tamanho="compacto" onClick={() => void time.refetch()} disabled={time.isFetching}>
+                <Button variante="secundario" tamanho="compacto" onClick={() => void time.refetch()} disabled={time.isFetching}>
                   Tentar de novo
-                </Botao>
+                </Button>
                 <span role="status" className="t-apoio text-sutil">
                   {time.isFetching ? 'Tentando de novo…' : ''}
                 </span>
@@ -65,33 +65,33 @@ export default function Ferramentas() {
             }
           >
             Os cartões continuam abertos. Se a coordenação tiver suspendido uma ferramenta, o Assistente avisa na hora de gerar.
-          </Aviso>
+          </Alert>
         )}
         {suspensas.map((funcao) => (
           <AvisoDeSuspensao key={funcao} funcao={funcao} />
         ))}
         {vinculos.data !== undefined && turmas.length === 0 && (
-          <Aviso
+          <Alert
             tom="info"
             titulo="Falta uma turma confirmada"
             acao={
-              <Botao variante="secundario" tamanho="compacto" onClick={() => navegar(ROTAS_DO_PROFESSOR.turmas)}>
+              <Button variante="secundario" tamanho="compacto" onClick={() => navegar(ROTAS_DO_PROFESSOR.turmas)}>
                 Ir para Turmas
-              </Botao>
+              </Button>
             }
           >
             As ferramentas trabalham a partir do material de uma turma e de uma disciplina suas. Confirme as suas turmas em Turmas; se nenhuma aparece lá, quem aloca é a coordenação.
-          </Aviso>
+          </Alert>
         )}
 
         {catalogoPorCategoria().map((categoria) => (
           <section key={categoria.id} aria-labelledby={`${idDoCatalogo}-${categoria.id}`} className="flex min-w-0 flex-col gap-3">
-            <CabecalhoDeSecao id={`${idDoCatalogo}-${categoria.id}`} titulo={categoria.nome} />
+            <SectionHeader id={`${idDoCatalogo}-${categoria.id}`} titulo={categoria.nome} />
             <ul className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
               {categoria.ferramentas.map((item) => (
-                // O cartão é a moldura da `Linha`: o alvo é a linha inteira (um `<a>`), e a moldura só a desenha. 108 px no mínimo, todos iguais na fileira.
+                // O cartão é a moldura da `ListItem`: o alvo é a linha inteira (um `<a>`), e a moldura só a desenha. 108 px no mínimo, todos iguais na fileira.
                 <li key={item.ferramenta} data-ferramenta={item.ferramenta} className="min-w-0 overflow-hidden rounded-cartao border-2 border-borda bg-superficie [&>a]:h-full [&>a]:min-h-[108px]">
-                  <Linha
+                  <ListItem
                     // Relativo à área: o `Route` aninhado em `/professor` resolve o `to` a partir da base dela.
                     para={caminhoDaFerramentaDoProfessor(item.ferramenta)}
                     titulo={item.nome}
@@ -104,7 +104,7 @@ export default function Ferramentas() {
                         {/* Embaixo do texto, e não no `fim` da linha: a 768 px o cartão tem uns 340 px, e o selo ao lado deixaria o nome sem lugar. */}
                         {funcaoSuspensa(time.data, item.funcao) && (
                           <span className="mt-1 flex">
-                            <Estado familia="info">Suspensa pela coordenação</Estado>
+                            <StatusBadge familia="info">Suspensa pela coordenação</StatusBadge>
                           </span>
                         )}
                       </>
@@ -116,6 +116,6 @@ export default function Ferramentas() {
           </section>
         ))}
       </div>
-    </Tela>
+    </Page>
   )
 }

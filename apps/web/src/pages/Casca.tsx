@@ -3,7 +3,7 @@ import { useQuery, type UseQueryResult } from '@tanstack/react-query'
 import { useEffect, useRef, type ReactNode, type RefObject } from 'react'
 import { consultaAvisos, consultaEstado } from '../api/sistema'
 import { EstadoCarregando, EstadoErro, EstadoVazio } from '../components/states'
-import { Marca } from '../components/ui/Marca'
+import { Logo } from '../components/ui/Logo'
 import { formatarData, formatarDataHora, formatarQuantidade } from '../format'
 
 const NOME_DO_COMPONENTE: Record<SystemComponent['nome'], string> = { api: 'API', banco: 'Banco de dados' }
@@ -126,7 +126,7 @@ export function Casca() {
     <div className="min-h-screen bg-fundo text-tinta">
       <header className="border-b border-linha bg-fundo">
         <div className="mx-auto max-w-5xl px-4 py-3 sm:px-6">
-          <Marca />
+          <Logo />
         </div>
       </header>
       <main className="mx-auto flex max-w-5xl flex-col gap-6 px-4 py-6 sm:px-6">

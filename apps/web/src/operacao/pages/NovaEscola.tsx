@@ -1,12 +1,12 @@
 import type { CriarEscolaRequest } from '@educa/shared'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
-import { Botao } from '../../components/ui/Botao'
-import { Campo } from '../../components/ui/fields/Campo'
+import { Button } from '../../components/ui/Button'
+import { FormField } from '../../components/ui/fields/FormField'
 import { EstadoCarregando } from '../../components/states'
 import { CHAVE_DAS_ESCOLAS, CHAVE_DO_USO, consultaDasRedes, criarEscolaNoPainel } from '../api/painel'
 import { ErroDaOperacao } from '../components/CascaDaOperacao'
-import { CLASSES_DO_BOTAO_SECUNDARIO } from '../../components/ui/button-variants'
+import { SECONDARY_BUTTON_CLASSES } from '../../components/ui/button-variants'
 import { DialogoDaOperacao } from '../components/DialogoDaOperacao'
 import { pedidoDeEscola, sortearIdDoPedido, type CampoDaEscola } from '../pedidos-do-painel'
 import { ehEnderecoRepetido, ehResultadoIncerto, REGRA_DO_ENDERECO, TEXTO_DA_TENTATIVA_INCERTA, TEXTO_DO_ENDERECO_REPETIDO, TEXTO_SEM_REDE, textoDaFalha } from '../textos'
@@ -110,7 +110,7 @@ export function NovaEscola({ aoFechar, aoCriar, aoPedirNovaRede, redeSugeridaId 
       <DialogoDaOperacao titulo="Nova escola" aoFechar={aoFechar}>
         <div className="mt-4 flex flex-col gap-4">
           <EstadoCarregando rotulo="Carregando as redes…" />
-          <button type="button" onClick={aoFechar} className={`${CLASSES_DO_BOTAO_SECUNDARIO} self-start`}>
+          <button type="button" onClick={aoFechar} className={`${SECONDARY_BUTTON_CLASSES} self-start`}>
             Cancelar
           </button>
         </div>
@@ -123,7 +123,7 @@ export function NovaEscola({ aoFechar, aoCriar, aoPedirNovaRede, redeSugeridaId 
       <DialogoDaOperacao titulo="Nova escola" aoFechar={aoFechar}>
         <div className="mt-4 flex flex-col gap-4">
           <ErroDaOperacao erro={redes.error} aoTentarDeNovo={() => void redes.refetch()} tentando={redes.isFetching} />
-          <button type="button" onClick={aoFechar} className={`${CLASSES_DO_BOTAO_SECUNDARIO} self-start`}>
+          <button type="button" onClick={aoFechar} className={`${SECONDARY_BUTTON_CLASSES} self-start`}>
             Cancelar
           </button>
         </div>
@@ -139,10 +139,10 @@ export function NovaEscola({ aoFechar, aoCriar, aoPedirNovaRede, redeSugeridaId 
           <p className="text-apoio">{TEXTO_SEM_REDE}</p>
           <div className="flex flex-wrap gap-3">
             {/* O foco estava no "Cancelar" do carregando, que saiu da tela: ele vem para a ação que o vazio oferece. */}
-            <Botao onClick={aoPedirNovaRede} autoFocus>
+            <Button onClick={aoPedirNovaRede} autoFocus>
               Nova rede
-            </Botao>
-            <button type="button" onClick={aoFechar} className={CLASSES_DO_BOTAO_SECUNDARIO}>
+            </Button>
+            <button type="button" onClick={aoFechar} className={SECONDARY_BUTTON_CLASSES}>
               Cancelar
             </button>
           </div>
@@ -182,13 +182,13 @@ export function NovaEscola({ aoFechar, aoCriar, aoPedirNovaRede, redeSugeridaId 
             </p>
           )}
           <div className="flex flex-wrap gap-3">
-            <Botao onClick={confirmar} disabled={criar.isPending}>
+            <Button onClick={confirmar} disabled={criar.isPending}>
               {criar.isPending ? 'Criando…' : 'Criar escola'}
-            </Botao>
-            <button type="button" onClick={() => definirRevisando(undefined)} disabled={criar.isPending} className={CLASSES_DO_BOTAO_SECUNDARIO}>
+            </Button>
+            <button type="button" onClick={() => definirRevisando(undefined)} disabled={criar.isPending} className={SECONDARY_BUTTON_CLASSES}>
               Voltar e corrigir
             </button>
-            <button type="button" onClick={aoFechar} className={CLASSES_DO_BOTAO_SECUNDARIO}>
+            <button type="button" onClick={aoFechar} className={SECONDARY_BUTTON_CLASSES}>
               Cancelar
             </button>
           </div>
@@ -234,7 +234,7 @@ export function NovaEscola({ aoFechar, aoCriar, aoPedirNovaRede, redeSugeridaId 
             </p>
           )}
         </div>
-        <Campo
+        <FormField
           rotulo="Nome da escola"
           name="nome"
           type="text"
@@ -244,7 +244,7 @@ export function NovaEscola({ aoFechar, aoCriar, aoPedirNovaRede, redeSugeridaId 
           onChange={(evento) => definirNome(evento.target.value)}
           erro={erros.nome}
         />
-        <Campo
+        <FormField
           ref={campoDoEndereco}
           rotulo="Endereço da escola"
           dica={REGRA_DO_ENDERECO}
@@ -264,8 +264,8 @@ export function NovaEscola({ aoFechar, aoCriar, aoPedirNovaRede, redeSugeridaId 
           A escola vai entrar por <span className="font-medium text-tinta wrap-anywhere">{enderecoCompleto(endereco.trim() === '' ? 'endereco-da-escola' : endereco.trim())}</span>
         </p>
         <div className="flex flex-wrap gap-3">
-          <Botao type="submit">Revisar</Botao>
-          <button type="button" onClick={aoFechar} className={CLASSES_DO_BOTAO_SECUNDARIO}>
+          <Button type="submit">Revisar</Button>
+          <button type="button" onClick={aoFechar} className={SECONDARY_BUTTON_CLASSES}>
             Cancelar
           </button>
         </div>

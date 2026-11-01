@@ -5,7 +5,7 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { criarClienteDeConsultas } from '../../../api/query-client'
 import { AUTORIZACAO_DE_TESTE, prepararTela, redeFalsa, type RedeFalsa, type RespostaFalsa } from '../../../__fixtures__/render-screen'
-import { classesDoBotao } from '../../../components/ui/button-variants'
+import { buttonVariants } from '../../../components/ui/button-variants'
 import AlunosDaTurma from './AlunosDaTurma'
 
 /**
@@ -482,7 +482,7 @@ describe('Alunos: a turma, o cache e os pedidos de nome', () => {
     await within(screen.getByRole('region', { name: 'Pedidos de nome' })).findByText('Nenhum pedido esperando')
 
     // O cheio é o botão de face laranja (R4), de qualquer tamanho (`principal`, `compacto` ou `icone`): a classe da face, e não a combinação inteira.
-    expect(classesDoBotao().split(' ')).toContain('bg-laranja')
+    expect(buttonVariants().split(' ')).toContain('bg-laranja')
     const cheios = screen.getAllByRole('button').filter((botao) => botao.classList.contains('bg-laranja'))
     expect(cheios.map((botao) => botao.textContent)).toEqual(['Convidar alunos'])
   })

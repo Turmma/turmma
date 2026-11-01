@@ -10,14 +10,14 @@ import { consultaEntregasDaTurma } from './api/entregas'
 import { consultaTitulosDosMateriais } from './api/titulos-dos-materiais'
 import { consultaMeusVinculos } from '../comum/api/vinculos'
 import { caminhoDaAdaptacaoDoArtefato, caminhoDoArtefatoDoProfessor, ROTAS_DO_PROFESSOR } from '../../../paths'
-import { Abas, type Aba } from '../../../components/ui/Abas'
-import { Botao } from '../../../components/ui/Botao'
-import { Campo } from '../../../components/ui/fields/Campo'
+import { Tabs, type TabItem } from '../../../components/ui/Tabs'
+import { Button } from '../../../components/ui/Button'
+import { FormField } from '../../../components/ui/fields/FormField'
 import { EstadoCarregando, EstadoErro, EstadoVazio } from '../../../components/states/index'
-import { AssinaturaIA } from '../../../components/ui/ai/AssinaturaIA'
-import { LinhaAprovacao } from '../../../components/ui/ai/LinhaAprovacao'
-import { Interruptor } from '../../../components/ui/fields/Interruptor'
-import { CabecalhoDeSecao, Tela } from '../../../components/ui/Tela'
+import { AgentSignature } from '../../../components/ui/ai/AgentSignature'
+import { ApprovalLine } from '../../../components/ui/ai/ApprovalLine'
+import { Switch } from '../../../components/ui/fields/Switch'
+import { SectionHeader, Page } from '../../../components/ui/Page'
 import { formatarDataHora } from '../../../format'
 import { useTituloDaTela } from '../../../document-title'
 import { AplicacaoDoArtefato } from '../atividades/AplicacaoDoArtefato'
@@ -34,9 +34,9 @@ import { nomesDasDisciplinas, nomesDasTurmas } from '../comum/turmas-da-professo
 function LinhaDaVersao({ versao, entregas, carregando }: { versao: Pick<ArtefatoResumido, 'entrega'>; entregas: readonly Entrega[] | undefined; carregando: boolean }) {
   if (versao.entrega === null) return null
   const completa = entregas?.find((entrega) => entrega.id === versao.entrega?.id)
-  if (completa !== undefined) return <LinhaAprovacao aprovacao={aprovacaoDaEntrega(completa)} verbo={VERBO_DA_ENTREGA} />
+  if (completa !== undefined) return <ApprovalLine aprovacao={aprovacaoDaEntrega(completa)} verbo={VERBO_DA_ENTREGA} />
   // A pendente não tem autor: a linha já pode dizer que espera a professora, sem a leitura das entregas.
-  if (versao.entrega.estado === 'pendente') return <LinhaAprovacao aprovacao={{ estado: 'pendente' }} />
+  if (versao.entrega.estado === 'pendente') return <ApprovalLine aprovacao={{ estado: 'pendente' }} />
   // A decidida só é afirmada com quem decidiu (regra 70, item 6): sem a leitura, a tela diz onde ver, e não inventa.
   return <p className="text-sm text-sutil">{carregando ? 'Carregando quem decidiu…' : 'A decisão desta versão está em “O que o Assistente fez”, pelo sino.'}</p>
 }
@@ -46,7 +46,7 @@ function LinhaDaVersao({ versao, entregas, carregando }: { versao: Pick<Artefato
  * versão; **Na turma** só na atividade objetiva, a única que vai à turma ("Aplicar à turma" é da atividade; o plano de aula
  * não tem o que aplicar). Aba que não existe para o documento não aparece e não abre.
  */
-function abasDoDocumento(artefato: Pick<ArtefatoResponse, 'tipo' | 'versoesAdaptadas'>): readonly Aba[] {
+function abasDoDocumento(artefato: Pick<ArtefatoResponse, 'tipo' | 'versoesAdaptadas'>): readonly TabItem[] {
   return [
     { id: 'conteudo', rotulo: 'Conteúdo' },
     ...(artefato.versoesAdaptadas.length > 0 ? [{ id: 'versoes', rotulo: 'Versões adaptadas' }] : []),
@@ -58,7 +58,7 @@ function abasDoDocumento(artefato: Pick<ArtefatoResponse, 'tipo' | 'versoesAdapt
  * A aba do endereço (`?aba=`). Sem o parâmetro, ou com valor que não é de nenhuma aba **deste** documento (um erro de
  * digitação, a aba das versões num documento sem versão), abre em Conteúdo: a página nunca fica sem aba nem pergunta nada.
  */
-function abaDoEndereco(busca: string, abas: readonly Aba[]): string {
+function abaDoEndereco(busca: string, abas: readonly TabItem[]): string {
   const pedida = new URLSearchParams(busca).get('aba')
   return abas.find((aba) => aba.id === pedida)?.id ?? 'conteudo'
 }
@@ -127,7 +127,7 @@ export default function Artefato({ artefatoId }: { artefatoId: string }) {
   if (dados === undefined) {
     const naoEncontrado = artefato.error instanceof ErroDaApi && artefato.error.codigo === ErrorCode.NAO_ENCONTRADO
     return (
-      <Tela titulo="Artefato" antes={voltar} largura="formulario">
+      <Page titulo="Artefato" antes={voltar} largura="formulario">
         {artefato.isPending ? (
           <EstadoCarregando rotulo="Carregando o artefato…" />
         ) : naoEncontrado ? (
@@ -135,7 +135,7 @@ export default function Artefato({ artefatoId }: { artefatoId: string }) {
         ) : (
           <EstadoErro erro={artefato.error} tentando={artefato.isFetching} aoTentarDeNovo={() => void artefato.refetch({ cancelRefetch: false })} />
         )}
-      </Tela>
+      </Page>
     )
   }
 
@@ -165,7 +165,7 @@ export default function Artefato({ artefatoId }: { artefatoId: string }) {
   }
 
   return (
-    <Tela
+    <Page
       largura="formulario"
       titulo={dados.titulo}
       objeto
@@ -174,7 +174,7 @@ export default function Artefato({ artefatoId }: { artefatoId: string }) {
     >
       {novoTitulo !== undefined && (
         <form onSubmit={aoRenomear} className="flex min-w-0 flex-col gap-3 rounded-cartao border border-linha bg-superficie p-4">
-          <Campo
+          <FormField
             rotulo="Novo título"
             dica={`${AVISO_DE_TEXTO_SEM_ALUNO} O título aparece no PDF e vai para o Assistente quando você pede a versão adaptada.`}
             erro={tituloLongo ? 'O título ficou comprido demais. Encurte e salve de novo.' : undefined}
@@ -187,10 +187,10 @@ export default function Artefato({ artefatoId }: { artefatoId: string }) {
             {renomear.isError ? mensagemDoErro(renomear.error) : ''}
           </p>
           <div className="flex flex-wrap gap-3">
-            <Botao type="submit" variante="secundario" disabled={renomear.isPending || !tituloConferido.success}>
+            <Button type="submit" variante="secundario" disabled={renomear.isPending || !tituloConferido.success}>
               {renomear.isPending ? 'Salvando…' : 'Salvar o título'}
-            </Botao>
-            <Botao
+            </Button>
+            <Button
               variante="secundario"
               onClick={() => {
                 definirNovoTitulo(undefined)
@@ -199,7 +199,7 @@ export default function Artefato({ artefatoId }: { artefatoId: string }) {
               }}
             >
               Cancelar
-            </Botao>
+            </Button>
           </div>
         </form>
       )}
@@ -209,20 +209,20 @@ export default function Artefato({ artefatoId }: { artefatoId: string }) {
             menos de 300 px a 1366 × 768 (RF22, `mockup.md` 10.2: a página não rola, rola a mesa). */}
         <div className="flex min-w-0 flex-wrap items-center justify-between gap-x-6 gap-y-3">
           {/* Toda saída de IA leva a assinatura e o selo "IA", iguais em todo o produto. */}
-          <AssinaturaIA funcao={funcao} />
+          <AgentSignature funcao={funcao} />
           <div className="flex min-w-0 flex-wrap items-center gap-2">
               {/* A versão adaptada já decidida não muda de nome: a API recusaria, e a tela não oferece o que ela recusa. */}
               {podeRenomear(dados.entrega) && (
-                <Botao ref={botaoDeRenomear} variante="discreto" tamanho="compacto" onClick={() => definirNovoTitulo(dados.titulo)} disabled={novoTitulo !== undefined}>
+                <Button ref={botaoDeRenomear} variante="discreto" tamanho="compacto" onClick={() => definirNovoTitulo(dados.titulo)} disabled={novoTitulo !== undefined}>
                   <Pencil aria-hidden="true" size={16} strokeWidth={1.75} className="shrink-0" />
                   Renomear
-                </Botao>
+                </Button>
               )}
               {/* A aprovada sai limpa; a pendente, como rascunho; a rejeitada não sai, e a tela diz por quê, logo abaixo. */}
               {pdf !== 'nao_exporta' && <ExportarPdf artefatoId={dados.id} titulo={dados.titulo} variante="secundario" rascunho={pdf === 'rascunho'} />}
               {podeAdaptar && (
                 // Relativo à área, como os links: o `Route` aninhado em `/professor` resolve a partir da base dela.
-                <Botao onClick={() => navegar(caminhoDaAdaptacaoDoArtefato(dados.id))}>Pedir versão adaptada</Botao>
+                <Button onClick={() => navegar(caminhoDaAdaptacaoDoArtefato(dados.id))}>Pedir versão adaptada</Button>
               )}
           </div>
         </div>
@@ -259,7 +259,7 @@ export default function Artefato({ artefatoId }: { artefatoId: string }) {
       </div>
 
       <div ref={topoDoPainel} className="min-w-0">
-        <Abas rotulo="Seções do documento" abas={abas} ativa={aba} aoMudar={(id) => navegar(`${caminho}?aba=${id}`, { replace: true })} classeDoPainel={O_MIOLO_DO_DOCUMENTO}>
+        <Tabs rotulo="Seções do documento" abas={abas} ativa={aba} aoMudar={(id) => navegar(`${caminho}?aba=${id}`, { replace: true })} classeDoPainel={O_MIOLO_DO_DOCUMENTO}>
           {/* Só a aba à vista existe: a das versões e a da turma levam com elas as leituras e o que estiver aberto nelas. */}
           {aba === 'conteudo' && (
             <div className="flex min-w-0 flex-col gap-4">
@@ -267,7 +267,7 @@ export default function Artefato({ artefatoId }: { artefatoId: string }) {
                 <div className="flex justify-end">
                   <label className="inline-flex min-h-11 cursor-pointer items-center gap-3">
                     <span className="t-rotulo text-tinta">Gabarito</span>
-                    <Interruptor rotulo="Gabarito" ligado={comGabarito} aoMudar={definirComGabarito} />
+                    <Switch rotulo="Gabarito" ligado={comGabarito} aoMudar={definirComGabarito} />
                   </label>
                 </div>
               )}
@@ -278,7 +278,7 @@ export default function Artefato({ artefatoId }: { artefatoId: string }) {
           )}
           {aba === 'versoes' && (
             <section aria-labelledby={idDasVersoes} className="flex min-w-0 flex-col gap-3">
-              <CabecalhoDeSecao id={idDasVersoes} titulo="Versões adaptadas" apoio="Cada uma só pode ir aos alunos depois de aprovada por você." />
+              <SectionHeader id={idDasVersoes} titulo="Versões adaptadas" apoio="Cada uma só pode ir aos alunos depois de aprovada por você." />
               <ul className="flex min-w-0 flex-col gap-2">
                 {dados.versoesAdaptadas.map((versao) => (
                   <li key={versao.id} className="flex min-w-0 flex-col items-start gap-2 rounded-cartao border-2 border-borda bg-superficie p-4">
@@ -293,8 +293,8 @@ export default function Artefato({ artefatoId }: { artefatoId: string }) {
           )}
           {/* Aplicar à turma, a escolha "é avaliativa?", o que já foi atribuído e o encerrar (A3). */}
           {aba === 'turma' && <AplicacaoDoArtefato artefato={dados} nomeDaTurma={turma} />}
-        </Abas>
+        </Tabs>
       </div>
-    </Tela>
+    </Page>
   )
 }

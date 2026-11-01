@@ -3,12 +3,12 @@ import { FileText, Upload } from 'lucide-react'
 import { useEffect, useId, useRef, useState, type DragEvent, type FormEvent } from 'react'
 import { ErroDaApi } from '../../../api/client'
 import { enviarMaterial, excluirMaterial, type CamposDoEnvioDeMaterial } from './api/material'
-import { Botao } from '../../../components/ui/Botao'
-import { CLASSES_DO_BOTAO_SECUNDARIO } from '../../../components/ui/button-variants'
-import { Campo } from '../../../components/ui/fields/Campo'
-import { Dialogo } from '../../../components/ui/overlays/Dialogo'
+import { Button } from '../../../components/ui/Button'
+import { SECONDARY_BUTTON_CLASSES } from '../../../components/ui/button-variants'
+import { FormField } from '../../../components/ui/fields/FormField'
+import { Dialog } from '../../../components/ui/overlays/Dialog'
 import { useEnvioUnico } from '../../../components/dialogs'
-import { Selecao } from '../../../components/ui/fields/Selecao'
+import { Select } from '../../../components/ui/fields/Select'
 import { listaMudou, textoDaFalha } from '../../../components/error-text'
 import {
   AVISO_DE_SEM_LICENCA,
@@ -165,14 +165,14 @@ export function DialogoDeEnvioDeMaterial({ disciplinas, inicial, substitui, aoEn
   }
 
   return (
-    <Dialogo titulo="Enviar material" aoFechar={aoFechar} focoInicial={botaoDoArquivo} focoDeReserva={focoDeReserva}>
+    <Dialog titulo="Enviar material" aoFechar={aoFechar} focoInicial={botaoDoArquivo} focoDeReserva={focoDeReserva}>
       {!comFormulario ? (
         <div className="mt-4 flex min-w-0 flex-col gap-4">
           <p className="text-apoio">Antes de enviar material, crie as disciplinas da escola em Escola › Turmas: todo material é de uma disciplina.</p>
           <div className="flex flex-wrap justify-end gap-3">
-            <Botao variante="secundario" onClick={aoFechar}>
+            <Button variante="secundario" onClick={aoFechar}>
               Fechar
-            </Botao>
+            </Button>
           </div>
         </div>
       ) : (
@@ -198,7 +198,7 @@ export function DialogoDeEnvioDeMaterial({ disciplinas, inicial, substitui, aoEn
             <button
               ref={botaoDoArquivo}
               type="button"
-              className={CLASSES_DO_BOTAO_SECUNDARIO}
+              className={SECONDARY_BUTTON_CLASSES}
               onClick={() => entradaDeArquivo.current?.click()}
               {...(erros.arquivo !== undefined || erroDoArquivo !== undefined ? { 'aria-describedby': idDoErroDoArquivo } : {})}
             >
@@ -214,11 +214,11 @@ export function DialogoDeEnvioDeMaterial({ disciplinas, inicial, substitui, aoEn
           </div>
 
           <div data-campo="titulo">
-            <Campo rotulo="Título" value={rascunho.titulo} maxLength={TAMANHO_MAXIMO_TITULO_DO_MATERIAL} onChange={(evento) => mudar({ titulo: evento.target.value })} erro={erros.titulo} autoComplete="off" />
+            <FormField rotulo="Título" value={rascunho.titulo} maxLength={TAMANHO_MAXIMO_TITULO_DO_MATERIAL} onChange={(evento) => mudar({ titulo: evento.target.value })} erro={erros.titulo} autoComplete="off" />
           </div>
           <div className="grid min-w-0 gap-4">
             <div data-campo="disciplinaId" className="min-w-0">
-              <Selecao
+              <Select
                 rotulo="Disciplina"
                 marcador="Escolha a disciplina"
                 opcoes={disciplinas.map((disciplina) => ({ valor: disciplina.id, rotulo: disciplina.nome }))}
@@ -228,7 +228,7 @@ export function DialogoDeEnvioDeMaterial({ disciplinas, inicial, substitui, aoEn
               />
             </div>
             <div data-campo="titularidade" className="min-w-0">
-              <Selecao
+              <Select
                 rotulo="De quem é o material"
                 marcador="Escolha o dono do conteúdo"
                 opcoes={OPCOES_DE_TITULARIDADE}
@@ -240,7 +240,7 @@ export function DialogoDeEnvioDeMaterial({ disciplinas, inicial, substitui, aoEn
           </div>
           {rascunho.titularidade === 'terceiro_com_licenca' && (
             <div data-campo="licenciante">
-              <Campo
+              <FormField
                 rotulo="Quem deu a licença"
                 dica="O dono do conteúdo: a editora, o sistema de ensino ou o autor."
                 value={rascunho.licenciante}
@@ -252,7 +252,7 @@ export function DialogoDeEnvioDeMaterial({ disciplinas, inicial, substitui, aoEn
             </div>
           )}
           <div data-campo="licenca">
-            <Selecao
+            <Select
               rotulo="Licença de uso (obrigatória)"
               marcador="Escolha a licença"
               opcoes={OPCOES_DE_LICENCA}
@@ -283,18 +283,18 @@ export function DialogoDeEnvioDeMaterial({ disciplinas, inicial, substitui, aoEn
             {falha}
           </p>
           <div className="flex flex-wrap items-center justify-end gap-3">
-            <Botao variante="secundario" onClick={aoFechar}>
+            <Button variante="secundario" onClick={aoFechar}>
               Cancelar
-            </Botao>
-            <Botao type="submit" disabled={mutacao.isPending || conferindo}>
+            </Button>
+            <Button type="submit" disabled={mutacao.isPending || conferindo}>
               {mutacao.isPending ? 'Enviando…' : 'Enviar material'}
-            </Botao>
+            </Button>
           </div>
           <span role="status" className="sr-only">
             {mutacao.isPending ? 'Enviando o material…' : ''}
           </span>
         </form>
       )}
-    </Dialogo>
+    </Dialog>
   )
 }

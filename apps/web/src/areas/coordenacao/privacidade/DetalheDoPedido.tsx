@@ -6,15 +6,15 @@ import { Link } from 'wouter'
 import { ErroDaApi } from '../../../api/client'
 import { consultaPedidoDoTitular, consultaSuboperadores, relerPedidoDoTitular } from './api/privacidade'
 import { caminhoDaAbaDaPrivacidade, ROTAS_DA_COORDENACAO } from '../../../paths'
-import { Botao } from '../../../components/ui/Botao'
-import { CLASSES_DO_LINK_SECUNDARIO } from '../../../components/ui/button-variants'
-import { Cartao } from '../../../components/ui/Cartao'
+import { Button } from '../../../components/ui/Button'
+import { SECONDARY_LINK_CLASSES } from '../../../components/ui/button-variants'
+import { Card } from '../../../components/ui/Card'
 import { Anuncio } from '../../../components/dialogs'
 import { EstadoCarregando, EstadoErro } from '../../../components/states'
-import { A_PARTIR_DE_768, useMidia } from '../../../components/ui/media-query'
-import { Estado } from '../../../components/ui/SeloDeEstado'
-import { Tabela, type ColunaDaTabela } from '../../../components/ui/Tabela'
-import { Tela } from '../../../components/ui/Tela'
+import { MEDIA_MD, useMediaQuery } from '../../../components/ui/media-query'
+import { StatusBadge } from '../../../components/ui/StatusBadge'
+import { Table, type TableColumn } from '../../../components/ui/Table'
+import { Page } from '../../../components/ui/Page'
 import { formatarData, formatarDataHora } from '../../../format'
 import { useTituloDaTela } from '../../../document-title'
 import { O_MIOLO_QUE_ROLA } from '../comum/miolo-que-rola'
@@ -77,7 +77,7 @@ export default function DetalheDoPedido({ pedidoId }: { readonly pedidoId: strin
   const [anuncio, definirAnuncio] = useState('')
   const inicio = useRef<HTMLElement>(null)
   // A partir de 768 px quem rola é este miolo, e ele recebe foco para rolar pelo teclado; abaixo disso rola a página.
-  const comMiolo = useMidia(A_PARTIR_DE_768)
+  const comMiolo = useMediaQuery(MEDIA_MD)
 
   const ler = useCallback(() => {
     void relerPedidoDoTitular(cliente, pedidoId)
@@ -101,7 +101,7 @@ export default function DetalheDoPedido({ pedidoId }: { readonly pedidoId: strin
     enabled: temEmpresas,
   })
   const linhas = useMemo(() => ordenarOCompartilhamento(pedido?.compartilhamento ?? []), [pedido?.compartilhamento])
-  const colunas: readonly [ColunaDaTabela<CompartilhamentoRow>, ...ColunaDaTabela<CompartilhamentoRow>[]] = useMemo(
+  const colunas: readonly [TableColumn<CompartilhamentoRow>, ...TableColumn<CompartilhamentoRow>[]] = useMemo(
     () => [
       {
         chave: 'empresa',
@@ -132,15 +132,15 @@ export default function DetalheDoPedido({ pedidoId }: { readonly pedidoId: strin
 
   if (consulta.isPending) {
     return (
-      <Tela titulo="Pedido de titular" largura="leitura" antes={voltar}>
+      <Page titulo="Pedido de titular" largura="leitura" antes={voltar}>
         <EstadoCarregando rotulo="Carregando o pedido…" />
-      </Tela>
+      </Page>
     )
   }
   if (pedido === undefined) {
     const naoAchado = consulta.error instanceof ErroDaApi && consulta.error.codigo === ErrorCode.NAO_ENCONTRADO
     return (
-      <Tela titulo="Pedido de titular" largura="leitura" antes={voltar}>
+      <Page titulo="Pedido de titular" largura="leitura" antes={voltar}>
         {naoAchado ? (
           <p role="status" className="rounded-cartao border border-linha bg-superficie p-4 text-apoio">
             {TEXTO_DO_PEDIDO_AUSENTE}
@@ -148,7 +148,7 @@ export default function DetalheDoPedido({ pedidoId }: { readonly pedidoId: strin
         ) : (
           <EstadoErro erro={consulta.error} tentando={consulta.isFetching} aoTentarDeNovo={() => void consulta.refetch({ cancelRefetch: false })} />
         )}
-      </Tela>
+      </Page>
     )
   }
 
@@ -158,30 +158,30 @@ export default function DetalheDoPedido({ pedidoId }: { readonly pedidoId: strin
   const troca = textoDaTrocaDeNome(pedido)
 
   return (
-    <Tela
+    <Page
       titulo={pedido.titular?.nome ?? TEXTO_DO_TITULAR_ELIMINADO}
       largura="leitura"
       objeto
       descricao={ROTULO_DO_TIPO[pedido.tipo]}
       antes={voltar}
       acoes={
-        <Botao variante="secundario" onClick={ler} disabled={consulta.isFetching}>
+        <Button variante="secundario" onClick={ler} disabled={consulta.isFetching}>
           {consulta.isFetching ? 'Atualizando…' : 'Atualizar'}
-        </Botao>
+        </Button>
       }
     >
       <section ref={inicio} aria-label="Tudo sobre este pedido" tabIndex={comMiolo ? 0 : -1} className={`flex min-w-0 flex-col gap-4 ${O_MIOLO_QUE_ROLA}${comMiolo ? '' : ' outline-none'}`}>
-        <Cartao titulo="Prazo da declaração completa">
+        <Card titulo="Prazo da declaração completa">
           <div className="flex min-w-0 flex-col gap-2">
             <div>
-              <Estado familia={prazo.familia}>{prazo.texto}</Estado>
+              <StatusBadge familia={prazo.familia}>{prazo.texto}</StatusBadge>
             </div>
             <p className="text-sm break-words text-sutil">
               O prazo é de {String(PRAZO_DA_DECLARACAO_COMPLETA_DIAS)} dias e conta do dia em que o pedido chegou à escola (LGPD, art. 19, II).
             </p>
           </div>
-        </Cartao>
-        <Cartao titulo="O pedido">
+        </Card>
+        <Card titulo="O pedido">
           <div className="flex min-w-0 flex-col gap-3">
             <dl className="flex min-w-0 flex-col gap-1.5 rounded-controle border border-linha p-3">
               <Linha rotulo="Pessoa">{textoDaPessoa(pedido)}</Linha>
@@ -189,7 +189,7 @@ export default function DetalheDoPedido({ pedidoId }: { readonly pedidoId: strin
               <Linha rotulo="Quem pediu">{ROTULO_DE_QUEM_PEDIU[pedido.solicitante]}</Linha>
               <Linha rotulo="Chegou à escola em">{formatarData(pedido.chegouEm)}</Linha>
               <Linha rotulo="Situação">
-                <Estado familia={situacao.familia}>{situacao.texto}</Estado>
+                <StatusBadge familia={situacao.familia}>{situacao.texto}</StatusBadge>
               </Linha>
               {pedido.concluidoEm !== null && <Linha rotulo="Concluído em">{formatarDataHora(pedido.concluidoEm)}</Linha>}
             </dl>
@@ -197,7 +197,7 @@ export default function DetalheDoPedido({ pedidoId }: { readonly pedidoId: strin
             {/* A correção de turma ou de vínculo não é deste pedido: o caminho é a turma, em Escola › Turmas (A1). */}
             {acoesDoPedido(pedido).corrigirNome && (
               <div>
-                <Link to={ROTAS_DA_COORDENACAO.estrutura} className={CLASSES_DO_LINK_SECUNDARIO}>
+                <Link to={ROTAS_DA_COORDENACAO.estrutura} className={SECONDARY_LINK_CLASSES}>
                   Ir para as turmas
                 </Link>
               </div>
@@ -206,20 +206,20 @@ export default function DetalheDoPedido({ pedidoId }: { readonly pedidoId: strin
             <Anuncio texto={anuncio} />
             <AcoesDoPedido pedido={pedido} aoAnunciar={definirAnuncio} focoDeReserva={() => inicio.current?.focus()} />
           </div>
-        </Cartao>
-        <Cartao titulo="Empresas que receberam dado desta pessoa">
+        </Card>
+        <Card titulo="Empresas que receberam dado desta pessoa">
           <div className="flex min-w-0 flex-col gap-3">
             {linhas.length === 0 ? (
               <p className="break-words text-apoio">{TEXTO_SEM_EMPRESAS}</p>
             ) : (
               <>
-                <Tabela rotulo="Empresas que receberam dado desta pessoa" colunas={colunas} linhas={linhas} chaveDaLinha={(linha) => `${linha.chave}-${linha.primeiroEm}`} />
+                <Table rotulo="Empresas que receberam dado desta pessoa" colunas={colunas} linhas={linhas} chaveDaLinha={(linha) => `${linha.chave}-${linha.primeiroEm}`} />
                 <p className="text-sm break-words text-sutil">{AVISO_DE_AVISAR_AS_EMPRESAS}</p>
               </>
             )}
           </div>
-        </Cartao>
+        </Card>
       </section>
-    </Tela>
+    </Page>
   )
 }

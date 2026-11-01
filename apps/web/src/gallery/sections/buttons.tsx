@@ -1,14 +1,14 @@
 import { Plus } from 'lucide-react'
-import { Botao } from '../../components/ui/Botao'
-import { VARIANTES_DE_BOTAO, type TamanhoDeBotao, type VarianteDeBotao } from '../../components/ui/button-variants'
+import { Button } from '../../components/ui/Button'
+import { BUTTON_VARIANTS, type ButtonSize, type ButtonVariant } from '../../components/ui/button-variants'
 import { Menu } from '../../components/ui/overlays/Menu'
 import { Secao } from '../GallerySection'
 
 /** Os tamanhos com texto: o `data-tamanho` que o e2e usa para achar a fileira (`e2e/components-button.spec.ts`). */
-const TAMANHOS_COM_TEXTO: readonly Exclude<TamanhoDeBotao, 'icone'>[] = ['principal', 'compacto']
+const TAMANHOS_COM_TEXTO: readonly Exclude<ButtonSize, 'icone'>[] = ['principal', 'compacto']
 
 /** O texto de cada desenho, com acento: o id da variante é nome de código, e não rótulo (`data-variante` guarda o id). */
-const ROTULO: Readonly<Record<VarianteDeBotao, string>> = {
+const ROTULO: Readonly<Record<ButtonVariant, string>> = {
   primario: 'Primário',
   oficial: 'Oficial',
   secundario: 'Secundário',
@@ -33,56 +33,56 @@ export default function SecoesDosBotoes() {
     <Secao nome="botoes" titulo="Botões">
       {TAMANHOS_COM_TEXTO.map((tamanho) => (
         <div key={tamanho} data-tamanho={tamanho} className={FILEIRA}>
-          {VARIANTES_DE_BOTAO.map((variante) => (
-            <Botao key={variante} variante={variante} tamanho={tamanho} data-variante={variante}>
+          {BUTTON_VARIANTS.map((variante) => (
+            <Button key={variante} variante={variante} tamanho={tamanho} data-variante={variante}>
               {ROTULO[variante]}
-            </Botao>
+            </Button>
           ))}
         </div>
       ))}
       <div data-tamanho="desligado" className={FILEIRA}>
-        {VARIANTES_DE_BOTAO.map((variante) => (
-          <Botao key={variante} variante={variante} disabled data-variante={variante}>
+        {BUTTON_VARIANTS.map((variante) => (
+          <Button key={variante} variante={variante} disabled data-variante={variante}>
             {ROTULO[variante]}
-          </Botao>
+          </Button>
         ))}
       </div>
       <div data-tamanho="compacto-desligado" className={FILEIRA}>
-        {VARIANTES_DE_BOTAO.map((variante) => (
-          <Botao key={variante} variante={variante} tamanho="compacto" disabled data-variante={variante}>
+        {BUTTON_VARIANTS.map((variante) => (
+          <Button key={variante} variante={variante} tamanho="compacto" disabled data-variante={variante}>
             {ROTULO[variante]}
-          </Botao>
+          </Button>
         ))}
       </div>
       <div data-tamanho="com-glifo" className={FILEIRA}>
-        {VARIANTES_DE_BOTAO.map((variante) => (
-          <Botao key={variante} variante={variante} data-variante={variante}>
+        {BUTTON_VARIANTS.map((variante) => (
+          <Button key={variante} variante={variante} data-variante={variante}>
             <Plus size={20} strokeWidth={2.5} aria-hidden="true" />
             {ROTULO[variante]}
-          </Botao>
+          </Button>
         ))}
       </div>
       <div data-tamanho="icone" className={FILEIRA}>
-        {VARIANTES_DE_BOTAO.map((variante) => (
-          <Botao key={variante} variante={variante} tamanho="icone" aria-label={`Adicionar, ${ROTULO[variante]}`} data-variante={variante}>
+        {BUTTON_VARIANTS.map((variante) => (
+          <Button key={variante} variante={variante} tamanho="icone" aria-label={`Adicionar, ${ROTULO[variante]}`} data-variante={variante}>
             <Plus size={20} strokeWidth={2.5} aria-hidden="true" />
-          </Botao>
+          </Button>
         ))}
       </div>
       <div data-tamanho="icone-desligado" className={FILEIRA}>
-        {VARIANTES_DE_BOTAO.map((variante) => (
-          <Botao key={variante} variante={variante} tamanho="icone" disabled aria-label={`Adicionar, ${ROTULO[variante]}, desligado`} data-variante={variante}>
+        {BUTTON_VARIANTS.map((variante) => (
+          <Button key={variante} variante={variante} tamanho="icone" disabled aria-label={`Adicionar, ${ROTULO[variante]}, desligado`} data-variante={variante}>
             <Plus size={20} strokeWidth={2.5} aria-hidden="true" />
-          </Botao>
+          </Button>
         ))}
       </div>
       <div data-tamanho="perigo-cheio" className={FILEIRA}>
-        <Botao variante="perigo" cheio data-variante="perigo-cheio">
+        <Button variante="perigo" cheio data-variante="perigo-cheio">
           Perigo cheio
-        </Botao>
-        <Botao variante="perigo" cheio disabled data-variante="perigo-cheio">
+        </Button>
+        <Button variante="perigo" cheio disabled data-variante="perigo-cheio">
           Perigo cheio desligado
-        </Botao>
+        </Button>
         <Menu rotulo="Menu desligado" itens={[{ id: 'nada', rotulo: 'Nada' }]} aoEscolher={() => undefined} desligado />
       </div>
     </Secao>

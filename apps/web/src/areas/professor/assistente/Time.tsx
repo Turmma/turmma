@@ -8,18 +8,18 @@ import { aplicarEntregaDecidida, consultaEntregas, decidirEntrega, recarregarEnt
 import { agenteDoTime, consultaTime, funcaoSuspensa } from './api/time'
 import { consultaMeusVinculos } from '../comum/api/vinculos'
 import { caminhoDaCorrecaoDoProfessor, caminhoDoArtefatoDoProfessor, ROTAS_DO_PROFESSOR } from '../../../paths'
-import { Abas } from '../../../components/ui/Abas'
-import { Botao } from '../../../components/ui/Botao'
-import { classesDoBotao } from '../../../components/ui/button-variants'
-import { CampoLongo } from '../../../components/ui/fields/CampoLongo'
-import { Cartao } from '../../../components/ui/Cartao'
-import { DialogoDeConfirmacao } from '../../../components/ui/overlays/DialogoDeConfirmacao'
+import { Tabs } from '../../../components/ui/Tabs'
+import { Button } from '../../../components/ui/Button'
+import { buttonVariants } from '../../../components/ui/button-variants'
+import { Textarea } from '../../../components/ui/fields/Textarea'
+import { Card } from '../../../components/ui/Card'
+import { ConfirmDialog } from '../../../components/ui/overlays/ConfirmDialog'
 import { EstadoCarregando, EstadoErro, EstadoVazio } from '../../../components/states/index'
-import { AssinaturaIA } from '../../../components/ui/ai/AssinaturaIA'
-import { Conversa, MensagemIA } from '../../../components/ui/ai/Message'
-import { Estado } from '../../../components/ui/SeloDeEstado'
+import { AgentSignature } from '../../../components/ui/ai/AgentSignature'
+import { Conversation, AIMessage } from '../../../components/ui/ai/Message'
+import { StatusBadge } from '../../../components/ui/StatusBadge'
 import { problemaDoTexto } from '../../../components/ui/fields/text-limits'
-import { Tela } from '../../../components/ui/Tela'
+import { Page } from '../../../components/ui/Page'
 import { formatarDataHora } from '../../../format'
 import { useTituloDaTela } from '../../../document-title'
 import { AvisoNaEntregaDeFuncaoSuspensa } from '../comum/avisos'
@@ -45,7 +45,7 @@ import { nomesDasTurmas, turmasDaProfessora } from '../comum/turmas-da-professor
 /** De quanto em quanto a conversa do Assistente relê as entregas, com a aba à vista: não há WebSocket nesta fatia. */
 const INTERVALO_DAS_ENTREGAS_MS = 15_000
 
-const CLASSES_DA_ACAO = `${classesDoBotao({ variante: 'discreto', tamanho: 'compacto' })} hover:bg-realce-suave hover:text-tinta`
+const CLASSES_DA_ACAO = `${buttonVariants({ variante: 'discreto', tamanho: 'compacto' })} hover:bg-realce-suave hover:text-tinta`
 
 /** A decisão que está sendo confirmada: qual entrega, e se é aprovar ou rejeitar. */
 interface DecisaoAberta {
@@ -160,7 +160,7 @@ export default function Time() {
             {entrega.titulo}
             {nomes[entrega.turmaId] !== undefined && ` · ${nomes[entrega.turmaId] ?? ''}`}
           </span>
-          <Botao
+          <Button
             variante="secundario"
             tamanho="compacto"
             onClick={() => {
@@ -171,16 +171,16 @@ export default function Time() {
             }}
           >
             Ver<span className="sr-only"> {entrega.titulo}</span>
-          </Botao>
+          </Button>
         </li>
       ))}
     </ul>
   )
 
   return (
-    <Tela titulo="Assistente de ensino" largura="conversa" tituloSoParaLeitor>
+    <Page titulo="Assistente de ensino" largura="conversa" tituloSoParaLeitor>
       <header className="flex min-w-0 flex-col gap-2">
-        <AssinaturaIA agente="assistente_de_ensino" tamanho={32} />
+        <AgentSignature agente="assistente_de_ensino" tamanho={32} />
         <details className="group min-w-0 rounded-cartao border border-linha bg-superficie">
           <summary className="flex min-h-11 cursor-pointer list-none items-center gap-1.5 px-4 text-sm font-medium text-tinta hover:bg-realce-suave">
             {/* A seta diz que a linha abre, e gira aberta: é aqui que está a resposta a "o que essa IA faz sozinha?". */}
@@ -197,9 +197,9 @@ export default function Time() {
                 <p role="alert" className="min-w-0 break-words">
                   {mensagemDoErro(time.error)}
                 </p>
-                <Botao variante="secundario" onClick={() => void time.refetch({ cancelRefetch: false })}>
+                <Button variante="secundario" onClick={() => void time.refetch({ cancelRefetch: false })}>
                   Tentar de novo
-                </Botao>
+                </Button>
               </div>
             )}
             {assistente !== undefined && (
@@ -208,7 +208,7 @@ export default function Time() {
                   <li key={funcao.chave} data-funcao={funcao.chave} className="flex min-w-0 flex-col gap-1">
                     <p className="flex min-w-0 flex-wrap items-center gap-2 font-medium text-tinta">
                       {funcao.nome}
-                      {funcao.suspensa && <Estado familia="info">Suspensa pela coordenação</Estado>}
+                      {funcao.suspensa && <StatusBadge familia="info">Suspensa pela coordenação</StatusBadge>}
                     </p>
                     <p className="min-w-0 text-sm break-words text-apoio">
                       <span className="font-medium">Faz sozinha: </span>
@@ -243,7 +243,7 @@ export default function Time() {
 
       {/* Sem entrega nenhuma, a tela não fica vazia: diz o que o Assistente faz e como pedir (regra 50, item 6). */}
       {entregas.data !== undefined && todas.length === 0 && (vinculos.data === undefined || temTurma) && (
-        <Cartao titulo="O que o Assistente de ensino faz por você">
+        <Card titulo="O que o Assistente de ensino faz por você">
           <div className="flex min-w-0 flex-col gap-3">
             <p className="min-w-0 break-words text-apoio">
               Ele prepara a versão adaptada de uma atividade e corrige as objetivas da turma, e o que fez aparece aqui, esperando a sua decisão: nada chega ao aluno antes de você aprovar. Agora não há nada esperando você.
@@ -259,13 +259,13 @@ export default function Time() {
               </ul>
             )}
             <div className="flex flex-wrap gap-3">
-              <Botao onClick={() => navegar(ROTAS_DO_PROFESSOR.novaConversa)}>Pedir ao Assistente</Botao>
-              <Botao variante="secundario" onClick={() => navegar(ROTAS_DO_PROFESSOR.ferramentas)}>
+              <Button onClick={() => navegar(ROTAS_DO_PROFESSOR.novaConversa)}>Pedir ao Assistente</Button>
+              <Button variante="secundario" onClick={() => navegar(ROTAS_DO_PROFESSOR.ferramentas)}>
                 Ver as ferramentas
-              </Botao>
+              </Button>
             </div>
           </div>
-        </Cartao>
+        </Card>
       )}
 
       {todas.length > 0 && (
@@ -300,7 +300,7 @@ export default function Time() {
           )}
 
           <div ref={topoDoPainel} className="min-w-0">
-            <Abas
+            <Tabs
               classeDoPainel={O_MIOLO_DO_DOCUMENTO}
               rotulo="Filtro por função"
               abas={FILTROS_DO_TIME.map((item) => ({ id: item.id, rotulo: item.rotulo, ...(item.id === 'esperando' ? { contador: esperando.length } : {}) }))}
@@ -312,13 +312,13 @@ export default function Time() {
               {visiveis.length === 0 ? (
                 <p className="rounded-cartao border border-dashed border-borda-campo bg-superficie p-4 text-apoio">Nada neste filtro. Em "Tudo" está o que o Assistente já fez.</p>
               ) : (
-                <Conversa rotulo="O que o Assistente de ensino fez">
+                <Conversation rotulo="O que o Assistente de ensino fez">
                   {visiveis.map((entrega) => {
                     const suspensao = avisoDaFuncaoSuspensa(entrega, funcaoSuspensa(time.data, entrega.funcao))
                     return (
                     <div key={entrega.id} id={idDoCartao(entrega.id)} tabIndex={-1} data-entrega={entrega.estado} className="flex min-w-0 scroll-mt-48 flex-col gap-1 rounded-cartao">
                       <p className="text-[13px] text-sutil">{formatarDataHora(entrega.criadaEm)}</p>
-                      <MensagemIA
+                      <AIMessage
                         variante="balao"
                         funcao={entrega.funcao}
                         aprovacao={{ aprovacao: aprovacaoDaEntrega(entrega), verbo: VERBO_DA_ENTREGA }}
@@ -332,47 +332,47 @@ export default function Time() {
                             )}
                             {/* O lote de correção não se aprova de dentro do balão: "Revisar" leva à tela dos destaques. */}
                             {entrega.tipo === 'lote_de_correcao' && entrega.atividadeAplicadaId !== null && (
-                              <Link to={caminhoDaCorrecaoDoProfessor(entrega.atividadeAplicadaId)} className={entrega.estado === 'pendente' ? classesDoBotao({ variante: 'secundario' }).replaceAll('enabled:', '') : CLASSES_DA_ACAO}>
+                              <Link to={caminhoDaCorrecaoDoProfessor(entrega.atividadeAplicadaId)} className={entrega.estado === 'pendente' ? buttonVariants({ variante: 'secundario' }).replaceAll('enabled:', '') : CLASSES_DA_ACAO}>
                                 {entrega.estado === 'pendente' ? 'Revisar' : 'Ver a correção'}
                                 <span className="sr-only">: {entrega.titulo}</span>
                               </Link>
                             )}
                             {decideAqui(entrega) && (
                               <>
-                                <Botao variante="oficial" onClick={() => abrir(entrega, 'aprovar')}>
+                                <Button variante="oficial" onClick={() => abrir(entrega, 'aprovar')}>
                                   Aprovar<span className="sr-only"> {entrega.titulo}</span>
-                                </Botao>
-                                <Botao variante="perigo" onClick={() => abrir(entrega, 'rejeitar')}>
+                                </Button>
+                                <Button variante="perigo" onClick={() => abrir(entrega, 'rejeitar')}>
                                   Rejeitar…<span className="sr-only"> {entrega.titulo}</span>
-                                </Botao>
+                                </Button>
                               </>
                             )}
                           </>
                         }
                       >
                         {falaDaEntrega(entrega, nomes[entrega.turmaId])}
-                      </MensagemIA>
+                      </AIMessage>
                       {suspensao !== undefined && <AvisoNaEntregaDeFuncaoSuspensa texto={suspensao} />}
                     </div>
                     )
                   })}
-                </Conversa>
+                </Conversation>
               )}
               {/* Dentro do miolo: fora dele, a página passaria da janela (RF22). */}
               {entregas.hasNextPage && (
                 <div className="flex justify-center pt-4">
-                  <Botao variante="secundario" onClick={() => void entregas.fetchNextPage()} disabled={entregas.isFetchingNextPage}>
+                  <Button variante="secundario" onClick={() => void entregas.fetchNextPage()} disabled={entregas.isFetchingNextPage}>
                     {entregas.isFetchingNextPage ? 'Carregando…' : 'Ver mais entregas'}
-                  </Botao>
+                  </Button>
                 </div>
               )}
-            </Abas>
+            </Tabs>
           </div>
         </>
       )}
 
       {aberta?.decisao === 'aprovar' && (
-        <DialogoDeConfirmacao
+        <ConfirmDialog
           titulo="Aprovar a versão adaptada"
           familia="oficial"
           resumo={resumoDaAprovacao(aberta.entrega, turmaDaAberta)}
@@ -387,7 +387,7 @@ export default function Time() {
         />
       )}
       {aberta?.decisao === 'rejeitar' && (
-        <DialogoDeConfirmacao
+        <ConfirmDialog
           titulo="Rejeitar a versão adaptada"
           familia="perigo"
           resumo={resumoDaAprovacao(aberta.entrega, turmaDaAberta)}
@@ -400,7 +400,7 @@ export default function Time() {
           {...(falhaDaDecisao === undefined ? {} : { falha: falhaDaDecisao })}
           {...(focoDeReserva === undefined ? {} : { focoDeReserva })}
         >
-          <CampoLongo
+          <Textarea
             rotulo="Por que você está rejeitando?"
             dica={AVISO_DA_JUSTIFICATIVA}
             valor={justificativa}
@@ -410,8 +410,8 @@ export default function Time() {
             erro={tentouRejeitar ? problemaDaJustificativa : undefined}
             {...LIMITES_DA_JUSTIFICATIVA}
           />
-        </DialogoDeConfirmacao>
+        </ConfirmDialog>
       )}
-    </Tela>
+    </Page>
   )
 }

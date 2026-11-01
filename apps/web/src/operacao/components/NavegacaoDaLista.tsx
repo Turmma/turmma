@@ -1,7 +1,7 @@
 import type { OrdemDoPainel } from '@educa/shared'
 import { EstadoVazio } from '../../components/states'
 import { formatarNumero, formatarQuantidade } from '../../format'
-import { CLASSES_DO_BOTAO_SECUNDARIO } from '../../components/ui/button-variants'
+import { SECONDARY_BUTTON_CLASSES } from '../../components/ui/button-variants'
 
 /**
  * A ordem e as páginas das duas listas do painel, Escolas e Uso (Tech Spec da A0b, seção 9): a mesma consulta
@@ -52,7 +52,7 @@ export function PaginasDaLista({ rotulo, pagina, paginas, trocando, aoIr }: Prop
         type="button"
         disabled={pagina <= 1 || trocando}
         onClick={() => aoIr(pagina - 1)}
-        className={`${CLASSES_DO_BOTAO_SECUNDARIO} disabled:border-inativo disabled:text-inativo`}
+        className={`${SECONDARY_BUTTON_CLASSES} disabled:border-inativo disabled:text-inativo`}
       >
         Anterior
       </button>
@@ -66,7 +66,7 @@ export function PaginasDaLista({ rotulo, pagina, paginas, trocando, aoIr }: Prop
         type="button"
         disabled={pagina >= paginas || trocando}
         onClick={() => aoIr(pagina + 1)}
-        className={`${CLASSES_DO_BOTAO_SECUNDARIO} disabled:border-inativo disabled:text-inativo`}
+        className={`${SECONDARY_BUTTON_CLASSES} disabled:border-inativo disabled:text-inativo`}
       >
         Próxima
       </button>

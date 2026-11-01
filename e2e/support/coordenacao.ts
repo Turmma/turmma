@@ -103,7 +103,7 @@ export async function paginaNaoRola(page: Page): Promise<void> {
 }
 
 /**
- * As linhas de uma tabela que vira lista (`Tabela`), numa região: as do corpo da tabela a partir de 768 px e os itens da lista
+ * As linhas de uma tabela que vira lista (`Table`), numa região: as do corpo da tabela a partir de 768 px e os itens da lista
  * abaixo disso. Quem conta nomes ou procura um nome pela linha usa isto, para o mesmo caso valer nos projetos `chromebook` e
  * `celular` (telas da coordenação, 9.0): o cabeçalho da tabela não é linha de dado.
  */

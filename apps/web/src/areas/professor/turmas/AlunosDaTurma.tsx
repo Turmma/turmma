@@ -3,11 +3,11 @@ import { useEffect, useId, useRef, useState } from 'react'
 import { useLocation, useSearch } from 'wouter'
 import { consultaAlunosDaTurma } from '../../../api/alunos-da-turma'
 import { consultaDesempenhoDaTurma } from '../atividades/api/atividades'
-import { Botao } from '../../../components/ui/Botao'
+import { Button } from '../../../components/ui/Button'
 import { EstadoCarregando, EstadoErro, EstadoVazio } from '../../../components/states/index'
 import { ListaDePedidos } from '../../../components/pedidos/ListaDePedidos'
-import { Tabela } from '../../../components/ui/Tabela'
-import { CabecalhoDeSecao } from '../../../components/ui/Tela'
+import { Table } from '../../../components/ui/Table'
+import { SectionHeader } from '../../../components/ui/Page'
 import { formatarQuantidade } from '../../../format'
 import { convitePedido, enderecoSemOConvite, turmaIndisponivel } from './acesso/acesso-da-turma'
 import { AcessoDaTurma } from './acesso/AcessoDaTurma'
@@ -122,7 +122,7 @@ export default function AlunosDaTurma({ turmaId, turmaNome, escola, aoPerderATur
 
       {listaLida && linhas.length > 0 && (
         <section aria-labelledby={idDosAlunos} className="flex min-w-0 flex-col gap-3">
-          <CabecalhoDeSecao
+          <SectionHeader
             id={idDosAlunos}
             titulo="Por aluno"
             apoio={`${formatarQuantidade(linhas.length, 'aluno', 'alunos')}${listaCompleta ? '' : ' até aqui'}, em ordem de nome. Os acertos são os das correções aprovadas.`}
@@ -130,7 +130,7 @@ export default function AlunosDaTurma({ turmaId, turmaNome, escola, aoPerderATur
           {desempenho.isError && desempenho.data === undefined && (
             <EstadoErro erro={desempenho.error} tentando={desempenho.isFetching} aoTentarDeNovo={() => void desempenho.refetch({ cancelRefetch: false })} />
           )}
-          <Tabela
+          <Table
             rotulo="Acertos por aluno"
             colunas={[
               { chave: 'nome', titulo: 'Aluno', celula: (linha) => linha.nome },
@@ -143,9 +143,9 @@ export default function AlunosDaTurma({ turmaId, turmaNome, escola, aoPerderATur
           />
           {quemSaiu > 0 && <p className="t-apoio text-sutil">Quem saiu da turma (transferido, ou com o acesso desativado) aparece sem acertos.</p>}
           {alunos.hasNextPage ? (
-            <Botao ref={botaoDeVerMais} variante="secundario" onClick={() => void verMais()} disabled={alunos.isFetchingNextPage} className="self-start">
+            <Button ref={botaoDeVerMais} variante="secundario" onClick={() => void verMais()} disabled={alunos.isFetchingNextPage} className="self-start">
               {alunos.isFetchingNextPage ? 'Carregando…' : 'Ver mais'}
-            </Botao>
+            </Button>
           ) : (
             <p ref={fimDaLista} tabIndex={-1} className="t-apoio text-sutil">
               Todos os alunos da turma estão na lista.

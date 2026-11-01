@@ -1,8 +1,8 @@
 import { useLayoutEffect } from 'react'
 import { Link, useLocation } from 'wouter'
 import { estaNoItem, type ItemDaNavegacao } from '../areas/navigation'
-import { Icone } from './ui/Icone'
-import { Ladrilho } from './ui/Ladrilho'
+import { Icon } from './ui/Icon'
+import { IconTile } from './ui/IconTile'
 
 /**
  * Quantos lugares cabem na barra de baixo do celular (`docs/interface.md` 11.1, R1): quatro, a 90 px cada um nos 360 px da
@@ -29,16 +29,16 @@ const PILULA_ACESA = 'border-azul-borda bg-azul-claro'
 const PILULA_APAGADA = 'border-transparent'
 
 /**
- * O ícone de 28 px do lugar: o ilustrado, ou o do `lucide` no `Ladrilho` da família dele, o menor que a peça tem (32 px,
+ * O ícone de 28 px do lugar: o ilustrado, ou o do `lucide` no `IconTile` da família dele, o menor que a peça tem (32 px,
  * que é o miolo da pílula). Decoração: o rótulo está escrito embaixo.
  */
 function IconeDaBarra({ item }: { item: ItemDaNavegacao }) {
-  if ('lugar' in item.icone) return <Icone nome={item.icone.lugar} tamanho={28} />
+  if ('lugar' in item.icone) return <Icon nome={item.icone.lugar} tamanho={28} />
   const Desenho = item.icone.lucide
   return (
-    <Ladrilho familia={item.icone.familia} tamanho={32}>
+    <IconTile familia={item.icone.familia} tamanho={32}>
       <Desenho strokeWidth={2.5} />
-    </Ladrilho>
+    </IconTile>
   )
 }
 
@@ -48,7 +48,7 @@ function IconeDaBarra({ item }: { item: ItemDaNavegacao }) {
  * rótulo em 12 px, 700 e caixa-alta (o único 12 px do produto, 9.2), cortado com reticências quando não cabe.
  *
  * - **Existir é reservar o lugar dela.** Enquanto está na página, põe `data-barra-de-baixo` no `<html>`, e o CSS
- *   (`index.css`) declara a `--barra-baixo` com a altura dela. O `<main>` da casca e a `BarraPresa` leem a variável: o
+ *   (`index.css`) declara a `--barra-baixo` com a altura dela. O `<main>` da casca e a `StickyFooter` leem a variável: o
  *   último botão da tela termina acima da barra, e a barra presa embaixo sobe para ficar acima dela. Fora do celular, ou
  *   para a coordenação, a variável é zero e nada muda.
  * - **Inerte com a gaveta aberta**: a gaveta é um `dialog` modal, e o navegador deixa inerte tudo que está fora dele, a

@@ -161,7 +161,7 @@ test.describe('peças do MVP de apresentação, na galeria', () => {
 
 // ---------------------------------------------------------------------------------------------------------------------
 // X1, tarefa 5.0: cartão, linha, tabela, número e barras na pele da D80 (RF7, RF9, RF11, RF23). O que cada peça promete sem
-// medida (nome acessível, teclado, estado) está nos testes de componente (`Linha.test.tsx`, `Tabela.test.tsx`,
+// medida (nome acessível, teclado, estado) está nos testes de componente (`ListItem.test.tsx`, `Table.test.tsx`,
 // `Superficies.test.tsx`); aqui está o que só o navegador calcula: a cor resolvida, o contorno desenhado e a medida.
 // ---------------------------------------------------------------------------------------------------------------------
 

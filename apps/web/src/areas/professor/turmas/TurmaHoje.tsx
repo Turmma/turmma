@@ -8,15 +8,15 @@ import { mensagemDoErro } from '../../../api/client'
 import { agenteDoTime, consultaTime } from '../assistente/api/time'
 import { consultaTitulosDosMateriais } from '../artefatos/api/titulos-dos-materiais'
 import { consultaSinais, consultaUsoDoTutor } from './api/tutor-da-turma'
-import { BarraRotulada } from '../../../components/ui/BarraRotulada'
-import { Botao } from '../../../components/ui/Botao'
+import { ProgressBar } from '../../../components/ui/ProgressBar'
+import { Button } from '../../../components/ui/Button'
 import { EstadoCarregando, EstadoErro, EstadoVazio } from '../../../components/states/index'
-import { AssinaturaIA } from '../../../components/ui/ai/AssinaturaIA'
-import { Conversa, MensagemIA } from '../../../components/ui/ai/Message'
-import { PainelLado } from '../../../components/ui/overlays/PainelLado'
-import { Estado } from '../../../components/ui/SeloDeEstado'
-import { Tabela } from '../../../components/ui/Tabela'
-import { CabecalhoDeSecao } from '../../../components/ui/Tela'
+import { AgentSignature } from '../../../components/ui/ai/AgentSignature'
+import { Conversation, AIMessage } from '../../../components/ui/ai/Message'
+import { Sheet } from '../../../components/ui/overlays/Sheet'
+import { StatusBadge } from '../../../components/ui/StatusBadge'
+import { Table } from '../../../components/ui/Table'
+import { SectionHeader } from '../../../components/ui/Page'
 import { formatarDiaEHora } from '../../../format'
 import { textoDeAlunos } from '../atividades/aprovar'
 import { turmaIndisponivel } from './acesso/acesso-da-turma'
@@ -116,23 +116,23 @@ export default function TurmaHoje({ turmaId, aoPerderATurma }: { turmaId: string
             {horaDoAviso !== undefined && <p className="min-w-0 text-sm break-words text-tinta">{textoDaHoraDoAviso(horaDoAviso)}</p>}
             <p className="min-w-0 text-sm break-words text-tinta">{textoDaAtencaoHumana(alunosQuePrecisam)}</p>
             <div>
-              <Botao variante="secundario" onClick={abrirOPainel}>
+              <Button variante="secundario" onClick={abrirOPainel}>
                 Ver quem
-              </Botao>
+              </Button>
             </div>
           </section>
         )}
       </div>
 
       <section aria-labelledby={idDosSinais} className="flex min-w-0 flex-col gap-3">
-        <CabecalhoDeSecao
+        <SectionHeader
           id={idDosSinais}
           titulo="Sinais da turma"
           apoio="O que o Tutor viu no trabalho dos alunos: onde travaram, quem pediu a resposta pronta, a dúvida que se repetiu."
           acao={
-            <Botao ref={botaoDoPainel} variante="secundario" onClick={abrirOPainel}>
+            <Button ref={botaoDoPainel} variante="secundario" onClick={abrirOPainel}>
               Ver o uso do Tutor por aluno
-            </Botao>
+            </Button>
           }
         />
         {sinais.isPending && <EstadoCarregando rotulo="Carregando os sinais…" />}
@@ -160,20 +160,20 @@ export default function TurmaHoje({ turmaId, aoPerderATurma }: { turmaId: string
           </p>
         )}
         {grupos.length > 0 && (
-          <Conversa rotulo="O que o Tutor viu na turma">
+          <Conversation rotulo="O que o Tutor viu na turma">
             {grupos.map((grupo, indice) => (
               // O grupo é a soma da turma, sem nome de ninguém: é o que a professora leva para a aula seguinte.
-              <MensagemIA key={`${grupo.tipo}-${grupo.atividadeAplicadaId ?? ''}-${String(grupo.questao ?? '')}-${String(indice)}`} variante="balao" funcao="sinais_para_o_professor">
+              <AIMessage key={`${grupo.tipo}-${grupo.atividadeAplicadaId ?? ''}-${String(grupo.questao ?? '')}-${String(indice)}`} variante="balao" funcao="sinais_para_o_professor">
                 {falaDoGrupo(grupo, { atividades: titulosDasAtividades, materiais: {} })}
-              </MensagemIA>
+              </AIMessage>
             ))}
-          </Conversa>
+          </Conversation>
         )}
         {sinais.data?.proxima !== undefined && <p className="text-sm text-sutil">Estes são os sinais mais recentes da turma.</p>}
       </section>
 
       <section aria-label="O que o Tutor faz sozinho" className="flex min-w-0 flex-col gap-2">
-        <AssinaturaIA agente="tutor" tamanho={32} />
+        <AgentSignature agente="tutor" tamanho={32} />
         <details className="group min-w-0 rounded-cartao border border-linha bg-superficie">
           <summary className="flex min-h-11 cursor-pointer list-none items-center gap-1.5 px-4 text-sm font-medium text-tinta hover:bg-realce-suave">
             <ChevronRight aria-hidden="true" size={16} strokeWidth={1.75} className="shrink-0 group-open:rotate-90" />
@@ -186,16 +186,16 @@ export default function TurmaHoje({ turmaId, aoPerderATurma }: { turmaId: string
                 <p role="alert" className="min-w-0 break-words">
                   {mensagemDoErro(time.error)}
                 </p>
-                <Botao variante="secundario" onClick={() => void time.refetch({ cancelRefetch: false })}>
+                <Button variante="secundario" onClick={() => void time.refetch({ cancelRefetch: false })}>
                   Tentar de novo
-                </Botao>
+                </Button>
               </div>
             )}
             {tutor?.funcoes.map((funcao) => (
               <div key={funcao.chave} data-funcao={funcao.chave} className="flex min-w-0 flex-col gap-1">
                 <p className="flex min-w-0 flex-wrap items-center gap-2 font-medium text-tinta">
                   {funcao.nome}
-                  {funcao.suspensa && <Estado familia="info">Suspensa pela coordenação</Estado>}
+                  {funcao.suspensa && <StatusBadge familia="info">Suspensa pela coordenação</StatusBadge>}
                 </p>
                 <p className="min-w-0 text-sm break-words text-apoio">
                   <span className="font-medium">Faz sozinha: </span>
@@ -223,7 +223,7 @@ export default function TurmaHoje({ turmaId, aoPerderATurma }: { turmaId: string
       </section>
 
       <section aria-labelledby={idDasHabilidades} className="flex min-w-0 flex-col gap-3">
-        <CabecalhoDeSecao id={idDasHabilidades} titulo="Acerto por habilidade" apoio="Só das correções que você já aprovou, na sua disciplina." />
+        <SectionHeader id={idDasHabilidades} titulo="Acerto por habilidade" apoio="Só das correções que você já aprovou, na sua disciplina." />
         {desempenho.isPending && <EstadoCarregando rotulo="Carregando o desempenho da turma…" />}
         {desempenho.isError && dados === undefined && !caiuTudo && (
           <EstadoErro erro={desempenho.error} tentando={desempenho.isFetching} aoTentarDeNovo={() => void desempenho.refetch({ cancelRefetch: false })} />
@@ -240,7 +240,7 @@ export default function TurmaHoje({ turmaId, aoPerderATurma }: { turmaId: string
         {dados !== undefined && dados.lotesAprovados > 0 && (
           <div className="flex min-w-0 flex-col gap-3 rounded-cartao border border-linha bg-superficie p-4">
             {dados.porHabilidade.map((item) => (
-              <BarraRotulada
+              <ProgressBar
                 key={item.habilidade.codigo}
                 rotulo={`${item.habilidade.codigo} · ${item.habilidade.descricao}`}
                 valor={item.acertos}
@@ -303,7 +303,7 @@ function PainelDoTutor({ turmaId, lendoOsSinais, falhouOsSinais, atencao, alunos
   const referencias = { atividades: titulosDasAtividades, materiais: materiais.data ?? {} }
 
   return (
-    <PainelLado titulo="O que o Tutor viu" aoFechar={aoFechar} descritoPor={idDaDescricao}>
+    <Sheet titulo="O que o Tutor viu" aoFechar={aoFechar} descritoPor={idDaDescricao}>
       <div className="flex min-w-0 flex-col gap-6">
         <p id={idDaDescricao} className="min-w-0 text-sm break-words text-apoio">
           Os nomes aparecem só aqui, para você, em ordem de nome. O que foi dito ao Tutor não aparece, e nada abre a conversa de um aluno.
@@ -327,12 +327,12 @@ function PainelDoTutor({ turmaId, lendoOsSinais, falhouOsSinais, atencao, alunos
         )}
 
         <section aria-labelledby={idDosSinais} className="flex min-w-0 flex-col gap-3">
-          <CabecalhoDeSecao id={idDosSinais} nivel={3} titulo="Sinais por aluno" />
+          <SectionHeader id={idDosSinais} nivel={3} titulo="Sinais por aluno" />
           {lendoOsSinais && <EstadoCarregando rotulo="Carregando os sinais…" />}
           {falhouOsSinais && <p className="text-sm break-words text-sutil">Não foi possível carregar os sinais. “Tentar de novo”, na tela, lê de novo.</p>}
           {!lendoOsSinais && !falhouOsSinais && trabalho.length === 0 && <p className="text-sm break-words text-sutil">Nenhum sinal de trabalho por aluno agora.</p>}
           {trabalho.length > 0 && (
-            <Tabela
+            <Table
               rotulo="Sinais por aluno"
               colunas={[
                 { chave: 'aluno', titulo: 'Aluno', celula: (sinal) => sinal.aluno.nome },
@@ -346,14 +346,14 @@ function PainelDoTutor({ turmaId, lendoOsSinais, falhouOsSinais, atencao, alunos
         </section>
 
         <section aria-labelledby={idDoUso} className="flex min-w-0 flex-col gap-3">
-          <CabecalhoDeSecao id={idDoUso} nivel={3} titulo="Uso do Tutor pela turma" apoio="Quem já conversou com o Tutor neste ano, em ordem de nome. Não há uso do Tutor que você não veja." />
+          <SectionHeader id={idDoUso} nivel={3} titulo="Uso do Tutor pela turma" apoio="Quem já conversou com o Tutor neste ano, em ordem de nome. Não há uso do Tutor que você não veja." />
           {uso.isPending && <EstadoCarregando rotulo="Carregando o uso do Tutor…" />}
           {uso.isError && uso.data === undefined && <EstadoErro erro={uso.error} tentando={uso.isFetching} aoTentarDeNovo={() => void uso.refetch({ cancelRefetch: false })} />}
           {uso.data !== undefined && (
             <>
               {uso.data.pacoteDaTurmaNoMes > 0 && (
                 <div className="rounded-cartao border border-linha bg-superficie p-4">
-                  <BarraRotulada
+                  <ProgressBar
                     rotulo="Trocas da turma neste mês"
                     valor={uso.data.trocasDaTurmaNoMes}
                     maximo={uso.data.pacoteDaTurmaNoMes}
@@ -365,7 +365,7 @@ function PainelDoTutor({ turmaId, lendoOsSinais, falhouOsSinais, atencao, alunos
               {uso.data.alunos.length === 0 ? (
                 <EstadoVazio titulo="Nenhum aluno desta turma usou o Tutor ainda" descricao="Quando um aluno conversar com o Tutor, ele aparece aqui com as trocas de hoje e em que estava. O conteúdo da conversa não aparece." />
               ) : (
-                <Tabela
+                <Table
                   rotulo="Uso do Tutor por aluno"
                   colunas={[
                     { chave: 'aluno', titulo: 'Aluno', celula: (aluno) => aluno.aluno.nome },
@@ -382,6 +382,6 @@ function PainelDoTutor({ turmaId, lendoOsSinais, falhouOsSinais, atencao, alunos
           )}
         </section>
       </div>
-    </PainelLado>
+    </Sheet>
   )
 }

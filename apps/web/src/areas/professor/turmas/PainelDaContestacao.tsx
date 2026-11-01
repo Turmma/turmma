@@ -1,8 +1,8 @@
 import { AVISO_DO_COMPLEMENTO, CONTESTACOES_DE_VINCULO, EFEITO_DA_CONTESTACAO, NOME_DA_CONTESTACAO, TAMANHO_MAXIMO_DO_COMPLEMENTO, type ContestacaoDeVinculo, type Vinculo } from '@educa/shared'
 import { useId, type FormEvent } from 'react'
 import { mensagemDoErro } from '../../../api/client'
-import { Botao } from '../../../components/ui/Botao'
-import { PainelLado } from '../../../components/ui/overlays/PainelLado'
+import { Button } from '../../../components/ui/Button'
+import { Sheet } from '../../../components/ui/overlays/Sheet'
 import { LadrilhoDoVinculo, nomeDoVinculo } from './vinculo-na-tela'
 
 /** A contestação que está sendo escrita, no estado de `Turmas`: a lista pode recarregar por baixo sem levá-la junto. */
@@ -36,18 +36,18 @@ export default function PainelDaContestacao({ vinculo, contestacao, enviando, fa
   const aviso = useId()
   const formulario = useId()
   return (
-    <PainelLado
+    <Sheet
       titulo="Contestar a turma"
       aoFechar={aoFechar}
       focoDeReserva={focoDeReserva}
       rodape={
         <>
-          <Botao variante="secundario" onClick={aoFechar} disabled={enviando}>
+          <Button variante="secundario" onClick={aoFechar} disabled={enviando}>
             Cancelar
-          </Botao>
-          <Botao type="submit" form={formulario} disabled={enviando}>
+          </Button>
+          <Button type="submit" form={formulario} disabled={enviando}>
             {enviando ? 'Enviando…' : 'Enviar a contestação'}
-          </Botao>
+          </Button>
         </>
       }
     >
@@ -90,6 +90,6 @@ export default function PainelDaContestacao({ vinculo, contestacao, enviando, fa
           </p>
         )}
       </form>
-    </PainelLado>
+    </Sheet>
   )
 }
