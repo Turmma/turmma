@@ -15,16 +15,13 @@
 import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { basename } from 'node:path'
-import { BRANCHES_PROTEGIDAS, conteudoDoHead, ehPapelDoTime, LIMITE_DE_LEITURA_DO_GIT, PAPEIS_DO_TIME } from './comando-git.ts'
+import { arquivosPreparados, BRANCHES_PROTEGIDAS, conteudoDoHead, ehPapelDoTime, LIMITE_DE_LEITURA_DO_GIT, PAPEIS_DO_TIME } from './comando-git.ts'
 import type { ConteudoDe } from './guardioes-por-caminho.ts'
 import { avaliarMutacoes } from './mutacoes.ts'
 import { bloqueioDoForaDoProcesso, decidirCommit } from './portao.ts'
 
 const git = (raiz: string, argumentos: string[]): string =>
   execFileSync('git', argumentos, { cwd: raiz, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: LIMITE_DE_LEITURA_DO_GIT })
-
-/** Os nomes que um `git diff --cached` devolve com `-z`, sem o vazio do último separador. */
-const nomes = (saida: string): string[] => saida.split('\0').filter((nome) => nome !== '')
 
 /** A sessão é de papel: a variável existe e não está vazia. Quem não a tem (Joaquim, Orquestrador) não é julgado aqui. */
 const ehSessaoDePapel = (papel: string | undefined): papel is string => papel !== undefined && papel !== ''
@@ -33,32 +30,6 @@ const ehSessaoDePapel = (papel: string | undefined): papel is string => papel !=
 function recusaDoPapel(papel: string, acao: 'Commit' | 'Push'): string | null {
   if (ehPapelDoTime(papel)) return null
   return `${acao} bloqueado: \`CLAUDE_CODE_AGENT\` é \`${papel}\`, e papel do time é um destes: ${PAPEIS_DO_TIME.join(', ')}. Valor que não é de papel não pula o julgamento.`
-}
-
-function mergeEmCurso(raiz: string): boolean {
-  try {
-    git(raiz, ['rev-parse', '-q', '--verify', 'MERGE_HEAD'])
-    return true
-  } catch {
-    return false
-  }
-}
-
-/** Os arquivos que o índice tem de diferente de `contra` (o HEAD, sem ele), sem detectar rename: o que sai e o que entra contam os dois. */
-function diferencasDoIndice(raiz: string, contra: string[]): string[] {
-  return nomes(git(raiz, ['diff', '--cached', '--name-only', '--no-renames', '-z', ...contra]))
-}
-
-/**
- * Os arquivos que o commit leva, do índice. Com um merge em curso, só o que diverge dos **dois** lados: o conflito resolvido à
- * mão e o arquivo que as duas linhas tocaram. O que veio do outro lado sem mudar já passou pelos revisores na linha de onde
- * veio (`arquivosAlterados`).
- */
-export function arquivosDoIndice(raiz: string): string[] {
-  const doCommit = diferencasDoIndice(raiz, [])
-  if (!mergeEmCurso(raiz)) return doCommit
-  const doOutroLado = new Set(diferencasDoIndice(raiz, ['MERGE_HEAD']))
-  return doCommit.filter((arquivo) => doOutroLado.has(arquivo))
 }
 
 /**
@@ -84,7 +55,7 @@ export function bloqueioDoCommitMsg(raiz: string, arquivoDaMensagem: string, pap
   const mensagem = readFileSync(arquivoDaMensagem, 'utf8')
   const fora = bloqueioDoForaDoProcesso('', mensagem)
   if (fora !== null) return fora
-  return decidirCommit({ mensagem, arquivos: arquivosDoIndice(raiz), conteudoDe: conteudoDoIndice(raiz), raiz, papel }, avaliarMutacoes)
+  return decidirCommit({ mensagem, arquivos: arquivosPreparados(raiz), conteudoDe: conteudoDoIndice(raiz), raiz, papel }, avaliarMutacoes)
 }
 
 /**

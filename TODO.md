@@ -2421,3 +2421,15 @@ repetem aqui.
       spec de introdução voltar a ser tocado (revisor-geral e test-engineer, rodada 1)
 - [ ] Da correção `2026-10-31-introducao-pular-grava-a-data`: caso de clique duplo no "Pular" com a resposta atrasada, provando uma gravação só no e2e; é cenário novo,
       e a data já é única por `coalesce(introducao_vista_em, now())` (`eu.repository.ts:51`) (infra-guardian, rodada 1)
+
+## Da correção 2026-10-31-portao-conta-o-merge-como-o-git-hook, fora dela
+
+- [ ] Da correção `2026-10-31-portao-conta-o-merge-como-o-git-hook`: `tools/processo/caducidade.ts` (`diferentesDoOutroLado`, perto da linha 210) é uma segunda cópia
+      da regra do merge, sem `--cached` e sem `LIMITE_DE_LEITURA_DO_GIT`; trocá-la pelo `mergeEmCurso` exportado de `comando-git.ts` (hoje ele só é usado dentro do arquivo) muda o
+      que caduca e pede os quatro guardiões do RF16 (revisor-geral e test-engineer, rodada 1). Junto: no teste "o conflito resolvido à mão num repository …" de `revisoes.test.ts`,
+      o `expect(decisao).not.toMatch(/apps\/outro\.ts/)` só passa a provar `arquivosPreparados` quando a conta de `caducidade.ts` for a mesma, porque a lista de arquivos da decisão
+      sai de `arquivosAlterados`; a asserção do `tenancy-guardian` é a que prova a correção hoje (test-engineer e tenancy-guardian, rodada 2)
+- [ ] Da correção `2026-10-31-portao-conta-o-merge-como-o-git-hook`: caso de `git add -A` seguido do commit, com merge em curso, na camada do `PreToolUse`; esse caminho passa por
+      `arquivosAlterados` (`caducidade.ts:228`), então entra junto com a duplicata acima (test-engineer, rodada 1)
+- [ ] Da correção `2026-10-31-portao-conta-o-merge-como-o-git-hook`, para o Arquiteto e a retro da spec: a frase da `techspec.md:69` dizendo que o `PreToolUse` conta igual ao git hook,
+      e o registro, nos "Limites declarados" (`techspec.md:110`), de que um arquivo só do outro lado do merge é tratado como já revisto (revisor-geral, privacy-guardian e tenancy-guardian, rodada 1)

@@ -100,9 +100,54 @@ export function conteudoDoHead(raiz: string): (arquivo: string) => string | null
   }
 }
 
-/** Os arquivos do índice. Sem detectar rename (`--no-renames`), como o git hook: o caminho de origem de um arquivo movido conta, e mover um repository para fora do padrão não esconde o guardião que ele pedia. */
+/**
+ * Há um merge em curso na árvore (`MERGE_HEAD` existe). Qualquer falha do `git rev-parse` conta como "sem merge", **de propósito**:
+ * é a direção segura, porque `arquivosPreparados` passa a contar o índice inteiro contra o HEAD e o portão cobra mais revisores, e
+ * nunca menos.
+ */
+export function mergeEmCurso(raiz: string): boolean {
+  try {
+    execFileSync('git', ['rev-parse', '-q', '--verify', 'MERGE_HEAD'], { cwd: raiz, stdio: ['ignore', 'pipe', 'ignore'] })
+    return true
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Os arquivos que o índice tem de diferente de `contra` (o HEAD, sem ele), sem detectar rename: o que sai e o que entra contam os dois.
+ * O stderr do git é capturado (`pipe`) e não sai no terminal: se o git falha, a mensagem dele vai no erro lançado, como no helper que
+ * o `hook-git.ts` tinha. O `ignore` de `conteudoDoHead` descartaria a mensagem.
+ */
+function diferencasDoIndice(raiz: string, contra: string[]): string[] {
+  return execFileSync('git', ['diff', '--cached', '--name-only', '--no-renames', '-z', ...contra], {
+    cwd: raiz,
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+    maxBuffer: LIMITE_DE_LEITURA_DO_GIT,
+  })
+    .split('\0')
+    .filter(Boolean)
+}
+
+/**
+ * Os arquivos do índice, que o commit leva. Sem detectar rename (`--no-renames`): o caminho de origem de um arquivo movido conta, e
+ * mover um repository para fora do padrão não esconde o guardião que ele pedia. Com um merge em curso, só o que diverge dos **dois**
+ * lados: o conflito resolvido à mão e o arquivo que as duas linhas tocaram. O que veio do outro lado sem mudar já passou pelos
+ * revisores na linha de onde veio.
+ *
+ * **A conta supõe essa premissa e não a prova**: um arquivo só do outro lado é tratado como já revisto. Ela vale para as linhas e a
+ * spec do Maestri, cujos commits passam pelo git hook. Não vale para uma branch com commit do Joaquim ou do Orquestrador (o hook
+ * não julga essas sessões) nem para commit feito com `--no-verify` fora de papel; o que cobre esse caso é a conferência de entrega
+ * antes de a branch entrar na base (`conferirEntrega`, `tools/processo/linhas.ts`) e a terceira camada, a esteira. Por isso a
+ * função não basta sozinha como garantia de revisão. É a conta única do `PreToolUse` (`portao.ts`) e do git hook (`hook-git.ts`): as duas camadas
+ * têm de cobrar os mesmos guardiões pelo mesmo commit.
+ */
 export function arquivosPreparados(raiz: string): string[] {
-  return execFileSync('git', ['diff', '--cached', '--name-only', '--no-renames', '-z'], { cwd: raiz, encoding: 'utf8' }).split('\0').filter(Boolean)
+  const doCommit = diferencasDoIndice(raiz, [])
+  if (!mergeEmCurso(raiz)) return doCommit
+  const doOutroLado = new Set(diferencasDoIndice(raiz, ['MERGE_HEAD']))
+  return doCommit.filter((arquivo) => doOutroLado.has(arquivo))
 }
 
 const CAMINHO = String.raw`(?:"[^"]+"|'[^']+'|[^\s;&|()]+)`

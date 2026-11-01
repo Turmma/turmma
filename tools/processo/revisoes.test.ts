@@ -2109,6 +2109,64 @@ describe('RF15: o commit exige o guardião que o caminho pede', () => {
     expect(arquivosPreparados(raiz).sort()).toEqual(['apps/api/src/x.repository.ts', 'apps/web/src/gallery/x.tsx'])
   })
 
+  describe('com um merge em curso, a conta é a do git hook: só o que diverge dos dois lados', () => {
+    /** `main` tem `apps/comum.ts` mudado no fim e `outra` o muda no começo e traz `apps/outro.ts`: o merge é limpo e fica por concluir. */
+    function mergePorConcluir() {
+      const raiz = arvore([], SEMPRE, { 'apps/comum.ts': 'a\n1\n2\n3\n4\n5\n6\n7\n8\nb\n' })
+      const git = (...args: string[]) => execFileSync('git', ['-c', 'user.email=t@t', '-c', 'user.name=t', ...args], { cwd: raiz, stdio: 'pipe' })
+      git('add', 'apps')
+      git('commit', '-q', '-m', 'base')
+      git('checkout', '-q', '-b', 'outra')
+      writeFileSync(join(raiz, 'apps/comum.ts'), 'A\n1\n2\n3\n4\n5\n6\n7\n8\nb\n')
+      writeFileSync(join(raiz, 'apps/outro.ts'), 'export const b = 1\n')
+      git('add', 'apps')
+      git('commit', '-q', '-m', 'outra linha')
+      git('checkout', '-q', '-')
+      writeFileSync(join(raiz, 'apps/comum.ts'), 'a\n1\n2\n3\n4\n5\n6\n7\n8\nB\n')
+      git('add', 'apps')
+      git('commit', '-q', '-m', 'esta linha')
+      git('merge', '--no-commit', '--no-ff', 'outra')
+      return raiz
+    }
+
+    it('o arquivo que só veio do outro lado não conta, e o que as duas linhas tocaram conta', () => {
+      const raiz = mergePorConcluir()
+      expect(arquivosPreparados(raiz)).toEqual(['apps/comum.ts'])
+    })
+
+    it('o portão do PreToolUse cobra só o que as duas linhas tocaram, e não o que veio do outro lado', () => {
+      const raiz = mergePorConcluir()
+      // Sem o merge em curso, `apps/outro.ts` e `apps/comum.ts` seriam código sem marca; com ele, só `apps/comum.ts` é do commit.
+      const decisao = portao({ tool_input: { command: 'git commit -m "Traz a outra linha"' } }, raiz, 'implementador')
+      expect(decisao).toMatch(/apps\/comum\.ts/)
+      expect(decisao).not.toMatch(/apps\/outro\.ts/)
+    })
+
+    it('o conflito resolvido à mão num repository segue cobrando o tenancy-guardian no PreToolUse, e o que veio só do outro lado não', () => {
+      const raiz = arvore([], SEMPRE, { [REPOSITORY]: 'export const a = 1\n' })
+      const git = (...args: string[]) => execFileSync('git', ['-c', 'user.email=t@t', '-c', 'user.name=t', ...args], { cwd: raiz, stdio: 'pipe' })
+      git('add', 'apps')
+      git('commit', '-q', '-m', 'base')
+      git('checkout', '-q', '-b', 'outra')
+      writeFileSync(join(raiz, REPOSITORY), 'export const a = 2\n')
+      writeFileSync(join(raiz, 'apps/outro.ts'), 'export const b = 1\n')
+      git('add', 'apps')
+      git('commit', '-q', '-m', 'outra linha')
+      git('checkout', '-q', '-')
+      writeFileSync(join(raiz, REPOSITORY), 'export const a = 3\n')
+      git('add', 'apps')
+      git('commit', '-q', '-m', 'esta linha')
+      expect(() => git('merge', '--no-commit', '--no-ff', 'outra')).toThrow()
+      // O conflito resolvido à mão, salvo antes da rodada (09:00) para a rodada valer.
+      writeFileSync(join(raiz, REPOSITORY), 'export const a = 4\n')
+      utimesSync(join(raiz, REPOSITORY), new Date('2026-09-13T09:00:00'), new Date('2026-09-13T09:00:00'))
+      git('add', REPOSITORY)
+      const decisao = portao({ tool_input: { command: `git commit -m "${MARCA}"` } }, raiz, 'implementador')
+      expect(decisao).toMatch(/- tenancy-guardian: nenhuma rodada registrada/)
+      expect(decisao).not.toMatch(/apps\/outro\.ts/)
+    })
+  })
+
   it('o conteúdo do HEAD, lido do git de verdade, e o do disco são lidos de onde o nome diz', () => {
     const grande = 'x'.repeat(2_000_000)
     const raiz = arvore([], SEMPRE, { 'docs.md': 'no HEAD\n', 'grande.txt': grande })
