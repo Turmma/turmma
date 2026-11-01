@@ -271,6 +271,10 @@ ou a trava contra filtro vazio. Nenhum caso entra (RF7). A onda sem trava leva "
   (b) **Título de modelo.** O caso cujo título tem `${}` deixa de ficar sem par: o da árvore é o caso cujo `test(` está na
   linha que o relatório do Playwright dá (`CasoMedido.linha`), e o do HEAD é o único caso do HEAD cujo título, lido como
   tokens pela regra (a), bate com o da árvore. Título de modelo repetido no HEAD, ou que não bate: sem par, e medido.
+  **O par é um para um:** esse caso do HEAD também tem de ligar, pela mesma regra, a um único caso da árvore. A cópia do
+  caso na árvore, com o mesmo título ou com um nome do mapa trocado num dos dois, deixa os dois sem par, e medidos: o
+  caso novo não herda a isenção do que já existia (`parDoCasoDeModelo`; revisor-geral, 2ª rodada da correção
+  `2026-11-01-duracao-do-e2e-so-nomes-do-mapa`, teste "cópia do título de modelo com o nome do mapa trocado num dos dois").
   Vale para as duas exceções (só comentário e só nomes), que usam o mesmo par. Cobre `e2e/incidentes.spec.ts:756`.
   O prazo do caso de modelo continua sem leitura (conta 30 s); só a isenção muda. Testes a acrescentar: isenta o nome
   local homônimo de um `de` com `arquivo`; isenta o título de modelo só com nomes do mapa; reprova o título de modelo com
