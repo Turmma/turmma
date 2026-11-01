@@ -3,6 +3,7 @@ import {
   abrirNavegacao,
   abrirSeletorDeEscola,
   entrarPelaApi,
+  entrarPelaApiSemMedirAPrimeiraCarga,
   esperarIntroducaoDoProfessor,
   esperarNovaConversa,
   FALAS_DA_INTRODUCAO_DO_PROFESSOR,
@@ -28,6 +29,8 @@ import { ALVO_DE_TOQUE_PRINCIPAL_PX, larguraExcedente, violacoesGraves } from '.
  */
 
 const SENHA_NOVA = 'Senha-sintetica-42!'
+/** Quanto o servidor demora a responder à gravação da introdução, no caso do "Pular" que prova a corrida entre a tela e o banco. */
+const ATRASO_DA_GRAVACAO_MS = 1000
 
 async function acionar(alvo: Locator, hasTouch: boolean): Promise<void> {
   await (hasTouch ? alvo.tap() : alvo.click())
@@ -37,7 +40,11 @@ const continuar = (page: Page) => page.getByRole('button', { name: 'Continuar', 
 const pular = (page: Page) => page.getByRole('button', { name: 'Pular', exact: true })
 const guardadoNoNavegador = (page: Page) => page.evaluate(() => JSON.stringify([...Object.entries(localStorage), ...Object.entries(sessionStorage)]))
 
-/** Os pedidos de gravação da introdução que a página fez, desde que foi chamada. */
+/**
+ * Os pedidos de gravação da introdução que a página fez, desde que foi chamada. O evento `request` dispara quando o navegador **envia** o pedido,
+ * antes do handler de `page.route` e muito antes de o servidor gravar: por isso a contagem não prova a data no banco, e o caso do "Pular" só fica
+ * vermelho com a resposta atrasada porque o pedido já foi contado enquanto o banco ainda está vazio.
+ */
 function contarGravacoes(page: Page): Request[] {
   const feitos: Request[] = []
   page.on('request', (pedido) => {
@@ -106,15 +113,23 @@ test.describe('a introdução do professor', () => {
   test('"Pular" no passo 1 grava a data, uma vez, e leva a "Início"', async ({ page, hasTouch }) => {
     const professora = await criarEquipeComSenha('professor', { introducao: 'por_ver' })
     expect(await introducaoVistaEmDoUsuario(professora.usuarioId)).toBeNull()
-    await entrarPelaApi(page, professora, '/')
-    await esperarIntroducaoDoProfessor(page)
+    // A primeira carga fora da rede lenta: o assunto do caso vem depois dela, e a rede lenta soma uns 5 s que não provam nada aqui.
+    await entrarPelaApiSemMedirAPrimeiraCarga(page, professora, '/', () => esperarIntroducaoDoProfessor(page))
     const gravacoes = contarGravacoes(page)
 
+    // O servidor demora a gravar: o pedido já saiu e a tela já seguiu, e o banco ainda não tem a data. É a corrida da esteira, feita à vista.
+    await page.route('**/v1/eu/introducao', async (rota) => {
+      await new Promise((fim) => setTimeout(fim, ATRASO_DA_GRAVACAO_MS))
+      await rota.continue()
+    })
     await acionar(pular(page), hasTouch)
     await expect(page).toHaveURL(/\/professor\/nova-conversa$/, { timeout: PRAZO_DA_ENTRADA_MS })
     await expect.poll(() => gravacoes.length).toBe(1)
-    // A data está no servidor, e a entrada seguinte já não desvia para a introdução (o desvio em si está em `Inicio.test.tsx`).
-    expect(await introducaoVistaEmDoUsuario(professora.usuarioId)).not.toBeNull()
+    // Quem prova a gravação é este poll do banco: o pedido saiu e a tela já seguiu, mas o servidor pode ainda não ter gravado. A data no servidor
+    // é o que faz a entrada seguinte não desviar para a introdução (o desvio em si está em `Inicio.test.tsx`); a contagem acima só diz que o pedido saiu.
+    await expect.poll(() => introducaoVistaEmDoUsuario(professora.usuarioId), { timeout: PRAZO_DA_ENTRADA_MS }).not.toBeNull()
+    // O atraso só valia para a gravação do "Pular": a entrada seguinte volta ao servidor sem ele.
+    await page.unroute('**/v1/eu/introducao')
     await page.goto('/')
     await expect(page).toHaveURL(/\/professor\/nova-conversa$/, { timeout: PRAZO_DA_ENTRADA_MS })
   })
